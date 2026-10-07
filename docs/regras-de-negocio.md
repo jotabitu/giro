@@ -553,3 +553,13 @@ Levantadas pelo arquiteto. Nenhuma bloqueia a T-011.
 - [ ] **9. [divergência] Convite só por celular.** `Admin-Usuarios` mostra convite só com celular, mas o login é por e-mail (`USR-06`). Recomendação: o e-mail é obrigatório em todo usuário, porque é o login. O celular é opcional e, quando existe, o convite também sai por WhatsApp (`USR-01`). Isso só esclarece como `USR-01` e `USR-06` funcionam juntas, **sem impacto de negócio**. A tela vai para a T-028.
 
 - [ ] **10. "Manter conectado" no `Login`.** Nenhuma regra fala nesse checkbox; a `USR-06` já fixa a sessão em 12 h sem uso no desktop e 30 dias no celular. **Precisa do dono:** A) tirar o checkbox, e a sessão segue a `USR-06` (padrão); B) marcado, estende a sessão do desktop para 30 dias sem uso, nunca para administrador e financeiro (perfis com 2 etapas obrigatória). O padrão é A, por ser mais seguro e não ter regra hoje.
+
+### Dúvidas do contrato de clientes (T-036, 07 out 2026)
+
+Levantadas pelo arquiteto em `docs/api/clientes.md`. Nenhuma bloqueia a T-014.
+
+- [ ] **11. Botão da lista quando duas situações valem (`CLI-07`).** Exemplo: Lucas está com cadastro incompleto e tem locação. Recomendação: aceitar a ordem da tela, que já é a proposta. Vale o primeiro que se aplicar: em aberto → Cobrar; incompleto → Completar cadastro; com locação → Ver locação; com venda aberta (`VEN-10`) → Ver proposta; nenhum desses → Nova locação. Só completa a `CLI-07`, **sem impacto de negócio**.
+
+- [ ] **12. Quem desbloqueia o cliente à mão.** As regras discordam: `CLI-05` deixa o gerente desbloquear; `APR-05` põe o gerente entre quem pede e entre quem aprova; e `APR-09` impede aprovar o próprio pedido. Com a proposta do arquiteto (gerente pede, outro gerente ou o administrador aprova), toda filial com um gerente só (Moto Rápida) depende do administrador para cada desbloqueio. **Precisa do dono:** A) gerente e administrador desbloqueiam direto, com motivo e evento de auditoria (`CLI-05`), e só o vendedor pede, com aprovação do gerente (`APR-05`) — padrão recomendado; B) só o administrador desbloqueia direto, e gerente e vendedor pedem (proposta do arquiteto). O desbloqueio automático ao quitar (`CLI-05`) não muda em nenhuma das duas.
+
+- [ ] **13. Como o cliente fica `inativo`.** Nenhuma regra diz como se entra nesse estado. Recomendação: aceitar a proposta. Gerente ou administrador inativa, com motivo; a ação é recusada se o cliente tem locação aberta, venda aberta ou valor em aberto. Cliente inativo sai da lista padrão (aparece no filtro "todos") e não faz locação nem compra. Gerente ou administrador reativa, e ele volta a `ativo` ou `incompleto`, conforme o cadastro (`CLI-03`). **Impacto de negócio pequeno.** Padrão até a aprovação: esta recomendação.

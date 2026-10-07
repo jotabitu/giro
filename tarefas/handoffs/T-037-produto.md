@@ -27,3 +27,10 @@ Itens 8, 9 e 10 de "Pontos em aberto":
 - 10: "Manter conectado" precisa do dono do produto: A) tirar, que é o padrão; B) estender o desktop para 30 dias, exceto administrador e financeiro.
 
 As linhas `[decisão]` ficaram no backlog da branch do Arquiteto (T-036).
+
+## Dúvidas da T-036 (clientes)
+
+Itens 11, 12 e 13 de "Pontos em aberto":
+- 11: ordem do botão da `CLI-07` como na tela; sem impacto.
+- 12: desbloqueio manual precisa do dono do produto: A) gerente e administrador desbloqueiam direto, que é o padrão recomendado; B) só o administrador, como na proposta do arquiteto.
+- 13: inativar cliente como na proposta, e reativar volta a `ativo` ou `incompleto`.
