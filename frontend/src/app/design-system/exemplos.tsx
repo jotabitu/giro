@@ -6,6 +6,7 @@ import { useState, type ReactNode } from "react";
 import {
   AlertCard,
   Button,
+  CodigoVerificacao,
   CelulaDupla,
   Contador,
   Cover,
@@ -210,6 +211,34 @@ function ExemploTextField() {
   );
 }
 
+function ExemploCodigoVerificacao() {
+  const [codigo, setCodigo] = useState("481");
+  const [enviado, setEnviado] = useState("");
+  const [erro, setErro] = useState(false);
+  return (
+    <div className="flex flex-col gap-6" style={{ maxWidth: 420 }}>
+      <CodigoVerificacao
+        rotulo="Código do aplicativo"
+        valor={codigo}
+        aoMudar={(v) => {
+          setCodigo(v);
+          setErro(false);
+        }}
+        aoCompletar={(v) => {
+          setEnviado(v);
+          setErro(v !== "123456");
+        }}
+        erro={erro ? "Código incorreto. Confira o horário do celular e tente de novo." : undefined}
+        autoFocus
+      />
+      <p className="text-caption text-ink-muted">
+        Digite, cole o código inteiro ou use as setas. Qualquer código diferente de 123456 mostra o erro. Último completo: {enviado || "nenhum"}.
+      </p>
+      <CodigoVerificacao rotulo="Desabilitado" valor="" aoMudar={() => {}} disabled />
+    </div>
+  );
+}
+
 function ExemploAlertCard() {
   return (
     <div style={{ maxWidth: 460 }}>
@@ -285,6 +314,7 @@ function ExemploSidebar() {
 const EXEMPLOS: Record<SlugExemplo, () => ReactNode> = {
   "alert-card": ExemploAlertCard,
   "button": ExemploButton,
+  "codigo-verificacao": ExemploCodigoVerificacao,
   "cover": () => <Cover />,
   "data-table": ExemploDataTable,
   "fleet-bar": ExemploFleetBar,
