@@ -164,8 +164,8 @@ export function variaveisCss(tema: "light" | "dark"): string {
 export const variaveisBase: string = [
   ...Object.entries(espacamento).map(([k, v]) => `--space-${k}: ${v};`),
   ...Object.entries(raio).map(([k, v]) => `--radius-${k}: ${v};`),
-  `--font-sans: ${fontes.sans};`,
-  `--font-mono: ${fontes.mono};`,
+  `--font-sans: var(--font-geist-sans), ${fontes.sans};`,
+  `--font-mono: var(--font-geist-mono), ${fontes.mono};`,
 ].join(" ");
 
 export function cssDosTemas(): string {
