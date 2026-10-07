@@ -11,7 +11,7 @@ Cada seção descreve um módulo: o que existe, os estados, as transições, os 
 **Convenções obrigatórias**
 
 - **Multiempresa:** toda tabela de negócio tem `empresa_id` (via schema do django-tenants) e, quando faz sentido, `filial_id`. Nenhuma consulta cruza empresas. O painel da plataforma usa o schema público.
-- **Dinheiro:** sempre em centavos, inteiro (`valor_centavos`). Arredondamento só na exibição. Percentuais guardados com 2 casas (`desconto_pct = 8.00`).
+- **Dinheiro:** sempre em centavos, inteiro (`valor_centavos`). Percentuais guardados com 2 casas (`desconto_pct = 8.00`). Cálculos com percentual ou divisão (desconto, multa, juros, comissão, proporcional, parcelas) fazem as contas intermediárias em decimal, sem arredondar, e arredondam uma vez cada valor que é gravado ou exibido como linha própria, para o centavo, com meio centavo para cima (`ROUND_HALF_UP`). Ao dividir um total em parcelas, a diferença de centavos vai para a última parcela, e a soma sempre bate com o total. Fora isso, arredondamento só na exibição. (Decidido em 07 out 2026, T-031.)
 - **Datas e horas:** gravadas em UTC, exibidas em `America/Sao_Paulo`. Vencimentos são datas (sem hora). Devoluções têm data e hora.
 - **Status:** cada entidade com ciclo de vida tem um campo `status` com valores fechados (enum) listados neste documento. Mudança de status só por serviço de domínio (`services.py`), nunca por update direto, e sempre grava um evento de auditoria.
 - **Exclusão:** nada de negócio é apagado. Usa `ativo=false` ou status de cancelado. Registros financeiros nunca são editados depois de pagos: corrige-se com estorno.
@@ -59,7 +59,25 @@ São 25 entidades principais. As 5 primeiras ficam no schema público (plataform
 | Comissão | usuário, origem, base, regra, valor, status, mês de pagamento | Usuário |  |
 | Evento de auditoria | quem, quando, ação, objeto, antes/depois, IP | Empresa e plataforma | imutável |
 
-Um veículo só pode ter **uma** locação ativa por vez e só pode estar em **uma** venda aberta por vez.
+Um veículo só pode ter **uma** locação ativa por vez e só pode estar em **uma** venda aberta por vez. Venda aberta é a que está em `proposta`, `negociacao` ou `aguardando_aprovacao` (`VEN-10`); vários registros `interessado` podem existir para o mesmo veículo (decidido em 07 out 2026, T-031).
+
+**Estados das entidades sem seção própria** (decidido em 07 out 2026, T-031). Os estados de empresa, cliente, locação, veículo, venda, conta a receber, despesa, ordem de serviço e comissão ficam nas seções de cada módulo.
+
+| Entidade | Estados | Origem |
+| --- | --- | --- |
+| Fatura da assinatura | `aberta`, `paga`, `atrasada`, `cancelada` | estados da empresa, `PLT-02` |
+| Usuário | `convite_pendente`, `ativo`, `desativado` | `USR-01`, `USR-04` |
+| Vistoria | `rascunho`, `concluida` | `DEV-05`, `VIS-04` |
+| Contrato | `gerado`, `enviado`, `assinado`, `cancelado` | fluxo da retirada, passo 3 |
+| Caixa do dia | `aberto`, `aguardando_aprovacao`, `fechado`, `fechado_sem_conferencia` | `FIN-07`, `FIN-08`, `APR-04` |
+| Acesso de suporte | `ativo`, `encerrado`, `revogado` | `PLT-07`, `AUT-15` |
+| Pedido de aprovação | `pendente`, `aprovado`, `recusado`, `cancelado` | seção Aprovações |
+| Lançamento bancário | `pendente`, `conciliado`, `ignorado` | `FIN-11` |
+
+- Usuário: convite vencido (mais de 7 dias, `USR-01`) continua `convite_pendente`, com o link expirado, e conta no limite do plano até ser reenviado ou cancelado.
+- Vistoria: correção de vistoria concluída é uma vistoria nova ligada à anterior, com motivo (`VIS-04`), não um estado.
+- Acesso de suporte: `encerrado` quando o prazo acaba ou o suporte sai; `revogado` quando o administrador da empresa bloqueia (`PLT-07`).
+- Pedido de aprovação: `cancelado` quando quem pediu desiste ou a origem deixa de existir.
 
 ## Plataforma e assinatura
 
@@ -82,7 +100,7 @@ A empresa cliente passa por 6 estados. Só `ativa` e `em_teste` operam normalmen
 - `PLT-04` Mudança de plano: upgrade vale na hora e cobra a diferença proporcional; downgrade só se o uso couber no plano menor, e vale na próxima fatura.
 - `PLT-05` Preço novo de plano vale só para novas assinaturas; reajuste de quem já assina exige aviso de 30 dias.
 - `PLT-06` Cancelamento pede motivo, oferece pausar ou mudar para o Essencial, e exige digitar o nome da empresa. Contratos já assinados com clientes finais continuam válidos.
-- `PLT-07` **Entrar como suporte:** só com motivo (de preferência um chamado), duração de 15 min, 30 min ou 1 h, permissão "só ver" ou "ver e editar". O administrador da empresa recebe e-mail na hora; aparece uma faixa "Modo suporte" no topo; entrada e saída ficam na auditoria da empresa e na da plataforma. O administrador pode bloquear o acesso do suporte.
+- `PLT-07` **Entrar como suporte:** só com motivo (de preferência um chamado), duração de 15 min, 30 min ou 1 h, permissão "só ver" ou "ver e editar". O administrador da empresa recebe e-mail na hora; aparece uma faixa "Modo suporte" no topo; entrada e saída ficam na auditoria da empresa e na da plataforma. O administrador pode bloquear o acesso do suporte. Mesmo com "ver e editar", o suporte vê dados pessoais mascarados (`AUD-09`).
 - `PLT-08` Usuários da plataforma são obrigados a usar verificação em 2 etapas. 3 códigos errados bloqueiam o login por 15 minutos e geram evento de segurança.
 - `PLT-09` Funções da equipe interna: **Dono** (tudo); **Suporte** (ver empresas, chamados, entrar como suporte); **Financeiro** (cobrança, faturas, suspender); **Sucesso do cliente** (ver empresas, implantações, entrar como suporte, estender teste, mudar plano). Só o Dono mexe em planos e na equipe.
 - `PLT-10` Indicadores do painel (`Plataforma-Desktop`): receita recorrente = soma das assinaturas ativas e inadimplentes; cancelamentos do mês / empresas pagantes no início do mês = taxa de cancelamento.
@@ -109,7 +127,7 @@ Da compra até a 1ª locação são 12 etapas. As 4 primeiras são a compra e o 
 **Regras**
 
 - `IMP-01` A implantação está "concluída" quando existe a 1ª locação ou venda. Antes disso, a tela inicial do administrador é `Pos-Dashboard`, com a lista do que falta.
-- `IMP-02` A importação valida cada linha antes de gravar: placa única, chassi com 17 caracteres, categoria existente. Linhas com erro não entram e ficam numa lista para corrigir (Moto Rápida: 83 prontos, 3 para corrigir; depois de corrigidos, 86 veículos).
+- `IMP-02` A importação valida cada linha antes de gravar: placa única, chassi único com 17 caracteres (`VEI-01`), categoria existente. Linhas com erro não entram e ficam numa lista para corrigir (Moto Rápida: 83 prontos, 3 para corrigir; depois de corrigidos, 86 veículos).
 - `IMP-03` Importar respeita o limite do plano (`PLT-03`). Se a planilha passa do limite, importa até o limite e avisa.
 - `IMP-04` Sem modelo de contrato publicado, o sistema não deixa concluir uma locação (aparece o atalho para o passo 9). Foi o motivo do chamado #1042 da Moto Rápida.
 - `IMP-05` O progresso de cada empresa alimenta o funil do painel da plataforma (`Plat-Implantacoes`): Conta → Marca → Filial → Preços → Dados → 1ª locação. Empresa que fica 3 dias ou mais no mesmo passo entra em "precisam de ajuda".
@@ -139,13 +157,30 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
 
 **Regras**
 
-- `USR-01` Convite por e-mail ou WhatsApp com link válido por 7 dias. A pessoa cria a senha e entra já com perfil e filiais definidos. Convite pendente conta no limite de usuários do plano.
+- `USR-01` Convite por e-mail, e também por WhatsApp quando a pessoa tem celular, com link válido por 7 dias. O e-mail é obrigatório em todo usuário, porque é o login (`USR-06`); o celular é opcional. A pessoa cria a senha e entra já com perfil e filiais definidos. Convite pendente conta no limite de usuários do plano.
 - `USR-02` Verificação em 2 etapas obrigatória para administrador e financeiro; opcional para os demais (o administrador pode tornar obrigatória para todos).
 - `USR-03` Permissões extras por pessoa (marcar em `Admin-Usuarios`): aprovar descontos acima de 5%, cancelar contratos, ver relatórios de todas as filiais. Elas somam ao perfil, nunca tiram.
 - `USR-04` Desativar usuário encerra a sessão na hora. O histórico do que ele fez continua. Usuário desativado não conta no limite do plano.
 - `USR-05` Menu: tela inicial de cada perfil usa o menu daquele perfil; telas compartilhadas usam o menu completo, escondendo os itens sem permissão. Itens sem permissão nunca aparecem desabilitados, simplesmente não aparecem.
-- `USR-06` Login com e-mail e senha; 5 tentativas erradas bloqueiam por 15 minutos e avisam o administrador. Sessão expira após 12 h sem uso no desktop e 30 dias no celular.
+- `USR-06` Login com e-mail e senha; 5 tentativas erradas bloqueiam por 15 minutos e avisam o administrador. Sessão expira após 12 h sem uso no desktop e 30 dias no celular. Não existe opção "manter conectado".
 - `USR-07` Escopo de filial: o seletor de filial no topo do menu mostra só as filiais da pessoa. Administrador pode escolher "Todas as filiais".
+
+*Mudanças em 07 out 2026 (T-037):* `USR-01` passou a dizer que o e-mail é obrigatório e o celular é opcional; `USR-06` deixou claro que não há "manter conectado".
+
+## Filiais
+
+A empresa tem ao menos uma filial ativa, e uma delas é a matriz. Veículos, locações, caixa do dia, vistorias e ordens de serviço são de uma filial; clientes, marca, modelos de contrato e usuários são da empresa (cada usuário com acesso escolhido por filial, `USR-07`). Telas: `Filiais`, `Filial`, `Onboarding-Filial`.
+
+**Regras**
+
+- `FIL-01` Cadastro: nome (único na empresa), CNPJ e inscrições (opcionais), endereço, contato, horário por dia da semana (até 2 intervalos por dia, para quem fecha no almoço) e feriados (`FIL-03`). A filial é ativa ou inativa, sem rascunho: só salva com os campos obrigatórios. A primeira filial é sempre a matriz, e só existe uma matriz.
+- `FIL-02` Os gerentes da filial são os usuários com perfil gerente ligados a ela (`USR-07`), e não um campo da filial. Avisos e tarefas "para o gerente" vão a todos os gerentes da filial.
+- `FIL-03` Feriados: cada filial tem uma lista de datas em que fica fechada, cadastrada pelo administrador. A cada ano o sistema sugere os feriados nacionais, e o administrador confirma ou acrescenta os locais. Em dia de feriado a filial conta como fechada para `LOC-11`.
+- `FIL-04` O preço pode ser da empresa ou de uma filial, pela categoria (`LOC-01`, tela `Precos`). Não há "tabela de preço padrão", vagas no pátio nem centro de custo na filial: a própria filial é o centro de custo (DRE por filial, `FIN-13`). O recebimento é da empresa, numa única subconta do parceiro de pagamento (Decisões de 07 out 2026). O sistema não emite nota fiscal.
+- `FIL-05` A frota é de cada filial. A devolução é feita na filial da locação, e não há frota compartilhada: para usar o veículo de outra filial, ele é transferido antes (`VEI-04`).
+- `FIL-06` Desativar filial: só o administrador, com motivo. É recusado quando a filial é a matriz (escolher outra antes), quando é a última filial ativa, ou quando ainda tem operação. Operação aqui é: veículos fora de `vendido` e `baixado`; locações em `rascunho`, `aguardando_retirada`, `ativa` ou `devolucao_atrasada`; caixa do dia `aberto` ou `aguardando_aprovacao`. A recusa mostra quanto falta em cada grupo. Contas a receber em aberto e despesas a pagar não impedem: continuam na régua de cobrança (`AUT-03`), podem ser pagas por Pix ou boleto (`FIN-04`) ou no caixa de outra filial, e mantêm a filial de origem para relatório e DRE. Nada é apagado; reativar respeita o limite do plano (`PLT-03`).
+
+*Criada em 07 out 2026 (T-037), a partir da tela `Filial` e das dúvidas da T-030 decididas pelo dono do produto.*
 
 ## Veículos
 
@@ -177,18 +212,24 @@ O veículo tem 8 estados e só muda de estado por um evento de outro módulo (lo
 | `disponivel` | `a_venda` | "Colocar à venda" na ficha | gerente, administrador |
 | `a_venda` | `disponivel` | "Voltar para a frota" | gerente, administrador |
 | `a_venda` | `vendido` | venda concluída (pagamento ou contrato) | sistema |
+| `vendido` | `a_venda` | venda cancelada (`VEN-07`) | sistema |
+| `vendido` | `indisponivel` | veículo recomprado numa troca (`VEN-05`, `VEI-07`) | sistema |
 | qualquer, exceto `alugado` | `baixado` | baixa com motivo | administrador |
 
 Qualquer outra transição é recusada pelo backend com erro de regra (HTTP 409).
 
 **Regras**
 
-- `VEI-01` Placa única por empresa; chassi com 17 caracteres; km nunca diminui (vistoria com km menor que o anterior é recusada, salvo correção pelo gerente com motivo).
+- `VEI-01` Placa e chassi únicos por empresa, em qualquer estado do veículo; chassi com 17 caracteres; km nunca diminui (vistoria com km menor que o anterior é recusada, salvo correção pelo gerente com motivo).
 - `VEI-02` O km do veículo é atualizado a cada vistoria e a cada OS. Ele dispara as preventivas (`MAN-03`).
 - `VEI-03` Documentos: alerta 30 dias antes do vencimento; no dia do vencimento de CRLV ou seguro, o veículo disponível vai para `indisponivel`. Veículo alugado não muda, mas gera tarefa urgente para o gerente.
-- `VEI-04` Transferência entre filiais só com o veículo `disponivel`. Grava a filial de origem e destino.
+- `VEI-04` Transferência entre filiais só com o veículo `disponivel`. Grava a filial de origem e destino. É o único jeito de um veículo mudar de filial: a devolução é sempre na filial da locação e a frota não é compartilhada (`FIL-05`).
 - `VEI-05` "Rendeu no ano" na ficha = receitas de locação recebidas do veículo − custos de manutenção e despesas ligadas a ele, no ano corrente.
 - `VEI-06` Ocupação = dias alugado ÷ dias que o veículo esteve na frota no período (exclui `a_venda`, `vendido`, `baixado`). Ocupação da frota = média ponderada pelos dias.
+- `VEI-07` Veículo que volta para a empresa depois de vendido (recompra numa troca, `VEN-05`) reaproveita o cadastro existente, achado pelo chassi, e não ganha outro: vai de `vendido` para `indisponivel` até a vistoria, e o histórico continua no mesmo veículo.
+
+*Mudanças em 07 out 2026 (T-031):* `VEI-01` passou a exigir chassi único, além da placa; criada a `VEI-07`; acrescentadas as transições `vendido` → `a_venda` e `vendido` → `indisponivel`.
+*Mudanças em 07 out 2026 (T-037):* `VEI-04` passou a dizer que a devolução é na filial da locação e que não há frota compartilhada.
 
 ## Clientes
 
@@ -253,13 +294,15 @@ Sinais (não são estados, são calculados): `pagamento_atrasado` (alguma parcel
 **Atraso e cancelamento**
 
 - `LOC-10` Tolerância de 1 hora após o fim previsto. Depois disso, cada dia ou fração cobra 1 diária da categoria, e a locação vai para `devolucao_atrasada` no dia seguinte.
-- `LOC-11` Devolução fora do horário da filial conta como feita na abertura seguinte, mas o atraso só é cobrado se já tinha passado da tolerância no horário em que a filial fechou.
+- `LOC-11` Devolução fora do horário da filial conta como feita na abertura seguinte, mas o atraso só é cobrado se já tinha passado da tolerância no horário em que a filial fechou. Feriado da filial (`FIL-03`) conta como dia fechado: o atraso não corre nesses dias, e a devolução prevista para um feriado pode ser feita na abertura seguinte sem atraso.
 - `LOC-12` Cancelamento é pedido pelo vendedor e aprovado pelo gerente (`APR-02`). Antes da retirada: sem multa, devolve o que foi pago. Depois da retirada (encerramento antecipado): multa de 20% sobre o valor dos dias restantes do período em curso (preço do período ÷ dias do período × dias restantes), com mínimo de 1 diária da categoria, e acerto como numa devolução. Diária: sem multa, cobra só os dias usados. Ex.: Patrícia, LOC-2812, NMax mensal R$ 1.590,00, pede em 07 out com 8 dias restantes → restante R$ 424,00 → multa R$ 84,80.
 - `LOC-13` Devolução antecipada (antes do fim) não devolve parcela já paga, salvo plano mensal, que devolve as semanas inteiras não usadas (7 × preço mensal ÷ 30 por semana), menos a multa do `LOC-12`. Se a multa for maior que a devolução, a diferença vira conta a receber. Ex.: Patrícia → 1 semana inteira R$ 371,00 − multa R$ 84,80 = devolve R$ 286,20.
 - `LOC-14` Plano mensal é cobrado por mês fechado (valor da tabela, ex.: Urbana R$ 1.090), nunca como diária × 30. Pode ser pago à vista ou em 4 parcelas semanais. Período menor que um mês usa diária ou semanal.
 - `LOC-15` Preço da tabela vale para contratos novos; contrato já assinado mantém o preço da data da assinatura até o fim (renovação usa o preço novo). A tabela guarda o histórico de preços.
 
 **Lista de locações** (`Locacoes`): filtros Todas, Precisam de ação (atraso de devolução, parcela atrasada, aguardando assinatura, cancelamento pendente), Devolvem hoje, Encerradas. O botão de cada linha muda: Cobrar, Receber devolução ou Abrir.
+
+*Mudanças em 07 out 2026 (T-037):* `LOC-11` passou a contar os feriados da filial como dias fechados (`FIL-03`).
 
 ## Vistoria e devolução
 
@@ -290,7 +333,7 @@ Toda retirada e toda devolução têm uma vistoria, e a devolução é sempre co
 
 ## Vendas
 
-A venda tem 6 estados (o funil da tela mostra os 4 principais) e só vende veículo `a_venda`. Telas: `Vendas` (lista), `Venda` (Nova venda, 3 passos: Negócio → Documentos → Assinatura), `Vendedor` (início da vendedora), `Gerente` (aprovações), `Comissoes`.
+A venda tem 7 estados (o funil da tela mostra os 4 principais) e só vende veículo `a_venda`. Telas: `Vendas` (lista), `Venda` (Nova venda, 3 passos: Negócio → Documentos → Assinatura), `Vendedor` (início da vendedora), `Gerente` (aprovações), `Comissoes`.
 
 | Estado | Significa |
 | --- | --- |
@@ -300,6 +343,7 @@ A venda tem 6 estados (o funil da tela mostra os 4 principais) e só vende veíc
 | `aguardando_aprovacao` | desconto acima do limite; espera o gerente |
 | `vendida` | contrato assinado e entrada (ou valor total) recebida |
 | `perdida` | cliente desistiu ou proposta venceu (7 dias sem resposta) |
+| `cancelada` | venda concluída desfeita (`VEN-07`); só a partir de `vendida` |
 
 **Regras**
 
@@ -307,11 +351,14 @@ A venda tem 6 estados (o funil da tela mostra os 4 principais) e só vende veíc
 - `VEN-02` Desconto até 5% o vendedor dá sozinho; acima de 5% a venda vai para `aguardando_aprovacao` e o gerente aprova ou recusa pelo celular (`APR-01`). Ex.: VEN-0177, CB 300F, R$ 22.900 com 8% = R$ 21.068.
 - `VEN-03` Formas: à vista (Pix ou TED), entrada + parcelas (boleto ou Pix mensal, gera contas a receber), financiamento pelo banco parceiro (venda fica em `negociacao` até o banco aprovar).
 - `VEN-04` Parcelas: saldo ÷ número de parcelas, sem juros por padrão; juros configuráveis por empresa. Ex.: R$ 21.068 − R$ 5.000 = R$ 16.068 em 12 × R$ 1.339.
-- `VEN-05` Troca: o veículo do cliente entra com valor de avaliação, abate do preço e é cadastrado na frota como `indisponivel` até a vistoria.
+- `VEN-05` Troca: o veículo do cliente entra com valor de avaliação, abate do preço e é cadastrado na frota como `indisponivel` até a vistoria. Se o chassi já existe na empresa (veículo vendido antes), o cadastro é reaproveitado (`VEI-07`).
 - `VEN-06` Ao virar `vendida`: gera o contrato de compra e venda, cria as parcelas em contas a receber, o veículo vai para `vendido` e sai de todos os indicadores da frota, e a comissão do vendedor é lançada (`FIN-09`).
-- `VEN-07` Venda cancelada depois de `vendida` (desistência dentro do prazo legal) estorna parcelas e comissão, e o veículo volta para `a_venda`.
+- `VEN-07` Venda `vendida` pode ser cancelada (desistência dentro do prazo legal) só por gerente ou administrador, com motivo obrigatório e evento de auditoria. Ao cancelar: parcelas em aberto vão para `cancelada`, parcelas pagas são estornadas, a comissão vai para `estornada` (`FIN-09`) e o veículo volta de `vendido` para `a_venda`. Antes de `vendida`, desistência é `perdida`.
 - `VEN-08` Funil do mês na lista e no início da vendedora: interessados, proposta, negociação, vendido. Conversão = vendidas ÷ interessados dos últimos 30 dias.
 - `VEN-09` Meta de vendas por vendedor e mês (valor em R$), definida pelo gerente. A barra mostra vendido ÷ meta.
+- `VEN-10` Uma venda aberta por veículo (`proposta`, `negociacao` ou `aguardando_aprovacao`); `interessado` não conta. Quando o veículo vira `vendido`, os outros registros `interessado` dele vão para `perdida` com o motivo "veículo vendido".
+
+*Mudanças em 07 out 2026 (T-031):* criado o estado `cancelada` e reescrita a `VEN-07` (quem cancela e o que acontece); `VEN-05` ganhou o reaproveitamento do cadastro; criada a `VEN-10`.
 
 ## Financeiro
 
@@ -426,6 +473,9 @@ Toda ação que muda dado de negócio grava um evento de auditoria que ninguém 
 - `AUD-06` Pedido do titular (LGPD): o administrador exporta os dados de um cliente ou anonimiza o cadastro. Contratos e registros financeiros ficam guardados pelo prazo legal, anonimizados.
 - `AUD-07` Exportação (`Admin-Exportar`): escolhe o que (clientes, veículos, locações e contratos, financeiro, vistorias e fotos, auditoria), formato (planilha, CSV, backup completo em ZIP) e período. O arquivo fica pronto em segundo plano e o link vale 7 dias.
 - `AUD-08` Após o cancelamento da assinatura, os dados ficam 90 dias disponíveis para exportação e depois são apagados de vez (com aviso 7 dias antes).
+- `AUD-09` O suporte Giro, dentro de uma empresa (`PLT-07`), vê CPF e CNH sempre mascarados, como nas listas (`AUD-04`), em qualquer tela e com qualquer permissão de acesso ("só ver" ou "ver e editar"). Nunca vê os dados completos.
+
+*Mudanças em 07 out 2026 (T-037):* criada a `AUD-09` (achado S-02 da segurança, T-032, decidido pelo dono do produto); `PLT-07` passou a citá-la.
 
 ## Dados de referência para testes
 
@@ -481,6 +531,8 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 | Parceiro de pagamento | **Asaas**, com uma subconta white label por locadora criada pela API, e também para cobrar a assinatura do Giro. Pix, boleto, cartão, assinatura recorrente, Pix Automático e webhooks. Efí Bank fica como plano B. | Subcontas permitem cobrar com a marca da locadora sem citar o Asaas nas mensagens; Pix a R$ 1,99 por cobrança recebida e boleto cobrado só quando pago. |
 | Preços da assinatura | Essencial **R$ 199**, Profissional **R$ 449**, Completo **R$ 899** por mês; anual = 10 mensalidades. Adicionais: filial R$ 79/mês, pacote de 10 veículos R$ 49/mês, assinatura digital avulsa R$ 4,90/contrato. | Sistemas de locação lá fora custam de US$ 29 a 99 por mês e ERPs genéricos no Brasil ficam perto de R$ 200; o Essencial custa menos que 1 semana de aluguel de uma moto. |
 | Domínio | **girolocadoras.com.br** (plataforma em `admin.girolocadoras.com.br`, empresas em `<subdominio>.girolocadoras.com.br`). Registrar também girolocacao.com.br para proteção. | giro.com.br e quase todas as variações (giroapp, girogestao, girofrota, girorent, meugiro, usegiro) já têm dono. Disponíveis em 07 out 2026: girolocadoras.com.br, girolocacao.com.br, girogestao.app.br, giromotos.app.br. |
+| Dúvidas do modelo de dados (T-006, respondidas em T-031) | Estados das entidades sem seção própria (Entidades); venda `cancelada` só a partir de `vendida`, cancelada por gerente ou administrador (`VEN-07`); venda aberta = `proposta`, `negociacao`, `aguardando_aprovacao` (`VEN-10`); `ROUND_HALF_UP` no centavo com diferença na última parcela (Convenções); chassi único e reaproveitamento do cadastro na recompra (`VEI-01`, `VEI-07`). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
+| Dúvidas dos contratos de filiais e contas (T-030 e T-036, respondidas em T-037) | Nova seção Filiais (`FIL-01` a `FIL-06`): campos da tela `Filial` aprovados como o produto recomendou, recebimento por empresa, devolução só na filial da locação e frota por filial, feriados por filial (`LOC-11` não corre nesses dias), desativação recusada com operação. `USR-01`: e-mail obrigatório, celular opcional. `USR-06`: sem "manter conectado". 2 etapas segue a `USR-02` (correção das telas na T-028). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
 | Consulta de crédito | **Fora do MVP.** No MVP a análise do cliente (`CLI-04`) usa CPF, CNH, lista de bloqueio e histórico na empresa. Na fase 2, consulta paga por uso via parceiro (Serasa ou o próprio Asaas). | Custa por consulta e não trava a operação; o histórico interno já resolve a maior parte. |
 
 ## Pontos em aberto
@@ -489,3 +541,13 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 - [ ] **Busca de marca no INPI**: "Giro" é um nome muito usado (o domínio principal já pertence a outra empresa). Antes de investir na marca, buscar "GIRO" nas classes 42 (software como serviço) e 9 (software), não só 39 e 12, e considerar registrar a marca mista "Giro Locadoras". Se houver conflito, trocar o nome agora sai mais barato.
 - [ ] **Abrir a conta no Asaas** e confirmar as taxas de boleto e cartão para o volume esperado.
 - [ ] **Telas que faltam desenhar:** esqueci a senha, 2 etapas, meu perfil, notificações, contas a pagar separada, multas de trânsito, documentos dos veículos, avarias abertas, pagamento e assinatura pelo cliente final, site de vendas.
+
+### Dúvidas do contrato de clientes (T-036, 07 out 2026)
+
+Levantadas pelo arquiteto em `docs/api/clientes.md`. Nenhuma bloqueia a T-014.
+
+- [ ] **11. Botão da lista quando duas situações valem (`CLI-07`).** Exemplo: Lucas está com cadastro incompleto e tem locação. Recomendação: aceitar a ordem da tela, que já é a proposta. Vale o primeiro que se aplicar: em aberto → Cobrar; incompleto → Completar cadastro; com venda aberta (`VEN-10`) → Ver proposta; com locação → Ver locação; nenhum desses → Nova locação. É a ordem da tela `Clientes`: Lucas (incompleto, com LOC-2856) → Completar cadastro; Diego Martins (LOC-2848 e proposta da CB 300F) → Ver proposta. Corrigido em 07 out 2026: a primeira versão deste item punha a locação antes da proposta, o que contradiz a tela. Só completa a `CLI-07`, **sem impacto de negócio**.
+
+- [ ] **12. Quem desbloqueia o cliente à mão.** As regras discordam: `CLI-05` deixa o gerente desbloquear; `APR-05` põe o gerente entre quem pede e entre quem aprova; e `APR-09` impede aprovar o próprio pedido. Com a proposta do arquiteto (gerente pede, outro gerente ou o administrador aprova), toda filial com um gerente só (Moto Rápida) depende do administrador para cada desbloqueio. **Precisa do dono:** A) gerente e administrador desbloqueiam direto, com motivo e evento de auditoria (`CLI-05`), e só o vendedor pede, com aprovação do gerente (`APR-05`) — padrão recomendado; B) só o administrador desbloqueia direto, e gerente e vendedor pedem (proposta do arquiteto). O desbloqueio automático ao quitar (`CLI-05`) não muda em nenhuma das duas.
+
+- [ ] **13. Como o cliente fica `inativo`.** Nenhuma regra diz como se entra nesse estado. Recomendação: aceitar a proposta. Gerente ou administrador inativa, com motivo; a ação é recusada se o cliente tem locação aberta, venda aberta ou valor em aberto. Cliente inativo sai da lista padrão (aparece no filtro "todos") e não faz locação nem compra. Gerente ou administrador reativa, e ele volta a `ativo` ou `incompleto`, conforme o cadastro (`CLI-03`). **Impacto de negócio pequeno.** Padrão até a aprovação: esta recomendação.
