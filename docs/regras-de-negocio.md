@@ -251,10 +251,12 @@ O cliente é da empresa (compartilhado entre filiais) e tem 4 estados: `incomple
 - `CLI-04` Análise do cadastro (painel ao lado do formulário): CPF válido e regular, CNH válida na categoria, fora da lista de bloqueio da empresa, consulta de crédito (se a integração existir). Cada item mostra ok, pendente ou problema.
 - `CLI-05` Bloqueio automático com 15 dias de atraso em qualquer valor (parcela, devolução, multa). Cliente bloqueado não faz nova locação nem compra; desbloqueia sozinho ao quitar. Gerente e administrador podem bloquear ou desbloquear manualmente, na hora, com motivo e evento de auditoria. O vendedor não desbloqueia: ele pede, e o gerente aprova (`APR-05`).
 - `CLI-06` A lista mostra, por cliente: situação, locação atual, total pago, valor em aberto e "cliente desde". Filtros: todos, com locação, em aberto, bloqueados, cadastro incompleto.
-- `CLI-07` Botão de ação na lista conforme a situação: em aberto → Cobrar; com locação → Ver locação; incompleto → Completar cadastro; sem locação → Nova locação.
+- `CLI-07` Botão de ação na lista conforme a situação. Quando mais de uma vale, vale a primeira desta ordem: em aberto → Cobrar (a conta mais antiga); cadastro incompleto → Completar cadastro; venda aberta (`VEN-10`) → Ver proposta; com locação → Ver locação; sem locação e `ativo` → Nova locação. Ex.: Lucas (incompleto, com LOC-2856) → Completar cadastro; Diego Martins (LOC-2848 e proposta da CB 300F) → Ver proposta. Cliente bloqueado sem valor em aberto não ganha Nova locação.
 - `CLI-08` "Salvar e iniciar locação" grava o cliente e abre a Nova locação com ele já escolhido.
+- `CLI-09` Cliente `inativo`: gerente ou administrador inativa, com motivo; a ação é recusada se o cliente tem locação aberta, venda aberta ou valor em aberto. O inativo sai da lista padrão (aparece no filtro de inativos) e não faz locação nem compra. Gerente ou administrador reativa, com motivo, e ele volta a `ativo` ou `incompleto`, conforme o cadastro (`CLI-03`).
 
 *Mudanças em 07 out 2026 (T-041):* `CLI-05` e `APR-05` passaram a dizer que gerente e administrador desbloqueiam direto e só o vendedor pede aprovação (decisão do dono do produto, item 12).
+*Mudanças em 07 out 2026 (T-041):* `CLI-07` ganhou a ordem de prioridade do botão; criada a `CLI-09` (como o cliente fica e sai de `inativo`). Decisões do dono do produto, itens 11 e 13.
 
 ## Locação
 
@@ -547,6 +549,7 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 | Dúvidas dos contratos de filiais e contas (T-030 e T-036, respondidas em T-037) | Nova seção Filiais (`FIL-01` a `FIL-06`): campos da tela `Filial` aprovados como o produto recomendou, recebimento por empresa, devolução só na filial da locação e frota por filial, feriados por filial (`LOC-11` não corre nesses dias), desativação recusada com operação. `USR-01`: e-mail obrigatório, celular opcional. `USR-06`: sem "manter conectado". 2 etapas segue a `USR-02` (correção das telas na T-028). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
 | Desbloqueio manual de cliente (T-036, item 12) | Gerente e administrador desbloqueiam direto, com motivo e auditoria; o vendedor pede e o gerente aprova (`CLI-05`, `APR-05`). | Opção A, recomendada pelo produto e aprovada pelo dono do produto em 07 out 2026. Evita que toda filial com um gerente só dependa do administrador. |
 | Dúvidas de financeiro, locações e vistorias (T-038 e T-041, itens 14 a 20) | Juros pro rata com mês de 30 dias (`FIN-03`); combustível com taxa de R$ 10 uma vez por devolução (`DEV-01`, `DEV-03`); extras por período (`LOC-02`, tela para a T-028); renovação vale na hora (`LOC-08`); troca de veículo com acerto único no final (`LOC-09`); gerente cancela e dá desconto acima de 5% direto (tabela de perfis); estados da comissão de locação (`FIN-09`). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
+| Botão da lista e cliente inativo (T-036, itens 11 e 13) | Ordem do botão: em aberto, incompleto, venda aberta, com locação, nova locação (`CLI-07`); inativar e reativar com motivo, recusado com pendência (`CLI-09`). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
 | Consulta de crédito | **Fora do MVP.** No MVP a análise do cliente (`CLI-04`) usa CPF, CNH, lista de bloqueio e histórico na empresa. Na fase 2, consulta paga por uso via parceiro (Serasa ou o próprio Asaas). | Custa por consulta e não trava a operação; o histórico interno já resolve a maior parte. |
 
 ## Pontos em aberto
@@ -555,11 +558,3 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 - [ ] **Busca de marca no INPI**: "Giro" é um nome muito usado (o domínio principal já pertence a outra empresa). Antes de investir na marca, buscar "GIRO" nas classes 42 (software como serviço) e 9 (software), não só 39 e 12, e considerar registrar a marca mista "Giro Locadoras". Se houver conflito, trocar o nome agora sai mais barato.
 - [ ] **Abrir a conta no Asaas** e confirmar as taxas de boleto e cartão para o volume esperado.
 - [ ] **Telas que faltam desenhar:** esqueci a senha, 2 etapas, meu perfil, notificações, contas a pagar separada, multas de trânsito, documentos dos veículos, avarias abertas, pagamento e assinatura pelo cliente final, site de vendas.
-
-### Dúvidas do contrato de clientes (T-036, 07 out 2026)
-
-Levantadas pelo arquiteto em `docs/api/clientes.md`. Nenhuma bloqueia a T-014.
-
-- [ ] **11. Botão da lista quando duas situações valem (`CLI-07`).** Exemplo: Lucas está com cadastro incompleto e tem locação. Recomendação: aceitar a ordem da tela, que já é a proposta. Vale o primeiro que se aplicar: em aberto → Cobrar; incompleto → Completar cadastro; com venda aberta (`VEN-10`) → Ver proposta; com locação → Ver locação; nenhum desses → Nova locação. É a ordem da tela `Clientes`: Lucas (incompleto, com LOC-2856) → Completar cadastro; Diego Martins (LOC-2848 e proposta da CB 300F) → Ver proposta. Corrigido em 07 out 2026: a primeira versão deste item punha a locação antes da proposta, o que contradiz a tela. Só completa a `CLI-07`, **sem impacto de negócio**.
-
-- [ ] **13. Como o cliente fica `inativo`.** Nenhuma regra diz como se entra nesse estado. Recomendação: aceitar a proposta. Gerente ou administrador inativa, com motivo; a ação é recusada se o cliente tem locação aberta, venda aberta ou valor em aberto. Cliente inativo sai da lista padrão (aparece no filtro "todos") e não faz locação nem compra. Gerente ou administrador reativa, e ele volta a `ativo` ou `incompleto`, conforme o cadastro (`CLI-03`). **Impacto de negócio pequeno.** Padrão até a aprovação: esta recomendação.
