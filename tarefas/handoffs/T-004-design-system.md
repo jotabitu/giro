@@ -1,0 +1,18 @@
+# T-004 · Portar o design system para código · design-system → orquestrador, frontend (T-020 em diante)
+
+**O que foi feito:** `frontend/src/design-system/` com tokens claro e escuro, marca da empresa trocável em execução, Geist e Geist Mono, os 12 componentes de `docs/design-system/components/` em React (AlertCard, Button, Cover, DataTable, FleetBar, KpiTile, SearchField, SegmentedControl, Sidebar, StatusBadge, TextField, VehicleCard) e a página de preview `/design-system` (um preview por componente em `/design-system/<componente>`, com troca de tema e de cor da empresa). Importe de `@/design-system`.
+**Decisões:**
+- Mantive o gerador `scripts/gerar-tokens.mjs`; `docs/design-system/tokens.json` segue como fonte única. Só mudei `--font-sans` e `--font-mono` para usar as variáveis do pacote `geist`.
+- Os estilos são o `bundle.css` portado (`componentes.css`, classes `wl-*`, só variáveis de token) em vez de reescrever em Tailwind: fidelidade exata com as telas e um teste que proíbe cor fixa. Tailwind continua para layout das telas, com os tokens.
+- Marca: `cssDaMarca(hex)` / `aplicarMarca(hex)` em `marca.ts`. `on-brand` por contraste (tinta ou branco; em tons médios onde nenhum chega a 4,5:1, preto puro). `brand-soft` clareada (claro) ou escurecida (escuro); o padrão calculado (#effbc9 / #2b3410) fica a um tom do `tokens.json`. Só aceita `#rrggbb`, o resto cai na cor padrão. O layout usa `MARCA_PADRAO`; a cor da empresa entra quando a API devolver (T-020).
+- Adicionei `Panel` (o bundle já tinha `wl-panel`) e `IconButton`, `Contador`, `KpiGrid`, `CelulaDupla` como apoio.
+- Acrescentei ao CSS o que os READMEs pedem e o bundle não tinha: KPI em 2 colunas e tabela em cards até 720px, segmento da FleetBar clicável, linha de tabela clicável por teclado.
+**Dependências novas (registrar no PR):** `geist` (fontes Geist/Geist Mono locais, evita buscar no Google Fonts no build) e `lucide-react` (ícones, ISC, recomendada em `docs/design-system/README.md`). shadcn/ui **não** foi usado: nenhum componente do design system precisou dele. Quando a primeira tela pedir diálogo, menu ou popover, entra shadcn por cima destes tokens (aviso o frontend).
+**Verificado:** `npm run lint`, `typecheck`, `test` (18 testes: contraste da marca em varredura de 216 cores, CSS sem cor fixa, render dos 12 previews, Button, StatusBadge, TextField) e `build` verdes (Node 24). `/design-system` e as 12 páginas respondem 200 em `next start`.
+**O que ficou de fora:**
+- Não consegui conferir visualmente no navegador (a extensão do Chrome não estava conectada). Recomendo olhar `/design-system` nos dois temas antes de aprovar; falta também comparar lado a lado com os `preview.html`.
+- Cover e Panel não têm tela de referência própria em `docs/telas/`.
+- O logo Giro por SVG ainda não tem componente; entra com o painel da plataforma/assistente de implantação.
+- A Sidebar do celular (gaveta) não foi feita; hoje ela só vira largura total em telas estreitas. Fica com a T-020.
+- Não rodei o build dentro do container Node 22 (só no host).
+**Próximo passo para quem recebe:** frontend (T-020) monta a casca com `Sidebar` (passe `componenteLink={Link}`) e liga a cor/logo da empresa em `cssDaMarca`; orquestrador decide sobre a revisão visual e o PR.
