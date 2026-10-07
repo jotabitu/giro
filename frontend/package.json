@@ -2,7 +2,9 @@
   "name": "giro-frontend",
   "version": "0.1.0",
   "private": true,
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -13,6 +15,8 @@
     "api:gerar": "node scripts/gerar-api.mjs"
   },
   "dependencies": {
+    "geist": "^1.7.2",
+    "lucide-react": "^1.52.0",
     "next": "^15.5.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"

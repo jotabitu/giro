@@ -1,5 +1,5 @@
 // Gera src/design-system/tokens.ts a partir de docs/design-system/tokens.json.
-// Ponto de partida da T-002; o agente design-system assume a pasta na T-004.
+// Fonte única dos tokens: docs/design-system/tokens.json. O agente design-system mantém este gerador (T-004).
 import { readFileSync, writeFileSync } from "node:fs";
 
 const dir = new URL("../../docs/design-system/", import.meta.url);
@@ -45,8 +45,8 @@ export function variaveisCss(tema: "light" | "dark"): string {
 export const variaveisBase: string = [
   ...Object.entries(espacamento).map(([k, v]) => \`--space-\${k}: \${v};\`),
   ...Object.entries(raio).map(([k, v]) => \`--radius-\${k}: \${v};\`),
-  \`--font-sans: \${fontes.sans};\`,
-  \`--font-mono: \${fontes.mono};\`,
+  \`--font-sans: var(--font-geist-sans), \${fontes.sans};\`,
+  \`--font-mono: var(--font-geist-mono), \${fontes.mono};\`,
 ].join(" ");
 
 export function cssDosTemas(): string {

@@ -1,5 +1,5 @@
 import type { Config } from "tailwindcss";
-import { cores, espacamento, raio, fontes, tipografia } from "./src/design-system/tokens";
+import { cores, espacamento, raio, tipografia } from "./src/design-system/tokens";
 
 // As cores apontam para variáveis CSS (tema claro/escuro e marca da empresa trocam em execução);
 // os nomes e valores vêm de src/design-system/tokens.ts.
@@ -25,7 +25,8 @@ const config: Config = {
     colors: { transparent: "transparent", current: "currentColor", ...corVar },
     spacing: { 0: "0px", px: "1px", ...espacamento },
     borderRadius: { none: "0", ...raio, full: "9999px" },
-    fontFamily: { sans: [fontes.sans], mono: [fontes.mono] },
+    // Aponta para as variáveis (que já incluem a Geist carregada pelo next/font e o fallback dos tokens).
+    fontFamily: { sans: ["var(--font-sans)"], mono: ["var(--font-mono)"] },
     fontSize,
     boxShadow: { pop: "var(--shadow-pop)", none: "none" },
     extend: {},

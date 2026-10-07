@@ -53,4 +53,4 @@ Base visual do sistema de gestão de venda e locação de motos e automóveis, v
 
 ## Componentes
 
-As classes ficam em `components/bundle.css` com prefixo `wl-` e não dependem de JavaScript: Button, StatusBadge, Sidebar, SegmentedControl, KpiTile, DataTable, FleetBar, SearchField, TextField, AlertCard e VehicleCard. Cada um tem uma prévia e um guia de uso.
+Em React: `frontend/src/design-system/` (preview em `/design-system`). As classes ficam em `components/bundle.css` com prefixo `wl-` e não dependem de JavaScript: Button, StatusBadge, Sidebar, SegmentedControl, KpiTile, DataTable, FleetBar, SearchField, TextField, AlertCard e VehicleCard. Cada um tem uma prévia e um guia de uso.
