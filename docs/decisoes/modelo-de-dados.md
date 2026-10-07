@@ -213,6 +213,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `status` | enum `disponivel`, `reservado`, `alugado`, `em_manutencao`, `indisponivel`, `a_venda`, `vendido`, `baixado` | transições da seção "Veículos" (`REGRA_TRANSICAO` = `VEI`) |
 | `motivo_status` | texto, nulo | bloqueio, baixa |
 | `valor_compra_centavos` | centavos, nulo | valor contábil (`FIN-13`) |
+| `data_compra` | data, nulo | ficha do veículo |
 | `valor_venda_centavos` | centavos, nulo | `VEN-01` |
 | `referencia_fipe_centavos` | centavos, nulo | só exibição |
 | `entrou_na_frota_em` | data | base de `VEI-06` |

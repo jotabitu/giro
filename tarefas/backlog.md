@@ -18,6 +18,7 @@ Levantadas pelo arquiteto em T-030 (07 out 2026):
 
 Levantadas pelo arquiteto em T-036 (07 out 2026):
 
+- [divergência] `Frota` mostra a reserva do Kwid como `RES-0412`, mas a reserva é uma locação `aguardando_retirada` com código `LOC-` (regras, Veículos e Locação). `docs/api/veiculos.md` mostra o código `LOC-`. Para T-028, junto com as diárias da Frota que não batem com a tabela (CG 160 R$ 49,90, Pop R$ 39,90, NMax R$ 69,90, Mobi R$ 119,00).
 - [decisão] `Login` tem "Manter conectado neste computador", que as regras não têm. Com o dono do produto (item 10 de "Pontos em aberto" das regras, T-037); padrão: tirar o checkbox. As divergências de 2 etapas e convite por celular foram decididas pelo produto e vão para a T-028.
 
 ## Fase 0 · Fundação
