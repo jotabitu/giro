@@ -11,3 +11,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-036 · Contratos da API de contas, veículos e clientes · arquiteto · sem PR (branch t-036-contratos-contas-veiculos-clientes) · tarefas/handoffs/T-036-arquiteto.md · inclui ADR 0015
 - T-001 · Esqueleto do backend · backend · PR #4 · tarefas/handoffs/T-001-backend.md · 88 testes; compose completo verificado com T-002
 - T-037 · Dúvidas da T-030 e critérios de aceite de T-010 a T-014 · produto · sem PR (branch t-037-criterios-fase1) · tarefas/handoffs/T-037-produto.md · item 12 decidido (A)
+- T-004 · Portar o design system para código · design-system · PR #5 · tarefas/handoffs/T-004-design-system.md · conferência visual feita; Geist e ilustração de moto corrigidas

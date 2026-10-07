@@ -2,7 +2,6 @@
 
 No máximo uma tarefa por agente. Formato: `T-0xx · título · agente · desde dd/mm`.
 
-- T-004 · Portar o design system para código · design-system · desde 07/10 (ajuste do VehicleCard)
 - T-033 · Dados sensíveis na fundação · backend · desde 07/10
 - T-005 · CI · devops · desde 07/10
 - T-038 · Contratos da API de locações, vistorias e devolução · arquiteto · desde 07/10
