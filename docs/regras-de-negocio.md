@@ -11,7 +11,7 @@ Cada seção descreve um módulo: o que existe, os estados, as transições, os 
 **Convenções obrigatórias**
 
 - **Multiempresa:** toda tabela de negócio tem `empresa_id` (via schema do django-tenants) e, quando faz sentido, `filial_id`. Nenhuma consulta cruza empresas. O painel da plataforma usa o schema público.
-- **Dinheiro:** sempre em centavos, inteiro (`valor_centavos`). Arredondamento só na exibição. Percentuais guardados com 2 casas (`desconto_pct = 8.00`).
+- **Dinheiro:** sempre em centavos, inteiro (`valor_centavos`). Percentuais guardados com 2 casas (`desconto_pct = 8.00`). Cálculos com percentual ou divisão (desconto, multa, juros, comissão, proporcional, parcelas) fazem as contas intermediárias em decimal, sem arredondar, e arredondam uma vez cada valor que é gravado ou exibido como linha própria, para o centavo, com meio centavo para cima (`ROUND_HALF_UP`). Ao dividir um total em parcelas, a diferença de centavos vai para a última parcela, e a soma sempre bate com o total. Fora isso, arredondamento só na exibição. (Decidido em 07 out 2026, T-031.)
 - **Datas e horas:** gravadas em UTC, exibidas em `America/Sao_Paulo`. Vencimentos são datas (sem hora). Devoluções têm data e hora.
 - **Status:** cada entidade com ciclo de vida tem um campo `status` com valores fechados (enum) listados neste documento. Mudança de status só por serviço de domínio (`services.py`), nunca por update direto, e sempre grava um evento de auditoria.
 - **Exclusão:** nada de negócio é apagado. Usa `ativo=false` ou status de cancelado. Registros financeiros nunca são editados depois de pagos: corrige-se com estorno.
@@ -59,7 +59,25 @@ São 25 entidades principais. As 5 primeiras ficam no schema público (plataform
 | Comissão | usuário, origem, base, regra, valor, status, mês de pagamento | Usuário |  |
 | Evento de auditoria | quem, quando, ação, objeto, antes/depois, IP | Empresa e plataforma | imutável |
 
-Um veículo só pode ter **uma** locação ativa por vez e só pode estar em **uma** venda aberta por vez.
+Um veículo só pode ter **uma** locação ativa por vez e só pode estar em **uma** venda aberta por vez. Venda aberta é a que está em `proposta`, `negociacao` ou `aguardando_aprovacao` (`VEN-10`); vários registros `interessado` podem existir para o mesmo veículo (decidido em 07 out 2026, T-031).
+
+**Estados das entidades sem seção própria** (decidido em 07 out 2026, T-031). Os estados de empresa, cliente, locação, veículo, venda, conta a receber, despesa, ordem de serviço e comissão ficam nas seções de cada módulo.
+
+| Entidade | Estados | Origem |
+| --- | --- | --- |
+| Fatura da assinatura | `aberta`, `paga`, `atrasada`, `cancelada` | estados da empresa, `PLT-02` |
+| Usuário | `convite_pendente`, `ativo`, `desativado` | `USR-01`, `USR-04` |
+| Vistoria | `rascunho`, `concluida` | `DEV-05`, `VIS-04` |
+| Contrato | `gerado`, `enviado`, `assinado`, `cancelado` | fluxo da retirada, passo 3 |
+| Caixa do dia | `aberto`, `aguardando_aprovacao`, `fechado`, `fechado_sem_conferencia` | `FIN-07`, `FIN-08`, `APR-04` |
+| Acesso de suporte | `ativo`, `encerrado`, `revogado` | `PLT-07`, `AUT-15` |
+| Pedido de aprovação | `pendente`, `aprovado`, `recusado`, `cancelado` | seção Aprovações |
+| Lançamento bancário | `pendente`, `conciliado`, `ignorado` | `FIN-11` |
+
+- Usuário: convite vencido (mais de 7 dias, `USR-01`) continua `convite_pendente`, com o link expirado, e conta no limite do plano até ser reenviado ou cancelado.
+- Vistoria: correção de vistoria concluída é uma vistoria nova ligada à anterior, com motivo (`VIS-04`), não um estado.
+- Acesso de suporte: `encerrado` quando o prazo acaba ou o suporte sai; `revogado` quando o administrador da empresa bloqueia (`PLT-07`).
+- Pedido de aprovação: `cancelado` quando quem pediu desiste ou a origem deixa de existir.
 
 ## Plataforma e assinatura
 
@@ -109,7 +127,7 @@ Da compra até a 1ª locação são 12 etapas. As 4 primeiras são a compra e o 
 **Regras**
 
 - `IMP-01` A implantação está "concluída" quando existe a 1ª locação ou venda. Antes disso, a tela inicial do administrador é `Pos-Dashboard`, com a lista do que falta.
-- `IMP-02` A importação valida cada linha antes de gravar: placa única, chassi com 17 caracteres, categoria existente. Linhas com erro não entram e ficam numa lista para corrigir (Moto Rápida: 83 prontos, 3 para corrigir; depois de corrigidos, 86 veículos).
+- `IMP-02` A importação valida cada linha antes de gravar: placa única, chassi único com 17 caracteres (`VEI-01`), categoria existente. Linhas com erro não entram e ficam numa lista para corrigir (Moto Rápida: 83 prontos, 3 para corrigir; depois de corrigidos, 86 veículos).
 - `IMP-03` Importar respeita o limite do plano (`PLT-03`). Se a planilha passa do limite, importa até o limite e avisa.
 - `IMP-04` Sem modelo de contrato publicado, o sistema não deixa concluir uma locação (aparece o atalho para o passo 9). Foi o motivo do chamado #1042 da Moto Rápida.
 - `IMP-05` O progresso de cada empresa alimenta o funil do painel da plataforma (`Plat-Implantacoes`): Conta → Marca → Filial → Preços → Dados → 1ª locação. Empresa que fica 3 dias ou mais no mesmo passo entra em "precisam de ajuda".
@@ -177,18 +195,23 @@ O veículo tem 8 estados e só muda de estado por um evento de outro módulo (lo
 | `disponivel` | `a_venda` | "Colocar à venda" na ficha | gerente, administrador |
 | `a_venda` | `disponivel` | "Voltar para a frota" | gerente, administrador |
 | `a_venda` | `vendido` | venda concluída (pagamento ou contrato) | sistema |
+| `vendido` | `a_venda` | venda cancelada (`VEN-07`) | sistema |
+| `vendido` | `indisponivel` | veículo recomprado numa troca (`VEN-05`, `VEI-07`) | sistema |
 | qualquer, exceto `alugado` | `baixado` | baixa com motivo | administrador |
 
 Qualquer outra transição é recusada pelo backend com erro de regra (HTTP 409).
 
 **Regras**
 
-- `VEI-01` Placa única por empresa; chassi com 17 caracteres; km nunca diminui (vistoria com km menor que o anterior é recusada, salvo correção pelo gerente com motivo).
+- `VEI-01` Placa e chassi únicos por empresa, em qualquer estado do veículo; chassi com 17 caracteres; km nunca diminui (vistoria com km menor que o anterior é recusada, salvo correção pelo gerente com motivo).
 - `VEI-02` O km do veículo é atualizado a cada vistoria e a cada OS. Ele dispara as preventivas (`MAN-03`).
 - `VEI-03` Documentos: alerta 30 dias antes do vencimento; no dia do vencimento de CRLV ou seguro, o veículo disponível vai para `indisponivel`. Veículo alugado não muda, mas gera tarefa urgente para o gerente.
 - `VEI-04` Transferência entre filiais só com o veículo `disponivel`. Grava a filial de origem e destino.
 - `VEI-05` "Rendeu no ano" na ficha = receitas de locação recebidas do veículo − custos de manutenção e despesas ligadas a ele, no ano corrente.
 - `VEI-06` Ocupação = dias alugado ÷ dias que o veículo esteve na frota no período (exclui `a_venda`, `vendido`, `baixado`). Ocupação da frota = média ponderada pelos dias.
+- `VEI-07` Veículo que volta para a empresa depois de vendido (recompra numa troca, `VEN-05`) reaproveita o cadastro existente, achado pelo chassi, e não ganha outro: vai de `vendido` para `indisponivel` até a vistoria, e o histórico continua no mesmo veículo.
+
+*Mudanças em 07 out 2026 (T-031):* `VEI-01` passou a exigir chassi único, além da placa; criada a `VEI-07`; acrescentadas as transições `vendido` → `a_venda` e `vendido` → `indisponivel`.
 
 ## Clientes
 
@@ -290,7 +313,7 @@ Toda retirada e toda devolução têm uma vistoria, e a devolução é sempre co
 
 ## Vendas
 
-A venda tem 6 estados (o funil da tela mostra os 4 principais) e só vende veículo `a_venda`. Telas: `Vendas` (lista), `Venda` (Nova venda, 3 passos: Negócio → Documentos → Assinatura), `Vendedor` (início da vendedora), `Gerente` (aprovações), `Comissoes`.
+A venda tem 7 estados (o funil da tela mostra os 4 principais) e só vende veículo `a_venda`. Telas: `Vendas` (lista), `Venda` (Nova venda, 3 passos: Negócio → Documentos → Assinatura), `Vendedor` (início da vendedora), `Gerente` (aprovações), `Comissoes`.
 
 | Estado | Significa |
 | --- | --- |
@@ -300,6 +323,7 @@ A venda tem 6 estados (o funil da tela mostra os 4 principais) e só vende veíc
 | `aguardando_aprovacao` | desconto acima do limite; espera o gerente |
 | `vendida` | contrato assinado e entrada (ou valor total) recebida |
 | `perdida` | cliente desistiu ou proposta venceu (7 dias sem resposta) |
+| `cancelada` | venda concluída desfeita (`VEN-07`); só a partir de `vendida` |
 
 **Regras**
 
@@ -307,11 +331,14 @@ A venda tem 6 estados (o funil da tela mostra os 4 principais) e só vende veíc
 - `VEN-02` Desconto até 5% o vendedor dá sozinho; acima de 5% a venda vai para `aguardando_aprovacao` e o gerente aprova ou recusa pelo celular (`APR-01`). Ex.: VEN-0177, CB 300F, R$ 22.900 com 8% = R$ 21.068.
 - `VEN-03` Formas: à vista (Pix ou TED), entrada + parcelas (boleto ou Pix mensal, gera contas a receber), financiamento pelo banco parceiro (venda fica em `negociacao` até o banco aprovar).
 - `VEN-04` Parcelas: saldo ÷ número de parcelas, sem juros por padrão; juros configuráveis por empresa. Ex.: R$ 21.068 − R$ 5.000 = R$ 16.068 em 12 × R$ 1.339.
-- `VEN-05` Troca: o veículo do cliente entra com valor de avaliação, abate do preço e é cadastrado na frota como `indisponivel` até a vistoria.
+- `VEN-05` Troca: o veículo do cliente entra com valor de avaliação, abate do preço e é cadastrado na frota como `indisponivel` até a vistoria. Se o chassi já existe na empresa (veículo vendido antes), o cadastro é reaproveitado (`VEI-07`).
 - `VEN-06` Ao virar `vendida`: gera o contrato de compra e venda, cria as parcelas em contas a receber, o veículo vai para `vendido` e sai de todos os indicadores da frota, e a comissão do vendedor é lançada (`FIN-09`).
-- `VEN-07` Venda cancelada depois de `vendida` (desistência dentro do prazo legal) estorna parcelas e comissão, e o veículo volta para `a_venda`.
+- `VEN-07` Venda `vendida` pode ser cancelada (desistência dentro do prazo legal) só por gerente ou administrador, com motivo obrigatório e evento de auditoria. Ao cancelar: parcelas em aberto vão para `cancelada`, parcelas pagas são estornadas, a comissão vai para `estornada` (`FIN-09`) e o veículo volta de `vendido` para `a_venda`. Antes de `vendida`, desistência é `perdida`.
 - `VEN-08` Funil do mês na lista e no início da vendedora: interessados, proposta, negociação, vendido. Conversão = vendidas ÷ interessados dos últimos 30 dias.
 - `VEN-09` Meta de vendas por vendedor e mês (valor em R$), definida pelo gerente. A barra mostra vendido ÷ meta.
+- `VEN-10` Uma venda aberta por veículo (`proposta`, `negociacao` ou `aguardando_aprovacao`); `interessado` não conta. Quando o veículo vira `vendido`, os outros registros `interessado` dele vão para `perdida` com o motivo "veículo vendido".
+
+*Mudanças em 07 out 2026 (T-031):* criado o estado `cancelada` e reescrita a `VEN-07` (quem cancela e o que acontece); `VEN-05` ganhou o reaproveitamento do cadastro; criada a `VEN-10`.
 
 ## Financeiro
 
@@ -481,6 +508,7 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 | Parceiro de pagamento | **Asaas**, com uma subconta white label por locadora criada pela API, e também para cobrar a assinatura do Giro. Pix, boleto, cartão, assinatura recorrente, Pix Automático e webhooks. Efí Bank fica como plano B. | Subcontas permitem cobrar com a marca da locadora sem citar o Asaas nas mensagens; Pix a R$ 1,99 por cobrança recebida e boleto cobrado só quando pago. |
 | Preços da assinatura | Essencial **R$ 199**, Profissional **R$ 449**, Completo **R$ 899** por mês; anual = 10 mensalidades. Adicionais: filial R$ 79/mês, pacote de 10 veículos R$ 49/mês, assinatura digital avulsa R$ 4,90/contrato. | Sistemas de locação lá fora custam de US$ 29 a 99 por mês e ERPs genéricos no Brasil ficam perto de R$ 200; o Essencial custa menos que 1 semana de aluguel de uma moto. |
 | Domínio | **girolocadoras.com.br** (plataforma em `admin.girolocadoras.com.br`, empresas em `<subdominio>.girolocadoras.com.br`). Registrar também girolocacao.com.br para proteção. | giro.com.br e quase todas as variações (giroapp, girogestao, girofrota, girorent, meugiro, usegiro) já têm dono. Disponíveis em 07 out 2026: girolocadoras.com.br, girolocacao.com.br, girogestao.app.br, giromotos.app.br. |
+| Dúvidas do modelo de dados (T-006, respondidas em T-031) | Estados das entidades sem seção própria (Entidades); venda `cancelada` só a partir de `vendida`, cancelada por gerente ou administrador (`VEN-07`); venda aberta = `proposta`, `negociacao`, `aguardando_aprovacao` (`VEN-10`); `ROUND_HALF_UP` no centavo com diferença na última parcela (Convenções); chassi único e reaproveitamento do cadastro na recompra (`VEI-01`, `VEI-07`). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
 | Consulta de crédito | **Fora do MVP.** No MVP a análise do cliente (`CLI-04`) usa CPF, CNH, lista de bloqueio e histórico na empresa. Na fase 2, consulta paga por uso via parceiro (Serasa ou o próprio Asaas). | Custa por consulta e não trava a operação; o histórico interno já resolve a maior parte. |
 
 ## Pontos em aberto
