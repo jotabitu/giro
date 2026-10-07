@@ -12,6 +12,8 @@ As pendências de regra foram decididas em 07 out 2026 (seção "Decisões de 07
 
 As dúvidas levantadas pelo arquiteto em T-006 foram aprovadas em 07 out 2026 e viraram regra (T-031; ver "Decisões de 07 out 2026" em `docs/regras-de-negocio.md`).
 
+A dúvida do suporte (S-02, T-032) virou a regra AUD-09.
+
 Levantadas pelo arquiteto em T-030 (07 out 2026):
 
 - [decisão] [divergência] Tela `Filial` tem campos e comportamentos que as regras não têm: gerente responsável, vagas no pátio, tabela de preço padrão da filial, conta de recebimento, centro de custo, "emite notas fiscais com o CNPJ desta filial", "aceita devolução de veículos de outras filiais", "compartilha a frota com as outras filiais", status "Rascunho" e horário de feriados. Ficaram fora de `docs/api/filiais.md` até o produto decidir quais entram e com que regra.
