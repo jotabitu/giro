@@ -513,13 +513,15 @@ Planos especiais: Entregador R$ 279,00/semana (km livre, troca de óleo inclusa)
 | Caixa de 07 out | troco 200,00; entradas em dinheiro 629,00; saídas em dinheiro 548,00 | gaveta R$ 281,00; total recebido R$ 1.182,60 | `FIN-07` |
 | Conciliação | Pix sem par +150,00; tarifa −12,90 | diferença R$ 137,10 | `FIN-12` |
 | DRE de setembro | locações 56.420,00; extras 2.310,00; taxas 1.128,40; despesas 21.480,30; comissões 1.890,00 | resultado R$ 34.231,30 (margem 58%) | `FIN-13` |
-| Despesas de outubro | 6 lançamentos | R$ 7.066,70; aguardando aprovação R$ 1.386,40 | `FIN-05` |
+| Despesas de outubro | 6 lançamentos: pneus 1.200,00; óleo 48,00 (pago no caixa); luz 412,30; aluguel 3.500,00; IPVA 186,40; rastreadores 1.720,00 | R$ 7.066,70; aguardando aprovação R$ 1.200,00 (só os pneus; o IPVA está abaixo de R$ 500 e nasce `a_pagar`) | `FIN-05` |
 | Em aberto dos clientes | Carlos 299,40; Rafael 1.347,00 | R$ 1.646,40 (2 clientes) | `FIN-01` |
 | Encerramento antecipado LOC-2812 | NMax mensal 1.590,00; pedido em 07 out; fim 15 out | multa R$ 84,80; devolve R$ 286,20 | `LOC-12`, `LOC-13` |
 | Preço antigo LOC-2841 | Carlos, CG 160 Fan, assinado em 30 set, quando a Street semanal era 299,40 (passou a 329,00 em 01 out) | parcelas continuam R$ 299,40 | `LOC-15` |
 | Bloqueio | Rafael Sousa, 25 dias de atraso | cliente `bloqueado`, LOC-2790 `devolucao_atrasada` | `CLI-05`, `LOC-10` |
 | Uso do plano | 86 veículos, 1 filial, 5 usuários | 86 de 150, 1 de 3, 5 de 10; sem aviso | `PLT-03` |
 | Implantação da plataforma | 23 empresas em teste | funil 23 → 19 → 17 → 14 → 11 → 8 | `IMP-05` |
+
+*Mudanças em 07 out 2026 (T-041):* "Despesas de outubro" passou de "aguardando aprovação R$ 1.386,40" para R$ 1.200,00. O valor antigo somava o IPVA de R$ 186,40, que pela `FIN-05` (até R$ 500 nasce `a_pagar`) não vai para aprovação. A tela `Despesas` vai para a T-028.
 
 ## Decisões de 07 out 2026
 
@@ -554,3 +556,7 @@ Levantadas pelo arquiteto em `docs/api/clientes.md`. Nenhuma bloqueia a T-014.
 - [ ] **11. Botão da lista quando duas situações valem (`CLI-07`).** Exemplo: Lucas está com cadastro incompleto e tem locação. Recomendação: aceitar a ordem da tela, que já é a proposta. Vale o primeiro que se aplicar: em aberto → Cobrar; incompleto → Completar cadastro; com venda aberta (`VEN-10`) → Ver proposta; com locação → Ver locação; nenhum desses → Nova locação. É a ordem da tela `Clientes`: Lucas (incompleto, com LOC-2856) → Completar cadastro; Diego Martins (LOC-2848 e proposta da CB 300F) → Ver proposta. Corrigido em 07 out 2026: a primeira versão deste item punha a locação antes da proposta, o que contradiz a tela. Só completa a `CLI-07`, **sem impacto de negócio**.
 
 - [ ] **13. Como o cliente fica `inativo`.** Nenhuma regra diz como se entra nesse estado. Recomendação: aceitar a proposta. Gerente ou administrador inativa, com motivo; a ação é recusada se o cliente tem locação aberta, venda aberta ou valor em aberto. Cliente inativo sai da lista padrão (aparece no filtro "todos") e não faz locação nem compra. Gerente ou administrador reativa, e ele volta a `ativo` ou `incompleto`, conforme o cadastro (`CLI-03`). **Impacto de negócio pequeno.** Padrão até a aprovação: esta recomendação.
+
+### Dúvida de cálculo do financeiro (T-041, 07 out 2026)
+
+- [ ] **14. O que é "pro rata dia" nos juros (`FIN-03`).** A regra diz 1% ao mês pro rata dia, mas não diz como o mês vira dia, e isso muda o valor em centavos. **Precisa do dono:** A) mês comercial: juros = valor × 1% ÷ 30 × dias corridos de atraso, contados do dia seguinte ao vencimento até o dia do pagamento, arredondado uma vez (`ROUND_HALF_UP`) (padrão recomendado, o mais usado em boletos); B) mês civil: divide pelos dias do mês do vencimento (28 a 31). Com A, Carlos (R$ 299,40, 7 dias) paga juros de R$ 0,70 e multa de R$ 5,99; Rafael (R$ 1.347,00, 25 dias) paga juros de R$ 11,23 e multa de R$ 26,94. A multa de 2% é cobrada uma vez, em qualquer atraso a partir de 1 dia. Até a resposta vale A, que já está nos critérios da T-017.
