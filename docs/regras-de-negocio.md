@@ -164,9 +164,18 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
 - `USR-05` Menu: tela inicial de cada perfil usa o menu daquele perfil; telas compartilhadas usam o menu completo, escondendo os itens sem permissão. Itens sem permissão nunca aparecem desabilitados, simplesmente não aparecem.
 - `USR-06` Login com e-mail e senha; 5 tentativas erradas bloqueiam por 15 minutos e avisam o administrador. Sessão expira após 12 h sem uso no desktop e 30 dias no celular. Não existe opção "manter conectado".
 - `USR-07` Escopo de filial: o seletor de filial no topo do menu mostra só as filiais da pessoa. Administrador pode escolher "Todas as filiais".
+- `USR-08` Tela inicial por perfil. Todos entram pela mesma rota de início, e o sistema mostra a variante do perfil:
+  - **Administrador:** `Pos-Dashboard` (o que falta da implantação) até a `IMP-01` concluir; depois, o painel geral de todas as filiais.
+  - **Gerente** (`Gerente`, só a sua filial): aprovações pendentes da filial, sem os pedidos que ele mesmo fez (`APR-09`); ocupação; receita da semana; devoluções atrasadas; manutenções; frota da filial por estado; e a equipe da filial hoje, com "online" quando a pessoa usou o sistema nos últimos 5 minutos.
+  - **Vendedor**, só os próprios números: na fase 1, as locações que ele criou e estão abertas, as que devolvem hoje, as parcelas atrasadas dessas locações e o atalho Nova locação; o funil, a meta e as comissões de `Vendedor` entram com vendas (fase 2).
+  - **Vistoriador:** `Vistoriador`, com a agenda do dia (`VIS-05`).
+  - **Financeiro** (`Financeiro`, todas as filiais): entra hoje, em atraso, caixas do dia por filial e "Para hoje" (reembolsos a fazer, despesas a pagar vencendo, aprovações); saldo em contas, fluxo previsto e conciliação entram na fase 2.
+  
+  O início usa o menu do perfil, e as telas compartilhadas usam o menu completo, sem os itens sem permissão (`USR-05`). Cada bloco que depende de um módulo que ainda não existe vem vazio, e não com número de exemplo.
 
 *Mudanças em 07 out 2026 (T-037):* `USR-01` passou a dizer que o e-mail é obrigatório e o celular é opcional; `USR-06` deixou claro que não há "manter conectado".
 *Mudanças em 07 out 2026 (T-041):* na tabela de perfis, o gerente passou a cancelar locação e dar desconto acima de 5% direto, além de aprovar os pedidos do vendedor (decisão do dono do produto, item 19).
+*Mudanças em 07 out 2026 (T-047):* criada a `USR-08` (tela inicial por perfil), a partir das telas iniciais, da `IMP-01` e da tabela de perfis.
 
 ## Filiais
 
