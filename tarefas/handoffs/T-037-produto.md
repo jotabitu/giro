@@ -13,7 +13,18 @@
 
 ## Parte 2 · Critérios de aceite
 
-Pendente: começa depois do aval do orquestrador.
+**O que foi feito:** critérios "Dado... quando... então..." com os números do seed Moto Rápida para T-010 a T-014, um arquivo por tarefa em `docs/qa/criterios/`, cada um com o código da regra e o contrato correspondente. O "Pronto quando" de cada tarefa no backlog aponta para o arquivo.
+**Onde:** `docs/qa/criterios/T-010.md` (17 critérios), `T-011.md` (28), `T-012.md` (17), `T-013.md` (26), `T-014.md` (22).
+**Contratos usados:** `plataforma.md` e `filiais.md` (branch t-037) e `contas.md`, `veiculos.md` e `clientes.md` da branch t-036 do arquiteto, já com as decisões de hoje.
+**Para o qa:**
+- Os critérios marcados [integração] na T-014 dependem de locações, financeiro e vendas. Na T-014 eles são testados com eventos falsos; com os módulos reais, voltam na T-019.
+- O veto à desativação da filial (CA-012-15) é testado de novo na T-013, na T-015 e na T-017.
+- Data de referência de todos: 07 out 2026 (quarta-feira).
+**Achados:**
+- CPF da Juliana corrigido para 052.218.330-18; o arquiteto já aplicou.
+- O item 11 tinha a ordem trocada; corrigido para ver_proposta antes de ver_locacao (caso Diego Martins).
+- A T-028 recebeu as divergências da `Frota` (motos e carros, diárias, "Atrasado").
+**Pendente com o dono:** item 12 (desbloqueio manual). Se mudar do padrão A, reescrevo CA-014-17.
 
 ## Decisão S-02 (07 out 2026)
 

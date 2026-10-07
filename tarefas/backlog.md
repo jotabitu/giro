@@ -16,7 +16,7 @@ As dúvidas levantadas pelo arquiteto em T-006 foram aprovadas em 07 out 2026 e 
 
 As dúvidas de filiais da T-030 e de contas da T-036 (itens 6 a 10) foram decididas em 07 out 2026 e viraram regra (T-037: seção Filiais, `LOC-11`, `VEI-04`, `USR-01`, `USR-06`). As de clientes da T-036 (itens 11 a 13) seguem em "Pontos em aberto", com o padrão já aplicado no contrato.
 
-- [divergência] Dados de exemplo nas telas da plataforma (para T-028): `Plat-Empresa-Detalhe` mostra CNPJ 41.208.733/0001-52 (seed: 12.345.678/0001-10), FAT-0001 vencendo em 21 out (PLT-01: dia seguinte ao fim do teste, 22 out) e "13 dias" de teste em 07 out (contrato: 14); `Plat-Empresas` mostra Moto Rápida com 4 usuários (seed: 5). Produto confirma que vale o seed. Somar à T-028: `Filial` mostra "3 de 3 filiais" e as filiais Caucaia e Messejana, mas o seed tem 1 filial (`Filiais` mostra "1 de 3"); e "após o check-in" deve ser "após a devolução". Somar também (T-036): `Login` e `Convite` dizem que o gerente usa 2 etapas (vale a `USR-02`: administrador e financeiro); `Admin-Usuarios` convida só por celular (o e-mail é obrigatório, `USR-01`); tirar "Manter conectado" do `Login` (`USR-06`); o campo "Gerente responsável" da `Filial` vira só leitura (`FIL-02`); tirar de `Filial` vagas, tabela de preço padrão, conta de recebimento, centro de custo, nota fiscal, "aceita devolução de outras filiais", "compartilha a frota" e "Rascunho"; trocar "Domingo e feriados" por domingo e uma lista de feriados (`FIL-03`).
+- [divergência] Dados de exemplo nas telas da plataforma (para T-028): `Plat-Empresa-Detalhe` mostra CNPJ 41.208.733/0001-52 (seed: 12.345.678/0001-10), FAT-0001 vencendo em 21 out (PLT-01: dia seguinte ao fim do teste, 22 out) e "13 dias" de teste em 07 out (contrato: 14); `Plat-Empresas` mostra Moto Rápida com 4 usuários (seed: 5). Produto confirma que vale o seed. Somar à T-028: `Filial` mostra "3 de 3 filiais" e as filiais Caucaia e Messejana, mas o seed tem 1 filial (`Filiais` mostra "1 de 3"); e "após o check-in" deve ser "após a devolução". Somar também (T-036): `Login` e `Convite` dizem que o gerente usa 2 etapas (vale a `USR-02`: administrador e financeiro); `Admin-Usuarios` convida só por celular (o e-mail é obrigatório, `USR-01`); tirar "Manter conectado" do `Login` (`USR-06`); o campo "Gerente responsável" da `Filial` vira só leitura (`FIL-02`); tirar de `Filial` vagas, tabela de preço padrão, conta de recebimento, centro de custo, nota fiscal, "aceita devolução de outras filiais", "compartilha a frota" e "Rascunho"; trocar "Domingo e feriados" por domingo e uma lista de feriados (`FIL-03`). E da `Frota` (T-037): diz "52 motos e 34 carros", mas o seed tem 80 motos e 6 carros; as diárias da CG 160 (R$ 49,90), da Pop 110i (R$ 39,90) e do Mobi (R$ 119,00) não batem com a tabela (Street 54,90; Urbana 44,90; Carro compacto 109,00); e QXA-4B21 aparece "Atrasado" pela LOC-2841, que tem parcela atrasada e não devolução atrasada (a situação "Atrasado" é só de `devolucao_atrasada`).
 
 ## Fase 0 · Fundação
 
@@ -52,19 +52,19 @@ As dúvidas de filiais da T-030 e de contas da T-036 (itens 6 a 10) foram decidi
 ## Fase 1 · MVP
 
 ### T-010 · Plataforma: planos, empresas, criação de schema
-- **Agente:** backend · **Depende de:** T-001, T-006 · **Regras:** PLT-01, PLT-03, PLT-08, PLT-09 (cobrança, suporte e cancelamento ficam para a fase 2) · **Telas:** Plat-Empresas, Plat-Empresa-Detalhe, Plat-Planos · **Nota:** no MVP a empresa piloto é criada pelo Django Admin; as telas da plataforma ficam para a fase 2.
+- **Agente:** backend · **Depende de:** T-001, T-006 · **Regras:** PLT-01, PLT-03, PLT-08, PLT-09 (cobrança, suporte e cancelamento ficam para a fase 2) · **Telas:** Plat-Empresas, Plat-Empresa-Detalhe, Plat-Planos · **Nota:** no MVP a empresa piloto é criada pelo Django Admin; as telas da plataforma ficam para a fase 2. · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-010.md` (CA-010-01 a 17) passam, com o código da regra no nome do teste.
 
 ### T-011 · Contas, perfis, permissões, 2FA, convite
-- **Agente:** backend · **Depende de:** T-012 · **Regras:** USR-01 a USR-07 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios
+- **Agente:** backend · **Depende de:** T-012 · **Regras:** USR-01 a USR-07 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-011.md` (CA-011-01 a 28) passam, com o código da regra no nome do teste.
 
 ### T-012 · Filiais
-- **Agente:** backend · **Depende de:** T-010 · **Regras:** PLT-03 (limite), USR-07 · **Telas:** Filiais, Filial
+- **Agente:** backend · **Depende de:** T-010 · **Regras:** PLT-03 (limite), USR-07 · **Telas:** Filiais, Filial · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-012.md` (CA-012-01 a 17) passam, com o código da regra no nome do teste.
 
 ### T-013 · Veículos, categorias, documentos, histórico de status
-- **Agente:** backend · **Depende de:** T-012 · **Regras:** VEI-01 a VEI-06 · **Telas:** Frota, Veiculo, Precos
+- **Agente:** backend · **Depende de:** T-012 · **Regras:** VEI-01 a VEI-06 · **Telas:** Frota, Veiculo, Precos · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-013.md` (CA-013-01 a 26) passam, com o código da regra no nome do teste.
 
 ### T-014 · Clientes, documentos, bloqueio, LGPD
-- **Agente:** backend · **Depende de:** T-011 · **Regras:** CLI-01 a CLI-08, AUD-04, AUD-05 · **Telas:** Clientes, Cliente
+- **Agente:** backend · **Depende de:** T-011 · **Regras:** CLI-01 a CLI-08, AUD-04, AUD-05 · **Telas:** Clientes, Cliente · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-014.md` (CA-014-01 a 22; os marcados [integração] voltam no seed completo da T-019) passam, com o código da regra no nome do teste.
 
 ### T-015 · Locação: reserva, contrato, ciclo de status
 - **Agente:** backend · **Depende de:** T-013, T-014 · **Regras:** LOC-01 a LOC-13 · **Telas:** Locacao, Locacoes, Locacao-Detalhe, Contratos-Modelos
