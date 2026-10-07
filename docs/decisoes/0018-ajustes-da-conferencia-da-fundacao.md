@@ -40,4 +40,8 @@ Testes: `test_ip_do_cliente_ignora_xff_forjado_sem_proxy`, um com proxy confiáv
 
 - Backend: os itens 1 a 4 entram como tarefa (ver `tarefas/handoffs/T-045-arquiteto.md`); o item 3 junto com a T-033.
 - DevOps: definir `GIRO_PROXIES_CONFIAVEIS` e `GIRO_REDES_PROXY` por ambiente, deixar o Django alcançável só pelo proxy e garantir que o proxy da mesma origem acrescenta (e não repassa como veio) o `X-Forwarded-For`.
+- **Caminho de `/api/` por ambiente** (achado do devops na T-045: o rewrite do Next repassa o `X-Forwarded-For` do cliente sem acrescentar nada, e por isso o `frontend/src/middleware.ts` descarta o cabeçalho em `/api/`):
+  - **Homologação e produção:** o proxy reverso manda `/api/` **direto ao Django**, sem passar pelo Next. O proxy acrescenta o IP do cliente; `GIRO_PROXIES_CONFIAVEIS = 1` e `GIRO_REDES_PROXY` = rede do proxy reverso. O rewrite e o middleware do Next ficam fora desse caminho. Se `/api/` passasse pelo Next, o middleware apagaria o IP que o proxy acrescentou e a auditoria gravaria o IP do container do Next.
+  - **Dev:** `/api/` passa pelo rewrite do Next, que não acrescenta o IP. O middleware descarta o cabeçalho, o Django recebe `X-Forwarded-For` vazio e usa o `REMOTE_ADDR` (o container do frontend). Isso basta para desenvolvimento.
+  - O teste do backend cobre cabeçalho ausente, vazio e com menos de N entradas, sempre caindo no `REMOTE_ADDR`.
 - Os contratos já escritos não mudam: eles já usam `transicao_<entidade>` e, na importação, o ator de quem pediu.
