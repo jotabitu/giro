@@ -76,3 +76,9 @@ CI (T-005), homologação e produção, certificado curinga, backup e Sentry no 
 **Ambientes (homologação e produção):** rodar o mesmo SQL no banco gerenciado, com senhas geradas e guardadas no cofre do ambiente, nunca as de dev. Credencial de `giro_migracao` só no job de deploy; `giro_app` no serviço em execução.
 
 **CI:** continua com um papel só. Passa a usar os papéis separados no mesmo PR em que o backend ler `DATABASE_URL_MIGRACAO` (job `backend` ganha o `01-papeis.sh` no service Postgres).
+
+## IP do ator e proxies (ADR 0018, item 4, T-045)
+
+- O backend lê `GIRO_PROXIES_CONFIAVEIS` (padrão 1) e pega o IP do `X-Forwarded-For` contando da direita; sem o cabeçalho, usa o endereço da conexão. A variável é por ambiente: dev 1; homologação e produção 1 mais o número de camadas na frente do Django.
+- Quem está na frente **acrescenta** o IP de quem o chamou e nunca confia no que veio do cliente. Em produção isso é do proxy reverso (a configurar junto com o deploy); ele precisa acrescentar, não repassar.
+- Em dev, o proxy de mesma origem é o rewrite do Next. Medido: o Next repassa o `X-Forwarded-For` do cliente sem acrescentar o IP real. Por isso `frontend/src/middleware.ts` descarta o cabeçalho em `/api/`: um valor forjado não chega ao Django (testado com `X-Forwarded-For: 6.6.6.6`). Consequência: em dev o ator aparece com o endereço do container do frontend, não o IP real. Aceitável em dev; em homologação e produção o IP real vem do proxy reverso.
