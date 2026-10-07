@@ -144,8 +144,8 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
 | Cadastrar cliente | sim | sim | sim | — | — |
 | Criar locação | sim | sim | sim | — | — |
 | Fazer vistoria (saída e devolução) | sim | sim | sim | sim | — |
-| Cancelar locação | sim | aprova | pede | — | — |
-| Desconto acima de 5% | sim | aprova | pede | — | — |
+| Cancelar locação | sim | sim, e aprova os pedidos | pede | — | — |
+| Desconto acima de 5% | sim | sim, e aprova os pedidos | pede | — | — |
 | Criar venda / proposta | sim | sim | sim | — | — |
 | Receber pagamento no caixa | sim | sim | sim | — | sim |
 | Abrir e fechar caixa, sangria | sim | sim | sim (sua filial) | — | sim |
@@ -166,6 +166,7 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
 - `USR-07` Escopo de filial: o seletor de filial no topo do menu mostra só as filiais da pessoa. Administrador pode escolher "Todas as filiais".
 
 *Mudanças em 07 out 2026 (T-037):* `USR-01` passou a dizer que o e-mail é obrigatório e o celular é opcional; `USR-06` deixou claro que não há "manter conectado".
+*Mudanças em 07 out 2026 (T-041):* na tabela de perfis, o gerente passou a cancelar locação e dar desconto acima de 5% direto, além de aprovar os pedidos do vendedor (decisão do dono do produto, item 19).
 
 ## Filiais
 
@@ -290,8 +291,8 @@ Sinais (não são estados, são calculados): `pagamento_atrasado` (alguma parcel
 **Durante a locação**
 
 - `LOC-07` Parcela vencida acende `pagamento_atrasado` e entra na régua de cobrança (`AUT-03`). Com 15 dias, o cliente é bloqueado (`CLI-05`).
-- `LOC-08` Renovação estende o fim previsto e gera as novas parcelas na mesma locação (não cria outro LOC). Contrato ganha um aditivo automático.
-- `LOC-09` Troca de veículo durante a locação: devolução do veículo antigo + vistoria de saída do novo, na mesma locação; o valor passa a ser o da nova categoria a partir da troca.
+- `LOC-08` Renovação estende o fim previsto e gera as novas parcelas na mesma locação (não cria outro LOC), com o preço vigente no dia da renovação (`LOC-15`). Vale na hora: o contrato ganha um aditivo automático, que segue para assinatura sem travar a renovação. Aditivo não assinado em 7 dias gera tarefa para os gerentes da filial. Renovação não gera comissão (`FIN-09`).
+- `LOC-09` Troca de veículo durante a locação: devolução do veículo antigo + vistoria de saída do novo, na mesma locação; o valor passa a ser o da nova categoria a partir da troca. Se a caução da nova categoria for maior, a diferença é cobrada na troca, e o veículo novo só sai depois do pagamento; se for menor, a diferença fica para o acerto final. As cobranças da vistoria do veículo antigo (avaria, combustível) também ficam para o acerto final, descontadas da caução: cada locação tem um acerto só (`DEV-02`).
 
 **Atraso e cancelamento**
 
@@ -305,6 +306,7 @@ Sinais (não são estados, são calculados): `pagamento_atrasado` (alguma parcel
 **Lista de locações** (`Locacoes`): filtros Todas, Precisam de ação (atraso de devolução, parcela atrasada, aguardando assinatura, cancelamento pendente), Devolvem hoje, Encerradas. O botão de cada linha muda: Cobrar, Receber devolução ou Abrir.
 
 *Mudanças em 07 out 2026 (T-037):* `LOC-11` passou a contar os feriados da filial como dias fechados (`FIL-03`).
+*Mudanças em 07 out 2026 (T-041):* `LOC-08` passou a dizer que a renovação vale na hora e usa o preço do dia; `LOC-09` ganhou a regra da caução e do acerto único na troca (decisões do dono do produto, itens 17 e 18). `LOC-02` não mudou: o extra é por período, e a tela que mostra valor por dia vai para a T-028 (item 16).
 
 ## Vistoria e devolução
 
@@ -326,12 +328,14 @@ Toda retirada e toda devolução têm uma vistoria, e a devolução é sempre co
 
 **Acerto da caução**
 
-- `DEV-01` Cobranças possíveis: combustível faltante (preço da bomba por litro + R$ 10 de taxa), avarias novas (valor da tabela de peças ou orçamento), atraso (`LOC-10`), km excedente (se o plano tiver limite), parcelas em aberto, multas de trânsito já identificadas.
+- `DEV-01` Cobranças possíveis: combustível faltante (litros faltantes × preço do litro + R$ 10,00 de taxa, cobrada uma vez por devolução e só quando falta combustível; o preço do litro é da filial, atualizado pelo gerente; os litros saem da capacidade do tanque, que está no cadastro do veículo, × a diferença entre o nível da saída e o da chegada, com os níveis da `VIS-03` valendo 0, 1/4, 1/2, 3/4 e 1), avarias novas (valor da tabela de peças ou orçamento), atraso (`LOC-10`), km excedente (se o plano tiver limite), parcelas em aberto, multas de trânsito já identificadas.
 - `DEV-02` Saldo = caução − soma das cobranças. Saldo positivo é devolvido ao cliente (Pix, dinheiro ou estorno do cartão). Saldo negativo vira uma conta a receber do cliente, com vencimento em 3 dias.
-- `DEV-03` Exemplo LOC-2836: combustível R$ 32,00 + retrovisor R$ 85,00 = R$ 117,00; caução R$ 300,00 → devolver R$ 183,00 por Pix.
+- `DEV-03` Exemplo LOC-2836: combustível R$ 32,00 (Factor 150 com tanque de 16 L, saiu cheio e voltou com 3/4: 4 L × R$ 5,50 + R$ 10,00) + retrovisor R$ 85,00 = R$ 117,00; caução R$ 300,00 → devolver R$ 183,00 por Pix.
 - `DEV-04` Avaria marcada como "vai para oficina" abre uma OS e o veículo vai para `em_manutencao`. Sem isso, volta para `disponivel`.
 - `DEV-05` "Salvar e continuar depois" guarda a devolução como rascunho; a locação continua `ativa` (ou `devolucao_atrasada`) até o encerramento.
 - `DEV-06` Ao encerrar: locação `encerrada`, km do veículo atualizado, devolução da caução lançada no caixa ou no financeiro, preventivas recalculadas.
+
+*Mudanças em 07 out 2026 (T-041):* `DEV-01` ganhou a fórmula do combustível, e `DEV-03` passou a dizer de onde vêm os R$ 32,00 (decisão do dono do produto, item 15).
 
 ## Vendas
 
@@ -370,7 +374,7 @@ Todo dinheiro que entra ou sai passa por uma conta a receber, uma despesa ou um 
 
 - `FIN-01` Estados: `aberta`, `vence_hoje`, `atrasada`, `paga`, `cancelada`, `renegociada`. Pagamento parcial não existe: ou paga a parcela inteira ou renegocia.
 - `FIN-02` Faixas de atraso para a tela: 1–7 dias, 8–30 dias, mais de 30 dias.
-- `FIN-03` Juros e multa por atraso configuráveis por empresa, com teto: multa de até 2% (CDC, art. 52, §1º) e juros de mora de até 1% ao mês, pro rata dia. Padrão: 2% + 1% ao mês. Calculados na hora do pagamento e escritos no contrato (sem cláusula no contrato, não cobra juros).
+- `FIN-03` Juros e multa por atraso configuráveis por empresa, com teto: multa de até 2% (CDC, art. 52, §1º) e juros de mora de até 1% ao mês, pro rata dia (mês de 30 dias: juros = valor × taxa ao mês ÷ 30 × dias corridos de atraso, contados do dia seguinte ao vencimento até o dia do pagamento; a multa é cobrada uma vez, a partir de 1 dia de atraso). Padrão: 2% + 1% ao mês. Calculados na hora do pagamento e escritos no contrato (sem cláusula no contrato, não cobra juros).
 - `FIN-04` Pagamento por Pix ou boleto do parceiro baixa a conta sozinho (webhook). Dinheiro e cartão na maquininha são baixados no caixa.
 
 **Contas a pagar e despesas**
@@ -385,7 +389,7 @@ Todo dinheiro que entra ou sai passa por uma conta a receber, uma despesa ou um 
 
 **Comissões**
 
-- `FIN-09` Regras padrão (configuráveis): 3% do preço final em vendas; R$ 16,00 por locação nova; renovação não gera comissão. Comissão nasce `pendente` quando a venda espera aprovação, `confirmada` quando vira vendida, `paga` no dia 5 do mês seguinte, `estornada` se a venda for cancelada.
+- `FIN-09` Regras padrão (configuráveis): 3% do preço final em vendas; R$ 16,00 por locação nova; renovação não gera comissão. Comissão de venda nasce `pendente` quando a venda espera aprovação, fica `confirmada` quando vira vendida, `paga` no dia 5 do mês seguinte e `estornada` se a venda for cancelada. Comissão de locação nasce `pendente` quando a locação é confirmada, fica `confirmada` quando a locação fica `ativa`, `paga` no dia 5 do mês seguinte e `estornada` se a locação for cancelada antes da retirada; o encerramento antecipado não a estorna.
 - `FIN-10` Exemplo outubro, Bruna: 4 vendas (R$ 31.200 × 3% = R$ 936,00) + 2 locações (R$ 32,00) = R$ 968,00 confirmados; R$ 632,04 da CB 300F pendentes.
 
 **Conciliação bancária**
@@ -397,6 +401,8 @@ Todo dinheiro que entra ou sai passa por uma conta a receber, uma despesa ou um 
 
 - `FIN-13` DRE simplificada por mês e filial: receita de locações + multas, extras e avarias − taxas de pagamento = receita líquida; − despesas − comissões = resultado. Caução não entra como receita. Venda de veículo entra em linha separada (receita de venda − valor contábil do veículo).
 - `FIN-14` Relatórios prontos (planilha e PDF): DRE, locações por cliente, rentabilidade por veículo, inadimplência por faixa, comissões, manutenções por veículo e oficina.
+
+*Mudanças em 07 out 2026 (T-041):* `FIN-03` passou a dizer como calcular o pro rata dia (item 14); `FIN-09` ganhou os estados da comissão de locação (item 20). Decisões do dono do produto.
 
 ## Manutenção e despesas
 
@@ -521,7 +527,7 @@ Planos especiais: Entregador R$ 279,00/semana (km livre, troca de óleo inclusa)
 | Uso do plano | 86 veículos, 1 filial, 5 usuários | 86 de 150, 1 de 3, 5 de 10; sem aviso | `PLT-03` |
 | Implantação da plataforma | 23 empresas em teste | funil 23 → 19 → 17 → 14 → 11 → 8 | `IMP-05` |
 
-*Mudanças em 07 out 2026 (T-041):* "Despesas de outubro" passou de "aguardando aprovação R$ 1.386,40" para R$ 1.200,00. O valor antigo somava o IPVA de R$ 186,40, que pela `FIN-05` (até R$ 500 nasce `a_pagar`) não vai para aprovação. A tela `Despesas` vai para a T-028.
+*Mudanças em 07 out 2026 (T-041):* "Despesas de outubro" passou de "aguardando aprovação R$ 1.386,40" para R$ 1.200,00. O valor antigo somava o IPVA de R$ 186,40, que pela `FIN-05` (até R$ 500 nasce `a_pagar`) não vai para aprovação. A tela `Despesas` vai para a T-028. Correção aprovada pelo dono do produto em 07 out 2026.
 
 ## Decisões de 07 out 2026
 
@@ -540,6 +546,7 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 | Dúvidas do modelo de dados (T-006, respondidas em T-031) | Estados das entidades sem seção própria (Entidades); venda `cancelada` só a partir de `vendida`, cancelada por gerente ou administrador (`VEN-07`); venda aberta = `proposta`, `negociacao`, `aguardando_aprovacao` (`VEN-10`); `ROUND_HALF_UP` no centavo com diferença na última parcela (Convenções); chassi único e reaproveitamento do cadastro na recompra (`VEI-01`, `VEI-07`). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
 | Dúvidas dos contratos de filiais e contas (T-030 e T-036, respondidas em T-037) | Nova seção Filiais (`FIL-01` a `FIL-06`): campos da tela `Filial` aprovados como o produto recomendou, recebimento por empresa, devolução só na filial da locação e frota por filial, feriados por filial (`LOC-11` não corre nesses dias), desativação recusada com operação. `USR-01`: e-mail obrigatório, celular opcional. `USR-06`: sem "manter conectado". 2 etapas segue a `USR-02` (correção das telas na T-028). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
 | Desbloqueio manual de cliente (T-036, item 12) | Gerente e administrador desbloqueiam direto, com motivo e auditoria; o vendedor pede e o gerente aprova (`CLI-05`, `APR-05`). | Opção A, recomendada pelo produto e aprovada pelo dono do produto em 07 out 2026. Evita que toda filial com um gerente só dependa do administrador. |
+| Dúvidas de financeiro, locações e vistorias (T-038 e T-041, itens 14 a 20) | Juros pro rata com mês de 30 dias (`FIN-03`); combustível com taxa de R$ 10 uma vez por devolução (`DEV-01`, `DEV-03`); extras por período (`LOC-02`, tela para a T-028); renovação vale na hora (`LOC-08`); troca de veículo com acerto único no final (`LOC-09`); gerente cancela e dá desconto acima de 5% direto (tabela de perfis); estados da comissão de locação (`FIN-09`). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
 | Consulta de crédito | **Fora do MVP.** No MVP a análise do cliente (`CLI-04`) usa CPF, CNH, lista de bloqueio e histórico na empresa. Na fase 2, consulta paga por uso via parceiro (Serasa ou o próprio Asaas). | Custa por consulta e não trava a operação; o histórico interno já resolve a maior parte. |
 
 ## Pontos em aberto
@@ -556,43 +563,3 @@ Levantadas pelo arquiteto em `docs/api/clientes.md`. Nenhuma bloqueia a T-014.
 - [ ] **11. Botão da lista quando duas situações valem (`CLI-07`).** Exemplo: Lucas está com cadastro incompleto e tem locação. Recomendação: aceitar a ordem da tela, que já é a proposta. Vale o primeiro que se aplicar: em aberto → Cobrar; incompleto → Completar cadastro; com venda aberta (`VEN-10`) → Ver proposta; com locação → Ver locação; nenhum desses → Nova locação. É a ordem da tela `Clientes`: Lucas (incompleto, com LOC-2856) → Completar cadastro; Diego Martins (LOC-2848 e proposta da CB 300F) → Ver proposta. Corrigido em 07 out 2026: a primeira versão deste item punha a locação antes da proposta, o que contradiz a tela. Só completa a `CLI-07`, **sem impacto de negócio**.
 
 - [ ] **13. Como o cliente fica `inativo`.** Nenhuma regra diz como se entra nesse estado. Recomendação: aceitar a proposta. Gerente ou administrador inativa, com motivo; a ação é recusada se o cliente tem locação aberta, venda aberta ou valor em aberto. Cliente inativo sai da lista padrão (aparece no filtro "todos") e não faz locação nem compra. Gerente ou administrador reativa, e ele volta a `ativo` ou `incompleto`, conforme o cadastro (`CLI-03`). **Impacto de negócio pequeno.** Padrão até a aprovação: esta recomendação.
-
-### Dúvida de cálculo do financeiro (T-041, 07 out 2026)
-
-- [ ] **14. O que é "pro rata dia" nos juros (`FIN-03`).** A regra diz 1% ao mês pro rata dia, mas não diz como o mês vira dia, e isso muda o valor em centavos. **Precisa do dono:** A) mês comercial: juros = valor × 1% ÷ 30 × dias corridos de atraso, contados do dia seguinte ao vencimento até o dia do pagamento, arredondado uma vez (`ROUND_HALF_UP`) (padrão recomendado, o mais usado em boletos); B) mês civil: divide pelos dias do mês do vencimento (28 a 31). Com A, Carlos (R$ 299,40, 7 dias) paga juros de R$ 0,70 e multa de R$ 5,99; Rafael (R$ 1.347,00, 25 dias) paga juros de R$ 11,23 e multa de R$ 26,94. A multa de 2% é cobrada uma vez, em qualquer atraso a partir de 1 dia. Até a resposta vale A, que já está nos critérios da T-017.
-
-### Dúvidas do contrato de locações e vistorias (T-038, 07 out 2026)
-
-Levantadas pelo arquiteto em `docs/api/locacoes.md` e `docs/api/vistorias.md`. Nenhuma bloqueia T-015 nem T-016; até a resposta vale o padrão de cada item.
-
-- [ ] **15. Combustível no acerto (`DEV-01`).** A regra não diz de onde vêm o preço do litro e o tamanho do tanque. Recomendação:
-  - o preço do litro é um valor por filial, atualizado pelo gerente;
-  - a capacidade do tanque fica no cadastro do veículo;
-  - os 5 níveis da `VIS-03` valem 0, 1/4, 1/2, 3/4 e 1 do tanque (reserva = 0);
-  - litros faltantes = capacidade × (nível da saída − nível da chegada);
-  - valor = litros × preço + R$ 10,00, com a taxa cobrada **uma vez por devolução**, e só quando falta combustível.
-  
-  Para o seed fechar com o `DEV-03` (R$ 32,00): a Factor 150 PNB7C04 tem tanque de 16 L, o preço da Filial Centro é R$ 5,50, a saída foi com tanque cheio e a chegada com 3/4. São 4 L × R$ 5,50 = R$ 22,00, mais R$ 10,00 = R$ 32,00. A tela `Devolucao` diz "faltou 1/2 tanque"; com meio tanque, nenhum preço realista fecha em R$ 32,00. Por isso vale o valor do seed, e o texto da tela passa a "faltou 1/4 tanque" (T-028). **Precisa do dono:** A) R$ 10 uma vez por devolução (padrão, igual à proposta do arquiteto); B) R$ 10 por litro, que encarece muito (R$ 62,00 no mesmo caso).
-
-- [ ] **16. [divergência] Extras por dia ou por período (`LOC-02`).** A tela `Locacao` mostra o capacete por R$ 3,00/dia; a regra diz por período. Vale a regra, como manda o `CLAUDE.md`, e a tela vai para a T-028. **Sem impacto de negócio**; não precisa do dono.
-
-- [ ] **17. Renovação vale na hora? (`LOC-08`).** Recomendação: aceitar a proposta. A renovação vale na hora (novas parcelas e novo fim previsto), e o aditivo segue para assinatura. A regra já fala em "aditivo automático", e travar a renovação na assinatura deixaria o cliente em `devolucao_atrasada` sem culpa. Se o aditivo não for assinado em 7 dias, os gerentes recebem uma tarefa; a locação não muda de status. **Impacto pequeno.** Padrão: esta recomendação.
-
-- [ ] **18. Caução e cobranças na troca de veículo (`LOC-09`).** Recomendação, diferente em parte da proposta do arquiteto:
-  - caução da nova categoria **maior** → a diferença é cobrada na troca, e o veículo novo só sai depois do pagamento, como no 1º pagamento;
-  - caução **menor** → a diferença fica para o acerto final, porque a caução ainda cobre as cobranças da locação;
-  - cobranças da vistoria do veículo antigo (avaria, combustível) → entram no acerto final da locação (`DEV-02`), descontadas da caução, e não viram conta separada na hora. Assim continua existindo um acerto só por locação.
-  
-  **Precisa do dono:** A) esta recomendação (padrão); B) a proposta do arquiteto: diferença de caução cobrada ou devolvida na troca, e cobranças do antigo em conta a receber com vencimento em 3 dias.
-
-- [ ] **19. Gerente cancela e dá desconto acima de 5% direto (`APR-01`, `APR-02`).** Recomendação: sim, pelo mesmo motivo da decisão do item 12 (`CLI-05`). Gerente e administrador fazem direto, com motivo e auditoria; só o vendedor pede; quem tem a permissão extra aprova os pedidos dos outros (`USR-03`, `APR-09`). Com um gerente só, todo pedido dele iria para o administrador. **Precisa só de confirmação do dono**, porque a tabela de perfis diz "aprova", e não "faz". Padrão: esta recomendação.
-
-- [ ] **20. Estados da comissão de locação (`FIN-09`).** Recomendação: aceitar a proposta, que só completa a lista de status:
-  - `pendente` ao confirmar a locação;
-  - `confirmada` quando ela fica `ativa`;
-  - `paga` no dia 5 do mês seguinte (`AUT-10`);
-  - `estornada` se for cancelada antes da retirada;
-  - encerramento antecipado (depois da retirada) não estorna, porque a locação aconteceu;
-  - renovação não gera comissão.
-  
-  Bate com o `FIN-10` (Bruna: 2 locações = R$ 32,00 confirmados). **Sem impacto de negócio.**
