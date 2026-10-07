@@ -28,3 +28,15 @@
 **Ainda em aberto com o dono:** itens 11 (ordem do botão de clientes) e 13 (inativar cliente), com o padrão já aplicado.
 
 **Próximo passo para quem recebe:** QA usa os arquivos de critérios; backend de T-015 a T-018 nomeia os testes pelo código da regra. O arquiteto, no merge da t-038, tira as `[decisão]` da T-038 do backlog e alinha `vistorias.md` (fórmula do combustível; o exemplo "faltou 1/2 tanque" vira 3/4) e `locacoes.md` (troca e renovação deixam de ser `[decisão]`).
+
+## Conferência com a T-043 (07 out 2026)
+
+Conferi os critérios contra `financeiro.md`, `auditoria.md` e `filiais.md` da branch t-043 e corrigi os códigos de erro:
+- desativação de filial: um só `FIL-06`, com `detalhes.matriz`, `ultima_filial` e `operacao.{veiculos, locacoes, caixas}` (T-012, T-013, T-017);
+- caixa: 409 `FIN-07` (já aberto, já fechado), 422 `FIN-07` (receber sem caixa), 422 `sangria_maior_que_gaveta`, 400 `validacao` (diferença sem motivo);
+- despesa acima de R$ 500 paga no caixa: 422 `APR-03`;
+- webhook: 401 com token inválido, idempotência pelo `evento_id` e pendência quando o valor diverge;
+- auditoria: suporte recebe 403 `PLT-07`; exportação com 302, 410 `exportacao_expirada` e 403 `2fa_recente`;
+- devolução por Pix vira `Reembolso` `a_fazer` (T-015, T-016).
+
+Nova dúvida, item 21 (reembolso por Pix manual no MVP), com o dono; o padrão A é o que está nos critérios.
