@@ -100,7 +100,7 @@ A empresa cliente passa por 6 estados. Só `ativa` e `em_teste` operam normalmen
 - `PLT-04` Mudança de plano: upgrade vale na hora e cobra a diferença proporcional; downgrade só se o uso couber no plano menor, e vale na próxima fatura.
 - `PLT-05` Preço novo de plano vale só para novas assinaturas; reajuste de quem já assina exige aviso de 30 dias.
 - `PLT-06` Cancelamento pede motivo, oferece pausar ou mudar para o Essencial, e exige digitar o nome da empresa. Contratos já assinados com clientes finais continuam válidos.
-- `PLT-07` **Entrar como suporte:** só com motivo (de preferência um chamado), duração de 15 min, 30 min ou 1 h, permissão "só ver" ou "ver e editar". O administrador da empresa recebe e-mail na hora; aparece uma faixa "Modo suporte" no topo; entrada e saída ficam na auditoria da empresa e na da plataforma. O administrador pode bloquear o acesso do suporte.
+- `PLT-07` **Entrar como suporte:** só com motivo (de preferência um chamado), duração de 15 min, 30 min ou 1 h, permissão "só ver" ou "ver e editar". O administrador da empresa recebe e-mail na hora; aparece uma faixa "Modo suporte" no topo; entrada e saída ficam na auditoria da empresa e na da plataforma. O administrador pode bloquear o acesso do suporte. Mesmo com "ver e editar", o suporte vê dados pessoais mascarados (`AUD-09`).
 - `PLT-08` Usuários da plataforma são obrigados a usar verificação em 2 etapas. 3 códigos errados bloqueiam o login por 15 minutos e geram evento de segurança.
 - `PLT-09` Funções da equipe interna: **Dono** (tudo); **Suporte** (ver empresas, chamados, entrar como suporte); **Financeiro** (cobrança, faturas, suspender); **Sucesso do cliente** (ver empresas, implantações, entrar como suporte, estender teste, mudar plano). Só o Dono mexe em planos e na equipe.
 - `PLT-10` Indicadores do painel (`Plataforma-Desktop`): receita recorrente = soma das assinaturas ativas e inadimplentes; cancelamentos do mês / empresas pagantes no início do mês = taxa de cancelamento.
@@ -144,8 +144,8 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
 | Cadastrar cliente | sim | sim | sim | — | — |
 | Criar locação | sim | sim | sim | — | — |
 | Fazer vistoria (saída e devolução) | sim | sim | sim | sim | — |
-| Cancelar locação | sim | aprova | pede | — | — |
-| Desconto acima de 5% | sim | aprova | pede | — | — |
+| Cancelar locação | sim | sim, e aprova os pedidos | pede | — | — |
+| Desconto acima de 5% | sim | sim, e aprova os pedidos | pede | — | — |
 | Criar venda / proposta | sim | sim | sim | — | — |
 | Receber pagamento no caixa | sim | sim | sim | — | sim |
 | Abrir e fechar caixa, sangria | sim | sim | sim (sua filial) | — | sim |
@@ -157,13 +157,31 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
 
 **Regras**
 
-- `USR-01` Convite por e-mail ou WhatsApp com link válido por 7 dias. A pessoa cria a senha e entra já com perfil e filiais definidos. Convite pendente conta no limite de usuários do plano.
+- `USR-01` Convite por e-mail, e também por WhatsApp quando a pessoa tem celular, com link válido por 7 dias. O e-mail é obrigatório em todo usuário, porque é o login (`USR-06`); o celular é opcional. A pessoa cria a senha e entra já com perfil e filiais definidos. Convite pendente conta no limite de usuários do plano.
 - `USR-02` Verificação em 2 etapas obrigatória para administrador e financeiro; opcional para os demais (o administrador pode tornar obrigatória para todos).
 - `USR-03` Permissões extras por pessoa (marcar em `Admin-Usuarios`): aprovar descontos acima de 5%, cancelar contratos, ver relatórios de todas as filiais. Elas somam ao perfil, nunca tiram.
 - `USR-04` Desativar usuário encerra a sessão na hora. O histórico do que ele fez continua. Usuário desativado não conta no limite do plano.
 - `USR-05` Menu: tela inicial de cada perfil usa o menu daquele perfil; telas compartilhadas usam o menu completo, escondendo os itens sem permissão. Itens sem permissão nunca aparecem desabilitados, simplesmente não aparecem.
-- `USR-06` Login com e-mail e senha; 5 tentativas erradas bloqueiam por 15 minutos e avisam o administrador. Sessão expira após 12 h sem uso no desktop e 30 dias no celular.
+- `USR-06` Login com e-mail e senha; 5 tentativas erradas bloqueiam por 15 minutos e avisam o administrador. Sessão expira após 12 h sem uso no desktop e 30 dias no celular. Não existe opção "manter conectado".
 - `USR-07` Escopo de filial: o seletor de filial no topo do menu mostra só as filiais da pessoa. Administrador pode escolher "Todas as filiais".
+
+*Mudanças em 07 out 2026 (T-037):* `USR-01` passou a dizer que o e-mail é obrigatório e o celular é opcional; `USR-06` deixou claro que não há "manter conectado".
+*Mudanças em 07 out 2026 (T-041):* na tabela de perfis, o gerente passou a cancelar locação e dar desconto acima de 5% direto, além de aprovar os pedidos do vendedor (decisão do dono do produto, item 19).
+
+## Filiais
+
+A empresa tem ao menos uma filial ativa, e uma delas é a matriz. Veículos, locações, caixa do dia, vistorias e ordens de serviço são de uma filial; clientes, marca, modelos de contrato e usuários são da empresa (cada usuário com acesso escolhido por filial, `USR-07`). Telas: `Filiais`, `Filial`, `Onboarding-Filial`.
+
+**Regras**
+
+- `FIL-01` Cadastro: nome (único na empresa), CNPJ e inscrições (opcionais), endereço, contato, horário por dia da semana (até 2 intervalos por dia, para quem fecha no almoço) e feriados (`FIL-03`). A filial é ativa ou inativa, sem rascunho: só salva com os campos obrigatórios. A primeira filial é sempre a matriz, e só existe uma matriz.
+- `FIL-02` Os gerentes da filial são os usuários com perfil gerente ligados a ela (`USR-07`), e não um campo da filial. Avisos e tarefas "para o gerente" vão a todos os gerentes da filial.
+- `FIL-03` Feriados: cada filial tem uma lista de datas em que fica fechada, cadastrada pelo administrador. A cada ano o sistema sugere os feriados nacionais, e o administrador confirma ou acrescenta os locais. Em dia de feriado a filial conta como fechada para `LOC-11`.
+- `FIL-04` O preço pode ser da empresa ou de uma filial, pela categoria (`LOC-01`, tela `Precos`). Não há "tabela de preço padrão", vagas no pátio nem centro de custo na filial: a própria filial é o centro de custo (DRE por filial, `FIN-13`). O recebimento é da empresa, numa única subconta do parceiro de pagamento (Decisões de 07 out 2026). O sistema não emite nota fiscal.
+- `FIL-05` A frota é de cada filial. A devolução é feita na filial da locação, e não há frota compartilhada: para usar o veículo de outra filial, ele é transferido antes (`VEI-04`).
+- `FIL-06` Desativar filial: só o administrador, com motivo. É recusado quando a filial é a matriz (escolher outra antes), quando é a última filial ativa, ou quando ainda tem operação. Operação aqui é: veículos fora de `vendido` e `baixado`; locações em `rascunho`, `aguardando_retirada`, `ativa` ou `devolucao_atrasada`; caixa do dia `aberto` ou `aguardando_aprovacao`. A recusa mostra quanto falta em cada grupo. Contas a receber em aberto e despesas a pagar não impedem: continuam na régua de cobrança (`AUT-03`), podem ser pagas por Pix ou boleto (`FIN-04`) ou no caixa de outra filial, e mantêm a filial de origem para relatório e DRE. Nada é apagado; reativar respeita o limite do plano (`PLT-03`).
+
+*Criada em 07 out 2026 (T-037), a partir da tela `Filial` e das dúvidas da T-030 decididas pelo dono do produto.*
 
 ## Veículos
 
@@ -206,12 +224,13 @@ Qualquer outra transição é recusada pelo backend com erro de regra (HTTP 409)
 - `VEI-01` Placa e chassi únicos por empresa, em qualquer estado do veículo; chassi com 17 caracteres; km nunca diminui (vistoria com km menor que o anterior é recusada, salvo correção pelo gerente com motivo).
 - `VEI-02` O km do veículo é atualizado a cada vistoria e a cada OS. Ele dispara as preventivas (`MAN-03`).
 - `VEI-03` Documentos: alerta 30 dias antes do vencimento; no dia do vencimento de CRLV ou seguro, o veículo disponível vai para `indisponivel`. Veículo alugado não muda, mas gera tarefa urgente para o gerente.
-- `VEI-04` Transferência entre filiais só com o veículo `disponivel`. Grava a filial de origem e destino.
+- `VEI-04` Transferência entre filiais só com o veículo `disponivel`. Grava a filial de origem e destino. É o único jeito de um veículo mudar de filial: a devolução é sempre na filial da locação e a frota não é compartilhada (`FIL-05`).
 - `VEI-05` "Rendeu no ano" na ficha = receitas de locação recebidas do veículo − custos de manutenção e despesas ligadas a ele, no ano corrente.
 - `VEI-06` Ocupação = dias alugado ÷ dias que o veículo esteve na frota no período (exclui `a_venda`, `vendido`, `baixado`). Ocupação da frota = média ponderada pelos dias.
 - `VEI-07` Veículo que volta para a empresa depois de vendido (recompra numa troca, `VEN-05`) reaproveita o cadastro existente, achado pelo chassi, e não ganha outro: vai de `vendido` para `indisponivel` até a vistoria, e o histórico continua no mesmo veículo.
 
 *Mudanças em 07 out 2026 (T-031):* `VEI-01` passou a exigir chassi único, além da placa; criada a `VEI-07`; acrescentadas as transições `vendido` → `a_venda` e `vendido` → `indisponivel`.
+*Mudanças em 07 out 2026 (T-037):* `VEI-04` passou a dizer que a devolução é na filial da locação e que não há frota compartilhada.
 
 ## Clientes
 
@@ -230,10 +249,14 @@ O cliente é da empresa (compartilhado entre filiais) e tem 4 estados: `incomple
 - `CLI-02` Para alugar moto, CNH categoria A; para carro, categoria B. CNH vencida há mais de 30 dias impede a retirada.
 - `CLI-03` Cliente fica `incompleto` enquanto faltar algum documento obrigatório. Pode ser salvo e pode ter locação criada, mas a retirada (vistoria de saída) só libera com o cadastro completo.
 - `CLI-04` Análise do cadastro (painel ao lado do formulário): CPF válido e regular, CNH válida na categoria, fora da lista de bloqueio da empresa, consulta de crédito (se a integração existir). Cada item mostra ok, pendente ou problema.
-- `CLI-05` Bloqueio automático com 15 dias de atraso em qualquer valor (parcela, devolução, multa). Cliente bloqueado não faz nova locação nem compra; desbloqueia sozinho ao quitar. Gerente pode bloquear ou desbloquear manualmente, com motivo.
+- `CLI-05` Bloqueio automático com 15 dias de atraso em qualquer valor (parcela, devolução, multa). Cliente bloqueado não faz nova locação nem compra; desbloqueia sozinho ao quitar. Gerente e administrador podem bloquear ou desbloquear manualmente, na hora, com motivo e evento de auditoria. O vendedor não desbloqueia: ele pede, e o gerente aprova (`APR-05`).
 - `CLI-06` A lista mostra, por cliente: situação, locação atual, total pago, valor em aberto e "cliente desde". Filtros: todos, com locação, em aberto, bloqueados, cadastro incompleto.
-- `CLI-07` Botão de ação na lista conforme a situação: em aberto → Cobrar; com locação → Ver locação; incompleto → Completar cadastro; sem locação → Nova locação.
+- `CLI-07` Botão de ação na lista conforme a situação. Quando mais de uma vale, vale a primeira desta ordem: em aberto → Cobrar (a conta mais antiga); cadastro incompleto → Completar cadastro; venda aberta (`VEN-10`) → Ver proposta; com locação → Ver locação; sem locação e `ativo` → Nova locação. Ex.: Lucas (incompleto, com LOC-2856) → Completar cadastro; Diego Martins (LOC-2848 e proposta da CB 300F) → Ver proposta. Cliente bloqueado sem valor em aberto não ganha Nova locação.
 - `CLI-08` "Salvar e iniciar locação" grava o cliente e abre a Nova locação com ele já escolhido.
+- `CLI-09` Cliente `inativo`: gerente ou administrador inativa, com motivo; a ação é recusada se o cliente tem locação aberta, venda aberta ou valor em aberto. O inativo sai da lista padrão (aparece no filtro de inativos) e não faz locação nem compra. Gerente ou administrador reativa, com motivo, e ele volta a `ativo` ou `incompleto`, conforme o cadastro (`CLI-03`).
+
+*Mudanças em 07 out 2026 (T-041):* `CLI-05` e `APR-05` passaram a dizer que gerente e administrador desbloqueiam direto e só o vendedor pede aprovação (decisão do dono do produto, item 12).
+*Mudanças em 07 out 2026 (T-041):* `CLI-07` ganhou a ordem de prioridade do botão; criada a `CLI-09` (como o cliente fica e sai de `inativo`). Decisões do dono do produto, itens 11 e 13.
 
 ## Locação
 
@@ -270,19 +293,22 @@ Sinais (não são estados, são calculados): `pagamento_atrasado` (alguma parcel
 **Durante a locação**
 
 - `LOC-07` Parcela vencida acende `pagamento_atrasado` e entra na régua de cobrança (`AUT-03`). Com 15 dias, o cliente é bloqueado (`CLI-05`).
-- `LOC-08` Renovação estende o fim previsto e gera as novas parcelas na mesma locação (não cria outro LOC). Contrato ganha um aditivo automático.
-- `LOC-09` Troca de veículo durante a locação: devolução do veículo antigo + vistoria de saída do novo, na mesma locação; o valor passa a ser o da nova categoria a partir da troca.
+- `LOC-08` Renovação estende o fim previsto e gera as novas parcelas na mesma locação (não cria outro LOC), com o preço vigente no dia da renovação (`LOC-15`). Vale na hora: o contrato ganha um aditivo automático, que segue para assinatura sem travar a renovação. Aditivo não assinado em 7 dias gera tarefa para os gerentes da filial. Renovação não gera comissão (`FIN-09`).
+- `LOC-09` Troca de veículo durante a locação: devolução do veículo antigo + vistoria de saída do novo, na mesma locação; o valor passa a ser o da nova categoria a partir da troca. Se a caução da nova categoria for maior, a diferença é cobrada na troca, e o veículo novo só sai depois do pagamento; se for menor, a diferença fica para o acerto final. As cobranças da vistoria do veículo antigo (avaria, combustível) também ficam para o acerto final, descontadas da caução: cada locação tem um acerto só (`DEV-02`).
 
 **Atraso e cancelamento**
 
 - `LOC-10` Tolerância de 1 hora após o fim previsto. Depois disso, cada dia ou fração cobra 1 diária da categoria, e a locação vai para `devolucao_atrasada` no dia seguinte.
-- `LOC-11` Devolução fora do horário da filial conta como feita na abertura seguinte, mas o atraso só é cobrado se já tinha passado da tolerância no horário em que a filial fechou.
+- `LOC-11` Devolução fora do horário da filial conta como feita na abertura seguinte, mas o atraso só é cobrado se já tinha passado da tolerância no horário em que a filial fechou. Feriado da filial (`FIL-03`) conta como dia fechado: o atraso não corre nesses dias, e a devolução prevista para um feriado pode ser feita na abertura seguinte sem atraso.
 - `LOC-12` Cancelamento é pedido pelo vendedor e aprovado pelo gerente (`APR-02`). Antes da retirada: sem multa, devolve o que foi pago. Depois da retirada (encerramento antecipado): multa de 20% sobre o valor dos dias restantes do período em curso (preço do período ÷ dias do período × dias restantes), com mínimo de 1 diária da categoria, e acerto como numa devolução. Diária: sem multa, cobra só os dias usados. Ex.: Patrícia, LOC-2812, NMax mensal R$ 1.590,00, pede em 07 out com 8 dias restantes → restante R$ 424,00 → multa R$ 84,80.
 - `LOC-13` Devolução antecipada (antes do fim) não devolve parcela já paga, salvo plano mensal, que devolve as semanas inteiras não usadas (7 × preço mensal ÷ 30 por semana), menos a multa do `LOC-12`. Se a multa for maior que a devolução, a diferença vira conta a receber. Ex.: Patrícia → 1 semana inteira R$ 371,00 − multa R$ 84,80 = devolve R$ 286,20.
 - `LOC-14` Plano mensal é cobrado por mês fechado (valor da tabela, ex.: Urbana R$ 1.090), nunca como diária × 30. Pode ser pago à vista ou em 4 parcelas semanais. Período menor que um mês usa diária ou semanal.
 - `LOC-15` Preço da tabela vale para contratos novos; contrato já assinado mantém o preço da data da assinatura até o fim (renovação usa o preço novo). A tabela guarda o histórico de preços.
 
 **Lista de locações** (`Locacoes`): filtros Todas, Precisam de ação (atraso de devolução, parcela atrasada, aguardando assinatura, cancelamento pendente), Devolvem hoje, Encerradas. O botão de cada linha muda: Cobrar, Receber devolução ou Abrir.
+
+*Mudanças em 07 out 2026 (T-037):* `LOC-11` passou a contar os feriados da filial como dias fechados (`FIL-03`).
+*Mudanças em 07 out 2026 (T-041):* `LOC-08` passou a dizer que a renovação vale na hora e usa o preço do dia; `LOC-09` ganhou a regra da caução e do acerto único na troca (decisões do dono do produto, itens 17 e 18). `LOC-02` não mudou: o extra é por período, e a tela que mostra valor por dia vai para a T-028 (item 16).
 
 ## Vistoria e devolução
 
@@ -304,12 +330,14 @@ Toda retirada e toda devolução têm uma vistoria, e a devolução é sempre co
 
 **Acerto da caução**
 
-- `DEV-01` Cobranças possíveis: combustível faltante (preço da bomba por litro + R$ 10 de taxa), avarias novas (valor da tabela de peças ou orçamento), atraso (`LOC-10`), km excedente (se o plano tiver limite), parcelas em aberto, multas de trânsito já identificadas.
-- `DEV-02` Saldo = caução − soma das cobranças. Saldo positivo é devolvido ao cliente (Pix, dinheiro ou estorno do cartão). Saldo negativo vira uma conta a receber do cliente, com vencimento em 3 dias.
-- `DEV-03` Exemplo LOC-2836: combustível R$ 32,00 + retrovisor R$ 85,00 = R$ 117,00; caução R$ 300,00 → devolver R$ 183,00 por Pix.
+- `DEV-01` Cobranças possíveis: combustível faltante (litros faltantes × preço do litro + R$ 10,00 de taxa, cobrada uma vez por devolução e só quando falta combustível; o preço do litro é da filial, atualizado pelo gerente; os litros saem da capacidade do tanque, que está no cadastro do veículo, × a diferença entre o nível da saída e o da chegada, com os níveis da `VIS-03` valendo 0, 1/4, 1/2, 3/4 e 1), avarias novas (valor da tabela de peças ou orçamento), atraso (`LOC-10`), km excedente (se o plano tiver limite), parcelas em aberto, multas de trânsito já identificadas.
+- `DEV-02` Saldo = caução − soma das cobranças. Saldo positivo é devolvido ao cliente (Pix, dinheiro ou estorno do cartão). Dinheiro sai na hora pelo caixa do dia. Pix e estorno do cartão viram um reembolso "a fazer": no MVP a pessoa faz o Pix pela conta da locadora (ou o estorno na maquininha) e marca como feito, com o comprovante; o recibo ao cliente diz "devolução de R$ X por Pix em até 1 dia útil", e os reembolsos a fazer aparecem em "Para hoje" do financeiro e do gerente da filial. Vale para toda devolução de dinheiro ao cliente, inclusive a de locação cancelada (`LOC-12`) e a das semanas não usadas (`LOC-13`). Saldo negativo vira uma conta a receber do cliente, com vencimento em 3 dias.
+- `DEV-03` Exemplo LOC-2836: combustível R$ 32,00 (Factor 150 com tanque de 16 L, saiu cheio e voltou com 3/4: 4 L × R$ 5,50 + R$ 10,00) + retrovisor R$ 85,00 = R$ 117,00; caução R$ 300,00 → devolver R$ 183,00 por Pix.
 - `DEV-04` Avaria marcada como "vai para oficina" abre uma OS e o veículo vai para `em_manutencao`. Sem isso, volta para `disponivel`.
 - `DEV-05` "Salvar e continuar depois" guarda a devolução como rascunho; a locação continua `ativa` (ou `devolucao_atrasada`) até o encerramento.
 - `DEV-06` Ao encerrar: locação `encerrada`, km do veículo atualizado, devolução da caução lançada no caixa ou no financeiro, preventivas recalculadas.
+
+*Mudanças em 07 out 2026 (T-041):* `DEV-01` ganhou a fórmula do combustível, e `DEV-03` passou a dizer de onde vêm os R$ 32,00 (decisão do dono do produto, item 15). `DEV-02` passou a dizer que, no MVP, a devolução por Pix ou estorno do cartão é manual, registrada como reembolso a fazer (decisão do dono do produto, item 21).
 
 ## Vendas
 
@@ -348,7 +376,7 @@ Todo dinheiro que entra ou sai passa por uma conta a receber, uma despesa ou um 
 
 - `FIN-01` Estados: `aberta`, `vence_hoje`, `atrasada`, `paga`, `cancelada`, `renegociada`. Pagamento parcial não existe: ou paga a parcela inteira ou renegocia.
 - `FIN-02` Faixas de atraso para a tela: 1–7 dias, 8–30 dias, mais de 30 dias.
-- `FIN-03` Juros e multa por atraso configuráveis por empresa, com teto: multa de até 2% (CDC, art. 52, §1º) e juros de mora de até 1% ao mês, pro rata dia. Padrão: 2% + 1% ao mês. Calculados na hora do pagamento e escritos no contrato (sem cláusula no contrato, não cobra juros).
+- `FIN-03` Juros e multa por atraso configuráveis por empresa, com teto: multa de até 2% (CDC, art. 52, §1º) e juros de mora de até 1% ao mês, pro rata dia (mês de 30 dias: juros = valor × taxa ao mês ÷ 30 × dias corridos de atraso, contados do dia seguinte ao vencimento até o dia do pagamento; a multa é cobrada uma vez, a partir de 1 dia de atraso). Padrão: 2% + 1% ao mês. Calculados na hora do pagamento e escritos no contrato (sem cláusula no contrato, não cobra juros).
 - `FIN-04` Pagamento por Pix ou boleto do parceiro baixa a conta sozinho (webhook). Dinheiro e cartão na maquininha são baixados no caixa.
 
 **Contas a pagar e despesas**
@@ -363,7 +391,7 @@ Todo dinheiro que entra ou sai passa por uma conta a receber, uma despesa ou um 
 
 **Comissões**
 
-- `FIN-09` Regras padrão (configuráveis): 3% do preço final em vendas; R$ 16,00 por locação nova; renovação não gera comissão. Comissão nasce `pendente` quando a venda espera aprovação, `confirmada` quando vira vendida, `paga` no dia 5 do mês seguinte, `estornada` se a venda for cancelada.
+- `FIN-09` Regras padrão (configuráveis): 3% do preço final em vendas; R$ 16,00 por locação nova; renovação não gera comissão. Comissão de venda nasce `pendente` quando a venda espera aprovação, fica `confirmada` quando vira vendida, `paga` no dia 5 do mês seguinte e `estornada` se a venda for cancelada. Comissão de locação nasce `pendente` quando a locação é confirmada, fica `confirmada` quando a locação fica `ativa`, `paga` no dia 5 do mês seguinte e `estornada` se a locação for cancelada antes da retirada; o encerramento antecipado não a estorna.
 - `FIN-10` Exemplo outubro, Bruna: 4 vendas (R$ 31.200 × 3% = R$ 936,00) + 2 locações (R$ 32,00) = R$ 968,00 confirmados; R$ 632,04 da CB 300F pendentes.
 
 **Conciliação bancária**
@@ -375,6 +403,8 @@ Todo dinheiro que entra ou sai passa por uma conta a receber, uma despesa ou um 
 
 - `FIN-13` DRE simplificada por mês e filial: receita de locações + multas, extras e avarias − taxas de pagamento = receita líquida; − despesas − comissões = resultado. Caução não entra como receita. Venda de veículo entra em linha separada (receita de venda − valor contábil do veículo).
 - `FIN-14` Relatórios prontos (planilha e PDF): DRE, locações por cliente, rentabilidade por veículo, inadimplência por faixa, comissões, manutenções por veículo e oficina.
+
+*Mudanças em 07 out 2026 (T-041):* `FIN-03` passou a dizer como calcular o pro rata dia (item 14); `FIN-09` ganhou os estados da comissão de locação (item 20). Decisões do dono do produto.
 
 ## Manutenção e despesas
 
@@ -407,7 +437,7 @@ Tudo que precisa de aprovação usa o mesmo mecanismo: o pedido fica `pendente`,
 | `APR-02` | Cancelamento de locação | sempre | vendedor | gerente | cancela e calcula multa e acerto |
 | `APR-03` | Despesa ou orçamento de OS | acima de R$ 500 | qualquer perfil que lança despesa | gerente | despesa vai para `a_pagar`; OS pode executar |
 | `APR-04` | Diferença no fechamento do caixa | qualquer valor | quem fecha o caixa | gerente | caixa fechado com a diferença registrada |
-| `APR-05` | Desbloqueio manual de cliente | sempre | vendedor, gerente | gerente | cliente volta a `ativo` |
+| `APR-05` | Desbloqueio manual de cliente | pedido pelo vendedor (gerente e administrador desbloqueiam direto, `CLI-05`) | vendedor | gerente | cliente volta a `ativo` (ou `incompleto`, se faltar cadastro) |
 | `APR-06` | Correção de km para baixo | sempre | vistoriador | gerente | km corrigido com motivo |
 
 **Regras**
@@ -416,6 +446,8 @@ Tudo que precisa de aprovação usa o mesmo mecanismo: o pedido fica `pendente`,
 - `APR-08` Pedido sem resposta em 4 horas úteis avisa o administrador.
 - `APR-09` Quem pediu não pode aprovar o próprio pedido, mesmo tendo a permissão.
 - `APR-10` Todo pedido, aprovação e recusa entra na auditoria.
+
+*Mudanças em 07 out 2026 (T-041):* `APR-05` passou a ser pedido só pelo vendedor (`CLI-05`).
 
 ## Automações e notificações
 
@@ -453,6 +485,9 @@ Toda ação que muda dado de negócio grava um evento de auditoria que ninguém 
 - `AUD-06` Pedido do titular (LGPD): o administrador exporta os dados de um cliente ou anonimiza o cadastro. Contratos e registros financeiros ficam guardados pelo prazo legal, anonimizados.
 - `AUD-07` Exportação (`Admin-Exportar`): escolhe o que (clientes, veículos, locações e contratos, financeiro, vistorias e fotos, auditoria), formato (planilha, CSV, backup completo em ZIP) e período. O arquivo fica pronto em segundo plano e o link vale 7 dias.
 - `AUD-08` Após o cancelamento da assinatura, os dados ficam 90 dias disponíveis para exportação e depois são apagados de vez (com aviso 7 dias antes).
+- `AUD-09` O suporte Giro, dentro de uma empresa (`PLT-07`), vê CPF e CNH sempre mascarados, como nas listas (`AUD-04`), em qualquer tela e com qualquer permissão de acesso ("só ver" ou "ver e editar"). Nunca vê os dados completos.
+
+*Mudanças em 07 out 2026 (T-037):* criada a `AUD-09` (achado S-02 da segurança, T-032, decidido pelo dono do produto); `PLT-07` passou a citá-la.
 
 ## Dados de referência para testes
 
@@ -486,13 +521,15 @@ Planos especiais: Entregador R$ 279,00/semana (km livre, troca de óleo inclusa)
 | Caixa de 07 out | troco 200,00; entradas em dinheiro 629,00; saídas em dinheiro 548,00 | gaveta R$ 281,00; total recebido R$ 1.182,60 | `FIN-07` |
 | Conciliação | Pix sem par +150,00; tarifa −12,90 | diferença R$ 137,10 | `FIN-12` |
 | DRE de setembro | locações 56.420,00; extras 2.310,00; taxas 1.128,40; despesas 21.480,30; comissões 1.890,00 | resultado R$ 34.231,30 (margem 58%) | `FIN-13` |
-| Despesas de outubro | 6 lançamentos | R$ 7.066,70; aguardando aprovação R$ 1.386,40 | `FIN-05` |
+| Despesas de outubro | 6 lançamentos: pneus 1.200,00; óleo 48,00 (pago no caixa); luz 412,30; aluguel 3.500,00; IPVA 186,40; rastreadores 1.720,00 | R$ 7.066,70; aguardando aprovação R$ 1.200,00 (só os pneus; o IPVA está abaixo de R$ 500 e nasce `a_pagar`) | `FIN-05` |
 | Em aberto dos clientes | Carlos 299,40; Rafael 1.347,00 | R$ 1.646,40 (2 clientes) | `FIN-01` |
 | Encerramento antecipado LOC-2812 | NMax mensal 1.590,00; pedido em 07 out; fim 15 out | multa R$ 84,80; devolve R$ 286,20 | `LOC-12`, `LOC-13` |
 | Preço antigo LOC-2841 | Carlos, CG 160 Fan, assinado em 30 set, quando a Street semanal era 299,40 (passou a 329,00 em 01 out) | parcelas continuam R$ 299,40 | `LOC-15` |
 | Bloqueio | Rafael Sousa, 25 dias de atraso | cliente `bloqueado`, LOC-2790 `devolucao_atrasada` | `CLI-05`, `LOC-10` |
 | Uso do plano | 86 veículos, 1 filial, 5 usuários | 86 de 150, 1 de 3, 5 de 10; sem aviso | `PLT-03` |
 | Implantação da plataforma | 23 empresas em teste | funil 23 → 19 → 17 → 14 → 11 → 8 | `IMP-05` |
+
+*Mudanças em 07 out 2026 (T-041):* "Despesas de outubro" passou de "aguardando aprovação R$ 1.386,40" para R$ 1.200,00. O valor antigo somava o IPVA de R$ 186,40, que pela `FIN-05` (até R$ 500 nasce `a_pagar`) não vai para aprovação. A tela `Despesas` vai para a T-028. Correção aprovada pelo dono do produto em 07 out 2026.
 
 ## Decisões de 07 out 2026
 
@@ -509,6 +546,11 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 | Preços da assinatura | Essencial **R$ 199**, Profissional **R$ 449**, Completo **R$ 899** por mês; anual = 10 mensalidades. Adicionais: filial R$ 79/mês, pacote de 10 veículos R$ 49/mês, assinatura digital avulsa R$ 4,90/contrato. | Sistemas de locação lá fora custam de US$ 29 a 99 por mês e ERPs genéricos no Brasil ficam perto de R$ 200; o Essencial custa menos que 1 semana de aluguel de uma moto. |
 | Domínio | **girolocadoras.com.br** (plataforma em `admin.girolocadoras.com.br`, empresas em `<subdominio>.girolocadoras.com.br`). Registrar também girolocacao.com.br para proteção. | giro.com.br e quase todas as variações (giroapp, girogestao, girofrota, girorent, meugiro, usegiro) já têm dono. Disponíveis em 07 out 2026: girolocadoras.com.br, girolocacao.com.br, girogestao.app.br, giromotos.app.br. |
 | Dúvidas do modelo de dados (T-006, respondidas em T-031) | Estados das entidades sem seção própria (Entidades); venda `cancelada` só a partir de `vendida`, cancelada por gerente ou administrador (`VEN-07`); venda aberta = `proposta`, `negociacao`, `aguardando_aprovacao` (`VEN-10`); `ROUND_HALF_UP` no centavo com diferença na última parcela (Convenções); chassi único e reaproveitamento do cadastro na recompra (`VEI-01`, `VEI-07`). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
+| Dúvidas dos contratos de filiais e contas (T-030 e T-036, respondidas em T-037) | Nova seção Filiais (`FIL-01` a `FIL-06`): campos da tela `Filial` aprovados como o produto recomendou, recebimento por empresa, devolução só na filial da locação e frota por filial, feriados por filial (`LOC-11` não corre nesses dias), desativação recusada com operação. `USR-01`: e-mail obrigatório, celular opcional. `USR-06`: sem "manter conectado". 2 etapas segue a `USR-02` (correção das telas na T-028). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
+| Desbloqueio manual de cliente (T-036, item 12) | Gerente e administrador desbloqueiam direto, com motivo e auditoria; o vendedor pede e o gerente aprova (`CLI-05`, `APR-05`). | Opção A, recomendada pelo produto e aprovada pelo dono do produto em 07 out 2026. Evita que toda filial com um gerente só dependa do administrador. |
+| Dúvidas de financeiro, locações e vistorias (T-038 e T-041, itens 14 a 20) | Juros pro rata com mês de 30 dias (`FIN-03`); combustível com taxa de R$ 10 uma vez por devolução (`DEV-01`, `DEV-03`); extras por período (`LOC-02`, tela para a T-028); renovação vale na hora (`LOC-08`); troca de veículo com acerto único no final (`LOC-09`); gerente cancela e dá desconto acima de 5% direto (tabela de perfis); estados da comissão de locação (`FIN-09`). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
+| Botão da lista e cliente inativo (T-036, itens 11 e 13) | Ordem do botão: em aberto, incompleto, venda aberta, com locação, nova locação (`CLI-07`); inativar e reativar com motivo, recusado com pendência (`CLI-09`). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
+| Devolução de dinheiro ao cliente por Pix (T-043, item 21) | Manual no MVP: o sistema registra o reembolso a fazer, e a pessoa faz o Pix e marca como feito com o comprovante (`DEV-02`). O Pix automático pelo parceiro fica para depois das proteções de saque da subconta (achado S-05). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
 | Consulta de crédito | **Fora do MVP.** No MVP a análise do cliente (`CLI-04`) usa CPF, CNH, lista de bloqueio e histórico na empresa. Na fase 2, consulta paga por uso via parceiro (Serasa ou o próprio Asaas). | Custa por consulta e não trava a operação; o histórico interno já resolve a maior parte. |
 
 ## Pontos em aberto
