@@ -43,7 +43,7 @@ Este documento diz, para cada uma das 25 entidades das regras, o app dono, o sch
 | 24 | Comissão | `Comissao` | `financeiro` | empresa |
 | 25 | Evento de auditoria | `EventoAuditoria` | `auditoria` | public **e** empresa |
 
-Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 0009).
+Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 0009) e `WebhookRecebido` (`provedor`, `evento_id` único, `recebido_em`, `corpo` json, `processado_em`, `resultado`; S-14).
 
 ---
 
@@ -410,21 +410,26 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `filial` | FK → `Filial` | |
 | `cliente` | FK → `Cliente` | |
 | origem genérica | `locacao`, `venda`, `devolucao` (saldo negativo `DEV-02`), `cliente` (multa avulsa) | |
-| `tipo` | enum `parcela`, `caucao`, `multa`, `avaria`, `acerto` | caução não é receita (`LOC-04`, `FIN-13`) |
+| `tipo` | enum `parcela`, `caucao`, `multa`, `avaria`, `acerto`, `outro` | caução não é receita (`LOC-04`, `FIN-13`) |
+| `total_parcelas` | int, nulo | "2 de 5" |
 | `numero_parcela` | int, nulo | "2 de 4" |
 | `vencimento` | data | |
 | `valor_centavos` | centavos | |
 | `multa_centavos`, `juros_centavos` | centavos | calculados no pagamento (`FIN-03`) |
 | `status` | enum `aberta`, `paga`, `cancelada`, `renegociada` guardados; `vence_hoje` e `atrasada` calculados | ver nota |
-| `forma` | enum `pix`, `boleto`, `cartao`, `dinheiro`, `pix_automatico`, nulo | |
+| `forma` | enum `pix`, `boleto`, `cartao_debito`, `cartao_credito`, `dinheiro`, `pix_automatico`, `caucao`, nulo | `caucao` = paga com a caução no acerto (`DEV-02`) |
 | `pago_em` | momento, nulo | |
 | `movimento_caixa` | FK → `MovimentoCaixa`, nulo | baixa no caixa |
-| `cobranca_externa_id` | texto(60), único, nulo | Asaas; idempotência do webhook (`FIN-04`, `AUT-05`) |
 | `renegociada_em` | FK → `ContaReceber`, nulo | |
-| `estorno_de` | FK → `ContaReceber`, nulo | correção de conta paga (estorno) |
+| `estorno_de` | FK → `ContaReceber`, nulo | conta reaberta por estorno aponta para a original |
+| `estornada_em` | momento, nulo | na original estornada (continua `paga`) |
 
 - **Nota sobre status:** `vence_hoje` e `atrasada` dependem só da data. Para não precisar de uma tarefa que reescreve status à meia-noite, o banco guarda `aberta` e o selector devolve `vence_hoje` (`vencimento = hoje`) ou `atrasada` (`vencimento < hoje`) no campo `status` da API. Os seis valores de `FIN-01` aparecem iguais para quem consome a API. Filtros usam a mesma expressão.
-- Paga não se edita: correção é estorno (`estorno_de`).
+- Paga não se edita: correção é estorno (`estorno_de`, `docs/api/financeiro.md`).
+- Apoio `CobrancaExterna`: `conta_receber` FK, `tipo` enum `pix`, `boleto`, `cartao_link`, `recorrente`, `externo_id` texto(60) **único**, `valor_centavos` (valor esperado do dia, comparado na baixa, S-14), `vence_em` data, `pix_copia_e_cola`, `linha_digitavel`, `url`, `caixa` FK nulo (gerada no caixa), `status` enum `aguardando`, `paga`, `cancelada`, `vencida`, `divergente`. Uma `aguardando` por conta.
+- Apoio `AutorizacaoRecorrente` (`AUT-04`): `locacao` (origem genérica), `tipo` enum `pix_automatico`, `cartao`, `externo_id` único, `status` enum `pendente`, `ativa`, `cancelada`.
+- Apoio `Reembolso` (devolução de dinheiro ao cliente: caução, `LOC-12`, `LOC-13`): `cliente` FK, origem genérica, `valor_centavos`, `forma` enum `pix`, `dinheiro`, `estorno_cartao`, `status` enum `a_fazer`, `feito`, `feito_em`, `feito_por` FK, `comprovante` arquivo, `movimento_caixa` FK nulo.
+- Apoio `PendenciaPagamento` (S-14): `cobranca` FK → `CobrancaExterna`, `motivo` enum `valor_diferente`, `estornada_no_parceiro`, `sem_conta`, `valor_pago_centavos`, `status` enum `aberta`, `resolvida`, `resolucao` texto.
 - Índices: `(status, vencimento)`, `(cliente, status)`, `(filial, vencimento)`, origem genérica.
 
 ### 19. Despesa · `financeiro.Despesa` · máquina
@@ -432,6 +437,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | Campo | Tipo | Observação |
 | --- | --- | --- |
 | `filial` | FK → `Filial` | |
+| `data` | data | data da despesa (lista e competência) |
 | `descricao` | texto(150) | |
 | `categoria` | enum `fixas`, `manutencao`, `rastreamento`, `impostos`, `pessoal`, `outros` | `FIN-06` |
 | `valor_centavos` | centavos | |
@@ -441,6 +447,8 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `nota` | arquivo, nulo | foto da nota |
 | `status` | enum `aguardando_aprovacao`, `a_pagar`, `paga`, `recusada` | `FIN-05` |
 | `pago_em` | momento, nulo | |
+| `forma` | enum `pix`, `boleto`, `cartao`, `transferencia`, `dinheiro`, nulo | |
+| `movimento_caixa` | FK → `MovimentoCaixa`, nulo | paga no caixa |
 | `lancada_por` | FK → `contas.Usuario` | |
 
 - Índices: `(status, vencimento)`, `(veiculo)`, `(filial, vencimento)`.
@@ -561,9 +569,9 @@ Campos, índices e imutabilidade na ADR 0010. Existe nos dois schemas. Apoio `Ex
 | Quem pede não aprova | `CHECK` em `PedidoAprovacao` | `APR-09` |
 | Multa ≤ 2%, juros ≤ 1% ao mês | `CHECK` em `ConfiguracaoEmpresa` | `FIN-03` |
 | Uma fatura por empresa por competência | único parcial em `FaturaAssinatura` | — |
-| Webhook não baixa duas vezes | único `ContaReceber.cobranca_externa_id` | `FIN-04` |
+| Webhook não processa duas vezes | único `WebhookRecebido.evento_id` e `CobrancaExterna.externo_id`; baixa só após consultar o parceiro e conferir o valor | `FIN-04`, S-14 |
 | Extrato não duplica | único `(conta, identificador_externo)` | `AUT-12` |
-| Auditoria imutável | trigger PostgreSQL | `AUD-01` |
+| Auditoria imutável | triggers de linha e de `TRUNCATE`, papel `giro_app` só com `SELECT, INSERT` (ADR 0016) | `AUD-01` |
 | Nada é apagado | `PROTECT` em toda FK de negócio; sem `delete()` nos serviços | convenções |
 
 ## Ordem de implementação sugerida (fase 1)
