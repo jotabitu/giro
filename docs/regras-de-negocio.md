@@ -169,7 +169,7 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
   - **Gerente** (`Gerente`, só a sua filial): aprovações pendentes da filial, sem os pedidos que ele mesmo fez (`APR-09`); ocupação; receita da semana; devoluções atrasadas; manutenções; frota da filial por estado; e a equipe da filial hoje, com "online" quando a pessoa usou o sistema nos últimos 5 minutos.
   - **Vendedor**, só os próprios números: na fase 1, as locações que ele criou e estão abertas, as que devolvem hoje, as parcelas atrasadas dessas locações e o atalho Nova locação; o funil, a meta e as comissões de `Vendedor` entram com vendas (fase 2).
   - **Vistoriador:** `Vistoriador`, com a agenda do dia (`VIS-05`).
-  - **Financeiro** (`Financeiro`, todas as filiais): entra hoje, em atraso, caixas do dia por filial e "Para hoje" (reembolsos a fazer, despesas a pagar vencendo, aprovações); saldo em contas, fluxo previsto e conciliação entram na fase 2.
+  - **Financeiro** (`Financeiro`, todas as filiais): entra hoje, em atraso, caixas do dia por filial e "Para hoje" (reembolsos a fazer e despesas a pagar vencendo; o financeiro não aprova pedidos, conforme a tabela de perfis); saldo em contas, fluxo previsto e conciliação entram na fase 2.
   
   O início usa o menu do perfil, e as telas compartilhadas usam o menu completo, sem os itens sem permissão (`USR-05`). Cada bloco que depende de um módulo que ainda não existe vem vazio, e não com número de exemplo.
 
