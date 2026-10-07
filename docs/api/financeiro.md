@@ -150,7 +150,7 @@ Dinheiro que sai para o cliente (caução da devolução, `DEV-02`; o que foi pa
 
 `GET /api/financeiro/reembolsos/?status=a_fazer` · `POST /api/financeiro/reembolsos/{id}/feito/` (`multipart`: `comprovante?`) · administrador, financeiro, gerente.
 
-Reembolsos `a_fazer` entram em "Para hoje" do início do financeiro (todas as filiais) e do gerente da filial de origem, e geram aviso no sino. Padrão do produto (item 21 de "Pontos em aberto", com o dono do produto).
+Reembolsos `a_fazer` entram em "Para hoje" do início do financeiro (todas as filiais) e do gerente da filial de origem, e geram aviso no sino. Decidido pelo dono do produto em 07 out 2026 (item 21, opção A).
 
 ---
 
