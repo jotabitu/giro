@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Login · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 900px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<section style="flex: 1 1 480px; min-width: 0; box-sizing: border-box; display: flex; flex-direction: column; padding: 40px 48px; border-radius: 32px; background: var(--surface);">
+<div style="display: flex; align-items: center; gap: 12px;"><div class="wl-logo-slot" aria-hidden="true">MR</div><span style="font-size: 20px; font-weight: 600; letter-spacing: -0.01em;">Moto Rápida</span></div>
+
+<form style="width: 100%; max-width: 400px; margin: auto; display: flex; flex-direction: column; gap: 20px; padding: 48px 0;">
+<div>
+<h1 style="margin: 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Entrar</h1>
+<p style="margin: 10px 0 0; color: var(--ink-muted);">Acesse a gestão da sua frota, contratos e caixa.</p>
+</div>
+<label class="wl-field" style="width: 100%;"><span class="wl-field__label">E-mail</span><input class="wl-input" type="email" placeholder="voce@empresa.com.br"></label>
+<label class="wl-field" style="width: 100%;"><span style="display: flex; justify-content: space-between;"><span class="wl-field__label">Senha</span><a href="#" style="font-size: 14px; font-weight: 500; text-decoration: none;">Esqueci a senha</a></span><input class="wl-input" type="password" placeholder="Sua senha"></label>
+<label style="display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--ink-muted);"><input type="checkbox" style="width: 18px; height: 18px; accent-color: var(--solid);">Manter conectado neste computador</label>
+<a class="wl-btn wl-btn--solid" href="Main.dc.html" style="width: 100%; box-sizing: border-box; height: 52px; text-decoration: none;">Entrar</a>
+<div style="display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 14px; background: var(--surface-sunken); font-size: 14px; line-height: 20px; color: var(--ink-muted);"><svg class="wl-i" viewBox="0 0 24 24" style="color: var(--ink);"><rect x="5" y="10" width="14" height="10" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>Perfis de gerente e financeiro pedem o código do aplicativo autenticador no próximo passo.</div>
+</form>
+
+<div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 13px; color: var(--ink-muted);"><span>Tecnologia Giro</span><span>Termos de uso · Privacidade</span></div>
+</section>
+
+<section style="flex: 1 1 520px; min-width: 0; min-height: 600px; box-sizing: border-box; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; padding: 48px; border-radius: 32px; background: var(--brand); color: var(--on-brand);">
+<p style="margin: 0; max-width: 480px; font-size: 44px; line-height: 48px; font-weight: 600; letter-spacing: -0.03em;">Sua frota, seus contratos e seu caixa no mesmo lugar.</p>
+
+<div style="display: flex; flex-direction: column; gap: 12px; max-width: 460px;">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+<div class="wl-kpi wl-kpi--solid"><div class="wl-kpi__label">Alugados agora</div><div class="wl-kpi__value">42</div><div class="wl-kpi__meta">de 86 veículos</div></div>
+<div class="wl-kpi" style="background: var(--surface); color: var(--ink);"><div class="wl-kpi__label">Ocupação</div><div class="wl-kpi__value">71%</div><div class="wl-kpi__meta">meta de 80%</div></div>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 24px; background: var(--surface); color: var(--ink);">
+<span class="wl-mono" style="font-weight: 500;">QXA-4B21</span>
+<span style="flex: 1; font-size: 14px; color: var(--ink-muted);">Honda CG 160 · devolução hoje</span>
+<span class="wl-badge wl-badge--sm wl-badge--attention">Hoje</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<span class="wl-badge wl-badge--surface">Locação</span>
+<span class="wl-badge wl-badge--surface">Venda</span>
+<span class="wl-badge wl-badge--surface">Manutenção</span>
+<span class="wl-badge wl-badge--surface">Financeiro</span>
+</div>
+</div>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Criar conta e pagar · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.card{display:flex;flex-direction:column;gap:14px;padding:18px 16px;border-radius:24px;background:var(--surface)}
+.h2{display:flex;align-items:center;gap:10px;margin:0;font-size:18px;line-height:24px;font-weight:600}
+.h2 .n{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--surface-sunken);font-size:13px}
+.wl-field{width:100%}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+select.wl-input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-muted) 50%),linear-gradient(135deg,var(--ink-muted) 50%,transparent 50%);background-position:calc(100% - 22px) 21px,calc(100% - 16px) 21px;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1900px; box-sizing: border-box; padding: 16px 16px 150px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;">
+<a href="Compra-Planos-Mobile.dc.html" aria-label="Voltar" class="wl-icon-btn" style="width: 44px; height: 44px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a>
+<span style="display: inline-flex; align-items: center; height: 22px; color: var(--ink);"><svg viewBox="0 0 439 120" height="17" width="62" fill="currentColor" role="img" aria-label="Giro"><path fill-rule="evenodd" d="M123.0 60.0 A61.5 61.5 0 1 1 104.99 16.51 L88.02 33.48 A37.5 37.5 0 1 0 99.0 60.0 Z M146 0 H170 V120 H146 Z M196 0 H252 A36 36 0 0 1 252 84 H220 V120 H196 Z M220 24 V60 H252 A12 12 0 0 0 252 24 Z M226 84 H260 L296 120 H262 Z M316.0 60 A61.5 61.5 0 1 1 439.0 60 A61.5 61.5 0 1 1 316.0 60 Z M340.0 60 A37.5 37.5 0 1 0 415.0 60 A37.5 37.5 0 1 0 340.0 60 Z"/><path d="M65.5 59 H123.0 V81 H65.5 Z"/></svg></span>
+<svg class="wl-i" viewBox="0 0 24 24" style="color: var(--ink-muted);"><rect x="5" y="10" width="14" height="10" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+</header>
+
+<div style="padding: 0 4px;"><h1 style="margin: 0; font-size: 30px; line-height: 34px; font-weight: 600; letter-spacing: -0.02em;">Crie sua conta</h1><p style="margin: 6px 0 0; color: var(--ink-muted);">Leva 2 minutos.</p></div>
+
+<a href="Compra-Planos-Mobile.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 22px; background: var(--solid); color: var(--on-solid); text-decoration: none;">
+<div style="flex: 1;"><div style="font-size: 13px; color: var(--on-solid-muted);">Plano Profissional · 14 dias grátis</div><div style="font-weight: 600;">Hoje: R$ 0,00</div></div>
+<span style="font-size: 14px; font-weight: 500;">Trocar</span>
+</a>
+
+<section class="card">
+<h2 class="h2"><span class="n">1</span>Você</h2>
+<label class="wl-field"><span class="wl-field__label">Nome completo</span><input class="wl-input" value="Mariana Costa"></label>
+<label class="wl-field"><span class="wl-field__label">E-mail de trabalho</span><input class="wl-input" value="mariana@motorapida.com.br" inputmode="email"></label>
+<label class="wl-field"><span class="wl-field__label">Celular com WhatsApp</span><input class="wl-input" value="(85) 99877-1020" inputmode="tel"></label>
+</section>
+
+<section class="card">
+<h2 class="h2"><span class="n">2</span>Sua empresa</h2>
+<label class="wl-field"><span class="wl-field__label">CNPJ</span><input class="wl-input wl-mono" value="12.345.678/0001-10" inputmode="numeric"></label>
+<div style="display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 16px; background: var(--success-soft); color: var(--success-ink); font-size: 14px; line-height: 20px;"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none;"><path d="m5 12 5 5 9-10"></path></svg><span><strong style="font-weight: 600;">Moto Rápida Locações Ltda</strong><br>Fortaleza, CE · CNPJ ativo</span></div>
+<label class="wl-field"><span class="wl-field__label">Tamanho da frota hoje</span><select class="wl-input"><option>De 31 a 150 veículos</option></select></label>
+</section>
+
+<section class="card">
+<h2 class="h2"><span class="n">3</span>Pagamento<span class="wl-badge wl-badge--sm" style="margin-left: auto; font-weight: 500;">Opcional</span></h2>
+<div class="wl-seg" role="group" aria-label="Forma de pagamento" style="display: grid; grid-template-columns: repeat(3, 1fr);"><button aria-pressed="true">Cartão</button><button aria-pressed="false">Pix</button><button aria-pressed="false">Boleto</button></div>
+<label class="wl-field"><span class="wl-field__label">Número do cartão</span><input class="wl-input wl-mono" placeholder="0000 0000 0000 0000" inputmode="numeric"></label>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">Validade</span><input class="wl-input wl-mono" placeholder="MM/AA"></label>
+<label class="wl-field"><span class="wl-field__label">CVV</span><input class="wl-input wl-mono" placeholder="000"></label>
+</div>
+<p style="margin: 0; font-size: 13px; line-height: 18px; color: var(--ink-muted);">Nada é cobrado agora. A primeira mensalidade é em 21 out, só se você continuar.</p>
+</section>
+
+<div style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line);">
+<label style="display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 18px; color: var(--ink-muted);"><input type="checkbox" checked style="width: 20px; height: 20px; margin: 0; accent-color: var(--solid); flex: none;">Aceito os Termos de uso e o Acordo de tratamento de dados.</label>
+<a class="wl-btn wl-btn--solid" href="Compra-Pronto-Mobile.dc.html" style="height: 56px; text-decoration: none;">Criar minha conta</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

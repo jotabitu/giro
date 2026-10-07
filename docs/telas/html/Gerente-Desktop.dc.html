@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Início do gerente · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.appr{display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid rgba(255,255,255,0.12)}
+.appr:last-child{border-bottom:0}
+.appr small{display:block;font-size:14px;color:var(--on-solid-muted)}
+.mate{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.mate:last-child{border-bottom:0}
+.av{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:50%;background:var(--surface-sunken);font-size:13px;font-weight:600}
+.mate small{display:block;font-size:14px;color:var(--ink-muted)}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1150px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<nav class="wl-sidebar" aria-label="Menu principal" style="flex: 0 0 280px;">
+<div class="wl-brand-row"><div class="wl-logo-slot" aria-hidden="true">MR</div><div class="wl-brand-name">Moto Rápida</div></div>
+<div class="wl-switcher">
+<div class="wl-switcher__icon"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg></div>
+<div class="wl-switcher__text"><span class="wl-switcher__name">Filial Centro</span><span class="wl-switcher__sub">Rodrigo · Gerente</span></div>
+</div>
+<a class="wl-nav-item" href="Gerente-Desktop.dc.html" aria-current="page"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>Visão da filial</a>
+<a class="wl-nav-item" href="#"><svg class="wl-i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"></path></svg>Aprovações<span class="wl-count">3</span></a>
+<a class="wl-nav-item" href="Frota-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg>Veículos<span class="wl-count">86</span></a>
+<div class="wl-nav-label">Operação</div>
+<a class="wl-nav-item" href="Locacoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>Locações</a>
+<a class="wl-nav-item" href="Venda-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="7.5" r="1"></circle></svg>Vendas</a>
+<a class="wl-nav-item" href="Clientes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.6-1.6-4.8-4-5.6"></path></svg>Clientes</a>
+<a class="wl-nav-item" href="Manutencao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M15 4a5 5 0 0 0-4.6 6.9L4 17.3V20h2.7l6.4-6.4A5 5 0 0 0 20 9l-3 1-2-2z"></path></svg>Manutenções<span class="wl-count">5</span></a>
+<div class="wl-nav-label">Filial</div>
+<a class="wl-nav-item" href="Caixa-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg>Caixa da filial</a>
+<a class="wl-nav-item" href="#"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.6-1.6-4.8-4-5.6"></path></svg>Equipe</a>
+<a class="wl-nav-item" href="Relatorios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><path d="M8 16v-4M12 16V8M16 16v-6"></path></svg>Relatórios</a>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
+<div><h1 style="margin: 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Bom dia, Rodrigo</h1><p style="margin: 6px 0 0; color: var(--ink-muted);">Filial Centro · terça, 07 out</p></div>
+<a class="wl-btn wl-btn--solid" href="Locacao-Desktop.dc.html" style="height: 56px; padding: 0 28px; margin-left: auto; text-decoration: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>Nova locação</a>
+</header>
+
+<section style="padding: 24px 28px; border-radius: 32px; background: var(--solid); color: var(--on-solid);">
+<div style="display: flex; align-items: center; gap: 10px;"><span style="font-size: 22px; font-weight: 600; letter-spacing: -0.01em;">3 pedidos esperando sua aprovação</span><span class="wl-badge wl-badge--sm wl-badge--brand" style="margin-left: auto;">mais antigo há 2 h</span></div>
+<div class="appr"><div style="flex: 1 1 280px;"><div style="font-weight: 500;">Desconto de 8% para Diego Martins</div><small>Bruna · CB 300F Twister · R$ 22.900 → R$ 21.068 (limite dela: 5%)</small></div><button class="wl-btn wl-btn--sm" style="background: rgba(255,255,255,0.12); color: inherit;">Recusar</button><button class="wl-btn wl-btn--brand wl-btn--sm">Aprovar</button></div>
+<div class="appr"><div style="flex: 1 1 280px;"><div style="font-weight: 500;">Cancelar contrato LOC-2812</div><small>Patrícia Gomes pediu encerramento antecipado · multa de R$ 84,80</small></div><button class="wl-btn wl-btn--sm" style="background: rgba(255,255,255,0.12); color: inherit;">Ver detalhes</button><button class="wl-btn wl-btn--brand wl-btn--sm">Aprovar</button></div>
+<div class="appr"><div style="flex: 1 1 280px;"><div style="font-weight: 500;">Despesa de R$ 1.200 · 4 pneus</div><small>João · PMZ-3E17 · depois segue para o financeiro</small></div><button class="wl-btn wl-btn--sm" style="background: rgba(255,255,255,0.12); color: inherit;">Recusar</button><button class="wl-btn wl-btn--brand wl-btn--sm">Aprovar</button></div>
+</section>
+
+<section class="wl-panel">
+<div class="wl-kpis" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));">
+<div class="wl-kpi"><div class="wl-kpi__label">Ocupação</div><div class="wl-kpi__value">71%</div><div class="wl-kpi__meta">meta de 80%</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Receita da semana</div><div class="wl-kpi__value">R$ 18,4 mil</div><div class="wl-kpi__meta"><span class="wl-kpi__up">↗ 6%</span> vs anterior</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Devoluções atrasadas</div><div class="wl-kpi__value">3</div><div class="wl-kpi__meta">1 há mais de 2 dias</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Em manutenção</div><div class="wl-kpi__value">5</div><div class="wl-kpi__meta">2 voltam amanhã</div></div>
+</div>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+<section class="wl-panel" style="flex: 1 1 380px; min-width: 0;">
+<h2 class="wl-panel__title" style="font-size: 20px; margin-bottom: 4px;">Equipe hoje</h2>
+<div class="mate"><div class="av">BA</div><div style="flex: 1;"><div style="font-weight: 500;">Bruna Alves</div><small>Vendedora · 4 propostas abertas · 62% da meta</small></div><span class="wl-badge wl-badge--sm wl-badge--success">Online</span></div>
+<div class="mate"><div class="av">JS</div><div style="flex: 1;"><div style="font-weight: 500;">João Silva</div><small>Vistoriador · 2 de 6 vistorias feitas</small></div><span class="wl-badge wl-badge--sm wl-badge--success">Online</span></div>
+<div class="mate"><div class="av">CA</div><div style="flex: 1;"><div style="font-weight: 500;">Carla Andrade</div><small>Atendente · último acesso ontem</small></div><span class="wl-badge wl-badge--sm">Offline</span></div>
+</section>
+<section class="wl-panel" style="flex: 1 1 380px; min-width: 0;">
+<div class="wl-pipe" style="padding: 0; background: transparent;">
+<div class="wl-pipe__head"><span class="wl-panel__title" style="font-size: 20px;">Frota da filial</span><span class="wl-pipe__note">83 veículos</span></div>
+<div class="wl-pipe__row">
+<div class="wl-pipe__col" style="flex: 16;"><div class="wl-pipe__bar"></div><div class="wl-pipe__num">16</div><div class="wl-pipe__label">Livres</div></div>
+<div class="wl-pipe__col wl-pipe__col--brand" style="flex: 42;"><div class="wl-pipe__bar"></div><div class="wl-pipe__num">42</div><div class="wl-pipe__label">Alugados</div></div>
+<div class="wl-pipe__col" style="flex: 9;"><div class="wl-pipe__bar"></div><div class="wl-pipe__num">9</div><div class="wl-pipe__label">Reserv.</div></div>
+<div class="wl-pipe__col wl-pipe__col--solid" style="flex: 16;"><div class="wl-pipe__bar"></div><div class="wl-pipe__num">16</div><div class="wl-pipe__label">Oficina e venda</div></div>
+</div>
+</div>
+</section>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1150}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

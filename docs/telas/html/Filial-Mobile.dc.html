@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Nova filial · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.card{display:flex;flex-direction:column;gap:14px;padding:18px 16px;border-radius:24px;background:var(--surface)}
+.h2{margin:0;font-size:18px;line-height:24px;font-weight:600}
+.lead{margin:-8px 0 0;font-size:14px;line-height:20px;color:var(--ink-muted)}
+.wl-field{width:100%}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+select.wl-input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-muted) 50%),linear-gradient(135deg,var(--ink-muted) 50%,transparent 50%);background-position:calc(100% - 22px) 21px,calc(100% - 16px) 21px;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+.hrow{display:flex;justify-content:space-between;align-items:center;min-height:48px;border-bottom:1px solid var(--line);font-size:15px}
+.hrow:last-child{border-bottom:0}
+.toggle{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:15px}
+.toggle:last-child{border-bottom:0}
+.toggle input{width:22px;height:22px;margin-top:1px;accent-color:var(--solid);flex:none}
+.toggle small{display:block;margin-top:2px;font-size:13px;line-height:18px;color:var(--ink-muted)}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 2200px; box-sizing: border-box; padding: 16px 16px 120px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;">
+<a href="Filiais-Mobile.dc.html" aria-label="Voltar" class="wl-icon-btn" style="width: 44px; height: 44px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a>
+<div style="flex: 1;"><div style="font-size: 13px; color: var(--ink-muted);">Administração · Filiais</div><div style="font-size: 22px; line-height: 26px; font-weight: 600;">Nova filial</div></div>
+</header>
+
+<div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 20px; background: var(--surface-sunken); font-size: 14px; line-height: 20px;">
+<span style="flex: 1; color: var(--ink-muted);">Plano Profissional: esta é a última das 3 filiais incluídas.</span>
+<span class="wl-badge wl-badge--sm wl-badge--solid">3 de 3</span>
+</div>
+
+<section class="card">
+<h2 class="h2">Identificação</h2>
+<label class="wl-field"><span class="wl-field__label">Nome da filial</span><input class="wl-input" value="Filial Messejana"></label>
+<label class="wl-field"><span class="wl-field__label">Nome curto no seletor</span><input class="wl-input" value="Messejana"></label>
+<div class="wl-field"><span class="wl-field__label">Tipo</span><div class="wl-seg" role="group" aria-label="Tipo de unidade" style="display: grid; grid-template-columns: 1fr 1fr;"><button aria-pressed="false">Matriz</button><button aria-pressed="true">Filial</button></div></div>
+<label class="wl-field"><span class="wl-field__label">CNPJ</span><input class="wl-input wl-mono" value="12.345.678/0002-90"><span class="wl-field__hint">Mesma raiz da matriz</span></label>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">Insc. estadual</span><input class="wl-input wl-mono" placeholder="Opcional"></label>
+<label class="wl-field"><span class="wl-field__label">Insc. municipal</span><input class="wl-input wl-mono" placeholder="Opcional"></label>
+</div>
+</section>
+
+<section class="card">
+<h2 class="h2">Endereço</h2>
+<p class="lead">O CEP preenche rua, bairro e cidade.</p>
+<label class="wl-field"><span class="wl-field__label">CEP</span><input class="wl-input wl-mono" value="60840-280" inputmode="numeric"></label>
+<label class="wl-field"><span class="wl-field__label">Rua</span><input class="wl-input" value="Av. Frei Cirilo"></label>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">Número</span><input class="wl-input" value="3120"></label>
+<label class="wl-field"><span class="wl-field__label">Complemento</span><input class="wl-input" placeholder="Loja, sala"></label>
+</div>
+<label class="wl-field"><span class="wl-field__label">Bairro</span><input class="wl-input" value="Messejana"></label>
+<div class="two" style="grid-template-columns: 1fr 96px;">
+<label class="wl-field"><span class="wl-field__label">Cidade</span><input class="wl-input" value="Fortaleza"></label>
+<label class="wl-field"><span class="wl-field__label">UF</span><select class="wl-input"><option>CE</option></select></label>
+</div>
+</section>
+
+<section class="card">
+<h2 class="h2">Contato e horário</h2>
+<label class="wl-field"><span class="wl-field__label">WhatsApp de atendimento</span><input class="wl-input" value="(85) 98800-0000" inputmode="tel"></label>
+<label class="wl-field"><span class="wl-field__label">E-mail</span><input class="wl-input" value="messejana@motorapida.com.br" inputmode="email"></label>
+<div>
+<div class="hrow"><span>Segunda a sexta</span><span class="wl-mono">08:00 – 18:00</span></div>
+<div class="hrow"><span>Sábado</span><span class="wl-mono">08:00 – 12:00</span></div>
+<div class="hrow"><span>Domingo e feriados</span><span style="color: var(--ink-muted);">Fechado</span></div>
+</div>
+<button class="wl-btn wl-btn--quiet wl-btn--sm" style="align-self: flex-start;">Editar horários</button>
+</section>
+
+<section class="card">
+<h2 class="h2">Operação</h2>
+<label class="wl-field"><span class="wl-field__label">Gerente responsável</span><select class="wl-input"><option>Rodrigo Pinheiro</option></select></label>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">Vagas · motos</span><input class="wl-input" value="40" inputmode="numeric"></label>
+<label class="wl-field"><span class="wl-field__label">Vagas · carros</span><input class="wl-input" value="12" inputmode="numeric"></label>
+</div>
+<label class="wl-field"><span class="wl-field__label">Tabela de preço padrão</span><select class="wl-input"><option>Tabela Fortaleza 2026</option></select></label>
+<label class="wl-field"><span class="wl-field__label">Conta de recebimento</span><select class="wl-input"><option>Banco do Brasil · cc 12345-6</option></select></label>
+<div>
+<label class="toggle"><input type="checkbox" checked><span>Emite notas com o CNPJ desta filial<small>Desmarcado, saem pelo CNPJ da matriz.</small></span></label>
+<label class="toggle"><input type="checkbox" checked><span>Aceita devolução de outras filiais<small>O veículo entra no estoque desta filial.</small></span></label>
+<label class="toggle"><input type="checkbox"><span>Compartilha a frota com a empresa<small>Veículos daqui podem ser reservados por outras filiais.</small></span></label>
+</div>
+</section>
+
+<div style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 10px; padding: 16px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line);">
+<a href="Filiais-Mobile.dc.html" class="wl-btn" style="height: 56px; text-decoration: none;">Cancelar</a>
+<button class="wl-btn wl-btn--solid" style="flex: 1; height: 56px;">Salvar filial</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":2200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

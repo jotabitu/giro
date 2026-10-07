@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Convite e aceite do funcionário · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.lbl{font-size:14px;color:var(--ink-muted);padding-left:8px}
+.fact{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.fact:last-child{border-bottom:0}
+.fact span:first-child{color:var(--ink-muted)}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 900px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; gap: 24px; align-items: stretch; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<section style="flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+<div class="lbl">1 · O convite chega no e-mail de Rodrigo</div>
+<div style="flex: 1; display: flex; flex-direction: column; border-radius: 32px; background: var(--surface); overflow: hidden;">
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 20px 24px; border-bottom: 1px solid var(--line); font-size: 14px;">
+<div><span style="color: var(--ink-muted);">De:</span> Moto Rápida &lt;convites@motorapida.girolocadoras.com.br&gt;</div>
+<div><span style="color: var(--ink-muted);">Assunto:</span> <strong style="font-weight: 600;">Mariana convidou você para a Moto Rápida</strong></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 18px; padding: 32px 28px;">
+<div style="display: flex; align-items: center; gap: 12px;"><div class="wl-logo-slot">MR</div><span style="font-size: 18px; font-weight: 600;">Moto Rápida</span></div>
+<p style="margin: 0; font-size: 24px; line-height: 30px; font-weight: 600; letter-spacing: -0.01em;">Olá, Rodrigo. Você foi convidado como gerente da Filial Centro.</p>
+<p style="margin: 0; line-height: 24px; color: var(--ink-muted);">Mariana Costa liberou seu acesso ao sistema da Moto Rápida. Com ele você acompanha a frota, as locações e o caixa da filial.</p>
+<a class="wl-btn wl-btn--brand" href="#aceite" style="align-self: flex-start; text-decoration: none;">Aceitar convite</a>
+<p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--ink-muted);">O convite vale até 14 out. Se não esperava esta mensagem, pode ignorar.</p>
+</div>
+<div style="margin-top: auto; padding: 16px 28px; border-top: 1px solid var(--line); font-size: 13px; color: var(--ink-muted);">Tecnologia Giro</div>
+</div>
+</section>
+
+<section id="aceite" style="flex: 1 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+<div class="lbl">2 · Ele abre o link e cria o acesso</div>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 20px; padding: 36px 32px; border-radius: 32px; background: var(--surface);">
+<div style="display: flex; align-items: center; gap: 12px;"><div class="wl-logo-slot">MR</div><span style="font-size: 18px; font-weight: 600;">Moto Rápida</span></div>
+<div>
+<h1 style="margin: 0; font-size: 32px; line-height: 38px; font-weight: 600; letter-spacing: -0.02em;">Crie seu acesso</h1>
+<p style="margin: 8px 0 0; color: var(--ink-muted);">Confira os dados do convite e escolha sua senha.</p>
+</div>
+<div style="padding: 4px 16px; border-radius: 20px; background: var(--surface-sunken);">
+<div class="fact"><span>Empresa</span><span style="font-weight: 500;">Moto Rápida</span></div>
+<div class="fact"><span>Perfil</span><span class="wl-badge wl-badge--sm wl-badge--solid">Gerente</span></div>
+<div class="fact"><span>Filial</span><span style="font-weight: 500;">Filial Centro</span></div>
+<div class="fact"><span>Convidado por</span><span style="font-weight: 500;">Mariana Costa</span></div>
+</div>
+<label class="wl-field" style="width: 100%;"><span class="wl-field__label">Seu nome</span><input class="wl-input" value="Rodrigo Pinheiro"></label>
+<label class="wl-field" style="width: 100%;"><span class="wl-field__label">Senha</span><input class="wl-input" type="password" value="senhasegura2026"><span class="wl-field__hint">12 caracteres ou mais. Gerentes ativam a verificação em duas etapas a seguir.</span></label>
+<a class="wl-btn wl-btn--solid" href="Main.dc.html" style="height: 52px; text-decoration: none;">Criar acesso e entrar</a>
+</div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

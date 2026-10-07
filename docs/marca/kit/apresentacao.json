@@ -1,0 +1,35 @@
+{
+  "brand": "GIRO Motos",
+  "tagline": "Aluguel de motos",
+  "brief": "Locadora de motos para quem trabalha e para quem passeia: retirada rápida, chave na mão e sem burocracia. A marca precisa ser moderna, ágil e confiável, e funcionar do app à fachada.",
+  "adjectives": ["ágil", "confiável", "moderna", "acessível"],
+  "criteria": "Reconhecível como moto de imediato, ligada ao nome GIRO, funciona em uma cor e em tamanho de ícone.",
+  "mockups": ["signage", "tshirt", "app-icon", "sticker", "website", "business-card"],
+  "nav": ["Motos", "Planos", "Como alugar"],
+  "brand_color": "#C8F04A",
+  "tile_color": "#111114",
+  "greyscale": false,
+  "final": true,
+  "designer": "GIRO",
+  "concepts": [
+    {
+      "name": "Moto-Chave",
+      "symbol": "giro-motos-simbolo-escuro.svg",
+      "lockup": "giro-motos-horizontal-escuro.svg",
+      "stacked": "giro-motos-empilhado-escuro.svg",
+      "avatar": "giro-motos-app-icon.svg",
+      "symbol_on_tile": "giro-motos-simbolo.svg",
+      "stacked_on_tile": "giro-motos-empilhado.svg",
+      "symbol_on_dark": "giro-motos-simbolo.svg",
+      "lockup_on_dark": "giro-motos-horizontal.svg",
+      "stacked_on_dark": "giro-motos-empilhado.svg",
+      "idea": "A chave é a roda traseira: alugou, girou a chave, saiu rodando.",
+      "rationale": [
+        "A cabeça da chave é o anel partido do GIRO — o giro da roda e do motor",
+        "Moto de perfil é reconhecida na hora, sem cair no clip-art",
+        "Paleta grafite + verde-limão: alta visibilidade na rua e no app"
+      ]
+    }
+  ],
+  "recommendation": "Moto-Chave em verde-limão sobre grafite como versão principal; versão em grafite para fundos claros e limão."
+}

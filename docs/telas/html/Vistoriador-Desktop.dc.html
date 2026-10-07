@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Início do vistoriador · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1000px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<nav class="wl-sidebar" aria-label="Menu principal" style="flex: 0 0 280px;">
+<div class="wl-brand-row"><div class="wl-logo-slot" aria-hidden="true">MR</div><div class="wl-brand-name">Moto Rápida</div></div>
+<div class="wl-switcher">
+<div class="wl-switcher__icon"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"></path></svg></div>
+<div class="wl-switcher__text"><span class="wl-switcher__name">João Silva</span><span class="wl-switcher__sub">Vistoriador · Filial Centro</span></div>
+</div>
+<a class="wl-nav-item" href="Vistoriador-Desktop.dc.html" aria-current="page"><svg class="wl-i" viewBox="0 0 24 24"><path d="M9 4h6v3H9zM6 6H5v15h14V6h-1"></path><path d="m9 14 2 2 4-4"></path></svg>Vistorias de hoje<span class="wl-count">6</span></a>
+<a class="wl-nav-item" href="Frota-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg>Consultar veículo</a>
+<a class="wl-nav-item" href="#"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Histórico</a>
+<a class="wl-nav-item" href="#"><svg class="wl-i" viewBox="0 0 24 24"><path d="M15 4a5 5 0 0 0-4.6 6.9L4 17.3V20h2.7l6.4-6.4A5 5 0 0 0 20 9l-3 1-2-2z"></path></svg>Avarias abertas<span class="wl-count">2</span></a>
+<div style="margin-top: 16px; padding: 14px 16px; border-radius: 20px; background: var(--surface-sunken); font-size: 13px; line-height: 18px; color: var(--ink-muted);">Seu perfil mostra só vistorias e veículos. Valores e dados de pagamento ficam ocultos.</div>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
+<div><h1 style="margin: 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Vistorias de hoje</h1><p style="margin: 6px 0 0; color: var(--ink-muted);">Terça, 07 out · 3 saídas e 3 devoluções</p></div>
+<div class="wl-seg" role="group" aria-label="Dia" style="margin-left: auto; background: var(--surface);"><button aria-pressed="true">Hoje</button><button aria-pressed="false">Amanhã</button><button aria-pressed="false">Semana</button></div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+<section class="wl-panel" style="flex: 999 1 520px; min-width: 0;">
+<div style="overflow-x: auto;">
+<table class="wl-table" style="min-width: 620px;">
+<thead><tr><th>Horário</th><th>Tipo</th><th>Veículo</th><th>Cliente</th><th>Situação</th><th></th></tr></thead>
+<tbody>
+<tr><td class="wl-mono" style="color: var(--critical-ink);">ontem 18h</td><td>Devolução</td><td><span class="wl-cell-main wl-mono">QXA-4B21</span><span class="wl-cell-sub">Honda CG 160</span></td><td>Carlos Menezes</td><td><span class="wl-badge wl-badge--sm wl-badge--critical">Atrasada</span></td><td><button class="wl-btn wl-btn--quiet wl-btn--sm">Abrir</button></td></tr>
+<tr><td class="wl-mono">09:30</td><td>Saída</td><td><span class="wl-cell-main wl-mono">SAK-1D39</span><span class="wl-cell-sub">Honda CG 160 Fan</span></td><td>Lucas Ferreira</td><td><span class="wl-badge wl-badge--sm wl-badge--info">Agendada</span></td><td><a class="wl-btn wl-btn--solid wl-btn--sm" href="Vistoria-Desktop.dc.html" style="text-decoration: none;">Iniciar</a></td></tr>
+<tr><td class="wl-mono">10:00</td><td>Devolução</td><td><span class="wl-cell-main wl-mono">PNB-7C04</span><span class="wl-cell-sub">Yamaha Factor 150</span></td><td>Juliana Rocha</td><td><span class="wl-badge wl-badge--sm wl-badge--attention">Hoje</span></td><td><button class="wl-btn wl-btn--quiet wl-btn--sm">Abrir</button></td></tr>
+<tr><td class="wl-mono">11:00</td><td>Saída</td><td><span class="wl-cell-main wl-mono">PNB-9A11</span><span class="wl-cell-sub">Yamaha Factor 150</span></td><td>Ana Lima</td><td><span class="wl-badge wl-badge--sm wl-badge--info">Agendada</span></td><td><button class="wl-btn wl-btn--quiet wl-btn--sm">Abrir</button></td></tr>
+<tr><td class="wl-mono">15:30</td><td>Saída</td><td><span class="wl-cell-main wl-mono">QYC-4D72</span><span class="wl-cell-sub">Honda CG 160</span></td><td>Paulo Rocha</td><td><span class="wl-badge wl-badge--sm wl-badge--info">Agendada</span></td><td><button class="wl-btn wl-btn--quiet wl-btn--sm">Abrir</button></td></tr>
+<tr><td class="wl-mono">17:00</td><td>Devolução</td><td><span class="wl-cell-main wl-mono">SBC-0J44</span><span class="wl-cell-sub">Yamaha NMax 160</span></td><td>Marcos Viana</td><td><span class="wl-badge wl-badge--sm wl-badge--attention">Hoje</span></td><td><button class="wl-btn wl-btn--quiet wl-btn--sm">Abrir</button></td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<aside style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+<section style="display: flex; flex-direction: column; gap: 14px; padding: 24px; border-radius: 32px; background: var(--solid); color: var(--on-solid);">
+<div style="display: flex; justify-content: space-between;"><span style="font-size: 14px; color: var(--on-solid-muted);">Próxima vistoria</span><span class="wl-badge wl-badge--sm wl-badge--brand">em 20 min</span></div>
+<div style="font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -0.02em;">Check-out às 09:30</div>
+<div style="color: var(--on-solid-muted);">Honda CG 160 Fan · <span class="wl-mono">SAK-1D39</span><br>Lucas Ferreira</div>
+<a class="wl-btn wl-btn--brand" href="Vistoria-Desktop.dc.html" style="text-decoration: none;">Iniciar vistoria</a>
+</section>
+<section class="wl-panel" style="background: var(--surface-sunken);">
+<p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--ink-muted);">Dica: a vistoria é mais rápida no celular, com as fotos tiradas direto pela câmera.</p>
+</section>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

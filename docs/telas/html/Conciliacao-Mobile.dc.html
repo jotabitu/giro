@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Conciliação · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.co{display:flex;align-items:center;gap:12px}
+.co .lg{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:10px;font-size:12px;font-weight:700;color:#ffffff}
+.mini{height:6px;width:90px;border-radius:999px;background:var(--surface-sunken);overflow:hidden}
+.mini i{display:block;height:100%;border-radius:999px;background:var(--solid)}
+.row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row small,.muted{color:var(--ink-muted)}
+.row small{display:block;font-size:13px;line-height:18px}
+.card{padding:16px;border-radius:24px;background:var(--surface)}
+.h2{margin:0;font-size:20px;font-weight:600}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px}
+.kv:last-child{border-bottom:0}
+.kv span:first-child{color:var(--ink-muted)}
+.kv span:last-child{font-weight:500;text-align:right}
+.thumb{display:grid;place-items:center;width:52px;height:52px;flex:none;border-radius:14px;background:var(--surface-sunken);color:var(--ink-muted)}
+.chip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border:0;border-radius:999px;background:var(--surface-sunken);color:var(--ink);font:inherit;font-size:15px;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
+.chip .wl-count{background:var(--surface)}
+.chip[aria-pressed="true"] .wl-count{background:var(--brand);color:var(--on-brand)}
+.tl{position:relative;padding-left:26px}
+.tl:before{content:"";position:absolute;left:6px;top:8px;bottom:8px;width:2px;background:var(--line)}
+.tl>div{position:relative;padding:8px 0}
+.tl>div:before{content:"";position:absolute;left:-25px;top:13px;width:12px;height:12px;border-radius:50%;background:var(--surface);box-shadow:inset 0 0 0 2px var(--ink)}
+.tl>div.done:before{background:var(--solid);box-shadow:none}
+.opt{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--line);font-size:15px;background:var(--surface)}
+.opt.on{box-shadow:inset 0 0 0 2px var(--ink)}
+.h2{margin:0;font-size:20px;line-height:26px;font-weight:600}
+
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1700px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;"><a href="Financeiro-Mobile.dc.html" class="wl-icon-btn wl-icon-btn--sm" aria-label="Voltar" style="width: 44px; height: 44px; flex: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a><div style="display: flex; flex-direction: column; flex: 1; min-width: 0;"><span style="font-weight: 600; font-size: 20px; letter-spacing: -0.01em;">Conciliação</span><span style="font-size: 13px; line-height: 18px; color: var(--ink-muted);">Banco do Brasil · 6 a conciliar</span></div></header>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;"><div class="wl-kpi" style="padding: 14px 16px; background: var(--surface);"><div class="wl-kpi__label">No banco</div><div class="wl-kpi__value" style="font-size: 28px; line-height: 32px;">R$ 48.320</div><div class="wl-kpi__meta" style="font-size: 13px;">07 out, 06:00</div></div><div class="wl-kpi" style="padding: 14px 16px; background: var(--surface);"><div class="wl-kpi__label">Diferença</div><div class="wl-kpi__value" style="font-size: 28px; line-height: 32px;">R$ 137,10</div><div class="wl-kpi__meta" style="font-size: 13px;">2 sem par</div></div></div>
+<section class="card" style="display: flex; flex-direction: column; gap: 10px;"><div style="display: flex; justify-content: space-between; gap: 8px;"><div><div class="wl-mono" style="font-size: 13px; font-weight: 500;">PIX RECEBIDO JULIANA R</div><div class="lbl">07 out</div></div><span style="font-weight: 600;">R$ 329,00</span></div><div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;"><span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 12px; background: var(--success-soft); color: var(--success-ink); font-size: 14px;"><svg class="wl-i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>Recebimento LOC-2836 · 2ª semana</span><button class="wl-btn wl-btn--solid wl-btn--sm">Confirmar</button></div></section>
+<section class="card" style="display: flex; flex-direction: column; gap: 10px;"><div style="display: flex; justify-content: space-between; gap: 8px;"><div><div class="wl-mono" style="font-size: 13px; font-weight: 500;">PIX RECEBIDO MARCOS V</div><div class="lbl">07 out</div></div><span style="font-weight: 600;">R$ 44,90</span></div><div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;"><span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 12px; background: var(--success-soft); color: var(--success-ink); font-size: 14px;"><svg class="wl-i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>Pix automático LOC-2850</span><button class="wl-btn wl-btn--solid wl-btn--sm">Confirmar</button></div></section>
+<section class="card" style="display: flex; flex-direction: column; gap: 10px;"><div style="display: flex; justify-content: space-between; gap: 8px;"><div><div class="wl-mono" style="font-size: 13px; font-weight: 500;">REPASSE CARTAO</div><div class="lbl">07 out</div></div><span style="font-weight: 600;">R$ 1.042,30</span></div><div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;"><span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 12px; background: var(--success-soft); color: var(--success-ink); font-size: 14px;"><svg class="wl-i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>6 vendas no cartão de setembro (líquido)</span><button class="wl-btn wl-btn--solid wl-btn--sm">Confirmar</button></div></section>
+<section class="card" style="display: flex; flex-direction: column; gap: 10px;"><div style="display: flex; justify-content: space-between; gap: 8px;"><div><div class="wl-mono" style="font-size: 13px; font-weight: 500;">PIX RECEBIDO ANA B LIMA</div><div class="lbl">06 out</div></div><span style="font-weight: 600;">R$ 150,00</span></div><div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;"><span class="lbl" style="font-size: 14px;">Nenhum lançamento parecido</span><button class="wl-btn wl-btn--sm">Criar recebimento</button><button class="wl-btn wl-btn--quiet wl-btn--sm">Buscar</button></div></section>
+<section class="card" style="display: flex; flex-direction: column; gap: 10px;"><div style="display: flex; justify-content: space-between; gap: 8px;"><div><div class="wl-mono" style="font-size: 13px; font-weight: 500;">TARIFA PACOTE SERVICOS</div><div class="lbl">06 out</div></div><span style="font-weight: 600; color: var(--critical-ink);">− R$ 12,90</span></div><div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;"><span class="lbl" style="font-size: 14px;">Nenhum lançamento parecido</span><button class="wl-btn wl-btn--sm">Criar despesa</button><button class="wl-btn wl-btn--quiet wl-btn--sm">Buscar</button></div></section>
+<section class="card" style="display: flex; flex-direction: column; gap: 10px;"><div style="display: flex; justify-content: space-between; gap: 8px;"><div><div class="wl-mono" style="font-size: 13px; font-weight: 500;">TED ALUGUEL IMOVEL</div><div class="lbl">05 out</div></div><span style="font-weight: 600; color: var(--critical-ink);">− R$ 3.500,00</span></div><div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;"><span style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 12px; background: var(--success-soft); color: var(--success-ink); font-size: 14px;"><svg class="wl-i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>Despesa · Aluguel do ponto</span><button class="wl-btn wl-btn--solid wl-btn--sm">Confirmar</button></div></section>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line); display: flex; gap: 8px;"><button class="wl-btn wl-btn--solid" style="flex: 1; justify-content: center;">Confirmar 4 sugestões</button></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1700}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

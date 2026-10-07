@@ -1,0 +1,27 @@
+/* Design System White Label: tokens as CSS variables (from ds/wl/tokens.json) */
+:root, [data-theme="light"] {
+  --canvas: #ecebf0; --surface: #ffffff; --surface-sunken: #f3f3f6; --line: #e4e4ea;
+  --ink: #111114; --ink-muted: #686873; --solid: #111114; --on-solid: #ffffff; --on-solid-muted: #a3a3ad;
+  --brand: #c8f04a; --on-brand: #111114; --brand-soft: #eef9cc; --focus: #111114;
+  --success: #1e9e57; --success-soft: #dff4e6; --success-ink: #11693a;
+  --info: #2e6be6; --info-soft: #e1eafc; --info-ink: #1d4bae;
+  --warning: #f2a516; --on-warning: #111114; --warning-soft: #fceecf; --warning-ink: #85560a;
+  --critical: #d23f28; --on-critical: #ffffff; --critical-soft: #fce3de; --critical-ink: #a52f1c;
+  --shadow-pop: 0 12px 32px rgba(17, 17, 20, 0.12);
+}
+[data-theme="dark"] {
+  --canvas: #0b0b0e; --surface: #17171b; --surface-sunken: #212127; --line: #2c2c34;
+  --ink: #f4f4f6; --ink-muted: #a3a3ad; --solid: #f4f4f6; --on-solid: #111114; --on-solid-muted: #5c5c66;
+  --brand-soft: #2b3510; --focus: #f4f4f6;
+  --success: #4ccb7f; --success-soft: #12301e; --success-ink: #7bdda0;
+  --info: #6d9df5; --info-soft: #142443; --info-ink: #9dbdfa;
+  --warning-soft: #3a2b0b; --warning-ink: #f3c969;
+  --critical: #f0735e; --on-critical: #1a0906; --critical-soft: #3a1610; --critical-ink: #f49a8a;
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+:root {
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+  --radius-sm: 10px; --radius-md: 14px; --radius-lg: 24px; --radius-xl: 32px; --radius-pill: 999px;
+  --font-sans: Geist, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, Menlo, monospace;
+}

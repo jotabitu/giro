@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Assistente · recebimentos · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.steps li{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:999px;font-size:15px;color:var(--ink-muted)}
+.steps li .n{display:grid;place-items:center;width:26px;height:26px;flex:none;border-radius:50%;background:var(--surface-sunken);font-size:13px;font-weight:500;color:var(--ink)}
+.steps li.ok{color:var(--ink)}
+.steps li.ok .n{background:var(--success-soft);color:var(--success-ink)}
+.steps li.now{background:var(--solid);color:var(--on-solid)}
+.steps li.now .n{background:var(--brand);color:var(--on-brand)}
+.sub{margin:0 0 12px;font-size:18px;line-height:24px;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px 20px}
+.wl-field{width:100%}
+select.wl-input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-muted) 50%),linear-gradient(135deg,var(--ink-muted) 50%,transparent 50%);background-position:calc(100% - 22px) 21px,calc(100% - 16px) 21px;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+.method{display:flex;align-items:center;gap:14px;padding:16px;border-radius:20px;background:var(--surface-sunken)}
+.method .ic{display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:14px;background:var(--surface)}
+.method small{display:block;font-size:14px;line-height:20px;color:var(--ink-muted)}
+.chk{display:flex;align-items:center;gap:12px;min-height:46px;border-bottom:1px solid var(--line)}
+.chk:last-child{border-bottom:0}
+.chk input{width:22px;height:22px;margin:0;accent-color:var(--solid);flex:none}
+.flow{display:flex;gap:12px;align-items:flex-start;padding:10px 0}
+.flow .dot{display:grid;place-items:center;width:28px;height:28px;flex:none;border-radius:50%;background:var(--surface-sunken);font-size:13px;font-weight:500}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1000px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 16px;">
+<div class="wl-logo-slot">MR</div>
+<span style="font-size: 18px; font-weight: 600;">Moto Rápida</span>
+<span style="color: var(--ink-muted); font-size: 14px;">Configuração inicial</span>
+<button class="wl-btn" style="margin-left: auto;">Salvar e sair</button>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+
+<aside class="wl-panel" style="flex: 0 1 280px; padding: 16px;">
+<div style="padding: 8px 12px 14px;">
+<div style="font-size: 14px; color: var(--ink-muted);">Passo 6 de 8</div>
+<div class="wl-progress__track" style="margin-top: 10px;"><div class="wl-progress__fill" style="width: 75%; background: var(--brand);"></div></div>
+</div>
+<ol class="steps">
+<li class="ok"><span class="n"><svg class="wl-i" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Empresa e marca</li>
+<li class="ok"><span class="n"><svg class="wl-i" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Primeira filial</li>
+<li class="ok"><span class="n"><svg class="wl-i" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>O que a empresa faz</li>
+<li class="ok"><span class="n"><svg class="wl-i" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Tabela de preços</li>
+<li class="ok"><span class="n"><svg class="wl-i" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Modelo de contrato</li>
+<li class="now"><span class="n">6</span>Recebimentos</li>
+<li><span class="n">7</span>Importar dados</li>
+<li><span class="n">8</span>Convidar equipe</li>
+</ol>
+</aside>
+
+<section class="wl-panel" style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 26px; padding: 32px;">
+<div>
+<h1 style="margin: 0; font-size: 32px; line-height: 38px; font-weight: 600; letter-spacing: -0.02em;">Como você quer receber?</h1>
+<p style="margin: 8px 0 0; color: var(--ink-muted);">Com cobrança automática, cada parcela é gerada, enviada ao cliente e baixada sozinha quando ele paga.</p>
+</div>
+
+<div>
+<h2 class="sub">Conta de recebimento</h2>
+<div class="grid">
+<label class="wl-field"><span class="wl-field__label">Banco</span><select class="wl-input"><option>Banco do Brasil</option></select></label>
+<label class="wl-field"><span class="wl-field__label">Agência</span><input class="wl-input wl-mono" value="1234-5"></label>
+<label class="wl-field"><span class="wl-field__label">Conta corrente</span><input class="wl-input wl-mono" value="12345-6"></label>
+<label class="wl-field"><span class="wl-field__label">Chave Pix</span><input class="wl-input wl-mono" value="12.345.678/0001-10"><span class="wl-field__hint">CNPJ da empresa</span></label>
+</div>
+</div>
+
+<div>
+<h2 class="sub">Formas de cobrança</h2>
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<div class="method"><div class="ic"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 3l9 9-9 9-9-9z"></path><path d="M8.5 12h7"></path></svg></div><div style="flex: 1;"><div style="font-weight: 500;">Pix automático <span class="wl-badge wl-badge--sm wl-badge--brand" style="margin-left: 6px;">Recomendado</span></div><small>O cliente autoriza uma vez e as parcelas semanais saem sozinhas.</small></div><button class="wl-btn wl-btn--solid wl-btn--sm">Ativar</button></div>
+<div class="method"><div class="ic"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 6v12M7 6v12M10 6v12M14 6v12M17 6v12M20 6v12"></path></svg></div><div style="flex: 1;"><div style="font-weight: 500;">Boleto</div><small>Para quem prefere pagar no banco ou na lotérica.</small></div><button class="wl-btn wl-btn--sm">Ativar</button></div>
+<div class="method"><div class="ic"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18"></path></svg></div><div style="flex: 1;"><div style="font-weight: 500;">Cartão de crédito recorrente</div><small>Cobrança no cartão a cada vencimento.</small></div><button class="wl-btn wl-btn--sm">Ativar</button></div>
+</div>
+<p style="margin: 10px 0 0; font-size: 14px; color: var(--ink-muted);">Taxas do Asaas por cobrança recebida: Pix R$ 1,99; boleto e cartão conforme a tabela do Asaas.</p>
+</div>
+
+<div>
+<h2 class="sub">Lembretes no WhatsApp do cliente</h2>
+<label class="chk"><input type="checkbox" checked>1 dia antes do vencimento</label>
+<label class="chk"><input type="checkbox" checked>No dia do vencimento, com o link de pagamento</label>
+<label class="chk"><input type="checkbox" checked>1 dia depois, se não pagou</label>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 12px; padding-top: 8px; border-top: 1px solid var(--line);">
+<a class="wl-btn wl-btn--quiet" href="Onboarding-Contrato-Desktop.dc.html" style="margin-top: 16px; text-decoration: none;">Voltar</a>
+<a class="wl-btn" href="Onboarding-Importar-Desktop.dc.html" style="margin-top: 16px; text-decoration: none;">Fazer depois</a>
+<a class="wl-btn wl-btn--solid" href="Onboarding-Importar-Desktop.dc.html" style="margin: 16px 0 0 auto; padding: 0 32px; text-decoration: none;">Continuar</a>
+</div>
+</section>
+
+<aside style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+<section class="wl-panel">
+<div style="font-weight: 600; margin-bottom: 6px;">Como funciona</div>
+<div class="flow"><span class="dot">1</span><span>A parcela é criada quando você fecha a locação.</span></div>
+<div class="flow"><span class="dot">2</span><span>O cliente recebe o link no WhatsApp e paga.</span></div>
+<div class="flow"><span class="dot">3</span><span>A baixa é feita sozinha e o valor entra no caixa da filial.</span></div>
+<div class="flow"><span class="dot" style="background: var(--critical-soft); color: var(--critical-ink);">!</span><span>Sem pagamento em 3 dias, o contrato vai para a lista de bloqueio.</span></div>
+</section>
+<section class="wl-panel" style="background: var(--surface-sunken);">
+<p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--ink-muted);">Pode deixar para depois: enquanto isso, você registra os pagamentos à mão em Contas a receber.</p>
+</section>
+</aside>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

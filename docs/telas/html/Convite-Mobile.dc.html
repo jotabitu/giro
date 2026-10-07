@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Convite e aceite do funcionário · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.otp{width:100%;height:56px;box-sizing:border-box;border:1px solid var(--line);border-radius:14px;background:var(--surface);text-align:center;font-family:var(--font-mono);font-size:20px;color:var(--ink)}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1250px; box-sizing: border-box; padding: 16px 16px 120px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<div style="font-size: 13px; color: var(--ink-muted); padding: 8px 4px 0;">1 · Mensagem no WhatsApp do vistoriador</div>
+<div style="display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: 24px; background: var(--surface-sunken);">
+<div style="display: flex; align-items: center; gap: 10px;"><div class="wl-logo-slot" style="width: 32px; height: 32px; border-radius: 50%; font-size: 12px;">MR</div><span style="font-weight: 600; font-size: 15px;">Moto Rápida</span></div>
+<div style="align-self: flex-start; max-width: 300px; padding: 12px 14px; border-radius: 4px 18px 18px 18px; background: var(--surface); font-size: 15px; line-height: 22px;">Oi! A Mariana liberou seu acesso como <strong style="font-weight: 600;">vistoriador</strong> na Moto Rápida. Toque para entrar:<br><span style="color: var(--info-ink); text-decoration: underline;">motorapida.girolocadoras.com.br/c/8K2P</span><div style="margin-top: 4px; text-align: right; font-size: 12px; color: var(--ink-muted);">09:41</div></div>
+</div>
+
+<div style="font-size: 13px; color: var(--ink-muted); padding: 8px 4px 0;">2 · Ele toca no link</div>
+<section style="display: flex; flex-direction: column; gap: 16px; padding: 24px 20px; border-radius: 28px; background: var(--surface);">
+<div style="display: flex; align-items: center; gap: 10px;"><div class="wl-logo-slot" style="width: 36px; height: 36px; border-radius: 10px; font-size: 13px;">MR</div><span style="font-weight: 600;">Moto Rápida</span></div>
+<div>
+<h1 style="margin: 0; font-size: 26px; line-height: 30px; font-weight: 600; letter-spacing: -0.02em;">Olá! Confirme que é você</h1>
+<p style="margin: 8px 0 0; font-size: 15px; line-height: 22px; color: var(--ink-muted);">Enviamos um código para (85) 99654-2210.</p>
+</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap;"><span class="wl-badge wl-badge--sm wl-badge--solid">Vistoriador</span><span class="wl-badge wl-badge--sm">Filial Centro</span></div>
+<label class="wl-field" style="width: 100%;"><span class="wl-field__label">Seu nome</span><input class="wl-input" value="João Silva"></label>
+<div>
+<div class="wl-field__label" style="margin-bottom: 8px;">Código do WhatsApp</div>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px;"><input class="otp" value="3" aria-label="Dígito 1"><input class="otp" value="9" aria-label="Dígito 2"><input class="otp" value="0" aria-label="Dígito 3"><input class="otp" value="5" aria-label="Dígito 4"><input class="otp" value="" aria-label="Dígito 5"><input class="otp" value="" aria-label="Dígito 6"></div>
+</div>
+<p style="margin: 0; font-size: 13px; line-height: 18px; color: var(--ink-muted);">Vistoriadores entram sempre com código pelo WhatsApp, sem precisar de senha.</p>
+</section>
+
+<div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line);">
+<a class="wl-btn wl-btn--solid" href="Vistoriador-Mobile.dc.html" style="width: 100%; box-sizing: border-box; height: 56px; text-decoration: none;">Entrar</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1250}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

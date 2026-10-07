@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Assistente · marca · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.steps li{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:999px;font-size:15px;color:var(--ink-muted)}
+.steps li .n{display:grid;place-items:center;width:26px;height:26px;flex:none;border-radius:50%;background:var(--surface-sunken);font-size:13px;font-weight:500;color:var(--ink)}
+.steps li.now{background:var(--solid);color:var(--on-solid)}
+.steps li.now .n{background:var(--brand);color:var(--on-brand)}
+.wl-field{width:100%}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px 20px}
+.sw{width:48px;height:48px;border-radius:50%;border:0;cursor:pointer}
+.mini-nav{display:flex;align-items:center;gap:10px;height:38px;padding:0 12px;border-radius:999px;font-size:14px}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 960px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 16px;">
+<span style="display: inline-flex; align-items: center; height: 22px; color: var(--ink);"><svg viewBox="0 0 439 120" height="17" width="62" fill="currentColor" role="img" aria-label="Giro"><path fill-rule="evenodd" d="M123.0 60.0 A61.5 61.5 0 1 1 104.99 16.51 L88.02 33.48 A37.5 37.5 0 1 0 99.0 60.0 Z M146 0 H170 V120 H146 Z M196 0 H252 A36 36 0 0 1 252 84 H220 V120 H196 Z M220 24 V60 H252 A12 12 0 0 0 252 24 Z M226 84 H260 L296 120 H262 Z M316.0 60 A61.5 61.5 0 1 1 439.0 60 A61.5 61.5 0 1 1 316.0 60 Z M340.0 60 A37.5 37.5 0 1 0 415.0 60 A37.5 37.5 0 1 0 340.0 60 Z"/><path d="M65.5 59 H123.0 V81 H65.5 Z"/></svg></span>
+<span style="color: var(--ink-muted); font-size: 14px;">Configuração inicial · cerca de 15 minutos</span>
+<button class="wl-btn" style="margin-left: auto;">Salvar e sair</button>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+
+<aside class="wl-panel" style="flex: 0 1 280px; padding: 16px;">
+<div style="padding: 8px 12px 14px;">
+<div style="font-size: 14px; color: var(--ink-muted);">Passo 1 de 8</div>
+<div class="wl-progress__track" style="margin-top: 10px;"><div class="wl-progress__fill" style="width: 12.5%; background: var(--brand);"></div></div>
+</div>
+<ol class="steps">
+<li class="now"><span class="n">1</span>Empresa e marca</li>
+<li><span class="n">2</span>Primeira filial</li>
+<li><span class="n">3</span>O que a empresa faz</li>
+<li><span class="n">4</span>Tabela de preços</li>
+<li><span class="n">5</span>Modelo de contrato</li>
+<li><span class="n">6</span>Recebimentos</li>
+<li><span class="n">7</span>Importar dados</li>
+<li><span class="n">8</span>Convidar equipe</li>
+</ol>
+</aside>
+
+<section class="wl-panel" style="flex: 999 1 480px; min-width: 0; display: flex; flex-direction: column; gap: 22px; padding: 32px;">
+<div>
+<h1 style="margin: 0; font-size: 32px; line-height: 38px; font-weight: 600; letter-spacing: -0.02em;">Sua empresa e sua marca</h1>
+<p style="margin: 8px 0 0; color: var(--ink-muted);">Encontramos os dados pelo CNPJ. Confira, envie o logo e escolha a cor que sua equipe e seus clientes vão ver.</p>
+</div>
+<div class="grid">
+<label class="wl-field"><span class="wl-field__label">CNPJ</span><input class="wl-input wl-mono" value="12.345.678/0001-10"></label>
+<label class="wl-field"><span class="wl-field__label">Razão social</span><input class="wl-input" value="Moto Rápida Locações Ltda"></label>
+<label class="wl-field"><span class="wl-field__label">Nome fantasia</span><input class="wl-input" value="Moto Rápida"></label>
+<label class="wl-field"><span class="wl-field__label">Endereço de acesso</span><input class="wl-input wl-mono" value="motorapida" style="font-size: 14px;"><span class="wl-field__hint">motorapida.girolocadoras.com.br</span></label>
+</div>
+<div>
+<div class="wl-field__label" style="margin-bottom: 8px;">Logo</div>
+<div style="display: flex; align-items: center; gap: 16px;">
+<div class="wl-logo-slot" style="width: 72px; height: 72px; border-radius: 20px; font-size: 24px;">MR</div>
+<button class="wl-btn wl-btn--quiet" style="border: 1.5px dashed var(--line); background: var(--surface);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 16V5M7 10l5-5 5 5M5 19h14"></path></svg>Enviar logo</button>
+<span style="font-size: 14px; line-height: 20px; color: var(--ink-muted);">PNG ou SVG, fundo transparente.<br>Sem logo, usamos as iniciais.</span>
+</div>
+</div>
+<div>
+<div class="wl-field__label" style="margin-bottom: 10px;">Cor de destaque</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px;">
+<sc-for list="{{swatches}}" as="item" hint-placeholder-count="6">
+<button class="sw" aria-label="{{item.label}}" aria-pressed="{{item.pressed}}" onClick="{{item.pick}}" style="background: {{item.hex}}; box-shadow: {{item.ring}};"></button>
+</sc-for>
+<span class="wl-badge" style="margin-left: 6px;"><span style="width: 14px; height: 14px; border-radius: 50%; background: var(--brand);"></span><span class="wl-mono">{{brand}}</span></span>
+</div>
+<p style="margin: 10px 0 0; font-size: 14px; color: var(--ink-muted);">A cor do texto sobre o destaque é ajustada sozinha para continuar legível.</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--line);">
+<button class="wl-btn wl-btn--quiet" style="margin-top: 16px;">Pular por agora</button>
+<a class="wl-btn wl-btn--solid" href="Onboarding-Filial-Desktop.dc.html" style="margin: 16px 0 0 auto; padding: 0 32px; text-decoration: none;">Continuar</a>
+</div>
+</section>
+
+<section style="flex: 1 1 400px; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+<div style="font-size: 14px; color: var(--ink-muted); padding-left: 8px;">Pré-visualização</div>
+<div style="display: flex; gap: 12px; padding: 12px; border-radius: 32px; background: var(--surface-sunken);">
+<div style="flex: 0 0 170px; display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 24px; background: var(--surface);">
+<div style="display: flex; align-items: center; gap: 8px; padding: 2px 4px 10px;"><div class="wl-logo-slot" style="width: 30px; height: 30px; border-radius: 8px; font-size: 12px;">MR</div><span style="font-weight: 600; font-size: 14px;">Moto Rápida</span></div>
+<div class="mini-nav" style="background: var(--solid); color: var(--on-solid);">Visão geral</div>
+<div class="mini-nav">Veículos<span style="margin-left: auto; min-width: 22px; height: 20px; padding: 0 6px; box-sizing: border-box; border-radius: 999px; background: var(--brand); color: var(--on-brand); font-size: 12px; display: grid; place-items: center;">86</span></div>
+<div class="mini-nav">Locações</div>
+<div class="mini-nav">Financeiro</div>
+</div>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+<span class="wl-badge wl-badge--brand wl-badge--sm" style="align-self: flex-start;">7 contratos pedem atenção</span>
+<div class="wl-kpi wl-kpi--solid" style="padding: 14px 16px;"><div class="wl-kpi__label">Alugados agora</div><div class="wl-kpi__value" style="font-size: 32px; line-height: 34px;">42</div></div>
+<div style="padding: 14px; border-radius: 20px; background: var(--surface);">
+<div style="font-size: 13px; color: var(--ink-muted);">Frota por status</div>
+<div style="display: flex; gap: 4px; height: 14px; margin-top: 8px;"><div style="flex: 16; border-radius: 999px; background: var(--line);"></div><div style="flex: 42; border-radius: 999px; background: var(--brand);"></div><div style="flex: 12; border-radius: 999px; background: var(--solid);"></div></div>
+</div>
+<button class="wl-btn wl-btn--brand wl-btn--sm">Ver pendências</button>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 24px; background: var(--surface);">
+<div style="width: 6px; align-self: stretch; border-radius: 999px; background: var(--brand);"></div>
+<div style="flex: 1;"><div style="font-weight: 500; font-size: 14px;">Mensagem no WhatsApp do cliente</div><div style="font-size: 13px; color: var(--ink-muted);">"Moto Rápida: sua parcela de R$ 299,40 vence amanhã. Pague pelo Pix no link."</div></div>
+</div>
+</section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var self = this;
+    var picked = (this.state && this.state.picked) || this.props.brand || '#c8f04a';
+    var b = String(picked).replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    var hex = '#' + b.toLowerCase();
+    var opts = [
+      { hex: '#c8f04a', label: 'Verde-limão' },
+      { hex: '#ff7a45', label: 'Laranja' },
+      { hex: '#2f6fed', label: 'Azul' },
+      { hex: '#16b8a6', label: 'Verde-água' },
+      { hex: '#e11d48', label: 'Vermelho' },
+      { hex: '#7a5af8', label: 'Roxo' }
+    ];
+    var swatches = opts.map(function (o) {
+      var on = o.hex === hex;
+      return {
+        hex: o.hex,
+        label: o.label,
+        pressed: on ? 'true' : 'false',
+        ring: on ? '0 0 0 3px var(--surface), 0 0 0 5px var(--ink)' : 'inset 0 0 0 1px rgba(17,17,20,0.08)',
+        pick: function () { self.setState({ picked: o.hex }); }
+      };
+    });
+    return { brand: hex, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')', swatches: swatches };
+  }
+}
+</script>
+</body>
+</html>

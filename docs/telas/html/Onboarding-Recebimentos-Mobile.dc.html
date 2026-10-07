@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Assistente · recebimentos · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.card{display:flex;flex-direction:column;gap:12px;padding:18px 16px;border-radius:24px;background:var(--surface)}
+.h2{margin:0;font-size:17px;line-height:22px;font-weight:600}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.wl-field{width:100%}
+select.wl-input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-muted) 50%),linear-gradient(135deg,var(--ink-muted) 50%,transparent 50%);background-position:calc(100% - 22px) 21px,calc(100% - 16px) 21px;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+.method{display:flex;align-items:center;gap:12px;padding:14px;border-radius:18px;background:var(--surface-sunken)}
+.method small{display:block;font-size:13px;line-height:18px;color:var(--ink-muted)}
+.chk{display:flex;align-items:center;gap:12px;min-height:46px;border-bottom:1px solid var(--line);font-size:15px}
+.chk:last-child{border-bottom:0}
+.chk input{width:22px;height:22px;margin:0;accent-color:var(--solid);flex:none}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1700px; box-sizing: border-box; padding: 16px 16px 120px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 10px; padding-top: 8px;">
+<div class="wl-logo-slot" style="width: 34px; height: 34px; border-radius: 10px; font-size: 13px;">MR</div>
+<span style="flex: 1; font-size: 15px; font-weight: 600;">Moto Rápida</span>
+<button class="wl-btn wl-btn--sm">Sair</button>
+</header>
+
+<div>
+<div style="display: flex; justify-content: space-between; font-size: 14px; color: var(--ink-muted);"><span>Passo 6 de 8</span><span>Importar dados a seguir</span></div>
+<div style="display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; margin-top: 8px;">
+<div style="height: 6px; border-radius: 999px; background: var(--solid);"></div>
+<div style="height: 6px; border-radius: 999px; background: var(--solid);"></div>
+<div style="height: 6px; border-radius: 999px; background: var(--solid);"></div>
+<div style="height: 6px; border-radius: 999px; background: var(--solid);"></div>
+<div style="height: 6px; border-radius: 999px; background: var(--solid);"></div>
+<div style="height: 6px; border-radius: 999px; background: var(--brand);"></div>
+<div style="height: 6px; border-radius: 999px; background: var(--line);"></div>
+<div style="height: 6px; border-radius: 999px; background: var(--line);"></div>
+</div>
+</div>
+
+<div style="padding: 4px 4px 0;">
+<h1 style="margin: 0; font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -0.02em;">Como você quer receber?</h1>
+<p style="margin: 8px 0 0; font-size: 15px; line-height: 22px; color: var(--ink-muted);">Parcelas geradas, enviadas e baixadas sozinhas.</p>
+</div>
+
+<section class="card">
+<h2 class="h2">Conta de recebimento</h2>
+<label class="wl-field"><span class="wl-field__label">Banco</span><select class="wl-input"><option>Banco do Brasil</option></select></label>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">Agência</span><input class="wl-input wl-mono" value="1234-5"></label>
+<label class="wl-field"><span class="wl-field__label">Conta</span><input class="wl-input wl-mono" value="12345-6"></label>
+</div>
+<label class="wl-field"><span class="wl-field__label">Chave Pix</span><input class="wl-input wl-mono" value="12.345.678/0001-10"></label>
+</section>
+
+<section class="card">
+<h2 class="h2">Formas de cobrança</h2>
+<div class="method"><div style="flex: 1;"><div style="font-weight: 500;">Pix automático</div><small>Autoriza uma vez, paga toda semana</small></div><button class="wl-btn wl-btn--solid wl-btn--sm">Ativar</button></div>
+<div class="method"><div style="flex: 1;"><div style="font-weight: 500;">Boleto</div><small>Banco ou lotérica</small></div><button class="wl-btn wl-btn--sm">Ativar</button></div>
+<div class="method"><div style="flex: 1;"><div style="font-weight: 500;">Cartão recorrente</div><small>Cobrança a cada vencimento</small></div><button class="wl-btn wl-btn--sm">Ativar</button></div>
+</section>
+
+<section class="card" style="gap: 0;">
+<h2 class="h2" style="margin-bottom: 4px;">Lembretes no WhatsApp</h2>
+<label class="chk"><input type="checkbox" checked>1 dia antes</label>
+<label class="chk"><input type="checkbox" checked>No dia, com link de pagamento</label>
+<label class="chk"><input type="checkbox" checked>1 dia depois, se não pagou</label>
+</section>
+
+<div style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 10px; padding: 14px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line);">
+<a class="wl-btn" href="Onboarding-Importar-Mobile.dc.html" style="height: 56px; text-decoration: none;">Depois</a>
+<a class="wl-btn wl-btn--solid" href="Onboarding-Importar-Mobile.dc.html" style="flex: 1; height: 56px; text-decoration: none;">Continuar</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1700}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

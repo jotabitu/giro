@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Contas a receber · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.chip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 6px 0 16px;border:0;border-radius:999px;background:var(--surface-sunken);color:var(--ink);font:inherit;font-size:15px;cursor:pointer}
+.chip .wl-count{background:var(--surface)}
+.chip[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
+.chip[aria-pressed="true"] .wl-count{background:var(--brand);color:var(--on-brand)}
+.money{font-weight:500;text-align:right;white-space:nowrap}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1200px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<nav class="wl-sidebar" aria-label="Menu principal" style="flex: 0 0 280px;">
+<div class="wl-brand-row"><div class="wl-logo-slot" aria-hidden="true">MR</div><div class="wl-brand-name">Moto Rápida</div></div>
+<div class="wl-switcher"><div class="wl-switcher__icon"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg></div><div class="wl-switcher__text"><span class="wl-switcher__name">Filial Centro</span><span class="wl-switcher__sub">Fortaleza, CE</span></div><svg class="wl-i" viewBox="0 0 24 24" style="color: var(--ink-muted);"><path d="m6 9 6 6 6-6"></path></svg></div>
+<a class="wl-nav-item" href="Main.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>Visão geral</a>
+<a class="wl-nav-item" href="Frota-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg>Veículos<span class="wl-count">86</span></a>
+<div class="wl-nav-label">Operação</div>
+<a class="wl-nav-item" href="Locacoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>Locações<span class="wl-count">42</span></a>
+<a class="wl-nav-item" href="Vendas-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="7.5" r="1"></circle></svg>Vendas</a>
+<a class="wl-nav-item" href="Clientes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.6-1.6-4.8-4-5.6"></path></svg>Clientes</a>
+<a class="wl-nav-item" href="Manutencao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M15 4a5 5 0 0 0-4.6 6.9L4 17.3V20h2.7l6.4-6.4A5 5 0 0 0 20 9l-3 1-2-2z"></path></svg>Manutenções<span class="wl-count">5</span></a>
+<div class="wl-nav-label">Financeiro</div>
+<a class="wl-nav-item" href="Caixa-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3"></rect><circle cx="12" cy="12" r="2.5"></circle></svg>Caixa do dia</a>
+<a class="wl-nav-item" href="Receber-Desktop.dc.html" aria-current="page"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg>Contas a receber<span class="wl-count">7</span></a>
+<a class="wl-nav-item" href="Despesas-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"></path></svg>Despesas<span class="wl-count">3</span></a>
+<a class="wl-nav-item" href="Comissoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M5 19 19 5"></path><circle cx="7" cy="7" r="2.5"></circle><circle cx="17" cy="17" r="2.5"></circle></svg>Comissões</a>
+<a class="wl-nav-item" href="Conciliacao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10 12 4l9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"></path></svg>Conciliação<span class="wl-count">6</span></a>
+<a class="wl-nav-item" href="Relatorios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><path d="M8 16v-4M12 16V8M16 16v-6"></path></svg>Relatórios</a>
+<div class="wl-nav-label">Administração<span style="display: inline-grid; place-items: center; margin-left: 6px; vertical-align: -2px;"><svg class="wl-i" viewBox="0 0 24 24" style="width: 13px; height: 13px;"><rect x="5" y="10" width="14" height="10" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg></span></div>
+<a class="wl-nav-item" href="Config-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"></path></svg>Configurações</a>
+<a class="wl-nav-item" href="Admin-Marca-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle></svg>Empresa e marca</a>
+<a class="wl-nav-item" href="Filiais-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg>Filiais</a>
+<a class="wl-nav-item" href="Admin-Usuarios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M17 8v6M14 11h6"></path></svg>Usuários<span class="wl-count">2</span></a>
+<a class="wl-nav-item" href="Admin-Assinatura-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9 5.5-.8z"></path></svg>Assinatura</a>
+<a class="wl-nav-item" href="Admin-Auditoria-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h3"></path></svg>Auditoria</a>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
+<div><h1 style="margin: 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Contas a receber</h1><p style="margin: 6px 0 0; color: var(--ink-muted);">Outubro de 2026 · Filial Centro</p></div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-left: auto;">
+<div class="wl-seg" role="group" aria-label="Período" style="background: var(--surface);"><button aria-pressed="false">Hoje</button><button aria-pressed="false">Semana</button><button aria-pressed="true">Mês</button></div>
+<button class="wl-btn" style="height: 56px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>Exportar</button>
+<button class="wl-btn wl-btn--solid" style="height: 56px; padding: 0 28px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>Novo lançamento</button>
+</div>
+</header>
+
+<section class="wl-panel">
+<div class="wl-kpis" style="grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));">
+<div class="wl-kpi wl-kpi--solid"><div class="wl-kpi__label">Previsto no mês</div><div class="wl-kpi__value">R$ 74,2 mil</div><div class="wl-kpi__meta">318 parcelas</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Recebido</div><div class="wl-kpi__value">R$ 21,6 mil</div><div class="wl-kpi__meta">29% do previsto</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Vence hoje</div><div class="wl-kpi__value">R$ 1.890</div><div class="wl-kpi__meta">9 parcelas</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Em atraso</div><div class="wl-kpi__value">R$ 4.380</div><div class="wl-kpi__meta">7 clientes</div></div>
+</div>
+<div class="wl-pipe" style="margin-top: 12px;">
+<div class="wl-pipe__head"><span class="wl-pipe__title">Atraso por faixa</span><span class="wl-pipe__note">R$ 4.380 em 11 parcelas</span></div>
+<div class="wl-pipe__row">
+<div class="wl-pipe__col wl-pipe__col--brand" style="flex: 2140;"><div class="wl-pipe__bar"></div><div class="wl-pipe__num">R$ 2.140</div><div class="wl-pipe__label">1 a 7 dias</div></div>
+<div class="wl-pipe__col" style="flex: 1250;"><div class="wl-pipe__bar"></div><div class="wl-pipe__num">R$ 1.250</div><div class="wl-pipe__label">8 a 15 dias</div></div>
+<div class="wl-pipe__col" style="flex: 640;"><div class="wl-pipe__bar"></div><div class="wl-pipe__num">R$ 640</div><div class="wl-pipe__label">16 a 30</div></div>
+<div class="wl-pipe__col wl-pipe__col--solid" style="flex: 350;"><div class="wl-pipe__bar"></div><div class="wl-pipe__num">R$ 350</div><div class="wl-pipe__label">30+ dias</div></div>
+</div>
+</div>
+</section>
+
+<section class="wl-panel">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 20px;" role="group" aria-label="Situação">
+<button class="chip" aria-pressed="false">Todas<span class="wl-count">318</span></button>
+<button class="chip" aria-pressed="true">Em atraso<span class="wl-count">11</span></button>
+<button class="chip" aria-pressed="false">Vencem hoje<span class="wl-count">9</span></button>
+<button class="chip" aria-pressed="false">A vencer<span class="wl-count">226</span></button>
+<button class="chip" aria-pressed="false">Pagas<span class="wl-count">72</span></button>
+<label class="wl-search" style="width: 280px; height: 44px; margin-left: auto; background: var(--surface-sunken);"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg><input type="search" placeholder="Cliente, contrato ou placa" aria-label="Buscar lançamentos"></label>
+</div>
+
+<div style="overflow-x: auto;">
+<table class="wl-table" style="min-width: 900px;">
+<thead><tr><th>Vencimento</th><th>Cliente e contrato</th><th>Parcela</th><th>Forma</th><th style="text-align: right;">Valor</th><th>Situação</th><th></th></tr></thead>
+<tbody>
+<tr><td class="wl-mono">05 set</td><td><span class="wl-cell-main">Rafael Sousa</span><span class="wl-cell-sub wl-mono">LOC-2790 · PMZ-3E17</span></td><td>4 de 4</td><td>Boleto</td><td class="money">R$ 350,00</td><td><span class="wl-badge wl-badge--sm wl-badge--critical">32 dias</span></td><td><button class="wl-btn wl-btn--quiet wl-btn--sm">Cobrar</button></td></tr>
+<tr><td class="wl-mono">30 set</td><td><span class="wl-cell-main">Carlos Menezes</span><span class="wl-cell-sub wl-mono">LOC-2841 · QXA-4B21</span></td><td>2 de 5</td><td>Pix automático</td><td class="money">R$ 299,40</td><td><span class="wl-badge wl-badge--sm wl-badge--critical">7 dias</span></td><td><button class="wl-btn wl-btn--quiet wl-btn--sm">Cobrar</button></td></tr>
+<tr><td class="wl-mono">02 out</td><td><span class="wl-cell-main">Patrícia Gomes</span><span class="wl-cell-sub wl-mono">LOC-2812 · SAB-2K90</span></td><td>3 de 4</td><td>Pix</td><td class="money">R$ 279,00</td><td><span class="wl-badge wl-badge--sm wl-badge--critical">5 dias</span></td><td><button class="wl-btn wl-btn--quiet wl-btn--sm">Cobrar</button></td></tr>
+<tr><td class="wl-mono">03 out</td><td><span class="wl-cell-main">Diego Martins</span><span class="wl-cell-sub wl-mono">VEN-0158 · Honda CG 160</span></td><td>6 de 18</td><td>Boleto</td><td class="money">R$ 612,00</td><td><span class="wl-badge wl-badge--sm wl-badge--critical">4 dias</span></td><td><button class="wl-btn wl-btn--quiet wl-btn--sm">Cobrar</button></td></tr>
+<tr><td class="wl-mono">05 out</td><td><span class="wl-cell-main">Juliana Rocha</span><span class="wl-cell-sub wl-mono">LOC-2836 · PNB-7C04</span></td><td>3 de 5</td><td>Pix automático</td><td class="money">R$ 329,00</td><td><span class="wl-badge wl-badge--sm wl-badge--critical">2 dias</span></td><td><button class="wl-btn wl-btn--quiet wl-btn--sm">Cobrar</button></td></tr>
+<tr><td class="wl-mono">06 out</td><td><span class="wl-cell-main">Marcos Viana</span><span class="wl-cell-sub wl-mono">LOC-2850 · SBC-0J44</span></td><td>1 de 4</td><td>Cartão</td><td class="money">R$ 489,30</td><td><span class="wl-badge wl-badge--sm wl-badge--critical">1 dia</span></td><td><button class="wl-btn wl-btn--quiet wl-btn--sm">Cobrar</button></td></tr>
+</tbody>
+</table>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px;">
+<span style="color: var(--ink-muted); font-size: 14px;">Mostrando 6 de 11 parcelas em atraso</span>
+<div style="display: flex; gap: 8px;">
+<button class="wl-btn wl-btn--brand wl-btn--sm"><svg class="wl-i" viewBox="0 0 24 24" style="width: 18px; height: 18px;"><path d="M4 20l1.5-4.5A8 8 0 1 1 8.5 19z"></path></svg>Cobrar todos pelo WhatsApp</button>
+<button class="wl-btn wl-btn--quiet wl-btn--sm">Próxima</button>
+</div>
+</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Primeiro acesso · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.card{display:flex;flex-direction:column;gap:14px;padding:18px 16px;border-radius:24px;background:var(--surface)}
+.h2{display:flex;align-items:center;gap:10px;margin:0;font-size:18px;line-height:24px;font-weight:600}
+.h2 .n{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;font-size:13px}
+.rule{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--success-ink)}
+.otp{width:100%;height:56px;box-sizing:border-box;border:1px solid var(--line);border-radius:14px;background:var(--surface);text-align:center;font-family:var(--font-mono);font-size:20px;color:var(--ink)}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1200px; box-sizing: border-box; padding: 16px 16px 130px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 10px; padding-top: 8px;">
+<div class="wl-logo-slot" style="width: 34px; height: 34px; border-radius: 10px; font-size: 13px;">MR</div>
+<span style="font-size: 15px; font-weight: 600;">Moto Rápida</span>
+</header>
+
+<div style="padding: 0 4px;"><h1 style="margin: 0; font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -0.02em;">Proteja sua conta</h1><p style="margin: 6px 0 0; font-size: 15px; line-height: 22px; color: var(--ink-muted);">Senha forte e um código do celular, porque você vê todo o financeiro.</p></div>
+
+<section class="card">
+<h2 class="h2"><span class="n" style="background: var(--success-soft); color: var(--success-ink);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Senha criada</h2>
+<label class="wl-field" style="width: 100%;"><span class="wl-field__label">Nova senha</span><input class="wl-input" type="password" value="senhaforte123"></label>
+<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;"><div style="height: 6px; border-radius: 999px; background: var(--success);"></div><div style="height: 6px; border-radius: 999px; background: var(--success);"></div><div style="height: 6px; border-radius: 999px; background: var(--success);"></div><div style="height: 6px; border-radius: 999px; background: var(--line);"></div></div>
+<div style="display: flex; flex-direction: column; gap: 6px;">
+<span class="rule"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="m5 12 5 5 9-10"></path></svg>12 caracteres ou mais</span>
+<span class="rule"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="m5 12 5 5 9-10"></path></svg>Letras e números</span>
+</div>
+</section>
+
+<section class="card">
+<h2 class="h2"><span class="n" style="background: var(--solid); color: var(--on-solid);">2</span>Verificação em duas etapas</h2>
+<p style="margin: 0; font-size: 15px; line-height: 22px; color: var(--ink-muted);">Com um aplicativo autenticador instalado neste celular, toque abaixo para adicionar sua conta.</p>
+<button class="wl-btn wl-btn--quiet" style="width: 100%;"><svg class="wl-i" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><path d="M11 18.5h2"></path></svg>Abrir no autenticador</button>
+<div style="font-size: 13px; color: var(--ink-muted);">Ou copie a chave <span class="wl-mono" style="color: var(--ink);">JBSW Y3DP EHPK 3PXP</span></div>
+<div>
+<div class="wl-field__label" style="margin-bottom: 8px;">Código do aplicativo</div>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px;"><input class="otp" value="4" aria-label="Dígito 1"><input class="otp" value="8" aria-label="Dígito 2"><input class="otp" value="1" aria-label="Dígito 3"><input class="otp" value="0" aria-label="Dígito 4"><input class="otp" value="" aria-label="Dígito 5"><input class="otp" value="" aria-label="Dígito 6"></div>
+</div>
+</section>
+
+<div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line);">
+<a class="wl-btn wl-btn--solid" href="Onboarding-Marca-Mobile.dc.html" style="width: 100%; box-sizing: border-box; height: 56px; text-decoration: none;">Ativar e cadastrar a empresa</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

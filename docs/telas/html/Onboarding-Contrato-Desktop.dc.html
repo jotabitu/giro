@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Assistente · modelo de contrato · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.steps li{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:999px;font-size:15px;color:var(--ink-muted)}
+.steps li .n{display:grid;place-items:center;width:26px;height:26px;flex:none;border-radius:50%;background:var(--surface-sunken);font-size:13px;font-weight:500;color:var(--ink)}
+.steps li.ok{color:var(--ink)}
+.steps li.ok .n{background:var(--success-soft);color:var(--success-ink)}
+.steps li.now{background:var(--solid);color:var(--on-solid)}
+.steps li.now .n{background:var(--brand);color:var(--on-brand)}
+.sub{margin:0 0 12px;font-size:18px;line-height:24px;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px 20px}
+.wl-field{width:100%}
+select.wl-input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-muted) 50%),linear-gradient(135deg,var(--ink-muted) 50%,transparent 50%);background-position:calc(100% - 22px) 21px,calc(100% - 16px) 21px;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+.toggle{display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.toggle:last-child{border-bottom:0}
+.toggle input{width:22px;height:22px;margin:1px 0 0;accent-color:var(--solid);flex:none}
+.toggle small{display:block;margin-top:2px;font-size:14px;line-height:20px;color:var(--ink-muted)}
+.var{padding:1px 6px;border-radius:6px;background:var(--brand-soft);font-weight:500}
+.paper p{margin:0 0 10px;font-size:13px;line-height:20px;color:var(--ink)}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1100px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 16px;">
+<div class="wl-logo-slot">MR</div>
+<span style="font-size: 18px; font-weight: 600;">Moto Rápida</span>
+<span style="color: var(--ink-muted); font-size: 14px;">Configuração inicial</span>
+<button class="wl-btn" style="margin-left: auto;">Salvar e sair</button>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+
+<aside class="wl-panel" style="flex: 0 1 280px; padding: 16px;">
+<div style="padding: 8px 12px 14px;">
+<div style="font-size: 14px; color: var(--ink-muted);">Passo 5 de 8</div>
+<div class="wl-progress__track" style="margin-top: 10px;"><div class="wl-progress__fill" style="width: 62.5%; background: var(--brand);"></div></div>
+</div>
+<ol class="steps">
+<li class="ok"><span class="n"><svg class="wl-i" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Empresa e marca</li>
+<li class="ok"><span class="n"><svg class="wl-i" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Primeira filial</li>
+<li class="ok"><span class="n"><svg class="wl-i" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>O que a empresa faz</li>
+<li class="ok"><span class="n"><svg class="wl-i" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Tabela de preços</li>
+<li class="now"><span class="n">5</span>Modelo de contrato</li>
+<li><span class="n">6</span>Recebimentos</li>
+<li><span class="n">7</span>Importar dados</li>
+<li><span class="n">8</span>Convidar equipe</li>
+</ol>
+</aside>
+
+<section class="wl-panel" style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 26px; padding: 32px;">
+<div>
+<h1 style="margin: 0; font-size: 32px; line-height: 38px; font-weight: 600; letter-spacing: -0.02em;">Seu contrato de locação</h1>
+<p style="margin: 8px 0 0; color: var(--ink-muted);">Partimos de um modelo para locação de motos. Ajuste as regras abaixo; o texto do contrato muda junto.</p>
+</div>
+
+<div>
+<h2 class="sub">Atrasos e cancelamento</h2>
+<div class="grid">
+<label class="wl-field"><span class="wl-field__label">Multa por atraso no pagamento</span><input class="wl-input" value="2% + juros de 1% ao mês"></label>
+<label class="wl-field"><span class="wl-field__label">Recolher o veículo após</span><input class="wl-input" value="3 dias de atraso"></label>
+<label class="wl-field"><span class="wl-field__label">Multa por devolução antecipada</span><input class="wl-input" value="20% do valor restante"></label>
+<label class="wl-field"><span class="wl-field__label">Franquia por dano ou roubo</span><input class="wl-input" value="R$ 1.500,00"></label>
+</div>
+</div>
+
+<div>
+<h2 class="sub">Uso do veículo</h2>
+<div class="grid">
+<label class="wl-field"><span class="wl-field__label">Área de circulação</span><select class="wl-input"><option>Região Metropolitana de Fortaleza</option></select></label>
+<label class="wl-field"><span class="wl-field__label">Multas de trânsito</span><select class="wl-input"><option>Do cliente, com indicação de condutor</option></select></label>
+</div>
+<div style="margin-top: 8px;">
+<label class="toggle"><input type="checkbox" checked><span>Permitir uso para entregas e aplicativos<small>Inclui cláusula de uso comercial e exige baú homologado.</small></span></label>
+<label class="toggle"><input type="checkbox" checked><span>Oferecer opção de compra no fim do contrato<small>Parte das parcelas pagas vira entrada na compra da moto.</small></span></label>
+<label class="toggle"><input type="checkbox"><span>Rastreador obrigatório com bloqueio remoto<small>Só marque se a frota já tiver rastreador instalado.</small></span></label>
+</div>
+</div>
+
+<div style="display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: 16px; background: var(--warning-soft); color: var(--warning-ink); font-size: 14px; line-height: 20px;"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none;"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg><span>Este é um modelo de partida. Peça ao seu advogado para revisar antes de usar com clientes.</span></div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 12px; padding-top: 8px; border-top: 1px solid var(--line);">
+<a class="wl-btn wl-btn--quiet" href="Onboarding-Precos-Desktop.dc.html" style="margin-top: 16px; text-decoration: none;">Voltar</a>
+<button class="wl-btn" style="margin-top: 16px; border: 1.5px dashed var(--line);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 16V5M7 10l5-5 5 5M5 19h14"></path></svg>Usar meu modelo (.docx)</button>
+<a class="wl-btn wl-btn--solid" href="Onboarding-Recebimentos-Desktop.dc.html" style="margin: 16px 0 0 auto; padding: 0 32px; text-decoration: none;">Continuar</a>
+</div>
+</section>
+
+<aside style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+<div style="font-size: 14px; color: var(--ink-muted); padding-left: 8px;">Prévia do contrato</div>
+<div class="paper" style="padding: 32px 28px; border-radius: 24px; background: var(--surface); box-shadow: var(--shadow-pop);">
+<div style="display: flex; align-items: center; gap: 10px; padding-bottom: 14px; margin-bottom: 16px; border-bottom: 2px solid var(--brand);"><div class="wl-logo-slot" style="width: 30px; height: 30px; border-radius: 8px; font-size: 12px;">MR</div><div style="font-size: 13px; line-height: 18px;"><strong>Moto Rápida Locações Ltda</strong><br><span style="color: var(--ink-muted);">CNPJ 12.345.678/0001-10</span></div></div>
+<p style="font-weight: 600; font-size: 14px; text-align: center; margin-bottom: 14px;">CONTRATO DE LOCAÇÃO DE MOTOCICLETA</p>
+<p><strong>Cláusula 5ª · Pagamento.</strong> O atraso no pagamento gera multa de <span class="var">2% + juros de 1% ao mês</span>. Após <span class="var">3 dias de atraso</span>, a LOCADORA poderá recolher o veículo.</p>
+<p><strong>Cláusula 7ª · Uso.</strong> O veículo circulará apenas na <span class="var">Região Metropolitana de Fortaleza</span>, sendo permitido o uso para entregas e aplicativos.</p>
+<p><strong>Cláusula 9ª · Multas.</strong> Infrações no período são de responsabilidade do LOCATÁRIO, que será indicado como condutor.</p>
+<p><strong>Cláusula 11ª · Danos.</strong> Em caso de dano ou roubo, o LOCATÁRIO arca com franquia de <span class="var">R$ 1.500,00</span>.</p>
+<p style="color: var(--ink-muted); margin-bottom: 0;">… mais 14 cláusulas</p>
+</div>
+</aside>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Detalhe da empresa · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.co{display:flex;align-items:center;gap:12px}
+.co .lg{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:10px;font-size:12px;font-weight:700;color:#ffffff}
+.mini{height:6px;width:90px;border-radius:999px;background:var(--surface-sunken);overflow:hidden}
+.mini i{display:block;height:100%;border-radius:999px;background:var(--solid)}
+.row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row small,.muted{color:var(--ink-muted)}
+.row small{display:block;font-size:13px;line-height:18px}
+.card{padding:16px;border-radius:24px;background:var(--surface)}
+.h2{margin:0;font-size:20px;font-weight:600}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:10px 16px;font-size:15px}.kv dt{color:var(--ink-muted)}.kv dd{margin:0}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1250px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<nav class="wl-sidebar" aria-label="Menu da plataforma" style="flex: 0 0 280px;">
+<div class="wl-brand-row"><div class="wl-logo-slot" style="background: #111114; color: #ECEBF0;" aria-label="Giro"><svg viewBox="6 74 242 147" width="30" height="18" aria-hidden="true"><path fill="#ECEBF0" fill-rule="evenodd" d="M168 168 A36 36 0 1 1 240 168 A36 36 0 1 1 168 168 Z M184 168 A20 20 0 1 0 224 168 A20 20 0 1 0 184 168 Z"/><path fill="#ECEBF0" d="M186 92 H198 L217.83 166 L206.63 169 Z M168 82 H196 Q202 82 202 88 Q202 94 196 94 H174 Z M206 100 H213 Q221 100 221 108 V110 Q221 118 213 118 H206 Z M100 124 Q110 104 142 102 H180 L188 118 L164 138 H112 Q100 138 100 128 Z M116 138 H158 V151 H116 Z"/><path fill="#C8F04A" d="M14 165 A42 42 0 0 1 98 165 H77 A21 21 0 0 0 35 165 Z M110 171 A42 42 0 0 1 26 171 H47 A21 21 0 0 0 89 171 Z M98 159 H150 L159 168 L150 177 H98 Z M120 177 H132 V193 H120 Z M140 177 H150 V189 H140 Z"/></svg></div><div><span style="display: inline-flex; align-items: center; height: 22px; color: var(--ink);"><svg viewBox="0 0 439 120" height="17" width="62" fill="currentColor" role="img" aria-label="Giro"><path fill-rule="evenodd" d="M123.0 60.0 A61.5 61.5 0 1 1 104.99 16.51 L88.02 33.48 A37.5 37.5 0 1 0 99.0 60.0 Z M146 0 H170 V120 H146 Z M196 0 H252 A36 36 0 0 1 252 84 H220 V120 H196 Z M220 24 V60 H252 A12 12 0 0 0 252 24 Z M226 84 H260 L296 120 H262 Z M316.0 60 A61.5 61.5 0 1 1 439.0 60 A61.5 61.5 0 1 1 316.0 60 Z M340.0 60 A37.5 37.5 0 1 0 415.0 60 A37.5 37.5 0 1 0 340.0 60 Z"/><path d="M65.5 59 H123.0 V81 H65.5 Z"/></svg></span><div style="font-size: 13px; color: var(--ink-muted);">Painel da plataforma</div></div></div>
+<a class="wl-nav-item" href="Plataforma-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>Visão geral</a>
+<a class="wl-nav-item" href="Plat-Empresas-Desktop.dc.html" aria-current="page"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 21V8l9-5 9 5v13M9 21v-6h6v6"></path></svg>Empresas<span class="wl-count">148</span></a>
+<a class="wl-nav-item" href="Plat-Implantacoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 12h4l3 7 4-14 3 7h2"></path></svg>Implantações<span class="wl-count">23</span></a>
+<a class="wl-nav-item" href="Plat-Cobranca-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg>Cobrança das assinaturas<span class="wl-count">6</span></a>
+<a class="wl-nav-item" href="Plat-Suporte-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"></path></svg>Suporte<span class="wl-count">5</span></a>
+<div class="wl-nav-label">Configurar</div>
+<a class="wl-nav-item" href="Plat-Planos-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="7.5" r="1"></circle></svg>Planos e preços</a>
+<a class="wl-nav-item" href="Plat-Equipe-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.6-1.6-4.8-4-5.6"></path></svg>Equipe interna</a>
+<a class="wl-nav-item" href="Plat-Auditoria-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h3"></path></svg>Auditoria de acessos</a>
+<div style="margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 16px; background: var(--surface-sunken);"><div style="display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--solid); color: var(--on-solid); font-size: 13px; font-weight: 600;">VC</div><div style="flex: 1; min-width: 0;"><div style="font-size: 14px; font-weight: 500;">Você</div><div style="font-size: 12px; color: var(--ink-muted);">Dono · acesso total</div></div></div>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+<a href="Plat-Empresas-Desktop.dc.html" style="display: inline-flex; align-items: center; gap: 6px; font-size: 14px; text-decoration: none; color: var(--ink-muted);"><svg class="wl-i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="m15 6-6 6 6 6"></path></svg>Empresas</a>
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-top: -8px;">
+<div style="display: grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; background: #4d7c0f; color: #fff; font-size: 22px; font-weight: 700;">MR</div>
+<div><h1 style="margin: 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Moto Rápida</h1><div style="display: flex; gap: 8px; align-items: center; margin-top: 8px;"><span class="wl-badge wl-badge--sm wl-badge--solid">Profissional</span><span class="wl-badge wl-badge--sm wl-badge--info">Teste · dia 1</span><span class="lbl">Fortaleza, CE</span></div></div>
+<div style="margin-left: auto; display: flex; flex-wrap: wrap; gap: 8px;"><a href="Plat-Suporte-Acesso-Desktop.dc.html" class="wl-btn wl-btn--solid" style="text-decoration: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"></path><circle cx="12" cy="12" r="2.8"></circle></svg>Entrar como suporte</a><button class="wl-btn">Estender teste</button><button class="wl-btn">Mudar plano</button><button class="wl-btn wl-btn--quiet" style="color: var(--critical-ink);">Suspender</button></div>
+</header>
+<section class="wl-kpis" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));">
+<div class="wl-kpi wl-kpi--solid"><div class="wl-kpi__label">Teste grátis</div><div class="wl-kpi__value">13 dias</div><div class="wl-kpi__meta">termina em 21 out</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Implantação</div><div class="wl-kpi__value">6 de 10</div><div class="wl-kpi__meta">passos concluídos</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Locações</div><div class="wl-kpi__value">0</div><div class="wl-kpi__meta">ainda não fez a 1ª</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Chamados</div><div class="wl-kpi__value">1</div><div class="wl-kpi__meta">aberto há 4 h</div></div>
+</section>
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+<div style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+<section class="wl-panel"><div class="wl-panel__head"><h2 class="wl-panel__title">Implantação</h2><span class="lbl">checklist do assistente</span></div><div class="row" style="padding: 10px 0;"><span style="display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; flex: none; background: var(--solid); color: var(--on-solid);"><svg class="wl-i" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span style="flex: 1; font-size: 15px;">Conta e acesso</span><span class="lbl">07 out</span></div><div class="row" style="padding: 10px 0;"><span style="display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; flex: none; background: var(--solid); color: var(--on-solid);"><svg class="wl-i" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span style="flex: 1; font-size: 15px;">Marca e endereço</span><span class="lbl">07 out</span></div><div class="row" style="padding: 10px 0;"><span style="display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; flex: none; background: var(--solid); color: var(--on-solid);"><svg class="wl-i" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span style="flex: 1; font-size: 15px;">Primeira filial</span><span class="lbl">07 out</span></div><div class="row" style="padding: 10px 0;"><span style="display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; flex: none; background: var(--solid); color: var(--on-solid);"><svg class="wl-i" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span style="flex: 1; font-size: 15px;">Ramo e veículos</span><span class="lbl">07 out</span></div><div class="row" style="padding: 10px 0;"><span style="display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; flex: none; background: var(--solid); color: var(--on-solid);"><svg class="wl-i" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span style="flex: 1; font-size: 15px;">Preços</span><span class="lbl">07 out</span></div><div class="row" style="padding: 10px 0;"><span style="display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1.5px var(--line);"></span><span style="flex: 1; font-size: 15px;">Contrato</span><span class="lbl">pendente</span></div><div class="row" style="padding: 10px 0;"><span style="display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1.5px var(--line);"></span><span style="flex: 1; font-size: 15px;">Recebimentos</span><span class="lbl">pendente</span></div><div class="row" style="padding: 10px 0;"><span style="display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1.5px var(--line);"></span><span style="flex: 1; font-size: 15px;">Importar dados</span><span class="lbl">pendente</span></div><div class="row" style="padding: 10px 0;"><span style="display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; flex: none; background: var(--solid); color: var(--on-solid);"><svg class="wl-i" viewBox="0 0 24 24" style="width:14px;height:14px"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg></span><span style="flex: 1; font-size: 15px;">Equipe</span><span class="lbl">4 convites</span></div><div class="row" style="padding: 10px 0;"><span style="display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1.5px var(--line);"></span><span style="flex: 1; font-size: 15px;">1ª locação</span><span class="lbl">pendente</span></div></section>
+<section class="wl-panel"><div class="wl-panel__head"><h2 class="wl-panel__title">Últimas atividades</h2><a href="Plat-Auditoria-Desktop.dc.html" style="font-size: 14px;">Ver auditoria</a></div><div class="row" style="padding: 10px 0;"><span class="wl-mono lbl" style="width: 110px; flex: none;">07 out, 09:12</span><span style="font-size: 15px;">Mariana Costa fez o primeiro login</span></div><div class="row" style="padding: 10px 0;"><span class="wl-mono lbl" style="width: 110px; flex: none;">07 out, 09:40</span><span style="font-size: 15px;">Cadastrou 83 veículos pela importação</span></div><div class="row" style="padding: 10px 0;"><span class="wl-mono lbl" style="width: 110px; flex: none;">07 out, 10:02</span><span style="font-size: 15px;">Convidou Rodrigo, Bruna, João e Lúcia</span></div><div class="row" style="padding: 10px 0;"><span class="wl-mono lbl" style="width: 110px; flex: none;">07 out, 10:15</span><span style="font-size: 15px;">Pulou o passo de recebimentos</span></div></section>
+</div>
+<div style="flex: 1 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+<section class="wl-panel"><h2 class="wl-panel__title" style="font-size: 20px; margin-bottom: 14px;">Dados da empresa</h2><dl class="kv" style="margin: 0;">
+<dt>Responsável</dt><dd>Mariana Costa · admin</dd>
+<dt>E-mail</dt><dd>mariana@motorapida.com.br</dd>
+<dt>Telefone</dt><dd>(85) 99812-4410</dd>
+<dt>CNPJ</dt><dd class="wl-mono">41.208.733/0001-52</dd>
+<dt>Endereço</dt><dd>motorapida.girolocadoras.com.br</dd>
+<dt>Cliente desde</dt><dd>07 out 2026</dd>
+</dl></section>
+<section class="wl-panel"><div class="wl-panel__head"><h2 class="wl-panel__title" style="font-size: 20px;">Uso do plano</h2><span class="wl-badge wl-badge--sm">Profissional</span></div><div style="display: flex; flex-direction: column; gap: 14px;">
+<div><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Veículos</span><span class="muted">86 de 150</span></div><div class="wl-progress" style="margin-top: 6px;"><div class="wl-progress__track"><div class="wl-progress__fill" style="width: 57%;"></div></div></div></div>
+<div><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Filiais</span><span class="muted">1 de 3</span></div><div class="wl-progress" style="margin-top: 6px;"><div class="wl-progress__track"><div class="wl-progress__fill" style="width: 33%;"></div></div></div></div>
+<div><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Usuários</span><span class="muted">5 de 10</span></div><div class="wl-progress" style="margin-top: 6px;"><div class="wl-progress__track"><div class="wl-progress__fill" style="width: 50%;"></div></div></div></div>
+</div></section>
+<section class="wl-panel"><h2 class="wl-panel__title" style="font-size: 20px; margin-bottom: 8px;">Faturas</h2><table class="wl-table"><tbody><tr><td><span class="wl-mono">FAT-0001</span></td><td>21 out 2026</td><td>R$ 449,00</td><td><span class="wl-badge wl-badge--sm wl-badge--info">1ª cobrança após o teste</span></td></tr></tbody></table></section>
+</div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1250}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!-- @dsCard height=300 -->
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Design System White Label</title>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--canvas); color: var(--ink); font-family: var(--font-sans); overflow: hidden; }
+  .cover { position: relative; width: 960px; height: 300px; overflow: hidden; }
+  .band { position: absolute; top: 0; left: 0; width: 960px; height: 120px; }
+  .band svg { display: block; width: 960px; height: 120px; }
+  .brand { fill: var(--brand); }
+  .solid { fill: var(--solid); }
+  .surface { fill: var(--surface); }
+  .canvas { fill: var(--canvas); }
+  .warning { fill: var(--warning); }
+  .blk { rx: var(--radius-lg); }
+  .words { position: absolute; left: var(--space-6); bottom: var(--space-6); max-width: 912px; }
+  .name { margin: 0; font-size: 56px; line-height: 0.95; font-weight: 600; letter-spacing: -0.03em; color: var(--ink); white-space: nowrap; }
+  .tag { margin: var(--space-2) 0 0 2px; max-width: 440px; font-size: 14px; line-height: 20px; color: var(--ink-muted); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="band" aria-hidden="true">
+<svg viewBox="0 0 960 120" width="960" height="120">
+<!--
+  blocks      brand 352×136 bled off the top (the client's colour, largest) · solid 208×80 (the black of active states) · surface 368×104 bled off top and right (the white panels) · warning 96×24 once (a status pill) — about 32% of 960×300
+  arrangement a strip of three unequal panels across the top, like the app's panels on the canvas, bottoms on one line space-4 above the band's edge
+  pattern     pills, from "tudo é arredondado... botões, menus, status em radius-pill": 40-tall pills (space-10) cut into each block in the next block's colour, plus 24-tall status pills on the white panel
+  scales      gutters space-4; pill height space-10 (rx 20 = half), status pills 24 (rx 12); block corners radius-lg
+-->
+<rect class="brand blk" x="24" y="-32" width="352" height="136" rx="24"/>
+<rect class="solid blk" x="392" y="24" width="208" height="80" rx="24"/>
+<rect class="surface blk" x="616" y="-24" width="368" height="128" rx="24"/>
+<rect class="solid" x="48" y="40" width="136" height="40" rx="20"/>
+<rect class="solid" x="200" y="40" width="88" height="40" rx="20"/>
+<rect class="surface" x="304" y="40" width="40" height="40" rx="20"/>
+<rect class="brand" x="416" y="44" width="112" height="40" rx="20"/>
+<rect class="surface" x="544" y="44" width="40" height="40" rx="20"/>
+<rect class="canvas" x="640" y="16" width="296" height="40" rx="20"/>
+<rect class="warning" x="640" y="68" width="96" height="24" rx="12"/>
+<rect class="solid" x="752" y="68" width="72" height="24" rx="12"/>
+</svg>
+</div>
+<div class="words">
+  <h1 class="name">Design System White Label</h1>
+  <p class="tag">Painéis claros, pílulas pretas e a cor de cada cliente para gestão de motos e carros.</p>
+</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Dashboard com primeiros passos · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.task{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)}
+.task:last-child{border-bottom:0}
+.task .c{display:grid;place-items:center;width:28px;height:28px;flex:none;border-radius:50%;border:1.5px solid var(--line)}
+.task.done .c{background:var(--success-soft);border-color:transparent;color:var(--success-ink)}
+.task.done .t{color:var(--ink-muted);text-decoration:line-through}
+.task small{display:block;font-size:14px;line-height:20px;color:var(--ink-muted)}
+.inv{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.inv:last-child{border-bottom:0}
+.av{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:50%;background:var(--surface-sunken);font-size:13px;font-weight:600}
+.lock{display:inline-grid;place-items:center;margin-left:6px;vertical-align:-2px}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1240px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<nav class="wl-sidebar" aria-label="Menu principal" style="flex: 0 0 280px;">
+<div class="wl-brand-row"><div class="wl-logo-slot" aria-hidden="true">MR</div><div class="wl-brand-name">Moto Rápida</div></div>
+<div class="wl-switcher"><div class="wl-switcher__icon"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg></div><div class="wl-switcher__text"><span class="wl-switcher__name">Filial Centro</span><span class="wl-switcher__sub">Fortaleza, CE</span></div><svg class="wl-i" viewBox="0 0 24 24" style="color: var(--ink-muted);"><path d="m6 9 6 6 6-6"></path></svg></div>
+<a class="wl-nav-item" href="Pos-Dashboard-Desktop.dc.html" aria-current="page"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>Visão geral</a>
+<a class="wl-nav-item" href="Frota-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg>Veículos<span class="wl-count">86</span></a>
+<div class="wl-nav-label">Operação</div>
+<a class="wl-nav-item" href="Locacoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>Locações<span class="wl-count">42</span></a>
+<a class="wl-nav-item" href="Vendas-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="7.5" r="1"></circle></svg>Vendas</a>
+<a class="wl-nav-item" href="Clientes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.6-1.6-4.8-4-5.6"></path></svg>Clientes</a>
+<a class="wl-nav-item" href="Manutencao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M15 4a5 5 0 0 0-4.6 6.9L4 17.3V20h2.7l6.4-6.4A5 5 0 0 0 20 9l-3 1-2-2z"></path></svg>Manutenções<span class="wl-count">5</span></a>
+<div class="wl-nav-label">Financeiro</div>
+<a class="wl-nav-item" href="Caixa-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3"></rect><circle cx="12" cy="12" r="2.5"></circle></svg>Caixa do dia</a>
+<a class="wl-nav-item" href="Receber-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg>Contas a receber<span class="wl-count">7</span></a>
+<a class="wl-nav-item" href="Despesas-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"></path></svg>Despesas<span class="wl-count">3</span></a>
+<a class="wl-nav-item" href="Comissoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M5 19 19 5"></path><circle cx="7" cy="7" r="2.5"></circle><circle cx="17" cy="17" r="2.5"></circle></svg>Comissões</a>
+<a class="wl-nav-item" href="Conciliacao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10 12 4l9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"></path></svg>Conciliação<span class="wl-count">6</span></a>
+<a class="wl-nav-item" href="Relatorios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><path d="M8 16v-4M12 16V8M16 16v-6"></path></svg>Relatórios</a>
+<div class="wl-nav-label">Administração<span style="display: inline-grid; place-items: center; margin-left: 6px; vertical-align: -2px;"><svg class="wl-i" viewBox="0 0 24 24" style="width: 13px; height: 13px;"><rect x="5" y="10" width="14" height="10" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg></span></div>
+<a class="wl-nav-item" href="Config-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"></path></svg>Configurações</a>
+<a class="wl-nav-item" href="Admin-Marca-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle></svg>Empresa e marca</a>
+<a class="wl-nav-item" href="Filiais-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg>Filiais</a>
+<a class="wl-nav-item" href="Admin-Usuarios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M17 8v6M14 11h6"></path></svg>Usuários<span class="wl-count">2</span></a>
+<a class="wl-nav-item" href="Admin-Assinatura-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9 5.5-.8z"></path></svg>Assinatura</a>
+<a class="wl-nav-item" href="Admin-Auditoria-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h3"></path></svg>Auditoria</a>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 12px 12px 20px; border-radius: 999px; background: var(--brand-soft);">
+<svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+<span style="flex: 1; min-width: 200px;"><strong style="font-weight: 600;">Seu teste grátis termina em 14 dias</strong> (21 out). Seus dados continuam, só falta escolher como pagar.</span>
+<a class="wl-btn wl-btn--solid wl-btn--sm" href="Admin-Assinatura-Desktop.dc.html" style="text-decoration: none;">Escolher pagamento</a>
+</div>
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
+<h1 style="margin: 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Bem-vinda, Mariana</h1>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-left: auto;">
+<label class="wl-search" style="width: 300px;"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg><input type="search" placeholder="Buscar placa, cliente ou contrato" aria-label="Buscar"><span class="wl-kbd">⌘K</span></label>
+<a class="wl-btn wl-btn--solid" href="Locacao-Desktop.dc.html" style="height: 56px; padding: 0 28px; text-decoration: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>Nova locação</a>
+</div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+
+<section class="wl-panel" style="flex: 999 1 480px; min-width: 0;">
+<div class="wl-panel__head"><div><h2 class="wl-panel__title">Primeiros passos</h2><p class="wl-panel__sub">2 de 5 concluídos · cerca de 20 minutos para o resto</p></div><span class="wl-badge wl-badge--brand">40%</span></div>
+<div class="wl-progress__track" style="margin-bottom: 8px;"><div class="wl-progress__fill" style="width: 40%;"></div></div>
+<div class="task done"><span class="c"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span><div style="flex: 1;"><span class="t">Configuração inicial</span><small>Marca, filial, preços, contrato e 83 veículos importados</small></div></div>
+<div class="task done"><span class="c"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span><div style="flex: 1;"><span class="t">Convidar a equipe</span><small>3 convites enviados</small></div></div>
+<div class="task"><span class="c"></span><div style="flex: 1;"><span style="font-weight: 500;">Fazer uma locação de teste</span><small>Contrato, vistoria e assinatura com um cliente seu ou de teste</small></div><a class="wl-btn wl-btn--quiet wl-btn--sm" href="Locacao-Desktop.dc.html" style="text-decoration: none;">Começar</a></div>
+<div class="task"><span class="c"></span><div style="flex: 1;"><span style="font-weight: 500;">Instalar o app no celular do vistoriador</span><small>Envie o link por WhatsApp; abre direto na tela de vistorias</small></div><button class="wl-btn wl-btn--quiet wl-btn--sm">Enviar link</button></div>
+<div class="task"><span class="c"></span><div style="flex: 1;"><span style="font-weight: 500;">Conectar o WhatsApp da loja</span><small>Lembretes de pagamento e devolução saem pelo seu número</small></div><button class="wl-btn wl-btn--quiet wl-btn--sm">Conectar</button></div>
+</section>
+
+<aside style="flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+<section class="wl-panel">
+<div class="wl-panel__head" style="margin-bottom: 4px;"><h2 class="wl-panel__title" style="font-size: 20px;">Convites</h2><a href="Admin-Usuarios-Desktop.dc.html" style="font-size: 14px; font-weight: 500;">Ver usuários</a></div>
+<div class="inv"><div class="av">RP</div><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Rodrigo Pinheiro</div><div style="font-size: 14px; color: var(--ink-muted);">Gerente</div></div><span class="wl-badge wl-badge--sm wl-badge--success">Aceitou</span></div>
+<div class="inv"><div class="av">JS</div><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">(85) 99654-2210</div><div style="font-size: 14px; color: var(--ink-muted);">Vistoriador</div></div><span class="wl-badge wl-badge--sm wl-badge--info">Pendente</span></div>
+<div class="inv"><div class="av">FI</div><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">financeiro@motorapida…</div><div style="font-size: 14px; color: var(--ink-muted);">Financeiro</div></div><span class="wl-badge wl-badge--sm wl-badge--info">Pendente</span></div>
+</section>
+<section class="wl-panel" style="background: var(--surface-sunken);">
+<div style="font-weight: 600; margin-bottom: 6px;">Precisa de ajuda?</div>
+<p style="margin: 0 0 14px; font-size: 14px; line-height: 20px; color: var(--ink-muted);">Fale com a nossa equipe pelo WhatsApp ou agende uma chamada de 30 minutos.</p>
+<button class="wl-btn wl-btn--sm" style="background: var(--surface);">Falar com o suporte</button>
+</section>
+</aside>
+</div>
+
+<section class="wl-panel">
+<div class="wl-kpis" style="grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));">
+<div class="wl-kpi wl-kpi--solid"><div class="wl-kpi__label">Frota cadastrada</div><div class="wl-kpi__value">83</div><div class="wl-kpi__meta">todas disponíveis</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Alugados agora</div><div class="wl-kpi__value">0</div><div class="wl-kpi__meta">faça a primeira locação</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Clientes</div><div class="wl-kpi__value">0</div><div class="wl-kpi__meta">importe ou cadastre</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">A receber</div><div class="wl-kpi__value">R$ 0</div><div class="wl-kpi__meta">aparece após a 1ª locação</div></div>
+</div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

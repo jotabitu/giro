@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Auditoria de acessos · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.co{display:flex;align-items:center;gap:12px}
+.co .lg{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:10px;font-size:12px;font-weight:700;color:#ffffff}
+.mini{height:6px;width:90px;border-radius:999px;background:var(--surface-sunken);overflow:hidden}
+.mini i{display:block;height:100%;border-radius:999px;background:var(--solid)}
+.row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row small,.muted{color:var(--ink-muted)}
+.row small{display:block;font-size:13px;line-height:18px}
+.card{padding:16px;border-radius:24px;background:var(--surface)}
+.h2{margin:0;font-size:20px;font-weight:600}
+.lbl{font-size:13px;color:var(--ink-muted)}
+
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1050px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<nav class="wl-sidebar" aria-label="Menu da plataforma" style="flex: 0 0 280px;">
+<div class="wl-brand-row"><div class="wl-logo-slot" style="background: #111114; color: #ECEBF0;" aria-label="Giro"><svg viewBox="6 74 242 147" width="30" height="18" aria-hidden="true"><path fill="#ECEBF0" fill-rule="evenodd" d="M168 168 A36 36 0 1 1 240 168 A36 36 0 1 1 168 168 Z M184 168 A20 20 0 1 0 224 168 A20 20 0 1 0 184 168 Z"/><path fill="#ECEBF0" d="M186 92 H198 L217.83 166 L206.63 169 Z M168 82 H196 Q202 82 202 88 Q202 94 196 94 H174 Z M206 100 H213 Q221 100 221 108 V110 Q221 118 213 118 H206 Z M100 124 Q110 104 142 102 H180 L188 118 L164 138 H112 Q100 138 100 128 Z M116 138 H158 V151 H116 Z"/><path fill="#C8F04A" d="M14 165 A42 42 0 0 1 98 165 H77 A21 21 0 0 0 35 165 Z M110 171 A42 42 0 0 1 26 171 H47 A21 21 0 0 0 89 171 Z M98 159 H150 L159 168 L150 177 H98 Z M120 177 H132 V193 H120 Z M140 177 H150 V189 H140 Z"/></svg></div><div><span style="display: inline-flex; align-items: center; height: 22px; color: var(--ink);"><svg viewBox="0 0 439 120" height="17" width="62" fill="currentColor" role="img" aria-label="Giro"><path fill-rule="evenodd" d="M123.0 60.0 A61.5 61.5 0 1 1 104.99 16.51 L88.02 33.48 A37.5 37.5 0 1 0 99.0 60.0 Z M146 0 H170 V120 H146 Z M196 0 H252 A36 36 0 0 1 252 84 H220 V120 H196 Z M220 24 V60 H252 A12 12 0 0 0 252 24 Z M226 84 H260 L296 120 H262 Z M316.0 60 A61.5 61.5 0 1 1 439.0 60 A61.5 61.5 0 1 1 316.0 60 Z M340.0 60 A37.5 37.5 0 1 0 415.0 60 A37.5 37.5 0 1 0 340.0 60 Z"/><path d="M65.5 59 H123.0 V81 H65.5 Z"/></svg></span><div style="font-size: 13px; color: var(--ink-muted);">Painel da plataforma</div></div></div>
+<a class="wl-nav-item" href="Plataforma-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>Visão geral</a>
+<a class="wl-nav-item" href="Plat-Empresas-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 21V8l9-5 9 5v13M9 21v-6h6v6"></path></svg>Empresas<span class="wl-count">148</span></a>
+<a class="wl-nav-item" href="Plat-Implantacoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 12h4l3 7 4-14 3 7h2"></path></svg>Implantações<span class="wl-count">23</span></a>
+<a class="wl-nav-item" href="Plat-Cobranca-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg>Cobrança das assinaturas<span class="wl-count">6</span></a>
+<a class="wl-nav-item" href="Plat-Suporte-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"></path></svg>Suporte<span class="wl-count">5</span></a>
+<div class="wl-nav-label">Configurar</div>
+<a class="wl-nav-item" href="Plat-Planos-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="7.5" r="1"></circle></svg>Planos e preços</a>
+<a class="wl-nav-item" href="Plat-Equipe-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.6-1.6-4.8-4-5.6"></path></svg>Equipe interna</a>
+<a class="wl-nav-item" href="Plat-Auditoria-Desktop.dc.html" aria-current="page"><svg class="wl-i" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h3"></path></svg>Auditoria de acessos</a>
+<div style="margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 16px; background: var(--surface-sunken);"><div style="display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--solid); color: var(--on-solid); font-size: 13px; font-weight: 600;">VC</div><div style="flex: 1; min-width: 0;"><div style="font-size: 14px; font-weight: 500;">Você</div><div style="font-size: 12px; color: var(--ink-muted);">Dono · acesso total</div></div></div>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
+<div><h1 style="margin: 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Auditoria de acessos</h1><p style="margin: 6px 0 0; color: var(--ink-muted);">Tudo que a sua equipe fez no painel e nas contas dos clientes · guardado por 5 anos</p></div>
+<div style="margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;"><button class="wl-btn"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"></path></svg>Exportar CSV</button></div>
+</header>
+<section class="wl-kpis" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));">
+<div class="wl-kpi wl-kpi--solid"><div class="wl-kpi__label">Acessos de suporte</div><div class="wl-kpi__value">14</div><div class="wl-kpi__meta">nos últimos 30 dias</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Com edição</div><div class="wl-kpi__value">3</div><div class="wl-kpi__meta">todos com chamado</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Logins bloqueados</div><div class="wl-kpi__value">1</div><div class="wl-kpi__meta">hoje, 08:02</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Mudanças de preço</div><div class="wl-kpi__value">1</div><div class="wl-kpi__meta">ontem</div></div>
+</section>
+<section class="wl-panel">
+<div class="wl-panel__head" style="flex-wrap: wrap; gap: 12px;"><div class="wl-seg" role="group" aria-label="Filtro"><button aria-pressed="true">Tudo</button><button aria-pressed="false">Acessos de suporte</button><button aria-pressed="false">Cobrança</button><button aria-pressed="false">Configurações</button><button aria-pressed="false">Segurança</button></div><div style="display: flex; gap: 8px; margin-left: auto;"><button class="wl-btn wl-btn--sm">Pessoa: todas</button><button class="wl-btn wl-btn--sm">Empresa: todas</button><button class="wl-btn wl-btn--sm">Últimos 7 dias</button></div></div>
+<div style="overflow-x: auto;"><table class="wl-table" style="min-width: 960px;"><thead><tr><th>Quando</th><th>Quem</th><th>O que</th><th>Onde</th><th>Detalhe</th></tr></thead><tbody><tr><td><span class="wl-mono" style="font-size: 13px;">07 out, 13:40</span></td><td><div class="co"><div class="lg" style="background: #0369a1; border-radius: 50%; width: 30px; height: 30px; font-size: 11px;">DS</div><span>Diego Santos</span></div></td><td><span class="wl-badge wl-badge--sm wl-badge--warning">Entrou como suporte</span></td><td>Moto Rápida</td><td><span class="wl-cell-sub">Chamado #1042 · só ver · 30 min</span></td></tr><tr><td><span class="wl-mono" style="font-size: 13px;">07 out, 13:52</span></td><td><div class="co"><div class="lg" style="background: #0369a1; border-radius: 50%; width: 30px; height: 30px; font-size: 11px;">DS</div><span>Diego Santos</span></div></td><td><span style="font-weight: 500;">Saiu do modo suporte</span></td><td>Moto Rápida</td><td><span class="wl-cell-sub">Duração: 12 min · nenhuma alteração</span></td></tr><tr><td><span class="wl-mono" style="font-size: 13px;">07 out, 11:05</span></td><td><div class="co"><div class="lg" style="background: #be185d; border-radius: 50%; width: 30px; height: 30px; font-size: 11px;">PA</div><span>Paula Andrade</span></div></td><td><span style="font-weight: 500;">Reenviou cobrança</span></td><td>Rota Sul Locadora</td><td><span class="wl-cell-sub">FAT-2209 · WhatsApp</span></td></tr><tr><td><span class="wl-mono" style="font-size: 13px;">07 out, 10:20</span></td><td><div class="co"><div class="lg" style="background: #111114; border-radius: 50%; width: 30px; height: 30px; font-size: 11px;">VC</div><span>Você</span></div></td><td><span class="wl-badge wl-badge--sm wl-badge--info">Estendeu o teste</span></td><td>Pé na Estrada</td><td><span class="wl-cell-sub">+7 dias · motivo: implantação parada</span></td></tr><tr><td><span class="wl-mono" style="font-size: 13px;">07 out, 08:02</span></td><td><div class="co"><div class="lg" style="background: #94a3b8; border-radius: 50%; width: 30px; height: 30px; font-size: 11px;">—</div><span>Desconhecido</span></div></td><td><span class="wl-badge wl-badge--sm wl-badge--critical">Login bloqueado</span></td><td>—</td><td><span class="wl-cell-sub">3 tentativas com código errado · IP 177.84.x.x</span></td></tr><tr><td><span class="wl-mono" style="font-size: 13px;">06 out, 18:31</span></td><td><div class="co"><div class="lg" style="background: #15803d; border-radius: 50%; width: 30px; height: 30px; font-size: 11px;">CR</div><span>Caio Ribeiro</span></div></td><td><span class="wl-badge wl-badge--sm wl-badge--info">Mudou o plano</span></td><td>Loc Motos Natal</td><td><span class="wl-cell-sub">Essencial → Profissional</span></td></tr><tr><td><span class="wl-mono" style="font-size: 13px;">06 out, 16:10</span></td><td><div class="co"><div class="lg" style="background: #111114; border-radius: 50%; width: 30px; height: 30px; font-size: 11px;">VC</div><span>Você</span></div></td><td><span style="font-weight: 500;">Alterou preço</span></td><td>Plano Completo</td><td><span class="wl-cell-sub">Vale para novas assinaturas</span></td></tr><tr><td><span class="wl-mono" style="font-size: 13px;">06 out, 09:00</span></td><td><div class="co"><div class="lg" style="background: #111114; border-radius: 50%; width: 30px; height: 30px; font-size: 11px;">VC</div><span>Você</span></div></td><td><span style="font-weight: 500;">Convidou pessoa</span></td><td>Equipe interna</td><td><span class="wl-cell-sub">Larissa Melo · Suporte</span></td></tr></tbody></table></div>
+</section>
+<p style="margin: 0; font-size: 13px; color: var(--ink-muted);">Os registros não podem ser apagados nem editados, nem pelo dono. Cada empresa também vê, na auditoria dela, quando alguém da sua equipe entrou.</p>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1050}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

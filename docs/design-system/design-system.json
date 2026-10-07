@@ -1,0 +1,14 @@
+{
+  "v": 3,
+  "layout": "files",
+  "createdOnFiles": { "v": 1, "at": "2026-10-07T01:30:00Z" },
+  "title": "Design System White Label",
+  "namespace": "WL",
+  "libraries": [],
+  "sections": {},
+  "groups": [],
+  "assetGroups": {},
+  "blobs": {},
+  "docs": { "readme": "project/README.md", "sections": [] },
+  "lastChange": { "by": "Claude", "at": "2026-10-07T01:30:00Z", "via": "Claude (chat)", "note": "Primeira versão, inspirada na referência visual enviada." }
+}

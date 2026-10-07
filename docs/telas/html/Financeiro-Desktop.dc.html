@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Início do financeiro · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.todo{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)}
+.todo:last-child{border-bottom:0}
+.todo .ic{display:grid;place-items:center;width:40px;height:40px;flex:none;border-radius:14px;background:var(--surface-sunken)}
+.todo small{display:block;font-size:14px;color:var(--ink-muted)}
+.wk{display:flex;flex-direction:column;align-items:center;gap:8px;flex:1}
+.bars{display:flex;align-items:flex-end;gap:6px;height:170px}
+.bar{width:28px;border-radius:10px 10px 4px 4px}
+.leg{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--ink-muted)}
+.leg i{width:12px;height:12px;border-radius:4px;display:block}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1150px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<nav class="wl-sidebar" aria-label="Menu principal" style="flex: 0 0 280px;">
+<div class="wl-brand-row"><div class="wl-logo-slot" aria-hidden="true">MR</div><div class="wl-brand-name">Moto Rápida</div></div>
+<div class="wl-switcher">
+<div class="wl-switcher__icon"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"></path></svg></div>
+<div class="wl-switcher__text"><span class="wl-switcher__name">Lúcia Freitas</span><span class="wl-switcher__sub">Financeiro · todas as filiais</span></div>
+</div>
+<a class="wl-nav-item" href="Financeiro-Desktop.dc.html" aria-current="page"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>Início</a>
+<a class="wl-nav-item" href="Receber-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 19V5M6 13l6 6 6-6"></path></svg>Contas a receber<span class="wl-count">11</span></a>
+<a class="wl-nav-item" href="Despesas-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 5v14M6 11l6-6 6 6"></path></svg>Contas a pagar<span class="wl-count">4</span></a>
+<a class="wl-nav-item" href="Caixa-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg>Caixa e bancos</a>
+<a class="wl-nav-item" href="Conciliacao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 7h11M4 12h16M4 17h9"></path><path d="m16 16 2 2 4-4"></path></svg>Conciliação<span class="wl-count">6</span></a>
+<a class="wl-nav-item" href="Comissoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"></path><path d="M17 9h4M19 7v4"></path></svg>Comissões</a>
+<a class="wl-nav-item" href="Relatorios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><path d="M8 16v-4M12 16V8M16 16v-6"></path></svg>Relatórios e DRE</a>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
+<div><h1 style="margin: 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Bom dia, Lúcia</h1><p style="margin: 6px 0 0; color: var(--ink-muted);">Terça, 07 out · todas as filiais</p></div>
+<div class="wl-seg" role="group" aria-label="Período" style="margin-left: auto; background: var(--surface);"><button aria-pressed="true">Hoje</button><button aria-pressed="false">Semana</button><button aria-pressed="false">Mês</button></div>
+</header>
+
+<section class="wl-panel">
+<div class="wl-kpis" style="grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));">
+<div class="wl-kpi wl-kpi--solid"><div class="wl-kpi__label">Saldo em contas</div><div class="wl-kpi__value">R$ 48.320</div><div class="wl-kpi__meta">2 contas · atualizado 08:00</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Entra hoje</div><div class="wl-kpi__value">R$ 1.890</div><div class="wl-kpi__meta">9 parcelas</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Sai hoje</div><div class="wl-kpi__value">R$ 2.450</div><div class="wl-kpi__meta">4 contas a pagar</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Em atraso</div><div class="wl-kpi__value">R$ 4.380</div><div class="wl-kpi__meta">7 clientes</div></div>
+</div>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+<section class="wl-panel" style="flex: 999 1 460px; min-width: 0;">
+<div class="wl-panel__head"><div><h2 class="wl-panel__title">Fluxo de caixa previsto</h2><p class="wl-panel__sub">Próximas 4 semanas · saldo final previsto R$ 77.820</p></div></div>
+<div style="display: flex; gap: 16px; margin-bottom: 14px;"><span class="leg"><i style="background: var(--brand);"></i>Entradas</span><span class="leg"><i style="background: var(--solid);"></i>Saídas</span></div>
+<div style="display: flex; gap: 12px; padding: 16px 8px 0; border-radius: 20px; background: var(--surface-sunken);">
+<div class="wk"><div class="bars"><div class="bar" style="height: 164px; background: var(--brand);"></div><div class="bar" style="height: 82px; background: var(--solid);"></div></div><div style="font-size: 13px; text-align: center; padding-bottom: 12px;"><strong style="font-weight: 600;">07 a 13 out</strong><br><span style="color: var(--ink-muted);">+18,4 mil · −9,2 mil</span></div></div>
+<div class="wk"><div class="bars"><div class="bar" style="height: 159px; background: var(--brand);"></div><div class="bar" style="height: 112px; background: var(--solid);"></div></div><div style="font-size: 13px; text-align: center; padding-bottom: 12px;"><strong style="font-weight: 600;">14 a 20 out</strong><br><span style="color: var(--ink-muted);">+17,9 mil · −12,6 mil</span></div></div>
+<div class="wk"><div class="bars"><div class="bar" style="height: 170px; background: var(--brand);"></div><div class="bar" style="height: 75px; background: var(--solid);"></div></div><div style="font-size: 13px; text-align: center; padding-bottom: 12px;"><strong style="font-weight: 600;">21 a 27 out</strong><br><span style="color: var(--ink-muted);">+19,1 mil · −8,4 mil</span></div></div>
+<div class="wk"><div class="bars"><div class="bar" style="height: 165px; background: var(--brand);"></div><div class="bar" style="height: 127px; background: var(--solid);"></div></div><div style="font-size: 13px; text-align: center; padding-bottom: 12px;"><strong style="font-weight: 600;">28 out a 03 nov</strong><br><span style="color: var(--ink-muted);">+18,6 mil · −14,3 mil</span></div></div>
+</div>
+</section>
+
+<section class="wl-panel" style="flex: 1 1 360px; min-width: 0;">
+<h2 class="wl-panel__title" style="font-size: 20px; margin-bottom: 4px;">Para hoje</h2>
+<div class="todo"><div class="ic"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 7h11M4 12h16M4 17h9"></path><path d="m16 16 2 2 4-4"></path></svg></div><div style="flex: 1;"><div style="font-weight: 500;">Conciliar 6 lançamentos</div><small>Extrato do Banco do Brasil de ontem</small></div><button class="wl-btn wl-btn--quiet wl-btn--sm">Abrir</button></div>
+<div class="todo"><div class="ic"><svg class="wl-i" viewBox="0 0 24 24"><path d="M15 4a5 5 0 0 0-4.6 6.9L4 17.3V20h2.7l6.4-6.4A5 5 0 0 0 20 9l-3 1-2-2z"></path></svg></div><div style="flex: 1;"><div style="font-weight: 500;">Pagar OS-0193 · R$ 640</div><small>Oficina Motopeças · vence hoje</small></div><button class="wl-btn wl-btn--solid wl-btn--sm">Pagar</button></div>
+<div class="todo"><div class="ic"><svg class="wl-i" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"></path></svg></div><div style="flex: 1;"><div style="font-weight: 500;">Aprovar despesa · R$ 1.200</div><small>4 pneus · acima do limite do gerente</small></div><button class="wl-btn wl-btn--quiet wl-btn--sm">Ver</button></div>
+<div class="todo"><div class="ic" style="background: var(--critical-soft); color: var(--critical-ink);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg></div><div style="flex: 1;"><div style="font-weight: 500;">Cobrar 3 clientes com 7+ dias</div><small>R$ 1.299,40 somados</small></div><a class="wl-btn wl-btn--quiet wl-btn--sm" href="Receber-Desktop.dc.html" style="text-decoration: none;">Cobrar</a></div>
+</section>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1150}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

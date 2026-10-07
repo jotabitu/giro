@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Assistente · primeira filial · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.steps li{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:999px;font-size:15px;color:var(--ink-muted)}
+.steps li .n{display:grid;place-items:center;width:26px;height:26px;flex:none;border-radius:50%;background:var(--surface-sunken);font-size:13px;font-weight:500;color:var(--ink)}
+.steps li.ok{color:var(--ink)}
+.steps li.ok .n{background:var(--success-soft);color:var(--success-ink)}
+.steps li.now{background:var(--solid);color:var(--on-solid)}
+.steps li.now .n{background:var(--brand);color:var(--on-brand)}
+.wl-field{width:100%}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px 20px}
+.preset{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:14px 16px;border:1.5px solid var(--line);border-radius:20px;background:var(--surface);font:inherit;color:var(--ink);text-align:left;cursor:pointer}
+.preset small{font-size:14px;color:var(--ink-muted)}
+.preset[aria-pressed="true"]{border-color:var(--solid);box-shadow:inset 0 0 0 1px var(--solid)}
+.sub{margin:0 0 14px;font-size:18px;line-height:24px;font-weight:600}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1000px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 16px;">
+<div class="wl-logo-slot">MR</div>
+<span style="font-size: 18px; font-weight: 600;">Moto Rápida</span>
+<span style="color: var(--ink-muted); font-size: 14px;">Configuração inicial</span>
+<button class="wl-btn" style="margin-left: auto;">Salvar e sair</button>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+
+<aside class="wl-panel" style="flex: 0 1 280px; padding: 16px;">
+<div style="padding: 8px 12px 14px;">
+<div style="font-size: 14px; color: var(--ink-muted);">Passo 2 de 8</div>
+<div class="wl-progress__track" style="margin-top: 10px;"><div class="wl-progress__fill" style="width: 25%; background: var(--brand);"></div></div>
+</div>
+<ol class="steps">
+<li class="ok"><span class="n"><svg class="wl-i" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Empresa e marca</li>
+<li class="now"><span class="n">2</span>Primeira filial</li>
+<li><span class="n">3</span>O que a empresa faz</li>
+<li><span class="n">4</span>Tabela de preços</li>
+<li><span class="n">5</span>Modelo de contrato</li>
+<li><span class="n">6</span>Recebimentos</li>
+<li><span class="n">7</span>Importar dados</li>
+<li><span class="n">8</span>Convidar equipe</li>
+</ol>
+</aside>
+
+<section class="wl-panel" style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 26px; padding: 32px;">
+<div>
+<h1 style="margin: 0; font-size: 32px; line-height: 38px; font-weight: 600; letter-spacing: -0.02em;">Onde fica sua loja principal?</h1>
+<p style="margin: 8px 0 0; color: var(--ink-muted);">Ela vira a matriz. Veículos, contratos e caixa ficam ligados a ela; outras filiais você cadastra depois.</p>
+</div>
+
+<div>
+<h2 class="sub">Endereço</h2>
+<label style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; margin-bottom: 16px; border-radius: 18px; background: var(--surface-sunken);"><input type="checkbox" checked style="width: 22px; height: 22px; margin: 0; accent-color: var(--solid);"><span>Mesmo endereço do CNPJ <span style="color: var(--ink-muted);">· Rua Barão do Rio Branco, 1200, Centro, Fortaleza</span></span></label>
+<div class="grid">
+<label class="wl-field"><span class="wl-field__label">Nome da filial</span><input class="wl-input" value="Filial Centro"></label>
+<label class="wl-field"><span class="wl-field__label">Nome curto no seletor</span><input class="wl-input" value="Centro"></label>
+<label class="wl-field"><span class="wl-field__label">WhatsApp de atendimento</span><input class="wl-input" value="(85) 98800-1000"></label>
+</div>
+</div>
+
+<div>
+<h2 class="sub">Horário de funcionamento</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;" role="group" aria-label="Horário">
+<button class="preset" aria-pressed="true"><span style="font-weight: 500;">Comercial</span><small>Seg a sex 8h às 18h, sáb 8h às 12h</small></button>
+<button class="preset" aria-pressed="false"><span style="font-weight: 500;">Estendido</span><small>Seg a sáb 7h às 20h</small></button>
+<button class="preset" aria-pressed="false"><span style="font-weight: 500;">Personalizado</span><small>Defina cada dia</small></button>
+</div>
+<p style="margin: 10px 0 0; font-size: 14px; color: var(--ink-muted);">Usado para lembretes de devolução e para não contar atraso quando a loja está fechada.</p>
+</div>
+
+<div>
+<h2 class="sub">Pátio</h2>
+<div class="grid">
+<label class="wl-field"><span class="wl-field__label">Vagas para motos</span><input class="wl-input" value="60"></label>
+<label class="wl-field"><span class="wl-field__label">Vagas para carros</span><input class="wl-input" value="0"><span class="wl-field__hint">Deixe 0 se não trabalha com carros</span></label>
+</div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 12px; padding-top: 8px; border-top: 1px solid var(--line);">
+<a class="wl-btn wl-btn--quiet" href="Onboarding-Marca-Desktop.dc.html" style="margin-top: 16px; text-decoration: none;">Voltar</a>
+<a class="wl-btn wl-btn--solid" href="Onboarding-Ramo-Desktop.dc.html" style="margin: 16px 0 0 auto; padding: 0 32px; text-decoration: none;">Continuar</a>
+</div>
+</section>
+
+<aside style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+<section class="wl-panel" style="background: var(--surface-sunken);">
+<div style="font-weight: 600; margin-bottom: 8px;">Seu plano: Profissional</div>
+<div style="display: flex; justify-content: space-between; font-size: 14px; color: var(--ink-muted);"><span>Filiais</span><span>1 de 3</span></div>
+<div class="wl-progress__track" style="margin: 8px 0 14px; background: var(--surface);"><div class="wl-progress__fill" style="width: 33%;"></div></div>
+<p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--ink-muted);">Para abrir outras lojas, vá em Configurações › Filiais quando quiser.</p>
+</section>
+<section class="wl-panel">
+<div style="font-weight: 600; margin-bottom: 10px;">O que fica nesta filial</div>
+<ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 20px; color: var(--ink-muted);">
+<li>Veículos e vagas do pátio</li>
+<li>Contratos, vistorias e ordens de serviço</li>
+<li>Caixa do dia e conta de recebimento</li>
+</ul>
+</section>
+</aside>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

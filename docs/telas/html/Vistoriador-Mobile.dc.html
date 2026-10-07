@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Início do vistoriador · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.row{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:22px;background:var(--surface);text-decoration:none;color:var(--ink)}
+.time{width:52px;flex:none;font-family:var(--font-mono);font-size:15px;font-weight:500}
+.row small{display:block;font-size:13px;color:var(--ink-muted)}
+.sub{margin:6px 4px 0;font-size:15px;font-weight:600;display:flex;justify-content:space-between}
+.sub span{font-weight:400;color:var(--ink-muted)}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1450px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;">
+<div class="wl-logo-slot" aria-hidden="true">MR</div>
+<div style="display: flex; flex-direction: column; flex: 1; min-width: 0;"><span style="font-weight: 600; font-size: 17px;">Olá, João</span><span style="font-size: 13px; line-height: 18px; color: var(--ink-muted);">Vistoriador · Filial Centro</span></div>
+<button class="wl-icon-btn wl-icon-btn--sm" aria-label="Buscar placa" style="width: 44px; height: 44px;"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg></button>
+</header>
+
+<div style="display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 20px; background: var(--brand-soft); font-size: 14px; line-height: 20px;"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none;"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><path d="M11 18.5h2"></path></svg><span style="flex: 1;">Instale o app para abrir direto nas vistorias.</span><button class="wl-btn wl-btn--solid wl-btn--sm" style="padding: 0 14px;">Instalar</button></div>
+
+<section style="display: flex; flex-direction: column; gap: 14px; padding: 20px; border-radius: 28px; background: var(--solid); color: var(--on-solid);">
+<div style="display: flex; justify-content: space-between; align-items: center;"><span style="font-size: 14px; color: var(--on-solid-muted);">Próxima vistoria</span><span class="wl-badge wl-badge--sm wl-badge--brand">em 20 min</span></div>
+<div><div style="font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -0.02em;">Check-out às 09:30</div><div style="margin-top: 4px; color: var(--on-solid-muted);">Honda CG 160 Fan · <span class="wl-mono">SAK-1D39</span> · Lucas Ferreira</div></div>
+<a class="wl-btn wl-btn--brand" href="Vistoria-Mobile.dc.html" style="text-decoration: none;">Iniciar vistoria</a>
+</section>
+
+<div class="wl-seg" role="group" aria-label="Dia" style="display: grid; grid-template-columns: 1fr 1fr; background: var(--surface);"><button aria-pressed="true">Hoje · 6</button><button aria-pressed="false">Amanhã · 4</button></div>
+
+<div class="sub">Saídas<span>3 check-outs</span></div>
+<a class="row" href="Vistoria-Mobile.dc.html"><span class="time">09:30</span><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">SAK-1D39 · CG 160 Fan</div><small>Lucas Ferreira</small></div><span class="wl-badge wl-badge--sm wl-badge--info">Agendada</span></a>
+<a class="row" href="Vistoria-Mobile.dc.html"><span class="time">11:00</span><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">PNB-9A11 · Factor 150</div><small>Ana Lima</small></div><span class="wl-badge wl-badge--sm wl-badge--info">Agendada</span></a>
+<a class="row" href="Vistoria-Mobile.dc.html"><span class="time">15:30</span><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">QYC-4D72 · CG 160</div><small>Paulo Rocha</small></div><span class="wl-badge wl-badge--sm wl-badge--info">Agendada</span></a>
+
+<div class="sub">Devoluções<span>3 check-ins</span></div>
+<a class="row" href="Vistoria-Mobile.dc.html"><span class="time" style="color: var(--critical-ink);">ontem</span><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">QXA-4B21 · CG 160</div><small>Carlos Menezes</small></div><span class="wl-badge wl-badge--sm wl-badge--critical">Atrasada</span></a>
+<a class="row" href="Devolucao-Mobile.dc.html"><span class="time">10:00</span><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">PNB-7C04 · Factor 150</div><small>Juliana Rocha</small></div><span class="wl-badge wl-badge--sm wl-badge--attention">Hoje</span></a>
+<a class="row" href="Vistoria-Mobile.dc.html"><span class="time">17:00</span><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">SBC-0J44 · NMax 160</div><small>Marcos Viana</small></div><span class="wl-badge wl-badge--sm wl-badge--attention">Hoje</span></a>
+
+<nav aria-label="Navegação principal" style="position: absolute; left: 16px; right: 16px; bottom: 20px; display: flex; align-items: center; justify-content: space-around; padding: 8px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow-pop);">
+<a href="Vistoriador-Mobile.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 16px; border-radius: 999px; background: var(--solid); color: var(--on-solid); text-decoration: none; font-size: 14px; font-weight: 500;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M9 4h6v3H9zM6 6H5v15h14V6h-1"></path><path d="m9 14 2 2 4-4"></path></svg>Vistorias</a>
+<a href="Frota-Mobile.dc.html" aria-label="Buscar veículo" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg></a>
+<a href="#" aria-label="Meu perfil" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"></path></svg></a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1450}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

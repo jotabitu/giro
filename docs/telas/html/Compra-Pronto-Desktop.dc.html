@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Ambiente pronto · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.done{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.done:last-child{border-bottom:0}
+.done .c{display:grid;place-items:center;width:28px;height:28px;flex:none;border-radius:50%;background:var(--success-soft);color:var(--success-ink)}
+.done small{margin-left:auto;font-family:var(--font-mono);font-size:13px;color:var(--ink-muted)}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 900px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 12px;">
+<div class="wl-logo-slot" style="background: #111114; color: #ECEBF0;" aria-label="Giro"><svg viewBox="6 74 242 147" width="30" height="18" aria-hidden="true"><path fill="#ECEBF0" fill-rule="evenodd" d="M168 168 A36 36 0 1 1 240 168 A36 36 0 1 1 168 168 Z M184 168 A20 20 0 1 0 224 168 A20 20 0 1 0 184 168 Z"/><path fill="#ECEBF0" d="M186 92 H198 L217.83 166 L206.63 169 Z M168 82 H196 Q202 82 202 88 Q202 94 196 94 H174 Z M206 100 H213 Q221 100 221 108 V110 Q221 118 213 118 H206 Z M100 124 Q110 104 142 102 H180 L188 118 L164 138 H112 Q100 138 100 128 Z M116 138 H158 V151 H116 Z"/><path fill="#C8F04A" d="M14 165 A42 42 0 0 1 98 165 H77 A21 21 0 0 0 35 165 Z M110 171 A42 42 0 0 1 26 171 H47 A21 21 0 0 0 89 171 Z M98 159 H150 L159 168 L150 177 H98 Z M120 177 H132 V193 H120 Z M140 177 H150 V189 H140 Z"/></svg></div>
+<span style="display: inline-flex; align-items: center; height: 22px; color: var(--ink);"><svg viewBox="0 0 439 120" height="17" width="62" fill="currentColor" role="img" aria-label="Giro"><path fill-rule="evenodd" d="M123.0 60.0 A61.5 61.5 0 1 1 104.99 16.51 L88.02 33.48 A37.5 37.5 0 1 0 99.0 60.0 Z M146 0 H170 V120 H146 Z M196 0 H252 A36 36 0 0 1 252 84 H220 V120 H196 Z M220 24 V60 H252 A12 12 0 0 0 252 24 Z M226 84 H260 L296 120 H262 Z M316.0 60 A61.5 61.5 0 1 1 439.0 60 A61.5 61.5 0 1 1 316.0 60 Z M340.0 60 A37.5 37.5 0 1 0 415.0 60 A37.5 37.5 0 1 0 340.0 60 Z"/><path d="M65.5 59 H123.0 V81 H65.5 Z"/></svg></span>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: stretch; max-width: 1240px; width: 100%; margin: 0 auto;">
+
+<section class="wl-panel" style="flex: 1 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 20px; padding: 40px;">
+<div style="display: grid; place-items: center; width: 72px; height: 72px; border-radius: 24px; background: var(--brand); color: var(--on-brand);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 34px; height: 34px; stroke-width: 2.2;"><path d="m5 12 5 5 9-10"></path></svg></div>
+<div>
+<h1 style="margin: 0; font-size: 44px; line-height: 48px; font-weight: 600; letter-spacing: -0.03em;">Tudo pronto, Mariana</h1>
+<p style="margin: 10px 0 0; font-size: 17px; line-height: 26px; color: var(--ink-muted);">O sistema da Moto Rápida já existe. Enviamos o link de acesso para <strong style="color: var(--ink); font-weight: 600;">mariana@motorapida.com.br</strong>.</p>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 20px; background: var(--surface-sunken);">
+<svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path></svg>
+<span class="wl-mono" style="font-size: 15px; font-weight: 500;">motorapida.girolocadoras.com.br</span>
+<span style="margin-left: auto; font-size: 14px; color: var(--ink-muted);">seu endereço</span>
+</div>
+<div>
+<div class="done"><span class="c"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Conta de administrador criada<small>09:12:04</small></div>
+<div class="done"><span class="c"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Banco de dados exclusivo da empresa<small>09:12:09</small></div>
+<div class="done"><span class="c"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Endereço de acesso reservado<small>09:12:10</small></div>
+<div class="done"><span class="c"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Teste de 14 dias ativo, até 21 out<small>09:12:10</small></div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: auto;">
+<a class="wl-btn wl-btn--solid" href="Acesso-Senha-Desktop.dc.html" style="height: 56px; padding: 0 36px; text-decoration: none;">Acessar meu sistema</a>
+<span style="align-self: center; font-size: 14px; color: var(--ink-muted);">ou use o link do e-mail em qualquer aparelho</span>
+</div>
+</section>
+
+<section style="flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
+<div style="font-size: 14px; color: var(--ink-muted); padding-left: 8px;">E-mail de boas-vindas</div>
+<div style="display: flex; flex-direction: column; border-radius: 32px; background: var(--surface); overflow: hidden;">
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 20px 24px; border-bottom: 1px solid var(--line); font-size: 14px;">
+<div><span style="color: var(--ink-muted);">De:</span> Giro &lt;ola@girolocadoras.com.br&gt;</div>
+<div><span style="color: var(--ink-muted);">Assunto:</span> <strong style="font-weight: 600;">Seu sistema da Moto Rápida está pronto</strong></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 16px; padding: 28px 24px;">
+<div style="height: 8px; width: 64px; border-radius: 999px; background: var(--brand);"></div>
+<p style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 600;">Olá, Mariana. Falta só criar sua senha.</p>
+<p style="margin: 0; line-height: 24px; color: var(--ink-muted);">Seu endereço é motorapida.girolocadoras.com.br. No primeiro acesso você cria a senha, ativa a verificação em duas etapas e cadastra a empresa em cerca de 15 minutos.</p>
+<span class="wl-btn wl-btn--solid" style="align-self: flex-start;">Criar minha senha</span>
+<p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--ink-muted);">O link vale por 48 horas. Dúvidas? Responda este e-mail ou chame no WhatsApp.</p>
+</div>
+</div>
+</section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

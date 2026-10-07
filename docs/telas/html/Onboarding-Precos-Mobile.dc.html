@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Assistente · tabela de preços · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.card{display:flex;flex-direction:column;gap:12px;padding:18px 16px;border-radius:24px;background:var(--surface)}
+.h2{margin:0;font-size:17px;line-height:22px;font-weight:600}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.money{display:flex;flex-direction:column;gap:4px}
+.money b{font-weight:400;font-size:13px;color:var(--ink-muted)}
+.money span{display:flex;align-items:center;gap:6px;height:46px;box-sizing:border-box;border:1px solid var(--line);border-radius:12px;padding:0 12px;font-size:13px;color:var(--ink-muted)}
+.money input{border:0;outline:0;background:transparent;font:inherit;font-size:15px;color:var(--ink);width:100%;min-width:0}
+.wl-field{width:100%}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1900px; box-sizing: border-box; padding: 16px 16px 120px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 10px; padding-top: 8px;">
+<div class="wl-logo-slot" style="width: 34px; height: 34px; border-radius: 10px; font-size: 13px;">MR</div>
+<span style="flex: 1; font-size: 15px; font-weight: 600;">Moto Rápida</span>
+<button class="wl-btn wl-btn--sm">Sair</button>
+</header>
+
+<div>
+<div style="display: flex; justify-content: space-between; font-size: 14px; color: var(--ink-muted);"><span>Passo 4 de 8</span><span>Modelo de contrato a seguir</span></div>
+<div style="display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; margin-top: 8px;">
+<div style="height: 6px; border-radius: 999px; background: var(--solid);"></div>
+<div style="height: 6px; border-radius: 999px; background: var(--solid);"></div>
+<div style="height: 6px; border-radius: 999px; background: var(--solid);"></div>
+<div style="height: 6px; border-radius: 999px; background: var(--brand);"></div>
+<div style="height: 6px; border-radius: 999px; background: var(--line);"></div>
+<div style="height: 6px; border-radius: 999px; background: var(--line);"></div>
+<div style="height: 6px; border-radius: 999px; background: var(--line);"></div>
+<div style="height: 6px; border-radius: 999px; background: var(--line);"></div>
+</div>
+</div>
+
+<div style="padding: 4px 4px 0;">
+<h1 style="margin: 0; font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -0.02em;">Quanto você cobra?</h1>
+<p style="margin: 8px 0 0; font-size: 15px; line-height: 22px; color: var(--ink-muted);">Valores de exemplo por categoria. Troque pelos seus.</p>
+</div>
+
+<section class="card">
+<div><h2 class="h2">Urbana até 125 cc</h2><div style="font-size: 13px; color: var(--ink-muted);">Biz, Pop, CG 125</div></div>
+<div class="two">
+<label class="money"><b>Diária</b><span>R$<input value="44,90"></span></label>
+<label class="money"><b>Semanal</b><span>R$<input value="299,40"></span></label>
+<label class="money"><b>Mensal (mês)</b><span>R$<input value="1.090,00"></span></label>
+<label class="money"><b>Entregador (sem.)</b><span>R$<input value="279,00"></span></label>
+</div>
+</section>
+
+<section class="card">
+<div><h2 class="h2">Street 150 a 160 cc</h2><div style="font-size: 13px; color: var(--ink-muted);">CG 160, Factor 150</div></div>
+<div class="two">
+<label class="money"><b>Diária</b><span>R$<input value="54,90"></span></label>
+<label class="money"><b>Semanal</b><span>R$<input value="329,00"></span></label>
+<label class="money"><b>Mensal (mês)</b><span>R$<input value="1.190,00"></span></label>
+<label class="money"><b>Entregador (sem.)</b><span>R$<input value="299,00"></span></label>
+</div>
+</section>
+
+<section class="card">
+<div><h2 class="h2">Scooter 160 cc</h2><div style="font-size: 13px; color: var(--ink-muted);">NMax, PCX</div></div>
+<div class="two">
+<label class="money"><b>Diária</b><span>R$<input value="79,90"></span></label>
+<label class="money"><b>Semanal</b><span>R$<input value="449,00"></span></label>
+<label class="money"><b>Mensal (mês)</b><span>R$<input value="1.590,00"></span></label>
+<label class="money"><b>Entregador (sem.)</b><span>R$<input value="389,00"></span></label>
+</div>
+</section>
+
+<button class="wl-btn wl-btn--quiet" style="width: 100%; background: var(--surface);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>Nova categoria</button>
+
+<section class="card">
+<h2 class="h2">Regras para todos os contratos</h2>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">Franquia mensal</span><input class="wl-input" value="Livre"></label>
+<label class="wl-field"><span class="wl-field__label">Km excedente</span><input class="wl-input" value="R$ 0,35"></label>
+<label class="wl-field"><span class="wl-field__label">Caução</span><input class="wl-input" value="R$ 300,00"></label>
+<label class="wl-field"><span class="wl-field__label">Tolerância</span><input class="wl-input" value="1 hora"></label>
+</div>
+</section>
+
+<div style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 10px; padding: 14px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line);">
+<a class="wl-btn" href="Onboarding-Ramo-Mobile.dc.html" style="height: 56px; text-decoration: none;">Voltar</a>
+<a class="wl-btn wl-btn--solid" href="Onboarding-Contrato-Mobile.dc.html" style="flex: 1; height: 56px; text-decoration: none;">Continuar</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

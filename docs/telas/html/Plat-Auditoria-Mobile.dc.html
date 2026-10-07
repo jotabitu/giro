@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Auditoria de acessos · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.co{display:flex;align-items:center;gap:12px}
+.co .lg{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:10px;font-size:12px;font-weight:700;color:#ffffff}
+.mini{height:6px;width:90px;border-radius:999px;background:var(--surface-sunken);overflow:hidden}
+.mini i{display:block;height:100%;border-radius:999px;background:var(--solid)}
+.row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row small,.muted{color:var(--ink-muted)}
+.row small{display:block;font-size:13px;line-height:18px}
+.card{padding:16px;border-radius:24px;background:var(--surface)}
+.h2{margin:0;font-size:20px;font-weight:600}
+.lbl{font-size:13px;color:var(--ink-muted)}
+
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1500px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;"><a href="Plataforma-Mobile.dc.html" class="wl-icon-btn wl-icon-btn--sm" aria-label="Voltar" style="width: 44px; height: 44px; flex: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a><div style="display: flex; flex-direction: column; flex: 1; min-width: 0;"><span style="font-weight: 600; font-size: 20px; letter-spacing: -0.01em;">Auditoria</span><span style="font-size: 13px; line-height: 18px; color: var(--ink-muted);">Guardada por 5 anos · não editável</span></div><button class="wl-icon-btn wl-icon-btn--sm" aria-label="Filtrar" style="width: 44px; height: 44px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"></path></svg></button></header>
+<div style="overflow-x: auto; margin: 0 -16px; padding: 0 16px;"><div class="wl-seg" style="width: max-content;" role="group" aria-label="Filtro"><button aria-pressed="true">Tudo</button><button aria-pressed="false">Suporte</button><button aria-pressed="false">Cobrança</button><button aria-pressed="false">Segurança</button></div></div>
+<section class="card"><div class="row" style="align-items: flex-start;"><div style="display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 50%; background: #0369a1; color: #fff; font-size: 12px; font-weight: 600;">DS</div><div style="flex: 1; min-width: 0;"><div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;"><span class="wl-badge wl-badge--sm wl-badge--warning">Entrou como suporte</span></div><small>Moto Rápida · Chamado #1042 · só ver · 30 min</small><small class="wl-mono" style="margin-top: 2px;">Diego Santos · 07 out, 13:40</small></div></div><div class="row" style="align-items: flex-start;"><div style="display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 50%; background: #0369a1; color: #fff; font-size: 12px; font-weight: 600;">DS</div><div style="flex: 1; min-width: 0;"><div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;"><span style="font-weight: 500;">Saiu do modo suporte</span></div><small>Moto Rápida · Duração: 12 min · nenhuma alteração</small><small class="wl-mono" style="margin-top: 2px;">Diego Santos · 07 out, 13:52</small></div></div><div class="row" style="align-items: flex-start;"><div style="display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 50%; background: #be185d; color: #fff; font-size: 12px; font-weight: 600;">PA</div><div style="flex: 1; min-width: 0;"><div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;"><span style="font-weight: 500;">Reenviou cobrança</span></div><small>Rota Sul Locadora · FAT-2209 · WhatsApp</small><small class="wl-mono" style="margin-top: 2px;">Paula Andrade · 07 out, 11:05</small></div></div><div class="row" style="align-items: flex-start;"><div style="display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 50%; background: #111114; color: #fff; font-size: 12px; font-weight: 600;">VC</div><div style="flex: 1; min-width: 0;"><div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;"><span class="wl-badge wl-badge--sm wl-badge--info">Estendeu o teste</span></div><small>Pé na Estrada · +7 dias · motivo: implantação parada</small><small class="wl-mono" style="margin-top: 2px;">Você · 07 out, 10:20</small></div></div><div class="row" style="align-items: flex-start;"><div style="display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 50%; background: #94a3b8; color: #fff; font-size: 12px; font-weight: 600;">—</div><div style="flex: 1; min-width: 0;"><div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;"><span class="wl-badge wl-badge--sm wl-badge--critical">Login bloqueado</span></div><small>— · 3 tentativas com código errado · IP 177.84.x.x</small><small class="wl-mono" style="margin-top: 2px;">Desconhecido · 07 out, 08:02</small></div></div><div class="row" style="align-items: flex-start;"><div style="display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 50%; background: #15803d; color: #fff; font-size: 12px; font-weight: 600;">CR</div><div style="flex: 1; min-width: 0;"><div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;"><span class="wl-badge wl-badge--sm wl-badge--info">Mudou o plano</span></div><small>Loc Motos Natal · Essencial → Profissional</small><small class="wl-mono" style="margin-top: 2px;">Caio Ribeiro · 06 out, 18:31</small></div></div><div class="row" style="align-items: flex-start;"><div style="display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 50%; background: #111114; color: #fff; font-size: 12px; font-weight: 600;">VC</div><div style="flex: 1; min-width: 0;"><div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;"><span style="font-weight: 500;">Alterou preço</span></div><small>Plano Completo · Vale para novas assinaturas</small><small class="wl-mono" style="margin-top: 2px;">Você · 06 out, 16:10</small></div></div><div class="row" style="align-items: flex-start;"><div style="display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 50%; background: #111114; color: #fff; font-size: 12px; font-weight: 600;">VC</div><div style="flex: 1; min-width: 0;"><div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;"><span style="font-weight: 500;">Convidou pessoa</span></div><small>Equipe interna · Larissa Melo · Suporte</small><small class="wl-mono" style="margin-top: 2px;">Você · 06 out, 09:00</small></div></div></section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

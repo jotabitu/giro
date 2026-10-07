@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Relatórios · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.co{display:flex;align-items:center;gap:12px}
+.co .lg{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:10px;font-size:12px;font-weight:700;color:#ffffff}
+.mini{height:6px;width:90px;border-radius:999px;background:var(--surface-sunken);overflow:hidden}
+.mini i{display:block;height:100%;border-radius:999px;background:var(--solid)}
+.row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row small,.muted{color:var(--ink-muted)}
+.row small{display:block;font-size:13px;line-height:18px}
+.card{padding:16px;border-radius:24px;background:var(--surface)}
+.h2{margin:0;font-size:20px;font-weight:600}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px}
+.kv:last-child{border-bottom:0}
+.kv span:first-child{color:var(--ink-muted)}
+.kv span:last-child{font-weight:500;text-align:right}
+.thumb{display:grid;place-items:center;width:52px;height:52px;flex:none;border-radius:14px;background:var(--surface-sunken);color:var(--ink-muted)}
+.chip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border:0;border-radius:999px;background:var(--surface-sunken);color:var(--ink);font:inherit;font-size:15px;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
+.chip .wl-count{background:var(--surface)}
+.chip[aria-pressed="true"] .wl-count{background:var(--brand);color:var(--on-brand)}
+.tl{position:relative;padding-left:26px}
+.tl:before{content:"";position:absolute;left:6px;top:8px;bottom:8px;width:2px;background:var(--line)}
+.tl>div{position:relative;padding:8px 0}
+.tl>div:before{content:"";position:absolute;left:-25px;top:13px;width:12px;height:12px;border-radius:50%;background:var(--surface);box-shadow:inset 0 0 0 2px var(--ink)}
+.tl>div.done:before{background:var(--solid);box-shadow:none}
+.opt{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--line);font-size:15px;background:var(--surface)}
+.opt.on{box-shadow:inset 0 0 0 2px var(--ink)}
+.h2{margin:0;font-size:20px;line-height:26px;font-weight:600}
+
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 2000px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;"><a href="Pos-Dashboard-Mobile.dc.html" class="wl-icon-btn wl-icon-btn--sm" aria-label="Voltar" style="width: 44px; height: 44px; flex: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a><div style="display: flex; flex-direction: column; flex: 1; min-width: 0;"><span style="font-weight: 600; font-size: 20px; letter-spacing: -0.01em;">Relatórios</span><span style="font-size: 13px; line-height: 18px; color: var(--ink-muted);">Setembro de 2026</span></div><button class="wl-icon-btn wl-icon-btn--sm" aria-label="Exportar" style="width: 44px; height: 44px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"></path></svg></button></header>
+<section style="padding: 20px; border-radius: 28px; background: var(--solid); color: var(--on-solid); display: flex; flex-direction: column; gap: 4px;">
+<span style="font-size: 14px; color: var(--on-solid-muted);">Resultado de setembro</span>
+<div style="font-size: 34px; line-height: 38px; font-weight: 600; letter-spacing: -0.03em;">R$ 34.231,30</div>
+<span style="font-size: 14px; color: var(--on-solid-muted);">margem de 58% · receita bruta R$ 58.730</span>
+</section>
+<section class="card"><div style="font-weight: 600; font-size: 18px; margin-bottom: 8px;">DRE</div><div class="kv" style=""><span style="">Receita de locações</span><span style="">R$ 56.420,00</span></div><div class="kv" style=""><span style="">Multas, extras e avarias</span><span style="">R$ 2.310,00</span></div><div class="kv" style=""><span style="">(−) Taxas de pagamento</span><span style="">− R$ 1.128,40</span></div><div class="kv" style=""><span style="color: var(--ink);">Receita líquida</span><span style="font-weight: 600;">R$ 57.601,60</span></div><div class="kv" style=""><span style="">(−) Despesas</span><span style="">− R$ 21.480,30</span></div><div class="kv" style=""><span style="">(−) Comissões</span><span style="">− R$ 1.890,00</span></div><div class="kv" style="border-top: 2px solid var(--ink); padding-top: 14px;"><span style="color: var(--ink);">Resultado</span><span style="font-weight: 600; font-size: 22px;">R$ 34.231,30</span></div></section>
+<section class="card"><div style="font-weight: 600; font-size: 18px; margin-bottom: 8px;">Por modelo</div><div style="padding: 7px 0;"><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Honda Biz 125</span><span style="font-weight: 500;">R$ 18.940</span></div><div class="wl-progress" style="margin-top: 6px;"><div class="wl-progress__track"><div class="wl-progress__fill" style="width: 100%;"></div></div></div></div><div style="padding: 7px 0;"><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Honda CG 160</span><span style="font-weight: 500;">R$ 16.210</span></div><div class="wl-progress" style="margin-top: 6px;"><div class="wl-progress__track"><div class="wl-progress__fill" style="width: 86%;"></div></div></div></div><div style="padding: 7px 0;"><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Yamaha Factor 150</span><span style="font-weight: 500;">R$ 9.870</span></div><div class="wl-progress" style="margin-top: 6px;"><div class="wl-progress__track"><div class="wl-progress__fill" style="width: 52%;"></div></div></div></div><div style="padding: 7px 0;"><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Honda Pop 110i</span><span style="font-weight: 500;">R$ 6.180</span></div><div class="wl-progress" style="margin-top: 6px;"><div class="wl-progress__track"><div class="wl-progress__fill" style="width: 33%;"></div></div></div></div><div style="padding: 7px 0;"><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Yamaha NMax 160</span><span style="font-weight: 500;">R$ 3.020</span></div><div class="wl-progress" style="margin-top: 6px;"><div class="wl-progress__track"><div class="wl-progress__fill" style="width: 16%;"></div></div></div></div><div style="padding: 7px 0;"><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Carros</span><span style="font-weight: 500;">R$ 2.200</span></div><div class="wl-progress" style="margin-top: 6px;"><div class="wl-progress__track"><div class="wl-progress__fill" style="width: 12%;"></div></div></div></div></section>
+<section class="card"><div style="font-weight: 600; font-size: 18px; margin-bottom: 8px;">Ocupação</div><div style="display: flex; align-items: flex-end; gap: 8px; height: 150px; padding-top: 10px;"><div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;"><span style="font-size: 13px; font-weight: 500;">64%</span><div style="width: 100%; height: 64%; border-radius: 10px; background: var(--line);"></div><span class="lbl">mai</span></div><div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;"><span style="font-size: 13px; font-weight: 500;">68%</span><div style="width: 100%; height: 68%; border-radius: 10px; background: var(--line);"></div><span class="lbl">jun</span></div><div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;"><span style="font-size: 13px; font-weight: 500;">70%</span><div style="width: 100%; height: 70%; border-radius: 10px; background: var(--line);"></div><span class="lbl">jul</span></div><div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;"><span style="font-size: 13px; font-weight: 500;">73%</span><div style="width: 100%; height: 73%; border-radius: 10px; background: var(--line);"></div><span class="lbl">ago</span></div><div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;"><span style="font-size: 13px; font-weight: 500;">71%</span><div style="width: 100%; height: 71%; border-radius: 10px; background: var(--solid);"></div><span class="lbl">set</span></div><div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end;"><span style="font-size: 13px; font-weight: 500;">71%</span><div style="width: 100%; height: 71%; border-radius: 10px; background: var(--surface-sunken);"></div><span class="lbl">out</span></div></div></section>
+<section class="card"><div style="font-weight: 600; font-size: 18px; margin-bottom: 8px;">Relatórios prontos</div><div class="row"><div style="flex: 1;"><div style="font-weight: 500;">DRE do mês</div><small>receita, despesas e resultado</small></div><svg class="wl-i" viewBox="0 0 24 24" style="color:var(--ink-muted)"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"></path></svg></div><div class="row"><div style="flex: 1;"><div style="font-weight: 500;">Locações por cliente</div><small>quanto cada cliente rendeu</small></div><svg class="wl-i" viewBox="0 0 24 24" style="color:var(--ink-muted)"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"></path></svg></div><div class="row"><div style="flex: 1;"><div style="font-weight: 500;">Rentabilidade por veículo</div><small>receita − manutenção − depreciação</small></div><svg class="wl-i" viewBox="0 0 24 24" style="color:var(--ink-muted)"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"></path></svg></div><div class="row"><div style="flex: 1;"><div style="font-weight: 500;">Inadimplência</div><small>atrasos por faixa de dias</small></div><svg class="wl-i" viewBox="0 0 24 24" style="color:var(--ink-muted)"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"></path></svg></div><div class="row"><div style="flex: 1;"><div style="font-weight: 500;">Comissões</div><small>por vendedor e período</small></div><svg class="wl-i" viewBox="0 0 24 24" style="color:var(--ink-muted)"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"></path></svg></div><div class="row"><div style="flex: 1;"><div style="font-weight: 500;">Manutenções</div><small>custo por veículo e oficina</small></div><svg class="wl-i" viewBox="0 0 24 24" style="color:var(--ink-muted)"><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14"></path></svg></div></section>
+<nav aria-label="Navegação principal" style="position: absolute; left: 16px; right: 16px; bottom: 20px; display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow-pop);">
+<a href="Dashboard-Mobile.dc.html" aria-label="Início" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg></a>
+<a href="Frota-Mobile.dc.html" aria-label="Veículos" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg></a>
+<a href="Locacao-Mobile.dc.html" aria-label="Nova locação" style="display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--brand); color: var(--on-brand);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></a>
+<a href="Locacoes-Mobile.dc.html" aria-label="Locações" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg></a>
+<a href="Menu-Mobile.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 16px; border-radius: 999px; background: var(--solid); color: var(--on-solid); text-decoration: none; font-size: 14px; font-weight: 500;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>Mais</a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":2000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

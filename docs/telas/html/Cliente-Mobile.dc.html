@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Novo cliente · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.card{display:flex;flex-direction:column;gap:14px;padding:18px 16px;border-radius:24px;background:var(--surface)}
+.h2{margin:0;font-size:18px;line-height:24px;font-weight:600}
+.wl-field{width:100%}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+select.wl-input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-muted) 50%),linear-gradient(135deg,var(--ink-muted) 50%,transparent 50%);background-position:calc(100% - 22px) 21px,calc(100% - 16px) 21px;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+.doc{position:relative;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:104px;box-sizing:border-box;padding:12px;border-radius:18px;background:var(--surface-sunken);font:inherit;font-size:14px;color:var(--ink);border:0;text-align:left}
+.doc small{font-size:12px;color:var(--ink-muted)}
+.doc .ok{position:absolute;top:10px;right:10px;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--success);color:#ffffff}
+.doc--todo{background:var(--surface);border:1.5px dashed var(--line);align-items:center;justify-content:center;text-align:center}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 2050px; box-sizing: border-box; padding: 16px 16px 150px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;">
+<a href="Clientes-Mobile.dc.html" aria-label="Voltar" class="wl-icon-btn" style="width: 44px; height: 44px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a>
+<div style="flex: 1; font-size: 22px; line-height: 26px; font-weight: 600;">Novo cliente</div>
+</header>
+
+<div class="wl-seg" role="group" aria-label="Tipo de cliente" style="display: grid; grid-template-columns: 1fr 1fr; background: var(--surface);"><button aria-pressed="true">Pessoa física</button><button aria-pressed="false">Pessoa jurídica</button></div>
+
+<div style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 20px; background: var(--warning-soft); color: var(--warning-ink); font-size: 14px; line-height: 20px;"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none;"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg><span>Faltam a selfie e o comprovante de residência para liberar a locação.</span></div>
+
+<section class="card">
+<h2 class="h2">Dados pessoais</h2>
+<label class="wl-field"><span class="wl-field__label">Nome completo</span><input class="wl-input" value="Lucas Ferreira da Silva"></label>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">CPF</span><input class="wl-input wl-mono" value="123.456.789-09" style="font-size: 13px; padding: 0 12px;"></label>
+<label class="wl-field"><span class="wl-field__label">Nascimento</span><input class="wl-input wl-mono" value="14/03/1998" style="font-size: 13px; padding: 0 12px;"></label>
+</div>
+<label class="wl-field"><span class="wl-field__label">Celular e WhatsApp</span><input class="wl-input" value="(85) 99123-4567" inputmode="tel"></label>
+<label class="wl-field"><span class="wl-field__label">E-mail</span><input class="wl-input" value="lucas.ferreira@email.com" inputmode="email"></label>
+</section>
+
+<section class="card">
+<h2 class="h2">Carteira de motorista</h2>
+<label class="wl-field"><span class="wl-field__label">Número da CNH</span><input class="wl-input wl-mono" value="04512398760"></label>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">Categoria</span><select class="wl-input"><option>A</option></select></label>
+<label class="wl-field"><span class="wl-field__label">Validade</span><input class="wl-input wl-mono" value="22/05/2029" style="font-size: 13px; padding: 0 12px;"></label>
+</div>
+<div class="two">
+<button class="doc"><span class="ok"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>CNH · frente<small>enviada</small></button>
+<button class="doc"><span class="ok"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>CNH · verso<small>enviada</small></button>
+<button class="doc doc--todo" style="grid-column: span 2;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>Tirar selfie com documento</button>
+</div>
+</section>
+
+<section class="card">
+<h2 class="h2">Endereço</h2>
+<label class="wl-field"><span class="wl-field__label">CEP</span><input class="wl-input wl-mono" value="60415-120" inputmode="numeric"></label>
+<label class="wl-field"><span class="wl-field__label">Rua</span><input class="wl-input" value="Rua Padre Valdevino"></label>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">Número</span><input class="wl-input" value="845"></label>
+<label class="wl-field"><span class="wl-field__label">Bairro</span><input class="wl-input" value="Joaquim Távora"></label>
+</div>
+<button class="doc doc--todo"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>Fotografar comprovante de residência</button>
+</section>
+
+<section class="card">
+<h2 class="h2">Referência pessoal</h2>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">Nome</span><input class="wl-input" value="Ana Ferreira"></label>
+<label class="wl-field"><span class="wl-field__label">Parentesco</span><input class="wl-input" value="Mãe"></label>
+</div>
+<label class="wl-field"><span class="wl-field__label">Telefone</span><input class="wl-input" value="(85) 98765-4321" inputmode="tel"></label>
+</section>
+
+<div style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line);">
+<label style="display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 18px; color: var(--ink-muted);"><input type="checkbox" checked style="width: 20px; height: 20px; margin: 0; accent-color: var(--solid); flex: none;">O cliente autorizou o uso dos dados para locação e cobrança.</label>
+<a class="wl-btn wl-btn--solid" href="Locacao-Mobile.dc.html" style="height: 56px; text-decoration: none;">Salvar e iniciar locação</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":2050}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

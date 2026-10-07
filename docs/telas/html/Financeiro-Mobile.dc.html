@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Início do financeiro · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.todo{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:22px;background:var(--surface)}
+.todo small{display:block;font-size:13px;color:var(--ink-muted)}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1700px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;">
+<div class="wl-logo-slot" aria-hidden="true">MR</div>
+<div style="display: flex; flex-direction: column; flex: 1; min-width: 0;"><span style="font-weight: 600; font-size: 17px;">Bom dia, Lúcia</span><span style="font-size: 13px; line-height: 18px; color: var(--ink-muted);">Financeiro · todas as filiais</span></div>
+</header>
+
+<section style="display: flex; flex-direction: column; gap: 6px; padding: 20px; border-radius: 28px; background: var(--solid); color: var(--on-solid);">
+<span style="font-size: 14px; color: var(--on-solid-muted);">Saldo em contas</span>
+<div style="font-size: 36px; line-height: 40px; font-weight: 600; letter-spacing: -0.03em;">R$ 48.320</div>
+<span style="font-size: 14px; color: var(--on-solid-muted);">Previsto em 4 semanas: R$ 77.820</span>
+</section>
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+<div style="padding: 12px; border-radius: 20px; background: var(--surface);"><div style="font-size: 13px; color: var(--ink-muted);">Entra hoje</div><div style="font-weight: 600; font-size: 17px;">R$ 1.890</div></div>
+<div style="padding: 12px; border-radius: 20px; background: var(--surface);"><div style="font-size: 13px; color: var(--ink-muted);">Sai hoje</div><div style="font-weight: 600; font-size: 17px;">R$ 2.450</div></div>
+<div style="padding: 12px; border-radius: 20px; background: var(--critical-soft); color: var(--critical-ink);"><div style="font-size: 13px;">Atrasado</div><div style="font-weight: 600; font-size: 17px;">R$ 4.380</div></div>
+</div>
+
+<div style="display: flex; justify-content: space-between; align-items: baseline; padding: 8px 4px 0;"><h2 style="margin: 0; font-size: 20px; font-weight: 600;">Para hoje</h2><span style="font-size: 14px; color: var(--ink-muted);">4 tarefas</span></div>
+<div class="todo"><div style="flex: 1;"><div style="font-weight: 500;">Pagar OS-0193 · R$ 640</div><small>Oficina Motopeças · vence hoje</small></div><button class="wl-btn wl-btn--solid wl-btn--sm">Pagar</button></div>
+<div class="todo"><div style="flex: 1;"><div style="font-weight: 500;">Aprovar despesa · R$ 1.200</div><small>4 pneus · acima do limite</small></div><button class="wl-btn wl-btn--quiet wl-btn--sm">Ver</button></div>
+<div class="todo"><div style="flex: 1;"><div style="font-weight: 500;">Conciliar 6 lançamentos</div><small>Extrato do Banco do Brasil</small></div><button class="wl-btn wl-btn--quiet wl-btn--sm">Abrir</button></div>
+<div class="todo"><div style="flex: 1;"><div style="font-weight: 500;">Cobrar 3 clientes</div><small>7 dias ou mais de atraso</small></div><a class="wl-btn wl-btn--brand wl-btn--sm" href="Receber-Mobile.dc.html" style="text-decoration: none;">Cobrar</a></div>
+
+<nav aria-label="Navegação principal" style="position: absolute; left: 16px; right: 16px; bottom: 20px; display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow-pop);">
+<a href="Financeiro-Mobile.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 16px; border-radius: 999px; background: var(--solid); color: var(--on-solid); text-decoration: none; font-size: 14px; font-weight: 500;"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>Início</a>
+<a href="Receber-Mobile.dc.html" aria-label="Contas a receber" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 19V5M6 13l6 6 6-6"></path></svg></a>
+<a href="Despesas-Mobile.dc.html" aria-label="Contas a pagar" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 5v14M6 11l6-6 6 6"></path></svg></a>
+<a href="Caixa-Mobile.dc.html" aria-label="Caixa e bancos" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg></a>
+<a href="Relatorios-Mobile.dc.html" aria-label="Relatórios" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><path d="M8 16v-4M12 16V8M16 16v-6"></path></svg></a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1700}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>
