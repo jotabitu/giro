@@ -14,3 +14,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-004 · Portar o design system para código · design-system · PR #5 · tarefas/handoffs/T-004-design-system.md · conferência visual feita; Geist e ilustração de moto corrigidas
 - T-026 · Desenhar telas que faltam para o MVP · design-system · sem PR (branch t-026-telas-acesso-faltantes) · tarefas/handoffs/T-026-design-system.md
 - T-038 · Contratos da API de locações, vistorias e devolução · arquiteto · sem PR (branch t-038-contratos-locacoes-vistorias) · tarefas/handoffs/T-038-arquiteto.md · inclui contratos.md
+- T-039 · Revisão de segurança do código da T-001 · seguranca · sem PR (branch t-039-revisao-codigo-t001) · tarefas/handoffs/T-039-seguranca.md · sem altos; C-01 e C-02 na T-033, C-03 e C-05 na T-034, C-04 na T-035

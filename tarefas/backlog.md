@@ -71,18 +71,18 @@ Levantadas pelo arquiteto em T-030 (07 out 2026):
 - **Agente:** backend
 - **Depende de:** T-001
 - **Regras:** CLI-01, AUD-01, AUD-04, AUD-06 · **ADR:** 0014 (itens 2 e 3) · **Segurança:** S-05, S-06, S-07
-- **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA` aplicado por `comum.auditoria` e o teste de arquitetura de campos sensíveis; os testes obrigatórios da ADR 0014 que não dependem de cliente ou sessão; `cryptography` registrada no PR e os três segredos no `.env.example`. Se já couber na T-001, entra nela e esta tarefa fecha junto. Bloqueia T-011 e T-014.
+- **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA` aplicado por `comum.auditoria` e o teste de arquitetura de campos sensíveis; os testes obrigatórios da ADR 0014 que não dependem de cliente ou sessão; `cryptography` registrada no PR e os três segredos no `.env.example`. Inclui C-01 (diff da auditoria calculado antes da máscara) e C-02 (tarefa com schema apagado não cai no public) da T-039. Bloqueia T-011 e T-014.
 
 ### T-034 · Auditoria e Celery endurecidos
 - **Agente:** backend (papéis do banco com ADR do arquiteto e configuração do devops)
 - **Depende de:** T-001
-- **Regras:** AUD-01, AUD-02 · **Segurança:** S-10, S-11
+- **Regras:** AUD-01, AUD-02 · **Segurança:** S-10, S-11, C-03 (IP real atrás do proxy, só de proxies confiáveis), C-05 (trigger sem `TRUNCATE`, mesmo que S-10)
 - **Pronto quando:** critério do item "[média] Auditoria e Celery endurecidos" de `docs/seguranca/2026-10-07-fundacao.md` (trigger também em `TRUNCATE`, expurgo só com mais de 5 anos, `na_empresa` restaura ator e schema, `task_prerun`/`task_postrun` voltam ao public, cache com `make_key`, `@tarefa_de_empresa` recusa `public` e schema inexistente, tasks recebem só ids).
 
 ### T-035 · Endurecimento de produção
 - **Agente:** devops
 - **Depende de:** T-001, T-002
-- **Segurança:** S-16, S-17, S-18
+- **Segurança:** S-16, S-17, S-18, C-04 (`wsgi.py`, `asgi.py` e `config/celery.py` sem padrão `dev`; falha se `DJANGO_SETTINGS_MODULE` não vier em produção)
 - **Pronto quando:** `SHOW_PUBLIC_IF_NO_TENANT_FOUND = False` em `prod.py`; HSTS com preload, `Referrer-Policy`, `X-Frame-Options: DENY`, CSP no front; `/api/schema/` e `/api/docs/` fechados em produção; `SIMPLE_JWT["SIGNING_KEY"]` com variável própria. Precisa estar pronta antes do primeiro deploy de homologação.
 
 ### T-036 · Contratos da API de contas, veículos e clientes

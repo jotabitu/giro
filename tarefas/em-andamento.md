@@ -7,6 +7,5 @@ No máximo uma tarefa por agente. Formato: `T-0xx · título · agente · desde 
 - T-043 · Contratos da API de financeiro e auditoria · arquiteto · desde 07/10
 - T-041 · Critérios de aceite de T-015 a T-018 · produto · desde 07/10
 - T-040 · Cobertura de regras e testes de aceitação de T-010 a T-014 · qa · desde 07/10
-- T-039 · Revisão de segurança do código da T-001 · seguranca · desde 07/10
 - T-020 · Telas de acesso e casca do app · frontend · desde 07/10 (com dados falsos do contrato até a T-011)
 - T-042 · Componente de código de 6 dígitos · design-system · desde 07/10
