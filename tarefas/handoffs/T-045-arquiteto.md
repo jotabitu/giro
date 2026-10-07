@@ -18,9 +18,9 @@
 | --- | --- | --- |
 | 1 | `na_empresa` sempre usa o ator "Sistema"; a importação (T-044) e outras tarefas disparadas por uma pessoa precisam auditar em nome dela | ADR 0018, item 3. Tarefa para o backend, **junto com a T-033** (que já mexe em `na_empresa` pelo achado C-02). |
 | 2 | Código do 409 de transição sai de `REGRA_TRANSICAO`; a ADR 0009 dava `VEI-xx` de exemplo, os contratos usam `transicao_<entidade>` | ADR 0018, item 2. Só convenção: cada model usa `transicao_<entidade>`. |
-| 3 | `AtorDaRequisicaoMiddleware` lê `REMOTE_ADDR`; atrás do proxy de mesma origem (ADR 0013) isso é o IP do proxy, e a auditoria e os bloqueios por IP ficam errados | ADR 0018, item 4. Tarefa para o backend (`X-Forwarded-For` com `GIRO_PROXIES_CONFIAVEIS`) e para o devops (variável e proxy). |
+| 3 | `AtorDaRequisicaoMiddleware` lê `REMOTE_ADDR`; atrás do proxy de mesma origem (ADR 0013) isso é o IP do proxy, e a auditoria e os bloqueios por IP ficam errados | ADR 0018, item 4 (com os dois casos que a segurança acrescentou). É o achado **C-03** da T-039, que o Orquestrador já pôs na **T-034**: não abrir outra tarefa. DevOps: variáveis e rede. |
 | 4 | `comum/dinheiro.py` não tem a conta de juros da `FIN-03` com um arredondamento só; compor `aplicar_percentual` e `proporcional` arredondaria duas vezes (Rafael daria 1122 ou 1123 conforme a ordem) | Tarefa para o backend na T-017: `juros_pro_rata(valor_centavos, pct_mes, dias)` em `Decimal`, `ROUND_HALF_UP` uma vez (CA-017-08: Carlos 70, Rafael 1123). |
-| 5 | `/api/schema/` e `/api/docs/` respondem sem login em todo host, inclusive em produção | Tarefa para o backend: só em dev e homologação, ou exigir login de administrador em produção. Avisar a segurança. |
+| 5 | `/api/schema/` e `/api/docs/` respondem sem login em todo host, inclusive em produção | É o achado **C-07** da T-039 (`docs/seguranca/2026-10-07-codigo-t001.md`): seguir a tarefa que o Orquestrador abrir para ele, sem duplicar. |
 | 6 | `PaginacaoPorCursor` devolve só `resultados`, `proximo` e `anterior`; os contratos põem `contagens` e `indicadores` no mesmo corpo | Tarefa pequena para o backend: aceitar extras no envelope (ex.: `get_paginated_response(data, extras=...)`), para cada view não remontar a resposta. |
 | 7 | Trigger da auditoria ainda usa a variável de sessão e não pega `TRUNCATE` | Já coberto pela ADR 0016 e pela T-034 do backend. Nada novo. |
 | 8 | `importacao` fora de `TENANT_APPS` | Esperado: o app nasce na T-027 (ADR 0017). |
@@ -30,7 +30,7 @@ Nenhum desses pontos bloqueia a T-033.
 **Onde:** `docs/decisoes/0018-ajustes-da-conferencia-da-fundacao.md`, `docs/decisoes/README.md`, este handoff.
 
 **Próximo passo para quem recebe:**
-- Orquestrador: criar as tarefas dos pontos 1, 3, 5 e 6 (ou anexá-las à T-033 e à T-034) e lembrar o ponto 4 na T-017 e os ajustes do `Usuario` na T-011.
+- Orquestrador: os pontos 3 e 5 já existem como achados C-03 (na T-034) e C-07 da T-039. Falta encaixar o ponto 1 (com a T-033) e o 6, e lembrar o ponto 4 na T-017 e os ajustes do `Usuario` na T-011.
 - Backend: ADR 0018.
 - DevOps: `GIRO_PROXIES_CONFIAVEIS` e o `X-Forwarded-For` no proxy da mesma origem.
 - Segurança: pontos 3 e 5.
