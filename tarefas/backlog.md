@@ -10,9 +10,11 @@ As pendências de regra foram decididas em 07 out 2026 (seção "Decisões de 07
 - [bloqueada] Busca no INPI da marca "Giro" (classes 42 e 9).
 - [bloqueada] Abrir a conta do Asaas (a integração começa no sandbox, não depende disso).
 
+A dúvida da segurança S-02 (T-032: o suporte Giro vê CPF e CNH completos?) foi decidida em 07 out 2026 e virou a regra `AUD-09` (mascarado, nunca completo).
+
 As dúvidas levantadas pelo arquiteto em T-006 foram aprovadas em 07 out 2026 e viraram regra (T-031; ver "Decisões de 07 out 2026" em `docs/regras-de-negocio.md`).
 
-A dúvida do suporte (S-02, T-032) virou a regra AUD-09.
+As dúvidas de filiais da T-030 e de contas da T-036 (itens 6 a 10) foram decididas em 07 out 2026 e viraram regra (T-037: seção Filiais, `LOC-11`, `VEI-04`, `USR-01`, `USR-06`). O item 12 (desbloqueio manual) foi decidido em 07 out 2026 e virou regra (`CLI-05`, `APR-05`, T-041). Os itens 11 e 13 de clientes foram decididos em 07 out 2026 e viraram regra (`CLI-07`, `CLI-09`, T-041). As dúvidas da T-038 (locações e vistorias) e a do pro rata dos juros foram decididas em 07 out 2026 e viraram regra (T-041: `FIN-03`, `DEV-01`, `DEV-03`, `LOC-08`, `LOC-09`, `FIN-09` e a tabela de perfis); no merge da branch do arquiteto, as linhas `[decisão]` da T-038 saem.
 
 Levantadas pelo arquiteto em T-030 (07 out 2026):
 
@@ -21,7 +23,6 @@ Levantadas pelo arquiteto em T-030 (07 out 2026):
 Levantadas pelo arquiteto em T-036 (07 out 2026):
 
 - [divergência] `Frota` mostra a reserva do Kwid como `RES-0412`, mas a reserva é uma locação `aguardando_retirada` com código `LOC-` (regras, Veículos e Locação). `docs/api/veiculos.md` mostra o código `LOC-`. Para T-028, junto com as diárias da Frota que não batem com a tabela (CG 160 R$ 49,90, Pop R$ 39,90, NMax R$ 69,90, Mobi R$ 119,00).
-- [decisão] Desbloqueio manual de cliente: com o dono do produto (item 12 de "Pontos em aberto", T-037). O contrato segue o padrão A do produto: gerente e administrador desbloqueiam direto (`CLI-05`); o vendedor pede (`APR-05`).
 
 Levantadas pelo arquiteto em T-038 (07 out 2026); as dúvidas foram decididas pelo dono do produto (T-041) e já estão nos contratos:
 
@@ -31,6 +32,7 @@ Levantadas pelo arquiteto em T-043 (07 out 2026):
 
 - [decisão] Devolução de caução e reembolsos por Pix: no MVP o sistema registra o valor a devolver (`Reembolso`, `a_fazer`) e a pessoa faz o Pix pela conta da locadora e marca como feito com o comprovante; transferência automática pelo parceiro só depois das proteções de saque da subconta (S-05). Confirmar se atende o botão "Encerrar e devolver R$ 183,00 por Pix" da `Devolucao`.
 - [divergência] Telas do financeiro e da auditoria (para T-028): `Receber` usa faixas 1–7, 8–15, 16–30 e 30+ (`FIN-02`: 1–7, 8–30, mais de 30) e mostra Rafael com parcela de R$ 350,00 de 05 set; `Caixa` gera Pix de R$ 299,40 para a parcela atrasada de Carlos (com multa e juros, `FIN-03`, são R$ 306,09); `Admin-Auditoria` diz "3 senhas erradas" (`USR-06`: 5); `Admin-Exportar` mostra Lúcia (financeiro) exportando, mas exportar é da Administração (só administrador).
+
 
 ## Fase 0 · Fundação
 
@@ -143,32 +145,32 @@ Levantadas pelo arquiteto em T-043 (07 out 2026):
 ## Fase 1 · MVP
 
 ### T-010 · Plataforma: planos, empresas, criação de schema
-- **Agente:** backend · **Depende de:** T-001, T-006, T-030 · **Regras:** PLT-01, PLT-03, PLT-08, PLT-09 (cobrança, suporte e cancelamento ficam para a fase 2) · **Telas:** Plat-Empresas, Plat-Empresa-Detalhe, Plat-Planos · **Nota:** no MVP a empresa piloto é criada pelo Django Admin; as telas da plataforma ficam para a fase 2.
+- **Agente:** backend · **Depende de:** T-001, T-006, T-030 · **Regras:** PLT-01, PLT-03, PLT-08, PLT-09 (cobrança, suporte e cancelamento ficam para a fase 2) · **Telas:** Plat-Empresas, Plat-Empresa-Detalhe, Plat-Planos · **Nota:** no MVP a empresa piloto é criada pelo Django Admin; as telas da plataforma ficam para a fase 2. · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-010.md` (CA-010-01 a 17) passam, com o código da regra no nome do teste.
 
 ### T-011 · Contas, perfis, permissões, 2FA, convite
-- **Agente:** backend · **Depende de:** T-012, T-033 · **ADRs:** 0013, 0014 (sessões) · **Segurança:** S-02, S-03, S-08, S-13 · **Regras:** USR-01 a USR-07 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios
+- **Agente:** backend · **Depende de:** T-012, T-033 · **ADRs:** 0013, 0014 (sessões) · **Segurança:** S-02, S-03, S-08, S-13 · **Regras:** USR-01 a USR-07 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-011.md` (CA-011-01 a 28) passam, com o código da regra no nome do teste.
 
 ### T-012 · Filiais
-- **Agente:** backend · **Depende de:** T-010, T-030 · **Segurança:** SVG do logo sanitizado e exibido só por `<img>` (S-12) · **Regras:** PLT-03 (limite), USR-07 · **Telas:** Filiais, Filial
+- **Agente:** backend · **Depende de:** T-010, T-030 · **Segurança:** SVG do logo sanitizado e exibido só por `<img>` (S-12) · **Regras:** PLT-03 (limite), USR-07 · **Telas:** Filiais, Filial · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-012.md` (CA-012-01 a 17) passam, com o código da regra no nome do teste.
 
 ### T-013 · Veículos, categorias, documentos, histórico de status
-- **Agente:** backend · **Depende de:** T-012 · **Regras:** VEI-01 a VEI-06 · **Telas:** Frota, Veiculo, Precos
+- **Agente:** backend · **Depende de:** T-012 · **Regras:** VEI-01 a VEI-06 · **Telas:** Frota, Veiculo, Precos · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-013.md` (CA-013-01 a 26) passam, com o código da regra no nome do teste.
 
 ### T-014 · Clientes, documentos, bloqueio, LGPD
-- **Agente:** backend · **Depende de:** T-011, T-033 · **Segurança:** S-07, upload validado pelo conteúdo (S-12) · **Regras:** CLI-01 a CLI-08, AUD-04, AUD-05 · **Telas:** Clientes, Cliente
+- **Agente:** backend · **Depende de:** T-011, T-033 · **Segurança:** S-07, upload validado pelo conteúdo (S-12) · **Regras:** CLI-01 a CLI-08, AUD-04, AUD-05 · **Telas:** Clientes, Cliente · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-014.md` (CA-014-01 a 22; os marcados [integração] voltam no seed completo da T-019) passam, com o código da regra no nome do teste.
 
 ### T-015 · Locação: reserva, contrato, ciclo de status
-- **Agente:** backend · **Depende de:** T-013, T-014 · **Segurança:** token de assinatura com prazo e uso único, S-09 no `ModeloContrato` (S-15) · **Regras:** LOC-01 a LOC-13 · **Telas:** Locacao, Locacoes, Locacao-Detalhe, Contratos-Modelos
+- **Agente:** backend · **Depende de:** T-013, T-014 · **Segurança:** token de assinatura com prazo e uso único, S-09 no `ModeloContrato` (S-15) · **Regras:** LOC-01 a LOC-13 · **Telas:** Locacao, Locacoes, Locacao-Detalhe, Contratos-Modelos · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-015.md` (CA-015-01 a 25) passam, com o código da regra no nome do teste.
 
 ### T-016 · Vistoria de saída e devolução com acerto
 - **Agente:** backend · **Depende de:** T-015 · **Regras:** VIS-01 a VIS-05, DEV-01 a DEV-06 · **Telas:** Vistoria, Devolucao, Vistoriador
-- **Pronto quando:** caso LOC-2836 devolve R$ 183,00.
+- **Pronto quando:** caso LOC-2836 devolve R$ 183,00 e todos os critérios de `docs/qa/criterios/T-016.md` (CA-016-01 a 20) passam, com o código da regra no nome do teste.
 
 ### T-017 · Contas a receber, caixa do dia, baixa
-- **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro
+- **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 22) passam, com o código da regra no nome do teste.
 
 ### T-018 · Tela e consulta da auditoria
-- **Agente:** backend · **Depende de:** T-011 · **Regras:** AUD-01 a AUD-03 (o registro dos eventos já vem de T-001) · **Telas:** Admin-Auditoria, Plat-Auditoria
+- **Agente:** backend · **Depende de:** T-011 · **Regras:** AUD-01 a AUD-03 (o registro dos eventos já vem de T-001) · **Telas:** Admin-Auditoria, Plat-Auditoria · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-018.md` (CA-018-01 a 16) passam, com o código da regra no nome do teste.
 
 ### T-019 · Seed Moto Rápida
 - **Agente:** qa · **Depende de:** T-013 a T-017 · **Pronto quando:** `make seed` cria a empresa de exemplo e todos os casos da tabela "Dados de referência para testes" passam.
