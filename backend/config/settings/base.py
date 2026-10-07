@@ -1,0 +1,202 @@
+"""Configuração comum a todos os ambientes. Valores vêm das variáveis de `.env.example`."""
+
+from datetime import timedelta
+from pathlib import Path
+
+import environ
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
+env = environ.Env()
+
+SECRET_KEY = env("DJANGO_SECRET_KEY")
+DEBUG = env.bool("DJANGO_DEBUG", default=False)
+ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[".localhost", "127.0.0.1", "backend"])
+CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
+# Sem CORS: frontend e API na mesma origem (ADR 0013, item 5).
+
+# Domínio: admin.<DOMINIO_BASE> é a plataforma; <subdominio>.<DOMINIO_BASE>, a empresa.
+DOMINIO_BASE = env("DOMINIO_BASE", default="localhost")
+SUBDOMINIO_PLATAFORMA = env("SUBDOMINIO_PLATAFORMA", default="admin")
+
+# --- Multiempresa (ADR 0002, 0008, 0011) ---
+# Apps nos dois schemas aparecem nas duas listas.
+APPS_DOS_DOIS_SCHEMAS = [
+    "comum",
+    "apps.auditoria",
+    "apps.contas",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django_otp",
+    "django_otp.plugins.otp_totp",
+    "django_otp.plugins.otp_static",
+    "rest_framework_simplejwt.token_blacklist",
+]
+
+SHARED_APPS = [
+    "django_tenants",
+    "apps.plataforma",
+    *APPS_DOS_DOIS_SCHEMAS,
+    # Admin só no public, com 2 etapas (ADR 0013, item 4).
+    "django.contrib.admin",
+    "django.contrib.staticfiles",
+    "rest_framework",
+    "rest_framework_simplejwt",
+    "drf_spectacular",
+]
+
+# Ordem da ADR 0011 (de cima para baixo).
+TENANT_APPS = [
+    *APPS_DOS_DOIS_SCHEMAS,
+    "apps.empresas",
+    "apps.filiais",
+    "apps.notificacoes",
+    "apps.clientes",
+    "apps.veiculos",
+    "apps.contratos",
+    "apps.aprovacoes",
+    "apps.financeiro",
+    "apps.manutencao",
+    "apps.locacoes",
+    "apps.vistorias",
+    "apps.vendas",
+    "apps.automacoes",
+    "apps.relatorios",
+]
+
+INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
+
+TENANT_MODEL = "plataforma.Empresa"
+TENANT_DOMAIN_MODEL = "plataforma.Dominio"
+PUBLIC_SCHEMA_NAME = "public"
+PUBLIC_SCHEMA_URLCONF = "config.urls_publico"
+ROOT_URLCONF = "config.urls"
+# Host sem domínio cadastrado responde 404 (não cai no public). Os domínios da plataforma são
+# criados pela migração plataforma.0002.
+
+DATABASES = {"default": env.db("DATABASE_URL")}
+DATABASES["default"]["ENGINE"] = "django_tenants.postgresql_backend"
+DATABASE_ROUTERS = ["django_tenants.routers.TenantSyncRouter"]
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+MIDDLEWARE = [
+    "django_tenants.middleware.main.TenantMainMiddleware",
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django_otp.middleware.OTPMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "comum.middleware.AtorDaRequisicaoMiddleware",
+]
+
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = "config.wsgi.application"
+
+# --- Usuários (ADR 0008) ---
+AUTH_USER_MODEL = "contas.Usuario"
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+]
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
+# --- Idioma e fuso: UTC no banco, exibição em America/Sao_Paulo ---
+LANGUAGE_CODE = "pt-br"
+TIME_ZONE = "America/Sao_Paulo"
+USE_I18N = True
+USE_TZ = True
+
+STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# --- API ---
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": ["comum.autenticacao.JWTDaEmpresa"],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+        "comum.permissoes.EmpresaOperando",
+    ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "comum.erros.tratar_excecao",
+    "DEFAULT_PAGINATION_CLASS": "comum.paginacao.PaginacaoPorCursor",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "API do Giro",
+    "DESCRIPTION": "Contrato da API do Giro. Gerado pelo backend (make api-schema).",
+    "VERSION": "0.1.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "REFRESH_TOKEN_LIFETIME": timedelta(hours=12),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
+    "SIGNING_KEY": SECRET_KEY,
+}
+
+# --- Celery (ADR 0012) ---
+CELERY_BROKER_URL = env("CELERY_BROKER_URL", default="redis://redis:6379/1")
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://redis:6379/2")
+CELERY_TIMEZONE = "America/Sao_Paulo"
+CELERY_ENABLE_UTC = True
+CELERY_TASK_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {}
+
+REDIS_URL = env("REDIS_URL", default="redis://redis:6379/0")
+
+# --- E-mail ---
+EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = env("EMAIL_HOST", default="")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = env("EMAIL_FROM", default="Giro <nao-responda@girolocadoras.com.br>")
+
+# --- Sentry (vazio desliga) ---
+SENTRY_DSN_BACKEND = env("SENTRY_DSN_BACKEND", default="")
+SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT", default="dev")
+if SENTRY_DSN_BACKEND:
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN_BACKEND,
+        environment=SENTRY_ENVIRONMENT,
+        send_default_pii=False,
+        traces_sample_rate=0.0,
+    )
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "root": {"handlers": ["console"], "level": "INFO"},
+}

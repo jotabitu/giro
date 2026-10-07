@@ -1,0 +1,7 @@
+openapi: 3.0.3
+info:
+  title: API do Giro
+  version: 0.1.0
+  description: Contrato da API do Giro. Gerado pelo backend (make api-schema).
+paths: {}
+components: {}
