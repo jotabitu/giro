@@ -1,0 +1,80 @@
+# Ambiente de desenvolvimento do Giro. Uso: make up (ou docker compose up).
+# Variáveis vêm de .env (copiado de .env.example por make up).
+
+x-backend: &backend
+  build:
+    context: .
+    dockerfile: infra/docker/backend.Dockerfile
+  env_file: .env
+  volumes:
+    - ./backend:/app
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${PORTA_POSTGRES}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${PORTA_REDIS}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    <<: *backend
+    environment:
+      RODAR_MIGRACOES: "1"
+    ports:
+      - "${PORTA_BACKEND}:8000"
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+
+  worker:
+    <<: *backend
+    command: ["celery", "-A", "config", "worker", "--loglevel=INFO"]
+
+  beat:
+    <<: *backend
+    command: ["celery", "-A", "config", "beat", "--loglevel=INFO"]
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/docker/frontend.Dockerfile
+    env_file: .env
+    ports:
+      - "${PORTA_FRONTEND}:3000"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+      - frontend_next:/app/.next
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  redisdata:
+  frontend_node_modules:
+  frontend_next:
