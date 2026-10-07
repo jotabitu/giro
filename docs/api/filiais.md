@@ -124,10 +124,10 @@ Implementado em `backend/integracoes/cep/` atrás de uma interface, com implemen
 
 | Função | Uso |
 | --- | --- |
-| `filiais.selectors.filiais_do_usuario(usuario)` | ids das filiais ativas da pessoa (todas, para administrador). Base de `comum.permissoes` (`USR-07`). |
+| `filiais.selectors.filiais_do_usuario(usuario)` | ids das filiais ativas da pessoa (todas, para administrador). Registrada em `comum.permissoes` no `AppConfig.ready()` (`USR-07`). |
 | `filiais.selectors.filial_da_requisicao(request)` | filial escolhida pelo `X-Filial` (ou `None` para "todas"). |
 | `filiais.selectors.esta_aberta(filial, momento) -> bool` e `proxima_abertura(filial, momento)` | `LOC-11`. |
-| `filiais.services.vincular_usuario(usuario, filiais)` | chamado por `contas` no convite e na edição de usuário. |
+| assinante de `contas.filiais_do_usuario_definidas` | grava `UsuarioFilial` no convite e na edição de usuário (ver `contas.md`); `contas` não chama `filiais` direto (ADR 0011). |
 
 ## Fora deste contrato (em `[divergência]` no backlog)
 
