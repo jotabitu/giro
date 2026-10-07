@@ -12,3 +12,5 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-001 · Esqueleto do backend · backend · PR #4 · tarefas/handoffs/T-001-backend.md · 88 testes; compose completo verificado com T-002
 - T-037 · Dúvidas da T-030 e critérios de aceite de T-010 a T-014 · produto · sem PR (branch t-037-criterios-fase1) · tarefas/handoffs/T-037-produto.md · item 12 decidido (A)
 - T-004 · Portar o design system para código · design-system · PR #5 · tarefas/handoffs/T-004-design-system.md · conferência visual feita; Geist e ilustração de moto corrigidas
+- T-026 · Desenhar telas que faltam para o MVP · design-system · sem PR (branch t-026-telas-acesso-faltantes) · tarefas/handoffs/T-026-design-system.md
+- T-038 · Contratos da API de locações, vistorias e devolução · arquiteto · sem PR (branch t-038-contratos-locacoes-vistorias) · tarefas/handoffs/T-038-arquiteto.md · inclui contratos.md

@@ -117,6 +117,17 @@ Levantadas pelo arquiteto em T-030 (07 out 2026):
 - **Depende de:** T-037, T-038
 - **Pronto quando:** `docs/qa/criterios/T-015.md` a `T-018.md` com números do seed (LOC-2836 = R$ 183,00, caixa de 07 out = gaveta R$ 281,00 e os demais casos da tabela de referência), apontados no "Pronto quando" das tarefas.
 
+### T-042 · Componente de código de 6 dígitos (OTP)
+- **Agente:** design-system
+- **Depende de:** T-004, T-026
+- **Pronto quando:** componente `CodigoVerificacao` em `frontend/src/design-system/` como na tela `Ativar-2FA` (6 casas, colar o código inteiro, avanço e volta com teclado, estado de erro, `autocomplete="one-time-code"`, acessível), com preview e testes. Usado pela T-020.
+
+### T-043 · Contratos da API de financeiro e auditoria
+- **Agente:** arquiteto
+- **Depende de:** T-038
+- **Regras:** FIN-01 a FIN-08, AUD-01 a AUD-03, AUD-09 · **Segurança:** S-14 (webhooks)
+- **Pronto quando:** `docs/api/financeiro.md` (contas a receber, caixa do dia, baixa, interface de pagamentos para a T-029) e `docs/api/auditoria.md`, com o caso do caixa de 07 out (gaveta R$ 281,00). Destrava T-017 e T-018.
+
 ## Fase 1 · MVP
 
 ### T-010 · Plataforma: planos, empresas, criação de schema
