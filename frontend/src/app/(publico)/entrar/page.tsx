@@ -1,8 +1,8 @@
-export default function Pagina() {
-  return (
-    <main className="p-6">
-      <h1 className="text-title">Entrar</h1>
-      <p className="text-caption text-ink-muted">Grupo (publico): entrar, convite, primeiro acesso e compra. Tela real na T-020.</p>
-    </main>
-  );
+import type { Metadata } from "next";
+import { FluxoEntrar } from "@/components/acesso/FluxoEntrar";
+
+export const metadata: Metadata = { title: "Entrar" };
+
+export default function Entrar() {
+  return <FluxoEntrar />;
 }
