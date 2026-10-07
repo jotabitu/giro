@@ -72,6 +72,8 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | `schema_name` | texto(63), único | do django-tenants; igual ao subdomínio com `_` no lugar de `-` |
 | `razao_social` | texto(150) | |
 | `nome_exibicao` | texto(80) | cópia do nome para o painel da plataforma |
+| `cidade`, `uf` | texto(80), texto(2) | lista de empresas |
+| `responsavel_nome`, `responsavel_email`, `responsavel_telefone` | texto | contato do administrador na compra |
 | `cnpj` | texto(14), único | só dígitos, validado (`CLI-01` vale para CNPJ) |
 | `subdominio` | texto(63), único | `motorapida` |
 | `plano` | FK → `Plano` | |
@@ -91,6 +93,8 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 
 - `auto_create_schema = True`; criação só por `plataforma.services.criar_empresa` (`Compra-Pronto`, ou Django Admin no MVP).
 - Índices: `status`; `(etapa_implantacao, etapa_implantacao_desde)`.
+- O tenant `public` também é uma linha de `Empresa` (exigência do django-tenants); o `id` entra na claim `empresa_id` dos tokens (ADR 0013).
+- Apoio: `UsoEmpresa` (1:1 com `Empresa`): `veiculos`, `filiais`, `usuarios` (int), `locacoes_total` (int), `ultimo_acesso_em` (momento, nulo), `passos_implantacao` (json `{passo: data}`), `aviso_90_enviado` (json `{item: mes}`). Resumo no `public` para a lista da plataforma e para `PLT-03`, mantido por `plataforma.services.atualizar_uso` e corrigido por tarefa noturna (contrato da plataforma).
 - Apoio: `Dominio(DomainMixin)`: `domain` único (`motorapida.girolocadoras.com.br`), `tenant` FK, `is_primary`. O tenant `public` tem `admin.girolocadoras.com.br` e `girolocadoras.com.br`.
 
 ### 3. Fatura da assinatura · `plataforma.FaturaAssinatura` · código `FAT` · máquina
@@ -147,11 +151,14 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | --- | --- | --- |
 | `nome` | texto(80), único | Filial Centro |
 | `cnpj` | texto(14), nulo | |
+| `inscricao_estadual`, `inscricao_municipal` | texto(20), nulo | |
+| `telefone`, `whatsapp`, `email` | texto(13), texto(13), email; nulos | contato da filial |
 | `endereco` | campos `cep`, `logradouro`, `numero`, `complemento`, `bairro`, `cidade`, `uf` | |
 | `matriz` | bool | |
-| `horario` | json: `{dia_semana: [{abre, fecha}]}` | `LOC-11` |
+| `horario` | json: `{seg..dom: [{abre, fecha}]}`, até 2 intervalos por dia | `LOC-11`; formato em `docs/api/filiais.md` |
 | `fuso` | texto, fixo `America/Sao_Paulo` | |
 
+- `nome` único com `Lower(nome)`. Campos da tela `Filial` fora das regras ficam fora do modelo até o produto decidir (`docs/api/filiais.md`).
 - Restrições: no máximo uma matriz (`UniqueConstraint(fields=["matriz"], condition=Q(matriz=True))`); a última filial ativa não pode ser desativada (serviço). `PLT-03` checado no serviço de criação.
 - Apoio: `UsuarioFilial` (`usuario` FK → `contas.Usuario` CASCADE, `filial` FK) único por `(usuario, filial)` (`USR-07`, ADR 0008).
 
@@ -168,7 +175,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `status` | enum `convite_pendente`, `ativo`, `desativado` | **proposta** (`USR-01`, `USR-04`) |
 | `is_active` | propriedade = `status == ativo` | |
 | `is_staff` | bool | acesso ao Django Admin |
-| `exige_2fa` | bool | obrigatório para administrador, financeiro e plataforma (`USR-02`, `PLT-08`) |
+| `exige_2fa` | **propriedade**, não é coluna | derivada do schema, do perfil, de `exige_2fa_todos` e de dispositivo ativo (ADR 0013) |
 | `tentativas_erradas`, `bloqueado_ate` | int, momento nulo | `USR-06`, `PLT-08` |
 | `ultimo_acesso` | momento, nulo | |
 
