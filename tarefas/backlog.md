@@ -10,6 +10,8 @@ As pendências de regra foram decididas em 07 out 2026 (seção "Decisões de 07
 - [bloqueada] Busca no INPI da marca "Giro" (classes 42 e 9).
 - [bloqueada] Abrir a conta do Asaas (a integração começa no sandbox, não depende disso).
 
+A dúvida da segurança S-02 (T-032: o suporte Giro vê CPF e CNH completos?) foi decidida em 07 out 2026 e virou a regra `AUD-09` (mascarado, nunca completo).
+
 As dúvidas levantadas pelo arquiteto em T-006 foram aprovadas em 07 out 2026 e viraram regra (T-031; ver "Decisões de 07 out 2026" em `docs/regras-de-negocio.md`).
 
 Levantadas pelo arquiteto em T-030 (07 out 2026). O produto recomendou em T-037 (itens 6 e 7 de "Pontos em aberto" de `docs/regras-de-negocio.md`), e as recomendações aguardam o dono do produto. Até lá vale o padrão: só entram os campos que já estão em `docs/api/filiais.md`, e a desativação segue a proposta, sem contas a receber no veto.

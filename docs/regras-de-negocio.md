@@ -100,7 +100,7 @@ A empresa cliente passa por 6 estados. Só `ativa` e `em_teste` operam normalmen
 - `PLT-04` Mudança de plano: upgrade vale na hora e cobra a diferença proporcional; downgrade só se o uso couber no plano menor, e vale na próxima fatura.
 - `PLT-05` Preço novo de plano vale só para novas assinaturas; reajuste de quem já assina exige aviso de 30 dias.
 - `PLT-06` Cancelamento pede motivo, oferece pausar ou mudar para o Essencial, e exige digitar o nome da empresa. Contratos já assinados com clientes finais continuam válidos.
-- `PLT-07` **Entrar como suporte:** só com motivo (de preferência um chamado), duração de 15 min, 30 min ou 1 h, permissão "só ver" ou "ver e editar". O administrador da empresa recebe e-mail na hora; aparece uma faixa "Modo suporte" no topo; entrada e saída ficam na auditoria da empresa e na da plataforma. O administrador pode bloquear o acesso do suporte.
+- `PLT-07` **Entrar como suporte:** só com motivo (de preferência um chamado), duração de 15 min, 30 min ou 1 h, permissão "só ver" ou "ver e editar". O administrador da empresa recebe e-mail na hora; aparece uma faixa "Modo suporte" no topo; entrada e saída ficam na auditoria da empresa e na da plataforma. O administrador pode bloquear o acesso do suporte. Mesmo com "ver e editar", o suporte vê dados pessoais mascarados (`AUD-09`).
 - `PLT-08` Usuários da plataforma são obrigados a usar verificação em 2 etapas. 3 códigos errados bloqueiam o login por 15 minutos e geram evento de segurança.
 - `PLT-09` Funções da equipe interna: **Dono** (tudo); **Suporte** (ver empresas, chamados, entrar como suporte); **Financeiro** (cobrança, faturas, suspender); **Sucesso do cliente** (ver empresas, implantações, entrar como suporte, estender teste, mudar plano). Só o Dono mexe em planos e na equipe.
 - `PLT-10` Indicadores do painel (`Plataforma-Desktop`): receita recorrente = soma das assinaturas ativas e inadimplentes; cancelamentos do mês / empresas pagantes no início do mês = taxa de cancelamento.
@@ -453,6 +453,9 @@ Toda ação que muda dado de negócio grava um evento de auditoria que ninguém 
 - `AUD-06` Pedido do titular (LGPD): o administrador exporta os dados de um cliente ou anonimiza o cadastro. Contratos e registros financeiros ficam guardados pelo prazo legal, anonimizados.
 - `AUD-07` Exportação (`Admin-Exportar`): escolhe o que (clientes, veículos, locações e contratos, financeiro, vistorias e fotos, auditoria), formato (planilha, CSV, backup completo em ZIP) e período. O arquivo fica pronto em segundo plano e o link vale 7 dias.
 - `AUD-08` Após o cancelamento da assinatura, os dados ficam 90 dias disponíveis para exportação e depois são apagados de vez (com aviso 7 dias antes).
+- `AUD-09` O suporte Giro, dentro de uma empresa (`PLT-07`), vê CPF e CNH sempre mascarados, como nas listas (`AUD-04`), em qualquer tela e com qualquer permissão de acesso ("só ver" ou "ver e editar"). Nunca vê os dados completos.
+
+*Mudanças em 07 out 2026 (T-037):* criada a `AUD-09` (achado S-02 da segurança, T-032, decidido pelo dono do produto); `PLT-07` passou a citá-la.
 
 ## Dados de referência para testes
 

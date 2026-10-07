@@ -14,3 +14,7 @@
 ## Parte 2 · Critérios de aceite
 
 Pendente: começa depois do aval do orquestrador.
+
+## Decisão S-02 (07 out 2026)
+
+O dono do produto decidiu, e virou a regra `AUD-09`: o suporte Giro vê CPF e CNH mascarados dentro da empresa, nunca completos. A `PLT-07` cita a nova regra. A linha `[decisão]` original está no backlog da branch `t-032-revisao-fundacao` (Seguranca), não nesta; no merge, tire essa linha e fique com a nota desta branch.
