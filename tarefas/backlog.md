@@ -21,23 +21,11 @@ Levantadas pelo arquiteto em T-006 (07 out 2026). Nenhuma bloqueia a fase 1; o m
 
 ## Achados de segurança da fundação (T-032)
 
-Relatório: `docs/seguranca/2026-10-07-fundacao.md`. S-01 a S-04 e S-08 já foram resolvidos no desenho pela ADR 0013. Os itens abaixo esperam número de tarefa do orquestrador; a ordem é a de prioridade.
-
-### [alta] Criptografia de segredos e dados pessoais, e campos classificados na auditoria (S-05, S-06, S-07)
-- **Agente:** backend (com adendo do arquiteto ao modelo de dados) · **Regras:** AUD-01, AUD-04, AUD-06, CLI-01
-- **Pronto quando:** `comum/cripto.py` com cifra autenticada, id de chave e dado associado (`empresa_id` + campo); `CampoCifrado`; `ContaPagamento.chave_api_cifrada` fora de serializer, Admin, log e auditoria; `Cliente.documento`, `cnh_numero` e `responsavel_cpf` cifrados, com HMAC único para `CLI-01`; `CAMPOS_AUDITORIA` (omitir, mascarar) aplicado por `comum.auditoria`, com teste de arquitetura que falha em campo sensível sem classificação; `test_aud_06_auditoria_de_cliente_nao_guarda_nome_nem_documento_completos`, `test_aud_01_troca_de_senha_nao_grava_hash`.
-
-### [alta] Contrato em PDF sem SSRF nem injeção de template (S-09)
-- **Agente:** arquiteto (contrato da T-015), backend · **Regras:** IMP-04, LOC-08
-- **Pronto quando:** marcadores do `ModeloContrato` numa lista fechada, trocados por texto escapado (sem engine de template); HTML do modelo sanitizado; `url_fetcher` do WeasyPrint que só lê o logo do schema atual; `test_contrato_marcador_fora_da_lista_recusado`, `test_pdf_nao_busca_url_externa`.
+Relatório: `docs/seguranca/2026-10-07-fundacao.md`. S-01 a S-04 e S-08 foram resolvidos no desenho pela ADR 0013; S-05, S-06, S-07 e S-13 pela ADR 0014 (entram na T-001, T-011 e T-014); S-09 é restrição do `ModeloContrato` e entra no contrato da T-015. Os itens abaixo esperam número de tarefa do orquestrador; a ordem é a de prioridade.
 
 ### [média] Auditoria e Celery endurecidos (S-10, S-11)
 - **Agente:** backend (T-001 ou logo depois); papéis do banco com arquiteto e devops (ADR) · **Regras:** AUD-01, AUD-02
 - **Pronto quando:** trigger também em `TRUNCATE`; expurgo só apaga evento com mais de 5 anos; `na_empresa` restaura ator e schema; `task_prerun`/`task_postrun` voltam ao public; cache com `django_tenants.cache.make_key`; `@tarefa_de_empresa` recusa `public` e schema inexistente; tasks recebem só ids.
-
-### [média] Sessões revogáveis (S-13)
-- **Agente:** arquiteto (complemento da ADR 0013), backend (T-011) · **Regras:** USR-04, USR-06
-- **Pronto quando:** `contas.Sessao` e claim `sid`; revogar uma sessão derruba o access na próxima requisição; tela de sessões tem o que listar.
 
 ### [média] Uploads, SVG, webhooks e links com prazo (S-12, S-14, S-15, S-17)
 - **Agente:** backend (T-012, T-015, T-017), frontend · **Regras:** AUD-05, AUD-07, FIN-04
