@@ -148,6 +148,16 @@ Levantadas pelo arquiteto em T-043 (07 out 2026):
 - **Regras:** IMP-02 e o passo "importar dados" do assistente de implantação, VEI-01, CLI-01
 - **Pronto quando:** `docs/api/importacao.md` (envio da planilha, validação linha a linha com os erros da tela `Onboarding-Importar`, confirmação, relatório), com os campos cifrados da ADR 0014. Destrava T-027.
 
+### T-046 · Componentes pedidos pela T-020
+- **Agente:** design-system
+- **Depende de:** T-004
+- **Pronto quando:** seletor de filial, diálogo e gaveta (shadcn/ui por cima dos tokens, se fizer sentido; registrar no PR) e `KpiTile` com valor longo no celular, com preview e testes. Usados pela T-020 e pela T-021.
+
+### T-047 · Menu por permissão e agregados do painel
+- **Agente:** arquiteto (com o produto para o início por perfil)
+- **Depende de:** T-036
+- **Pronto quando:** `docs/api/contas.md` devolve `menu` (módulos liberados) em `GET /api/eu/`, para a tela não inferir de `pode`; rota inicial por perfil definida com o produto (vistoriador, vendedor, gerente, financeiro); `docs/api/painel.md` com os contadores do menu e os indicadores da tela `Main`. Resolve as três `[decisão]` da T-020.
+
 ## Fase 1 · MVP
 
 ### T-010 · Plataforma: planos, empresas, criação de schema
@@ -197,7 +207,7 @@ Levantadas pelo arquiteto em T-043 (07 out 2026):
 - **Agente:** frontend · **Depende de:** T-002, T-004, T-011 · **Telas:** Login, Acesso-Senha, Convite, Main, Menu, e a navegação padrão descrita em `docs/telas/README.md`
 
 ### T-021 · Telas de veículos e clientes
-- **Agente:** frontend · **Depende de:** T-020, T-013, T-014 · **Telas:** Frota, Veiculo, Clientes, Cliente
+- **Agente:** frontend · **Depende de:** T-020, T-013, T-014 · **Telas:** Frota, Veiculo, Clientes, Cliente · **Nota:** pode começar com dados falsos de `docs/api/veiculos.md` e `clientes.md`, como a T-020
 
 ### T-022 · Telas de locação, vistoria e devolução
 - **Agente:** frontend · **Depende de:** T-021, T-015, T-016 · **Telas:** Locacao, Locacoes, Locacao-Detalhe, Vistoria, Devolucao, Vistoriador

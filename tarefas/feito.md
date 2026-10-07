@@ -18,3 +18,6 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-041 · Critérios de aceite de T-015 a T-018 · produto · PR #6 · tarefas/handoffs/T-041-produto.md · itens 11 a 20 decididos pelo dono
 - T-043 · Contratos da API de financeiro e auditoria · arquiteto · PR #6 · tarefas/handoffs/T-043-arquiteto.md · inclui aprovacoes.md e ADR 0016
 - T-045 · Conferir decisões de implementação da T-001 contra as ADRs · arquiteto · PR #8 · tarefas/handoffs/T-045-arquiteto.md · ADR 0018; pontos distribuídos em T-033, T-034, T-035, T-010, T-011, T-017
+- T-005 · CI · devops · PR #9 · tarefas/handoffs/T-005-devops.md · o próprio PR roda o workflow
+- T-042 · Componente de código de 6 dígitos · design-system · PR #10 · tarefas/handoffs/T-042-design-system.md
+- T-020 · Telas de acesso e casca do app · frontend · PR #11 · tarefas/handoffs/T-020-frontend.md · dados falsos até a T-011; 390 px a validar com emulação (Edge headless não abre abaixo de 492 px)
