@@ -18,6 +18,12 @@ Levantadas pelo arquiteto em T-006 (07 out 2026). Nenhuma bloqueia a fase 1; o m
 - [decisão] Arredondamento de percentuais (desconto, multa, comissão, juros): proposta `ROUND_HALF_UP` no centavo (ADR 0009). Os casos do seed dão valores exatos e não mudam.
 - [decisão] Chassi único por empresa? IMP-02 só cita placa. Proposta: sim, único.
 
+Levantadas pelo arquiteto em T-030 (07 out 2026):
+
+- [decisão] [divergência] Tela `Filial` tem campos e comportamentos que as regras não têm: gerente responsável, vagas no pátio, tabela de preço padrão da filial, conta de recebimento, centro de custo, "emite notas fiscais com o CNPJ desta filial", "aceita devolução de veículos de outras filiais", "compartilha a frota com as outras filiais", status "Rascunho" e horário de feriados. Ficaram fora de `docs/api/filiais.md` até o produto decidir quais entram e com que regra.
+- [decisão] Desativar filial com operação: proposta recusar quando ainda há veículos (fora `vendido`/`baixado`), locações abertas ou caixa aberto (`docs/api/filiais.md`).
+- [divergência] Dados de exemplo nas telas da plataforma (para T-028): `Plat-Empresa-Detalhe` mostra CNPJ 41.208.733/0001-52 (seed: 12.345.678/0001-10), FAT-0001 vencendo em 21 out (PLT-01: dia seguinte ao fim do teste, 22 out) e "13 dias" de teste em 07 out (contrato: 14); `Plat-Empresas` mostra Moto Rápida com 4 usuários (seed: 5).
+
 ## Fase 0 · Fundação
 
 ### T-001 · Esqueleto do backend

@@ -35,7 +35,7 @@ Sem a permissão: 403 `{ "codigo": "PLT-09", "mensagem": "Sua função não perm
 
 Base: `admin.<dominio>/api/plataforma/auth/`. 2 etapas obrigatórias para todos (`PLT-08`). Fluxo, claims e cookie na ADR 0013.
 
-**Tokens.** O access vai no corpo e fica só em memória no frontend. O refresh vai no cookie `__Host-giro_refresh` (`HttpOnly`, `Secure`, `SameSite=Strict`, host-only, `Path=/`) e nunca aparece no corpo. `renovar` e `sair` exigem o cabeçalho `X-Requested-With: giro`. Todo token leva `schema`, `empresa_id` e `amr`; aqui é sempre `amr: ["pwd", "otp"]`.
+**Tokens.** O access vai no corpo e fica só em memória no frontend. O refresh vai no cookie `__Host-giro_refresh` (`HttpOnly`, `Secure`, `SameSite=Strict`, host-only, `Path=/`) e nunca aparece no corpo. `renovar` e `sair` exigem o cabeçalho `X-Requested-With: giro`. Todo token leva `schema`, `empresa_id`, `sid` (sessão, ADR 0014) e `amr`; aqui é sempre `amr: ["pwd", "otp"]`. Sessão encerrada ou revogada responde 401 `{ "codigo": "sessao_encerrada" }` já na requisição seguinte.
 
 ### POST /api/plataforma/auth/entrar/
 Público.

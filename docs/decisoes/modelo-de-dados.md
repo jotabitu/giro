@@ -137,7 +137,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 
 | Model | App | Campos principais |
 | --- | --- | --- |
-| `ContaPagamento` | plataforma | `empresa` (1:1), `provedor` enum `asaas`, `conta_externa_id` único, `chave_api_cifrada` (texto, cifrada; ver segurança), `webhook_token_hash` único, `status` enum `pendente`, `aprovada`, `recusada`. O webhook chega no `public`, acha a empresa pelo token e só então entra no schema dela (ADR 0007). |
+| `ContaPagamento` | plataforma | `empresa` (1:1), `provedor` enum `asaas`, `conta_externa_id` único, `chave_api_cifrada` (`CampoCifrado` com `GIRO_CHAVE_SEGREDOS`, decifrada só em `integracoes/pagamentos/`, ADR 0014), `webhook_token_hash` único, `status` enum `pendente`, `aprovada`, `recusada`. O webhook chega no `public`, acha a empresa pelo token e só então entra no schema dela (ADR 0007). |
 | `Chamado` | plataforma | `numero` (#1042), `empresa` FK, `assunto`, `status`, `responsavel` FK usuário. Fase 2. |
 | `Convite` | contas | ver item 7 (serve aos dois schemas). |
 
@@ -182,6 +182,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 - `CHECK ((perfil IS NULL) <> (funcao_plataforma IS NULL))`.
 - 2FA: dispositivos do `django_otp` (TOTP e códigos de recuperação).
 - Contam no limite do plano: `status IN (convite_pendente, ativo)` (`USR-01`, `USR-04`).
+- Apoio `Sessao` (ADR 0014): `usuario` FK, `tipo` enum `desktop`, `celular`, `aparelho`, `ip`, `ultimo_uso`, `expira_em`, `revogada_em` nulo, `revogada_por` FK nulo, `motivo_revogacao`. Índice `(usuario, revogada_em)`. Claim `sid` nos tokens.
 - Apoio `Convite`: `usuario` FK CASCADE, `token_hash` único, `canal` enum `email`, `whatsapp`, `expira_em` (+7 dias), `aceito_em` nulo, `enviado_por` FK.
 
 ### 8. Categoria de veículo · `veiculos.Categoria` · ativável
@@ -240,12 +241,13 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | --- | --- | --- |
 | `tipo` | enum `pf`, `pj` | |
 | `nome` | texto(150) | nome ou razão social |
-| `documento` | texto(14), único | CPF ou CNPJ, só dígitos (`CLI-01`) |
+| `documento` | `CampoCifrado` | CPF ou CNPJ, só dígitos (ADR 0014) |
+| `documento_hash` | `CampoHashBusca`, **único** | HMAC do documento normalizado; unicidade e busca exata (`CLI-01`) |
 | `nascimento` | data, nulo | PF |
 | `celular`, `email` | texto(13), email | |
 | `profissao` | texto(80), nulo | |
-| `cnh_numero`, `cnh_categoria`, `cnh_validade`, `cnh_primeira_habilitacao` | texto(11), texto(3), data, data | do PF ou do condutor responsável na PJ (`CLI-02`) |
-| `responsavel_nome`, `responsavel_cpf` | texto, nulo | PJ |
+| `cnh_numero` (`CampoCifrado`) + `cnh_hash` (índice), `cnh_categoria`, `cnh_validade`, `cnh_primeira_habilitacao` | cifrado, hash, texto(3), data, data | do PF ou do condutor responsável na PJ (`CLI-02`) |
+| `responsavel_nome`, `responsavel_cpf` (`CampoCifrado`) + `responsavel_cpf_hash` (índice) | texto, cifrado, hash; nulos | PJ |
 | endereço | `cep`, `logradouro`, `numero`, `complemento`, `bairro`, `cidade`, `uf` | |
 | `referencia_nome`, `referencia_parentesco`, `referencia_telefone` | texto | |
 | `status` | enum `incompleto`, `ativo`, `bloqueado`, `inativo` | |
@@ -254,7 +256,8 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `anonimizado_em` | momento, nulo | `AUD-06` |
 | `cliente_desde` | data | `CLI-06` |
 
-- Índices: `status`; `Lower(nome)` com `gin_trgm_ops` para a busca; `cnh_validade`.
+- Índices: `status`; `Lower(nome)` com `gin_trgm_ops` para a busca por nome; `cnh_validade`. Busca por CPF/CNPJ é exata, pelo hash.
+- `CAMPOS_AUDITORIA`: cifrados omitidos; nome, nascimento, contatos, endereço e referência mascarados (ADR 0014).
 - `total_pago` e `valor_em_aberto` (`CLI-06`) são calculados por selector a partir do financeiro, não guardados.
 - Apoio `DocumentoCliente`: `cliente`, `tipo` enum `cnh_frente`, `cnh_verso`, `selfie_documento`, `comprovante_residencia`, `arquivo`, ativável. O cliente sai de `incompleto` quando tem os 4 ativos (`CLI-03`).
 
@@ -360,6 +363,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 
 - Versionado: editar um modelo publicado cria nova linha com `versao + 1`; a anterior não muda. Único `(grupo, versao)`. Um publicado vigente por `(grupo)`.
 - `IMP-04`: sem modelo publicado de `locacao`, o serviço recusa concluir a locação.
+- Segurança (S-09, relatório T-032): o `texto` aceita só marcadores de uma lista fechada (`{{cliente.nome}}`, `{{locacao.codigo}}` etc.), trocados por texto já escapado, sem motor de template sobre o texto do usuário; marcador fora da lista é recusado ao publicar. O HTML é sanitizado para poucas tags (sem `img` externa, `style`, `link`, `script`, `iframe`). O PDF sai numa task Celery com tempo limite, e o `url_fetcher` do WeasyPrint só aceita o logo da própria empresa no storage do schema atual. A lista de marcadores sai no contrato da T-015.
 
 ### 17. Venda · `vendas.Venda` · código `VEN` · máquina
 
@@ -534,7 +538,7 @@ Campos, índices e imutabilidade na ADR 0010. Existe nos dois schemas. Apoio `Ex
 | Placa única por empresa | `Veiculo.placa` único no schema | `VEI-01` |
 | Chassi com 17 caracteres | `CHECK` em `Veiculo.chassi` | `VEI-01` |
 | Km nunca diminui | serviço `veiculos.services.atualizar_km` (correção só com `APR-06`) | `VEI-01` |
-| CPF/CNPJ único por empresa | `Cliente.documento` único no schema | `CLI-01` |
+| CPF/CNPJ único por empresa | `Cliente.documento_hash` único no schema | `CLI-01` |
 | Uma locação aberta por veículo | índice único parcial em `Locacao.veiculo` | regras, "Entidades" |
 | Uma venda aberta por veículo | índice único parcial em `Venda.veiculo` | regras, "Entidades" |
 | Um caixa por filial por dia | único `(filial, data)` | `FIN-07` |
