@@ -560,3 +560,39 @@ Levantadas pelo arquiteto em `docs/api/clientes.md`. Nenhuma bloqueia a T-014.
 ### Dúvida de cálculo do financeiro (T-041, 07 out 2026)
 
 - [ ] **14. O que é "pro rata dia" nos juros (`FIN-03`).** A regra diz 1% ao mês pro rata dia, mas não diz como o mês vira dia, e isso muda o valor em centavos. **Precisa do dono:** A) mês comercial: juros = valor × 1% ÷ 30 × dias corridos de atraso, contados do dia seguinte ao vencimento até o dia do pagamento, arredondado uma vez (`ROUND_HALF_UP`) (padrão recomendado, o mais usado em boletos); B) mês civil: divide pelos dias do mês do vencimento (28 a 31). Com A, Carlos (R$ 299,40, 7 dias) paga juros de R$ 0,70 e multa de R$ 5,99; Rafael (R$ 1.347,00, 25 dias) paga juros de R$ 11,23 e multa de R$ 26,94. A multa de 2% é cobrada uma vez, em qualquer atraso a partir de 1 dia. Até a resposta vale A, que já está nos critérios da T-017.
+
+### Dúvidas do contrato de locações e vistorias (T-038, 07 out 2026)
+
+Levantadas pelo arquiteto em `docs/api/locacoes.md` e `docs/api/vistorias.md`. Nenhuma bloqueia T-015 nem T-016; até a resposta vale o padrão de cada item.
+
+- [ ] **15. Combustível no acerto (`DEV-01`).** A regra não diz de onde vêm o preço do litro e o tamanho do tanque. Recomendação:
+  - o preço do litro é um valor por filial, atualizado pelo gerente;
+  - a capacidade do tanque fica no cadastro do veículo;
+  - os 5 níveis da `VIS-03` valem 0, 1/4, 1/2, 3/4 e 1 do tanque (reserva = 0);
+  - litros faltantes = capacidade × (nível da saída − nível da chegada);
+  - valor = litros × preço + R$ 10,00, com a taxa cobrada **uma vez por devolução**, e só quando falta combustível.
+  
+  Para o seed fechar com o `DEV-03` (R$ 32,00): a Factor 150 PNB7C04 tem tanque de 16 L, o preço da Filial Centro é R$ 5,50, a saída foi com tanque cheio e a chegada com 3/4. São 4 L × R$ 5,50 = R$ 22,00, mais R$ 10,00 = R$ 32,00. **Precisa do dono:** A) R$ 10 uma vez por devolução (padrão, igual à proposta do arquiteto); B) R$ 10 por litro, que encarece muito (R$ 62,00 no mesmo caso).
+
+- [ ] **16. [divergência] Extras por dia ou por período (`LOC-02`).** A tela `Locacao` mostra o capacete por R$ 3,00/dia; a regra diz por período. Vale a regra, como manda o `CLAUDE.md`, e a tela vai para a T-028. **Sem impacto de negócio**; não precisa do dono.
+
+- [ ] **17. Renovação vale na hora? (`LOC-08`).** Recomendação: aceitar a proposta. A renovação vale na hora (novas parcelas e novo fim previsto), e o aditivo segue para assinatura. A regra já fala em "aditivo automático", e travar a renovação na assinatura deixaria o cliente em `devolucao_atrasada` sem culpa. Se o aditivo não for assinado em 7 dias, os gerentes recebem uma tarefa; a locação não muda de status. **Impacto pequeno.** Padrão: esta recomendação.
+
+- [ ] **18. Caução e cobranças na troca de veículo (`LOC-09`).** Recomendação, diferente em parte da proposta do arquiteto:
+  - caução da nova categoria **maior** → a diferença é cobrada na troca, e o veículo novo só sai depois do pagamento, como no 1º pagamento;
+  - caução **menor** → a diferença fica para o acerto final, porque a caução ainda cobre as cobranças da locação;
+  - cobranças da vistoria do veículo antigo (avaria, combustível) → entram no acerto final da locação (`DEV-02`), descontadas da caução, e não viram conta separada na hora. Assim continua existindo um acerto só por locação.
+  
+  **Precisa do dono:** A) esta recomendação (padrão); B) a proposta do arquiteto: diferença de caução cobrada ou devolvida na troca, e cobranças do antigo em conta a receber com vencimento em 3 dias.
+
+- [ ] **19. Gerente cancela e dá desconto acima de 5% direto (`APR-01`, `APR-02`).** Recomendação: sim, pelo mesmo motivo da decisão do item 12 (`CLI-05`). Gerente e administrador fazem direto, com motivo e auditoria; só o vendedor pede; quem tem a permissão extra aprova os pedidos dos outros (`USR-03`, `APR-09`). Com um gerente só, todo pedido dele iria para o administrador. **Precisa só de confirmação do dono**, porque a tabela de perfis diz "aprova", e não "faz". Padrão: esta recomendação.
+
+- [ ] **20. Estados da comissão de locação (`FIN-09`).** Recomendação: aceitar a proposta, que só completa a lista de status:
+  - `pendente` ao confirmar a locação;
+  - `confirmada` quando ela fica `ativa`;
+  - `paga` no dia 5 do mês seguinte (`AUT-10`);
+  - `estornada` se for cancelada antes da retirada;
+  - encerramento antecipado (depois da retirada) não estorna, porque a locação aconteceu;
+  - renovação não gera comissão.
+  
+  Bate com o `FIN-10` (Bruna: 2 locações = R$ 32,00 confirmados). **Sem impacto de negócio.**
