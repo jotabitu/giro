@@ -1,0 +1,9 @@
+# T-003 · Ambiente de desenvolvimento · devops → orquestrador, backend, frontend
+
+**O que foi feito:** `docker-compose.yml` com db (Postgres 16), redis, backend, worker, beat e frontend; Dockerfiles de backend e frontend; entrypoint que espera o Postgres e roda `migrate_schemas`; `.env.example` completo; `Makefile` com `up`, `down`, `check`, `seed`, `migrate`, `api-schema`, `api-client`, `backend-check`, `frontend-check`, `logs`, `ps`, `shell`; `.gitattributes` forçando LF em scripts e Dockerfiles.
+**Onde:** `docker-compose.yml`, `Makefile`, `.env.example`, `infra/docker/`, `infra/scripts/check-env.sh`, `infra/README.md`.
+**Contrato:** seções "O que o backend precisa respeitar" e "O que o frontend precisa respeitar" em `infra/README.md` (requirements.txt e requirements-dev.txt, `config.settings.dev`, `config/celery.py`, scripts npm, `seed_moto_rapida`).
+**Verificado:** `infra/scripts/check-env.sh` passa; `docker compose config` valida e lista os 6 serviços.
+**Não verificado:** a subida real. O Docker Hub não respondeu neste ambiente (falha ao baixar `postgres:16`), e `backend/` e `frontend/` ainda não têm código, então os builds dos Dockerfiles não foram exercitados. `make` não está instalado nesta máquina Windows; os alvos não foram executados, só o conteúdo que eles chamam.
+**O que ficou de fora:** CI (T-005), homologação, produção, certificado curinga, backup, Sentry no frontend. `backend-check` e `frontend-check` passam com aviso enquanto `manage.py` e `package.json` não existirem; remover o desvio no Makefile quando T-001 e T-002 entregarem.
+**Próximo passo para quem recebe:** backend (T-001) e frontend (T-002) seguem o contrato do `infra/README.md`; quem criar `manage.py`/`package.json` roda `make up` e confirma que o serviço sobe. Qualquer divergência de nome (requirements, scripts), avisar o devops em vez de mudar o Dockerfile por conta própria.

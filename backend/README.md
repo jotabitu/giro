@@ -25,7 +25,8 @@ backend/
 | `filiais` | empresa | PLT-03 (limite) | Filiais, matriz, horário de funcionamento. |
 | `veiculos` | empresa | VEI | Categorias e tabela de preços, veículos, documentos, leitura de km, histórico de status. |
 | `clientes` | empresa | CLI, AUD-04, AUD-06 | Clientes PF/PJ, CNH, documentos, contatos, bloqueio, consentimento LGPD. |
-| `locacoes` | empresa | LOC | Planos especiais, locações, reservas, contratos e modelos de contrato, renovação, cancelamento. |
+| `contratos` | empresa | LOC, VEN | Modelos de contrato versionados, contratos gerados, assinatura eletrônica, PDF (ADR 0011). |
+| `locacoes` | empresa | LOC | Planos especiais, locações, reservas, renovação, cancelamento. |
 | `vistorias` | empresa | VIS, DEV | Vistoria de saída e de devolução, fotos, avarias, acerto da devolução e da caução. |
 | `vendas` | empresa | VEN | Propostas, funil, simulação de pagamento, troca, venda, recibo. |
 | `aprovacoes` | empresa | APR | Pedidos de aprovação (desconto, cancelamento, despesa, correção de km), prazos e lembretes. |
@@ -36,4 +37,35 @@ backend/
 | `auditoria` | empresa + public | AUD | Eventos imutáveis, exportação de dados, anonimização LGPD, retenção após cancelamento. |
 | `relatorios` | empresa | FIN-13, relatórios | Indicadores das telas iniciais, relatórios e DRE (só leitura, a partir dos outros apps). |
 
-A estrutura será criada na tarefa T-001. Os `README.md` de cada app já descrevem o escopo.
+Ordem de dependência entre apps e eventos de domínio: ADR 0011. Teste: `tests/test_limites_entre_apps.py`.
+
+## Fundação (`comum/`, T-001)
+
+| Módulo | Uso |
+| --- | --- |
+| `models.py` | `ModeloBase` (sempre), `ModeloAtivavel`, `ModeloComCodigo` (`PREFIXO_CODIGO = "LOC"`), `Sequencia` |
+| `codigos.py` | `proximo_numero`, `formatar_codigo`, `ajustar_sequencia` (seed) |
+| `campos.py` | `CentavosField`, `CentavosComSinalField`, `PercentualField` |
+| `dinheiro.py` | `aplicar_percentual`, `proporcional`, `dividir_em_parcelas` (ROUND_HALF_UP no centavo) |
+| `estados.py` | `MaquinaDeEstados` (`TRANSICOES`, `REGRA_TRANSICAO`) e `transicionar(obj, status, motivo=...)` |
+| `erros.py` | `ErroDeRegra` 422, `TransicaoInvalida`/`Conflito` 409, `LimiteDoPlano` 422, `EmpresaSemOperacao` 403, handler do DRF |
+| `auditoria.py` | `auditar(obj, acao, categoria)`, `registrar_evento(...)`, `ator_atual()`, `usar_ator(...)` |
+| `eventos.py` | `publicar("<app>.<fato>", ...)`, `assinar`, `@assinante` |
+| `tarefas.py` | `@tarefa_de_empresa`, `na_empresa(schema)`, `para_cada_empresa(tarefa)` |
+| `autenticacao.py` | `emitir_tokens` (claims `schema` e `empresa_id`), `conferir_empresa`, `JWTDaEmpresa` |
+| `permissoes.py` | `EmpresaOperando` (padrão), `exige_perfil(...)` |
+| `paginacao.py` | envelope `resultados`/`proximo`/`anterior` |
+
+Exemplo de model de domínio: `tests/app_exemplo/models.py` (instalado só nos testes).
+
+## Comandos
+
+```
+docker compose up -d backend worker beat
+docker compose run --rm --no-deps backend sh -c "ruff check . && ruff format --check . && mypy . && pytest -q"
+docker compose exec backend python manage.py createsuperuser   # no public: dono da plataforma
+```
+
+Os testes criam as empresas `empresa_a` (`empresa-a.localhost`) e `empresa_b` uma vez por banco de teste (`--reuse-db`). Depois de mudar migração, rode `pytest --create-db`.
+
+O Admin só existe em `admin.localhost:8000/admin/` e exige 2 etapas (OTPAdminSite): crie um dispositivo TOTP para o usuário pelo shell antes do primeiro login.
