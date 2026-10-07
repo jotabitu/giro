@@ -17,3 +17,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-039 · Revisão de segurança do código da T-001 · seguranca · PR #6 · tarefas/handoffs/T-039-seguranca.md · sem altos; C-01 e C-02 na T-033, C-03 e C-05 na T-034, C-04 na T-035
 - T-041 · Critérios de aceite de T-015 a T-018 · produto · PR #6 · tarefas/handoffs/T-041-produto.md · itens 11 a 20 decididos pelo dono
 - T-043 · Contratos da API de financeiro e auditoria · arquiteto · PR #6 · tarefas/handoffs/T-043-arquiteto.md · inclui aprovacoes.md e ADR 0016
+- T-045 · Conferir decisões de implementação da T-001 contra as ADRs · arquiteto · PR #8 · tarefas/handoffs/T-045-arquiteto.md · ADR 0018; pontos distribuídos em T-033, T-034, T-035, T-010, T-011, T-017

@@ -85,19 +85,19 @@ Levantadas pelo arquiteto em T-043 (07 out 2026):
 - **Agente:** backend
 - **Depende de:** T-001
 - **Regras:** CLI-01, AUD-01, AUD-04, AUD-06 · **ADR:** 0014 (itens 2 e 3) · **Segurança:** S-05, S-06, S-07
-- **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA` aplicado por `comum.auditoria` e o teste de arquitetura de campos sensíveis; os testes obrigatórios da ADR 0014 que não dependem de cliente ou sessão; `cryptography` registrada no PR e os três segredos no `.env.example`. Inclui C-01 (diff da auditoria calculado antes da máscara) e C-02 (tarefa com schema apagado não cai no public) da T-039. Bloqueia T-011 e T-014.
+- **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA` aplicado por `comum.auditoria` e o teste de arquitetura de campos sensíveis; os testes obrigatórios da ADR 0014 que não dependem de cliente ou sessão; `cryptography` registrada no PR e os três segredos no `.env.example`. Inclui C-01 (diff da auditoria calculado antes da máscara) e C-02 (tarefa com schema apagado não cai no public) da T-039, e o ator de quem disparou a tarefa em `na_empresa` (ADR 0018 item 3, ponto 1 da T-045). Bloqueia T-011 e T-014.
 
 ### T-034 · Auditoria e Celery endurecidos
 - **Agente:** backend (papéis do banco com ADR do arquiteto e configuração do devops)
 - **Depende de:** T-001
-- **Regras:** AUD-01, AUD-02 · **Segurança:** S-10, S-11, C-03 (IP real atrás do proxy, só de proxies confiáveis), C-05 (trigger sem `TRUNCATE`, mesmo que S-10)
+- **Regras:** AUD-01, AUD-02 · **Segurança:** S-10, S-11, C-03 (IP real atrás do proxy por `X-Forwarded-For`, só de `GIRO_PROXIES_CONFIAVEIS`, ADR 0018 item 4), C-05 (trigger sem `TRUNCATE`, mesmo que S-10)
 - **Pronto quando:** critério do item "[média] Auditoria e Celery endurecidos" de `docs/seguranca/2026-10-07-fundacao.md` (trigger também em `TRUNCATE`, expurgo só com mais de 5 anos, `na_empresa` restaura ator e schema, `task_prerun`/`task_postrun` voltam ao public, cache com `make_key`, `@tarefa_de_empresa` recusa `public` e schema inexistente, tasks recebem só ids).
 
 ### T-035 · Endurecimento de produção
 - **Agente:** devops
 - **Depende de:** T-001, T-002
 - **ADR:** 0016 (papéis de banco separados, S-10) · **Segurança:** S-16, S-17, S-18, C-04 (`wsgi.py`, `asgi.py` e `config/celery.py` sem padrão `dev`; falha se `DJANGO_SETTINGS_MODULE` não vier em produção)
-- **Pronto quando:** `SHOW_PUBLIC_IF_NO_TENANT_FOUND = False` em `prod.py`; HSTS com preload, `Referrer-Policy`, `X-Frame-Options: DENY`, CSP no front; `/api/schema/` e `/api/docs/` fechados em produção; `SIMPLE_JWT["SIGNING_KEY"]` com variável própria. Precisa estar pronta antes do primeiro deploy de homologação.
+- **Pronto quando:** `SHOW_PUBLIC_IF_NO_TENANT_FOUND = False` em `prod.py`; HSTS com preload, `Referrer-Policy`, `X-Frame-Options: DENY`, CSP no front; `/api/schema/` e `/api/docs/` fechados em produção (ponto 5 da T-045; ajuste no backend junto); `GIRO_PROXIES_CONFIAVEIS` e `X-Forwarded-For` no proxy de mesma origem (ADR 0018); `SIMPLE_JWT["SIGNING_KEY"]` com variável própria. Precisa estar pronta antes do primeiro deploy de homologação.
 
 ### T-036 · Contratos da API de contas, veículos e clientes
 - **Agente:** arquiteto
@@ -151,10 +151,10 @@ Levantadas pelo arquiteto em T-043 (07 out 2026):
 ## Fase 1 · MVP
 
 ### T-010 · Plataforma: planos, empresas, criação de schema
-- **Agente:** backend · **Depende de:** T-001, T-006, T-030 · **Regras:** PLT-01, PLT-03, PLT-08, PLT-09 (cobrança, suporte e cancelamento ficam para a fase 2) · **Telas:** Plat-Empresas, Plat-Empresa-Detalhe, Plat-Planos · **Nota:** no MVP a empresa piloto é criada pelo Django Admin; as telas da plataforma ficam para a fase 2. · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-010.md` (CA-010-01 a 17) passam, com o código da regra no nome do teste.
+- **Agente:** backend · **Depende de:** T-001, T-006, T-030 · **Regras:** PLT-01, PLT-03, PLT-08, PLT-09 (cobrança, suporte e cancelamento ficam para a fase 2) · **Telas:** Plat-Empresas, Plat-Empresa-Detalhe, Plat-Planos · **Nota:** no MVP a empresa piloto é criada pelo Django Admin; as telas da plataforma ficam para a fase 2. · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-010.md` (CA-010-01 a 17) passam, com o código da regra no nome do teste. · **Inclui:** `PaginacaoPorCursor` aceita extras no envelope (`contagens`, `indicadores`), ponto 6 da T-045
 
 ### T-011 · Contas, perfis, permissões, 2FA, convite
-- **Agente:** backend · **Depende de:** T-012, T-033 · **ADRs:** 0013, 0014 (sessões) · **Segurança:** S-02, S-03, S-08, S-13 · **Regras:** USR-01 a USR-07 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-011.md` (CA-011-01 a 28) passam, com o código da regra no nome do teste.
+- **Agente:** backend · **Depende de:** T-012, T-033 · **ADRs:** 0013, 0014 (sessões) · **Segurança:** S-02, S-03, S-08, S-13 · **Regras:** USR-01 a USR-07 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-011.md` (CA-011-01 a 28) passam, com o código da regra no nome do teste. · **Inclui:** `Usuario.status` no lugar de `ativo` e e-mail único sem diferenciar maiúsculas (T-045)
 
 ### T-012 · Filiais
 - **Agente:** backend · **Depende de:** T-010, T-030 · **Segurança:** SVG do logo sanitizado e exibido só por `<img>` (S-12) · **Regras:** PLT-03 (limite), USR-07 · **Telas:** Filiais, Filial · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-012.md` (CA-012-01 a 17) passam, com o código da regra no nome do teste.
@@ -173,7 +173,7 @@ Levantadas pelo arquiteto em T-043 (07 out 2026):
 - **Pronto quando:** caso LOC-2836 devolve R$ 183,00 e todos os critérios de `docs/qa/criterios/T-016.md` (CA-016-01 a 20) passam, com o código da regra no nome do teste.
 
 ### T-017 · Contas a receber, caixa do dia, baixa
-- **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 22) passam, com o código da regra no nome do teste.
+- **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 22) passam, com o código da regra no nome do teste. · **Inclui:** `juros_pro_rata` em `comum/dinheiro.py` com um arredondamento só (CA-017-08: Carlos 70, Rafael 1123; ponto 4 da T-045)
 
 ### T-018 · Tela e consulta da auditoria
 - **Agente:** backend · **Depende de:** T-011 · **Regras:** AUD-01 a AUD-03 (o registro dos eventos já vem de T-001) · **Telas:** Admin-Auditoria, Plat-Auditoria · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-018.md` (CA-018-01 a 16) passam, com o código da regra no nome do teste.
