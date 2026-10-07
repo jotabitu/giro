@@ -10,7 +10,7 @@ As pendências de regra foram decididas em 07 out 2026 (seção "Decisões de 07
 - [bloqueada] Busca no INPI da marca "Giro" (classes 42 e 9).
 - [bloqueada] Abrir a conta do Asaas (a integração começa no sandbox, não depende disso).
 
-Levantadas pelo arquiteto em T-006 (07 out 2026). Nenhuma bloqueia a fase 1; o modelo de dados usa a proposta até o produto responder:
+Levantadas pelo arquiteto em T-006 (07 out 2026). Nenhuma bloqueia a fase 1. O produto respondeu em T-031: as recomendações estão em "Pontos em aberto" de `docs/regras-de-negocio.md` (seção "Dúvidas do modelo de dados") e aguardam o dono do produto. Até lá vale o padrão de cada uma, que coincide com a proposta abaixo:
 
 - [decisão] Status que as regras não listam. Proposta: Fatura `aberta`, `paga`, `atrasada`, `cancelada`; Usuário `convite_pendente`, `ativo`, `desativado`; Vistoria `rascunho`, `concluida`; Contrato `gerado`, `enviado`, `assinado`, `cancelado`; Caixa `aberto`, `aguardando_aprovacao` (diferença, APR-04), `fechado`, `fechado_sem_conferencia`; Acesso de suporte `ativo`, `encerrado`, `revogado`; Pedido de aprovação `pendente`, `aprovado`, `recusado`, `cancelado`; Lançamento bancário `pendente`, `conciliado`, `ignorado`.
 - [decisão] [divergência] VEN-07 fala em venda cancelada depois de `vendida`, mas a tabela de estados da venda não tem `cancelada`. Proposta: acrescentar `cancelada`.

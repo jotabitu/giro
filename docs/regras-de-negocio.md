@@ -489,3 +489,30 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 - [ ] **Busca de marca no INPI**: "Giro" é um nome muito usado (o domínio principal já pertence a outra empresa). Antes de investir na marca, buscar "GIRO" nas classes 42 (software como serviço) e 9 (software), não só 39 e 12, e considerar registrar a marca mista "Giro Locadoras". Se houver conflito, trocar o nome agora sai mais barato.
 - [ ] **Abrir a conta no Asaas** e confirmar as taxas de boleto e cartão para o volume esperado.
 - [ ] **Telas que faltam desenhar:** esqueci a senha, 2 etapas, meu perfil, notificações, contas a pagar separada, multas de trânsito, documentos dos veículos, avarias abertas, pagamento e assinatura pelo cliente final, site de vendas.
+
+### Dúvidas do modelo de dados (T-006, 07 out 2026)
+
+Levantadas pelo arquiteto ao desenhar `docs/decisoes/modelo-de-dados.md`. Cada item traz a recomendação do produto e o padrão que vale até o dono do produto aprovar. Nenhuma bloqueia a fase 1.
+
+- [ ] **1. Estados que as regras não listam.** Recomendação: aceitar a proposta do arquiteto. É **só completar a lista de status, sem impacto de negócio**: cada valor sai de uma regra que já existe, e as telas usam os mesmos nomes.
+
+  | Entidade | Estados | De onde vem |
+  | --- | --- | --- |
+  | Fatura da assinatura | `aberta`, `paga`, `atrasada`, `cancelada` | estados da empresa e `PLT-02` |
+  | Usuário | `convite_pendente`, `ativo`, `desativado` | `USR-01`, `USR-04`; filtros de `Admin-Usuarios` (Ativos, Convites pendentes, Desativados) |
+  | Vistoria | `rascunho`, `concluida` | `DEV-05`, `VIS-04` (correção é uma vistoria nova ligada à anterior, não um estado) |
+  | Contrato | `gerado`, `enviado`, `assinado`, `cancelado` | fluxo da retirada, passo 3 |
+  | Caixa do dia | `aberto`, `aguardando_aprovacao`, `fechado`, `fechado_sem_conferencia` | `FIN-07`, `FIN-08`, `APR-04` |
+  | Acesso de suporte | `ativo`, `encerrado`, `revogado` | `PLT-07`, `AUT-15` (`revogado` = o administrador bloqueou) |
+  | Pedido de aprovação | `pendente`, `aprovado`, `recusado`, `cancelado` | seção Aprovações (`cancelado` = a origem deixou de existir ou quem pediu desistiu) |
+  | Lançamento bancário | `pendente`, `conciliado`, `ignorado` | `FIN-11`; abas de `Conciliacao` (A conciliar, Conciliados, Ignorados) |
+
+  Convite vencido (mais de 7 dias, `USR-01`) continua `convite_pendente` com o link expirado e conta no limite até ser reenviado ou cancelado. Padrão até a aprovação: esta tabela.
+
+- [ ] **2. [divergência] Venda cancelada (`VEN-07`).** `VEN-07` e `FIN-09` falam em venda cancelada depois de `vendida`, mas a tabela de estados da venda não tem esse estado, e a tabela de transições do veículo não tem `vendido` → `a_venda`. Recomendação: acrescentar o 7º estado `cancelada`, alcançável só a partir de `vendida` (antes disso, desistência é `perdida`), com motivo obrigatório. Ao cancelar: parcelas em aberto vão para `cancelada`, parcelas pagas são estornadas, a comissão vai para `estornada` (`FIN-09`) e o veículo volta de `vendido` para `a_venda` (transição nova, feita pelo sistema). **Tem impacto de negócio:** falta o dono do produto definir quem pode cancelar uma venda concluída. Padrão sugerido: gerente ou administrador, com motivo e evento de auditoria (opção A); alternativa: qualquer vendedor pede e o gerente aprova pelo mecanismo de aprovações, como `APR-02` (opção B).
+
+- [ ] **3. O que conta como venda aberta.** A regra "uma venda aberta por veículo" (seção Entidades) não diz se `interessado` conta. Recomendação: contam só `proposta`, `negociacao` e `aguardando_aprovacao`. Vários interessados podem registrar contato com a mesma moto, mas só um pode ter proposta em andamento; a lista `Vendas` já separa "Propostas abertas" do funil de interessados. Quando o veículo vira `vendido`, os outros registros `interessado` dele vão para `perdida` com o motivo "veículo vendido". **Impacto de negócio pequeno** (muda quem pode abrir proposta). Padrão até a aprovação: esta recomendação.
+
+- [ ] **4. Arredondamento de valores calculados.** A convenção "arredondamento só na exibição" não cobre percentuais e divisões que geram fração de centavo. Recomendação: aceitar `ROUND_HALF_UP` no centavo (ADR 0009). As contas intermediárias ficam em `Decimal` sem arredondar e cada valor que é gravado ou exibido como linha própria (multa, juros, desconto, comissão, parcela) é arredondado uma vez. Em divisões em parcelas, a diferença de centavos vai para a última parcela, de modo que a soma sempre bate com o total (ADR 0003). Todos os casos de "Dados de referência para testes" dão valores exatos e não mudam (`LOC-12` R$ 84,80, `LOC-13` R$ 286,20, `VEN-02` R$ 21.068,00, `VEN-04` 12 × R$ 1.339,00, `FIN-09` R$ 632,04). **Impacto de negócio mínimo** (no máximo 1 centavo por valor). Padrão até a aprovação: `ROUND_HALF_UP`.
+
+- [ ] **5. Chassi único por empresa.** `VEI-01` e `IMP-02` só exigem placa única e chassi com 17 caracteres. Recomendação: chassi também único por empresa, em todos os estados do veículo. A tela `Onboarding-Importar` já recusa a linha com "Chassi repetido". Veículo que volta para a empresa (recomprado numa troca, `VEN-05`) reaproveita o cadastro existente em vez de criar outro, para o histórico continuar no mesmo veículo. **Impacto de negócio pequeno**, mas a volta pede uma transição nova (`vendido` → `indisponivel` pela troca) que o dono do produto precisa aprovar junto. Padrão até a aprovação: chassi único.
