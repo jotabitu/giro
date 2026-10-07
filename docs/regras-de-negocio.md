@@ -572,7 +572,7 @@ Levantadas pelo arquiteto em `docs/api/locacoes.md` e `docs/api/vistorias.md`. N
   - litros faltantes = capacidade × (nível da saída − nível da chegada);
   - valor = litros × preço + R$ 10,00, com a taxa cobrada **uma vez por devolução**, e só quando falta combustível.
   
-  Para o seed fechar com o `DEV-03` (R$ 32,00): a Factor 150 PNB7C04 tem tanque de 16 L, o preço da Filial Centro é R$ 5,50, a saída foi com tanque cheio e a chegada com 3/4. São 4 L × R$ 5,50 = R$ 22,00, mais R$ 10,00 = R$ 32,00. **Precisa do dono:** A) R$ 10 uma vez por devolução (padrão, igual à proposta do arquiteto); B) R$ 10 por litro, que encarece muito (R$ 62,00 no mesmo caso).
+  Para o seed fechar com o `DEV-03` (R$ 32,00): a Factor 150 PNB7C04 tem tanque de 16 L, o preço da Filial Centro é R$ 5,50, a saída foi com tanque cheio e a chegada com 3/4. São 4 L × R$ 5,50 = R$ 22,00, mais R$ 10,00 = R$ 32,00. A tela `Devolucao` diz "faltou 1/2 tanque"; com meio tanque, nenhum preço realista fecha em R$ 32,00. Por isso vale o valor do seed, e o texto da tela passa a "faltou 1/4 tanque" (T-028). **Precisa do dono:** A) R$ 10 uma vez por devolução (padrão, igual à proposta do arquiteto); B) R$ 10 por litro, que encarece muito (R$ 62,00 no mesmo caso).
 
 - [ ] **16. [divergência] Extras por dia ou por período (`LOC-02`).** A tela `Locacao` mostra o capacete por R$ 3,00/dia; a regra diz por período. Vale a regra, como manda o `CLAUDE.md`, e a tela vai para a T-028. **Sem impacto de negócio**; não precisa do dono.
 
