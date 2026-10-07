@@ -11,11 +11,13 @@ Uma decisão por arquivo. Para mudar uma decisão, escreva uma nova ADR que subs
 | [0005](0005-regras-na-api.md) | Regras de negócio só na API | aceita |
 | [0006](0006-contrato-de-api-primeiro.md) | Contrato da API antes do código | aceita |
 | [0007](0007-pagamentos-asaas.md) | Pagamentos pelo Asaas, com subconta por locadora | aceita |
-| [0008](0008-usuarios-e-autenticacao-por-schema.md) | Usuários e autenticação por schema | aceita |
+| [0008](0008-usuarios-e-autenticacao-por-schema.md) | Usuários e autenticação por schema | aceita, complementada pela 0013 |
 | [0009](0009-fundacao-comum.md) | Fundação comum dos models (`backend/comum/`) | aceita |
-| [0010](0010-auditoria-imutavel.md) | Auditoria imutável em cada schema | aceita |
-| [0011](0011-apps-e-limites.md) | Apps Django, dependências e comunicação entre apps | aceita |
+| [0010](0010-auditoria-imutavel.md) | Auditoria imutável em cada schema | aceita; item 7 substituído pela 0014 |
+| [0011](0011-apps-e-limites.md) | Apps Django, dependências e comunicação entre apps | aceita (Admin fora de `TENANT_APPS` pela 0013) |
 | [0012](0012-tarefas-celery-por-empresa.md) | Tarefas Celery por empresa | aceita |
+| [0013](0013-endurecimento-da-autenticacao.md) | Endurecimento da autenticação (tokens, suporte, 2 etapas, Admin, cookie) | aceita, complementada pela 0014 |
+| [0014](0014-sessoes-e-dados-sensiveis.md) | Sessões revogáveis e dados sensíveis (cifra, HMAC, auditoria) | aceita |
 
 O modelo de dados detalhado fica em [`modelo-de-dados.md`](modelo-de-dados.md).
 

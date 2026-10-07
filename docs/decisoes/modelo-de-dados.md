@@ -11,7 +11,7 @@ Este documento diz, para cada uma das 25 entidades das regras, o app dono, o sch
 - **Ativável** = herda `ModeloAtivavel` (`ativo`). **Código** = herda `ModeloComCodigo` (`numero`, `codigo` único). **Máquina** = herda `MaquinaDeEstados`; as transições permitidas são as das regras.
 - **Origem genérica** = `origem_tipo` (enum), `origem_id` (bigint), `origem_codigo` (texto(20)), com índice `(origem_tipo, origem_id)` (ADR 0011).
 - Os nomes de tabela são os padrão do Django (`<app>_<model>`).
-- "Proposta" marca um conjunto de status que as regras não listam; está em `[decisão]` no backlog para o produto confirmar. O backend pode implementar como está e ajustar se o produto mudar.
+- Os status das entidades sem seção própria nas regras seguem a tabela "Estados das entidades sem seção própria" de `docs/regras-de-negocio.md` (T-031).
 
 ## Visão geral
 
@@ -72,6 +72,8 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | `schema_name` | texto(63), único | do django-tenants; igual ao subdomínio com `_` no lugar de `-` |
 | `razao_social` | texto(150) | |
 | `nome_exibicao` | texto(80) | cópia do nome para o painel da plataforma |
+| `cidade`, `uf` | texto(80), texto(2) | lista de empresas |
+| `responsavel_nome`, `responsavel_email`, `responsavel_telefone` | texto | contato do administrador na compra |
 | `cnpj` | texto(14), único | só dígitos, validado (`CLI-01` vale para CNPJ) |
 | `subdominio` | texto(63), único | `motorapida` |
 | `plano` | FK → `Plano` | |
@@ -91,6 +93,8 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 
 - `auto_create_schema = True`; criação só por `plataforma.services.criar_empresa` (`Compra-Pronto`, ou Django Admin no MVP).
 - Índices: `status`; `(etapa_implantacao, etapa_implantacao_desde)`.
+- O tenant `public` também é uma linha de `Empresa` (exigência do django-tenants); o `id` entra na claim `empresa_id` dos tokens (ADR 0013).
+- Apoio: `UsoEmpresa` (1:1 com `Empresa`): `veiculos`, `filiais`, `usuarios` (int), `locacoes_total` (int), `ultimo_acesso_em` (momento, nulo), `passos_implantacao` (json `{passo: data}`), `aviso_90_enviado` (json `{item: mes}`). Resumo no `public` para a lista da plataforma e para `PLT-03`, mantido por `plataforma.services.atualizar_uso` e corrigido por tarefa noturna (contrato da plataforma).
 - Apoio: `Dominio(DomainMixin)`: `domain` único (`motorapida.girolocadoras.com.br`), `tenant` FK, `is_primary`. O tenant `public` tem `admin.girolocadoras.com.br` e `girolocadoras.com.br`.
 
 ### 3. Fatura da assinatura · `plataforma.FaturaAssinatura` · código `FAT` · máquina
@@ -101,7 +105,7 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | `competencia` | data (dia 1 do mês) | |
 | `valor_centavos` | centavos | |
 | `vencimento` | data | |
-| `status` | enum `aberta`, `paga`, `atrasada`, `cancelada` | **proposta** |
+| `status` | enum `aberta`, `paga`, `atrasada`, `cancelada` | regras, "Estados das entidades sem seção própria" |
 | `forma` | enum `pix`, `boleto`, `cartao`, nulo | |
 | `pago_em` | momento, nulo | |
 | `cobranca_externa_id` | texto(60), nulo, único | id da cobrança no Asaas (conta principal) |
@@ -125,7 +129,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `permissao` | enum `ver`, `ver_editar` | |
 | `inicio`, `fim` | momento | `fim - inicio` ∈ {15 min, 30 min, 1 h} |
 | `encerrado_em` | momento, nulo | |
-| `status` | enum `ativo`, `encerrado`, `revogado` | **proposta**; `revogado` = administrador bloqueou |
+| `status` | enum `ativo`, `encerrado`, `revogado` | `encerrado` = prazo acabou ou o suporte saiu; `revogado` = administrador bloqueou |
 
 - Restrição: `CHECK (fim > inicio)`. Índices: `(status, fim)` para `AUT-15` (a cada minuto); `(empresa, inicio DESC)`.
 
@@ -133,7 +137,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 
 | Model | App | Campos principais |
 | --- | --- | --- |
-| `ContaPagamento` | plataforma | `empresa` (1:1), `provedor` enum `asaas`, `conta_externa_id` único, `chave_api_cifrada` (texto, cifrada; ver segurança), `webhook_token_hash` único, `status` enum `pendente`, `aprovada`, `recusada`. O webhook chega no `public`, acha a empresa pelo token e só então entra no schema dela (ADR 0007). |
+| `ContaPagamento` | plataforma | `empresa` (1:1), `provedor` enum `asaas`, `conta_externa_id` único, `chave_api_cifrada` (`CampoCifrado` com `GIRO_CHAVE_SEGREDOS`, decifrada só em `integracoes/pagamentos/`, ADR 0014), `webhook_token_hash` único, `status` enum `pendente`, `aprovada`, `recusada`. O webhook chega no `public`, acha a empresa pelo token e só então entra no schema dela (ADR 0007). |
 | `Chamado` | plataforma | `numero` (#1042), `empresa` FK, `assunto`, `status`, `responsavel` FK usuário. Fase 2. |
 | `Convite` | contas | ver item 7 (serve aos dois schemas). |
 
@@ -147,11 +151,14 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | --- | --- | --- |
 | `nome` | texto(80), único | Filial Centro |
 | `cnpj` | texto(14), nulo | |
+| `inscricao_estadual`, `inscricao_municipal` | texto(20), nulo | |
+| `telefone`, `whatsapp`, `email` | texto(13), texto(13), email; nulos | contato da filial |
 | `endereco` | campos `cep`, `logradouro`, `numero`, `complemento`, `bairro`, `cidade`, `uf` | |
 | `matriz` | bool | |
-| `horario` | json: `{dia_semana: [{abre, fecha}]}` | `LOC-11` |
+| `horario` | json: `{seg..dom: [{abre, fecha}]}`, até 2 intervalos por dia | `LOC-11`; formato em `docs/api/filiais.md` |
 | `fuso` | texto, fixo `America/Sao_Paulo` | |
 
+- `nome` único com `Lower(nome)`. Campos da tela `Filial` fora das regras ficam fora do modelo até o produto decidir (`docs/api/filiais.md`).
 - Restrições: no máximo uma matriz (`UniqueConstraint(fields=["matriz"], condition=Q(matriz=True))`); a última filial ativa não pode ser desativada (serviço). `PLT-03` checado no serviço de criação.
 - Apoio: `UsuarioFilial` (`usuario` FK → `contas.Usuario` CASCADE, `filial` FK) único por `(usuario, filial)` (`USR-07`, ADR 0008).
 
@@ -165,16 +172,17 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `perfil` | enum `administrador`, `gerente`, `vendedor`, `vistoriador`, `financeiro`, nulo | só no schema da empresa |
 | `funcao_plataforma` | enum `dono`, `suporte`, `financeiro`, `sucesso`, nulo | só no `public` |
 | `permissoes_extras` | `ArrayField(enum)` `aprovar_desconto`, `cancelar_contrato`, `relatorios_todas_filiais` | `USR-03` |
-| `status` | enum `convite_pendente`, `ativo`, `desativado` | **proposta** (`USR-01`, `USR-04`) |
+| `status` | enum `convite_pendente`, `ativo`, `desativado` | `USR-01`, `USR-04`; convite vencido continua `convite_pendente` e conta no limite |
 | `is_active` | propriedade = `status == ativo` | |
 | `is_staff` | bool | acesso ao Django Admin |
-| `exige_2fa` | bool | obrigatório para administrador, financeiro e plataforma (`USR-02`, `PLT-08`) |
+| `exige_2fa` | **propriedade**, não é coluna | derivada do schema, do perfil, de `exige_2fa_todos` e de dispositivo ativo (ADR 0013) |
 | `tentativas_erradas`, `bloqueado_ate` | int, momento nulo | `USR-06`, `PLT-08` |
 | `ultimo_acesso` | momento, nulo | |
 
 - `CHECK ((perfil IS NULL) <> (funcao_plataforma IS NULL))`.
 - 2FA: dispositivos do `django_otp` (TOTP e códigos de recuperação).
 - Contam no limite do plano: `status IN (convite_pendente, ativo)` (`USR-01`, `USR-04`).
+- Apoio `Sessao` (ADR 0014): `usuario` FK, `tipo` enum `desktop`, `celular`, `aparelho`, `ip`, `ultimo_uso`, `expira_em`, `revogada_em` nulo, `revogada_por` FK nulo, `motivo_revogacao`. Índice `(usuario, revogada_em)`. Claim `sid` nos tokens.
 - Apoio `Convite`: `usuario` FK CASCADE, `token_hash` único, `canal` enum `email`, `whatsapp`, `expira_em` (+7 dias), `aceito_em` nulo, `enviado_por` FK.
 
 ### 8. Categoria de veículo · `veiculos.Categoria` · ativável
@@ -194,7 +202,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | Campo | Tipo | Observação |
 | --- | --- | --- |
 | `placa` | texto(7), único | maiúscula, sem hífen; `VEI-01` |
-| `chassi` | texto(17) | `CHECK (char_length(chassi) = 17)`; índice |
+| `chassi` | texto(17), único | `CHECK (char_length(chassi) = 17)`; único em qualquer estado (`VEI-01`) |
 | `renavam` | texto(11), nulo | |
 | `marca`, `modelo` | texto(40), texto(60) | Honda, CG 160 Fan |
 | `ano_fabricacao`, `ano_modelo` | int | |
@@ -210,7 +218,8 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `entrou_na_frota_em` | data | base de `VEI-06` |
 | `km_ultima_manutencao`, `data_ultima_manutencao` | int, data, nulo | `MAN-05` |
 
-- Índices: `(filial, status)`, `categoria`, `chassi`.
+- Índices: `(filial, status)`, `categoria`.
+- Transições extras de T-031: `vendido` → `a_venda` (venda cancelada, `VEN-07`) e `vendido` → `indisponivel` (recompra numa troca: o serviço acha o veículo pelo chassi e reaproveita o cadastro, `VEI-07`).
 - Apoio `HistoricoStatusVeiculo`: `veiculo` FK, `de`, `para`, `em` momento, `origem` genérica, `por` FK nulo. Base de `VEI-06` (ocupação). Índice `(veiculo, em)`.
 - Apoio `LeituraKm`: `veiculo`, `km`, `lido_em`, `origem` genérica (vistoria, OS, correção), `motivo` (correção para baixo, `APR-06`).
 - Apoio `TransferenciaVeiculo`: `veiculo`, `filial_origem`, `filial_destino`, `em`, `por` (`VEI-04`).
@@ -233,12 +242,13 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | --- | --- | --- |
 | `tipo` | enum `pf`, `pj` | |
 | `nome` | texto(150) | nome ou razão social |
-| `documento` | texto(14), único | CPF ou CNPJ, só dígitos (`CLI-01`) |
+| `documento` | `CampoCifrado` | CPF ou CNPJ, só dígitos (ADR 0014) |
+| `documento_hash` | `CampoHashBusca`, **único** | HMAC do documento normalizado; unicidade e busca exata (`CLI-01`) |
 | `nascimento` | data, nulo | PF |
 | `celular`, `email` | texto(13), email | |
 | `profissao` | texto(80), nulo | |
-| `cnh_numero`, `cnh_categoria`, `cnh_validade`, `cnh_primeira_habilitacao` | texto(11), texto(3), data, data | do PF ou do condutor responsável na PJ (`CLI-02`) |
-| `responsavel_nome`, `responsavel_cpf` | texto, nulo | PJ |
+| `cnh_numero` (`CampoCifrado`) + `cnh_hash` (índice), `cnh_categoria`, `cnh_validade`, `cnh_primeira_habilitacao` | cifrado, hash, texto(3), data, data | do PF ou do condutor responsável na PJ (`CLI-02`) |
+| `responsavel_nome`, `responsavel_cpf` (`CampoCifrado`) + `responsavel_cpf_hash` (índice) | texto, cifrado, hash; nulos | PJ |
 | endereço | `cep`, `logradouro`, `numero`, `complemento`, `bairro`, `cidade`, `uf` | |
 | `referencia_nome`, `referencia_parentesco`, `referencia_telefone` | texto | |
 | `status` | enum `incompleto`, `ativo`, `bloqueado`, `inativo` | |
@@ -247,7 +257,8 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `anonimizado_em` | momento, nulo | `AUD-06` |
 | `cliente_desde` | data | `CLI-06` |
 
-- Índices: `status`; `Lower(nome)` com `gin_trgm_ops` para a busca; `cnh_validade`.
+- Índices: `status`; `Lower(nome)` com `gin_trgm_ops` para a busca por nome; `cnh_validade`. Busca por CPF/CNPJ é exata, pelo hash.
+- `CAMPOS_AUDITORIA`: cifrados omitidos; nome, nascimento, contatos, endereço e referência mascarados (ADR 0014).
 - `total_pago` e `valor_em_aberto` (`CLI-06`) são calculados por selector a partir do financeiro, não guardados.
 - Apoio `DocumentoCliente`: `cliente`, `tipo` enum `cnh_frente`, `cnh_verso`, `selfie_documento`, `comprovante_residencia`, `arquivo`, ativável. O cliente sai de `incompleto` quando tem os 4 ativos (`CLI-03`).
 
@@ -306,7 +317,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `locacao` | FK → `Locacao` | |
 | `veiculo` | FK → `Veiculo` | pode diferir do atual após troca (`LOC-09`) |
 | `tipo` | enum `saida`, `devolucao` | |
-| `status` | enum `rascunho`, `concluida` | **proposta** (`DEV-05`, `VIS-04`) |
+| `status` | enum `rascunho`, `concluida` | `DEV-05`, `VIS-04` |
 | `km` | int | `VEI-01` |
 | `combustivel` | enum `reserva`, `um_quarto`, `meio`, `tres_quartos`, `cheio` | `VIS-03` |
 | `itens` | json `[{item, ok, observacao}]` | `VIS-02` |
@@ -330,7 +341,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `tipo` | enum `contrato`, `aditivo` | aditivo da renovação (`LOC-08`) |
 | `pdf` | arquivo, nulo | WeasyPrint, com a marca da locadora |
 | `hash_pdf` | texto(64) | SHA-256 do PDF assinado |
-| `status` | enum `gerado`, `enviado`, `assinado`, `cancelado` | **proposta** |
+| `status` | enum `gerado`, `enviado`, `assinado`, `cancelado` | fluxo da retirada, passo 3 |
 | `assinado_em` | momento, nulo | |
 | `assinado_ip` | IP, nulo | |
 | `assinatura_aparelho` | texto, nulo | |
@@ -353,6 +364,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 
 - Versionado: editar um modelo publicado cria nova linha com `versao + 1`; a anterior não muda. Único `(grupo, versao)`. Um publicado vigente por `(grupo)`.
 - `IMP-04`: sem modelo publicado de `locacao`, o serviço recusa concluir a locação.
+- Segurança (S-09, relatório T-032): o `texto` aceita só marcadores de uma lista fechada (`{{cliente.nome}}`, `{{locacao.codigo}}` etc.), trocados por texto já escapado, sem motor de template sobre o texto do usuário; marcador fora da lista é recusado ao publicar. O HTML é sanitizado para poucas tags (sem `img` externa, `style`, `link`, `script`, `iframe`). O PDF sai numa task Celery com tempo limite, e o `url_fetcher` do WeasyPrint só aceita o logo da própria empresa no storage do schema atual. A lista de marcadores sai no contrato da T-015.
 
 ### 17. Venda · `vendas.Venda` · código `VEN` · máquina
 
@@ -371,10 +383,13 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `juros_pct` | pct | padrão 0 (`VEN-04`) |
 | `troca_veiculo` | FK → `Veiculo`, nulo | `VEN-05` |
 | `troca_valor_centavos` | centavos, nulo | |
-| `status` | enum `interessado`, `proposta`, `negociacao`, `aguardando_aprovacao`, `vendida`, `perdida` (+ `cancelada`, ver decisão) | |
+| `status` | enum `interessado`, `proposta`, `negociacao`, `aguardando_aprovacao`, `vendida`, `perdida`, `cancelada` | `cancelada` só a partir de `vendida`, por gerente ou administrador, com motivo (`VEN-07`) |
+| `cancelada_em`, `motivo_cancelamento`, `cancelada_por` | momento, texto, FK; nulos | `VEN-07` |
+| `motivo_perda` | texto, nulo | ex.: "veículo vendido" (`VEN-10`) |
 | `proposta_enviada_em`, `vendida_em` | momento, nulo | `perdida` com 7 dias sem resposta |
 
-- **Uma venda aberta por veículo:** `UniqueConstraint(fields=["veiculo"], condition=Q(status__in=[...abertos]))`. Quais status contam como "aberta" está em `[decisão]`.
+- **Uma venda aberta por veículo (`VEN-10`):** `UniqueConstraint(fields=["veiculo"], condition=Q(status__in=["proposta", "negociacao", "aguardando_aprovacao"]), name="uma_venda_aberta_por_veiculo")`. Vários `interessado` podem existir para o mesmo veículo; quando ele vira `vendido`, o serviço passa os outros `interessado` dele para `perdida` com `motivo_perda` "veículo vendido".
+- `VEN-07`: o cancelamento cancela as parcelas em aberto, estorna as pagas, estorna a comissão e devolve o veículo para `a_venda`, tudo na mesma transação.
 - Apoio `MetaVenda`: `vendedor`, `mes` (data dia 1), `valor_centavos`; único `(vendedor, mes)` (`VEN-09`). Fase 2.
 
 ### 18. Conta a receber · `financeiro.ContaReceber` · máquina
@@ -451,7 +466,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `esperado_centavos` | centavos, nulo | troco + entradas em dinheiro − saídas em dinheiro (`FIN-07`) |
 | `diferenca_centavos` | centavos±, nulo | |
 | `motivo_diferenca` | texto, nulo | |
-| `status` | enum `aberto`, `aguardando_aprovacao`, `fechado`, `fechado_sem_conferencia` | **proposta** (`aguardando_aprovacao` para `APR-04`) |
+| `status` | enum `aberto`, `aguardando_aprovacao`, `fechado`, `fechado_sem_conferencia` | `FIN-07`, `FIN-08`, `APR-04` |
 | `fechado_por`, `fechado_em` | FK nulo, momento nulo | |
 
 - **Único `(filial, data)`** (`FIN-07`). Índice `(status, data)` para `AUT-08`.
@@ -481,7 +496,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `valor_centavos` | centavos± | crédito positivo, débito negativo |
 | `identificador_externo` | texto(100) | FITID do OFX ou id da integração |
 | `pagador` | texto(150), nulo | |
-| `status` | enum `pendente`, `conciliado`, `ignorado` | **proposta** (`FIN-11`) |
+| `status` | enum `pendente`, `conciliado`, `ignorado` | `FIN-11` |
 | `conciliado_com` | origem genérica, nulo | conta a receber, despesa ou movimento |
 | `sugestoes` | json | pares sugeridos (valor, data ±3 dias, nome) |
 
@@ -512,7 +527,7 @@ Campos, índices e imutabilidade na ADR 0010. Existe nos dois schemas. Apoio `Ex
 | Model | App | Campos principais |
 | --- | --- | --- |
 | `ConfiguracaoEmpresa` (uma linha só) | empresas | marca: `nome_exibicao`, `logo` (SVG), `cor_marca` (hex), `cor_marca_suave`, `cor_sobre_marca` calculada (ADR 0004); ramo: `trabalha_com` (motos/carros/ambos), `atividade` (aluga/vende/ambos); regras configuráveis: `tolerancia_atraso_minutos` (60), `taxa_combustivel_centavos` (1000), `desconto_sem_aprovacao_pct` (5.00), `limite_aprovacao_despesa_centavos` (50000), `multa_atraso_pct` (2.00, teto 2), `juros_mes_pct` (1.00, teto 1), `comissao_venda_pct` (3.00), `comissao_locacao_centavos` (1600), `exige_2fa_todos` (bool); `etapas_implantacao_concluidas` (lista). Os tetos de `FIN-03` são `CHECK` no banco. |
-| `PedidoAprovacao` | aprovacoes | `tipo` enum `APR-01` a `APR-06`, origem genérica, `solicitante` FK, `aprovador` FK nulo, `valor_centavos` ou `pct` nulos, `dados` json, `status` enum `pendente`, `aprovado`, `recusado`, `cancelado` (**proposta**), `motivo_recusa`, `decidido_em`, `lembrete_enviado_em` (`APR-08`). `CHECK (aprovador_id <> solicitante_id)` (`APR-09`). Um `pendente` por `(tipo, origem_tipo, origem_id)`. |
+| `PedidoAprovacao` | aprovacoes | `tipo` enum `APR-01` a `APR-06`, origem genérica, `solicitante` FK, `aprovador` FK nulo, `valor_centavos` ou `pct` nulos, `dados` json, `status` enum `pendente`, `aprovado`, `recusado`, `cancelado` (quem pediu desistiu ou a origem deixou de existir), `motivo_recusa`, `decidido_em`, `lembrete_enviado_em` (`APR-08`). `CHECK (aprovador_id <> solicitante_id)` (`APR-09`). Um `pendente` por `(tipo, origem_tipo, origem_id)`. |
 | `Notificacao` | notificacoes | `destinatario` FK usuário, `tipo`, `titulo`, `link`, `lida_em`. Índice `(destinatario, lida_em)`. |
 | `PreferenciaNotificacao` | notificacoes | `usuario`, `tipo`, `canais` (lista enum `sino`, `push`, `email`, `whatsapp`). Único `(usuario, tipo)`. |
 | `MensagemEnviada` | notificacoes | `canal`, `destino` (mascarado), `modelo`, origem genérica, `status` enum `na_fila`, `enviada`, `falhou`, `externo_id`. Idempotência das réguas. |
@@ -524,12 +539,12 @@ Campos, índices e imutabilidade na ADR 0010. Existe nos dois schemas. Apoio `Ex
 
 | Restrição | Onde | Regra |
 | --- | --- | --- |
-| Placa única por empresa | `Veiculo.placa` único no schema | `VEI-01` |
+| Placa e chassi únicos por empresa, em qualquer estado | `Veiculo.placa` e `Veiculo.chassi` únicos no schema | `VEI-01` |
 | Chassi com 17 caracteres | `CHECK` em `Veiculo.chassi` | `VEI-01` |
 | Km nunca diminui | serviço `veiculos.services.atualizar_km` (correção só com `APR-06`) | `VEI-01` |
-| CPF/CNPJ único por empresa | `Cliente.documento` único no schema | `CLI-01` |
+| CPF/CNPJ único por empresa | `Cliente.documento_hash` único no schema | `CLI-01` |
 | Uma locação aberta por veículo | índice único parcial em `Locacao.veiculo` | regras, "Entidades" |
-| Uma venda aberta por veículo | índice único parcial em `Venda.veiculo` | regras, "Entidades" |
+| Uma venda aberta por veículo | índice único parcial em `Venda.veiculo` | `VEN-10` |
 | Um caixa por filial por dia | único `(filial, data)` | `FIN-07` |
 | Uma matriz por empresa | único parcial em `Filial.matriz` | — |
 | Quem pede não aprova | `CHECK` em `PedidoAprovacao` | `APR-09` |
