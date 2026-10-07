@@ -5,6 +5,7 @@ Dono: agente **devops**. Leia `.claude/agents/devops.md`.
 ```
 infra/
 ├── docker/        Dockerfiles de backend (também worker e beat) e frontend, entrypoint do backend
+├── postgres/      SQL de inicialização do banco: papéis da ADR 0016 (01-papeis.sh)
 ├── scripts/       verificações de infra (check-env.sh)
 ├── deploy/        homologação e produção (a definir em ADR: AWS, GCP ou VPS)
 └── backup/        scripts de backup diário e teste de restauração
@@ -54,3 +55,24 @@ No Windows, `make` não vem instalado: use Git Bash ou WSL, ou rode os comandos 
 ## Ainda não coberto por esta tarefa
 
 CI (T-005), homologação e produção, certificado curinga, backup e Sentry no frontend ficam em tarefas próprias.
+
+## Papéis de banco (ADR 0016, T-043)
+
+| Papel | Uso | Variável |
+| --- | --- | --- |
+| `giro_migracao` | dono dos schemas e tabelas; `migrate_schemas` e criação de schema de empresa | `DATABASE_URL_MIGRACAO` |
+| `giro_app` | requisições Django e Celery; sem DDL; auditoria só `SELECT` e `INSERT` | `DATABASE_URL` |
+| `giro_expurgo` | dono da função `auditoria_expurgar` (sem login) | nenhuma |
+
+`infra/postgres/01-papeis.sh` cria os três, dá a `giro_migracao` o schema `public` e `CREATE` no banco, e deixa `giro_app` com `SELECT/INSERT/UPDATE/DELETE` por privilégio padrão no `public`. Roda só quando o volume do Postgres é criado (`make down V=1` para refazer). Testado num Postgres 16 limpo: `giro_app` não cria tabela nem schema e lê e escreve em tabela criada por `giro_migracao`.
+
+**Dev:** `DATABASE_URL` e `DATABASE_URL_MIGRACAO` apontam para o superusuário do container (ADR 0016, item 5); os valores com papéis separados estão comentados em `.env.example`.
+
+**O que o backend precisa fazer (ainda não feito):**
+- Ler `DATABASE_URL_MIGRACAO` e usá-la em `migrate_schemas` e em `plataforma.services.criar_empresa`; o entrypoint (`backend-entrypoint.sh`) deve migrar com ela.
+- A rotina que cria o schema de empresa aplica os `GRANT` do schema (`ALTER DEFAULT PRIVILEGES` para `giro_app`, `REVOKE UPDATE, DELETE, TRUNCATE` na auditoria) e cria `auditoria_expurgar` com dono `giro_expurgo`.
+- Os testes de imutabilidade sobem com `giro_app`.
+
+**Ambientes (homologação e produção):** rodar o mesmo SQL no banco gerenciado, com senhas geradas e guardadas no cofre do ambiente, nunca as de dev. Credencial de `giro_migracao` só no job de deploy; `giro_app` no serviço em execução.
+
+**CI:** continua com um papel só. Passa a usar os papéis separados no mesmo PR em que o backend ler `DATABASE_URL_MIGRACAO` (job `backend` ganha o `01-papeis.sh` no service Postgres).
