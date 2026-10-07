@@ -2,6 +2,7 @@
 export const CATALOGO = [
   { slug: "alert-card", nome: "AlertCard", resumo: "Resumo do que pede ação hoje" },
   { slug: "button", nome: "Button", resumo: "Sólido, cor da empresa, padrão, quieto e botão de ícone" },
+  { slug: "codigo-verificacao", nome: "CodigoVerificacao", resumo: "Código de 6 dígitos das 2 etapas, com colar, teclado e erro" },
   { slug: "cover", nome: "Cover", resumo: "Capa com as cores dos tokens" },
   { slug: "data-table", nome: "DataTable", resumo: "Lista de contratos com placa, cliente e situação" },
   { slug: "fleet-bar", nome: "FleetBar", resumo: "Distribuição da frota por status" },

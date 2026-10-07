@@ -1,5 +1,6 @@
 export { AlertCard, type ItemAlerta } from "./AlertCard/AlertCard";
 export { Button, IconButton, type BotaoIconeProps, type BotaoProps, type VarianteBotao } from "./Button/Button";
+export { CodigoVerificacao, type CodigoVerificacaoProps } from "./CodigoVerificacao/CodigoVerificacao";
 export { Cover } from "./Cover/Cover";
 export { CelulaDupla, DataTable, type ColunaTabela } from "./DataTable/DataTable";
 export { FleetBar, type SegmentoFrota } from "./FleetBar/FleetBar";
