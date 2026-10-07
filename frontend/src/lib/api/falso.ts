@@ -60,7 +60,13 @@ function montarEu(c: Conta): Eu {
   };
 }
 
-const pausa = (ms = 250) => new Promise((r) => setTimeout(r, ms));
+/** Perfil de quem está logado (para os outros módulos falsos decidirem o que devolver, como a API faria). */
+export function perfilAtualFalso(): Perfil | null {
+  const id = access?.split(".")[1];
+  return CONTAS.find((x) => String(x.id) === id)?.perfil ?? null;
+}
+
+export const pausa = (ms = 250) => new Promise((r) => setTimeout(r, ms));
 const CHAVE_SESSAO = "giro_falso_sessao"; // faz o papel do cookie de refresh
 let access: string | null = null;
 let tentativas = 0;
