@@ -39,4 +39,4 @@ Conferi os critérios contra `financeiro.md`, `auditoria.md` e `filiais.md` da b
 - auditoria: suporte recebe 403 `PLT-07`; exportação com 302, 410 `exportacao_expirada` e 403 `2fa_recente`;
 - devolução por Pix vira `Reembolso` `a_fazer` (T-015, T-016).
 
-Nova dúvida, item 21 (reembolso por Pix manual no MVP), com o dono; o padrão A é o que está nos critérios.
+Item 21 (reembolso por Pix manual no MVP) decidido pelo dono em 07 out 2026 na opção A e registrado na `DEV-02`; os critérios já seguiam essa opção.
