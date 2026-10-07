@@ -29,11 +29,12 @@ A 0009 dava como exemplo `REGRA_TRANSICAO = "VEI-xx"`. As tabelas de transição
 Com frontend e API na mesma origem (ADR 0013), toda requisição chega ao Django pelo proxy, e `REMOTE_ADDR` é o IP do proxy. O IP gravado na auditoria (`AUD-01`) e usado nos bloqueios de login e nos limites por IP sai de uma função só, `comum.rede.ip_do_cliente(request)`, com estas regras:
 
 - **Só confia no `X-Forwarded-For` se `REMOTE_ADDR` for de um proxy confiável**, ou seja, estiver numa das redes de `GIRO_REDES_PROXY` (lista de CIDR por ambiente). Quem chega direto ao backend, de fora dessas redes, tem o cabeçalho ignorado e vale o `REMOTE_ADDR`. O devops garante também, pela rede, que o Django só é alcançável pelo proxy.
-- Confiando, conta **da direita** o número de proxies em `GIRO_PROXIES_CONFIAVEIS` (padrão 1) e pega a entrada seguinte. Nunca o primeiro valor da lista, que o cliente pode forjar.
+- Confiando, com N = `GIRO_PROXIES_CONFIAVEIS` (padrão 1), o IP do cliente é **`xff[-N]`**, a N-ésima entrada contando da direita. O proxy mais próximo é o próprio `REMOTE_ADDR` e não aparece na lista; o que ele acrescenta (o IP de quem falou com ele) é a última entrada. Nunca o primeiro valor da lista, que o cliente pode forjar.
+  Exemplo: N = 1, `REMOTE_ADDR` = proxy, `X-Forwarded-For: 1.2.3.4, 203.0.113.9` → cliente **203.0.113.9** (o `1.2.3.4` foi forjado pelo cliente).
 - Se o `X-Forwarded-For` tiver menos entradas do que `GIRO_PROXIES_CONFIAVEIS`, ou um valor que não é IP, vale o `REMOTE_ADDR`, não o primeiro valor.
 - Sem o cabeçalho (dev sem proxy), vale o `REMOTE_ADDR`.
 
-Teste: `test_ip_do_cliente_ignora_xff_forjado_sem_proxy`, além de um com proxy confiável e de um com o cabeçalho curto. *(Os dois últimos casos foram acrescentados pela segurança na conferência, achado C-03 da T-039.)*
+Testes: `test_ip_do_cliente_ignora_xff_forjado_sem_proxy`, um com proxy confiável usando o exemplo acima (resultado 203.0.113.9, nunca 1.2.3.4) e um com o cabeçalho curto. *(Os dois últimos casos foram acrescentados pela segurança na conferência, achado C-03 da T-039.)*
 
 ## Consequências
 
