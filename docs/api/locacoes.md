@@ -16,7 +16,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 12 e 13 (`PlanoEspeci
 | Planos especiais | sim | — | — | — | — |
 
 - Permissão extra `aprovar_desconto` dá ao vendedor o direito de aprovar pedidos de outros (`USR-03`); quem pediu nunca aprova o próprio (`APR-09`).
-- Gerente cancela direto pelo mesmo raciocínio do padrão A do desbloqueio de cliente (T-037): com um gerente só, todo pedido dele iria para o administrador. Fica em `[decisão]` junto do desbloqueio.
+- Gerente cancela e dá desconto acima do limite direto, como no desbloqueio de cliente: padrão do produto (item 19 de "Pontos em aberto"), com o dono. Só o vendedor pede.
 - O vistoriador recebe a representação sem nenhum campo `_centavos` (`Vistoriador`: "Valores e dados de pagamento ficam ocultos").
 
 ## Ciclo de vida
@@ -173,7 +173,7 @@ Botões "Continuar para vistoria" e "Salvar como reserva". Corpo: `{ "primeiro_v
 - Cria as contas a receber em `financeiro`: as parcelas até o `fim_previsto` e a caução (`tipo = caucao`), todas com origem nesta locação.
 - Se o `inicio` é futuro (data posterior a hoje na filial), o veículo vai para `reservado`; senão fica `disponivel` até a ativação.
 - Desconto acima do limite: cria o pedido `APR-01` e devolve `"desconto": { "status": "pendente", "pedido_aprovacao_id": 88 }`. As parcelas nascem com o preço sem desconto e o contrato não é gerado até a decisão; aprovado, as parcelas abertas são refeitas com o desconto; recusado, o desconto volta a 0 e o vendedor é avisado com o motivo.
-- Comissão de locação nova (`FIN-09`, R$ 16,00) é lançada como `pendente` para o vendedor e confirmada na ativação.
+- Comissão de locação nova (`FIN-09`, R$ 16,00) é lançada como `pendente` para o vendedor, vira `confirmada` na ativação e `estornada` só se a locação for cancelada antes da retirada; o encerramento antecipado não estorna (item 20, decidido).
 Erros:
 409 `{ "codigo": "LOC-03", "mensagem": "Veículo indisponível no período" }` (inclusive pela restrição de uma locação aberta por veículo).
 422 `CLI-05`, `cliente_inativo`, `CLI-02` (impedimentos da simulação).
@@ -203,7 +203,7 @@ Perfis: quem cria. Só em `ativa` ou `devolucao_atrasada`. Corpo: `{ "periodos":
 Simular devolve as novas parcelas; renovar (`LOC-08`):
 - Estende o `fim_previsto` e cria as novas parcelas na mesma locação (não cria outro `LOC-`).
 - Usa o preço vigente hoje (`LOC-15`: renovação usa o preço novo) e atualiza `valor_periodo_centavos` dali em diante.
-- Gera um aditivo pelo app `contratos` (`tipo = aditivo`) e o envia. Se a renovação depende ou não da assinatura do aditivo está em `[decisão]`; até a resposta, a renovação vale na hora e o aditivo segue para assinatura.
+- Gera um aditivo pelo app `contratos` (`tipo = aditivo`) e o envia. A renovação vale na hora; se o aditivo não for assinado em 7 dias, os gerentes da filial recebem uma tarefa (item 17, decidido).
 - Não gera comissão (`FIN-09`).
 - `devolucao_atrasada` renovada volta a `ativa` se o novo fim for futuro; o atraso já corrido continua cobrado na devolução.
 200: detalhe.
@@ -213,7 +213,9 @@ Perfis: quem cria. Só em `ativa`. Corpo: `{ veiculo_novo_id, motivo }`.
 202: `{ "troca": { "id", "status": "pendente", "devolucao_vistoria_id", "saida_vistoria_id" } }`. Abre as duas vistorias (devolução do atual e saída do novo, `vistorias.md`) e reserva o novo veículo.
 Quando as duas são concluídas: o trecho atual fecha (`TrechoLocacao.fim`), o novo começa, o veículo antigo segue a regra da devolução (`disponivel` ou `em_manutencao`, `DEV-04`), o novo vira `alugado`, e o valor passa a ser o da nova categoria a partir da troca (`LOC-09`): as parcelas abertas com vencimento posterior são refeitas.
 422 `LOC-03` (veículo novo indisponível), `FIL-05` (de outra filial), `CLI-02` (CNH sem a categoria).
-O que acontece com a caução (categoria com caução diferente) e com cobranças da vistoria do veículo antigo está em `[decisão]`.
+Caução e cobranças na troca (padrão do produto, item 18, com o dono):
+- Caução da nova categoria **maior**: a diferença vira conta a receber (`tipo = caucao`) na hora, e o veículo novo só sai depois de paga.
+- Caução **menor** e cobranças da vistoria do veículo antigo não geram conta na troca: vão para o acerto final da locação, descontadas da caução total paga (um acerto só por locação, `vistorias.md`).
 
 ### Cancelamento e encerramento antecipado (LOC-12, LOC-13, APR-02)
 

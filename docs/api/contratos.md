@@ -104,7 +104,7 @@ Público. Corpo: `{ token, aceite: true, nome_completo }`. `nome_completo` preci
 
 ### Aditivo de renovação (LOC-08)
 
-`locacoes.services.renovar` chama `contratos.services.gerar_aditivo(locacao)`: mesmo fluxo, `tipo = aditivo`, com o texto padrão de aditivo (novo fim, novo valor e parcelas). Se a vigência da renovação depende da assinatura está em `[decisão]` (ver `locacoes.md`).
+`locacoes.services.renovar` chama `contratos.services.gerar_aditivo(locacao)`: mesmo fluxo, `tipo = aditivo`, com o texto padrão de aditivo (novo fim, novo valor e parcelas). A renovação vale na hora; aditivo não assinado em 7 dias (o prazo do link) gera tarefa para os gerentes da filial.
 
 ### Interface interna
 

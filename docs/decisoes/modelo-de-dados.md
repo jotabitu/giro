@@ -153,6 +153,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `cnpj` | texto(14), nulo | |
 | `inscricao_estadual`, `inscricao_municipal` | texto(20), nulo | |
 | `telefone`, `whatsapp`, `email` | texto(13), texto(13), email; nulos | contato da filial |
+| `preco_combustivel_litro_centavos` | centavos, nulo | preço da bomba usado no acerto (`DEV-01`); seed Filial Centro = 550 |
 | `endereco` | campos `cep`, `logradouro`, `numero`, `complemento`, `bairro`, `cidade`, `uf` | |
 | `matriz` | bool | |
 | `horario` | json: `{seg..dom: [{abre, fecha}]}`, até 2 intervalos por dia | `LOC-11`; formato em `docs/api/filiais.md` |
@@ -209,6 +210,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `ano_fabricacao`, `ano_modelo` | int | |
 | `cor` | texto(30) | |
 | `km_atual` | int ≥ 0 | só sobe (`VEI-01`); muda por serviço |
+| `capacidade_tanque_litros` | `Decimal(5,1)`, nulo | base do combustível no acerto (`DEV-01`); seed PNB7C04 = 16.0 |
 | `categoria` | FK → `Categoria` | |
 | `filial` | FK → `Filial` | |
 | `status` | enum `disponivel`, `reservado`, `alugado`, `em_manutencao`, `indisponivel`, `a_venda`, `vendido`, `baixado` | transições da seção "Veículos" (`REGRA_TRANSICAO` = `VEI`) |
@@ -335,7 +337,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 - Concluída não se edita (o serviço recusa). Único: uma vistoria `concluida` vigente por `(locacao, veiculo, tipo)` que não tenha sido substituída.
 - Apoio `FotoVistoria`: `vistoria`, `posicao` enum `frente`, `traseira`, `lado_esquerdo`, `lado_direito`, `painel`, `avaria`, `arquivo`. Conclusão exige as 5 posições fixas (`VIS-01`).
 - Apoio `Avaria`: `vistoria`, `veiculo`, `descricao`, `preexistente` bool, `valor_centavos` nulo, `vai_para_oficina` bool (`DEV-04`), `foto` FK, `ordem_servico` FK nulo, `resolvida_em` momento nulo (fecha quando a OS ligada é concluída). Índice `(veiculo, resolvida_em)` para "avarias abertas".
-- Apoio `Devolucao` (`DEV-01`, `DEV-02`; `docs/api/vistorias.md`): `locacao` (1:1), `vistoria` FK (chegada), `status` enum `rascunho`, `concluida`, `caucao_centavos`, `saldo_centavos` (centavos±), `forma_devolucao` enum `pix`, `dinheiro`, `estorno_cartao`, nulo, `concluida_em`. Filho `ItemAcerto`: `tipo` enum `combustivel`, `avaria`, `atraso`, `km_excedente`, `parcela_aberta`, `multa_transito`, `multa_encerramento`, `semanas_nao_usadas` (crédito, `LOC-13`), `natureza` enum `cobranca`, `credito`, `modo` enum `informado`, `calculado`, `valor_centavos`, `descricao`, `avaria` FK nulo. Saldo = caução + créditos − cobranças. Exemplo LOC-2836: 3200 + 8500 = 11700; saldo 30000 − 11700 = 18300.
+- Apoio `Devolucao` (`DEV-01`, `DEV-02`; `docs/api/vistorias.md`; um acerto só por locação, criado na primeira troca de veículo ou na devolução): `locacao` (1:1), `vistoria` FK (chegada), `status` enum `rascunho`, `concluida`, `caucao_centavos`, `saldo_centavos` (centavos±), `forma_devolucao` enum `pix`, `dinheiro`, `estorno_cartao`, nulo, `concluida_em`. Filho `ItemAcerto`: `tipo` enum `combustivel`, `avaria`, `atraso`, `km_excedente`, `parcela_aberta`, `multa_transito`, `multa_encerramento`, `semanas_nao_usadas` (crédito, `LOC-13`), `natureza` enum `cobranca`, `credito`, `modo` enum `informado`, `calculado`, `valor_centavos`, `descricao`, `avaria` FK nulo. Saldo = caução + créditos − cobranças. Exemplo LOC-2836: 3200 + 8500 = 11700; saldo 30000 − 11700 = 18300.
 
 ### 15. Contrato · `contratos.Contrato` · máquina
 

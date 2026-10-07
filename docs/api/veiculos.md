@@ -32,7 +32,7 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
   "filial": { "id": 1, "nome": "Filial Centro" },
   "status": "disponivel",
   "motivo_status": null,
-  "km_atual": 3120, "km_atualizado_em": "2026-10-07T11:00:00Z",
+  "km_atual": 3120, "km_atualizado_em": "2026-10-07T11:00:00Z", "capacidade_tanque_litros": "16.0",
   "preco_vigente": { "diaria_centavos": 5490, "semanal_centavos": 32900, "mensal_centavos": 119000, "caucao_centavos": 30000 },
   "valor_venda_centavos": null, "referencia_fipe_centavos": null,
   "valor_compra_centavos": 1390000, "data_compra": "2025-03-10",
@@ -91,7 +91,7 @@ Query: `?status=`, `?tipo_veiculo=moto|carro`, `?categoria=<id>`, `?busca=` (pla
 
 ### POST /api/veiculos/
 Perfis: administrador, gerente.
-Corpo: `{ placa, chassi, renavam?, marca, modelo, ano_fabricacao, ano_modelo, cor, km_atual, categoria_id, filial_id, valor_compra_centavos?, data_compra?, entrou_na_frota_em? }`.
+Corpo: `{ placa, chassi, renavam?, marca, modelo, ano_fabricacao, ano_modelo, cor, km_atual, categoria_id, filial_id, capacidade_tanque_litros?, valor_compra_centavos?, data_compra?, entrou_na_frota_em? }`. Sem `capacidade_tanque_litros`, o combustível do acerto é informado à mão (`DEV-01`).
 201: representação (status `disponivel`).
 400 `validacao`: placa ou chassi fora do formato, categoria de outra filial, ano inválido.
 409 `{ "codigo": "VEI-01", "mensagem": "Já existe um veículo com esta placa", "detalhes": { "campo": "placa", "veiculo_id": 77 } }`; o mesmo para `chassi`. Vale para veículo em qualquer estado, inclusive `vendido` e `baixado`.
@@ -101,7 +101,7 @@ Recompra numa troca (`VEN-05`, `VEI-07`) não passa por aqui: a venda chama `vei
 Regras: VEI-01, PLT-03.
 
 ### PATCH /api/veiculos/{id}/
-Perfis: administrador, gerente. Corpo: `renavam`, `marca`, `modelo`, `ano_fabricacao`, `ano_modelo`, `cor`, `categoria_id`, `valor_compra_centavos`, `data_compra`.
+Perfis: administrador, gerente. Corpo: `renavam`, `marca`, `modelo`, `ano_fabricacao`, `ano_modelo`, `cor`, `categoria_id`, `capacidade_tanque_litros`, `valor_compra_centavos`, `data_compra`.
 Não mudam por aqui: `placa` e `chassi` (corrigir é ação do administrador, abaixo), `status`, `km_atual`, `filial`.
 Mudar a categoria vale para locações novas; locação em andamento mantém o preço congelado (`LOC-15`).
 

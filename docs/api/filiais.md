@@ -27,6 +27,7 @@ Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-
   "endereco": { "cep": "60325000", "logradouro": "Av. Bezerra de Menezes", "numero": "1200", "complemento": null,
                 "bairro": "São Gerardo", "cidade": "Fortaleza", "uf": "CE" },
   "contato": { "telefone": "8532123344", "whatsapp": "85998124410", "email": "centro@motorapida.com.br" },
+  "preco_combustivel_litro_centavos": 550,
   "horario": {
     "seg": [ { "abre": "08:00", "fecha": "18:00" } ], "ter": [ ... ], "qua": [ ... ], "qui": [ ... ], "sex": [ ... ],
     "sab": [ { "abre": "08:00", "fecha": "12:00" } ],
@@ -47,6 +48,7 @@ Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-
 - `feriados_proximos`: os 3 próximos feriados da filial (`FIL-03`). `feriados_ano_seguinte_pendentes` fica `true` a partir de 1º de novembro enquanto o administrador não confirmou nenhum feriado do ano seguinte; a tela mostra o aviso e leva às sugestões.
 - Não existe status "rascunho": a filial só é salva com os obrigatórios e é ativa ou inativa (`FIL-01`).
 - `cnpj`, inscrições e contato são opcionais.
+- `preco_combustivel_litro_centavos`: preço da bomba usado no acerto da devolução (`DEV-01`); opcional, editado no `PATCH`. Sem ele, o combustível do acerto é informado à mão.
 
 ---
 

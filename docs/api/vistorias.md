@@ -76,7 +76,7 @@ Query: `?dia=hoje|amanha|semana` (padrão `hoje`). Filial pelo `X-Filial`.
 - `resumo_locacao` não traz os campos `_centavos` para o vistoriador.
 
 ### POST /api/locacoes/{id}/vistorias/
-Corpo: `{ "tipo": "saida" }`. Saída só para locação `aguardando_retirada` (ou troca de veículo pendente, `LOC-09`).
+Corpo: `{ "tipo": "saida" }`. Saída só para locação `aguardando_retirada` (ou troca de veículo pendente, `LOC-09`). Na troca, a saída do veículo novo só conclui depois de paga a diferença de caução, quando a nova é maior (422 `{ "codigo": "LOC-09", "mensagem": "Receba a diferença da caução antes de entregar o veículo" }`).
 201: vistoria em `rascunho`. Se já existe rascunho da mesma locação e tipo, devolve 200 com ele (o vistoriador continua de onde parou).
 A chegada (`tipo = devolucao`) é criada por `POST /api/locacoes/{id}/devolucao/` (abaixo).
 
@@ -126,7 +126,7 @@ Perfis: quem faz vistoria. Locação `ativa` ou `devolucao_atrasada`.
   "vistoria": { ...representação da vistoria de chegada... },
   "comparacao": {
     "km": { "saida": 18402, "agora": 19630, "rodou": 1228, "texto": "Rodou 1.228 km · plano com km livre" },
-    "combustivel": { "saida": "cheio", "agora": "meio", "faltou": "1/2 tanque" },
+    "combustivel": { "saida": "cheio", "agora": "tres_quartos", "faltou": "1/4 tanque", "litros_faltantes": "4.0" },
     "fotos": [ { "posicao": "lado_esquerdo", "saida": { "url": "..." }, "agora": { "url": "..." } } ],
     "itens": [ { "codigo": "retrovisor_esquerdo", "rotulo": "Retrovisor esquerdo", "saida": "ok", "agora": "riscado", "novo": true } ]
   },
@@ -134,6 +134,8 @@ Perfis: quem faz vistoria. Locação `ativa` ou `devolucao_atrasada`.
 }
 ```
 `comparacao` sempre usa a vistoria de saída vigente do mesmo veículo e da mesma locação (com troca de veículo, a do trecho atual).
+
+**Um acerto só por locação** (`LOC-09`, padrão do produto, item 18): na troca de veículo, a vistoria de chegada do veículo antigo não fecha conta. A devolução da locação é criada nessa hora, em `rascunho`, e recebe os itens do veículo antigo (avarias, combustível); o acerto final, na devolução do último veículo, soma tudo e desconta da caução total paga.
 
 ### Acerto (DEV-01, DEV-02)
 
@@ -144,7 +146,7 @@ O acerto é recalculado a cada `GET` e a cada mudança, enquanto está em `rascu
   "status": "rascunho",
   "caucao_centavos": 30000,
   "itens": [
-    { "id": 1, "tipo": "combustivel", "descricao": "Combustível (faltou 1/2 tanque)", "valor_centavos": 3200, "modo": "informado" },
+    { "id": 1, "tipo": "combustivel", "descricao": "Combustível (faltou 1/4 tanque, 4 L × R$ 5,50 + R$ 10,00)", "valor_centavos": 3200, "modo": "calculado" },
     { "id": 2, "tipo": "avaria", "descricao": "Retrovisor esquerdo", "valor_centavos": 8500, "modo": "informado", "avaria_id": 52 },
     { "id": 3, "tipo": "atraso", "descricao": "Atraso", "valor_centavos": 0, "modo": "calculado" }
   ],
@@ -157,13 +159,13 @@ O acerto é recalculado a cada `GET` e a cada mudança, enquanto está em `rascu
 }
 ```
 
-**Caso do seed (`DEV-03`):** LOC-2836, caução 30000, combustível 3200, retrovisor 8500 → cobranças 11700, saldo **18300**: devolver **R$ 183,00** por Pix.
+**Caso do seed (`DEV-03`):** LOC-2836, PNB7C04 com tanque de 16 L, Filial Centro com litro a R$ 5,50, saída cheio e chegada 3/4 → combustível 16 × 1/4 = 4 L × 550 + 1000 = **3200**; retrovisor 8500; cobranças 11700; caução 30000 → saldo **18300**: devolver **R$ 183,00** por Pix.
 
 Itens (`ItemAcerto.tipo`):
 
 | Tipo | Como entra | Regra |
 | --- | --- | --- |
-| `combustivel` | `informado` pela pessoa (valor) enquanto a fórmula não é decidida; a API sugere a fração faltante pela comparação | `DEV-01`; fórmula em `[decisão]` |
+| `combustivel` | `calculado`: litros faltantes = capacidade do tanque do veículo × (nível na saída − nível na chegada), com os níveis valendo 0, 1/4, 1/2, 3/4 e 1; valor = litros × preço do litro da filial + R$ 10,00 uma vez por devolução, só quando falta combustível. Sem capacidade do tanque ou sem preço da filial, vira `informado` e a tela pede o valor | `DEV-01`, item 15 de "Pontos em aberto" (padrão do produto, com o dono) |
 | `avaria` | um item por avaria nova com valor (tabela de peças ou orçamento) | `DEV-01` |
 | `atraso` | `calculado` por `locacoes.selectors.calcular_atraso` no momento da conclusão da vistoria de chegada | `LOC-10`, `LOC-11`, `FIL-03` |
 | `km_excedente` | `calculado`; hoje sempre 0 (km livre em todos os planos) | `DEV-01` |
@@ -179,7 +181,7 @@ Itens (`ItemAcerto.tipo`):
 - `resultado.tipo = "zerado"`: saldo 0.
 
 ### POST /api/devolucoes/{id}/acerto/itens/ · PATCH .../itens/{item_id}/ · DELETE .../itens/{item_id}/
-Perfis: quem vê o acerto. Só itens `informado` (`combustivel`, `avaria`, `multa_transito`). Corpo: `{ tipo, descricao, valor_centavos }`. Itens `calculado` não se editam: 409 `{ "codigo": "item_calculado" }`. 200: a devolução.
+Perfis: quem vê o acerto. Só itens `informado` (`avaria`, `multa_transito`, e `combustivel` quando não pôde ser calculado). Corpo: `{ tipo, descricao, valor_centavos }`. Itens `calculado` não se editam: 409 `{ "codigo": "item_calculado" }`. 200: a devolução.
 
 ### PATCH /api/devolucoes/{id}/acerto/
 Corpo: `{ "forma_devolucao": "pix" | "dinheiro" | "estorno_cartao" }`. 200.
