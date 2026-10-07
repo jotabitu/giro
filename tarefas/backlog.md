@@ -10,6 +10,8 @@ As pendências de regra foram decididas em 07 out 2026 (seção "Decisões de 07
 - [bloqueada] Busca no INPI da marca "Giro" (classes 42 e 9).
 - [bloqueada] Abrir a conta do Asaas (a integração começa no sandbox, não depende disso).
 
+As dúvidas levantadas pelo arquiteto em T-006 foram aprovadas em 07 out 2026 e viraram regra (T-031; ver "Decisões de 07 out 2026" em `docs/regras-de-negocio.md`).
+
 Levantadas pelo arquiteto em T-030 (07 out 2026):
 
 - [decisão] [divergência] Tela `Filial` tem campos e comportamentos que as regras não têm: gerente responsável, vagas no pátio, tabela de preço padrão da filial, conta de recebimento, centro de custo, "emite notas fiscais com o CNPJ desta filial", "aceita devolução de veículos de outras filiais", "compartilha a frota com as outras filiais", status "Rascunho" e horário de feriados. Ficaram fora de `docs/api/filiais.md` até o produto decidir quais entram e com que regra.
