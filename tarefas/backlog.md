@@ -107,6 +107,16 @@ Levantadas pelo arquiteto em T-030 (07 out 2026):
 - **Depende de:** T-001
 - **Pronto quando:** `comum/autenticacao.py`, `comum/auditoria.py` (máscaras), o trigger de `apps/auditoria/migrations/0002_trigger_imutavel.py`, settings e rotas revisados contra as ADRs 0008 a 0013; relatório em `docs/seguranca/`; achados viram tarefas.
 
+### T-040 · Cobertura de regras e esqueleto dos testes de aceitação de T-010 a T-014
+- **Agente:** qa
+- **Depende de:** T-001, T-037
+- **Pronto quando:** `docs/qa/cobertura-de-regras.md` com a tabela regra → teste → status para todas as regras com código; em `backend/tests/aceitacao/`, um teste por critério de `docs/qa/criterios/T-010.md` a `T-014.md`, com o código da regra no nome, marcados `xfail` (motivo: tarefa ainda não implementada) até o backend entregar. Os testes rodam no CI sem quebrar.
+
+### T-041 · Critérios de aceite de T-015 a T-018
+- **Agente:** produto
+- **Depende de:** T-037, T-038
+- **Pronto quando:** `docs/qa/criterios/T-015.md` a `T-018.md` com números do seed (LOC-2836 = R$ 183,00, caixa de 07 out = gaveta R$ 281,00 e os demais casos da tabela de referência), apontados no "Pronto quando" das tarefas.
+
 ## Fase 1 · MVP
 
 ### T-010 · Plataforma: planos, empresas, criação de schema
