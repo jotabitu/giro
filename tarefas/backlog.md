@@ -10,14 +10,6 @@ As pendências de regra foram decididas em 07 out 2026 (seção "Decisões de 07
 - [bloqueada] Busca no INPI da marca "Giro" (classes 42 e 9).
 - [bloqueada] Abrir a conta do Asaas (a integração começa no sandbox, não depende disso).
 
-Levantadas pelo arquiteto em T-006 (07 out 2026). Nenhuma bloqueia a fase 1; o modelo de dados usa a proposta até o produto responder:
-
-- [decisão] Status que as regras não listam. Proposta: Fatura `aberta`, `paga`, `atrasada`, `cancelada`; Usuário `convite_pendente`, `ativo`, `desativado`; Vistoria `rascunho`, `concluida`; Contrato `gerado`, `enviado`, `assinado`, `cancelado`; Caixa `aberto`, `aguardando_aprovacao` (diferença, APR-04), `fechado`, `fechado_sem_conferencia`; Acesso de suporte `ativo`, `encerrado`, `revogado`; Pedido de aprovação `pendente`, `aprovado`, `recusado`, `cancelado`; Lançamento bancário `pendente`, `conciliado`, `ignorado`.
-- [decisão] [divergência] VEN-07 fala em venda cancelada depois de `vendida`, mas a tabela de estados da venda não tem `cancelada`. Proposta: acrescentar `cancelada`.
-- [decisão] "Uma venda aberta por veículo": `interessado` conta como aberta? Proposta: só `proposta`, `negociacao` e `aguardando_aprovacao`, para dois interessados poderem olhar a mesma moto.
-- [decisão] Arredondamento de percentuais (desconto, multa, comissão, juros): proposta `ROUND_HALF_UP` no centavo (ADR 0009). Os casos do seed dão valores exatos e não mudam.
-- [decisão] Chassi único por empresa? IMP-02 só cita placa. Proposta: sim, único.
-
 Levantadas pelo arquiteto em T-030 (07 out 2026):
 
 - [decisão] [divergência] Tela `Filial` tem campos e comportamentos que as regras não têm: gerente responsável, vagas no pátio, tabela de preço padrão da filial, conta de recebimento, centro de custo, "emite notas fiscais com o CNPJ desta filial", "aceita devolução de veículos de outras filiais", "compartilha a frota com as outras filiais", status "Rascunho" e horário de feriados. Ficaram fora de `docs/api/filiais.md` até o produto decidir quais entram e com que regra.
