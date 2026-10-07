@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CATALOGO } from "@/app/design-system/catalogo";
 import { ExemploDe } from "@/app/design-system/exemplos";
-import { Button, IconButton, StatusBadge, TextField } from "./components";
+import { Button, IconButton, StatusBadge, TextField, VehicleCard } from "./components";
 
 const dir = new URL("./", import.meta.url);
 
@@ -48,5 +48,19 @@ describe("componentes", () => {
     expect(html).toContain('aria-invalid="true"');
     expect(html).toContain("CNH vencida");
     expect(html).not.toContain("ignorada");
+  });
+
+  it("VehicleCard sem foto escolhe a ilustração pelo tipo", () => {
+    const props = { placa: "QXA-4B21", status: "Devolução hoje", modelo: "Modelo", cliente: "Cliente", contrato: "LOC-1", diasCorridos: 1, diasContratados: 2, fatos: [{ rotulo: "A", valor: "1" }, { rotulo: "B", valor: "2" }, { rotulo: "C", valor: "3" }] } as const;
+    const moto = renderToStaticMarkup(<VehicleCard {...props} />);
+    const carro = renderToStaticMarkup(<VehicleCard {...props} tipo="carro" />);
+    expect(moto).toContain('viewBox="0 0 120 64"');
+    expect(moto).toContain("M24 44 44 20h26l16 24");
+    expect(carro).not.toContain("M24 44 44 20h26l16 24");
+  });
+
+  it("Tailwind usa a variável da fonte, que leva a Geist do next/font", async () => {
+    const { default: config } = await import("../../tailwind.config");
+    expect(config.theme?.fontFamily).toMatchObject({ sans: ["var(--font-sans)"], mono: ["var(--font-mono)"] });
   });
 });

@@ -1,12 +1,13 @@
-import { Bike } from "lucide-react";
 import type { ReactNode } from "react";
 import { StatusBadge, type TomStatus } from "../StatusBadge/StatusBadge";
+import { IlustracaoVeiculo, type TipoVeiculo } from "./IlustracaoVeiculo";
 
 export type FatoVeiculo = { rotulo: string; valor: string };
 
 /** Veículo que merece atenção agora (devolução hoje, revisão vencida). Não é item de lista. */
 export function VehicleCard({
   fotoSrc,
+  tipo = "moto",
   placa,
   status,
   tomDoStatus = "atencao",
@@ -20,6 +21,8 @@ export function VehicleCard({
 }: {
   /** Sem foto, aparece o desenho neutro sobre surface-sunken. */
   fotoSrc?: string;
+  /** Escolhe a ilustração do card sem foto. */
+  tipo?: TipoVeiculo;
   placa: string;
   status: string;
   tomDoStatus?: TomStatus;
@@ -43,7 +46,7 @@ export function VehicleCard({
           <img src={fotoSrc} alt={`${modelo}, placa ${placa}`} />
         ) : (
           <div className="wl-vcard__placeholder" aria-hidden="true">
-            <Bike size={84} strokeWidth={1.5} />
+            <IlustracaoVeiculo tipo={tipo} />
           </div>
         )}
         <div className="wl-vcard__top">

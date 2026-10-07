@@ -228,23 +228,20 @@ function ExemploAlertCard() {
 }
 
 function ExemploVehicleCard() {
+  const fatos = [
+    { rotulo: "Diária", valor: "R$ 49,90" },
+    { rotulo: "Rodados", valor: "2.140 km" },
+    { rotulo: "Próxima revisão", valor: "15.000 km" },
+  ] as const;
+  const abrir = <IconButton aria-label="Abrir contrato" icone={<Icone de={ArrowUpRight} />} quieto compacto />;
   return (
-    <div style={{ maxWidth: 520 }}>
-      <VehicleCard
-        placa="QXA-4B21"
-        status="Devolução hoje"
-        modelo="Honda CG 160 Fan"
-        cliente="Carlos Menezes"
-        contrato="LOC-2841"
-        diasCorridos={28}
-        diasContratados={30}
-        fatos={[
-          { rotulo: "Diária", valor: "R$ 49,90" },
-          { rotulo: "Rodados", valor: "2.140 km" },
-          { rotulo: "Próxima revisão", valor: "15.000 km" },
-        ]}
-        acao={<IconButton aria-label="Abrir contrato" icone={<Icone de={ArrowUpRight} />} quieto compacto />}
-      />
+    <div className="flex flex-wrap gap-6">
+      <div style={{ width: 520, maxWidth: "100%" }}>
+        <VehicleCard placa="QXA-4B21" status="Devolução hoje" modelo="Honda CG 160 Fan" cliente="Carlos Menezes" contrato="LOC-2841" diasCorridos={28} diasContratados={30} fatos={fatos} acao={abrir} />
+      </div>
+      <div style={{ width: 520, maxWidth: "100%" }}>
+        <VehicleCard tipo="carro" placa="ROE-2A88" status="Devolução hoje" modelo="Fiat Mobi Like" cliente="Pedro Alencar" contrato="LOC-2847" diasCorridos={27} diasContratados={30} fatos={fatos} acao={abrir} />
+      </div>
     </div>
   );
 }

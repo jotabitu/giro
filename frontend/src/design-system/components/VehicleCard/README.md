@@ -22,4 +22,4 @@ import { IconButton, Icone, VehicleCard } from "@/design-system";
 />
 ```
 
-`fotoSrc` é opcional; sem ela aparece o desenho neutro. A barra de progresso é só visual: os dias vêm da API. `tomDoStatus` segue a tabela do StatusBadge (padrão `atencao`).
+`fotoSrc` é opcional; sem ela aparece o desenho neutro, escolhido por `tipo` (`moto`, padrão, ou `carro`; `IlustracaoVeiculo`, SVG próprio com `currentColor`). A barra de progresso é só visual: os dias vêm da API. `tomDoStatus` segue a tabela do StatusBadge (padrão `atencao`).
