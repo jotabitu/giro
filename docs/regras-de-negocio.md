@@ -248,10 +248,12 @@ O cliente é da empresa (compartilhado entre filiais) e tem 4 estados: `incomple
 - `CLI-02` Para alugar moto, CNH categoria A; para carro, categoria B. CNH vencida há mais de 30 dias impede a retirada.
 - `CLI-03` Cliente fica `incompleto` enquanto faltar algum documento obrigatório. Pode ser salvo e pode ter locação criada, mas a retirada (vistoria de saída) só libera com o cadastro completo.
 - `CLI-04` Análise do cadastro (painel ao lado do formulário): CPF válido e regular, CNH válida na categoria, fora da lista de bloqueio da empresa, consulta de crédito (se a integração existir). Cada item mostra ok, pendente ou problema.
-- `CLI-05` Bloqueio automático com 15 dias de atraso em qualquer valor (parcela, devolução, multa). Cliente bloqueado não faz nova locação nem compra; desbloqueia sozinho ao quitar. Gerente pode bloquear ou desbloquear manualmente, com motivo.
+- `CLI-05` Bloqueio automático com 15 dias de atraso em qualquer valor (parcela, devolução, multa). Cliente bloqueado não faz nova locação nem compra; desbloqueia sozinho ao quitar. Gerente e administrador podem bloquear ou desbloquear manualmente, na hora, com motivo e evento de auditoria. O vendedor não desbloqueia: ele pede, e o gerente aprova (`APR-05`).
 - `CLI-06` A lista mostra, por cliente: situação, locação atual, total pago, valor em aberto e "cliente desde". Filtros: todos, com locação, em aberto, bloqueados, cadastro incompleto.
 - `CLI-07` Botão de ação na lista conforme a situação: em aberto → Cobrar; com locação → Ver locação; incompleto → Completar cadastro; sem locação → Nova locação.
 - `CLI-08` "Salvar e iniciar locação" grava o cliente e abre a Nova locação com ele já escolhido.
+
+*Mudanças em 07 out 2026 (T-041):* `CLI-05` e `APR-05` passaram a dizer que gerente e administrador desbloqueiam direto e só o vendedor pede aprovação (decisão do dono do produto, item 12).
 
 ## Locação
 
@@ -427,7 +429,7 @@ Tudo que precisa de aprovação usa o mesmo mecanismo: o pedido fica `pendente`,
 | `APR-02` | Cancelamento de locação | sempre | vendedor | gerente | cancela e calcula multa e acerto |
 | `APR-03` | Despesa ou orçamento de OS | acima de R$ 500 | qualquer perfil que lança despesa | gerente | despesa vai para `a_pagar`; OS pode executar |
 | `APR-04` | Diferença no fechamento do caixa | qualquer valor | quem fecha o caixa | gerente | caixa fechado com a diferença registrada |
-| `APR-05` | Desbloqueio manual de cliente | sempre | vendedor, gerente | gerente | cliente volta a `ativo` |
+| `APR-05` | Desbloqueio manual de cliente | pedido pelo vendedor (gerente e administrador desbloqueiam direto, `CLI-05`) | vendedor | gerente | cliente volta a `ativo` (ou `incompleto`, se faltar cadastro) |
 | `APR-06` | Correção de km para baixo | sempre | vistoriador | gerente | km corrigido com motivo |
 
 **Regras**
@@ -436,6 +438,8 @@ Tudo que precisa de aprovação usa o mesmo mecanismo: o pedido fica `pendente`,
 - `APR-08` Pedido sem resposta em 4 horas úteis avisa o administrador.
 - `APR-09` Quem pediu não pode aprovar o próprio pedido, mesmo tendo a permissão.
 - `APR-10` Todo pedido, aprovação e recusa entra na auditoria.
+
+*Mudanças em 07 out 2026 (T-041):* `APR-05` passou a ser pedido só pelo vendedor (`CLI-05`).
 
 ## Automações e notificações
 
@@ -533,6 +537,7 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 | Domínio | **girolocadoras.com.br** (plataforma em `admin.girolocadoras.com.br`, empresas em `<subdominio>.girolocadoras.com.br`). Registrar também girolocacao.com.br para proteção. | giro.com.br e quase todas as variações (giroapp, girogestao, girofrota, girorent, meugiro, usegiro) já têm dono. Disponíveis em 07 out 2026: girolocadoras.com.br, girolocacao.com.br, girogestao.app.br, giromotos.app.br. |
 | Dúvidas do modelo de dados (T-006, respondidas em T-031) | Estados das entidades sem seção própria (Entidades); venda `cancelada` só a partir de `vendida`, cancelada por gerente ou administrador (`VEN-07`); venda aberta = `proposta`, `negociacao`, `aguardando_aprovacao` (`VEN-10`); `ROUND_HALF_UP` no centavo com diferença na última parcela (Convenções); chassi único e reaproveitamento do cadastro na recompra (`VEI-01`, `VEI-07`). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
 | Dúvidas dos contratos de filiais e contas (T-030 e T-036, respondidas em T-037) | Nova seção Filiais (`FIL-01` a `FIL-06`): campos da tela `Filial` aprovados como o produto recomendou, recebimento por empresa, devolução só na filial da locação e frota por filial, feriados por filial (`LOC-11` não corre nesses dias), desativação recusada com operação. `USR-01`: e-mail obrigatório, celular opcional. `USR-06`: sem "manter conectado". 2 etapas segue a `USR-02` (correção das telas na T-028). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
+| Desbloqueio manual de cliente (T-036, item 12) | Gerente e administrador desbloqueiam direto, com motivo e auditoria; o vendedor pede e o gerente aprova (`CLI-05`, `APR-05`). | Opção A, recomendada pelo produto e aprovada pelo dono do produto em 07 out 2026. Evita que toda filial com um gerente só dependa do administrador. |
 | Consulta de crédito | **Fora do MVP.** No MVP a análise do cliente (`CLI-04`) usa CPF, CNH, lista de bloqueio e histórico na empresa. Na fase 2, consulta paga por uso via parceiro (Serasa ou o próprio Asaas). | Custa por consulta e não trava a operação; o histórico interno já resolve a maior parte. |
 
 ## Pontos em aberto
@@ -547,7 +552,5 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 Levantadas pelo arquiteto em `docs/api/clientes.md`. Nenhuma bloqueia a T-014.
 
 - [ ] **11. Botão da lista quando duas situações valem (`CLI-07`).** Exemplo: Lucas está com cadastro incompleto e tem locação. Recomendação: aceitar a ordem da tela, que já é a proposta. Vale o primeiro que se aplicar: em aberto → Cobrar; incompleto → Completar cadastro; com venda aberta (`VEN-10`) → Ver proposta; com locação → Ver locação; nenhum desses → Nova locação. É a ordem da tela `Clientes`: Lucas (incompleto, com LOC-2856) → Completar cadastro; Diego Martins (LOC-2848 e proposta da CB 300F) → Ver proposta. Corrigido em 07 out 2026: a primeira versão deste item punha a locação antes da proposta, o que contradiz a tela. Só completa a `CLI-07`, **sem impacto de negócio**.
-
-- [ ] **12. Quem desbloqueia o cliente à mão.** As regras discordam: `CLI-05` deixa o gerente desbloquear; `APR-05` põe o gerente entre quem pede e entre quem aprova; e `APR-09` impede aprovar o próprio pedido. Com a proposta do arquiteto (gerente pede, outro gerente ou o administrador aprova), toda filial com um gerente só (Moto Rápida) depende do administrador para cada desbloqueio. **Precisa do dono:** A) gerente e administrador desbloqueiam direto, com motivo e evento de auditoria (`CLI-05`), e só o vendedor pede, com aprovação do gerente (`APR-05`) — padrão recomendado; B) só o administrador desbloqueia direto, e gerente e vendedor pedem (proposta do arquiteto). O desbloqueio automático ao quitar (`CLI-05`) não muda em nenhuma das duas.
 
 - [ ] **13. Como o cliente fica `inativo`.** Nenhuma regra diz como se entra nesse estado. Recomendação: aceitar a proposta. Gerente ou administrador inativa, com motivo; a ação é recusada se o cliente tem locação aberta, venda aberta ou valor em aberto. Cliente inativo sai da lista padrão (aparece no filtro "todos") e não faz locação nem compra. Gerente ou administrador reativa, e ele volta a `ativo` ou `incompleto`, conforme o cadastro (`CLI-03`). **Impacto de negócio pequeno.** Padrão até a aprovação: esta recomendação.
