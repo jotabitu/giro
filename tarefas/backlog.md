@@ -45,7 +45,7 @@ Levantadas pelo arquiteto em T-030 (07 out 2026):
 ### T-005 · CI
 - **Agente:** devops
 - **Depende de:** T-001, T-002
-- **Pronto quando:** GitHub Actions roda lint, testes e build do backend e do frontend em todo PR; gera o OpenAPI e falha se `docs/api/openapi.yaml` estiver desatualizado.
+- **Pronto quando:** os 5 pontos para o devops do handoff da T-001 resolvidos (desvio do Makefile, `MSYS_NO_PATHCONV`, CORS fora do `.env.example`, proxy de mesma origem `/api/`); GitHub Actions roda lint, testes e build do backend e do frontend em todo PR; gera o OpenAPI e falha se `docs/api/openapi.yaml` estiver desatualizado.
 
 ### T-006 · ADRs iniciais revisadas
 - **Agente:** arquiteto
@@ -101,6 +101,11 @@ Levantadas pelo arquiteto em T-030 (07 out 2026):
 - **Depende de:** T-036
 - **Regras:** LOC-01 a LOC-15, VIS-01 a VIS-05, DEV-01 a DEV-06 · **Segurança:** S-09 (marcadores fechados do `ModeloContrato`, `url_fetcher`), S-15 (token de assinatura)
 - **Pronto quando:** `docs/api/locacoes.md` (reserva, contrato, ciclo de status, assinatura) e `docs/api/vistorias.md` (saída, devolução e acerto) no padrão de `docs/api/README.md`, com o caso LOC-2836 = R$ 183,00 descrito no exemplo de resposta do acerto. Destrava T-015 e T-016.
+
+### T-039 · Revisão de segurança do código da T-001
+- **Agente:** seguranca
+- **Depende de:** T-001
+- **Pronto quando:** `comum/autenticacao.py`, `comum/auditoria.py` (máscaras), o trigger de `apps/auditoria/migrations/0002_trigger_imutavel.py`, settings e rotas revisados contra as ADRs 0008 a 0013; relatório em `docs/seguranca/`; achados viram tarefas.
 
 ## Fase 1 · MVP
 
