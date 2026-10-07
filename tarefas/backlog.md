@@ -19,9 +19,7 @@ Levantadas pelo arquiteto em T-030 (07 out 2026):
 Levantadas pelo arquiteto em T-036 (07 out 2026):
 
 - [divergência] `Frota` mostra a reserva do Kwid como `RES-0412`, mas a reserva é uma locação `aguardando_retirada` com código `LOC-` (regras, Veículos e Locação). `docs/api/veiculos.md` mostra o código `LOC-`. Para T-028, junto com as diárias da Frota que não batem com a tabela (CG 160 R$ 49,90, Pop R$ 39,90, NMax R$ 69,90, Mobi R$ 119,00).
-- [decisão] `CLI-07` não diz a prioridade do botão quando duas situações valem (Lucas, LOC-2856: cadastro incompleto e com locação). Proposta em `docs/api/clientes.md`: em aberto → completar cadastro → ver locação → ver proposta → nova locação, como na tela.
-- [decisão] Desbloqueio manual: `CLI-05` diz que o gerente desbloqueia com motivo; `APR-05` diz que todo desbloqueio manual passa por aprovação do gerente; `APR-09` impede aprovar o próprio pedido. Proposta: administrador desbloqueia direto; gerente e vendedor pedem, e outro gerente ou o administrador aprova.
-- [decisão] Cliente `inativo`: o estado existe, mas nenhuma regra diz quando se entra nele. Proposta: inativar e reativar por gerente ou administrador, com motivo, recusado com locação aberta ou valor em aberto.
+- [decisão] Desbloqueio manual de cliente: com o dono do produto (item 12 de "Pontos em aberto", T-037). O contrato segue o padrão A do produto: gerente e administrador desbloqueiam direto (`CLI-05`); o vendedor pede (`APR-05`).
 - [decisão] `Login` tem "Manter conectado neste computador", que as regras não têm. Com o dono do produto (item 10 de "Pontos em aberto" das regras, T-037); padrão: tirar o checkbox. As divergências de 2 etapas e convite por celular foram decididas pelo produto e vão para a T-028.
 
 ## Fase 0 · Fundação

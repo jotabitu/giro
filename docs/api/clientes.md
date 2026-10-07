@@ -14,7 +14,8 @@ O cliente é da empresa, compartilhado entre filiais: a lista não é filtrada p
 | Ver dados pessoais completos e documentos (`AUD-04`) | sim | sim | sim | — | — |
 | Cadastrar e editar | sim | sim | sim | — | — |
 | Bloquear manualmente | sim | sim | — | — | — |
-| Desbloquear manualmente | sim (direto) | pede (`APR-05`) | pede (`APR-05`) | — | — |
+| Desbloquear manualmente | sim (direto) | sim (direto) | pede (`APR-05`) | — | — |
+| Inativar e reativar | sim | sim | — | — | — |
 | Exportar dados do titular e anonimizar (`AUD-06`, fase 2) | sim | — | — | — | — |
 
 Quem não pode ver os dados completos recebe só a representação resumida, com CPF mascarado, sem endereço, CNH e documentos.
@@ -99,13 +100,13 @@ Enquanto o fornecedor não existe, o bloco vem `null` (em T-014, todos).
 | `em_dia` | tem locação atual | Em dia |
 | `sem_locacao` | o resto | Sem locação |
 
-`acao_principal` (`CLI-07`), na ordem: em aberto → `cobrar` (alvo: a conta mais antiga); cadastro incompleto → `completar_cadastro`; com locação → `ver_locacao`; com venda aberta → `ver_proposta`; sem locação e `ativo` → `nova_locacao`. **Ordem proposta**, com `[decisão]` para o produto: a tela põe "Completar cadastro" antes de "Ver locação" (Lucas, LOC-2856), e a `CLI-07` não diz a prioridade quando duas situações valem. Cliente bloqueado sem valor em aberto não ganha `nova_locacao`.
+`acao_principal` (`CLI-07`), na ordem: em aberto → `cobrar` (alvo: a conta mais antiga); cadastro incompleto → `completar_cadastro`; com locação → `ver_locacao`; com venda aberta → `ver_proposta`; sem locação e `ativo` → `nova_locacao`. Ordem decidida pelo produto em 07 out 2026 (T-037), igual à tela: Lucas (LOC-2856) recebe `completar_cadastro`. Cliente bloqueado sem valor em aberto não ganha `nova_locacao`.
 
 ---
 
 ## GET /api/clientes/
 Perfis: todos.
-Query: `?situacao=com_locacao|em_aberto|bloqueados|incompletos` (`CLI-06`), `?tipo=pf|pj`, `?busca=`, `?ordem=-criado_em|nome|-total_pago`.
+Query: `?situacao=com_locacao|em_aberto|bloqueados|incompletos|inativos` (`CLI-06`). Sem `situacao`, a lista padrão não traz clientes `inativo`; eles só aparecem com `?situacao=inativos`. Também: `?tipo=pf|pj`, `?busca=`, `?ordem=-criado_em|nome|-total_pago`.
 - `busca` com só dígitos (11 ou 14) procura CPF/CNPJ exato pelo hash (ADR 0014); com texto, procura no nome (trigram) e no celular.
 200:
 ```json
@@ -177,16 +178,18 @@ Perfis: administrador, gerente. Corpo: `{ motivo }`. 200: completa com `bloqueio
 
 ### POST /api/clientes/{id}/desbloquear/
 Corpo: `{ motivo }`.
-- Administrador: desbloqueia na hora. 200.
-- Gerente e vendedor: criam o pedido `APR-05`. 202 `{ "pedido_aprovacao": { "id", "tipo": "APR-05", "status": "pendente" } }`. Aprovado por gerente ou administrador que não seja quem pediu (`APR-09`), o cliente volta a `ativo` (ou `incompleto`, se tiver pendências).
-- **Proposta**, com `[decisão]` para o produto: a `CLI-05` diz que o gerente desbloqueia com motivo, mas a `APR-05` diz que todo desbloqueio manual passa por aprovação e a `APR-09` impede o gerente de aprovar o próprio pedido.
+- Administrador e gerente: desbloqueiam na hora, com motivo e evento de auditoria (`CLI-05`). 200; o cliente volta a `ativo` (ou `incompleto`, se tiver pendências).
+- Vendedor: cria o pedido `APR-05`. 202 `{ "pedido_aprovacao": { "id", "tipo": "APR-05", "status": "pendente" } }`. Aprovado por gerente ou administrador (nunca quem pediu, `APR-09`), o cliente volta como acima.
+- Padrão A recomendado pelo produto (T-037) enquanto o dono do produto não decide. Se a decisão mudar, muda só quem pode chamar direto.
 - Bloqueio automático por atraso não precisa disso: some sozinho quando o cliente quita (assinante de `financeiro.parcela_paga`, `CLI-05`).
 
 Bloqueio automático: o assinante de `financeiro.parcela_atrasou` bloqueia com `motivo = "atraso"` quando alguma conta do cliente passa de 15 dias de atraso (`CLI-05`, `LOC-07`). Caso do seed: Rafael Sousa, 25 dias → `bloqueado`.
 
 ## Inativar
 
-`POST /api/clientes/{id}/inativar/` e `/reativar/` · administrador, gerente · `{ motivo }`. Inativo some da escolha na Nova locação e na venda. 422 `{ "codigo": "cliente_com_pendencia" }` com locação aberta ou valor em aberto. **Proposta**: as regras listam o estado `inativo` sem dizer quando se entra nele; `[decisão]` para o produto.
+`POST /api/clientes/{id}/inativar/` · administrador, gerente · `{ motivo }` → 200. Inativo some da lista padrão, da escolha na Nova locação e da venda. 422 `{ "codigo": "cliente_com_pendencia", "detalhes": { "locacao_aberta": true, "em_aberto_centavos": 0, "venda_aberta": false } }` com locação aberta, valor em aberto ou venda aberta.
+`POST /api/clientes/{id}/reativar/` · administrador, gerente · `{ motivo }` → 200; volta a `ativo` ou `incompleto` conforme as pendências (`CLI-03`).
+Decidido pelo produto em 07 out 2026 (T-037).
 
 ## LGPD do titular (AUD-06) · fase 2
 
