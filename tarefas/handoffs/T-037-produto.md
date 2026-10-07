@@ -1,0 +1,16 @@
+# T-037 · Decisões da T-030 e critérios de aceite da fase 1 · produto → orquestrador, arquiteto, qa
+
+## Parte 1 · Dúvidas da T-030 (aguardam o dono do produto)
+
+**O que foi feito:** recomendação para as duas `[decisão]` da T-030, nos itens 6 e 7 de "Pontos em aberto" de `docs/regras-de-negocio.md`. O backlog aponta para eles, e a T-028 ganhou duas divergências da tela `Filial`.
+**Resumo:**
+- **6. Campos da tela Filial:** gerente responsável vem dos usuários (só leitura na tela). Ficam fora: vagas no pátio, tabela de preço padrão (já é a categoria por filial), centro de custo (a filial já é), nota fiscal e "Rascunho". Três itens precisam do dono:
+  - Conta de recebimento: A) por empresa (padrão) ou B) por filial na fase 2.
+  - Devolução em outra filial e frota compartilhada: A) só na filial da locação (padrão) ou B) devolução em qualquer filial com transferência automática.
+  - Feriados: A) lista de datas fechadas por filial, com os nacionais sugeridos (padrão), porque mexe no atraso de `LOC-11`; ou B) sem feriados no MVP.
+- **7. Desativar filial com operação:** aceitar a proposta (veículos fora de `vendido`/`baixado`, locações abertas, caixa `aberto`/`aguardando_aprovacao`). Contas a receber em aberto e despesas a pagar não impedem.
+**Impacto no contrato enquanto não há resposta:** nenhum. `docs/api/filiais.md` já está no padrão. Se o dono escolher A nos feriados, entra um campo novo (lista de datas) na T-012.
+
+## Parte 2 · Critérios de aceite
+
+Pendente: começa depois do aval do orquestrador.

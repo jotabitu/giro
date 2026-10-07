@@ -517,3 +517,26 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 - [ ] **Busca de marca no INPI**: "Giro" é um nome muito usado (o domínio principal já pertence a outra empresa). Antes de investir na marca, buscar "GIRO" nas classes 42 (software como serviço) e 9 (software), não só 39 e 12, e considerar registrar a marca mista "Giro Locadoras". Se houver conflito, trocar o nome agora sai mais barato.
 - [ ] **Abrir a conta no Asaas** e confirmar as taxas de boleto e cartão para o volume esperado.
 - [ ] **Telas que faltam desenhar:** esqueci a senha, 2 etapas, meu perfil, notificações, contas a pagar separada, multas de trânsito, documentos dos veículos, avarias abertas, pagamento e assinatura pelo cliente final, site de vendas.
+
+### Dúvidas do contrato de filiais (T-030, 07 out 2026)
+
+Levantadas pelo arquiteto em `docs/api/filiais.md`. Cada item traz a recomendação do produto e o padrão que vale até o dono do produto aprovar. O padrão deixa a T-012 (Filiais) seguir sem esperar.
+
+- [ ] **6. [divergência] Campos da tela `Filial` sem regra.** Nenhuma regra usa esses campos. Recomendação, campo a campo:
+
+  | Campo da tela | Recomendação | Impacto de negócio |
+  | --- | --- | --- |
+  | Gerente responsável | Não vira campo próprio. Os gerentes da filial são os usuários com perfil gerente ligados a ela (`USR-07`), como já está no contrato. Na tela, o campo vira só leitura, com o link "Definido em Usuários". Avisos "para o gerente" vão a todos os gerentes da filial. | nenhum (só completa o desenho) |
+  | Vagas no pátio (motos, carros) | Fora. Nenhum cálculo usa esses números. | nenhum |
+  | Tabela de preço padrão | Fora como campo. O preço da filial já existe: categoria da empresa ou categoria só da filial (seção Entidades, "Empresa (ou filial)", `LOC-01`), configurada em `Precos`. | nenhum |
+  | Centro de custo | Fora. A filial já é o centro de custo (DRE por filial, `FIN-13`). | nenhum |
+  | Conta de recebimento | Fora no MVP: o recebimento é da empresa, numa subconta do Asaas por locadora (Decisões de 07 out 2026). **Precisa do dono:** A) uma conta por empresa (padrão); B) conta por filial, na fase 2, para filiais com CNPJ próprio. | sim |
+  | Emite notas fiscais com o CNPJ desta filial | Fora. O produto não emite nota fiscal, e nenhuma regra fala nisso. O CNPJ da filial fica só como dado cadastral. | nenhum |
+  | Aceita devolução de veículos de outras filiais | Fora no MVP. A devolução é feita na filial da locação, e mudar o veículo de filial é transferência (`VEI-04`). **Precisa do dono:** A) só na filial da locação (padrão); B) devolução em qualquer filial, com transferência automática na devolução (fase 2). | sim |
+  | Compartilha a frota com as outras filiais | Fora no MVP. A frota é de cada filial, e para usar o veículo de outra filial é preciso transferir (`VEI-04`). | sim (mesma decisão do item anterior: fica junto da opção B) |
+  | Status "Rascunho" | Fora. A filial é só ativa ou inativa; o formulário só salva com os campos obrigatórios preenchidos. | nenhum |
+  | Horário de feriados | Entra, porque afeta o atraso (`LOC-11`): se o sistema acha que a filial está aberta num feriado, cobra atraso de quem não tinha onde devolver. **Precisa do dono:** A) lista de datas em que a filial fecha, cadastrada pelo administrador, com os feriados nacionais do ano já sugeridos (padrão); B) sem feriados no MVP, e o gerente trata a exceção à mão. | sim (dinheiro, `LOC-11`) |
+
+  A tela também usa "check-in" ("após o check-in"), que é jargão proibido; o certo é "devolução". Vai para a T-028.
+
+- [ ] **7. Desativar filial que ainda tem operação.** Recomendação: aceitar a proposta do arquiteto. A desativação é recusada quando a filial ainda tem veículos fora de `vendido` e `baixado` (inclui `a_venda` e `em_manutencao`), locações em `rascunho`, `aguardando_retirada`, `ativa` ou `devolucao_atrasada`, ou caixa do dia `aberto` ou `aguardando_aprovacao`. A recusa mostra quantos itens faltam em cada grupo, para o administrador transferir os veículos (`VEI-04`), encerrar as locações e fechar o caixa. Contas a receber em aberto **não** impedem: continuam na régua de cobrança (`AUT-03`), podem ser pagas por Pix ou boleto (`FIN-04`) ou no caixa de outra filial, e mantêm a filial de origem para relatório e DRE. Despesas a pagar também não impedem. **Impacto de negócio pequeno** (só a parte das contas em aberto é escolha nova). Padrão até a aprovação: esta recomendação.
