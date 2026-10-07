@@ -71,7 +71,7 @@ Query: `?ativo=true|false` (padrão: todas), `?busca=` (nome, cidade).
 }
 ```
 - `plano` é o item `filiais` de `GET /api/assinatura/` (contrato da plataforma). A tela mostra "1 de 3 filiais do plano Profissional" e "Seu plano permite mais 2 filiais" a partir dele; com `bloqueado: true` o botão "Nova filial" leva para a mudança de plano.
-- Indicadores por filial (veículos, locações ativas, usuários, ocupação) **não** vêm aqui: `filiais` está acima de `veiculos` e `locacoes` na ordem dos apps (ADR 0011). Eles virão de `GET /api/relatorios/filiais/` (contrato de relatórios, quando veículos e locações existirem). Até lá a tela mostra só os dados cadastrais.
+- Indicadores por filial vêm no bloco `indicadores` de cada item, por anotação de leitura (ADR 0015): `{ "veiculos": 86, "locacoes_ativas": 42, "usuarios": 5, "ocupacao_pct": "71.00" }`. `veiculos` e `ocupacao_pct` (`VEI-06`, últimos 90 dias) são fornecidos pelo app `veiculos`, `locacoes_ativas` por `locacoes` e `usuarios` por `filiais`. Enquanto o app fornecedor não existe, o campo vem `null`.
 
 ## GET /api/filiais/{id}/
 Perfil: administrador. 200: representação da filial.

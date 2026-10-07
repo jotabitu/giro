@@ -51,7 +51,7 @@ Permissões extras (`USR-03`) somam e nunca tiram: `aprovar_desconto` muda `desc
 
 ### POST /api/auth/entrar/
 Público.
-Corpo: `{ email, senha, aparelho: "desktop" | "celular" }`.
+Corpo: `{ email, senha, aparelho: "desktop" | "celular" }`. Não há "manter conectado": a duração segue `USR-06` (decisão pendente com o dono do produto; se mudar, o contrato ganha o campo).
 200, quando não precisa de 2 etapas: `{ "etapa": "pronto", "access": "<jwt>", "usuario": { ...igual a eu... } }` e o cookie do refresh.
 200, quando precisa: `{ "etapa": "verificar_2fa", "token_pre_2fa": "<jwt>" }` (tem autenticador) ou `{ "etapa": "configurar_2fa", "token_pre_2fa": "<jwt>" }` (precisa de 2 etapas e ainda não tem).
 401 `{ "codigo": "credenciais_invalidas", "mensagem": "E-mail ou senha incorretos" }`.
@@ -181,15 +181,15 @@ Query: `?situacao=ativos|convites|desativados`, `?perfil=`, `?filial=<id>`, `?bu
 `padrao_do_perfil: true` = o perfil já dá isso; a tela mostra marcado e travado ("Padrão do perfil Gerente").
 
 ### POST /api/usuarios/convites/
-Corpo: `{ email, nome?, celular?, perfil, filiais: [ids], permissoes_extras: [], canal: "email" | "whatsapp" }`.
-`email` é obrigatório sempre (o login é por e-mail, `USR-06`); `celular` é obrigatório quando `canal = "whatsapp"`. `filiais` obrigatório (ao menos 1) para quem não é administrador; ignorado para administrador.
+Corpo: `{ email, nome?, celular?, perfil, filiais: [ids], permissoes_extras: [] }`.
+`email` é obrigatório (é o login, `USR-06`); `celular` é opcional. O convite sai sempre por e-mail e, quando há celular, também por WhatsApp (`USR-01`, decisão do produto na T-037). `filiais` obrigatório (ao menos 1) para quem não é administrador; ignorado para administrador.
 201: o usuário (status `convite_pendente`). O convite vale 7 dias e sai depois do commit, com a marca da locadora.
 409 `{ "codigo": "email_em_uso", "mensagem": "Já existe um usuário com este e-mail" }`.
 422 `PLT-03` (limite de usuários).
 Regras: USR-01, PLT-03.
 
 ### POST /api/usuarios/{id}/reenviar-convite/
-Só `convite_pendente`. Corpo: `{ canal? }`. 200: usuário com `convite_expira_em` novo (mais 7 dias); o link anterior deixa de valer. 409 `{ "codigo": "transicao_usuario" }` em outro status.
+Só `convite_pendente`. Sem corpo. Reenvia pelos mesmos canais. 200: usuário com `convite_expira_em` novo (mais 7 dias); o link anterior deixa de valer. 409 `{ "codigo": "transicao_usuario" }` em outro status.
 
 ### POST /api/usuarios/{id}/cancelar-convite/
 Só `convite_pendente`. 200: usuário `desativado`; sai da contagem do plano.

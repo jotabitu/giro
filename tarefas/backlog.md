@@ -18,9 +18,7 @@ Levantadas pelo arquiteto em T-030 (07 out 2026):
 
 Levantadas pelo arquiteto em T-036 (07 out 2026):
 
-- [divergência] `Login` diz "Perfis de gerente e financeiro pedem o código" e `Convite` diz "Gerentes ativam a verificação em duas etapas", mas `USR-02` obriga só administrador e financeiro. `docs/api/contas.md` segue a regra; corrigir as telas (T-028) ou mudar a regra.
-- [divergência] `Admin-Usuarios` mostra João Silva convidado só pelo celular, mas o login é por e-mail (`USR-06`). O contrato exige e-mail em todo convite e usa o celular só como canal.
-- [decisão] `Login` tem "Manter conectado neste computador", que as regras não têm. Hoje a sessão segue `USR-06` (12 h no desktop, 30 dias no celular), sem a opção.
+- [decisão] `Login` tem "Manter conectado neste computador", que as regras não têm. Com o dono do produto (item 10 de "Pontos em aberto" das regras, T-037); padrão: tirar o checkbox. As divergências de 2 etapas e convite por celular foram decididas pelo produto e vão para a T-028.
 
 ## Fase 0 · Fundação
 

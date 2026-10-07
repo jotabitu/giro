@@ -18,6 +18,7 @@ Uma decisão por arquivo. Para mudar uma decisão, escreva uma nova ADR que subs
 | [0012](0012-tarefas-celery-por-empresa.md) | Tarefas Celery por empresa | aceita |
 | [0013](0013-endurecimento-da-autenticacao.md) | Endurecimento da autenticação (tokens, suporte, 2 etapas, Admin, cookie) | aceita, complementada pela 0014 |
 | [0014](0014-sessoes-e-dados-sensiveis.md) | Sessões revogáveis e dados sensíveis (cifra, HMAC, auditoria) | aceita |
+| [0015](0015-leituras-compostas-entre-apps.md) | Leituras compostas entre apps por registro de anotações | aceita |
 
 O modelo de dados detalhado fica em [`modelo-de-dados.md`](modelo-de-dados.md).
 

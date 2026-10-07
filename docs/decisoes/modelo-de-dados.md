@@ -183,7 +183,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 - 2FA: dispositivos do `django_otp` (TOTP e códigos de recuperação).
 - Contam no limite do plano: `status IN (convite_pendente, ativo)` (`USR-01`, `USR-04`).
 - Apoio `Sessao` (ADR 0014): `usuario` FK, `tipo` enum `desktop`, `celular`, `aparelho`, `ip`, `ultimo_uso`, `expira_em`, `revogada_em` nulo, `revogada_por` FK nulo, `motivo_revogacao`. Índice `(usuario, revogada_em)`. Claim `sid` nos tokens.
-- Apoio `Convite`: `usuario` FK CASCADE, `token_hash` único, `canal` enum `email`, `whatsapp`, `expira_em` (+7 dias), `aceito_em` nulo, `enviado_por` FK.
+- Apoio `Convite`: `usuario` FK CASCADE, `token_hash` único, `enviado_whatsapp` bool (sempre sai por e-mail; WhatsApp quando há celular), `expira_em` (+7 dias), `aceito_em` nulo, `enviado_por` FK.
 
 ### 8. Categoria de veículo · `veiculos.Categoria` · ativável
 
