@@ -59,7 +59,7 @@
 .wl-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
 .wl-kpi { padding: 18px var(--space-5) var(--space-5); border-radius: var(--radius-lg); background: var(--surface-sunken); }
 .wl-kpi__label { color: var(--ink-muted); font-size: 14px; line-height: 20px; }
-.wl-kpi__value { margin: 4px 0 8px; font-size: 44px; line-height: 44px; font-weight: 600; letter-spacing: -0.03em; }
+.wl-kpi__value { margin: 4px 0 8px; font-weight: 600; letter-spacing: -0.03em; }
 .wl-kpi__meta { display: flex; align-items: center; gap: 4px; color: var(--ink-muted); font-size: 14px; line-height: 20px; }
 .wl-kpi--solid { background: var(--solid); color: var(--on-solid); }
 .wl-kpi--solid .wl-kpi__label, .wl-kpi--solid .wl-kpi__meta { color: var(--on-solid-muted); }
@@ -183,4 +183,46 @@ button.wl-pipe__col[aria-pressed="true"] .wl-pipe__bar { outline: 2px solid var(
 @media (max-width: 720px) {
   .wl-otp { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
   .wl-otp__digito { height: 56px; font-size: 20px; }
+}
+
+/* KpiTile: o número encolhe até caber no bloco (valor longo no celular) */
+.wl-kpi { container-type: inline-size; }
+.wl-kpi__value { font-size: clamp(16px, calc(100cqw / (var(--chars, 6) * 0.62)), 44px); line-height: 1.05; overflow-wrap: anywhere; }
+
+/* SeletorDeFilial */
+.wl-seletor { position: relative; margin-bottom: var(--space-2); }
+.wl-switcher--botao { width: 100%; margin-bottom: 0; box-sizing: border-box; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.wl-menu { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0; max-height: 320px; overflow-y: auto; margin: 0; padding: var(--space-2); list-style: none; border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow-pop); outline: 0; }
+.wl-menu:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wl-menu__item { display: flex; align-items: center; gap: var(--space-3); min-height: 48px; padding: 6px 12px; border-radius: var(--radius-md); cursor: pointer; }
+.wl-menu__item--foco { background: var(--surface-sunken); }
+.wl-menu__texto { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+
+/* Dialogo e Gaveta (elemento nativo dialog) */
+.wl-modal { box-sizing: border-box; max-width: none; max-height: none; margin: auto; padding: 0; border: 0; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-pop); overflow: hidden; }
+.wl-modal::backdrop { background: color-mix(in srgb, var(--solid) 45%, transparent); }
+:root:has(dialog.wl-modal[open]) { overflow: hidden; }
+.wl-modal__corpo { display: flex; flex-direction: column; gap: var(--space-4); max-height: inherit; height: 100%; box-sizing: border-box; padding: var(--space-6); outline: 0; overflow-y: auto; }
+.wl-modal__cab { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.wl-modal__titulo { margin: 0; font-size: 24px; line-height: 30px; font-weight: 600; letter-spacing: -0.01em; }
+.wl-modal__descricao { margin: calc(var(--space-2) * -1) 0 0; color: var(--ink-muted); }
+.wl-modal__conteudo { flex: 1; min-height: 0; }
+.wl-modal__acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-3); }
+
+.wl-dialogo { width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); border-radius: var(--radius-xl); }
+.wl-dialogo--pequeno { width: min(400px, calc(100vw - 32px)); }
+
+.wl-gaveta { background: var(--surface); }
+.wl-gaveta--esquerda, .wl-gaveta--direita { width: min(340px, 88vw); height: 100dvh; max-height: 100dvh; }
+.wl-gaveta--esquerda { margin: 0 auto 0 0; border-radius: 0 var(--radius-xl) var(--radius-xl) 0; animation: wl-entra-esquerda 220ms ease-out; }
+.wl-gaveta--direita { margin: 0 0 0 auto; border-radius: var(--radius-xl) 0 0 var(--radius-xl); animation: wl-entra-direita 220ms ease-out; }
+.wl-gaveta--baixo { width: 100%; max-height: 90dvh; margin: auto 0 0; border-radius: var(--radius-xl) var(--radius-xl) 0 0; animation: wl-entra-baixo 220ms ease-out; }
+.wl-gaveta .wl-sidebar { width: 100%; padding: 0; background: transparent; }
+.wl-dialogo[open] { animation: wl-entra-centro 160ms ease-out; }
+@keyframes wl-entra-esquerda { from { transform: translateX(-100%); } }
+@keyframes wl-entra-direita { from { transform: translateX(100%); } }
+@keyframes wl-entra-baixo { from { transform: translateY(100%); } }
+@keyframes wl-entra-centro { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) {
+  .wl-gaveta, .wl-dialogo[open] { animation: none; }
 }

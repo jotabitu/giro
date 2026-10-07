@@ -8,8 +8,8 @@ import { Button, IconButton, StatusBadge, TextField, VehicleCard } from "./compo
 const dir = new URL("./", import.meta.url);
 
 describe("componentes", () => {
-  it("são os 12 do design system mais o CodigoVerificacao, cada um com preview e README", () => {
-    expect(CATALOGO).toHaveLength(13);
+  it("são os 12 do design system mais os componentes da T-042 e T-046, cada um com preview e README", () => {
+    expect(CATALOGO).toHaveLength(16);
     for (const c of CATALOGO) {
       expect(existsSync(new URL(`components/${c.nome}/README.md`, dir)), `README de ${c.nome}`).toBe(true);
       expect(existsSync(new URL(`components/${c.nome}/${c.nome}.tsx`, dir)), `código de ${c.nome}`).toBe(true);
