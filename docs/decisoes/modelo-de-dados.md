@@ -303,6 +303,9 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `renovacoes` | int | `LOC-08` |
 | `cancelada_em`, `motivo_cancelamento` | momento nulo, texto nulo | |
 | `aprovacao_desconto` | FK → `aprovacoes.PedidoAprovacao`, nulo | |
+| `km_saida` | int, nulo | gravado na vistoria de saída |
+| `encerramento_antecipado_aprovado_em` | momento, nulo | `LOC-12`: segue para a devolução e termina `cancelada` |
+| `multa_encerramento_centavos` | centavos, nulo | `LOC-12`, congelada na aprovação |
 
 - **Uma locação ativa por veículo:** `UniqueConstraint(fields=["veiculo"], condition=Q(status__in=["aguardando_retirada", "ativa", "devolucao_atrasada"]), name="uma_locacao_aberta_por_veiculo")`. Violação vira `Conflito` com código `LOC-03`.
 - `CHECK (fim_previsto > inicio)`.
@@ -311,6 +314,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 - `rascunho` com mais de 24 h sem uso é cancelado pela tarefa diária (sem auditoria de negócio além do evento de cancelamento).
 - Apoio `TrechoLocacao` (`LOC-09`): `locacao`, `veiculo`, `inicio`, `fim` nulo, `valor_periodo_centavos`, `diaria_centavos`. Único `(locacao)` com `fim IS NULL`.
 - Apoio `ExtraLocacao`: `locacao`, `extra`, `quantidade`, `valor_centavos` congelado.
+- Apoio `TrocaVeiculo` (`LOC-09`): `locacao`, `veiculo_antigo`, `veiculo_novo`, `motivo`, `status` enum `pendente`, `concluida`, `cancelada`, `vistoria_devolucao` FK nulo, `vistoria_saida` FK nulo. Uma `pendente` por locação.
 
 ### 14. Vistoria · `vistorias.Vistoria` · máquina
 
@@ -330,8 +334,8 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 
 - Concluída não se edita (o serviço recusa). Único: uma vistoria `concluida` vigente por `(locacao, veiculo, tipo)` que não tenha sido substituída.
 - Apoio `FotoVistoria`: `vistoria`, `posicao` enum `frente`, `traseira`, `lado_esquerdo`, `lado_direito`, `painel`, `avaria`, `arquivo`. Conclusão exige as 5 posições fixas (`VIS-01`).
-- Apoio `Avaria`: `vistoria`, `veiculo`, `descricao`, `preexistente` bool, `valor_centavos` nulo, `vai_para_oficina` bool (`DEV-04`), `foto` FK.
-- Apoio `AcertoDevolucao` (`DEV-01`, `DEV-02`): `locacao` (1:1), `vistoria` FK, `caucao_centavos`, `itens` (filho `ItemAcerto`: `tipo` enum `combustivel`, `avaria`, `atraso`, `km_excedente`, `parcela_aberta`, `multa_transito`, `multa_encerramento`, `valor_centavos`, `descricao`), `saldo_centavos` (centavos±), `forma_devolucao` enum `pix`, `dinheiro`, `estorno_cartao`, nulo, `status` enum `rascunho`, `concluido`. Exemplo LOC-2836: 3200 + 8500 = 11700; saldo 30000 − 11700 = 18300.
+- Apoio `Avaria`: `vistoria`, `veiculo`, `descricao`, `preexistente` bool, `valor_centavos` nulo, `vai_para_oficina` bool (`DEV-04`), `foto` FK, `ordem_servico` FK nulo, `resolvida_em` momento nulo (fecha quando a OS ligada é concluída). Índice `(veiculo, resolvida_em)` para "avarias abertas".
+- Apoio `Devolucao` (`DEV-01`, `DEV-02`; `docs/api/vistorias.md`): `locacao` (1:1), `vistoria` FK (chegada), `status` enum `rascunho`, `concluida`, `caucao_centavos`, `saldo_centavos` (centavos±), `forma_devolucao` enum `pix`, `dinheiro`, `estorno_cartao`, nulo, `concluida_em`. Filho `ItemAcerto`: `tipo` enum `combustivel`, `avaria`, `atraso`, `km_excedente`, `parcela_aberta`, `multa_transito`, `multa_encerramento`, `semanas_nao_usadas` (crédito, `LOC-13`), `natureza` enum `cobranca`, `credito`, `modo` enum `informado`, `calculado`, `valor_centavos`, `descricao`, `avaria` FK nulo. Saldo = caução + créditos − cobranças. Exemplo LOC-2836: 3200 + 8500 = 11700; saldo 30000 − 11700 = 18300.
 
 ### 15. Contrato · `contratos.Contrato` · máquina
 
@@ -347,8 +351,10 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `assinado_em` | momento, nulo | |
 | `assinado_ip` | IP, nulo | |
 | `assinatura_aparelho` | texto, nulo | |
-| `token_assinatura_hash` | texto(64), único, nulo | link enviado ao cliente final |
-| `clausula_juros` | bool | `FIN-03`: sem cláusula, não cobra juros |
+| `token_assinatura_hash` | texto(64), único, nulo | link enviado ao cliente final (S-15) |
+| `token_assinatura_expira_em` | momento, nulo | 7 dias; uso único: anulado ao assinar ou reenviar (S-15) |
+| `versao_texto_html` | texto | HTML final com os marcadores trocados, guardado para auditoria |
+| `clausula_juros` | bool | `FIN-03`: verdadeiro quando o modelo usa `{{cobranca.multa_atraso_pct}}` e `{{cobranca.juros_mes_pct}}` |
 
 - Índice origem genérica; `status`.
 
@@ -357,7 +363,8 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | Campo | Tipo | Observação |
 | --- | --- | --- |
 | `nome` | texto(80) | |
-| `finalidade` | enum `locacao`, `venda` | |
+| `finalidade` | enum `locacao`, `venda` | aditivo usa texto padrão do sistema |
+| `arquivado` | bool | fora de uso, não apagado |
 | `versao` | int | |
 | `texto` | texto | com campos `{{cliente.nome}}` etc. |
 | `publicado` | bool | |
@@ -366,7 +373,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 
 - Versionado: editar um modelo publicado cria nova linha com `versao + 1`; a anterior não muda. Único `(grupo, versao)`. Um publicado vigente por `(grupo)`.
 - `IMP-04`: sem modelo publicado de `locacao`, o serviço recusa concluir a locação.
-- Segurança (S-09, relatório T-032): o `texto` aceita só marcadores de uma lista fechada (`{{cliente.nome}}`, `{{locacao.codigo}}` etc.), trocados por texto já escapado, sem motor de template sobre o texto do usuário; marcador fora da lista é recusado ao publicar. O HTML é sanitizado para poucas tags (sem `img` externa, `style`, `link`, `script`, `iframe`). O PDF sai numa task Celery com tempo limite, e o `url_fetcher` do WeasyPrint só aceita o logo da própria empresa no storage do schema atual. A lista de marcadores sai no contrato da T-015.
+- Segurança (S-09, relatório T-032): o `texto` aceita só marcadores de uma lista fechada (`{{cliente.nome}}`, `{{locacao.codigo}}` etc.), trocados por texto já escapado, sem motor de template sobre o texto do usuário; marcador fora da lista é recusado ao publicar. O HTML é sanitizado para poucas tags (sem `img` externa, `style`, `link`, `script`, `iframe`). O PDF sai numa task Celery com tempo limite, e o `url_fetcher` do WeasyPrint só aceita o logo da própria empresa no storage do schema atual. A lista de marcadores está em `docs/api/contratos.md`.
 
 ### 17. Venda · `vendas.Venda` · código `VEN` · máquina
 
