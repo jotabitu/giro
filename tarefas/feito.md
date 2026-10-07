@@ -8,3 +8,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-032 · Revisão de segurança do desenho da fundação · seguranca · PR #2 · tarefas/handoffs/T-032-seguranca.md · altos resolvidos nas ADRs 0013 e 0014; médios viraram T-033, T-034, T-035 e critérios em T-012, T-014, T-015, T-029
 - T-002 · Esqueleto do frontend · frontend · PR #3 · tarefas/handoffs/T-002-frontend.md · compose testado com --no-deps; completo depende da T-001
 - T-030 · Contratos da API de plataforma e filiais · arquiteto · PR #2 · tarefas/handoffs/T-030-arquiteto.md · inclui ADRs 0013 e 0014
+- T-036 · Contratos da API de contas, veículos e clientes · arquiteto · sem PR (branch t-036-contratos-contas-veiculos-clientes) · tarefas/handoffs/T-036-arquiteto.md · inclui ADR 0015
