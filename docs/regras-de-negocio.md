@@ -157,13 +157,30 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
 
 **Regras**
 
-- `USR-01` Convite por e-mail ou WhatsApp com link válido por 7 dias. A pessoa cria a senha e entra já com perfil e filiais definidos. Convite pendente conta no limite de usuários do plano.
+- `USR-01` Convite por e-mail, e também por WhatsApp quando a pessoa tem celular, com link válido por 7 dias. O e-mail é obrigatório em todo usuário, porque é o login (`USR-06`); o celular é opcional. A pessoa cria a senha e entra já com perfil e filiais definidos. Convite pendente conta no limite de usuários do plano.
 - `USR-02` Verificação em 2 etapas obrigatória para administrador e financeiro; opcional para os demais (o administrador pode tornar obrigatória para todos).
 - `USR-03` Permissões extras por pessoa (marcar em `Admin-Usuarios`): aprovar descontos acima de 5%, cancelar contratos, ver relatórios de todas as filiais. Elas somam ao perfil, nunca tiram.
 - `USR-04` Desativar usuário encerra a sessão na hora. O histórico do que ele fez continua. Usuário desativado não conta no limite do plano.
 - `USR-05` Menu: tela inicial de cada perfil usa o menu daquele perfil; telas compartilhadas usam o menu completo, escondendo os itens sem permissão. Itens sem permissão nunca aparecem desabilitados, simplesmente não aparecem.
-- `USR-06` Login com e-mail e senha; 5 tentativas erradas bloqueiam por 15 minutos e avisam o administrador. Sessão expira após 12 h sem uso no desktop e 30 dias no celular.
+- `USR-06` Login com e-mail e senha; 5 tentativas erradas bloqueiam por 15 minutos e avisam o administrador. Sessão expira após 12 h sem uso no desktop e 30 dias no celular. Não existe opção "manter conectado".
 - `USR-07` Escopo de filial: o seletor de filial no topo do menu mostra só as filiais da pessoa. Administrador pode escolher "Todas as filiais".
+
+*Mudanças em 07 out 2026 (T-037):* `USR-01` passou a dizer que o e-mail é obrigatório e o celular é opcional; `USR-06` deixou claro que não há "manter conectado".
+
+## Filiais
+
+A empresa tem ao menos uma filial ativa, e uma delas é a matriz. Veículos, locações, caixa do dia, vistorias e ordens de serviço são de uma filial; clientes, marca, modelos de contrato e usuários são da empresa (cada usuário com acesso escolhido por filial, `USR-07`). Telas: `Filiais`, `Filial`, `Onboarding-Filial`.
+
+**Regras**
+
+- `FIL-01` Cadastro: nome (único na empresa), CNPJ e inscrições (opcionais), endereço, contato, horário por dia da semana (até 2 intervalos por dia, para quem fecha no almoço) e feriados (`FIL-03`). A filial é ativa ou inativa, sem rascunho: só salva com os campos obrigatórios. A primeira filial é sempre a matriz, e só existe uma matriz.
+- `FIL-02` Os gerentes da filial são os usuários com perfil gerente ligados a ela (`USR-07`), e não um campo da filial. Avisos e tarefas "para o gerente" vão a todos os gerentes da filial.
+- `FIL-03` Feriados: cada filial tem uma lista de datas em que fica fechada, cadastrada pelo administrador. A cada ano o sistema sugere os feriados nacionais, e o administrador confirma ou acrescenta os locais. Em dia de feriado a filial conta como fechada para `LOC-11`.
+- `FIL-04` O preço pode ser da empresa ou de uma filial, pela categoria (`LOC-01`, tela `Precos`). Não há "tabela de preço padrão", vagas no pátio nem centro de custo na filial: a própria filial é o centro de custo (DRE por filial, `FIN-13`). O recebimento é da empresa, numa única subconta do parceiro de pagamento (Decisões de 07 out 2026). O sistema não emite nota fiscal.
+- `FIL-05` A frota é de cada filial. A devolução é feita na filial da locação, e não há frota compartilhada: para usar o veículo de outra filial, ele é transferido antes (`VEI-04`).
+- `FIL-06` Desativar filial: só o administrador, com motivo. É recusado quando a filial é a matriz (escolher outra antes), quando é a última filial ativa, ou quando ainda tem operação. Operação aqui é: veículos fora de `vendido` e `baixado`; locações em `rascunho`, `aguardando_retirada`, `ativa` ou `devolucao_atrasada`; caixa do dia `aberto` ou `aguardando_aprovacao`. A recusa mostra quanto falta em cada grupo. Contas a receber em aberto e despesas a pagar não impedem: continuam na régua de cobrança (`AUT-03`), podem ser pagas por Pix ou boleto (`FIN-04`) ou no caixa de outra filial, e mantêm a filial de origem para relatório e DRE. Nada é apagado; reativar respeita o limite do plano (`PLT-03`).
+
+*Criada em 07 out 2026 (T-037), a partir da tela `Filial` e das dúvidas da T-030 decididas pelo dono do produto.*
 
 ## Veículos
 
@@ -206,12 +223,13 @@ Qualquer outra transição é recusada pelo backend com erro de regra (HTTP 409)
 - `VEI-01` Placa e chassi únicos por empresa, em qualquer estado do veículo; chassi com 17 caracteres; km nunca diminui (vistoria com km menor que o anterior é recusada, salvo correção pelo gerente com motivo).
 - `VEI-02` O km do veículo é atualizado a cada vistoria e a cada OS. Ele dispara as preventivas (`MAN-03`).
 - `VEI-03` Documentos: alerta 30 dias antes do vencimento; no dia do vencimento de CRLV ou seguro, o veículo disponível vai para `indisponivel`. Veículo alugado não muda, mas gera tarefa urgente para o gerente.
-- `VEI-04` Transferência entre filiais só com o veículo `disponivel`. Grava a filial de origem e destino.
+- `VEI-04` Transferência entre filiais só com o veículo `disponivel`. Grava a filial de origem e destino. É o único jeito de um veículo mudar de filial: a devolução é sempre na filial da locação e a frota não é compartilhada (`FIL-05`).
 - `VEI-05` "Rendeu no ano" na ficha = receitas de locação recebidas do veículo − custos de manutenção e despesas ligadas a ele, no ano corrente.
 - `VEI-06` Ocupação = dias alugado ÷ dias que o veículo esteve na frota no período (exclui `a_venda`, `vendido`, `baixado`). Ocupação da frota = média ponderada pelos dias.
 - `VEI-07` Veículo que volta para a empresa depois de vendido (recompra numa troca, `VEN-05`) reaproveita o cadastro existente, achado pelo chassi, e não ganha outro: vai de `vendido` para `indisponivel` até a vistoria, e o histórico continua no mesmo veículo.
 
 *Mudanças em 07 out 2026 (T-031):* `VEI-01` passou a exigir chassi único, além da placa; criada a `VEI-07`; acrescentadas as transições `vendido` → `a_venda` e `vendido` → `indisponivel`.
+*Mudanças em 07 out 2026 (T-037):* `VEI-04` passou a dizer que a devolução é na filial da locação e que não há frota compartilhada.
 
 ## Clientes
 
@@ -276,13 +294,15 @@ Sinais (não são estados, são calculados): `pagamento_atrasado` (alguma parcel
 **Atraso e cancelamento**
 
 - `LOC-10` Tolerância de 1 hora após o fim previsto. Depois disso, cada dia ou fração cobra 1 diária da categoria, e a locação vai para `devolucao_atrasada` no dia seguinte.
-- `LOC-11` Devolução fora do horário da filial conta como feita na abertura seguinte, mas o atraso só é cobrado se já tinha passado da tolerância no horário em que a filial fechou.
+- `LOC-11` Devolução fora do horário da filial conta como feita na abertura seguinte, mas o atraso só é cobrado se já tinha passado da tolerância no horário em que a filial fechou. Feriado da filial (`FIL-03`) conta como dia fechado: o atraso não corre nesses dias, e a devolução prevista para um feriado pode ser feita na abertura seguinte sem atraso.
 - `LOC-12` Cancelamento é pedido pelo vendedor e aprovado pelo gerente (`APR-02`). Antes da retirada: sem multa, devolve o que foi pago. Depois da retirada (encerramento antecipado): multa de 20% sobre o valor dos dias restantes do período em curso (preço do período ÷ dias do período × dias restantes), com mínimo de 1 diária da categoria, e acerto como numa devolução. Diária: sem multa, cobra só os dias usados. Ex.: Patrícia, LOC-2812, NMax mensal R$ 1.590,00, pede em 07 out com 8 dias restantes → restante R$ 424,00 → multa R$ 84,80.
 - `LOC-13` Devolução antecipada (antes do fim) não devolve parcela já paga, salvo plano mensal, que devolve as semanas inteiras não usadas (7 × preço mensal ÷ 30 por semana), menos a multa do `LOC-12`. Se a multa for maior que a devolução, a diferença vira conta a receber. Ex.: Patrícia → 1 semana inteira R$ 371,00 − multa R$ 84,80 = devolve R$ 286,20.
 - `LOC-14` Plano mensal é cobrado por mês fechado (valor da tabela, ex.: Urbana R$ 1.090), nunca como diária × 30. Pode ser pago à vista ou em 4 parcelas semanais. Período menor que um mês usa diária ou semanal.
 - `LOC-15` Preço da tabela vale para contratos novos; contrato já assinado mantém o preço da data da assinatura até o fim (renovação usa o preço novo). A tabela guarda o histórico de preços.
 
 **Lista de locações** (`Locacoes`): filtros Todas, Precisam de ação (atraso de devolução, parcela atrasada, aguardando assinatura, cancelamento pendente), Devolvem hoje, Encerradas. O botão de cada linha muda: Cobrar, Receber devolução ou Abrir.
+
+*Mudanças em 07 out 2026 (T-037):* `LOC-11` passou a contar os feriados da filial como dias fechados (`FIL-03`).
 
 ## Vistoria e devolução
 
@@ -512,6 +532,7 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 | Preços da assinatura | Essencial **R$ 199**, Profissional **R$ 449**, Completo **R$ 899** por mês; anual = 10 mensalidades. Adicionais: filial R$ 79/mês, pacote de 10 veículos R$ 49/mês, assinatura digital avulsa R$ 4,90/contrato. | Sistemas de locação lá fora custam de US$ 29 a 99 por mês e ERPs genéricos no Brasil ficam perto de R$ 200; o Essencial custa menos que 1 semana de aluguel de uma moto. |
 | Domínio | **girolocadoras.com.br** (plataforma em `admin.girolocadoras.com.br`, empresas em `<subdominio>.girolocadoras.com.br`). Registrar também girolocacao.com.br para proteção. | giro.com.br e quase todas as variações (giroapp, girogestao, girofrota, girorent, meugiro, usegiro) já têm dono. Disponíveis em 07 out 2026: girolocadoras.com.br, girolocacao.com.br, girogestao.app.br, giromotos.app.br. |
 | Dúvidas do modelo de dados (T-006, respondidas em T-031) | Estados das entidades sem seção própria (Entidades); venda `cancelada` só a partir de `vendida`, cancelada por gerente ou administrador (`VEN-07`); venda aberta = `proposta`, `negociacao`, `aguardando_aprovacao` (`VEN-10`); `ROUND_HALF_UP` no centavo com diferença na última parcela (Convenções); chassi único e reaproveitamento do cadastro na recompra (`VEI-01`, `VEI-07`). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
+| Dúvidas dos contratos de filiais e contas (T-030 e T-036, respondidas em T-037) | Nova seção Filiais (`FIL-01` a `FIL-06`): campos da tela `Filial` aprovados como o produto recomendou, recebimento por empresa, devolução só na filial da locação e frota por filial, feriados por filial (`LOC-11` não corre nesses dias), desativação recusada com operação. `USR-01`: e-mail obrigatório, celular opcional. `USR-06`: sem "manter conectado". 2 etapas segue a `USR-02` (correção das telas na T-028). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
 | Consulta de crédito | **Fora do MVP.** No MVP a análise do cliente (`CLI-04`) usa CPF, CNH, lista de bloqueio e histórico na empresa. Na fase 2, consulta paga por uso via parceiro (Serasa ou o próprio Asaas). | Custa por consulta e não trava a operação; o histórico interno já resolve a maior parte. |
 
 ## Pontos em aberto
@@ -520,39 +541,6 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 - [ ] **Busca de marca no INPI**: "Giro" é um nome muito usado (o domínio principal já pertence a outra empresa). Antes de investir na marca, buscar "GIRO" nas classes 42 (software como serviço) e 9 (software), não só 39 e 12, e considerar registrar a marca mista "Giro Locadoras". Se houver conflito, trocar o nome agora sai mais barato.
 - [ ] **Abrir a conta no Asaas** e confirmar as taxas de boleto e cartão para o volume esperado.
 - [ ] **Telas que faltam desenhar:** esqueci a senha, 2 etapas, meu perfil, notificações, contas a pagar separada, multas de trânsito, documentos dos veículos, avarias abertas, pagamento e assinatura pelo cliente final, site de vendas.
-
-### Dúvidas do contrato de filiais (T-030, 07 out 2026)
-
-Levantadas pelo arquiteto em `docs/api/filiais.md`. Cada item traz a recomendação do produto e o padrão que vale até o dono do produto aprovar. O padrão deixa a T-012 (Filiais) seguir sem esperar.
-
-- [ ] **6. [divergência] Campos da tela `Filial` sem regra.** Nenhuma regra usa esses campos. Recomendação, campo a campo:
-
-  | Campo da tela | Recomendação | Impacto de negócio |
-  | --- | --- | --- |
-  | Gerente responsável | Não vira campo próprio. Os gerentes da filial são os usuários com perfil gerente ligados a ela (`USR-07`), como já está no contrato. Na tela, o campo vira só leitura, com o link "Definido em Usuários". Avisos "para o gerente" vão a todos os gerentes da filial. | nenhum (só completa o desenho) |
-  | Vagas no pátio (motos, carros) | Fora. Nenhum cálculo usa esses números. | nenhum |
-  | Tabela de preço padrão | Fora como campo. O preço da filial já existe: categoria da empresa ou categoria só da filial (seção Entidades, "Empresa (ou filial)", `LOC-01`), configurada em `Precos`. | nenhum |
-  | Centro de custo | Fora. A filial já é o centro de custo (DRE por filial, `FIN-13`). | nenhum |
-  | Conta de recebimento | Fora no MVP: o recebimento é da empresa, numa subconta do Asaas por locadora (Decisões de 07 out 2026). **Precisa do dono:** A) uma conta por empresa (padrão); B) conta por filial, na fase 2, para filiais com CNPJ próprio. | sim |
-  | Emite notas fiscais com o CNPJ desta filial | Fora. O produto não emite nota fiscal, e nenhuma regra fala nisso. O CNPJ da filial fica só como dado cadastral. | nenhum |
-  | Aceita devolução de veículos de outras filiais | Fora no MVP. A devolução é feita na filial da locação, e mudar o veículo de filial é transferência (`VEI-04`). **Precisa do dono:** A) só na filial da locação (padrão); B) devolução em qualquer filial, com transferência automática na devolução (fase 2). | sim |
-  | Compartilha a frota com as outras filiais | Fora no MVP. A frota é de cada filial, e para usar o veículo de outra filial é preciso transferir (`VEI-04`). | sim (mesma decisão do item anterior: fica junto da opção B) |
-  | Status "Rascunho" | Fora. A filial é só ativa ou inativa; o formulário só salva com os campos obrigatórios preenchidos. | nenhum |
-  | Horário de feriados | Entra, porque afeta o atraso (`LOC-11`): se o sistema acha que a filial está aberta num feriado, cobra atraso de quem não tinha onde devolver. **Precisa do dono:** A) lista de datas em que a filial fecha, cadastrada pelo administrador, com os feriados nacionais do ano já sugeridos (padrão); B) sem feriados no MVP, e o gerente trata a exceção à mão. | sim (dinheiro, `LOC-11`) |
-
-  A tela também usa "check-in" ("após o check-in"), que é jargão proibido; o certo é "devolução". Vai para a T-028.
-
-- [ ] **7. Desativar filial que ainda tem operação.** Recomendação: aceitar a proposta do arquiteto. A desativação é recusada quando a filial ainda tem veículos fora de `vendido` e `baixado` (inclui `a_venda` e `em_manutencao`), locações em `rascunho`, `aguardando_retirada`, `ativa` ou `devolucao_atrasada`, ou caixa do dia `aberto` ou `aguardando_aprovacao`. A recusa mostra quantos itens faltam em cada grupo, para o administrador transferir os veículos (`VEI-04`), encerrar as locações e fechar o caixa. Contas a receber em aberto **não** impedem: continuam na régua de cobrança (`AUT-03`), podem ser pagas por Pix ou boleto (`FIN-04`) ou no caixa de outra filial, e mantêm a filial de origem para relatório e DRE. Despesas a pagar também não impedem. **Impacto de negócio pequeno** (só a parte das contas em aberto é escolha nova). Padrão até a aprovação: esta recomendação.
-
-### Dúvidas do contrato de contas (T-036, 07 out 2026)
-
-Levantadas pelo arquiteto. Nenhuma bloqueia a T-011.
-
-- [ ] **8. [divergência] Quem usa verificação em 2 etapas.** As telas `Login` e `Convite` dizem que o gerente usa 2 etapas, mas a `USR-02` diz que ela é obrigatória para administrador e financeiro e opcional para os demais. Recomendação: vale a regra (o contrato já segue `USR-02`), e a correção das telas vai para a T-028. **Sem impacto de negócio**; não precisa do dono.
-
-- [ ] **9. [divergência] Convite só por celular.** `Admin-Usuarios` mostra convite só com celular, mas o login é por e-mail (`USR-06`). Recomendação: o e-mail é obrigatório em todo usuário, porque é o login. O celular é opcional e, quando existe, o convite também sai por WhatsApp (`USR-01`). Isso só esclarece como `USR-01` e `USR-06` funcionam juntas, **sem impacto de negócio**. A tela vai para a T-028.
-
-- [ ] **10. "Manter conectado" no `Login`.** Nenhuma regra fala nesse checkbox; a `USR-06` já fixa a sessão em 12 h sem uso no desktop e 30 dias no celular. **Precisa do dono:** A) tirar o checkbox, e a sessão segue a `USR-06` (padrão); B) marcado, estende a sessão do desktop para 30 dias sem uso, nunca para administrador e financeiro (perfis com 2 etapas obrigatória). O padrão é A, por ser mais seguro e não ter regra hoje.
 
 ### Dúvidas do contrato de clientes (T-036, 07 out 2026)
 

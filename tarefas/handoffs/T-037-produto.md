@@ -34,3 +34,15 @@ Itens 11, 12 e 13 de "Pontos em aberto":
 - 11: ordem do botão da `CLI-07` como na tela; sem impacto.
 - 12: desbloqueio manual precisa do dono do produto: A) gerente e administrador desbloqueiam direto, que é o padrão recomendado; B) só o administrador, como na proposta do arquiteto.
 - 13: inativar cliente como na proposta, e reativar volta a `ativo` ou `incompleto`.
+
+## Decisões dos itens 6 a 10 (07 out 2026)
+
+O dono do produto aprovou todos na opção recomendada, e eles viraram regra:
+- **Nova seção Filiais**, com `FIL-01` (cadastro, sem rascunho, uma matriz), `FIL-02` (gerentes vêm dos usuários), `FIL-03` (feriados por filial, com os nacionais sugeridos), `FIL-04` (preço por categoria, recebimento por empresa, sem nota fiscal), `FIL-05` (frota por filial, devolução na filial da locação) e `FIL-06` (desativação).
+- `LOC-11`: feriado conta como dia fechado, e o atraso não corre.
+- `VEI-04`: a transferência é o único jeito de um veículo mudar de filial.
+- `USR-01`: e-mail obrigatório, celular opcional. `USR-06`: sem "manter conectado".
+- A T-028 recebeu as correções de tela de `Login`, `Convite`, `Admin-Usuarios` e `Filial`.
+- Os itens 11 a 13 (clientes) continuam em "Pontos em aberto". O 12 espera o dono; o contrato já segue o padrão A.
+
+**Achado para o arquiteto:** o CPF de exemplo da Juliana em `docs/api/clientes.md` (`05221833012`) não passa no dígito verificador. O válido que mantém a máscara `***.218.330-**` é `05221833018`.
