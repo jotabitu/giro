@@ -16,6 +16,12 @@ Levantadas pelo arquiteto em T-030 (07 out 2026):
 - [decisão] Desativar filial com operação: proposta recusar quando ainda há veículos (fora `vendido`/`baixado`), locações abertas ou caixa aberto (`docs/api/filiais.md`).
 - [divergência] Dados de exemplo nas telas da plataforma (para T-028): `Plat-Empresa-Detalhe` mostra CNPJ 41.208.733/0001-52 (seed: 12.345.678/0001-10), FAT-0001 vencendo em 21 out (PLT-01: dia seguinte ao fim do teste, 22 out) e "13 dias" de teste em 07 out (contrato: 14); `Plat-Empresas` mostra Moto Rápida com 4 usuários (seed: 5).
 
+Levantadas pelo arquiteto em T-036 (07 out 2026):
+
+- [divergência] `Login` diz "Perfis de gerente e financeiro pedem o código" e `Convite` diz "Gerentes ativam a verificação em duas etapas", mas `USR-02` obriga só administrador e financeiro. `docs/api/contas.md` segue a regra; corrigir as telas (T-028) ou mudar a regra.
+- [divergência] `Admin-Usuarios` mostra João Silva convidado só pelo celular, mas o login é por e-mail (`USR-06`). O contrato exige e-mail em todo convite e usa o celular só como canal.
+- [decisão] `Login` tem "Manter conectado neste computador", que as regras não têm. Hoje a sessão segue `USR-06` (12 h no desktop, 30 dias no celular), sem a opção.
+
 ## Fase 0 · Fundação
 
 ### T-001 · Esqueleto do backend
