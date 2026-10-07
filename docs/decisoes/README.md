@@ -20,6 +20,7 @@ Uma decisão por arquivo. Para mudar uma decisão, escreva uma nova ADR que subs
 | [0014](0014-sessoes-e-dados-sensiveis.md) | Sessões revogáveis e dados sensíveis (cifra, HMAC, auditoria) | aceita |
 | [0015](0015-leituras-compostas-entre-apps.md) | Leituras compostas entre apps por registro de anotações | aceita |
 | [0016](0016-papeis-de-banco-e-expurgo-da-auditoria.md) | Papéis de banco separados e expurgo da auditoria | aceita |
+| [0018](0018-ajustes-da-conferencia-da-fundacao.md) | Ajustes da conferência da fundação (T-001) | aceita |
 
 O modelo de dados detalhado fica em [`modelo-de-dados.md`](modelo-de-dados.md).
 
