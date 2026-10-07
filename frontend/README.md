@@ -27,4 +27,8 @@ frontend/
 └── e2e/                     Playwright (agente qa)
 ```
 
-O mapeamento tela → rota está em `docs/telas/README.md`. A estrutura será criada na tarefa T-002.
+O mapeamento tela → rota está em `docs/telas/README.md`. O esqueleto (T-002) existe; as páginas dos grupos de rota são marcadores até as telas das tarefas T-020 em diante.
+
+## Comandos
+
+`npm run dev | lint | typecheck | test | build | api:gerar` (ou `make frontend-check`). `npm run api:gerar` gera `src/lib/api/schema.d.ts` de `docs/api/openapi.yaml`; `node scripts/gerar-tokens.mjs` regenera `src/design-system/tokens.ts` de `docs/design-system/tokens.json`.
