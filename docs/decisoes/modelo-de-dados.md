@@ -158,8 +158,9 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `horario` | json: `{seg..dom: [{abre, fecha}]}`, até 2 intervalos por dia | `LOC-11`; formato em `docs/api/filiais.md` |
 | `fuso` | texto, fixo `America/Sao_Paulo` | |
 
-- `nome` único com `Lower(nome)`. Campos da tela `Filial` fora das regras ficam fora do modelo até o produto decidir (`docs/api/filiais.md`).
+- `nome` único com `Lower(nome)`. Sem status de rascunho, sem gerente como campo, vagas, centro de custo, tabela de preço ou conta de recebimento (`FIL-01`, `FIL-02`, `FIL-04`).
 - Restrições: no máximo uma matriz (`UniqueConstraint(fields=["matriz"], condition=Q(matriz=True))`); a última filial ativa não pode ser desativada (serviço). `PLT-03` checado no serviço de criação.
+- Apoio: `FeriadoFilial` (ativável): `filial` FK, `data`, `nome` texto(80), `origem` enum `nacional`, `local`. Único `(filial, data)` quando ativo (`FIL-03`, `LOC-11`).
 - Apoio: `UsuarioFilial` (`usuario` FK → `contas.Usuario` CASCADE, `filial` FK) único por `(usuario, filial)` (`USR-07`, ADR 0008).
 
 ### 7. Usuário · `contas.Usuario(AbstractBaseUser)` · máquina

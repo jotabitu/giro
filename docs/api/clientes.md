@@ -18,7 +18,7 @@ O cliente é da empresa, compartilhado entre filiais: a lista não é filtrada p
 | Inativar e reativar | sim | sim | — | — | — |
 | Exportar dados do titular e anonimizar (`AUD-06`, fase 2) | sim | — | — | — | — |
 
-Quem não pode ver os dados completos recebe só a representação resumida, com CPF mascarado, sem endereço, CNH e documentos.
+Quem não pode ver os dados completos recebe só a representação resumida, com CPF mascarado, sem endereço, CNH e documentos. O token de suporte (`PLT-07`) **sempre** recebe a resumida, mesmo com permissão `ver_editar` (`AUD-09`): ele pode editar campos do cadastro, mas a resposta não traz documento, CNH nem URLs de documento.
 
 ## Representação
 
@@ -49,7 +49,7 @@ A resumida mais:
 
 ```json
 {
-  "documento": "05221833012",
+  "documento": "05221833018",
   "nascimento": "1998-02-14", "idade": 28,
   "email": "juliana@email.com", "profissao": "Entregadora",
   "cnh": { "numero": "04512345678", "categoria": "A", "validade": "2029-05-10", "primeira_habilitacao": "2017-06-01", "situacao": "valida" },
@@ -100,7 +100,7 @@ Enquanto o fornecedor não existe, o bloco vem `null` (em T-014, todos).
 | `em_dia` | tem locação atual | Em dia |
 | `sem_locacao` | o resto | Sem locação |
 
-`acao_principal` (`CLI-07`), na ordem: em aberto → `cobrar` (alvo: a conta mais antiga); cadastro incompleto → `completar_cadastro`; com locação → `ver_locacao`; com venda aberta → `ver_proposta`; sem locação e `ativo` → `nova_locacao`. Ordem decidida pelo produto em 07 out 2026 (T-037), igual à tela: Lucas (LOC-2856) recebe `completar_cadastro`. Cliente bloqueado sem valor em aberto não ganha `nova_locacao`.
+`acao_principal` (`CLI-07`), na ordem: em aberto → `cobrar` (alvo: a conta mais antiga); cadastro incompleto → `completar_cadastro`; com venda aberta → `ver_proposta`; com locação → `ver_locacao`; sem locação e `ativo` → `nova_locacao`. Ordem decidida pelo produto em 07 out 2026 (T-037), igual à tela: Lucas (LOC-2856) recebe `completar_cadastro`; Diego Martins (LOC-2848 e proposta da CB 300F) recebe `ver_proposta`. Cliente bloqueado sem valor em aberto não ganha `nova_locacao`.
 
 ---
 

@@ -51,7 +51,7 @@ Permissões extras (`USR-03`) somam e nunca tiram: `aprovar_desconto` muda `desc
 
 ### POST /api/auth/entrar/
 Público.
-Corpo: `{ email, senha, aparelho: "desktop" | "celular" }`. Não há "manter conectado": a duração segue `USR-06` (decisão pendente com o dono do produto; se mudar, o contrato ganha o campo).
+Corpo: `{ email, senha, aparelho: "desktop" | "celular" }`. Não existe "manter conectado" (`USR-06`).
 200, quando não precisa de 2 etapas: `{ "etapa": "pronto", "access": "<jwt>", "usuario": { ...igual a eu... } }` e o cookie do refresh.
 200, quando precisa: `{ "etapa": "verificar_2fa", "token_pre_2fa": "<jwt>" }` (tem autenticador) ou `{ "etapa": "configurar_2fa", "token_pre_2fa": "<jwt>" }` (precisa de 2 etapas e ainda não tem).
 401 `{ "codigo": "credenciais_invalidas", "mensagem": "E-mail ou senha incorretos" }`.
@@ -224,6 +224,7 @@ A plataforma abre o acesso (`plataforma.md`) e manda o navegador para `https://<
   "suporte": { "acesso_suporte_id": 31, "nome": "Diego Santos", "permissao": "ver", "fim": "2026-10-07T15:30:00Z", "motivo": "Chamado #1042" }
   ```
   O frontend mostra a faixa "Modo suporte" sempre que `suporte` não for `null`.
+- Mesmo com `ver_editar`, o suporte nunca recebe CPF, CNH e documentos completos (`AUD-09`): os endpoints com dados pessoais devolvem a representação resumida para o token de suporte.
 - Não há refresh: no `fim` qualquer requisição responde 401 `PLT-07`, e o frontend mostra "O acesso de suporte terminou".
 - Com `permissao = "ver"`, rota não liberada para leitura do suporte responde 403 `{ "codigo": "PLT-07", "mensagem": "No modo só ver você não pode fazer isto" }`.
 - Token de suporte em `auth/entrar`, `renovar`, `sessoes`, `usuarios` (escrita) ou `convites` → 403 `PLT-07`.

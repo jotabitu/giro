@@ -12,15 +12,12 @@ As pendências de regra foram decididas em 07 out 2026 (seção "Decisões de 07
 
 Levantadas pelo arquiteto em T-030 (07 out 2026):
 
-- [decisão] [divergência] Tela `Filial` tem campos e comportamentos que as regras não têm: gerente responsável, vagas no pátio, tabela de preço padrão da filial, conta de recebimento, centro de custo, "emite notas fiscais com o CNPJ desta filial", "aceita devolução de veículos de outras filiais", "compartilha a frota com as outras filiais", status "Rascunho" e horário de feriados. Ficaram fora de `docs/api/filiais.md` até o produto decidir quais entram e com que regra.
-- [decisão] Desativar filial com operação: proposta recusar quando ainda há veículos (fora `vendido`/`baixado`), locações abertas ou caixa aberto (`docs/api/filiais.md`).
 - [divergência] Dados de exemplo nas telas da plataforma (para T-028): `Plat-Empresa-Detalhe` mostra CNPJ 41.208.733/0001-52 (seed: 12.345.678/0001-10), FAT-0001 vencendo em 21 out (PLT-01: dia seguinte ao fim do teste, 22 out) e "13 dias" de teste em 07 out (contrato: 14); `Plat-Empresas` mostra Moto Rápida com 4 usuários (seed: 5).
 
 Levantadas pelo arquiteto em T-036 (07 out 2026):
 
 - [divergência] `Frota` mostra a reserva do Kwid como `RES-0412`, mas a reserva é uma locação `aguardando_retirada` com código `LOC-` (regras, Veículos e Locação). `docs/api/veiculos.md` mostra o código `LOC-`. Para T-028, junto com as diárias da Frota que não batem com a tabela (CG 160 R$ 49,90, Pop R$ 39,90, NMax R$ 69,90, Mobi R$ 119,00).
 - [decisão] Desbloqueio manual de cliente: com o dono do produto (item 12 de "Pontos em aberto", T-037). O contrato segue o padrão A do produto: gerente e administrador desbloqueiam direto (`CLI-05`); o vendedor pede (`APR-05`).
-- [decisão] `Login` tem "Manter conectado neste computador", que as regras não têm. Com o dono do produto (item 10 de "Pontos em aberto" das regras, T-037); padrão: tirar o checkbox. As divergências de 2 etapas e convite por celular foram decididas pelo produto e vão para a T-028.
 
 ## Fase 0 · Fundação
 
