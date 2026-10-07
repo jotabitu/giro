@@ -4,6 +4,10 @@ import os
 
 os.environ.setdefault("DJANGO_SECRET_KEY", "chave-so-para-testes")
 os.environ.setdefault("DATABASE_URL", "postgres://giro:giro-dev-trocar@db:5432/giro")
+# Chaves fixas só para testes (32 bytes em base64), para não depender do .env.
+os.environ.setdefault("GIRO_CHAVE_DADOS_PESSOAIS", "1:" + "MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE=")
+os.environ.setdefault("GIRO_CHAVE_SEGREDOS", "1:" + "MjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjI=")
+os.environ.setdefault("GIRO_PEPPER_HMAC", "pepper-so-para-testes")
 
 from config.settings.base import *  # noqa: F403
 from config.settings.base import SHARED_APPS, TENANT_APPS

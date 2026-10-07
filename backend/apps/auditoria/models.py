@@ -5,7 +5,7 @@ Três camadas: o model recusa `save()` de registro existente e `delete()`, o que
 Grave sempre por `comum.auditoria` (`auditar`, `registrar_evento`) ou pela máquina de estados.
 """
 
-from typing import Any, NoReturn
+from typing import Any, ClassVar, NoReturn
 
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
@@ -49,6 +49,9 @@ class EventoAuditoria(models.Model):
     regra = models.CharField(max_length=10, blank=True, default="")
 
     objects = EventoQuerySet.as_manager()
+
+    # O próprio evento nunca é auditado; o IP do ator vai inteiro (ADR 0014, item 3).
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["ip"]}
 
     class Meta:
         verbose_name = "evento de auditoria"
