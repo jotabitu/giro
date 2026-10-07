@@ -135,7 +135,7 @@ Perfis: quem faz vistoria. Locação `ativa` ou `devolucao_atrasada`.
 ```
 `comparacao` sempre usa a vistoria de saída vigente do mesmo veículo e da mesma locação (com troca de veículo, a do trecho atual).
 
-**Um acerto só por locação** (`LOC-09`, padrão do produto, item 18): na troca de veículo, a vistoria de chegada do veículo antigo não fecha conta. A devolução da locação é criada nessa hora, em `rascunho`, e recebe os itens do veículo antigo (avarias, combustível); o acerto final, na devolução do último veículo, soma tudo e desconta da caução total paga.
+**Um acerto só por locação** (`LOC-09`): na troca de veículo, a vistoria de chegada do veículo antigo não fecha conta. A devolução da locação é criada nessa hora, em `rascunho`, e recebe os itens do veículo antigo (avarias, combustível); o acerto final, na devolução do último veículo, soma tudo e desconta da caução total paga.
 
 ### Acerto (DEV-01, DEV-02)
 
@@ -165,7 +165,7 @@ Itens (`ItemAcerto.tipo`):
 
 | Tipo | Como entra | Regra |
 | --- | --- | --- |
-| `combustivel` | `calculado`: litros faltantes = capacidade do tanque do veículo × (nível na saída − nível na chegada), com os níveis valendo 0, 1/4, 1/2, 3/4 e 1; valor = litros × preço do litro da filial + R$ 10,00 uma vez por devolução, só quando falta combustível. Sem capacidade do tanque ou sem preço da filial, vira `informado` e a tela pede o valor | `DEV-01`, item 15 de "Pontos em aberto" (padrão do produto, com o dono) |
+| `combustivel` | `calculado`: litros faltantes = capacidade do tanque do veículo × (nível na saída − nível na chegada), com os níveis valendo 0, 1/4, 1/2, 3/4 e 1; valor = litros × preço do litro da filial + R$ 10,00 uma vez por devolução, só quando falta combustível. Sem capacidade do tanque ou sem preço da filial, vira `informado` e a tela pede o valor | `DEV-01` (decidido em 07 out 2026, T-041) |
 | `avaria` | um item por avaria nova com valor (tabela de peças ou orçamento) | `DEV-01` |
 | `atraso` | `calculado` por `locacoes.selectors.calcular_atraso` no momento da conclusão da vistoria de chegada | `LOC-10`, `LOC-11`, `FIL-03` |
 | `km_excedente` | `calculado`; hoje sempre 0 (km livre em todos os planos) | `DEV-01` |

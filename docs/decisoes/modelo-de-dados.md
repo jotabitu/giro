@@ -153,7 +153,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `cnpj` | texto(14), nulo | |
 | `inscricao_estadual`, `inscricao_municipal` | texto(20), nulo | |
 | `telefone`, `whatsapp`, `email` | texto(13), texto(13), email; nulos | contato da filial |
-| `preco_combustivel_litro_centavos` | centavos, nulo | preço da bomba usado no acerto (`DEV-01`); seed Filial Centro = 550 |
+| `preco_litro_centavos` | centavos, nulo | preço da bomba usado no acerto (`DEV-01`); seed Filial Centro = 550 |
 | `endereco` | campos `cep`, `logradouro`, `numero`, `complemento`, `bairro`, `cidade`, `uf` | |
 | `matriz` | bool | |
 | `horario` | json: `{seg..dom: [{abre, fecha}]}`, até 2 intervalos por dia | `LOC-11`; formato em `docs/api/filiais.md` |

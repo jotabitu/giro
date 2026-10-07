@@ -19,11 +19,7 @@ Levantadas pelo arquiteto em T-036 (07 out 2026):
 - [divergência] `Frota` mostra a reserva do Kwid como `RES-0412`, mas a reserva é uma locação `aguardando_retirada` com código `LOC-` (regras, Veículos e Locação). `docs/api/veiculos.md` mostra o código `LOC-`. Para T-028, junto com as diárias da Frota que não batem com a tabela (CG 160 R$ 49,90, Pop R$ 39,90, NMax R$ 69,90, Mobi R$ 119,00).
 - [decisão] Desbloqueio manual de cliente: com o dono do produto (item 12 de "Pontos em aberto", T-037). O contrato segue o padrão A do produto: gerente e administrador desbloqueiam direto (`CLI-05`); o vendedor pede (`APR-05`).
 
-Levantadas pelo arquiteto em T-038 (07 out 2026), respondidas pelo produto nos itens 15 a 20 de "Pontos em aberto" (T-041). Os contratos já seguem as respostas; continuam com o dono do produto, no padrão do produto:
-
-- [decisão] Fórmula do combustível (item 15): capacidade × diferença de nível × preço do litro da filial + R$ 10 uma vez.
-- [decisão] Caução e cobranças na troca de veículo (item 18): caução maior cobrada na troca; menor e cobranças do antigo no acerto final.
-- [decisão] Gerente cancela e dá desconto acima de 5% direto (item 19).
+Levantadas pelo arquiteto em T-038 (07 out 2026); as dúvidas foram decididas pelo dono do produto (T-041) e já estão nos contratos:
 
 - [divergência] Telas de locação (para T-028): `Devolucao` mostra "faltou 1/2 tanque" para LOC-2836, mas o seed fecha R$ 32,00 com chegada em 3/4 (16 L × 1/4 × R$ 5,50 + R$ 10); `Locacao` diz "Com 3 dias de atraso numa parcela, o contrato entra na lista de bloqueio" (`CLI-05`: 15 dias) e tem o campo "Filial de devolução" (`FIL-05`: a devolução é na filial da locação); `Vistoria` mostra LOC-2856 com diária R$ 44,90, 30 dias, franquia de 3.000 km, caução R$ 500 e total R$ 1.347 (é semanal Street: R$ 329,00 + caução R$ 300,00, km livre); `Locacoes` mostra ROE-2A88 como Pop 110i e RHT-9F02 como Biz 125 (na `Frota` são Mobi e Kwid) e LOC-2848 com Kwid QYC-4D72 (no `Vistoriador`, QYC-4D72 é uma CG 160); `Contratos-Modelos` tem "Termo de devolução" como modelo, mas modelo de contrato só tem finalidade locação ou venda e o recibo da devolução é documento do sistema.
 
