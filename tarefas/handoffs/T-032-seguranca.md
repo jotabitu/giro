@@ -12,7 +12,7 @@
 **Em aberto (viraram itens no backlog, esperando número):**
 - Nenhum alto ficou sem decisão de desenho.
 - Médios: trigger com `TRUNCATE` e papéis do banco (S-10); Celery sem vazar ator, schema ou cache (S-11); SVG do logo (S-12); webhooks (S-14); links com prazo (S-15); host desconhecido e cabeçalhos em produção (S-16, S-17).
-- Baixa: pepper do HMAC derivado por empresa (sugestão sobre a 0014).
+- Baixa: pepper do HMAC derivado por empresa, já aplicado na 0014.
 
 **O que ficou de fora:** revisão de código. Isto foi revisão de desenho; a revisão do código da T-001 e da T-011 fica para depois da entrega (sugiro antes da T-024).
 
