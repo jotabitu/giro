@@ -553,6 +553,9 @@ Campos, índices e imutabilidade na ADR 0010. Existe nos dois schemas. Apoio `Ex
 | `MensagemEnviada` | notificacoes | `canal`, `destino` (mascarado), `modelo`, origem genérica, `status` enum `na_fila`, `enviada`, `falhou`, `externo_id`. Idempotência das réguas. |
 | `ExecucaoAutomacao` | automacoes | `codigo` (`AUT-02`), `referencia` (data ou objeto), `executada_em`. Único `(codigo, referencia)` (ADR 0012). |
 
+| `Importacao` | importacao (ADR 0017) | `tipo` enum `veiculos`, `clientes`, `arquivo` (storage privado), `nome_arquivo`, `filial_padrao` FK nulo, `status` enum `validando`, `validada`, `importando`, `concluida`, `falhou`, `cancelada`, contagens (`linhas`, `prontas`, `com_erro`, `importadas`, `acima_do_limite`), `aviso` json, `enviada_por` FK, `concluida_em`, `apagar_em` (+30 dias). Uma `validando` ou `importando` por tipo. |
+| `LinhaImportacao` | importacao | `importacao` FK CASCADE, `numero`, `dados` json (cifrado com `CampoCifrado` para clientes, ADR 0014), `erros` json, `status` enum `pronta`, `com_erro`, `importada`, `acima_do_limite`, `ignorada`, `objeto_id` nulo. Único `(importacao, numero)`. Dado temporário: apagado com a importação em 30 dias. |
+
 `relatorios` não tem tabela: lê dos outros apps por selector.
 
 ## Restrições de integridade (resumo)
