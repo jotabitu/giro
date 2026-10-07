@@ -543,3 +543,13 @@ Levantadas pelo arquiteto em `docs/api/filiais.md`. Cada item traz a recomendaç
   A tela também usa "check-in" ("após o check-in"), que é jargão proibido; o certo é "devolução". Vai para a T-028.
 
 - [ ] **7. Desativar filial que ainda tem operação.** Recomendação: aceitar a proposta do arquiteto. A desativação é recusada quando a filial ainda tem veículos fora de `vendido` e `baixado` (inclui `a_venda` e `em_manutencao`), locações em `rascunho`, `aguardando_retirada`, `ativa` ou `devolucao_atrasada`, ou caixa do dia `aberto` ou `aguardando_aprovacao`. A recusa mostra quantos itens faltam em cada grupo, para o administrador transferir os veículos (`VEI-04`), encerrar as locações e fechar o caixa. Contas a receber em aberto **não** impedem: continuam na régua de cobrança (`AUT-03`), podem ser pagas por Pix ou boleto (`FIN-04`) ou no caixa de outra filial, e mantêm a filial de origem para relatório e DRE. Despesas a pagar também não impedem. **Impacto de negócio pequeno** (só a parte das contas em aberto é escolha nova). Padrão até a aprovação: esta recomendação.
+
+### Dúvidas do contrato de contas (T-036, 07 out 2026)
+
+Levantadas pelo arquiteto. Nenhuma bloqueia a T-011.
+
+- [ ] **8. [divergência] Quem usa verificação em 2 etapas.** As telas `Login` e `Convite` dizem que o gerente usa 2 etapas, mas a `USR-02` diz que ela é obrigatória para administrador e financeiro e opcional para os demais. Recomendação: vale a regra (o contrato já segue `USR-02`), e a correção das telas vai para a T-028. **Sem impacto de negócio**; não precisa do dono.
+
+- [ ] **9. [divergência] Convite só por celular.** `Admin-Usuarios` mostra convite só com celular, mas o login é por e-mail (`USR-06`). Recomendação: o e-mail é obrigatório em todo usuário, porque é o login. O celular é opcional e, quando existe, o convite também sai por WhatsApp (`USR-01`). Isso só esclarece como `USR-01` e `USR-06` funcionam juntas, **sem impacto de negócio**. A tela vai para a T-028.
+
+- [ ] **10. "Manter conectado" no `Login`.** Nenhuma regra fala nesse checkbox; a `USR-06` já fixa a sessão em 12 h sem uso no desktop e 30 dias no celular. **Precisa do dono:** A) tirar o checkbox, e a sessão segue a `USR-06` (padrão); B) marcado, estende a sessão do desktop para 30 dias sem uso, nunca para administrador e financeiro (perfis com 2 etapas obrigatória). O padrão é A, por ser mais seguro e não ter regra hoje.

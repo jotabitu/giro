@@ -18,3 +18,12 @@ Pendente: começa depois do aval do orquestrador.
 ## Decisão S-02 (07 out 2026)
 
 O dono do produto decidiu, e virou a regra `AUD-09`: o suporte Giro vê CPF e CNH mascarados dentro da empresa, nunca completos. A `PLT-07` cita a nova regra. A linha `[decisão]` original está no backlog da branch `t-032-revisao-fundacao` (Seguranca), não nesta; no merge, tire essa linha e fique com a nota desta branch.
+
+## Dúvidas da T-036 (contas)
+
+Itens 8, 9 e 10 de "Pontos em aberto":
+- 8: 2 etapas vale como na `USR-02`; correção da tela na T-028.
+- 9: e-mail obrigatório e celular opcional (WhatsApp no convite); correção da tela na T-028.
+- 10: "Manter conectado" precisa do dono do produto: A) tirar, que é o padrão; B) estender o desktop para 30 dias, exceto administrador e financeiro.
+
+As linhas `[decisão]` ficaram no backlog da branch do Arquiteto (T-036).
