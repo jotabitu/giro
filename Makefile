@@ -2,7 +2,8 @@
 # No Windows rode pelo Git Bash ou WSL (make não vem no Windows por padrão).
 
 COMPOSE := docker compose
-BACKEND_RUN := $(COMPOSE) run --rm --no-deps backend
+# Com dependências: o pytest precisa do Postgres de pé.
+BACKEND_RUN := $(COMPOSE) run --rm backend
 FRONTEND_RUN := $(COMPOSE) run --rm --no-deps frontend
 
 .PHONY: help up down logs ps check infra-check backend-check frontend-check seed migrate shell api-schema api-client
@@ -44,9 +45,10 @@ migrate: .env
 seed: .env
 	$(COMPOSE) exec backend python manage.py seed_moto_rapida
 
+# MSYS_NO_PATHCONV: no Git Bash, impede que /tmp/... vire caminho do Windows.
 api-schema: .env
-	$(COMPOSE) exec backend python manage.py spectacular --file /tmp/openapi.yaml --validate
-	$(COMPOSE) cp backend:/tmp/openapi.yaml docs/api/openapi.yaml
+	MSYS_NO_PATHCONV=1 $(COMPOSE) exec backend python manage.py spectacular --file /tmp/openapi.yaml --validate
+	MSYS_NO_PATHCONV=1 $(COMPOSE) cp backend:/tmp/openapi.yaml docs/api/openapi.yaml
 
 api-client: .env
 	$(COMPOSE) exec frontend npm run api:gerar
@@ -57,12 +59,8 @@ infra-check: .env
 	sh infra/scripts/check-env.sh
 	$(COMPOSE) config --quiet
 
-# Enquanto T-001 e T-002 não entregam, backend-check e frontend-check avisam e passam.
-# Remover o desvio quando backend/manage.py e frontend/package.json existirem.
 backend-check: .env
-	@if [ ! -f backend/manage.py ]; then echo "AVISO: backend/manage.py não existe ainda (T-001); backend-check pulado"; else \
-	  $(BACKEND_RUN) sh -c "ruff check . && ruff format --check . && mypy . && pytest -q"; fi
+	$(BACKEND_RUN) sh -c "ruff check . && ruff format --check . && mypy . && pytest -q"
 
 frontend-check: .env
-	@if [ ! -f frontend/package.json ]; then echo "AVISO: frontend/package.json não existe ainda (T-002); frontend-check pulado"; else \
-	  $(FRONTEND_RUN) sh -c "npm run lint && npm run typecheck && npm test -- --run && npm run build"; fi
+	$(FRONTEND_RUN) sh -c "npm run lint && npm run typecheck && npm test -- --run && npm run build"
