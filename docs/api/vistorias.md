@@ -193,7 +193,7 @@ Perfis: quem vê o acerto. Exige a vistoria de chegada `concluida` (senão 422 `
 - Locação `encerrada` (ou `cancelada` no encerramento antecipado aprovado) por `locacoes.services.encerrar`, com `devolvida_em` = conclusão da vistoria de chegada, ajustada pela `LOC-11` quando a filial estava fechada.
 - Km do veículo atualizado (`VEI-02`). Avaria com `vai_para_oficina` abre uma OS (`manutencao`) e o veículo vai para `em_manutencao`; sem isso, volta para `disponivel` (`DEV-04`).
 - Evento `locacoes.locacao_encerrada` recalcula as preventivas (`MAN-03`).
-- Depois do commit: recibo em PDF com as fotos, enviado por WhatsApp com a marca da locadora.
+- Depois do commit: recibo em PDF com as fotos, enviado por WhatsApp com a marca da locadora. Com saldo a devolver por Pix, o recibo diz "devolução de R$ 183,00 por Pix em até 1 dia útil" (o Pix é feito pela locadora e marcado como feito, `financeiro.md`).
 Erros: 422 `{ "codigo": "FIN-07", "mensagem": "Abra o caixa do dia para devolver em dinheiro" }`; 409 `transicao_locacao`.
 Regras: DEV-01 a DEV-06, LOC-10 a LOC-13.
 

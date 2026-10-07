@@ -148,6 +148,11 @@ Levantadas pelo arquiteto em T-043 (07 out 2026):
 - **Regras:** IMP-02 e o passo "importar dados" do assistente de implantação, VEI-01, CLI-01
 - **Pronto quando:** `docs/api/importacao.md` (envio da planilha, validação linha a linha com os erros da tela `Onboarding-Importar`, confirmação, relatório), com os campos cifrados da ADR 0014. Destrava T-027.
 
+### T-045 · Conferir decisões de implementação da T-001 contra as ADRs
+- **Agente:** arquiteto
+- **Depende de:** T-001
+- **Pronto quando:** as "Decisões de implementação (Arquiteto, confira)" do handoff da T-001 conferidas contra as ADRs 0008 a 0012 e o modelo de dados; o que divergir vira ajuste de ADR ou tarefa para o backend, sem bloquear a T-033.
+
 ## Fase 1 · MVP
 
 ### T-010 · Plataforma: planos, empresas, criação de schema

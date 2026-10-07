@@ -137,7 +137,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 
 | Model | App | Campos principais |
 | --- | --- | --- |
-| `ContaPagamento` | plataforma | `empresa` (1:1), `provedor` enum `asaas`, `conta_externa_id` único, `chave_api_cifrada` (`CampoCifrado` com `GIRO_CHAVE_SEGREDOS`, decifrada só em `integracoes/pagamentos/`, ADR 0014), `webhook_token_hash` único, `status` enum `pendente`, `aprovada`, `recusada`. O webhook chega no `public`, acha a empresa pelo token e só então entra no schema dela (ADR 0007). |
+| `ContaPagamento` | plataforma | `empresa` (1:1), `provedor` enum `asaas`, `conta_externa_id` único, `id_cifra` (UUID, ADR 0014), `chave_api_cifrada` (`CampoCifrado` com `GIRO_CHAVE_SEGREDOS`, decifrada só em `integracoes/pagamentos/`, ADR 0014), `webhook_token_hash` único, `status` enum `pendente`, `aprovada`, `recusada`. O webhook chega no `public`, acha a empresa pelo token e só então entra no schema dela (ADR 0007). |
 | `Chamado` | plataforma | `numero` (#1042), `empresa` FK, `assunto`, `status`, `responsavel` FK usuário. Fase 2. |
 | `Convite` | contas | ver item 7 (serve aos dois schemas). |
 
@@ -248,6 +248,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `nome` | texto(150) | nome ou razão social |
 | `documento` | `CampoCifrado` | CPF ou CNPJ, só dígitos (ADR 0014) |
 | `documento_hash` | `CampoHashBusca`, **único** | HMAC do documento normalizado; unicidade e busca exata (`CLI-01`) |
+| `id_cifra` | UUID, único, imutável | entra no dado associado da cifra (ADR 0014) |
 | `nascimento` | data, nulo | PF |
 | `celular`, `email` | texto(13), email | |
 | `profissao` | texto(80), nulo | |
@@ -551,6 +552,9 @@ Campos, índices e imutabilidade na ADR 0010. Existe nos dois schemas. Apoio `Ex
 | `PreferenciaNotificacao` | notificacoes | `usuario`, `tipo`, `canais` (lista enum `sino`, `push`, `email`, `whatsapp`). Único `(usuario, tipo)`. |
 | `MensagemEnviada` | notificacoes | `canal`, `destino` (mascarado), `modelo`, origem genérica, `status` enum `na_fila`, `enviada`, `falhou`, `externo_id`. Idempotência das réguas. |
 | `ExecucaoAutomacao` | automacoes | `codigo` (`AUT-02`), `referencia` (data ou objeto), `executada_em`. Único `(codigo, referencia)` (ADR 0012). |
+
+| `Importacao` | importacao (ADR 0017) | `tipo` enum `veiculos`, `clientes`, `arquivo` (storage privado), `nome_arquivo`, `filial_padrao` FK nulo, `status` enum `validando`, `validada`, `importando`, `concluida`, `falhou`, `cancelada`, contagens (`linhas`, `prontas`, `com_erro`, `importadas`, `acima_do_limite`), `aviso` json, `enviada_por` FK, `concluida_em`, `apagar_em` (+30 dias). Uma `validando` ou `importando` por tipo. |
+| `LinhaImportacao` | importacao | `importacao` FK CASCADE, `numero`, `dados` json (cifrado com `CampoCifrado` para clientes, ADR 0014), `erros` json, `status` enum `pronta`, `com_erro`, `importada`, `acima_do_limite`, `ignorada`, `objeto_id` nulo. Único `(importacao, numero)`. Dado temporário: apagado com a importação em 30 dias. |
 
 `relatorios` não tem tabela: lê dos outros apps por selector.
 
