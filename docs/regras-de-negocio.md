@@ -514,7 +514,7 @@ Toda ação que muda dado de negócio grava um evento de auditoria que ninguém 
 
 Todas as telas usam a mesma empresa de exemplo. Use estes dados como seed do banco de desenvolvimento e como casos de teste: os cálculos do sistema têm que chegar exatamente nestes números.
 
-**Empresa:** Moto Rápida Locações Ltda, CNPJ 12.345.678/0001-10, subdomínio `motorapida`, plano Profissional, teste de 07 a 21 out 2026, Filial Centro (Fortaleza, CE), 86 veículos (83 importados + 3 corrigidos), 612 clientes, 42 locações ativas.
+**Empresa:** Moto Rápida Locações Ltda, CNPJ 12.345.678/0001-95, subdomínio `motorapida`, plano Profissional, teste de 07 a 21 out 2026, Filial Centro (Fortaleza, CE), 86 veículos (83 importados + 3 corrigidos), 612 clientes, 42 locações ativas.
 
 **Pessoas:** Mariana Costa (administradora), Rodrigo Pinheiro (gerente), Bruna Alves (vendedora), João Silva (vistoriador), Lúcia Freitas (financeiro). Plataforma: você (dono), Diego Santos (suporte), Paula Andrade (financeiro), Caio Ribeiro (sucesso), Larissa Melo (suporte, convite pendente).
 
@@ -553,7 +553,7 @@ Planos especiais: Entregador R$ 279,00/semana (km livre, troca de óleo inclusa)
 
 *Mudanças em 07 out 2026 (T-041):* "Despesas de outubro" passou de "aguardando aprovação R$ 1.386,40" para R$ 1.200,00. O valor antigo somava o IPVA de R$ 186,40, que pela `FIN-05` (até R$ 500 nasce `a_pagar`) não vai para aprovação. A tela `Despesas` vai para a T-028. Correção aprovada pelo dono do produto em 07 out 2026.
 
-*Mudanças em 08 out 2026 (T-053):* criada a linha "Contadores do menu em 07 out". Os números de outubro da tela `Receber` ("Previsto no mês" R$ 74,2 mil em 318 parcelas, "Recebido" R$ 21,6 mil, "Vence hoje" R$ 1.890 em 9 parcelas, "A vencer" 226, "Pagas" 72) não saem do seed e não fecham com estas regras: 9 parcelas custam pelo menos 9 × R$ 279,00 = R$ 2.511,00; 42 locações abertas dão no máximo 42 × 5 = 210 vencimentos semanais num mês; as abas somam 309, não 318; e 21,6 ÷ 74,2 dá 29,11%, não 29,00%. Eles só entram nesta tabela quando o seed tiver a carteira de outubro (parcelas das 42 locações pela tabela de preços); até lá, o teste da `FIN-15` usa um caso pequeno próprio, e as telas mostram os números da carteira quando ela existir.
+*Mudanças em 08 out 2026 (T-053):* o CNPJ da Moto Rápida passou de 12.345.678/0001-10 para **12.345.678/0001-95**, porque o antigo não passa no dígito verificador e a validação do CNPJ recusa dígito errado (divergência levantada pelo backend na T-010). Criada a linha "Contadores do menu em 07 out". Os números de outubro da tela `Receber` ("Previsto no mês" R$ 74,2 mil em 318 parcelas, "Recebido" R$ 21,6 mil, "Vence hoje" R$ 1.890 em 9 parcelas, "A vencer" 226, "Pagas" 72) não saem do seed e não fecham com estas regras: 9 parcelas custam pelo menos 9 × R$ 279,00 = R$ 2.511,00; 42 locações abertas dão no máximo 42 × 5 = 210 vencimentos semanais num mês; as abas somam 309, não 318; e 21,6 ÷ 74,2 dá 29,11%, não 29,00%. Eles só entram nesta tabela quando o seed tiver a carteira de outubro (parcelas das 42 locações pela tabela de preços); até lá, o teste da `FIN-15` usa um caso pequeno próprio, e as telas mostram os números da carteira quando ela existir.
 
 ## Decisões de 07 out 2026
 

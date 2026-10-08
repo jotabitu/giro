@@ -10,6 +10,7 @@
   - Em atraso: todas as atrasadas, de qualquer mês.
   - Abas: "Em atraso" ignora o período; "Vencem hoje", "A vencer" e "Pagas" seguem o período escolhido; "Todas" é a soma das quatro.
 - **Expurgo da auditoria:** `AUT-16`, todo dia 1 às 03:00, em cada empresa e na plataforma. Apaga os eventos com mais de 5 anos (`AUD-02`) e grava um evento do Sistema (categoria segurança) com a data limite e a quantidade de eventos apagados.
+- **CNPJ do seed (divergência do backend na T-010):** o CNPJ passa a ser 12.345.678/0001-95, porque o 0001-10 não passa no dígito verificador. Já trocado nas regras e nos critérios T-010, T-012 e T-014. As telas ficam com o design-system e `docs/api` com o arquiteto (está no backlog).
 - **Seed:** nova linha "Contadores do menu em 07 out (Mariana)" com Contas a receber 2, Despesas 1, Conciliação e Comissões sem número.
 
 **Onde:** `docs/regras-de-negocio.md` (`FIN-15`, `AUT-16`, linha nova do seed, notas de mudança de 08 out, item em "Pontos em aberto"), `tarefas/backlog.md` (1 `[decisão]` e 2 `[divergência]` em "Levantadas pelo produto em T-053").
