@@ -195,11 +195,6 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - **Depende de:** T-033
 - **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA`, `na_empresa` e o teste de arquitetura revisados contra a ADR 0014 (itens 2 e 3), a ADR 0018 (item 3) e os achados S-05, S-06, S-07, C-01 e C-02; relatório em `docs/seguranca/`; achados viram tarefas.
 
-### T-063 · Contratos com o caixa da T-059 e conferência da T-058 e da T-012
-- **Agente:** arquiteto
-- **Depende de:** T-059, T-058, T-012
-- **Pronto quando:** `financeiro.md`, `painel.md` e `veiculos.md` seguem a divergência "Contratos" da T-059 no topo do backlog; as mudanças da T-058 em `docs/api/plataforma.md` (entrar sem código responde 401; 429 das 5 senhas e 429 `muitas_requisicoes`) conferidas; as 5 decisões de implementação do handoff da T-012 conferidas contra as ADRs (nova ADR se alguma mudar uma decisão).
-
 ### T-064 · Revisão de segurança da T-058 e da T-012
 - **Agente:** seguranca
 - **Depende de:** T-058, T-012

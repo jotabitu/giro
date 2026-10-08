@@ -47,3 +47,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-062 · Carteira de outubro com as mudanças da T-059 · qa · PR #42 · tarefas/handoffs/T-062-qa.md · Previsto R$ 52.002,10 em 128; Recebido 25,77%
 - T-060 · Telas do Receber e do Financeiro com a carteira de outubro · design-system · PR #43 · tarefas/handoffs/T-060-design-system.md · também Caixa, Locacoes e Comissoes; FleetBar conferido a 390 px
 - T-067 · USR-07: o financeiro também escolhe todas as filiais · produto · PR #44 · sem handoff (só texto da regra) · branch t-063-usr-07; comportamento já era esse na tabela de perfis e na USR-08
+- T-063 · Contratos com o caixa da T-059 e conferência da T-058 e da T-012 · arquiteto · PR #45 · tarefas/handoffs/T-063-arquiteto.md · sem ADR nova; decisão 5 da T-012 na T-011; limites do entrar da empresa em contas.md (T-011)
