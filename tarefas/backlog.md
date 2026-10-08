@@ -163,6 +163,11 @@ Levantadas pelo arquiteto em T-043 (07 out 2026):
 - **Depende de:** T-036
 - **Pronto quando:** `docs/api/contas.md` devolve `menu` (módulos liberados) em `GET /api/eu/`, para a tela não inferir de `pode`; rota inicial por perfil definida com o produto (vistoriador, vendedor, gerente, financeiro); `docs/api/painel.md` com os contadores do menu e os indicadores da tela `Main`. Resolve as três `[decisão]` da T-020.
 
+### T-050 · Revisão de segurança do código da T-033
+- **Agente:** seguranca
+- **Depende de:** T-033
+- **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA`, `na_empresa` e o teste de arquitetura revisados contra a ADR 0014 (itens 2 e 3), a ADR 0018 (item 3) e os achados S-05, S-06, S-07, C-01 e C-02; relatório em `docs/seguranca/`; achados viram tarefas.
+
 ## Fase 1 · MVP
 
 ### T-010 · Plataforma: planos, empresas, criação de schema

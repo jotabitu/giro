@@ -23,3 +23,6 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-042 · Componente de código de 6 dígitos · design-system · PR #10 · tarefas/handoffs/T-042-design-system.md
 - T-020 · Telas de acesso e casca do app · frontend · PR #11 · tarefas/handoffs/T-020-frontend.md · dados falsos até a T-011; 390 px a validar com emulação (Edge headless não abre abaixo de 492 px)
 - T-033 · Dados sensíveis na fundação · backend · PR a abrir (branch t-033-dados-sensiveis) · tarefas/handoffs/T-033-backend.md · 127 testes; inclui C-01, C-02 e o ator das tarefas (ADR 0018 item 3)
+- T-033 · Dados sensíveis na fundação · backend · PR #16 · tarefas/handoffs/T-033-backend.md · 127 testes; dependência cryptography
+- T-046 · Componentes pedidos pela T-020 · design-system · PR #15 · tarefas/handoffs/T-046-design-system.md · sem dependência nova
+- T-049 · Divergências de tela restauradas · produto · PR #13 · tarefas/handoffs/T-049-produto.md

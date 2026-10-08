@@ -2,8 +2,8 @@
 
 No máximo uma tarefa por agente. Formato: `T-0xx · título · agente · desde dd/mm`.
 
-- T-035 · Endurecimento de produção · devops · desde 07/10 (branches t-043-papeis-de-banco e t-045-proxies-confiaveis)
-- T-040 · Cobertura de regras e testes de aceitação de T-010 a T-014 · qa · desde 07/10
+- T-034 · Auditoria e Celery endurecidos · backend · desde 08/10
+- T-035 · Endurecimento de produção · devops · desde 07/10
 - T-021 · Telas de veículos e clientes · frontend · desde 07/10 (dados falsos)
-- T-046 · Componentes pedidos pela T-020 · design-system · desde 07/10
-- T-047 · Menu por permissão e agregados do painel · arquiteto · desde 07/10
+- T-028 · Limpar dados de exemplo das telas · design-system · desde 08/10
+- T-050 · Revisão de segurança do código da T-033 · seguranca · desde 08/10
