@@ -8,6 +8,10 @@ import { Provedores } from "@/lib/provedores";
 import "./globals.css";
 import "@/design-system/componentes.css";
 
+// Renderização por requisição: a CSP usa um nonce novo a cada resposta (src/middleware.ts), e
+// página pré-renderizada em build não o recebe nos scripts inline do Next.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = { title: "Giro" };
 export const viewport: Viewport = { width: "device-width", initialScale: 1 };
 
