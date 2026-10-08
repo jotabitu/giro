@@ -211,9 +211,6 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - **Depende de:** T-012, T-064
 - **Pronto quando:** F-01 (permissões de administrador somam às padrão, sem perder `EmpresaOperando` e `EscopoDeFilial`; teste de arquitetura no urlconf da empresa), F-02 (`filial_da_requisicao` distingue "todas" de pessoa sem filial, que recebe 403 `USR-07`; o arquiteto confere a interface interna), F-04 (limite por IP sem chave vazia quando falta o IP e com IPv6 agrupado por prefixo; o devops confere o `REMOTE_ADDR` atrás do proxy) e F-05 (limite na busca de CEP) corrigidos, cada um com teste que reproduz o achado; detalhes em `docs/seguranca/2026-10-09-t058-t012.md`.
 
-### T-071 · Navegação do eu
-- **Agente:** backend · **Depende de:** T-011, T-047 · **Regras:** USR-05, USR-08 · **Pronto quando:** `GET /api/auth/eu/` devolve `navegacao` (`menu_inicio`, `menu_completo`, `barra_celular`, `inicio.variante`) como em `docs/api/contas.md`, considerando os recursos do plano e `GIRO_MODULOS_ATIVOS`, com teste por perfil; o frontend troca o falso de `falso-navegacao.ts` numa tarefa própria.
-
 ### T-013 · Veículos, categorias, documentos, histórico de status
 - **Agente:** backend · **Depende de:** T-012 · **Regras:** VEI-01 a VEI-06 · **Telas:** Frota, Veiculo, Precos · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-013.md` (CA-013-01 a 26) passam, com o código da regra no nome do teste.
 
