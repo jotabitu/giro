@@ -10,10 +10,10 @@ from comum.auditoria import (
     TipoAtor,
     ator_atual,
     auditar,
-    mascarar_cpf,
     registrar_evento,
     usar_ator,
 )
+from comum.classificacao import mascarar_documento
 from comum.middleware import ator_da_requisicao
 from tests.app_exemplo.models import Pedido
 
@@ -61,8 +61,8 @@ def test_aud_01_dados_pessoais_gravados_mascarados(empresa_a):
 
 
 def test_mascara_de_cpf_aud_04():
-    assert mascarar_cpf("123.218.330-45") == "***.218.330-**"
-    assert mascarar_cpf("12321833045") == "***.218.330-**"
+    assert mascarar_documento("123.218.330-45") == "***.218.330-**"
+    assert mascarar_documento("12321833045") == "***.218.330-**"
 
 
 def test_aud_01_auditar_volta_junto_com_a_transacao(empresa_a):
@@ -160,3 +160,14 @@ def test_usar_ator_restaura_o_anterior():
     with usar_ator(Ator(tipo=TipoAtor.USUARIO, nome="A")):
         assert ator_atual().nome == "A"
     assert ator_atual().nome == "Sistema"
+
+
+def test_aud_01_troca_de_cpf_com_mesma_mascara_gera_evento(empresa_a):
+    # Achado 1 da T-039: o diff usa os valores reais; a máscara só vale na saída.
+    pedido = Pedido.objects.create(cliente="Larissa", cpf_cliente="123.218.330-45")
+    with auditar(pedido, "pedido.editar", Categoria.OPERACAO):
+        pedido.cpf_cliente = "999.218.330-11"
+        pedido.save()
+    evento = EventoAuditoria.objects.get(acao="pedido.editar")
+    assert evento.antes == {"cpf_cliente": "***.218.330-**"}
+    assert evento.depois == {"cpf_cliente": "***.218.330-**"}
