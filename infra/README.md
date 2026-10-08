@@ -41,7 +41,7 @@ No Windows, `make` não vem instalado: use Git Bash ou WSL, ou rode os comandos 
 - `ALLOWED_HOSTS` aceita `.localhost` e `backend` (nome do serviço na rede do Compose).
 - Comando `python manage.py seed_moto_rapida` (alvo `make seed`; o agente qa mantém o seed).
 - `make backend-check` executa `ruff check . && ruff format --check . && mypy . && pytest -q` em `backend/`. Se preferir outra ferramenta, avise o devops.
-- `python manage.py spectacular --file ... --validate` gera o OpenAPI (alvo `make api-schema`, grava em `docs/api/openapi.yaml`).
+- `python manage.py spectacular --urlconf config.urls_openapi --file ... --validate` gera o OpenAPI das rotas da empresa e da plataforma (alvo `make api-schema`, grava em `docs/api/openapi.yaml`).
 - WeasyPrint: a imagem já traz pango, harfbuzz e fontes. Dependência de sistema nova vai para `infra/docker/backend.Dockerfile`.
 
 ## O que o frontend precisa respeitar (T-002)
