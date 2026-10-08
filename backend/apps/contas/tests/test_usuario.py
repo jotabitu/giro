@@ -47,6 +47,20 @@ def test_senha_guardada_com_hash_e_email_minusculo(empresa_a):
     assert "senha-forte-123" not in usuario.password
 
 
-def test_is_active_segue_o_campo_ativo(empresa_a):
-    usuario = Usuario(email="x@a.com", nome="X", perfil="vendedor", ativo=False)
-    assert usuario.is_active is False
+@pytest.mark.parametrize(
+    ("status", "ativo"), [("ativo", True), ("convite_pendente", False), ("desativado", False)]
+)
+def test_usr_04_is_active_segue_o_status(empresa_a, status, ativo):
+    usuario = Usuario(email="x@a.com", nome="X", perfil="vendedor", status=status)
+    assert usuario.is_active is ativo
+
+
+def test_usr_04_status_so_muda_pela_maquina(empresa_a):
+    from comum.estados import MudancaDeStatusForaDaMaquina, transicionar
+
+    usuario = Usuario.objects.create_user("x@a.com", "senha-forte-123", nome="X", perfil="gerente")
+    with pytest.raises(MudancaDeStatusForaDaMaquina):
+        Usuario.objects.filter(pk=usuario.pk).update(status="desativado")
+    transicionar(usuario, "desativado")
+    usuario.refresh_from_db()
+    assert usuario.status == "desativado"

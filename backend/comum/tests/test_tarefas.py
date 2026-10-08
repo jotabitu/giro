@@ -57,7 +57,7 @@ def test_para_cada_empresa_enfileira_so_as_que_operam(publico):
     assert para_cada_empresa(tarefa, 1) == 2
     assert tarefa.chamadas == [("empresa_a", 1), ("empresa_b", 1)]
 
-    Empresa.objects.filter(schema_name="empresa_b").update(status=Empresa.Status.SUSPENSA)
+    Empresa._base_manager.filter(schema_name="empresa_b").update(status=Empresa.Status.SUSPENSA)
     tarefa = TarefaFalsa()
     para_cada_empresa(tarefa)
     assert tarefa.chamadas == [("empresa_a",)]
@@ -75,7 +75,7 @@ def test_tarefa_de_empresa_suspensa_nao_roda_e_nao_falha(publico):
         rodou.append(schema_name)
         return "feito"
 
-    Empresa.objects.filter(schema_name="empresa_b").update(status=Empresa.Status.SUSPENSA)
+    Empresa._base_manager.filter(schema_name="empresa_b").update(status=Empresa.Status.SUSPENSA)
     assert aut_02_marcar("empresa_b") is None
     assert rodou == []
 
@@ -85,7 +85,7 @@ def test_tarefa_de_leitura_roda_em_empresa_suspensa(publico):
     def aut_07_cobrar(schema_name: str) -> str:
         return connection.schema_name
 
-    Empresa.objects.filter(schema_name="empresa_b").update(status=Empresa.Status.SUSPENSA)
+    Empresa._base_manager.filter(schema_name="empresa_b").update(status=Empresa.Status.SUSPENSA)
     assert aut_07_cobrar("empresa_b") == "empresa_b"
 
 
@@ -102,7 +102,7 @@ def test_tarefa_de_empresa_inexistente_nao_cai_no_public(publico):
 
 def test_tarefa_de_empresa_com_schema_apagado_nao_cai_no_public(publico):
     # Linha em Empresa sem schema no banco (situação do AUD-08 com tarefa ainda na fila).
-    Empresa.objects.bulk_create([Empresa(schema_name="empresa_apagada", nome="Apagada")])
+    Empresa.objects.bulk_create([Empresa(schema_name="empresa_apagada", nome_exibicao="Apagada")])
     rodou: list[str] = []
 
     @tarefa_de_empresa

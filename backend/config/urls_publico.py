@@ -5,14 +5,19 @@ O Django Admin exige 2FA (OTPAdminSite, PLT-08): o usuário precisa de um dispos
 
 from django.conf import settings
 from django.contrib import admin
-from django.urls import URLPattern, URLResolver, path
+from django.urls import URLPattern, URLResolver, include, path
 from django_otp.admin import OTPAdminSite
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+
+from apps.contas.api.urls import urls_plataforma as urls_contas
+from apps.plataforma.api.urls import urls_plataforma
 
 admin.site.__class__ = OTPAdminSite
 
 urlpatterns: list[URLPattern | URLResolver] = [
     path("admin/", admin.site.urls),
+    path("api/plataforma/", include(urls_contas)),
+    path("api/plataforma/", include(urls_plataforma)),
 ]
 
 # Documentação da API só onde EXPOR_DOCUMENTACAO_DA_API permite (fechada em produção).

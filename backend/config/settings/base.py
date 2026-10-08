@@ -4,6 +4,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import environ
+from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -120,6 +121,11 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
 ]
+# 2 etapas (ADR 0013): o bloqueio por códigos errados é o do Giro (PLT-08, USR-06), não o
+# atraso progressivo do django-otp, que recusaria até o código certo logo depois.
+OTP_TOTP_ISSUER = "Giro"
+OTP_TOTP_THROTTLE_FACTOR = 0
+OTP_STATIC_THROTTLE_FACTOR = 0
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -178,7 +184,13 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 # S-11: o resultado guardaria o retorno em texto no Redis; quem precisar liga na tarefa.
 CELERY_TASK_IGNORE_RESULT = True
-CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {}
+CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
+    # Corrige o resumo de uso do plano (PLT-03) contando em cada schema.
+    "plataforma_recalcular_uso_de_todas": {
+        "task": "plataforma_recalcular_uso_de_todas",
+        "schedule": crontab(hour=3, minute=30),
+    },
+}
 
 REDIS_URL = env("REDIS_URL", default="redis://redis:6379/0")
 

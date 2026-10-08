@@ -19,3 +19,17 @@ contas/
 ```
 
 Contrato da API: `docs/api/contas.md` (escrito pelo arquiteto antes da implementação).
+
+## Implementado (T-010)
+
+- `Usuario.status` (`convite_pendente`, `ativo`, `desativado`) no lugar de `ativo`, pela máquina de estados (`transicao_usuario`); `tentativas_erradas`, `bloqueado_ate`, `celular`; `exige_2fa` (sempre na plataforma; perfis da empresa na T-011).
+- `Convite` (hash do token, 7 dias). A tarefa `contas_enviar_convite` recebe só ids e gera o token na hora do envio.
+- `dois_fatores.py`: autenticador TOTP, 8 códigos de recuperação, bloqueio de 15 min no 3º código errado (PLT-08).
+- `api/plataforma.py`: login da equipe (`entrar`, `2fa/configurar`, `2fa/verificar`, `renovar`, `sair`, `eu`) e convite (`convites/{token}/`, `aceitar/`).
+- Comando `convidar_equipe_plataforma <email> <funcao> --nome`.
+
+## Eventos assinados
+
+| Evento | O que faz |
+| --- | --- |
+| `plataforma.empresa_criada` | convida o administrador da empresa nova (`convite_pendente`, conta no plano) |

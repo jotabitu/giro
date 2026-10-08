@@ -7,6 +7,8 @@ class ComumConfig(AppConfig):
 
     def ready(self) -> None:
         # Sinais do Celery: só disparam no worker (e nas tarefas eager dos testes).
+        # Registra as autenticações no OpenAPI.
+        from comum import openapi  # noqa: F401
         from comum.worker import conectar
 
         conectar()
