@@ -15,7 +15,7 @@ CNPJ_MOTO_RAPIDA = "12.345.678/0001-95"  # T-053: o 0001-10 não passava no díg
 
 
 @pytest.fixture
-def planos(publico) -> dict[str, Any]:
+def planos(db) -> dict[str, Any]:
     from apps.plataforma.models import Plano
 
     return {plano.nome: plano for plano in Plano.objects.all()}

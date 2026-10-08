@@ -11,7 +11,7 @@ from comum.estados import MudancaDeStatusForaDaMaquina, transicionar
 
 
 @pytest.fixture
-def profissional(publico):
+def profissional(db):
     return Plano.objects.get(nome="Profissional")
 
 
@@ -28,8 +28,8 @@ def test_plt_03_preco_anual_e_10_mensalidades(profissional):
 def test_plt_03_exigir_limite_fora_de_transacao_e_erro_de_programacao(empresa_a, monkeypatch):
     from django.db import connection
 
-    monkeypatch.setattr(connection, "in_atomic_block", False)
-    with pytest.raises(RuntimeError):
+    with monkeypatch.context() as trocar, pytest.raises(RuntimeError):
+        trocar.setattr(connection, "in_atomic_block", False)
         services.exigir_limite("veiculos")
 
 

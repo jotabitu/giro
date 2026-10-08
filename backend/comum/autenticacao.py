@@ -148,18 +148,25 @@ def veio_do_frontend(request: Request) -> bool:
 
 
 def refresh_do_cookie(request: Request) -> RefreshToken:
-    """Assinatura e validade primeiro, depois a empresa e só então a blacklist."""
+    """Assinatura e validade primeiro, depois a empresa e só então a blacklist.
+
+    Erros são `NaoAutenticado` (401): sem autenticador na view, o DRF trocaria
+    `AuthenticationFailed` por 403.
+    """
     bruto = request.COOKIES.get(COOKIE_REFRESH)
     if not bruto:
-        raise AuthenticationFailed("Entre de novo.", code="nao_autenticado")
+        raise NaoAutenticado("nao_autenticado", "Entre de novo.")
     try:
         conteudo = token_backend.decode(bruto, verify=True)  # type: ignore[arg-type]
     except TokenError as erro:
-        raise AuthenticationFailed("Entre de novo.", code="nao_autenticado") from erro
+        raise NaoAutenticado("nao_autenticado", "Entre de novo.") from erro
     if conteudo.get(api_settings.TOKEN_TYPE_CLAIM) != RefreshToken.token_type:
-        raise AuthenticationFailed("Entre de novo.", code="nao_autenticado")
-    conferir_empresa(conteudo)
+        raise NaoAutenticado("nao_autenticado", "Entre de novo.")
+    try:
+        conferir_empresa(conteudo)
+    except AuthenticationFailed as erro:
+        raise NaoAutenticado("nao_autenticado", "Entre de novo.") from erro
     try:
         return RefreshToken(bruto)  # type: ignore[arg-type]
     except TokenError as erro:  # vencido ou na blacklist
-        raise AuthenticationFailed("Entre de novo.", code="nao_autenticado") from erro
+        raise NaoAutenticado("nao_autenticado", "Entre de novo.") from erro

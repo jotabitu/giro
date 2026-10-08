@@ -242,6 +242,7 @@ def test_plt_03_ca_010_07_aviso_em_90_por_cento(
     assert (uso["usado"], uso["aviso"], uso["bloqueado"]) == (135, True, False)
     assert [m.to for m in mail.outbox] == [["mariana@a.com"]]
     assert "limite do plano em 90%" in mail.outbox[0].subject
+    connection.set_tenant(empresa_a)  # a tarefa eager volta a conexão ao public no fim
 
     with django_capture_on_commit_callbacks(execute=True):
         atualizar_uso("veiculos", 1)
@@ -273,48 +274,67 @@ def test_plt_03_ca_010_08_bloqueio_em_100_por_cento_so_de_cadastro_novo(empresa_
     assert resposta.json()["somente_leitura"] is False
 
 
-def test_plt_03_ca_010_09_duas_criacoes_simultaneas_nao_furam_o_limite(
-    django_db_setup, django_db_blocker
-):
-    """Duas conexões de verdade, cada uma na sua transação (fora da transação do teste)."""
-    with django_db_blocker.unblock():
-        empresa = Empresa.objects.get(schema_name="empresa_a")
-        plano_antes = empresa.plano
-        uso, _ = UsoEmpresa.objects.get_or_create(empresa=empresa)
-        veiculos_antes = uso.veiculos
-        empresa.plano = Plano.objects.get(nome="Profissional")
-        empresa.save(update_fields=["plano"])
-        UsoEmpresa.objects.filter(pk=uso.pk).update(veiculos=149, aviso_90_enviado={})
-        resultados: list[str] = []
+def _em_outra_conexao(funcao):
+    """Roda numa thread, com conexão própria em autocommit (fora da transação do teste)."""
+    erros: list[BaseException] = []
 
-        def cadastrar() -> None:
-            try:
-                connection.set_tenant(Empresa.objects.get(schema_name="empresa_a"))
-                with transaction.atomic():
-                    exigir_limite("veiculos")
-                    time.sleep(0.3)  # a outra criação chega enquanto esta segura a trava
-                    atualizar_uso("veiculos", 1)
-                resultados.append("passou")
-            except LimiteDoPlano as erro:
-                resultados.append(erro.codigo)
-            finally:
-                connections.close_all()
-
+    def rodar() -> None:
         try:
-            threads = [threading.Thread(target=cadastrar) for _ in range(2)]
-            for thread in threads:
-                thread.start()
-            for thread in threads:
-                thread.join(timeout=20)
-            assert sorted(resultados) == ["PLT-03", "passou"]
-            assert UsoEmpresa.objects.get(pk=uso.pk).veiculos == 150
+            funcao()
+        except BaseException as erro:  # devolvido ao teste
+            erros.append(erro)
         finally:
-            connection.set_schema_to_public()
-            UsoEmpresa.objects.filter(pk=uso.pk).update(
-                veiculos=veiculos_antes, aviso_90_enviado={}
-            )
-            empresa.plano = plano_antes
-            empresa.save(update_fields=["plano"])
+            connections.close_all()
+
+    thread = threading.Thread(target=rodar)
+    thread.start()
+    return thread, erros
+
+
+def test_plt_03_ca_010_09_duas_criacoes_simultaneas_nao_furam_o_limite(db):
+    """Duas conexões de verdade, cada uma na sua transação, disputando o último veículo."""
+    antes: dict[str, Any] = {}
+    resultados: list[str] = []
+
+    def preparar() -> None:
+        empresa = Empresa.objects.get(schema_name="empresa_a")
+        uso, _ = UsoEmpresa.objects.get_or_create(empresa=empresa)
+        antes.update(plano=empresa.plano_id, veiculos=uso.veiculos, uso=uso.pk)
+        Empresa.objects.filter(pk=empresa.pk).update(plano=Plano.objects.get(nome="Profissional"))
+        UsoEmpresa.objects.filter(pk=uso.pk).update(veiculos=149, aviso_90_enviado={})
+
+    def cadastrar() -> None:
+        connection.set_tenant(Empresa.objects.get(schema_name="empresa_a"))
+        try:
+            with transaction.atomic():
+                exigir_limite("veiculos")
+                time.sleep(0.3)  # a outra criação chega enquanto esta segura a trava
+                atualizar_uso("veiculos", 1)
+            resultados.append("passou")
+        except LimiteDoPlano as erro:
+            resultados.append(erro.codigo)
+
+    def conferir_e_desfazer() -> None:
+        antes["final"] = UsoEmpresa.objects.get(pk=antes["uso"]).veiculos
+        UsoEmpresa.objects.filter(pk=antes["uso"]).update(
+            veiculos=antes["veiculos"], aviso_90_enviado={}
+        )
+        Empresa.objects.filter(schema_name="empresa_a").update(plano_id=antes["plano"])
+
+    thread, erros = _em_outra_conexao(preparar)
+    thread.join(timeout=20)
+    assert not erros, erros
+    try:
+        corridas = [_em_outra_conexao(cadastrar) for _ in range(2)]
+        for corrida, _ in corridas:
+            corrida.join(timeout=20)
+        assert not [e for _, lista in corridas for e in lista]
+    finally:
+        thread, erros = _em_outra_conexao(conferir_e_desfazer)
+        thread.join(timeout=20)
+        assert not erros, erros
+    assert sorted(resultados) == ["PLT-03", "passou"]
+    assert antes["final"] == 150
 
 
 def test_plt_03_ca_010_10_plano_sem_limite(empresa_a, planos):

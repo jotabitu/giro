@@ -6,7 +6,7 @@ segurança na auditoria do schema (o `public`, para a equipe da plataforma).
 """
 
 import secrets
-from datetime import timedelta
+from datetime import UTC, timedelta
 
 from django.db import transaction
 from django_otp.plugins.otp_static.models import StaticDevice, StaticToken
@@ -88,7 +88,7 @@ def _erro_de_bloqueio(usuario: Usuario) -> MuitasTentativas:
     return MuitasTentativas(
         "PLT-08",
         "Acesso bloqueado por 15 minutos depois de 3 códigos errados",
-        {"tentar_de_novo_em": usuario.bloqueado_ate.isoformat().replace("+00:00", "Z")},
+        {"tentar_de_novo_em": usuario.bloqueado_ate.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")},
     )
 
 

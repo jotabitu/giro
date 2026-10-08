@@ -191,9 +191,7 @@ def _empresa(empresa: Empresa | None) -> Empresa:
 def _uso_travado(empresa: Empresa) -> UsoEmpresa:
     """`SELECT ... FOR UPDATE` no resumo: duas criações simultâneas esperam uma pela outra."""
     UsoEmpresa.objects.get_or_create(empresa=empresa)
-    return (
-        UsoEmpresa.objects.select_for_update().select_related("empresa__plano").get(empresa=empresa)
-    )
+    return UsoEmpresa.objects.select_for_update().get(empresa=empresa)
 
 
 def _plano_atual(empresa: Empresa) -> Plano | None:
