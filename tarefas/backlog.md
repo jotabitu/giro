@@ -195,29 +195,25 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - **Depende de:** T-033
 - **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA`, `na_empresa` e o teste de arquitetura revisados contra a ADR 0014 (itens 2 e 3), a ADR 0018 (item 3) e os achados S-05, S-06, S-07, C-01 e C-02; relatório em `docs/seguranca/`; achados viram tarefas.
 
-### T-064 · Revisão de segurança da T-058 e da T-012
-- **Agente:** seguranca
-- **Depende de:** T-058, T-012
-- **Pronto quando:** as correções de P-01 a P-04 (T-058) conferidas contra o relatório da T-057, incluindo os testes de concorrência; o código da T-012 (escopo de filial por `X-Filial`, `tornar-matriz`, desativação, limites do plano) revisado contra a `USR-07` e as ADRs; relatório em `docs/seguranca/`; achados viram tarefas.
-
 ### T-065 · Login trata o 401 e o 429 da T-058
 - **Agente:** frontend
 - **Depende de:** T-058
 - **Pronto quando:** as telas de acesso tratam as respostas novas de `docs/api/plataforma.md` (entrar sem código responde 401 em vez de 400; 429 do bloqueio de 5 senhas e 429 `muitas_requisicoes`), com mensagem nas palavras das telas, nos dados falsos, e com teste.
 
-### T-066 · Textos revisados da T-010
-- **Agente:** backend
-- **Depende de:** T-059, T-058
-- **Pronto quando:** `faixa_aviso` de `suspensa` e de `pausada` e o corpo dos e-mails de limite do plano e de convite trocados pelos textos do handoff da T-059 (`tarefas/handoffs/T-059-produto.md`), com os testes ajustados.
-
 ## Fase 1 · MVP
 
 - **Nota da T-012 (08/10):** a S-12 (SVG do logo sanitizado e exibido só por `<img>`) vale para `ConfiguracaoEmpresa.logo` (app `empresas`), e não para a filial. Entra na tarefa da marca da empresa (`Admin-Marca`), a criar.
+
+### T-068 · Correções de segurança da T-064 (filiais)
+- **Agente:** backend · **Prioridade:** antes da T-013
+- **Depende de:** T-012, T-064
+- **Pronto quando:** F-01 (permissões de administrador somam às padrão, sem perder `EmpresaOperando` e `EscopoDeFilial`; teste de arquitetura no urlconf da empresa), F-02 (`filial_da_requisicao` distingue "todas" de pessoa sem filial, que recebe 403 `USR-07`; o arquiteto confere a interface interna), F-04 (limite por IP sem chave vazia quando falta o IP e com IPv6 agrupado por prefixo; o devops confere o `REMOTE_ADDR` atrás do proxy) e F-05 (limite na busca de CEP) corrigidos, cada um com teste que reproduz o achado; detalhes em `docs/seguranca/2026-10-09-t058-t012.md`.
 
 ### T-011 · Contas, perfis, permissões, 2FA, convite
 - **Agente:** backend · **Depende de:** T-012, T-033 · **ADRs:** 0013, 0014 (sessões) · **Segurança:** S-02, S-03, S-08, S-13 · **Regras:** USR-01 a USR-07 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-011.md` (CA-011-01 a 28) passam, com o código da regra no nome do teste. · **Inclui:** `Usuario.status` no lugar de `ativo` e e-mail único sem diferenciar maiúsculas (T-045)
 - **Também:** R-06 da revisão T-050; P-05 a P-09 da revisão T-057 (`docs/seguranca/2026-10-08-codigo-t010.md`, "Distribuição sugerida").
 - **Também:** `EscopoDeFilial` aceita `X-Filial: todas` para o financeiro e `/filiais/minhas/` devolve `pode_escolher_todas` para ele (decisão 5 da T-012 revista na T-063, `docs/api/filiais.md`; `USR-07` corrigida na T-067).
+- **Também:** F-03 da revisão T-064: a troca das filiais de uma pessoa é auditada, não apaga o vínculo do banco (usa `ativo=False`) e recusa filial inativa.
 
 ### T-013 · Veículos, categorias, documentos, histórico de status
 - **Agente:** backend · **Depende de:** T-012 · **Regras:** VEI-01 a VEI-06 · **Telas:** Frota, Veiculo, Precos · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-013.md` (CA-013-01 a 26) passam, com o código da regra no nome do teste.
