@@ -1,13 +1,11 @@
 """Fixtures dos testes de aceitação: relógio congelado, planos, empresas e equipe da plataforma."""
 
-import time
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
 from django.db import connection
-from django_otp.oath import TOTP
-from django_otp.plugins.otp_totp.models import TOTPDevice
 from rest_framework.test import APIClient
 
 HOST_PLATAFORMA = "admin.localhost"
@@ -57,6 +55,25 @@ def criar_empresa(publico, relogio, planos) -> Callable[..., Any]:
     return criar
 
 
+@pytest.fixture
+def relogio_jwt(relogio, monkeypatch):
+    """Os tokens usam o relógio congelado dos testes: o simplejwt (emissão e `exp`) e o PyJWT
+    (`iat` e `exp` na leitura)."""
+    from comum import relogio as relogio_do_giro
+
+    class Relogio(datetime):
+        @classmethod
+        def now(cls, tz: Any = None) -> Any:
+            return relogio_do_giro.agora().astimezone(tz or UTC)
+
+    monkeypatch.setattr(
+        "rest_framework_simplejwt.tokens.aware_utcnow",
+        lambda: relogio_do_giro.agora().astimezone(UTC),
+    )
+    monkeypatch.setattr("jwt.api_jwt.datetime", Relogio)
+    return relogio
+
+
 # --- API ---
 
 
@@ -86,32 +103,40 @@ EQUIPE_SEED = {
 }
 
 
-def codigo_atual(dispositivo: TOTPDevice) -> str:
-    totp = TOTP(dispositivo.bin_key, dispositivo.step, dispositivo.t0, dispositivo.digits)
-    totp.time = time.time()
-    return f"{totp.token():0{dispositivo.digits}d}"
+def codigo_atual(dispositivo: Any) -> str:
+    """Código do `contas.Autenticador` agora (relógio de verdade, como o do celular)."""
+    return f"{dispositivo.totp().token():0{dispositivo.DIGITOS}d}"
 
 
-def liberar_codigo(dispositivo: TOTPDevice) -> None:
-    """O django-otp recusa o mesmo código duas vezes no mesmo passo de 30 s (replay)."""
-    TOTPDevice.objects.filter(pk=dispositivo.pk).update(last_t=-1)
+def liberar_codigo(dispositivo: Any) -> None:
+    """O mesmo código não vale duas vezes no mesmo passo de 30 s (replay)."""
+    type(dispositivo).objects.filter(pk=dispositivo.pk).update(ultimo_passo=-1)
     dispositivo.refresh_from_db()
 
 
+def autenticador_confirmado(usuario: Any) -> Any:
+    """Autenticador já confirmado, como se a pessoa tivesse ativado as 2 etapas."""
+    from apps.contas.models import Autenticador
+
+    dispositivo = Autenticador(user=usuario, name="autenticador", confirmed=True)
+    dispositivo.gerar_chave()
+    dispositivo.save()
+    return dispositivo
+
+
 @pytest.fixture
-def equipe(publico) -> dict[str, tuple[Any, TOTPDevice]]:
+def equipe(publico) -> dict[str, tuple[Any, Any]]:
     """A equipe do seed, ativa e com autenticador confirmado."""
     from apps.contas.models import Usuario
 
     pessoas = {}
     for nome, (email, funcao) in EQUIPE_SEED.items():
         usuario = Usuario.objects.create_user(email, SENHA, nome=nome, funcao_plataforma=funcao)
-        dispositivo = TOTPDevice.objects.create(user=usuario, name="autenticador", confirmed=True)
-        pessoas[nome] = (usuario, dispositivo)
+        pessoas[nome] = (usuario, autenticador_confirmado(usuario))
     return pessoas
 
 
-def entrar(usuario: Any, dispositivo: TOTPDevice) -> str:
+def entrar(usuario: Any, dispositivo: Any) -> str:
     """Access token da plataforma pelo login de verdade."""
     liberar_codigo(dispositivo)
     resposta = cliente(HOST_PLATAFORMA).post(

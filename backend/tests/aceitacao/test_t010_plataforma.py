@@ -12,11 +12,10 @@ from django.core import mail
 from django.core.cache import cache
 from django.core.management import call_command
 from django.db import connection, connections, transaction
-from django_otp.plugins.otp_totp.models import TOTPDevice
 from django_tenants.utils import tenant_context
 
 from apps.auditoria.models import EventoAuditoria
-from apps.contas.models import Convite, Usuario
+from apps.contas.models import Autenticador, Convite, Usuario
 from apps.plataforma import selectors
 from apps.plataforma.models import Empresa, Plano, UsoEmpresa
 from apps.plataforma.services import (
@@ -440,7 +439,7 @@ def test_plt_08_ca_010_12_login_com_duas_etapas_obrigatorio(equipe):
     uri = pre.post("/api/plataforma/auth/2fa/configurar/").json()["otpauth_uri"]
     assert uri.startswith("otpauth://totp/Giro%3Anovo-dono%40girolocadoras.com.br?secret=")
     assert uri.endswith("&issuer=Giro")
-    pendente = TOTPDevice.objects.get(user=novo, confirmed=False)
+    pendente = Autenticador.objects.get(user=novo, confirmed=False)
     verificado = pre.post(
         "/api/plataforma/auth/2fa/verificar/", {"codigo": codigo_atual(pendente)}, format="json"
     )
@@ -577,7 +576,7 @@ def test_plt_08_ca_010_15_convite_da_equipe_vence_em_7_dias(publico, relogio):
     assert de_novo.json()["etapa"] == "configurar_2fa"
     pre = cliente(HOST_PLATAFORMA, de_novo.json()["token_pre_2fa"])
     pre.post("/api/plataforma/auth/2fa/configurar/")
-    dispositivo = TOTPDevice.objects.get(user=larissa, confirmed=False)
+    dispositivo = Autenticador.objects.get(user=larissa, confirmed=False)
     verificado = pre.post(
         "/api/plataforma/auth/2fa/verificar/", {"codigo": codigo_atual(dispositivo)}, format="json"
     )

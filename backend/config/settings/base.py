@@ -32,9 +32,8 @@ APPS_DOS_DOIS_SCHEMAS = [
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
+    # Só o núcleo: o autenticador e os códigos de recuperação são do app contas (P-08).
     "django_otp",
-    "django_otp.plugins.otp_totp",
-    "django_otp.plugins.otp_static",
     "rest_framework_simplejwt.token_blacklist",
 ]
 
@@ -121,16 +120,14 @@ PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
 ]
-# 2 etapas (ADR 0013): o bloqueio por códigos errados é o do Giro (PLT-08, USR-06), não o
-# atraso progressivo do django-otp, que recusaria até o código certo logo depois.
-OTP_TOTP_ISSUER = "Giro"
-OTP_TOTP_THROTTLE_FACTOR = 0
-OTP_STATIC_THROTTLE_FACTOR = 0
+# 2 etapas (ADR 0013): `contas.Autenticador` e `contas.CodigoRecuperacao`, com o bloqueio do
+# Giro (PLT-08, USR-06), sem o atraso progressivo do django-otp.
+# Senha (tela Acesso-Senha): textos prontos em `apps/contas/senhas.py`.
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
-    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
-    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+    {"NAME": "apps.contas.senhas.TamanhoMinimo"},
+    {"NAME": "apps.contas.senhas.LetrasENumeros"},
+    {"NAME": "apps.contas.senhas.DiferenteDoEmailEDaEmpresa"},
+    {"NAME": "apps.contas.senhas.SenhaComum"},
 ]
 
 # --- Idioma e fuso: UTC no banco, exibição em America/Sao_Paulo ---
@@ -172,11 +169,17 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "Contrato da API do Giro. Gerado pelo backend (make api-schema).",
     "VERSION": "0.1.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "ENUM_NAME_OVERRIDES": {
+        "EtapaEnum": ["configurar_2fa"],  # nome que o login da plataforma já publicava
+        "NivelDeAprovacaoEnum": "apps.contas.api.acesso.NIVEL_DE_APROVACAO",
+        "TipoSessaoEnum": "apps.contas.models.TipoSessao",
+    },
 }
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
-    "REFRESH_TOKEN_LIFETIME": timedelta(hours=12),
+    # Teto do refresh, acima da sessão mais longa: quem decide é a sessão (12 h ou 30 dias, USR-06).
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=31),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "UPDATE_LAST_LOGIN": True,

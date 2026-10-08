@@ -80,6 +80,35 @@ def filiais_permitidas(usuario: Any) -> set[int]:
     return _filiais_do_usuario(usuario) if _filiais_do_usuario is not None else set()
 
 
+_resumo_das_filiais: Callable[[Any], list[dict[str, Any]]] | None = None
+
+
+def registrar_resumo_de_filiais(funcao: Callable[[Any], list[dict[str, Any]]]) -> None:
+    """Chamado pelo `ready()` do app `filiais`: `[{id, nome}]` das filiais ativas da pessoa."""
+    global _resumo_das_filiais
+    _resumo_das_filiais = funcao
+
+
+def resumo_das_filiais(usuario: Any) -> list[dict[str, Any]]:
+    return _resumo_das_filiais(usuario) if _resumo_das_filiais is not None else []
+
+
+# --- Permissões calculadas (USR-03, USR-05) ---
+
+_pode: Callable[[Any, str], Any] | None = None
+
+
+def registrar_pode(funcao: Callable[[Any, str], Any]) -> None:
+    """Chamado pelo `ready()` do app `contas` com `contas.selectors.pode`."""
+    global _pode
+    _pode = funcao
+
+
+def pode(usuario: Any, chave: str) -> Any:
+    """O valor de `eu.pode[chave]` da pessoa (`False` sem a função registrada)."""
+    return _pode(usuario, chave) if _pode is not None else False
+
+
 def pode_escolher_todas(usuario: Any) -> bool:
     return getattr(usuario, "perfil", "") == PERFIL_QUE_VE_TODAS
 

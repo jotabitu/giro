@@ -21,6 +21,336 @@ paths:
               schema:
                 $ref: '#/components/schemas/Assinatura'
           description: ''
+  /api/auth/2fa/ativar/:
+    post:
+      operationId: auth_2fa_ativar_create
+      summary: Ativar as 2 etapas por conta própria (USR-02)
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodigoDoAutenticador'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CodigoDoAutenticador'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CodigoDoAutenticador'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ativado'
+          description: ''
+  /api/auth/2fa/codigos-recuperacao/:
+    post:
+      operationId: auth_2fa_codigos_recuperacao_create
+      summary: Novos códigos de recuperação
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmarSenha'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ConfirmarSenha'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ConfirmarSenha'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Codigos'
+          description: ''
+  /api/auth/2fa/configurar/:
+    post:
+      operationId: auth_2fa_configurar_create
+      description: |-
+        Com o `token_pre_2fa` (1º acesso ou 2 etapas que passaram a ser exigidas) ou com o access
+        de quem quer ativar por conta própria.
+      summary: Novo autenticador
+      tags:
+      - auth
+      security:
+      - jwtPre2faOuAccess: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Configurar'
+          description: ''
+  /api/auth/2fa/desativar/:
+    post:
+      operationId: auth_2fa_desativar_create
+      summary: Desligar as 2 etapas (USR-02)
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmarSenha'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ConfirmarSenha'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ConfirmarSenha'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/auth/2fa/verificar/:
+    post:
+      operationId: auth_2fa_verificar_create
+      summary: Confirmar o código (USR-02)
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Verificar2FA'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Verificar2FA'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Verificar2FA'
+      security:
+      - jwtPre2fa: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pronto'
+          description: ''
+  /api/auth/entrar/:
+    post:
+      operationId: auth_entrar_create
+      summary: Entrar (USR-02, USR-06)
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EntrarEmpresa'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EntrarEmpresa'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EntrarEmpresa'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntrarEmpresaResposta'
+          description: ''
+  /api/auth/eu/:
+    get:
+      operationId: auth_eu_retrieve
+      summary: Quem está logado (USR-03, USR-05)
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EuDaEmpresa'
+          description: ''
+    patch:
+      operationId: auth_eu_partial_update
+      summary: Meus dados
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEditarEu'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEditarEu'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEditarEu'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EuDaEmpresa'
+          description: ''
+  /api/auth/renovar/:
+    post:
+      operationId: auth_renovar_create
+      summary: Renovar o acesso (USR-06)
+      tags:
+      - auth
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessDaEmpresa'
+          description: ''
+  /api/auth/sair/:
+    post:
+      operationId: auth_sair_create
+      summary: Sair
+      tags:
+      - auth
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/auth/senha/esqueci/:
+    post:
+      operationId: auth_senha_esqueci_create
+      summary: Esqueci a senha (não revela quem tem conta)
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Email'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Email'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Email'
+        required: true
+      security:
+      - {}
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mensagem'
+          description: ''
+  /api/auth/senha/redefinir/:
+    post:
+      operationId: auth_senha_redefinir_create
+      summary: Criar a senha nova
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RedefinirSenha'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RedefinirSenha'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RedefinirSenha'
+        required: true
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/auth/senha/trocar/:
+    post:
+      operationId: auth_senha_trocar_create
+      summary: Trocar a senha
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrocarSenha'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TrocarSenha'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TrocarSenha'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/auth/sessoes/:
+    get:
+      operationId: auth_sessoes_retrieve
+      summary: Minhas sessões ativas
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sessoes'
+          description: ''
+  /api/auth/sessoes/{id}/encerrar/:
+    post:
+      operationId: auth_sessoes_encerrar_create
+      summary: Encerrar uma sessão minha
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/auth/sessoes/encerrar-outras/:
+    post:
+      operationId: auth_sessoes_encerrar_outras_create
+      summary: Encerrar as outras sessões
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/enderecos/cep/{cep}/:
     get:
       operationId: enderecos_cep_retrieve
@@ -615,6 +945,13 @@ components:
           type: string
       required:
       - access
+    AccessDaEmpresa:
+      type: object
+      properties:
+        access:
+          type: string
+      required:
+      - access
     Acoes:
       type: object
       properties:
@@ -656,6 +993,18 @@ components:
       - status
       - teste
       - uso
+    Ativado:
+      type: object
+      properties:
+        codigos_recuperacao:
+          type: array
+          items:
+            type: string
+        access:
+          type: string
+      required:
+      - access
+      - codigos_recuperacao
     Cep:
       type: object
       properties:
@@ -683,6 +1032,33 @@ components:
           pattern: ^\d{6}$
       required:
       - codigo
+    CodigoDoAutenticador:
+      type: object
+      properties:
+        codigo:
+          type: string
+          pattern: ^\d{6}$
+      required:
+      - codigo
+    Codigos:
+      type: object
+      properties:
+        codigos_recuperacao:
+          type: array
+          items:
+            type: string
+      required:
+      - codigos_recuperacao
+    Configurar:
+      type: object
+      properties:
+        otpauth_uri:
+          type: string
+        chave:
+          type: string
+      required:
+      - chave
+      - otpauth_uri
     Configurar2FA:
       type: object
       properties:
@@ -690,6 +1066,13 @@ components:
           type: string
       required:
       - otpauth_uri
+    ConfirmarSenha:
+      type: object
+      properties:
+        senha:
+          type: string
+      required:
+      - senha
     Contagens:
       type: object
       properties:
@@ -746,6 +1129,37 @@ components:
       - expira_em
       - funcao
       - nome
+    DespesasLancarEnum:
+      enum:
+      - todas
+      - manutencao
+      - nao
+      type: string
+      description: |-
+        * `todas` - todas
+        * `manutencao` - manutencao
+        * `nao` - nao
+    DoisFatores:
+      type: object
+      properties:
+        ativo:
+          type: boolean
+        obrigatorio:
+          type: boolean
+        codigos_recuperacao_restantes:
+          type: integer
+      required:
+      - ativo
+      - codigos_recuperacao_restantes
+      - obrigatorio
+    Email:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+      required:
+      - email
     EmpresaDetalhe:
       type: object
       properties:
@@ -828,6 +1242,19 @@ components:
       - teste
       - uf
       - uso
+    EmpresaDoEu:
+      type: object
+      properties:
+        nome_exibicao:
+          type: string
+        status:
+          type: string
+        somente_leitura:
+          type: boolean
+      required:
+      - nome_exibicao
+      - somente_leitura
+      - status
     EmpresaLista:
       type: object
       properties:
@@ -908,6 +1335,25 @@ components:
       required:
       - email
       - senha
+    EntrarEmpresa:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        senha:
+          type: string
+        aparelho:
+          allOf:
+          - $ref: '#/components/schemas/TipoSessaoEnum'
+          default: desktop
+      required:
+      - email
+      - senha
+    EntrarEmpresaResposta:
+      oneOf:
+      - $ref: '#/components/schemas/Pronto'
+      - $ref: '#/components/schemas/EtapaDoLogin'
     EntrarResposta:
       oneOf:
       - $ref: '#/components/schemas/Entrou'
@@ -936,6 +1382,24 @@ components:
       required:
       - etapa
       - token_pre_2fa
+    EtapaDoLogin:
+      type: object
+      properties:
+        etapa:
+          $ref: '#/components/schemas/EtapaDoLoginEtapaEnum'
+        token_pre_2fa:
+          type: string
+      required:
+      - etapa
+      - token_pre_2fa
+    EtapaDoLoginEtapaEnum:
+      enum:
+      - verificar_2fa
+      - configurar_2fa
+      type: string
+      description: |-
+        * `verificar_2fa` - verificar_2fa
+        * `configurar_2fa` - configurar_2fa
     EtapaEnum:
       enum:
       - configurar_2fa
@@ -967,6 +1431,49 @@ components:
       - id
       - nome
       - pode
+    EuDaEmpresa:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        email:
+          type: string
+          format: email
+        celular:
+          type: string
+          nullable: true
+        perfil:
+          type: string
+        permissoes_extras:
+          type: array
+          items:
+            type: string
+        filiais:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilialResumo'
+        dois_fatores:
+          $ref: '#/components/schemas/DoisFatores'
+        pode:
+          $ref: '#/components/schemas/PodeDaEmpresa'
+        suporte:
+          nullable: true
+        empresa:
+          $ref: '#/components/schemas/EmpresaDoEu'
+      required:
+      - celular
+      - dois_fatores
+      - email
+      - empresa
+      - filiais
+      - id
+      - nome
+      - perfil
+      - permissoes_extras
+      - pode
+      - suporte
     Feriado:
       type: object
       properties:
@@ -1186,6 +1693,16 @@ components:
       - matriz
       - nome
       - preco_litro_centavos
+    FilialResumo:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+      - id
+      - nome
     Gerente:
       type: object
       properties:
@@ -1358,6 +1875,13 @@ components:
             $ref: '#/components/schemas/Sugestao'
       required:
       - resultados
+    Mensagem:
+      type: object
+      properties:
+        mensagem:
+          type: string
+      required:
+      - mensagem
     MinhaFilial:
       type: object
       properties:
@@ -1396,6 +1920,18 @@ components:
           type: string
       required:
       - motivo
+    NivelDeAprovacaoEnum:
+      enum:
+      - sim
+      - aprova
+      - pede
+      - nao
+      type: string
+      description: |-
+        * `sim` - sim
+        * `aprova` - aprova
+        * `pede` - pede
+        * `nao` - nao
     OrigemEnum:
       enum:
       - nacional
@@ -1404,6 +1940,18 @@ components:
       description: |-
         * `nacional` - Nacional
         * `local` - Local
+    PainelEnum:
+      enum:
+      - todas_filiais
+      - filial
+      - proprios
+      - nao
+      type: string
+      description: |-
+        * `todas_filiais` - todas_filiais
+        * `filial` - filial
+        * `proprios` - proprios
+        * `nao` - nao
     Passo:
       type: object
       properties:
@@ -1419,6 +1967,15 @@ components:
       - concluido_em
       - passo
       - rotulo
+    PatchedEditarEu:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 150
+        celular:
+          type: string
+          maxLength: 20
     PatchedFilialEntrada:
       type: object
       description: Forma do corpo. O horário vai como veio para o serviço validar
@@ -1575,6 +2132,88 @@ components:
       - planos_e_precos
       - suspender_empresa
       - ver_empresas
+    PodeDaEmpresa:
+      type: object
+      properties:
+        painel:
+          $ref: '#/components/schemas/PainelEnum'
+        veiculos:
+          $ref: '#/components/schemas/VeiculosEnum'
+        clientes_cadastrar:
+          type: boolean
+        locacoes_criar:
+          type: boolean
+        vistorias_fazer:
+          type: boolean
+        locacoes_cancelar:
+          $ref: '#/components/schemas/NivelDeAprovacaoEnum'
+        desconto_acima_limite:
+          $ref: '#/components/schemas/NivelDeAprovacaoEnum'
+        vendas_criar:
+          type: boolean
+        caixa_receber:
+          type: boolean
+        caixa_abrir_fechar:
+          type: boolean
+        despesas_lancar:
+          $ref: '#/components/schemas/DespesasLancarEnum'
+        despesas_aprovar:
+          type: boolean
+        financeiro_pagar:
+          type: boolean
+        os_abrir:
+          type: boolean
+        administracao:
+          type: boolean
+      required:
+      - administracao
+      - caixa_abrir_fechar
+      - caixa_receber
+      - clientes_cadastrar
+      - desconto_acima_limite
+      - despesas_aprovar
+      - despesas_lancar
+      - financeiro_pagar
+      - locacoes_cancelar
+      - locacoes_criar
+      - os_abrir
+      - painel
+      - veiculos
+      - vendas_criar
+      - vistorias_fazer
+    Pronto:
+      type: object
+      properties:
+        etapa:
+          $ref: '#/components/schemas/ProntoEtapaEnum'
+        access:
+          type: string
+        usuario:
+          $ref: '#/components/schemas/EuDaEmpresa'
+        codigos_recuperacao:
+          type: array
+          items:
+            type: string
+      required:
+      - access
+      - etapa
+      - usuario
+    ProntoEtapaEnum:
+      enum:
+      - pronto
+      type: string
+      description: '* `pronto` - pronto'
+    RedefinirSenha:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 100
+        senha_nova:
+          type: string
+      required:
+      - senha_nova
+      - token
     Responsavel:
       type: object
       properties:
@@ -1595,6 +2234,43 @@ components:
           type: string
       required:
       - senha
+    Sessao:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          $ref: '#/components/schemas/TipoSessaoEnum'
+        aparelho:
+          type: string
+        ip:
+          type: string
+          nullable: true
+        criada_em:
+          type: string
+          format: date-time
+        ultimo_uso:
+          type: string
+          format: date-time
+        atual:
+          type: boolean
+      required:
+      - aparelho
+      - atual
+      - criada_em
+      - id
+      - ip
+      - tipo
+      - ultimo_uso
+    Sessoes:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Sessao'
+      required:
+      - resultados
     Situacao:
       type: object
       properties:
@@ -1651,6 +2327,24 @@ components:
       required:
       - dias_restantes
       - fim
+    TipoSessaoEnum:
+      enum:
+      - desktop
+      - celular
+      type: string
+      description: |-
+        * `desktop` - Desktop
+        * `celular` - Celular
+    TrocarSenha:
+      type: object
+      properties:
+        senha_atual:
+          type: string
+        senha_nova:
+          type: string
+      required:
+      - senha_atual
+      - senha_nova
     UsoAssinatura:
       type: object
       properties:
@@ -1745,12 +2439,35 @@ components:
       - id
       - nome
       - pode
+    VeiculosEnum:
+      enum:
+      - editar
+      - km_e_avarias
+      - nao
+      type: string
+      description: |-
+        * `editar` - editar
+        * `km_e_avarias` - km_e_avarias
+        * `nao` - nao
+    Verificar2FA:
+      type: object
+      properties:
+        codigo:
+          type: string
+          pattern: ^\d{6}$
+        codigo_recuperacao:
+          type: string
+          maxLength: 20
   securitySchemes:
     jwtAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
     jwtPre2fa:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    jwtPre2faOuAccess:
       type: http
       scheme: bearer
       bearerFormat: JWT

@@ -48,6 +48,11 @@ def minhas_filiais(usuario: Any) -> QuerySet[Filial]:
     return Filial.ativos.filter(pk__in=filiais_do_usuario(usuario)).order_by("-matriz", "nome")
 
 
+def resumo_das_filiais(usuario: Any) -> list[dict[str, Any]]:
+    """`[{id, nome}]` para o `eu` e a lista de usuários (contrato de contas)."""
+    return [{"id": f.pk, "nome": f.nome} for f in minhas_filiais(usuario)]
+
+
 @dataclass(frozen=True)
 class TodasAsFiliais:
     """`X-Filial: todas`. `ids` são todas as filiais da empresa, inclusive as desativadas, que
