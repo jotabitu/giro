@@ -14,7 +14,7 @@ Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-
 
 "Administração (marca, filiais, usuários, ...)" é só do administrador na tabela de perfis: as ações de administrar (lista, criar, editar, matriz, desativar, reativar, feriados) respondem 403 aos demais perfis. Fora do escopo da pessoa, a filial responde 404.
 
-O financeiro vê painel, relatórios e contas de todas as filiais (tabela de perfis, `USR-08`, `financeiro.md` e `painel.md`); por isso o escopo dele é igual ao do administrador. Conferido na T-063 com a decisão 5 da T-012.
+O financeiro vê painel, relatórios e contas de todas as filiais (tabela de perfis, `USR-08`, `financeiro.md` e `painel.md`); por isso o escopo dele é igual ao do administrador, sem depender das filiais ligadas a ele (confirmado pelo produto em 09 out 2026, T-063; o texto da `USR-07` é acertado pelo produto).
 
 ## Representação da filial
 
@@ -66,6 +66,7 @@ Para o seletor de filial do topo do menu (`USR-07`). Sem paginação.
 }
 ```
 - Só filiais ativas e ligadas à pessoa. Administrador e financeiro recebem todas as ativas e `pode_escolher_todas: true` ("Todas as filiais").
+- O seletor lista só filiais ativas, mas `X-Filial: todas` inclui os dados das filiais desativadas que ainda têm contas em aberto ou histórico: elas mantêm a filial de origem para relatório e DRE (`FIL-06`). Ou seja, "todas" não filtra por filial, em vez de filtrar pelas ativas.
 - A filial escolhida vai nas próximas requisições pelo cabeçalho `X-Filial: <id>` (ou `X-Filial: todas`, só para quem pode: administrador e financeiro em qualquer endpoint; quem tem a permissão extra `relatorios_todas_filiais` (`USR-03`) só nos endpoints de painel e relatórios, e nos demais recebe 403 `USR-07`). Sem o cabeçalho, a API usa a matriz, se a pessoa tiver acesso a ela, ou a primeira filial da pessoa. Filial fora do escopo no cabeçalho → 403 `{ "codigo": "USR-07", "mensagem": "Você não tem acesso a esta filial" }`. A regra vale para todos os módulos com filial e é aplicada por `comum.permissoes`.
 
 ## GET /api/filiais/
