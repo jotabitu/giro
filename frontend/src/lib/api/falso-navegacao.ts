@@ -1,81 +1,147 @@
-// Faz o papel de `navegacao` em GET /api/auth/eu/ (docs/api/contas.md, "Menu e início") enquanto a T-011 não existe.
-// Na API real isto é montado em `contas`; o frontend só lê o resultado.
+// Faz o papel de `navegacao` em GET /api/auth/eu/ (docs/api/contas.md, "Menu e início") enquanto contas não está ligada na API real.
+// Espelha backend/apps/contas/navegacao.py (T-071): cada item é definido uma vez, com a permissão, o recurso do plano,
+// a atividade e o módulo. A tela nunca monta menu; só lê o resultado.
 import type { GrupoNavegacao, ItemNavegacao, Navegacao, Perfil, Pode, VarianteInicio } from "./tipos";
 
-const item = (chave: string, rotulo: string, contador: string | null = null): ItemNavegacao => ({ chave, rotulo, contador });
-const grupo = (nome: string | null, itens: (ItemNavegacao | false)[]): GrupoNavegacao => ({ grupo: nome, itens: itens.filter((i): i is ItemNavegacao => i !== false) });
-const semVazios = (gs: GrupoNavegacao[]) => gs.filter((g) => g.itens.length > 0);
+export type Atividade = "aluga" | "vende" | "ambos";
 
-/** Tabela "Itens do menu_completo" do contrato: permissão da pessoa; plano e atividade valem para todos no falso. */
-function menuCompleto(p: Pode, decideAprovacoes: boolean): GrupoNavegacao[] {
-  return semVazios([
-    grupo(null, [
-      item("inicio", "Visão geral"),
-      decideAprovacoes && item("aprovacoes", "Aprovações", "aprovacoes"),
-      p.veiculos !== "nao" && item("veiculos", "Veículos", "veiculos"),
-    ]),
-    grupo("Operação", [
-      (p.locacoes_criar || p.vistorias_fazer) && item("locacoes", "Locações", "locacoes"),
-      p.vendas_criar && item("vendas", "Vendas"),
-      (p.clientes_cadastrar || p.caixa_receber) && item("clientes", "Clientes"),
-      p.os_abrir && item("manutencoes", "Manutenções", "manutencoes"),
-    ]),
-    grupo("Financeiro", [
-      (p.caixa_receber || p.caixa_abrir_fechar) && item("caixa", "Caixa do dia"),
-      p.caixa_receber && item("receber", "Contas a receber", "receber"),
-      p.despesas_lancar !== "nao" && item("despesas", "Despesas", "despesas"),
-      p.financeiro_pagar && item("comissoes", "Comissões"),
-      p.financeiro_pagar && item("conciliacao", "Conciliação", "conciliacao"),
-      (p.painel === "todas_filiais" || p.painel === "filial") && item("relatorios", "Relatórios"),
-    ]),
-    grupo("Administração", p.administracao ? [
-      item("config", "Configurações"),
-      item("marca", "Empresa e marca"),
-      item("filiais", "Filiais"),
-      item("usuarios", "Usuários", "usuarios"),
-      item("assinatura", "Assinatura"),
-      item("auditoria", "Auditoria"),
-    ] : []),
-  ]);
+/** Apps entregues (`GIRO_MODULOS_ATIVOS`). No falso valem todos, para o desenvolvimento ver o menu cheio. */
+export const TODOS_OS_MODULOS = [
+  "aprovacoes", "auditoria", "clientes", "contas", "empresas", "filiais", "financeiro",
+  "locacoes", "manutencao", "plataforma", "relatorios", "veiculos", "vendas", "vistorias",
+] as const;
+
+/** Recursos do plano Profissional. */
+export const TODOS_OS_RECURSOS = [
+  "locacoes_vistoria", "contas_receber", "contrato_digital", "vendas_comissoes", "manutencao_despesas",
+  "relatorios", "dominio_proprio", "api_integracoes", "suporte_prioritario",
+] as const;
+
+export type ContextoNavegacao = {
+  recursos: readonly string[];
+  atividade: Atividade;
+  modulos: readonly string[];
+};
+
+const CONTEXTO_PADRAO: ContextoNavegacao = { recursos: TODOS_OS_RECURSOS, atividade: "ambos", modulos: TODOS_OS_MODULOS };
+
+type Definicao = {
+  chave: string;
+  rotulo: string;
+  contador?: string;
+  permissao?: (p: Pode) => boolean;
+  recurso?: string;
+  atividade?: "aluga" | "vende";
+  modulo?: string;
+};
+
+/** Gerente, administrador ou permissão extra de aprovar (APR, USR-03). */
+const decidePedidos = (p: Pode) => ["aprova", "sim"].includes(p.desconto_acima_limite) || ["aprova", "sim"].includes(p.locacoes_cancelar);
+const vePainel = (p: Pode) => p.painel === "todas_filiais" || p.painel === "filial";
+
+const DEFINICOES: Definicao[] = [
+  { chave: "inicio", rotulo: "Visão geral" },
+  { chave: "aprovacoes", rotulo: "Aprovações", contador: "aprovacoes", permissao: decidePedidos, modulo: "aprovacoes" },
+  { chave: "veiculos", rotulo: "Veículos", contador: "veiculos", permissao: (p) => p.veiculos !== "nao", modulo: "veiculos" },
+  { chave: "locacoes", rotulo: "Locações", contador: "locacoes", permissao: (p) => p.locacoes_criar || p.vistorias_fazer, recurso: "locacoes_vistoria", atividade: "aluga", modulo: "locacoes" },
+  { chave: "vendas", rotulo: "Vendas", permissao: (p) => p.vendas_criar, recurso: "vendas_comissoes", atividade: "vende", modulo: "vendas" },
+  { chave: "clientes", rotulo: "Clientes", permissao: (p) => p.clientes_cadastrar || p.caixa_receber, modulo: "clientes" },
+  { chave: "manutencoes", rotulo: "Manutenções", contador: "manutencoes", permissao: (p) => p.os_abrir, recurso: "manutencao_despesas", modulo: "manutencao" },
+  { chave: "caixa", rotulo: "Caixa do dia", permissao: (p) => p.caixa_receber || p.caixa_abrir_fechar, recurso: "contas_receber", modulo: "financeiro" },
+  { chave: "receber", rotulo: "Contas a receber", contador: "receber", permissao: (p) => p.caixa_receber, recurso: "contas_receber", modulo: "financeiro" },
+  { chave: "despesas", rotulo: "Despesas", contador: "despesas", permissao: (p) => p.despesas_lancar !== "nao", recurso: "manutencao_despesas", modulo: "financeiro" },
+  { chave: "comissoes", rotulo: "Comissões", permissao: (p) => p.financeiro_pagar, recurso: "vendas_comissoes", modulo: "vendas" },
+  { chave: "conciliacao", rotulo: "Conciliação", contador: "conciliacao", permissao: (p) => p.financeiro_pagar, recurso: "contas_receber", modulo: "financeiro" },
+  { chave: "relatorios", rotulo: "Relatórios", permissao: vePainel, recurso: "relatorios", modulo: "relatorios" },
+  { chave: "config", rotulo: "Configurações", permissao: (p) => p.administracao, modulo: "empresas" },
+  { chave: "marca", rotulo: "Empresa e marca", permissao: (p) => p.administracao, modulo: "empresas" },
+  { chave: "filiais", rotulo: "Filiais", permissao: (p) => p.administracao, modulo: "filiais" },
+  { chave: "usuarios", rotulo: "Usuários", contador: "usuarios", permissao: (p) => p.administracao, modulo: "contas" },
+  { chave: "assinatura", rotulo: "Assinatura", permissao: (p) => p.administracao, modulo: "plataforma" },
+  { chave: "auditoria", rotulo: "Auditoria", permissao: (p) => p.administracao, modulo: "auditoria" },
+  // Itens próprios das telas iniciais.
+  { chave: "agenda", rotulo: "Vistorias de hoje", contador: "agenda", permissao: (p) => p.vistorias_fazer, recurso: "locacoes_vistoria", atividade: "aluga", modulo: "vistorias" },
+  { chave: "consultar_veiculo", rotulo: "Consultar veículo", permissao: (p) => p.veiculos !== "nao", modulo: "veiculos" },
+  { chave: "avarias", rotulo: "Avarias abertas", contador: "avarias", permissao: (p) => p.vistorias_fazer, recurso: "locacoes_vistoria", atividade: "aluga", modulo: "vistorias" },
+  { chave: "propostas", rotulo: "Propostas", contador: "propostas", permissao: (p) => p.vendas_criar, recurso: "vendas_comissoes", atividade: "vende", modulo: "vendas" },
+  { chave: "minhas_vendas", rotulo: "Minhas vendas", permissao: (p) => p.vendas_criar, recurso: "vendas_comissoes", atividade: "vende", modulo: "vendas" },
+  { chave: "veiculos_a_venda", rotulo: "Veículos à venda", permissao: (p) => p.vendas_criar, recurso: "vendas_comissoes", atividade: "vende", modulo: "vendas" },
+  { chave: "minhas_comissoes", rotulo: "Minhas comissões", permissao: (p) => p.vendas_criar, recurso: "vendas_comissoes", atividade: "vende", modulo: "vendas" },
+  { chave: "contas_a_pagar", rotulo: "Contas a pagar", contador: "contas_a_pagar", permissao: (p) => p.financeiro_pagar, recurso: "manutencao_despesas", modulo: "financeiro" },
+  { chave: "caixa_e_bancos", rotulo: "Caixa e bancos", permissao: (p) => p.caixa_abrir_fechar, recurso: "contas_receber", modulo: "financeiro" },
+];
+const ITENS = new Map(DEFINICOES.map((d) => [d.chave, d]));
+
+/** Uma entrada é a chave do item, ou `[chave, rótulo]` para trocar o rótulo nessa tela. */
+type Entrada = string | readonly [string, string];
+type Grupos = readonly (readonly [string | null, readonly Entrada[]])[];
+
+/** Tabela "Itens do menu_completo" do contrato, na ordem. */
+const MENU_COMPLETO: Grupos = [
+  [null, ["inicio", "aprovacoes", "veiculos"]],
+  ["Operação", ["locacoes", "vendas", "clientes", "manutencoes"]],
+  ["Financeiro", ["caixa", "receber", "despesas", "comissoes", "conciliacao", "relatorios"]],
+  ["Administração", ["config", "marca", "filiais", "usuarios", "assinatura", "auditoria"]],
+];
+
+/** Menu da tela inicial de cada variante (telas Gerente, Vendedor, Vistoriador e Financeiro). */
+const MENU_INICIO: Partial<Record<VarianteInicio, Grupos>> = {
+  gerente: [
+    [null, [["inicio", "Visão da filial"], "aprovacoes", "veiculos"]],
+    ["Operação", ["locacoes", "vendas", "clientes", "manutencoes"]],
+    ["Filial", [["caixa", "Caixa da filial"], "relatorios"]],
+  ],
+  vendedor: [
+    [null, [["inicio", "Início"]]],
+    ["Operação", ["locacoes", "clientes"]],
+    ["Vendas", ["propostas", "minhas_vendas", "veiculos_a_venda", "minhas_comissoes"]],
+  ],
+  vistoriador: [[null, ["agenda", "consultar_veiculo", "avarias"]]],
+  financeiro: [[null, [["inicio", "Início"], "receber", "contas_a_pagar", "caixa_e_bancos", "comissoes"]]],
+};
+
+const BARRA_CELULAR = ["inicio", "veiculos", "nova_locacao", "locacoes", "mais"];
+
+function aparece(d: Definicao, pode: Pode, ctx: ContextoNavegacao): boolean {
+  if (d.modulo && !ctx.modulos.includes(d.modulo)) return false;
+  if (d.recurso && !ctx.recursos.includes(d.recurso)) return false;
+  if (d.atividade && ctx.atividade !== d.atividade && ctx.atividade !== "ambos") return false;
+  return d.permissao ? d.permissao(pode) : true;
 }
 
-/** Menu da tela inicial de cada perfil (telas Gerente, Vendedor, Vistoriador e Financeiro). */
-function menuInicio(variante: VarianteInicio, p: Pode, completo: GrupoNavegacao[]): GrupoNavegacao[] {
-  switch (variante) {
-    case "gerente":
-      return semVazios([
-        grupo(null, [item("inicio", "Visão da filial"), item("aprovacoes", "Aprovações", "aprovacoes"), item("veiculos", "Veículos", "veiculos")]),
-        grupo("Operação", [item("locacoes", "Locações", "locacoes"), item("clientes", "Clientes"), p.os_abrir && item("manutencoes", "Manutenções", "manutencoes")]),
-        grupo("Filial", [item("caixa", "Caixa da filial"), item("relatorios", "Relatórios")]),
-      ]);
-    case "vendedor":
-      return semVazios([grupo(null, [item("inicio", "Início")]), grupo("Operação", [item("locacoes", "Locações", "locacoes"), item("clientes", "Clientes")])]);
-    case "vistoriador":
-      return [grupo(null, [item("agenda", "Vistorias de hoje", "agenda"), item("consultar_veiculo", "Consultar veículo"), item("avarias", "Avarias abertas", "avarias")])];
-    case "financeiro":
-      return [
-        grupo(null, [
-          item("inicio", "Início"),
-          item("receber", "Contas a receber", "receber"),
-          item("contas_a_pagar", "Contas a pagar", "contas_a_pagar"),
-          item("caixa_e_bancos", "Caixa e bancos"),
-          item("relatorios", "Relatórios"),
-        ]),
-      ];
-    default:
-      return completo;
-  }
+/** Despesas: o número é do que a pessoa pode aprovar; quem só lança fica sem contador. */
+const contadorDe = (d: Definicao, pode: Pode): string | null => (d.chave === "despesas" && !pode.despesas_aprovar ? null : (d.contador ?? null));
+
+function montar(grupos: Grupos, pode: Pode, ctx: ContextoNavegacao): GrupoNavegacao[] {
+  return grupos
+    .map(([grupo, entradas]): GrupoNavegacao => ({
+      grupo,
+      itens: entradas.flatMap((e): ItemNavegacao[] => {
+        const [chave, rotulo] = typeof e === "string" ? [e, undefined] : e;
+        const d = ITENS.get(chave)!;
+        return aparece(d, pode, ctx) ? [{ chave, rotulo: rotulo ?? d.rotulo, contador: contadorDe(d, pode) }] : [];
+      }),
+    }))
+    .filter((g) => g.itens.length > 0);
 }
 
-export function navegacaoFalsa(perfil: Perfil, pode: Pode, variante: VarianteInicio): Navegacao {
-  const decide = perfil === "administrador" || perfil === "gerente";
-  const completo = menuCompleto(pode, decide);
-  const barra = ["inicio", "veiculos", "nova_locacao", "locacoes", "mais"].filter((c) => {
-    if (c === "inicio") return pode.painel !== "nao" || perfil === "vistoriador";
-    if (c === "veiculos") return pode.veiculos !== "nao";
-    if (c === "nova_locacao") return pode.locacoes_criar;
-    if (c === "locacoes") return pode.locacoes_criar || pode.vistorias_fazer;
-    return true;
-  });
-  return { inicio: { rota: "/inicio", variante }, menu_inicio: menuInicio(variante, pode, completo), menu_completo: completo, barra_celular: barra };
+/** `contexto` troca plano, atividade e módulos; sem ele, vale o plano Profissional, aluga e vende, todos os módulos. */
+export function navegacaoFalsa(_perfil: Perfil, pode: Pode, variante: VarianteInicio, contexto: Partial<ContextoNavegacao> = {}): Navegacao {
+  const ctx = { ...CONTEXTO_PADRAO, ...contexto };
+  const completo = montar(MENU_COMPLETO, pode, ctx);
+  const visiveis = new Set(completo.flatMap((g) => g.itens.map((i) => i.chave)));
+  const barra: Record<string, boolean> = {
+    inicio: true,
+    veiculos: visiveis.has("veiculos"),
+    nova_locacao: visiveis.has("locacoes") && pode.locacoes_criar,
+    locacoes: visiveis.has("locacoes"),
+    mais: true,
+  };
+  const inicio = MENU_INICIO[variante];
+  return {
+    inicio: { rota: "/inicio", variante },
+    menu_inicio: inicio ? montar(inicio, pode, ctx) : completo,
+    menu_completo: completo,
+    barra_celular: BARRA_CELULAR.filter((c) => barra[c]),
+  };
 }
