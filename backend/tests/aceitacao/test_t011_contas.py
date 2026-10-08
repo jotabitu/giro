@@ -1,7 +1,7 @@
 """T-011 · Contas, perfis, 2 etapas, convite (critérios em docs/qa/criterios/T-011.md).
 
-A T-011 entregou login, sessões, 2 etapas, `eu` e senha; a T-069, usuários e convite. Os critérios
-do modo suporte são da T-070 (divisão combinada com o Orquestrador em 09/10).
+A T-011 entregou login, sessões, 2 etapas, `eu` e senha; a T-069, usuários e convite; a T-070, o
+modo suporte (divisão combinada com o Orquestrador em 09/10).
 
 Roda na `empresa_a` (host `empresa-a.localhost`), com o nome de exibição "Moto Rápida" e as
 pessoas do seed.
@@ -16,6 +16,7 @@ import pytest
 from django.core import mail
 from django.core.cache import cache
 from django.db import connection
+from django_tenants.utils import schema_context
 from rest_framework.test import APIClient
 
 from apps.auditoria.models import EventoAuditoria
@@ -23,14 +24,18 @@ from apps.contas import selectors, services
 from apps.contas.models import Autenticador, Convite, PermissaoExtra, StatusUsuario, Usuario
 from apps.empresas.services import definir_exige_2fa_todos
 from apps.filiais.models import UsuarioFilial
-from apps.plataforma.models import UsoEmpresa
+from apps.plataforma.models import AcessoSuporte, UsoEmpresa
 from comum.autenticacao import AMR_SENHA_E_CODIGO, emitir_tokens
 from integracoes.whatsapp.falso import caixa_de_saida
 
-from .apoio import aguarda, pendente
-from .conftest import autenticador_confirmado, codigo_atual, liberar_codigo
-
-T_SUPORTE = "T-070"
+from .conftest import (
+    HOST_PLATAFORMA,
+    autenticador_confirmado,
+    cliente,
+    codigo_atual,
+    entrar,
+    liberar_codigo,
+)
 
 HOST = "empresa-a.localhost"
 SENHA = "girafa-azul-2026"
@@ -1135,32 +1140,256 @@ def test_usr_06_ca_011_25_recuperacao_sem_revelar_contas(
     assert moto.entrar("Mariana", "girafa-verde-2026").json()["etapa"] == "verificar_2fa"
 
 
-# --- Modo suporte (T-070) ---
+# --- Modo suporte (T-070; PLT-07, AUD-03; ADR 0013, item 2) ---
 
 
-@aguarda(T_SUPORTE)
-def test_plt_07_ca_011_26_faixa_e_permissoes_do_suporte():
-    pendente(
-        suporte={
-            "nome": "Diego Santos",
-            "permissao": "ver",
-            "duracao_min": 30,
-            "motivo": "Chamado #1042",
-        },
-        escrita=(403, "PLT-07", "No modo só ver você não pode fazer isto"),
-        apos_fim=(401, "PLT-07"),
-        rotas_proibidas=["auth/entrar", "renovar", "sessoes", "escrita de usuarios"],
-        proibidas_status=(403, "PLT-07"),
+def _token_do_diego(moto: Moto, equipe: Any) -> str:
+    """Login de verdade na plataforma (no `public`), uma vez por teste."""
+    if not hasattr(moto, "token_do_diego"):
+        connection.set_schema_to_public()
+        moto.token_do_diego = entrar(*equipe["Diego Santos"])
+        connection.set_tenant(moto.empresa)
+    return str(moto.token_do_diego)
+
+
+def _abrir_suporte(
+    moto: Moto,
+    equipe: Any,
+    *,
+    permissao: str = "ver",
+    duracao: int = 30,
+    motivo: str = "Chamado #1042",
+) -> tuple[APIClient, dict[str, Any]]:
+    """Diego abre o acesso pela plataforma; devolve o cliente com o token do fragmento."""
+    plataforma = cliente(HOST_PLATAFORMA, _token_do_diego(moto, equipe))
+    resposta = plataforma.post(
+        f"/api/plataforma/empresas/{moto.empresa.pk}/acessos-suporte/",
+        {"motivo": motivo, "duracao_minutos": duracao, "permissao": permissao},
+        format="json",
     )
+    connection.set_tenant(moto.empresa)
+    assert resposta.status_code == 201, resposta.json()
+    url = resposta.json()["url_entrada"]
+    assert url.startswith("https://empresa-a.localhost/suporte/entrar#")
+    api = moto.cliente()
+    api.credentials(HTTP_AUTHORIZATION=f"Bearer {url.split('#', 1)[1]}")
+    return api, resposta.json()
 
 
-@aguarda(T_SUPORTE)
-def test_plt_07_ca_011_27_administrador_controla_o_suporte():
-    pendente(
-        bloquear="acesso vira revogado",
-        proxima_requisicao="falha",
-        auditoria="entrada, saída e revogação com destaque e motivo (AUD-03)",
+def _acesso(pk: int) -> AcessoSuporte:
+    with schema_context("public"):
+        return AcessoSuporte.objects.get(pk=pk)
+
+
+def _codigo_e_mensagem(resposta: Any) -> tuple[int, str, str]:
+    corpo = resposta.json()
+    return resposta.status_code, corpo["codigo"], corpo["mensagem"]
+
+
+def test_plt_07_ca_011_26_faixa_e_permissoes_do_suporte(
+    equipe, adm, relogio, django_capture_on_commit_callbacks
+):
+    relogio.em("2026-10-07 15:00")
+    with django_capture_on_commit_callbacks(execute=True):
+        diego, aberto = _abrir_suporte(adm, equipe)
+    connection.set_tenant(adm.empresa)  # a tarefa do aviso volta a conexão ao public
+    assert aberto["fim"] == "2026-10-07T18:30:00Z"  # 15:30 em São Paulo
+    aviso = [m for m in mail.outbox if "suporte" in m.subject]
+    assert len(aviso) == 1 and aviso[0].to == ["mariana@motorapida.com.br"]
+    assert "Moto Rápida" in aviso[0].subject
+    assert "Chamado #1042" in aviso[0].body and "Diego Santos" in aviso[0].body
+
+    eu = _get(diego, EU, adm.empresa)
+    assert eu.status_code == 200
+    corpo = eu.json()
+    assert corpo["suporte"] == {
+        "acesso_suporte_id": aberto["acesso_suporte_id"],
+        "nome": "Diego Santos",
+        "permissao": "ver",
+        "fim": "2026-10-07T18:30:00Z",
+        "motivo": "Chamado #1042",
+    }
+    assert (corpo["perfil"], corpo["id"]) == ("administrador", None)
+    assert corpo["filiais"] == [{"id": adm.centro.pk, "nome": "Filial Centro"}]
+    assert corpo["pode"]["administracao"] is True
+    assert corpo["pode"]["locacoes_criar"] is False  # "só ver": sem as chaves de escrita
+
+    # Leitura marcada para o suporte responde.
+    for rota in (USUARIOS, "/api/filiais/", f"/api/filiais/{adm.centro.pk}/", "/api/assinatura/"):
+        assert _get(diego, rota, adm.empresa).status_code == 200, rota
+
+    # Escrita no modo "só ver".
+    patch = diego.patch(f"/api/filiais/{adm.centro.pk}/", {"nome": "X"}, format="json")
+    connection.set_tenant(adm.empresa)
+    assert _codigo_e_mensagem(patch) == (403, "PLT-07", "No modo só ver você não pode fazer isto")
+
+    # Rotas que o suporte nunca usa, em qualquer modo.
+    editar, _ = _abrir_suporte(adm, equipe, permissao="ver_editar")
+    bruna = adm.pessoas["Bruna"].pk
+    for api in (diego, editar):
+        proibidas = [
+            _post(api, ENTRAR, adm.empresa, {"email": "x@y.com", "senha": "x"}),
+            _post(api, RENOVAR, adm.empresa, **FRONTEND),
+            _post(api, CONSULTAR, adm.empresa, {"token": "x"}),
+            _get(api, SESSOES, adm.empresa),
+            _post(api, f"{USUARIOS}convites/", adm.empresa, {"email": "a@b.com"}),
+            _post(api, f"{USUARIOS}{bruna}/desativar/", adm.empresa),
+            _post(api, "/api/auth/senha/trocar/", adm.empresa, {}),
+        ]
+        for resposta in proibidas:
+            assert resposta.status_code == 403, resposta.json()
+            assert resposta.json()["codigo"] == "PLT-07"
+        alterar = api.patch(f"{USUARIOS}{bruna}/", {"perfil": "gerente"}, format="json")
+        connection.set_tenant(adm.empresa)
+        assert (alterar.status_code, alterar.json()["codigo"]) == (403, "PLT-07")
+    plataforma = cliente(HOST_PLATAFORMA)
+    plataforma.credentials(HTTP_AUTHORIZATION=diego._credentials["HTTP_AUTHORIZATION"])
+    na_plataforma = plataforma.get("/api/plataforma/empresas/")
+    connection.set_tenant(adm.empresa)
+    assert (na_plataforma.status_code, na_plataforma.json()["codigo"]) == (403, "PLT-07")
+
+    # "Ver e editar" escreve fora de usuários, e a auditoria mostra o suporte com o acesso.
+    editado = editar.patch(
+        f"/api/filiais/{adm.centro.pk}/", {"nome": "Filial Centro Fortaleza"}, format="json"
     )
+    connection.set_tenant(adm.empresa)
+    assert editado.status_code == 200
+    evento = adm.eventos("filial.editar").last()
+    assert (evento.ator_tipo, evento.ator_nome) == ("suporte", "Diego Santos")
+    assert evento.acesso_suporte_id is not None and evento.ator_id is None
+
+    # O token de uma empresa não vale em outra.
+    outra = APIClient(HTTP_HOST="empresa-b.localhost", REMOTE_ADDR="10.0.0.5")
+    outra.credentials(HTTP_AUTHORIZATION=diego._credentials["HTTP_AUTHORIZATION"])
+    em_b = outra.get(EU)
+    connection.set_tenant(adm.empresa)
+    assert (em_b.status_code, em_b.json()["codigo"]) == (401, "PLT-07")
+
+    # No `fim`, a requisição seguinte cai.
+    relogio.em("2026-10-07 15:30:01")
+    acabou = _get(diego, EU, adm.empresa)
+    assert _codigo_e_mensagem(acabou) == (401, "PLT-07", "O acesso de suporte terminou")
+
+
+def test_plt_07_ca_011_27_administrador_controla_o_suporte(equipe, adm, relogio):
+    relogio.em("2026-10-07 15:00")
+    diego, aberto = _abrir_suporte(adm, equipe)
+    mariana = adm.logar("Mariana")
+    lista = _get(mariana, "/api/suporte/", adm.empresa).json()
+    assert lista["bloqueado"] is False
+    assert [(a["nome"], a["status"], a["motivo"]) for a in lista["acessos"]] == [
+        ("Diego Santos", "ativo", "Chamado #1042")
+    ]
+    # Só o administrador controla, e o suporte não se libera.
+    assert _get(adm.logar("Bruna"), "/api/suporte/", adm.empresa).status_code == 403
+    proprio = _post(diego, "/api/suporte/liberar/", adm.empresa)
+    assert (proprio.status_code, proprio.json()["codigo"]) == (403, "PLT-07")
+
+    # Bloquear com Diego dentro: o acesso vira `revogado` e a requisição seguinte falha.
+    bloqueio = _post(mariana, "/api/suporte/bloquear/", adm.empresa, {"motivo": "Sem chamado"})
+    assert bloqueio.json() == {"bloqueado": True}
+    assert _acesso(aberto["acesso_suporte_id"]).status == "revogado"
+    caiu = _get(diego, EU, adm.empresa)
+    assert (caiu.status_code, caiu.json()["codigo"]) == (401, "PLT-07")
+    plataforma = cliente(HOST_PLATAFORMA, _token_do_diego(adm, equipe))
+    recusado = plataforma.post(
+        f"/api/plataforma/empresas/{adm.empresa.pk}/acessos-suporte/",
+        {"motivo": "Chamado #1043", "duracao_minutos": 15, "permissao": "ver"},
+        format="json",
+    )
+    connection.set_tenant(adm.empresa)
+    assert _codigo_e_mensagem(recusado) == (
+        422,
+        "PLT-07",
+        "O administrador da empresa bloqueou o acesso do suporte",
+    )
+    assert _post(mariana, "/api/suporte/liberar/", adm.empresa).json() == {"bloqueado": False}
+
+    # O suporte sai: `encerrado`.
+    saindo, saida = _abrir_suporte(adm, equipe, motivo="Chamado #1044")
+    assert _post(saindo, "/api/auth/suporte/sair/", adm.empresa).status_code == 204
+    assert _acesso(saida["acesso_suporte_id"]).status == "encerrado"
+    assert _get(saindo, EU, adm.empresa).status_code == 401
+    assert _post(mariana, "/api/auth/suporte/sair/", adm.empresa).status_code == 403
+
+    # O administrador revoga um acesso.
+    revogado, outro = _abrir_suporte(adm, equipe, motivo="Chamado #1045")
+    rota = f"/api/suporte/acessos/{outro['acesso_suporte_id']}/revogar/"
+    resposta = _post(mariana, rota, adm.empresa, {"motivo": "Já resolvido"})
+    assert (resposta.status_code, resposta.json()["status"]) == (200, "revogado")
+    assert _get(revogado, EU, adm.empresa).status_code == 401
+
+    # Auditoria da empresa: entrada, saída e revogação, com destaque (ator suporte) e motivo.
+    entrada = adm.eventos("suporte.entrar").first()
+    assert (entrada.categoria, entrada.ator_tipo, entrada.ator_nome) == (
+        "suporte",
+        "suporte",
+        "Diego Santos",
+    )
+    assert (entrada.motivo, entrada.acesso_suporte_id) == (
+        "Chamado #1042",
+        aberto["acesso_suporte_id"],
+    )
+    sair = adm.eventos("suporte.sair").get()
+    assert (sair.ator_tipo, sair.acesso_suporte_id) == ("suporte", saida["acesso_suporte_id"])
+    revogacoes = adm.eventos("suporte.revogar")
+    assert {e.motivo for e in revogacoes} == {"Sem chamado", "Já resolvido"}
+    assert all(e.ator_nome == "Mariana" and e.categoria == "suporte" for e in revogacoes)
+    assert adm.eventos("suporte.bloquear").get().depois == {"suporte_bloqueado": True}
+    # E na auditoria da plataforma.
+    with schema_context("public"):
+        acoes = set(EventoAuditoria.objects.values_list("acao", flat=True))
+    assert {"suporte.entrar", "suporte.sair", "suporte.revogar", "suporte.bloquear"} <= acoes
+
+
+def test_aut_15_encerra_acessos_de_suporte_vencidos(equipe, adm, relogio):
+    from apps.plataforma.tasks import aut_15_encerrar_acessos_de_suporte_vencidos
+
+    relogio.em("2026-10-07 15:00")
+    _, aberto = _abrir_suporte(adm, equipe, duracao=15)
+    relogio.em("2026-10-07 15:14")
+    assert aut_15_encerrar_acessos_de_suporte_vencidos() == 0
+    relogio.em("2026-10-07 15:15")
+    assert aut_15_encerrar_acessos_de_suporte_vencidos() == 1
+    connection.set_tenant(adm.empresa)
+    acesso = _acesso(aberto["acesso_suporte_id"])
+    assert (acesso.status, acesso.encerrado_em is not None) == ("encerrado", True)
+    assert aut_15_encerrar_acessos_de_suporte_vencidos() == 0  # idempotente
+    connection.set_tenant(adm.empresa)
+    assert adm.eventos("suporte.encerrar").get().motivo == "O prazo do acesso acabou"
+
+
+def test_plt_07_lista_de_rotas_que_o_suporte_le():
+    """ADR 0013, item 2: "só ver" é uma lista de views marcadas. Uma view nova só entra aqui de
+    propósito (sem exportação, URL assinada nem dado pessoal completo)."""
+    from config import urls
+
+    def views(padroes: Any, prefixo: str = "") -> Any:
+        for padrao in padroes:
+            if hasattr(padrao, "url_patterns"):
+                yield from views(padrao.url_patterns, prefixo + str(padrao.pattern))
+            else:
+                classe = getattr(padrao.callback, "view_class", None)
+                if classe is not None:
+                    yield prefixo + str(padrao.pattern), classe
+
+    marcadas = {
+        rota
+        for rota, classe in views(urls.urlpatterns)
+        if getattr(classe, "suporte_somente_leitura", False)
+    }
+    assert marcadas == {
+        "api/auth/eu/",
+        "api/usuarios/",
+        "api/usuarios/<int:pk>/",
+        "api/assinatura/",
+        "api/filiais/minhas/",
+        "api/filiais/",
+        "api/filiais/<int:pk>/",
+        "api/filiais/<int:pk>/feriados/",
+        "api/filiais/<int:pk>/feriados/sugestoes/",
+        "api/enderecos/cep/<str:cep>/",
+    }
 
 
 # --- Auditoria (AUD-01) ---

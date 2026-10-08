@@ -9,18 +9,25 @@ de 2 etapas.
 
 Sessões (ADR 0014, item 1): access e refresh levam `sid`. A sessão é do app `contas`, que fica
 acima de `comum` (ADR 0011); ele registra `abrir`, `vincular` e `conferir` com
-`registrar_sessoes` no `ready()`. Token sem `sid` não vale. O token de suporte entra com a T-070.
+`registrar_sessoes` no `ready()`. Token sem `sid` não vale.
+
+Suporte (ADR 0013, item 2; T-070): o token `suporte` não tem usuário nem refresh. A autenticação
+monta um `AtorSuporte` em memória, confere o acesso no `public` (função registrada pelo app
+`plataforma`) e aplica as regras de rota da view: "só ver" é uma lista de views marcadas.
 """
 
 from collections.abc import Iterable
-from datetime import timedelta
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Any, Protocol
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractBaseUser
 from django.http import HttpResponse
+from django_tenants.utils import get_public_schema_name
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.permissions import SAFE_METHODS
 from rest_framework.request import Request
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenBackendError, TokenError
@@ -29,7 +36,7 @@ from rest_framework_simplejwt.state import token_backend
 from rest_framework_simplejwt.tokens import RefreshToken, Token
 
 from comum.conexao import conexao
-from comum.erros import NaoAutenticado
+from comum.erros import NaoAutenticado, SemPermissao
 
 CLAIM_SCHEMA = "schema"
 CLAIM_EMPRESA = "empresa_id"
@@ -143,7 +150,142 @@ def conferir_empresa(token: Token | dict[str, Any]) -> None:
         )
 
 
+# --- Token de suporte (ADR 0013, item 2; PLT-07) ---
+
+
+class TokenSuporte(Token):
+    """Sem refresh e sem `user_id`: `exp` é o `fim` do `AcessoSuporte`, conferido no `public` a
+    cada requisição pela função que o app `plataforma` registra."""
+
+    token_type = "suporte"  # noqa: S105 - tipo do token, não segredo
+    lifetime = timedelta(hours=1)  # trocado pelo `fim` do acesso em `emitir_token_suporte`
+
+
+CLAIM_ACESSO_SUPORTE = "acesso_suporte_id"
+CLAIM_PERMISSAO = "permissao"
+SUPORTE_SO_VER = "ver"
+SUPORTE_TERMINOU = ("PLT-07", "O acesso de suporte terminou")
+SUPORTE_SO_LEITURA = ("PLT-07", "No modo só ver você não pode fazer isto")
+SUPORTE_PROIBIDO = ("PLT-07", "O suporte não pode usar esta ação")
+
+
+@dataclass(frozen=True)
+class AtorSuporte:
+    """Quem entrou como suporte: objeto em memória, nunca um `contas.Usuario` da empresa.
+
+    Age com o alcance de um administrador em todas as filiais (ADR 0013, item 2).
+    """
+
+    acesso_suporte_id: int
+    nome: str
+    permissao: str
+    fim: datetime
+    motivo: str
+    perfil: str = "administrador"
+    permissoes_extras: tuple[str, ...] = ()
+    status: str = "ativo"
+    e_suporte: bool = True
+    is_authenticated: bool = True
+    is_anonymous: bool = False
+    pk: None = None
+    id: None = None
+
+
+class ConferenciaDeSuporte(Protocol):
+    def __call__(self, acesso_suporte_id: int, empresa_id: int) -> AtorSuporte:
+        """`AcessoSuporte` ativo, no prazo, da empresa e sem bloqueio; senão 401 `PLT-07`."""
+        ...
+
+
+_conferir_suporte: ConferenciaDeSuporte | None = None
+
+
+def registrar_suporte(funcao: ConferenciaDeSuporte) -> None:
+    """Chamado pelo `ready()` do app `plataforma`."""
+    global _conferir_suporte
+    _conferir_suporte = funcao
+
+
+def emitir_token_suporte(
+    *, acesso_suporte_id: int, permissao: str, fim: datetime, schema: str, empresa_id: int
+) -> TokenSuporte:
+    """Emitido no `public` para a empresa do acesso: o token vence no `fim`."""
+    token = TokenSuporte()
+    token.set_exp(lifetime=fim - token.current_time)
+    token[CLAIM_SCHEMA] = schema
+    token[CLAIM_EMPRESA] = empresa_id
+    token[CLAIM_ACESSO_SUPORTE] = acesso_suporte_id
+    token[CLAIM_PERMISSAO] = permissao
+    return token
+
+
+def _tipo_do_token(request: Request) -> str | None:
+    """O tipo do Bearer, sem conferir nada: só para escolher o caminho da autenticação."""
+    cabecalho = request.META.get(api_settings.AUTH_HEADER_NAME, "")
+    partes = str(cabecalho).split()
+    if len(partes) != 2 or partes[0] not in api_settings.AUTH_HEADER_TYPES:
+        return None
+    try:
+        conteudo = token_backend.decode(partes[1], verify=False)  # type: ignore[arg-type]
+    except (TokenError, TokenBackendError):
+        return None
+    tipo = conteudo.get(api_settings.TOKEN_TYPE_CLAIM)
+    return str(tipo) if tipo else None
+
+
+def recusar_token_de_suporte(request: Request) -> None:
+    """Rotas de autenticação e públicas (entrar, renovar, sair, convite): 403 `PLT-07`."""
+    if _tipo_do_token(request) == TokenSuporte.token_type:
+        raise SemPermissao(*SUPORTE_PROIBIDO)
+
+
+def conferir_rota_do_suporte(request: Request, ator: AtorSuporte) -> None:
+    """A view decide (ADR 0013, item 2):
+
+    - `suporte_proibido = True` (ou o conjunto de métodos proibidos): 403 `PLT-07` sempre;
+    - "só ver": só métodos de leitura em views com `suporte_somente_leitura = True`;
+    - `so_suporte = True`: rota do próprio suporte (`auth/suporte/sair/`), vale nos dois modos.
+    """
+    view = (getattr(request, "parser_context", None) or {}).get("view")
+    if getattr(view, "so_suporte", False):
+        return
+    proibido = getattr(view, "suporte_proibido", False)
+    if proibido is True or (isinstance(proibido, frozenset) and request.method in proibido):
+        raise SemPermissao(*SUPORTE_PROIBIDO)
+    if ator.permissao == SUPORTE_SO_VER and (
+        request.method not in SAFE_METHODS or not getattr(view, "suporte_somente_leitura", False)
+    ):
+        raise SemPermissao(*SUPORTE_SO_LEITURA)
+
+
+def _autenticar_suporte(request: Request, bruto: bytes) -> tuple[AtorSuporte, Token]:
+    if conexao().schema_name == get_public_schema_name():
+        raise SemPermissao(*SUPORTE_PROIBIDO)  # nenhuma rota da plataforma aceita
+    try:
+        token = TokenSuporte(bruto)  # type: ignore[arg-type]
+    except TokenError as erro:
+        raise NaoAutenticado(*SUPORTE_TERMINOU) from erro
+    try:
+        conferir_empresa(token)
+    except AuthenticationFailed as erro:
+        raise NaoAutenticado(*SUPORTE_TERMINOU) from erro
+    acesso_id = token.get(CLAIM_ACESSO_SUPORTE)
+    if _conferir_suporte is None or not isinstance(acesso_id, int):
+        raise NaoAutenticado(*SUPORTE_TERMINOU)
+    ator = _conferir_suporte(acesso_id, int(token[CLAIM_EMPRESA]))
+    conferir_rota_do_suporte(request, ator)
+    return ator, token
+
+
 class JWTDaEmpresa(JWTAuthentication):
+    def authenticate(self, request: Request) -> Any:
+        if _tipo_do_token(request) == TokenSuporte.token_type:
+            cabecalho = self.get_header(request)
+            bruto = self.get_raw_token(cabecalho) if cabecalho is not None else None
+            if bruto is not None:
+                return _autenticar_suporte(request, bruto)
+        return super().authenticate(request)
+
     def get_user(self, validated_token: Token) -> Any:
         conferir_empresa(validated_token)
         sid = validated_token.get(CLAIM_SESSAO)
@@ -160,6 +302,10 @@ class JWTDaEmpresa(JWTAuthentication):
 
 class JWTPre2FA(JWTAuthentication):
     """Aceita só o token `pre_2fa`. Convite pendente passa (está configurando o 2FA)."""
+
+    def authenticate(self, request: Request) -> Any:
+        recusar_token_de_suporte(request)
+        return super().authenticate(request)
 
     def get_validated_token(self, raw_token: bytes) -> Token:
         try:

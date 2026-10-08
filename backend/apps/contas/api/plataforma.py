@@ -21,6 +21,7 @@ from comum.autenticacao import (
     emitir_pre_2fa,
     emitir_tokens,
     gravar_cookie_refresh,
+    recusar_token_de_suporte,
     veio_do_frontend,
 )
 from comum.erros import Conflito, NaoAutenticado, SemPermissao
@@ -151,6 +152,10 @@ class Publica(APIView):
     authentication_classes: list[Any] = []
     permission_classes = [AllowAny]
     throttle_classes: list[Any] = [AcessoPorIP]
+
+    def initial(self, request: Request, *args: Any, **kwargs: Any) -> None:
+        recusar_token_de_suporte(request)  # nenhuma rota da plataforma aceita (PLT-07)
+        super().initial(request, *args, **kwargs)
 
 
 class EntrarView(Publica):

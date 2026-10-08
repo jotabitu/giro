@@ -1,4 +1,5 @@
-"""Regras da plataforma (PLT-01, PLT-03, IMP-05). Único lugar que cria empresa e mexe no uso.
+"""Regras da plataforma (PLT-01, PLT-03, PLT-07, IMP-05). Único lugar que cria empresa, mexe no
+uso e abre ou encerra o acesso de suporte.
 
 Os apps da empresa usam só `exigir_limite`, `atualizar_uso`, `registrar_passo_implantacao`,
 `registrar_acesso` e `registrar_contador` (contrato da plataforma, "Interface interna").
@@ -21,13 +22,34 @@ from django_tenants.utils import (
 )
 
 from comum import relogio
-from comum.auditoria import Categoria, registrar_evento, retrato
+from comum.auditoria import (
+    Ator,
+    Categoria,
+    TipoAtor,
+    ator_atual,
+    registrar_evento,
+    retrato,
+    usar_ator,
+)
+from comum.autenticacao import SUPORTE_TERMINOU, AtorSuporte, emitir_token_suporte
 from comum.conexao import conexao
 from comum.documentos import cnpj_valido, so_digitos
-from comum.erros import Conflito, ErroDeValidacao, LimiteDoPlano
+from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, LimiteDoPlano, NaoAutenticado
+from comum.estados import transicionar
 from comum.eventos import publicar
 
-from .models import DIAS_DE_TESTE, Dominio, Empresa, Item, Plano, UsoEmpresa
+from .models import (
+    DIAS_DE_TESTE,
+    DURACOES_DO_SUPORTE,
+    AcessoSuporte,
+    Dominio,
+    Empresa,
+    Item,
+    PermissaoSuporte,
+    Plano,
+    StatusAcessoSuporte,
+    UsoEmpresa,
+)
 
 SUBDOMINIOS_RESERVADOS = frozenset(
     {"admin", "www", "api", "app", "suporte", "status", "public", "information-schema"}
@@ -343,3 +365,218 @@ def registrar_acesso(empresa: Empresa | None = None) -> None:
     UsoEmpresa.objects.filter(empresa=empresa).filter(
         Q(ultimo_acesso_em__isnull=True) | Q(ultimo_acesso_em__lte=agora - ACESSO_A_CADA)
     ).update(ultimo_acesso_em=agora)
+
+
+# --- Acesso de suporte (PLT-07, AUD-03; ADR 0013, item 2) ---
+#
+# `AcessoSuporte` e o usuário da equipe ficam no `public`. Do host da empresa, o `search_path`
+# acharia primeiro a tabela de usuários da empresa: por isso toda leitura e escrita do acesso
+# roda em `schema_context(public)`. Cada fato vai para as duas auditorias (PLT-07).
+
+SUPORTE_BLOQUEADO = ("PLT-07", "O administrador da empresa bloqueou o acesso do suporte")
+
+
+def no_publico() -> Any:
+    return schema_context(get_public_schema_name())
+
+
+def _ator_do_suporte(acesso: AcessoSuporte) -> Ator:
+    """O suporte como ator na auditoria da empresa, com o acesso que justifica (AUD-03)."""
+    atual = ator_atual()
+    return Ator(
+        tipo=TipoAtor.SUPORTE,
+        nome=acesso.usuario.nome,
+        ip=atual.ip,
+        aparelho=atual.aparelho,
+        acesso_suporte_id=acesso.pk,
+    )
+
+
+def _auditar_na_empresa(
+    acesso: AcessoSuporte, acao: str, *, motivo: str, pelo_suporte: bool
+) -> None:
+    """O mesmo fato na auditoria da empresa (AUD-03: com destaque, pelo ator `suporte`)."""
+    depois = {"status": acesso.status, "permissao": acesso.permissao, "fim": acesso.fim}
+    ator = _ator_do_suporte(acesso) if pelo_suporte else ator_atual()
+    with schema_context(acesso.empresa.schema_name), usar_ator(ator):
+        registrar_evento(
+            acao, Categoria.SUPORTE, objeto=acesso, depois=depois, motivo=motivo, regra="PLT-07"
+        )
+
+
+def abrir_acesso_suporte(
+    empresa: Empresa, usuario: Any, *, motivo: str, duracao_minutos: int, permissao: str
+) -> tuple[AcessoSuporte, str]:
+    """Entrar como suporte (PLT-07). Devolve o acesso e o token, que vence no `fim`.
+
+    Empresa com o suporte bloqueado: 422 `PLT-07`. O administrador recebe e-mail na hora.
+    """
+    erros: dict[str, list[str]] = {}
+    if not motivo.strip():
+        erros["motivo"] = ["Informe o motivo, de preferência o chamado."]
+    if duracao_minutos not in DURACOES_DO_SUPORTE:
+        erros["duracao_minutos"] = ["Use 15, 30 ou 60 minutos."]
+    if permissao not in PermissaoSuporte.values:
+        erros["permissao"] = ["Use ver ou ver_editar."]
+    if erros:
+        raise ErroDeValidacao(erros)
+    with no_publico(), transaction.atomic():
+        empresa = Empresa.objects.select_for_update().get(pk=empresa.pk)
+        if empresa.suporte_bloqueado:
+            raise ErroDeRegra(*SUPORTE_BLOQUEADO)
+        agora = relogio.agora()
+        acesso = AcessoSuporte.objects.create(
+            usuario=usuario,
+            empresa=empresa,
+            motivo=motivo.strip(),
+            permissao=permissao,
+            inicio=agora,
+            fim=agora + timedelta(minutes=duracao_minutos),
+        )
+        acesso.refresh_from_db(fields=["inicio", "fim"])  # em UTC, como o resto da API
+        registrar_evento(
+            "suporte.entrar",
+            Categoria.SUPORTE,
+            objeto=acesso,
+            depois=retrato(acesso),
+            motivo=acesso.motivo,
+            regra="PLT-07",
+        )
+        _auditar_na_empresa(acesso, "suporte.entrar", motivo=acesso.motivo, pelo_suporte=True)
+        token = emitir_token_suporte(
+            acesso_suporte_id=acesso.pk,
+            permissao=permissao,
+            fim=acesso.fim,
+            schema=empresa.schema_name,
+            empresa_id=empresa.pk,
+        )
+        from .tasks import plataforma_avisar_entrada_do_suporte
+
+        schema, acesso_id = empresa.schema_name, acesso.pk
+        transaction.on_commit(lambda: plataforma_avisar_entrada_do_suporte.delay(schema, acesso_id))
+    return acesso, str(token)
+
+
+def url_de_entrada_do_suporte(acesso: AcessoSuporte, token: str) -> str:
+    """O token no fragmento: não vai ao servidor nem ao proxy (contrato da plataforma)."""
+    with no_publico():
+        dominio = Dominio.objects.get(tenant_id=acesso.empresa_id, is_primary=True).domain
+    return f"https://{dominio}/suporte/entrar#{token}"
+
+
+def conferir_acesso_suporte(acesso_suporte_id: int, empresa_id: int) -> AtorSuporte:
+    """A cada requisição com token de suporte (registrada em `comum.autenticacao`)."""
+    with no_publico():
+        acesso = (
+            AcessoSuporte.objects.select_related("usuario", "empresa")
+            .filter(pk=acesso_suporte_id, empresa_id=empresa_id)
+            .first()
+        )
+        if (
+            acesso is None
+            or acesso.status != StatusAcessoSuporte.ATIVO
+            or acesso.fim <= relogio.agora()
+            or acesso.empresa.suporte_bloqueado
+        ):
+            raise NaoAutenticado(*SUPORTE_TERMINOU)
+        return AtorSuporte(
+            acesso_suporte_id=acesso.pk,
+            nome=acesso.usuario.nome,
+            permissao=acesso.permissao,
+            fim=acesso.fim,
+            motivo=acesso.motivo,
+        )
+
+
+def _terminar(
+    acesso: AcessoSuporte, status: str, acao: str, *, motivo: str, pelo_suporte: bool
+) -> AcessoSuporte:
+    with no_publico(), transaction.atomic():
+        acesso = (
+            AcessoSuporte.objects.select_for_update()
+            .select_related("usuario", "empresa")
+            .get(pk=acesso.pk)
+        )
+        if acesso.status != StatusAcessoSuporte.ATIVO:
+            return acesso
+        acesso.encerrado_em = relogio.agora()
+        acesso.save(update_fields=["encerrado_em", "atualizado_em"])
+        ator = _ator_do_suporte(acesso) if pelo_suporte else ator_atual()
+        with usar_ator(ator):
+            transicionar(acesso, status, acao=acao, motivo=motivo, regra="PLT-07")
+        _auditar_na_empresa(acesso, acao, motivo=motivo, pelo_suporte=pelo_suporte)
+    return acesso
+
+
+def sair_do_suporte(acesso_suporte_id: int) -> AcessoSuporte:
+    """`POST /api/auth/suporte/sair/`: o acesso vai para `encerrado`."""
+    with no_publico():
+        acesso = AcessoSuporte.objects.get(pk=acesso_suporte_id)
+    return _terminar(
+        acesso,
+        StatusAcessoSuporte.ENCERRADO,
+        "suporte.sair",
+        motivo="O suporte saiu",
+        pelo_suporte=True,
+    )
+
+
+def revogar_acesso_suporte(acesso: AcessoSuporte, motivo: str = "") -> AcessoSuporte:
+    """O administrador da empresa revoga um acesso (status `revogado`, na hora)."""
+    return _terminar(
+        acesso,
+        StatusAcessoSuporte.REVOGADO,
+        "suporte.revogar",
+        motivo=motivo or "Revogado pelo administrador",
+        pelo_suporte=False,
+    )
+
+
+def encerrar_acessos_vencidos() -> int:
+    """AUT-15: acessos `ativo` com o `fim` passado vão para `encerrado`. Idempotente."""
+    with no_publico():
+        vencidos = list(
+            AcessoSuporte.objects.filter(
+                status=StatusAcessoSuporte.ATIVO, fim__lte=relogio.agora()
+            ).values_list("pk", flat=True)
+        )
+        acessos = list(AcessoSuporte.objects.filter(pk__in=vencidos))
+    for acesso in acessos:
+        _terminar(
+            acesso,
+            StatusAcessoSuporte.ENCERRADO,
+            "suporte.encerrar",
+            motivo="O prazo do acesso acabou",
+            pelo_suporte=False,
+        )
+    return len(acessos)
+
+
+def definir_bloqueio_do_suporte(empresa: Empresa, *, bloquear: bool, motivo: str = "") -> bool:
+    """O administrador bloqueia ou libera o suporte (PLT-07). Bloquear revoga na hora os
+    acessos ativos."""
+    acao = "suporte.bloquear" if bloquear else "suporte.liberar"
+    with no_publico(), transaction.atomic():
+        empresa = Empresa.objects.select_for_update().get(pk=empresa.pk)
+        antes = empresa.suporte_bloqueado
+        if antes != bloquear:
+            empresa.suporte_bloqueado = bloquear
+            empresa.save(update_fields=["suporte_bloqueado", "atualizado_em"])
+            for schema in (get_public_schema_name(), empresa.schema_name):
+                with schema_context(schema):
+                    registrar_evento(
+                        acao,
+                        Categoria.SUPORTE,
+                        objeto=empresa,
+                        antes={"suporte_bloqueado": antes},
+                        depois={"suporte_bloqueado": bloquear},
+                        motivo=motivo,
+                        regra="PLT-07",
+                    )
+        ativos = list(
+            AcessoSuporte.objects.filter(empresa=empresa, status=StatusAcessoSuporte.ATIVO)
+        )
+        if bloquear:
+            for acesso in ativos:
+                revogar_acesso_suporte(acesso, motivo or "Suporte bloqueado pelo administrador")
+    return bloquear

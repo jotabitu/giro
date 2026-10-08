@@ -24,6 +24,8 @@ paths:
   /api/auth/2fa/ativar/:
     post:
       operationId: auth_2fa_ativar_create
+      description: 'Rotas da própria conta (sessões, senha, 2 etapas): o suporte não
+        usa (PLT-07).'
       summary: Ativar as 2 etapas por conta própria (USR-02)
       tags:
       - auth
@@ -51,6 +53,8 @@ paths:
   /api/auth/2fa/codigos-recuperacao/:
     post:
       operationId: auth_2fa_codigos_recuperacao_create
+      description: 'Rotas da própria conta (sessões, senha, 2 etapas): o suporte não
+        usa (PLT-07).'
       summary: Novos códigos de recuperação
       tags:
       - auth
@@ -96,6 +100,8 @@ paths:
   /api/auth/2fa/desativar/:
     post:
       operationId: auth_2fa_desativar_create
+      description: 'Rotas da própria conta (sessões, senha, 2 etapas): o suporte não
+        usa (PLT-07).'
       summary: Desligar as 2 etapas (USR-02)
       tags:
       - auth
@@ -172,6 +178,8 @@ paths:
   /api/auth/eu/:
     get:
       operationId: auth_eu_retrieve
+      description: 'Rotas da própria conta (sessões, senha, 2 etapas): o suporte não
+        usa (PLT-07).'
       summary: Quem está logado (USR-03, USR-05)
       tags:
       - auth
@@ -186,6 +194,8 @@ paths:
           description: ''
     patch:
       operationId: auth_eu_partial_update
+      description: 'Rotas da própria conta (sessões, senha, 2 etapas): o suporte não
+        usa (PLT-07).'
       summary: Meus dados
       tags:
       - auth
@@ -288,6 +298,8 @@ paths:
   /api/auth/senha/trocar/:
     post:
       operationId: auth_senha_trocar_create
+      description: 'Rotas da própria conta (sessões, senha, 2 etapas): o suporte não
+        usa (PLT-07).'
       summary: Trocar a senha
       tags:
       - auth
@@ -311,6 +323,8 @@ paths:
   /api/auth/sessoes/:
     get:
       operationId: auth_sessoes_retrieve
+      description: 'Rotas da própria conta (sessões, senha, 2 etapas): o suporte não
+        usa (PLT-07).'
       summary: Minhas sessões ativas
       tags:
       - auth
@@ -326,6 +340,8 @@ paths:
   /api/auth/sessoes/{id}/encerrar/:
     post:
       operationId: auth_sessoes_encerrar_create
+      description: 'Rotas da própria conta (sessões, senha, 2 etapas): o suporte não
+        usa (PLT-07).'
       summary: Encerrar uma sessão minha
       parameters:
       - in: path
@@ -343,7 +359,22 @@ paths:
   /api/auth/sessoes/encerrar-outras/:
     post:
       operationId: auth_sessoes_encerrar_outras_create
+      description: 'Rotas da própria conta (sessões, senha, 2 etapas): o suporte não
+        usa (PLT-07).'
       summary: Encerrar as outras sessões
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/auth/suporte/sair/:
+    post:
+      operationId: auth_suporte_sair_create
+      description: O suporte encerra o próprio acesso (`encerrado`), com evento nas
+        duas auditorias.
+      summary: Sair do modo suporte (PLT-07)
       tags:
       - auth
       security:
@@ -976,6 +1007,39 @@ paths:
               schema:
                 $ref: '#/components/schemas/EmpresaDetalhe'
           description: ''
+  /api/plataforma/empresas/{id}/acessos-suporte/:
+    post:
+      operationId: plataforma_empresas_acessos_suporte_create
+      summary: Entrar como suporte (PLT-07)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - plataforma
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AbrirAcesso'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AbrirAcesso'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AbrirAcesso'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcessoAberto'
+          description: ''
   /api/plataforma/planos/:
     get:
       operationId: plataforma_planos_list
@@ -990,6 +1054,105 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListaDePlanos'
+          description: ''
+  /api/suporte/:
+    get:
+      operationId: suporte_retrieve
+      summary: Acessos do suporte (últimos 90 dias)
+      tags:
+      - suporte
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuporteDaEmpresa'
+          description: ''
+  /api/suporte/acessos/{id}/revogar/:
+    post:
+      operationId: suporte_acessos_revogar_create
+      summary: Revogar um acesso do suporte (PLT-07)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - suporte
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MotivoDoSuporte'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MotivoDoSuporte'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MotivoDoSuporte'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcessoDaLista'
+          description: ''
+  /api/suporte/bloquear/:
+    post:
+      operationId: suporte_bloquear_create
+      summary: Bloquear o suporte (PLT-07)
+      tags:
+      - suporte
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MotivoDoSuporte'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MotivoDoSuporte'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MotivoDoSuporte'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bloqueio'
+          description: ''
+  /api/suporte/liberar/:
+    post:
+      operationId: suporte_liberar_create
+      summary: Liberar o suporte (PLT-07)
+      tags:
+      - suporte
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MotivoDoSuporte'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MotivoDoSuporte'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MotivoDoSuporte'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bloqueio'
           description: ''
   /api/usuarios/:
     get:
@@ -1088,6 +1251,8 @@ paths:
   /api/usuarios/{id}/cancelar-convite/:
     post:
       operationId: usuarios_cancelar_convite_create
+      description: 'Escritas de usuários e sessões de outra pessoa: nunca pelo suporte
+        (PLT-07).'
       summary: Cancelar convite
       parameters:
       - in: path
@@ -1109,6 +1274,8 @@ paths:
   /api/usuarios/{id}/desativar/:
     post:
       operationId: usuarios_desativar_create
+      description: 'Escritas de usuários e sessões de outra pessoa: nunca pelo suporte
+        (PLT-07).'
       summary: Desativar (USR-04)
       parameters:
       - in: path
@@ -1141,6 +1308,8 @@ paths:
   /api/usuarios/{id}/reativar/:
     post:
       operationId: usuarios_reativar_create
+      description: 'Escritas de usuários e sessões de outra pessoa: nunca pelo suporte
+        (PLT-07).'
       summary: Reativar (PLT-03)
       parameters:
       - in: path
@@ -1162,6 +1331,8 @@ paths:
   /api/usuarios/{id}/redefinir-2fa/:
     post:
       operationId: usuarios_redefinir_2fa_create
+      description: 'Escritas de usuários e sessões de outra pessoa: nunca pelo suporte
+        (PLT-07).'
       summary: Redefinir as 2 etapas (USR-02)
       parameters:
       - in: path
@@ -1195,6 +1366,8 @@ paths:
   /api/usuarios/{id}/reenviar-convite/:
     post:
       operationId: usuarios_reenviar_convite_create
+      description: 'Escritas de usuários e sessões de outra pessoa: nunca pelo suporte
+        (PLT-07).'
       summary: Reenviar convite
       parameters:
       - in: path
@@ -1216,6 +1389,8 @@ paths:
   /api/usuarios/{id}/sessoes/:
     get:
       operationId: usuarios_sessoes_retrieve
+      description: 'Escritas de usuários e sessões de outra pessoa: nunca pelo suporte
+        (PLT-07).'
       summary: Sessões de um usuário
       parameters:
       - in: path
@@ -1237,6 +1412,8 @@ paths:
   /api/usuarios/{id}/sessoes/{sid}/encerrar/:
     post:
       operationId: usuarios_sessoes_encerrar_create
+      description: 'Escritas de usuários e sessões de outra pessoa: nunca pelo suporte
+        (PLT-07).'
       summary: Encerrar sessão de um usuário
       parameters:
       - in: path
@@ -1285,6 +1462,23 @@ paths:
           description: ''
 components:
   schemas:
+    AbrirAcesso:
+      type: object
+      properties:
+        motivo:
+          type: string
+          maxLength: 500
+        chamado_id:
+          type: integer
+          nullable: true
+        duracao_minutos:
+          $ref: '#/components/schemas/DuracaoMinutosEnum'
+        permissao:
+          $ref: '#/components/schemas/PermissaoSuporteEnum'
+      required:
+      - duracao_minutos
+      - motivo
+      - permissao
     Access:
       type: object
       properties:
@@ -1332,6 +1526,47 @@ components:
       oneOf:
       - $ref: '#/components/schemas/Pronto'
       - $ref: '#/components/schemas/EtapaDoLogin'
+    AcessoAberto:
+      type: object
+      properties:
+        acesso_suporte_id:
+          type: integer
+        fim:
+          type: string
+          format: date-time
+        url_entrada:
+          type: string
+      required:
+      - acesso_suporte_id
+      - fim
+      - url_entrada
+    AcessoDaLista:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        motivo:
+          type: string
+        permissao:
+          $ref: '#/components/schemas/PermissaoSuporteEnum'
+        inicio:
+          type: string
+          format: date-time
+        fim:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+      required:
+      - fim
+      - id
+      - inicio
+      - motivo
+      - nome
+      - permissao
+      - status
     Acoes:
       type: object
       properties:
@@ -1385,6 +1620,13 @@ components:
       required:
       - access
       - codigos_recuperacao
+    Bloqueio:
+      type: object
+      properties:
+        bloqueado:
+          type: boolean
+      required:
+      - bloqueado
     Cep:
       type: object
       properties:
@@ -1606,6 +1848,16 @@ components:
       - ativo
       - codigos_recuperacao_restantes
       - obrigatorio
+    DuracaoMinutosEnum:
+      enum:
+      - 15
+      - 30
+      - 60
+      type: integer
+      description: |-
+        * `15` - 15
+        * `30` - 30
+        * `60` - 60
     Email:
       type: object
       properties:
@@ -1890,11 +2142,13 @@ components:
       properties:
         id:
           type: integer
+          nullable: true
         nome:
           type: string
         email:
           type: string
           format: email
+          nullable: true
         celular:
           type: string
           nullable: true
@@ -1913,6 +2167,8 @@ components:
         pode:
           $ref: '#/components/schemas/PodeDaEmpresa'
         suporte:
+          allOf:
+          - $ref: '#/components/schemas/SuporteDoEu'
           nullable: true
         empresa:
           $ref: '#/components/schemas/EmpresaDoEu'
@@ -2405,6 +2661,12 @@ components:
           maxLength: 500
       required:
       - motivo
+    MotivoDoSuporte:
+      type: object
+      properties:
+        motivo:
+          type: string
+          maxLength: 500
     MotivoOpcional:
       type: object
       properties:
@@ -2549,6 +2811,14 @@ components:
         * `aprovar_desconto` - Aprovar descontos acima do limite
         * `cancelar_contrato` - Cancelar contratos
         * `relatorios_todas_filiais` - Ver relatórios de todas as filiais
+    PermissaoSuporteEnum:
+      enum:
+      - ver
+      - ver_editar
+      type: string
+      description: |-
+        * `ver` - Só ver
+        * `ver_editar` - Ver e editar
     Plano:
       type: object
       properties:
@@ -2835,6 +3105,16 @@ components:
       - codigo
       - rotulo
       - tom
+    StatusEnum:
+      enum:
+      - ativo
+      - encerrado
+      - revogado
+      type: string
+      description: |-
+        * `ativo` - Ativo
+        * `encerrado` - Encerrado
+        * `revogado` - Revogado
     Sugestao:
       type: object
       properties:
@@ -2849,6 +3129,46 @@ components:
       - data
       - ja_cadastrado
       - nome
+    SuporteDaEmpresa:
+      type: object
+      properties:
+        bloqueado:
+          type: boolean
+        acessos:
+          type: array
+          items:
+            $ref: '#/components/schemas/AcessoDaLista'
+      required:
+      - acessos
+      - bloqueado
+    SuporteDoEu:
+      type: object
+      properties:
+        acesso_suporte_id:
+          type: integer
+        nome:
+          type: string
+        permissao:
+          $ref: '#/components/schemas/SuporteDoEuPermissaoEnum'
+        fim:
+          type: string
+          format: date-time
+        motivo:
+          type: string
+      required:
+      - acesso_suporte_id
+      - fim
+      - motivo
+      - nome
+      - permissao
+    SuporteDoEuPermissaoEnum:
+      enum:
+      - ver
+      - ver_editar
+      type: string
+      description: |-
+        * `ver` - ver
+        * `ver_editar` - ver_editar
     Teste:
       type: object
       properties:

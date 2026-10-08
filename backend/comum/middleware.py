@@ -20,6 +20,15 @@ def ator_da_requisicao(request: HttpRequest) -> Ator:
     usuario = getattr(request, "user", None)
     if usuario is None or not usuario.is_authenticated:
         return Ator(tipo=ATOR_SISTEMA.tipo, nome=ATOR_SISTEMA.nome, ip=ip, aparelho=aparelho)
+    if getattr(usuario, "e_suporte", False):
+        # Suporte da plataforma (PLT-07, AUD-03): sem usuário da empresa, com o acesso.
+        return Ator(
+            tipo=TipoAtor.SUPORTE,
+            nome=usuario.nome,
+            ip=ip,
+            aparelho=aparelho,
+            acesso_suporte_id=usuario.acesso_suporte_id,
+        )
     return Ator(
         tipo=TipoAtor.USUARIO,
         id=usuario.pk,

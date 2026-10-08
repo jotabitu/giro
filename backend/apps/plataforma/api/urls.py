@@ -2,14 +2,28 @@
 
 from django.urls import URLPattern, path
 
+from . import suporte
 from .views import AssinaturaView, EmpresaDetalheView, EmpresasView, PlanosView
 
 urls_plataforma: list[URLPattern] = [
     path("planos/", PlanosView.as_view(), name="plataforma-planos"),
     path("empresas/", EmpresasView.as_view(), name="plataforma-empresas"),
     path("empresas/<int:pk>/", EmpresaDetalheView.as_view(), name="plataforma-empresa"),
+    path(
+        "empresas/<int:pk>/acessos-suporte/",
+        suporte.AbrirAcessoSuporteView.as_view(),
+        name="plataforma-empresa-acessos-suporte",
+    ),
 ]
 
 urls_empresa: list[URLPattern] = [
     path("assinatura/", AssinaturaView.as_view(), name="assinatura"),
+    path("suporte/", suporte.SuporteView.as_view(), name="suporte"),
+    path("suporte/bloquear/", suporte.BloquearSuporteView.as_view(), name="suporte-bloquear"),
+    path("suporte/liberar/", suporte.LiberarSuporteView.as_view(), name="suporte-liberar"),
+    path(
+        "suporte/acessos/<int:pk>/revogar/",
+        suporte.RevogarAcessoSuporteView.as_view(),
+        name="suporte-acesso-revogar",
+    ),
 ]

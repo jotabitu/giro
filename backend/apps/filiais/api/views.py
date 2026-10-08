@@ -53,6 +53,8 @@ def _ano(request: Request) -> int:
 
 
 class MinhasView(APIView):
+    suporte_somente_leitura = True  # o suporte em "só ver" lê (PLT-07)
+
     @extend_schema(responses=MinhasFiliaisSerializer, summary="Seletor de filial (USR-07)")
     def get(self, request: Request) -> Response:
         filiais = selectors.minhas_filiais(request.user)
@@ -68,6 +70,8 @@ class MinhasView(APIView):
 
 
 class FiliaisView(APIView):
+    suporte_somente_leitura = True  # o suporte em "só ver" lê (PLT-07)
+
     permission_classes = SO_ADMINISTRADOR
 
     @extend_schema(
@@ -105,6 +109,8 @@ class FiliaisView(APIView):
 
 class FilialView(APIView):
     """GET para quem tem a filial no escopo (fora dele, 404); PATCH só do administrador."""
+
+    suporte_somente_leitura = True  # o suporte em "só ver" lê (PLT-07)
 
     def get_permissions(self) -> Any:
         if self.request.method == "PATCH":
@@ -174,6 +180,8 @@ def _feriados_do_ano(filial: Filial, ano: int) -> Response:
 
 
 class FeriadosView(APIView):
+    suporte_somente_leitura = True  # o suporte em "só ver" lê (PLT-07)
+
     permission_classes = SO_ADMINISTRADOR
 
     @extend_schema(
@@ -202,6 +210,8 @@ class FeriadosView(APIView):
 
 
 class SugestoesView(APIView):
+    suporte_somente_leitura = True  # o suporte em "só ver" lê (PLT-07)
+
     permission_classes = SO_ADMINISTRADOR
 
     @extend_schema(
@@ -234,6 +244,8 @@ class RemoverFeriadoView(APIView):
 
 
 class CepView(APIView):
+    suporte_somente_leitura = True  # o suporte em "só ver" lê (PLT-07)
+
     throttle_classes = [CepPorUsuario]
 
     @extend_schema(responses=CepSerializer, summary="Busca de CEP")

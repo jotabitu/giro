@@ -102,6 +102,8 @@ class EmpresaDetalheView(SoFase1):
 class AssinaturaView(SoFase1):
     """Do lado da empresa: plano, uso e situação da assinatura (PLT-03). Todos os perfis."""
 
+    suporte_somente_leitura = True
+
     @extend_schema(responses=AssinaturaSerializer, summary="Assinatura e uso do plano (PLT-03)")
     def get(self, request: Request) -> Response:
         return Response(AssinaturaSerializer(selectors.assinatura()).data)

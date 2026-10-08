@@ -38,7 +38,13 @@ Contrato da API: `docs/api/contas.md` (escrito pelo arquiteto antes da implement
 - `selectors.py`: `pode` (tabela do contrato mais as permissões extras, que só somam, `USR-03`), `extra_e_padrao_do_perfil`, `administradores`, `dados_do_eu`. `pode` é registrado em `comum.permissoes`.
 - `senhas.py`: validadores com texto pronto (12 ou mais, letras e números, diferente do e-mail e do nome da empresa, fora das comuns).
 - `RedefinicaoSenha`: link de 1 hora, uso único, 3 pedidos por hora; o token vai no fragmento (`/entrar/redefinir#<token>`).
-- T-070: modo suporte. T-071: navegação do `eu`.
+- T-071: navegação do `eu`.
+
+## Implementado (T-070: modo suporte)
+
+- Token `suporte` (ADR 0013, item 2) em `comum.autenticacao`: sem usuário nem refresh, vence no `fim`, conferido no `public` a cada requisição. A autenticação monta um `AtorSuporte` (administrador em todas as filiais) e aplica a regra da view: `suporte_proibido` (sempre 403 `PLT-07`), `suporte_somente_leitura` (o que o "só ver" lê) e `so_suporte`.
+- Rotas da conta (`Logada`: sessões, senha, 2 etapas), escrita de usuários e as públicas (entrar, renovar, sair, senha, convite) recusam o token de suporte com 403 `PLT-07`. `GET /api/auth/eu/` devolve `suporte` preenchido e, no "só ver", `pode` só com `painel`, `veiculos` e `administracao`.
+- `POST /api/auth/suporte/sair/`: o acesso vai para `encerrado`.
 
 ## Implementado (T-069: usuários e convite da empresa)
 

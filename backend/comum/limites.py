@@ -49,7 +49,9 @@ class _PorUsuario(SimpleRateThrottle):
         usuario = getattr(request, "user", None)
         if usuario is None or not usuario.is_authenticated:
             return None
-        return self.cache_format % {"scope": self.scope, "ident": usuario.pk}
+        # O suporte não tem usuário na empresa: conta pelo acesso (PLT-07).
+        ident = usuario.pk if usuario.pk is not None else f"suporte-{usuario.acesso_suporte_id}"
+        return self.cache_format % {"scope": self.scope, "ident": ident}
 
 
 class _PorEmail(SimpleRateThrottle):
