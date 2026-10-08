@@ -96,6 +96,18 @@ function bloqueio(): ErroApi {
   });
 }
 
+/** Limite de `muitas_requisicoes` (docs/api/plataforma.md): 10 entradas por minuto por e-mail. */
+const entradasPorEmail = new Map<string, number[]>();
+function limitarEntradas(email: string) {
+  const agora = Date.now();
+  const recentes = (entradasPorEmail.get(email) ?? []).filter((t) => agora - t < 60_000);
+  if (recentes.length >= 10) {
+    const espera = Math.ceil((60_000 - (agora - recentes[0]!)) / 1000);
+    throw new ErroApi(429, "muitas_requisicoes", "Muitas tentativas seguidas. Espere um pouco e tente de novo.", { tentar_de_novo_em_segundos: espera });
+  }
+  entradasPorEmail.set(email, [...recentes, agora]);
+}
+
 function problemaDaSenha(senha: string, email?: string): string | null {
   if (senha.length < 12) return "Use 12 caracteres ou mais";
   if (!/[A-Za-z]/.test(senha) || !/\d/.test(senha)) return "Use letras e números";
@@ -108,6 +120,7 @@ const CODIGOS_RECUPERACAO = ["K7QD-92MX", "PW3R-84TN", "HZ5C-61LB", "V9ME-27YA",
 export const contasFalso = {
   async entrar(corpo: { email: string; senha: string; aparelho: Aparelho }): Promise<RespostaEntrar> {
     await pausa();
+    limitarEntradas(corpo.email.trim().toLowerCase());
     const c = CONTAS.find((x) => x.email === corpo.email.trim().toLowerCase());
     if (!c || corpo.senha !== SENHA) {
       tentativas += 1;
