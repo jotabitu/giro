@@ -29,6 +29,8 @@ DJANGO_SETTINGS_MODULE=config.settings.test DATABASE_URL=postgres://giro:giro-te
 docker rm -f giro-backend-teste-db
 ```
 
+Depois do merge da main com os PRs #24 e #25 (08 out), o mesmo check deu `222 passed, 88 xfailed`: os 7 a mais são de `tests/test_producao.py`, que veio do #24. O OpenAPI gerado continua igual ao `docs/api/openapi.yaml`, e o container foi removido.
+
 **Arquivos do devops que mexi (a pedido do Orquestrador, commit `ci(infra): ...`):** `Makefile` (alvo `api-schema`), `.github/workflows/ci.yml` (passo do OpenAPI) e `infra/README.md`: o `spectacular` passou a usar `--urlconf config.urls_openapi`, que junta as rotas da empresa e as da plataforma (as da plataforma ficam no urlconf do public e não apareciam). **DevOps: revise esse trecho.**
 
 **Decisões de implementação (Arquiteto, confira):**
