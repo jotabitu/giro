@@ -1,7 +1,17 @@
+import base64
+import ipaddress
+
 from django.core.exceptions import ImproperlyConfigured
 
 from config.settings.base import *  # noqa: F403
-from config.settings.base import SECRET_KEY, SIMPLE_JWT, env
+from config.settings.base import (
+    GIRO_CHAVE_DADOS_PESSOAIS,
+    GIRO_CHAVE_SEGREDOS,
+    GIRO_PEPPER_HMAC,
+    SECRET_KEY,
+    SIMPLE_JWT,
+    env,
+)
 
 DEBUG = False
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
@@ -27,5 +37,47 @@ EXPOR_DOCUMENTACAO_DA_API = env.bool("GIRO_EXPOR_DOCUMENTACAO_DA_API", default=F
 # Segredos próprios de produção: falha ao subir se faltarem ou se repetirem.
 if SIMPLE_JWT["SIGNING_KEY"] == SECRET_KEY:
     raise ImproperlyConfigured("Defina JWT_SIGNING_KEY, diferente de DJANGO_SECRET_KEY.")
-if not env.list("GIRO_REDES_PROXY", default=[]):
+_redes_proxy = env.list("GIRO_REDES_PROXY", default=[])
+if not _redes_proxy:
     raise ImproperlyConfigured("Defina GIRO_REDES_PROXY com a rede do proxy reverso (ADR 0018).")
+for _rede in _redes_proxy:
+    try:
+        _cidr = ipaddress.ip_network(_rede.strip(), strict=False)
+    except ValueError as erro:
+        raise ImproperlyConfigured(f"GIRO_REDES_PROXY com rede inválida: {_rede!r}.") from erro
+    if _cidr.prefixlen == 0:
+        raise ImproperlyConfigured("GIRO_REDES_PROXY não pode confiar em todos os endereços.")
+
+# Cifra de dados pessoais (ADR 0014, R-03 da T-050): os valores do .env.example estão no
+# repositório e não valem em homologação nem em produção.
+_MATERIAL_DE_EXEMPLO = {
+    "O6Era8PkgBlfbOR6Nt6IGvnBlEL9vRRNA3iXRdxDtkg=",
+    "b/jBUdVpQ6mwUQJnFhzjnMkTVZvziqLLZfoEWrBDhs0=",
+}
+_PEPPER_DE_EXEMPLO = "07128db7f37327bc0128ca29852fae5bf3b0f67c758ad430d12af360c0332089"
+
+
+def _material(valor: str) -> set[str]:
+    """Os bytes de cada chave ("<id>:<base64>"), sem o id, para comparar entre variáveis."""
+    return {parte.split(":", 1)[-1].strip() for parte in valor.split(",") if parte.strip()}
+
+
+_dados, _segredos = _material(GIRO_CHAVE_DADOS_PESSOAIS), _material(GIRO_CHAVE_SEGREDOS)
+if (_dados | _segredos) & _MATERIAL_DE_EXEMPLO:
+    raise ImproperlyConfigured("GIRO_CHAVE_* com valor do .env.example. Gere chaves próprias.")
+if _dados & _segredos:
+    raise ImproperlyConfigured("GIRO_CHAVE_DADOS_PESSOAIS e GIRO_CHAVE_SEGREDOS repetem uma chave.")
+for _nome, _chaves in (("GIRO_CHAVE_DADOS_PESSOAIS", _dados), ("GIRO_CHAVE_SEGREDOS", _segredos)):
+    for _chave in _chaves:
+        try:
+            _tamanho = len(base64.b64decode(_chave, validate=True))
+        except ValueError:
+            _tamanho = 0
+        if _tamanho != 32:
+            raise ImproperlyConfigured(f"{_nome} precisa de chaves de 32 bytes em base64.")
+if GIRO_PEPPER_HMAC == _PEPPER_DE_EXEMPLO:
+    raise ImproperlyConfigured("GIRO_PEPPER_HMAC com valor do .env.example. Gere um próprio.")
+if len(GIRO_PEPPER_HMAC.encode()) < 32:
+    raise ImproperlyConfigured("GIRO_PEPPER_HMAC precisa de pelo menos 32 bytes.")
+if GIRO_PEPPER_HMAC in (SECRET_KEY, SIMPLE_JWT["SIGNING_KEY"]):
+    raise ImproperlyConfigured("GIRO_PEPPER_HMAC não pode repetir outro segredo.")

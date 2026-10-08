@@ -16,6 +16,9 @@ AMBIENTE_PROD = {
     "JWT_SIGNING_KEY": "segredo-dos-tokens-de-teste",
     "DATABASE_URL": "postgres://u:p@db:5432/giro",
     "GIRO_REDES_PROXY": "10.0.0.0/8",
+    "GIRO_CHAVE_DADOS_PESSOAIS": "1:" + "A" * 43 + "=",
+    "GIRO_CHAVE_SEGREDOS": "1:" + "B" * 43 + "=",
+    "GIRO_PEPPER_HMAC": "p" * 40,
 }
 
 
@@ -73,6 +76,42 @@ def test_prod_recusa_subir_sem_rede_de_proxy():
     resultado = rodar("import django.conf as c; c.settings.DEBUG", GIRO_REDES_PROXY=None)
     assert resultado.returncode != 0
     assert "GIRO_REDES_PROXY" in resultado.stderr
+
+
+def recusa(mensagem: str, **variaveis: str | None) -> None:
+    resultado = rodar("import django.conf as c; c.settings.DEBUG", **variaveis)
+    assert resultado.returncode != 0
+    assert mensagem in resultado.stderr, resultado.stderr
+
+
+def test_r03_prod_recusa_as_chaves_e_o_pepper_do_env_example():
+    exemplo_dados = "1:O6Era8PkgBlfbOR6Nt6IGvnBlEL9vRRNA3iXRdxDtkg="
+    exemplo_segredos = "1:b/jBUdVpQ6mwUQJnFhzjnMkTVZvziqLLZfoEWrBDhs0="
+    pepper = "07128db7f37327bc0128ca29852fae5bf3b0f67c758ad430d12af360c0332089"
+    recusa("do .env.example", GIRO_CHAVE_DADOS_PESSOAIS=exemplo_dados)
+    recusa("do .env.example", GIRO_CHAVE_SEGREDOS=exemplo_segredos)
+    # Trocar só o id não esconde a chave de exemplo.
+    recusa("do .env.example", GIRO_CHAVE_DADOS_PESSOAIS="7:" + exemplo_dados.split(":")[1])
+    recusa("do .env.example", GIRO_PEPPER_HMAC=pepper)
+
+
+def test_r03_prod_recusa_chaves_iguais_entre_dados_e_segredos():
+    recusa("repetem uma chave", GIRO_CHAVE_SEGREDOS="2:" + "A" * 43 + "=")
+
+
+def test_r03_prod_recusa_chave_que_nao_tem_32_bytes():
+    recusa("32 bytes", GIRO_CHAVE_DADOS_PESSOAIS="1:AAAA")
+
+
+def test_r03_prod_recusa_pepper_curto_ou_igual_a_outro_segredo():
+    recusa("pelo menos 32 bytes", GIRO_PEPPER_HMAC="curto")
+    repetido = "segredo-dos-tokens-de-teste" + "x" * 10
+    recusa("repetir outro segredo", GIRO_PEPPER_HMAC=repetido, JWT_SIGNING_KEY=repetido)
+
+
+@pytest.mark.parametrize("rede", ["0.0.0.0/0", "::/0", "nao-e-rede"])
+def test_prod_recusa_rede_de_proxy_aberta_ou_invalida(rede):
+    recusa("GIRO_REDES_PROXY", GIRO_REDES_PROXY=rede)
 
 
 @pytest.mark.parametrize("modulo", ["config.wsgi", "config.asgi", "config.celery"])
