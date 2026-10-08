@@ -24,3 +24,8 @@ import { Bell, Plus } from "lucide-react";
 ```
 
 `Button`: `variante` (`solido`, `marca`, `padrao`, `quieto`), `compacto`, `icone`, além dos atributos de `<button>`; o tipo padrão é `button`. `IconButton`: `aria-label` obrigatório, `icone`, `quieto`, `compacto` e `notificacao`.
+
+
+## Compacto e alvo de toque
+
+`compacto` tem 36px de altura no desktop e **44px no celular** (até 720px de largura), para cumprir o alvo de toque mínimo. Vale também para `Link` com `wl-btn wl-btn--quiet wl-btn--sm`.

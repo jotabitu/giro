@@ -3,13 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CATALOGO } from "@/app/design-system/catalogo";
 import { ExemploDe } from "@/app/design-system/exemplos";
-import { Button, Dialogo, Gaveta, IconButton, KpiTile, StatusBadge, TextField, VehicleCard } from "./components";
+import { Button, Dialogo, Gaveta, IconButton, KpiTile, LinhaDeLista, ListaDeLinhas, ProgressBar, StatusBadge, TextField, VehicleCard } from "./components";
 
 const dir = new URL("./", import.meta.url);
 
 describe("componentes", () => {
-  it("são os 12 do design system mais os componentes da T-042 e T-046, cada um com preview e README", () => {
-    expect(CATALOGO).toHaveLength(16);
+  it("são os 12 do design system mais os componentes da T-042, T-046 e T-054, cada um com preview e README", () => {
+    expect(CATALOGO).toHaveLength(18);
     for (const c of CATALOGO) {
       expect(existsSync(new URL(`components/${c.nome}/README.md`, dir)), `README de ${c.nome}`).toBe(true);
       expect(existsSync(new URL(`components/${c.nome}/${c.nome}.tsx`, dir)), `código de ${c.nome}`).toBe(true);
@@ -108,5 +108,41 @@ describe("KpiTile com valor longo (T-046)", () => {
     expect(css).toContain("--chars");
     expect(css).toMatch(/container-type:\s*inline-size/);
     expect(css).toMatch(/16px/);
+  });
+});
+
+describe("T-054: alvo de toque, barra de frota, ProgressBar e LinhaDeLista", () => {
+  const css = () => readFileSync(new URL("componentes.css", dir), "utf8");
+
+  it("o botão compacto tem 44px de alto no celular", () => {
+    expect(css()).toMatch(/@media \(max-width: 720px\) \{ \.wl-btn--sm \{ height: 44px; \} \}/);
+  });
+
+  it("a barra de frota quebra linha em vez de estourar a lateral estreita", () => {
+    expect(css()).toMatch(/\.wl-pipe__row \{[^}]*flex-wrap: wrap/);
+  });
+
+  it("ProgressBar limita o valor entre 0 e 100 e nomeia a barra", () => {
+    const html = renderToStaticMarkup(<ProgressBar valor={140} rotulo="Primeiros passos" />);
+    expect(html).toContain('role="progressbar"');
+    expect(html).toContain('aria-label="Primeiros passos"');
+    expect(html).toContain('aria-valuenow="100"');
+    expect(html).toContain("width:100%");
+    expect(renderToStaticMarkup(<ProgressBar valor={-3} rotulo="x" />)).toContain('aria-valuenow="0"');
+  });
+
+  it("LinhaDeLista mostra título, apoio e ação, e omite o que não vem", () => {
+    const completa = renderToStaticMarkup(
+      <ListaDeLinhas rotulo="Parcelas">
+        <LinhaDeLista titulo="Carlos" apoio="Parcela 2 de 5" acao={<button>Cobrar</button>} />
+      </ListaDeLinhas>,
+    );
+    expect(completa).toContain('aria-label="Parcelas"');
+    expect(completa).toContain("Carlos");
+    expect(completa).toContain("Parcela 2 de 5");
+    expect(completa).toContain("Cobrar");
+    const simples = renderToStaticMarkup(<LinhaDeLista titulo="Só título" />);
+    expect(simples).not.toContain("wl-linha__apoio");
+    expect(simples).not.toContain("wl-linha__acao");
   });
 });
