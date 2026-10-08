@@ -170,9 +170,26 @@ CELERY_TIMEZONE = "America/Sao_Paulo"
 CELERY_ENABLE_UTC = True
 CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
+# S-11: o resultado guardaria o retorno em texto no Redis; quem precisar liga na tarefa.
+CELERY_TASK_IGNORE_RESULT = True
 CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {}
 
 REDIS_URL = env("REDIS_URL", default="redis://redis:6379/0")
+
+# Toda chave de cache leva o schema da empresa (S-11): nada é compartilhado entre empresas.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": REDIS_URL,
+        "KEY_FUNCTION": "django_tenants.cache.make_key",
+        "REVERSE_KEY_FUNCTION": "django_tenants.cache.reverse_key",
+    }
+}
+
+# --- IP do cliente atrás do proxy (ADR 0018, item 4; comum.rede) ---
+# X-Forwarded-For só vale quando REMOTE_ADDR está numa destas redes (CIDR). Vazio: nunca.
+GIRO_REDES_PROXY = env.list("GIRO_REDES_PROXY", default=[])
+GIRO_PROXIES_CONFIAVEIS = env.int("GIRO_PROXIES_CONFIAVEIS", default=1)
 
 # --- E-mail ---
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")

@@ -1,6 +1,11 @@
+from collections.abc import Iterator
+from contextlib import contextmanager
+from typing import Any
+
 import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.db import DatabaseError, connection, transaction
+from django.db.backends.utils import CursorWrapper
 from django.test import RequestFactory
 
 from apps.auditoria.models import EventoAuditoria, EventoImutavel
@@ -111,33 +116,132 @@ def test_aud_01_delete_direto_no_banco_falha(empresa_a):
         cursor.execute("DELETE FROM auditoria_eventoauditoria WHERE id = %s", [evento.pk])
 
 
-def test_aud_01_ligar_expurgo_nao_libera_evento_recente(empresa_a):
-    evento = _evento(empresa_a)
+def _evento_antigo(anos: int) -> int:
+    """Evento gravado com data antiga direto no banco (o model sempre grava agora)."""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO auditoria_eventoauditoria (ocorrido_em, ator_tipo, ator_nome, acao, "
+            "categoria, objeto_tipo, objeto_codigo, antes, depois, motivo, aparelho, regra) "
+            "VALUES (now() - make_interval(years => %s), 'sistema', 'Sistema', 'teste.antigo', "
+            "'seguranca', '', '', '{}', '{}', '', '', '') RETURNING id",
+            [anos],
+        )
+        return int(cursor.fetchone()[0])
+
+
+@contextmanager
+def _como(papel: str) -> Iterator[CursorWrapper]:
+    """Executa como outro papel do banco (ADR 0016), dentro de um `transaction.atomic()`.
+
+    Se der erro, o rollback do savepoint já desfaz o `SET ROLE`.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(f"SET ROLE {papel}")
+        yield cursor
+        cursor.execute("RESET ROLE")
+
+
+def _falha(sql: str, params: list[Any] | None = None, *, papel: str = "", erro: str = "") -> None:
+    with pytest.raises(DatabaseError, match=erro or None), transaction.atomic():
+        if papel:
+            with _como(papel) as cursor:
+                cursor.execute(sql, params)
+        else:
+            with connection.cursor() as cursor:
+                cursor.execute(sql, params)
+
+
+def test_aud_01_truncate_falha(empresa_a):
+    _evento(empresa_a)
+    _falha("TRUNCATE auditoria_eventoauditoria", erro="imutável")
+    assert EventoAuditoria.objects.exists()
+
+
+def test_aud_01_variavel_de_sessao_nao_libera_mais_o_delete(empresa_a):
+    antigo = _evento_antigo(6)
     with (
         pytest.raises(DatabaseError, match="imutável"),
         transaction.atomic(),
         connection.cursor() as cursor,
     ):
         cursor.execute("SET LOCAL giro.expurgo_auditoria = 'on'")
-        cursor.execute("DELETE FROM auditoria_eventoauditoria WHERE id = %s", [evento.pk])
+        cursor.execute("DELETE FROM auditoria_eventoauditoria WHERE id = %s", [antigo])
+
+
+def test_aud_01_papel_da_aplicacao_so_le_e_insere_na_auditoria(empresa_a):
+    evento = _evento(empresa_a)
+    sem_permissao = "permission denied|permissão negada"
+    _falha(
+        "UPDATE auditoria_eventoauditoria SET acao = 'x' WHERE id = %s",
+        [evento.pk],
+        papel="giro_app",
+        erro=sem_permissao,
+    )
+    _falha(
+        "DELETE FROM auditoria_eventoauditoria WHERE id = %s",
+        [evento.pk],
+        papel="giro_app",
+        erro=sem_permissao,
+    )
+    _falha("TRUNCATE auditoria_eventoauditoria", papel="giro_app", erro=sem_permissao)
+    _falha(
+        "ALTER TABLE auditoria_eventoauditoria DISABLE TRIGGER auditoria_evento_imutavel",
+        papel="giro_app",
+        erro="owner|dono",
+    )
+    with transaction.atomic(), _como("giro_app") as cursor:
+        cursor.execute("SELECT count(*) FROM auditoria_eventoauditoria")
+        registrar_evento("sessao.entrar", Categoria.SEGURANCA)
+    assert EventoAuditoria.objects.filter(acao="sessao.entrar").count() == 2
 
 
 def test_aud_02_expurgo_so_apaga_eventos_com_mais_de_5_anos(empresa_a):
-    _evento(empresa_a)
-    with connection.cursor() as cursor:
-        cursor.execute("SELECT auditoria_expurgar_vencidos()")
-        assert cursor.fetchone() == (0,)
-    assert EventoAuditoria.objects.count() >= 1
+    antigo = _evento_antigo(6)
+    recente = _evento(empresa_a)
+    with transaction.atomic(), _como("giro_app") as cursor:
+        cursor.execute("SELECT auditoria_expurgar((now() - interval '5 years')::date)")
+        assert cursor.fetchone() == (1,)
+    assert not EventoAuditoria.objects.filter(pk=antigo).exists()
+    assert EventoAuditoria.objects.filter(pk=recente.pk).exists()
 
 
-def test_trigger_existe_no_schema_da_empresa_e_no_public(empresa_a):
+def test_aud_02_expurgo_recusa_limite_mais_recente_que_5_anos(empresa_a):
+    _evento_antigo(1)
+    _falha("SELECT auditoria_expurgar(current_date)", papel="giro_app", erro="5 anos")
+    _falha("SELECT auditoria_expurgar(NULL)", papel="giro_app", erro="5 anos")
+    assert EventoAuditoria.objects.filter(acao="teste.antigo").exists()
+
+
+def test_aud_01_nem_o_papel_do_expurgo_apaga_evento_recente(empresa_a):
+    evento = _evento(empresa_a)
+    _falha(
+        "DELETE FROM auditoria_eventoauditoria WHERE id = %s",
+        [evento.pk],
+        papel="giro_expurgo",
+        erro="imutável",
+    )
+
+
+def test_aud_01_update_falha_mesmo_para_o_papel_do_expurgo(empresa_a):
+    antigo = _evento_antigo(6)
+    _falha(
+        "UPDATE auditoria_eventoauditoria SET acao = 'x' WHERE id = %s",
+        [antigo],
+        papel="giro_expurgo",
+    )
+
+
+def test_triggers_existem_no_schema_da_empresa_e_no_public(empresa_a):
     with connection.cursor() as cursor:
         cursor.execute(
-            "SELECT event_object_schema FROM information_schema.triggers "
-            "WHERE trigger_name = 'auditoria_evento_imutavel' GROUP BY event_object_schema"
+            "SELECT n.nspname, t.tgname FROM pg_trigger t "
+            "JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace "
+            "WHERE c.relname = 'auditoria_eventoauditoria' AND NOT t.tgisinternal"
         )
-        schemas = {linha[0] for linha in cursor.fetchall()}
-    assert {"public", "empresa_a", "empresa_b"} <= schemas
+        triggers = set(cursor.fetchall())
+    for schema in ("public", "empresa_a", "empresa_b"):
+        assert (schema, "auditoria_evento_imutavel") in triggers
+        assert (schema, "auditoria_evento_sem_truncate") in triggers
 
 
 def test_ator_da_requisicao_le_usuario_ip_e_aparelho():

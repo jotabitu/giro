@@ -52,9 +52,15 @@ Ordem de dependência entre apps e eventos de domínio: ADR 0011. Teste: `tests/
 | `auditoria.py` | `auditar(obj, acao, categoria)`, `registrar_evento(...)`, `ator_atual()`, `usar_ator(...)` |
 | `eventos.py` | `publicar("<app>.<fato>", ...)`, `assinar`, `@assinante` |
 | `tarefas.py` | `@tarefa_de_empresa`, `na_empresa(schema)`, `para_cada_empresa(tarefa)` |
+| `worker.py` | antes e depois de toda tarefa Celery: conexão no public e ator Sistema (S-11) |
+| `rede.py` | `ip_do_cliente(request)`: `X-Forwarded-For` só de proxy em `GIRO_REDES_PROXY`, entrada `xff[-GIRO_PROXIES_CONFIAVEIS]` (ADR 0018) |
 | `autenticacao.py` | `emitir_tokens` (claims `schema` e `empresa_id`), `conferir_empresa`, `JWTDaEmpresa` |
 | `permissoes.py` | `EmpresaOperando` (padrão), `exige_perfil(...)` |
 | `paginacao.py` | envelope `resultados`/`proximo`/`anterior` |
+
+Cache: toda chave leva o schema (`django_tenants.cache.make_key`). Celery: `CELERY_TASK_IGNORE_RESULT = True`; argumentos de tarefa só ids.
+
+Auditoria no banco (ADR 0016): triggers recusam `UPDATE`, `DELETE` e `TRUNCATE`; só `auditoria_expurgar(limite)`, do papel `giro_expurgo`, apaga evento com mais de 5 anos. Os `GRANT` de `giro_app` e `giro_expurgo` em cada schema saem de `apps/auditoria/banco.py` no `post_migrate`.
 
 Exemplo de model de domínio: `tests/app_exemplo/models.py` (instalado só nos testes).
 
