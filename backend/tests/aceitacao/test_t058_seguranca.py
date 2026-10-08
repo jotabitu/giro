@@ -244,32 +244,18 @@ def test_plt_08_senha_certa_sem_codigo_responde_como_senha_errada(equipe):
     assert certa.json()["codigo"] == "credenciais_invalidas"
 
 
-def test_plt_08_cinco_senhas_erradas_bloqueiam_por_15_minutos(equipe, relogio):
-    diego, dispositivo = equipe["Diego Santos"]
+def test_plt_08_bloqueio_por_senha_tem_mensagem_propria(equipe, relogio):
+    """O caso completo é o CA-010-18 (test_t010_plataforma); aqui, a mensagem e o motivo."""
+    diego, _ = equipe["Diego Santos"]
     api = cliente(HOST_PLATAFORMA)
-    errada = {"email": diego.email, "senha": "palpite", "codigo": codigo_atual(dispositivo)}
-
     relogio.em("2026-10-07 10:00")
     for _ in range(4):
-        assert api.post(ENTRAR, errada, format="json").status_code == 401
-    quinta = api.post(ENTRAR, errada, format="json")
+        api.post(ENTRAR, {"email": diego.email, "senha": "palpite"}, format="json")
+    quinta = api.post(ENTRAR, {"email": diego.email, "senha": "palpite"}, format="json")
     assert quinta.status_code == 429
-    assert quinta.json()["codigo"] == "PLT-08"
     assert quinta.json()["mensagem"] == "Acesso bloqueado por 15 minutos depois de 5 senhas erradas"
-    assert quinta.json()["detalhes"]["tentar_de_novo_em"] == "2026-10-07T13:15:00Z"  # 10:15
-
-    certo = {"email": diego.email, "senha": SENHA, "codigo": codigo_atual(dispositivo)}
-    relogio.em("2026-10-07 10:14")
-    assert api.post(ENTRAR, certo, format="json").status_code == 429
-    relogio.em("2026-10-07 10:15")
-    assert api.post(ENTRAR, certo, format="json").status_code == 200
-
     evento = EventoAuditoria.objects.get(acao="usuario.bloqueado", objeto_id=diego.pk)
-    assert (evento.categoria, evento.regra, evento.motivo) == (
-        "seguranca",
-        "PLT-08",
-        "5 senhas erradas",
-    )
+    assert evento.motivo == "5 senhas erradas"
     assert _eventos("usuario.entrar_falhou", diego) == 5
 
 
