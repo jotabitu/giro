@@ -38,7 +38,7 @@ def filiais_do_usuario(usuario: Any) -> set[int]:
     if pode_escolher_todas(usuario):
         return set(Filial.ativos.values_list("pk", flat=True))
     return set(
-        UsuarioFilial.objects.filter(usuario=usuario, filial__ativo=True).values_list(
+        UsuarioFilial.ativos.filter(usuario=usuario, filial__ativo=True).values_list(
             "filial_id", flat=True
         )
     )
@@ -136,7 +136,12 @@ def gerentes(filial: Filial) -> list[dict[str, Any]]:
     return [
         {"id": pk, "nome": nome}
         for pk, nome in get_user_model()
-        .objects.filter(perfil="gerente", status="ativo", filiais_ligadas__filial=filial)
+        .objects.filter(
+            perfil="gerente",
+            status="ativo",
+            filiais_ligadas__filial=filial,
+            filiais_ligadas__ativo=True,
+        )
         .order_by("nome")
         .values_list("pk", "nome")
     ]
@@ -199,7 +204,10 @@ def anotar_usuarios(queryset: QuerySet[Any]) -> QuerySet[Any]:
     return queryset.annotate(  # type: ignore[no-any-return]
         _indicador_usuarios=Count(
             "usuarios_ligados",
-            filter=Q(usuarios_ligados__usuario__status__in=["ativo", "convite_pendente"]),
+            filter=Q(
+                usuarios_ligados__ativo=True,
+                usuarios_ligados__usuario__status__in=["ativo", "convite_pendente"],
+            ),
             distinct=True,
         )
     )

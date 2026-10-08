@@ -6,6 +6,8 @@
 
 from typing import Any
 
+from django.db.models import Count, Exists, Max, OuterRef, Q, Subquery
+
 from comum import permissoes
 from comum.empresa import STATUS_OPERANDO
 
@@ -102,6 +104,101 @@ def pode(usuario: Any, chave: str) -> Any:
 def administradores() -> Any:
     """Destinatários dos avisos ao administrador (USR-06, PLT-03)."""
     return Usuario.objects.filter(perfil=Perfil.ADMINISTRADOR, status=StatusUsuario.ATIVO)
+
+
+# --- Usuários (Administração; contrato de contas) ---
+
+SITUACOES = {
+    "ativos": StatusUsuario.ATIVO,
+    "convites": StatusUsuario.CONVITE_PENDENTE,
+    "desativados": StatusUsuario.DESATIVADO,
+}
+
+
+def usuarios(
+    *,
+    situacao: str | None = None,
+    perfil: str | None = None,
+    filial: str | None = None,
+    busca: str | None = None,
+) -> Any:
+    """A lista de `GET /api/usuarios/`, com o que cada item precisa já anotado."""
+    from .models import Autenticador, Convite
+
+    convite_aberto = Convite.objects.filter(
+        usuario=OuterRef("pk"), aceito_em__isnull=True
+    ).order_by("-criado_em")
+    qs = Usuario.objects.exclude(perfil="").annotate(
+        ultimo_acesso_em=Max("sessoes__ultimo_uso"),
+        convite_expira=Subquery(convite_aberto.values("expira_em")[:1]),
+        dois_fatores=Exists(Autenticador.objects.filter(user=OuterRef("pk"), confirmed=True)),
+    )
+    if situacao in SITUACOES:
+        qs = qs.filter(status=SITUACOES[situacao])
+    if perfil in Perfil.values:
+        qs = qs.filter(perfil=perfil)
+    if filial and filial.isdigit():
+        ligados = Usuario.objects.filter(
+            filiais_ligadas__filial_id=int(filial), filiais_ligadas__ativo=True
+        ).values("pk")
+        qs = qs.filter(Q(perfil__in=permissoes.PERFIS_QUE_VEEM_TODAS) | Q(pk__in=ligados))
+    if busca and busca.strip():
+        termo = busca.strip()
+        qs = qs.filter(Q(nome__icontains=termo) | Q(email__icontains=termo))
+    return qs
+
+
+def contagens_de_usuarios() -> dict[str, int]:
+    filtros = {nome: Count("pk", filter=Q(status=status)) for nome, status in SITUACOES.items()}
+    totais = Usuario.objects.exclude(perfil="").aggregate(todos=Count("pk"), **filtros)
+    return {chave: int(valor) for chave, valor in totais.items()}
+
+
+def item_de_usuario(usuario: Usuario, eu: Usuario) -> dict[str, Any]:
+    """Um item da lista. `usuario` vem de `usuarios()`, com as anotações."""
+    pendente = usuario.status == StatusUsuario.CONVITE_PENDENTE
+    return {
+        "id": usuario.pk,
+        "nome": usuario.nome,
+        "email": usuario.email,
+        "celular": usuario.celular or None,
+        "perfil": usuario.perfil,
+        "filiais": permissoes.resumo_das_filiais(usuario),
+        "todas_filiais": permissoes.pode_escolher_todas(usuario),
+        "status": usuario.status,
+        "dois_fatores_ativo": bool(getattr(usuario, "dois_fatores", False)),
+        "ultimo_acesso_em": getattr(usuario, "ultimo_acesso_em", None),
+        "convite_expira_em": getattr(usuario, "convite_expira", None) if pendente else None,
+        "eu": usuario.pk == eu.pk,
+    }
+
+
+def detalhe_de_usuario(usuario: Usuario, eu: Usuario) -> dict[str, Any]:
+    """O item mais as permissões extras (marcada e padrão do perfil) e quando entrou."""
+    from .models import Convite
+
+    usuario = usuarios().get(pk=usuario.pk)
+    aceito = (
+        Convite.objects.filter(usuario=usuario, aceito_em__isnull=False)
+        .order_by("aceito_em")
+        .values_list("aceito_em", flat=True)
+        .first()
+    )
+    if aceito is None and usuario.status != StatusUsuario.CONVITE_PENDENTE:
+        aceito = usuario.criado_em  # criado sem convite (seed, createsuperuser)
+    return {
+        **item_de_usuario(usuario, eu),
+        "permissoes_extras": [
+            {
+                "chave": extra,
+                "marcada": extra in usuario.permissoes_extras
+                or extra_e_padrao_do_perfil(usuario.perfil, extra),
+                "padrao_do_perfil": extra_e_padrao_do_perfil(usuario.perfil, extra),
+            }
+            for extra in PermissaoExtra.values
+        ],
+        "entrou_em": aceito,
+    }
 
 
 def dados_do_eu(usuario: Usuario, empresa: Any) -> dict[str, Any]:

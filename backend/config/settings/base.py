@@ -173,6 +173,7 @@ SPECTACULAR_SETTINGS = {
         "EtapaEnum": ["configurar_2fa"],  # nome que o login da plataforma já publicava
         "NivelDeAprovacaoEnum": "apps.contas.api.acesso.NIVEL_DE_APROVACAO",
         "TipoSessaoEnum": "apps.contas.models.TipoSessao",
+        "PermissaoExtraEnum": "apps.contas.models.PermissaoExtra",
     },
 }
 
@@ -231,6 +232,8 @@ GIRO_PEPPER_HMAC = env("GIRO_PEPPER_HMAC")
 # --- Integrações (backend/integracoes/) ---
 # CEP: "falso" (CEPs do seed) em dev e testes; "viacep" em homologação e produção.
 GIRO_PROVEDOR_CEP = env("GIRO_PROVEDOR_CEP", default="falso")
+# WhatsApp: só o "falso" (mensagens na memória) até a integração real.
+GIRO_PROVEDOR_WHATSAPP = env("GIRO_PROVEDOR_WHATSAPP", default="falso")
 
 # --- E-mail ---
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")

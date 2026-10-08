@@ -8,6 +8,7 @@ que `veiculos`, `locacoes` e `financeiro` registram em `comum.leituras` (ADR 001
 from collections.abc import Iterable
 from typing import Any
 
+from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.db.models.functions import Lower
 
@@ -125,7 +126,9 @@ def criar_filial(dados: dict[str, Any], criada_por: Any) -> Filial:
             _tirar_matriz()
         filial = Filial(**limpos, matriz=matriz)
         _salvar(filial)
-        UsuarioFilial.objects.get_or_create(usuario=criada_por, filial=filial)
+        definir_filiais_do_usuario(
+            criada_por.pk, set(_vinculos_ativos(criada_por.pk)) | {filial.pk}
+        )
         registrar_evento(
             "filial.criar",
             Categoria.CONFIGURACOES,
@@ -269,14 +272,59 @@ def remover_feriado(feriado: FeriadoFilial) -> FeriadoFilial:
 # --- Vínculo das pessoas (USR-07) ---
 
 
+def _vinculos_ativos(usuario_id: int) -> list[int]:
+    return list(
+        UsuarioFilial.ativos.filter(usuario_id=usuario_id).values_list("filial_id", flat=True)
+    )
+
+
+def filial_invalida() -> ErroDeRegra:
+    return ErroDeRegra("filial_invalida", "Escolha só filiais ativas")
+
+
+def _nomes(ids: Iterable[int]) -> list[dict[str, Any]]:
+    filiais = Filial.objects.filter(pk__in=list(ids)).order_by("nome")
+    return [{"id": f.pk, "nome": f.nome} for f in filiais]
+
+
 def definir_filiais_do_usuario(usuario_id: int, filiais_ids: Iterable[int]) -> None:
-    """Troca as filiais da pessoa. Chamado pelo evento `contas.filiais_do_usuario_definidas`."""
+    """Troca as filiais da pessoa (USR-07). Chamado pelo evento
+    `contas.filiais_do_usuario_definidas` e ao criar uma filial.
+
+    Filial acrescentada inexistente ou inativa: 422 `filial_invalida`, e nada é gravado. O
+    vínculo tirado é desativado, não apagado, e a troca vai para a auditoria com antes e depois
+    (F-03).
+    """
     novas = set(filiais_ids)
     with transaction.atomic():
-        atuais = set(
-            UsuarioFilial.objects.filter(usuario_id=usuario_id).values_list("filial_id", flat=True)
+        vinculos = {
+            v.filial_id: v
+            for v in UsuarioFilial.objects.select_for_update().filter(usuario_id=usuario_id)
+        }
+        atuais = {f for f, v in vinculos.items() if v.ativo}
+        acrescentadas = novas - atuais
+        if Filial.ativos.filter(pk__in=acrescentadas).count() != len(acrescentadas):
+            raise filial_invalida()
+        if atuais == novas:
+            return
+        UsuarioFilial.objects.filter(usuario_id=usuario_id, filial_id__in=atuais - novas).update(
+            ativo=False
         )
-        UsuarioFilial.objects.filter(usuario_id=usuario_id, filial_id__in=atuais - novas).delete()
+        UsuarioFilial.objects.filter(
+            usuario_id=usuario_id, filial_id__in=novas & set(vinculos), ativo=False
+        ).update(ativo=True)
         UsuarioFilial.objects.bulk_create(
-            [UsuarioFilial(usuario_id=usuario_id, filial_id=f) for f in sorted(novas - atuais)]
+            [
+                UsuarioFilial(usuario_id=usuario_id, filial_id=f)
+                for f in sorted(novas - set(vinculos))
+            ]
+        )
+        usuario = get_user_model().objects.get(pk=usuario_id)
+        registrar_evento(
+            "usuario.alterar_filiais",
+            Categoria.SEGURANCA,
+            objeto=usuario,
+            antes={"filiais": _nomes(atuais)},
+            depois={"filiais": _nomes(novas)},
+            regra="USR-07",
         )
