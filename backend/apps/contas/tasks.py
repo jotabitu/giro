@@ -30,7 +30,7 @@ def contas_enviar_convite(schema_name: str, convite_id: int) -> None:
     send_mail(
         subject=f"{marca}: seu convite de acesso",
         message=(
-            f"Olá, {usuario.nome}. Você foi convidado para acessar o sistema da {marca}.\n"
+            f"Olá, {usuario.nome}. A {marca} convidou você para acessar o sistema.\n"
             f"Crie sua senha em: {link_do_convite(host, token)}\n"
             "O link vale por 7 dias."
         ),
