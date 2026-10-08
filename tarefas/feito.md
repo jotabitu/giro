@@ -24,4 +24,7 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-020 · Telas de acesso e casca do app · frontend · PR #11 · tarefas/handoffs/T-020-frontend.md · dados falsos até a T-011; 390 px a validar com emulação (Edge headless não abre abaixo de 492 px)
 - T-047 · Menu por permissão e agregados do painel · arquiteto · PR #12 · tarefas/handoffs/T-047-arquiteto.md · com USR-08 do produto
 - T-040 · Cobertura de regras e testes de aceitação de T-010 a T-014 · qa · PR #14 · tarefas/handoffs/T-040-qa.md · 105 xfail; inventário de 135 códigos de regra
+- T-033 · Dados sensíveis na fundação · backend · PR #16 · tarefas/handoffs/T-033-backend.md · 127 testes; dependência cryptography
+- T-046 · Componentes pedidos pela T-020 · design-system · PR #15 · tarefas/handoffs/T-046-design-system.md · sem dependência nova
+- T-049 · Divergências de tela restauradas · produto · PR #13 · tarefas/handoffs/T-049-produto.md
 - T-034 · Auditoria e Celery endurecidos · backend · PR a abrir (branch t-034-auditoria-celery) · tarefas/handoffs/T-034-backend.md · S-10, S-11, C-03, C-05; GRANT giro_expurgo TO giro_migracao pedido ao devops

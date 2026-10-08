@@ -191,6 +191,12 @@ CACHES = {
 GIRO_REDES_PROXY = env.list("GIRO_REDES_PROXY", default=[])
 GIRO_PROXIES_CONFIAVEIS = env.int("GIRO_PROXIES_CONFIAVEIS", default=1)
 
+# --- Cifra de dados pessoais e segredos (ADR 0014). Nenhuma delas é a SECRET_KEY. ---
+# Chaves: "<id>:<base64 de 32 bytes>[,<id>:<chave>...]"; a de maior id cifra.
+GIRO_CHAVE_DADOS_PESSOAIS = env("GIRO_CHAVE_DADOS_PESSOAIS")
+GIRO_CHAVE_SEGREDOS = env("GIRO_CHAVE_SEGREDOS")
+GIRO_PEPPER_HMAC = env("GIRO_PEPPER_HMAC")
+
 # --- E-mail ---
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
 EMAIL_HOST = env("EMAIL_HOST", default="")

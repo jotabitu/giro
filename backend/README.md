@@ -39,19 +39,21 @@ backend/
 
 Ordem de dependência entre apps e eventos de domínio: ADR 0011. Teste: `tests/test_limites_entre_apps.py`.
 
-## Fundação (`comum/`, T-001)
+## Fundação (`comum/`, T-001 e T-033)
 
 | Módulo | Uso |
 | --- | --- |
-| `models.py` | `ModeloBase` (sempre), `ModeloAtivavel`, `ModeloComCodigo` (`PREFIXO_CODIGO = "LOC"`), `Sequencia` |
+| `models.py` | `ModeloBase` (sempre), `ModeloAtivavel`, `ModeloComCodigo` (`PREFIXO_CODIGO = "LOC"`), `Sequencia`, `ModeloComCifra` (`id_cifra`, obrigatório com `CampoCifrado`) |
 | `codigos.py` | `proximo_numero`, `formatar_codigo`, `ajustar_sequencia` (seed) |
-| `campos.py` | `CentavosField`, `CentavosComSinalField`, `PercentualField` |
+| `campos.py` | `CentavosField`, `CentavosComSinalField`, `PercentualField`, `CampoCifrado` (`obj.definir_<campo>(...)`, `obj.<campo>_claro()`), `CampoHashBusca(de=...)`, `anonimizar_cifrado`, `buscar_por_hash` |
+| `cripto.py` | AES-256-GCM com dado associado `empresa_id\|tabela\|campo\|id_cifra`, `hash_busca` (HMAC por empresa) (ADR 0014) |
+| `classificacao.py` | `CAMPOS_AUDITORIA = {"omitir", "mascarar", "inteiro"}` e as máscaras da ADR 0014; teste de arquitetura em `tests/test_campos_sensiveis.py` |
 | `dinheiro.py` | `aplicar_percentual`, `proporcional`, `dividir_em_parcelas` (ROUND_HALF_UP no centavo) |
 | `estados.py` | `MaquinaDeEstados` (`TRANSICOES`, `REGRA_TRANSICAO`) e `transicionar(obj, status, motivo=...)` |
 | `erros.py` | `ErroDeRegra` 422, `TransicaoInvalida`/`Conflito` 409, `LimiteDoPlano` 422, `EmpresaSemOperacao` 403, handler do DRF |
-| `auditoria.py` | `auditar(obj, acao, categoria)`, `registrar_evento(...)`, `ator_atual()`, `usar_ator(...)` |
+| `auditoria.py` | `auditar(obj, acao, categoria)`, `registrar_evento(...)`, `ator_atual()`, `usar_ator(...)`; o diff é feito com os valores reais e só depois classificado |
 | `eventos.py` | `publicar("<app>.<fato>", ...)`, `assinar`, `@assinante` |
-| `tarefas.py` | `@tarefa_de_empresa`, `na_empresa(schema)`, `para_cada_empresa(tarefa)` |
+| `tarefas.py` | `@tarefa_de_empresa`, `na_empresa(schema, ator=...)`, `ator_para_fila()`, `para_cada_empresa(tarefa)`; empresa inexistente, fora de operação ou com schema apagado não roda |
 | `worker.py` | antes e depois de toda tarefa Celery: conexão no public e ator Sistema (S-11) |
 | `rede.py` | `ip_do_cliente(request)`: `X-Forwarded-For` só de proxy em `GIRO_REDES_PROXY`, entrada `xff[-GIRO_PROXIES_CONFIAVEIS]` (ADR 0018) |
 | `autenticacao.py` | `emitir_tokens` (claims `schema` e `empresa_id`), `conferir_empresa`, `JWTDaEmpresa` |
