@@ -387,6 +387,13 @@ Todo dinheiro que entra ou sai passa por uma conta a receber, uma despesa ou um 
 - `FIN-02` Faixas de atraso para a tela: 1–7 dias, 8–30 dias, mais de 30 dias.
 - `FIN-03` Juros e multa por atraso configuráveis por empresa, com teto: multa de até 2% (CDC, art. 52, §1º) e juros de mora de até 1% ao mês, pro rata dia (mês de 30 dias: juros = valor × taxa ao mês ÷ 30 × dias corridos de atraso, contados do dia seguinte ao vencimento até o dia do pagamento; a multa é cobrada uma vez, a partir de 1 dia de atraso). Padrão: 2% + 1% ao mês. Calculados na hora do pagamento e escritos no contrato (sem cláusula no contrato, não cobra juros).
 - `FIN-04` Pagamento por Pix ou boleto do parceiro baixa a conta sozinho (webhook). Dinheiro e cartão na maquininha são baixados no caixa.
+- `FIN-15` Números de contas a receber (tela `Receber`, contador do menu e início `Financeiro`). Entram as contas da filial escolhida, sem caução (`LOC-04`) e sem as `cancelada` e `renegociada` (a renegociação gera contas novas, que entram no lugar). Valores sem multa e juros (`FIN-03`).
+  - **Previsto no mês:** soma e quantidade das contas com vencimento no mês corrente, pagas ou não.
+  - **Recebido:** das contas do previsto, as `paga`. O percentual é recebido ÷ previsto, em valor, com 2 casas.
+  - **Vence hoje** (no `Financeiro`, "Entra hoje"): contas ainda não pagas com vencimento hoje.
+  - **Em atraso:** todas as contas `atrasada`, de qualquer mês, em valor, clientes e parcelas, separadas nas faixas da `FIN-02`.
+  - **Abas da lista:** "Em atraso" mostra todas as atrasadas, de qualquer período; "Vencem hoje", "A vencer" e "Pagas" seguem o período escolhido (hoje, semana ou mês), pelo vencimento; "Todas" é a soma das quatro abas.
+  - **Contador "Contas a receber" do menu:** quantidade de parcelas `atrasada`, o mesmo número da aba "Em atraso" (chave `receber` de `GET /api/painel/contadores/`). Conta parcelas, não clientes: um cliente com 2 parcelas atrasadas conta 2. Seed em 07 out: 2 (Carlos e Rafael).
 
 **Contas a pagar e despesas**
 
@@ -414,6 +421,8 @@ Todo dinheiro que entra ou sai passa por uma conta a receber, uma despesa ou um 
 - `FIN-14` Relatórios prontos (planilha e PDF): DRE, locações por cliente, rentabilidade por veículo, inadimplência por faixa, comissões, manutenções por veículo e oficina.
 
 *Mudanças em 07 out 2026 (T-041):* `FIN-03` passou a dizer como calcular o pro rata dia (item 14); `FIN-09` ganhou os estados da comissão de locação (item 20). Decisões do dono do produto.
+
+*Mudanças em 08 out 2026 (T-053):* criada a `FIN-15`, que diz de onde vêm os números da tela `Receber` e o contador do menu (o contador segue `docs/api/painel.md`: parcelas atrasadas). A base do "Recebido" (contas que vencem no mês, e não tudo o que foi pago no mês) é o padrão do produto e espera o dono do produto (Pontos em aberto).
 
 ## Manutenção e despesas
 
@@ -479,6 +488,9 @@ As tarefas automáticas rodam no Celery, por empresa, no fuso `America/Sao_Paulo
 | `AUT-13` | Régua da assinatura | 09:00 | aplica `PLT-02` | e-mail + WhatsApp |
 | `AUT-14` | Implantação parada | 10:00 | aplica `IMP-06` | e-mail + WhatsApp |
 | `AUT-15` | Fim do acesso de suporte | a cada minuto | encerra acessos vencidos (`PLT-07`) | interno |
+| `AUT-16` | Expurgo da auditoria | dia 1, 03:00 | apaga os eventos de auditoria com mais de 5 anos (`AUD-02`), em cada empresa e na plataforma, e grava um evento do Sistema (categoria segurança) com a data limite e quantos eventos saíram | interno |
+
+*Mudanças em 08 out 2026 (T-053):* criada a `AUT-16` para a tarefa mensal que chama o expurgo da auditoria (backend, T-034). O prazo é o da `AUD-02`; o horário é o padrão do produto, antes do backup mensal (`AUT-11`).
 
 **Notificações internas** (sino no topo e push no celular): aprovações pendentes (gerente), devoluções do dia (vistoriador), OS atrasada (gerente), diferença de caixa (gerente), documento vencendo (gerente), convite aceito (administrador), limite do plano em 90% (administrador). Cada pessoa escolhe os canais em Notificações.
 
@@ -532,6 +544,7 @@ Planos especiais: Entregador R$ 279,00/semana (km livre, troca de óleo inclusa)
 | DRE de setembro | locações 56.420,00; extras 2.310,00; taxas 1.128,40; despesas 21.480,30; comissões 1.890,00 | resultado R$ 34.231,30 (margem 58%) | `FIN-13` |
 | Despesas de outubro | 6 lançamentos: pneus 1.200,00; óleo 48,00 (pago no caixa); luz 412,30; aluguel 3.500,00; IPVA 186,40; rastreadores 1.720,00 | R$ 7.066,70; aguardando aprovação R$ 1.200,00 (só os pneus; o IPVA está abaixo de R$ 500 e nasce `a_pagar`) | `FIN-05` |
 | Em aberto dos clientes | Carlos 299,40; Rafael 1.347,00 | R$ 1.646,40 (2 clientes) | `FIN-01` |
+| Contadores do menu em 07 out (Mariana) | parcelas de Carlos e Rafael atrasadas; despesa dos pneus aguardando aprovação | Contas a receber 2; Despesas 1; Conciliação e Comissões sem número (fase 2) | `FIN-15`, `FIN-05` |
 | Encerramento antecipado LOC-2812 | NMax mensal 1.590,00; pedido em 07 out; fim 15 out | multa R$ 84,80; devolve R$ 286,20 | `LOC-12`, `LOC-13` |
 | Preço antigo LOC-2841 | Carlos, CG 160 Fan, assinado em 30 set, quando a Street semanal era 299,40 (passou a 329,00 em 01 out) | parcelas continuam R$ 299,40 | `LOC-15` |
 | Bloqueio | Rafael Sousa, 25 dias de atraso | cliente `bloqueado`, LOC-2790 `devolucao_atrasada` | `CLI-05`, `LOC-10` |
@@ -539,6 +552,8 @@ Planos especiais: Entregador R$ 279,00/semana (km livre, troca de óleo inclusa)
 | Implantação da plataforma | 23 empresas em teste | funil 23 → 19 → 17 → 14 → 11 → 8 | `IMP-05` |
 
 *Mudanças em 07 out 2026 (T-041):* "Despesas de outubro" passou de "aguardando aprovação R$ 1.386,40" para R$ 1.200,00. O valor antigo somava o IPVA de R$ 186,40, que pela `FIN-05` (até R$ 500 nasce `a_pagar`) não vai para aprovação. A tela `Despesas` vai para a T-028. Correção aprovada pelo dono do produto em 07 out 2026.
+
+*Mudanças em 08 out 2026 (T-053):* criada a linha "Contadores do menu em 07 out". Os números de outubro da tela `Receber` ("Previsto no mês" R$ 74,2 mil em 318 parcelas, "Recebido" R$ 21,6 mil, "Vence hoje" R$ 1.890 em 9 parcelas, "A vencer" 226, "Pagas" 72) não saem do seed e não fecham com estas regras: 9 parcelas custam pelo menos 9 × R$ 279,00 = R$ 2.511,00; 42 locações abertas dão no máximo 42 × 5 = 210 vencimentos semanais num mês; as abas somam 309, não 318; e 21,6 ÷ 74,2 dá 29,11%, não 29,00%. Eles só entram nesta tabela quando o seed tiver a carteira de outubro (parcelas das 42 locações pela tabela de preços); até lá, o teste da `FIN-15` usa um caso pequeno próprio, e as telas mostram os números da carteira quando ela existir.
 
 ## Decisões de 07 out 2026
 
@@ -567,4 +582,5 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 - [ ] **Registrar o domínio** girolocadoras.com.br (e girolocacao.com.br) no registro.br antes que alguém registre.
 - [ ] **Busca de marca no INPI**: "Giro" é um nome muito usado (o domínio principal já pertence a outra empresa). Antes de investir na marca, buscar "GIRO" nas classes 42 (software como serviço) e 9 (software), não só 39 e 12, e considerar registrar a marca mista "Giro Locadoras". Se houver conflito, trocar o nome agora sai mais barato.
 - [ ] **Abrir a conta no Asaas** e confirmar as taxas de boleto e cartão para o volume esperado.
+- [ ] **Base do "Recebido" da tela `Receber`** (`FIN-15`, T-053). A) só as contas que vencem no mês e já foram pagas, para o percentual "do previsto" nunca passar de 100%; B) tudo o que foi pago no mês, inclusive atrasos de meses anteriores (visão de caixa). Padrão: **A**. O dinheiro que entra no dia já aparece no `Caixa`.
 - [ ] **Telas que faltam desenhar:** esqueci a senha, 2 etapas, meu perfil, notificações, contas a pagar separada, multas de trânsito, documentos dos veículos, avarias abertas, pagamento e assinatura pelo cliente final, site de vendas.
