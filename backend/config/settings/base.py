@@ -148,6 +148,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
         "comum.permissoes.EmpresaOperando",
+        "comum.permissoes.EscopoDeFilial",
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "comum.erros.tratar_excecao",
@@ -214,6 +215,10 @@ GIRO_PROXIES_CONFIAVEIS = env.int("GIRO_PROXIES_CONFIAVEIS", default=1)
 GIRO_CHAVE_DADOS_PESSOAIS = env("GIRO_CHAVE_DADOS_PESSOAIS")
 GIRO_CHAVE_SEGREDOS = env("GIRO_CHAVE_SEGREDOS")
 GIRO_PEPPER_HMAC = env("GIRO_PEPPER_HMAC")
+
+# --- Integrações (backend/integracoes/) ---
+# CEP: "falso" (CEPs do seed) em dev e testes; "viacep" em homologação e produção.
+GIRO_PROVEDOR_CEP = env("GIRO_PROVEDOR_CEP", default="falso")
 
 # --- E-mail ---
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
