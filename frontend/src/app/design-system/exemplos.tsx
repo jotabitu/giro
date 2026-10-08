@@ -20,7 +20,10 @@ import {
   KpiGrid,
   KpiTile,
   KpiVariacao,
+  LinhaDeLista,
+  ListaDeLinhas,
   Panel,
+  ProgressBar,
   SearchField,
   SegmentedControl,
   Sidebar,
@@ -199,6 +202,27 @@ function ExemploFleetBar() {
         { chave: "a-venda", rotulo: "À venda", contagem: 12, destaque: "solido" },
       ]}
     />
+  );
+}
+
+function ExemploProgressBar() {
+  return (
+    <div className="flex max-w-md flex-col gap-4">
+      <ProgressBar valor={40} rotulo="Primeiros passos" />
+      <ProgressBar valor={100} rotulo="Implantação concluída" />
+    </div>
+  );
+}
+
+function ExemploLinhaDeLista() {
+  return (
+    <Panel titulo="Parcelas em atraso" subtitulo="Filial Centro">
+      <ListaDeLinhas rotulo="Parcelas em atraso">
+        <LinhaDeLista titulo="Carlos Souza" apoio="LOC-2841 · parcela 2 de 5 · venceu em 30 set" acao={<Button variante="quieto" compacto>Cobrar</Button>} />
+        <LinhaDeLista titulo="Rafael Lima" apoio="LOC-2839 · R$ 1.347,00 · 25 dias" acao={<Button variante="quieto" compacto>Cobrar</Button>} />
+        <LinhaDeLista titulo="Sem ação" apoio="Linha só informativa" />
+      </ListaDeLinhas>
+    </Panel>
   );
 }
 
@@ -491,6 +515,8 @@ const EXEMPLOS: Record<SlugExemplo, () => ReactNode> = {
   "data-table": ExemploDataTable,
   "fleet-bar": ExemploFleetBar,
   "kpi-tile": ExemploKpiTile,
+  "linha-de-lista": ExemploLinhaDeLista,
+  "progress-bar": ExemploProgressBar,
   "search-field": ExemploSearchField,
   "segmented-control": ExemploSegmentedControl,
   "sidebar": ExemploSidebar,

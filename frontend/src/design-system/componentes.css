@@ -11,6 +11,8 @@
 .wl-btn--brand { background: var(--brand); color: var(--on-brand); }
 .wl-btn--quiet { background: var(--surface-sunken); color: var(--ink); }
 .wl-btn--sm { height: 36px; padding: 0 16px; font-size: 14px; }
+/* Celular: alvo de toque de 44px */
+@media (max-width: 720px) { .wl-btn--sm { height: 44px; } }
 .wl-btn[disabled] { opacity: 0.45; cursor: not-allowed; }
 .wl-icon-btn { position: relative; display: inline-grid; place-items: center; width: 48px; height: 48px; border: 0; border-radius: 50%; background: var(--surface); color: var(--ink); cursor: pointer; }
 .wl-icon-btn--sunken { background: var(--surface-sunken); }
@@ -99,7 +101,7 @@
 .wl-pipe__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
 .wl-pipe__title { font-weight: 500; }
 .wl-pipe__note { color: var(--ink-muted); font-size: 14px; }
-.wl-pipe__row { display: flex; gap: 6px; margin-top: 14px; }
+.wl-pipe__row { display: flex; flex-wrap: wrap; gap: 14px 6px; margin-top: 14px; }
 .wl-pipe__col { min-width: 64px; }
 .wl-pipe__bar { height: 44px; border-radius: var(--radius-md); background: var(--line); }
 .wl-pipe__col--brand .wl-pipe__bar { background: var(--brand); }
@@ -226,3 +228,16 @@ button.wl-pipe__col[aria-pressed="true"] .wl-pipe__bar { outline: 2px solid var(
 @media (prefers-reduced-motion: reduce) {
   .wl-gaveta, .wl-dialogo[open] { animation: none; }
 }
+
+/* ProgressBar */
+.wl-progressbar { height: 8px; border-radius: var(--radius-pill); background: var(--surface-sunken); overflow: hidden; }
+.wl-progressbar__fill { height: 100%; border-radius: var(--radius-pill); background: var(--solid); }
+
+/* LinhaDeLista */
+.wl-linhas { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.wl-linha { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: 56px; padding: var(--space-3) 0; border-bottom: 1px solid var(--line); }
+.wl-linha:last-child { border-bottom: 0; }
+.wl-linha__texto { min-width: 0; }
+.wl-linha__titulo { font-weight: 500; overflow-wrap: anywhere; }
+.wl-linha__apoio { color: var(--ink-muted); font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
+.wl-linha__acao { flex: none; }

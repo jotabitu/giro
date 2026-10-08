@@ -21,7 +21,7 @@ Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-
   "nome": "Filial Centro",
   "matriz": true,
   "ativo": true,
-  "cnpj": "12345678000110",
+  "cnpj": "12345678000195",
   "inscricao_estadual": null,
   "inscricao_municipal": null,
   "endereco": { "cep": "60325000", "logradouro": "Av. Bezerra de Menezes", "numero": "1200", "complemento": null,
@@ -86,7 +86,7 @@ Perfil: administrador. 200: representação da filial.
 Perfil: administrador.
 Corpo:
 ```json
-{ "nome": "Filial Caucaia", "matriz": false, "cnpj": "12345678000200",
+{ "nome": "Filial Caucaia", "matriz": false, "cnpj": "12345678000276",
   "endereco": { "cep": "61600000", "logradouro": "...", "numero": "...", "complemento": null, "bairro": "...", "cidade": "Caucaia", "uf": "CE" },
   "contato": { "telefone": null, "whatsapp": null, "email": null },
   "horario": { "seg": [ { "abre": "08:00", "fecha": "18:00" } ], "...": [] } }
@@ -97,7 +97,7 @@ Obrigatórios: `nome`, `endereco` (todos os campos menos `complemento`), `horari
 409 `{ "codigo": "filial_nome_em_uso", "mensagem": "Já existe uma filial com esse nome" }`.
 422 `PLT-03`: limite do plano (mensagem e `detalhes` no contrato da plataforma, `exigir_limite("filiais")`).
 Efeitos: se `matriz: true`, a matriz anterior deixa de ser matriz na mesma transação. A primeira filial da empresa é sempre matriz, mesmo que venha `false`. O administrador que criou a filial é ligado a ela. No assistente (Onboarding-Filial) marca o passo `filial` da implantação.
-Na criação, os feriados nacionais do ano corrente e do seguinte já entram confirmados; o administrador ajusta depois.
+Na criação, nenhum feriado entra: a filial nasce sem feriados, e os nacionais aparecem como sugestão em `GET /api/filiais/{id}/feriados/sugestoes/` até o administrador confirmar (`FIL-03`, CA-012-08). Nada vale antes da confirmação.
 Regras: FIL-01, FIL-03, PLT-03.
 
 ## PATCH /api/filiais/{id}/

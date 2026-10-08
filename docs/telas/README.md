@@ -137,3 +137,40 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 | Cancelar assinatura | [desktop](html/Admin-Cancelar-Desktop.dc.html) · [celular](html/Admin-Cancelar-Mobile.dc.html) | `(empresa)/admin/assinatura` | `plataforma` | PLT |
 | Comissões | [desktop](html/Comissoes-Desktop.dc.html) · [celular](html/Comissoes-Mobile.dc.html) | `(empresa)/financeiro` | `financeiro` | FIN |
 | Conciliação | [desktop](html/Conciliacao-Desktop.dc.html) · [celular](html/Conciliacao-Mobile.dc.html) | `(empresa)/financeiro` | `financeiro` | FIN |
+
+## Rotas do menu
+
+Cada `chave` da navegação de `GET /api/auth/eu/` (`docs/api/contas.md`) abre uma rota fixa. O frontend liga chave → rota em `DESTINOS` de `frontend/src/lib/menu.ts`, e esta tabela é a referência. Conferida na T-055 (arquiteto), a partir das rotas que a T-048 deixou a confirmar. Chave nova no menu precisa de linha aqui antes de entrar no frontend.
+
+| `chave` | Rota | Tela | Observação |
+| --- | --- | --- | --- |
+| `inicio` | `/inicio` | Main e inícios por perfil | variante pela API (`USR-08`) |
+| `aprovacoes` | `/aprovacoes` | sem tela ainda | app `aprovacoes`; tela da fase 2 (até lá, os pedidos aparecem no início do gerente) |
+| `veiculos` | `/veiculos` | Frota | |
+| `locacoes` | `/locacoes` | Locações | nova locação em `/locacoes/nova`; vistoria e devolução em `/locacoes/[id]/vistoria` e `/locacoes/[id]/devolucao` |
+| `vendas` | `/vendas` | Vendas | fase 2 |
+| `clientes` | `/clientes` | Clientes | |
+| `manutencoes` | `/manutencoes` | Manutenções | fase 2 |
+| `caixa` | `/financeiro/caixa` | Caixa do dia | |
+| `receber` | `/financeiro/receber` | Contas a receber | |
+| `despesas` | `/financeiro/despesas` | Despesas | |
+| `comissoes` | `/financeiro/comissoes` | Comissões | fase 2 |
+| `conciliacao` | `/financeiro/conciliacao` | Conciliação | fase 2 |
+| `relatorios` | `/relatorios` | Relatórios | |
+| `config` | `/admin/configuracoes` | Configurações | |
+| `marca` | `/admin/marca` | Empresa e marca | |
+| `filiais` | `/admin/filiais` | Filiais | |
+| `usuarios` | `/admin/usuarios` | Administração › Usuários | |
+| `assinatura` | `/admin/assinatura` | Administração › Assinatura | |
+| `auditoria` | `/admin/auditoria` | Auditoria da empresa | |
+| `agenda` | `/vistorias` | agenda do Vistoriador | confirmada: abas Hoje, Amanhã e Semana por `GET /api/vistorias/agenda/?dia=` |
+| `avarias` | `/vistorias/avarias` | sem tela própria | **corrigida** (era `/avarias`): avaria é do app `vistorias` (`GET /api/vistorias/avarias/`) |
+| `consultar_veiculo` | `/veiculos` | Frota | **corrigida** (era `/veiculos/consultar`): a tela `Vistoriador` liga para a Frota; o vistoriador vê só km e avarias (`pode.veiculos = km_e_avarias`) |
+| `contas_a_pagar` | `/financeiro/despesas` | Despesas | **corrigida** (era `/financeiro/pagar`): contas a pagar são as despesas (`FIN-05`) |
+| `caixa_e_bancos` | `/financeiro/caixa` | Caixa do dia | **corrigida** (era `/financeiro/bancos`): bancos são a conciliação, da fase 2 (`/financeiro/conciliacao`) |
+| `propostas` | `/vendas?aba=propostas` | Vendas | **corrigida** (era `/propostas`); fase 2, o nome da aba se confirma no contrato de vendas |
+| `minhas_vendas` | `/vendas` | Vendas | **corrigida** (era `/vendas/minhas`): para o vendedor a API já devolve só as dele (`USR-08`) |
+| `veiculos_a_venda` | `/veiculos?status=a_venda` | Frota | **corrigida** (era `/vendas/veiculos`): veículo à venda é status do veículo (`VEI`) |
+| `minhas_comissoes` | `/financeiro/comissoes` | Comissões | **corrigida** (era `/financeiro/minhas-comissoes`): para o vendedor a API devolve só as dele; fase 2 |
+
+Itens com filtro na rota (`?aba=`, `?status=`) contam como ativos pelo caminho, sem a query.
