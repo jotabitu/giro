@@ -26,6 +26,19 @@ class ErroDeNegocio(Exception):
         return {"codigo": self.codigo, "mensagem": self.mensagem, "detalhes": self.detalhes}
 
 
+class ErroDeValidacao(ErroDeNegocio):
+    """Campo inválido, detectado no serviço. HTTP 400, no mesmo formato do serializer."""
+
+    status_http: int = status.HTTP_400_BAD_REQUEST
+
+    def __init__(self, campos: dict[str, list[str]]) -> None:
+        super().__init__("validacao", "Confira os campos destacados")
+        self.campos = campos
+
+    def como_dict(self) -> dict[str, Any]:
+        return {"codigo": self.codigo, "mensagem": self.mensagem, "campos": self.campos}
+
+
 class ErroDeRegra(ErroDeNegocio):
     """Uma regra de negócio impediu a ação. HTTP 422."""
 
@@ -45,6 +58,24 @@ class Conflito(ErroDeNegocio):
 
 class TransicaoInvalida(Conflito):
     """Mudança de status fora da tabela de transições. HTTP 409."""
+
+
+class NaoAutenticado(ErroDeNegocio):
+    """401 com código próprio (`credenciais_invalidas`, `2fa_obrigatorio`)."""
+
+    status_http: int = status.HTTP_401_UNAUTHORIZED
+
+
+class SemPermissao(ErroDeNegocio):
+    """Perfil ou função sem acesso à ação, com o código da regra (ex.: PLT-09). HTTP 403."""
+
+    status_http: int = status.HTTP_403_FORBIDDEN
+
+
+class MuitasTentativas(ErroDeNegocio):
+    """Bloqueio por tentativas erradas (PLT-08, USR-06). HTTP 429."""
+
+    status_http: int = status.HTTP_429_TOO_MANY_REQUESTS
 
 
 class EmpresaSemOperacao(ErroDeNegocio):

@@ -56,7 +56,7 @@ jobs:
       - run: pytest -q
       - name: OpenAPI gerado igual a docs/api/openapi.yaml
         run: |
-          python manage.py spectacular --file "$RUNNER_TEMP/openapi.yaml" --validate
+          python manage.py spectacular --urlconf config.urls_openapi --file "$RUNNER_TEMP/openapi.yaml" --validate
           diff -u ../docs/api/openapi.yaml "$RUNNER_TEMP/openapi.yaml" || {
             echo "::error::docs/api/openapi.yaml desatualizado. Rode make api-schema e commite."
             exit 1

@@ -47,7 +47,7 @@ seed: .env
 
 # MSYS_NO_PATHCONV: no Git Bash, impede que /tmp/... vire caminho do Windows.
 api-schema: .env
-	MSYS_NO_PATHCONV=1 $(COMPOSE) exec backend python manage.py spectacular --file /tmp/openapi.yaml --validate
+	MSYS_NO_PATHCONV=1 $(COMPOSE) exec backend python manage.py spectacular --urlconf config.urls_openapi --file /tmp/openapi.yaml --validate
 	MSYS_NO_PATHCONV=1 $(COMPOSE) cp backend:/tmp/openapi.yaml docs/api/openapi.yaml
 
 api-client: .env

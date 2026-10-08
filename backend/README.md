@@ -50,15 +50,18 @@ Ordem de dependência entre apps e eventos de domínio: ADR 0011. Teste: `tests/
 | `classificacao.py` | `CAMPOS_AUDITORIA = {"omitir", "mascarar", "inteiro"}` e as máscaras da ADR 0014; teste de arquitetura em `tests/test_campos_sensiveis.py` |
 | `dinheiro.py` | `aplicar_percentual`, `proporcional`, `dividir_em_parcelas` (ROUND_HALF_UP no centavo) |
 | `estados.py` | `MaquinaDeEstados` (`TRANSICOES`, `REGRA_TRANSICAO`) e `transicionar(obj, status, motivo=...)` |
-| `erros.py` | `ErroDeRegra` 422, `TransicaoInvalida`/`Conflito` 409, `LimiteDoPlano` 422, `EmpresaSemOperacao` 403, handler do DRF |
+| `erros.py` | `ErroDeValidacao` 400, `NaoAutenticado` 401, `SemPermissao` 403, `ErroDeRegra` 422, `TransicaoInvalida`/`Conflito` 409, `LimiteDoPlano` 422, `EmpresaSemOperacao` 403, `MuitasTentativas` 429, handler do DRF |
 | `auditoria.py` | `auditar(obj, acao, categoria)`, `registrar_evento(...)`, `ator_atual()`, `usar_ator(...)`; o diff é feito com os valores reais e só depois classificado |
 | `eventos.py` | `publicar("<app>.<fato>", ...)`, `assinar`, `@assinante` |
 | `tarefas.py` | `@tarefa_de_empresa`, `na_empresa(schema, ator=...)`, `ator_para_fila()`, `para_cada_empresa(tarefa)`; empresa inexistente, fora de operação ou com schema apagado não roda |
 | `worker.py` | antes e depois de toda tarefa Celery: conexão no public e ator Sistema (S-11) |
 | `rede.py` | `ip_do_cliente(request)`: `X-Forwarded-For` só de proxy em `GIRO_REDES_PROXY`, entrada `xff[-GIRO_PROXIES_CONFIAVEIS]` (ADR 0018) |
-| `autenticacao.py` | `emitir_tokens` (claims `schema` e `empresa_id`), `conferir_empresa`, `JWTDaEmpresa` |
+| `autenticacao.py` | `emitir_tokens(usuario, amr=...)` (claims `schema`, `empresa_id`, `amr`), `emitir_pre_2fa`, `conferir_empresa`, `JWTDaEmpresa` (401 `2fa_obrigatorio` sem `otp` para quem `exige_2fa`), `JWTPre2FA`, cookie `__Host-giro_refresh` e `refresh_do_cookie` (ADR 0013) |
 | `permissoes.py` | `EmpresaOperando` (padrão), `exige_perfil(...)` |
-| `paginacao.py` | envelope `resultados`/`proximo`/`anterior` |
+| `paginacao.py` | envelope `resultados`/`proximo`/`anterior`; extras no mesmo corpo com `get_paginated_response(dados, extras={"contagens": ...})`; `envelope_sem_paginas` para listas curtas |
+| `relogio.py` | `agora()` e `hoje()` (dia em São Paulo): serviços e selectors leem a hora só daqui; nos testes, fixture `relogio` (07 out 2026, 10:00) |
+| `documentos.py` | `so_digitos`, `cnpj_valido` (dígitos verificadores) |
+| `openapi.py` | autenticações do Giro no OpenAPI |
 
 Cache: toda chave leva o schema (`django_tenants.cache.make_key`). Celery: `CELERY_TASK_IGNORE_RESULT = True`; argumentos de tarefa só ids.
 
@@ -72,6 +75,8 @@ Exemplo de model de domínio: `tests/app_exemplo/models.py` (instalado só nos t
 docker compose up -d backend worker beat
 docker compose run --rm --no-deps backend sh -c "ruff check . && ruff format --check . && mypy . && pytest -q"
 docker compose exec backend python manage.py createsuperuser   # no public: dono da plataforma
+docker compose exec backend python manage.py convidar_equipe_plataforma larissa@girolocadoras.com.br suporte --nome "Larissa Melo"
+docker compose exec backend python manage.py spectacular --urlconf config.urls_openapi --file /tmp/openapi.yaml --validate
 ```
 
 Os testes criam as empresas `empresa_a` (`empresa-a.localhost`) e `empresa_b` uma vez por banco de teste (`--reuse-db`). Depois de mudar migração, rode `pytest --create-db`.

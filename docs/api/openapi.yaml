@@ -3,5 +3,906 @@ info:
   title: API do Giro
   version: 0.1.0
   description: Contrato da API do Giro. Gerado pelo backend (make api-schema).
-paths: {}
-components: {}
+paths:
+  /api/assinatura/:
+    get:
+      operationId: assinatura_retrieve
+      description: 'Do lado da empresa: plano, uso e situação da assinatura (PLT-03).
+        Todos os perfis.'
+      summary: Assinatura e uso do plano (PLT-03)
+      tags:
+      - assinatura
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assinatura'
+          description: ''
+  /api/plataforma/auth/2fa/configurar/:
+    post:
+      operationId: plataforma_auth_2fa_configurar_create
+      summary: Novo autenticador (PLT-08)
+      tags:
+      - plataforma
+      security:
+      - jwtPre2fa: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Configurar2FA'
+          description: ''
+  /api/plataforma/auth/2fa/verificar/:
+    post:
+      operationId: plataforma_auth_2fa_verificar_create
+      summary: Confirmar o código (PLT-08)
+      tags:
+      - plataforma
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Codigo'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Codigo'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Codigo'
+        required: true
+      security:
+      - jwtPre2fa: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entrou'
+          description: ''
+  /api/plataforma/auth/entrar/:
+    post:
+      operationId: plataforma_auth_entrar_create
+      summary: Entrar na plataforma (PLT-08)
+      tags:
+      - plataforma
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Entrar'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Entrar'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Entrar'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntrarResposta'
+          description: ''
+  /api/plataforma/auth/eu/:
+    get:
+      operationId: plataforma_auth_eu_retrieve
+      summary: Quem está na plataforma (PLT-09)
+      tags:
+      - plataforma
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Eu'
+          description: ''
+  /api/plataforma/auth/renovar/:
+    post:
+      operationId: plataforma_auth_renovar_create
+      summary: Renovar o acesso pelo cookie
+      tags:
+      - plataforma
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Access'
+          description: ''
+  /api/plataforma/auth/sair/:
+    post:
+      operationId: plataforma_auth_sair_create
+      summary: Sair
+      tags:
+      - plataforma
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/plataforma/convites/{token}/:
+    get:
+      operationId: plataforma_convites_retrieve
+      summary: Ver convite da equipe
+      parameters:
+      - in: path
+        name: token
+        schema:
+          type: string
+        required: true
+      tags:
+      - plataforma
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Convite'
+          description: ''
+  /api/plataforma/convites/{token}/aceitar/:
+    post:
+      operationId: plataforma_convites_aceitar_create
+      summary: Aceitar convite da equipe
+      parameters:
+      - in: path
+        name: token
+        schema:
+          type: string
+        required: true
+      tags:
+      - plataforma
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Senha'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Senha'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Senha'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Etapa'
+          description: ''
+  /api/plataforma/empresas/:
+    get:
+      operationId: plataforma_empresas_list
+      summary: Empresas da plataforma (IMP-05)
+      parameters:
+      - in: query
+        name: busca
+        schema:
+          type: string
+      - in: query
+        name: ordem
+        schema:
+          type: string
+          enum:
+          - -criado_em
+          - -ultimo_acesso_em
+          - nome
+      - in: query
+        name: plano
+        schema:
+          type: integer
+      - in: query
+        name: situacao
+        schema:
+          type: string
+          enum:
+          - ativa
+          - com_problema
+          - em_teste
+          - saindo
+      - in: query
+        name: status
+        schema:
+          type: string
+      tags:
+      - plataforma
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeEmpresas'
+          description: ''
+  /api/plataforma/empresas/{id}/:
+    get:
+      operationId: plataforma_empresas_retrieve
+      summary: Detalhe da empresa (PLT-01)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - plataforma
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmpresaDetalhe'
+          description: ''
+  /api/plataforma/planos/:
+    get:
+      operationId: plataforma_planos_list
+      summary: Planos (PLT-03)
+      tags:
+      - plataforma
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDePlanos'
+          description: ''
+components:
+  schemas:
+    Access:
+      type: object
+      properties:
+        access:
+          type: string
+      required:
+      - access
+    Acoes:
+      type: object
+      properties:
+        entrar_como_suporte:
+          type: boolean
+        estender_teste:
+          type: boolean
+        mudar_plano:
+          type: boolean
+        suspender:
+          type: boolean
+      required:
+      - entrar_como_suporte
+      - estender_teste
+      - mudar_plano
+      - suspender
+    Assinatura:
+      type: object
+      properties:
+        plano:
+          $ref: '#/components/schemas/PlanoDaAssinatura'
+        status:
+          type: string
+        teste:
+          allOf:
+          - $ref: '#/components/schemas/TesteDaAssinatura'
+          nullable: true
+        faixa_aviso:
+          type: string
+          nullable: true
+        uso:
+          $ref: '#/components/schemas/UsoAssinatura'
+        somente_leitura:
+          type: boolean
+      required:
+      - faixa_aviso
+      - plano
+      - somente_leitura
+      - status
+      - teste
+      - uso
+    Codigo:
+      type: object
+      properties:
+        codigo:
+          type: string
+          pattern: ^\d{6}$
+      required:
+      - codigo
+    Configurar2FA:
+      type: object
+      properties:
+        otpauth_uri:
+          type: string
+      required:
+      - otpauth_uri
+    Contagens:
+      type: object
+      properties:
+        todas:
+          type: integer
+        pagantes:
+          type: integer
+        em_teste:
+          type: integer
+        ativa:
+          type: integer
+        com_problema:
+          type: integer
+        saindo:
+          type: integer
+      required:
+      - ativa
+      - com_problema
+      - em_teste
+      - pagantes
+      - saindo
+      - todas
+    Convite:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        nome:
+          type: string
+        funcao:
+          type: string
+        expira_em:
+          type: string
+          format: date-time
+      required:
+      - email
+      - expira_em
+      - funcao
+      - nome
+    EmpresaDetalhe:
+      type: object
+      properties:
+        id:
+          type: integer
+        razao_social:
+          type: string
+        nome_exibicao:
+          type: string
+        cnpj:
+          type: string
+          nullable: true
+        subdominio:
+          type: string
+          nullable: true
+        endereco_acesso:
+          type: string
+        cidade:
+          type: string
+        uf:
+          type: string
+        responsavel:
+          $ref: '#/components/schemas/Responsavel'
+        cliente_desde:
+          type: string
+          format: date
+          nullable: true
+        plano:
+          allOf:
+          - $ref: '#/components/schemas/PlanoResumo'
+          nullable: true
+        ciclo:
+          type: string
+        preco_contratado_centavos:
+          type: integer
+        status:
+          type: string
+        situacao:
+          $ref: '#/components/schemas/Situacao'
+        teste:
+          $ref: '#/components/schemas/Teste'
+        uso:
+          $ref: '#/components/schemas/UsoDetalhe'
+        implantacao:
+          $ref: '#/components/schemas/Implantacao'
+        locacoes_total:
+          type: integer
+        chamados_abertos:
+          type: integer
+        suporte_bloqueado:
+          type: boolean
+        faturas_recentes:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        acoes:
+          $ref: '#/components/schemas/Acoes'
+      required:
+      - acoes
+      - chamados_abertos
+      - ciclo
+      - cidade
+      - cliente_desde
+      - cnpj
+      - endereco_acesso
+      - faturas_recentes
+      - id
+      - implantacao
+      - locacoes_total
+      - nome_exibicao
+      - plano
+      - preco_contratado_centavos
+      - razao_social
+      - responsavel
+      - situacao
+      - status
+      - subdominio
+      - suporte_bloqueado
+      - teste
+      - uf
+      - uso
+    EmpresaLista:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome_exibicao:
+          type: string
+        subdominio:
+          type: string
+        cidade:
+          type: string
+        uf:
+          type: string
+        plano:
+          allOf:
+          - $ref: '#/components/schemas/PlanoResumo'
+          nullable: true
+        status:
+          type: string
+        uso:
+          $ref: '#/components/schemas/UsoNaLista'
+        situacao:
+          $ref: '#/components/schemas/Situacao'
+        ultimo_acesso_em:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - cidade
+      - id
+      - nome_exibicao
+      - plano
+      - situacao
+      - status
+      - subdominio
+      - uf
+      - ultimo_acesso_em
+      - uso
+    Entrar:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        senha:
+          type: string
+        codigo:
+          type: string
+          maxLength: 6
+        codigo_recuperacao:
+          type: string
+          maxLength: 20
+      required:
+      - email
+      - senha
+    EntrarResposta:
+      oneOf:
+      - $ref: '#/components/schemas/Entrou'
+      - $ref: '#/components/schemas/Etapa'
+    Entrou:
+      type: object
+      properties:
+        access:
+          type: string
+        usuario:
+          $ref: '#/components/schemas/UsuarioDaPlataforma'
+        codigos_recuperacao:
+          type: array
+          items:
+            type: string
+      required:
+      - access
+      - usuario
+    Etapa:
+      type: object
+      properties:
+        etapa:
+          $ref: '#/components/schemas/EtapaEnum'
+        token_pre_2fa:
+          type: string
+      required:
+      - etapa
+      - token_pre_2fa
+    EtapaEnum:
+      enum:
+      - configurar_2fa
+      type: string
+      description: '* `configurar_2fa` - configurar_2fa'
+    Eu:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        email:
+          type: string
+          format: email
+        funcao:
+          type: string
+        pode:
+          $ref: '#/components/schemas/Pode'
+        dois_fatores_ativo:
+          type: boolean
+        codigos_recuperacao_restantes:
+          type: integer
+      required:
+      - codigos_recuperacao_restantes
+      - dois_fatores_ativo
+      - email
+      - funcao
+      - id
+      - nome
+      - pode
+    Implantacao:
+      type: object
+      properties:
+        etapa_funil:
+          type: string
+        concluidos:
+          type: integer
+        total:
+          type: integer
+        passos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Passo'
+      required:
+      - concluidos
+      - etapa_funil
+      - passos
+      - total
+    ListaDeEmpresas:
+      type: object
+      properties:
+        contagens:
+          $ref: '#/components/schemas/Contagens'
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmpresaLista'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - contagens
+      - proximo
+      - resultados
+    ListaDePlanos:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Plano'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - proximo
+      - resultados
+    Passo:
+      type: object
+      properties:
+        passo:
+          type: string
+        rotulo:
+          type: string
+        concluido_em:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - concluido_em
+      - passo
+      - rotulo
+    Plano:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        nome:
+          type: string
+          maxLength: 40
+        ativo:
+          type: boolean
+        ordem:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        preco_mensal_centavos:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        meses_cobrados_no_anual:
+          type: integer
+          maximum: 32767
+          minimum: 0
+        preco_anual_centavos:
+          type: integer
+          readOnly: true
+        limite_veiculos:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+        limite_filiais:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+        limite_usuarios:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+        recursos:
+          type: array
+          items:
+            type: string
+        empresas_no_plano:
+          type: integer
+          readOnly: true
+      required:
+      - empresas_no_plano
+      - id
+      - nome
+      - preco_anual_centavos
+      - preco_mensal_centavos
+      - recursos
+    PlanoDaAssinatura:
+      type: object
+      properties:
+        nome:
+          type: string
+        preco_contratado_centavos:
+          type: integer
+        ciclo:
+          type: string
+      required:
+      - ciclo
+      - nome
+      - preco_contratado_centavos
+    PlanoResumo:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+      - id
+      - nome
+    Pode:
+      type: object
+      properties:
+        ver_empresas:
+          type: boolean
+        entrar_como_suporte:
+          type: boolean
+        estender_teste_e_mudar_plano:
+          type: boolean
+        cobranca_e_faturas:
+          type: boolean
+        suspender_empresa:
+          type: boolean
+        planos_e_precos:
+          type: boolean
+        equipe_interna:
+          type: boolean
+      required:
+      - cobranca_e_faturas
+      - entrar_como_suporte
+      - equipe_interna
+      - estender_teste_e_mudar_plano
+      - planos_e_precos
+      - suspender_empresa
+      - ver_empresas
+    Responsavel:
+      type: object
+      properties:
+        nome:
+          type: string
+        email:
+          type: string
+        telefone:
+          type: string
+      required:
+      - email
+      - nome
+      - telefone
+    Senha:
+      type: object
+      properties:
+        senha:
+          type: string
+      required:
+      - senha
+    Situacao:
+      type: object
+      properties:
+        codigo:
+          type: string
+        rotulo:
+          type: string
+        tom:
+          type: string
+      required:
+      - codigo
+      - rotulo
+      - tom
+    Teste:
+      type: object
+      properties:
+        inicio:
+          type: string
+          format: date
+          nullable: true
+        fim:
+          type: string
+          format: date
+          nullable: true
+        dias_restantes:
+          type: integer
+          nullable: true
+      required:
+      - dias_restantes
+      - fim
+      - inicio
+    TesteDaAssinatura:
+      type: object
+      properties:
+        fim:
+          type: string
+          format: date
+        dias_restantes:
+          type: integer
+      required:
+      - dias_restantes
+      - fim
+    UsoAssinatura:
+      type: object
+      properties:
+        veiculos:
+          $ref: '#/components/schemas/UsoDoItemNaAssinatura'
+        filiais:
+          $ref: '#/components/schemas/UsoDoItemNaAssinatura'
+        usuarios:
+          $ref: '#/components/schemas/UsoDoItemNaAssinatura'
+      required:
+      - filiais
+      - usuarios
+      - veiculos
+    UsoDetalhe:
+      type: object
+      properties:
+        veiculos:
+          $ref: '#/components/schemas/UsoDoItem'
+        filiais:
+          $ref: '#/components/schemas/UsoDoItem'
+        usuarios:
+          $ref: '#/components/schemas/UsoDoItem'
+      required:
+      - filiais
+      - usuarios
+      - veiculos
+    UsoDoItem:
+      type: object
+      properties:
+        usado:
+          type: integer
+        limite:
+          type: integer
+          nullable: true
+        aviso:
+          type: boolean
+      required:
+      - aviso
+      - limite
+      - usado
+    UsoDoItemNaAssinatura:
+      type: object
+      properties:
+        usado:
+          type: integer
+        limite:
+          type: integer
+          nullable: true
+        aviso:
+          type: boolean
+        bloqueado:
+          type: boolean
+      required:
+      - aviso
+      - bloqueado
+      - limite
+      - usado
+    UsoNaLista:
+      type: object
+      properties:
+        veiculos:
+          type: integer
+        limite_veiculos:
+          type: integer
+          nullable: true
+        filiais:
+          type: integer
+        usuarios:
+          type: integer
+      required:
+      - filiais
+      - limite_veiculos
+      - usuarios
+      - veiculos
+    UsuarioDaPlataforma:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        email:
+          type: string
+          format: email
+        funcao:
+          type: string
+        pode:
+          $ref: '#/components/schemas/Pode'
+      required:
+      - email
+      - funcao
+      - id
+      - nome
+      - pode
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    jwtPre2fa:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
