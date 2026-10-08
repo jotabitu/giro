@@ -21,7 +21,7 @@ Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-
   "nome": "Filial Centro",
   "matriz": true,
   "ativo": true,
-  "cnpj": "12345678000110",
+  "cnpj": "12345678000195",
   "inscricao_estadual": null,
   "inscricao_municipal": null,
   "endereco": { "cep": "60325000", "logradouro": "Av. Bezerra de Menezes", "numero": "1200", "complemento": null,
@@ -86,7 +86,7 @@ Perfil: administrador. 200: representação da filial.
 Perfil: administrador.
 Corpo:
 ```json
-{ "nome": "Filial Caucaia", "matriz": false, "cnpj": "12345678000200",
+{ "nome": "Filial Caucaia", "matriz": false, "cnpj": "12345678000276",
   "endereco": { "cep": "61600000", "logradouro": "...", "numero": "...", "complemento": null, "bairro": "...", "cidade": "Caucaia", "uf": "CE" },
   "contato": { "telefone": null, "whatsapp": null, "email": null },
   "horario": { "seg": [ { "abre": "08:00", "fecha": "18:00" } ], "...": [] } }

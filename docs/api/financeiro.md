@@ -73,18 +73,27 @@ Query: `?periodo=hoje|semana|mes` (vencimento), `?situacao=atrasadas|vencem_hoje
 ```json
 {
   "indicadores": {
-    "previsto_mes_centavos": 7420000, "previsto_mes_parcelas": 318,
-    "recebido_mes_centavos": 2160000, "recebido_pct": "29.00",
-    "vence_hoje_centavos": 189000, "vence_hoje_parcelas": 9,
+    "previsto_mes_centavos": 7420000, "previsto_mes_parcelas": 301,
+    "recebido_mes_centavos": 2160000, "recebido_pct": "29.11",
+    "vence_hoje_centavos": 90740, "vence_hoje_parcelas": 3,
     "em_atraso_centavos": 164640, "em_atraso_clientes": 2, "em_atraso_parcelas": 2,
     "faixas": { "1_7": 29940, "8_30": 134700, "mais_30": 0 }
   },
-  "contagens": { "todas": 318, "atrasadas": 2, "vencem_hoje": 9, "a_vencer": 226, "pagas": 72 },
+  "contagens": { "todas": 303, "atrasadas": 2, "vencem_hoje": 3, "a_vencer": 226, "pagas": 72 },
   "resultados": [ { ...representação... } ],
   "proximo": "...", "anterior": null
 }
 ```
 Caso do seed (`FIN-01`, CA-017-03): em aberto = Carlos 29940 + Rafael 134700 = **164640** em 2 clientes; Carlos na faixa `1_7`, Rafael na `8_30`.
+
+Números da `FIN-15` (base: contas da filial, sem caução e sem `cancelada` e `renegociada`, valores sem multa e juros):
+- `previsto_mes_*`: contas com vencimento no mês corrente, pagas ou não. `recebido_mes_*`: as `paga` desse previsto (não o que foi pago no mês). `recebido_pct` = recebido ÷ previsto, em valor, com 2 casas (`ROUND_HALF_UP`): 2160000 ÷ 7420000 = **"29.11"**.
+- `vence_hoje_*`: contas não pagas com vencimento hoje. `em_atraso_*` e `faixas`: todas as `atrasada`, de qualquer mês. Os indicadores não mudam com `?periodo=` nem `?situacao=`.
+- `contagens` são as abas da tela, uma chave por aba: `atrasadas` ignora o período (todas as atrasadas); `vencem_hoje`, `a_vencer` e `pagas` seguem o `?periodo=` pelo vencimento; **`todas` = soma das quatro** (aqui 2 + 3 + 226 + 72 = 303). `canceladas` não é aba e não entra em `todas`. O filtro `?situacao=` devolve exatamente as contas contadas na aba.
+- Com `?periodo=mes`, `previsto_mes_parcelas` = `pagas` + `vencem_hoje` + `a_vencer` + as atrasadas que vencem no próprio mês (aqui nenhuma: Carlos venceu em 30 set e Rafael em setembro), então 72 + 3 + 226 = 301.
+- O contador `receber` de `GET /api/painel/contadores/` é `contagens.atrasadas` (`FIN-15`; seed: 2).
+
+Previsto, recebido, a vencer e pagas acima são ilustrativos: o seed ainda não tem a carteira de outubro (`docs/regras-de-negocio.md`, mudanças de 08 out, T-053). Vence hoje é um exemplo que fecha com a tabela de preços (Urbana semanal 29940 + Street semanal 32900 + Entregador 27900 = 90740 em 3 parcelas). O teste da `FIN-15` usa um caso pequeno próprio até a carteira existir.
 
 ### GET /api/financeiro/contas-receber/{id}/
 200: representação mais `historico` (cobranças geradas, mensagens enviadas, baixa, estorno).
