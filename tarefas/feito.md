@@ -41,8 +41,6 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-054 · Componentes e telas apontados na T-048 e na T-053 · design-system · PR #31 · tarefas/handoffs/T-054-design-system.md · 108 testes; FleetBar a 390 px conferido no navegador na T-060
 - T-055 · Contratos alinhados à T-053 e conferência da T-010 · arquiteto · PR #32 · tarefas/handoffs/T-055-arquiteto.md · sem ADR nova; DESTINOS do frontend na T-061
 - T-012 · Filiais · backend · PR #35 · tarefas/handoffs/T-012-backend.md · 258 testes; CA-012-01 a 17; S-12 fora (logo da empresa); 5 decisões para o arquiteto conferir
-- T-061 · Rotas do menu corrigidas na T-055 · frontend · PR a abrir pelo orquestrador · tarefas/handoffs/T-061-frontend.md
-- T-065 · Login trata o 401 e o 429 da T-058 · frontend · PR a abrir pelo orquestrador · tarefas/handoffs/T-065-frontend.md
 - T-061 · Rotas do menu corrigidas na T-055 · frontend · PR #38 · tarefas/handoffs/T-061-frontend.md
 - T-059 · Números da carteira de outubro e textos da T-010 · produto · PR #39 · tarefas/handoffs/T-059-produto.md · cartão do Diego pela opção A; PLT-08 com 5 senhas; CA-010-18; correções nas T-060, T-062, T-063 e T-066
 - T-058 · Correções de segurança da T-057 · backend · PR #40 · tarefas/handoffs/T-058-backend.md · 280 testes; P-01 a P-04 com teste que reproduz o achado; CA-010-18; plataforma.md conferido na T-063
@@ -53,3 +51,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-066 · Textos revisados da T-010 · backend · PR #46 · tarefas/handoffs/T-066-backend.md · 280 testes; assuntos dos e-mails mantidos
 - T-064 · Revisão de segurança da T-058 e da T-012 · seguranca · PR #47 · tarefas/handoffs/T-064-seguranca.md · P-01 a P-04 fechados; F-01, F-02, F-04 e F-05 na T-068; F-03 na T-011
 - T-072 · Token do convite e da redefinição fora do caminho da URL · arquiteto · PR #51 · tarefas/handoffs/T-072-arquiteto.md · P-09; rota da plataforma na T-069, telas na T-073, critério na T-074
+- T-065 · Login trata o 401 e o 429 da T-058 · frontend · PR #54 · tarefas/handoffs/T-065-frontend.md
