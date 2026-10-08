@@ -53,3 +53,5 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-068 · Correções de segurança da T-064 (filiais) · backend · PR #49 · tarefas/handoffs/T-068-backend.md · 291 testes; F-01, F-02, F-04 e F-05; F-03 na T-011
 - T-072 · Token do convite e da redefinição fora do caminho da URL · arquiteto · PR #51 · tarefas/handoffs/T-072-arquiteto.md · P-09; rota da plataforma na T-069, telas na T-073, critério na T-074
 - T-065 · Login trata o 401 e o 429 da T-058 · frontend · PR #54 · tarefas/handoffs/T-065-frontend.md
+- T-074 · Critérios do convite da plataforma com o token no corpo · qa · PR #53 · tarefas/handoffs/T-074-qa.md · CA-010-15 com POST e o token no corpo; xfail até a T-069
+- T-011 · Login, sessões e 2 etapas da empresa · backend · PR #55 · tarefas/handoffs/T-011-backend.md · 315 testes; P-05, P-07, P-08 e R-06; usuários e convite na T-069, suporte na T-070, navegação na T-071
