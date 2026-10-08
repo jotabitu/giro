@@ -64,7 +64,7 @@ function geral(periodo: Periodo): InicioGeral {
         { texto: "2 parcelas vencem até amanhã", gravidade: "info", destino: { chave: "receber", filtro: "situacao=vencem_hoje" } },
       ],
     },
-    caixa_hoje: { filial: "Filial Centro", data: "2026-10-07", status: "aberto", recebido_centavos: 118_260, a_receber_hoje_centavos: 189_000, despesas_centavos: 4_800, saldo_dia_centavos: 113_460 },
+    caixa_hoje: { filial: "Filial Centro", data: "2026-10-07", status: "aberto", recebido_centavos: 118_260, a_receber_hoje_centavos: 90_740, despesas_centavos: 4_800, saldo_dia_centavos: 113_460 },
   };
 }
 
@@ -155,7 +155,7 @@ const vistoriador = (): InicioVistoriador => ({
 const financeiro = (): InicioFinanceiro => ({
   variante: "financeiro",
   kpis: [
-    { chave: "entra_hoje", rotulo: "Entra hoje", valor: { tipo: "centavos", valor: 189_000 }, contexto: "9 parcelas" },
+    { chave: "entra_hoje", rotulo: "Entra hoje", valor: { tipo: "centavos", valor: 90_740 }, contexto: "3 parcelas" },
     { chave: "sai_hoje", rotulo: "Sai hoje", valor: { tipo: "centavos", valor: 41_230 }, contexto: "1 conta a pagar" },
     { chave: "em_atraso", rotulo: "Em atraso", valor: { tipo: "centavos", valor: 164_640 }, contexto: "2 clientes" },
     { chave: "saldo_em_contas", rotulo: "Saldo em contas", valor: null, contexto: null },
