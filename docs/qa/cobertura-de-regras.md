@@ -121,3 +121,145 @@ CA-014-15 (CLI-05, bloqueio automático com 15 dias), CA-014-16 (CLI-05, desbloq
 - PLT-09 e PLT-08 em CA-010-12 a 15 usam os códigos PLT-08 e PLT-09 no nome; CA-010-15 leva PLT-08 por falta de código próprio para convite da equipe.
 - AUD-03, FIL-02 (tarefa urgente), AUT-06, APR-09 aparecem dentro dos critérios CA-011-27, CA-013-18 e CA-014-17, sem teste com o próprio código no nome.
 - Regras fora de T-010 a T-014 (LOC, DEV, FIN, VEN e demais) entram nas próximas tarefas de aceitação.
+
+## Inventário de todas as regras com código
+
+Uma linha por código de `docs/regras-de-negocio.md` (135 códigos). "Testes" conta os testes de esqueleto da tabela acima. Os códigos sem critério não têm teste porque a regra ainda não virou critério de aceite; quando o produto escrever o critério, o qa cria o teste.
+
+| Regra | Testes | Situação |
+| --- | --- | --- |
+| APR-01 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
+| APR-02 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
+| APR-03 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
+| APR-04 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
+| APR-05 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| APR-06 | 1 | esqueleto (T-010 a T-014) |
+| APR-07 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| APR-08 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| APR-09 | 0 | critério escrito em T-015, T-017; teste na tarefa de aceitação correspondente |
+| APR-10 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| AUD-01 | 1 | esqueleto (T-010 a T-014) |
+| AUD-02 | 0 | critério escrito em T-018; teste na tarefa de aceitação correspondente |
+| AUD-03 | 0 | critério escrito em T-018; teste na tarefa de aceitação correspondente |
+| AUD-04 | 3 | esqueleto (T-010 a T-014) |
+| AUD-05 | 2 | esqueleto (T-010 a T-014) |
+| AUD-06 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| AUD-07 | 0 | critério escrito em T-018; teste na tarefa de aceitação correspondente |
+| AUD-08 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| AUD-09 | 1 | esqueleto (T-010 a T-014) |
+| AUT-01 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| AUT-02 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| AUT-03 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| AUT-04 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| AUT-05 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
+| AUT-06 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| AUT-07 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| AUT-08 | 0 | critério escrito em T-017, T-018; teste na tarefa de aceitação correspondente |
+| AUT-09 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| AUT-10 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| AUT-11 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| AUT-12 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| AUT-13 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| AUT-14 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| AUT-15 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| CLI-01 | 2 | esqueleto (T-010 a T-014) |
+| CLI-02 | 2 | esqueleto (T-010 a T-014) |
+| CLI-03 | 3 | esqueleto (T-010 a T-014) |
+| CLI-04 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| CLI-05 | 1 | esqueleto (T-010 a T-014) |
+| CLI-06 | 1 | esqueleto (T-010 a T-014) |
+| CLI-07 | 1 | esqueleto (T-010 a T-014) |
+| CLI-08 | 2 | esqueleto (T-010 a T-014) |
+| CLI-09 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| DEV-01 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
+| DEV-02 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
+| DEV-03 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
+| DEV-04 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
+| DEV-05 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
+| DEV-06 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
+| FIL-01 | 5 | esqueleto (T-010 a T-014) |
+| FIL-02 | 2 | esqueleto (T-010 a T-014) |
+| FIL-03 | 2 | esqueleto (T-010 a T-014) |
+| FIL-04 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| FIL-05 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
+| FIL-06 | 5 | esqueleto (T-010 a T-014) |
+| FIN-01 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
+| FIN-02 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
+| FIN-03 | 0 | critério escrito em T-015, T-017; teste na tarefa de aceitação correspondente |
+| FIN-04 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
+| FIN-05 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
+| FIN-06 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
+| FIN-07 | 0 | critério escrito em T-016, T-017; teste na tarefa de aceitação correspondente |
+| FIN-08 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
+| FIN-09 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
+| FIN-10 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
+| FIN-11 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| FIN-12 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| FIN-13 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| FIN-14 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| IMP-01 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| IMP-02 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| IMP-03 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| IMP-04 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
+| IMP-05 | 2 | esqueleto (T-010 a T-014) |
+| IMP-06 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| LOC-01 | 2 | esqueleto (T-010 a T-014) |
+| LOC-02 | 1 | esqueleto (T-010 a T-014) |
+| LOC-03 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
+| LOC-04 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
+| LOC-05 | 0 | critério escrito em T-015, T-017; teste na tarefa de aceitação correspondente |
+| LOC-06 | 0 | critério escrito em T-015, T-017; teste na tarefa de aceitação correspondente |
+| LOC-07 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
+| LOC-08 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
+| LOC-09 | 0 | critério escrito em T-015, T-016; teste na tarefa de aceitação correspondente |
+| LOC-10 | 0 | critério escrito em T-015, T-016; teste na tarefa de aceitação correspondente |
+| LOC-11 | 0 | critério escrito em T-015, T-016; teste na tarefa de aceitação correspondente |
+| LOC-12 | 0 | critério escrito em T-015, T-016, T-017; teste na tarefa de aceitação correspondente |
+| LOC-13 | 0 | critério escrito em T-015, T-016; teste na tarefa de aceitação correspondente |
+| LOC-14 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
+| LOC-15 | 2 | esqueleto (T-010 a T-014) |
+| MAN-01 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| MAN-02 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| MAN-03 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| MAN-04 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| MAN-05 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| MAN-06 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| PLT-01 | 4 | esqueleto (T-010 a T-014) |
+| PLT-02 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| PLT-03 | 11 | esqueleto (T-010 a T-014) |
+| PLT-04 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| PLT-05 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| PLT-06 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| PLT-07 | 2 | esqueleto (T-010 a T-014) |
+| PLT-08 | 3 | esqueleto (T-010 a T-014) |
+| PLT-09 | 1 | esqueleto (T-010 a T-014) |
+| PLT-10 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| USR-01 | 6 | esqueleto (T-010 a T-014) |
+| USR-02 | 6 | esqueleto (T-010 a T-014) |
+| USR-03 | 1 | esqueleto (T-010 a T-014) |
+| USR-04 | 3 | esqueleto (T-010 a T-014) |
+| USR-05 | 1 | esqueleto (T-010 a T-014) |
+| USR-06 | 7 | esqueleto (T-010 a T-014) |
+| USR-07 | 2 | esqueleto (T-010 a T-014) |
+| VEI-01 | 8 | esqueleto (T-010 a T-014) |
+| VEI-02 | 2 | esqueleto (T-010 a T-014) |
+| VEI-03 | 3 | esqueleto (T-010 a T-014) |
+| VEI-04 | 1 | esqueleto (T-010 a T-014) |
+| VEI-05 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| VEI-06 | 2 | esqueleto (T-010 a T-014) |
+| VEI-07 | 1 | esqueleto (T-010 a T-014) |
+| VEN-01 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| VEN-02 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| VEN-03 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| VEN-04 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| VEN-05 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| VEN-06 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| VEN-07 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| VEN-08 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| VEN-09 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| VEN-10 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| VIS-01 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
+| VIS-02 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
+| VIS-03 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
+| VIS-04 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
+| VIS-05 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
