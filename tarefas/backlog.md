@@ -221,10 +221,6 @@ Levantadas pelo produto em T-059 (08 out 2026):
 ### T-079 · Documentos de veículos, arquivo privado e AUT-06
 - **Agente:** backend · **Depende de:** T-013 · **ADRs:** 0009 (`comum/arquivos.py`: storage privado S3, prefixo `<schema>/<app>/<model>/<id>/`, URL assinada de 15 minutos), 0011 (`notificacoes` no nível 5) · **Regras:** VEI-03, AUT-06, FIL-02, AUD-05 · **Pronto quando:** CA-013-17 a 20 passam, com o código da regra no nome do teste; `comum/arquivos.py` com implementação falsa no desenvolvimento e nos testes, pronta para a T-014; o mínimo de `notificacoes` que o CA-013-18 usa (tarefa urgente e alerta aos gerentes).
 
-### T-080 · Como um app abaixo de aprovações abre um pedido
-- **Agente:** arquiteto · **Depende de:** T-013 (parte do CA-013-16) · **ADRs:** 0011 · **Regras:** APR-06 · **Pronto quando:** decidido, em ADR nova ou emenda à 0011, como `veiculos` (nível 6) cria um `PedidoAprovacao` em `aprovacoes` (nível 7) sem importá-lo, e como a resposta 202 do vistoriador (CA-013-16) devolve o id do pedido; o mesmo caminho serve para `locacoes`, `vendas`, `financeiro`, `manutencao` e `clientes`; diz em qual tarefa o pedido APR-06 do CA-013-16 entra.
-
-
 ### T-014 · Clientes, documentos, bloqueio, LGPD
 - **Agente:** backend · **Depende de:** T-011, T-033 · **Segurança:** S-07, upload validado pelo conteúdo (S-12) · **Regras:** CLI-01 a CLI-08, AUD-04, AUD-05 · **Telas:** Clientes, Cliente · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-014.md` (CA-014-01 a 22; os marcados [integração] voltam no seed completo da T-019) passam, com o código da regra no nome do teste.
 - **Também:** R-02 e R-05 da revisão T-050 (`docs/seguranca/2026-10-08-codigo-t033.md`).
