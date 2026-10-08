@@ -3,12 +3,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button, StatusBadge, TextField } from "@/design-system";
 import { contas, ErroApi, type Eu, type Perfil } from "@/lib/api";
+import { useTokenDoFragmento } from "@/lib/fragmento";
 import { aparelhoAtual, campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { regrasDeSenha } from "@/lib/senha";
 import { useGuardarSessao } from "@/lib/sessao";
@@ -39,13 +40,13 @@ function Fato({ rotulo, children }: { rotulo: string; children: ReactNode }) {
 
 /** Aceite do convite (Convite-Desktop|Mobile, passo 2): confere os dados e cria a senha. */
 export function AceitarConvite() {
-  const { token } = useParams<{ token: string }>();
+  const { pronto, token } = useTokenDoFragmento();
   const router = useRouter();
   const guardar = useGuardarSessao();
   const [erro, setErro] = useState<string | null>(null);
   const [configurar, setConfigurar] = useState<string | null>(null);
 
-  const convite = useQuery({ queryKey: ["convite", token], queryFn: () => contas.obterConvite(token) });
+  const convite = useQuery({ queryKey: ["convite"], queryFn: () => contas.consultarConvite({ token: token! }), enabled: token !== null, retry: false });
   const {
     register,
     handleSubmit,
@@ -62,7 +63,7 @@ export function AceitarConvite() {
   async function criar(v: Campos) {
     setErro(null);
     try {
-      const r = await contas.aceitarConvite(token, { nome: v.nome, senha: v.senha, aparelho: aparelhoAtual() });
+      const r = await contas.aceitarConvite({ token: token!, nome: v.nome, senha: v.senha, aparelho: aparelhoAtual() });
       if (r.etapa === "pronto") concluir(r.usuario);
       else if (r.etapa === "configurar_2fa") setConfigurar(r.token_pre_2fa);
     } catch (e) {
@@ -74,7 +75,18 @@ export function AceitarConvite() {
 
   if (configurar) return <Ativar2fa tokenPre={configurar} exige aoConcluir={concluir} />;
 
-  if (convite.isPending) {
+  if (pronto && token === null) {
+    return (
+      <PaginaAcesso titulo="Convite não encontrado">
+        <Aviso tipo="erro">Este link não tem o convite. Abra o link completo do e-mail ou peça um novo ao administrador.</Aviso>
+        <Link href="/entrar" className="text-caption font-medium underline">
+          Ir para entrar
+        </Link>
+      </PaginaAcesso>
+    );
+  }
+
+  if (!pronto || convite.isPending) {
     return (
       <PaginaAcesso titulo="Crie seu acesso">
         <p className="text-body text-ink-muted" aria-busy="true">

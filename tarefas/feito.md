@@ -57,3 +57,5 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-011 · Login, sessões e 2 etapas da empresa · backend · PR #55 · tarefas/handoffs/T-011-backend.md · 315 testes; P-05, P-07, P-08 e R-06; usuários e convite na T-069, suporte na T-070, navegação na T-071
 - T-069 · Usuários e convite da empresa · backend · PR #56 · tarefas/handoffs/T-069-backend.md · 337 testes; P-06, P-09 e F-03; [decisão] na T-075
 - T-075 · Reativar usuário com convite cancelado · produto · PR #59 · tarefas/handoffs/T-075-produto.md · dono escolheu a opção B em 08/10; regra na T-076, código na T-077
+- T-076 · Regra e critério da reativação com convite cancelado · produto · PR #60 · tarefas/handoffs/T-076-produto.md · USR-04 com a opção B; CA-011-22 com Felipe e Lúcia; código na T-077
+- T-073 · Telas de convite e redefinição com o token no fragmento · frontend · PR #61 · tarefas/handoffs/T-073-frontend.md · /convite e /entrar/redefinir com #token e replaceState; ainda nos dados falsos
