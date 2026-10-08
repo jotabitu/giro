@@ -200,11 +200,6 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - **Depende de:** T-056, T-010
 - **Pronto quando:** a linha da carteira de outubro (T-056) registrada em "Dados de referência para testes"; confirmadas a composição das 35 locações geradas e as divergências apontadas pelo qa (LOC-2841 parcela 2/5, LOC-2790 R$ 1.347,00, cartão R$ 179,70); textos de `faixa_aviso` e dos e-mails de limite e de convite da T-010 revisados; CNPJ da Filial Messejana 12.345.678/0003-57 (decidido pelo dono do produto em 08/10; o 0002-76 é da Caucaia) registrado onde a Messejana aparecer nas regras e nos critérios; `PLT-08` com o bloqueio de 5 senhas erradas por 15 minutos para a equipe da plataforma (decidido em 08/10, P-03 da T-057).
 
-### T-060 · Telas do Receber e do Financeiro com a carteira de outubro
-- **Agente:** design-system
-- **Depende de:** T-059, T-054
-- **Pronto quando:** `Receber` e `Financeiro` (desktop e celular) com os números da carteira registrados na T-059; `FleetBar` da T-054 conferido no navegador a 390 px; CNPJ da Messejana 12.345.678/0003-57 nas telas `Filial` e `Filial-Mobile` (decidido em 08/10).
-
 ### T-061 · Rotas do menu corrigidas na T-055
 - **Agente:** frontend
 - **Depende de:** T-055, T-048
