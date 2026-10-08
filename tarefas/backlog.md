@@ -209,11 +209,29 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - **Depende de:** T-012, T-064
 - **Pronto quando:** F-01 (permissões de administrador somam às padrão, sem perder `EmpresaOperando` e `EscopoDeFilial`; teste de arquitetura no urlconf da empresa), F-02 (`filial_da_requisicao` distingue "todas" de pessoa sem filial, que recebe 403 `USR-07`; o arquiteto confere a interface interna), F-04 (limite por IP sem chave vazia quando falta o IP e com IPv6 agrupado por prefixo; o devops confere o `REMOTE_ADDR` atrás do proxy) e F-05 (limite na busca de CEP) corrigidos, cada um com teste que reproduz o achado; detalhes em `docs/seguranca/2026-10-09-t058-t012.md`.
 
-### T-011 · Contas, perfis, permissões, 2FA, convite
-- **Agente:** backend · **Depende de:** T-012, T-033 · **ADRs:** 0013, 0014 (sessões) · **Segurança:** S-02, S-03, S-08, S-13 · **Regras:** USR-01 a USR-07 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-011.md` (CA-011-01 a 28) passam, com o código da regra no nome do teste. · **Inclui:** `Usuario.status` no lugar de `ativo` e e-mail único sem diferenciar maiúsculas (T-045)
-- **Também:** R-06 da revisão T-050; P-05 a P-09 da revisão T-057 (`docs/seguranca/2026-10-08-codigo-t010.md`, "Distribuição sugerida").
-- **Também:** `EscopoDeFilial` aceita `X-Filial: todas` para o financeiro e `/filiais/minhas/` devolve `pode_escolher_todas` para ele (decisão 5 da T-012 revista na T-063, `docs/api/filiais.md`; `USR-07` corrigida na T-067).
-- **Também:** F-03 da revisão T-064: a troca das filiais de uma pessoa é auditada, não apaga o vínculo do banco (usa `ativo=False`) e recusa filial inativa.
+### T-011 · Login, sessões e 2 etapas da empresa
+- **Agente:** backend · **Depende de:** T-012, T-033, T-058 · **ADRs:** 0013, 0014 (sessões, `sid`) · **Segurança:** S-02, S-03, S-08, S-13 · **Regras:** USR-01, USR-02, USR-04, USR-06 · **Telas:** Login, Acesso-Senha · **Pronto quando:** CA-011-03 a 13, 19, 20, 21, 25 e a parte de login do CA-011-28 (`docs/qa/criterios/T-011.md`) passam, com o código da regra no nome do teste.
+- **Inclui:** `auth/entrar` com os limites de `docs/api/contas.md` (T-063) e 5 erros somando senha e código (USR-06); 2 etapas (configurar, verificar, ativar, desativar, códigos de recuperação) exigidas para todos; `renovar` com rotação; `sair`; sessões (listar, encerrar, encerrar outras) com `Sessao` e `sid`; `eu` com `pode` e permissões extras (sem a navegação, que é da T-071); trocar, esquecer e redefinir senha.
+- **Também:** P-05, P-07 (refresh reusado revoga a sessão) e P-08 (semente TOTP cifrada, códigos de recuperação com hash) da revisão T-057; R-06 da revisão T-050.
+- **Nota:** a T-011 original foi dividida em 08/10 em T-011, T-069, T-070 e T-071, porque não cabia num PR. `Usuario.status` já entrou na T-010.
+
+### T-069 · Usuários e convite da empresa
+- **Agente:** backend · **Depende de:** T-011 · **Regras:** USR-03, USR-05, USR-07 · **Telas:** Convite, Admin-Usuarios · **Pronto quando:** CA-011-01, 02, 14 a 18, 22 a 24 e o resto do CA-011-28 passam, com o código da regra no nome do teste.
+- **Inclui:** usuários (lista com plano e contagens, detalhe, PATCH de perfil, filiais e permissões extras, desativar, reativar, redefinir 2 etapas, sessões pelo administrador); convidar, reenviar, cancelar e aceitar convite; e-mail único sem diferenciar maiúsculas (`Lower(email)`, T-045).
+- **Também:** P-06 e P-09 (token do convite no corpo; contrato com o arquiteto) da revisão T-057; F-03 da revisão T-064 (troca de filiais auditada, `ativo=False`, recusa filial inativa); `EscopoDeFilial` aceita `X-Filial: todas` para o financeiro e `/filiais/minhas/` devolve `pode_escolher_todas` para ele (`docs/api/filiais.md`, USR-07 da T-067); `relatorios_todas_filiais` (USR-03) vale só em painel e relatórios.
+
+### T-070 · Modo suporte
+- **Agente:** backend · **Depende de:** T-011 · **ADRs:** 0013 (item 2, token de suporte) · **Regras:** PLT-07 · **Pronto quando:** CA-011-26 e 27 passam, com o código da regra no nome do teste.
+- **Inclui:** `AcessoSuporte`; abrir o acesso do lado da plataforma, se ainda não houver; token de suporte; `suporte/sair`; bloquear, liberar e revogar; lista de rotas só de leitura.
+
+### T-071 · Navegação do eu
+- **Agente:** backend · **Depende de:** T-011, T-047 · **Regras:** USR-05, USR-08 · **Pronto quando:** `GET /api/auth/eu/` devolve `navegacao` (`menu_inicio`, `menu_completo`, `barra_celular`, `inicio.variante`) como em `docs/api/contas.md`, considerando os recursos do plano e `GIRO_MODULOS_ATIVOS`, com teste por perfil; o frontend troca o falso de `falso-navegacao.ts` numa tarefa própria.
+
+### T-074 · Critérios do convite da plataforma com o token no corpo
+- **Agente:** qa · **Depende de:** T-072 · **Pronto quando:** `docs/qa/criterios/T-010.md` (CA-010-15) e os testes de aceitação que consultam o convite da plataforma seguem `docs/api/plataforma.md` da T-072 (POST com o token no corpo, em vez de `GET /api/plataforma/convites/{token}/`); os testes que dependem da rota nova ficam `xfail` até a T-069.
+
+### T-073 · Telas de convite e redefinição com o token no fragmento
+- **Agente:** frontend · **Depende de:** T-072 · **Telas:** Convite, Acesso-Senha · **Pronto quando:** `/convite` e `/entrar/redefinir` leem o token do fragmento da URL, enviam no corpo do POST conforme a T-072 e limpam o fragmento do histórico, nos dados falsos e com teste.
 
 ### T-013 · Veículos, categorias, documentos, histórico de status
 - **Agente:** backend · **Depende de:** T-012 · **Regras:** VEI-01 a VEI-06 · **Telas:** Frota, Veiculo, Precos · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-013.md` (CA-013-01 a 26) passam, com o código da regra no nome do teste.

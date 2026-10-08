@@ -2,5 +2,4 @@
 
 No máximo uma tarefa por agente. Formato: `T-0xx · título · agente · desde dd/mm`.
 
-- T-065 · Login trata o 401 e o 429 da T-058 · frontend · desde 09/10
 - T-011 · Contas, perfis, permissões, 2FA, convite · backend · desde 09/10

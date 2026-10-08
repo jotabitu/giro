@@ -302,8 +302,16 @@ def test_plt_08_entrar_com_limite_por_ip_e_por_email(db):
 @pytest.mark.parametrize(
     ("metodo", "caminho"),
     [
-        ("get", "/api/plataforma/convites/abc/"),
-        ("post", "/api/plataforma/convites/abc/aceitar/"),
+        pytest.param(
+            "post",
+            "/api/plataforma/convites/consultar/",
+            marks=pytest.mark.xfail(strict=False, reason="T-069: rota nova do convite (T-072)"),
+        ),
+        pytest.param(
+            "post",
+            "/api/plataforma/convites/aceitar/",
+            marks=pytest.mark.xfail(strict=False, reason="T-069: rota nova do convite (T-072)"),
+        ),
         ("post", "/api/plataforma/auth/renovar/"),
     ],
 )

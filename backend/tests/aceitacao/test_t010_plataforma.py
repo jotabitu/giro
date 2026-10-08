@@ -539,6 +539,9 @@ def test_plt_09_ca_010_14_funcoes_da_equipe(equipe):
         assert fase_2.status_code == 404, nome
 
 
+@pytest.mark.xfail(
+    strict=True, reason="T-069: convite da plataforma com o token no corpo (T-072, docs/api)"
+)
 def test_plt_08_ca_010_15_convite_da_equipe_vence_em_7_dias(publico, relogio):
     relogio.em("2026-10-07 10:00")
     saida = StringIO()
@@ -550,23 +553,25 @@ def test_plt_08_ca_010_15_convite_da_equipe_vence_em_7_dias(publico, relogio):
         "Larissa Melo",
         stdout=saida,
     )
-    achado = re.search(r"/convite/(\S+)", saida.getvalue())
+    achado = re.search(r"/convite[#/](\S+)", saida.getvalue())
     assert achado is not None
-    caminho = f"/api/plataforma/convites/{achado.group(1)}/"
+    token = achado.group(1)
+    consultar = "/api/plataforma/convites/consultar/"
+    aceitar = "/api/plataforma/convites/aceitar/"
     api = cliente(HOST_PLATAFORMA)
 
     relogio.em("2026-10-13 10:00")
-    resposta = api.get(caminho)
+    resposta = api.post(consultar, {"token": token}, format="json")
     assert resposta.status_code == 200
     assert (resposta.json()["nome"], resposta.json()["funcao"]) == ("Larissa Melo", "suporte")
 
     relogio.em("2026-10-15 10:00")
-    vencido = api.get(caminho)
+    vencido = api.post(consultar, {"token": token}, format="json")
     assert vencido.status_code == 410
     assert vencido.json()["codigo"] == "convite_expirado"
 
     relogio.em("2026-10-13 10:00")
-    aceito = api.post(f"{caminho}aceitar/", {"senha": SENHA}, format="json")
+    aceito = api.post(aceitar, {"token": token, "senha": SENHA}, format="json")
     assert aceito.status_code == 200
     assert aceito.json()["etapa"] == "configurar_2fa"
     larissa = Usuario.objects.get(email="larissa@girolocadoras.com.br")
