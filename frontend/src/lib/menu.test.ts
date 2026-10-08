@@ -86,9 +86,41 @@ describe("barra do celular vinda de eu.navegacao.barra_celular", () => {
 describe("destino de pendência do painel", () => {
   it("monta rota com filtro e id", () => {
     expect(hrefDoDestino("locacoes", "aba=precisam_acao")).toBe("/locacoes?aba=precisam_acao");
-    expect(hrefDoDestino("contas_a_pagar", undefined, 803)).toBe("/financeiro/pagar/803");
+    expect(hrefDoDestino("contas_a_pagar", undefined, 803)).toBe("/financeiro/despesas/803");
     expect(hrefDoDestino("nova_locacao")).toBe("/locacoes/nova");
     expect(hrefDoDestino("desconhecido")).toBeUndefined();
+  });
+});
+
+describe("rotas do menu (T-055, docs/telas/README.md)", () => {
+  const grupo = (...chaves: string[]) => [{ grupo: null, itens: chaves.map((chave) => ({ chave, rotulo: chave, contador: null })) }];
+
+  it("itens do menu do início usam as rotas corrigidas", () => {
+    const itens = montarMenu(
+      grupo("agenda", "avarias", "consultar_veiculo", "contas_a_pagar", "caixa_e_bancos", "propostas", "minhas_vendas", "veiculos_a_venda", "minhas_comissoes"),
+      "/inicio",
+    )[0]!.itens;
+    expect(Object.fromEntries(itens.map((i) => [i.chave, i.href]))).toEqual({
+      agenda: "/vistorias",
+      avarias: "/vistorias/avarias",
+      consultar_veiculo: "/veiculos",
+      contas_a_pagar: "/financeiro/despesas",
+      caixa_e_bancos: "/financeiro/caixa",
+      propostas: "/vendas?aba=propostas",
+      minhas_vendas: "/vendas",
+      veiculos_a_venda: "/veiculos?status=a_venda",
+      minhas_comissoes: "/financeiro/comissoes",
+    });
+  });
+
+  it("rota ativa compara só o caminho, sem a query, e marca um item por vez", () => {
+    const itens = montarMenu(grupo("minhas_vendas", "propostas", "veiculos_a_venda"), "/vendas")[0]!.itens;
+    expect(itens.map((i) => i.ativo)).toEqual([true, false, false]);
+    expect(montarMenu(grupo("veiculos_a_venda"), "/veiculos/501")[0]!.itens[0]!.ativo).toBe(true);
+  });
+
+  it("destino com query na rota junta o filtro", () => {
+    expect(hrefDoDestino("propostas", "situacao=abertas")).toBe("/vendas?aba=propostas&situacao=abertas");
   });
 });
 
