@@ -23,3 +23,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-042 · Componente de código de 6 dígitos · design-system · PR #10 · tarefas/handoffs/T-042-design-system.md
 - T-020 · Telas de acesso e casca do app · frontend · PR #11 · tarefas/handoffs/T-020-frontend.md · dados falsos até a T-011; 390 px a validar com emulação (Edge headless não abre abaixo de 492 px)
 - T-047 · Menu por permissão e agregados do painel · arquiteto · PR #12 · tarefas/handoffs/T-047-arquiteto.md · com USR-08 do produto
+- T-040 · Cobertura de regras e testes de aceitação de T-010 a T-014 · qa · PR #14 · tarefas/handoffs/T-040-qa.md · 105 xfail; inventário de 135 códigos de regra
