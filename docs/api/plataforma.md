@@ -49,9 +49,10 @@ Corpo: `{ email, senha, codigo }` (6 dígitos do autenticador) **ou** `{ email, 
 }
 ```
 200 `{ "etapa": "configurar_2fa", "token_pre_2fa": "<jwt, 5 min>" }`: senha certa, mas a pessoa ainda não tem autenticador (ex.: dono criado por comando). O frontend segue para `2fa/configurar/`.
-400 `validacao`: campo faltando.
-401 `{ "codigo": "credenciais_invalidas", "mensagem": "E-mail, senha ou código incorretos" }`: a resposta não diz qual dos três errou.
-429 `{ "codigo": "PLT-08", "mensagem": "Acesso bloqueado por 15 minutos depois de 3 códigos errados", "detalhes": { "tentar_de_novo_em": "..." } }`: o 3º código errado bloqueia e grava evento de segurança na auditoria do `public`.
+400 `validacao`: `email` ou `senha` faltando.
+401 `{ "codigo": "credenciais_invalidas", "mensagem": "E-mail, senha ou código incorretos" }`: a resposta não diz qual dos três errou. Quem tem autenticador e não manda código recebe este 401, com a senha certa ou errada (T-058).
+429 `{ "codigo": "PLT-08", "mensagem": "Acesso bloqueado por 15 minutos depois de 3 códigos errados", "detalhes": { "tentar_de_novo_em": "..." } }`: o 3º código errado bloqueia e grava evento de segurança na auditoria do `public`. A 5ª senha errada (ou sem código) também bloqueia, com a mensagem "Acesso bloqueado por 15 minutos depois de 5 senhas erradas". Enquanto o bloqueio vale, nem a senha é conferida.
+429 `{ "codigo": "muitas_requisicoes", "mensagem": "Muitas tentativas seguidas. Espere um pouco e tente de novo.", "detalhes": { "tentar_de_novo_em_segundos": 42 } }` e cabeçalho `Retry-After`: limite de requisições, 10 por minuto e 50 por hora por IP e por e-mail. `convites/`, `renovar` e `2fa/` têm 30 por minuto por IP.
 403 `{ "codigo": "usuario_inativo" }`: convite pendente ou desativado.
 Auditoria: `seguranca`, `usuario.entrar` (sucesso) e `usuario.entrar_falhou` (com IP e aparelho).
 Regras: PLT-08.
@@ -63,7 +64,7 @@ Aceita só `Authorization: Bearer <token_pre_2fa>`.
 ### POST /api/plataforma/auth/2fa/verificar/
 Aceita só `Authorization: Bearer <token_pre_2fa>`. Corpo: `{ codigo }`.
 200: igual ao `entrar` (access + cookie), mais `"codigos_recuperacao": ["xxxx-xxxx", "..."]` quando o dispositivo acabou de ser confirmado; os códigos só aparecem esta vez.
-401 `credenciais_invalidas`; 429 `PLT-08` (mesma contagem de 3 erros).
+401 `credenciais_invalidas`; 429 `PLT-08` (mesma contagem de 3 erros, com a linha do usuário travada: tentativas em paralelo passam uma de cada vez).
 
 ### POST /api/plataforma/auth/renovar/
 Sem corpo; lê o cookie. 200: `{ access }` e cookie novo (refresh rotativo; o anterior vai para a blacklist). 401 se vencido, na blacklist, de usuário inativo ou de outra empresa (`schema`/`empresa_id`).
