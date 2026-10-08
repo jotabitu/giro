@@ -160,6 +160,7 @@ REST_FRAMEWORK = {
         "entrar_email_minuto": "10/min",
         "entrar_email_hora": "50/hour",
         "acesso_ip": "30/min",
+        "cep_usuario": "30/min",
     },
 }
 

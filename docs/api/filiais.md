@@ -162,7 +162,9 @@ Implementado em `backend/integracoes/cep/` atrás de uma interface, com implemen
 | Função | Uso |
 | --- | --- |
 | `filiais.selectors.filiais_do_usuario(usuario)` | ids das filiais ativas da pessoa (todas, para administrador). Registrada em `comum.permissoes` no `AppConfig.ready()` (`USR-07`). |
-| `filiais.selectors.filial_da_requisicao(request)` | filial escolhida pelo `X-Filial` (ou `None` para "todas"). |
+| `filiais.selectors.filtrar_por_filial(queryset, request, campo="filial")` | **o único jeito de um módulo filtrar pelo escopo de filial** (T-068, F-02 da T-064). Com uma filial, filtra por ela. Com "todas", filtra por `campo__in` com todas as filiais da empresa, ativas e desativadas (a desativada ainda tem contas e histórico, `USR-07` e `FIL-06`). Pessoa sem filial ativa e sem `X-Filial` recebe 403 `{ "codigo": "USR-07", "mensagem": "Você não tem acesso a nenhuma filial" }`. |
+| `filiais.selectors.filial_da_requisicao(request)` | usada por `filtrar_por_filial`; nenhum outro app a chama (teste de arquitetura em `tests/test_permissoes_das_rotas.py`). Devolve a `Filial` do `X-Filial` (só ativa do escopo) ou `TodasAsFiliais(ids)`, nunca `None`. Sem cabeçalho, devolve a matriz, se a pessoa tem acesso a ela, ou a primeira filial dela. Sem filial nenhuma, 403 `USR-07`. `/filiais/minhas/` e `/auth/eu/` não chamam a função: continuam respondendo, com a lista vazia. |
+| `comum.permissoes.com_padrao(*extras)` | permissões de uma view: as padrão (`IsAuthenticated`, `EmpresaOperando`, `EscopoDeFilial`) mais as extras. Declarar a lista à mão derruba as padrão (F-01 da T-064). |
 | `filiais.selectors.esta_aberta(filial, momento) -> bool` e `proxima_abertura(filial, momento)` | `LOC-11`; consideram horário e feriados ativos (`FIL-03`). |
 | assinante de `contas.filiais_do_usuario_definidas` | grava `UsuarioFilial` no convite e na edição de usuário (ver `contas.md`); `contas` não chama `filiais` direto (ADR 0011). |
 
