@@ -187,12 +187,12 @@ Levantadas pelo produto em T-053 (08 out 2026):
 ### T-059 · Números da carteira de outubro e textos da T-010
 - **Agente:** produto
 - **Depende de:** T-056, T-010
-- **Pronto quando:** a linha da carteira de outubro (T-056) registrada em "Dados de referência para testes"; confirmadas a composição das 35 locações geradas e as divergências apontadas pelo qa (LOC-2841 parcela 2/5, LOC-2790 R$ 1.347,00, cartão R$ 179,70); textos de `faixa_aviso` e dos e-mails de limite e de convite da T-010 revisados; CNPJ da Filial Messejana decidido (proposta: 12.345.678/0003-57, porque o 0002-76 é da Caucaia).
+- **Pronto quando:** a linha da carteira de outubro (T-056) registrada em "Dados de referência para testes"; confirmadas a composição das 35 locações geradas e as divergências apontadas pelo qa (LOC-2841 parcela 2/5, LOC-2790 R$ 1.347,00, cartão R$ 179,70); textos de `faixa_aviso` e dos e-mails de limite e de convite da T-010 revisados; CNPJ da Filial Messejana 12.345.678/0003-57 (decidido pelo dono do produto em 08/10; o 0002-76 é da Caucaia) registrado onde a Messejana aparecer nas regras e nos critérios; `PLT-08` com o bloqueio de 5 senhas erradas por 15 minutos para a equipe da plataforma (decidido em 08/10, P-03 da T-057).
 
 ### T-060 · Telas do Receber e do Financeiro com a carteira de outubro
 - **Agente:** design-system
 - **Depende de:** T-059, T-054
-- **Pronto quando:** `Receber` e `Financeiro` (desktop e celular) com os números da carteira registrados na T-059; `FleetBar` da T-054 conferido no navegador a 390 px; CNPJ da Messejana como decidido na T-059.
+- **Pronto quando:** `Receber` e `Financeiro` (desktop e celular) com os números da carteira registrados na T-059; `FleetBar` da T-054 conferido no navegador a 390 px; CNPJ da Messejana 12.345.678/0003-57 nas telas `Filial` e `Filial-Mobile` (decidido em 08/10).
 
 ### T-061 · Rotas do menu corrigidas na T-055
 - **Agente:** frontend
@@ -205,7 +205,7 @@ Levantadas pelo produto em T-053 (08 out 2026):
 - **Agente:** backend · **Prioridade:** antes de qualquer ambiente com dados reais (homologação incluída)
 - **Depende de:** T-010, T-057
 - **Pronto quando:** P-01 (login do Django Admin com o bloqueio do `PLT-08` e auditado), P-02 (contagem de códigos errados com `select_for_update` antes de verificar, sem corrida em paralelo), P-03 (throttle no login da equipe e a mesma resposta para senha errada e senha certa sem código) e P-04 (subdomínio que vira schema existente ou reservado do Postgres, como `information_schema` e `pg_*`, recusado com 400 `validacao`) corrigidos, cada um com teste que reproduz o achado; detalhes em `docs/seguranca/2026-10-08-codigo-t010.md`.
-- [decisão] P-03: a equipe da plataforma também fica bloqueada por 15 minutos depois de 5 senhas erradas, como no `USR-06`? A seguranca sugere que sim. Com o dono do produto, via orquestrador.
+- Decidido em 08/10 pelo dono do produto (P-03): a equipe da plataforma também fica bloqueada por 15 minutos depois de 5 senhas erradas, como no `USR-06`. O produto registra na `PLT-08` (T-059); o teste do bloqueio por senha entra nesta tarefa.
 - **Também (devops):** limite de requisições no proxy para `/api/*/auth/` e `/admin/login/` (P-03, S-17), quando houver proxy de homologação.
 
 ### T-011 · Contas, perfis, permissões, 2FA, convite
