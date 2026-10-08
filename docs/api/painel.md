@@ -80,7 +80,7 @@ A resposta tem sempre `variante` (a mesma de `eu.navegacao.inicio.variante`), `s
                { "texto": "2 parcelas vencem até amanhã", "gravidade": "info", "destino": { "chave": "receber", "filtro": "situacao=vencem_hoje" } } ]
   },
   "caixa_hoje": { "filial": "Filial Centro", "data": "2026-10-07", "status": "aberto",
-                  "recebido_centavos": 118260, "a_receber_hoje_centavos": 189000, "despesas_centavos": 4800, "saldo_dia_centavos": 113460 }
+                  "recebido_centavos": 118260, "a_receber_hoje_centavos": 90740, "despesas_centavos": 4800, "saldo_dia_centavos": 113460 }
 }
 ```
 - `atencao` e `pendencias.titulo` contam as locações da aba `precisam_acao` (`locacoes.md`).
@@ -89,7 +89,7 @@ A resposta tem sempre `variante` (a mesma de `eu.navegacao.inicio.variante`), `s
 - `em_atraso`: clientes com conta `atrasada`, e o total em atraso no contexto (seed: 2 clientes, R$ 1.646,40).
 - `devolucoes_semana`: locações com fim previsto de hoje até 6 dias à frente, mais as `devolucao_atrasada`, em ordem de data; `situacao` como na lista de locações.
 - `pendencias.itens`: devoluções atrasadas, parcelas que vencem até amanhã e, quando o app `manutencao` existir, preventivas vencidas. Cada item leva `destino` (chave do menu e filtro) para "Ver pendências".
-- `caixa_hoje`: o caixa do dia da filial (`null` com `X-Filial: todas` ou sem caixa aberto); `saldo_dia_centavos` = recebido − despesas pagas no caixa.
+- `caixa_hoje`: o caixa do dia da filial (`null` com `X-Filial: todas` ou sem caixa aberto); `saldo_dia_centavos` = recebido − despesas pagas no caixa. `a_receber_hoje_centavos` é o "vence hoje" da `FIN-15` (contas não pagas com vencimento hoje), o mesmo `vence_hoje_centavos` de `financeiro.md`. O 90740 do exemplo é ilustrativo (3 parcelas: Urbana semanal R$ 299,40, Street semanal R$ 329,00 e Entregador R$ 279,00); o número do seed de 07 out entra com a carteira de outubro (T-053).
 
 ### Variante `implantacao` (administrador antes da 1ª locação ou venda, tela `Pos-Dashboard`)
 
@@ -157,7 +157,7 @@ Sem valores em dinheiro. As abas Amanhã e Semana chamam `GET /api/vistorias/age
 ```json
 {
   "kpis": [
-    { "chave": "entra_hoje", "rotulo": "Entra hoje", "valor": { "tipo": "centavos", "valor": 189000 }, "contexto": "9 parcelas" },
+    { "chave": "entra_hoje", "rotulo": "Entra hoje", "valor": { "tipo": "centavos", "valor": 90740 }, "contexto": "3 parcelas" },
     { "chave": "sai_hoje", "rotulo": "Sai hoje", "valor": { "tipo": "centavos", "valor": 41230 }, "contexto": "1 conta a pagar" },
     { "chave": "em_atraso", "rotulo": "Em atraso", "valor": { "tipo": "centavos", "valor": 164640 }, "contexto": "2 clientes" },
     { "chave": "saldo_em_contas", "rotulo": "Saldo em contas", "valor": null, "contexto": null }
@@ -170,7 +170,7 @@ Sem valores em dinheiro. As abas Amanhã e Semana chamam `GET /api/vistorias/age
   "fluxo_previsto": null, "conciliacao": null
 }
 ```
-- `entra_hoje`: contas com vencimento hoje; `sai_hoje`: despesas `a_pagar` com vencimento hoje; `em_atraso`: total `atrasada` e número de clientes.
+- `entra_hoje`: o "vence hoje" da `FIN-15` (contas não pagas com vencimento hoje, sem caução), com a quantidade de parcelas no contexto; mesmo número de `caixa_hoje.a_receber_hoje_centavos` e de `vence_hoje_*` em `financeiro.md` (exemplo ilustrativo, ver variante `geral`); `sai_hoje`: despesas `a_pagar` com vencimento hoje; `em_atraso`: total `atrasada` e número de clientes.
 - `para_hoje` (`USR-08`): só reembolsos `a_fazer` e despesas a pagar vencendo até hoje. **Sem aprovações**: o financeiro não decide `APR-03` nem `APR-04`.
 - `saldo_em_contas`, `fluxo_previsto` e `conciliacao` vêm `null` até a fase 2 (conciliação bancária).
 
