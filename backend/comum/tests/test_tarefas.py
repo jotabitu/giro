@@ -150,3 +150,41 @@ def test_tarefa_sem_ator_e_do_sistema_e_sistema_nao_vai_para_a_fila(publico):
     from comum.tarefas import ator_para_fila
 
     assert ator_para_fila() is None
+
+
+def test_cli_01_cifra_e_hash_dentro_de_tarefa_de_empresa(publico):
+    """R-01 da T-050: dentro da tarefa a conexão tem a empresa real, com id."""
+    from comum import cripto
+    from comum.conexao import conexao
+    from tests.app_exemplo.models import Pessoa
+
+    empresa_a = Empresa.objects.get(schema_name="empresa_a")
+    visto: dict[str, Any] = {}
+
+    @tarefa_de_empresa
+    def importar_clientes(schema_name: str) -> None:
+        pessoa = Pessoa(nome="Larissa Souza")
+        pessoa.definir_documento("123.218.330-45")
+        pessoa.save()
+        visto["hash"] = pessoa.documento_hash
+        visto["claro"] = Pessoa.objects.get(pk=pessoa.pk).documento_claro()
+
+    importar_clientes("empresa_a")
+
+    # O mesmo hash que a requisição da empresa A calcularia.
+    conexao().set_tenant(empresa_a)
+    assert visto["hash"] == cripto.hash_busca("12321833045")
+    assert visto["claro"] == "123.218.330-45"
+    with na_empresa("empresa_a"):
+        assert Pessoa.objects.get(documento_hash=visto["hash"]).nome == "Larissa Souza"
+
+
+def test_ator_do_suporte_sem_acesso_e_recusado(publico):
+    """R-04 da T-050: ação do suporte sempre com o acesso que a justifica (AUD-03, PLT-07)."""
+
+    @tarefa_de_empresa
+    def exportar(schema_name: str) -> None:
+        pass
+
+    with pytest.raises(ValueError, match="acesso_suporte_id"):
+        exportar("empresa_a", ator={"tipo": "suporte", "id": 1, "acesso_suporte_id": None})

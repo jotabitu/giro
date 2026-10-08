@@ -29,3 +29,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-033 · Dados sensíveis na fundação · backend · PR #16 · tarefas/handoffs/T-033-backend.md · 127 testes; dependência cryptography
 - T-046 · Componentes pedidos pela T-020 · design-system · PR #15 · tarefas/handoffs/T-046-design-system.md · sem dependência nova
 - T-049 · Divergências de tela restauradas · produto · PR #13 · tarefas/handoffs/T-049-produto.md
+- T-034 · Auditoria e Celery endurecidos · backend · PR a abrir (branch t-034-auditoria-celery) · tarefas/handoffs/T-034-backend.md · S-10, S-11, C-03, C-05, R-01 e R-04 da T-050; inclui a T-033 (mesclar o PR #16 antes); GRANT giro_expurgo TO giro_migracao pedido ao devops
