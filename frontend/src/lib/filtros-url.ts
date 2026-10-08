@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /** Filtros da lista na própria URL: o link da lista filtrada se compartilha e o voltar do navegador funciona. */
 export function useFiltrosNaUrl() {
@@ -25,4 +25,15 @@ export function useFiltrosNaUrl() {
   );
 
   return { valor: (chave: string) => params.get(chave), definir };
+}
+
+/** Campo de busca com atraso de 300 ms antes de ir para a URL (e para a API). Devolve o texto digitado e o já aplicado. */
+export function useBuscaNaUrl(definir: (m: Record<string, string | null>) => void, naUrl: string) {
+  const [texto, setTexto] = useState(naUrl);
+  useEffect(() => {
+    if (texto === naUrl) return;
+    const t = setTimeout(() => definir({ busca: texto }), 300);
+    return () => clearTimeout(t);
+  }, [texto, naUrl, definir]);
+  return [texto, setTexto] as const;
 }

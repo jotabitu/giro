@@ -59,8 +59,11 @@ export type NovoCliente = {
 export type ItemAnalise = { codigo: string; situacao: "ok" | "pendente" | "problema"; rotulo: string };
 export type AnaliseCadastro = { itens: ItemAnalise[] };
 
+export type DocumentoDoCliente = { tipo: TipoDocumentoCliente; enviado_em: string | null };
+
 export type ClienteCompleto = ClienteResumo & {
   documento: string;
+  documentos: DocumentoDoCliente[];
   pendencias: string[];
   analise: AnaliseCadastro;
 };

@@ -148,7 +148,7 @@ function pendenciasDe(c: NovoCliente): string[] {
 }
 
 function completo(r: Registro): ClienteCompleto {
-  return { ...resumo(r), documento: r.documento, pendencias: r.pendencias, analise: analisarCorpo({ tipo: r.tipo, documento: r.documento, cnh: { categoria: "A" } }, r.anexos.length) };
+  return { ...resumo(r), documento: r.documento, documentos: TIPOS_DOCUMENTO.map((tipo) => ({ tipo, enviado_em: r.anexos.includes(tipo) ? "2026-10-07T12:00:00Z" : null })), pendencias: r.pendencias, analise: analisarCorpo({ tipo: r.tipo, documento: r.documento, cnh: { categoria: "A" } }, r.anexos.length) };
 }
 
 function normalizar(t: string): string {
