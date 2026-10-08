@@ -9,6 +9,7 @@ from typing import Any
 
 import pytest
 from django.core import mail
+from django.core.cache import cache
 from django.core.management import call_command
 from django.db import connection, connections, transaction
 from django_otp.plugins.otp_totp.models import TOTPDevice
@@ -451,6 +452,44 @@ def test_plt_08_ca_010_13_tres_codigos_errados_bloqueiam_por_15_minutos(equipe, 
     evento = EventoAuditoria.objects.get(acao="usuario.bloqueado", objeto_id=diego.pk)
     assert (evento.categoria, evento.regra) == ("seguranca", "PLT-08")
     assert (evento.ip, evento.aparelho) == ("10.0.0.5", "pytest")
+
+
+def test_plt_08_ca_010_18_cinco_senhas_erradas_bloqueiam_por_15_minutos(equipe, relogio):
+    caio, dispositivo = equipe["Caio Ribeiro"]
+    api = cliente(HOST_PLATAFORMA)
+    errada = {"email": caio.email, "senha": "palpite", "codigo": codigo_atual(dispositivo)}
+
+    relogio.em("2026-10-07 10:00")
+    for _ in range(4):
+        assert api.post(ENTRAR, errada, format="json").status_code == 401
+    quinta = api.post(ENTRAR, errada, format="json")
+    assert quinta.status_code == 429
+    assert quinta.json()["codigo"] == "PLT-08"
+    assert quinta.json()["detalhes"]["tentar_de_novo_em"] == "2026-10-07T13:15:00Z"  # 10:15
+
+    relogio.em("2026-10-07 10:14")
+    certo = {"email": caio.email, "senha": SENHA, "codigo": codigo_atual(dispositivo)}
+    assert api.post(ENTRAR, certo, format="json").status_code == 429
+    relogio.em("2026-10-07 10:15")
+    assert api.post(ENTRAR, certo, format="json").status_code == 200
+
+    evento = EventoAuditoria.objects.get(acao="usuario.bloqueado", objeto_id=caio.pk)
+    assert (evento.categoria, evento.regra) == ("seguranca", "PLT-08")
+    assert (evento.ip, evento.aparelho) == ("10.0.0.5", "pytest")
+
+    # 4 erradas e a certa: entra e a contagem volta a zero, então mais 4 erradas não bloqueiam.
+    cache.clear()  # o limite de requisições por minuto (comum.limites) não é o assunto aqui
+    relogio.em("2026-10-07 11:00")
+    for _ in range(4):
+        assert api.post(ENTRAR, errada, format="json").status_code == 401
+    liberar_codigo(dispositivo)
+    certo["codigo"] = codigo_atual(dispositivo)
+    assert api.post(ENTRAR, certo, format="json").status_code == 200
+    for _ in range(4):
+        assert api.post(ENTRAR, errada, format="json").status_code == 401
+    caio.refresh_from_db()
+    assert caio.bloqueado_ate is None
+    assert EventoAuditoria.objects.filter(acao="usuario.bloqueado", objeto_id=caio.pk).count() == 1
 
 
 def test_plt_09_ca_010_14_funcoes_da_equipe(equipe):

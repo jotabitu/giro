@@ -102,3 +102,13 @@ class Relogio:
 @pytest.fixture
 def relogio(monkeypatch) -> Relogio:
     return Relogio(monkeypatch)
+
+
+@pytest.fixture(autouse=True)
+def _cache_limpo():
+    """O limite de requisições (comum.limites) conta no cache: cada teste começa do zero."""
+    from django.core.cache import cache
+
+    cache.clear()
+    yield
+    cache.clear()

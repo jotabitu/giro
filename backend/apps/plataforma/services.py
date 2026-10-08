@@ -11,9 +11,14 @@ from datetime import timedelta
 from typing import Any
 
 from django.conf import settings
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, ProgrammingError, transaction
 from django.db.models import Q
-from django_tenants.utils import get_public_schema_name, schema_context, tenant_context
+from django_tenants.utils import (
+    get_public_schema_name,
+    schema_context,
+    schema_exists,
+    tenant_context,
+)
 
 from comum import relogio
 from comum.auditoria import Categoria, registrar_evento, retrato
@@ -24,7 +29,12 @@ from comum.eventos import publicar
 
 from .models import DIAS_DE_TESTE, Dominio, Empresa, Item, Plano, UsoEmpresa
 
-SUBDOMINIOS_RESERVADOS = frozenset({"admin", "www", "api", "app", "suporte", "status"})
+SUBDOMINIOS_RESERVADOS = frozenset(
+    {"admin", "www", "api", "app", "suporte", "status", "public", "information-schema"}
+)
+# Schemas do próprio Postgres (`pg_catalog`, `pg_toast`...): o subdomínio `pg-*` viraria um deles.
+_PREFIXO_DO_POSTGRES = "pg-"
+RESERVADO = "Este endereço é reservado. Escolha outro."
 _SUBDOMINIO = re.compile(r"^[a-z0-9-]{3,30}$")
 
 # Passos do assistente de implantação, na ordem do contrato (Plat-Empresa-Detalhe).
@@ -82,8 +92,10 @@ def _validar(subdominio: str, cnpj: str, administrador: Administrador) -> dict[s
     erros: dict[str, list[str]] = {}
     if not _SUBDOMINIO.match(subdominio):
         erros["subdominio"] = ["Use de 3 a 30 letras minúsculas, números ou hífen."]
-    elif subdominio in SUBDOMINIOS_RESERVADOS | {settings.SUBDOMINIO_PLATAFORMA}:
-        erros["subdominio"] = ["Este endereço é reservado. Escolha outro."]
+    elif subdominio.startswith(_PREFIXO_DO_POSTGRES) or subdominio in (
+        SUBDOMINIOS_RESERVADOS | {settings.SUBDOMINIO_PLATAFORMA}
+    ):
+        erros["subdominio"] = [RESERVADO]
     if not cnpj_valido(cnpj):
         erros["cnpj"] = ["CNPJ inválido"]
     if not administrador.nome.strip():
@@ -94,16 +106,23 @@ def _validar(subdominio: str, cnpj: str, administrador: Administrador) -> dict[s
 
 
 def validar_criacao(subdominio: str, cnpj: str, administrador: Administrador) -> None:
-    """400 `validacao` para formato; 409 `subdominio_em_uso` ou `cnpj_em_uso` (PLT-01)."""
+    """400 `validacao` para formato; 409 `subdominio_em_uso` ou `cnpj_em_uso` (PLT-01).
+
+    Subdomínio cujo schema já existe no Postgres sem ser de empresa (`information_schema`, de
+    extensão, de ferramenta) é recusado como reservado (P-04 da T-057).
+    """
     erros = _validar(subdominio, cnpj, administrador)
     if erros:
         raise ErroDeValidacao(erros)
     with schema_context(get_public_schema_name()):
+        schema = schema_do_subdominio(subdominio)
         if (
             Empresa.objects.filter(subdominio=subdominio).exists()
-            or Empresa.objects.filter(schema_name=schema_do_subdominio(subdominio)).exists()
+            or Empresa.objects.filter(schema_name=schema).exists()
         ):
             raise Conflito("subdominio_em_uso", "Este endereço já está em uso. Escolha outro.")
+        if schema_exists(schema):
+            raise ErroDeValidacao({"subdominio": [RESERVADO]})
         if Empresa.objects.filter(cnpj=so_digitos(cnpj)).exists():
             raise Conflito("cnpj_em_uso", "Já existe uma empresa com este CNPJ.")
 
@@ -151,11 +170,17 @@ def criar_empresa(
             etapa_implantacao=Empresa.EtapaImplantacao.CONTA,
             etapa_implantacao_desde=relogio.agora(),
         )
+        # O schema é criado aqui, sem `check_if_exists`: um schema que já existe dá erro e desfaz
+        # tudo, em vez de ser reaproveitado sem tabelas (P-04 da T-057).
+        empresa.auto_create_schema = False
         try:
             with transaction.atomic():
-                empresa.save()  # cria o schema e aplica as migrações (auto_create_schema)
+                empresa.save()
+                empresa.create_schema(check_if_exists=False)  # e aplica as migrações
         except IntegrityError as erro:  # outra criação ganhou a corrida
             raise Conflito("subdominio_em_uso", "Este endereço já está em uso.") from erro
+        except ProgrammingError as erro:  # o schema já existe no Postgres
+            raise ErroDeValidacao({"subdominio": [RESERVADO]}) from erro
         Dominio.objects.create(
             domain=endereco_de_acesso(subdominio), tenant=empresa, is_primary=True
         )
