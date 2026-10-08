@@ -19,3 +19,9 @@ empresas/
 ```
 
 Contrato da API: `docs/api/empresas.md` (escrito pelo arquiteto antes da implementação).
+
+## Implementado (T-011)
+
+- `ConfiguracaoEmpresa` (uma linha só, `unica = 1`), por enquanto só com `exige_2fa_todos` (padrão `False`). Nasce com a empresa: o assinante de `plataforma.empresa_criada` em `eventos.py` cria a linha. Os outros campos do modelo de dados entram com a tela Config.
+- `services.definir_exige_2fa_todos(valor)`, auditado em `seguranca` (`empresa.exigir_2fa_todos`, `USR-02`). Sem rota HTTP até sair o contrato de configurações.
+- `selectors.exige_2fa_todos()`, registrada em `comum.empresa` no `ready()`: `contas` lê sem importar `empresas` (mesmo nível na ADR 0011). Sem a linha, `False`.

@@ -7,9 +7,11 @@ from django.conf import settings
 from django.urls import URLPattern, URLResolver, include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from apps.contas.api.urls import urls_empresa as urls_contas
 from apps.plataforma.api.urls import urls_empresa as urls_assinatura
 
 urlpatterns: list[URLPattern | URLResolver] = [
+    path("api/", include(urls_contas)),
     path("api/", include(urls_assinatura)),
     path("api/", include("apps.filiais.api.urls")),
 ]

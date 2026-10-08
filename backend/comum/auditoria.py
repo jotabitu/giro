@@ -70,6 +70,9 @@ def usar_ator(ator: Ator | Callable[[], Ator]) -> Iterator[None]:
         _ator.reset(token)
 
 
+# Só models destes pacotes declaram `CAMPOS_AUDITORIA` (teste de arquitetura da ADR 0014).
+PACOTES_DO_GIRO = ("apps.", "comum.", "tests.")
+
 # Campos que não entram no retrato (mudam a cada save e não dizem nada).
 CAMPOS_IGNORADOS = frozenset({"atualizado_em"})
 
@@ -107,6 +110,12 @@ def registrar_evento(
     passe os valores reais, nunca já mascarados.
     """
     evento_auditoria = apps.get_model("auditoria", "EventoAuditoria")
+    # R-06 da T-050: o que vai para `antes`/`depois` sempre passa pela classificação, e só models
+    # do Giro a declaram (os do django-otp e da blacklist do simplejwt não entram na auditoria).
+    if objeto is None and (antes or depois):
+        raise ValueError("Evento sem objeto não leva antes nem depois: não há como classificar.")
+    if objeto is not None and not type(objeto).__module__.startswith(PACOTES_DO_GIRO):
+        raise ValueError(f"{type(objeto).__name__} não é model do Giro; audite pelo dono dele.")
     if objeto is not None:
         antes, depois = classificacao.aplicar(type(objeto), antes or {}, depois or {})
     ator = ator_atual()

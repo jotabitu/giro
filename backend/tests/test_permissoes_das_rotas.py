@@ -12,11 +12,14 @@ from django.urls import URLPattern, URLResolver
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.views import APIView
 
+from apps.contas.api.acesso import VIEWS_DE_ACESSO
 from comum.permissoes import EmpresaOperando, EscopoDeFilial
 from config import urls
 
 # Documentação da API: aberta por EXPOR_DOCUMENTACAO_DA_API e fechada em produção (S-17).
-EXCECOES: set[type[APIView]] = {SpectacularAPIView, SpectacularSwaggerView}
+# Acesso à conta (entrar, 2 etapas, renovar, sair, eu, sessões e senha, T-011): com a empresa
+# suspensa as pessoas entram para ler e exportar, e cuidar da própria conta não é operação.
+EXCECOES: set[type[APIView]] = {SpectacularAPIView, SpectacularSwaggerView, *VIEWS_DE_ACESSO}
 METODOS = ("get", "post", "put", "patch", "delete")
 
 

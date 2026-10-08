@@ -4,7 +4,6 @@ Rotas em `admin.<dominio>/api/plataforma/` (schema public). As do lado da empres
 sessões, convite da locadora) são da T-011, e usam os mesmos blocos.
 """
 
-import contextlib
 from typing import Any
 
 from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema, inline_serializer
@@ -22,15 +21,23 @@ from comum.autenticacao import (
     emitir_pre_2fa,
     emitir_tokens,
     gravar_cookie_refresh,
-    refresh_do_cookie,
     veio_do_frontend,
 )
 from comum.erros import Conflito, NaoAutenticado, SemPermissao
 from comum.limites import LIMITES_DE_ENTRAR, AcessoPorIP
 
-from .. import dois_fatores
+from .. import dois_fatores, sessoes
 from ..models import StatusUsuario, Usuario
-from ..services import aceitar_convite, ativar_depois_do_2fa, convite_aceito, convite_pelo_token
+from ..services import (
+    CONVITE_VENCIDO,
+    aceitar_convite,
+    ativar_depois_do_2fa,
+    convite_aceito,
+    convite_pelo_token,
+    pode_configurar_2fa,
+)
+
+EMISSOR_DA_PLATAFORMA = "Giro"  # a equipe da plataforma usa a marca Giro
 
 CREDENCIAIS_INVALIDAS = ("credenciais_invalidas", "E-mail, senha ou código incorretos")
 
@@ -183,6 +190,8 @@ class EntrarView(Publica):
                 "usuario_inativo", "Seu acesso foi desativado. Fale com o administrador."
             )
         if tentativa.dispositivo is None:
+            if not pode_configurar_2fa(usuario):  # P-05 da T-057
+                raise SemPermissao("convite_expirado", CONVITE_VENCIDO)
             return _configurar_2fa(usuario)
         return _entrou(request, usuario)
 
@@ -201,8 +210,10 @@ class Configurar2FAView(APIView):
         usuario: Usuario = request.user  # type: ignore[assignment]
         if dois_fatores.tem_2fa(usuario):
             raise Conflito("2fa_ja_configurado", "O autenticador já está configurado.")
+        if not pode_configurar_2fa(usuario):  # P-05 da T-057
+            raise SemPermissao("convite_expirado", CONVITE_VENCIDO)
         dispositivo = dois_fatores.novo_autenticador(usuario)
-        return Response({"otpauth_uri": dispositivo.config_url})
+        return Response({"otpauth_uri": dispositivo.config_url_para(EMISSOR_DA_PLATAFORMA)})
 
 
 class Verificar2FAView(APIView):
@@ -218,6 +229,8 @@ class Verificar2FAView(APIView):
         dados = CodigoSerializer(data=request.data)
         dados.is_valid(raise_exception=True)
         confirmando = not dois_fatores.tem_2fa(usuario)
+        if confirmando and not pode_configurar_2fa(usuario):  # P-05 da T-057
+            raise SemPermissao("convite_expirado", CONVITE_VENCIDO)
         tentativa = dois_fatores.verificar_codigo(
             usuario, codigo=dados.validated_data["codigo"], confirmando=confirmando
         )
@@ -236,12 +249,7 @@ class RenovarView(Publica):
     def post(self, request: Request) -> Response:
         if not veio_do_frontend(request):
             raise SemPermissao("permissao", "Requisição recusada.")
-        refresh = refresh_do_cookie(request)
-        usuario = Usuario.objects.filter(pk=refresh.get("user_id")).first()
-        if usuario is None or not usuario.is_active:
-            raise NaoAutenticado("nao_autenticado", "Entre de novo.")
-        refresh.blacklist()
-        novo = emitir_tokens(usuario, amr=refresh.get("amr", []))
+        _, novo = sessoes.renovar(request)  # rotação com a sessão travada (P-07)
         resposta = Response({"access": str(novo.access_token)})
         gravar_cookie_refresh(resposta, novo)
         return resposta
@@ -253,8 +261,7 @@ class SairView(Publica):
         if not veio_do_frontend(request):
             raise SemPermissao("permissao", "Requisição recusada.")
         # Sair sempre apaga o cookie, mesmo com token vencido ou de outra empresa.
-        with contextlib.suppress(Exception):
-            refresh_do_cookie(request).blacklist()
+        sessoes.sair(request)
         resposta = Response(status=status.HTTP_204_NO_CONTENT)
         apagar_cookie_refresh(resposta)
         return resposta

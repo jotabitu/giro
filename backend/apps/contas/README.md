@@ -29,6 +29,17 @@ Contrato da API: `docs/api/contas.md` (escrito pelo arquiteto antes da implement
 - `api/plataforma.py`: login da equipe (`entrar`, `2fa/configurar`, `2fa/verificar`, `renovar`, `sair`, `eu`) e convite (`convites/{token}/`, `aceitar/`).
 - Comando `convidar_equipe_plataforma <email> <funcao> --nome`.
 
+## Implementado (T-011, parte 1: login, sessões e 2 etapas da empresa)
+
+- `api/acesso.py` (host da empresa, `/api/auth/`): `entrar`, `2fa/verificar|configurar|ativar|desativar|codigos-recuperacao`, `renovar`, `sair`, `eu` (GET e PATCH), `sessoes` (listar, encerrar uma, encerrar as outras), `senha/trocar|esqueci|redefinir`. Sem `EmpresaOperando` de propósito (`VIEWS_DE_ACESSO`): com a empresa suspensa as pessoas ainda entram para ler.
+- `sessoes.py` (ADR 0014): `Sessao` com `sid` nos tokens, 12 h no desktop e 30 dias no celular sem uso (`USR-06`), conferida a cada requisição com cache de 30 s, `revogar` e `revogar_todas` com evento `sessao.encerrar`. Cada sessão guarda o `jti` do refresh vigente; outro refresh da mesma sessão revoga a sessão inteira (P-07 da T-057). Registrada em `comum.autenticacao` por `registrar_sessoes`.
+- 2 etapas: `Autenticador` (TOTP, semente cifrada com `GIRO_CHAVE_SEGREDOS`) e `CodigoRecuperacao` (só o HMAC por empresa) no lugar do `otp_totp` e do `otp_static` (P-08). `exige_2fa` = plataforma, perfil administrador ou financeiro, `ConfiguracaoEmpresa.exige_2fa_todos` ou autenticador ativo (`USR-02`); `exige_2fa_pela_regra` é o `obrigatorio` do `eu`. O primeiro autenticador só se cadastra com a senha dentro do prazo do convite aceito (P-05).
+- Bloqueio: na empresa, 5 tentativas erradas somando senha e código (`USR-06`), com aviso por e-mail aos administradores (`contas_avisar_bloqueio`); na plataforma, 5 senhas ou 3 códigos (`PLT-08`).
+- `selectors.py`: `pode` (tabela do contrato mais as permissões extras, que só somam, `USR-03`), `extra_e_padrao_do_perfil`, `administradores`, `dados_do_eu`. `pode` é registrado em `comum.permissoes`.
+- `senhas.py`: validadores com texto pronto (12 ou mais, letras e números, diferente do e-mail e do nome da empresa, fora das comuns).
+- `RedefinicaoSenha`: link de 1 hora, uso único, 3 pedidos por hora; o token vai no fragmento (`/entrar/redefinir#<token>`).
+- Ficam para a T-069: rotas de usuários e convite da empresa (com P-06 e P-09), e-mail único por `Lower(email)`, F-03, `X-Filial: todas` para o financeiro. T-070: modo suporte. T-071: navegação do `eu`.
+
 ## Eventos assinados
 
 | Evento | O que faz |

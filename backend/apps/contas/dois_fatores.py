@@ -1,9 +1,16 @@
-"""Verificação em 2 etapas e bloqueio por códigos errados (PLT-08; ADR 0013, item 3).
+"""Verificação em 2 etapas e bloqueio por tentativas erradas (PLT-08, USR-06; ADR 0013, item 3).
 
-Autenticador: `TOTPDevice` do django-otp. Códigos de recuperação: `StaticDevice` com 8 códigos
-de uso único. 3 códigos ou 5 senhas errados seguidos bloqueiam por 15 minutos e geram evento
-de segurança na auditoria do schema (o `public`, para a equipe da plataforma). A API e o
-Django Admin entram pelos mesmos `tentar_entrar` e `verificar_codigo`.
+Autenticador: `contas.Autenticador` (TOTP com a semente cifrada). Códigos de recuperação:
+`contas.CodigoRecuperacao`, 8 de uso único, guardados só em hash (P-08 da T-057).
+
+Bloqueio de 15 minutos, com evento de segurança na auditoria do schema:
+- plataforma (`PLT-08`): 5 senhas ou 3 códigos errados seguidos;
+- empresa (`USR-06`): 5 tentativas erradas somando senhas e códigos, e os administradores
+  recebem um aviso.
+A API e o Django Admin entram pelas mesmas funções.
+
+Eventos de 2 etapas levam só o usuário como objeto: o autenticador e os códigos nunca vão para a
+auditoria (R-06 da T-050).
 """
 
 import secrets
@@ -13,22 +20,30 @@ from enum import StrEnum
 
 from django.db import transaction
 from django.http import HttpRequest
-from django_otp.plugins.otp_static.models import StaticDevice, StaticToken
-from django_otp.plugins.otp_totp.models import TOTPDevice
+from django_tenants.utils import get_public_schema_name
 
 from comum import relogio
 from comum.auditoria import Categoria, TipoAtor, registrar_evento, usar_ator
+from comum.conexao import schema_atual
 from comum.erros import MuitasTentativas
 from comum.middleware import ator_da_requisicao
 
-from .models import Usuario
+from .models import Autenticador, CodigoRecuperacao, Usuario, hash_do_codigo
 
-CODIGOS_ERRADOS_PARA_BLOQUEAR = 3
-SENHAS_ERRADAS_PARA_BLOQUEAR = 5  # decisão de 08/10 (P-03 da T-057), como no USR-06
+CODIGOS_ERRADOS_PARA_BLOQUEAR = 3  # PLT-08
+SENHAS_ERRADAS_PARA_BLOQUEAR = 5  # PLT-08 (decisão de 08/10, P-03 da T-057)
+TENTATIVAS_ERRADAS_PARA_BLOQUEAR = 5  # USR-06: senhas e códigos somados
 TEMPO_DE_BLOQUEIO = timedelta(minutes=15)
 QUANTOS_CODIGOS_DE_RECUPERACAO = 8
 NOME_AUTENTICADOR = "autenticador"
-NOME_RECUPERACAO = "recuperacao"
+
+
+def na_plataforma() -> bool:
+    return bool(schema_atual() == get_public_schema_name())
+
+
+def regra_de_acesso() -> str:
+    return "PLT-08" if na_plataforma() else "USR-06"
 
 
 def auditar_entrada(
@@ -39,21 +54,34 @@ def auditar_entrada(
     if usuario is not None and acao == "usuario.entrar":
         ator = replace(ator, tipo=TipoAtor.USUARIO, id=usuario.pk, nome=usuario.nome)
     with usar_ator(ator):
-        registrar_evento(acao, Categoria.SEGURANCA, objeto=usuario, motivo=motivo, regra="PLT-08")
+        registrar_evento(
+            acao, Categoria.SEGURANCA, objeto=usuario, motivo=motivo, regra=regra_de_acesso()
+        )
 
 
-def autenticador_confirmado(usuario: Usuario) -> TOTPDevice | None:
-    return TOTPDevice.objects.filter(user=usuario, confirmed=True).first()
+def auditar_2fa(acao: str, usuario: Usuario, motivo: str = "") -> None:
+    """Evento de 2 etapas com o usuário como objeto, sem o autenticador (R-06)."""
+    registrar_evento(acao, Categoria.SEGURANCA, objeto=usuario, motivo=motivo, regra="USR-02")
+
+
+# --- Autenticador e códigos de recuperação ---
+
+
+def autenticador_confirmado(usuario: Usuario) -> Autenticador | None:
+    return Autenticador.objects.filter(user=usuario, confirmed=True).first()
 
 
 def tem_2fa(usuario: Usuario) -> bool:
-    return autenticador_confirmado(usuario) is not None
+    return bool(Autenticador.objects.filter(user=usuario, confirmed=True).exists())
 
 
-def novo_autenticador(usuario: Usuario) -> TOTPDevice:
-    """Troca o segredo do autenticador ainda não confirmado."""
-    TOTPDevice.objects.filter(user=usuario, confirmed=False).delete()
-    return TOTPDevice.objects.create(user=usuario, name=NOME_AUTENTICADOR, confirmed=False)
+def novo_autenticador(usuario: Usuario) -> Autenticador:
+    """Troca a semente do autenticador ainda não confirmado."""
+    Autenticador.objects.filter(user=usuario, confirmed=False).delete()
+    dispositivo = Autenticador(user=usuario, name=NOME_AUTENTICADOR, confirmed=False)
+    dispositivo.gerar_chave()
+    dispositivo.save()
+    return dispositivo
 
 
 def _codigo_de_recuperacao() -> str:
@@ -61,42 +89,61 @@ def _codigo_de_recuperacao() -> str:
     return f"{bruto[:4]}-{bruto[4:]}"
 
 
-def confirmar_autenticador(dispositivo: TOTPDevice) -> list[str]:
-    """Confirma o dispositivo e gera os 8 códigos de recuperação, mostrados uma vez só."""
+def gerar_codigos_recuperacao(usuario: Usuario) -> list[str]:
+    """8 códigos novos, mostrados uma vez só; os anteriores deixam de valer."""
+    codigos = [_codigo_de_recuperacao() for _ in range(QUANTOS_CODIGOS_DE_RECUPERACAO)]
     with transaction.atomic():
-        dispositivo.confirmed = True
-        dispositivo.save(update_fields=["confirmed"])
-        StaticDevice.objects.filter(user=dispositivo.user).delete()
-        recuperacao = StaticDevice.objects.create(
-            user=dispositivo.user, name=NOME_RECUPERACAO, confirmed=True
-        )
-        codigos = [_codigo_de_recuperacao() for _ in range(QUANTOS_CODIGOS_DE_RECUPERACAO)]
-        StaticToken.objects.bulk_create(
-            [StaticToken(device=recuperacao, token=codigo) for codigo in codigos]
+        CodigoRecuperacao.objects.filter(usuario=usuario).delete()
+        CodigoRecuperacao.objects.bulk_create(
+            [CodigoRecuperacao(usuario=usuario, codigo_hash=hash_do_codigo(c)) for c in codigos]
         )
     return codigos
 
 
+def confirmar_autenticador(dispositivo: Autenticador) -> list[str]:
+    """Confirma o autenticador e gera os 8 códigos de recuperação."""
+    with transaction.atomic():
+        Autenticador.objects.filter(user=dispositivo.user, confirmed=True).delete()
+        dispositivo.confirmed = True
+        dispositivo.save(update_fields=["confirmed"])
+        return gerar_codigos_recuperacao(dispositivo.user)
+
+
+def remover_2fa(usuario: Usuario) -> None:
+    """Apaga autenticador e códigos (desligar ou redefinir as 2 etapas)."""
+    with transaction.atomic():
+        Autenticador.objects.filter(user=usuario).delete()
+        CodigoRecuperacao.objects.filter(usuario=usuario).delete()
+
+
 def codigos_restantes(usuario: Usuario) -> int:
-    return int(StaticToken.objects.filter(device__user=usuario, device__confirmed=True).count())
+    return int(CodigoRecuperacao.objects.filter(usuario=usuario, usado_em__isnull=True).count())
+
+
+def _usar_codigo_de_recuperacao(usuario: Usuario, codigo: str) -> bool:
+    """Marca o código como usado; o mesmo código não serve uma segunda vez."""
+    usados = CodigoRecuperacao.objects.filter(
+        usuario=usuario, codigo_hash=hash_do_codigo(codigo.strip()), usado_em__isnull=True
+    ).update(usado_em=relogio.agora())
+    return bool(usados)
 
 
 def conferir_codigo(
     usuario: Usuario, *, codigo: str = "", codigo_recuperacao: str = "", confirmando: bool = False
-) -> TOTPDevice | None:
-    """O dispositivo que aceitou o código, ou `None`. `confirmando` usa o ainda não confirmado."""
-    if codigo_recuperacao:
-        recuperacao = StaticDevice.objects.filter(user=usuario, confirmed=True).first()
-        if recuperacao is not None and recuperacao.verify_token(codigo_recuperacao.strip()):
-            return autenticador_confirmado(usuario)
+) -> Autenticador | None:
+    """O autenticador que aceitou o código, ou `None`. `confirmando` usa o ainda não confirmado."""
+    if codigo_recuperacao and not confirmando:
+        dispositivo = autenticador_confirmado(usuario)
+        if dispositivo is not None and _usar_codigo_de_recuperacao(usuario, codigo_recuperacao):
+            return dispositivo
         return None
-    dispositivo = TOTPDevice.objects.filter(user=usuario, confirmed=not confirmando).first()
-    if dispositivo is not None and codigo and dispositivo.verify_token(codigo.strip()):
+    dispositivo = Autenticador.objects.filter(user=usuario, confirmed=not confirmando).first()
+    if dispositivo is not None and codigo and dispositivo.verify_token(codigo):
         return dispositivo
     return None
 
 
-# --- Bloqueio (PLT-08) ---
+# --- Bloqueio (PLT-08, USR-06) ---
 #
 # Bloqueio, verificação e contagem rodam numa transação só, que começa travando a linha do
 # usuário (P-02 da T-057): tentativas simultâneas da mesma conta passam uma de cada vez, e
@@ -113,22 +160,34 @@ class Tentativa:
     """Resultado de uma tentativa. Sem `falha`, a pessoa passou (com `dispositivo`, se tem 2FA)."""
 
     usuario: Usuario
-    dispositivo: TOTPDevice | None = None
+    dispositivo: Autenticador | None = None
     falha: Falha | None = None
     bloqueio: MuitasTentativas | None = None
 
 
-def _bloqueado_por_senha(usuario: Usuario) -> bool:
-    return usuario.senhas_erradas >= SENHAS_ERRADAS_PARA_BLOQUEAR
+def _atingiu_o_limite(usuario: Usuario) -> bool:
+    if na_plataforma():
+        return (
+            usuario.senhas_erradas >= SENHAS_ERRADAS_PARA_BLOQUEAR
+            or usuario.tentativas_erradas >= CODIGOS_ERRADOS_PARA_BLOQUEAR
+        )
+    return usuario.senhas_erradas + usuario.tentativas_erradas >= TENTATIVAS_ERRADAS_PARA_BLOQUEAR
+
+
+def _motivo_do_bloqueio(usuario: Usuario) -> str:
+    if not na_plataforma():
+        return "5 tentativas erradas"
+    if usuario.senhas_erradas >= SENHAS_ERRADAS_PARA_BLOQUEAR:
+        return "5 senhas erradas"
+    return "3 códigos errados"
 
 
 def _erro_de_bloqueio(usuario: Usuario) -> MuitasTentativas:
     if usuario.bloqueado_ate is None:
         raise ValueError("Usuário sem bloqueio.")
-    motivo = "5 senhas erradas" if _bloqueado_por_senha(usuario) else "3 códigos errados"
     return MuitasTentativas(
-        "PLT-08",
-        f"Acesso bloqueado por 15 minutos depois de {motivo}",
+        regra_de_acesso(),
+        f"Acesso bloqueado por 15 minutos depois de {_motivo_do_bloqueio(usuario)}",
         {"tentar_de_novo_em": usuario.bloqueado_ate.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")},
     )
 
@@ -150,6 +209,14 @@ def _travar(usuario: Usuario) -> Usuario:
     return atual
 
 
+def _avisar_administradores(usuario: Usuario) -> None:
+    """USR-06: o aviso sai depois do commit, com só os ids na fila."""
+    from .tasks import contas_avisar_bloqueio
+
+    schema = schema_atual()
+    transaction.on_commit(lambda: contas_avisar_bloqueio.delay(schema, usuario.pk))
+
+
 def _contar(atual: Usuario, falha: Falha | None) -> MuitasTentativas | None:
     """Grava a contagem na linha travada. No limite, bloqueia e grava o evento de segurança."""
     if falha is None:
@@ -160,10 +227,7 @@ def _contar(atual: Usuario, falha: Falha | None) -> MuitasTentativas | None:
         atual.senhas_erradas += 1
     else:
         atual.tentativas_erradas += 1
-    bloqueou = (
-        atual.senhas_erradas >= SENHAS_ERRADAS_PARA_BLOQUEAR
-        or atual.tentativas_erradas >= CODIGOS_ERRADOS_PARA_BLOQUEAR
-    )
+    bloqueou = falha is not None and _atingiu_o_limite(atual)
     if bloqueou:
         atual.bloqueado_ate = relogio.agora() + TEMPO_DE_BLOQUEIO
     atual.save(
@@ -176,20 +240,18 @@ def _contar(atual: Usuario, falha: Falha | None) -> MuitasTentativas | None:
         Categoria.SEGURANCA,
         objeto=atual,
         depois={"bloqueado_ate": atual.bloqueado_ate},
-        motivo=(
-            "5 senhas erradas"
-            if _bloqueado_por_senha(atual)
-            else "3 códigos de verificação errados"
-        ),
-        regra="PLT-08",
+        motivo=_motivo_do_bloqueio(atual),
+        regra=regra_de_acesso(),
     )
+    if not na_plataforma():
+        _avisar_administradores(atual)
     return _erro_de_bloqueio(atual)
 
 
 def tentar_entrar(
     usuario: Usuario, *, senha: str, codigo: str = "", codigo_recuperacao: str = ""
 ) -> Tentativa:
-    """Senha e, para quem tem autenticador, código, com a linha do usuário travada.
+    """Senha e código numa chamada só (login da plataforma e do Django Admin).
 
     Bloqueado: levanta 429 antes de olhar a senha. Quem tem autenticador e não mandou código
     falha como senha errada, para a resposta não dizer que a senha estava certa (P-03).
@@ -212,11 +274,42 @@ def tentar_entrar(
     return Tentativa(atual, dispositivo, falha, bloqueio)
 
 
-def verificar_codigo(usuario: Usuario, *, codigo: str, confirmando: bool = False) -> Tentativa:
-    """Só o código (etapa `pre_2fa`), com a mesma trava e a mesma contagem."""
+def tentar_senha(usuario: Usuario, senha: str) -> Tentativa:
+    """Só a senha, com a mesma trava e contagem (1ª etapa do login da empresa).
+
+    Senha certa de quem tem autenticador não zera a contagem: a etapa do código ainda falta
+    (USR-06 soma senhas e códigos).
+    """
     with transaction.atomic():
         atual = _travar(usuario)
-        dispositivo = conferir_codigo(atual, codigo=codigo, confirmando=confirmando)
+        if not atual.check_password(senha):
+            return Tentativa(atual, falha=Falha.SENHA, bloqueio=_contar(atual, Falha.SENHA))
+        if not tem_2fa(atual):
+            _contar(atual, None)
+    return Tentativa(atual)
+
+
+def conferir_senha(usuario: Usuario, senha: str) -> Tentativa:
+    """Senha de quem já está logado (desligar 2 etapas, novos códigos, trocar a senha).
+
+    Errar conta como tentativa errada; acertar não zera, porque não é um login.
+    """
+    with transaction.atomic():
+        atual = _travar(usuario)
+        if atual.check_password(senha):
+            return Tentativa(atual)
+        return Tentativa(atual, falha=Falha.SENHA, bloqueio=_contar(atual, Falha.SENHA))
+
+
+def verificar_codigo(
+    usuario: Usuario, *, codigo: str = "", codigo_recuperacao: str = "", confirmando: bool = False
+) -> Tentativa:
+    """Só o código (etapa `pre_2fa` ou ativação), com a mesma trava e a mesma contagem."""
+    with transaction.atomic():
+        atual = _travar(usuario)
+        dispositivo = conferir_codigo(
+            atual, codigo=codigo, codigo_recuperacao=codigo_recuperacao, confirmando=confirmando
+        )
         falha = None if dispositivo is not None else Falha.CODIGO
         bloqueio = _contar(atual, falha)
     return Tentativa(atual, dispositivo, falha, bloqueio)

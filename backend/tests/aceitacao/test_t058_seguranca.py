@@ -10,7 +10,6 @@ from typing import Any
 import pytest
 from django.db import connection, connections
 from django.test import Client
-from django_otp.plugins.otp_totp.models import TOTPDevice
 
 from apps.auditoria.models import EventoAuditoria
 from apps.contas import dois_fatores
@@ -21,6 +20,7 @@ from comum.erros import ErroDeValidacao, MuitasTentativas
 from .conftest import (
     HOST_PLATAFORMA,
     SENHA,
+    autenticador_confirmado,
     cliente,
     codigo_atual,
     liberar_codigo,
@@ -160,11 +160,17 @@ EMAIL_PARALELO = "paralelo@girolocadoras.com.br"
 def _apagar_conta_paralela() -> None:
     """SQL direto: o `delete` do ORM segue relações que só existem no schema da empresa."""
     with connection.cursor() as cursor:
-        cursor.execute(
-            "DELETE FROM otp_totp_totpdevice WHERE user_id IN "
-            "(SELECT id FROM contas_usuario WHERE email = %s)",
-            [EMAIL_PARALELO],
-        )
+        for tabela, coluna in (
+            ("contas_autenticador", "user_id"),
+            ("contas_codigorecuperacao", "usuario_id"),
+            ("contas_sessao", "usuario_id"),
+            ("token_blacklist_outstandingtoken", "user_id"),
+        ):
+            cursor.execute(
+                f"DELETE FROM {tabela} WHERE {coluna} IN "  # noqa: S608 - nomes fixos acima
+                "(SELECT id FROM contas_usuario WHERE email = %s)",
+                [EMAIL_PARALELO],
+            )
         cursor.execute("DELETE FROM contas_usuario WHERE email = %s", [EMAIL_PARALELO])
 
 
@@ -179,9 +185,7 @@ def conta_commitada(db):
             EMAIL_PARALELO, SENHA, nome="Paralelo", funcao_plataforma="suporte"
         )
         criada["usuario"] = usuario
-        criada["dispositivo"] = TOTPDevice.objects.create(
-            user=usuario, name="autenticador", confirmed=True
-        )
+        criada["dispositivo"] = autenticador_confirmado(usuario)
 
     assert not _em_paralelo(criar, 1)
     yield criada["usuario"], criada["dispositivo"]

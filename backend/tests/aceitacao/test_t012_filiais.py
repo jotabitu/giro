@@ -18,7 +18,7 @@ from apps.filiais import selectors, services
 from apps.filiais.models import Filial, UsuarioFilial
 from apps.plataforma.models import Empresa, UsoEmpresa
 from comum import leituras
-from comum.autenticacao import emitir_tokens
+from comum.autenticacao import AMR_SENHA_E_CODIGO, emitir_tokens
 from comum.erros import ErroDeRegra
 
 from .apoio import FUSO
@@ -90,7 +90,9 @@ class MotoRapida:
 
     def api(self, nome: str = "Mariana", **cabecalhos: str):
         if nome not in self._tokens:
-            self._tokens[nome] = str(emitir_tokens(self.pessoas[nome]).access_token)
+            # Como quem já passou pelas 2 etapas (o login é testado na T-011).
+            refresh = emitir_tokens(self.pessoas[nome], AMR_SENHA_E_CODIGO)
+            self._tokens[nome] = str(refresh.access_token)
         api = cliente(HOST, self._tokens[nome])
         if cabecalhos:
             api.credentials(HTTP_AUTHORIZATION=f"Bearer {self._tokens[nome]}", **cabecalhos)
