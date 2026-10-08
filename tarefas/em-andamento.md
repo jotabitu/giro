@@ -5,3 +5,4 @@ No máximo uma tarefa por agente. Formato: `T-0xx · título · agente · desde 
 - T-058 · Correções de segurança da T-057 · backend · desde 08/10
 - T-059 · Números da carteira de outubro e textos da T-010 · produto · desde 08/10
 - T-061 · Rotas do menu corrigidas na T-055 · frontend · desde 09/10
+- T-065 · Login trata o 401 e o 429 da T-058 · frontend · desde 09/10

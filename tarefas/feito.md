@@ -42,3 +42,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-055 · Contratos alinhados à T-053 e conferência da T-010 · arquiteto · PR #32 · tarefas/handoffs/T-055-arquiteto.md · sem ADR nova; DESTINOS do frontend na T-061
 - T-012 · Filiais · backend · PR #35 · tarefas/handoffs/T-012-backend.md · 258 testes; CA-012-01 a 17; S-12 fora (logo da empresa); 5 decisões para o arquiteto conferir
 - T-061 · Rotas do menu corrigidas na T-055 · frontend · PR a abrir pelo orquestrador · tarefas/handoffs/T-061-frontend.md
+- T-065 · Login trata o 401 e o 429 da T-058 · frontend · PR a abrir pelo orquestrador · tarefas/handoffs/T-065-frontend.md
