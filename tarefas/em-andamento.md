@@ -6,5 +6,6 @@ No máximo uma tarefa por agente. Formato: `T-0xx · título · agente · desde 
 - T-055 · Contratos alinhados à T-053 e conferência da T-010 · arquiteto · desde 08/10
 - T-056 · Carteira de outubro da Moto Rápida · qa · desde 08/10
 - T-057 · Revisão de segurança do código da T-010 · seguranca · desde 08/10
+- T-012 · Filiais · backend · desde 08/10
 
-Em espera: produto, backend, frontend e devops.
+Em espera: produto, frontend e devops.
