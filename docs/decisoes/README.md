@@ -22,6 +22,7 @@ Uma decisão por arquivo. Para mudar uma decisão, escreva uma nova ADR que subs
 | [0016](0016-papeis-de-banco-e-expurgo-da-auditoria.md) | Papéis de banco separados e expurgo da auditoria | aceita |
 | [0017](0017-app-importacao.md) | App `importacao` no último nível da ordem de dependências | aceita |
 | [0018](0018-ajustes-da-conferencia-da-fundacao.md) | Ajustes da conferência da fundação (T-001) | aceita |
+| [0019](0019-pedido-de-aprovacao-pela-porta-em-comum.md) | Pedido de aprovação aberto por uma porta em `comum` (`comum.aprovacoes.pedir`) | aceita, detalha a 0011 |
 
 O modelo de dados detalhado fica em [`modelo-de-dados.md`](modelo-de-dados.md).
 

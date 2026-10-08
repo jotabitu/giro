@@ -179,8 +179,8 @@ Perfis: administrador, gerente. Corpo: `{ motivo }`. 200: completa com `bloqueio
 ### POST /api/clientes/{id}/desbloquear/
 Corpo: `{ motivo }`.
 - Administrador e gerente: desbloqueiam na hora, com motivo e evento de auditoria (`CLI-05`). 200; o cliente volta a `ativo` (ou `incompleto`, se tiver pendências).
-- Vendedor: cria o pedido `APR-05`. 202 `{ "pedido_aprovacao": { "id", "tipo": "APR-05", "status": "pendente" } }`. Aprovado por gerente ou administrador (nunca quem pediu, `APR-09`), o cliente volta como acima.
-- Padrão A recomendado pelo produto (T-037) enquanto o dono do produto não decide. Se a decisão mudar, muda só quem pode chamar direto.
+- Vendedor: cria o pedido `APR-05` por `comum.aprovacoes.pedir` (ADR 0019), com origem `cliente` e a filial da requisição do vendedor (cliente é da empresa). 202 `{ "pedido_aprovacao": { "id", "tipo": "APR-05", "status": "pendente" } }`; outro pedido igual pendente → 409 `pedido_pendente`. Aprovado por gerente ou administrador (nunca quem pediu, `APR-09`), o cliente volta como acima.
+- Decidido pelo dono do produto em 07 out 2026 (item 12, opção A; `CLI-05`, `APR-05`).
 - Bloqueio automático por atraso não precisa disso: some sozinho quando o cliente quita (assinante de `financeiro.parcela_paga`, `CLI-05`).
 
 Bloqueio automático: o assinante de `financeiro.parcela_atrasou` bloqueia com `motivo = "atraso"` quando alguma conta do cliente passa de 15 dias de atraso (`CLI-05`, `LOC-07`). Caso do seed: Rafael Sousa, 25 dias → `bloqueado`.
