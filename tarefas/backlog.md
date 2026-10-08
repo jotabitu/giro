@@ -33,6 +33,14 @@ Levantadas pelo arquiteto em T-043 (07 out 2026):
 - Decidido em 07 out 2026 (DEV-02, item 21): devolução de caução e reembolsos por Pix: no MVP o sistema registra o valor a devolver (`Reembolso`, `a_fazer`) e a pessoa faz o Pix pela conta da locadora e marca como feito com o comprovante; transferência automática pelo parceiro só depois das proteções de saque da subconta (S-05). Confirmar se atende o botão "Encerrar e devolver R$ 183,00 por Pix" da `Devolucao`.
 - [divergência] Telas do financeiro e da auditoria (para T-028): `Receber` usa faixas 1–7, 8–15, 16–30 e 30+ (`FIN-02`: 1–7, 8–30, mais de 30) e mostra Rafael com parcela de R$ 350,00 de 05 set; `Caixa` gera Pix de R$ 299,40 para a parcela atrasada de Carlos (com multa e juros, `FIN-03`, são R$ 306,09); `Admin-Auditoria` diz "3 senhas erradas" (`USR-06`: 5); `Admin-Exportar` mostra Lúcia (financeiro) exportando, mas exportar é da Administração (só administrador).
 
+Levantadas pelo produto em T-037, T-041 e T-047 (07 out 2026); estavam no commit 0a81a9b e saíram no merge 1050b77, restauradas pela T-049. Em todas vale o seed:
+
+- [divergência] `Filial` (para T-028): mostra "3 de 3 filiais" e as filiais Caucaia e Messejana, mas o seed tem 1 filial (`Filiais` mostra "1 de 3"); "após o check-in" deve ser "após a devolução".
+- [divergência] Telas de acesso e filial (T-036, para T-028): `Login` e `Convite` dizem que o gerente usa 2 etapas (`USR-02`: só administrador e financeiro); `Admin-Usuarios` convida só por celular (o e-mail é obrigatório, `USR-01`); tirar "Manter conectado" do `Login` (`USR-06`); o campo "Gerente responsável" da `Filial` vira só leitura (`FIL-02`); tirar da `Filial` vagas, tabela de preço padrão, conta de recebimento, centro de custo, nota fiscal, "aceita devolução de outras filiais", "compartilha a frota" e "Rascunho"; trocar "Domingo e feriados" por domingo e uma lista de feriados (`FIL-03`).
+- [divergência] `Frota` (T-037, para T-028): diz "52 motos e 34 carros", mas o seed tem 80 motos e 6 carros; as diárias certas são as da tabela (Street R$ 54,90 para a CG 160, Urbana R$ 44,90 para a Pop 110i, Carro compacto R$ 109,00 para o Mobi).
+- [divergência] Financeiro e auditoria (T-041, para T-028): `Caixa` e `Financeiro` dizem "Terça, 07 out", mas 07 out 2026 é quarta; no `Caixa`, "Diego Martins · LOC-2848 · 3 diárias R$ 179,70" não bate com a diária do Kwid (R$ 109,00): o valor fica (o total de R$ 1.182,60 depende dele) e a descrição muda; o `Caixa` diz que a parcela 2 de 5 do Carlos "venceu 07 out", mas ela venceu em 30 set; em `Receber`, o Rafael aparece com R$ 350,00 e 32 dias, mas o seed tem R$ 1.347,00 e 25 dias; `Despesas` mostra o IPVA de R$ 186,40 "Aguardando gerente", mas pela `FIN-05` ele nasce `a_pagar`, e o valor aguardando é R$ 1.200,00; `Admin-Auditoria` mostra "Street semanal R$ 319 → R$ 329" em 06 out, e pelo seed é R$ 299,40 → R$ 329,00, valendo desde 01 out.
+- [divergência] `Gerente` (T-047, `USR-08`, para T-028): mostra 3 devoluções atrasadas (seed: 1, Rafael), 5 em manutenção (seed: 7), frota de 83 veículos (seed: 86), "4 pneus" (em `Despesas` são 2) e uma "Carla Andrade · Atendente" que não existe no seed, num perfil que não existe (os perfis são administrador, gerente, vendedor, vistoriador e financeiro); e QXA-4B21 aparece "Atrasado" pela LOC-2841, que tem parcela atrasada e não devolução atrasada (a situação "Atrasado" é só de `devolucao_atrasada`).
+
 
 ## Fase 0 · Fundação
 
@@ -163,10 +171,17 @@ Levantadas pelo arquiteto em T-043 (07 out 2026):
 - **Depende de:** T-036
 - **Pronto quando:** `docs/api/contas.md` devolve `menu` (módulos liberados) em `GET /api/eu/`, para a tela não inferir de `pode`; rota inicial por perfil definida com o produto (vistoriador, vendedor, gerente, financeiro); `docs/api/painel.md` com os contadores do menu e os indicadores da tela `Main`. Resolve as três `[decisão]` da T-020.
 
+<<<<<<< HEAD
 ### T-050 · Revisão de segurança do código da T-033
 - **Agente:** seguranca
 - **Depende de:** T-033
 - **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA`, `na_empresa` e o teste de arquitetura revisados contra a ADR 0014 (itens 2 e 3), a ADR 0018 (item 3) e os achados S-05, S-06, S-07, C-01 e C-02; relatório em `docs/seguranca/`; achados viram tarefas.
+=======
+### T-048 · Frontend lê o menu e o painel da T-047
+- **Agente:** frontend
+- **Depende de:** T-047, T-021
+- **Pronto quando:** a casca usa `eu.navegacao` (menu do início, menu completo e barra do celular) em vez de inferir de `pode`; `/inicio` mostra a variante do perfil (USR-08); contadores e blocos do painel com valores tipados de `docs/api/painel.md`, ainda em dados falsos até o backend existir.
+>>>>>>> origin/main
 
 ## Fase 1 · MVP
 
@@ -208,7 +223,7 @@ Levantadas pelo arquiteto em T-043 (07 out 2026):
 - **Agente:** backend · **Depende de:** T-013, T-014 · **Regras:** IMP (passo de importar) · **Telas:** Onboarding-Importar · **Por quê:** critério de pronto do MVP "dados antigos migrados e conferidos".
 
 ### T-028 · Limpar dados de exemplo das telas
-- **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`.
+- **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`. Inclui `Despesas-Desktop` e `Despesas-Mobile`: aguardando aprovação é R$ 1.200,00 (não R$ 1.386,40) e o IPVA de R$ 186,40 nasce `a_pagar` (FIN-05), apontado pelo qa na T-040.
 
 ### T-029 · Integração com o Asaas (sandbox)
 - **Agente:** backend · **Depende de:** T-017 · **Segurança:** `WebhookRecebido` com `evento_id` único e conferência na API do Asaas, throttle (S-14, S-17) · **Regras:** FIN-01 a FIN-04, AUT-04, AUT-05 · **Pronto quando:** `backend/integracoes/pagamentos/asaas.py` implementa a interface de pagamentos (criar subconta da empresa, cobrança Pix e boleto, assinatura recorrente, webhook de baixa com verificação e idempotência), testado contra o sandbox; a implementação falsa continua sendo a padrão em testes.
@@ -233,9 +248,9 @@ Levantadas pelo arquiteto em T-043 (07 out 2026):
 
 ## Dúvidas abertas da T-020 (frontend)
 
-- `[decisão]` **Menu por permissão.** `eu.pode` não traz uma chave por item de menu; o frontend mapeia item -> chave em `frontend/src/lib/menu.ts` (ex.: Comissões e Conciliação por `financeiro_pagar`, Relatórios por `painel`, Locações por `locacoes_criar || vistorias_fazer`). Proposta: a API devolver `menu` (lista de módulos liberados) para a tela não inferir. Dono: arquiteto + produto (USR-05).
-- `[decisão]` **Início por perfil.** Vistoriador tem `painel: "nao"`; a T-020 mostra um aviso no lugar da visão geral. Falta definir a rota inicial de vistoriador, vendedor, gerente e financeiro (telas de início por perfil).
-- `[decisão]` **Contadores do menu e tela Main** vêm de `relatorios` (agregados), sem contrato em `docs/api/`. Hoje são dados falsos. Dono: arquiteto.
+- Resolvido na T-047: **Menu por permissão.** `eu.pode` não traz uma chave por item de menu; o frontend mapeia item -> chave em `frontend/src/lib/menu.ts` (ex.: Comissões e Conciliação por `financeiro_pagar`, Relatórios por `painel`, Locações por `locacoes_criar || vistorias_fazer`). Proposta: a API devolver `menu` (lista de módulos liberados) para a tela não inferir. Dono: arquiteto + produto (USR-05).
+- Resolvido na T-047: **Início por perfil.** Vistoriador tem `painel: "nao"`; a T-020 mostra um aviso no lugar da visão geral. Falta definir a rota inicial de vistoriador, vendedor, gerente e financeiro (telas de início por perfil).
+- Resolvido na T-047: **Contadores do menu e tela Main** vêm de `relatorios` (agregados), sem contrato em `docs/api/`. Hoje são dados falsos. Dono: arquiteto.
 - **Pedido ao design-system:** seletor de filial com lista (USR-07, "Todas as filiais" para administrador); diálogo/gaveta para o menu do celular; KPI com valor longo ("R$ 18,4 mil") quebra em 3 linhas a 390px.
 
 ## Fase 2 em diante

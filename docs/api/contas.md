@@ -97,6 +97,55 @@ Qualquer usuário (e token de suporte, ver abaixo).
 ```
 Marca (logo, cores) vem do contrato de empresas.
 
+#### Menu e início (USR-05, USR-08, T-047)
+
+`GET /api/auth/eu/` também devolve a navegação pronta. O frontend não decide o que mostrar a partir de `pode`; ele desenha o que vem aqui e mapeia cada `chave` para a rota e o ícone dele.
+
+```json
+"navegacao": {
+  "inicio": { "rota": "/inicio", "variante": "gerente" },
+  "menu_inicio": [
+    { "grupo": null, "itens": [
+        { "chave": "inicio", "rotulo": "Visão da filial", "contador": null },
+        { "chave": "aprovacoes", "rotulo": "Aprovações", "contador": "aprovacoes" },
+        { "chave": "veiculos", "rotulo": "Veículos", "contador": "veiculos" } ] },
+    { "grupo": "Operação", "itens": [
+        { "chave": "locacoes", "rotulo": "Locações", "contador": "locacoes" },
+        { "chave": "clientes", "rotulo": "Clientes", "contador": null } ] },
+    { "grupo": "Filial", "itens": [ { "chave": "caixa", "rotulo": "Caixa da filial", "contador": null } ] }
+  ],
+  "menu_completo": [ { "grupo": null, "itens": [ "..." ] }, { "grupo": "Operação", "itens": [ "..." ] } ],
+  "barra_celular": ["inicio", "veiculos", "nova_locacao", "locacoes", "mais"]
+}
+```
+
+- `inicio.variante` (`USR-08`): `implantacao` (administrador antes da 1ª locação ou venda, `IMP-01`), `geral` (administrador depois), `gerente`, `vendedor`, `vistoriador`, `financeiro`. A rota é sempre `/inicio`; o conteúdo vem de `GET /api/painel/inicio/` (`docs/api/painel.md`). No modo suporte, a variante é a do administrador.
+- `menu_inicio` é o menu da tela inicial do perfil; `menu_completo`, o das telas compartilhadas (`USR-05`). Itens sem permissão **não vêm**; nunca vêm desabilitados.
+- `contador` é a chave em `GET /api/painel/contadores/`, ou `null` quando o item não tem contador.
+- `barra_celular`: os cinco destinos da barra inferior, já filtrados (`nova_locacao` só para quem cria locação).
+- Um item só aparece quando valem as três condições: a permissão da pessoa (tabela abaixo), o recurso do plano (`Plano.recursos`) e a atividade da empresa (`ConfiguracaoEmpresa.atividade`: aluga, vende ou os dois). Além disso, a API esconde os módulos ainda não entregues (configuração `GIRO_MODULOS_ATIVOS` do backend), para o menu nunca levar a uma tela que não existe.
+
+Itens do `menu_completo`, na ordem:
+
+| Grupo | `chave` | Rótulo | Aparece para quem | Recurso do plano | Atividade |
+| --- | --- | --- | --- | --- | --- |
+| — | `inicio` | Visão geral | todos | — | — |
+| — | `aprovacoes` | Aprovações | quem decide pedidos (gerente, administrador, permissões extras) | — | — |
+| — | `veiculos` | Veículos | `pode.veiculos` ≠ `nao` | — | — |
+| Operação | `locacoes` | Locações | `locacoes_criar` ou `vistorias_fazer` | `locacoes_vistoria` | aluga |
+| Operação | `vendas` | Vendas | `vendas_criar` | `vendas_comissoes` | vende |
+| Operação | `clientes` | Clientes | `clientes_cadastrar` ou `caixa_receber` | — | — |
+| Operação | `manutencoes` | Manutenções | `os_abrir` | `manutencao_despesas` | — |
+| Financeiro | `caixa` | Caixa do dia | `caixa_receber` ou `caixa_abrir_fechar` | `contas_receber` | — |
+| Financeiro | `receber` | Contas a receber | `caixa_receber` | `contas_receber` | — |
+| Financeiro | `despesas` | Despesas | `despesas_lancar` ≠ `nao` | `manutencao_despesas` | — |
+| Financeiro | `comissoes` | Comissões | `financeiro_pagar` | `vendas_comissoes` | — |
+| Financeiro | `conciliacao` | Conciliação | `financeiro_pagar` | `contas_receber` | — |
+| Financeiro | `relatorios` | Relatórios | `painel` é `todas_filiais` ou `filial` | `relatorios` | — |
+| Administração | `config`, `marca`, `filiais`, `usuarios`, `assinatura`, `auditoria` | como na tela | `administracao` | — | — |
+
+Os `menu_inicio` de cada variante seguem as telas `Gerente`, `Vendedor`, `Vistoriador` e `Financeiro`, com os mesmos filtros. As variantes `geral` e `implantacao` usam o `menu_completo`. Itens próprios do início: `agenda` ("Vistorias de hoje"), `avarias` ("Avarias abertas") e `consultar_veiculo` (vistoriador); `propostas`, `minhas_vendas`, `veiculos_a_venda` e `minhas_comissoes` (vendedor, fase 2); `contas_a_pagar` e `caixa_e_bancos` (financeiro).
+
 ### PATCH /api/auth/eu/
 Corpo: `{ nome?, celular? }`. E-mail e perfil não mudam por aqui. 200: igual ao `GET`.
 
