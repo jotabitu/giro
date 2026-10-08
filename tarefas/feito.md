@@ -24,3 +24,7 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-020 · Telas de acesso e casca do app · frontend · PR #11 · tarefas/handoffs/T-020-frontend.md · dados falsos até a T-011; 390 px a validar com emulação (Edge headless não abre abaixo de 492 px)
 - T-047 · Menu por permissão e agregados do painel · arquiteto · PR #12 · tarefas/handoffs/T-047-arquiteto.md · com USR-08 do produto
 - T-040 · Cobertura de regras e testes de aceitação de T-010 a T-014 · qa · PR #14 · tarefas/handoffs/T-040-qa.md · 105 xfail; inventário de 135 códigos de regra
+- T-021 · Telas de veículos e clientes · frontend · PR #18 · tarefas/handoffs/T-021-frontend.md · dados falsos
+- T-035 · Endurecimento de produção · devops · PR #17 · tarefas/handoffs/T-035-devops.md · inclui ADRs 0016 e 0018
+- T-028 · Limpar dados de exemplo das telas · design-system · PR #19 · tarefas/handoffs/T-028-design-system.md · 41 telas
+- T-050 · Revisão de segurança do código da T-033 · seguranca · PR #20 · tarefas/handoffs/T-050-seguranca.md · sem altos; R-01 na T-034
