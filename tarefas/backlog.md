@@ -200,10 +200,10 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - **Depende de:** T-059, T-054
 - **Pronto quando:** `Receber` e `Financeiro` (desktop e celular) com os números da carteira registrados na T-059; `FleetBar` da T-054 conferido no navegador a 390 px; CNPJ da Messejana 12.345.678/0003-57 nas telas `Filial` e `Filial-Mobile` (decidido em 08/10). Também `Caixa`, `Locacoes` e `Comissoes` como na divergência da T-059 no topo do backlog; nos números do `Receber` e do `Financeiro` valem os das regras (T-059), não os do README da T-056.
 
-### T-062 · Carteira de outubro com as mudanças da T-059
-- **Agente:** qa
-- **Depende de:** T-056, T-059
-- **Pronto quando:** `docs/qa/carteira-outubro/gerar.py`, os CSV, o README e os testes `test_fin_15_*` seguem a divergência "Carteira de outubro" da T-059 no topo do backlog (LOC-2841 desde 23 set; LOC-2848 com a renovação de R$ 109,00 paga em 07 out), e chegam a Previsto R$ 52.002,10 em 128, Recebido R$ 13.401,70 em 30 (25,77%) e abas 130 / 2 / 6 / 92 / 30.
+### T-067 · USR-07: o financeiro também escolhe todas as filiais
+- **Agente:** produto
+- **Depende de:** T-012
+- **Pronto quando:** o texto da `USR-07` (hoje "só o administrador") inclui o financeiro, como já dizem a tabela de perfis e a `USR-08`, com a nota de mudança; levantado pelo arquiteto na conferência da decisão 5 da T-012 (T-063).
 
 ### T-063 · Contratos com o caixa da T-059 e conferência da T-058 e da T-012
 - **Agente:** arquiteto
@@ -229,16 +229,10 @@ Levantadas pelo produto em T-059 (08 out 2026):
 
 - **Nota da T-012 (08/10):** a S-12 (SVG do logo sanitizado e exibido só por `<img>`) vale para `ConfiguracaoEmpresa.logo` (app `empresas`), e não para a filial. Entra na tarefa da marca da empresa (`Admin-Marca`), a criar.
 
-### T-058 · Correções de segurança da T-057
-- **Agente:** backend · **Prioridade:** antes de qualquer ambiente com dados reais (homologação incluída)
-- **Depende de:** T-010, T-057
-- **Pronto quando:** P-01 (login do Django Admin com o bloqueio do `PLT-08` e auditado), P-02 (contagem de códigos errados com `select_for_update` antes de verificar, sem corrida em paralelo), P-03 (throttle no login da equipe e a mesma resposta para senha errada e senha certa sem código) e P-04 (subdomínio que vira schema existente ou reservado do Postgres, como `information_schema` e `pg_*`, recusado com 400 `validacao`) corrigidos, cada um com teste que reproduz o achado; detalhes em `docs/seguranca/2026-10-08-codigo-t010.md`.
-- Decidido em 08/10 pelo dono do produto (P-03): a equipe da plataforma também fica bloqueada por 15 minutos depois de 5 senhas erradas, como no `USR-06`. O produto registra na `PLT-08` (T-059); o teste do bloqueio por senha entra nesta tarefa.
-- **Também (devops):** limite de requisições no proxy para `/api/*/auth/` e `/admin/login/` (P-03, S-17), quando houver proxy de homologação.
-
 ### T-011 · Contas, perfis, permissões, 2FA, convite
 - **Agente:** backend · **Depende de:** T-012, T-033 · **ADRs:** 0013, 0014 (sessões) · **Segurança:** S-02, S-03, S-08, S-13 · **Regras:** USR-01 a USR-07 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-011.md` (CA-011-01 a 28) passam, com o código da regra no nome do teste. · **Inclui:** `Usuario.status` no lugar de `ativo` e e-mail único sem diferenciar maiúsculas (T-045)
 - **Também:** R-06 da revisão T-050; P-05 a P-09 da revisão T-057 (`docs/seguranca/2026-10-08-codigo-t010.md`, "Distribuição sugerida").
+- **Também:** `EscopoDeFilial` aceita `X-Filial: todas` para o financeiro e `/filiais/minhas/` devolve `pode_escolher_todas` para ele (decisão 5 da T-012 revista na T-063, `docs/api/filiais.md`; `USR-07` corrigida na T-067).
 
 ### T-013 · Veículos, categorias, documentos, histórico de status
 - **Agente:** backend · **Depende de:** T-012 · **Regras:** VEI-01 a VEI-06 · **Telas:** Frota, Veiculo, Precos · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-013.md` (CA-013-01 a 26) passam, com o código da regra no nome do teste.

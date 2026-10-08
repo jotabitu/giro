@@ -1,6 +1,7 @@
 """Rotas do schema público (admin.<DOMINIO_BASE> e hosts sem empresa).
 
-O Django Admin exige 2FA (OTPAdminSite, PLT-08): o usuário precisa de um dispositivo TOTP.
+O Django Admin exige 2FA (OTPAdminSite, PLT-08): o usuário precisa de um dispositivo TOTP. O
+login passa pelo bloqueio e pela auditoria da API (`contas.login_admin`, P-01 da T-057).
 """
 
 from django.conf import settings
@@ -10,9 +11,11 @@ from django_otp.admin import OTPAdminSite
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from apps.contas.api.urls import urls_plataforma as urls_contas
+from apps.contas.login_admin import LoginDoAdmin
 from apps.plataforma.api.urls import urls_plataforma
 
 admin.site.__class__ = OTPAdminSite
+admin.site.login_form = LoginDoAdmin
 
 urlpatterns: list[URLPattern | URLResolver] = [
     path("admin/", admin.site.urls),

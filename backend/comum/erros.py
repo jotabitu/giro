@@ -115,6 +115,12 @@ def tratar_excecao(exc: Exception, context: dict[str, Any]) -> Response | None:
             "mensagem": "Confira os campos destacados",
             "campos": campos,
         }
+    elif isinstance(exc, exceptions.Throttled):
+        resposta.data = {
+            "codigo": "muitas_requisicoes",
+            "mensagem": "Muitas tentativas seguidas. Espere um pouco e tente de novo.",
+            "detalhes": {"tentar_de_novo_em_segundos": int(getattr(exc, "wait", None) or 0) + 1},
+        }
     elif isinstance(exc, exceptions.APIException):
         resposta.data = {
             "codigo": _codigo_padrao(exc),
