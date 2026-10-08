@@ -9,6 +9,8 @@ export const CATALOGO = [
   { slug: "fleet-bar", nome: "FleetBar", resumo: "Distribuição da frota por status" },
   { slug: "gaveta", nome: "Gaveta", resumo: "Painel que desliza da borda: menu, filtros e detalhe no celular" },
   { slug: "kpi-tile", nome: "KpiTile", resumo: "Indicadores do painel; o primeiro em destaque" },
+  { slug: "linha-de-lista", nome: "LinhaDeLista", resumo: "Linha com título, apoio e ação, para listas dentro de painéis" },
+  { slug: "progress-bar", nome: "ProgressBar", resumo: "Andamento em porcentagem, como os primeiros passos" },
   { slug: "search-field", nome: "SearchField", resumo: "Busca global com atalho Ctrl K" },
   { slug: "segmented-control", nome: "SegmentedControl", resumo: "Período e filtros de visão" },
   { slug: "seletor-de-filial", nome: "SeletorDeFilial", resumo: "Troca de filial no topo do menu, com Todas as filiais para o administrador" },
