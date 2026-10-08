@@ -132,6 +132,11 @@ def test_plt_01_ca_010_02_moto_rapida_nasce_em_teste(
     connection.set_schema_to_public()
     assert [m.to for m in mail.outbox] == [["mariana@motorapida.com.br"]]
     assert "https://motorapida.localhost/convite/" in mail.outbox[0].body
+    # Texto revisado na T-059 (T-066): não supõe o gênero da pessoa.
+    assert mail.outbox[0].subject == "Moto Rápida: seu convite de acesso"
+    primeira, _, ultima = mail.outbox[0].body.split("\n")
+    assert primeira == "Olá, Mariana Costa. A Moto Rápida convidou você para acessar o sistema."
+    assert ultima == "O link vale por 7 dias."
 
 
 def test_plt_01_ca_010_02_falha_nao_deixa_schema_nem_email(
@@ -243,6 +248,11 @@ def test_plt_03_ca_010_07_aviso_em_90_por_cento(
     assert (uso["usado"], uso["aviso"], uso["bloqueado"]) == (135, True, False)
     assert [m.to for m in mail.outbox] == [["mariana@a.com"]]
     assert "limite do plano em 90%" in mail.outbox[0].subject
+    assert mail.outbox[0].body == (  # texto revisado na T-059 (T-066)
+        "Sua empresa usa 135 de 150 veículos do plano. Ao chegar a 150, não dá para cadastrar "
+        "mais veículos, e o que já está cadastrado continua funcionando. Para aumentar o limite, "
+        "mude de plano em Assinatura."
+    )
     connection.set_tenant(empresa_a)  # a tarefa eager volta a conexão ao public no fim
 
     with django_capture_on_commit_callbacks(execute=True):
@@ -346,6 +356,20 @@ def test_plt_03_ca_010_10_plano_sem_limite(empresa_a, planos):
         assert (uso["limite"], uso["aviso"], uso["bloqueado"]) == (None, False, False)
 
 
+# Textos revisados na T-059 (T-066). Cancelada não tem faixa.
+FAIXAS_REVISADAS = {
+    "suspensa": (
+        "Sua empresa está suspensa. Você pode ver e exportar os dados, mas não criar locações, "
+        "vendas nem cobranças. Ao pagar, o acesso volta na hora."
+    ),
+    "pausada": (
+        "Sua empresa está pausada. Você pode ver os dados. "
+        "Para voltar a operar, retome a assinatura."
+    ),
+    "cancelada": None,
+}
+
+
 @pytest.mark.parametrize("status", ["suspensa", "pausada", "cancelada"])
 def test_plt_03_ca_010_11_empresa_sem_operacao_fica_so_leitura(empresa_a, planos, status):
     _usar_plano(empresa_a, planos["Profissional"], veiculos=86)
@@ -357,6 +381,7 @@ def test_plt_03_ca_010_11_empresa_sem_operacao_fica_so_leitura(empresa_a, planos
     leitura = api.get("/api/assinatura/")
     assert leitura.status_code == 200
     assert leitura.json()["somente_leitura"] is True
+    assert leitura.json()["faixa_aviso"] == FAIXAS_REVISADAS[status]
     escrita = api.post("/api/assinatura/", {}, format="json")
     assert escrita.status_code == 403
     assert escrita.json()["codigo"] == "empresa_sem_operacao"

@@ -52,7 +52,7 @@ Corpo: `{ email, senha, codigo }` (6 dígitos do autenticador) **ou** `{ email, 
 400 `validacao`: `email` ou `senha` faltando.
 401 `{ "codigo": "credenciais_invalidas", "mensagem": "E-mail, senha ou código incorretos" }`: a resposta não diz qual dos três errou. Quem tem autenticador e não manda código recebe este 401, com a senha certa ou errada (T-058).
 429 `{ "codigo": "PLT-08", "mensagem": "Acesso bloqueado por 15 minutos depois de 3 códigos errados", "detalhes": { "tentar_de_novo_em": "..." } }`: o 3º código errado bloqueia e grava evento de segurança na auditoria do `public`. A 5ª senha errada (ou sem código) também bloqueia, com a mensagem "Acesso bloqueado por 15 minutos depois de 5 senhas erradas". Enquanto o bloqueio vale, nem a senha é conferida.
-429 `{ "codigo": "muitas_requisicoes", "mensagem": "Muitas tentativas seguidas. Espere um pouco e tente de novo.", "detalhes": { "tentar_de_novo_em_segundos": 42 } }` e cabeçalho `Retry-After`: limite de requisições, 10 por minuto e 50 por hora por IP e por e-mail. `convites/`, `renovar` e `2fa/` têm 30 por minuto por IP.
+429 `{ "codigo": "muitas_requisicoes", "mensagem": "Muitas tentativas seguidas. Espere um pouco e tente de novo.", "detalhes": { "tentar_de_novo_em_segundos": 42 } }` e cabeçalho `Retry-After`: limite de requisições, 10 por minuto e 50 por hora por IP e por e-mail. `convites/`, `renovar`, `sair` e `2fa/` têm 30 por minuto por IP. As taxas ficam em `REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`; o limite no proxy (S-17) é do devops e soma a este.
 403 `{ "codigo": "usuario_inativo" }`: convite pendente ou desativado.
 Auditoria: `seguranca`, `usuario.entrar` (sucesso) e `usuario.entrar_falhou` (com IP e aparelho).
 Regras: PLT-08.
@@ -77,14 +77,15 @@ Qualquer função. 200: o mesmo `usuario` de `entrar`, mais `{ "dois_fatores_ati
 
 ### Convite da equipe
 
-Fase 1: o primeiro dono e os convites saem pelo comando `python manage.py convidar_equipe_plataforma <email> <funcao>`, que imprime o link. As telas usam os endpoints abaixo desde a fase 1, porque o link do convite abre uma página.
+Fase 1: o primeiro dono e os convites saem pelo comando `python manage.py convidar_equipe_plataforma <email> <funcao>`, que imprime o link `https://admin.<dominio>/convite#<token>`. As telas usam os endpoints abaixo desde a fase 1, porque o link do convite abre uma página. A página lê o fragmento, apaga-o da barra de endereço (`history.replaceState`) e guarda o token só em memória, como em `/suporte/entrar#<token>`. O fragmento não vai ao servidor nem ao proxy, então o token não cai em log de acesso nem no Sentry (P-09 da T-057, T-072). A API recebe o token sempre no corpo.
 
-**GET /api/plataforma/convites/{token}/** · público
+**POST /api/plataforma/convites/consultar/** · público
+Corpo: `{ token }`. Só lê o convite para a tela.
 200: `{ "email": "larissa@girolocadoras.com.br", "nome": "Larissa Melo", "funcao": "suporte", "expira_em": "..." }`
 404 `nao_encontrado`; 410 `{ "codigo": "convite_expirado", "mensagem": "Este convite venceu. Peça um novo." }` (7 dias).
 
-**POST /api/plataforma/convites/{token}/aceitar/** · público
-Corpo: `{ senha }`. Senha validada pelos validadores do Django.
+**POST /api/plataforma/convites/aceitar/** · público
+Corpo: `{ token, senha }`. Senha validada pelos validadores do Django.
 200: `{ "etapa": "configurar_2fa", "token_pre_2fa": "<jwt, 5 min>" }`. O convite fica usado; a pessoa só vira `ativo` ao confirmar o código em `2fa/verificar/`. Se o token pré-2FA vencer, ela entra por `entrar` com e-mail e senha e recebe outro.
 
 ---

@@ -8,10 +8,13 @@ Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-
 
 | Ação | Administrador | Gerente | Vendedor | Vistoriador | Financeiro |
 | --- | --- | --- | --- | --- | --- |
-| Ver as próprias filiais (seletor) | todas | as suas | as suas | as suas | as suas |
+| Ver as próprias filiais (seletor) | todas, e "Todas as filiais" | as suas | as suas | as suas | todas, e "Todas as filiais" |
+| Ver o detalhe de uma filial do seu escopo | sim | sim | sim | sim | sim |
 | Administrar filiais (listar todas, criar, editar, desativar) | sim | — | — | — | — |
 
-"Administração (marca, filiais, usuários, ...)" é só do administrador na tabela de perfis. Fora do escopo da pessoa, a filial responde 404.
+"Administração (marca, filiais, usuários, ...)" é só do administrador na tabela de perfis: as ações de administrar (lista, criar, editar, matriz, desativar, reativar, feriados) respondem 403 aos demais perfis. Fora do escopo da pessoa, a filial responde 404.
+
+O financeiro vê painel, relatórios e contas de todas as filiais (tabela de perfis, `USR-08`, `financeiro.md` e `painel.md`); por isso o escopo dele é igual ao do administrador, sem depender das filiais ligadas a ele (`USR-07`: "Administrador e financeiro veem todas as filiais ativas, sem depender das filiais ligadas a eles, e podem escolher 'Todas as filiais'"; confirmado pelo produto na T-063, texto da regra corrigido na T-067).
 
 ## Representação da filial
 
@@ -62,12 +65,13 @@ Para o seletor de filial do topo do menu (`USR-07`). Sem paginação.
   "resultados": [ { "id": 1, "nome": "Filial Centro", "matriz": true, "cidade": "Fortaleza", "uf": "CE" } ]
 }
 ```
-- Só filiais ativas e ligadas à pessoa. Administrador recebe todas as ativas e `pode_escolher_todas: true` ("Todas as filiais").
-- A filial escolhida vai nas próximas requisições pelo cabeçalho `X-Filial: <id>` (ou `X-Filial: todas`, só para quem pode). Sem o cabeçalho, a API usa a matriz, se a pessoa tiver acesso a ela, ou a primeira filial da pessoa. Filial fora do escopo no cabeçalho → 403 `{ "codigo": "USR-07", "mensagem": "Você não tem acesso a esta filial" }`. A regra vale para todos os módulos com filial e é aplicada por `comum.permissoes`.
+- Só filiais ativas e ligadas à pessoa. Administrador e financeiro recebem todas as ativas e `pode_escolher_todas: true` ("Todas as filiais").
+- O seletor lista só filiais ativas, mas `X-Filial: todas` inclui os dados das filiais desativadas que ainda têm contas em aberto ou histórico: elas mantêm a filial de origem para relatório e DRE (`FIL-06`). Ou seja, "todas" não filtra por filial, em vez de filtrar pelas ativas.
+- A filial escolhida vai nas próximas requisições pelo cabeçalho `X-Filial: <id>` (ou `X-Filial: todas`, só para quem pode: administrador e financeiro em qualquer endpoint; quem tem a permissão extra `relatorios_todas_filiais` (`USR-03`) só nos endpoints de painel e relatórios, e nos demais recebe 403 `USR-07`). Sem o cabeçalho, a API usa a matriz, se a pessoa tiver acesso a ela, ou a primeira filial da pessoa. Filial fora do escopo no cabeçalho → 403 `{ "codigo": "USR-07", "mensagem": "Você não tem acesso a esta filial" }`. A regra vale para todos os módulos com filial e é aplicada por `comum.permissoes`.
 
 ## GET /api/filiais/
 Perfil: administrador.
-Query: `?ativo=true|false` (padrão: todas), `?busca=` (nome, cidade).
+Query: `?ativo=true|false` (padrão: todas), `?busca=` (nome, cidade). Ordem fixa por `nome` (único na empresa, sem diferenciar maiúsculas), que é a chave do cursor; não há `?ordem=`.
 200:
 ```json
 {
@@ -80,7 +84,8 @@ Query: `?ativo=true|false` (padrão: todas), `?busca=` (nome, cidade).
 - Indicadores por filial vêm no bloco `indicadores` de cada item, por anotação de leitura (ADR 0015): `{ "veiculos": 86, "locacoes_ativas": 42, "usuarios": 5, "ocupacao_pct": "71.00" }`. `veiculos` e `ocupacao_pct` (`VEI-06`, últimos 90 dias) são fornecidos pelo app `veiculos`, `locacoes_ativas` por `locacoes` e `usuarios` por `filiais`. Enquanto o app fornecedor não existe, o campo vem `null`.
 
 ## GET /api/filiais/{id}/
-Perfil: administrador. 200: representação da filial.
+Perfis: todos, para filial do seu escopo (assim gerente e demais veem `horario` e `feriados_proximos`). Fora do escopo: 404. 200: representação da filial.
+Campos opcionais de texto (CNPJ, inscrições, contato, complemento) vazios saem `null`.
 
 ## POST /api/filiais/
 Perfil: administrador.
@@ -134,7 +139,7 @@ Perfil: administrador (os demais veem os próximos na representação).
 200: `{ "resultados": [ { "id": 14, "data": "2026-10-12", "nome": "Nossa Senhora Aparecida", "origem": "nacional" } ] }`. `origem`: `nacional` (veio da sugestão) ou `local`.
 
 ### GET /api/filiais/{id}/feriados/sugestoes/?ano=2027
-200: `{ "resultados": [ { "data": "2027-01-01", "nome": "Confraternização Universal", "ja_cadastrado": false } ] }`. Feriados nacionais de lei do ano, calculados pelo backend (datas fixas e Sexta-feira Santa, pela Páscoa), sem integração externa.
+200: `{ "resultados": [ { "data": "2027-01-01", "nome": "Confraternização Universal", "ja_cadastrado": false } ] }`. Os 10 feriados nacionais de lei do ano, calculados pelo backend (datas fixas e Sexta-feira Santa, pela Páscoa), sem integração externa. Carnaval e Corpus Christi são ponto facultativo e não entram na sugestão: a filial que fecha nesses dias cadastra como feriado local.
 
 ### POST /api/filiais/{id}/feriados/
 Corpo: `{ "feriados": [ { "data": "2027-01-01", "nome": "Confraternização Universal", "origem": "nacional" }, { "data": "2027-03-19", "nome": "São José", "origem": "local" } ] }`. Confirma sugestões e acrescenta locais numa chamada. 201 com a lista do ano. Data já cadastrada na filial é ignorada.
@@ -157,7 +162,9 @@ Implementado em `backend/integracoes/cep/` atrás de uma interface, com implemen
 | Função | Uso |
 | --- | --- |
 | `filiais.selectors.filiais_do_usuario(usuario)` | ids das filiais ativas da pessoa (todas, para administrador). Registrada em `comum.permissoes` no `AppConfig.ready()` (`USR-07`). |
-| `filiais.selectors.filial_da_requisicao(request)` | filial escolhida pelo `X-Filial` (ou `None` para "todas"). |
+| `filiais.selectors.filtrar_por_filial(queryset, request, campo="filial")` | **o único jeito de um módulo filtrar pelo escopo de filial** (T-068, F-02 da T-064). Com uma filial, filtra por ela. Com "todas", filtra por `campo__in` com todas as filiais da empresa, ativas e desativadas (a desativada ainda tem contas e histórico, `USR-07` e `FIL-06`). Pessoa sem filial ativa e sem `X-Filial` recebe 403 `{ "codigo": "USR-07", "mensagem": "Você não tem acesso a nenhuma filial" }`. |
+| `filiais.selectors.filial_da_requisicao(request)` | usada por `filtrar_por_filial`; nenhum outro app a chama (teste de arquitetura em `tests/test_permissoes_das_rotas.py`). Devolve a `Filial` do `X-Filial` (só ativa do escopo) ou `TodasAsFiliais(ids)`, nunca `None`. Sem cabeçalho, devolve a matriz, se a pessoa tem acesso a ela, ou a primeira filial dela. Sem filial nenhuma, 403 `USR-07`. `/filiais/minhas/` e `/auth/eu/` não chamam a função: continuam respondendo, com a lista vazia. |
+| `comum.permissoes.com_padrao(*extras)` | permissões de uma view: as padrão (`IsAuthenticated`, `EmpresaOperando`, `EscopoDeFilial`) mais as extras. Declarar a lista à mão derruba as padrão (F-01 da T-064). |
 | `filiais.selectors.esta_aberta(filial, momento) -> bool` e `proxima_abertura(filial, momento)` | `LOC-11`; consideram horário e feriados ativos (`FIL-03`). |
 | assinante de `contas.filiais_do_usuario_definidas` | grava `UsuarioFilial` no convite e na edição de usuário (ver `contas.md`); `contas` não chama `filiais` direto (ADR 0011). |
 

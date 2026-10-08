@@ -73,13 +73,13 @@ Query: `?periodo=hoje|semana|mes` (vencimento), `?situacao=atrasadas|vencem_hoje
 ```json
 {
   "indicadores": {
-    "previsto_mes_centavos": 7420000, "previsto_mes_parcelas": 301,
-    "recebido_mes_centavos": 2160000, "recebido_pct": "29.11",
-    "vence_hoje_centavos": 90740, "vence_hoje_parcelas": 3,
+    "previsto_mes_centavos": 5200210, "previsto_mes_parcelas": 128,
+    "recebido_mes_centavos": 1340170, "recebido_pct": "25.77",
+    "vence_hoje_centavos": 262580, "vence_hoje_parcelas": 6,
     "em_atraso_centavos": 164640, "em_atraso_clientes": 2, "em_atraso_parcelas": 2,
     "faixas": { "1_7": 29940, "8_30": 134700, "mais_30": 0 }
   },
-  "contagens": { "todas": 303, "atrasadas": 2, "vencem_hoje": 3, "a_vencer": 226, "pagas": 72 },
+  "contagens": { "todas": 130, "atrasadas": 2, "vencem_hoje": 6, "a_vencer": 92, "pagas": 30 },
   "resultados": [ { ...representação... } ],
   "proximo": "...", "anterior": null
 }
@@ -87,13 +87,13 @@ Query: `?periodo=hoje|semana|mes` (vencimento), `?situacao=atrasadas|vencem_hoje
 Caso do seed (`FIN-01`, CA-017-03): em aberto = Carlos 29940 + Rafael 134700 = **164640** em 2 clientes; Carlos na faixa `1_7`, Rafael na `8_30`.
 
 Números da `FIN-15` (base: contas da filial, sem caução e sem `cancelada` e `renegociada`, valores sem multa e juros):
-- `previsto_mes_*`: contas com vencimento no mês corrente, pagas ou não. `recebido_mes_*`: as `paga` desse previsto (não o que foi pago no mês). `recebido_pct` = recebido ÷ previsto, em valor, com 2 casas (`ROUND_HALF_UP`): 2160000 ÷ 7420000 = **"29.11"**.
+- `previsto_mes_*`: contas com vencimento no mês corrente, pagas ou não. `recebido_mes_*`: as `paga` desse previsto (não o que foi pago no mês). `recebido_pct` = recebido ÷ previsto, em valor, com 2 casas (`ROUND_HALF_UP`): 1340170 ÷ 5200210 = **"25.77"**.
 - `vence_hoje_*`: contas não pagas com vencimento hoje. `em_atraso_*` e `faixas`: todas as `atrasada`, de qualquer mês. Os indicadores não mudam com `?periodo=` nem `?situacao=`.
-- `contagens` são as abas da tela, uma chave por aba: `atrasadas` ignora o período (todas as atrasadas); `vencem_hoje`, `a_vencer` e `pagas` seguem o `?periodo=` pelo vencimento; **`todas` = soma das quatro** (aqui 2 + 3 + 226 + 72 = 303). `canceladas` não é aba e não entra em `todas`. O filtro `?situacao=` devolve exatamente as contas contadas na aba.
-- Com `?periodo=mes`, `previsto_mes_parcelas` = `pagas` + `vencem_hoje` + `a_vencer` + as atrasadas que vencem no próprio mês (aqui nenhuma: Carlos venceu em 30 set e Rafael em setembro), então 72 + 3 + 226 = 301.
+- `contagens` são as abas da tela, uma chave por aba: `atrasadas` ignora o período (todas as atrasadas); `vencem_hoje`, `a_vencer` e `pagas` seguem o `?periodo=` pelo vencimento; **`todas` = soma das quatro** (aqui 2 + 6 + 92 + 30 = 130). `canceladas` não é aba e não entra em `todas`. O filtro `?situacao=` devolve exatamente as contas contadas na aba.
+- Com `?periodo=mes`, `previsto_mes_parcelas` = `pagas` + `vencem_hoje` + `a_vencer` + as atrasadas que vencem no próprio mês (aqui nenhuma: Carlos venceu em 30 set e Rafael em setembro), então 30 + 6 + 92 = 128.
 - O contador `receber` de `GET /api/painel/contadores/` é `contagens.atrasadas` (`FIN-15`; seed: 2).
 
-Previsto, recebido, a vencer e pagas acima são ilustrativos: o seed ainda não tem a carteira de outubro (`docs/regras-de-negocio.md`, mudanças de 08 out, T-053). Vence hoje é um exemplo que fecha com a tabela de preços (Urbana semanal 29940 + Street semanal 32900 + Entregador 27900 = 90740 em 3 parcelas). O teste da `FIN-15` usa um caso pequeno próprio até a carteira existir.
+Caso do seed (`FIN-15`, linha "Contas a receber de outubro em 07 out" das regras, carteira em `docs/qa/carteira-outubro/`): Filial Centro, `?periodo=mes`, em 07 out. A vencer soma 3597460 em 92 parcelas.
 
 ### GET /api/financeiro/contas-receber/{id}/
 200: representação mais `historico` (cobranças geradas, mensagens enviadas, baixa, estorno).
@@ -172,8 +172,8 @@ Reembolsos `a_fazer` entram em "Para hoje" do início do financeiro (todas as fi
   "id": 240, "filial": { "id": 1, "nome": "Filial Centro" }, "data": "2026-10-07",
   "status": "aberto", "aberto_por": { "id": 3, "nome": "Bruna Alves" }, "aberto_em": "2026-10-07T10:55:00Z",
   "resumo": {
-    "entrou_hoje_centavos": 118260, "recebimentos": 5,
-    "por_forma": { "pix": { "centavos": 37390, "quantidade": 2 }, "cartao": { "centavos": 17970, "quantidade": 1, "texto": "cai em 30 dias" },
+    "entrou_hoje_centavos": 111190, "recebimentos": 5,
+    "por_forma": { "pix": { "centavos": 37390, "quantidade": 2 }, "cartao": { "centavos": 10900, "quantidade": 1, "texto": "cai em 30 dias" },
                    "dinheiro": { "centavos": 62900, "quantidade": 2 } },
     "gaveta": { "troco_centavos": 20000, "entradas_dinheiro_centavos": 62900, "saidas_dinheiro_centavos": 54800,
                 "esperado_centavos": 28100 }
@@ -183,7 +183,7 @@ Reembolsos `a_fazer` entram em "Para hoje" do início do financeiro (todas as fi
 }
 ```
 
-**Caso do seed (CA-017-13):** entradas 32900 pix + 17970 cartão + 32900 dinheiro + 30000 dinheiro (caução) + 4490 pix = **118260** em 5 recebimentos; saídas em dinheiro 50000 (sangria) + 4800 (óleo) = 54800; gaveta = 20000 + 62900 − 54800 = **28100** (R$ 281,00).
+**Caso do seed (CA-017-13):** entradas 32900 pix (Juliana, LOC-2836) + 10900 cartão (Diego, LOC-2848, renovação de 1 diária, `LOC-08`) + 32900 dinheiro + 30000 dinheiro (caução do Lucas, LOC-2856) + 4490 pix (diária Urbana retirada hoje) = **111190** em 5 recebimentos; saídas em dinheiro 50000 (sangria) + 4800 (óleo) = 54800; gaveta = 20000 + 62900 − 54800 = **28100** (R$ 281,00).
 
 `resumo.entrou_hoje_centavos` conta as entradas, inclusive a caução recebida (é dinheiro que entrou no caixa, ainda que não seja receita).
 

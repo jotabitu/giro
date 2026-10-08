@@ -7,7 +7,7 @@ cabeçalho `X-Filial` em toda requisição da empresa.
 """
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from django_tenants.utils import get_public_schema_name
 from rest_framework.permissions import SAFE_METHODS, BasePermission
@@ -35,8 +35,20 @@ class EmpresaOperando(BasePermission):
         return True
 
 
+def com_padrao(*extras: type[BasePermission]) -> list[type[BasePermission]]:
+    """As permissões padrão da API mais as da view, nunca no lugar delas (F-01 da T-064).
+
+    `permission_classes = com_padrao(exige_perfil("administrador"))`. Declarar a lista à mão
+    derruba `EmpresaOperando` e `EscopoDeFilial`; `tests/test_permissoes_das_rotas.py` confere.
+    """
+    from rest_framework.settings import api_settings  # lido na hora: as settings importam daqui
+
+    padrao = cast(list[type[BasePermission]], list(api_settings.DEFAULT_PERMISSION_CLASSES))
+    return [*padrao, *extras]
+
+
 def exige_perfil(*perfis: str) -> type[BasePermission]:
-    """`permission_classes = [IsAuthenticated, exige_perfil("administrador", "gerente")]`."""
+    """`permission_classes = com_padrao(exige_perfil("administrador", "gerente"))`."""
 
     class PerfilPermitido(BasePermission):
         message = "Seu perfil não tem acesso a esta ação."

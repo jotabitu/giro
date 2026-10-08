@@ -1,9 +1,11 @@
 """Leituras das filiais: escopo da pessoa (USR-07), horário e feriados (LOC-11, FIL-03).
 
-Interface para os outros apps (contrato de filiais): `filiais_do_usuario`, `filial_da_requisicao`,
-`esta_aberta` e `proxima_abertura`.
+Interface para os outros apps (contrato de filiais): `filiais_do_usuario`, `filtrar_por_filial`,
+`esta_aberta` e `proxima_abertura`. Os módulos filtram por filial só com `filtrar_por_filial`;
+ninguém lê `filial_da_requisicao` e filtra por conta própria (F-02 da T-064).
 """
 
+from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -12,6 +14,7 @@ from django.contrib.auth import get_user_model
 from django.db.models import Count, Q, QuerySet
 
 from comum import leituras, relogio
+from comum.erros import SemPermissao
 from comum.permissoes import TODAS_AS_FILIAIS, filial_pedida, pode_escolher_todas
 
 from .calendario import aberta_em, proxima_abertura_em, resumo_do_horario
@@ -45,15 +48,40 @@ def minhas_filiais(usuario: Any) -> QuerySet[Filial]:
     return Filial.ativos.filter(pk__in=filiais_do_usuario(usuario)).order_by("-matriz", "nome")
 
 
-def filial_da_requisicao(request: Any) -> Filial | None:
-    """Filial do `X-Filial`; `None` para "todas". Sem cabeçalho: a matriz, se a pessoa tem
-    acesso a ela, ou a primeira filial da pessoa."""
+@dataclass(frozen=True)
+class TodasAsFiliais:
+    """`X-Filial: todas`. `ids` são todas as filiais da empresa, inclusive as desativadas, que
+    ainda têm contas e histórico (USR-07, FIL-06). Nunca `None`, para não se confundir com
+    "pessoa sem filial"."""
+
+    ids: frozenset[int]
+
+
+def sem_filial_nenhuma() -> SemPermissao:
+    return SemPermissao("USR-07", "Você não tem acesso a nenhuma filial")
+
+
+def filial_da_requisicao(request: Any) -> Filial | TodasAsFiliais:
+    """Filial do `X-Filial` (só ativa do escopo, conferida em `filial_pedida`) ou
+    `TodasAsFiliais`. Sem cabeçalho: a matriz, se a pessoa tem acesso a ela, ou a primeira
+    filial da pessoa. Pessoa sem filial ativa: 403 `USR-07`."""
     pedida = filial_pedida(request)
     if pedida == TODAS_AS_FILIAIS:
-        return None
+        return TodasAsFiliais(frozenset(Filial.objects.values_list("pk", flat=True)))
     if isinstance(pedida, int):
         return Filial.objects.get(pk=pedida)
-    return minhas_filiais(request.user).first()
+    filial = minhas_filiais(request.user).first()
+    if filial is None:
+        raise sem_filial_nenhuma()
+    return filial
+
+
+def filtrar_por_filial(queryset: QuerySet[Any], request: Any, campo: str = "filial") -> Any:
+    """O único jeito de os módulos filtrarem pelo escopo de filial da requisição (USR-07)."""
+    escopo = filial_da_requisicao(request)
+    if isinstance(escopo, TodasAsFiliais):
+        return queryset.filter(**{f"{campo}__in": escopo.ids})
+    return queryset.filter(**{campo: escopo.pk})
 
 
 # --- Horário e feriados (FIL-03, LOC-11) ---

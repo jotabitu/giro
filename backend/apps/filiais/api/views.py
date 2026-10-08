@@ -6,7 +6,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
-from rest_framework.permissions import BasePermission, IsAuthenticated
+from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -14,8 +14,9 @@ from rest_framework.views import APIView
 from apps.plataforma.selectors import empresa_atual, uso_do_plano
 from comum import relogio
 from comum.erros import NaoEncontrado
+from comum.limites import CepPorUsuario
 from comum.paginacao import PaginacaoPorCursor
-from comum.permissoes import exige_perfil, filiais_permitidas, pode_escolher_todas
+from comum.permissoes import com_padrao, exige_perfil, filiais_permitidas, pode_escolher_todas
 from integracoes.cep import buscar_cep
 
 from .. import selectors, services
@@ -33,7 +34,7 @@ from .serializers import (
     MotivoSerializer,
 )
 
-SO_ADMINISTRADOR: list[type[BasePermission]] = [IsAuthenticated, exige_perfil("administrador")]
+SO_ADMINISTRADOR: list[type[BasePermission]] = com_padrao(exige_perfil("administrador"))
 
 
 def _representacao(filial: Filial, codigo: int = status.HTTP_200_OK) -> Response:
@@ -226,6 +227,8 @@ class RemoverFeriadoView(APIView):
 
 
 class CepView(APIView):
+    throttle_classes = [CepPorUsuario]
+
     @extend_schema(responses=CepSerializer, summary="Busca de CEP")
     def get(self, request: Request, cep: str) -> Response:
         endereco = buscar_cep(cep) if len(cep) == 8 and cep.isdigit() else None

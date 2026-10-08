@@ -41,8 +41,14 @@ SITUACOES_FILTRAVEIS = ("em_teste", "com_problema", "saindo", "ativa")
 
 FAIXA_AVISO = {
     "inadimplente": "Há uma fatura da assinatura em atraso. Pague para evitar a suspensão.",
-    "suspensa": "Sua empresa está suspensa. Você pode ver e exportar os dados até regularizar.",
-    "pausada": "Sua empresa está pausada. Você pode ver e exportar os dados.",
+    "suspensa": (
+        "Sua empresa está suspensa. Você pode ver e exportar os dados, mas não criar locações, "
+        "vendas nem cobranças. Ao pagar, o acesso volta na hora."
+    ),
+    "pausada": (
+        "Sua empresa está pausada. Você pode ver os dados. "
+        "Para voltar a operar, retome a assinatura."
+    ),
 }
 STATUS_SOMENTE_LEITURA = frozenset({"suspensa", "pausada", "cancelada"})
 
