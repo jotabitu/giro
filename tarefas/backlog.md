@@ -195,11 +195,6 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - **Depende de:** T-033
 - **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA`, `na_empresa` e o teste de arquitetura revisados contra a ADR 0014 (itens 2 e 3), a ADR 0018 (item 3) e os achados S-05, S-06, S-07, C-01 e C-02; relatório em `docs/seguranca/`; achados viram tarefas.
 
-### T-060 · Telas do Receber e do Financeiro com a carteira de outubro
-- **Agente:** design-system
-- **Depende de:** T-059, T-054
-- **Pronto quando:** `Receber` e `Financeiro` (desktop e celular) com os números da carteira registrados na T-059; `FleetBar` da T-054 conferido no navegador a 390 px; CNPJ da Messejana 12.345.678/0003-57 nas telas `Filial` e `Filial-Mobile` (decidido em 08/10). Também `Caixa`, `Locacoes` e `Comissoes` como na divergência da T-059 no topo do backlog; nos números do `Receber` e do `Financeiro` valem os das regras (T-059), não os do README da T-056.
-
 ### T-067 · USR-07: o financeiro também escolhe todas as filiais
 - **Agente:** produto
 - **Depende de:** T-012

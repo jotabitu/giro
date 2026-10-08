@@ -45,3 +45,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-059 · Números da carteira de outubro e textos da T-010 · produto · PR #39 · tarefas/handoffs/T-059-produto.md · cartão do Diego pela opção A; PLT-08 com 5 senhas; CA-010-18; correções nas T-060, T-062, T-063 e T-066
 - T-058 · Correções de segurança da T-057 · backend · PR #40 · tarefas/handoffs/T-058-backend.md · 280 testes; P-01 a P-04 com teste que reproduz o achado; CA-010-18; plataforma.md conferido na T-063
 - T-062 · Carteira de outubro com as mudanças da T-059 · qa · PR #42 · tarefas/handoffs/T-062-qa.md · Previsto R$ 52.002,10 em 128; Recebido 25,77%
+- T-060 · Telas do Receber e do Financeiro com a carteira de outubro · design-system · PR #43 · tarefas/handoffs/T-060-design-system.md · também Caixa, Locacoes e Comissoes; FleetBar conferido a 390 px
