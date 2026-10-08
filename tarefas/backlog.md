@@ -163,6 +163,11 @@ Levantadas pelo arquiteto em T-043 (07 out 2026):
 - **Depende de:** T-036
 - **Pronto quando:** `docs/api/contas.md` devolve `menu` (módulos liberados) em `GET /api/eu/`, para a tela não inferir de `pode`; rota inicial por perfil definida com o produto (vistoriador, vendedor, gerente, financeiro); `docs/api/painel.md` com os contadores do menu e os indicadores da tela `Main`. Resolve as três `[decisão]` da T-020.
 
+### T-048 · Frontend lê o menu e o painel da T-047
+- **Agente:** frontend
+- **Depende de:** T-047, T-021
+- **Pronto quando:** a casca usa `eu.navegacao` (menu do início, menu completo e barra do celular) em vez de inferir de `pode`; `/inicio` mostra a variante do perfil (USR-08); contadores e blocos do painel com valores tipados de `docs/api/painel.md`, ainda em dados falsos até o backend existir.
+
 ## Fase 1 · MVP
 
 ### T-010 · Plataforma: planos, empresas, criação de schema
