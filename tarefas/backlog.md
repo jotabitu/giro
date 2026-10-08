@@ -195,20 +195,35 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - **Depende de:** T-033
 - **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA`, `na_empresa` e o teste de arquitetura revisados contra a ADR 0014 (itens 2 e 3), a ADR 0018 (item 3) e os achados S-05, S-06, S-07, C-01 e C-02; relatório em `docs/seguranca/`; achados viram tarefas.
 
-### T-059 · Números da carteira de outubro e textos da T-010
-- **Agente:** produto
-- **Depende de:** T-056, T-010
-- **Pronto quando:** a linha da carteira de outubro (T-056) registrada em "Dados de referência para testes"; confirmadas a composição das 35 locações geradas e as divergências apontadas pelo qa (LOC-2841 parcela 2/5, LOC-2790 R$ 1.347,00, cartão R$ 179,70); textos de `faixa_aviso` e dos e-mails de limite e de convite da T-010 revisados; CNPJ da Filial Messejana 12.345.678/0003-57 (decidido pelo dono do produto em 08/10; o 0002-76 é da Caucaia) registrado onde a Messejana aparecer nas regras e nos critérios; `PLT-08` com o bloqueio de 5 senhas erradas por 15 minutos para a equipe da plataforma (decidido em 08/10, P-03 da T-057).
-
 ### T-060 · Telas do Receber e do Financeiro com a carteira de outubro
 - **Agente:** design-system
 - **Depende de:** T-059, T-054
-- **Pronto quando:** `Receber` e `Financeiro` (desktop e celular) com os números da carteira registrados na T-059; `FleetBar` da T-054 conferido no navegador a 390 px; CNPJ da Messejana 12.345.678/0003-57 nas telas `Filial` e `Filial-Mobile` (decidido em 08/10).
+- **Pronto quando:** `Receber` e `Financeiro` (desktop e celular) com os números da carteira registrados na T-059; `FleetBar` da T-054 conferido no navegador a 390 px; CNPJ da Messejana 12.345.678/0003-57 nas telas `Filial` e `Filial-Mobile` (decidido em 08/10). Também `Caixa`, `Locacoes` e `Comissoes` como na divergência da T-059 no topo do backlog; nos números do `Receber` e do `Financeiro` valem os das regras (T-059), não os do README da T-056.
 
-### T-061 · Rotas do menu corrigidas na T-055
+### T-062 · Carteira de outubro com as mudanças da T-059
+- **Agente:** qa
+- **Depende de:** T-056, T-059
+- **Pronto quando:** `docs/qa/carteira-outubro/gerar.py`, os CSV, o README e os testes `test_fin_15_*` seguem a divergência "Carteira de outubro" da T-059 no topo do backlog (LOC-2841 desde 23 set; LOC-2848 com a renovação de R$ 109,00 paga em 07 out), e chegam a Previsto R$ 52.002,10 em 128, Recebido R$ 13.401,70 em 30 (25,77%) e abas 130 / 2 / 6 / 92 / 30.
+
+### T-063 · Contratos com o caixa da T-059 e conferência da T-058 e da T-012
+- **Agente:** arquiteto
+- **Depende de:** T-059, T-058, T-012
+- **Pronto quando:** `financeiro.md`, `painel.md` e `veiculos.md` seguem a divergência "Contratos" da T-059 no topo do backlog; as mudanças da T-058 em `docs/api/plataforma.md` (entrar sem código responde 401; 429 das 5 senhas e 429 `muitas_requisicoes`) conferidas; as 5 decisões de implementação do handoff da T-012 conferidas contra as ADRs (nova ADR se alguma mudar uma decisão).
+
+### T-064 · Revisão de segurança da T-058 e da T-012
+- **Agente:** seguranca
+- **Depende de:** T-058, T-012
+- **Pronto quando:** as correções de P-01 a P-04 (T-058) conferidas contra o relatório da T-057, incluindo os testes de concorrência; o código da T-012 (escopo de filial por `X-Filial`, `tornar-matriz`, desativação, limites do plano) revisado contra a `USR-07` e as ADRs; relatório em `docs/seguranca/`; achados viram tarefas.
+
+### T-065 · Login trata o 401 e o 429 da T-058
 - **Agente:** frontend
-- **Depende de:** T-055, T-048
-- **Pronto quando:** `DESTINOS` de `frontend/src/lib/menu.ts` segue as rotas confirmadas e corrigidas em `docs/telas/README.md` na T-055, com teste.
+- **Depende de:** T-058
+- **Pronto quando:** as telas de acesso tratam as respostas novas de `docs/api/plataforma.md` (entrar sem código responde 401 em vez de 400; 429 do bloqueio de 5 senhas e 429 `muitas_requisicoes`), com mensagem nas palavras das telas, nos dados falsos, e com teste.
+
+### T-066 · Textos revisados da T-010
+- **Agente:** backend
+- **Depende de:** T-059, T-058
+- **Pronto quando:** `faixa_aviso` de `suspensa` e de `pausada` e o corpo dos e-mails de limite do plano e de convite trocados pelos textos do handoff da T-059 (`tarefas/handoffs/T-059-produto.md`), com os testes ajustados.
 
 ## Fase 1 · MVP
 
