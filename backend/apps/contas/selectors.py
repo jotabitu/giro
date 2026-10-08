@@ -11,6 +11,7 @@ from django.db.models import Count, Exists, Max, OuterRef, Q, Subquery
 from comum import permissoes
 from comum.empresa import STATUS_OPERANDO
 
+from . import navegacao
 from .models import Perfil, PermissaoExtra, StatusUsuario, Usuario
 
 ADM, GER, VEN, VIS, FIN = (
@@ -232,6 +233,10 @@ def dados_do_eu_suporte(ator: Any, empresa: Any) -> dict[str, Any]:
         "filiais": permissoes.resumo_das_filiais(ator),
         "dois_fatores": {"ativo": False, "obrigatorio": False, "codigos_recuperacao_restantes": 0},
         "pode": pode_do_suporte(ator.permissao),
+        # USR-08: no modo suporte, a variante é a do administrador.
+        "navegacao": navegacao.da_empresa(
+            empresa, Perfil.ADMINISTRADOR, pode_do_suporte(ator.permissao)
+        ),
         "suporte": {
             "acesso_suporte_id": ator.acesso_suporte_id,
             "nome": ator.nome,
@@ -248,10 +253,11 @@ def dados_do_eu_suporte(ator: Any, empresa: Any) -> dict[str, Any]:
 
 
 def dados_do_eu(usuario: Usuario, empresa: Any) -> dict[str, Any]:
-    """`GET /api/auth/eu/` sem a navegação (T-071); o suporte usa `dados_do_eu_suporte`."""
+    """`GET /api/auth/eu/` com a navegação (USR-05, USR-08). O suporte usa outra função."""
     from . import dois_fatores
 
     status_empresa = str(getattr(empresa, "status", ""))
+    pode = calcular_pode(usuario.perfil, list(usuario.permissoes_extras))
     return {
         "id": usuario.pk,
         "nome": usuario.nome,
@@ -265,7 +271,8 @@ def dados_do_eu(usuario: Usuario, empresa: Any) -> dict[str, Any]:
             "obrigatorio": usuario.exige_2fa_pela_regra,
             "codigos_recuperacao_restantes": dois_fatores.codigos_restantes(usuario),
         },
-        "pode": calcular_pode(usuario.perfil, list(usuario.permissoes_extras)),
+        "pode": pode,
+        "navegacao": navegacao.da_empresa(empresa, usuario.perfil, pode),
         "suporte": None,
         "empresa": {
             "nome_exibicao": getattr(empresa, "nome_exibicao", ""),

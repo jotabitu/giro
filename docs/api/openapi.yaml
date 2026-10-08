@@ -2166,6 +2166,8 @@ components:
           $ref: '#/components/schemas/DoisFatores'
         pode:
           $ref: '#/components/schemas/PodeDaEmpresa'
+        navegacao:
+          $ref: '#/components/schemas/Navegacao'
         suporte:
           allOf:
           - $ref: '#/components/schemas/SuporteDoEu'
@@ -2179,6 +2181,7 @@ components:
       - empresa
       - filiais
       - id
+      - navegacao
       - nome
       - perfil
       - permissoes_extras
@@ -2423,6 +2426,19 @@ components:
       required:
       - id
       - nome
+    GrupoNavegacao:
+      type: object
+      properties:
+        grupo:
+          type: string
+          nullable: true
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemNavegacao'
+      required:
+      - grupo
+      - itens
     Horario:
       type: object
       properties:
@@ -2500,6 +2516,16 @@ components:
       - ocupacao_pct
       - usuarios
       - veiculos
+    InicioNavegacao:
+      type: object
+      properties:
+        rota:
+          type: string
+        variante:
+          $ref: '#/components/schemas/VarianteEnum'
+      required:
+      - rota
+      - variante
     Intervalo:
       type: object
       properties:
@@ -2510,6 +2536,20 @@ components:
       required:
       - abre
       - fecha
+    ItemNavegacao:
+      type: object
+      properties:
+        chave:
+          type: string
+        rotulo:
+          type: string
+        contador:
+          type: string
+          nullable: true
+      required:
+      - chave
+      - contador
+      - rotulo
     ListaDeEmpresas:
       type: object
       properties:
@@ -2673,6 +2713,30 @@ components:
         motivo:
           type: string
           maxLength: 500
+    Navegacao:
+      type: object
+      description: 'USR-05 e USR-08: o menu pronto; o frontend liga cada `chave` à
+        rota e ao ícone.'
+      properties:
+        inicio:
+          $ref: '#/components/schemas/InicioNavegacao'
+        menu_inicio:
+          type: array
+          items:
+            $ref: '#/components/schemas/GrupoNavegacao'
+        menu_completo:
+          type: array
+          items:
+            $ref: '#/components/schemas/GrupoNavegacao'
+        barra_celular:
+          type: array
+          items:
+            type: string
+      required:
+      - barra_celular
+      - inicio
+      - menu_completo
+      - menu_inicio
     NivelDeAprovacaoEnum:
       enum:
       - sim
@@ -3432,6 +3496,22 @@ components:
       - status
       - todas_filiais
       - ultimo_acesso_em
+    VarianteEnum:
+      enum:
+      - implantacao
+      - geral
+      - gerente
+      - vendedor
+      - vistoriador
+      - financeiro
+      type: string
+      description: |-
+        * `implantacao` - implantacao
+        * `geral` - geral
+        * `gerente` - gerente
+        * `vendedor` - vendedor
+        * `vistoriador` - vistoriador
+        * `financeiro` - financeiro
     VeiculosEnum:
       enum:
       - editar

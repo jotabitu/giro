@@ -1,0 +1,381 @@
+"""Navegação do `eu` (USR-05, USR-08; contrato de contas, "Menu e início", T-047).
+
+A API monta o menu pronto; o frontend só liga cada `chave` à rota e ao ícone. Um item só vem
+quando valem, ao mesmo tempo: a permissão da pessoa (`pode`), o recurso do plano
+(`Plano.recursos`), a atividade da empresa (aluga, vende ou os dois) e o módulo entregue
+(`settings.GIRO_MODULOS_ATIVOS`). Item sem permissão não vem; nunca vem desabilitado.
+"""
+
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
+
+from django.conf import settings
+
+from apps.plataforma.models import Recurso
+
+from .models import Perfil
+
+# `ConfiguracaoEmpresa.atividade` ainda não existe (entra com a tela Config); até lá, os dois.
+ATIVIDADE_PADRAO = "ambos"
+
+Pode = dict[str, Any]
+
+
+@dataclass(frozen=True)
+class Item:
+    chave: str
+    rotulo: str
+    contador: str | None = None
+    permissao: Callable[[Pode], bool] = lambda pode: True
+    recurso: str | None = None
+    atividade: str | None = None  # "aluga" ou "vende"
+    modulo: str | None = None  # app que precisa estar em GIRO_MODULOS_ATIVOS
+
+
+@dataclass(frozen=True)
+class Contexto:
+    pode: Pode
+    recursos: frozenset[str]
+    atividade: str
+    modulos: frozenset[str]
+
+
+def decide_pedidos(pode: Pode) -> bool:
+    """Gerente, administrador ou permissão extra de aprovar (APR, USR-03)."""
+    return pode["desconto_acima_limite"] in ("aprova", "sim") or pode["locacoes_cancelar"] in (
+        "aprova",
+        "sim",
+    )
+
+
+def _ve_painel(pode: Pode) -> bool:
+    return pode["painel"] in ("todas_filiais", "filial")
+
+
+# Os itens, uma vez só; os menus escolhem quais usam e podem trocar o rótulo.
+ITENS: dict[str, Item] = {
+    item.chave: item
+    for item in [
+        Item("inicio", "Visão geral"),
+        Item("aprovacoes", "Aprovações", "aprovacoes", decide_pedidos, modulo="aprovacoes"),
+        Item(
+            "veiculos",
+            "Veículos",
+            "veiculos",
+            lambda p: p["veiculos"] != "nao",
+            None,
+            None,
+            "veiculos",
+        ),
+        Item(
+            "locacoes",
+            "Locações",
+            "locacoes",
+            lambda p: bool(p["locacoes_criar"] or p["vistorias_fazer"]),
+            Recurso.LOCACOES_VISTORIA,
+            "aluga",
+            "locacoes",
+        ),
+        Item(
+            "vendas",
+            "Vendas",
+            None,
+            lambda p: bool(p["vendas_criar"]),
+            Recurso.VENDAS_COMISSOES,
+            "vende",
+            "vendas",
+        ),
+        Item(
+            "clientes",
+            "Clientes",
+            None,
+            lambda p: bool(p["clientes_cadastrar"] or p["caixa_receber"]),
+            modulo="clientes",
+        ),
+        Item(
+            "manutencoes",
+            "Manutenções",
+            "manutencoes",
+            lambda p: bool(p["os_abrir"]),
+            Recurso.MANUTENCAO_DESPESAS,
+            modulo="manutencao",
+        ),
+        Item(
+            "caixa",
+            "Caixa do dia",
+            None,
+            lambda p: bool(p["caixa_receber"] or p["caixa_abrir_fechar"]),
+            Recurso.CONTAS_RECEBER,
+            modulo="financeiro",
+        ),
+        Item(
+            "receber",
+            "Contas a receber",
+            "receber",
+            lambda p: bool(p["caixa_receber"]),
+            Recurso.CONTAS_RECEBER,
+            modulo="financeiro",
+        ),
+        Item(
+            "despesas",
+            "Despesas",
+            "despesas",
+            lambda p: p["despesas_lancar"] != "nao",
+            Recurso.MANUTENCAO_DESPESAS,
+            modulo="financeiro",
+        ),
+        Item(
+            "comissoes",
+            "Comissões",
+            None,
+            lambda p: bool(p["financeiro_pagar"]),
+            Recurso.VENDAS_COMISSOES,
+            modulo="vendas",
+        ),
+        Item(
+            "conciliacao",
+            "Conciliação",
+            "conciliacao",
+            lambda p: bool(p["financeiro_pagar"]),
+            Recurso.CONTAS_RECEBER,
+            modulo="financeiro",
+        ),
+        Item("relatorios", "Relatórios", None, _ve_painel, Recurso.RELATORIOS, None, "relatorios"),
+        Item(
+            "config", "Configurações", None, lambda p: bool(p["administracao"]), modulo="empresas"
+        ),
+        Item(
+            "marca", "Empresa e marca", None, lambda p: bool(p["administracao"]), modulo="empresas"
+        ),
+        Item("filiais", "Filiais", None, lambda p: bool(p["administracao"]), modulo="filiais"),
+        Item(
+            "usuarios", "Usuários", "usuarios", lambda p: bool(p["administracao"]), modulo="contas"
+        ),
+        Item(
+            "assinatura",
+            "Assinatura",
+            None,
+            lambda p: bool(p["administracao"]),
+            modulo="plataforma",
+        ),
+        Item(
+            "auditoria", "Auditoria", None, lambda p: bool(p["administracao"]), modulo="auditoria"
+        ),
+        # Itens próprios das telas iniciais.
+        Item(
+            "agenda",
+            "Vistorias de hoje",
+            "agenda",
+            lambda p: bool(p["vistorias_fazer"]),
+            Recurso.LOCACOES_VISTORIA,
+            "aluga",
+            "vistorias",
+        ),
+        Item(
+            "consultar_veiculo",
+            "Consultar veículo",
+            None,
+            lambda p: p["veiculos"] != "nao",
+            modulo="veiculos",
+        ),
+        Item(
+            "avarias",
+            "Avarias abertas",
+            "avarias",
+            lambda p: bool(p["vistorias_fazer"]),
+            Recurso.LOCACOES_VISTORIA,
+            "aluga",
+            "vistorias",
+        ),
+        Item(
+            "propostas",
+            "Propostas",
+            "propostas",
+            lambda p: bool(p["vendas_criar"]),
+            Recurso.VENDAS_COMISSOES,
+            "vende",
+            "vendas",
+        ),
+        Item(
+            "minhas_vendas",
+            "Minhas vendas",
+            None,
+            lambda p: bool(p["vendas_criar"]),
+            Recurso.VENDAS_COMISSOES,
+            "vende",
+            "vendas",
+        ),
+        Item(
+            "veiculos_a_venda",
+            "Veículos à venda",
+            None,
+            lambda p: bool(p["vendas_criar"]),
+            Recurso.VENDAS_COMISSOES,
+            "vende",
+            "vendas",
+        ),
+        Item(
+            "minhas_comissoes",
+            "Minhas comissões",
+            None,
+            lambda p: bool(p["vendas_criar"]),
+            Recurso.VENDAS_COMISSOES,
+            "vende",
+            "vendas",
+        ),
+        Item(
+            "contas_a_pagar",
+            "Contas a pagar",
+            "contas_a_pagar",
+            lambda p: bool(p["financeiro_pagar"]),
+            Recurso.MANUTENCAO_DESPESAS,
+            modulo="financeiro",
+        ),
+        Item(
+            "caixa_e_bancos",
+            "Caixa e bancos",
+            None,
+            lambda p: bool(p["caixa_abrir_fechar"]),
+            Recurso.CONTAS_RECEBER,
+            modulo="financeiro",
+        ),
+    ]
+}
+
+Grupos = list[tuple[str | None, list[str | tuple[str, str]]]]
+
+# Tabela "Itens do menu_completo" do contrato, na ordem.
+MENU_COMPLETO: Grupos = [
+    (None, ["inicio", "aprovacoes", "veiculos"]),
+    ("Operação", ["locacoes", "vendas", "clientes", "manutencoes"]),
+    ("Financeiro", ["caixa", "receber", "despesas", "comissoes", "conciliacao", "relatorios"]),
+    ("Administração", ["config", "marca", "filiais", "usuarios", "assinatura", "auditoria"]),
+]
+
+# Menu da tela inicial de cada variante (telas Gerente, Vendedor, Vistoriador e Financeiro).
+# Um par (chave, rótulo) troca o rótulo do item naquela tela.
+MENU_INICIO: dict[str, Grupos] = {
+    "gerente": [
+        (None, [("inicio", "Visão da filial"), "aprovacoes", "veiculos"]),
+        ("Operação", ["locacoes", "vendas", "clientes", "manutencoes"]),
+        ("Filial", [("caixa", "Caixa da filial"), "relatorios"]),
+    ],
+    "vendedor": [
+        (None, [("inicio", "Início")]),
+        ("Operação", ["locacoes", "clientes"]),
+        ("Vendas", ["propostas", "minhas_vendas", "veiculos_a_venda", "minhas_comissoes"]),
+    ],
+    "vistoriador": [(None, ["agenda", "consultar_veiculo", "avarias"])],
+    "financeiro": [
+        (
+            None,
+            [("inicio", "Início"), "receber", "contas_a_pagar", "caixa_e_bancos", "comissoes"],
+        ),
+    ],
+}
+
+VARIANTE_DO_PERFIL: dict[str, str] = {
+    Perfil.GERENTE: "gerente",
+    Perfil.VENDEDOR: "vendedor",
+    Perfil.VISTORIADOR: "vistoriador",
+    Perfil.FINANCEIRO: "financeiro",
+}
+
+BARRA_CELULAR = ["inicio", "veiculos", "nova_locacao", "locacoes", "mais"]
+
+
+def _aparece(item: Item, ctx: Contexto) -> bool:
+    if item.modulo is not None and item.modulo not in ctx.modulos:
+        return False
+    if item.recurso is not None and item.recurso not in ctx.recursos:
+        return False
+    if item.atividade is not None and ctx.atividade not in (item.atividade, "ambos"):
+        return False
+    return item.permissao(ctx.pode)
+
+
+def _contador(item: Item, ctx: Contexto) -> str | None:
+    # Despesas: o número é do que a pessoa pode aprovar; quem não aprova fica sem contador.
+    if item.chave == "despesas" and not ctx.pode["despesas_aprovar"]:
+        return None
+    return item.contador
+
+
+def _montar(grupos: Grupos, ctx: Contexto) -> list[dict[str, Any]]:
+    menu = []
+    for grupo, chaves in grupos:
+        itens = []
+        for entrada in chaves:
+            chave, rotulo = entrada if isinstance(entrada, tuple) else (entrada, None)
+            item = ITENS[chave]
+            if _aparece(item, ctx):
+                itens.append(
+                    {
+                        "chave": item.chave,
+                        "rotulo": rotulo or item.rotulo,
+                        "contador": _contador(item, ctx),
+                    }
+                )
+        if itens:
+            menu.append({"grupo": grupo, "itens": itens})
+    return menu
+
+
+def variante(perfil: str, implantacao_concluida: bool) -> str:
+    """USR-08. O administrador (e o suporte) vê a implantação até a 1ª locação ou venda
+    (IMP-01)."""
+    if perfil == Perfil.ADMINISTRADOR:
+        return "geral" if implantacao_concluida else "implantacao"
+    return VARIANTE_DO_PERFIL.get(perfil, "geral")
+
+
+def montar(
+    *,
+    perfil: str,
+    pode: Pode,
+    recursos: list[str] | frozenset[str],
+    implantacao_concluida: bool,
+    atividade: str = ATIVIDADE_PADRAO,
+    modulos: list[str] | frozenset[str] | None = None,
+) -> dict[str, Any]:
+    ctx = Contexto(
+        pode=pode,
+        recursos=frozenset(recursos),
+        atividade=atividade,
+        modulos=frozenset(settings.GIRO_MODULOS_ATIVOS if modulos is None else modulos),
+    )
+    qual = variante(perfil, implantacao_concluida)
+    completo = _montar(MENU_COMPLETO, ctx)
+    visiveis = {item["chave"] for grupo in completo for item in grupo["itens"]}
+    barra = {
+        "inicio": True,
+        "veiculos": "veiculos" in visiveis,
+        "nova_locacao": "locacoes" in visiveis and bool(pode["locacoes_criar"]),
+        "locacoes": "locacoes" in visiveis,
+        "mais": True,
+    }
+    return {
+        "inicio": {"rota": "/inicio", "variante": qual},
+        "menu_inicio": _montar(MENU_INICIO[qual], ctx) if qual in MENU_INICIO else completo,
+        "menu_completo": completo,
+        "barra_celular": [chave for chave in BARRA_CELULAR if barra[chave]],
+    }
+
+
+def da_empresa(empresa: Any, perfil: str, pode: Pode) -> dict[str, Any]:
+    """A navegação de quem está na empresa: recursos do plano e a implantação (IMP-01)."""
+    from apps.plataforma.models import UsoEmpresa
+
+    plano = getattr(empresa, "plano", None)
+    passos = (
+        UsoEmpresa.objects.filter(empresa=empresa)
+        .values_list("passos_implantacao", flat=True)
+        .first()
+    ) or {}
+    return montar(
+        perfil=perfil,
+        pode=pode,
+        recursos=list(getattr(plano, "recursos", None) or []),
+        implantacao_concluida="primeira_locacao" in passos,
+    )

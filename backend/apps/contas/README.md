@@ -36,6 +36,7 @@ Contrato da API: `docs/api/contas.md` (escrito pelo arquiteto antes da implement
 - 2 etapas: `Autenticador` (TOTP, semente cifrada com `GIRO_CHAVE_SEGREDOS`) e `CodigoRecuperacao` (só o HMAC por empresa) no lugar do `otp_totp` e do `otp_static` (P-08). `exige_2fa` = plataforma, perfil administrador ou financeiro, `ConfiguracaoEmpresa.exige_2fa_todos` ou autenticador ativo (`USR-02`); `exige_2fa_pela_regra` é o `obrigatorio` do `eu`. O primeiro autenticador só se cadastra com a senha dentro do prazo do convite aceito (P-05).
 - Bloqueio: na empresa, 5 tentativas erradas somando senha e código (`USR-06`), com aviso por e-mail aos administradores (`contas_avisar_bloqueio`); na plataforma, 5 senhas ou 3 códigos (`PLT-08`).
 - `selectors.py`: `pode` (tabela do contrato mais as permissões extras, que só somam, `USR-03`), `extra_e_padrao_do_perfil`, `administradores`, `dados_do_eu`. `pode` é registrado em `comum.permissoes`.
+- `navegacao.py`: a `navegacao` do `eu` (`USR-05`, `USR-08`). Monta `menu_completo`, `menu_inicio` da variante e `barra_celular` a partir do `pode`, dos recursos do plano, da atividade e de `settings.GIRO_MODULOS_ATIVOS`. A variante do administrador (e do suporte) é `implantacao` até o passo `primeira_locacao` (`IMP-01`).
 - `senhas.py`: validadores com texto pronto (12 ou mais, letras e números, diferente do e-mail e do nome da empresa, fora das comuns).
 - `RedefinicaoSenha`: link de 1 hora, uso único, 3 pedidos por hora; o token vai no fragmento (`/entrar/redefinir#<token>`).
 - T-071: navegação do `eu`.

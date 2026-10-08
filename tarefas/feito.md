@@ -61,3 +61,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-073 · Telas de convite e redefinição com o token no fragmento · frontend · PR #61 · tarefas/handoffs/T-073-frontend.md · /convite e /entrar/redefinir com #token e replaceState; ainda nos dados falsos
 - T-070 · Modo suporte · backend · PR #62 · tarefas/handoffs/T-070-backend.md · 341 testes; CA-011-26 e 27; AUT-15 no Beat
 - T-077 · Reativar usuário com convite cancelado volta para convite pendente · backend · PR #63 · tarefas/handoffs/T-077-backend.md · 342 testes; USR-04 opção B; CA-011-22
+- T-071 · Navegação do eu · backend · PR #64 · tarefas/handoffs/T-071-backend.md · 345 testes; GIRO_MODULOS_ATIVOS; 5 diferenças do falso-navegacao.ts no handoff
