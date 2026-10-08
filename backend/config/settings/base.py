@@ -153,6 +153,14 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "comum.erros.tratar_excecao",
     "DEFAULT_PAGINATION_CLASS": "comum.paginacao.PaginacaoPorCursor",
+    # Só as rotas públicas de acesso usam (comum.limites; P-03 da T-057).
+    "DEFAULT_THROTTLE_RATES": {
+        "entrar_ip_minuto": "10/min",
+        "entrar_ip_hora": "50/hour",
+        "entrar_email_minuto": "10/min",
+        "entrar_email_hora": "50/hour",
+        "acesso_ip": "30/min",
+    },
 }
 
 # /api/schema/ e /api/docs/ (config/urls.py e urls_publico.py). Fechados em produção (S-17).

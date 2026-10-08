@@ -2,6 +2,6 @@
 
 No máximo uma tarefa por agente. Formato: `T-0xx · título · agente · desde dd/mm`.
 
-- T-059 · Números da carteira de outubro e textos da T-010 · produto · desde 08/10
-- T-060 · Telas do Receber e do Financeiro com a carteira de outubro · design-system · desde 09/10
-- T-061 · Rotas do menu corrigidas na T-055 · frontend · desde 09/10
+- T-064 · Revisão de segurança da T-058 e da T-012 · seguranca · desde 09/10
+- T-065 · Login trata o 401 e o 429 da T-058 · frontend · desde 09/10
+- T-066 · Textos revisados da T-010 · backend · desde 09/10
