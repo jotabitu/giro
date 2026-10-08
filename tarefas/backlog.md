@@ -184,35 +184,37 @@ Levantadas pelo produto em T-053 (08 out 2026):
 - **Depende de:** T-033
 - **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA`, `na_empresa` e o teste de arquitetura revisados contra a ADR 0014 (itens 2 e 3), a ADR 0018 (item 3) e os achados S-05, S-06, S-07, C-01 e C-02; relatório em `docs/seguranca/`; achados viram tarefas.
 
-### T-054 · Componentes e telas apontados na T-048 e na T-053
+### T-059 · Números da carteira de outubro e textos da T-010
+- **Agente:** produto
+- **Depende de:** T-056, T-010
+- **Pronto quando:** a linha da carteira de outubro (T-056) registrada em "Dados de referência para testes"; confirmadas a composição das 35 locações geradas e as divergências apontadas pelo qa (LOC-2841 parcela 2/5, LOC-2790 R$ 1.347,00, cartão R$ 179,70); textos de `faixa_aviso` e dos e-mails de limite e de convite da T-010 revisados; CNPJ da Filial Messejana decidido (proposta: 12.345.678/0003-57, porque o 0002-76 é da Caucaia).
+
+### T-060 · Telas do Receber e do Financeiro com a carteira de outubro
 - **Agente:** design-system
-- **Depende de:** T-048, T-053
-- **Pronto quando:** `FleetBar` cabe na lateral a 390 px com 5 segmentos; botão compacto com alvo de toque de 44 px no celular (variante nova ou `sm` com 44 px no celular); `ProgressBar` e linha de lista com título, apoio e ação (modelo: `LinhaDoPainel` da T-048) no design system, com preview e testes (pontos 1 a 3 do handoff da T-048); nas telas de referência, contadores do menu pelo seed de 07 out (`FIN-15`: Contas a receber 2, Despesas 1, Conciliação e Manutenções sem número) nas 32 telas desktop e no `Menu-Mobile`, e o CNPJ 12.345.678/0001-95 nas 10 telas listadas na divergência da T-053.
+- **Depende de:** T-059, T-054
+- **Pronto quando:** `Receber` e `Financeiro` (desktop e celular) com os números da carteira registrados na T-059; `FleetBar` da T-054 conferido no navegador a 390 px; CNPJ da Messejana como decidido na T-059.
 
-### T-055 · Contratos alinhados à T-053 e conferência da T-010
-- **Agente:** arquiteto
-- **Depende de:** T-053, T-010
-- **Pronto quando:** CNPJ `12345678000195` em `docs/api/filiais.md` e `docs/api/plataforma.md`, e a Filial Caucaia com `12345678000276`; `docs/api/financeiro.md` com `recebido_pct` "29.11" e `contagens` pelas abas da `FIN-15` ("todas" = soma das quatro), e `docs/api/painel.md` sem os 189000 e "9 parcelas" que não fecham com o seed; as 8 decisões de implementação do handoff da T-010 conferidas contra as ADRs (nova ADR se alguma mudar uma decisão); as rotas inventadas listadas no handoff da T-048 confirmadas ou corrigidas no `docs/telas/README.md`.
-
-### T-056 · Carteira de outubro da Moto Rápida
-- **Agente:** qa (com o produto para registrar os números)
-- **Depende de:** T-053
-- **Pronto quando:** as parcelas de outubro das 42 locações abertas, pela tabela de preços e pelos planos do seed, montadas como dados de referência em `docs/qa/` (entram no seed na T-019); Previsto no mês, Recebido (opção A da `FIN-15`), Vence hoje, Em atraso e as contagens das abas calculados pela `FIN-15` em 07 out, entregues ao produto para registrar em "Dados de referência para testes" e ao design-system para trocar o `Receber` e o `Financeiro`.
-- **Também:** `docs/qa/cobertura-de-regras.md` atualizado com a T-010 (CA-010-01 a 17 fora de `xfail`).
-
-### T-057 · Revisão de segurança do código da T-010
-- **Agente:** seguranca
-- **Depende de:** T-010
-- **Pronto quando:** login da equipe da plataforma (`entrar`, 2 etapas, códigos de recuperação, bloqueio de 15 minutos, atraso progressivo do django-otp desligado), `renovar` e `sair` (cookie `__Host-giro_refresh`, `X-Requested-With`), convite (hash do token, token gerado na tarefa de envio), `criar_empresa` e a separação entre o schema público e os das empresas revisados contra as ADRs 0013 e 0014 e os achados abertos; relatório em `docs/seguranca/`; achados viram tarefas.
+### T-061 · Rotas do menu corrigidas na T-055
+- **Agente:** frontend
+- **Depende de:** T-055, T-048
+- **Pronto quando:** `DESTINOS` de `frontend/src/lib/menu.ts` segue as rotas confirmadas e corrigidas em `docs/telas/README.md` na T-055, com teste.
 
 ## Fase 1 · MVP
 
+### T-058 · Correções de segurança da T-057
+- **Agente:** backend · **Prioridade:** antes de qualquer ambiente com dados reais (homologação incluída)
+- **Depende de:** T-010, T-057
+- **Pronto quando:** P-01 (login do Django Admin com o bloqueio do `PLT-08` e auditado), P-02 (contagem de códigos errados com `select_for_update` antes de verificar, sem corrida em paralelo), P-03 (throttle no login da equipe e a mesma resposta para senha errada e senha certa sem código) e P-04 (subdomínio que vira schema existente ou reservado do Postgres, como `information_schema` e `pg_*`, recusado com 400 `validacao`) corrigidos, cada um com teste que reproduz o achado; detalhes em `docs/seguranca/2026-10-08-codigo-t010.md`.
+- [decisão] P-03: a equipe da plataforma também fica bloqueada por 15 minutos depois de 5 senhas erradas, como no `USR-06`? A seguranca sugere que sim. Com o dono do produto, via orquestrador.
+- **Também (devops):** limite de requisições no proxy para `/api/*/auth/` e `/admin/login/` (P-03, S-17), quando houver proxy de homologação.
+
 ### T-011 · Contas, perfis, permissões, 2FA, convite
 - **Agente:** backend · **Depende de:** T-012, T-033 · **ADRs:** 0013, 0014 (sessões) · **Segurança:** S-02, S-03, S-08, S-13 · **Regras:** USR-01 a USR-07 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-011.md` (CA-011-01 a 28) passam, com o código da regra no nome do teste. · **Inclui:** `Usuario.status` no lugar de `ativo` e e-mail único sem diferenciar maiúsculas (T-045)
-- **Também:** R-06 da revisão T-050.
+- **Também:** R-06 da revisão T-050; P-05 a P-09 da revisão T-057 (`docs/seguranca/2026-10-08-codigo-t010.md`, "Distribuição sugerida").
 
 ### T-012 · Filiais
-- **Agente:** backend · **Depende de:** T-010, T-030 · **Segurança:** SVG do logo sanitizado e exibido só por `<img>` (S-12) · **Regras:** PLT-03 (limite), USR-07 · **Telas:** Filiais, Filial · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-012.md` (CA-012-01 a 17) passam, com o código da regra no nome do teste.
+- **Agente:** backend · **Depende de:** T-010, T-030 · **Regras:** PLT-03 (limite), USR-07 · **Telas:** Filiais, Filial · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-012.md` (CA-012-01 a 17) passam, com o código da regra no nome do teste.
+- **Nota:** a S-12 (SVG do logo sanitizado e exibido só por `<img>`) saiu da T-012 em 08/10: vale para `ConfiguracaoEmpresa.logo` (app `empresas`), e não para a filial. Entra na tarefa da marca da empresa (`Admin-Marca`), a criar.
 
 ### T-013 · Veículos, categorias, documentos, histórico de status
 - **Agente:** backend · **Depende de:** T-012 · **Regras:** VEI-01 a VEI-06 · **Telas:** Frota, Veiculo, Precos · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-013.md` (CA-013-01 a 26) passam, com o código da regra no nome do teste.
