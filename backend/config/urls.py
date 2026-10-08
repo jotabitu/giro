@@ -3,10 +3,15 @@
 Sem Django Admin aqui: o admin só existe no schema público, com 2FA (achado 4 da T-032).
 """
 
-from django.urls import path
+from django.conf import settings
+from django.urls import URLPattern, URLResolver, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-urlpatterns = [
-    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
-    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
-]
+urlpatterns: list[URLPattern | URLResolver] = []
+
+# Documentação da API só onde EXPOR_DOCUMENTACAO_DA_API permite (fechada em produção).
+if settings.EXPOR_DOCUMENTACAO_DA_API:
+    urlpatterns += [
+        path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+        path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
+    ]

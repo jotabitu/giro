@@ -172,20 +172,27 @@ Levantadas pelo produto em T-037, T-041 e T-047 (07 out 2026); estavam no commit
 - **Depende de:** T-036
 - **Pronto quando:** `docs/api/contas.md` devolve `menu` (módulos liberados) em `GET /api/eu/`, para a tela não inferir de `pode`; rota inicial por perfil definida com o produto (vistoriador, vendedor, gerente, financeiro); `docs/api/painel.md` com os contadores do menu e os indicadores da tela `Main`. Resolve as três `[decisão]` da T-020.
 
+<<<<<<< HEAD
+### T-050 · Revisão de segurança do código da T-033
+- **Agente:** seguranca
+- **Depende de:** T-033
+- **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA`, `na_empresa` e o teste de arquitetura revisados contra a ADR 0014 (itens 2 e 3), a ADR 0018 (item 3) e os achados S-05, S-06, S-07, C-01 e C-02; relatório em `docs/seguranca/`; achados viram tarefas.
+=======
 ### T-048 · Frontend lê o menu e o painel da T-047
 - **Agente:** frontend
 - **Depende de:** T-047, T-021
 - **Pronto quando:** a casca usa `eu.navegacao` (menu do início, menu completo e barra do celular) em vez de inferir de `pode`; `/inicio` mostra a variante do perfil (USR-08); contadores e blocos do painel com valores tipados de `docs/api/painel.md`, ainda em dados falsos até o backend existir.
+>>>>>>> origin/main
 
 ### T-052 · Ajuste de produção apontado na T-050
 - **Agente:** devops
 - **Depende de:** T-035
-- **Pronto quando:** R-03 da revisão T-050 resolvido; pontos do frontend sobre a CSP (img-src para logos e imagens do S3, connect-src, `force-dynamic` no layout raiz) avaliados e registrados no handoff.
+- **Pronto quando:** R-03 da revisão T-050 resolvido; `GRANT giro_expurgo TO giro_migracao` no `01-papeis.sh` e `GIRO_REDES_PROXY` definida em cada ambiente (pedidos do backend na T-034); pontos do frontend sobre a CSP (img-src para logos e imagens do S3, connect-src, `force-dynamic` no layout raiz) avaliados e registrados no handoff.
 
 ### T-053 · Números de telas que dependem de regra
 - **Agente:** produto
 - **Depende de:** T-028
-- **Pronto quando:** definido de onde vêm o contador "Contas a receber 7" do `Menu-Mobile` e os valores "Previsto no mês/Recebido" do `Receber` (regra ou `docs/api/painel.md`), apontados pelo design-system na T-028.
+- **Pronto quando:** definido de onde vêm o contador "Contas a receber 7" do `Menu-Mobile` e os valores "Previsto no mês/Recebido" do `Receber` (regra ou `docs/api/painel.md`), apontados pelo design-system na T-028; e o código `AUT-NN` da tarefa mensal de expurgo da auditoria, que não existe na tabela de automações (backend, T-034).
 
 ## Fase 1 · MVP
 

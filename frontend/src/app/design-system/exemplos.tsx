@@ -1,13 +1,16 @@
 "use client";
 
 // Exemplos do preview. Os dados são de demonstração (Moto Rápida); telas reais mostram o que a API devolve.
-import { ArrowUpRight, BarChart3, Bell, CarFront, FileText, LayoutGrid, Plus, Receipt, Settings, SlidersHorizontal, Tag, Users, Wrench } from "lucide-react";
+import { ArrowUpRight, Menu as IconeMenu, BarChart3, Bell, CarFront, FileText, LayoutGrid, Plus, Receipt, Settings, SlidersHorizontal, Tag, Users, Wrench } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import {
   AlertCard,
   Button,
   CodigoVerificacao,
   CelulaDupla,
+  Dialogo,
+  Gaveta,
+  SeletorDeFilial,
   Contador,
   Cover,
   DataTable,
@@ -127,14 +130,24 @@ function ExemploSegmentedControl() {
 
 function ExemploKpiTile() {
   return (
-    <Panel>
-      <KpiGrid>
-        <KpiTile destaque rotulo="Frota ativa" valor="86" contexto="52 motos · 34 carros" />
-        <KpiTile rotulo="Alugados agora" valor="42" contexto={<><KpiVariacao>↗ 6</KpiVariacao> esta semana</>} />
-        <KpiTile rotulo="Ocupação" valor="71%" contexto="meta de 80%" />
-        <KpiTile rotulo="Em atraso" valor="7" contexto="R$ 4.380 a receber" />
-      </KpiGrid>
-    </Panel>
+    <div className="flex flex-col gap-6">
+      <Panel>
+        <KpiGrid>
+          <KpiTile destaque rotulo="Frota ativa" valor="86" contexto="52 motos · 34 carros" />
+          <KpiTile rotulo="Alugados agora" valor="42" contexto={<><KpiVariacao>↗ 6</KpiVariacao> esta semana</>} />
+          <KpiTile rotulo="Ocupação" valor="71%" contexto="meta de 80%" />
+          <KpiTile rotulo="Em atraso" valor="7" contexto="R$ 4.380 a receber" />
+        </KpiGrid>
+      </Panel>
+      <Panel titulo="Valores longos" subtitulo="O número encolhe até caber; nunca é cortado">
+        <KpiGrid>
+          <KpiTile destaque rotulo="Receita do mês" valor="R$ 1.284.350,00" contexto="meta de R$ 1.500.000,00" />
+          <KpiTile rotulo="A receber" valor="R$ 48.920,50" contexto="31 parcelas" />
+          <KpiTile rotulo="Caução retida" valor="R$ 12.600,00" contexto="42 contratos" />
+          <KpiTile rotulo="Em atraso" valor="R$ 4.380,00" contexto="7 contratos" />
+        </KpiGrid>
+      </Panel>
+    </div>
   );
 }
 
@@ -239,6 +252,162 @@ function ExemploCodigoVerificacao() {
   );
 }
 
+const FILIAIS = [
+  { id: "centro", nome: "Filial Centro", cidade: "Fortaleza, CE" },
+  { id: "aldeota", nome: "Filial Aldeota", cidade: "Fortaleza, CE" },
+  { id: "messejana", nome: "Filial Messejana", cidade: "Fortaleza, CE" },
+];
+
+function ExemploSeletorDeFilial() {
+  const [admin, setAdmin] = useState("todas");
+  const [gerente, setGerente] = useState("centro");
+  return (
+    <div className="flex flex-wrap gap-8" style={{ minHeight: 360 }}>
+      <div style={{ width: 280 }}>
+        <p className="mb-2 text-caption text-ink-muted">Administrador: com Todas as filiais</p>
+        <SeletorDeFilial filiais={FILIAIS} valor={admin} aoMudar={setAdmin} permiteTodas />
+      </div>
+      <div style={{ width: 280 }}>
+        <p className="mb-2 text-caption text-ink-muted">Gerente com duas filiais</p>
+        <SeletorDeFilial filiais={FILIAIS.slice(0, 2)} valor={gerente} aoMudar={setGerente} />
+      </div>
+      <div style={{ width: 280 }}>
+        <p className="mb-2 text-caption text-ink-muted">Uma filial só: não aparece</p>
+        <SeletorDeFilial filiais={FILIAIS.slice(0, 1)} valor="centro" aoMudar={() => {}} />
+      </div>
+    </div>
+  );
+}
+
+function ExemploDialogo() {
+  const [formulario, setFormulario] = useState(false);
+  const [confirma, setConfirma] = useState(false);
+  const [feito, setFeito] = useState("");
+  return (
+    <div className="flex flex-col gap-4">
+      <Linha>
+        <Button variante="solido" onClick={() => setFormulario(true)}>
+          Abrir formulário
+        </Button>
+        <Button onClick={() => setConfirma(true)}>Abrir confirmação</Button>
+      </Linha>
+      <p className="text-caption text-ink-muted">Último resultado: {feito || "nenhum"}.</p>
+      <Dialogo
+        aberto={formulario}
+        aoFechar={() => setFormulario(false)}
+        titulo="Pedir cancelamento do contrato LOC-2841"
+        descricao="O gerente vai analisar o pedido. O contrato continua ativo até a aprovação."
+        fecharAoClicarFora={false}
+        acoes={
+          <>
+            <Button variante="quieto" onClick={() => setFormulario(false)}>
+              Voltar
+            </Button>
+            <Button
+              variante="solido"
+              onClick={() => {
+                setFeito("pedido enviado");
+                setFormulario(false);
+              }}
+            >
+              Enviar pedido
+            </Button>
+          </>
+        }
+      >
+        <TextField cheio data-autofocus rotulo="Motivo" placeholder="Ex.: cliente devolveu a moto antes do prazo" />
+      </Dialogo>
+      <Dialogo
+        aberto={confirma}
+        aoFechar={() => setConfirma(false)}
+        tamanho="pequeno"
+        titulo="Encerrar a sessão?"
+        descricao="Você precisará entrar de novo com e-mail e senha."
+        acoes={
+          <>
+            <Button variante="quieto" data-autofocus onClick={() => setConfirma(false)}>
+              Continuar aqui
+            </Button>
+            <Button
+              variante="solido"
+              onClick={() => {
+                setFeito("sessão encerrada");
+                setConfirma(false);
+              }}
+            >
+              Encerrar
+            </Button>
+          </>
+        }
+      />
+    </div>
+  );
+}
+
+function ExemploGaveta() {
+  const [lado, setLado] = useState<"esquerda" | "baixo" | "direita" | null>(null);
+  const [filial, setFilial] = useState("centro");
+  const [tipo, setTipo] = useState("todos");
+  const fechar = () => setLado(null);
+  return (
+    <div className="flex flex-col gap-4">
+      <Linha>
+        <Button variante="solido" icone={<Icone de={IconeMenu} />} onClick={() => setLado("esquerda")}>
+          Menu
+        </Button>
+        <Button onClick={() => setLado("baixo")}>Filtros</Button>
+        <Button onClick={() => setLado("direita")}>Detalhe</Button>
+      </Linha>
+      <Gaveta aberto={lado === "esquerda"} aoFechar={fechar} lado="esquerda" titulo="Menu">
+        <Sidebar
+          marca={{ nome: "Moto Rápida" }}
+          seletorDeFilial={<SeletorDeFilial filiais={FILIAIS} valor={filial} aoMudar={setFilial} permiteTodas />}
+          grupos={[
+            {
+              itens: [
+                { rotulo: "Visão geral", href: "#", icone: <Icone de={LayoutGrid} />, ativo: true },
+                { rotulo: "Veículos", href: "#", icone: <Icone de={CarFront} />, contador: 86 },
+                { rotulo: "Locações", href: "#", icone: <Icone de={FileText} />, contador: 42 },
+                { rotulo: "Clientes", href: "#", icone: <Icone de={Users} /> },
+              ],
+            },
+          ]}
+        />
+      </Gaveta>
+      <Gaveta
+        aberto={lado === "baixo"}
+        aoFechar={fechar}
+        lado="baixo"
+        titulo="Filtros"
+        acoes={
+          <>
+            <Button variante="quieto" onClick={() => setTipo("todos")}>
+              Limpar
+            </Button>
+            <Button variante="solido" onClick={fechar}>
+              Ver 42 veículos
+            </Button>
+          </>
+        }
+      >
+        <SegmentedControl
+          rotulo="Tipo de veículo"
+          valor={tipo}
+          aoMudar={setTipo}
+          opcoes={[
+            { valor: "todos", rotulo: "Todos" },
+            { valor: "motos", rotulo: "Motos" },
+            { valor: "carros", rotulo: "Carros" },
+          ]}
+        />
+      </Gaveta>
+      <Gaveta aberto={lado === "direita"} aoFechar={fechar} lado="direita" titulo="Contrato LOC-2841" descricao="Carlos Menezes · Honda CG 160 Fan">
+        <p style={{ margin: 0 }}>Devolução prevista para hoje. Diária de R$ 49,90.</p>
+      </Gaveta>
+    </div>
+  );
+}
+
 function ExemploAlertCard() {
   return (
     <div style={{ maxWidth: 460 }}>
@@ -315,6 +484,9 @@ const EXEMPLOS: Record<SlugExemplo, () => ReactNode> = {
   "alert-card": ExemploAlertCard,
   "button": ExemploButton,
   "codigo-verificacao": ExemploCodigoVerificacao,
+  "dialogo": ExemploDialogo,
+  "gaveta": ExemploGaveta,
+  "seletor-de-filial": ExemploSeletorDeFilial,
   "cover": () => <Cover />,
   "data-table": ExemploDataTable,
   "fleet-bar": ExemploFleetBar,

@@ -75,8 +75,9 @@ TENANT_DOMAIN_MODEL = "plataforma.Dominio"
 PUBLIC_SCHEMA_NAME = "public"
 PUBLIC_SCHEMA_URLCONF = "config.urls_publico"
 ROOT_URLCONF = "config.urls"
-# Host sem domínio cadastrado responde 404 (não cai no public). Os domínios da plataforma são
-# criados pela migração plataforma.0002.
+# Host sem domínio cadastrado responde 404 (não cai no public): SHOW_PUBLIC_IF_NO_TENANT_FOUND
+# fica desligado (padrão do django-tenants), e prod.py o fixa em False. Os domínios da
+# plataforma são criados pela migração plataforma.0002.
 
 DATABASES = {"default": env.db("DATABASE_URL")}
 DATABASES["default"]["ENGINE"] = "django_tenants.postgresql_backend"
@@ -147,6 +148,9 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "comum.paginacao.PaginacaoPorCursor",
 }
 
+# /api/schema/ e /api/docs/ (config/urls.py e urls_publico.py). Fechados em produção (S-17).
+EXPOR_DOCUMENTACAO_DA_API = env.bool("GIRO_EXPOR_DOCUMENTACAO_DA_API", default=True)
+
 SPECTACULAR_SETTINGS = {
     "TITLE": "API do Giro",
     "DESCRIPTION": "Contrato da API do Giro. Gerado pelo backend (make api-schema).",
@@ -160,7 +164,9 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "UPDATE_LAST_LOGIN": True,
-    "SIGNING_KEY": SECRET_KEY,
+    # Chave própria dos tokens: vazar uma não compromete a outra. Em prod.py é obrigatória e
+    # diferente de SECRET_KEY; em dev e testes cai em SECRET_KEY.
+    "SIGNING_KEY": env("JWT_SIGNING_KEY", default=SECRET_KEY),
 }
 
 # --- Celery (ADR 0012) ---
@@ -173,6 +179,12 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {}
 
 REDIS_URL = env("REDIS_URL", default="redis://redis:6379/0")
+
+# --- Cifra de dados pessoais e segredos (ADR 0014). Nenhuma delas é a SECRET_KEY. ---
+# Chaves: "<id>:<base64 de 32 bytes>[,<id>:<chave>...]"; a de maior id cifra.
+GIRO_CHAVE_DADOS_PESSOAIS = env("GIRO_CHAVE_DADOS_PESSOAIS")
+GIRO_CHAVE_SEGREDOS = env("GIRO_CHAVE_SEGREDOS")
+GIRO_PEPPER_HMAC = env("GIRO_PEPPER_HMAC")
 
 # --- E-mail ---
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")

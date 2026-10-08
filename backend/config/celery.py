@@ -4,7 +4,9 @@ import os
 
 from celery import Celery
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.dev")
+# Sem padrão: processo que esquece a variável não sobe com config.settings.dev (C-04).
+if "DJANGO_SETTINGS_MODULE" not in os.environ:
+    raise RuntimeError("Defina DJANGO_SETTINGS_MODULE (config.settings.dev, .test ou .prod).")
 
 app = Celery("giro")
 app.config_from_object("django.conf:settings", namespace="CELERY")
