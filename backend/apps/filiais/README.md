@@ -30,6 +30,10 @@ Contrato da API: `docs/api/filiais.md` (escrito pelo arquiteto antes da implemen
 
 ## Para os outros apps
 
+- Filtrar pelo escopo de filial (`USR-07`): só com `selectors.filtrar_por_filial(queryset, request, campo="filial")`. Ninguém lê `filial_da_requisicao` e filtra por conta própria (teste de arquitetura em `tests/test_permissoes_das_rotas.py`). "Todas" é `TodasAsFiliais`, com ids das ativas e das desativadas, e nunca `None`. Pessoa sem filial recebe 403 `USR-07`.
+- Na T-011, quem tem `relatorios_todas_filiais` só pode receber "todas" em painel e relatórios. A view marca isso (por exemplo, um atributo que `EscopoDeFilial` lê), para "todas" não valer em qualquer módulo.
+- Permissões de view: `comum.permissoes.com_padrao(exige_perfil(...))`, nunca a lista à mão (F-01 da T-064).
+
 - Operação que impede desativar (FIL-06): no `ready()`, `comum.leituras.registrar_contador("filiais.Filial", "veiculos" | "locacoes" | "caixas", contar)`, com `contar(filial_id) -> int`.
 - Indicadores da lista: `comum.leituras.registrar_anotacao("filiais.Filial", "indicadores", anotar, montar)`, devolvendo `veiculos`, `locacoes_ativas` ou `ocupacao_pct`.
 - Vínculo das pessoas: `contas` publica `contas.filiais_do_usuario_definidas` (`usuario_id`, `filiais_ids`); `filiais` assina e grava.

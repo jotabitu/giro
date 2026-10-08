@@ -1,12 +1,16 @@
-"""Limite de requisições nas rotas públicas de acesso (P-03 da T-057; S-17 no proxy).
+"""Limite de requisições nas rotas públicas de acesso (P-03 da T-057; S-17 no proxy) e na
+busca de CEP (F-05 da T-064).
 
 Contam no cache (Redis, com a chave por schema de `make_key`). Por IP do cliente
-(`comum.rede`, que só confia no `X-Forwarded-For` do proxy) e, em `entrar`, também pelo
-e-mail informado (em hash), exista ele ou não. Estourar responde 429 `muitas_requisicoes`
-(`comum.erros`). As taxas ficam em `REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`.
+(`comum.rede`, que só confia no `X-Forwarded-For` do proxy; IPv6 pelo /64; sem IP, não conta)
+e, em `entrar`, também pelo e-mail informado (em hash), exista ele ou não. CEP, por usuário.
+Estourar responde 429 `muitas_requisicoes` (`comum.erros`). As taxas ficam em
+`REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`.
 """
 
 import hashlib
+import ipaddress
+import logging
 from typing import Any
 
 from rest_framework.request import Request
@@ -14,10 +18,38 @@ from rest_framework.throttling import SimpleRateThrottle
 
 from .rede import ip_do_cliente
 
+logger = logging.getLogger(__name__)
+PREFIXO_IPV6 = 64  # quem tem um /64 troca de endereço à vontade (F-04 da T-064)
+
+
+def chave_do_ip(ip: str | None) -> str | None:
+    """IPv4 inteiro; IPv6 pelo prefixo /64. Sem IP, `None`: o limite por IP não se aplica."""
+    if not ip:
+        return None
+    endereco = ipaddress.ip_address(ip)
+    if endereco.version == 6:
+        return str(ipaddress.ip_network((endereco, PREFIXO_IPV6), strict=False))
+    return str(endereco)
+
 
 class _PorIP(SimpleRateThrottle):
     def get_cache_key(self, request: Request, view: Any) -> str | None:
-        return self.cache_format % {"scope": self.scope, "ident": ip_do_cliente(request) or ""}
+        ident = chave_do_ip(ip_do_cliente(request))
+        if ident is None:
+            # Nunca juntar todo mundo numa chave vazia: o proxy está mal configurado (ADR 0018).
+            logger.warning(
+                "Requisição sem IP do cliente: limite por IP não aplicado (%s)", self.scope
+            )
+            return None
+        return self.cache_format % {"scope": self.scope, "ident": ident}
+
+
+class _PorUsuario(SimpleRateThrottle):
+    def get_cache_key(self, request: Request, view: Any) -> str | None:
+        usuario = getattr(request, "user", None)
+        if usuario is None or not usuario.is_authenticated:
+            return None
+        return self.cache_format % {"scope": self.scope, "ident": usuario.pk}
 
 
 class _PorEmail(SimpleRateThrottle):
@@ -50,6 +82,12 @@ class AcessoPorIP(_PorIP):
     """Convite (ver e aceitar), renovar e a etapa de 2 etapas."""
 
     scope = "acesso_ip"
+
+
+class CepPorUsuario(_PorUsuario):
+    """Busca de CEP: cada CEP novo é uma chamada ao ViaCEP (F-05 da T-064)."""
+
+    scope = "cep_usuario"
 
 
 LIMITES_DE_ENTRAR = [EntrarPorIPMinuto, EntrarPorIPHora, EntrarPorEmailMinuto, EntrarPorEmailHora]
