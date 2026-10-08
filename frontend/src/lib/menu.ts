@@ -1,15 +1,20 @@
 import {
+  AlertTriangle,
   ArrowLeftRight,
   BarChart3,
   Building2,
+  CalendarCheck,
   Car,
+  CheckCheck,
   CreditCard,
   Gauge,
   KeyRound,
+  Landmark,
   LayoutGrid,
   Palette,
   Percent,
   Receipt,
+  Search,
   Settings,
   ShieldCheck,
   Tag,
@@ -19,86 +24,91 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
-import type { Pode } from "@/lib/api";
+import type { GrupoNavegacao, Navegacao } from "@/lib/api";
 
-export type ItemDoMenu = {
+/** Rota e ícone de cada `chave` de item de menu. O que aparece e o rótulo vêm da API (`eu.navegacao`, USR-05). */
+const DESTINOS: Record<string, { href: string; icone: LucideIcon }> = {
+  inicio: { href: "/inicio", icone: LayoutGrid },
+  aprovacoes: { href: "/aprovacoes", icone: CheckCheck },
+  veiculos: { href: "/veiculos", icone: Car },
+  locacoes: { href: "/locacoes", icone: KeyRound },
+  vendas: { href: "/vendas", icone: Tag },
+  clientes: { href: "/clientes", icone: Users },
+  manutencoes: { href: "/manutencoes", icone: Wrench },
+  caixa: { href: "/financeiro/caixa", icone: Wallet },
+  receber: { href: "/financeiro/receber", icone: Receipt },
+  despesas: { href: "/financeiro/despesas", icone: CreditCard },
+  comissoes: { href: "/financeiro/comissoes", icone: Percent },
+  conciliacao: { href: "/financeiro/conciliacao", icone: ArrowLeftRight },
+  relatorios: { href: "/relatorios", icone: BarChart3 },
+  config: { href: "/admin/configuracoes", icone: Settings },
+  marca: { href: "/admin/marca", icone: Palette },
+  filiais: { href: "/admin/filiais", icone: Building2 },
+  usuarios: { href: "/admin/usuarios", icone: UserCog },
+  assinatura: { href: "/admin/assinatura", icone: Gauge },
+  auditoria: { href: "/admin/auditoria", icone: ShieldCheck },
+  // Itens próprios do menu do início (docs/api/contas.md). Rotas a confirmar com as telas de cada módulo.
+  agenda: { href: "/vistorias", icone: CalendarCheck },
+  avarias: { href: "/avarias", icone: AlertTriangle },
+  consultar_veiculo: { href: "/veiculos/consultar", icone: Search },
+  contas_a_pagar: { href: "/financeiro/pagar", icone: CreditCard },
+  caixa_e_bancos: { href: "/financeiro/bancos", icone: Landmark },
+  propostas: { href: "/propostas", icone: Tag },
+  minhas_vendas: { href: "/vendas/minhas", icone: Tag },
+  veiculos_a_venda: { href: "/vendas/veiculos", icone: Car },
+  minhas_comissoes: { href: "/financeiro/minhas-comissoes", icone: Percent },
+};
+
+export type ItemMontado = {
   chave: string;
   rotulo: string;
   href: string;
   icone: LucideIcon;
-  /** Chave em `contadores` da API; sem pendência, sem contador. */
-  contador?: string;
-  /** Só mostra o item quando a API liberou: lê `pode`, nunca o perfil (USR-05). */
-  visivel: (pode: Pode) => boolean;
+  ativo: boolean;
+  /** Número do contador; `undefined` sem pendência ou quando o módulo ainda não existe (`null` na API). */
+  total?: number;
 };
-
-export type GrupoDoMenu = { rotulo?: string; itens: ItemDoMenu[] };
-
-// Relação item de menu -> chave `pode` do contrato docs/api/contas.md.
-// O contrato não traz uma chave por item de menu; esta tabela é a ponte e deve ser revista com o arquiteto (T-011).
-export const MENU: GrupoDoMenu[] = [
-  {
-    itens: [
-      { chave: "inicio", rotulo: "Visão geral", href: "/inicio", icone: LayoutGrid, visivel: (p) => p.painel !== "nao" },
-      { chave: "veiculos", rotulo: "Veículos", href: "/veiculos", icone: Car, contador: "veiculos", visivel: (p) => p.veiculos !== "nao" },
-    ],
-  },
-  {
-    rotulo: "Operação",
-    itens: [
-      { chave: "locacoes", rotulo: "Locações", href: "/locacoes", icone: KeyRound, contador: "locacoes", visivel: (p) => p.locacoes_criar || p.vistorias_fazer },
-      { chave: "vendas", rotulo: "Vendas", href: "/vendas", icone: Tag, visivel: (p) => p.vendas_criar },
-      { chave: "clientes", rotulo: "Clientes", href: "/clientes", icone: Users, visivel: (p) => p.clientes_cadastrar },
-      { chave: "manutencoes", rotulo: "Manutenções", href: "/manutencoes", icone: Wrench, contador: "manutencoes", visivel: (p) => p.os_abrir },
-    ],
-  },
-  {
-    rotulo: "Financeiro",
-    itens: [
-      { chave: "caixa", rotulo: "Caixa do dia", href: "/financeiro/caixa", icone: Wallet, visivel: (p) => p.caixa_receber || p.caixa_abrir_fechar },
-      { chave: "receber", rotulo: "Contas a receber", href: "/financeiro/receber", icone: Receipt, contador: "receber", visivel: (p) => p.caixa_receber },
-      { chave: "despesas", rotulo: "Despesas", href: "/financeiro/despesas", icone: CreditCard, contador: "despesas", visivel: (p) => p.despesas_lancar !== "nao" },
-      { chave: "comissoes", rotulo: "Comissões", href: "/financeiro/comissoes", icone: Percent, visivel: (p) => p.financeiro_pagar },
-      { chave: "conciliacao", rotulo: "Conciliação", href: "/financeiro/conciliacao", icone: ArrowLeftRight, contador: "conciliacao", visivel: (p) => p.financeiro_pagar },
-      { chave: "relatorios", rotulo: "Relatórios", href: "/relatorios", icone: BarChart3, visivel: (p) => p.painel === "todas_filiais" || p.painel === "filial" },
-    ],
-  },
-  {
-    rotulo: "Administração",
-    itens: [
-      { chave: "config", rotulo: "Configurações", href: "/admin/configuracoes", icone: Settings, visivel: (p) => p.administracao },
-      { chave: "marca", rotulo: "Empresa e marca", href: "/admin/marca", icone: Palette, visivel: (p) => p.administracao },
-      { chave: "filiais", rotulo: "Filiais", href: "/admin/filiais", icone: Building2, visivel: (p) => p.administracao },
-      { chave: "usuarios", rotulo: "Usuários", href: "/admin/usuarios", icone: UserCog, contador: "usuarios", visivel: (p) => p.administracao },
-      { chave: "assinatura", rotulo: "Assinatura", href: "/admin/assinatura", icone: Gauge, visivel: (p) => p.administracao },
-      { chave: "auditoria", rotulo: "Auditoria", href: "/admin/auditoria", icone: ShieldCheck, visivel: (p) => p.administracao },
-    ],
-  },
-];
-
-export type ItemMontado = ItemDoMenu & { ativo: boolean; total?: number };
 export type GrupoMontado = { rotulo?: string; itens: ItemMontado[] };
 
-/** Menu do usuário: só o que `pode` libera (sem itens desabilitados), com a rota ativa marcada e os contadores da API. */
-export function montarMenu(pode: Pode, rotaAtual: string, contadores: Record<string, number> = {}): GrupoMontado[] {
-  return MENU.map((g) => ({
-    rotulo: g.rotulo,
-    itens: g.itens
-      .filter((i) => i.visivel(pode))
-      .map((i) => ({
-        ...i,
-        ativo: rotaAtual === i.href || rotaAtual.startsWith(`${i.href}/`),
-        total: i.contador ? contadores[i.contador] : undefined,
-      })),
-  })).filter((g) => g.itens.length > 0);
+const estaEm = (rota: string, href: string) => rota === href || rota.startsWith(`${href}/`);
+
+/** O menu da tela inicial só vale na rota inicial do perfil; nas telas compartilhadas vale o completo (USR-05). */
+export function gruposDaRota(nav: Navegacao, rotaAtual: string): GrupoNavegacao[] {
+  const noInicio = estaEm(rotaAtual, nav.inicio.rota);
+  return noInicio && nav.menu_inicio.length > 0 ? nav.menu_inicio : nav.menu_completo;
 }
 
-/** Os cinco destinos da barra inferior no celular. "Mais" abre /mais; o "+" leva à nova locação. */
-export function barraInferior(pode: Pode) {
-  return {
-    inicio: pode.painel !== "nao",
-    veiculos: pode.veiculos !== "nao",
-    novaLocacao: pode.locacoes_criar,
-    locacoes: pode.locacoes_criar || pode.vistorias_fazer,
-  };
+/** Liga o menu pronto da API às rotas e aos ícones, com a rota ativa e os contadores. Chave desconhecida fica de fora. */
+export function montarMenu(grupos: GrupoNavegacao[], rotaAtual: string, contadores: Record<string, number | null> = {}): GrupoMontado[] {
+  return grupos
+    .map((g) => ({
+      rotulo: g.grupo ?? undefined,
+      itens: g.itens.flatMap((i): ItemMontado[] => {
+        const destino = DESTINOS[i.chave];
+        if (!destino) return [];
+        const total = i.contador ? contadores[i.contador] : null;
+        return [{ chave: i.chave, rotulo: i.rotulo, href: destino.href, icone: destino.icone, ativo: estaEm(rotaAtual, destino.href), total: total || undefined }];
+      }),
+    }))
+    .filter((g) => g.itens.length > 0);
+}
+
+export type DestinoDaBarra = { chave: string; href: string; rotulo: string };
+
+const ROTULO_BARRA: Record<string, string> = { inicio: "Início", veiculos: "Veículos", nova_locacao: "Nova locação", locacoes: "Locações", mais: "Mais" };
+const HREF_BARRA: Record<string, string> = { nova_locacao: "/locacoes/nova", mais: "/mais" };
+
+/** Os destinos da barra inferior do celular, na ordem e com o filtro que a API mandou em `barra_celular`. */
+export function destinosDaBarra(chaves: string[]): DestinoDaBarra[] {
+  return chaves.flatMap((chave) => {
+    const href = HREF_BARRA[chave] ?? DESTINOS[chave]?.href;
+    return href ? [{ chave, href, rotulo: ROTULO_BARRA[chave] ?? chave }] : [];
+  });
+}
+
+/** Rota de um `destino` do painel (`{ chave, filtro?, id? }`) ou de um destino de ação ("nova_locacao"). Sem rota conhecida, `undefined`. */
+export function hrefDoDestino(chave: string, filtro?: string, id?: number): string | undefined {
+  const base = HREF_BARRA[chave] ?? DESTINOS[chave]?.href ?? (chave === "reembolsos" ? "/financeiro/reembolsos" : undefined);
+  if (!base) return undefined;
+  return `${base}${id !== undefined ? `/${id}` : ""}${filtro ? `?${filtro}` : ""}`;
 }

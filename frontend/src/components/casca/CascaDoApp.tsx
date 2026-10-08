@@ -8,15 +8,15 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Icone, IconButton, Sidebar, type GrupoMenu } from "@/design-system";
 import { relatorios } from "@/lib/api";
 import { useMarcaDaEmpresa } from "@/lib/marca-empresa";
-import { barraInferior, montarMenu } from "@/lib/menu";
+import { destinosDaBarra, gruposDaRota, montarMenu } from "@/lib/menu";
 import { useSessao } from "@/lib/sessao";
 
-/** Menu do usuário no formato do componente Sidebar: só o que `pode` libera, com contadores da API. */
+/** Menu do usuário no formato do componente Sidebar: o que a API mandou em `eu.navegacao`, com os contadores (a cada 60 s). */
 export function useGruposDoMenu(): GrupoMenu[] {
   const { eu } = useSessao();
   const rota = usePathname();
-  const { data } = useQuery({ queryKey: ["contadores"], queryFn: async () => (await relatorios.inicio()).contadores, staleTime: 60_000 });
-  return montarMenu(eu.pode, rota, data).map((g) => ({
+  const { data } = useQuery({ queryKey: ["contadores"], queryFn: async () => (await relatorios.contadores()).contadores, staleTime: 60_000, refetchInterval: 60_000 });
+  return montarMenu(gruposDaRota(eu.navegacao, rota), rota, data).map((g) => ({
     rotulo: g.rotulo,
     itens: g.itens.map((i) => ({ rotulo: i.rotulo, href: i.href, icone: <Icone de={i.icone} />, ativo: i.ativo, contador: i.total })),
   }));
@@ -95,18 +95,25 @@ function ItemBarra({ href, rotulo, icone, ativo, destaque }: { href: string; rot
   );
 }
 
+const ICONE_DA_BARRA = { inicio: LayoutGrid, veiculos: Car, nova_locacao: Plus, locacoes: KeyRound, mais: Ellipsis } as const;
+
+/** Os destinos vêm de `eu.navegacao.barra_celular`; a tela só decide o ícone e o destaque do "+". */
 function BarraInferior() {
   const { eu } = useSessao();
   const rota = usePathname();
-  const mostrar = barraInferior(eu.pode);
   const ativo = (h: string) => rota === h || rota.startsWith(`${h}/`);
   return (
     <nav aria-label="Navegação principal" className="fixed inset-x-4 bottom-4 z-30 flex items-center justify-between rounded-pill bg-surface p-2 shadow-pop md:hidden">
-      {mostrar.inicio && <ItemBarra href="/inicio" rotulo="Início" ativo={ativo("/inicio")} icone={<Icone de={LayoutGrid} />} />}
-      {mostrar.veiculos && <ItemBarra href="/veiculos" rotulo="Veículos" ativo={ativo("/veiculos")} icone={<Icone de={Car} />} />}
-      {mostrar.novaLocacao && <ItemBarra href="/locacoes/nova" rotulo="Nova locação" ativo={false} destaque icone={<Icone de={Plus} />} />}
-      {mostrar.locacoes && <ItemBarra href="/locacoes" rotulo="Locações" ativo={ativo("/locacoes")} icone={<Icone de={KeyRound} />} />}
-      <ItemBarra href="/mais" rotulo="Mais" ativo={ativo("/mais")} icone={<Icone de={Ellipsis} />} />
+      {destinosDaBarra(eu.navegacao.barra_celular).map((d) => (
+        <ItemBarra
+          key={d.chave}
+          href={d.href}
+          rotulo={d.rotulo}
+          ativo={d.chave !== "nova_locacao" && ativo(d.href)}
+          destaque={d.chave === "nova_locacao"}
+          icone={<Icone de={ICONE_DA_BARRA[d.chave as keyof typeof ICONE_DA_BARRA] ?? Ellipsis} />}
+        />
+      ))}
     </nav>
   );
 }

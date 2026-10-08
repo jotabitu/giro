@@ -21,6 +21,18 @@ export type Pode = {
   administracao: boolean;
 };
 
+/** Item do menu vindo da API (docs/api/contas.md, "Menu e início"). A rota e o ícone saem de `chave` em lib/menu.ts. */
+export type ItemNavegacao = { chave: string; rotulo: string; contador: string | null };
+export type GrupoNavegacao = { grupo: string | null; itens: ItemNavegacao[] };
+export type VarianteInicio = "implantacao" | "geral" | "gerente" | "vendedor" | "vistoriador" | "financeiro";
+export type Navegacao = {
+  inicio: { rota: string; variante: VarianteInicio };
+  menu_inicio: GrupoNavegacao[];
+  menu_completo: GrupoNavegacao[];
+  /** Chaves dos cinco destinos da barra do celular, já filtradas. */
+  barra_celular: string[];
+};
+
 export type Eu = {
   id: number;
   nome: string;
@@ -31,6 +43,7 @@ export type Eu = {
   filiais: { id: number; nome: string }[];
   dois_fatores: { ativo: boolean; obrigatorio: boolean; codigos_recuperacao_restantes: number };
   pode: Pode;
+  navegacao: Navegacao;
   suporte: { acesso_suporte_id: number; nome: string; permissao: "ver" | "ver_editar"; fim: string; motivo: string } | null;
   empresa: { nome_exibicao: string; status: string; somente_leitura: boolean };
 };
@@ -69,17 +82,3 @@ export class ErroApi extends Error {
     this.name = "ErroApi";
   }
 }
-
-// --- Tela inicial (agregados de relatórios; sem contrato ainda) ---
-
-export type StatusContrato = "Atrasado" | "Hoje" | "Alugado" | "Renovação";
-
-export type Inicio = {
-  atencao: number;
-  kpis: { rotulo: string; valor: string; contexto: string; destaque?: boolean }[];
-  frota: { nota: string; segmentos: { chave: string; rotulo: string; contagem: number; destaque?: "marca" | "solido" }[] };
-  devolucoes: { subtitulo: string; linhas: { id: string; placa: string; veiculo: string; cliente: string; data: string; situacao: StatusContrato; tom: "critico" | "atencao" | "solido" | "info" }[] };
-  pendencias: { atualizadoHa: string; titulo: string; itens: { texto: string; gravidade?: "critica" | "atencao" }[] };
-  caixa: { subtitulo: string; saldo: string; linhas: { rotulo: string; valor: string }[] };
-  contadores: Record<string, number>;
-};

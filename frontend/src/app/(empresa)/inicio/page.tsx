@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { VisaoGeral } from "@/components/casca/VisaoGeral";
+import { InicioPorPerfil } from "@/components/inicio/InicioPorPerfil";
 
-export const metadata: Metadata = { title: "Visão geral" };
+export const metadata: Metadata = { title: "Início" };
 
 export default function Inicio() {
-  return <VisaoGeral />;
+  return <InicioPorPerfil />;
 }
