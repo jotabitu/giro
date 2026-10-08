@@ -65,7 +65,10 @@ def exige_perfil(*perfis: str) -> type[BasePermission]:
 
 CABECALHO_FILIAL = "HTTP_X_FILIAL"
 TODAS_AS_FILIAIS = "todas"
-PERFIL_QUE_VE_TODAS = "administrador"
+# USR-07: administrador e financeiro veem todas as filiais ativas e escolhem "Todas as filiais".
+PERFIS_QUE_VEEM_TODAS = frozenset({"administrador", "financeiro"})
+# USR-03: com esta extra, "Todas as filiais" vale só nas views de painel e relatórios.
+EXTRA_RELATORIOS_TODAS = "relatorios_todas_filiais"
 
 _filiais_do_usuario: Callable[[Any], set[int]] | None = None
 
@@ -110,7 +113,22 @@ def pode(usuario: Any, chave: str) -> Any:
 
 
 def pode_escolher_todas(usuario: Any) -> bool:
-    return getattr(usuario, "perfil", "") == PERFIL_QUE_VE_TODAS
+    """Administrador e financeiro, em qualquer endpoint (USR-07)."""
+    return getattr(usuario, "perfil", "") in PERFIS_QUE_VEEM_TODAS
+
+
+def escopo_de_relatorio(view: Any) -> bool:
+    """View de painel ou relatório: declara `escopo_de_relatorio = True`."""
+    return bool(getattr(view, "escopo_de_relatorio", False))
+
+
+def pode_todas_nesta_view(usuario: Any, view: Any) -> bool:
+    """`X-Filial: todas`: o perfil, ou a extra `relatorios_todas_filiais` só em painel e
+    relatórios (USR-03); nos demais endpoints quem tem só a extra recebe 403 `USR-07`."""
+    if pode_escolher_todas(usuario):
+        return True
+    extras = getattr(usuario, "permissoes_extras", None) or []
+    return EXTRA_RELATORIOS_TODAS in extras and escopo_de_relatorio(view)
 
 
 def sem_acesso_a_filial() -> SemPermissao:
@@ -127,7 +145,8 @@ def filial_pedida(request: "Request") -> int | str | None:
         return None
     usuario = request.user
     if valor == TODAS_AS_FILIAIS:
-        if pode_escolher_todas(usuario):
+        view = (getattr(request, "parser_context", None) or {}).get("view")
+        if pode_todas_nesta_view(usuario, view):
             return TODAS_AS_FILIAIS
         raise sem_acesso_a_filial()
     if not valor.isdigit() or int(valor) not in filiais_permitidas(usuario):

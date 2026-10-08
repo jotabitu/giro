@@ -1,4 +1,5 @@
-"""E-mails de `contas`: convite (USR-01), link de nova senha e aviso de bloqueio (USR-06).
+"""Envios de `contas`: convite por e-mail e WhatsApp (USR-01), link de nova senha e aviso de
+bloqueio (USR-06).
 
 Recebem só ids; tokens são gerados aqui, na hora do envio, e nunca passam pela fila.
 """
@@ -9,6 +10,7 @@ from django.core.mail import send_mail
 from django_tenants.utils import get_public_schema_name, schema_context
 
 from comum.tarefas import tarefa_de_empresa
+from integracoes.whatsapp import enviar_whatsapp
 
 from .models import Convite, RedefinicaoSenha, Usuario
 from .services import link_do_convite, renovar_token, renovar_token_de_senha
@@ -33,16 +35,25 @@ def contas_enviar_convite(schema_name: str, convite_id: int) -> None:
     marca, host = _marca_e_host(schema_name)
     token = renovar_token(convite)
     usuario = convite.usuario
+    link = link_do_convite(host, token)
     send_mail(
         subject=f"{marca}: seu convite de acesso",
         message=(
             f"Olá, {usuario.nome}. A {marca} convidou você para acessar o sistema.\n"
-            f"Crie sua senha em: {link_do_convite(host, token)}\n"
+            f"Crie sua senha em: {link}\n"
             "O link vale por 7 dias."
         ),
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[usuario.email],
     )
+    # USR-01: com celular, o mesmo link também por WhatsApp, com a marca da locadora.
+    if usuario.celular:
+        enviar_whatsapp(
+            usuario.celular,
+            f"{marca}: você foi convidado para acessar o sistema. "
+            f"Crie sua senha em {link} (vale por 7 dias).",
+        )
+        Convite.objects.filter(pk=convite.pk).update(enviado_whatsapp=True)
 
 
 @shared_task(name="contas_enviar_redefinicao_senha")

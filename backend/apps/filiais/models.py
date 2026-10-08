@@ -89,8 +89,12 @@ class FeriadoFilial(ModeloBase, ModeloAtivavel):
         return f"{self.data:%d/%m/%Y} · {self.nome}"
 
 
-class UsuarioFilial(ModeloBase):
-    """Filiais a que a pessoa tem acesso (USR-07); gerentes da filial vêm daqui (FIL-02)."""
+class UsuarioFilial(ModeloAtivavel, ModeloBase):
+    """Filiais a que a pessoa tem acesso (USR-07); gerentes da filial vêm daqui (FIL-02).
+
+    Tirar a filial da pessoa desativa o vínculo (`ativo=False`), sem apagar (F-03 da T-064);
+    devolver a mesma filial reativa a linha.
+    """
 
     usuario = models.ForeignKey(
         "contas.Usuario", on_delete=models.CASCADE, related_name="filiais_ligadas"

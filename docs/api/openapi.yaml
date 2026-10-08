@@ -351,6 +351,60 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/convites/aceitar/:
+    post:
+      operationId: convites_aceitar_create
+      summary: Aceitar o convite (USR-01)
+      tags:
+      - convites
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AceitarConvite'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AceitarConvite'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AceitarConvite'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AceitarConviteResposta'
+          description: ''
+  /api/convites/consultar/:
+    post:
+      operationId: convites_consultar_create
+      summary: Ler o convite para a tela (USR-01)
+      tags:
+      - convites
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Token'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Token'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Token'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConviteDaEmpresa'
+          description: ''
   /api/enderecos/cep/{cep}/:
     get:
       operationId: enderecos_cep_retrieve
@@ -801,50 +855,23 @@ paths:
       responses:
         '204':
           description: No response body
-  /api/plataforma/convites/{token}/:
-    get:
-      operationId: plataforma_convites_retrieve
-      summary: Ver convite da equipe
-      parameters:
-      - in: path
-        name: token
-        schema:
-          type: string
-        required: true
-      tags:
-      - plataforma
-      security:
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Convite'
-          description: ''
-  /api/plataforma/convites/{token}/aceitar/:
+  /api/plataforma/convites/aceitar/:
     post:
       operationId: plataforma_convites_aceitar_create
       summary: Aceitar convite da equipe
-      parameters:
-      - in: path
-        name: token
-        schema:
-          type: string
-        required: true
       tags:
       - plataforma
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Senha'
+              $ref: '#/components/schemas/AceitarConviteDaEquipe'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/Senha'
+              $ref: '#/components/schemas/AceitarConviteDaEquipe'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/Senha'
+              $ref: '#/components/schemas/AceitarConviteDaEquipe'
         required: true
       security:
       - {}
@@ -854,6 +881,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Etapa'
+          description: ''
+  /api/plataforma/convites/consultar/:
+    post:
+      operationId: plataforma_convites_consultar_create
+      description: O token vem no corpo, nunca no caminho (P-09, T-072).
+      summary: Ver convite da equipe
+      tags:
+      - plataforma
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenDoConviteDaEquipe'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenDoConviteDaEquipe'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenDoConviteDaEquipe'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Convite'
           description: ''
   /api/plataforma/empresas/:
     get:
@@ -936,6 +991,298 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListaDePlanos'
           description: ''
+  /api/usuarios/:
+    get:
+      operationId: usuarios_list
+      summary: Usuários, com o plano e as contagens (USR-01, PLT-03)
+      parameters:
+      - in: query
+        name: busca
+        schema:
+          type: string
+      - in: query
+        name: filial
+        schema:
+          type: integer
+      - in: query
+        name: perfil
+        schema:
+          type: string
+          enum:
+          - administrador
+          - financeiro
+          - gerente
+          - vendedor
+          - vistoriador
+      - in: query
+        name: situacao
+        schema:
+          type: string
+          enum:
+          - ativos
+          - convites
+          - desativados
+      tags:
+      - usuarios
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeUsuarios'
+          description: ''
+  /api/usuarios/{id}/:
+    get:
+      operationId: usuarios_retrieve
+      summary: Usuário
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - usuarios
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioDetalhe'
+          description: ''
+    patch:
+      operationId: usuarios_partial_update
+      summary: Perfil, filiais e permissões extras (USR-03)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - usuarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAlterarUsuario'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAlterarUsuario'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAlterarUsuario'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioDetalhe'
+          description: ''
+  /api/usuarios/{id}/cancelar-convite/:
+    post:
+      operationId: usuarios_cancelar_convite_create
+      summary: Cancelar convite
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - usuarios
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioDetalhe'
+          description: ''
+  /api/usuarios/{id}/desativar/:
+    post:
+      operationId: usuarios_desativar_create
+      summary: Desativar (USR-04)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - usuarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MotivoOpcional'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MotivoOpcional'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MotivoOpcional'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioDetalhe'
+          description: ''
+  /api/usuarios/{id}/reativar/:
+    post:
+      operationId: usuarios_reativar_create
+      summary: Reativar (PLT-03)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - usuarios
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioDetalhe'
+          description: ''
+  /api/usuarios/{id}/redefinir-2fa/:
+    post:
+      operationId: usuarios_redefinir_2fa_create
+      summary: Redefinir as 2 etapas (USR-02)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - usuarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MotivoDaRedefinicao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MotivoDaRedefinicao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MotivoDaRedefinicao'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioDetalhe'
+          description: ''
+  /api/usuarios/{id}/reenviar-convite/:
+    post:
+      operationId: usuarios_reenviar_convite_create
+      summary: Reenviar convite
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - usuarios
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioDetalhe'
+          description: ''
+  /api/usuarios/{id}/sessoes/:
+    get:
+      operationId: usuarios_sessoes_retrieve
+      summary: Sessões de um usuário
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - usuarios
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sessoes'
+          description: ''
+  /api/usuarios/{id}/sessoes/{sid}/encerrar/:
+    post:
+      operationId: usuarios_sessoes_encerrar_create
+      summary: Encerrar sessão de um usuário
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: sid
+        schema:
+          type: integer
+        required: true
+      tags:
+      - usuarios
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/usuarios/convites/:
+    post:
+      operationId: usuarios_convites_create
+      summary: Convidar (USR-01, PLT-03)
+      tags:
+      - usuarios
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Convidar'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Convidar'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Convidar'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioDetalhe'
+          description: ''
 components:
   schemas:
     Access:
@@ -952,6 +1299,39 @@ components:
           type: string
       required:
       - access
+    AceitarConvite:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 100
+        nome:
+          type: string
+          maxLength: 150
+        senha:
+          type: string
+        aparelho:
+          allOf:
+          - $ref: '#/components/schemas/TipoSessaoEnum'
+          default: desktop
+      required:
+      - senha
+      - token
+    AceitarConviteDaEquipe:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 100
+        senha:
+          type: string
+      required:
+      - senha
+      - token
+    AceitarConviteResposta:
+      oneOf:
+      - $ref: '#/components/schemas/Pronto'
+      - $ref: '#/components/schemas/EtapaDoLogin'
     Acoes:
       type: object
       properties:
@@ -1095,6 +1475,22 @@ components:
       - pagantes
       - saindo
       - todas
+    ContagensDeUsuarios:
+      type: object
+      properties:
+        todos:
+          type: integer
+        ativos:
+          type: integer
+        convites:
+          type: integer
+        desativados:
+          type: integer
+      required:
+      - ativos
+      - convites
+      - desativados
+      - todos
     Contato:
       type: object
       properties:
@@ -1111,6 +1507,31 @@ components:
             format: email
           - type: string
             maxLength: 0
+    Convidar:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        nome:
+          type: string
+          maxLength: 150
+        celular:
+          type: string
+          maxLength: 20
+        perfil:
+          $ref: '#/components/schemas/PerfilEnum'
+        filiais:
+          type: array
+          items:
+            type: integer
+        permissoes_extras:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissaoExtraEnum'
+      required:
+      - email
+      - perfil
     Convite:
       type: object
       properties:
@@ -1129,6 +1550,39 @@ components:
       - expira_em
       - funcao
       - nome
+    ConviteDaEmpresa:
+      type: object
+      properties:
+        empresa:
+          type: string
+        email:
+          type: string
+          format: email
+        nome:
+          type: string
+        perfil:
+          $ref: '#/components/schemas/PerfilEnum'
+        filiais:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilialResumo'
+        convidado_por:
+          type: string
+          nullable: true
+        expira_em:
+          type: string
+          format: date-time
+        exige_2fa:
+          type: boolean
+      required:
+      - convidado_por
+      - email
+      - empresa
+      - exige_2fa
+      - expira_em
+      - filiais
+      - nome
+      - perfil
     DespesasLancarEnum:
       enum:
       - todas
@@ -1875,6 +2329,29 @@ components:
             $ref: '#/components/schemas/Sugestao'
       required:
       - resultados
+    ListaDeUsuarios:
+      type: object
+      properties:
+        plano:
+          $ref: '#/components/schemas/PlanoDeUsuarios'
+        contagens:
+          $ref: '#/components/schemas/ContagensDeUsuarios'
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/UsuarioItem'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - contagens
+      - plano
+      - proximo
+      - resultados
     Mensagem:
       type: object
       properties:
@@ -1920,6 +2397,20 @@ components:
           type: string
       required:
       - motivo
+    MotivoDaRedefinicao:
+      type: object
+      properties:
+        motivo:
+          type: string
+          maxLength: 500
+      required:
+      - motivo
+    MotivoOpcional:
+      type: object
+      properties:
+        motivo:
+          type: string
+          maxLength: 500
     NivelDeAprovacaoEnum:
       enum:
       - sim
@@ -1967,6 +2458,19 @@ components:
       - concluido_em
       - passo
       - rotulo
+    PatchedAlterarUsuario:
+      type: object
+      properties:
+        perfil:
+          $ref: '#/components/schemas/PerfilEnum'
+        filiais:
+          type: array
+          items:
+            type: integer
+        permissoes_extras:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissaoExtraEnum'
     PatchedEditarEu:
       type: object
       properties:
@@ -2008,6 +2512,43 @@ components:
           minimum: 0
           nullable: true
         horario: {}
+    PerfilEnum:
+      enum:
+      - administrador
+      - gerente
+      - vendedor
+      - vistoriador
+      - financeiro
+      type: string
+      description: |-
+        * `administrador` - Administrador
+        * `gerente` - Gerente
+        * `vendedor` - Vendedor
+        * `vistoriador` - Vistoriador
+        * `financeiro` - Financeiro
+    PermissaoExtraDoUsuario:
+      type: object
+      properties:
+        chave:
+          $ref: '#/components/schemas/PermissaoExtraEnum'
+        marcada:
+          type: boolean
+        padrao_do_perfil:
+          type: boolean
+      required:
+      - chave
+      - marcada
+      - padrao_do_perfil
+    PermissaoExtraEnum:
+      enum:
+      - aprovar_desconto
+      - cancelar_contrato
+      - relatorios_todas_filiais
+      type: string
+      description: |-
+        * `aprovar_desconto` - Aprovar descontos acima do limite
+        * `cancelar_contrato` - Cancelar contratos
+        * `relatorios_todas_filiais` - Ver relatórios de todas as filiais
     Plano:
       type: object
       properties:
@@ -2096,6 +2637,23 @@ components:
       - bloqueado
       - limite
       - nome_plano
+      - usado
+    PlanoDeUsuarios:
+      type: object
+      properties:
+        usado:
+          type: integer
+        limite:
+          type: integer
+          nullable: true
+        aviso:
+          type: boolean
+        bloqueado:
+          type: boolean
+      required:
+      - aviso
+      - bloqueado
+      - limite
       - usado
     PlanoResumo:
       type: object
@@ -2227,13 +2785,6 @@ components:
       - email
       - nome
       - telefone
-    Senha:
-      type: object
-      properties:
-        senha:
-          type: string
-      required:
-      - senha
     Sessao:
       type: object
       properties:
@@ -2335,6 +2886,22 @@ components:
       description: |-
         * `desktop` - Desktop
         * `celular` - Celular
+    Token:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 100
+      required:
+      - token
+    TokenDoConviteDaEquipe:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 100
+      required:
+      - token
     TrocarSenha:
       type: object
       properties:
@@ -2439,6 +3006,112 @@ components:
       - id
       - nome
       - pode
+    UsuarioDetalhe:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        email:
+          type: string
+          format: email
+        celular:
+          type: string
+          nullable: true
+        perfil:
+          $ref: '#/components/schemas/PerfilEnum'
+        filiais:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilialResumo'
+        todas_filiais:
+          type: boolean
+        status:
+          type: string
+        dois_fatores_ativo:
+          type: boolean
+        ultimo_acesso_em:
+          type: string
+          format: date-time
+          nullable: true
+        convite_expira_em:
+          type: string
+          format: date-time
+          nullable: true
+        eu:
+          type: boolean
+        permissoes_extras:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissaoExtraDoUsuario'
+        entrou_em:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - celular
+      - convite_expira_em
+      - dois_fatores_ativo
+      - email
+      - entrou_em
+      - eu
+      - filiais
+      - id
+      - nome
+      - perfil
+      - permissoes_extras
+      - status
+      - todas_filiais
+      - ultimo_acesso_em
+    UsuarioItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        email:
+          type: string
+          format: email
+        celular:
+          type: string
+          nullable: true
+        perfil:
+          $ref: '#/components/schemas/PerfilEnum'
+        filiais:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilialResumo'
+        todas_filiais:
+          type: boolean
+        status:
+          type: string
+        dois_fatores_ativo:
+          type: boolean
+        ultimo_acesso_em:
+          type: string
+          format: date-time
+          nullable: true
+        convite_expira_em:
+          type: string
+          format: date-time
+          nullable: true
+        eu:
+          type: boolean
+      required:
+      - celular
+      - convite_expira_em
+      - dois_fatores_ativo
+      - email
+      - eu
+      - filiais
+      - id
+      - nome
+      - perfil
+      - status
+      - todas_filiais
+      - ultimo_acesso_em
     VeiculosEnum:
       enum:
       - editar
