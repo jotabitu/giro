@@ -22,3 +22,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-005 · CI · devops · PR #9 · tarefas/handoffs/T-005-devops.md · o próprio PR roda o workflow
 - T-042 · Componente de código de 6 dígitos · design-system · PR #10 · tarefas/handoffs/T-042-design-system.md
 - T-020 · Telas de acesso e casca do app · frontend · PR #11 · tarefas/handoffs/T-020-frontend.md · dados falsos até a T-011; 390 px a validar com emulação (Edge headless não abre abaixo de 492 px)
+- T-033 · Dados sensíveis na fundação · backend · PR a abrir (branch t-033-dados-sensiveis) · tarefas/handoffs/T-033-backend.md · 127 testes; inclui C-01, C-02 e o ator das tarefas (ADR 0018 item 3)

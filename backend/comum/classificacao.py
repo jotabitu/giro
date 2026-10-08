@@ -169,7 +169,7 @@ def _tipo_pelo_nome(nome: str) -> str:
     raise ValueError(f"Não sei mascarar '{nome}': declare o tipo em CAMPOS_AUDITORIA.")
 
 
-def _omitido_automaticamente(campo: models.Field[Any, Any]) -> bool:
+def _omitido_automaticamente(campo: "models.Field[Any, Any]") -> bool:
     return (
         isinstance(campo, CampoCifrado | CampoHashBusca)
         or campo.name == "password"
@@ -189,15 +189,15 @@ def classificacao(modelo: type[models.Model]) -> Classificacao:
     omitir |= {nome for nome, campo in campos.items() if _omitido_automaticamente(campo)}
 
     mascarar_declarado = declarado.get("mascarar", {})
+    inteiro = set(declarado.get("inteiro", ()))
+    for nome in set(declarado.get("omitir", ())) | set(mascarar_declarado) | inteiro:
+        if nome not in campos:
+            raise ValueError(f"{modelo.__name__}.CAMPOS_AUDITORIA cita campo inexistente: {nome}")
+
     if isinstance(mascarar_declarado, dict):
         mascarar = dict(mascarar_declarado)
     else:
         mascarar = {nome: _tipo_pelo_nome(nome) for nome in mascarar_declarado}
-    inteiro = set(declarado.get("inteiro", ()))
-
-    for nome in set(declarado.get("omitir", ())) | set(mascarar) | inteiro:
-        if nome not in campos:
-            raise ValueError(f"{modelo.__name__}.CAMPOS_AUDITORIA cita campo inexistente: {nome}")
     for nome, tipo in mascarar.items():
         if tipo not in MASCARAS:
             raise ValueError(f"{modelo.__name__}.{nome}: máscara desconhecida '{tipo}'.")

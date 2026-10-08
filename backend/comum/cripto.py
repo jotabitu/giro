@@ -101,7 +101,7 @@ def decifrar(valor: str, *, tipo: str, associado: bytes) -> str:
 def precisa_recifrar(valor: str, *, tipo: str) -> bool:
     """Verdadeiro quando o valor foi cifrado com uma chave que não é a atual."""
     achado = _FORMATO.match(valor)
-    return bool(achado) and int(achado.group(1)) != max(_chaves(tipo))
+    return achado is not None and int(achado.group(1)) != max(_chaves(tipo))
 
 
 def normalizar(valor: str) -> str:

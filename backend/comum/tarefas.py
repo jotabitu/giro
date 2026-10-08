@@ -157,9 +157,7 @@ def tarefa_de_empresa[**P, R](
             except EmpresaIndisponivel as motivo:
                 logger.warning("%s ignorada: %s", alvo.__name__, motivo)
                 return None
-            with na_empresa(
-                schema_name, regra=regra, ator=ator, inclui_suspensas=inclui_suspensas
-            ):
+            with na_empresa(schema_name, regra=regra, ator=ator, inclui_suspensas=inclui_suspensas):
                 return alvo(*args, **kwargs)
 
         return executar

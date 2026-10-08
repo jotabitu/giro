@@ -3,6 +3,7 @@
 import json
 from datetime import date
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from django.db import models
@@ -80,7 +81,9 @@ def test_aud_01_troca_de_documento_cifrado_gera_evento_sem_valor(empresa_a):
 
 
 def test_aud_01_troca_de_senha_nao_grava_hash(empresa_a):
-    usuario = Usuario.objects.create_user("carla@a.com", "senha-antiga-123", nome="Carla", perfil="gerente")
+    usuario = Usuario.objects.create_user(
+        "carla@a.com", "senha-antiga-123", nome="Carla", perfil="gerente"
+    )
     with auditar(usuario, "usuario.trocar_senha", Categoria.SEGURANCA):
         usuario.set_password("senha-nova-456")
         usuario.save()
@@ -99,32 +102,38 @@ def test_email_do_funcionario_vai_inteiro(empresa_a):
     assert evento.depois == {"email": "carla.menezes@a.com"}
 
 
-def _falso(nome: str, campos: list[str], declarado: dict) -> type:
+def _falso(nome: str, campos: list[str], declarado: dict[str, Any]) -> Any:
     """Classe com `_meta` mínimo; não registra model no Django."""
-    lista = []
+    lista: list[models.CharField[str, str]] = []
     for campo_nome in campos:
-        campo = models.CharField(max_length=20)
+        campo: models.CharField[str, str] = models.CharField(max_length=20)
         campo.set_attributes_from_name(campo_nome)
         lista.append(campo)
-    return type(nome, (), {"_meta": SimpleNamespace(concrete_fields=lista), "CAMPOS_AUDITORIA": declarado})
+    return type(
+        nome, (), {"_meta": SimpleNamespace(concrete_fields=lista), "CAMPOS_AUDITORIA": declarado}
+    )
 
 
 def test_classificacao_recusa_campo_inexistente_e_mascara_desconhecida():
     errado = _falso("Errado", ["celular"], {"mascarar": ["nao_existe"]})
     with pytest.raises(ValueError, match="inexistente"):
-        classificacao.classificacao(errado)  # type: ignore[arg-type]
+        classificacao.classificacao(errado)
 
     mascara = _falso("Mascara", ["celular"], {"mascarar": {"celular": "borrar"}})
     with pytest.raises(ValueError, match="desconhecida"):
-        classificacao.classificacao(mascara)  # type: ignore[arg-type]
+        classificacao.classificacao(mascara)
 
 
 def test_campo_sensivel_sem_classificacao_e_apontado():
     falso = _falso("SemClassificar", ["celular", "tipo", "nome_contato"], {})
-    assert classificacao.campos_sensiveis_sem_classificacao(falso) == ["celular"]  # type: ignore[arg-type]
+    assert classificacao.campos_sensiveis_sem_classificacao(falso) == ["celular"]
 
 
 def test_mascarar_em_lista_deduz_o_tipo_pelo_nome():
-    falso = _falso("Lista", ["responsavel_cpf", "telefone_fixo"], {"mascarar": ["responsavel_cpf", "telefone_fixo"]})
-    regras = classificacao.classificacao(falso)  # type: ignore[arg-type]
+    falso = _falso(
+        "Lista",
+        ["responsavel_cpf", "telefone_fixo"],
+        {"mascarar": ["responsavel_cpf", "telefone_fixo"]},
+    )
+    regras = classificacao.classificacao(falso)
     assert regras.mascarar == {"responsavel_cpf": "documento", "telefone_fixo": "telefone"}

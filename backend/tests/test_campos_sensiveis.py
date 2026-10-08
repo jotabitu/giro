@@ -19,7 +19,9 @@ def test_ha_models_para_conferir():
 
 def test_todo_campo_sensivel_esta_classificado():
     faltando = {
-        m._meta.label: campos for m in _models_do_giro() if (campos := campos_sensiveis_sem_classificacao(m))
+        m._meta.label: campos
+        for m in _models_do_giro()
+        if (campos := campos_sensiveis_sem_classificacao(m))
     }
     assert not faltando, f"Classifique em CAMPOS_AUDITORIA: {faltando}"
 

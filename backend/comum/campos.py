@@ -54,8 +54,10 @@ class CampoCifrado(models.TextField):  # type: ignore[type-arg]
         kwargs.pop("editable", None)
         return nome, caminho, args, kwargs
 
-    def contribute_to_class(self, cls: type[models.Model], name: str, **kwargs: Any) -> None:
-        super().contribute_to_class(cls, name, **kwargs)
+    def contribute_to_class(
+        self, cls: type[models.Model], name: str, private_only: bool = False
+    ) -> None:
+        super().contribute_to_class(cls, name, private_only)
         campo = self
 
         def associado(obj: Any) -> bytes:

@@ -124,7 +124,9 @@ def test_tarefa_pedida_por_pessoa_age_em_nome_dela(publico):
     from comum.tarefas import ator_para_fila
 
     with na_empresa("empresa_a"):
-        carla = Usuario.objects.create_user("carla@a.com", "x", nome="Carla Menezes", perfil="gerente")
+        carla = Usuario.objects.create_user(
+            "carla@a.com", "x", nome="Carla Menezes", perfil="gerente"
+        )
 
     with usar_ator(Ator(tipo=TipoAtor.USUARIO, id=carla.pk, nome="Carla Menezes")):
         ator = ator_para_fila()
