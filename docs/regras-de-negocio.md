@@ -541,11 +541,12 @@ Planos especiais: Entregador R$ 279,00/semana (km livre, troca de óleo inclusa)
 | Comissão da venda VEN-0177 | 3% de 21.068,00 | R$ 632,04 pendente | `FIN-09` |
 | Comissões de outubro (Bruna) | 4 vendas somando 31.200,00 + 2 locações | R$ 968,00 confirmados | `FIN-10` |
 | Comissões de setembro | Bruna: 3 vendas (36.000,00) + 10 locações; Felipe: 1 venda (19.000,00) + 5 locações | R$ 1.240,00 + R$ 650,00 = R$ 1.890,00 | `FIN-09` |
-| Caixa de 07 out | troco 200,00; entradas em dinheiro 629,00; saídas em dinheiro 548,00 | gaveta R$ 281,00; total recebido R$ 1.182,60 | `FIN-07` |
+| Caixa de 07 out | troco 200,00; entradas: Pix 329,00 (Juliana, LOC-2836) e 44,90 (diária Urbana retirada hoje), cartão 109,00 (Diego, LOC-2848, renovação de 1 diária), dinheiro 629,00 (Lucas, 1ª semana e caução); saídas em dinheiro 548,00 | gaveta R$ 281,00; total recebido R$ 1.111,90 em 5 entradas | `FIN-07`, `LOC-08` |
 | Conciliação | Pix sem par +150,00; tarifa −12,90 | diferença R$ 137,10 | `FIN-12` |
 | DRE de setembro | locações 56.420,00; extras 2.310,00; taxas 1.128,40; despesas 21.480,30; comissões 1.890,00 | resultado R$ 34.231,30 (margem 58%) | `FIN-13` |
 | Despesas de outubro | 6 lançamentos: pneus 1.200,00; óleo 48,00 (pago no caixa); luz 412,30; aluguel 3.500,00; IPVA 186,40; rastreadores 1.720,00 | R$ 7.066,70; aguardando aprovação R$ 1.200,00 (só os pneus; o IPVA está abaixo de R$ 500 e nasce `a_pagar`) | `FIN-05` |
 | Em aberto dos clientes | Carlos 299,40; Rafael 1.347,00 | R$ 1.646,40 (2 clientes) | `FIN-01` |
+| Contas a receber de outubro em 07 out | 42 locações abertas da Filial Centro, parcelas pela tabela de preços (`docs/qa/carteira-outubro/`) | Previsto R$ 52.002,10 em 128 parcelas; Recebido R$ 13.401,70 em 30 (25,77%); Vence hoje R$ 2.625,80 em 6; A vencer R$ 35.974,60 em 92; Em atraso R$ 1.646,40 (2 clientes, 2 parcelas); abas Todas 130, Em atraso 2, Vencem hoje 6, A vencer 92, Pagas 30 | `FIN-15` |
 | Contadores do menu em 07 out (Mariana) | parcelas de Carlos e Rafael atrasadas; despesa dos pneus aguardando aprovação | Contas a receber 2; Despesas 1; Conciliação e Comissões sem número (fase 2) | `FIN-15`, `FIN-05` |
 | Encerramento antecipado LOC-2812 | NMax mensal 1.590,00; pedido em 07 out; fim 15 out | multa R$ 84,80; devolve R$ 286,20 | `LOC-12`, `LOC-13` |
 | Preço antigo LOC-2841 | Carlos, CG 160 Fan, semanal de 23 set a 28 out (5 parcelas: 23 set paga, 30 set atrasada, 07 out vence hoje, 14 e 21 out), assinado em 23 set, quando a Street semanal era 299,40 (passou a 329,00 em 01 out) | parcelas continuam R$ 299,40 | `LOC-15` |
@@ -556,6 +557,12 @@ Planos especiais: Entregador R$ 279,00/semana (km livre, troca de óleo inclusa)
 *Mudanças em 07 out 2026 (T-041):* "Despesas de outubro" passou de "aguardando aprovação R$ 1.386,40" para R$ 1.200,00. O valor antigo somava o IPVA de R$ 186,40, que pela `FIN-05` (até R$ 500 nasce `a_pagar`) não vai para aprovação. A tela `Despesas` vai para a T-028. Correção aprovada pelo dono do produto em 07 out 2026.
 
 *Mudanças em 08 out 2026 (T-053):* o CNPJ da Moto Rápida passou de 12.345.678/0001-10 para **12.345.678/0001-95**, porque o antigo não passa no dígito verificador e a validação do CNPJ recusa dígito errado (divergência levantada pelo backend na T-010). Criada a linha "Contadores do menu em 07 out". Os números de outubro da tela `Receber` ("Previsto no mês" R$ 74,2 mil em 318 parcelas, "Recebido" R$ 21,6 mil, "Vence hoje" R$ 1.890 em 9 parcelas, "A vencer" 226, "Pagas" 72) não saem do seed e não fecham com estas regras: 9 parcelas custam pelo menos 9 × R$ 279,00 = R$ 2.511,00; 42 locações abertas dão no máximo 42 × 5 = 210 vencimentos semanais num mês; as abas somam 309, não 318; e 21,6 ÷ 74,2 dá 29,11%, não 29,00%. Eles só entram nesta tabela quando o seed tiver a carteira de outubro (parcelas das 42 locações pela tabela de preços); até lá, o teste da `FIN-15` usa um caso pequeno próprio, e as telas mostram os números da carteira quando ela existir.
+
+*Mudanças em 08 out 2026 (T-059):* criada a linha "Contas a receber de outubro em 07 out", com a carteira montada pelo qa na T-056 (`docs/qa/carteira-outubro/`). Ela substitui os números de tela citados na nota da T-053. A composição das 35 locações geradas é a proposta do qa, confirmada pelo produto. As premissas também: Entregador só em Urbana, ninguém no mensal fidelidade, mensal pago à vista e nenhum contrato terminando em outubro além dos das telas. Mudaram dois casos:
+- **LOC-2841:** começa em 23 set (5 semanas, até 28 out). A parcela 1 é paga na retirada (`LOC-05`; locação sem 1º pagamento fica `aguardando_retirada`), e a de 30 set é a 2 de 5, atrasada há 7 dias, como no `Caixa` e nos critérios. Assinada antes de 01 out, mantém R$ 299,40 (`LOC-15`).
+- **Caixa de 07 out:** o cartão de R$ 179,70 do Diego virou a renovação de 1 diária do Kwid, R$ 109,00 (`LOC-08`), e o total recebido passou de R$ 1.182,60 para R$ 1.111,90. Decisão do dono do produto em 08 out 2026.
+
+A LOC-2790 continua com uma conta atrasada de R$ 1.347,00, que não sai da tabela de preços (equivale a 30 diárias Urbana). Ela é um valor dado do seed, mantido porque os casos "Em aberto dos clientes" e "Bloqueio" dependem dele.
 
 ## Decisões de 07 out 2026
 
@@ -578,6 +585,15 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 | Botão da lista e cliente inativo (T-036, itens 11 e 13) | Ordem do botão: em aberto, incompleto, venda aberta, com locação, nova locação (`CLI-07`); inativar e reativar com motivo, recusado com pendência (`CLI-09`). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
 | Devolução de dinheiro ao cliente por Pix (T-043, item 21) | Manual no MVP: o sistema registra o reembolso a fazer, e a pessoa faz o Pix e marca como feito com o comprovante (`DEV-02`). O Pix automático pelo parceiro fica para depois das proteções de saque da subconta (achado S-05). | Recomendação do produto aprovada pelo dono do produto em 07 out 2026. |
 | Consulta de crédito | **Fora do MVP.** No MVP a análise do cliente (`CLI-04`) usa CPF, CNH, lista de bloqueio e histórico na empresa. Na fase 2, consulta paga por uso via parceiro (Serasa ou o próprio Asaas). | Custa por consulta e não trava a operação; o histórico interno já resolve a maior parte. |
+
+## Decisões de 08 out 2026
+
+| Pendência | Decisão | Por quê |
+| --- | --- | --- |
+| Base do "Recebido" da tela `Receber` (T-053) | **A:** só as contas que vencem no mês e já foram pagas (`FIN-15`). | O percentual "do previsto" nunca passa de 100%; o que entra no dia já aparece no `Caixa`. |
+| Cartão de R$ 179,70 do Diego no caixa de 07 out (T-059) | **A:** vira a renovação de 1 diária do Kwid, R$ 109,00 (`LOC-08`); o caixa de 07 out passa a R$ 1.111,90. | Todo pagamento aponta para uma conta, e R$ 179,70 não sai de nenhum preço da tabela; a opção A não inventa preço de extra. |
+| CNPJ da Filial Messejana (T-059) | **12.345.678/0003-57** (a Filial Caucaia é 12.345.678/0002-76). | Os dois passam no dígito verificador, como o da Moto Rápida (T-053). |
+| Senha errada na equipe da plataforma (P-03 da T-057) | **5 senhas erradas bloqueiam por 15 minutos**, como no `USR-06` (`PLT-08`). | Sem limite, a senha da equipe podia ser testada sem fim. |
 
 ## Pontos em aberto
 
