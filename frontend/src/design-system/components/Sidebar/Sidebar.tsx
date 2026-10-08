@@ -40,12 +40,15 @@ function iniciaisDe(nome: string): string {
 export function Sidebar({
   marca,
   filial,
+  seletorDeFilial,
   grupos,
   componenteLink: Link = "a",
 }: {
   marca: MarcaDaSidebar;
-  /** Esconda quando a empresa tiver uma filial só. */
+  /** Filial ativa, só para mostrar. Esconda quando a empresa tiver uma filial só. */
   filial?: FilialAtiva;
+  /** Seletor que troca de filial (<SeletorDeFilial />); tem prioridade sobre `filial`. */
+  seletorDeFilial?: ReactNode;
   grupos: ReadonlyArray<GrupoMenu>;
   /** Troque por next/link nas telas (padrão: a). */
   componenteLink?: ComponentType<{ href: string; className?: string; "aria-current"?: "page"; children?: ReactNode }> | "a";
@@ -63,7 +66,8 @@ export function Sidebar({
         </div>
         <div className="wl-brand-name">{marca.nome}</div>
       </div>
-      {filial && (
+      {seletorDeFilial}
+      {!seletorDeFilial && filial && (
         <div className="wl-switcher">
           <div className="wl-switcher__icon">
             <Icone de={Store} />
