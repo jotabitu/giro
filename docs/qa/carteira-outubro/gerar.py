@@ -45,9 +45,18 @@ NOMEADAS = [
         "Carlos Menezes",
         "street",
         "semanal",
-        [(date(2026, 9, 30) + timedelta(7 * k), 29940, "aberta") for k in range(5)],
+        [
+            (date(2026, 9, 23) + timedelta(7 * k), 29940, "paga" if k == 0 else "aberta")
+            for k in range(5)
+        ],
     ),
-    ("LOC-2848", "Diego Martins", "carro", "diaria", [(date(2026, 10, 6), 3 * 10900, "paga")]),
+    (
+        "LOC-2848",
+        "Diego Martins",
+        "carro",
+        "diaria",
+        [(date(2026, 10, 6), 3 * 10900, "paga"), (date(2026, 10, 7), 10900, "paga")],
+    ),
     ("LOC-2850", "Marcos Viana", "urbana", "mensal", [(date(2026, 10, 1), 109000, "paga")]),
     (
         "LOC-2856",

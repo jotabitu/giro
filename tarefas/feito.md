@@ -41,4 +41,10 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-054 · Componentes e telas apontados na T-048 e na T-053 · design-system · PR #31 · tarefas/handoffs/T-054-design-system.md · 108 testes; FleetBar a 390 px conferido no navegador na T-060
 - T-055 · Contratos alinhados à T-053 e conferência da T-010 · arquiteto · PR #32 · tarefas/handoffs/T-055-arquiteto.md · sem ADR nova; DESTINOS do frontend na T-061
 - T-012 · Filiais · backend · PR #35 · tarefas/handoffs/T-012-backend.md · 258 testes; CA-012-01 a 17; S-12 fora (logo da empresa); 5 decisões para o arquiteto conferir
-- T-061 · Rotas do menu corrigidas na T-055 · frontend · PR a abrir pelo orquestrador · tarefas/handoffs/T-061-frontend.md
+- T-061 · Rotas do menu corrigidas na T-055 · frontend · PR #38 · tarefas/handoffs/T-061-frontend.md
+- T-059 · Números da carteira de outubro e textos da T-010 · produto · PR #39 · tarefas/handoffs/T-059-produto.md · cartão do Diego pela opção A; PLT-08 com 5 senhas; CA-010-18; correções nas T-060, T-062, T-063 e T-066
+- T-058 · Correções de segurança da T-057 · backend · PR #40 · tarefas/handoffs/T-058-backend.md · 280 testes; P-01 a P-04 com teste que reproduz o achado; CA-010-18; plataforma.md conferido na T-063
+- T-062 · Carteira de outubro com as mudanças da T-059 · qa · PR #42 · tarefas/handoffs/T-062-qa.md · Previsto R$ 52.002,10 em 128; Recebido 25,77%
+- T-060 · Telas do Receber e do Financeiro com a carteira de outubro · design-system · PR #43 · tarefas/handoffs/T-060-design-system.md · também Caixa, Locacoes e Comissoes; FleetBar conferido a 390 px
+- T-067 · USR-07: o financeiro também escolhe todas as filiais · produto · PR #44 · sem handoff (só texto da regra) · branch t-063-usr-07; comportamento já era esse na tabela de perfis e na USR-08
+- T-063 · Contratos com o caixa da T-059 e conferência da T-058 e da T-012 · arquiteto · PR #45 · tarefas/handoffs/T-063-arquiteto.md · sem ADR nova; decisão 5 da T-012 na T-011; limites do entrar da empresa em contas.md (T-011)
