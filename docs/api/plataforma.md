@@ -77,14 +77,15 @@ Qualquer função. 200: o mesmo `usuario` de `entrar`, mais `{ "dois_fatores_ati
 
 ### Convite da equipe
 
-Fase 1: o primeiro dono e os convites saem pelo comando `python manage.py convidar_equipe_plataforma <email> <funcao>`, que imprime o link. As telas usam os endpoints abaixo desde a fase 1, porque o link do convite abre uma página.
+Fase 1: o primeiro dono e os convites saem pelo comando `python manage.py convidar_equipe_plataforma <email> <funcao>`, que imprime o link `https://admin.<dominio>/convite#<token>`. As telas usam os endpoints abaixo desde a fase 1, porque o link do convite abre uma página. A página lê o fragmento, apaga-o da barra de endereço (`history.replaceState`) e guarda o token só em memória, como em `/suporte/entrar#<token>`. O fragmento não vai ao servidor nem ao proxy, então o token não cai em log de acesso nem no Sentry (P-09 da T-057, T-072). A API recebe o token sempre no corpo.
 
-**GET /api/plataforma/convites/{token}/** · público
+**POST /api/plataforma/convites/consultar/** · público
+Corpo: `{ token }`. Só lê o convite para a tela.
 200: `{ "email": "larissa@girolocadoras.com.br", "nome": "Larissa Melo", "funcao": "suporte", "expira_em": "..." }`
 404 `nao_encontrado`; 410 `{ "codigo": "convite_expirado", "mensagem": "Este convite venceu. Peça um novo." }` (7 dias).
 
-**POST /api/plataforma/convites/{token}/aceitar/** · público
-Corpo: `{ senha }`. Senha validada pelos validadores do Django.
+**POST /api/plataforma/convites/aceitar/** · público
+Corpo: `{ token, senha }`. Senha validada pelos validadores do Django.
 200: `{ "etapa": "configurar_2fa", "token_pre_2fa": "<jwt, 5 min>" }`. O convite fica usado; a pessoa só vira `ativo` ao confirmar o código em `2fa/verificar/`. Se o token pré-2FA vencer, ela entra por `entrar` com e-mail e senha e recebe outro.
 
 ---

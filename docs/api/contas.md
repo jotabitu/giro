@@ -153,8 +153,8 @@ Corpo: `{ nome?, celular? }`. E-mail e perfil não mudam por aqui. 200: igual ao
 ### Senha
 
 **POST /api/auth/senha/trocar/** · access com `otp` quando exigido · `{ senha_atual, senha_nova }` → 204. As outras sessões da pessoa são encerradas; a atual continua.
-**POST /api/auth/senha/esqueci/** · público · `{ email }` → 202 sempre, exista ou não o e-mail (não revela quem tem conta). Envia link com validade de 1 hora e uso único. Limite: 3 pedidos por e-mail por hora.
-**POST /api/auth/senha/redefinir/** · público · `{ token, senha_nova }` → 204. Encerra todas as sessões da pessoa. 410 `{ "codigo": "link_expirado", "mensagem": "Este link venceu. Peça outro." }`. Não desliga as 2 etapas: quem tem autenticador continua precisando do código.
+**POST /api/auth/senha/esqueci/** · público · `{ email }` → 202 sempre, exista ou não o e-mail (não revela quem tem conta). Envia o link `https://<subdominio>.<dominio>/entrar/redefinir#<token>`, com validade de 1 hora e uso único. A página lê o fragmento, apaga-o da barra de endereço (`history.replaceState`) e guarda o token só em memória, como em `/suporte/entrar#<token>`. O fragmento não vai ao servidor nem ao proxy, então o token não cai em log de acesso nem no Sentry (P-09 da T-057, T-072). Limite: 3 pedidos por e-mail por hora.
+**POST /api/auth/senha/redefinir/** · público · `{ token, senha_nova }` → 204 (o token vai no corpo, nunca na URL). Encerra todas as sessões da pessoa. 410 `{ "codigo": "link_expirado", "mensagem": "Este link venceu. Peça outro." }`. Não desliga as 2 etapas: quem tem autenticador continua precisando do código.
 
 Validação de senha (400 `validacao`, campo `senha_nova` ou `senha`): 12 caracteres ou mais, com letras e números, diferente do e-mail e do nome da empresa, fora da lista de senhas comuns do Django (tela `Acesso-Senha`). A resposta de cada validador vem como texto pronto.
 
@@ -176,10 +176,10 @@ Qualquer usuário. As sessões ativas da própria pessoa.
 
 ## Primeiro acesso e convite (USR-01)
 
-O link do e-mail ou WhatsApp abre `/<convite>/<token>` no frontend. O administrador da compra (etapa 4 da implantação, tela `Acesso-Senha`) usa o mesmo fluxo: `criar_empresa` cria o convite dele.
+O link do e-mail ou WhatsApp abre `https://<subdominio>.<dominio>/convite#<token>` no frontend. A página lê o fragmento, apaga-o da barra de endereço (`history.replaceState`) e guarda o token só em memória, como em `/suporte/entrar#<token>`. O fragmento não vai ao servidor nem ao proxy, então o token não cai em log de acesso nem no Sentry (P-09 da T-057, T-072). A API recebe o token sempre no corpo, nunca no caminho nem na query. O administrador da compra (etapa 4 da implantação, tela `Acesso-Senha`) usa o mesmo fluxo: `criar_empresa` cria o convite dele.
 
-### GET /api/convites/{token}/
-Público.
+### POST /api/convites/consultar/
+Público. Corpo: `{ token }`. Não muda nada: só lê o convite para a tela (pode ser chamado de novo).
 200:
 ```json
 { "empresa": "Moto Rápida", "email": "rodrigo@motorapida.com.br", "nome": "Rodrigo Pinheiro",
@@ -187,13 +187,15 @@ Público.
   "convidado_por": "Mariana Costa", "expira_em": "2026-10-14T23:59:59Z",
   "exige_2fa": false }
 ```
-404 `nao_encontrado`. 410 `{ "codigo": "convite_expirado", "mensagem": "Este convite venceu. Peça um novo ao administrador." }`.
+404 `nao_encontrado` (token que não existe ou já usado). 410 `{ "codigo": "convite_expirado", "mensagem": "Este convite venceu. Peça um novo ao administrador." }`.
 
-### POST /api/convites/{token}/aceitar/
-Público. Corpo: `{ nome, senha, aparelho }` (`nome` pode corrigir o que veio no convite).
+### POST /api/convites/aceitar/
+Público. Corpo: `{ token, nome, senha, aparelho }` (`nome` pode corrigir o que veio no convite).
 200: igual ao `auth/entrar/`: `etapa: "pronto"` com tokens, ou `etapa: "configurar_2fa"` com `token_pre_2fa` quando o perfil exige 2 etapas. O usuário vira `ativo` no `pronto` ou na confirmação do código.
 Para o administrador da compra, `pronto` marca o passo `conta` da implantação (`registrar_passo_implantacao`).
-400 `validacao` (senha); 410 `convite_expirado`.
+400 `validacao` (senha); 404 `nao_encontrado`; 410 `convite_expirado`.
+
+Os dois endpoints têm o limite de 30 por minuto por IP (429 `muitas_requisicoes`, `README.md`).
 
 ---
 
