@@ -214,10 +214,6 @@ Levantadas pelo produto em T-059 (08 out 2026):
 ### T-077 · Reativar usuário com convite cancelado volta para convite pendente
 - **Agente:** backend · **Depende de:** T-076 · **Regras:** USR-01, USR-04, PLT-03 · **Pronto quando:** o novo CA-011-22 passa, com o código da regra no nome do teste; `POST /api/usuarios/{id}/reativar/` devolve `convite_pendente` e envia o convite novo para quem nunca chegou a `ativo`, e continua devolvendo `ativo` para os demais; contrato em `docs/api/contas.md` e OpenAPI regerado.
 
-### T-070 · Modo suporte
-- **Agente:** backend · **Depende de:** T-011 · **ADRs:** 0013 (item 2, token de suporte) · **Regras:** PLT-07 · **Pronto quando:** CA-011-26 e 27 passam, com o código da regra no nome do teste.
-- **Inclui:** `AcessoSuporte`; abrir o acesso do lado da plataforma, se ainda não houver; token de suporte; `suporte/sair`; bloquear, liberar e revogar; lista de rotas só de leitura.
-
 ### T-071 · Navegação do eu
 - **Agente:** backend · **Depende de:** T-011, T-047 · **Regras:** USR-05, USR-08 · **Pronto quando:** `GET /api/auth/eu/` devolve `navegacao` (`menu_inicio`, `menu_completo`, `barra_celular`, `inicio.variante`) como em `docs/api/contas.md`, considerando os recursos do plano e `GIRO_MODULOS_ATIVOS`, com teste por perfil; o frontend troca o falso de `falso-navegacao.ts` numa tarefa própria.
 
