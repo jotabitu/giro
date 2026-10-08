@@ -50,3 +50,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-063 · Contratos com o caixa da T-059 e conferência da T-058 e da T-012 · arquiteto · PR #45 · tarefas/handoffs/T-063-arquiteto.md · sem ADR nova; decisão 5 da T-012 na T-011; limites do entrar da empresa em contas.md (T-011)
 - T-066 · Textos revisados da T-010 · backend · PR #46 · tarefas/handoffs/T-066-backend.md · 280 testes; assuntos dos e-mails mantidos
 - T-064 · Revisão de segurança da T-058 e da T-012 · seguranca · PR #47 · tarefas/handoffs/T-064-seguranca.md · P-01 a P-04 fechados; F-01, F-02, F-04 e F-05 na T-068; F-03 na T-011
+- T-068 · Correções de segurança da T-064 (filiais) · backend · PR #49 · tarefas/handoffs/T-068-backend.md · 291 testes; F-01, F-02, F-04 e F-05; F-03 na T-011
