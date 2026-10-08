@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { cx } from "../../cx";
 
 export function KpiTile({
@@ -18,7 +18,10 @@ export function KpiTile({
   return (
     <div className={cx("wl-kpi", destaque && "wl-kpi--solid")}>
       <div className="wl-kpi__label">{rotulo}</div>
-      <div className="wl-kpi__value">{valor}</div>
+      {/* --chars deixa o CSS encolher o número até caber no bloco, em vez de estourar ou cortar. */}
+      <div className="wl-kpi__value" style={{ "--chars": Math.max(valor.length, 1) } as CSSProperties}>
+        {valor}
+      </div>
       {contexto && <div className="wl-kpi__meta">{contexto}</div>}
     </div>
   );

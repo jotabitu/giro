@@ -27,3 +27,7 @@ import Link from "next/link";
 ```
 
 Sem `logoSrc`, o slot mostra as iniciais do nome (ou `iniciais`). O logo da empresa vem da API; a marca Giro não aparece aqui (ela só vive no painel da plataforma, sempre por SVG de `docs/marca/kit/`). `contador` só aparece quando maior que zero. Passe `componenteLink={Link}` para navegar sem recarregar.
+
+## Seletor de filial e menu do celular
+
+Passe `seletorDeFilial={<SeletorDeFilial ... />}` para trocar de filial pelo menu; ele tem prioridade sobre `filial`, que continua servindo só para mostrar a filial ativa. No celular, coloque a Sidebar dentro de uma `Gaveta` com `lado="esquerda"`.
