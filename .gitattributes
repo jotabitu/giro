@@ -3,3 +3,4 @@
 Makefile text eol=lf
 Dockerfile* text eol=lf
 *.Dockerfile text eol=lf
+docs/api/openapi.yaml text eol=lf

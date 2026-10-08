@@ -91,6 +91,8 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 | Tela | Arquivos | Rota no frontend | App no backend | Regras |
 | --- | --- | --- | --- | --- |
 | Login | [desktop](html/Login-Desktop.dc.html) · [celular](html/Login-Mobile.dc.html) | `(publico)/entrar` | `contas` | USR |
+| Esqueci a senha (pedir o link, e-mail enviado, nova senha, link vencido) | [desktop](html/Esqueci-Senha-Desktop.dc.html) · [celular](html/Esqueci-Senha-Mobile.dc.html) | `(publico)/entrar/esqueci, (publico)/entrar/redefinir` | `contas` | USR |
+| Ativar verificação em 2 etapas (QR, código, códigos de recuperação) | [desktop](html/Ativar-2FA-Desktop.dc.html) · [celular](html/Ativar-2FA-Mobile.dc.html) | `(publico)/entrar/2fa, (empresa)/perfil/seguranca` | `contas` | USR-02, USR-06 |
 
 ## Painel da plataforma
 

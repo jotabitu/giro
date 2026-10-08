@@ -1,0 +1,12 @@
+# Produção. Versões com faixa compatível; o lock fica para a T-005 (CI).
+Django>=5.2,<5.3
+djangorestframework>=3.16,<3.19
+django-tenants>=3.8,<4
+psycopg[binary]>=3.2,<4
+djangorestframework-simplejwt>=5.5,<6
+drf-spectacular>=0.28,<0.31
+celery[redis]>=5.5,<6
+django-otp>=1.6,<2
+argon2-cffi>=25.1
+django-environ>=0.12,<1
+sentry-sdk>=2.20,<3

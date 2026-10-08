@@ -22,6 +22,8 @@ for (const [nome, t] of Object.entries(tipografia)) {
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
+    // Mesmo ponto de quebra de componentes.css (720px): acima disso, desktop.
+    screens: { md: "721px", lg: "1024px", xl: "1280px" },
     colors: { transparent: "transparent", current: "currentColor", ...corVar },
     spacing: { 0: "0px", px: "1px", ...espacamento },
     borderRadius: { none: "0", ...raio, full: "9999px" },

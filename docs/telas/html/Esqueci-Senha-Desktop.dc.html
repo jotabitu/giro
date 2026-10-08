@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Esqueci a senha · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.h2{display:flex;align-items:center;gap:12px;margin:0;font-size:22px;line-height:28px;font-weight:600}
+.h2 .n{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--surface-sunken);font-size:14px;flex:none}
+.tag{margin:2px 0 0;font-size:13px;line-height:18px;color:var(--ink-muted)}
+.rule{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--success-ink)}
+.otp{width:52px;height:60px;box-sizing:border-box;border:1px solid var(--line);border-radius:14px;background:var(--surface);text-align:center;font-family:var(--font-mono);font-size:22px;color:var(--ink)}
+.otp--erro{border-color:var(--critical)}
+.qr{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;width:150px;height:150px;padding:12px;box-sizing:border-box;border-radius:18px;background:#ffffff;border:1px solid var(--line)}
+.qr span{border-radius:2px;background:#111114}
+.qr i{display:block}
+.aviso{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:16px;background:var(--surface-sunken);font-size:14px;line-height:20px;color:var(--ink-muted)}
+.erro{display:flex;gap:10px;align-items:flex-start;padding:14px 16px;border-radius:16px;background:var(--critical-soft);font-size:14px;line-height:20px;color:var(--critical-ink)}
+.codes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.codes li{padding:12px 14px;border-radius:14px;background:var(--surface-sunken);font-family:var(--font-mono);font-size:15px;text-align:center}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1320px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 12px;">
+<div class="wl-logo-slot">MR</div>
+<span style="font-size: 18px; font-weight: 600;">Moto Rápida</span>
+<span style="margin-left: auto; font-size: 14px; color: var(--ink-muted);" class="wl-mono">motorapida.girolocadoras.com.br</span>
+</header>
+
+<div style="max-width: 1180px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 24px;">
+<div><h1 style="margin: 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Esqueci a senha</h1><p style="margin: 8px 0 0; color: var(--ink-muted);">Informe o e-mail do seu acesso. Enviamos um link para criar uma senha nova. Os quatro passos abaixo mostram o que aparece em cada momento.</p></div>
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: stretch;"><section class="wl-panel" style="flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 18px; ">
+<div><h2 class="h2"><span class="n" style="background: var(--solid); color: var(--on-solid);">1</span>Peça o link</h2><p class="tag">Aparece ao tocar em &quot;Esqueci a senha&quot; na tela de entrada.</p></div>
+<label class="wl-field" style="width: 100%;"><span class="wl-field__label">E-mail</span><input class="wl-input" type="email" placeholder="voce@empresa.com.br" value="rodrigo@motorapida.com.br"><span class="wl-field__hint">Use o e-mail do seu acesso.</span></label>
+<button class="wl-btn wl-btn--solid" style="width: 100%; height: 52px;">Enviar link</button>
+<a href="Login-Desktop.dc.html" style="align-self: center; font-size: 14px; font-weight: 500; text-decoration: none;">Voltar para entrar</a>
+<div class="aviso"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none; color: var(--ink);"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8v.5"></path></svg><span>O link vale 1 hora e só funciona uma vez. Você pode pedir até 3 links por hora.</span></div>
+</section><section class="wl-panel" style="flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 18px; ">
+<div><h2 class="h2"><span class="n" style="background: var(--success-soft); color: var(--success-ink);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Confira seu e-mail</h2><p class="tag">Aparece depois de enviar, sempre igual, exista ou não o e-mail.</p></div>
+<div style="display: flex; gap: 14px; align-items: center;"><div class="wl-icon-btn wl-icon-btn--sunken" style="flex: none; cursor: default;"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"></rect><path d="m4 8 8 6 8-6"></path></svg></div><p style="margin: 0; line-height: 22px;">Se este e-mail tiver acesso, enviamos o link para <span class="wl-mono">rodrigo@motorapida.com.br</span>.</p></div>
+<p style="margin: 0; line-height: 22px; color: var(--ink-muted);">Não achou? Olhe a caixa de spam. O link chega em poucos minutos e vale 1 hora.</p>
+<button class="wl-btn wl-btn--quiet" style="width: 100%; height: 52px;">Reenviar link</button>
+<a href="Login-Desktop.dc.html" style="align-self: center; font-size: 14px; font-weight: 500; text-decoration: none;">Voltar para entrar</a>
+</section></div>
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: stretch;"><section class="wl-panel" style="flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 18px; ">
+<div><h2 class="h2"><span class="n" style="background: var(--solid); color: var(--on-solid);">3</span>Crie a nova senha</h2><p class="tag">Aparece ao abrir o link do e-mail.</p></div>
+<label class="wl-field" style="width: 100%;"><span class="wl-field__label">Nova senha</span><input class="wl-input" type="password" value="senhaforte123"></label>
+<div><div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;"><div style="height: 6px; border-radius: 999px; background: var(--success);"></div><div style="height: 6px; border-radius: 999px; background: var(--success);"></div><div style="height: 6px; border-radius: 999px; background: var(--success);"></div><div style="height: 6px; border-radius: 999px; background: var(--line);"></div></div><div style="margin-top: 6px; font-size: 14px; color: var(--ink-muted);">Senha boa</div></div>
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<span class="rule"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="m5 12 5 5 9-10"></path></svg>12 caracteres ou mais</span>
+<span class="rule"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="m5 12 5 5 9-10"></path></svg>Letras e números</span>
+<span class="rule"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="m5 12 5 5 9-10"></path></svg>Diferente do e-mail e do nome da empresa</span>
+<span class="rule"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="m5 12 5 5 9-10"></path></svg>Fora da lista de senhas comuns</span>
+</div>
+<label class="wl-field" style="width: 100%;"><span class="wl-field__label">Repita a senha</span><input class="wl-input" type="password" value="senhaforte123"></label>
+<div class="aviso"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none; color: var(--ink);"><rect x="5" y="10" width="14" height="10" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg><span>Ao salvar, sua conta sai de todos os aparelhos. Se você usa a verificação em 2 etapas, continua precisando do código do aplicativo.</span></div>
+<button class="wl-btn wl-btn--solid" style="width: 100%; height: 52px;">Salvar nova senha</button>
+</section><section class="wl-panel" style="flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 18px; ">
+<div><h2 class="h2"><span class="n" style="background: var(--critical-soft); color: var(--critical-ink);">!</span>Link vencido</h2><p class="tag">Aparece se o link passou de 1 hora ou já foi usado.</p></div>
+<div class="erro"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none;"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg><span>Este link venceu. Peça outro.</span></div>
+<a class="wl-btn wl-btn--solid" href="#" style="width: 100%; box-sizing: border-box; height: 52px; text-decoration: none;">Pedir novo link</a>
+<a href="Login-Desktop.dc.html" style="align-self: center; font-size: 14px; font-weight: 500; text-decoration: none;">Voltar para entrar</a>
+</section></div>
+<div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; font-size: 13px; color: var(--ink-muted);"><span>Tecnologia Giro</span><span>Termos de uso · Privacidade</span></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1320}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

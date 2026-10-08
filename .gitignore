@@ -22,3 +22,6 @@ test-results/
 .DS_Store
 *.log
 media/
+
+# Maestri (estado local dos terminais e papéis)
+.maestri/

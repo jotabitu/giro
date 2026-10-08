@@ -11,3 +11,10 @@
     outline-offset: 2px;
   }
 }
+
+/* O atalho de teclado da busca não faz sentido no celular. */
+@media (max-width: 720px) {
+  .wl-search .wl-kbd {
+    display: none;
+  }
+}

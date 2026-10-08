@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { cssDaMarca, ID_ESTILO_MARCA, MARCA_PADRAO } from "@/design-system/marca";
 import { cssDosTemas } from "@/design-system/tokens";
+import { Provedores } from "@/lib/provedores";
 import "./globals.css";
 import "@/design-system/componentes.css";
 
@@ -19,7 +20,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         {/* Marca da empresa: troca em execução por aplicarMarca(). A cor da empresa entra aqui quando a API existir. */}
         <style id={ID_ESTILO_MARCA} dangerouslySetInnerHTML={{ __html: cssDaMarca(MARCA_PADRAO) }} />
       </head>
-      <body>{children}</body>
+      <body>
+        <Provedores>{children}</Provedores>
+      </body>
     </html>
   );
 }

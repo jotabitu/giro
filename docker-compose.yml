@@ -57,7 +57,7 @@ services:
 
   beat:
     <<: *backend
-    command: ["celery", "-A", "config", "beat", "--loglevel=INFO"]
+    command: ["celery", "-A", "config", "beat", "--loglevel=INFO", "--schedule=/tmp/celerybeat-schedule"]
 
   frontend:
     build:
