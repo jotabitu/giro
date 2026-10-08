@@ -21,6 +21,346 @@ paths:
               schema:
                 $ref: '#/components/schemas/Assinatura'
           description: ''
+  /api/enderecos/cep/{cep}/:
+    get:
+      operationId: enderecos_cep_retrieve
+      summary: Busca de CEP
+      parameters:
+      - in: path
+        name: cep
+        schema:
+          type: string
+        required: true
+      tags:
+      - enderecos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cep'
+          description: ''
+  /api/filiais/:
+    get:
+      operationId: filiais_list
+      summary: Filiais da empresa (FIL-01, PLT-03)
+      parameters:
+      - in: query
+        name: ativo
+        schema:
+          type: string
+          enum:
+          - 'false'
+          - 'true'
+      - in: query
+        name: busca
+        schema:
+          type: string
+      tags:
+      - filiais
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeFiliais'
+          description: ''
+    post:
+      operationId: filiais_create
+      summary: Nova filial
+      tags:
+      - filiais
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FilialEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FilialEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FilialEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Filial'
+          description: ''
+  /api/filiais/{id}/:
+    get:
+      operationId: filiais_retrieve
+      description: GET para quem tem a filial no escopo (fora dele, 404); PATCH só
+        do administrador.
+      summary: Filial
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - filiais
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Filial'
+          description: ''
+    patch:
+      operationId: filiais_partial_update
+      description: GET para quem tem a filial no escopo (fora dele, 404); PATCH só
+        do administrador.
+      summary: Editar filial
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - filiais
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFilialEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedFilialEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedFilialEntrada'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Filial'
+          description: ''
+  /api/filiais/{id}/desativar/:
+    post:
+      operationId: filiais_desativar_create
+      summary: Desativar (FIL-06)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - filiais
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Motivo'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Motivo'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Motivo'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Filial'
+          description: ''
+  /api/filiais/{id}/feriados/:
+    get:
+      operationId: filiais_feriados_retrieve
+      summary: Feriados da filial (FIL-03)
+      parameters:
+      - in: query
+        name: ano
+        schema:
+          type: integer
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - filiais
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeFeriados'
+          description: ''
+    post:
+      operationId: filiais_feriados_create
+      summary: Confirmar feriados (FIL-03)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - filiais
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeriadosEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FeriadosEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FeriadosEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeFeriados'
+          description: ''
+  /api/filiais/{id}/feriados/{feriado_id}/remover/:
+    post:
+      operationId: filiais_feriados_remover_create
+      summary: Remover feriado
+      parameters:
+      - in: path
+        name: feriado_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - filiais
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeFeriados'
+          description: ''
+  /api/filiais/{id}/feriados/sugestoes/:
+    get:
+      operationId: filiais_feriados_sugestoes_retrieve
+      summary: Feriados nacionais sugeridos (FIL-03)
+      parameters:
+      - in: query
+        name: ano
+        schema:
+          type: integer
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - filiais
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeSugestoes'
+          description: ''
+  /api/filiais/{id}/reativar/:
+    post:
+      operationId: filiais_reativar_create
+      summary: Reativar (PLT-03)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - filiais
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Motivo'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Motivo'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Motivo'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Filial'
+          description: ''
+  /api/filiais/{id}/tornar-matriz/:
+    post:
+      operationId: filiais_tornar_matriz_create
+      summary: Tornar matriz (FIL-01)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - filiais
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Filial'
+          description: ''
+  /api/filiais/minhas/:
+    get:
+      operationId: filiais_minhas_retrieve
+      summary: Seletor de filial (USR-07)
+      tags:
+      - filiais
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MinhasFiliais'
+          description: ''
   /api/plataforma/auth/2fa/configurar/:
     post:
       operationId: plataforma_auth_2fa_configurar_create
@@ -316,6 +656,25 @@ components:
       - status
       - teste
       - uso
+    Cep:
+      type: object
+      properties:
+        cep:
+          type: string
+        logradouro:
+          type: string
+        bairro:
+          type: string
+        cidade:
+          type: string
+        uf:
+          type: string
+      required:
+      - bairro
+      - cep
+      - cidade
+      - logradouro
+      - uf
     Codigo:
       type: object
       properties:
@@ -353,6 +712,22 @@ components:
       - pagantes
       - saindo
       - todas
+    Contato:
+      type: object
+      properties:
+        telefone:
+          type: string
+          nullable: true
+        whatsapp:
+          type: string
+          nullable: true
+        email:
+          nullable: true
+          oneOf:
+          - type: string
+            format: email
+          - type: string
+            maxLength: 0
     Convite:
       type: object
       properties:
@@ -491,6 +866,31 @@ components:
       - uf
       - ultimo_acesso_em
       - uso
+    Endereco:
+      type: object
+      properties:
+        cep:
+          type: string
+        logradouro:
+          type: string
+        numero:
+          type: string
+        complemento:
+          type: string
+          nullable: true
+        bairro:
+          type: string
+        cidade:
+          type: string
+        uf:
+          type: string
+      required:
+      - bairro
+      - cep
+      - cidade
+      - logradouro
+      - numero
+      - uf
     Entrar:
       type: object
       properties:
@@ -567,6 +967,274 @@ components:
       - id
       - nome
       - pode
+    Feriado:
+      type: object
+      properties:
+        id:
+          type: integer
+        data:
+          type: string
+          format: date
+        nome:
+          type: string
+        origem:
+          type: string
+      required:
+      - data
+      - id
+      - nome
+      - origem
+    FeriadoEntrada:
+      type: object
+      properties:
+        data:
+          type: string
+          format: date
+        nome:
+          type: string
+          maxLength: 80
+        origem:
+          $ref: '#/components/schemas/OrigemEnum'
+      required:
+      - data
+      - nome
+      - origem
+    FeriadoProximo:
+      type: object
+      properties:
+        data:
+          type: string
+          format: date
+        nome:
+          type: string
+      required:
+      - data
+      - nome
+    FeriadosEntrada:
+      type: object
+      properties:
+        feriados:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeriadoEntrada'
+      required:
+      - feriados
+    Filial:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        matriz:
+          type: boolean
+        ativo:
+          type: boolean
+        cnpj:
+          type: string
+          nullable: true
+        inscricao_estadual:
+          type: string
+          nullable: true
+        inscricao_municipal:
+          type: string
+          nullable: true
+        endereco:
+          $ref: '#/components/schemas/Endereco'
+        contato:
+          $ref: '#/components/schemas/Contato'
+        preco_litro_centavos:
+          type: integer
+          nullable: true
+        horario:
+          $ref: '#/components/schemas/Horario'
+        horario_resumo:
+          type: string
+        endereco_resumo:
+          type: string
+        gerentes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Gerente'
+        feriados_proximos:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeriadoProximo'
+        feriados_ano_seguinte_pendentes:
+          type: boolean
+        criado_em:
+          type: string
+          format: date-time
+      required:
+      - ativo
+      - cnpj
+      - contato
+      - criado_em
+      - endereco
+      - endereco_resumo
+      - feriados_ano_seguinte_pendentes
+      - feriados_proximos
+      - gerentes
+      - horario
+      - horario_resumo
+      - id
+      - inscricao_estadual
+      - inscricao_municipal
+      - matriz
+      - nome
+      - preco_litro_centavos
+    FilialEntrada:
+      type: object
+      description: Forma do corpo. O horário vai como veio para o serviço validar
+        (7 dias, intervalos).
+      properties:
+        nome:
+          type: string
+          maxLength: 80
+        matriz:
+          type: boolean
+        cnpj:
+          type: string
+          nullable: true
+        inscricao_estadual:
+          type: string
+          nullable: true
+          maxLength: 20
+        inscricao_municipal:
+          type: string
+          nullable: true
+          maxLength: 20
+        endereco:
+          $ref: '#/components/schemas/Endereco'
+        contato:
+          allOf:
+          - $ref: '#/components/schemas/Contato'
+          nullable: true
+        preco_litro_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+        horario: {}
+      required:
+      - endereco
+      - horario
+      - nome
+    FilialNaLista:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        matriz:
+          type: boolean
+        ativo:
+          type: boolean
+        cnpj:
+          type: string
+          nullable: true
+        inscricao_estadual:
+          type: string
+          nullable: true
+        inscricao_municipal:
+          type: string
+          nullable: true
+        endereco:
+          $ref: '#/components/schemas/Endereco'
+        contato:
+          $ref: '#/components/schemas/Contato'
+        preco_litro_centavos:
+          type: integer
+          nullable: true
+        horario:
+          $ref: '#/components/schemas/Horario'
+        horario_resumo:
+          type: string
+        endereco_resumo:
+          type: string
+        gerentes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Gerente'
+        feriados_proximos:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeriadoProximo'
+        feriados_ano_seguinte_pendentes:
+          type: boolean
+        criado_em:
+          type: string
+          format: date-time
+        indicadores:
+          $ref: '#/components/schemas/Indicadores'
+      required:
+      - ativo
+      - cnpj
+      - contato
+      - criado_em
+      - endereco
+      - endereco_resumo
+      - feriados_ano_seguinte_pendentes
+      - feriados_proximos
+      - gerentes
+      - horario
+      - horario_resumo
+      - id
+      - indicadores
+      - inscricao_estadual
+      - inscricao_municipal
+      - matriz
+      - nome
+      - preco_litro_centavos
+    Gerente:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+      - id
+      - nome
+    Horario:
+      type: object
+      properties:
+        seg:
+          type: array
+          items:
+            $ref: '#/components/schemas/Intervalo'
+        ter:
+          type: array
+          items:
+            $ref: '#/components/schemas/Intervalo'
+        qua:
+          type: array
+          items:
+            $ref: '#/components/schemas/Intervalo'
+        qui:
+          type: array
+          items:
+            $ref: '#/components/schemas/Intervalo'
+        sex:
+          type: array
+          items:
+            $ref: '#/components/schemas/Intervalo'
+        sab:
+          type: array
+          items:
+            $ref: '#/components/schemas/Intervalo'
+        dom:
+          type: array
+          items:
+            $ref: '#/components/schemas/Intervalo'
+      required:
+      - dom
+      - qua
+      - qui
+      - sab
+      - seg
+      - sex
+      - ter
     Implantacao:
       type: object
       properties:
@@ -585,6 +1253,36 @@ components:
       - etapa_funil
       - passos
       - total
+    Indicadores:
+      type: object
+      properties:
+        veiculos:
+          type: integer
+          nullable: true
+        locacoes_ativas:
+          type: integer
+          nullable: true
+        usuarios:
+          type: integer
+          nullable: true
+        ocupacao_pct:
+          type: string
+          nullable: true
+      required:
+      - locacoes_ativas
+      - ocupacao_pct
+      - usuarios
+      - veiculos
+    Intervalo:
+      type: object
+      properties:
+        abre:
+          type: string
+        fecha:
+          type: string
+      required:
+      - abre
+      - fecha
     ListaDeEmpresas:
       type: object
       properties:
@@ -605,6 +1303,35 @@ components:
       - contagens
       - proximo
       - resultados
+    ListaDeFeriados:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Feriado'
+      required:
+      - resultados
+    ListaDeFiliais:
+      type: object
+      properties:
+        plano:
+          $ref: '#/components/schemas/PlanoDasFiliais'
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilialNaLista'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - plano
+      - proximo
+      - resultados
     ListaDePlanos:
       type: object
       properties:
@@ -622,6 +1349,61 @@ components:
       - anterior
       - proximo
       - resultados
+    ListaDeSugestoes:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Sugestao'
+      required:
+      - resultados
+    MinhaFilial:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        matriz:
+          type: boolean
+        cidade:
+          type: string
+        uf:
+          type: string
+      required:
+      - cidade
+      - id
+      - matriz
+      - nome
+      - uf
+    MinhasFiliais:
+      type: object
+      properties:
+        pode_escolher_todas:
+          type: boolean
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/MinhaFilial'
+      required:
+      - pode_escolher_todas
+      - resultados
+    Motivo:
+      type: object
+      properties:
+        motivo:
+          type: string
+      required:
+      - motivo
+    OrigemEnum:
+      enum:
+      - nacional
+      - local
+      type: string
+      description: |-
+        * `nacional` - Nacional
+        * `local` - Local
     Passo:
       type: object
       properties:
@@ -637,6 +1419,38 @@ components:
       - concluido_em
       - passo
       - rotulo
+    PatchedFilialEntrada:
+      type: object
+      description: Forma do corpo. O horário vai como veio para o serviço validar
+        (7 dias, intervalos).
+      properties:
+        nome:
+          type: string
+          maxLength: 80
+        matriz:
+          type: boolean
+        cnpj:
+          type: string
+          nullable: true
+        inscricao_estadual:
+          type: string
+          nullable: true
+          maxLength: 20
+        inscricao_municipal:
+          type: string
+          nullable: true
+          maxLength: 20
+        endereco:
+          $ref: '#/components/schemas/Endereco'
+        contato:
+          allOf:
+          - $ref: '#/components/schemas/Contato'
+          nullable: true
+        preco_litro_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+        horario: {}
     Plano:
       type: object
       properties:
@@ -706,6 +1520,26 @@ components:
       - ciclo
       - nome
       - preco_contratado_centavos
+    PlanoDasFiliais:
+      type: object
+      properties:
+        usado:
+          type: integer
+        limite:
+          type: integer
+          nullable: true
+        aviso:
+          type: boolean
+        bloqueado:
+          type: boolean
+        nome_plano:
+          type: string
+      required:
+      - aviso
+      - bloqueado
+      - limite
+      - nome_plano
+      - usado
     PlanoResumo:
       type: object
       properties:
@@ -774,6 +1608,20 @@ components:
       - codigo
       - rotulo
       - tom
+    Sugestao:
+      type: object
+      properties:
+        data:
+          type: string
+          format: date
+        nome:
+          type: string
+        ja_cadastrado:
+          type: boolean
+      required:
+      - data
+      - ja_cadastrado
+      - nome
     Teste:
       type: object
       properties:

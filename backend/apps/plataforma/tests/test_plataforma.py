@@ -55,7 +55,7 @@ def test_plt_03_recalcular_uso_conta_com_o_contador_registrado(empresa_a, profis
     desativado = Usuario.objects.create_user("c@a.com", "x", nome="C", perfil="vendedor")
     transicionar(desativado, "desativado")
 
-    assert services.recalcular_uso(empresa_a) == {"usuarios": 2}
+    assert services.recalcular_uso(empresa_a)["usuarios"] == 2
     uso = UsoEmpresa.objects.get(empresa=empresa_a)
     assert (uso.usuarios, uso.veiculos) == (2, 86)  # item sem contador fica como estava
 

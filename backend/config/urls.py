@@ -11,6 +11,7 @@ from apps.plataforma.api.urls import urls_empresa as urls_assinatura
 
 urlpatterns: list[URLPattern | URLResolver] = [
     path("api/", include(urls_assinatura)),
+    path("api/", include("apps.filiais.api.urls")),
 ]
 
 # Documentação da API só onde EXPOR_DOCUMENTACAO_DA_API permite (fechada em produção).

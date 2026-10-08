@@ -66,6 +66,12 @@ class NaoAutenticado(ErroDeNegocio):
     status_http: int = status.HTTP_401_UNAUTHORIZED
 
 
+class NaoEncontrado(ErroDeNegocio):
+    """404 com código próprio (ex.: `cep_nao_encontrado`)."""
+
+    status_http: int = status.HTTP_404_NOT_FOUND
+
+
 class SemPermissao(ErroDeNegocio):
     """Perfil ou função sem acesso à ação, com o código da regra (ex.: PLT-09). HTTP 403."""
 
