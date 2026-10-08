@@ -2,7 +2,8 @@
 // Só este arquivo importa os módulos falso*.ts.
 import { clientesFalso } from "./falso-clientes";
 import { veiculosFalso } from "./falso-frota";
-import { contasFalso, marcaFalsa, relatoriosFalso } from "./falso";
+import { contasFalso, marcaFalsa } from "./falso";
+import { relatoriosFalso } from "./falso-painel";
 
 export const contas = contasFalso;
 export const marcaDaEmpresa = marcaFalsa;
@@ -12,3 +13,4 @@ export const clientes = clientesFalso;
 export * from "./tipos";
 export * from "./tipos-frota";
 export * from "./tipos-clientes";
+export * from "./tipos-painel";

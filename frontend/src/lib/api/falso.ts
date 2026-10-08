@@ -6,6 +6,9 @@
 //   mariana@motorapida.com.br    administradora, 2 etapas ativa  -> verificar_2fa (código 123456)
 //   rodrigo@motorapida.com.br    gerente, sem 2 etapas           -> pronto
 //   financeiro@motorapida.com.br financeiro sem autenticador     -> configurar_2fa (código 123456)
+//   bruna@motorapida.com.br      vendedora, sem 2 etapas         -> pronto (início do vendedor)
+//   joao@motorapida.com.br       vistoriador, sem 2 etapas       -> pronto (início do vistoriador)
+//   novo@motorapida.com.br       administrador antes da 1ª locação, 2 etapas ativa -> verificar_2fa (início da implantação)
 // Convites: "convite-rodrigo" (gerente), "convite-financeiro" (exige 2 etapas), "convite-vencido" (410).
 // Redefinir senha: token "link-valido" funciona; qualquer outro responde 410.
 import {
@@ -14,12 +17,13 @@ import {
   type Configurar2fa,
   type Convite,
   type Eu,
-  type Inicio,
   type MarcaEmpresa,
   type Perfil,
   type Pode,
   type RespostaEntrar,
+  type VarianteInicio,
 } from "./tipos";
+import { navegacaoFalsa } from "./falso-navegacao";
 
 const SENHA = "senhaforte123";
 const CODIGO = "123456";
@@ -34,12 +38,15 @@ const PODE: Record<Perfil, Pode> = {
   financeiro: { painel: "todas_filiais", veiculos: "nao", clientes_cadastrar: false, locacoes_criar: false, vistorias_fazer: false, locacoes_cancelar: "nao", desconto_acima_limite: "nao", vendas_criar: false, caixa_receber: true, caixa_abrir_fechar: true, despesas_lancar: "todas", despesas_aprovar: false, financeiro_pagar: true, os_abrir: false, administracao: false },
 };
 
-type Conta = { id: number; nome: string; email: string; perfil: Perfil; filiais: Eu["filiais"]; autenticador: boolean };
+type Conta = { id: number; nome: string; email: string; perfil: Perfil; filiais: Eu["filiais"]; autenticador: boolean; variante: VarianteInicio };
 
 const CONTAS: Conta[] = [
-  { id: 1, nome: "Mariana Costa", email: "mariana@motorapida.com.br", perfil: "administrador", filiais: [FILIAL_CENTRO, FILIAL_ALDEOTA], autenticador: true },
-  { id: 2, nome: "Rodrigo Pinheiro", email: "rodrigo@motorapida.com.br", perfil: "gerente", filiais: [FILIAL_CENTRO], autenticador: false },
-  { id: 3, nome: "Paula Ribeiro", email: "financeiro@motorapida.com.br", perfil: "financeiro", filiais: [FILIAL_CENTRO, FILIAL_ALDEOTA], autenticador: false },
+  { id: 1, nome: "Mariana Costa", email: "mariana@motorapida.com.br", perfil: "administrador", filiais: [FILIAL_CENTRO, FILIAL_ALDEOTA], autenticador: true, variante: "geral" },
+  { id: 2, nome: "Rodrigo Pinheiro", email: "rodrigo@motorapida.com.br", perfil: "gerente", filiais: [FILIAL_CENTRO], autenticador: false, variante: "gerente" },
+  { id: 3, nome: "Paula Ribeiro", email: "financeiro@motorapida.com.br", perfil: "financeiro", filiais: [FILIAL_CENTRO, FILIAL_ALDEOTA], autenticador: false, variante: "financeiro" },
+  { id: 4, nome: "Bruna Alves", email: "bruna@motorapida.com.br", perfil: "vendedor", filiais: [FILIAL_CENTRO], autenticador: false, variante: "vendedor" },
+  { id: 5, nome: "João Silva", email: "joao@motorapida.com.br", perfil: "vistoriador", filiais: [FILIAL_CENTRO], autenticador: false, variante: "vistoriador" },
+  { id: 6, nome: "Mariana Costa", email: "novo@motorapida.com.br", perfil: "administrador", filiais: [FILIAL_CENTRO], autenticador: true, variante: "implantacao" },
 ];
 
 const exige2fa = (p: Perfil) => p === "administrador" || p === "financeiro";
@@ -55,6 +62,7 @@ function montarEu(c: Conta): Eu {
     filiais: c.filiais,
     dois_fatores: { ativo: c.autenticador, obrigatorio: exige2fa(c.perfil), codigos_recuperacao_restantes: c.autenticador ? 8 : 0 },
     pode: PODE[c.perfil],
+    navegacao: navegacaoFalsa(c.perfil, PODE[c.perfil], c.variante),
     suporte: null,
     empresa: { nome_exibicao: "Moto Rápida", status: "em_teste", somente_leitura: false },
   };
@@ -216,58 +224,9 @@ export const contasFalso = {
 /** Marca da empresa (contrato de empresas, ainda não escrito). */
 export const marcaFalsa: MarcaEmpresa = { nome: "Moto Rápida", corHex: "#c8f04a" };
 
-export const relatoriosFalso = {
-  async inicio(periodo: "hoje" | "7d" | "30d" = "7d"): Promise<Inicio> {
-    void periodo; // o dado falso é o mesmo em todos os períodos
-    await pausa(200);
-    return {
-      atencao: 7,
-      kpis: [
-        { rotulo: "Frota ativa", valor: "86", contexto: "52 motos · 34 carros", destaque: true },
-        { rotulo: "Alugados agora", valor: "42", contexto: "↗ 6 esta semana" },
-        { rotulo: "Receita de locação", valor: "R$ 18,4 mil", contexto: "últimos 7 dias" },
-        { rotulo: "Em atraso", valor: "7", contexto: "R$ 4.380 a receber" },
-      ],
-      frota: {
-        nota: "ocupação de 71% · meta de 80%",
-        segmentos: [
-          { chave: "disponivel", rotulo: "Disponível", contagem: 16 },
-          { chave: "alugado", rotulo: "Alugado", contagem: 42, destaque: "marca" },
-          { chave: "reservado", rotulo: "Reservado", contagem: 9 },
-          { chave: "manutencao", rotulo: "Manutenção", contagem: 7 },
-          { chave: "a_venda", rotulo: "À venda", contagem: 12, destaque: "solido" },
-        ],
-      },
-      devolucoes: {
-        subtitulo: "6 contratos · atualizado há 6 min",
-        linhas: [
-          { id: "LOC-2841", placa: "QXA-4B21", veiculo: "Honda CG 160 Fan", cliente: "Carlos Menezes", data: "06 out", situacao: "Atrasado", tom: "critico" },
-          { id: "LOC-2843", placa: "PNB-7C04", veiculo: "Yamaha Factor 150", cliente: "Juliana Rocha", data: "07 out", situacao: "Hoje", tom: "atencao" },
-          { id: "LOC-2846", placa: "ROE-2A88", veiculo: "Fiat Mobi Like", cliente: "Pedro Alencar", data: "08 out", situacao: "Alugado", tom: "solido" },
-          { id: "LOC-2850", placa: "SAK-1D39", veiculo: "Honda CG 160 Fan", cliente: "Aline Duarte", data: "09 out", situacao: "Renovação", tom: "info" },
-          { id: "LOC-2852", placa: "PMZ-3E17", veiculo: "Honda Pop 110i", cliente: "Rafael Sousa", data: "10 out", situacao: "Alugado", tom: "solido" },
-          { id: "LOC-2856", placa: "RHT-9F02", veiculo: "Renault Kwid Zen", cliente: "Beatriz Lima", data: "11 out", situacao: "Alugado", tom: "solido" },
-        ],
-      },
-      pendencias: {
-        atualizadoHa: "há 6 min",
-        titulo: "7 contratos precisam de ação hoje",
-        itens: [
-          { texto: "3 devoluções estão atrasadas", gravidade: "critica" },
-          { texto: "2 motos passaram da revisão de 5.000 km", gravidade: "atencao" },
-          { texto: "2 parcelas vencem até amanhã" },
-        ],
-      },
-      caixa: {
-        subtitulo: "07 out · Filial Centro",
-        saldo: "R$ 2.620,00",
-        linhas: [
-          { rotulo: "Recebido", valor: "R$ 3.240,00" },
-          { rotulo: "A receber hoje", valor: "R$ 1.890,00" },
-          { rotulo: "Despesas", valor: "R$ 620,00" },
-        ],
-      },
-      contadores: { veiculos: 86, locacoes: 42, manutencoes: 5, receber: 7, despesas: 3, conciliacao: 6, usuarios: 2 },
-    };
-  },
-};
+/** Quem está logado, como a API veria (os agregados do painel dependem da pessoa). */
+export function contaAtualFalsa(): { nome: string; variante: VarianteInicio; eu: Eu } | null {
+  const id = access?.split(".")[1];
+  const c = CONTAS.find((x) => String(x.id) === id);
+  return c ? { nome: c.nome, variante: c.variante, eu: montarEu(c) } : null;
+}

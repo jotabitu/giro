@@ -32,3 +32,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-028 · Limpar dados de exemplo das telas · design-system · PR #19 · tarefas/handoffs/T-028-design-system.md · 41 telas
 - T-050 · Revisão de segurança do código da T-033 · seguranca · PR #20 · tarefas/handoffs/T-050-seguranca.md · sem altos; R-01 na T-034
 - T-034 · Auditoria e Celery endurecidos · backend · PR #21 · tarefas/handoffs/T-034-backend.md · 146 testes; S-10, S-11, C-03, C-05, R-01 e R-04 da T-050; inclui a T-033 (mesclar o PR #16 antes); GRANT giro_expurgo TO giro_migracao pedido ao devops; inclui R-01 e R-04 da T-050
+- T-048 · Frontend lê o menu e o painel da T-047 · frontend · PR a abrir pelo orquestrador · tarefas/handoffs/T-048-frontend.md · dados falsos; 104 testes
