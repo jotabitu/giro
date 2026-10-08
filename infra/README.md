@@ -5,6 +5,7 @@ Dono: agente **devops**. Leia `.claude/agents/devops.md`.
 ```
 infra/
 ├── docker/        Dockerfiles de backend (também worker e beat) e frontend, entrypoint do backend
+├── postgres/      SQL de inicialização do banco: papéis da ADR 0016 (01-papeis.sh)
 ├── scripts/       verificações de infra (check-env.sh)
 ├── deploy/        homologação e produção (a definir em ADR: AWS, GCP ou VPS)
 └── backup/        scripts de backup diário e teste de restauração
@@ -48,9 +49,38 @@ No Windows, `make` não vem instalado: use Git Bash ou WSL, ou rode os comandos 
 - `frontend/package.json` e `frontend/package-lock.json` versionado (o Dockerfile usa `npm ci`). Node 22.
 - Scripts: `dev` (servidor Next; o Compose passa `--hostname 0.0.0.0 --port 3000`), `lint`, `typecheck`, `test` (Vitest), `build` e `api:gerar` (cliente tipado a partir de `docs/api/openapi.yaml`).
 - `make frontend-check` executa `npm run lint && npm run typecheck && npm test -- --run && npm run build`.
-- Chamadas do navegador usam `NEXT_PUBLIC_API_URL`; chamadas do servidor Next usam `API_URL_INTERNA`. Nunca coloque segredo em variável `NEXT_PUBLIC_*`.
+- Chamadas do navegador usam URL relativa (`/api/`, mesma origem; `NEXT_PUBLIC_API_URL` fica vazia); chamadas do servidor Next usam `API_URL_INTERNA`. Nunca coloque segredo em variável `NEXT_PUBLIC_*`.
 - `node_modules` e `.next` ficam em volumes nomeados, não no host. Dependência nova: rebuild com `docker compose build frontend`.
 
 ## Ainda não coberto por esta tarefa
 
 CI (T-005), homologação e produção, certificado curinga, backup e Sentry no frontend ficam em tarefas próprias.
+
+## Papéis de banco (ADR 0016, T-043)
+
+| Papel | Uso | Variável |
+| --- | --- | --- |
+| `giro_migracao` | dono dos schemas e tabelas; `migrate_schemas` e criação de schema de empresa | `DATABASE_URL_MIGRACAO` |
+| `giro_app` | requisições Django e Celery; sem DDL; auditoria só `SELECT` e `INSERT` | `DATABASE_URL` |
+| `giro_expurgo` | dono da função `auditoria_expurgar` (sem login) | nenhuma |
+
+`infra/postgres/01-papeis.sh` cria os três, dá a `giro_migracao` o schema `public` e `CREATE` no banco, e deixa `giro_app` com `SELECT/INSERT/UPDATE/DELETE` por privilégio padrão no `public`. Roda só quando o volume do Postgres é criado (`make down V=1` para refazer). Testado num Postgres 16 limpo: `giro_app` não cria tabela nem schema e lê e escreve em tabela criada por `giro_migracao`.
+
+**Dev:** `DATABASE_URL` e `DATABASE_URL_MIGRACAO` apontam para o superusuário do container (ADR 0016, item 5); os valores com papéis separados estão comentados em `.env.example`.
+
+**O que o backend precisa fazer (ainda não feito):**
+- Ler `DATABASE_URL_MIGRACAO` e usá-la em `migrate_schemas` e em `plataforma.services.criar_empresa`; o entrypoint (`backend-entrypoint.sh`) deve migrar com ela.
+- A rotina que cria o schema de empresa aplica os `GRANT` do schema (`ALTER DEFAULT PRIVILEGES` para `giro_app`, `REVOKE UPDATE, DELETE, TRUNCATE` na auditoria) e cria `auditoria_expurgar` com dono `giro_expurgo`.
+- Os testes de imutabilidade sobem com `giro_app`.
+
+**Ambientes (homologação e produção):** rodar o mesmo SQL no banco gerenciado, com senhas geradas e guardadas no cofre do ambiente, nunca as de dev. Credencial de `giro_migracao` só no job de deploy; `giro_app` no serviço em execução.
+
+**CI:** continua com um papel só. Passa a usar os papéis separados no mesmo PR em que o backend ler `DATABASE_URL_MIGRACAO` (job `backend` ganha o `01-papeis.sh` no service Postgres).
+
+## IP do ator e proxies (ADR 0018, item 4, T-045)
+
+- O backend só confia no `X-Forwarded-For` quando `REMOTE_ADDR` está numa rede de `GIRO_REDES_PROXY` (CIDR, por ambiente); aí pega o IP contando `GIRO_PROXIES_CONFIAVEIS` da direita. Sem o cabeçalho, ou de fora dessas redes, vale `REMOTE_ADDR`.
+- **Homologação e produção:** o proxy reverso manda `/api/` direto ao Django, sem passar pelo Next. Ele acrescenta o IP do cliente (não repassa o que veio). `GIRO_PROXIES_CONFIAVEIS=1` e `GIRO_REDES_PROXY` = rede do proxy reverso. O Django só pode ser alcançável pelo proxy (regra de rede do ambiente, a fechar no deploy). O rewrite e o middleware do Next ficam fora desse caminho: se `/api/` passasse pelo Next, o middleware apagaria o IP que o proxy acrescentou.
+- **Dev:** o proxy de mesma origem é o rewrite do Next, que repassa o `X-Forwarded-For` do cliente sem acrescentar o IP real (medido). Por isso `frontend/src/middleware.ts` descarta o cabeçalho em `/api/`: um valor forjado não chega ao Django (testado com `X-Forwarded-For: 6.6.6.6`). Em dev o ator aparece com o endereço do container do frontend. `GIRO_REDES_PROXY` em dev cobre as faixas privadas do Docker.
+
+Nota para a subida do Next: no Next 16 `middleware.ts` passa a se chamar `proxy.ts`; mover `frontend/src/middleware.ts` quando a versão subir. O destino do rewrite é lido no build (`output: standalone`) e, em `next dev`, em execução.

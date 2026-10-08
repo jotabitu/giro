@@ -21,10 +21,13 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD_MIGRACAO: ${POSTGRES_PASSWORD_MIGRACAO}
+      POSTGRES_PASSWORD_APP: ${POSTGRES_PASSWORD_APP}
     ports:
       - "${PORTA_POSTGRES}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
