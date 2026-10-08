@@ -3,12 +3,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { TriangleAlert } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button, Icone, TextField } from "@/design-system";
 import { contas, ErroApi } from "@/lib/api";
+import { useTokenDoFragmento } from "@/lib/fragmento";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { regrasDeSenha } from "@/lib/senha";
 import { Aviso } from "./Aviso";
@@ -22,9 +23,9 @@ type Campos = z.infer<typeof esquema>;
 
 /** Esqueci a senha, estados 3 e 4 (Esqueci-Senha): nova senha com o token do e-mail, ou link vencido. */
 export function RedefinirSenha() {
-  const token = useSearchParams().get("token") ?? "";
+  const { pronto, token } = useTokenDoFragmento();
   const router = useRouter();
-  const [vencido, setVencido] = useState(token === "");
+  const [vencido, setVencido] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const {
     register,
@@ -37,7 +38,7 @@ export function RedefinirSenha() {
   async function salvar(v: Campos) {
     setErro(null);
     try {
-      await contas.redefinirSenha({ token, senha_nova: v.senha });
+      await contas.redefinirSenha({ token: token!, senha_nova: v.senha });
       router.replace("/entrar");
     } catch (e) {
       if (e instanceof ErroApi && e.codigo === "link_expirado") setVencido(true);
@@ -46,7 +47,17 @@ export function RedefinirSenha() {
     }
   }
 
-  if (vencido) {
+  if (!pronto) {
+    return (
+      <PaginaAcesso titulo="Crie a nova senha">
+        <p className="text-body text-ink-muted" aria-busy="true">
+          Carregando…
+        </p>
+      </PaginaAcesso>
+    );
+  }
+
+  if (vencido || token === null) {
     return (
       <PaginaAcesso titulo="Esqueci a senha">
         <Passo numero={<Icone de={TriangleAlert} />} titulo="Link vencido">

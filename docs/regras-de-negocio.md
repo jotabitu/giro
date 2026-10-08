@@ -162,7 +162,7 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
 - `USR-01` Convite por e-mail, e também por WhatsApp quando a pessoa tem celular, com link válido por 7 dias. O e-mail é obrigatório em todo usuário, porque é o login (`USR-06`); o celular é opcional. A pessoa cria a senha e entra já com perfil e filiais definidos. Convite pendente conta no limite de usuários do plano.
 - `USR-02` Verificação em 2 etapas obrigatória para administrador e financeiro; opcional para os demais (o administrador pode tornar obrigatória para todos).
 - `USR-03` Permissões extras por pessoa (marcar em `Admin-Usuarios`): aprovar descontos acima de 5%, cancelar contratos, ver relatórios de todas as filiais. Elas somam ao perfil, nunca tiram.
-- `USR-04` Desativar usuário encerra a sessão na hora. O histórico do que ele fez continua. Usuário desativado não conta no limite do plano.
+- `USR-04` Desativar usuário encerra a sessão na hora. O histórico do que ele fez continua. Usuário desativado não conta no limite do plano. Reativar depende de a pessoa já ter chegado a `ativo`: quem já foi `ativo` volta `ativo`; quem nunca chegou a `ativo` (convite cancelado, mesmo que já tenha criado a senha) volta para `convite_pendente`, com convite novo de 7 dias pelos mesmos canais (`USR-01`). Nos dois casos, reativar respeita o limite do plano (`PLT-03`).
 - `USR-05` Menu: tela inicial de cada perfil usa o menu daquele perfil; telas compartilhadas usam o menu completo, escondendo os itens sem permissão. Itens sem permissão nunca aparecem desabilitados, simplesmente não aparecem.
 - `USR-06` Login com e-mail e senha; 5 tentativas erradas bloqueiam por 15 minutos e avisam o administrador. Sessão expira após 12 h sem uso no desktop e 30 dias no celular. Não existe opção "manter conectado".
 - `USR-07` Escopo de filial: o seletor de filial no topo do menu mostra só as filiais da pessoa. Administrador e financeiro veem todas as filiais ativas, sem depender das filiais ligadas a eles, e podem escolher "Todas as filiais" (tabela de perfis e `USR-08`). Quem tem a permissão extra de ver relatórios de todas as filiais (`USR-03`) escolhe "Todas as filiais" só no painel e nos relatórios. "Todas as filiais" inclui os dados das filiais desativadas que ainda têm contas ou histórico (`FIL-06`).
@@ -180,6 +180,7 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
 *Mudanças em 08 out 2026 (T-063):* `USR-07` passou a incluir o financeiro no escopo de todas as filiais, como já diziam a tabela de perfis e a `USR-08`, e a dizer como fica quem tem a permissão extra da `USR-03` (dúvida do arquiteto na T-063). O comportamento não mudou: o texto antigo citava só o administrador.
 *Mudanças em 07 out 2026 (T-041):* na tabela de perfis, o gerente passou a cancelar locação e dar desconto acima de 5% direto, além de aprovar os pedidos do vendedor (decisão do dono do produto, item 19).
 *Mudanças em 07 out 2026 (T-047):* criada a `USR-08` (tela inicial por perfil), a partir das telas iniciais, da `IMP-01` e da tabela de perfis.
+*Mudanças em 08 out 2026 (T-076):* `USR-04` passou a dizer como fica a reativação: quem nunca chegou a `ativo` volta para `convite_pendente`, com convite novo, e não mais `ativo` sem senha. É a única transição `desativado → convite_pendente`. Decisão do dono do produto em 08 out 2026 (opção B da T-075).
 
 ## Filiais
 
@@ -596,6 +597,7 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 | Cartão de R$ 179,70 do Diego no caixa de 07 out (T-059) | **A:** vira a renovação de 1 diária do Kwid, R$ 109,00 (`LOC-08`); o caixa de 07 out passa a R$ 1.111,90. | Todo pagamento aponta para uma conta, e R$ 179,70 não sai de nenhum preço da tabela; a opção A não inventa preço de extra. |
 | CNPJ da Filial Messejana (T-059) | **12.345.678/0003-57** (a Filial Caucaia é 12.345.678/0002-76). | Os dois passam no dígito verificador, como o da Moto Rápida (T-053). |
 | Senha errada na equipe da plataforma (P-03 da T-057) | **5 senhas erradas bloqueiam por 15 minutos**, como no `USR-06` (`PLT-08`). | Sem limite, a senha da equipe podia ser testada sem fim. |
+| Reativar quem teve o convite cancelado (T-069, analisada na T-075) | **B:** quem nunca chegou a `ativo` volta para `convite_pendente`, com convite novo de 7 dias; quem já foi `ativo` volta `ativo`; o limite do plano vale nos dois casos (`USR-04`, `PLT-03`). | Com a opção A, a lista mostrava como ativo quem não tinha senha nem recebeu aviso. |
 
 ## Pontos em aberto
 

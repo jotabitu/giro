@@ -196,7 +196,9 @@ export const contasFalso = {
     }
   },
 
-  async obterConvite(token: string): Promise<Convite> {
+  /** `POST /api/convites/consultar/` com `{ token }` (T-072): o token vai no corpo, nunca na URL. */
+  async consultarConvite(corpo: { token: string }): Promise<Convite> {
+    const { token } = corpo;
     await pausa();
     if (token === "convite-vencido") throw new ErroApi(410, "convite_expirado", "Este convite venceu. Peça um novo ao administrador.");
     const base = { empresa: "Moto Rápida", convidado_por: "Mariana Costa", expira_em: "2026-10-14T23:59:59Z" };
@@ -205,8 +207,9 @@ export const contasFalso = {
     throw new ErroApi(404, "nao_encontrado", "Convite não encontrado");
   },
 
-  async aceitarConvite(token: string, corpo: { nome: string; senha: string; aparelho: Aparelho }): Promise<RespostaEntrar> {
-    const convite = await this.obterConvite(token);
+  /** `POST /api/convites/aceitar/` com `{ token, nome, senha, aparelho }` (T-072). */
+  async aceitarConvite(corpo: { token: string; nome: string; senha: string; aparelho: Aparelho }): Promise<RespostaEntrar> {
+    const convite = await this.consultarConvite({ token: corpo.token });
     const problema = problemaDaSenha(corpo.senha, convite.email);
     if (problema) throw new ErroApi(400, "validacao", "Confira os campos", undefined, { senha: problema });
     const c = CONTAS.find((x) => x.email === convite.email);
