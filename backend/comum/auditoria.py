@@ -4,7 +4,6 @@ O model `auditoria.EventoAuditoria` fica no app `auditoria`, que está abaixo de
 ordem da ADR 0011; por isso ele é resolvido com `apps.get_model`, sem import.
 """
 
-import re
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -13,6 +12,8 @@ from typing import Any
 
 from django.apps import apps
 from django.db import models, transaction
+
+from comum import classificacao
 
 
 class Categoria(models.TextChoices):
@@ -64,45 +65,17 @@ def usar_ator(ator: Ator | Callable[[], Ator]) -> Iterator[None]:
         _ator.reset(token)
 
 
-# --- Dados pessoais (ADR 0010, item 7) ---
-# Campos com estes nomes são gravados mascarados. Um model pode somar nomes em CAMPOS_PESSOAIS.
-CAMPOS_PESSOAIS_PADRAO = frozenset({"cpf", "cnpj_cpf", "cpf_cnpj", "cnh", "rg", "documento"})
-CAMPOS_IGNORADOS = frozenset({"atualizado_em", "password"})
-
-
-def mascarar_cpf(valor: str) -> str:
-    """`123.218.330-45` vira `***.218.330-**` (AUD-04)."""
-    digitos = re.sub(r"\D", "", valor)
-    if len(digitos) != 11:
-        return mascarar(valor)
-    return f"***.{digitos[3:6]}.{digitos[6:9]}-**"
-
-
-def mascarar(valor: str) -> str:
-    """Mantém só os 3 últimos caracteres."""
-    if len(valor) <= 3:
-        return "*" * len(valor)
-    return "*" * (len(valor) - 3) + valor[-3:]
-
-
-def _mascarar_campo(nome: str, valor: Any) -> Any:
-    if valor in (None, ""):
-        return valor
-    texto = str(valor)
-    return mascarar_cpf(texto) if "cpf" in nome else mascarar(texto)
+# Campos que não entram no retrato (mudam a cada save e não dizem nada).
+CAMPOS_IGNORADOS = frozenset({"atualizado_em"})
 
 
 def retrato(objeto: models.Model) -> dict[str, Any]:
-    pessoais = CAMPOS_PESSOAIS_PADRAO | frozenset(getattr(objeto, "CAMPOS_PESSOAIS", ()))
-    dados: dict[str, Any] = {}
-    for campo in objeto._meta.concrete_fields:
-        if campo.name in CAMPOS_IGNORADOS:
-            continue
-        valor = getattr(objeto, campo.attname)
-        dados[campo.attname] = (
-            _mascarar_campo(campo.name, valor) if campo.name in pessoais else valor
-        )
-    return dados
+    """Valores reais dos campos. A classificação (omitir, mascarar) é aplicada ao gravar."""
+    return {
+        campo.attname: getattr(objeto, campo.attname)
+        for campo in objeto._meta.concrete_fields
+        if campo.name not in CAMPOS_IGNORADOS
+    }
 
 
 def diferenca(
@@ -123,8 +96,14 @@ def registrar_evento(
     motivo: str = "",
     regra: str = "",
 ) -> Any:
-    """Grava um evento. Para ações sem objeto (login, exportação), omita `objeto`."""
+    """Grava um evento. Para ações sem objeto (login, exportação), omita `objeto`.
+
+    Com `objeto`, `antes` e `depois` passam pela classificação do model (ADR 0014, item 3):
+    passe os valores reais, nunca já mascarados.
+    """
     evento_auditoria = apps.get_model("auditoria", "EventoAuditoria")
+    if objeto is not None:
+        antes, depois = classificacao.aplicar(type(objeto), antes or {}, depois or {})
     ator = ator_atual()
     return evento_auditoria.objects.create(
         ator_tipo=ator.tipo,

@@ -65,6 +65,12 @@ class Usuario(AbstractBaseUser, PermissionsMixin, ModeloBase):
 
     objects: ClassVar[UsuarioManager] = UsuarioManager()
 
+    # Funcionário é o ator dos eventos: nome e e-mail vão inteiros (ADR 0014, item 3).
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
+        "omitir": ["password"],
+        "inteiro": ["email"],
+    }
+
     USERNAME_FIELD = "email"
     EMAIL_FIELD = "email"
     REQUIRED_FIELDS = ["nome"]

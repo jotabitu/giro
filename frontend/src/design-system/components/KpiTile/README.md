@@ -21,3 +21,7 @@ import { KpiGrid, KpiTile, KpiVariacao } from "@/design-system";
 ```
 
 `valor` chega formatado da API; o componente não calcula. `KpiGrid` tem quatro colunas e passa a duas em telas estreitas.
+
+## Valor longo no celular
+
+O número encolhe para caber no bloco e nunca é cortado: o componente passa o tamanho do texto ao CSS (`--chars`) e a fonte vai de 44px até o mínimo de 16px conforme a largura do bloco (container query). Em quatro colunas no desktop, `R$ 1.284.350,00` fica menor que `71%`; no celular, em duas colunas, encolhe mais. Abaixo do mínimo o texto quebra no espaço em vez de estourar. Mande o valor já formatado pela API, sem abreviar (nada de `1,2 mi`).
