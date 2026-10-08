@@ -25,6 +25,10 @@ SELECT 'CREATE ROLE giro_expurgo NOLOGIN NOSUPERUSER'
 ALTER ROLE giro_migracao PASSWORD :'senha_migracao';
 ALTER ROLE giro_app PASSWORD :'senha_app';
 
+-- O post_migrate roda como giro_migracao e passa a função auditoria_expurgar para giro_expurgo
+-- (ALTER FUNCTION ... OWNER TO), o que exige ser membro do papel (T-034, T-052).
+GRANT giro_expurgo TO giro_migracao;
+
 -- giro_migracao cria schemas e é dono do que criar.
 GRANT CONNECT, CREATE ON DATABASE :"DBNAME" TO giro_migracao;
 GRANT CONNECT ON DATABASE :"DBNAME" TO giro_app, giro_expurgo;
