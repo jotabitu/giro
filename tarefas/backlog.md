@@ -213,10 +213,8 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - **Depende de:** T-012, T-064
 - **Pronto quando:** F-01 (permissões de administrador somam às padrão, sem perder `EmpresaOperando` e `EscopoDeFilial`; teste de arquitetura no urlconf da empresa), F-02 (`filial_da_requisicao` distingue "todas" de pessoa sem filial, que recebe 403 `USR-07`; o arquiteto confere a interface interna), F-04 (limite por IP sem chave vazia quando falta o IP e com IPv6 agrupado por prefixo; o devops confere o `REMOTE_ADDR` atrás do proxy) e F-05 (limite na busca de CEP) corrigidos, cada um com teste que reproduz o achado; detalhes em `docs/seguranca/2026-10-09-t058-t012.md`.
 
-### T-069 · Usuários e convite da empresa
-- **Agente:** backend · **Depende de:** T-011 · **Regras:** USR-03, USR-05, USR-07 · **Telas:** Convite, Admin-Usuarios · **Pronto quando:** CA-011-01, 02, 14 a 18, 22 a 24 e o resto do CA-011-28 passam, com o código da regra no nome do teste.
-- **Inclui:** usuários (lista com plano e contagens, detalhe, PATCH de perfil, filiais e permissões extras, desativar, reativar, redefinir 2 etapas, sessões pelo administrador); convidar, reenviar, cancelar e aceitar convite; e-mail único sem diferenciar maiúsculas (`Lower(email)`, T-045).
-- **Também:** P-06 e P-09 (token do convite no corpo; contrato com o arquiteto) da revisão T-057; F-03 da revisão T-064 (troca de filiais auditada, `ativo=False`, recusa filial inativa); `EscopoDeFilial` aceita `X-Filial: todas` para o financeiro e `/filiais/minhas/` devolve `pode_escolher_todas` para ele (`docs/api/filiais.md`, USR-07 da T-067); `relatorios_todas_filiais` (USR-03) vale só em painel e relatórios.
+### T-075 · Reativar usuário com convite cancelado
+- **Agente:** produto · **Depende de:** T-069 · **Regras:** USR-01, USR-04 · **Pronto quando:** a `[decisão]` da T-069 (reativar quem teve o convite cancelado: volta como `ativo` sem senha ou volta para `convite_pendente` com convite novo) analisada, com recomendação em "Pontos em aberto" de `docs/regras-de-negocio.md`, para o dono do produto aprovar; se a recomendação mudar o código, o ajuste vira tarefa do backend.
 
 ### T-070 · Modo suporte
 - **Agente:** backend · **Depende de:** T-011 · **ADRs:** 0013 (item 2, token de suporte) · **Regras:** PLT-07 · **Pronto quando:** CA-011-26 e 27 passam, com o código da regra no nome do teste.
