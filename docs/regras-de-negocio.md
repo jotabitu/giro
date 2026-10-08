@@ -101,9 +101,11 @@ A empresa cliente passa por 6 estados. Só `ativa` e `em_teste` operam normalmen
 - `PLT-05` Preço novo de plano vale só para novas assinaturas; reajuste de quem já assina exige aviso de 30 dias.
 - `PLT-06` Cancelamento pede motivo, oferece pausar ou mudar para o Essencial, e exige digitar o nome da empresa. Contratos já assinados com clientes finais continuam válidos.
 - `PLT-07` **Entrar como suporte:** só com motivo (de preferência um chamado), duração de 15 min, 30 min ou 1 h, permissão "só ver" ou "ver e editar". O administrador da empresa recebe e-mail na hora; aparece uma faixa "Modo suporte" no topo; entrada e saída ficam na auditoria da empresa e na da plataforma. O administrador pode bloquear o acesso do suporte. Mesmo com "ver e editar", o suporte vê dados pessoais mascarados (`AUD-09`).
-- `PLT-08` Usuários da plataforma são obrigados a usar verificação em 2 etapas. 3 códigos errados bloqueiam o login por 15 minutos e geram evento de segurança.
+- `PLT-08` Usuários da plataforma são obrigados a usar verificação em 2 etapas. 5 senhas erradas seguidas bloqueiam o login por 15 minutos, como no `USR-06`; 3 códigos errados seguidos também bloqueiam por 15 minutos. Durante o bloqueio, nem a senha e o código certos entram. Cada bloqueio gera evento de segurança na auditoria da plataforma. Entrar com sucesso zera as duas contagens.
 - `PLT-09` Funções da equipe interna: **Dono** (tudo); **Suporte** (ver empresas, chamados, entrar como suporte); **Financeiro** (cobrança, faturas, suspender); **Sucesso do cliente** (ver empresas, implantações, entrar como suporte, estender teste, mudar plano). Só o Dono mexe em planos e na equipe.
 - `PLT-10` Indicadores do painel (`Plataforma-Desktop`): receita recorrente = soma das assinaturas ativas e inadimplentes; cancelamentos do mês / empresas pagantes no início do mês = taxa de cancelamento.
+
+*Mudanças em 08 out 2026 (T-059):* `PLT-08` ganhou o bloqueio de 5 senhas erradas por 15 minutos para a equipe da plataforma (achado P-03 da T-057, decidido pelo dono do produto em 08 out 2026).
 
 ## Implantação
 
@@ -546,7 +548,7 @@ Planos especiais: Entregador R$ 279,00/semana (km livre, troca de óleo inclusa)
 | Em aberto dos clientes | Carlos 299,40; Rafael 1.347,00 | R$ 1.646,40 (2 clientes) | `FIN-01` |
 | Contadores do menu em 07 out (Mariana) | parcelas de Carlos e Rafael atrasadas; despesa dos pneus aguardando aprovação | Contas a receber 2; Despesas 1; Conciliação e Comissões sem número (fase 2) | `FIN-15`, `FIN-05` |
 | Encerramento antecipado LOC-2812 | NMax mensal 1.590,00; pedido em 07 out; fim 15 out | multa R$ 84,80; devolve R$ 286,20 | `LOC-12`, `LOC-13` |
-| Preço antigo LOC-2841 | Carlos, CG 160 Fan, assinado em 30 set, quando a Street semanal era 299,40 (passou a 329,00 em 01 out) | parcelas continuam R$ 299,40 | `LOC-15` |
+| Preço antigo LOC-2841 | Carlos, CG 160 Fan, semanal de 23 set a 28 out (5 parcelas: 23 set paga, 30 set atrasada, 07 out vence hoje, 14 e 21 out), assinado em 23 set, quando a Street semanal era 299,40 (passou a 329,00 em 01 out) | parcelas continuam R$ 299,40 | `LOC-15` |
 | Bloqueio | Rafael Sousa, 25 dias de atraso | cliente `bloqueado`, LOC-2790 `devolucao_atrasada` | `CLI-05`, `LOC-10` |
 | Uso do plano | 86 veículos, 1 filial, 5 usuários | 86 de 150, 1 de 3, 5 de 10; sem aviso | `PLT-03` |
 | Implantação da plataforma | 23 empresas em teste | funil 23 → 19 → 17 → 14 → 11 → 8 | `IMP-05` |
