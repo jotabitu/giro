@@ -337,8 +337,8 @@ class EntrarView(Publica):
             Usuario().set_password(senha)  # mesmo tempo de resposta de quem existe
             _falhou_entrada(request, None, "e-mail")
             raise NaoAutenticado(*CREDENCIAIS_INVALIDAS)
-        if usuario.status == StatusUsuario.CONVITE_PENDENTE and not services.convite_aceito(
-            usuario
+        if usuario.status == StatusUsuario.CONVITE_PENDENTE and (
+            not services.convite_aceito(usuario) or not usuario.has_usable_password()
         ):
             _falhou_entrada(request, usuario, "convite pendente")
             raise SemPermissao("convite_pendente", "Use o link do convite para criar seu acesso")

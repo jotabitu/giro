@@ -1308,9 +1308,9 @@ paths:
   /api/usuarios/{id}/reativar/:
     post:
       operationId: usuarios_reativar_create
-      description: 'Escritas de usuários e sessões de outra pessoa: nunca pelo suporte
-        (PLT-07).'
-      summary: Reativar (PLT-03)
+      description: Quem já foi ativo volta `ativo`; quem nunca chegou a ativo volta
+        para `convite_pendente`, com convite novo de 7 dias.
+      summary: Reativar (USR-04, PLT-03)
       parameters:
       - in: path
         name: id
