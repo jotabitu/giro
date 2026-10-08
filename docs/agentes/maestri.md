@@ -67,3 +67,7 @@ Abra o terminal de cada agente dentro do worktree dele. Orquestrador, produto e 
 - Responder as `[decisão]` que o agente produto juntar em "Pontos em aberto" das regras.
 - Aprovar os PRs que o orquestrador marcar como prontos.
 - Quando desenhar telas novas, colocar o HTML em `docs/telas/html/` e pedir ao design-system para atualizar o índice.
+
+## Outra máquina
+
+Para montar o time do zero em outra máquina (worktrees, papéis, modelos, conexões e as lições de funcionamento), veja [retomada.md](retomada.md).

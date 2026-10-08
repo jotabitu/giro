@@ -100,6 +100,7 @@ Levantadas pelo produto em T-037, T-041 e T-047 (07 out 2026); estavam no commit
 - **Depende de:** T-001
 - **Regras:** AUD-01, AUD-02 · **Segurança:** S-10, S-11, C-03 (IP real atrás do proxy por `X-Forwarded-For`, só quando `REMOTE_ADDR` está em `GIRO_REDES_PROXY`, contando `GIRO_PROXIES_CONFIAVEIS` da direita, ADR 0018 item 4), C-05 (trigger sem `TRUNCATE`, mesmo que S-10)
 - **Pronto quando:** critério do item "[média] Auditoria e Celery endurecidos" de `docs/seguranca/2026-10-07-fundacao.md` (trigger também em `TRUNCATE`, expurgo só com mais de 5 anos, `na_empresa` restaura ator e schema, `task_prerun`/`task_postrun` voltam ao public, cache com `make_key`, `@tarefa_de_empresa` recusa `public` e schema inexistente, tasks recebem só ids).
+- **Também:** R-01 (média: cifra e hash falham dentro de `na_empresa` e `@tarefa_de_empresa`; usar `tenant_context`) e R-04 da T-050, antes da T-017.
 
 ### T-035 · Endurecimento de produção
 - **Agente:** devops
@@ -183,6 +184,16 @@ Levantadas pelo produto em T-037, T-041 e T-047 (07 out 2026); estavam no commit
 - **Pronto quando:** a casca usa `eu.navegacao` (menu do início, menu completo e barra do celular) em vez de inferir de `pode`; `/inicio` mostra a variante do perfil (USR-08); contadores e blocos do painel com valores tipados de `docs/api/painel.md`, ainda em dados falsos até o backend existir.
 >>>>>>> origin/main
 
+### T-052 · Ajuste de produção apontado na T-050
+- **Agente:** devops
+- **Depende de:** T-035
+- **Pronto quando:** R-03 da revisão T-050 resolvido; `GRANT giro_expurgo TO giro_migracao` no `01-papeis.sh` e `GIRO_REDES_PROXY` definida em cada ambiente (pedidos do backend na T-034); pontos do frontend sobre a CSP (img-src para logos e imagens do S3, connect-src, `force-dynamic` no layout raiz) avaliados e registrados no handoff.
+
+### T-053 · Números de telas que dependem de regra
+- **Agente:** produto
+- **Depende de:** T-028
+- **Pronto quando:** definido de onde vêm o contador "Contas a receber 7" do `Menu-Mobile` e os valores "Previsto no mês/Recebido" do `Receber` (regra ou `docs/api/painel.md`), apontados pelo design-system na T-028; e o código `AUT-NN` da tarefa mensal de expurgo da auditoria, que não existe na tabela de automações (backend, T-034).
+
 ## Fase 1 · MVP
 
 ### T-010 · Plataforma: planos, empresas, criação de schema
@@ -190,6 +201,7 @@ Levantadas pelo produto em T-037, T-041 e T-047 (07 out 2026); estavam no commit
 
 ### T-011 · Contas, perfis, permissões, 2FA, convite
 - **Agente:** backend · **Depende de:** T-012, T-033 · **ADRs:** 0013, 0014 (sessões) · **Segurança:** S-02, S-03, S-08, S-13 · **Regras:** USR-01 a USR-07 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-011.md` (CA-011-01 a 28) passam, com o código da regra no nome do teste. · **Inclui:** `Usuario.status` no lugar de `ativo` e e-mail único sem diferenciar maiúsculas (T-045)
+- **Também:** R-06 da revisão T-050.
 
 ### T-012 · Filiais
 - **Agente:** backend · **Depende de:** T-010, T-030 · **Segurança:** SVG do logo sanitizado e exibido só por `<img>` (S-12) · **Regras:** PLT-03 (limite), USR-07 · **Telas:** Filiais, Filial · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-012.md` (CA-012-01 a 17) passam, com o código da regra no nome do teste.
@@ -199,6 +211,7 @@ Levantadas pelo produto em T-037, T-041 e T-047 (07 out 2026); estavam no commit
 
 ### T-014 · Clientes, documentos, bloqueio, LGPD
 - **Agente:** backend · **Depende de:** T-011, T-033 · **Segurança:** S-07, upload validado pelo conteúdo (S-12) · **Regras:** CLI-01 a CLI-08, AUD-04, AUD-05 · **Telas:** Clientes, Cliente · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-014.md` (CA-014-01 a 22; os marcados [integração] voltam no seed completo da T-019) passam, com o código da regra no nome do teste.
+- **Também:** R-02 e R-05 da revisão T-050 (`docs/seguranca/2026-10-08-codigo-t033.md`).
 
 ### T-015 · Locação: reserva, contrato, ciclo de status
 - **Agente:** backend · **Depende de:** T-013, T-014 · **Segurança:** token de assinatura com prazo e uso único, S-09 no `ModeloContrato` (S-15) · **Regras:** LOC-01 a LOC-13 · **Telas:** Locacao, Locacoes, Locacao-Detalhe, Contratos-Modelos · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-015.md` (CA-015-01 a 25) passam, com o código da regra no nome do teste.
@@ -215,6 +228,7 @@ Levantadas pelo produto em T-037, T-041 e T-047 (07 out 2026); estavam no commit
 
 ### T-019 · Seed Moto Rápida
 - **Agente:** qa · **Depende de:** T-013 a T-017 · **Pronto quando:** `make seed` cria a empresa de exemplo e todos os casos da tabela "Dados de referência para testes" passam.
+- **Placas do seed (T-028):** PQD-6E21 (Pop do Rafael, LOC-2790), RJD-5B38 (Biz do Marcos, LOC-2850), RKP-3D26 (Kwid do Diego, LOC-2848); reserva do Kwid LOC-2857.
 
 ### T-026 · Desenhar telas que faltam para o MVP
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** "Esqueci a senha" e "Ativar verificação em 2 etapas" (desktop e celular) em `docs/telas/html/`, no mesmo padrão das telas de acesso, e no índice. Bloqueia a parte de 2FA de T-020.
