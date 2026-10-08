@@ -273,7 +273,7 @@ def _em_outra_conexao(funcao):
     return thread, erros
 
 
-def test_fil_01_ca_012_07_duas_chamadas_simultaneas_nunca_deixam_duas_matrizes(db):
+def test_fil_01_ca_012_07_duas_chamadas_simultaneas_nunca_deixam_duas_matrizes(empresa_a):
     """Conexões próprias, fora da transação do teste; as filiais criadas aqui são apagadas."""
     ids: list[int] = []
     matrizes: list[int] = []

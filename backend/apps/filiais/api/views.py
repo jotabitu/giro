@@ -65,6 +65,7 @@ class FiliaisView(APIView):
 
     @extend_schema(
         responses=ListaDeFiliaisSerializer,
+        operation_id="filiais_list",
         parameters=[
             OpenApiParameter("ativo", enum=["true", "false"]),
             OpenApiParameter("busca", str),
