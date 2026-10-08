@@ -14,3 +14,5 @@
 - `connect-src 'self'`: em dev, `NEXT_PUBLIC_API_URL` com outro host seria bloqueado. O `.env.example` já manda deixá-la vazia.
 - `force-dynamic` na raiz tira o pré-render de todas as páginas, inclusive `/design-system` e `/entrar`. Aceito; registrar no PR.
 - O cabeçalho `X-Forwarded-For` que chega ao Django em dev segue sem medição; o comentário do middleware fica como está até alguém olhar o cabeçalho no backend.
+
+**CI do PR #17 (após merge da main, 524ccdb):** Backend (inclui os testes com Postgres e o OpenAPI), Frontend e Infra verdes. O conflito inicial era só em `tarefas/em-andamento.md`.
