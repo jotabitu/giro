@@ -47,16 +47,16 @@ const DESTINOS: Record<string, { href: string; icone: LucideIcon }> = {
   usuarios: { href: "/admin/usuarios", icone: UserCog },
   assinatura: { href: "/admin/assinatura", icone: Gauge },
   auditoria: { href: "/admin/auditoria", icone: ShieldCheck },
-  // Itens próprios do menu do início (docs/api/contas.md). Rotas a confirmar com as telas de cada módulo.
+  // Itens próprios do menu do início (docs/api/contas.md). Rotas conforme a tabela "Rotas do menu" de docs/telas/README.md (T-055).
   agenda: { href: "/vistorias", icone: CalendarCheck },
-  avarias: { href: "/avarias", icone: AlertTriangle },
-  consultar_veiculo: { href: "/veiculos/consultar", icone: Search },
-  contas_a_pagar: { href: "/financeiro/pagar", icone: CreditCard },
-  caixa_e_bancos: { href: "/financeiro/bancos", icone: Landmark },
-  propostas: { href: "/propostas", icone: Tag },
-  minhas_vendas: { href: "/vendas/minhas", icone: Tag },
-  veiculos_a_venda: { href: "/vendas/veiculos", icone: Car },
-  minhas_comissoes: { href: "/financeiro/minhas-comissoes", icone: Percent },
+  avarias: { href: "/vistorias/avarias", icone: AlertTriangle },
+  consultar_veiculo: { href: "/veiculos", icone: Search },
+  contas_a_pagar: { href: "/financeiro/despesas", icone: CreditCard },
+  caixa_e_bancos: { href: "/financeiro/caixa", icone: Landmark },
+  propostas: { href: "/vendas?aba=propostas", icone: Tag },
+  minhas_vendas: { href: "/vendas", icone: Tag },
+  veiculos_a_venda: { href: "/veiculos?status=a_venda", icone: Car },
+  minhas_comissoes: { href: "/financeiro/comissoes", icone: Percent },
 };
 
 export type ItemMontado = {
@@ -70,7 +70,12 @@ export type ItemMontado = {
 };
 export type GrupoMontado = { rotulo?: string; itens: ItemMontado[] };
 
-const estaEm = (rota: string, href: string) => rota === href || rota.startsWith(`${href}/`);
+const caminhoDe = (href: string) => href.split("?")[0];
+/** Compara só o caminho: `?aba=` e `?status=` não entram na rota ativa. */
+const estaEm = (rota: string, href: string) => {
+  const caminho = caminhoDe(href);
+  return rota === caminho || rota.startsWith(`${caminho}/`);
+};
 
 /** O menu da tela inicial só vale na rota inicial do perfil; nas telas compartilhadas vale o completo (USR-05). */
 export function gruposDaRota(nav: Navegacao, rotaAtual: string): GrupoNavegacao[] {
@@ -80,6 +85,8 @@ export function gruposDaRota(nav: Navegacao, rotaAtual: string): GrupoNavegacao[
 
 /** Liga o menu pronto da API às rotas e aos ícones, com a rota ativa e os contadores. Chave desconhecida fica de fora. */
 export function montarMenu(grupos: GrupoNavegacao[], rotaAtual: string, contadores: Record<string, number | null> = {}): GrupoMontado[] {
+  // Itens diferentes podem dividir o caminho (ex.: Frota e Veículos à venda); só o primeiro fica ativo.
+  let achouAtivo = false;
   return grupos
     .map((g) => ({
       rotulo: g.grupo ?? undefined,
@@ -87,7 +94,9 @@ export function montarMenu(grupos: GrupoNavegacao[], rotaAtual: string, contador
         const destino = DESTINOS[i.chave];
         if (!destino) return [];
         const total = i.contador ? contadores[i.contador] : null;
-        return [{ chave: i.chave, rotulo: i.rotulo, href: destino.href, icone: destino.icone, ativo: estaEm(rotaAtual, destino.href), total: total || undefined }];
+        const ativo = !achouAtivo && estaEm(rotaAtual, destino.href);
+        achouAtivo ||= ativo;
+        return [{ chave: i.chave, rotulo: i.rotulo, href: destino.href, icone: destino.icone, ativo, total: total || undefined }];
       }),
     }))
     .filter((g) => g.itens.length > 0);
@@ -110,5 +119,7 @@ export function destinosDaBarra(chaves: string[]): DestinoDaBarra[] {
 export function hrefDoDestino(chave: string, filtro?: string, id?: number): string | undefined {
   const base = HREF_BARRA[chave] ?? DESTINOS[chave]?.href ?? (chave === "reembolsos" ? "/financeiro/reembolsos" : undefined);
   if (!base) return undefined;
-  return `${base}${id !== undefined ? `/${id}` : ""}${filtro ? `?${filtro}` : ""}`;
+  const [caminho, queryDaRota] = base.split("?");
+  const query = [queryDaRota, filtro].filter(Boolean).join("&");
+  return `${caminho}${id !== undefined ? `/${id}` : ""}${query ? `?${query}` : ""}`;
 }

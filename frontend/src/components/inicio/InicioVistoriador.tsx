@@ -42,10 +42,10 @@ export function InicioVistoriador({ d }: { d: InicioDe<"vistoriador"> }) {
   return (
     <div className="flex flex-col gap-6">
       <CabecalhoInicio saudacao={d.saudacao}>
-        <Link href="/veiculos/consultar" className="wl-btn wl-btn--quiet">
+        <Link href="/veiculos" className="wl-btn wl-btn--quiet">
           Consultar veículo
         </Link>
-        <Link href="/avarias" className="wl-btn wl-btn--quiet">
+        <Link href="/vistorias/avarias" className="wl-btn wl-btn--quiet">
           Avarias abertas
           <span className="wl-count">{d.avarias_abertas}</span>
         </Link>
