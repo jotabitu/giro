@@ -5,7 +5,6 @@ sessões, convite da locadora) são da T-011, e usam os mesmos blocos.
 """
 
 import contextlib
-from dataclasses import replace
 from typing import Any
 
 from drf_spectacular.utils import PolymorphicProxySerializer, extend_schema, inline_serializer
@@ -16,7 +15,6 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.plataforma.permissoes import exige_permissao, pode
-from comum.auditoria import Categoria, TipoAtor, registrar_evento, usar_ator
 from comum.autenticacao import (
     AMR_SENHA_E_CODIGO,
     JWTPre2FA,
@@ -27,8 +25,8 @@ from comum.autenticacao import (
     refresh_do_cookie,
     veio_do_frontend,
 )
-from comum.erros import Conflito, ErroDeValidacao, NaoAutenticado, SemPermissao
-from comum.middleware import ator_da_requisicao
+from comum.erros import Conflito, NaoAutenticado, SemPermissao
+from comum.limites import LIMITES_DE_ENTRAR, AcessoPorIP
 
 from .. import dois_fatores
 from ..models import StatusUsuario, Usuario
@@ -47,24 +45,15 @@ def dados_do_usuario(usuario: Usuario) -> dict[str, Any]:
     }
 
 
-def _registrar(request: Request, acao: str, usuario: Usuario | None, motivo: str = "") -> None:
-    ator = ator_da_requisicao(request)
-    if usuario is not None and acao == "usuario.entrar":
-        ator = replace(ator, tipo=TipoAtor.USUARIO, id=usuario.pk, nome=usuario.nome)
-    with usar_ator(ator):
-        registrar_evento(acao, Categoria.SEGURANCA, objeto=usuario, motivo=motivo, regra="PLT-08")
-
-
 def _credenciais_invalidas(
     request: Request, usuario: Usuario | None, motivo: str
 ) -> NaoAutenticado:
-    _registrar(request, "usuario.entrar_falhou", usuario, motivo)
+    dois_fatores.auditar_entrada(request, "usuario.entrar_falhou", usuario, motivo)
     return NaoAutenticado(*CREDENCIAIS_INVALIDAS)
 
 
 def _entrou(request: Request, usuario: Usuario, extras: dict[str, Any] | None = None) -> Response:
-    dois_fatores.zerar_tentativas(usuario)
-    _registrar(request, "usuario.entrar", usuario)
+    dois_fatores.auditar_entrada(request, "usuario.entrar", usuario)
     refresh = emitir_tokens(usuario, amr=AMR_SENHA_E_CODIGO)
     resposta = Response(
         {
@@ -81,10 +70,11 @@ def _configurar_2fa(usuario: Usuario) -> Response:
     return Response({"etapa": "configurar_2fa", "token_pre_2fa": str(emitir_pre_2fa(usuario))})
 
 
-def _codigo_errado(request: Request, usuario: Usuario) -> NaoAutenticado:
-    erro = _credenciais_invalidas(request, usuario, "código")
-    dois_fatores.registrar_codigo_errado(usuario)  # no 3º levanta 429 (PLT-08)
-    return erro
+def _falhou(request: Request, tentativa: dois_fatores.Tentativa) -> Exception:
+    """401, ou 429 quando esta tentativa atingiu o limite (PLT-08). Os dois ficam auditados."""
+    motivo = "código" if tentativa.falha == dois_fatores.Falha.CODIGO else "senha"
+    erro = _credenciais_invalidas(request, tentativa.usuario, motivo)
+    return tentativa.bloqueio or erro
 
 
 class EntrarSerializer(serializers.Serializer[dict[str, str]]):
@@ -157,9 +147,12 @@ ENTRAR_OU_CONFIGURAR = PolymorphicProxySerializer(
 class Publica(APIView):
     authentication_classes: list[Any] = []
     permission_classes = [AllowAny]
+    throttle_classes: list[Any] = [AcessoPorIP]
 
 
 class EntrarView(Publica):
+    throttle_classes = LIMITES_DE_ENTRAR
+
     @extend_schema(
         request=EntrarSerializer,
         responses=ENTRAR_OU_CONFIGURAR,
@@ -174,33 +167,30 @@ class EntrarView(Publica):
         if usuario is None:
             Usuario().set_password(senha)  # mesmo tempo de resposta de quem existe
             raise _credenciais_invalidas(request, None, "e-mail")
-        if not usuario.check_password(senha):
-            raise _credenciais_invalidas(request, usuario, "senha")
+        tentativa = dois_fatores.tentar_entrar(
+            usuario,
+            senha=senha,
+            codigo=dados.validated_data.get("codigo", ""),
+            codigo_recuperacao=dados.validated_data.get("codigo_recuperacao", ""),
+        )
+        if tentativa.falha is not None:
+            raise _falhou(request, tentativa)
+        usuario = tentativa.usuario
         if usuario.status == StatusUsuario.DESATIVADO or (
             usuario.status == StatusUsuario.CONVITE_PENDENTE and not convite_aceito(usuario)
         ):
             raise SemPermissao(
                 "usuario_inativo", "Seu acesso foi desativado. Fale com o administrador."
             )
-        dois_fatores.conferir_bloqueio(usuario)
-        if not dois_fatores.tem_2fa(usuario):
+        if tentativa.dispositivo is None:
             return _configurar_2fa(usuario)
-
-        codigo = dados.validated_data.get("codigo", "")
-        recuperacao = dados.validated_data.get("codigo_recuperacao", "")
-        if not codigo and not recuperacao:
-            raise ErroDeValidacao({"codigo": ["Informe o código do autenticador."]})
-        if (
-            dois_fatores.conferir_codigo(usuario, codigo=codigo, codigo_recuperacao=recuperacao)
-            is None
-        ):
-            raise _codigo_errado(request, usuario)
         return _entrou(request, usuario)
 
 
 class Configurar2FAView(APIView):
     authentication_classes = [JWTPre2FA]
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AcessoPorIP]
 
     @extend_schema(
         request=None,
@@ -218,6 +208,7 @@ class Configurar2FAView(APIView):
 class Verificar2FAView(APIView):
     authentication_classes = [JWTPre2FA]
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AcessoPorIP]
 
     @extend_schema(
         request=CodigoSerializer, responses=EntrouSerializer, summary="Confirmar o código (PLT-08)"
@@ -226,13 +217,13 @@ class Verificar2FAView(APIView):
         usuario: Usuario = request.user  # type: ignore[assignment]
         dados = CodigoSerializer(data=request.data)
         dados.is_valid(raise_exception=True)
-        dois_fatores.conferir_bloqueio(usuario)
         confirmando = not dois_fatores.tem_2fa(usuario)
-        dispositivo = dois_fatores.conferir_codigo(
+        tentativa = dois_fatores.verificar_codigo(
             usuario, codigo=dados.validated_data["codigo"], confirmando=confirmando
         )
+        usuario, dispositivo = tentativa.usuario, tentativa.dispositivo
         if dispositivo is None:
-            raise _codigo_errado(request, usuario)
+            raise _falhou(request, tentativa)
         extras: dict[str, Any] = {}
         if confirmando:
             extras["codigos_recuperacao"] = dois_fatores.confirmar_autenticador(dispositivo)

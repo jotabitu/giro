@@ -74,8 +74,9 @@ class Usuario(AbstractBaseUser, PermissionsMixin, MaquinaDeEstados, ModeloBase):
         max_length=20, choices=StatusUsuario.choices, default=StatusUsuario.ATIVO
     )
     is_staff = models.BooleanField(default=False)
-    # Códigos de 2 etapas errados seguidos e o fim do bloqueio (PLT-08; USR-06 na T-011).
+    # Códigos de 2 etapas e senhas errados seguidos e o fim do bloqueio (PLT-08; USR-06 na T-011).
     tentativas_erradas = models.PositiveSmallIntegerField(default=0)
+    senhas_erradas = models.PositiveSmallIntegerField(default=0)
     bloqueado_ate = models.DateTimeField(null=True, blank=True)
 
     objects: ClassVar[UsuarioManager] = UsuarioManager()
