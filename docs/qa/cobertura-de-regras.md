@@ -40,34 +40,39 @@ Status: **esqueleto** = teste com o código da regra e os números esperados, ma
 | FIL-06 | CA-012-15 | `test_fil_06_ca_012_15_filial_com_operacao_nao_desativa` | T-012 | esqueleto |
 | FIL-06 | CA-012-16 | `test_fil_06_ca_012_16_contas_em_aberto_nao_impedem` | T-012 | esqueleto |
 | FIL-06 | CA-013-14 | `test_fil_06_ca_013_14_veto_a_desativacao_da_filial` | T-013 | esqueleto |
-| IMP-05 | CA-010-16 | `test_imp_05_ca_010_16_moto_rapida_na_lista_e_no_detalhe` | T-010 | esqueleto |
-| IMP-05 | CA-010-17 | `test_imp_05_ca_010_17_ordem_da_situacao` | T-010 | esqueleto |
+| FIN-15 | carteira de outubro | `test_fin_15_carteira_tem_42_locacoes_e_csv_igual_ao_gerador` | T-056 | passa |
+| FIN-15 | carteira de outubro | `test_fin_15_previsto_recebido_vence_hoje_e_atraso_em_07_out` | T-056 | passa |
+| FIN-15 | carteira de outubro | `test_fin_15_abas_somam_a_aba_todas` | T-056 | passa |
+| FIN-15 | carteira de outubro | `test_fin_15_contador_do_menu_e_a_aba_em_atraso` | T-056 | passa |
+| FIN-15 | carteira de outubro | `test_fin_15_recebido_nunca_passa_do_previsto` | T-056 | passa |
+| IMP-05 | CA-010-16 | `test_imp_05_ca_010_16_moto_rapida_na_lista_e_no_detalhe` | T-010 | passa |
+| IMP-05 | CA-010-17 | `test_imp_05_ca_010_17_ordem_da_situacao` | T-010 | passa |
 | LOC-01 | CA-013-21 | `test_loc_01_ca_013_21_tabela_do_seed` | T-013 | esqueleto |
 | LOC-01 | CA-013-24 | `test_loc_01_ca_013_24_categoria` | T-013 | esqueleto |
 | LOC-02 | CA-013-25 | `test_loc_02_ca_013_25_extras` | T-013 | esqueleto |
 | LOC-15 | CA-013-22 | `test_loc_15_ca_013_22_preco_vigente_na_data` | T-013 | esqueleto |
 | LOC-15 | CA-013-23 | `test_loc_15_ca_013_23_preco_novo_nao_reescreve_o_passado` | T-013 | esqueleto |
-| PLT-01 | CA-010-02 | `test_plt_01_ca_010_02_moto_rapida_nasce_em_teste` | T-010 | esqueleto |
-| PLT-01 | CA-010-03 | `test_plt_01_ca_010_03_vencimento_da_primeira_fatura` | T-010 | esqueleto |
-| PLT-01 | CA-010-04 | `test_plt_01_ca_010_04_subdominio_e_cnpj_unicos` | T-010 | esqueleto |
-| PLT-01 | CA-010-05 | `test_plt_01_ca_010_05_isolamento_entre_empresas` | T-010 | esqueleto |
-| PLT-03 | CA-010-01 | `test_plt_03_ca_010_01_tres_planos_do_seed` | T-010 | esqueleto |
-| PLT-03 | CA-010-06 | `test_plt_03_ca_010_06_uso_da_moto_rapida_sem_aviso` | T-010 | esqueleto |
-| PLT-03 | CA-010-07 | `test_plt_03_ca_010_07_aviso_em_90_por_cento` | T-010 | esqueleto |
-| PLT-03 | CA-010-08 | `test_plt_03_ca_010_08_bloqueio_em_100_por_cento_so_de_cadastro_novo` | T-010 | esqueleto |
-| PLT-03 | CA-010-09 | `test_plt_03_ca_010_09_duas_criacoes_simultaneas_nao_furam_o_limite` | T-010 | esqueleto |
-| PLT-03 | CA-010-10 | `test_plt_03_ca_010_10_plano_sem_limite` | T-010 | esqueleto |
-| PLT-03 | CA-010-11 | `test_plt_03_ca_010_11_empresa_sem_operacao_fica_so_leitura` | T-010 | esqueleto |
+| PLT-01 | CA-010-02 | `test_plt_01_ca_010_02_moto_rapida_nasce_em_teste` | T-010 | passa |
+| PLT-01 | CA-010-03 | `test_plt_01_ca_010_03_vencimento_da_primeira_fatura` | T-010 | passa |
+| PLT-01 | CA-010-04 | `test_plt_01_ca_010_04_subdominio_e_cnpj_unicos` | T-010 | passa |
+| PLT-01 | CA-010-05 | `test_plt_01_ca_010_05_isolamento_entre_empresas` | T-010 | passa |
+| PLT-03 | CA-010-01 | `test_plt_03_ca_010_01_tres_planos_do_seed` | T-010 | passa |
+| PLT-03 | CA-010-06 | `test_plt_03_ca_010_06_uso_da_moto_rapida_sem_aviso` | T-010 | passa |
+| PLT-03 | CA-010-07 | `test_plt_03_ca_010_07_aviso_em_90_por_cento` | T-010 | passa |
+| PLT-03 | CA-010-08 | `test_plt_03_ca_010_08_bloqueio_em_100_por_cento_so_de_cadastro_novo` | T-010 | passa |
+| PLT-03 | CA-010-09 | `test_plt_03_ca_010_09_duas_criacoes_simultaneas_nao_furam_o_limite` | T-010 | passa |
+| PLT-03 | CA-010-10 | `test_plt_03_ca_010_10_plano_sem_limite` | T-010 | passa |
+| PLT-03 | CA-010-11 | `test_plt_03_ca_010_11_empresa_sem_operacao_fica_so_leitura` | T-010 | passa |
 | PLT-03 | CA-011-17 | `test_plt_03_ca_011_17_limite_do_plano_conta_convites` | T-011 | esqueleto |
 | PLT-03 | CA-012-03 | `test_plt_03_ca_012_03_uso_do_plano_na_lista` | T-012 | esqueleto |
 | PLT-03 | CA-012-04 | `test_plt_03_ca_012_04_segunda_e_terceira_filial_ate_o_limite` | T-012 | esqueleto |
 | PLT-03 | CA-013-08 | `test_plt_03_ca_013_08_limite_de_veiculos` | T-013 | esqueleto |
 | PLT-07 | CA-011-26 | `test_plt_07_ca_011_26_faixa_e_permissoes_do_suporte` | T-011 | esqueleto |
 | PLT-07 | CA-011-27 | `test_plt_07_ca_011_27_administrador_controla_o_suporte` | T-011 | esqueleto |
-| PLT-08 | CA-010-12 | `test_plt_08_ca_010_12_login_com_duas_etapas_obrigatorio` | T-010 | esqueleto |
-| PLT-08 | CA-010-13 | `test_plt_08_ca_010_13_tres_codigos_errados_bloqueiam_por_15_minutos` | T-010 | esqueleto |
-| PLT-08 | CA-010-15 | `test_plt_08_ca_010_15_convite_da_equipe_vence_em_7_dias` | T-010 | esqueleto |
-| PLT-09 | CA-010-14 | `test_plt_09_ca_010_14_funcoes_da_equipe` | T-010 | esqueleto |
+| PLT-08 | CA-010-12 | `test_plt_08_ca_010_12_login_com_duas_etapas_obrigatorio` | T-010 | passa |
+| PLT-08 | CA-010-13 | `test_plt_08_ca_010_13_tres_codigos_errados_bloqueiam_por_15_minutos` | T-010 | passa |
+| PLT-08 | CA-010-15 | `test_plt_08_ca_010_15_convite_da_equipe_vence_em_7_dias` | T-010 | passa |
+| PLT-09 | CA-010-14 | `test_plt_09_ca_010_14_funcoes_da_equipe` | T-010 | passa |
 | USR-01 | CA-011-01 | `test_usr_01_ca_011_01_contagens_do_seed` | T-011 | esqueleto |
 | USR-01 | CA-011-02 | `test_usr_01_ca_011_02_so_o_administrador_administra_usuarios` | T-011 | esqueleto |
 | USR-01 | CA-011-14 | `test_usr_01_ca_011_14_convidar` | T-011 | esqueleto |
@@ -124,7 +129,7 @@ CA-014-15 (CLI-05, bloqueio automático com 15 dias), CA-014-16 (CLI-05, desbloq
 
 ## Inventário de todas as regras com código
 
-Uma linha por código de `docs/regras-de-negocio.md` (135 códigos). "Testes" conta os testes de esqueleto da tabela acima. Os códigos sem critério não têm teste porque a regra ainda não virou critério de aceite; quando o produto escrever o critério, o qa cria o teste.
+Uma linha por código de `docs/regras-de-negocio.md` (136 códigos). "Testes" conta os testes de esqueleto da tabela acima. Os códigos sem critério não têm teste porque a regra ainda não virou critério de aceite; quando o produto escrever o critério, o qa cria o teste.
 
 | Regra | Testes | Situação |
 | --- | --- | --- |
@@ -197,11 +202,12 @@ Uma linha por código de `docs/regras-de-negocio.md` (135 códigos). "Testes" co
 | FIN-12 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
 | FIN-13 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
 | FIN-14 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
+| FIN-15 | 5 | passa (T-056, sobre a carteira de outubro em `docs/qa/carteira-outubro/`); a conferência contra a API fica para a T-017 e a T-019 |
 | IMP-01 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
 | IMP-02 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
 | IMP-03 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
 | IMP-04 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
-| IMP-05 | 2 | esqueleto (T-010 a T-014) |
+| IMP-05 | 2 | passa (T-010) |
 | IMP-06 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
 | LOC-01 | 2 | esqueleto (T-010 a T-014) |
 | LOC-02 | 1 | esqueleto (T-010 a T-014) |
@@ -224,15 +230,15 @@ Uma linha por código de `docs/regras-de-negocio.md` (135 códigos). "Testes" co
 | MAN-04 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
 | MAN-05 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
 | MAN-06 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| PLT-01 | 4 | esqueleto (T-010 a T-014) |
+| PLT-01 | 4 | passa (T-010) |
 | PLT-02 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| PLT-03 | 11 | esqueleto (T-010 a T-014) |
+| PLT-03 | 11 | 7 passam (T-010); 4 esqueleto (T-011 a T-013) |
 | PLT-04 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
 | PLT-05 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
 | PLT-06 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
 | PLT-07 | 2 | esqueleto (T-010 a T-014) |
-| PLT-08 | 3 | esqueleto (T-010 a T-014) |
-| PLT-09 | 1 | esqueleto (T-010 a T-014) |
+| PLT-08 | 3 | passa (T-010) |
+| PLT-09 | 1 | passa (T-010) |
 | PLT-10 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
 | USR-01 | 6 | esqueleto (T-010 a T-014) |
 | USR-02 | 6 | esqueleto (T-010 a T-014) |
