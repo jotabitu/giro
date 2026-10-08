@@ -13,7 +13,9 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[".localhost", "127.0.0.1", "backend"])
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
-# Sem CORS: frontend e API na mesma origem (ADR 0013, item 5).
+# Sem CORS: frontend e API na mesma origem (ADR 0013, item 5). O proxy (Next em dev, proxy
+# reverso em produção) repassa o Host original em X-Forwarded-Host; o django-tenants o usa.
+USE_X_FORWARDED_HOST = True
 
 # Domínio: admin.<DOMINIO_BASE> é a plataforma; <subdominio>.<DOMINIO_BASE>, a empresa.
 DOMINIO_BASE = env("DOMINIO_BASE", default="localhost")
