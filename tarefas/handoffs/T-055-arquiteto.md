@@ -31,3 +31,5 @@
 - **Frontend:** trocar em `DESTINOS` de `lib/menu.ts` as 8 rotas corrigidas; para itens com query (`?aba=`, `?status=`), a rota ativa compara só o caminho. Em `falso-painel.ts`, `a_receber_hoje_centavos` e `entra_hoje` passam a 90740 em "3 parcelas".
 - **Backend (T-011):** bloqueio de código errado do `USR-06` feito pelo Giro, já que o atraso do django-otp está desligado para todos. **(T-017):** `contagens.todas` = soma das quatro abas e `recebido_pct` com 2 casas, como em `financeiro.md`.
 - **QA:** teste da `FIN-15` pode usar o exemplo de vence hoje (3 parcelas = R$ 907,40) como caso pequeno próprio.
+
+**Acréscimo (pedido do backend na T-012):** `docs/api/filiais.md` dizia que, na criação da filial, os feriados nacionais já entravam confirmados. Corrigido para seguir a `FIL-03` e o CA-012-08: a filial nasce sem feriados, e os nacionais são só sugestão até o administrador confirmar.
