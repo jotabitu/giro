@@ -148,6 +148,11 @@ Levantadas pelo arquiteto em T-043 (07 out 2026):
 - **Regras:** IMP-02 e o passo "importar dados" do assistente de implantação, VEI-01, CLI-01
 - **Pronto quando:** `docs/api/importacao.md` (envio da planilha, validação linha a linha com os erros da tela `Onboarding-Importar`, confirmação, relatório), com os campos cifrados da ADR 0014. Destrava T-027.
 
+### T-045 · Conferir decisões de implementação da T-001 contra as ADRs
+- **Agente:** arquiteto
+- **Depende de:** T-001
+- **Pronto quando:** as "Decisões de implementação (Arquiteto, confira)" do handoff da T-001 conferidas contra as ADRs 0008 a 0012 e o modelo de dados; o que divergir vira ajuste de ADR ou tarefa para o backend, sem bloquear a T-033.
+
 ### T-046 · Componentes pedidos pela T-020
 - **Agente:** design-system
 - **Depende de:** T-004
@@ -220,6 +225,13 @@ Levantadas pelo arquiteto em T-043 (07 out 2026):
 
 ### T-025 · Testes ponta a ponta do fluxo de locação
 - **Agente:** qa · **Depende de:** T-022, T-023 · **Pronto quando:** Playwright cobre login → nova locação → vistoria de saída → devolução → baixa no caixa, no desktop e no celular.
+
+## Dúvidas abertas da T-020 (frontend)
+
+- `[decisão]` **Menu por permissão.** `eu.pode` não traz uma chave por item de menu; o frontend mapeia item -> chave em `frontend/src/lib/menu.ts` (ex.: Comissões e Conciliação por `financeiro_pagar`, Relatórios por `painel`, Locações por `locacoes_criar || vistorias_fazer`). Proposta: a API devolver `menu` (lista de módulos liberados) para a tela não inferir. Dono: arquiteto + produto (USR-05).
+- `[decisão]` **Início por perfil.** Vistoriador tem `painel: "nao"`; a T-020 mostra um aviso no lugar da visão geral. Falta definir a rota inicial de vistoriador, vendedor, gerente e financeiro (telas de início por perfil).
+- `[decisão]` **Contadores do menu e tela Main** vêm de `relatorios` (agregados), sem contrato em `docs/api/`. Hoje são dados falsos. Dono: arquiteto.
+- **Pedido ao design-system:** seletor de filial com lista (USR-07, "Todas as filiais" para administrador); diálogo/gaveta para o menu do celular; KPI com valor longo ("R$ 18,4 mil") quebra em 3 linhas a 390px.
 
 ## Fase 2 em diante
 

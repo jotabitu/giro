@@ -81,6 +81,7 @@ Vale para a empresa (`/api/exportacoes/`, administrador) e para a plataforma (`/
 ### POST /api/exportacoes/
 Corpo: `{ "itens": ["clientes", "veiculos", "locacoes_contratos", "financeiro", "vistorias_fotos", "auditoria"], "formato": "planilha" | "csv" | "zip", "periodo": { "de": "2026-01-01", "ate": "2026-10-07" } | null }`.
 - `zip` é o backup completo (todos os itens, com fotos): exige token com 2 etapas confirmadas há no máximo 15 minutos (`amr` com `otp` e `auth_time` recente); senão 403 `{ "codigo": "2fa_recente", "mensagem": "Confirme o código do autenticador para gerar o backup completo" }`. Gera evento `seguranca`.
+- Células de texto que começam com `=`, `+`, `-`, `@`, tabulação ou retorno de carro saem com apóstrofo na frente (injeção de fórmula, `docs/api/README.md`).
 - Dados pessoais saem como a pessoa veria na tela: o administrador vê completos; a auditoria sai sempre com a classificação da ADR 0014 (CA-018-13).
 202: `{ "id": 17, "status": "na_fila" }`. Uma task gera o arquivo no storage privado e avisa por e-mail com o link.
 
