@@ -52,7 +52,7 @@ Corpo: `{ email, senha, codigo }` (6 dígitos do autenticador) **ou** `{ email, 
 400 `validacao`: `email` ou `senha` faltando.
 401 `{ "codigo": "credenciais_invalidas", "mensagem": "E-mail, senha ou código incorretos" }`: a resposta não diz qual dos três errou. Quem tem autenticador e não manda código recebe este 401, com a senha certa ou errada (T-058).
 429 `{ "codigo": "PLT-08", "mensagem": "Acesso bloqueado por 15 minutos depois de 3 códigos errados", "detalhes": { "tentar_de_novo_em": "..." } }`: o 3º código errado bloqueia e grava evento de segurança na auditoria do `public`. A 5ª senha errada (ou sem código) também bloqueia, com a mensagem "Acesso bloqueado por 15 minutos depois de 5 senhas erradas". Enquanto o bloqueio vale, nem a senha é conferida.
-429 `{ "codigo": "muitas_requisicoes", "mensagem": "Muitas tentativas seguidas. Espere um pouco e tente de novo.", "detalhes": { "tentar_de_novo_em_segundos": 42 } }` e cabeçalho `Retry-After`: limite de requisições, 10 por minuto e 50 por hora por IP e por e-mail. `convites/`, `renovar` e `2fa/` têm 30 por minuto por IP.
+429 `{ "codigo": "muitas_requisicoes", "mensagem": "Muitas tentativas seguidas. Espere um pouco e tente de novo.", "detalhes": { "tentar_de_novo_em_segundos": 42 } }` e cabeçalho `Retry-After`: limite de requisições, 10 por minuto e 50 por hora por IP e por e-mail. `convites/`, `renovar`, `sair` e `2fa/` têm 30 por minuto por IP. As taxas ficam em `REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]`; o limite no proxy (S-17) é do devops e soma a este.
 403 `{ "codigo": "usuario_inativo" }`: convite pendente ou desativado.
 Auditoria: `seguranca`, `usuario.entrar` (sucesso) e `usuario.entrar_falhou` (com IP e aparelho).
 Regras: PLT-08.

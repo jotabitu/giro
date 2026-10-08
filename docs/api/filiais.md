@@ -14,7 +14,7 @@ Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-
 
 "Administração (marca, filiais, usuários, ...)" é só do administrador na tabela de perfis: as ações de administrar (lista, criar, editar, matriz, desativar, reativar, feriados) respondem 403 aos demais perfis. Fora do escopo da pessoa, a filial responde 404.
 
-O financeiro vê painel, relatórios e contas de todas as filiais (tabela de perfis, `USR-08`, `financeiro.md` e `painel.md`); por isso o escopo dele é igual ao do administrador, sem depender das filiais ligadas a ele (confirmado pelo produto em 09 out 2026, T-063; o texto da `USR-07` é acertado pelo produto).
+O financeiro vê painel, relatórios e contas de todas as filiais (tabela de perfis, `USR-08`, `financeiro.md` e `painel.md`); por isso o escopo dele é igual ao do administrador, sem depender das filiais ligadas a ele (`USR-07`: "Administrador e financeiro veem todas as filiais ativas, sem depender das filiais ligadas a eles, e podem escolher 'Todas as filiais'"; confirmado pelo produto na T-063, texto da regra corrigido na T-067).
 
 ## Representação da filial
 
