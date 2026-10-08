@@ -195,11 +195,6 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - **Depende de:** T-033
 - **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA`, `na_empresa` e o teste de arquitetura revisados contra a ADR 0014 (itens 2 e 3), a ADR 0018 (item 3) e os achados S-05, S-06, S-07, C-01 e C-02; relatório em `docs/seguranca/`; achados viram tarefas.
 
-### T-067 · USR-07: o financeiro também escolhe todas as filiais
-- **Agente:** produto
-- **Depende de:** T-012
-- **Pronto quando:** o texto da `USR-07` (hoje "só o administrador") inclui o financeiro, como já dizem a tabela de perfis e a `USR-08`, com a nota de mudança; levantado pelo arquiteto na conferência da decisão 5 da T-012 (T-063).
-
 ### T-063 · Contratos com o caixa da T-059 e conferência da T-058 e da T-012
 - **Agente:** arquiteto
 - **Depende de:** T-059, T-058, T-012
