@@ -78,7 +78,7 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 
 <section class="wl-panel">
 <h2 class="h2">Identificação</h2>
-<p class="lead">Como a filial aparece no seletor, nos contratos e nas notas fiscais.</p>
+<p class="lead">Como a filial aparece no seletor, nos contratos e nos recibos.</p>
 <div class="grid">
 <label class="wl-field"><span class="wl-field__label">Nome da filial</span><input class="wl-input" value="Filial Messejana"></label>
 <label class="wl-field"><span class="wl-field__label">Nome curto no seletor</span><input class="wl-input" value="Messejana"></label>
@@ -115,25 +115,15 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 <div class="hours" style="padding-top: 0; color: var(--ink-muted); font-size: 14px;"><span>Dias</span><span>Abre</span><span>Fecha</span><span></span></div>
 <div class="hours"><span>Segunda a sexta</span><input class="wl-input wl-mono" value="08:00"><input class="wl-input wl-mono" value="18:00"><label style="display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--ink-muted);"><input type="checkbox" style="width: 18px; height: 18px; accent-color: var(--solid);">Fechado</label></div>
 <div class="hours"><span>Sábado</span><input class="wl-input wl-mono" value="08:00"><input class="wl-input wl-mono" value="12:00"><label style="display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--ink-muted);"><input type="checkbox" style="width: 18px; height: 18px; accent-color: var(--solid);">Fechado</label></div>
-<div class="hours"><span>Domingo e feriados</span><input class="wl-input wl-mono" value="—" disabled><input class="wl-input wl-mono" value="—" disabled><label style="display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--ink-muted);"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: var(--solid);">Fechado</label></div>
-</div>
+<div class="hours"><span>Domingo</span><input class="wl-input wl-mono" value="—" disabled><input class="wl-input wl-mono" value="—" disabled><label style="display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--ink-muted);"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: var(--solid);">Fechado</label></div>
+</div><div style="margin-top: 16px;"><div style="font-weight: 500; margin-bottom: 4px;">Feriados da filial</div><p style="margin: 0 0 10px; font-size: 14px; line-height: 20px; color: var(--ink-muted);">Datas em que a filial fica fechada. A cada ano o sistema sugere os nacionais; você confirma ou acrescenta os locais.</p><div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;"><span class="wl-badge wl-badge--sm">12 out · Nossa Senhora Aparecida</span><span class="wl-badge wl-badge--sm">02 nov · Finados</span><span class="wl-badge wl-badge--sm">15 nov · Proclamação da República</span><span class="wl-badge wl-badge--sm">25 dez · Natal</span><button class="wl-btn wl-btn--quiet wl-btn--sm" style="height: 28px; padding: 0 10px; font-size: 13px;">Adicionar feriado</button></div></div>
 </section>
 
 <section class="wl-panel">
 <h2 class="h2">Operação</h2>
-<p class="lead">Quem responde pela filial e como ela recebe e fatura.</p>
+<p class="lead">Quem responde pela filial. O recebimento e o preço são da empresa.</p>
 <div class="grid">
-<label class="wl-field"><span class="wl-field__label">Gerente responsável</span><select class="wl-input"><option>Rodrigo Pinheiro</option></select></label>
-<label class="wl-field"><span class="wl-field__label">Vagas no pátio · motos</span><input class="wl-input" value="40"></label>
-<label class="wl-field"><span class="wl-field__label">Vagas no pátio · carros</span><input class="wl-input" value="12"></label>
-<label class="wl-field"><span class="wl-field__label">Tabela de preço padrão</span><select class="wl-input"><option>Tabela Fortaleza 2026</option></select></label>
-<label class="wl-field"><span class="wl-field__label">Conta de recebimento</span><select class="wl-input"><option>Banco do Brasil · cc 12345-6</option></select></label>
-<label class="wl-field"><span class="wl-field__label">Centro de custo</span><input class="wl-input" value="Messejana"></label>
-</div>
-<div style="margin-top: 12px;">
-<label class="toggle"><input type="checkbox" checked><span>Emite notas fiscais com o CNPJ desta filial<small>Desmarcado, as notas saem pelo CNPJ da matriz.</small></span></label>
-<label class="toggle"><input type="checkbox" checked><span>Aceita devolução de veículos de outras filiais<small>O veículo passa a contar no estoque desta filial após o check-in.</small></span></label>
-<label class="toggle"><input type="checkbox"><span>Compartilha a frota com as outras filiais<small>Veículos desta filial aparecem como disponíveis para reserva em toda a empresa.</small></span></label>
+<label class="wl-field"><span class="wl-field__label">Gerente responsável</span><input class="wl-input" value="Nenhum gerente ligado ainda" disabled><span class="wl-field__hint">Quem gerencia é quem tem perfil gerente nesta filial, em Usuários.</span></label>
 </div>
 </section>
 </div>
@@ -142,14 +132,13 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 <section class="wl-panel">
 <h2 class="h2" style="margin-bottom: 8px;">Filiais da empresa</h2>
 <div class="branch"><div class="wl-switcher__icon" style="background: var(--surface-sunken);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg></div><div style="flex: 1;"><div style="font-weight: 500;">Filial Centro</div><div style="font-size: 14px; color: var(--ink-muted);">Fortaleza · 86 veículos</div></div><span class="wl-badge wl-badge--sm wl-badge--solid">Matriz</span></div>
-<div class="branch"><div class="wl-switcher__icon" style="background: var(--surface-sunken);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg></div><div style="flex: 1;"><div style="font-weight: 500;">Filial Caucaia</div><div style="font-size: 14px; color: var(--ink-muted);">Caucaia · 31 veículos</div></div><span class="wl-badge wl-badge--sm wl-badge--success">Ativa</span></div>
-<div class="branch" style="border-bottom: 0;"><div class="wl-switcher__icon" style="background: var(--brand); color: var(--on-brand);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></div><div style="flex: 1;"><div style="font-weight: 500;">Filial Messejana</div><div style="font-size: 14px; color: var(--ink-muted);">em cadastro</div></div><span class="wl-badge wl-badge--sm">Rascunho</span></div>
+<div class="branch" style="border-bottom: 0;"><div class="wl-switcher__icon" style="background: var(--brand); color: var(--on-brand);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></div><div style="flex: 1;"><div style="font-weight: 500;">Filial Messejana</div><div style="font-size: 14px; color: var(--ink-muted);">nova</div></div></div>
 </section>
 
 <section class="wl-panel" style="background: var(--surface-sunken);">
-<div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-weight: 500;">Plano Profissional</span><span style="font-size: 14px; color: var(--ink-muted);">3 de 3 filiais</span></div>
-<div class="wl-progress__track" style="margin: 12px 0;"><div class="wl-progress__fill" style="width: 100%;"></div></div>
-<p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--ink-muted);">Esta filial ocupa a última vaga do plano. Para abrir a quarta, mude para o plano Completo.</p>
+<div style="display: flex; justify-content: space-between; align-items: baseline;"><span style="font-weight: 500;">Plano Profissional</span><span style="font-size: 14px; color: var(--ink-muted);">1 de 3 filiais</span></div>
+<div class="wl-progress__track" style="margin: 12px 0;"><div class="wl-progress__fill" style="width: 33%;"></div></div>
+<p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--ink-muted);">Ao salvar, são 2 de 3 filiais. Para abrir a quarta, contrate uma filial adicional.</p>
 </section>
 
 <section class="wl-panel">
