@@ -191,7 +191,7 @@ Perfil: administrador. Corpo: `{ vigente_desde, diaria_centavos, semanal_centavo
 - `vigente_desde` ≥ hoje (o passado não se reescreve). Padrão: hoje.
 - Preço novo vale só para contratos novos; contrato assinado mantém o preço da assinatura (`LOC-15`). A resposta traz `"locacoes_em_andamento_mantidas": 12` para a tela avisar.
 - 409 `{ "codigo": "preco_ja_definido", "mensagem": "Já existe preço a partir desta data" }` quando a data já tem preço vigente; preço agendado para o futuro pode ser trocado com `PUT /api/categorias/{id}/precos/{vigente_desde}/` até a data chegar.
-Caso do seed: Street semanal 29940 até 30 set e 32900 a partir de 01 out; LOC-2841, assinada em 30 set, continua com 29940 (`LOC-15`).
+Caso do seed: Street semanal 29940 até 30 set e 32900 a partir de 01 out; LOC-2841, assinada em 23 set, continua com 29940 (`LOC-15`).
 
 ### GET /api/precos/historico/
 Perfil: administrador. Todas as mudanças de preço da empresa, para "Histórico de preços": `{ "resultados": [ { "categoria", "vigente_desde", "campo", "antes_centavos", "depois_centavos", "alterado_por", "alterado_em" } ] }`.
