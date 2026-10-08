@@ -12,6 +12,25 @@ const config: NextConfig = {
   output: "standalone",
   // A API do Django termina em barra; sem isto o Next redireciona /api/x/ para /api/x em laço.
   skipTrailingSlashRedirect: true,
+  // Cabeçalhos fixos de segurança (S-18). A CSP, que depende de nonce, sai de src/middleware.ts.
+  // HSTS só vale sobre HTTPS; o Django cobre /api/ e o proxy reverso pode repeti-lo.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Referrer-Policy", value: "same-origin" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000; includeSubDomains; preload",
+          },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     // A versão com barra vem primeiro: o padrão :path* perde a barra final e o Django redirecionaria.
     return [

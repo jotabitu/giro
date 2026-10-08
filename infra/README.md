@@ -84,3 +84,22 @@ CI (T-005), homologação e produção, certificado curinga, backup e Sentry no 
 - **Dev:** o proxy de mesma origem é o rewrite do Next, que repassa o `X-Forwarded-For` do cliente sem acrescentar o IP real (medido). Por isso `frontend/src/middleware.ts` descarta o cabeçalho em `/api/`: um valor forjado não chega ao Django (testado com `X-Forwarded-For: 6.6.6.6`). Em dev o ator aparece com o endereço do container do frontend. `GIRO_REDES_PROXY` em dev cobre as faixas privadas do Docker.
 
 Nota para a subida do Next: no Next 16 `middleware.ts` passa a se chamar `proxy.ts`; mover `frontend/src/middleware.ts` quando a versão subir. O destino do rewrite é lido no build (`output: standalone`) e, em `next dev`, em execução.
+
+## Endurecimento de produção (T-035)
+
+Valores por ambiente (o processo precisa de `DJANGO_SETTINGS_MODULE`; `wsgi.py`, `asgi.py` e `config/celery.py` não têm mais padrão e falham sem ele, C-04):
+
+| Variável | dev | homologação | produção |
+| --- | --- | --- | --- |
+| `DJANGO_SETTINGS_MODULE` | `config.settings.dev` | `config.settings.prod` | `config.settings.prod` |
+| `JWT_SIGNING_KEY` | vazia (usa `DJANGO_SECRET_KEY`) | obrigatória, própria | obrigatória, própria |
+| `GIRO_PROXIES_CONFIAVEIS` | 1 (Next) | 1 (proxy reverso) | 1 (proxy reverso) |
+| `GIRO_REDES_PROXY` | faixas privadas do Docker | rede do proxy reverso | rede do proxy reverso |
+| `DJANGO_HSTS_SEGUNDOS` / `DJANGO_HSTS_PRELOAD` | não se aplica | curto / 0 até estabilizar | 31536000 / 1 |
+| `GIRO_EXPOR_DOCUMENTACAO_DA_API` | aberto | 0 (aberto só se pedido) | 0 |
+
+`prod.py` recusa subir se `JWT_SIGNING_KEY` faltar ou igualar `DJANGO_SECRET_KEY`, ou se `GIRO_REDES_PROXY` estiver vazia. Fixa `SHOW_PUBLIC_IF_NO_TENANT_FOUND = False` (host desconhecido dá 404, S-16), HSTS com preload e subdomínios, `Referrer-Policy: same-origin` e `X-Frame-Options: DENY` (S-18).
+
+Frontend: `next.config.ts` envia `Referrer-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, `Permissions-Policy` e HSTS; `src/middleware.ts` envia a CSP com nonce por requisição (`src/lib/csp.ts`), e o layout raiz é `force-dynamic` para o nonce chegar aos scripts do Next (página pré-renderizada ficava sem nonce, medido). Sentry no frontend, quando entrar, precisa abrir `connect-src`.
+
+**Fica para o deploy (regra de rede):** o Django só alcançável pelo proxy reverso, que deve também sobrescrever `X-Forwarded-For` e `X-Forwarded-Proto` e repassar `Host`. Sem isso `GIRO_REDES_PROXY` não protege.
