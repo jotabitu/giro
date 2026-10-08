@@ -28,8 +28,20 @@ def pendente(**esperado) -> None:
 # Plano e preços (PLT-03): centavos; None = ilimitado.
 PLANOS_SEED = {
     "Essencial": {"mensal": 19900, "anual": 199000, "veiculos": 30, "filiais": 1, "usuarios": 3},
-    "Profissional": {"mensal": 44900, "anual": 449000, "veiculos": 150, "filiais": 3, "usuarios": 10},
-    "Completo": {"mensal": 89900, "anual": 899000, "veiculos": None, "filiais": None, "usuarios": None},
+    "Profissional": {
+        "mensal": 44900,
+        "anual": 449000,
+        "veiculos": 150,
+        "filiais": 3,
+        "usuarios": 10,
+    },
+    "Completo": {
+        "mensal": 89900,
+        "anual": 899000,
+        "veiculos": None,
+        "filiais": None,
+        "usuarios": None,
+    },
 }
 
 # Usuários da Moto Rápida (T-011): nome → (perfil, status).
@@ -42,7 +54,8 @@ USUARIOS_SEED = {
     "Felipe Nunes": ("vendedor", "desativado"),
 }
 
-# Tabela de preços da Filial Centro (T-013): categoria → (veículos, diária, semanal, mensal, caução).
+# Tabela de preços da Filial Centro (T-013):
+# categoria → (veículos, diária, semanal, mensal, caução).
 PRECOS_SEED = {
     "Urbana 110–125": (42, 4490, 29940, 109000, 30000),
     "Street 150–160": (32, 5490, 32900, 119000, 30000),
@@ -51,6 +64,13 @@ PRECOS_SEED = {
 }
 
 CONTAGENS_FROTA_SEED = {
-    "todos": 86, "disponivel": 16, "alugado": 42, "reservado": 9, "em_manutencao": 7,
-    "a_venda": 12, "indisponivel": 0, "motos": 80, "carros": 6,
+    "todos": 86,
+    "disponivel": 16,
+    "alugado": 42,
+    "reservado": 9,
+    "em_manutencao": 7,
+    "a_venda": 12,
+    "indisponivel": 0,
+    "motos": 80,
+    "carros": 6,
 }
