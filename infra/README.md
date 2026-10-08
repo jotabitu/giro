@@ -75,6 +75,8 @@ CI (T-005), homologação e produção, certificado curinga, backup e Sentry no 
 
 **Ambientes (homologação e produção):** rodar o mesmo SQL no banco gerenciado, com senhas geradas e guardadas no cofre do ambiente, nunca as de dev. Credencial de `giro_migracao` só no job de deploy; `giro_app` no serviço em execução.
 
+`giro_migracao` é membro de `giro_expurgo` (`GRANT giro_expurgo TO giro_migracao`, T-052): o `post_migrate` do backend roda como `giro_migracao` e faz `ALTER FUNCTION auditoria_expurgar ... OWNER TO giro_expurgo`, que exige ser membro do papel novo dono. Em banco gerenciado, aplicar o mesmo `GRANT`; o volume de dev já criado precisa de `make down V=1` ou do `GRANT` à mão.
+
 **CI:** continua com um papel só. Passa a usar os papéis separados no mesmo PR em que o backend ler `DATABASE_URL_MIGRACAO` (job `backend` ganha o `01-papeis.sh` no service Postgres).
 
 ## IP do ator e proxies (ADR 0018, item 4, T-045)
@@ -95,11 +97,16 @@ Valores por ambiente (o processo precisa de `DJANGO_SETTINGS_MODULE`; `wsgi.py`,
 | `JWT_SIGNING_KEY` | vazia (usa `DJANGO_SECRET_KEY`) | obrigatória, própria | obrigatória, própria |
 | `GIRO_PROXIES_CONFIAVEIS` | 1 (Next) | 1 (proxy reverso) | 1 (proxy reverso) |
 | `GIRO_REDES_PROXY` | faixas privadas do Docker | rede do proxy reverso | rede do proxy reverso |
+| `GIRO_CHAVE_DADOS_PESSOAIS`, `GIRO_CHAVE_SEGREDOS`, `GIRO_PEPPER_HMAC` | valores de exemplo do `.env.example` | obrigatórios, próprios, do cofre | obrigatórios, próprios, do cofre |
+
+Modelos de homologação e produção, só com o que difere do dev: `infra/deploy/homologacao.env.example` e `infra/deploy/producao.env.example`. A `GIRO_REDES_PROXY` deles é um exemplo (`10.20.0.0/24`, `10.10.0.0/24`) e deve ser trocada pela sub-rede real do proxy reverso quando o ambiente existir; `prod.py` recusa lista vazia, rede inválida e `/0`.
 | `DJANGO_HSTS_SEGUNDOS` / `DJANGO_HSTS_PRELOAD` | não se aplica | curto / 0 até estabilizar | 31536000 / 1 |
 | `GIRO_EXPOR_DOCUMENTACAO_DA_API` | aberto | 0 (aberto só se pedido) | 0 |
 
-`prod.py` recusa subir se `JWT_SIGNING_KEY` faltar ou igualar `DJANGO_SECRET_KEY`, ou se `GIRO_REDES_PROXY` estiver vazia. Fixa `SHOW_PUBLIC_IF_NO_TENANT_FOUND = False` (host desconhecido dá 404, S-16), HSTS com preload e subdomínios, `Referrer-Policy: same-origin` e `X-Frame-Options: DENY` (S-18).
+`prod.py` recusa subir se `JWT_SIGNING_KEY` faltar ou igualar `DJANGO_SECRET_KEY`, ou se `GIRO_REDES_PROXY` estiver vazia, inválida ou aberta (`/0`). Pela R-03 da revisão T-050 (T-052), recusa também: chave ou pepper com o valor do `.env.example` (a chave é comparada sem o id, então trocar só o `1:` não passa), a mesma chave em `GIRO_CHAVE_DADOS_PESSOAIS` e `GIRO_CHAVE_SEGREDOS`, chave que não decodifica para 32 bytes, pepper com menos de 32 bytes e pepper igual a `DJANGO_SECRET_KEY` ou `JWT_SIGNING_KEY`. Testes `test_r03_*` em `backend/tests/test_producao.py`. Fixa `SHOW_PUBLIC_IF_NO_TENANT_FOUND = False` (host desconhecido dá 404, S-16), HSTS com preload e subdomínios, `Referrer-Policy: same-origin` e `X-Frame-Options: DENY` (S-18).
 
 Frontend: `next.config.ts` envia `Referrer-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, `Permissions-Policy` e HSTS; `src/middleware.ts` envia a CSP com nonce por requisição (`src/lib/csp.ts`), e o layout raiz é `force-dynamic` para o nonce chegar aos scripts do Next (página pré-renderizada ficava sem nonce, medido). Sentry no frontend, quando entrar, precisa abrir `connect-src`.
+
+**CSP, avaliação da T-052 (sem mudança de código):** (1) `img-src`: hoje nenhuma tela carrega imagem externa e o contrato de arquivos ainda não definiu o host do S3. O caminho recomendado é o frontend ler a origem de `S3_ENDPOINT_URL` (ou do host do bucket) no `middleware.ts`, em execução, e acrescentá-la a `img-src` (e `frame-src` se houver PDF embutido) quando a T-012/T-014 trouxerem logo, foto e prévia; a alternativa é o Django servir o arquivo pela mesma origem. (2) `connect-src 'self'`: certo, porque `NEXT_PUBLIC_API_URL` fica vazia em todos os ambientes (cookie `__Host-`, ADR 0013); o Sentry do frontend vai precisar do host do DSN. (3) `force-dynamic` na raiz: aceito; os arquivos de `_next/static` continuam com cache longo, só o HTML deixa de ser estático, e o app é autenticado. Registrar no PR.
 
 **Fica para o deploy (regra de rede):** o Django só alcançável pelo proxy reverso, que deve também sobrescrever `X-Forwarded-For` e `X-Forwarded-Proto` e repassar `Host`. Sem isso `GIRO_REDES_PROXY` não protege.
