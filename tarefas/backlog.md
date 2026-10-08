@@ -227,8 +227,8 @@ Levantadas pelo produto em T-059 (08 out 2026):
 ### T-071 · Navegação do eu
 - **Agente:** backend · **Depende de:** T-011, T-047 · **Regras:** USR-05, USR-08 · **Pronto quando:** `GET /api/auth/eu/` devolve `navegacao` (`menu_inicio`, `menu_completo`, `barra_celular`, `inicio.variante`) como em `docs/api/contas.md`, considerando os recursos do plano e `GIRO_MODULOS_ATIVOS`, com teste por perfil; o frontend troca o falso de `falso-navegacao.ts` numa tarefa própria.
 
-### T-072 · Token do convite e da redefinição fora do caminho da URL
-- **Agente:** arquiteto · **Depende de:** T-057 · **Pronto quando:** `docs/api/contas.md` e `docs/api/plataforma.md` com consultar e aceitar convite como POST com o token no corpo, na empresa e na plataforma, e os links de e-mail (convite e redefinir senha) com o token no fragmento (`#`), conforme a decisão do arquiteto sobre o P-09 da revisão T-057. A rota da plataforma muda na T-069 (backend).
+### T-074 · Critérios do convite da plataforma com o token no corpo
+- **Agente:** qa · **Depende de:** T-072 · **Pronto quando:** `docs/qa/criterios/T-010.md` (CA-010-15) e os testes de aceitação que consultam o convite da plataforma seguem `docs/api/plataforma.md` da T-072 (POST com o token no corpo, em vez de `GET /api/plataforma/convites/{token}/`); os testes que dependem da rota nova ficam `xfail` até a T-069.
 
 ### T-073 · Telas de convite e redefinição com o token no fragmento
 - **Agente:** frontend · **Depende de:** T-072 · **Telas:** Convite, Acesso-Senha · **Pronto quando:** `/convite` e `/entrar/redefinir` leem o token do fragmento da URL, enviam no corpo do POST conforme a T-072 e limpam o fragmento do histórico, nos dados falsos e com teste.
