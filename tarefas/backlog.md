@@ -211,8 +211,19 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - **Depende de:** T-012, T-064
 - **Pronto quando:** F-01 (permissões de administrador somam às padrão, sem perder `EmpresaOperando` e `EscopoDeFilial`; teste de arquitetura no urlconf da empresa), F-02 (`filial_da_requisicao` distingue "todas" de pessoa sem filial, que recebe 403 `USR-07`; o arquiteto confere a interface interna), F-04 (limite por IP sem chave vazia quando falta o IP e com IPv6 agrupado por prefixo; o devops confere o `REMOTE_ADDR` atrás do proxy) e F-05 (limite na busca de CEP) corrigidos, cada um com teste que reproduz o achado; detalhes em `docs/seguranca/2026-10-09-t058-t012.md`.
 
-### T-013 · Veículos, categorias, documentos, histórico de status
-- **Agente:** backend · **Depende de:** T-012 · **Regras:** VEI-01 a VEI-06 · **Telas:** Frota, Veiculo, Precos · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-013.md` (CA-013-01 a 26) passam, com o código da regra no nome do teste.
+### T-078 · Menu do frontend segue a navegação da T-071
+- **Agente:** frontend · **Depende de:** T-071 · **Regras:** USR-05, USR-08 · **Pronto quando:** `frontend/src/lib/api/falso-navegacao.ts` devolve o mesmo que `contas/navegacao.py` para os cinco perfis do seed, com as 5 diferenças do handoff da T-071 corrigidas (vendas no gerente, grupo Vendas do vendedor, comissões no lugar de relatórios no financeiro, contador de despesas só para quem aprova, filtro de plano, atividade e módulos); a casca e o início leem só `eu.navegacao`, sem montar menu na tela; teste por perfil. Ligar contas na API real fica numa tarefa própria.
+
+### T-013 · Veículos, categorias, preços, ações e histórico de status
+- **Agente:** backend · **Depende de:** T-012 · **Regras:** VEI-01 a VEI-07 · **Telas:** Frota, Veiculo, Precos · **Pronto quando:** CA-013-01 a 15, 21 a 26 e a parte do CA-013-16 sem pedido (gerente corrige na hora, vendedora 403) de `docs/qa/criterios/T-013.md` passam, com o código da regra no nome do teste; `veiculos` entra no padrão de `GIRO_MODULOS_ATIVOS`.
+- **Nota:** a T-013 original foi dividida em 08/10 em T-013, T-079 e T-080, porque não cabia num PR. Os critérios que saíram ficam `xfail` com o número da tarefa.
+
+### T-079 · Documentos de veículos, arquivo privado e AUT-06
+- **Agente:** backend · **Depende de:** T-013 · **ADRs:** 0009 (`comum/arquivos.py`: storage privado S3, prefixo `<schema>/<app>/<model>/<id>/`, URL assinada de 15 minutos), 0011 (`notificacoes` no nível 5) · **Regras:** VEI-03, AUT-06, FIL-02, AUD-05 · **Pronto quando:** CA-013-17 a 20 passam, com o código da regra no nome do teste; `comum/arquivos.py` com implementação falsa no desenvolvimento e nos testes, pronta para a T-014; o mínimo de `notificacoes` que o CA-013-18 usa (tarefa urgente e alerta aos gerentes).
+
+### T-080 · Como um app abaixo de aprovações abre um pedido
+- **Agente:** arquiteto · **Depende de:** T-013 (parte do CA-013-16) · **ADRs:** 0011 · **Regras:** APR-06 · **Pronto quando:** decidido, em ADR nova ou emenda à 0011, como `veiculos` (nível 6) cria um `PedidoAprovacao` em `aprovacoes` (nível 7) sem importá-lo, e como a resposta 202 do vistoriador (CA-013-16) devolve o id do pedido; o mesmo caminho serve para `locacoes`, `vendas`, `financeiro`, `manutencao` e `clientes`; diz em qual tarefa o pedido APR-06 do CA-013-16 entra.
+
 
 ### T-014 · Clientes, documentos, bloqueio, LGPD
 - **Agente:** backend · **Depende de:** T-011, T-033 · **Segurança:** S-07, upload validado pelo conteúdo (S-12) · **Regras:** CLI-01 a CLI-08, AUD-04, AUD-05 · **Telas:** Clientes, Cliente · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-014.md` (CA-014-01 a 22; os marcados [integração] voltam no seed completo da T-019) passam, com o código da regra no nome do teste.
