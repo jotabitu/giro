@@ -219,6 +219,33 @@ class SuporteDoEuSerializer(serializers.Serializer[Any]):
     motivo = serializers.CharField()
 
 
+class ItemNavegacaoSerializer(serializers.Serializer[Any]):
+    chave = serializers.CharField()
+    rotulo = serializers.CharField()
+    contador = serializers.CharField(allow_null=True)
+
+
+class GrupoNavegacaoSerializer(serializers.Serializer[Any]):
+    grupo = serializers.CharField(allow_null=True)
+    itens = ItemNavegacaoSerializer(many=True)
+
+
+class InicioNavegacaoSerializer(serializers.Serializer[Any]):
+    rota = serializers.CharField()
+    variante = serializers.ChoiceField(
+        choices=["implantacao", "geral", "gerente", "vendedor", "vistoriador", "financeiro"]
+    )
+
+
+class NavegacaoSerializer(serializers.Serializer[Any]):
+    """USR-05 e USR-08: o menu pronto; o frontend liga cada `chave` à rota e ao ícone."""
+
+    inicio = InicioNavegacaoSerializer()
+    menu_inicio = GrupoNavegacaoSerializer(many=True)
+    menu_completo = GrupoNavegacaoSerializer(many=True)
+    barra_celular = serializers.ListField(child=serializers.CharField())
+
+
 class EuDaEmpresaSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField(allow_null=True)  # `null` no modo suporte
     nome = serializers.CharField()
@@ -229,6 +256,7 @@ class EuDaEmpresaSerializer(serializers.Serializer[Any]):
     filiais = FilialResumoSerializer(many=True)
     dois_fatores = DoisFatoresSerializer()
     pode = PodeDaEmpresaSerializer()
+    navegacao = NavegacaoSerializer()
     suporte = SuporteDoEuSerializer(allow_null=True)
     empresa = EmpresaDoEuSerializer()
 

@@ -1549,3 +1549,184 @@ def test_aud_01_ca_011_28_eventos_da_administracao_de_usuarios(adm):
     )
     for segredo in (SENHA, "md5$", "argon2", "token_hash", "chave"):
         assert segredo not in tudo
+
+
+# --- Navegação do eu (T-071) ---
+
+TODOS_OS_MODULOS = [
+    "aprovacoes",
+    "auditoria",
+    "clientes",
+    "contas",
+    "empresas",
+    "filiais",
+    "financeiro",
+    "locacoes",
+    "manutencao",
+    "plataforma",
+    "relatorios",
+    "veiculos",
+    "vendas",
+    "vistorias",
+]
+ADMINISTRACAO = ["config", "marca", "filiais", "usuarios", "assinatura", "auditoria"]
+
+
+def _chaves(menu: list[dict[str, Any]]) -> list[tuple[str | None, list[str]]]:
+    return [(grupo["grupo"], [item["chave"] for item in grupo["itens"]]) for grupo in menu]
+
+
+def _navegacao(adm: Moto, nome: str) -> dict[str, Any]:
+    api = adm.logar(nome) if nome in ("Mariana", "Rodrigo", "Bruna") else _api_de(adm, nome)
+    resposta = _get(api, EU, adm.empresa)
+    assert resposta.status_code == 200, resposta.json()
+    return dict(resposta.json()["navegacao"])
+
+
+def test_usr_05_usr_08_navegacao_por_perfil(adm, settings):
+    settings.GIRO_MODULOS_ATIVOS = TODOS_OS_MODULOS  # plano Profissional, aluga e vende
+
+    # Mariana, administradora antes da 1ª locação: implantação, com o menu completo no início.
+    mariana = _navegacao(adm, "Mariana")
+    assert mariana["inicio"] == {"rota": "/inicio", "variante": "implantacao"}
+    assert _chaves(mariana["menu_completo"]) == [
+        (None, ["inicio", "aprovacoes", "veiculos"]),
+        ("Operação", ["locacoes", "vendas", "clientes", "manutencoes"]),
+        ("Financeiro", ["caixa", "receber", "despesas", "comissoes", "conciliacao", "relatorios"]),
+        ("Administração", ADMINISTRACAO),
+    ]
+    assert mariana["menu_inicio"] == mariana["menu_completo"]
+    assert mariana["menu_completo"][0]["itens"][0] == {
+        "chave": "inicio",
+        "rotulo": "Visão geral",
+        "contador": None,
+    }
+    assert mariana["barra_celular"] == ["inicio", "veiculos", "nova_locacao", "locacoes", "mais"]
+
+    # Rodrigo, gerente: o menu da tela Gerente; sem pagar contas nem administração.
+    rodrigo = _navegacao(adm, "Rodrigo")
+    assert rodrigo["inicio"]["variante"] == "gerente"
+    assert _chaves(rodrigo["menu_inicio"]) == [
+        (None, ["inicio", "aprovacoes", "veiculos"]),
+        ("Operação", ["locacoes", "vendas", "clientes", "manutencoes"]),
+        ("Filial", ["caixa", "relatorios"]),
+    ]
+    assert rodrigo["menu_inicio"][0]["itens"][0]["rotulo"] == "Visão da filial"
+    assert rodrigo["menu_inicio"][2]["itens"][0]["rotulo"] == "Caixa da filial"
+    assert _chaves(rodrigo["menu_completo"]) == [
+        (None, ["inicio", "aprovacoes", "veiculos"]),
+        ("Operação", ["locacoes", "vendas", "clientes", "manutencoes"]),
+        ("Financeiro", ["caixa", "receber", "despesas", "relatorios"]),
+    ]
+    assert rodrigo["menu_completo"][2]["itens"][2]["contador"] == "despesas"  # aprova despesas
+
+    # Bruna, vendedora: só o que é dela; sem aprovações, veículos nem relatórios.
+    bruna = _navegacao(adm, "Bruna")
+    assert bruna["inicio"]["variante"] == "vendedor"
+    assert _chaves(bruna["menu_inicio"]) == [
+        (None, ["inicio"]),
+        ("Operação", ["locacoes", "clientes"]),
+        ("Vendas", ["propostas", "minhas_vendas", "veiculos_a_venda", "minhas_comissoes"]),
+    ]
+    assert _chaves(bruna["menu_completo"]) == [
+        (None, ["inicio"]),
+        ("Operação", ["locacoes", "vendas", "clientes"]),
+        ("Financeiro", ["caixa", "receber", "despesas"]),
+    ]
+    assert bruna["menu_completo"][2]["itens"][2]["contador"] is None  # lança, não aprova
+    assert bruna["barra_celular"] == ["inicio", "nova_locacao", "locacoes", "mais"]
+
+    # João, vistoriador: a agenda do dia; vê locações (vistoria), mas não cria.
+    joao = _navegacao(adm, "João")
+    assert joao["inicio"]["variante"] == "vistoriador"
+    assert _chaves(joao["menu_inicio"]) == [(None, ["agenda", "consultar_veiculo", "avarias"])]
+    assert _chaves(joao["menu_completo"]) == [
+        (None, ["inicio", "veiculos"]),
+        ("Operação", ["locacoes", "manutencoes"]),
+        ("Financeiro", ["despesas"]),
+    ]
+    assert joao["barra_celular"] == ["inicio", "veiculos", "locacoes", "mais"]
+
+    # Lúcia, financeiro: o menu da tela Financeiro; sem veículos nem locações.
+    lucia = _navegacao(adm, "Lúcia")
+    assert lucia["inicio"]["variante"] == "financeiro"
+    assert _chaves(lucia["menu_inicio"]) == [
+        (None, ["inicio", "receber", "contas_a_pagar", "caixa_e_bancos", "comissoes"]),
+    ]
+    assert _chaves(lucia["menu_completo"]) == [
+        (None, ["inicio"]),
+        ("Operação", ["clientes"]),
+        ("Financeiro", ["caixa", "receber", "despesas", "comissoes", "conciliacao", "relatorios"]),
+    ]
+    assert lucia["barra_celular"] == ["inicio", "mais"]
+
+    # A permissão extra de aprovar desconto traz Aprovações para a vendedora (USR-03).
+    vendedora = adm.pessoas["Bruna"]
+    vendedora.permissoes_extras = ["aprovar_desconto"]
+    vendedora.save()
+    assert _chaves(_navegacao(adm, "Bruna")["menu_completo"])[0] == (None, ["inicio", "aprovacoes"])
+
+
+def test_usr_05_plano_atividade_e_modulos_escondem_itens(adm, settings, planos):
+    from apps.contas import navegacao, selectors
+
+    # Só os módulos entregues: o menu nunca leva a uma tela que não existe.
+    settings.GIRO_MODULOS_ATIVOS = ["contas", "filiais", "plataforma"]
+    mariana = _navegacao(adm, "Mariana")
+    assert _chaves(mariana["menu_completo"]) == [
+        (None, ["inicio"]),
+        ("Administração", ["filiais", "usuarios", "assinatura"]),
+    ]
+    assert mariana["barra_celular"] == ["inicio", "mais"]
+
+    # Plano Essencial: sem vendas, manutenção e despesas, comissões nem relatórios.
+    settings.GIRO_MODULOS_ATIVOS = TODOS_OS_MODULOS
+    adm.empresa.plano = planos["Essencial"]
+    adm.empresa.save(update_fields=["plano"])
+    assert _chaves(_navegacao(adm, "Mariana")["menu_completo"]) == [
+        (None, ["inicio", "aprovacoes", "veiculos"]),
+        ("Operação", ["locacoes", "clientes"]),
+        ("Financeiro", ["caixa", "receber", "conciliacao"]),
+        ("Administração", ADMINISTRACAO),
+    ]
+
+    # Atividade da empresa: quem só aluga não vê vendas; quem só vende não vê locações.
+    pode = selectors.pode_do_perfil("gerente")
+    recursos = list(navegacao.Recurso.values)
+    comum: dict[str, Any] = {"perfil": "gerente", "pode": pode, "recursos": recursos}
+    so_aluga = navegacao.montar(
+        **comum, implantacao_concluida=True, atividade="aluga", modulos=TODOS_OS_MODULOS
+    )
+    assert _chaves(so_aluga["menu_inicio"])[1] == (
+        "Operação",
+        ["locacoes", "clientes", "manutencoes"],
+    )
+    so_vende = navegacao.montar(
+        **comum, implantacao_concluida=True, atividade="vende", modulos=TODOS_OS_MODULOS
+    )
+    assert _chaves(so_vende["menu_inicio"])[1] == (
+        "Operação",
+        ["vendas", "clientes", "manutencoes"],
+    )
+    assert so_vende["barra_celular"] == ["inicio", "veiculos", "mais"]
+
+
+def test_usr_08_administrador_ve_o_geral_depois_da_primeira_locacao(adm, settings):
+    from apps.contas import navegacao, selectors
+
+    settings.GIRO_MODULOS_ATIVOS = TODOS_OS_MODULOS
+    uso = UsoEmpresa.objects.get(empresa=adm.empresa)
+    uso.passos_implantacao = {**uso.passos_implantacao, "primeira_locacao": "2026-10-08"}
+    uso.save(update_fields=["passos_implantacao"])
+    mariana = _navegacao(adm, "Mariana")
+    assert mariana["inicio"]["variante"] == "geral"
+    assert mariana["menu_inicio"] == mariana["menu_completo"]
+
+    # No modo suporte, a variante é a do administrador; com "ver", o menu segue o `pode`.
+    suporte = navegacao.da_empresa(adm.empresa, "administrador", selectors.pode_do_suporte("ver"))
+    assert suporte["inicio"]["variante"] == "geral"
+    assert _chaves(suporte["menu_completo"]) == [
+        (None, ["inicio", "veiculos"]),
+        ("Financeiro", ["relatorios"]),
+        ("Administração", ADMINISTRACAO),
+    ]

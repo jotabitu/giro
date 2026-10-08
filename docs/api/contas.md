@@ -145,7 +145,21 @@ Itens do `menu_completo`, na ordem:
 | Financeiro | `relatorios` | Relatórios | `painel` é `todas_filiais` ou `filial` | `relatorios` | — |
 | Administração | `config`, `marca`, `filiais`, `usuarios`, `assinatura`, `auditoria` | como na tela | `administracao` | — | — |
 
-Os `menu_inicio` de cada variante seguem as telas `Gerente`, `Vendedor`, `Vistoriador` e `Financeiro`, com os mesmos filtros. As variantes `geral` e `implantacao` usam o `menu_completo`. Itens próprios do início: `agenda` ("Vistorias de hoje"), `avarias` ("Avarias abertas") e `consultar_veiculo` (vistoriador); `propostas`, `minhas_vendas`, `veiculos_a_venda` e `minhas_comissoes` (vendedor, fase 2); `contas_a_pagar` e `caixa_e_bancos` (financeiro).
+Os `menu_inicio` de cada variante seguem as telas `Gerente`, `Vendedor`, `Vistoriador` e `Financeiro`, com os mesmos filtros (T-071):
+
+| Variante | Grupos e itens, na ordem |
+| --- | --- |
+| `gerente` | — `inicio` ("Visão da filial"), `aprovacoes`, `veiculos` · Operação: `locacoes`, `vendas`, `clientes`, `manutencoes` · Filial: `caixa` ("Caixa da filial"), `relatorios` |
+| `vendedor` | — `inicio` ("Início") · Operação: `locacoes`, `clientes` · Vendas: `propostas`, `minhas_vendas`, `veiculos_a_venda`, `minhas_comissoes` |
+| `vistoriador` | — `agenda`, `consultar_veiculo`, `avarias` |
+| `financeiro` | — `inicio` ("Início"), `receber`, `contas_a_pagar`, `caixa_e_bancos`, `comissoes` |
+
+- Itens próprios do início: `agenda` e `avarias` pedem `vistorias_fazer`, o recurso `locacoes_vistoria` e a atividade aluga. `consultar_veiculo` pede `pode.veiculos` ≠ `nao`. Os quatro do vendedor pedem `vendas_criar`, o recurso `vendas_comissoes` e a atividade vende. `contas_a_pagar` pede `financeiro_pagar` e o recurso `manutencao_despesas`. `caixa_e_bancos` pede `caixa_abrir_fechar` e o recurso `contas_receber`.
+- `despesas` só traz `contador` para quem aprova despesas (`despesas_aprovar`); para quem só lança, `contador: null`, como em `painel.md`.
+- `barra_celular`: `inicio` e `mais` sempre; `veiculos` e `locacoes` quando o item está no `menu_completo`; `nova_locacao` quando `locacoes` está e a pessoa tem `locacoes_criar`.
+- `GIRO_MODULOS_ATIVOS` lista os apps entregues. Item e app: `aprovacoes` → `aprovacoes`; `veiculos` e `consultar_veiculo` → `veiculos`; `locacoes` → `locacoes`; `vendas`, `comissoes` e os do vendedor → `vendas`; `clientes` → `clientes`; `manutencoes` → `manutencao`; `caixa`, `receber`, `despesas`, `conciliacao`, `contas_a_pagar` e `caixa_e_bancos` → `financeiro`; `relatorios` → `relatorios`; `agenda` e `avarias` → `vistorias`; `config` e `marca` → `empresas`; `filiais` → `filiais`; `usuarios` → `contas`; `assinatura` → `plataforma`; `auditoria` → `auditoria`. `inicio` vem sempre. O padrão é `contas,filiais,plataforma`.
+- Enquanto `ConfiguracaoEmpresa.atividade` não existe, a atividade conta como os dois (aluga e vende).
+- A variante `implantacao` vale até o passo `primeira_locacao` da implantação (`IMP-01`). As variantes `geral` e `implantacao` usam o `menu_completo`. Itens próprios do início: `agenda` ("Vistorias de hoje"), `avarias` ("Avarias abertas") e `consultar_veiculo` (vistoriador); `propostas`, `minhas_vendas`, `veiculos_a_venda` e `minhas_comissoes` (vendedor, fase 2); `contas_a_pagar` e `caixa_e_bancos` (financeiro).
 
 ### PATCH /api/auth/eu/
 Corpo: `{ nome?, celular? }`. E-mail e perfil não mudam por aqui. 200: igual ao `GET`.
