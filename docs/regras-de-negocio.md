@@ -165,7 +165,7 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
 - `USR-04` Desativar usuário encerra a sessão na hora. O histórico do que ele fez continua. Usuário desativado não conta no limite do plano.
 - `USR-05` Menu: tela inicial de cada perfil usa o menu daquele perfil; telas compartilhadas usam o menu completo, escondendo os itens sem permissão. Itens sem permissão nunca aparecem desabilitados, simplesmente não aparecem.
 - `USR-06` Login com e-mail e senha; 5 tentativas erradas bloqueiam por 15 minutos e avisam o administrador. Sessão expira após 12 h sem uso no desktop e 30 dias no celular. Não existe opção "manter conectado".
-- `USR-07` Escopo de filial: o seletor de filial no topo do menu mostra só as filiais da pessoa. Administrador pode escolher "Todas as filiais".
+- `USR-07` Escopo de filial: o seletor de filial no topo do menu mostra só as filiais da pessoa. Administrador e financeiro veem todas as filiais ativas, sem depender das filiais ligadas a eles, e podem escolher "Todas as filiais" (tabela de perfis e `USR-08`). Quem tem a permissão extra de ver relatórios de todas as filiais (`USR-03`) escolhe "Todas as filiais" só no painel e nos relatórios. "Todas as filiais" inclui os dados das filiais desativadas que ainda têm contas ou histórico (`FIL-06`).
 - `USR-08` Tela inicial por perfil. Todos entram pela mesma rota de início, e o sistema mostra a variante do perfil:
   - **Administrador:** `Pos-Dashboard` (o que falta da implantação) até a `IMP-01` concluir; depois, o painel geral de todas as filiais.
   - **Gerente** (`Gerente`, só a sua filial): aprovações pendentes da filial, sem os pedidos que ele mesmo fez (`APR-09`); ocupação; receita da semana; devoluções atrasadas; manutenções; frota da filial por estado; e a equipe da filial hoje, com "online" quando a pessoa usou o sistema nos últimos 5 minutos.
@@ -176,6 +176,8 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
   O início usa o menu do perfil, e as telas compartilhadas usam o menu completo, sem os itens sem permissão (`USR-05`). Cada bloco que depende de um módulo que ainda não existe vem vazio, e não com número de exemplo.
 
 *Mudanças em 07 out 2026 (T-037):* `USR-01` passou a dizer que o e-mail é obrigatório e o celular é opcional; `USR-06` deixou claro que não há "manter conectado".
+
+*Mudanças em 08 out 2026 (T-063):* `USR-07` passou a incluir o financeiro no escopo de todas as filiais, como já diziam a tabela de perfis e a `USR-08`, e a dizer como fica quem tem a permissão extra da `USR-03` (dúvida do arquiteto na T-063). O comportamento não mudou: o texto antigo citava só o administrador.
 *Mudanças em 07 out 2026 (T-041):* na tabela de perfis, o gerente passou a cancelar locação e dar desconto acima de 5% direto, além de aprovar os pedidos do vendedor (decisão do dono do produto, item 19).
 *Mudanças em 07 out 2026 (T-047):* criada a `USR-08` (tela inicial por perfil), a partir das telas iniciais, da `IMP-01` e da tabela de perfis.
 

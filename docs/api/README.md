@@ -55,7 +55,8 @@ Valem para todos os contratos; cada contrato só descreve o que foge daqui.
 | 404 | não existe ou fora do escopo da pessoa (filial de outra pessoa responde 404, não 403) | `{ "codigo": "nao_encontrado", "mensagem": ... }` |
 | 409 | transição de status recusada ou conflito de unicidade | `{ "codigo": "<REGRA>", "mensagem": ..., "detalhes": { ... } }` |
 | 422 | regra de negócio recusou | `{ "codigo": "<REGRA>", "mensagem": ..., "detalhes": { ... } }` |
-| 429 | muitas tentativas (login) | `{ "codigo": "<REGRA>", "mensagem": ..., "detalhes": { "tentar_de_novo_em": "<momento>" } }` |
+| 429 | muitas tentativas (login): bloqueio da conta por regra | `{ "codigo": "<REGRA>", "mensagem": ..., "detalhes": { "tentar_de_novo_em": "<momento>" } }` |
+| 429 | limite de requisições (por IP ou por e-mail, `comum.limites`, IP de `comum.rede.ip_do_cliente`, ADR 0018) | `{ "codigo": "muitas_requisicoes", "mensagem": "Muitas tentativas seguidas. Espere um pouco e tente de novo.", "detalhes": { "tentar_de_novo_em_segundos": 42 } }` e cabeçalho `Retry-After` |
 
 `codigo` é o código da regra (`PLT-03`) quando existe; senão, um identificador fixo em minúsculas listado no contrato do módulo. `mensagem` é o texto que o frontend mostra como está.
 
