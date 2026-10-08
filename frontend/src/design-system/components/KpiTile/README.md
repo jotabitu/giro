@@ -24,7 +24,4 @@ import { KpiGrid, KpiTile, KpiVariacao } from "@/design-system";
 
 ## Valor longo no celular
 
-O numero encolhe para caber no bloco, nunca e cortado: o componente passa o tamanho do texto ao CSS (`--chars`) e o tamanho da fonte vai de 44px ate o minimo de 16px conforme a largura do bloco (container query). Em 4 colunas no desktop o `R$ 1.284.350,00` fica menor que o `71
-## Valor longo no celular
-
 O número encolhe para caber no bloco e nunca é cortado: o componente passa o tamanho do texto ao CSS (`--chars`) e a fonte vai de 44px até o mínimo de 16px conforme a largura do bloco (container query). Em quatro colunas no desktop, `R$ 1.284.350,00` fica menor que `71%`; no celular, em duas colunas, encolhe mais. Abaixo do mínimo o texto quebra no espaço em vez de estourar. Mande o valor já formatado pela API, sem abreviar (nada de `1,2 mi`).
