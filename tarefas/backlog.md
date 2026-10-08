@@ -211,6 +211,9 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - **Depende de:** T-012, T-064
 - **Pronto quando:** F-01 (permissões de administrador somam às padrão, sem perder `EmpresaOperando` e `EscopoDeFilial`; teste de arquitetura no urlconf da empresa), F-02 (`filial_da_requisicao` distingue "todas" de pessoa sem filial, que recebe 403 `USR-07`; o arquiteto confere a interface interna), F-04 (limite por IP sem chave vazia quando falta o IP e com IPv6 agrupado por prefixo; o devops confere o `REMOTE_ADDR` atrás do proxy) e F-05 (limite na busca de CEP) corrigidos, cada um com teste que reproduz o achado; detalhes em `docs/seguranca/2026-10-09-t058-t012.md`.
 
+### T-078 · Menu do frontend segue a navegação da T-071
+- **Agente:** frontend · **Depende de:** T-071 · **Regras:** USR-05, USR-08 · **Pronto quando:** `frontend/src/lib/api/falso-navegacao.ts` devolve o mesmo que `contas/navegacao.py` para os cinco perfis do seed, com as 5 diferenças do handoff da T-071 corrigidas (vendas no gerente, grupo Vendas do vendedor, comissões no lugar de relatórios no financeiro, contador de despesas só para quem aprova, filtro de plano, atividade e módulos); a casca e o início leem só `eu.navegacao`, sem montar menu na tela; teste por perfil. Ligar contas na API real fica numa tarefa própria.
+
 ### T-013 · Veículos, categorias, documentos, histórico de status
 - **Agente:** backend · **Depende de:** T-012 · **Regras:** VEI-01 a VEI-06 · **Telas:** Frota, Veiculo, Precos · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-013.md` (CA-013-01 a 26) passam, com o código da regra no nome do teste.
 
