@@ -422,7 +422,7 @@ Todo dinheiro que entra ou sai passa por uma conta a receber, uma despesa ou um 
 
 *Mudanças em 07 out 2026 (T-041):* `FIN-03` passou a dizer como calcular o pro rata dia (item 14); `FIN-09` ganhou os estados da comissão de locação (item 20). Decisões do dono do produto.
 
-*Mudanças em 08 out 2026 (T-053):* criada a `FIN-15`, que diz de onde vêm os números da tela `Receber` e o contador do menu (o contador segue `docs/api/painel.md`: parcelas atrasadas). A base do "Recebido" (contas que vencem no mês, e não tudo o que foi pago no mês) é o padrão do produto e espera o dono do produto (Pontos em aberto).
+*Mudanças em 08 out 2026 (T-053):* criada a `FIN-15`, que diz de onde vêm os números da tela `Receber` e o contador do menu (o contador segue `docs/api/painel.md`: parcelas atrasadas). A base do "Recebido" (contas que vencem no mês, e não tudo o que foi pago no mês) é a opção A, decidida pelo dono do produto em 08 out 2026.
 
 ## Manutenção e despesas
 
@@ -582,5 +582,5 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 - [ ] **Registrar o domínio** girolocadoras.com.br (e girolocacao.com.br) no registro.br antes que alguém registre.
 - [ ] **Busca de marca no INPI**: "Giro" é um nome muito usado (o domínio principal já pertence a outra empresa). Antes de investir na marca, buscar "GIRO" nas classes 42 (software como serviço) e 9 (software), não só 39 e 12, e considerar registrar a marca mista "Giro Locadoras". Se houver conflito, trocar o nome agora sai mais barato.
 - [ ] **Abrir a conta no Asaas** e confirmar as taxas de boleto e cartão para o volume esperado.
-- [ ] **Base do "Recebido" da tela `Receber`** (`FIN-15`, T-053). A) só as contas que vencem no mês e já foram pagas, para o percentual "do previsto" nunca passar de 100%; B) tudo o que foi pago no mês, inclusive atrasos de meses anteriores (visão de caixa). Padrão: **A**. O dinheiro que entra no dia já aparece no `Caixa`.
+- [x] **Base do "Recebido" da tela `Receber`** (`FIN-15`, T-053). **Decidido em 08 out 2026 pelo dono do produto: A.** A) só as contas que vencem no mês e já foram pagas, para o percentual "do previsto" nunca passar de 100%; B) tudo o que foi pago no mês, inclusive atrasos de meses anteriores (visão de caixa). Padrão: **A**. O dinheiro que entra no dia já aparece no `Caixa`.
 - [ ] **Telas que faltam desenhar:** esqueci a senha, 2 etapas, meu perfil, notificações, contas a pagar separada, multas de trânsito, documentos dos veículos, avarias abertas, pagamento e assinatura pelo cliente final, site de vendas.
