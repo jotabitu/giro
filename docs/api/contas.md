@@ -257,7 +257,11 @@ Corpo: `{ motivo? }`. 200: usuário `desativado`. Na mesma transação revoga to
 422 `ultimo_administrador`; 422 `{ "codigo": "desativar_a_si_mesmo", "mensagem": "Peça a outro administrador para desativar seu acesso" }`.
 
 ### POST /api/usuarios/{id}/reativar/
-200: usuário `ativo`. 422 `PLT-03` se o plano estiver no limite.
+Só para `desativado` (409 `transicao_usuario` nos outros). Reativar depende de a pessoa já ter chegado a `ativo` (`USR-04`):
+- quem já foi `ativo` volta `ativo`, sem convite;
+- quem nunca chegou a `ativo` (convite cancelado, mesmo com a senha já criada) volta para `convite_pendente`, com convite novo de 7 dias pelos mesmos canais (`USR-01`). A senha anterior e os links antigos deixam de valer: o link novo cria a senha.
+
+200: o usuário, como em `GET /api/usuarios/{id}/` (`status` `ativo` ou `convite_pendente`, com `convite_expira_em`). Nos dois casos volta a contar no plano: 422 `PLT-03` se o plano estiver no limite, e nesse caso a pessoa continua `desativado` e nenhum convite sai. Auditoria `seguranca`: `usuario.reativar` ou `usuario.reativar_convite`.
 
 ### POST /api/usuarios/{id}/redefinir-2fa/
 Corpo: `{ motivo }`. 200. Apaga o autenticador e os códigos de recuperação da pessoa e encerra as sessões dela; no próximo login ela configura de novo. Para quem perdeu o celular e os códigos. Auditoria `seguranca`.

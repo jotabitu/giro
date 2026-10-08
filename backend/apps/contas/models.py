@@ -120,7 +120,7 @@ class Usuario(  # type: ignore[django-manager-missing]
     TRANSICOES: ClassVar[dict[str, set[str]]] = {
         "convite_pendente": {"ativo", "desativado"},
         "ativo": {"desativado"},
-        "desativado": {"ativo"},
+        "desativado": {"ativo", "convite_pendente"},  # USR-04: só quem nunca foi ativo
     }
     REGRA_TRANSICAO = "transicao_usuario"
     CATEGORIA_AUDITORIA = Categoria.SEGURANCA

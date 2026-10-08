@@ -283,7 +283,15 @@ class DesativarUsuarioView(AcaoSobreUsuario):
 
 
 class ReativarUsuarioView(AcaoSobreUsuario):
-    @extend_schema(request=None, responses=UsuarioDetalheSerializer, summary="Reativar (PLT-03)")
+    @extend_schema(
+        request=None,
+        responses=UsuarioDetalheSerializer,
+        summary="Reativar (USR-04, PLT-03)",
+        description=(
+            "Quem já foi ativo volta `ativo`; quem nunca chegou a ativo volta para "
+            "`convite_pendente`, com convite novo de 7 dias."
+        ),
+    )
     def post(self, request: Request, pk: int) -> Response:
         return _detalhe(request, services.reativar_usuario(_usuario(pk), por=_eu(request)))
 

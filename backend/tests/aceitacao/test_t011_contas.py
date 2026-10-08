@@ -869,6 +869,76 @@ def test_usr_04_ca_011_22_desativar_encerra_na_hora(adm):
     assert (convite.status_code, convite.json()["codigo"]) == (409, "transicao_usuario")
 
 
+def test_usr_04_ca_011_22_reativar_depende_de_ja_ter_sido_ativo(
+    adm, relogio, django_capture_on_commit_callbacks
+):
+    publica = adm.cliente()
+
+    # Felipe já foi ativo: volta ativo, sem convite, e o plano sobe de 5 para 6.
+    relogio.em("2026-10-08 10:00")
+    api = adm.logar("Mariana")
+    felipe = adm.pessoas["Felipe"]
+    mail.outbox.clear()
+    with django_capture_on_commit_callbacks(execute=True):
+        reativado = api.post(f"{USUARIOS}{felipe.pk}/reativar/", format="json")
+    connection.set_tenant(adm.empresa)
+    assert (reativado.status_code, reativado.json()["status"]) == (200, "ativo")
+    assert reativado.json()["convite_expira_em"] is None
+    assert mail.outbox == []
+    assert _uso_de_usuarios(adm) == 6
+    assert _post(api, f"{USUARIOS}{felipe.pk}/desativar/", adm.empresa).status_code == 200
+
+    # Lúcia nunca chegou a ativo, e já tinha criado a senha. Mariana cancela o convite em 08 out.
+    lucia = adm.pessoas["Lúcia"]
+    _, antigo = services.criar_convite(lucia)
+    cancelado = _post(api, f"{USUARIOS}{lucia.pk}/cancelar-convite/", adm.empresa)
+    assert (cancelado.status_code, cancelado.json()["status"]) == (200, "desativado")
+    assert _uso_de_usuarios(adm) == 4
+
+    # Em 09 out, com o plano em 10 de 10: 422 PLT-03, ela continua desativada e nada sai.
+    relogio.em("2026-10-09 10:00")
+    api = adm.logar("Mariana")
+    UsoEmpresa.objects.filter(empresa=adm.empresa).update(usuarios=10)
+    mail.outbox.clear()
+    with django_capture_on_commit_callbacks(execute=True):
+        cheio = api.post(f"{USUARIOS}{lucia.pk}/reativar/", format="json")
+    connection.set_tenant(adm.empresa)
+    assert (cheio.status_code, cheio.json()["codigo"]) == (422, "PLT-03")
+    assert Usuario.objects.get(pk=lucia.pk).status == StatusUsuario.DESATIVADO
+    assert mail.outbox == []
+    assert not adm.eventos("usuario.reativar_convite").exists()
+
+    # Com vaga: volta para convite pendente, com convite novo até 16 out, e o plano volta a 5.
+    UsoEmpresa.objects.filter(empresa=adm.empresa).update(usuarios=4)
+    with django_capture_on_commit_callbacks(execute=True):
+        reativada = api.post(f"{USUARIOS}{lucia.pk}/reativar/", format="json")
+    connection.set_tenant(adm.empresa)
+    assert reativada.status_code == 200, reativada.json()
+    assert reativada.json()["status"] == "convite_pendente"
+    assert reativada.json()["convite_expira_em"].startswith("2026-10-16")
+    assert _uso_de_usuarios(adm) == 5
+    assert [m.to for m in mail.outbox] == [["lucia@motorapida.com.br"]]
+    evento = adm.eventos("usuario.reativar_convite").get()
+    assert (evento.objeto_id, evento.regra) == (lucia.pk, "USR-04")
+
+    # O link antigo não vale; a senha anterior também não: o link novo cria a senha.
+    assert _post(publica, CONSULTAR, adm.empresa, {"token": antigo}).status_code in (404, 410)
+    senha_velha = adm.entrar("Lúcia")
+    assert (senha_velha.status_code, senha_velha.json()["codigo"]) == (403, "convite_pendente")
+    novo = _token_do_convite(mail.outbox[-1])
+    etapa = _post(publica, ACEITAR, adm.empresa, {"token": novo, "senha": SENHA}).json()
+    assert etapa["etapa"] == "configurar_2fa"
+    assert Usuario.objects.get(pk=lucia.pk).status == StatusUsuario.CONVITE_PENDENTE
+    duas_etapas = adm.cliente()
+    duas_etapas.credentials(HTTP_AUTHORIZATION=f"Bearer {etapa['token_pre_2fa']}")
+    _post(duas_etapas, CONFIGURAR, adm.empresa)
+    dispositivo = Autenticador.objects.get(user=lucia, confirmed=False)
+    pronto = _post(duas_etapas, VERIFICAR, adm.empresa, {"codigo": codigo_atual(dispositivo)})
+    assert pronto.json()["etapa"] == "pronto"
+    assert Usuario.objects.get(pk=lucia.pk).status == StatusUsuario.ATIVO
+    assert services.ja_foi_ativo(lucia) is True
+
+
 def test_usr_04_ca_011_23_sempre_um_administrador(adm):
     mariana = adm.pessoas["Mariana"].pk
     api = adm.logar("Mariana")

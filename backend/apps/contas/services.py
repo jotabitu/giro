@@ -444,9 +444,28 @@ def desativar_usuario(usuario: Usuario, *, por: Usuario, motivo: str = "") -> Us
     return usuario
 
 
+def ja_foi_ativo(usuario: Usuario) -> bool:
+    """USR-04: a pessoa já chegou a `ativo`. Quem nunca teve convite foi criada já ativa (seed,
+    `createsuperuser`); quem teve convite precisa de uma transição para `ativo` na auditoria
+    (`usuario.ativar` ou `usuario.reativar`)."""
+    from apps.auditoria.models import EventoAuditoria
+
+    if not Convite.objects.filter(usuario=usuario).exists():
+        return True
+    return bool(
+        EventoAuditoria.objects.filter(
+            objeto_tipo=Usuario._meta.model_name,
+            objeto_id=usuario.pk,
+            depois__status=StatusUsuario.ATIVO,
+        ).exists()
+    )
+
+
 def reativar_usuario(usuario: Usuario, *, por: Usuario) -> Usuario:
-    """Volta a `ativo` e a contar no plano (422 `PLT-03` no limite). Quem nunca criou a senha
-    usa "Esqueci a senha"."""
+    """USR-04: quem já foi `ativo` volta `ativo`; quem nunca chegou a `ativo` (convite
+    cancelado, mesmo com a senha criada) volta para `convite_pendente`, com convite novo de 7
+    dias pelos mesmos canais (USR-01). Nos dois casos volta a contar no plano (422 `PLT-03` no
+    limite, sem convite)."""
     from apps.plataforma.services import atualizar_uso, exigir_limite
 
     with transaction.atomic():
@@ -454,7 +473,20 @@ def reativar_usuario(usuario: Usuario, *, por: Usuario) -> Usuario:
         if usuario.status != StatusUsuario.DESATIVADO:
             raise Conflito("transicao_usuario", "Só um usuário desativado pode ser reativado.")
         exigir_limite("usuarios")
-        transicionar(usuario, StatusUsuario.ATIVO, acao="usuario.reativar", regra="USR-04")
+        if ja_foi_ativo(usuario):
+            transicionar(usuario, StatusUsuario.ATIVO, acao="usuario.reativar", regra="USR-04")
+        else:
+            transicionar(
+                usuario,
+                StatusUsuario.CONVITE_PENDENTE,
+                acao="usuario.reativar_convite",
+                regra="USR-04",
+            )
+            # O link novo cria a senha: a anterior, se havia, deixa de valer.
+            usuario.set_unusable_password()
+            usuario.save(update_fields=["password", "atualizado_em"])
+            convite, _ = criar_convite(usuario, enviado_por=por)
+            _enviar_depois_do_commit(convite)
         atualizar_uso("usuarios", 1)
     return usuario
 
