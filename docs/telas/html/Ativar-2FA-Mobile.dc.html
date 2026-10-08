@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Ativar verificação em 2 etapas · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.h2{display:flex;align-items:center;gap:10px;margin:0;font-size:18px;line-height:24px;font-weight:600}
+.h2 .n{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--surface-sunken);font-size:13px;flex:none}
+.card{display:flex;flex-direction:column;gap:14px;padding:18px 16px;border-radius:24px;background:var(--surface)}
+.tag{margin:4px 0 0;font-size:13px;line-height:18px;color:var(--ink-muted)}
+.rule{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--success-ink)}
+.otp{width:100%;height:56px;box-sizing:border-box;border:1px solid var(--line);border-radius:14px;background:var(--surface);text-align:center;font-family:var(--font-mono);font-size:20px;color:var(--ink)}
+.otp--erro{border-color:var(--critical)}
+.qr{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;width:150px;height:150px;padding:12px;box-sizing:border-box;border-radius:18px;background:#ffffff;border:1px solid var(--line)}
+.qr span{border-radius:2px;background:#111114}
+.qr i{display:block}
+.aviso{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:16px;background:var(--surface-sunken);font-size:14px;line-height:20px;color:var(--ink-muted)}
+.erro{display:flex;gap:10px;align-items:flex-start;padding:14px 16px;border-radius:16px;background:var(--critical-soft);font-size:14px;line-height:20px;color:var(--critical-ink)}
+.codes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.codes li{padding:12px 14px;border-radius:14px;background:var(--surface-sunken);font-family:var(--font-mono);font-size:15px;text-align:center}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1580px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 10px; padding-top: 8px;">
+<div class="wl-logo-slot" style="width: 34px; height: 34px; border-radius: 10px; font-size: 13px;">MR</div>
+<span style="font-size: 15px; font-weight: 600;">Moto Rápida</span>
+</header>
+
+<div style="padding: 0 4px;"><h1 style="margin: 0; font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -0.02em;">Ativar verificação em 2 etapas</h1><p style="margin: 6px 0 0; font-size: 15px; line-height: 22px; color: var(--ink-muted);">Além da senha, você passa a digitar um código de 6 números do celular. Assim ninguém entra na sua conta só com a senha.</p></div>
+<div class="aviso"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none; color: var(--ink);"><rect x="5" y="10" width="14" height="10" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg><span>Seu perfil exige a verificação em 2 etapas. Termine este passo para entrar no sistema.</span></div>
+<section class="card">
+<h2 class="h2"><span class="n" style="background: var(--solid); color: var(--on-solid);">1</span>Instale um autenticador</h2>
+<p style="margin: 0; font-size: 15px; line-height: 22px; color: var(--ink-muted);">Baixe o Google Authenticator ou o Microsoft Authenticator na loja de aplicativos do celular.</p>
+<button class="wl-btn wl-btn--quiet" style="width: 100%;"><svg class="wl-i" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="3"></rect><path d="M11 18.5h2"></path></svg>Abrir no autenticador</button>
+<div style="font-size: 13px; color: var(--ink-muted);">Ou copie a chave <span class="wl-mono" style="color: var(--ink);">JBSW Y3DP EHPK 3PXP</span></div>
+<div style="font-size: 13px; line-height: 18px; color: var(--ink-muted);">A conta aparece no aplicativo como Moto Rápida.</div>
+</section>
+<section class="card">
+<h2 class="h2"><span class="n" style="background: var(--solid); color: var(--on-solid);">2</span>Digite o código</h2>
+<div><div class="wl-field__label" style="margin-bottom: 8px;">Código do aplicativo</div><div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px;"><input class="otp" value="4" aria-label="Dígito 1" inputmode="numeric" maxlength="1"><input class="otp" value="8" aria-label="Dígito 2" inputmode="numeric" maxlength="1"><input class="otp" value="1" aria-label="Dígito 3" inputmode="numeric" maxlength="1"><input class="otp" value="0" aria-label="Dígito 4" inputmode="numeric" maxlength="1"><input class="otp" value="" aria-label="Dígito 5" inputmode="numeric" maxlength="1"><input class="otp" value="" aria-label="Dígito 6" inputmode="numeric" maxlength="1"></div></div>
+<div class="erro"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none;"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg><span>Código incorreto. Confira o horário do celular e tente de novo.</span></div>
+<p class="tag">O erro acima aparece só quando o código não confere. Depois de 5 erros seguidos (senha e código somados), o acesso fica bloqueado por 15 minutos.</p>
+<button class="wl-btn wl-btn--solid" style="width: 100%; height: 52px;">Ativar verificação</button>
+</section>
+<section class="card">
+<div><h2 class="h2"><span class="n" style="background: var(--solid); color: var(--on-solid);">3</span>Guarde os códigos de recuperação</h2><p class="tag">Aparece depois que o código é aceito, uma única vez.</p></div>
+<p style="margin: 0; line-height: 22px; color: var(--ink-muted);">Se você perder o celular, cada código abaixo vale para um acesso. Eles não aparecem de novo.</p>
+<ul class="codes"><li>K7Q2-9XMD</li><li>P4VT-H8LA</li><li>R2NC-5WZE</li><li>D9YF-3JUB</li><li>M6HX-A4TG</li><li>W8SB-Q2KP</li><li>E3ZL-7RVN</li><li>C5GA-Y9HD</li></ul>
+<div style="display: flex; flex-wrap: wrap; gap: 12px;"><button class="wl-btn wl-btn--quiet wl-btn--sm" style="flex: 1;"><svg class="wl-i" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="3"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>Copiar códigos</button><button class="wl-btn wl-btn--quiet wl-btn--sm" style="flex: 1;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"></path></svg>Baixar arquivo</button></div>
+<label style="display: flex; align-items: center; gap: 10px; font-size: 14px;"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: var(--solid);">Guardei os códigos em um lugar seguro</label>
+<a class="wl-btn wl-btn--solid" href="Main.dc.html" style="width: 100%; box-sizing: border-box; height: 52px; text-decoration: none;">Concluir</a>
+</section>
+<span style="text-align: center; font-size: 13px; color: var(--ink-muted);">Tecnologia Giro</span>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1580}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

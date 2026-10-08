@@ -13,11 +13,15 @@ Uma decisão por arquivo. Para mudar uma decisão, escreva uma nova ADR que subs
 | [0007](0007-pagamentos-asaas.md) | Pagamentos pelo Asaas, com subconta por locadora | aceita |
 | [0008](0008-usuarios-e-autenticacao-por-schema.md) | Usuários e autenticação por schema | aceita, complementada pela 0013 |
 | [0009](0009-fundacao-comum.md) | Fundação comum dos models (`backend/comum/`) | aceita |
-| [0010](0010-auditoria-imutavel.md) | Auditoria imutável em cada schema | aceita; item 7 substituído pela 0014 |
-| [0011](0011-apps-e-limites.md) | Apps Django, dependências e comunicação entre apps | aceita (Admin fora de `TENANT_APPS` pela 0013) |
+| [0010](0010-auditoria-imutavel.md) | Auditoria imutável em cada schema | aceita; item 3 complementado pela 0016, item 7 substituído pela 0014 |
+| [0011](0011-apps-e-limites.md) | Apps Django, dependências e comunicação entre apps | aceita (Admin fora de `TENANT_APPS` pela 0013; app `importacao` pela 0017) |
 | [0012](0012-tarefas-celery-por-empresa.md) | Tarefas Celery por empresa | aceita |
 | [0013](0013-endurecimento-da-autenticacao.md) | Endurecimento da autenticação (tokens, suporte, 2 etapas, Admin, cookie) | aceita, complementada pela 0014 |
 | [0014](0014-sessoes-e-dados-sensiveis.md) | Sessões revogáveis e dados sensíveis (cifra, HMAC, auditoria) | aceita |
+| [0015](0015-leituras-compostas-entre-apps.md) | Leituras compostas entre apps por registro de anotações | aceita |
+| [0016](0016-papeis-de-banco-e-expurgo-da-auditoria.md) | Papéis de banco separados e expurgo da auditoria | aceita |
+| [0017](0017-app-importacao.md) | App `importacao` no último nível da ordem de dependências | aceita |
+| [0018](0018-ajustes-da-conferencia-da-fundacao.md) | Ajustes da conferência da fundação (T-001) | aceita |
 
 O modelo de dados detalhado fica em [`modelo-de-dados.md`](modelo-de-dados.md).
 

@@ -59,6 +59,10 @@ Valem para todos os contratos; cada contrato só descreve o que foge daqui.
 
 `codigo` é o código da regra (`PLT-03`) quando existe; senão, um identificador fixo em minúsculas listado no contrato do módulo. `mensagem` é o texto que o frontend mostra como está.
 
+**Arquivos gerados (planilha e CSV)**
+
+Toda célula de texto que começa com `=`, `+`, `-`, `@`, tabulação ou retorno de carro sai com um apóstrofo na frente (`'=HYPERLINK(...)`), para a planilha não executar fórmula vinda de dado digitado ou importado. Vale para exportações (`AUD-07`), relatórios e qualquer download em `.xlsx` ou `.csv`. Números e datas saem como tipo próprio, sem esse tratamento.
+
 **Auditoria**
 
 Todo endpoint que muda dado grava evento (ADR 0010). O contrato só cita a `acao` gravada quando ela não é óbvia.
