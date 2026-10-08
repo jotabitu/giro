@@ -7,4 +7,3 @@ No máximo uma tarefa por agente. Formato: `T-0xx · título · agente · desde 
 - T-040 · Cobertura de regras e testes de aceitação de T-010 a T-014 · qa · desde 07/10
 - T-021 · Telas de veículos e clientes · frontend · desde 07/10 (dados falsos)
 - T-046 · Componentes pedidos pela T-020 · design-system · desde 07/10
-- T-028 · Limpar dados de exemplo das telas · design-system · desde 08/10
