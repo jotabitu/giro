@@ -28,6 +28,12 @@ Contrato da API: `docs/api/filiais.md` (escrito pelo arquiteto antes da implemen
 - `selectors.py`: `filiais_do_usuario`, `resumo_das_filiais` (`[{id, nome}]` para o `eu` de contas, registrada em `comum.permissoes`, T-011), `filial_da_requisicao`, `esta_aberta`, `proxima_abertura` (interface para os outros apps), representação e lista.
 - `api/`: `/api/filiais/` (lista com `plano` e `indicadores`, criação), `/minhas/`, `/{id}/`, `tornar-matriz`, `desativar`, `reativar`, feriados e sugestões; `/api/enderecos/cep/{cep}/` (`integracoes/cep`, `GIRO_PROVEDOR_CEP` = `falso` ou `viacep`).
 
+## Implementado (T-069)
+
+- F-03 da T-064: `definir_filiais_do_usuario` grava o evento `usuario.alterar_filiais` (`seguranca`, antes e depois com id e nome), desativa o vínculo tirado (`UsuarioFilial.ativo=False`) em vez de apagar e recusa filial acrescentada inexistente ou inativa com 422 `filial_invalida`. `criar_filial` liga quem criou pelo mesmo caminho.
+- USR-07 (T-067): o financeiro, como o administrador, vê todas as filiais ativas, recebe `pode_escolher_todas: true` e usa `X-Filial: todas` (`comum.permissoes.PERFIS_QUE_VEEM_TODAS`). Quem tem só a extra `relatorios_todas_filiais` usa `todas` apenas nas views com `escopo_de_relatorio = True` (painel e relatórios); nas outras, 403 `USR-07`.
+- `GET /api/filiais/{id}/` de filial fora do escopo continua só para o administrador.
+
 ## Para os outros apps
 
 - Filtrar pelo escopo de filial (`USR-07`): só com `selectors.filtrar_por_filial(queryset, request, campo="filial")`. Ninguém lê `filial_da_requisicao` e filtra por conta própria (teste de arquitetura em `tests/test_permissoes_das_rotas.py`). "Todas" é `TodasAsFiliais`, com ids das ativas e das desativadas, e nunca `None`. Pessoa sem filial recebe 403 `USR-07`.

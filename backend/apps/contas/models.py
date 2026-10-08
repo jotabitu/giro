@@ -19,6 +19,7 @@ from urllib.parse import quote, urlencode
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
+from django.db.models.functions import Lower
 from django_otp.models import Device, DeviceManager
 from django_otp.oath import TOTP
 from django_tenants.utils import get_public_schema_name, schema_context
@@ -137,6 +138,8 @@ class Usuario(  # type: ignore[django-manager-missing]
     class Meta:
         verbose_name = "usuário"
         constraints = [
+            # O e-mail é o login: "Bruna@" e "bruna@" são a mesma pessoa (T-045, T-069).
+            models.UniqueConstraint(Lower("email"), name="usuario_email_unico_sem_caixa"),
             # Só um dos dois: equipe da plataforma ou usuário da locadora (ADR 0008).
             models.CheckConstraint(
                 condition=(

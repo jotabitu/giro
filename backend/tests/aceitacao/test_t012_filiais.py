@@ -419,7 +419,9 @@ def test_usr_07_ca_012_12_so_o_administrador_administra_filiais(moto):
                 f"/api/filiais/{caucaia.pk}/{acao}/", {"motivo": "x"}, format="json"
             )
             assert resposta.status_code == 403, (nome, acao)
-        assert api.get(f"/api/filiais/{caucaia.pk}/").status_code == 404, nome
+        # O financeiro vê todas as filiais ativas (USR-07, T-067); os outros, só as suas.
+        fora_do_escopo = 200 if nome == "Lúcia" else 404
+        assert api.get(f"/api/filiais/{caucaia.pk}/").status_code == fora_do_escopo, nome
         assert api.get(f"/api/filiais/{centro.pk}/").status_code == 200, nome
 
 

@@ -1,5 +1,9 @@
-"""Convites, usuários e senha (USR-01, USR-06, PLT-08, PLT-09). Único lugar que cria usuário e
-muda status.
+"""Convites, usuários e senha (USR-01, USR-03, USR-04, USR-06, PLT-03, PLT-08, PLT-09). Único
+lugar que cria usuário e muda status.
+
+Cada pessoa tem um convite valendo por vez: um convite novo, reenviado ou aceito invalida os
+anteriores (P-06 da T-057). O token vai no fragmento do link (`/convite#<token>`) e chega à API
+só no corpo (P-09, T-072).
 
 O token do convite nunca vai para a fila do Celery: a tarefa de envio recebe só o id do
 convite e gera o token na hora (o link anterior deixa de valer). O comando da equipe da
@@ -14,14 +18,14 @@ from typing import Any
 from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.http import Http404
 from rest_framework import status
 
 from comum import relogio
 from comum.auditoria import Categoria, registrar_evento, retrato
 from comum.conexao import schema_atual
-from comum.erros import Conflito, ErroDeNegocio, ErroDeValidacao
+from comum.erros import Conflito, ErroDeNegocio, ErroDeRegra, ErroDeValidacao
 from comum.estados import transicionar
 
 from .models import (
@@ -55,11 +59,23 @@ def _novo_token() -> tuple[str, str]:
 
 
 def link_do_convite(host: str, token: str) -> str:
-    return f"https://{host}/convite/{token}"
+    """O token no fragmento: não chega ao servidor nem ao proxy (P-09)."""
+    return f"https://{host}/convite#{token}"
+
+
+def _invalidar_convites(usuario: Usuario, exceto: int | None = None) -> None:
+    """P-06: os outros convites da pessoa vencem agora (o link antigo responde 410)."""
+    agora = relogio.agora()
+    convites = Convite.objects.filter(usuario=usuario, expira_em__gt=agora)
+    if exceto is not None:
+        convites = convites.exclude(pk=exceto)
+    convites.update(expira_em=agora, atualizado_em=agora)
 
 
 def criar_convite(usuario: Usuario, enviado_por: Usuario | None = None) -> tuple[Convite, str]:
-    """Convite novo de 7 dias. Devolve o token em claro uma vez; o banco guarda o hash."""
+    """Convite novo de 7 dias, que invalida os anteriores (P-06). Devolve o token em claro uma
+    vez; o banco guarda o hash."""
+    _invalidar_convites(usuario)
     token, token_hash = _novo_token()
     convite = Convite.objects.create(
         usuario=usuario,
@@ -92,24 +108,70 @@ def convite_pelo_token(token: str) -> Convite:
     return convite
 
 
-# --- Administrador da empresa nova (PLT-01, USR-01) ---
+# --- Convite da empresa (USR-01, PLT-03) ---
+
+EMAIL_EM_USO = ("email_em_uso", "Já existe um usuário com este e-mail")
 
 
-def convidar_administrador(nome: str, email: str, celular: str = "") -> Convite:
-    """No schema da empresa: administrador `convite_pendente` e convite enviado após o commit."""
-    from apps.plataforma.services import atualizar_uso
+def _so_digitos(texto: str) -> str:
+    return "".join(c for c in texto if c.isdigit())
 
+
+def _conferir_celular(celular: str, erros: dict[str, list[str]]) -> str:
+    digitos = _so_digitos(celular)
+    if celular and len(digitos) not in (10, 11):
+        erros["celular"] = ["Informe o celular com DDD."]
+    return digitos
+
+
+def _definir_filiais(usuario: Usuario, filiais: list[int]) -> None:
+    """O app `filiais` grava o vínculo na mesma transação (contrato de contas; ADR 0011)."""
+    from comum.eventos import publicar
+
+    publicar("contas.filiais_do_usuario_definidas", usuario_id=usuario.pk, filiais_ids=filiais)
+
+
+def convidar(
+    *,
+    email: str,
+    perfil: str,
+    filiais: list[int] | None = None,
+    nome: str = "",
+    celular: str = "",
+    permissoes_extras: list[str] | None = None,
+    por: Usuario | None = None,
+) -> Usuario:
+    """Pessoa `convite_pendente` e convite de 7 dias, enviado depois do commit por e-mail e, com
+    celular, por WhatsApp (USR-01). Conta no limite do plano (PLT-03)."""
+    from apps.plataforma.services import atualizar_uso, exigir_limite
+
+    email = email.strip().lower()
+    filiais = sorted(set(filiais or []))
+    erros: dict[str, list[str]] = {}
+    if perfil != Perfil.ADMINISTRADOR and not filiais:
+        erros["filiais"] = ["Escolha ao menos uma filial."]
+    celular = _conferir_celular(celular, erros)
+    if erros:
+        raise ErroDeValidacao(erros)
     with transaction.atomic():
+        if Usuario.objects.filter(email__iexact=email).exists():
+            raise Conflito(*EMAIL_EM_USO)
+        exigir_limite("usuarios")
         usuario = Usuario(
-            email=email.strip().lower(),
-            nome=nome.strip(),
+            email=email,
+            nome=nome.strip() or email.split("@")[0],
             celular=celular,
-            perfil=Perfil.ADMINISTRADOR,
+            perfil=perfil,
+            permissoes_extras=sorted(set(permissoes_extras or [])),
             status=StatusUsuario.CONVITE_PENDENTE,
         )
         usuario.set_unusable_password()
-        usuario.full_clean(exclude=["password"])
-        usuario.save()
+        usuario.full_clean(exclude=["password"], validate_unique=False, validate_constraints=False)
+        try:
+            with transaction.atomic():
+                usuario.save()
+        except IntegrityError as erro:  # o mesmo e-mail, ao mesmo tempo
+            raise Conflito(*EMAIL_EM_USO) from erro
         registrar_evento(
             "usuario.convidar",
             Categoria.SEGURANCA,
@@ -117,10 +179,19 @@ def convidar_administrador(nome: str, email: str, celular: str = "") -> Convite:
             depois=retrato(usuario),
             regra="USR-01",
         )
-        convite, _ = criar_convite(usuario)
+        if perfil != Perfil.ADMINISTRADOR:
+            _definir_filiais(usuario, filiais)
+        convite, _ = criar_convite(usuario, enviado_por=por)
         atualizar_uso("usuarios", 1)  # convite pendente conta no limite (USR-01)
         _enviar_depois_do_commit(convite)
-    return convite
+    return usuario
+
+
+def convidar_administrador(nome: str, email: str, celular: str = "") -> Convite:
+    """Administrador da compra (PLT-01), no schema da empresa nova: o mesmo convite, sem quem
+    convidou. Ao ficar `ativo`, marca o passo `conta` da implantação."""
+    usuario = convidar(email=email, nome=nome, celular=celular, perfil=Perfil.ADMINISTRADOR)
+    return Convite.objects.filter(usuario=usuario).latest("criado_em")
 
 
 def _enviar_depois_do_commit(convite: Convite) -> None:
@@ -128,6 +199,44 @@ def _enviar_depois_do_commit(convite: Convite) -> None:
 
     schema = schema_atual()
     transaction.on_commit(lambda: contas_enviar_convite.delay(schema, convite.pk))
+
+
+def _travar(usuario: Usuario) -> Usuario:
+    """Relê a pessoa com a linha travada: o status conferido é o que vai mudar."""
+    travado: Usuario = Usuario.objects.select_for_update().get(pk=usuario.pk)
+    return travado
+
+
+def reenviar_convite(usuario: Usuario, por: Usuario) -> Usuario:
+    """Só `convite_pendente`: convite novo de 7 dias pelos mesmos canais; o link anterior deixa
+    de valer (P-06)."""
+    with transaction.atomic():
+        usuario = _travar(usuario)
+        if usuario.status != StatusUsuario.CONVITE_PENDENTE:
+            raise Conflito("transicao_usuario", "Só um convite pendente pode ser reenviado.")
+        convite, _ = criar_convite(usuario, enviado_por=por)
+        registrar_evento(
+            "usuario.reenviar_convite", Categoria.SEGURANCA, objeto=usuario, regra="USR-01"
+        )
+        _enviar_depois_do_commit(convite)
+    return usuario
+
+
+def cancelar_convite(usuario: Usuario, por: Usuario) -> Usuario:
+    """Só `convite_pendente`: a pessoa vai para `desativado` e sai do plano."""
+    from apps.plataforma.services import atualizar_uso
+
+    with transaction.atomic():
+        usuario = _travar(usuario)
+        if usuario.status != StatusUsuario.CONVITE_PENDENTE:
+            raise Conflito("transicao_usuario", "Só um convite pendente pode ser cancelado.")
+        transicionar(
+            usuario, StatusUsuario.DESATIVADO, acao="usuario.cancelar_convite", regra="USR-01"
+        )
+        _invalidar_convites(usuario)
+        _sessoes().revogar_todas(usuario, MotivoRevogacao.USUARIO_DESATIVADO, por=por)
+        atualizar_uso("usuarios", -1)
+    return usuario
 
 
 # --- Equipe da plataforma (PLT-08, PLT-09) ---
@@ -163,24 +272,52 @@ def convidar_equipe_plataforma(email: str, funcao: str, nome: str) -> tuple[Usua
     return usuario, link_do_convite(host_da_plataforma(), token)
 
 
-def aceitar_convite(token: str, senha: str) -> Usuario:
-    """Cria a senha. A pessoa continua `convite_pendente` até confirmar o 2FA (PLT-08)."""
+def aceitar_convite(token: str, senha: str, nome: str | None = None) -> Usuario:
+    """Cria a senha (e corrige o nome, na empresa). A pessoa continua `convite_pendente` até o
+    `pronto`: na hora, sem 2 etapas, ou ao confirmar o código (USR-01, PLT-08). Os outros
+    convites dela deixam de valer (P-06)."""
     with transaction.atomic():
         convite = convite_pelo_token(token)
+        # Dois aceites ao mesmo tempo: o segundo espera e cai no 404 de convite usado.
+        Convite.objects.select_for_update().filter(pk=convite.pk).get()
+        convite = convite_pelo_token(token)
         usuario = convite.usuario
+        if nome is not None and nome.strip():
+            usuario.nome = nome.strip()
         validar_senha(senha, usuario, campo="senha")
         usuario.set_password(senha)
-        usuario.save(update_fields=["password", "atualizado_em"])
+        usuario.save(update_fields=["nome", "password", "atualizado_em"])
         convite.aceito_em = relogio.agora()
         convite.save(update_fields=["aceito_em", "atualizado_em"])
-        registrar_evento("usuario.aceitar_convite", Categoria.SEGURANCA, objeto=usuario)
+        _invalidar_convites(usuario, exceto=convite.pk)
+        registrar_evento(
+            "usuario.aceitar_convite", Categoria.SEGURANCA, objeto=usuario, regra="USR-01"
+        )
     return usuario
 
 
 def ativar_depois_do_2fa(usuario: Usuario) -> None:
-    """Convite aceito e código confirmado: a pessoa passa a `ativo`."""
-    if usuario.status == StatusUsuario.CONVITE_PENDENTE:
-        transicionar(usuario, StatusUsuario.ATIVO, acao="usuario.ativar")
+    """Convite aceito e, se exigido, código confirmado: a pessoa passa a `ativo`.
+
+    O administrador da compra (convite sem quem convidou) marca o passo `conta` da implantação
+    (IMP-05).
+    """
+    if usuario.status != StatusUsuario.CONVITE_PENDENTE:
+        return
+    transicionar(usuario, StatusUsuario.ATIVO, acao="usuario.ativar", regra="USR-01")
+    if usuario.perfil == Perfil.ADMINISTRADOR and _administrador_da_compra(usuario):
+        from apps.plataforma.services import registrar_passo_implantacao
+
+        registrar_passo_implantacao("conta")
+
+
+def _administrador_da_compra(usuario: Usuario) -> bool:
+    aceito = (
+        Convite.objects.filter(usuario=usuario, aceito_em__isnull=False)
+        .order_by("-aceito_em")
+        .first()
+    )
+    return aceito is not None and aceito.enviado_por_id is None
 
 
 def convite_aceito(usuario: Usuario) -> bool:
@@ -205,6 +342,140 @@ def pode_configurar_2fa(usuario: Usuario) -> bool:
     if usuario.status == StatusUsuario.ATIVO:
         return True
     return usuario.status == StatusUsuario.CONVITE_PENDENTE and convite_em_validade(usuario)
+
+
+# --- Administração de usuários (USR-03, USR-04; tela Admin-Usuarios) ---
+
+ULTIMO_ADMINISTRADOR = (
+    "ultimo_administrador",
+    "A empresa precisa de ao menos um administrador ativo",
+)
+
+
+def _conferir_outro_administrador(usuario: Usuario) -> None:
+    """422 se `usuario` é o último administrador ativo. Trava os administradores: dois
+    rebaixamentos ao mesmo tempo não deixam a empresa sem nenhum."""
+    administradores = list(
+        Usuario.objects.select_for_update()
+        .filter(perfil=Perfil.ADMINISTRADOR, status=StatusUsuario.ATIVO)
+        .values_list("pk", flat=True)
+    )
+    if set(administradores) <= {usuario.pk}:
+        raise ErroDeRegra(*ULTIMO_ADMINISTRADOR)
+
+
+def alterar_usuario(
+    usuario: Usuario,
+    *,
+    por: Usuario,
+    perfil: str | None = None,
+    filiais: list[int] | None = None,
+    permissoes_extras: list[str] | None = None,
+) -> Usuario:
+    """`PATCH /api/usuarios/{id}/`. Cada parte vai para a auditoria (`seguranca`) com antes e
+    depois. O perfil novo que exige 2 etapas derruba os tokens sem `otp` (ADR 0013)."""
+    with transaction.atomic():
+        usuario = _travar(usuario)
+        perfil_final = perfil or usuario.perfil
+        if perfil is not None and perfil != usuario.perfil:
+            if usuario.perfil == Perfil.ADMINISTRADOR and usuario.status == StatusUsuario.ATIVO:
+                _conferir_outro_administrador(usuario)
+            if (
+                usuario.perfil == Perfil.ADMINISTRADOR
+                and perfil != Perfil.ADMINISTRADOR
+                and not filiais
+            ):
+                raise ErroDeValidacao({"filiais": ["Escolha ao menos uma filial."]})
+            antes = usuario.perfil
+            usuario.perfil = perfil
+            usuario.save(update_fields=["perfil", "atualizado_em"])
+            registrar_evento(
+                "usuario.alterar_perfil",
+                Categoria.SEGURANCA,
+                objeto=usuario,
+                antes={"perfil": antes},
+                depois={"perfil": perfil},
+                regra="USR-03",
+            )
+        if filiais is not None and perfil_final != Perfil.ADMINISTRADOR:
+            if not filiais:
+                raise ErroDeValidacao({"filiais": ["Escolha ao menos uma filial."]})
+            _definir_filiais(usuario, sorted(set(filiais)))
+        if permissoes_extras is not None:
+            novas = sorted(set(permissoes_extras))
+            antes_extras = sorted(usuario.permissoes_extras)
+            if novas != antes_extras:
+                usuario.permissoes_extras = novas
+                usuario.save(update_fields=["permissoes_extras", "atualizado_em"])
+                registrar_evento(
+                    "usuario.alterar_permissoes",
+                    Categoria.SEGURANCA,
+                    objeto=usuario,
+                    antes={"permissoes_extras": antes_extras},
+                    depois={"permissoes_extras": novas},
+                    regra="USR-03",
+                )
+    return usuario
+
+
+def desativar_usuario(usuario: Usuario, *, por: Usuario, motivo: str = "") -> Usuario:
+    """USR-04: na mesma transação revoga as sessões (a pessoa sai na requisição seguinte) e
+    tira do plano. O histórico continua."""
+    from apps.plataforma.services import atualizar_uso
+
+    if usuario.pk == por.pk:
+        raise ErroDeRegra(
+            "desativar_a_si_mesmo", "Peça a outro administrador para desativar seu acesso"
+        )
+    with transaction.atomic():
+        usuario = _travar(usuario)
+        if usuario.perfil == Perfil.ADMINISTRADOR and usuario.status == StatusUsuario.ATIVO:
+            _conferir_outro_administrador(usuario)
+        transicionar(
+            usuario,
+            StatusUsuario.DESATIVADO,
+            acao="usuario.desativar",
+            motivo=motivo,
+            regra="USR-04",
+        )
+        _invalidar_convites(usuario)
+        _sessoes().revogar_todas(usuario, MotivoRevogacao.USUARIO_DESATIVADO, por=por)
+        atualizar_uso("usuarios", -1)
+    return usuario
+
+
+def reativar_usuario(usuario: Usuario, *, por: Usuario) -> Usuario:
+    """Volta a `ativo` e a contar no plano (422 `PLT-03` no limite). Quem nunca criou a senha
+    usa "Esqueci a senha"."""
+    from apps.plataforma.services import atualizar_uso, exigir_limite
+
+    with transaction.atomic():
+        usuario = _travar(usuario)
+        if usuario.status != StatusUsuario.DESATIVADO:
+            raise Conflito("transicao_usuario", "Só um usuário desativado pode ser reativado.")
+        exigir_limite("usuarios")
+        transicionar(usuario, StatusUsuario.ATIVO, acao="usuario.reativar", regra="USR-04")
+        atualizar_uso("usuarios", 1)
+    return usuario
+
+
+def redefinir_2fa(usuario: Usuario, *, por: Usuario, motivo: str) -> Usuario:
+    """Apaga autenticador e códigos e encerra as sessões; no próximo login a pessoa configura
+    de novo, se o perfil exigir (USR-02). Para quem perdeu o celular e os códigos."""
+    from .dois_fatores import remover_2fa
+
+    with transaction.atomic():
+        usuario = _travar(usuario)
+        remover_2fa(usuario)
+        registrar_evento(
+            "usuario.redefinir_2fa",
+            Categoria.SEGURANCA,
+            objeto=usuario,
+            motivo=motivo,
+            regra="USR-02",
+        )
+        _sessoes().revogar_todas(usuario, MotivoRevogacao.REVOGADA_PELO_ADMINISTRADOR, por=por)
+    return usuario
 
 
 # --- Senha (tela Acesso-Senha, "Esqueci a senha") ---

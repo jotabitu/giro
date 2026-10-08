@@ -16,7 +16,13 @@ from comum import relogio
 from comum.erros import NaoEncontrado
 from comum.limites import CepPorUsuario
 from comum.paginacao import PaginacaoPorCursor
-from comum.permissoes import com_padrao, exige_perfil, filiais_permitidas, pode_escolher_todas
+from comum.permissoes import (
+    com_padrao,
+    exige_perfil,
+    filiais_permitidas,
+    pode,
+    pode_escolher_todas,
+)
 from integracoes.cep import buscar_cep
 
 from .. import selectors, services
@@ -107,7 +113,8 @@ class FilialView(APIView):
 
     @extend_schema(responses=FilialSerializer, summary="Filial")
     def get(self, request: Request, pk: int) -> Response:
-        if not pode_escolher_todas(request.user) and pk not in filiais_permitidas(request.user):
+        # Filial desativada (fora do escopo) só o administrador abre.
+        if not pode(request.user, "administracao") and pk not in filiais_permitidas(request.user):
             raise Http404
         return _representacao(get_object_or_404(Filial, pk=pk))
 

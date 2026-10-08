@@ -38,7 +38,15 @@ Contrato da API: `docs/api/contas.md` (escrito pelo arquiteto antes da implement
 - `selectors.py`: `pode` (tabela do contrato mais as permissões extras, que só somam, `USR-03`), `extra_e_padrao_do_perfil`, `administradores`, `dados_do_eu`. `pode` é registrado em `comum.permissoes`.
 - `senhas.py`: validadores com texto pronto (12 ou mais, letras e números, diferente do e-mail e do nome da empresa, fora das comuns).
 - `RedefinicaoSenha`: link de 1 hora, uso único, 3 pedidos por hora; o token vai no fragmento (`/entrar/redefinir#<token>`).
-- Ficam para a T-069: rotas de usuários e convite da empresa (com P-06 e P-09), e-mail único por `Lower(email)`, F-03, `X-Filial: todas` para o financeiro. T-070: modo suporte. T-071: navegação do `eu`.
+- T-070: modo suporte. T-071: navegação do `eu`.
+
+## Implementado (T-069: usuários e convite da empresa)
+
+- `api/usuarios.py` (host da empresa): `usuarios/` (lista com `plano` e `contagens`, filtros `situacao`, `perfil`, `filial`, `busca`), detalhe com `permissoes_extras` (`marcada`, `padrao_do_perfil`) e `entrou_em`, `PATCH` (perfil, filiais, permissões extras), `convites/`, `reenviar-convite`, `cancelar-convite`, `desativar`, `reativar`, `redefinir-2fa`, `sessoes` e `sessoes/{sid}/encerrar`. Só o administrador. Públicas: `convites/consultar/` e `convites/aceitar/`, com o token no corpo (P-09) e 30 por minuto por IP.
+- `services.py`: `convidar` (e-mail obrigatório e único sem diferenciar maiúsculas, filial obrigatória para quem não é administrador, `exigir_limite` e `atualizar_uso` na transação, envio depois do commit por e-mail e, com celular, por WhatsApp), `reenviar_convite`, `cancelar_convite`, `alterar_usuario` (auditoria `usuario.alterar_perfil` e `usuario.alterar_permissoes`; `ultimo_administrador`), `desativar_usuario` (revoga as sessões na mesma transação; `desativar_a_si_mesmo`), `reativar_usuario` (`PLT-03`), `redefinir_2fa`. `convidar_administrador` usa o mesmo `convidar`; quando o administrador da compra fica `ativo`, marca o passo `conta` da implantação.
+- P-06: um convite novo, reenviado ou aceito invalida os outros da pessoa (`expira_em = agora`; o link antigo responde 410). O link sai como `/convite#<token>`, também no convite da equipe da plataforma, que passou para `plataforma/convites/consultar/` e `aceitar/` com o token no corpo.
+- `Usuario`: restrição `usuario_email_unico_sem_caixa` em `Lower(email)`.
+- WhatsApp atrás de `integracoes/whatsapp` (`GIRO_PROVEDOR_WHATSAPP`, só o falso por enquanto).
 
 ## Eventos assinados
 

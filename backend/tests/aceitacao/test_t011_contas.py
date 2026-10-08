@@ -1,7 +1,7 @@
 """T-011 · Contas, perfis, 2 etapas, convite (critérios em docs/qa/criterios/T-011.md).
 
-A T-011 entrega login, sessões, 2 etapas, `eu` e senha. Os critérios de usuários e convite são da
-T-069 e os do modo suporte, da T-070 (divisão combinada com o Orquestrador em 09/10).
+A T-011 entregou login, sessões, 2 etapas, `eu` e senha; a T-069, usuários e convite. Os critérios
+do modo suporte são da T-070 (divisão combinada com o Orquestrador em 09/10).
 
 Roda na `empresa_a` (host `empresa-a.localhost`), com o nome de exibição "Moto Rápida" e as
 pessoas do seed.
@@ -19,14 +19,17 @@ from django.db import connection
 from rest_framework.test import APIClient
 
 from apps.auditoria.models import EventoAuditoria
-from apps.contas import selectors
-from apps.contas.models import Convite, PermissaoExtra, StatusUsuario, Usuario
+from apps.contas import selectors, services
+from apps.contas.models import Autenticador, Convite, PermissaoExtra, StatusUsuario, Usuario
 from apps.empresas.services import definir_exige_2fa_todos
+from apps.filiais.models import UsuarioFilial
+from apps.plataforma.models import UsoEmpresa
+from comum.autenticacao import AMR_SENHA_E_CODIGO, emitir_tokens
+from integracoes.whatsapp.falso import caixa_de_saida
 
-from .apoio import USUARIOS_SEED, aguarda, pendente
+from .apoio import aguarda, pendente
 from .conftest import autenticador_confirmado, codigo_atual, liberar_codigo
 
-T_USUARIOS = "T-069"
 T_SUPORTE = "T-070"
 
 HOST = "empresa-a.localhost"
@@ -139,6 +142,53 @@ def moto(empresa_a, relogio_jwt) -> Moto:
     return Moto(empresa_a)
 
 
+USUARIOS = "/api/usuarios/"
+CONSULTAR = "/api/convites/consultar/"
+ACEITAR = "/api/convites/aceitar/"
+
+
+@pytest.fixture
+def adm(moto, planos) -> Moto:
+    """A Moto Rápida da tela `Admin-Usuarios`: plano Profissional (5 de 10 usuários) e a Filial
+    Centro com Rodrigo, Bruna, João e Felipe. Mariana e Lúcia veem todas as filiais."""
+    from apps.filiais.services import criar_filial, definir_filiais_do_usuario
+
+    from .test_t012_filiais import CENTRO
+
+    moto.empresa.plano = planos["Profissional"]
+    moto.empresa.save(update_fields=["plano"])
+    UsoEmpresa.objects.update_or_create(
+        empresa=moto.empresa, defaults={"usuarios": 5, "filiais": 0}
+    )
+    moto.centro = criar_filial(CENTRO, moto.pessoas["Mariana"])
+    for nome in ("Rodrigo", "Bruna", "João", "Felipe"):
+        definir_filiais_do_usuario(moto.pessoas[nome].pk, [moto.centro.pk])
+    caixa_de_saida.clear()
+    return moto
+
+
+def _uso_de_usuarios(moto: Moto) -> int:
+    return int(UsoEmpresa.objects.get(empresa=moto.empresa).usuarios)
+
+
+def _token_do_convite(mensagem: Any) -> str:
+    achado = re.search(r"/convite#(\S+)", mensagem.body)
+    assert achado, mensagem.body
+    return achado.group(1)
+
+
+def _api_de(moto: Moto, nome: str) -> APIClient:
+    """Token de quem já passou pelas 2 etapas, mesmo sem login pela API (João e Lúcia)."""
+    from comum.estados import transicionar
+
+    usuario = Usuario.objects.get(pk=moto.pessoas[nome].pk)
+    transicionar(usuario, StatusUsuario.ATIVO)
+    refresh = emitir_tokens(usuario, AMR_SENHA_E_CODIGO)
+    api = moto.cliente()
+    api.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
+    return api
+
+
 def _get(api: APIClient, rota: str, empresa: Any) -> Any:
     resposta = api.get(rota)
     connection.set_tenant(empresa)
@@ -154,21 +204,57 @@ def _post(api: APIClient, rota: str, empresa: Any, corpo: Any = None, **extra: A
 # --- Lista e plano (T-069) ---
 
 
-@aguarda(T_USUARIOS)
-def test_usr_01_ca_011_01_contagens_do_seed():
-    pendente(
-        contagens={"todos": 6, "ativos": 3, "convites": 2, "desativados": 1},
-        plano={"usado": 5, "limite": 10, "aviso": False, "bloqueado": False},
-        usuarios=USUARIOS_SEED,
-        felipe_conta_no_plano=False,
-    )
+def test_usr_01_ca_011_01_contagens_do_seed(adm):
+    api = adm.logar("Mariana")
+    corpo = _get(api, USUARIOS, adm.empresa).json()
+    assert corpo["contagens"] == {"todos": 6, "ativos": 3, "convites": 2, "desativados": 1}
+    assert corpo["plano"] == {"usado": 5, "limite": 10, "aviso": False, "bloqueado": False}
+    pessoas = {item["nome"]: item for item in corpo["resultados"]}
+    assert set(pessoas) == set(PESSOAS)
+    assert (pessoas["Mariana"]["eu"], pessoas["Mariana"]["todas_filiais"]) == (True, True)
+    assert pessoas["Lúcia"]["todas_filiais"] is True
+    assert pessoas["Rodrigo"]["filiais"] == [{"id": adm.centro.pk, "nome": "Filial Centro"}]
+    assert pessoas["Rodrigo"]["dois_fatores_ativo"] is True
+    assert pessoas["Bruna"]["dois_fatores_ativo"] is False
+    assert pessoas["João"]["convite_expira_em"] == "2026-10-15T02:59:59Z"  # 14 out, 23:59:59
+    assert pessoas["Lúcia"]["convite_expira_em"] is None  # já aceitou
+    assert pessoas["Mariana"]["ultimo_acesso_em"] is not None
+    assert "proximo" in corpo and "anterior" in corpo
+
+    desativados = _get(api, f"{USUARIOS}?situacao=desativados", adm.empresa).json()
+    assert [u["nome"] for u in desativados["resultados"]] == ["Felipe"]
+    assert desativados["plano"]["usado"] == 5  # Felipe não conta no plano
+    vendedores = _get(api, f"{USUARIOS}?perfil=vendedor&busca=bru", adm.empresa).json()
+    assert [u["nome"] for u in vendedores["resultados"]] == ["Bruna"]
+    da_centro = _get(api, f"{USUARIOS}?filial={adm.centro.pk}", adm.empresa).json()
+    assert len(da_centro["resultados"]) == 6  # 4 ligados e quem vê todas
 
 
-@aguarda(T_USUARIOS)
-def test_usr_01_ca_011_02_so_o_administrador_administra_usuarios():
-    pendente(
-        recebem_403=["Rodrigo", "Bruna", "João", "Lúcia"], rotas=["GET /api/usuarios/", "escritas"]
-    )
+def test_usr_01_ca_011_02_so_o_administrador_administra_usuarios(adm):
+    rodrigo = adm.pessoas["Rodrigo"].pk
+    rotas = [
+        ("get", USUARIOS, None),
+        ("get", f"{USUARIOS}{rodrigo}/", None),
+        ("get", f"{USUARIOS}{rodrigo}/sessoes/", None),
+        ("post", f"{USUARIOS}convites/", {"email": "x@motorapida.com.br", "perfil": "vendedor"}),
+        ("patch", f"{USUARIOS}{rodrigo}/", {"perfil": "vendedor"}),
+        ("post", f"{USUARIOS}{rodrigo}/desativar/", {}),
+        ("post", f"{USUARIOS}{rodrigo}/reativar/", {}),
+        ("post", f"{USUARIOS}{rodrigo}/reenviar-convite/", {}),
+        ("post", f"{USUARIOS}{rodrigo}/cancelar-convite/", {}),
+        ("post", f"{USUARIOS}{rodrigo}/redefinir-2fa/", {"motivo": "x"}),
+    ]
+    apis = {
+        "Rodrigo": adm.logar("Rodrigo"),
+        "Bruna": adm.logar("Bruna"),
+        "João": _api_de(adm, "João"),
+        "Lúcia": _api_de(adm, "Lúcia"),
+    }
+    for nome, api in apis.items():
+        for metodo, rota, corpo in rotas:
+            resposta = getattr(api, metodo)(rota, corpo, format="json")
+            connection.set_tenant(adm.empresa)
+            assert resposta.status_code == 403, (nome, metodo, rota)
 
 
 # --- Login e sessão (USR-06) ---
@@ -386,16 +472,23 @@ def test_usr_02_ca_011_11_exigir_para_todos(moto):
     assert moto.pessoas["Bruna"].exige_2fa_pela_regra is True
 
 
-def test_usr_02_ca_011_12_mudar_de_perfil(moto):
-    """O mecanismo (perfil novo derruba o token sem `otp`). A rota e a auditoria
-    `usuario.alterar_perfil` são da T-069."""
-    rodrigo = moto.pessoas["Rodrigo"]
-    moto.autenticador["Rodrigo"].delete()  # Rodrigo sem autenticador, entra só com senha
-    api = moto.logar("Rodrigo")
-    Usuario.objects.filter(pk=rodrigo.pk).update(perfil="financeiro")
-    resposta = _get(api, EU, moto.empresa)
-    assert resposta.status_code == 401
-    assert resposta.json()["codigo"] == "2fa_obrigatorio"
+def test_usr_02_ca_011_12_mudar_de_perfil(adm):
+    rodrigo = adm.pessoas["Rodrigo"]
+    adm.autenticador["Rodrigo"].delete()  # Rodrigo sem autenticador, entra só com senha
+    api = adm.logar("Rodrigo")
+    mariana = adm.logar("Mariana")
+    resposta = mariana.patch(f"{USUARIOS}{rodrigo.pk}/", {"perfil": "financeiro"}, format="json")
+    connection.set_tenant(adm.empresa)
+    assert resposta.status_code == 200
+    assert resposta.json()["perfil"] == "financeiro"
+
+    seguinte = _get(api, EU, adm.empresa)
+    assert seguinte.status_code == 401
+    assert seguinte.json()["codigo"] == "2fa_obrigatorio"
+    evento = adm.eventos("usuario.alterar_perfil").get()
+    assert (evento.categoria, evento.objeto_id) == ("seguranca", rodrigo.pk)
+    assert (evento.antes, evento.depois) == ({"perfil": "gerente"}, {"perfil": "financeiro"})
+    assert evento.ator_id == adm.pessoas["Mariana"].pk
 
 
 def test_usr_02_ca_011_13_configurar_autenticador_com_a_marca_da_locadora(moto):
@@ -436,58 +529,229 @@ def test_usr_02_ca_011_13_configurar_autenticador_com_a_marca_da_locadora(moto):
 # --- Convite (T-069) ---
 
 
-@aguarda(T_USUARIOS)
-def test_usr_01_ca_011_14_convidar():
-    pendente(
-        email="joao@motorapida.com.br",
+def _convidar(api: APIClient, moto: Moto, capturar: Any, **corpo: Any) -> Any:
+    with capturar(execute=True):
+        resposta = api.post(f"{USUARIOS}convites/", corpo, format="json")
+    connection.set_tenant(moto.empresa)  # a tarefa do envio volta a conexão ao public
+    return resposta
+
+
+def test_usr_01_ca_011_14_convidar(adm, relogio, django_capture_on_commit_callbacks):
+    # O João do seed sai para ser convidado pela tela; o plano continua em 5, como na tela.
+    Usuario.objects.filter(pk=adm.pessoas["João"].pk).delete()
+    relogio.em("2026-10-07 10:00")
+    api = adm.logar("Mariana")
+    joao = {
+        "email": "joao@motorapida.com.br",
+        "nome": "João Silva",
+        "perfil": "vistoriador",
+        "filiais": [adm.centro.pk],
+        "celular": "(85) 99654-2210",
+    }
+    resposta = _convidar(api, adm, django_capture_on_commit_callbacks, **joao)
+    assert resposta.status_code == 201, resposta.json()
+    corpo = resposta.json()
+    assert corpo["status"] == "convite_pendente"
+    assert corpo["convite_expira_em"].startswith("2026-10-14")
+    assert corpo["filiais"] == [{"id": adm.centro.pk, "nome": "Filial Centro"}]
+    assert corpo["celular"] == "85996542210"
+    assert _uso_de_usuarios(adm) == 6
+    # Depois do commit, por e-mail e por WhatsApp, com a marca da locadora.
+    assert [m.to for m in mail.outbox] == [["joao@motorapida.com.br"]]
+    assert "Moto Rápida" in mail.outbox[0].subject
+    assert "/convite#" in mail.outbox[0].body
+    assert [m.celular for m in caixa_de_saida] == ["85996542210"]
+    assert "Moto Rápida" in caixa_de_saida[0].texto
+    assert "giro" not in caixa_de_saida[0].texto.lower()
+    assert Convite.objects.get(usuario_id=corpo["id"]).enviado_whatsapp is True
+
+    sem_email = _convidar(api, adm, django_capture_on_commit_callbacks, perfil="vendedor")
+    assert (sem_email.status_code, sem_email.json()["codigo"]) == (400, "validacao")
+
+    sem_celular = _convidar(
+        api,
+        adm,
+        django_capture_on_commit_callbacks,
+        email="ana@motorapida.com.br",
+        perfil="vendedor",
+        filiais=[adm.centro.pk],
+    )
+    assert sem_celular.status_code == 201
+    assert len(mail.outbox) == 2 and len(caixa_de_saida) == 1  # só e-mail
+
+    em_uso = _convidar(
+        api,
+        adm,
+        django_capture_on_commit_callbacks,
+        email="Bruna@MotoRapida.com.br",  # o mesmo e-mail, com maiúsculas
+        perfil="vendedor",
+        filiais=[adm.centro.pk],
+    )
+    assert em_uso.status_code == 409
+    assert em_uso.json()["codigo"] == "email_em_uso"
+    assert em_uso.json()["mensagem"] == "Já existe um usuário com este e-mail"
+
+    sem_filial = _convidar(
+        api,
+        adm,
+        django_capture_on_commit_callbacks,
+        email="pedro@motorapida.com.br",
         perfil="vistoriador",
-        filial="Filial Centro",
-        celular="(85) 99654-2210",
-        status=201,
-        convite_expira_em="2026-10-14",
-        canais=["email", "whatsapp"],
-        apos_commit=True,
-        plano=(5, 6),
-        sem_email=(400, "validacao"),
-        sem_celular="só e-mail",
-        email_em_uso=(409, "email_em_uso"),
-        vistoriador_sem_filial=(400, "validacao"),
     )
+    assert (sem_filial.status_code, sem_filial.json()["codigo"]) == (400, "validacao")
+    assert "filiais" in sem_filial.json()["campos"]
+    assert _uso_de_usuarios(adm) == 7  # João e Ana
 
 
-@aguarda(T_USUARIOS)
-def test_usr_01_ca_011_15_convite_vence_em_7_dias():
-    pendente(
-        em_14_out=200,
-        em_15_out=(410, "convite_expirado"),
-        vencido_continua="convite_pendente",
-        conta_no_plano=True,
+def test_usr_01_ca_011_15_convite_vence_em_7_dias(adm, relogio):
+    relogio.em("2026-10-07 10:00")
+    _, token = services.criar_convite(adm.pessoas["João"])
+    publica = adm.cliente()
+
+    relogio.em("2026-10-14 09:00")
+    em_dia = _post(publica, CONSULTAR, adm.empresa, {"token": token})
+    assert em_dia.status_code == 200
+    assert (em_dia.json()["nome"], em_dia.json()["perfil"]) == ("João", "vistoriador")
+    assert em_dia.json()["empresa"] == "Moto Rápida"
+    assert em_dia.json()["exige_2fa"] is False
+
+    relogio.em("2026-10-15 10:00")
+    for rota, corpo in ((CONSULTAR, {}), (ACEITAR, {"senha": SENHA})):
+        vencido = _post(publica, rota, adm.empresa, {"token": token, **corpo})
+        assert vencido.status_code == 410
+        assert vencido.json()["codigo"] == "convite_expirado"
+    joao = Usuario.objects.get(pk=adm.pessoas["João"].pk)
+    assert joao.status == StatusUsuario.CONVITE_PENDENTE
+    lista = _get(adm.logar("Mariana"), USUARIOS, adm.empresa).json()
+    assert lista["plano"]["usado"] == 5  # o vencido continua contando
+
+
+def test_usr_01_ca_011_16_reenviar_e_cancelar(adm, relogio, django_capture_on_commit_callbacks):
+    relogio.em("2026-10-07 10:00")
+    joao = adm.pessoas["João"]
+    _, antigo = services.criar_convite(joao)
+    relogio.em("2026-10-15 10:00")
+    api = adm.logar("Mariana")
+    with django_capture_on_commit_callbacks(execute=True):
+        reenviado = api.post(f"{USUARIOS}{joao.pk}/reenviar-convite/", format="json")
+    connection.set_tenant(adm.empresa)
+    assert reenviado.status_code == 200
+    assert reenviado.json()["convite_expira_em"].startswith("2026-10-22")
+    publica = adm.cliente()
+    assert _post(publica, CONSULTAR, adm.empresa, {"token": antigo}).status_code in (404, 410)
+    novo = _token_do_convite(mail.outbox[-1])
+    assert _post(publica, CONSULTAR, adm.empresa, {"token": novo}).status_code == 200
+
+    cancelado = _post(api, f"{USUARIOS}{joao.pk}/cancelar-convite/", adm.empresa)
+    assert cancelado.status_code == 200
+    assert cancelado.json()["status"] == "desativado"
+    assert _uso_de_usuarios(adm) == 4
+    assert _post(publica, CONSULTAR, adm.empresa, {"token": novo}).status_code in (404, 410)
+
+    bruna = adm.pessoas["Bruna"].pk
+    ativo = _post(api, f"{USUARIOS}{bruna}/reenviar-convite/", adm.empresa)
+    assert (ativo.status_code, ativo.json()["codigo"]) == (409, "transicao_usuario")
+
+
+def test_plt_03_ca_011_17_limite_do_plano_conta_convites(adm, django_capture_on_commit_callbacks):
+    UsoEmpresa.objects.filter(empresa=adm.empresa).update(usuarios=10)  # 8 ativos e 2 convites
+    api = adm.logar("Mariana")
+    pedro = {"email": "pedro@motorapida.com.br", "perfil": "vendedor", "filiais": [adm.centro.pk]}
+    cheio = _convidar(api, adm, django_capture_on_commit_callbacks, **pedro)
+    assert (cheio.status_code, cheio.json()["codigo"]) == (422, "PLT-03")
+    assert not Usuario.objects.filter(email="pedro@motorapida.com.br").exists()
+
+    joao = adm.pessoas["João"].pk
+    assert _post(api, f"{USUARIOS}{joao}/cancelar-convite/", adm.empresa).status_code == 200
+    assert _convidar(api, adm, django_capture_on_commit_callbacks, **pedro).status_code == 201
+    assert _uso_de_usuarios(adm) == 10
+
+
+def test_usr_01_ca_011_18_aceitar_o_convite(adm, relogio):
+    from apps.contas.services import convidar_administrador, renovar_token
+
+    relogio.em("2026-10-07 10:00")
+    publica = adm.cliente()
+
+    # João, vistoriador: entra na hora e fica ativo.
+    _, token = services.criar_convite(adm.pessoas["João"])
+    fraca = _post(publica, ACEITAR, adm.empresa, {"token": token, "senha": "abc123"})
+    assert (fraca.status_code, fraca.json()["codigo"]) == (400, "validacao")
+    aceito = _post(
+        publica,
+        ACEITAR,
+        adm.empresa,
+        {"token": token, "nome": "João Silva", "senha": SENHA, "aparelho": "celular"},
     )
+    assert aceito.status_code == 200, aceito.json()
+    assert aceito.json()["etapa"] == "pronto"
+    assert aceito.json()["usuario"]["nome"] == "João Silva"
+    assert aceito.cookies["__Host-giro_refresh"].value
+    joao = Usuario.objects.get(pk=adm.pessoas["João"].pk)
+    assert joao.status == StatusUsuario.ATIVO
+    assert joao.sessoes.get().tipo == "celular"
+    assert _post(publica, ACEITAR, adm.empresa, {"token": token, "senha": SENHA}).status_code == 404
 
+    # Lúcia, financeiro: configura as 2 etapas e só fica ativa ao confirmar o código.
+    _, token = services.criar_convite(adm.pessoas["Lúcia"])
+    etapa = _post(publica, ACEITAR, adm.empresa, {"token": token, "senha": SENHA}).json()
+    assert etapa["etapa"] == "configurar_2fa" and "access" not in etapa
+    assert Usuario.objects.get(pk=adm.pessoas["Lúcia"].pk).status == "convite_pendente"
+    api = adm.cliente()
+    api.credentials(HTTP_AUTHORIZATION=f"Bearer {etapa['token_pre_2fa']}")
+    _post(api, CONFIGURAR, adm.empresa)
+    dispositivo = Autenticador.objects.get(user=adm.pessoas["Lúcia"], confirmed=False)
+    pronto = _post(api, VERIFICAR, adm.empresa, {"codigo": codigo_atual(dispositivo)})
+    assert pronto.json()["etapa"] == "pronto"
+    assert Usuario.objects.get(pk=adm.pessoas["Lúcia"].pk).status == "ativo"
+    uso = UsoEmpresa.objects.get(empresa=adm.empresa)
+    assert "conta" not in uso.passos_implantacao  # Lúcia não é a administradora da compra
 
-@aguarda(T_USUARIOS)
-def test_usr_01_ca_011_16_reenviar_e_cancelar():
-    pendente(
-        reenviar_em_15_out="expira em 22 out",
-        link_antigo=[404, 410],
-        cancelar="desativado",
-        plano_cai=1,
-        reenviar_ativo=(409, "transicao_usuario"),
+    # A administradora da compra: o `pronto` marca o passo `conta` da implantação.
+    convite = convidar_administrador("Carla Dias", "carla@motorapida.com.br")
+    token = renovar_token(convite)
+    etapa = _post(publica, ACEITAR, adm.empresa, {"token": token, "senha": SENHA}).json()
+    assert etapa["etapa"] == "configurar_2fa"
+    api = adm.cliente()
+    api.credentials(HTTP_AUTHORIZATION=f"Bearer {etapa['token_pre_2fa']}")
+    _post(api, CONFIGURAR, adm.empresa)
+    carla = Usuario.objects.get(email="carla@motorapida.com.br")
+    dispositivo = Autenticador.objects.get(user=carla, confirmed=False)
+    assert (
+        _post(api, VERIFICAR, adm.empresa, {"codigo": codigo_atual(dispositivo)}).json()["etapa"]
+        == "pronto"
     )
+    uso.refresh_from_db()
+    assert uso.passos_implantacao["conta"] == "2026-10-07"
 
 
-@aguarda(T_USUARIOS)
-def test_plt_03_ca_011_17_limite_do_plano_conta_convites():
-    pendente(ativos=8, convites=2, convidar_mais=(422, "PLT-03"), apos_cancelar_um="passa")
-
-
-@aguarda(T_USUARIOS)
-def test_usr_01_ca_011_18_aceitar_o_convite():
-    pendente(
-        joao="pronto e ativo",
-        lucia="configurar_2fa, ativa só após confirmar o código",
-        mariana="marca o passo conta da implantação",
+def test_usr_01_convite_novo_invalida_o_anterior(adm, relogio):
+    """P-06 da T-057: só o convite mais novo vale; aceitar um invalida os outros."""
+    relogio.em("2026-10-07 10:00")
+    joao = adm.pessoas["João"]
+    _, primeiro = services.criar_convite(joao)
+    _, segundo = services.criar_convite(joao)
+    publica = adm.cliente()
+    assert _post(publica, CONSULTAR, adm.empresa, {"token": primeiro}).status_code == 410
+    assert (
+        _post(publica, ACEITAR, adm.empresa, {"token": primeiro, "senha": SENHA}).status_code == 410
     )
+    aceito = _post(publica, ACEITAR, adm.empresa, {"token": segundo, "senha": SENHA})
+    assert aceito.json()["etapa"] == "pronto"
+    abertos = Convite.objects.filter(
+        usuario=joao, aceito_em__isnull=True, expira_em__gt=relogio.agora
+    )
+    assert not abertos.exists()
+
+
+def test_usr_01_convite_com_limite_por_ip(adm):
+    """30 por minuto por IP nas duas rotas públicas do convite (contrato de contas)."""
+    for rota in (CONSULTAR, ACEITAR):
+        api = adm.cliente(ip=f"189.1.1.{len(rota)}")
+        for _ in range(30):
+            assert _post(api, rota, adm.empresa, {"token": "x"}).status_code != 429
+        estourou = _post(api, rota, adm.empresa, {"token": "x"})
+        assert (estourou.status_code, estourou.json()["codigo"]) == (429, "muitas_requisicoes")
 
 
 def test_usr_06_ca_011_19_senha(moto):
@@ -564,34 +828,248 @@ def test_usr_05_ca_011_21_permissoes_extras_so_somam(moto):
 # --- Desativar e administradores (T-069) ---
 
 
-@aguarda(T_USUARIOS)
-def test_usr_04_ca_011_22_desativar_encerra_na_hora():
-    pendente(
-        access_atual=(401, "sessao_encerrada"),
-        refresh_renova=False,
-        plano=(5, 4),
-        historico_na_auditoria=True,
-        reativar="ativo",
-        reativar_com_10_de_10=(422, "PLT-03"),
+def test_usr_04_ca_011_22_desativar_encerra_na_hora(adm):
+    bruna = adm.pessoas["Bruna"]
+    sessao_da_bruna = adm.logar("Bruna")
+    api = adm.logar("Mariana")
+    desativada = _post(
+        api, f"{USUARIOS}{bruna.pk}/desativar/", adm.empresa, {"motivo": "Saiu da empresa"}
+    )
+    assert desativada.status_code == 200
+    assert desativada.json()["status"] == "desativado"
+
+    caiu = _get(sessao_da_bruna, EU, adm.empresa)
+    assert (caiu.status_code, caiu.json()["codigo"]) == (401, "sessao_encerrada")
+    assert _post(sessao_da_bruna, RENOVAR, adm.empresa, **FRONTEND).status_code == 401
+    assert _uso_de_usuarios(adm) == 4
+    evento = adm.eventos("usuario.desativar").get()
+    assert (evento.objeto_id, evento.motivo, evento.regra) == (
+        bruna.pk,
+        "Saiu da empresa",
+        "USR-04",
+    )
+    assert adm.eventos("usuario.entrar").filter(objeto_id=bruna.pk).exists()  # histórico fica
+    assert Usuario.objects.filter(pk=bruna.pk).exists()
+
+    reativada = _post(api, f"{USUARIOS}{bruna.pk}/reativar/", adm.empresa)
+    assert (reativada.status_code, reativada.json()["status"]) == (200, "ativo")
+    assert _uso_de_usuarios(adm) == 5
+    assert adm.entrar("Bruna").json()["etapa"] == "pronto"
+
+    _post(api, f"{USUARIOS}{bruna.pk}/desativar/", adm.empresa)
+    UsoEmpresa.objects.filter(empresa=adm.empresa).update(usuarios=10)
+    cheio = _post(api, f"{USUARIOS}{bruna.pk}/reativar/", adm.empresa)
+    assert (cheio.status_code, cheio.json()["codigo"]) == (422, "PLT-03")
+    convite = _post(api, f"{USUARIOS}{adm.pessoas['João'].pk}/reativar/", adm.empresa)
+    assert (convite.status_code, convite.json()["codigo"]) == (409, "transicao_usuario")
+
+
+def test_usr_04_ca_011_23_sempre_um_administrador(adm):
+    mariana = adm.pessoas["Mariana"].pk
+    api = adm.logar("Mariana")
+    rebaixar = api.patch(
+        f"{USUARIOS}{mariana}/",
+        {"perfil": "gerente", "filiais": [adm.centro.pk]},
+        format="json",
+    )
+    connection.set_tenant(adm.empresa)
+    assert rebaixar.status_code == 422
+    assert rebaixar.json()["codigo"] == "ultimo_administrador"
+    assert rebaixar.json()["mensagem"] == "A empresa precisa de ao menos um administrador ativo"
+    a_si_mesma = _post(api, f"{USUARIOS}{mariana}/desativar/", adm.empresa)
+    assert a_si_mesma.status_code == 422
+    assert a_si_mesma.json()["codigo"] == "desativar_a_si_mesmo"
+    assert a_si_mesma.json()["mensagem"] == "Peça a outro administrador para desativar seu acesso"
+    assert Usuario.objects.get(pk=mariana).perfil == "administrador"
+
+    # Com outro administrador ativo, Mariana pode deixar de ser administradora.
+    rodrigo = adm.pessoas["Rodrigo"].pk
+    promovido = api.patch(f"{USUARIOS}{rodrigo}/", {"perfil": "administrador"}, format="json")
+    connection.set_tenant(adm.empresa)
+    assert promovido.status_code == 200
+    sem_filial = api.patch(f"{USUARIOS}{mariana}/", {"perfil": "gerente"}, format="json")
+    connection.set_tenant(adm.empresa)
+    assert (sem_filial.status_code, sem_filial.json()["codigo"]) == (400, "validacao")
+    rebaixada = api.patch(
+        f"{USUARIOS}{mariana}/", {"perfil": "gerente", "filiais": [adm.centro.pk]}, format="json"
+    )
+    connection.set_tenant(adm.empresa)
+    assert rebaixada.status_code == 200
+    assert rebaixada.json()["filiais"] == [{"id": adm.centro.pk, "nome": "Filial Centro"}]
+
+
+def test_usr_02_ca_011_24_redefinir_duas_etapas(adm):
+    rodrigo = adm.pessoas["Rodrigo"]
+    sessao_do_rodrigo = adm.logar("Rodrigo")
+    api = adm.logar("Mariana")
+    sem_motivo = _post(api, f"{USUARIOS}{rodrigo.pk}/redefinir-2fa/", adm.empresa)
+    assert (sem_motivo.status_code, sem_motivo.json()["codigo"]) == (400, "validacao")
+    redefinida = _post(
+        api, f"{USUARIOS}{rodrigo.pk}/redefinir-2fa/", adm.empresa, {"motivo": "Perdeu o celular"}
+    )
+    assert redefinida.status_code == 200
+    assert redefinida.json()["dois_fatores_ativo"] is False
+
+    caiu = _get(sessao_do_rodrigo, EU, adm.empresa)
+    assert (caiu.status_code, caiu.json()["codigo"]) == (401, "sessao_encerrada")
+    assert not Autenticador.objects.filter(user=rodrigo).exists()
+    assert adm.entrar("Rodrigo").json()["etapa"] == "pronto"  # gerente: só a senha
+    evento = adm.eventos("usuario.redefinir_2fa").get()
+    assert (evento.categoria, evento.motivo, evento.objeto_id) == (
+        "seguranca",
+        "Perdeu o celular",
+        rodrigo.pk,
+    )
+
+    # Perfil que exige: o próximo login configura de novo.
+    api.patch(f"{USUARIOS}{rodrigo.pk}/", {"perfil": "financeiro"}, format="json")
+    connection.set_tenant(adm.empresa)
+    assert adm.entrar("Rodrigo").json()["etapa"] == "configurar_2fa"
+
+
+def test_usr_04_administrador_ve_e_encerra_sessoes_de_outro(adm):
+    sessao_da_bruna = adm.logar("Bruna")
+    api = adm.logar("Mariana")
+    bruna = adm.pessoas["Bruna"].pk
+    lista = _get(api, f"{USUARIOS}{bruna}/sessoes/", adm.empresa).json()["resultados"]
+    assert len(lista) == 1 and lista[0]["ip"] == "177.12.34.0/24" and lista[0]["atual"] is False
+    encerrar = f"{USUARIOS}{bruna}/sessoes/{lista[0]['id']}/encerrar/"
+    assert _post(api, encerrar, adm.empresa).status_code == 204
+    assert _get(sessao_da_bruna, EU, adm.empresa).status_code == 401
+    sessao = adm.pessoas["Bruna"].sessoes.get()
+    assert sessao.motivo_revogacao == "revogada_pelo_administrador"
+
+
+def test_usr_03_ca_011_21_detalhe_com_permissoes_extras(adm):
+    api = adm.logar("Mariana")
+    rodrigo = adm.pessoas["Rodrigo"].pk
+    detalhe = _get(api, f"{USUARIOS}{rodrigo}/", adm.empresa).json()
+    extras = {e["chave"]: e for e in detalhe["permissoes_extras"]}
+    assert extras["aprovar_desconto"] == {
+        "chave": "aprovar_desconto",
+        "marcada": True,
+        "padrao_do_perfil": True,
+    }
+    assert extras["relatorios_todas_filiais"]["marcada"] is False
+    assert detalhe["entrou_em"] is not None
+
+    alterado = api.patch(
+        f"{USUARIOS}{rodrigo}/", {"permissoes_extras": ["relatorios_todas_filiais"]}, format="json"
+    )
+    connection.set_tenant(adm.empresa)
+    extras = {e["chave"]: e for e in alterado.json()["permissoes_extras"]}
+    assert extras["relatorios_todas_filiais"] == {
+        "chave": "relatorios_todas_filiais",
+        "marcada": True,
+        "padrao_do_perfil": False,
+    }
+    evento = adm.eventos("usuario.alterar_permissoes").get()
+    assert (evento.antes, evento.depois) == (
+        {"permissoes_extras": []},
+        {"permissoes_extras": ["relatorios_todas_filiais"]},
     )
 
 
-@aguarda(T_USUARIOS)
-def test_usr_04_ca_011_23_sempre_um_administrador():
-    pendente(
-        tirar_proprio_perfil_sendo_unica=(422, "ultimo_administrador"),
-        desativar_a_si_mesma=(422, "desativar_a_si_mesmo"),
-    )
+# --- Filiais da pessoa (USR-07, F-03 da T-064) ---
 
 
-@aguarda(T_USUARIOS)
-def test_usr_02_ca_011_24_redefinir_duas_etapas():
-    pendente(
-        motivo="Perdeu o celular",
-        sessoes_caem=True,
-        proximo_login="configurar_2fa se o perfil exigir",
-        auditoria="seguranca com motivo",
+def test_usr_07_troca_de_filiais_da_pessoa_vai_para_a_auditoria(adm):
+    from apps.filiais.models import Filial
+    from apps.filiais.services import criar_filial, desativar
+
+    from .test_t012_filiais import _filial
+
+    norte = criar_filial(_filial("Filial Norte"), adm.pessoas["Mariana"])
+    bruna = adm.pessoas["Bruna"]
+    api = adm.logar("Mariana")
+    trocou = api.patch(f"{USUARIOS}{bruna.pk}/", {"filiais": [norte.pk]}, format="json")
+    connection.set_tenant(adm.empresa)
+    assert trocou.status_code == 200
+    assert trocou.json()["filiais"] == [{"id": norte.pk, "nome": "Filial Norte"}]
+    # O vínculo com a Centro é desativado, não apagado.
+    vinculo = UsuarioFilial.objects.get(usuario=bruna, filial=adm.centro)
+    assert vinculo.ativo is False
+    evento = adm.eventos("usuario.alterar_filiais").filter(objeto_id=bruna.pk).last()
+    assert evento.categoria == "seguranca"
+    assert evento.antes == {"filiais": [{"id": adm.centro.pk, "nome": "Filial Centro"}]}
+    assert evento.depois == {"filiais": [{"id": norte.pk, "nome": "Filial Norte"}]}
+    assert evento.ator_id == adm.pessoas["Mariana"].pk
+
+    # Volta para a Centro: a mesma linha é reativada.
+    api.patch(f"{USUARIOS}{bruna.pk}/", {"filiais": [adm.centro.pk]}, format="json")
+    connection.set_tenant(adm.empresa)
+    vinculo.refresh_from_db()
+    assert vinculo.ativo is True
+
+    # Filial inativa ou inexistente: 422 e nada muda.
+    sul = criar_filial(_filial("Filial Sul"), adm.pessoas["Mariana"])
+    desativar(Filial.objects.get(pk=sul.pk), motivo="Fechou")
+    for filial in (sul.pk, 999999):
+        recusada = api.patch(f"{USUARIOS}{bruna.pk}/", {"filiais": [filial]}, format="json")
+        connection.set_tenant(adm.empresa)
+        assert (recusada.status_code, recusada.json()["codigo"]) == (422, "filial_invalida")
+    assert list(UsuarioFilial.ativos.filter(usuario=bruna).values_list("filial_id", flat=True)) == [
+        adm.centro.pk
+    ]
+
+
+def test_usr_07_financeiro_escolhe_todas_as_filiais(adm):
+    """USR-07 (T-067): o financeiro vê todas as filiais ativas e pode escolher "Todas"."""
+    lucia = _api_de(adm, "Lúcia")
+    minhas = _get(lucia, "/api/filiais/minhas/", adm.empresa).json()
+    assert minhas["pode_escolher_todas"] is True
+    assert [f["id"] for f in minhas["resultados"]] == [adm.centro.pk]
+    lucia.credentials(
+        HTTP_AUTHORIZATION=lucia._credentials["HTTP_AUTHORIZATION"], HTTP_X_FILIAL="todas"
     )
+    assert _get(lucia, "/api/filiais/minhas/", adm.empresa).status_code == 200
+
+
+def test_usr_03_relatorios_todas_filiais_so_em_painel_e_relatorios(adm, rf):
+    """USR-03: a extra libera `X-Filial: todas` só nas views de painel e relatórios."""
+    from rest_framework.response import Response
+    from rest_framework.test import force_authenticate
+    from rest_framework.views import APIView
+
+    class Relatorio(APIView):
+        escopo_de_relatorio = True
+
+        def get(self, request: Any) -> Response:
+            return Response({"ok": True})
+
+    class Operacao(Relatorio):
+        escopo_de_relatorio = False
+
+    bruna = adm.pessoas["Bruna"]
+
+    def chamar(view: type[APIView]) -> Any:
+        requisicao = rf.get("/", HTTP_X_FILIAL="todas")
+        requisicao.tenant = adm.empresa
+        force_authenticate(requisicao, user=Usuario.objects.get(pk=bruna.pk))
+        return view.as_view()(requisicao)
+
+    assert chamar(Relatorio).status_code == 403  # sem a extra
+    Usuario.objects.filter(pk=bruna.pk).update(permissoes_extras=["relatorios_todas_filiais"])
+    assert chamar(Relatorio).status_code == 200
+    operacao = chamar(Operacao)
+    assert operacao.status_code == 403
+    assert operacao.data["codigo"] == "USR-07"
+
+
+def test_usr_01_usuario_da_empresa_a_nao_aparece_na_b(adm, empresa_b):
+    from django.db import connection as conexao
+
+    conexao.set_tenant(empresa_b)
+    dona_b = Usuario.objects.create_user(
+        "dona@empresab.com.br", SENHA, nome="Dona B", perfil="administrador"
+    )
+    refresh = emitir_tokens(dona_b, AMR_SENHA_E_CODIGO)
+    api = APIClient(HTTP_HOST="empresa-b.localhost", REMOTE_ADDR="10.0.0.5")
+    api.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
+    lista = api.get(USUARIOS).json()
+    conexao.set_tenant(adm.empresa)
+    assert [u["email"] for u in lista["resultados"]] == ["dona@empresab.com.br"]
+    assert lista["contagens"]["todos"] == 1
 
 
 # --- Esqueci a senha ---
@@ -724,3 +1202,51 @@ def test_aud_01_ca_011_28_eventos_de_seguranca(moto, relogio):
     for segredo in (SENHA, "senha-errada-1", "girafa-azul-2027", codigo, "md5$", "argon2"):
         assert segredo not in tudo
     assert api.cookies["__Host-giro_refresh"].value not in tudo
+
+
+def test_aud_01_ca_011_28_eventos_da_administracao_de_usuarios(adm):
+    """Mudança de perfil, filiais e permissões, desativação e redefinição das 2 etapas: quem,
+    quando, ação, objeto, antes e depois, IP e aparelho, sem segredo nenhum."""
+    from apps.filiais.services import criar_filial
+
+    from .test_t012_filiais import _filial
+
+    norte = criar_filial(_filial("Filial Norte"), adm.pessoas["Mariana"])
+    api = adm.logar("Mariana")
+    rodrigo, bruna = adm.pessoas["Rodrigo"].pk, adm.pessoas["Bruna"].pk
+
+    def patch(pk: int, corpo: dict[str, Any]) -> None:
+        resposta = api.patch(f"{USUARIOS}{pk}/", corpo, format="json")
+        connection.set_tenant(adm.empresa)
+        assert resposta.status_code == 200, resposta.json()
+
+    patch(rodrigo, {"perfil": "vendedor"})
+    patch(rodrigo, {"filiais": [adm.centro.pk, norte.pk]})
+    patch(bruna, {"permissoes_extras": ["aprovar_desconto"]})
+    _post(api, f"{USUARIOS}{bruna}/desativar/", adm.empresa, {"motivo": "Saiu"})
+    _post(api, f"{USUARIOS}{rodrigo}/redefinir-2fa/", adm.empresa, {"motivo": "Perdeu o celular"})
+
+    mariana = adm.pessoas["Mariana"].pk
+    esperados = {
+        "usuario.alterar_perfil": rodrigo,
+        "usuario.alterar_filiais": rodrigo,
+        "usuario.alterar_permissoes": bruna,
+        "usuario.desativar": bruna,
+        "usuario.redefinir_2fa": rodrigo,
+    }
+    for acao, objeto in esperados.items():
+        evento = adm.eventos(acao).filter(objeto_id=objeto).last()
+        assert evento is not None, acao
+        assert evento.categoria == "seguranca", acao
+        assert (evento.ator_id, evento.objeto_tipo) == (mariana, "usuario"), acao
+        assert evento.ip == IP_DE_CASA and "Chrome" in evento.aparelho, acao
+        assert evento.ocorrido_em is not None
+    filiais = adm.eventos("usuario.alterar_filiais").filter(objeto_id=rodrigo).last()
+    assert [f["nome"] for f in filiais.depois["filiais"]] == ["Filial Centro", "Filial Norte"]
+    assert adm.eventos("usuario.desativar").get().antes == {"status": "ativo"}
+
+    tudo = json.dumps(
+        list(EventoAuditoria.objects.values("antes", "depois", "motivo")), default=str
+    )
+    for segredo in (SENHA, "md5$", "argon2", "token_hash", "chave"):
+        assert segredo not in tudo

@@ -95,10 +95,6 @@ class CodigoSerializer(serializers.Serializer[dict[str, str]]):
     codigo = serializers.RegexField(r"^\d{6}$")
 
 
-class SenhaSerializer(serializers.Serializer[dict[str, str]]):
-    senha = serializers.CharField(trim_whitespace=False)
-
-
 class PodeSerializer(serializers.Serializer[Any]):
     ver_empresas = serializers.BooleanField()
     entrar_como_suporte = serializers.BooleanField()
@@ -282,10 +278,26 @@ class EuView(APIView):
         )
 
 
-class ConviteView(Publica):
-    @extend_schema(responses=ConviteSerializer, summary="Ver convite da equipe")
-    def get(self, request: Request, token: str) -> Response:
-        convite = convite_pelo_token(token)
+class TokenDoConviteDaEquipeSerializer(serializers.Serializer[dict[str, str]]):
+    token = serializers.CharField(max_length=100)
+
+
+class AceitarConviteDaEquipeSerializer(TokenDoConviteDaEquipeSerializer):
+    senha = serializers.CharField(trim_whitespace=False)
+
+
+class ConsultarConviteView(Publica):
+    """O token vem no corpo, nunca no caminho (P-09, T-072)."""
+
+    @extend_schema(
+        request=TokenDoConviteDaEquipeSerializer,
+        responses=ConviteSerializer,
+        summary="Ver convite da equipe",
+    )
+    def post(self, request: Request) -> Response:
+        dados = TokenDoConviteDaEquipeSerializer(data=request.data)
+        dados.is_valid(raise_exception=True)
+        convite = convite_pelo_token(dados.validated_data["token"])
         usuario = convite.usuario
         return Response(
             {
@@ -299,10 +311,12 @@ class ConviteView(Publica):
 
 class AceitarConviteView(Publica):
     @extend_schema(
-        request=SenhaSerializer, responses=EtapaSerializer, summary="Aceitar convite da equipe"
+        request=AceitarConviteDaEquipeSerializer,
+        responses=EtapaSerializer,
+        summary="Aceitar convite da equipe",
     )
-    def post(self, request: Request, token: str) -> Response:
-        dados = SenhaSerializer(data=request.data)
+    def post(self, request: Request) -> Response:
+        dados = AceitarConviteDaEquipeSerializer(data=request.data)
         dados.is_valid(raise_exception=True)
-        usuario = aceitar_convite(token, dados.validated_data["senha"])
+        usuario = aceitar_convite(dados.validated_data["token"], dados.validated_data["senha"])
         return _configurar_2fa(usuario)

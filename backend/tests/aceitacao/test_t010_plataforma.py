@@ -130,7 +130,7 @@ def test_plt_01_ca_010_02_moto_rapida_nasce_em_teste(
         callback()
     connection.set_schema_to_public()
     assert [m.to for m in mail.outbox] == [["mariana@motorapida.com.br"]]
-    assert "https://motorapida.localhost/convite/" in mail.outbox[0].body
+    assert "https://motorapida.localhost/convite#" in mail.outbox[0].body  # P-09, T-072
     # Texto revisado na T-059 (T-066): não supõe o gênero da pessoa.
     assert mail.outbox[0].subject == "Moto Rápida: seu convite de acesso"
     primeira, _, ultima = mail.outbox[0].body.split("\n")
@@ -539,9 +539,6 @@ def test_plt_09_ca_010_14_funcoes_da_equipe(equipe):
         assert fase_2.status_code == 404, nome
 
 
-@pytest.mark.xfail(
-    strict=True, reason="T-069: convite da plataforma com o token no corpo (T-072, docs/api)"
-)
 def test_plt_08_ca_010_15_convite_da_equipe_vence_em_7_dias(publico, relogio):
     relogio.em("2026-10-07 10:00")
     saida = StringIO()

@@ -44,10 +44,12 @@ def test_plt_08_configurar_2fa_recusado_depois_da_validade_do_convite(publico, r
         "Larissa Melo",
         stdout=saida,
     )
-    token = re.search(r"/convite/(\S+)", saida.getvalue()).group(1)  # type: ignore[union-attr]
+    token = re.search(r"/convite#(\S+)", saida.getvalue()).group(1)  # type: ignore[union-attr]
     api = cliente(HOST_PLATAFORMA)
     relogio.em("2026-10-13 10:00")
-    aceito = api.post(f"/api/plataforma/convites/{token}/aceitar/", {"senha": SENHA}, format="json")
+    aceito = api.post(
+        "/api/plataforma/convites/aceitar/", {"token": token, "senha": SENHA}, format="json"
+    )
     pre = cliente(HOST_PLATAFORMA, aceito.json()["token_pre_2fa"])
 
     # Meses depois a senha sozinha não cadastra mais um autenticador: precisa de convite novo.
