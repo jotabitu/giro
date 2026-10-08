@@ -34,8 +34,9 @@ def plataforma_avisar_limite_90(schema_name: str, item: str) -> int:
         subject=f"{empresa.nome_exibicao}: limite do plano em 90%",
         message=(
             f"Sua empresa usa {uso['usado']} de {uso['limite']} {nome_item} do plano. "
-            f"Ao chegar a {uso['limite']}, não será possível cadastrar novos {nome_item}. "
-            "Para aumentar o limite, mude de plano."
+            f"Ao chegar a {uso['limite']}, não dá para cadastrar mais {nome_item}, e o que já "
+            "está cadastrado continua funcionando. Para aumentar o limite, mude de plano em "
+            "Assinatura."
         ),
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=destinatarios,
