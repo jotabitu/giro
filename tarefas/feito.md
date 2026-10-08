@@ -63,3 +63,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-077 · Reativar usuário com convite cancelado volta para convite pendente · backend · PR #63 · tarefas/handoffs/T-077-backend.md · 342 testes; USR-04 opção B; CA-011-22
 - T-071 · Navegação do eu · backend · PR #64 · tarefas/handoffs/T-071-backend.md · 345 testes; GIRO_MODULOS_ATIVOS; 5 diferenças do falso-navegacao.ts no handoff
 - T-078 · Menu do frontend segue a navegação da T-071 · frontend · PR #66 · tarefas/handoffs/T-078-frontend.md · falso-navegacao.ts porta navegacao.py; 135 testes
+- T-080 · Como um app abaixo de aprovações abre um pedido · arquiteto · PR #67 · tarefas/handoffs/T-080-arquiteto.md · ADR 0019 (comum.aprovacoes.pedir); ida na T-013, lista e decisão em tarefa nova

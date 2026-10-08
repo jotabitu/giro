@@ -137,7 +137,7 @@ Vistoria e OS atualizam o km pelos próprios serviços (`VEI-02`); este endpoint
 ### POST /api/veiculos/{id}/corrigir-km/
 Corpo: `{ km, motivo }`.
 - Administrador ou gerente: aplica na hora, com `LeituraKm` de correção e auditoria. 200: representação.
-- Vistoriador: cria o pedido `APR-06`. 202: `{ "pedido_aprovacao": { "id": 88, "tipo": "APR-06", "status": "pendente" } }`. O km muda só quando o gerente aprovar.
+- Vistoriador: cria o pedido `APR-06` por `comum.aprovacoes.pedir` (ADR 0019), com origem `veiculo` e `dados` `{ km_novo, km_anterior }`. 202: `{ "pedido_aprovacao": { "id": 88, "tipo": "APR-06", "status": "pendente" } }`. O km muda só quando o gerente aprovar (assinante de `aprovacoes.pedido_decidido` em `veiculos/eventos.py`). Outro pedido igual pendente → 409 `pedido_pendente`.
 Regras: VEI-01, APR-06.
 
 ## Documentos (VEI-03)

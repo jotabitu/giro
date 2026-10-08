@@ -1,10 +1,10 @@
 # Aprovações
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-043, mínimo para a fase 1) · **App:** `aprovacoes` (schema da empresa) · **Regras:** APR-01 a APR-10, CLI-05, LOC-03, LOC-12, FIN-05, FIN-07 · **ADR:** 0011 (origem genérica, evento `aprovacoes.pedido_decidido`) · **Telas:** Gerente (fase 2), e os avisos do sino
+**Dono:** arquiteto · **Versão:** 07 out 2026 (T-043, mínimo para a fase 1) · **App:** `aprovacoes` (schema da empresa) · **Regras:** APR-01 a APR-10, CLI-05, LOC-03, LOC-12, FIN-05, FIN-07 · **ADR:** 0011 (origem genérica, evento `aprovacoes.pedido_decidido`), 0019 (porta `comum.aprovacoes`) · **Telas:** Gerente (fase 2), e os avisos do sino
 
 Convenções gerais em `docs/api/README.md`. Modelo: `PedidoAprovacao` em `docs/decisoes/modelo-de-dados.md`.
 
-Os pedidos **nascem** nos outros módulos (desconto e cancelamento em `locacoes.md`, desbloqueio em `clientes.md`, correção de km em `veiculos.md`, despesa e diferença de caixa em `financeiro.md`). Aqui ficam só a lista e a decisão. A tela `Gerente` com aprovação de 1 toque (`APR-07`) e o lembrete de 4 horas úteis (`APR-08`) são da fase 2; os endpoints abaixo já servem a eles.
+Os pedidos **nascem** nos outros módulos (desconto e cancelamento em `locacoes.md`, desbloqueio em `clientes.md`, correção de km em `veiculos.md`, despesa e diferença de caixa em `financeiro.md`), sempre por `comum.aprovacoes.pedir` (ADR 0019). O endpoint da origem responde 202 `{ "pedido_aprovacao": { "id", "tipo", "status": "pendente" } }`; com um pedido igual ainda pendente, 409 `{ "codigo": "pedido_pendente", "detalhes": { "pedido_id" } }`. Aqui ficam só a lista e a decisão. A tela `Gerente` com aprovação de 1 toque (`APR-07`) e o lembrete de 4 horas úteis (`APR-08`) são da fase 2; os endpoints abaixo já servem a eles.
 
 ## Quem decide
 
@@ -50,3 +50,23 @@ Corpo: `{ motivo }` (obrigatório, `APR-07`). 200: `recusado`. A origem volta ao
 Quem pediu desiste. 200: `cancelado`; a origem volta ao estado anterior.
 
 Erros comuns: 409 `transicao_pedido` em pedido já decidido; 403 `APR-09`; 404 fora do escopo de filial. Todo pedido, aprovação e recusa entra na auditoria (`APR-10`).
+
+## Interface interna para os outros apps (não é HTTP, ADR 0019)
+
+| Função | Uso |
+| --- | --- |
+| `comum.aprovacoes.pedir(tipo, origem_tipo, origem_id, origem_codigo, filial_id, solicitante, titulo, detalhe, motivo?, valor_centavos?, pct?, dados?) -> PedidoRef` | Abre o pedido na transação de quem chama, com auditoria (`APR-10`) e aviso ao gerente depois do commit. Levanta `PedidoPendente` (409 `pedido_pendente`) se já houver um `pendente` igual. Implementada por `aprovacoes.services.pedir`, registrada no `ready()`. |
+| `comum.aprovacoes.pendente(tipo, origem_tipo, origem_id) -> PedidoRef \| None` | Para a representação da origem mostrar o pedido em aberto. |
+| `comum.aprovacoes.cancelar_pendentes(origem_tipo, origem_id, motivo) -> int` | A origem deixou de existir ou mudou de forma que o pedido não faz mais sentido (ex.: locação cancelada com desconto pendente). Pedidos ficam `cancelado` e publicam `pedido_decidido`. |
+| evento `aprovacoes.pedido_decidido` | `pedido_id`, `tipo`, `status` (`aprovado`, `recusado`, `cancelado`), `origem_tipo`, `origem_id`, `dados`, `decidido_por_id`, `motivo`. Cada app de origem assina em `<app>/eventos.py` e aplica o efeito pelo próprio serviço, na mesma transação. |
+
+`dados` por tipo (chaves fixas, sem dado pessoal):
+
+| Tipo | Origem | `dados` |
+| --- | --- | --- |
+| `APR-01` | `locacao` ou `venda` | `{ "desconto_pct": "8.00" }` (e `pct` preenchido) |
+| `APR-02` | `locacao` | `{ "multa_centavos": 8480 }` (congelada no pedido, `LOC-12`) |
+| `APR-03` | `despesa` ou `ordem_servico` | `{}` (e `valor_centavos` preenchido) |
+| `APR-04` | `caixa` | `{ "diferenca_centavos": -1200 }` |
+| `APR-05` | `cliente` | `{}` |
+| `APR-06` | `veiculo` | `{ "km_novo": 3400, "km_anterior": 3500 }` |
