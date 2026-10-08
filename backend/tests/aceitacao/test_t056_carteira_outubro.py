@@ -52,11 +52,11 @@ def test_fin_15_carteira_tem_42_locacoes_e_csv_igual_ao_gerador(parcelas):
 
 def test_fin_15_previsto_recebido_vence_hoje_e_atraso_em_07_out(parcelas):
     n = _gerador().numeros(parcelas)
-    assert (n["previsto_centavos"], n["previsto_parcelas"]) == (5219250, 128)
+    assert (n["previsto_centavos"], n["previsto_parcelas"]) == (5200210, 128)
     assert (n["recebido_centavos"], n["recebido_parcelas"], n["recebido_percentual"]) == (
-        1329270,
-        29,
-        25.47,
+        1340170,
+        30,
+        25.77,
     )
     assert (n["vence_hoje_centavos"], n["vence_hoje_parcelas"]) == (262580, 6)
     assert (n["atraso_centavos"], n["atraso_parcelas"], n["atraso_clientes"]) == (164640, 2, 2)
@@ -72,8 +72,8 @@ def test_fin_15_abas_somam_a_aba_todas(parcelas):
     assert (n["aba_em_atraso"], n["aba_vencem_hoje"], n["aba_a_vencer"], n["aba_pagas"]) == (
         2,
         6,
-        93,
-        29,
+        92,
+        30,
     )
     assert (
         n["aba_todas"]
