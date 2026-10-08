@@ -184,15 +184,28 @@ Levantadas pelo produto em T-053 (08 out 2026):
 - **Depende de:** T-033
 - **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA`, `na_empresa` e o teste de arquitetura revisados contra a ADR 0014 (itens 2 e 3), a ADR 0018 (item 3) e os achados S-05, S-06, S-07, C-01 e C-02; relatório em `docs/seguranca/`; achados viram tarefas.
 
-### T-053 · Números de telas que dependem de regra
-- **Agente:** produto
-- **Depende de:** T-028
-- **Pronto quando:** definido de onde vêm o contador "Contas a receber 7" do `Menu-Mobile` e os valores "Previsto no mês/Recebido" do `Receber` (regra ou `docs/api/painel.md`), apontados pelo design-system na T-028; e o código `AUT-NN` da tarefa mensal de expurgo da auditoria, que não existe na tabela de automações (backend, T-034).
+### T-054 · Componentes e telas apontados na T-048 e na T-053
+- **Agente:** design-system
+- **Depende de:** T-048, T-053
+- **Pronto quando:** `FleetBar` cabe na lateral a 390 px com 5 segmentos; botão compacto com alvo de toque de 44 px no celular (variante nova ou `sm` com 44 px no celular); `ProgressBar` e linha de lista com título, apoio e ação (modelo: `LinhaDoPainel` da T-048) no design system, com preview e testes (pontos 1 a 3 do handoff da T-048); nas telas de referência, contadores do menu pelo seed de 07 out (`FIN-15`: Contas a receber 2, Despesas 1, Conciliação e Manutenções sem número) nas 32 telas desktop e no `Menu-Mobile`, e o CNPJ 12.345.678/0001-95 nas 10 telas listadas na divergência da T-053.
+
+### T-055 · Contratos alinhados à T-053 e conferência da T-010
+- **Agente:** arquiteto
+- **Depende de:** T-053, T-010
+- **Pronto quando:** CNPJ `12345678000195` em `docs/api/filiais.md` e `docs/api/plataforma.md`, e a Filial Caucaia com `12345678000276`; `docs/api/financeiro.md` com `recebido_pct` "29.11" e `contagens` pelas abas da `FIN-15` ("todas" = soma das quatro), e `docs/api/painel.md` sem os 189000 e "9 parcelas" que não fecham com o seed; as 8 decisões de implementação do handoff da T-010 conferidas contra as ADRs (nova ADR se alguma mudar uma decisão); as rotas inventadas listadas no handoff da T-048 confirmadas ou corrigidas no `docs/telas/README.md`.
+
+### T-056 · Carteira de outubro da Moto Rápida
+- **Agente:** qa (com o produto para registrar os números)
+- **Depende de:** T-053
+- **Pronto quando:** as parcelas de outubro das 42 locações abertas, pela tabela de preços e pelos planos do seed, montadas como dados de referência em `docs/qa/` (entram no seed na T-019); Previsto no mês, Recebido (opção A da `FIN-15`), Vence hoje, Em atraso e as contagens das abas calculados pela `FIN-15` em 07 out, entregues ao produto para registrar em "Dados de referência para testes" e ao design-system para trocar o `Receber` e o `Financeiro`.
+- **Também:** `docs/qa/cobertura-de-regras.md` atualizado com a T-010 (CA-010-01 a 17 fora de `xfail`).
+
+### T-057 · Revisão de segurança do código da T-010
+- **Agente:** seguranca
+- **Depende de:** T-010
+- **Pronto quando:** login da equipe da plataforma (`entrar`, 2 etapas, códigos de recuperação, bloqueio de 15 minutos, atraso progressivo do django-otp desligado), `renovar` e `sair` (cookie `__Host-giro_refresh`, `X-Requested-With`), convite (hash do token, token gerado na tarefa de envio), `criar_empresa` e a separação entre o schema público e os das empresas revisados contra as ADRs 0013 e 0014 e os achados abertos; relatório em `docs/seguranca/`; achados viram tarefas.
 
 ## Fase 1 · MVP
-
-### T-010 · Plataforma: planos, empresas, criação de schema
-- **Agente:** backend · **Depende de:** T-001, T-006, T-030 · **Regras:** PLT-01, PLT-03, PLT-08, PLT-09 (cobrança, suporte e cancelamento ficam para a fase 2) · **Telas:** Plat-Empresas, Plat-Empresa-Detalhe, Plat-Planos · **Nota:** no MVP a empresa piloto é criada pelo Django Admin; as telas da plataforma ficam para a fase 2. · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-010.md` (CA-010-01 a 17) passam, com o código da regra no nome do teste. · **Inclui:** `PaginacaoPorCursor` aceita extras no envelope (`contagens`, `indicadores`), ponto 6 da T-045
 
 ### T-011 · Contas, perfis, permissões, 2FA, convite
 - **Agente:** backend · **Depende de:** T-012, T-033 · **ADRs:** 0013, 0014 (sessões) · **Segurança:** S-02, S-03, S-08, S-13 · **Regras:** USR-01 a USR-07 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-011.md` (CA-011-01 a 28) passam, com o código da regra no nome do teste. · **Inclui:** `Usuario.status` no lugar de `ativo` e e-mail único sem diferenciar maiúsculas (T-045)

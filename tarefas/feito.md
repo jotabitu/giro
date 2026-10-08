@@ -34,3 +34,5 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-034 · Auditoria e Celery endurecidos · backend · PR #21 · tarefas/handoffs/T-034-backend.md · 146 testes; S-10, S-11, C-03, C-05, R-01 e R-04 da T-050; inclui a T-033 (mesclar o PR #16 antes); GRANT giro_expurgo TO giro_migracao pedido ao devops; inclui R-01 e R-04 da T-050
 - T-052 · Ajuste de produção apontado na T-050 · devops · PR #24 · tarefas/handoffs/T-052-devops.md · R-03; GRANT giro_expurgo TO giro_migracao; GIRO_REDES_PROXY por ambiente; CSP avaliada
 - T-048 · Frontend lê o menu e o painel da T-047 · frontend · PR #26 · tarefas/handoffs/T-048-frontend.md · dados falsos; 104 testes
+- T-053 · Números de telas que dependem de regra · produto · PR #25 · tarefas/handoffs/T-053-produto.md · FIN-15 e AUT-16; CNPJ do seed 12.345.678/0001-95; Recebido pela opção A, decidida pelo dono do produto
+- T-010 · Plataforma: planos, empresas, criação de schema · backend · PR #27 · tarefas/handoffs/T-010-backend.md · 222 testes; CA-010-01 a 17; inclui Usuario.status da T-011 e o api-schema com urls_openapi (revisado pelo devops)
