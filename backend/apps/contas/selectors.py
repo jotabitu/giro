@@ -201,8 +201,54 @@ def detalhe_de_usuario(usuario: Usuario, eu: Usuario) -> dict[str, Any]:
     }
 
 
+# --- Modo suporte (PLT-07; ADR 0013, item 2) ---
+
+# No "só ver", o `pode` mantém só o que abre telas de leitura; o resto vem desligado.
+CHAVES_DE_LEITURA = frozenset({"painel", "veiculos", "administracao"})
+
+
+def pode_do_suporte(permissao: str) -> dict[str, Any]:
+    """`pode` de administrador; com `ver`, só as chaves de leitura (contrato de contas)."""
+    tudo = pode_do_perfil(Perfil.ADMINISTRADOR)
+    if permissao != "ver":
+        return tudo
+    desligado = {
+        chave: ("nao" if isinstance(valor, str) else False) for chave, valor in tudo.items()
+    }
+    return {**desligado, **{chave: tudo[chave] for chave in CHAVES_DE_LEITURA}}
+
+
+def dados_do_eu_suporte(ator: Any, empresa: Any) -> dict[str, Any]:
+    """`GET /api/auth/eu/` com o token de suporte: administrador em todas as filiais, com a
+    faixa `suporte` preenchida."""
+    status_empresa = str(getattr(empresa, "status", ""))
+    return {
+        "id": None,
+        "nome": ator.nome,
+        "email": None,
+        "celular": None,
+        "perfil": Perfil.ADMINISTRADOR,
+        "permissoes_extras": [],
+        "filiais": permissoes.resumo_das_filiais(ator),
+        "dois_fatores": {"ativo": False, "obrigatorio": False, "codigos_recuperacao_restantes": 0},
+        "pode": pode_do_suporte(ator.permissao),
+        "suporte": {
+            "acesso_suporte_id": ator.acesso_suporte_id,
+            "nome": ator.nome,
+            "permissao": ator.permissao,
+            "fim": ator.fim,
+            "motivo": ator.motivo,
+        },
+        "empresa": {
+            "nome_exibicao": getattr(empresa, "nome_exibicao", ""),
+            "status": status_empresa,
+            "somente_leitura": status_empresa not in STATUS_OPERANDO,
+        },
+    }
+
+
 def dados_do_eu(usuario: Usuario, empresa: Any) -> dict[str, Any]:
-    """`GET /api/auth/eu/` sem a navegação (T-071) e sem o modo suporte (T-070)."""
+    """`GET /api/auth/eu/` sem a navegação (T-071); o suporte usa `dados_do_eu_suporte`."""
     from . import dois_fatores
 
     status_empresa = str(getattr(empresa, "status", ""))

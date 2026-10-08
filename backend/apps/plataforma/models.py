@@ -7,6 +7,7 @@ Modelo em `docs/decisoes/modelo-de-dados.md` (itens 1 e 2 e apoio). Empresa nasc
 from datetime import date, timedelta
 from typing import ClassVar
 
+from django.conf import settings
 from django.db import models
 from django_tenants.models import DomainMixin, TenantMixin
 
@@ -194,3 +195,64 @@ class UsoEmpresa(ModeloBase):
 
     def __str__(self) -> str:
         return f"Uso da empresa {self.empresa_id}"
+
+
+# --- Acesso de suporte (PLT-07; ADR 0013, item 2) ---
+
+
+class PermissaoSuporte(models.TextChoices):
+    VER = "ver", "Só ver"
+    VER_EDITAR = "ver_editar", "Ver e editar"
+
+
+class StatusAcessoSuporte(models.TextChoices):
+    ATIVO = "ativo", "Ativo"
+    ENCERRADO = "encerrado", "Encerrado"  # o prazo acabou ou o suporte saiu
+    REVOGADO = "revogado", "Revogado"  # o administrador da empresa bloqueou ou revogou
+
+
+DURACOES_DO_SUPORTE = (15, 30, 60)  # minutos (PLT-07)
+
+
+class AcessoSuporte(MaquinaDeEstados, ModeloBase):
+    """Entrada da equipe da plataforma numa empresa, com motivo, prazo e permissão (PLT-07).
+
+    O token de suporte leva o `id`; a autenticação confere esta linha a cada requisição.
+    """
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="acessos_suporte"
+    )
+    empresa = models.ForeignKey(Empresa, on_delete=models.PROTECT, related_name="acessos_suporte")
+    motivo = models.TextField()
+    permissao = models.CharField(max_length=10, choices=PermissaoSuporte.choices)
+    inicio = models.DateTimeField()
+    fim = models.DateTimeField()
+    encerrado_em = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(
+        max_length=10, choices=StatusAcessoSuporte.choices, default=StatusAcessoSuporte.ATIVO
+    )
+
+    TRANSICOES: ClassVar[dict[str, set[str]]] = {
+        "ativo": {"encerrado", "revogado"},
+        "encerrado": set(),
+        "revogado": set(),
+    }
+    REGRA_TRANSICAO = "transicao_acesso_suporte"
+    CATEGORIA_AUDITORIA = Categoria.SUPORTE
+
+    class Meta:
+        verbose_name = "acesso de suporte"
+        verbose_name_plural = "acessos de suporte"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(fim__gt=models.F("inicio")), name="acesso_suporte_fim_depois"
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["status", "fim"], name="acesso_suporte_status_fim"),
+            models.Index(fields=["empresa", "-inicio"], name="acesso_suporte_empresa"),
+        ]
+
+    def __str__(self) -> str:
+        return f"Acesso de suporte {self.pk}"

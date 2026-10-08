@@ -37,6 +37,7 @@ urls_empresa: list[URLPattern] = [
     path("auth/senha/trocar/", acesso.TrocarSenhaView.as_view(), name="senha-trocar"),
     path("auth/senha/esqueci/", acesso.EsqueciSenhaView.as_view(), name="senha-esqueci"),
     path("auth/senha/redefinir/", acesso.RedefinirSenhaView.as_view(), name="senha-redefinir"),
+    path("auth/suporte/sair/", acesso.SuporteSairView.as_view(), name="suporte-sair"),
     # Convite (público, token no corpo)
     path("convites/consultar/", usuarios.ConsultarConviteView.as_view(), name="convite-consultar"),
     path("convites/aceitar/", usuarios.AceitarConviteView.as_view(), name="convite-aceitar"),

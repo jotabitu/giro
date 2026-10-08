@@ -174,6 +174,7 @@ SPECTACULAR_SETTINGS = {
         "NivelDeAprovacaoEnum": "apps.contas.api.acesso.NIVEL_DE_APROVACAO",
         "TipoSessaoEnum": "apps.contas.models.TipoSessao",
         "PermissaoExtraEnum": "apps.contas.models.PermissaoExtra",
+        "PermissaoSuporteEnum": "apps.plataforma.models.PermissaoSuporte",
     },
 }
 
@@ -203,6 +204,11 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
     "plataforma_recalcular_uso_de_todas": {
         "task": "plataforma_recalcular_uso_de_todas",
         "schedule": crontab(hour=3, minute=30),
+    },
+    # AUT-15: encerra os acessos de suporte vencidos (PLT-07).
+    "aut_15_encerrar_acessos_de_suporte_vencidos": {
+        "task": "aut_15_encerrar_acessos_de_suporte_vencidos",
+        "schedule": crontab(minute="*"),
     },
 }
 

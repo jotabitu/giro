@@ -164,6 +164,7 @@ def _detalhe(request: Request, usuario: Usuario, codigo: int = status.HTTP_200_O
 
 class UsuariosView(APIView):
     permission_classes = SO_ADMINISTRADOR
+    suporte_somente_leitura = True
 
     @extend_schema(
         parameters=[
@@ -198,6 +199,8 @@ class UsuariosView(APIView):
 
 class UsuarioView(APIView):
     permission_classes = SO_ADMINISTRADOR
+    suporte_somente_leitura = True
+    suporte_proibido = frozenset({"PATCH"})  # escrita de usuários (PLT-07)
 
     @extend_schema(responses=UsuarioDetalheSerializer, summary="Usuário")
     def get(self, request: Request, pk: int) -> Response:
@@ -223,6 +226,7 @@ class UsuarioView(APIView):
 
 class ConvidarView(APIView):
     permission_classes = SO_ADMINISTRADOR
+    suporte_proibido = True
 
     @extend_schema(
         request=ConvidarSerializer,
@@ -245,7 +249,10 @@ class ConvidarView(APIView):
 
 
 class AcaoSobreUsuario(APIView):
+    """Escritas de usuários e sessões de outra pessoa: nunca pelo suporte (PLT-07)."""
+
     permission_classes = SO_ADMINISTRADOR
+    suporte_proibido = True
 
 
 class ReenviarConviteView(AcaoSobreUsuario):

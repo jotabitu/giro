@@ -22,12 +22,14 @@ from comum.autenticacao import (
     AMR_SENHA,
     AMR_SENHA_E_CODIGO,
     CLAIM_APARELHO,
+    AtorSuporte,
     JWTPre2FA,
     JWTPre2FAOuAcesso,
     apagar_cookie_refresh,
     emitir_pre_2fa,
     emitir_tokens,
     gravar_cookie_refresh,
+    recusar_token_de_suporte,
     veio_do_frontend,
 )
 from comum.erros import (
@@ -209,17 +211,25 @@ class EmpresaDoEuSerializer(serializers.Serializer[Any]):
     somente_leitura = serializers.BooleanField()
 
 
-class EuDaEmpresaSerializer(serializers.Serializer[Any]):
-    id = serializers.IntegerField()
+class SuporteDoEuSerializer(serializers.Serializer[Any]):
+    acesso_suporte_id = serializers.IntegerField()
     nome = serializers.CharField()
-    email = serializers.EmailField()
+    permissao = serializers.ChoiceField(choices=["ver", "ver_editar"])
+    fim = serializers.DateTimeField()
+    motivo = serializers.CharField()
+
+
+class EuDaEmpresaSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(allow_null=True)  # `null` no modo suporte
+    nome = serializers.CharField()
+    email = serializers.EmailField(allow_null=True)
     celular = serializers.CharField(allow_null=True)
     perfil = serializers.CharField()
     permissoes_extras = serializers.ListField(child=serializers.CharField())
     filiais = FilialResumoSerializer(many=True)
     dois_fatores = DoisFatoresSerializer()
     pode = PodeDaEmpresaSerializer()
-    suporte = serializers.JSONField(allow_null=True)
+    suporte = SuporteDoEuSerializer(allow_null=True)
     empresa = EmpresaDoEuSerializer()
 
 
@@ -285,10 +295,18 @@ class Publica(APIView):
     permission_classes = [AllowAny]
     throttle_classes: list[Any] = [AcessoPorIP]
 
+    def initial(self, request: Request, *args: Any, **kwargs: Any) -> None:
+        # Entrar, renovar, sair, senha e convite não aceitam o token de suporte (PLT-07).
+        recusar_token_de_suporte(request)
+        super().initial(request, *args, **kwargs)
+
 
 class Logada(APIView):
+    """Rotas da própria conta (sessões, senha, 2 etapas): o suporte não usa (PLT-07)."""
+
     permission_classes = [IsAuthenticated, EscopoDeFilial]
     throttle_classes: list[Any] = [AcessoPorIP]
+    suporte_proibido: bool | frozenset[str] = True
 
 
 class EtapaDe2FA(APIView):
@@ -383,6 +401,7 @@ class Configurar2FAView(APIView):
     authentication_classes = [JWTPre2FAOuAcesso]
     permission_classes = [IsAuthenticated]
     throttle_classes = [AcessoPorIP]
+    suporte_proibido = True
 
     @extend_schema(
         request=None,
@@ -497,8 +516,14 @@ class SairView(Publica):
 
 
 class EuView(Logada):
+    # O suporte lê o `eu` (faixa "Modo suporte") e não edita dados de ninguém (PLT-07).
+    suporte_proibido = frozenset({"PATCH"})
+    suporte_somente_leitura = True
+
     @extend_schema(responses=EuDaEmpresaSerializer, summary="Quem está logado (USR-03, USR-05)")
     def get(self, request: Request) -> Response:
+        if isinstance(request.user, AtorSuporte):
+            return Response(selectors.dados_do_eu_suporte(request.user, request.tenant))  # type: ignore[attr-defined]
         return Response(_eu(request, _usuario(request)))
 
     @extend_schema(
@@ -620,8 +645,29 @@ class RedefinirSenhaView(Publica):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+# --- Modo suporte (PLT-07) ---
+
+
+class SuporteSairView(APIView):
+    """O suporte encerra o próprio acesso (`encerrado`), com evento nas duas auditorias."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes: list[Any] = [AcessoPorIP]
+    so_suporte = True
+
+    @extend_schema(request=None, responses={204: None}, summary="Sair do modo suporte (PLT-07)")
+    def post(self, request: Request) -> Response:
+        from apps.plataforma.services import sair_do_suporte
+
+        if not isinstance(request.user, AtorSuporte):
+            raise SemPermissao("PLT-07", "Só o suporte usa esta ação")
+        sair_do_suporte(request.user.acesso_suporte_id)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 # Sem `EmpresaOperando` de propósito (ver o docstring do módulo).
 VIEWS_DE_ACESSO: tuple[type[APIView], ...] = (
+    SuporteSairView,
     EntrarView,
     Verificar2FAView,
     Configurar2FAView,

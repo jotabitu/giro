@@ -29,6 +29,13 @@ Contrato da API: `docs/api/plataforma.md` (escrito pelo arquiteto antes da imple
 - `tasks.py`: `plataforma_avisar_limite_90` (e-mail aos administradores, uma vez por item e por mês) e `plataforma_recalcular_uso` (Beat, 03:30).
 - `api/`: `GET /api/plataforma/planos/`, `/empresas/`, `/empresas/{id}/` (host admin) e `GET /api/assinatura/` (host da empresa). Método de fase 2 responde 404.
 
+## Implementado (T-070: modo suporte, PLT-07)
+
+- `AcessoSuporte` (máquina `ativo` → `encerrado` ou `revogado`; `fim - inicio` de 15, 30 ou 60 min). Tudo do acesso roda em `schema_context(public)`, porque do host da empresa o `search_path` acharia a tabela de usuários da empresa.
+- `services.py`: `abrir_acesso_suporte` (422 `PLT-07` com o suporte bloqueado; e-mail aos administradores depois do commit), `conferir_acesso_suporte` (registrada em `comum.autenticacao` no `ready()`), `sair_do_suporte`, `revogar_acesso_suporte`, `definir_bloqueio_do_suporte` (bloquear revoga os ativos na hora) e `encerrar_acessos_vencidos` (AUT-15). Cada fato vai para as duas auditorias; na da empresa, a entrada e a saída têm o ator `suporte` com o `acesso_suporte_id` (AUD-03).
+- `api/suporte.py`: `POST /api/plataforma/empresas/{id}/acessos-suporte/` (função com `entrar_como_suporte`; a URL de entrada leva o token no fragmento) e, no host da empresa, `GET /api/suporte/`, `POST /api/suporte/bloquear/`, `liberar/` e `acessos/{id}/revogar/` (administrador; o suporte nunca usa).
+- Tarefas: `plataforma_avisar_entrada_do_suporte` e `aut_15_encerrar_acessos_de_suporte_vencidos` (Beat, a cada minuto).
+
 ## Eventos publicados
 
 | Evento | Quando | Dados |
