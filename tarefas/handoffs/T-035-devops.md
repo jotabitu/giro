@@ -8,3 +8,9 @@
 **Frontend, confira de novo:** o `middleware.ts` revisado na T-045 mudou: o matcher agora cobre as páginas (exceto `_next/static`, `_next/image`, favicon e prefetch) e `/api/` mantém só a remoção do `X-Forwarded-For`; arquivo novo `src/lib/csp.ts` com teste; `layout.tsx` ganhou `force-dynamic`. Sobre o seu ponto 3: medi com servidor de eco na T-045 que o valor forjado era descartado, mas não confirmei se o Next acrescenta o IP do socket; o comentário "vazio" pode estar impreciso.
 **Backend:** `GIRO_PROXIES_CONFIAVEIS` e `GIRO_REDES_PROXY` ainda precisam ser lidas (T-034); T-043 também pede `DATABASE_URL_MIGRACAO`.
 **Pendente (deploy):** regra de rede Django só via proxy; certificado curinga; Sentry no frontend.
+
+**Revisão do frontend (middleware, csp e layout: lógica aprovada). Pontos abertos:**
+- `img-src 'self' data: blob:` bloqueia logo, foto de veículo e prévia de documento (URL assinada de 15 min, AUD-05) se vierem do armazenamento S3. Quando o contrato de empresas e fotos definir o host, acrescentar a origem em `img-src` (e `frame-src`/`object-src` se houver PDF embutido) em `src/lib/csp.ts`. Hoje nenhuma tela carrega imagem externa.
+- `connect-src 'self'`: em dev, `NEXT_PUBLIC_API_URL` com outro host seria bloqueado. O `.env.example` já manda deixá-la vazia.
+- `force-dynamic` na raiz tira o pré-render de todas as páginas, inclusive `/design-system` e `/entrar`. Aceito; registrar no PR.
+- O cabeçalho `X-Forwarded-For` que chega ao Django em dev segue sem medição; o comentário do middleware fica como está até alguém olhar o cabeçalho no backend.
