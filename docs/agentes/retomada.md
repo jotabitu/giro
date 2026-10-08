@@ -86,13 +86,18 @@ Ao terminar: commit no formato do CLAUDE.md, handoff em tarefas/handoffs/, push 
 - **Merge de PR com commit de merge, não squash**, porque há PRs empilhados. Só com o aval do dono do produto.
 - **Limpar o contexto de um agente:** `MSYS_NO_PATHCONV=1 maestri ask "Nome" "/clear"` (sem a variável, o Git Bash troca `/clear` por um caminho do Windows). Depois mande um resumo de retomada: tarefa, worktree, branch, último commit e estas regras.
 - **Validar celular** no portal "Giro Celular" ou com Playwright em 390 px. O Edge headless não abre janela menor que 492 px.
+- **Terminal aberto no worktree.** Recrute cada agente com `--dir` no worktree dele, por exemplo `maestri recruit "Backend" --command "claude --model claude-opus-5-5" --role "Backend" --dir 'C:\Users\Jota\Documents\giro-backend' --replace "Backend"`. Aberto na cópia principal, o Claude Code pede permissão a cada leitura fora do diretório e o agente trava.
+- **`.env` e Postgres.** Se as permissões negarem acesso a `.env`, o dono do produto cria o arquivo (`cp ../giro-integracao/.env.example ../giro-integracao/.env`). O compose sobe uma vez só, a partir de `giro-integracao` (`docker compose -p giro up -d --build`); os agentes não sobem outro. Para o pytest antes disso, o backend usa um Postgres descartável na porta 55432, com `infra/postgres` montado, e o remove no fim (comando no handoff da T-010).
 
 ## 5. Onde paramos
 
-O estado de cada tarefa está em `tarefas/em-andamento.md` e `tarefas/feito.md`, e os detalhes de cada entrega em `tarefas/handoffs/`. Os PRs abertos estão no GitHub (`gh pr list`). A próxima leva quando o time voltar da pausa:
+Pausa de 08/10, depois da T-012 (PR #35). O estado de cada tarefa está em `tarefas/em-andamento.md` e `tarefas/feito.md`, os detalhes em `tarefas/handoffs/` e os PRs abertos em `gh pr list`. A próxima leva quando o time voltar:
 
-- **Frontend:** T-048 (ler `eu.navegacao` e o painel da T-047).
-- **Backend:** a primeira tarefa de negócio da fase 1 sem dependência pendente (T-010, depois T-012, T-011, T-013, T-014). T-034 se ainda não tiver sido entregue.
+- **Backend:** T-058 (P-01 a P-04 da revisão T-057), antes de qualquer ambiente com dados reais; depois T-011, T-013 e T-014.
+- **Produto:** T-059 (carteira de outubro, textos da T-010, `PLT-08` e CNPJ da Messejana).
+- **Design System:** T-060 (telas do Receber e do Financeiro; FleetBar conferido no navegador a 390 px).
+- **Frontend:** T-061 (rotas do menu da T-055).
+- **Arquiteto:** conferir as 5 decisões de implementação do handoff da T-012.
+- **DevOps:** limite de requisições no proxy (P-03, S-17) quando houver homologação.
 - **QA:** T-019 (seed Moto Rápida) quando o backend de T-013 a T-017 existir.
-- **Design System:** T-028 se ainda não tiver sido entregue; depois o que o frontend pedir.
-- **Seguranca:** revisar cada entrega de backend que toca dados pessoais, dinheiro ou acesso.
+- **Seguranca:** revisar cada entrega de backend que toca dados pessoais, dinheiro ou acesso; a T-012 ainda não foi revisada.

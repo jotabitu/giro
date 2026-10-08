@@ -201,6 +201,8 @@ Levantadas pelo produto em T-053 (08 out 2026):
 
 ## Fase 1 · MVP
 
+- **Nota da T-012 (08/10):** a S-12 (SVG do logo sanitizado e exibido só por `<img>`) vale para `ConfiguracaoEmpresa.logo` (app `empresas`), e não para a filial. Entra na tarefa da marca da empresa (`Admin-Marca`), a criar.
+
 ### T-058 · Correções de segurança da T-057
 - **Agente:** backend · **Prioridade:** antes de qualquer ambiente com dados reais (homologação incluída)
 - **Depende de:** T-010, T-057
@@ -211,10 +213,6 @@ Levantadas pelo produto em T-053 (08 out 2026):
 ### T-011 · Contas, perfis, permissões, 2FA, convite
 - **Agente:** backend · **Depende de:** T-012, T-033 · **ADRs:** 0013, 0014 (sessões) · **Segurança:** S-02, S-03, S-08, S-13 · **Regras:** USR-01 a USR-07 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-011.md` (CA-011-01 a 28) passam, com o código da regra no nome do teste. · **Inclui:** `Usuario.status` no lugar de `ativo` e e-mail único sem diferenciar maiúsculas (T-045)
 - **Também:** R-06 da revisão T-050; P-05 a P-09 da revisão T-057 (`docs/seguranca/2026-10-08-codigo-t010.md`, "Distribuição sugerida").
-
-### T-012 · Filiais
-- **Agente:** backend · **Depende de:** T-010, T-030 · **Regras:** PLT-03 (limite), USR-07 · **Telas:** Filiais, Filial · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-012.md` (CA-012-01 a 17) passam, com o código da regra no nome do teste.
-- **Nota:** a S-12 (SVG do logo sanitizado e exibido só por `<img>`) saiu da T-012 em 08/10: vale para `ConfiguracaoEmpresa.logo` (app `empresas`), e não para a filial. Entra na tarefa da marca da empresa (`Admin-Marca`), a criar.
 
 ### T-013 · Veículos, categorias, documentos, histórico de status
 - **Agente:** backend · **Depende de:** T-012 · **Regras:** VEI-01 a VEI-06 · **Telas:** Frota, Veiculo, Precos · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-013.md` (CA-013-01 a 26) passam, com o código da regra no nome do teste.

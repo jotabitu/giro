@@ -40,3 +40,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-056 · Carteira de outubro da Moto Rápida · qa · PR #30 · tarefas/handoffs/T-056-qa.md · Previsto R$ 52.192,50 em 128; Recebido 25,47%; 227 testes; registro dos números na T-059
 - T-054 · Componentes e telas apontados na T-048 e na T-053 · design-system · PR #31 · tarefas/handoffs/T-054-design-system.md · 108 testes; FleetBar a 390 px conferido no navegador na T-060
 - T-055 · Contratos alinhados à T-053 e conferência da T-010 · arquiteto · PR #32 · tarefas/handoffs/T-055-arquiteto.md · sem ADR nova; DESTINOS do frontend na T-061
+- T-012 · Filiais · backend · PR #35 · tarefas/handoffs/T-012-backend.md · 258 testes; CA-012-01 a 17; S-12 fora (logo da empresa); 5 decisões para o arquiteto conferir
