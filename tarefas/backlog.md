@@ -227,6 +227,12 @@ Levantadas pelo produto em T-059 (08 out 2026):
 ### T-071 · Navegação do eu
 - **Agente:** backend · **Depende de:** T-011, T-047 · **Regras:** USR-05, USR-08 · **Pronto quando:** `GET /api/auth/eu/` devolve `navegacao` (`menu_inicio`, `menu_completo`, `barra_celular`, `inicio.variante`) como em `docs/api/contas.md`, considerando os recursos do plano e `GIRO_MODULOS_ATIVOS`, com teste por perfil; o frontend troca o falso de `falso-navegacao.ts` numa tarefa própria.
 
+### T-072 · Token do convite e da redefinição fora do caminho da URL
+- **Agente:** arquiteto · **Depende de:** T-057 · **Pronto quando:** `docs/api/contas.md` e `docs/api/plataforma.md` com consultar e aceitar convite como POST com o token no corpo, na empresa e na plataforma, e os links de e-mail (convite e redefinir senha) com o token no fragmento (`#`), conforme a decisão do arquiteto sobre o P-09 da revisão T-057. A rota da plataforma muda na T-069 (backend).
+
+### T-073 · Telas de convite e redefinição com o token no fragmento
+- **Agente:** frontend · **Depende de:** T-072 · **Telas:** Convite, Acesso-Senha · **Pronto quando:** `/convite` e `/entrar/redefinir` leem o token do fragmento da URL, enviam no corpo do POST conforme a T-072 e limpam o fragmento do histórico, nos dados falsos e com teste.
+
 ### T-013 · Veículos, categorias, documentos, histórico de status
 - **Agente:** backend · **Depende de:** T-012 · **Regras:** VEI-01 a VEI-06 · **Telas:** Frota, Veiculo, Precos · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-013.md` (CA-013-01 a 26) passam, com o código da regra no nome do teste.
 
