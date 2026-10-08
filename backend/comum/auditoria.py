@@ -56,6 +56,11 @@ def ator_atual() -> Ator:
     return valor() if callable(valor) else valor
 
 
+def limpar_ator() -> None:
+    """Volta ao Sistema. Só para o início e o fim de cada tarefa no worker (S-11)."""
+    _ator.set(None)
+
+
 @contextmanager
 def usar_ator(ator: Ator | Callable[[], Ator]) -> Iterator[None]:
     token = _ator.set(ator)

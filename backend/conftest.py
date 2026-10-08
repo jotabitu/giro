@@ -30,6 +30,22 @@ def django_db_setup(django_db_setup, django_db_blocker):
                 domain=dominio, defaults={"tenant": empresa, "is_primary": True}
             )
         conexao().set_schema_to_public()
+        _papeis_de_banco(["public", *EMPRESAS_DE_TESTE])
+
+
+def _papeis_de_banco(schemas: list[str]) -> None:
+    """Papéis da ADR 0016 no banco de teste, para provar os REVOKE com `SET ROLE giro_app`."""
+    from django.db import connection
+
+    from apps.auditoria.banco import aplicar_permissoes
+
+    with connection.cursor() as cursor:
+        for papel in ("giro_app", "giro_expurgo"):
+            cursor.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", [papel])
+            if cursor.fetchone() is None:
+                cursor.execute(f"CREATE ROLE {papel} NOLOGIN")
+        for schema in schemas:
+            aplicar_permissoes(cursor, schema)
 
 
 def _entrar(schema: str) -> Iterator["object"]:

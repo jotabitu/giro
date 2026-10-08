@@ -17,12 +17,17 @@ import functools
 import logging
 import re
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from typing import Any, Protocol, TypedDict
 
 from django.contrib.auth import get_user_model
 from django.db import connection
-from django_tenants.utils import get_public_schema_name, get_tenant_model, schema_context
+from django_tenants.utils import (
+    get_public_schema_name,
+    get_tenant_model,
+    schema_context,
+    tenant_context,
+)
 
 from comum.auditoria import Ator, TipoAtor, ator_atual, usar_ator
 from comum.conexao import schema_atual as schema_atual  # para quem agenda tarefa
@@ -63,6 +68,11 @@ def _montar_ator(ator: AtorDaFila | None, regra: str) -> Ator:
     if ator is None:
         return Ator(tipo=TipoAtor.SISTEMA, nome="Sistema", regra=regra)
     if ator["tipo"] == TipoAtor.SUPORTE:
+        # Toda ação do suporte precisa do acesso que a justifica (AUD-03, PLT-07; R-04 da T-050).
+        # Conferir no public que o acesso existe, é desta empresa e está no prazo fica com o
+        # model do acesso de suporte (T-011/T-029).
+        if ator.get("acesso_suporte_id") is None:
+            raise ValueError("Ator do suporte sem acesso_suporte_id.")
         # O atendente é usuário do public (ADR 0013, item 2).
         nome = _nome_do_usuario(ator["id"], no_public=True) or "Suporte Giro"
     elif ator["tipo"] == TipoAtor.USUARIO:
@@ -96,25 +106,21 @@ def _status_permitidos(inclui_suspensas: bool) -> frozenset[str]:
     return STATUS_OPERANDO | STATUS_SO_LEITURA if inclui_suspensas else STATUS_OPERANDO
 
 
-def conferir_empresa_para_tarefa(schema_name: str, *, inclui_suspensas: bool = False) -> None:
-    """Levanta `EmpresaIndisponivel` se não for seguro entrar no schema."""
+def conferir_empresa_para_tarefa(schema_name: str, *, inclui_suspensas: bool = False) -> Any:
+    """Devolve a empresa, ou levanta `EmpresaIndisponivel` se não for seguro entrar no schema."""
     if schema_name == get_public_schema_name():
         raise EmpresaIndisponivel("Tarefa de empresa não roda no schema público.")
     with schema_context(get_public_schema_name()):
-        status = (
-            get_tenant_model()
-            .objects.filter(schema_name=schema_name)
-            .values_list("status", flat=True)
-            .first()
-        )
-        if status is None:
+        empresa = get_tenant_model().objects.filter(schema_name=schema_name).first()
+        if empresa is None:
             raise EmpresaIndisponivel(f"Empresa {schema_name} não existe.")
-        if status not in _status_permitidos(inclui_suspensas):
-            raise EmpresaIndisponivel(f"Empresa {schema_name} está {status}.")
+        if empresa.status not in _status_permitidos(inclui_suspensas):
+            raise EmpresaIndisponivel(f"Empresa {schema_name} está {empresa.status}.")
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1 FROM pg_namespace WHERE nspname = %s", [schema_name])
             if cursor.fetchone() is None:
                 raise EmpresaIndisponivel(f"O schema {schema_name} não existe mais.")
+    return empresa
 
 
 @contextmanager
@@ -128,9 +134,11 @@ def na_empresa(
     """Confere a empresa e entra no schema dela.
 
     O ator da auditoria é o Sistema (com a `regra`) ou, com `ator`, quem pediu a tarefa.
+    Entra com a empresa real (`tenant_context`), não só com o nome do schema: a cifra e o hash
+    de busca precisam do id dela (R-01 da T-050).
     """
-    conferir_empresa_para_tarefa(schema_name, inclui_suspensas=inclui_suspensas)
-    with schema_context(schema_name), usar_ator(_montar_ator(ator, regra)):
+    empresa = conferir_empresa_para_tarefa(schema_name, inclui_suspensas=inclui_suspensas)
+    with tenant_context(empresa), usar_ator(_montar_ator(ator, regra)):
         yield
 
 
@@ -152,12 +160,16 @@ def tarefa_de_empresa[**P, R](
             schema_name = args[0] if args else kwargs.get("schema_name")
             if not isinstance(schema_name, str) or schema_name == get_public_schema_name():
                 raise TypeError(f"{alvo.__name__}: o 1º argumento deve ser o schema da empresa.")
-            try:
-                conferir_empresa_para_tarefa(schema_name, inclui_suspensas=inclui_suspensas)
-            except EmpresaIndisponivel as motivo:
-                logger.warning("%s ignorada: %s", alvo.__name__, motivo)
-                return None
-            with na_empresa(schema_name, regra=regra, ator=ator, inclui_suspensas=inclui_suspensas):
+            with ExitStack() as pilha:
+                try:
+                    pilha.enter_context(
+                        na_empresa(
+                            schema_name, regra=regra, ator=ator, inclui_suspensas=inclui_suspensas
+                        )
+                    )
+                except EmpresaIndisponivel as motivo:
+                    logger.warning("%s ignorada: %s", alvo.__name__, motivo)
+                    return None
                 return alvo(*args, **kwargs)
 
         return executar

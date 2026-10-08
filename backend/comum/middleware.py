@@ -9,12 +9,13 @@ from collections.abc import Callable
 from django.http import HttpRequest, HttpResponse
 
 from comum.auditoria import ATOR_SISTEMA, Ator, TipoAtor, usar_ator
+from comum.rede import ip_do_cliente
 
 TAMANHO_APARELHO = 200
 
 
 def ator_da_requisicao(request: HttpRequest) -> Ator:
-    ip = request.META.get("REMOTE_ADDR")
+    ip = ip_do_cliente(request)
     aparelho = request.META.get("HTTP_USER_AGENT", "")[:TAMANHO_APARELHO]
     usuario = getattr(request, "user", None)
     if usuario is None or not usuario.is_authenticated:

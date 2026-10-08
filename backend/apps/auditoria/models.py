@@ -1,7 +1,9 @@
 """Evento de auditoria imutável (AUD-01, AUD-02, ADR 0010).
 
 Três camadas: o model recusa `save()` de registro existente e `delete()`, o queryset recusa
-`update()` e `delete()`, e um trigger PostgreSQL (migração 0002) recusa UPDATE e DELETE.
+`update()` e `delete()`, e triggers PostgreSQL (migrações 0002 e 0003) recusam UPDATE, DELETE e
+TRUNCATE. Só a função `auditoria_expurgar`, do papel `giro_expurgo`, apaga evento com mais de
+5 anos (ADR 0016).
 Grave sempre por `comum.auditoria` (`auditar`, `registrar_evento`) ou pela máquina de estados.
 """
 
