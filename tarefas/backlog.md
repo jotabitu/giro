@@ -10,7 +10,7 @@ As pendências de regra foram decididas em 07 out 2026 (seção "Decisões de 07
 - [bloqueada] Busca no INPI da marca "Giro" (classes 42 e 9).
 - [bloqueada] Abrir a conta do Asaas (a integração começa no sandbox, não depende disso).
 - (T-013) A transferência de veículo com categoria só da filial (`VEI-04`) foi decidida em 08 out 2026 pelo dono do produto: opção B, recomendada pelo produto (na transferência, pedir a categoria do destino só quando a atual não vale lá). Virou regra na T-082 (PR #71) e vira código na T-083.
-- (T-081) A aprovação de uma correção de km depois que o km mudou (`APR-06`) foi decidida em 08 out 2026 pelo dono do produto: fica o 409 `km_mudou`, e o gerente recusa e pede de novo.
+- (T-081) Aprovar uma correção de km (`APR-06`) depois que outra leitura mudou o km foi decidido em 08 out 2026 pelo dono do produto: fica como está. A aprovação responde 409 `km_mudou`, o pedido continua pendente, e o gerente recusa e pede de novo com o km atual. Assim a leitura mais nova não é apagada. O produto registra a regra na próxima tarefa de regras de veículos.
 - [decisão] (T-079, para o produto) No dia em que vencem o CRLV ou o seguro, o `VEI-03` só diz o que fazer com o veículo `disponivel` (vai para `indisponivel`) e com o `alugado` (tarefa urgente). E o veículo `reservado`, ou em `manutencao`? Hoje a `AUT-06` não faz nada com eles, e a reserva pode sair com o documento vencido. As opções são uma tarefa urgente, como no alugado, ou recusar a retirada até renovar.
 
 A dúvida da segurança S-02 (T-032: o suporte Giro vê CPF e CNH completos?) foi decidida em 07 out 2026 e virou a regra `AUD-09` (mascarado, nunca completo).
@@ -213,9 +213,6 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - **Agente:** backend · **Prioridade:** antes da T-013
 - **Depende de:** T-012, T-064
 - **Pronto quando:** F-01 (permissões de administrador somam às padrão, sem perder `EmpresaOperando` e `EscopoDeFilial`; teste de arquitetura no urlconf da empresa), F-02 (`filial_da_requisicao` distingue "todas" de pessoa sem filial, que recebe 403 `USR-07`; o arquiteto confere a interface interna), F-04 (limite por IP sem chave vazia quando falta o IP e com IPv6 agrupado por prefixo; o devops confere o `REMOTE_ADDR` atrás do proxy) e F-05 (limite na busca de CEP) corrigidos, cada um com teste que reproduz o achado; detalhes em `docs/seguranca/2026-10-09-t058-t012.md`.
-
-### T-079 · Documentos de veículos, arquivo privado e AUT-06
-- **Agente:** backend · **Depende de:** T-013 · **ADRs:** 0009 (`comum/arquivos.py`: storage privado S3, prefixo `<schema>/<app>/<model>/<id>/`, URL assinada de 15 minutos), 0011 (`notificacoes` no nível 5) · **Regras:** VEI-03, AUT-06, FIL-02, AUD-05 · **Pronto quando:** CA-013-17 a 20 passam, com o código da regra no nome do teste; `comum/arquivos.py` com implementação falsa no desenvolvimento e nos testes, pronta para a T-014; o mínimo de `notificacoes` que o CA-013-18 usa (tarefa urgente e alerta aos gerentes).
 
 ### T-083 · Transferência pede a categoria do destino
 - **Agente:** backend · **Depende de:** T-082 · **Regras:** VEI-04, FIL-04, LOC-01 · **Pronto quando:** o CA-013-27 da T-082 passa, com o código da regra no nome do teste; a transferência recusa sem a categoria quando a atual não vale no destino e aceita a categoria do destino ou da empresa; `transferir` ganha `categoria_id` no contrato em `docs/api/veiculos.md` e OpenAPI regerado.
