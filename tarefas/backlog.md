@@ -69,6 +69,7 @@ Levantadas pelo produto em T-059 (08 out 2026):
 
 Levantadas pelo backend em T-015 (09 out 2026):
 
+- [divergência] (T-104, produto → design-system) As telas `Locacoes`, `Locacao-Detalhe` e `Clientes` (`docs/telas/html`) ainda mostram a LOC-2836 com "30 set → hoje 18:00" e "Devolve hoje". Pela decisão B de 09/10 (T-104), ela vai até 14 out 18:00, e em 07 out fica ativa, sem sinal, com a ação Abrir. Ver `tarefas/handoffs/T-104-produto.md`.
 - (T-015) O preço da LOC-2836 foi decidido em 09 out 2026 pelo dono do produto: opção A. A LOC-2836 é confirmada em 01 out, com início em 30 set, e paga R$ 329,00 pela tabela da Street a partir de 01 out (`LOC-15`); a tabela não muda. Os dados de referência mudam na T-097 e o teste do CA-015-15 na T-098.
 
 ## Fase 0 · Fundação
@@ -220,9 +221,6 @@ Levantadas pelo backend em T-015 (09 out 2026):
 
 ### T-102 · Ficha do veículo idêntica à referência
 - **Agente:** frontend · **Depende de:** T-013, T-079 · **Telas:** Veiculo (`docs/telas/html/Veiculo-Desktop.dc.html` e `Veiculo-Mobile.dc.html`) · **Regras:** VEI-01 a VEI-07 · **Pronto quando:** `/veiculos/[id]` (`FichaVeiculo.tsx`) reproduz a tela de referência no desktop e no celular, com a mesma estrutura, seções, ordem, rótulos, ações e estados, usando os componentes e tokens do design system; os dados vêm de `falso-frota.ts` no formato de `docs/api/veiculos.md` (T-013 e T-079); o que a tela mostra e o contrato não tem fica com o falso ou desativado e anotado no handoff; o design-system confere a fidelidade visual; teste da tela. Pedido do dono em 09/10.
-
-### T-104 · Regra e critérios da LOC-2836 até 14 out
-- **Agente:** produto · **Depende de:** T-103 · **Regras:** LOC-01, LOC-05, LOC-06 · **Pronto quando:** a opção B aprovada pelo dono em 09/10 (LOC-2836 com 2 semanas, de 30 set 18:00 a 14 out 18:00; nenhum valor muda) sai de "Pontos em aberto" e vai para os "Dados de referência" e para "Decisões de 09 out 2026" em `docs/regras-de-negocio.md`; o "devolve hoje", o CA-015-19 e os CA-016-08, 09 e 12 passam para 14 out; em 07 out a LOC-2836 fica ativa sem sinal.
 
 ### T-105 · Seed da LOC-2836 até 14 out
 - **Agente:** qa · **Depende de:** T-104, T-091 · **Regras:** LOC-01, LOC-06 · **Pronto quando:** `backend/tests/aceitacao/carteira.py` cria a LOC-2836 com início em 30 set 18:00 e fim calculado pela LOC-01 (14 out 18:00), sem o ajuste do `fim_previsto`; os testes que usam a LOC-2836 seguem os critérios da T-104; sem mudança de código de produção.
