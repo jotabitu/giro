@@ -260,5 +260,5 @@ Recusado pelo gerente: o sinal apaga e o vendedor é avisado com o motivo.
 | `locacoes.selectors.calcular_encerramento_antecipado(locacao, data)` | `LOC-12`, `LOC-13`; o mesmo cálculo de `cancelamento/simular`. |
 | assinantes | `financeiro.parcela_paga` (1º pagamento), `contratos.contrato_assinado`, `aprovacoes.pedido_decidido` (`APR-01`, `APR-02`). |
 | evento publicado | `locacoes.locacao_encerrada` (preventivas, `MAN-03`). |
-| anotações fornecidas (ADR 0015) | `locacao_atual` para `veiculos` e `clientes`; `locacoes_ativas` e contador de operação para `filiais`; filtro `com_locacao` para `clientes`. |
+| anotações fornecidas (ADR 0015) | `locacao_atual` para `veiculos` e `clientes`; `locacoes_ativas` e contador de operação para `filiais`; filtro `com_locacao` e contador `locacao_aberta` (inativar, `cliente_com_pendencia`) para `clientes`. |
 | tarefas | `aut_01_lembrete_de_devolucao` (08:00), `aut_02_marcar_devolucao_atrasada` (de hora em hora), limpeza de rascunhos com 24 h. |

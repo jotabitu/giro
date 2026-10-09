@@ -74,4 +74,5 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-085 · AUT-06 gera tarefa urgente para veículo reservado ou em manutenção · backend · PR #80 · tarefas/handoffs/T-085-backend.md · 401 testes; CA-013-28; recusa da retirada na T-016
 - T-014 · Clientes, documentos, bloqueio e LGPD · backend · PR #81 · tarefas/handoffs/T-014-backend.md · 442 testes; CA-014-01 a 22; Pillow; R-02 e R-05 da T-050; [decisão] de CLI-02 e CLI-09 para o produto
 - T-087 · Regras da CNH C, D e E e do cliente bloqueado · produto · PR #83 · tarefas/handoffs/T-087-produto.md · CLI-02 e CLI-09; Decisões de 09 out 2026; CA-014-14 e 18; testes na T-089
+- T-088 · Formato das datas na API · arquiteto · PR #85 · tarefas/handoffs/T-088-arquiteto.md · ADR 0020 (UTC com Z pelo renderizador de comum); emendas nos contratos; código na T-093; [decisão] da VEI-06
 - T-089 · Testes dos casos novos da CLI-02 e da CLI-09 · qa · PR #86 · tarefas/handoffs/T-089-qa.md · CA-014-14 e 18 cobertos; sem mudança de produção
