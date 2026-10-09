@@ -238,13 +238,14 @@ Qualquer outra transição é recusada pelo backend com erro de regra (HTTP 409)
 - `VEI-01` Placa e chassi únicos por empresa, em qualquer estado do veículo; chassi com 17 caracteres; km nunca diminui (vistoria com km menor que o anterior é recusada, salvo correção pelo gerente com motivo).
 - `VEI-02` O km do veículo é atualizado a cada vistoria e a cada OS. Ele dispara as preventivas (`MAN-03`).
 - `VEI-03` Documentos: alerta 30 dias antes do vencimento; no dia do vencimento de CRLV ou seguro, o veículo disponível vai para `indisponivel`. Veículo alugado não muda, mas gera tarefa urgente para o gerente.
-- `VEI-04` Transferência entre filiais só com o veículo `disponivel`. Grava a filial de origem e destino. É o único jeito de um veículo mudar de filial: a devolução é sempre na filial da locação e a frota não é compartilhada (`FIL-05`).
+- `VEI-04` Transferência entre filiais só com o veículo `disponivel`. Grava a filial de origem e destino. É o único jeito de um veículo mudar de filial: a devolução é sempre na filial da locação e a frota não é compartilhada (`FIL-05`). Se a categoria do veículo é só da filial de origem (`FIL-04`), a transferência pede a categoria no destino: uma categoria ativa, do mesmo tipo de veículo, da empresa ou da filial de destino. Sem ela, a transferência é recusada. Categoria da empresa passa direto, e o veículo continua nela. Como só se transfere veículo `disponivel`, nenhuma locação aberta muda de preço: a categoria nova vale a partir da próxima locação (`LOC-01`).
 - `VEI-05` "Rendeu no ano" na ficha = receitas de locação recebidas do veículo − custos de manutenção e despesas ligadas a ele, no ano corrente.
 - `VEI-06` Ocupação = dias alugado ÷ dias que o veículo esteve na frota no período (exclui `a_venda`, `vendido`, `baixado`). Ocupação da frota = média ponderada pelos dias.
 - `VEI-07` Veículo que volta para a empresa depois de vendido (recompra numa troca, `VEN-05`) reaproveita o cadastro existente, achado pelo chassi, e não ganha outro: vai de `vendido` para `indisponivel` até a vistoria, e o histórico continua no mesmo veículo.
 
 *Mudanças em 07 out 2026 (T-031):* `VEI-01` passou a exigir chassi único, além da placa; criada a `VEI-07`; acrescentadas as transições `vendido` → `a_venda` e `vendido` → `indisponivel`.
 *Mudanças em 07 out 2026 (T-037):* `VEI-04` passou a dizer que a devolução é na filial da locação e que não há frota compartilhada.
+*Mudanças em 08 out 2026 (T-082):* `VEI-04` passou a dizer o que acontece com a categoria só da filial de origem: a transferência pede a categoria no destino, e a da empresa passa direto. Antes, o veículo ia para o destino com a categoria e o preço da origem (dúvida do backend na T-013). Decisão do dono do produto em 08 out 2026 (opção B).
 
 ## Clientes
 
@@ -598,6 +599,7 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 | CNPJ da Filial Messejana (T-059) | **12.345.678/0003-57** (a Filial Caucaia é 12.345.678/0002-76). | Os dois passam no dígito verificador, como o da Moto Rápida (T-053). |
 | Senha errada na equipe da plataforma (P-03 da T-057) | **5 senhas erradas bloqueiam por 15 minutos**, como no `USR-06` (`PLT-08`). | Sem limite, a senha da equipe podia ser testada sem fim. |
 | Reativar quem teve o convite cancelado (T-069, analisada na T-075) | **B:** quem nunca chegou a `ativo` volta para `convite_pendente`, com convite novo de 7 dias; quem já foi `ativo` volta `ativo`; o limite do plano vale nos dois casos (`USR-04`, `PLT-03`). | Com a opção A, a lista mostrava como ativo quem não tinha senha nem recebeu aviso. |
+| Transferência de veículo com categoria só da filial (T-013) | **B:** a transferência pede a categoria no destino só quando a categoria atual é da filial de origem; categoria da empresa passa direto (`VEI-04`). | Recusar obrigaria a três passos, porque a categoria do destino não pode ser usada na origem; o veículo `disponivel` não tem locação aberta para mudar de preço. |
 
 ## Pontos em aberto
 
