@@ -70,3 +70,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-079 · Documentos de veículos, arquivo privado e AUT-06 · backend · PR #74 · tarefas/handoffs/T-079-backend.md · 399 testes; comum/arquivos.py pronto para a T-014; boto3; [decisão] do reservado e da manutenção para o produto
 - T-084 · Regra do documento vencido com o veículo reservado ou em manutenção · produto · PR #76 · tarefas/handoffs/T-084-produto.md · VEI-03 e AUT-06; APR-11 (km_mudou); CA-013-28 e CA-016-21; [decisão] da OS em Pontos em aberto
 - T-083 · Transferência pede a categoria do destino · backend · PR #77 · tarefas/handoffs/T-083-backend.md · 400 testes; CA-013-27; categoria_id em transferir
+- T-086 · Regra da OS concluída com documento vencido · produto · PR #79 · tarefas/handoffs/T-086-produto.md · decisão A do dono em 08/10; MAN-05; CA-MAN-01 em criterios/manutencao.md; código com a manutenção (fase 2)
