@@ -18,7 +18,7 @@ from rest_framework.settings import api_settings
 
 RAIZ = Path(__file__).resolve().parent.parent
 
-T089 = pytest.mark.xfail(strict=True, reason="T-089 liga o renderizador de comum (ADR 0020)")
+T093 = pytest.mark.xfail(strict=True, reason="T-093 liga o renderizador de comum (ADR 0020)")
 
 # 09:12:00,123456 em São Paulo = 12:12:00 UTC; a fração cai.
 MOMENTO = datetime(2026, 10, 7, 9, 12, 0, 123456, tzinfo=ZoneInfo("America/Sao_Paulo"))
@@ -27,7 +27,7 @@ ESPERADO = "2026-10-07T12:12:00Z"
 # O formato mora aqui, e só aqui.
 RENDERIZADOR = "comum/renderizacao.py"
 
-# Quem ainda formata momento por conta própria. A T-089 esvazia; ninguém entra.
+# Quem ainda formata momento por conta própria. A T-093 esvazia; ninguém entra.
 PENDENTES_T089 = {
     "apps/clientes/api/serializers.py",  # _momento com default_timezone=UTC
     "apps/contas/dois_fatores.py",  # tentar_de_novo_em montado com strftime
@@ -43,19 +43,19 @@ class _ComMomento(serializers.Serializer[Any]):
     em = serializers.DateTimeField()
 
 
-@T089
+@T093
 def test_adr_0020_campo_de_serializer_sai_em_utc_com_z():
     assert api_settings.DATETIME_FORMAT is None
     assert _renderizar(_ComMomento({"em": MOMENTO}).data) == {"em": ESPERADO}
 
 
-@T089
+@T093
 def test_adr_0020_valor_solto_na_resposta_sai_em_utc_com_z():
     corpo = {"detalhes": {"tentar_de_novo_em": MOMENTO}, "lista": [MOMENTO.astimezone(UTC)]}
     assert _renderizar(corpo) == {"detalhes": {"tentar_de_novo_em": ESPERADO}, "lista": [ESPERADO]}
 
 
-@T089
+@T093
 def test_adr_0020_momento_sem_fuso_e_erro():
     with pytest.raises(TypeError):
         _renderizar({"em": datetime(2026, 10, 7, 9, 12)})

@@ -17,7 +17,7 @@
 - Os testes não pegavam a diferença porque o relógio congelado não tem fração.
 
 **Teste de arquitetura:** `backend/tests/test_formato_das_datas.py`.
-- Três testes de comportamento: campo de serializer, valor solto e momento sem fuso. Ficam `xfail(strict=True)` até a T-089. Quando ela ligar o renderizador, eles passam, e o `strict` obriga a tirar a marca.
+- Três testes de comportamento: campo de serializer, valor solto e momento sem fuso. Ficam `xfail(strict=True)` até a T-093. Quando ela ligar o renderizador, eles passam, e o `strict` obriga a tirar a marca.
 - `test_adr_0020_ninguem_formata_momento_por_conta_propria` já vale. Ele varre `apps/` e `comum/` e só aceita os dois arquivos de `PENDENTES_T089`. Qualquer arquivo novo que formate momento por conta própria quebra o teste.
 
 **Prova de conceito** (feita fora do repositório, numa cópia dentro do container):
@@ -26,7 +26,7 @@
 - A suíte inteira deu `441 passed`. Os 5 erros são da carteira da T-056, que lê `docs/` e não estava montada no container. Nenhum outro teste mudou.
 - O OpenAPI gerado sai **idêntico**, então o cliente tipado do frontend não muda.
 
-**Tarefa do backend (proposta: T-089, "Momentos em UTC na API", pequena):**
+**Tarefa do backend (proposta: T-093, "Momentos em UTC na API", pequena):**
 - criar `comum/renderizacao.py` como na ADR;
 - ligar as duas chaves dentro do dict `REST_FRAMEWORK` (escrito por fora do dict, o mypy reclama);
 - trocar o `_momento` de `clientes/api/serializers.py` por `DateTimeField` puro;
@@ -55,7 +55,7 @@ Ela uniformiza contas, aprovações, plataforma, veículos, filiais e clientes d
 | T-081 | 5 `pct` em texto com 2 casas | sem emenda: já é a convenção do README |
 | T-081 | 6 quem não decide recebe lista vazia | emenda `aprovacoes.md` |
 | T-014 | 1 `contagens.inativos` | emenda `clientes.md` |
-| T-014 | 2 momentos | ADR 0020 e T-089 |
+| T-014 | 2 momentos | ADR 0020 e T-093 |
 | T-014 | 3 `conta_mais_antiga_id` no bloco `financeiro` | emenda `clientes.md` e `financeiro.md`; código na T-017 |
 | T-014 | 4 eventos do financeiro com `cliente_id` | emenda `financeiro.md`, código na T-017. `parcela_paga`: `conta_id`, `cliente_id`, `tipo`, `origem_tipo`, `origem_id`, `valor_centavos`, `pago_em`. `parcela_atrasou`: `conta_id`, `cliente_id`, `tipo`, `origem_tipo`, `origem_id`, `vencimento`, `dias_atraso`. Esse contrato vale no lugar do exemplo `parcela_id` da ADR 0011. |
 | T-014 | 5 contadores `contas_atrasadas_15_dias`, `em_aberto_centavos`, `locacao_aberta`, `venda_aberta` | emenda `clientes.md`, `financeiro.md` e `locacoes.md`; código na T-015 e na T-017, e `venda_aberta` com vendas (fase 2) |
@@ -65,7 +65,7 @@ Ela uniformiza contas, aprovações, plataforma, veículos, filiais e clientes d
 | T-014 | 9 desbloquear quem não está bloqueado responde 409 | emenda `clientes.md`. Também ficou escrito que o desbloqueio direto cancela o `APR-05` pendente |
 | T-014 | 10 exportações e LGPD do titular | sem tarefa nova: fase 2 (`AUD-06`, `AUD-07`) |
 
-Única tarefa nova: a **T-089**. O resto vira emenda, ou já tem tarefa (T-015, T-017, T-079, fase 2).
+Única tarefa nova: a **T-093**. O resto vira emenda, ou já tem tarefa (T-015, T-017, T-079, fase 2).
 
 **Onde:**
 - `docs/decisoes/0020-formato-dos-momentos-na-api.md` e o índice em `docs/decisoes/README.md`.
@@ -81,8 +81,8 @@ Ela uniformiza contas, aprovações, plataforma, veículos, filiais e clientes d
 - A suíte inteira só rodou na prova de conceito, num Postgres descartável (rede e container `t088-*`, já removidos).
 
 **Próximo passo para quem recebe:**
-- **Orquestrador:** criar a T-089 no quadro. A T-017 ganha os eventos com `cliente_id`, os contadores e o `conta_mais_antiga_id`, que já estão no contrato. A T-015 ganha o contador `locacao_aberta`.
-- **Backend:** fazer a T-089 pela ADR 0020. Nas próximas tarefas, passe sempre o `datetime` com fuso e deixe o formato com o renderizador.
+- **Orquestrador:** criar a T-093 no quadro. A T-017 ganha os eventos com `cliente_id`, os contadores e o `conta_mais_antiga_id`, que já estão no contrato. A T-015 ganha o contador `locacao_aberta`.
+- **Backend:** fazer a T-093 pela ADR 0020. Nas próximas tarefas, passe sempre o `datetime` com fuso e deixe o formato com o renderizador.
 - **Frontend:** nada muda no tipo. Compare momentos por `Date`, não por texto: aprovações e veículos vão deixar de vir com `-03:00`.
 - **QA:** momento em teste se compara com `Z` e sem fração.
 - **Produto:** a `[decisão]` da `VEI-06` (fração de dia na ocupação).

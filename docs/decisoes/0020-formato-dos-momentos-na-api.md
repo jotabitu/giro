@@ -72,11 +72,11 @@ Texto para pessoas (e-mail, WhatsApp, PDF, `mensagem`) continua formatado no hor
 - `test_adr_0020_momento_sem_fuso_e_erro`;
 - `test_adr_0020_ninguem_formata_momento_por_conta_propria`: varre `apps/` e `comum/` (fora de `tests/` e `migrations/`) e recusa os itens do item 3.
 
-Os três primeiros entram como `xfail(strict=True)` até a T-089 ligar o renderizador: quando ela ligar, eles passam e o `strict` obriga a tirar a marca. O quarto já vale agora, com a lista `PENDENTES_T089` (os dois arquivos de hoje): arquivo novo que formata momento por conta própria quebra o teste já, e a T-089 esvazia a lista.
+Os três primeiros entram como `xfail(strict=True)` até a T-093 ligar o renderizador: quando ela ligar, eles passam e o `strict` obriga a tirar a marca. O quarto já vale agora, com a lista `PENDENTES_T089` (os dois arquivos de hoje): arquivo novo que formata momento por conta própria quebra o teste já, e a T-093 esvazia a lista.
 
 ## Consequências
 
-- **Tarefa do backend (T-089, "Momentos em UTC na API"):** criar `comum/renderizacao.py`, ligar as duas chaves no `REST_FRAMEWORK`, tirar o `_momento` de `clientes/api/serializers.py` (vira `DateTimeField` puro) e o `strftime` de `contas/dois_fatores.py` (passa o `bloqueado_ate`), tirar o `xfail` e esvaziar `PENDENTES_T089`. Com isso, contas, aprovações, plataforma, veículos, filiais e clientes ficam iguais sem tocar nos serializers deles.
+- **Tarefa do backend (T-093, "Momentos em UTC na API"):** criar `comum/renderizacao.py`, ligar as duas chaves no `REST_FRAMEWORK`, tirar o `_momento` de `clientes/api/serializers.py` (vira `DateTimeField` puro) e o `strftime` de `contas/dois_fatores.py` (passa o `bloqueado_ate`), tirar o `xfail` e esvaziar `PENDENTES_T089`. Com isso, contas, aprovações, plataforma, veículos, filiais e clientes ficam iguais sem tocar nos serializers deles.
 - **Prova de conceito** (feita na T-088, fora do repositório): com essas mudanças, os quatro testes passam e o OpenAPI gerado sai idêntico (o tipo continua `string`, `format: date-time`). Ou seja, **o OpenAPI não muda** e o cliente tipado do frontend também não.
 - **O que muda para quem consome:** as rotas de aprovações, veículos, filiais e plataforma deixam de sair com `-03:00`, e todas perdem a fração de segundo. O frontend já converte para `America/Sao_Paulo` ao exibir, então nada muda na tela. Comparação de momentos no frontend deve ser por `Date`, nunca por texto.
 - `serializer.data` passa a ter `datetime`, e não texto, nos campos de momento. Quem usar `.data` fora de uma `Response` (gravar em JSON, mandar para tarefa Celery) passa o resultado por `comum.renderizacao.EncoderDoGiro`. Hoje ninguém faz isso.
