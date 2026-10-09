@@ -1,6 +1,6 @@
 # Clientes
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-036) · **App:** `clientes` (schema da empresa) · **Regras:** CLI-01 a CLI-08, AUD-04, AUD-05, AUD-06, APR-05, LOC-07 · **ADRs:** 0014 (documento cifrado), 0015 (blocos de outros apps) · **Telas:** Clientes, Cliente
+**Dono:** arquiteto · **Versão:** 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `clientes` (schema da empresa) · **Regras:** CLI-01 a CLI-08, AUD-04, AUD-05, AUD-06, APR-05, LOC-07 · **ADRs:** 0014 (documento cifrado), 0015 (blocos de outros apps) · **Telas:** Clientes, Cliente
 
 Convenções gerais em `docs/api/README.md`. Modelo: item 11 e `DocumentoCliente` em `docs/decisoes/modelo-de-dados.md`.
 
@@ -71,7 +71,7 @@ A resumida mais:
 
 - `documento` e `cnh.numero` são decifrados só nesta resposta (ADR 0014). `cnh.situacao`: `valida`, `vencida` (até 30 dias), `vencida_impede` (mais de 30 dias, `CLI-02`).
 - PJ: `responsavel` = `{ "nome", "cpf", "celular" }` do condutor; `cnh` é a do condutor.
-- `bloqueio`: `{ "motivo": "atraso" | "manual", "desde": "...", "descricao": "...", "desbloqueia_sozinho": true }`.
+- `bloqueio`: `{ "motivo": "atraso" | "manual", "desde": "...", "descricao": "...", "desbloqueia_sozinho": true }`. `descricao` é o motivo de quem bloqueou, ou "Conta com N dias de atraso desde dd/mm/aaaa" no bloqueio automático.
 - URLs dos documentos assinadas, 15 minutos (`AUD-05`); cada `GET` gera outras. Cada geração grava evento de auditoria de acesso a documento.
 - `pendencias`: o que falta para sair de `incompleto` (`CLI-03`). Valores: os 4 tipos de documento, `consentimento`, `cnh`, `endereco`, `referencia`, `nascimento` (PF), `responsavel` (PJ).
 
@@ -81,7 +81,7 @@ A resumida mais:
 | --- | --- | --- |
 | `locacao_atual` | `locacoes` | locação `aguardando_retirada`, `ativa` ou `devolucao_atrasada`: `id`, `codigo`, `veiculo` (modelo curto), `detalhe` (texto pronto: "devolve hoje", "25 dias de atraso", "mensal"), `valor_a_devolver_centavos` (encerramento antecipado, `LOC-13`), `alerta` ("Cancelando", "Parcela atrasada" etc.) |
 | `ultima_locacao` | `locacoes` | sem locação atual: `{ "codigo": "LOC-2702", "encerrada_em": "2026-09-29" }` |
-| `financeiro` | `financeiro` | `total_pago_centavos` (soma das contas pagas, sem caução), `em_aberto_centavos` (contas vencidas e não pagas), `a_devolver_centavos` |
+| `financeiro` | `financeiro` | `total_pago_centavos` (soma das contas pagas, sem caução), `em_aberto_centavos` (contas vencidas e não pagas), `a_devolver_centavos`, `conta_mais_antiga_id` (alvo do `cobrar`, `null` sem conta em aberto) |
 | `venda_aberta` | `vendas` | `{ "id", "codigo": "VEN-0177", "veiculo" }` |
 
 Enquanto o fornecedor não existe, o bloco vem `null` (em T-014, todos).
@@ -107,11 +107,11 @@ Enquanto o fornecedor não existe, o bloco vem `null` (em T-014, todos).
 ## GET /api/clientes/
 Perfis: todos.
 Query: `?situacao=com_locacao|em_aberto|bloqueados|incompletos|inativos` (`CLI-06`). Sem `situacao`, a lista padrão não traz clientes `inativo`; eles só aparecem com `?situacao=inativos`. Também: `?tipo=pf|pj`, `?busca=`, `?ordem=-criado_em|nome|-total_pago`.
-- `busca` com só dígitos (11 ou 14) procura CPF/CNPJ exato pelo hash (ADR 0014); com texto, procura no nome (trigram) e no celular.
+- `busca` com só dígitos (11 ou 14) procura CPF/CNPJ exato pelo hash (ADR 0014); com texto, procura no nome (`icontains`, com índice em `Lower(nome)`) e no celular. Trigram (`pg_trgm`) só quando o volume pedir, com ADR de infraestrutura.
 200:
 ```json
 {
-  "contagens": { "todos": 612, "com_locacao": 42, "em_aberto": 2, "bloqueados": 1, "incompletos": 3 },
+  "contagens": { "todos": 612, "com_locacao": 42, "em_aberto": 2, "bloqueados": 1, "incompletos": 3, "inativos": 0 },
   "indicadores": { "novos_no_mes_anterior": 38, "com_locacao_pct": "7.00", "em_aberto_total_centavos": 164640 },
   "resultados": [ { ...resumida... } ],
   "proximo": "...", "anterior": null
@@ -154,7 +154,7 @@ Perfis: administrador, gerente, vendedor. `multipart/form-data`: `tipo` (`cnh_fr
 ## Análise do cadastro (CLI-04)
 
 ### GET /api/clientes/{id}/analise/
-Perfis: quem pode cadastrar. Também vem dentro do detalhe. Para cadastro ainda não salvo, `POST /api/clientes/analisar/` com o mesmo corpo do `POST`, sem gravar nada.
+Perfis: quem pode cadastrar. Também vem dentro do detalhe. Para cadastro ainda não salvo, `POST /api/clientes/analisar/` com o mesmo corpo do `POST`, sem gravar nada. Sem documentos enviados, o item `documentos` dele vem sempre `pendente`, "Faltam 4 documentos".
 200:
 ```json
 { "itens": [
@@ -178,7 +178,8 @@ Perfis: administrador, gerente. Corpo: `{ motivo }`. 200: completa com `bloqueio
 
 ### POST /api/clientes/{id}/desbloquear/
 Corpo: `{ motivo }`.
-- Administrador e gerente: desbloqueiam na hora, com motivo e evento de auditoria (`CLI-05`). 200; o cliente volta a `ativo` (ou `incompleto`, se tiver pendências).
+- Administrador e gerente: desbloqueiam na hora, com motivo e evento de auditoria (`CLI-05`). 200; o cliente volta a `ativo` (ou `incompleto`, se tiver pendências). Um pedido `APR-05` pendente é cancelado (`cancelar_pendentes`).
+- Cliente que não está bloqueado: 409 `transicao_cliente`.
 - Vendedor: cria o pedido `APR-05` por `comum.aprovacoes.pedir` (ADR 0019), com origem `cliente` e a filial da requisição do vendedor (cliente é da empresa). 202 `{ "pedido_aprovacao": { "id", "tipo": "APR-05", "status": "pendente" } }`; outro pedido igual pendente → 409 `pedido_pendente`. Aprovado por gerente ou administrador (nunca quem pediu, `APR-09`), o cliente volta como acima.
 - Decidido pelo dono do produto em 07 out 2026 (item 12, opção A; `CLI-05`, `APR-05`).
 - Bloqueio automático por atraso não precisa disso: some sozinho quando o cliente quita (assinante de `financeiro.parcela_paga`, `CLI-05`).
@@ -205,5 +206,6 @@ Decidido pelo produto em 07 out 2026 (T-037).
 | `clientes.selectors.impedimentos_para_retirada(cliente, tipo_veiculo, data)` | lista de `{ codigo, mensagem }` usada por locações e vistorias antes da retirada: `CLI-03` (cadastro incompleto), `CLI-02` (CNH sem a categoria A para moto ou B para carro, ou vencida há mais de 30 dias), `CLI-05` (bloqueado), `cliente_inativo`. Vazia = pode retirar. |
 | `clientes.selectors.impedimentos_para_nova_locacao(cliente)` e `..._para_venda(cliente)` | `CLI-05` (bloqueado não faz nova locação nem compra), `cliente_inativo`. |
 | assinante de `financeiro.parcela_atrasou` | bloqueio automático com 15 dias (`CLI-05`). |
-| assinante de `financeiro.parcela_paga` | desbloqueio automático quando não resta conta com mais de 15 dias de atraso. |
+| assinante de `financeiro.parcela_paga` | desbloqueio automático quando o contador `contas_atrasadas_15_dias` do cliente (registrado por `financeiro`) chega a 0. |
+| contadores pedidos aos outros apps (ADR 0015) | `contas_atrasadas_15_dias` e `em_aberto_centavos` (`financeiro`), `locacao_aberta` (`locacoes`), `venda_aberta` (`vendas`): o `cliente_com_pendencia` do inativar. Sem o fornecedor, contam 0. |
 | `CAMPOS_AUDITORIA` | cifrados omitidos; nome (PF), nascimento, contatos, endereço e referência mascarados (ADR 0014). |

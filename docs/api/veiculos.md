@@ -1,6 +1,6 @@
 # Veículos, categorias e preços
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-036) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-07, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015 · **Telas:** Frota, Veiculo, Precos
+**Dono:** arquiteto · **Versão:** 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-07, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015 · **Telas:** Frota, Veiculo, Precos
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 8 a 10 e apoio (`PrecoCategoria`, `Extra`, `HistoricoStatusVeiculo`, `LeituraKm`, `TransferenciaVeiculo`) em `docs/decisoes/modelo-de-dados.md`.
 
@@ -49,7 +49,8 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
 - `placa` sai sem hífen; aceita padrão antigo (`ABC1234`) e Mercosul (`ABC1D23`). `chassi` com 17 letras e números.
 - `preco_vigente`: preço da categoria vigente hoje (`LOC-15`). A coluna "Diária" da Frota usa `diaria_centavos`; veículo `a_venda` mostra `valor_venda_centavos`.
 - `situacao`: a API decide. Base no `status` do veículo; um bloco com `alerta` (ADR 0015) sobrepõe, ex.: "Atrasado" (`perigo`) quando a locação atual está `devolucao_atrasada`.
-- `acoes`: combina perfil, `status` e a tabela de transições; o frontend mostra só o que vier `true`.
+- `acoes`: combina perfil, `status` e a tabela de transições; o frontend mostra só o que vier `true`. `corrigir_km` vem `true` também para o vistoriador, que pede a correção (`APR-06`).
+- `situacao.tom` pelo `status`: `sucesso` (`disponivel`), `info` (`reservado`), `solido` (`alugado`), `alerta` (`em_manutencao`) e `neutro` (`indisponivel`, `a_venda`, `vendido`, `baixado`).
 - `valor_compra_centavos` e `data_compra` vêm `null` para quem não é administrador ou gerente.
 
 ### Blocos de outros apps (ADR 0015)
@@ -84,9 +85,9 @@ Query: `?status=`, `?tipo_veiculo=moto|carro`, `?categoria=<id>`, `?busca=` (pla
 200: representação completa, com `indicadores_financeiros` e:
 ```json
 "ocupacao": { "pct": "86.00", "periodo_dias": 90 },
-"historico_status": [ { "de": "disponivel", "para": "alugado", "em": "...", "origem_codigo": "LOC-2841" } ]
+"historico_status": [ { "de": "disponivel", "para": "alugado", "em": "...", "origem_tipo": "locacao", "origem_codigo": "LOC-2841", "motivo": null } ]
 ```
-- `ocupacao` (`VEI-06`): dias `alugado` ÷ dias na frota nos últimos 90 dias, a partir do `HistoricoStatusVeiculo`, excluindo os dias em `a_venda`, `vendido` e `baixado`. Calculada pelo app `veiculos`.
+- `ocupacao` (`VEI-06`): dias `alugado` ÷ dias na frota nos últimos 90 dias, a partir do `HistoricoStatusVeiculo`, excluindo os dias em `a_venda`, `vendido` e `baixado`. Calculada pelo app `veiculos`, pelo tempo exato entre as mudanças de status; com mudanças em dias inteiros, dá o mesmo que contar dias. Se a mudança no meio do dia conta como fração de dia está em `[decisão]` no backlog (T-088).
 - Locações e manutenções da ficha vêm das listas dos outros módulos: `GET /api/locacoes/?veiculo=<id>` e `GET /api/manutencao/ordens/?veiculo=<id>` (contratos de locações e manutenção).
 
 ### POST /api/veiculos/
@@ -142,7 +143,7 @@ Vistoria e OS atualizam o km pelos próprios serviços (`VEI-02`); este endpoint
 ### POST /api/veiculos/{id}/corrigir-km/
 Corpo: `{ km, motivo }`.
 - Administrador ou gerente: aplica na hora, com `LeituraKm` de correção e auditoria. 200: representação.
-- Vistoriador: cria o pedido `APR-06` por `comum.aprovacoes.pedir` (ADR 0019), com origem `veiculo` e `dados` `{ km_novo, km_anterior }`. 202: `{ "pedido_aprovacao": { "id": 88, "tipo": "APR-06", "status": "pendente" } }`. O km muda só quando o gerente aprovar (assinante de `aprovacoes.pedido_decidido` em `veiculos/eventos.py`). Outro pedido igual pendente → 409 `pedido_pendente`.
+- Vistoriador: cria o pedido `APR-06` por `comum.aprovacoes.pedir` (ADR 0019), com origem `veiculo` e `dados` `{ km_novo, km_anterior }`. 202: `{ "pedido_aprovacao": { "id": 88, "tipo": "APR-06", "status": "pendente" } }`. Se o `km` não for menor que o atual, 400 `validacao` em `km`: o vistoriador usa Registrar km. O km muda só quando o gerente aprovar (assinante de `aprovacoes.pedido_decidido` em `veiculos/eventos.py`). Outro pedido igual pendente → 409 `pedido_pendente`.
 Regras: VEI-01, APR-06.
 
 ## Documentos (VEI-03)
@@ -185,7 +186,7 @@ Perfis: todos (para escolher na locação e no cadastro). Query: `?filial=<id>` 
 ### POST /api/categorias/ · PATCH /api/categorias/{id}/
 Perfil: administrador. Corpo: `{ nome, tipo_veiculo, filial_id? }` e, no `POST`, o primeiro preço em `preco: { diaria_centavos, semanal_centavos, mensal_centavos, caucao_centavos }`.
 409 `{ "codigo": "categoria_nome_em_uso" }` (único por nome e filial).
-`tipo_veiculo` não muda se a categoria já tem veículos (422 `{ "codigo": "categoria_com_veiculos" }`), porque ele define a CNH exigida (`CLI-02`).
+`tipo_veiculo` não muda se a categoria já tem veículos (422 `{ "codigo": "categoria_com_veiculos" }`), porque ele define a CNH exigida (`CLI-02`). Pelo mesmo código, `filial_id` também não muda com veículos na categoria, para nenhum veículo ficar com categoria de outra filial.
 `POST /api/categorias/{id}/desativar/` e `/reativar/`: desativada some da escolha em cadastros novos; 422 `categoria_com_veiculos` se ainda houver veículos ativos nela.
 
 ### GET /api/categorias/{id}/precos/
@@ -195,7 +196,7 @@ Perfis: todos. Histórico (`LOC-15`), do mais novo ao mais velho: `{ "resultados
 Perfil: administrador. Corpo: `{ vigente_desde, diaria_centavos, semanal_centavos, mensal_centavos, caucao_centavos }`.
 - `vigente_desde` ≥ hoje (o passado não se reescreve). Padrão: hoje.
 - Preço novo vale só para contratos novos; contrato assinado mantém o preço da assinatura (`LOC-15`). A resposta traz `"locacoes_em_andamento_mantidas": 12` para a tela avisar.
-- 409 `{ "codigo": "preco_ja_definido", "mensagem": "Já existe preço a partir desta data" }` quando a data já tem preço vigente; preço agendado para o futuro pode ser trocado com `PUT /api/categorias/{id}/precos/{vigente_desde}/` até a data chegar.
+- 409 `{ "codigo": "preco_ja_definido", "mensagem": "Já existe preço a partir desta data" }` quando a data já tem preço vigente; preço agendado para o futuro pode ser trocado com `PUT /api/categorias/{id}/precos/{vigente_desde}/` até a data chegar. O `PUT` tem o mesmo corpo e responde 200 como o `POST` (com `locacoes_em_andamento_mantidas`); se a data já chegou, 409 `{ "codigo": "preco_ja_vigente" }`.
 Caso do seed: Street semanal 29940 até 30 set e 32900 a partir de 01 out; LOC-2841, assinada em 23 set, continua com 29940 (`LOC-15`).
 
 ### GET /api/precos/historico/
@@ -203,7 +204,7 @@ Perfil: administrador. Todas as mudanças de preço da empresa, para "Histórico
 
 ## Extras (LOC-02)
 
-`GET /api/extras/` (todos) → `{ "resultados": [ { "id", "nome": "Capacete extra", "valor_centavos": 1500, "cobranca": "por_periodo" | "unica", "ativo": true } ] }`.
+`GET /api/extras/` (todos os perfis; só os ativos, e `?ativo=false` mostra os desativados) → `{ "resultados": [ { "id", "nome": "Capacete extra", "valor_centavos": 1500, "cobranca": "por_periodo" | "unica", "ativo": true } ] }`.
 `POST /api/extras/`, `PATCH /api/extras/{id}/`, `POST /api/extras/{id}/desativar/` · administrador. Mudar o valor vale para locações novas.
 
 Planos especiais (`Entregador`, `Mensal fidelidade`) aparecem na tela `Precos`, mas são do app `locacoes` e ficam no contrato de locações (T-015). As "Regras de cobrança" da mesma tela vêm de `ConfiguracaoEmpresa` (contrato de empresas).

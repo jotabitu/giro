@@ -1,6 +1,6 @@
 # Modelo de dados
 
-**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
+**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
 
 Este documento diz, para cada uma das 25 entidades das regras, o app dono, o schema, os campos, os índices e as restrições. As entidades de apoio (que não estão na lista das regras mas são necessárias) vêm no fim de cada app. Mudança aqui passa pelo arquiteto; o backend implementa a partir daqui e do contrato do módulo em `docs/api/`.
 
@@ -253,16 +253,17 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `celular`, `email` | texto(13), email | |
 | `profissao` | texto(80), nulo | |
 | `cnh_numero` (`CampoCifrado`) + `cnh_hash` (índice), `cnh_categoria`, `cnh_validade`, `cnh_primeira_habilitacao` | cifrado, hash, texto(3), data, data | do PF ou do condutor responsável na PJ (`CLI-02`) |
-| `responsavel_nome`, `responsavel_cpf` (`CampoCifrado`) + `responsavel_cpf_hash` (índice) | texto, cifrado, hash; nulos | PJ |
+| `responsavel_nome`, `responsavel_cpf` (`CampoCifrado`) + `responsavel_cpf_hash` (índice), `responsavel_celular` | texto, cifrado, hash, texto(13); nulos | PJ |
 | endereço | `cep`, `logradouro`, `numero`, `complemento`, `bairro`, `cidade`, `uf` | |
 | `referencia_nome`, `referencia_parentesco`, `referencia_telefone` | texto | |
 | `status` | enum `incompleto`, `ativo`, `bloqueado`, `inativo` | |
 | `bloqueio_motivo` | enum `atraso`, `manual`, nulo | `CLI-05`: só `atraso` desbloqueia sozinho |
+| `bloqueio_desde`, `bloqueio_descricao` | momento, texto; nulos | `bloqueio.desde` e `bloqueio.descricao` do contrato |
 | `consentimento_em` | momento, nulo | LGPD |
 | `anonimizado_em` | momento, nulo | `AUD-06` |
 | `cliente_desde` | data | `CLI-06` |
 
-- Índices: `status`; `Lower(nome)` com `gin_trgm_ops` para a busca por nome; `cnh_validade`. Busca por CPF/CNPJ é exata, pelo hash.
+- Índices: `status`; `Lower(nome)` para a busca por nome (`icontains`; trigram só com ADR de infraestrutura, T-088); `cnh_validade`. Busca por CPF/CNPJ é exata, pelo hash.
 - `CAMPOS_AUDITORIA`: cifrados omitidos; nome, nascimento, contatos, endereço e referência mascarados (ADR 0014).
 - `total_pago` e `valor_em_aberto` (`CLI-06`) são calculados por selector a partir do financeiro, não guardados.
 - Apoio `DocumentoCliente`: `cliente`, `tipo` enum `cnh_frente`, `cnh_verso`, `selfie_documento`, `comprovante_residencia`, `arquivo`, ativável. O cliente sai de `incompleto` quando tem os 4 ativos (`CLI-03`).
