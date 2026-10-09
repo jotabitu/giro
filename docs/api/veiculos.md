@@ -87,7 +87,7 @@ Query: `?status=`, `?tipo_veiculo=moto|carro`, `?categoria=<id>`, `?busca=` (pla
 "ocupacao": { "pct": "86.00", "periodo_dias": 90 },
 "historico_status": [ { "de": "disponivel", "para": "alugado", "em": "...", "origem_tipo": "locacao", "origem_codigo": "LOC-2841", "motivo": null } ]
 ```
-- `ocupacao` (`VEI-06`): dias `alugado` ÷ dias na frota nos últimos 90 dias, a partir do `HistoricoStatusVeiculo`, excluindo os dias em `a_venda`, `vendido` e `baixado`. Calculada pelo app `veiculos`, pelo tempo exato entre as mudanças de status; com mudanças em dias inteiros, dá o mesmo que contar dias. Se a mudança no meio do dia conta como fração de dia está em `[decisão]` no backlog (T-088).
+- `ocupacao` (`VEI-06`): dias `alugado` ÷ dias na frota nos últimos 90 dias, a partir do `HistoricoStatusVeiculo`, excluindo os dias em `a_venda`, `vendido` e `baixado`. Calculada pelo app `veiculos`, pelo tempo exato entre as mudanças de status: conta a fração de dia (`VEI-06`), e um veículo alugado às 14:00 conta 0,42 daquele dia. Com mudanças em dias inteiros, dá o mesmo que contar dias.
 - Locações e manutenções da ficha vêm das listas dos outros módulos: `GET /api/locacoes/?veiculo=<id>` e `GET /api/manutencao/ordens/?veiculo=<id>` (contratos de locações e manutenção).
 
 ### POST /api/veiculos/
