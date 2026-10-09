@@ -655,32 +655,32 @@ def test_vis_vistoria_da_empresa_a_nao_aparece_na_b(cenario, lucas):
 # --- Parte 2: devolução e acerto; troca (T-092); caixa (T-017) ---
 
 
-@aguarda("T-016 parte 2")
+@aguarda("T-109")
 def test_dev_03_ca_016_09_acerto_loc_2836(cenario):
     pendente(combustivel=3200, avaria=8500, cobrancas=11700, caucao=30000, saldo=18300)
 
 
-@aguarda("T-016 parte 2")
+@aguarda("T-109")
 def test_dev_01_vis_03_ca_016_10_combustivel_com_outros_niveis(cenario):
     pendente(meio=5400, reserva=9800, tres_quartos_igual=0)
 
 
-@aguarda("T-016 parte 2")
+@aguarda("T-109")
 def test_dev_02_ca_016_11_saldo_negativo_vira_conta(cenario):
     pendente(saldo=-13200, vencimento="2026-10-10")
 
 
-@aguarda("T-016 parte 2")
+@aguarda("T-109")
 def test_loc_10_loc_11_fil_03_ca_016_12_atraso_no_acerto(cenario):
     pendente(as_19_01=5490, as_19_00=0, editar="item_calculado")
 
 
-@aguarda("T-016 parte 2")
+@aguarda("T-109")
 def test_dev_01_ca_016_13_parcelas_em_aberto_no_acerto(cenario):
     pendente(parcela_aberta=29940, forma="caucao")
 
 
-@aguarda("T-016 parte 2")
+@aguarda("T-109")
 def test_loc_12_loc_13_ca_016_14_encerramento_antecipado_da_patricia(cenario):
     pendente(caucao=50000, credito=37100, multa=8480, saldo=78620, status="cancelada")
 
@@ -690,12 +690,12 @@ def test_loc_09_ca_016_15_troca_de_veiculo_acerto_unico(cenario):
     pendente(avaria=8500, diferenca_caucao=20000, caucao_final=50000)
 
 
-@aguarda("T-016 parte 2")
+@aguarda("T-109")
 def test_dev_05_ca_016_16_salvar_e_continuar_depois(cenario):
     pendente(status="rascunho", encerrar="vistoria_pendente")
 
 
-@aguarda("T-016 parte 2")
+@aguarda("T-109")
 def test_dev_04_dev_06_ca_016_17_encerrar(cenario):
     pendente(km=19630, veiculo="disponivel", reembolso=18300)
 
@@ -705,11 +705,11 @@ def test_fin_07_ca_016_18_devolucao_em_dinheiro_exige_caixa(cenario):
     pendente(codigo="FIN-07", saida_dinheiro=18300)
 
 
-@aguarda("T-016 parte 2")
+@aguarda("T-109")
 def test_dev_ca_016_19_quem_fecha_a_conta(cenario):
     pendente(joao_acerto=403, joao_encerrar=403)
 
 
-@aguarda("T-016 parte 2")
+@aguarda("T-109")
 def test_dev_ca_016_20_recibo(cenario):
     pendente(url_minutos=15, palavras=["devolução", "caução"])
