@@ -224,9 +224,6 @@ Levantadas pelo backend em T-015 (09 out 2026):
 ### T-102 · Ficha do veículo idêntica à referência
 - **Agente:** frontend · **Depende de:** T-013, T-079 · **Telas:** Veiculo (`docs/telas/html/Veiculo-Desktop.dc.html` e `Veiculo-Mobile.dc.html`) · **Regras:** VEI-01 a VEI-07 · **Pronto quando:** `/veiculos/[id]` (`FichaVeiculo.tsx`) reproduz a tela de referência no desktop e no celular, com a mesma estrutura, seções, ordem, rótulos, ações e estados, usando os componentes e tokens do design system; os dados vêm de `falso-frota.ts` no formato de `docs/api/veiculos.md` (T-013 e T-079); o que a tela mostra e o contrato não tem fica com o falso ou desativado e anotado no handoff; o design-system confere a fidelidade visual; teste da tela. Pedido do dono em 09/10.
 
-### T-101 · Conta que nasce vencida não cobra atraso antes da confirmação
-- **Agente:** produto · **Depende de:** T-097 · **Regras:** FIN-03, LOC-06 · **Pronto quando:** a opção A aprovada pelo dono em 09/10 (conta a receber que nasce já vencida só conta multa e juros a partir do dia seguinte à confirmação; a parcela 1 da LOC-2836 não paga multa) sai de "Pontos em aberto" e vira regra na `FIN-03`, com linha em "Decisões de 09 out 2026" e critério para a T-017 (baixa) com os números do seed; o código entra na T-017.
-
 ### T-090 · Contratos: modelos, PDF, assinatura e aditivo
 - **Agente:** backend · **Depende de:** T-015 · **Segurança:** S-09 no `ModeloContrato`, token de assinatura com hash, 7 dias, uso único e limite (S-15) · **Regras:** LOC-06, LOC-07 · **Telas:** Contratos-Modelos · **Pronto quando:** CA-015-11 a 13 passam, com o código da regra no nome do teste: API dos modelos (marcadores, sanitização, versões, publicar, arquivar); PDF com WeasyPrint numa task (a imagem já tem pango e fontes; o pacote Python vai com o motivo no PR); link público; reenviar; evento `contrato_assinado`; `gerar_aditivo`.
 
@@ -242,7 +239,7 @@ Levantadas pelo backend em T-015 (09 out 2026):
 - **Pronto quando:** caso LOC-2836 devolve R$ 183,00 e todos os critérios de `docs/qa/criterios/T-016.md` (CA-016-01 a 20) passam, com o código da regra no nome do teste.
 
 ### T-017 · Contas a receber, caixa do dia, baixa
-- **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 22) passam, com o código da regra no nome do teste. · **Inclui:** `juros_pro_rata` em `comum/dinheiro.py` com um arredondamento só (CA-017-08: Carlos 70, Rafael 1123; ponto 4 da T-045)
+- **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 23) passam, com o código da regra no nome do teste. · **Inclui:** `juros_pro_rata` em `comum/dinheiro.py` com um arredondamento só (CA-017-08: Carlos 70, Rafael 1123; ponto 4 da T-045)
 
 ### T-018 · Tela e consulta da auditoria
 - **Agente:** backend · **Depende de:** T-011 · **Regras:** AUD-01 a AUD-03 (o registro dos eventos já vem de T-001) · **Telas:** Admin-Auditoria, Plat-Auditoria · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-018.md` (CA-018-01 a 16) passam, com o código da regra no nome do teste.
