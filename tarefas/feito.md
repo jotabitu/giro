@@ -88,4 +88,5 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-098 · Teste do CA-015-15 com a LOC-2836 confirmada em 01 out · qa · PR #99 · tarefas/handoffs/T-098-qa.md · 491 testes; LOC-2836 pelos serviços; dado de referência da LOC-2836 (fim em 07 out) para o produto
 - T-090 · Contratos: modelos, PDF, assinatura e aditivo · backend · PR #100 · tarefas/handoffs/T-090-backend.md · 507 testes; weasyprint e nh3; 7 diferenças para o arquiteto; memória do worker de PDF para o devops
 - T-103 · Fim previsto da LOC-2836 · produto · PR #102 · tarefas/handoffs/T-103-produto.md · opções A, B (recomendada: 2 semanas até 14 out) e C em Pontos em aberto; só o seed muda
+- T-104 · Regra e critérios da LOC-2836 até 14 out · produto · PR #104 · tarefas/handoffs/T-104-produto.md · opção B; nenhum valor muda; seed na T-105; telas para o design-system
 - T-091 · Locação: renovação, atraso, cancelamento e encerramento · backend · PR #105 · tarefas/handoffs/T-091-backend.md · 528 testes; só a T-092 em xfail; 2 [divergência] e 5 [decisão] para o produto
