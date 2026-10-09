@@ -221,6 +221,9 @@ Levantadas pelo backend em T-015 (09 out 2026):
 ### T-102 · Ficha do veículo idêntica à referência
 - **Agente:** frontend · **Depende de:** T-013, T-079 · **Telas:** Veiculo (`docs/telas/html/Veiculo-Desktop.dc.html` e `Veiculo-Mobile.dc.html`) · **Regras:** VEI-01 a VEI-07 · **Pronto quando:** `/veiculos/[id]` (`FichaVeiculo.tsx`) reproduz a tela de referência no desktop e no celular, com a mesma estrutura, seções, ordem, rótulos, ações e estados, usando os componentes e tokens do design system; os dados vêm de `falso-frota.ts` no formato de `docs/api/veiculos.md` (T-013 e T-079); o que a tela mostra e o contrato não tem fica com o falso ou desativado e anotado no handoff; o design-system confere a fidelidade visual; teste da tela. Pedido do dono em 09/10.
 
+### T-103 · Fim previsto da LOC-2836
+- **Agente:** produto · **Depende de:** T-098 · **Regras:** LOC-01, LOC-06 · **Pronto quando:** a divergência apontada na T-098 (LOC-2836 semanal com 2 parcelas, 30 set e 07 out, mas fim em 07 out; pela LOC-01 terminaria em 14 out) analisada com recomendação em "Pontos em aberto" de `docs/regras-de-negocio.md`, para o dono aprovar; diz quais critérios e números do seed mudam em cada opção (total pago de R$ 958,00, "devolve hoje" do CA-015-16) e se o código muda.
+
 ### T-091 · Locação: renovação, atraso, cancelamento e encerramento
 - **Agente:** backend · **Depende de:** T-090 · **Regras:** LOC-08, LOC-10 a LOC-13, FIL-03, APR-02, AUT-02 · **Pronto quando:** CA-015-17 e 19 a 24 e o estorno do CA-015-25 passam, com o código da regra no nome do teste: renovação com aditivo; atraso com `calcular_atraso` e `aut_02`; cancelamento e encerramento antecipado com APR-02, reembolso e comissão estornada.
 
