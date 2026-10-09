@@ -82,6 +82,10 @@ Levantadas pelo backend em T-091 (09 out 2026), para o produto. O código segue 
 - [decisão] `LOC-13`, mensal em 4 semanais: o crédito das semanas inteiras supõe o mês pago. (O crédito desconta as semanais do mês em curso que ainda estão em aberto e que o encerramento cancela; nunca fica negativo.)
 - [decisão] `LOC-08`, renovação: (continuam o desconto já dado na locação e os extras por período, pelo valor congelado na confirmação; o plano especial de preço fixo vale pelo preço de hoje, e o de desconto conta os períodos desde o começo da locação.)
 
+Levantadas pelo backend em T-016 parte 1 (09 out 2026):
+
+- [divergência] (qa, T-105) A carteira de outubro (`docs/qa/carteira-outubro/locacoes.csv` e `tests/aceitacao/carteira.py`) traz a LOC-2856 como `ativa` desde 07 out 09:00. O CA-016-08 (e o CA-016-01) a quer `aguardando_retirada`, com retirada às 09:15. (O teste da agenda tira a LOC-2856 da carteira e cria a do critério.)
+
 ## Fase 0 · Fundação
 
 ### T-001 · Esqueleto do backend
