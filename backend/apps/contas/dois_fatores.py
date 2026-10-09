@@ -15,7 +15,7 @@ auditoria (R-06 da T-050).
 
 import secrets
 from dataclasses import dataclass, replace
-from datetime import UTC, timedelta
+from datetime import timedelta
 from enum import StrEnum
 
 from django.db import transaction
@@ -188,7 +188,7 @@ def _erro_de_bloqueio(usuario: Usuario) -> MuitasTentativas:
     return MuitasTentativas(
         regra_de_acesso(),
         f"Acesso bloqueado por 15 minutos depois de {_motivo_do_bloqueio(usuario)}",
-        {"tentar_de_novo_em": usuario.bloqueado_ate.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")},
+        {"tentar_de_novo_em": usuario.bloqueado_ate},
     )
 
 

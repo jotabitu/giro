@@ -2,4 +2,4 @@
 
 No máximo uma tarefa por agente. Formato: `T-0xx · título · agente · desde dd/mm`.
 
-T-015 · Locação, parte 1: núcleo (simular, confirmar, ativação, lista) · backend · desde 09/10
+T-093 · Momentos em UTC na API · backend · desde 09/10
