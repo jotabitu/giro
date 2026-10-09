@@ -79,6 +79,7 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 | Tela | Arquivos | Rota no frontend | App no backend | Regras |
 | --- | --- | --- | --- | --- |
 | Frota | [desktop](html/Frota-Desktop.dc.html) · [celular](html/Frota-Mobile.dc.html) | `(empresa)/veiculos` | `veiculos` | VEI |
+| Cadastrar veículo | [desktop](html/Veiculo-Novo-Desktop.dc.html) · [celular](html/Veiculo-Novo-Mobile.dc.html) | `(empresa)/veiculos/novo` | `veiculos` | VEI |
 
 ## Nova locação
 

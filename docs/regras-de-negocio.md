@@ -241,13 +241,14 @@ Qualquer outra transição é recusada pelo backend com erro de regra (HTTP 409)
 - `VEI-03` Documentos: alerta 30 dias antes do vencimento; no dia do vencimento de CRLV ou seguro, o veículo disponível vai para `indisponivel`. Veículo `alugado`, `reservado` ou `em_manutencao` não muda de status, mas gera tarefa urgente para os gerentes da filial (`FIL-02`). A retirada de veículo com CRLV ou seguro vencido é recusada até o documento ser renovado (vistoria de saída, `VIS-01`). O veículo cujo CRLV ou seguro venceu durante a OS vai para `indisponivel` ao concluir a OS (`MAN-05`).
 - `VEI-04` Transferência entre filiais só com o veículo `disponivel`. Grava a filial de origem e destino. É o único jeito de um veículo mudar de filial: a devolução é sempre na filial da locação e a frota não é compartilhada (`FIL-05`). Se a categoria do veículo é só da filial de origem (`FIL-04`), a transferência pede a categoria no destino: uma categoria ativa, do mesmo tipo de veículo, da empresa ou da filial de destino. Sem ela, a transferência é recusada. Categoria da empresa passa direto, e o veículo continua nela. Como só se transfere veículo `disponivel`, nenhuma locação aberta muda de preço: a categoria nova vale a partir da próxima locação (`LOC-01`).
 - `VEI-05` "Rendeu no ano" na ficha = receitas de locação recebidas do veículo − custos de manutenção e despesas ligadas a ele, no ano corrente.
-- `VEI-06` Ocupação = dias alugado ÷ dias que o veículo esteve na frota no período (exclui `a_venda`, `vendido`, `baixado`). Ocupação da frota = média ponderada pelos dias.
+- `VEI-06` Ocupação = dias alugado ÷ dias que o veículo esteve na frota no período (exclui `a_venda`, `vendido`, `baixado`). Ocupação da frota = média ponderada pelos dias. Conta o tempo exato entre as mudanças de status, com fração de dia: um veículo alugado às 14:00 conta 0,42 daquele dia (10 h ÷ 24 h).
 - `VEI-07` Veículo que volta para a empresa depois de vendido (recompra numa troca, `VEN-05`) reaproveita o cadastro existente, achado pelo chassi, e não ganha outro: vai de `vendido` para `indisponivel` até a vistoria, e o histórico continua no mesmo veículo.
 
 *Mudanças em 07 out 2026 (T-031):* `VEI-01` passou a exigir chassi único, além da placa; criada a `VEI-07`; acrescentadas as transições `vendido` → `a_venda` e `vendido` → `indisponivel`.
 *Mudanças em 07 out 2026 (T-037):* `VEI-04` passou a dizer que a devolução é na filial da locação e que não há frota compartilhada.
 *Mudanças em 08 out 2026 (T-084):* `VEI-03` passou a cobrir o veículo `reservado` ou `em_manutencao` no dia em que vence o CRLV ou o seguro: tarefa urgente aos gerentes, como no `alugado`, e retirada recusada até renovar. Antes, a regra só falava do `disponivel` e do `alugado`, e a reserva podia sair com o documento vencido (dúvida do backend na T-079). Decisão do dono do produto em 08 out 2026.
 *Mudanças em 08 out 2026 (T-082):* `VEI-04` passou a dizer o que acontece com a categoria só da filial de origem: a transferência pede a categoria no destino, e a da empresa passa direto. Antes, o veículo ia para o destino com a categoria e o preço da origem (dúvida do backend na T-013). Decisão do dono do produto em 08 out 2026 (opção B).
+*Mudanças em 09 out 2026 (T-094):* `VEI-06` passou a dizer que conta a fração de dia, como o código da T-013 já faz (dúvida do arquiteto na T-088). Decisão do dono do produto em 09 out 2026 (opção A).
 
 ## Clientes
 
@@ -617,6 +618,7 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 | --- | --- | --- |
 | Categorias de CNH C, D e E (T-014) | **C, D e E alugam carro; AB a AE alugam moto e carro** (`CLI-02`). | Pelo CTB, art. 143, as categorias C, D e E incluem a B; nenhuma delas inclui a A. Leitura do backend na T-014, confirmada pelo dono do produto. |
 | Inativar cliente bloqueado (T-014) | **Recusado com 409 `transicao_cliente`:** primeiro desbloqueia (`CLI-09`, `CLI-05`). | A inativação não pode passar por cima do bloqueio: o cliente sai do bloqueio pelo caminho da `CLI-05`. Leitura do backend na T-014, confirmada pelo dono do produto. |
+| Ocupação com mudança de status no meio do dia (T-088) | **A:** vale a fração de dia; alugado às 14:00 conta 0,42 daquele dia (`VEI-06`). | É a medida mais fiel, não precisa escolher entre o dia de entrada e o de saída, e o código da T-013 já faz assim. |
 
 ## Pontos em aberto
 

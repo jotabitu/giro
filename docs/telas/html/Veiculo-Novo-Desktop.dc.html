@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Cadastrar veículo · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.h2{margin:0 0 16px;font-size:20px;line-height:26px;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px 20px}
+.wl-field{width:100%}
+select.wl-input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-muted) 50%),linear-gradient(135deg,var(--ink-muted) 50%,transparent 50%);background-position:calc(100% - 22px) 21px,calc(100% - 16px) 21px;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+.doc{position:relative;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:120px;box-sizing:border-box;padding:14px;border-radius:20px;background:var(--surface-sunken);font:inherit;font-size:15px;color:var(--ink);border:0;text-align:left;cursor:pointer}
+.doc small{font-size:13px;color:var(--ink-muted)}
+.doc .ok{position:absolute;top:12px;right:12px;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--success);color:#ffffff}
+.doc--todo{background:var(--surface);border:1.5px dashed var(--line);align-items:center;justify-content:center;text-align:center}
+.chk{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:15px}
+.chk:last-child{border-bottom:0}
+.seg-wide{display:inline-flex}
+.price{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}
+.price div{padding:14px 16px;border-radius:18px;background:var(--surface-sunken)}
+.price small{display:block;font-size:13px;color:var(--ink-muted)}
+.price b{font-weight:600;font-size:17px}
+.dot{display:grid;place-items:center;width:28px;height:28px;flex:none;border-radius:50%}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1300px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<nav class="wl-sidebar" aria-label="Menu principal" style="flex: 0 0 280px;">
+<div class="wl-brand-row"><div class="wl-logo-slot" aria-hidden="true">MR</div><div class="wl-brand-name">Moto Rápida</div></div>
+<div class="wl-switcher"><div class="wl-switcher__icon"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg></div><div class="wl-switcher__text"><span class="wl-switcher__name">Filial Centro</span><span class="wl-switcher__sub">Fortaleza, CE</span></div><svg class="wl-i" viewBox="0 0 24 24" style="color: var(--ink-muted);"><path d="m6 9 6 6 6-6"></path></svg></div>
+<a class="wl-nav-item" href="Main.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>Visão geral</a>
+<a class="wl-nav-item" href="Frota-Desktop.dc.html" aria-current="page"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg>Veículos<span class="wl-count">86</span></a>
+<div class="wl-nav-label">Operação</div>
+<a class="wl-nav-item" href="Locacoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>Locações<span class="wl-count">42</span></a>
+<a class="wl-nav-item" href="Vendas-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="7.5" r="1"></circle></svg>Vendas</a>
+<a class="wl-nav-item" href="Clientes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.6-1.6-4.8-4-5.6"></path></svg>Clientes</a>
+<a class="wl-nav-item" href="Manutencao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M15 4a5 5 0 0 0-4.6 6.9L4 17.3V20h2.7l6.4-6.4A5 5 0 0 0 20 9l-3 1-2-2z"></path></svg>Manutenções<span class="wl-count">5</span></a>
+<div class="wl-nav-label">Financeiro</div>
+<a class="wl-nav-item" href="Caixa-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3"></rect><circle cx="12" cy="12" r="2.5"></circle></svg>Caixa do dia</a>
+<a class="wl-nav-item" href="Receber-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg>Contas a receber<span class="wl-count">7</span></a>
+<a class="wl-nav-item" href="Despesas-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"></path></svg>Despesas<span class="wl-count">3</span></a>
+<a class="wl-nav-item" href="Comissoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M5 19 19 5"></path><circle cx="7" cy="7" r="2.5"></circle><circle cx="17" cy="17" r="2.5"></circle></svg>Comissões</a>
+<a class="wl-nav-item" href="Conciliacao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10 12 4l9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"></path></svg>Conciliação<span class="wl-count">6</span></a>
+<a class="wl-nav-item" href="Relatorios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><path d="M8 16v-4M12 16V8M16 16v-6"></path></svg>Relatórios</a>
+<div class="wl-nav-label">Administração<span style="display: inline-grid; place-items: center; margin-left: 6px; vertical-align: -2px;"><svg class="wl-i" viewBox="0 0 24 24" style="width: 13px; height: 13px;"><rect x="5" y="10" width="14" height="10" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg></span></div>
+<a class="wl-nav-item" href="Config-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"></path></svg>Configurações</a>
+<a class="wl-nav-item" href="Admin-Marca-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle></svg>Empresa e marca</a>
+<a class="wl-nav-item" href="Filiais-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg>Filiais</a>
+<a class="wl-nav-item" href="Admin-Usuarios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M17 8v6M14 11h6"></path></svg>Usuários<span class="wl-count">2</span></a>
+<a class="wl-nav-item" href="Admin-Assinatura-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9 5.5-.8z"></path></svg>Assinatura</a>
+<a class="wl-nav-item" href="Admin-Auditoria-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h3"></path></svg>Auditoria</a>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px;">
+<div>
+<div style="font-size: 14px; color: var(--ink-muted);"><a href="Frota-Desktop.dc.html" style="color: var(--ink-muted);">Veículos</a> / Cadastrar</div>
+<h1 style="margin: 6px 0 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Cadastrar veículo</h1>
+</div>
+<div style="margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+<a href="Onboarding-Importar-Desktop.dc.html" class="wl-btn" style="text-decoration: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 16V5M7 10l5-5 5 5M5 19h14"></path></svg>Importar planilha</a>
+<div class="wl-seg" role="group" aria-label="Tipo de veículo"><button aria-pressed="true">Moto</button><button aria-pressed="false">Carro</button></div>
+</div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+<div style="flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+
+<section class="wl-panel" style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: var(--surface);">
+<div style="display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; background: var(--surface-sunken); flex: none;"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none;"><path d="M6 3h9l4 4v14H6z"></path><path d="M14 3v5h5M9 13h7M9 17h5"></path></svg></div>
+<div style="flex: 1 1 260px;"><div style="font-weight: 600; font-size: 17px;">Preencher pelo documento</div><div style="font-size: 14px; line-height: 20px; color: var(--ink-muted);">Envie o PDF do CRLV-e e preenchemos placa, chassi, renavam, ano, cor e modelo. Confira antes de salvar.</div></div>
+<span class="wl-badge wl-badge--success">CRLV-e lido · 9 campos preenchidos</span>
+</section>
+
+<section class="wl-panel">
+<h2 class="h2">Identificação</h2>
+<div class="grid">
+<label class="wl-field"><span class="wl-field__label">Placa</span><input class="wl-input wl-mono" value="TBC-5H21"><span class="wl-field__hint">Mercosul</span></label>
+<label class="wl-field"><span class="wl-field__label">Marca</span><select class="wl-input"><option>Honda</option></select></label>
+<label class="wl-field"><span class="wl-field__label">Modelo</span><input class="wl-input" value="Pop 110i ES"><span class="wl-field__hint">Da lista FIPE</span></label>
+<label class="wl-field"><span class="wl-field__label">Ano de fabricação / modelo</span><input class="wl-input wl-mono" value="2026 / 2026"></label>
+<label class="wl-field" style="grid-column: span 2;"><span class="wl-field__label">Chassi</span><input class="wl-input wl-mono" value="9C2JC7500TR012345"><span class="wl-field__hint">17 caracteres</span></label>
+<label class="wl-field"><span class="wl-field__label">Renavam</span><input class="wl-input wl-mono" value="01398765432"></label>
+<label class="wl-field"><span class="wl-field__label">Cor</span><input class="wl-input" value="Preta"></label>
+<label class="wl-field"><span class="wl-field__label">Combustível</span><select class="wl-input"><option>Gasolina</option></select></label>
+<label class="wl-field"><span class="wl-field__label">Cilindrada</span><input class="wl-input" value="109 cc"></label>
+<label class="wl-field"><span class="wl-field__label">Km atual</span><input class="wl-input wl-mono" value="0"><span class="wl-field__hint">Nunca diminui depois de salvo</span></label>
+</div>
+</section>
+
+<section class="wl-panel">
+<h2 class="h2">Uso na frota</h2>
+<div class="grid">
+<label class="wl-field"><span class="wl-field__label">Filial</span><select class="wl-input"><option>Filial Centro</option></select></label>
+<label class="wl-field"><span class="wl-field__label">Finalidade</span><select class="wl-input"><option>Locação</option></select><span class="wl-field__hint">Locação, venda ou os dois</span></label>
+<label class="wl-field"><span class="wl-field__label">Categoria de preço</span><select class="wl-input"><option>Urbana 110–125</option></select></label>
+<label class="wl-field"><span class="wl-field__label">Plano de manutenção</span><select class="wl-input"><option>Moto até 125 cc</option></select><span class="wl-field__hint">Óleo a cada 1.000 km · revisão a cada 5.000 km</span></label>
+</div>
+<div class="price">
+<div><small>Diária</small><b>R$ 44,90</b></div>
+<div><small>Semanal</small><b>R$ 299,40</b></div>
+<div><small>Mensal</small><b>R$ 1.090</b></div>
+<div><small>Caução</small><b>R$ 300,00</b></div>
+</div>
+<p style="margin: 10px 0 0; font-size: 14px; color: var(--ink-muted);">Preços da categoria Urbana 110–125 na Filial Centro. Para mudar, edite a <a href="Precos-Desktop.dc.html">tabela de preços</a>.</p>
+</section>
+
+<section class="wl-panel">
+<h2 class="h2">Compra e valores</h2>
+<div class="grid">
+<label class="wl-field"><span class="wl-field__label">Origem</span><select class="wl-input"><option>Compra</option></select><span class="wl-field__hint">Compra, consignação ou troca</span></label>
+<label class="wl-field"><span class="wl-field__label">Data da compra</span><input class="wl-input wl-mono" value="08/10/2026"></label>
+<label class="wl-field"><span class="wl-field__label">Fornecedor</span><input class="wl-input" value="Honda Motos Fortaleza"></label>
+<label class="wl-field"><span class="wl-field__label">Valor de compra</span><input class="wl-input" value="R$ 13.490,00"><span class="wl-field__hint">Base da rentabilidade do veículo</span></label>
+<label class="wl-field"><span class="wl-field__label">Referência FIPE</span><input class="wl-input" value="R$ 13.900,00"><span class="wl-field__hint">Consultada hoje</span></label>
+<label class="wl-field"><span class="wl-field__label">Preparação</span><input class="wl-input" value="R$ 0,00"><span class="wl-field__hint">Placa, emplacamento, acessórios</span></label>
+</div>
+</section>
+
+<section class="wl-panel">
+<h2 class="h2">Documentos</h2>
+<div class="grid">
+<label class="wl-field"><span class="wl-field__label">Validade do CRLV</span><input class="wl-input wl-mono" value="31/10/2027"></label>
+<label class="wl-field"><span class="wl-field__label">IPVA 2026</span><select class="wl-input"><option>Pago</option></select></label>
+<label class="wl-field"><span class="wl-field__label">Seguro · validade</span><input class="wl-input" value=""><span class="wl-field__hint">Obrigatório para alugar</span></label>
+<label class="wl-field"><span class="wl-field__label">Rastreador (IMEI)</span><input class="wl-input wl-mono" value="862104059871234"><span class="wl-field__hint">Opcional</span></label>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin-top: 18px;">
+<button class="doc"><span class="ok"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>CRLV-e 2026<small>enviado agora</small></button>
+<button class="doc"><span class="ok"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Nota fiscal de compra<small>enviada agora</small></button>
+<button class="doc doc--todo"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 16V5M7 10l5-5 5 5M5 19h14"></path></svg>Apólice do seguro</button>
+</div>
+</section>
+
+<section class="wl-panel">
+<h2 class="h2">Fotos</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px;">
+<button class="doc"><span class="ok"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Frente<small>enviada</small></button>
+<button class="doc"><span class="ok"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Traseira<small>enviada</small></button>
+<button class="doc"><span class="ok"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Lado esquerdo<small>enviada</small></button>
+<button class="doc"><span class="ok"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Lado direito<small>enviada</small></button>
+<button class="doc doc--todo"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 16V5M7 10l5-5 5 5M5 19h14"></path></svg>Painel com km</button>
+</div>
+<p style="margin: 12px 0 0; font-size: 14px; color: var(--ink-muted);">As fotos do cadastro viram a referência da primeira vistoria de saída.</p>
+</section>
+</div>
+
+<aside style="flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+<section class="wl-panel" style="padding: 0; overflow: hidden;">
+<div style="display: grid; place-items: center; height: 180px; background: var(--surface-sunken); color: var(--ink-muted);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 56px; height: 56px; stroke-width: 1.2;"><circle cx="5.5" cy="16" r="3"></circle><circle cx="18.5" cy="16" r="3"></circle><path d="M5.5 16 9 10h5l4.5 6M9 10 7.5 7.5H5M14 10l1-3h3"></path></svg></div>
+<div style="padding: 20px 24px 24px;">
+<div style="font-size: 20px; font-weight: 600;">Honda Pop 110i ES</div>
+<div class="wl-mono" style="color: var(--ink-muted); margin-top: 2px;">TBC-5H21 · 2026 · 0 km</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;"><span class="wl-badge wl-badge--sm">Urbana 110–125</span><span class="wl-badge wl-badge--sm">Locação</span><span class="wl-badge wl-badge--sm">Filial Centro</span></div>
+</div>
+</section>
+
+<section class="wl-panel">
+<h2 class="h2" style="margin-bottom: 4px;">Antes de liberar para locação</h2>
+<div class="chk"><span class="dot" style="background: var(--success-soft); color: var(--success-ink);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Placa única na empresa</div>
+<div class="chk"><span class="dot" style="background: var(--success-soft); color: var(--success-ink);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Chassi com 17 caracteres</div>
+<div class="chk"><span class="dot" style="background: var(--success-soft); color: var(--success-ink);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>CRLV-e válido até 10/2027</div>
+<div class="chk"><span class="dot" style="background: var(--success-soft); color: var(--success-ink);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>4 de 5 fotos enviadas</div>
+<div class="chk"><span class="dot" style="background: var(--warning-soft); color: var(--warning-ink);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg></span>Falta o seguro</div>
+<div style="margin-top: 14px; padding: 14px 16px; border-radius: 16px; background: var(--warning-soft); color: var(--warning-ink); font-size: 14px; line-height: 20px;">Sem o seguro e a foto do painel, o veículo entra como <b>Indisponível</b> e não aparece na nova locação. Assim que você completar, ele passa para Disponível.</div>
+</section>
+
+<section class="wl-panel">
+<div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="color: var(--ink-muted);">Veículos no plano Profissional</span><span style="font-weight: 500;">87 de 150</span></div>
+<div class="wl-progress__track" style="margin-top: 10px;"><div class="wl-progress__fill" style="width: 58%;"></div></div>
+</section>
+
+<section class="wl-panel" style="display: flex; flex-direction: column; gap: 12px;">
+<a class="wl-btn wl-btn--solid" href="Veiculo-Desktop.dc.html" style="height: 56px; text-decoration: none;">Salvar veículo</a>
+<button class="wl-btn wl-btn--quiet">Salvar e cadastrar outro</button>
+<a href="Frota-Desktop.dc.html" class="wl-btn wl-btn--quiet" style="text-decoration: none;">Cancelar</a>
+</section>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":2520}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

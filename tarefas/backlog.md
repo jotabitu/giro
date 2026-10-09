@@ -13,7 +13,7 @@ As pendências de regra foram decididas em 07 out 2026 (seção "Decisões de 07
 - (T-081) Aprovar uma correção de km (`APR-06`) depois que outra leitura mudou o km foi decidido em 08 out 2026 pelo dono do produto: fica como está. A aprovação responde 409 `km_mudou`, o pedido continua pendente, e o gerente recusa e pede de novo com o km atual. Assim a leitura mais nova não é apagada. O produto registra a regra na próxima tarefa de regras de veículos.
 - (T-079) Documento (CRLV ou seguro) que vence com o veículo `reservado` ou em `manutencao` foi decidido em 08 out 2026 pelo dono do produto: as duas coisas juntas. A `AUT-06` gera tarefa urgente aos gerentes, como no `alugado`, e a retirada é recusada até renovar. Virou regra na T-084 (PR #76); a tarefa urgente vai na T-085 e a recusa da retirada na T-016.
 - (T-014) As duas leituras do backend foram confirmadas em 09 out 2026 pelo dono do produto: CNH C, D ou E aluga carro (`CLI-02`, CTB art. 143), e cliente `bloqueado` não pode ser inativado sem antes desbloquear (`CLI-09`). Viraram regra na T-087 (PR #83); os testes ganham os casos novos na T-089.
-- [decisão] (T-088, arquiteto → produto) `VEI-06` fala em "dias alugado ÷ dias na frota". A T-013 conta o tempo exato entre as mudanças de status: um veículo alugado às 14:00 conta 10 horas daquele dia (0,42 dia), e não o dia inteiro. Com mudanças em dias inteiros, como no seed, dá o mesmo número. Para confirmar: fração de dia vale, ou a mudança conta pelo dia (e qual dia, o de entrada ou o de saída)?
+- (T-088) A ocupação da `VEI-06` com mudança de status no meio do dia foi decidida em 09 out 2026 pelo dono do produto: opção A, vale a fração de dia, como o código da T-013 já faz. Virou regra na T-094 (PR #89); o teste entra na T-096.
 
 A dúvida da segurança S-02 (T-032: o suporte Giro vê CPF e CNH completos?) foi decidida em 07 out 2026 e virou a regra `AUD-09` (mascarado, nunca completo).
 
@@ -69,7 +69,7 @@ Levantadas pelo produto em T-059 (08 out 2026):
 
 Levantadas pelo backend em T-015 (09 out 2026):
 
-- [divergência] Preço da LOC-2836 (para o produto): a Juliana paga R$ 329,00 por semana desde 30 set (`LOC-06`, carteira de outubro), mas pela tabela do seed a Street semanal era R$ 299,40 até 30 set e só passou a R$ 329,00 em 01 out (`LOC-15`, CA-015-05, o mesmo motivo da LOC-2841). Confirmada em 30 set, ela teria parcelas de R$ 299,40 e total pago de R$ 898,80. Proposta: a LOC-2836 ser confirmada em 01 out (com início em 30 set), ou o preço novo valer desde 30 set. Até a decisão, o teste do CA-015-15 lê a LOC-2836 da carteira, com os valores dados.
+- (T-015) O preço da LOC-2836 foi decidido em 09 out 2026 pelo dono do produto: opção A. A LOC-2836 é confirmada em 01 out, com início em 30 set, e paga R$ 329,00 pela tabela da Street a partir de 01 out (`LOC-15`); a tabela não muda. Os dados de referência mudam na T-097 e o teste do CA-015-15 na T-098.
 
 ## Fase 0 · Fundação
 
@@ -215,13 +215,17 @@ Levantadas pelo backend em T-015 (09 out 2026):
 
 - **Nota da T-012 (08/10):** a S-12 (SVG do logo sanitizado e exibido só por `<img>`) vale para `ConfiguracaoEmpresa.logo` (app `empresas`), e não para a filial. Entra na tarefa da marca da empresa (`Admin-Marca`), a criar.
 
-### T-068 · Correções de segurança da T-064 (filiais)
-- **Agente:** backend · **Prioridade:** antes da T-013
-- **Depende de:** T-012, T-064
-- **Pronto quando:** F-01 (permissões de administrador somam às padrão, sem perder `EmpresaOperando` e `EscopoDeFilial`; teste de arquitetura no urlconf da empresa), F-02 (`filial_da_requisicao` distingue "todas" de pessoa sem filial, que recebe 403 `USR-07`; o arquiteto confere a interface interna), F-04 (limite por IP sem chave vazia quando falta o IP e com IPv6 agrupado por prefixo; o devops confere o `REMOTE_ADDR` atrás do proxy) e F-05 (limite na busca de CEP) corrigidos, cada um com teste que reproduz o achado; detalhes em `docs/seguranca/2026-10-09-t058-t012.md`.
+### T-096 · Teste da ocupação com fração de dia
+- **Agente:** qa · **Depende de:** T-094 · **Regras:** VEI-06 · **Pronto quando:** o teste da ocupação da T-013 cobre o CA-013-29 (na frota desde 27 set, alugado em 02 out às 14:00, relógio em 07 out 00:00 → 44,17%), com o código da regra no nome; sem mudança de código de produção (se falhar, `xfail` com o motivo e aviso ao orquestrador).
 
 ### T-093 · Momentos em UTC na API
 - **Agente:** backend · **Depende de:** T-088 · **ADRs:** 0020 · **Pronto quando:** `comum/renderizacao.py` ligado no `REST_FRAMEWORK` como na ADR 0020; os 3 testes de `backend/tests/test_formato_das_datas.py` passam sem `xfail` e a lista de pendentes do teste de varredura fica vazia; contas, aprovações, plataforma, veículos, filiais e clientes saem em `AAAA-MM-DDTHH:MM:SSZ` sem mexer nos serializers; OpenAPI sem mudança. Passos em `tarefas/handoffs/T-088-arquiteto.md`.
+
+### T-097 · Dados de referência: LOC-2836 confirmada em 01 out
+- **Agente:** produto · **Depende de:** T-015 · **Regras:** LOC-06, LOC-15 · **Pronto quando:** a decisão de 09/10 (LOC-2836 confirmada em 01 out, início em 30 set, R$ 329,00 por semana pela tabela da Street de 01 out) está nos "Dados de referência para testes" de `docs/regras-de-negocio.md` e nos critérios que citam a LOC-2836 (`docs/qa/criterios/T-015.md`), com linha em "Decisões de 09 out 2026"; os números da carteira de outubro não mudam.
+
+### T-098 · Teste do CA-015-15 com a LOC-2836 confirmada em 01 out
+- **Agente:** qa · **Depende de:** T-097 · **Regras:** LOC-15 · **Pronto quando:** `backend/tests/aceitacao/carteira.py` e o teste do CA-015-15 usam a LOC-2836 confirmada em 01 out e calculam R$ 329,00 pela tabela, sem valor dado à mão; sem mudança de código de produção (se falhar, `xfail` com o motivo e aviso ao orquestrador).
 
 ### T-090 · Contratos: modelos, PDF, assinatura e aditivo
 - **Agente:** backend · **Depende de:** T-015 · **Segurança:** S-09 no `ModeloContrato`, token de assinatura com hash, 7 dias, uso único e limite (S-15) · **Regras:** LOC-06, LOC-07 · **Telas:** Contratos-Modelos · **Pronto quando:** CA-015-11 a 13 passam, com o código da regra no nome do teste: API dos modelos (marcadores, sanitização, versões, publicar, arquivar); PDF com WeasyPrint numa task (a imagem já tem pango e fontes; o pacote Python vai com o motivo no PR); link público; reenviar; evento `contrato_assinado`; `gerar_aditivo`.
