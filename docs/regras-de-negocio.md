@@ -263,17 +263,18 @@ O cliente é da empresa (compartilhado entre filiais) e tem 4 estados: `incomple
 **Regras**
 
 - `CLI-01` CPF e CNPJ validados pelo dígito verificador e únicos por empresa. CEP preenche rua, bairro e cidade.
-- `CLI-02` Para alugar moto, CNH categoria A; para carro, categoria B. CNH vencida há mais de 30 dias impede a retirada.
+- `CLI-02` Para alugar moto, CNH categoria A; para carro, categoria B. As categorias C, D e E também alugam carro, porque incluem a B (CTB, art. 143), mas não alugam moto. AB, AC, AD e AE alugam moto e carro. CNH vencida há mais de 30 dias impede a retirada.
 - `CLI-03` Cliente fica `incompleto` enquanto faltar algum documento obrigatório. Pode ser salvo e pode ter locação criada, mas a retirada (vistoria de saída) só libera com o cadastro completo.
 - `CLI-04` Análise do cadastro (painel ao lado do formulário): CPF válido e regular, CNH válida na categoria, fora da lista de bloqueio da empresa, consulta de crédito (se a integração existir). Cada item mostra ok, pendente ou problema.
 - `CLI-05` Bloqueio automático com 15 dias de atraso em qualquer valor (parcela, devolução, multa). Cliente bloqueado não faz nova locação nem compra; desbloqueia sozinho ao quitar. Gerente e administrador podem bloquear ou desbloquear manualmente, na hora, com motivo e evento de auditoria. O vendedor não desbloqueia: ele pede, e o gerente aprova (`APR-05`).
 - `CLI-06` A lista mostra, por cliente: situação, locação atual, total pago, valor em aberto e "cliente desde". Filtros: todos, com locação, em aberto, bloqueados, cadastro incompleto.
 - `CLI-07` Botão de ação na lista conforme a situação. Quando mais de uma vale, vale a primeira desta ordem: em aberto → Cobrar (a conta mais antiga); cadastro incompleto → Completar cadastro; venda aberta (`VEN-10`) → Ver proposta; com locação → Ver locação; sem locação e `ativo` → Nova locação. Ex.: Lucas (incompleto, com LOC-2856) → Completar cadastro; Diego Martins (LOC-2848 e proposta da CB 300F) → Ver proposta. Cliente bloqueado sem valor em aberto não ganha Nova locação.
 - `CLI-08` "Salvar e iniciar locação" grava o cliente e abre a Nova locação com ele já escolhido.
-- `CLI-09` Cliente `inativo`: gerente ou administrador inativa, com motivo; a ação é recusada se o cliente tem locação aberta, venda aberta ou valor em aberto. O inativo sai da lista padrão (aparece no filtro de inativos) e não faz locação nem compra. Gerente ou administrador reativa, com motivo, e ele volta a `ativo` ou `incompleto`, conforme o cadastro (`CLI-03`).
+- `CLI-09` Cliente `inativo`: gerente ou administrador inativa, com motivo; a ação é recusada se o cliente tem locação aberta, venda aberta ou valor em aberto. O inativo sai da lista padrão (aparece no filtro de inativos) e não faz locação nem compra. Gerente ou administrador reativa, com motivo, e ele volta a `ativo` ou `incompleto`, conforme o cadastro (`CLI-03`). Cliente `bloqueado` não pode ser inativado (409 `transicao_cliente`): primeiro ele é desbloqueado (`CLI-05`).
 
 *Mudanças em 07 out 2026 (T-041):* `CLI-05` e `APR-05` passaram a dizer que gerente e administrador desbloqueiam direto e só o vendedor pede aprovação (decisão do dono do produto, item 12).
 *Mudanças em 07 out 2026 (T-041):* `CLI-07` ganhou a ordem de prioridade do botão; criada a `CLI-09` (como o cliente fica e sai de `inativo`). Decisões do dono do produto, itens 11 e 13.
+*Mudanças em 09 out 2026 (T-087):* `CLI-02` passou a dizer quais categorias de CNH alugam moto e carro (C, D e E alugam carro; AB a AE alugam os dois), e a `CLI-09` passou a dizer que cliente bloqueado não pode ser inativado. São as leituras do backend na T-014, confirmadas pelo dono do produto. O código da T-014 já faz isso.
 
 ## Locação
 
@@ -609,6 +610,13 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 | CRLV ou seguro vencido com o veículo `reservado` ou `em_manutencao` (T-079) | **As duas coisas:** tarefa urgente aos gerentes, como no `alugado` (`AUT-06`), e retirada recusada até renovar o documento (`VEI-03`). | A reserva não sai com documento vencido, e o gerente fica sabendo a tempo de renovar antes da retirada. |
 | Correção de km depois que o km já mudou (T-081) | **Fica como está:** 409 `km_mudou`, o pedido continua pendente, o gerente recusa e a correção é pedida de novo (`APR-11`). | A leitura mais nova não é apagada por uma correção pedida antes dela. |
 | OS concluída com CRLV ou seguro vencido (T-084) | **A:** o veículo vai para `indisponivel`, com o motivo do documento, até renovar e o gerente desbloquear (`MAN-05`, `VEI-03`). | A `AUT-06` não roda de novo para esse veículo; com `disponivel`, ele voltaria à frota com o documento vencido. |
+
+## Decisões de 09 out 2026
+
+| Pendência | Decisão | Por quê |
+| --- | --- | --- |
+| Categorias de CNH C, D e E (T-014) | **C, D e E alugam carro; AB a AE alugam moto e carro** (`CLI-02`). | Pelo CTB, art. 143, as categorias C, D e E incluem a B; nenhuma delas inclui a A. Leitura do backend na T-014, confirmada pelo dono do produto. |
+| Inativar cliente bloqueado (T-014) | **Recusado com 409 `transicao_cliente`:** primeiro desbloqueia (`CLI-09`, `CLI-05`). | A inativação não pode passar por cima do bloqueio: o cliente sai do bloqueio pelo caminho da `CLI-05`. Leitura do backend na T-014, confirmada pelo dono do produto. |
 
 ## Pontos em aberto
 
