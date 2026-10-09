@@ -73,3 +73,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-086 · Regra da OS concluída com documento vencido · produto · PR #79 · tarefas/handoffs/T-086-produto.md · decisão A do dono em 08/10; MAN-05; CA-MAN-01 em criterios/manutencao.md; código com a manutenção (fase 2)
 - T-085 · AUT-06 gera tarefa urgente para veículo reservado ou em manutenção · backend · PR #80 · tarefas/handoffs/T-085-backend.md · 401 testes; CA-013-28; recusa da retirada na T-016
 - T-014 · Clientes, documentos, bloqueio e LGPD · backend · PR #81 · tarefas/handoffs/T-014-backend.md · 442 testes; CA-014-01 a 22; Pillow; R-02 e R-05 da T-050; [decisão] de CLI-02 e CLI-09 para o produto
+- T-087 · Regras da CNH C, D e E e do cliente bloqueado · produto · PR #83 · tarefas/handoffs/T-087-produto.md · CLI-02 e CLI-09; Decisões de 09 out 2026; CA-014-14 e 18; testes na T-089
