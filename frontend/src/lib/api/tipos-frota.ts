@@ -77,3 +77,32 @@ export type DocumentoVeiculo = {
 export type LocacaoDoVeiculo = { id: number; codigo: string; cliente_nome: string; inicio: string; fim: string; situacao: { rotulo: string; tom: TomApi } };
 export type ManutencaoDoVeiculo = { id: number; servico: string; data: string; km: number; custo_centavos: number };
 export type ManutencoesDoVeiculo = { proxima: string | null; resultados: ManutencaoDoVeiculo[] };
+
+/** Categoria de preço para escolher no cadastro (`GET /api/categorias/`). */
+export type CategoriaVeiculo = {
+  id: number;
+  nome: string;
+  tipo_veiculo: TipoVeiculo;
+  filial: { id: number; nome: string } | null;
+  ativo: boolean;
+  preco_vigente: PrecoVigente & { vigente_desde: string };
+};
+
+/** Corpo de `POST /api/veiculos/`. Dinheiro em centavos, datas em ISO, placa sem hífen. */
+export type NovoVeiculo = {
+  placa: string;
+  chassi: string;
+  renavam?: string;
+  marca: string;
+  modelo: string;
+  ano_fabricacao: number;
+  ano_modelo: number;
+  cor: string;
+  km_atual: number;
+  categoria_id: number;
+  filial_id: number;
+  capacidade_tanque_litros?: string;
+  valor_compra_centavos?: number;
+  data_compra?: string;
+  entrou_na_frota_em?: string;
+};
