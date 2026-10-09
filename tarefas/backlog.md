@@ -215,9 +215,6 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - **Depende de:** T-012, T-064
 - **Pronto quando:** F-01 (permissões de administrador somam às padrão, sem perder `EmpresaOperando` e `EscopoDeFilial`; teste de arquitetura no urlconf da empresa), F-02 (`filial_da_requisicao` distingue "todas" de pessoa sem filial, que recebe 403 `USR-07`; o arquiteto confere a interface interna), F-04 (limite por IP sem chave vazia quando falta o IP e com IPv6 agrupado por prefixo; o devops confere o `REMOTE_ADDR` atrás do proxy) e F-05 (limite na busca de CEP) corrigidos, cada um com teste que reproduz o achado; detalhes em `docs/seguranca/2026-10-09-t058-t012.md`.
 
-### T-089 · Testes dos casos novos da CLI-02 e da CLI-09
-- **Agente:** qa · **Depende de:** T-087 · **Regras:** CLI-02, CLI-09 · **Pronto quando:** `test_cli_02_ca_014_14` cobre CNH C, D e E alugando carro e não moto, e AB a AE alugando os dois; `test_cli_09_ca_014_18` cobre o cliente bloqueado que não é inativado (409 `transicao_cliente`) e o inativar depois do desbloqueio; os números seguem `docs/qa/criterios/T-014.md`.
-
 ### T-088 · Formato das datas na API
 - **Agente:** arquiteto · **Depende de:** T-014 · **ADRs:** 0009 · **Pronto quando:** decidido, em ADR nova ou emenda, o formato único dos `DateTimeField` na API (o README de `docs/api/` pede UTC com `Z`; contas e aprovações saem com `-03:00`, clientes já sai em `Z`), com o ponto de configuração (DRF, `comum`) e o teste de arquitetura que impede a volta; diz qual tarefa do backend uniformiza contas, aprovações, plataforma e veículos e se o OpenAPI muda. Considera também as outras diferenças de contrato dos handoffs da T-013, T-081 e T-014 (por exemplo, os eventos do financeiro com `cliente_id`).
 
