@@ -67,6 +67,10 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - [divergência] Contratos (T-059, para o arquiteto): em `docs/api/financeiro.md`, o caixa de exemplo passa a 111190 (cartão 10900); em `docs/api/painel.md`, `caixa_hoje` fica com `recebido_centavos` 111190 e `saldo_dia_centavos` 106390; em `docs/api/veiculos.md`, a LOC-2841 é "assinada em 23 set".
 
 
+Levantadas pelo backend em T-015 (09 out 2026):
+
+- (T-015) O preço da LOC-2836 foi decidido em 09 out 2026 pelo dono do produto: opção A. A LOC-2836 é confirmada em 01 out, com início em 30 set, e paga R$ 329,00 pela tabela da Street a partir de 01 out (`LOC-15`); a tabela não muda. Os dados de referência mudam na T-097 e o teste do CA-015-15 na T-098.
+
 ## Fase 0 · Fundação
 
 ### T-001 · Esqueleto do backend
@@ -217,9 +221,11 @@ Levantadas pelo produto em T-059 (08 out 2026):
 ### T-093 · Momentos em UTC na API
 - **Agente:** backend · **Depende de:** T-088 · **ADRs:** 0020 · **Pronto quando:** `comum/renderizacao.py` ligado no `REST_FRAMEWORK` como na ADR 0020; os 3 testes de `backend/tests/test_formato_das_datas.py` passam sem `xfail` e a lista de pendentes do teste de varredura fica vazia; contas, aprovações, plataforma, veículos, filiais e clientes saem em `AAAA-MM-DDTHH:MM:SSZ` sem mexer nos serializers; OpenAPI sem mudança. Passos em `tarefas/handoffs/T-088-arquiteto.md`.
 
-### T-015 · Locação: núcleo, simular e confirmar
-- **Agente:** backend · **Depende de:** T-013, T-014 · **Regras:** LOC-01 a LOC-05, LOC-14, LOC-15, APR-01, FIN-09 · **Telas:** Locacao, Locacoes, Locacao-Detalhe · **Pronto quando:** CA-015-01 a 10, 14 a 16 e 25 (sem o estorno) de `docs/qa/criterios/T-015.md` passam, com o código da regra no nome do teste: `PlanoEspecial`, `Locacao`, `ExtraLocacao`, `TrechoLocacao`; simular, rascunho com PATCH e confirmar (impedimentos CLI-02, CLI-05, cliente inativo e FIL-05; LOC-03 com índice único; reserva futura); desconto APR-01 pela porta da ADR 0019; lista, detalhe, sinais e situação; ativação pelas três condições; limpeza dos rascunhos de 24 h; financeiro mínimo (`ContaReceber`, `Comissao`, criar, cancelar, `marcar_paga` como porta de teste até a T-017) e `ModeloContrato` com `modelo_publicado`; campos novos de `ConfiguracaoEmpresa` (tolerância de atraso, desconto sem aprovação, comissão) listados no handoff para o arquiteto.
-- **Nota:** a T-015 original foi dividida em 09/10 em T-015, T-090, T-091 e T-092, porque não cabia num PR. Os critérios que saíram ficam `xfail` com o número da tarefa.
+### T-097 · Dados de referência: LOC-2836 confirmada em 01 out
+- **Agente:** produto · **Depende de:** T-015 · **Regras:** LOC-06, LOC-15 · **Pronto quando:** a decisão de 09/10 (LOC-2836 confirmada em 01 out, início em 30 set, R$ 329,00 por semana pela tabela da Street de 01 out) está nos "Dados de referência para testes" de `docs/regras-de-negocio.md` e nos critérios que citam a LOC-2836 (`docs/qa/criterios/T-015.md`), com linha em "Decisões de 09 out 2026"; os números da carteira de outubro não mudam.
+
+### T-098 · Teste do CA-015-15 com a LOC-2836 confirmada em 01 out
+- **Agente:** qa · **Depende de:** T-097 · **Regras:** LOC-15 · **Pronto quando:** `backend/tests/aceitacao/carteira.py` e o teste do CA-015-15 usam a LOC-2836 confirmada em 01 out e calculam R$ 329,00 pela tabela, sem valor dado à mão; sem mudança de código de produção (se falhar, `xfail` com o motivo e aviso ao orquestrador).
 
 ### T-090 · Contratos: modelos, PDF, assinatura e aditivo
 - **Agente:** backend · **Depende de:** T-015 · **Segurança:** S-09 no `ModeloContrato`, token de assinatura com hash, 7 dias, uso único e limite (S-15) · **Regras:** LOC-06, LOC-07 · **Telas:** Contratos-Modelos · **Pronto quando:** CA-015-11 a 13 passam, com o código da regra no nome do teste: API dos modelos (marcadores, sanitização, versões, publicar, arquivar); PDF com WeasyPrint numa task (a imagem já tem pango e fontes; o pacote Python vai com o motivo no PR); link público; reenviar; evento `contrato_assinado`; `gerar_aditivo`.

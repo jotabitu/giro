@@ -31,3 +31,10 @@ def dividir_em_parcelas(total_centavos: int, n: int) -> list[int]:
         raise ValueError("Número de parcelas deve ser pelo menos 1.")
     base = total_centavos // n
     return [base] * (n - 1) + [total_centavos - base * (n - 1)]
+
+
+def formatar_reais(valor_centavos: int) -> str:
+    """`32900` vira `"R$ 329,00"`; `164640` vira `"R$ 1.646,40"` (textos prontos da API)."""
+    sinal = "-" if valor_centavos < 0 else ""
+    reais, centavos = divmod(abs(valor_centavos), 100)
+    return f"{sinal}R$ {reais:,}".replace(",", ".") + f",{centavos:02d}"

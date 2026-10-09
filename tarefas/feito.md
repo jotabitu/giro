@@ -78,3 +78,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-089 · Testes dos casos novos da CLI-02 e da CLI-09 · qa · PR #86 · tarefas/handoffs/T-089-qa.md · CA-014-14 e 18 cobertos; sem mudança de produção
 - T-094 · Regra da ocupação com fração de dia · produto · PR #89 · tarefas/handoffs/T-094-produto.md · VEI-06 opção A; CA-013-29; teste na T-096
 - T-095 · Cadastrar veículo: botão na Frota e tela nova · frontend · PR #90 · tarefas/handoffs/T-095-frontend.md · 158 testes; nos dados falsos; CRLV-e, FIPE, planilha e campos sem contrato ficaram de fora
+- T-015 · Locação: núcleo, simular e confirmar · backend · PR #87 · tarefas/handoffs/T-015-backend.md · 486 testes; financeiro e contratos mínimos; contratos na T-090, atraso e cancelamento na T-091, troca na T-092; [divergência] da LOC-2836
