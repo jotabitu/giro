@@ -211,9 +211,6 @@ Levantadas pelo produto em T-059 (08 out 2026):
 
 - **Nota da T-012 (08/10):** a S-12 (SVG do logo sanitizado e exibido só por `<img>`) vale para `ConfiguracaoEmpresa.logo` (app `empresas`), e não para a filial. Entra na tarefa da marca da empresa (`Admin-Marca`), a criar.
 
-### T-096 · Teste da ocupação com fração de dia
-- **Agente:** qa · **Depende de:** T-094 · **Regras:** VEI-06 · **Pronto quando:** o teste da ocupação da T-013 cobre o CA-013-29 (na frota desde 27 set, alugado em 02 out às 14:00, relógio em 07 out 00:00 → 44,17%), com o código da regra no nome; sem mudança de código de produção (se falhar, `xfail` com o motivo e aviso ao orquestrador).
-
 ### T-093 · Momentos em UTC na API
 - **Agente:** backend · **Depende de:** T-088 · **ADRs:** 0020 · **Pronto quando:** `comum/renderizacao.py` ligado no `REST_FRAMEWORK` como na ADR 0020; os 3 testes de `backend/tests/test_formato_das_datas.py` passam sem `xfail` e a lista de pendentes do teste de varredura fica vazia; contas, aprovações, plataforma, veículos, filiais e clientes saem em `AAAA-MM-DDTHH:MM:SSZ` sem mexer nos serializers; OpenAPI sem mudança. Passos em `tarefas/handoffs/T-088-arquiteto.md`.
 
