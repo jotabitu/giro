@@ -178,10 +178,11 @@ def desbloquear(veiculo: Veiculo, motivo: str | None = None) -> Veiculo:
     """`indisponivel` → `disponivel`. Com CRLV ou seguro ativo vencido: 422 `VEI-03`."""
     with transaction.atomic():
         travado = _travar(veiculo)
-        if travado.status == S.INDISPONIVEL:
-            vencidos = documentos_vencidos_que_bloqueiam(travado, relogio.hoje())
-            if vencidos:
-                raise documento_vencido(vencidos)
+        if travado.status != S.INDISPONIVEL:
+            raise transicao_invalida(travado.status, S.DISPONIVEL)
+        vencidos = documentos_vencidos_que_bloqueiam(travado, relogio.hoje())
+        if vencidos:
+            raise documento_vencido(vencidos)
         transicionar(
             travado, S.DISPONIVEL, origem=MANUAL, motivo=(motivo or "").strip(), acao="desbloquear"
         )
@@ -206,6 +207,8 @@ def colocar_a_venda(
 
 def voltar_para_frota(veiculo: Veiculo) -> Veiculo:
     """`a_venda` → `disponivel`. A recusa com venda aberta (409 `VEN-10`) entra com vendas."""
+    if veiculo.status != S.A_VENDA:
+        raise transicao_invalida(veiculo.status, S.DISPONIVEL)
     return transicionar(veiculo, S.DISPONIVEL, origem=MANUAL, acao="voltar_para_frota")
 
 

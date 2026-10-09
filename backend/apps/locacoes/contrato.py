@@ -14,7 +14,7 @@ from django.db import connection
 from apps.contratos import origens
 from apps.contratos import selectors as contratos_selectors
 from apps.contratos import services as contratos
-from apps.contratos.models import Contrato
+from apps.contratos.models import Contrato, StatusContrato
 from apps.empresas.selectors import configuracao
 from apps.financeiro import selectors as financeiro_selectors
 from comum import relogio
@@ -201,6 +201,20 @@ def gerar_aditivo(locacao: Locacao) -> Contrato:
 
 def vigente(locacao: Locacao) -> Contrato | None:
     return contratos_selectors.contrato_vigente(ORIGEM, locacao.pk)
+
+
+def cancelar_nao_assinados(locacao: Locacao, motivo: str) -> int:
+    """Locação cancelada antes da retirada (LOC-12): o link do contrato e dos aditivos que ainda
+    não foram assinados deixa de valer. O assinado fica como está."""
+    cancelados = 0
+    for item in Contrato.objects.filter(
+        origem_tipo=ORIGEM,
+        origem_id=locacao.pk,
+        status__in=(StatusContrato.GERADO, StatusContrato.ENVIADO),
+    ):
+        contratos.cancelar(item, motivo)
+        cancelados += 1
+    return cancelados
 
 
 def reenviar(locacao: Locacao) -> Contrato:

@@ -1,5 +1,6 @@
 """Leituras das locações: simulação, lista com sinais e indicadores, detalhe e histórico
-(`docs/api/locacoes.md`; LOC-05, LOC-06, LOC-07, LOC-10).
+(`docs/api/locacoes.md`; LOC-05, LOC-06, LOC-07, LOC-10), e as simulações da renovação e do
+cancelamento (LOC-08, LOC-12, LOC-13).
 
 Os sinais (`pagamento_atrasado`, `devolve_hoje`, `cancelamento_pendente`) são calculados aqui,
 nunca guardados. As parcelas vêm de `financeiro.selectors` (ADR 0011).
@@ -24,7 +25,7 @@ from comum.dinheiro import aplicar_percentual, formatar_reais
 from comum.permissoes import pode
 
 from . import services
-from .models import ABERTAS, FormaPagamento, Locacao, PlanoEspecial, StatusLocacao
+from .models import ABERTAS, FormaPagamento, Locacao, PlanoEspecial, StatusDesconto, StatusLocacao
 
 S = StatusLocacao
 ORIGEM = services.ORIGEM
@@ -92,12 +93,12 @@ def _devolvem_hoje(qs: QuerySet[Any]) -> QuerySet[Any]:
 
 
 def _precisam_acao(qs: QuerySet[Any]) -> QuerySet[Any]:
-    """Devolução atrasada, parcela atrasada, aguardando assinatura (cancelamento pendente entra
-    com a T-091)."""
+    """Devolução atrasada, parcela atrasada, aguardando assinatura ou cancelamento pendente."""
     return qs.filter(status__in=ABERTAS).filter(
         Q(status=S.DEVOLUCAO_ATRASADA)
         | Q(fin_atrasado_centavos__gt=0)
         | Q(status=S.AGUARDANDO_RETIRADA, contrato_assinado_em__isnull=True)
+        | Q(cancelamento_status=StatusDesconto.PENDENTE)
     )
 
 
@@ -184,7 +185,7 @@ def sinais(locacao: Locacao) -> dict[str, bool]:
     return {
         "pagamento_atrasado": int(getattr(locacao, "fin_atrasado_centavos", 0) or 0) > 0,
         "devolve_hoje": devolve_hoje,
-        "cancelamento_pendente": False,  # pedido APR-02, T-091
+        "cancelamento_pendente": locacao.cancelamento_status == StatusDesconto.PENDENTE,
     }
 
 
@@ -233,8 +234,11 @@ def pagamento(locacao: Locacao) -> dict[str, Any]:
     em_aberto = int(getattr(locacao, "fin_atrasado_centavos", 0) or 0)
     pago = int(getattr(locacao, "fin_pago_centavos", 0) or 0)
     abertas = int(getattr(locacao, "fin_abertas", 0) or 0)
+    multa = locacao.multa_encerramento_centavos or 0
     if em_aberto > 0:
         rotulo, tom = f"{formatar_reais(em_aberto)} em aberto", "perigo"
+    elif locacao.cancelamento_status == StatusDesconto.PENDENTE and multa > 0:
+        rotulo, tom = f"Multa {formatar_reais(multa)}", "alerta"
     elif locacao.status == S.AGUARDANDO_RETIRADA:
         rotulo, tom = (
             (f"{formatar_reais(pago)} pago", "info") if pago else ("Aguardando pagamento", "alerta")
@@ -283,8 +287,13 @@ def linha(locacao: Locacao) -> dict[str, Any]:
 # --- Detalhe ---
 
 
+def _cancelamento_em_curso(locacao: Locacao) -> bool:
+    return locacao.cancelamento_status in (StatusDesconto.PENDENTE, StatusDesconto.APROVADO)
+
+
 def _cancelar(usuario: Any, locacao: Locacao) -> str | bool:
-    if locacao.status in (S.ENCERRADA, S.CANCELADA):
+    """O pedido pendente se decide em Aprovações; o aprovado segue para a devolução."""
+    if locacao.status in (S.ENCERRADA, S.CANCELADA) or _cancelamento_em_curso(locacao):
         return False
     valor = pode(usuario, "locacoes_cancelar")
     if valor in ("sim", "aprova"):
@@ -299,7 +308,7 @@ def acoes(locacao: Locacao, usuario: Any, contrato: Contrato | None = None) -> d
     return {
         "editar": cria and locacao.status == S.RASCUNHO,
         "confirmar": cria and locacao.status == S.RASCUNHO,
-        "renovar": cria and em_curso,
+        "renovar": cria and em_curso and not _cancelamento_em_curso(locacao),
         "registrar_devolucao": perfil in VISTORIAM and em_curso,
         "trocar_veiculo": cria and locacao.status == S.ATIVA,
         "cancelar": _cancelar(usuario, locacao),
@@ -372,6 +381,30 @@ def _devolucao(locacao: Locacao) -> dict[str, Any]:
     }
 
 
+def _cancelamento(locacao: Locacao) -> dict[str, Any] | None:
+    """O pedido `APR-02` pendente ou o cancelamento aprovado (com o encerramento antecipado)."""
+    if not _cancelamento_em_curso(locacao):
+        return None
+    credito = locacao.credito_encerramento_centavos or 0
+    multa = locacao.multa_encerramento_centavos or 0
+    # O encerramento antecipado (depois da retirada) grava quando foi aprovado.
+    antes = locacao.encerramento_antecipado_aprovado_em is None and locacao.status in (
+        *services.ANTES_DA_RETIRADA,
+        S.CANCELADA,
+    )
+    return {
+        "status": locacao.cancelamento_status,
+        "pedido_aprovacao_id": locacao.pedido_cancelamento_id,
+        "antes_da_retirada": antes,
+        "data": locacao.cancelamento_data,
+        "multa_centavos": multa,
+        "credito_centavos": credito,
+        "devolver_centavos": max(0, credito - multa),
+        "cobrar_centavos": max(0, multa - credito),
+        "motivo": locacao.motivo_cancelamento,
+    }
+
+
 def detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
     hoje = relogio.hoje()
     contrato = contratos_selectors.contrato_vigente(ORIGEM, locacao.pk)
@@ -415,7 +448,7 @@ def detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
             {"veiculo": t.veiculo.placa, "inicio": t.inicio, "fim": t.fim}
             for t in locacao.trechos.select_related("veiculo")
         ],
-        "cancelamento": None,  # T-091
+        "cancelamento": _cancelamento(locacao),
         "acoes": acoes(locacao, usuario, contrato),
     }
 
@@ -447,6 +480,14 @@ ROTULOS_DO_HISTORICO = {
     "locacao.aprovar_desconto": ("Desconto aprovado", "status"),
     "locacao.recusar_desconto": ("Desconto recusado", "status"),
     "locacao.cancelar_rascunho": ("Rascunho cancelado", "status"),
+    "locacao.renovar": ("Locação renovada", "status"),
+    "locacao.marcar_atraso": ("Devolução atrasada", "status"),
+    "locacao.pedir_cancelamento": ("Cancelamento pedido", "status"),
+    "locacao.recusar_cancelamento": ("Cancelamento recusado", "status"),
+    "locacao.cancelar_pedido_cancelamento": ("Pedido de cancelamento cancelado", "status"),
+    "locacao.cancelar": ("Locação cancelada", "status"),
+    "locacao.aprovar_encerramento": ("Encerramento antecipado aprovado", "status"),
+    "locacao.encerrar": ("Locação encerrada", "status"),
 }
 
 
@@ -475,6 +516,35 @@ def historico(locacao: Locacao, usuario: Any) -> list[dict[str, Any]]:
     if getattr(usuario, "perfil", "") == "vistoriador":
         itens = [item for item in itens if item["tipo"] != "pagamento"]
     return sorted(itens, key=lambda item: item["em"], reverse=True)
+
+
+# --- Renovação, atraso e cancelamento (LOC-08, LOC-10 a LOC-13) ---
+
+
+def calcular_atraso(locacao: Locacao, momento: datetime | None = None) -> dict[str, Any]:
+    """`{dias, valor_centavos}` para o acerto da devolução (T-016; LOC-10, LOC-11, FIL-03)."""
+    return services.calcular_atraso(locacao, momento)
+
+
+def calcular_encerramento_antecipado(locacao: Locacao, dia: date | None = None) -> dict[str, Any]:
+    """LOC-12 e LOC-13; o mesmo cálculo de `cancelamento/simular`."""
+    return services.calcular_encerramento(locacao, dia).como_dict()
+
+
+def simular_renovacao(locacao: Locacao, dados: dict[str, Any]) -> dict[str, Any]:
+    renovacao = services.montar_renovacao(locacao, dados)
+    conta = renovacao.calculo
+    return {
+        "fim_previsto_atual": locacao.fim_previsto,
+        "fim_previsto": conta.fim_previsto,
+        "periodos": conta.periodos,
+        "valor_periodo_centavos": conta.valor_periodo_centavos,
+        "parcelas_novas": [
+            {"numero": p.numero, "vencimento": p.vencimento, "valor_centavos": p.valor_centavos}
+            for p in conta.parcelas
+        ],
+        "total_centavos": sum(p.valor_centavos for p in conta.parcelas),
+    }
 
 
 # --- Planos especiais ---

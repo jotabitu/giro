@@ -1901,6 +1901,77 @@ paths:
               schema:
                 $ref: '#/components/schemas/LocacaoDetalhe'
           description: ''
+  /api/locacoes/{id}/cancelamento/simular/:
+    post:
+      operationId: locacoes_cancelamento_simular_create
+      summary: Simular o cancelamento ou o encerramento antecipado (LOC-12, LOC-13)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimularCancelamento'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SimularCancelamento'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SimularCancelamento'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulacaoCancelamento'
+          description: ''
+  /api/locacoes/{id}/cancelar/:
+    post:
+      operationId: locacoes_cancelar_create
+      summary: 'Cancelar: gerente direto, vendedor pede (LOC-12, LOC-13, APR-02)'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelarLocacao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CancelarLocacao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CancelarLocacao'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocacaoDetalhe'
+          description: ''
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelamentoPedido'
+          description: ''
   /api/locacoes/{id}/confirmar/:
     post:
       operationId: locacoes_confirmar_create
@@ -2016,6 +2087,70 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HistoricoLocacao'
+          description: ''
+  /api/locacoes/{id}/renovar/:
+    post:
+      operationId: locacoes_renovar_create
+      summary: Renovar (mesmo LOC, preço de hoje, aditivo; LOC-08, LOC-15, FIN-09)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenovarLocacao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RenovarLocacao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RenovarLocacao'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocacaoDetalhe'
+          description: ''
+  /api/locacoes/{id}/renovar/simular/:
+    post:
+      operationId: locacoes_renovar_simular_create
+      summary: Simular a renovação (não grava nada; LOC-08, LOC-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenovarLocacao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RenovarLocacao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RenovarLocacao'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulacaoRenovacao'
           description: ''
   /api/locacoes/simular/:
     post:
@@ -3779,6 +3914,76 @@ components:
       description: |-
         * `atraso` - atraso
         * `manual` - manual
+    CancelamentoLocacao:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/CancelamentoLocacaoStatusEnum'
+        pedido_aprovacao_id:
+          type: integer
+          nullable: true
+        antes_da_retirada:
+          type: boolean
+        data:
+          type: string
+          format: date
+          nullable: true
+        multa_centavos:
+          type: integer
+        credito_centavos:
+          type: integer
+        devolver_centavos:
+          type: integer
+        cobrar_centavos:
+          type: integer
+        motivo:
+          type: string
+      required:
+      - antes_da_retirada
+      - cobrar_centavos
+      - credito_centavos
+      - data
+      - devolver_centavos
+      - motivo
+      - multa_centavos
+      - pedido_aprovacao_id
+      - status
+    CancelamentoLocacaoStatusEnum:
+      enum:
+      - pendente
+      - aprovado
+      type: string
+      description: |-
+        * `pendente` - Pendente
+        * `aprovado` - Aprovado
+    CancelamentoPedido:
+      type: object
+      properties:
+        pedido_aprovacao:
+          $ref: '#/components/schemas/PedidoAprovacaoRef'
+      required:
+      - pedido_aprovacao
+    CancelarLocacao:
+      type: object
+      properties:
+        motivo:
+          type: string
+          maxLength: 500
+        data:
+          type: string
+          format: date
+          nullable: true
+        forma_devolucao:
+          allOf:
+          - $ref: '#/components/schemas/FormaDevolucaoEnum'
+          default: pix
+          description: |-
+            Como o que foi pago volta ao cliente (LOC-12). Dinheiro sai pelo caixa.
+
+            * `pix` - Pix
+            * `estorno_cartao` - Estorno no cartão
+      required:
+      - motivo
     Categoria:
       type: object
       properties:
@@ -4588,6 +4793,26 @@ components:
       required:
       - km
       - motivo
+    CreditoDias:
+      type: object
+      properties:
+        dias:
+          type: integer
+        valor_centavos:
+          type: integer
+      required:
+      - dias
+      - valor_centavos
+    CreditoSemanas:
+      type: object
+      properties:
+        semanas:
+          type: integer
+        valor_centavos:
+          type: integer
+      required:
+      - semanas
+      - valor_centavos
     DesbloquearVeiculo:
       type: object
       properties:
@@ -5445,6 +5670,14 @@ components:
       description: |-
         * `locacao` - Locação
         * `venda` - Venda
+    FormaDevolucaoEnum:
+      enum:
+      - pix
+      - estorno_cartao
+      type: string
+      description: |-
+        * `pix` - Pix
+        * `estorno_cartao` - Estorno no cartão
     FormaPagamentoEnum:
       enum:
       - pix
@@ -6161,8 +6394,9 @@ components:
           items:
             $ref: '#/components/schemas/TrechoLocacao'
         cancelamento:
+          allOf:
+          - $ref: '#/components/schemas/CancelamentoLocacao'
           nullable: true
-          description: Cancelamento (T-091)
         acoes:
           $ref: '#/components/schemas/AcoesLocacao'
       required:
@@ -7018,6 +7252,19 @@ components:
           $ref: '#/components/schemas/PedidoAprovacaoCliente'
       required:
       - pedido_aprovacao
+    PedidoAprovacaoRef:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+        status:
+          type: string
+      required:
+      - id
+      - status
+      - tipo
     PedidoRef:
       type: object
       properties:
@@ -7083,6 +7330,21 @@ components:
         * `diaria` - Diária
         * `semanal` - Semanal
         * `mensal` - Mensal
+    PeriodoAtual:
+      type: object
+      properties:
+        inicio:
+          type: string
+          format: date
+        fim:
+          type: string
+          format: date
+        dias:
+          type: integer
+      required:
+      - dias
+      - fim
+      - inicio
     PermissaoExtraDoUsuario:
       type: object
       properties:
@@ -7611,6 +7873,17 @@ components:
       description: |-
         * `preco_fixo` - Preço fixo
         * `desconto` - Desconto
+    RenovarLocacao:
+      type: object
+      properties:
+        periodos:
+          type: integer
+          minimum: 1
+          nullable: true
+        fim_previsto:
+          type: string
+          format: date-time
+          nullable: true
     Responsavel:
       type: object
       properties:
@@ -7699,6 +7972,41 @@ components:
             $ref: '#/components/schemas/Sessao'
       required:
       - resultados
+    SimulacaoCancelamento:
+      type: object
+      properties:
+        antes_da_retirada:
+          type: boolean
+        periodo_atual:
+          allOf:
+          - $ref: '#/components/schemas/PeriodoAtual'
+          nullable: true
+        dias_restantes:
+          type: integer
+        valor_restante_centavos:
+          type: integer
+        multa_centavos:
+          type: integer
+        credito_semanas:
+          $ref: '#/components/schemas/CreditoSemanas'
+        credito_dias:
+          allOf:
+          - $ref: '#/components/schemas/CreditoDias'
+          description: 'Diária: os dias não usados (LOC-12).'
+        devolver_centavos:
+          type: integer
+        cobrar_centavos:
+          type: integer
+      required:
+      - antes_da_retirada
+      - cobrar_centavos
+      - credito_dias
+      - credito_semanas
+      - devolver_centavos
+      - dias_restantes
+      - multa_centavos
+      - periodo_atual
+      - valor_restante_centavos
     SimulacaoLocacao:
       type: object
       properties:
@@ -7752,6 +8060,41 @@ components:
       - proximos_periodos_centavos
       - texto_retirada
       - valor_periodo_centavos
+    SimulacaoRenovacao:
+      type: object
+      properties:
+        fim_previsto_atual:
+          type: string
+          format: date-time
+          nullable: true
+        fim_previsto:
+          type: string
+          format: date-time
+          nullable: true
+        periodos:
+          type: integer
+        valor_periodo_centavos:
+          type: integer
+        parcelas_novas:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParcelaPrevista'
+        total_centavos:
+          type: integer
+      required:
+      - fim_previsto
+      - fim_previsto_atual
+      - parcelas_novas
+      - periodos
+      - total_centavos
+      - valor_periodo_centavos
+    SimularCancelamento:
+      type: object
+      properties:
+        data:
+          type: string
+          format: date
+          nullable: true
     SinaisLocacao:
       type: object
       properties:

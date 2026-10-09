@@ -1,10 +1,11 @@
-"""Regras da locação (LOC-01 a LOC-05, LOC-14, LOC-15, APR-01, FIL-05, IMP-04, FIN-09). Único
-lugar que grava nos models de `locacoes`.
+"""Regras da locação (LOC-01 a LOC-05, LOC-08, LOC-10 a LOC-15, APR-01, APR-02, FIL-05, IMP-04,
+FIN-09). Único lugar que grava nos models de `locacoes`.
 
 Interface para os outros apps (`docs/api/locacoes.md`, "Interface interna"):
-`registrar_vistoria_saida` (vistorias, T-016) e `verificar_ativacao`. Os assinantes de
-`financeiro.parcela_paga`, `contratos.contrato_assinado` e `aprovacoes.pedido_decidido` ficam em
-`eventos.py` e chamam as funções `registrar_*` e `aplicar_decisao_desconto` daqui.
+`registrar_vistoria_saida` e `encerrar` (vistorias, T-016), `calcular_atraso`,
+`calcular_encerramento` e `verificar_ativacao`. Os assinantes de `financeiro.parcela_paga`,
+`contratos.contrato_assinado` e `aprovacoes.pedido_decidido` ficam em `eventos.py` e chamam as
+funções `registrar_*`, `aplicar_decisao_desconto` e `aplicar_decisao_cancelamento` daqui.
 """
 
 from dataclasses import dataclass, field
@@ -29,9 +30,12 @@ from apps.veiculos.models import Categoria as CategoriaVeiculo
 from apps.veiculos.models import Extra, StatusVeiculo, Veiculo
 from comum import aprovacoes, estados, relogio
 from comum.auditoria import Categoria, auditar
-from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, TransicaoInvalida
+from comum.dinheiro import formatar_reais
+from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, SemPermissao, TransicaoInvalida
+from comum.eventos import publicar
+from comum.permissoes import pode
 
-from . import calculo
+from . import calculo, contrato, fim
 from .models import (
     ABERTAS,
     ExtraLocacao,
@@ -708,6 +712,551 @@ def registrar_pagamento(locacao_id: int) -> bool:
     return _registrar_condicao(
         locacao_id, "primeiro_pagamento_em", momento, "locacao.primeiro_pagamento"
     )
+
+
+# --- Atraso (LOC-10, LOC-11, FIL-03) ---
+
+
+def _tolerancia() -> timedelta:
+    return timedelta(minutes=empresas_selectors.configuracao().tolerancia_atraso_minutos)
+
+
+def _feriados(filial: Filial, de: datetime, ate: datetime) -> set[date]:
+    return set(
+        filial.feriados.filter(
+            ativo=True,
+            data__gte=data_local(de, filial) - timedelta(days=1),
+            data__lte=data_local(ate, filial) + timedelta(days=400),
+        ).values_list("data", flat=True)
+    )
+
+
+def atraso_desde(locacao: Locacao, fim_previsto: datetime, momento: datetime) -> fim.Atraso:
+    filial = locacao.filial
+    return fim.calcular_atraso(
+        fim_previsto,
+        momento,
+        tolerancia=_tolerancia(),
+        horario=filial.horario or {},
+        feriados=_feriados(filial, min(fim_previsto, momento), max(fim_previsto, momento)),
+        fuso=fuso(filial),
+        diaria_centavos=locacao.diaria_centavos,
+    )
+
+
+def calcular_atraso(locacao: Locacao, momento: datetime | None = None) -> dict[str, Any]:
+    """`{dias, valor_centavos}` se a devolução for em `momento` (padrão agora), usado no acerto
+    (T-016). Soma o atraso que já corria quando a locação atrasada foi renovada (LOC-08)."""
+    atual = atraso_desde(locacao, locacao.fim_previsto, momento or relogio.agora())
+    return {
+        "dias": atual.dias + locacao.atraso_anterior_dias,
+        "valor_centavos": atual.valor_centavos + locacao.atraso_anterior_centavos,
+        "devolucao_considerada_em": atual.devolucao_considerada_em,
+    }
+
+
+def marcar_devolucoes_atrasadas(agora: datetime | None = None) -> int:
+    """AUT-02 (de hora em hora): `ativa` → `devolucao_atrasada` no dia seguinte ao fim
+    previsto, quando a devolução feita agora já teria atraso (LOC-10, LOC-11). Idempotente."""
+    agora = agora or relogio.agora()
+    marcadas = 0
+    candidatas = Locacao.objects.filter(
+        status=S.ATIVA, fim_previsto__lt=agora - _tolerancia()
+    ).values_list("pk", flat=True)
+    for pk in candidatas:
+        with transaction.atomic():
+            travada = _travar(pk)
+            if travada.status != S.ATIVA:
+                continue
+            if data_local(agora, travada.filial) <= data_local(
+                travada.fim_previsto, travada.filial
+            ):
+                continue
+            atraso = atraso_desde(travada, travada.fim_previsto, agora)
+            if atraso.dias == 0:
+                continue
+            estados.transicionar(
+                travada,
+                S.DEVOLUCAO_ATRASADA,
+                motivo="Passou do fim previsto e da tolerância sem devolução",
+                acao="locacao.marcar_atraso",
+                regra="LOC-10",
+            )
+            marcadas += 1
+    return marcadas
+
+
+# --- Renovação (LOC-08, LOC-15) ---
+
+
+def _sem_cancelamento_em_curso(locacao: Locacao) -> None:
+    if locacao.cancelamento_status in (StatusDesconto.PENDENTE, StatusDesconto.APROVADO):
+        raise Conflito(
+            "cancelamento_em_andamento",
+            "Esta locação tem um cancelamento pedido ou aprovado.",
+            {"cancelamento": locacao.cancelamento_status},
+        )
+
+
+@dataclass(frozen=True)
+class Renovacao:
+    calculo: calculo.Calculo
+    preco_periodo_centavos: int  # sem descontos, como o congelado na confirmação (base do LOC-12)
+    diaria_centavos: int
+
+
+def montar_renovacao(locacao: Locacao, dados: dict[str, Any]) -> Renovacao:
+    """As parcelas novas a partir do fim previsto, com o preço de hoje (LOC-15): a tabela, ou o
+    preço do plano especial ativo. O desconto da locação e os extras por período continuam; a
+    caução não se cobra de novo. Não grava nada."""
+    if locacao.status not in (S.ATIVA, S.DEVOLUCAO_ATRASADA):
+        raise Conflito(
+            "transicao_locacao",
+            "Só dá para renovar uma locação ativa ou com a devolução atrasada.",
+            {"de": locacao.status},
+        )
+    _sem_cancelamento_em_curso(locacao)
+    preco = veiculos_selectors.preco_vigente(locacao.veiculo.categoria_id, relogio.hoje())
+    if preco is None:
+        raise ErroDeRegra("LOC-01", "A categoria do veículo não tem preço vigente.")
+    plano = locacao.plano_especial
+    preco_periodo = {
+        Periodicidade.DIARIA: preco.diaria_centavos,
+        Periodicidade.SEMANAL: preco.semanal_centavos,
+        Periodicidade.MENSAL: preco.mensal_centavos,
+    }[Periodicidade(locacao.periodicidade)]
+    if plano is not None and plano.ativo and plano.regra == PlanoEspecial.Regra.PRECO_FIXO:
+        preco_periodo = int(plano.preco_centavos or 0)
+    desconto_do_plano = _desconto_do_plano(plano)
+    if desconto_do_plano is not None:
+        desconto_do_plano = calculo.DescontoDoPlano(
+            pct=desconto_do_plano.pct,
+            a_partir_do_periodo=max(1, desconto_do_plano.a_partir_do_periodo - locacao.periodos),
+        )
+    extras = tuple(
+        calculo.ItemExtra(e.extra_id, e.nome, e.quantidade, e.valor_centavos, e.cobranca)
+        for e in locacao.extras.all()
+        if e.cobranca == "por_periodo"
+    )
+    novo_fim = dados.get("fim_previsto")
+    if novo_fim is not None and novo_fim <= locacao.fim_previsto:
+        raise ErroDeValidacao(
+            {"fim_previsto": ["O novo fim previsto precisa ser depois do fim atual."]}
+        )
+    conta = calculo.calcular(
+        calculo.Entrada(
+            periodicidade=locacao.periodicidade,
+            inicio=locacao.fim_previsto,
+            fuso=fuso(locacao.filial),
+            preco_periodo_centavos=preco_periodo,
+            diaria_centavos=preco.diaria_centavos,
+            caucao_centavos=0,
+            periodos=dados.get("periodos"),
+            fim_previsto=novo_fim,
+            desconto_do_plano=desconto_do_plano,
+            extras=extras,
+            desconto_pct=Decimal(locacao.desconto_pct),
+            parcelamento_mensal=locacao.parcelamento_mensal,
+        )
+    )
+    return Renovacao(conta, preco_periodo, preco.diaria_centavos)
+
+
+def _ultima_parcela(locacao: Locacao) -> int:
+    numeros = [
+        c.numero_parcela or 0
+        for c in financeiro_selectors.contas_da_origem(ORIGEM, locacao.pk)
+        if c.tipo == "parcela"
+    ]
+    return max(numeros, default=0)
+
+
+def renovar(locacao: Locacao, dados: dict[str, Any], usuario: Any) -> Locacao:
+    """LOC-08: estende o fim previsto e cria as parcelas novas na mesma locação, com o preço de
+    hoje. O aditivo sai para assinatura sem travar a renovação. Sem comissão (FIN-09). A
+    `devolucao_atrasada` volta a `ativa` se o novo fim for futuro, e o atraso já corrido fica
+    guardado para o acerto."""
+    with transaction.atomic():
+        travada = _travar(locacao)
+        renovacao = montar_renovacao(travada, dados)
+        conta = renovacao.calculo
+        agora = relogio.agora()
+        mais_campos = [
+            "fim_previsto",
+            "periodos",
+            "renovacoes",
+            "valor_periodo_centavos",
+            "diaria_centavos",
+        ]
+        if travada.status == S.DEVOLUCAO_ATRASADA:
+            corrido = atraso_desde(travada, travada.fim_previsto, agora)
+            travada.atraso_anterior_dias += corrido.dias
+            travada.atraso_anterior_centavos += corrido.valor_centavos
+            mais_campos += ["atraso_anterior_dias", "atraso_anterior_centavos"]
+        ultima = _ultima_parcela(travada)
+        total = ultima + len(conta.parcelas)
+        financeiro.criar_contas(
+            _origem(travada),
+            filial_id=travada.filial_id,
+            cliente_id=travada.cliente_id,
+            contas=[
+                financeiro.NovaConta(
+                    tipo="parcela",
+                    vencimento=p.vencimento,
+                    valor_centavos=p.valor_centavos,
+                    numero_parcela=ultima + p.numero,
+                    total_parcelas=total,
+                    observacao=f"Renovação {travada.renovacoes + 1}",
+                )
+                for p in conta.parcelas
+            ],
+        )
+        travada.fim_previsto = conta.fim_previsto
+        travada.periodos += conta.periodos
+        travada.renovacoes += 1
+        travada.valor_periodo_centavos = renovacao.preco_periodo_centavos
+        travada.diaria_centavos = renovacao.diaria_centavos
+        motivo = f"Renovação por {conta.periodos} {_unidade(travada, conta.periodos)}"
+        if travada.status == S.DEVOLUCAO_ATRASADA and conta.fim_previsto > agora:
+            estados.transicionar(
+                travada,
+                S.ATIVA,
+                motivo=motivo,
+                acao="locacao.renovar",
+                regra="LOC-08",
+                mais_campos=tuple(mais_campos),
+            )
+        else:
+            with auditar(
+                travada, "locacao.renovar", Categoria.OPERACAO, motivo=motivo, regra="LOC-08"
+            ):
+                travada.save(update_fields=[*mais_campos, "atualizado_em"])
+        TrechoLocacao.objects.filter(locacao=travada, fim__isnull=True).update(
+            valor_periodo_centavos=travada.valor_periodo_centavos,
+            diaria_centavos=travada.diaria_centavos,
+            atualizado_em=agora,
+        )
+        contrato.gerar_aditivo(travada)
+    _recarregar(locacao)
+    return locacao
+
+
+def _unidade(locacao: Locacao, n: int) -> str:
+    singular, plural = calculo.UNIDADE[Periodicidade(locacao.periodicidade)]
+    return singular if n == 1 else plural
+
+
+# --- Cancelamento e encerramento antecipado (LOC-12, LOC-13, APR-02) ---
+
+ANTES_DA_RETIRADA = (S.RASCUNHO, S.AGUARDANDO_RETIRADA)
+
+
+def _sem_dias_restantes() -> Conflito:
+    return Conflito(
+        "sem_dias_restantes",
+        "A locação já chegou ao fim previsto. Registre a devolução.",
+    )
+
+
+def _pode_cancelar(locacao: Locacao) -> None:
+    if locacao.status in (S.ENCERRADA, S.CANCELADA):
+        raise transicao_invalida(locacao.status, S.CANCELADA)
+    if locacao.cancelamento_status == StatusDesconto.APROVADO:
+        raise Conflito(
+            "cancelamento_aprovado",
+            "O encerramento antecipado já foi aprovado. Registre a devolução.",
+        )
+
+
+def calcular_encerramento(locacao: Locacao, dia: date | None = None) -> fim.Encerramento:
+    """LOC-12 e LOC-13 em `dia` (padrão hoje); o mesmo cálculo de `cancelamento/simular`. 409
+    `sem_dias_restantes` depois da retirada, quando não sobra nenhum dia do fim previsto."""
+    dia = dia or relogio.hoje()
+    if locacao.status in ANTES_DA_RETIRADA:
+        return fim.antes_da_retirada(
+            financeiro_selectors.pago_da_origem_centavos(ORIGEM, locacao.pk)
+        )
+    entrada = _entrada_congelada(locacao, Decimal(locacao.desconto_pct))
+    nao_pagas = 0
+    if locacao.parcelamento_mensal == ParcelamentoMensal.QUATRO_SEMANAIS:
+        achado = fim.periodo_em(
+            locacao.periodicidade,
+            locacao.inicio.astimezone(ZoneInfo(fuso(locacao.filial))),
+            locacao.periodos,
+            dia,
+        )
+        if achado is not None:
+            nao_pagas = sum(
+                c.valor_centavos
+                for c in financeiro_selectors.abertas_vencendo_depois(ORIGEM, locacao.pk, dia)
+                if c.vencimento < achado[2]
+            )
+    resultado = fim.depois_da_retirada(
+        periodicidade=locacao.periodicidade,
+        inicio=locacao.inicio,
+        fim_previsto=locacao.fim_previsto,
+        periodos=locacao.periodos,
+        fuso=fuso(locacao.filial),
+        dia=dia,
+        preco_do_periodo=lambda k: calculo.preco_com_descontos(entrada, k),
+        diaria_centavos=locacao.diaria_centavos,
+        nao_pagas_do_periodo_centavos=nao_pagas,
+    )
+    if resultado is None:
+        raise _sem_dias_restantes()
+    return resultado
+
+
+def _dia_do_cancelamento(dia: date | None) -> date:
+    hoje = relogio.hoje()
+    if dia is not None and dia < hoje:
+        raise ErroDeValidacao({"data": ["O cancelamento vale de hoje em diante."]})
+    return dia or hoje
+
+
+def cancelar(
+    locacao: Locacao,
+    usuario: Any,
+    *,
+    motivo: str,
+    dia: date | None = None,
+    forma_devolucao: str = "pix",
+) -> aprovacoes.PedidoRef | None:
+    """LOC-12. Administrador, gerente ou quem tem `cancelar_contrato`: vale na hora (devolve
+    `None`). Vendedor: abre o pedido `APR-02` e acende `cancelamento_pendente`."""
+    nivel = pode(usuario, "locacoes_cancelar")
+    if nivel not in ("sim", "aprova", "pede"):
+        raise SemPermissao("APR-02", "Você não pode cancelar locações")
+    dia = _dia_do_cancelamento(dia)
+    with transaction.atomic():
+        travada = _travar(locacao)
+        _pode_cancelar(travada)
+        encerramento = calcular_encerramento(travada, dia)
+        if nivel == "pede":
+            ref = _pedir_cancelamento(travada, usuario, motivo, dia, forma_devolucao, encerramento)
+        else:
+            ref = None
+            _aplicar_cancelamento(travada, motivo, dia, forma_devolucao)
+    _recarregar(locacao)
+    return ref
+
+
+def _pedir_cancelamento(
+    locacao: Locacao,
+    usuario: Any,
+    motivo: str,
+    dia: date,
+    forma: str,
+    encerramento: fim.Encerramento,
+) -> aprovacoes.PedidoRef:
+    if encerramento.antes_da_retirada:
+        detalhe = f"{locacao.codigo} · {locacao.cliente.nome} · antes da retirada, sem multa"
+    else:
+        multa = formatar_reais(encerramento.multa_centavos)
+        detalhe = f"{locacao.codigo} · {locacao.cliente.nome} · multa {multa}"
+    ref = aprovacoes.pedir(
+        tipo="APR-02",
+        origem_tipo=ORIGEM,
+        origem_id=locacao.pk,
+        origem_codigo=locacao.codigo,
+        filial_id=locacao.filial_id,
+        solicitante=usuario,
+        titulo="Cancelamento de locação",
+        detalhe=detalhe,
+        motivo=motivo,
+        valor_centavos=encerramento.multa_centavos or None,
+        dados={
+            "data": dia.isoformat(),
+            "forma_devolucao": forma,
+            "solicitante_id": getattr(usuario, "pk", None),
+        },
+    )
+    with auditar(
+        locacao, "locacao.pedir_cancelamento", Categoria.OPERACAO, motivo=motivo, regra="APR-02"
+    ):
+        locacao.cancelamento_status = StatusDesconto.PENDENTE
+        locacao.pedido_cancelamento_id = ref.id
+        locacao.cancelamento_data = dia
+        locacao.cancelamento_forma = forma
+        locacao.motivo_cancelamento = motivo
+        locacao.multa_encerramento_centavos = encerramento.multa_centavos
+        locacao.credito_encerramento_centavos = _credito(encerramento)
+        locacao.save(update_fields=[*CAMPOS_DO_CANCELAMENTO, "atualizado_em"])
+    return ref
+
+
+CAMPOS_DO_CANCELAMENTO = (
+    "cancelamento_status",
+    "pedido_cancelamento_id",
+    "cancelamento_data",
+    "cancelamento_forma",
+    "motivo_cancelamento",
+    "multa_encerramento_centavos",
+    "credito_encerramento_centavos",
+)
+
+
+def _credito(encerramento: fim.Encerramento) -> int:
+    """O que volta ao cliente antes da multa: tudo o que pagou antes da retirada; depois, as
+    semanas (LOC-13) ou as diárias não usadas."""
+    if encerramento.antes_da_retirada:
+        return encerramento.devolver_centavos
+    return (
+        encerramento.credito_semanas["valor_centavos"] + encerramento.credito_dias["valor_centavos"]
+    )
+
+
+def _aplicar_cancelamento(locacao: Locacao, motivo: str, dia: date, forma: str) -> None:
+    """O efeito do cancelamento, direto ou aprovado, na transação de quem chama.
+
+    Antes da retirada: `cancelada` na hora, sem multa; as contas abertas são canceladas, o que
+    foi pago vira um `Reembolso` a fazer, o veículo reservado volta a `disponivel`, a comissão é
+    estornada (FIN-09) e o link do contrato deixa de valer. Depois da retirada: a locação fica
+    com o encerramento antecipado aprovado e segue para a devolução, cujo acerto leva a multa e
+    o crédito (T-016); as parcelas que vencem depois do dia são canceladas e a comissão fica."""
+    encerramento = calcular_encerramento(locacao, dia)
+    aprovacoes.cancelar_pendentes(
+        origem_tipo=ORIGEM, origem_id=locacao.pk, motivo=f"Locação cancelada: {motivo}"[:200]
+    )
+    origem = _origem(locacao)
+    locacao.cancelamento_status = StatusDesconto.APROVADO
+    locacao.cancelamento_data = dia
+    locacao.cancelamento_forma = forma
+    locacao.motivo_cancelamento = motivo
+    locacao.multa_encerramento_centavos = encerramento.multa_centavos
+    locacao.credito_encerramento_centavos = _credito(encerramento)
+    if encerramento.antes_da_retirada:
+        locacao.cancelada_em = relogio.agora()
+        estados.transicionar(
+            locacao,
+            S.CANCELADA,
+            motivo=motivo,
+            acao="locacao.cancelar",
+            regra="LOC-12",
+            mais_campos=(*CAMPOS_DO_CANCELAMENTO, "cancelada_em"),
+        )
+        financeiro.cancelar_abertas(origem, motivo=motivo, regra="LOC-12")
+        financeiro.devolver_ao_cliente(
+            origem,
+            filial_id=locacao.filial_id,
+            cliente_id=locacao.cliente_id,
+            valor_centavos=encerramento.devolver_centavos,
+            forma=forma,
+            motivo=f"Cancelamento da {locacao.codigo}",
+            regra="LOC-12",
+        )
+        financeiro.estornar_comissao(origem, motivo=f"{locacao.codigo} cancelada antes da retirada")
+        veiculo = locacao.veiculo
+        if veiculo.status == StatusVeiculo.RESERVADO:
+            veiculos.transicionar(
+                veiculo,
+                StatusVeiculo.DISPONIVEL,
+                origem=veiculos.OrigemDaMudanca(ORIGEM, locacao.pk, locacao.codigo),
+                motivo=f"Cancelamento da {locacao.codigo}",
+            )
+        contrato.cancelar_nao_assinados(locacao, f"Locação cancelada: {motivo}")
+        return
+    locacao.encerramento_antecipado_aprovado_em = relogio.agora()
+    with auditar(
+        locacao, "locacao.aprovar_encerramento", Categoria.OPERACAO, motivo=motivo, regra="LOC-12"
+    ):
+        locacao.save(
+            update_fields=[
+                *CAMPOS_DO_CANCELAMENTO,
+                "encerramento_antecipado_aprovado_em",
+                "atualizado_em",
+            ]
+        )
+    financeiro.cancelar_abertas(
+        origem,
+        motivo=f"Encerramento antecipado em {dia.strftime('%d/%m/%Y')}",
+        regra="LOC-12",
+        vencendo_depois_de=dia,
+    )
+
+
+def aplicar_decisao_cancelamento(
+    locacao_id: int, status: str, motivo: str, dados: dict[str, Any] | None = None
+) -> None:
+    """Volta do `APR-02`. Aprovado: o cancelamento vale (multa e acerto). Recusado: o sinal
+    apaga e quem pediu é avisado com o motivo. Cancelado: o sinal apaga."""
+    with transaction.atomic():
+        if not Locacao.objects.filter(pk=locacao_id).exists():
+            return
+        travada = _travar(locacao_id)
+        if travada.cancelamento_status != StatusDesconto.PENDENTE:
+            return
+        if status == "aprovado":
+            _pode_cancelar(travada)
+            _aplicar_cancelamento(
+                travada,
+                travada.motivo_cancelamento,
+                travada.cancelamento_data or relogio.hoje(),
+                travada.cancelamento_forma or "pix",
+            )
+            return
+        novo, acao = (
+            (StatusDesconto.RECUSADO, "locacao.recusar_cancelamento")
+            if status == "recusado"
+            else (StatusDesconto.CANCELADO, "locacao.cancelar_pedido_cancelamento")
+        )
+        with auditar(travada, acao, Categoria.OPERACAO, motivo=motivo, regra="APR-02"):
+            travada.cancelamento_status = novo
+            travada.save(update_fields=["cancelamento_status", "atualizado_em"])
+        if novo == StatusDesconto.RECUSADO:
+            solicitante = (dados or {}).get("solicitante_id") or travada.vendedor_id
+            avisar(
+                [solicitante],
+                tipo="cancelamento_recusado",
+                titulo=f"Cancelamento da {travada.codigo} recusado: {motivo}"[:200],
+                link=f"/locacoes/{travada.pk}",
+            )
+
+
+# --- Encerramento (chamado por `vistorias` ao concluir a devolução, T-016) ---
+
+
+def encerrar(locacao: Locacao, *, devolvida_em: datetime | None = None) -> Locacao:
+    """DEV-06: `encerrada`, ou `cancelada` no encerramento antecipado aprovado (LOC-12). Grava
+    `devolvida_em`, fecha o trecho aberto e publica `locacoes.locacao_encerrada`. A comissão não
+    muda (o encerramento antecipado não a estorna, FIN-09). O veículo segue a regra da devolução
+    (DEV-04), pela própria `vistorias`."""
+    with transaction.atomic():
+        travada = _travar(locacao)
+        devolvida_em = devolvida_em or relogio.agora()
+        antecipado = travada.encerramento_antecipado_aprovado_em is not None
+        destino = S.CANCELADA if antecipado else S.ENCERRADA
+        if travada.status not in (S.ATIVA, S.DEVOLUCAO_ATRASADA):
+            raise transicao_invalida(travada.status, destino)
+        travada.devolvida_em = devolvida_em
+        mais: tuple[str, ...] = ("devolvida_em",)
+        if antecipado:
+            travada.cancelada_em = devolvida_em
+            mais = (*mais, "cancelada_em")
+        estados.transicionar(
+            travada,
+            destino,
+            motivo=(
+                f"Encerramento antecipado: {travada.motivo_cancelamento}"
+                if antecipado
+                else "Devolução concluída"
+            ),
+            acao="locacao.encerrar",
+            regra="LOC-12" if antecipado else "",
+            mais_campos=mais,
+        )
+        TrechoLocacao.objects.filter(locacao=travada, fim__isnull=True).update(
+            fim=devolvida_em, atualizado_em=relogio.agora()
+        )
+        publicar(
+            "locacoes.locacao_encerrada",
+            locacao_id=travada.pk,
+            veiculo_id=travada.veiculo_id,
+            status=destino,
+            devolvida_em=devolvida_em,
+        )
+    _recarregar(locacao)
+    return locacao
 
 
 # --- Planos especiais (tela Precos; só administrador) ---

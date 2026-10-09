@@ -155,6 +155,12 @@ def _preco_do_periodo(entrada: Entrada, k: int) -> int:
     return preco
 
 
+def preco_com_descontos(entrada: Entrada, k: int) -> int:
+    """O que o cliente paga pelo k-ésimo período, sem extras (base da multa, LOC-12)."""
+    preco = _preco_do_periodo(entrada, k)
+    return preco - aplicar_percentual(preco, entrada.desconto_pct)
+
+
 def _rotulo_periodos(periodicidade: str, n: int, precos: list[int]) -> str:
     singular, plural = UNIDADE[P(periodicidade)]
     texto = f"{n} {singular if n == 1 else plural}"

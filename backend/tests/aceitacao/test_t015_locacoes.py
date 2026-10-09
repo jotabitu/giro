@@ -3,8 +3,8 @@
 Roda na `empresa_a` com as pessoas e a frota da Moto Rápida (Filial Centro) e o relógio em 07 out
 2026, 10:00. A divisão combinada em 09 out: contratos (CA-015-11 a 13) ficaram com a T-090 e estão
 em `test_t090_contratos.py`; renovação, atraso, cancelamento e encerramento (CA-015-17, 19 a 24 e
-o estorno do 25), com a T-091; troca de veículo (CA-015-18), com a T-092. Esses ficam `xfail`
-aqui, com os números do critério.
+o estorno do 25), com a T-091, em `test_t091_locacao_fim.py`; troca de veículo (CA-015-18), com a
+T-092, que fica `xfail` aqui, com os números do critério.
 
 A vistoria de saída (T-016), a assinatura (T-090) e a baixa no caixa (T-017) entram pelas portas
 que esses apps vão usar: `locacoes.services.registrar_vistoria_saida`, o evento
@@ -698,11 +698,6 @@ def test_loc_07_loc_10_ca_015_16_sinais_e_lista(cenario, com_carteira):
     assert [x["codigo"] for x in busca["resultados"]] == ["LOC-2841"]
 
 
-@aguarda("T-091")
-def test_apr_02_ca_015_16_loc_2812_cancelamento_pendente(cenario):
-    pendente(locacao="LOC-2812", sinal="cancelamento_pendente", pagamento="Multa R$ 84,80")
-
-
 def test_loc_ca_015_16_vistoriador_sem_lista_e_sem_valores(cenario, com_carteira):
     assert cenario.moto.api("João").get(LISTA).status_code == 403
     detalhe = cenario.detalhe(com_carteira["LOC-2841"].pk, "João")
@@ -793,13 +788,6 @@ def test_fin_09_ca_015_25_comissao_da_locacao_nova(cenario):
     assert financeiro_selectors.comissoes_confirmadas_centavos(bruna, date(2026, 10, 1)) == 3200
 
 
-@aguarda("T-091")
-def test_fin_09_ca_015_25_estorno_e_renovacao_sem_comissao(cenario):
-    pendente(
-        cancelada_antes_da_retirada="estornada", encerramento_antecipado="confirmada", renovar=0
-    )
-
-
 # --- Auditoria e isolamento ---
 
 
@@ -851,44 +839,9 @@ def test_loc_01_plano_especial_campo_da_regra(cenario):
 # --- Das tarefas seguintes (divisão de 09 out) ---
 
 
-@aguarda("T-091")
-def test_loc_08_ca_015_17_renovacao(cenario):
-    pendente(locacao="LOC-2841", parcelas_novas=[32900, 32900], antigas=29940, mais_dias=14)
-
-
 @aguarda("T-092")
 def test_loc_09_ca_015_18_troca_de_veiculo(cenario):
     pendente(locacao="LOC-2836", diferenca_caucao=20000, parcelas_abertas=44900)
-
-
-@aguarda("T-091")
-def test_loc_10_ca_015_19_tolerancia_e_diarias(cenario):
-    pendente(as_19h00=0, as_19h01=5490, dia_8_17h59=5490, dia_8_18h01=10980)
-
-
-@aguarda("T-091")
-def test_loc_11_ca_015_20_filial_fechada_e_feriado(cenario):
-    pendente(sabado_11h30=0, sabado_10h00=10980, com_feriado=10980)
-
-
-@aguarda("T-091")
-def test_loc_12_loc_13_ca_015_21_patricia_loc_2812(cenario):
-    pendente(restante=42400, multa=8480, credito=37100, devolver=28620)
-
-
-@aguarda("T-091")
-def test_loc_12_ca_015_22_antes_da_retirada_sem_multa(cenario):
-    pendente(reembolso=62900, veiculo="disponivel", comissao="estornada")
-
-
-@aguarda("T-091")
-def test_loc_12_ca_015_23_multa_minima(cenario):
-    pendente(street_1_dia=5490, nmax_6_dias_cobrar=6360)
-
-
-@aguarda("T-091")
-def test_loc_12_ca_015_24_estados_finais(cenario):
-    pendente(cancelar_encerrada="transicao_locacao")
 
 
 def test_dinheiro_formatar_reais():
