@@ -218,9 +218,6 @@ Levantadas pelo backend em T-015 (09 out 2026):
 ### T-093 · Momentos em UTC na API
 - **Agente:** backend · **Depende de:** T-088 · **ADRs:** 0020 · **Pronto quando:** `comum/renderizacao.py` ligado no `REST_FRAMEWORK` como na ADR 0020; os 3 testes de `backend/tests/test_formato_das_datas.py` passam sem `xfail` e a lista de pendentes do teste de varredura fica vazia; contas, aprovações, plataforma, veículos, filiais e clientes saem em `AAAA-MM-DDTHH:MM:SSZ` sem mexer nos serializers; OpenAPI sem mudança. Passos em `tarefas/handoffs/T-088-arquiteto.md`.
 
-### T-098 · Teste do CA-015-15 com a LOC-2836 confirmada em 01 out
-- **Agente:** qa · **Depende de:** T-097 · **Regras:** LOC-15 · **Pronto quando:** `backend/tests/aceitacao/carteira.py` e o teste do CA-015-15 usam a LOC-2836 confirmada em 01 out e calculam R$ 329,00 pela tabela, sem valor dado à mão; sem mudança de código de produção (se falhar, `xfail` com o motivo e aviso ao orquestrador).
-
 ### T-102 · Ficha do veículo idêntica à referência
 - **Agente:** frontend · **Depende de:** T-013, T-079 · **Telas:** Veiculo (`docs/telas/html/Veiculo-Desktop.dc.html` e `Veiculo-Mobile.dc.html`) · **Regras:** VEI-01 a VEI-07 · **Pronto quando:** `/veiculos/[id]` (`FichaVeiculo.tsx`) reproduz a tela de referência no desktop e no celular, com a mesma estrutura, seções, ordem, rótulos, ações e estados, usando os componentes e tokens do design system; os dados vêm de `falso-frota.ts` no formato de `docs/api/veiculos.md` (T-013 e T-079); o que a tela mostra e o contrato não tem fica com o falso ou desativado e anotado no handoff; o design-system confere a fidelidade visual; teste da tela. Pedido do dono em 09/10.
 

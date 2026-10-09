@@ -13,6 +13,7 @@ que esses apps vão usar: `locacoes.services.registrar_vistoria_saida`, o evento
 
 from datetime import UTC, date, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 from django.db import connection
@@ -30,6 +31,7 @@ from apps.locacoes import services
 from apps.locacoes.models import Locacao, PlanoEspecial
 from apps.notificacoes.models import Notificacao
 from apps.plataforma.models import Empresa
+from apps.veiculos import selectors as veiculos_selectors
 from apps.veiculos import services as veiculos_services
 from apps.veiculos.models import Veiculo
 from comum import eventos, relogio
@@ -44,6 +46,7 @@ from .test_t014_clientes import ANA, CARLOS, DIEGO, JULIANA, PATRICIA, RAFAEL
 
 LISTA = "/api/locacoes/"
 SIMULAR = "/api/locacoes/simular/"
+FUSO = ZoneInfo("America/Sao_Paulo")
 INICIO = "2026-10-07T15:30:00Z"  # 07 out, 12:30 em Fortaleza
 LUCAS = carteira.pessoa("Lucas Ferreira", "12345678909", "85988771203", endereco=None)
 
@@ -602,12 +605,32 @@ def test_loc_ca_015_14_so_a_parcela_paga_nao_ativa(cenario):
 
 
 def test_loc_06_ca_015_15_total_pago_loc_2836(cenario, com_carteira):
-    detalhe = cenario.detalhe(com_carteira["LOC-2836"].pk)
-    assert detalhe["total_pago_centavos"] == 95800  # 32900 + 32900 + 30000
+    """LOC-2836: início em 30 set, confirmada em 01 out; o semanal sai da tabela vigente em 01 out,
+    e a parcela 1 (vencida desde a confirmação) é paga na retirada sem multa nem juros."""
+    locacao = com_carteira["LOC-2836"]
+    preco = veiculos_selectors.preco_vigente(locacao.veiculo.categoria_id, date(2026, 10, 1))
+    anterior = veiculos_selectors.preco_vigente(locacao.veiculo.categoria_id, date(2026, 9, 30))
+    assert preco is not None and anterior is not None
+    assert anterior.semanal_centavos != preco.semanal_centavos  # a data da confirmação importa
+    assert locacao.precos_de == date(2026, 10, 1)
+    assert locacao.valor_periodo_centavos == preco.semanal_centavos == 32900
+
+    detalhe = cenario.detalhe(locacao.pk)
+    assert detalhe["total_pago_centavos"] == (
+        2 * preco.semanal_centavos + preco.caucao_centavos
+    )  # 32900 + 32900 + 30000
+    assert detalhe["total_pago_centavos"] == 95800
     pagas = [p for p in detalhe["parcelas"] if p["tipo"] == "parcela"]
     assert [(p["numero"], p["status"]) for p in pagas] == [(1, "paga"), (2, "paga")]
+    assert [p["valor_centavos"] for p in pagas] == [preco.semanal_centavos] * 2
     caucao = next(p for p in detalhe["parcelas"] if p["tipo"] == "caucao")
     assert caucao["observacao"] == "Devolver na entrega"
+
+    contas = {c.numero_parcela: c for c in _contas(locacao.pk) if c.tipo == "parcela"}
+    assert (contas[1].vencimento, contas[2].vencimento) == (date(2026, 9, 30), date(2026, 10, 7))
+    assert contas[1].pago_em is not None
+    assert contas[1].pago_em.astimezone(FUSO).date() == date(2026, 10, 1)  # retirada, 1 dia depois
+    assert all(c.multa_centavos == 0 and c.juros_centavos == 0 for c in _contas(locacao.pk))
 
 
 def test_loc_06_total_pago_pelo_fluxo(cenario):
@@ -624,8 +647,8 @@ def test_loc_06_total_pago_pelo_fluxo(cenario):
 
 
 @pytest.fixture
-def com_carteira(cenario) -> dict[str, Locacao]:
-    return carteira.carregar(cenario.frota, cenario.pessoas["Bruna"])
+def com_carteira(cenario, relogio) -> dict[str, Locacao]:
+    return carteira.carregar(cenario.frota, cenario.pessoas["Bruna"], relogio)
 
 
 def _linha(corpo: dict[str, Any], codigo: str) -> dict[str, Any]:
