@@ -586,6 +586,31 @@ def test_cli_02_ca_014_14_impedimentos_para_retirada(moto):
     trinta = _com_cnh(moto, "14778912349", "A", "2026-09-07")
     assert codigos(trinta) == []
 
+    # CLI-02 (CTB art. 143): C, D e E alugam carro, não moto; AB a AE alugam os dois.
+    cpfs = dict(
+        zip(
+            ["C", "D", "E", "AB", "AC", "AD", "AE"],
+            [
+                "12468013530",
+                "22468013549",
+                "32468013557",
+                "42468013565",
+                "52468013573",
+                "62468013581",
+                "72468013590",
+            ],
+            strict=True,
+        )
+    )
+    for categoria in ("C", "D", "E"):
+        pessoa = _com_cnh(moto, cpfs[categoria], categoria, "2029-05-10")
+        assert codigos(pessoa, "carro") == [], categoria
+        assert codigos(pessoa, "moto") == ["CLI-02"], categoria
+    for categoria in ("AB", "AC", "AD", "AE"):
+        pessoa = _com_cnh(moto, cpfs[categoria], categoria, "2029-05-10")
+        assert codigos(pessoa, "moto") == [], categoria
+        assert codigos(pessoa, "carro") == [], categoria
+
     juliana = Cliente.objects.get(pk=_completo(moto, JULIANA)["id"])
     assert codigos(juliana) == []
     assert _get(moto, juliana.pk)["cnh"]["situacao"] == "valida"
@@ -776,6 +801,25 @@ def test_cli_09_ca_014_18_inativar_e_reativar(moto):
 
     assert _acao(moto, "Bruna", ana["id"], "inativar").status_code == 403
     assert _acao(moto, "Bruna", ana["id"], "reativar").status_code == 403
+
+    # CLI-09: cliente bloqueado não é inativado; primeiro desbloqueia.
+    rafael = _completo(moto, RAFAEL)
+    eventos.publicar("financeiro.parcela_atrasou", cliente_id=rafael["id"], dias_atraso=25)
+    assert _get(moto, rafael["id"])["status"] == "bloqueado"
+    recusada_bloqueado = _acao(moto, "Rodrigo", rafael["id"], "inativar", "Teste")
+    assert (recusada_bloqueado.status_code, recusada_bloqueado.json()["codigo"]) == (
+        409,
+        "transicao_cliente",
+    )
+    assert _get(moto, rafael["id"])["status"] == "bloqueado"
+
+    # Bloqueado à mão e sem pendências: depois de desbloqueado por Rodrigo, é inativado.
+    paulo = _completo(moto, _pessoa("Paulo Souza", "39580124779", "85980000001"))
+    _acao(moto, "Rodrigo", paulo["id"], "bloquear", "Documento falso")
+    assert _acao(moto, "Rodrigo", paulo["id"], "inativar").status_code == 409
+    assert _acao(moto, "Rodrigo", paulo["id"], "desbloquear").status_code == 200
+    inativado = _acao(moto, "Rodrigo", paulo["id"], "inativar", "Mudou de cidade")
+    assert (inativado.status_code, inativado.json()["status"]) == (200, "inativo")
 
     # [integração] Com locação aberta: 422 (contador falso de `locacoes`).
     juliana = _completo(moto, JULIANA)
