@@ -232,6 +232,13 @@ class TransferenciaVeiculo(ModeloBase):
     veiculo = models.ForeignKey(Veiculo, on_delete=models.PROTECT, related_name="transferencias")
     filial_origem = models.ForeignKey("filiais.Filial", on_delete=models.PROTECT, related_name="+")
     filial_destino = models.ForeignKey("filiais.Filial", on_delete=models.PROTECT, related_name="+")
+    # A categoria de antes e a de depois (VEI-04, FIL-04). Nulas só nas transferências antigas.
+    categoria_origem = models.ForeignKey(
+        Categoria, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    categoria_destino = models.ForeignKey(
+        Categoria, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
     em = models.DateTimeField()
     por = models.ForeignKey(
         "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"

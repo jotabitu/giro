@@ -123,9 +123,14 @@ Todas `POST /api/veiculos/{id}/<acao>/`, respondem 200 com a representação. Tr
 As transições de locação, vistoria, OS e venda não têm endpoint aqui: acontecem pelos serviços desses módulos.
 
 ### POST /api/veiculos/{id}/transferir/
-Perfis: administrador, gerente (com acesso à filial de origem). Corpo: `{ filial_destino_id, motivo? }`.
+Perfis: administrador, gerente (com acesso à filial de origem). Corpo: `{ filial_destino_id, categoria_id?, motivo? }`.
 Só com o veículo `disponivel`: senão 409 `{ "codigo": "VEI-04", "mensagem": "Só é possível transferir um veículo disponível" }`. Destino inativo ou igual à origem → 400.
-Grava `TransferenciaVeiculo` com origem e destino (`VEI-04`). 200: representação.
+`categoria_id` (`VEI-04`, `FIL-04`, T-083):
+- obrigatório quando a categoria atual é só da filial de origem. Sem ele, 400 `validacao` em `categoria_id`;
+- tem que ser uma categoria ativa, do mesmo tipo de veículo, da empresa ou da filial de destino. Fora disso, 400 `validacao` em `categoria_id`;
+- com a categoria atual da empresa, pode faltar: o veículo continua nela.
+A categoria nova vale a partir da próxima locação (`LOC-01`); como o veículo está `disponivel`, nenhuma locação aberta muda de preço.
+Grava `TransferenciaVeiculo` com a filial e a categoria de origem e de destino (`VEI-04`), e a auditoria com a categoria de antes e a de depois. 200: representação.
 
 ## Km
 

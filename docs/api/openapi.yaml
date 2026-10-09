@@ -5139,6 +5139,9 @@ components:
       properties:
         filial_destino_id:
           type: integer
+        categoria_id:
+          type: integer
+          nullable: true
         motivo:
           type: string
           default: ''
