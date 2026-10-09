@@ -23,6 +23,14 @@ urlpatterns: list[URLPattern] = [
         path(f"veiculos/<int:pk>/{acao}/", view.as_view(), name=f"veiculo-{acao}")
         for acao, view in ACOES.items()
     ],
+    path(
+        "veiculos/<int:pk>/documentos/", views.DocumentosView.as_view(), name="veiculo-documentos"
+    ),
+    path(
+        "veiculos/<int:pk>/documentos/historico/",
+        views.HistoricoDeDocumentosView.as_view(),
+        name="veiculo-documentos-historico",
+    ),
     path("categorias/", views.CategoriasView.as_view(), name="categorias"),
     path("categorias/<int:pk>/", views.CategoriaView.as_view(), name="categoria"),
     path(

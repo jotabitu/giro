@@ -10,6 +10,7 @@ from typing import ClassVar
 from django.db import models
 from django.db.models.functions import Lower
 
+from comum import arquivos
 from comum.campos import CentavosField
 from comum.estados import MaquinaDeEstados
 from comum.models import ModeloAtivavel, ModeloBase
@@ -244,3 +245,55 @@ class TransferenciaVeiculo(ModeloBase):
 
     def __str__(self) -> str:
         return f"{self.veiculo_id}: {self.filial_origem_id} → {self.filial_destino_id}"
+
+
+class TipoDocumento(models.TextChoices):
+    CRLV = "crlv", "CRLV"
+    IPVA = "ipva", "IPVA"
+    SEGURO = "seguro", "Seguro"
+    RASTREADOR = "rastreador", "Rastreador"
+
+
+# VEI-03: no dia do vencimento, só estes tiram o veículo disponível da frota.
+DOCUMENTOS_QUE_BLOQUEIAM = frozenset({TipoDocumento.CRLV, TipoDocumento.SEGURO})
+
+
+class DocumentoVeiculo(ModeloBase, ModeloAtivavel):
+    """VEI-03. Renovar = novo documento, e o anterior fica `ativo=False` (histórico)."""
+
+    veiculo = models.ForeignKey(Veiculo, on_delete=models.PROTECT, related_name="documentos")
+    tipo = models.CharField(max_length=12, choices=TipoDocumento.choices)
+    validade = models.DateField()
+    # Armazenamento privado com URL assinada de 15 minutos (AUD-05, ADR 0009).
+    arquivo = models.FileField(
+        storage=arquivos.armazenamento_privado,
+        upload_to=arquivos.caminho_privado,
+        max_length=200,
+        null=True,
+        blank=True,
+    )
+    arquivo_nome = models.CharField(max_length=120, blank=True, default="")
+    alerta_enviado_em = models.DateTimeField(null=True, blank=True)  # idempotência de AUT-06
+    por = models.ForeignKey(
+        "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+
+    class Meta:
+        verbose_name = "documento do veículo"
+        verbose_name_plural = "documentos do veículo"
+        ordering = ["tipo", "-validade", "-id"]
+        indexes = [
+            models.Index(
+                fields=["validade"], condition=models.Q(ativo=True), name="documento_validade"
+            )
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["veiculo", "tipo"],
+                condition=models.Q(ativo=True),
+                name="documento_um_ativo_por_tipo",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.veiculo_id}: {self.tipo} até {self.validade}"

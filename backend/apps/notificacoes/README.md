@@ -19,3 +19,12 @@ notificacoes/
 ```
 
 Contrato da API: `docs/api/notificacoes.md` (escrito pelo arquiteto antes da implementação).
+
+## Implementado (T-079, mínimo)
+
+- `Notificacao`: o aviso do sino, com `urgente` (tarefa urgente) e `chave` (um aviso por pessoa e chave).
+- `services.avisar(destinatarios, tipo=, titulo=, link=, urgente=, chave=)`, usado pela `AUT-06` de `veiculos`.
+
+## Falta
+
+- A API do sino, as preferências, push, e-mail e WhatsApp, com o contrato `docs/api/notificacoes.md`.

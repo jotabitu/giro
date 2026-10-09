@@ -62,6 +62,7 @@ Ordem de dependência entre apps e eventos de domínio: ADR 0011. Teste: `tests/
 | `paginacao.py` | envelope `resultados`/`proximo`/`anterior`; extras no mesmo corpo com `get_paginated_response(dados, extras={"contagens": ...})`; `envelope_sem_paginas` para listas curtas |
 | `relogio.py` | `agora()` e `hoje()` (dia em São Paulo): serviços e selectors leem a hora só daqui; nos testes, fixture `relogio` (07 out 2026, 10:00) |
 | `documentos.py` | `so_digitos`, `cnpj_valido` (dígitos verificadores) |
+| `arquivos.py` | arquivo privado (ADR 0009, `AUD-05`): `FileField(storage=arquivos.armazenamento_privado, upload_to=arquivos.caminho_privado)`, caminho `<schema>/<app>/<model>/<id>/<uuid>.<ext>` (grave o objeto antes do arquivo), `validar(arquivo)` (PDF, JPG ou PNG pelo conteúdo, até 10 MB), `url_assinada(caminho)` de 15 minutos; `GIRO_ARMAZENAMENTO=falso` (memória) ou `s3` (`S3_BUCKET`, `S3_ENDPOINT_URL`, `S3_REGIAO`, `S3_CHAVE_DE_ACESSO`, `S3_CHAVE_SECRETA`) |
 | `openapi.py` | autenticações do Giro no OpenAPI |
 
 Cache: toda chave leva o schema (`django_tenants.cache.make_key`). Celery: `CELERY_TASK_IGNORE_RESULT = True`; argumentos de tarefa só ids.

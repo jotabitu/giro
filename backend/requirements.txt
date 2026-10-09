@@ -11,3 +11,5 @@ argon2-cffi>=25.1
 cryptography>=44
 django-environ>=0.12,<1
 sentry-sdk>=2.20,<3
+# Arquivos privados no S3 (ADR 0009, AUD-05); carregado só com GIRO_ARMAZENAMENTO=s3.
+boto3>=1.35,<2

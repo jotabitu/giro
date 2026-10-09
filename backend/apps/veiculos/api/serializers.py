@@ -8,7 +8,7 @@ from typing import Any
 
 from rest_framework import serializers
 
-from ..models import Extra, StatusVeiculo, TipoVeiculo
+from ..models import Extra, StatusVeiculo, TipoDocumento, TipoVeiculo
 from ..services import MOTIVOS_DE_BAIXA
 
 # --- Entrada ---
@@ -291,3 +291,35 @@ class PedidoRefSerializer(serializers.Serializer[Any]):
 
 class PedidoAprovacaoCriadoSerializer(serializers.Serializer[Any]):
     pedido_aprovacao = PedidoRefSerializer()
+
+
+# --- Documentos (VEI-03, AUD-05) ---
+
+
+class DocumentoEntradaSerializer(serializers.Serializer[Any]):
+    """`multipart/form-data`. O arquivo é conferido pelo conteúdo no serviço (PDF, JPG ou PNG,
+    até 10 MB)."""
+
+    tipo = serializers.ChoiceField(choices=TipoDocumento.choices)
+    validade = serializers.DateField()
+    arquivo = serializers.FileField(required=False, allow_null=True)
+
+
+class ArquivoAssinadoSerializer(serializers.Serializer[Any]):
+    nome = serializers.CharField()
+    url = serializers.CharField()
+    url_expira_em = serializers.DateTimeField()
+
+
+class DocumentoSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    tipo = serializers.ChoiceField(choices=TipoDocumento.choices)
+    validade = serializers.DateField()
+    situacao = serializers.ChoiceField(choices=["em_dia", "vence_em_breve", "vencido"])
+    dias_para_vencer = serializers.IntegerField(allow_null=True)
+    ativo = serializers.BooleanField()
+    arquivo = ArquivoAssinadoSerializer(allow_null=True)
+
+
+class ListaDeDocumentosSerializer(serializers.Serializer[Any]):
+    resultados = DocumentoSerializer(many=True)

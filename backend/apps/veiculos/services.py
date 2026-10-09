@@ -8,30 +8,35 @@ mudam o status do veículo só por `transicionar`.
 
 import re
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from django.db import IntegrityError, transaction
 from django.db.models.functions import Lower
 
+from apps.filiais import selectors as filiais_selectors
 from apps.filiais.models import Filial
+from apps.notificacoes.services import avisar
 from apps.plataforma.services import atualizar_uso, exigir_limite
-from comum import aprovacoes, estados, leituras, relogio
+from comum import aprovacoes, arquivos, estados, leituras, relogio
 from comum.auditoria import Categoria as CategoriaAuditoria
 from comum.auditoria import TipoAtor, ator_atual, auditar, registrar_evento, retrato
 from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, TransicaoInvalida
 from comum.eventos import publicar
 
 from .models import (
+    DOCUMENTOS_QUE_BLOQUEIAM,
     FORA_DA_FROTA,
     TRANSICOES_VEICULO,
     Categoria,
+    DocumentoVeiculo,
     Extra,
     HistoricoStatusVeiculo,
     LeituraKm,
     Origem,
     PrecoCategoria,
     StatusVeiculo,
+    TipoDocumento,
     TipoVeiculo,
     TransferenciaVeiculo,
     Veiculo,
@@ -170,11 +175,18 @@ def bloquear(veiculo: Veiculo, motivo: str) -> Veiculo:
 
 
 def desbloquear(veiculo: Veiculo, motivo: str | None = None) -> Veiculo:
-    """`indisponivel` → `disponivel`. A conferência de CRLV e seguro vencidos (422 `VEI-03`)
-    entra com os documentos (T-079)."""
-    return transicionar(
-        veiculo, S.DISPONIVEL, origem=MANUAL, motivo=(motivo or "").strip(), acao="desbloquear"
-    )
+    """`indisponivel` → `disponivel`. Com CRLV ou seguro ativo vencido: 422 `VEI-03`."""
+    with transaction.atomic():
+        travado = _travar(veiculo)
+        if travado.status == S.INDISPONIVEL:
+            vencidos = documentos_vencidos_que_bloqueiam(travado, relogio.hoje())
+            if vencidos:
+                raise documento_vencido(vencidos)
+        transicionar(
+            travado, S.DISPONIVEL, origem=MANUAL, motivo=(motivo or "").strip(), acao="desbloquear"
+        )
+    _recarregar(veiculo)
+    return veiculo
 
 
 def colocar_a_venda(
@@ -607,6 +619,162 @@ def aplicar_correcao_aprovada(
             )
         origem = OrigemDaMudanca(Origem.APROVACAO, pedido_id, "")
         return corrigir_km(travado, km_novo, motivo or "Correção aprovada", origem=origem)
+
+
+# --- Documentos (VEI-03, AUT-06, AUD-05) ---
+
+DIAS_DO_ALERTA = 30  # VEI-03
+
+
+class SituacaoDocumento:
+    EM_DIA = "em_dia"
+    VENCE_EM_BREVE = "vence_em_breve"
+    VENCIDO = "vencido"
+
+
+def situacao_do_documento(validade: date, hoje: date) -> tuple[str, int | None]:
+    """`(situacao, dias_para_vencer)`. No dia da validade o documento já conta como vencido,
+    porque é o dia em que o veículo sai da frota (VEI-03)."""
+    dias = (validade - hoje).days
+    if dias <= 0:
+        return SituacaoDocumento.VENCIDO, None
+    if dias <= DIAS_DO_ALERTA:
+        return SituacaoDocumento.VENCE_EM_BREVE, dias
+    return SituacaoDocumento.EM_DIA, dias
+
+
+def _nome_no_texto(tipo: str) -> str:
+    """ "CRLV" fica em maiúsculas; os outros, em minúsculas no meio da frase."""
+    rotulo = str(TipoDocumento(tipo).label)
+    return rotulo if tipo == TipoDocumento.CRLV else rotulo.lower()
+
+
+def documento_vencido(tipos: list[str]) -> ErroDeRegra:
+    nomes = [_nome_no_texto(t) for t in tipos]
+    lista = nomes[0] if len(nomes) == 1 else f"{', '.join(nomes[:-1])} e {nomes[-1]}"
+    plural = "vencidos" if len(nomes) > 1 else "vencido"
+    return ErroDeRegra(
+        "VEI-03",
+        f"Renove o {lista} {plural} antes de desbloquear o veículo.",
+        {"documentos": tipos},
+    )
+
+
+def documentos_vencidos_que_bloqueiam(veiculo: Veiculo, hoje: date) -> list[str]:
+    return sorted(
+        DocumentoVeiculo.ativos.filter(
+            veiculo=veiculo, tipo__in=DOCUMENTOS_QUE_BLOQUEIAM, validade__lte=hoje
+        ).values_list("tipo", flat=True)
+    )
+
+
+def enviar_documento(
+    veiculo: Veiculo, tipo: str, validade: date, arquivo: Any | None = None
+) -> DocumentoVeiculo:
+    """Novo documento; o ativo do mesmo tipo fica inativo (renovação). Renovar não muda o
+    status: o veículo `indisponivel` volta pela ação `desbloquear` (VEI-03)."""
+    if arquivo is not None:
+        arquivos.validar(arquivo)
+    with transaction.atomic():
+        travado = _travar(veiculo)
+        for anterior in DocumentoVeiculo.ativos.select_for_update().filter(
+            veiculo=travado, tipo=tipo
+        ):
+            with auditar(anterior, "documento_veiculo.substituir", CategoriaAuditoria.OPERACAO):
+                anterior.ativo = False
+                anterior.save(update_fields=["ativo", "atualizado_em"])
+        documento = DocumentoVeiculo.objects.create(
+            veiculo=travado,
+            tipo=tipo,
+            validade=validade,
+            arquivo_nome=(arquivo.name if arquivo is not None else "")[:120],
+            por_id=_quem(),
+        )
+        if arquivo is not None:
+            documento.arquivo.save(arquivo.name, arquivo, save=True)
+        registrar_evento(
+            "documento_veiculo.enviar",
+            CategoriaAuditoria.OPERACAO,
+            objeto=documento,
+            depois=retrato(documento),
+            regra="VEI-03",
+        )
+    return documento
+
+
+def _link_do_veiculo(veiculo: Veiculo) -> str:
+    return f"/veiculos/{veiculo.pk}"
+
+
+def _gerentes(veiculo: Veiculo) -> list[int]:
+    """FIL-02: avisos e tarefas para o gerente vão a todos os gerentes da filial."""
+    return [g["id"] for g in filiais_selectors.gerentes(veiculo.filial)]
+
+
+def aplicar_vencimento_de_documentos(hoje: date) -> dict[str, int]:
+    """AUT-06 (VEI-03), uma vez por dia. Rodar de novo no mesmo dia não repete nada.
+
+    - 30 dias antes: alerta aos gerentes da filial, uma vez por documento.
+    - No dia, CRLV ou seguro: veículo `disponivel` vai para `indisponivel`; `alugado` não muda e
+      os gerentes recebem uma tarefa urgente. IPVA e rastreador não mudam o status.
+    """
+    contagem = {"alertas": 0, "indisponiveis": 0, "tarefas": 0}
+    ativos = DocumentoVeiculo.ativos.select_related("veiculo", "veiculo__filial")
+
+    a_vencer = ativos.filter(
+        validade__gt=hoje,
+        validade__lte=hoje + timedelta(days=DIAS_DO_ALERTA),
+        alerta_enviado_em__isnull=True,
+    )
+    for documento in a_vencer:
+        veiculo = documento.veiculo
+        with transaction.atomic():
+            contagem["alertas"] += avisar(
+                _gerentes(veiculo),
+                tipo="documento_vencendo",
+                titulo=(
+                    f"{TipoDocumento(documento.tipo).label} da {veiculo.placa} vence em "
+                    f"{documento.validade:%d/%m/%Y}"
+                ),
+                link=_link_do_veiculo(veiculo),
+                chave=f"aut06-alerta-{documento.pk}",
+            )
+            documento.alerta_enviado_em = relogio.agora()
+            documento.save(update_fields=["alerta_enviado_em", "atualizado_em"])
+            publicar(
+                "veiculos.documento_vencendo",
+                documento_id=documento.pk,
+                veiculo_id=veiculo.pk,
+                tipo=documento.tipo,
+                validade=documento.validade.isoformat(),
+            )
+
+    vencidos = ativos.filter(tipo__in=DOCUMENTOS_QUE_BLOQUEIAM, validade__lte=hoje)
+    for documento in vencidos:
+        veiculo = documento.veiculo
+        rotulo = TipoDocumento(documento.tipo).label
+        if veiculo.status == S.DISPONIVEL:
+            transicionar(
+                veiculo,
+                S.INDISPONIVEL,
+                origem=OrigemDaMudanca(Origem.DOCUMENTO, documento.pk, ""),
+                motivo=f"{rotulo} vencido",
+                acao="documento_vencido",
+            )
+            contagem["indisponiveis"] += 1
+        elif veiculo.status == S.ALUGADO:
+            contagem["tarefas"] += avisar(
+                _gerentes(veiculo),
+                tipo="documento_vencido_alugado",
+                titulo=(
+                    f"{rotulo} da {veiculo.placa} venceu com o veículo alugado. "
+                    "Regularize o documento."
+                ),
+                link=_link_do_veiculo(veiculo),
+                urgente=True,
+                chave=f"aut06-vencido-{documento.pk}",
+            )
+    return contagem
 
 
 # --- Categorias e preços (LOC-01, LOC-15) ---

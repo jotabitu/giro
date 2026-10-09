@@ -42,12 +42,22 @@ Contrato da API: `docs/api/veiculos.md` (escrito pelo arquiteto antes da impleme
   - as categorias e o histórico de preços.
 - `api/`: as rotas de `docs/api/veiculos.md`, menos documentos e exportação.
 
+## Implementado (T-079)
+
+- `DocumentoVeiculo` (`VEI-03`): um ativo por tipo; renovar deixa o anterior `ativo=False`. O `arquivo` fica no armazenamento privado de `comum.arquivos` (`AUD-05`).
+- `services.enviar_documento`, `situacao_do_documento` (no dia da validade já é `vencido`) e a recusa 422 `VEI-03` do `desbloquear` com CRLV ou seguro ativo vencido.
+- `services.aplicar_vencimento_de_documentos` e a tarefa `aut_06_vencimento_de_documentos` (Beat às 07:00, uma por empresa):
+  - 30 dias antes, alerta no sino dos gerentes da filial (`FIL-02`), uma vez por documento, e o evento `veiculos.documento_vencendo`;
+  - no dia, CRLV ou seguro: `disponivel` vai para `indisponivel` ("Seguro vencido"), com a origem `documento`; `alugado` não muda e os gerentes recebem uma tarefa urgente.
+- `selectors.resumos_de_documentos` (o `documentos_resumo` da ficha e da lista) e `representacao_documento`, com a URL assinada nova a cada leitura.
+- Rotas: `GET` e `POST /api/veiculos/{id}/documentos/` (multipart) e `GET .../documentos/historico/`.
+
 ## Para os outros apps
 
 - Para mudar o status: `services.transicionar(veiculo, "alugado", origem=services.OrigemDaMudanca("locacao", id, "LOC-2856"))`. Transição fora da tabela: 409 `transicao_veiculo`, com `detalhes = {de, para}`.
 - Vistoria e OS gravam o km por `services.atualizar_km(veiculo, km, origem=...)`. Km menor responde 422 `VEI-01`.
 - Para o preço numa data, use `selectors.preco_vigente(categoria, data)`. A locação copia o preço na assinatura (`LOC-15`).
-- Blocos da representação (ADR 0015), no alvo `"veiculos.Veiculo"`: `locacao_atual`, `manutencao`, `indicadores_financeiros` e `documentos_resumo`. Cada bloco pode ter `alerta: {codigo?, rotulo, tom}`, e o de maior gravidade vira a `situacao`.
+- Blocos da representação (ADR 0015), no alvo `"veiculos.Veiculo"`: `locacao_atual`, `manutencao` e `indicadores_financeiros`. O `documentos_resumo` vem do próprio app (T-079). Cada bloco pode ter `alerta: {codigo?, rotulo, tom}`, e o de maior gravidade vira a `situacao`.
 - `locacoes` registra o contador `("veiculos.Categoria", "locacoes_em_andamento")`, que a resposta de preço novo mostra em `locacoes_em_andamento_mantidas`.
 
 ## Fornecido a outros apps
@@ -60,10 +70,11 @@ Contrato da API: `docs/api/veiculos.md` (escrito pelo arquiteto antes da impleme
 | Evento | Dados |
 | --- | --- |
 | `veiculos.km_atualizado` | `veiculo_id`, `km` (cada leitura e correção, para `MAN-03`) |
+| `veiculos.documento_vencendo` | `documento_id`, `veiculo_id`, `tipo`, `validade` (alerta de 30 dias, `AUT-06`) |
 
 Assina `aprovacoes.pedido_decidido` em `eventos.py` (T-081): `APR-06` aprovado chama `services.aplicar_correcao_aprovada`, que corrige o km como o gerente faria, com a aprovação como origem da leitura. Se o km mudou depois do pedido, responde 409 `km_mudou` e a aprovação volta.
 
 ## Falta
 
-- Documentos, arquivo privado e `AUT-06` ficam para a T-079. Com eles entra a recusa `VEI-03` do `desbloquear`.
+- O e-mail ao gerente da `AUT-06` entra com o contrato de notificações; hoje o aviso é só no sino.
 - A exportação (`AUD-07`) e a recusa `VEN-10` do `voltar-para-frota` entram com os apps delas.

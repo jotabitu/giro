@@ -176,6 +176,7 @@ SPECTACULAR_SETTINGS = {
         "PermissaoExtraEnum": "apps.contas.models.PermissaoExtra",
         "PermissaoSuporteEnum": "apps.plataforma.models.PermissaoSuporte",
         "StatusVeiculoEnum": "apps.veiculos.models.StatusVeiculo",
+        "TipoDocumentoEnum": "apps.veiculos.models.TipoDocumento",
     },
 }
 
@@ -207,6 +208,11 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
         "schedule": crontab(hour=3, minute=30),
     },
     # AUT-15: encerra os acessos de suporte vencidos (PLT-07).
+    # AUT-06: vencimento de documentos de veículos (VEI-03), às 07:00.
+    "aut_06_vencimento_de_documentos": {
+        "task": "aut_06_vencimento_de_documentos_de_todas",
+        "schedule": crontab(hour=7, minute=0),
+    },
     "aut_15_encerrar_acessos_de_suporte_vencidos": {
         "task": "aut_15_encerrar_acessos_de_suporte_vencidos",
         "schedule": crontab(minute="*"),
@@ -244,6 +250,14 @@ GIRO_MODULOS_ATIVOS = env.list(
     "GIRO_MODULOS_ATIVOS", default=["aprovacoes", "contas", "filiais", "plataforma", "veiculos"]
 )
 GIRO_PROVEDOR_CEP = env("GIRO_PROVEDOR_CEP", default="falso")
+# Arquivos privados (ADR 0009, AUD-05): "falso" (na memória) em dev e testes; "s3" com um bucket
+# privado compatível com S3 em homologação e produção.
+GIRO_ARMAZENAMENTO = env("GIRO_ARMAZENAMENTO", default="falso")
+S3_BUCKET = env("S3_BUCKET", default="")
+S3_ENDPOINT_URL = env("S3_ENDPOINT_URL", default="")
+S3_REGIAO = env("S3_REGIAO", default="")
+S3_CHAVE_DE_ACESSO = env("S3_CHAVE_DE_ACESSO", default="")
+S3_CHAVE_SECRETA = env("S3_CHAVE_SECRETA", default="")
 # WhatsApp: só o "falso" (mensagens na memória) até a integração real.
 GIRO_PROVEDOR_WHATSAPP = env("GIRO_PROVEDOR_WHATSAPP", default="falso")
 

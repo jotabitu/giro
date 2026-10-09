@@ -10,6 +10,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -33,10 +34,13 @@ from .serializers import (
     CorrigirIdentificacaoSerializer,
     CorrigirKmSerializer,
     DesbloquearVeiculoSerializer,
+    DocumentoEntradaSerializer,
+    DocumentoSerializer,
     ExtraEntradaSerializer,
     ExtraSerializer,
     KmSerializer,
     ListaDeCategoriasSerializer,
+    ListaDeDocumentosSerializer,
     ListaDeExtrasSerializer,
     ListaDeMudancasDePrecoSerializer,
     ListaDePrecosSerializer,
@@ -120,8 +124,13 @@ class VeiculosView(APIView):
         ordem = selectors.ORDENS.get(parametros.get("ordem", ""), "placa")
         paginacao.ordering = (ordem, "id")  # type: ignore[assignment]
         pagina = paginacao.paginate_queryset(qs, request, view=self) or []
-        precos = selectors.precos_vigentes({v.categoria_id for v in pagina}, relogio.hoje())
-        dados = [selectors.representacao(v, request.user, precos=precos) for v in pagina]
+        hoje = relogio.hoje()
+        precos = selectors.precos_vigentes({v.categoria_id for v in pagina}, hoje)
+        documentos = selectors.resumos_de_documentos({v.pk for v in pagina}, hoje)
+        dados = [
+            selectors.representacao(v, request.user, precos=precos, documentos=documentos)
+            for v in pagina
+        ]
         return paginacao.get_paginated_response(
             VeiculoSerializer(dados, many=True).data, extras={"contagens": contagens}
         )
@@ -283,6 +292,63 @@ class CorrigirKmView(APIView):
             )
         veiculo = services.corrigir_km(veiculo, dados["km"], dados["motivo"])
         return _representacao(veiculo, request)
+
+
+# --- Documentos (VEI-03, AUD-05) ---
+
+
+def _documentos(veiculo: Veiculo, historico: bool = False) -> Response:
+    hoje = relogio.hoje()
+    dados = [
+        selectors.representacao_documento(d, hoje)
+        for d in selectors.documentos(veiculo, historico=historico)
+    ]
+    return Response(ListaDeDocumentosSerializer({"resultados": dados}).data)
+
+
+class DocumentosView(APIView):
+    """Ver é de todos no escopo de filiais; enviar, de administrador e gerente."""
+
+    parser_classes = [MultiPartParser, FormParser]
+    suporte_somente_leitura = True  # o suporte em "só ver" lê (PLT-07)
+
+    def get_permissions(self) -> Any:
+        if self.request.method == "POST":
+            return [permissao() for permissao in GESTAO]
+        return super().get_permissions()
+
+    @extend_schema(
+        responses=ListaDeDocumentosSerializer,
+        operation_id="veiculos_documentos_list",
+        summary="Documentos ativos, com URL assinada de 15 minutos (VEI-03, AUD-05)",
+    )
+    def get(self, request: Request, pk: int) -> Response:
+        return _documentos(_veiculo(request, pk))
+
+    @extend_schema(
+        request={"multipart/form-data": DocumentoEntradaSerializer},
+        responses={201: DocumentoSerializer},
+        summary="Enviar ou renovar documento (VEI-03)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        dados = _entrada(DocumentoEntradaSerializer, request)
+        documento = services.enviar_documento(
+            _veiculo(request, pk), dados["tipo"], dados["validade"], dados.get("arquivo")
+        )
+        corpo = selectors.representacao_documento(documento, relogio.hoje())
+        return Response(DocumentoSerializer(corpo).data, status=status.HTTP_201_CREATED)
+
+
+class HistoricoDeDocumentosView(APIView):
+    suporte_somente_leitura = True  # o suporte em "só ver" lê (PLT-07)
+
+    @extend_schema(
+        responses=ListaDeDocumentosSerializer,
+        operation_id="veiculos_documentos_historico",
+        summary="Todos os documentos, inclusive os renovados (VEI-03)",
+    )
+    def get(self, request: Request, pk: int) -> Response:
+        return _documentos(_veiculo(request, pk), historico=True)
 
 
 # --- Categorias e preços ---
