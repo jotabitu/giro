@@ -217,6 +217,9 @@ Levantadas pelo produto em T-059 (08 out 2026):
 ### T-085 · AUT-06 gera tarefa urgente para veículo reservado ou em manutenção
 - **Agente:** backend · **Depende de:** T-084 · **Regras:** VEI-03, AUT-06, FIL-02 · **Pronto quando:** o CA-013-28 (T-084) passa, com o código da regra no nome do teste; a `aut_06_vencimento_de_documentos` continua idempotente.
 
+### T-086 · Regra da OS concluída com documento vencido
+- **Agente:** produto · **Depende de:** T-084 · **Regras:** VEI-03, AUT-06 · **Pronto quando:** a opção A aprovada pelo dono em 08/10 (veículo cujo CRLV ou seguro venceu durante a OS volta para `indisponivel` ao concluir a OS, até renovar) sai de "Pontos em aberto" e vira regra em `docs/regras-de-negocio.md`, com linha em "Decisões de 08 out 2026" e o critério para o módulo de manutenção (fase 2), onde o código entra.
+
 ### T-014 · Clientes, documentos, bloqueio, LGPD
 - **Agente:** backend · **Depende de:** T-011, T-033 · **Segurança:** S-07, upload validado pelo conteúdo (S-12) · **Regras:** CLI-01 a CLI-08, AUD-04, AUD-05 · **Telas:** Clientes, Cliente · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-014.md` (CA-014-01 a 22; os marcados [integração] voltam no seed completo da T-019) passam, com o código da regra no nome do teste.
 - **Também:** R-02 e R-05 da revisão T-050 (`docs/seguranca/2026-10-08-codigo-t033.md`).
