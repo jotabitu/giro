@@ -84,3 +84,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-100 · Frota com um botão só de cadastrar veículo · frontend · PR #94 · tarefas/handoffs/T-100-frontend.md · pedido do dono; mesmo padrão em NovoVeiculoForm.tsx apontado no handoff
 - T-097 · Dados de referência: LOC-2836 confirmada em 01 out · produto · PR #95 · tarefas/handoffs/T-097-produto.md · LOC-06 com as datas; CA-015-15; [decisão] da multa da parcela que nasce vencida
 - T-093 · Momentos em UTC na API · backend · PR #96 · tarefas/handoffs/T-093-backend.md · 490 testes; renderizador de comum (ADR 0020); OpenAPI idêntico
+- T-101 · Conta que nasce vencida não cobra atraso antes da confirmação · produto · PR #98 · tarefas/handoffs/T-101-produto.md · FIN-03 opção A; CA-017-23; código na T-017
