@@ -11,7 +11,7 @@ As pendências de regra foram decididas em 07 out 2026 (seção "Decisões de 07
 - [bloqueada] Abrir a conta do Asaas (a integração começa no sandbox, não depende disso).
 - (T-013) A transferência de veículo com categoria só da filial (`VEI-04`) foi decidida em 08 out 2026 pelo dono do produto: opção B, recomendada pelo produto (na transferência, pedir a categoria do destino só quando a atual não vale lá). Virou regra na T-082 (PR #71) e vira código na T-083.
 - (T-081) Aprovar uma correção de km (`APR-06`) depois que outra leitura mudou o km foi decidido em 08 out 2026 pelo dono do produto: fica como está. A aprovação responde 409 `km_mudou`, o pedido continua pendente, e o gerente recusa e pede de novo com o km atual. Assim a leitura mais nova não é apagada. O produto registra a regra na próxima tarefa de regras de veículos.
-- [decisão] (T-079, para o produto) No dia em que vencem o CRLV ou o seguro, o `VEI-03` só diz o que fazer com o veículo `disponivel` (vai para `indisponivel`) e com o `alugado` (tarefa urgente). E o veículo `reservado`, ou em `manutencao`? Hoje a `AUT-06` não faz nada com eles, e a reserva pode sair com o documento vencido. As opções são uma tarefa urgente, como no alugado, ou recusar a retirada até renovar.
+- (T-079) Documento (CRLV ou seguro) que vence com o veículo `reservado` ou em `manutencao` foi decidido em 08 out 2026 pelo dono do produto: as duas coisas juntas. A `AUT-06` gera tarefa urgente aos gerentes, como no `alugado`, e a retirada é recusada até renovar. Virou regra na T-084 (PR #76); a tarefa urgente vai na T-085 e a recusa da retirada na T-016.
 
 A dúvida da segurança S-02 (T-032: o suporte Giro vê CPF e CNH completos?) foi decidida em 07 out 2026 e virou a regra `AUD-09` (mascarado, nunca completo).
 
@@ -217,6 +217,9 @@ Levantadas pelo produto em T-059 (08 out 2026):
 ### T-083 · Transferência pede a categoria do destino
 - **Agente:** backend · **Depende de:** T-082 · **Regras:** VEI-04, FIL-04, LOC-01 · **Pronto quando:** o CA-013-27 da T-082 passa, com o código da regra no nome do teste; a transferência recusa sem a categoria quando a atual não vale no destino e aceita a categoria do destino ou da empresa; `transferir` ganha `categoria_id` no contrato em `docs/api/veiculos.md` e OpenAPI regerado.
 
+### T-085 · AUT-06 gera tarefa urgente para veículo reservado ou em manutenção
+- **Agente:** backend · **Depende de:** T-084 · **Regras:** VEI-03, AUT-06, FIL-02 · **Pronto quando:** o CA-013-28 (T-084) passa, com o código da regra no nome do teste; a `aut_06_vencimento_de_documentos` continua idempotente.
+
 ### T-014 · Clientes, documentos, bloqueio, LGPD
 - **Agente:** backend · **Depende de:** T-011, T-033 · **Segurança:** S-07, upload validado pelo conteúdo (S-12) · **Regras:** CLI-01 a CLI-08, AUD-04, AUD-05 · **Telas:** Clientes, Cliente · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-014.md` (CA-014-01 a 22; os marcados [integração] voltam no seed completo da T-019) passam, com o código da regra no nome do teste.
 - **Também:** R-02 e R-05 da revisão T-050 (`docs/seguranca/2026-10-08-codigo-t033.md`).
@@ -226,6 +229,7 @@ Levantadas pelo produto em T-059 (08 out 2026):
 
 ### T-016 · Vistoria de saída e devolução com acerto
 - **Agente:** backend · **Depende de:** T-015 · **Regras:** VIS-01 a VIS-05, DEV-01 a DEV-06 · **Telas:** Vistoria, Devolucao, Vistoriador
+- **Também:** recusar a retirada de reserva com CRLV ou seguro vencido (`VEI-03`, decisão de 08/10 da T-079; CA-016-21 da T-084).
 - **Pronto quando:** caso LOC-2836 devolve R$ 183,00 e todos os critérios de `docs/qa/criterios/T-016.md` (CA-016-01 a 20) passam, com o código da regra no nome do teste.
 
 ### T-017 · Contas a receber, caixa do dia, baixa
