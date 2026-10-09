@@ -81,3 +81,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-015 · Locação: núcleo, simular e confirmar · backend · PR #87 · tarefas/handoffs/T-015-backend.md · 486 testes; financeiro e contratos mínimos; contratos na T-090, atraso e cancelamento na T-091, troca na T-092; [divergência] da LOC-2836
 - T-096 · Teste da ocupação com fração de dia · qa · PR #91 · tarefas/handoffs/T-096-qa.md · CA-013-29 (44,17%); sem mudança de produção
 - T-099 · Frontend do compose cai e não volta · devops · PR #93 · tarefas/handoffs/T-099-devops.md · restart: unless-stopped nos 7 serviços; paradas por compose stop/down no projeto giro, não por queda
+- T-100 · Frota com um botão só de cadastrar veículo · frontend · PR #94 · tarefas/handoffs/T-100-frontend.md · pedido do dono; mesmo padrão em NovoVeiculoForm.tsx apontado no handoff
