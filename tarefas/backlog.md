@@ -247,9 +247,6 @@ Levantadas pelo backend em T-091 (09 out 2026), para o produto. O código segue 
 ### T-107 · Telas de referência com a LOC-2836 até 14 out
 - **Agente:** design-system · **Depende de:** T-104 · **Regras:** LOC-06 · **Pronto quando:** as telas `Locacoes`, `Locacao-Detalhe`, `Clientes` e `Cliente-Detalhe` (desktop e celular) em `docs/telas/html` mostram a LOC-2836 como na decisão B de 09/10: de 30 set 18:00 a 14 out 18:00 e, em 07 out, ativa, sem sinal "Devolve hoje", com a ação Abrir; nenhum valor muda; ver `tarefas/handoffs/T-104-produto.md`.
 
-### T-106 · Pontos de regra da T-091
-- **Agente:** produto · **Depende de:** T-091 · **Regras:** LOC-08, LOC-11, LOC-12, LOC-13, VEI-07 · **Pronto quando:** as 2 [divergência] (multa mínima do CA-015-23 pela LOC-12; transição `reservado → disponivel` na tabela de veículos) estão resolvidas na regra e nos critérios, e as 5 [decisão] (LOC-11 com fechamento antes da tolerância; LOC-08 renovação de atrasada; LOC-12 diária no encerramento; LOC-13 mensal em 4 semanais; LOC-08 desconto e extras na renovação) estão analisadas com recomendação em "Pontos em aberto" para o dono aprovar, dizendo se o código da T-091 muda; ver `tarefas/handoffs/T-091-backend.md`.
-
 ### T-016 · Vistoria de saída e devolução com acerto
 - **Agente:** backend · **Depende de:** T-015 · **Regras:** VIS-01 a VIS-05, DEV-01 a DEV-06 · **Telas:** Vistoria, Devolucao, Vistoriador
 - **Também:** recusar a retirada de reserva com CRLV ou seguro vencido (`VEI-03`, decisão de 08/10 da T-079; CA-016-21 da T-084).
