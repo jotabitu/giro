@@ -1072,6 +1072,36 @@ def test_vei_06_ca_013_26_ocupacao_de_90_dias(moto, frota, relogio):
     )
 
 
+def test_vei_06_ca_013_29_ocupacao_com_fracao_de_dia(moto, frota, relogio):
+    """Na frota desde 27 set, alugado em 02 out às 14:00, relógio em 07 out 00:00: 44,17%."""
+    relogio.em("2026-10-07 00:00")
+    urbana = frota.categorias["Urbana 110–125"]
+    api = moto.api("Rodrigo")
+
+    def _historico_em(veiculo: Veiculo, passos: list[tuple[str, str]]) -> None:
+        anterior = ""
+        for quando, para in passos:
+            HistoricoStatusVeiculo.objects.create(
+                veiculo=veiculo,
+                de=anterior,
+                para=para,
+                em=relogio.em(quando),
+                origem_tipo="manual",
+            )
+            anterior = para
+        relogio.em("2026-10-07 00:00")
+
+    tarde = criar_veiculo(602, urbana, frota.centro)
+    _historico_em(tarde, [("2026-09-27 00:00", "disponivel"), ("2026-10-02 14:00", "alugado")])
+    # 4,4167 dias alugados ÷ 10 dias na frota; contar por dia daria 40,00 ou 50,00.
+    assert api.get(_url(tarde)).json()["ocupacao"] == {"pct": "44.17", "periodo_dias": 90}
+
+    # Mesmo veículo alugado às 00:00 de 02 out: 5 ÷ 10, igual a contar dias.
+    cedo = criar_veiculo(603, urbana, frota.centro)
+    _historico_em(cedo, [("2026-09-27 00:00", "disponivel"), ("2026-10-02 00:00", "alugado")])
+    assert api.get(_url(cedo)).json()["ocupacao"] == {"pct": "50.00", "periodo_dias": 90}
+
+
 # --- Plano e isolamento ---
 
 

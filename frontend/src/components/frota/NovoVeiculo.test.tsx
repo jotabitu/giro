@@ -15,12 +15,15 @@ import { NovoVeiculoForm } from "./NovoVeiculoForm";
 const html = (el: React.ReactElement) => renderToStaticMarkup(<QueryClientProvider client={new QueryClient()}>{el}</QueryClientProvider>);
 
 describe("botão Cadastrar veículo na Frota", () => {
-  it("aparece no desktop e no celular para quem pode editar veículos", () => {
+  it("aparece uma vez só, como botão preto com texto, para quem pode editar veículos", () => {
     sessao.veiculos = "editar";
     const h = html(<ListaVeiculos />);
     expect(h).toContain('href="/veiculos/novo"');
     expect(h).toContain("Cadastrar veículo");
-    expect(h).toContain('aria-label="Cadastrar veículo"');
+    expect(h.match(/href="\/veiculos\/novo"/g)).toHaveLength(1);
+    expect(h).toContain("wl-btn wl-btn--solid");
+    expect(h).not.toContain("wl-icon-btn");
+    expect(h).not.toContain('aria-label="Cadastrar veículo"');
   });
 
   it("não aparece para quem só vê ou só registra km", () => {
