@@ -65,8 +65,12 @@ def transicionar(
     motivo: str = "",
     acao: str | None = None,
     regra: str = "",
+    mais_campos: tuple[str, ...] = (),
 ) -> None:
-    """Valida contra `TRANSICOES`, grava e audita. Fora da tabela: `TransicaoInvalida` (409)."""
+    """Valida contra `TRANSICOES`, grava e audita. Fora da tabela: `TransicaoInvalida` (409).
+
+    `mais_campos`: campos já mudados no objeto que entram no mesmo `save` e na mesma auditoria
+    (ex.: quem decidiu e quando)."""
     modelo = type(objeto)
     with transaction.atomic():
         atual = (
@@ -92,7 +96,7 @@ def transicionar(
             regra=regra,
         ):
             objeto.status = novo_status  # type: ignore[attr-defined]
-            campos = ["status"]
+            campos = ["status", *mais_campos]
             if any(c.name == "atualizado_em" for c in modelo._meta.concrete_fields):
                 campos.append("atualizado_em")
             objeto._transicionando = True

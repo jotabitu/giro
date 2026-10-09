@@ -9,7 +9,7 @@ class VeiculosConfig(AppConfig):
         from apps.plataforma.services import registrar_contador
         from comum import leituras
 
-        from . import selectors
+        from . import eventos, selectors  # noqa: F401 - eventos registra os assinantes
 
         registrar_contador("veiculos", selectors.contar_veiculos_do_plano)  # PLT-03
         # Operação que impede desativar a filial (FIL-06) e indicadores da lista de filiais.

@@ -4,6 +4,135 @@ info:
   version: 0.1.0
   description: Contrato da API do Giro. Gerado pelo backend (make api-schema).
 paths:
+  /api/aprovacoes/:
+    get:
+      operationId: aprovacoes_list
+      summary: Pedidos de aprovação (APR-01 a APR-09)
+      parameters:
+      - in: query
+        name: minhas
+        schema:
+          type: string
+          enum:
+          - 'false'
+          - 'true'
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - aprovado
+          - cancelado
+          - pendente
+          - recusado
+      - in: query
+        name: tipo
+        schema:
+          type: string
+          enum:
+          - APR-01
+          - APR-02
+          - APR-03
+          - APR-04
+          - APR-05
+          - APR-06
+      tags:
+      - aprovacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDePedidos'
+          description: ''
+  /api/aprovacoes/{id}/aprovar/:
+    post:
+      operationId: aprovacoes_aprovar_create
+      summary: Aprovar (APR-09, APR-10)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - aprovacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Aprovar'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Aprovar'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Aprovar'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedido'
+          description: ''
+  /api/aprovacoes/{id}/cancelar/:
+    post:
+      operationId: aprovacoes_cancelar_create
+      summary: Quem pediu desiste
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - aprovacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedido'
+          description: ''
+  /api/aprovacoes/{id}/recusar/:
+    post:
+      operationId: aprovacoes_recusar_create
+      summary: Recusar com motivo (APR-07, APR-09, APR-10)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - aprovacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Recusar'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Recusar'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Recusar'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pedido'
+          description: ''
   /api/assinatura/:
     get:
       operationId: assinatura_retrieve
@@ -2380,6 +2509,12 @@ components:
       - registrar_km
       - transferir
       - voltar_para_frota
+    Aprovar:
+      type: object
+      properties:
+        motivo:
+          type: string
+          maxLength: 300
     Assinatura:
       type: object
       properties:
@@ -2636,6 +2771,13 @@ components:
       - motos
       - reservado
       - todos
+    ContagensDePedidos:
+      type: object
+      properties:
+        pendente:
+          type: integer
+      required:
+      - pendente
     ContagensDeUsuarios:
       type: object
       properties:
@@ -3652,6 +3794,26 @@ components:
             $ref: '#/components/schemas/MudancaDePreco'
       required:
       - resultados
+    ListaDePedidos:
+      type: object
+      properties:
+        contagens:
+          $ref: '#/components/schemas/ContagensDePedidos'
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pedido'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - contagens
+      - proximo
+      - resultados
     ListaDePlanos:
       type: object
       properties:
@@ -3905,6 +4067,20 @@ components:
       required:
       - pct
       - periodo_dias
+    Origem:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/OrigemTipoEnum'
+        id:
+          type: integer
+        codigo:
+          type: string
+          nullable: true
+      required:
+      - codigo
+      - id
+      - tipo
     OrigemEnum:
       enum:
       - nacional
@@ -3913,6 +4089,26 @@ components:
       description: |-
         * `nacional` - Nacional
         * `local` - Local
+    OrigemTipoEnum:
+      enum:
+      - locacao
+      - venda
+      - ordem_servico
+      - despesa
+      - devolucao
+      - caixa
+      - cliente
+      - veiculo
+      type: string
+      description: |-
+        * `locacao` - Locação
+        * `venda` - Venda
+        * `ordem_servico` - Ordem de serviço
+        * `despesa` - Despesa
+        * `devolucao` - Devolução
+        * `caixa` - Caixa
+        * `cliente` - Cliente
+        * `veiculo` - Veículo
     PainelEnum:
       enum:
       - todas_filiais
@@ -4050,6 +4246,69 @@ components:
           type: string
           format: date
           nullable: true
+    Pedido:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          $ref: '#/components/schemas/PedidoTipoEnum'
+        status:
+          $ref: '#/components/schemas/PedidoStatusEnum'
+        titulo:
+          type: string
+        detalhe:
+          type: string
+        origem:
+          $ref: '#/components/schemas/Origem'
+        filial:
+          $ref: '#/components/schemas/ResumoIdNome'
+        solicitante:
+          $ref: '#/components/schemas/ResumoIdNome'
+        pedido_em:
+          type: string
+          format: date-time
+        motivo_pedido:
+          type: string
+          nullable: true
+        valor_centavos:
+          type: integer
+          nullable: true
+        pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        decidido_por:
+          allOf:
+          - $ref: '#/components/schemas/ResumoIdNome'
+          nullable: true
+        decidido_em:
+          type: string
+          format: date-time
+          nullable: true
+        motivo_recusa:
+          type: string
+          nullable: true
+        pode_decidir:
+          type: boolean
+      required:
+      - decidido_em
+      - decidido_por
+      - detalhe
+      - filial
+      - id
+      - motivo_pedido
+      - motivo_recusa
+      - origem
+      - pct
+      - pedido_em
+      - pode_decidir
+      - solicitante
+      - status
+      - tipo
+      - titulo
+      - valor_centavos
     PedidoAprovacaoCriado:
       type: object
       properties:
@@ -4070,6 +4329,34 @@ components:
       - id
       - status
       - tipo
+    PedidoStatusEnum:
+      enum:
+      - pendente
+      - aprovado
+      - recusado
+      - cancelado
+      type: string
+      description: |-
+        * `pendente` - Pendente
+        * `aprovado` - Aprovado
+        * `recusado` - Recusado
+        * `cancelado` - Cancelado
+    PedidoTipoEnum:
+      enum:
+      - APR-01
+      - APR-02
+      - APR-03
+      - APR-04
+      - APR-05
+      - APR-06
+      type: string
+      description: |-
+        * `APR-01` - Desconto
+        * `APR-02` - Cancelamento de locação
+        * `APR-03` - Despesa ou orçamento de OS
+        * `APR-04` - Diferença no caixa
+        * `APR-05` - Desbloqueio de cliente
+        * `APR-06` - Correção de km para baixo
     PerfilEnum:
       enum:
       - administrador
@@ -4442,6 +4729,15 @@ components:
       - pronto
       type: string
       description: '* `pronto` - pronto'
+    Recusar:
+      type: object
+      description: Recusar exige motivo (APR-07).
+      properties:
+        motivo:
+          type: string
+          maxLength: 300
+      required:
+      - motivo
     RedefinirSenha:
       type: object
       properties:
@@ -4466,6 +4762,16 @@ components:
       - email
       - nome
       - telefone
+    ResumoIdNome:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+      - id
+      - nome
     Sessao:
       type: object
       properties:

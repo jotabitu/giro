@@ -30,6 +30,19 @@ Contrato da API: `docs/api/aprovacoes.md` (escrito pelo arquiteto antes da imple
 - `selectors.pendente`.
 - O `ready()` registra as três funções em `comum.aprovacoes`. Os outros apps só abrem pedidos por ali (teste em `tests/test_limites_entre_apps.py`).
 
-## Falta (T-081)
+## Implementado (T-081)
 
-- A lista, as decisões de aprovar e recusar, o evento na decisão e o aviso ao gerente (com `notificacoes`).
+- `selectors.QUEM_DECIDE`: a tabela "Quem decide" do contrato. `APR-01` e `APR-02` também com as extras `aprovar_desconto` e `cancelar_contrato`; os outros, gerente e administrador.
+- `selectors.decisor`: os tipos e as filiais de quem decide, uma vez por requisição. O administrador decide em todas as filiais, inclusive as desativadas.
+- `GET /api/aprovacoes/`: os pedidos que a pessoa decide, no `X-Filial`, sem os que ela fez (`APR-09`). Com `?minhas=true`, os próprios. Mais antigo primeiro, com `contagens.pendente`.
+- `aprovar`, `recusar` (motivo obrigatório, `APR-07`) e `cancelar` (só quem pediu):
+  - fora do escopo, 404;
+  - o próprio pedido, 403 `APR-09`;
+  - já decidido, 409 `transicao_pedido`.
+- Toda decisão grava quem e quando na mesma auditoria da mudança de status (`APR-10`) e publica `aprovacoes.pedido_decidido` na mesma transação. Se o efeito na origem falha, a decisão volta.
+- O assinante do `APR-06` fica em `veiculos/eventos.py`.
+
+## Falta
+
+- O aviso ao gerente quando o pedido nasce, e a quem pediu quando é decidido (com `notificacoes`).
+- A tela `Gerente` com 1 toque (`APR-07`) e o lembrete de 4 horas úteis (`APR-08`, `AUT-09`), na fase 2.

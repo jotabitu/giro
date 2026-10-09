@@ -66,3 +66,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-080 · Como um app abaixo de aprovações abre um pedido · arquiteto · PR #67 · tarefas/handoffs/T-080-arquiteto.md · ADR 0019 (comum.aprovacoes.pedir); ida na T-013, lista e decisão em tarefa nova
 - T-013 · Veículos, categorias, preços, status, km e ocupação (parte 1, com a ida do APR-06) · backend · PR #69 · tarefas/handoffs/T-013-backend.md · 375 testes; CA-013-01 a 16 e 21 a 26; documentos na T-079, decisão das aprovações na T-081
 - T-082 · Regra e critério da transferência com categoria de filial · produto · PR #71 · tarefas/handoffs/T-082-produto.md · VEI-04 opção B; CA-013-27; código na T-083
+- T-081 · Aprovações: lista e decisão · backend · PR #72 · tarefas/handoffs/T-081-backend.md · 385 testes; CA-013-16 de ponta a ponta; [decisão] do km_mudou para o produto

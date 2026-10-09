@@ -45,7 +45,7 @@ class PedidoAprovacao(MaquinaDeEstados, ModeloBase):
     TRANSICOES: ClassVar[dict[str, set[str]]] = {
         "pendente": {"aprovado", "recusado", "cancelado"},
     }
-    REGRA_TRANSICAO: ClassVar[str] = "APR-10"
+    REGRA_TRANSICAO: ClassVar[str] = "transicao_pedido"  # 409 em pedido já decidido
 
     tipo = models.CharField(max_length=6, choices=TipoPedido.choices)
     origem_tipo = models.CharField(max_length=15, choices=OrigemPedido.choices)

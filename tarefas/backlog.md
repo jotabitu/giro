@@ -10,6 +10,7 @@ As pendências de regra foram decididas em 07 out 2026 (seção "Decisões de 07
 - [bloqueada] Busca no INPI da marca "Giro" (classes 42 e 9).
 - [bloqueada] Abrir a conta do Asaas (a integração começa no sandbox, não depende disso).
 - (T-013) A transferência de veículo com categoria só da filial (`VEI-04`) foi decidida em 08 out 2026 pelo dono do produto: opção B, recomendada pelo produto (na transferência, pedir a categoria do destino só quando a atual não vale lá). Virou regra na T-082 (PR #71) e vira código na T-083.
+- [decisão] (T-081, para o produto) O gerente aprova uma correção de km (`APR-06`), mas outra leitura mudou o km depois do pedido (João pediu 3.500 → 3.400, e uma vistoria registrou 3.600). Hoje a aprovação é recusada com 409 `km_mudou`, o pedido continua pendente e o gerente recusa e pede de novo. As opções são manter assim, ou aplicar o `km_novo` mesmo assim.
 
 A dúvida da segurança S-02 (T-032: o suporte Giro vê CPF e CNH completos?) foi decidida em 07 out 2026 e virou a regra `AUD-09` (mascarado, nunca completo).
 
@@ -214,9 +215,6 @@ Levantadas pelo produto em T-059 (08 out 2026):
 
 ### T-079 · Documentos de veículos, arquivo privado e AUT-06
 - **Agente:** backend · **Depende de:** T-013 · **ADRs:** 0009 (`comum/arquivos.py`: storage privado S3, prefixo `<schema>/<app>/<model>/<id>/`, URL assinada de 15 minutos), 0011 (`notificacoes` no nível 5) · **Regras:** VEI-03, AUT-06, FIL-02, AUD-05 · **Pronto quando:** CA-013-17 a 20 passam, com o código da regra no nome do teste; `comum/arquivos.py` com implementação falsa no desenvolvimento e nos testes, pronta para a T-014; o mínimo de `notificacoes` que o CA-013-18 usa (tarefa urgente e alerta aos gerentes).
-
-### T-081 · Aprovações: lista e decisão
-- **Agente:** backend · **Depende de:** T-013, T-080 · **ADRs:** 0011, 0019 · **Regras:** APR-01 a APR-06, APR-09 · **Pronto quando:** as rotas de `docs/api/aprovacoes.md` (lista, aprovar, recusar) funcionam com o escopo de filial e a tabela "Quem decide", e quem pediu nunca decide o próprio pedido (APR-09); a decisão publica `aprovacoes.pedido_decidido`; o assinante de `veiculos` aplica a correção de km aprovada (CA-013-16 de ponta a ponta); `aprovacoes` entra no padrão de `GIRO_MODULOS_ATIVOS`; testes com o código da regra no nome. Vem antes da T-015 e atende o APR-05 da T-014.
 
 ### T-083 · Transferência pede a categoria do destino
 - **Agente:** backend · **Depende de:** T-082 · **Regras:** VEI-04, FIL-04, LOC-01 · **Pronto quando:** o CA-013-27 da T-082 passa, com o código da regra no nome do teste; a transferência recusa sem a categoria quando a atual não vale no destino e aceita a categoria do destino ou da empresa; `transferir` ganha `categoria_id` no contrato em `docs/api/veiculos.md` e OpenAPI regerado.
