@@ -254,7 +254,10 @@ class TransferirView(APIView):
     def post(self, request: Request, pk: int) -> Response:
         dados = _entrada(TransferirSerializer, request)
         veiculo = services.transferir(
-            _veiculo(request, pk), dados["filial_destino_id"], dados["motivo"]
+            _veiculo(request, pk),
+            dados["filial_destino_id"],
+            dados["motivo"],
+            categoria_id=dados.get("categoria_id"),
         )
         return _representacao(veiculo, request)
 

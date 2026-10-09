@@ -77,6 +77,8 @@ class BaixarSerializer(serializers.Serializer[Any]):
 
 class TransferirSerializer(serializers.Serializer[Any]):
     filial_destino_id = serializers.IntegerField()
+    # Obrigatório quando a categoria atual é só da filial de origem (VEI-04, FIL-04).
+    categoria_id = serializers.IntegerField(required=False, allow_null=True)
     motivo = serializers.CharField(required=False, allow_blank=True, default="")
 
 

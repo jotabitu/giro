@@ -52,6 +52,10 @@ Contrato da API: `docs/api/veiculos.md` (escrito pelo arquiteto antes da impleme
 - `selectors.resumos_de_documentos` (o `documentos_resumo` da ficha e da lista) e `representacao_documento`, com a URL assinada nova a cada leitura.
 - Rotas: `GET` e `POST /api/veiculos/{id}/documentos/` (multipart) e `GET .../documentos/historico/`.
 
+## Implementado (T-083)
+
+- `transferir` pede `categoria_id` quando a categoria atual é só da filial de origem (`VEI-04`, `FIL-04`): uma categoria ativa, do mesmo tipo, da empresa ou do destino. Categoria da empresa passa direto. A `TransferenciaVeiculo` guarda `categoria_origem` e `categoria_destino`.
+
 ## Para os outros apps
 
 - Para mudar o status: `services.transicionar(veiculo, "alugado", origem=services.OrigemDaMudanca("locacao", id, "LOC-2856"))`. Transição fora da tabela: 409 `transicao_veiculo`, com `detalhes = {de, para}`.

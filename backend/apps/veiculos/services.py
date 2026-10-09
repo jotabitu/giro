@@ -469,7 +469,39 @@ def receber_na_troca(chassi: str, dados: dict[str, Any]) -> Veiculo:
 # --- Transferência (VEI-04, FIL-05) ---
 
 
-def transferir(veiculo: Veiculo, filial_destino_id: int, motivo: str = "") -> Veiculo:
+def _categoria_no_destino(veiculo: Veiculo, destino: Filial, categoria_id: int | None) -> Categoria:
+    """VEI-04, FIL-04: categoria só da filial de origem pede a categoria no destino (ativa, do
+    mesmo tipo, da empresa ou do destino). Categoria da empresa passa direto e continua; com
+    `categoria_id` válido, o veículo vai para ela."""
+    atual = veiculo.categoria
+    if categoria_id is None:
+        if atual.filial_id is None:
+            return atual
+        raise ErroDeValidacao(
+            {
+                "categoria_id": [
+                    "A categoria atual é só desta filial. Escolha a categoria no destino."
+                ]
+            }
+        )
+    erros: dict[str, list[str]] = {}
+    categoria = _categoria_para(categoria_id, destino.pk, erros)
+    if categoria is None or categoria.tipo_veiculo != atual.tipo_veiculo:
+        raise ErroDeValidacao(
+            {
+                "categoria_id": [
+                    "Escolha uma categoria ativa do mesmo tipo, da empresa ou da filial de destino."
+                ]
+            }
+        )
+    return categoria
+
+
+def transferir(
+    veiculo: Veiculo, filial_destino_id: int, motivo: str = "", categoria_id: int | None = None
+) -> Veiculo:
+    """Só `disponivel` (VEI-04), então nenhuma locação aberta muda de preço: a categoria nova
+    vale a partir da próxima locação (LOC-01)."""
     with transaction.atomic():
         travado = _travar(veiculo)
         destino = Filial.ativos.filter(pk=filial_destino_id).first()
@@ -479,7 +511,8 @@ def transferir(veiculo: Veiculo, filial_destino_id: int, motivo: str = "") -> Ve
             )
         if travado.status != S.DISPONIVEL:
             raise Conflito("VEI-04", "Só é possível transferir um veículo disponível")
-        origem_id = travado.filial_id
+        categoria = _categoria_no_destino(travado, destino, categoria_id)
+        origem_id, categoria_origem_id = travado.filial_id, travado.categoria_id
         with auditar(
             travado,
             "veiculo.transferir",
@@ -488,11 +521,14 @@ def transferir(veiculo: Veiculo, filial_destino_id: int, motivo: str = "") -> Ve
             regra="VEI-04",
         ):
             travado.filial = destino
-            travado.save(update_fields=["filial", "atualizado_em"])
+            travado.categoria = categoria
+            travado.save(update_fields=["filial", "categoria", "atualizado_em"])
         TransferenciaVeiculo.objects.create(
             veiculo=travado,
             filial_origem_id=origem_id,
             filial_destino=destino,
+            categoria_origem_id=categoria_origem_id,
+            categoria_destino=categoria,
             em=relogio.agora(),
             por_id=_quem(),
             motivo=motivo.strip()[:200],

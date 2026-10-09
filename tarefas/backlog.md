@@ -214,9 +214,6 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - **Depende de:** T-012, T-064
 - **Pronto quando:** F-01 (permissões de administrador somam às padrão, sem perder `EmpresaOperando` e `EscopoDeFilial`; teste de arquitetura no urlconf da empresa), F-02 (`filial_da_requisicao` distingue "todas" de pessoa sem filial, que recebe 403 `USR-07`; o arquiteto confere a interface interna), F-04 (limite por IP sem chave vazia quando falta o IP e com IPv6 agrupado por prefixo; o devops confere o `REMOTE_ADDR` atrás do proxy) e F-05 (limite na busca de CEP) corrigidos, cada um com teste que reproduz o achado; detalhes em `docs/seguranca/2026-10-09-t058-t012.md`.
 
-### T-083 · Transferência pede a categoria do destino
-- **Agente:** backend · **Depende de:** T-082 · **Regras:** VEI-04, FIL-04, LOC-01 · **Pronto quando:** o CA-013-27 da T-082 passa, com o código da regra no nome do teste; a transferência recusa sem a categoria quando a atual não vale no destino e aceita a categoria do destino ou da empresa; `transferir` ganha `categoria_id` no contrato em `docs/api/veiculos.md` e OpenAPI regerado.
-
 ### T-085 · AUT-06 gera tarefa urgente para veículo reservado ou em manutenção
 - **Agente:** backend · **Depende de:** T-084 · **Regras:** VEI-03, AUT-06, FIL-02 · **Pronto quando:** o CA-013-28 (T-084) passa, com o código da regra no nome do teste; a `aut_06_vencimento_de_documentos` continua idempotente.
 
