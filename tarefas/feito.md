@@ -64,3 +64,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-071 · Navegação do eu · backend · PR #64 · tarefas/handoffs/T-071-backend.md · 345 testes; GIRO_MODULOS_ATIVOS; 5 diferenças do falso-navegacao.ts no handoff
 - T-078 · Menu do frontend segue a navegação da T-071 · frontend · PR #66 · tarefas/handoffs/T-078-frontend.md · falso-navegacao.ts porta navegacao.py; 135 testes
 - T-080 · Como um app abaixo de aprovações abre um pedido · arquiteto · PR #67 · tarefas/handoffs/T-080-arquiteto.md · ADR 0019 (comum.aprovacoes.pedir); ida na T-013, lista e decisão em tarefa nova
+- T-013 · Veículos, categorias, preços, status, km e ocupação (parte 1, com a ida do APR-06) · backend · PR a abrir · tarefas/handoffs/T-013-backend.md · 375 testes; CA-013-01 a 16 e 21 a 26; documentos na T-079, decisão das aprovações na T-081

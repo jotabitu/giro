@@ -433,6 +433,7 @@ def operacao():
     """Contadores falsos de operação por filial, como os que veiculos, locacoes e financeiro
     vão registrar em comum.leituras."""
     valores: dict[str, dict[int, int]] = {}
+    reais = dict(leituras._contadores[selectors.ALVO])  # o de veículos é da T-013
 
     def registrar(nome: str, por_filial: dict[int, int]) -> None:
         valores[nome] = por_filial
@@ -445,6 +446,8 @@ def operacao():
     yield registrar
     for nome in valores:
         leituras.remover_contador(selectors.ALVO, nome)
+        if nome in reais:
+            leituras.registrar_contador(selectors.ALVO, nome, reais[nome])
 
 
 def test_fil_06_ca_012_13_matriz_e_ultima_filial_nao_desativam(moto, operacao):

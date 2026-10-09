@@ -44,8 +44,13 @@ def test_plt_03_uso_nunca_fica_negativo(empresa_a, profissional):
     assert UsoEmpresa.objects.get(empresa=empresa_a).filiais == 0
 
 
-def test_plt_03_recalcular_uso_conta_com_o_contador_registrado(empresa_a, profissional):
+def test_plt_03_recalcular_uso_conta_com_o_contador_registrado(
+    empresa_a, profissional, monkeypatch
+):
     from apps.contas.models import Usuario
+
+    # Todo item já tem contador (veículos desde a T-013): tira um para ver que ele fica.
+    monkeypatch.delitem(services._contadores, "veiculos")
 
     _com_plano(empresa_a, profissional, usuarios=42, veiculos=86)
     Usuario.objects.create_user("a@a.com", "x", nome="A", perfil="gerente")

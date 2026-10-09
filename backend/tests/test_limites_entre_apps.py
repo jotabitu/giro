@@ -61,3 +61,20 @@ def test_comum_nao_importa_apps_de_dominio():
         if "tests" not in arquivo.parts and _apps_importados(arquivo)
     ]
     assert not violacoes
+
+
+# ADR 0019: os apps de origem abrem pedidos só por `comum.aprovacoes`, nunca importando
+# `aprovacoes`; o assinante em `<app>/eventos.py` recebe o evento sem importar nada.
+ORIGENS_DE_PEDIDOS = ("clientes", "veiculos", "financeiro", "manutencao", "locacoes", "vendas")
+
+
+def test_origens_de_pedidos_nao_importam_aprovacoes():
+    violacoes = [
+        str(arquivo.relative_to(RAIZ))
+        for app in ORIGENS_DE_PEDIDOS
+        for arquivo in (RAIZ / "apps" / app).rglob("*.py")
+        if "tests" not in arquivo.parts
+        and arquivo.name != "eventos.py"
+        and "aprovacoes" in _apps_importados(arquivo)
+    ]
+    assert not violacoes, "\n".join(violacoes)
