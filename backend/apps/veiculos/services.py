@@ -588,6 +588,27 @@ def pedir_correcao_km(veiculo: Veiculo, km: int, motivo: str, solicitante: Any) 
         )
 
 
+def aplicar_correcao_aprovada(
+    veiculo_id: int, km_novo: int, km_anterior: int, motivo: str, pedido_id: int
+) -> Veiculo:
+    """O gerente aprovou o pedido APR-06 (assinante de `aprovacoes.pedido_decidido`): corrige o
+    km como na correção direta, com a aprovação como origem da leitura.
+
+    Se o km mudou depois do pedido (outra leitura entrou), a correção pedida não vale mais:
+    409 `km_mudou`, e a aprovação volta inteira."""
+    with transaction.atomic():
+        travado = _travar(Veiculo.objects.get(pk=veiculo_id))
+        if travado.km_atual != km_anterior:
+            raise Conflito(
+                "km_mudou",
+                f"O km do veículo mudou depois do pedido ({formatar_km(km_anterior)} → "
+                f"{formatar_km(travado.km_atual)}). Recuse e peça a correção de novo.",
+                {"km_anterior": km_anterior, "km_atual": travado.km_atual},
+            )
+        origem = OrigemDaMudanca(Origem.APROVACAO, pedido_id, "")
+        return corrigir_km(travado, km_novo, motivo or "Correção aprovada", origem=origem)
+
+
 # --- Categorias e preços (LOC-01, LOC-15) ---
 
 

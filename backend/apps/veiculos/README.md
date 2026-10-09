@@ -61,8 +61,9 @@ Contrato da API: `docs/api/veiculos.md` (escrito pelo arquiteto antes da impleme
 | --- | --- |
 | `veiculos.km_atualizado` | `veiculo_id`, `km` (cada leitura e correção, para `MAN-03`) |
 
+Assina `aprovacoes.pedido_decidido` em `eventos.py` (T-081): `APR-06` aprovado chama `services.aplicar_correcao_aprovada`, que corrige o km como o gerente faria, com a aprovação como origem da leitura. Se o km mudou depois do pedido, responde 409 `km_mudou` e a aprovação volta.
+
 ## Falta
 
 - Documentos, arquivo privado e `AUT-06` ficam para a T-079. Com eles entra a recusa `VEI-03` do `desbloquear`.
-- O assinante de `aprovacoes.pedido_decidido` que aplica a correção de km aprovada fica para a T-081.
 - A exportação (`AUD-07`) e a recusa `VEN-10` do `voltar-para-frota` entram com os apps delas.

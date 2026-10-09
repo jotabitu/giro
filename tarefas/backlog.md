@@ -10,6 +10,7 @@ As pendências de regra foram decididas em 07 out 2026 (seção "Decisões de 07
 - [bloqueada] Busca no INPI da marca "Giro" (classes 42 e 9).
 - [bloqueada] Abrir a conta do Asaas (a integração começa no sandbox, não depende disso).
 - [decisão] (T-013, para o produto) Um veículo de uma categoria só da filial (`Categoria.filial` preenchida) pode ser transferido para outra filial (`VEI-04`)? Hoje a transferência passa, e o veículo continua com a categoria e o preço da filial de origem. As opções são recusar até trocar a categoria, ou trocar a categoria na própria transferência.
+- [decisão] (T-081, para o produto) O gerente aprova uma correção de km (`APR-06`), mas outra leitura mudou o km depois do pedido (João pediu 3.500 → 3.400, e uma vistoria registrou 3.600). Hoje a aprovação é recusada com 409 `km_mudou`, o pedido continua pendente e o gerente recusa e pede de novo. As opções são manter assim, ou aplicar o `km_novo` mesmo assim.
 
 A dúvida da segurança S-02 (T-032: o suporte Giro vê CPF e CNH completos?) foi decidida em 07 out 2026 e virou a regra `AUD-09` (mascarado, nunca completo).
 

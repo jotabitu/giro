@@ -1,7 +1,9 @@
-"""Abrir e cancelar pedidos de aprovação (ADR 0019). Único lugar que grava `PedidoAprovacao`.
+"""Abrir, decidir e cancelar pedidos de aprovação (ADR 0019). Único lugar que grava
+`PedidoAprovacao`.
 
-Os outros apps chegam aqui só por `comum.aprovacoes` (registrado no `ready()`). A lista e a
-decisão (aprovar e recusar, com o evento `aprovacoes.pedido_decidido`) entram na T-081.
+Os outros apps abrem pedidos só por `comum.aprovacoes` (registrado no `ready()`). Toda decisão
+publica `aprovacoes.pedido_decidido` na mesma transação, e o app da origem aplica o efeito pelo
+próprio serviço (ADR 0011); se o efeito falha, a decisão volta.
 """
 
 from decimal import Decimal
@@ -9,9 +11,10 @@ from typing import Any
 
 from django.db import IntegrityError, transaction
 
-from comum import estados
+from comum import estados, relogio
 from comum.aprovacoes import PedidoPendente, PedidoRef
 from comum.auditoria import Categoria, registrar_evento, retrato
+from comum.erros import SemPermissao, TransicaoInvalida
 from comum.eventos import publicar
 
 from .models import PedidoAprovacao
@@ -85,6 +88,87 @@ def pedir(
     return ref(pedido)
 
 
+def _publicar_decisao(pedido: PedidoAprovacao, decidido_por_id: int | None, motivo: str) -> None:
+    publicar(
+        "aprovacoes.pedido_decidido",
+        pedido_id=pedido.pk,
+        tipo=pedido.tipo,
+        status=pedido.status,
+        origem_tipo=pedido.origem_tipo,
+        origem_id=pedido.origem_id,
+        dados=pedido.dados,
+        decidido_por_id=decidido_por_id,
+        motivo=motivo,
+        motivo_pedido=pedido.motivo_pedido,
+    )
+
+
+def quem_pediu_nao_decide() -> SemPermissao:
+    return SemPermissao("APR-09", "Outra pessoa precisa decidir este pedido")
+
+
+def _travar_pendente(pedido: PedidoAprovacao) -> PedidoAprovacao:
+    travado: PedidoAprovacao = PedidoAprovacao.objects.select_for_update().get(pk=pedido.pk)
+    if travado.status != S.PENDENTE:
+        rotulo = S(travado.status).label.lower()
+        raise TransicaoInvalida(
+            "transicao_pedido",
+            f"Este pedido já foi {rotulo}",
+            {"de": travado.status},
+        )
+    return travado
+
+
+def _decidir(pedido: PedidoAprovacao, decisor: Any, novo: str, motivo: str) -> PedidoAprovacao:
+    """Aprovar ou recusar: quem pediu nunca decide (APR-09), a decisão entra na auditoria
+    (APR-10) e o evento leva a origem a aplicar o efeito na mesma transação."""
+    with transaction.atomic():
+        travado = _travar_pendente(pedido)
+        if travado.solicitante_id == decisor.pk:
+            raise quem_pediu_nao_decide()
+        travado.aprovador = decisor
+        travado.decidido_em = relogio.agora()
+        travado.motivo_recusa = motivo if novo == S.RECUSADO else ""
+        acao = "aprovar" if novo == S.APROVADO else "recusar"
+        estados.transicionar(
+            travado,
+            novo,
+            motivo=motivo,
+            acao=f"pedido_aprovacao.{acao}",
+            regra="APR-10",
+            mais_campos=("aprovador", "decidido_em", "motivo_recusa"),
+        )
+        _publicar_decisao(travado, decisor.pk, motivo)
+    return travado
+
+
+def aprovar(pedido: PedidoAprovacao, decisor: Any, motivo: str = "") -> PedidoAprovacao:
+    return _decidir(pedido, decisor, S.APROVADO, motivo.strip()[:300])
+
+
+def recusar(pedido: PedidoAprovacao, decisor: Any, motivo: str) -> PedidoAprovacao:
+    """Recusar exige motivo (APR-07); o serializer já recusa motivo vazio."""
+    return _decidir(pedido, decisor, S.RECUSADO, motivo.strip()[:300])
+
+
+def cancelar(pedido: PedidoAprovacao, solicitante: Any) -> PedidoAprovacao:
+    """Quem pediu desiste. A origem volta ao estado anterior pelo evento."""
+    with transaction.atomic():
+        travado = _travar_pendente(pedido)
+        if travado.solicitante_id != solicitante.pk:
+            raise SemPermissao("so_quem_pediu", "Só quem fez o pedido pode cancelar")
+        travado.decidido_em = relogio.agora()
+        estados.transicionar(
+            travado,
+            S.CANCELADO,
+            acao="pedido_aprovacao.cancelar",
+            regra="APR-10",
+            mais_campos=("decidido_em",),
+        )
+        _publicar_decisao(travado, solicitante.pk, "")
+    return travado
+
+
 def cancelar_pendentes(*, origem_tipo: str, origem_id: int, motivo: str) -> int:
     """A origem deixou de existir ou mudou: os pendentes ficam `cancelado` e publicam
     `aprovacoes.pedido_decidido`."""
@@ -94,19 +178,15 @@ def cancelar_pendentes(*, origem_tipo: str, origem_id: int, motivo: str) -> int:
             origem_tipo=origem_tipo, origem_id=origem_id, status=S.PENDENTE
         )
         for pedido in pedidos:
+            pedido.decidido_em = relogio.agora()
             estados.transicionar(
-                pedido, S.CANCELADO, motivo=motivo, acao="pedido_aprovacao.cancelar"
-            )
-            publicar(
-                "aprovacoes.pedido_decidido",
-                pedido_id=pedido.pk,
-                tipo=pedido.tipo,
-                status=S.CANCELADO,
-                origem_tipo=pedido.origem_tipo,
-                origem_id=pedido.origem_id,
-                dados=pedido.dados,
-                decidido_por_id=None,
+                pedido,
+                S.CANCELADO,
                 motivo=motivo,
+                acao="pedido_aprovacao.cancelar",
+                regra="APR-10",
+                mais_campos=("decidido_em",),
             )
+            _publicar_decisao(pedido, None, motivo)
             cancelados += 1
     return cancelados
