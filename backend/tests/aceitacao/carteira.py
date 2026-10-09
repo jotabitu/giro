@@ -14,9 +14,14 @@ from zoneinfo import ZoneInfo
 
 from apps.clientes import services as clientes_services
 from apps.clientes.models import Cliente
+from apps.financeiro import selectors as financeiro_selectors
+from apps.financeiro import services as financeiro
 from apps.financeiro.models import ContaReceber
+from apps.locacoes import services as locacoes_services
 from apps.locacoes.models import Locacao
+from apps.veiculos import services as veiculos_services
 from apps.veiculos.models import Veiculo
+from comum.codigos import ajustar_sequencia
 
 from .frota import Frota
 
@@ -40,15 +45,19 @@ PLACAS = {"LOC-2836": "PNB7C04", "LOC-2841": "QXA4B21"}
 DATAS: dict[str, tuple[str, str]] = {
     "LOC-2790": ("2026-08-13 09:00", "2026-09-12 18:00"),
     "LOC-2812": ("2026-09-15 09:00", "2026-10-15 18:00"),
-    "LOC-2836": ("2026-09-30 09:10", "2026-10-07 18:00"),
     "LOC-2841": ("2026-09-23 09:00", "2026-10-28 09:00"),
     "LOC-2848": ("2026-10-06 09:00", "2026-10-10 09:00"),
     "LOC-2850": ("2026-10-01 09:00", "2026-11-01 09:00"),
     "LOC-2856": ("2026-10-07 09:00", "2026-10-21 09:00"),
 }
 FIM_DAS_GERADAS = "2026-11-30 18:00"
-# Caução paga na retirada (a carteira só traz as parcelas): LOC-2836 = 958,00 com ela (LOC-06).
-CAUCOES = {"LOC-2836": ("2026-09-30", 30000)}
+# Locações que passam pela confirmação de verdade (LOC-15), no dia e com o início que as regras
+# dão: o preço sai da tabela vigente na confirmação, e as parcelas e a caução nascem das contas
+# (LOC-2836: início em 30 set, confirmada em 01 out, "Preço da LOC-2836"). Código → (confirmação,
+# início, retirada). A parcela 1 vence em 30 set e é paga na retirada, sem multa (FIN-03, padrão A).
+CONFIRMADAS = {"LOC-2836": ("2026-10-01 09:00", "2026-09-30 09:10", "2026-10-01 09:10")}
+# Fim previsto dado pelas regras ("início em 30 set e fim em 07 out"; `devolve_hoje` em 07 out).
+FIM_DAS_CONFIRMADAS = {"LOC-2836": "2026-10-07 18:00"}
 
 
 def momento(texto: str) -> datetime:
@@ -108,7 +117,65 @@ def _ler(arquivo: str) -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
-def carregar(frota: Frota, vendedor: Any) -> dict[str, Locacao]:
+def _confirmar(
+    codigo: str, linha: dict[str, str], numero: int, frota: Frota, vendedor: Any, relogio: Any
+) -> Locacao:
+    """Rascunho e confirmação pelos serviços, com o relógio no dia da confirmação; a retirada
+    (vistoria, contrato, parcela 1 e caução) no dia seguinte, e a parcela 2 no vencimento."""
+    confirmacao, inicio, retirada = CONFIRMADAS[codigo]
+    agora = relogio.agora
+    veiculo = frota.veiculos[PLACAS[codigo]]
+    # A frota já o traz alugado; a confirmação pede o veículo livre, e a retirada o aluga.
+    veiculos_services.transicionar(
+        veiculo,
+        "disponivel",
+        origem=veiculos_services.OrigemDaMudanca("seed", 0, "seed"),
+        motivo="Antes da retirada da LOC-2836",
+    )
+    ultimo = int(codigo.split("-")[1])
+    ajustar_sequencia("LOC", ultimo - 1)
+    relogio.em(confirmacao)
+    locacao = locacoes_services.criar_rascunho(
+        {
+            "cliente_id": _cliente(linha["cliente"], numero).pk,
+            "veiculo_id": veiculo.pk,
+            "periodicidade": PERIODICIDADE[linha["plano"]],
+            "plano_especial_id": None,
+            "inicio": momento(inicio),
+            "periodos": 2,  # as duas parcelas, de 30 set e 07 out (LOC-06)
+            "extras": [],
+            "desconto_pct": "0.00",
+            "forma_pagamento": "pix",
+        },
+        frota.centro,
+        vendedor,
+    )
+    assert locacao.codigo == codigo
+    locacoes_services.confirmar(locacao, vendedor)
+    locacao.fim_previsto = momento(FIM_DAS_CONFIRMADAS[codigo])
+    locacao.save(update_fields=["fim_previsto"])
+    relogio.em(retirada)
+    locacoes_services.registrar_vistoria_saida(locacao, km=veiculo.km_atual)
+    locacoes_services.registrar_contrato_assinado(locacao.pk, relogio.agora)
+    for conta in financeiro_selectors.contas_da_origem("locacao", locacao.pk):
+        if conta.tipo == "caucao" or conta.numero_parcela == 1:
+            financeiro.marcar_paga(conta, forma="pix")
+    segunda = next(
+        c
+        for c in financeiro_selectors.contas_da_origem("locacao", locacao.pk)
+        if c.numero_parcela == 2
+    )
+    financeiro.marcar_paga(
+        segunda,
+        forma="pix",
+        pago_em=datetime.combine(segunda.vencimento, time(10), tzinfo=FUSO),
+    )
+    relogio.em(agora.strftime("%Y-%m-%d %H:%M"))
+    locacao.refresh_from_db()
+    return locacao
+
+
+def carregar(frota: Frota, vendedor: Any, relogio: Any) -> dict[str, Locacao]:
     parcelas: dict[str, list[dict[str, str]]] = defaultdict(list)
     for linha in _ler("parcelas.csv"):
         parcelas[linha["codigo"]].append(linha)
@@ -125,6 +192,9 @@ def carregar(frota: Frota, vendedor: Any) -> dict[str, Locacao]:
         codigo = linha["codigo"]
         categoria = CATEGORIAS[linha["categoria"]]
         veiculo = frota.veiculos[PLACAS[codigo]] if codigo in PLACAS else livres[categoria].pop(0)
+        if codigo in CONFIRMADAS:
+            locacoes[codigo] = _confirmar(codigo, linha, numero, frota, vendedor, relogio)
+            continue
         contas = sorted(parcelas[codigo], key=lambda p: p["vencimento"])
         primeira = date.fromisoformat(contas[0]["vencimento"]) if contas else date(2026, 10, 1)
         inicio, fim = DATAS.get(
@@ -166,21 +236,6 @@ def carregar(frota: Frota, vendedor: Any) -> dict[str, Locacao]:
                 forma="pix" if paga else "",
                 pago_em=datetime.combine(vencimento, time(10), tzinfo=FUSO) if paga else None,
             )
-        if codigo in CAUCOES:
-            dia, valor = CAUCOES[codigo]
-            ContaReceber.objects.create(
-                filial=frota.centro,
-                cliente=locacao.cliente,
-                origem_tipo="locacao",
-                origem_id=locacao.pk,
-                origem_codigo=codigo,
-                tipo="caucao",
-                vencimento=date.fromisoformat(dia),
-                valor_centavos=valor,
-                status="paga",
-                forma="pix",
-                pago_em=momento(f"{dia} 09:10"),
-                observacao="Devolver na entrega",
-            )
         locacoes[codigo] = locacao
+    ajustar_sequencia("LOC", 2855)  # a próxima locação é a LOC-2856
     return locacoes
