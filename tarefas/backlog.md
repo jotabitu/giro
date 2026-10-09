@@ -69,7 +69,7 @@ Levantadas pelo produto em T-059 (08 out 2026):
 
 Levantadas pelo backend em T-015 (09 out 2026):
 
-- [divergência] (T-104, produto → design-system) As telas `Locacoes`, `Locacao-Detalhe` e `Clientes` (`docs/telas/html`) ainda mostram a LOC-2836 com "30 set → hoje 18:00" e "Devolve hoje". Pela decisão B de 09/10 (T-104), ela vai até 14 out 18:00, e em 07 out fica ativa, sem sinal, com a ação Abrir. Ver `tarefas/handoffs/T-104-produto.md`.
+- (T-104) As telas de referência com a LOC-2836 antiga ("Devolve hoje" em 07 out) são corrigidas pelo design-system na T-107.
 - (T-015) O preço da LOC-2836 foi decidido em 09 out 2026 pelo dono do produto: opção A. A LOC-2836 é confirmada em 01 out, com início em 30 set, e paga R$ 329,00 pela tabela da Street a partir de 01 out (`LOC-15`); a tabela não muda. Os dados de referência mudam na T-097 e o teste do CA-015-15 na T-098.
 
 Levantadas pelo backend em T-091 (09 out 2026), para o produto. O código segue o que está entre parênteses:
@@ -240,6 +240,12 @@ Levantadas pelo backend em T-091 (09 out 2026), para o produto. O código segue 
 
 ### T-092 · Troca de veículo durante a locação
 - **Agente:** backend · **Depende de:** T-016, T-091 · **Regras:** LOC-09 · **Pronto quando:** CA-015-18 passa, com o código da regra no nome do teste; a troca abre a vistoria de devolução do veículo antigo e a de saída do novo (T-016).
+
+### T-108 · Detalhe do cliente idêntico à referência
+- **Agente:** frontend · **Depende de:** T-014, T-102 · **Telas:** Cliente-Detalhe (`docs/telas/html/Cliente-Detalhe-Desktop.dc.html` e `Cliente-Detalhe-Mobile.dc.html`) · **Regras:** CLI-01 a CLI-09, AUD-05, AUD-09 · **Pronto quando:** `/clientes/[id]` reproduz a tela de referência no desktop e no celular, com a mesma estrutura, seções, ordem, rótulos, ações e estados, usando os componentes e tokens do design system; os dados vêm de `falso-clientes.ts` no formato de `docs/api/clientes.md` (T-014); a LOC-2836 da Juliana segue a regra (até 14 out, sem "Devolve hoje" em 07 out), e não a tela; o que a tela mostra e o contrato não tem fica com o falso ou desativado e anotado no handoff; teste da tela. Pedido do dono em 09/10.
+
+### T-107 · Telas de referência com a LOC-2836 até 14 out
+- **Agente:** design-system · **Depende de:** T-104 · **Regras:** LOC-06 · **Pronto quando:** as telas `Locacoes`, `Locacao-Detalhe`, `Clientes` e `Cliente-Detalhe` (desktop e celular) em `docs/telas/html` mostram a LOC-2836 como na decisão B de 09/10: de 30 set 18:00 a 14 out 18:00 e, em 07 out, ativa, sem sinal "Devolve hoje", com a ação Abrir; nenhum valor muda; ver `tarefas/handoffs/T-104-produto.md`.
 
 ### T-016 · Vistoria de saída e devolução com acerto
 - **Agente:** backend · **Depende de:** T-015 · **Regras:** VIS-01 a VIS-05, DEV-01 a DEV-06 · **Telas:** Vistoria, Devolucao, Vistoriador
