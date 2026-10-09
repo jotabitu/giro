@@ -219,6 +219,11 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
         "task": "aut_06_vencimento_de_documentos_de_todas",
         "schedule": crontab(hour=7, minute=0),
     },
+    # Rascunho de locação com 24 h sem uso vai para `cancelada` (seção "Locação" das regras).
+    "locacoes_cancelar_rascunhos_sem_uso": {
+        "task": "locacoes_cancelar_rascunhos_sem_uso_de_todas",
+        "schedule": crontab(minute=15),
+    },
     "aut_15_encerrar_acessos_de_suporte_vencidos": {
         "task": "aut_15_encerrar_acessos_de_suporte_vencidos",
         "schedule": crontab(minute="*"),
@@ -254,7 +259,7 @@ GIRO_PEPPER_HMAC = env("GIRO_PEPPER_HMAC")
 # que não existe (USR-05, T-047). Cada entrega acrescenta o seu.
 GIRO_MODULOS_ATIVOS = env.list(
     "GIRO_MODULOS_ATIVOS",
-    default=["aprovacoes", "clientes", "contas", "filiais", "plataforma", "veiculos"],
+    default=["aprovacoes", "clientes", "contas", "filiais", "locacoes", "plataforma", "veiculos"],
 )
 GIRO_PROVEDOR_CEP = env("GIRO_PROVEDOR_CEP", default="falso")
 # Arquivos privados (ADR 0009, AUD-05): "falso" (na memória) em dev e testes; "s3" com um bucket
