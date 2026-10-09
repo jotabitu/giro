@@ -221,9 +221,6 @@ Levantadas pelo backend em T-015 (09 out 2026):
 ### T-093 · Momentos em UTC na API
 - **Agente:** backend · **Depende de:** T-088 · **ADRs:** 0020 · **Pronto quando:** `comum/renderizacao.py` ligado no `REST_FRAMEWORK` como na ADR 0020; os 3 testes de `backend/tests/test_formato_das_datas.py` passam sem `xfail` e a lista de pendentes do teste de varredura fica vazia; contas, aprovações, plataforma, veículos, filiais e clientes saem em `AAAA-MM-DDTHH:MM:SSZ` sem mexer nos serializers; OpenAPI sem mudança. Passos em `tarefas/handoffs/T-088-arquiteto.md`.
 
-### T-097 · Dados de referência: LOC-2836 confirmada em 01 out
-- **Agente:** produto · **Depende de:** T-015 · **Regras:** LOC-06, LOC-15 · **Pronto quando:** a decisão de 09/10 (LOC-2836 confirmada em 01 out, início em 30 set, R$ 329,00 por semana pela tabela da Street de 01 out) está nos "Dados de referência para testes" de `docs/regras-de-negocio.md` e nos critérios que citam a LOC-2836 (`docs/qa/criterios/T-015.md`), com linha em "Decisões de 09 out 2026"; os números da carteira de outubro não mudam.
-
 ### T-098 · Teste do CA-015-15 com a LOC-2836 confirmada em 01 out
 - **Agente:** qa · **Depende de:** T-097 · **Regras:** LOC-15 · **Pronto quando:** `backend/tests/aceitacao/carteira.py` e o teste do CA-015-15 usam a LOC-2836 confirmada em 01 out e calculam R$ 329,00 pela tabela, sem valor dado à mão; sem mudança de código de produção (se falhar, `xfail` com o motivo e aviso ao orquestrador).
 
