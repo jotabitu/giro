@@ -69,7 +69,7 @@ Levantadas pelo produto em T-059 (08 out 2026):
 
 Levantadas pelo backend em T-015 (09 out 2026):
 
-- (T-091) As 2 divergências foram resolvidas na T-106 e as 5 decisões aprovadas pelo dono em 09/10, todas na opção A; regra na T-110 e código na T-111.
+- (T-091) As 2 divergências foram resolvidas na T-106 e as 5 decisões aprovadas pelo dono em 09/10, todas na opção A; regra na T-110 (PR #110) e código na T-111.
 - (T-104) As telas de referência com a LOC-2836 antiga ("Devolve hoje" em 07 out) são corrigidas pelo design-system na T-107.
 - (T-015) O preço da LOC-2836 foi decidido em 09 out 2026 pelo dono do produto: opção A. A LOC-2836 é confirmada em 01 out, com início em 30 set, e paga R$ 329,00 pela tabela da Street a partir de 01 out (`LOC-15`); a tabela não muda. Os dados de referência mudam na T-097 e o teste do CA-015-15 na T-098.
 
@@ -240,11 +240,8 @@ Levantadas pelo backend em T-016 parte 1 (09 out 2026):
 - **Agente:** backend · **Depende de:** T-016 · **Regras:** DEV-01 a DEV-06, LOC-10, LOC-12, LOC-13 · **Telas:** Devolucao · **Pronto quando:** caso LOC-2836 devolve R$ 183,00 e CA-016-09 a 14, 16, 17, 19 e 20 de `docs/qa/criterios/T-016.md` passam, com o código da regra no nome do teste: `POST` devolução; acerto (combustível, avarias, atraso, parcelas, multa e crédito do encerramento antecipado); itens; encerrar (`encerrar()`, reembolso, conta de 3 dias, veículo `disponivel`); recibo em PDF e WhatsApp. "Vai para oficina" (DEV-04) leva o veículo a `em_manutencao`; a OS fica para o módulo de manutenção.
 - **Nota:** a T-016 original foi dividida em 09/10 em T-016 (vistoria) e T-109 (devolução e acerto). CA-016-15 fica na T-092 e CA-016-18 na T-017.
 
-### T-110 · Regras das 5 decisões da T-091
-- **Agente:** produto · **Depende de:** T-106 · **Regras:** LOC-08, LOC-11, LOC-12, LOC-13 · **Pronto quando:** as 5 decisões da T-106 aprovadas pelo dono em 09/10, todas na opção A, saem de "Pontos em aberto" e viram regra, com linha em "Decisões de 09 out 2026" e critérios em `docs/qa/criterios/T-015.md` para os pontos 2 a 5 (renovação de atrasada, diária no encerramento, mensal em 4 semanais, extras na renovação).
-
 ### T-111 · Código das decisões da T-091
-- **Agente:** backend · **Depende de:** T-110, T-109 · **Regras:** LOC-08, LOC-12, LOC-13 · **Pronto quando:** os critérios novos da T-110 passam, com o código da regra no nome do teste: renovação de atrasada começa na hora da renovação e o atraso continua cobrado; diária no encerramento conta blocos de 24 h; mensal em 4 semanais com saldo igual ao do mês à vista e crédito negativo em `cobrar_centavos`; extras da renovação pelo preço de hoje.
+- **Agente:** backend · **Depende de:** T-110, T-109 · **Regras:** LOC-08, LOC-12, LOC-13 · **Pronto quando:** os CA-015-26 a 29 (T-110) passam, com o código da regra no nome do teste: renovação de atrasada começa na hora da renovação e o atraso continua cobrado; diária no encerramento conta blocos de 24 h; mensal em 4 semanais com saldo igual ao do mês à vista e crédito negativo em `cobrar_centavos`; extras da renovação pelo preço de hoje.
 
 ### T-092 · Troca de veículo durante a locação
 - **Agente:** backend · **Depende de:** T-016, T-091 · **Regras:** LOC-09 · **Pronto quando:** CA-015-18 passa, com o código da regra no nome do teste; a troca abre a vistoria de devolução do veículo antigo e a de saída do novo (T-016).
