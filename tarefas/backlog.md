@@ -221,6 +221,12 @@ Levantadas pelo backend em T-015 (09 out 2026):
 ### T-102 · Ficha do veículo idêntica à referência
 - **Agente:** frontend · **Depende de:** T-013, T-079 · **Telas:** Veiculo (`docs/telas/html/Veiculo-Desktop.dc.html` e `Veiculo-Mobile.dc.html`) · **Regras:** VEI-01 a VEI-07 · **Pronto quando:** `/veiculos/[id]` (`FichaVeiculo.tsx`) reproduz a tela de referência no desktop e no celular, com a mesma estrutura, seções, ordem, rótulos, ações e estados, usando os componentes e tokens do design system; os dados vêm de `falso-frota.ts` no formato de `docs/api/veiculos.md` (T-013 e T-079); o que a tela mostra e o contrato não tem fica com o falso ou desativado e anotado no handoff; o design-system confere a fidelidade visual; teste da tela. Pedido do dono em 09/10.
 
+### T-104 · Regra e critérios da LOC-2836 até 14 out
+- **Agente:** produto · **Depende de:** T-103 · **Regras:** LOC-01, LOC-05, LOC-06 · **Pronto quando:** a opção B aprovada pelo dono em 09/10 (LOC-2836 com 2 semanas, de 30 set 18:00 a 14 out 18:00; nenhum valor muda) sai de "Pontos em aberto" e vai para os "Dados de referência" e para "Decisões de 09 out 2026" em `docs/regras-de-negocio.md`; o "devolve hoje", o CA-015-19 e os CA-016-08, 09 e 12 passam para 14 out; em 07 out a LOC-2836 fica ativa sem sinal.
+
+### T-105 · Seed da LOC-2836 até 14 out
+- **Agente:** qa · **Depende de:** T-104, T-091 · **Regras:** LOC-01, LOC-06 · **Pronto quando:** `backend/tests/aceitacao/carteira.py` cria a LOC-2836 com início em 30 set 18:00 e fim calculado pela LOC-01 (14 out 18:00), sem o ajuste do `fim_previsto`; os testes que usam a LOC-2836 seguem os critérios da T-104; sem mudança de código de produção.
+
 ### T-091 · Locação: renovação, atraso, cancelamento e encerramento
 - **Agente:** backend · **Depende de:** T-090 · **Regras:** LOC-08, LOC-10 a LOC-13, FIL-03, APR-02, AUT-02 · **Pronto quando:** CA-015-17 e 19 a 24 e o estorno do CA-015-25 passam, com o código da regra no nome do teste: renovação com aditivo; atraso com `calcular_atraso` e `aut_02`; cancelamento e encerramento antecipado com APR-02, reembolso e comissão estornada.
 
