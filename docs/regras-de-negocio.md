@@ -290,7 +290,7 @@ A locação é o centro do sistema: liga cliente, veículo, contrato, vistorias,
 | `encerrada` | devolução feita e acerto concluído |
 | `cancelada` | cancelada antes ou durante, com aprovação |
 
-Sinais (não são estados, são calculados): `pagamento_atrasado` (alguma parcela vencida e não paga, ex.: LOC-2841), `devolve_hoje` (fim previsto hoje, ex.: LOC-2836), `cancelamento_pendente` (pedido aguardando o gerente, ex.: LOC-2812).
+Sinais (não são estados, são calculados): `pagamento_atrasado` (alguma parcela vencida e não paga, ex.: LOC-2841), `devolve_hoje` (fim previsto hoje, ex.: LOC-2836 em 14 out), `cancelamento_pendente` (pedido aguardando o gerente, ex.: LOC-2812).
 
 **Fluxo da retirada**
 
@@ -307,7 +307,7 @@ Sinais (não são estados, são calculados): `pagamento_atrasado` (alguma parcel
 - `LOC-03` Desconto do vendedor até 5% sem aprovação; acima disso vai para o gerente (`APR-01`).
 - `LOC-04` Caução é cobrada uma vez, na retirada, pelo valor da categoria (motos R$ 300 ou R$ 500, carros R$ 800). Não é receita: fica como valor a devolver até o acerto.
 - `LOC-05` Parcelas são antecipadas. Diária: tudo na retirada. Semanal: 1ª na retirada, depois a cada 7 dias. Mensal: 1ª na retirada, depois a cada mês. Pode ser Pix automático (cobrança recorrente).
-- `LOC-06` Exemplo LOC-2836 (Juliana, semanal R$ 329,00, início em 30 set, confirmada em 01 out): parcela 1 em 30 set, parcela 2 em 07 out, caução R$ 300,00 → total pago R$ 958,00.
+- `LOC-06` Exemplo LOC-2836 (Juliana, semanal R$ 329,00, 2 semanas de 30 set 18:00 a 14 out 18:00, confirmada em 01 out): parcela 1 em 30 set, parcela 2 em 07 out, caução R$ 300,00 → total pago R$ 958,00.
 
 **Durante a locação**
 
@@ -327,6 +327,7 @@ Sinais (não são estados, são calculados): `pagamento_atrasado` (alguma parcel
 **Lista de locações** (`Locacoes`): filtros Todas, Precisam de ação (atraso de devolução, parcela atrasada, aguardando assinatura, cancelamento pendente), Devolvem hoje, Encerradas. O botão de cada linha muda: Cobrar, Receber devolução ou Abrir.
 
 *Mudanças em 07 out 2026 (T-037):* `LOC-11` passou a contar os feriados da filial como dias fechados (`FIL-03`).
+*Mudanças em 09 out 2026 (T-104):* a `LOC-06` passou a dizer o período da LOC-2836: 2 semanas, de 30 set 18:00 a 14 out 18:00. Antes, as regras davam o fim em 07 out, o que não fechava com a `LOC-01` e a `LOC-05`. O exemplo do sinal `devolve_hoje` passou a ser a LOC-2836 em 14 out. Decisão do dono do produto em 09 out 2026 (opção B do ponto em aberto "Fim previsto da LOC-2836", aberto na T-103).
 *Mudanças em 07 out 2026 (T-041):* `LOC-08` passou a dizer que a renovação vale na hora e usa o preço do dia; `LOC-09` ganhou a regra da caução e do acerto único na troca (decisões do dono do produto, itens 17 e 18). `LOC-02` não mudou: o extra é por período, e a tela que mostra valor por dia vai para a T-028 (item 16).
 
 ## Vistoria e devolução
@@ -565,7 +566,8 @@ Planos especiais: Entregador R$ 279,00/semana (km livre, troca de óleo inclusa)
 | Contadores do menu em 07 out (Mariana) | parcelas de Carlos e Rafael atrasadas; despesa dos pneus aguardando aprovação | Contas a receber 2; Despesas 1; Conciliação e Comissões sem número (fase 2) | `FIN-15`, `FIN-05` |
 | Encerramento antecipado LOC-2812 | NMax mensal 1.590,00; pedido em 07 out; fim 15 out | multa R$ 84,80; devolve R$ 286,20 | `LOC-12`, `LOC-13` |
 | Preço antigo LOC-2841 | Carlos, CG 160 Fan, semanal de 23 set a 28 out (5 parcelas: 23 set paga, 30 set atrasada, 07 out vence hoje, 14 e 21 out), assinado em 23 set, quando a Street semanal era 299,40 (passou a 329,00 em 01 out) | parcelas continuam R$ 299,40 | `LOC-15` |
-| Preço da LOC-2836 | Juliana, Factor 150 (PNB7C04), semanal com início em 30 set e fim em 07 out; confirmada em 01 out, quando a Street semanal já era 329,00; retirada (vistoria de saída, contrato e 1º pagamento) em 01 out | parcelas de R$ 329,00, vencendo em 30 set e 07 out, pela tabela de 01 out | `LOC-15` |
+| Preço da LOC-2836 | Juliana, Factor 150 (PNB7C04), semanal de 2 semanas, de 30 set 18:00 a 14 out 18:00; confirmada em 01 out, quando a Street semanal já era 329,00; retirada (vistoria de saída, contrato e 1º pagamento) em 01 out | parcelas de R$ 329,00, vencendo em 30 set e 07 out, pela tabela de 01 out | `LOC-15` |
+| Fim previsto da LOC-2836 | Juliana, semanal de 2 semanas com início em 30 set 18:00 (`LOC-01`); relógio em 07 out e em 14 out | fim previsto 14 out 18:00. Em 07 out: `ativa`, sem sinal, ação "Abrir", e nenhuma locação do seed devolve hoje. Em 14 out: `devolve_hoje`, ação "Receber devolução", devolução às 18:00 na agenda; atraso só depois de 14 out 19:00 | `LOC-01`, `LOC-05`, `LOC-10` |
 | Bloqueio | Rafael Sousa, 25 dias de atraso | cliente `bloqueado`, LOC-2790 `devolucao_atrasada` | `CLI-05`, `LOC-10` |
 | Uso do plano | 86 veículos, 1 filial, 5 usuários | 86 de 150, 1 de 3, 5 de 10; sem aviso | `PLT-03` |
 | Implantação da plataforma | 23 empresas em teste | funil 23 → 19 → 17 → 14 → 11 → 8 | `IMP-05` |
@@ -581,6 +583,8 @@ Planos especiais: Entregador R$ 279,00/semana (km livre, troca de óleo inclusa)
 A LOC-2790 continua com uma conta atrasada de R$ 1.347,00, que não sai da tabela de preços (equivale a 30 diárias Urbana). Ela é um valor dado do seed, mantido porque os casos "Em aberto dos clientes" e "Bloqueio" dependem dele.
 
 *Mudanças em 09 out 2026 (T-097):* criada a linha "Preço da LOC-2836", e a `LOC-06` passou a dizer as datas da LOC-2836. Ela começa em 30 set, mas é confirmada em 01 out, e por isso paga R$ 329,00 pela tabela da Street de 01 out (`LOC-15`, divergência do backend na T-015). Como as contas nascem na confirmação, a retirada e o 1º pagamento (parcela 1 e caução) também passam para 01 out; antes, os critérios diziam que ela saiu em 30 set. As parcelas continuam vencendo em 30 set e 07 out, e os números da carteira de outubro não mudam. A multa da parcela 1 paga um dia depois do vencimento está em "Pontos em aberto". Decisão do dono do produto em 09 out 2026 (opção A).
+
+*Mudanças em 09 out 2026 (T-104):* criada a linha "Fim previsto da LOC-2836", e o caso "Preço da LOC-2836" passou a dizer o período: 2 semanas, de 30 set 18:00 a 14 out 18:00. Antes, o fim era 07 out, e o seed forçava esse fim, contra a `LOC-01` (2 semanas a partir de 30 set terminam em 14 out) e a `LOC-05` (a parcela de 07 out paga a semana de 07 a 14 out). Nenhum valor muda: total pago R$ 958,00, caixa de 07 out R$ 1.111,90, carteira de outubro, conciliação e acerto de R$ 183,00 continuam iguais. Mudam só as datas: o "devolve hoje" da LOC-2836 passa de 07 para 14 out, e em 07 out ela fica `ativa`, sem sinal. Decisão do dono do produto em 09 out 2026 (opção B).
 
 ## Decisões de 07 out 2026
 
@@ -627,6 +631,7 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 | Ocupação com mudança de status no meio do dia (T-088) | **A:** vale a fração de dia; alugado às 14:00 conta 0,42 daquele dia (`VEI-06`). | É a medida mais fiel, não precisa escolher entre o dia de entrada e o de saída, e o código da T-013 já faz assim. |
 | Preço da LOC-2836 (T-015) | **A:** a LOC-2836 é confirmada em 01 out, com início em 30 set, e paga R$ 329,00 pela tabela da Street de 01 out; a tabela não muda (`LOC-15`, caso "Preço da LOC-2836"). | O preço é congelado na confirmação, e a Street semanal é R$ 329,00 desde 01 out; os números do seed continuam os mesmos. |
 | Multa da 1ª parcela da LOC-2836 (T-097, T-101) | **A:** conta que nasce vencida só conta multa e juros a partir do dia seguinte ao dia em que nasceu, na locação o dia da confirmação; a parcela 1 da LOC-2836, paga em 01 out, não paga multa nem juros, e o total pago continua R$ 958,00 (`FIN-03`, `LOC-06`). | Quem não tinha como pagar antes de a conta existir não fica em atraso; os números do seed continuam os mesmos. |
+| Fim previsto da LOC-2836 (T-098, T-103, T-104) | **B:** a LOC-2836 tem 2 semanas, de 30 set 18:00 a 14 out 18:00 (`LOC-01`, `LOC-05`, `LOC-06`, caso "Fim previsto da LOC-2836"). Em 07 out ela fica `ativa`, sem sinal, e o "devolve hoje" passa para 14 out. | Nenhum valor muda (total pago R$ 958,00, caixa de 07 out, carteira de outubro, conciliação, acerto de R$ 183,00); mudam só as datas, e o código de produção já calcula esse fim. |
 
 ## Pontos em aberto
 
@@ -634,10 +639,4 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 - [ ] **Busca de marca no INPI**: "Giro" é um nome muito usado (o domínio principal já pertence a outra empresa). Antes de investir na marca, buscar "GIRO" nas classes 42 (software como serviço) e 9 (software), não só 39 e 12, e considerar registrar a marca mista "Giro Locadoras". Se houver conflito, trocar o nome agora sai mais barato.
 - [ ] **Abrir a conta no Asaas** e confirmar as taxas de boleto e cartão para o volume esperado.
 - [x] **Base do "Recebido" da tela `Receber`** (`FIN-15`, T-053). **Decidido em 08 out 2026 pelo dono do produto: A.** A) só as contas que vencem no mês e já foram pagas, para o percentual "do previsto" nunca passar de 100%; B) tudo o que foi pago no mês, inclusive atrasos de meses anteriores (visão de caixa). Padrão: **A**. O dinheiro que entra no dia já aparece no `Caixa`.
-- [ ] **Fim previsto da LOC-2836** (`LOC-01`, `LOC-05`, `LOC-06`, T-098, T-103). As regras dizem que a LOC-2836 é semanal, começa em 30 set, tem 2 parcelas (30 set e 07 out) e termina em 07 out. Isso não fecha: pela `LOC-05` a parcela de 07 out paga a semana de 07 a 14 out, e pela `LOC-01` duas semanas a partir de 30 set terminam em 14 out. As outras semanais do seed já seguem essa conta: LOC-2841, 5 semanas de 23 set a 28 out; LOC-2856, 2 semanas de 07 a 21 out. Hoje o seed força o fim da LOC-2836 para 07 out 18:00. Nenhuma opção mantém ao mesmo tempo o total de R$ 958,00, a parcela de 07 out no caixa e o "devolve hoje" em 07 out: algum desses números muda.
-  - **A) 1 semana, de 30 set a 07 out 18:00.** Uma parcela de R$ 329,00 mais a caução: total pago **R$ 629,00**. Mantém o "devolve hoje" de 07 out (CA-015-16, agenda, CA-015-19 e o acerto de R$ 183,00 em 07 out). Mudam: `LOC-06` e os casos "Total pago LOC-2836", "Preço da LOC-2836" e "Caixa de 07 out" (sai o Pix de R$ 329,00 da 2ª semana; total recebido de R$ 1.111,90 para **R$ 782,90** em 4 entradas; a gaveta continua R$ 281,00); a carteira de outubro (previsto de R$ 52.002,10 em 128 para **R$ 51.673,10 em 127**; recebido de R$ 13.401,70 em 30 para **R$ 13.072,70 em 29**, 25,30%; abas Todas 129 e Pagas 29); a conciliação ("Recebimento LOC-2836 · 2ª semana"); CA-015-15, CA-017-04, a linha 08:02 do caixa na T-017 e CA-017-23. Nas telas, mudam `Caixa`, `Conciliacao` e `Locacao-Detalhe` ("2 semanas", parcela 2, histórico, total).
-  - **B) 2 semanas, de 30 set a 14 out 18:00.** Mantém o total pago de **R$ 958,00**, as duas parcelas, o Pix de 07 out no caixa (R$ 1.111,90), a carteira de outubro, a conciliação e o acerto da devolução (R$ 183,00). Muda só a data: em 07 out a LOC-2836 fica `ativa`, sem sinal, com ação "Abrir", e o "devolve hoje" dela passa para 14 out. Mudam: o exemplo do sinal `devolve_hoje`, o caso "Preço da LOC-2836" (fim em 14 out), CA-015-16 (o `devolve_hoje` da LOC-2836 se confere com o relógio em 14 out), CA-015-19 e CA-016-12 (mesmos valores, datas de 14 e 15 out), CA-016-08 (a devolução das 18:00 sai da agenda de 07 out e vai para a de 14 out), CA-016-09 (devolução em 14 out às 17:40) e, na T-014, o "devolve hoje" da Juliana na lista de clientes. Em 07 out o seed fica sem nenhuma locação que devolve hoje. Nas telas, mudam o "30 set → hoje 18:00" e o "Devolve hoje" em `Locacoes`, `Locacao-Detalhe` e `Clientes`; o "Período 2 semanas" do detalhe já está certo.
-  - **C) 2 semanas, de 23 set a 07 out.** Mantém R$ 958,00 e o "devolve hoje", mas as parcelas passam a vencer em 23 e 30 set: a locação começaria 8 dias antes da confirmação de 01 out, as duas parcelas nasceriam vencidas e seriam pagas juntas em 01 out, e o Pix da 2ª semana sai do caixa de 07 out (as mesmas mudanças de caixa e carteira da opção A). Não recomendado.
-  - Em nenhuma opção muda o código de produção: o cálculo do fim (`LOC-01`) já está certo. Muda o seed: sai o ajuste que força o fim para 07 out, e o início da LOC-2836 passa a 30 set às 18:00, para o fim cair às 18:00 (na opção A, também 1 período em vez de 2, sem o pagamento da parcela 2).
-  - Padrão: **B**. O dinheiro é o que mais aparece nos testes e nas telas, e a opção B não muda nenhum valor. Até a decisão, o seed e os critérios ficam como estão.
 - [ ] **Telas que faltam desenhar:** esqueci a senha, 2 etapas, meu perfil, notificações, contas a pagar separada, multas de trânsito, documentos dos veículos, avarias abertas, pagamento e assinatura pelo cliente final, site de vendas.
