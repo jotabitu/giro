@@ -53,7 +53,7 @@ class EventoAuditoria(models.Model):
     objects = EventoQuerySet.as_manager()
 
     # O próprio evento nunca é auditado; o IP do ator vai inteiro (ADR 0014, item 3).
-    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["ip"]}
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["ip", "ator_nome"]}
 
     class Meta:
         verbose_name = "evento de auditoria"

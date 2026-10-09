@@ -73,8 +73,18 @@ class CampoCifrado(models.TextField):  # type: ignore[type-arg]
                 return ""
             return cripto.decifrar(valor, tipo=campo.tipo, associado=associado(obj))
 
+        def _mesmo_valor(obj: Any, texto: str) -> bool:
+            try:
+                return bool(claro(obj) == texto)
+            except cripto.ErroDeCifra:
+                return False
+
         def definir(obj: Any, valor: str | None) -> None:
             texto = valor or ""
+            # R-05 da T-050: o nonce é aleatório; recifrar o mesmo valor geraria "alterado" falso
+            # na auditoria.
+            if getattr(obj, campo.attname) and _mesmo_valor(obj, texto):
+                return
             cifrado = cripto.cifrar(texto, tipo=campo.tipo, associado=associado(obj))
             setattr(obj, campo.attname, cifrado if texto else "")
             for outro in type(obj)._meta.concrete_fields:

@@ -1,4 +1,4 @@
-"""Documentos brasileiros: normalização e dígitos verificadores (CNPJ; CPF entra com a T-014)."""
+"""Documentos brasileiros: normalização e dígitos verificadores de CPF e CNPJ (CLI-01)."""
 
 import re
 
@@ -23,3 +23,19 @@ def cnpj_valido(valor: str) -> bool:
     primeiro = _digito_cnpj(cnpj[:12])
     segundo = _digito_cnpj(cnpj[:12] + primeiro)
     return cnpj[12:] == primeiro + segundo
+
+
+def _digito_cpf(base: str) -> str:
+    peso_inicial = len(base) + 1
+    resto = sum(int(d) * (peso_inicial - i) for i, d in enumerate(base)) * 10 % 11
+    return "0" if resto == 10 else str(resto)
+
+
+def cpf_valido(valor: str) -> bool:
+    """Aceita com ou sem máscara. Recusa sequência repetida (111.111.111-11)."""
+    cpf = so_digitos(valor)
+    if len(cpf) != 11 or len(set(cpf)) == 1:
+        return False
+    primeiro = _digito_cpf(cpf[:9])
+    segundo = _digito_cpf(cpf[:9] + primeiro)
+    return cpf[9:] == primeiro + segundo

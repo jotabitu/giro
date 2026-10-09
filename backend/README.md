@@ -58,7 +58,7 @@ Ordem de dependência entre apps e eventos de domínio: ADR 0011. Teste: `tests/
 | `rede.py` | `ip_do_cliente(request)`: `X-Forwarded-For` só de proxy em `GIRO_REDES_PROXY`, entrada `xff[-GIRO_PROXIES_CONFIAVEIS]` (ADR 0018) |
 | `autenticacao.py` | `emitir_tokens(usuario, amr=...)` (claims `schema`, `empresa_id`, `amr`), `emitir_pre_2fa`, `conferir_empresa`, `JWTDaEmpresa` (401 `2fa_obrigatorio` sem `otp` para quem `exige_2fa`), `JWTPre2FA`, cookie `__Host-giro_refresh` e `refresh_do_cookie` (ADR 0013) |
 | `permissoes.py` | `EmpresaOperando` e `EscopoDeFilial` (padrão: `X-Filial` fora do escopo dá 403 `USR-07`), `exige_perfil(...)`, `filial_pedida`, `filiais_permitidas`, `registrar_escopo_de_filial` |
-| `leituras.py` | leituras compostas entre apps (ADR 0015): `registrar_anotacao`/`aplicar`/`blocos` e `registrar_contador`/`contar` (contador ausente vale 0) |
+| `leituras.py` | leituras compostas entre apps (ADR 0015): `registrar_anotacao`/`aplicar`/`blocos`, `registrar_contador`/`contar` (contador ausente vale 0) e `registrar_filtro`/`filtro` (filtro ausente é `None`) |
 | `paginacao.py` | envelope `resultados`/`proximo`/`anterior`; extras no mesmo corpo com `get_paginated_response(dados, extras={"contagens": ...})`; `envelope_sem_paginas` para listas curtas |
 | `relogio.py` | `agora()` e `hoje()` (dia em São Paulo): serviços e selectors leem a hora só daqui; nos testes, fixture `relogio` (07 out 2026, 10:00) |
 | `documentos.py` | `so_digitos`, `cnpj_valido` (dígitos verificadores) |

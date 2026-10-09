@@ -125,8 +125,18 @@ def test_classificacao_recusa_campo_inexistente_e_mascara_desconhecida():
 
 
 def test_campo_sensivel_sem_classificacao_e_apontado():
-    falso = _falso("SemClassificar", ["celular", "tipo", "nome_contato"], {})
+    falso = _falso("SemClassificar", ["celular", "tipo", "status_atual"], {})
     assert classificacao.campos_sensiveis_sem_classificacao(falso) == ["celular"]
+
+
+def test_r02_nome_e_pagador_obrigam_a_classificar():
+    """R-02 da T-050: nome de pessoa e pagador não passam calados para a auditoria."""
+    falso = _falso("NomeSolto", ["nome", "nome_contato", "pagador", "tipo"], {})
+    assert classificacao.campos_sensiveis_sem_classificacao(falso) == [
+        "nome",
+        "nome_contato",
+        "pagador",
+    ]
 
 
 def test_mascarar_em_lista_deduz_o_tipo_pelo_nome():

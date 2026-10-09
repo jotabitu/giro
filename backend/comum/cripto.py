@@ -34,6 +34,7 @@ _CONFIG_DAS_CHAVES = {
 }
 _FORMATO = re.compile(r"^v(\d+):([A-Za-z0-9+/=]+)$")
 TAMANHO_NONCE = 12
+TAMANHO_ETIQUETA = 16
 TAMANHO_CHAVE = 32
 
 
@@ -90,10 +91,16 @@ def decifrar(valor: str, *, tipo: str, associado: bytes) -> str:
     chave = _chaves(tipo).get(int(achado.group(1)))
     if chave is None:
         raise ErroDeCifra("A chave deste valor cifrado não está configurada.")
-    bruto = base64.b64decode(achado.group(2))
+    try:
+        bruto = base64.b64decode(achado.group(2), validate=True)
+    except ValueError as erro:
+        raise ErroDeCifra("Valor cifrado fora do formato.") from erro
+    # R-05 da T-050: nonce e etiqueta do GCM incompletos são adulteração, não erro genérico.
+    if len(bruto) <= TAMANHO_NONCE + TAMANHO_ETIQUETA:
+        raise ErroDeCifra("Valor cifrado truncado.")
     try:
         claro = AESGCM(chave).decrypt(bruto[:TAMANHO_NONCE], bruto[TAMANHO_NONCE:], associado)
-    except InvalidTag as erro:
+    except (InvalidTag, ValueError) as erro:
         raise ErroDeCifra("O valor cifrado não pertence a este registro.") from erro
     return claro.decode()
 

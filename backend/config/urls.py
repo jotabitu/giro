@@ -15,6 +15,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("api/", include(urls_assinatura)),
     path("api/", include("apps.filiais.api.urls")),
     path("api/", include("apps.veiculos.api.urls")),
+    path("api/", include("apps.clientes.api.urls")),
     path("api/", include("apps.aprovacoes.api.urls")),
 ]
 

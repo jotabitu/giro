@@ -19,6 +19,7 @@ O provedor vem de `GIRO_ARMAZENAMENTO`: `falso` (na memória, desenvolvimento e 
 
 import hashlib
 import hmac
+import io
 import os
 import secrets
 import uuid
@@ -75,6 +76,37 @@ def validar(arquivo: Any, campo: str = "arquivo") -> Formato:
     if formato is None or extensao not in EXTENSOES_ACEITAS:
         raise ErroDeValidacao({campo: [MENSAGEM_FORMATO]})
     return formato
+
+
+def sem_metadados(arquivo: Any, formato: Formato) -> Any:
+    """Foto (JPG ou PNG) reprocessada: só os pixels, sem EXIF, GPS nem texto embutido (AUD-05).
+
+    PDF volta como veio. Imagem que não abre: 400 `validacao`, como formato errado.
+    """
+    if formato.extensao == "pdf":
+        arquivo.seek(0)
+        return arquivo
+    from PIL import Image, ImageOps, UnidentifiedImageError
+
+    arquivo.seek(0)
+    try:
+        with Image.open(arquivo) as original:
+            original.load()
+            # A orientação do EXIF vai para os pixels antes de o EXIF sair.
+            imagem = ImageOps.exif_transpose(original)
+            limpa = Image.new(imagem.mode, imagem.size)
+            limpa.paste(imagem)
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as erro:
+        raise ErroDeValidacao({"arquivo": [MENSAGEM_FORMATO]}) from erro
+    saida = io.BytesIO()
+    if formato.extensao == "jpg":
+        if limpa.mode not in ("RGB", "L"):
+            limpa = limpa.convert("RGB")
+        limpa.save(saida, format="JPEG", quality=90)
+    else:
+        limpa.save(saida, format="PNG")
+    nome = f"{os.path.splitext(arquivo.name or 'arquivo')[0]}.{formato.extensao}"
+    return ContentFile(saida.getvalue(), name=nome)
 
 
 def caminho_privado(instancia: models.Model, nome: str) -> str:

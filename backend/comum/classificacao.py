@@ -43,6 +43,9 @@ SEGMENTOS_SENSIVEIS = frozenset(
         "logradouro",
         "nascimento",
         "ip",
+        # R-02 da T-050: nome de pessoa e pagador também obrigam a decidir (ADR 0014).
+        "nome",
+        "pagador",
     }
 )
 

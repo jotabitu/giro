@@ -12,6 +12,7 @@ As pendências de regra foram decididas em 07 out 2026 (seção "Decisões de 07
 - (T-013) A transferência de veículo com categoria só da filial (`VEI-04`) foi decidida em 08 out 2026 pelo dono do produto: opção B, recomendada pelo produto (na transferência, pedir a categoria do destino só quando a atual não vale lá). Virou regra na T-082 (PR #71) e vira código na T-083.
 - (T-081) Aprovar uma correção de km (`APR-06`) depois que outra leitura mudou o km foi decidido em 08 out 2026 pelo dono do produto: fica como está. A aprovação responde 409 `km_mudou`, o pedido continua pendente, e o gerente recusa e pede de novo com o km atual. Assim a leitura mais nova não é apagada. O produto registra a regra na próxima tarefa de regras de veículos.
 - (T-079) Documento (CRLV ou seguro) que vence com o veículo `reservado` ou em `manutencao` foi decidido em 08 out 2026 pelo dono do produto: as duas coisas juntas. A `AUT-06` gera tarefa urgente aos gerentes, como no `alugado`, e a retirada é recusada até renovar. Virou regra na T-084 (PR #76); a tarefa urgente vai na T-085 e a recusa da retirada na T-016.
+- [decisão] (T-014, backend → produto) Duas leituras de `CLI-02` e `CLI-09` feitas no código, para confirmar: (1) CNH C, D ou E aluga carro, porque pela lei (CTB, art. 143) elas incluem a B; AB, AC, AD e AE alugam moto e carro. A regra só diz "categoria A para moto, B para carro". (2) Cliente `bloqueado` não pode ser inativado (409 `transicao_cliente`): primeiro desbloqueia. A `CLI-09` não fala do bloqueado.
 
 A dúvida da segurança S-02 (T-032: o suporte Giro vê CPF e CNH completos?) foi decidida em 07 out 2026 e virou a regra `AUD-09` (mascarado, nunca completo).
 
@@ -213,10 +214,6 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - **Agente:** backend · **Prioridade:** antes da T-013
 - **Depende de:** T-012, T-064
 - **Pronto quando:** F-01 (permissões de administrador somam às padrão, sem perder `EmpresaOperando` e `EscopoDeFilial`; teste de arquitetura no urlconf da empresa), F-02 (`filial_da_requisicao` distingue "todas" de pessoa sem filial, que recebe 403 `USR-07`; o arquiteto confere a interface interna), F-04 (limite por IP sem chave vazia quando falta o IP e com IPv6 agrupado por prefixo; o devops confere o `REMOTE_ADDR` atrás do proxy) e F-05 (limite na busca de CEP) corrigidos, cada um com teste que reproduz o achado; detalhes em `docs/seguranca/2026-10-09-t058-t012.md`.
-
-### T-014 · Clientes, documentos, bloqueio, LGPD
-- **Agente:** backend · **Depende de:** T-011, T-033 · **Segurança:** S-07, upload validado pelo conteúdo (S-12) · **Regras:** CLI-01 a CLI-08, AUD-04, AUD-05 · **Telas:** Clientes, Cliente · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-014.md` (CA-014-01 a 22; os marcados [integração] voltam no seed completo da T-019) passam, com o código da regra no nome do teste.
-- **Também:** R-02 e R-05 da revisão T-050 (`docs/seguranca/2026-10-08-codigo-t033.md`).
 
 ### T-015 · Locação: reserva, contrato, ciclo de status
 - **Agente:** backend · **Depende de:** T-013, T-014 · **Segurança:** token de assinatura com prazo e uso único, S-09 no `ModeloContrato` (S-15) · **Regras:** LOC-01 a LOC-13 · **Telas:** Locacao, Locacoes, Locacao-Detalhe, Contratos-Modelos · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-015.md` (CA-015-01 a 25) passam, com o código da regra no nome do teste.

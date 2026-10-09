@@ -50,6 +50,9 @@ class Plano(ModeloBase, ModeloAtivavel):
     recursos = models.JSONField(default=list, blank=True)
     ordem = models.PositiveSmallIntegerField(default=0)
 
+    # Nome de coisa, não de pessoa (R-02 da T-050): vai inteiro para a auditoria.
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["nome"]}
+
     class Meta:
         verbose_name = "plano"
         ordering = ["ordem", "id"]
@@ -142,7 +145,12 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
     # O responsável é funcionário da locadora (o administrador): vai inteiro, como o
     # nome e o e-mail do `Usuario` (ADR 0014, item 3).
     CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
-        "inteiro": ["responsavel_email", "responsavel_telefone"],
+        "inteiro": [
+            "nome_exibicao",
+            "responsavel_nome",
+            "responsavel_email",
+            "responsavel_telefone",
+        ],
     }
 
     class Meta:
