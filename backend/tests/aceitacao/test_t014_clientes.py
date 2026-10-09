@@ -23,6 +23,7 @@ from apps.auditoria.models import EventoAuditoria
 from apps.clientes import selectors
 from apps.clientes.models import Cliente, DocumentoCliente
 from apps.contas.models import Usuario
+from apps.locacoes import leituras as locacoes_leituras
 from apps.plataforma.models import Empresa
 from apps.plataforma.services import abrir_acesso_suporte
 from comum import arquivos, eventos, leituras
@@ -790,7 +791,9 @@ def test_cli_09_ca_014_18_inativar_e_reativar(moto):
             "venda_aberta": False,
         }
     finally:
+        # Volta o fornecedor de verdade de `locacoes` (T-015).
         leituras.remover_contador(selectors.ALVO, "locacao_aberta")
+        locacoes_leituras.registrar()
 
 
 # --- Lista (CLI-06, CLI-07) ---
@@ -840,6 +843,7 @@ def fornecedores_falsos():
         leituras._anotacoes[selectors.ALVO].remove(anotacao)
     leituras.remover_filtro(selectors.ALVO, "com_locacao")
     leituras.remover_filtro(selectors.ALVO, "em_aberto")
+    locacoes_leituras.registrar()  # volta o filtro de verdade de `locacoes` (T-015)
 
 
 def _seed_da_lista(moto: MotoRapida) -> None:
@@ -908,7 +912,7 @@ def test_cli_06_ca_014_21_contagens_e_indicadores(moto):
     corpo = _lista(moto)
     assert corpo["contagens"] == {
         "todos": 7,
-        "com_locacao": None,
+        "com_locacao": 0,  # o filtro de `locacoes` existe desde a T-015
         "em_aberto": None,
         "bloqueados": 1,
         "incompletos": 1,
@@ -916,7 +920,7 @@ def test_cli_06_ca_014_21_contagens_e_indicadores(moto):
     }
     assert corpo["indicadores"] == {
         "novos_no_mes_anterior": 0,
-        "com_locacao_pct": None,
+        "com_locacao_pct": "0.00",
         "em_aberto_total_centavos": None,
     }
     assert _lista(moto, situacao="com_locacao")["resultados"] == []

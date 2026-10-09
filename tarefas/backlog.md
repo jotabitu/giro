@@ -66,6 +66,10 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - [divergência] Contratos (T-059, para o arquiteto): em `docs/api/financeiro.md`, o caixa de exemplo passa a 111190 (cartão 10900); em `docs/api/painel.md`, `caixa_hoje` fica com `recebido_centavos` 111190 e `saldo_dia_centavos` 106390; em `docs/api/veiculos.md`, a LOC-2841 é "assinada em 23 set".
 
 
+Levantadas pelo backend em T-015 (09 out 2026):
+
+- [divergência] Preço da LOC-2836 (para o produto): a Juliana paga R$ 329,00 por semana desde 30 set (`LOC-06`, carteira de outubro), mas pela tabela do seed a Street semanal era R$ 299,40 até 30 set e só passou a R$ 329,00 em 01 out (`LOC-15`, CA-015-05, o mesmo motivo da LOC-2841). Confirmada em 30 set, ela teria parcelas de R$ 299,40 e total pago de R$ 898,80. Proposta: a LOC-2836 ser confirmada em 01 out (com início em 30 set), ou o preço novo valer desde 30 set. Até a decisão, o teste do CA-015-15 lê a LOC-2836 da carteira, com os valores dados.
+
 ## Fase 0 · Fundação
 
 ### T-001 · Esqueleto do backend

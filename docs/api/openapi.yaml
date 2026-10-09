@@ -1569,6 +1569,325 @@ paths:
               schema:
                 $ref: '#/components/schemas/MinhasFiliais'
           description: ''
+  /api/locacoes/:
+    get:
+      operationId: locacoes_list
+      summary: Locações (LOC-07, LOC-10)
+      parameters:
+      - in: query
+        name: aba
+        schema:
+          type: string
+          enum:
+          - abertas
+          - canceladas
+          - devolvem_hoje
+          - encerradas
+          - precisam_acao
+          - rascunhos
+      - in: query
+        name: busca
+        schema:
+          type: string
+      - in: query
+        name: cliente
+        schema:
+          type: integer
+      - in: query
+        name: ordem
+        schema:
+          type: string
+          enum:
+          - -inicio
+          - fim_previsto
+      - in: query
+        name: periodicidade
+        schema:
+          type: string
+          enum:
+          - diaria
+          - mensal
+          - semanal
+      - in: query
+        name: plano_especial
+        schema:
+          type: integer
+      - in: query
+        name: veiculo
+        schema:
+          type: integer
+      tags:
+      - locacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeLocacoes'
+          description: ''
+    post:
+      operationId: locacoes_create
+      summary: Criar rascunho (LOC-01 a LOC-05)
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocacaoEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LocacaoEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LocacaoEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocacaoDetalhe'
+          description: ''
+  /api/locacoes/{id}/:
+    get:
+      operationId: locacoes_retrieve
+      summary: Detalhe da locação
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocacaoDetalhe'
+          description: ''
+    patch:
+      operationId: locacoes_partial_update
+      summary: Editar rascunho (409 fora de rascunho)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedLocacaoEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedLocacaoEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedLocacaoEntrada'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocacaoDetalhe'
+          description: ''
+  /api/locacoes/{id}/confirmar/:
+    post:
+      operationId: locacoes_confirmar_create
+      summary: Confirmar (LOC-03, LOC-15, IMP-04, FIL-05, APR-01, FIN-09)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmarLocacao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ConfirmarLocacao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ConfirmarLocacao'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocacaoDetalhe'
+          description: ''
+  /api/locacoes/{id}/historico/:
+    get:
+      operationId: locacoes_historico_retrieve
+      summary: Linha do tempo da locação
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoricoLocacao'
+          description: ''
+  /api/locacoes/simular/:
+    post:
+      operationId: locacoes_simular_create
+      summary: Simular (não grava nada; LOC-01 a LOC-05, LOC-14, LOC-15)
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LocacaoEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LocacaoEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LocacaoEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulacaoLocacao'
+          description: ''
+  /api/planos-especiais/:
+    get:
+      operationId: planos_especiais_retrieve
+      summary: Planos especiais (LOC-01)
+      parameters:
+      - in: query
+        name: ativo
+        schema:
+          type: string
+          enum:
+          - 'false'
+          - todos
+          - 'true'
+      tags:
+      - planos-especiais
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDePlanosEspeciais'
+          description: ''
+    post:
+      operationId: planos_especiais_create
+      summary: Criar plano especial (LOC-01, LOC-15)
+      tags:
+      - planos-especiais
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanoEspecialEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PlanoEspecialEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PlanoEspecialEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanoEspecial'
+          description: ''
+  /api/planos-especiais/{id}/:
+    patch:
+      operationId: planos_especiais_partial_update
+      summary: Editar plano especial (vale para locações novas, LOC-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - planos-especiais
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPlanoEspecialEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPlanoEspecialEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPlanoEspecialEntrada'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanoEspecial'
+          description: ''
+  /api/planos-especiais/{id}/desativar/:
+    post:
+      operationId: planos_especiais_desativar_create
+      summary: Desativar plano
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - planos-especiais
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanoEspecial'
+          description: ''
   /api/plataforma/auth/2fa/configurar/:
     post:
       operationId: plataforma_auth_2fa_configurar_create
@@ -2773,6 +3092,16 @@ components:
       - duracao_minutos
       - motivo
       - permissao
+    AcaoLocacao:
+      type: object
+      properties:
+        codigo:
+          type: string
+        rotulo:
+          type: string
+      required:
+      - codigo
+      - rotulo
     AcaoPrincipalCliente:
       type: object
       properties:
@@ -2933,6 +3262,40 @@ components:
       - registrar_km
       - transferir
       - voltar_para_frota
+    AcoesLocacao:
+      type: object
+      properties:
+        editar:
+          type: boolean
+        confirmar:
+          type: boolean
+        renovar:
+          type: boolean
+        registrar_devolucao:
+          type: boolean
+        trocar_veiculo:
+          type: boolean
+        cancelar:
+          description: '"direto", "pedir" ou false'
+        imprimir_contrato:
+          type: boolean
+        reenviar_contrato:
+          type: boolean
+        continuar_vistoria:
+          type: boolean
+        receber:
+          type: boolean
+      required:
+      - cancelar
+      - confirmar
+      - continuar_vistoria
+      - editar
+      - imprimir_contrato
+      - receber
+      - reenviar_contrato
+      - registrar_devolucao
+      - renovar
+      - trocar_veiculo
     AlvoCliente:
       type: object
       properties:
@@ -3486,6 +3849,18 @@ components:
         * `ver_proposta` - ver_proposta
         * `ver_locacao` - ver_locacao
         * `nova_locacao` - nova_locacao
+    CodigoMensagemLocacao:
+      type: object
+      properties:
+        codigo:
+          type: string
+        mensagem:
+          type: string
+        link:
+          type: string
+      required:
+      - codigo
+      - mensagem
     Codigos:
       type: object
       properties:
@@ -3507,6 +3882,25 @@ components:
           nullable: true
       required:
       - valor_venda_centavos
+    CondicoesLocacao:
+      type: object
+      properties:
+        vistoria_saida_ok_em:
+          type: string
+          format: date-time
+          nullable: true
+        contrato_assinado_em:
+          type: string
+          format: date-time
+          nullable: true
+        primeiro_pagamento_em:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - contrato_assinado_em
+      - primeiro_pagamento_em
+      - vistoria_saida_ok_em
     Configurar:
       type: object
       properties:
@@ -3524,6 +3918,13 @@ components:
           type: string
       required:
       - otpauth_uri
+    ConfirmarLocacao:
+      type: object
+      properties:
+        primeiro_vencimento:
+          type: string
+          format: date
+          nullable: true
     ConfirmarSenha:
       type: object
       properties:
@@ -3631,6 +4032,28 @@ components:
       - convites
       - desativados
       - todos
+    ContagensLocacoes:
+      type: object
+      properties:
+        abertas:
+          type: integer
+        precisam_acao:
+          type: integer
+        devolvem_hoje:
+          type: integer
+        encerradas:
+          type: integer
+        canceladas:
+          type: integer
+        rascunhos:
+          type: integer
+      required:
+      - abertas
+      - canceladas
+      - devolvem_hoje
+      - encerradas
+      - precisam_acao
+      - rascunhos
     Contato:
       type: object
       properties:
@@ -3752,6 +4175,23 @@ components:
       properties:
         motivo:
           type: string
+    DescontoLocacao:
+      type: object
+      properties:
+        status:
+          type: string
+        pedido_aprovacao_id:
+          type: integer
+          nullable: true
+        pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+      required:
+      - pct
+      - pedido_aprovacao_id
+      - status
     DespesasLancarEnum:
       enum:
       - todas
@@ -3762,6 +4202,26 @@ components:
         * `todas` - todas
         * `manutencao` - manutencao
         * `nao` - nao
+    DevolucaoPrevista:
+      type: object
+      properties:
+        prevista_para:
+          type: string
+          format: date-time
+          nullable: true
+        faltam_minutos:
+          type: integer
+          nullable: true
+        aviso_atraso:
+          type: string
+        devolucao_id:
+          type: integer
+          nullable: true
+      required:
+      - aviso_atraso
+      - devolucao_id
+      - faltam_minutos
+      - prevista_para
     Documento:
       type: object
       properties:
@@ -4269,6 +4729,25 @@ components:
       - id
       - nome
       - valor_centavos
+    ExtraDaLocacao:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        quantidade:
+          type: integer
+        valor_centavos:
+          type: integer
+        cobranca:
+          type: string
+      required:
+      - cobranca
+      - id
+      - nome
+      - quantidade
+      - valor_centavos
     ExtraEntrada:
       type: object
       properties:
@@ -4284,6 +4763,18 @@ components:
       - cobranca
       - nome
       - valor_centavos
+    ExtraPedidoLocacao:
+      type: object
+      properties:
+        extra_id:
+          type: integer
+        quantidade:
+          type: integer
+          maximum: 20
+          minimum: 1
+          default: 1
+      required:
+      - extra_id
     Feriado:
       type: object
       properties:
@@ -4513,6 +5004,20 @@ components:
       required:
       - id
       - nome
+    FormaPagamentoEnum:
+      enum:
+      - pix
+      - pix_automatico
+      - cartao
+      - boleto
+      - dinheiro
+      type: string
+      description: |-
+        * `pix` - Pix
+        * `pix_automatico` - Pix automático
+        * `cartao` - Cartão
+        * `boleto` - Boleto
+        * `dinheiro` - Dinheiro
     Gerente:
       type: object
       properties:
@@ -4536,6 +5041,15 @@ components:
       required:
       - grupo
       - itens
+    HistoricoLocacao:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemHistoricoLocacao'
+      required:
+      - resultados
     HistoricoStatus:
       type: object
       properties:
@@ -4611,6 +5125,16 @@ components:
       required:
       - id
       - nome
+    IdNomeLocacao:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+      - id
+      - nome
     Implantacao:
       type: object
       properties:
@@ -4664,6 +5188,36 @@ components:
       - com_locacao_pct
       - em_aberto_total_centavos
       - novos_no_mes_anterior
+    IndicadoresLocacoes:
+      type: object
+      properties:
+        ativas:
+          type: integer
+        frota_alugada_pct:
+          type: string
+          nullable: true
+        devolvem_hoje:
+          type: integer
+        devolvem_hoje_ate_12h:
+          type: integer
+        devolucao_atrasada:
+          type: integer
+        devolucao_atrasada_destaque:
+          type: string
+          nullable: true
+        pagamentos_atrasados:
+          type: integer
+        pagamentos_atrasados_centavos:
+          type: integer
+      required:
+      - ativas
+      - devolucao_atrasada
+      - devolucao_atrasada_destaque
+      - devolvem_hoje
+      - devolvem_hoje_ate_12h
+      - frota_alugada_pct
+      - pagamentos_atrasados
+      - pagamentos_atrasados_centavos
     InicioNavegacao:
       type: object
       properties:
@@ -4707,6 +5261,24 @@ components:
         * `ok` - ok
         * `pendente` - pendente
         * `problema` - problema
+    ItemHistoricoLocacao:
+      type: object
+      properties:
+        em:
+          type: string
+          format: date-time
+          nullable: true
+        rotulo:
+          type: string
+        detalhe:
+          type: string
+        tipo:
+          type: string
+      required:
+      - detalhe
+      - em
+      - rotulo
+      - tipo
     ItemNavegacao:
       type: object
       properties:
@@ -4729,6 +5301,16 @@ components:
           minimum: 0
       required:
       - km
+    LinhaSimulacao:
+      type: object
+      properties:
+        rotulo:
+          type: string
+        valor_centavos:
+          type: integer
+      required:
+      - rotulo
+      - valor_centavos
     ListaDeCategorias:
       type: object
       properties:
@@ -4828,6 +5410,29 @@ components:
       - plano
       - proximo
       - resultados
+    ListaDeLocacoes:
+      type: object
+      properties:
+        indicadores:
+          $ref: '#/components/schemas/IndicadoresLocacoes'
+        contagens:
+          $ref: '#/components/schemas/ContagensLocacoes'
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Locacao'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - contagens
+      - indicadores
+      - proximo
+      - resultados
     ListaDeMudancasDePreco:
       type: object
       properties:
@@ -4864,6 +5469,23 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Plano'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - proximo
+      - resultados
+    ListaDePlanosEspeciais:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanoEspecial'
         proximo:
           type: string
           nullable: true
@@ -4935,6 +5557,217 @@ components:
       - contagens
       - proximo
       - resultados
+    Locacao:
+      type: object
+      description: Linha da lista. Para o vistoriador, o detalhe sai sem `pagamento`
+        e sem `_centavos`.
+      properties:
+        id:
+          type: integer
+        codigo:
+          type: string
+        status:
+          type: string
+        cliente:
+          $ref: '#/components/schemas/IdNomeLocacao'
+        veiculo:
+          $ref: '#/components/schemas/VeiculoDaLocacao'
+        periodicidade:
+          type: string
+        plano_especial:
+          allOf:
+          - $ref: '#/components/schemas/IdNomeLocacao'
+          nullable: true
+        inicio:
+          type: string
+          format: date-time
+          nullable: true
+        fim_previsto:
+          type: string
+          format: date-time
+          nullable: true
+        sinais:
+          $ref: '#/components/schemas/SinaisLocacao'
+        situacao:
+          $ref: '#/components/schemas/SituacaoLocacao'
+        pagamento:
+          $ref: '#/components/schemas/PagamentoLocacao'
+        acao_principal:
+          $ref: '#/components/schemas/AcaoLocacao'
+      required:
+      - acao_principal
+      - cliente
+      - codigo
+      - fim_previsto
+      - id
+      - inicio
+      - periodicidade
+      - plano_especial
+      - sinais
+      - situacao
+      - status
+      - veiculo
+    LocacaoDetalhe:
+      type: object
+      description: Linha da lista. Para o vistoriador, o detalhe sai sem `pagamento`
+        e sem `_centavos`.
+      properties:
+        id:
+          type: integer
+        codigo:
+          type: string
+        status:
+          type: string
+        cliente:
+          $ref: '#/components/schemas/IdNomeLocacao'
+        veiculo:
+          $ref: '#/components/schemas/VeiculoDaLocacao'
+        periodicidade:
+          type: string
+        plano_especial:
+          allOf:
+          - $ref: '#/components/schemas/IdNomeLocacao'
+          nullable: true
+        inicio:
+          type: string
+          format: date-time
+          nullable: true
+        fim_previsto:
+          type: string
+          format: date-time
+          nullable: true
+        sinais:
+          $ref: '#/components/schemas/SinaisLocacao'
+        situacao:
+          $ref: '#/components/schemas/SituacaoLocacao'
+        pagamento:
+          $ref: '#/components/schemas/PagamentoLocacao'
+        acao_principal:
+          $ref: '#/components/schemas/AcaoLocacao'
+        filial:
+          $ref: '#/components/schemas/IdNomeLocacao'
+        vendedor:
+          $ref: '#/components/schemas/IdNomeLocacao'
+        periodos:
+          type: integer
+        precos:
+          $ref: '#/components/schemas/PrecosLocacao'
+        desconto:
+          allOf:
+          - $ref: '#/components/schemas/DescontoLocacao'
+          nullable: true
+        extras:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtraDaLocacao'
+        km_saida:
+          type: integer
+          nullable: true
+        km_livre:
+          type: boolean
+        forma_pagamento:
+          type: string
+        parcelamento_mensal:
+          type: string
+          nullable: true
+        primeiro_vencimento:
+          type: string
+          format: date
+          nullable: true
+        condicoes:
+          $ref: '#/components/schemas/CondicoesLocacao'
+        parcelas:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParcelaLocacao'
+        total_pago_centavos:
+          type: integer
+        contrato:
+          nullable: true
+          description: Contrato gerado (T-090)
+        devolucao:
+          $ref: '#/components/schemas/DevolucaoPrevista'
+        trechos:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrechoLocacao'
+        cancelamento:
+          nullable: true
+          description: Cancelamento (T-091)
+        acoes:
+          $ref: '#/components/schemas/AcoesLocacao'
+      required:
+      - acao_principal
+      - acoes
+      - cancelamento
+      - cliente
+      - codigo
+      - condicoes
+      - contrato
+      - devolucao
+      - filial
+      - fim_previsto
+      - forma_pagamento
+      - id
+      - inicio
+      - km_livre
+      - km_saida
+      - parcelamento_mensal
+      - periodicidade
+      - periodos
+      - plano_especial
+      - primeiro_vencimento
+      - sinais
+      - situacao
+      - status
+      - trechos
+      - veiculo
+      - vendedor
+    LocacaoEntrada:
+      type: object
+      properties:
+        cliente_id:
+          type: integer
+        veiculo_id:
+          type: integer
+        periodicidade:
+          $ref: '#/components/schemas/PeriodicidadeEnum'
+        plano_especial_id:
+          type: integer
+          nullable: true
+        inicio:
+          type: string
+          format: date-time
+        periodos:
+          type: integer
+          minimum: 1
+          nullable: true
+        fim_previsto:
+          type: string
+          format: date-time
+          nullable: true
+        extras:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtraPedidoLocacao'
+        desconto_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          default: '0.00'
+        forma_pagamento:
+          $ref: '#/components/schemas/FormaPagamentoEnum'
+        parcelamento_mensal:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/ParcelamentoMensalEnum'
+          - $ref: '#/components/schemas/NullEnum'
+      required:
+      - cliente_id
+      - forma_pagamento
+      - inicio
+      - periodicidade
+      - veiculo_id
     Mensagem:
       type: object
       properties:
@@ -5162,6 +5995,19 @@ components:
         * `caixa` - Caixa
         * `cliente` - Cliente
         * `veiculo` - Veículo
+    PagamentoLocacao:
+      type: object
+      properties:
+        rotulo:
+          type: string
+        tom:
+          type: string
+        em_aberto_centavos:
+          type: integer
+      required:
+      - em_aberto_centavos
+      - rotulo
+      - tom
     PainelEnum:
       enum:
       - todas_filiais
@@ -5174,6 +6020,69 @@ components:
         * `filial` - filial
         * `proprios` - proprios
         * `nao` - nao
+    ParcelaLocacao:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+        numero:
+          type: integer
+          nullable: true
+        total_parcelas:
+          type: integer
+          nullable: true
+        vencimento:
+          type: string
+          format: date
+        valor_centavos:
+          type: integer
+        status:
+          type: string
+        forma:
+          type: string
+          nullable: true
+        pago_em:
+          type: string
+          format: date-time
+          nullable: true
+        observacao:
+          type: string
+          nullable: true
+      required:
+      - forma
+      - id
+      - numero
+      - observacao
+      - pago_em
+      - status
+      - tipo
+      - total_parcelas
+      - valor_centavos
+      - vencimento
+    ParcelaPrevista:
+      type: object
+      properties:
+        numero:
+          type: integer
+        vencimento:
+          type: string
+          format: date
+        valor_centavos:
+          type: integer
+      required:
+      - numero
+      - valor_centavos
+      - vencimento
+    ParcelamentoMensalEnum:
+      enum:
+      - a_vista
+      - quatro_semanais
+      type: string
+      description: |-
+        * `a_vista` - À vista
+        * `quatro_semanais` - 4 parcelas semanais
     Passo:
       type: object
       properties:
@@ -5310,6 +6219,75 @@ components:
           minimum: 0
           nullable: true
         horario: {}
+    PatchedLocacaoEntrada:
+      type: object
+      properties:
+        cliente_id:
+          type: integer
+        veiculo_id:
+          type: integer
+        periodicidade:
+          $ref: '#/components/schemas/PeriodicidadeEnum'
+        plano_especial_id:
+          type: integer
+          nullable: true
+        inicio:
+          type: string
+          format: date-time
+        periodos:
+          type: integer
+          minimum: 1
+          nullable: true
+        fim_previsto:
+          type: string
+          format: date-time
+          nullable: true
+        extras:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtraPedidoLocacao'
+        desconto_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          default: '0.00'
+        forma_pagamento:
+          $ref: '#/components/schemas/FormaPagamentoEnum'
+        parcelamento_mensal:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/ParcelamentoMensalEnum'
+          - $ref: '#/components/schemas/NullEnum'
+    PatchedPlanoEspecialEntrada:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 60
+        periodicidade:
+          $ref: '#/components/schemas/PeriodicidadeEnum'
+        regra:
+          $ref: '#/components/schemas/RegraEnum'
+        preco_centavos:
+          type: integer
+          minimum: 1
+          nullable: true
+        desconto_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        a_partir_do_periodo:
+          type: integer
+          minimum: 1
+          nullable: true
+        categorias:
+          type: array
+          items:
+            type: integer
+        condicoes:
+          type: string
+          default: ''
     PatchedVeiculoEdicao:
       type: object
       properties:
@@ -5489,6 +6467,16 @@ components:
         * `vendedor` - Vendedor
         * `vistoriador` - Vistoriador
         * `financeiro` - Financeiro
+    PeriodicidadeEnum:
+      enum:
+      - diaria
+      - semanal
+      - mensal
+      type: string
+      description: |-
+        * `diaria` - Diária
+        * `semanal` - Semanal
+        * `mensal` - Mensal
     PermissaoExtraDoUsuario:
       type: object
       properties:
@@ -5626,6 +6614,84 @@ components:
       - bloqueado
       - limite
       - usado
+    PlanoEspecial:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        periodicidade:
+          type: string
+        regra:
+          type: string
+        preco_centavos:
+          type: integer
+          nullable: true
+        desconto_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        a_partir_do_periodo:
+          type: integer
+          nullable: true
+        categorias:
+          type: array
+          items:
+            $ref: '#/components/schemas/IdNomeLocacao'
+        condicoes:
+          type: string
+        locacoes_ativas:
+          type: integer
+        ativo:
+          type: boolean
+      required:
+      - a_partir_do_periodo
+      - ativo
+      - categorias
+      - condicoes
+      - desconto_pct
+      - id
+      - locacoes_ativas
+      - nome
+      - periodicidade
+      - preco_centavos
+      - regra
+    PlanoEspecialEntrada:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 60
+        periodicidade:
+          $ref: '#/components/schemas/PeriodicidadeEnum'
+        regra:
+          $ref: '#/components/schemas/RegraEnum'
+        preco_centavos:
+          type: integer
+          minimum: 1
+          nullable: true
+        desconto_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+          nullable: true
+        a_partir_do_periodo:
+          type: integer
+          minimum: 1
+          nullable: true
+        categorias:
+          type: array
+          items:
+            type: integer
+        condicoes:
+          type: string
+          default: ''
+      required:
+      - nome
+      - periodicidade
+      - regra
     PlanoResumo:
       type: object
       properties:
@@ -5825,6 +6891,29 @@ components:
       - mensal_centavos
       - semanal_centavos
       - vigente_desde
+    PrecosLocacao:
+      type: object
+      properties:
+        valor_periodo_centavos:
+          type: integer
+        diaria_centavos:
+          type: integer
+        caucao_centavos:
+          type: integer
+        desconto_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        assinado_em_preco_de:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - assinado_em_preco_de
+      - caucao_centavos
+      - desconto_pct
+      - diaria_centavos
+      - valor_periodo_centavos
     Pronto:
       type: object
       properties:
@@ -5895,6 +6984,14 @@ components:
           type: string
           nullable: true
           maxLength: 20
+    RegraEnum:
+      enum:
+      - preco_fixo
+      - desconto
+      type: string
+      description: |-
+        * `preco_fixo` - Preço fixo
+        * `desconto` - Desconto
     Responsavel:
       type: object
       properties:
@@ -5983,6 +7080,72 @@ components:
             $ref: '#/components/schemas/Sessao'
       required:
       - resultados
+    SimulacaoLocacao:
+      type: object
+      properties:
+        fim_previsto:
+          type: string
+          format: date-time
+          nullable: true
+        periodos:
+          type: integer
+        linhas:
+          type: array
+          items:
+            $ref: '#/components/schemas/LinhaSimulacao'
+        valor_periodo_centavos:
+          type: integer
+        proximos_periodos_centavos:
+          type: integer
+        hoje_na_retirada_centavos:
+          type: integer
+        texto_retirada:
+          type: string
+        parcelas_previstas:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParcelaPrevista'
+        caucao_centavos:
+          type: integer
+        diaria_centavos:
+          type: integer
+        precisa_aprovacao_desconto:
+          type: boolean
+        impedimentos:
+          type: array
+          items:
+            $ref: '#/components/schemas/CodigoMensagemLocacao'
+        avisos:
+          type: array
+          items:
+            $ref: '#/components/schemas/CodigoMensagemLocacao'
+      required:
+      - avisos
+      - caucao_centavos
+      - diaria_centavos
+      - fim_previsto
+      - hoje_na_retirada_centavos
+      - impedimentos
+      - linhas
+      - parcelas_previstas
+      - periodos
+      - precisa_aprovacao_desconto
+      - proximos_periodos_centavos
+      - texto_retirada
+      - valor_periodo_centavos
+    SinaisLocacao:
+      type: object
+      properties:
+        pagamento_atrasado:
+          type: boolean
+        devolve_hoje:
+          type: boolean
+        cancelamento_pendente:
+          type: boolean
+      required:
+      - cancelamento_pendente
+      - devolve_hoje
+      - pagamento_atrasado
     Situacao:
       type: object
       properties:
@@ -6032,6 +7195,19 @@ components:
         * `em_dia` - em_dia
         * `vence_em_breve` - vence_em_breve
         * `vencido` - vencido
+    SituacaoLocacao:
+      type: object
+      properties:
+        codigo:
+          type: string
+        rotulo:
+          type: string
+        tom:
+          type: string
+      required:
+      - codigo
+      - rotulo
+      - tom
     StatusClienteEnum:
       enum:
       - incompleto
@@ -6224,6 +7400,23 @@ components:
           default: ''
       required:
       - filial_destino_id
+    TrechoLocacao:
+      type: object
+      properties:
+        veiculo:
+          type: string
+        inicio:
+          type: string
+          format: date-time
+          nullable: true
+        fim:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - fim
+      - inicio
+      - veiculo
     TrocarSenha:
       type: object
       properties:
@@ -6553,6 +7746,19 @@ components:
       - tipo_veiculo
       - valor_compra_centavos
       - valor_venda_centavos
+    VeiculoDaLocacao:
+      type: object
+      properties:
+        id:
+          type: integer
+        modelo:
+          type: string
+        placa:
+          type: string
+      required:
+      - id
+      - modelo
+      - placa
     VeiculoDetalhe:
       type: object
       properties:
