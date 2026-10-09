@@ -71,6 +71,16 @@ Levantadas pelo backend em T-015 (09 out 2026):
 
 - (T-015) O preço da LOC-2836 foi decidido em 09 out 2026 pelo dono do produto: opção A. A LOC-2836 é confirmada em 01 out, com início em 30 set, e paga R$ 329,00 pela tabela da Street a partir de 01 out (`LOC-15`); a tabela não muda. Os dados de referência mudam na T-097 e o teste do CA-015-15 na T-098.
 
+Levantadas pelo backend em T-091 (09 out 2026), para o produto. O código segue o que está entre parênteses:
+
+- [divergência] CA-015-23, NMax mensal com 6 dias restantes: o critério dá multa de 6360 (20% de 31800), mas a `LOC-12` manda cobrar no mínimo 1 diária da categoria, e a diária da NMax é 7990. Vale a regra: multa e `cobrar_centavos` de 7990. Trocar o critério, ou escolher outro caso em que 20% fique acima da diária.
+- [divergência] Veículos, tabela de transições: falta `reservado` → `disponivel` (reserva cancelada antes da retirada), que o CA-015-22 e `docs/api/locacoes.md` pedem. (O código aceita só pelo cancelamento da locação; "Desbloquear" e "Voltar para a frota" continuam recusando o reservado.)
+- [decisão] `LOC-11`, devolução em horário aberto depois de um fechamento que cortou a tolerância. Ex.: fim no sábado às 11:30, filial fecha às 12:00 e a devolução é na segunda às 08:30. Pela letra, só a devolução fora do horário vale como feita na abertura, e às 08:30 seriam 2 diárias. (O prazo passa para a abertura seguinte mais a tolerância sempre que a filial está fechada no fim previsto ou fecha antes de a tolerância acabar; às 08:30 não há atraso, e o atraso conta da abertura. Os casos do CA-015-20 dão o mesmo resultado nos dois jeitos.)
+- [decisão] `LOC-08`, renovação de uma `devolucao_atrasada`: o contrato diz que o atraso já corrido continua cobrado, mas as parcelas novas começam no fim previsto antigo e cobrem os mesmos dias, o que cobra esses dias duas vezes. (Segue o contrato: o atraso fica guardado e entra em `calcular_atraso`.) Alternativa: as parcelas novas começarem na data da renovação.
+- [decisão] `LOC-12`, diária: "sem multa, cobra só os dias usados". (As diárias não usadas, do dia do encerramento ao fim previsto, voltam ao cliente em `credito_dias`.)
+- [decisão] `LOC-13`, mensal em 4 semanais: o crédito das semanas inteiras supõe o mês pago. (O crédito desconta as semanais do mês em curso que ainda estão em aberto e que o encerramento cancela; nunca fica negativo.)
+- [decisão] `LOC-08`, renovação: (continuam o desconto já dado na locação e os extras por período, pelo valor congelado na confirmação; o plano especial de preço fixo vale pelo preço de hoje, e o de desconto conta os períodos desde o começo da locação.)
+
 ## Fase 0 · Fundação
 
 ### T-001 · Esqueleto do backend

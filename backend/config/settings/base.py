@@ -230,6 +230,11 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
         "task": "aut_06_vencimento_de_documentos_de_todas",
         "schedule": crontab(hour=7, minute=0),
     },
+    # AUT-02: marca a devolução atrasada (LOC-10, LOC-11), de hora em hora.
+    "aut_02_marcar_devolucao_atrasada": {
+        "task": "aut_02_marcar_devolucao_atrasada_de_todas",
+        "schedule": crontab(minute=0),
+    },
     # Rascunho de locação com 24 h sem uso vai para `cancelada` (seção "Locação" das regras).
     "locacoes_cancelar_rascunhos_sem_uso": {
         "task": "locacoes_cancelar_rascunhos_sem_uso_de_todas",

@@ -65,6 +65,33 @@ class ConfirmarLocacaoSerializer(serializers.Serializer[Any]):
     primeiro_vencimento = serializers.DateField(required=False, allow_null=True)
 
 
+class RenovarLocacaoSerializer(serializers.Serializer[Any]):
+    periodos = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    fim_previsto = serializers.DateTimeField(required=False, allow_null=True)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if not attrs.get("periodos") and not attrs.get("fim_previsto"):
+            raise serializers.ValidationError(
+                {"periodos": ["Informe os períodos ou o novo fim previsto."]}
+            )
+        return attrs
+
+
+class SimularCancelamentoSerializer(serializers.Serializer[Any]):
+    data = serializers.DateField(required=False, allow_null=True)  # type: ignore[assignment]
+
+
+class CancelarLocacaoSerializer(serializers.Serializer[Any]):
+    motivo = serializers.CharField(max_length=500)
+    data = serializers.DateField(required=False, allow_null=True)  # type: ignore[assignment]
+    forma_devolucao = serializers.ChoiceField(
+        choices=[("pix", "Pix"), ("estorno_cartao", "Estorno no cartão")],
+        required=False,
+        default="pix",
+        help_text="Como o que foi pago volta ao cliente (LOC-12). Dinheiro sai pelo caixa.",
+    )
+
+
 class PlanoEspecialEntradaSerializer(serializers.Serializer[Any]):
     nome = serializers.CharField(max_length=60)
     periodicidade = serializers.ChoiceField(choices=Periodicidade.choices)
@@ -233,6 +260,18 @@ class AcoesLocacaoSerializer(serializers.Serializer[Any]):
     receber = serializers.BooleanField()
 
 
+class CancelamentoLocacaoSerializer(serializers.Serializer[Any]):
+    status = serializers.ChoiceField(choices=[("pendente", "Pendente"), ("aprovado", "Aprovado")])
+    pedido_aprovacao_id = serializers.IntegerField(allow_null=True)
+    antes_da_retirada = serializers.BooleanField()
+    data = serializers.DateField(allow_null=True)  # type: ignore[assignment]
+    multa_centavos = serializers.IntegerField()
+    credito_centavos = serializers.IntegerField()
+    devolver_centavos = serializers.IntegerField()
+    cobrar_centavos = serializers.IntegerField()
+    motivo = serializers.CharField()
+
+
 class LocacaoDetalheSerializer(LocacaoSerializer):
     filial = IdNomeLocacaoSerializer()
     vendedor = IdNomeLocacaoSerializer()
@@ -251,7 +290,7 @@ class LocacaoDetalheSerializer(LocacaoSerializer):
     contrato = ContratoResumoSerializer(allow_null=True)
     devolucao = DevolucaoPrevistaSerializer()
     trechos = TrechoLocacaoSerializer(many=True)
-    cancelamento = serializers.JSONField(allow_null=True, help_text="Cancelamento (T-091)")
+    cancelamento = CancelamentoLocacaoSerializer(allow_null=True)
     acoes = AcoesLocacaoSerializer()
 
 
@@ -312,3 +351,53 @@ class ListaDePlanosEspeciaisSerializer(serializers.Serializer[Any]):
     resultados = PlanoEspecialSerializer(many=True)
     proximo = serializers.CharField(allow_null=True)
     anterior = serializers.CharField(allow_null=True)
+
+
+# --- Renovação e cancelamento (LOC-08, LOC-12, LOC-13, APR-02) ---
+
+
+class SimulacaoRenovacaoSerializer(serializers.Serializer[Any]):
+    fim_previsto_atual = _momento()
+    fim_previsto = _momento()
+    periodos = serializers.IntegerField()
+    valor_periodo_centavos = serializers.IntegerField()
+    parcelas_novas = ParcelaPrevistaSerializer(many=True)
+    total_centavos = serializers.IntegerField()
+
+
+class PeriodoAtualSerializer(serializers.Serializer[Any]):
+    inicio = serializers.DateField()
+    fim = serializers.DateField()
+    dias = serializers.IntegerField()
+
+
+class CreditoSemanasSerializer(serializers.Serializer[Any]):
+    semanas = serializers.IntegerField()
+    valor_centavos = serializers.IntegerField()
+
+
+class CreditoDiasSerializer(serializers.Serializer[Any]):
+    dias = serializers.IntegerField()
+    valor_centavos = serializers.IntegerField()
+
+
+class SimulacaoCancelamentoSerializer(serializers.Serializer[Any]):
+    antes_da_retirada = serializers.BooleanField()
+    periodo_atual = PeriodoAtualSerializer(allow_null=True)
+    dias_restantes = serializers.IntegerField()
+    valor_restante_centavos = serializers.IntegerField()
+    multa_centavos = serializers.IntegerField()
+    credito_semanas = CreditoSemanasSerializer()
+    credito_dias = CreditoDiasSerializer(help_text="Diária: os dias não usados (LOC-12).")
+    devolver_centavos = serializers.IntegerField()
+    cobrar_centavos = serializers.IntegerField()
+
+
+class PedidoAprovacaoRefSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    tipo = serializers.CharField()
+    status = serializers.CharField()
+
+
+class CancelamentoPedidoSerializer(serializers.Serializer[Any]):
+    pedido_aprovacao = PedidoAprovacaoRefSerializer()

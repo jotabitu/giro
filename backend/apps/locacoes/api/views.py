@@ -26,6 +26,8 @@ from comum.permissoes import com_padrao, exige_perfil, filiais_permitidas, filia
 from .. import contrato, selectors, services
 from ..models import Locacao, PlanoEspecial
 from .serializers import (
+    CancelamentoPedidoSerializer,
+    CancelarLocacaoSerializer,
     ConfirmarLocacaoSerializer,
     HistoricoLocacaoSerializer,
     ListaDeLocacoesSerializer,
@@ -35,7 +37,11 @@ from .serializers import (
     LocacaoSerializer,
     PlanoEspecialEntradaSerializer,
     PlanoEspecialSerializer,
+    RenovarLocacaoSerializer,
+    SimulacaoCancelamentoSerializer,
     SimulacaoLocacaoSerializer,
+    SimulacaoRenovacaoSerializer,
+    SimularCancelamentoSerializer,
 )
 
 CRIAM: list[type[BasePermission]] = com_padrao(exige_perfil("administrador", "gerente", "vendedor"))
@@ -192,6 +198,78 @@ class HistoricoLocacaoView(APIView):
     def get(self, request: Request, pk: int) -> Response:
         itens = selectors.historico(_locacao(request, pk), request.user)
         return Response(HistoricoLocacaoSerializer({"resultados": itens}).data)
+
+
+# --- Renovação e cancelamento (LOC-08, LOC-12, LOC-13, APR-02) ---
+
+
+class SimularRenovacaoView(APIView):
+    permission_classes = CRIAM
+
+    @extend_schema(
+        request=RenovarLocacaoSerializer,
+        responses=SimulacaoRenovacaoSerializer,
+        summary="Simular a renovação (não grava nada; LOC-08, LOC-15)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        dados = _entrada(RenovarLocacaoSerializer, request)
+        simulacao = selectors.simular_renovacao(_locacao(request, pk), dados)
+        return Response(SimulacaoRenovacaoSerializer(simulacao).data)
+
+
+class RenovarLocacaoView(APIView):
+    permission_classes = CRIAM
+
+    @extend_schema(
+        request=RenovarLocacaoSerializer,
+        responses=LocacaoDetalheSerializer,
+        summary="Renovar (mesmo LOC, preço de hoje, aditivo; LOC-08, LOC-15, FIN-09)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        dados = _entrada(RenovarLocacaoSerializer, request)
+        services.renovar(_locacao(request, pk), dados, request.user)
+        return _detalhe(request, pk)
+
+
+class SimularCancelamentoView(APIView):
+    permission_classes = CRIAM
+
+    @extend_schema(
+        request=SimularCancelamentoSerializer,
+        responses=SimulacaoCancelamentoSerializer,
+        summary="Simular o cancelamento ou o encerramento antecipado (LOC-12, LOC-13)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        dados = _entrada(SimularCancelamentoSerializer, request)
+        simulacao = selectors.calcular_encerramento_antecipado(
+            _locacao(request, pk), dados.get("data")
+        )
+        return Response(SimulacaoCancelamentoSerializer(simulacao).data)
+
+
+class CancelarLocacaoView(APIView):
+    permission_classes = CRIAM
+
+    @extend_schema(
+        request=CancelarLocacaoSerializer,
+        responses={200: LocacaoDetalheSerializer, 202: CancelamentoPedidoSerializer},
+        summary="Cancelar: gerente direto, vendedor pede (LOC-12, LOC-13, APR-02)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        dados = _entrada(CancelarLocacaoSerializer, request)
+        pedido = services.cancelar(
+            _locacao(request, pk),
+            request.user,
+            motivo=dados["motivo"],
+            dia=dados.get("data"),
+            forma_devolucao=dados["forma_devolucao"],
+        )
+        if pedido is not None:
+            return Response(
+                CancelamentoPedidoSerializer({"pedido_aprovacao": pedido.como_dict()}).data,
+                status=status.HTTP_202_ACCEPTED,
+            )
+        return _detalhe(request, pk)
 
 
 # --- Contrato (fluxo da retirada, passo 3; docs/api/contratos.md) ---
