@@ -237,7 +237,7 @@ Qualquer outra transição é recusada pelo backend com erro de regra (HTTP 409)
 
 - `VEI-01` Placa e chassi únicos por empresa, em qualquer estado do veículo; chassi com 17 caracteres; km nunca diminui (vistoria com km menor que o anterior é recusada, salvo correção pelo gerente com motivo).
 - `VEI-02` O km do veículo é atualizado a cada vistoria e a cada OS. Ele dispara as preventivas (`MAN-03`).
-- `VEI-03` Documentos: alerta 30 dias antes do vencimento; no dia do vencimento de CRLV ou seguro, o veículo disponível vai para `indisponivel`. Veículo alugado não muda, mas gera tarefa urgente para o gerente.
+- `VEI-03` Documentos: alerta 30 dias antes do vencimento; no dia do vencimento de CRLV ou seguro, o veículo disponível vai para `indisponivel`. Veículo `alugado`, `reservado` ou `em_manutencao` não muda de status, mas gera tarefa urgente para os gerentes da filial (`FIL-02`). A retirada de veículo com CRLV ou seguro vencido é recusada até o documento ser renovado (vistoria de saída, `VIS-01`).
 - `VEI-04` Transferência entre filiais só com o veículo `disponivel`. Grava a filial de origem e destino. É o único jeito de um veículo mudar de filial: a devolução é sempre na filial da locação e a frota não é compartilhada (`FIL-05`). Se a categoria do veículo é só da filial de origem (`FIL-04`), a transferência pede a categoria no destino: uma categoria ativa, do mesmo tipo de veículo, da empresa ou da filial de destino. Sem ela, a transferência é recusada. Categoria da empresa passa direto, e o veículo continua nela. Como só se transfere veículo `disponivel`, nenhuma locação aberta muda de preço: a categoria nova vale a partir da próxima locação (`LOC-01`).
 - `VEI-05` "Rendeu no ano" na ficha = receitas de locação recebidas do veículo − custos de manutenção e despesas ligadas a ele, no ano corrente.
 - `VEI-06` Ocupação = dias alugado ÷ dias que o veículo esteve na frota no período (exclui `a_venda`, `vendido`, `baixado`). Ocupação da frota = média ponderada pelos dias.
@@ -245,6 +245,7 @@ Qualquer outra transição é recusada pelo backend com erro de regra (HTTP 409)
 
 *Mudanças em 07 out 2026 (T-031):* `VEI-01` passou a exigir chassi único, além da placa; criada a `VEI-07`; acrescentadas as transições `vendido` → `a_venda` e `vendido` → `indisponivel`.
 *Mudanças em 07 out 2026 (T-037):* `VEI-04` passou a dizer que a devolução é na filial da locação e que não há frota compartilhada.
+*Mudanças em 08 out 2026 (T-084):* `VEI-03` passou a cobrir o veículo `reservado` ou `em_manutencao` no dia em que vence o CRLV ou o seguro: tarefa urgente aos gerentes, como no `alugado`, e retirada recusada até renovar. Antes, a regra só falava do `disponivel` e do `alugado`, e a reserva podia sair com o documento vencido (dúvida do backend na T-079). Decisão do dono do produto em 08 out 2026.
 *Mudanças em 08 out 2026 (T-082):* `VEI-04` passou a dizer o que acontece com a categoria só da filial de origem: a transferência pede a categoria no destino, e a da empresa passa direto. Antes, o veículo ia para o destino com a categoria e o preço da origem (dúvida do backend na T-013). Decisão do dono do produto em 08 out 2026 (opção B).
 
 ## Clientes
@@ -470,8 +471,10 @@ Tudo que precisa de aprovação usa o mesmo mecanismo: o pedido fica `pendente`,
 - `APR-08` Pedido sem resposta em 4 horas úteis avisa o administrador.
 - `APR-09` Quem pediu não pode aprovar o próprio pedido, mesmo tendo a permissão.
 - `APR-10` Todo pedido, aprovação e recusa entra na auditoria.
+- `APR-11` Aprovar uma correção de km (`APR-06`) depois que outra leitura já mudou o km do veículo é recusado com 409 `km_mudou`, e o pedido continua `pendente`. O gerente recusa o pedido e a correção é pedida de novo a partir do km atual. A leitura mais nova nunca é apagada (`VEI-01`).
 
 *Mudanças em 07 out 2026 (T-041):* `APR-05` passou a ser pedido só pelo vendedor (`CLI-05`).
+*Mudanças em 08 out 2026 (T-084):* criada a `APR-11` (correção de km com o km já mudado), decisão do dono do produto em 08 out 2026 sobre a dúvida do backend na T-081. O comportamento do código não mudou.
 
 ## Automações e notificações
 
@@ -484,7 +487,7 @@ As tarefas automáticas rodam no Celery, por empresa, no fuso `America/Sao_Paulo
 | `AUT-03` | Régua de cobrança do cliente | 09:00 | D-1 lembrete; D0 cobrança com Pix; D+3 e D+7 nova cobrança; D+15 bloqueio (`CLI-05`) | WhatsApp + e-mail |
 | `AUT-04` | Cobrança recorrente | no vencimento | dispara o Pix automático ou cartão | parceiro de pagamento |
 | `AUT-05` | Baixa de pagamentos | ao receber webhook | baixa a conta e envia recibo | WhatsApp |
-| `AUT-06` | Vencimento de documentos | 07:00 | alerta 30 dias antes; aplica `VEI-03` | interno + e-mail ao gerente |
+| `AUT-06` | Vencimento de documentos | 07:00 | alerta 30 dias antes; no dia, aplica `VEI-03`: `disponivel` vai para `indisponivel`; `alugado`, `reservado` e `em_manutencao` geram tarefa urgente aos gerentes | interno + e-mail ao gerente |
 | `AUT-07` | Preventivas | após cada vistoria e 07:00 | aplica `MAN-03` | interno |
 | `AUT-08` | Fechamento automático do caixa | 23:59 | aplica `FIN-08` | interno |
 | `AUT-09` | Aprovação esquecida | a cada hora | aplica `APR-08` | push + e-mail |
@@ -600,6 +603,8 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 | Senha errada na equipe da plataforma (P-03 da T-057) | **5 senhas erradas bloqueiam por 15 minutos**, como no `USR-06` (`PLT-08`). | Sem limite, a senha da equipe podia ser testada sem fim. |
 | Reativar quem teve o convite cancelado (T-069, analisada na T-075) | **B:** quem nunca chegou a `ativo` volta para `convite_pendente`, com convite novo de 7 dias; quem já foi `ativo` volta `ativo`; o limite do plano vale nos dois casos (`USR-04`, `PLT-03`). | Com a opção A, a lista mostrava como ativo quem não tinha senha nem recebeu aviso. |
 | Transferência de veículo com categoria só da filial (T-013) | **B:** a transferência pede a categoria no destino só quando a categoria atual é da filial de origem; categoria da empresa passa direto (`VEI-04`). | Recusar obrigaria a três passos, porque a categoria do destino não pode ser usada na origem; o veículo `disponivel` não tem locação aberta para mudar de preço. |
+| CRLV ou seguro vencido com o veículo `reservado` ou `em_manutencao` (T-079) | **As duas coisas:** tarefa urgente aos gerentes, como no `alugado` (`AUT-06`), e retirada recusada até renovar o documento (`VEI-03`). | A reserva não sai com documento vencido, e o gerente fica sabendo a tempo de renovar antes da retirada. |
+| Correção de km depois que o km já mudou (T-081) | **Fica como está:** 409 `km_mudou`, o pedido continua pendente, o gerente recusa e a correção é pedida de novo (`APR-11`). | A leitura mais nova não é apagada por uma correção pedida antes dela. |
 
 ## Pontos em aberto
 
@@ -608,3 +613,4 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 - [ ] **Abrir a conta no Asaas** e confirmar as taxas de boleto e cartão para o volume esperado.
 - [x] **Base do "Recebido" da tela `Receber`** (`FIN-15`, T-053). **Decidido em 08 out 2026 pelo dono do produto: A.** A) só as contas que vencem no mês e já foram pagas, para o percentual "do previsto" nunca passar de 100%; B) tudo o que foi pago no mês, inclusive atrasos de meses anteriores (visão de caixa). Padrão: **A**. O dinheiro que entra no dia já aparece no `Caixa`.
 - [ ] **Telas que faltam desenhar:** esqueci a senha, 2 etapas, meu perfil, notificações, contas a pagar separada, multas de trânsito, documentos dos veículos, avarias abertas, pagamento e assinatura pelo cliente final, site de vendas.
+- [ ] **Manutenção concluída com CRLV ou seguro vencido** (`VEI-03`, `MAN`, T-084). O veículo `em_manutencao` cujo documento venceu durante a OS recebe só a tarefa urgente. Ao concluir a OS, ele voltaria a `disponivel` com o documento vencido, e a `AUT-06` não roda de novo para ele. A) volta para `indisponivel`, com o motivo do documento, até renovar; B) volta para `disponivel`, e só a retirada é recusada. Padrão: **A**, que é o mesmo efeito do `VEI-03` para o `disponivel`.
