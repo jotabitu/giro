@@ -56,6 +56,19 @@ No Windows, `make` não vem instalado: use Git Bash ou WSL, ou rode os comandos 
 
 CI (T-005), homologação e produção, certificado curinga, backup e Sentry no frontend ficam em tarefas próprias.
 
+## Containers parados no dev (T-099)
+
+Todos os serviços do `docker-compose.yml` têm `restart: unless-stopped`: voltam sozinhos se o processo cair ou o Docker reiniciar. **Não voltam** se alguém os parar de propósito (`docker compose stop`, `make down`, `docker stop`); é o que `unless-stopped` quer dizer.
+
+**Caso de 08 e 09/10 (frontend com `npm error signal SIGTERM`).** Não foi falha do Next: `OOMKilled=false`, `ExitCode=0`, sem erro antes do SIGTERM no log. Em 09/10 os seis containers do projeto `giro` pararam entre 12:12:27Z e 12:12:31Z, na ordem inversa das dependências (frontend, beat, backend e worker, depois db e redis; db e redis saíram com 0, o worker com 137 por não encerrar a tempo). Essa sequência é a de um `docker compose stop` ou `down` no projeto, não a de uma queda. O Docker Desktop (iniciado em 08/10 10:57) e o Windows (boot de 08/10 10:49) não reiniciaram nesse intervalo. Quem emitiu o comando não dá para saber pelos containers.
+
+**Causa provável (hipótese, não provada):** o Compose nomeia o projeto pela pasta. Um `make up`, `make down` ou `make check` rodado em qualquer pasta chamada `giro` (a cópia principal, ou o worktree que o orquestrador usa) mexe nos mesmos containers e volumes de quem está com o ambiente de pé. Os containers `backend`, `worker` e `beat` foram recriados em 09/10 08:24, sinal de outro `up` no mesmo projeto.
+
+**Como evitar:**
+- Agente que só precisa testar usa outro nome e outras portas, por exemplo `COMPOSE_PROJECT_NAME=giro-<agente> PORTA_BACKEND=18000 PORTA_FRONTEND=13000 PORTA_POSTGRES=15432 PORTA_REDIS=16379 make backend-check`. `make down` só no projeto que você mesmo subiu.
+- Se o ambiente parou, `docker compose -p giro start` volta os containers existentes sem recriar.
+- Para saber quem parou, na hora: `docker events --since 10m --filter container=<nome>` mostra o `kill`/`stop` e o ator do comando; `docker inspect <nome> --format '{{.State.FinishedAt}} {{.State.ExitCode}} {{.State.OOMKilled}}'` separa queda de parada.
+
 ## Papéis de banco (ADR 0016, T-043)
 
 | Papel | Uso | Variável |

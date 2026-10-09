@@ -147,15 +147,10 @@ export function ListaVeiculos() {
         <div className="flex w-full flex-wrap items-center gap-3 md:ml-auto md:w-auto">
           <SearchField placeholder="Buscar placa, modelo ou chassi" value={busca} onChange={(e) => setBusca(e.target.value)} />
           {eu.pode.veiculos === "editar" && (
-            <>
-              <Link href="/veiculos/novo" className="wl-btn wl-btn--solid hidden md:inline-flex">
-                <Icone de={Plus} />
-                Cadastrar veículo
-              </Link>
-              <Link href="/veiculos/novo" aria-label="Cadastrar veículo" className="wl-icon-btn bg-solid text-on-solid md:hidden">
-                <Icone de={Plus} />
-              </Link>
-            </>
+            <Link href="/veiculos/novo" className="wl-btn wl-btn--solid">
+              <Icone de={Plus} />
+              Cadastrar veículo
+            </Link>
           )}
         </div>
       </header>
