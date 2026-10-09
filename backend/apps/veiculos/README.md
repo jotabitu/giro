@@ -48,7 +48,7 @@ Contrato da API: `docs/api/veiculos.md` (escrito pelo arquiteto antes da impleme
 - `services.enviar_documento`, `situacao_do_documento` (no dia da validade já é `vencido`) e a recusa 422 `VEI-03` do `desbloquear` com CRLV ou seguro ativo vencido.
 - `services.aplicar_vencimento_de_documentos` e a tarefa `aut_06_vencimento_de_documentos` (Beat às 07:00, uma por empresa):
   - 30 dias antes, alerta no sino dos gerentes da filial (`FIL-02`), uma vez por documento, e o evento `veiculos.documento_vencendo`;
-  - no dia, CRLV ou seguro: `disponivel` vai para `indisponivel` ("Seguro vencido"), com a origem `documento`; `alugado` não muda e os gerentes recebem uma tarefa urgente.
+  - no dia, CRLV ou seguro: `disponivel` vai para `indisponivel` ("Seguro vencido"), com a origem `documento`; `alugado`, `reservado` e `em_manutencao` não mudam, e os gerentes recebem uma tarefa urgente (T-085).
 - `selectors.resumos_de_documentos` (o `documentos_resumo` da ficha e da lista) e `representacao_documento`, com a URL assinada nova a cada leitura.
 - Rotas: `GET` e `POST /api/veiculos/{id}/documentos/` (multipart) e `GET .../documentos/historico/`.
 

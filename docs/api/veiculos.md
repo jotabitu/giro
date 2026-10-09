@@ -219,5 +219,5 @@ Planos especiais (`Entregador`, `Mensal fidelidade`) aparecem na tela `Precos`, 
 | `veiculos.services.receber_na_troca(chassi, dados)` | venda com troca (`VEN-05`, `VEI-07`). |
 | `veiculos.selectors.preco_vigente(categoria, data)` | `LOC-01`, `LOC-15`. |
 | evento `veiculos.km_atualizado` | assinado por `manutencao` (preventivas, `MAN-03`). |
-| evento `veiculos.documento_vencendo` / tarefa `aut_06_vencimento_de_documentos` | `VEI-03`, `AUT-06`: 30 dias antes avisa; no dia, CRLV ou seguro vencido leva `disponivel` → `indisponivel`; veículo alugado não muda e gera tarefa urgente para o gerente. |
+| evento `veiculos.documento_vencendo` / tarefa `aut_06_vencimento_de_documentos` | `VEI-03`, `AUT-06`: 30 dias antes avisa; no dia, CRLV ou seguro vencido leva `disponivel` → `indisponivel`; veículo `alugado`, `reservado` ou `em_manutencao` não muda e gera tarefa urgente para os gerentes da filial (`FIL-02`). |
 | anotações de leitura fornecidas | `indicadores` de `Filial` (`veiculos`, `ocupacao_pct`), ver `filiais.md`. |

@@ -758,6 +758,45 @@ def test_vei_03_aut_06_ca_013_18_vencimento_tira_da_frota_disponivel(moto, frota
     assert sak.historico.filter(para="indisponivel").count() == 1
 
 
+def test_vei_03_aut_06_ca_013_28_reservado_ou_em_manutencao_no_vencimento(moto, frota, relogio):
+    rht, pmz = frota.veiculos["RHT9F02"], frota.veiculos["PMZ3E17"]
+    assert (rht.status, pmz.status) == ("reservado", "em_manutencao")
+    _documento(rht, "crlv", "2026-10-25")
+    _documento(pmz, "seguro", "2026-10-25")
+    _documento(rht, "ipva", "2026-10-25")
+    _documento(pmz, "rastreador", "2026-10-25")
+    rodrigo = moto.pessoas["Rodrigo"]
+
+    # 30 dias antes, os quatro só geram alerta.
+    relogio.em("2026-09-25 07:00")
+    aut_06_vencimento_de_documentos("empresa_a")
+    assert _avisos(rodrigo) == [("documento_vencendo", False)] * 4
+
+    # No dia: os dois continuam como estão, e os gerentes recebem uma tarefa urgente para cada um.
+    relogio.em("2026-10-25 07:00")
+    aut_06_vencimento_de_documentos("empresa_a")
+    rht.refresh_from_db()
+    pmz.refresh_from_db()
+    assert (rht.status, pmz.status) == ("reservado", "em_manutencao")
+    urgentes = Notificacao.objects.filter(destinatario=rodrigo, urgente=True).order_by("id")
+    assert list(urgentes.values_list("tipo", "titulo")) == [
+        (
+            "documento_vencido_reservado",
+            "CRLV da RHT9F02 venceu com o veículo reservado. Regularize o documento.",
+        ),
+        (
+            "documento_vencido_em_manutencao",
+            "Seguro da PMZ3E17 venceu com o veículo em manutenção. Regularize o documento.",
+        ),
+    ]
+    assert not Notificacao.objects.filter(destinatario=moto.pessoas["Mariana"]).exists()
+
+    # De novo no mesmo dia: nada se repete. IPVA e rastreador não geram tarefa.
+    aut_06_vencimento_de_documentos("empresa_a")
+    assert urgentes.count() == 2
+    assert Notificacao.objects.filter(destinatario=rodrigo).count() == 6
+
+
 def test_vei_03_ca_013_19_renovar_nao_libera_sozinho(moto, frota, relogio):
     sak = frota.veiculos["SAK1D39"]
     antigo = _documento(sak, "seguro", "2026-10-25")
