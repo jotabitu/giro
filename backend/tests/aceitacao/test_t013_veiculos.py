@@ -445,6 +445,11 @@ def test_vei_04_ca_013_13_transferencia_so_disponivel(moto, frota):
     )
     assert transferencia.por_id == moto.pessoas["Rodrigo"].pk
     assert EventoAuditoria.objects.filter(acao="veiculo.transferir", regra="VEI-04").exists()
+    # Categoria da empresa passa direto (CA-013-27): continua na Street 150–160.
+    assert resposta.json()["categoria"]["nome"] == "Street 150–160"
+    assert resposta.json()["preco_vigente"]["diaria_centavos"] == 5490
+    street = frota.categorias["Street 150–160"]
+    assert (transferencia.categoria_origem, transferencia.categoria_destino) == (street, street)
 
     resposta = _acao(moto, "Rodrigo", qxa, "transferir", destino)
     assert resposta.status_code == 409
@@ -460,6 +465,80 @@ def test_vei_04_ca_013_13_transferencia_so_disponivel(moto, frota):
     assert _acao(moto, "Rodrigo", pop, "transferir", inativa).status_code == 400
     pop.refresh_from_db()
     assert pop.filial_id == frota.centro.pk
+
+
+def _categoria_de_filial(moto: MotoRapida, nome: str, filial: Filial, diaria: int) -> int:
+    corpo = {
+        "nome": nome,
+        "tipo_veiculo": "moto",
+        "filial_id": filial.pk,
+        "preco": {
+            "diaria_centavos": diaria,
+            "semanal_centavos": diaria * 6,
+            "mensal_centavos": diaria * 22,
+            "caucao_centavos": 30000,
+        },
+    }
+    resposta = moto.api("Mariana").post("/api/categorias/", corpo, format="json")
+    assert resposta.status_code == 201, resposta.json()
+    return int(resposta.json()["id"])
+
+
+def test_vei_04_fil_04_ca_013_27_categoria_so_da_filial_na_transferencia(moto, frota):
+    caucaia = _caucaia(moto, "Rodrigo")
+    sak = frota.veiculos["SAK1D39"]
+    street_centro = _categoria_de_filial(moto, "Street Centro", frota.centro, 4490)
+    street_caucaia = _categoria_de_filial(moto, "Street Caucaia", caucaia, 4990)
+    caucaia_inativa = _categoria_de_filial(moto, "Street Caucaia antiga", caucaia, 3990)
+    desativar = moto.api("Mariana").post(
+        f"/api/categorias/{caucaia_inativa}/desativar/", {}, format="json"
+    )
+    assert desativar.status_code == 200, desativar.json()
+    resposta = moto.api("Rodrigo").patch(_url(sak), {"categoria_id": street_centro}, format="json")
+    assert resposta.status_code == 200, resposta.json()
+
+    # Sem a categoria no destino: 400, e o veículo não sai da Centro.
+    destino: dict[str, Any] = {"filial_destino_id": caucaia.pk}
+    resposta = _acao(moto, "Rodrigo", sak, "transferir", destino)
+    assert resposta.status_code == 400
+    assert resposta.json()["codigo"] == "validacao"
+    assert "categoria_id" in resposta.json()["campos"]
+    invalidas = [street_centro, caucaia_inativa, frota.categorias["Carro compacto"].pk]
+    for categoria_id in invalidas:
+        corpo = {**destino, "categoria_id": categoria_id}
+        resposta = _acao(moto, "Rodrigo", sak, "transferir", corpo)
+        assert resposta.status_code == 400, categoria_id
+        assert "categoria_id" in resposta.json()["campos"]
+    sak.refresh_from_db()
+    assert (sak.filial_id, sak.categoria_id) == (frota.centro.pk, street_centro)
+    assert not TransferenciaVeiculo.objects.filter(veiculo=sak).exists()
+
+    # Com a Street Caucaia: vai, com o preço dela.
+    resposta = _acao(
+        moto, "Rodrigo", sak, "transferir", {**destino, "categoria_id": street_caucaia}
+    )
+    assert resposta.status_code == 200, resposta.json()
+    assert resposta.json()["filial"]["id"] == caucaia.pk
+    assert resposta.json()["categoria"] == {"id": street_caucaia, "nome": "Street Caucaia"}
+    assert resposta.json()["preco_vigente"]["diaria_centavos"] == 4990
+    transferencia = TransferenciaVeiculo.objects.get(veiculo=sak)
+    assert (transferencia.categoria_origem_id, transferencia.categoria_destino_id) == (
+        street_centro,
+        street_caucaia,
+    )
+    evento = EventoAuditoria.objects.get(acao="veiculo.transferir", objeto_id=sak.pk)
+    assert (evento.antes["categoria_id"], evento.depois["categoria_id"]) == (
+        street_centro,
+        street_caucaia,
+    )
+
+    # De volta para a Centro com a Street 150–160, da empresa: diária 5490.
+    empresa = frota.categorias["Street 150–160"].pk
+    corpo = {"filial_destino_id": frota.centro.pk, "categoria_id": empresa}
+    resposta = _acao(moto, "Rodrigo", sak, "transferir", corpo)
+    assert resposta.status_code == 200, resposta.json()
+    assert resposta.json()["categoria"]["nome"] == "Street 150–160"
+    assert resposta.json()["preco_vigente"]["diaria_centavos"] == 5490
 
 
 def test_fil_06_ca_013_14_veto_a_desativacao_da_filial(moto, frota):
