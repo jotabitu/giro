@@ -222,6 +222,7 @@ O veículo tem 8 estados e só muda de estado por um evento de outro módulo (lo
 | `alugado` | `em_manutencao` | devolução encerrada com avaria marcada "vai para oficina" | sistema |
 | `disponivel` | `em_manutencao` | OS aberta (manual ou preventiva) | gerente, vistoriador |
 | `em_manutencao` | `disponivel` | OS concluída e veículo liberado | gerente |
+| `em_manutencao` | `indisponivel` | OS concluída com CRLV ou seguro vencido (`MAN-05`, `VEI-03`) | sistema |
 | `disponivel` | `indisponivel` | documento vence (automático) ou bloqueio manual | sistema, gerente |
 | `indisponivel` | `disponivel` | documento renovado ou desbloqueio | gerente |
 | `disponivel` | `a_venda` | "Colocar à venda" na ficha | gerente, administrador |
@@ -237,7 +238,7 @@ Qualquer outra transição é recusada pelo backend com erro de regra (HTTP 409)
 
 - `VEI-01` Placa e chassi únicos por empresa, em qualquer estado do veículo; chassi com 17 caracteres; km nunca diminui (vistoria com km menor que o anterior é recusada, salvo correção pelo gerente com motivo).
 - `VEI-02` O km do veículo é atualizado a cada vistoria e a cada OS. Ele dispara as preventivas (`MAN-03`).
-- `VEI-03` Documentos: alerta 30 dias antes do vencimento; no dia do vencimento de CRLV ou seguro, o veículo disponível vai para `indisponivel`. Veículo `alugado`, `reservado` ou `em_manutencao` não muda de status, mas gera tarefa urgente para os gerentes da filial (`FIL-02`). A retirada de veículo com CRLV ou seguro vencido é recusada até o documento ser renovado (vistoria de saída, `VIS-01`).
+- `VEI-03` Documentos: alerta 30 dias antes do vencimento; no dia do vencimento de CRLV ou seguro, o veículo disponível vai para `indisponivel`. Veículo `alugado`, `reservado` ou `em_manutencao` não muda de status, mas gera tarefa urgente para os gerentes da filial (`FIL-02`). A retirada de veículo com CRLV ou seguro vencido é recusada até o documento ser renovado (vistoria de saída, `VIS-01`). O veículo cujo CRLV ou seguro venceu durante a OS vai para `indisponivel` ao concluir a OS (`MAN-05`).
 - `VEI-04` Transferência entre filiais só com o veículo `disponivel`. Grava a filial de origem e destino. É o único jeito de um veículo mudar de filial: a devolução é sempre na filial da locação e a frota não é compartilhada (`FIL-05`). Se a categoria do veículo é só da filial de origem (`FIL-04`), a transferência pede a categoria no destino: uma categoria ativa, do mesmo tipo de veículo, da empresa ou da filial de destino. Sem ela, a transferência é recusada. Categoria da empresa passa direto, e o veículo continua nela. Como só se transfere veículo `disponivel`, nenhuma locação aberta muda de preço: a categoria nova vale a partir da próxima locação (`LOC-01`).
 - `VEI-05` "Rendeu no ano" na ficha = receitas de locação recebidas do veículo − custos de manutenção e despesas ligadas a ele, no ano corrente.
 - `VEI-06` Ocupação = dias alugado ÷ dias que o veículo esteve na frota no período (exclui `a_venda`, `vendido`, `baixado`). Ocupação da frota = média ponderada pelos dias.
@@ -440,7 +441,7 @@ Toda manutenção é uma ordem de serviço ligada a um veículo, e todo custo de
 | `agendada` | preventiva prevista por km ou data | no estado atual |
 | `aguardando` | aberta, esperando aprovação do orçamento ou vaga na oficina | `em_manutencao` se já parado |
 | `na_oficina` | veículo entregue à oficina | `em_manutencao` |
-| `concluida` | serviço pronto e veículo liberado | `disponivel` |
+| `concluida` | serviço pronto e veículo liberado | `disponivel`, ou `indisponivel` com CRLV ou seguro vencido (`MAN-05`) |
 | `cancelada` | não será feita | volta ao estado anterior |
 
 **Regras**
@@ -449,8 +450,10 @@ Toda manutenção é uma ordem de serviço ligada a um veículo, e todo custo de
 - `MAN-02` Orçamento acima de R$ 500 precisa de aprovação do gerente antes de executar (`APR-03`). Ex.: OS-118, pneus R$ 1.200,00.
 - `MAN-03` Preventivas automáticas por regra da empresa: troca de óleo a cada 1.000 km, revisão a cada 5.000 km, pneus conferidos em toda devolução. Quando faltam 500 km, cria OS `agendada`; se o veículo está alugado, a OS é marcada para a devolução.
 - `MAN-04` OS que passa da previsão vira atrasada (destaque vermelho) e avisa o gerente.
-- `MAN-05` Ao concluir: lança a despesa com o custo final (ligada ao veículo), atualiza km e data da última manutenção, recalcula a próxima preventiva e libera o veículo.
+- `MAN-05` Ao concluir: lança a despesa com o custo final (ligada ao veículo), atualiza km e data da última manutenção, recalcula a próxima preventiva e libera o veículo. Se o CRLV ou o seguro do veículo venceu durante a OS (`VEI-03`), ele vai para `indisponivel`, com o motivo do documento (ex.: "Seguro vencido"), e não para `disponivel`. Renovar o documento não libera sozinho: o gerente desbloqueia depois de renovar, como no `disponivel` que venceu.
 - `MAN-06` Indicadores: veículos fora de operação, gasto do mês, tempo médio na oficina (meta 2 dias), preventivas nos próximos 500 km.
+
+*Mudanças em 08 out 2026 (T-086):* `MAN-05` passou a dizer que o veículo com CRLV ou seguro vencido durante a OS vai para `indisponivel` ao concluir, e não para `disponivel`. Também mudaram o estado `concluida` da tabela da OS, o `VEI-03` e a tabela de transições dos veículos (`em_manutencao` → `indisponivel`). Decisão do dono do produto em 08 out 2026 (opção A da T-084).
 
 ## Aprovações
 
@@ -605,6 +608,7 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 | Transferência de veículo com categoria só da filial (T-013) | **B:** a transferência pede a categoria no destino só quando a categoria atual é da filial de origem; categoria da empresa passa direto (`VEI-04`). | Recusar obrigaria a três passos, porque a categoria do destino não pode ser usada na origem; o veículo `disponivel` não tem locação aberta para mudar de preço. |
 | CRLV ou seguro vencido com o veículo `reservado` ou `em_manutencao` (T-079) | **As duas coisas:** tarefa urgente aos gerentes, como no `alugado` (`AUT-06`), e retirada recusada até renovar o documento (`VEI-03`). | A reserva não sai com documento vencido, e o gerente fica sabendo a tempo de renovar antes da retirada. |
 | Correção de km depois que o km já mudou (T-081) | **Fica como está:** 409 `km_mudou`, o pedido continua pendente, o gerente recusa e a correção é pedida de novo (`APR-11`). | A leitura mais nova não é apagada por uma correção pedida antes dela. |
+| OS concluída com CRLV ou seguro vencido (T-084) | **A:** o veículo vai para `indisponivel`, com o motivo do documento, até renovar e o gerente desbloquear (`MAN-05`, `VEI-03`). | A `AUT-06` não roda de novo para esse veículo; com `disponivel`, ele voltaria à frota com o documento vencido. |
 
 ## Pontos em aberto
 
@@ -613,4 +617,3 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 - [ ] **Abrir a conta no Asaas** e confirmar as taxas de boleto e cartão para o volume esperado.
 - [x] **Base do "Recebido" da tela `Receber`** (`FIN-15`, T-053). **Decidido em 08 out 2026 pelo dono do produto: A.** A) só as contas que vencem no mês e já foram pagas, para o percentual "do previsto" nunca passar de 100%; B) tudo o que foi pago no mês, inclusive atrasos de meses anteriores (visão de caixa). Padrão: **A**. O dinheiro que entra no dia já aparece no `Caixa`.
 - [ ] **Telas que faltam desenhar:** esqueci a senha, 2 etapas, meu perfil, notificações, contas a pagar separada, multas de trânsito, documentos dos veículos, avarias abertas, pagamento e assinatura pelo cliente final, site de vendas.
-- [ ] **Manutenção concluída com CRLV ou seguro vencido** (`VEI-03`, `MAN`, T-084). O veículo `em_manutencao` cujo documento venceu durante a OS recebe só a tarefa urgente. Ao concluir a OS, ele voltaria a `disponivel` com o documento vencido, e a `AUT-06` não roda de novo para ele. A) volta para `indisponivel`, com o motivo do documento, até renovar; B) volta para `disponivel`, e só a retirada é recusada. Padrão: **A**, que é o mesmo efeito do `VEI-03` para o `disponivel`.
