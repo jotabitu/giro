@@ -9,6 +9,7 @@ As pendências de regra foram decididas em 07 out 2026 (seção "Decisões de 07
 - [bloqueada] Registrar girolocadoras.com.br e girolocacao.com.br.
 - [bloqueada] Busca no INPI da marca "Giro" (classes 42 e 9).
 - [bloqueada] Abrir a conta do Asaas (a integração começa no sandbox, não depende disso).
+- [decisão] (T-013, para o produto) Um veículo de uma categoria só da filial (`Categoria.filial` preenchida) pode ser transferido para outra filial (`VEI-04`)? Hoje a transferência passa, e o veículo continua com a categoria e o preço da filial de origem. As opções são recusar até trocar a categoria, ou trocar a categoria na própria transferência.
 
 A dúvida da segurança S-02 (T-032: o suporte Giro vê CPF e CNH completos?) foi decidida em 07 out 2026 e virou a regra `AUD-09` (mascarado, nunca completo).
 
@@ -210,10 +211,6 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - **Agente:** backend · **Prioridade:** antes da T-013
 - **Depende de:** T-012, T-064
 - **Pronto quando:** F-01 (permissões de administrador somam às padrão, sem perder `EmpresaOperando` e `EscopoDeFilial`; teste de arquitetura no urlconf da empresa), F-02 (`filial_da_requisicao` distingue "todas" de pessoa sem filial, que recebe 403 `USR-07`; o arquiteto confere a interface interna), F-04 (limite por IP sem chave vazia quando falta o IP e com IPv6 agrupado por prefixo; o devops confere o `REMOTE_ADDR` atrás do proxy) e F-05 (limite na busca de CEP) corrigidos, cada um com teste que reproduz o achado; detalhes em `docs/seguranca/2026-10-09-t058-t012.md`.
-
-### T-013 · Veículos, categorias, preços, ações e histórico de status
-- **Agente:** backend · **Depende de:** T-012 · **Regras:** VEI-01 a VEI-07 · **Telas:** Frota, Veiculo, Precos · **Pronto quando:** CA-013-01 a 16 (no CA-013-16, a ida do pedido APR-06 pela porta `comum.aprovacoes.pedir` da ADR 0019: model `PedidoAprovacao`, porta, pedido com auditoria e 202 com o id) de `docs/qa/criterios/T-013.md` passam, com o código da regra no nome do teste; `veiculos` entra no padrão de `GIRO_MODULOS_ATIVOS`.
-- **Nota:** a T-013 original foi dividida em 08/10 em T-013, T-079 e T-080; a ida do pedido voltou para a T-013 depois da ADR 0019, e a lista e a decisão ficaram na T-081, porque não cabia num PR. Os critérios que saíram ficam `xfail` com o número da tarefa.
 
 ### T-079 · Documentos de veículos, arquivo privado e AUT-06
 - **Agente:** backend · **Depende de:** T-013 · **ADRs:** 0009 (`comum/arquivos.py`: storage privado S3, prefixo `<schema>/<app>/<model>/<id>/`, URL assinada de 15 minutos), 0011 (`notificacoes` no nível 5) · **Regras:** VEI-03, AUT-06, FIL-02, AUD-05 · **Pronto quando:** CA-013-17 a 20 passam, com o código da regra no nome do teste; `comum/arquivos.py` com implementação falsa no desenvolvimento e nos testes, pronta para a T-014; o mínimo de `notificacoes` que o CA-013-18 usa (tarefa urgente e alerta aos gerentes).

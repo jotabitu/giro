@@ -382,6 +382,231 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/categorias/:
+    get:
+      operationId: categorias_list
+      summary: Categorias e preços vigentes (LOC-01)
+      parameters:
+      - in: query
+        name: ativo
+        schema:
+          type: string
+          enum:
+          - 'false'
+          - 'true'
+      - in: query
+        name: filial
+        schema:
+          type: integer
+      - in: query
+        name: tipo_veiculo
+        schema:
+          type: string
+          enum:
+          - carro
+          - moto
+      tags:
+      - categorias
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeCategorias'
+          description: ''
+    post:
+      operationId: categorias_create
+      summary: Nova categoria (LOC-01)
+      tags:
+      - categorias
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoriaEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CategoriaEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CategoriaEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Categoria'
+          description: ''
+  /api/categorias/{id}/:
+    patch:
+      operationId: categorias_partial_update
+      summary: Editar categoria
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - categorias
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoriaEdicao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoriaEdicao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCategoriaEdicao'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Categoria'
+          description: ''
+  /api/categorias/{id}/desativar/:
+    post:
+      operationId: categorias_desativar_create
+      summary: Desativar categoria
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - categorias
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Categoria'
+          description: ''
+  /api/categorias/{id}/precos/:
+    get:
+      operationId: categorias_precos_list
+      summary: Histórico de preços da categoria (LOC-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - categorias
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDePrecos'
+          description: ''
+    post:
+      operationId: categorias_precos_create
+      summary: Novo preço (LOC-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - categorias
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NovoPreco'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NovoPreco'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NovoPreco'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrecoCriado'
+          description: ''
+  /api/categorias/{id}/precos/{vigente_desde}/:
+    put:
+      operationId: categorias_precos_update
+      summary: Trocar preço agendado (LOC-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: vigente_desde
+        schema:
+          type: string
+        required: true
+      tags:
+      - categorias
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrecoEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PrecoEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PrecoEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrecoCriado'
+          description: ''
+  /api/categorias/{id}/reativar/:
+    post:
+      operationId: categorias_reativar_create
+      summary: Reativar categoria
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - categorias
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Categoria'
+          description: ''
   /api/convites/aceitar/:
     post:
       operationId: convites_aceitar_create
@@ -456,6 +681,108 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Cep'
+          description: ''
+  /api/extras/:
+    get:
+      operationId: extras_list
+      summary: Extras da locação (LOC-02)
+      parameters:
+      - in: query
+        name: ativo
+        schema:
+          type: string
+          enum:
+          - 'false'
+          - 'true'
+      tags:
+      - extras
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeExtras'
+          description: ''
+    post:
+      operationId: extras_create
+      summary: Novo extra
+      tags:
+      - extras
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExtraEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ExtraEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExtraEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Extra'
+          description: ''
+  /api/extras/{id}/:
+    patch:
+      operationId: extras_partial_update
+      summary: Editar
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - extras
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedExtraEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedExtraEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedExtraEntrada'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Extra'
+          description: ''
+  /api/extras/{id}/desativar/:
+    post:
+      operationId: extras_desativar_create
+      summary: Desativar extra
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - extras
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Extra'
           description: ''
   /api/filiais/:
     get:
@@ -1055,6 +1382,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListaDePlanos'
           description: ''
+  /api/precos/historico/:
+    get:
+      operationId: precos_historico_retrieve
+      summary: Mudanças de preço da empresa
+      tags:
+      - precos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeMudancasDePreco'
+          description: ''
   /api/suporte/:
     get:
       operationId: suporte_retrieve
@@ -1460,6 +1802,420 @@ paths:
               schema:
                 $ref: '#/components/schemas/UsuarioDetalhe'
           description: ''
+  /api/veiculos/:
+    get:
+      operationId: veiculos_list
+      summary: Frota (VEI-06)
+      parameters:
+      - in: query
+        name: busca
+        schema:
+          type: string
+      - in: query
+        name: categoria
+        schema:
+          type: integer
+      - in: query
+        name: ordem
+        schema:
+          type: string
+          enum:
+          - -km_atual
+          - modelo
+          - placa
+      - in: query
+        name: status
+        schema:
+          type: string
+      - in: query
+        name: tipo_veiculo
+        schema:
+          type: string
+          enum:
+          - carro
+          - moto
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeVeiculos'
+          description: ''
+    post:
+      operationId: veiculos_create
+      summary: Cadastrar veículo (VEI-01, PLT-03)
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VeiculoEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VeiculoEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VeiculoEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Veiculo'
+          description: ''
+  /api/veiculos/{id}/:
+    get:
+      operationId: veiculos_retrieve
+      summary: Ficha do veículo (VEI-06)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VeiculoDetalhe'
+          description: ''
+    patch:
+      operationId: veiculos_partial_update
+      summary: Editar veículo
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedVeiculoEdicao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedVeiculoEdicao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedVeiculoEdicao'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Veiculo'
+          description: ''
+  /api/veiculos/{id}/baixar/:
+    post:
+      operationId: veiculos_baixar_create
+      summary: Baixar
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Baixar'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Baixar'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Baixar'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Veiculo'
+          description: ''
+  /api/veiculos/{id}/bloquear/:
+    post:
+      operationId: veiculos_bloquear_create
+      summary: Bloquear
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BloquearVeiculo'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BloquearVeiculo'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BloquearVeiculo'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Veiculo'
+          description: ''
+  /api/veiculos/{id}/colocar-a-venda/:
+    post:
+      operationId: veiculos_colocar_a_venda_create
+      summary: Colocar à venda (VEN-01)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ColocarAVenda'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ColocarAVenda'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ColocarAVenda'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Veiculo'
+          description: ''
+  /api/veiculos/{id}/corrigir-identificacao/:
+    post:
+      operationId: veiculos_corrigir_identificacao_create
+      summary: Corrigir placa ou chassi (VEI-01)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CorrigirIdentificacao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CorrigirIdentificacao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CorrigirIdentificacao'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Veiculo'
+          description: ''
+  /api/veiculos/{id}/corrigir-km/:
+    post:
+      operationId: veiculos_corrigir_km_create
+      description: |-
+        Gerente e administrador corrigem na hora (200). O vistoriador abre o pedido APR-06 e
+        recebe 202 com o pedido; o km só muda quando o gerente aprovar.
+      summary: Corrigir km (VEI-01, APR-06)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CorrigirKm'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CorrigirKm'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CorrigirKm'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Veiculo'
+          description: ''
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PedidoAprovacaoCriado'
+          description: ''
+  /api/veiculos/{id}/desbloquear/:
+    post:
+      operationId: veiculos_desbloquear_create
+      summary: Desbloquear
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DesbloquearVeiculo'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DesbloquearVeiculo'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DesbloquearVeiculo'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Veiculo'
+          description: ''
+  /api/veiculos/{id}/km/:
+    post:
+      operationId: veiculos_km_create
+      summary: Registrar km
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Km'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Km'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Km'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Veiculo'
+          description: ''
+  /api/veiculos/{id}/transferir/:
+    post:
+      operationId: veiculos_transferir_create
+      summary: Transferir (VEI-04)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Transferir'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Transferir'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Transferir'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Veiculo'
+          description: ''
+  /api/veiculos/{id}/voltar-para-frota/:
+    post:
+      operationId: veiculos_voltar_para_frota_create
+      summary: Voltar para a frota
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Veiculo'
+          description: ''
 components:
   schemas:
     AbrirAcesso:
@@ -1558,7 +2314,7 @@ components:
           type: string
           format: date-time
         status:
-          $ref: '#/components/schemas/StatusEnum'
+          $ref: '#/components/schemas/AcessoDaListaStatusEnum'
       required:
       - fim
       - id
@@ -1567,6 +2323,16 @@ components:
       - nome
       - permissao
       - status
+    AcessoDaListaStatusEnum:
+      enum:
+      - ativo
+      - encerrado
+      - revogado
+      type: string
+      description: |-
+        * `ativo` - Ativo
+        * `encerrado` - Encerrado
+        * `revogado` - Revogado
     Acoes:
       type: object
       properties:
@@ -1583,6 +2349,37 @@ components:
       - estender_teste
       - mudar_plano
       - suspender
+    AcoesDoVeiculo:
+      type: object
+      properties:
+        editar:
+          type: boolean
+        colocar_a_venda:
+          type: boolean
+        voltar_para_frota:
+          type: boolean
+        bloquear:
+          type: boolean
+        desbloquear:
+          type: boolean
+        transferir:
+          type: boolean
+        baixar:
+          type: boolean
+        registrar_km:
+          type: boolean
+        corrigir_km:
+          type: boolean
+      required:
+      - baixar
+      - bloquear
+      - colocar_a_venda
+      - corrigir_km
+      - desbloquear
+      - editar
+      - registrar_km
+      - transferir
+      - voltar_para_frota
     Assinatura:
       type: object
       properties:
@@ -1620,6 +2417,23 @@ components:
       required:
       - access
       - codigos_recuperacao
+    Baixar:
+      type: object
+      properties:
+        motivo:
+          $ref: '#/components/schemas/MotivoEnum'
+        descricao:
+          type: string
+          default: ''
+      required:
+      - motivo
+    BloquearVeiculo:
+      type: object
+      properties:
+        motivo:
+          type: string
+      required:
+      - motivo
     Bloqueio:
       type: object
       properties:
@@ -1627,6 +2441,60 @@ components:
           type: boolean
       required:
       - bloqueado
+    Categoria:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        tipo_veiculo:
+          $ref: '#/components/schemas/TipoVeiculoEnum'
+        filial:
+          allOf:
+          - $ref: '#/components/schemas/IdNome'
+          nullable: true
+        ativo:
+          type: boolean
+        modelos_resumo:
+          type: string
+        veiculos:
+          type: integer
+        preco_vigente:
+          allOf:
+          - $ref: '#/components/schemas/PrecoComData'
+          nullable: true
+        proximo_preco:
+          allOf:
+          - $ref: '#/components/schemas/PrecoComData'
+          nullable: true
+      required:
+      - ativo
+      - filial
+      - id
+      - modelos_resumo
+      - nome
+      - preco_vigente
+      - proximo_preco
+      - tipo_veiculo
+      - veiculos
+    CategoriaEntrada:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 60
+        tipo_veiculo:
+          $ref: '#/components/schemas/TipoVeiculoEnum'
+        filial_id:
+          type: integer
+          nullable: true
+        preco:
+          $ref: '#/components/schemas/PrecoEntrada'
+      required:
+      - nome
+      - preco
+      - tipo_veiculo
     Cep:
       type: object
       properties:
@@ -1646,6 +2514,14 @@ components:
       - cidade
       - logradouro
       - uf
+    CobrancaEnum:
+      enum:
+      - por_periodo
+      - unica
+      type: string
+      description: |-
+        * `por_periodo` - Por período
+        * `unica` - Única
     Codigo:
       type: object
       properties:
@@ -1671,6 +2547,18 @@ components:
             type: string
       required:
       - codigos_recuperacao
+    ColocarAVenda:
+      type: object
+      properties:
+        valor_venda_centavos:
+          type: integer
+          minimum: 1
+        referencia_fipe_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+      required:
+      - valor_venda_centavos
     Configurar:
       type: object
       properties:
@@ -1717,6 +2605,37 @@ components:
       - pagantes
       - saindo
       - todas
+    ContagensDaFrota:
+      type: object
+      properties:
+        todos:
+          type: integer
+        disponivel:
+          type: integer
+        alugado:
+          type: integer
+        reservado:
+          type: integer
+        em_manutencao:
+          type: integer
+        a_venda:
+          type: integer
+        indisponivel:
+          type: integer
+        motos:
+          type: integer
+        carros:
+          type: integer
+      required:
+      - a_venda
+      - alugado
+      - carros
+      - disponivel
+      - em_manutencao
+      - indisponivel
+      - motos
+      - reservado
+      - todos
     ContagensDeUsuarios:
       type: object
       properties:
@@ -1825,6 +2744,35 @@ components:
       - filiais
       - nome
       - perfil
+    CorrigirIdentificacao:
+      type: object
+      properties:
+        placa:
+          type: string
+          maxLength: 10
+        chassi:
+          type: string
+          maxLength: 20
+        motivo:
+          type: string
+      required:
+      - motivo
+    CorrigirKm:
+      type: object
+      properties:
+        km:
+          type: integer
+          minimum: 0
+        motivo:
+          type: string
+      required:
+      - km
+      - motivo
+    DesbloquearVeiculo:
+      type: object
+      properties:
+        motivo:
+          type: string
     DespesasLancarEnum:
       enum:
       - todas
@@ -2187,6 +3135,40 @@ components:
       - permissoes_extras
       - pode
       - suporte
+    Extra:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        valor_centavos:
+          type: integer
+        cobranca:
+          $ref: '#/components/schemas/CobrancaEnum'
+        ativo:
+          type: boolean
+      required:
+      - ativo
+      - cobranca
+      - id
+      - nome
+      - valor_centavos
+    ExtraEntrada:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 60
+        valor_centavos:
+          type: integer
+          minimum: 0
+        cobranca:
+          $ref: '#/components/schemas/CobrancaEnum'
+      required:
+      - cobranca
+      - nome
+      - valor_centavos
     Feriado:
       type: object
       properties:
@@ -2439,6 +3421,32 @@ components:
       required:
       - grupo
       - itens
+    HistoricoStatus:
+      type: object
+      properties:
+        de:
+          type: string
+          nullable: true
+        para:
+          type: string
+        em:
+          type: string
+          format: date-time
+        origem_tipo:
+          type: string
+        origem_codigo:
+          type: string
+          nullable: true
+        motivo:
+          type: string
+          nullable: true
+      required:
+      - de
+      - em
+      - motivo
+      - origem_codigo
+      - origem_tipo
+      - para
     Horario:
       type: object
       properties:
@@ -2478,6 +3486,16 @@ components:
       - seg
       - sex
       - ter
+    IdNome:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+      - id
+      - nome
     Implantacao:
       type: object
       properties:
@@ -2550,6 +3568,23 @@ components:
       - chave
       - contador
       - rotulo
+    Km:
+      type: object
+      properties:
+        km:
+          type: integer
+          minimum: 0
+      required:
+      - km
+    ListaDeCategorias:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Categoria'
+      required:
+      - resultados
     ListaDeEmpresas:
       type: object
       properties:
@@ -2569,6 +3604,15 @@ components:
       - anterior
       - contagens
       - proximo
+      - resultados
+    ListaDeExtras:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Extra'
+      required:
       - resultados
     ListaDeFeriados:
       type: object
@@ -2599,6 +3643,15 @@ components:
       - plano
       - proximo
       - resultados
+    ListaDeMudancasDePreco:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/MudancaDePreco'
+      required:
+      - resultados
     ListaDePlanos:
       type: object
       properties:
@@ -2615,6 +3668,15 @@ components:
       required:
       - anterior
       - proximo
+      - resultados
+    ListaDePrecos:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrecoHistorico'
+      required:
       - resultados
     ListaDeSugestoes:
       type: object
@@ -2646,6 +3708,26 @@ components:
       - anterior
       - contagens
       - plano
+      - proximo
+      - resultados
+    ListaDeVeiculos:
+      type: object
+      properties:
+        contagens:
+          $ref: '#/components/schemas/ContagensDaFrota'
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Veiculo'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - contagens
       - proximo
       - resultados
     Mensagem:
@@ -2707,12 +3789,53 @@ components:
         motivo:
           type: string
           maxLength: 500
+    MotivoEnum:
+      enum:
+      - perda_total
+      - roubo
+      - sucata
+      - outro
+      type: string
+      description: |-
+        * `perda_total` - perda_total
+        * `roubo` - roubo
+        * `sucata` - sucata
+        * `outro` - outro
     MotivoOpcional:
       type: object
       properties:
         motivo:
           type: string
           maxLength: 500
+    MudancaDePreco:
+      type: object
+      properties:
+        categoria:
+          $ref: '#/components/schemas/IdNome'
+        vigente_desde:
+          type: string
+          format: date
+        campo:
+          type: string
+        antes_centavos:
+          type: integer
+          nullable: true
+        depois_centavos:
+          type: integer
+        alterado_por:
+          type: string
+          nullable: true
+        alterado_em:
+          type: string
+          format: date-time
+      required:
+      - alterado_em
+      - alterado_por
+      - antes_centavos
+      - campo
+      - categoria
+      - depois_centavos
+      - vigente_desde
     Navegacao:
       type: object
       description: 'USR-05 e USR-08: o menu pronto; o frontend liga cada `chave` à
@@ -2749,6 +3872,39 @@ components:
         * `aprova` - aprova
         * `pede` - pede
         * `nao` - nao
+    NovoPreco:
+      type: object
+      properties:
+        diaria_centavos:
+          type: integer
+          minimum: 0
+        semanal_centavos:
+          type: integer
+          minimum: 0
+        mensal_centavos:
+          type: integer
+          minimum: 0
+        caucao_centavos:
+          type: integer
+          minimum: 0
+        vigente_desde:
+          type: string
+          format: date
+      required:
+      - caucao_centavos
+      - diaria_centavos
+      - mensal_centavos
+      - semanal_centavos
+    Ocupacao:
+      type: object
+      properties:
+        pct:
+          type: string
+        periodo_dias:
+          type: integer
+      required:
+      - pct
+      - periodo_dias
     OrigemEnum:
       enum:
       - nacional
@@ -2797,6 +3953,17 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PermissaoExtraEnum'
+    PatchedCategoriaEdicao:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 60
+        tipo_veiculo:
+          $ref: '#/components/schemas/TipoVeiculoEnum'
+        filial_id:
+          type: integer
+          nullable: true
     PatchedEditarEu:
       type: object
       properties:
@@ -2806,6 +3973,17 @@ components:
         celular:
           type: string
           maxLength: 20
+    PatchedExtraEntrada:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 60
+        valor_centavos:
+          type: integer
+          minimum: 0
+        cobranca:
+          $ref: '#/components/schemas/CobrancaEnum'
     PatchedFilialEntrada:
       type: object
       description: Forma do corpo. O horário vai como veio para o serviço validar
@@ -2838,6 +4016,60 @@ components:
           minimum: 0
           nullable: true
         horario: {}
+    PatchedVeiculoEdicao:
+      type: object
+      properties:
+        renavam:
+          type: string
+          nullable: true
+        marca:
+          type: string
+          maxLength: 40
+        modelo:
+          type: string
+          maxLength: 60
+        ano_fabricacao:
+          type: integer
+        ano_modelo:
+          type: integer
+        cor:
+          type: string
+          maxLength: 30
+        categoria_id:
+          type: integer
+        capacidade_tanque_litros:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,1})?$
+          nullable: true
+        valor_compra_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+        data_compra:
+          type: string
+          format: date
+          nullable: true
+    PedidoAprovacaoCriado:
+      type: object
+      properties:
+        pedido_aprovacao:
+          $ref: '#/components/schemas/PedidoRef'
+      required:
+      - pedido_aprovacao
+    PedidoRef:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+        status:
+          type: string
+      required:
+      - id
+      - status
+      - tipo
     PerfilEnum:
       enum:
       - administrador
@@ -3073,6 +4305,121 @@ components:
       - veiculos
       - vendas_criar
       - vistorias_fazer
+    Preco:
+      type: object
+      properties:
+        diaria_centavos:
+          type: integer
+        semanal_centavos:
+          type: integer
+        mensal_centavos:
+          type: integer
+        caucao_centavos:
+          type: integer
+      required:
+      - caucao_centavos
+      - diaria_centavos
+      - mensal_centavos
+      - semanal_centavos
+    PrecoComData:
+      type: object
+      properties:
+        diaria_centavos:
+          type: integer
+        semanal_centavos:
+          type: integer
+        mensal_centavos:
+          type: integer
+        caucao_centavos:
+          type: integer
+        vigente_desde:
+          type: string
+          format: date
+      required:
+      - caucao_centavos
+      - diaria_centavos
+      - mensal_centavos
+      - semanal_centavos
+      - vigente_desde
+    PrecoCriado:
+      type: object
+      properties:
+        diaria_centavos:
+          type: integer
+        semanal_centavos:
+          type: integer
+        mensal_centavos:
+          type: integer
+        caucao_centavos:
+          type: integer
+        vigente_desde:
+          type: string
+          format: date
+        alterado_por:
+          type: string
+          nullable: true
+        alterado_em:
+          type: string
+          format: date-time
+        locacoes_em_andamento_mantidas:
+          type: integer
+      required:
+      - alterado_em
+      - alterado_por
+      - caucao_centavos
+      - diaria_centavos
+      - locacoes_em_andamento_mantidas
+      - mensal_centavos
+      - semanal_centavos
+      - vigente_desde
+    PrecoEntrada:
+      type: object
+      properties:
+        diaria_centavos:
+          type: integer
+          minimum: 0
+        semanal_centavos:
+          type: integer
+          minimum: 0
+        mensal_centavos:
+          type: integer
+          minimum: 0
+        caucao_centavos:
+          type: integer
+          minimum: 0
+      required:
+      - caucao_centavos
+      - diaria_centavos
+      - mensal_centavos
+      - semanal_centavos
+    PrecoHistorico:
+      type: object
+      properties:
+        diaria_centavos:
+          type: integer
+        semanal_centavos:
+          type: integer
+        mensal_centavos:
+          type: integer
+        caucao_centavos:
+          type: integer
+        vigente_desde:
+          type: string
+          format: date
+        alterado_por:
+          type: string
+          nullable: true
+        alterado_em:
+          type: string
+          format: date-time
+      required:
+      - alterado_em
+      - alterado_por
+      - caucao_centavos
+      - diaria_centavos
+      - mensal_centavos
+      - semanal_centavos
+      - vigente_desde
     Pronto:
       type: object
       properties:
@@ -3169,16 +4516,39 @@ components:
       - codigo
       - rotulo
       - tom
-    StatusEnum:
+    SituacaoDoVeiculo:
+      type: object
+      properties:
+        codigo:
+          type: string
+        rotulo:
+          type: string
+        tom:
+          type: string
+      required:
+      - codigo
+      - rotulo
+      - tom
+    StatusVeiculoEnum:
       enum:
-      - ativo
-      - encerrado
-      - revogado
+      - disponivel
+      - reservado
+      - alugado
+      - em_manutencao
+      - indisponivel
+      - a_venda
+      - vendido
+      - baixado
       type: string
       description: |-
-        * `ativo` - Ativo
-        * `encerrado` - Encerrado
-        * `revogado` - Revogado
+        * `disponivel` - Disponível
+        * `reservado` - Reservado
+        * `alugado` - Alugado
+        * `em_manutencao` - Em manutenção
+        * `indisponivel` - Indisponível
+        * `a_venda` - À venda
+        * `vendido` - Vendido
+        * `baixado` - Baixado
     Sugestao:
       type: object
       properties:
@@ -3270,6 +4640,14 @@ components:
       description: |-
         * `desktop` - Desktop
         * `celular` - Celular
+    TipoVeiculoEnum:
+      enum:
+      - moto
+      - carro
+      type: string
+      description: |-
+        * `moto` - Moto
+        * `carro` - Carro
     Token:
       type: object
       properties:
@@ -3286,6 +4664,16 @@ components:
           maxLength: 100
       required:
       - token
+    Transferir:
+      type: object
+      properties:
+        filial_destino_id:
+          type: integer
+        motivo:
+          type: string
+          default: ''
+      required:
+      - filial_destino_id
     TrocarSenha:
       type: object
       properties:
@@ -3512,6 +4900,281 @@ components:
         * `vendedor` - vendedor
         * `vistoriador` - vistoriador
         * `financeiro` - financeiro
+    Veiculo:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        chassi:
+          type: string
+        renavam:
+          type: string
+          nullable: true
+        marca:
+          type: string
+        modelo:
+          type: string
+        ano_fabricacao:
+          type: integer
+        ano_modelo:
+          type: integer
+        cor:
+          type: string
+        tipo_veiculo:
+          $ref: '#/components/schemas/TipoVeiculoEnum'
+        categoria:
+          $ref: '#/components/schemas/IdNome'
+        filial:
+          $ref: '#/components/schemas/IdNome'
+        status:
+          $ref: '#/components/schemas/StatusVeiculoEnum'
+        motivo_status:
+          type: string
+          nullable: true
+        km_atual:
+          type: integer
+        km_atualizado_em:
+          type: string
+          format: date-time
+          nullable: true
+        capacidade_tanque_litros:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,1})?$
+          nullable: true
+        preco_vigente:
+          allOf:
+          - $ref: '#/components/schemas/Preco'
+          nullable: true
+        valor_venda_centavos:
+          type: integer
+          nullable: true
+        referencia_fipe_centavos:
+          type: integer
+          nullable: true
+        valor_compra_centavos:
+          type: integer
+          nullable: true
+        data_compra:
+          type: string
+          format: date
+          nullable: true
+        entrou_na_frota_em:
+          type: string
+          format: date
+        situacao:
+          $ref: '#/components/schemas/SituacaoDoVeiculo'
+        locacao_atual:
+          nullable: true
+        manutencao:
+          nullable: true
+        documentos_resumo:
+          nullable: true
+        acoes:
+          $ref: '#/components/schemas/AcoesDoVeiculo'
+      required:
+      - acoes
+      - ano_fabricacao
+      - ano_modelo
+      - capacidade_tanque_litros
+      - categoria
+      - chassi
+      - cor
+      - data_compra
+      - documentos_resumo
+      - entrou_na_frota_em
+      - filial
+      - id
+      - km_atual
+      - km_atualizado_em
+      - locacao_atual
+      - manutencao
+      - marca
+      - modelo
+      - motivo_status
+      - placa
+      - preco_vigente
+      - referencia_fipe_centavos
+      - renavam
+      - situacao
+      - status
+      - tipo_veiculo
+      - valor_compra_centavos
+      - valor_venda_centavos
+    VeiculoDetalhe:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        chassi:
+          type: string
+        renavam:
+          type: string
+          nullable: true
+        marca:
+          type: string
+        modelo:
+          type: string
+        ano_fabricacao:
+          type: integer
+        ano_modelo:
+          type: integer
+        cor:
+          type: string
+        tipo_veiculo:
+          $ref: '#/components/schemas/TipoVeiculoEnum'
+        categoria:
+          $ref: '#/components/schemas/IdNome'
+        filial:
+          $ref: '#/components/schemas/IdNome'
+        status:
+          $ref: '#/components/schemas/StatusVeiculoEnum'
+        motivo_status:
+          type: string
+          nullable: true
+        km_atual:
+          type: integer
+        km_atualizado_em:
+          type: string
+          format: date-time
+          nullable: true
+        capacidade_tanque_litros:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,1})?$
+          nullable: true
+        preco_vigente:
+          allOf:
+          - $ref: '#/components/schemas/Preco'
+          nullable: true
+        valor_venda_centavos:
+          type: integer
+          nullable: true
+        referencia_fipe_centavos:
+          type: integer
+          nullable: true
+        valor_compra_centavos:
+          type: integer
+          nullable: true
+        data_compra:
+          type: string
+          format: date
+          nullable: true
+        entrou_na_frota_em:
+          type: string
+          format: date
+        situacao:
+          $ref: '#/components/schemas/SituacaoDoVeiculo'
+        locacao_atual:
+          nullable: true
+        manutencao:
+          nullable: true
+        documentos_resumo:
+          nullable: true
+        acoes:
+          $ref: '#/components/schemas/AcoesDoVeiculo'
+        indicadores_financeiros:
+          nullable: true
+        ocupacao:
+          $ref: '#/components/schemas/Ocupacao'
+        historico_status:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoricoStatus'
+      required:
+      - acoes
+      - ano_fabricacao
+      - ano_modelo
+      - capacidade_tanque_litros
+      - categoria
+      - chassi
+      - cor
+      - data_compra
+      - documentos_resumo
+      - entrou_na_frota_em
+      - filial
+      - historico_status
+      - id
+      - indicadores_financeiros
+      - km_atual
+      - km_atualizado_em
+      - locacao_atual
+      - manutencao
+      - marca
+      - modelo
+      - motivo_status
+      - ocupacao
+      - placa
+      - preco_vigente
+      - referencia_fipe_centavos
+      - renavam
+      - situacao
+      - status
+      - tipo_veiculo
+      - valor_compra_centavos
+      - valor_venda_centavos
+    VeiculoEntrada:
+      type: object
+      properties:
+        placa:
+          type: string
+          maxLength: 10
+        chassi:
+          type: string
+          maxLength: 20
+        renavam:
+          type: string
+          nullable: true
+        marca:
+          type: string
+          maxLength: 40
+        modelo:
+          type: string
+          maxLength: 60
+        ano_fabricacao:
+          type: integer
+        ano_modelo:
+          type: integer
+        cor:
+          type: string
+          maxLength: 30
+        km_atual:
+          type: integer
+          minimum: 0
+        categoria_id:
+          type: integer
+        filial_id:
+          type: integer
+        capacidade_tanque_litros:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,1})?$
+          nullable: true
+        valor_compra_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+        data_compra:
+          type: string
+          format: date
+          nullable: true
+        entrou_na_frota_em:
+          type: string
+          format: date
+      required:
+      - ano_fabricacao
+      - ano_modelo
+      - categoria_id
+      - chassi
+      - cor
+      - filial_id
+      - marca
+      - modelo
+      - placa
     VeiculosEnum:
       enum:
       - editar

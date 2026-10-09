@@ -175,6 +175,7 @@ SPECTACULAR_SETTINGS = {
         "TipoSessaoEnum": "apps.contas.models.TipoSessao",
         "PermissaoExtraEnum": "apps.contas.models.PermissaoExtra",
         "PermissaoSuporteEnum": "apps.plataforma.models.PermissaoSuporte",
+        "StatusVeiculoEnum": "apps.veiculos.models.StatusVeiculo",
     },
 }
 
@@ -239,7 +240,9 @@ GIRO_PEPPER_HMAC = env("GIRO_PEPPER_HMAC")
 # CEP: "falso" (CEPs do seed) em dev e testes; "viacep" em homologação e produção.
 # Módulos (apps) já entregues: o menu do `eu` esconde os outros, para nunca levar a uma tela
 # que não existe (USR-05, T-047). Cada entrega acrescenta o seu.
-GIRO_MODULOS_ATIVOS = env.list("GIRO_MODULOS_ATIVOS", default=["contas", "filiais", "plataforma"])
+GIRO_MODULOS_ATIVOS = env.list(
+    "GIRO_MODULOS_ATIVOS", default=["contas", "filiais", "plataforma", "veiculos"]
+)
 GIRO_PROVEDOR_CEP = env("GIRO_PROVEDOR_CEP", default="falso")
 # WhatsApp: só o "falso" (mensagens na memória) até a integração real.
 GIRO_PROVEDOR_WHATSAPP = env("GIRO_PROVEDOR_WHATSAPP", default="falso")

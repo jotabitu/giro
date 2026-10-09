@@ -1459,6 +1459,12 @@ def test_plt_07_lista_de_rotas_que_o_suporte_le():
         "api/filiais/<int:pk>/feriados/",
         "api/filiais/<int:pk>/feriados/sugestoes/",
         "api/enderecos/cep/<str:cep>/",
+        "api/veiculos/",
+        "api/veiculos/<int:pk>/",
+        "api/categorias/",
+        "api/categorias/<int:pk>/precos/",
+        "api/precos/historico/",
+        "api/extras/",
     }
 
 

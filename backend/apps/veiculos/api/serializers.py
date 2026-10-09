@@ -1,0 +1,293 @@
+"""Entrada e formato de resposta de veículos, categorias, preços e extras (docs/api/veiculos.md).
+
+As regras (placa, chassi, categoria da filial, unicidade, transições) são conferidas no
+serviço; aqui só a forma.
+"""
+
+from typing import Any
+
+from rest_framework import serializers
+
+from ..models import Extra, StatusVeiculo, TipoVeiculo
+from ..services import MOTIVOS_DE_BAIXA
+
+# --- Entrada ---
+
+
+class VeiculoEntradaSerializer(serializers.Serializer[Any]):
+    placa = serializers.CharField(max_length=10)
+    chassi = serializers.CharField(max_length=20)
+    renavam = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    marca = serializers.CharField(max_length=40)
+    modelo = serializers.CharField(max_length=60)
+    ano_fabricacao = serializers.IntegerField()
+    ano_modelo = serializers.IntegerField()
+    cor = serializers.CharField(max_length=30)
+    km_atual = serializers.IntegerField(min_value=0, required=False)
+    categoria_id = serializers.IntegerField()
+    filial_id = serializers.IntegerField()
+    capacidade_tanque_litros = serializers.DecimalField(
+        max_digits=5, decimal_places=1, required=False, allow_null=True, min_value=0
+    )
+    valor_compra_centavos = serializers.IntegerField(min_value=0, required=False, allow_null=True)
+    data_compra = serializers.DateField(required=False, allow_null=True)
+    entrou_na_frota_em = serializers.DateField(required=False)
+
+
+class VeiculoEdicaoSerializer(serializers.Serializer[Any]):
+    renavam = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    marca = serializers.CharField(max_length=40, required=False)
+    modelo = serializers.CharField(max_length=60, required=False)
+    ano_fabricacao = serializers.IntegerField(required=False)
+    ano_modelo = serializers.IntegerField(required=False)
+    cor = serializers.CharField(max_length=30, required=False)
+    categoria_id = serializers.IntegerField(required=False)
+    capacidade_tanque_litros = serializers.DecimalField(
+        max_digits=5, decimal_places=1, required=False, allow_null=True, min_value=0
+    )
+    valor_compra_centavos = serializers.IntegerField(min_value=0, required=False, allow_null=True)
+    data_compra = serializers.DateField(required=False, allow_null=True)
+
+
+class CorrigirIdentificacaoSerializer(serializers.Serializer[Any]):
+    placa = serializers.CharField(max_length=10, required=False)
+    chassi = serializers.CharField(max_length=20, required=False)
+    motivo = serializers.CharField()
+
+
+class BloquearVeiculoSerializer(serializers.Serializer[Any]):
+    motivo = serializers.CharField()
+
+
+class DesbloquearVeiculoSerializer(serializers.Serializer[Any]):
+    motivo = serializers.CharField(required=False, allow_blank=True)
+
+
+class ColocarAVendaSerializer(serializers.Serializer[Any]):
+    valor_venda_centavos = serializers.IntegerField(min_value=1)
+    referencia_fipe_centavos = serializers.IntegerField(
+        min_value=0, required=False, allow_null=True
+    )
+
+
+class BaixarSerializer(serializers.Serializer[Any]):
+    motivo = serializers.ChoiceField(choices=list(MOTIVOS_DE_BAIXA))
+    descricao = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class TransferirSerializer(serializers.Serializer[Any]):
+    filial_destino_id = serializers.IntegerField()
+    motivo = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class KmSerializer(serializers.Serializer[Any]):
+    km = serializers.IntegerField(min_value=0)
+
+
+class CorrigirKmSerializer(serializers.Serializer[Any]):
+    km = serializers.IntegerField(min_value=0)
+    motivo = serializers.CharField()
+
+
+class PrecoEntradaSerializer(serializers.Serializer[Any]):
+    diaria_centavos = serializers.IntegerField(min_value=0)
+    semanal_centavos = serializers.IntegerField(min_value=0)
+    mensal_centavos = serializers.IntegerField(min_value=0)
+    caucao_centavos = serializers.IntegerField(min_value=0)
+
+
+class NovoPrecoSerializer(PrecoEntradaSerializer):
+    vigente_desde = serializers.DateField(required=False)
+
+
+class CategoriaEntradaSerializer(serializers.Serializer[Any]):
+    nome = serializers.CharField(max_length=60)
+    tipo_veiculo = serializers.ChoiceField(choices=TipoVeiculo.choices)
+    filial_id = serializers.IntegerField(required=False, allow_null=True)
+    preco = PrecoEntradaSerializer()
+
+
+class CategoriaEdicaoSerializer(serializers.Serializer[Any]):
+    nome = serializers.CharField(max_length=60, required=False)
+    tipo_veiculo = serializers.ChoiceField(choices=TipoVeiculo.choices, required=False)
+    filial_id = serializers.IntegerField(required=False, allow_null=True)
+
+
+class ExtraEntradaSerializer(serializers.Serializer[Any]):
+    nome = serializers.CharField(max_length=60)
+    valor_centavos = serializers.IntegerField(min_value=0)
+    cobranca = serializers.ChoiceField(choices=Extra.Cobranca.choices)
+
+
+# --- Respostas (OpenAPI) ---
+
+
+class IdNomeSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    nome = serializers.CharField()
+
+
+class PrecoSerializer(serializers.Serializer[Any]):
+    diaria_centavos = serializers.IntegerField()
+    semanal_centavos = serializers.IntegerField()
+    mensal_centavos = serializers.IntegerField()
+    caucao_centavos = serializers.IntegerField()
+
+
+class PrecoComDataSerializer(PrecoSerializer):
+    vigente_desde = serializers.DateField()
+
+
+class SituacaoDoVeiculoSerializer(serializers.Serializer[Any]):
+    codigo = serializers.CharField()
+    rotulo = serializers.CharField()
+    tom = serializers.CharField()
+
+
+class AcoesDoVeiculoSerializer(serializers.Serializer[Any]):
+    editar = serializers.BooleanField()
+    colocar_a_venda = serializers.BooleanField()
+    voltar_para_frota = serializers.BooleanField()
+    bloquear = serializers.BooleanField()
+    desbloquear = serializers.BooleanField()
+    transferir = serializers.BooleanField()
+    baixar = serializers.BooleanField()
+    registrar_km = serializers.BooleanField()
+    corrigir_km = serializers.BooleanField()
+
+
+class VeiculoSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    placa = serializers.CharField()
+    chassi = serializers.CharField()
+    renavam = serializers.CharField(allow_null=True)
+    marca = serializers.CharField()
+    modelo = serializers.CharField()
+    ano_fabricacao = serializers.IntegerField()
+    ano_modelo = serializers.IntegerField()
+    cor = serializers.CharField()
+    tipo_veiculo = serializers.ChoiceField(choices=TipoVeiculo.choices)
+    categoria = IdNomeSerializer()
+    filial = IdNomeSerializer()
+    status = serializers.ChoiceField(choices=StatusVeiculo.choices)
+    motivo_status = serializers.CharField(allow_null=True)
+    km_atual = serializers.IntegerField()
+    km_atualizado_em = serializers.DateTimeField(allow_null=True)
+    capacidade_tanque_litros = serializers.DecimalField(
+        max_digits=5, decimal_places=1, allow_null=True
+    )
+    preco_vigente = PrecoSerializer(allow_null=True)
+    valor_venda_centavos = serializers.IntegerField(allow_null=True)
+    referencia_fipe_centavos = serializers.IntegerField(allow_null=True)
+    valor_compra_centavos = serializers.IntegerField(allow_null=True)
+    data_compra = serializers.DateField(allow_null=True)
+    entrou_na_frota_em = serializers.DateField()
+    situacao = SituacaoDoVeiculoSerializer()
+    locacao_atual = serializers.JSONField(allow_null=True)
+    manutencao = serializers.JSONField(allow_null=True)
+    documentos_resumo = serializers.JSONField(allow_null=True)
+    acoes = AcoesDoVeiculoSerializer()
+
+
+class OcupacaoSerializer(serializers.Serializer[Any]):
+    pct = serializers.CharField()
+    periodo_dias = serializers.IntegerField()
+
+
+class HistoricoStatusSerializer(serializers.Serializer[Any]):
+    de = serializers.CharField(allow_null=True)
+    para = serializers.CharField()
+    em = serializers.DateTimeField()
+    origem_tipo = serializers.CharField()
+    origem_codigo = serializers.CharField(allow_null=True)
+    motivo = serializers.CharField(allow_null=True)
+
+
+class VeiculoDetalheSerializer(VeiculoSerializer):
+    indicadores_financeiros = serializers.JSONField(allow_null=True)
+    ocupacao = OcupacaoSerializer()
+    historico_status = HistoricoStatusSerializer(many=True)
+
+
+class ContagensDaFrotaSerializer(serializers.Serializer[Any]):
+    todos = serializers.IntegerField()
+    disponivel = serializers.IntegerField()
+    alugado = serializers.IntegerField()
+    reservado = serializers.IntegerField()
+    em_manutencao = serializers.IntegerField()
+    a_venda = serializers.IntegerField()
+    indisponivel = serializers.IntegerField()
+    motos = serializers.IntegerField()
+    carros = serializers.IntegerField()
+
+
+class ListaDeVeiculosSerializer(serializers.Serializer[Any]):
+    contagens = ContagensDaFrotaSerializer()
+    resultados = VeiculoSerializer(many=True)
+    proximo = serializers.CharField(allow_null=True)
+    anterior = serializers.CharField(allow_null=True)
+
+
+class CategoriaSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    nome = serializers.CharField()
+    tipo_veiculo = serializers.ChoiceField(choices=TipoVeiculo.choices)
+    filial = IdNomeSerializer(allow_null=True)
+    ativo = serializers.BooleanField()
+    modelos_resumo = serializers.CharField()
+    veiculos = serializers.IntegerField()
+    preco_vigente = PrecoComDataSerializer(allow_null=True)
+    proximo_preco = PrecoComDataSerializer(allow_null=True)
+
+
+class ListaDeCategoriasSerializer(serializers.Serializer[Any]):
+    resultados = CategoriaSerializer(many=True)
+
+
+class PrecoHistoricoSerializer(PrecoComDataSerializer):
+    alterado_por = serializers.CharField(allow_null=True)
+    alterado_em = serializers.DateTimeField()
+
+
+class ListaDePrecosSerializer(serializers.Serializer[Any]):
+    resultados = PrecoHistoricoSerializer(many=True)
+
+
+class PrecoCriadoSerializer(PrecoHistoricoSerializer):
+    locacoes_em_andamento_mantidas = serializers.IntegerField()
+
+
+class MudancaDePrecoSerializer(serializers.Serializer[Any]):
+    categoria = IdNomeSerializer()
+    vigente_desde = serializers.DateField()
+    campo = serializers.CharField()
+    antes_centavos = serializers.IntegerField(allow_null=True)
+    depois_centavos = serializers.IntegerField()
+    alterado_por = serializers.CharField(allow_null=True)
+    alterado_em = serializers.DateTimeField()
+
+
+class ListaDeMudancasDePrecoSerializer(serializers.Serializer[Any]):
+    resultados = MudancaDePrecoSerializer(many=True)
+
+
+class ExtraSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    nome = serializers.CharField()
+    valor_centavos = serializers.IntegerField()
+    cobranca = serializers.ChoiceField(choices=Extra.Cobranca.choices)
+    ativo = serializers.BooleanField()
+
+
+class ListaDeExtrasSerializer(serializers.Serializer[Any]):
+    resultados = ExtraSerializer(many=True)
+
+
+class PedidoRefSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    tipo = serializers.CharField()
+    status = serializers.CharField()
+
+
+class PedidoAprovacaoCriadoSerializer(serializers.Serializer[Any]):
+    pedido_aprovacao = PedidoRefSerializer()
