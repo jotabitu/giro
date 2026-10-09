@@ -128,7 +128,7 @@ class Usuario(  # type: ignore[django-manager-missing]
     # Funcionário é o ator dos eventos: nome, e-mail e celular vão inteiros (ADR 0014, item 3).
     CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
         "omitir": ["password"],
-        "inteiro": ["email", "celular"],
+        "inteiro": ["nome", "email", "celular"],
     }
 
     USERNAME_FIELD = "email"

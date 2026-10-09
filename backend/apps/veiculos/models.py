@@ -30,6 +30,9 @@ class Categoria(ModeloBase, ModeloAtivavel):
         "filiais.Filial", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
     )
 
+    # Nome de coisa, não de pessoa (R-02 da T-050): vai inteiro para a auditoria.
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["nome"]}
+
     class Meta:
         verbose_name = "categoria"
         ordering = ["nome", "id"]
@@ -80,6 +83,9 @@ class Extra(ModeloBase, ModeloAtivavel):
     nome = models.CharField(max_length=60)
     valor_centavos = CentavosField()
     cobranca = models.CharField(max_length=12, choices=Cobranca.choices)
+
+    # Nome de coisa, não de pessoa (R-02 da T-050): vai inteiro para a auditoria.
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["nome"]}
 
     class Meta:
         verbose_name = "extra"
@@ -284,6 +290,9 @@ class DocumentoVeiculo(ModeloBase, ModeloAtivavel):
     por = models.ForeignKey(
         "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
     )
+
+    # Nome do arquivo enviado, não de pessoa (R-02 da T-050).
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["arquivo_nome"]}
 
     class Meta:
         verbose_name = "documento do veículo"

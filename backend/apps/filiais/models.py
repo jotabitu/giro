@@ -42,7 +42,7 @@ class Filial(ModeloBase, ModeloAtivavel):
 
     # Contato e endereço são da empresa, não de pessoa: vão inteiros (ADR 0014, item 3).
     CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
-        "inteiro": ["telefone", "whatsapp", "email", "logradouro"],
+        "inteiro": ["nome", "telefone", "whatsapp", "email", "logradouro"],
     }
 
     class Meta:
@@ -72,6 +72,9 @@ class FeriadoFilial(ModeloBase, ModeloAtivavel):
     data = models.DateField()
     nome = models.CharField(max_length=80)
     origem = models.CharField(max_length=10, choices=Origem.choices)
+
+    # Nome de coisa, não de pessoa (R-02 da T-050): vai inteiro para a auditoria.
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["nome"]}
 
     class Meta:
         verbose_name = "feriado da filial"

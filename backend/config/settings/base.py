@@ -177,6 +177,12 @@ SPECTACULAR_SETTINGS = {
         "PermissaoSuporteEnum": "apps.plataforma.models.PermissaoSuporte",
         "StatusVeiculoEnum": "apps.veiculos.models.StatusVeiculo",
         "TipoDocumentoEnum": "apps.veiculos.models.TipoDocumento",
+        "TipoDocumentoClienteEnum": "apps.clientes.models.TipoDocumentoCliente",
+        "StatusClienteEnum": "apps.clientes.models.StatusCliente",
+        "TipoClienteEnum": "apps.clientes.models.TipoCliente",
+        # Nomes que veículos já publicava, antes de clientes ter outro `motivo` e `situacao`.
+        "MotivoEnum": ["perda_total", "roubo", "sucata", "outro"],
+        "SituacaoEnum": ["em_dia", "vence_em_breve", "vencido"],
     },
 }
 
@@ -247,7 +253,8 @@ GIRO_PEPPER_HMAC = env("GIRO_PEPPER_HMAC")
 # Módulos (apps) já entregues: o menu do `eu` esconde os outros, para nunca levar a uma tela
 # que não existe (USR-05, T-047). Cada entrega acrescenta o seu.
 GIRO_MODULOS_ATIVOS = env.list(
-    "GIRO_MODULOS_ATIVOS", default=["aprovacoes", "contas", "filiais", "plataforma", "veiculos"]
+    "GIRO_MODULOS_ATIVOS",
+    default=["aprovacoes", "clientes", "contas", "filiais", "plataforma", "veiculos"],
 )
 GIRO_PROVEDOR_CEP = env("GIRO_PROVEDOR_CEP", default="falso")
 # Arquivos privados (ADR 0009, AUD-05): "falso" (na memória) em dev e testes; "s3" com um bucket

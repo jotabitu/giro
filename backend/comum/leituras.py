@@ -6,6 +6,9 @@ o app de cima consulta o registro sem importar o de baixo (ADR 0011).
 - Anotação: `registrar_anotacao(alvo, bloco, anotar=..., montar=...)`, com alvo `"filiais.Filial"`.
   `aplicar(alvo, qs)` acrescenta as anotações (uma query para a lista toda) e `blocos(alvo, obj)`
   junta o que cada fornecedor montou para cada bloco. Bloco sem fornecedor não aparece.
+- Filtro: `registrar_filtro(alvo, nome, filtrar)` (ex.: `com_locacao` e `em_aberto` da lista de
+  clientes, registrados por `locacoes` e `financeiro`). `filtro(alvo, nome)` devolve `None` quando
+  o fornecedor ainda não existe, e quem consulta decide o que mostrar (contagem `null`).
 - Contador: `registrar_contador(alvo="filiais.Filial", nome="veiculos", contar=lambda id: ...)`.
   `contar(alvo, id, nomes)` devolve todos os pedidos; contador não registrado vale 0
   (ex.: operação que impede desativar a filial, FIL-06).
@@ -28,6 +31,7 @@ class Anotacao:
 
 _anotacoes: dict[str, list[Anotacao]] = defaultdict(list)
 _contadores: dict[str, dict[str, Callable[[int], int]]] = defaultdict(dict)
+_filtros: dict[str, dict[str, Callable[[QuerySet[Any]], QuerySet[Any]]]] = defaultdict(dict)
 
 
 def registrar_anotacao(
@@ -69,3 +73,18 @@ def remover_contador(alvo: str, nome: str) -> None:
 def contar(alvo: str, objeto_id: int, nomes: Iterable[str]) -> dict[str, int]:
     registrados = _contadores.get(alvo, {})
     return {nome: int(registrados[nome](objeto_id)) if nome in registrados else 0 for nome in nomes}
+
+
+def registrar_filtro(
+    alvo: str, nome: str, filtrar: Callable[[QuerySet[Any]], QuerySet[Any]]
+) -> None:
+    _filtros[alvo][nome] = filtrar
+
+
+def remover_filtro(alvo: str, nome: str) -> None:
+    """Para testes."""
+    _filtros.get(alvo, {}).pop(nome, None)
+
+
+def filtro(alvo: str, nome: str) -> Callable[[QuerySet[Any]], QuerySet[Any]] | None:
+    return _filtros.get(alvo, {}).get(nome)

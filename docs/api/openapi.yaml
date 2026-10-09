@@ -736,6 +736,343 @@ paths:
               schema:
                 $ref: '#/components/schemas/Categoria'
           description: ''
+  /api/clientes/:
+    get:
+      operationId: clientes_list
+      summary: Clientes (CLI-06, AUD-04)
+      parameters:
+      - in: query
+        name: busca
+        schema:
+          type: string
+      - in: query
+        name: ordem
+        schema:
+          type: string
+          enum:
+          - -criado_em
+          - -total_pago
+          - nome
+      - in: query
+        name: situacao
+        schema:
+          type: string
+          enum:
+          - bloqueados
+          - com_locacao
+          - em_aberto
+          - inativos
+          - incompletos
+      - in: query
+        name: tipo
+        schema:
+          type: string
+          enum:
+          - pf
+          - pj
+      tags:
+      - clientes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeClientes'
+          description: ''
+    post:
+      operationId: clientes_create
+      summary: Cadastrar cliente (CLI-01, CLI-03, CLI-08)
+      tags:
+      - clientes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClienteEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClienteEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClienteEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClienteDetalhe'
+          description: ''
+  /api/clientes/{id}/:
+    get:
+      operationId: clientes_retrieve
+      summary: 'Cliente: completo para quem cadastra, resumido para os demais (AUD-04)'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - clientes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClienteDetalhe'
+          description: ''
+    patch:
+      operationId: clientes_partial_update
+      summary: Editar
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - clientes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedClienteEdicao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedClienteEdicao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedClienteEdicao'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClienteDetalhe'
+          description: ''
+  /api/clientes/{id}/analise/:
+    get:
+      operationId: clientes_analise_retrieve
+      summary: Análise do cadastro (CLI-04)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - clientes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnaliseCliente'
+          description: ''
+  /api/clientes/{id}/bloquear/:
+    post:
+      operationId: clientes_bloquear_create
+      summary: Bloquear (CLI-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - clientes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MotivoCliente'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MotivoCliente'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MotivoCliente'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClienteDetalhe'
+          description: ''
+  /api/clientes/{id}/desbloquear/:
+    post:
+      operationId: clientes_desbloquear_create
+      summary: 'Desbloquear: direto para gerente e administrador; pedido APR-05 do
+        vendedor'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - clientes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MotivoCliente'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MotivoCliente'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MotivoCliente'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClienteDetalhe'
+          description: ''
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PedidoAprovacaoCriadoCliente'
+          description: ''
+  /api/clientes/{id}/documentos/:
+    post:
+      operationId: clientes_documentos_create
+      summary: Enviar documento (CLI-03, AUD-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - clientes
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DocumentoEntradaCliente'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClienteDetalhe'
+          description: ''
+  /api/clientes/{id}/inativar/:
+    post:
+      operationId: clientes_inativar_create
+      summary: Inativar (CLI-09)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - clientes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MotivoCliente'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MotivoCliente'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MotivoCliente'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClienteDetalhe'
+          description: ''
+  /api/clientes/{id}/reativar/:
+    post:
+      operationId: clientes_reativar_create
+      summary: Reativar (CLI-09)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - clientes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MotivoCliente'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MotivoCliente'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MotivoCliente'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClienteDetalhe'
+          description: ''
+  /api/clientes/analisar/:
+    post:
+      operationId: clientes_analisar_create
+      summary: Análise de um cadastro ainda não salvo (CLI-04)
+      tags:
+      - clientes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClienteEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ClienteEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ClienteEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnaliseCliente'
+          description: ''
   /api/convites/aceitar/:
     post:
       operationId: convites_aceitar_create
@@ -2436,6 +2773,21 @@ components:
       - duracao_minutos
       - motivo
       - permissao
+    AcaoPrincipalCliente:
+      type: object
+      properties:
+        codigo:
+          $ref: '#/components/schemas/CodigoEnum'
+        rotulo:
+          type: string
+        alvo:
+          allOf:
+          - $ref: '#/components/schemas/AlvoCliente'
+          nullable: true
+      required:
+      - alvo
+      - codigo
+      - rotulo
     Access:
       type: object
       properties:
@@ -2581,6 +2933,37 @@ components:
       - registrar_km
       - transferir
       - voltar_para_frota
+    AlvoCliente:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/AlvoClienteTipoEnum'
+        id:
+          type: integer
+      required:
+      - id
+      - tipo
+    AlvoClienteTipoEnum:
+      enum:
+      - conta
+      - cliente
+      - venda
+      - locacao
+      type: string
+      description: |-
+        * `conta` - conta
+        * `cliente` - cliente
+        * `venda` - venda
+        * `locacao` - locacao
+    AnaliseCliente:
+      type: object
+      properties:
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemAnaliseCliente'
+      required:
+      - itens
     Aprovar:
       type: object
       properties:
@@ -2648,6 +3031,9 @@ components:
           default: ''
       required:
       - motivo
+    BlankEnum:
+      enum:
+      - ''
     BloquearVeiculo:
       type: object
       properties:
@@ -2662,6 +3048,31 @@ components:
           type: boolean
       required:
       - bloqueado
+    BloqueioCliente:
+      type: object
+      properties:
+        motivo:
+          $ref: '#/components/schemas/BloqueioClienteMotivoEnum'
+        desde:
+          type: string
+          format: date-time
+        descricao:
+          type: string
+        desbloqueia_sozinho:
+          type: boolean
+      required:
+      - desbloqueia_sozinho
+      - descricao
+      - desde
+      - motivo
+    BloqueioClienteMotivoEnum:
+      enum:
+      - atraso
+      - manual
+      type: string
+      description: |-
+        * `atraso` - atraso
+        * `manual` - manual
     Categoria:
       type: object
       properties:
@@ -2716,6 +3127,28 @@ components:
       - nome
       - preco
       - tipo_veiculo
+    CategoriaEnum:
+      enum:
+      - A
+      - B
+      - C
+      - D
+      - E
+      - AB
+      - AC
+      - AD
+      - AE
+      type: string
+      description: |-
+        * `A` - A
+        * `B` - B
+        * `C` - C
+        * `D` - D
+        * `E` - E
+        * `AB` - AB
+        * `AC` - AC
+        * `AD` - AD
+        * `AE` - AE
     Cep:
       type: object
       properties:
@@ -2735,6 +3168,286 @@ components:
       - cidade
       - logradouro
       - uf
+    Cliente:
+      type: object
+      description: 'Representação resumida: listas e quem não cadastra (AUD-04, AUD-09).'
+      properties:
+        id:
+          type: integer
+        tipo:
+          $ref: '#/components/schemas/TipoClienteEnum'
+        nome:
+          type: string
+        documento_mascarado:
+          type: string
+        celular:
+          type: string
+        status:
+          $ref: '#/components/schemas/StatusClienteEnum'
+        situacao:
+          $ref: '#/components/schemas/SituacaoCliente'
+        cliente_desde:
+          type: string
+          format: date
+        locacao_atual:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        ultima_locacao:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        financeiro:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        venda_aberta:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        acao_principal:
+          allOf:
+          - $ref: '#/components/schemas/AcaoPrincipalCliente'
+          nullable: true
+      required:
+      - acao_principal
+      - celular
+      - cliente_desde
+      - documento_mascarado
+      - financeiro
+      - id
+      - locacao_atual
+      - nome
+      - situacao
+      - status
+      - tipo
+      - ultima_locacao
+      - venda_aberta
+    ClienteDetalhe:
+      type: object
+      description: 'Representação completa: só quem cadastra, nunca o suporte.'
+      properties:
+        id:
+          type: integer
+        tipo:
+          $ref: '#/components/schemas/TipoClienteEnum'
+        nome:
+          type: string
+        documento_mascarado:
+          type: string
+        celular:
+          type: string
+        status:
+          $ref: '#/components/schemas/StatusClienteEnum'
+        situacao:
+          $ref: '#/components/schemas/SituacaoCliente'
+        cliente_desde:
+          type: string
+          format: date
+        locacao_atual:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        ultima_locacao:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        financeiro:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        venda_aberta:
+          type: object
+          additionalProperties: {}
+          nullable: true
+        acao_principal:
+          allOf:
+          - $ref: '#/components/schemas/AcaoPrincipalCliente'
+          nullable: true
+        documento:
+          type: string
+        nascimento:
+          type: string
+          format: date
+          nullable: true
+        idade:
+          type: integer
+          nullable: true
+        email:
+          type: string
+        profissao:
+          type: string
+        cnh:
+          allOf:
+          - $ref: '#/components/schemas/CnhCliente'
+          nullable: true
+        responsavel:
+          allOf:
+          - $ref: '#/components/schemas/ResponsavelCliente'
+          nullable: true
+        endereco:
+          allOf:
+          - $ref: '#/components/schemas/EnderecoCliente'
+          nullable: true
+        referencia:
+          allOf:
+          - $ref: '#/components/schemas/ReferenciaCliente'
+          nullable: true
+        consentimento_em:
+          type: string
+          format: date-time
+          nullable: true
+        bloqueio:
+          allOf:
+          - $ref: '#/components/schemas/BloqueioCliente'
+          nullable: true
+        documentos:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentoCliente'
+        pendencias:
+          type: array
+          items:
+            type: string
+        analise:
+          $ref: '#/components/schemas/AnaliseCliente'
+      required:
+      - acao_principal
+      - analise
+      - bloqueio
+      - celular
+      - cliente_desde
+      - cnh
+      - consentimento_em
+      - documento
+      - documento_mascarado
+      - documentos
+      - email
+      - endereco
+      - financeiro
+      - id
+      - idade
+      - locacao_atual
+      - nascimento
+      - nome
+      - pendencias
+      - profissao
+      - referencia
+      - responsavel
+      - situacao
+      - status
+      - tipo
+      - ultima_locacao
+      - venda_aberta
+    ClienteEntrada:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 150
+        documento:
+          type: string
+          maxLength: 20
+        nascimento:
+          type: string
+          format: date
+          nullable: true
+        celular:
+          type: string
+          maxLength: 20
+        email:
+          nullable: true
+          oneOf:
+          - type: string
+            format: email
+          - type: string
+            maxLength: 0
+        profissao:
+          type: string
+          nullable: true
+          maxLength: 80
+        cnh:
+          allOf:
+          - $ref: '#/components/schemas/CnhEntradaCliente'
+          nullable: true
+        responsavel:
+          allOf:
+          - $ref: '#/components/schemas/ResponsavelEntradaCliente'
+          nullable: true
+        endereco:
+          allOf:
+          - $ref: '#/components/schemas/EnderecoEntradaCliente'
+          nullable: true
+        referencia:
+          allOf:
+          - $ref: '#/components/schemas/ReferenciaEntradaCliente'
+          nullable: true
+        consentimento:
+          type: boolean
+        tipo:
+          $ref: '#/components/schemas/TipoClienteEnum'
+      required:
+      - celular
+      - documento
+      - nome
+      - tipo
+    CnhCliente:
+      type: object
+      properties:
+        numero:
+          type: string
+        categoria:
+          type: string
+        validade:
+          type: string
+          format: date
+          nullable: true
+        primeira_habilitacao:
+          type: string
+          format: date
+          nullable: true
+        situacao:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CnhClienteSituacaoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+      required:
+      - categoria
+      - numero
+      - primeira_habilitacao
+      - situacao
+      - validade
+    CnhClienteSituacaoEnum:
+      enum:
+      - valida
+      - vencida
+      - vencida_impede
+      type: string
+      description: |-
+        * `valida` - valida
+        * `vencida` - vencida
+        * `vencida_impede` - vencida_impede
+    CnhEntradaCliente:
+      type: object
+      properties:
+        numero:
+          type: string
+          nullable: true
+          maxLength: 20
+        categoria:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CategoriaEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        validade:
+          type: string
+          format: date
+          nullable: true
+        primeira_habilitacao:
+          type: string
+          format: date
+          nullable: true
     CobrancaEnum:
       enum:
       - por_periodo
@@ -2759,6 +3472,20 @@ components:
           pattern: ^\d{6}$
       required:
       - codigo
+    CodigoEnum:
+      enum:
+      - cobrar
+      - completar_cadastro
+      - ver_proposta
+      - ver_locacao
+      - nova_locacao
+      type: string
+      description: |-
+        * `cobrar` - cobrar
+        * `completar_cadastro` - completar_cadastro
+        * `ver_proposta` - ver_proposta
+        * `ver_locacao` - ver_locacao
+        * `nova_locacao` - nova_locacao
     Codigos:
       type: object
       properties:
@@ -2826,6 +3553,30 @@ components:
       - pagantes
       - saindo
       - todas
+    ContagensCliente:
+      type: object
+      properties:
+        todos:
+          type: integer
+        com_locacao:
+          type: integer
+          nullable: true
+        em_aberto:
+          type: integer
+          nullable: true
+        bloqueados:
+          type: integer
+        incompletos:
+          type: integer
+        inativos:
+          type: integer
+      required:
+      - bloqueados
+      - com_locacao
+      - em_aberto
+      - inativos
+      - incompletos
+      - todos
     ContagensDaFrota:
       type: object
       properties:
@@ -3040,6 +3791,27 @@ components:
       - situacao
       - tipo
       - validade
+    DocumentoCliente:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/TipoDocumentoClienteEnum'
+        enviado_em:
+          type: string
+          format: date-time
+          nullable: true
+        url:
+          type: string
+          nullable: true
+        url_expira_em:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - enviado_em
+      - tipo
+      - url
+      - url_expira_em
     DocumentoEntrada:
       type: object
       description: |-
@@ -3058,6 +3830,17 @@ components:
       required:
       - tipo
       - validade
+    DocumentoEntradaCliente:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/TipoDocumentoClienteEnum'
+        arquivo:
+          type: string
+          format: uri
+      required:
+      - arquivo
+      - tipo
     DoisFatores:
       type: object
       properties:
@@ -3247,6 +4030,63 @@ components:
       - logradouro
       - numero
       - uf
+    EnderecoCliente:
+      type: object
+      properties:
+        cep:
+          type: string
+        logradouro:
+          type: string
+        numero:
+          type: string
+        complemento:
+          type: string
+          nullable: true
+        bairro:
+          type: string
+        cidade:
+          type: string
+        uf:
+          type: string
+      required:
+      - bairro
+      - cep
+      - cidade
+      - complemento
+      - logradouro
+      - numero
+      - uf
+    EnderecoEntradaCliente:
+      type: object
+      properties:
+        cep:
+          type: string
+          nullable: true
+          maxLength: 10
+        logradouro:
+          type: string
+          nullable: true
+          maxLength: 150
+        numero:
+          type: string
+          nullable: true
+          maxLength: 20
+        complemento:
+          type: string
+          nullable: true
+          maxLength: 80
+        bairro:
+          type: string
+          nullable: true
+          maxLength: 80
+        cidade:
+          type: string
+          nullable: true
+          maxLength: 80
+        uf:
+          type: string
+          nullable: true
+          maxLength: 2
     Entrar:
       type: object
       properties:
@@ -3809,6 +4649,21 @@ components:
       - ocupacao_pct
       - usuarios
       - veiculos
+    IndicadoresCliente:
+      type: object
+      properties:
+        novos_no_mes_anterior:
+          type: integer
+        com_locacao_pct:
+          type: string
+          nullable: true
+        em_aberto_total_centavos:
+          type: integer
+          nullable: true
+      required:
+      - com_locacao_pct
+      - em_aberto_total_centavos
+      - novos_no_mes_anterior
     InicioNavegacao:
       type: object
       properties:
@@ -3829,6 +4684,29 @@ components:
       required:
       - abre
       - fecha
+    ItemAnaliseCliente:
+      type: object
+      properties:
+        codigo:
+          type: string
+        situacao:
+          $ref: '#/components/schemas/ItemAnaliseClienteSituacaoEnum'
+        rotulo:
+          type: string
+      required:
+      - codigo
+      - rotulo
+      - situacao
+    ItemAnaliseClienteSituacaoEnum:
+      enum:
+      - ok
+      - pendente
+      - problema
+      type: string
+      description: |-
+        * `ok` - ok
+        * `pendente` - pendente
+        * `problema` - problema
     ItemNavegacao:
       type: object
       properties:
@@ -3859,6 +4737,29 @@ components:
           items:
             $ref: '#/components/schemas/Categoria'
       required:
+      - resultados
+    ListaDeClientes:
+      type: object
+      properties:
+        contagens:
+          $ref: '#/components/schemas/ContagensCliente'
+        indicadores:
+          $ref: '#/components/schemas/IndicadoresCliente'
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Cliente'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - contagens
+      - indicadores
+      - proximo
       - resultados
     ListaDeDocumentos:
       type: object
@@ -4079,6 +4980,13 @@ components:
           type: string
       required:
       - motivo
+    MotivoCliente:
+      type: object
+      properties:
+        motivo:
+          type: string
+      required:
+      - motivo
     MotivoDaRedefinicao:
       type: object
       properties:
@@ -4199,6 +5107,9 @@ components:
       - diaria_centavos
       - mensal_centavos
       - semanal_centavos
+    NullEnum:
+      enum:
+      - null
     Ocupacao:
       type: object
       properties:
@@ -4302,6 +5213,51 @@ components:
         filial_id:
           type: integer
           nullable: true
+    PatchedClienteEdicao:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 150
+        documento:
+          type: string
+          maxLength: 20
+        nascimento:
+          type: string
+          format: date
+          nullable: true
+        celular:
+          type: string
+          maxLength: 20
+        email:
+          nullable: true
+          oneOf:
+          - type: string
+            format: email
+          - type: string
+            maxLength: 0
+        profissao:
+          type: string
+          nullable: true
+          maxLength: 80
+        cnh:
+          allOf:
+          - $ref: '#/components/schemas/CnhEntradaCliente'
+          nullable: true
+        responsavel:
+          allOf:
+          - $ref: '#/components/schemas/ResponsavelEntradaCliente'
+          nullable: true
+        endereco:
+          allOf:
+          - $ref: '#/components/schemas/EnderecoEntradaCliente'
+          nullable: true
+        referencia:
+          allOf:
+          - $ref: '#/components/schemas/ReferenciaEntradaCliente'
+          nullable: true
+        consentimento:
+          type: boolean
     PatchedEditarEu:
       type: object
       properties:
@@ -4451,11 +5407,31 @@ components:
       - tipo
       - titulo
       - valor_centavos
+    PedidoAprovacaoCliente:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+        status:
+          type: string
+      required:
+      - id
+      - status
+      - tipo
     PedidoAprovacaoCriado:
       type: object
       properties:
         pedido_aprovacao:
           $ref: '#/components/schemas/PedidoRef'
+      required:
+      - pedido_aprovacao
+    PedidoAprovacaoCriadoCliente:
+      type: object
+      properties:
+        pedido_aprovacao:
+          $ref: '#/components/schemas/PedidoAprovacaoCliente'
       required:
       - pedido_aprovacao
     PedidoRef:
@@ -4891,6 +5867,34 @@ components:
       required:
       - senha_nova
       - token
+    ReferenciaCliente:
+      type: object
+      properties:
+        nome:
+          type: string
+        parentesco:
+          type: string
+        telefone:
+          type: string
+      required:
+      - nome
+      - parentesco
+      - telefone
+    ReferenciaEntradaCliente:
+      type: object
+      properties:
+        nome:
+          type: string
+          nullable: true
+          maxLength: 150
+        parentesco:
+          type: string
+          nullable: true
+          maxLength: 40
+        telefone:
+          type: string
+          nullable: true
+          maxLength: 20
     Responsavel:
       type: object
       properties:
@@ -4904,6 +5908,34 @@ components:
       - email
       - nome
       - telefone
+    ResponsavelCliente:
+      type: object
+      properties:
+        nome:
+          type: string
+        cpf:
+          type: string
+        celular:
+          type: string
+      required:
+      - celular
+      - cpf
+      - nome
+    ResponsavelEntradaCliente:
+      type: object
+      properties:
+        nome:
+          type: string
+          nullable: true
+          maxLength: 150
+        cpf:
+          type: string
+          nullable: true
+          maxLength: 20
+        celular:
+          type: string
+          nullable: true
+          maxLength: 20
     ResumoIdNome:
       type: object
       properties:
@@ -4964,6 +5996,19 @@ components:
       - codigo
       - rotulo
       - tom
+    SituacaoCliente:
+      type: object
+      properties:
+        codigo:
+          type: string
+        rotulo:
+          type: string
+        tom:
+          type: string
+      required:
+      - codigo
+      - rotulo
+      - tom
     SituacaoDoVeiculo:
       type: object
       properties:
@@ -4987,6 +6032,18 @@ components:
         * `em_dia` - em_dia
         * `vence_em_breve` - vence_em_breve
         * `vencido` - vencido
+    StatusClienteEnum:
+      enum:
+      - incompleto
+      - ativo
+      - bloqueado
+      - inativo
+      type: string
+      description: |-
+        * `incompleto` - Cadastro incompleto
+        * `ativo` - Ativo
+        * `bloqueado` - Bloqueado
+        * `inativo` - Inativo
     StatusVeiculoEnum:
       enum:
       - disponivel
@@ -5090,6 +6147,26 @@ components:
       required:
       - dias_restantes
       - fim
+    TipoClienteEnum:
+      enum:
+      - pf
+      - pj
+      type: string
+      description: |-
+        * `pf` - Pessoa física
+        * `pj` - Pessoa jurídica
+    TipoDocumentoClienteEnum:
+      enum:
+      - cnh_frente
+      - cnh_verso
+      - selfie_documento
+      - comprovante_residencia
+      type: string
+      description: |-
+        * `cnh_frente` - CNH (frente)
+        * `cnh_verso` - CNH (verso)
+        * `selfie_documento` - Selfie com o documento
+        * `comprovante_residencia` - Comprovante de residência
     TipoDocumentoEnum:
       enum:
       - crlv

@@ -80,6 +80,27 @@ def test_cifrado_adulterado_nao_decifra(empresa_a):
         pessoa.documento_claro()
 
 
+@pytest.mark.parametrize("valor", ["v1:AAAA", "v1:" + "A" * 36, "v1:@@@@"])
+def test_r05_cifrado_truncado_ou_invalido_e_erro_de_cifra(empresa_a, valor):
+    """R-05 da T-050: nonce curto não vira ValueError genérico (erro 500)."""
+    pessoa = _pessoa()
+    pessoa.documento = valor
+    with pytest.raises(cripto.ErroDeCifra):
+        pessoa.documento_claro()
+
+
+def test_r05_definir_o_mesmo_valor_nao_gera_alterado_falso(empresa_a):
+    pessoa = _pessoa()
+    pessoa.save()
+    cifrado = pessoa.documento
+    with auditar(pessoa, "pessoa.editar", Categoria.OPERACAO):
+        pessoa.definir_documento(CPF)
+        pessoa.save()
+    assert pessoa.documento == cifrado
+    evento = EventoAuditoria.objects.filter(acao="pessoa.editar").latest("id")
+    assert "documento" not in evento.depois
+
+
 def test_troca_de_chave_sem_migracao_em_massa(empresa_a):
     with override_settings(GIRO_CHAVE_DADOS_PESSOAIS=CHAVE_1):
         cripto.limpar_cache_de_chaves()

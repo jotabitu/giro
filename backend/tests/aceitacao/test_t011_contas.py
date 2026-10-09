@@ -1467,6 +1467,8 @@ def test_plt_07_lista_de_rotas_que_o_suporte_le():
         "api/categorias/<int:pk>/precos/",
         "api/precos/historico/",
         "api/extras/",
+        "api/clientes/",
+        "api/clientes/<int:pk>/",
     }
 
 
