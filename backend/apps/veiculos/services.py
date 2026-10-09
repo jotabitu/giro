@@ -624,6 +624,12 @@ def aplicar_correcao_aprovada(
 # --- Documentos (VEI-03, AUT-06, AUD-05) ---
 
 DIAS_DO_ALERTA = 30  # VEI-03
+# VEI-03: no dia do vencimento, estes não mudam de status; os gerentes recebem tarefa urgente.
+EM_USO_NO_VENCIMENTO = {
+    S.ALUGADO: "alugado",
+    S.RESERVADO: "reservado",
+    S.EM_MANUTENCAO: "em manutenção",
+}
 
 
 class SituacaoDocumento:
@@ -715,8 +721,9 @@ def aplicar_vencimento_de_documentos(hoje: date) -> dict[str, int]:
     """AUT-06 (VEI-03), uma vez por dia. Rodar de novo no mesmo dia não repete nada.
 
     - 30 dias antes: alerta aos gerentes da filial, uma vez por documento.
-    - No dia, CRLV ou seguro: veículo `disponivel` vai para `indisponivel`; `alugado` não muda e
-      os gerentes recebem uma tarefa urgente. IPVA e rastreador não mudam o status.
+    - No dia, CRLV ou seguro: veículo `disponivel` vai para `indisponivel`; `alugado`, `reservado`
+      e `em_manutencao` não mudam, e os gerentes recebem uma tarefa urgente. IPVA e rastreador não
+      mudam o status nem geram tarefa.
     """
     contagem = {"alertas": 0, "indisponiveis": 0, "tarefas": 0}
     ativos = DocumentoVeiculo.ativos.select_related("veiculo", "veiculo__filial")
@@ -762,13 +769,13 @@ def aplicar_vencimento_de_documentos(hoje: date) -> dict[str, int]:
                 acao="documento_vencido",
             )
             contagem["indisponiveis"] += 1
-        elif veiculo.status == S.ALUGADO:
+        elif veiculo.status in EM_USO_NO_VENCIMENTO:
             contagem["tarefas"] += avisar(
                 _gerentes(veiculo),
-                tipo="documento_vencido_alugado",
+                tipo=f"documento_vencido_{veiculo.status}",
                 titulo=(
-                    f"{rotulo} da {veiculo.placa} venceu com o veículo alugado. "
-                    "Regularize o documento."
+                    f"{rotulo} da {veiculo.placa} venceu com o veículo "
+                    f"{EM_USO_NO_VENCIMENTO[S(veiculo.status)]}. Regularize o documento."
                 ),
                 link=_link_do_veiculo(veiculo),
                 urgente=True,
