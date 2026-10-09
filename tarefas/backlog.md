@@ -221,8 +221,18 @@ Levantadas pelo produto em T-059 (08 out 2026):
 ### T-088 · Formato das datas na API
 - **Agente:** arquiteto · **Depende de:** T-014 · **ADRs:** 0009 · **Pronto quando:** decidido, em ADR nova ou emenda, o formato único dos `DateTimeField` na API (o README de `docs/api/` pede UTC com `Z`; contas e aprovações saem com `-03:00`, clientes já sai em `Z`), com o ponto de configuração (DRF, `comum`) e o teste de arquitetura que impede a volta; diz qual tarefa do backend uniformiza contas, aprovações, plataforma e veículos e se o OpenAPI muda. Considera também as outras diferenças de contrato dos handoffs da T-013, T-081 e T-014 (por exemplo, os eventos do financeiro com `cliente_id`).
 
-### T-015 · Locação: reserva, contrato, ciclo de status
-- **Agente:** backend · **Depende de:** T-013, T-014 · **Segurança:** token de assinatura com prazo e uso único, S-09 no `ModeloContrato` (S-15) · **Regras:** LOC-01 a LOC-13 · **Telas:** Locacao, Locacoes, Locacao-Detalhe, Contratos-Modelos · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-015.md` (CA-015-01 a 25) passam, com o código da regra no nome do teste.
+### T-015 · Locação: núcleo, simular e confirmar
+- **Agente:** backend · **Depende de:** T-013, T-014 · **Regras:** LOC-01 a LOC-05, LOC-14, LOC-15, APR-01, FIN-09 · **Telas:** Locacao, Locacoes, Locacao-Detalhe · **Pronto quando:** CA-015-01 a 10, 14 a 16 e 25 (sem o estorno) de `docs/qa/criterios/T-015.md` passam, com o código da regra no nome do teste: `PlanoEspecial`, `Locacao`, `ExtraLocacao`, `TrechoLocacao`; simular, rascunho com PATCH e confirmar (impedimentos CLI-02, CLI-05, cliente inativo e FIL-05; LOC-03 com índice único; reserva futura); desconto APR-01 pela porta da ADR 0019; lista, detalhe, sinais e situação; ativação pelas três condições; limpeza dos rascunhos de 24 h; financeiro mínimo (`ContaReceber`, `Comissao`, criar, cancelar, `marcar_paga` como porta de teste até a T-017) e `ModeloContrato` com `modelo_publicado`; campos novos de `ConfiguracaoEmpresa` (tolerância de atraso, desconto sem aprovação, comissão) listados no handoff para o arquiteto.
+- **Nota:** a T-015 original foi dividida em 09/10 em T-015, T-090, T-091 e T-092, porque não cabia num PR. Os critérios que saíram ficam `xfail` com o número da tarefa.
+
+### T-090 · Contratos: modelos, PDF, assinatura e aditivo
+- **Agente:** backend · **Depende de:** T-015 · **Segurança:** S-09 no `ModeloContrato`, token de assinatura com hash, 7 dias, uso único e limite (S-15) · **Regras:** LOC-06, LOC-07 · **Telas:** Contratos-Modelos · **Pronto quando:** CA-015-11 a 13 passam, com o código da regra no nome do teste: API dos modelos (marcadores, sanitização, versões, publicar, arquivar); PDF com WeasyPrint numa task (a imagem já tem pango e fontes; o pacote Python vai com o motivo no PR); link público; reenviar; evento `contrato_assinado`; `gerar_aditivo`.
+
+### T-091 · Locação: renovação, atraso, cancelamento e encerramento
+- **Agente:** backend · **Depende de:** T-090 · **Regras:** LOC-08, LOC-10 a LOC-13, FIL-03, APR-02, AUT-02 · **Pronto quando:** CA-015-17 e 19 a 24 e o estorno do CA-015-25 passam, com o código da regra no nome do teste: renovação com aditivo; atraso com `calcular_atraso` e `aut_02`; cancelamento e encerramento antecipado com APR-02, reembolso e comissão estornada.
+
+### T-092 · Troca de veículo durante a locação
+- **Agente:** backend · **Depende de:** T-016, T-091 · **Regras:** LOC-09 · **Pronto quando:** CA-015-18 passa, com o código da regra no nome do teste; a troca abre a vistoria de devolução do veículo antigo e a de saída do novo (T-016).
 
 ### T-016 · Vistoria de saída e devolução com acerto
 - **Agente:** backend · **Depende de:** T-015 · **Regras:** VIS-01 a VIS-05, DEV-01 a DEV-06 · **Telas:** Vistoria, Devolucao, Vistoriador
