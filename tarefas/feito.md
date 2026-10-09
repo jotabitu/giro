@@ -91,3 +91,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-104 · Regra e critérios da LOC-2836 até 14 out · produto · PR #104 · tarefas/handoffs/T-104-produto.md · opção B; nenhum valor muda; seed na T-105; telas para o design-system
 - T-091 · Locação: renovação, atraso, cancelamento e encerramento · backend · PR #105 · tarefas/handoffs/T-091-backend.md · 528 testes; só a T-092 em xfail; 2 [divergência] e 5 [decisão] para o produto
 - T-106 · Pontos de regra da T-091 · produto · PR #107 · tarefas/handoffs/T-106-produto.md · 2 divergências resolvidas; 5 decisões com opção A em Pontos em aberto
+- T-110 · Regras das 5 decisões da T-091 · produto · PR #110 · tarefas/handoffs/T-110-produto.md · LOC-08, 11, 12 e 13 (opção A); CA-015-26 a 29; código na T-111
