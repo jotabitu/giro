@@ -2258,6 +2258,78 @@ paths:
               schema:
                 $ref: '#/components/schemas/Veiculo'
           description: ''
+  /api/veiculos/{id}/documentos/:
+    get:
+      operationId: veiculos_documentos_list
+      description: Ver é de todos no escopo de filiais; enviar, de administrador e
+        gerente.
+      summary: Documentos ativos, com URL assinada de 15 minutos (VEI-03, AUD-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeDocumentos'
+          description: ''
+    post:
+      operationId: veiculos_documentos_create
+      description: Ver é de todos no escopo de filiais; enviar, de administrador e
+        gerente.
+      summary: Enviar ou renovar documento (VEI-03)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DocumentoEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Documento'
+          description: ''
+  /api/veiculos/{id}/documentos/historico/:
+    get:
+      operationId: veiculos_documentos_historico
+      summary: Todos os documentos, inclusive os renovados (VEI-03)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeDocumentos'
+          description: ''
   /api/veiculos/{id}/km/:
     post:
       operationId: veiculos_km_create
@@ -2515,6 +2587,20 @@ components:
         motivo:
           type: string
           maxLength: 300
+    ArquivoAssinado:
+      type: object
+      properties:
+        nome:
+          type: string
+        url:
+          type: string
+        url_expira_em:
+          type: string
+          format: date-time
+      required:
+      - nome
+      - url
+      - url_expira_em
     Assinatura:
       type: object
       properties:
@@ -2925,6 +3011,53 @@ components:
         * `todas` - todas
         * `manutencao` - manutencao
         * `nao` - nao
+    Documento:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          $ref: '#/components/schemas/TipoDocumentoEnum'
+        validade:
+          type: string
+          format: date
+        situacao:
+          $ref: '#/components/schemas/SituacaoEnum'
+        dias_para_vencer:
+          type: integer
+          nullable: true
+        ativo:
+          type: boolean
+        arquivo:
+          allOf:
+          - $ref: '#/components/schemas/ArquivoAssinado'
+          nullable: true
+      required:
+      - arquivo
+      - ativo
+      - dias_para_vencer
+      - id
+      - situacao
+      - tipo
+      - validade
+    DocumentoEntrada:
+      type: object
+      description: |-
+        `multipart/form-data`. O arquivo é conferido pelo conteúdo no serviço (PDF, JPG ou PNG,
+        até 10 MB).
+      properties:
+        tipo:
+          $ref: '#/components/schemas/TipoDocumentoEnum'
+        validade:
+          type: string
+          format: date
+        arquivo:
+          type: string
+          format: uri
+          nullable: true
+      required:
+      - tipo
+      - validade
     DoisFatores:
       type: object
       properties:
@@ -3725,6 +3858,15 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Categoria'
+      required:
+      - resultados
+    ListaDeDocumentos:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Documento'
       required:
       - resultados
     ListaDeEmpresas:
@@ -4835,6 +4977,16 @@ components:
       - codigo
       - rotulo
       - tom
+    SituacaoEnum:
+      enum:
+      - em_dia
+      - vence_em_breve
+      - vencido
+      type: string
+      description: |-
+        * `em_dia` - em_dia
+        * `vence_em_breve` - vence_em_breve
+        * `vencido` - vencido
     StatusVeiculoEnum:
       enum:
       - disponivel
@@ -4938,6 +5090,18 @@ components:
       required:
       - dias_restantes
       - fim
+    TipoDocumentoEnum:
+      enum:
+      - crlv
+      - ipva
+      - seguro
+      - rastreador
+      type: string
+      description: |-
+        * `crlv` - CRLV
+        * `ipva` - IPVA
+        * `seguro` - Seguro
+        * `rastreador` - Rastreador
     TipoSessaoEnum:
       enum:
       - desktop

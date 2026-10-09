@@ -1461,6 +1461,8 @@ def test_plt_07_lista_de_rotas_que_o_suporte_le():
         "api/enderecos/cep/<str:cep>/",
         "api/veiculos/",
         "api/veiculos/<int:pk>/",
+        "api/veiculos/<int:pk>/documentos/",
+        "api/veiculos/<int:pk>/documentos/historico/",
         "api/categorias/",
         "api/categorias/<int:pk>/precos/",
         "api/precos/historico/",

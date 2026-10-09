@@ -10,7 +10,8 @@ As pendências de regra foram decididas em 07 out 2026 (seção "Decisões de 07
 - [bloqueada] Busca no INPI da marca "Giro" (classes 42 e 9).
 - [bloqueada] Abrir a conta do Asaas (a integração começa no sandbox, não depende disso).
 - (T-013) A transferência de veículo com categoria só da filial (`VEI-04`) foi decidida em 08 out 2026 pelo dono do produto: opção B, recomendada pelo produto (na transferência, pedir a categoria do destino só quando a atual não vale lá). Virou regra na T-082 (PR #71) e vira código na T-083.
-- [decisão] (T-081, para o produto) O gerente aprova uma correção de km (`APR-06`), mas outra leitura mudou o km depois do pedido (João pediu 3.500 → 3.400, e uma vistoria registrou 3.600). Hoje a aprovação é recusada com 409 `km_mudou`, o pedido continua pendente e o gerente recusa e pede de novo. As opções são manter assim, ou aplicar o `km_novo` mesmo assim.
+- (T-081) A aprovação de uma correção de km depois que o km mudou (`APR-06`) foi decidida em 08 out 2026 pelo dono do produto: fica o 409 `km_mudou`, e o gerente recusa e pede de novo.
+- [decisão] (T-079, para o produto) No dia em que vencem o CRLV ou o seguro, o `VEI-03` só diz o que fazer com o veículo `disponivel` (vai para `indisponivel`) e com o `alugado` (tarefa urgente). E o veículo `reservado`, ou em `manutencao`? Hoje a `AUT-06` não faz nada com eles, e a reserva pode sair com o documento vencido. As opções são uma tarefa urgente, como no alugado, ou recusar a retirada até renovar.
 
 A dúvida da segurança S-02 (T-032: o suporte Giro vê CPF e CNH completos?) foi decidida em 07 out 2026 e virou a regra `AUD-09` (mascarado, nunca completo).
 

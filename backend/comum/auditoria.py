@@ -12,6 +12,7 @@ from typing import Any
 
 from django.apps import apps
 from django.db import models, transaction
+from django.db.models.fields.files import FieldFile
 
 from comum import classificacao
 
@@ -78,12 +79,19 @@ CAMPOS_IGNORADOS = frozenset({"atualizado_em"})
 
 
 def retrato(objeto: models.Model) -> dict[str, Any]:
-    """Valores reais dos campos. A classificação (omitir, mascarar) é aplicada ao gravar."""
+    """Valores reais dos campos. A classificação (omitir, mascarar) é aplicada ao gravar.
+    Arquivo entra pelo caminho no armazenamento, nunca pelo conteúdo."""
     return {
-        campo.attname: getattr(objeto, campo.attname)
+        campo.attname: _valor(getattr(objeto, campo.attname))
         for campo in objeto._meta.concrete_fields
         if campo.name not in CAMPOS_IGNORADOS
     }
+
+
+def _valor(valor: Any) -> Any:
+    if isinstance(valor, FieldFile):
+        return valor.name or None
+    return valor
 
 
 def diferenca(

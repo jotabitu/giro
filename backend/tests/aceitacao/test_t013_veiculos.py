@@ -1,14 +1,14 @@
 """T-013 · Veículos, categorias, documentos, histórico de status (docs/qa/criterios/T-013.md).
 
 Roda na `empresa_a` (host `empresa-a.localhost`) com o plano Profissional, as pessoas do seed e a
-frota da Moto Rápida (`frota.py`), com o relógio em 07 out 2026, 10:00. Os documentos (CA-013-17
-a 20) entram na T-079.
+frota da Moto Rápida (`frota.py`), com o relógio em 07 out 2026, 10:00.
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 
 from apps.aprovacoes.models import PedidoAprovacao
@@ -16,20 +16,23 @@ from apps.auditoria.models import EventoAuditoria
 from apps.filiais import selectors as filiais_selectors
 from apps.filiais import services as filiais
 from apps.filiais.models import Filial
+from apps.notificacoes.models import Notificacao
 from apps.plataforma.models import Empresa, UsoEmpresa
 from apps.plataforma.services import recalcular_uso
 from apps.veiculos import selectors, services
 from apps.veiculos.models import (
     Categoria,
+    DocumentoVeiculo,
     HistoricoStatusVeiculo,
     LeituraKm,
     TransferenciaVeiculo,
     Veiculo,
 )
-from comum import eventos, leituras
+from apps.veiculos.tasks import aut_06_vencimento_de_documentos
+from comum import arquivos, eventos, leituras
 from comum.erros import TransicaoInvalida
 
-from .apoio import CONTAGENS_FROTA_SEED, PRECOS_SEED, pendente
+from .apoio import CONTAGENS_FROTA_SEED, PRECOS_SEED
 from .frota import Frota, criar_veiculo, montar_frota
 from .test_t012_filiais import MotoRapida, _filial
 
@@ -577,63 +580,173 @@ def test_apr_06_ca_013_16_correcao_para_baixo(moto, frota, leituras_publicadas):
     assert leituras_publicadas[-1] == {"veiculo_id": sak.pk, "km": 3400}
 
 
-# --- Documentos (VEI-03, AUD-05): T-079 ---
+# --- Documentos (VEI-03, AUT-06, AUD-05) ---
+
+PDF = b"%PDF-1.7\n1 0 obj\n<<>>\nendobj\n%%EOF\n"
 
 
-def _aguarda_t079(funcao):
-    return pytest.mark.xfail(
-        reason="T-079 (backend): documentos, arquivo privado e AUT-06",
-        strict=True,
-        raises=NotImplementedError,
-    )(funcao)
+def _pdf(nome: str = "apolice.pdf", conteudo: bytes = PDF) -> SimpleUploadedFile:
+    return SimpleUploadedFile(nome, conteudo, content_type="application/pdf")
 
 
-@_aguarda_t079
-def test_vei_03_ca_013_17_situacao_do_documento():
-    pendente(
-        hoje="2026-10-07",
-        seguro={
-            "2026-10-25": ("vence_em_breve", 18),
-            "2026-11-06": ("vence_em_breve", 30),
-            "2026-11-07": ("em_dia", 31),
-            "2026-10-06": ("vencido", None),
-        },
+def _enviar(moto: MotoRapida, nome: str, veiculo: Veiculo, tipo: str, validade: str, **extra):
+    corpo = {"tipo": tipo, "validade": validade, **extra}
+    return moto.api(nome).post(_url(veiculo, "documentos"), corpo, format="multipart")
+
+
+def _documento(veiculo: Veiculo, tipo: str, validade: str) -> DocumentoVeiculo:
+    return services.enviar_documento(veiculo, tipo, date.fromisoformat(validade))
+
+
+def test_vei_03_ca_013_17_situacao_do_documento(moto, frota):
+    sak = frota.veiculos["SAK1D39"]
+    casos = {
+        "2026-10-25": ("vence_em_breve", 18),
+        "2026-11-06": ("vence_em_breve", 30),
+        "2026-11-07": ("em_dia", 31),
+        "2026-10-06": ("vencido", None),
+    }
+    for validade, esperado in casos.items():
+        resposta = _enviar(moto, "Rodrigo", sak, "seguro", validade)
+        assert resposta.status_code == 201, resposta.json()
+        assert (resposta.json()["situacao"], resposta.json()["dias_para_vencer"]) == esperado
+        [ativo] = moto.api("Bruna").get(_url(sak, "documentos")).json()["resultados"]
+        assert (ativo["validade"], ativo["situacao"], ativo["dias_para_vencer"]) == (
+            validade,
+            *esperado,
+        )
+    # O resumo da Frota mostra a pior situação dos documentos ativos.
+    _documento(sak, "crlv", "2027-03-31")
+    ficha = moto.api("Rodrigo").get(_url(sak)).json()
+    assert ficha["documentos_resumo"] == {"pior_situacao": "vencido"}
+    linha = moto.api("Rodrigo").get("/api/veiculos/", {"busca": "SAK1D39"}).json()
+    assert linha["resultados"][0]["documentos_resumo"] == {"pior_situacao": "vencido"}
+    qxa = frota.veiculos["QXA4B21"]
+    assert moto.api("Rodrigo").get(_url(qxa)).json()["documentos_resumo"] is None
+
+
+def _avisos(pessoa: Any) -> list[tuple[str, bool]]:
+    return list(
+        Notificacao.objects.filter(destinatario=pessoa)
+        .order_by("id")
+        .values_list("tipo", "urgente")
     )
 
 
-@_aguarda_t079
-def test_vei_03_ca_013_18_vencimento_tira_da_frota_disponivel():
-    pendente(
-        tarefa="aut_06_vencimento_de_documentos",
-        as_="2026-10-25 07:00",
-        sak1d39_seguro="indisponivel, motivo Seguro vencido",
-        qxa4b21_crlv="continua alugado, tarefa urgente para gerentes da Centro",
-        ipva_rastreador="não mudam status",
-        trinta_dias_antes="alerta aos gerentes, sem mudar status",
-        duas_vezes="sem alerta duplicado",
-    )
+def test_vei_03_aut_06_ca_013_18_vencimento_tira_da_frota_disponivel(moto, frota, relogio):
+    sak, qxa = frota.veiculos["SAK1D39"], frota.veiculos["QXA4B21"]
+    pop = Veiculo.objects.filter(status="disponivel", filial=frota.centro).exclude(pk=sak.pk)[0]
+    _documento(sak, "seguro", "2026-10-25")
+    _documento(qxa, "crlv", "2026-10-25")
+    _documento(pop, "ipva", "2026-10-25")
+    _documento(pop, "rastreador", "2026-10-25")
+    rodrigo, mariana = moto.pessoas["Rodrigo"], moto.pessoas["Mariana"]
+
+    # 30 dias antes: o alerta vai aos gerentes da Filial Centro, e nada muda de status.
+    relogio.em("2026-09-25 07:00")
+    aut_06_vencimento_de_documentos("empresa_a")
+    assert _avisos(rodrigo) == [("documento_vencendo", False)] * 4
+    assert _avisos(mariana) == []
+    assert set(
+        Veiculo.objects.filter(pk__in=[sak.pk, pop.pk]).values_list("status", flat=True)
+    ) == {"disponivel"}
+    aut_06_vencimento_de_documentos("empresa_a")  # de novo no mesmo dia: sem alerta duplicado
+    assert len(_avisos(rodrigo)) == 4
+    titulos = Notificacao.objects.filter(destinatario=rodrigo).values_list("titulo", flat=True)
+    assert "Seguro da SAK1D39 vence em 25/10/2026" in titulos
+
+    # No dia, às 07:00.
+    relogio.em("2026-10-25 07:00")
+    aut_06_vencimento_de_documentos("empresa_a")
+    sak.refresh_from_db()
+    assert (sak.status, sak.motivo_status) == ("indisponivel", "Seguro vencido")
+    historico = sak.historico.latest("id")
+    assert (historico.origem_tipo, historico.motivo) == ("documento", "Seguro vencido")
+    qxa.refresh_from_db()
+    assert qxa.status == "alugado"
+    urgentes = Notificacao.objects.filter(destinatario=rodrigo, urgente=True)
+    assert list(urgentes.values_list("tipo", "titulo")) == [
+        (
+            "documento_vencido_alugado",
+            "CRLV da QXA4B21 venceu com o veículo alugado. Regularize o documento.",
+        )
+    ]
+    pop.refresh_from_db()
+    assert pop.status == "disponivel"  # IPVA e rastreador não mudam o status
+
+    aut_06_vencimento_de_documentos("empresa_a")  # de novo: nada se repete
+    assert Notificacao.objects.filter(destinatario=rodrigo, urgente=True).count() == 1
+    assert sak.historico.filter(para="indisponivel").count() == 1
 
 
-@_aguarda_t079
-def test_vei_03_ca_013_19_renovar_nao_libera_sozinho():
-    pendente(
-        novo_seguro=201,
-        anterior="inativo no histórico",
-        status="continua indisponivel",
-        desbloquear_renovado=200,
-        desbloquear_crlv_vencido=(422, "VEI-03"),
-    )
+def test_vei_03_ca_013_19_renovar_nao_libera_sozinho(moto, frota, relogio):
+    sak = frota.veiculos["SAK1D39"]
+    antigo = _documento(sak, "seguro", "2026-10-25")
+    _documento(sak, "crlv", "2027-03-31")
+    relogio.em("2026-10-25 07:00")
+    aut_06_vencimento_de_documentos("empresa_a")
+    sak.refresh_from_db()
+    assert sak.status == "indisponivel"
+
+    resposta = _enviar(moto, "Rodrigo", sak, "seguro", "2027-10-25", arquivo=_pdf())
+    assert resposta.status_code == 201, resposta.json()
+    antigo.refresh_from_db()
+    assert antigo.ativo is False
+    sak.refresh_from_db()
+    assert sak.status == "indisponivel"
+    historico = moto.api("Rodrigo").get(_url(sak, "documentos/historico")).json()["resultados"]
+    assert {(d["id"], d["ativo"]) for d in historico if d["tipo"] == "seguro"} == {
+        (antigo.pk, False),
+        (resposta.json()["id"], True),
+    }
+    assert EventoAuditoria.objects.filter(acao="documento_veiculo.enviar", regra="VEI-03").exists()
+
+    assert _acao(moto, "Rodrigo", sak, "desbloquear").status_code == 200
+
+    # Com o CRLV vencido, não desbloqueia.
+    services.bloquear(sak, "Conferência")
+    _documento(sak, "crlv", "2026-10-20")
+    resposta = _acao(moto, "Rodrigo", sak, "desbloquear")
+    assert resposta.status_code == 422
+    assert resposta.json() == {
+        "codigo": "VEI-03",
+        "mensagem": "Renove o CRLV vencido antes de desbloquear o veículo.",
+        "detalhes": {"documentos": ["crlv"]},
+    }
+    sak.refresh_from_db()
+    assert sak.status == "indisponivel"
 
 
-@_aguarda_t079
-def test_aud_05_ca_013_20_arquivo_privado():
-    pendente(
-        url_vence_minutos=15,
-        cada_get="nova URL",
-        invalidos=["11 MB", ".exe"],
-        status=400,
-        vendedor_envia=403,
-    )
+def test_aud_05_ca_013_20_arquivo_privado(moto, frota, relogio):
+    sak = frota.veiculos["SAK1D39"]
+    resposta = _enviar(moto, "Rodrigo", sak, "seguro", "2027-10-25", arquivo=_pdf())
+    assert resposta.status_code == 201, resposta.json()
+    documento = DocumentoVeiculo.objects.get(pk=resposta.json()["id"])
+    # Prefixo <schema>/<app>/<model>/<id>/ (ADR 0009); o nome original fica fora do caminho.
+    assert documento.arquivo.name.startswith(f"empresa_a/veiculos/documentoveiculo/{documento.pk}/")
+    assert documento.arquivo.name.endswith(".pdf")
+    assert "apolice" not in documento.arquivo.name
+    assert arquivos.guardados[documento.arquivo.name][0] == PDF
+
+    api = moto.api("João")
+    primeiro = api.get(_url(sak, "documentos")).json()["resultados"][0]["arquivo"]
+    segundo = api.get(_url(sak, "documentos")).json()["resultados"][0]["arquivo"]
+    assert primeiro["nome"] == "apolice.pdf"
+    assert primeiro["url"] != segundo["url"]
+    expira = datetime.fromisoformat(primeiro["url_expira_em"])
+    assert expira - relogio.agora == timedelta(minutes=15)
+
+    grande = _pdf(conteudo=PDF + b"0" * (10 * 1024 * 1024))
+    exe = SimpleUploadedFile("apolice.exe", b"MZ\x90\x00" + b"0" * 100)
+    disfarcado = _pdf("apolice.pdf", b"MZ\x90\x00" + b"0" * 100)
+    for invalido in (grande, exe, disfarcado):
+        resposta = _enviar(moto, "Rodrigo", sak, "crlv", "2027-03-31", arquivo=invalido)
+        assert resposta.status_code == 400, resposta.json()
+        assert "arquivo" in resposta.json()["campos"]
+    assert not DocumentoVeiculo.objects.filter(veiculo=sak, tipo="crlv").exists()
+
+    resposta = _enviar(moto, "Bruna", sak, "crlv", "2027-03-31", arquivo=_pdf())
+    assert resposta.status_code == 403
 
 
 # --- Categorias e preços (LOC-01, LOC-15) ---

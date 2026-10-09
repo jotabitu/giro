@@ -11,13 +11,14 @@ from typing import Any
 
 from django.db.models import Count, Q, QuerySet
 
-from comum import leituras, relogio
+from comum import arquivos, leituras, relogio
 from comum.permissoes import filiais_permitidas
 
 from .models import (
     FORA_DA_FROTA,
     TRANSICOES_VEICULO,
     Categoria,
+    DocumentoVeiculo,
     Extra,
     HistoricoStatusVeiculo,
     PrecoCategoria,
@@ -25,7 +26,12 @@ from .models import (
     TipoVeiculo,
     Veiculo,
 )
-from .services import normalizar_chassi, normalizar_placa
+from .services import (
+    SituacaoDocumento,
+    normalizar_chassi,
+    normalizar_placa,
+    situacao_do_documento,
+)
 
 S = StatusVeiculo
 ALVO = "veiculos.Veiculo"
@@ -312,10 +318,13 @@ def representacao(
     usuario: Any,
     *,
     precos: dict[int, PrecoCategoria] | None = None,
+    documentos: dict[int, dict[str, Any] | None] | None = None,
     detalhe: bool = False,
 ) -> dict[str, Any]:
     if precos is None:
         precos = precos_vigentes({veiculo.categoria_id}, relogio.hoje())
+    if documentos is None:
+        documentos = resumos_de_documentos({veiculo.pk}, relogio.hoje())
     gestao = getattr(usuario, "perfil", "") in GESTAO
     blocos = leituras.blocos(ALVO, veiculo)
     dados: dict[str, Any] = {
@@ -346,8 +355,7 @@ def representacao(
         "situacao": _situacao(veiculo, blocos),
         "locacao_atual": blocos.get("locacao_atual"),
         "manutencao": blocos.get("manutencao"),
-        # Os documentos (VEI-03) entram na T-079.
-        "documentos_resumo": blocos.get("documentos_resumo"),
+        "documentos_resumo": documentos.get(veiculo.pk),
         "acoes": acoes(veiculo, usuario),
     }
     if detalhe:
@@ -455,3 +463,58 @@ def montar_indicadores(filial: Any) -> dict[str, Any]:
 def contar_veiculos_do_plano() -> int:
     """Uso do plano (PLT-03): os veículos fora de `vendido` e `baixado`."""
     return int(Veiculo.objects.exclude(status__in=FORA_DA_FROTA).count())
+
+
+# --- Documentos (VEI-03, AUD-05) ---
+
+# Da pior para a melhor: o resumo da Frota mostra a pior.
+ORDEM_DAS_SITUACOES = (
+    SituacaoDocumento.VENCIDO,
+    SituacaoDocumento.VENCE_EM_BREVE,
+    SituacaoDocumento.EM_DIA,
+)
+
+
+def resumos_de_documentos(veiculo_ids: set[int], hoje: date) -> dict[int, dict[str, Any] | None]:
+    """`{veiculo_id: {"pior_situacao": ...}}` dos documentos ativos; sem documento, `None`."""
+    piores: dict[int, str] = {}
+    validades = DocumentoVeiculo.ativos.filter(veiculo_id__in=veiculo_ids).values_list(
+        "veiculo_id", "validade"
+    )
+    for veiculo_id, validade in validades:
+        situacao, _ = situacao_do_documento(validade, hoje)
+        atual = piores.get(veiculo_id)
+        if atual is None or ORDEM_DAS_SITUACOES.index(situacao) < ORDEM_DAS_SITUACOES.index(atual):
+            piores[veiculo_id] = situacao
+    return {
+        veiculo_id: {"pior_situacao": piores[veiculo_id]} if veiculo_id in piores else None
+        for veiculo_id in veiculo_ids
+    }
+
+
+def documentos(veiculo: Veiculo, *, historico: bool = False) -> QuerySet[DocumentoVeiculo]:
+    """Os ativos (um por tipo) ou, no histórico, todos."""
+    qs = DocumentoVeiculo.objects if historico else DocumentoVeiculo.ativos
+    return qs.filter(veiculo=veiculo).order_by("tipo", "-validade", "-id")
+
+
+def representacao_documento(documento: DocumentoVeiculo, hoje: date) -> dict[str, Any]:
+    """`arquivo.url` é assinada e vale 15 minutos; cada leitura gera outra (AUD-05)."""
+    situacao, dias = situacao_do_documento(documento.validade, hoje)
+    arquivo = None
+    if documento.arquivo:
+        assinada = arquivos.url_assinada(documento.arquivo.name)
+        arquivo = {
+            "nome": documento.arquivo_nome,
+            "url": assinada.url,
+            "url_expira_em": assinada.expira_em,
+        }
+    return {
+        "id": documento.pk,
+        "tipo": documento.tipo,
+        "validade": documento.validade,
+        "situacao": situacao,
+        "dias_para_vencer": dias,
+        "ativo": documento.ativo,
+        "arquivo": arquivo,
+    }
