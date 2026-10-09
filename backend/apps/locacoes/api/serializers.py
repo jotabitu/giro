@@ -1,10 +1,9 @@
 """Entrada e formato de resposta de locações (docs/api/locacoes.md).
 
 As regras (preços, impedimentos, transições) são conferidas no serviço; aqui só a forma. Os
-momentos saem em UTC com `Z` (docs/api/README.md).
+momentos vão como `datetime` com fuso; o formato é do renderizador de `comum` (ADR 0020).
 """
 
-from datetime import UTC
 from decimal import Decimal
 from typing import Any
 
@@ -15,7 +14,7 @@ from ..models import FormaPagamento, ParcelamentoMensal, Periodicidade, PlanoEsp
 
 def _momento(**kwargs: Any) -> serializers.DateTimeField:
     kwargs.setdefault("allow_null", True)
-    return serializers.DateTimeField(default_timezone=UTC, **kwargs)
+    return serializers.DateTimeField(**kwargs)
 
 
 def _pct(**kwargs: Any) -> serializers.DecimalField:

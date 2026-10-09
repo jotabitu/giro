@@ -10,7 +10,7 @@ que esses apps vão usar: `locacoes.services.registrar_vistoria_saida`, o evento
 `contratos.contrato_assinado` e `financeiro.services.marcar_paga`.
 """
 
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Any
 
 import pytest
@@ -184,7 +184,8 @@ def test_loc_01_ca_015_01_lucas_semanal_street(cenario):
     assert corpo["valor_periodo_centavos"] == 32900
     assert corpo["caucao_centavos"] == 30000
     assert corpo["hoje_na_retirada_centavos"] == 62900
-    assert corpo["fim_previsto"] == "2026-10-14T15:30:00Z"
+    fim_previsto = datetime.fromisoformat(corpo["fim_previsto"])
+    assert fim_previsto == datetime(2026, 10, 14, 15, 30, tzinfo=UTC)
     assert corpo["parcelas_previstas"] == [
         {"numero": 1, "vencimento": "2026-10-07", "valor_centavos": 32900}
     ]

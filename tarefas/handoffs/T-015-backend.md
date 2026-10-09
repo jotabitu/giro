@@ -109,3 +109,8 @@ A tarefa foi dividida em 09 out, e o dono confirmou. Este PR é a parte 1. Os co
   - T-017: a baixa publica o mesmo `financeiro.parcela_paga` de `marcar_paga`;
   - T-090: publicar `contratos.contrato_assinado(origem_tipo, origem_id, tipo, assinado_em)`;
   - T-091: o `cancelamento_pendente` e o bloco `cancelamento`.
+
+**Ajuste depois da ADR 0020 (merge da main em a38fe3a):**
+- `locacoes/api/serializers.py` não formata mais momento: o `_momento` virou `DateTimeField` puro (só `allow_null`), sem `default_timezone`. Os momentos vão como `datetime` com fuso, e o formato `Z` vem para todos quando a T-093 ligar o renderizador de `comum`. Até lá, as rotas de locações saem com `-03:00`, como aprovações e veículos.
+- `test_loc_01_ca_015_01_lucas_semanal_street` compara o `fim_previsto` como momento, não como texto.
+- Check: ruff, `ruff format --check`, mypy e `makemigrations --check` limpos; pytest `487 passed, 16 xfailed` (13 da T-015 e 3 da ADR 0020); OpenAPI regerado com `--validate` e sem diferença.
