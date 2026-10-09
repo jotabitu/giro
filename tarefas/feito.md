@@ -68,3 +68,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-082 · Regra e critério da transferência com categoria de filial · produto · PR #71 · tarefas/handoffs/T-082-produto.md · VEI-04 opção B; CA-013-27; código na T-083
 - T-081 · Aprovações: lista e decisão · backend · PR #72 · tarefas/handoffs/T-081-backend.md · 385 testes; CA-013-16 de ponta a ponta; [decisão] do km_mudou para o produto
 - T-079 · Documentos de veículos, arquivo privado e AUT-06 · backend · PR #74 · tarefas/handoffs/T-079-backend.md · 399 testes; comum/arquivos.py pronto para a T-014; boto3; [decisão] do reservado e da manutenção para o produto
+- T-084 · Regra do documento vencido com o veículo reservado ou em manutenção · produto · PR #76 · tarefas/handoffs/T-084-produto.md · VEI-03 e AUT-06; APR-11 (km_mudou); CA-013-28 e CA-016-21; [decisão] da OS em Pontos em aberto
