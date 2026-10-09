@@ -23,6 +23,7 @@ Uma decisão por arquivo. Para mudar uma decisão, escreva uma nova ADR que subs
 | [0017](0017-app-importacao.md) | App `importacao` no último nível da ordem de dependências | aceita |
 | [0018](0018-ajustes-da-conferencia-da-fundacao.md) | Ajustes da conferência da fundação (T-001) | aceita |
 | [0019](0019-pedido-de-aprovacao-pela-porta-em-comum.md) | Pedido de aprovação aberto por uma porta em `comum` (`comum.aprovacoes.pedir`) | aceita, detalha a 0011 |
+| [0020](0020-formato-dos-momentos-na-api.md) | Momentos da API em UTC com `Z`, sem fração, formatados só pelo renderizador de `comum` | aceita, detalha a 0006 |
 
 O modelo de dados detalhado fica em [`modelo-de-dados.md`](modelo-de-dados.md).
 

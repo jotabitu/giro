@@ -1,6 +1,6 @@
 # Financeiro: contas a receber, caixa do dia, despesas e pagamentos
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-043) · **App:** `financeiro` (schema da empresa) · **Regras:** FIN-01 a FIN-08, APR-03, APR-04, APR-09, LOC-04, LOC-05, LOC-07, CLI-05, DEV-02, FIL-06, AUT-03, AUT-04, AUT-05, AUT-08 · **ADRs:** 0007, 0011, 0012, 0014 · **Segurança:** S-05, S-14 · **Critérios:** `docs/qa/criterios/T-017.md` · **Telas:** Receber, Caixa, Despesas, Financeiro
+**Dono:** arquiteto · **Versão:** 07 out 2026 (T-043), emendas de 09 out 2026 (T-088) · **App:** `financeiro` (schema da empresa) · **Regras:** FIN-01 a FIN-08, APR-03, APR-04, APR-09, LOC-04, LOC-05, LOC-07, CLI-05, DEV-02, FIL-06, AUT-03, AUT-04, AUT-05, AUT-08 · **ADRs:** 0007, 0011, 0012, 0014 · **Segurança:** S-05, S-14 · **Critérios:** `docs/qa/criterios/T-017.md` · **Telas:** Receber, Caixa, Despesas, Financeiro
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 18, 19, 21 e 22 e apoio em `docs/decisoes/modelo-de-dados.md`. Base: `/api/financeiro/`.
 
@@ -296,7 +296,7 @@ O mesmo fluxo vale para a `FaturaAssinatura` no `public` (`plataforma`).
 | `financeiro.services.pagar_com_caucao(conta_caucao, cobrancas)` | acerto da devolução (`vistorias.md`): cobranças pagas com `forma = caucao`. |
 | `financeiro.services.devolver_ao_cliente(origem, valor, forma)` | cria o `Reembolso`. |
 | `financeiro.services.cancelar_contas_da_origem(origem, motivo)` | locação cancelada antes da retirada. |
-| evento `financeiro.parcela_paga` | `locacoes` (1º pagamento), `clientes` (desbloqueio `CLI-05`). |
-| evento `financeiro.parcela_atrasou` | tarefa diária às 09:00 junto da régua (`AUT-03`): publica para cada conta que completou 1, 3, 7 e 15 dias de atraso; `clientes` bloqueia no 15º (CA-017-11: vencida em 23 set → bloqueio em 08 out). |
-| anotações fornecidas (ADR 0015) | bloco `financeiro` de `clientes`, `indicadores_financeiros` de `veiculos` (`VEI-05`), contador de caixas abertos para `filiais` (`FIL-06`), filtro `em_aberto`. |
+| evento `financeiro.parcela_paga` | `conta_id`, `cliente_id`, `tipo`, `origem_tipo`, `origem_id`, `valor_centavos`, `pago_em`. Assinado por `locacoes` (1º pagamento) e `clientes` (desbloqueio `CLI-05`). |
+| evento `financeiro.parcela_atrasou` | `conta_id`, `cliente_id`, `tipo`, `origem_tipo`, `origem_id`, `vencimento`, `dias_atraso`. Tarefa diária às 09:00 junto da régua (`AUT-03`): publica para cada conta que completou 1, 3, 7 e 15 dias de atraso; `clientes` bloqueia no 15º (CA-017-11: vencida em 23 set → bloqueio em 08 out). |
+| anotações fornecidas (ADR 0015) | bloco `financeiro` de `clientes` (com `conta_mais_antiga_id`), bloco `historico` da análise de `clientes`, contadores `contas_atrasadas_15_dias` e `em_aberto_centavos` por cliente, `indicadores_financeiros` de `veiculos` (`VEI-05`), contador de caixas abertos para `filiais` (`FIL-06`), filtro `em_aberto`. |
 | tarefas | `aut_03_regua_de_cobranca` (09:00), `aut_04_cobranca_recorrente` (no vencimento), `aut_05_processar_webhook`, `aut_08_fechamento_automatico_do_caixa` (23:59). |
