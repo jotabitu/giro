@@ -231,9 +231,6 @@ Levantadas pelo backend em T-091 (09 out 2026), para o produto. O código segue 
 ### T-102 · Ficha do veículo idêntica à referência
 - **Agente:** frontend · **Depende de:** T-013, T-079 · **Telas:** Veiculo (`docs/telas/html/Veiculo-Desktop.dc.html` e `Veiculo-Mobile.dc.html`) · **Regras:** VEI-01 a VEI-07 · **Pronto quando:** `/veiculos/[id]` (`FichaVeiculo.tsx`) reproduz a tela de referência no desktop e no celular, com a mesma estrutura, seções, ordem, rótulos, ações e estados, usando os componentes e tokens do design system; os dados vêm de `falso-frota.ts` no formato de `docs/api/veiculos.md` (T-013 e T-079); o que a tela mostra e o contrato não tem fica com o falso ou desativado e anotado no handoff; o design-system confere a fidelidade visual; teste da tela. Pedido do dono em 09/10.
 
-### T-091 · Locação: renovação, atraso, cancelamento e encerramento
-- **Agente:** backend · **Depende de:** T-090 · **Regras:** LOC-08, LOC-10 a LOC-13, FIL-03, APR-02, AUT-02 · **Pronto quando:** CA-015-17 e 19 a 24 e o estorno do CA-015-25 passam, com o código da regra no nome do teste: renovação com aditivo; atraso com `calcular_atraso` e `aut_02`; cancelamento e encerramento antecipado com APR-02, reembolso e comissão estornada.
-
 ### T-092 · Troca de veículo durante a locação
 - **Agente:** backend · **Depende de:** T-016, T-091 · **Regras:** LOC-09 · **Pronto quando:** CA-015-18 passa, com o código da regra no nome do teste; a troca abre a vistoria de devolução do veículo antigo e a de saída do novo (T-016).
 
