@@ -18,7 +18,7 @@
 
 **Teste de arquitetura:** `backend/tests/test_formato_das_datas.py`.
 - Três testes de comportamento: campo de serializer, valor solto e momento sem fuso. Ficam `xfail(strict=True)` até a T-093. Quando ela ligar o renderizador, eles passam, e o `strict` obriga a tirar a marca.
-- `test_adr_0020_ninguem_formata_momento_por_conta_propria` já vale. Ele varre `apps/` e `comum/` e só aceita os dois arquivos de `PENDENTES_T089`. Qualquer arquivo novo que formate momento por conta própria quebra o teste.
+- `test_adr_0020_ninguem_formata_momento_por_conta_propria` já vale. Ele varre `apps/` e `comum/` e só aceita os dois arquivos de `PENDENTES_T093`. Qualquer arquivo novo que formate momento por conta própria quebra o teste.
 
 **Prova de conceito** (feita fora do repositório, numa cópia dentro do container):
 - Fiz o renderizador e as duas chaves, e tirei o `_momento` e o `strftime`.
@@ -31,9 +31,9 @@
 - ligar as duas chaves dentro do dict `REST_FRAMEWORK` (escrito por fora do dict, o mypy reclama);
 - trocar o `_momento` de `clientes/api/serializers.py` por `DateTimeField` puro;
 - passar `usuario.bloqueado_ate` em `contas/dois_fatores.py`, sem `strftime`;
-- tirar o `xfail` e esvaziar `PENDENTES_T089`;
+- tirar o `xfail` e esvaziar `PENDENTES_T093`;
 - conferir `make api-schema` (diff vazio).
-Ela uniformiza contas, aprovações, plataforma, veículos, filiais e clientes de uma vez, sem mexer nos serializers deles. Se o número 089 já estiver tomado, troque no `reason` do `xfail` e no nome `PENDENTES_T089`.
+Ela uniformiza contas, aprovações, plataforma, veículos, filiais e clientes de uma vez, sem mexer nos serializers deles.
 
 **Diferenças de contrato dos handoffs:**
 

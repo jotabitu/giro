@@ -28,7 +28,7 @@ ESPERADO = "2026-10-07T12:12:00Z"
 RENDERIZADOR = "comum/renderizacao.py"
 
 # Quem ainda formata momento por conta própria. A T-093 esvazia; ninguém entra.
-PENDENTES_T089 = {
+PENDENTES_T093 = {
     "apps/clientes/api/serializers.py",  # _momento com default_timezone=UTC
     "apps/contas/dois_fatores.py",  # tentar_de_novo_em montado com strftime
 }
@@ -91,4 +91,4 @@ def test_adr_0020_ninguem_formata_momento_por_conta_propria():
     ]
     achados = {a.relative_to(RAIZ).as_posix() for a in arquivos if _formata_momento(a)}
     achados.discard(RENDERIZADOR)
-    assert achados == PENDENTES_T089
+    assert achados == PENDENTES_T093
