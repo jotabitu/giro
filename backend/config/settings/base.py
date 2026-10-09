@@ -164,6 +164,9 @@ REST_FRAMEWORK = {
         "entrar_email_hora": "50/hour",
         "acesso_ip": "30/min",
         "cep_usuario": "30/min",
+        # Link de assinatura de contrato (S-15).
+        "assinatura_ip": "10/min",
+        "assinatura_token": "20/min",
     },
 }
 
@@ -186,6 +189,8 @@ SPECTACULAR_SETTINGS = {
         "TipoDocumentoClienteEnum": "apps.clientes.models.TipoDocumentoCliente",
         "StatusClienteEnum": "apps.clientes.models.StatusCliente",
         "TipoClienteEnum": "apps.clientes.models.TipoCliente",
+        "StatusContratoEnum": "apps.contratos.models.StatusContrato",
+        "StatusModeloContratoEnum": ["publicado", "rascunho"],
         # Nomes que veículos já publicava, antes de clientes ter outro `motivo` e `situacao`.
         "MotivoEnum": ["perda_total", "roubo", "sucata", "outro"],
         "SituacaoEnum": ["em_dia", "vence_em_breve", "vencido"],
@@ -230,6 +235,11 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
         "task": "locacoes_cancelar_rascunhos_sem_uso_de_todas",
         "schedule": crontab(minute=15),
     },
+    # LOC-08: aditivo sem assinatura em 7 dias vira tarefa para os gerentes da filial.
+    "contratos_avisar_aditivos_sem_assinatura": {
+        "task": "contratos_avisar_aditivos_sem_assinatura_de_todas",
+        "schedule": crontab(hour=8, minute=0),
+    },
     "aut_15_encerrar_acessos_de_suporte_vencidos": {
         "task": "aut_15_encerrar_acessos_de_suporte_vencidos",
         "schedule": crontab(minute="*"),
@@ -265,7 +275,16 @@ GIRO_PEPPER_HMAC = env("GIRO_PEPPER_HMAC")
 # que não existe (USR-05, T-047). Cada entrega acrescenta o seu.
 GIRO_MODULOS_ATIVOS = env.list(
     "GIRO_MODULOS_ATIVOS",
-    default=["aprovacoes", "clientes", "contas", "filiais", "locacoes", "plataforma", "veiculos"],
+    default=[
+        "aprovacoes",
+        "clientes",
+        "contas",
+        "contratos",
+        "filiais",
+        "locacoes",
+        "plataforma",
+        "veiculos",
+    ],
 )
 GIRO_PROVEDOR_CEP = env("GIRO_PROVEDOR_CEP", default="falso")
 # Arquivos privados (ADR 0009, AUD-05): "falso" (na memória) em dev e testes; "s3" com um bucket

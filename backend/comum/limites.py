@@ -1,5 +1,5 @@
-"""Limite de requisições nas rotas públicas de acesso (P-03 da T-057; S-17 no proxy) e na
-busca de CEP (F-05 da T-064).
+"""Limite de requisições nas rotas públicas de acesso (P-03 da T-057; S-17 no proxy), no link
+de assinatura de contrato (S-15) e na busca de CEP (F-05 da T-064).
 
 Contam no cache (Redis, com a chave por schema de `make_key`). Por IP do cliente
 (`comum.rede`, que só confia no `X-Forwarded-For` do proxy; IPv6 pelo /64; sem IP, não conta)
@@ -80,6 +80,17 @@ class EntrarPorEmailHora(_PorEmail):
     scope = "entrar_email_hora"
 
 
+class _PorToken(SimpleRateThrottle):
+    """Pelo token do corpo, em hash: o mesmo link não é testado à vontade de IPs diferentes."""
+
+    def get_cache_key(self, request: Request, view: Any) -> str | None:
+        token = request.data.get("token") if hasattr(request.data, "get") else None
+        if not isinstance(token, str) or not token:
+            return None
+        ident = hashlib.sha256(token.encode()).hexdigest()
+        return self.cache_format % {"scope": self.scope, "ident": ident}
+
+
 class AcessoPorIP(_PorIP):
     """Convite (ver e aceitar), renovar e a etapa de 2 etapas."""
 
@@ -92,4 +103,17 @@ class CepPorUsuario(_PorUsuario):
     scope = "cep_usuario"
 
 
+class AssinaturaPorIP(_PorIP):
+    """Link de assinatura de contrato: 10 por minuto por IP (S-15)."""
+
+    scope = "assinatura_ip"
+
+
+class AssinaturaPorToken(_PorToken):
+    """Link de assinatura de contrato: 20 por minuto por token (S-15)."""
+
+    scope = "assinatura_token"
+
+
+LIMITES_DE_ASSINATURA = [AssinaturaPorIP, AssinaturaPorToken]
 LIMITES_DE_ENTRAR = [EntrarPorIPMinuto, EntrarPorIPHora, EntrarPorEmailMinuto, EntrarPorEmailHora]
