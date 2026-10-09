@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Bike, Car } from "lucide-react";
+import { Bike, Car, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CelulaDupla, DataTable, Icone, SearchField, SegmentedControl, StatusBadge, type ColunaTabela } from "@/design-system";
@@ -144,8 +144,19 @@ export function ListaVeiculos() {
             </p>
           )}
         </div>
-        <div className="w-full md:ml-auto md:w-auto">
+        <div className="flex w-full flex-wrap items-center gap-3 md:ml-auto md:w-auto">
           <SearchField placeholder="Buscar placa, modelo ou chassi" value={busca} onChange={(e) => setBusca(e.target.value)} />
+          {eu.pode.veiculos === "editar" && (
+            <>
+              <Link href="/veiculos/novo" className="wl-btn wl-btn--solid hidden md:inline-flex">
+                <Icone de={Plus} />
+                Cadastrar veículo
+              </Link>
+              <Link href="/veiculos/novo" aria-label="Cadastrar veículo" className="wl-icon-btn bg-solid text-on-solid md:hidden">
+                <Icone de={Plus} />
+              </Link>
+            </>
+          )}
         </div>
       </header>
 

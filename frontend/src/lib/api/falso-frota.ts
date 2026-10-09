@@ -2,10 +2,12 @@
 // Só ./index.ts importa este arquivo. A "API" decide situação, ações e o que cada perfil enxerga.
 import { pausa, perfilAtualFalso } from "./falso";
 import {
+  type CategoriaVeiculo,
   type DocumentoVeiculo,
   type FiltroVeiculos,
   type ListaVeiculos,
   type LocacaoDoVeiculo,
+  type NovoVeiculo,
   type ManutencoesDoVeiculo,
   type StatusVeiculo,
   type TomApi,
@@ -17,6 +19,23 @@ import { ErroApi } from "./tipos";
 
 const TAMANHO = 8;
 const FILIAL = { id: 1, nome: "Filial Centro" };
+const FILIAIS = [FILIAL, { id: 2, nome: "Filial Aldeota" }];
+
+/** Limite de veículos do plano (PLT-03). Os testes baixam este valor para provocar o 422. */
+let limiteDoPlano = 150;
+export const definirLimiteDoPlanoFalso = (n: number) => {
+  limiteDoPlano = n;
+};
+
+const preco = (diaria: number, semanal: number, caucao = 30000) => ({ vigente_desde: "2026-10-01", diaria_centavos: diaria, semanal_centavos: semanal, mensal_centavos: semanal * 4, caucao_centavos: caucao });
+const CATEGORIAS: CategoriaVeiculo[] = [
+  { id: 1, nome: "Urbana 110", tipo_veiculo: "moto", filial: null, ativo: true, preco_vigente: preco(3990, 23900) },
+  { id: 2, nome: "Street 150–160", tipo_veiculo: "moto", filial: null, ativo: true, preco_vigente: preco(5490, 32900) },
+  { id: 3, nome: "Street 300", tipo_veiculo: "moto", filial: null, ativo: true, preco_vigente: preco(8990, 52900, 50000) },
+  { id: 4, nome: "Scooter", tipo_veiculo: "moto", filial: { id: 2, nome: "Filial Aldeota" }, ativo: true, preco_vigente: preco(6990, 41900) },
+  { id: 5, nome: "Compacto", tipo_veiculo: "carro", filial: null, ativo: true, preco_vigente: preco(11900, 69900, 80000) },
+  { id: 6, nome: "Hatch médio", tipo_veiculo: "carro", filial: null, ativo: true, preco_vigente: preco(12900, 77900, 80000) },
+];
 
 type Semente = {
   id: number;
@@ -37,6 +56,15 @@ type Semente = {
   os?: string;
   vendaCentavos?: number;
   chassi: string;
+  // Só dos veículos cadastrados pela tela.
+  categoriaId?: number;
+  filialId?: number;
+  renavam?: string;
+  anoFabricacao?: number;
+  tanque?: string | null;
+  compraCentavos?: number | null;
+  dataCompra?: string | null;
+  entrouEm?: string;
 };
 
 const SEMENTES: Semente[] = [
@@ -74,26 +102,26 @@ function montar(s: Semente): Veiculo {
     id: s.id,
     placa: s.placa,
     chassi: s.chassi,
-    renavam: "01289934410",
+    renavam: s.renavam ?? "01289934410",
     marca: s.marca,
     modelo: s.modelo,
-    ano_fabricacao: s.ano,
+    ano_fabricacao: s.anoFabricacao ?? s.ano,
     ano_modelo: s.ano,
     cor: s.cor,
     tipo_veiculo: s.tipo,
-    categoria: { id: 2, nome: s.categoria },
-    filial: FILIAL,
+    categoria: { id: s.categoriaId ?? CATEGORIAS.find((c) => c.nome === s.categoria)?.id ?? 2, nome: s.categoria },
+    filial: FILIAIS.find((f) => f.id === s.filialId) ?? FILIAL,
     status: s.status,
     motivo_status: null,
     km_atual: s.km,
     km_atualizado_em: "2026-10-07T11:00:00Z",
-    capacidade_tanque_litros: s.tipo === "moto" ? "16.0" : "47.0",
+    capacidade_tanque_litros: s.tanque !== undefined ? s.tanque : s.tipo === "moto" ? "16.0" : "47.0",
     preco_vigente: { diaria_centavos: s.diaria, semanal_centavos: s.semanal, mensal_centavos: s.semanal * 4, caucao_centavos: 30000 },
     valor_venda_centavos: s.vendaCentavos ?? null,
     referencia_fipe_centavos: s.vendaCentavos ? 2190000 : null,
-    valor_compra_centavos: editar ? 1390000 : null,
-    data_compra: editar ? "2023-03-10" : null,
-    entrou_na_frota_em: "2023-03-12",
+    valor_compra_centavos: editar ? (s.compraCentavos !== undefined ? s.compraCentavos : 1390000) : null,
+    data_compra: editar ? (s.dataCompra !== undefined ? s.dataCompra : "2023-03-10") : null,
+    entrou_na_frota_em: s.entrouEm ?? "2023-03-12",
     situacao: atrasada ? { codigo: "atrasado", rotulo: "Atrasado", tom: "perigo" } : { codigo: s.status, ...base },
     locacao_atual: s.locacao
       ? { id: s.id * 10, codigo: s.locacao.codigo, status: atrasada ? "devolucao_atrasada" : "ativa", cliente_nome: s.locacao.cliente, inicio: "2026-09-30", fim_previsto: s.locacao.fim, alerta: atrasada ? "Devolução atrasada" : undefined }
@@ -122,7 +150,85 @@ function normalizar(t: string): string {
   return t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
+const PLACA = /^[A-Z]{3}\d{4}$|^[A-Z]{3}\d[A-Z]\d{2}$/;
+const CHASSI = /^[A-Z0-9]{17}$/;
+
 export const veiculosFalso = {
+  async categorias(filtro: { filial?: number; tipo_veiculo?: TipoVeiculo } = {}): Promise<CategoriaVeiculo[]> {
+    await pausa(150);
+    return CATEGORIAS.filter((c) => c.ativo && (!filtro.tipo_veiculo || c.tipo_veiculo === filtro.tipo_veiculo) && (!filtro.filial || !c.filial || c.filial.id === filtro.filial));
+  },
+
+  /** POST /api/veiculos/ (VEI-01, PLT-03). O veículo entra `disponivel`. */
+  async criar(v: NovoVeiculo): Promise<VeiculoDetalhe> {
+    await pausa(300);
+    if (!podeEditar()) throw new ErroApi(403, "sem_permissao", "Você não tem permissão para cadastrar veículos");
+    const placa = v.placa.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const chassi = v.chassi.toUpperCase().replace(/\s/g, "");
+    const categoria = CATEGORIAS.find((c) => c.id === v.categoria_id);
+    const filial = FILIAIS.find((f) => f.id === v.filial_id);
+    const campos: Record<string, string> = {};
+    if (!PLACA.test(placa)) campos.placa = "Placa inválida. Use ABC1234 ou ABC1D23";
+    if (!CHASSI.test(chassi)) campos.chassi = "O chassi tem 17 letras e números";
+    if (!v.marca.trim()) campos.marca = "Informe a marca";
+    if (!v.modelo.trim()) campos.modelo = "Informe o modelo";
+    if (!v.cor.trim()) campos.cor = "Informe a cor";
+    const ano = new Date().getFullYear();
+    if (!Number.isInteger(v.ano_fabricacao) || v.ano_fabricacao < 1990 || v.ano_fabricacao > ano + 1) campos.ano_fabricacao = "Ano de fabricação inválido";
+    else if (!Number.isInteger(v.ano_modelo) || v.ano_modelo < v.ano_fabricacao || v.ano_modelo > ano + 1) campos.ano_modelo = "O ano do modelo não pode ser menor que o de fabricação";
+    if (!Number.isInteger(v.km_atual) || v.km_atual < 0) campos.km_atual = "Informe o km do veículo";
+    if (!filial) campos.filial_id = "Escolha a filial";
+    if (!categoria) campos.categoria_id = "Escolha a categoria";
+    else if (categoria.filial && categoria.filial.id !== v.filial_id) campos.categoria_id = "Esta categoria é de outra filial";
+    if (v.renavam && !/^\d{9,11}$/.test(v.renavam)) campos.renavam = "Renavam deve ter de 9 a 11 números";
+    if (Object.keys(campos).length > 0 || !categoria) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, campos);
+    // Qualquer estado conta, inclusive vendido e baixado (VEI-01); o seed não tem esses dois.
+    const mesma = SEMENTES.find((s) => s.placa === placa);
+    if (mesma) throw new ErroApi(409, "VEI-01", "Já existe um veículo com esta placa", { campo: "placa", veiculo_id: mesma.id });
+    const mesmoChassi = SEMENTES.find((s) => s.chassi === chassi);
+    if (mesmoChassi) throw new ErroApi(409, "VEI-01", "Já existe um veículo com este chassi", { campo: "chassi", veiculo_id: mesmoChassi.id });
+    if (SEMENTES.length >= limiteDoPlano) throw new ErroApi(422, "PLT-03", "Seu plano chegou ao limite de veículos. Fale com o administrador para mudar de plano.");
+    const s: Semente = {
+      id: Math.max(...SEMENTES.map((x) => x.id)) + 1,
+      placa,
+      marca: v.marca.trim(),
+      modelo: v.modelo.trim(),
+      ano: v.ano_modelo,
+      anoFabricacao: v.ano_fabricacao,
+      cor: v.cor.trim().toLowerCase(),
+      tipo: categoria.tipo_veiculo,
+      categoria: categoria.nome,
+      categoriaId: categoria.id,
+      filialId: v.filial_id,
+      status: "disponivel",
+      km: v.km_atual,
+      diaria: categoria.preco_vigente.diaria_centavos,
+      semanal: categoria.preco_vigente.semanal_centavos,
+      proximaKm: v.km_atual + 1000,
+      chassi,
+      renavam: v.renavam,
+      tanque: v.capacidade_tanque_litros ?? null,
+      compraCentavos: v.valor_compra_centavos ?? null,
+      dataCompra: v.data_compra ?? null,
+      entrouEm: v.entrou_na_frota_em ?? new Date().toISOString().slice(0, 10),
+    };
+    SEMENTES.push(s);
+    return veiculosFalso.obter(s.id);
+  },
+
+  /** POST /api/veiculos/{id}/km/ (VEI-02): o km só sobe. */
+  async registrarKm(id: number, novoKm: number): Promise<Veiculo> {
+    await pausa(200);
+    const s = SEMENTES.find((x) => x.id === id);
+    if (!s) throw new ErroApi(404, "nao_encontrado", "Veículo não encontrado");
+    if (novoKm < s.km) {
+      const atual = new Intl.NumberFormat("pt-BR").format(s.km);
+      throw new ErroApi(422, "VEI-01", `O km informado é menor que o atual (${atual}). Para corrigir, use Corrigir km.`, { km_atual: s.km });
+    }
+    s.km = novoKm;
+    return montar(s);
+  },
+
   async listar(f: FiltroVeiculos = {}): Promise<ListaVeiculos> {
     await pausa(200);
     const busca = f.busca ? normalizar(f.busca).replace(/-/g, "") : "";
