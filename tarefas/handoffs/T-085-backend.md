@@ -14,7 +14,7 @@
 
 **Check:**
 - Ruff, `ruff format --check`, mypy e `makemigrations --check` limpos.
-- Pytest: `400 passed, 17 xfailed`. Antes eram 399 e 17, na main sem a T-083.
+- Pytest, depois do merge da origin/main com a T-083: `401 passed, 17 xfailed`. Antes eram 400 e 17.
 - O OpenAPI foi regerado com `--validate`, sem aviso e sem mudança.
 - Rodei no Postgres descartável, com `--rm` e `POSTGRES_HOST`.
 
