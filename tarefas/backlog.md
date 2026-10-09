@@ -211,9 +211,6 @@ Levantadas pelo produto em T-059 (08 out 2026):
 
 - **Nota da T-012 (08/10):** a S-12 (SVG do logo sanitizado e exibido só por `<img>`) vale para `ConfiguracaoEmpresa.logo` (app `empresas`), e não para a filial. Entra na tarefa da marca da empresa (`Admin-Marca`), a criar.
 
-### T-095 · Cadastrar veículo: botão na Frota e tela nova
-- **Agente:** frontend · **Depende de:** T-013, T-021 · **Telas:** Veiculo-Novo (`docs/telas/html/Veiculo-Novo-Desktop.dc.html` e `Veiculo-Novo-Mobile.dc.html`), Frota · **Regras:** VEI-01, VEI-02, PLT-03, LOC-15 · **Pronto quando:** a Frota (`/veiculos`) mostra o botão "Cadastrar veículo" para quem pode cadastrar (`pode.veiculos`), no desktop e no celular, como na tela Frota; `/veiculos/novo` recria a tela Veiculo-Novo com os componentes do design system e envia `POST /api/veiculos/` conforme `docs/api/veiculos.md`, nos dados falsos de `falso-frota.ts` (placa única, chassi com 17 caracteres, km que nunca diminui, limite do plano 422 `PLT-03` e os erros de validação do contrato mostrados no campo); depois de salvar, abre a ficha do veículo; teste da tela e do falso. A tela não calcula nada: mostra o que a API devolve. Ligar na API real fica para a tarefa que ligar a frota inteira.
-
 ### T-096 · Teste da ocupação com fração de dia
 - **Agente:** qa · **Depende de:** T-094 · **Regras:** VEI-06 · **Pronto quando:** o teste da ocupação da T-013 cobre o CA-013-29 (na frota desde 27 set, alugado em 02 out às 14:00, relógio em 07 out 00:00 → 44,17%), com o código da regra no nome; sem mudança de código de produção (se falhar, `xfail` com o motivo e aviso ao orquestrador).
 
