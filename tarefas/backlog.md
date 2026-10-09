@@ -9,7 +9,7 @@ As pendências de regra foram decididas em 07 out 2026 (seção "Decisões de 07
 - [bloqueada] Registrar girolocadoras.com.br e girolocacao.com.br.
 - [bloqueada] Busca no INPI da marca "Giro" (classes 42 e 9).
 - [bloqueada] Abrir a conta do Asaas (a integração começa no sandbox, não depende disso).
-- [decisão] (T-013, para o produto) Um veículo de uma categoria só da filial (`Categoria.filial` preenchida) pode ser transferido para outra filial (`VEI-04`)? Hoje a transferência passa, e o veículo continua com a categoria e o preço da filial de origem. As opções são recusar até trocar a categoria, ou trocar a categoria na própria transferência.
+- (T-013) A transferência de veículo com categoria só da filial (`VEI-04`) foi decidida em 08 out 2026 pelo dono do produto: opção B, recomendada pelo produto (na transferência, pedir a categoria do destino só quando a atual não vale lá). Vira regra na T-082 e código na T-083.
 
 A dúvida da segurança S-02 (T-032: o suporte Giro vê CPF e CNH completos?) foi decidida em 07 out 2026 e virou a regra `AUD-09` (mascarado, nunca completo).
 
@@ -217,6 +217,12 @@ Levantadas pelo produto em T-059 (08 out 2026):
 
 ### T-081 · Aprovações: lista e decisão
 - **Agente:** backend · **Depende de:** T-013, T-080 · **ADRs:** 0011, 0019 · **Regras:** APR-01 a APR-06, APR-09 · **Pronto quando:** as rotas de `docs/api/aprovacoes.md` (lista, aprovar, recusar) funcionam com o escopo de filial e a tabela "Quem decide", e quem pediu nunca decide o próprio pedido (APR-09); a decisão publica `aprovacoes.pedido_decidido`; o assinante de `veiculos` aplica a correção de km aprovada (CA-013-16 de ponta a ponta); `aprovacoes` entra no padrão de `GIRO_MODULOS_ATIVOS`; testes com o código da regra no nome. Vem antes da T-015 e atende o APR-05 da T-014.
+
+### T-082 · Regra e critério da transferência com categoria de filial
+- **Agente:** produto · **Depende de:** T-013 · **Regras:** VEI-04, FIL-04, LOC-01 · **Pronto quando:** a opção B aprovada em 08/10 vira regra em `docs/regras-de-negocio.md` (VEI-04: na transferência, a categoria do destino é pedida só quando a atual é de outra filial; categoria da empresa passa direto; o veículo transferido está disponível, então nenhuma locação aberta muda de preço), com linha em "Decisões de 08 out 2026"; critério novo em `docs/qa/criterios/T-013.md` com os números do seed.
+
+### T-083 · Transferência pede a categoria do destino
+- **Agente:** backend · **Depende de:** T-082 · **Regras:** VEI-04, FIL-04, LOC-01 · **Pronto quando:** o critério novo da T-082 passa, com o código da regra no nome do teste; a transferência recusa sem a categoria quando a atual não vale no destino e aceita a categoria do destino ou da empresa; contrato em `docs/api/veiculos.md` e OpenAPI regerado.
 
 ### T-014 · Clientes, documentos, bloqueio, LGPD
 - **Agente:** backend · **Depende de:** T-011, T-033 · **Segurança:** S-07, upload validado pelo conteúdo (S-12) · **Regras:** CLI-01 a CLI-08, AUD-04, AUD-05 · **Telas:** Clientes, Cliente · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-014.md` (CA-014-01 a 22; os marcados [integração] voltam no seed completo da T-019) passam, com o código da regra no nome do teste.
