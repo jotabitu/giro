@@ -3,7 +3,6 @@
 As regras (CPF, unicidade, pendências, transições) são conferidas no serviço; aqui só a forma.
 """
 
-from datetime import UTC
 from typing import Any
 
 from rest_framework import serializers
@@ -89,11 +88,6 @@ class MotivoClienteSerializer(serializers.Serializer[Any]):
 # --- Saída ---
 
 
-def _momento(**kwargs: Any) -> serializers.DateTimeField:
-    """ISO 8601 em UTC com `Z` (docs/api/README.md), não no fuso do servidor."""
-    return serializers.DateTimeField(default_timezone=UTC, **kwargs)
-
-
 class SituacaoClienteSerializer(serializers.Serializer[Any]):
     codigo = serializers.CharField()
     rotulo = serializers.CharField()
@@ -165,16 +159,16 @@ class ReferenciaClienteSerializer(serializers.Serializer[Any]):
 
 class BloqueioClienteSerializer(serializers.Serializer[Any]):
     motivo = serializers.ChoiceField(choices=["atraso", "manual"])
-    desde = _momento()
+    desde = serializers.DateTimeField()
     descricao = serializers.CharField()
     desbloqueia_sozinho = serializers.BooleanField()
 
 
 class DocumentoClienteSerializer(serializers.Serializer[Any]):
     tipo = serializers.ChoiceField(choices=TipoDocumentoCliente.choices)
-    enviado_em = _momento(allow_null=True)
+    enviado_em = serializers.DateTimeField(allow_null=True)
     url = serializers.CharField(allow_null=True)
-    url_expira_em = _momento(allow_null=True)
+    url_expira_em = serializers.DateTimeField(allow_null=True)
 
 
 class ItemAnaliseClienteSerializer(serializers.Serializer[Any]):
@@ -199,7 +193,7 @@ class ClienteDetalheSerializer(ClienteSerializer):
     responsavel = ResponsavelClienteSerializer(allow_null=True)
     endereco = EnderecoClienteSerializer(allow_null=True)
     referencia = ReferenciaClienteSerializer(allow_null=True)
-    consentimento_em = _momento(allow_null=True)
+    consentimento_em = serializers.DateTimeField(allow_null=True)
     bloqueio = BloqueioClienteSerializer(allow_null=True)
     documentos = DocumentoClienteSerializer(many=True)
     pendencias = serializers.ListField(child=serializers.CharField())

@@ -150,6 +150,12 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "comum.erros.tratar_excecao",
     "DEFAULT_PAGINATION_CLASS": "comum.paginacao.PaginacaoPorCursor",
+    # O DateTimeField devolve o datetime cru; quem formata é o renderizador (ADR 0020).
+    "DATETIME_FORMAT": None,
+    "DEFAULT_RENDERER_CLASSES": [
+        "comum.renderizacao.JSONRenderer",
+        "rest_framework.renderers.BrowsableAPIRenderer",
+    ],
     # Só as rotas públicas de acesso usam (comum.limites; P-03 da T-057).
     "DEFAULT_THROTTLE_RATES": {
         "entrar_ip_minuto": "10/min",
