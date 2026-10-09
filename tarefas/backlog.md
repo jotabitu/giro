@@ -218,6 +218,12 @@ Levantadas pelo backend em T-015 (09 out 2026):
 ### T-096 · Teste da ocupação com fração de dia
 - **Agente:** qa · **Depende de:** T-094 · **Regras:** VEI-06 · **Pronto quando:** o teste da ocupação da T-013 cobre o CA-013-29 (na frota desde 27 set, alugado em 02 out às 14:00, relógio em 07 out 00:00 → 44,17%), com o código da regra no nome; sem mudança de código de produção (se falhar, `xfail` com o motivo e aviso ao orquestrador).
 
+### T-100 · Frota com um botão só de cadastrar veículo
+- **Agente:** frontend · **Depende de:** T-095 · **Telas:** Frota · **Pronto quando:** a Frota (`/veiculos`) mostra só o botão preto (`wl-btn wl-btn--solid`) com o texto "Cadastrar veículo", no desktop e no celular, para quem tem `pode.veiculos === "editar"`; o botão de ícone sai (hoje os dois aparecem juntos, porque a classe do design system passa por cima do `hidden`/`md:hidden`); teste que confere um botão só. Pedido do dono em 09/10.
+
+### T-099 · Frontend do compose cai e não volta
+- **Agente:** devops · **Pronto quando:** o serviço `frontend` do `docker-compose.yml` tem política de reinício (`restart: unless-stopped`, e o mesmo para `backend`, `worker` e `beat` se fizer sentido); investigada a causa das duas paradas do `giro-frontend-1` por SIGTERM (08/10 à noite e 09/10 às 09:12 UTC), com o que encerrou o processo e como evitar; nota em `infra/README.md`.
+
 ### T-093 · Momentos em UTC na API
 - **Agente:** backend · **Depende de:** T-088 · **ADRs:** 0020 · **Pronto quando:** `comum/renderizacao.py` ligado no `REST_FRAMEWORK` como na ADR 0020; os 3 testes de `backend/tests/test_formato_das_datas.py` passam sem `xfail` e a lista de pendentes do teste de varredura fica vazia; contas, aprovações, plataforma, veículos, filiais e clientes saem em `AAAA-MM-DDTHH:MM:SSZ` sem mexer nos serializers; OpenAPI sem mudança. Passos em `tarefas/handoffs/T-088-arquiteto.md`.
 
