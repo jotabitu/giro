@@ -82,3 +82,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-096 · Teste da ocupação com fração de dia · qa · PR #91 · tarefas/handoffs/T-096-qa.md · CA-013-29 (44,17%); sem mudança de produção
 - T-099 · Frontend do compose cai e não volta · devops · PR #93 · tarefas/handoffs/T-099-devops.md · restart: unless-stopped nos 7 serviços; paradas por compose stop/down no projeto giro, não por queda
 - T-100 · Frota com um botão só de cadastrar veículo · frontend · PR #94 · tarefas/handoffs/T-100-frontend.md · pedido do dono; mesmo padrão em NovoVeiculoForm.tsx apontado no handoff
+- T-097 · Dados de referência: LOC-2836 confirmada em 01 out · produto · PR #95 · tarefas/handoffs/T-097-produto.md · LOC-06 com as datas; CA-015-15; [decisão] da multa da parcela que nasce vencida

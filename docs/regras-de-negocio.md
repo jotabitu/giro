@@ -307,7 +307,7 @@ Sinais (não são estados, são calculados): `pagamento_atrasado` (alguma parcel
 - `LOC-03` Desconto do vendedor até 5% sem aprovação; acima disso vai para o gerente (`APR-01`).
 - `LOC-04` Caução é cobrada uma vez, na retirada, pelo valor da categoria (motos R$ 300 ou R$ 500, carros R$ 800). Não é receita: fica como valor a devolver até o acerto.
 - `LOC-05` Parcelas são antecipadas. Diária: tudo na retirada. Semanal: 1ª na retirada, depois a cada 7 dias. Mensal: 1ª na retirada, depois a cada mês. Pode ser Pix automático (cobrança recorrente).
-- `LOC-06` Exemplo LOC-2836 (Juliana, semanal R$ 329,00): parcela 1 em 30 set, parcela 2 em 07 out, caução R$ 300,00 → total pago R$ 958,00.
+- `LOC-06` Exemplo LOC-2836 (Juliana, semanal R$ 329,00, início em 30 set, confirmada em 01 out): parcela 1 em 30 set, parcela 2 em 07 out, caução R$ 300,00 → total pago R$ 958,00.
 
 **Durante a locação**
 
@@ -562,6 +562,7 @@ Planos especiais: Entregador R$ 279,00/semana (km livre, troca de óleo inclusa)
 | Contadores do menu em 07 out (Mariana) | parcelas de Carlos e Rafael atrasadas; despesa dos pneus aguardando aprovação | Contas a receber 2; Despesas 1; Conciliação e Comissões sem número (fase 2) | `FIN-15`, `FIN-05` |
 | Encerramento antecipado LOC-2812 | NMax mensal 1.590,00; pedido em 07 out; fim 15 out | multa R$ 84,80; devolve R$ 286,20 | `LOC-12`, `LOC-13` |
 | Preço antigo LOC-2841 | Carlos, CG 160 Fan, semanal de 23 set a 28 out (5 parcelas: 23 set paga, 30 set atrasada, 07 out vence hoje, 14 e 21 out), assinado em 23 set, quando a Street semanal era 299,40 (passou a 329,00 em 01 out) | parcelas continuam R$ 299,40 | `LOC-15` |
+| Preço da LOC-2836 | Juliana, Factor 150 (PNB7C04), semanal com início em 30 set e fim em 07 out; confirmada em 01 out, quando a Street semanal já era 329,00; retirada (vistoria de saída, contrato e 1º pagamento) em 01 out | parcelas de R$ 329,00, vencendo em 30 set e 07 out, pela tabela de 01 out | `LOC-15` |
 | Bloqueio | Rafael Sousa, 25 dias de atraso | cliente `bloqueado`, LOC-2790 `devolucao_atrasada` | `CLI-05`, `LOC-10` |
 | Uso do plano | 86 veículos, 1 filial, 5 usuários | 86 de 150, 1 de 3, 5 de 10; sem aviso | `PLT-03` |
 | Implantação da plataforma | 23 empresas em teste | funil 23 → 19 → 17 → 14 → 11 → 8 | `IMP-05` |
@@ -575,6 +576,8 @@ Planos especiais: Entregador R$ 279,00/semana (km livre, troca de óleo inclusa)
 - **Caixa de 07 out:** o cartão de R$ 179,70 do Diego virou a renovação de 1 diária do Kwid, R$ 109,00 (`LOC-08`), e o total recebido passou de R$ 1.182,60 para R$ 1.111,90. Decisão do dono do produto em 08 out 2026.
 
 A LOC-2790 continua com uma conta atrasada de R$ 1.347,00, que não sai da tabela de preços (equivale a 30 diárias Urbana). Ela é um valor dado do seed, mantido porque os casos "Em aberto dos clientes" e "Bloqueio" dependem dele.
+
+*Mudanças em 09 out 2026 (T-097):* criada a linha "Preço da LOC-2836", e a `LOC-06` passou a dizer as datas da LOC-2836. Ela começa em 30 set, mas é confirmada em 01 out, e por isso paga R$ 329,00 pela tabela da Street de 01 out (`LOC-15`, divergência do backend na T-015). Como as contas nascem na confirmação, a retirada e o 1º pagamento (parcela 1 e caução) também passam para 01 out; antes, os critérios diziam que ela saiu em 30 set. As parcelas continuam vencendo em 30 set e 07 out, e os números da carteira de outubro não mudam. A multa da parcela 1 paga um dia depois do vencimento está em "Pontos em aberto". Decisão do dono do produto em 09 out 2026 (opção A).
 
 ## Decisões de 07 out 2026
 
@@ -619,6 +622,7 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 | Categorias de CNH C, D e E (T-014) | **C, D e E alugam carro; AB a AE alugam moto e carro** (`CLI-02`). | Pelo CTB, art. 143, as categorias C, D e E incluem a B; nenhuma delas inclui a A. Leitura do backend na T-014, confirmada pelo dono do produto. |
 | Inativar cliente bloqueado (T-014) | **Recusado com 409 `transicao_cliente`:** primeiro desbloqueia (`CLI-09`, `CLI-05`). | A inativação não pode passar por cima do bloqueio: o cliente sai do bloqueio pelo caminho da `CLI-05`. Leitura do backend na T-014, confirmada pelo dono do produto. |
 | Ocupação com mudança de status no meio do dia (T-088) | **A:** vale a fração de dia; alugado às 14:00 conta 0,42 daquele dia (`VEI-06`). | É a medida mais fiel, não precisa escolher entre o dia de entrada e o de saída, e o código da T-013 já faz assim. |
+| Preço da LOC-2836 (T-015) | **A:** a LOC-2836 é confirmada em 01 out, com início em 30 set, e paga R$ 329,00 pela tabela da Street de 01 out; a tabela não muda (`LOC-15`, caso "Preço da LOC-2836"). | O preço é congelado na confirmação, e a Street semanal é R$ 329,00 desde 01 out; os números do seed continuam os mesmos. |
 
 ## Pontos em aberto
 
@@ -627,3 +631,4 @@ Pendências fechadas com base em pesquisa de mercado (locadoras de moto, sistema
 - [ ] **Abrir a conta no Asaas** e confirmar as taxas de boleto e cartão para o volume esperado.
 - [x] **Base do "Recebido" da tela `Receber`** (`FIN-15`, T-053). **Decidido em 08 out 2026 pelo dono do produto: A.** A) só as contas que vencem no mês e já foram pagas, para o percentual "do previsto" nunca passar de 100%; B) tudo o que foi pago no mês, inclusive atrasos de meses anteriores (visão de caixa). Padrão: **A**. O dinheiro que entra no dia já aparece no `Caixa`.
 - [ ] **Telas que faltam desenhar:** esqueci a senha, 2 etapas, meu perfil, notificações, contas a pagar separada, multas de trânsito, documentos dos veículos, avarias abertas, pagamento e assinatura pelo cliente final, site de vendas.
+- [ ] **Multa da 1ª parcela da LOC-2836** (`FIN-03`, `LOC-05`, T-097). Como a LOC-2836 é confirmada em 01 out e as contas nascem na confirmação, a parcela 1, que vence em 30 set, só pode ser paga em 01 out, na retirada. Pela `FIN-03`, isso cobra a multa de 2% (R$ 6,58) e 1 dia de juros, e o total pago passa de R$ 958,00. A) Parcela que já nasce vencida não cobra multa nem juros até o dia em que nasceu: o atraso conta a partir do dia seguinte à confirmação, e o total pago continua R$ 958,00. B) Cobra pela `FIN-03`, e o caso "Total pago LOC-2836" e o CA-015-15 mudam. Padrão: **A**, que mantém os números do seed e não cobra atraso de quem não tinha como pagar.
