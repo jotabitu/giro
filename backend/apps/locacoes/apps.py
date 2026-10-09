@@ -6,6 +6,7 @@ class LocacoesConfig(AppConfig):
     label = "locacoes"
 
     def ready(self) -> None:
-        from . import eventos, leituras  # noqa: F401 - eventos registra os assinantes
+        from . import contrato, eventos, leituras  # noqa: F401 - eventos registra os assinantes
 
         leituras.registrar()
+        contrato.registrar()

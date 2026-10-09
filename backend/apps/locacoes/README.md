@@ -42,12 +42,12 @@ Contrato da API: `docs/api/locacoes.md` (escrito pelo arquiteto antes da impleme
   - em `veiculos.Categoria`: o contador `locacoes_em_andamento`.
 - `eventos.py`: os assinantes de `financeiro.parcela_paga`, `contratos.contrato_assinado` (o aditivo não conta) e `aprovacoes.pedido_decidido` (`APR-01`).
 - `tasks.py`: `locacoes_cancelar_rascunhos_sem_uso`, de hora em hora.
+- `contrato.py` (T-090): os valores dos marcadores da locação, `gerar`, `reenviar` e `gerar_aditivo` (para a renovação da T-091), e o registro da prévia com dados reais. As rotas `POST /api/locacoes/{id}/contrato/`, `GET .../contrato/pdf/` e `POST .../contrato/reenviar/`.
 
 ## Fica para as próximas tarefas
 
-- T-090: o contrato gerado, o PDF e a assinatura. A locação já assina `contratos.contrato_assinado`.
 - T-091:
-  - a renovação (`LOC-08`);
+  - a renovação (`LOC-08`), que chama `contrato.gerar_aditivo(locacao)`;
   - o atraso, com `calcular_atraso` e a `aut_02` (`LOC-10`, `LOC-11`);
   - o cancelamento e o encerramento antecipado (`LOC-12`, `LOC-13`, `APR-02`), com o reembolso e o estorno da comissão;
   - o sinal `cancelamento_pendente` e o bloco `cancelamento`.

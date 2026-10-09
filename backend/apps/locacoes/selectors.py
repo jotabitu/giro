@@ -14,6 +14,8 @@ from django.conf import settings
 from django.db.models import Q, QuerySet
 
 from apps.auditoria.models import EventoAuditoria
+from apps.contratos import selectors as contratos_selectors
+from apps.contratos.models import Contrato, StatusContrato
 from apps.filiais.models import Filial
 from apps.financeiro import selectors as financeiro_selectors
 from apps.veiculos import selectors as veiculos_selectors
@@ -290,7 +292,7 @@ def _cancelar(usuario: Any, locacao: Locacao) -> str | bool:
     return "pedir" if valor == "pede" else False
 
 
-def acoes(locacao: Locacao, usuario: Any) -> dict[str, Any]:
+def acoes(locacao: Locacao, usuario: Any, contrato: Contrato | None = None) -> dict[str, Any]:
     perfil = getattr(usuario, "perfil", "")
     cria = perfil in CRIAM
     em_curso = locacao.status in (S.ATIVA, S.DEVOLUCAO_ATRASADA)
@@ -301,8 +303,12 @@ def acoes(locacao: Locacao, usuario: Any) -> dict[str, Any]:
         "registrar_devolucao": perfil in VISTORIAM and em_curso,
         "trocar_veiculo": cria and locacao.status == S.ATIVA,
         "cancelar": _cancelar(usuario, locacao),
-        "imprimir_contrato": False,  # contrato gerado, T-090
-        "reenviar_contrato": False,
+        "imprimir_contrato": perfil != "vistoriador"
+        and contrato is not None
+        and bool(contrato.pdf_assinado or contrato.pdf),
+        "reenviar_contrato": cria
+        and contrato is not None
+        and contrato.status in (StatusContrato.ENVIADO, StatusContrato.ASSINADO),
         "continuar_vistoria": perfil in VISTORIAM
         and locacao.status == S.AGUARDANDO_RETIRADA
         and locacao.vistoria_saida_ok_em is None,
@@ -368,6 +374,7 @@ def _devolucao(locacao: Locacao) -> dict[str, Any]:
 
 def detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
     hoje = relogio.hoje()
+    contrato = contratos_selectors.contrato_vigente(ORIGEM, locacao.pk)
     parcelas = [
         financeiro_selectors.representacao_conta(c, hoje)
         for c in financeiro_selectors.contas_da_origem(ORIGEM, locacao.pk)
@@ -402,14 +409,14 @@ def detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
         },
         "parcelas": parcelas,
         "total_pago_centavos": sum(p["valor_centavos"] for p in parcelas if p["status"] == "paga"),
-        "contrato": None,  # T-090
+        "contrato": contratos_selectors.resumo(contrato),
         "devolucao": _devolucao(locacao),
         "trechos": [
             {"veiculo": t.veiculo.placa, "inicio": t.inicio, "fim": t.fim}
             for t in locacao.trechos.select_related("veiculo")
         ],
         "cancelamento": None,  # T-091
-        "acoes": acoes(locacao, usuario),
+        "acoes": acoes(locacao, usuario, contrato),
     }
 
 

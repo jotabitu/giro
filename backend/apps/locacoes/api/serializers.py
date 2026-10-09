@@ -9,6 +9,8 @@ from typing import Any
 
 from rest_framework import serializers
 
+from apps.contratos.api.serializers import ContratoResumoSerializer
+
 from ..models import FormaPagamento, ParcelamentoMensal, Periodicidade, PlanoEspecial
 
 
@@ -246,7 +248,7 @@ class LocacaoDetalheSerializer(LocacaoSerializer):
     condicoes = CondicoesLocacaoSerializer()
     parcelas = ParcelaLocacaoSerializer(many=True, required=False)
     total_pago_centavos = serializers.IntegerField(required=False)
-    contrato = serializers.JSONField(allow_null=True, help_text="Contrato gerado (T-090)")
+    contrato = ContratoResumoSerializer(allow_null=True)
     devolucao = DevolucaoPrevistaSerializer()
     trechos = TrechoLocacaoSerializer(many=True)
     cancelamento = serializers.JSONField(allow_null=True, help_text="Cancelamento (T-091)")

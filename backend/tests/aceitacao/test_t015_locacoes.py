@@ -1,9 +1,10 @@
 """T-015 · Locação: reserva, ciclo de status e lista (docs/qa/criterios/T-015.md).
 
 Roda na `empresa_a` com as pessoas e a frota da Moto Rápida (Filial Centro) e o relógio em 07 out
-2026, 10:00. A divisão combinada em 09 out: contratos (CA-015-11 a 13) são da T-090; renovação,
-atraso, cancelamento e encerramento (CA-015-17, 19 a 24 e o estorno do 25), da T-091; troca de
-veículo (CA-015-18), da T-092. Esses ficam `xfail` aqui, com os números do critério.
+2026, 10:00. A divisão combinada em 09 out: contratos (CA-015-11 a 13) ficaram com a T-090 e estão
+em `test_t090_contratos.py`; renovação, atraso, cancelamento e encerramento (CA-015-17, 19 a 24 e
+o estorno do 25), com a T-091; troca de veículo (CA-015-18), com a T-092. Esses ficam `xfail`
+aqui, com os números do critério.
 
 A vistoria de saída (T-016), a assinatura (T-090) e a baixa no caixa (T-017) entram pelas portas
 que esses apps vão usar: `locacoes.services.registrar_vistoria_saida`, o evento
@@ -848,21 +849,6 @@ def test_loc_01_plano_especial_campo_da_regra(cenario):
 
 
 # --- Das tarefas seguintes (divisão de 09 out) ---
-
-
-@aguarda("T-090")
-def test_fin_03_ca_015_11_gerar_e_enviar_contrato(cenario):
-    pendente(locacao="LOC-2856", resposta=202, status="enviado", segundo_post="contrato_existente")
-
-
-@aguarda("T-090")
-def test_s_15_ca_015_12_link_de_assinatura(cenario):
-    pendente(valido_ate="2026-10-14", expirado_em="2026-10-15", nome="lucas ferreira")
-
-
-@aguarda("T-090")
-def test_s_09_ca_015_13_modelo_de_contrato(cenario):
-    pendente(marcador_invalido="{{cliente.salario}}", arquivar_ultimo="IMP-04")
 
 
 @aguarda("T-091")

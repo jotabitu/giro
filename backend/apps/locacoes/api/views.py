@@ -15,13 +15,15 @@ from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 
+from apps.contratos import selectors as contratos_selectors
+from apps.contratos.api.serializers import ContratoGeradoSerializer, UrlDoPdfSerializer
 from apps.filiais.models import Filial
 from apps.filiais.selectors import filtrar_por_filial
 from comum.erros import ErroDeValidacao
 from comum.paginacao import PaginacaoPorCursor, envelope_sem_paginas
 from comum.permissoes import com_padrao, exige_perfil, filiais_permitidas, filial_pedida
 
-from .. import selectors, services
+from .. import contrato, selectors, services
 from ..models import Locacao, PlanoEspecial
 from .serializers import (
     ConfirmarLocacaoSerializer,
@@ -37,6 +39,9 @@ from .serializers import (
 )
 
 CRIAM: list[type[BasePermission]] = com_padrao(exige_perfil("administrador", "gerente", "vendedor"))
+VEEM_O_CONTRATO: list[type[BasePermission]] = com_padrao(
+    exige_perfil("administrador", "gerente", "vendedor", "financeiro")
+)
 LEEM_A_LISTA: list[type[BasePermission]] = com_padrao(
     exige_perfil("administrador", "gerente", "vendedor", "financeiro")
 )
@@ -187,6 +192,52 @@ class HistoricoLocacaoView(APIView):
     def get(self, request: Request, pk: int) -> Response:
         itens = selectors.historico(_locacao(request, pk), request.user)
         return Response(HistoricoLocacaoSerializer({"resultados": itens}).data)
+
+
+# --- Contrato (fluxo da retirada, passo 3; docs/api/contratos.md) ---
+
+
+class ContratoLocacaoView(APIView):
+    permission_classes = CRIAM
+
+    @extend_schema(
+        request=None,
+        responses={202: ContratoGeradoSerializer},
+        summary="Gerar e enviar o contrato (IMP-04, S-09, S-15)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        gerado = contrato.gerar(_locacao(request, pk))
+        return Response(
+            {"contrato_id": gerado.pk, "status": gerado.status}, status=status.HTTP_202_ACCEPTED
+        )
+
+
+class ReenviarContratoView(APIView):
+    permission_classes = CRIAM
+
+    @extend_schema(
+        request=None,
+        responses={202: ContratoGeradoSerializer},
+        summary="Reenviar (novo link; o anterior deixa de valer, S-15)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        reenviado = contrato.reenviar(_locacao(request, pk))
+        return Response(
+            {"contrato_id": reenviado.pk, "status": reenviado.status},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+
+class PdfDoContratoView(APIView):
+    permission_classes = VEEM_O_CONTRATO
+
+    @extend_schema(responses=UrlDoPdfSerializer, summary="PDF do contrato (URL de 15 min, AUD-05)")
+    def get(self, request: Request, pk: int) -> Response:
+        vigente = contrato.vigente(_locacao(request, pk))
+        url = contratos_selectors.url_do_pdf(vigente) if vigente else None
+        if url is None:
+            raise Http404
+        return Response({"url": url.url, "url_expira_em": url.expira_em})
 
 
 # --- Planos especiais ---

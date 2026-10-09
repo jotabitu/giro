@@ -1073,6 +1073,202 @@ paths:
               schema:
                 $ref: '#/components/schemas/AnaliseCliente'
           description: ''
+  /api/contratos/marcadores/:
+    get:
+      operationId: contratos_marcadores_retrieve
+      summary: Campos automáticos (S-09)
+      tags:
+      - contratos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeMarcadores'
+          description: ''
+  /api/contratos/modelos/:
+    get:
+      operationId: contratos_modelos_list
+      summary: Modelos de contrato
+      tags:
+      - contratos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeModelos'
+          description: ''
+    post:
+      operationId: contratos_modelos_create
+      summary: Novo modelo, em rascunho (S-09)
+      tags:
+      - contratos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeloEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ModeloEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ModeloEntrada'
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeloDetalhe'
+          description: ''
+  /api/contratos/modelos-prontos/:
+    get:
+      operationId: contratos_modelos_prontos_retrieve
+      summary: Modelos prontos
+      tags:
+      - contratos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeModelosProntos'
+          description: ''
+  /api/contratos/modelos/{id}/:
+    get:
+      operationId: contratos_modelos_retrieve
+      summary: Modelo, com texto e versões
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - contratos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeloDetalhe'
+          description: ''
+    patch:
+      operationId: contratos_modelos_partial_update
+      summary: Editar (publicado vira rascunho da versão seguinte, LOC-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - contratos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedModeloEdicao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedModeloEdicao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedModeloEdicao'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeloDetalhe'
+          description: ''
+  /api/contratos/modelos/{id}/arquivar/:
+    post:
+      operationId: contratos_modelos_arquivar_create
+      summary: Arquivar (IMP-04)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - contratos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeloDetalhe'
+          description: ''
+  /api/contratos/modelos/{id}/previa/:
+    post:
+      operationId: contratos_modelos_previa_create
+      summary: Ver com dados reais, sem gerar PDF nem gravar
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - contratos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviaEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PreviaEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PreviaEntrada'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Previa'
+          description: ''
+  /api/contratos/modelos/{id}/publicar/:
+    post:
+      operationId: contratos_modelos_publicar_create
+      summary: Publicar (S-09, IMP-04)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - contratos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeloDetalhe'
+          description: ''
   /api/convites/aceitar/:
     post:
       operationId: convites_aceitar_create
@@ -1737,6 +1933,69 @@ paths:
               schema:
                 $ref: '#/components/schemas/LocacaoDetalhe'
           description: ''
+  /api/locacoes/{id}/contrato/:
+    post:
+      operationId: locacoes_contrato_create
+      summary: Gerar e enviar o contrato (IMP-04, S-09, S-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContratoGerado'
+          description: ''
+  /api/locacoes/{id}/contrato/pdf/:
+    get:
+      operationId: locacoes_contrato_pdf_retrieve
+      summary: PDF do contrato (URL de 15 min, AUD-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrlDoPdf'
+          description: ''
+  /api/locacoes/{id}/contrato/reenviar/:
+    post:
+      operationId: locacoes_contrato_reenviar_create
+      summary: Reenviar (novo link; o anterior deixa de valer, S-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContratoGerado'
+          description: ''
   /api/locacoes/{id}/historico/:
     get:
       operationId: locacoes_historico_retrieve
@@ -2181,6 +2440,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListaDeMudancasDePreco'
+          description: ''
+  /api/publico/assinaturas/assinar/:
+    post:
+      operationId: publico_assinaturas_assinar_create
+      description: Sem login e sem filial; a empresa precisa estar operando para receber
+        a assinatura.
+      summary: Assinar pelo link (S-15)
+      tags:
+      - publico
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Assinar'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Assinar'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Assinar'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssinaturaFeita'
+          description: ''
+  /api/publico/assinaturas/consultar/:
+    post:
+      operationId: publico_assinaturas_consultar_create
+      description: Sem login e sem filial; a empresa precisa estar operando para receber
+        a assinatura.
+      summary: Ler o contrato do link (S-15)
+      tags:
+      - publico
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenDeAssinatura'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenDeAssinatura'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenDeAssinatura'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsultaDaAssinatura'
           description: ''
   /api/suporte/:
     get:
@@ -3347,6 +3664,21 @@ components:
       - nome
       - url
       - url_expira_em
+    Assinar:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 100
+        aceite:
+          type: boolean
+        nome_completo:
+          type: string
+          maxLength: 150
+      required:
+      - aceite
+      - nome_completo
+      - token
     Assinatura:
       type: object
       properties:
@@ -3372,6 +3704,17 @@ components:
       - status
       - teste
       - uso
+    AssinaturaFeita:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/StatusContratoEnum'
+        assinado_em:
+          type: string
+          format: date-time
+      required:
+      - assinado_em
+      - status
     Ativado:
       type: object
       properties:
@@ -3932,6 +4275,16 @@ components:
           type: string
       required:
       - senha
+    ConsultaDaAssinatura:
+      type: object
+      properties:
+        empresa:
+          $ref: '#/components/schemas/EmpresaDaAssinatura'
+        contrato:
+          $ref: '#/components/schemas/ContratoDaAssinatura'
+      required:
+      - contrato
+      - empresa
     Contagens:
       type: object
       properties:
@@ -4070,6 +4423,71 @@ components:
             format: email
           - type: string
             maxLength: 0
+    ContratoDaAssinatura:
+      type: object
+      properties:
+        codigo:
+          type: string
+        titulo:
+          type: string
+        cliente_nome:
+          type: string
+        pdf_url:
+          type: string
+          nullable: true
+        pdf_url_expira_em:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: '#/components/schemas/StatusContratoEnum'
+      required:
+      - cliente_nome
+      - codigo
+      - pdf_url
+      - pdf_url_expira_em
+      - status
+      - titulo
+    ContratoGerado:
+      type: object
+      properties:
+        contrato_id:
+          type: integer
+        status:
+          $ref: '#/components/schemas/StatusContratoEnum'
+      required:
+      - contrato_id
+      - status
+    ContratoResumo:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          $ref: '#/components/schemas/StatusContratoEnum'
+        modelo:
+          type: string
+        versao:
+          type: integer
+          nullable: true
+        enviado_em:
+          type: string
+          format: date-time
+          nullable: true
+        assinado_em:
+          type: string
+          format: date-time
+          nullable: true
+        pdf_disponivel:
+          type: boolean
+      required:
+      - assinado_em
+      - enviado_em
+      - id
+      - modelo
+      - pdf_disponivel
+      - status
+      - versao
     Convidar:
       type: object
       properties:
@@ -4332,6 +4750,21 @@ components:
           format: email
       required:
       - email
+    EmpresaDaAssinatura:
+      type: object
+      properties:
+        nome_exibicao:
+          type: string
+        logo_url:
+          type: string
+          nullable: true
+        cor_marca:
+          type: string
+          nullable: true
+      required:
+      - cor_marca
+      - logo_url
+      - nome_exibicao
     EmpresaDetalhe:
       type: object
       properties:
@@ -5004,6 +5437,14 @@ components:
       required:
       - id
       - nome
+    FinalidadeEnum:
+      enum:
+      - locacao
+      - venda
+      type: string
+      description: |-
+        * `locacao` - Locação
+        * `venda` - Venda
     FormaPagamentoEnum:
       enum:
       - pix
@@ -5433,6 +5874,33 @@ components:
       - indicadores
       - proximo
       - resultados
+    ListaDeMarcadores:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Marcador'
+      required:
+      - resultados
+    ListaDeModelos:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModeloResumo'
+      required:
+      - resultados
+    ListaDeModelosProntos:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModeloPronto'
+      required:
+      - resultados
     ListaDeMudancasDePreco:
       type: object
       properties:
@@ -5683,8 +6151,9 @@ components:
         total_pago_centavos:
           type: integer
         contrato:
+          allOf:
+          - $ref: '#/components/schemas/ContratoResumo'
           nullable: true
-          description: Contrato gerado (T-090)
         devolucao:
           $ref: '#/components/schemas/DevolucaoPrevista'
         trechos:
@@ -5768,6 +6237,19 @@ components:
       - inicio
       - periodicidade
       - veiculo_id
+    Marcador:
+      type: object
+      properties:
+        chave:
+          type: string
+        rotulo:
+          type: string
+        exemplo:
+          type: string
+      required:
+      - chave
+      - exemplo
+      - rotulo
     Mensagem:
       type: object
       properties:
@@ -5806,6 +6288,122 @@ components:
       required:
       - pode_escolher_todas
       - resultados
+    ModeloDetalhe:
+      type: object
+      properties:
+        id:
+          type: integer
+        grupo:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        finalidade:
+          $ref: '#/components/schemas/FinalidadeEnum'
+        versao_publicada:
+          type: integer
+          nullable: true
+        tem_rascunho:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/StatusModeloContratoEnum'
+        arquivado:
+          type: boolean
+        contratos_gerados:
+          type: integer
+        editado_em:
+          type: string
+          format: date-time
+        texto:
+          type: string
+        marcadores_usados:
+          type: array
+          items:
+            type: string
+        versoes:
+          type: array
+          items:
+            $ref: '#/components/schemas/VersaoDoModelo'
+      required:
+      - arquivado
+      - contratos_gerados
+      - editado_em
+      - finalidade
+      - grupo
+      - id
+      - marcadores_usados
+      - nome
+      - status
+      - tem_rascunho
+      - texto
+      - versao_publicada
+      - versoes
+    ModeloEntrada:
+      type: object
+      description: '`{ nome, finalidade, texto }` ou `{ nome?, a_partir_de }`.'
+      properties:
+        nome:
+          type: string
+          maxLength: 80
+        finalidade:
+          allOf:
+          - $ref: '#/components/schemas/FinalidadeEnum'
+          default: locacao
+        texto:
+          type: string
+        a_partir_de:
+          type: string
+          maxLength: 40
+    ModeloPronto:
+      type: object
+      properties:
+        chave:
+          type: string
+        nome:
+          type: string
+        texto:
+          type: string
+      required:
+      - chave
+      - nome
+      - texto
+    ModeloResumo:
+      type: object
+      properties:
+        id:
+          type: integer
+        grupo:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        finalidade:
+          $ref: '#/components/schemas/FinalidadeEnum'
+        versao_publicada:
+          type: integer
+          nullable: true
+        tem_rascunho:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/StatusModeloContratoEnum'
+        arquivado:
+          type: boolean
+        contratos_gerados:
+          type: integer
+        editado_em:
+          type: string
+          format: date-time
+      required:
+      - arquivado
+      - contratos_gerados
+      - editado_em
+      - finalidade
+      - grupo
+      - id
+      - nome
+      - status
+      - tem_rascunho
+      - versao_publicada
     Motivo:
       type: object
       properties:
@@ -6258,6 +6856,14 @@ components:
           oneOf:
           - $ref: '#/components/schemas/ParcelamentoMensalEnum'
           - $ref: '#/components/schemas/NullEnum'
+    PatchedModeloEdicao:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 80
+        texto:
+          type: string
     PatchedPlanoEspecialEntrada:
       type: object
       properties:
@@ -6914,6 +7520,19 @@ components:
       - desconto_pct
       - diaria_centavos
       - valor_periodo_centavos
+    Previa:
+      type: object
+      properties:
+        html:
+          type: string
+      required:
+      - html
+    PreviaEntrada:
+      type: object
+      properties:
+        locacao_id:
+          type: integer
+          nullable: true
     Pronto:
       type: object
       properties:
@@ -7220,6 +7839,26 @@ components:
         * `ativo` - Ativo
         * `bloqueado` - Bloqueado
         * `inativo` - Inativo
+    StatusContratoEnum:
+      enum:
+      - gerado
+      - enviado
+      - assinado
+      - cancelado
+      type: string
+      description: |-
+        * `gerado` - Gerado
+        * `enviado` - Enviado
+        * `assinado` - Assinado
+        * `cancelado` - Cancelado
+    StatusModeloContratoEnum:
+      enum:
+      - publicado
+      - rascunho
+      type: string
+      description: |-
+        * `publicado` - publicado
+        * `rascunho` - rascunho
     StatusVeiculoEnum:
       enum:
       - disponivel
@@ -7379,6 +8018,14 @@ components:
           maxLength: 100
       required:
       - token
+    TokenDeAssinatura:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 100
+      required:
+      - token
     TokenDoConviteDaEquipe:
       type: object
       properties:
@@ -7427,6 +8074,17 @@ components:
       required:
       - senha_atual
       - senha_nova
+    UrlDoPdf:
+      type: object
+      properties:
+        url:
+          type: string
+        url_expira_em:
+          type: string
+          format: date-time
+      required:
+      - url
+      - url_expira_em
     UsoAssinatura:
       type: object
       properties:
@@ -7950,6 +8608,20 @@ components:
         codigo_recuperacao:
           type: string
           maxLength: 20
+    VersaoDoModelo:
+      type: object
+      properties:
+        versao:
+          type: integer
+        publicado_em:
+          type: string
+          format: date-time
+        contratos_gerados:
+          type: integer
+      required:
+      - contratos_gerados
+      - publicado_em
+      - versao
   securitySchemes:
     jwtAuth:
       type: http

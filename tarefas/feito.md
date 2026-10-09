@@ -86,3 +86,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-093 · Momentos em UTC na API · backend · PR #96 · tarefas/handoffs/T-093-backend.md · 490 testes; renderizador de comum (ADR 0020); OpenAPI idêntico
 - T-101 · Conta que nasce vencida não cobra atraso antes da confirmação · produto · PR #98 · tarefas/handoffs/T-101-produto.md · FIN-03 opção A; CA-017-23; código na T-017
 - T-098 · Teste do CA-015-15 com a LOC-2836 confirmada em 01 out · qa · PR #99 · tarefas/handoffs/T-098-qa.md · 491 testes; LOC-2836 pelos serviços; dado de referência da LOC-2836 (fim em 07 out) para o produto
+- T-090 · Contratos: modelos, PDF, assinatura e aditivo · backend · PR #100 · tarefas/handoffs/T-090-backend.md · 507 testes; weasyprint e nh3; 7 diferenças para o arquiteto; memória do worker de PDF para o devops
