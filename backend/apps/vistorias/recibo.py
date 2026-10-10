@@ -34,7 +34,10 @@ def _linhas(itens: list[tuple[str, int]]) -> str:
 def corpo(devolucao: Devolucao) -> tuple[str, pdf.Imagens]:
     """O HTML do recibo e as imagens que ele usa."""
     locacao = devolucao.locacao
+    # O recibo é só da devolução encerrada, que sempre tem a chegada.
     chegada = services.chegada_vigente(devolucao) or devolucao.vistoria
+    if chegada is None:
+        raise services.vistoria_pendente()
     saida = services.saida_vigente(locacao.pk, chegada.veiculo_id)
     veiculo = chegada.veiculo
     fuso = ZoneInfo(locacao.filial.fuso)

@@ -69,9 +69,18 @@ Contrato da API: `docs/api/locacoes.md` (escrito pelo arquiteto antes da impleme
   - `concluir_troca`: fecha o trecho e abre o novo, passa a locação ao veículo novo (`alugado`) com o preço, a diária e a caução da nova categoria, e refaz as parcelas em aberto que vencem depois do dia da troca (`financeiro.ajustar_valor`): só a parte do período muda, com o mesmo desconto.
 - A rota `POST /api/locacoes/{id}/trocar-veiculo/` fica em `vistorias`, porque abre as duas vistorias. `acoes.trocar_veiculo` fica `false` com uma troca pendente ou um cancelamento em curso.
 
+## Implementado (T-123, decisões da troca)
+
+- `TrocaVeiculo` (migração `0005`): o preço da nova categoria no dia do pedido (`valor_periodo_centavos`, `diaria_centavos`, `caucao_centavos`, `preco_do_dia`; a migração preenche as trocas antigas pelo dia de `criado_em`), a diferença do período guardada na conclusão (`periodo_inicio`, `periodo_fim`, `dias_do_periodo`, `dias_restantes`, `periodo_antigo_centavos`, `periodo_novo_centavos`, `ja_refeito_centavos`, `diferenca_centavos`) e o cancelamento (`cancelada_em`, `cancelada_por`, `motivo_cancelamento`).
+- `pedir_troca` grava o preço do dia (`preco_da_troca(locacao, veiculo, dia)`); `concluir_troca` usa o guardado (`preco_guardado`), não a tabela do dia.
+- `_parcela_refeita`: a parcela inteira pelo preço novo do período `k` dela, com todos os descontos (`calculo.preco_com_descontos`), mais os extras por período; no mensal em 4 semanais, a quarta parte do mês; na diária, cada diária da parcela da renovação.
+- `_diferenca_do_periodo`: `fim.periodo_em_curso` (o mesmo período e dias restantes do `LOC-12`) e `proporcional`; no mensal em 4 semanais, desconta o que as parcelas refeitas do período já subiram (`ja_refeito_centavos`).
+- `cancelar_troca(troca, motivo, usuario)`: troca `cancelada`, veículo novo `disponivel` e a conta aberta da diferença de caução `cancelada` (`financeiro.services.cancelar_conta`); a paga fica. As vistorias são de `vistorias.services.cancelar_troca`.
+- `cancelar` (direto e pedido) responde 409 `troca_pendente` com a troca pendente, antes do perfil. `acoes.cancelar` vem `false`, `acoes.cancelar_troca` vem `true` com a saída do novo ainda não concluída, e o detalhe ganha o bloco `troca` (sem `preco` e `caucao` para o vistoriador).
+- `selectors.trocas_concluidas(locacao)`, para o item `diferenca_troca` do acerto. O status das vistorias da troca e o `devolucao_id` do detalhe vêm de `vistorias` pelo registro de leituras (ADR 0015).
+
 ## Fica para as próximas tarefas
 
-- Cancelar uma troca pendente: o status `cancelada` existe, mas o contrato não tem rota (backlog, T-092).
 - T-016: a vistoria de saída chama `registrar_vistoria_saida(locacao, km=..., concluida_em=...)` depois de `clientes.selectors.impedimentos_para_retirada`. A devolução usa `calcular_atraso`, `multa_encerramento_centavos` e `credito_encerramento_centavos` no acerto e, no fim, chama `encerrar`.
 
 Testes: `tests/aceitacao/test_t015_locacoes.py` e `test_t091_locacao_fim.py`. A carteira de outubro no banco fica em `tests/aceitacao/carteira.py`.

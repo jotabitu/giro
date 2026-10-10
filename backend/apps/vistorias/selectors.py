@@ -276,7 +276,7 @@ def _vistorias_por_locacao(locacao_ids: list[int], tipo: str) -> dict[int, Visto
     por_locacao: dict[int, Vistoria] = {}
     for vistoria in (
         Vistoria.objects.filter(locacao_id__in=locacao_ids, tipo=tipo)
-        .filter(Q(status=S.RASCUNHO) | Q(vigente=True))
+        .filter(Q(status=S.RASCUNHO) | Q(status=S.CONCLUIDA, vigente=True))  # sem as descartadas
         .select_related("locacao")
         .order_by("id")
     ):
@@ -456,7 +456,8 @@ def _item_do_acerto(item: ItemAcerto) -> dict[str, Any]:
     }
 
 
-def representacao_acerto(devolucao: Devolucao) -> dict[str, Any]:
+def representacao_acerto(devolucao: Devolucao, locacao: Locacao | None = None) -> dict[str, Any]:
+    locacao = locacao or Locacao.objects.select_related("filial").get(pk=devolucao.locacao_id)
     itens = list(devolucao.itens.order_by("id"))
     cobrancas, creditos = services.somas(itens)
     resultado = acerto.resultado(devolucao.caucao_centavos, creditos, cobrancas)
@@ -475,14 +476,20 @@ def representacao_acerto(devolucao: Devolucao) -> dict[str, Any]:
             "botao": resultado.botao,
         },
         "avisos": services.avisos_do_acerto(devolucao),
-        "forma_devolucao": devolucao.forma_devolucao or None,
+        # A escolha do acerto ou, sem ela, a do encerramento antecipado que vale (T-122).
+        "forma_devolucao": services.forma_da_devolucao(devolucao, locacao) or None,
     }
 
 
 def representacao_devolucao(devolucao: Devolucao) -> dict[str, Any]:
-    locacao = Locacao.objects.select_related("cliente", "filial").get(pk=devolucao.locacao_id)
-    chegada = base().get(pk=services.chegada_atual(devolucao).pk)
-    veiculo = chegada.veiculo
+    locacao = Locacao.objects.select_related("cliente", "filial", "veiculo").get(
+        pk=devolucao.locacao_id
+    )
+    atual = services.chegada_atual(devolucao)
+    # Sem chegada (troca cancelada com a chegada descartada), `vistoria` e `comparacao` vêm
+    # nulas até o veículo voltar (LOC-09, T-122).
+    chegada = base().get(pk=atual.pk) if atual is not None else None
+    veiculo = chegada.veiculo if chegada is not None else locacao.veiculo
     atraso = next((i for i in devolucao.itens.all() if i.tipo == TipoItemAcerto.ATRASO), None)
     return {
         "id": devolucao.pk,
@@ -495,9 +502,9 @@ def representacao_devolucao(devolucao: Devolucao) -> dict[str, Any]:
             "veiculo": f"{veiculo.marca} {veiculo.modelo} · {veiculo.placa}",
             "no_horario": atraso is None or atraso.valor_centavos == 0,
         },
-        "vistoria": representacao(chegada),
-        "comparacao": comparacao(locacao, chegada),
-        "acerto": representacao_acerto(devolucao),
+        "vistoria": representacao(chegada) if chegada is not None else None,
+        "comparacao": comparacao(locacao, chegada) if chegada is not None else None,
+        "acerto": representacao_acerto(devolucao, locacao),
         "devolvida_em": devolucao.devolvida_em,
         "concluida_em": devolucao.concluida_em,
         "recibo_enviado_em": devolucao.recibo_enviado_em,

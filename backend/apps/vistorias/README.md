@@ -55,3 +55,12 @@ Contrato da API: `docs/api/vistorias.md` (escrito pelo arquiteto antes da implem
 - Com as duas concluídas, em qualquer ordem: `locacoes.services.concluir_troca`, o veículo antigo `disponivel` ou `em_manutencao` (`DEV-04`) e o evento `vistorias.troca_concluida` (com `avarias_para_oficina`).
 - `iniciar_devolucao`, depois da troca concluída, passa a devolução à chegada do veículo novo. O acerto soma as avarias e o combustível das chegadas dos veículos trocados ("Combustível da NMax 160 GEN0001 (...)"); `ItemAcerto.veiculo` (migração `0003`) separa o combustível de cada veículo.
 - Encerrar com a troca pendente: 409 `troca_pendente`; sem a chegada do veículo atual concluída: 422 `vistoria_pendente`.
+
+## Implementado (T-123, decisões da troca)
+
+- `cancelar_troca` (`POST /api/locacoes/{id}/trocar-veiculo/cancelar/`, quem cria locação, 200): `locacoes.services.cancelar_troca` e, na mesma transação, a saída do novo e a chegada do antigo em rascunho vão para `descartada` (migração `0004`: `descartada_em`, `motivo_descarte`; auditoria `vistoria.descartar`). A devolução que apontava para a chegada descartada fica com `vistoria` nula, e `POST .../devolucao/` abre uma chegada nova do veículo atual. Chegada concluída fica como a chegada da devolução. Saída concluída: 409 `troca_saida_concluida`.
+- Vistoria descartada: `PATCH`, fotos, avarias e concluir respondem 409 `vistoria_descartada`; fora da agenda.
+- Devolução sem chegada: `vistoria` e `comparacao` nulas, o acerto só com os itens dos veículos trocados antes e as diferenças das trocas.
+- Item `diferenca_troca` (`ItemAcerto.troca`): um por troca concluída com diferença diferente de 0, cobrança ou crédito; chave `(tipo, conta_id, veiculo_id, troca_id)` no `_sincronizar`. Ao encerrar, a cobrança vira conta `acerto` paga com a caução.
+- `forma_da_devolucao`: `Devolucao.forma_devolucao` guarda só a escolha do acerto; sem ela, a do pedido de encerramento quando ele vale no momento do acerto. Ao encerrar, a forma usada fica gravada.
+- `leituras.py` fornece a `locacoes` o status das vistorias da troca e o `devolucao_id` do detalhe (ADR 0015).

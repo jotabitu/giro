@@ -253,6 +253,7 @@ class AcoesLocacaoSerializer(serializers.Serializer[Any]):
     renovar = serializers.BooleanField()
     registrar_devolucao = serializers.BooleanField()
     trocar_veiculo = serializers.BooleanField()
+    cancelar_troca = serializers.BooleanField()
     cancelar = serializers.JSONField(help_text='"direto", "pedir" ou false')
     imprimir_contrato = serializers.BooleanField()
     reenviar_contrato = serializers.BooleanField()
@@ -270,6 +271,47 @@ class CancelamentoLocacaoSerializer(serializers.Serializer[Any]):
     devolver_centavos = serializers.IntegerField()
     cobrar_centavos = serializers.IntegerField()
     motivo = serializers.CharField()
+
+
+class VeiculoDaTrocaSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    placa = serializers.CharField()
+    modelo = serializers.CharField()
+
+
+class VistoriaDaTrocaSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    status = serializers.ChoiceField(
+        choices=[("rascunho", "Rascunho"), ("concluida", "Concluída"), ("descartada", "Descartada")]
+    )
+
+
+class PrecoDaTrocaSerializer(serializers.Serializer[Any]):
+    valor_periodo_centavos = serializers.IntegerField()
+    diaria_centavos = serializers.IntegerField()
+    caucao_centavos = serializers.IntegerField()
+    preco_do_dia = serializers.DateField(allow_null=True)
+
+
+class CaucaoDaTrocaSerializer(serializers.Serializer[Any]):
+    conta_id = serializers.IntegerField()
+    valor_centavos = serializers.IntegerField()
+    status = serializers.CharField()
+
+
+class TrocaPendenteSerializer(serializers.Serializer[Any]):
+    """LOC-09 (T-122): a troca pendente; o vistoriador recebe sem `preco` e sem `caucao`."""
+
+    id = serializers.IntegerField()
+    status = serializers.CharField()
+    motivo = serializers.CharField()
+    pedida_em = _momento()
+    veiculo_antigo = VeiculoDaTrocaSerializer()
+    veiculo_novo = VeiculoDaTrocaSerializer()
+    devolucao_vistoria = VistoriaDaTrocaSerializer(allow_null=True)
+    saida_vistoria = VistoriaDaTrocaSerializer(allow_null=True)
+    preco = PrecoDaTrocaSerializer(required=False)
+    caucao = CaucaoDaTrocaSerializer(allow_null=True, required=False)
 
 
 class LocacaoDetalheSerializer(LocacaoSerializer):
@@ -291,6 +333,7 @@ class LocacaoDetalheSerializer(LocacaoSerializer):
     devolucao = DevolucaoPrevistaSerializer()
     trechos = TrechoLocacaoSerializer(many=True)
     cancelamento = CancelamentoLocacaoSerializer(allow_null=True)
+    troca = TrocaPendenteSerializer(allow_null=True)
     acoes = AcoesLocacaoSerializer()
 
 

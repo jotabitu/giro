@@ -20,14 +20,25 @@ from apps.contratos.models import Contrato, StatusContrato
 from apps.filiais.models import Filial
 from apps.financeiro import selectors as financeiro_selectors
 from apps.veiculos import selectors as veiculos_selectors
-from comum import relogio
+from comum import leituras, relogio
 from comum.dinheiro import aplicar_percentual, formatar_reais
 from comum.permissoes import pode
 
 from . import services
-from .models import ABERTAS, FormaPagamento, Locacao, PlanoEspecial, StatusDesconto, StatusLocacao
+from .models import (
+    ABERTAS,
+    FormaPagamento,
+    Locacao,
+    PlanoEspecial,
+    StatusDesconto,
+    StatusLocacao,
+    StatusTroca,
+    TrocaVeiculo,
+)
 
 S = StatusLocacao
+TROCA = "locacoes.TrocaVeiculo"
+LOCACAO = "locacoes.Locacao"
 ORIGEM = services.ORIGEM
 ABAS = ("abertas", "precisam_acao", "devolvem_hoje", "encerradas", "canceladas", "rascunhos")
 ORDENS = {"fim_previsto": "fim_previsto", "-inicio": "-inicio"}
@@ -301,10 +312,26 @@ def _cancelar(usuario: Any, locacao: Locacao) -> str | bool:
     return "pedir" if valor == "pede" else False
 
 
+def _vistorias_da_troca(troca: TrocaVeiculo) -> dict[str, Any]:
+    """As duas vistorias da troca (`{id, status}`), que `vistorias` fornece (ADR 0015)."""
+    vistorias = leituras.blocos(TROCA, troca).get("vistorias", {})
+    return {
+        "devolucao_vistoria": vistorias.get("devolucao_vistoria"),
+        "saida_vistoria": vistorias.get("saida_vistoria"),
+    }
+
+
+def _pode_cancelar_troca(troca: TrocaVeiculo) -> bool:
+    """T-122: com a saída do veículo novo concluída, a troca não se cancela."""
+    saida = _vistorias_da_troca(troca)["saida_vistoria"]
+    return saida is None or saida["status"] != "concluida"
+
+
 def acoes(locacao: Locacao, usuario: Any, contrato: Contrato | None = None) -> dict[str, Any]:
     perfil = getattr(usuario, "perfil", "")
     cria = perfil in CRIAM
     em_curso = locacao.status in (S.ATIVA, S.DEVOLUCAO_ATRASADA)
+    troca = services.troca_pendente(locacao)
     return {
         "editar": cria and locacao.status == S.RASCUNHO,
         "confirmar": cria and locacao.status == S.RASCUNHO,
@@ -313,8 +340,10 @@ def acoes(locacao: Locacao, usuario: Any, contrato: Contrato | None = None) -> d
         "trocar_veiculo": cria
         and locacao.status == S.ATIVA
         and not _cancelamento_em_curso(locacao)
-        and services.troca_pendente(locacao) is None,
-        "cancelar": _cancelar(usuario, locacao),
+        and troca is None,
+        "cancelar_troca": cria and em_curso and troca is not None and _pode_cancelar_troca(troca),
+        # LOC-12: com a troca pendente, o cancelamento responde 409 `troca_pendente`.
+        "cancelar": _cancelar(usuario, locacao) if troca is None else False,
         "imprimir_contrato": perfil != "vistoriador"
         and contrato is not None
         and bool(contrato.pdf_assinado or contrato.pdf),
@@ -380,8 +409,59 @@ def _devolucao(locacao: Locacao) -> dict[str, Any]:
         "aviso_atraso": (
             f"Se atrasar, cobra {formatar_reais(locacao.diaria_centavos)} por dia a mais (diária)"
         ),
-        "devolucao_id": None,  # vistorias, T-016
+        # A devolução com chegada, que `vistorias` fornece (ADR 0015); `null` sem chegada.
+        "devolucao_id": leituras.blocos(LOCACAO, locacao).get("devolucao", {}).get("devolucao_id"),
     }
+
+
+def _veiculo_da_troca(veiculo: Any) -> dict[str, Any]:
+    return {"id": veiculo.pk, "placa": veiculo.placa, "modelo": veiculo.modelo}
+
+
+def _troca(locacao: Locacao) -> dict[str, Any] | None:
+    """A troca pendente (LOC-09, T-122): as concluídas ficam em `trechos` e no histórico."""
+    troca = services.troca_pendente(locacao)
+    if troca is None:
+        return None
+    caucao = None
+    if troca.conta_caucao_id is not None:
+        conta = (
+            financeiro_selectors.contas_da_origem(ORIGEM, locacao.pk)
+            .filter(pk=troca.conta_caucao_id)
+            .first()
+        )
+        if conta is not None:
+            caucao = {
+                "conta_id": conta.pk,
+                "valor_centavos": conta.valor_centavos,
+                "status": conta.status,
+            }
+    return {
+        "id": troca.pk,
+        "status": troca.status,
+        "motivo": troca.motivo,
+        "pedida_em": troca.criado_em,
+        "veiculo_antigo": _veiculo_da_troca(troca.veiculo_antigo),
+        "veiculo_novo": _veiculo_da_troca(troca.veiculo_novo),
+        **_vistorias_da_troca(troca),
+        "preco": {
+            "valor_periodo_centavos": troca.valor_periodo_centavos,
+            "diaria_centavos": troca.diaria_centavos,
+            "caucao_centavos": troca.caucao_centavos,
+            "preco_do_dia": troca.preco_do_dia,
+        },
+        "caucao": caucao,
+    }
+
+
+def trocas_concluidas(locacao: Locacao | int) -> QuerySet[TrocaVeiculo]:
+    """As trocas concluídas, com a diferença do período guardada, para o acerto (`vistorias`)."""
+    locacao_id = locacao.pk if isinstance(locacao, Locacao) else locacao
+    return (
+        TrocaVeiculo.objects.select_related("veiculo_antigo", "veiculo_novo")
+        .filter(locacao_id=locacao_id, status=StatusTroca.CONCLUIDA)
+        .order_by("concluida_em", "id")
+    )
 
 
 def _cancelamento(locacao: Locacao) -> dict[str, Any] | None:
@@ -454,6 +534,7 @@ def detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
             for t in locacao.trechos.select_related("veiculo")
         ],
         "cancelamento": _cancelamento(locacao),
+        "troca": _troca(locacao),
         "acoes": acoes(locacao, usuario, contrato),
     }
 
@@ -466,7 +547,8 @@ def sem_valores(dados: Any) -> Any:
             chave: sem_valores(valor)
             for chave, valor in dados.items()
             if not chave.endswith("_centavos")
-            and chave not in ("pagamento", "precos", "parcelas", "desconto", "extras")
+            and chave
+            not in ("pagamento", "precos", "parcelas", "desconto", "extras", "preco", "caucao")
         }
     if isinstance(dados, list):
         return [sem_valores(item) for item in dados]
