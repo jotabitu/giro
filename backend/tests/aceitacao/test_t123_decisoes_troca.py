@@ -226,10 +226,10 @@ def test_loc_09_preco_guardado_no_pedido(cenario, juliana, relogio):
 # --- Parcela refeita inteira (LOC-09, como na renovação, LOC-08) ---
 
 
-def _mensal_ativa(cenario: Cenario, **campos: Any) -> Locacao:
-    """Lucas, Street mensal (119000), retirada em 07 out 09:00."""
+def _mensal_ativa(cenario: Cenario, inicio: str = "2026-10-07 09:00", **campos: Any) -> Locacao:
+    """Lucas, Street mensal (119000), confirmada e retirada no `inicio` (padrão 07 out 09:00)."""
     criada = cenario.confirmada(
-        inicio=carteira.momento("2026-10-07 09:00").isoformat(),
+        inicio=carteira.momento(inicio).isoformat(),
         periodicidade="mensal",
         **campos,
     )
@@ -286,6 +286,20 @@ def test_loc_09_diferenca_mensal_4_semanais_desconta_parcelas_refeitas(cenario, 
     # 40000 × 30 ÷ 31 = 38710, menos as 3 semanas refeitas (3 × 10000) = 8710.
     assert troca.ja_refeito_centavos == 30000
     assert troca.diferenca_centavos == 8710
+
+
+def test_loc_09_diferenca_mensal_4_semanais(cenario, relogio):
+    """O exemplo da T-124 num mês de 30 dias: Street mensal em 4 semanais de 07 nov a 07 dez,
+    trocada pela Scooter premium em 17 nov. Faltam 20 de 30 dias: 40000 × 20 ÷ 30 = 26667; as
+    parcelas de 21 e 28 nov já subiram 20000; a diferença é 6667."""
+    _ir_para(cenario, relogio, "2026-11-07 09:00")
+    locacao = _mensal_ativa(
+        cenario, "2026-11-07 09:00", periodos=1, parcelamento_mensal="quatro_semanais"
+    )
+    troca = _troca_concluida(cenario, locacao, relogio, "2026-11-17 10:00")
+    assert [v for _, v in _parcelas(locacao.pk)] == [29750, 29750, 39750, 39750]
+    assert (troca.dias_do_periodo, troca.dias_restantes) == (30, 20)
+    assert (troca.ja_refeito_centavos, troca.diferenca_centavos) == (20000, 6667)
 
 
 # --- Cancelar a troca pendente (LOC-09, T-122) ---
