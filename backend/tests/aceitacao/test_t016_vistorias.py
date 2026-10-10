@@ -1,16 +1,17 @@
-"""T-016 · Vistoria de saída e devolução com acerto (docs/qa/criterios/T-016.md).
+"""T-016 e T-109 · Vistoria de saída e devolução com acerto (docs/qa/criterios/T-016.md).
 
-Parte 1 (divisão de 09 out): a vistoria de saída e de chegada como entidade, a agenda e as avarias
-abertas: CA-016-01 a 08 e 21. A devolução e o acerto (CA-016-09 a 14, 16, 17, 19 e 20) ficam com a
-parte 2, a troca de veículo (CA-016-15) com a T-092 e a devolução em dinheiro (CA-016-18) com o
-caixa da T-017; esses ficam `xfail` aqui.
+Parte 1 (T-016, divisão de 09 out): a vistoria de saída e de chegada como entidade, a agenda e as
+avarias abertas: CA-016-01 a 08 e 21. Parte 2 (T-109): a devolução e o acerto, CA-016-09 a 14, 16,
+17, 19 e 20. A troca de veículo (CA-016-15) fica com a T-092 e a devolução em dinheiro (CA-016-18)
+com o caixa da T-017; esses ficam `xfail` aqui.
 
 Cenário da T-015: Moto Rápida em 07 out 2026, 10:00, Filial Centro, com a LOC-2856 de Lucas
 (SAK1D39, Street semanal) e a carteira de outubro quando o caso é do seed.
 """
 
 import io
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 from typing import Any
 
 import pytest
@@ -21,15 +22,17 @@ from PIL import Image
 from apps.auditoria.models import EventoAuditoria
 from apps.clientes import services as clientes_services
 from apps.clientes.models import Cliente, TipoDocumentoCliente
-from apps.financeiro.models import ContaReceber
+from apps.financeiro import services as financeiro_services
+from apps.financeiro.models import ContaReceber, Reembolso
 from apps.locacoes import leituras as locacoes_leituras
 from apps.locacoes.models import Locacao
 from apps.plataforma.models import Empresa
 from apps.veiculos import services as veiculos_services
 from apps.veiculos.models import LeituraKm, Veiculo
-from apps.vistorias import services
-from apps.vistorias.models import Avaria, FotoVistoria, Vistoria
-from comum import arquivos
+from apps.vistorias import acerto, recibo, services
+from apps.vistorias.models import Avaria, Devolucao, FotoVistoria, Vistoria
+from comum import arquivos, eventos
+from integracoes.whatsapp import falso as whatsapp
 
 from . import carteira
 from .apoio import aguarda, pendente
@@ -76,7 +79,10 @@ def _completar(cliente: Cliente) -> None:
 def cenario(empresa_a, planos, relogio) -> Cenario:
     locacoes_leituras.registrar()
     moto = MotoRapida(empresa_a, planos["Profissional"])
-    return Cenario(moto, montar_frota(moto))
+    frota = montar_frota(moto)
+    frota.centro.preco_litro_centavos = 550  # seed: litro a R$ 5,50 na Filial Centro (DEV-01)
+    frota.centro.save(update_fields=["preco_litro_centavos"])
+    return Cenario(moto, frota)
 
 
 @pytest.fixture
@@ -652,37 +658,611 @@ def test_vis_vistoria_da_empresa_a_nao_aparece_na_b(cenario, lucas):
     assert Vistoria.objects.count() == 1
 
 
-# --- Parte 2: devolução e acerto; troca (T-092); caixa (T-017) ---
+# --- Parte 2 (T-109): devolução e acerto (DEV-01 a DEV-06, LOC-10 a LOC-13) ---
+#
+# A LOC-2836 da carteira sai de 30 set a 14 out 18:00 (caso "Fim previsto da LOC-2836", até a
+# T-105 levar ao seed) e com a PNB7C04 em 18.402 km na saída, como no critério; a carteira não
+# tem a vistoria de saída, e o teste grava a dela, com o tanque cheio. LOC-2841 e LOC-2812 não
+# têm a caução paga na carteira: o teste grava a de cada uma (30000 e 50000).
+
+DEVOLUCOES = "/api/devolucoes/"
+DIA_TODO = {
+    d: [{"abre": "08:00", "fecha": "22:00"}]
+    for d in ("seg", "ter", "qua", "qui", "sex", "sab", "dom")
+}
 
 
-@aguarda("T-109")
-def test_dev_03_ca_016_09_acerto_loc_2836(cenario):
-    pendente(combustivel=3200, avaria=8500, cobrancas=11700, caucao=30000, saldo=18300)
+def _ir_para(cenario: Cenario, relogio: Any, quando: str) -> None:
+    relogio.em(quando)
+    cenario.moto._tokens.clear()  # o token do dia anterior venceu
 
 
-@aguarda("T-109")
-def test_dev_01_vis_03_ca_016_10_combustivel_com_outros_niveis(cenario):
-    pendente(meio=5400, reserva=9800, tres_quartos_igual=0)
+def _saida_direta(locacao: Locacao, km: int, combustivel: str, quando: str) -> Vistoria:
+    """A vistoria de saída que a carteira não tem, concluída e com todos os itens ok."""
+    veiculo = Veiculo.objects.select_related("categoria").get(pk=locacao.veiculo_id)
+    itens = [{**i, "ok": True} for i in services.itens_iniciais(locacao, veiculo)]
+    return Vistoria.objects.create(
+        locacao=locacao,
+        veiculo=veiculo,
+        tipo="saida",
+        status="concluida",
+        km=km,
+        combustivel=combustivel,
+        itens=itens,
+        concluida_em=carteira.momento(quando),
+    )
 
 
-@aguarda("T-109")
-def test_dev_02_ca_016_11_saldo_negativo_vira_conta(cenario):
-    pendente(saldo=-13200, vencimento="2026-10-10")
+def _caucao_paga(locacao: Locacao, valor: int) -> None:
+    ContaReceber.objects.create(
+        filial=locacao.filial,
+        cliente=locacao.cliente,
+        origem_tipo="locacao",
+        origem_id=locacao.pk,
+        origem_codigo=locacao.codigo,
+        tipo="caucao",
+        vencimento=locacao.inicio.date(),
+        valor_centavos=valor,
+        status="paga",
+        forma="pix",
+        pago_em=locacao.inicio,
+    )
 
 
-@aguarda("T-109")
-def test_loc_10_loc_11_fil_03_ca_016_12_atraso_no_acerto(cenario):
-    pendente(as_19_01=5490, as_19_00=0, editar="item_calculado")
+@pytest.fixture
+def da_carteira(cenario, relogio) -> dict[str, Locacao]:
+    return carteira.carregar(cenario.frota, cenario.pessoas["Bruna"], relogio)
 
 
-@aguarda("T-109")
-def test_dev_01_ca_016_13_parcelas_em_aberto_no_acerto(cenario):
-    pendente(parcela_aberta=29940, forma="caucao")
+@pytest.fixture
+def juliana(cenario, da_carteira) -> Locacao:
+    locacao = da_carteira["LOC-2836"]
+    Locacao.objects.filter(pk=locacao.pk).update(fim_previsto=carteira.momento("2026-10-14 18:00"))
+    Veiculo.objects.filter(pk=locacao.veiculo_id).update(km_atual=18402)
+    _saida_direta(locacao, 18402, "cheio", "2026-10-01 09:10")
+    locacao.refresh_from_db()
+    assert (locacao.caucao_centavos, locacao.diaria_centavos) == (30000, 5490)
+    return locacao
 
 
-@aguarda("T-109")
-def test_loc_12_loc_13_ca_016_14_encerramento_antecipado_da_patricia(cenario):
-    pendente(caucao=50000, credito=37100, multa=8480, saldo=78620, status="cancelada")
+def _lucas_ativo(cenario: Cenario) -> dict[str, Any]:
+    """LOC-2856 retirada em 07 out: saída com 3.125 km e tanque cheio, contrato e 1º pagamento."""
+    criada = _lucas_2856(cenario)
+    vistoria = _saida(cenario, criada["id"])
+    _preencher(cenario, vistoria, 3125)
+    assert _concluir(cenario, vistoria["id"]).status_code == 200
+    _assinar(criada["id"])
+    _pagar(criada["id"])
+    assert Locacao.objects.get(pk=criada["id"]).status == "ativa"
+    return criada
+
+
+def _abrir_devolucao(cenario: Cenario, locacao_id: int, quem: str = "João") -> dict[str, Any]:
+    resposta = cenario.moto.api(quem).post(f"{LISTA}{locacao_id}/devolucao/")
+    assert resposta.status_code in (200, 201), resposta.json()
+    return dict(resposta.json())
+
+
+def _ver(cenario: Cenario, devolucao_id: int, quem: str = "Bruna") -> dict[str, Any]:
+    resposta = cenario.moto.api(quem).get(f"{DEVOLUCOES}{devolucao_id}/")
+    assert resposta.status_code == 200, resposta.json()
+    return dict(resposta.json())
+
+
+def _chegada(
+    cenario: Cenario,
+    devolucao: dict[str, Any],
+    km: int,
+    combustivel: str = "cheio",
+    avarias: tuple[tuple[str, dict[str, Any]], ...] = (),
+    concluir: bool = True,
+) -> dict[str, Any]:
+    """João preenche a vistoria de chegada, marca as avarias e conclui."""
+    vistoria = devolucao["vistoria"]
+    _preencher(cenario, vistoria, km, combustivel=combustivel)
+    for descricao, extra in avarias:
+        foto = _foto(cenario, vistoria["id"], "avaria").json()
+        resposta = cenario.moto.api("João").post(
+            f"{VISTORIAS}{vistoria['id']}/avarias/",
+            {"descricao": descricao, "foto_id": foto["id"], **extra},
+            format="json",
+        )
+        assert resposta.status_code == 201, resposta.json()
+    if concluir:
+        resposta = _concluir(cenario, vistoria["id"])
+        assert resposta.status_code == 200, resposta.json()
+    return _ver(cenario, devolucao["id"])
+
+
+def _item(corpo: dict[str, Any], tipo: str) -> dict[str, Any]:
+    return next(i for i in corpo["acerto"]["itens"] if i["tipo"] == tipo)
+
+
+def _valor_do_item(cenario: Cenario, devolucao_id: int, item_id: int, valor: int) -> Any:
+    return cenario.moto.api("Bruna").patch(
+        f"{DEVOLUCOES}{devolucao_id}/acerto/itens/{item_id}/",
+        {"valor_centavos": valor},
+        format="json",
+    )
+
+
+def _forma(cenario: Cenario, devolucao_id: int, forma: str = "pix", quem: str = "Bruna") -> Any:
+    return cenario.moto.api(quem).patch(
+        f"{DEVOLUCOES}{devolucao_id}/acerto/", {"forma_devolucao": forma}, format="json"
+    )
+
+
+def _encerrar(cenario: Cenario, devolucao_id: int, quem: str = "Bruna") -> Any:
+    return cenario.moto.api(quem).post(f"{DEVOLUCOES}{devolucao_id}/encerrar/")
+
+
+def _juliana_pronta(cenario: Cenario, juliana: Locacao, relogio: Any) -> dict[str, Any]:
+    """CA-016-09: chega em 14 out às 17:40, 19.630 km, 3/4 e o retrovisor riscado (R$ 85,00)."""
+    _ir_para(cenario, relogio, "2026-10-14 17:40")
+    devolucao = _abrir_devolucao(cenario, juliana.pk)
+    corpo = _chegada(
+        cenario, devolucao, 19630, "tres_quartos", avarias=(("Retrovisor esquerdo riscado", {}),)
+    )
+    retrovisor = _item(corpo, "avaria")
+    assert (retrovisor["valor_centavos"], retrovisor["modo"]) == (0, "informado")
+    resposta = _valor_do_item(cenario, devolucao["id"], retrovisor["id"], 8500)
+    assert resposta.status_code == 200, resposta.json()
+    resposta = _forma(cenario, devolucao["id"])
+    assert resposta.status_code == 200, resposta.json()
+    return dict(resposta.json())
+
+
+# --- CA-016-09 · Juliana, LOC-2836 (DEV-03) ---
+
+
+def test_dev_03_ca_016_09_acerto_loc_2836(cenario, juliana, relogio):
+    corpo = _juliana_pronta(cenario, juliana, relogio)
+    assert corpo["status"] == "rascunho"
+    assert corpo["locacao"]["codigo"] == "LOC-2836"
+    assert corpo["locacao"]["no_horario"] is True
+    km = corpo["comparacao"]["km"]
+    assert (km["saida"], km["agora"], km["rodou"]) == (18402, 19630, 1228)
+    assert km["texto"] == "Rodou 1.228 km · plano com km livre"
+    assert corpo["comparacao"]["combustivel"] == {
+        "saida": "cheio",
+        "agora": "tres_quartos",
+        "faltou": "1/4 tanque",
+        "litros_faltantes": "4.0",
+    }
+
+    acerto = corpo["acerto"]
+    assert {i["tipo"]: i["valor_centavos"] for i in acerto["itens"]} == {
+        "combustivel": 3200,
+        "avaria": 8500,
+        "atraso": 0,
+        "km_excedente": 0,
+    }
+    combustivel = _item(corpo, "combustivel")
+    assert combustivel["modo"] == "calculado"
+    # A taxa de R$ 10,00 entra uma vez: 4 L × 550 + 1000.
+    assert combustivel["descricao"] == "Combustível (faltou 1/4 tanque, 4 L × R$ 5,50 + R$ 10,00)"
+    assert acerto["creditos"] == []
+    assert (acerto["total_cobrancas_centavos"], acerto["caucao_centavos"]) == (11700, 30000)
+    assert acerto["saldo_centavos"] == 18300
+    assert acerto["resultado"] == {
+        "tipo": "devolver",
+        "valor_centavos": 18300,
+        "texto": "Desconta R$ 117,00 da caução de R$ 300,00",
+        "botao": "Encerrar e devolver R$ 183,00",
+    }
+    assert acerto["forma_devolucao"] == "pix"
+
+
+# --- CA-016-10 · Combustível com outros níveis (DEV-01, VIS-03) ---
+
+
+@pytest.mark.parametrize(
+    ("saida", "chegada", "valor"),
+    [
+        ("cheio", "tres_quartos", 3200),
+        ("cheio", "meio", 5400),  # 8 L
+        ("cheio", "reserva", 9800),  # 16 L
+        ("tres_quartos", "tres_quartos", 0),
+        ("cheio", "cheio", 0),  # voltou cheio: sem a taxa
+        ("meio", "cheio", 0),  # voltou mais cheio: nada a cobrar nem a devolver
+    ],
+)
+def test_dev_01_vis_03_ca_016_10_combustivel_com_outros_niveis(saida, chegada, valor):
+    conta = acerto.combustivel(
+        capacidade_litros=Decimal("16.0"), preco_litro_centavos=550, saida=saida, chegada=chegada
+    )
+    assert conta.calculado is True
+    assert conta.valor_centavos == valor
+
+
+def test_dev_01_ca_016_10_sem_tanque_ou_sem_preco_vira_informado():
+    sem_tanque = acerto.combustivel(
+        capacidade_litros=None, preco_litro_centavos=550, saida="cheio", chegada="meio"
+    )
+    sem_preco = acerto.combustivel(
+        capacidade_litros=Decimal("16.0"), preco_litro_centavos=None, saida="cheio", chegada="meio"
+    )
+    assert (sem_tanque.calculado, sem_preco.calculado) == (False, False)
+
+
+def test_dev_01_ca_016_10_preco_da_filial_no_acerto(cenario, lucas):
+    """O preço é o da filial no momento do acerto; depois de encerrar, não muda mais."""
+    criada = _lucas_ativo(cenario)
+    devolucao = _abrir_devolucao(cenario, criada["id"])
+    corpo = _chegada(cenario, devolucao, 3200, "meio")
+    assert _item(corpo, "combustivel")["valor_centavos"] == 5400
+    centro = cenario.frota.centro
+    centro.preco_litro_centavos = 600
+    centro.save(update_fields=["preco_litro_centavos"])
+    assert _item(_ver(cenario, devolucao["id"]), "combustivel")["valor_centavos"] == 5800
+
+    assert _forma(cenario, devolucao["id"]).status_code == 200
+    assert _encerrar(cenario, devolucao["id"]).status_code == 200
+    centro.preco_litro_centavos = 700
+    centro.save(update_fields=["preco_litro_centavos"])
+    assert _item(_ver(cenario, devolucao["id"]), "combustivel")["valor_centavos"] == 5800
+    assert Devolucao.objects.get(pk=devolucao["id"]).preco_litro_centavos == 600
+
+
+# --- CA-016-11 · Saldo negativo vira conta (DEV-02) ---
+
+
+def test_dev_02_ca_016_11_saldo_negativo_vira_conta(cenario, lucas):
+    criada = _lucas_ativo(cenario)
+    devolucao = _abrir_devolucao(cenario, criada["id"])
+    corpo = _chegada(cenario, devolucao, 3200, "tres_quartos", avarias=(("Tanque amassado", {}),))
+    valor = _valor_do_item(cenario, devolucao["id"], _item(corpo, "avaria")["id"], 40000)
+    assert valor.status_code == 200, valor.json()
+    corpo = _ver(cenario, devolucao["id"])
+    assert corpo["acerto"]["saldo_centavos"] == -13200
+    assert corpo["acerto"]["resultado"]["tipo"] == "cobrar"
+    assert corpo["acerto"]["resultado"]["valor_centavos"] == 13200
+    assert corpo["acerto"]["resultado"]["botao"] == "Encerrar e cobrar R$ 132,00"
+
+    resposta = _encerrar(cenario, devolucao["id"])  # sem forma: não há o que devolver
+    assert resposta.status_code == 200, resposta.json()
+    saldo = ContaReceber.objects.get(origem_tipo="devolucao", status="aberta")
+    assert (saldo.valor_centavos, saldo.tipo) == (13200, "acerto")
+    assert saldo.vencimento == date(2026, 10, 10)  # encerrada em 07 out
+    assert saldo.cliente_id == lucas.pk
+    assert not Reembolso.objects.filter(origem_tipo="devolucao").exists()
+    pagas = ContaReceber.objects.filter(origem_tipo="devolucao", status="paga")
+    assert sorted(c.valor_centavos for c in pagas) == [3200, 26800]  # o que a caução cobriu
+    assert {c.forma for c in pagas} == {"caucao"}
+
+
+# --- CA-016-12 · Atraso no acerto (LOC-10, LOC-11, FIL-03) ---
+
+
+def test_loc_10_loc_11_fil_03_ca_016_12_atraso_no_acerto(cenario, juliana, relogio):
+    centro = cenario.frota.centro
+    centro.horario = DIA_TODO
+    centro.save(update_fields=["horario"])
+    _ir_para(cenario, relogio, "2026-10-14 18:40")
+    devolucao = _abrir_devolucao(cenario, juliana.pk)
+    _chegada(cenario, devolucao, 19630, concluir=False)
+
+    # Às 19:00, dentro da tolerância de 1 h: sem atraso.
+    _ir_para(cenario, relogio, "2026-10-14 19:00")
+    assert _concluir(cenario, devolucao["vistoria"]["id"]).status_code == 200
+    corpo = _ver(cenario, devolucao["id"])
+    assert _item(corpo, "atraso")["valor_centavos"] == 0
+    assert corpo["locacao"]["no_horario"] is True
+
+    # A chegada corrigida e concluída às 19:01 conta 1 diária da Street (fração de dia).
+    _ir_para(cenario, relogio, "2026-10-14 19:01")
+    resposta = cenario.moto.api("Rodrigo").post(
+        f"{VISTORIAS}{devolucao['vistoria']['id']}/corrigir/",
+        {"motivo": "Hora da chegada"},
+        format="json",
+    )
+    assert resposta.status_code == 201, resposta.json()
+    assert _concluir(cenario, resposta.json()["id"]).status_code == 200
+    corpo = _ver(cenario, devolucao["id"])
+    atraso = _item(corpo, "atraso")
+    assert (atraso["valor_centavos"], atraso["modo"]) == (5490, "calculado")
+    assert atraso["descricao"] == "Atraso (1 diária)"
+    assert corpo["locacao"]["no_horario"] is False
+    assert corpo["vistoria"]["id"] == resposta.json()["id"]
+
+    # O item calculado não se edita nem sai.
+    editar = _valor_do_item(cenario, devolucao["id"], atraso["id"], 0)
+    assert editar.status_code == 409
+    assert editar.json()["codigo"] == "item_calculado"
+    tirar = cenario.moto.api("Bruna").delete(
+        f"{DEVOLUCOES}{devolucao['id']}/acerto/itens/{atraso['id']}/"
+    )
+    assert tirar.status_code == 409
+
+
+# --- CA-016-13 · Parcelas em aberto no acerto (DEV-01) ---
+
+
+def test_dev_01_ca_016_13_parcelas_em_aberto_no_acerto(cenario, da_carteira):
+    carlos = da_carteira["LOC-2841"]
+    _caucao_paga(carlos, 30000)
+    veiculo = Veiculo.objects.get(pk=carlos.veiculo_id)
+    _saida_direta(carlos, veiculo.km_atual, "cheio", "2026-09-23 09:00")
+    vencida = ContaReceber.objects.get(
+        origem_tipo="locacao", origem_id=carlos.pk, vencimento=date(2026, 9, 30)
+    )
+    assert (vencida.status, vencida.valor_centavos) == ("aberta", 29940)
+
+    devolucao = _abrir_devolucao(cenario, carlos.pk)
+    corpo = _chegada(cenario, devolucao, veiculo.km_atual + 50)
+    parcelas = [i for i in corpo["acerto"]["itens"] if i["tipo"] == "parcela_aberta"]
+    # Só a vencida; a de 07 out vence hoje e ainda não está em aberto no acerto.
+    assert [(i["valor_centavos"], i["conta_id"], i["modo"]) for i in parcelas] == [
+        (29940, vencida.pk, "calculado")
+    ]
+    assert corpo["acerto"]["saldo_centavos"] == 60  # descontada da caução de 30000
+
+    assert _forma(cenario, devolucao["id"]).status_code == 200
+    resposta = _encerrar(cenario, devolucao["id"])
+    assert resposta.status_code == 200, resposta.json()
+    vencida.refresh_from_db()
+    assert (vencida.status, vencida.forma) == ("paga", "caucao")
+
+
+# --- CA-016-14 · Encerramento antecipado da Patrícia (LOC-12, LOC-13) ---
+
+
+def test_loc_12_loc_13_ca_016_14_encerramento_antecipado_da_patricia(cenario, da_carteira):
+    patricia = da_carteira["LOC-2812"]
+    patricia.diaria_centavos = 7990  # NMax (Scooter premium)
+    patricia.save(update_fields=["diaria_centavos"])
+    _caucao_paga(patricia, 50000)
+    resposta = cenario.moto.api("Rodrigo").post(
+        f"{LISTA}{patricia.pk}/cancelar/", {"motivo": "Cliente vai mudar de cidade"}, format="json"
+    )
+    assert resposta.status_code == 200, resposta.json()
+    veiculo = Veiculo.objects.get(pk=patricia.veiculo_id)
+    _saida_direta(patricia, veiculo.km_atual, "cheio", "2026-09-15 09:00")
+
+    devolucao = _abrir_devolucao(cenario, patricia.pk)
+    corpo = _chegada(cenario, devolucao, veiculo.km_atual + 120)  # sem avarias, tanque cheio
+    acerto = corpo["acerto"]
+    assert acerto["caucao_centavos"] == 50000
+    assert [(c["tipo"], c["valor_centavos"]) for c in acerto["creditos"]] == [
+        ("semanas_nao_usadas", 37100)
+    ]
+    assert _item(corpo, "multa_encerramento")["valor_centavos"] == 8480
+    assert acerto["total_cobrancas_centavos"] == 8480
+    assert acerto["saldo_centavos"] == 78620
+    assert acerto["resultado"]["texto"] == "Devolve a caução de R$ 500,00 e mais R$ 286,20"
+    assert acerto["forma_devolucao"] == "pix"  # a do pedido de cancelamento
+
+    resposta = _encerrar(cenario, devolucao["id"])
+    assert resposta.status_code == 200, resposta.json()
+    assert resposta.json()["locacao"]["status"] == "cancelada"
+    patricia.refresh_from_db()
+    assert patricia.status == "cancelada"
+    reembolso = Reembolso.objects.get(origem_tipo="devolucao", origem_id=devolucao["id"])
+    assert (reembolso.valor_centavos, reembolso.forma, reembolso.status) == (
+        78620,
+        "pix",
+        "a_fazer",
+    )
+    multa = ContaReceber.objects.get(origem_tipo="devolucao", tipo="multa")
+    assert (multa.valor_centavos, multa.status, multa.forma) == (8480, "paga", "caucao")
+
+
+# --- CA-016-16 · Salvar e continuar depois (DEV-05) ---
+
+
+def test_dev_05_ca_016_16_salvar_e_continuar_depois(cenario, lucas):
+    criada = _lucas_ativo(cenario)
+    devolucao = _abrir_devolucao(cenario, criada["id"])
+    assert devolucao["status"] == "rascunho"
+    assert devolucao["vistoria"]["tipo"] == "devolucao"
+    assert _patch(cenario, devolucao["vistoria"]["id"], km=3150).status_code == 200
+    assert Locacao.objects.get(pk=criada["id"]).status == "ativa"
+
+    de_novo = cenario.moto.api("João").post(f"{LISTA}{criada['id']}/devolucao/")
+    assert de_novo.status_code == 200
+    assert de_novo.json()["id"] == devolucao["id"]
+    assert de_novo.json()["vistoria"]["km"] == 3150
+    assert de_novo.json()["status"] == "rascunho"
+
+    resposta = _encerrar(cenario, devolucao["id"])
+    assert resposta.status_code == 422
+    assert resposta.json()["codigo"] == "vistoria_pendente"
+    assert Locacao.objects.get(pk=criada["id"]).status == "ativa"
+
+
+def test_dev_05_devolucao_so_de_locacao_ativa(cenario, lucas):
+    criada = _lucas_2856(cenario)  # aguardando retirada
+    resposta = cenario.moto.api("João").post(f"{LISTA}{criada['id']}/devolucao/")
+    assert resposta.status_code == 409
+    assert resposta.json()["codigo"] == "transicao_locacao"
+
+
+# --- CA-016-17 · Encerrar (DEV-04, DEV-06) ---
+
+
+def test_dev_04_dev_06_ca_016_17_encerrar(
+    cenario, juliana, relogio, django_capture_on_commit_callbacks
+):
+    corpo = _juliana_pronta(cenario, juliana, relogio)
+    encerradas: list[dict[str, Any]] = []
+
+    def ouvir(**dados: Any) -> None:
+        encerradas.append(dados)
+
+    eventos.assinar("locacoes.locacao_encerrada", ouvir)
+    enviadas = len(whatsapp.caixa_de_saida)
+    try:
+        with django_capture_on_commit_callbacks(execute=True):
+            resposta = _encerrar(cenario, corpo["id"])
+    finally:
+        eventos.remover_assinante("locacoes.locacao_encerrada", ouvir)
+        connection.set_tenant(Empresa.objects.get(schema_name="empresa_a"))
+    assert resposta.status_code == 200, resposta.json()
+    corpo = resposta.json()
+    assert corpo["status"] == "concluida"
+    assert corpo["acerto"]["status"] == "concluido"
+    assert corpo["devolvida_em"] == "2026-10-14T20:40:00Z"  # 17:40 em Fortaleza
+
+    juliana.refresh_from_db()
+    assert juliana.status == "encerrada"
+    assert juliana.devolvida_em == carteira.momento("2026-10-14 17:40")
+    factor = Veiculo.objects.get(pk=juliana.veiculo_id)
+    assert (factor.km_atual, factor.status) == (19630, "disponivel")
+    assert [e["locacao_id"] for e in encerradas] == [juliana.pk]
+
+    # As cobranças são pagas com a caução, e o saldo vira um reembolso por Pix a fazer.
+    pagas = ContaReceber.objects.filter(origem_tipo="devolucao", origem_id=corpo["id"])
+    assert sorted((c.tipo, c.valor_centavos, c.status, c.forma) for c in pagas) == [
+        ("acerto", 3200, "paga", "caucao"),
+        ("avaria", 8500, "paga", "caucao"),
+    ]
+    reembolso = Reembolso.objects.get(origem_tipo="devolucao", origem_id=corpo["id"])
+    assert (reembolso.valor_centavos, reembolso.forma) == (18300, "pix")
+    assert reembolso.status == "a_fazer"
+    assert reembolso.origem_codigo == "LOC-2836"
+    assert reembolso.cliente_id == juliana.cliente_id
+    financeiro_services.marcar_reembolso_feito(
+        reembolso, usuario=cenario.pessoas["Lúcia"], comprovante=_jpg("comprovante.jpg")
+    )
+    assert reembolso.status == "feito" and reembolso.comprovante
+
+    # Depois do commit: o recibo em PDF, com as fotos, sai por WhatsApp com a marca da locadora.
+    devolucao = Devolucao.objects.get(pk=corpo["id"])
+    assert devolucao.recibo and devolucao.recibo_enviado_em is not None
+    _, imagens = recibo.corpo(devolucao)
+    assert len(imagens) == 6  # as 5 posições e a foto do retrovisor
+    novas = whatsapp.caixa_de_saida[enviadas:]
+    assert [m.celular for m in novas] == ["85981142290"]
+    marca = Empresa.objects.get(schema_name="empresa_a").nome_exibicao  # a da locadora
+    assert novas[0].texto.startswith(f"{marca}: recibo da devolução da LOC-2836.")
+    assert "Giro" not in novas[0].texto
+    assert "Devolução de R$ 183,00 por Pix em até 1 dia útil." in novas[0].texto
+
+    # O acerto concluído não se edita mais.
+    retrovisor = next(i for i in corpo["acerto"]["itens"] if i["tipo"] == "avaria")
+    editar = _valor_do_item(cenario, corpo["id"], retrovisor["id"], 9000)
+    assert editar.status_code == 409
+    assert editar.json()["codigo"] == "acerto_concluido"
+    assert _encerrar(cenario, corpo["id"]).status_code == 409
+
+
+def test_dev_04_vai_para_oficina_leva_a_em_manutencao(cenario, lucas):
+    criada = _lucas_ativo(cenario)
+    devolucao = _abrir_devolucao(cenario, criada["id"])
+    corpo = _chegada(
+        cenario, devolucao, 3200, avarias=(("Garfo empenado", {"vai_para_oficina": True}),)
+    )
+    avaria = _item(corpo, "avaria")
+    oficina: list[dict[str, Any]] = []
+
+    def ouvir(**dados: Any) -> None:
+        oficina.append(dados)
+
+    eventos.assinar("vistorias.devolucao_encerrada", ouvir)
+    try:
+        assert _forma(cenario, devolucao["id"]).status_code == 200
+        assert _encerrar(cenario, devolucao["id"]).status_code == 200
+    finally:
+        eventos.remover_assinante("vistorias.devolucao_encerrada", ouvir)
+    assert Veiculo.objects.get(pk=cenario.sak.pk).status == "em_manutencao"
+    assert [e["avarias_para_oficina"] for e in oficina] == [[avaria["avaria_id"]]]
+    assert Locacao.objects.get(pk=criada["id"]).status == "encerrada"
+
+
+# --- CA-016-19 · Quem fecha a conta ---
+
+
+def test_dev_ca_016_19_quem_fecha_a_conta(cenario, lucas):
+    criada = _lucas_ativo(cenario)
+    assert cenario.moto.api("Lúcia").post(f"{LISTA}{criada['id']}/devolucao/").status_code == 403
+    devolucao = _abrir_devolucao(cenario, criada["id"])  # João faz a vistoria de chegada
+    _chegada(cenario, devolucao, 3200)
+    url = f"{DEVOLUCOES}{devolucao['id']}/"
+
+    joao = cenario.moto.api("João")
+    vista = joao.get(url)
+    assert vista.status_code == 200
+    assert "acerto" not in vista.json()
+    assert not {c for c in _chaves(vista.json()) if c.endswith("_centavos")}
+    multa = {"tipo": "multa_transito", "descricao": "Multa de 05 out", "valor_centavos": 13016}
+    assert joao.post(f"{url}acerto/itens/", multa, format="json").status_code == 403
+    assert _forma(cenario, devolucao["id"], quem="João").status_code == 403
+    assert _encerrar(cenario, devolucao["id"], quem="João").status_code == 403
+    assert joao.get(f"{url}recibo/").status_code == 403
+    assert cenario.moto.api("Lúcia").get(url).status_code == 403
+
+    incluida = cenario.moto.api("Bruna").post(f"{url}acerto/itens/", multa, format="json")
+    assert incluida.status_code == 200, incluida.json()
+    assert _item(incluida.json(), "multa_transito")["valor_centavos"] == 13016
+    calculado = {"tipo": "atraso", "descricao": "Atraso", "valor_centavos": 100}
+    recusado = cenario.moto.api("Bruna").post(f"{url}acerto/itens/", calculado, format="json")
+    assert recusado.status_code == 400
+    assert _forma(cenario, devolucao["id"], quem="Rodrigo").status_code == 200
+    resposta = _encerrar(cenario, devolucao["id"], quem="Rodrigo")
+    assert resposta.status_code == 200, resposta.json()
+    assert resposta.json()["acerto"]["saldo_centavos"] == 30000 - 13016
+
+
+# --- CA-016-20 · Recibo ---
+
+
+def test_dev_ca_016_20_recibo(cenario, lucas, relogio, django_capture_on_commit_callbacks):
+    criada = _lucas_ativo(cenario)
+    devolucao = _abrir_devolucao(cenario, criada["id"])
+    _chegada(cenario, devolucao, 3200, "tres_quartos")
+    url = f"{DEVOLUCOES}{devolucao['id']}/recibo/"
+    bruna = cenario.moto.api("Bruna")
+    antes = bruna.get(url)
+    assert antes.status_code == 409
+    assert antes.json()["codigo"] == "devolucao_em_rascunho"
+
+    assert _forma(cenario, devolucao["id"]).status_code == 200
+    enviadas = len(whatsapp.caixa_de_saida)
+    try:
+        with django_capture_on_commit_callbacks(execute=True):
+            assert _encerrar(cenario, devolucao["id"]).status_code == 200
+        resposta = bruna.get(url)
+        assert resposta.status_code == 200, resposta.json()
+        expira = datetime.fromisoformat(resposta.json()["url_expira_em"].replace("Z", "+00:00"))
+        assert expira - relogio.agora == timedelta(minutes=15)
+        assert resposta.json()["url"] != bruna.get(url).json()["url"]  # cada GET, uma URL nova
+        with django_capture_on_commit_callbacks(execute=True):
+            reenviar = bruna.post(f"{url}reenviar/")
+    finally:
+        connection.set_tenant(Empresa.objects.get(schema_name="empresa_a"))
+    assert reenviar.status_code == 202
+    assert len(whatsapp.caixa_de_saida) - enviadas == 2  # o envio e o reenvio
+
+    html, _ = recibo.corpo(Devolucao.objects.get(pk=devolucao["id"]))
+    textos = [html.lower(), *(m.texto.lower() for m in whatsapp.caixa_de_saida[enviadas:])]
+    assert "devolução" in textos[0] and "caução" in textos[0]
+    for texto in textos:
+        assert "check-in" not in texto and "depósito" not in texto
+    assert "Devolução de R$ 268,00 por Pix em até 1 dia útil." in html
+
+
+# --- Isolamento ---
+
+
+def test_dev_devolucao_da_empresa_a_nao_aparece_na_b(cenario, lucas):
+    criada = _lucas_ativo(cenario)
+    _abrir_devolucao(cenario, criada["id"])
+    connection.set_tenant(Empresa.objects.get(schema_name="empresa_b"))
+    try:
+        assert not Devolucao.objects.exists()
+    finally:
+        connection.set_tenant(Empresa.objects.get(schema_name="empresa_a"))
+    assert Devolucao.objects.count() == 1
+
+
+def test_dev_devolucao_fora_da_filial_responde_404(cenario, lucas):
+    criada = _lucas_ativo(cenario)
+    devolucao = _abrir_devolucao(cenario, criada["id"])
+    so_caucaia = cenario.moto.api("Mariana", HTTP_X_FILIAL=str(_caucaia(cenario.moto).pk))
+    assert so_caucaia.get(f"{DEVOLUCOES}{devolucao['id']}/").status_code == 404
+
+
+# --- Troca (T-092) e caixa (T-017) ---
 
 
 @aguarda("T-092")
@@ -690,26 +1270,6 @@ def test_loc_09_ca_016_15_troca_de_veiculo_acerto_unico(cenario):
     pendente(avaria=8500, diferenca_caucao=20000, caucao_final=50000)
 
 
-@aguarda("T-109")
-def test_dev_05_ca_016_16_salvar_e_continuar_depois(cenario):
-    pendente(status="rascunho", encerrar="vistoria_pendente")
-
-
-@aguarda("T-109")
-def test_dev_04_dev_06_ca_016_17_encerrar(cenario):
-    pendente(km=19630, veiculo="disponivel", reembolso=18300)
-
-
 @aguarda("T-017")
 def test_fin_07_ca_016_18_devolucao_em_dinheiro_exige_caixa(cenario):
     pendente(codigo="FIN-07", saida_dinheiro=18300)
-
-
-@aguarda("T-109")
-def test_dev_ca_016_19_quem_fecha_a_conta(cenario):
-    pendente(joao_acerto=403, joao_encerrar=403)
-
-
-@aguarda("T-109")
-def test_dev_ca_016_20_recibo(cenario):
-    pendente(url_minutos=15, palavras=["devolução", "caução"])

@@ -25,17 +25,22 @@ from comum.erros import ErroDeValidacao
 from comum.permissoes import com_padrao, exige_perfil, filiais_permitidas, filial_pedida
 
 from .. import selectors, services
-from ..models import Vistoria
+from ..models import Devolucao, Vistoria
 from .serializers import (
     AgendaSerializer,
     AvariaEntradaSerializer,
     AvariaSerializer,
     CorrigirVistoriaSerializer,
     CriarVistoriaSerializer,
+    DevolucaoSerializer,
+    EditarItemAcertoSerializer,
     EditarVistoriaSerializer,
+    FormaDevolucaoSerializer,
     FotoEntradaSerializer,
     FotoSerializer,
+    ItemAcertoEntradaSerializer,
     ListaDeAvariasSerializer,
+    ReciboSerializer,
     VistoriaSerializer,
 )
 
@@ -235,3 +240,142 @@ class AgendaView(APIView):
         return Response(
             _para(request, AgendaSerializer(selectors.agenda(_filial_da_agenda(request), dia)).data)
         )
+
+
+# --- Devolução e acerto (DEV-01 a DEV-06) ---
+
+# Quem fecha a conta é quem recebe pagamento no caixa: o vistoriador não (CA-016-19).
+FECHAM: list[type[BasePermission]] = com_padrao(
+    exige_perfil("administrador", "gerente", "vendedor")
+)
+
+
+def _devolucao(request: Request, pk: int) -> Devolucao:
+    devolucao = (
+        filtrar_por_filial(
+            Devolucao.objects.select_related("vistoria", "locacao"), request, "locacao__filial"
+        )
+        .filter(pk=pk)
+        .first()
+    )
+    if devolucao is None:
+        raise Http404
+    return devolucao  # type: ignore[no-any-return]
+
+
+def _resposta_devolucao(
+    request: Request, devolucao: Devolucao, codigo: int = status.HTTP_200_OK
+) -> Response:
+    services.recalcular(devolucao)  # o rascunho é refeito a cada leitura (contrato)
+    dados = DevolucaoSerializer(selectors.representacao_devolucao(devolucao)).data
+    return Response(_para(request, dados), status=codigo)
+
+
+class DevolucaoDaLocacaoView(APIView):
+    permission_classes = FAZEM
+
+    @extend_schema(
+        request=None,
+        responses={200: DevolucaoSerializer, 201: DevolucaoSerializer},
+        summary="Abrir a devolução com a vistoria de chegada (DEV-05); a existente volta com 200",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        devolucao, criada = services.iniciar_devolucao(_locacao(request, pk), request.user)
+        codigo = status.HTTP_201_CREATED if criada else status.HTTP_200_OK
+        return _resposta_devolucao(request, devolucao, codigo)
+
+
+class DevolucaoView(APIView):
+    permission_classes = FAZEM
+
+    @extend_schema(
+        responses=DevolucaoSerializer,
+        summary="Devolução: vistoria, comparação e acerto (DEV-01, DEV-02)",
+    )
+    def get(self, request: Request, pk: int) -> Response:
+        return _resposta_devolucao(request, _devolucao(request, pk))
+
+
+class AcertoView(APIView):
+    permission_classes = FECHAM
+
+    @extend_schema(
+        request=FormaDevolucaoSerializer,
+        responses=DevolucaoSerializer,
+        summary="Forma de devolver o saldo (DEV-02)",
+    )
+    def patch(self, request: Request, pk: int) -> Response:
+        dados = _entrada(FormaDevolucaoSerializer, request)
+        devolucao = services.definir_forma(_devolucao(request, pk), dados["forma_devolucao"])
+        return _resposta_devolucao(request, devolucao)
+
+
+class ItensDoAcertoView(APIView):
+    permission_classes = FECHAM
+
+    @extend_schema(
+        request=ItemAcertoEntradaSerializer,
+        responses=DevolucaoSerializer,
+        summary="Incluir avaria ou multa de trânsito no acerto (DEV-01)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        dados = _entrada(ItemAcertoEntradaSerializer, request)
+        devolucao = _devolucao(request, pk)
+        services.incluir_item(devolucao, dados)
+        return _resposta_devolucao(request, devolucao)
+
+
+class ItemDoAcertoView(APIView):
+    permission_classes = FECHAM
+
+    @extend_schema(
+        request=EditarItemAcertoSerializer,
+        responses=DevolucaoSerializer,
+        summary="Mudar item informado; o calculado responde 409 item_calculado (DEV-01)",
+    )
+    def patch(self, request: Request, pk: int, item_id: int) -> Response:
+        dados = _entrada(EditarItemAcertoSerializer, request)
+        devolucao = _devolucao(request, pk)
+        services.editar_item(devolucao, item_id, dados)
+        return _resposta_devolucao(request, devolucao)
+
+    @extend_schema(
+        request=None, responses=DevolucaoSerializer, summary="Tirar item incluído (DEV-01)"
+    )
+    def delete(self, request: Request, pk: int, item_id: int) -> Response:
+        devolucao = _devolucao(request, pk)
+        services.remover_item(devolucao, item_id)
+        return _resposta_devolucao(request, devolucao)
+
+
+class EncerrarDevolucaoView(APIView):
+    permission_classes = FECHAM
+
+    @extend_schema(
+        request=None,
+        responses=DevolucaoSerializer,
+        summary="Encerrar a devolução (DEV-02, DEV-04, DEV-06, LOC-12, LOC-13)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        devolucao = services.encerrar_devolucao(_devolucao(request, pk), request.user)
+        return _resposta_devolucao(request, devolucao)
+
+
+class ReciboDaDevolucaoView(APIView):
+    permission_classes = FECHAM
+
+    @extend_schema(responses=ReciboSerializer, summary="Recibo em PDF, URL de 15 min (AUD-05)")
+    def get(self, request: Request, pk: int) -> Response:
+        assinada = services.url_do_recibo(_devolucao(request, pk))
+        return Response(
+            ReciboSerializer({"url": assinada.url, "url_expira_em": assinada.expira_em}).data
+        )
+
+
+class ReenviarReciboView(APIView):
+    permission_classes = FECHAM
+
+    @extend_schema(request=None, responses={202: None}, summary="Reenviar o recibo por WhatsApp")
+    def post(self, request: Request, pk: int) -> Response:
+        services.reenviar_recibo(_devolucao(request, pk))
+        return Response(status=status.HTTP_202_ACCEPTED)

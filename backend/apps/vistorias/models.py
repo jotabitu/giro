@@ -159,3 +159,112 @@ class Avaria(ModeloBase):
 
     def __str__(self) -> str:
         return self.descricao
+
+
+# --- Devolução e acerto (DEV-01 a DEV-06, LOC-09 a LOC-13) ---
+
+
+class StatusDevolucao(models.TextChoices):
+    RASCUNHO = "rascunho", "Rascunho"
+    CONCLUIDA = "concluida", "Concluída"
+
+
+class FormaDevolucao(models.TextChoices):
+    PIX = "pix", "Pix"
+    DINHEIRO = "dinheiro", "Dinheiro"
+    ESTORNO_CARTAO = "estorno_cartao", "Estorno no cartão"
+
+
+class Devolucao(MaquinaDeEstados, ModeloBase):
+    """Um acerto só por locação (LOC-09). Em `rascunho`, o acerto é recalculado a cada leitura e
+    a cada mudança; ao encerrar, fica `concluida` e congelado: o preço do litro e os valores dos
+    itens não mudam mais (DEV-06)."""
+
+    locacao = models.OneToOneField("locacoes.Locacao", on_delete=models.PROTECT, related_name="+")
+    vistoria = models.ForeignKey(Vistoria, on_delete=models.PROTECT, related_name="+")
+    status = models.CharField(
+        max_length=10, choices=StatusDevolucao.choices, default=StatusDevolucao.RASCUNHO
+    )
+    caucao_centavos = CentavosField(default=0)
+    saldo_centavos = models.BigIntegerField(default=0)  # DEV-02: positivo devolve, negativo cobra
+    forma_devolucao = models.CharField(
+        max_length=15, choices=FormaDevolucao.choices, blank=True, default=""
+    )
+    preco_litro_centavos = CentavosField(null=True, blank=True)  # congelado ao encerrar
+    devolvida_em = models.DateTimeField(null=True, blank=True)  # LOC-11
+    concluida_em = models.DateTimeField(null=True, blank=True)
+    encerrada_por = models.ForeignKey(
+        "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    recibo = models.FileField(
+        storage=arquivos.armazenamento_privado,
+        upload_to=arquivos.caminho_privado,
+        max_length=200,
+        null=True,
+        blank=True,
+    )
+    recibo_enviado_em = models.DateTimeField(null=True, blank=True)
+
+    TRANSICOES: ClassVar[dict[str, set[str]]] = {
+        StatusDevolucao.RASCUNHO: {StatusDevolucao.CONCLUIDA},
+        StatusDevolucao.CONCLUIDA: set(),
+    }
+    REGRA_TRANSICAO: ClassVar[str] = "transicao_devolucao"
+
+    class Meta:
+        verbose_name = "devolução"
+        verbose_name_plural = "devoluções"
+        ordering = ["-id"]
+
+    def __str__(self) -> str:
+        return f"{self.locacao_id}: devolução ({self.status})"
+
+
+class TipoItemAcerto(models.TextChoices):
+    COMBUSTIVEL = "combustivel", "Combustível"
+    AVARIA = "avaria", "Avaria"
+    ATRASO = "atraso", "Atraso"
+    KM_EXCEDENTE = "km_excedente", "Km excedente"
+    PARCELA_ABERTA = "parcela_aberta", "Parcela em aberto"
+    MULTA_TRANSITO = "multa_transito", "Multa de trânsito"
+    MULTA_ENCERRAMENTO = "multa_encerramento", "Multa do encerramento antecipado"
+    SEMANAS_NAO_USADAS = "semanas_nao_usadas", "Semanas não usadas"  # crédito, LOC-13
+    DIAS_NAO_USADOS = "dias_nao_usados", "Diárias não usadas"  # crédito, LOC-12 (diária)
+
+
+class NaturezaItem(models.TextChoices):
+    COBRANCA = "cobranca", "Cobrança"
+    CREDITO = "credito", "Crédito"
+
+
+class ModoItem(models.TextChoices):
+    INFORMADO = "informado", "Informado"
+    CALCULADO = "calculado", "Calculado"
+
+
+class ItemAcerto(ModeloBase):
+    """Um item do acerto. Os `calculado` são refeitos a cada recálculo e não se editam; os
+    `informado` (avaria, multa de trânsito e o combustível que não pôde ser calculado) guardam o
+    valor dado por quem fecha a conta (DEV-01)."""
+
+    devolucao = models.ForeignKey(Devolucao, on_delete=models.PROTECT, related_name="itens")
+    tipo = models.CharField(max_length=20, choices=TipoItemAcerto.choices)
+    natureza = models.CharField(
+        max_length=10, choices=NaturezaItem.choices, default=NaturezaItem.COBRANCA
+    )
+    modo = models.CharField(max_length=10, choices=ModoItem.choices)
+    descricao = models.CharField(max_length=200)
+    valor_centavos = CentavosField(default=0)
+    avaria = models.ForeignKey(
+        Avaria, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    # A parcela em aberto que o acerto paga com a caução (origem genérica, ADR 0011).
+    conta_id = models.BigIntegerField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "item do acerto"
+        verbose_name_plural = "itens do acerto"
+        ordering = ["id"]
+
+    def __str__(self) -> str:
+        return f"{self.devolucao_id}: {self.tipo} {self.valor_centavos}"

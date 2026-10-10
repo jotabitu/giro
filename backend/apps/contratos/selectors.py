@@ -4,11 +4,27 @@ from collections import Counter
 from typing import Any
 
 from django.db.models import Count
+from django_tenants.utils import get_public_schema_name, schema_context
 
 from comum import arquivos
+from comum.tarefas import schema_atual
 
-from . import marcadores
+from . import marcadores, pdf
 from .models import Contrato, Finalidade, ModeloContrato, StatusContrato, TipoContrato
+
+
+def marca_e_host() -> tuple[pdf.Marca, str]:
+    """A marca da locadora (white label) e o endereço dela, para PDFs e mensagens. Logo e cor
+    entram com a tela de marca; até lá, o cabeçalho leva o nome."""
+    from apps.plataforma.models import Dominio
+
+    schema = schema_atual()
+    with schema_context(get_public_schema_name()):
+        dominio = Dominio.objects.select_related("tenant").get(
+            tenant__schema_name=schema, is_primary=True
+        )
+        nome, host = dominio.tenant.nome_exibicao, str(dominio.domain)
+    return pdf.Marca(nome=nome), host
 
 
 def modelo_publicado(finalidade: str = Finalidade.LOCACAO) -> ModeloContrato | None:
