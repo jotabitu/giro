@@ -1,6 +1,6 @@
 # Locações
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-038) · **App:** `locacoes` (schema da empresa) · **Regras:** LOC-01 a LOC-15, CLI-02, CLI-03, CLI-05, IMP-04, APR-01, APR-02, FIL-03, FIL-05, FIN-09 · **ADRs:** 0005, 0011, 0015 · **Telas:** Locacoes, Locacao, Locacao-Detalhe
+**Dono:** arquiteto · **Versão:** 07 out 2026 (T-038), troca de veículo em 10 out 2026 (T-122) · **App:** `locacoes` (schema da empresa) · **Regras:** LOC-01 a LOC-15, CLI-02, CLI-03, CLI-05, IMP-04, APR-01, APR-02, FIL-03, FIL-05, FIN-09 · **ADRs:** 0005, 0011, 0015 · **Telas:** Locacoes, Locacao, Locacao-Detalhe
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 12 e 13 (`PlanoEspecial`, `Locacao`, `TrechoLocacao`, `ExtraLocacao`) em `docs/decisoes/modelo-de-dados.md`. Vistoria, devolução e acerto estão em `vistorias.md`; modelo de contrato, PDF e assinatura, em `contratos.md`; receber parcela no caixa ou por Pix, em `financeiro.md` (T-017).
 
@@ -9,7 +9,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 12 e 13 (`PlanoEspeci
 | Ação | Administrador | Gerente | Vendedor | Vistoriador | Financeiro |
 | --- | --- | --- | --- | --- | --- |
 | Ver lista e detalhe (filiais da pessoa) | sim | sim | sim | só agenda e vistoria, sem valores | sim |
-| Criar, editar rascunho, confirmar, renovar, trocar veículo | sim | sim | sim | — | — |
+| Criar, editar rascunho, confirmar, renovar, trocar veículo, cancelar a troca pendente | sim | sim | sim | — | — |
 | Desconto até o limite (5%, `LOC-03`) | sim | sim | sim | — | — |
 | Desconto acima do limite | sim | sim (direto) e aprova os pedidos | pede (`APR-01`) | — | — |
 | Cancelar | sim | sim (direto) | pede (`APR-02`) | — | — |
@@ -81,14 +81,29 @@ A linha mais:
                  "aviso_atraso": "Se atrasar, cobra R$ 54,90 por dia a mais (diária)", "devolucao_id": null },
   "trechos": [ { "veiculo": "PNB7C04", "inicio": "...", "fim": null } ],
   "cancelamento": null,
-  "acoes": { "renovar": true, "registrar_devolucao": true, "trocar_veiculo": true, "cancelar": "direto",
-             "imprimir_contrato": true, "reenviar_contrato": true, "continuar_vistoria": false, "receber": false }
+  "troca": null,
+  "acoes": { "renovar": true, "registrar_devolucao": true, "trocar_veiculo": true, "cancelar_troca": false,
+             "cancelar": "direto", "imprimir_contrato": true, "reenviar_contrato": true,
+             "continuar_vistoria": false, "receber": false }
 }
 ```
 
 - `total_pago_centavos` inclui a caução paga, como na tela. Caso do seed (`LOC-06`, `LOC-05`): LOC-2836 = 32900 + 32900 + 30000 = **95800**.
 - `parcelas` vêm de `financeiro.selectors` (`financeiro` está acima de `locacoes`, ADR 0011). Status como em `FIN-01` (`vence_hoje` e `atrasada` calculados).
-- `acoes.cancelar`: `direto`, `pedir` ou `false`, conforme o perfil.
+- `acoes.cancelar`: `direto`, `pedir` ou `false`, conforme o perfil. É `false` com uma troca de veículo pendente (`LOC-12`, T-122).
+- `acoes.trocar_veiculo`: quem cria, locação `ativa`, sem cancelamento em curso e sem troca pendente.
+- `acoes.cancelar_troca`: quem cria, com uma troca pendente cuja saída do veículo novo não foi concluída (T-122). `acoes.renovar` continua `true` com a troca pendente (`LOC-08`).
+- `troca`: a troca pendente, ou `null` (as concluídas aparecem em `trechos` e no histórico, as canceladas só no histórico):
+  ```json
+  { "id": 41, "status": "pendente", "motivo": "Cliente pediu scooter", "pedida_em": "2026-10-07T21:00:00Z",
+    "veiculo_antigo": { "id": 12, "placa": "PNB7C04", "modelo": "Yamaha Factor 150" },
+    "veiculo_novo": { "id": 31, "placa": "GEN0001", "modelo": "Yamaha NMax 160" },
+    "devolucao_vistoria": { "id": 3101, "status": "concluida" },
+    "saida_vistoria": { "id": 3102, "status": "rascunho" },
+    "preco": { "valor_periodo_centavos": 44900, "diaria_centavos": 7990, "caucao_centavos": 50000, "preco_do_dia": "2026-10-07" },
+    "caucao": { "conta_id": 9010, "valor_centavos": 20000, "status": "paga" } }
+  ```
+  `preco` é o guardado no pedido (`LOC-09`); `caucao` é a conta da diferença de caução, ou `null` sem diferença a cobrar. O vistoriador recebe a troca sem `preco` e sem `caucao`.
 - `cancelamento`: quando há pedido ou encerramento antecipado aprovado: `{ "status": "pendente" | "aprovado", "pedido_aprovacao_id", "antes_da_retirada": false, "data": "2026-10-07", "multa_centavos": 8480, "devolver_centavos": 28620, "motivo" }`. Depois da retirada, `multa_centavos` e `devolver_centavos` são a estimativa para `data`; o valor final sai no acerto da devolução (T-116).
 
 ### GET /api/locacoes/{id}/historico/
@@ -205,19 +220,74 @@ Simular devolve as novas parcelas; renovar (`LOC-08`):
 - Usa o preço vigente hoje (`LOC-15`: renovação usa o preço novo) e atualiza `valor_periodo_centavos` dali em diante.
 - Gera um aditivo pelo app `contratos` (`tipo = aditivo`) e o envia. A renovação vale na hora; se o aditivo não for assinado em 7 dias, os gerentes da filial recebem uma tarefa (`LOC-08`).
 - Não gera comissão (`FIN-09`).
+- Permitida com uma troca de veículo pendente: as parcelas novas saem da categoria atual e as que vencem depois do dia da troca são refeitas na conclusão (`LOC-08`, `LOC-09`).
 - `devolucao_atrasada` renovada volta a `ativa` se o novo fim for futuro; o atraso já corrido continua cobrado na devolução.
 - Dentro do prazo (fim previsto mais a tolerância, `LOC-10`, `LOC-11`), o período novo começa no fim previsto antigo. Depois do prazo, mesmo com a locação ainda `ativa`, começa na hora da renovação, e o atraso até ali fica guardado (`atraso_anterior_*`) e é cobrado no acerto (T-111, CA-015-26: fim 07 out 10:00, renovada em 09 out 10:00 → 10980 de atraso, parcela de 32900 vencendo em 09 out, fim em 16 out 10:00).
 - Período e extras por período pelo preço de hoje (os extras pelo valor atual do cadastro, que passa a valer na locação); o mesmo `desconto_pct`, sem novo `APR-01`; plano de preço fixo pelo valor de hoje, plano de desconto contando os períodos desde o começo da locação; plano desativado → tabela (CA-015-27).
 200: detalhe.
 
-### POST /api/locacoes/{id}/trocar-veiculo/
+### Troca de veículo (LOC-09)
+
+As rotas da troca ficam em `apps/vistorias/api`, porque abrem e descartam vistorias (`vistorias` está abaixo de `locacoes`, ADR 0011); o caminho fica sob a locação. A troca (`TrocaVeiculo`), o preço, as parcelas e os veículos mudam por `locacoes.services`; as vistorias e o acerto, por `vistorias.services`. Uma troca `pendente` por locação. Estados: `pendente` → `concluida` | `cancelada`; as duas últimas não mudam mais.
+
+#### POST /api/locacoes/{id}/trocar-veiculo/
 Perfis: quem cria. Só em `ativa`. Corpo: `{ veiculo_novo_id, motivo }`.
-202: `{ "troca": { "id", "status": "pendente", "devolucao_vistoria_id", "saida_vistoria_id" } }`. Abre as duas vistorias (devolução do atual e saída do novo, `vistorias.md`) e reserva o novo veículo.
-Quando as duas são concluídas: o trecho atual fecha (`TrechoLocacao.fim`), o novo começa, o veículo antigo segue a regra da devolução (`disponivel` ou `em_manutencao`, `DEV-04`), o novo vira `alugado`, e o valor passa a ser o da nova categoria a partir da troca (`LOC-09`): as parcelas abertas com vencimento posterior são refeitas.
-422 `LOC-03` (veículo novo indisponível), `FIL-05` (de outra filial), `CLI-02` (CNH sem a categoria).
-Caução e cobranças na troca (`LOC-09`):
-- Caução da nova categoria **maior**: a diferença vira conta a receber (`tipo = caucao`) na hora, e o veículo novo só sai depois de paga.
-- Caução **menor** e cobranças da vistoria do veículo antigo não geram conta na troca: vão para o acerto final da locação, descontadas da caução total paga (um acerto só por locação, `vistorias.md`).
+202: `{ "troca": { "id", "status": "pendente", "devolucao_vistoria_id", "saida_vistoria_id" } }`. Na mesma transação:
+- a troca nasce `pendente`, com o preço da nova categoria **no dia do pedido** guardado nela (`LOC-09`, `LOC-15`): período (sem descontos, como `Locacao.valor_periodo_centavos`; o plano especial de preço fixo continua se valer para a nova categoria), diária e caução, mais `preco_do_dia` (a data local da filial). A diferença de caução, as parcelas refeitas, a diária do atraso, a caução da locação e a diferença do período em curso saem todos desse preço, mesmo que a tabela mude até a conclusão;
+- o veículo novo fica `reservado`;
+- abrem a chegada do veículo atual e a saída do novo, em `rascunho`, e a devolução da locação nasce em `rascunho` com essa chegada (um acerto só, `vistorias.md`);
+- caução da nova categoria **maior**: a diferença vira conta `caucao` aberta com vencimento hoje, e o veículo novo só sai depois de paga (Juliana: 20000). Caução **menor**: nenhuma conta; o acerto final desconta da caução total paga.
+
+Recusas: 400 `motivo` vazio; 403 para quem não cria; 409 `transicao_locacao` fora de `ativa`; 409 `cancelamento_em_andamento`; 409 `troca_pendente` ("Esta locação já tem uma troca de veículo pendente."); 422 `LOC-03` (veículo novo indisponível), `FIL-05` (de outra filial), `CLI-02` (CNH sem a categoria), `LOC-01` (categoria sem preço vigente).
+
+Com a troca pendente: a renovação é permitida (`LOC-08`; as parcelas novas saem da categoria atual e são refeitas na conclusão), o cancelamento e o pedido de cancelamento respondem 409 `troca_pendente` (abaixo), e encerrar a devolução responde 409 `troca_pendente` (`vistorias.md`).
+
+#### Troca concluída
+Quando a chegada do veículo antigo e a saída do novo estão concluídas, em qualquer ordem, `vistorias` chama `locacoes.services.concluir_troca`, numa transação. "Dia da troca" é o dia local da filial na conclusão.
+- O trecho atual fecha (`TrechoLocacao.fim`) e o novo começa. A locação passa ao veículo novo (`alugado`), com o período, a diária e a caução **guardados na troca**. O veículo antigo fica `disponivel`, ou `em_manutencao` com avaria "vai para oficina" (`DEV-04`).
+- **Parcelas refeitas inteiras** (`LOC-09`, como na renovação, `LOC-08`): cada parcela em aberto que vence depois do dia da troca passa a valer o período `k` dela pelo preço guardado com todos os descontos daquele período (`calculo.preco_com_descontos`: o `desconto_pct` do vendedor e o plano especial de desconto contando os períodos desde o começo da locação), mais os extras como estavam. No mensal em 4 semanais, cada parcela é a sua quarta parte desse valor. Ex.: Mensal fidelidade no 3º mês, Street → Scooter premium: 107100 → **143100**; no 1º mês, sem desconto. Juliana (semanal, sem desconto): parcela 3 de 32900 → **44900**.
+- **Diferença do período em curso** (`LOC-09`, `DEV-01`), calculada aqui e guardada na troca:
+  - o período em curso e os dias restantes são os do `calcular_encerramento` (`LOC-12`) no dia da troca: o período `k` que contém o dia, `dias_do_periodo = fim − início` e `dias_restantes = fim − dia`, em datas locais. Na diária, `dias_do_periodo = 1` e `dias_restantes` são os blocos inteiros de 24 h até o fim previsto (`diarias_nao_usadas`). No dia do fim previsto ou depois, não há período em curso e a diferença é 0;
+  - `periodo_antigo_centavos` = preço do período `k` da locação antes da troca e `periodo_novo_centavos` = preço do período `k` pelo preço guardado, ambos com os descontos daquele período;
+  - `diferenca_centavos` = sinal × `proporcional(|novo − antigo|, dias_restantes, dias_do_periodo)` (`comum.dinheiro`, arredondado uma vez no centavo), menos `ja_refeito_centavos`;
+  - `ja_refeito_centavos`: só no mensal em 4 semanais, a soma do que as parcelas refeitas que vencem antes do fim do período em curso subiram (ou, com sinal, desceram). Esses dias já passaram ao preço novo pela parcela e não entram duas vezes (`[decisão]` da T-122 para o produto confirmar; nos outros planos é 0, porque a parcela do período em curso vence no começo dele);
+  - positivo é cobrança e negativo é crédito, um item por troca no acerto final (`diferenca_troca`, `vistorias.md`). Juliana: período de 07 a 14 out, (44900 − 32900) ÷ 7 × 7 = **12000**.
+- Auditoria: `locacao.trocar_veiculo` e `locacao.concluir_troca`, com `LOC-09`. Evento `vistorias.troca_concluida` (`vistorias.md`).
+
+#### POST /api/locacoes/{id}/trocar-veiculo/cancelar/
+Cancela a troca pendente (`LOC-09`). App `vistorias` (`apps/vistorias/api`), pelo serviço `vistorias.services.cancelar_troca`, que chama `locacoes.services.cancelar_troca`.
+Perfis: administrador, gerente e vendedor (quem pode pedir a troca), na filial da locação. Vistoriador e financeiro: 403. Locação `ativa` ou `devolucao_atrasada`.
+Corpo: `{ "motivo": "Cliente desistiu da scooter" }`.
+200:
+```json
+{ "troca": { "id": 41, "status": "cancelada", "cancelada_em": "2026-10-07T22:10:00Z",
+             "saida_vistoria": { "id": 3102, "status": "descartada" },
+             "devolucao_vistoria": { "id": 3101, "status": "concluida" },
+             "conta_caucao": { "id": 9010, "status": "paga" },
+             "devolucao_id": 701 } }
+```
+`conta_caucao` vem `null` quando a troca não teve diferença de caução a cobrar.
+
+Na mesma transação, com a locação e a troca travadas:
+
+| Peça | Antes | Depois |
+| --- | --- | --- |
+| Troca | `pendente` | `cancelada`, com `motivo_cancelamento`, `cancelada_por` e `cancelada_em` |
+| Saída do veículo novo | `rascunho` | `descartada` (`vistorias.md`); fotos e respostas ficam guardadas |
+| Veículo novo | `reservado` | `disponivel`, pelo sistema (`veiculos.services.transicionar`, origem a locação) |
+| Conta da diferença de caução | aberta (inclusive vencida) | `cancelada` |
+| | paga | fica como está: entra na caução total paga e volta no acerto final (`DEV-02`) |
+| Chegada do veículo antigo | `rascunho` | `descartada`; o cliente segue com o veículo antigo, que continua `alugado`. Se a devolução da locação apontava para ela, a devolução continua `rascunho` sem chegada (`vistoria = null`), e `POST /api/locacoes/{id}/devolucao/` abre uma chegada nova do veículo atual quando ele voltar (`vistorias.md`); `devolucao_id` vem `null` na resposta e no detalhe enquanto não houver chegada |
+| | `concluida` | fica como a chegada da devolução da locação, que segue as regras de sempre: antes do dia do fim previsto, encerrar pede o encerramento antecipado aprovado (`DEV-07`); o veículo antigo continua `alugado` até encerrar |
+| Locação | | não muda: mesmo veículo, preço, caução, parcelas e trechos |
+
+Nada da troca cancelada é apagado. Auditoria, com `LOC-09` e o motivo: `locacao.cancelar_troca` (a troca), `vistoria.descartar` (cada vistoria descartada), a transição do veículo (`veiculos`) e `conta_receber.cancelar` (`financeiro`). Nenhum evento de domínio: nada acima de `vistorias` reage a uma troca que não aconteceu.
+
+Recusas:
+- 400 `{ "codigo": "validacao", "campos": { "motivo": ["Informe o motivo do cancelamento da troca."] } }`.
+- 409 `{ "codigo": "transicao_troca", "mensagem": "Esta locação não tem troca de veículo pendente." }`: sem troca, ou a troca já `concluida` ou `cancelada` (inclusive concluída por outra pessoa ao mesmo tempo).
+- 409 `{ "codigo": "troca_saida_concluida", "mensagem": "O veículo novo já foi entregue. Conclua a troca com a chegada do veículo antigo." }`: a saída do veículo novo já está concluída. A `LOC-09` só diz o que fazer com a saída em rascunho; a recusa é provisória, `[decisão]` da T-122 para o produto.
+- 409 `transicao_locacao` com a locação fora de `ativa` e `devolucao_atrasada`.
 
 ### Cancelamento e encerramento antecipado (LOC-12, LOC-13, APR-02)
 
@@ -238,6 +308,7 @@ Caução e cobranças na troca (`LOC-09`):
 - Caso do seed: Patrícia, LOC-2812, NMax mensal 159000, pedido em 07 out, fim 15 out → restante 42400, multa **8480**, crédito 37100, devolve **28620**.
 
 **POST /api/locacoes/{id}/cancelar/** · corpo `{ motivo, data? }`.
+- Com uma troca de veículo pendente, o cancelamento direto e o pedido respondem 409 `{ "codigo": "troca_pendente", "mensagem": "Conclua ou cancele a troca antes" }` (`LOC-12`, `LOC-09`), antes do perfil e do resto; nada muda. O caminho é cancelar a troca e então pedir o encerramento. `cancelamento/simular` continua respondendo (é só leitura). O pedido de troca já é recusado com um cancelamento em curso (`cancelamento_em_andamento`), então o pedido de cancelamento pendente e a troca pendente não convivem.
 - Administrador, gerente ou quem tem `cancelar_contrato`: 200, efeito na hora.
 - Vendedor: 202 `{ "pedido_aprovacao": { "id", "tipo": "APR-02", "status": "pendente" } }`; o sinal `cancelamento_pendente` acende.
 Efeito ao valer:
@@ -261,6 +332,8 @@ Recusado pelo gerente: o sinal apaga e o vendedor é avisado com o motivo.
 | --- | --- |
 | `locacoes.services.registrar_vistoria_saida(locacao, vistoria)` | chamado por `vistorias` ao concluir a saída; grava `vistoria_saida_ok_em`, `km_saida` e verifica a ativação. |
 | `locacoes.services.encerrar(locacao, devolucao)` | chamado por `vistorias` ao encerrar a devolução (`DEV-06`): `encerrada` (ou `cancelada` no encerramento antecipado), `devolvida_em`, comissão e eventos. |
+| `locacoes.services.pedir_troca`, `vincular_vistorias_da_troca`, `concluir_troca`, `cancelar_troca(troca, motivo, usuario)` | chamados por `vistorias` (`LOC-09`). `cancelar_troca` leva a troca a `cancelada`, o veículo novo a `disponivel` e a conta aberta da diferença de caução a `cancelada` (`financeiro.services.cancelar_conta`, nova); as vistorias são de `vistorias`. |
+| `locacoes.services.troca_pendente(locacao)` e `caucao_da_troca_paga(troca)`; `locacoes.selectors.trocas_concluidas(locacao)` | a troca pendente; a diferença de caução paga; as trocas concluídas, com `diferenca_centavos` e os campos da conta, para o acerto (`vistorias`). |
 | `locacoes.selectors.calcular_atraso(locacao, momento) -> { dias, valor_centavos }` | `LOC-10`, `LOC-11`, `FIL-03`; usado no acerto. |
 | `locacoes.selectors.calcular_encerramento_antecipado(locacao, data)` | `LOC-12`, `LOC-13`; o mesmo cálculo de `cancelamento/simular`. |
 | assinantes | `financeiro.parcela_paga` (1º pagamento), `contratos.contrato_assinado`, `aprovacoes.pedido_decidido` (`APR-01`, `APR-02`). |
