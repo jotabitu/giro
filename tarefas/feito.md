@@ -92,3 +92,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-091 · Locação: renovação, atraso, cancelamento e encerramento · backend · PR #105 · tarefas/handoffs/T-091-backend.md · 528 testes; só a T-092 em xfail; 2 [divergência] e 5 [decisão] para o produto
 - T-106 · Pontos de regra da T-091 · produto · PR #107 · tarefas/handoffs/T-106-produto.md · 2 divergências resolvidas; 5 decisões com opção A em Pontos em aberto
 - T-016 · Vistoria de saída e de chegada, correção e agenda · backend · PR #108 · tarefas/handoffs/T-016-backend.md · 546 testes; CA-016-01 a 08 e 21; devolução e acerto na T-109
+- T-109 · Devolução e acerto · backend · PR a abrir · tarefas/handoffs/T-109-backend.md · 567 testes; CA-016-09 a 14, 16, 17, 19 e 20; troca na T-092 e dinheiro na T-017

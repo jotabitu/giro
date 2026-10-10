@@ -33,4 +33,17 @@ Contrato da API: `docs/api/vistorias.md` (escrito pelo arquiteto antes da implem
   - `corrigir` (`VIS-04`): copia os dados, as fotos (o mesmo arquivo) e as avarias.
 - `selectors.py`: `representacao`, `avarias_abertas`, `avaria_aberta`, `agenda` (`VIS-05`) e `sem_valores` (o vistoriador não recebe `_centavos` nem `acerto`; aplicado depois do serializer, nas views).
 - Rotas: `POST /api/locacoes/{id}/vistorias/`, `GET` e `PATCH /api/vistorias/{id}/`, `.../fotos/`, `.../avarias/` (e `DELETE .../avarias/{avaria_id}/`), `.../concluir/`, `.../corrigir/`, `GET /api/vistorias/agenda/` e `GET /api/vistorias/avarias/`.
-- A devolução e o acerto (`DEV-01` a `DEV-06`) ficam com a parte 2.
+
+## Implementado (T-109, devolução e acerto)
+
+- `models.py`: `Devolucao` (uma por locação, `rascunho` → `concluida`, `REGRA_TRANSICAO = "transicao_devolucao"`), com a caução, o saldo (positivo devolve, negativo cobra), a forma de devolver, o preço do litro congelado ao encerrar, `devolvida_em` (LOC-11) e o recibo em PDF (armazenamento privado). Filho `ItemAcerto`: `tipo`, `natureza` (`cobranca` ou `credito`), `modo` (`calculado` ou `informado`), `avaria` e `conta_id` (a parcela em aberto).
+- `acerto.py`: contas puras. Combustível = capacidade do tanque × (nível da saída − nível da chegada) × preço do litro da filial + R$ 10,00 uma vez, só quando falta (`DEV-01`); sem tanque, sem preço ou sem a saída, o item vira `informado`. O texto e o botão do resultado (`devolver`, `cobrar`, `zerado`).
+- `services.py`:
+  - `iniciar_devolucao` (locação `ativa` ou `devolucao_atrasada`; a existente volta, `DEV-05`) cria a chegada por `criar(locacao, "devolucao", ...)`;
+  - `recalcular`, chamado a cada leitura e mudança enquanto o acerto é rascunho: combustível, atraso (`locacoes.services.calcular_atraso` na conclusão da chegada), km excedente (0, km livre), parcelas vencidas e não pagas, multa e crédito do encerramento antecipado aprovado (`LOC-12`, `LOC-13`) e um item por avaria nova da chegada. O valor informado pela pessoa fica;
+  - `incluir_item` (avaria ou multa de trânsito), `editar_item` e `remover_item` (409 `item_calculado` nos calculados; 409 `acerto_concluido` depois de encerrar) e `definir_forma`;
+  - `encerrar_devolucao`, numa transação: 422 `vistoria_pendente` sem a chegada concluída; cobranças pagas com a caução por `financeiro.services.pagar_com_caucao`; saldo positivo vira `Reembolso` (`devolver_ao_cliente`), negativo vira conta `acerto` em 3 dias (`DEV-02`); `locacoes.services.encerrar` (`encerrada` ou `cancelada`); km e veículo `disponivel` ou `em_manutencao` com "vai para oficina" (`DEV-04`); publica `vistorias.devolucao_encerrada` (com `avarias_para_oficina`, para o app `manutencao` abrir a OS) e agenda o recibo;
+  - recibo: `url_do_recibo` (gera o PDF se faltar), `reenviar_recibo`.
+- `recibo.py`: o HTML do recibo com a marca da locadora e as fotos da chegada (endereços internos `giro-imagem:<id>` em `contratos.pdf`).
+- `tasks.py`: `vistorias_enviar_recibo` (idempotente; o reenvio força) manda o link de 15 minutos por WhatsApp.
+- Rotas: `POST /api/locacoes/{id}/devolucao/`, `GET /api/devolucoes/{id}/`, `PATCH .../acerto/`, `POST .../acerto/itens/`, `PATCH` e `DELETE .../acerto/itens/{item_id}/`, `POST .../encerrar/`, `GET .../recibo/` e `POST .../recibo/reenviar/`. Abrir e ver: quem faz vistoria (o vistoriador sem valores); acerto, encerrar e recibo: administrador, gerente e vendedor.

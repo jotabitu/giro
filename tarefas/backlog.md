@@ -80,6 +80,12 @@ Levantadas pelo backend em T-016 parte 1 (09 out 2026):
 
 - [divergência] (qa, T-105) A carteira de outubro (`docs/qa/carteira-outubro/locacoes.csv` e `tests/aceitacao/carteira.py`) traz a LOC-2856 como `ativa` desde 07 out 09:00. O CA-016-08 (e o CA-016-01) a quer `aguardando_retirada`, com retirada às 09:15. (O teste da agenda tira a LOC-2856 da carteira e cria a do critério.)
 
+Levantadas pelo backend em T-109 (09 out 2026). O código segue o que está entre parênteses:
+
+- [decisão] (produto, `DEV-02`) Saldo negativo com parcela em aberto: em que ordem a caução paga? (A caução paga primeiro as parcelas inteiras e depois as cobranças novas; a parcela que não cabe continua em aberto, com o vencimento dela, e só o resto das cobranças vira a conta de 3 dias.)
+- [decisão] (produto, `DEV-01`) Parcela que vence no dia da devolução entra no acerto? (Não: só as vencidas antes do dia. Ela e as parcelas futuras de quem devolve antes do fim sem encerramento antecipado aprovado continuam em aberto na locação encerrada.)
+- [divergência] (qa, T-019) O seed de teste não tem o preço do litro da Filial Centro (R$ 5,50), a vistoria de saída da LOC-2836 (cheio, 18.402 km; a PNB7C04 está com 21.870 km) nem a caução paga da LOC-2841 e da LOC-2812. (Os testes da T-109 gravam esses dados na fixture.)
+
 ## Fase 0 · Fundação
 
 ### T-001 · Esqueleto do backend
@@ -235,10 +241,6 @@ Levantadas pelo backend em T-016 parte 1 (09 out 2026):
 
 ### T-091 · Locação: renovação, atraso, cancelamento e encerramento
 - **Agente:** backend · **Depende de:** T-090 · **Regras:** LOC-08, LOC-10 a LOC-13, FIL-03, APR-02, AUT-02 · **Pronto quando:** CA-015-17 e 19 a 24 e o estorno do CA-015-25 passam, com o código da regra no nome do teste: renovação com aditivo; atraso com `calcular_atraso` e `aut_02`; cancelamento e encerramento antecipado com APR-02, reembolso e comissão estornada.
-
-### T-109 · Devolução e acerto
-- **Agente:** backend · **Depende de:** T-016 · **Regras:** DEV-01 a DEV-06, LOC-10, LOC-12, LOC-13 · **Telas:** Devolucao · **Pronto quando:** caso LOC-2836 devolve R$ 183,00 e CA-016-09 a 14, 16, 17, 19 e 20 de `docs/qa/criterios/T-016.md` passam, com o código da regra no nome do teste: `POST` devolução; acerto (combustível, avarias, atraso, parcelas, multa e crédito do encerramento antecipado); itens; encerrar (`encerrar()`, reembolso, conta de 3 dias, veículo `disponivel`); recibo em PDF e WhatsApp. "Vai para oficina" (DEV-04) leva o veículo a `em_manutencao`; a OS fica para o módulo de manutenção.
-- **Nota:** a T-016 original foi dividida em 09/10 em T-016 (vistoria) e T-109 (devolução e acerto). CA-016-15 fica na T-092 e CA-016-18 na T-017.
 
 ### T-111 · Código das decisões da T-091
 - **Agente:** backend · **Depende de:** T-110, T-109 · **Regras:** LOC-08, LOC-12, LOC-13 · **Pronto quando:** os CA-015-26 a 29 (T-110) passam, com o código da regra no nome do teste: renovação de atrasada começa na hora da renovação e o atraso continua cobrado; diária no encerramento conta blocos de 24 h; mensal em 4 semanais com saldo igual ao do mês à vista e crédito negativo em `cobrar_centavos`; extras da renovação pelo preço de hoje.

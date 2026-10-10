@@ -12,27 +12,14 @@ from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
 from django.db import transaction
-from django_tenants.utils import get_public_schema_name, schema_context
 
-from comum.tarefas import para_cada_empresa, schema_atual, tarefa_de_empresa
+from comum.tarefas import para_cada_empresa, tarefa_de_empresa
 from integracoes.whatsapp import enviar_whatsapp
 
 from . import pdf, selectors, services
 from .models import Contrato, StatusContrato
 
-
-def _marca_e_host() -> tuple[pdf.Marca, str]:
-    """A marca da locadora (white label) e o endereço dela. Logo e cor entram com a tela de
-    marca; até lá, o cabeçalho leva o nome."""
-    from apps.plataforma.models import Dominio
-
-    schema = schema_atual()
-    with schema_context(get_public_schema_name()):
-        dominio = Dominio.objects.select_related("tenant").get(
-            tenant__schema_name=schema, is_primary=True
-        )
-        nome, host = dominio.tenant.nome_exibicao, str(dominio.domain)
-    return pdf.Marca(nome=nome), host
+_marca_e_host = selectors.marca_e_host
 
 
 def _enviar_link(contrato: Contrato, marca: pdf.Marca, host: str) -> None:

@@ -8,7 +8,7 @@ from typing import Any
 
 from rest_framework import serializers
 
-from ..models import Combustivel, PosicaoFoto
+from ..models import Combustivel, FormaDevolucao, PosicaoFoto, TipoItemAcerto
 
 # --- Entrada ---
 
@@ -200,3 +200,111 @@ class AgendaSerializer(serializers.Serializer[Any]):
     proxima = ProximaAgendaSerializer(allow_null=True)
     avarias_abertas = serializers.IntegerField()
     resultados = ItemAgendaSerializer(many=True)
+
+
+# --- Devolução e acerto ---
+
+
+class ItemAcertoEntradaSerializer(serializers.Serializer[Any]):
+    tipo = serializers.ChoiceField(choices=TipoItemAcerto.choices)
+    descricao = serializers.CharField(max_length=200)
+    valor_centavos = serializers.IntegerField(min_value=0)
+
+
+class EditarItemAcertoSerializer(serializers.Serializer[Any]):
+    descricao = serializers.CharField(max_length=200, required=False)
+    valor_centavos = serializers.IntegerField(min_value=0, required=False)
+
+
+class FormaDevolucaoSerializer(serializers.Serializer[Any]):
+    forma_devolucao = serializers.ChoiceField(choices=FormaDevolucao.choices)
+
+
+class LocacaoDaDevolucaoSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    codigo = serializers.CharField()
+    status = serializers.CharField()
+    cliente = serializers.CharField()
+    veiculo = serializers.CharField()
+    no_horario = serializers.BooleanField()
+
+
+class KmComparadoSerializer(serializers.Serializer[Any]):
+    saida = serializers.IntegerField(allow_null=True)
+    agora = serializers.IntegerField(allow_null=True)
+    rodou = serializers.IntegerField(allow_null=True)
+    texto = serializers.CharField()
+
+
+class CombustivelComparadoSerializer(serializers.Serializer[Any]):
+    saida = serializers.CharField(allow_null=True)
+    agora = serializers.CharField(allow_null=True)
+    faltou = serializers.CharField(allow_null=True)
+    litros_faltantes = serializers.CharField(allow_null=True)
+
+
+class FotoComparadaSerializer(serializers.Serializer[Any]):
+    posicao = serializers.CharField()
+    saida = FotoSerializer(allow_null=True)
+    agora = FotoSerializer(allow_null=True)
+
+
+class ItemComparadoSerializer(serializers.Serializer[Any]):
+    codigo = serializers.CharField()
+    rotulo = serializers.CharField()
+    saida = serializers.CharField(allow_null=True)
+    agora = serializers.CharField(allow_null=True)
+    novo = serializers.BooleanField()
+
+
+class ComparacaoSerializer(serializers.Serializer[Any]):
+    km = KmComparadoSerializer()
+    combustivel = CombustivelComparadoSerializer()
+    fotos = FotoComparadaSerializer(many=True)
+    itens = ItemComparadoSerializer(many=True)
+
+
+class ItemAcertoSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    tipo = serializers.CharField()
+    descricao = serializers.CharField()
+    valor_centavos = serializers.IntegerField()
+    modo = serializers.CharField(help_text="calculado, informado")
+    avaria_id = serializers.IntegerField(allow_null=True)
+    conta_id = serializers.IntegerField(allow_null=True)
+
+
+class ResultadoAcertoSerializer(serializers.Serializer[Any]):
+    tipo = serializers.CharField(help_text="devolver, cobrar, zerado")
+    valor_centavos = serializers.IntegerField()
+    texto = serializers.CharField()
+    botao = serializers.CharField()
+
+
+class AcertoSerializer(serializers.Serializer[Any]):
+    status = serializers.CharField(help_text="rascunho, concluido")
+    caucao_centavos = serializers.IntegerField()
+    itens = ItemAcertoSerializer(many=True)
+    creditos = ItemAcertoSerializer(many=True)
+    total_cobrancas_centavos = serializers.IntegerField()
+    total_creditos_centavos = serializers.IntegerField()
+    saldo_centavos = serializers.IntegerField()
+    resultado = ResultadoAcertoSerializer()
+    forma_devolucao = serializers.CharField(allow_null=True)
+
+
+class DevolucaoSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    status = serializers.CharField(help_text="rascunho, concluida")
+    locacao = LocacaoDaDevolucaoSerializer()
+    vistoria = VistoriaSerializer()
+    comparacao = ComparacaoSerializer()
+    acerto = AcertoSerializer(required=False)
+    devolvida_em = serializers.DateTimeField(allow_null=True)
+    concluida_em = serializers.DateTimeField(allow_null=True)
+    recibo_enviado_em = serializers.DateTimeField(allow_null=True)
+
+
+class ReciboSerializer(serializers.Serializer[Any]):
+    url = serializers.CharField()
+    url_expira_em = serializers.DateTimeField()

@@ -43,11 +43,20 @@ class Marca:
     logo_svg: bytes | None = None
 
 
-def buscador(marca: Marca) -> Callable[[str], Any]:
-    """O `url_fetcher` do WeasyPrint: só o logo da empresa, e só se ela tiver um."""
+# Imagem já lida do armazenamento privado por quem monta o PDF (ex.: as fotos do recibo da
+# devolução): endereço interno `giro-imagem:<id>` → (conteúdo, tipo).
+Imagens = dict[str, tuple[bytes, str]]
+
+
+def buscador(marca: Marca, imagens: Imagens | None = None) -> Callable[[str], Any]:
+    """O `url_fetcher` do WeasyPrint: só o logo da empresa, se ela tiver um, e as imagens
+    entregues por quem monta o PDF, pelos endereços internos delas."""
     from weasyprint.urls import URLFetcherResponse  # type: ignore[import-untyped]
 
     def buscar(url: str, *args: Any, **kwargs: Any) -> Any:
+        if imagens and url in imagens:
+            conteudo, tipo = imagens[url]
+            return URLFetcherResponse(url, body=conteudo, headers={"Content-Type": tipo})
         if url != URL_DO_LOGO or marca.logo_svg is None:
             raise UrlRecusada(f"URL recusada no PDF do contrato: {url[:80]}")
         return URLFetcherResponse(
@@ -84,10 +93,17 @@ def _cor_valida(cor: str) -> bool:
     return len(cor) == 7 and cor[0] == "#" and all(c in "0123456789abcdefABCDEF" for c in cor[1:])
 
 
-def gerar(corpo: str, marca: Marca, registro: list[tuple[str, str]] | None = None) -> bytes:
+def gerar(
+    corpo: str,
+    marca: Marca,
+    registro: list[tuple[str, str]] | None = None,
+    imagens: Imagens | None = None,
+) -> bytes:
     from weasyprint import HTML  # type: ignore[import-untyped]
 
-    pdf = HTML(string=documento(corpo, marca, registro), url_fetcher=buscador(marca)).write_pdf()
+    pdf = HTML(
+        string=documento(corpo, marca, registro), url_fetcher=buscador(marca, imagens)
+    ).write_pdf()
     if not isinstance(pdf, bytes):
         raise TypeError("O WeasyPrint não devolveu o PDF.")
     return pdf

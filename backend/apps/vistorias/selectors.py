@@ -1,6 +1,7 @@
 """Consultas de vistorias: a representação, as avarias abertas e a agenda (VIS-05)."""
 
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -14,12 +15,18 @@ from apps.locacoes.models import Locacao, StatusLocacao
 from apps.veiculos.models import Veiculo
 from comum import arquivos, relogio
 
-from . import services
+from . import acerto, services
 from .models import (
     POSICOES_OBRIGATORIAS,
     Avaria,
+    Combustivel,
+    Devolucao,
     FotoVistoria,
+    ItemAcerto,
+    NaturezaItem,
+    StatusDevolucao,
     StatusVistoria,
+    TipoItemAcerto,
     TipoVistoria,
     Vistoria,
 )
@@ -358,4 +365,139 @@ def agenda(filial: Filial, dia: str = "hoje") -> dict[str, Any]:
         else None,
         "avarias_abertas": avarias_abertas().filter(veiculo__filial=filial).count(),
         "resultados": itens,
+    }
+
+
+# --- Devolução e acerto (DEV-01 a DEV-06) ---
+
+NIVEL = dict(Combustivel.choices)
+
+
+def _texto_km(rodou: int) -> str:
+    return f"Rodou {rodou:,} km · plano com km livre".replace(",", ".")
+
+
+def _situacao_do_item(item: dict[str, Any] | None) -> str | None:
+    if item is None or item.get("ok") is None:
+        return None
+    return "ok" if item["ok"] else (item.get("observacao") or "com problema")
+
+
+def comparacao(locacao: Locacao, chegada: Vistoria) -> dict[str, Any]:
+    """Saída × chegada do mesmo veículo na mesma locação (com troca, a do trecho atual)."""
+    saida = services.saida_vigente(locacao.pk, chegada.veiculo_id)
+    km_saida = saida.km if saida is not None else None
+    rodou = chegada.km - km_saida if chegada.km is not None and km_saida is not None else None
+    combustivel = acerto.combustivel(
+        capacidade_litros=chegada.veiculo.capacidade_tanque_litros,
+        preco_litro_centavos=None,
+        saida=saida.combustivel if saida is not None else "",
+        chegada=chegada.combustivel,
+    )
+    capacidade = chegada.veiculo.capacidade_tanque_litros
+    litros = (
+        str((capacidade * combustivel.quartos / 4).quantize(Decimal("0.1")))
+        if capacidade is not None
+        else None
+    )
+    fotos_saida = (
+        {f.posicao: f for f in FotoVistoria.ativos.filter(vistoria=saida)} if saida else {}
+    )
+    fotos_chegada = {f.posicao: f for f in FotoVistoria.ativos.filter(vistoria=chegada)}
+    itens_saida = {i["codigo"]: i for i in (saida.itens if saida is not None else [])}
+    return {
+        "km": {
+            "saida": km_saida,
+            "agora": chegada.km,
+            "rodou": rodou,
+            "texto": _texto_km(rodou) if rodou is not None else "Plano com km livre",
+        },
+        "combustivel": {
+            "saida": (saida.combustivel or None) if saida is not None else None,
+            "agora": chegada.combustivel or None,
+            "faltou": acerto.FALTOU.get(combustivel.quartos),
+            "litros_faltantes": litros,
+        },
+        "fotos": [
+            {
+                "posicao": posicao,
+                "saida": representacao_foto(fotos_saida[posicao])
+                if posicao in fotos_saida
+                else None,
+                "agora": representacao_foto(fotos_chegada[posicao])
+                if posicao in fotos_chegada
+                else None,
+            }
+            for posicao in POSICOES_OBRIGATORIAS
+        ],
+        "itens": [
+            {
+                "codigo": item["codigo"],
+                "rotulo": item["rotulo"],
+                "saida": _situacao_do_item(itens_saida.get(item["codigo"])),
+                "agora": _situacao_do_item(item),
+                "novo": item.get("ok") is False
+                and _situacao_do_item(itens_saida.get(item["codigo"])) in ("ok", None),
+            }
+            for item in chegada.itens
+        ],
+    }
+
+
+def _item_do_acerto(item: ItemAcerto) -> dict[str, Any]:
+    return {
+        "id": item.pk,
+        "tipo": item.tipo,
+        "descricao": item.descricao,
+        "valor_centavos": item.valor_centavos,
+        "modo": item.modo,
+        "avaria_id": item.avaria_id,
+        "conta_id": item.conta_id,
+    }
+
+
+def representacao_acerto(devolucao: Devolucao) -> dict[str, Any]:
+    itens = list(devolucao.itens.order_by("id"))
+    cobrancas, creditos = services.somas(itens)
+    resultado = acerto.resultado(devolucao.caucao_centavos, creditos, cobrancas)
+    return {
+        "status": "concluido" if devolucao.status == StatusDevolucao.CONCLUIDA else "rascunho",
+        "caucao_centavos": devolucao.caucao_centavos,
+        "itens": [_item_do_acerto(i) for i in itens if i.natureza == NaturezaItem.COBRANCA],
+        "creditos": [_item_do_acerto(i) for i in itens if i.natureza == NaturezaItem.CREDITO],
+        "total_cobrancas_centavos": cobrancas,
+        "total_creditos_centavos": creditos,
+        "saldo_centavos": devolucao.saldo_centavos,
+        "resultado": {
+            "tipo": resultado.tipo,
+            "valor_centavos": resultado.valor_centavos,
+            "texto": resultado.texto,
+            "botao": resultado.botao,
+        },
+        "forma_devolucao": devolucao.forma_devolucao or None,
+    }
+
+
+def representacao_devolucao(devolucao: Devolucao) -> dict[str, Any]:
+    locacao = Locacao.objects.select_related("cliente", "filial").get(pk=devolucao.locacao_id)
+    chegada = base().get(pk=services.chegada_atual(devolucao).pk)
+    veiculo = chegada.veiculo
+    atraso = next((i for i in devolucao.itens.all() if i.tipo == TipoItemAcerto.ATRASO), None)
+    return {
+        "id": devolucao.pk,
+        "status": devolucao.status,
+        "locacao": {
+            "id": locacao.pk,
+            "codigo": locacao.codigo,
+            "status": locacao.status,
+            "cliente": locacao.cliente.nome,
+            "veiculo": f"{veiculo.marca} {veiculo.modelo} · {veiculo.placa}",
+            "no_horario": atraso is None or atraso.valor_centavos == 0,
+        },
+        "vistoria": representacao(chegada),
+        "comparacao": comparacao(locacao, chegada),
+        "acerto": representacao_acerto(devolucao),
+        "devolvida_em": devolucao.devolvida_em,
+        "concluida_em": devolucao.concluida_em,
+        "recibo_enviado_em": devolucao.recibo_enviado_em,
     }
