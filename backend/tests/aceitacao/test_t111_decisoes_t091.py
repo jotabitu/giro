@@ -277,8 +277,8 @@ def test_loc_12_ca_015_28_dias_usados_em_blocos_de_24_h(cenario, urbana_diaria, 
     resposta = _cancelar(cenario, urbana_diaria.pk, "Rodrigo", data="2026-10-07")
     assert resposta.status_code == 200, resposta.json()
     urbana_diaria.refresh_from_db()
-    credito = services.credito_do_encerramento(urbana_diaria, carteira.momento(devolucao))
-    assert credito.valor_centavos == devolve
+    encerramento = services.encerramento_na_devolucao(urbana_diaria, carteira.momento(devolucao))
+    assert encerramento.credito_centavos == devolve
 
 
 def test_loc_12_ca_015_28_acerto_usa_a_hora_da_devolucao(cenario, relogio, urbana_diaria):
@@ -366,7 +366,8 @@ def test_loc_13_ca_015_29_mensal_em_4_semanais_mesmo_saldo_do_mes_a_vista(
     resposta = _cancelar(cenario, nmax_semanais.pk, "Rodrigo", data=dia)
     assert resposta.status_code == 200, resposta.json()
     situacao = [p.status for p in _parcelas(nmax_semanais.pk)]
-    assert situacao == ["paga"] * pagas + ["cancelada"] * (4 - pagas)
+    # T-116: a aprovação não cancela parcelas; quem cancela é o encerramento da devolução.
+    assert situacao == ["paga"] * pagas + ["aberta"] * (4 - pagas)
     detalhe = cenario.detalhe(nmax_semanais.pk)["cancelamento"]
     assert (detalhe["devolver_centavos"], detalhe["cobrar_centavos"]) == (devolver, cobrar)
     nmax_semanais.refresh_from_db()

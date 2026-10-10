@@ -172,11 +172,11 @@ Itens (`ItemAcerto.tipo`):
 | `km_excedente` | `calculado`; hoje sempre 0 (km livre em todos os planos) | `DEV-01` |
 | `parcela_aberta` | `calculado`: parcelas em aberto da locação que vencem até o dia da devolução, inclusive a do próprio dia, cada uma pelo devido nesse dia, com a multa e os juros da `FIN-03` (`financeiro.selectors.devido_ate`). As que vencem depois não entram. Descrição: "Parcela 2 de 5 · venceu em 30/09 (multa R$ 5,99 e juros R$ 0,70)" ou "Parcela 3 de 5 · vence hoje, 07/10" | `DEV-01`, `FIN-03` (T-114) |
 | `multa_transito` | `informado`, com descrição (multas já identificadas) | `DEV-01` |
-| `multa_encerramento` | `calculado`, só em encerramento antecipado aprovado | `LOC-12` |
+| `multa_encerramento` | `calculado`, só em encerramento antecipado aprovado, pelo dia da devolução (não pelo da aprovação, T-116); 0 se a devolução é no fim previsto ou depois | `LOC-12`, `DEV-07` |
 
 `creditos` (somam ao saldo): `semanas_nao_usadas`, só no mensal com encerramento antecipado (`LOC-13`, ex.: Patrícia 37100), e `dias_nao_usados`, na diária com encerramento antecipado, contados pela hora real da devolução em blocos de 24 h (`LOC-12`, CA-015-28).
 
-No mensal em 4 semanais, `semanas_nao_usadas` é o crédito das semanas menos as parcelas que o encerramento cancelou (`LOC-13`, T-111). Quando o líquido é negativo, o item sai em `itens` com `natureza = "cobranca"` (o `valor_centavos` é sempre positivo, como nos outros itens), e a `descricao` mostra a conta: `"2 semanas não usadas (R$ 742,00) − 2 parcelas canceladas (R$ 795,00)"` (CA-015-29: NMax encerrada em 25 set, item de 5300 + multa de 21200 → cobrar 26500). Ao encerrar, a parte não coberta pela caução entra na conta `acerto`.
+No mensal em 4 semanais, `semanas_nao_usadas` é o crédito das semanas menos as parcelas do mês que o encerramento cancela, contadas pelo dia da devolução (`LOC-13`, T-111, T-116). Quando o líquido é negativo, o item sai em `itens` com `natureza = "cobranca"` (o `valor_centavos` é sempre positivo, como nos outros itens), e a `descricao` mostra a conta: `"2 semanas não usadas (R$ 742,00) − 2 parcelas canceladas (R$ 795,00)"` (CA-015-29: NMax encerrada em 25 set, item de 5300 + multa de 21200 → cobrar 26500). Ao encerrar, a parte não coberta pela caução entra na conta `acerto`.
 
 `saldo_centavos = caucao_centavos + soma(creditos) − total_cobrancas_centavos` (`DEV-02`).
 - `resultado.tipo = "devolver"`: saldo positivo, devolvido por Pix, dinheiro ou estorno do cartão (`forma_devolucao`).

@@ -682,28 +682,26 @@ def calculados(locacao: Locacao, chegada: Vistoria) -> list[Calculado]:
     for parcela in parcelas_do_acerto(locacao, dia):
         itens.append(_item_da_parcela(parcela, dia))
     if locacao.encerramento_antecipado_aprovado_em is not None:
+        # DEV-07 (T-116): a multa e o crédito valem pelo dia da devolução, não pelo da
+        # aprovação. LOC-12: a diária conta pela hora real. LOC-13: no mensal em 4 semanais, o
+        # crédito menos as parcelas canceladas pode ficar negativo e vira cobrança.
+        encerramento = locacoes.encerramento_na_devolucao(locacao, momento)
         itens.append(
             Calculado(
                 T.MULTA_ENCERRAMENTO,
                 "Multa do encerramento antecipado",
-                locacao.multa_encerramento_centavos or 0,
+                encerramento.multa_centavos,
             )
         )
-        # LOC-12: a diária conta pela hora real da devolução. LOC-13: no mensal em 4 semanais,
-        # o crédito menos as parcelas canceladas pode ficar negativo e vira cobrança.
-        credito = locacoes.credito_do_encerramento(locacao, momento)
-        if credito.valor_centavos != 0:
+        credito = encerramento.credito_centavos
+        if credito != 0:
             mensal = locacao.periodicidade == Periodicidade.MENSAL
             itens.append(
                 Calculado(
                     T.SEMANAS_NAO_USADAS if mensal else T.DIAS_NAO_USADOS,
-                    credito.descricao,
-                    abs(credito.valor_centavos),
-                    natureza=(
-                        NaturezaItem.CREDITO
-                        if credito.valor_centavos > 0
-                        else NaturezaItem.COBRANCA
-                    ),
+                    encerramento.descricao_do_credito,
+                    abs(credito),
+                    natureza=NaturezaItem.CREDITO if credito > 0 else NaturezaItem.COBRANCA,
                 )
             )
     return itens
@@ -962,7 +960,8 @@ def encerrar_devolucao(devolucao: Devolucao, usuario: Any) -> Devolucao:
         cobrar = [i for i in itens if i.natureza == NaturezaItem.COBRANCA]
         dia = locacoes.data_local(chegada.concluida_em, locacao.filial)
         if locacao.encerramento_antecipado_aprovado_em is not None:
-            # DEV-07: as que vencem depois do dia da devolução; a do dia entrou no acerto.
+            # DEV-07: as que vencem depois do dia da devolução; até o dia, entraram no acerto.
+            # A aprovação não cancela nenhuma (T-116): este é o único cancelamento.
             financeiro.cancelar_abertas(
                 financeiro.Origem(locacoes.ORIGEM, locacao.pk, locacao.codigo),
                 motivo=f"Encerramento antecipado em {dia.strftime('%d/%m/%Y')}",

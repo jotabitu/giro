@@ -382,7 +382,9 @@ def _devolucao(locacao: Locacao) -> dict[str, Any]:
 
 
 def _cancelamento(locacao: Locacao) -> dict[str, Any] | None:
-    """O pedido `APR-02` pendente ou o cancelamento aprovado (com o encerramento antecipado)."""
+    """O pedido `APR-02` pendente ou o cancelamento aprovado (com o encerramento antecipado).
+    Depois da retirada, a multa e o crédito são a estimativa para `data`: o acerto da devolução
+    os recalcula pelo dia em que o veículo volta (T-116)."""
     if not _cancelamento_em_curso(locacao):
         return None
     credito = locacao.credito_encerramento_centavos or 0

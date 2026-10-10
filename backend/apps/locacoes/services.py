@@ -1006,20 +1006,7 @@ def calcular_encerramento(
             financeiro_selectors.pago_da_origem_centavos(ORIGEM, locacao.pk)
         )
     entrada = _entrada_congelada(locacao, Decimal(locacao.desconto_pct))
-    canceladas = 0
-    if locacao.parcelamento_mensal == ParcelamentoMensal.QUATRO_SEMANAIS:
-        achado = fim.periodo_em(
-            locacao.periodicidade,
-            locacao.inicio.astimezone(ZoneInfo(fuso(locacao.filial))),
-            locacao.periodos,
-            dia,
-        )
-        if achado is not None:
-            canceladas = sum(
-                c.valor_centavos
-                for c in financeiro_selectors.abertas_vencendo_depois(ORIGEM, locacao.pk, dia)
-                if c.vencimento < achado[2]
-            )
+    canceladas = sum(c.valor_centavos for c in _parcelas_do_mes_a_cancelar(locacao, dia))
     resultado = fim.depois_da_retirada(
         periodicidade=locacao.periodicidade,
         inicio=locacao.inicio,
@@ -1035,6 +1022,29 @@ def calcular_encerramento(
     if resultado is None:
         raise _sem_dias_restantes()
     return resultado
+
+
+def _parcelas_do_mes_a_cancelar(locacao: Locacao, dia: date) -> list[Any]:
+    """LOC-13, mensal em 4 semanais: as parcelas em aberto do mês em curso que vencem depois de
+    `dia` e que o encerramento cancela (saem do crédito das semanas)."""
+    if locacao.parcelamento_mensal != ParcelamentoMensal.QUATRO_SEMANAIS:
+        return []
+    achado = fim.periodo_em(
+        locacao.periodicidade,
+        locacao.inicio.astimezone(ZoneInfo(fuso(locacao.filial))),
+        locacao.periodos,
+        dia,
+    )
+    if achado is None:
+        return []
+    return sorted(
+        (
+            c
+            for c in financeiro_selectors.abertas_vencendo_depois(ORIGEM, locacao.pk, dia)
+            if c.vencimento < achado[2]
+        ),
+        key=lambda c: (c.vencimento, c.pk),
+    )
 
 
 def _dia_do_cancelamento(dia: date | None) -> date:
@@ -1134,47 +1144,38 @@ def _credito(encerramento: fim.Encerramento) -> int:
 
 
 @dataclass(frozen=True)
-class CreditoDoEncerramento:
-    valor_centavos: int  # negativo no mensal em 4 semanais com mais parcelas canceladas (LOC-13)
-    descricao: str
+class EncerramentoNaDevolucao:
+    multa_centavos: int
+    credito_centavos: int  # negativo no mensal em 4 semanais com mais parcelas canceladas (LOC-13)
+    descricao_do_credito: str
 
 
-def credito_do_encerramento(locacao: Locacao, momento: datetime) -> CreditoDoEncerramento:
-    """O crédito do encerramento antecipado aprovado no acerto da devolução (T-016). Na diária,
-    os dias não usados pela hora real da devolução (LOC-12). No mensal, as semanas inteiras
-    congeladas na aprovação, menos as parcelas que o encerramento cancelou (LOC-13)."""
+def encerramento_na_devolucao(locacao: Locacao, momento: datetime) -> EncerramentoNaDevolucao:
+    """O encerramento antecipado aprovado no acerto da devolução (T-016), recalculado pelo dia
+    da devolução com o mesmo cálculo de `cancelamento/simular` (LOC-12, LOC-13, DEV-07). O que
+    a aprovação gravou é só a estimativa do dia pedido (T-116). Na diária, os dias não usados
+    contam pela hora real da devolução. No mensal em 4 semanais, o crédito das semanas sai menos
+    as parcelas do mês que o encerramento cancela. No fim previsto ou depois, não há multa nem
+    crédito: é uma devolução comum."""
+    try:
+        encerramento = calcular_encerramento(locacao, momento=momento)
+    except Conflito:  # sem dias restantes
+        return EncerramentoNaDevolucao(0, 0, "")
+    liquido = encerramento.credito_liquido_centavos
     if locacao.periodicidade == Periodicidade.DIARIA:
-        try:
-            dias = calcular_encerramento(locacao, momento=momento).credito_dias
-        except Conflito:  # devolvida no fim previsto ou depois: nada a devolver
-            dias = {"dias": 0, "valor_centavos": 0}
-        return CreditoDoEncerramento(dias["valor_centavos"], "Diárias não usadas")
-    liquido = locacao.credito_encerramento_centavos or 0
-    dia = locacao.cancelamento_data
-    if locacao.periodicidade != Periodicidade.MENSAL or dia is None:
-        return CreditoDoEncerramento(liquido, "Semanas não usadas")
-    achado = fim.periodo_em(
-        locacao.periodicidade,
-        locacao.inicio.astimezone(ZoneInfo(fuso(locacao.filial))),
-        locacao.periodos,
-        dia,
-    )
-    if achado is None:
-        return CreditoDoEncerramento(liquido, "Semanas não usadas")
-    canceladas = financeiro_selectors.parcelas_canceladas_vencendo_entre(
-        ORIGEM, locacao.pk, dia, achado[2]
-    )
+        return EncerramentoNaDevolucao(encerramento.multa_centavos, liquido, "Diárias não usadas")
+    canceladas = _parcelas_do_mes_a_cancelar(locacao, data_local(momento, locacao.filial))
     if not canceladas:
-        return CreditoDoEncerramento(liquido, "Semanas não usadas")
+        return EncerramentoNaDevolucao(encerramento.multa_centavos, liquido, "Semanas não usadas")
     soma = sum(c.valor_centavos for c in canceladas)
-    semanas = (achado[2] - dia).days // 7
+    semanas = encerramento.credito_semanas["semanas"]
     n = len(canceladas)
     descricao = (
         f"{semanas} {'semana não usada' if semanas == 1 else 'semanas não usadas'} "
         f"({formatar_reais(liquido + soma)}) − {n} "
         f"{'parcela cancelada' if n == 1 else 'parcelas canceladas'} ({formatar_reais(soma)})"
     )
-    return CreditoDoEncerramento(liquido, descricao)
+    return EncerramentoNaDevolucao(encerramento.multa_centavos, liquido, descricao)
 
 
 def _aplicar_cancelamento(locacao: Locacao, motivo: str, dia: date, forma: str) -> None:
@@ -1183,8 +1184,10 @@ def _aplicar_cancelamento(locacao: Locacao, motivo: str, dia: date, forma: str) 
     Antes da retirada: `cancelada` na hora, sem multa; as contas abertas são canceladas, o que
     foi pago vira um `Reembolso` a fazer, o veículo reservado volta a `disponivel`, a comissão é
     estornada (FIN-09) e o link do contrato deixa de valer. Depois da retirada: a locação fica
-    com o encerramento antecipado aprovado e segue para a devolução, cujo acerto leva a multa e
-    o crédito (T-016); as parcelas que vencem depois do dia são canceladas e a comissão fica."""
+    com o encerramento antecipado aprovado e segue para a devolução. A multa e o crédito gravados
+    aqui são a estimativa para `dia`; o acerto os recalcula pelo dia da devolução, e é o
+    encerramento da devolução que cancela as parcelas (T-116, DEV-07). Nenhuma parcela muda aqui,
+    e a comissão fica."""
     encerramento = calcular_encerramento(locacao, dia)
     aprovacoes.cancelar_pendentes(
         origem_tipo=ORIGEM, origem_id=locacao.pk, motivo=f"Locação cancelada: {motivo}"[:200]
@@ -1238,12 +1241,6 @@ def _aplicar_cancelamento(locacao: Locacao, motivo: str, dia: date, forma: str) 
                 "atualizado_em",
             ]
         )
-    financeiro.cancelar_abertas(
-        origem,
-        motivo=f"Encerramento antecipado em {dia.strftime('%d/%m/%Y')}",
-        regra="LOC-12",
-        vencendo_depois_de=dia,
-    )
 
 
 def aplicar_decisao_cancelamento(

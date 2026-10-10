@@ -421,12 +421,14 @@ def test_loc_12_ca_015_23_diaria_sem_multa_cobra_so_os_dias_usados(cenario):
     assert simulacao["devolver_centavos"] == 3 * STREET_DIARIA
 
 
-def test_loc_12_encerramento_antecipado_cancela_as_parcelas_seguintes(cenario):
+def test_loc_12_encerramento_antecipado_aprovado_nao_cancela_parcelas(cenario):
+    """T-116: quem cancela as parcelas é o encerramento da devolução, pelo dia em que o veículo
+    volta (DEV-07); a aprovação não muda nenhuma."""
     detalhe = _ativa(cenario, periodos=3)  # parcelas de 07, 14 e 21 out
     resposta = _cancelar(cenario, detalhe["id"], "Rodrigo", data="2026-10-10")
     assert resposta.status_code == 200, resposta.json()
     situacao = {p.numero_parcela: p.status for p in _parcelas(detalhe["id"])}
-    assert situacao == {1: "paga", 2: "cancelada", 3: "cancelada"}
+    assert situacao == {1: "paga", 2: "aberta", 3: "aberta"}
     comissao = Comissao.objects.get(origem_tipo="locacao", origem_id=detalhe["id"])
     assert comissao.status == "confirmada"  # FIN-09: o encerramento antecipado não estorna
 
