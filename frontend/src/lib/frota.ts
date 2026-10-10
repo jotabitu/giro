@@ -16,7 +16,9 @@ export const diaria = (v: Veiculo) => dinheiro(v.preco_vigente.diaria_centavos);
 export function situacaoDoDocumento(
   situacao: "em_dia" | "vence_em_breve" | "vencido",
   dias: number | null,
+  rotuloFixo?: string,
 ): { rotulo: string; tom: "sucesso" | "alerta" | "critico" } {
+  if (rotuloFixo && situacao === "em_dia") return { rotulo: rotuloFixo, tom: "sucesso" };
   if (situacao === "vencido") return { rotulo: "Vencido", tom: "critico" };
   if (situacao === "vence_em_breve") return { rotulo: dias === null ? "Vence em breve" : `Vence em ${dias} ${dias === 1 ? "dia" : "dias"}`, tom: "alerta" };
   return { rotulo: "Em dia", tom: "sucesso" };

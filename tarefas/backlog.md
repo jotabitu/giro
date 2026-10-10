@@ -67,6 +67,13 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - [divergência] Contratos (T-059, para o arquiteto): em `docs/api/financeiro.md`, o caixa de exemplo passa a 111190 (cartão 10900); em `docs/api/painel.md`, `caixa_hoje` fica com `recebido_centavos` 111190 e `saldo_dia_centavos` 106390; em `docs/api/veiculos.md`, a LOC-2841 é "assinada em 23 set".
 
 
+Levantadas pelo produto em T-112 (09 out 2026), estado do QXA-4B21 em 07 out (caso "Estado do QXA-4B21 em 07 out" nos dados de referência):
+
+- [divergência] Telas, para o design-system (T-028): `Frota-Desktop` e `Frota-Mobile` trocam "Atrasado" por "Alugado" (tom `solido`), 2024 prata por 2023 vermelha, 14.212 km por 18.950 km e próxima manutenção 15.000 km por 19.900 km. `Veiculo-Desktop` e `Veiculo-Mobile`: Km atual "atualizado 23 set" (não 07 out); LOC-2841 de 23 set a 28 out (não 30 set a 04 nov); a LOC-2702 termina até 12 set (hoje vai a 29 set e cruza com a LOC-2841); troca de óleo de 12 set aos 18.900 km (não 17.900; `MAN-03`, a cada 1.000 km); chassi 9C2KC2210PR004401 do seed (não 9C2KC2210PR004417), e o Renavam 01289934410 é o da SAK1D39 no seed, não pode se repetir. `Main`: a LOC-2841 sai de "Devoluções da semana" (devolve em 28 out, não em 10 out). `Vistoriador-Desktop` e `Vistoriador-Mobile`: a devolução "ontem 18h, Atrasada" do QXA-4B21 sai da agenda de 07 out; a única devolução atrasada do seed é a LOC-2790 (Rafael).
+- [divergência] Contratos, para o arquiteto: os exemplos de `devolucoes_semana` em `docs/api/painel.md` e de `GET /api/vistorias/agenda/` em `docs/api/vistorias.md` usam a LOC-2841 como devolução atrasada de 06 out. Trocar pela LOC-2790 (Rafael, `devolucao_atrasada`).
+- [divergência] Dados falsos, para o frontend: `falso-frota.ts` já tem `alugado` e 18.950 km, mas a ficha mostra "Atrasado" por seguir a Frota; passa a "Alugado" (tom `solido`), LOC-2841 de 23 set a 28 out. `falso-painel.ts` tira a LOC-2841 das devoluções da semana e da agenda (como em `painel.md` e `vistorias.md`).
+- [divergência] `Manutencao-Desktop` (para o design-system, T-028): a OS-119 do QXA-4B21 aparece "Agendada, automática por km" com 950 km faltando, mas a `MAN-03` só cria a OS automática quando faltam 500 km. Em 07 out ela ainda não existe; a ficha só mostra "próxima: troca de óleo aos 19.900 km".
+
 Levantadas pelo backend em T-015 (09 out 2026):
 
 - (T-091) As 2 divergências foram resolvidas na T-106 e as 5 decisões aprovadas pelo dono em 09/10, todas na opção A; regra na T-110 (PR #110) e código na T-111.
@@ -79,6 +86,11 @@ Levantadas pelo backend em T-091 (09 out 2026), para o produto. O código segue 
 Levantadas pelo backend em T-016 parte 1 (09 out 2026):
 
 - [divergência] (qa, T-105) A carteira de outubro (`docs/qa/carteira-outubro/locacoes.csv` e `tests/aceitacao/carteira.py`) traz a LOC-2856 como `ativa` desde 07 out 09:00. O CA-016-08 (e o CA-016-01) a quer `aguardando_retirada`, com retirada às 09:15. (O teste da agenda tira a LOC-2856 da carteira e cria a do critério.)
+
+Levantadas pelo backend em T-109 (09 out 2026). O código segue o que está entre parênteses:
+
+- (T-109) As duas decisões (ordem da caução no `DEV-02` e parcela do dia no `DEV-01`) e a devolução antes do fim sem encerramento aprovado foram decididas em 09 out 2026 pelo dono do produto: `DEV-02` opção A com o ajuste (a parcela que não cabe inteira vai para `renegociada` e entra na conta única do saldo), `DEV-01` opção B e a nova `DEV-07` (opção A). Regra e critérios na T-113 (CA-016-13, 22, 23 e 24); o código muda numa tarefa do backend (handoff da T-113).
+- [divergência] (qa, T-019) O seed de teste não tem o preço do litro da Filial Centro (R$ 5,50), a vistoria de saída da LOC-2836 (cheio, 18.402 km; a PNB7C04 está com 21.870 km) nem a caução paga da LOC-2841 e da LOC-2812. (Os testes da T-109 gravam esses dados na fixture.)
 
 ## Fase 0 · Fundação
 
@@ -227,18 +239,11 @@ Levantadas pelo backend em T-016 parte 1 (09 out 2026):
 ### T-093 · Momentos em UTC na API
 - **Agente:** backend · **Depende de:** T-088 · **ADRs:** 0020 · **Pronto quando:** `comum/renderizacao.py` ligado no `REST_FRAMEWORK` como na ADR 0020; os 3 testes de `backend/tests/test_formato_das_datas.py` passam sem `xfail` e a lista de pendentes do teste de varredura fica vazia; contas, aprovações, plataforma, veículos, filiais e clientes saem em `AAAA-MM-DDTHH:MM:SSZ` sem mexer nos serializers; OpenAPI sem mudança. Passos em `tarefas/handoffs/T-088-arquiteto.md`.
 
-### T-102 · Ficha do veículo idêntica à referência
-- **Agente:** frontend · **Depende de:** T-013, T-079 · **Telas:** Veiculo (`docs/telas/html/Veiculo-Desktop.dc.html` e `Veiculo-Mobile.dc.html`) · **Regras:** VEI-01 a VEI-07 · **Pronto quando:** `/veiculos/[id]` (`FichaVeiculo.tsx`) reproduz a tela de referência no desktop e no celular, com a mesma estrutura, seções, ordem, rótulos, ações e estados, usando os componentes e tokens do design system; os dados vêm de `falso-frota.ts` no formato de `docs/api/veiculos.md` (T-013 e T-079); o que a tela mostra e o contrato não tem fica com o falso ou desativado e anotado no handoff; o design-system confere a fidelidade visual; teste da tela. Pedido do dono em 09/10.
-
 ### T-105 · Seed da LOC-2836 até 14 out
 - **Agente:** qa · **Depende de:** T-104, T-091 · **Regras:** LOC-01, LOC-06 · **Pronto quando:** `backend/tests/aceitacao/carteira.py` cria a LOC-2836 com início em 30 set 18:00 e fim calculado pela LOC-01 (14 out 18:00), sem o ajuste do `fim_previsto`; os testes que usam a LOC-2836 seguem os critérios da T-104; sem mudança de código de produção.
 
 ### T-091 · Locação: renovação, atraso, cancelamento e encerramento
 - **Agente:** backend · **Depende de:** T-090 · **Regras:** LOC-08, LOC-10 a LOC-13, FIL-03, APR-02, AUT-02 · **Pronto quando:** CA-015-17 e 19 a 24 e o estorno do CA-015-25 passam, com o código da regra no nome do teste: renovação com aditivo; atraso com `calcular_atraso` e `aut_02`; cancelamento e encerramento antecipado com APR-02, reembolso e comissão estornada.
-
-### T-109 · Devolução e acerto
-- **Agente:** backend · **Depende de:** T-016 · **Regras:** DEV-01 a DEV-06, LOC-10, LOC-12, LOC-13 · **Telas:** Devolucao · **Pronto quando:** caso LOC-2836 devolve R$ 183,00 e CA-016-09 a 14, 16, 17, 19 e 20 de `docs/qa/criterios/T-016.md` passam, com o código da regra no nome do teste: `POST` devolução; acerto (combustível, avarias, atraso, parcelas, multa e crédito do encerramento antecipado); itens; encerrar (`encerrar()`, reembolso, conta de 3 dias, veículo `disponivel`); recibo em PDF e WhatsApp. "Vai para oficina" (DEV-04) leva o veículo a `em_manutencao`; a OS fica para o módulo de manutenção.
-- **Nota:** a T-016 original foi dividida em 09/10 em T-016 (vistoria) e T-109 (devolução e acerto). CA-016-15 fica na T-092 e CA-016-18 na T-017.
 
 ### T-111 · Código das decisões da T-091
 - **Agente:** backend · **Depende de:** T-110, T-109 · **Regras:** LOC-08, LOC-12, LOC-13 · **Pronto quando:** os CA-015-26 a 29 (T-110) passam, com o código da regra no nome do teste: renovação de atrasada começa na hora da renovação e o atraso continua cobrado; diária no encerramento conta blocos de 24 h; mensal em 4 semanais com saldo igual ao do mês à vista e crédito negativo em `cobrar_centavos`; extras da renovação pelo preço de hoje.
@@ -246,12 +251,12 @@ Levantadas pelo backend em T-016 parte 1 (09 out 2026):
 ### T-092 · Troca de veículo durante a locação
 - **Agente:** backend · **Depende de:** T-016, T-091 · **Regras:** LOC-09 · **Pronto quando:** CA-015-18 passa, com o código da regra no nome do teste; a troca abre a vistoria de devolução do veículo antigo e a de saída do novo (T-016).
 
-### T-108 · Detalhe do cliente idêntico à referência
-- **Agente:** frontend · **Depende de:** T-014, T-102 · **Telas:** Cliente-Detalhe (`docs/telas/html/Cliente-Detalhe-Desktop.dc.html` e `Cliente-Detalhe-Mobile.dc.html`) · **Regras:** CLI-01 a CLI-09, AUD-05, AUD-09 · **Pronto quando:** `/clientes/[id]` reproduz a tela de referência no desktop e no celular, com a mesma estrutura, seções, ordem, rótulos, ações e estados, usando os componentes e tokens do design system; os dados vêm de `falso-clientes.ts` no formato de `docs/api/clientes.md` (T-014); a LOC-2836 da Juliana segue a regra (até 14 out, sem "Devolve hoje" em 07 out), e não a tela; o que a tela mostra e o contrato não tem fica com o falso ou desativado e anotado no handoff; teste da tela. Pedido do dono em 09/10.
-
+### T-114 · Código das decisões da devolução (T-113)
+- **Agente:** backend · **Depende de:** T-109, T-113 · **Regras:** DEV-01, DEV-02, DEV-07, LOC-13, FIN-03 · **Pronto quando:** CA-016-13 (corrigido) e CA-016-22 a 24 de `docs/qa/criterios/T-016.md` passam, com o código da regra no nome do teste, e a LOC-2836 continua devolvendo R$ 183,00: itens do acerto com `vencimento__lte` e a parcela valendo o devido com multa e juros da FIN-03 até o dia (29940 vencida em 30 set e devolvida em 07 out dá 30609); `pagar_com_caucao` para na primeira parcela que não cabe, leva ela e as seguintes a `renegociada` (transição e auditoria) e a conta `acerto` vale `-saldo`, com referência às parcelas que substitui; devolução antes do dia do fim previsto sem encerramento aprovado recusada (422 `DEV-07`, nome final com o arquiteto). Passos em `tarefas/handoffs/T-113-produto.md`.
+- **Inclui:** o cálculo da FIN-03 (`juros_pro_rata` em `comum/dinheiro.py`, com um arredondamento só, ponto 4 da T-045), que estava na T-017; a T-017 passa a usar o desta tarefa.
 
 ### T-017 · Contas a receber, caixa do dia, baixa
-- **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 23) passam, com o código da regra no nome do teste. · **Inclui:** `juros_pro_rata` em `comum/dinheiro.py` com um arredondamento só (CA-017-08: Carlos 70, Rafael 1123; ponto 4 da T-045)
+- **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 23) passam, com o código da regra no nome do teste. · **Inclui:** usar o `juros_pro_rata` de `comum/dinheiro.py`, que vem da T-114 (CA-017-08: Carlos 70, Rafael 1123)
 
 ### T-018 · Tela e consulta da auditoria
 - **Agente:** backend · **Depende de:** T-011 · **Regras:** AUD-01 a AUD-03 (o registro dos eventos já vem de T-001) · **Telas:** Admin-Auditoria, Plat-Auditoria · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-018.md` (CA-018-01 a 16) passam, com o código da regra no nome do teste.
@@ -268,6 +273,7 @@ Levantadas pelo backend em T-016 parte 1 (09 out 2026):
 
 ### T-028 · Limpar dados de exemplo das telas
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`. Inclui `Despesas-Desktop` e `Despesas-Mobile`: aguardando aprovação é R$ 1.200,00 (não R$ 1.386,40) e o IPVA de R$ 186,40 nasce `a_pagar` (FIN-05), apontado pelo qa na T-040.
+- **Estado do QXA-4B21 (T-112, decisão do dono em 09/10, opção A):** corrigir Frota, Veiculo, Main, Vistoriador e a OS-119 em Manutencao conforme o caso "Estado do QXA-4B21 em 07 out" dos dados de referência e as divergências levantadas pelo produto em T-112 (acima, em Pontos em aberto): Alugado no tom `solido` (não azul) e "Colocar à venda" só em veículo `disponivel`.
 
 ### T-029 · Integração com o Asaas (sandbox)
 - **Agente:** backend · **Depende de:** T-017 · **Segurança:** `WebhookRecebido` com `evento_id` único e conferência na API do Asaas, throttle (S-14, S-17) · **Regras:** FIN-01 a FIN-04, AUT-04, AUT-05 · **Pronto quando:** `backend/integracoes/pagamentos/asaas.py` implementa a interface de pagamentos (criar subconta da empresa, cobrança Pix e boleto, assinatura recorrente, webhook de baixa com verificação e idempotência), testado contra o sandbox; a implementação falsa continua sendo a padrão em testes.

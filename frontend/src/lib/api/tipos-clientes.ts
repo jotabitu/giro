@@ -61,9 +61,51 @@ export type AnaliseCadastro = { itens: ItemAnalise[] };
 
 export type DocumentoDoCliente = { tipo: TipoDocumentoCliente; enviado_em: string | null };
 
+export type CnhDoCliente = { numero: string; categoria: string; validade: string; primeira_habilitacao: string | null; situacao: "valida" | "vencida" | "vencida_impede" };
+
+export type BloqueioDoCliente = { motivo: "atraso" | "manual"; desde: string; descricao: string; desbloqueia_sozinho: boolean };
+
+/** Representação completa de GET /api/clientes/{id}/ (docs/api/clientes.md). Sem dado informado, o campo vem `null`. */
 export type ClienteCompleto = ClienteResumo & {
   documento: string;
+  nascimento: string | null;
+  idade: number | null;
+  email: string | null;
+  profissao: string | null;
+  cnh: CnhDoCliente | null;
+  responsavel: { nome: string; cpf: string; celular: string } | null;
+  endereco: EnderecoCliente | null;
+  referencia: { nome: string; parentesco: string; telefone: string } | null;
+  consentimento_em: string | null;
+  bloqueio: BloqueioDoCliente | null;
   documentos: DocumentoDoCliente[];
   pendencias: string[];
   analise: AnaliseCadastro;
 };
+
+// FORA DO CONTRATO de clientes: o histórico de locações da ficha vem de GET /api/locacoes/?cliente= (T-015), que ainda não devolve
+// o valor pago nem os preços congelados. Os campos marcados abaixo são falsos até esse contrato existir.
+export type LocacaoDoCliente = {
+  id: number;
+  codigo: string;
+  status: "aguardando_retirada" | "ativa" | "devolucao_atrasada" | "encerrada" | "cancelada";
+  veiculo: { id: number; modelo: string; placa: string; /** Falso: o ícone da ficha. */ tipo_veiculo: "moto" | "carro" };
+  periodicidade: "diaria" | "semanal" | "mensal";
+  inicio: string;
+  fim_previsto: string;
+  situacao: { codigo: string; rotulo: string; tom: TomApi };
+  /** Falso: total pago na locação, caução incluída, e o texto que o explica ("2 semanas + caução R$ 300,00"). */
+  pago_centavos: number;
+  pago_detalhe: string;
+  /** Falso: preço congelado, caução e parcelas, que vêm do detalhe da locação. */
+  valor_periodo_centavos: number;
+  caucao_centavos: number;
+  caucao_em_garantia: boolean;
+  parcelas_pagas: number;
+  parcelas_total: number;
+};
+export type LocacoesDoCliente = { total: number; /** Falso: locações com devolução ou pagamento atrasado. */ com_atraso: number; resultados: LocacaoDoCliente[] };
+
+/** Falso: não há endpoint de linha do tempo do cliente. Montada de auditoria, pagamentos e vistorias. */
+export type EventoDoCliente = { em: string; rotulo: string; detalhe: string };
+export type HistoricoDoCliente = { resultados: EventoDoCliente[] };

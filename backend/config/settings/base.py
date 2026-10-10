@@ -191,6 +191,9 @@ SPECTACULAR_SETTINGS = {
         "TipoClienteEnum": "apps.clientes.models.TipoCliente",
         "StatusContratoEnum": "apps.contratos.models.StatusContrato",
         "StatusModeloContratoEnum": ["publicado", "rascunho"],
+        # O do cancelamento (LOC-12), sem dinheiro, e o do acerto (DEV-02), com dinheiro pelo caixa.
+        "FormaDevolucaoEnum": [("pix", "Pix"), ("estorno_cartao", "Estorno no cartão")],
+        "FormaDevolucaoAcertoEnum": "apps.vistorias.models.FormaDevolucao",
         # Nomes que veículos já publicava, antes de clientes ter outro `motivo` e `situacao`.
         "MotivoEnum": ["perda_total", "roubo", "sucata", "outro"],
         "SituacaoEnum": ["em_dia", "vence_em_breve", "vencido"],

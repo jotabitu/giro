@@ -3,9 +3,9 @@ lugar que grava nestes models.
 
 Interface para os outros apps (ADR 0011, `locacoes` e `vendas` chamam para baixo):
 `criar_contas`, `ajustar_valor`, `cancelar_abertas`, `lancar_comissao`, `confirmar_comissao`,
-`estornar_comissao`, `devolver_ao_cliente` e `marcar_paga`. Esta última é a porta da baixa até a
-T-017 trazer o caixa e o Pix: grava o pagamento e publica `financeiro.parcela_paga`, como a baixa
-de verdade vai publicar.
+`estornar_comissao`, `devolver_ao_cliente`, `pagar_com_caucao` e `marcar_paga`. Esta última é a
+porta da baixa até a T-017 trazer o caixa e o Pix: grava o pagamento e publica
+`financeiro.parcela_paga`, como a baixa de verdade vai publicar.
 """
 
 from dataclasses import dataclass
@@ -26,12 +26,14 @@ from comum.eventos import publicar
 from .models import (
     Comissao,
     ContaReceber,
+    FormaPagamento,
     FormaReembolso,
     Reembolso,
     RegraComissao,
     StatusComissao,
     StatusConta,
     StatusReembolso,
+    TipoConta,
 )
 
 
@@ -236,6 +238,77 @@ def estornar_comissao(origem: Origem, *, motivo: str) -> int:
 
 
 # --- Reembolsos (DEV-02: dinheiro que volta ao cliente) ---
+
+# --- Acerto da devolução (DEV-02) ---
+
+
+@dataclass(frozen=True)
+class Cobranca:
+    """Uma cobrança do acerto que ainda não é conta (combustível, avaria, atraso, multa)."""
+
+    tipo: str
+    valor_centavos: int
+    observacao: str = ""
+
+
+@dataclass(frozen=True)
+class Acerto:
+    pagas: list[ContaReceber]
+    a_receber: ContaReceber | None
+
+
+def pagar_com_caucao(
+    origem: Origem,
+    *,
+    filial_id: int,
+    cliente_id: int,
+    disponivel_centavos: int,
+    abertas: list[ContaReceber],
+    cobrancas: list[Cobranca],
+    vencimento_do_saldo: date,
+) -> Acerto:
+    """DEV-02, na transação de quem chama. Com o que há da caução e dos créditos
+    (`disponivel_centavos`), paga primeiro as parcelas em aberto, inteiras, e depois as
+    cobranças, que viram contas pagas com a caução (`forma = caucao`). O que não couber fica: a
+    parcela continua em aberto, e o resto das cobranças vira uma conta a receber do cliente
+    (`tipo = acerto`) com vencimento em `vencimento_do_saldo`."""
+    restante = disponivel_centavos
+    pagas: list[ContaReceber] = []
+    novas: list[NovaConta] = []
+    a_cobrar = 0
+    with transaction.atomic():
+        for conta in abertas:
+            devido = conta.valor_centavos + conta.multa_centavos + conta.juros_centavos
+            if devido > restante:
+                continue
+            marcar_paga(conta, forma=FormaPagamento.CAUCAO)
+            restante -= devido
+            pagas.append(conta)
+        for cobranca in cobrancas:
+            coberto = min(restante, cobranca.valor_centavos)
+            restante -= coberto
+            a_cobrar += cobranca.valor_centavos - coberto
+            novas.append(
+                NovaConta(cobranca.tipo, relogio.hoje(), coberto, observacao=cobranca.observacao)
+            )
+        for conta in criar_contas(origem, filial_id=filial_id, cliente_id=cliente_id, contas=novas):
+            marcar_paga(conta, forma=FormaPagamento.CAUCAO)
+            pagas.append(conta)
+        saldo = criar_contas(
+            origem,
+            filial_id=filial_id,
+            cliente_id=cliente_id,
+            contas=[
+                NovaConta(
+                    TipoConta.ACERTO,
+                    vencimento_do_saldo,
+                    a_cobrar,
+                    observacao="Saldo do acerto da devolução",
+                )
+            ],
+        )
+    return Acerto(pagas=pagas, a_receber=saldo[0] if saldo else None)
+
 
 # O dinheiro sai pelo caixa do dia, que chega com a T-017.
 FORMAS_SEM_CAIXA = (FormaReembolso.PIX, FormaReembolso.ESTORNO_CARTAO)

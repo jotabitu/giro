@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { dataCompleta, dataCurta, dinheiro, saudacao } from "./formatos";
+import { dataCompleta, dataCurta, dinheiro, dinheiroSemZeros, saudacao } from "./formatos";
 
 describe("formatos", () => {
   it("dinheiro em centavos", () => {
     expect(dinheiro(125000)).toBe("R$ 1.250,00");
+  });
+
+  it("dinheiro sem zeros só tira ,00 e nunca arredonda", () => {
+    expect(dinheiroSemZeros(987000)).toBe("R$ 9.870");
+    expect(dinheiroSemZeros(32950)).toBe("R$ 329,50");
+    expect(dinheiroSemZeros(5)).toBe("R$ 0,05");
   });
 
   it("data curta de lista e completa de formulário", () => {

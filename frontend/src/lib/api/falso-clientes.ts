@@ -7,7 +7,9 @@ import {
   type ClienteCompleto,
   type ClienteResumo,
   type FiltroClientes,
+  type HistoricoDoCliente,
   type ListaClientes,
+  type LocacoesDoCliente,
   type NovoCliente,
   type StatusCliente,
   type TipoDocumentoCliente,
@@ -34,11 +36,32 @@ type Registro = {
   pendencias: string[];
   anexos: TipoDocumentoCliente[];
   motivoBloqueio?: "atraso" | "manual";
+  /** Dados do cadastro completo (nascimento, CNH, endereço...). Sem eles a API devolve `null`. */
+  extra?: Partial<NovoCliente>;
 };
+
+/** "Hoje" do seed (07 out 2026): a idade que a API devolve é calculada contra ele. */
+const HOJE_DO_SEED = "2026-10-07";
+
+function idadeEm(nascimento: string): number {
+  const [a = 0, m = 0, d = 0] = nascimento.split("-").map(Number);
+  const [ah = 0, mh = 0, dh = 0] = HOJE_DO_SEED.split("-").map(Number);
+  return ah - a - (mh < m || (mh === m && dh < d) ? 1 : 0);
+}
 
 const REGISTROS: Registro[] = [
   { id: 1206, tipo: "pf", nome: "Lucas Ferreira", documento: "12345678909", celular: "85988771203", status: "incompleto", desde: "2026-10-07", criadoEm: 9, locacao: { id: 2856, codigo: "LOC-2856", veiculo: "Honda CG 160 Fan", detalhe: "" }, pago: 62900, aberto: 0, pendencias: ["selfie_documento", "comprovante_residencia"], anexos: ["cnh_frente", "cnh_verso"] },
-  { id: 1201, tipo: "pf", nome: "Juliana Rocha", documento: "05221833018", celular: "85981142290", status: "ativo", desde: "2026-03-04", criadoEm: 8, locacao: { id: 2836, codigo: "LOC-2836", veiculo: "Factor 150", detalhe: "devolve hoje" }, pago: 267400, aberto: 0, pendencias: [], anexos: ["cnh_frente", "cnh_verso", "selfie_documento", "comprovante_residencia"] },
+  { id: 1201, tipo: "pf", nome: "Juliana Rocha", documento: "05221833018", celular: "85981142290", status: "ativo", desde: "2026-03-04", criadoEm: 8, locacao: { id: 2836, codigo: "LOC-2836", veiculo: "Factor 150", detalhe: "semanal" }, pago: 267400, aberto: 0, pendencias: [], anexos: ["cnh_frente", "cnh_verso", "selfie_documento", "comprovante_residencia"],
+    extra: {
+      nascimento: "1994-07-02",
+      email: "juliana.rocha@email.com",
+      profissao: "Entregadora",
+      cnh: { numero: "03811234562", categoria: "A", validade: "2030-11-18", primeira_habilitacao: "2016-08-10" },
+      endereco: { cep: "60115190", logradouro: "Rua Monsenhor Bruno", numero: "1120", complemento: null, bairro: "Aldeota", cidade: "Fortaleza", uf: "CE" },
+      referencia: { nome: "Sandra Rocha", parentesco: "mãe", telefone: "85988224410" },
+      consentimento: true,
+    },
+  },
   { id: 1202, tipo: "pf", nome: "Carlos Menezes", documento: "39901442055", celular: "85997025531", status: "ativo", desde: "2026-01-12", criadoEm: 7, locacao: { id: 2841, codigo: "LOC-2841", veiculo: "CG 160 Fan", detalhe: "" }, pago: 389220, aberto: 29940, pendencias: [], anexos: ["cnh_frente", "cnh_verso", "selfie_documento", "comprovante_residencia"] },
   { id: 1203, tipo: "pf", nome: "Rafael Sousa", documento: "15337710582", celular: "85986504419", status: "bloqueado", desde: "2025-08-20", criadoEm: 6, locacao: { id: 2790, codigo: "LOC-2790", veiculo: "Pop 110i", detalhe: "25 dias de atraso" }, pago: 179600, aberto: 134700, pendencias: [], anexos: ["cnh_frente", "cnh_verso", "selfie_documento", "comprovante_residencia"], motivoBloqueio: "atraso" },
   { id: 1204, tipo: "pf", nome: "Marcos Viana", documento: "76640258014", celular: "85992318870", status: "ativo", desde: "2025-05-09", criadoEm: 5, locacao: { id: 2850, codigo: "LOC-2850", veiculo: "Biz 125", detalhe: "mensal" }, pago: 1138000, aberto: 0, pendencias: [], anexos: ["cnh_frente", "cnh_verso", "selfie_documento", "comprovante_residencia"] },
@@ -48,6 +71,28 @@ const REGISTROS: Registro[] = [
   { id: 1209, tipo: "pj", nome: "Veloz Entregas Ltda", documento: "11222333000181", celular: "85984410077", status: "ativo", desde: "2026-04-15", criadoEm: 1, locacao: { id: 2860, codigo: "LOC-2860", veiculo: "Biz 125", detalhe: "mensal" }, pago: 540000, aberto: 0, pendencias: [], anexos: ["cnh_frente", "cnh_verso", "selfie_documento", "comprovante_residencia"] },
   { id: 1210, tipo: "pf", nome: "Bruno Teixeira", documento: "48370915005", celular: "85983302211", status: "inativo", desde: "2024-12-02", criadoEm: 0, pago: 98000, aberto: 0, pendencias: [], anexos: ["cnh_frente", "cnh_verso", "selfie_documento", "comprovante_residencia"] },
 ];
+
+/** LOC-2836 (LOC-05, LOC-06): 2 semanas de 30 set 18:00 a 14 out 18:00, ativa em 07 out, sem "devolve hoje". */
+const LOCACOES: Record<number, LocacoesDoCliente> = {
+  1201: {
+    total: 3,
+    com_atraso: 0,
+    resultados: [
+      { id: 2836, codigo: "LOC-2836", status: "ativa", veiculo: { id: 412, modelo: "Yamaha Factor 150", placa: "PNB7C04", tipo_veiculo: "moto" }, periodicidade: "semanal", inicio: "2026-09-30T21:00:00Z", fim_previsto: "2026-10-14T21:00:00Z", situacao: { codigo: "ativa", rotulo: "Ativa", tom: "sucesso" }, pago_centavos: 95800, pago_detalhe: "2 semanas + caução R$ 300,00", valor_periodo_centavos: 32900, caucao_centavos: 30000, caucao_em_garantia: true, parcelas_pagas: 2, parcelas_total: 2 },
+      { id: 2760, codigo: "LOC-2760", status: "encerrada", veiculo: { id: 412, modelo: "Yamaha Factor 150", placa: "PNB7C04", tipo_veiculo: "moto" }, periodicidade: "mensal", inicio: "2026-08-01T15:00:00Z", fim_previsto: "2026-08-31T15:00:00Z", situacao: { codigo: "encerrada", rotulo: "Encerrada", tom: "neutro" }, pago_centavos: 119000, pago_detalhe: "caução devolvida", valor_periodo_centavos: 89000, caucao_centavos: 30000, caucao_em_garantia: false, parcelas_pagas: 1, parcelas_total: 1 },
+      { id: 2701, codigo: "LOC-2701", status: "encerrada", veiculo: { id: 501, modelo: "Honda CG 160 Fan", placa: "QXA4B21", tipo_veiculo: "moto" }, periodicidade: "semanal", inicio: "2026-06-02T15:00:00Z", fim_previsto: "2026-06-12T15:00:00Z", situacao: { codigo: "encerrada", rotulo: "Encerrada", tom: "neutro" }, pago_centavos: 52600, pago_detalhe: "1 semana + 3 diárias + combustível", valor_periodo_centavos: 29900, caucao_centavos: 30000, caucao_em_garantia: false, parcelas_pagas: 1, parcelas_total: 1 },
+    ],
+  },
+};
+
+const HISTORICO: Record<number, HistoricoDoCliente["resultados"]> = {
+  1201: [
+    { em: "2026-10-07T11:02:00Z", rotulo: "Pagou a 2ª semana da LOC-2836", detalhe: "Pix · R$ 329,00" },
+    { em: "2026-10-01T15:00:00Z", rotulo: "Retirou a Yamaha Factor 150 (LOC-2836)", detalhe: "vistoria de saída por João Silva" },
+    { em: "2026-08-31T15:00:00Z", rotulo: "Encerrou a LOC-2760 sem pendências", detalhe: "caução de R$ 300,00 devolvida" },
+    { em: "2026-03-04T13:00:00Z", rotulo: "Cadastro criado", detalhe: "por Bruna Alves · autorizou o uso dos dados (LGPD)" },
+  ],
+};
 
 const TIPOS_DOCUMENTO: TipoDocumentoCliente[] = ["cnh_frente", "cnh_verso", "selfie_documento", "comprovante_residencia"];
 
@@ -148,7 +193,24 @@ function pendenciasDe(c: NovoCliente): string[] {
 }
 
 function completo(r: Registro): ClienteCompleto {
-  return { ...resumo(r), documento: r.documento, documentos: TIPOS_DOCUMENTO.map((tipo) => ({ tipo, enviado_em: r.anexos.includes(tipo) ? "2026-10-07T12:00:00Z" : null })), pendencias: r.pendencias, analise: analisarCorpo({ tipo: r.tipo, documento: r.documento, cnh: { categoria: "A" } }, r.anexos.length) };
+  const x = r.extra ?? {};
+  return {
+    ...resumo(r),
+    documento: r.documento,
+    nascimento: x.nascimento ?? null,
+    idade: x.nascimento ? idadeEm(x.nascimento) : null,
+    email: x.email ?? null,
+    profissao: x.profissao ?? null,
+    cnh: x.cnh?.numero && x.cnh.categoria && x.cnh.validade ? { numero: x.cnh.numero, categoria: x.cnh.categoria, validade: x.cnh.validade, primeira_habilitacao: x.cnh.primeira_habilitacao ?? null, situacao: "valida" } : null,
+    responsavel: x.responsavel?.nome ? { nome: x.responsavel.nome, cpf: x.responsavel.cpf ?? "", celular: x.responsavel.celular ?? "" } : null,
+    endereco: x.endereco ?? null,
+    referencia: x.referencia?.nome ? { nome: x.referencia.nome, parentesco: x.referencia.parentesco ?? "", telefone: x.referencia.telefone ?? "" } : null,
+    consentimento_em: x.consentimento ? `${r.desde}T13:00:00Z` : null,
+    bloqueio: r.motivoBloqueio ? { motivo: r.motivoBloqueio, desde: "2026-09-12", descricao: "Conta com 15 dias de atraso desde 27/08/2026", desbloqueia_sozinho: r.motivoBloqueio === "atraso" } : null,
+    documentos: TIPOS_DOCUMENTO.map((tipo) => ({ tipo, enviado_em: r.anexos.includes(tipo) ? (tipo === "comprovante_residencia" && r.id === 1201 ? "2026-09-15T12:00:00Z" : `${r.desde}T12:00:00Z`) : null })),
+    pendencias: r.pendencias,
+    analise: analisarCorpo({ tipo: r.tipo, documento: r.documento, cnh: { categoria: x.cnh?.categoria ?? "A" } }, r.anexos.length),
+  };
 }
 
 function normalizar(t: string): string {
@@ -234,9 +296,21 @@ export const clientesFalso = {
       aberto: 0,
       pendencias,
       anexos: [],
+      extra: c,
     };
     REGISTROS.push(r);
     return completo(r);
+  },
+
+  // Falsos: vêm de GET /api/locacoes/?cliente= (T-015) e de eventos de auditoria; ainda sem contrato para a ficha do cliente.
+  async locacoes(id: number): Promise<LocacoesDoCliente> {
+    await pausa(150);
+    return LOCACOES[id] ?? { total: 0, com_atraso: 0, resultados: [] };
+  },
+
+  async historico(id: number): Promise<HistoricoDoCliente> {
+    await pausa(150);
+    return { resultados: HISTORICO[id] ?? [] };
   },
 
   async enviarDocumento(id: number, tipo: TipoDocumentoCliente, arquivo: File): Promise<ClienteCompleto> {

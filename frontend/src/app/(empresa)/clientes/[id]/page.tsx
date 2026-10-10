@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { CadastroDoCliente } from "@/components/clientes/CadastroDoCliente";
+import { DetalheDoCliente } from "@/components/clientes/DetalheDoCliente";
 
-export const metadata: Metadata = { title: "Cadastro do cliente" };
+export const metadata: Metadata = { title: "Cliente" };
 
 export default async function Cliente({ params }: { params: Promise<{ id: string }> }) {
   const id = Number((await params).id);
   if (!Number.isInteger(id) || id <= 0) notFound();
-  return <CadastroDoCliente id={id} />;
+  return <DetalheDoCliente id={id} />;
 }

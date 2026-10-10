@@ -71,12 +71,15 @@ export type DocumentoVeiculo = {
   validade: string | null;
   situacao: "em_dia" | "vence_em_breve" | "vencido";
   dias_para_vencer: number | null;
+  /** Fora do contrato (só o falso manda): texto da situação de IPVA ("Pago") e rastreador ("Online"). */
+  situacao_rotulo?: string;
 };
 
 // Listas que vêm dos contratos de locações e manutenção (ainda não escritos): mínimo que a ficha mostra.
 export type LocacaoDoVeiculo = { id: number; codigo: string; cliente_nome: string; inicio: string; fim: string; situacao: { rotulo: string; tom: TomApi } };
+export type LocacoesDoVeiculo = { total: number; resultados: LocacaoDoVeiculo[] };
 export type ManutencaoDoVeiculo = { id: number; servico: string; data: string; km: number; custo_centavos: number };
-export type ManutencoesDoVeiculo = { proxima: string | null; resultados: ManutencaoDoVeiculo[] };
+export type ManutencoesDoVeiculo = { resultados: ManutencaoDoVeiculo[] };
 
 /** Categoria de preço para escolher no cadastro (`GET /api/categorias/`). */
 export type CategoriaVeiculo = {
