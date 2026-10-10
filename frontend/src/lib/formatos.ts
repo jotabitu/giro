@@ -110,3 +110,15 @@ export function iniciais(nome: string): string {
   const ultima = partes.length > 1 ? (partes[partes.length - 1]?.charAt(0) ?? "") : "";
   return (primeira + ultima).toUpperCase();
 }
+
+/** "30 set, 09:10": data e hora de um instante, em America/Sao_Paulo (linha do tempo). */
+export function dataHoraCurta(iso: string): string {
+  return `${dataCurta(iso)}, ${horaCurta(iso)}`;
+}
+
+/** Dia (AAAA-MM-DD) de um instante em America/Sao_Paulo. */
+export function diaDe(iso: string): string {
+  const p = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(iso));
+  const v = (t: string) => p.find((x) => x.type === t)?.value ?? "";
+  return `${v("year")}-${v("month")}-${v("day")}`;
+}
