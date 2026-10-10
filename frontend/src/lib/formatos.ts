@@ -9,6 +9,11 @@ export function dinheiro(centavos: number): string {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(centavos / 100).replace(/ /g, " ");
 }
 
+/** "R$ 9.870" quando o valor é em reais cheios; com centavos ("R$ 329,50") sai completo. Nunca arredonda. */
+export function dinheiroSemZeros(centavos: number): string {
+  return centavos % 100 === 0 ? dinheiro(centavos).replace(/,00$/, "") : dinheiro(centavos);
+}
+
 /** "06 out" para listas. Aceita AAAA-MM-DD ou instante UTC; o dia é o de America/Sao_Paulo. */
 export function dataCurta(iso: string): string {
   const partes = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "numeric" }).formatToParts(paraData(iso));

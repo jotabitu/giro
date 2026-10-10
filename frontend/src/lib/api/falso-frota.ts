@@ -6,7 +6,7 @@ import {
   type DocumentoVeiculo,
   type FiltroVeiculos,
   type ListaVeiculos,
-  type LocacaoDoVeiculo,
+  type LocacoesDoVeiculo,
   type NovoVeiculo,
   type ManutencoesDoVeiculo,
   type StatusVeiculo,
@@ -68,7 +68,7 @@ type Semente = {
 };
 
 const SEMENTES: Semente[] = [
-  { id: 501, placa: "QXA4B21", marca: "Honda", modelo: "CG 160 Fan", ano: 2023, cor: "vermelha", tipo: "moto", categoria: "Street 150–160", status: "alugado", km: 18950, diaria: 5490, semanal: 29940, proximaKm: 19900, servico: "Troca de óleo", locacao: { codigo: "LOC-2841", cliente: "Carlos Menezes", fim: "2026-11-04", atrasada: true }, chassi: "9C2KC2210PR004417" },
+  { id: 501, placa: "QXA4B21", marca: "Honda", modelo: "CG 160 Fan", ano: 2023, cor: "vermelha", tipo: "moto", categoria: "Street 150–160", status: "alugado", km: 18950, diaria: 5490, semanal: 32900, proximaKm: 19900, servico: "Troca de óleo", locacao: { codigo: "LOC-2841", cliente: "Carlos Menezes", fim: "2026-11-04", atrasada: true }, chassi: "9C2KC2210PR004417" },
   { id: 502, placa: "PNB7C04", marca: "Yamaha", modelo: "Factor 150", ano: 2023, cor: "preta", tipo: "moto", categoria: "Street 150–160", status: "alugado", km: 21870, diaria: 5490, semanal: 32900, proximaKm: 25000, locacao: { codigo: "LOC-2843", cliente: "Juliana Rocha", fim: "2026-10-07" }, chassi: "9C6RG3110PR003302" },
   { id: 503, placa: "ROE2A88", marca: "Fiat", modelo: "Mobi Like", ano: 2023, cor: "branco", tipo: "carro", categoria: "Compacto", status: "alugado", km: 38405, diaria: 11900, semanal: 69900, proximaKm: 40000, locacao: { codigo: "LOC-2846", cliente: "Pedro Alencar", fim: "2026-10-08" }, chassi: "9BD341A5JPY887120" },
   { id: 504, placa: "SAK1D39", marca: "Honda", modelo: "CG 160 Fan", ano: 2025, cor: "vermelha", tipo: "moto", categoria: "Street 150–160", status: "disponivel", km: 3120, diaria: 5490, semanal: 32900, proximaKm: 5000, chassi: "9C2KC2210RR004417" },
@@ -118,7 +118,7 @@ function montar(s: Semente): Veiculo {
     capacidade_tanque_litros: s.tanque !== undefined ? s.tanque : s.tipo === "moto" ? "16.0" : "47.0",
     preco_vigente: { diaria_centavos: s.diaria, semanal_centavos: s.semanal, mensal_centavos: s.semanal * 4, caucao_centavos: 30000 },
     valor_venda_centavos: s.vendaCentavos ?? null,
-    referencia_fipe_centavos: s.vendaCentavos ? 2190000 : null,
+    referencia_fipe_centavos: s.id === 501 ? 1240000 : s.vendaCentavos ? 2190000 : null,
     valor_compra_centavos: editar ? (s.compraCentavos !== undefined ? s.compraCentavos : 1390000) : null,
     data_compra: editar ? (s.dataCompra !== undefined ? s.dataCompra : "2023-03-10") : null,
     entrou_na_frota_em: s.entrouEm ?? "2023-03-12",
@@ -272,28 +272,35 @@ export const veiculosFalso = {
   async documentos(id: number): Promise<DocumentoVeiculo[]> {
     await pausa(120);
     if (!SEMENTES.some((x) => x.id === id)) throw new ErroApi(404, "nao_encontrado", "Veículo não encontrado");
+    const seguroVence = id === 501;
     return [
       { id: id * 10 + 1, tipo: "crlv", rotulo: "CRLV 2026", validade: "2026-12-31", situacao: "em_dia", dias_para_vencer: 85 },
-      { id: id * 10 + 2, tipo: "seguro", rotulo: "Seguro", validade: id === 501 ? "2026-10-25" : "2027-03-10", situacao: id === 501 ? "vence_em_breve" : "em_dia", dias_para_vencer: id === 501 ? 18 : 154 },
+      // IPVA e rastreador ainda não são tipos do contrato (VEI-03: CRLV e seguro). O texto da situação é do falso.
+      { id: id * 10 + 3, tipo: "ipva", rotulo: "IPVA 2026", validade: null, situacao: "em_dia", dias_para_vencer: null, situacao_rotulo: "Pago" },
+      { id: id * 10 + 2, tipo: "seguro", rotulo: "Seguro", validade: seguroVence ? "2026-10-25" : "2027-03-10", situacao: seguroVence ? "vence_em_breve" : "em_dia", dias_para_vencer: seguroVence ? 18 : 154 },
+      { id: id * 10 + 4, tipo: "rastreador", rotulo: "Rastreador", validade: null, situacao: "em_dia", dias_para_vencer: null, situacao_rotulo: "Online" },
     ];
   },
 
   // Vêm dos contratos de locações e manutenção (`GET /api/locacoes/?veiculo=`, `/api/manutencao/ordens/?veiculo=`).
-  async locacoes(id: number): Promise<LocacaoDoVeiculo[]> {
+  // `total` não existe no contrato de locações ainda: a ficha mostra "14 no total" e as 3 mais recentes.
+  async locacoes(id: number): Promise<LocacoesDoVeiculo> {
     await pausa(150);
-    if (id !== 501) return [];
-    return [
-      { id: 5010, codigo: "LOC-2841", cliente_nome: "Carlos Menezes", inicio: "2026-09-30", fim: "2026-11-04", situacao: { rotulo: "Em andamento", tom: "info" } },
-      { id: 5009, codigo: "LOC-2702", cliente_nome: "Ana Beatriz Lima", inicio: "2026-08-01", fim: "2026-09-29", situacao: { rotulo: "Encerrada", tom: "neutro" } },
-      { id: 5008, codigo: "LOC-2640", cliente_nome: "Marcos Viana", inicio: "2026-07-03", fim: "2026-07-31", situacao: { rotulo: "Encerrada", tom: "neutro" } },
-    ];
+    if (id !== 501) return { total: 0, resultados: [] };
+    return {
+      total: 14,
+      resultados: [
+        { id: 5010, codigo: "LOC-2841", cliente_nome: "Carlos Menezes", inicio: "2026-09-30", fim: "2026-11-04", situacao: { rotulo: "Em andamento", tom: "info" } },
+        { id: 5009, codigo: "LOC-2702", cliente_nome: "Ana Beatriz Lima", inicio: "2026-08-01", fim: "2026-09-29", situacao: { rotulo: "Encerrada", tom: "neutro" } },
+        { id: 5008, codigo: "LOC-2640", cliente_nome: "Marcos Viana", inicio: "2026-07-03", fim: "2026-07-31", situacao: { rotulo: "Encerrada", tom: "neutro" } },
+      ],
+    };
   },
 
   async manutencoes(id: number): Promise<ManutencoesDoVeiculo> {
     await pausa(150);
-    if (id !== 501) return { proxima: null, resultados: [] };
+    if (id !== 501) return { resultados: [] };
     return {
-      proxima: "troca de óleo aos 19.900 km",
       resultados: [
         { id: 1, servico: "Troca de óleo", data: "2026-09-12", km: 17900, custo_centavos: 4800 },
         { id: 2, servico: "Pastilha de freio", data: "2026-07-20", km: 15300, custo_centavos: 9500 },

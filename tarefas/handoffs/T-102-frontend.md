@@ -1,0 +1,9 @@
+# T-102 · Ficha do veículo idêntica à referência · frontend → orquestrador
+
+**O que foi feito:** `/veiculos/[id]` recriada a partir de `Veiculo-Desktop` e `Veiculo-Mobile`, em duas árvores (`div hidden md:block` e `div md:hidden`, nunca no mesmo elemento de uma classe `wl-`). Desktop: caminho, cabeçalho com Editar / Mandar para oficina / Colocar à venda, 4 KPIs, foto, Locações ("14 no total"), Manutenções ("próxima: ..."), Dados e Documentos. Celular: cabeçalho com voltar e Mais ações, foto, 2 KPIs, Agora, Documentos, Manutenções em linhas, botões Oficina e Colocar à venda.
+**Onde:** frontend/src/components/frota/FichaVeiculo.tsx (+ .test.tsx), lib/api/falso-frota.ts, tipos-frota.ts, lib/formatos.ts (`dinheiroSemZeros`: "R$ 9.870", sem arredondar), lib/frota.ts.
+**Falso (fora do contrato):** IPVA ("Pago") e Rastreador ("Online") como documentos, com `situacao_rotulo`; `total` de locações (14); referência FIPE e semanal vigente (R$ 329,00) do QXA-4B21.
+**Desativado:** Editar, Mandar para oficina, Colocar à venda e Mais ações (sem tela ou endpoint). Aparecem só para quem tem `acoes.editar`.
+**[divergência] para o produto/design-system:** (1) a Frota de referência mostra QXA-4B21 "Atrasado" (14.212 km) e a ficha mostra "Alugada" (18.950 km, devolve 04 nov); o falso segue a Frota, então a ficha mostra "Atrasado". (2) A ficha de referência usa badge info "Alugada"; o contrato dá `solido` "Alugado". (3) A referência mostra Colocar à venda numa moto alugada; o contrato só permite para `disponivel` (botão desativado). (4) O celular de referência traz cabeçalho próprio; a casca ainda mostra o da marca acima. (5) Raios de 28/20/16px e fonte de 20px da referência viraram tokens próximos (lg/md) e um 20px avulso.
+**Contrato de locações (T-015):** a ficha precisa de um total de locações do veículo.
+**Check:** tsc, eslint, Vitest (167) e build passaram. Não conferi no navegador em 1440 e 390px.

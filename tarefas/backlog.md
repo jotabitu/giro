@@ -233,9 +233,6 @@ Levantadas pelo backend em T-109 (09 out 2026). O código segue o que está entr
 ### T-093 · Momentos em UTC na API
 - **Agente:** backend · **Depende de:** T-088 · **ADRs:** 0020 · **Pronto quando:** `comum/renderizacao.py` ligado no `REST_FRAMEWORK` como na ADR 0020; os 3 testes de `backend/tests/test_formato_das_datas.py` passam sem `xfail` e a lista de pendentes do teste de varredura fica vazia; contas, aprovações, plataforma, veículos, filiais e clientes saem em `AAAA-MM-DDTHH:MM:SSZ` sem mexer nos serializers; OpenAPI sem mudança. Passos em `tarefas/handoffs/T-088-arquiteto.md`.
 
-### T-102 · Ficha do veículo idêntica à referência
-- **Agente:** frontend · **Depende de:** T-013, T-079 · **Telas:** Veiculo (`docs/telas/html/Veiculo-Desktop.dc.html` e `Veiculo-Mobile.dc.html`) · **Regras:** VEI-01 a VEI-07 · **Pronto quando:** `/veiculos/[id]` (`FichaVeiculo.tsx`) reproduz a tela de referência no desktop e no celular, com a mesma estrutura, seções, ordem, rótulos, ações e estados, usando os componentes e tokens do design system; os dados vêm de `falso-frota.ts` no formato de `docs/api/veiculos.md` (T-013 e T-079); o que a tela mostra e o contrato não tem fica com o falso ou desativado e anotado no handoff; o design-system confere a fidelidade visual; teste da tela. Pedido do dono em 09/10.
-
 ### T-105 · Seed da LOC-2836 até 14 out
 - **Agente:** qa · **Depende de:** T-104, T-091 · **Regras:** LOC-01, LOC-06 · **Pronto quando:** `backend/tests/aceitacao/carteira.py` cria a LOC-2836 com início em 30 set 18:00 e fim calculado pela LOC-01 (14 out 18:00), sem o ajuste do `fim_previsto`; os testes que usam a LOC-2836 seguem os critérios da T-104; sem mudança de código de produção.
 
@@ -251,8 +248,6 @@ Levantadas pelo backend em T-109 (09 out 2026). O código segue o que está entr
 ### T-108 · Detalhe do cliente idêntico à referência
 - **Agente:** frontend · **Depende de:** T-014, T-102 · **Telas:** Cliente-Detalhe (`docs/telas/html/Cliente-Detalhe-Desktop.dc.html` e `Cliente-Detalhe-Mobile.dc.html`) · **Regras:** CLI-01 a CLI-09, AUD-05, AUD-09 · **Pronto quando:** `/clientes/[id]` reproduz a tela de referência no desktop e no celular, com a mesma estrutura, seções, ordem, rótulos, ações e estados, usando os componentes e tokens do design system; os dados vêm de `falso-clientes.ts` no formato de `docs/api/clientes.md` (T-014); a LOC-2836 da Juliana segue a regra (até 14 out, sem "Devolve hoje" em 07 out), e não a tela; o que a tela mostra e o contrato não tem fica com o falso ou desativado e anotado no handoff; teste da tela. Pedido do dono em 09/10.
 
-### T-107 · Telas de referência com a LOC-2836 até 14 out
-- **Agente:** design-system · **Depende de:** T-104 · **Regras:** LOC-06 · **Pronto quando:** as telas `Locacoes`, `Locacao-Detalhe`, `Clientes` e `Cliente-Detalhe` (desktop e celular) em `docs/telas/html` mostram a LOC-2836 como na decisão B de 09/10: de 30 set 18:00 a 14 out 18:00 e, em 07 out, ativa, sem sinal "Devolve hoje", com a ação Abrir; nenhum valor muda; ver `tarefas/handoffs/T-104-produto.md`.
 
 ### T-017 · Contas a receber, caixa do dia, baixa
 - **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 23) passam, com o código da regra no nome do teste. · **Inclui:** `juros_pro_rata` em `comum/dinheiro.py` com um arredondamento só (CA-017-08: Carlos 70, Rafael 1123; ponto 4 da T-045)
