@@ -92,9 +92,9 @@ Levantadas pelo backend em T-109 (09 out 2026). O código segue o que está entr
 - (T-109) As duas decisões (ordem da caução no `DEV-02` e parcela do dia no `DEV-01`) e a devolução antes do fim sem encerramento aprovado foram decididas em 09 out 2026 pelo dono do produto: `DEV-02` opção A com o ajuste (a parcela que não cabe inteira vai para `renegociada` e entra na conta única do saldo), `DEV-01` opção B e a nova `DEV-07` (opção A). Regra e critérios na T-113 (CA-016-13, 22, 23 e 24); o código muda numa tarefa do backend (handoff da T-113).
 - [divergência] (qa, T-019) O seed de teste não tem o preço do litro da Filial Centro (R$ 5,50), a vistoria de saída da LOC-2836 (cheio, 18.402 km; a PNB7C04 está com 21.870 km) nem a caução paga da LOC-2841 e da LOC-2812. (Os testes da T-109 gravam esses dados na fixture.)
 
-Levantadas pelo arquiteto na revisão da T-114 (09 out 2026), para o produto. O código segue o que está entre parênteses:
+Levantadas pelo arquiteto na revisão da T-114 (09 out 2026), para o produto:
 
-- [decisão] (T-114, `DEV-01`, `DEV-07`, `LOC-12`) Devolução depois do `cancelamento_data` do encerramento antecipado aprovado: as parcelas que vencem entre a data aprovada e a devolução entram no acerto como cobrança? Ao pé da letra da DEV-01 e da DEV-07, sim. (Hoje não: a aprovação já as cancelou e a `LOC-12` conta o encerramento a partir do `cancelamento_data`; ver "Leituras" em `tarefas/handoffs/T-114-backend.md`.)
+- (T-114) A devolução depois do dia aprovado no encerramento antecipado foi decidida em 10 out 2026 pelo dono do produto: opção B, com o ajuste. Vale o dia da devolução: as parcelas que vencem até esse dia entram no acerto, e a multa e o crédito são recalculados nesse dia; a aprovação não cancela parcelas (`DEV-07`, `LOC-12`). Regra e critério (CA-016-25) na T-116; o código muda numa tarefa do backend (handoff da T-116).
 
 Levantadas pelo backend em T-111 (09 out 2026), para o produto. O código segue o que está entre parênteses:
 
