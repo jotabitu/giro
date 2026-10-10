@@ -124,23 +124,6 @@ def abertas_vencendo_depois(origem_tipo: str, origem_id: int, dia: date) -> list
     )
 
 
-def parcelas_canceladas_vencendo_entre(
-    origem_tipo: str, origem_id: int, depois_de: date, antes_de: date
-) -> list[ContaReceber]:
-    """Parcelas canceladas que vencem depois de `depois_de` e antes de `antes_de` (as do mês
-    que o encerramento antecipado do mensal em 4 semanais cancelou, LOC-13)."""
-    return list(
-        ContaReceber.objects.filter(
-            origem_tipo=origem_tipo,
-            origem_id=origem_id,
-            status=StatusConta.CANCELADA,
-            tipo=TipoConta.PARCELA,
-            vencimento__gt=depois_de,
-            vencimento__lt=antes_de,
-        ).order_by("vencimento", "id")
-    )
-
-
 def reembolsos_da_origem(origem_tipo: str, origem_id: int) -> QuerySet[Reembolso]:
     return Reembolso.objects.filter(origem_tipo=origem_tipo, origem_id=origem_id)
 

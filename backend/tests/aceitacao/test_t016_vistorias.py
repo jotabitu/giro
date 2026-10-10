@@ -1250,6 +1250,66 @@ def test_dev_01_dev_02_dev_07_ca_016_24_devolucao_antecipada_do_carlos(cenario, 
     assert Veiculo.objects.get(pk=carlos.veiculo_id).status == "disponivel"
 
 
+# --- CA-016-25 · Devolução antecipada depois da data aprovada (DEV-07, LOC-12, T-116) ---
+
+
+def test_dev_07_loc_12_ca_016_25_aprovacao_deixa_as_parcelas_4_e_5_em_aberto(
+    cenario, da_carteira, relogio
+):
+    carlos = _carlos_na_devolucao(da_carteira)
+    p4, p5 = _parcela(carlos, 4), _parcela(carlos, 5)
+    _aprovar_encerramento(cenario, carlos)  # 07 out
+    cancelamento = cenario.detalhe(carlos.pk)["cancelamento"]
+    assert (cancelamento["status"], cancelamento["data"]) == ("aprovado", "2026-10-07")
+    assert cancelamento["multa_centavos"] == 5988  # a estimativa para 07 out
+    for conta in (p4, p5):
+        conta.refresh_from_db()
+    assert (p4.status, p5.status) == ("aberta", "aberta")
+
+    # Em 15 out, a parcela 4 está atrasada como qualquer outra.
+    _ir_para(cenario, relogio, "2026-10-15 10:00")
+    corpo = cenario.detalhe(carlos.pk)
+    assert corpo["sinais"]["pagamento_atrasado"] is True
+    assert corpo["pagamento"]["rotulo"] == "R$ 898,20 em aberto"  # parcelas 2, 3 e 4
+
+
+def test_dev_07_ca_016_25_devolucao_depois_da_data_aprovada(cenario, da_carteira, relogio):
+    """Aprovado para 07 out e devolvido em 16 out 10:00: vale o dia da devolução."""
+    carlos = _carlos_na_devolucao(da_carteira)
+    _contrato_com_juros(carlos)
+    _aprovar_encerramento(cenario, carlos)
+    p2, p3, p4, p5 = (_parcela(carlos, n) for n in (2, 3, 4, 5))
+
+    _ir_para(cenario, relogio, "2026-10-16 10:00")
+    devolucao = _abrir_devolucao(cenario, carlos.pk)
+    corpo = _chegada(cenario, devolucao, _km_de_volta(carlos))
+    acerto = corpo["acerto"]
+    assert _parcelas_do_acerto(corpo) == [(30699, p2.pk), (30629, p3.pk), (30559, p4.pk)]
+    assert _item(corpo, "multa_encerramento")["valor_centavos"] == 5490  # não os 5988
+    assert acerto["creditos"] == []
+    assert acerto["total_cobrancas_centavos"] == 97377
+    assert (acerto["caucao_centavos"], acerto["saldo_centavos"]) == (30000, -67377)
+    assert acerto["resultado"]["tipo"] == "cobrar"
+    assert acerto["resultado"]["botao"] == "Encerrar e cobrar R$ 673,77"
+    assert acerto["avisos"] == []
+
+    resposta = _encerrar(cenario, devolucao["id"])
+    assert resposta.status_code == 200, resposta.json()
+    for conta in (p2, p3, p4, p5):
+        conta.refresh_from_db()
+    assert p5.status == "cancelada"
+    assert (p2.status, p3.status, p4.status) == ("renegociada",) * 3
+    multa = ContaReceber.objects.get(origem_tipo="devolucao", tipo="multa")
+    assert (multa.valor_centavos, multa.status, multa.forma) == (5490, "paga", "caucao")
+    saldo = _conta_do_saldo(devolucao["id"])
+    assert (saldo.valor_centavos, saldo.vencimento) == (67377, date(2026, 10, 19))
+    assert saldo.nasceu_de is not None
+    assert set(saldo.nasceu_de.originais.values_list("pk", flat=True)) == {p2.pk, p3.pk, p4.pk}
+    assert not Reembolso.objects.filter(origem_tipo="devolucao").exists()
+    assert Locacao.objects.get(pk=carlos.pk).status == "cancelada"
+    assert Veiculo.objects.get(pk=carlos.veiculo_id).status == "disponivel"
+
+
 # --- CA-016-14 · Encerramento antecipado da Patrícia (LOC-12, LOC-13) ---
 
 

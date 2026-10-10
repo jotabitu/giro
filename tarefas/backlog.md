@@ -96,6 +96,10 @@ Levantadas pelo arquiteto na revisão da T-114 (09 out 2026), para o produto:
 
 - (T-114) A devolução depois do dia aprovado no encerramento antecipado foi decidida em 10 out 2026 pelo dono do produto: opção B, com o ajuste. Vale o dia da devolução: as parcelas que vencem até esse dia entram no acerto, e a multa e o crédito são recalculados nesse dia; a aprovação não cancela parcelas (`DEV-07`, `LOC-12`). Regra e critério (CA-016-25) na T-116; o código muda numa tarefa do backend (handoff da T-116).
 
+Levantadas pelo backend em T-117 (10 out 2026), para o produto. O código segue o que está entre parênteses:
+
+- [decisão] (T-117, `DEV-07`, `LOC-12`) Encerramento antecipado aprovado e devolução no dia do fim previsto ou depois: o acerto cobra multa de encerramento? (Não: sem período em curso, `multa_encerramento` 0 e nenhum crédito, como uma devolução comum; passando do prazo, cobra o atraso da `LOC-10`. A `cancelamento/simular` já responde 409 `sem_dias_restantes` nesse dia. Ver `tarefas/handoffs/T-117-backend.md`.)
+
 Levantadas pelo backend em T-111 (09 out 2026), para o produto. O código segue o que está entre parênteses:
 
 - (T-111) O extra desativado antes da renovação foi decidido em 09 out 2026 pelo dono do produto: opção A. O extra continua nas locações que já o têm, renovações incluídas, pelo último valor do cadastro (`LOC-08`). Regra e critério (CA-015-27) na T-115; o código da T-111 já faz assim.
@@ -252,9 +256,6 @@ Levantadas pelo backend em T-111 (09 out 2026), para o produto. O código segue 
 
 ### T-092 · Troca de veículo durante a locação
 - **Agente:** backend · **Depende de:** T-016, T-091 · **Regras:** LOC-09 · **Pronto quando:** CA-015-18 passa, com o código da regra no nome do teste; a troca abre a vistoria de devolução do veículo antigo e a de saída do novo (T-016).
-
-### T-117 · Código da devolução depois da data aprovada (T-116)
-- **Agente:** backend · **Depende de:** T-114, T-116 · **Regras:** DEV-01, DEV-07, LOC-12, LOC-13 · **Pronto quando:** o CA-016-25 de `docs/qa/criterios/T-016.md` passa (`test_dev_07_ca_016_25_devolucao_depois_da_data_aprovada`: Carlos aprovado para 07 out e devolvido em 16 out cobra 67377), com um teste de que a aprovação deixa as parcelas 4 e 5 em aberto, e o CA-016-24 e o CA-015-29 seguem verdes sem mudar os números: a aprovação depois da retirada não cancela parcelas; o encerramento da devolução cancela as que vencem depois do dia da devolução; o acerto recalcula a multa e o crédito pelo dia da devolução (`calcular_encerramento`), e os valores gravados na aprovação ficam como estimativa; contrato em `docs/api/locacoes.md` e `vistorias.md`. Passos 1 a 7 em `tarefas/handoffs/T-116-produto.md`.
 
 ### T-017 · Contas a receber, caixa do dia, baixa
 - **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 23) passam, com o código da regra no nome do teste. · **Inclui:** usar o `juros_pro_rata` de `comum/dinheiro.py`, que vem da T-114 (CA-017-08: Carlos 70, Rafael 1123)

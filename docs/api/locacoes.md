@@ -89,7 +89,7 @@ A linha mais:
 - `total_pago_centavos` inclui a caução paga, como na tela. Caso do seed (`LOC-06`, `LOC-05`): LOC-2836 = 32900 + 32900 + 30000 = **95800**.
 - `parcelas` vêm de `financeiro.selectors` (`financeiro` está acima de `locacoes`, ADR 0011). Status como em `FIN-01` (`vence_hoje` e `atrasada` calculados).
 - `acoes.cancelar`: `direto`, `pedir` ou `false`, conforme o perfil.
-- `cancelamento`: quando há pedido ou encerramento antecipado aprovado: `{ "status": "pendente" | "aprovado", "pedido_aprovacao_id", "antes_da_retirada": false, "multa_centavos": 8480, "devolver_centavos": 28620, "motivo" }`.
+- `cancelamento`: quando há pedido ou encerramento antecipado aprovado: `{ "status": "pendente" | "aprovado", "pedido_aprovacao_id", "antes_da_retirada": false, "data": "2026-10-07", "multa_centavos": 8480, "devolver_centavos": 28620, "motivo" }`. Depois da retirada, `multa_centavos` e `devolver_centavos` são a estimativa para `data`; o valor final sai no acerto da devolução (T-116).
 
 ### GET /api/locacoes/{id}/historico/
 Linha do tempo de `Locacao-Detalhe`: `{ "resultados": [ { "em": "...", "rotulo": "Vistoria de saída · 12 fotos", "detalhe": "João Silva · 18.402 km · tanque cheio", "tipo": "vistoria" } ] }`. Montada a partir dos eventos de auditoria da locação (criação, contrato, mudanças de status), dos pagamentos (`financeiro.selectors`) e das vistorias (anotação de `vistorias`, ADR 0015). O vistoriador não vê os itens de pagamento.
@@ -242,7 +242,7 @@ Caução e cobranças na troca (`LOC-09`):
 - Vendedor: 202 `{ "pedido_aprovacao": { "id", "tipo": "APR-02", "status": "pendente" } }`; o sinal `cancelamento_pendente` acende.
 Efeito ao valer:
 - Antes da retirada (`rascunho`, `aguardando_retirada`): `cancelada` na hora; contas abertas canceladas, pagas estornadas (devolução ao cliente pelo `financeiro`), veículo `reservado` volta a `disponivel`, comissão `estornada`.
-- Depois da retirada: a locação fica marcada com o encerramento antecipado aprovado (`cancelamento.status = "aprovado"`) e segue para a devolução (`vistorias.md`), cujo acerto inclui a multa e o crédito das semanas. Ao encerrar a devolução, o status final é `cancelada`.
+- Depois da retirada: a locação fica marcada com o encerramento antecipado aprovado (`cancelamento.status = "aprovado"`) e segue para a devolução (`vistorias.md`). A aprovação não cancela parcelas: até a devolução, elas vencem, atrasam e podem ser pagas como qualquer outra. `cancelamento.multa_centavos` e `devolver_centavos` são a estimativa para `cancelamento.data`. O acerto da devolução recalcula a multa e o crédito pelo dia da devolução, com o mesmo cálculo de `cancelamento/simular`, e o encerramento da devolução cancela as parcelas que vencem depois desse dia (`DEV-07`, T-116; CA-016-25: Carlos aprovado para 07 out com estimativa de 5988 e devolvido em 16 out → multa 5490, cobrar 67377). Ao encerrar a devolução, o status final é `cancelada`.
 Recusado pelo gerente: o sinal apaga e o vendedor é avisado com o motivo.
 409 `transicao_locacao` em `encerrada` ou `cancelada`.
 
