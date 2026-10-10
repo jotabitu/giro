@@ -272,6 +272,12 @@ Levantadas pelo arquiteto em T-122 (10 out 2026), para o produto:
 ### T-018 · Tela e consulta da auditoria
 - **Agente:** backend · **Depende de:** T-011 · **Regras:** AUD-01 a AUD-03 (o registro dos eventos já vem de T-001) · **Telas:** Admin-Auditoria, Plat-Auditoria · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-018.md` (CA-018-01 a 16) passam, com o código da regra no nome do teste.
 
+### T-127 · Seed parcial da Moto Rápida para conferir as telas
+- **Agente:** qa · **Depende de:** T-013, T-014, T-015, T-016, T-092, T-126 · **Pronto quando:** `make seed` (comando `seed_moto_rapida`) cria, de forma idempotente, a empresa Moto Rápida com subdomínio, filiais, um usuário por perfil (senhas de desenvolvimento no `docs/agentes/retomada.md`), categorias e preços, a frota, os clientes e as locações dos casos de referência que não dependem do financeiro da T-017; dá para entrar em `<subdominio>.localhost:3000` e abrir login, veículos, clientes, locações, vistoria e devolução com os números das regras (ex.: devolução da LOC-2836 devolve R$ 183,00); o que depende da T-017 (contas, caixa, baixas) fica marcado como pendente da T-019. Teste que roda o seed duas vezes sem duplicar.
+
+### T-128 · Contrato das rotas do painel e da marca da empresa
+- **Agente:** arquiteto · **Depende de:** T-126 · **Pronto quando:** `docs/api/` traz (1) as rotas do painel que o frontend já chama (`/api/painel/contadores/` e `/api/painel/inicio/`, de `docs/api/painel.md`), com o app dono e o que cada número soma no MVP; (2) uma rota pública de marca por subdomínio (nome de exibição, logo SVG, cor), para o login e o convite antes da sessão, e a marca dentro da sessão; perfis, cache e o que acontece sem marca configurada; e cria no backlog a tarefa de backend que implementa as duas. Levantado na T-126 (`tarefas/handoffs/T-126-frontend.md`, itens 1 e 2).
+
 ### T-019 · Seed Moto Rápida
 - **Agente:** qa · **Depende de:** T-013 a T-017 · **Pronto quando:** `make seed` cria a empresa de exemplo e todos os casos da tabela "Dados de referência para testes" passam.
 - **Placas do seed (T-028):** PQD-6E21 (Pop do Rafael, LOC-2790), RJD-5B38 (Biz do Marcos, LOC-2850), RKP-3D26 (Kwid do Diego, LOC-2848); reserva do Kwid LOC-2857.
