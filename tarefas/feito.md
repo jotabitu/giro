@@ -103,3 +103,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-111 · Código das decisões da T-091 · backend · PR #118 · tarefas/handoffs/T-111-backend.md · CA-015-26 a 29; 589 testes; emendas de contrato (simular, crédito com sinal); 1 [decisão] para o produto
 - T-115 · Regra do extra desativado na renovação · produto · PR #119 · tarefas/handoffs/T-115-produto.md · LOC-08 (opção A); item novo no CA-015-27; teste no backend na T-114
 - T-114 · Código das decisões da devolução · backend · PR #120 · tarefas/handoffs/T-114-backend.md · DEV-01, DEV-02, DEV-07 e FIN-03 (juros_pro_rata, devido_ate); 598 testes; emendas de contrato para o arquiteto
+- T-116 · Regra da devolução depois da data aprovada · produto · PR #121 · tarefas/handoffs/T-116-produto.md · DEV-07 e LOC-12 (opção B): vale o dia da devolução; CA-016-25 (Carlos cobra R$ 673,77); código na T-117, tela na T-022
