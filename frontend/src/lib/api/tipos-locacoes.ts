@@ -50,6 +50,8 @@ export type AvisoLocacao = S["CodigoMensagemLocacao"];
 export type PedidoDeCancelamento = S["CancelamentoPedido"]["pedido_aprovacao"];
 export type FormaDevolucaoCancelamento = "pix" | "estorno_cartao";
 export type TrocaPedida = S["TrocaPedida"];
+export type TrocaCancelada = S["TrocaCanceladaResposta"];
+export type TrocaDaLocacao = S["TrocaPendente"];
 
 export type FormaPagamento = "pix" | "pix_automatico" | "cartao" | "boleto" | "dinheiro";
 export type ParcelamentoMensal = "a_vista" | "quatro_semanais";

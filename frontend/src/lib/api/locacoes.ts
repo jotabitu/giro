@@ -13,6 +13,7 @@ import type {
   SimulacaoDaLocacao,
   SimulacaoDaRenovacao,
   SimulacaoDoCancelamento,
+  TrocaCancelada,
   TrocaPedida,
 } from "./tipos-locacoes";
 
@@ -79,6 +80,11 @@ export const locacoesApi = {
 
   trocarVeiculo(id: number, corpo: { veiculo_novo_id: number; motivo: string }): Promise<TrocaPedida> {
     return http.post(`/api/locacoes/${id}/trocar-veiculo/`, corpo);
+  },
+
+  /** LOC-09: cancela a troca pendente; as vistorias da troca são descartadas e o veículo novo volta a ficar disponível. */
+  cancelarTroca(id: number, corpo: { motivo: string }): Promise<TrocaCancelada> {
+    return http.post(`/api/locacoes/${id}/trocar-veiculo/cancelar/`, corpo);
   },
 
   async reenviarContrato(id: number): Promise<void> {

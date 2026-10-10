@@ -295,9 +295,6 @@ Levantadas pelo arquiteto em T-122 (10 out 2026), para o produto:
 ### T-021 · Telas de veículos e clientes
 - **Agente:** frontend · **Depende de:** T-020, T-013, T-014 · **Telas:** Frota, Veiculo, Clientes, Cliente · **Nota:** pode começar com dados falsos de `docs/api/veiculos.md` e `clientes.md`, como a T-020
 
-### T-125 · Frontend: cancelar a troca de veículo (T-121, T-122)
-- **Agente:** frontend · **Depende de:** T-022, T-123 · **Regras:** LOC-09, LOC-12 · **Pronto quando:** no detalhe da locação, botão "Cancelar troca" quando `acoes.cancelar_troca` vier `true`, com motivo, pela rota da T-122; com troca pendente, o botão de cancelar a locação some (`acoes.cancelar` `false`); no 409 `troca_pendente`, mostre "Conclua ou cancele a troca antes"; no 409 `troca_saida_concluida`, a mensagem da API; o acerto mostra o item da diferença do período em curso como a API devolve, inclusive o crédito. Tipos do OpenAPI regerado depois da T-123.
-
 ### T-023 · Telas do financeiro básico
 - **Agente:** frontend · **Depende de:** T-020, T-017 · **Telas:** Receber, Caixa, Financeiro
 
