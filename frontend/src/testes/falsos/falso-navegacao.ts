@@ -1,7 +1,7 @@
 // Faz o papel de `navegacao` em GET /api/auth/eu/ (docs/api/contas.md, "Menu e início") enquanto contas não está ligada na API real.
 // Espelha backend/apps/contas/navegacao.py (T-071): cada item é definido uma vez, com a permissão, o recurso do plano,
 // a atividade e o módulo. A tela nunca monta menu; só lê o resultado.
-import type { GrupoNavegacao, ItemNavegacao, Navegacao, Perfil, Pode, VarianteInicio } from "./tipos";
+import type { GrupoNavegacao, ItemNavegacao, Navegacao, Perfil, Pode, VarianteInicio } from "@/lib/api/tipos";
 
 export type Atividade = "aluga" | "vende" | "ambos";
 

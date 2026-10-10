@@ -4,7 +4,7 @@
 import { clientesFalso } from "./falso-clientes";
 import { pausa, perfilAtualFalso } from "./falso";
 import { aplicarDevolucaoEncerrada, aplicarSaidaConcluida, dadosDaLocacaoParaVistoria, AGORA_DO_SEED, type DadosDaLocacaoParaVistoria } from "./falso-locacoes";
-import { ErroApi } from "./tipos";
+import { ErroApi } from "@/lib/api/tipos";
 import type {
   AcertoDaDevolucao,
   AgendaDoDia,
@@ -22,7 +22,7 @@ import type {
   PendenciaDaVistoria,
   PosicaoFoto,
   Vistoria,
-} from "./tipos-vistorias";
+} from "@/lib/api/tipos-vistorias";
 
 const OBRIGATORIAS: PosicaoFoto[] = ["frente", "traseira", "lado_esquerdo", "lado_direito", "painel"];
 const ROTULO_POSICAO: Record<PosicaoFoto, string> = { frente: "Frente", traseira: "Traseira", lado_esquerdo: "Lateral esquerda", lado_direito: "Lateral direita", painel: "Painel e hodômetro", avaria: "Foto de avaria" };

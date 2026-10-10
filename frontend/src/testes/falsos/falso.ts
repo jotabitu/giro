@@ -22,7 +22,7 @@ import {
   type Pode,
   type RespostaEntrar,
   type VarianteInicio,
-} from "./tipos";
+} from "@/lib/api/tipos";
 import { navegacaoFalsa } from "./falso-navegacao";
 
 const SENHA = "senhaforte123";

@@ -2,7 +2,7 @@
 // Só ./index.ts importa este arquivo. A "API" decide situação, ações, valores, estimativas e erros; a tela só mostra.
 // O formato das respostas é o do OpenAPI (tipos-locacoes.ts); os números vêm da carteira de outubro (hoje = 07 out 2026).
 import { pausa, perfilAtualFalso } from "./falso";
-import { ErroApi } from "./tipos";
+import { ErroApi } from "@/lib/api/tipos";
 import { veiculosFalso } from "./falso-frota";
 import { clientesFalso } from "./falso-clientes";
 import type {
@@ -27,8 +27,8 @@ import type {
   StatusLocacao,
   StatusParcela,
   TrocaPedida,
-} from "./tipos-locacoes";
-import type { Perfil } from "./tipos";
+} from "@/lib/api/tipos-locacoes";
+import type { Perfil } from "@/lib/api/tipos";
 
 const TAMANHO = 8;
 export const AGORA_DO_SEED = "2026-10-07T15:30:00Z";

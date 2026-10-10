@@ -14,8 +14,8 @@ import {
   type TipoVeiculo,
   type Veiculo,
   type VeiculoDetalhe,
-} from "./tipos-frota";
-import { ErroApi } from "./tipos";
+} from "@/lib/api/tipos-frota";
+import { ErroApi } from "@/lib/api/tipos";
 
 const TAMANHO = 8;
 const FILIAL = { id: 1, nome: "Filial Centro" };

@@ -1,19 +1,18 @@
-// Fronteira da API para as telas. Hoje aponta para dados falsos; trocar aqui pela API real.
-// Só este arquivo importa os módulos falso*.ts.
-import { clientesFalso } from "./falso-clientes";
-import { veiculosFalso } from "./falso-frota";
-import { contasFalso, marcaFalsa } from "./falso";
-import { relatoriosFalso } from "./falso-painel";
-import { locacoesFalso } from "./falso-locacoes";
-import { vistoriasFalso } from "./falso-vistorias";
+// Fronteira da API para as telas: cada módulo chama a API real (docs/api/openapi.yaml) pelo cliente de ./http.
+// Nos testes, o alias de vitest.config.ts troca este módulo pelas fixtures de src/testes/.
+import { clientesApi } from "./clientes";
+import { contasApi } from "./contas";
+import { locacoesApi } from "./locacoes";
+import { relatoriosApi } from "./relatorios";
+import { veiculosApi } from "./veiculos";
+import { vistoriasApi } from "./vistorias";
 
-export const contas = contasFalso;
-export const marcaDaEmpresa = marcaFalsa;
-export const relatorios = relatoriosFalso;
-export const veiculos = veiculosFalso;
-export const clientes = clientesFalso;
-export const locacoes = locacoesFalso;
-export const vistorias = vistoriasFalso;
+export const contas = contasApi;
+export const relatorios = relatoriosApi;
+export const veiculos = veiculosApi;
+export const clientes = clientesApi;
+export const locacoes = locacoesApi;
+export const vistorias = vistoriasApi;
 export * from "./tipos";
 export * from "./tipos-frota";
 export * from "./tipos-clientes";

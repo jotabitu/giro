@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
 import { contas, ErroApi, type Eu } from "@/lib/api";
+import { aoPerderSessao } from "@/lib/api/http";
 import { useMarcaDaEmpresa } from "@/lib/marca-empresa";
 
 const CHAVE = ["eu"] as const;
@@ -31,6 +32,16 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     cliente.clear();
     router.replace("/entrar");
   }, [cliente, router]);
+
+  // Sessão que acaba no meio do uso (renovação recusada, sessão encerrada em outro lugar): volta ao login.
+  useEffect(
+    () =>
+      aoPerderSessao(() => {
+        cliente.clear();
+        router.replace("/entrar");
+      }),
+    [cliente, router],
+  );
 
   const semSessao = consulta.error instanceof ErroApi && consulta.error.status === 401;
   useEffect(() => {
