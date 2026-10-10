@@ -89,8 +89,7 @@ Levantadas pelo backend em T-016 parte 1 (09 out 2026):
 
 Levantadas pelo backend em T-109 (09 out 2026). O código segue o que está entre parênteses:
 
-- [decisão] (produto, `DEV-02`) Saldo negativo com parcela em aberto: em que ordem a caução paga? (A caução paga primeiro as parcelas inteiras e depois as cobranças novas; a parcela que não cabe continua em aberto, com o vencimento dela, e só o resto das cobranças vira a conta de 3 dias.)
-- [decisão] (produto, `DEV-01`) Parcela que vence no dia da devolução entra no acerto? (Não: só as vencidas antes do dia. Ela e as parcelas futuras de quem devolve antes do fim sem encerramento antecipado aprovado continuam em aberto na locação encerrada.)
+- (T-109) As duas decisões (ordem da caução no `DEV-02` e parcela do dia no `DEV-01`) e a devolução antes do fim sem encerramento aprovado foram decididas em 09 out 2026 pelo dono do produto: `DEV-02` opção A com o ajuste (a parcela que não cabe inteira vai para `renegociada` e entra na conta única do saldo), `DEV-01` opção B e a nova `DEV-07` (opção A). Regra e critérios na T-113 (CA-016-13, 22, 23 e 24); o código muda numa tarefa do backend (handoff da T-113).
 - [divergência] (qa, T-019) O seed de teste não tem o preço do litro da Filial Centro (R$ 5,50), a vistoria de saída da LOC-2836 (cheio, 18.402 km; a PNB7C04 está com 21.870 km) nem a caução paga da LOC-2841 e da LOC-2812. (Os testes da T-109 gravam esses dados na fixture.)
 
 ## Fase 0 · Fundação
@@ -252,8 +251,12 @@ Levantadas pelo backend em T-109 (09 out 2026). O código segue o que está entr
 ### T-092 · Troca de veículo durante a locação
 - **Agente:** backend · **Depende de:** T-016, T-091 · **Regras:** LOC-09 · **Pronto quando:** CA-015-18 passa, com o código da regra no nome do teste; a troca abre a vistoria de devolução do veículo antigo e a de saída do novo (T-016).
 
+### T-114 · Código das decisões da devolução (T-113)
+- **Agente:** backend · **Depende de:** T-109, T-113 · **Regras:** DEV-01, DEV-02, DEV-07, LOC-13, FIN-03 · **Pronto quando:** CA-016-13 (corrigido) e CA-016-22 a 24 de `docs/qa/criterios/T-016.md` passam, com o código da regra no nome do teste, e a LOC-2836 continua devolvendo R$ 183,00: itens do acerto com `vencimento__lte` e a parcela valendo o devido com multa e juros da FIN-03 até o dia (29940 vencida em 30 set e devolvida em 07 out dá 30609); `pagar_com_caucao` para na primeira parcela que não cabe, leva ela e as seguintes a `renegociada` (transição e auditoria) e a conta `acerto` vale `-saldo`, com referência às parcelas que substitui; devolução antes do dia do fim previsto sem encerramento aprovado recusada (422 `DEV-07`, nome final com o arquiteto). Passos em `tarefas/handoffs/T-113-produto.md`.
+- **Inclui:** o cálculo da FIN-03 (`juros_pro_rata` em `comum/dinheiro.py`, com um arredondamento só, ponto 4 da T-045), que estava na T-017; a T-017 passa a usar o desta tarefa.
+
 ### T-017 · Contas a receber, caixa do dia, baixa
-- **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 23) passam, com o código da regra no nome do teste. · **Inclui:** `juros_pro_rata` em `comum/dinheiro.py` com um arredondamento só (CA-017-08: Carlos 70, Rafael 1123; ponto 4 da T-045)
+- **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 23) passam, com o código da regra no nome do teste. · **Inclui:** usar o `juros_pro_rata` de `comum/dinheiro.py`, que vem da T-114 (CA-017-08: Carlos 70, Rafael 1123)
 
 ### T-018 · Tela e consulta da auditoria
 - **Agente:** backend · **Depende de:** T-011 · **Regras:** AUD-01 a AUD-03 (o registro dos eventos já vem de T-001) · **Telas:** Admin-Auditoria, Plat-Auditoria · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-018.md` (CA-018-01 a 16) passam, com o código da regra no nome do teste.
