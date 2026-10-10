@@ -19,6 +19,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("api/", include("apps.aprovacoes.api.urls")),
     path("api/", include("apps.locacoes.api.urls")),
     path("api/", include("apps.contratos.api.urls")),
+    path("api/", include("apps.vistorias.api.urls")),
 ]
 
 # Documentação da API só onde EXPOR_DOCUMENTACAO_DA_API permite (fechada em produção).
