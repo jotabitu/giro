@@ -694,13 +694,14 @@ def _nome_no_texto(tipo: str) -> str:
     return rotulo if tipo == TipoDocumento.CRLV else rotulo.lower()
 
 
-def documento_vencido(tipos: list[str]) -> ErroDeRegra:
+def documento_vencido(tipos: list[str], antes: str = "de desbloquear o veículo") -> ErroDeRegra:
+    """`antes`: o que espera a renovação ("da retirada" na vistoria de saída)."""
     nomes = [_nome_no_texto(t) for t in tipos]
     lista = nomes[0] if len(nomes) == 1 else f"{', '.join(nomes[:-1])} e {nomes[-1]}"
     plural = "vencidos" if len(nomes) > 1 else "vencido"
     return ErroDeRegra(
         "VEI-03",
-        f"Renove o {lista} {plural} antes de desbloquear o veículo.",
+        f"Renove o {lista} {plural} antes {antes}.",
         {"documentos": tipos},
     )
 
