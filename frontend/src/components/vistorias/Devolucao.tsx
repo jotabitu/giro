@@ -25,6 +25,9 @@ function ComparacaoDeFotos({ d, edicao }: { d: DevolucaoCompleta; edicao: Return
   const [tirando, setTirando] = useState(false);
   const v = edicao.vistoria ?? d.vistoria;
   const concluida = v.status === "concluida";
+  // Sem chegada ainda (troca cancelada com a chegada descartada, LOC-09), não há comparação.
+  const comparacao = d.comparacao;
+  if (comparacao === null) return null;
   return (
     <Panel
       titulo="Fotos · saída × agora"
@@ -37,9 +40,9 @@ function ComparacaoDeFotos({ d, edicao }: { d: DevolucaoCompleta; edicao: Return
       }
     >
       <div className="flex flex-col gap-4">
-        {d.comparacao.fotos.length === 0 && <p className="text-body text-ink-muted">Nenhuma foto de chegada ainda. Tire as fotos para comparar com a saída.</p>}
+        {comparacao.fotos.length === 0 && <p className="text-body text-ink-muted">Nenhuma foto de chegada ainda. Tire as fotos para comparar com a saída.</p>}
         <div className="grid grid-cols-2 gap-3">
-          {d.comparacao.fotos.map((f) => (
+          {comparacao.fotos.map((f) => (
             <FotoPar key={f.posicao} f={f} />
           ))}
         </div>
@@ -54,7 +57,7 @@ function ComparacaoDeFotos({ d, edicao }: { d: DevolucaoCompleta; edicao: Return
   );
 }
 
-function FotoPar({ f }: { f: DevolucaoCompleta["comparacao"]["fotos"][number] }) {
+function FotoPar({ f }: { f: NonNullable<DevolucaoCompleta["comparacao"]>["fotos"][number] }) {
   const rotulo = rotuloDaPosicao(f.posicao);
   return (
     <>
@@ -220,9 +223,9 @@ export function Devolucao({ locacaoId }: { locacaoId: number }) {
                 edicao={edicao}
                 titulo="Quilometragem e combustível"
                 rotuloKm="Km agora"
-                rotuloCombustivel={`Combustível agora · ${textoDoNivelNaSaida(d.comparacao.combustivel.saida as Combustivel | null)}`}
-                kmNaSaida={d.comparacao.km.saida}
-                dicaDoKm={d.comparacao.km.texto}
+                rotuloCombustivel={`Combustível agora · ${textoDoNivelNaSaida((d.comparacao?.combustivel.saida ?? null) as Combustivel | null)}`}
+                kmNaSaida={d.comparacao?.km.saida}
+                dicaDoKm={d.comparacao?.km.texto}
                 desativado={vistoriaConcluida}
               />
               <ComparacaoDeFotos d={d} edicao={edicao} />
