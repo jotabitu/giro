@@ -2,8 +2,6 @@ name: CI
 
 on:
   pull_request:
-  push:
-    branches: [main]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -13,7 +11,43 @@ permissions:
   contents: read
 
 jobs:
+  # Decide quais áreas o PR toca, para não gastar minuto de Actions à toa.
+  # Sem action de terceiros: o checkout de pull_request é o commit de merge,
+  # e o primeiro pai dele é a ponta da base.
+  areas:
+    name: Áreas alteradas
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.detectar.outputs.backend }}
+      frontend: ${{ steps.detectar.outputs.frontend }}
+      infra: ${{ steps.detectar.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: detectar
+        run: |
+          backend=false; frontend=false; infra=false
+          arquivos=$(git diff --name-only HEAD^1 HEAD)
+          echo "$arquivos"
+          for f in $arquivos; do
+            case "$f" in
+              .github/workflows/*) backend=true; frontend=true; infra=true ;;
+              backend/*) backend=true ;;
+              frontend/*) frontend=true ;;
+              docs/api/*) backend=true; frontend=true ;;
+              infra/*|docker-compose*.yml|.env.example|Makefile) infra=true ;;
+            esac
+          done
+          {
+            echo "backend=$backend"
+            echo "frontend=$frontend"
+            echo "infra=$infra"
+          } | tee -a "$GITHUB_OUTPUT"
+
   backend:
+    needs: areas
+    if: needs.areas.outputs.backend == 'true'
     name: Backend (lint, tipos, testes, OpenAPI)
     runs-on: ubuntu-latest
     services:
@@ -63,6 +97,8 @@ jobs:
           }
 
   frontend:
+    needs: areas
+    if: needs.areas.outputs.frontend == 'true'
     name: Frontend (lint, tipos, testes, build)
     runs-on: ubuntu-latest
     defaults:
@@ -83,6 +119,8 @@ jobs:
       - run: npm run build
 
   infra:
+    needs: areas
+    if: needs.areas.outputs.infra == 'true'
     name: Infra (Compose e .env.example)
     runs-on: ubuntu-latest
     steps:

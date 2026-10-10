@@ -28,6 +28,15 @@ O quadro é feito de arquivos para que qualquer agente, em qualquer terminal (Cl
 4. Ao terminar: testes passando, `make check` limpo, PR aberto.
 5. Escreve o handoff em `handoffs/`, move a tarefa para `feito.md` e avisa quem depende dela.
 
+## Antes do push
+
+O CI roda uma vez por PR, como última conferência, e só nas áreas que o PR toca (backend, frontend, infra). Ele não substitui o teste local. Antes do push, e depois de `git merge origin/main`:
+
+- **Backend:** `ruff check .`, `ruff format --check .`, `mypy .` e os testes afetados. Um processo por vez: a máquina tem pouca memória.
+- **Frontend:** `npm run lint`, `npm run typecheck` e os testes afetados.
+
+Não há CI no push da `main`: toda branch recebe a `origin/main` antes do PR.
+
 ## Modelo de handoff
 
 ```
