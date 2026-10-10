@@ -1,6 +1,6 @@
 # Vistorias, devolução e acerto
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-038) · **App:** `vistorias` (schema da empresa) · **Regras:** VIS-01 a VIS-05, DEV-01 a DEV-07, LOC-09 a LOC-13, VEI-01, VEI-02, CLI-02, CLI-03, CLI-05, FIL-03, FIL-05, AUD-05 · **ADRs:** 0011, 0015 · **Telas:** Vistoria, Devolucao, Vistoriador
+**Dono:** arquiteto · **Versão:** 09 out 2026 (T-111, T-114) · **App:** `vistorias` (schema da empresa) · **Regras:** VIS-01 a VIS-05, DEV-01 a DEV-07, LOC-09 a LOC-13, VEI-01, VEI-02, CLI-02, CLI-03, CLI-05, FIL-03, FIL-05, AUD-05 · **ADRs:** 0011, 0015 · **Telas:** Vistoria, Devolucao, Vistoriador
 
 Convenções gerais em `docs/api/README.md`. Modelo: item 14 e apoio (`FotoVistoria`, `Avaria`, `Devolucao`, `ItemAcerto`) em `docs/decisoes/modelo-de-dados.md`. A locação está em `locacoes.md`.
 

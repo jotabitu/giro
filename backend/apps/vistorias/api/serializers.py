@@ -296,7 +296,11 @@ class AcertoSerializer(serializers.Serializer[Any]):
     saldo_centavos = serializers.IntegerField()
     resultado = ResultadoAcertoSerializer()
     avisos = AvisoAcertoSerializer(
-        many=True, help_text="Vazia quando a devolução não é antecipada ou já tem a aprovação."
+        many=True,
+        help_text=(
+            "Vazia quando a devolução não é antecipada, já tem a aprovação "
+            "ou o acerto está concluído."
+        ),
     )
     forma_devolucao = serializers.CharField(allow_null=True)
 

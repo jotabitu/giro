@@ -4164,7 +4164,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AvisoAcerto'
-          description: Vazia quando a devolução não é antecipada ou já tem a aprovação.
+          description: Vazia quando a devolução não é antecipada, já tem a aprovação
+            ou o acerto está concluído.
         forma_devolucao:
           type: string
           nullable: true
