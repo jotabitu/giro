@@ -253,6 +253,9 @@ Levantadas pelo backend em T-111 (09 out 2026), para o produto. O código segue 
 ### T-092 · Troca de veículo durante a locação
 - **Agente:** backend · **Depende de:** T-016, T-091 · **Regras:** LOC-09 · **Pronto quando:** CA-015-18 passa, com o código da regra no nome do teste; a troca abre a vistoria de devolução do veículo antigo e a de saída do novo (T-016).
 
+### T-117 · Código da devolução depois da data aprovada (T-116)
+- **Agente:** backend · **Depende de:** T-114, T-116 · **Regras:** DEV-01, DEV-07, LOC-12, LOC-13 · **Pronto quando:** o CA-016-25 de `docs/qa/criterios/T-016.md` passa (`test_dev_07_ca_016_25_devolucao_depois_da_data_aprovada`: Carlos aprovado para 07 out e devolvido em 16 out cobra 67377), com um teste de que a aprovação deixa as parcelas 4 e 5 em aberto, e o CA-016-24 e o CA-015-29 seguem verdes sem mudar os números: a aprovação depois da retirada não cancela parcelas; o encerramento da devolução cancela as que vencem depois do dia da devolução; o acerto recalcula a multa e o crédito pelo dia da devolução (`calcular_encerramento`), e os valores gravados na aprovação ficam como estimativa; contrato em `docs/api/locacoes.md` e `vistorias.md`. Passos 1 a 7 em `tarefas/handoffs/T-116-produto.md`.
+
 ### T-017 · Contas a receber, caixa do dia, baixa
 - **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 23) passam, com o código da regra no nome do teste. · **Inclui:** usar o `juros_pro_rata` de `comum/dinheiro.py`, que vem da T-114 (CA-017-08: Carlos 70, Rafael 1123)
 
@@ -284,6 +287,7 @@ Levantadas pelo backend em T-111 (09 out 2026), para o produto. O código segue 
 
 ### T-022 · Telas de locação, vistoria e devolução
 - **Agente:** frontend · **Depende de:** T-021, T-015, T-016 · **Telas:** Locacao, Locacoes, Locacao-Detalhe, Vistoria, Devolucao, Vistoriador
+- **Encerramento antecipado (T-116):** no pedido e na aprovação, a multa e o valor a devolver aparecem como estimativa ("Estimativa para 07 out. O valor final sai na devolução."); parcelas de locação aprovada e não devolvida seguem em aberto; o acerto mostra o que a API devolve. Itens 1 a 3 de "O que o frontend precisa mudar" em `tarefas/handoffs/T-116-produto.md`.
 
 ### T-023 · Telas do financeiro básico
 - **Agente:** frontend · **Depende de:** T-020, T-017 · **Telas:** Receber, Caixa, Financeiro
