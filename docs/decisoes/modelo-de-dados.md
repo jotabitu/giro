@@ -1,6 +1,6 @@
 # Modelo de dados
 
-**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
+**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
 
 Este documento diz, para cada uma das 25 entidades das regras, o app dono, o schema, os campos, os índices e as restrições. As entidades de apoio (que não estão na lista das regras mas são necessárias) vêm no fim de cada app. Mudança aqui passa pelo arquiteto; o backend implementa a partir daqui e do contrato do módulo em `docs/api/`.
 
@@ -320,7 +320,11 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 - `rascunho` com mais de 24 h sem uso é cancelado pela tarefa diária (sem auditoria de negócio além do evento de cancelamento).
 - Apoio `TrechoLocacao` (`LOC-09`): `locacao`, `veiculo`, `inicio`, `fim` nulo, `valor_periodo_centavos`, `diaria_centavos`. Único `(locacao)` com `fim IS NULL`.
 - Apoio `ExtraLocacao`: `locacao`, `extra`, `quantidade`, `valor_centavos` congelado.
-- Apoio `TrocaVeiculo` (`LOC-09`): `locacao`, `veiculo_antigo`, `veiculo_novo`, `motivo`, `status` enum `pendente`, `concluida`, `cancelada`, `vistoria_devolucao` FK nulo, `vistoria_saida` FK nulo. Uma `pendente` por locação.
+- Apoio `TrocaVeiculo` (`LOC-09`; `docs/api/locacoes.md`): `locacao`, `veiculo_antigo`, `veiculo_novo`, `motivo`, `status` enum `pendente`, `concluida`, `cancelada` (máquina, `transicao_troca`), `pedida_por` FK nulo. Único `(locacao)` com `status = pendente`.
+  - Vistorias e conta sem FK, porque `vistorias` e `financeiro` não são referenciados por `locacoes` com FK (`vistorias` está abaixo; a conta tem origem genérica, ADR 0011): `vistoria_devolucao_id`, `vistoria_saida_id`, `conta_caucao_id` (bigint nulo).
+  - Preço guardado no pedido (T-122): `valor_periodo_centavos` (sem descontos, como na locação), `diaria_centavos`, `caucao_centavos` (centavos) e `preco_do_dia` (data local da filial). A migração preenche as trocas que já existem com o preço vigente no dia em que foram pedidas.
+  - Guardado na conclusão: `concluida_em`, `periodo_inicio`, `periodo_fim` (datas, nulas sem período em curso), `dias_do_periodo`, `dias_restantes` (int), `periodo_antigo_centavos`, `periodo_novo_centavos` (com os descontos do período), `ja_refeito_centavos` (int com sinal) e `diferenca_centavos` (int com sinal: positivo é cobrança, negativo é crédito).
+  - Guardado no cancelamento: `cancelada_em`, `cancelada_por` FK nulo, `motivo_cancelamento`.
 
 ### 14. Vistoria · `vistorias.Vistoria` · máquina
 
@@ -329,7 +333,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `locacao` | FK → `Locacao` | |
 | `veiculo` | FK → `Veiculo` | pode diferir do atual após troca (`LOC-09`) |
 | `tipo` | enum `saida`, `devolucao` | |
-| `status` | enum `rascunho`, `concluida` | `DEV-05`, `VIS-04` |
+| `status` | enum `rascunho`, `concluida`, `descartada` | `DEV-05`, `VIS-04`; `descartada` só pelo cancelamento da troca (`LOC-09`, T-122) |
 | `km` | int | `VEI-01` |
 | `combustivel` | enum `reserva`, `um_quarto`, `meio`, `tres_quartos`, `cheio` | `VIS-03` |
 | `itens` | json `[{item, ok, observacao}]` | `VIS-02` |
@@ -337,11 +341,13 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `concluida_em` | momento, nulo | |
 | `substitui` | FK → `Vistoria`, nulo | correção (`VIS-04`) |
 | `motivo_correcao` | texto, nulo | |
+| `descartada_em` | momento, nulo | `LOC-09` |
+| `motivo_descarte` | texto, nulo | o motivo do cancelamento da troca |
 
 - Concluída não se edita (o serviço recusa). Único: uma vistoria `concluida` vigente por `(locacao, veiculo, tipo)` que não tenha sido substituída.
 - Apoio `FotoVistoria`: `vistoria`, `posicao` enum `frente`, `traseira`, `lado_esquerdo`, `lado_direito`, `painel`, `avaria`, `arquivo`. Conclusão exige as 5 posições fixas (`VIS-01`).
 - Apoio `Avaria`: `vistoria`, `veiculo`, `descricao`, `preexistente` bool, `valor_centavos` nulo, `vai_para_oficina` bool (`DEV-04`), `foto` FK, `ordem_servico` FK nulo, `resolvida_em` momento nulo (fecha quando a OS ligada é concluída). Índice `(veiculo, resolvida_em)` para "avarias abertas".
-- Apoio `Devolucao` (`DEV-01`, `DEV-02`; `docs/api/vistorias.md`; um acerto só por locação, criado na primeira troca de veículo ou na devolução): `locacao` (1:1), `vistoria` FK (chegada), `status` enum `rascunho`, `concluida`, `caucao_centavos`, `saldo_centavos` (centavos±), `forma_devolucao` enum `pix`, `dinheiro`, `estorno_cartao`, nulo, `concluida_em`. Filho `ItemAcerto`: `tipo` enum `combustivel`, `avaria`, `atraso`, `km_excedente`, `parcela_aberta`, `multa_transito`, `multa_encerramento`, `semanas_nao_usadas` (crédito, ou cobrança no mensal em 4 semanais quando as parcelas canceladas passam do crédito, `LOC-13`), `dias_nao_usados` (crédito, `LOC-12`), `natureza` enum `cobranca`, `credito`, `modo` enum `informado`, `calculado`, `valor_centavos`, `descricao`, `avaria` FK nulo. Saldo = caução + créditos − cobranças. Exemplo LOC-2836: 3200 + 8500 = 11700; saldo 30000 − 11700 = 18300.
+- Apoio `Devolucao` (`DEV-01`, `DEV-02`; `docs/api/vistorias.md`; um acerto só por locação, criado na primeira troca de veículo ou na devolução): `locacao` (1:1), `vistoria` FK nulo (chegada; nula só depois de uma troca cancelada com a chegada descartada, até o veículo voltar), `status` enum `rascunho`, `concluida`, `caucao_centavos`, `saldo_centavos` (centavos±), `forma_devolucao` enum `pix`, `dinheiro`, `estorno_cartao`, nulo (só a escolha da pessoa; a sugestão do encerramento antecipado é calculada, T-122), `concluida_em`. Filho `ItemAcerto`: `tipo` enum `combustivel`, `avaria`, `atraso`, `km_excedente`, `parcela_aberta`, `multa_transito`, `multa_encerramento`, `semanas_nao_usadas` (crédito, ou cobrança no mensal em 4 semanais quando as parcelas canceladas passam do crédito, `LOC-13`), `dias_nao_usados` (crédito, `LOC-12`), `diferenca_troca` (cobrança ou crédito, `LOC-09`), `natureza` enum `cobranca`, `credito`, `modo` enum `informado`, `calculado`, `valor_centavos`, `descricao`, `avaria` FK nulo, `conta_id` nulo (a parcela), `veiculo` FK nulo (o combustível de cada veículo na troca, T-092), `troca` FK → `locacoes.TrocaVeiculo` nulo (a `diferenca_troca`, T-122). Saldo = caução + créditos − cobranças. Exemplo LOC-2836: 3200 + 8500 = 11700; saldo 30000 − 11700 = 18300.
 
 ### 15. Contrato · `contratos.Contrato` · máquina
 

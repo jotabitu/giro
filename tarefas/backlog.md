@@ -108,13 +108,15 @@ Levantadas pelo backend em T-111 (09 out 2026), para o produto. O código segue 
 
 - (T-111) O extra desativado antes da renovação foi decidido em 09 out 2026 pelo dono do produto: opção A. O extra continua nas locações que já o têm, renovações incluídas, pelo último valor do cadastro (`LOC-08`). Regra e critério (CA-015-27) na T-115; o código da T-111 já faz assim.
 
-Levantadas pelo backend em T-092 (10 out 2026), para o produto. O código segue o que está entre parênteses:
+Levantadas pelo backend em T-092 (10 out 2026), para o produto:
 
-- [decisão] (T-092) Preço da nova categoria na troca (`LOC-09`): a regra diz "o valor da nova categoria", sem dizer de qual dia. (Preço de hoje, como na renovação, `LOC-15`. O plano especial de preço fixo continua se valer para a nova categoria; senão, vale a tabela.)
-- [decisão] (T-092) Taxa de combustível de R$ 10,00 na troca (`DEV-01`: "uma vez por devolução"): a troca devolve dois veículos num acerto só. (Uma taxa por veículo que volta com menos combustível, cada um com o seu item no acerto.)
-- [decisão] (T-092) Parcelas refeitas na troca: muda só a parte do período, com o mesmo desconto do vendedor; os extras ficam. No mensal em 4 semanais, a parcela muda a sua quarta parte do mês. (Assim; o desconto do plano especial por período não é recalculado.)
-- [decisão] (T-092) Troca pendente que não termina: o modelo de dados tem o status `cancelada`, mas o contrato não tem rota para cancelar a troca, e a locação com troca pendente não encerra (409 `troca_pendente`). (Sem rota por enquanto; o veículo novo fica `reservado` até as duas vistorias. Pedir ao arquiteto a rota, se o produto quiser.)
-- [decisão] (T-092) Cancelamento (`LOC-12`) e renovação (`LOC-08`) com troca pendente: nenhuma regra fala do caso. (Os dois continuam permitidos; a troca não é pedida com cancelamento em curso.)
+- (T-092) As 5 dúvidas da troca de veículo foram decididas em 10 out 2026 pelo dono do produto, com a 6ª levantada pelo produto: (1) preço da nova categoria pelo dia do pedido, guardado na troca (A, com o ajuste); (2) taxa de combustível por veículo (A); (3) parcela refeita inteira pelo preço novo, com todos os descontos e o plano contando desde o começo (B); (4) rota para cancelar a troca pendente (B); (5) renovação permitida e cancelamento recusado com 409 `troca_pendente`; (6) diferença proporcional dos dias restantes do período em curso no acerto final, crédito se a categoria for mais barata (B). Regras (`LOC-08`, `LOC-09`, `LOC-12`, `DEV-01`, `DEV-02`) e caso "Troca de veículo LOC-2836" na T-121; contrato na T-122; código na T-123.
+
+Levantadas pelo arquiteto em T-122 (10 out 2026), para o produto. O contrato segue o que está entre parênteses:
+
+- [decisão] (T-122) Cancelar a troca com a saída do veículo novo já concluída: a `LOC-09` só diz o que fazer com a saída em rascunho. (O contrato recusa com 409 `troca_saida_concluida`, "O veículo novo já foi entregue. Conclua a troca com a chegada do veículo antigo.", e `acoes.cancelar_troca` fica `false`.)
+- [decisão] (T-122) Diferença do período em curso no mensal em 4 semanais: as parcelas do mês que vencem depois do dia da troca já são refeitas pelo preço novo, e a fórmula da `LOC-09` sobre todos os dias restantes do mês cobraria esses dias duas vezes. (O contrato desconta da diferença o que essas parcelas subiram, `ja_refeito_centavos`, pela frase "já cobrados pelo preço antigo"; nos outros planos não muda nada.) Falta um exemplo nas regras.
+- (T-122) A tabela de estados das entidades precisa de `descartada` na Vistoria: é o estado do rascunho descartado no cancelamento da troca, como a `LOC-09` já diz.
 
 ## Fase 0 · Fundação
 
@@ -266,6 +268,10 @@ Levantadas pelo backend em T-092 (10 out 2026), para o produto. O código segue 
 ### T-091 · Locação: renovação, atraso, cancelamento e encerramento
 - **Agente:** backend · **Depende de:** T-090 · **Regras:** LOC-08, LOC-10 a LOC-13, FIL-03, APR-02, AUT-02 · **Pronto quando:** CA-015-17 e 19 a 24 e o estorno do CA-015-25 passam, com o código da regra no nome do teste: renovação com aditivo; atraso com `calcular_atraso` e `aut_02`; cancelamento e encerramento antecipado com APR-02, reembolso e comissão estornada.
 
+### T-123 · Código das decisões da troca de veículo (T-121)
+- **Agente:** backend · **Depende de:** T-122 · **Regras:** LOC-08, LOC-09, LOC-12, DEV-01, DEV-02 · **Pronto quando:** com o contrato da T-122, (1) a troca guarda o preço do dia do pedido, e a conclusão usa esse preço (teste com a tabela mudando entre o pedido e a conclusão); (3) `_parcela_refeita` refaz a parcela inteira por `preco_com_descontos` (`test_loc_09_parcela_refeita_mensal_fidelidade_3o_mes`: 107100 → 143100; 1º mês sem desconto); (4) a rota de cancelar a troca, com cada peça como na `LOC-09` (chegada em rascunho e concluída, caução aberta e paga); (5) cancelamento e cancelamento direto recusados com 409 `troca_pendente` e a renovação ainda permitida; (6) o item da diferença do período em curso no acerto, com crédito na troca para categoria mais barata. `test_loc_09_troca_de_veiculo_loc_2836` passa com o caso "Troca de veículo LOC-2836": parcela 3 44900, cobranças 23700 (8500 + 3200 + 12000), caução 50000 → devolver 26300. O CA-015-18 continua com 44900. Todo teste com o código da regra no nome; OpenAPI regerado.
+- **Inclui (T-122):** o contrato está em `docs/api/locacoes.md` (Troca de veículo) e `docs/api/vistorias.md`, e os passos no handoff `tarefas/handoffs/T-122-arquiteto.md`: os campos novos da `TrocaVeiculo`, o estado `descartada` da vistoria, `Devolucao.vistoria` nula, `ItemAcerto.troca`, `acoes.cancelar_troca` e o bloco `troca` no detalhe, e a `forma_devolucao` sugerida pela hora do acerto (nota da T-119).
+
 ### T-017 · Contas a receber, caixa do dia, baixa
 - **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 23) passam, com o código da regra no nome do teste. · **Inclui:** usar o `juros_pro_rata` de `comum/dinheiro.py`, que vem da T-114 (CA-017-08: Carlos 70, Rafael 1123)
 
@@ -298,6 +304,7 @@ Levantadas pelo backend em T-092 (10 out 2026), para o produto. O código segue 
 ### T-022 · Telas de locação, vistoria e devolução
 - **Agente:** frontend · **Depende de:** T-021, T-015, T-016 · **Telas:** Locacao, Locacoes, Locacao-Detalhe, Vistoria, Devolucao, Vistoriador
 - **Encerramento antecipado (T-116):** no pedido e na aprovação, a multa e o valor a devolver aparecem como estimativa ("Estimativa para 07 out. O valor final sai na devolução."); parcelas de locação aprovada e não devolvida seguem em aberto; o acerto mostra o que a API devolve. Itens 1 a 3 de "O que o frontend precisa mudar" em `tarefas/handoffs/T-116-produto.md`.
+- **Troca de veículo (T-121):** no detalhe da locação, botão "Cancelar troca" quando `acoes.cancelar_troca` vier `true`, com motivo, pela rota da T-122. Com troca pendente, o botão de cancelar a locação some (`acoes.cancelar` `false`); no 409 `troca_pendente`, mostre "Conclua ou cancele a troca antes". O acerto mostra o item da diferença do período em curso como a API devolve, inclusive o crédito.
 
 ### T-023 · Telas do financeiro básico
 - **Agente:** frontend · **Depende de:** T-020, T-017 · **Telas:** Receber, Caixa, Financeiro

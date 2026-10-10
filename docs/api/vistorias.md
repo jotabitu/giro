@@ -1,6 +1,6 @@
 # Vistorias, devolução e acerto
 
-**Dono:** arquiteto · **Versão:** 09 out 2026 (T-111, T-114) · **App:** `vistorias` (schema da empresa) · **Regras:** VIS-01 a VIS-05, DEV-01 a DEV-07, LOC-09 a LOC-13, VEI-01, VEI-02, CLI-02, CLI-03, CLI-05, FIL-03, FIL-05, AUD-05 · **ADRs:** 0011, 0015 · **Telas:** Vistoria, Devolucao, Vistoriador
+**Dono:** arquiteto · **Versão:** 09 out 2026 (T-111, T-114), troca de veículo em 10 out 2026 (T-122) · **App:** `vistorias` (schema da empresa) · **Regras:** VIS-01 a VIS-05, DEV-01 a DEV-07, LOC-09 a LOC-13, VEI-01, VEI-02, CLI-02, CLI-03, CLI-05, FIL-03, FIL-05, AUD-05 · **ADRs:** 0011, 0015 · **Telas:** Vistoria, Devolucao, Vistoriador
 
 Convenções gerais em `docs/api/README.md`. Modelo: item 14 e apoio (`FotoVistoria`, `Avaria`, `Devolucao`, `ItemAcerto`) em `docs/decisoes/modelo-de-dados.md`. A locação está em `locacoes.md`.
 
@@ -74,6 +74,7 @@ Query: `?dia=hoje|amanha|semana` (padrão `hoje`). Filial pelo `X-Filial`.
 - `itens`: a lista padrão do ramo vem preenchida na criação (`VIS-02`): pneus e freios, luzes e buzina, retrovisores, documento e chave, acessórios entregues (capacete etc.). Os extras da locação entram como itens (ex.: "Capacete extra").
 - `avarias` da saída já trazem as avarias abertas do veículo como `preexistente: true` (`VIS-01`): elas não são cobradas na devolução.
 - `resumo_locacao` não traz os campos `_centavos` para o vistoriador.
+- `status`: `rascunho`, `concluida` ou `descartada`. `descartada` só vem do cancelamento da troca de veículo (`LOC-09`, abaixo): o rascunho da saída do veículo novo e o da chegada do antigo. Não volta a `rascunho`, não se edita nem conclui (409 `{ "codigo": "vistoria_descartada", "mensagem": "Esta vistoria foi descartada com o cancelamento da troca." }` em `PATCH`, fotos, avarias e concluir), não aparece na agenda nem conta como rascunho da locação, e fica guardada com fotos e respostas, com `descartada_em` e o motivo.
 
 ### POST /api/locacoes/{id}/vistorias/
 Corpo: `{ "tipo": "saida" }`. Saída só para locação `aguardando_retirada` (ou troca de veículo pendente, `LOC-09`). Na troca, a saída do veículo novo só conclui depois de paga a diferença de caução, quando a nova é maior (422 `{ "codigo": "LOC-09", "mensagem": "Receba a diferença da caução antes de entregar o veículo" }`).
@@ -91,7 +92,7 @@ Só em `rascunho`. Corpo: `{ descricao, foto_id, vai_para_oficina?: false, valor
 
 ### POST /api/vistorias/{id}/concluir/
 200: vistoria `concluida`, que não se edita mais (`VIS-04`).
-Recusas (422, com todos os problemas em `detalhes.pendencias`):
+Recusas (422, com todos os problemas em `detalhes.pendencias`; 409 `vistoria_descartada` se descartada):
 - `VIS-01`: faltam fotos obrigatórias (frente, traseira, lados, painel).
 - `VIS-02`: item sem resposta.
 - `VIS-03`: combustível não informado.
@@ -100,6 +101,14 @@ Recusas (422, com todos os problemas em `detalhes.pendencias`):
 Efeitos:
 - Saída: atualiza o km do veículo (`VEI-02`) e chama `locacoes.services.registrar_vistoria_saida`, que pode ativar a locação (`locacoes.md`).
 - Chegada: atualiza o km e libera o passo de acerto; a locação continua `ativa` ou `devolucao_atrasada` até encerrar (`DEV-05`).
+
+### Vistorias da troca de veículo (LOC-09)
+A rota de pedir (`POST /api/locacoes/{id}/trocar-veiculo/`) e a de cancelar (`POST /api/locacoes/{id}/trocar-veiculo/cancelar/`) estão em `locacoes.md`, mas são deste app (`apps/vistorias/api`, ADR 0011).
+- **Pedir:** abre a chegada do veículo atual e a saída do novo em `rascunho` e guarda os ids na troca (`vistoria_devolucao_id`, `vistoria_saida_id`, sem FK, porque `vistorias` está abaixo de `locacoes`). A devolução da locação nasce aqui, em `rascunho`, com essa chegada; se já existe (uma troca anterior), passa a apontar para ela.
+- **Saída do veículo novo:** `POST /api/locacoes/{id}/vistorias/` com `{tipo: "saida"}` devolve o rascunho (200). Concluir confere os impedimentos da retirada (`CLI-02`, `CLI-03`, `CLI-05`) e, com diferença de caução, se ela está paga (422 `LOC-09`, "Receba a diferença da caução antes de entregar o veículo"); não chama `registrar_vistoria_saida`.
+- **Chegada do veículo antigo:** não gera conta. As avarias e o combustível dele entram no acerto único, com `ItemAcerto.veiculo` = o veículo antigo.
+- **Concluir a troca:** com as duas concluídas, em qualquer ordem, `locacoes.services.concluir_troca` (`locacoes.md`), o veículo antigo `disponivel` ou `em_manutencao` (`DEV-04`), o evento `vistorias.troca_concluida` e o acerto recalculado.
+- **Cancelar** (`vistorias.services.cancelar_troca`): a saída do novo, em `rascunho`, vai para `descartada` (auditoria `vistoria.descartar`, `LOC-09`). A chegada do antigo, em `rascunho`, vai para `descartada`, e a devolução que apontava para ela fica com `vistoria = null`; concluída, fica como a chegada da devolução. O acerto é recalculado (o aviso `LOC-09` some). Saída já concluída: 409 `troca_saida_concluida`. O resto (troca, veículo novo, conta de caução) é de `locacoes.services.cancelar_troca`. Tabela completa em `locacoes.md`.
 
 ### POST /api/vistorias/{id}/corrigir/
 Perfis: administrador, gerente. Corpo: `{ motivo }`. Só em vistoria `concluida`.
@@ -114,7 +123,9 @@ Query: `?veiculo=<id>`, `?abertas=true`. Avarias ainda não reparadas (tela `Vis
 
 ### POST /api/locacoes/{id}/devolucao/
 Perfis: quem faz vistoria. Locação `ativa` ou `devolucao_atrasada`.
-201: a devolução, com a vistoria de chegada em `rascunho` e o acerto em `rascunho`. Se já existe, 200 com ela (`DEV-05`).
+201: a devolução, com a vistoria de chegada em `rascunho` e o acerto em `rascunho`. Se já existe, 200 com ela (`DEV-05`). Com a devolução já aberta por uma troca (`LOC-09`), 200 com ela: depois da troca concluída, com uma chegada nova do veículo atual; depois da troca cancelada com a chegada descartada (`vistoria = null`), também com uma chegada nova do veículo atual.
+
+`forma_devolucao` (T-119, revisto na T-122): `Devolucao.forma_devolucao` guarda só a escolha feita em `PATCH .../acerto/`. Sem escolha, a resposta e o encerramento usam a forma do pedido de encerramento antecipado (`cancelamento_forma`) quando o encerramento antecipado vale no momento do acerto (`momento_da_devolucao`: a conclusão da chegada ou, antes dela, agora); senão, vem vazia e é escolhida no acerto. Decidir pela hora em que a devolução foi aberta deixava a forma do pedido numa devolução que não é antecipada (aberta antes do dia do fim e concluída nele) e nenhuma forma numa que é (aberta antes da aprovação, ou pela troca).
 
 ### GET /api/devolucoes/{id}/
 200:
@@ -134,6 +145,7 @@ Perfis: quem faz vistoria. Locação `ativa` ou `devolucao_atrasada`.
 }
 ```
 `comparacao` sempre usa a vistoria de saída vigente do mesmo veículo e da mesma locação (com troca de veículo, a do trecho atual).
+Com `vistoria = null` (troca cancelada com a chegada descartada, até o veículo voltar), `vistoria` e `comparacao` vêm `null`, o acerto traz só os itens que não dependem da chegada atual (os dos veículos trocados antes) e encerrar responde 422 `vistoria_pendente`. O detalhe da locação mostra `devolucao.devolucao_id` `null` nesse intervalo.
 
 **Um acerto só por locação** (`LOC-09`): na troca de veículo, a vistoria de chegada do veículo antigo não fecha conta. A devolução da locação é criada nessa hora, em `rascunho`, e recebe os itens do veículo antigo (avarias, combustível); o acerto final, na devolução do último veículo, soma tudo e desconta da caução total paga.
 
@@ -160,21 +172,24 @@ O acerto é recalculado a cada `GET` e a cada mudança, enquanto está em `rascu
 }
 ```
 
+**Caso "Troca de veículo LOC-2836"** (`LOC-09`, T-121): Factor → NMax em 07 out 18:00, diferença de caução de 20000 paga, parcela 3 refeita de 32900 para 44900 e paga em 14 out, NMax de volta em 21 out 18:00 cheia e sem avaria. Itens: avaria "Retrovisor" da Factor 8500, combustível da Factor (4 L × 550 + 1000) 3200, `diferenca_troca` 12000, combustível da NMax 0, atraso 0 → cobranças **23700**; caução total paga 50000 → devolver **26300** por Pix.
+
 **Caso do seed (`DEV-03`):** LOC-2836, PNB7C04 com tanque de 16 L, Filial Centro com litro a R$ 5,50, saída cheio e chegada 3/4 → combustível 16 × 1/4 = 4 L × 550 + 1000 = **3200**; retrovisor 8500; cobranças 11700; caução 30000 → saldo **18300**: devolver **R$ 183,00** por Pix.
 
 Itens (`ItemAcerto.tipo`):
 
 | Tipo | Como entra | Regra |
 | --- | --- | --- |
-| `combustivel` | `calculado`: litros faltantes = capacidade do tanque do veículo × (nível na saída − nível na chegada), com os níveis valendo 0, 1/4, 1/2, 3/4 e 1; valor = litros × preço do litro da filial + R$ 10,00 uma vez por devolução, só quando falta combustível. Sem capacidade do tanque ou sem preço da filial, vira `informado` e a tela pede o valor | `DEV-01` (decidido em 07 out 2026, T-041) |
+| `combustivel` | `calculado`: litros faltantes = capacidade do tanque do veículo × (nível na saída − nível na chegada), com os níveis valendo 0, 1/4, 1/2, 3/4 e 1; valor = litros × preço do litro da filial + R$ 10,00 uma vez por veículo devolvido, só quando falta combustível. Na troca, um item por veículo, com `veiculo` preenchido e o nome dele na descrição ("Combustível da Factor 150 PNB7C04 (faltou 1/4 tanque, ...)"). Sem capacidade do tanque ou sem preço da filial, vira `informado` e a tela pede o valor | `DEV-01` (T-041; por veículo na T-121) |
 | `avaria` | um item por avaria nova com valor (tabela de peças ou orçamento) | `DEV-01` |
 | `atraso` | `calculado` por `locacoes.selectors.calcular_atraso` no momento da conclusão da vistoria de chegada | `LOC-10`, `LOC-11`, `FIL-03` |
 | `km_excedente` | `calculado`; hoje sempre 0 (km livre em todos os planos) | `DEV-01` |
 | `parcela_aberta` | `calculado`: parcelas em aberto da locação que vencem até o dia da devolução, inclusive a do próprio dia, cada uma pelo devido nesse dia, com a multa e os juros da `FIN-03` (`financeiro.selectors.devido_ate`). As que vencem depois não entram. Descrição: "Parcela 2 de 5 · venceu em 30/09 (multa R$ 5,99 e juros R$ 0,70)" ou "Parcela 3 de 5 · vence hoje, 07/10" | `DEV-01`, `FIN-03` (T-114) |
 | `multa_transito` | `informado`, com descrição (multas já identificadas) | `DEV-01` |
+| `diferenca_troca` | `calculado`, um por troca concluída (`ItemAcerto.troca`), com o valor guardado na troca (`diferenca_centavos`, `locacoes.md`); não vem quando é 0. Positivo: `natureza = "cobranca"`; negativo: `natureza = "credito"`, com `valor_centavos` sempre positivo. Descrição: `"Diferença do período de 07/10 a 14/10 na troca pela Yamaha NMax 160 GEN0001 ((R$ 449,00 − R$ 329,00) ÷ 7 × 7 dias)"`; no crédito, a mesma conta com o resultado negativo; no mensal em 4 semanais com parcelas refeitas no período, mais `" − R$ X já nas parcelas refeitas"`. Não se edita (409 `item_calculado`) | `LOC-09`, `DEV-01`, `DEV-02` (T-121) |
 | `multa_encerramento` | `calculado`, só em encerramento antecipado aprovado com a devolução antes do dia do fim previsto, pelo dia da devolução (não pelo da aprovação, T-116). No dia do fim previsto ou depois, o item não vem, nem o crédito: é uma devolução comum (T-118) | `LOC-12`, `DEV-07` |
 
-`creditos` (somam ao saldo): `semanas_nao_usadas`, só no mensal com encerramento antecipado (`LOC-13`, ex.: Patrícia 37100), e `dias_nao_usados`, na diária com encerramento antecipado, contados pela hora real da devolução em blocos de 24 h (`LOC-12`, CA-015-28).
+`creditos` (somam ao saldo): `diferenca_troca` com `natureza = "credito"` (troca para categoria mais barata, `LOC-09`), `semanas_nao_usadas`, só no mensal com encerramento antecipado (`LOC-13`, ex.: Patrícia 37100), e `dias_nao_usados`, na diária com encerramento antecipado, contados pela hora real da devolução em blocos de 24 h (`LOC-12`, CA-015-28).
 
 No mensal em 4 semanais, `semanas_nao_usadas` é o crédito das semanas menos as parcelas do mês que o encerramento cancela, contadas pelo dia da devolução (`LOC-13`, T-111, T-116). Quando o líquido é negativo, o item sai em `itens` com `natureza = "cobranca"` (o `valor_centavos` é sempre positivo, como nos outros itens), e a `descricao` mostra a conta: `"2 semanas não usadas (R$ 742,00) − 2 parcelas canceladas (R$ 795,00)"` (CA-015-29: NMax encerrada em 25 set, item de 5300 + multa de 21200 → cobrar 26500). Ao encerrar, a parte não coberta pela caução entra na conta `acerto`.
 
@@ -183,9 +198,9 @@ No mensal em 4 semanais, `semanas_nao_usadas` é o crédito das semanas menos as
 - `resultado.tipo = "cobrar"`: saldo negativo vira conta a receber do cliente, com vencimento em 3 dias.
 - `resultado.tipo = "zerado"`: saldo 0.
 
-`avisos` (lista, no nível do acerto, mesmo formato da T-111): `[ { "codigo": "DEV-07", "mensagem": "A devolução é antes do fim do contrato. Peça o encerramento antecipado ao gerente." } ]` quando a chegada é de um dia (no fuso da filial) anterior ao dia do fim previsto e a locação não tem o encerramento antecipado aprovado. Vazia nos outros casos e no acerto concluído (T-114).
+`avisos` (lista, no nível do acerto, mesmo formato da T-111): `[ { "codigo": "LOC-09", "mensagem": "Troca de veículo em andamento. O acerto fecha na devolução do último veículo." } ]` com uma troca pendente (só ele, T-092); senão, `[ { "codigo": "DEV-07", "mensagem": "A devolução é antes do fim do contrato. Peça o encerramento antecipado ao gerente." } ]` quando a chegada é de um dia (no fuso da filial) anterior ao dia do fim previsto e a locação não tem o encerramento antecipado aprovado. Vazia nos outros casos e no acerto concluído (T-114).
 
-Ordem do pagamento com a caução e os créditos ao encerrar (`DEV-02`, T-114): primeiro os itens `parcela_aberta`, inteiros, da mais antiga para a mais nova; a primeira que não cabe e as seguintes vão para `renegociada` e entram na conta do saldo; depois as outras cobranças, pagas com a caução até onde ela der; o que sobra abate a conta do saldo. A conta `acerto` vale sempre `resultado.valor_centavos` quando `resultado.tipo = "cobrar"` (CA-016-22: caução 30000, parcela 32900 e avaria 8500 → avaria paga, parcela `renegociada`, conta de 11400).
+Ordem do pagamento com a caução e os créditos ao encerrar (`DEV-02`, T-114; o crédito da `diferenca_troca` entra com a caução e os outros créditos, T-121): primeiro os itens `parcela_aberta`, inteiros, da mais antiga para a mais nova; a primeira que não cabe e as seguintes vão para `renegociada` e entram na conta do saldo; depois as outras cobranças, pagas com a caução até onde ela der; o que sobra abate a conta do saldo. A conta `acerto` vale sempre `resultado.valor_centavos` quando `resultado.tipo = "cobrar"` (CA-016-22: caução 30000, parcela 32900 e avaria 8500 → avaria paga, parcela `renegociada`, conta de 11400).
 
 ### POST /api/devolucoes/{id}/acerto/itens/ · PATCH .../itens/{item_id}/ · DELETE .../itens/{item_id}/
 Perfis: quem vê o acerto. Só itens `informado` (`avaria`, `multa_transito`, e `combustivel` quando não pôde ser calculado). Corpo: `{ tipo, descricao, valor_centavos }`. Itens `calculado` não se editam: 409 `{ "codigo": "item_calculado" }`. 200: a devolução.
@@ -194,7 +209,7 @@ Perfis: quem vê o acerto. Só itens `informado` (`avaria`, `multa_transito`, e 
 Corpo: `{ "forma_devolucao": "pix" | "dinheiro" | "estorno_cartao" }`. 200.
 
 ### POST /api/devolucoes/{id}/encerrar/
-Perfis: quem vê o acerto. Exige a vistoria de chegada `concluida` (senão 422 `{ "codigo": "vistoria_pendente" }`) e `forma_devolucao` quando há valor a devolver.
+Perfis: quem vê o acerto. Com uma troca de veículo pendente, 409 `{ "codigo": "troca_pendente", "mensagem": "Conclua ou cancele a troca antes de encerrar a devolução." }` (`LOC-09`). Exige a vistoria de chegada `concluida` (senão 422 `{ "codigo": "vistoria_pendente" }`) e `forma_devolucao` quando há valor a devolver.
 200: a devolução `concluida` e o resumo da locação. Na mesma transação (`DEV-06`):
 - Acerto congelado (`concluido`); itens viram registros no `financeiro`: as cobranças são pagas com a caução (`forma = caucao`); o saldo a devolver é lançado como devolução de caução pela `forma_devolucao` (dinheiro sai no caixa do dia da filial, que precisa estar aberto, `FIN-07`); o saldo negativo vira conta a receber com vencimento em 3 dias (`DEV-02`). O detalhe de cada lançamento está no contrato de financeiro (T-017).
 - Locação `encerrada` (ou `cancelada` no encerramento antecipado aprovado com a devolução antes do dia do fim previsto, `DEV-07`, T-118) por `locacoes.services.encerrar`, com `devolvida_em` = conclusão da vistoria de chegada, ajustada pela `LOC-11` quando a filial estava fechada.
@@ -215,7 +230,9 @@ Regras: DEV-01 a DEV-07, LOC-10 a LOC-13, FIN-03.
 
 | Item | Uso |
 | --- | --- |
-| chamadas a `locacoes.services` | `registrar_vistoria_saida`, `encerrar` (`vistorias` está abaixo de `locacoes`, ADR 0011). |
+| chamadas a `locacoes.services` | `registrar_vistoria_saida`, `encerrar`, e na troca `pedir_troca`, `vincular_vistorias_da_troca`, `concluir_troca`, `cancelar_troca`, `troca_pendente`, `caucao_da_troca_paga` (`vistorias` está abaixo de `locacoes`, ADR 0011). |
+| chamada a `locacoes.selectors.trocas_concluidas` | os itens `diferenca_troca` do acerto. |
+| evento publicado `vistorias.troca_concluida(troca_id, locacao_id, veiculo_antigo_id, veiculo_novo_id, avarias_para_oficina)` | na troca concluída, para `manutencao` abrir a OS do veículo antigo com avaria "vai para oficina" (`DEV-04`), como `vistorias.devolucao_encerrada`. Ainda sem assinante (módulo de manutenção). A troca cancelada não publica evento. |
 | chamadas a `veiculos.services` | `atualizar_km`, `transicionar` (via `locacoes.encerrar` e `manutencao`). |
 | chamada a `manutencao.services.abrir_os_de_avaria` | `DEV-04`. |
 | anotação fornecida (ADR 0015) | vistorias da locação para `locacoes` (histórico). |
