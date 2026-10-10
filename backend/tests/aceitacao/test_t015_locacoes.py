@@ -655,7 +655,7 @@ def _linha(corpo: dict[str, Any], codigo: str) -> dict[str, Any]:
     return next(item for item in corpo["resultados"] if item["codigo"] == codigo)
 
 
-def test_loc_07_loc_10_ca_015_16_sinais_e_lista(cenario, com_carteira):
+def test_loc_07_loc_10_ca_015_16_sinais_e_lista(cenario, com_carteira, relogio):
     corpo = cenario.moto.api("Rodrigo").get(LISTA, {"tamanho": 100}).json()
     indicadores = corpo["indicadores"]
     assert indicadores["ativas"] == 42
@@ -665,12 +665,11 @@ def test_loc_07_loc_10_ca_015_16_sinais_e_lista(cenario, com_carteira):
     assert indicadores["pagamentos_atrasados_centavos"] == 164640
     assert corpo["contagens"]["abertas"] == 42
 
+    # LOC-2836 vai até 14 out 18:00: em 07 out está ativa, sem sinal, com a ação "Abrir".
     juliana = _linha(corpo, "LOC-2836")
-    assert juliana["sinais"]["devolve_hoje"] is True
-    assert juliana["acao_principal"] == {
-        "codigo": "receber_devolucao",
-        "rotulo": "Receber devolução",
-    }
+    assert juliana["situacao"]["codigo"] == "ativa"
+    assert juliana["sinais"]["devolve_hoje"] is False
+    assert juliana["acao_principal"] == {"codigo": "abrir", "rotulo": "Abrir"}
     assert juliana["pagamento"]["rotulo"] == "Pago"
 
     carlos = _linha(corpo, "LOC-2841")
@@ -693,7 +692,22 @@ def test_loc_07_loc_10_ca_015_16_sinais_e_lista(cenario, com_carteira):
     acao = cenario.moto.api("Rodrigo").get(LISTA, {"aba": "precisam_acao"}).json()
     assert {x["codigo"] for x in acao["resultados"]} == {"LOC-2790", "LOC-2841"}
     hoje = cenario.moto.api("Rodrigo").get(LISTA, {"aba": "devolvem_hoje"}).json()
+    assert hoje["resultados"] == []  # nenhuma locação do seed devolve em 07 out
+
+    # Com o relógio em 14 out, a LOC-2836 devolve hoje.
+    relogio.em("2026-10-14 08:00")
+    cenario.moto._tokens.clear()  # o token de 07 out venceu
+    api = cenario.moto.api("Rodrigo")
+    juliana = _linha(api.get(LISTA, {"tamanho": 100}).json(), "LOC-2836")
+    assert juliana["sinais"]["devolve_hoje"] is True
+    assert juliana["acao_principal"] == {
+        "codigo": "receber_devolucao",
+        "rotulo": "Receber devolução",
+    }
+    hoje = api.get(LISTA, {"aba": "devolvem_hoje"}).json()
     assert [x["codigo"] for x in hoje["resultados"]] == ["LOC-2836"]
+    relogio.em("2026-10-07 10:00")
+    cenario.moto._tokens.clear()
     busca = cenario.moto.api("Rodrigo").get(LISTA, {"busca": "qxa4b21"}).json()
     assert [x["codigo"] for x in busca["resultados"]] == ["LOC-2841"]
 
@@ -746,7 +760,7 @@ def test_loc_leituras_veiculo_cliente_e_filial(cenario, com_carteira):
         .json()
     )
     assert juliana["locacao_atual"]["codigo"] == "LOC-2836"
-    assert juliana["locacao_atual"]["detalhe"] == "devolve hoje"
+    assert juliana["locacao_atual"].get("detalhe") != "devolve hoje"  # fim em 14 out
 
     filiais = cenario.moto.api("Mariana").get("/api/filiais/").json()["resultados"]
     assert filiais[0]["indicadores"]["locacoes_ativas"] == 42
