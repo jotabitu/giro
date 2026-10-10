@@ -2383,6 +2383,39 @@ paths:
               schema:
                 $ref: '#/components/schemas/SimulacaoRenovacao'
           description: ''
+  /api/locacoes/{id}/trocar-veiculo/:
+    post:
+      operationId: locacoes_trocar_veiculo_create
+      summary: 'Trocar o veículo da locação ativa (LOC-09): abre a devolução e a saída'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrocarVeiculo'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TrocarVeiculo'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TrocarVeiculo'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrocaPedida'
+          description: ''
   /api/locacoes/{id}/vistorias/:
     post:
       operationId: locacoes_vistorias_create
@@ -9654,6 +9687,31 @@ components:
       - fim
       - inicio
       - veiculo
+    Troca:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+        devolucao_vistoria_id:
+          type: integer
+          nullable: true
+        saida_vistoria_id:
+          type: integer
+          nullable: true
+      required:
+      - devolucao_vistoria_id
+      - id
+      - saida_vistoria_id
+      - status
+    TrocaPedida:
+      type: object
+      properties:
+        troca:
+          $ref: '#/components/schemas/Troca'
+      required:
+      - troca
     TrocarSenha:
       type: object
       properties:
@@ -9664,6 +9722,17 @@ components:
       required:
       - senha_atual
       - senha_nova
+    TrocarVeiculo:
+      type: object
+      properties:
+        veiculo_novo_id:
+          type: integer
+        motivo:
+          type: string
+          maxLength: 500
+      required:
+      - motivo
+      - veiculo_novo_id
     UrlDoPdf:
       type: object
       properties:

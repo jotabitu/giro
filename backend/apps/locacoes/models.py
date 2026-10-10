@@ -245,3 +245,53 @@ class TrechoLocacao(ModeloBase):
 
     def __str__(self) -> str:
         return f"{self.locacao_id}: {self.veiculo_id}"
+
+
+class StatusTroca(models.TextChoices):
+    PENDENTE = "pendente", "Pendente"
+    CONCLUIDA = "concluida", "Concluída"
+    CANCELADA = "cancelada", "Cancelada"
+
+
+class TrocaVeiculo(MaquinaDeEstados, ModeloBase):
+    """LOC-09: a devolução do veículo antigo e a saída do novo, na mesma locação. Pendente até as
+    duas vistorias serem concluídas. Uma pendente por locação."""
+
+    locacao = models.ForeignKey(Locacao, on_delete=models.PROTECT, related_name="trocas")
+    veiculo_antigo = models.ForeignKey(
+        "veiculos.Veiculo", on_delete=models.PROTECT, related_name="+"
+    )
+    veiculo_novo = models.ForeignKey("veiculos.Veiculo", on_delete=models.PROTECT, related_name="+")
+    motivo = models.TextField()
+    status = models.CharField(max_length=10, choices=StatusTroca.choices, default="pendente")
+    pedida_por = models.ForeignKey(
+        "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    # As vistorias ficam em `vistorias`, acima de `locacoes` (ADR 0011): só os ids, sem FK.
+    vistoria_devolucao_id = models.BigIntegerField(null=True, blank=True)
+    vistoria_saida_id = models.BigIntegerField(null=True, blank=True)
+    # A diferença de caução cobrada na troca, quando a nova categoria pede mais (LOC-09).
+    conta_caucao_id = models.BigIntegerField(null=True, blank=True)
+    concluida_em = models.DateTimeField(null=True, blank=True)
+
+    TRANSICOES: ClassVar[dict[str, set[str]]] = {
+        StatusTroca.PENDENTE: {StatusTroca.CONCLUIDA, StatusTroca.CANCELADA},
+        StatusTroca.CONCLUIDA: set(),
+        StatusTroca.CANCELADA: set(),
+    }
+    REGRA_TRANSICAO: ClassVar[str] = "transicao_troca"
+
+    class Meta:
+        verbose_name = "troca de veículo"
+        verbose_name_plural = "trocas de veículo"
+        ordering = ["-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["locacao"],
+                condition=models.Q(status="pendente"),
+                name="uma_troca_pendente_por_locacao",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.locacao_id}: {self.veiculo_antigo_id} → {self.veiculo_novo_id}"

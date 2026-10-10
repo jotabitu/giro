@@ -1652,12 +1652,190 @@ def test_dev_devolucao_fora_da_filial_responde_404(cenario, lucas):
     assert so_caucaia.get(f"{DEVOLUCOES}{devolucao['id']}/").status_code == 404
 
 
-# --- Troca (T-092) e caixa (T-017) ---
+# --- Troca de veículo (T-092, LOC-09) ---
 
 
-@aguarda("T-092")
-def test_loc_09_ca_016_15_troca_de_veiculo_acerto_unico(cenario):
-    pendente(avaria=8500, diferenca_caucao=20000, caucao_final=50000)
+def _pedir_troca(cenario: Cenario, locacao_id: int, veiculo: Veiculo, quem: str = "Bruna") -> Any:
+    return cenario.moto.api(quem).post(
+        f"{LISTA}{locacao_id}/trocar-veiculo/",
+        {"veiculo_novo_id": veiculo.pk, "motivo": "Barulho no motor"},
+        format="json",
+    )
+
+
+def _troca_pedida(cenario: Cenario, locacao_id: int, veiculo: Veiculo) -> dict[str, Any]:
+    resposta = _pedir_troca(cenario, locacao_id, veiculo)
+    assert resposta.status_code == 202, resposta.json()
+    troca = dict(resposta.json()["troca"])
+    assert troca["status"] == "pendente"
+    return troca
+
+
+def _vistoriar(
+    cenario: Cenario,
+    vistoria_id: int,
+    km: int,
+    combustivel: str = "cheio",
+    avarias: tuple[str, ...] = (),
+) -> Any:
+    """João preenche a vistoria (fotos, itens, km e combustível), marca as avarias e conclui."""
+    vistoria = cenario.moto.api("João").get(f"{VISTORIAS}{vistoria_id}/").json()
+    _preencher(cenario, vistoria, km, combustivel=combustivel)
+    for descricao in avarias:
+        foto = _foto(cenario, vistoria_id, "avaria").json()
+        resposta = cenario.moto.api("João").post(
+            f"{VISTORIAS}{vistoria_id}/avarias/",
+            {"descricao": descricao, "foto_id": foto["id"]},
+            format="json",
+        )
+        assert resposta.status_code == 201, resposta.json()
+    return _concluir(cenario, vistoria_id)
+
+
+def _caucao_da_troca(locacao: Locacao) -> ContaReceber:
+    return ContaReceber.objects.get(
+        origem_tipo="locacao",
+        origem_id=locacao.pk,
+        tipo="caucao",
+        observacao="Diferença de caução da troca de veículo",
+    )
+
+
+def _nmax(cenario: Cenario) -> Veiculo:
+    return cenario.veiculo("Scooter premium")
+
+
+def _trocar_para_nmax(cenario: Cenario, juliana: Locacao) -> Veiculo:
+    """CA-015-18: Factor → NMax em 07 out, com o retrovisor riscado na Factor (R$ 85,00 no
+    acerto) e a diferença de caução paga antes da saída da NMax."""
+    _completar(juliana.cliente)
+    nmax = _nmax(cenario)
+    troca = _troca_pedida(cenario, juliana.pk, nmax)
+    devolucao = _abrir_devolucao(cenario, juliana.pk)
+    assert devolucao["vistoria"]["id"] == troca["devolucao_vistoria_id"]
+    resposta = _vistoriar(
+        cenario, troca["devolucao_vistoria_id"], 18900, avarias=("Retrovisor esquerdo riscado",)
+    )
+    assert resposta.status_code == 200, resposta.json()
+    retrovisor = _item(_ver(cenario, devolucao["id"]), "avaria")
+    assert _valor_do_item(cenario, devolucao["id"], retrovisor["id"], 8500).status_code == 200
+    financeiro_services.marcar_paga(_caucao_da_troca(juliana), forma="pix")
+    resposta = _vistoriar(cenario, troca["saida_vistoria_id"], nmax.km_atual)
+    assert resposta.status_code == 200, resposta.json()
+    juliana.refresh_from_db()
+    assert juliana.veiculo_id == nmax.pk
+    return nmax
+
+
+def test_loc_09_ca_016_15_troca_de_veiculo_acerto_unico(cenario, juliana, relogio):
+    nmax = _trocar_para_nmax(cenario, juliana)
+    devolucao = Devolucao.objects.get(locacao=juliana)
+
+    # A avaria da Factor não vira conta na troca: fica no acerto, que continua em rascunho.
+    assert devolucao.status == "rascunho"
+    assert not ContaReceber.objects.filter(origem_tipo="devolucao").exists()
+    factor = Veiculo.objects.get(placa="PNB7C04")
+    assert (factor.status, factor.km_atual) == ("disponivel", 18900)
+    # Antes de abrir a chegada da NMax, não se encerra com a chegada da Factor.
+    assert _encerrar(cenario, devolucao.pk).json()["codigo"] == "vistoria_pendente"
+
+    _ir_para(cenario, relogio, "2026-10-14 17:40")
+    corpo = _abrir_devolucao(cenario, juliana.pk)
+    assert corpo["id"] == devolucao.pk
+    assert corpo["vistoria"]["veiculo"]["id"] == nmax.pk
+    corpo = _chegada(cenario, corpo, nmax.km_atual + 600)
+    acerto = corpo["acerto"]
+    assert sorted((i["tipo"], i["valor_centavos"]) for i in acerto["itens"]) == [
+        ("atraso", 0),
+        ("avaria", 8500),
+        ("combustivel", 0),  # a Factor voltou cheia
+        ("combustivel", 0),  # a NMax também
+        ("km_excedente", 0),
+    ]
+    assert acerto["caucao_centavos"] == 50000  # 30000 + a diferença de 20000 paga na troca
+    assert (acerto["total_cobrancas_centavos"], acerto["saldo_centavos"]) == (8500, 41500)
+    assert _forma(cenario, devolucao.pk).status_code == 200
+    resposta = _encerrar(cenario, devolucao.pk)
+    assert resposta.status_code == 200, resposta.json()
+
+    juliana.refresh_from_db()
+    assert juliana.status == "encerrada"
+    pagas = ContaReceber.objects.filter(origem_tipo="devolucao", origem_id=devolucao.pk)
+    assert [(c.tipo, c.valor_centavos, c.status) for c in pagas] == [("avaria", 8500, "paga")]
+    reembolso = Reembolso.objects.get(origem_tipo="devolucao", origem_id=devolucao.pk)
+    assert reembolso.valor_centavos == 41500
+    assert Veiculo.objects.get(pk=nmax.pk).status == "disponivel"
+
+
+def test_loc_09_troca_pendente_abre_as_duas_vistorias(cenario, juliana):
+    _completar(juliana.cliente)
+    nmax = _nmax(cenario)
+    troca = _troca_pedida(cenario, juliana.pk, nmax)
+    chegada = Vistoria.objects.get(pk=troca["devolucao_vistoria_id"])
+    saida = Vistoria.objects.get(pk=troca["saida_vistoria_id"])
+    assert (chegada.tipo, chegada.veiculo_id) == ("devolucao", juliana.veiculo_id)
+    assert (saida.tipo, saida.veiculo_id) == ("saida", nmax.pk)
+    nmax.refresh_from_db()
+    assert nmax.status == "reservado"
+    # A saída do veículo novo volta pela rota da vistoria de saída (o rascunho, com 200).
+    assert _saida(cenario, juliana.pk)["id"] == saida.pk
+    assert _pedir_troca(cenario, juliana.pk, nmax).json()["codigo"] == "troca_pendente"
+    assert cenario.detalhe(juliana.pk)["acoes"]["trocar_veiculo"] is False
+
+    devolucao = _ver(cenario, _abrir_devolucao(cenario, juliana.pk)["id"])
+    assert devolucao["acerto"]["avisos"][0]["codigo"] == "LOC-09"
+    assert _encerrar(cenario, devolucao["id"]).json()["codigo"] == "troca_pendente"
+
+    # A NMax só sai depois de paga a diferença de caução.
+    resposta = _vistoriar(cenario, saida.pk, nmax.km_atual)
+    assert resposta.status_code == 422
+    assert resposta.json()["codigo"] == "LOC-09"
+    assert resposta.json()["mensagem"] == "Receba a diferença da caução antes de entregar o veículo"
+    assert _caucao_da_troca(juliana).valor_centavos == 20000
+
+
+def test_loc_09_troca_recusas(cenario, juliana, da_carteira):
+    alugado = cenario.veiculo("Scooter premium", status="alugado")
+    resposta = _pedir_troca(cenario, juliana.pk, alugado)
+    assert (resposta.status_code, resposta.json()["codigo"]) == (422, "LOC-03")
+    assert _pedir_troca(cenario, juliana.pk, _nmax(cenario), quem="João").status_code == 403
+    atrasada = da_carteira["LOC-2790"]  # só a locação ativa troca de veículo
+    resposta = _pedir_troca(cenario, atrasada.pk, _nmax(cenario))
+    assert (resposta.status_code, resposta.json()["codigo"]) == (409, "transicao_locacao")
+    assert not Vistoria.objects.filter(locacao=juliana).exclude(tipo="saida").exists()
+
+
+def test_loc_09_segunda_troca_com_caucao_menor_fica_para_o_acerto(cenario, juliana, relogio):
+    nmax = _trocar_para_nmax(cenario, juliana)
+    Veiculo.objects.filter(pk=nmax.pk).update(capacidade_tanque_litros=Decimal("8.0"))
+    street = cenario.veiculo("Street 150–160", exceto=("PNB7C04",))
+    troca = _troca_pedida(cenario, juliana.pk, street)
+    # Caução da Street (30000) menor que a da NMax (50000): nada a cobrar, a saída conclui.
+    assert ContaReceber.objects.filter(origem_id=juliana.pk, tipo="caucao").count() == 2
+    resposta = _vistoriar(cenario, troca["devolucao_vistoria_id"], nmax.km_atual + 100, "meio")
+    assert resposta.status_code == 200, resposta.json()
+    resposta = _vistoriar(cenario, troca["saida_vistoria_id"], street.km_atual)
+    assert resposta.status_code == 200, resposta.json()
+    juliana.refresh_from_db()
+    assert (juliana.veiculo_id, juliana.caucao_centavos) == (street.pk, 30000)
+    assert juliana.trechos.count() == 3
+
+    _ir_para(cenario, relogio, "2026-10-14 17:40")
+    corpo = _chegada(cenario, _abrir_devolucao(cenario, juliana.pk), street.km_atual + 50)
+    acerto = corpo["acerto"]
+    combustivel = {i["descricao"]: i["valor_centavos"] for i in acerto["itens"]}
+    # A NMax voltou com 1/2 tanque: 4 L × R$ 5,50 + R$ 10,00, com o nome do veículo trocado.
+    descricao = (
+        f"Combustível da NMax 160 {nmax.placa} (faltou 1/2 tanque, 4 L × R$ 5,50 + R$ 10,00)"
+    )
+    assert combustivel[descricao] == 3200
+    # A caução paga (50000) inteira entra no acerto: a diferença volta ao cliente no fim.
+    assert acerto["caucao_centavos"] == 50000
+    assert acerto["total_cobrancas_centavos"] == 8500 + 3200
+    assert acerto["saldo_centavos"] == 50000 - 11700
+
+
+# --- Caixa (T-017) ---
 
 
 @aguarda("T-017")

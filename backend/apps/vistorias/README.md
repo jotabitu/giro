@@ -47,3 +47,11 @@ Contrato da API: `docs/api/vistorias.md` (escrito pelo arquiteto antes da implem
 - `recibo.py`: o HTML do recibo com a marca da locadora e as fotos da chegada (endereços internos `giro-imagem:<id>` em `contratos.pdf`).
 - `tasks.py`: `vistorias_enviar_recibo` (idempotente; o reenvio força) manda o link de 15 minutos por WhatsApp.
 - Rotas: `POST /api/locacoes/{id}/devolucao/`, `GET /api/devolucoes/{id}/`, `PATCH .../acerto/`, `POST .../acerto/itens/`, `PATCH` e `DELETE .../acerto/itens/{item_id}/`, `POST .../encerrar/`, `GET .../recibo/` e `POST .../recibo/reenviar/`. Abrir e ver: quem faz vistoria (o vistoriador sem valores); acerto, encerrar e recibo: administrador, gerente e vendedor.
+
+## Implementado (T-092, troca de veículo)
+
+- `trocar_veiculo` (`POST /api/locacoes/{id}/trocar-veiculo/`, quem cria locação, 202): `locacoes.services.pedir_troca` e, na mesma transação, a chegada do veículo atual e a saída do novo, em rascunho. A devolução da locação nasce aqui, com a chegada do antigo: o acerto é um só (`LOC-09`), e a tela de devolução mostra o aviso `LOC-09` enquanto a troca está pendente.
+- `iniciar_saida` devolve a saída do veículo novo quando há troca pendente. Concluir essa saída pede a diferença de caução paga (422 `LOC-09`, "Receba a diferença da caução antes de entregar o veículo") e não chama `registrar_vistoria_saida`.
+- Com as duas concluídas, em qualquer ordem: `locacoes.services.concluir_troca`, o veículo antigo `disponivel` ou `em_manutencao` (`DEV-04`) e o evento `vistorias.troca_concluida` (com `avarias_para_oficina`).
+- `iniciar_devolucao`, depois da troca concluída, passa a devolução à chegada do veículo novo. O acerto soma as avarias e o combustível das chegadas dos veículos trocados ("Combustível da NMax 160 GEN0001 (...)"); `ItemAcerto.veiculo` (migração `0003`) separa o combustível de cada veículo.
+- Encerrar com a troca pendente: 409 `troca_pendente`; sem a chegada do veículo atual concluída: 422 `vistoria_pendente`.

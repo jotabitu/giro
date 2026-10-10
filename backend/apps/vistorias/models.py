@@ -260,6 +260,10 @@ class ItemAcerto(ModeloBase):
     )
     # A parcela em aberto que o acerto paga com a caução (origem genérica, ADR 0011).
     conta_id = models.BigIntegerField(null=True, blank=True)
+    # De qual veículo é o combustível: com troca (LOC-09), cada veículo devolvido tem o seu.
+    veiculo = models.ForeignKey(
+        "veiculos.Veiculo", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
 
     class Meta:
         verbose_name = "item do acerto"

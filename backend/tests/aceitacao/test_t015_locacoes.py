@@ -4,7 +4,7 @@ Roda na `empresa_a` com as pessoas e a frota da Moto Rápida (Filial Centro) e o
 2026, 10:00. A divisão combinada em 09 out: contratos (CA-015-11 a 13) ficaram com a T-090 e estão
 em `test_t090_contratos.py`; renovação, atraso, cancelamento e encerramento (CA-015-17, 19 a 24 e
 o estorno do 25), com a T-091, em `test_t091_locacao_fim.py`; troca de veículo (CA-015-18), com a
-T-092, que fica `xfail` aqui, com os números do critério.
+T-092, aqui, com os passos da vistoria da T-016.
 
 A vistoria de saída (T-016), a assinatura (T-090) e a baixa no caixa (T-017) entram pelas portas
 que esses apps vão usar: `locacoes.services.registrar_vistoria_saida`, o evento
@@ -38,7 +38,6 @@ from comum import eventos, relogio
 from comum.codigos import ajustar_sequencia
 
 from . import carteira
-from .apoio import aguarda, pendente
 from .frota import Frota, criar_veiculo, montar_frota
 from .test_t012_filiais import MotoRapida
 from .test_t013_veiculos import _caucaia
@@ -853,9 +852,62 @@ def test_loc_01_plano_especial_campo_da_regra(cenario):
 # --- Das tarefas seguintes (divisão de 09 out) ---
 
 
-@aguarda("T-092")
-def test_loc_09_ca_015_18_troca_de_veiculo(cenario):
-    pendente(locacao="LOC-2836", diferenca_caucao=20000, parcelas_abertas=44900)
+def test_loc_09_ca_015_18_troca_de_veiculo(cenario, relogio):
+    # Os passos da vistoria são os da T-016 (importados aqui para não criar um ciclo).
+    from .test_t016_vistorias import _caucao_da_troca, _completar, _troca_pedida, _vistoriar
+
+    juliana = carteira.carregar(cenario.frota, cenario.pessoas["Bruna"], relogio)["LOC-2836"]
+    _completar(juliana.cliente)
+    factor = Veiculo.objects.get(pk=juliana.veiculo_id)
+    # Renovada por 1 semana: a parcela 3 vence em 14 out, depois da troca.
+    renovar = cenario.moto.api("Bruna").post(
+        f"{LISTA}{juliana.pk}/renovar/", {"periodos": 1}, format="json"
+    )
+    assert renovar.status_code == 200, renovar.json()
+    assert _parcelas(juliana.pk) == [
+        (date(2026, 9, 30), 32900),
+        (date(2026, 10, 7), 32900),
+        (date(2026, 10, 14), 32900),
+    ]
+
+    nmax = cenario.veiculo("Scooter premium")
+    troca = _troca_pedida(cenario, juliana.pk, nmax)
+    diferenca = _caucao_da_troca(juliana)
+    assert (diferenca.valor_centavos, diferenca.status) == (20000, "aberta")
+    assert diferenca.vencimento == date(2026, 10, 7)
+    resposta = _vistoriar(cenario, troca["devolucao_vistoria_id"], factor.km_atual + 300)
+    assert resposta.status_code == 200, resposta.json()
+    resposta = _vistoriar(cenario, troca["saida_vistoria_id"], nmax.km_atual)
+    assert resposta.status_code == 422  # a NMax só sai depois do pagamento
+    assert resposta.json()["codigo"] == "LOC-09"
+    financeiro.marcar_paga(diferenca, forma="pix")
+    resposta = _vistoriar(cenario, troca["saida_vistoria_id"], nmax.km_atual)
+    assert resposta.status_code == 200, resposta.json()
+
+    # A mesma LOC-2836 ganha um trecho novo, com o preço da NMax.
+    juliana.refresh_from_db()
+    assert (juliana.codigo, juliana.status, juliana.veiculo_id) == ("LOC-2836", "ativa", nmax.pk)
+    assert (juliana.valor_periodo_centavos, juliana.diaria_centavos) == (44900, 7990)
+    assert juliana.caucao_centavos == 50000
+    trechos = list(juliana.trechos.order_by("inicio", "id"))
+    assert [(t.veiculo_id, t.valor_periodo_centavos) for t in trechos] == [
+        (factor.pk, 32900),
+        (nmax.pk, 44900),
+    ]
+    assert trechos[0].fim == trechos[1].inicio and trechos[1].fim is None
+    # A parcela aberta que vence depois da troca passa a 44900; as pagas não mudam.
+    assert _parcelas(juliana.pk) == [
+        (date(2026, 9, 30), 32900),
+        (date(2026, 10, 7), 32900),
+        (date(2026, 10, 14), 44900),
+    ]
+    # As cobranças da vistoria da Factor ficam para o acerto final, sem conta separada.
+    assert not ContaReceber.objects.filter(origem_tipo="devolucao").exists()
+    factor.refresh_from_db()
+    nmax.refresh_from_db()
+    assert (factor.status, nmax.status) == ("disponivel", "alugado")
+    acoes = {e.acao for e in EventoAuditoria.objects.filter(regra="LOC-09")}
+    assert {"locacao.pedir_troca", "locacao.trocar_veiculo", "locacao.concluir_troca"} <= acoes
 
 
 def test_dinheiro_formatar_reais():

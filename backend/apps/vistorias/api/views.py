@@ -41,6 +41,8 @@ from .serializers import (
     ItemAcertoEntradaSerializer,
     ListaDeAvariasSerializer,
     ReciboSerializer,
+    TrocaPedidaSerializer,
+    TrocarVeiculoSerializer,
     VistoriaSerializer,
 )
 
@@ -48,6 +50,7 @@ FAZEM: list[type[BasePermission]] = com_padrao(
     exige_perfil("administrador", "gerente", "vendedor", "vistoriador")
 )
 CORRIGEM: list[type[BasePermission]] = com_padrao(exige_perfil("administrador", "gerente"))
+CRIAM: list[type[BasePermission]] = com_padrao(exige_perfil("administrador", "gerente", "vendedor"))
 DIAS = ("hoje", "amanha", "semana")
 
 
@@ -187,6 +190,29 @@ class CorrigirVistoriaView(APIView):
         nova, criada = services.corrigir(_vistoria(request, pk), dados["motivo"], request.user)
         codigo = status.HTTP_201_CREATED if criada else status.HTTP_200_OK
         return _resposta(request, nova, codigo)
+
+
+# A rota é da locação, mas fica aqui porque abre as duas vistorias (ADR 0011).
+class TrocarVeiculoView(APIView):
+    permission_classes = CRIAM
+
+    @extend_schema(
+        request=TrocarVeiculoSerializer,
+        responses={202: TrocaPedidaSerializer},
+        summary="Trocar o veículo da locação ativa (LOC-09): abre a devolução e a saída",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        dados = _entrada(TrocarVeiculoSerializer, request)
+        troca = services.trocar_veiculo(_locacao(request, pk), dados, request.user)
+        corpo = {
+            "troca": {
+                "id": troca.pk,
+                "status": troca.status,
+                "devolucao_vistoria_id": troca.vistoria_devolucao_id,
+                "saida_vistoria_id": troca.vistoria_saida_id,
+            }
+        }
+        return Response(TrocaPedidaSerializer(corpo).data, status=status.HTTP_202_ACCEPTED)
 
 
 class AvariasAbertasView(APIView):
