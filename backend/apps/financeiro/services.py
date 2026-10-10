@@ -143,6 +143,23 @@ def cancelar_abertas(
     return canceladas
 
 
+def cancelar_conta(conta_id: int, *, motivo: str, regra: str = "") -> bool:
+    """Uma conta só vai para `cancelada`, se ainda está em aberto (ex.: a diferença de caução da
+    troca cancelada, LOC-09). Paga fica como está. Devolve se cancelou."""
+    with transaction.atomic():
+        conta = ContaReceber.objects.select_for_update().filter(pk=conta_id).first()
+        if conta is None or conta.status != StatusConta.ABERTA:
+            return False
+        estados.transicionar(
+            conta,
+            StatusConta.CANCELADA,
+            motivo=motivo,
+            acao="conta_receber.cancelar",
+            regra=regra,
+        )
+    return True
+
+
 def marcar_paga(
     conta: ContaReceber,
     *,

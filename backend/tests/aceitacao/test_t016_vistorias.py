@@ -1750,10 +1750,12 @@ def test_loc_09_ca_016_15_troca_de_veiculo_acerto_unico(cenario, juliana, relogi
         ("avaria", 8500),
         ("combustivel", 0),  # a Factor voltou cheia
         ("combustivel", 0),  # a NMax também
+        # T-123: a troca em 07 out cai no começo do período de 07 a 14 out (LOC-09).
+        ("diferenca_troca", 12000),
         ("km_excedente", 0),
     ]
     assert acerto["caucao_centavos"] == 50000  # 30000 + a diferença de 20000 paga na troca
-    assert (acerto["total_cobrancas_centavos"], acerto["saldo_centavos"]) == (8500, 41500)
+    assert (acerto["total_cobrancas_centavos"], acerto["saldo_centavos"]) == (20500, 29500)
     assert _forma(cenario, devolucao.pk).status_code == 200
     resposta = _encerrar(cenario, devolucao.pk)
     assert resposta.status_code == 200, resposta.json()
@@ -1761,9 +1763,12 @@ def test_loc_09_ca_016_15_troca_de_veiculo_acerto_unico(cenario, juliana, relogi
     juliana.refresh_from_db()
     assert juliana.status == "encerrada"
     pagas = ContaReceber.objects.filter(origem_tipo="devolucao", origem_id=devolucao.pk)
-    assert [(c.tipo, c.valor_centavos, c.status) for c in pagas] == [("avaria", 8500, "paga")]
+    assert sorted((c.tipo, c.valor_centavos, c.status) for c in pagas) == [
+        ("acerto", 12000, "paga"),
+        ("avaria", 8500, "paga"),
+    ]
     reembolso = Reembolso.objects.get(origem_tipo="devolucao", origem_id=devolucao.pk)
-    assert reembolso.valor_centavos == 41500
+    assert reembolso.valor_centavos == 29500
     assert Veiculo.objects.get(pk=nmax.pk).status == "disponivel"
 
 
@@ -1831,7 +1836,12 @@ def test_loc_09_segunda_troca_com_caucao_menor_fica_para_o_acerto(cenario, julia
     assert combustivel[descricao] == 3200
     # A caução paga (50000) inteira entra no acerto: a diferença volta ao cliente no fim.
     assert acerto["caucao_centavos"] == 50000
-    assert acerto["total_cobrancas_centavos"] == 8500 + 3200
+    # T-123: as duas trocas no mesmo dia, ida e volta no preço do período de 07 a 14 out: a
+    # da NMax cobra 12000 e a da Street devolve 12000 em crédito (LOC-09, DEV-02).
+    assert acerto["total_cobrancas_centavos"] == 8500 + 3200 + 12000
+    assert [(c["tipo"], c["valor_centavos"]) for c in acerto["creditos"]] == [
+        ("diferenca_troca", 12000)
+    ]
     assert acerto["saldo_centavos"] == 50000 - 11700
 
 

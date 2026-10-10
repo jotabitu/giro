@@ -18,6 +18,7 @@ from apps.clientes import selectors as clientes_selectors
 from apps.financeiro import selectors as financeiro_selectors
 from apps.financeiro import services as financeiro
 from apps.financeiro.models import ContaReceber, StatusConta, TipoConta
+from apps.locacoes import selectors as locacoes_selectors
 from apps.locacoes import services as locacoes
 from apps.locacoes.models import Locacao, Periodicidade, StatusLocacao, TrocaVeiculo
 from apps.veiculos import services as veiculos
@@ -106,7 +107,15 @@ def concluida_nao_se_edita() -> Conflito:
     )
 
 
+def vistoria_descartada() -> Conflito:
+    return Conflito(
+        "vistoria_descartada", "Esta vistoria foi descartada com o cancelamento da troca."
+    )
+
+
 def _exigir_rascunho(vistoria: Vistoria) -> None:
+    if vistoria.status == S.DESCARTADA:
+        raise vistoria_descartada()
     if vistoria.status != S.RASCUNHO:
         raise concluida_nao_se_edita()
 
@@ -494,13 +503,98 @@ def _concluir_troca_se_pronta(troca: TrocaVeiculo, locacao: Locacao, momento: da
         recalcular(devolucao)
 
 
+def _descartar(vistoria: Vistoria, motivo: str) -> None:
+    """O rascunho da troca cancelada fica guardado, com fotos e respostas (LOC-09)."""
+    vistoria.descartada_em = relogio.agora()
+    vistoria.motivo_descarte = motivo
+    estados.transicionar(
+        vistoria,
+        S.DESCARTADA,
+        motivo=motivo,
+        acao="vistoria.descartar",
+        regra="LOC-09",
+        mais_campos=("descartada_em", "motivo_descarte"),
+    )
+
+
+def cancelar_troca(locacao: Locacao, motivo: str, usuario: Any) -> dict[str, Any]:
+    """`POST /api/locacoes/{id}/trocar-veiculo/cancelar/` (LOC-09, T-122), numa transação: a
+    troca, o veículo novo e a conta da diferença de caução mudam por `locacoes`; aqui, a saída
+    do veículo novo em rascunho vai para `descartada`, e a chegada do antigo também, se ainda é
+    rascunho (a devolução que apontava para ela fica sem chegada até o veículo voltar).
+    Concluída, a chegada fica como a chegada da devolução (DEV-07 antes do dia do fim). Com a
+    saída do novo já concluída, 409 `troca_saida_concluida` (T-122)."""
+    texto = (motivo or "").strip()
+    if not texto:
+        raise ErroDeValidacao({"motivo": ["Informe o motivo do cancelamento da troca."]})
+    with transaction.atomic():
+        travada = Locacao.objects.select_for_update(of=("self",)).get(pk=locacao.pk)
+        troca = locacoes.troca_pendente(travada)
+        if troca is None:
+            raise locacoes.sem_troca_pendente()
+        ids = [i for i in (troca.vistoria_saida_id, troca.vistoria_devolucao_id) if i is not None]
+        vistorias = {v.pk: v for v in Vistoria.objects.select_for_update().filter(pk__in=ids)}
+        saida = vistorias.get(troca.vistoria_saida_id or 0)
+        chegada = vistorias.get(troca.vistoria_devolucao_id or 0)
+        if saida is not None and saida.status == S.CONCLUIDA:
+            raise Conflito(
+                "troca_saida_concluida",
+                "O veículo novo já foi entregue. Conclua a troca com a chegada do veículo antigo.",
+            )
+        troca = locacoes.cancelar_troca(troca, texto, usuario)
+        if saida is not None and saida.status == S.RASCUNHO:
+            _descartar(saida, texto)
+        devolucao = Devolucao.objects.select_for_update().filter(locacao=travada).first()
+        if chegada is not None and chegada.status == S.RASCUNHO:
+            _descartar(chegada, texto)
+            if devolucao is not None and devolucao.vistoria_id == chegada.pk:
+                devolucao.vistoria = None
+                devolucao.save(update_fields=["vistoria", "atualizado_em"])
+    if devolucao is not None:
+        recalcular(devolucao)
+    conta = None
+    if troca.conta_caucao_id is not None:
+        # A lista das contas da origem esconde as canceladas; aqui a cancelada é a resposta.
+        situacao = (
+            ContaReceber.objects.filter(pk=troca.conta_caucao_id)
+            .values_list("status", flat=True)
+            .first()
+        )
+        conta = {"id": troca.conta_caucao_id, "status": situacao}
+
+    def _resumo(vistoria: Vistoria | None) -> dict[str, Any] | None:
+        if vistoria is None:
+            return None
+        vistoria.refresh_from_db(fields=["status"])
+        return {"id": vistoria.pk, "status": vistoria.status}
+
+    return {
+        "id": troca.pk,
+        "status": troca.status,
+        "cancelada_em": troca.cancelada_em,
+        "saida_vistoria": _resumo(saida),
+        "devolucao_vistoria": _resumo(chegada),
+        "conta_caucao": conta,
+        "devolucao_id": devolucao.pk if devolucao is not None and devolucao.vistoria_id else None,
+    }
+
+
 def _chegada_do_veiculo_atual(devolucao: Devolucao, locacao: Locacao, usuario: Any) -> None:
-    """Depois da troca concluída, a devolução passa à chegada do veículo novo (LOC-09)."""
+    """Depois da troca concluída, a devolução passa à chegada do veículo novo (LOC-09). Depois
+    da troca cancelada com a chegada descartada (`vistoria` nula), abre uma chegada nova do
+    veículo atual quando ele voltar."""
     if devolucao.status != D.RASCUNHO or locacao.status not in ABERTAS:
         return
     if locacoes.troca_pendente(locacao) is not None:
         return
-    if Vistoria.objects.filter(pk=devolucao.vistoria_id, veiculo_id=locacao.veiculo_id).exists():
+    if (
+        devolucao.vistoria_id is not None
+        and Vistoria.objects.filter(
+            pk=devolucao.vistoria_id,
+            veiculo_id=locacao.veiculo_id,
+            status__in=(S.RASCUNHO, S.CONCLUIDA),
+        ).exists()
+    ):
         return
     chegada, _ = criar(locacao, TipoVistoria.DEVOLUCAO, usuario)
     devolucao.vistoria = chegada
@@ -581,6 +675,8 @@ TIPO_DA_CONTA: dict[str, str] = {
     T.MULTA_ENCERRAMENTO: TipoConta.MULTA,
     # LOC-13: no mensal em 4 semanais, as semanas menos as parcelas canceladas podem ser cobrança.
     T.SEMANAS_NAO_USADAS: TipoConta.ACERTO,
+    # LOC-09: a diferença do período em curso na troca para uma categoria mais cara.
+    T.DIFERENCA_TROCA: TipoConta.ACERTO,
 }
 # Os itens que a pessoa inclui; os outros saem da vistoria e da locação.
 INCLUIDOS_PELA_PESSOA = (T.AVARIA, T.MULTA_TRANSITO)
@@ -592,6 +688,7 @@ CALCULADOS = (
     T.MULTA_ENCERRAMENTO,
     T.SEMANAS_NAO_USADAS,
     T.DIAS_NAO_USADOS,
+    T.DIFERENCA_TROCA,
 )
 ABERTAS = (StatusLocacao.ATIVA, StatusLocacao.DEVOLUCAO_ATRASADA)
 
@@ -605,6 +702,7 @@ class Calculado:
     natureza: str = NaturezaItem.COBRANCA
     conta_id: int | None = None
     veiculo_id: int | None = None  # o combustível de cada veículo devolvido (LOC-09)
+    troca_id: int | None = None  # a diferença do período de cada troca (LOC-09)
 
 
 def iniciar_devolucao(locacao: Locacao, usuario: Any) -> tuple[Devolucao, bool]:
@@ -623,14 +721,9 @@ def iniciar_devolucao(locacao: Locacao, usuario: Any) -> tuple[Devolucao, bool]:
     try:
         with transaction.atomic():
             chegada, _ = criar(locacao, TipoVistoria.DEVOLUCAO, usuario)
-            # DEV-07 (T-118): no dia do fim previsto ou depois, a forma é escolhida como numa
-            # devolução comum, e não vem do pedido de encerramento antecipado.
-            antecipado = locacoes.encerramento_antecipado_vale(locacao, relogio.agora())
-            devolucao = Devolucao.objects.create(
-                locacao=locacao,
-                vistoria=chegada,
-                forma_devolucao=locacao.cancelamento_forma if antecipado else "",
-            )
+            # A forma guarda só a escolha do acerto; a do pedido de encerramento antecipado é
+            # sugerida pela hora do acerto (`forma_da_devolucao`, T-119, T-122).
+            devolucao = Devolucao.objects.create(locacao=locacao, vistoria=chegada)
             registrar_evento(
                 "devolucao.iniciar",
                 Categoria.OPERACAO,
@@ -647,6 +740,8 @@ def iniciar_devolucao(locacao: Locacao, usuario: Any) -> tuple[Devolucao, bool]:
 
 
 def _chegadas(devolucao: Devolucao) -> Any:
+    if devolucao.vistoria is None:  # troca cancelada com a chegada descartada (LOC-09)
+        return Vistoria.objects.none()
     return Vistoria.objects.filter(
         locacao_id=devolucao.locacao_id,
         veiculo_id=devolucao.vistoria.veiculo_id,
@@ -660,10 +755,24 @@ def chegada_vigente(devolucao: Devolucao) -> Vistoria | None:
     return vigente
 
 
-def chegada_atual(devolucao: Devolucao) -> Vistoria:
-    """A que está sendo preenchida (rascunho, inclusive uma correção) ou, sem ela, a vigente."""
+def chegada_atual(devolucao: Devolucao) -> Vistoria | None:
+    """A que está sendo preenchida (rascunho, inclusive uma correção) ou, sem ela, a vigente.
+    `None` só na devolução sem chegada, depois de uma troca cancelada (LOC-09)."""
     rascunho: Vistoria | None = _chegadas(devolucao).filter(status=S.RASCUNHO).first()
     return rascunho or chegada_vigente(devolucao) or devolucao.vistoria
+
+
+def forma_da_devolucao(devolucao: Devolucao, locacao: Locacao) -> str:
+    """A forma escolhida no acerto. Sem escolha, a do pedido de encerramento antecipado quando
+    ele vale no momento do acerto (a conclusão da chegada ou, antes dela, agora); senão, vazia
+    (DEV-07, T-118, T-119, T-122)."""
+    if devolucao.forma_devolucao:
+        return devolucao.forma_devolucao
+    chegada = chegada_atual(devolucao)
+    momento = momento_da_devolucao(chegada) if chegada is not None else relogio.agora()
+    if locacao.cancelamento_forma and locacoes.encerramento_antecipado_vale(locacao, momento):
+        return locacao.cancelamento_forma
+    return ""
 
 
 def saida_vigente(locacao_id: int, veiculo_id: int) -> Vistoria | None:
@@ -750,12 +859,13 @@ def avisos_do_acerto(devolucao: Devolucao) -> list[dict[str, str]]:
     locacao = Locacao.objects.select_related("filial").get(pk=devolucao.locacao_id)
     if locacoes.troca_pendente(locacao) is not None:
         return [{"codigo": "LOC-09", "mensagem": MENSAGEM_TROCA_PENDENTE}]
-    if antecipada_sem_aprovacao(locacao, momento_da_devolucao(chegada_atual(devolucao))):
+    chegada = chegada_atual(devolucao)
+    if chegada is not None and antecipada_sem_aprovacao(locacao, momento_da_devolucao(chegada)):
         return [{"codigo": "DEV-07", "mensagem": MENSAGEM_DEV_07}]
     return []
 
 
-def chegadas_anteriores(devolucao: Devolucao, chegada: Vistoria) -> list[Vistoria]:
+def chegadas_anteriores(devolucao: Devolucao, veiculo_id: int) -> list[Vistoria]:
     """As chegadas vigentes dos veículos trocados antes do atual (LOC-09): as cobranças delas
     ficam neste acerto, que é o único da locação."""
     return list(
@@ -765,10 +875,47 @@ def chegadas_anteriores(devolucao: Devolucao, chegada: Vistoria) -> list[Vistori
             status=S.CONCLUIDA,
             vigente=True,
         )
-        .exclude(veiculo_id=chegada.veiculo_id)
+        .exclude(veiculo_id=veiculo_id)
         .select_related("veiculo")
         .order_by("concluida_em", "id")
     )
+
+
+def _item_da_troca(troca: TrocaVeiculo) -> Calculado:
+    """LOC-09, DEV-01, DEV-02: a diferença do período em curso guardada na troca concluída.
+    Positiva é cobrança; negativa, crédito, com o valor sempre positivo."""
+    novo = troca.veiculo_novo
+    conta_texto = (
+        f"({formatar_reais(troca.periodo_novo_centavos)} − "
+        f"{formatar_reais(troca.periodo_antigo_centavos)}) ÷ {troca.dias_do_periodo} × "
+        f"{_plural(troca.dias_restantes, 'dia', 'dias')}"
+    )
+    if troca.ja_refeito_centavos:
+        sinal = "−" if troca.ja_refeito_centavos > 0 else "+"
+        refeito = formatar_reais(abs(troca.ja_refeito_centavos))
+        conta_texto += f" {sinal} {refeito} já nas parcelas refeitas"
+    inicio = troca.periodo_inicio.strftime("%d/%m") if troca.periodo_inicio else ""
+    fim = troca.periodo_fim.strftime("%d/%m") if troca.periodo_fim else ""
+    descricao = (
+        f"Diferença do período de {inicio} a {fim} na troca pela "
+        f"{novo.marca} {novo.modelo} {novo.placa} ({conta_texto})"
+    )
+    return Calculado(
+        T.DIFERENCA_TROCA,
+        descricao[:200],
+        abs(troca.diferenca_centavos),
+        natureza=NaturezaItem.COBRANCA if troca.diferenca_centavos > 0 else NaturezaItem.CREDITO,
+        troca_id=troca.pk,
+    )
+
+
+def _itens_das_trocas(locacao: Locacao) -> list[Calculado]:
+    """Um item por troca concluída com diferença; diferença 0 não gera item (T-122)."""
+    return [
+        _item_da_troca(troca)
+        for troca in locacoes_selectors.trocas_concluidas(locacao)
+        if troca.diferenca_centavos != 0
+    ]
 
 
 def _combustivel(locacao: Locacao, chegada: Vistoria, anterior: bool = False) -> Calculado:
@@ -796,14 +943,22 @@ def _combustivel(locacao: Locacao, chegada: Vistoria, anterior: bool = False) ->
 
 
 def calculados(
-    locacao: Locacao, chegada: Vistoria, anteriores: list[Vistoria] | None = None
+    locacao: Locacao, chegada: Vistoria | None, anteriores: list[Vistoria] | None = None
 ) -> list[Calculado]:
-    """Os itens que o sistema calcula (DEV-01, LOC-09, LOC-10, LOC-12, LOC-13)."""
+    """Os itens que o sistema calcula (DEV-01, LOC-09, LOC-10, LOC-12, LOC-13). Sem chegada
+    (troca cancelada com a chegada descartada), só os que não dependem dela: os dos veículos
+    trocados antes e a diferença de cada troca concluída."""
+    trocados = [
+        *[_combustivel(locacao, v, anterior=True) for v in anteriores or []],
+        *_itens_das_trocas(locacao),
+    ]
+    if chegada is None:
+        return trocados
     momento = momento_da_devolucao(chegada)
     atraso = locacoes.calcular_atraso(locacao, momento)
     dias = atraso["dias"]
     itens = [
-        *[_combustivel(locacao, v, anterior=True) for v in anteriores or []],
+        *trocados,
         _combustivel(locacao, chegada),
         Calculado(
             T.ATRASO,
@@ -847,10 +1002,14 @@ def _sincronizar(devolucao: Devolucao, chegadas: list[Vistoria], novos: list[Cal
     veículos trocados, LOC-09). O valor que a pessoa deu num item `informado` fica. Enquanto o
     acerto é rascunho, item que deixou de existir sai."""
     existentes = list(devolucao.itens.all())
-    por_chave = {(i.tipo, i.conta_id, i.veiculo_id): i for i in existentes if i.tipo in CALCULADOS}
+    por_chave = {
+        (i.tipo, i.conta_id, i.veiculo_id, i.troca_id): i
+        for i in existentes
+        if i.tipo in CALCULADOS
+    }
     vistos = set()
     for novo in novos:
-        chave = (novo.tipo, novo.conta_id, novo.veiculo_id)
+        chave = (novo.tipo, novo.conta_id, novo.veiculo_id, novo.troca_id)
         vistos.add(chave)
         item = por_chave.get(chave)
         if item is None:
@@ -863,6 +1022,7 @@ def _sincronizar(devolucao: Devolucao, chegadas: list[Vistoria], novos: list[Cal
                 valor_centavos=novo.valor_centavos,
                 conta_id=novo.conta_id,
                 veiculo_id=novo.veiculo_id,
+                troca_id=novo.troca_id,
             )
             continue
         valor = novo.valor_centavos
@@ -924,11 +1084,13 @@ def recalcular(devolucao: Devolucao) -> Devolucao:
             return devolucao
         locacao = Locacao.objects.select_related("filial").get(pk=travada.locacao_id)
         chegada = chegada_atual(travada)
-        anteriores = chegadas_anteriores(travada, chegada)
-        _sincronizar(travada, [chegada, *anteriores], calculados(locacao, chegada, anteriores))
+        veiculo_id = chegada.veiculo_id if chegada is not None else locacao.veiculo_id
+        anteriores = chegadas_anteriores(travada, veiculo_id)
+        com_avarias = [v for v in (chegada, *anteriores) if v is not None]
+        _sincronizar(travada, com_avarias, calculados(locacao, chegada, anteriores))
         cobrancas, creditos = somas(list(travada.itens.all()))
         caucao = caucao_paga(locacao)
-        novo = (chegada.pk, caucao, caucao + creditos - cobrancas)
+        novo = (chegada.pk if chegada else None, caucao, caucao + creditos - cobrancas)
         if (travada.vistoria_id, travada.caucao_centavos, travada.saldo_centavos) != novo:
             travada.vistoria_id, travada.caucao_centavos, travada.saldo_centavos = novo
             travada.save(
@@ -1075,7 +1237,7 @@ def encerrar_devolucao(devolucao: Devolucao, usuario: Any) -> Devolucao:
         locacao = Locacao.objects.select_related("filial").get(pk=travada.locacao_id)
         if locacoes.troca_pendente(locacao) is not None:
             raise Conflito(
-                "troca_pendente", "Conclua a troca de veículo antes de encerrar a devolução."
+                "troca_pendente", "Conclua ou cancele a troca antes de encerrar a devolução."
             )
         chegada = chegada_vigente(travada)
         # Depois de uma troca, quem encerra é a chegada do veículo atual (LOC-09).
@@ -1095,7 +1257,7 @@ def encerrar_devolucao(devolucao: Devolucao, usuario: Any) -> Devolucao:
         itens = list(travada.itens.all())
         cobrancas, creditos = somas(itens)
         saldo = travada.caucao_centavos + creditos - cobrancas
-        forma = travada.forma_devolucao
+        forma = forma_da_devolucao(travada, locacao)
         if saldo > 0 and not forma:
             raise ErroDeValidacao(
                 {"forma_devolucao": ["Escolha como devolver: Pix, dinheiro ou estorno no cartão."]}
@@ -1148,6 +1310,7 @@ def encerrar_devolucao(devolucao: Devolucao, usuario: Any) -> Devolucao:
         locacoes.encerrar(locacao, devolvida_em=devolvida_em)
         oficina = _liberar_veiculo(chegada, locacao)
         travada.saldo_centavos = saldo
+        travada.forma_devolucao = forma  # congelada com o acerto, como o resto (DEV-06)
         travada.preco_litro_centavos = locacao.filial.preco_litro_centavos
         travada.devolvida_em = devolvida_em
         travada.concluida_em = agora
@@ -1159,6 +1322,7 @@ def encerrar_devolucao(devolucao: Devolucao, usuario: Any) -> Devolucao:
             regra="DEV-06",
             mais_campos=(
                 "saldo_centavos",
+                "forma_devolucao",
                 "preco_litro_centavos",
                 "devolvida_em",
                 "concluida_em",

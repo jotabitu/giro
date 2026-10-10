@@ -165,6 +165,7 @@ function acoesDe(s: Semente, perfil: Perfil | null) {
     renovar: cria && ativa(s) && !emCurso,
     registrar_devolucao: ativa(s),
     trocar_veiculo: cria && s.status === "ativa" && !emCurso && !s.trocaPendente,
+    cancelar_troca: false,
     cancelar: s.status === "encerrada" || s.status === "cancelada" || emCurso ? (false as const) : cancelar,
     imprimir_contrato: !!s.corpo.contrato && perfil !== "vistoriador",
     reenviar_contrato: !!s.corpo.contrato && perfil !== "vistoriador",
@@ -264,6 +265,7 @@ function detalhe(s: Semente): LocacaoCompleta {
           motivo: s.cancelamento.motivo,
         }
       : null,
+    troca: null,
     acoes: acoesDe(s, perfil),
   };
   if (!vistoriador) return base;
