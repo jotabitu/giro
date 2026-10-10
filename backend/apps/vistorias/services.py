@@ -1,5 +1,5 @@
 """Regras da vistoria (VIS-01 a VIS-04, VEI-01, VEI-02, VEI-03, CLI-02, CLI-03, CLI-05) e da
-devolução com acerto (DEV-01 a DEV-06, LOC-10 a LOC-13).
+devolução com acerto (DEV-01 a DEV-07, LOC-10 a LOC-13).
 
 O único lugar que muda uma vistoria ou uma devolução. A saída concluída chama
 `locacoes.services.registrar_vistoria_saida`, que pode ativar a locação, e o encerramento da
@@ -8,7 +8,7 @@ de `financeiro`).
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from django.core.files.base import ContentFile
@@ -597,6 +597,60 @@ def _plural(n: int, singular: str, plural: str) -> str:
     return f"{n} {singular if n == 1 else plural}"
 
 
+def parcelas_do_acerto(locacao: Locacao, dia: date) -> list[ContaReceber]:
+    """DEV-01: as parcelas em aberto que vencem até o dia da devolução, inclusive a do dia, da
+    mais antiga para a mais nova (a ordem da DEV-02). As que vencem depois não entram."""
+    return list(
+        financeiro_selectors.contas_da_origem(locacoes.ORIGEM, locacao.pk)
+        .filter(tipo=TipoConta.PARCELA, status=StatusConta.ABERTA, vencimento__lte=dia)
+        .order_by("vencimento", "id")
+    )
+
+
+def _item_da_parcela(parcela: ContaReceber, dia: date) -> Calculado:
+    """O devido no dia da devolução, com a multa e os juros da FIN-03."""
+    devido = financeiro_selectors.devido_ate(parcela, dia)
+    numero = f"Parcela {parcela.numero_parcela}"
+    if parcela.total_parcelas:
+        numero += f" de {parcela.total_parcelas}"
+    quando = parcela.vencimento.strftime("%d/%m")
+    if parcela.vencimento == dia:
+        descricao = f"{numero} · vence hoje, {quando}"
+    else:
+        descricao = f"{numero} · venceu em {quando}"
+        if devido.multa_centavos or devido.juros_centavos:
+            descricao += (
+                f" (multa {formatar_reais(devido.multa_centavos)}"
+                f" e juros {formatar_reais(devido.juros_centavos)})"
+            )
+    return Calculado(T.PARCELA_ABERTA, descricao, devido.total_centavos, conta_id=parcela.pk)
+
+
+def antecipada_sem_aprovacao(locacao: Locacao, momento: datetime) -> bool:
+    """DEV-07: a devolução antes do dia do fim previsto (no fuso da filial) é encerramento
+    antecipado e só encerra com ele aprovado (LOC-12, APR-02). No próprio dia do fim, antes da
+    hora, não é antecipada."""
+    if locacao.encerramento_antecipado_aprovado_em is not None:
+        return False
+    fim = locacoes.data_local(locacao.fim_previsto, locacao.filial)
+    return locacoes.data_local(momento, locacao.filial) < fim
+
+
+MENSAGEM_DEV_07 = (
+    "A devolução é antes do fim do contrato. Peça o encerramento antecipado ao gerente."
+)
+
+
+def avisos_do_acerto(devolucao: Devolucao) -> list[dict[str, str]]:
+    """O que a tela mostra sem calcular (`acerto.avisos`). Concluído, não há aviso."""
+    if devolucao.status != D.RASCUNHO:
+        return []
+    locacao = Locacao.objects.select_related("filial").get(pk=devolucao.locacao_id)
+    if antecipada_sem_aprovacao(locacao, momento_da_devolucao(chegada_atual(devolucao))):
+        return [{"codigo": "DEV-07", "mensagem": MENSAGEM_DEV_07}]
+    return []
+
+
 def calculados(locacao: Locacao, chegada: Vistoria) -> list[Calculado]:
     """Os itens que o sistema calcula (DEV-01, LOC-10, LOC-12, LOC-13)."""
     veiculo = chegada.veiculo
@@ -625,20 +679,8 @@ def calculados(locacao: Locacao, chegada: Vistoria) -> list[Calculado]:
         Calculado(T.KM_EXCEDENTE, "Km excedente (plano com km livre)", 0),
     ]
     dia = locacoes.data_local(momento, locacao.filial)
-    for parcela in financeiro_selectors.contas_da_origem(locacoes.ORIGEM, locacao.pk).filter(
-        tipo=TipoConta.PARCELA, status=StatusConta.ABERTA, vencimento__lt=dia
-    ):
-        numero = f"Parcela {parcela.numero_parcela}"
-        if parcela.total_parcelas:
-            numero += f" de {parcela.total_parcelas}"
-        itens.append(
-            Calculado(
-                T.PARCELA_ABERTA,
-                f"{numero} · venceu em {parcela.vencimento.strftime('%d/%m')}",
-                parcela.valor_centavos + parcela.multa_centavos + parcela.juros_centavos,
-                conta_id=parcela.pk,
-            )
-        )
+    for parcela in parcelas_do_acerto(locacao, dia):
+        itens.append(_item_da_parcela(parcela, dia))
     if locacao.encerramento_antecipado_aprovado_em is not None:
         itens.append(
             Calculado(
@@ -897,8 +939,14 @@ def encerrar_devolucao(devolucao: Devolucao, usuario: Any) -> Devolucao:
         chegada = chegada_vigente(travada)
         if chegada is None or chegada.concluida_em is None:
             raise vistoria_pendente()
-        recalcular(travada)
         locacao = Locacao.objects.select_related("filial").get(pk=travada.locacao_id)
+        if antecipada_sem_aprovacao(locacao, chegada.concluida_em):
+            raise ErroDeRegra(
+                "DEV-07",
+                MENSAGEM_DEV_07,
+                {"fim_previsto": locacao.fim_previsto, "devolvida_em": chegada.concluida_em},
+            )
+        recalcular(travada)
         itens = list(travada.itens.all())
         cobrancas, creditos = somas(itens)
         saldo = travada.caucao_centavos + creditos - cobrancas
@@ -912,6 +960,15 @@ def encerrar_devolucao(devolucao: Devolucao, usuario: Any) -> Devolucao:
         devolvida_em: datetime = considerada["devolucao_considerada_em"]
         origem = financeiro.Origem("devolucao", travada.pk, locacao.codigo)
         cobrar = [i for i in itens if i.natureza == NaturezaItem.COBRANCA]
+        dia = locacoes.data_local(chegada.concluida_em, locacao.filial)
+        if locacao.encerramento_antecipado_aprovado_em is not None:
+            # DEV-07: as que vencem depois do dia da devolução; a do dia entrou no acerto.
+            financeiro.cancelar_abertas(
+                financeiro.Origem(locacoes.ORIGEM, locacao.pk, locacao.codigo),
+                motivo=f"Encerramento antecipado em {dia.strftime('%d/%m/%Y')}",
+                regra="DEV-07",
+                vencendo_depois_de=dia,
+            )
         financeiro.pagar_com_caucao(
             origem,
             filial_id=locacao.filial_id,
@@ -919,7 +976,8 @@ def encerrar_devolucao(devolucao: Devolucao, usuario: Any) -> Devolucao:
             disponivel_centavos=travada.caucao_centavos + creditos,
             abertas=list(
                 ContaReceber.objects.filter(
-                    pk__in=[i.conta_id for i in cobrar if i.conta_id is not None]
+                    pk__in=[i.conta_id for i in cobrar if i.conta_id is not None],
+                    status=StatusConta.ABERTA,
                 ).order_by("vencimento", "id")
             ),
             cobrancas=[
@@ -927,6 +985,7 @@ def encerrar_devolucao(devolucao: Devolucao, usuario: Any) -> Devolucao:
                 for i in cobrar
                 if i.conta_id is None and i.valor_centavos > 0
             ],
+            dia=dia,
             vencimento_do_saldo=locacoes.data_local(agora, locacao.filial)
             + timedelta(days=conta.DIAS_PARA_PAGAR_O_SALDO),
         )

@@ -1,6 +1,6 @@
 # Vistorias, devolução e acerto
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-038) · **App:** `vistorias` (schema da empresa) · **Regras:** VIS-01 a VIS-05, DEV-01 a DEV-06, LOC-09 a LOC-13, VEI-01, VEI-02, CLI-02, CLI-03, CLI-05, FIL-03, FIL-05, AUD-05 · **ADRs:** 0011, 0015 · **Telas:** Vistoria, Devolucao, Vistoriador
+**Dono:** arquiteto · **Versão:** 07 out 2026 (T-038) · **App:** `vistorias` (schema da empresa) · **Regras:** VIS-01 a VIS-05, DEV-01 a DEV-07, LOC-09 a LOC-13, VEI-01, VEI-02, CLI-02, CLI-03, CLI-05, FIL-03, FIL-05, AUD-05 · **ADRs:** 0011, 0015 · **Telas:** Vistoria, Devolucao, Vistoriador
 
 Convenções gerais em `docs/api/README.md`. Modelo: item 14 e apoio (`FotoVistoria`, `Avaria`, `Devolucao`, `ItemAcerto`) em `docs/decisoes/modelo-de-dados.md`. A locação está em `locacoes.md`.
 
@@ -155,6 +155,7 @@ O acerto é recalculado a cada `GET` e a cada mudança, enquanto está em `rascu
   "saldo_centavos": 18300,
   "resultado": { "tipo": "devolver", "valor_centavos": 18300,
                  "texto": "Desconta R$ 117,00 da caução de R$ 300,00", "botao": "Encerrar e devolver R$ 183,00" },
+  "avisos": [],
   "forma_devolucao": "pix"
 }
 ```
@@ -169,7 +170,7 @@ Itens (`ItemAcerto.tipo`):
 | `avaria` | um item por avaria nova com valor (tabela de peças ou orçamento) | `DEV-01` |
 | `atraso` | `calculado` por `locacoes.selectors.calcular_atraso` no momento da conclusão da vistoria de chegada | `LOC-10`, `LOC-11`, `FIL-03` |
 | `km_excedente` | `calculado`; hoje sempre 0 (km livre em todos os planos) | `DEV-01` |
-| `parcela_aberta` | `calculado`: contas da locação vencidas e não pagas | `DEV-01` |
+| `parcela_aberta` | `calculado`: parcelas em aberto da locação que vencem até o dia da devolução, inclusive a do próprio dia, cada uma pelo devido nesse dia, com a multa e os juros da `FIN-03` (`financeiro.selectors.devido_ate`). As que vencem depois não entram. Descrição: "Parcela 2 de 5 · venceu em 30/09 (multa R$ 5,99 e juros R$ 0,70)" ou "Parcela 3 de 5 · vence hoje, 07/10" | `DEV-01`, `FIN-03` (T-114) |
 | `multa_transito` | `informado`, com descrição (multas já identificadas) | `DEV-01` |
 | `multa_encerramento` | `calculado`, só em encerramento antecipado aprovado | `LOC-12` |
 
@@ -181,6 +182,10 @@ No mensal em 4 semanais, `semanas_nao_usadas` é o crédito das semanas menos as
 - `resultado.tipo = "devolver"`: saldo positivo, devolvido por Pix, dinheiro ou estorno do cartão (`forma_devolucao`).
 - `resultado.tipo = "cobrar"`: saldo negativo vira conta a receber do cliente, com vencimento em 3 dias.
 - `resultado.tipo = "zerado"`: saldo 0.
+
+`avisos` (lista, no nível do acerto, mesmo formato da T-111): `[ { "codigo": "DEV-07", "mensagem": "A devolução é antes do fim do contrato. Peça o encerramento antecipado ao gerente." } ]` quando a chegada é de um dia (no fuso da filial) anterior ao dia do fim previsto e a locação não tem o encerramento antecipado aprovado. Vazia nos outros casos e no acerto concluído (T-114).
+
+Ordem do pagamento com a caução e os créditos ao encerrar (`DEV-02`, T-114): primeiro os itens `parcela_aberta`, inteiros, da mais antiga para a mais nova; a primeira que não cabe e as seguintes vão para `renegociada` e entram na conta do saldo; depois as outras cobranças, pagas com a caução até onde ela der; o que sobra abate a conta do saldo. A conta `acerto` vale sempre `resultado.valor_centavos` quando `resultado.tipo = "cobrar"` (CA-016-22: caução 30000, parcela 32900 e avaria 8500 → avaria paga, parcela `renegociada`, conta de 11400).
 
 ### POST /api/devolucoes/{id}/acerto/itens/ · PATCH .../itens/{item_id}/ · DELETE .../itens/{item_id}/
 Perfis: quem vê o acerto. Só itens `informado` (`avaria`, `multa_transito`, e `combustivel` quando não pôde ser calculado). Corpo: `{ tipo, descricao, valor_centavos }`. Itens `calculado` não se editam: 409 `{ "codigo": "item_calculado" }`. 200: a devolução.
@@ -196,8 +201,10 @@ Perfis: quem vê o acerto. Exige a vistoria de chegada `concluida` (senão 422 `
 - Km do veículo atualizado (`VEI-02`). Avaria com `vai_para_oficina` abre uma OS (`manutencao`) e o veículo vai para `em_manutencao`; sem isso, volta para `disponivel` (`DEV-04`).
 - Evento `locacoes.locacao_encerrada` recalcula as preventivas (`MAN-03`).
 - Depois do commit: recibo em PDF com as fotos, enviado por WhatsApp com a marca da locadora. Com saldo a devolver por Pix, o recibo diz "devolução de R$ 183,00 por Pix em até 1 dia útil" (o Pix é feito pela locadora e marcado como feito, `financeiro.md`).
-Erros: 422 `{ "codigo": "FIN-07", "mensagem": "Abra o caixa do dia para devolver em dinheiro" }`; 409 `transicao_locacao`.
-Regras: DEV-01 a DEV-06, LOC-10 a LOC-13.
+- Encerramento antecipado aprovado: antes do acerto, as parcelas em aberto que vencem **depois** do dia da devolução vão para `cancelada` (`DEV-07`); a do dia entrou no acerto como `parcela_aberta`.
+
+Erros: 422 `{ "codigo": "DEV-07", "mensagem": "A devolução é antes do fim do contrato. Peça o encerramento antecipado ao gerente.", "detalhes": { "fim_previsto": "2026-10-14T21:00:00Z", "devolvida_em": "2026-10-07T13:00:00Z" } }` quando a chegada concluída é de um dia anterior ao do fim previsto, sem o encerramento antecipado aprovado (`LOC-12`, `APR-02`): a devolução fica em `rascunho`, e a locação, o veículo e as contas ficam como estavam. Abrir a devolução e concluir a vistoria de chegada continuam permitidos; no próprio dia do fim, antes da hora, não é antecipada (CA-016-23). 422 `{ "codigo": "FIN-07", "mensagem": "Abra o caixa do dia para devolver em dinheiro" }`; 409 `transicao_locacao`.
+Regras: DEV-01 a DEV-07, LOC-10 a LOC-13, FIN-03.
 
 ### GET /api/devolucoes/{id}/recibo/
 200: `{ "url", "url_expira_em" }` (PDF, URL assinada de 15 min). `POST /api/devolucoes/{id}/recibo/reenviar/` reenvia por WhatsApp.

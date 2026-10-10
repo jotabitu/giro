@@ -25,6 +25,16 @@ def proporcional(valor_centavos: int, numerador: int, denominador: int) -> int:
     return _para_centavos(Decimal(valor_centavos) * numerador / Decimal(denominador))
 
 
+def juros_pro_rata(valor_centavos: int, pct_mes: Decimal | int | str, dias: int) -> int:
+    """FIN-03: juros de mora pro rata dia, com mês de 30 dias: `valor × pct ÷ 100 ÷ 30 × dias`,
+    arredondado uma vez só (T-045, ponto 4). 29940 a 1% por 7 dias = 69,86 → 70."""
+    if isinstance(pct_mes, float):
+        raise TypeError("Percentual não pode ser float; use Decimal ou str.")
+    if dias <= 0:
+        return 0
+    return _para_centavos(Decimal(valor_centavos) * Decimal(pct_mes) * dias / Decimal(3000))
+
+
 def dividir_em_parcelas(total_centavos: int, n: int) -> list[int]:
     """Parcelas iguais arredondadas para baixo; a diferença vai na última (ADR 0003)."""
     if n < 1:

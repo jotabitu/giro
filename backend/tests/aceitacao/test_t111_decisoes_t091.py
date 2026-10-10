@@ -162,6 +162,25 @@ def test_loc_08_ca_015_27_extras_pelo_preco_de_hoje(cenario, relogio):
     assert valores == [31440, 31440, 31440, 34900, 34900]  # 29940 + 1500; 32900 + 2000
 
 
+def test_loc_08_ca_015_27_extra_desativado_continua(cenario, relogio):
+    """Decisão do dono em 09 out 2026 (T-115, opção A): o extra desativado no cadastro antes da
+    renovação continua na renovação, pelo último valor do cadastro."""
+    capacete = Extra.objects.create(
+        nome="Capacete extra", valor_centavos=1500, cobranca="por_periodo"
+    )
+    street = _street_de_23_set(
+        cenario, relogio, extras=[{"extra_id": capacete.pk, "quantidade": 1}]
+    )
+    capacete.valor_centavos = 2000  # desde 01 out
+    capacete.save(update_fields=["valor_centavos"])
+    resposta = cenario.moto.api("Mariana").post(f"/api/extras/{capacete.pk}/desativar/")
+    assert resposta.status_code == 200, resposta.json()
+    assert Extra.objects.get(pk=capacete.pk).ativo is False
+
+    _renovar(cenario, street, periodos=2)
+    assert [p.valor_centavos for p in _parcelas(street.pk)][-2:] == [34900, 34900]  # 32900 + 2000
+
+
 @pytest.mark.parametrize(
     ("quem", "pct", "nova"), [("Bruna", "5.00", 31255), ("Rodrigo", "8.00", 30268)]
 )

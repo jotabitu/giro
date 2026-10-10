@@ -22,6 +22,8 @@ from PIL import Image
 from apps.auditoria.models import EventoAuditoria
 from apps.clientes import services as clientes_services
 from apps.clientes.models import Cliente, TipoDocumentoCliente
+from apps.contratos.models import Contrato
+from apps.financeiro import selectors as financeiro_selectors
 from apps.financeiro import services as financeiro_services
 from apps.financeiro.models import ContaReceber, Reembolso
 from apps.locacoes import leituras as locacoes_leituras
@@ -724,7 +726,9 @@ def juliana(cenario, da_carteira) -> Locacao:
 
 
 def _lucas_ativo(cenario: Cenario) -> dict[str, Any]:
-    """LOC-2856 retirada em 07 out: saída com 3.125 km e tanque cheio, contrato e 1º pagamento."""
+    """LOC-2856 retirada em 07 out: saída com 3.125 km e tanque cheio, contrato e 1º pagamento.
+    Os casos daqui devolvem em 07 out; o fim previsto passa para 07 out 18:00, para a devolução
+    não ser antecipada (DEV-07, que tem os casos dela no CA-016-23)."""
     criada = _lucas_2856(cenario)
     vistoria = _saida(cenario, criada["id"])
     _preencher(cenario, vistoria, 3125)
@@ -732,6 +736,9 @@ def _lucas_ativo(cenario: Cenario) -> dict[str, Any]:
     _assinar(criada["id"])
     _pagar(criada["id"])
     assert Locacao.objects.get(pk=criada["id"]).status == "ativa"
+    Locacao.objects.filter(pk=criada["id"]).update(
+        fim_previsto=carteira.momento("2026-10-07 18:00")
+    )
     return criada
 
 
@@ -973,33 +980,274 @@ def test_loc_10_loc_11_fil_03_ca_016_12_atraso_no_acerto(cenario, juliana, relog
     assert tirar.status_code == 409
 
 
-# --- CA-016-13 · Parcelas em aberto no acerto (DEV-01) ---
+# --- CA-016-13 · Parcelas em aberto no acerto (DEV-01, FIN-03) ---
 
 
-def test_dev_01_ca_016_13_parcelas_em_aberto_no_acerto(cenario, da_carteira):
+def _contrato_com_juros(locacao: Locacao) -> None:
+    """O contrato assinado com a cláusula de multa e juros (FIN-03), que a carteira não tem."""
+    Contrato.objects.create(
+        origem_tipo="locacao",
+        origem_id=locacao.pk,
+        origem_codigo=locacao.codigo,
+        filial=locacao.filial,
+        cliente=locacao.cliente,
+        tipo="contrato",
+        titulo="Contrato de locação",
+        status="assinado",
+        versao_texto_html="<p>Multa de 2% e juros de 1% ao mês.</p>",
+        clausula_juros=True,
+    )
+
+
+def _parcela(locacao: Locacao, numero: int) -> ContaReceber:
+    conta: ContaReceber = ContaReceber.objects.get(
+        origem_tipo="locacao", origem_id=locacao.pk, tipo="parcela", numero_parcela=numero
+    )
+    return conta
+
+
+def _carlos_na_devolucao(da_carteira: dict[str, Locacao]) -> Locacao:
+    """LOC-2841: Street semanal de 23 set a 28 out, caução de 30000 paga e a saída cheia."""
     carlos = da_carteira["LOC-2841"]
+    carlos.diaria_centavos = 5490  # Street
+    carlos.periodos = 5  # 5 semanas; a carteira não grava
+    carlos.save(update_fields=["diaria_centavos", "periodos"])
     _caucao_paga(carlos, 30000)
     veiculo = Veiculo.objects.get(pk=carlos.veiculo_id)
     _saida_direta(carlos, veiculo.km_atual, "cheio", "2026-09-23 09:00")
-    vencida = ContaReceber.objects.get(
-        origem_tipo="locacao", origem_id=carlos.pk, vencimento=date(2026, 9, 30)
+    return carlos
+
+
+def _aprovar_encerramento(cenario: Cenario, locacao: Locacao) -> None:
+    """Rodrigo (gerente) cancela direto: o encerramento antecipado vale (LOC-12, APR-02)."""
+    resposta = cenario.moto.api("Rodrigo").post(
+        f"{LISTA}{locacao.pk}/cancelar/", {"motivo": "Cliente vai mudar de cidade"}, format="json"
     )
-    assert (vencida.status, vencida.valor_centavos) == ("aberta", 29940)
+    assert resposta.status_code == 200, resposta.json()
 
-    devolucao = _abrir_devolucao(cenario, carlos.pk)
-    corpo = _chegada(cenario, devolucao, veiculo.km_atual + 50)
-    parcelas = [i for i in corpo["acerto"]["itens"] if i["tipo"] == "parcela_aberta"]
-    # Só a vencida; a de 07 out vence hoje e ainda não está em aberto no acerto.
-    assert [(i["valor_centavos"], i["conta_id"], i["modo"]) for i in parcelas] == [
-        (29940, vencida.pk, "calculado")
+
+def _parcelas_do_acerto(corpo: dict[str, Any]) -> list[tuple[int, int | None]]:
+    return [
+        (i["valor_centavos"], i["conta_id"])
+        for i in corpo["acerto"]["itens"]
+        if i["tipo"] == "parcela_aberta"
     ]
-    assert corpo["acerto"]["saldo_centavos"] == 60  # descontada da caução de 30000
 
-    assert _forma(cenario, devolucao["id"]).status_code == 200
+
+def _km_de_volta(locacao: Locacao) -> int:
+    return Veiculo.objects.get(pk=locacao.veiculo_id).km_atual + 50
+
+
+def test_dev_01_ca_016_13_parcela_vencida_sem_multa_e_juros_no_contrato(cenario, da_carteira):
+    """Sem a cláusula no contrato, a vencida entra pelo valor; a do dia entra também."""
+    carlos = _carlos_na_devolucao(da_carteira)
+    _aprovar_encerramento(cenario, carlos)
+    vencida, do_dia = _parcela(carlos, 2), _parcela(carlos, 3)
+    devolucao = _abrir_devolucao(cenario, carlos.pk)
+    corpo = _chegada(cenario, devolucao, _km_de_volta(carlos))
+    assert _parcelas_do_acerto(corpo) == [(29940, vencida.pk), (29940, do_dia.pk)]
+    itens = {i["conta_id"]: i for i in corpo["acerto"]["itens"]}
+    assert itens[vencida.pk]["modo"] == "calculado"
+    assert itens[vencida.pk]["descricao"] == "Parcela 2 de 5 · venceu em 30/09"
+    assert itens[do_dia.pk]["descricao"] == "Parcela 3 de 5 · vence hoje, 07/10"
+
     resposta = _encerrar(cenario, devolucao["id"])
     assert resposta.status_code == 200, resposta.json()
     vencida.refresh_from_db()
-    assert (vencida.status, vencida.forma) == ("paga", "caucao")
+    # 30000 de caução: cabe a parcela 2 inteira; a 3 não cabe e vai para a conta do saldo.
+    assert (vencida.status, vencida.forma, vencida.multa_centavos) == ("paga", "caucao", 0)
+
+
+def test_dev_01_fin_03_ca_016_13_parcela_com_multa_e_juros(cenario, da_carteira):
+    """2% + 1% ao mês: a de 29940 vencida em 30 set e devolvida em 07 out vale 30609."""
+    carlos = _carlos_na_devolucao(da_carteira)
+    _contrato_com_juros(carlos)
+    devido = financeiro_selectors.devido_ate(_parcela(carlos, 2), date(2026, 10, 7))
+    assert (devido.multa_centavos, devido.juros_centavos, devido.dias_atraso) == (599, 70, 7)
+    assert devido.total_centavos == 30609
+    do_dia = financeiro_selectors.devido_ate(_parcela(carlos, 3), date(2026, 10, 7))
+    assert (do_dia.total_centavos, do_dia.multa_centavos, do_dia.juros_centavos) == (29940, 0, 0)
+
+
+def test_dev_01_ca_016_13_parcela_do_dia_seguinte_fica_fora(cenario, juliana, relogio):
+    """A LOC-2836 devolvida em 14 out: a parcela de 15 out não entra; a de 14 out entra."""
+    amanha = _parcela_extra(juliana, 29940, date(2026, 10, 15))
+    _ir_para(cenario, relogio, "2026-10-14 17:40")
+    devolucao = _abrir_devolucao(cenario, juliana.pk)
+    corpo = _chegada(cenario, devolucao, 19630)
+    assert _parcelas_do_acerto(corpo) == []
+    do_dia = _parcela_extra(juliana, 29940, date(2026, 10, 14))
+    parcelas = _parcelas_do_acerto(_ver(cenario, devolucao["id"]))
+    assert parcelas == [(29940, do_dia.pk)]
+    assert amanha.pk not in {c for _, c in parcelas}
+
+
+# --- CA-016-22 · Parcela que não cabe na caução (DEV-02, FIN-01) ---
+
+
+def _parcela_extra(locacao: Locacao, valor: int, vencimento: date) -> ContaReceber:
+    """Uma parcela em aberto a mais na LOC-2836 (a carteira tem as duas pagas)."""
+    conta: ContaReceber = ContaReceber.objects.create(
+        filial=locacao.filial,
+        cliente=locacao.cliente,
+        origem_tipo="locacao",
+        origem_id=locacao.pk,
+        origem_codigo=locacao.codigo,
+        tipo="parcela",
+        numero_parcela=3,
+        total_parcelas=3,
+        vencimento=vencimento,
+        valor_centavos=valor,
+    )
+    return conta
+
+
+def _juliana_com_parcela(
+    cenario: Cenario, juliana: Locacao, relogio: Any, parcela: int, combustivel: str
+) -> tuple[dict[str, Any], ContaReceber]:
+    """LOC-2836 devolvida em 14 out às 17:40 (sem atraso e sem contrato com juros), com uma
+    parcela vencida em 10 out e o retrovisor de 8500."""
+    conta = _parcela_extra(juliana, parcela, date(2026, 10, 10))
+    _ir_para(cenario, relogio, "2026-10-14 17:40")
+    devolucao = _abrir_devolucao(cenario, juliana.pk)
+    corpo = _chegada(
+        cenario, devolucao, 19630, combustivel, avarias=(("Retrovisor esquerdo riscado", {}),)
+    )
+    resposta = _valor_do_item(cenario, devolucao["id"], _item(corpo, "avaria")["id"], 8500)
+    assert resposta.status_code == 200, resposta.json()
+    return _ver(cenario, devolucao["id"]), conta
+
+
+def _conta_do_saldo(devolucao_id: int) -> ContaReceber:
+    conta: ContaReceber = ContaReceber.objects.get(
+        origem_tipo="devolucao", origem_id=devolucao_id, tipo="acerto", status="aberta"
+    )  # o combustível pago com a caução também é `acerto`, mas `paga`
+    return conta
+
+
+def test_dev_02_ca_016_22_parcela_que_nao_cabe_vai_para_renegociada(cenario, juliana, relogio):
+    corpo, parcela = _juliana_com_parcela(cenario, juliana, relogio, 32900, "cheio")
+    acerto = corpo["acerto"]
+    assert acerto["total_cobrancas_centavos"] == 41400
+    assert acerto["saldo_centavos"] == -11400
+    assert acerto["resultado"]["botao"] == "Encerrar e cobrar R$ 114,00"
+
+    resposta = _encerrar(cenario, corpo["id"])
+    assert resposta.status_code == 200, resposta.json()
+    parcela.refresh_from_db()
+    assert parcela.status == "renegociada"
+    avaria = ContaReceber.objects.get(origem_tipo="devolucao", origem_id=corpo["id"], tipo="avaria")
+    assert (avaria.valor_centavos, avaria.status, avaria.forma) == (8500, "paga", "caucao")
+    saldo = _conta_do_saldo(corpo["id"])
+    # Encerrada em 14 out: vence em 3 dias. A conta é igual ao que o acerto mostra.
+    assert (saldo.valor_centavos, saldo.status) == (11400, "aberta")
+    assert saldo.vencimento == date(2026, 10, 17)
+    assert saldo.valor_centavos == -acerto["saldo_centavos"]
+    # A conta do saldo substitui a parcela (extrato do cliente, CLI-05).
+    assert saldo.nasceu_de is not None
+    assert parcela.renegociada_em_id == saldo.nasceu_de_id
+    assert saldo.nasceu_de.origem_tipo == "devolucao"
+    assert not Reembolso.objects.filter(origem_tipo="devolucao").exists()
+    assert EventoAuditoria.objects.filter(acao="conta_receber.renegociar", regra="DEV-02").exists()
+
+
+def test_dev_02_ca_016_22_a_sobra_paga_parte_do_combustivel(cenario, juliana, relogio):
+    corpo, parcela = _juliana_com_parcela(cenario, juliana, relogio, 29940, "tres_quartos")
+    assert corpo["acerto"]["total_cobrancas_centavos"] == 41640
+    assert corpo["acerto"]["saldo_centavos"] == -11640
+
+    resposta = _encerrar(cenario, corpo["id"])
+    assert resposta.status_code == 200, resposta.json()
+    parcela.refresh_from_db()
+    assert (parcela.status, parcela.forma) == ("paga", "caucao")
+    pagas = ContaReceber.objects.filter(
+        origem_tipo="devolucao", origem_id=corpo["id"], status="paga"
+    )
+    assert sorted(c.valor_centavos for c in pagas) == [60]  # os 60 da sobra no combustível
+    saldo = _conta_do_saldo(corpo["id"])
+    assert (saldo.valor_centavos, saldo.nasceu_de) == (11640, None)
+    assert not Reembolso.objects.filter(origem_tipo="devolucao").exists()
+
+
+# --- CA-016-23 · Devolução antes do fim previsto (DEV-07, LOC-12, APR-02) ---
+
+
+def _contas_da(locacao: Locacao) -> list[tuple[int, str, int]]:
+    return list(
+        ContaReceber.objects.filter(origem_tipo="locacao", origem_id=locacao.pk)
+        .order_by("id")
+        .values_list("pk", "status", "valor_centavos")
+    )
+
+
+def test_dev_07_ca_016_23_antes_do_fim_sem_aprovacao_recusa(cenario, juliana):
+    """LOC-2836 (fim 14 out 18:00) volta em 07 out sem o encerramento antecipado aprovado."""
+    antes = _contas_da(juliana)
+    devolucao = _abrir_devolucao(cenario, juliana.pk)
+    corpo = _chegada(cenario, devolucao, 18500)  # a vistoria de chegada conclui
+    assert corpo["vistoria"]["status"] == "concluida"
+    mensagem = "A devolução é antes do fim do contrato. Peça o encerramento antecipado ao gerente."
+    assert corpo["acerto"]["avisos"] == [{"codigo": "DEV-07", "mensagem": mensagem}]
+
+    resposta = _encerrar(cenario, devolucao["id"])
+    assert resposta.status_code == 422, resposta.json()
+    erro = resposta.json()
+    assert (erro["codigo"], erro["mensagem"]) == ("DEV-07", mensagem)
+    assert erro["detalhes"] == {
+        "fim_previsto": "2026-10-14T21:00:00Z",
+        "devolvida_em": "2026-10-07T13:00:00Z",
+    }
+    assert Devolucao.objects.get(pk=devolucao["id"]).status == "rascunho"
+    assert Locacao.objects.get(pk=juliana.pk).status == "ativa"
+    assert Veiculo.objects.get(pk=juliana.veiculo_id).status == "alugado"
+    assert _contas_da(juliana) == antes
+    assert not ContaReceber.objects.filter(origem_tipo="devolucao").exists()
+
+
+def test_dev_07_ca_016_23_no_dia_do_fim_antes_da_hora_nao_e_antecipada(cenario, juliana, relogio):
+    corpo = _juliana_pronta(cenario, juliana, relogio)  # 14 out 17:40
+    assert corpo["acerto"]["avisos"] == []
+    resposta = _encerrar(cenario, corpo["id"])
+    assert resposta.status_code == 200, resposta.json()
+
+
+# --- CA-016-24 · Devolução antecipada do Carlos, LOC-2841 (DEV-01, DEV-02, DEV-07) ---
+
+
+def test_dev_01_dev_02_dev_07_ca_016_24_devolucao_antecipada_do_carlos(cenario, da_carteira):
+    carlos = _carlos_na_devolucao(da_carteira)
+    _contrato_com_juros(carlos)
+    _aprovar_encerramento(cenario, carlos)
+    p2, p3, p4, p5 = (_parcela(carlos, n) for n in (2, 3, 4, 5))
+
+    devolucao = _abrir_devolucao(cenario, carlos.pk)  # 07 out 10:00
+    corpo = _chegada(cenario, devolucao, _km_de_volta(carlos))
+    acerto = corpo["acerto"]
+    assert _parcelas_do_acerto(corpo) == [(30609, p2.pk), (29940, p3.pk)]
+    assert _item(corpo, "multa_encerramento")["valor_centavos"] == 5988
+    assert acerto["total_cobrancas_centavos"] == 66537
+    assert (acerto["caucao_centavos"], acerto["saldo_centavos"]) == (30000, -36537)
+    assert acerto["resultado"]["tipo"] == "cobrar"
+    assert acerto["resultado"]["botao"] == "Encerrar e cobrar R$ 365,37"
+    assert acerto["avisos"] == []  # o encerramento antecipado está aprovado
+
+    resposta = _encerrar(cenario, devolucao["id"])
+    assert resposta.status_code == 200, resposta.json()
+    for conta in (p2, p3, p4, p5):
+        conta.refresh_from_db()
+    assert (p4.status, p5.status) == ("cancelada", "cancelada")
+    # A parcela 2 não cabe inteira: ela e a 3 vão para `renegociada`, mesmo a 3 cabendo.
+    assert (p2.status, p3.status) == ("renegociada", "renegociada")
+    assert (p2.multa_centavos, p2.juros_centavos) == (599, 70)
+    multa = ContaReceber.objects.get(origem_tipo="devolucao", tipo="multa")
+    assert (multa.valor_centavos, multa.status, multa.forma) == (5988, "paga", "caucao")
+    saldo = _conta_do_saldo(devolucao["id"])
+    assert (saldo.valor_centavos, saldo.vencimento) == (36537, date(2026, 10, 10))
+    assert saldo.nasceu_de is not None
+    assert set(saldo.nasceu_de.originais.values_list("pk", flat=True)) == {p2.pk, p3.pk}
+    assert not Reembolso.objects.filter(origem_tipo="devolucao").exists()
+    assert Locacao.objects.get(pk=carlos.pk).status == "cancelada"
+    assert Veiculo.objects.get(pk=carlos.veiculo_id).status == "disponivel"
 
 
 # --- CA-016-14 · Encerramento antecipado da Patrícia (LOC-12, LOC-13) ---
