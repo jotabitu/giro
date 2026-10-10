@@ -95,3 +95,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-107 · Telas de referência com a LOC-2836 até 14 out · design-system · PR #109 · tarefas/handoffs/T-107-design-system.md · Locacoes, Locacao-Detalhe, Clientes e Cliente-Detalhe; aba "Devolvem hoje 4" para o produto
 - T-110 · Regras das 5 decisões da T-091 · produto · PR #110 · tarefas/handoffs/T-110-produto.md · LOC-08, 11, 12 e 13 (opção A); CA-015-26 a 29; código na T-111
 - T-102 · Ficha do veículo idêntica à referência · frontend · PR #111 · tarefas/handoffs/T-102-frontend.md · desktop e celular; 167 testes do frontend; divergências de referência para produto e design-system
+- T-108 · Detalhe do cliente idêntico à referência · frontend · PR #115 · tarefas/handoffs/T-108-frontend.md · desktop e celular; LOC-2836 pela regra; 178 testes do frontend; divergências de referência anotadas
