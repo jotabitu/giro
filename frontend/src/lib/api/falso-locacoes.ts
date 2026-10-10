@@ -655,3 +655,82 @@ export const locacoesFalso = {
     return { url: `/contratos/LOC-${id}.pdf`, url_expira_em: iso(Date.parse(AGORA_DO_SEED) + 15 * 60_000) };
   },
 };
+
+// ---- Pontes para o falso de vistorias (as duas telas mexem na mesma locação) ----------------------------------------
+
+export type DadosDaLocacaoParaVistoria = {
+  id: number;
+  codigo: string;
+  status: StatusLocacao;
+  cliente: { id: number; nome: string };
+  veiculo: { id: number; modelo: string; placa: string };
+  periodicidade: Periodicidade;
+  inicio: string;
+  fim: string;
+  kmSaida: number | null;
+  diariaCentavos: number;
+  periodoCentavos: number;
+  caucaoCentavos: number;
+  caucaoPaga: boolean;
+  extras: string[];
+  cancelamentoAprovado: boolean;
+  trocaPendente: boolean;
+  parcelasAbertas: { numero: number; total: number; vencimento: string; valorCentavos: number }[];
+};
+
+export function dadosDaLocacaoParaVistoria(id: number): DadosDaLocacaoParaVistoria {
+  const s = achar(id);
+  const parcelas = s.parcelas.filter((p) => p[0] === "parcela");
+  return {
+    id: s.id,
+    codigo: `LOC-${s.id}`,
+    status: s.status,
+    cliente: s.cliente,
+    veiculo: s.veiculo,
+    periodicidade: s.periodicidade,
+    inicio: s.inicio,
+    fim: s.fim,
+    kmSaida: s.corpo.kmSaida,
+    diariaCentavos: s.corpo.diariaCentavos,
+    periodoCentavos: s.corpo.periodoCentavos,
+    caucaoCentavos: s.corpo.caucaoCentavos,
+    caucaoPaga: s.parcelas.some((p) => p[0] === "caucao" && p[3] === "paga"),
+    extras: s.extras ?? [],
+    cancelamentoAprovado: s.cancelamento?.status === "aprovado",
+    trocaPendente: !!s.trocaPendente,
+    parcelasAbertas: parcelas.flatMap((p, i) => (["aberta", "vence_hoje", "atrasada"].includes(p[3]) ? [{ numero: i + 1, total: parcelas.length, vencimento: p[1], valorCentavos: p[2] }] : [])),
+  };
+}
+
+/** A vistoria de saída concluída grava o km e, com contrato assinado e 1º pagamento, ativa a locação (docs/api/locacoes.md). */
+export function aplicarSaidaConcluida(id: number, km: number, em: string): void {
+  const s = achar(id);
+  s.corpo.kmSaida = km;
+  s.eventos.push([em, "Vistoria de saída concluída", `${km.toLocaleString("pt-BR")} km`]);
+  const assinado = s.corpo.contrato?.status === "assinado";
+  const pago = s.parcelas.some((p) => p[0] === "parcela" && p[3] === "paga") && s.parcelas.filter((p) => p[0] === "caucao").every((p) => p[3] === "paga");
+  if (assinado && pago) {
+    s.status = "ativa";
+    s.situacao = { codigo: "ativa", rotulo: "Ativa", tom: "sucesso" };
+  } else if (!assinado) {
+    s.situacao = { codigo: "aguardando_assinatura", rotulo: "Aguardando assinatura", tom: "neutro" };
+  } else {
+    s.situacao = { codigo: "aguardando_pagamento", rotulo: "Aguardando pagamento", tom: "neutro" };
+  }
+}
+
+/** Encerrar a devolução leva a locação a `encerrada` (ou `cancelada` no encerramento antecipado aprovado). */
+export function aplicarDevolucaoEncerrada(id: number, em: string, antecipado: boolean): void {
+  const s = achar(id);
+  s.status = antecipado ? "cancelada" : "encerrada";
+  s.situacao = antecipado ? { codigo: "cancelada", rotulo: "Cancelada", tom: "neutro" } : { codigo: "encerrada", rotulo: "Encerrada", tom: "neutro" };
+  s.pagamento = { rotulo: "Pago", tom: "sucesso", em_aberto_centavos: 0 };
+  s.acao = { codigo: "abrir", rotulo: "Abrir" };
+  s.sinais = {};
+  s.eventos.push([em, "Devolução concluída", ""]);
+}
+
+/** A troca de veículo vai para as duas vistorias; o falso só marca que há troca pendente e guarda o id da devolução. */
+export function vincularDevolucao(id: number, devolucaoId: number): void {
+  achar(id).devolucaoId = devolucaoId;
+}

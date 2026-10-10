@@ -5,6 +5,7 @@ import { veiculosFalso } from "./falso-frota";
 import { contasFalso, marcaFalsa } from "./falso";
 import { relatoriosFalso } from "./falso-painel";
 import { locacoesFalso } from "./falso-locacoes";
+import { vistoriasFalso } from "./falso-vistorias";
 
 export const contas = contasFalso;
 export const marcaDaEmpresa = marcaFalsa;
@@ -12,8 +13,10 @@ export const relatorios = relatoriosFalso;
 export const veiculos = veiculosFalso;
 export const clientes = clientesFalso;
 export const locacoes = locacoesFalso;
+export const vistorias = vistoriasFalso;
 export * from "./tipos";
 export * from "./tipos-frota";
 export * from "./tipos-clientes";
 export * from "./tipos-painel";
 export * from "./tipos-locacoes";
+export * from "./tipos-vistorias";
