@@ -96,7 +96,7 @@ Qualquer usuário (e token de suporte, ver abaixo).
   "empresa": { "nome_exibicao": "Moto Rápida", "status": "em_teste", "somente_leitura": false }
 }
 ```
-Marca (logo, cores) vem do contrato de empresas.
+Marca (nome, logo e cores) vem de `GET /api/marca/` (`empresas.md`), pública, a mesma antes e depois do login. `empresa.nome_exibicao` daqui é o mesmo nome de lá.
 
 #### Menu e início (USR-05, USR-08, T-047)
 
