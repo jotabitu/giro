@@ -98,3 +98,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-112 · Estado do QXA-4B21 nas telas de referência · produto · PR #113 · tarefas/handoffs/T-112-produto.md · Alugado, LOC-2841 de 23 set a 28 out; divergências para design-system (T-028), arquiteto e frontend
 - T-109 · Devolução e acerto · backend · PR #114 · tarefas/handoffs/T-109-backend.md · LOC-2836 devolve R$ 183,00; 567 testes; 2 [decisão] para o produto, 1 [divergência] para o qa, 7 pontos de contrato para o arquiteto
 - T-108 · Detalhe do cliente idêntico à referência · frontend · PR #115 · tarefas/handoffs/T-108-frontend.md · desktop e celular; LOC-2836 pela regra; 178 testes do frontend; divergências de referência anotadas
+- T-113 · Regras das decisões da T-109 · produto · PR #116 · tarefas/handoffs/T-113-produto.md · DEV-01 opção B, DEV-02 opção A com ajuste, DEV-07 nova; CA-016-13 corrigido, 22 a 24 novos; código na T-114
