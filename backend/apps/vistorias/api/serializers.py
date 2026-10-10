@@ -52,6 +52,22 @@ class CorrigirVistoriaSerializer(serializers.Serializer[Any]):
     motivo = serializers.CharField(max_length=500)
 
 
+class TrocarVeiculoSerializer(serializers.Serializer[Any]):
+    veiculo_novo_id = serializers.IntegerField()
+    motivo = serializers.CharField(max_length=500)
+
+
+class TrocaSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    status = serializers.CharField()
+    devolucao_vistoria_id = serializers.IntegerField(allow_null=True)
+    saida_vistoria_id = serializers.IntegerField(allow_null=True)
+
+
+class TrocaPedidaSerializer(serializers.Serializer[Any]):
+    troca = TrocaSerializer()
+
+
 # --- Saída ---
 
 

@@ -19,7 +19,7 @@ from apps.financeiro import selectors as financeiro_selectors
 from apps.financeiro import services as financeiro
 from apps.financeiro.models import ContaReceber, StatusConta, TipoConta
 from apps.locacoes import services as locacoes
-from apps.locacoes.models import Locacao, Periodicidade, StatusLocacao
+from apps.locacoes.models import Locacao, Periodicidade, StatusLocacao, TrocaVeiculo
 from apps.veiculos import services as veiculos
 from apps.veiculos.models import Origem, StatusVeiculo, Veiculo
 from comum import arquivos, estados, relogio
@@ -136,10 +136,13 @@ def _vigente(locacao: Locacao, veiculo: Veiculo, tipo: str) -> Vistoria | None:
     ).first()
 
 
-def criar(locacao: Locacao, tipo: str, usuario: Any) -> tuple[Vistoria, bool]:
-    """A vistoria em `rascunho` do veículo atual, com a lista pronta. Se já existe rascunho do
-    mesmo tipo, devolve ele (`criada = False`): quem vistoria continua de onde parou."""
-    veiculo = Veiculo.objects.select_related("categoria").get(pk=locacao.veiculo_id)
+def criar(
+    locacao: Locacao, tipo: str, usuario: Any, veiculo_id: int | None = None
+) -> tuple[Vistoria, bool]:
+    """A vistoria em `rascunho` do veículo atual (ou do novo, na troca), com a lista pronta. Se
+    já existe rascunho do mesmo tipo, devolve ele (`criada = False`): quem vistoria continua de
+    onde parou."""
+    veiculo = Veiculo.objects.select_related("categoria").get(pk=veiculo_id or locacao.veiculo_id)
     existente = _rascunho(locacao, veiculo, tipo)
     if existente is not None:
         return existente, False
@@ -172,7 +175,11 @@ def criar(locacao: Locacao, tipo: str, usuario: Any) -> tuple[Vistoria, bool]:
 
 
 def iniciar_saida(locacao: Locacao, usuario: Any) -> tuple[Vistoria, bool]:
-    """Saída só para locação `aguardando_retirada`. A troca de veículo (LOC-09) chega na T-092."""
+    """Saída só para locação `aguardando_retirada`, ou a do veículo novo numa troca pendente
+    (LOC-09)."""
+    troca = locacoes.troca_pendente(locacao)
+    if troca is not None:
+        return criar(locacao, TipoVistoria.SAIDA, usuario, troca.veiculo_novo_id)
     if locacao.status != StatusLocacao.AGUARDANDO_RETIRADA:
         raise TransicaoInvalida(
             "transicao_locacao",
@@ -373,8 +380,13 @@ def concluir(vistoria: Vistoria, usuario: Any) -> Vistoria:
         locacao = Locacao.objects.select_related("cliente", "filial").get(pk=travada.locacao_id)
         veiculo = Veiculo.objects.select_related("categoria").get(pk=travada.veiculo_id)
         saida = travada.tipo == TipoVistoria.SAIDA
+        troca = locacoes.troca_pendente(locacao)
+        if troca is not None and not _da_troca(travada, troca):
+            troca = None
         pendencias = pendencias_da_vistoria(travada, veiculo)
         if saida and travada.substitui_id is None:
+            if troca is not None and not locacoes.caucao_da_troca_paga(troca):
+                pendencias.insert(0, Pendencia("LOC-09", MENSAGEM_CAUCAO_DA_TROCA, "caucao"))
             pendencias += impedimentos_da_retirada(locacao, veiculo)
         if pendencias:
             raise nao_conclui(pendencias)
@@ -404,13 +416,96 @@ def concluir(vistoria: Vistoria, usuario: Any) -> Vistoria:
         if km != veiculo.km_atual:
             veiculos.atualizar_km(veiculo, km, origem=_origem(travada, locacao))
         # A saída nova ativa a locação (fora de `aguardando_retirada`: 409). A correção só
-        # acerta o km da saída enquanto a locação ainda aguarda a retirada.
-        if saida and (
+        # acerta o km da saída enquanto a locação ainda aguarda a retirada. Na troca, as duas
+        # vistorias concluídas concluem a troca (LOC-09).
+        if troca is not None:
+            _concluir_troca_se_pronta(troca, locacao, agora)
+        elif saida and (
             travada.substitui_id is None or locacao.status == StatusLocacao.AGUARDANDO_RETIRADA
         ):
             locacoes.registrar_vistoria_saida(locacao, km=km, concluida_em=agora)
     _recarregar(vistoria)
     return vistoria
+
+
+# --- Troca de veículo (LOC-09) ---
+
+MENSAGEM_CAUCAO_DA_TROCA = "Receba a diferença da caução antes de entregar o veículo"
+
+
+def _da_troca(vistoria: Vistoria, troca: TrocaVeiculo) -> bool:
+    """A chegada do veículo antigo ou a saída do novo."""
+    if vistoria.tipo == TipoVistoria.SAIDA:
+        return vistoria.veiculo_id == troca.veiculo_novo_id
+    return vistoria.veiculo_id == troca.veiculo_antigo_id
+
+
+def trocar_veiculo(locacao: Locacao, dados: dict[str, Any], usuario: Any) -> TrocaVeiculo:
+    """`POST /api/locacoes/{id}/trocar-veiculo/`: pede a troca (reserva o veículo novo e cobra a
+    diferença de caução, `locacoes`) e abre as duas vistorias, a de devolução do veículo atual e
+    a de saída do novo. A devolução da locação nasce aqui, em `rascunho`, e recebe as cobranças
+    do veículo antigo: o acerto é um só, na devolução do último veículo."""
+    with transaction.atomic():
+        troca = locacoes.pedir_troca(
+            locacao, dados.get("veiculo_novo_id"), dados.get("motivo") or "", usuario
+        )
+        chegada = _vigente(locacao, troca.veiculo_antigo, TipoVistoria.DEVOLUCAO)
+        if chegada is None:
+            chegada, _ = criar(locacao, TipoVistoria.DEVOLUCAO, usuario, troca.veiculo_antigo_id)
+        saida, _ = criar(locacao, TipoVistoria.SAIDA, usuario, troca.veiculo_novo_id)
+        locacoes.vincular_vistorias_da_troca(troca, devolucao_id=chegada.pk, saida_id=saida.pk)
+        devolucao = Devolucao.objects.select_for_update().filter(locacao=locacao).first()
+        if devolucao is None:
+            devolucao = Devolucao.objects.create(locacao=locacao, vistoria=chegada)
+            registrar_evento(
+                "devolucao.iniciar",
+                Categoria.OPERACAO,
+                objeto=devolucao,
+                depois=retrato(devolucao),
+                regra="LOC-09",
+            )
+        elif devolucao.vistoria_id != chegada.pk:
+            devolucao.vistoria = chegada
+            devolucao.save(update_fields=["vistoria", "atualizado_em"])
+    recalcular(devolucao)
+    return troca
+
+
+def _concluir_troca_se_pronta(troca: TrocaVeiculo, locacao: Locacao, momento: datetime) -> None:
+    """Com a chegada do antigo e a saída do novo concluídas: a locação passa ao veículo novo
+    (`locacoes`), o antigo fica `disponivel` ou `em_manutencao` (DEV-04) e o acerto é refeito.
+    As cobranças do antigo ficam no acerto, sem conta na hora (LOC-09)."""
+    chegada = _vigente(locacao, troca.veiculo_antigo, TipoVistoria.DEVOLUCAO)
+    saida = _vigente(locacao, troca.veiculo_novo, TipoVistoria.SAIDA)
+    if chegada is None or saida is None:
+        return
+    locacoes.concluir_troca(troca, km_saida=int(saida.km or 0), momento=momento)
+    oficina = _liberar_veiculo(chegada, locacao, troca=True)
+    publicar(
+        "vistorias.troca_concluida",
+        troca_id=troca.pk,
+        locacao_id=locacao.pk,
+        veiculo_antigo_id=troca.veiculo_antigo_id,
+        veiculo_novo_id=troca.veiculo_novo_id,
+        avarias_para_oficina=oficina,
+    )
+    devolucao = Devolucao.objects.filter(locacao=locacao).first()
+    if devolucao is not None:
+        recalcular(devolucao)
+
+
+def _chegada_do_veiculo_atual(devolucao: Devolucao, locacao: Locacao, usuario: Any) -> None:
+    """Depois da troca concluída, a devolução passa à chegada do veículo novo (LOC-09)."""
+    if devolucao.status != D.RASCUNHO or locacao.status not in ABERTAS:
+        return
+    if locacoes.troca_pendente(locacao) is not None:
+        return
+    if Vistoria.objects.filter(pk=devolucao.vistoria_id, veiculo_id=locacao.veiculo_id).exists():
+        return
+    chegada, _ = criar(locacao, TipoVistoria.DEVOLUCAO, usuario)
+    devolucao.vistoria = chegada
+    devolucao.save(update_fields=["vistoria", "atualizado_em"])
+    recalcular(devolucao)
 
 
 # --- Corrigir (VIS-04) ---
@@ -509,6 +604,7 @@ class Calculado:
     modo: str = ModoItem.CALCULADO
     natureza: str = NaturezaItem.COBRANCA
     conta_id: int | None = None
+    veiculo_id: int | None = None  # o combustível de cada veículo devolvido (LOC-09)
 
 
 def iniciar_devolucao(locacao: Locacao, usuario: Any) -> tuple[Devolucao, bool]:
@@ -516,6 +612,7 @@ def iniciar_devolucao(locacao: Locacao, usuario: Any) -> tuple[Devolucao, bool]:
     volta ela (`criada = False`): quem vistoria continua de onde parou (DEV-05)."""
     existente = Devolucao.objects.filter(locacao=locacao).first()
     if existente is not None:
+        _chegada_do_veiculo_atual(existente, locacao, usuario)
         return existente, False
     if locacao.status not in ABERTAS:
         raise TransicaoInvalida(
@@ -638,6 +735,9 @@ def antecipada_sem_aprovacao(locacao: Locacao, momento: datetime) -> bool:
     return locacoes.data_local(momento, locacao.filial) < fim
 
 
+MENSAGEM_TROCA_PENDENTE = (
+    "Troca de veículo em andamento. O acerto fecha na devolução do último veículo."
+)
 MENSAGEM_DEV_07 = (
     "A devolução é antes do fim do contrato. Peça o encerramento antecipado ao gerente."
 )
@@ -648,13 +748,31 @@ def avisos_do_acerto(devolucao: Devolucao) -> list[dict[str, str]]:
     if devolucao.status != D.RASCUNHO:
         return []
     locacao = Locacao.objects.select_related("filial").get(pk=devolucao.locacao_id)
+    if locacoes.troca_pendente(locacao) is not None:
+        return [{"codigo": "LOC-09", "mensagem": MENSAGEM_TROCA_PENDENTE}]
     if antecipada_sem_aprovacao(locacao, momento_da_devolucao(chegada_atual(devolucao))):
         return [{"codigo": "DEV-07", "mensagem": MENSAGEM_DEV_07}]
     return []
 
 
-def calculados(locacao: Locacao, chegada: Vistoria) -> list[Calculado]:
-    """Os itens que o sistema calcula (DEV-01, LOC-10, LOC-12, LOC-13)."""
+def chegadas_anteriores(devolucao: Devolucao, chegada: Vistoria) -> list[Vistoria]:
+    """As chegadas vigentes dos veículos trocados antes do atual (LOC-09): as cobranças delas
+    ficam neste acerto, que é o único da locação."""
+    return list(
+        Vistoria.objects.filter(
+            locacao_id=devolucao.locacao_id,
+            tipo=TipoVistoria.DEVOLUCAO,
+            status=S.CONCLUIDA,
+            vigente=True,
+        )
+        .exclude(veiculo_id=chegada.veiculo_id)
+        .select_related("veiculo")
+        .order_by("concluida_em", "id")
+    )
+
+
+def _combustivel(locacao: Locacao, chegada: Vistoria, anterior: bool = False) -> Calculado:
+    """DEV-01, pela saída e pela chegada do mesmo veículo. O do veículo trocado diz qual é."""
     veiculo = chegada.veiculo
     saida = saida_vigente(locacao.pk, veiculo.pk)
     combustivel = conta.combustivel(
@@ -663,16 +781,30 @@ def calculados(locacao: Locacao, chegada: Vistoria) -> list[Calculado]:
         saida=saida.combustivel if saida is not None else "",
         chegada=chegada.combustivel,
     )
+    descricao = combustivel.descricao
+    if anterior:
+        descricao = descricao.replace(
+            "Combustível", f"Combustível da {veiculo.modelo} {veiculo.placa}", 1
+        )
+    return Calculado(
+        T.COMBUSTIVEL,
+        descricao,
+        combustivel.valor_centavos,
+        ModoItem.CALCULADO if combustivel.calculado else ModoItem.INFORMADO,
+        veiculo_id=veiculo.pk,
+    )
+
+
+def calculados(
+    locacao: Locacao, chegada: Vistoria, anteriores: list[Vistoria] | None = None
+) -> list[Calculado]:
+    """Os itens que o sistema calcula (DEV-01, LOC-09, LOC-10, LOC-12, LOC-13)."""
     momento = momento_da_devolucao(chegada)
     atraso = locacoes.calcular_atraso(locacao, momento)
     dias = atraso["dias"]
     itens = [
-        Calculado(
-            T.COMBUSTIVEL,
-            combustivel.descricao,
-            combustivel.valor_centavos,
-            ModoItem.CALCULADO if combustivel.calculado else ModoItem.INFORMADO,
-        ),
+        *[_combustivel(locacao, v, anterior=True) for v in anteriores or []],
+        _combustivel(locacao, chegada),
         Calculado(
             T.ATRASO,
             "Atraso" if dias == 0 else f"Atraso ({_plural(dias, 'diária', 'diárias')})",
@@ -710,14 +842,15 @@ def calculados(locacao: Locacao, chegada: Vistoria) -> list[Calculado]:
     return itens
 
 
-def _sincronizar(devolucao: Devolucao, chegada: Vistoria, novos: list[Calculado]) -> None:
-    """Refaz os itens calculados e um item por avaria nova da chegada. O valor que a pessoa deu
-    num item `informado` fica. Enquanto o acerto é rascunho, item que deixou de existir sai."""
+def _sincronizar(devolucao: Devolucao, chegadas: list[Vistoria], novos: list[Calculado]) -> None:
+    """Refaz os itens calculados e um item por avaria nova das chegadas (a atual e as dos
+    veículos trocados, LOC-09). O valor que a pessoa deu num item `informado` fica. Enquanto o
+    acerto é rascunho, item que deixou de existir sai."""
     existentes = list(devolucao.itens.all())
-    por_chave = {(i.tipo, i.conta_id): i for i in existentes if i.tipo in CALCULADOS}
+    por_chave = {(i.tipo, i.conta_id, i.veiculo_id): i for i in existentes if i.tipo in CALCULADOS}
     vistos = set()
     for novo in novos:
-        chave = (novo.tipo, novo.conta_id)
+        chave = (novo.tipo, novo.conta_id, novo.veiculo_id)
         vistos.add(chave)
         item = por_chave.get(chave)
         if item is None:
@@ -729,6 +862,7 @@ def _sincronizar(devolucao: Devolucao, chegada: Vistoria, novos: list[Calculado]
                 descricao=novo.descricao,
                 valor_centavos=novo.valor_centavos,
                 conta_id=novo.conta_id,
+                veiculo_id=novo.veiculo_id,
             )
             continue
         valor = novo.valor_centavos
@@ -743,7 +877,7 @@ def _sincronizar(devolucao: Devolucao, chegada: Vistoria, novos: list[Calculado]
         if chave not in vistos:
             item.delete()
 
-    avarias = {a.pk: a for a in Avaria.objects.filter(vistoria=chegada, preexistente=False)}
+    avarias = {a.pk: a for a in Avaria.objects.filter(vistoria__in=chegadas, preexistente=False)}
     com_item = {i.avaria_id: i for i in existentes if i.avaria_id is not None}
     for avaria in avarias.values():
         if avaria.pk not in com_item:
@@ -790,7 +924,8 @@ def recalcular(devolucao: Devolucao) -> Devolucao:
             return devolucao
         locacao = Locacao.objects.select_related("filial").get(pk=travada.locacao_id)
         chegada = chegada_atual(travada)
-        _sincronizar(travada, chegada, calculados(locacao, chegada))
+        anteriores = chegadas_anteriores(travada, chegada)
+        _sincronizar(travada, [chegada, *anteriores], calculados(locacao, chegada, anteriores))
         cobrancas, creditos = somas(list(travada.itens.all()))
         caucao = caucao_paga(locacao)
         novo = (chegada.pk, caucao, caucao + creditos - cobrancas)
@@ -902,7 +1037,7 @@ def vistoria_pendente() -> ErroDeRegra:
     )
 
 
-def _liberar_veiculo(chegada: Vistoria, locacao: Locacao) -> list[int]:
+def _liberar_veiculo(chegada: Vistoria, locacao: Locacao, troca: bool = False) -> list[int]:
     """DEV-04: avaria marcada "vai para oficina" leva o veículo a `em_manutencao` (a OS fica com
     o app `manutencao`, pelo evento `vistorias.devolucao_encerrada`); sem isso, `disponivel`.
     O km da chegada já entrou na conclusão da vistoria (VEI-02)."""
@@ -923,7 +1058,7 @@ def _liberar_veiculo(chegada: Vistoria, locacao: Locacao) -> list[int]:
             motivo=(
                 f"Avaria na devolução da {locacao.codigo} vai para a oficina"
                 if oficina
-                else f"Devolução da {locacao.codigo}"
+                else f"{'Troca de veículo' if troca else 'Devolução'} da {locacao.codigo}"
             ),
         )
     return oficina
@@ -937,10 +1072,19 @@ def encerrar_devolucao(devolucao: Devolucao, usuario: Any) -> Devolucao:
     commit, o recibo em PDF sai por WhatsApp."""
     with transaction.atomic():
         travada = _acerto_em_rascunho(devolucao)
-        chegada = chegada_vigente(travada)
-        if chegada is None or chegada.concluida_em is None:
-            raise vistoria_pendente()
         locacao = Locacao.objects.select_related("filial").get(pk=travada.locacao_id)
+        if locacoes.troca_pendente(locacao) is not None:
+            raise Conflito(
+                "troca_pendente", "Conclua a troca de veículo antes de encerrar a devolução."
+            )
+        chegada = chegada_vigente(travada)
+        # Depois de uma troca, quem encerra é a chegada do veículo atual (LOC-09).
+        if (
+            chegada is None
+            or chegada.concluida_em is None
+            or chegada.veiculo_id != locacao.veiculo_id
+        ):
+            raise vistoria_pendente()
         if antecipada_sem_aprovacao(locacao, chegada.concluida_em):
             raise ErroDeRegra(
                 "DEV-07",

@@ -30,7 +30,7 @@ from apps.veiculos.models import Categoria as CategoriaVeiculo
 from apps.veiculos.models import Extra, StatusVeiculo, Veiculo
 from comum import aprovacoes, estados, relogio
 from comum.auditoria import Categoria, auditar
-from comum.dinheiro import formatar_reais
+from comum.dinheiro import aplicar_percentual, dividir_em_parcelas, formatar_reais
 from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, SemPermissao, TransicaoInvalida
 from comum.eventos import publicar
 from comum.permissoes import pode
@@ -45,7 +45,9 @@ from .models import (
     PlanoEspecial,
     StatusDesconto,
     StatusLocacao,
+    StatusTroca,
     TrechoLocacao,
+    TrocaVeiculo,
 )
 
 S = StatusLocacao
@@ -968,6 +970,231 @@ def renovar(locacao: Locacao, dados: dict[str, Any], usuario: Any) -> Locacao:
 def _unidade(locacao: Locacao, n: int) -> str:
     singular, plural = calculo.UNIDADE[Periodicidade(locacao.periodicidade)]
     return singular if n == 1 else plural
+
+
+# --- Troca de veículo (LOC-09) ---
+
+
+def troca_pendente(locacao: Locacao | int) -> TrocaVeiculo | None:
+    locacao_id = locacao.pk if isinstance(locacao, Locacao) else locacao
+    troca: TrocaVeiculo | None = (
+        TrocaVeiculo.objects.select_related("veiculo_antigo", "veiculo_novo")
+        .filter(locacao_id=locacao_id, status=StatusTroca.PENDENTE)
+        .first()
+    )
+    return troca
+
+
+@dataclass(frozen=True)
+class PrecoDaTroca:
+    periodo_centavos: int  # sem descontos, como o congelado na confirmação (base do LOC-12)
+    diaria_centavos: int
+    caucao_centavos: int
+
+
+def preco_da_troca(locacao: Locacao, veiculo: Veiculo) -> PrecoDaTroca:
+    """LOC-09: o preço de hoje da nova categoria, como na renovação (LOC-15). O plano especial
+    de preço fixo continua se valer para a nova categoria; senão, vale a tabela."""
+    preco = veiculos_selectors.preco_vigente(veiculo.categoria_id, relogio.hoje())
+    if preco is None:
+        raise ErroDeRegra("LOC-01", "A categoria do veículo novo não tem preço vigente.")
+    periodo = {
+        Periodicidade.DIARIA: preco.diaria_centavos,
+        Periodicidade.SEMANAL: preco.semanal_centavos,
+        Periodicidade.MENSAL: preco.mensal_centavos,
+    }[Periodicidade(locacao.periodicidade)]
+    plano = locacao.plano_especial
+    if plano is not None and plano.ativo and plano.regra == PlanoEspecial.Regra.PRECO_FIXO:
+        categorias = set(plano.categorias.values_list("pk", flat=True))
+        if not categorias or veiculo.categoria_id in categorias:
+            periodo = int(plano.preco_centavos or 0)
+    return PrecoDaTroca(int(periodo or 0), preco.diaria_centavos, preco.caucao_centavos)
+
+
+def _impedimento_da_troca(locacao: Locacao, veiculo: Veiculo) -> ErroDeRegra | None:
+    """422 `CLI-02` (CNH sem a categoria), `FIL-05` (de outra filial) e `LOC-03` (indisponível)."""
+    tipo = veiculo.categoria.tipo_veiculo
+    if locacao.cliente.cnh_categoria not in clientes_selectors.CATEGORIA_POR_TIPO[tipo]:
+        exigida = clientes_selectors.EXIGIDA_POR_TIPO[tipo]
+        return ErroDeRegra("CLI-02", f"A CNH do cliente não tem a categoria {exigida}.")
+    if veiculo.filial_id != locacao.filial_id:
+        return ErroDeRegra("FIL-05", "O veículo é de outra filial. Transfira antes de alugar.")
+    livre = veiculo.status == StatusVeiculo.DISPONIVEL and not _outra_locacao_aberta(veiculo, None)
+    if not livre or veiculo.pk == locacao.veiculo_id:
+        erro = veiculo_indisponivel()
+        return ErroDeRegra(erro.codigo, erro.mensagem)
+    return None
+
+
+def pedir_troca(locacao: Locacao, veiculo_novo_id: Any, motivo: str, usuario: Any) -> TrocaVeiculo:
+    """Só em `ativa`. Reserva o veículo novo e, se a caução da nova categoria for maior, cobra a
+    diferença na hora (`tipo = caucao`): o veículo novo só sai depois de paga. Caução menor fica
+    para o acerto final, que desconta da caução total paga. `vistorias` abre as duas vistorias
+    na mesma transação."""
+    texto = (motivo or "").strip()
+    if not texto:
+        raise ErroDeValidacao({"motivo": ["Informe o motivo da troca."]})
+    with transaction.atomic():
+        travada = _travar(locacao)
+        if travada.status != S.ATIVA:
+            raise Conflito(
+                "transicao_locacao",
+                "Só dá para trocar o veículo de uma locação ativa.",
+                {"de": travada.status},
+            )
+        _sem_cancelamento_em_curso(travada)
+        if troca_pendente(travada) is not None:
+            raise Conflito("troca_pendente", "Esta locação já tem uma troca de veículo pendente.")
+        veiculo = _veiculo(veiculo_novo_id)
+        erro = _impedimento_da_troca(travada, veiculo)
+        if erro is not None:
+            raise erro
+        preco = preco_da_troca(travada, veiculo)
+        troca = TrocaVeiculo(
+            locacao=travada,
+            veiculo_antigo_id=travada.veiculo_id,
+            veiculo_novo=veiculo,
+            motivo=texto,
+            pedida_por_id=getattr(usuario, "pk", None),
+        )
+        try:
+            with (
+                transaction.atomic(),
+                auditar(troca, "locacao.pedir_troca", Categoria.OPERACAO, regra="LOC-09"),
+            ):
+                troca.save()
+        except IntegrityError as erro_banco:  # outra pessoa pediu a troca ao mesmo tempo
+            raise Conflito(
+                "troca_pendente", "Esta locação já tem uma troca de veículo pendente."
+            ) from erro_banco
+        veiculos.transicionar(
+            veiculo,
+            StatusVeiculo.RESERVADO,
+            origem=veiculos.OrigemDaMudanca(ORIGEM, travada.pk, travada.codigo),
+            motivo=f"Troca de veículo da {travada.codigo}",
+        )
+        diferenca = preco.caucao_centavos - travada.caucao_centavos
+        if diferenca > 0:
+            (conta,) = financeiro.criar_contas(
+                _origem(travada),
+                filial_id=travada.filial_id,
+                cliente_id=travada.cliente_id,
+                contas=[
+                    financeiro.NovaConta(
+                        tipo="caucao",
+                        vencimento=relogio.hoje(),
+                        valor_centavos=diferenca,
+                        observacao="Diferença de caução da troca de veículo",
+                    )
+                ],
+            )
+            troca.conta_caucao_id = conta.pk
+            troca.save(update_fields=["conta_caucao_id", "atualizado_em"])
+    return troca
+
+
+def vincular_vistorias_da_troca(troca: TrocaVeiculo, *, devolucao_id: int, saida_id: int) -> None:
+    """Chamado por `vistorias` ao abrir as duas vistorias da troca."""
+    troca.vistoria_devolucao_id = devolucao_id
+    troca.vistoria_saida_id = saida_id
+    troca.save(update_fields=["vistoria_devolucao_id", "vistoria_saida_id", "atualizado_em"])
+
+
+def caucao_da_troca_paga(troca: TrocaVeiculo) -> bool:
+    """LOC-09: sem diferença de caução, ou com ela paga."""
+    if troca.conta_caucao_id is None:
+        return True
+    return (
+        financeiro_selectors.contas_da_origem(ORIGEM, troca.locacao_id)
+        .filter(pk=troca.conta_caucao_id, status="paga")
+        .exists()
+    )
+
+
+def _com_descontos(locacao: Locacao, preco_periodo: int) -> int:
+    return preco_periodo - aplicar_percentual(preco_periodo, Decimal(locacao.desconto_pct))
+
+
+def _parcela_refeita(locacao: Locacao, conta: Any, antigo: int, novo: int) -> int:
+    """A parte do período sai pelo preço novo; os extras e o resto da parcela ficam. No mensal em
+    4 semanais, cada parcela é a sua quarta parte do mês."""
+    if locacao.parcelamento_mensal == ParcelamentoMensal.QUATRO_SEMANAIS:
+        semana = ((conta.numero_parcela or 1) - 1) % 4
+        antigo = dividir_em_parcelas(antigo, 4)[semana]
+        novo = dividir_em_parcelas(novo, 4)[semana]
+    return max(0, int(conta.valor_centavos) - antigo + novo)
+
+
+def concluir_troca(troca: TrocaVeiculo, *, km_saida: int, momento: datetime) -> TrocaVeiculo:
+    """Chamado por `vistorias` quando as duas vistorias da troca estão concluídas. Na mesma
+    transação: o trecho atual fecha e o novo começa, a locação passa ao veículo novo (que vira
+    `alugado`) com o preço, a diária e a caução da nova categoria, e as parcelas em aberto que
+    vencem depois do dia da troca são refeitas pelo preço novo (LOC-09). O veículo antigo segue
+    a regra da devolução (DEV-04), pela própria `vistorias`."""
+    with transaction.atomic():
+        travada = _travar(troca.locacao_id)
+        troca = TrocaVeiculo.objects.select_for_update(of=("self",)).get(pk=troca.pk)
+        if troca.status != StatusTroca.PENDENTE:
+            return troca
+        veiculo = Veiculo.objects.select_related("categoria").get(pk=troca.veiculo_novo_id)
+        preco = preco_da_troca(travada, veiculo)
+        antigo = _com_descontos(travada, travada.valor_periodo_centavos)
+        novo = _com_descontos(travada, preco.periodo_centavos)
+        dia = data_local(momento, travada.filial)
+        motivo = f"Troca de veículo: {troca.motivo}"[:200]
+        for conta in financeiro_selectors.abertas_vencendo_depois(ORIGEM, travada.pk, dia):
+            if conta.tipo == "parcela":
+                financeiro.ajustar_valor(
+                    conta,
+                    _parcela_refeita(travada, conta, antigo, novo),
+                    motivo=motivo,
+                    regra="LOC-09",
+                )
+        TrechoLocacao.objects.filter(locacao=travada, fim__isnull=True).update(
+            fim=momento, atualizado_em=relogio.agora()
+        )
+        TrechoLocacao.objects.create(
+            locacao=travada,
+            veiculo=veiculo,
+            inicio=momento,
+            valor_periodo_centavos=preco.periodo_centavos,
+            diaria_centavos=preco.diaria_centavos,
+        )
+        with auditar(
+            travada, "locacao.trocar_veiculo", Categoria.OPERACAO, motivo=motivo, regra="LOC-09"
+        ):
+            travada.veiculo = veiculo
+            travada.valor_periodo_centavos = preco.periodo_centavos
+            travada.diaria_centavos = preco.diaria_centavos
+            travada.caucao_centavos = preco.caucao_centavos
+            travada.km_saida = km_saida
+            travada.save(
+                update_fields=[
+                    "veiculo",
+                    "valor_periodo_centavos",
+                    "diaria_centavos",
+                    "caucao_centavos",
+                    "km_saida",
+                    "atualizado_em",
+                ]
+            )
+        if veiculo.status != StatusVeiculo.ALUGADO:
+            veiculos.transicionar(
+                veiculo,
+                StatusVeiculo.ALUGADO,
+                origem=veiculos.OrigemDaMudanca(ORIGEM, travada.pk, travada.codigo),
+                motivo=f"Troca de veículo da {travada.codigo}",
+            )
+        troca.concluida_em = momento
+        estados.transicionar(
+            troca,
+            StatusTroca.CONCLUIDA,
+            motivo=motivo,
+            acao="locacao.concluir_troca",
+            regra="LOC-09",
+            mais_campos=("concluida_em",),
+        )
+    return troca
 
 
 # --- Cancelamento e encerramento antecipado (LOC-12, LOC-13, APR-02) ---

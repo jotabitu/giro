@@ -108,3 +108,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-118 · Regra do encerramento aprovado com devolução no fim previsto · produto · PR #123 · tarefas/handoffs/T-118-produto.md · DEV-07 (opção A): sem multa nem crédito, atraso pela LOC-10; caso novo (Carlos cobra R$ 928,55); status final `encerrada` (opção A); teste e código na T-119
 - T-119 · Encerramento aprovado com devolução no fim previsto: teste e status final · backend · PR #124 · tarefas/handoffs/T-119-backend.md · Carlos em 28 out cobra 92855 e fica `encerrada`; variante de 30 out (103915); `encerramento_antecipado_vale`
 - T-120 · CI por área alterada · devops · PR #125 · tarefas/handoffs/T-120-devops.md · jobs de backend, frontend e infra só rodam se o PR toca a área; sem gatilho push na main; seção "Antes do push" no README
+- T-092 · Troca de veículo durante a locação · backend · PR #126 · tarefas/handoffs/T-092-backend.md · CA-015-18 e CA-016-15 passam; acerto único; 5 [decisão] para o produto

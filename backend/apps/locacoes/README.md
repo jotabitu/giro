@@ -59,9 +59,19 @@ Contrato da API: `docs/api/locacoes.md` (escrito pelo arquiteto antes da impleme
 - Rotas: `POST .../renovar/simular/`, `.../renovar/`, `.../cancelamento/simular/` e `.../cancelar/`. O sinal `cancelamento_pendente`, a aba "Precisam de ação", o rótulo "Multa R$ 84,80" e o bloco `cancelamento` do detalhe.
 - `tasks.py`: `aut_02_marcar_devolucao_atrasada`, de hora em hora no Beat.
 
+## Implementado (T-092)
+
+- `TrocaVeiculo` (migração `0004`): `pendente` → `concluida` (`REGRA_TRANSICAO = "transicao_troca"`), uma pendente por locação. As vistorias e a diferença de caução ficam só pelos ids (`vistoria_devolucao_id`, `vistoria_saida_id`, `conta_caucao_id`), porque `vistorias` fica acima (ADR 0011).
+- `services.py` (`LOC-09`):
+  - `pedir_troca`: só em `ativa` e sem cancelamento em curso (409). 422 `CLI-02`, `FIL-05` e `LOC-03` para o veículo novo. Reserva o novo e, com a caução da nova categoria maior, cria a conta `caucao` da diferença, com vencimento hoje. Caução menor não gera conta: o acerto final desconta da caução total paga;
+  - `preco_da_troca`: o preço de hoje da nova categoria (como na renovação); o plano de preço fixo continua se valer para ela;
+  - `caucao_da_troca_paga`, `troca_pendente` e `vincular_vistorias_da_troca`, para `vistorias`;
+  - `concluir_troca`: fecha o trecho e abre o novo, passa a locação ao veículo novo (`alugado`) com o preço, a diária e a caução da nova categoria, e refaz as parcelas em aberto que vencem depois do dia da troca (`financeiro.ajustar_valor`): só a parte do período muda, com o mesmo desconto.
+- A rota `POST /api/locacoes/{id}/trocar-veiculo/` fica em `vistorias`, porque abre as duas vistorias. `acoes.trocar_veiculo` fica `false` com uma troca pendente ou um cancelamento em curso.
+
 ## Fica para as próximas tarefas
 
-- T-092: a troca de veículo (`LOC-09`).
+- Cancelar uma troca pendente: o status `cancelada` existe, mas o contrato não tem rota (backlog, T-092).
 - T-016: a vistoria de saída chama `registrar_vistoria_saida(locacao, km=..., concluida_em=...)` depois de `clientes.selectors.impedimentos_para_retirada`. A devolução usa `calcular_atraso`, `multa_encerramento_centavos` e `credito_encerramento_centavos` no acerto e, no fim, chama `encerrar`.
 
 Testes: `tests/aceitacao/test_t015_locacoes.py` e `test_t091_locacao_fim.py`. A carteira de outubro no banco fica em `tests/aceitacao/carteira.py`.

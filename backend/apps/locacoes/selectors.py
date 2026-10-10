@@ -310,7 +310,10 @@ def acoes(locacao: Locacao, usuario: Any, contrato: Contrato | None = None) -> d
         "confirmar": cria and locacao.status == S.RASCUNHO,
         "renovar": cria and em_curso and not _cancelamento_em_curso(locacao),
         "registrar_devolucao": perfil in VISTORIAM and em_curso,
-        "trocar_veiculo": cria and locacao.status == S.ATIVA,
+        "trocar_veiculo": cria
+        and locacao.status == S.ATIVA
+        and not _cancelamento_em_curso(locacao)
+        and services.troca_pendente(locacao) is None,
         "cancelar": _cancelar(usuario, locacao),
         "imprimir_contrato": perfil != "vistoriador"
         and contrato is not None

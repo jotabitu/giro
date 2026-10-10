@@ -108,6 +108,14 @@ Levantadas pelo backend em T-111 (09 out 2026), para o produto. O código segue 
 
 - (T-111) O extra desativado antes da renovação foi decidido em 09 out 2026 pelo dono do produto: opção A. O extra continua nas locações que já o têm, renovações incluídas, pelo último valor do cadastro (`LOC-08`). Regra e critério (CA-015-27) na T-115; o código da T-111 já faz assim.
 
+Levantadas pelo backend em T-092 (10 out 2026), para o produto. O código segue o que está entre parênteses:
+
+- [decisão] (T-092) Preço da nova categoria na troca (`LOC-09`): a regra diz "o valor da nova categoria", sem dizer de qual dia. (Preço de hoje, como na renovação, `LOC-15`. O plano especial de preço fixo continua se valer para a nova categoria; senão, vale a tabela.)
+- [decisão] (T-092) Taxa de combustível de R$ 10,00 na troca (`DEV-01`: "uma vez por devolução"): a troca devolve dois veículos num acerto só. (Uma taxa por veículo que volta com menos combustível, cada um com o seu item no acerto.)
+- [decisão] (T-092) Parcelas refeitas na troca: muda só a parte do período, com o mesmo desconto do vendedor; os extras ficam. No mensal em 4 semanais, a parcela muda a sua quarta parte do mês. (Assim; o desconto do plano especial por período não é recalculado.)
+- [decisão] (T-092) Troca pendente que não termina: o modelo de dados tem o status `cancelada`, mas o contrato não tem rota para cancelar a troca, e a locação com troca pendente não encerra (409 `troca_pendente`). (Sem rota por enquanto; o veículo novo fica `reservado` até as duas vistorias. Pedir ao arquiteto a rota, se o produto quiser.)
+- [decisão] (T-092) Cancelamento (`LOC-12`) e renovação (`LOC-08`) com troca pendente: nenhuma regra fala do caso. (Os dois continuam permitidos; a troca não é pedida com cancelamento em curso.)
+
 ## Fase 0 · Fundação
 
 ### T-001 · Esqueleto do backend
@@ -257,9 +265,6 @@ Levantadas pelo backend em T-111 (09 out 2026), para o produto. O código segue 
 
 ### T-091 · Locação: renovação, atraso, cancelamento e encerramento
 - **Agente:** backend · **Depende de:** T-090 · **Regras:** LOC-08, LOC-10 a LOC-13, FIL-03, APR-02, AUT-02 · **Pronto quando:** CA-015-17 e 19 a 24 e o estorno do CA-015-25 passam, com o código da regra no nome do teste: renovação com aditivo; atraso com `calcular_atraso` e `aut_02`; cancelamento e encerramento antecipado com APR-02, reembolso e comissão estornada.
-
-### T-092 · Troca de veículo durante a locação
-- **Agente:** backend · **Depende de:** T-016, T-091 · **Regras:** LOC-09 · **Pronto quando:** CA-015-18 passa, com o código da regra no nome do teste; a troca abre a vistoria de devolução do veículo antigo e a de saída do novo (T-016).
 
 ### T-017 · Contas a receber, caixa do dia, baixa
 - **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 23) passam, com o código da regra no nome do teste. · **Inclui:** usar o `juros_pro_rata` de `comum/dinheiro.py`, que vem da T-114 (CA-017-08: Carlos 70, Rafael 1123)
