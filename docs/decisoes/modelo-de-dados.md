@@ -310,6 +310,8 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `km_saida` | int, nulo | gravado na vistoria de saída |
 | `encerramento_antecipado_aprovado_em` | momento, nulo | `LOC-12`: segue para a devolução e termina `cancelada` |
 | `multa_encerramento_centavos` | centavos, nulo | `LOC-12`, congelada na aprovação |
+| `credito_encerramento_centavos` | centavos±, nulo | `LOC-12`, `LOC-13`: crédito das semanas (ou diárias) não usadas, congelado na aprovação junto com a multa; no mensal em 4 semanais, menos as parcelas que o encerramento cancela, e pode ser negativo (saldo, ADR 0009; T-111) |
+| `atraso_anterior_dias`, `atraso_anterior_centavos` | int, centavos | `LOC-08`: o atraso até uma renovação feita depois do prazo, cobrado no acerto (T-111) |
 
 - **Uma locação ativa por veículo:** `UniqueConstraint(fields=["veiculo"], condition=Q(status__in=["aguardando_retirada", "ativa", "devolucao_atrasada"]), name="uma_locacao_aberta_por_veiculo")`. Violação vira `Conflito` com código `LOC-03`.
 - `CHECK (fim_previsto > inicio)`.
@@ -339,7 +341,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 - Concluída não se edita (o serviço recusa). Único: uma vistoria `concluida` vigente por `(locacao, veiculo, tipo)` que não tenha sido substituída.
 - Apoio `FotoVistoria`: `vistoria`, `posicao` enum `frente`, `traseira`, `lado_esquerdo`, `lado_direito`, `painel`, `avaria`, `arquivo`. Conclusão exige as 5 posições fixas (`VIS-01`).
 - Apoio `Avaria`: `vistoria`, `veiculo`, `descricao`, `preexistente` bool, `valor_centavos` nulo, `vai_para_oficina` bool (`DEV-04`), `foto` FK, `ordem_servico` FK nulo, `resolvida_em` momento nulo (fecha quando a OS ligada é concluída). Índice `(veiculo, resolvida_em)` para "avarias abertas".
-- Apoio `Devolucao` (`DEV-01`, `DEV-02`; `docs/api/vistorias.md`; um acerto só por locação, criado na primeira troca de veículo ou na devolução): `locacao` (1:1), `vistoria` FK (chegada), `status` enum `rascunho`, `concluida`, `caucao_centavos`, `saldo_centavos` (centavos±), `forma_devolucao` enum `pix`, `dinheiro`, `estorno_cartao`, nulo, `concluida_em`. Filho `ItemAcerto`: `tipo` enum `combustivel`, `avaria`, `atraso`, `km_excedente`, `parcela_aberta`, `multa_transito`, `multa_encerramento`, `semanas_nao_usadas` (crédito, `LOC-13`), `natureza` enum `cobranca`, `credito`, `modo` enum `informado`, `calculado`, `valor_centavos`, `descricao`, `avaria` FK nulo. Saldo = caução + créditos − cobranças. Exemplo LOC-2836: 3200 + 8500 = 11700; saldo 30000 − 11700 = 18300.
+- Apoio `Devolucao` (`DEV-01`, `DEV-02`; `docs/api/vistorias.md`; um acerto só por locação, criado na primeira troca de veículo ou na devolução): `locacao` (1:1), `vistoria` FK (chegada), `status` enum `rascunho`, `concluida`, `caucao_centavos`, `saldo_centavos` (centavos±), `forma_devolucao` enum `pix`, `dinheiro`, `estorno_cartao`, nulo, `concluida_em`. Filho `ItemAcerto`: `tipo` enum `combustivel`, `avaria`, `atraso`, `km_excedente`, `parcela_aberta`, `multa_transito`, `multa_encerramento`, `semanas_nao_usadas` (crédito, ou cobrança no mensal em 4 semanais quando as parcelas canceladas passam do crédito, `LOC-13`), `dias_nao_usados` (crédito, `LOC-12`), `natureza` enum `cobranca`, `credito`, `modo` enum `informado`, `calculado`, `valor_centavos`, `descricao`, `avaria` FK nulo. Saldo = caução + créditos − cobranças. Exemplo LOC-2836: 3200 + 8500 = 11700; saldo 30000 − 11700 = 18300.
 
 ### 15. Contrato · `contratos.Contrato` · máquina
 

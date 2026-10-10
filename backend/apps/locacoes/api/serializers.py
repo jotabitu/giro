@@ -389,8 +389,15 @@ class SimulacaoCancelamentoSerializer(serializers.Serializer[Any]):
     multa_centavos = serializers.IntegerField()
     credito_semanas = CreditoSemanasSerializer()
     credito_dias = CreditoDiasSerializer(help_text="Diária: os dias não usados (LOC-12).")
+    parcelas_canceladas_centavos = serializers.IntegerField(
+        help_text="Mensal em 4 semanais: as parcelas do mês que o encerramento cancela, "
+        "descontadas do crédito das semanas (LOC-13)."
+    )
     devolver_centavos = serializers.IntegerField()
     cobrar_centavos = serializers.IntegerField()
+    avisos = CodigoMensagemLocacaoSerializer(
+        many=True, help_text="Diária: o acerto final usa a hora da devolução (LOC-12)."
+    )
 
 
 class PedidoAprovacaoRefSerializer(serializers.Serializer[Any]):

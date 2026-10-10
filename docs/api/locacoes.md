@@ -206,6 +206,8 @@ Simular devolve as novas parcelas; renovar (`LOC-08`):
 - Gera um aditivo pelo app `contratos` (`tipo = aditivo`) e o envia. A renovação vale na hora; se o aditivo não for assinado em 7 dias, os gerentes da filial recebem uma tarefa (`LOC-08`).
 - Não gera comissão (`FIN-09`).
 - `devolucao_atrasada` renovada volta a `ativa` se o novo fim for futuro; o atraso já corrido continua cobrado na devolução.
+- Dentro do prazo (fim previsto mais a tolerância, `LOC-10`, `LOC-11`), o período novo começa no fim previsto antigo. Depois do prazo, mesmo com a locação ainda `ativa`, começa na hora da renovação, e o atraso até ali fica guardado (`atraso_anterior_*`) e é cobrado no acerto (T-111, CA-015-26: fim 07 out 10:00, renovada em 09 out 10:00 → 10980 de atraso, parcela de 32900 vencendo em 09 out, fim em 16 out 10:00).
+- Período e extras por período pelo preço de hoje (os extras pelo valor atual do cadastro, que passa a valer na locação); o mesmo `desconto_pct`, sem novo `APR-01`; plano de preço fixo pelo valor de hoje, plano de desconto contando os períodos desde o começo da locação; plano desativado → tabela (CA-015-27).
 200: detalhe.
 
 ### POST /api/locacoes/{id}/trocar-veiculo/
@@ -225,11 +227,14 @@ Caução e cobranças na troca (`LOC-09`):
 { "antes_da_retirada": false, "periodo_atual": { "inicio": "2026-09-15", "fim": "2026-10-15", "dias": 30 },
   "dias_restantes": 8, "valor_restante_centavos": 42400, "multa_centavos": 8480,
   "credito_semanas": { "semanas": 1, "valor_centavos": 37100 },
-  "devolver_centavos": 28620, "cobrar_centavos": 0 }
+  "credito_dias": { "dias": 0, "valor_centavos": 0 }, "parcelas_canceladas_centavos": 0,
+  "devolver_centavos": 28620, "cobrar_centavos": 0, "avisos": [] }
 ```
 - Antes da retirada: sem multa; devolve tudo o que foi pago (parcelas e caução).
 - Depois da retirada: multa de 20% sobre o valor dos dias restantes do período em curso (preço do período ÷ dias do período × dias restantes), mínimo de 1 diária da categoria. Diária: sem multa, cobra só os dias usados.
 - Mensal (`LOC-13`): devolve as semanas inteiras não usadas (7 × preço mensal ÷ 30 por semana), menos a multa; se a multa for maior, a diferença vira conta a receber (`cobrar_centavos`).
+- Diária (`LOC-12`): os dias usados contam em blocos de 24 h desde o início, e fração conta como dia. A simulação só tem a data e conta a devolução na hora do início; `avisos` traz `[ { "codigo": "LOC-12", "mensagem": "O acerto final usa a hora da devolução." } ]`. Nos outros planos, `avisos` é `[]`. O acerto da devolução recalcula pela hora real (CA-015-28: Urbana de 05 a 10 out 10:00, devolvida em 07 out até 10:00 → 13470; a partir de 10:01 → 8980).
+- Mensal em 4 semanais (`LOC-13`): `credito_semanas.valor_centavos` é o bruto; `parcelas_canceladas_centavos` são as parcelas em aberto do mês em curso que vencem depois do dia e que o encerramento cancela (0 fora do mensal em 4 semanais). `devolver_centavos`/`cobrar_centavos` já são líquidos: crédito − canceladas − multa, o mesmo saldo do mês à vista (CA-015-29: encerrada em 25 set com 2 pagas → 74200 − 79500 − 21200 → cobrar **26500**).
 - Caso do seed: Patrícia, LOC-2812, NMax mensal 159000, pedido em 07 out, fim 15 out → restante 42400, multa **8480**, crédito 37100, devolve **28620**.
 
 **POST /api/locacoes/{id}/cancelar/** · corpo `{ motivo, data? }`.

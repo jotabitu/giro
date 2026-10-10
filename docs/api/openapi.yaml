@@ -9197,18 +9197,29 @@ components:
           allOf:
           - $ref: '#/components/schemas/CreditoDias'
           description: 'Diária: os dias não usados (LOC-12).'
+        parcelas_canceladas_centavos:
+          type: integer
+          description: 'Mensal em 4 semanais: as parcelas do mês que o encerramento
+            cancela, descontadas do crédito das semanas (LOC-13).'
         devolver_centavos:
           type: integer
         cobrar_centavos:
           type: integer
+        avisos:
+          type: array
+          items:
+            $ref: '#/components/schemas/CodigoMensagemLocacao'
+          description: 'Diária: o acerto final usa a hora da devolução (LOC-12).'
       required:
       - antes_da_retirada
+      - avisos
       - cobrar_centavos
       - credito_dias
       - credito_semanas
       - devolver_centavos
       - dias_restantes
       - multa_centavos
+      - parcelas_canceladas_centavos
       - periodo_atual
       - valor_restante_centavos
     SimulacaoLocacao:

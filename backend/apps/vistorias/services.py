@@ -484,6 +484,8 @@ TIPO_DA_CONTA: dict[str, str] = {
     T.KM_EXCEDENTE: TipoConta.ACERTO,
     T.MULTA_TRANSITO: TipoConta.MULTA,
     T.MULTA_ENCERRAMENTO: TipoConta.MULTA,
+    # LOC-13: no mensal em 4 semanais, as semanas menos as parcelas canceladas podem ser cobrança.
+    T.SEMANAS_NAO_USADAS: TipoConta.ACERTO,
 }
 # Os itens que a pessoa inclui; os outros saem da vistoria e da locação.
 INCLUIDOS_PELA_PESSOA = (T.AVARIA, T.MULTA_TRANSITO)
@@ -645,15 +647,21 @@ def calculados(locacao: Locacao, chegada: Vistoria) -> list[Calculado]:
                 locacao.multa_encerramento_centavos or 0,
             )
         )
-        credito = locacao.credito_encerramento_centavos or 0
-        if credito > 0:
+        # LOC-12: a diária conta pela hora real da devolução. LOC-13: no mensal em 4 semanais,
+        # o crédito menos as parcelas canceladas pode ficar negativo e vira cobrança.
+        credito = locacoes.credito_do_encerramento(locacao, momento)
+        if credito.valor_centavos != 0:
             mensal = locacao.periodicidade == Periodicidade.MENSAL
             itens.append(
                 Calculado(
                     T.SEMANAS_NAO_USADAS if mensal else T.DIAS_NAO_USADOS,
-                    "Semanas não usadas" if mensal else "Diárias não usadas",
-                    credito,
-                    natureza=NaturezaItem.CREDITO,
+                    credito.descricao,
+                    abs(credito.valor_centavos),
+                    natureza=(
+                        NaturezaItem.CREDITO
+                        if credito.valor_centavos > 0
+                        else NaturezaItem.COBRANCA
+                    ),
                 )
             )
     return itens
