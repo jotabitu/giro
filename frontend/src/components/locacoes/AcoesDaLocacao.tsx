@@ -261,6 +261,11 @@ export function AcoesDaLocacao({ l, variante, aoConcluir }: { l: LocacaoCompleta
   const a = l.acoes;
   const saida = l.status === "aguardando_retirada" && !l.condicoes.vistoria_saida_ok_em;
 
+  const continuarRascunho = l.status === "rascunho" && (a.editar || a.confirmar) && (
+    <Link key="rasc" href={`/locacoes/nova?rascunho=${l.id}`} className="wl-btn wl-btn--solid">
+      Continuar a locação
+    </Link>
+  );
   const devolucao = a.registrar_devolucao && (
     <Link key="dev" href={`/locacoes/${l.id}/devolucao`} className="wl-btn wl-btn--solid">
       Registrar devolução
@@ -295,10 +300,10 @@ export function AcoesDaLocacao({ l, variante, aoConcluir }: { l: LocacaoCompleta
   return (
     <>
       {variante === "desktop" ? (
-        <div className="flex flex-wrap items-center gap-2">{[renovar, trocar, cancelar, vistoria, continuar, devolucao]}</div>
+        <div className="flex flex-wrap items-center gap-2">{[renovar, trocar, cancelar, continuarRascunho, vistoria, continuar, devolucao]}</div>
       ) : (
         <div className="flex flex-col gap-2 [&_.wl-btn]:justify-center">
-          <div className="flex gap-2 [&>*:first-child]:flex-1 [&>*:last-child]:flex-[2]">{[renovar, vistoria, continuar, devolucao]}</div>
+          <div className="flex gap-2 [&>*:first-child]:flex-1 [&>*:last-child]:flex-[2]">{[renovar, continuarRascunho, vistoria, continuar, devolucao]}</div>
           {trocar}
           {cancelar}
         </div>

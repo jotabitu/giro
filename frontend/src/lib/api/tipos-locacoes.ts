@@ -50,3 +50,15 @@ export type AvisoLocacao = S["CodigoMensagemLocacao"];
 export type PedidoDeCancelamento = S["CancelamentoPedido"]["pedido_aprovacao"];
 export type FormaDevolucaoCancelamento = "pix" | "estorno_cartao";
 export type TrocaPedida = S["TrocaPedida"];
+
+export type FormaPagamento = "pix" | "pix_automatico" | "cartao" | "boleto" | "dinheiro";
+export type ParcelamentoMensal = "a_vista" | "quatro_semanais";
+export type ExtraDeLocacao = S["Extra"];
+export type PlanoEspecial = Omit<S["PlanoEspecial"], "periodicidade" | "regra"> & { periodicidade: Periodicidade; regra: "preco_fixo" | "desconto_a_partir" };
+export type SimulacaoDaLocacao = S["SimulacaoLocacao"];
+/** Corpo de simular, criar e atualizar (`PATCH` do rascunho): o mesmo formulário. */
+export type EntradaDaLocacao = Omit<S["LocacaoEntrada"], "periodicidade" | "forma_pagamento" | "parcelamento_mensal"> & {
+  periodicidade: Periodicidade;
+  forma_pagamento: FormaPagamento;
+  parcelamento_mensal?: ParcelamentoMensal | null;
+};

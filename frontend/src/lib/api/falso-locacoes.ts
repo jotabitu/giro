@@ -4,8 +4,14 @@
 import { pausa, perfilAtualFalso } from "./falso";
 import { ErroApi } from "./tipos";
 import { veiculosFalso } from "./falso-frota";
+import { clientesFalso } from "./falso-clientes";
 import type {
   AbaLocacoes,
+  AvisoLocacao,
+  EntradaDaLocacao,
+  ExtraDeLocacao,
+  PlanoEspecial,
+  SimulacaoDaLocacao,
   FiltroLocacoes,
   FormaDevolucaoCancelamento,
   HistoricoDaLocacao,
@@ -57,6 +63,8 @@ type Semente = {
   trocaPendente?: boolean;
   eventos: [em: string, rotulo: string, detalhe: string][];
   devolucaoId?: number | null;
+  /** Formulário do rascunho (o que o PATCH e o POST guardam). */
+  entrada?: EntradaDaLocacao;
 };
 
 const SEMENTES: Semente[] = [
@@ -152,8 +160,8 @@ function acoesDe(s: Semente, perfil: Perfil | null) {
   const cancelar: "direto" | "pedir" | false =
     perfil === "administrador" || perfil === "gerente" ? "direto" : perfil === "vendedor" ? "pedir" : false;
   return {
-    editar: false,
-    confirmar: false,
+    editar: cria && s.status === "rascunho",
+    confirmar: cria && s.status === "rascunho",
     renovar: cria && ativa(s) && !emCurso,
     registrar_devolucao: ativa(s),
     trocar_veiculo: cria && s.status === "ativa" && !emCurso && !s.trocaPendente,
@@ -220,7 +228,7 @@ function detalhe(s: Semente): LocacaoCompleta {
       assinado_em_preco_de: s.inicio.slice(0, 10),
     },
     desconto: null,
-    extras: (s.extras ?? []).map((nome, i) => ({ id: i + 1, nome, quantidade: 1, valor_centavos: 0, cobranca: "por_periodo" })),
+    extras: (s.extras ?? []).map((nome, i) => ({ id: EXTRAS.find((x) => x.nome === nome)?.id ?? i + 1, nome, quantidade: 1, valor_centavos: 0, cobranca: "por_periodo" })),
     km_saida: s.corpo.kmSaida,
     km_livre: true,
     forma_pagamento: s.parcelas.find((p) => p[4])?.[4] ?? "pix",
@@ -340,7 +348,181 @@ function abaDe(s: Semente, aba: AbaLocacoes): boolean {
 
 const normalizar = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/-/g, "");
 
+// ---- Nova locação ---------------------------------------------------------------------------------------------------
+
+const EXTRAS: ExtraDeLocacao[] = [
+  { id: 1, nome: "Capacete extra", valor_centavos: 300, cobranca: "por_periodo", ativo: true },
+  { id: 2, nome: "Baú traseiro", valor_centavos: 200, cobranca: "por_periodo", ativo: true },
+  { id: 3, nome: "Proteção contra roubo e furto", valor_centavos: 600, cobranca: "por_periodo", ativo: true },
+  { id: 4, nome: "Condutor adicional", valor_centavos: 400, cobranca: "unica", ativo: true },
+];
+
+const PLANOS: PlanoEspecial[] = [
+  { id: 1, nome: "Entregador", periodicidade: "semanal", regra: "preco_fixo", preco_centavos: 27900, desconto_pct: null, a_partir_do_periodo: null, categorias: [], condicoes: "Semanal com km livre e troca de óleo inclusa", locacoes_ativas: 18, ativo: true },
+  { id: 2, nome: "Mensal fidelidade", periodicidade: "mensal", regra: "desconto_a_partir", preco_centavos: null, desconto_pct: "10.00", a_partir_do_periodo: 3, categorias: [], condicoes: "10% a partir do 3º mês seguido", locacoes_ativas: 4, ativo: true },
+];
+
+let proximoId = 2860;
+
+/** Soma `n` períodos a um instante, mantendo a hora (America/Sao_Paulo não tem horário de verão desde 2019). */
+function somarPeriodos(inicio: string, p: Periodicidade, n: number): string {
+  const d = new Date(inicio);
+  if (p === "mensal") d.setUTCMonth(d.getUTCMonth() + n);
+  else d.setTime(d.getTime() + n * (p === "semanal" ? 7 : 1) * DIA);
+  return d.toISOString();
+}
+
+function dividirEmParcelas(valor: number, n: number): number[] {
+  const base = Math.floor(valor / n);
+  return Array.from({ length: n }, (_, i) => (i === n - 1 ? valor - base * (n - 1) : base));
+}
+
+const reais = (centavos: number) => `R$ ${(centavos / 100).toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".")}`;
+
+/** O que a API faz em POST /api/locacoes/simular/ (calculo.py): preços da categoria, plano especial, extras, desconto e parcelas. */
+async function simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
+  exigirCria();
+  const [cliente, veiculo] = await Promise.all([clientesFalso.obter(e.cliente_id), veiculosFalso.obter(e.veiculo_id)]);
+  const campos: Record<string, string> = {};
+  const plano = e.plano_especial_id ? PLANOS.find((p) => p.id === e.plano_especial_id) : undefined;
+  if (e.plano_especial_id && (!plano || plano.periodicidade !== e.periodicidade)) campos.plano_especial_id = "Este plano não vale para a modalidade escolhida";
+  const passo = e.periodicidade === "diaria" ? DIA : e.periodicidade === "semanal" ? 7 * DIA : 30 * DIA;
+  const decorrido = e.fim_previsto ? Date.parse(e.fim_previsto) - Date.parse(e.inicio) : 0;
+  const periodos = e.periodos || (e.fim_previsto ? Math.ceil(decorrido / passo) : 0);
+  if (e.periodicidade === "mensal" && e.fim_previsto && decorrido < 28 * DIA) campos.fim_previsto = "A locação mensal tem 1 mês ou mais";
+  else if (!Number.isInteger(periodos) || periodos < 1) campos.periodos = "Informe 1 período ou mais";
+  if (!/^\d{1,3}(\.\d{1,2})?$/.test(e.desconto_pct) || Number(e.desconto_pct) > 100) campos.desconto_pct = "Informe um percentual de 0 a 100";
+  if (Object.keys(campos).length > 0) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, campos);
+
+  const pv = veiculo.preco_vigente;
+  const precoDe = (k: number) => {
+    if (plano?.regra === "preco_fixo" && plano.preco_centavos) return plano.preco_centavos;
+    const tabela = e.periodicidade === "diaria" ? pv.diaria_centavos : e.periodicidade === "semanal" ? pv.semanal_centavos : pv.mensal_centavos;
+    return plano?.regra === "desconto_a_partir" && plano.a_partir_do_periodo && plano.desconto_pct && k >= plano.a_partir_do_periodo ? Math.round(tabela * (1 - Number(plano.desconto_pct) / 100)) : tabela;
+  };
+  const escolhidos = (e.extras ?? []).flatMap((x) => {
+    const extra = EXTRAS.find((y) => y.id === x.extra_id);
+    return extra ? [{ extra, quantidade: x.quantidade }] : [];
+  });
+  const porPeriodo = escolhidos.filter((x) => x.extra.cobranca === "por_periodo").reduce((a, x) => a + x.extra.valor_centavos * x.quantidade, 0);
+  const unicos = escolhidos.filter((x) => x.extra.cobranca !== "por_periodo").reduce((a, x) => a + x.extra.valor_centavos * x.quantidade, 0);
+  const pct = Number(e.desconto_pct);
+  const precos = Array.from({ length: periodos }, (_, i) => precoDe(i + 1));
+  const descontos = precos.map((p) => Math.round((p * pct) / 100));
+  const valores = precos.map((p, i) => p - (descontos[i] ?? 0) + porPeriodo);
+  valores[0] = (valores[0] ?? 0) + unicos;
+  const primeiro = `${e.inicio.slice(0, 10)}T12:00:00Z`;
+  const quatro = e.periodicidade === "mensal" && e.parcelamento_mensal === "quatro_semanais";
+  const parcelas: ParcelaPrevista[] =
+    e.periodicidade === "diaria"
+      ? [{ numero: 1, vencimento: dia(Date.parse(primeiro)), valor_centavos: valores.reduce((a, v) => a + v, 0) }]
+      : quatro
+        ? valores.flatMap((v, k) => dividirEmParcelas(v, 4).map((parte, s) => ({ numero: k * 4 + s + 1, vencimento: dia(Date.parse(somarPeriodos(primeiro, "mensal", k)) + s * 7 * DIA), valor_centavos: parte })))
+        : valores.map((v, k) => ({ numero: k + 1, vencimento: dia(Date.parse(somarPeriodos(primeiro, e.periodicidade, k))), valor_centavos: v }));
+  const caucao = pv.caucao_centavos;
+  const unidade = { diaria: ["diária", "diárias"], semanal: ["semana", "semanas"], mensal: ["mês", "meses"] }[e.periodicidade];
+  const proximos = parcelas[1]?.valor_centavos ?? precoDe(2) - Math.round((precoDe(2) * pct) / 100) + porPeriodo;
+  const impedimentos: AvisoLocacao[] = [];
+  const avisos: AvisoLocacao[] = [];
+  if (cliente.status === "bloqueado") impedimentos.push({ codigo: "CLI-05", mensagem: "Cliente bloqueado por atraso. Quite o que deve antes de alugar." });
+  if (cliente.status === "inativo") impedimentos.push({ codigo: "cliente_inativo", mensagem: "Cliente inativo. Reative o cadastro para alugar." });
+  if (veiculo.status !== "disponivel" && veiculo.status !== "reservado") impedimentos.push({ codigo: "LOC-03", mensagem: "Veículo indisponível no período" });
+  if (cliente.status === "incompleto") avisos.push({ codigo: "CLI-03", mensagem: "Cadastro incompleto. Envie os documentos antes da retirada." });
+  return {
+    fim_previsto: somarPeriodos(e.inicio, e.periodicidade, periodos),
+    periodos,
+    linhas: [
+      { rotulo: `${periodos} ${periodos === 1 ? unidade[0] : unidade[1]}${new Set(precos).size === 1 ? ` × ${reais(precos[0] ?? 0)}` : ""}`, valor_centavos: precos.reduce((a, p) => a + p, 0) },
+      { rotulo: "Adicionais", valor_centavos: porPeriodo * periodos + unicos },
+      { rotulo: "Desconto", valor_centavos: descontos.reduce((a, d) => a + d, 0) },
+      { rotulo: "Caução (devolvida no fim)", valor_centavos: caucao },
+    ],
+    valor_periodo_centavos: (precos[0] ?? 0) - (descontos[0] ?? 0),
+    proximos_periodos_centavos: proximos,
+    hoje_na_retirada_centavos: (parcelas[0]?.valor_centavos ?? 0) + caucao,
+    texto_retirada: `${e.periodicidade === "diaria" ? "Hoje: todas as diárias" : e.periodicidade === "semanal" ? "Hoje: primeira semana" : quatro ? "Hoje: primeira parcela do mês" : "Hoje: primeiro mês"} mais caução.`,
+    parcelas_previstas: parcelas,
+    caucao_centavos: caucao,
+    diaria_centavos: pv.diaria_centavos,
+    precisa_aprovacao_desconto: pct > 5 && perfilAtualFalso() === "vendedor",
+    impedimentos,
+    avisos,
+  };
+}
+
+async function semente(id: number, e: EntradaDaLocacao, status: StatusLocacao, anterior?: Semente): Promise<Semente> {
+  const [sim, cliente, veiculo] = await Promise.all([simular(e), clientesFalso.obter(e.cliente_id), veiculosFalso.obter(e.veiculo_id)]);
+  const confirmada = status !== "rascunho";
+  return {
+    id,
+    status,
+    cliente: { id: cliente.id, nome: cliente.nome },
+    veiculo: { id: veiculo.id, modelo: `${veiculo.marca} ${veiculo.modelo}`, placa: veiculo.placa },
+    periodicidade: e.periodicidade,
+    inicio: e.inicio,
+    fim: sim.fim_previsto ?? e.inicio,
+    situacao: confirmada ? { codigo: "aguardando_assinatura", rotulo: "Aguardando assinatura", tom: "neutro" } : { codigo: "rascunho", rotulo: "Rascunho", tom: "neutro" },
+    pagamento: { rotulo: confirmada ? `${reais(sim.hoje_na_retirada_centavos)} a receber` : "—", tom: "neutro", em_aberto_centavos: confirmada ? sim.hoje_na_retirada_centavos : 0 },
+    acao: { codigo: "abrir", rotulo: "Abrir" },
+    corpo: { periodoCentavos: sim.valor_periodo_centavos, diariaCentavos: sim.diaria_centavos, caucaoCentavos: sim.caucao_centavos, kmSaida: null, contrato: null },
+    parcelas: confirmada ? [...sim.parcelas_previstas.map((p): Semente["parcelas"][number] => ["parcela", p.vencimento, p.valor_centavos, "aberta"]), ["caucao", e.inicio.slice(0, 10), sim.caucao_centavos, "aberta"]] : [],
+    extras: (e.extras ?? []).flatMap((x) => EXTRAS.find((y) => y.id === x.extra_id)?.nome ?? []),
+    desconto: e.desconto_pct,
+    eventos: anterior?.eventos ?? [[AGORA_DO_SEED, "Locação criada", ""]],
+    entrada: e,
+  };
+}
+
 export const locacoesFalso = {
+  async extras(): Promise<{ resultados: ExtraDeLocacao[] }> {
+    await pausa(100);
+    return { resultados: EXTRAS.filter((x) => x.ativo) };
+  },
+
+  async planosEspeciais(): Promise<{ resultados: PlanoEspecial[] }> {
+    await pausa(100);
+    return { resultados: PLANOS.filter((p) => p.ativo) };
+  },
+
+  async simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
+    await pausa(150);
+    return simular(e);
+  },
+
+  /** 201 com o rascunho e o código já reservado. */
+  async criar(e: EntradaDaLocacao): Promise<LocacaoCompleta> {
+    await pausa(250);
+    const s = await semente(proximoId++, e, "rascunho");
+    SEMENTES.push(s);
+    return detalhe(s);
+  },
+
+  /** O PATCH só vale em rascunho (409 `transicao_locacao` nos outros estados). */
+  async atualizar(id: number, e: EntradaDaLocacao): Promise<LocacaoCompleta> {
+    await pausa(250);
+    const antigo = achar(id);
+    if (antigo.status !== "rascunho") throw new ErroApi(409, "transicao_locacao", "Só é possível editar uma locação em rascunho");
+    const novo = await semente(id, e, "rascunho", antigo);
+    SEMENTES[SEMENTES.indexOf(antigo)] = novo;
+    return detalhe(novo);
+  },
+
+  /** Congela os preços e cria as contas. Recusa os impedimentos da simulação (409 `LOC-03`, 422 `CLI-05`, `cliente_inativo`). */
+  async confirmar(id: number, corpo: { primeiro_vencimento?: string | null } = {}): Promise<LocacaoCompleta> {
+    await pausa(300);
+    exigirCria();
+    const antigo = achar(id);
+    if (antigo.status !== "rascunho" || !antigo.entrada) throw new ErroApi(409, "transicao_locacao", "Só é possível confirmar uma locação em rascunho");
+    const bloqueio = (await simular(antigo.entrada)).impedimentos[0];
+    if (bloqueio) throw new ErroApi(bloqueio.codigo === "LOC-03" ? 409 : 422, bloqueio.codigo, bloqueio.mensagem);
+    const novo = await semente(id, antigo.entrada, "aguardando_retirada", antigo);
+    const primeira = novo.parcelas.find((p) => p[0] === "parcela");
+    if (corpo.primeiro_vencimento && primeira) primeira[1] = corpo.primeiro_vencimento;
+    novo.eventos = [...novo.eventos, [AGORA_DO_SEED, "Locação confirmada", "aguardando a vistoria de saída"]];
+    SEMENTES[SEMENTES.indexOf(antigo)] = novo;
+    return detalhe(novo);
+  },
+
   async listar(f: FiltroLocacoes = {}): Promise<ListaLocacoes> {
     await pausa(200);
     if (perfilAtualFalso() === "vistoriador") throw new ErroApi(403, "sem_permissao", "Você não tem permissão para ver as locações");

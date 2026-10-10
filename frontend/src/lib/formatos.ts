@@ -122,3 +122,22 @@ export function diaDe(iso: string): string {
   const v = (t: string) => p.find((x) => x.type === t)?.value ?? "";
   return `${v("year")}-${v("month")}-${v("day")}`;
 }
+
+/** "2026-10-07T09:30" (campo datetime-local, hora de Brasília) para o instante UTC que a API recebe. Vazio ou inválido: `null`. */
+export function instanteDeLocal(texto: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(texto)) return null;
+  const d = new Date(`${texto}:00-03:00`);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+/** Instante UTC da API para o valor do campo datetime-local, na hora de Brasília. */
+export function localDeInstante(iso: string): string {
+  const p = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date(iso));
+  const v = (t: string) => p.find((x) => x.type === t)?.value ?? "";
+  return `${v("year")}-${v("month")}-${v("day")}T${v("hour") === "24" ? "00" : v("hour")}:${v("minute")}`;
+}
+
+/** "07/10/2026 09:30" para texto de formulário. */
+export function dataHoraCompleta(iso: string): string {
+  return `${dataCompleta(iso)} ${horaCurta(iso)}`;
+}
