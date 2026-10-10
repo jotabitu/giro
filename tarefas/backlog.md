@@ -94,7 +94,7 @@ Levantadas pelo backend em T-109 (09 out 2026). O código segue o que está entr
 
 Levantadas pelo backend em T-111 (09 out 2026), para o produto. O código segue o que está entre parênteses:
 
-- [decisão] (T-111) Extra por período desativado no cadastro antes da renovação: a `LOC-08` diz "extras pelo preço de hoje", mas não diz se o extra desativado continua na renovação. (O código mantém o extra na renovação, com o valor atual do cadastro.)
+- (T-111) O extra desativado antes da renovação foi decidido em 09 out 2026 pelo dono do produto: opção A. O extra continua nas locações que já o têm, renovações incluídas, pelo último valor do cadastro (`LOC-08`). Regra e critério (CA-015-27) na T-115; o código da T-111 já faz assim.
 
 ## Fase 0 · Fundação
 
