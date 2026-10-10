@@ -268,8 +268,10 @@ def test_loc_12_loc_13_ca_015_21_patricia_loc_2812(cenario, patricia):
         "multa_centavos": 8480,
         "credito_semanas": {"semanas": 1, "valor_centavos": 37100},
         "credito_dias": {"dias": 0, "valor_centavos": 0},
+        "parcelas_canceladas_centavos": 0,
         "devolver_centavos": 28620,
         "cobrar_centavos": 0,
+        "avisos": [],
     }
 
     resposta = _cancelar(cenario, patricia.pk, "Bruna")
@@ -406,7 +408,6 @@ def test_loc_12_ca_015_23_multa_minima_nmax_mensal(cenario, patricia):
     assert nmax["credito_semanas"] == {"semanas": 0, "valor_centavos": 0}
     assert nmax["valor_restante_centavos"] == 31800
     # 20% de 31800 = 6360, abaixo da diária da NMax: vale o mínimo de 1 diária da LOC-12.
-    # O CA-015-23 diz 6360; a divergência está no backlog para o produto.
     assert nmax["multa_centavos"] == NMAX_DIARIA
     assert nmax["cobrar_centavos"] == NMAX_DIARIA
 

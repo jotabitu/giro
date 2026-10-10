@@ -92,6 +92,10 @@ Levantadas pelo backend em T-109 (09 out 2026). O código segue o que está entr
 - (T-109) As duas decisões (ordem da caução no `DEV-02` e parcela do dia no `DEV-01`) e a devolução antes do fim sem encerramento aprovado foram decididas em 09 out 2026 pelo dono do produto: `DEV-02` opção A com o ajuste (a parcela que não cabe inteira vai para `renegociada` e entra na conta única do saldo), `DEV-01` opção B e a nova `DEV-07` (opção A). Regra e critérios na T-113 (CA-016-13, 22, 23 e 24); o código muda numa tarefa do backend (handoff da T-113).
 - [divergência] (qa, T-019) O seed de teste não tem o preço do litro da Filial Centro (R$ 5,50), a vistoria de saída da LOC-2836 (cheio, 18.402 km; a PNB7C04 está com 21.870 km) nem a caução paga da LOC-2841 e da LOC-2812. (Os testes da T-109 gravam esses dados na fixture.)
 
+Levantadas pelo backend em T-111 (09 out 2026), para o produto. O código segue o que está entre parênteses:
+
+- [decisão] (T-111) Extra por período desativado no cadastro antes da renovação: a `LOC-08` diz "extras pelo preço de hoje", mas não diz se o extra desativado continua na renovação. (O código mantém o extra na renovação, com o valor atual do cadastro.)
+
 ## Fase 0 · Fundação
 
 ### T-001 · Esqueleto do backend
@@ -241,9 +245,6 @@ Levantadas pelo backend em T-109 (09 out 2026). O código segue o que está entr
 
 ### T-091 · Locação: renovação, atraso, cancelamento e encerramento
 - **Agente:** backend · **Depende de:** T-090 · **Regras:** LOC-08, LOC-10 a LOC-13, FIL-03, APR-02, AUT-02 · **Pronto quando:** CA-015-17 e 19 a 24 e o estorno do CA-015-25 passam, com o código da regra no nome do teste: renovação com aditivo; atraso com `calcular_atraso` e `aut_02`; cancelamento e encerramento antecipado com APR-02, reembolso e comissão estornada.
-
-### T-111 · Código das decisões da T-091
-- **Agente:** backend · **Depende de:** T-110, T-109 · **Regras:** LOC-08, LOC-12, LOC-13 · **Pronto quando:** os CA-015-26 a 29 (T-110) passam, com o código da regra no nome do teste: renovação de atrasada começa na hora da renovação e o atraso continua cobrado; diária no encerramento conta blocos de 24 h; mensal em 4 semanais com saldo igual ao do mês à vista e crédito negativo em `cobrar_centavos`; extras da renovação pelo preço de hoje.
 
 ### T-092 · Troca de veículo durante a locação
 - **Agente:** backend · **Depende de:** T-016, T-091 · **Regras:** LOC-09 · **Pronto quando:** CA-015-18 passa, com o código da regra no nome do teste; a troca abre a vistoria de devolução do veículo antigo e a de saída do novo (T-016).

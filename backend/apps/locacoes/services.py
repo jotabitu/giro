@@ -803,12 +803,27 @@ class Renovacao:
     calculo: calculo.Calculo
     preco_periodo_centavos: int  # sem descontos, como o congelado na confirmação (base do LOC-12)
     diaria_centavos: int
+    inicio: datetime  # onde começa o período novo
+    atraso: fim.Atraso  # o atraso até a renovação, que continua cobrado no acerto (LOC-08)
+    extras_centavos: dict[int, int]  # extra_id → valor de hoje
+
+
+def _inicio_da_renovacao(locacao: Locacao, agora: datetime) -> tuple[datetime, fim.Atraso]:
+    """LOC-08: dentro do prazo (fim previsto mais a tolerância, LOC-10, LOC-11), o período novo
+    começa no fim previsto antigo. Depois do prazo, mesmo com a locação ainda `ativa`, começa na
+    hora da renovação, e o atraso até ali fica guardado para o acerto: nenhum dia é pago duas
+    vezes."""
+    atraso = atraso_desde(locacao, locacao.fim_previsto, agora)
+    if atraso.dias == 0:
+        return locacao.fim_previsto, atraso
+    return agora, atraso
 
 
 def montar_renovacao(locacao: Locacao, dados: dict[str, Any]) -> Renovacao:
-    """As parcelas novas a partir do fim previsto, com o preço de hoje (LOC-15): a tabela, ou o
-    preço do plano especial ativo. O desconto da locação e os extras por período continuam; a
-    caução não se cobra de novo. Não grava nada."""
+    """As parcelas novas com o preço de hoje (LOC-08, LOC-15): a tabela, ou o preço do plano
+    especial ativo; o plano de desconto conta os períodos desde o começo da locação. O mesmo
+    percentual de desconto continua, sem novo `APR-01`, e os extras por período vão pelo valor
+    de hoje do cadastro; a caução não se cobra de novo. Não grava nada."""
     if locacao.status not in (S.ATIVA, S.DEVOLUCAO_ATRASADA):
         raise Conflito(
             "transicao_locacao",
@@ -820,12 +835,14 @@ def montar_renovacao(locacao: Locacao, dados: dict[str, Any]) -> Renovacao:
     if preco is None:
         raise ErroDeRegra("LOC-01", "A categoria do veículo não tem preço vigente.")
     plano = locacao.plano_especial
+    if plano is not None and not plano.ativo:
+        plano = None  # plano desativado: a renovação usa a tabela
     preco_periodo = {
         Periodicidade.DIARIA: preco.diaria_centavos,
         Periodicidade.SEMANAL: preco.semanal_centavos,
         Periodicidade.MENSAL: preco.mensal_centavos,
     }[Periodicidade(locacao.periodicidade)]
-    if plano is not None and plano.ativo and plano.regra == PlanoEspecial.Regra.PRECO_FIXO:
+    if plano is not None and plano.regra == PlanoEspecial.Regra.PRECO_FIXO:
         preco_periodo = int(plano.preco_centavos or 0)
     desconto_do_plano = _desconto_do_plano(plano)
     if desconto_do_plano is not None:
@@ -833,20 +850,22 @@ def montar_renovacao(locacao: Locacao, dados: dict[str, Any]) -> Renovacao:
             pct=desconto_do_plano.pct,
             a_partir_do_periodo=max(1, desconto_do_plano.a_partir_do_periodo - locacao.periodos),
         )
+    por_periodo = [e for e in locacao.extras.select_related("extra") if e.cobranca == "por_periodo"]
+    valores_de_hoje = {e.extra_id: e.extra.valor_centavos for e in por_periodo}
     extras = tuple(
-        calculo.ItemExtra(e.extra_id, e.nome, e.quantidade, e.valor_centavos, e.cobranca)
-        for e in locacao.extras.all()
-        if e.cobranca == "por_periodo"
+        calculo.ItemExtra(e.extra_id, e.nome, e.quantidade, valores_de_hoje[e.extra_id], e.cobranca)
+        for e in por_periodo
     )
+    inicio, atraso = _inicio_da_renovacao(locacao, relogio.agora())
     novo_fim = dados.get("fim_previsto")
-    if novo_fim is not None and novo_fim <= locacao.fim_previsto:
+    if novo_fim is not None and novo_fim <= max(locacao.fim_previsto, inicio):
         raise ErroDeValidacao(
             {"fim_previsto": ["O novo fim previsto precisa ser depois do fim atual."]}
         )
     conta = calculo.calcular(
         calculo.Entrada(
             periodicidade=locacao.periodicidade,
-            inicio=locacao.fim_previsto,
+            inicio=inicio,
             fuso=fuso(locacao.filial),
             preco_periodo_centavos=preco_periodo,
             diaria_centavos=preco.diaria_centavos,
@@ -859,7 +878,7 @@ def montar_renovacao(locacao: Locacao, dados: dict[str, Any]) -> Renovacao:
             parcelamento_mensal=locacao.parcelamento_mensal,
         )
     )
-    return Renovacao(conta, preco_periodo, preco.diaria_centavos)
+    return Renovacao(conta, preco_periodo, preco.diaria_centavos, inicio, atraso, valores_de_hoje)
 
 
 def _ultima_parcela(locacao: Locacao) -> int:
@@ -873,9 +892,9 @@ def _ultima_parcela(locacao: Locacao) -> int:
 
 def renovar(locacao: Locacao, dados: dict[str, Any], usuario: Any) -> Locacao:
     """LOC-08: estende o fim previsto e cria as parcelas novas na mesma locação, com o preço de
-    hoje. O aditivo sai para assinatura sem travar a renovação. Sem comissão (FIN-09). A
-    `devolucao_atrasada` volta a `ativa` se o novo fim for futuro, e o atraso já corrido fica
-    guardado para o acerto."""
+    hoje (períodos e extras). O aditivo sai para assinatura sem travar a renovação. Sem comissão
+    (FIN-09). Depois do prazo, o período novo começa agora e o atraso já corrido fica guardado
+    para o acerto; a `devolucao_atrasada` volta a `ativa` se o novo fim for futuro."""
     with transaction.atomic():
         travada = _travar(locacao)
         renovacao = montar_renovacao(travada, dados)
@@ -888,11 +907,16 @@ def renovar(locacao: Locacao, dados: dict[str, Any], usuario: Any) -> Locacao:
             "valor_periodo_centavos",
             "diaria_centavos",
         ]
-        if travada.status == S.DEVOLUCAO_ATRASADA:
-            corrido = atraso_desde(travada, travada.fim_previsto, agora)
-            travada.atraso_anterior_dias += corrido.dias
-            travada.atraso_anterior_centavos += corrido.valor_centavos
+        if renovacao.atraso.dias:
+            travada.atraso_anterior_dias += renovacao.atraso.dias
+            travada.atraso_anterior_centavos += renovacao.atraso.valor_centavos
             mais_campos += ["atraso_anterior_dias", "atraso_anterior_centavos"]
+        for extra in travada.extras.filter(extra_id__in=renovacao.extras_centavos):
+            novo = renovacao.extras_centavos[extra.extra_id]
+            if extra.valor_centavos != novo:
+                with auditar(extra, "locacao.renovar_extra", Categoria.OPERACAO, regra="LOC-08"):
+                    extra.valor_centavos = novo
+                    extra.save(update_fields=["valor_centavos", "atualizado_em"])
         ultima = _ultima_parcela(travada)
         total = ultima + len(conta.parcelas)
         financeiro.criar_contas(
@@ -968,16 +992,21 @@ def _pode_cancelar(locacao: Locacao) -> None:
         )
 
 
-def calcular_encerramento(locacao: Locacao, dia: date | None = None) -> fim.Encerramento:
+def calcular_encerramento(
+    locacao: Locacao, dia: date | None = None, *, momento: datetime | None = None
+) -> fim.Encerramento:
     """LOC-12 e LOC-13 em `dia` (padrão hoje); o mesmo cálculo de `cancelamento/simular`. 409
-    `sem_dias_restantes` depois da retirada, quando não sobra nenhum dia do fim previsto."""
+    `sem_dias_restantes` depois da retirada, quando não sobra nenhum dia do fim previsto. Na
+    diária, `momento` é a hora da devolução (o acerto, T-016); sem ele, vale a hora do início."""
+    if momento is not None:
+        dia = data_local(momento, locacao.filial)
     dia = dia or relogio.hoje()
     if locacao.status in ANTES_DA_RETIRADA:
         return fim.antes_da_retirada(
             financeiro_selectors.pago_da_origem_centavos(ORIGEM, locacao.pk)
         )
     entrada = _entrada_congelada(locacao, Decimal(locacao.desconto_pct))
-    nao_pagas = 0
+    canceladas = 0
     if locacao.parcelamento_mensal == ParcelamentoMensal.QUATRO_SEMANAIS:
         achado = fim.periodo_em(
             locacao.periodicidade,
@@ -986,7 +1015,7 @@ def calcular_encerramento(locacao: Locacao, dia: date | None = None) -> fim.Ence
             dia,
         )
         if achado is not None:
-            nao_pagas = sum(
+            canceladas = sum(
                 c.valor_centavos
                 for c in financeiro_selectors.abertas_vencendo_depois(ORIGEM, locacao.pk, dia)
                 if c.vencimento < achado[2]
@@ -1000,7 +1029,8 @@ def calcular_encerramento(locacao: Locacao, dia: date | None = None) -> fim.Ence
         dia=dia,
         preco_do_periodo=lambda k: calculo.preco_com_descontos(entrada, k),
         diaria_centavos=locacao.diaria_centavos,
-        nao_pagas_do_periodo_centavos=nao_pagas,
+        momento=momento,
+        parcelas_canceladas_centavos=canceladas,
     )
     if resultado is None:
         raise _sem_dias_restantes()
@@ -1098,12 +1128,53 @@ CAMPOS_DO_CANCELAMENTO = (
 
 def _credito(encerramento: fim.Encerramento) -> int:
     """O que volta ao cliente antes da multa: tudo o que pagou antes da retirada; depois, as
-    semanas (LOC-13) ou as diárias não usadas."""
-    if encerramento.antes_da_retirada:
-        return encerramento.devolver_centavos
-    return (
-        encerramento.credito_semanas["valor_centavos"] + encerramento.credito_dias["valor_centavos"]
+    semanas (LOC-13) ou as diárias não usadas. No mensal em 4 semanais, menos as parcelas que o
+    encerramento cancela, e pode ser negativo (LOC-13)."""
+    return encerramento.credito_liquido_centavos
+
+
+@dataclass(frozen=True)
+class CreditoDoEncerramento:
+    valor_centavos: int  # negativo no mensal em 4 semanais com mais parcelas canceladas (LOC-13)
+    descricao: str
+
+
+def credito_do_encerramento(locacao: Locacao, momento: datetime) -> CreditoDoEncerramento:
+    """O crédito do encerramento antecipado aprovado no acerto da devolução (T-016). Na diária,
+    os dias não usados pela hora real da devolução (LOC-12). No mensal, as semanas inteiras
+    congeladas na aprovação, menos as parcelas que o encerramento cancelou (LOC-13)."""
+    if locacao.periodicidade == Periodicidade.DIARIA:
+        try:
+            dias = calcular_encerramento(locacao, momento=momento).credito_dias
+        except Conflito:  # devolvida no fim previsto ou depois: nada a devolver
+            dias = {"dias": 0, "valor_centavos": 0}
+        return CreditoDoEncerramento(dias["valor_centavos"], "Diárias não usadas")
+    liquido = locacao.credito_encerramento_centavos or 0
+    dia = locacao.cancelamento_data
+    if locacao.periodicidade != Periodicidade.MENSAL or dia is None:
+        return CreditoDoEncerramento(liquido, "Semanas não usadas")
+    achado = fim.periodo_em(
+        locacao.periodicidade,
+        locacao.inicio.astimezone(ZoneInfo(fuso(locacao.filial))),
+        locacao.periodos,
+        dia,
     )
+    if achado is None:
+        return CreditoDoEncerramento(liquido, "Semanas não usadas")
+    canceladas = financeiro_selectors.parcelas_canceladas_vencendo_entre(
+        ORIGEM, locacao.pk, dia, achado[2]
+    )
+    if not canceladas:
+        return CreditoDoEncerramento(liquido, "Semanas não usadas")
+    soma = sum(c.valor_centavos for c in canceladas)
+    semanas = (achado[2] - dia).days // 7
+    n = len(canceladas)
+    descricao = (
+        f"{semanas} {'semana não usada' if semanas == 1 else 'semanas não usadas'} "
+        f"({formatar_reais(liquido + soma)}) − {n} "
+        f"{'parcela cancelada' if n == 1 else 'parcelas canceladas'} ({formatar_reais(soma)})"
+    )
+    return CreditoDoEncerramento(liquido, descricao)
 
 
 def _aplicar_cancelamento(locacao: Locacao, motivo: str, dia: date, forma: str) -> None:

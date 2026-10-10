@@ -173,7 +173,9 @@ Itens (`ItemAcerto.tipo`):
 | `multa_transito` | `informado`, com descrição (multas já identificadas) | `DEV-01` |
 | `multa_encerramento` | `calculado`, só em encerramento antecipado aprovado | `LOC-12` |
 
-`creditos` (somam ao saldo): `semanas_nao_usadas`, só no mensal com encerramento antecipado (`LOC-13`, ex.: Patrícia 37100).
+`creditos` (somam ao saldo): `semanas_nao_usadas`, só no mensal com encerramento antecipado (`LOC-13`, ex.: Patrícia 37100), e `dias_nao_usados`, na diária com encerramento antecipado, contados pela hora real da devolução em blocos de 24 h (`LOC-12`, CA-015-28).
+
+No mensal em 4 semanais, `semanas_nao_usadas` é o crédito das semanas menos as parcelas que o encerramento cancelou (`LOC-13`, T-111). Quando o líquido é negativo, o item sai em `itens` com `natureza = "cobranca"` (o `valor_centavos` é sempre positivo, como nos outros itens), e a `descricao` mostra a conta: `"2 semanas não usadas (R$ 742,00) − 2 parcelas canceladas (R$ 795,00)"` (CA-015-29: NMax encerrada em 25 set, item de 5300 + multa de 21200 → cobrar 26500). Ao encerrar, a parte não coberta pela caução entra na conta `acerto`.
 
 `saldo_centavos = caucao_centavos + soma(creditos) − total_cobrancas_centavos` (`DEV-02`).
 - `resultado.tipo = "devolver"`: saldo positivo, devolvido por Pix, dinheiro ou estorno do cartão (`forma_devolucao`).

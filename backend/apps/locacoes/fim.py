@@ -128,8 +128,22 @@ class Encerramento:
         default_factory=lambda: {"semanas": 0, "valor_centavos": 0}
     )
     credito_dias: dict[str, int] = field(default_factory=lambda: {"dias": 0, "valor_centavos": 0})
+    parcelas_canceladas_centavos: int = 0
     devolver_centavos: int = 0
     cobrar_centavos: int = 0
+    avisos: list[dict[str, str]] = field(default_factory=list)
+
+    @property
+    def credito_liquido_centavos(self) -> int:
+        """O que volta ao cliente antes da multa; no mensal em 4 semanais pode ser negativo
+        (LOC-13). Antes da retirada, tudo o que pagou."""
+        if self.antes_da_retirada:
+            return self.devolver_centavos
+        return (
+            self.credito_semanas["valor_centavos"]
+            + self.credito_dias["valor_centavos"]
+            - self.parcelas_canceladas_centavos
+        )
 
     def como_dict(self) -> dict[str, Any]:
         return {
@@ -140,9 +154,17 @@ class Encerramento:
             "multa_centavos": self.multa_centavos,
             "credito_semanas": self.credito_semanas,
             "credito_dias": self.credito_dias,
+            "parcelas_canceladas_centavos": self.parcelas_canceladas_centavos,
             "devolver_centavos": self.devolver_centavos,
             "cobrar_centavos": self.cobrar_centavos,
+            "avisos": self.avisos,
         }
+
+
+AVISO_HORA_DA_DEVOLUCAO = {
+    "codigo": "LOC-12",
+    "mensagem": "O acerto final usa a hora da devolução.",
+}
 
 
 def antes_da_retirada(pago_centavos: int) -> Encerramento:
@@ -162,6 +184,15 @@ def periodo_em(
     return None
 
 
+def diarias_nao_usadas(fim_previsto: datetime, momento: datetime) -> int:
+    """LOC-12: os dias usados contam em blocos de 24 h desde o início, e fração conta como dia;
+    sem tolerância. Os não usados são os blocos inteiros de 24 h que faltam até o fim previsto
+    (o mesmo número, e certo também depois de uma renovação que começou mais tarde, LOC-08)."""
+    if momento >= fim_previsto:
+        return 0
+    return (fim_previsto - momento) // UM_DIA
+
+
 def depois_da_retirada(
     *,
     periodicidade: str,
@@ -172,12 +203,15 @@ def depois_da_retirada(
     dia: date,
     preco_do_periodo: Any,  # (k) -> centavos do período k, com os descontos
     diaria_centavos: int,
-    nao_pagas_do_periodo_centavos: int = 0,
+    momento: datetime | None = None,
+    parcelas_canceladas_centavos: int = 0,
 ) -> Encerramento | None:
     """LOC-12 e LOC-13 no `dia`. `None` quando não sobra dia nenhum (é uma devolução).
 
-    `nao_pagas_do_periodo_centavos`: no mensal em 4 semanais, as parcelas do mês em curso que
-    o encerramento cancela; o crédito das semanas não devolve o que não foi pago."""
+    `momento`: na diária, a hora da devolução (padrão: o `dia` na hora do início, a da
+    simulação, que só tem a data). `parcelas_canceladas_centavos`: no mensal em 4 semanais, as
+    parcelas em aberto do mês em curso que vencem depois do `dia` e que o encerramento cancela;
+    saem do crédito das semanas, que pode ficar negativo (o mesmo saldo do mês à vista)."""
     tz = ZoneInfo(fuso)
     inicio_local = inicio.astimezone(tz)
     fim_local = fim_previsto.astimezone(tz).date()
@@ -185,7 +219,9 @@ def depois_da_retirada(
         return None
     if periodicidade == P.DIARIA:
         # Sem multa: cobra só os dias usados. A diária é paga toda na retirada.
-        restantes = (fim_local - dia).days
+        if momento is None:
+            momento = datetime.combine(dia, inicio_local.timetz())
+        restantes = diarias_nao_usadas(fim_previsto, momento)
         valor = restantes * preco_do_periodo(1)
         return Encerramento(
             antes_da_retirada=False,
@@ -193,6 +229,7 @@ def depois_da_retirada(
             dias_restantes=restantes,
             credito_dias={"dias": restantes, "valor_centavos": valor},
             devolver_centavos=valor,
+            avisos=[dict(AVISO_HORA_DA_DEVOLUCAO)],
         )
     achado = periodo_em(periodicidade, inicio_local, periodos, dia)
     if achado is None:
@@ -205,11 +242,12 @@ def depois_da_retirada(
     multa = max(aplicar_percentual(restante, MULTA_ENCERRAMENTO_PCT), diaria_centavos)
     credito = 0
     semanas = 0
+    canceladas = 0
     if periodicidade == P.MENSAL:
         semanas = restantes // 7
         credito = proporcional(preco, 7 * semanas, DIAS_DO_MES)
-        credito = max(0, credito - nao_pagas_do_periodo_centavos)
-    saldo = credito - multa
+        canceladas = parcelas_canceladas_centavos
+    saldo = credito - canceladas - multa
     return Encerramento(
         antes_da_retirada=False,
         periodo_atual={"inicio": comeco, "fim": fim, "dias": dias_do_periodo},
@@ -217,6 +255,7 @@ def depois_da_retirada(
         valor_restante_centavos=restante,
         multa_centavos=multa,
         credito_semanas={"semanas": semanas, "valor_centavos": credito},
+        parcelas_canceladas_centavos=canceladas,
         devolver_centavos=max(0, saldo),
         cobrar_centavos=max(0, -saldo),
     )

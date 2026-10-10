@@ -8,7 +8,7 @@ from typing import ClassVar
 
 from django.db import models
 
-from comum.campos import CentavosField, PercentualField
+from comum.campos import CentavosComSinalField, CentavosField, PercentualField
 from comum.estados import MaquinaDeEstados
 from comum.models import ModeloAtivavel, ModeloBase, ModeloComCodigo
 
@@ -163,9 +163,10 @@ class Locacao(ModeloComCodigo, MaquinaDeEstados, ModeloBase):
     pedido_cancelamento_id = models.BigIntegerField(null=True, blank=True)
     cancelamento_data = models.DateField(null=True, blank=True)  # dia do encerramento
     cancelamento_forma = models.CharField(max_length=15, blank=True, default="")  # da devolução
-    # LOC-13: semanas (ou diárias) não usadas, a creditar no acerto da devolução (T-016).
-    credito_encerramento_centavos = CentavosField(null=True, blank=True)
-    # LOC-08: o atraso já corrido quando uma `devolucao_atrasada` é renovada; continua cobrado.
+    # LOC-13: semanas (ou diárias) não usadas, a creditar no acerto da devolução (T-016). No
+    # mensal em 4 semanais, menos as parcelas canceladas: é um saldo e pode ser negativo.
+    credito_encerramento_centavos = CentavosComSinalField(null=True, blank=True)
+    # LOC-08: o atraso já corrido quando a locação é renovada depois do prazo; continua cobrado.
     atraso_anterior_dias = models.PositiveSmallIntegerField(default=0)
     atraso_anterior_centavos = CentavosField(default=0)
 
