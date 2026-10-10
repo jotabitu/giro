@@ -1310,6 +1310,90 @@ def test_dev_07_ca_016_25_devolucao_depois_da_data_aprovada(cenario, da_carteira
     assert Veiculo.objects.get(pk=carlos.veiculo_id).status == "disponivel"
 
 
+def _tipos_do_acerto(corpo: dict[str, Any]) -> set[str]:
+    return {i["tipo"] for i in corpo["acerto"]["itens"]}
+
+
+def _encerrada_sem_efeito_do_pedido(carlos: Locacao) -> None:
+    """DEV-07 (T-118): a locação termina `encerrada`, como numa devolução comum, e o pedido
+    aprovado fica registrado, sem efeito."""
+    locacao = Locacao.objects.get(pk=carlos.pk)
+    assert locacao.status == "encerrada"
+    assert locacao.cancelada_em is None
+    assert locacao.encerramento_antecipado_aprovado_em is not None
+    assert locacao.motivo_cancelamento == "Cliente vai mudar de cidade"
+    evento = EventoAuditoria.objects.get(acao="locacao.encerrar", objeto_id=carlos.pk)
+    assert (evento.motivo, evento.regra) == ("Devolução concluída", "")
+
+
+def test_dev_07_encerramento_aprovado_devolucao_no_fim_previsto_sem_multa(
+    cenario, da_carteira, relogio
+):
+    """Aprovado para 07 out e devolvido em 28 out 09:00, no fim previsto: devolução comum."""
+    carlos = _carlos_na_devolucao(da_carteira)
+    _contrato_com_juros(carlos)
+    _aprovar_encerramento(cenario, carlos)
+    p2, p3, p4, p5 = (_parcela(carlos, n) for n in (2, 3, 4, 5))
+
+    _ir_para(cenario, relogio, "2026-10-28 09:00")
+    devolucao = _abrir_devolucao(cenario, carlos.pk)
+    corpo = _chegada(cenario, devolucao, _km_de_volta(carlos))
+    acerto = corpo["acerto"]
+    assert _parcelas_do_acerto(corpo) == [
+        (30818, p2.pk),
+        (30749, p3.pk),
+        (30679, p4.pk),
+        (30609, p5.pk),
+    ]
+    assert "multa_encerramento" not in _tipos_do_acerto(corpo)
+    assert _item(corpo, "atraso")["valor_centavos"] == 0
+    assert acerto["creditos"] == []
+    assert acerto["total_cobrancas_centavos"] == 122855
+    assert (acerto["caucao_centavos"], acerto["saldo_centavos"]) == (30000, -92855)
+    assert acerto["resultado"]["botao"] == "Encerrar e cobrar R$ 928,55"
+    assert acerto["forma_devolucao"] is None  # não vem do pedido de encerramento
+    assert acerto["avisos"] == []
+
+    resposta = _encerrar(cenario, devolucao["id"])
+    assert resposta.status_code == 200, resposta.json()
+    assert resposta.json()["locacao"]["status"] == "encerrada"
+    for parcela in (p2, p3, p4, p5):
+        parcela.refresh_from_db()
+    assert (p2.status, p3.status, p4.status, p5.status) == ("renegociada",) * 4
+    assert not ContaReceber.objects.filter(
+        origem_tipo="locacao", origem_id=carlos.pk, status="cancelada"
+    ).exists()
+    saldo = _conta_do_saldo(devolucao["id"])
+    assert (saldo.valor_centavos, saldo.vencimento) == (92855, date(2026, 10, 31))
+    assert not ContaReceber.objects.filter(origem_tipo="devolucao", tipo="multa").exists()
+    assert not Reembolso.objects.filter(origem_tipo="devolucao").exists()
+    _encerrada_sem_efeito_do_pedido(carlos)
+
+
+def test_dev_07_loc_10_encerramento_aprovado_devolucao_depois_do_fim_previsto(
+    cenario, da_carteira, relogio
+):
+    """Variante: devolvido em 30 out 09:00, depois do prazo: cobra o atraso, sem multa."""
+    carlos = _carlos_na_devolucao(da_carteira)
+    _contrato_com_juros(carlos)
+    _aprovar_encerramento(cenario, carlos)
+
+    _ir_para(cenario, relogio, "2026-10-30 09:00")
+    devolucao = _abrir_devolucao(cenario, carlos.pk)
+    corpo = _chegada(cenario, devolucao, _km_de_volta(carlos))
+    acerto = corpo["acerto"]
+    assert [v for v, _ in _parcelas_do_acerto(corpo)] == [30838, 30769, 30699, 30629]
+    assert _item(corpo, "atraso")["valor_centavos"] == 10980  # 2 diárias (LOC-10)
+    assert "multa_encerramento" not in _tipos_do_acerto(corpo)
+    assert acerto["creditos"] == []
+    assert acerto["total_cobrancas_centavos"] == 133915
+    assert acerto["saldo_centavos"] == -103915
+
+    resposta = _encerrar(cenario, devolucao["id"])
+    assert resposta.status_code == 200, resposta.json()
+    _encerrada_sem_efeito_do_pedido(carlos)
+
+
 # --- CA-016-14 · Encerramento antecipado da Patrícia (LOC-12, LOC-13) ---
 
 

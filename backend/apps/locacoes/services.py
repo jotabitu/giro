@@ -1284,15 +1284,25 @@ def aplicar_decisao_cancelamento(
 # --- Encerramento (chamado por `vistorias` ao concluir a devolução, T-016) ---
 
 
+def encerramento_antecipado_vale(locacao: Locacao, momento: datetime) -> bool:
+    """DEV-07 (T-118): o encerramento antecipado aprovado só vale com a devolução antes do dia
+    do fim previsto, no fuso da filial. No dia do fim ou depois, a devolução é comum: sem multa
+    nem crédito da LOC-12, e o pedido aprovado fica registrado, sem efeito."""
+    if locacao.encerramento_antecipado_aprovado_em is None:
+        return False
+    fim_previsto = data_local(locacao.fim_previsto, locacao.filial)
+    return data_local(momento, locacao.filial) < fim_previsto
+
+
 def encerrar(locacao: Locacao, *, devolvida_em: datetime | None = None) -> Locacao:
-    """DEV-06: `encerrada`, ou `cancelada` no encerramento antecipado aprovado (LOC-12). Grava
-    `devolvida_em`, fecha o trecho aberto e publica `locacoes.locacao_encerrada`. A comissão não
-    muda (o encerramento antecipado não a estorna, FIN-09). O veículo segue a regra da devolução
-    (DEV-04), pela própria `vistorias`."""
+    """DEV-06: `encerrada`, ou `cancelada` no encerramento antecipado aprovado com a devolução
+    antes do dia do fim previsto (LOC-12, DEV-07). Grava `devolvida_em`, fecha o trecho aberto e
+    publica `locacoes.locacao_encerrada`. A comissão não muda (o encerramento antecipado não a
+    estorna, FIN-09). O veículo segue a regra da devolução (DEV-04), pela própria `vistorias`."""
     with transaction.atomic():
         travada = _travar(locacao)
         devolvida_em = devolvida_em or relogio.agora()
-        antecipado = travada.encerramento_antecipado_aprovado_em is not None
+        antecipado = encerramento_antecipado_vale(travada, devolvida_em)
         destino = S.CANCELADA if antecipado else S.ENCERRADA
         if travada.status not in (S.ATIVA, S.DEVOLUCAO_ATRASADA):
             raise transicao_invalida(travada.status, destino)
