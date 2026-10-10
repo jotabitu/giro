@@ -1323,6 +1323,209 @@ paths:
               schema:
                 $ref: '#/components/schemas/ConviteDaEmpresa'
           description: ''
+  /api/devolucoes/{id}/:
+    get:
+      operationId: devolucoes_retrieve
+      summary: 'Devolução: vistoria, comparação e acerto (DEV-01, DEV-02)'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - devolucoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Devolucao'
+          description: ''
+  /api/devolucoes/{id}/acerto/:
+    patch:
+      operationId: devolucoes_acerto_partial_update
+      summary: Forma de devolver o saldo (DEV-02)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - devolucoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedFormaDevolucao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedFormaDevolucao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedFormaDevolucao'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Devolucao'
+          description: ''
+  /api/devolucoes/{id}/acerto/itens/:
+    post:
+      operationId: devolucoes_acerto_itens_create
+      summary: Incluir avaria ou multa de trânsito no acerto (DEV-01)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - devolucoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemAcertoEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ItemAcertoEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ItemAcertoEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Devolucao'
+          description: ''
+  /api/devolucoes/{id}/acerto/itens/{item_id}/:
+    patch:
+      operationId: devolucoes_acerto_itens_partial_update
+      summary: Mudar item informado; o calculado responde 409 item_calculado (DEV-01)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: item_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - devolucoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEditarItemAcerto'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEditarItemAcerto'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEditarItemAcerto'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Devolucao'
+          description: ''
+    delete:
+      operationId: devolucoes_acerto_itens_destroy
+      summary: Tirar item incluído (DEV-01)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: item_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - devolucoes
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/devolucoes/{id}/encerrar/:
+    post:
+      operationId: devolucoes_encerrar_create
+      summary: Encerrar a devolução (DEV-02, DEV-04, DEV-06, LOC-12, LOC-13)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - devolucoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Devolucao'
+          description: ''
+  /api/devolucoes/{id}/recibo/:
+    get:
+      operationId: devolucoes_recibo_retrieve
+      summary: Recibo em PDF, URL de 15 min (AUD-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - devolucoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recibo'
+          description: ''
+  /api/devolucoes/{id}/recibo/reenviar/:
+    post:
+      operationId: devolucoes_recibo_reenviar_create
+      summary: Reenviar o recibo por WhatsApp
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - devolucoes
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          description: No response body
   /api/enderecos/cep/{cep}/:
     get:
       operationId: enderecos_cep_retrieve
@@ -2066,6 +2269,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ContratoGerado'
+          description: ''
+  /api/locacoes/{id}/devolucao/:
+    post:
+      operationId: locacoes_devolucao_create
+      summary: Abrir a devolução com a vistoria de chegada (DEV-05); a existente volta
+        com 200
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Devolucao'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Devolucao'
           description: ''
   /api/locacoes/{id}/historico/:
     get:
@@ -3905,6 +4136,43 @@ components:
       oneOf:
       - $ref: '#/components/schemas/Pronto'
       - $ref: '#/components/schemas/EtapaDoLogin'
+    Acerto:
+      type: object
+      properties:
+        status:
+          type: string
+          description: rascunho, concluido
+        caucao_centavos:
+          type: integer
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemAcerto'
+        creditos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemAcerto'
+        total_cobrancas_centavos:
+          type: integer
+        total_creditos_centavos:
+          type: integer
+        saldo_centavos:
+          type: integer
+        resultado:
+          $ref: '#/components/schemas/ResultadoAcerto'
+        forma_devolucao:
+          type: string
+          nullable: true
+      required:
+      - caucao_centavos
+      - creditos
+      - forma_devolucao
+      - itens
+      - resultado
+      - saldo_centavos
+      - status
+      - total_cobrancas_centavos
+      - total_creditos_centavos
     AcessoAberto:
       type: object
       properties:
@@ -4833,6 +5101,26 @@ components:
           nullable: true
       required:
       - valor_venda_centavos
+    CombustivelComparado:
+      type: object
+      properties:
+        saida:
+          type: string
+          nullable: true
+        agora:
+          type: string
+          nullable: true
+        faltou:
+          type: string
+          nullable: true
+        litros_faltantes:
+          type: string
+          nullable: true
+      required:
+      - agora
+      - faltou
+      - litros_faltantes
+      - saida
     CombustivelEnum:
       enum:
       - reserva
@@ -4847,6 +5135,26 @@ components:
         * `meio` - 1/2
         * `tres_quartos` - 3/4
         * `cheio` - Cheio
+    Comparacao:
+      type: object
+      properties:
+        km:
+          $ref: '#/components/schemas/KmComparado'
+        combustivel:
+          $ref: '#/components/schemas/CombustivelComparado'
+        fotos:
+          type: array
+          items:
+            $ref: '#/components/schemas/FotoComparada'
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemComparado'
+      required:
+      - combustivel
+      - fotos
+      - itens
+      - km
     CondicoesLocacao:
       type: object
       properties:
@@ -5282,6 +5590,43 @@ components:
         * `todas` - todas
         * `manutencao` - manutencao
         * `nao` - nao
+    Devolucao:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+          description: rascunho, concluida
+        locacao:
+          $ref: '#/components/schemas/LocacaoDaDevolucao'
+        vistoria:
+          $ref: '#/components/schemas/Vistoria'
+        comparacao:
+          $ref: '#/components/schemas/Comparacao'
+        acerto:
+          $ref: '#/components/schemas/Acerto'
+        devolvida_em:
+          type: string
+          format: date-time
+          nullable: true
+        concluida_em:
+          type: string
+          format: date-time
+          nullable: true
+        recibo_enviado_em:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - comparacao
+      - concluida_em
+      - devolvida_em
+      - id
+      - locacao
+      - recibo_enviado_em
+      - status
+      - vistoria
     DevolucaoPrevista:
       type: object
       properties:
@@ -6107,6 +6452,16 @@ components:
       description: |-
         * `locacao` - Locação
         * `venda` - Venda
+    FormaDevolucaoAcertoEnum:
+      enum:
+      - pix
+      - dinheiro
+      - estorno_cartao
+      type: string
+      description: |-
+        * `pix` - Pix
+        * `dinheiro` - Dinheiro
+        * `estorno_cartao` - Estorno no cartão
     FormaDevolucaoEnum:
       enum:
       - pix
@@ -6150,6 +6505,23 @@ components:
       - tirada_em
       - url
       - url_expira_em
+    FotoComparada:
+      type: object
+      properties:
+        posicao:
+          type: string
+        saida:
+          allOf:
+          - $ref: '#/components/schemas/Foto'
+          nullable: true
+        agora:
+          allOf:
+          - $ref: '#/components/schemas/Foto'
+          nullable: true
+      required:
+      - agora
+      - posicao
+      - saida
     FotoEntrada:
       type: object
       properties:
@@ -6396,6 +6768,71 @@ components:
       required:
       - abre
       - fecha
+    ItemAcerto:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+        descricao:
+          type: string
+        valor_centavos:
+          type: integer
+        modo:
+          type: string
+          description: calculado, informado
+        avaria_id:
+          type: integer
+          nullable: true
+        conta_id:
+          type: integer
+          nullable: true
+      required:
+      - avaria_id
+      - conta_id
+      - descricao
+      - id
+      - modo
+      - tipo
+      - valor_centavos
+    ItemAcertoEntrada:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/ItemAcertoEntradaTipoEnum'
+        descricao:
+          type: string
+          maxLength: 200
+        valor_centavos:
+          type: integer
+          minimum: 0
+      required:
+      - descricao
+      - tipo
+      - valor_centavos
+    ItemAcertoEntradaTipoEnum:
+      enum:
+      - combustivel
+      - avaria
+      - atraso
+      - km_excedente
+      - parcela_aberta
+      - multa_transito
+      - multa_encerramento
+      - semanas_nao_usadas
+      - dias_nao_usados
+      type: string
+      description: |-
+        * `combustivel` - Combustível
+        * `avaria` - Avaria
+        * `atraso` - Atraso
+        * `km_excedente` - Km excedente
+        * `parcela_aberta` - Parcela em aberto
+        * `multa_transito` - Multa de trânsito
+        * `multa_encerramento` - Multa do encerramento antecipado
+        * `semanas_nao_usadas` - Semanas não usadas
+        * `dias_nao_usados` - Diárias não usadas
     ItemAgenda:
       type: object
       properties:
@@ -6453,6 +6890,27 @@ components:
         * `ok` - ok
         * `pendente` - pendente
         * `problema` - problema
+    ItemComparado:
+      type: object
+      properties:
+        codigo:
+          type: string
+        rotulo:
+          type: string
+        saida:
+          type: string
+          nullable: true
+        agora:
+          type: string
+          nullable: true
+        novo:
+          type: boolean
+      required:
+      - agora
+      - codigo
+      - novo
+      - rotulo
+      - saida
     ItemHistoricoLocacao:
       type: object
       properties:
@@ -6511,6 +6969,25 @@ components:
           minimum: 0
       required:
       - km
+    KmComparado:
+      type: object
+      properties:
+        saida:
+          type: integer
+          nullable: true
+        agora:
+          type: integer
+          nullable: true
+        rodou:
+          type: integer
+          nullable: true
+        texto:
+          type: string
+      required:
+      - agora
+      - rodou
+      - saida
+      - texto
     LeituraKm:
       type: object
       properties:
@@ -6862,6 +7339,28 @@ components:
       - plano_especial
       - sinais
       - situacao
+      - status
+      - veiculo
+    LocacaoDaDevolucao:
+      type: object
+      properties:
+        id:
+          type: integer
+        codigo:
+          type: string
+        status:
+          type: string
+        cliente:
+          type: string
+        veiculo:
+          type: string
+        no_horario:
+          type: boolean
+      required:
+      - cliente
+      - codigo
+      - id
+      - no_horario
       - status
       - veiculo
     LocacaoDaVistoria:
@@ -7574,6 +8073,15 @@ components:
         celular:
           type: string
           maxLength: 20
+    PatchedEditarItemAcerto:
+      type: object
+      properties:
+        descricao:
+          type: string
+          maxLength: 200
+        valor_centavos:
+          type: integer
+          minimum: 0
     PatchedEditarVistoria:
       type: object
       properties:
@@ -7637,6 +8145,11 @@ components:
           minimum: 0
           nullable: true
         horario: {}
+    PatchedFormaDevolucao:
+      type: object
+      properties:
+        forma_devolucao:
+          $ref: '#/components/schemas/FormaDevolucaoAcertoEnum'
     PatchedLocacaoEntrada:
       type: object
       properties:
@@ -8429,6 +8942,17 @@ components:
       required:
       - em_minutos
       - item_id
+    Recibo:
+      type: object
+      properties:
+        url:
+          type: string
+        url_expira_em:
+          type: string
+          format: date-time
+      required:
+      - url
+      - url_expira_em
     Recusar:
       type: object
       description: Recusar exige motivo (APR-07).
@@ -8563,6 +9087,23 @@ components:
       required:
       - codigo
       - ok
+    ResultadoAcerto:
+      type: object
+      properties:
+        tipo:
+          type: string
+          description: devolver, cobrar, zerado
+        valor_centavos:
+          type: integer
+        texto:
+          type: string
+        botao:
+          type: string
+      required:
+      - botao
+      - texto
+      - tipo
+      - valor_centavos
     ResumoIdNome:
       type: object
       properties:

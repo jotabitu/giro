@@ -96,3 +96,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-110 · Regras das 5 decisões da T-091 · produto · PR #110 · tarefas/handoffs/T-110-produto.md · LOC-08, 11, 12 e 13 (opção A); CA-015-26 a 29; código na T-111
 - T-102 · Ficha do veículo idêntica à referência · frontend · PR #111 · tarefas/handoffs/T-102-frontend.md · desktop e celular; 167 testes do frontend; divergências de referência para produto e design-system
 - T-112 · Estado do QXA-4B21 nas telas de referência · produto · PR #113 · tarefas/handoffs/T-112-produto.md · Alugado, LOC-2841 de 23 set a 28 out; divergências para design-system (T-028), arquiteto e frontend
+- T-109 · Devolução e acerto · backend · PR #114 · tarefas/handoffs/T-109-backend.md · LOC-2836 devolve R$ 183,00; 567 testes; 2 [decisão] para o produto, 1 [divergência] para o qa, 7 pontos de contrato para o arquiteto
