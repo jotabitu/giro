@@ -89,8 +89,7 @@ Levantadas pelo backend em T-016 parte 1 (09 out 2026):
 
 Levantadas pelo backend em T-109 (09 out 2026). O código segue o que está entre parênteses:
 
-- [decisão] (produto, `DEV-02`) Saldo negativo com parcela em aberto: em que ordem a caução paga? (A caução paga primeiro as parcelas inteiras e depois as cobranças novas; a parcela que não cabe continua em aberto, com o vencimento dela, e só o resto das cobranças vira a conta de 3 dias.)
-- [decisão] (produto, `DEV-01`) Parcela que vence no dia da devolução entra no acerto? (Não: só as vencidas antes do dia. Ela e as parcelas futuras de quem devolve antes do fim sem encerramento antecipado aprovado continuam em aberto na locação encerrada.)
+- (T-109) As duas decisões (ordem da caução no `DEV-02` e parcela do dia no `DEV-01`) e a devolução antes do fim sem encerramento aprovado foram decididas em 09 out 2026 pelo dono do produto: `DEV-02` opção A com o ajuste (a parcela que não cabe inteira vai para `renegociada` e entra na conta única do saldo), `DEV-01` opção B e a nova `DEV-07` (opção A). Regra e critérios na T-113 (CA-016-13, 22, 23 e 24); o código muda numa tarefa do backend (handoff da T-113).
 - [divergência] (qa, T-019) O seed de teste não tem o preço do litro da Filial Centro (R$ 5,50), a vistoria de saída da LOC-2836 (cheio, 18.402 km; a PNB7C04 está com 21.870 km) nem a caução paga da LOC-2841 e da LOC-2812. (Os testes da T-109 gravam esses dados na fixture.)
 
 ## Fase 0 · Fundação
