@@ -13,9 +13,9 @@ import {
   type NovoCliente,
   type StatusCliente,
   type TipoDocumentoCliente,
-} from "./tipos-clientes";
-import type { TomApi } from "./tipos-frota";
-import { ErroApi } from "./tipos";
+} from "@/lib/api/tipos-clientes";
+import type { TomApi } from "@/lib/api/tipos-frota";
+import { ErroApi } from "@/lib/api/tipos";
 
 const TAMANHO = 8;
 

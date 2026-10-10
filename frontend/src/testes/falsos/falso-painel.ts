@@ -2,7 +2,7 @@
 // Único módulo a trocar: reescreva `relatorios` em ./index.ts com o cliente gerado e apague este arquivo.
 // Os blocos de módulo inexistente (fase 2) vêm `null`, como a API faz (USR-08).
 import { contaAtualFalsa, pausa } from "./falso";
-import { ErroApi } from "./tipos";
+import { ErroApi } from "@/lib/api/tipos";
 import type {
   Contadores,
   Inicio,
@@ -13,7 +13,7 @@ import type {
   InicioVendedor,
   InicioVistoriador,
   Periodo,
-} from "./tipos-painel";
+} from "@/lib/api/tipos-painel";
 
 const atualizadoHa6Min = () => new Date(Date.now() - 6 * 60_000).toISOString();
 

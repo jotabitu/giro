@@ -67,7 +67,7 @@ export type Convite = {
 };
 
 /** Marca da empresa (contrato de empresas, ainda não escrito). */
-export type MarcaEmpresa = { nome: string; logoUrl?: string; corHex: string };
+export type MarcaEmpresa = { nome: string; logoUrl?: string; corHex?: string };
 
 /** Erro no formato da API: { codigo, mensagem, detalhes }. `campos` vem em 400 `validacao`. */
 export class ErroApi extends Error {
