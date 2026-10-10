@@ -69,18 +69,16 @@ Levantadas pelo produto em T-059 (08 out 2026):
 
 Levantadas pelo backend em T-015 (09 out 2026):
 
+- (T-091) As 2 divergências foram resolvidas na T-106 e as 5 decisões aprovadas pelo dono em 09/10, todas na opção A; regra na T-110 (PR #110) e código na T-111.
 - (T-104) As telas de referência com a LOC-2836 antiga ("Devolve hoje" em 07 out) são corrigidas pelo design-system na T-107.
 - (T-015) O preço da LOC-2836 foi decidido em 09 out 2026 pelo dono do produto: opção A. A LOC-2836 é confirmada em 01 out, com início em 30 set, e paga R$ 329,00 pela tabela da Street a partir de 01 out (`LOC-15`); a tabela não muda. Os dados de referência mudam na T-097 e o teste do CA-015-15 na T-098.
 
 Levantadas pelo backend em T-091 (09 out 2026), para o produto. O código segue o que está entre parênteses:
 
-- [divergência] CA-015-23, NMax mensal com 6 dias restantes: o critério dá multa de 6360 (20% de 31800), mas a `LOC-12` manda cobrar no mínimo 1 diária da categoria, e a diária da NMax é 7990. Vale a regra: multa e `cobrar_centavos` de 7990. Trocar o critério, ou escolher outro caso em que 20% fique acima da diária.
-- [divergência] Veículos, tabela de transições: falta `reservado` → `disponivel` (reserva cancelada antes da retirada), que o CA-015-22 e `docs/api/locacoes.md` pedem. (O código aceita só pelo cancelamento da locação; "Desbloquear" e "Voltar para a frota" continuam recusando o reservado.)
-- [decisão] `LOC-11`, devolução em horário aberto depois de um fechamento que cortou a tolerância. Ex.: fim no sábado às 11:30, filial fecha às 12:00 e a devolução é na segunda às 08:30. Pela letra, só a devolução fora do horário vale como feita na abertura, e às 08:30 seriam 2 diárias. (O prazo passa para a abertura seguinte mais a tolerância sempre que a filial está fechada no fim previsto ou fecha antes de a tolerância acabar; às 08:30 não há atraso, e o atraso conta da abertura. Os casos do CA-015-20 dão o mesmo resultado nos dois jeitos.)
-- [decisão] `LOC-08`, renovação de uma `devolucao_atrasada`: o contrato diz que o atraso já corrido continua cobrado, mas as parcelas novas começam no fim previsto antigo e cobrem os mesmos dias, o que cobra esses dias duas vezes. (Segue o contrato: o atraso fica guardado e entra em `calcular_atraso`.) Alternativa: as parcelas novas começarem na data da renovação.
-- [decisão] `LOC-12`, diária: "sem multa, cobra só os dias usados". (As diárias não usadas, do dia do encerramento ao fim previsto, voltam ao cliente em `credito_dias`.)
-- [decisão] `LOC-13`, mensal em 4 semanais: o crédito das semanas inteiras supõe o mês pago. (O crédito desconta as semanais do mês em curso que ainda estão em aberto e que o encerramento cancela; nunca fica negativo.)
-- [decisão] `LOC-08`, renovação: (continuam o desconto já dado na locação e os extras por período, pelo valor congelado na confirmação; o plano especial de preço fixo vale pelo preço de hoje, e o de desconto conta os períodos desde o começo da locação.)
+
+Levantadas pelo backend em T-016 parte 1 (09 out 2026):
+
+- [divergência] (qa, T-105) A carteira de outubro (`docs/qa/carteira-outubro/locacoes.csv` e `tests/aceitacao/carteira.py`) traz a LOC-2856 como `ativa` desde 07 out 09:00. O CA-016-08 (e o CA-016-01) a quer `aguardando_retirada`, com retirada às 09:15. (O teste da agenda tira a LOC-2856 da carteira e cria a do critério.)
 
 ## Fase 0 · Fundação
 
@@ -238,19 +236,19 @@ Levantadas pelo backend em T-091 (09 out 2026), para o produto. O código segue 
 ### T-091 · Locação: renovação, atraso, cancelamento e encerramento
 - **Agente:** backend · **Depende de:** T-090 · **Regras:** LOC-08, LOC-10 a LOC-13, FIL-03, APR-02, AUT-02 · **Pronto quando:** CA-015-17 e 19 a 24 e o estorno do CA-015-25 passam, com o código da regra no nome do teste: renovação com aditivo; atraso com `calcular_atraso` e `aut_02`; cancelamento e encerramento antecipado com APR-02, reembolso e comissão estornada.
 
+### T-109 · Devolução e acerto
+- **Agente:** backend · **Depende de:** T-016 · **Regras:** DEV-01 a DEV-06, LOC-10, LOC-12, LOC-13 · **Telas:** Devolucao · **Pronto quando:** caso LOC-2836 devolve R$ 183,00 e CA-016-09 a 14, 16, 17, 19 e 20 de `docs/qa/criterios/T-016.md` passam, com o código da regra no nome do teste: `POST` devolução; acerto (combustível, avarias, atraso, parcelas, multa e crédito do encerramento antecipado); itens; encerrar (`encerrar()`, reembolso, conta de 3 dias, veículo `disponivel`); recibo em PDF e WhatsApp. "Vai para oficina" (DEV-04) leva o veículo a `em_manutencao`; a OS fica para o módulo de manutenção.
+- **Nota:** a T-016 original foi dividida em 09/10 em T-016 (vistoria) e T-109 (devolução e acerto). CA-016-15 fica na T-092 e CA-016-18 na T-017.
+
+### T-111 · Código das decisões da T-091
+- **Agente:** backend · **Depende de:** T-110, T-109 · **Regras:** LOC-08, LOC-12, LOC-13 · **Pronto quando:** os CA-015-26 a 29 (T-110) passam, com o código da regra no nome do teste: renovação de atrasada começa na hora da renovação e o atraso continua cobrado; diária no encerramento conta blocos de 24 h; mensal em 4 semanais com saldo igual ao do mês à vista e crédito negativo em `cobrar_centavos`; extras da renovação pelo preço de hoje.
+
 ### T-092 · Troca de veículo durante a locação
 - **Agente:** backend · **Depende de:** T-016, T-091 · **Regras:** LOC-09 · **Pronto quando:** CA-015-18 passa, com o código da regra no nome do teste; a troca abre a vistoria de devolução do veículo antigo e a de saída do novo (T-016).
 
 ### T-108 · Detalhe do cliente idêntico à referência
 - **Agente:** frontend · **Depende de:** T-014, T-102 · **Telas:** Cliente-Detalhe (`docs/telas/html/Cliente-Detalhe-Desktop.dc.html` e `Cliente-Detalhe-Mobile.dc.html`) · **Regras:** CLI-01 a CLI-09, AUD-05, AUD-09 · **Pronto quando:** `/clientes/[id]` reproduz a tela de referência no desktop e no celular, com a mesma estrutura, seções, ordem, rótulos, ações e estados, usando os componentes e tokens do design system; os dados vêm de `falso-clientes.ts` no formato de `docs/api/clientes.md` (T-014); a LOC-2836 da Juliana segue a regra (até 14 out, sem "Devolve hoje" em 07 out), e não a tela; o que a tela mostra e o contrato não tem fica com o falso ou desativado e anotado no handoff; teste da tela. Pedido do dono em 09/10.
 
-### T-107 · Telas de referência com a LOC-2836 até 14 out
-- **Agente:** design-system · **Depende de:** T-104 · **Regras:** LOC-06 · **Pronto quando:** as telas `Locacoes`, `Locacao-Detalhe`, `Clientes` e `Cliente-Detalhe` (desktop e celular) em `docs/telas/html` mostram a LOC-2836 como na decisão B de 09/10: de 30 set 18:00 a 14 out 18:00 e, em 07 out, ativa, sem sinal "Devolve hoje", com a ação Abrir; nenhum valor muda; ver `tarefas/handoffs/T-104-produto.md`.
-
-### T-016 · Vistoria de saída e devolução com acerto
-- **Agente:** backend · **Depende de:** T-015 · **Regras:** VIS-01 a VIS-05, DEV-01 a DEV-06 · **Telas:** Vistoria, Devolucao, Vistoriador
-- **Também:** recusar a retirada de reserva com CRLV ou seguro vencido (`VEI-03`, decisão de 08/10 da T-079; CA-016-21 da T-084).
-- **Pronto quando:** caso LOC-2836 devolve R$ 183,00 e todos os critérios de `docs/qa/criterios/T-016.md` (CA-016-01 a 20) passam, com o código da regra no nome do teste.
 
 ### T-017 · Contas a receber, caixa do dia, baixa
 - **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 23) passam, com o código da regra no nome do teste. · **Inclui:** `juros_pro_rata` em `comum/dinheiro.py` com um arredondamento só (CA-017-08: Carlos 70, Rafael 1123; ponto 4 da T-045)

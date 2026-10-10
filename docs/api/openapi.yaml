@@ -2152,6 +2152,46 @@ paths:
               schema:
                 $ref: '#/components/schemas/SimulacaoRenovacao'
           description: ''
+  /api/locacoes/{id}/vistorias/:
+    post:
+      operationId: locacoes_vistorias_create
+      summary: Abrir a vistoria de saída (VIS-01, VIS-02); o rascunho existente volta
+        com 200
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CriarVistoria'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CriarVistoria'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CriarVistoria'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vistoria'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vistoria'
+          description: ''
   /api/locacoes/simular/:
     post:
       operationId: locacoes_simular_create
@@ -3525,6 +3565,244 @@ paths:
               schema:
                 $ref: '#/components/schemas/Veiculo'
           description: ''
+  /api/vistorias/{id}/:
+    get:
+      operationId: vistorias_retrieve
+      summary: Vistoria (fotos com URL de 15 min)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vistorias
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vistoria'
+          description: ''
+    patch:
+      operationId: vistorias_partial_update
+      summary: Preencher o rascunho (DEV-05, VIS-04)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vistorias
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEditarVistoria'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEditarVistoria'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEditarVistoria'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vistoria'
+          description: ''
+  /api/vistorias/{id}/avarias/:
+    post:
+      operationId: vistorias_avarias_create
+      summary: Marcar avaria (VIS-01, DEV-01, DEV-04)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vistorias
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AvariaEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AvariaEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AvariaEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Avaria'
+          description: ''
+  /api/vistorias/{id}/avarias/{avaria_id}/:
+    delete:
+      operationId: vistorias_avarias_destroy
+      summary: Remover avaria nova do rascunho
+      parameters:
+      - in: path
+        name: avaria_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vistorias
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/vistorias/{id}/concluir/:
+    post:
+      operationId: vistorias_concluir_create
+      summary: Concluir (VIS-01 a VIS-04, VEI-01 a VEI-03, CLI-02, CLI-03, CLI-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vistorias
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vistoria'
+          description: ''
+  /api/vistorias/{id}/corrigir/:
+    post:
+      operationId: vistorias_corrigir_create
+      summary: Corrigir vistoria concluída (VIS-04)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vistorias
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CorrigirVistoria'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CorrigirVistoria'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CorrigirVistoria'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vistoria'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vistoria'
+          description: ''
+  /api/vistorias/{id}/fotos/:
+    post:
+      operationId: vistorias_fotos_create
+      summary: Enviar foto (VIS-01, AUD-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vistorias
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FotoEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Foto'
+          description: ''
+  /api/vistorias/agenda/:
+    get:
+      operationId: vistorias_agenda_retrieve
+      summary: Agenda do vistoriador (VIS-05)
+      parameters:
+      - in: query
+        name: dia
+        schema:
+          type: string
+          enum:
+          - amanha
+          - hoje
+          - semana
+      tags:
+      - vistorias
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agenda'
+          description: ''
+  /api/vistorias/avarias/:
+    get:
+      operationId: vistorias_avarias_retrieve
+      summary: Avarias abertas (tela Vistoriador)
+      parameters:
+      - in: query
+        name: veiculo
+        schema:
+          type: integer
+      tags:
+      - vistorias
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeAvarias'
+          description: ''
 components:
   schemas:
     AbrirAcesso:
@@ -3544,6 +3822,17 @@ components:
       - duracao_minutos
       - motivo
       - permissao
+    AcaoAgenda:
+      type: object
+      properties:
+        codigo:
+          type: string
+          description: iniciar, continuar, abrir
+        rotulo:
+          type: string
+      required:
+      - codigo
+      - rotulo
     AcaoLocacao:
       type: object
       properties:
@@ -3748,6 +4037,26 @@ components:
       - registrar_devolucao
       - renovar
       - trocar_veiculo
+    Agenda:
+      type: object
+      properties:
+        resumo:
+          type: string
+        proxima:
+          allOf:
+          - $ref: '#/components/schemas/ProximaAgenda'
+          nullable: true
+        avarias_abertas:
+          type: integer
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemAgenda'
+      required:
+      - avarias_abertas
+      - proxima
+      - resultados
+      - resumo
     AlvoCliente:
       type: object
       properties:
@@ -3862,6 +4171,83 @@ components:
       required:
       - access
       - codigos_recuperacao
+    Avaria:
+      type: object
+      properties:
+        id:
+          type: integer
+        descricao:
+          type: string
+        preexistente:
+          type: boolean
+        foto_id:
+          type: integer
+          nullable: true
+        vai_para_oficina:
+          type: boolean
+        valor_centavos:
+          type: integer
+          nullable: true
+        origem:
+          type: string
+          nullable: true
+      required:
+      - descricao
+      - foto_id
+      - id
+      - origem
+      - preexistente
+      - vai_para_oficina
+    AvariaAberta:
+      type: object
+      properties:
+        id:
+          type: integer
+        descricao:
+          type: string
+        veiculo:
+          $ref: '#/components/schemas/VeiculoDaVistoria'
+        locacao:
+          $ref: '#/components/schemas/LocacaoDaVistoria'
+        registrada_em:
+          type: string
+          format: date-time
+          nullable: true
+        foto:
+          allOf:
+          - $ref: '#/components/schemas/Foto'
+          nullable: true
+        vai_para_oficina:
+          type: boolean
+        valor_centavos:
+          type: integer
+          nullable: true
+      required:
+      - descricao
+      - foto
+      - id
+      - locacao
+      - registrada_em
+      - vai_para_oficina
+      - veiculo
+    AvariaEntrada:
+      type: object
+      properties:
+        descricao:
+          type: string
+          maxLength: 200
+        foto_id:
+          type: integer
+        vai_para_oficina:
+          type: boolean
+          default: false
+        valor_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+      required:
+      - descricao
+      - foto_id
     Baixar:
       type: object
       properties:
@@ -4134,6 +4520,23 @@ components:
       - tipo
       - ultima_locacao
       - venda_aberta
+    ClienteDaAgenda:
+      type: object
+      properties:
+        nome:
+          type: string
+      required:
+      - nome
+    ClienteDaVistoria:
+      type: object
+      properties:
+        nome:
+          type: string
+        cnh:
+          type: string
+          nullable: true
+      required:
+      - nome
     ClienteDetalhe:
       type: object
       description: 'Representação completa: só quem cadastra, nunca o suporte.'
@@ -4430,6 +4833,20 @@ components:
           nullable: true
       required:
       - valor_venda_centavos
+    CombustivelEnum:
+      enum:
+      - reserva
+      - um_quarto
+      - meio
+      - tres_quartos
+      - cheio
+      type: string
+      description: |-
+        * `reserva` - Reserva
+        * `um_quarto` - 1/4
+        * `meio` - 1/2
+        * `tres_quartos` - 3/4
+        * `cheio` - Cheio
     CondicoesLocacao:
       type: object
       properties:
@@ -4793,6 +5210,14 @@ components:
       required:
       - km
       - motivo
+    CorrigirVistoria:
+      type: object
+      properties:
+        motivo:
+          type: string
+          maxLength: 500
+      required:
+      - motivo
     CreditoDias:
       type: object
       properties:
@@ -4813,6 +5238,18 @@ components:
       required:
       - semanas
       - valor_centavos
+    CriarVistoria:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/CriarVistoriaTipoEnum'
+      required:
+      - tipo
+    CriarVistoriaTipoEnum:
+      enum:
+      - saida
+      type: string
+      description: '* `saida` - Saída'
     DesbloquearVeiculo:
       type: object
       properties:
@@ -5692,6 +6129,53 @@ components:
         * `cartao` - Cartão
         * `boleto` - Boleto
         * `dinheiro` - Dinheiro
+    Foto:
+      type: object
+      properties:
+        id:
+          type: integer
+        posicao:
+          $ref: '#/components/schemas/PosicaoEnum'
+        tirada_em:
+          type: string
+          format: date-time
+        url:
+          type: string
+        url_expira_em:
+          type: string
+          format: date-time
+      required:
+      - id
+      - posicao
+      - tirada_em
+      - url
+      - url_expira_em
+    FotoEntrada:
+      type: object
+      properties:
+        posicao:
+          $ref: '#/components/schemas/PosicaoEnum'
+        arquivo:
+          type: string
+          format: uri
+      required:
+      - arquivo
+      - posicao
+    FotosObrigatorias:
+      type: object
+      properties:
+        feitas:
+          type: integer
+        total:
+          type: integer
+        faltam:
+          type: array
+          items:
+            type: string
+      required:
+      - faltam
+      - feitas
+      - total
     Gerente:
       type: object
       properties:
@@ -5912,6 +6396,40 @@ components:
       required:
       - abre
       - fecha
+    ItemAgenda:
+      type: object
+      properties:
+        id:
+          type: string
+        tipo:
+          type: string
+          description: saida, devolucao
+        horario:
+          type: string
+          format: date-time
+        veiculo:
+          $ref: '#/components/schemas/VeiculoDaVistoria'
+        cliente:
+          $ref: '#/components/schemas/ClienteDaAgenda'
+        locacao:
+          $ref: '#/components/schemas/LocacaoDaVistoria'
+        situacao:
+          $ref: '#/components/schemas/SituacaoAgenda'
+        vistoria_id:
+          type: integer
+          nullable: true
+        acao:
+          $ref: '#/components/schemas/AcaoAgenda'
+      required:
+      - acao
+      - cliente
+      - horario
+      - id
+      - locacao
+      - situacao
+      - tipo
+      - veiculo
+      - vistoria_id
     ItemAnaliseCliente:
       type: object
       properties:
@@ -5967,6 +6485,24 @@ components:
       - chave
       - contador
       - rotulo
+    ItemVistoria:
+      type: object
+      properties:
+        codigo:
+          type: string
+        rotulo:
+          type: string
+        ok:
+          type: boolean
+          nullable: true
+        observacao:
+          type: string
+          nullable: true
+      required:
+      - codigo
+      - observacao
+      - ok
+      - rotulo
     Km:
       type: object
       properties:
@@ -5974,6 +6510,17 @@ components:
           type: integer
           minimum: 0
       required:
+      - km
+    LeituraKm:
+      type: object
+      properties:
+        km:
+          type: integer
+        em:
+          type: string
+          format: date
+      required:
+      - em
       - km
     LinhaSimulacao:
       type: object
@@ -5985,6 +6532,15 @@ components:
       required:
       - rotulo
       - valor_centavos
+    ListaDeAvarias:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvariaAberta'
+      required:
+      - resultados
     ListaDeCategorias:
       type: object
       properties:
@@ -6308,6 +6864,16 @@ components:
       - situacao
       - status
       - veiculo
+    LocacaoDaVistoria:
+      type: object
+      properties:
+        id:
+          type: integer
+        codigo:
+          type: string
+      required:
+      - codigo
+      - id
     LocacaoDetalhe:
       type: object
       description: Linha da lista. Para o vistoriador, o detalhe sai sem `pagamento`
@@ -7008,6 +7574,26 @@ components:
         celular:
           type: string
           maxLength: 20
+    PatchedEditarVistoria:
+      type: object
+      properties:
+        km:
+          type: integer
+          minimum: 0
+          nullable: true
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/RespostaItem'
+        observacoes:
+          type: string
+          nullable: true
+          maxLength: 2000
     PatchedExtraEntrada:
       type: object
       properties:
@@ -7644,6 +8230,22 @@ components:
       - veiculos
       - vendas_criar
       - vistorias_fazer
+    PosicaoEnum:
+      enum:
+      - frente
+      - traseira
+      - lado_esquerdo
+      - lado_direito
+      - painel
+      - avaria
+      type: string
+      description: |-
+        * `frente` - Frente
+        * `traseira` - Traseira
+        * `lado_esquerdo` - Lado esquerdo
+        * `lado_direito` - Lado direito
+        * `painel` - Painel
+        * `avaria` - Avaria
     Preco:
       type: object
       properties:
@@ -7817,6 +8419,16 @@ components:
       - pronto
       type: string
       description: '* `pronto` - pronto'
+    ProximaAgenda:
+      type: object
+      properties:
+        item_id:
+          type: string
+        em_minutos:
+          type: integer
+      required:
+      - em_minutos
+      - item_id
     Recusar:
       type: object
       description: Recusar exige motivo (APR-07).
@@ -7925,6 +8537,32 @@ components:
           type: string
           nullable: true
           maxLength: 20
+    ResponsavelVistoria:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+      - id
+      - nome
+    RespostaItem:
+      type: object
+      properties:
+        codigo:
+          type: string
+          maxLength: 40
+        ok:
+          type: boolean
+          nullable: true
+        observacao:
+          type: string
+          nullable: true
+          maxLength: 300
+      required:
+      - codigo
+      - ok
     ResumoIdNome:
       type: object
       properties:
@@ -7935,6 +8573,31 @@ components:
       required:
       - id
       - nome
+    ResumoLocacao:
+      type: object
+      properties:
+        periodicidade:
+          type: string
+        inicio:
+          type: string
+          format: date-time
+        fim_previsto:
+          type: string
+          format: date-time
+        km_livre:
+          type: boolean
+        diaria_centavos:
+          type: integer
+        caucao_centavos:
+          type: integer
+        caucao_paga:
+          type: boolean
+      required:
+      - caucao_paga
+      - fim_previsto
+      - inicio
+      - km_livre
+      - periodicidade
     Sessao:
       type: object
       properties:
@@ -8113,6 +8776,20 @@ components:
       properties:
         codigo:
           type: string
+        rotulo:
+          type: string
+        tom:
+          type: string
+      required:
+      - codigo
+      - rotulo
+      - tom
+    SituacaoAgenda:
+      type: object
+      properties:
+        codigo:
+          type: string
+          description: agendada, hoje, em_andamento, atrasada, concluida
         rotulo:
           type: string
         tom:
@@ -8760,6 +9437,21 @@ components:
       - id
       - modelo
       - placa
+    VeiculoDaVistoria:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        modelo:
+          type: string
+        ano:
+          type: integer
+      required:
+      - id
+      - modelo
+      - placa
     VeiculoDetalhe:
       type: object
       properties:
@@ -8965,6 +9657,95 @@ components:
       - contratos_gerados
       - publicado_em
       - versao
+    Vistoria:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+        status:
+          type: string
+        locacao:
+          $ref: '#/components/schemas/LocacaoDaVistoria'
+        veiculo:
+          $ref: '#/components/schemas/VeiculoDaVistoria'
+        cliente:
+          $ref: '#/components/schemas/ClienteDaVistoria'
+        km:
+          type: integer
+          nullable: true
+        km_ultima_leitura:
+          $ref: '#/components/schemas/LeituraKm'
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        fotos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Foto'
+        fotos_obrigatorias:
+          $ref: '#/components/schemas/FotosObrigatorias'
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemVistoria'
+        avarias:
+          type: array
+          items:
+            $ref: '#/components/schemas/Avaria'
+        observacoes:
+          type: string
+          nullable: true
+        responsavel:
+          allOf:
+          - $ref: '#/components/schemas/ResponsavelVistoria'
+          nullable: true
+        concluida_em:
+          type: string
+          format: date-time
+          nullable: true
+        substitui:
+          type: integer
+          nullable: true
+        motivo_correcao:
+          type: string
+          nullable: true
+        vigente:
+          type: boolean
+        pendencias:
+          type: array
+          items:
+            type: string
+        pode_concluir:
+          type: boolean
+        resumo_locacao:
+          $ref: '#/components/schemas/ResumoLocacao'
+      required:
+      - avarias
+      - cliente
+      - combustivel
+      - concluida_em
+      - fotos
+      - fotos_obrigatorias
+      - id
+      - itens
+      - km
+      - km_ultima_leitura
+      - locacao
+      - motivo_correcao
+      - observacoes
+      - pendencias
+      - pode_concluir
+      - responsavel
+      - resumo_locacao
+      - status
+      - substitui
+      - tipo
+      - veiculo
+      - vigente
   securitySchemes:
     jwtAuth:
       type: http

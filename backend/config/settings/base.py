@@ -289,6 +289,7 @@ GIRO_MODULOS_ATIVOS = env.list(
         "locacoes",
         "plataforma",
         "veiculos",
+        "vistorias",
     ],
 )
 GIRO_PROVEDOR_CEP = env("GIRO_PROVEDOR_CEP", default="falso")
