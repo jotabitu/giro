@@ -246,9 +246,6 @@ Levantadas pelo backend em T-111 (09 out 2026), para o produto. O código segue 
 ### T-091 · Locação: renovação, atraso, cancelamento e encerramento
 - **Agente:** backend · **Depende de:** T-090 · **Regras:** LOC-08, LOC-10 a LOC-13, FIL-03, APR-02, AUT-02 · **Pronto quando:** CA-015-17 e 19 a 24 e o estorno do CA-015-25 passam, com o código da regra no nome do teste: renovação com aditivo; atraso com `calcular_atraso` e `aut_02`; cancelamento e encerramento antecipado com APR-02, reembolso e comissão estornada.
 
-### T-111 · Código das decisões da T-091
-- **Agente:** backend · **Depende de:** T-110, T-109 · **Regras:** LOC-08, LOC-12, LOC-13 · **Pronto quando:** os CA-015-26 a 29 (T-110) passam, com o código da regra no nome do teste: renovação de atrasada começa na hora da renovação e o atraso continua cobrado; diária no encerramento conta blocos de 24 h; mensal em 4 semanais com saldo igual ao do mês à vista e crédito negativo em `cobrar_centavos`; extras da renovação pelo preço de hoje.
-
 ### T-092 · Troca de veículo durante a locação
 - **Agente:** backend · **Depende de:** T-016, T-091 · **Regras:** LOC-09 · **Pronto quando:** CA-015-18 passa, com o código da regra no nome do teste; a troca abre a vistoria de devolução do veículo antigo e a de saída do novo (T-016).
 

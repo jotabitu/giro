@@ -100,3 +100,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-108 · Detalhe do cliente idêntico à referência · frontend · PR #115 · tarefas/handoffs/T-108-frontend.md · desktop e celular; LOC-2836 pela regra; 178 testes do frontend; divergências de referência anotadas
 - T-113 · Regras das decisões da T-109 · produto · PR #116 · tarefas/handoffs/T-113-produto.md · DEV-01 opção B, DEV-02 opção A com ajuste, DEV-07 nova; CA-016-13 corrigido, 22 a 24 novos; código na T-114
 - T-105 · Seed da LOC-2836 até 14 out · qa · PR #117 · tarefas/handoffs/T-105-qa.md · início 30 set 18:00, fim pela LOC-01; CA-015-16 e CA-016-08 ajustados; sem código de produção
+- T-111 · Código das decisões da T-091 · backend · PR #118 · tarefas/handoffs/T-111-backend.md · CA-015-26 a 29; 589 testes; emendas de contrato (simular, crédito com sinal); 1 [decisão] para o produto
