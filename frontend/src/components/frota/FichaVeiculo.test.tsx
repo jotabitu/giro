@@ -1,0 +1,115 @@
+// Ficha do veículo (T-102) contra docs/telas/html/Veiculo-Desktop.dc.html e Veiculo-Mobile.dc.html.
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderToStaticMarkup } from "react-dom/server";
+import { beforeAll, describe, expect, it } from "vitest";
+import { contas, veiculos, type VeiculoDetalhe } from "@/lib/api";
+import { FichaVeiculo } from "./FichaVeiculo";
+
+async function pagina(id: number): Promise<{ desktop: string; celular: string }> {
+  const [ficha, docs, locacoes, manutencoes] = await Promise.all([veiculos.obter(id), veiculos.documentos(id), veiculos.locacoes(id), veiculos.manutencoes(id)]);
+  const cliente = new QueryClient();
+  cliente.setQueryData(["veiculo", id], ficha);
+  cliente.setQueryData(["veiculo", id, "documentos"], docs);
+  cliente.setQueryData(["veiculo", id, "locacoes"], locacoes);
+  cliente.setQueryData(["veiculo", id, "manutencoes"], manutencoes);
+  const html = renderToStaticMarkup(
+    <QueryClientProvider client={cliente}>
+      <FichaVeiculo id={id} />
+    </QueryClientProvider>,
+  );
+  const [, desktop = "", celular = ""] = html.match(/^<div class="hidden md:block">(.*)<\/div><div class="md:hidden">(.*)<\/div>$/s) ?? [];
+  return { desktop, celular };
+}
+
+const texto = (h: string) => h.replace(/<[^>]+>/g, "|").replace(/\|+/g, "|");
+const ordem = (h: string, trechos: string[]) => {
+  let pos = -1;
+  for (const t of trechos) {
+    const i = h.indexOf(t, pos + 1);
+    expect(i, t).toBeGreaterThan(pos);
+    pos = i;
+  }
+};
+
+async function entrarComo(email: string) {
+  const r = await contas.entrar({ email, senha: "senhaforte123", aparelho: "desktop" });
+  if (r.etapa !== "pronto") throw new Error("esperava pronto");
+}
+
+describe("ficha do veículo, gerente", () => {
+  let desktop = "";
+  let celular = "";
+  beforeAll(async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    ({ desktop, celular } = await pagina(501));
+  });
+
+  it("desktop e celular são duas árvores; hidden e md:hidden ficam em div comum, nunca em elemento wl-", () => {
+    expect(desktop).not.toBe("");
+    expect(celular).not.toBe("");
+    for (const m of (desktop + celular).matchAll(/class="([^"]*)"/g)) {
+      const classes = m[1] ?? "";
+      if (/\bwl-/.test(classes)) expect(classes, "wl- com hidden").not.toMatch(/(^|\s)(md:)?hidden(\s|$)/);
+    }
+  });
+
+  it("desktop: seções e rótulos na ordem da referência", () => {
+    const t = texto(desktop);
+    ordem(t, ["Veículos", "QXA-4B21", "Honda CG 160 Fan", "Editar", "Mandar para oficina", "Colocar à venda", "Rendeu no ano", "Ocupação", "Custo de manutenção", "Km atual", "Locações", "Manutenções", "Dados", "Documentos"]);
+    ordem(t, ["· 2023 · vermelha · Filial Centro", "R$ 9.870", "locações − custos", "86%", "últimos 90 dias", "R$ 353", "no ano", "18.950", "atualizado 07 out"]);
+    expect(t).toContain("14 no total");
+    expect(t).toContain("próxima: troca de óleo aos 19.900 km");
+    ordem(t, ["Contrato", "Cliente", "Período", "Situação", "LOC-2841", "Carlos Menezes", "30 set → 04 nov", "Em andamento", "LOC-2702", "LOC-2640"]);
+    ordem(t, ["Serviço", "Data", "Km", "Custo", "Troca de óleo", "12 set", "17.900 km", "R$ 48,00", "Pastilha de freio", "R$ 95,00", "Revisão 15 mil", "R$ 210,00"]);
+    ordem(t, ["Chassi", "9C2KC2210PR004417", "Renavam", "01289934410", "Compra", "mar 2023 · R$ 13.900", "Valor de venda (FIPE)", "R$ 12.400", "Plano padrão", "Semanal R$ 329,00"]);
+    ordem(t, ["CRLV 2026", "Em dia", "IPVA 2026", "Pago", "Seguro", "Vence em 18 dias", "Rastreador", "Online"]);
+  });
+
+  it("desktop: o botão sólido é Colocar à venda e as três ações ficam desativadas (sem tela ou endpoint)", () => {
+    for (const nome of ["Editar", "Mandar para oficina", "Colocar à venda"]) expect(desktop).toMatch(new RegExp(`<button[^>]*disabled[^>]*>(<svg.*?</svg>)?${nome}</button>`));
+    expect(desktop).toMatch(/wl-btn wl-btn--solid"[^>]*disabled/);
+  });
+
+  it("celular: cabeçalho, KPIs, Agora, Documentos, Manutenções e botões, nessa ordem", () => {
+    ordem(celular, ['aria-label="Voltar"', "Honda CG 160 Fan", "QXA-4B21 · 2023 · atrasado", 'aria-label="Mais ações"', "Rendeu no ano", "Ocupação", "90 dias", "Agora", "Documentos", "Manutenções", "Oficina", "Colocar à venda"]);
+    const t = texto(celular);
+    ordem(t, ["Cliente", "Carlos Menezes", "Contrato", "LOC-2841", "Devolve", "04 nov"]);
+    ordem(t, ["Troca de óleo · 12 set", "R$ 48,00", "Pastilha de freio · 20 jul", "R$ 95,00", "Revisão 15 mil · 02 jul", "R$ 210,00"]);
+    expect(t).not.toContain("Custo de manutenção");
+    expect(t).not.toContain("Chassi");
+    expect(celular).not.toContain("<table");
+  });
+
+  it("celular: alvos de toque de 44px no voltar e em Mais ações", () => {
+    expect(celular.match(/width:44px;height:44px/g)).toHaveLength(2);
+  });
+});
+
+describe("ficha do veículo, perfis sem financeiro nem edição", () => {
+  it("vendedor não vê rendimento, custo, compra nem as ações", async () => {
+    await entrarComo("bruna@motorapida.com.br");
+    const { desktop, celular } = await pagina(501);
+    for (const h of [desktop, celular]) {
+      expect(h).not.toContain("Rendeu no ano");
+      expect(h).not.toContain("Colocar à venda");
+    }
+    expect(desktop).not.toContain("Custo de manutenção");
+    expect(desktop).not.toContain("Compra");
+    expect(desktop).toContain("Ocupação");
+  });
+});
+
+describe("ficha do veículo sem histórico", () => {
+  it("mostra os estados vazios", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    const { desktop, celular } = await pagina(504);
+    expect(desktop).toContain("Este veículo ainda não foi alugado.");
+    expect(desktop).toContain("Nenhuma manutenção registrada.");
+    expect(celular).not.toContain("Agora");
+  });
+});
+
+it("o tipo de veículo vem do contrato", async () => {
+  const v: VeiculoDetalhe = await veiculos.obter(503);
+  expect(v.tipo_veiculo).toBe("carro");
+});

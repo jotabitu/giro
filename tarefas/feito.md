@@ -94,3 +94,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-016 · Vistoria de saída e de chegada, correção e agenda · backend · PR #108 · tarefas/handoffs/T-016-backend.md · 546 testes; CA-016-01 a 08 e 21; devolução e acerto na T-109
 - T-107 · Telas de referência com a LOC-2836 até 14 out · design-system · PR #109 · tarefas/handoffs/T-107-design-system.md · Locacoes, Locacao-Detalhe, Clientes e Cliente-Detalhe; aba "Devolvem hoje 4" para o produto
 - T-110 · Regras das 5 decisões da T-091 · produto · PR #110 · tarefas/handoffs/T-110-produto.md · LOC-08, 11, 12 e 13 (opção A); CA-015-26 a 29; código na T-111
+- T-102 · Ficha do veículo idêntica à referência · frontend · PR #111 · tarefas/handoffs/T-102-frontend.md · desktop e celular; 167 testes do frontend; divergências de referência para produto e design-system
