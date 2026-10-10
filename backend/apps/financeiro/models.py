@@ -1,14 +1,16 @@
-"""Contas a receber e comissões (modelo de dados, itens 18 e 24).
+"""Contas a receber, reembolsos e comissões (modelo de dados, itens 18 e 24).
 
 Parte mínima, entregue com a T-015 (parte 1): a locação confirmada cria as contas e a comissão
-por `financeiro.services`. A baixa no caixa, os movimentos, as cobranças externas e a API entram
-com a T-017, que acrescenta `movimento_caixa` e os demais apoios.
+por `financeiro.services`. O `Reembolso` veio com a T-091 (cancelamento antes da retirada). A
+baixa no caixa, os movimentos, as cobranças externas e a API entram com a T-017, que acrescenta
+`movimento_caixa` e os demais apoios.
 """
 
 from typing import ClassVar
 
 from django.db import models
 
+from comum import arquivos
 from comum.auditoria import Categoria
 from comum.campos import CentavosField, PercentualField
 from comum.estados import MaquinaDeEstados
@@ -102,6 +104,56 @@ class ContaReceber(MaquinaDeEstados, ModeloBase, ComOrigem):
 
     def __str__(self) -> str:
         return f"{self.origem_codigo or self.origem_tipo} {self.tipo} {self.vencimento}"
+
+
+class FormaReembolso(models.TextChoices):
+    PIX = "pix", "Pix"
+    DINHEIRO = "dinheiro", "Dinheiro"
+    ESTORNO_CARTAO = "estorno_cartao", "Estorno no cartão"
+
+
+class StatusReembolso(models.TextChoices):
+    A_FAZER = "a_fazer", "A fazer"
+    FEITO = "feito", "Feito"
+
+
+class Reembolso(MaquinaDeEstados, ModeloBase, ComOrigem):
+    """Dinheiro que volta ao cliente (DEV-02, LOC-12, LOC-13). Pix e estorno no cartão nascem
+    `a_fazer`: a pessoa faz pela conta da locadora e marca como feito, com o comprovante. O
+    dinheiro sai pelo caixa e nasce `feito`, com a T-017 (`movimento_caixa`)."""
+
+    filial = models.ForeignKey("filiais.Filial", on_delete=models.PROTECT, related_name="+")
+    cliente = models.ForeignKey("clientes.Cliente", on_delete=models.PROTECT, related_name="+")
+    valor_centavos = CentavosField()
+    forma = models.CharField(max_length=15, choices=FormaReembolso.choices)
+    status = models.CharField(max_length=10, choices=StatusReembolso.choices, default="a_fazer")
+    motivo = models.CharField(max_length=200, blank=True, default="")
+    feito_em = models.DateTimeField(null=True, blank=True)
+    feito_por = models.ForeignKey(
+        "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    comprovante = models.FileField(
+        storage=arquivos.armazenamento_privado,
+        upload_to=arquivos.caminho_privado,
+        null=True,
+        blank=True,
+    )
+
+    TRANSICOES: ClassVar[dict[str, set[str]]] = {"a_fazer": {"feito"}, "feito": set()}
+    REGRA_TRANSICAO: ClassVar[str] = "transicao_reembolso"
+    CATEGORIA_AUDITORIA: ClassVar[str] = Categoria.FINANCEIRO
+
+    class Meta:
+        verbose_name = "reembolso"
+        verbose_name_plural = "reembolsos"
+        ordering = ["criado_em", "id"]
+        indexes = [
+            models.Index(fields=["status", "filial"], name="reembolso_status_filial"),
+            models.Index(fields=["origem_tipo", "origem_id"], name="reembolso_origem"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.origem_codigo or self.origem_tipo}: {self.valor_centavos}"
 
 
 class RegraComissao(models.TextChoices):

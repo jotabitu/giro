@@ -101,7 +101,8 @@ class ParcelamentoMensal(models.TextChoices):
 
 
 class StatusDesconto(models.TextChoices):
-    """Pedido `APR-01` do desconto acima do limite (`LOC-03`). Vazio: sem pedido."""
+    """Pedido `APR-01` do desconto acima do limite (`LOC-03`) e `APR-02` do cancelamento
+    (`LOC-12`). Vazio: sem pedido."""
 
     PENDENTE = "pendente", "Pendente"
     APROVADO = "aprovado", "Aprovado"
@@ -155,6 +156,18 @@ class Locacao(ModeloComCodigo, MaquinaDeEstados, ModeloBase):
     km_saida = models.PositiveIntegerField(null=True, blank=True)
     encerramento_antecipado_aprovado_em = models.DateTimeField(null=True, blank=True)
     multa_encerramento_centavos = CentavosField(null=True, blank=True)
+    # Pedido `APR-02` (LOC-12), como o do desconto: vazio sem pedido; sem FK (ADR 0019).
+    cancelamento_status = models.CharField(
+        max_length=10, choices=StatusDesconto.choices, blank=True, default=""
+    )
+    pedido_cancelamento_id = models.BigIntegerField(null=True, blank=True)
+    cancelamento_data = models.DateField(null=True, blank=True)  # dia do encerramento
+    cancelamento_forma = models.CharField(max_length=15, blank=True, default="")  # da devolução
+    # LOC-13: semanas (ou diárias) não usadas, a creditar no acerto da devolução (T-016).
+    credito_encerramento_centavos = CentavosField(null=True, blank=True)
+    # LOC-08: o atraso já corrido quando uma `devolucao_atrasada` é renovada; continua cobrado.
+    atraso_anterior_dias = models.PositiveSmallIntegerField(default=0)
+    atraso_anterior_centavos = CentavosField(default=0)
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = TRANSICOES_LOCACAO
     REGRA_TRANSICAO: ClassVar[str] = "transicao_locacao"

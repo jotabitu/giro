@@ -30,9 +30,21 @@ def contrato_assinado(
 
 
 @assinante("aprovacoes.pedido_decidido")
-def decisao_do_desconto(
-    *, tipo: str, status: str, origem_tipo: str, origem_id: int, motivo: str = "", **_: Any
+def decisao_do_pedido(
+    *,
+    tipo: str,
+    status: str,
+    origem_tipo: str,
+    origem_id: int,
+    motivo: str = "",
+    dados: dict[str, Any] | None = None,
+    **_: Any,
 ) -> None:
-    """APR-01: aprovado refaz as parcelas em aberto; recusado avisa o vendedor."""
-    if tipo == "APR-01" and origem_tipo == services.ORIGEM:
+    """APR-01: aprovado refaz as parcelas em aberto; recusado avisa o vendedor. APR-02: aprovado
+    cancela (ou aprova o encerramento antecipado); recusado avisa quem pediu."""
+    if origem_tipo != services.ORIGEM:
+        return
+    if tipo == "APR-01":
         services.aplicar_decisao_desconto(origem_id, status, motivo)
+    elif tipo == "APR-02":
+        services.aplicar_decisao_cancelamento(origem_id, status, motivo, dados)

@@ -15,3 +15,7 @@ sentry-sdk>=2.20,<3
 boto3>=1.35,<2
 # Reprocessar fotos de documento sem metadados (AUD-05, T-014); a WeasyPrint também usa.
 Pillow>=11.1,<13
+# PDF dos contratos (ADR 0011, S-09, T-090); a imagem já tem pango, harfbuzz e fontes.
+weasyprint>=66,<70
+# HTML do modelo de contrato com lista branca de tags (S-09, T-090).
+nh3>=0.2.18,<1

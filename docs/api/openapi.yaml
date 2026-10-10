@@ -1073,6 +1073,202 @@ paths:
               schema:
                 $ref: '#/components/schemas/AnaliseCliente'
           description: ''
+  /api/contratos/marcadores/:
+    get:
+      operationId: contratos_marcadores_retrieve
+      summary: Campos automáticos (S-09)
+      tags:
+      - contratos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeMarcadores'
+          description: ''
+  /api/contratos/modelos/:
+    get:
+      operationId: contratos_modelos_list
+      summary: Modelos de contrato
+      tags:
+      - contratos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeModelos'
+          description: ''
+    post:
+      operationId: contratos_modelos_create
+      summary: Novo modelo, em rascunho (S-09)
+      tags:
+      - contratos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModeloEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ModeloEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ModeloEntrada'
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeloDetalhe'
+          description: ''
+  /api/contratos/modelos-prontos/:
+    get:
+      operationId: contratos_modelos_prontos_retrieve
+      summary: Modelos prontos
+      tags:
+      - contratos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeModelosProntos'
+          description: ''
+  /api/contratos/modelos/{id}/:
+    get:
+      operationId: contratos_modelos_retrieve
+      summary: Modelo, com texto e versões
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - contratos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeloDetalhe'
+          description: ''
+    patch:
+      operationId: contratos_modelos_partial_update
+      summary: Editar (publicado vira rascunho da versão seguinte, LOC-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - contratos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedModeloEdicao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedModeloEdicao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedModeloEdicao'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeloDetalhe'
+          description: ''
+  /api/contratos/modelos/{id}/arquivar/:
+    post:
+      operationId: contratos_modelos_arquivar_create
+      summary: Arquivar (IMP-04)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - contratos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeloDetalhe'
+          description: ''
+  /api/contratos/modelos/{id}/previa/:
+    post:
+      operationId: contratos_modelos_previa_create
+      summary: Ver com dados reais, sem gerar PDF nem gravar
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - contratos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviaEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PreviaEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PreviaEntrada'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Previa'
+          description: ''
+  /api/contratos/modelos/{id}/publicar/:
+    post:
+      operationId: contratos_modelos_publicar_create
+      summary: Publicar (S-09, IMP-04)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - contratos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModeloDetalhe'
+          description: ''
   /api/convites/aceitar/:
     post:
       operationId: convites_aceitar_create
@@ -1705,6 +1901,77 @@ paths:
               schema:
                 $ref: '#/components/schemas/LocacaoDetalhe'
           description: ''
+  /api/locacoes/{id}/cancelamento/simular/:
+    post:
+      operationId: locacoes_cancelamento_simular_create
+      summary: Simular o cancelamento ou o encerramento antecipado (LOC-12, LOC-13)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimularCancelamento'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SimularCancelamento'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SimularCancelamento'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulacaoCancelamento'
+          description: ''
+  /api/locacoes/{id}/cancelar/:
+    post:
+      operationId: locacoes_cancelar_create
+      summary: 'Cancelar: gerente direto, vendedor pede (LOC-12, LOC-13, APR-02)'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelarLocacao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CancelarLocacao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CancelarLocacao'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocacaoDetalhe'
+          description: ''
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelamentoPedido'
+          description: ''
   /api/locacoes/{id}/confirmar/:
     post:
       operationId: locacoes_confirmar_create
@@ -1737,6 +2004,69 @@ paths:
               schema:
                 $ref: '#/components/schemas/LocacaoDetalhe'
           description: ''
+  /api/locacoes/{id}/contrato/:
+    post:
+      operationId: locacoes_contrato_create
+      summary: Gerar e enviar o contrato (IMP-04, S-09, S-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContratoGerado'
+          description: ''
+  /api/locacoes/{id}/contrato/pdf/:
+    get:
+      operationId: locacoes_contrato_pdf_retrieve
+      summary: PDF do contrato (URL de 15 min, AUD-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrlDoPdf'
+          description: ''
+  /api/locacoes/{id}/contrato/reenviar/:
+    post:
+      operationId: locacoes_contrato_reenviar_create
+      summary: Reenviar (novo link; o anterior deixa de valer, S-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContratoGerado'
+          description: ''
   /api/locacoes/{id}/historico/:
     get:
       operationId: locacoes_historico_retrieve
@@ -1757,6 +2087,110 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HistoricoLocacao'
+          description: ''
+  /api/locacoes/{id}/renovar/:
+    post:
+      operationId: locacoes_renovar_create
+      summary: Renovar (mesmo LOC, preço de hoje, aditivo; LOC-08, LOC-15, FIN-09)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenovarLocacao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RenovarLocacao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RenovarLocacao'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocacaoDetalhe'
+          description: ''
+  /api/locacoes/{id}/renovar/simular/:
+    post:
+      operationId: locacoes_renovar_simular_create
+      summary: Simular a renovação (não grava nada; LOC-08, LOC-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenovarLocacao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RenovarLocacao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RenovarLocacao'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimulacaoRenovacao'
+          description: ''
+  /api/locacoes/{id}/vistorias/:
+    post:
+      operationId: locacoes_vistorias_create
+      summary: Abrir a vistoria de saída (VIS-01, VIS-02); o rascunho existente volta
+        com 200
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CriarVistoria'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CriarVistoria'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CriarVistoria'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vistoria'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vistoria'
           description: ''
   /api/locacoes/simular/:
     post:
@@ -2181,6 +2615,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ListaDeMudancasDePreco'
+          description: ''
+  /api/publico/assinaturas/assinar/:
+    post:
+      operationId: publico_assinaturas_assinar_create
+      description: Sem login e sem filial; a empresa precisa estar operando para receber
+        a assinatura.
+      summary: Assinar pelo link (S-15)
+      tags:
+      - publico
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Assinar'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Assinar'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Assinar'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssinaturaFeita'
+          description: ''
+  /api/publico/assinaturas/consultar/:
+    post:
+      operationId: publico_assinaturas_consultar_create
+      description: Sem login e sem filial; a empresa precisa estar operando para receber
+        a assinatura.
+      summary: Ler o contrato do link (S-15)
+      tags:
+      - publico
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenDeAssinatura'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenDeAssinatura'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenDeAssinatura'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsultaDaAssinatura'
           description: ''
   /api/suporte/:
     get:
@@ -3073,6 +3565,244 @@ paths:
               schema:
                 $ref: '#/components/schemas/Veiculo'
           description: ''
+  /api/vistorias/{id}/:
+    get:
+      operationId: vistorias_retrieve
+      summary: Vistoria (fotos com URL de 15 min)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vistorias
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vistoria'
+          description: ''
+    patch:
+      operationId: vistorias_partial_update
+      summary: Preencher o rascunho (DEV-05, VIS-04)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vistorias
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEditarVistoria'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEditarVistoria'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEditarVistoria'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vistoria'
+          description: ''
+  /api/vistorias/{id}/avarias/:
+    post:
+      operationId: vistorias_avarias_create
+      summary: Marcar avaria (VIS-01, DEV-01, DEV-04)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vistorias
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AvariaEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AvariaEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AvariaEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Avaria'
+          description: ''
+  /api/vistorias/{id}/avarias/{avaria_id}/:
+    delete:
+      operationId: vistorias_avarias_destroy
+      summary: Remover avaria nova do rascunho
+      parameters:
+      - in: path
+        name: avaria_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vistorias
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/vistorias/{id}/concluir/:
+    post:
+      operationId: vistorias_concluir_create
+      summary: Concluir (VIS-01 a VIS-04, VEI-01 a VEI-03, CLI-02, CLI-03, CLI-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vistorias
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vistoria'
+          description: ''
+  /api/vistorias/{id}/corrigir/:
+    post:
+      operationId: vistorias_corrigir_create
+      summary: Corrigir vistoria concluída (VIS-04)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vistorias
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CorrigirVistoria'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CorrigirVistoria'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CorrigirVistoria'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vistoria'
+          description: ''
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vistoria'
+          description: ''
+  /api/vistorias/{id}/fotos/:
+    post:
+      operationId: vistorias_fotos_create
+      summary: Enviar foto (VIS-01, AUD-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vistorias
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FotoEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Foto'
+          description: ''
+  /api/vistorias/agenda/:
+    get:
+      operationId: vistorias_agenda_retrieve
+      summary: Agenda do vistoriador (VIS-05)
+      parameters:
+      - in: query
+        name: dia
+        schema:
+          type: string
+          enum:
+          - amanha
+          - hoje
+          - semana
+      tags:
+      - vistorias
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agenda'
+          description: ''
+  /api/vistorias/avarias/:
+    get:
+      operationId: vistorias_avarias_retrieve
+      summary: Avarias abertas (tela Vistoriador)
+      parameters:
+      - in: query
+        name: veiculo
+        schema:
+          type: integer
+      tags:
+      - vistorias
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeAvarias'
+          description: ''
 components:
   schemas:
     AbrirAcesso:
@@ -3092,6 +3822,17 @@ components:
       - duracao_minutos
       - motivo
       - permissao
+    AcaoAgenda:
+      type: object
+      properties:
+        codigo:
+          type: string
+          description: iniciar, continuar, abrir
+        rotulo:
+          type: string
+      required:
+      - codigo
+      - rotulo
     AcaoLocacao:
       type: object
       properties:
@@ -3296,6 +4037,26 @@ components:
       - registrar_devolucao
       - renovar
       - trocar_veiculo
+    Agenda:
+      type: object
+      properties:
+        resumo:
+          type: string
+        proxima:
+          allOf:
+          - $ref: '#/components/schemas/ProximaAgenda'
+          nullable: true
+        avarias_abertas:
+          type: integer
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemAgenda'
+      required:
+      - avarias_abertas
+      - proxima
+      - resultados
+      - resumo
     AlvoCliente:
       type: object
       properties:
@@ -3347,6 +4108,21 @@ components:
       - nome
       - url
       - url_expira_em
+    Assinar:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 100
+        aceite:
+          type: boolean
+        nome_completo:
+          type: string
+          maxLength: 150
+      required:
+      - aceite
+      - nome_completo
+      - token
     Assinatura:
       type: object
       properties:
@@ -3372,6 +4148,17 @@ components:
       - status
       - teste
       - uso
+    AssinaturaFeita:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/StatusContratoEnum'
+        assinado_em:
+          type: string
+          format: date-time
+      required:
+      - assinado_em
+      - status
     Ativado:
       type: object
       properties:
@@ -3384,6 +4171,83 @@ components:
       required:
       - access
       - codigos_recuperacao
+    Avaria:
+      type: object
+      properties:
+        id:
+          type: integer
+        descricao:
+          type: string
+        preexistente:
+          type: boolean
+        foto_id:
+          type: integer
+          nullable: true
+        vai_para_oficina:
+          type: boolean
+        valor_centavos:
+          type: integer
+          nullable: true
+        origem:
+          type: string
+          nullable: true
+      required:
+      - descricao
+      - foto_id
+      - id
+      - origem
+      - preexistente
+      - vai_para_oficina
+    AvariaAberta:
+      type: object
+      properties:
+        id:
+          type: integer
+        descricao:
+          type: string
+        veiculo:
+          $ref: '#/components/schemas/VeiculoDaVistoria'
+        locacao:
+          $ref: '#/components/schemas/LocacaoDaVistoria'
+        registrada_em:
+          type: string
+          format: date-time
+          nullable: true
+        foto:
+          allOf:
+          - $ref: '#/components/schemas/Foto'
+          nullable: true
+        vai_para_oficina:
+          type: boolean
+        valor_centavos:
+          type: integer
+          nullable: true
+      required:
+      - descricao
+      - foto
+      - id
+      - locacao
+      - registrada_em
+      - vai_para_oficina
+      - veiculo
+    AvariaEntrada:
+      type: object
+      properties:
+        descricao:
+          type: string
+          maxLength: 200
+        foto_id:
+          type: integer
+        vai_para_oficina:
+          type: boolean
+          default: false
+        valor_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+      required:
+      - descricao
+      - foto_id
     Baixar:
       type: object
       properties:
@@ -3436,6 +4300,76 @@ components:
       description: |-
         * `atraso` - atraso
         * `manual` - manual
+    CancelamentoLocacao:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/CancelamentoLocacaoStatusEnum'
+        pedido_aprovacao_id:
+          type: integer
+          nullable: true
+        antes_da_retirada:
+          type: boolean
+        data:
+          type: string
+          format: date
+          nullable: true
+        multa_centavos:
+          type: integer
+        credito_centavos:
+          type: integer
+        devolver_centavos:
+          type: integer
+        cobrar_centavos:
+          type: integer
+        motivo:
+          type: string
+      required:
+      - antes_da_retirada
+      - cobrar_centavos
+      - credito_centavos
+      - data
+      - devolver_centavos
+      - motivo
+      - multa_centavos
+      - pedido_aprovacao_id
+      - status
+    CancelamentoLocacaoStatusEnum:
+      enum:
+      - pendente
+      - aprovado
+      type: string
+      description: |-
+        * `pendente` - Pendente
+        * `aprovado` - Aprovado
+    CancelamentoPedido:
+      type: object
+      properties:
+        pedido_aprovacao:
+          $ref: '#/components/schemas/PedidoAprovacaoRef'
+      required:
+      - pedido_aprovacao
+    CancelarLocacao:
+      type: object
+      properties:
+        motivo:
+          type: string
+          maxLength: 500
+        data:
+          type: string
+          format: date
+          nullable: true
+        forma_devolucao:
+          allOf:
+          - $ref: '#/components/schemas/FormaDevolucaoEnum'
+          default: pix
+          description: |-
+            Como o que foi pago volta ao cliente (LOC-12). Dinheiro sai pelo caixa.
+
+            * `pix` - Pix
+            * `estorno_cartao` - Estorno no cartão
+      required:
+      - motivo
     Categoria:
       type: object
       properties:
@@ -3586,6 +4520,23 @@ components:
       - tipo
       - ultima_locacao
       - venda_aberta
+    ClienteDaAgenda:
+      type: object
+      properties:
+        nome:
+          type: string
+      required:
+      - nome
+    ClienteDaVistoria:
+      type: object
+      properties:
+        nome:
+          type: string
+        cnh:
+          type: string
+          nullable: true
+      required:
+      - nome
     ClienteDetalhe:
       type: object
       description: 'Representação completa: só quem cadastra, nunca o suporte.'
@@ -3882,6 +4833,20 @@ components:
           nullable: true
       required:
       - valor_venda_centavos
+    CombustivelEnum:
+      enum:
+      - reserva
+      - um_quarto
+      - meio
+      - tres_quartos
+      - cheio
+      type: string
+      description: |-
+        * `reserva` - Reserva
+        * `um_quarto` - 1/4
+        * `meio` - 1/2
+        * `tres_quartos` - 3/4
+        * `cheio` - Cheio
     CondicoesLocacao:
       type: object
       properties:
@@ -3932,6 +4897,16 @@ components:
           type: string
       required:
       - senha
+    ConsultaDaAssinatura:
+      type: object
+      properties:
+        empresa:
+          $ref: '#/components/schemas/EmpresaDaAssinatura'
+        contrato:
+          $ref: '#/components/schemas/ContratoDaAssinatura'
+      required:
+      - contrato
+      - empresa
     Contagens:
       type: object
       properties:
@@ -4070,6 +5045,71 @@ components:
             format: email
           - type: string
             maxLength: 0
+    ContratoDaAssinatura:
+      type: object
+      properties:
+        codigo:
+          type: string
+        titulo:
+          type: string
+        cliente_nome:
+          type: string
+        pdf_url:
+          type: string
+          nullable: true
+        pdf_url_expira_em:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          $ref: '#/components/schemas/StatusContratoEnum'
+      required:
+      - cliente_nome
+      - codigo
+      - pdf_url
+      - pdf_url_expira_em
+      - status
+      - titulo
+    ContratoGerado:
+      type: object
+      properties:
+        contrato_id:
+          type: integer
+        status:
+          $ref: '#/components/schemas/StatusContratoEnum'
+      required:
+      - contrato_id
+      - status
+    ContratoResumo:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          $ref: '#/components/schemas/StatusContratoEnum'
+        modelo:
+          type: string
+        versao:
+          type: integer
+          nullable: true
+        enviado_em:
+          type: string
+          format: date-time
+          nullable: true
+        assinado_em:
+          type: string
+          format: date-time
+          nullable: true
+        pdf_disponivel:
+          type: boolean
+      required:
+      - assinado_em
+      - enviado_em
+      - id
+      - modelo
+      - pdf_disponivel
+      - status
+      - versao
     Convidar:
       type: object
       properties:
@@ -4170,6 +5210,46 @@ components:
       required:
       - km
       - motivo
+    CorrigirVistoria:
+      type: object
+      properties:
+        motivo:
+          type: string
+          maxLength: 500
+      required:
+      - motivo
+    CreditoDias:
+      type: object
+      properties:
+        dias:
+          type: integer
+        valor_centavos:
+          type: integer
+      required:
+      - dias
+      - valor_centavos
+    CreditoSemanas:
+      type: object
+      properties:
+        semanas:
+          type: integer
+        valor_centavos:
+          type: integer
+      required:
+      - semanas
+      - valor_centavos
+    CriarVistoria:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/CriarVistoriaTipoEnum'
+      required:
+      - tipo
+    CriarVistoriaTipoEnum:
+      enum:
+      - saida
+      type: string
+      description: '* `saida` - Saída'
     DesbloquearVeiculo:
       type: object
       properties:
@@ -4332,6 +5412,21 @@ components:
           format: email
       required:
       - email
+    EmpresaDaAssinatura:
+      type: object
+      properties:
+        nome_exibicao:
+          type: string
+        logo_url:
+          type: string
+          nullable: true
+        cor_marca:
+          type: string
+          nullable: true
+      required:
+      - cor_marca
+      - logo_url
+      - nome_exibicao
     EmpresaDetalhe:
       type: object
       properties:
@@ -5004,6 +6099,22 @@ components:
       required:
       - id
       - nome
+    FinalidadeEnum:
+      enum:
+      - locacao
+      - venda
+      type: string
+      description: |-
+        * `locacao` - Locação
+        * `venda` - Venda
+    FormaDevolucaoEnum:
+      enum:
+      - pix
+      - estorno_cartao
+      type: string
+      description: |-
+        * `pix` - Pix
+        * `estorno_cartao` - Estorno no cartão
     FormaPagamentoEnum:
       enum:
       - pix
@@ -5018,6 +6129,53 @@ components:
         * `cartao` - Cartão
         * `boleto` - Boleto
         * `dinheiro` - Dinheiro
+    Foto:
+      type: object
+      properties:
+        id:
+          type: integer
+        posicao:
+          $ref: '#/components/schemas/PosicaoEnum'
+        tirada_em:
+          type: string
+          format: date-time
+        url:
+          type: string
+        url_expira_em:
+          type: string
+          format: date-time
+      required:
+      - id
+      - posicao
+      - tirada_em
+      - url
+      - url_expira_em
+    FotoEntrada:
+      type: object
+      properties:
+        posicao:
+          $ref: '#/components/schemas/PosicaoEnum'
+        arquivo:
+          type: string
+          format: uri
+      required:
+      - arquivo
+      - posicao
+    FotosObrigatorias:
+      type: object
+      properties:
+        feitas:
+          type: integer
+        total:
+          type: integer
+        faltam:
+          type: array
+          items:
+            type: string
+      required:
+      - faltam
+      - feitas
+      - total
     Gerente:
       type: object
       properties:
@@ -5238,6 +6396,40 @@ components:
       required:
       - abre
       - fecha
+    ItemAgenda:
+      type: object
+      properties:
+        id:
+          type: string
+        tipo:
+          type: string
+          description: saida, devolucao
+        horario:
+          type: string
+          format: date-time
+        veiculo:
+          $ref: '#/components/schemas/VeiculoDaVistoria'
+        cliente:
+          $ref: '#/components/schemas/ClienteDaAgenda'
+        locacao:
+          $ref: '#/components/schemas/LocacaoDaVistoria'
+        situacao:
+          $ref: '#/components/schemas/SituacaoAgenda'
+        vistoria_id:
+          type: integer
+          nullable: true
+        acao:
+          $ref: '#/components/schemas/AcaoAgenda'
+      required:
+      - acao
+      - cliente
+      - horario
+      - id
+      - locacao
+      - situacao
+      - tipo
+      - veiculo
+      - vistoria_id
     ItemAnaliseCliente:
       type: object
       properties:
@@ -5293,6 +6485,24 @@ components:
       - chave
       - contador
       - rotulo
+    ItemVistoria:
+      type: object
+      properties:
+        codigo:
+          type: string
+        rotulo:
+          type: string
+        ok:
+          type: boolean
+          nullable: true
+        observacao:
+          type: string
+          nullable: true
+      required:
+      - codigo
+      - observacao
+      - ok
+      - rotulo
     Km:
       type: object
       properties:
@@ -5300,6 +6510,17 @@ components:
           type: integer
           minimum: 0
       required:
+      - km
+    LeituraKm:
+      type: object
+      properties:
+        km:
+          type: integer
+        em:
+          type: string
+          format: date
+      required:
+      - em
       - km
     LinhaSimulacao:
       type: object
@@ -5311,6 +6532,15 @@ components:
       required:
       - rotulo
       - valor_centavos
+    ListaDeAvarias:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvariaAberta'
+      required:
+      - resultados
     ListaDeCategorias:
       type: object
       properties:
@@ -5432,6 +6662,33 @@ components:
       - contagens
       - indicadores
       - proximo
+      - resultados
+    ListaDeMarcadores:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Marcador'
+      required:
+      - resultados
+    ListaDeModelos:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModeloResumo'
+      required:
+      - resultados
+    ListaDeModelosProntos:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModeloPronto'
+      required:
       - resultados
     ListaDeMudancasDePreco:
       type: object
@@ -5607,6 +6864,16 @@ components:
       - situacao
       - status
       - veiculo
+    LocacaoDaVistoria:
+      type: object
+      properties:
+        id:
+          type: integer
+        codigo:
+          type: string
+      required:
+      - codigo
+      - id
     LocacaoDetalhe:
       type: object
       description: Linha da lista. Para o vistoriador, o detalhe sai sem `pagamento`
@@ -5683,8 +6950,9 @@ components:
         total_pago_centavos:
           type: integer
         contrato:
+          allOf:
+          - $ref: '#/components/schemas/ContratoResumo'
           nullable: true
-          description: Contrato gerado (T-090)
         devolucao:
           $ref: '#/components/schemas/DevolucaoPrevista'
         trechos:
@@ -5692,8 +6960,9 @@ components:
           items:
             $ref: '#/components/schemas/TrechoLocacao'
         cancelamento:
+          allOf:
+          - $ref: '#/components/schemas/CancelamentoLocacao'
           nullable: true
-          description: Cancelamento (T-091)
         acoes:
           $ref: '#/components/schemas/AcoesLocacao'
       required:
@@ -5768,6 +7037,19 @@ components:
       - inicio
       - periodicidade
       - veiculo_id
+    Marcador:
+      type: object
+      properties:
+        chave:
+          type: string
+        rotulo:
+          type: string
+        exemplo:
+          type: string
+      required:
+      - chave
+      - exemplo
+      - rotulo
     Mensagem:
       type: object
       properties:
@@ -5806,6 +7088,122 @@ components:
       required:
       - pode_escolher_todas
       - resultados
+    ModeloDetalhe:
+      type: object
+      properties:
+        id:
+          type: integer
+        grupo:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        finalidade:
+          $ref: '#/components/schemas/FinalidadeEnum'
+        versao_publicada:
+          type: integer
+          nullable: true
+        tem_rascunho:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/StatusModeloContratoEnum'
+        arquivado:
+          type: boolean
+        contratos_gerados:
+          type: integer
+        editado_em:
+          type: string
+          format: date-time
+        texto:
+          type: string
+        marcadores_usados:
+          type: array
+          items:
+            type: string
+        versoes:
+          type: array
+          items:
+            $ref: '#/components/schemas/VersaoDoModelo'
+      required:
+      - arquivado
+      - contratos_gerados
+      - editado_em
+      - finalidade
+      - grupo
+      - id
+      - marcadores_usados
+      - nome
+      - status
+      - tem_rascunho
+      - texto
+      - versao_publicada
+      - versoes
+    ModeloEntrada:
+      type: object
+      description: '`{ nome, finalidade, texto }` ou `{ nome?, a_partir_de }`.'
+      properties:
+        nome:
+          type: string
+          maxLength: 80
+        finalidade:
+          allOf:
+          - $ref: '#/components/schemas/FinalidadeEnum'
+          default: locacao
+        texto:
+          type: string
+        a_partir_de:
+          type: string
+          maxLength: 40
+    ModeloPronto:
+      type: object
+      properties:
+        chave:
+          type: string
+        nome:
+          type: string
+        texto:
+          type: string
+      required:
+      - chave
+      - nome
+      - texto
+    ModeloResumo:
+      type: object
+      properties:
+        id:
+          type: integer
+        grupo:
+          type: string
+          format: uuid
+        nome:
+          type: string
+        finalidade:
+          $ref: '#/components/schemas/FinalidadeEnum'
+        versao_publicada:
+          type: integer
+          nullable: true
+        tem_rascunho:
+          type: boolean
+        status:
+          $ref: '#/components/schemas/StatusModeloContratoEnum'
+        arquivado:
+          type: boolean
+        contratos_gerados:
+          type: integer
+        editado_em:
+          type: string
+          format: date-time
+      required:
+      - arquivado
+      - contratos_gerados
+      - editado_em
+      - finalidade
+      - grupo
+      - id
+      - nome
+      - status
+      - tem_rascunho
+      - versao_publicada
     Motivo:
       type: object
       properties:
@@ -6176,6 +7574,26 @@ components:
         celular:
           type: string
           maxLength: 20
+    PatchedEditarVistoria:
+      type: object
+      properties:
+        km:
+          type: integer
+          minimum: 0
+          nullable: true
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/RespostaItem'
+        observacoes:
+          type: string
+          nullable: true
+          maxLength: 2000
     PatchedExtraEntrada:
       type: object
       properties:
@@ -6258,6 +7676,14 @@ components:
           oneOf:
           - $ref: '#/components/schemas/ParcelamentoMensalEnum'
           - $ref: '#/components/schemas/NullEnum'
+    PatchedModeloEdicao:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 80
+        texto:
+          type: string
     PatchedPlanoEspecialEntrada:
       type: object
       properties:
@@ -6412,6 +7838,19 @@ components:
           $ref: '#/components/schemas/PedidoAprovacaoCliente'
       required:
       - pedido_aprovacao
+    PedidoAprovacaoRef:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+        status:
+          type: string
+      required:
+      - id
+      - status
+      - tipo
     PedidoRef:
       type: object
       properties:
@@ -6477,6 +7916,21 @@ components:
         * `diaria` - Diária
         * `semanal` - Semanal
         * `mensal` - Mensal
+    PeriodoAtual:
+      type: object
+      properties:
+        inicio:
+          type: string
+          format: date
+        fim:
+          type: string
+          format: date
+        dias:
+          type: integer
+      required:
+      - dias
+      - fim
+      - inicio
     PermissaoExtraDoUsuario:
       type: object
       properties:
@@ -6776,6 +8230,22 @@ components:
       - veiculos
       - vendas_criar
       - vistorias_fazer
+    PosicaoEnum:
+      enum:
+      - frente
+      - traseira
+      - lado_esquerdo
+      - lado_direito
+      - painel
+      - avaria
+      type: string
+      description: |-
+        * `frente` - Frente
+        * `traseira` - Traseira
+        * `lado_esquerdo` - Lado esquerdo
+        * `lado_direito` - Lado direito
+        * `painel` - Painel
+        * `avaria` - Avaria
     Preco:
       type: object
       properties:
@@ -6914,6 +8384,19 @@ components:
       - desconto_pct
       - diaria_centavos
       - valor_periodo_centavos
+    Previa:
+      type: object
+      properties:
+        html:
+          type: string
+      required:
+      - html
+    PreviaEntrada:
+      type: object
+      properties:
+        locacao_id:
+          type: integer
+          nullable: true
     Pronto:
       type: object
       properties:
@@ -6936,6 +8419,16 @@ components:
       - pronto
       type: string
       description: '* `pronto` - pronto'
+    ProximaAgenda:
+      type: object
+      properties:
+        item_id:
+          type: string
+        em_minutos:
+          type: integer
+      required:
+      - em_minutos
+      - item_id
     Recusar:
       type: object
       description: Recusar exige motivo (APR-07).
@@ -6992,6 +8485,17 @@ components:
       description: |-
         * `preco_fixo` - Preço fixo
         * `desconto` - Desconto
+    RenovarLocacao:
+      type: object
+      properties:
+        periodos:
+          type: integer
+          minimum: 1
+          nullable: true
+        fim_previsto:
+          type: string
+          format: date-time
+          nullable: true
     Responsavel:
       type: object
       properties:
@@ -7033,6 +8537,32 @@ components:
           type: string
           nullable: true
           maxLength: 20
+    ResponsavelVistoria:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+      - id
+      - nome
+    RespostaItem:
+      type: object
+      properties:
+        codigo:
+          type: string
+          maxLength: 40
+        ok:
+          type: boolean
+          nullable: true
+        observacao:
+          type: string
+          nullable: true
+          maxLength: 300
+      required:
+      - codigo
+      - ok
     ResumoIdNome:
       type: object
       properties:
@@ -7043,6 +8573,31 @@ components:
       required:
       - id
       - nome
+    ResumoLocacao:
+      type: object
+      properties:
+        periodicidade:
+          type: string
+        inicio:
+          type: string
+          format: date-time
+        fim_previsto:
+          type: string
+          format: date-time
+        km_livre:
+          type: boolean
+        diaria_centavos:
+          type: integer
+        caucao_centavos:
+          type: integer
+        caucao_paga:
+          type: boolean
+      required:
+      - caucao_paga
+      - fim_previsto
+      - inicio
+      - km_livre
+      - periodicidade
     Sessao:
       type: object
       properties:
@@ -7080,6 +8635,41 @@ components:
             $ref: '#/components/schemas/Sessao'
       required:
       - resultados
+    SimulacaoCancelamento:
+      type: object
+      properties:
+        antes_da_retirada:
+          type: boolean
+        periodo_atual:
+          allOf:
+          - $ref: '#/components/schemas/PeriodoAtual'
+          nullable: true
+        dias_restantes:
+          type: integer
+        valor_restante_centavos:
+          type: integer
+        multa_centavos:
+          type: integer
+        credito_semanas:
+          $ref: '#/components/schemas/CreditoSemanas'
+        credito_dias:
+          allOf:
+          - $ref: '#/components/schemas/CreditoDias'
+          description: 'Diária: os dias não usados (LOC-12).'
+        devolver_centavos:
+          type: integer
+        cobrar_centavos:
+          type: integer
+      required:
+      - antes_da_retirada
+      - cobrar_centavos
+      - credito_dias
+      - credito_semanas
+      - devolver_centavos
+      - dias_restantes
+      - multa_centavos
+      - periodo_atual
+      - valor_restante_centavos
     SimulacaoLocacao:
       type: object
       properties:
@@ -7133,6 +8723,41 @@ components:
       - proximos_periodos_centavos
       - texto_retirada
       - valor_periodo_centavos
+    SimulacaoRenovacao:
+      type: object
+      properties:
+        fim_previsto_atual:
+          type: string
+          format: date-time
+          nullable: true
+        fim_previsto:
+          type: string
+          format: date-time
+          nullable: true
+        periodos:
+          type: integer
+        valor_periodo_centavos:
+          type: integer
+        parcelas_novas:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParcelaPrevista'
+        total_centavos:
+          type: integer
+      required:
+      - fim_previsto
+      - fim_previsto_atual
+      - parcelas_novas
+      - periodos
+      - total_centavos
+      - valor_periodo_centavos
+    SimularCancelamento:
+      type: object
+      properties:
+        data:
+          type: string
+          format: date
+          nullable: true
     SinaisLocacao:
       type: object
       properties:
@@ -7151,6 +8776,20 @@ components:
       properties:
         codigo:
           type: string
+        rotulo:
+          type: string
+        tom:
+          type: string
+      required:
+      - codigo
+      - rotulo
+      - tom
+    SituacaoAgenda:
+      type: object
+      properties:
+        codigo:
+          type: string
+          description: agendada, hoje, em_andamento, atrasada, concluida
         rotulo:
           type: string
         tom:
@@ -7220,6 +8859,26 @@ components:
         * `ativo` - Ativo
         * `bloqueado` - Bloqueado
         * `inativo` - Inativo
+    StatusContratoEnum:
+      enum:
+      - gerado
+      - enviado
+      - assinado
+      - cancelado
+      type: string
+      description: |-
+        * `gerado` - Gerado
+        * `enviado` - Enviado
+        * `assinado` - Assinado
+        * `cancelado` - Cancelado
+    StatusModeloContratoEnum:
+      enum:
+      - publicado
+      - rascunho
+      type: string
+      description: |-
+        * `publicado` - publicado
+        * `rascunho` - rascunho
     StatusVeiculoEnum:
       enum:
       - disponivel
@@ -7379,6 +9038,14 @@ components:
           maxLength: 100
       required:
       - token
+    TokenDeAssinatura:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 100
+      required:
+      - token
     TokenDoConviteDaEquipe:
       type: object
       properties:
@@ -7427,6 +9094,17 @@ components:
       required:
       - senha_atual
       - senha_nova
+    UrlDoPdf:
+      type: object
+      properties:
+        url:
+          type: string
+        url_expira_em:
+          type: string
+          format: date-time
+      required:
+      - url
+      - url_expira_em
     UsoAssinatura:
       type: object
       properties:
@@ -7759,6 +9437,21 @@ components:
       - id
       - modelo
       - placa
+    VeiculoDaVistoria:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        modelo:
+          type: string
+        ano:
+          type: integer
+      required:
+      - id
+      - modelo
+      - placa
     VeiculoDetalhe:
       type: object
       properties:
@@ -7950,6 +9643,109 @@ components:
         codigo_recuperacao:
           type: string
           maxLength: 20
+    VersaoDoModelo:
+      type: object
+      properties:
+        versao:
+          type: integer
+        publicado_em:
+          type: string
+          format: date-time
+        contratos_gerados:
+          type: integer
+      required:
+      - contratos_gerados
+      - publicado_em
+      - versao
+    Vistoria:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+        status:
+          type: string
+        locacao:
+          $ref: '#/components/schemas/LocacaoDaVistoria'
+        veiculo:
+          $ref: '#/components/schemas/VeiculoDaVistoria'
+        cliente:
+          $ref: '#/components/schemas/ClienteDaVistoria'
+        km:
+          type: integer
+          nullable: true
+        km_ultima_leitura:
+          $ref: '#/components/schemas/LeituraKm'
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        fotos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Foto'
+        fotos_obrigatorias:
+          $ref: '#/components/schemas/FotosObrigatorias'
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemVistoria'
+        avarias:
+          type: array
+          items:
+            $ref: '#/components/schemas/Avaria'
+        observacoes:
+          type: string
+          nullable: true
+        responsavel:
+          allOf:
+          - $ref: '#/components/schemas/ResponsavelVistoria'
+          nullable: true
+        concluida_em:
+          type: string
+          format: date-time
+          nullable: true
+        substitui:
+          type: integer
+          nullable: true
+        motivo_correcao:
+          type: string
+          nullable: true
+        vigente:
+          type: boolean
+        pendencias:
+          type: array
+          items:
+            type: string
+        pode_concluir:
+          type: boolean
+        resumo_locacao:
+          $ref: '#/components/schemas/ResumoLocacao'
+      required:
+      - avarias
+      - cliente
+      - combustivel
+      - concluida_em
+      - fotos
+      - fotos_obrigatorias
+      - id
+      - itens
+      - km
+      - km_ultima_leitura
+      - locacao
+      - motivo_correcao
+      - observacoes
+      - pendencias
+      - pode_concluir
+      - responsavel
+      - resumo_locacao
+      - status
+      - substitui
+      - tipo
+      - veiculo
+      - vigente
   securitySchemes:
     jwtAuth:
       type: http

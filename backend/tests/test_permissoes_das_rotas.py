@@ -14,18 +14,21 @@ from rest_framework.views import APIView
 
 from apps.contas.api.acesso import VIEWS_DE_ACESSO
 from apps.contas.api.usuarios import VIEWS_DE_CONVITE
+from apps.contratos.api.views import VIEWS_DE_ASSINATURA
 from comum.permissoes import EmpresaOperando, EscopoDeFilial
 from config import urls
 
 # Documentação da API: aberta por EXPOR_DOCUMENTACAO_DA_API e fechada em produção (S-17).
 # Acesso à conta (entrar, 2 etapas, renovar, sair, eu, sessões e senha, T-011): com a empresa
 # suspensa as pessoas entram para ler e exportar, e cuidar da própria conta não é operação. O
-# convite (consultar e aceitar, T-069) também: é criar o próprio acesso.
+# convite (consultar e aceitar, T-069) também: é criar o próprio acesso. O link de assinatura
+# de contrato (S-15, T-090) é do cliente final, sem login nem filial; mantém `EmpresaOperando`.
 EXCECOES: set[type[APIView]] = {
     SpectacularAPIView,
     SpectacularSwaggerView,
     *VIEWS_DE_ACESSO,
     *VIEWS_DE_CONVITE,
+    *VIEWS_DE_ASSINATURA,
 }
 METODOS = ("get", "post", "put", "patch", "delete")
 

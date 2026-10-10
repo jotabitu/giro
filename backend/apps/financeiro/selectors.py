@@ -1,8 +1,8 @@
 """Leituras das contas a receber e das comissões (FIN-01, FIN-09).
 
 Interface para os outros apps: `contas_da_origem`, `representacao_conta`, `primeiro_pagamento_em`,
-`anotar_resumo_da_origem` (uma query para a lista inteira da origem) e
-`comissoes_confirmadas_centavos`.
+`pago_da_origem_centavos`, `reembolsos_da_origem`, `anotar_resumo_da_origem` (uma query para a
+lista inteira da origem) e `comissoes_confirmadas_centavos`.
 """
 
 from datetime import date, datetime
@@ -11,7 +11,7 @@ from typing import Any
 from django.db.models import Count, IntegerField, Min, OuterRef, Q, QuerySet, Subquery, Sum
 from django.db.models.functions import Coalesce
 
-from .models import Comissao, ContaReceber, StatusComissao, StatusConta, TipoConta
+from .models import Comissao, ContaReceber, Reembolso, StatusComissao, StatusConta, TipoConta
 
 
 def status_exibido(status: str, vencimento: date, hoje: date) -> str:
@@ -60,6 +60,31 @@ def primeiro_pagamento_em(origem_tipo: str, origem_id: int) -> datetime | None:
     if not parcela or any(c.status != StatusConta.PAGA for c in contas):
         return None
     return max(c.pago_em for c in contas if c.pago_em is not None)
+
+
+def pago_da_origem_centavos(origem_tipo: str, origem_id: int) -> int:
+    """O que o cliente já pagou na origem, com a caução (LOC-12: devolve tudo antes da retirada)."""
+    total = ContaReceber.objects.filter(
+        origem_tipo=origem_tipo, origem_id=origem_id, status=StatusConta.PAGA
+    ).aggregate(total=Sum("valor_centavos"))["total"]
+    return int(total or 0)
+
+
+def abertas_vencendo_depois(origem_tipo: str, origem_id: int, dia: date) -> list[ContaReceber]:
+    """Parcelas em aberto que vencem depois de `dia` (as que o encerramento antecipado cancela)."""
+    return list(
+        ContaReceber.objects.filter(
+            origem_tipo=origem_tipo,
+            origem_id=origem_id,
+            status=StatusConta.ABERTA,
+            tipo=TipoConta.PARCELA,
+            vencimento__gt=dia,
+        )
+    )
+
+
+def reembolsos_da_origem(origem_tipo: str, origem_id: int) -> QuerySet[Reembolso]:
+    return Reembolso.objects.filter(origem_tipo=origem_tipo, origem_id=origem_id)
 
 
 def _soma(filtro: Q, origem_tipo: str) -> Subquery:

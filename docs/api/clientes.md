@@ -32,7 +32,7 @@ Quem não pode ver os dados completos recebe só a representação resumida, com
   "status": "ativo",
   "situacao": { "codigo": "em_dia", "rotulo": "Em dia", "tom": "sucesso" },
   "cliente_desde": "2026-03-04",
-  "locacao_atual": { "id": 2836, "codigo": "LOC-2836", "veiculo": "Factor 150", "detalhe": "devolve hoje", "alerta": null },
+  "locacao_atual": { "id": 2836, "codigo": "LOC-2836", "veiculo": "Factor 150", "detalhe": "semanal", "alerta": null },
   "ultima_locacao": null,
   "financeiro": { "total_pago_centavos": 267400, "em_aberto_centavos": 0, "a_devolver_centavos": 0 },
   "venda_aberta": null,

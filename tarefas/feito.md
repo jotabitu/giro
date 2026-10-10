@@ -84,3 +84,13 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-100 · Frota com um botão só de cadastrar veículo · frontend · PR #94 · tarefas/handoffs/T-100-frontend.md · pedido do dono; mesmo padrão em NovoVeiculoForm.tsx apontado no handoff
 - T-097 · Dados de referência: LOC-2836 confirmada em 01 out · produto · PR #95 · tarefas/handoffs/T-097-produto.md · LOC-06 com as datas; CA-015-15; [decisão] da multa da parcela que nasce vencida
 - T-093 · Momentos em UTC na API · backend · PR #96 · tarefas/handoffs/T-093-backend.md · 490 testes; renderizador de comum (ADR 0020); OpenAPI idêntico
+- T-101 · Conta que nasce vencida não cobra atraso antes da confirmação · produto · PR #98 · tarefas/handoffs/T-101-produto.md · FIN-03 opção A; CA-017-23; código na T-017
+- T-098 · Teste do CA-015-15 com a LOC-2836 confirmada em 01 out · qa · PR #99 · tarefas/handoffs/T-098-qa.md · 491 testes; LOC-2836 pelos serviços; dado de referência da LOC-2836 (fim em 07 out) para o produto
+- T-090 · Contratos: modelos, PDF, assinatura e aditivo · backend · PR #100 · tarefas/handoffs/T-090-backend.md · 507 testes; weasyprint e nh3; 7 diferenças para o arquiteto; memória do worker de PDF para o devops
+- T-103 · Fim previsto da LOC-2836 · produto · PR #102 · tarefas/handoffs/T-103-produto.md · opções A, B (recomendada: 2 semanas até 14 out) e C em Pontos em aberto; só o seed muda
+- T-104 · Regra e critérios da LOC-2836 até 14 out · produto · PR #104 · tarefas/handoffs/T-104-produto.md · opção B; nenhum valor muda; seed na T-105; telas para o design-system
+- T-091 · Locação: renovação, atraso, cancelamento e encerramento · backend · PR #105 · tarefas/handoffs/T-091-backend.md · 528 testes; só a T-092 em xfail; 2 [divergência] e 5 [decisão] para o produto
+- T-106 · Pontos de regra da T-091 · produto · PR #107 · tarefas/handoffs/T-106-produto.md · 2 divergências resolvidas; 5 decisões com opção A em Pontos em aberto
+- T-016 · Vistoria de saída e de chegada, correção e agenda · backend · PR #108 · tarefas/handoffs/T-016-backend.md · 546 testes; CA-016-01 a 08 e 21; devolução e acerto na T-109
+- T-107 · Telas de referência com a LOC-2836 até 14 out · design-system · PR #109 · tarefas/handoffs/T-107-design-system.md · Locacoes, Locacao-Detalhe, Clientes e Cliente-Detalhe; aba "Devolvem hoje 4" para o produto
+- T-110 · Regras das 5 decisões da T-091 · produto · PR #110 · tarefas/handoffs/T-110-produto.md · LOC-08, 11, 12 e 13 (opção A); CA-015-26 a 29; código na T-111

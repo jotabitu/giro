@@ -59,6 +59,7 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 | --- | --- | --- | --- | --- |
 | Novo cliente | [desktop](html/Cliente-Desktop.dc.html) · [celular](html/Cliente-Mobile.dc.html) | `(empresa)/clientes` | `clientes` | CLI |
 | Clientes | [desktop](html/Clientes-Desktop.dc.html) · [celular](html/Clientes-Mobile.dc.html) | `(empresa)/clientes` | `clientes` | CLI |
+| Detalhe do cliente | [desktop](html/Cliente-Detalhe-Desktop.dc.html) · [celular](html/Cliente-Detalhe-Mobile.dc.html) | `(empresa)/clientes/[id]` | `clientes` | CLI |
 
 ## Dashboard
 

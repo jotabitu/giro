@@ -178,10 +178,11 @@ def desbloquear(veiculo: Veiculo, motivo: str | None = None) -> Veiculo:
     """`indisponivel` → `disponivel`. Com CRLV ou seguro ativo vencido: 422 `VEI-03`."""
     with transaction.atomic():
         travado = _travar(veiculo)
-        if travado.status == S.INDISPONIVEL:
-            vencidos = documentos_vencidos_que_bloqueiam(travado, relogio.hoje())
-            if vencidos:
-                raise documento_vencido(vencidos)
+        if travado.status != S.INDISPONIVEL:
+            raise transicao_invalida(travado.status, S.DISPONIVEL)
+        vencidos = documentos_vencidos_que_bloqueiam(travado, relogio.hoje())
+        if vencidos:
+            raise documento_vencido(vencidos)
         transicionar(
             travado, S.DISPONIVEL, origem=MANUAL, motivo=(motivo or "").strip(), acao="desbloquear"
         )
@@ -206,6 +207,8 @@ def colocar_a_venda(
 
 def voltar_para_frota(veiculo: Veiculo) -> Veiculo:
     """`a_venda` → `disponivel`. A recusa com venda aberta (409 `VEN-10`) entra com vendas."""
+    if veiculo.status != S.A_VENDA:
+        raise transicao_invalida(veiculo.status, S.DISPONIVEL)
     return transicionar(veiculo, S.DISPONIVEL, origem=MANUAL, acao="voltar_para_frota")
 
 
@@ -691,13 +694,14 @@ def _nome_no_texto(tipo: str) -> str:
     return rotulo if tipo == TipoDocumento.CRLV else rotulo.lower()
 
 
-def documento_vencido(tipos: list[str]) -> ErroDeRegra:
+def documento_vencido(tipos: list[str], antes: str = "de desbloquear o veículo") -> ErroDeRegra:
+    """`antes`: o que espera a renovação ("da retirada" na vistoria de saída)."""
     nomes = [_nome_no_texto(t) for t in tipos]
     lista = nomes[0] if len(nomes) == 1 else f"{', '.join(nomes[:-1])} e {nomes[-1]}"
     plural = "vencidos" if len(nomes) > 1 else "vencido"
     return ErroDeRegra(
         "VEI-03",
-        f"Renove o {lista} {plural} antes de desbloquear o veículo.",
+        f"Renove o {lista} {plural} antes {antes}.",
         {"documentos": tipos},
     )
 
