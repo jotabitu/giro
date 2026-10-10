@@ -98,7 +98,11 @@ Levantadas pelo arquiteto na revisão da T-114 (09 out 2026), para o produto:
 
 Levantadas pelo backend em T-117 (10 out 2026), para o produto. O código segue o que está entre parênteses:
 
-- [decisão] (T-117, `DEV-07`, `LOC-12`) Encerramento antecipado aprovado e devolução no dia do fim previsto ou depois: o acerto cobra multa de encerramento? (Não: sem período em curso, `multa_encerramento` 0 e nenhum crédito, como uma devolução comum; passando do prazo, cobra o atraso da `LOC-10`. A `cancelamento/simular` já responde 409 `sem_dias_restantes` nesse dia. Ver `tarefas/handoffs/T-117-backend.md`.)
+- (T-117) O encerramento antecipado aprovado com a devolução no dia do fim previsto ou depois foi decidido em 10 out 2026 pelo dono do produto: opção A. A devolução não é antecipada: não há multa nem crédito da `LOC-12`, e passando do prazo cobra o atraso da `LOC-10` (`DEV-07`). Regra e caso de referência na T-118; o código da T-117 já faz assim; teste na T-119.
+
+Levantadas pelo produto em T-118 (10 out 2026), para o dono do produto:
+
+- (T-118) O status final da locação com o encerramento antecipado aprovado e a devolução no dia do fim previsto ou depois foi decidido em 10 out 2026 pelo dono do produto: opção A. A locação termina `encerrada` (`DEV-06`), como numa devolução comum, e o pedido aprovado fica registrado, sem efeito (`DEV-07`). O código da T-117 a deixava `cancelada`; muda na T-119.
 
 Levantadas pelo backend em T-111 (09 out 2026), para o produto. O código segue o que está entre parênteses:
 
@@ -256,6 +260,9 @@ Levantadas pelo backend em T-111 (09 out 2026), para o produto. O código segue 
 
 ### T-092 · Troca de veículo durante a locação
 - **Agente:** backend · **Depende de:** T-016, T-091 · **Regras:** LOC-09 · **Pronto quando:** CA-015-18 passa, com o código da regra no nome do teste; a troca abre a vistoria de devolução do veículo antigo e a de saída do novo (T-016).
+
+### T-119 · Encerramento aprovado com devolução no fim previsto: teste e status final (T-118)
+- **Agente:** backend · **Depende de:** T-117, T-118 · **Regras:** DEV-01, DEV-02, DEV-06, DEV-07, LOC-12, FIN-03 · **Pronto quando:** `test_dev_07_encerramento_aprovado_devolucao_no_fim_previsto_sem_multa` passa com o caso 1 do "Encerramento aprovado e devolução no fim previsto": Carlos, LOC-2841, aprovado para 07 out e devolvido em 28 out às 09:00, sem nada pago depois de 07 out → `parcela_aberta` 30818, 30749, 30679 e 30609, nenhum `multa_encerramento` nem crédito, cobranças 122855, caução 30000, cobrar 92855; ao encerrar, nenhuma parcela `cancelada`, as parcelas 2 a 5 `renegociada`, uma conta `acerto` de 92855 com vencimento em 31 out e a LOC-2841 `encerrada`. **Código:** `locacoes.services.encerrar` passa a decidir o destino pelo dia da devolução (em `America/Sao_Paulo`): `cancelada` só com a aprovação e a devolução antes do dia do fim previsto (`LOC-12`); senão `encerrada`, com o motivo "Devolução concluída", sem `cancelada_em` e sem a regra `LOC-12` no evento; os dados do pedido aprovado ficam gravados. Nesse caso a `forma_devolucao` não vem da `cancelamento_forma`: é escolhida como numa devolução comum. O CA-016-24 e o CA-016-25 seguem `cancelada`. Opcional: a variante de 30 out (atraso 10980, cobrar 103915, `encerrada`).
 
 ### T-017 · Contas a receber, caixa do dia, baixa
 - **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 23) passam, com o código da regra no nome do teste. · **Inclui:** usar o `juros_pro_rata` de `comum/dinheiro.py`, que vem da T-114 (CA-017-08: Carlos 70, Rafael 1123)
