@@ -526,7 +526,9 @@ def iniciar_devolucao(locacao: Locacao, usuario: Any) -> tuple[Devolucao, bool]:
     try:
         with transaction.atomic():
             chegada, _ = criar(locacao, TipoVistoria.DEVOLUCAO, usuario)
-            antecipado = locacao.encerramento_antecipado_aprovado_em is not None
+            # DEV-07 (T-118): no dia do fim previsto ou depois, a forma é escolhida como numa
+            # devolução comum, e não vem do pedido de encerramento antecipado.
+            antecipado = locacoes.encerramento_antecipado_vale(locacao, relogio.agora())
             devolucao = Devolucao.objects.create(
                 locacao=locacao,
                 vistoria=chegada,
@@ -681,10 +683,11 @@ def calculados(locacao: Locacao, chegada: Vistoria) -> list[Calculado]:
     dia = locacoes.data_local(momento, locacao.filial)
     for parcela in parcelas_do_acerto(locacao, dia):
         itens.append(_item_da_parcela(parcela, dia))
-    if locacao.encerramento_antecipado_aprovado_em is not None:
+    if locacoes.encerramento_antecipado_vale(locacao, momento):
         # DEV-07 (T-116): a multa e o crédito valem pelo dia da devolução, não pelo da
-        # aprovação. LOC-12: a diária conta pela hora real. LOC-13: no mensal em 4 semanais, o
-        # crédito menos as parcelas canceladas pode ficar negativo e vira cobrança.
+        # aprovação. No dia do fim previsto ou depois, não há nenhum dos dois (T-118).
+        # LOC-12: a diária conta pela hora real. LOC-13: no mensal em 4 semanais, o crédito
+        # menos as parcelas canceladas pode ficar negativo e vira cobrança.
         encerramento = locacoes.encerramento_na_devolucao(locacao, momento)
         itens.append(
             Calculado(
@@ -929,9 +932,9 @@ def _liberar_veiculo(chegada: Vistoria, locacao: Locacao) -> list[int]:
 def encerrar_devolucao(devolucao: Devolucao, usuario: Any) -> Devolucao:
     """DEV-06, numa transação: acerto congelado; cobranças pagas com a caução; saldo positivo
     vira reembolso pela forma escolhida, e o negativo, conta a receber em 3 dias (DEV-02);
-    locação `encerrada` (ou `cancelada` no encerramento antecipado, LOC-12) com `devolvida_em`
-    pela LOC-11; veículo `disponivel` ou `em_manutencao` (DEV-04). Depois do commit, o recibo
-    em PDF sai por WhatsApp."""
+    locação `encerrada` (ou `cancelada` no encerramento antecipado que vale, LOC-12, DEV-07) com
+    `devolvida_em` pela LOC-11; veículo `disponivel` ou `em_manutencao` (DEV-04). Depois do
+    commit, o recibo em PDF sai por WhatsApp."""
     with transaction.atomic():
         travada = _acerto_em_rascunho(devolucao)
         chegada = chegada_vigente(travada)
@@ -959,7 +962,7 @@ def encerrar_devolucao(devolucao: Devolucao, usuario: Any) -> Devolucao:
         origem = financeiro.Origem("devolucao", travada.pk, locacao.codigo)
         cobrar = [i for i in itens if i.natureza == NaturezaItem.COBRANCA]
         dia = locacoes.data_local(chegada.concluida_em, locacao.filial)
-        if locacao.encerramento_antecipado_aprovado_em is not None:
+        if locacoes.encerramento_antecipado_vale(locacao, chegada.concluida_em):
             # DEV-07: as que vencem depois do dia da devolução; até o dia, entraram no acerto.
             # A aprovação não cancela nenhuma (T-116): este é o único cancelamento.
             financeiro.cancelar_abertas(

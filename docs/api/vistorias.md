@@ -172,7 +172,7 @@ Itens (`ItemAcerto.tipo`):
 | `km_excedente` | `calculado`; hoje sempre 0 (km livre em todos os planos) | `DEV-01` |
 | `parcela_aberta` | `calculado`: parcelas em aberto da locação que vencem até o dia da devolução, inclusive a do próprio dia, cada uma pelo devido nesse dia, com a multa e os juros da `FIN-03` (`financeiro.selectors.devido_ate`). As que vencem depois não entram. Descrição: "Parcela 2 de 5 · venceu em 30/09 (multa R$ 5,99 e juros R$ 0,70)" ou "Parcela 3 de 5 · vence hoje, 07/10" | `DEV-01`, `FIN-03` (T-114) |
 | `multa_transito` | `informado`, com descrição (multas já identificadas) | `DEV-01` |
-| `multa_encerramento` | `calculado`, só em encerramento antecipado aprovado, pelo dia da devolução (não pelo da aprovação, T-116); 0 se a devolução é no fim previsto ou depois | `LOC-12`, `DEV-07` |
+| `multa_encerramento` | `calculado`, só em encerramento antecipado aprovado com a devolução antes do dia do fim previsto, pelo dia da devolução (não pelo da aprovação, T-116). No dia do fim previsto ou depois, o item não vem, nem o crédito: é uma devolução comum (T-118) | `LOC-12`, `DEV-07` |
 
 `creditos` (somam ao saldo): `semanas_nao_usadas`, só no mensal com encerramento antecipado (`LOC-13`, ex.: Patrícia 37100), e `dias_nao_usados`, na diária com encerramento antecipado, contados pela hora real da devolução em blocos de 24 h (`LOC-12`, CA-015-28).
 
@@ -197,11 +197,11 @@ Corpo: `{ "forma_devolucao": "pix" | "dinheiro" | "estorno_cartao" }`. 200.
 Perfis: quem vê o acerto. Exige a vistoria de chegada `concluida` (senão 422 `{ "codigo": "vistoria_pendente" }`) e `forma_devolucao` quando há valor a devolver.
 200: a devolução `concluida` e o resumo da locação. Na mesma transação (`DEV-06`):
 - Acerto congelado (`concluido`); itens viram registros no `financeiro`: as cobranças são pagas com a caução (`forma = caucao`); o saldo a devolver é lançado como devolução de caução pela `forma_devolucao` (dinheiro sai no caixa do dia da filial, que precisa estar aberto, `FIN-07`); o saldo negativo vira conta a receber com vencimento em 3 dias (`DEV-02`). O detalhe de cada lançamento está no contrato de financeiro (T-017).
-- Locação `encerrada` (ou `cancelada` no encerramento antecipado aprovado) por `locacoes.services.encerrar`, com `devolvida_em` = conclusão da vistoria de chegada, ajustada pela `LOC-11` quando a filial estava fechada.
+- Locação `encerrada` (ou `cancelada` no encerramento antecipado aprovado com a devolução antes do dia do fim previsto, `DEV-07`, T-118) por `locacoes.services.encerrar`, com `devolvida_em` = conclusão da vistoria de chegada, ajustada pela `LOC-11` quando a filial estava fechada.
 - Km do veículo atualizado (`VEI-02`). Avaria com `vai_para_oficina` abre uma OS (`manutencao`) e o veículo vai para `em_manutencao`; sem isso, volta para `disponivel` (`DEV-04`).
 - Evento `locacoes.locacao_encerrada` recalcula as preventivas (`MAN-03`).
 - Depois do commit: recibo em PDF com as fotos, enviado por WhatsApp com a marca da locadora. Com saldo a devolver por Pix, o recibo diz "devolução de R$ 183,00 por Pix em até 1 dia útil" (o Pix é feito pela locadora e marcado como feito, `financeiro.md`).
-- Encerramento antecipado aprovado: antes do acerto, as parcelas em aberto que vencem **depois** do dia da devolução vão para `cancelada` (`DEV-07`); a do dia entrou no acerto como `parcela_aberta`.
+- Encerramento antecipado aprovado com a devolução antes do dia do fim previsto: antes do acerto, as parcelas em aberto que vencem **depois** do dia da devolução vão para `cancelada` (`DEV-07`); a do dia entrou no acerto como `parcela_aberta`.
 
 Erros: 422 `{ "codigo": "DEV-07", "mensagem": "A devolução é antes do fim do contrato. Peça o encerramento antecipado ao gerente.", "detalhes": { "fim_previsto": "2026-10-14T21:00:00Z", "devolvida_em": "2026-10-07T13:00:00Z" } }` quando a chegada concluída é de um dia anterior ao do fim previsto, sem o encerramento antecipado aprovado (`LOC-12`, `APR-02`): a devolução fica em `rascunho`, e a locação, o veículo e as contas ficam como estavam. Abrir a devolução e concluir a vistoria de chegada continuam permitidos; no próprio dia do fim, antes da hora, não é antecipada (CA-016-23). 422 `{ "codigo": "FIN-07", "mensagem": "Abra o caixa do dia para devolver em dinheiro" }`; 409 `transicao_locacao`.
 Regras: DEV-01 a DEV-07, LOC-10 a LOC-13, FIN-03.
