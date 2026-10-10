@@ -243,9 +243,6 @@ Levantadas pelo backend em T-111 (09 out 2026), para o produto. O código segue 
 ### T-093 · Momentos em UTC na API
 - **Agente:** backend · **Depende de:** T-088 · **ADRs:** 0020 · **Pronto quando:** `comum/renderizacao.py` ligado no `REST_FRAMEWORK` como na ADR 0020; os 3 testes de `backend/tests/test_formato_das_datas.py` passam sem `xfail` e a lista de pendentes do teste de varredura fica vazia; contas, aprovações, plataforma, veículos, filiais e clientes saem em `AAAA-MM-DDTHH:MM:SSZ` sem mexer nos serializers; OpenAPI sem mudança. Passos em `tarefas/handoffs/T-088-arquiteto.md`.
 
-### T-105 · Seed da LOC-2836 até 14 out
-- **Agente:** qa · **Depende de:** T-104, T-091 · **Regras:** LOC-01, LOC-06 · **Pronto quando:** `backend/tests/aceitacao/carteira.py` cria a LOC-2836 com início em 30 set 18:00 e fim calculado pela LOC-01 (14 out 18:00), sem o ajuste do `fim_previsto`; os testes que usam a LOC-2836 seguem os critérios da T-104; sem mudança de código de produção.
-
 ### T-091 · Locação: renovação, atraso, cancelamento e encerramento
 - **Agente:** backend · **Depende de:** T-090 · **Regras:** LOC-08, LOC-10 a LOC-13, FIL-03, APR-02, AUT-02 · **Pronto quando:** CA-015-17 e 19 a 24 e o estorno do CA-015-25 passam, com o código da regra no nome do teste: renovação com aditivo; atraso com `calcular_atraso` e `aut_02`; cancelamento e encerramento antecipado com APR-02, reembolso e comissão estornada.
 

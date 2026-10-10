@@ -566,10 +566,7 @@ def test_vis_financeiro_nao_faz_vistoria(cenario, lucas):
 def test_vis_05_ca_016_08_agenda(cenario, relogio):
     relogio.em("2026-10-07 08:00")
     lote = carteira.carregar(cenario.frota, cenario.pessoas["Bruna"], relogio)
-    # T-104, decisão B: a LOC-2836 vai até 14 out 18:00 (o seed muda na T-105).
-    Locacao.objects.filter(pk=lote["LOC-2836"].pk).update(
-        fim_previsto=carteira.momento("2026-10-14 18:00")
-    )
+    assert lote["LOC-2836"].fim_previsto == carteira.momento("2026-10-14 18:00")  # LOC-06
     # Na carteira, a LOC-2856 já está ativa; no CA-016-08 ela aguarda a retirada das 09:15.
     ContaReceber.objects.filter(origem_tipo="locacao", origem_id=lote["LOC-2856"].pk).delete()
     Locacao.objects.filter(pk=lote["LOC-2856"].pk).delete()
@@ -592,6 +589,7 @@ def test_vis_05_ca_016_08_agenda(cenario, relogio):
     relogio.em("2026-10-07 09:00")
     joao = cenario.moto.api("João", HTTP_X_FILIAL=str(cenario.frota.centro.pk))
     agenda = joao.get(AGENDA).json()
+    # Sem a LOC-2836: nenhuma devolução prevista no seed em 07 out (T-104).
     assert agenda["resumo"] == "Quarta, 07 out · 1 saída e 1 devolução"
     assert [i["id"] for i in agenda["resultados"]] == ["devolucao-2790", "saida-2856"]
     rafael, lucas = agenda["resultados"]
