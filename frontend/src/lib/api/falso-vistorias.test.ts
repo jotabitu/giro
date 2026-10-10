@@ -97,3 +97,91 @@ describe("agenda e avarias abertas (VIS-05)", () => {
     expect((await vistorias.avarias()).resultados).toHaveLength(2);
   });
 });
+
+describe("devolução e acerto (DEV-01 a DEV-07)", () => {
+  const preencher = async (vistoriaId: number, km: number) => {
+    const v = await vistorias.obter(vistoriaId);
+    for (const p of ["frente", "traseira", "lado_esquerdo", "lado_direito", "painel"] as const) if (!v.fotos.some((f) => f.posicao === p)) await vistorias.enviarFoto(vistoriaId, p, imagem());
+    await vistorias.editar(vistoriaId, { km, combustivel: "cheio", itens: v.itens.map((i) => ({ codigo: i.codigo, ok: i.ok ?? true })) });
+  };
+
+  it("LOC-2836: combustível 3200 + retrovisor 8500, caução 30000, devolve 18300 (DEV-03)", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    const d = await vistorias.obterDevolucao(701);
+    const a = d.acerto!;
+    expect(a.itens.map((i) => [i.tipo, i.valor_centavos, i.modo])).toEqual([["combustivel", 3200, "calculado"], ["avaria", 8500, "informado"], ["atraso", 0, "calculado"]]);
+    expect(a.itens[0]?.descricao).toBe("Combustível (faltou 1/4 tanque, 4 L × R$ 5,50 + R$ 10,00)");
+    expect(a.resultado.texto).toBe("Desconta R$ 117,00 da caução de R$ 300,00");
+    expect(a.avisos).toEqual([]);
+    expect(d.comparacao.km).toMatchObject({ saida: 18402, agora: 19630, rodou: 1228 });
+  });
+
+  it("item calculado não se edita (409); o valor da avaria muda o acerto", async () => {
+    await expect(vistorias.editarItem(701, 1, { valor_centavos: 1 })).rejects.toMatchObject({ status: 409, codigo: "item_calculado" });
+    const d = await vistorias.editarItem(701, 2052, { valor_centavos: 10000 });
+    expect(d.acerto?.resultado.valor_centavos).toBe(16800);
+    await vistorias.editarItem(701, 2052, { valor_centavos: 8500 });
+  });
+
+  it("multa de trânsito se adiciona e se remove; o item da avaria não se remove", async () => {
+    const com = await vistorias.adicionarItem(701, { tipo: "multa_transito", descricao: "Multa de 02/10", valor_centavos: 13000 });
+    expect(com.acerto?.resultado.valor_centavos).toBe(5300);
+    const multa = com.acerto!.itens.find((i) => i.tipo === "multa_transito")!;
+    await expect(vistorias.removerItem(701, 2052)).rejects.toMatchObject({ status: 409, codigo: "item_da_vistoria" });
+    expect((await vistorias.removerItem(701, multa.id)).acerto?.resultado.valor_centavos).toBe(18300);
+  });
+
+  it("encerrar sem a vistoria de chegada concluída responde 422 vistoria_pendente", async () => {
+    await expect(vistorias.encerrar(701)).rejects.toMatchObject({ status: 422, codigo: "vistoria_pendente" });
+  });
+
+  it("vistoriador: sem acerto e sem permissão para os itens", async () => {
+    await entrarComo("joao@motorapida.com.br");
+    const d = await vistorias.obterDevolucao(701);
+    expect(d.acerto).toBeUndefined();
+    await expect(vistorias.editarItem(701, 2052, { valor_centavos: 1 })).rejects.toMatchObject({ status: 403 });
+    await expect(vistorias.encerrar(701)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("encerrar a devolução: locação encerrada, recibo e acerto congelado", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    const d = await vistorias.obterDevolucao(701);
+    const chegada = await vistorias.concluir(d.vistoria.id);
+    expect(chegada.status).toBe("concluida");
+    const fim = await vistorias.encerrar(701);
+    expect(fim.status).toBe("concluida");
+    expect(fim.acerto?.status).toBe("concluido");
+    expect((await locacoes.obter(2836)).status).toBe("encerrada");
+    await expect(vistorias.encerrar(701)).rejects.toMatchObject({ status: 409, codigo: "acerto_concluido" });
+    await expect(vistorias.editarItem(701, 2052, { valor_centavos: 1 })).rejects.toMatchObject({ status: 409 });
+    expect((await vistorias.recibo(701)).url).toContain("DEV-701");
+    await vistorias.reenviarRecibo(701);
+    expect((await vistorias.obterDevolucao(701)).recibo_enviado_em).not.toBeNull();
+  });
+
+  it("LOC-2790: 25 dias de atraso e parcelas em aberto; a caução não cobre e vira cobrança", async () => {
+    const d = await vistorias.abrirDevolucao(2790);
+    const a = d.acerto!;
+    const atraso = a.itens.find((i) => i.tipo === "atraso")!;
+    expect(atraso).toMatchObject({ valor_centavos: 25 * 3990, descricao: "Atraso (25 diárias × R$ 39,90)" });
+    expect(a.itens.filter((i) => i.tipo === "parcela_aberta")).toHaveLength(3);
+    expect(a.itens.find((i) => i.tipo === "parcela_aberta")?.descricao).toMatch(/^Parcela 2 de 4 · venceu em 12\/09 \(multa R\$ 8,98 e juros R\$ /);
+    expect(a.resultado.tipo).toBe("cobrar");
+    expect(a.resultado.botao).toMatch(/^Encerrar e cobrar R\$ /);
+    expect(a.saldo_centavos).toBe(a.caucao_centavos - a.total_cobrancas_centavos);
+  });
+
+  it("LOC-2841: devolução antes do fim previsto traz o aviso DEV-07 e o encerrar responde 422 com as datas", async () => {
+    const d = await vistorias.abrirDevolucao(2841);
+    expect(d.acerto?.avisos).toEqual([{ codigo: "DEV-07", mensagem: "A devolução é antes do fim do contrato. Peça o encerramento antecipado ao gerente." }]);
+    await preencher(d.vistoria.id, 17300);
+    await vistorias.concluir(d.vistoria.id);
+    const e = await vistorias.encerrar(d.id).catch((x) => x as ErroApi);
+    expect(e).toMatchObject({ status: 422, codigo: "DEV-07", detalhes: { fim_previsto: expect.any(String), devolvida_em: expect.any(String) } });
+    expect((await vistorias.obterDevolucao(d.id)).status).toBe("rascunho");
+  });
+
+  it("devolução só vale para locação ativa ou atrasada", async () => {
+    await expect(vistorias.abrirDevolucao(2856)).rejects.toMatchObject({ status: 409, codigo: "transicao_locacao" });
+  });
+});

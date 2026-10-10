@@ -64,7 +64,9 @@ const VISTORIAS = new Map<number, Registro>();
 let proximaVistoria = 3100;
 
 function itensIniciais(dados: DadosDaLocacaoParaVistoria, ok: boolean | null): Vistoria["itens"] {
-  return [...ITENS_DO_RAMO.map(([codigo, rotulo]) => ({ codigo, rotulo, ok, observacao: null })), ...dados.extras.map((e, i) => ({ codigo: `extra_${i + 1}`, rotulo: e.replace(/ extra$/i, "") === e ? e : `${e.replace(/ extra$/i, "")} entregue`, ok, observacao: null }))];
+  const capaceteExtra = dados.extras.some((e) => /capacete/i.test(e));
+  const padrao = ITENS_DO_RAMO.filter(([codigo]) => !(codigo === "capacete" && capaceteExtra));
+  return [...padrao.map(([codigo, rotulo]) => ({ codigo, rotulo, ok, observacao: null })), ...dados.extras.map((e, i) => ({ codigo: `extra_${i + 1}`, rotulo: e, ok, observacao: null }))];
 }
 
 function resumoDaLocacao(d: DadosDaLocacaoParaVistoria, vistoriador: boolean): Vistoria["resumo_locacao"] {
