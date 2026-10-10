@@ -55,9 +55,7 @@ FIM_DAS_GERADAS = "2026-11-30 18:00"
 # dão: o preço sai da tabela vigente na confirmação, e as parcelas e a caução nascem das contas
 # (LOC-2836: início em 30 set, confirmada em 01 out, "Preço da LOC-2836"). Código → (confirmação,
 # início, retirada). A parcela 1 vence em 30 set e é paga na retirada, sem multa (FIN-03, padrão A).
-CONFIRMADAS = {"LOC-2836": ("2026-10-01 09:00", "2026-09-30 09:10", "2026-10-01 09:10")}
-# Fim previsto dado pelas regras ("início em 30 set e fim em 07 out"; `devolve_hoje` em 07 out).
-FIM_DAS_CONFIRMADAS = {"LOC-2836": "2026-10-07 18:00"}
+CONFIRMADAS = {"LOC-2836": ("2026-10-01 09:00", "2026-09-30 18:00", "2026-10-01 09:10")}
 
 
 def momento(texto: str) -> datetime:
@@ -142,7 +140,7 @@ def _confirmar(
             "periodicidade": PERIODICIDADE[linha["plano"]],
             "plano_especial_id": None,
             "inicio": momento(inicio),
-            "periodos": 2,  # as duas parcelas, de 30 set e 07 out (LOC-06)
+            "periodos": 2,  # 2 semanas: fim em 14 out 18:00 pela LOC-01 (LOC-06)
             "extras": [],
             "desconto_pct": "0.00",
             "forma_pagamento": "pix",
@@ -152,8 +150,6 @@ def _confirmar(
     )
     assert locacao.codigo == codigo
     locacoes_services.confirmar(locacao, vendedor)
-    locacao.fim_previsto = momento(FIM_DAS_CONFIRMADAS[codigo])
-    locacao.save(update_fields=["fim_previsto"])
     relogio.em(retirada)
     locacoes_services.registrar_vistoria_saida(locacao, km=veiculo.km_atual)
     locacoes_services.registrar_contrato_assinado(locacao.pk, relogio.agora)
