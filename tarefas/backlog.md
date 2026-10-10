@@ -299,10 +299,11 @@ Levantadas pelo arquiteto em T-122 (10 out 2026), para o produto:
 ### T-021 · Telas de veículos e clientes
 - **Agente:** frontend · **Depende de:** T-020, T-013, T-014 · **Telas:** Frota, Veiculo, Clientes, Cliente · **Nota:** pode começar com dados falsos de `docs/api/veiculos.md` e `clientes.md`, como a T-020
 
-### T-022 · Telas de locação, vistoria e devolução
-- **Agente:** frontend · **Depende de:** T-021, T-015, T-016 · **Telas:** Locacao, Locacoes, Locacao-Detalhe, Vistoria, Devolucao, Vistoriador
-- **Encerramento antecipado (T-116):** no pedido e na aprovação, a multa e o valor a devolver aparecem como estimativa ("Estimativa para 07 out. O valor final sai na devolução."); parcelas de locação aprovada e não devolvida seguem em aberto; o acerto mostra o que a API devolve. Itens 1 a 3 de "O que o frontend precisa mudar" em `tarefas/handoffs/T-116-produto.md`.
-- **Troca de veículo (T-121):** no detalhe da locação, botão "Cancelar troca" quando `acoes.cancelar_troca` vier `true`, com motivo, pela rota da T-122. Com troca pendente, o botão de cancelar a locação some (`acoes.cancelar` `false`); no 409 `troca_pendente`, mostre "Conclua ou cancele a troca antes". O acerto mostra o item da diferença do período em curso como a API devolve, inclusive o crédito.
+### T-125 · Frontend: cancelar a troca de veículo (T-121, T-122)
+- **Agente:** frontend · **Depende de:** T-022, T-123 · **Regras:** LOC-09, LOC-12 · **Pronto quando:** no detalhe da locação, botão "Cancelar troca" quando `acoes.cancelar_troca` vier `true`, com motivo, pela rota da T-122; com troca pendente, o botão de cancelar a locação some (`acoes.cancelar` `false`); no 409 `troca_pendente`, mostre "Conclua ou cancele a troca antes"; no 409 `troca_saida_concluida`, a mensagem da API; o acerto mostra o item da diferença do período em curso como a API devolve, inclusive o crédito. Tipos do OpenAPI regerado depois da T-123.
+
+### T-126 · Frontend ligado à API real
+- **Agente:** frontend · **Depende de:** T-011, T-022 · **Pronto quando:** o frontend não usa mais a camada falsa: sessão real (login, 2 etapas, renovação do token, sair, T-011), cliente HTTP tipado pelo OpenAPI com o JWT, e os módulos de `lib/api/index.ts` (contas, marca, relatórios, veículos, clientes, locações, vistorias) chamando a API; os `falso-*.ts` saem do app (podem ficar só como fixtures de teste); erros da API (401, 403, 409, 422 com `detalhes`) tratados como hoje no falso; as telas abrem no compose com o seed. Levantada na T-022 (handoff `tarefas/handoffs/T-022-frontend.md`).
 
 ### T-023 · Telas do financeiro básico
 - **Agente:** frontend · **Depende de:** T-020, T-017 · **Telas:** Receber, Caixa, Financeiro
