@@ -112,11 +112,9 @@ Levantadas pelo backend em T-092 (10 out 2026), para o produto:
 
 - (T-092) As 5 dúvidas da troca de veículo foram decididas em 10 out 2026 pelo dono do produto, com a 6ª levantada pelo produto: (1) preço da nova categoria pelo dia do pedido, guardado na troca (A, com o ajuste); (2) taxa de combustível por veículo (A); (3) parcela refeita inteira pelo preço novo, com todos os descontos e o plano contando desde o começo (B); (4) rota para cancelar a troca pendente (B); (5) renovação permitida e cancelamento recusado com 409 `troca_pendente`; (6) diferença proporcional dos dias restantes do período em curso no acerto final, crédito se a categoria for mais barata (B). Regras (`LOC-08`, `LOC-09`, `LOC-12`, `DEV-01`, `DEV-02`) e caso "Troca de veículo LOC-2836" na T-121; contrato na T-122; código na T-123.
 
-Levantadas pelo arquiteto em T-122 (10 out 2026), para o produto. O contrato segue o que está entre parênteses:
+Levantadas pelo arquiteto em T-122 (10 out 2026), para o produto:
 
-- [decisão] (T-122) Cancelar a troca com a saída do veículo novo já concluída: a `LOC-09` só diz o que fazer com a saída em rascunho. (O contrato recusa com 409 `troca_saida_concluida`, "O veículo novo já foi entregue. Conclua a troca com a chegada do veículo antigo.", e `acoes.cancelar_troca` fica `false`.)
-- [decisão] (T-122) Diferença do período em curso no mensal em 4 semanais: as parcelas do mês que vencem depois do dia da troca já são refeitas pelo preço novo, e a fórmula da `LOC-09` sobre todos os dias restantes do mês cobraria esses dias duas vezes. (O contrato desconta da diferença o que essas parcelas subiram, `ja_refeito_centavos`, pela frase "já cobrados pelo preço antigo"; nos outros planos não muda nada.) Falta um exemplo nas regras.
-- (T-122) A tabela de estados das entidades precisa de `descartada` na Vistoria: é o estado do rascunho descartado no cancelamento da troca, como a `LOC-09` já diz.
+- (T-122) As 2 dúvidas do contrato da troca foram decididas em 10 out 2026 pelo dono do produto, com as opções do contrato: (1) cancelar a troca com a saída do veículo novo já concluída é recusado com 409 `troca_saida_concluida`; (2) no mensal em 4 semanais, a diferença do período em curso desconta o que as parcelas refeitas já subiram (`ja_refeito_centavos`). O estado `descartada` da vistoria entrou na tabela de estados. Regras na T-124 (`LOC-09`); o contrato da T-122 já segue as duas; código na T-123.
 
 ## Fase 0 · Fundação
 
