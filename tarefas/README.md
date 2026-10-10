@@ -34,6 +34,7 @@ O CI roda uma vez por PR, como última conferência, e só nas áreas que o PR t
 
 - **Backend:** `ruff check .`, `ruff format --check .`, `mypy .` e os testes afetados. Um processo por vez: a máquina tem pouca memória.
 - **Frontend:** `npm run lint`, `npm run typecheck` e os testes afetados.
+- **Mudou o OpenAPI** (`docs/api/openapi.yaml`): quem mudou roda também, no frontend, `npm run api:gerar`, `npm run typecheck` e os testes afetados, e corrige no mesmo PR o que deixar de compilar. O CI roda o frontend nesse caso, e uma tela já na `main` pode quebrar com o contrato novo (aconteceu no PR #131).
 
 Não há CI no push da `main`: toda branch recebe a `origin/main` antes do PR.
 
