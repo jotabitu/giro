@@ -23,6 +23,7 @@ from comum.dinheiro import formatar_reais
 from comum.erros import Conflito, ErroDeValidacao
 from comum.eventos import publicar
 
+from . import selectors
 from .models import (
     Comissao,
     ContaReceber,
@@ -30,6 +31,7 @@ from .models import (
     FormaReembolso,
     Reembolso,
     RegraComissao,
+    Renegociacao,
     StatusComissao,
     StatusConta,
     StatusReembolso,
@@ -57,6 +59,7 @@ class NovaConta:
     numero_parcela: int | None = None
     total_parcelas: int | None = None
     observacao: str = ""
+    nasceu_de_id: int | None = None  # a `Renegociacao` que a conta substitui
 
 
 def criar_contas(
@@ -77,6 +80,7 @@ def criar_contas(
                 vencimento=nova.vencimento,
                 valor_centavos=nova.valor_centavos,
                 observacao=nova.observacao,
+                nasceu_de_id=nova.nasceu_de_id,
                 **origem.campos(),
             )
             with auditar(conta, "conta_receber.criar", Categoria.FINANCEIRO):
@@ -139,18 +143,30 @@ def cancelar_abertas(
     return canceladas
 
 
-def marcar_paga(conta: ContaReceber, *, forma: str, pago_em: datetime | None = None) -> None:
-    """Porta da baixa até a T-017 (caixa, Pix, cartão): grava o pagamento e publica
-    `financeiro.parcela_paga` na mesma transação (ADR 0011)."""
+def marcar_paga(
+    conta: ContaReceber,
+    *,
+    forma: str,
+    pago_em: datetime | None = None,
+    devido: selectors.Devido | None = None,
+) -> None:
+    """Porta da baixa até a T-017 (caixa, Pix, cartão): grava o pagamento, com a multa e os
+    juros de `devido` (FIN-03), e publica `financeiro.parcela_paga` na mesma transação
+    (ADR 0011)."""
     with transaction.atomic():
         travada = _travar(conta)
         travada.forma = forma
         travada.pago_em = pago_em or relogio.agora()
+        mais: tuple[str, ...] = ("forma", "pago_em")
+        if devido is not None:
+            travada.multa_centavos = devido.multa_centavos
+            travada.juros_centavos = devido.juros_centavos
+            mais = (*mais, "multa_centavos", "juros_centavos")
         estados.transicionar(
             travada,
             StatusConta.PAGA,
             acao="conta_receber.pagar",
-            mais_campos=("forma", "pago_em"),
+            mais_campos=mais,
         )
         publicar(
             "financeiro.parcela_paga",
@@ -265,24 +281,29 @@ def pagar_com_caucao(
     disponivel_centavos: int,
     abertas: list[ContaReceber],
     cobrancas: list[Cobranca],
+    dia: date,
     vencimento_do_saldo: date,
 ) -> Acerto:
     """DEV-02, na transação de quem chama. Com o que há da caução e dos créditos
-    (`disponivel_centavos`), paga primeiro as parcelas em aberto, inteiras, e depois as
-    cobranças, que viram contas pagas com a caução (`forma = caucao`). O que não couber fica: a
-    parcela continua em aberto, e o resto das cobranças vira uma conta a receber do cliente
-    (`tipo = acerto`) com vencimento em `vencimento_do_saldo`."""
+    (`disponivel_centavos`), paga primeiro as parcelas em aberto, inteiras, da mais antiga para a
+    mais nova, cada uma pelo devido em `dia` (FIN-03). Não existe pagamento parcial (FIN-01): a
+    primeira que não cabe e todas as seguintes vão para `renegociada`, mesmo que uma seguinte
+    coubesse. Depois, as cobranças viram contas pagas com a caução (`forma = caucao`), e o que
+    sobrar abate as parcelas renegociadas. O que fica sem cobertura é uma conta só
+    (`tipo = acerto`), com vencimento em `vencimento_do_saldo`, igual a `-saldo` do acerto."""
     restante = disponivel_centavos
     pagas: list[ContaReceber] = []
+    renegociar: list[tuple[ContaReceber, selectors.Devido]] = []
     novas: list[NovaConta] = []
     a_cobrar = 0
     with transaction.atomic():
-        for conta in abertas:
-            devido = conta.valor_centavos + conta.multa_centavos + conta.juros_centavos
-            if devido > restante:
+        for conta in sorted(abertas, key=lambda c: (c.vencimento, c.pk)):
+            devido = selectors.devido_ate(conta, dia)
+            if renegociar or devido.total_centavos > restante:
+                renegociar.append((conta, devido))
                 continue
-            marcar_paga(conta, forma=FormaPagamento.CAUCAO)
-            restante -= devido
+            marcar_paga(conta, forma=FormaPagamento.CAUCAO, devido=devido)
+            restante -= devido.total_centavos
             pagas.append(conta)
         for cobranca in cobrancas:
             coberto = min(restante, cobranca.valor_centavos)
@@ -294,6 +315,11 @@ def pagar_com_caucao(
         for conta in criar_contas(origem, filial_id=filial_id, cliente_id=cliente_id, contas=novas):
             marcar_paga(conta, forma=FormaPagamento.CAUCAO)
             pagas.append(conta)
+        renegociacao = None
+        if renegociar:
+            # A primeira renegociada não coube no que sobrava: a sobra das cobranças abate a conta.
+            a_cobrar += sum(d.total_centavos for _, d in renegociar) - restante
+            renegociacao = _renegociar_no_acerto(origem, renegociar)
         saldo = criar_contas(
             origem,
             filial_id=filial_id,
@@ -304,10 +330,37 @@ def pagar_com_caucao(
                     vencimento_do_saldo,
                     a_cobrar,
                     observacao="Saldo do acerto da devolução",
+                    nasceu_de_id=renegociacao.pk if renegociacao else None,
                 )
             ],
         )
     return Acerto(pagas=pagas, a_receber=saldo[0] if saldo else None)
+
+
+def _renegociar_no_acerto(
+    origem: Origem, parcelas: list[tuple[ContaReceber, selectors.Devido]]
+) -> Renegociacao:
+    """As parcelas que a caução não cobre vão para `renegociada`, com a multa e os juros do dia,
+    ligadas à conta `acerto` pela `Renegociacao` (DEV-02)."""
+    motivo = "Parcelas que a caução não cobriu no acerto da devolução"
+    renegociacao = Renegociacao(motivo=motivo, em=relogio.agora(), **origem.campos())
+    with auditar(renegociacao, "renegociacao.criar", Categoria.FINANCEIRO, regra="DEV-02"):
+        renegociacao.save()
+    for conta, devido in parcelas:
+        travada = _travar(conta)
+        travada.renegociada_em = renegociacao
+        travada.multa_centavos = devido.multa_centavos
+        travada.juros_centavos = devido.juros_centavos
+        estados.transicionar(
+            travada,
+            StatusConta.RENEGOCIADA,
+            motivo=motivo,
+            acao="conta_receber.renegociar",
+            regra="DEV-02",
+            mais_campos=("renegociada_em", "multa_centavos", "juros_centavos"),
+        )
+        conta.refresh_from_db()
+    return renegociacao
 
 
 # O dinheiro sai pelo caixa do dia, que chega com a T-017.

@@ -102,3 +102,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-105 · Seed da LOC-2836 até 14 out · qa · PR #117 · tarefas/handoffs/T-105-qa.md · início 30 set 18:00, fim pela LOC-01; CA-015-16 e CA-016-08 ajustados; sem código de produção
 - T-111 · Código das decisões da T-091 · backend · PR #118 · tarefas/handoffs/T-111-backend.md · CA-015-26 a 29; 589 testes; emendas de contrato (simular, crédito com sinal); 1 [decisão] para o produto
 - T-115 · Regra do extra desativado na renovação · produto · PR #119 · tarefas/handoffs/T-115-produto.md · LOC-08 (opção A); item novo no CA-015-27; teste no backend na T-114
+- T-114 · Código das decisões da devolução · backend · PR #120 · tarefas/handoffs/T-114-backend.md · DEV-01, DEV-02, DEV-07 e FIN-03 (juros_pro_rata, devido_ate); 598 testes; emendas de contrato para o arquiteto

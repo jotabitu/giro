@@ -2,7 +2,12 @@ from decimal import Decimal
 
 import pytest
 
-from comum.dinheiro import aplicar_percentual, dividir_em_parcelas, proporcional
+from comum.dinheiro import (
+    aplicar_percentual,
+    dividir_em_parcelas,
+    juros_pro_rata,
+    proporcional,
+)
 
 
 def test_percentual_3_pct_de_21068_reais():
@@ -43,3 +48,16 @@ def test_proporcional_arredonda_no_centavo():
     assert proporcional(100_000, 10, 30) == 33_333
     # 1 de 2 de 1 centavo = 0,5 → 1.
     assert proporcional(1, 1, 2) == 1
+
+
+def test_fin_03_juros_pro_rata_com_um_arredondamento_so():
+    """Mês de 30 dias, arredondado uma vez (T-045, ponto 4): Carlos, 29940 a 1% por 7 dias."""
+    assert juros_pro_rata(29940, Decimal("1.00"), 7) == 70  # 69,86
+    assert juros_pro_rata(29940, "1.00", 0) == 0
+    assert juros_pro_rata(29940, "1.00", -3) == 0
+    # Compor percentual e proporcional arredondaria duas vezes: 1450 a 1% por 1 dia é 0,48 → 0,
+    # mas 1% de 1450 = 14,5 → 15, e 15 ÷ 30 = 0,5 → 1.
+    assert juros_pro_rata(1450, "1.00", 1) == 0
+    assert proporcional(aplicar_percentual(1450, "1.00"), 1, 30) == 1
+    with pytest.raises(TypeError):
+        juros_pro_rata(100, 1.0, 1)  # type: ignore[arg-type]

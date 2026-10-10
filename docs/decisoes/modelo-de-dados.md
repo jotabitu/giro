@@ -424,7 +424,8 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `forma` | enum `pix`, `boleto`, `cartao_debito`, `cartao_credito`, `dinheiro`, `pix_automatico`, `caucao`, nulo | `caucao` = paga com a caução no acerto (`DEV-02`) |
 | `pago_em` | momento, nulo | |
 | `movimento_caixa` | FK → `MovimentoCaixa`, nulo | baixa no caixa |
-| `renegociada_em` | FK → `ContaReceber`, nulo | |
+| `renegociada_em` | FK → `Renegociacao`, nulo, PROTECT (`originais`) | na original que foi para `renegociada` |
+| `nasceu_de` | FK → `Renegociacao`, nulo, PROTECT (`novas`) | na conta nova que a substitui (T-114) |
 | `estorno_de` | FK → `ContaReceber`, nulo | conta reaberta por estorno aponta para a original |
 | `estornada_em` | momento, nulo | na original estornada (continua `paga`) |
 
@@ -432,6 +433,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 - Paga não se edita: correção é estorno (`estorno_de`, `docs/api/financeiro.md`).
 - Apoio `CobrancaExterna`: `conta_receber` FK, `tipo` enum `pix`, `boleto`, `cartao_link`, `recorrente`, `externo_id` texto(60) **único**, `valor_centavos` (valor esperado do dia, comparado na baixa, S-14), `vence_em` data, `pix_copia_e_cola`, `linha_digitavel`, `url`, `caixa` FK nulo (gerada no caixa), `status` enum `aguardando`, `paga`, `cancelada`, `vencida`, `divergente`. Uma `aguardando` por conta.
 - Apoio `AutorizacaoRecorrente` (`AUT-04`): `locacao` (origem genérica), `tipo` enum `pix_automatico`, `cartao`, `externo_id` único, `status` enum `pendente`, `ativa`, `cancelada`.
+- Apoio `Renegociacao` (`FIN-01`, `DEV-02`, T-114): `motivo` texto(200), origem genérica (`devolucao` no acerto, `cliente` no renegociar avulso), `por` FK → `Usuario`, nulo (o sistema, no acerto), `em` momento. N originais (`renegociada_em`) viram M novas (`nasceu_de`); são duas FKs porque uma conta nova pode ser renegociada de novo. Índice: origem genérica.
 - Apoio `Reembolso` (devolução de dinheiro ao cliente: caução, `LOC-12`, `LOC-13`): `cliente` FK, origem genérica, `valor_centavos`, `forma` enum `pix`, `dinheiro`, `estorno_cartao`, `status` enum `a_fazer`, `feito`, `feito_em`, `feito_por` FK, `comprovante` arquivo, `movimento_caixa` FK nulo.
 - Apoio `PendenciaPagamento` (S-14): `cobranca` FK → `CobrancaExterna`, `motivo` enum `valor_diferente`, `estornada_no_parceiro`, `sem_conta`, `valor_pago_centavos`, `status` enum `aberta`, `resolvida`, `resolucao` texto.
 - Índices: `(status, vencimento)`, `(cliente, status)`, `(filial, vencimento)`, origem genérica.

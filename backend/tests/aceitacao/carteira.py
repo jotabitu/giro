@@ -232,6 +232,10 @@ def carregar(frota: Frota, vendedor: Any, relogio: Any) -> dict[str, Locacao]:
                 forma="pix" if paga else "",
                 pago_em=datetime.combine(vencimento, time(10), tzinfo=FUSO) if paga else None,
             )
+        # As parcelas nasceram com a locação, e não hoje: o atraso da FIN-03 conta do vencimento.
+        ContaReceber.objects.filter(origem_tipo="locacao", origem_id=locacao.pk).update(
+            criado_em=momento(inicio)
+        )
         locacoes[codigo] = locacao
     ajustar_sequencia("LOC", 2855)  # a próxima locação é a LOC-2856
     return locacoes

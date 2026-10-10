@@ -281,6 +281,11 @@ class ResultadoAcertoSerializer(serializers.Serializer[Any]):
     botao = serializers.CharField()
 
 
+class AvisoAcertoSerializer(serializers.Serializer[Any]):
+    codigo = serializers.CharField(help_text="DEV-07")
+    mensagem = serializers.CharField()
+
+
 class AcertoSerializer(serializers.Serializer[Any]):
     status = serializers.CharField(help_text="rascunho, concluido")
     caucao_centavos = serializers.IntegerField()
@@ -290,6 +295,13 @@ class AcertoSerializer(serializers.Serializer[Any]):
     total_creditos_centavos = serializers.IntegerField()
     saldo_centavos = serializers.IntegerField()
     resultado = ResultadoAcertoSerializer()
+    avisos = AvisoAcertoSerializer(
+        many=True,
+        help_text=(
+            "Vazia quando a devolução não é antecipada, já tem a aprovação "
+            "ou o acerto está concluído."
+        ),
+    )
     forma_devolucao = serializers.CharField(allow_null=True)
 
 

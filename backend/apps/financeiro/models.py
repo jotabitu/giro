@@ -39,6 +39,27 @@ class ComOrigem(models.Model):
         abstract = True
 
 
+class Renegociacao(ModeloBase, ComOrigem):
+    """Contas `renegociada` trocadas por contas novas (FIN-01). N originais viram M novas: as
+    originais apontam para cá por `renegociada_em`, e as novas por `nasceu_de`. No acerto da
+    devolução (DEV-02), as parcelas que a caução não cobre viram a conta `acerto` (origem
+    `devolucao`, sem `por`: é o sistema)."""
+
+    motivo = models.CharField(max_length=200)
+    por = models.ForeignKey(
+        "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    em = models.DateTimeField()
+
+    class Meta:
+        verbose_name = "renegociação"
+        verbose_name_plural = "renegociações"
+        indexes = [models.Index(fields=["origem_tipo", "origem_id"], name="renegociacao_origem")]
+
+    def __str__(self) -> str:
+        return f"{self.origem_codigo or self.origem_tipo}: {self.motivo}"
+
+
 class TipoConta(models.TextChoices):
     PARCELA = "parcela", "Parcela"
     CAUCAO = "caucao", "Caução"  # não é receita (LOC-04, FIN-13)
@@ -81,6 +102,13 @@ class ContaReceber(MaquinaDeEstados, ModeloBase, ComOrigem):
     forma = models.CharField(max_length=15, choices=FormaPagamento.choices, blank=True, default="")
     pago_em = models.DateTimeField(null=True, blank=True)
     observacao = models.CharField(max_length=150, blank=True, default="")
+    # Duas ligações, porque uma conta nova pode ser renegociada de novo (FIN-01, DEV-02).
+    renegociada_em = models.ForeignKey(
+        Renegociacao, on_delete=models.PROTECT, null=True, blank=True, related_name="originais"
+    )
+    nasceu_de = models.ForeignKey(
+        Renegociacao, on_delete=models.PROTECT, null=True, blank=True, related_name="novas"
+    )
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = {
         "aberta": {"paga", "cancelada", "renegociada"},

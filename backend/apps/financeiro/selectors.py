@@ -2,14 +2,21 @@
 
 Interface para os outros apps: `contas_da_origem`, `representacao_conta`, `primeiro_pagamento_em`,
 `pago_da_origem_centavos`, `reembolsos_da_origem`, `anotar_resumo_da_origem` (uma query para a
-lista inteira da origem) e `comissoes_confirmadas_centavos`.
+lista inteira da origem), `comissoes_confirmadas_centavos` e `devido_ate` (a única conta da
+FIN-03).
 """
 
+from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 
 from django.db.models import Count, IntegerField, Min, OuterRef, Q, QuerySet, Subquery, Sum
 from django.db.models.functions import Coalesce
+from django.utils import timezone
+
+from apps.contratos.selectors import permite_juros
+from apps.empresas.selectors import configuracao
+from comum.dinheiro import aplicar_percentual, juros_pro_rata
 
 from .models import Comissao, ContaReceber, Reembolso, StatusComissao, StatusConta, TipoConta
 
@@ -23,6 +30,40 @@ def status_exibido(status: str, vencimento: date, hoje: date) -> str:
     if vencimento == hoje:
         return "vence_hoje"
     return status
+
+
+@dataclass(frozen=True)
+class Devido:
+    """O que uma conta em aberto vale num dia (FIN-03)."""
+
+    valor_centavos: int
+    multa_centavos: int
+    juros_centavos: int
+    dias_atraso: int
+
+    @property
+    def total_centavos(self) -> int:
+        return self.valor_centavos + self.multa_centavos + self.juros_centavos
+
+
+def devido_ate(conta: ContaReceber, dia: date) -> Devido:
+    """FIN-03, a única conta de multa e juros: o acerto da devolução (DEV-01), o valor do dia das
+    contas a receber e o recebimento no caixa usam esta função. O atraso conta do dia seguinte
+    ao vencimento, ou ao dia em que a conta nasceu, se ela nasceu vencida, até `dia`. Multa uma
+    vez, a partir de 1 dia de atraso; juros pro rata dia, com mês de 30 dias. Sem a cláusula no
+    contrato da origem, não cobra nenhum dos dois. Ex.: 29940 vencida em 30 set, paga em 07 out,
+    2% + 1% ao mês → 29940 + 599 + 70 = 30609."""
+    inicio = max(conta.vencimento, timezone.localdate(conta.criado_em))
+    dias = (dia - inicio).days
+    if dias <= 0 or not permite_juros(conta.origem_tipo, conta.origem_id):
+        return Devido(conta.valor_centavos, 0, 0, max(dias, 0))
+    taxas = configuracao()
+    return Devido(
+        conta.valor_centavos,
+        aplicar_percentual(conta.valor_centavos, taxas.multa_atraso_pct),
+        juros_pro_rata(conta.valor_centavos, taxas.juros_mes_pct, dias),
+        dias,
+    )
 
 
 def contas_da_origem(origem_tipo: str, origem_id: int) -> QuerySet[ContaReceber]:

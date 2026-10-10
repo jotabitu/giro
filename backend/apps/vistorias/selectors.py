@@ -474,6 +474,7 @@ def representacao_acerto(devolucao: Devolucao) -> dict[str, Any]:
             "texto": resultado.texto,
             "botao": resultado.botao,
         },
+        "avisos": services.avisos_do_acerto(devolucao),
         "forma_devolucao": devolucao.forma_devolucao or None,
     }
 

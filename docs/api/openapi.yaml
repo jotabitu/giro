@@ -4160,10 +4160,17 @@ components:
           type: integer
         resultado:
           $ref: '#/components/schemas/ResultadoAcerto'
+        avisos:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvisoAcerto'
+          description: Vazia quando a devolução não é antecipada, já tem a aprovação
+            ou o acerto está concluído.
         forma_devolucao:
           type: string
           nullable: true
       required:
+      - avisos
       - caucao_centavos
       - creditos
       - forma_devolucao
@@ -4516,6 +4523,17 @@ components:
       required:
       - descricao
       - foto_id
+    AvisoAcerto:
+      type: object
+      properties:
+        codigo:
+          type: string
+          description: DEV-07
+        mensagem:
+          type: string
+      required:
+      - codigo
+      - mensagem
     Baixar:
       type: object
       properties:

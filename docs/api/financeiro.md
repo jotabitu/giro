@@ -132,7 +132,7 @@ Perfis: administrador, gerente, financeiro. Corpo: `{ motivo }`. Só `aberta`. 2
 
 ### POST /api/financeiro/contas-receber/renegociar/
 Corpo: `{ "contas": [9010], "novas": [ { "vencimento": "2026-10-15", "valor_centavos": 15000 }, { "vencimento": "2026-10-22", "valor_centavos": 15609 } ], "motivo": "..." }`.
-201: as novas contas (`aberta`, `renegociada_em` = original); as originais vão para `renegociada` e saem do em aberto (`FIN-01`). Conta `paga` ou `cancelada` → 409.
+201: as novas contas (`aberta`). Nasce uma `Renegociacao` (motivo, origem `cliente`, quem fez e quando): as originais vão para `renegociada`, com `renegociada_em` apontando para ela, e saem do em aberto (`FIN-01`); as novas guardam `nasceu_de` = a mesma `Renegociacao`. Assim cabem N originais em M novas, e uma conta nova pode ser renegociada de novo (T-114). Conta `paga` ou `cancelada` → 409.
 
 ### POST /api/financeiro/contas-receber/{id}/estornar/
 Só `paga`. Corpo: `{ motivo }`. Conta paga não se edita: a correção é estorno (CA-017-09).
@@ -293,7 +293,8 @@ O mesmo fluxo vale para a `FaturaAssinatura` no `public` (`plataforma`).
 | Item | Uso |
 | --- | --- |
 | `financeiro.services.criar_contas_da_origem(origem, contas)` | locações (parcelas e caução), devolução (saldo negativo, `DEV-02`). |
-| `financeiro.services.pagar_com_caucao(conta_caucao, cobrancas)` | acerto da devolução (`vistorias.md`): cobranças pagas com `forma = caucao`. |
+| `financeiro.services.pagar_com_caucao(origem, disponivel, abertas, cobrancas, dia, vencimento_do_saldo)` | acerto da devolução (`vistorias.md`, `DEV-02`, T-114). Ordem: as parcelas em aberto, inteiras, da mais antiga para a mais nova, cada uma pelo `devido_ate(conta, dia)`, pagas com `forma = caucao` (multa e juros gravados na conta); a primeira que não cabe e todas as seguintes vão para `renegociada` (auditoria `conta_receber.renegociar`, regra `DEV-02`), ligadas por uma `Renegociacao` de origem `devolucao`, sem `por`. Depois, as outras cobranças viram contas pagas com a caução, até onde ela der. O que sobra abate as renegociadas. O que falta vira **uma** conta `acerto`, com vencimento em 3 dias e `nasceu_de` = a `Renegociacao`, igual a `-saldo` do acerto. Com saldo negativo, nenhum `Reembolso`. |
+| `financeiro.selectors.devido_ate(conta, dia)` | **a única conta da `FIN-03`** (T-114): principal, multa e juros pro rata (`comum.dinheiro.juros_pro_rata`, um arredondamento só) até `dia`, contando o atraso do dia seguinte ao vencimento, ou ao dia em que a conta nasceu, se nasceu vencida. Taxas da configuração da empresa. Sem a cláusula no contrato da origem (`contratos.selectors.permite_juros`), sem multa e juros. O acerto da devolução, o `valor_hoje` e o recebimento no caixa (T-017) usam esta função. Ex.: 29940 vencida em 30 set, em 07 out → 30609. |
 | `financeiro.services.devolver_ao_cliente(origem, valor, forma)` | cria o `Reembolso`. |
 | `financeiro.services.cancelar_contas_da_origem(origem, motivo)` | locação cancelada antes da retirada. |
 | evento `financeiro.parcela_paga` | `conta_id`, `cliente_id`, `tipo`, `origem_tipo`, `origem_id`, `valor_centavos`, `pago_em`. Assinado por `locacoes` (1º pagamento) e `clientes` (desbloqueio `CLI-05`). |
