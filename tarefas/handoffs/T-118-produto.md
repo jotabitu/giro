@@ -42,21 +42,25 @@ Variante (opcional): devolução em 30 out às 09:00. As parcelas dão 122935 e 
 
 **Casos existentes:** nenhum muda. O CA-016-24 continua com 36537, o CA-016-25 com 67377 e a Patrícia (LOC-2812) com 8480 de multa e 28620 a devolver.
 
-## Status final da locação: ficou em `[decisão]`
+## Status final da locação: `encerrada` (opção A)
 
-O esperado era o encerramento normal: `encerrada` (`DEV-06`), com o pedido aprovado sem efeito. O código da T-117 faz outra coisa:
+Em 10 out 2026, o dono do produto também decidiu o status final: a locação termina **`encerrada`** (`DEV-06`), como numa devolução comum, e o pedido aprovado fica registrado, sem efeito. Isso está na `DEV-07`, no caso de referência e na tabela de decisões.
+
+O código da T-117 faz diferente:
 
 - `locacoes.services.encerrar` manda a locação para `cancelada` sempre que há `encerramento_antecipado_aprovado_em`, sem olhar o dia da devolução;
 - ele também grava `cancelada_em` e registra o evento com o motivo "Encerramento antecipado: ..." e a regra `LOC-12`;
 - `vistorias.services.iniciar_devolucao` copia a `cancelamento_forma` para a devolução.
 
-Por isso a regra e o caso de referência **não dizem** o status final. A pergunta está no backlog, de forma fechada:
+O que muda (T-119):
 
-- **Opção A (padrão sugerido):** `encerrada`;
-- **Opção B:** `cancelada`, como o código faz hoje.
+- `cancelada` só com a aprovação **e** a devolução antes do dia do fim previsto (em `America/Sao_Paulo`);
+- senão `encerrada`, com o motivo "Devolução concluída", sem `cancelada_em` e sem a regra `LOC-12` no evento;
+- a `forma_devolucao` é escolhida como numa devolução comum;
+- o CA-016-24 e o CA-016-25 continuam `cancelada`.
 
 ## Próximo passo para quem recebe
 
-- **Orquestrador:** abrir o PR e levar a `[decisão]` do status final ao dono do produto.
-- **Backend (T-119):** escrever `test_dev_07_encerramento_aprovado_devolucao_no_fim_previsto_sem_multa` com os números acima. Não há mudança de produção. O teste não confere o status da locação até a `[decisão]` ser respondida. Como no CA-016-24, a caução de 30000 vai na fixture.
+- **Orquestrador:** atualizar o PR #123.
+- **Backend (T-119):** escrever `test_dev_07_encerramento_aprovado_devolucao_no_fim_previsto_sem_multa` com os números acima, com a LOC-2841 `encerrada`, e mudar `encerrar` como descrito. Como no CA-016-24, a caução de 30000 vai na fixture.
 - **QA:** conferir o caso novo quando a T-119 entrar.
