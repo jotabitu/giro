@@ -227,9 +227,6 @@ Levantadas pelo backend em T-016 parte 1 (09 out 2026):
 ### T-093 · Momentos em UTC na API
 - **Agente:** backend · **Depende de:** T-088 · **ADRs:** 0020 · **Pronto quando:** `comum/renderizacao.py` ligado no `REST_FRAMEWORK` como na ADR 0020; os 3 testes de `backend/tests/test_formato_das_datas.py` passam sem `xfail` e a lista de pendentes do teste de varredura fica vazia; contas, aprovações, plataforma, veículos, filiais e clientes saem em `AAAA-MM-DDTHH:MM:SSZ` sem mexer nos serializers; OpenAPI sem mudança. Passos em `tarefas/handoffs/T-088-arquiteto.md`.
 
-### T-102 · Ficha do veículo idêntica à referência
-- **Agente:** frontend · **Depende de:** T-013, T-079 · **Telas:** Veiculo (`docs/telas/html/Veiculo-Desktop.dc.html` e `Veiculo-Mobile.dc.html`) · **Regras:** VEI-01 a VEI-07 · **Pronto quando:** `/veiculos/[id]` (`FichaVeiculo.tsx`) reproduz a tela de referência no desktop e no celular, com a mesma estrutura, seções, ordem, rótulos, ações e estados, usando os componentes e tokens do design system; os dados vêm de `falso-frota.ts` no formato de `docs/api/veiculos.md` (T-013 e T-079); o que a tela mostra e o contrato não tem fica com o falso ou desativado e anotado no handoff; o design-system confere a fidelidade visual; teste da tela. Pedido do dono em 09/10.
-
 ### T-105 · Seed da LOC-2836 até 14 out
 - **Agente:** qa · **Depende de:** T-104, T-091 · **Regras:** LOC-01, LOC-06 · **Pronto quando:** `backend/tests/aceitacao/carteira.py` cria a LOC-2836 com início em 30 set 18:00 e fim calculado pela LOC-01 (14 out 18:00), sem o ajuste do `fim_previsto`; os testes que usam a LOC-2836 seguem os critérios da T-104; sem mudança de código de produção.
 
