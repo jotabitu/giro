@@ -67,6 +67,13 @@ Levantadas pelo produto em T-059 (08 out 2026):
 - [divergência] Contratos (T-059, para o arquiteto): em `docs/api/financeiro.md`, o caixa de exemplo passa a 111190 (cartão 10900); em `docs/api/painel.md`, `caixa_hoje` fica com `recebido_centavos` 111190 e `saldo_dia_centavos` 106390; em `docs/api/veiculos.md`, a LOC-2841 é "assinada em 23 set".
 
 
+Levantadas pelo produto em T-112 (09 out 2026), estado do QXA-4B21 em 07 out (caso "Estado do QXA-4B21 em 07 out" nos dados de referência):
+
+- [divergência] Telas, para o design-system (T-028): `Frota-Desktop` e `Frota-Mobile` trocam "Atrasado" por "Alugado" (tom `solido`), 2024 prata por 2023 vermelha, 14.212 km por 18.950 km e próxima manutenção 15.000 km por 19.900 km. `Veiculo-Desktop` e `Veiculo-Mobile`: Km atual "atualizado 23 set" (não 07 out); LOC-2841 de 23 set a 28 out (não 30 set a 04 nov); a LOC-2702 termina até 12 set (hoje vai a 29 set e cruza com a LOC-2841); troca de óleo de 12 set aos 18.900 km (não 17.900; `MAN-03`, a cada 1.000 km); chassi 9C2KC2210PR004401 do seed (não 9C2KC2210PR004417), e o Renavam 01289934410 é o da SAK1D39 no seed, não pode se repetir. `Main`: a LOC-2841 sai de "Devoluções da semana" (devolve em 28 out, não em 10 out). `Vistoriador-Desktop` e `Vistoriador-Mobile`: a devolução "ontem 18h, Atrasada" do QXA-4B21 sai da agenda de 07 out; a única devolução atrasada do seed é a LOC-2790 (Rafael).
+- [divergência] Contratos, para o arquiteto: os exemplos de `devolucoes_semana` em `docs/api/painel.md` e de `GET /api/vistorias/agenda/` em `docs/api/vistorias.md` usam a LOC-2841 como devolução atrasada de 06 out. Trocar pela LOC-2790 (Rafael, `devolucao_atrasada`).
+- [divergência] Dados falsos, para o frontend: `falso-frota.ts` já tem `alugado` e 18.950 km, mas a ficha mostra "Atrasado" por seguir a Frota; passa a "Alugado" (tom `solido`), LOC-2841 de 23 set a 28 out. `falso-painel.ts` tira a LOC-2841 das devoluções da semana e da agenda (como em `painel.md` e `vistorias.md`).
+- [divergência] `Manutencao-Desktop` (para o design-system, T-028): a OS-119 do QXA-4B21 aparece "Agendada, automática por km" com 950 km faltando, mas a `MAN-03` só cria a OS automática quando faltam 500 km. Em 07 out ela ainda não existe; a ficha só mostra "próxima: troca de óleo aos 19.900 km".
+
 Levantadas pelo backend em T-015 (09 out 2026):
 
 - (T-091) As 2 divergências foram resolvidas na T-106 e as 5 decisões aprovadas pelo dono em 09/10, todas na opção A; regra na T-110 (PR #110) e código na T-111.
@@ -267,6 +274,7 @@ Levantadas pelo backend em T-109 (09 out 2026). O código segue o que está entr
 
 ### T-028 · Limpar dados de exemplo das telas
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`. Inclui `Despesas-Desktop` e `Despesas-Mobile`: aguardando aprovação é R$ 1.200,00 (não R$ 1.386,40) e o IPVA de R$ 186,40 nasce `a_pagar` (FIN-05), apontado pelo qa na T-040.
+- **Estado do QXA-4B21 (T-112, decisão do dono em 09/10, opção A):** corrigir Frota, Veiculo, Main, Vistoriador e a OS-119 em Manutencao conforme o caso "Estado do QXA-4B21 em 07 out" dos dados de referência e as divergências levantadas pelo produto em T-112 (acima, em Pontos em aberto): Alugado no tom `solido` (não azul) e "Colocar à venda" só em veículo `disponivel`.
 
 ### T-029 · Integração com o Asaas (sandbox)
 - **Agente:** backend · **Depende de:** T-017 · **Segurança:** `WebhookRecebido` com `evento_id` único e conferência na API do Asaas, throttle (S-14, S-17) · **Regras:** FIN-01 a FIN-04, AUT-04, AUT-05 · **Pronto quando:** `backend/integracoes/pagamentos/asaas.py` implementa a interface de pagamentos (criar subconta da empresa, cobrança Pix e boleto, assinatura recorrente, webhook de baixa com verificação e idempotência), testado contra o sandbox; a implementação falsa continua sendo a padrão em testes.
