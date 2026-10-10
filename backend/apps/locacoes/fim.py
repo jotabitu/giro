@@ -193,6 +193,43 @@ def diarias_nao_usadas(fim_previsto: datetime, momento: datetime) -> int:
     return (fim_previsto - momento) // UM_DIA
 
 
+@dataclass(frozen=True)
+class PeriodoEmCurso:
+    k: int
+    inicio: date
+    fim: date
+    dias_do_periodo: int
+    dias_restantes: int
+
+
+def periodo_em_curso(
+    *,
+    periodicidade: str,
+    inicio: datetime,
+    fim_previsto: datetime,
+    periodos: int,
+    fuso: str,
+    momento: datetime,
+) -> PeriodoEmCurso | None:
+    """O período em curso em `momento` e os dias que faltam, contados como no `LOC-12`: o
+    período `k` que contém o dia, em datas locais. Na diária, o período é 1 dia e os restantes
+    são os blocos inteiros de 24 h até o fim previsto. No dia do fim previsto ou depois, `None`.
+    A diferença do período na troca de veículo (LOC-09) sai daqui."""
+    tz = ZoneInfo(fuso)
+    dia = momento.astimezone(tz).date()
+    fim_local = fim_previsto.astimezone(tz).date()
+    if dia >= fim_local:
+        return None
+    if periodicidade == P.DIARIA:
+        restantes = diarias_nao_usadas(fim_previsto, momento)
+        return PeriodoEmCurso(1, dia, fim_local, 1, restantes) if restantes else None
+    achado = periodo_em(periodicidade, inicio.astimezone(tz), periodos, dia)
+    if achado is None:
+        return None
+    k, comeco, fim = achado
+    return PeriodoEmCurso(k, comeco, fim, (fim - comeco).days, (fim - dia).days)
+
+
 def depois_da_retirada(
     *,
     periodicidade: str,

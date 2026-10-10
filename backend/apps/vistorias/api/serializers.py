@@ -68,6 +68,30 @@ class TrocaPedidaSerializer(serializers.Serializer[Any]):
     troca = TrocaSerializer()
 
 
+class CancelarTrocaSerializer(serializers.Serializer[Any]):
+    # Vazio, o serviço responde com a mensagem do contrato (LOC-09).
+    motivo = serializers.CharField(max_length=500, required=False, allow_blank=True, default="")
+
+
+class PecaDaTrocaSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    status = serializers.CharField()
+
+
+class TrocaCanceladaSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    status = serializers.CharField()
+    cancelada_em = serializers.DateTimeField()
+    saida_vistoria = PecaDaTrocaSerializer(allow_null=True)
+    devolucao_vistoria = PecaDaTrocaSerializer(allow_null=True)
+    conta_caucao = PecaDaTrocaSerializer(allow_null=True)
+    devolucao_id = serializers.IntegerField(allow_null=True)
+
+
+class TrocaCanceladaRespostaSerializer(serializers.Serializer[Any]):
+    troca = TrocaCanceladaSerializer()
+
+
 # --- Saída ---
 
 
@@ -325,8 +349,8 @@ class DevolucaoSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     status = serializers.CharField(help_text="rascunho, concluida")
     locacao = LocacaoDaDevolucaoSerializer()
-    vistoria = VistoriaSerializer()
-    comparacao = ComparacaoSerializer()
+    vistoria = VistoriaSerializer(allow_null=True)
+    comparacao = ComparacaoSerializer(allow_null=True)
     acerto = AcertoSerializer(required=False)
     devolvida_em = serializers.DateTimeField(allow_null=True)
     concluida_em = serializers.DateTimeField(allow_null=True)

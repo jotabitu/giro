@@ -2416,6 +2416,39 @@ paths:
               schema:
                 $ref: '#/components/schemas/TrocaPedida'
           description: ''
+  /api/locacoes/{id}/trocar-veiculo/cancelar/:
+    post:
+      operationId: locacoes_trocar_veiculo_cancelar_create
+      summary: 'Cancelar a troca de veículo pendente (LOC-09): descarta os rascunhos
+        da troca'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelarTroca'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CancelarTroca'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CancelarTroca'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrocaCanceladaResposta'
+          description: ''
   /api/locacoes/{id}/vistorias/:
     post:
       operationId: locacoes_vistorias_create
@@ -4324,6 +4357,8 @@ components:
           type: boolean
         trocar_veiculo:
           type: boolean
+        cancelar_troca:
+          type: boolean
         cancelar:
           description: '"direto", "pedir" ou false'
         imprimir_contrato:
@@ -4336,6 +4371,7 @@ components:
           type: boolean
       required:
       - cancelar
+      - cancelar_troca
       - confirmar
       - continuar_vistoria
       - editar
@@ -4689,6 +4725,13 @@ components:
             * `estorno_cartao` - Estorno no cartão
       required:
       - motivo
+    CancelarTroca:
+      type: object
+      properties:
+        motivo:
+          type: string
+          default: ''
+          maxLength: 500
     Categoria:
       type: object
       properties:
@@ -4765,6 +4808,19 @@ components:
         * `AC` - AC
         * `AD` - AD
         * `AE` - AE
+    CaucaoDaTroca:
+      type: object
+      properties:
+        conta_id:
+          type: integer
+        valor_centavos:
+          type: integer
+        status:
+          type: string
+      required:
+      - conta_id
+      - status
+      - valor_centavos
     Cep:
       type: object
       properties:
@@ -5652,9 +5708,13 @@ components:
         locacao:
           $ref: '#/components/schemas/LocacaoDaDevolucao'
         vistoria:
-          $ref: '#/components/schemas/Vistoria'
+          allOf:
+          - $ref: '#/components/schemas/Vistoria'
+          nullable: true
         comparacao:
-          $ref: '#/components/schemas/Comparacao'
+          allOf:
+          - $ref: '#/components/schemas/Comparacao'
+          nullable: true
         acerto:
           $ref: '#/components/schemas/Acerto'
         devolvida_em:
@@ -6873,6 +6933,7 @@ components:
       - multa_encerramento
       - semanas_nao_usadas
       - dias_nao_usados
+      - diferenca_troca
       type: string
       description: |-
         * `combustivel` - Combustível
@@ -6884,6 +6945,7 @@ components:
         * `multa_encerramento` - Multa do encerramento antecipado
         * `semanas_nao_usadas` - Semanas não usadas
         * `dias_nao_usados` - Diárias não usadas
+        * `diferenca_troca` - Diferença do período na troca
     ItemAgenda:
       type: object
       properties:
@@ -7513,6 +7575,10 @@ components:
           allOf:
           - $ref: '#/components/schemas/CancelamentoLocacao'
           nullable: true
+        troca:
+          allOf:
+          - $ref: '#/components/schemas/TrocaPendente'
+          nullable: true
         acoes:
           $ref: '#/components/schemas/AcoesLocacao'
       required:
@@ -7540,6 +7606,7 @@ components:
       - situacao
       - status
       - trechos
+      - troca
       - veiculo
       - vendedor
     LocacaoEntrada:
@@ -8312,6 +8379,16 @@ components:
           type: string
           format: date
           nullable: true
+    PecaDaTroca:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+      required:
+      - id
+      - status
     Pedido:
       type: object
       properties:
@@ -8877,6 +8954,24 @@ components:
       - mensal_centavos
       - semanal_centavos
       - vigente_desde
+    PrecoDaTroca:
+      type: object
+      properties:
+        valor_periodo_centavos:
+          type: integer
+        diaria_centavos:
+          type: integer
+        caucao_centavos:
+          type: integer
+        preco_do_dia:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - caucao_centavos
+      - diaria_centavos
+      - preco_do_dia
+      - valor_periodo_centavos
     PrecoEntrada:
       type: object
       properties:
@@ -9705,6 +9800,46 @@ components:
       - id
       - saida_vistoria_id
       - status
+    TrocaCancelada:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+        cancelada_em:
+          type: string
+          format: date-time
+        saida_vistoria:
+          allOf:
+          - $ref: '#/components/schemas/PecaDaTroca'
+          nullable: true
+        devolucao_vistoria:
+          allOf:
+          - $ref: '#/components/schemas/PecaDaTroca'
+          nullable: true
+        conta_caucao:
+          allOf:
+          - $ref: '#/components/schemas/PecaDaTroca'
+          nullable: true
+        devolucao_id:
+          type: integer
+          nullable: true
+      required:
+      - cancelada_em
+      - conta_caucao
+      - devolucao_id
+      - devolucao_vistoria
+      - id
+      - saida_vistoria
+      - status
+    TrocaCanceladaResposta:
+      type: object
+      properties:
+        troca:
+          $ref: '#/components/schemas/TrocaCancelada'
+      required:
+      - troca
     TrocaPedida:
       type: object
       properties:
@@ -9712,6 +9847,48 @@ components:
           $ref: '#/components/schemas/Troca'
       required:
       - troca
+    TrocaPendente:
+      type: object
+      description: 'LOC-09 (T-122): a troca pendente; o vistoriador recebe sem `preco`
+        e sem `caucao`.'
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+        motivo:
+          type: string
+        pedida_em:
+          type: string
+          format: date-time
+          nullable: true
+        veiculo_antigo:
+          $ref: '#/components/schemas/VeiculoDaTroca'
+        veiculo_novo:
+          $ref: '#/components/schemas/VeiculoDaTroca'
+        devolucao_vistoria:
+          allOf:
+          - $ref: '#/components/schemas/VistoriaDaTroca'
+          nullable: true
+        saida_vistoria:
+          allOf:
+          - $ref: '#/components/schemas/VistoriaDaTroca'
+          nullable: true
+        preco:
+          $ref: '#/components/schemas/PrecoDaTroca'
+        caucao:
+          allOf:
+          - $ref: '#/components/schemas/CaucaoDaTroca'
+          nullable: true
+      required:
+      - devolucao_vistoria
+      - id
+      - motivo
+      - pedida_em
+      - saida_vistoria
+      - status
+      - veiculo_antigo
+      - veiculo_novo
     TrocarSenha:
       type: object
       properties:
@@ -10076,6 +10253,19 @@ components:
       - id
       - modelo
       - placa
+    VeiculoDaTroca:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        modelo:
+          type: string
+      required:
+      - id
+      - modelo
+      - placa
     VeiculoDaVistoria:
       type: object
       properties:
@@ -10385,6 +10575,26 @@ components:
       - tipo
       - veiculo
       - vigente
+    VistoriaDaTroca:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          $ref: '#/components/schemas/VistoriaDaTrocaStatusEnum'
+      required:
+      - id
+      - status
+    VistoriaDaTrocaStatusEnum:
+      enum:
+      - rascunho
+      - concluida
+      - descartada
+      type: string
+      description: |-
+        * `rascunho` - Rascunho
+        * `concluida` - Concluída
+        * `descartada` - Descartada
   securitySchemes:
     jwtAuth:
       type: http

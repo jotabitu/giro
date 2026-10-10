@@ -272,7 +272,28 @@ class TrocaVeiculo(MaquinaDeEstados, ModeloBase):
     vistoria_saida_id = models.BigIntegerField(null=True, blank=True)
     # A diferença de caução cobrada na troca, quando a nova categoria pede mais (LOC-09).
     conta_caucao_id = models.BigIntegerField(null=True, blank=True)
+    # O preço da nova categoria no dia do pedido (LOC-09, LOC-15): a diferença de caução, as
+    # parcelas refeitas e a conclusão saem dele, mesmo que a tabela mude até lá.
+    valor_periodo_centavos = CentavosField(default=0)  # sem descontos, como na locação
+    diaria_centavos = CentavosField(default=0)
+    caucao_centavos = CentavosField(default=0)
+    preco_do_dia = models.DateField(null=True, blank=True)  # data local da filial
+    # A diferença do período em curso, guardada na conclusão (LOC-09, DEV-01). Sem período em
+    # curso (no dia do fim previsto ou depois), as datas ficam nulas e a diferença é 0.
     concluida_em = models.DateTimeField(null=True, blank=True)
+    periodo_inicio = models.DateField(null=True, blank=True)
+    periodo_fim = models.DateField(null=True, blank=True)
+    dias_do_periodo = models.PositiveIntegerField(default=0)
+    dias_restantes = models.PositiveIntegerField(default=0)
+    periodo_antigo_centavos = CentavosField(default=0)  # com os descontos do período
+    periodo_novo_centavos = CentavosField(default=0)
+    ja_refeito_centavos = CentavosComSinalField(default=0)  # mensal em 4 semanais
+    diferenca_centavos = CentavosComSinalField(default=0)  # positivo cobra, negativo é crédito
+    cancelada_em = models.DateTimeField(null=True, blank=True)
+    cancelada_por = models.ForeignKey(
+        "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    motivo_cancelamento = models.TextField(blank=True, default="")
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = {
         StatusTroca.PENDENTE: {StatusTroca.CONCLUIDA, StatusTroca.CANCELADA},

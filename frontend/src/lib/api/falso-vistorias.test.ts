@@ -113,7 +113,7 @@ describe("devolução e acerto (DEV-01 a DEV-07)", () => {
     expect(a.itens[0]?.descricao).toBe("Combustível (faltou 1/4 tanque, 4 L × R$ 5,50 + R$ 10,00)");
     expect(a.resultado.texto).toBe("Desconta R$ 117,00 da caução de R$ 300,00");
     expect(a.avisos).toEqual([]);
-    expect(d.comparacao.km).toMatchObject({ saida: 18402, agora: 19630, rodou: 1228 });
+    expect(d.comparacao?.km).toMatchObject({ saida: 18402, agora: 19630, rodou: 1228 });
   });
 
   it("item calculado não se edita (409); o valor da avaria muda o acerto", async () => {

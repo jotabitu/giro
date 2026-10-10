@@ -21,6 +21,7 @@ class TipoVistoria(models.TextChoices):
 class StatusVistoria(models.TextChoices):
     RASCUNHO = "rascunho", "Rascunho"
     CONCLUIDA = "concluida", "Concluída"
+    DESCARTADA = "descartada", "Descartada"  # só pelo cancelamento da troca (LOC-09)
 
 
 class Combustivel(models.TextChoices):
@@ -80,8 +81,15 @@ class Vistoria(MaquinaDeEstados, ModeloBase):
     motivo_correcao = models.TextField(blank=True, default="")
     # Falso quando uma correção concluída passou a valer no lugar dela (VIS-04).
     vigente = models.BooleanField(default=True)
+    # O rascunho da troca cancelada fica guardado, com fotos e respostas (LOC-09).
+    descartada_em = models.DateTimeField(null=True, blank=True)
+    motivo_descarte = models.TextField(blank=True, default="")
 
-    TRANSICOES: ClassVar[dict[str, set[str]]] = {S.RASCUNHO: {S.CONCLUIDA}, S.CONCLUIDA: set()}
+    TRANSICOES: ClassVar[dict[str, set[str]]] = {
+        S.RASCUNHO: {S.CONCLUIDA, S.DESCARTADA},
+        S.CONCLUIDA: set(),
+        S.DESCARTADA: set(),
+    }
     REGRA_TRANSICAO: ClassVar[str] = "transicao_vistoria"
 
     class Meta:
@@ -181,7 +189,10 @@ class Devolucao(MaquinaDeEstados, ModeloBase):
     itens não mudam mais (DEV-06)."""
 
     locacao = models.OneToOneField("locacoes.Locacao", on_delete=models.PROTECT, related_name="+")
-    vistoria = models.ForeignKey(Vistoria, on_delete=models.PROTECT, related_name="+")
+    # Nula só depois de uma troca cancelada com a chegada descartada, até o veículo voltar.
+    vistoria = models.ForeignKey(
+        Vistoria, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
     status = models.CharField(
         max_length=10, choices=StatusDevolucao.choices, default=StatusDevolucao.RASCUNHO
     )
@@ -230,6 +241,7 @@ class TipoItemAcerto(models.TextChoices):
     MULTA_ENCERRAMENTO = "multa_encerramento", "Multa do encerramento antecipado"
     SEMANAS_NAO_USADAS = "semanas_nao_usadas", "Semanas não usadas"  # crédito, LOC-13
     DIAS_NAO_USADOS = "dias_nao_usados", "Diárias não usadas"  # crédito, LOC-12 (diária)
+    DIFERENCA_TROCA = "diferenca_troca", "Diferença do período na troca"  # LOC-09
 
 
 class NaturezaItem(models.TextChoices):
@@ -263,6 +275,10 @@ class ItemAcerto(ModeloBase):
     # De qual veículo é o combustível: com troca (LOC-09), cada veículo devolvido tem o seu.
     veiculo = models.ForeignKey(
         "veiculos.Veiculo", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    # A diferença do período em curso de cada troca concluída (LOC-09).
+    troca = models.ForeignKey(
+        "locacoes.TrocaVeiculo", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
     )
 
     class Meta:

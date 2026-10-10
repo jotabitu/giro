@@ -30,6 +30,7 @@ from .serializers import (
     AgendaSerializer,
     AvariaEntradaSerializer,
     AvariaSerializer,
+    CancelarTrocaSerializer,
     CorrigirVistoriaSerializer,
     CriarVistoriaSerializer,
     DevolucaoSerializer,
@@ -41,6 +42,7 @@ from .serializers import (
     ItemAcertoEntradaSerializer,
     ListaDeAvariasSerializer,
     ReciboSerializer,
+    TrocaCanceladaRespostaSerializer,
     TrocaPedidaSerializer,
     TrocarVeiculoSerializer,
     VistoriaSerializer,
@@ -213,6 +215,20 @@ class TrocarVeiculoView(APIView):
             }
         }
         return Response(TrocaPedidaSerializer(corpo).data, status=status.HTTP_202_ACCEPTED)
+
+
+class CancelarTrocaView(APIView):
+    permission_classes = CRIAM
+
+    @extend_schema(
+        request=CancelarTrocaSerializer,
+        responses={200: TrocaCanceladaRespostaSerializer},
+        summary="Cancelar a troca de veículo pendente (LOC-09): descarta os rascunhos da troca",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        dados = _entrada(CancelarTrocaSerializer, request)
+        troca = services.cancelar_troca(_locacao(request, pk), dados["motivo"], request.user)
+        return Response(TrocaCanceladaRespostaSerializer({"troca": troca}).data)
 
 
 class AvariasAbertasView(APIView):
