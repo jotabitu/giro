@@ -27,6 +27,11 @@ export function dataCompleta(iso: string): string {
   return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric" }).format(paraData(iso));
 }
 
+/** "18:00" de um instante UTC, na hora de America/Sao_Paulo. */
+export function horaCurta(iso: string): string {
+  return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+}
+
 /** Saudação pela hora de Brasília. */
 export function saudacao(agora = new Date()): string {
   const h = Number(new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", hour12: false }).format(agora)) % 24;

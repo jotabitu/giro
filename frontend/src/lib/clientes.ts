@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AcaoPrincipal, NovoCliente } from "@/lib/api";
+import type { AcaoPrincipal, EnderecoCliente, NovoCliente } from "@/lib/api";
 import { soDigitos } from "@/lib/formatos";
 
 /** Para onde cada ação principal da lista leva. Rotas de módulos ainda não feitos já apontam para o destino final. */
@@ -95,3 +95,26 @@ export function textoDePendencias(pendencias: string[]): string | null {
   if (!ultimo) return null;
   return nomes.length ? `Faltam ${nomes.join(", ")} e ${ultimo} para liberar a locação.` : `Falta ${ultimo} para liberar a locação.`;
 }
+
+/** "0381•••••62": a CNH só aparece inteira depois de "Mostrar". */
+export function cnhMascarada(numero: string): string {
+  return numero.length > 6 ? `${numero.slice(0, 4)}•••••${numero.slice(-2)}` : numero;
+}
+
+/** Duas linhas do endereço: "Rua Monsenhor Bruno, 1120" e "Aldeota · Fortaleza, CE". */
+export function linhasDoEndereco(e: EnderecoCliente | null): [string, string] | null {
+  if (!e?.logradouro) return null;
+  const rua = [e.logradouro, e.numero].filter(Boolean).join(", ") + (e.complemento ? ` ${e.complemento}` : "");
+  const cidade = [e.cidade, e.uf].filter(Boolean).join(", ");
+  return [rua, [e.bairro, cidade].filter(Boolean).join(" · ")];
+}
+
+const UNIDADE = { diaria: ["diária", "diárias"], semanal: ["semana", "semanas"], mensal: ["mês", "meses"] } as const;
+
+/** "2 de 2 semanas pagas". */
+export function textoDeParcelas(pagas: number, total: number, periodicidade: keyof typeof UNIDADE): string {
+  const [um, varios] = UNIDADE[periodicidade];
+  return `${pagas} de ${total} ${total === 1 ? um : varios} ${total === 1 ? "paga" : "pagas"}`;
+}
+
+export const ROTULO_PERIODICIDADE = { diaria: "Diária", semanal: "Semanal", mensal: "Mensal" } as const;

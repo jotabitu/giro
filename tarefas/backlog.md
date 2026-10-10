@@ -252,10 +252,6 @@ Levantadas pelo backend em T-109 (09 out 2026). O código segue o que está entr
 ### T-092 · Troca de veículo durante a locação
 - **Agente:** backend · **Depende de:** T-016, T-091 · **Regras:** LOC-09 · **Pronto quando:** CA-015-18 passa, com o código da regra no nome do teste; a troca abre a vistoria de devolução do veículo antigo e a de saída do novo (T-016).
 
-### T-108 · Detalhe do cliente idêntico à referência
-- **Agente:** frontend · **Depende de:** T-014, T-102 · **Telas:** Cliente-Detalhe (`docs/telas/html/Cliente-Detalhe-Desktop.dc.html` e `Cliente-Detalhe-Mobile.dc.html`) · **Regras:** CLI-01 a CLI-09, AUD-05, AUD-09 · **Pronto quando:** `/clientes/[id]` reproduz a tela de referência no desktop e no celular, com a mesma estrutura, seções, ordem, rótulos, ações e estados, usando os componentes e tokens do design system; os dados vêm de `falso-clientes.ts` no formato de `docs/api/clientes.md` (T-014); a LOC-2836 da Juliana segue a regra (até 14 out, sem "Devolve hoje" em 07 out), e não a tela; o que a tela mostra e o contrato não tem fica com o falso ou desativado e anotado no handoff; teste da tela. Pedido do dono em 09/10.
-
-
 ### T-017 · Contas a receber, caixa do dia, baixa
 - **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 23) passam, com o código da regra no nome do teste. · **Inclui:** `juros_pro_rata` em `comum/dinheiro.py` com um arredondamento só (CA-017-08: Carlos 70, Rafael 1123; ponto 4 da T-045)
 
