@@ -679,6 +679,7 @@ def test_loc_07_loc_10_ca_015_16_sinais_e_lista(cenario, com_carteira, relogio):
         "rotulo": "R$ 299,40 em aberto",
         "tom": "perigo",
         "em_aberto_centavos": 29940,
+        "pago_centavos": 29940,  # a parcela 1, sem a caução (T-129)
     }
 
     rafael = _linha(corpo, "LOC-2790")

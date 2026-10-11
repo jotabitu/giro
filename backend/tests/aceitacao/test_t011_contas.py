@@ -1469,6 +1469,9 @@ def test_plt_07_lista_de_rotas_que_o_suporte_le():
         "api/extras/",
         "api/clientes/",
         "api/clientes/<int:pk>/",
+        # Painel (T-129): números agregados, sem dado pessoal completo.
+        "api/painel/contadores/",
+        "api/painel/inicio/",
     }
 
 

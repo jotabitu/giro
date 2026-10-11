@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from django.db.models import Q, QuerySet
+from django.db.models import Count, Q, QuerySet
 
 from apps.clientes import selectors as clientes_selectors
 from apps.filiais.models import Filial
@@ -366,6 +366,24 @@ def agenda(filial: Filial, dia: str = "hoje") -> dict[str, Any]:
         "avarias_abertas": avarias_abertas().filter(veiculo__filial=filial).count(),
         "resultados": itens,
     }
+
+
+def concluidas_hoje_por_responsavel(filial: Filial) -> dict[int, int]:
+    """Vistorias concluídas hoje na filial, por responsável: o resumo da equipe do gerente."""
+    fuso = ZoneInfo(filial.fuso)
+    comeco = datetime.combine(relogio.agora().astimezone(fuso).date(), time.min, tzinfo=fuso)
+    return dict(
+        Vistoria.objects.filter(
+            locacao__filial=filial,
+            status=S.CONCLUIDA,
+            concluida_em__gte=comeco,
+            concluida_em__lt=comeco + timedelta(days=1),
+        )
+        .order_by()
+        .values_list("responsavel_id")
+        .annotate(total=Count("id"))
+        .values_list("responsavel_id", "total")
+    )
 
 
 # --- Devolução e acerto (DEV-01 a DEV-06) ---

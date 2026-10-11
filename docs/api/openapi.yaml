@@ -2516,6 +2516,95 @@ paths:
               schema:
                 $ref: '#/components/schemas/SimulacaoLocacao'
           description: ''
+  /api/marca/:
+    get:
+      operationId: marca_retrieve
+      description: 'Sem autenticação: com ou sem token (inclusive o do suporte), a
+        resposta é a mesma.'
+      summary: Marca da empresa do subdomínio (nome, logo e cores)
+      tags:
+      - marca
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Marca'
+          description: ''
+        '304':
+          description: Sem mudança
+  /api/marca/logo/:
+    get:
+      operationId: marca_logo_retrieve
+      description: 'Sem autenticação: com ou sem token (inclusive o do suporte), a
+        resposta é a mesma.'
+      summary: Arquivo do logo da empresa (S-12)
+      parameters:
+      - in: query
+        name: v
+        schema:
+          type: string
+        description: Versão da marca (`versao`).
+      tags:
+      - marca
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            image/svg+xml:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+          description: ''
+        '404':
+          description: Sem logo (`nao_encontrado`)
+  /api/painel/contadores/:
+    get:
+      operationId: painel_contadores_retrieve
+      summary: Contadores do menu (USR-05, APR-09, FIN-15)
+      tags:
+      - painel
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contadores'
+          description: ''
+  /api/painel/inicio/:
+    get:
+      operationId: painel_inicio_retrieve
+      summary: Início por perfil (USR-08, IMP-01, VEI-06, FIN-13, FIN-15)
+      parameters:
+      - in: query
+        name: periodo
+        schema:
+          type: string
+          enum:
+          - 30d
+          - 7d
+          - hoje
+          default: 7d
+      tags:
+      - painel
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InicioDoPainel'
+          description: ''
   /api/planos-especiais/:
     get:
       operationId: planos_especiais_retrieve
@@ -4130,6 +4219,16 @@ components:
       required:
       - codigo
       - rotulo
+    AcaoDoPasso:
+      type: object
+      properties:
+        rotulo:
+          type: string
+        destino:
+          type: string
+      required:
+      - destino
+      - rotulo
     AcaoLocacao:
       type: object
       properties:
@@ -4432,6 +4531,22 @@ components:
             $ref: '#/components/schemas/ItemAnaliseCliente'
       required:
       - itens
+    AprovacoesDoInicio:
+      type: object
+      properties:
+        total:
+          type: integer
+        mais_antigo:
+          type: string
+          nullable: true
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemDeAprovacao'
+      required:
+      - itens
+      - mais_antigo
+      - total
     Aprovar:
       type: object
       properties:
@@ -4503,6 +4618,16 @@ components:
       required:
       - assinado_em
       - status
+    Atencao:
+      type: object
+      properties:
+        quantidade:
+          type: integer
+        texto:
+          type: string
+      required:
+      - quantidade
+      - texto
     Ativado:
       type: object
       properties:
@@ -4655,6 +4780,48 @@ components:
       description: |-
         * `atraso` - atraso
         * `manual` - manual
+    CaixaDoDia:
+      type: object
+      properties:
+        filial:
+          type: string
+        status:
+          type: string
+        aberto_por:
+          type: string
+        esperado_gaveta_centavos:
+          type: integer
+      required:
+      - aberto_por
+      - esperado_gaveta_centavos
+      - filial
+      - status
+    CaixaHoje:
+      type: object
+      properties:
+        filial:
+          type: string
+        data:
+          type: string
+          format: date
+        status:
+          type: string
+        recebido_centavos:
+          type: integer
+        a_receber_hoje_centavos:
+          type: integer
+        despesas_centavos:
+          type: integer
+        saldo_dia_centavos:
+          type: integer
+      required:
+      - a_receber_hoje_centavos
+      - data
+      - despesas_centavos
+      - filial
+      - recebido_centavos
+      - saldo_dia_centavos
+      - status
     CancelamentoLocacao:
       type: object
       properties:
@@ -5322,6 +5489,58 @@ components:
       required:
       - contrato
       - empresa
+    Contadores:
+      type: object
+      properties:
+        atualizado_em:
+          type: string
+          format: date-time
+        contadores:
+          $ref: '#/components/schemas/ContadoresInternos'
+      required:
+      - atualizado_em
+      - contadores
+    ContadoresInternos:
+      type: object
+      description: Só vêm as chaves dos itens que a pessoa vê; `null` = módulo ainda
+        não existe.
+      properties:
+        veiculos:
+          type: integer
+          nullable: true
+        locacoes:
+          type: integer
+          nullable: true
+        aprovacoes:
+          type: integer
+          nullable: true
+        receber:
+          type: integer
+          nullable: true
+        despesas:
+          type: integer
+          nullable: true
+        usuarios:
+          type: integer
+          nullable: true
+        agenda:
+          type: integer
+          nullable: true
+        avarias:
+          type: integer
+          nullable: true
+        contas_a_pagar:
+          type: integer
+          nullable: true
+        manutencoes:
+          type: integer
+          nullable: true
+        conciliacao:
+          type: integer
+          nullable: true
+        propostas:
+          type: integer
+          nullable: true
     Contagens:
       type: object
       properties:
@@ -5601,6 +5820,22 @@ components:
       - filiais
       - nome
       - perfil
+    ConviteDoInicio:
+      type: object
+      properties:
+        nome:
+          type: string
+        contato:
+          type: string
+        perfil:
+          type: string
+        status:
+          $ref: '#/components/schemas/StatusConviteEnum'
+      required:
+      - contato
+      - nome
+      - perfil
+      - status
     CorrigirIdentificacao:
       type: object
       properties:
@@ -5697,6 +5932,17 @@ components:
         * `todas` - todas
         * `manutencao` - manutencao
         * `nao` - nao
+    Destino:
+      type: object
+      properties:
+        chave:
+          type: string
+        filtro:
+          type: string
+        id:
+          type: integer
+      required:
+      - chave
     Devolucao:
       type: object
       properties:
@@ -5758,6 +6004,18 @@ components:
       - devolucao_id
       - faltam_minutos
       - prevista_para
+    DevolucoesDaSemana:
+      type: object
+      properties:
+        subtitulo:
+          type: string
+        linhas:
+          type: array
+          items:
+            $ref: '#/components/schemas/LinhaDeDevolucao'
+      required:
+      - linhas
+      - subtitulo
     Documento:
       type: object
       properties:
@@ -6659,6 +6917,40 @@ components:
       - faltam
       - feitas
       - total
+    FrotaDaFilial:
+      type: object
+      properties:
+        total:
+          type: integer
+        segmentos:
+          type: array
+          items:
+            $ref: '#/components/schemas/SegmentoSimples'
+      required:
+      - segmentos
+      - total
+    FrotaDoInicio:
+      type: object
+      properties:
+        ocupacao_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        meta_ocupacao_pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        nota:
+          type: string
+        segmentos:
+          type: array
+          items:
+            $ref: '#/components/schemas/SegmentoDaFrota'
+      required:
+      - meta_ocupacao_pct
+      - nota
+      - ocupacao_pct
+      - segmentos
     Gerente:
       type: object
       properties:
@@ -6669,6 +6961,16 @@ components:
       required:
       - id
       - nome
+    GravidadeEnum:
+      enum:
+      - critica
+      - alerta
+      - info
+      type: string
+      description: |-
+        * `critica` - critica
+        * `alerta` - alerta
+        * `info` - info
     GrupoNavegacao:
       type: object
       properties:
@@ -6829,6 +7131,22 @@ components:
       - com_locacao_pct
       - em_aberto_total_centavos
       - novos_no_mes_anterior
+    IndicadoresDaImplantacao:
+      type: object
+      properties:
+        frota_cadastrada:
+          type: integer
+        alugados_agora:
+          type: integer
+        clientes:
+          type: integer
+        a_receber_centavos:
+          type: integer
+      required:
+      - a_receber_centavos
+      - alugados_agora
+      - clientes
+      - frota_cadastrada
     IndicadoresLocacoes:
       type: object
       properties:
@@ -6859,6 +7177,157 @@ components:
       - frota_alugada_pct
       - pagamentos_atrasados
       - pagamentos_atrasados_centavos
+    InicioDoPainel:
+      oneOf:
+      - $ref: '#/components/schemas/InicioGeral'
+      - $ref: '#/components/schemas/InicioImplantacao'
+      - $ref: '#/components/schemas/InicioGerente'
+      - $ref: '#/components/schemas/InicioVendedor'
+      - $ref: '#/components/schemas/InicioVistoriador'
+      - $ref: '#/components/schemas/InicioFinanceiro'
+      discriminator:
+        propertyName: variante
+        mapping:
+          geral: '#/components/schemas/InicioGeral'
+          implantacao: '#/components/schemas/InicioImplantacao'
+          gerente: '#/components/schemas/InicioGerente'
+          vendedor: '#/components/schemas/InicioVendedor'
+          vistoriador: '#/components/schemas/InicioVistoriador'
+          financeiro: '#/components/schemas/InicioFinanceiro'
+    InicioFinanceiro:
+      type: object
+      properties:
+        variante:
+          $ref: '#/components/schemas/VarianteEnum'
+        saudacao:
+          type: string
+        atualizado_em:
+          type: string
+          format: date-time
+        kpis:
+          type: array
+          items:
+            $ref: '#/components/schemas/Kpi'
+        caixas_do_dia:
+          type: array
+          items:
+            $ref: '#/components/schemas/CaixaDoDia'
+          nullable: true
+        para_hoje:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParaHoje'
+        fluxo_previsto:
+          nullable: true
+          description: 'Fase 2: sempre `null`.'
+        conciliacao:
+          nullable: true
+          description: 'Fase 2: sempre `null`.'
+      required:
+      - atualizado_em
+      - caixas_do_dia
+      - conciliacao
+      - fluxo_previsto
+      - kpis
+      - para_hoje
+      - saudacao
+      - variante
+    InicioGeral:
+      type: object
+      properties:
+        variante:
+          $ref: '#/components/schemas/VarianteEnum'
+        saudacao:
+          type: string
+        atualizado_em:
+          type: string
+          format: date-time
+        atencao:
+          $ref: '#/components/schemas/Atencao'
+        kpis:
+          type: array
+          items:
+            $ref: '#/components/schemas/Kpi'
+        frota:
+          $ref: '#/components/schemas/FrotaDoInicio'
+        devolucoes_semana:
+          $ref: '#/components/schemas/DevolucoesDaSemana'
+        pendencias:
+          $ref: '#/components/schemas/Pendencias'
+        caixa_hoje:
+          allOf:
+          - $ref: '#/components/schemas/CaixaHoje'
+          nullable: true
+      required:
+      - atencao
+      - atualizado_em
+      - caixa_hoje
+      - devolucoes_semana
+      - frota
+      - kpis
+      - pendencias
+      - saudacao
+      - variante
+    InicioGerente:
+      type: object
+      properties:
+        variante:
+          $ref: '#/components/schemas/VarianteEnum'
+        saudacao:
+          type: string
+        atualizado_em:
+          type: string
+          format: date-time
+        aprovacoes:
+          $ref: '#/components/schemas/AprovacoesDoInicio'
+        kpis:
+          type: array
+          items:
+            $ref: '#/components/schemas/Kpi'
+        equipe_hoje:
+          type: array
+          items:
+            $ref: '#/components/schemas/PessoaDaEquipe'
+        frota_filial:
+          $ref: '#/components/schemas/FrotaDaFilial'
+      required:
+      - aprovacoes
+      - atualizado_em
+      - equipe_hoje
+      - frota_filial
+      - kpis
+      - saudacao
+      - variante
+    InicioImplantacao:
+      type: object
+      properties:
+        variante:
+          $ref: '#/components/schemas/VarianteEnum'
+        saudacao:
+          type: string
+        atualizado_em:
+          type: string
+          format: date-time
+        teste:
+          allOf:
+          - $ref: '#/components/schemas/TesteDoInicio'
+          nullable: true
+        primeiros_passos:
+          $ref: '#/components/schemas/PrimeirosPassos'
+        convites:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConviteDoInicio'
+        indicadores:
+          $ref: '#/components/schemas/IndicadoresDaImplantacao'
+      required:
+      - atualizado_em
+      - convites
+      - indicadores
+      - primeiros_passos
+      - saudacao
+      - teste
+      - variante
     InicioNavegacao:
       type: object
       properties:
@@ -6868,6 +7337,71 @@ components:
           $ref: '#/components/schemas/VarianteEnum'
       required:
       - rota
+      - variante
+    InicioVendedor:
+      type: object
+      properties:
+        variante:
+          $ref: '#/components/schemas/VarianteEnum'
+        saudacao:
+          type: string
+        atualizado_em:
+          type: string
+          format: date-time
+        kpis:
+          type: array
+          items:
+            $ref: '#/components/schemas/Kpi'
+        parcelas_atrasadas:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParcelaAtrasada'
+        precisam_acao:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocacaoQuePrecisaDeAcao'
+        meta:
+          nullable: true
+          description: 'Fase 2: sempre `null`.'
+        funil:
+          nullable: true
+          description: 'Fase 2: sempre `null`.'
+        comissao_prevista:
+          nullable: true
+          description: 'Fase 2: sempre `null`.'
+        propostas:
+          nullable: true
+          description: 'Fase 2: sempre `null`.'
+      required:
+      - atualizado_em
+      - comissao_prevista
+      - funil
+      - kpis
+      - meta
+      - parcelas_atrasadas
+      - precisam_acao
+      - propostas
+      - saudacao
+      - variante
+    InicioVistoriador:
+      type: object
+      properties:
+        variante:
+          $ref: '#/components/schemas/VarianteEnum'
+        saudacao:
+          type: string
+        atualizado_em:
+          type: string
+          format: date-time
+        agenda:
+          $ref: '#/components/schemas/Agenda'
+        avarias_abertas:
+          type: integer
+      required:
+      - agenda
+      - atualizado_em
+      - avarias_abertas
+      - saudacao
       - variante
     Intervalo:
       type: object
@@ -7024,6 +7558,40 @@ components:
       - novo
       - rotulo
       - saida
+    ItemDeAprovacao:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+        titulo:
+          type: string
+        detalhe:
+          type: string
+        acoes:
+          type: array
+          items:
+            type: string
+      required:
+      - acoes
+      - detalhe
+      - id
+      - tipo
+      - titulo
+    ItemDePendencia:
+      type: object
+      properties:
+        texto:
+          type: string
+        gravidade:
+          $ref: '#/components/schemas/GravidadeEnum'
+        destino:
+          $ref: '#/components/schemas/Destino'
+      required:
+      - destino
+      - gravidade
+      - texto
     ItemHistoricoLocacao:
       type: object
       properties:
@@ -7101,6 +7669,32 @@ components:
       - rodou
       - saida
       - texto
+    Kpi:
+      type: object
+      properties:
+        chave:
+          type: string
+        rotulo:
+          type: string
+        valor:
+          allOf:
+          - $ref: '#/components/schemas/ValorTipado'
+          nullable: true
+        contexto:
+          type: string
+          nullable: true
+        destaque:
+          type: boolean
+        tendencia:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/TendenciaEnum'
+          - $ref: '#/components/schemas/NullEnum'
+      required:
+      - chave
+      - contexto
+      - rotulo
+      - valor
     LeituraKm:
       type: object
       properties:
@@ -7112,6 +7706,32 @@ components:
       required:
       - em
       - km
+    LinhaDeDevolucao:
+      type: object
+      properties:
+        locacao_id:
+          type: integer
+        codigo:
+          type: string
+        placa:
+          type: string
+        veiculo:
+          type: string
+        cliente:
+          type: string
+        data:
+          type: string
+          format: date
+        situacao:
+          $ref: '#/components/schemas/SituacaoCurta'
+      required:
+      - cliente
+      - codigo
+      - data
+      - locacao_id
+      - placa
+      - situacao
+      - veiculo
     LinhaSimulacao:
       type: object
       properties:
@@ -7654,6 +8274,71 @@ components:
       - inicio
       - periodicidade
       - veiculo_id
+    LocacaoQuePrecisaDeAcao:
+      type: object
+      properties:
+        locacao_id:
+          type: integer
+        codigo:
+          type: string
+        cliente:
+          type: string
+        situacao:
+          $ref: '#/components/schemas/SituacaoCurta'
+      required:
+      - cliente
+      - codigo
+      - locacao_id
+      - situacao
+    LogoDaMarca:
+      type: object
+      properties:
+        url:
+          type: string
+          description: Relativa ao host, com a versão na query.
+        largura:
+          type: integer
+          nullable: true
+        altura:
+          type: integer
+          nullable: true
+      required:
+      - altura
+      - largura
+      - url
+    Marca:
+      type: object
+      properties:
+        nome_exibicao:
+          type: string
+        iniciais:
+          type: string
+        logo:
+          allOf:
+          - $ref: '#/components/schemas/LogoDaMarca'
+          nullable: true
+        cor:
+          type: string
+        cor_sobre:
+          type: string
+        cor_suave:
+          type: string
+        cor_suave_escuro:
+          type: string
+        personalizada:
+          type: boolean
+        versao:
+          type: string
+      required:
+      - cor
+      - cor_sobre
+      - cor_suave
+      - cor_suave_escuro
+      - iniciais
+      - logo
+      - nome_exibicao
+      - personalizada
+      - versao
     Marcador:
       type: object
       properties:
@@ -8019,8 +8704,12 @@ components:
           type: string
         em_aberto_centavos:
           type: integer
+        pago_centavos:
+          type: integer
+          description: Contas pagas da locação, sem a caução.
       required:
       - em_aberto_centavos
+      - pago_centavos
       - rotulo
       - tom
     PainelEnum:
@@ -8035,6 +8724,45 @@ components:
         * `filial` - filial
         * `proprios` - proprios
         * `nao` - nao
+    ParaHoje:
+      type: object
+      properties:
+        texto:
+          type: string
+        tipo:
+          $ref: '#/components/schemas/TipoParaHojeEnum'
+        destino:
+          $ref: '#/components/schemas/Destino'
+      required:
+      - destino
+      - texto
+      - tipo
+    ParcelaAtrasada:
+      type: object
+      properties:
+        conta_id:
+          type: integer
+        cliente:
+          type: string
+        locacao:
+          type: string
+        vencimento:
+          type: string
+          format: date
+        valor_centavos:
+          type: integer
+        dias:
+          type: integer
+        acao:
+          type: string
+      required:
+      - acao
+      - cliente
+      - conta_id
+      - dias
+      - locacao
+      - valor_centavos
+      - vencimento
     ParcelaLocacao:
       type: object
       properties:
@@ -8112,6 +8840,24 @@ components:
       required:
       - concluido_em
       - passo
+      - rotulo
+    PassoDoInicio:
+      type: object
+      properties:
+        chave:
+          type: string
+        rotulo:
+          type: string
+        detalhe:
+          type: string
+        concluido:
+          type: boolean
+        acao:
+          $ref: '#/components/schemas/AcaoDoPasso'
+      required:
+      - chave
+      - concluido
+      - detalhe
       - rotulo
     PatchedAlterarUsuario:
       type: object
@@ -8533,6 +9279,18 @@ components:
         * `APR-04` - Diferença no caixa
         * `APR-05` - Desbloqueio de cliente
         * `APR-06` - Correção de km para baixo
+    Pendencias:
+      type: object
+      properties:
+        titulo:
+          type: string
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemDePendencia'
+      required:
+      - itens
+      - titulo
     PerfilEnum:
       enum:
       - administrador
@@ -8603,6 +9361,25 @@ components:
       description: |-
         * `ver` - Só ver
         * `ver_editar` - Ver e editar
+    PessoaDaEquipe:
+      type: object
+      properties:
+        usuario_id:
+          type: integer
+        nome:
+          type: string
+        perfil:
+          type: string
+        resumo:
+          type: string
+        online:
+          type: boolean
+      required:
+      - nome
+      - online
+      - perfil
+      - resumo
+      - usuario_id
     Plano:
       type: object
       properties:
@@ -9056,6 +9833,26 @@ components:
         locacao_id:
           type: integer
           nullable: true
+    PrimeirosPassos:
+      type: object
+      properties:
+        concluidos:
+          type: integer
+        total:
+          type: integer
+        pct:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/PassoDoInicio'
+      required:
+      - concluidos
+      - itens
+      - pct
+      - total
     Pronto:
       type: object
       properties:
@@ -9285,6 +10082,29 @@ components:
       - inicio
       - km_livre
       - periodicidade
+    SegmentoDaFrota:
+      type: object
+      properties:
+        status:
+          type: string
+        rotulo:
+          type: string
+        quantidade:
+          type: integer
+      required:
+      - quantidade
+      - rotulo
+      - status
+    SegmentoSimples:
+      type: object
+      properties:
+        rotulo:
+          type: string
+        quantidade:
+          type: integer
+      required:
+      - quantidade
+      - rotulo
     Sessao:
       type: object
       properties:
@@ -9509,6 +10329,16 @@ components:
       - codigo
       - rotulo
       - tom
+    SituacaoCurta:
+      type: object
+      properties:
+        rotulo:
+          type: string
+        tom:
+          type: string
+      required:
+      - rotulo
+      - tom
     SituacaoDoVeiculo:
       type: object
       properties:
@@ -9569,6 +10399,14 @@ components:
         * `enviado` - Enviado
         * `assinado` - Assinado
         * `cancelado` - Cancelado
+    StatusConviteEnum:
+      enum:
+      - aceito
+      - pendente
+      type: string
+      description: |-
+        * `aceito` - aceito
+        * `pendente` - pendente
     StatusModeloContratoEnum:
       enum:
       - publicado
@@ -9651,6 +10489,14 @@ components:
       description: |-
         * `ver` - ver
         * `ver_editar` - ver_editar
+    TendenciaEnum:
+      enum:
+      - sobe
+      - desce
+      type: string
+      description: |-
+        * `sobe` - sobe
+        * `desce` - desce
     Teste:
       type: object
       properties:
@@ -9680,6 +10526,20 @@ components:
       required:
       - dias_restantes
       - fim
+    TesteDoInicio:
+      type: object
+      properties:
+        fim:
+          type: string
+          format: date
+        dias_restantes:
+          type: integer
+        texto:
+          type: string
+      required:
+      - dias_restantes
+      - fim
+      - texto
     TipoClienteEnum:
       enum:
       - pf
@@ -9712,6 +10572,14 @@ components:
         * `ipva` - IPVA
         * `seguro` - Seguro
         * `rastreador` - Rastreador
+    TipoParaHojeEnum:
+      enum:
+      - reembolso
+      - despesa
+      type: string
+      description: |-
+        * `reembolso` - reembolso
+        * `despesa` - despesa
     TipoSessaoEnum:
       enum:
       - desktop
@@ -9720,6 +10588,16 @@ components:
       description: |-
         * `desktop` - Desktop
         * `celular` - Celular
+    TipoValorEnum:
+      enum:
+      - numero
+      - centavos
+      - pct
+      type: string
+      description: |-
+        * `numero` - numero
+        * `centavos` - centavos
+        * `pct` - pct
     TipoVeiculoEnum:
       enum:
       - moto
@@ -10121,18 +10999,29 @@ components:
       - status
       - todas_filiais
       - ultimo_acesso_em
+    ValorTipado:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/TipoValorEnum'
+        valor:
+          description: Inteiro para `numero` e `centavos`; texto com 2 casas para
+            `pct`.
+      required:
+      - tipo
+      - valor
     VarianteEnum:
       enum:
-      - implantacao
       - geral
+      - implantacao
       - gerente
       - vendedor
       - vistoriador
       - financeiro
       type: string
       description: |-
-        * `implantacao` - implantacao
         * `geral` - geral
+        * `implantacao` - implantacao
         * `gerente` - gerente
         * `vendedor` - vendedor
         * `vistoriador` - vistoriador
@@ -10249,10 +11138,13 @@ components:
           type: string
         placa:
           type: string
+        tipo:
+          $ref: '#/components/schemas/TipoVeiculoEnum'
       required:
       - id
       - modelo
       - placa
+      - tipo
     VeiculoDaTroca:
       type: object
       properties:

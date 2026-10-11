@@ -531,3 +531,8 @@ def indicadores(qs: QuerySet[Cliente], contagem: dict[str, int | None]) -> dict[
         "com_locacao_pct": pct,
         "em_aberto_total_centavos": None,
     }
+
+
+def total_ativos() -> int:
+    """Clientes fora de `inativo`: o indicador da implantação no painel."""
+    return int(Cliente.objects.exclude(status=S.INATIVO).count())

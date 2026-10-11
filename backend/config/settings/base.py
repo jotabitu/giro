@@ -164,6 +164,8 @@ REST_FRAMEWORK = {
         "entrar_email_hora": "50/hour",
         "acesso_ip": "30/min",
         "cep_usuario": "30/min",
+        # Marca e logo, públicas (docs/api/empresas.md).
+        "marca_ip": "120/min",
         # Link de assinatura de contrato (S-15).
         "assinatura_ip": "10/min",
         "assinatura_token": "20/min",
@@ -197,6 +199,11 @@ SPECTACULAR_SETTINGS = {
         # Nomes que veículos já publicava, antes de clientes ter outro `motivo` e `situacao`.
         "MotivoEnum": ["perda_total", "roubo", "sucata", "outro"],
         "SituacaoEnum": ["em_dia", "vence_em_breve", "vencido"],
+        # Painel (T-129).
+        "TipoVeiculoEnum": "apps.veiculos.models.TipoVeiculo",
+        "TipoValorEnum": ["numero", "centavos", "pct"],
+        "TipoParaHojeEnum": ["reembolso", "despesa"],
+        "StatusConviteEnum": ["aceito", "pendente"],
     },
 }
 

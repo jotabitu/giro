@@ -89,6 +89,13 @@ def filtrar_por_filial(queryset: QuerySet[Any], request: Any, campo: str = "fili
     return queryset.filter(**{campo: escopo.pk})
 
 
+def usuarios_das_filiais(filiais: set[int] | frozenset[int]) -> set[int]:
+    """Ids das pessoas ligadas (vínculo ativo) a alguma das filiais: a equipe do gerente."""
+    return set(
+        UsuarioFilial.ativos.filter(filial_id__in=filiais).values_list("usuario_id", flat=True)
+    )
+
+
 # --- Horário e feriados (FIL-03, LOC-11) ---
 
 

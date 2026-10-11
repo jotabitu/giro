@@ -16,6 +16,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from comum.autenticacao import AMR_SENHA
+from comum.empresa import nome_da_empresa
 from comum.paginacao import PaginacaoPorCursor
 from comum.permissoes import com_padrao, exige_perfil, resumo_das_filiais
 
@@ -343,7 +344,7 @@ class ConsultarConviteView(Publica):
         usuario = convite.usuario
         return Response(
             {
-                "empresa": str(getattr(request.tenant, "nome_exibicao", "")),  # type: ignore[attr-defined]
+                "empresa": nome_da_empresa(),
                 "email": usuario.email,
                 "nome": usuario.nome,
                 "perfil": usuario.perfil,

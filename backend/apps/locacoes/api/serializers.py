@@ -10,6 +10,7 @@ from typing import Any
 from rest_framework import serializers
 
 from apps.contratos.api.serializers import ContratoResumoSerializer
+from apps.veiculos.models import TipoVeiculo
 
 from ..models import FormaPagamento, ParcelamentoMensal, Periodicidade, PlanoEspecial
 
@@ -150,6 +151,7 @@ class VeiculoDaLocacaoSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     modelo = serializers.CharField()
     placa = serializers.CharField()
+    tipo = serializers.ChoiceField(choices=TipoVeiculo.choices)
 
 
 class SinaisLocacaoSerializer(serializers.Serializer[Any]):
@@ -168,6 +170,7 @@ class PagamentoLocacaoSerializer(serializers.Serializer[Any]):
     rotulo = serializers.CharField()
     tom = serializers.CharField()
     em_aberto_centavos = serializers.IntegerField()
+    pago_centavos = serializers.IntegerField(help_text="Contas pagas da locação, sem a caução.")
 
 
 class AcaoLocacaoSerializer(serializers.Serializer[Any]):

@@ -16,7 +16,7 @@ export type LocacaoResumo = Omit<S["Locacao"], "status" | "periodicidade" | "sit
   periodicidade: Periodicidade;
   situacao: { codigo: string; rotulo: string; tom: TomApi };
   /** Ausente para o vistoriador. */
-  pagamento?: { rotulo: string; tom: TomApi; em_aberto_centavos: number };
+  pagamento?: { rotulo: string; tom: TomApi; em_aberto_centavos: number; pago_centavos: number };
   acao_principal: { codigo: CodigoAcaoLocacao; rotulo: string };
 };
 
