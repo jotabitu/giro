@@ -1,6 +1,6 @@
 # Painel: início por perfil e contadores do menu
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-047) · **App:** `relatorios` (schema da empresa; só leitura, nível 13 da ADR 0011) · **Regras:** USR-05, USR-07, USR-08, IMP-01, VEI-06, LOC-07, LOC-10, FIN-01, FIN-07, APR-09, VIS-05 · **Telas:** Main, Pos-Dashboard, Gerente, Vendedor, Vistoriador, Financeiro, Menu
+**Dono:** arquiteto · **Versão:** 10 out 2026 (T-128; criado na T-047) · **App:** `relatorios` (schema da empresa; só leitura, nível 13 da ADR 0011) · **Regras:** USR-05, USR-07, USR-08, IMP-01, VEI-06, LOC-07, LOC-10, FIN-01, FIN-07, APR-09, VIS-05 · **Telas:** Main, Pos-Dashboard, Gerente, Vendedor, Vistoriador, Financeiro, Menu
 
 Convenções gerais em `docs/api/README.md`. A estrutura do menu e a variante do início vêm em `GET /api/auth/eu/` (`contas.md`, "Menu e início"). Este contrato traz os números.
 
@@ -11,7 +11,47 @@ Convenções gerais em `docs/api/README.md`. A estrutura do menu e a variante do
 - **Escopo (`USR-07`).** Administrador e financeiro: filial do `X-Filial` ou `todas`. Gerente: a filial escolhida, entre as dele. Vendedor: só os números dele (`painel: proprios`).
 - **Módulo que ainda não existe (`USR-08`).** O bloco vem `null`, nunca com número de exemplo. Ex.: `em_manutencao` do gerente fica `null` até o app `manutencao` existir; os blocos de vendas, comissões e conciliação, até a fase 2. O frontend não mostra bloco `null`.
 - **Fuso.** "Hoje", "esta semana" e a saudação usam `America/Sao_Paulo`, no fuso da filial.
-- **Atualização.** Cada resposta traz `atualizado_em`; a tela mostra "atualizado há 6 min" a partir dele. Os números podem vir de cache de até 5 minutos por empresa, filial e pessoa.
+- **Atualização.** Cada resposta traz `atualizado_em`; a tela mostra "atualizado há 6 min" a partir dele. O início pode vir de cache de até 5 minutos por empresa, filial, pessoa e período; os contadores, de até 60 segundos (o mesmo intervalo da consulta do frontend), para o número de aprovações não ficar parado depois de uma decisão.
+
+
+## Rotas, perfis e o que entra no MVP (T-128)
+
+- **App dono:** `relatorios` (`relatorios/api/` com as duas views, `relatorios/selectors.py` com `contadores` e `inicio`). As rotas entram em `config/urls.py` (schema da empresa) e respondem **sempre**, sem depender de `relatorios` em `GIRO_MODULOS_ATIVOS`: aquela chave liga o item "Relatórios" do menu, não o início.
+- **Perfis:** qualquer usuário ativo da empresa com sessão completa (com o 2º fator quando `exige_2fa`). A variante é a de `eu.navegacao.inicio.variante`, calculada pela mesma função (`contas.navegacao.variante`); o painel não aceita variante na query. Token de suporte: as duas rotas são "só ver" (`suporte_somente_leitura = True`), com a variante e o escopo do administrador.
+- **Filial:** pelo `X-Filial`, só por `filiais.selectors.filtrar_por_filial` (`filiais.md`): sem cabeçalho, a matriz ou a primeira filial; `todas` para administrador, financeiro e quem tem `relatorios_todas_filiais`; fora do escopo, 403 `USR-07`. O vendedor vê os números dele dentro da filial da requisição.
+- **Erros:** 400 `validacao` para `periodo` fora de `hoje`, `7d`, `30d`; 401 e 403 `USR-07` como acima. Nenhum 404: módulo que falta vira `null`, nunca erro.
+- **Contadores e menu andam juntos.** `contadores` devolve exatamente as chaves `contador` dos itens que o `eu` montou para a pessoa (a mesma função de navegação), então um item escondido por `GIRO_MODULOS_ATIVOS` não tem contador, e um contador cuja fonte ainda não existe vem `null`.
+
+**Regra do MVP:** um número sai quando a fonte dele já existe no backend (model e selector do app dono), mesmo que a tela do módulo ainda não esteja no menu; senão, `null` (o bloco ou o KPI inteiro). Nenhum número é estimado ou fixo. Com o backend de hoje (veículos, clientes, locações, contratos, vistorias, aprovações, contas, filiais; `financeiro` só com `ContaReceber`, `Reembolso` e `Comissao`, sem caixa nem despesa):
+
+| Bloco | Sai no MVP? | Fonte |
+| --- | --- | --- |
+| **Contadores** `veiculos`, `locacoes`, `aprovacoes`, `usuarios`, `agenda`, `avarias` | sim | `veiculos`, `locacoes`, `aprovacoes` (sem os da própria pessoa, `APR-09`), `contas` (convites pendentes), `vistorias` |
+| `receber` | sim, quando o item `receber` aparecer (com `financeiro` em `GIRO_MODULOS_ATIVOS`, T-017) | `financeiro.selectors`: contas com status exibido `atrasada` (`FIN-01`) |
+| `despesas`, `contas_a_pagar` | `null` até existir a despesa (`FIN-05`) | — |
+| `manutencoes`, `conciliacao`, `propostas` | `null` (fase 2) | — |
+| **`geral`** `atencao`, `pendencias.titulo` | sim | aba `precisam_acao` de `locacoes.selectors` |
+| `frota_ativa`, `alugados_agora`, `frota.segmentos`, `ocupacao_pct` | sim | `veiculos.selectors` (`contagens`, `ocupacao_da_frota`, `VEI-06`); a tendência "6 a mais esta semana" sai do histórico de status do veículo |
+| `meta_ocupacao_pct` | sim | `empresas.selectors.meta_ocupacao_pct()` (campo novo, padrão 80,00; `empresas.md`) |
+| `receita_locacao`, `em_atraso` | sim | `financeiro.selectors` sobre `ContaReceber` (pagas no período sem caução, `FIN-13`; atrasadas, `FIN-01`) |
+| `devolucoes_semana` | sim | `locacoes.selectors` (`situacao` como na lista) |
+| `pendencias.itens` | devoluções atrasadas e parcelas que vencem até amanhã; preventivas, só com `manutencao` | `locacoes`, `financeiro` |
+| `caixa_hoje` | `null` até o caixa da T-017 | — |
+| **`implantacao`** inteira | sim | `plataforma` (teste e `UsoEmpresa.passos_implantacao`, lidos do `public` pela interface de `plataforma.md`), `contas` (convites), `veiculos`, `clientes`, `locacoes`; `a_receber_centavos` de `financeiro` |
+| **`gerente`** `aprovacoes`, `ocupacao`, `receita_semana`, `devolucoes_atrasadas`, `equipe_hoje`, `frota_filial` | sim | como acima; `equipe_hoje` com `contas.Sessao.ultimo_uso` e o resumo do dia de `vistorias` e `locacoes` |
+| `em_manutencao` | `valor: null` (fase 2) | — |
+| **`vendedor`** `kpis`, `parcelas_atrasadas`, `precisam_acao` | sim | `locacoes` (`Locacao.vendedor`), `financeiro` |
+| `meta`, `funil`, `comissao_prevista`, `propostas` | `null` (fase 2) | — |
+| **`vistoriador`** inteira | sim | `vistorias.selectors` (o mesmo corpo da agenda) |
+| **`financeiro`** `entra_hoje`, `em_atraso` | sim | `financeiro.selectors` (`FIN-15`, `FIN-01`) |
+| `sai_hoje` | `valor: null` até existir a despesa | — |
+| `caixas_do_dia` | `null` até o caixa da T-017 (o frontend esconde o bloco) | — |
+| `para_hoje` | sim, só com os reembolsos `a_fazer` (`Reembolso`, T-091); as despesas entram com elas | `financeiro` |
+| `saldo_em_contas`, `fluxo_previsto`, `conciliacao` | `null` (fase 2) | — |
+
+Quando a T-017 (caixa) e a tarefa da despesa entrarem, cada uma liga o seu bloco no selector de `relatorios` e acrescenta o teste do número do seed; o contrato acima não muda.
+
+**Cache no backend:** Redis, chave `painel:<schema>:<usuario_id>:<filial ou todas>:<rota>[:<periodo>]`, prazo de 5 minutos (início) e 60 segundos (contadores). Sem invalidação no MVP: o prazo curto basta. O cache nunca é compartilhado entre pessoas, porque escopo e `APR-09` dependem de quem pede.
 
 ---
 
