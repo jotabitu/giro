@@ -42,15 +42,17 @@ cancelada                        │                                            
 {
   "id": 2836, "codigo": "LOC-2836", "status": "ativa",
   "cliente": { "id": 1201, "nome": "Juliana Rocha" },
-  "veiculo": { "id": 412, "modelo": "Yamaha Factor 150", "placa": "PNB7C04" },
+  "veiculo": { "id": 412, "modelo": "Yamaha Factor 150", "placa": "PNB7C04", "tipo": "moto" },
   "periodicidade": "semanal", "plano_especial": null,
   "inicio": "2026-09-30T12:10:00Z", "fim_previsto": "2026-10-07T21:00:00Z",
   "sinais": { "pagamento_atrasado": false, "devolve_hoje": true, "cancelamento_pendente": false },
   "situacao": { "codigo": "devolve_hoje", "rotulo": "Devolve hoje", "tom": "info" },
-  "pagamento": { "rotulo": "Pago", "tom": "sucesso", "em_aberto_centavos": 0 },
+  "pagamento": { "rotulo": "Pago", "tom": "sucesso", "em_aberto_centavos": 0, "pago_centavos": 65800 },
   "acao_principal": { "codigo": "receber_devolucao", "rotulo": "Receber devolução" }
 }
 ```
+
+`veiculo.tipo` (`moto` ou `carro`, da categoria) e `pagamento.pago_centavos` (contas pagas da locação, **sem** caução, como o `total_pago_centavos` do cliente) entram na T-128 para a ficha do cliente (`GET /api/locacoes/?cliente=`) não precisar abrir o detalhe de cada locação. Na LOC-2836 do exemplo: duas parcelas de R$ 329,00 pagas = 65800; a caução de R$ 300,00 fica de fora.
 
 `situacao` (a primeira que valer): `devolucao_atrasada` ("Devolução atrasada 25 dias"), `cancelamento_pendente` ("Pedido de cancelamento"), `pagamento_atrasado` ("Parcela 2 atrasada"), `aguardando_assinatura` / `aguardando_vistoria` / `aguardando_pagamento` (o que falta em `aguardando_retirada`, nessa ordem), `devolve_hoje`, `ativa`, `encerrada`, `cancelada`.
 `pagamento.rotulo`: "R$ 1.347,00 em aberto", "Pago", "Pix automático", "R$ 329,00 pago" (antes da retirada), "Multa R$ 84,80" (com cancelamento pendente), forma de pagamento quando em dia.
