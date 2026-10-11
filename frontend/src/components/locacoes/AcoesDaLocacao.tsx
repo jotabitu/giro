@@ -12,7 +12,7 @@ import { dataEHora, textoDaEstimativa, textoDoPeriodo } from "@/lib/locacoes";
 
 // Renovar, trocar o veículo e cancelar a locação. Os valores, a multa e as recusas vêm da API (docs/api/locacoes.md).
 
-type Dialogos = "renovar" | "trocar" | "cancelar" | null;
+type Dialogos = "renovar" | "trocar" | "cancelar_troca" | "cancelar" | null;
 
 function Erro({ erro }: { erro: unknown }) {
   return (
@@ -254,6 +254,43 @@ function Trocar({ l, aoFechar, aoConcluir }: { l: LocacaoCompleta; aoFechar: () 
   );
 }
 
+function CancelarTroca({ l, aoFechar, aoConcluir }: { l: LocacaoCompleta; aoFechar: () => void; aoConcluir: (m: string) => void }) {
+  const cliente = useQueryClient();
+  const [motivo, setMotivo] = useState("");
+  const cancelar = useMutation({
+    mutationFn: () => locacoes.cancelarTroca(l.id, { motivo }),
+    onSuccess: async () => {
+      await Promise.all([atualizar(cliente, l.id), cliente.invalidateQueries({ queryKey: ["veiculos"] }), cliente.invalidateQueries({ queryKey: ["devolucao"] })]);
+      aoConcluir(`Troca cancelada. A ${l.codigo} segue com ${l.troca?.veiculo_antigo.modelo ?? "o veículo atual"}.`);
+      aoFechar();
+    },
+  });
+  return (
+    <Dialogo
+      aberto
+      aoFechar={aoFechar}
+      fecharAoClicarFora={false}
+      titulo={`Cancelar a troca da ${l.codigo}`}
+      descricao="As vistorias da troca são descartadas e o veículo novo volta a ficar disponível. A locação continua com o veículo atual."
+      acoes={
+        <>
+          <Button variante="quieto" data-autofocus onClick={aoFechar}>
+            Manter a troca
+          </Button>
+          <Button variante="solido" disabled={!motivo.trim() || cancelar.isPending} onClick={() => cancelar.mutate()}>
+            {cancelar.isPending ? "Cancelando…" : "Cancelar troca"}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <TextField cheio rotulo="Motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} erro={campoDoErro(cancelar.error, "motivo")} />
+        {cancelar.isError && !campoDoErro(cancelar.error, "motivo") && <Erro erro={cancelar.error} />}
+      </div>
+    </Dialogo>
+  );
+}
+
 /** Botões da locação (só o que `acoes` da API permite) e as janelas de cada ação. */
 export function AcoesDaLocacao({ l, variante, aoConcluir }: { l: LocacaoCompleta; variante: "desktop" | "celular"; aoConcluir: (mensagem: string) => void }) {
   const [aberto, setAberto] = useState<Dialogos>(null);
@@ -291,6 +328,11 @@ export function AcoesDaLocacao({ l, variante, aoConcluir }: { l: LocacaoCompleta
       Trocar veículo
     </Button>
   );
+  const cancelarTroca = a.cancelar_troca && (
+    <Button key="ctr" variante="quieto" onClick={() => setAberto("cancelar_troca")}>
+      Cancelar troca
+    </Button>
+  );
   const cancelar = a.cancelar && (
     <Button key="can" variante="quieto" onClick={() => setAberto("cancelar")}>
       {a.cancelar === "pedir" ? "Pedir cancelamento" : "Cancelar locação"}
@@ -300,16 +342,18 @@ export function AcoesDaLocacao({ l, variante, aoConcluir }: { l: LocacaoCompleta
   return (
     <>
       {variante === "desktop" ? (
-        <div className="flex flex-wrap items-center gap-2">{[renovar, trocar, cancelar, continuarRascunho, vistoria, continuar, devolucao]}</div>
+        <div className="flex flex-wrap items-center gap-2">{[renovar, trocar, cancelarTroca, cancelar, continuarRascunho, vistoria, continuar, devolucao]}</div>
       ) : (
         <div className="flex flex-col gap-2 [&_.wl-btn]:justify-center">
           <div className="flex gap-2 [&>*:first-child]:flex-1 [&>*:last-child]:flex-[2]">{[renovar, continuarRascunho, vistoria, continuar, devolucao]}</div>
           {trocar}
+          {cancelarTroca}
           {cancelar}
         </div>
       )}
       {aberto === "renovar" && <Renovar l={l} aoFechar={fechar} aoConcluir={aoConcluir} />}
       {aberto === "cancelar" && <Cancelar l={l} aoFechar={fechar} aoConcluir={aoConcluir} />}
+      {aberto === "cancelar_troca" && <CancelarTroca l={l} aoFechar={fechar} aoConcluir={aoConcluir} />}
       {aberto === "trocar" && <Trocar l={l} aoFechar={fechar} aoConcluir={aoConcluir} />}
     </>
   );

@@ -75,3 +75,6 @@ export function rotuloDaParcela(p: Pick<ParcelaDaLocacao, "tipo" | "numero">): s
 export function textoDaEstimativa(data: string | null): string {
   return data ? `Estimativa para ${dataCurta(data)}. O valor final sai na devolução.` : "Estimativa. O valor final sai na devolução.";
 }
+
+const ROTULO_VISTORIA_DA_TROCA: Record<"rascunho" | "concluida" | "descartada", string> = { rascunho: "Em andamento", concluida: "Concluída", descartada: "Descartada" };
+export const rotuloDaVistoriaDaTroca = (status: keyof typeof ROTULO_VISTORIA_DA_TROCA) => ROTULO_VISTORIA_DA_TROCA[status];

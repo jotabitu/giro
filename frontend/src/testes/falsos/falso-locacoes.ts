@@ -26,6 +26,7 @@ import type {
   SimulacaoDoCancelamento,
   StatusLocacao,
   StatusParcela,
+  TrocaCancelada,
   TrocaPedida,
 } from "@/lib/api/tipos-locacoes";
 import type { Perfil } from "@/lib/api/tipos";
@@ -61,6 +62,10 @@ type Semente = {
   desconto?: string;
   cancelamento?: { status: "pendente" | "aprovado"; data: string; multa: number; credito: number; devolver: number; motivo: string };
   trocaPendente?: boolean;
+  /** Dados da troca pendente; `saidaConcluida` simula a entrega do veículo novo (409 `troca_saida_concluida`). */
+  troca?: { id: number; motivo: string; novo: { id: number; modelo: string; placa: string }; saidaConcluida: boolean };
+  /** Diferença do período de uma troca já concluída (acerto da devolução, LOC-09); negativa é crédito. */
+  diferencaTrocaCentavos?: number;
   eventos: [em: string, rotulo: string, detalhe: string][];
   devolucaoId?: number | null;
   /** Formulário do rascunho (o que o PATCH e o POST guardam). */
@@ -165,8 +170,8 @@ function acoesDe(s: Semente, perfil: Perfil | null) {
     renovar: cria && ativa(s) && !emCurso,
     registrar_devolucao: ativa(s),
     trocar_veiculo: cria && s.status === "ativa" && !emCurso && !s.trocaPendente,
-    cancelar_troca: false,
-    cancelar: s.status === "encerrada" || s.status === "cancelada" || emCurso ? (false as const) : cancelar,
+    cancelar_troca: cria && ativa(s) && !!s.trocaPendente && !s.troca?.saidaConcluida,
+    cancelar: s.status === "encerrada" || s.status === "cancelada" || emCurso || s.trocaPendente ? (false as const) : cancelar,
     imprimir_contrato: !!s.corpo.contrato && perfil !== "vistoriador",
     reenviar_contrato: !!s.corpo.contrato && perfil !== "vistoriador",
     continuar_vistoria: false,
@@ -265,7 +270,19 @@ function detalhe(s: Semente): LocacaoCompleta {
           motivo: s.cancelamento.motivo,
         }
       : null,
-    troca: null,
+    troca: s.trocaPendente && s.troca
+      ? {
+          id: s.troca.id,
+          status: "pendente",
+          motivo: s.troca.motivo,
+          pedida_em: AGORA_DO_SEED,
+          veiculo_antigo: { id: s.veiculo.id, placa: s.veiculo.placa, modelo: s.veiculo.modelo },
+          veiculo_novo: s.troca.novo,
+          devolucao_vistoria: { id: s.troca.id + 1, status: "rascunho" },
+          saida_vistoria: { id: s.troca.id + 2, status: s.troca.saidaConcluida ? "concluida" : "rascunho" },
+          ...(vistoriador ? {} : { preco: { valor_periodo_centavos: s.corpo.periodoCentavos, diaria_centavos: s.corpo.diariaCentavos, caucao_centavos: s.corpo.caucaoCentavos, preco_do_dia: "2026-10-07" } }),
+        }
+      : null,
     acoes: acoesDe(s, perfil),
   };
   if (!vistoriador) return base;
@@ -605,6 +622,7 @@ export const locacoesFalso = {
   async cancelar(id: number, corpo: { motivo: string; data?: string | null; forma_devolucao: FormaDevolucaoCancelamento }): Promise<{ status: 200; locacao: LocacaoCompleta } | { status: 202; pedido: PedidoDeCancelamento }> {
     await pausa(300);
     const s = achar(id);
+    if (s.trocaPendente) throw new ErroApi(409, "troca_pendente", "Conclua ou cancele a troca antes");
     const acoes = acoesDe(s, perfilAtualFalso());
     if (!acoes.cancelar) throw new ErroApi(s.cancelamento ? 409 : 403, s.cancelamento ? "cancelamento_em_andamento" : "sem_permissao", s.cancelamento ? "Já existe um pedido de cancelamento para esta locação" : "Você não tem permissão para cancelar");
     if (!corpo.motivo.trim()) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, { motivo: "Informe o motivo" });
@@ -639,9 +657,27 @@ export const locacoesFalso = {
     const novo = await veiculosFalso.obter(corpo.veiculo_novo_id);
     if (novo.status !== "disponivel") throw new ErroApi(422, "LOC-03", "Veículo indisponível no período");
     s.trocaPendente = true;
+    s.troca = { id: s.id * 10, motivo: corpo.motivo, novo: { id: novo.id, modelo: novo.modelo, placa: novo.placa }, saidaConcluida: false };
     s.devolucaoId = s.id * 10;
     s.eventos.push([AGORA_DO_SEED, "Troca de veículo pedida", corpo.motivo]);
     return { troca: { id: s.id * 10, status: "pendente", devolucao_vistoria_id: s.id * 10 + 1, saida_vistoria_id: s.id * 10 + 2 } };
+  },
+
+  /** 200 com a troca cancelada. 409 `transicao_troca` sem troca pendente e `troca_saida_concluida` com o veículo novo já entregue (docs/api/locacoes.md). */
+  async cancelarTroca(id: number, corpo: { motivo: string }): Promise<TrocaCancelada> {
+    await pausa(300);
+    exigirCria();
+    const s = achar(id);
+    if (!ativa(s)) throw new ErroApi(409, "transicao_locacao", "Só é possível cancelar a troca de uma locação ativa");
+    if (!s.trocaPendente || !s.troca) throw new ErroApi(409, "transicao_troca", "Esta locação não tem troca de veículo pendente.");
+    if (!corpo.motivo.trim()) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, { motivo: "Informe o motivo do cancelamento da troca." });
+    if (s.troca.saidaConcluida) throw new ErroApi(409, "troca_saida_concluida", "O veículo novo já foi entregue. Conclua a troca com a chegada do veículo antigo.");
+    const trocaId = s.troca.id;
+    s.trocaPendente = false;
+    s.troca = undefined;
+    s.devolucaoId = null;
+    s.eventos.push([AGORA_DO_SEED, "Troca de veículo cancelada", corpo.motivo]);
+    return { troca: { id: trocaId, status: "cancelada", cancelada_em: AGORA_DO_SEED, saida_vistoria: { id: trocaId + 2, status: "descartada" }, devolucao_vistoria: { id: trocaId + 1, status: "descartada" }, conta_caucao: null, devolucao_id: null } };
   },
 
   async reenviarContrato(id: number): Promise<void> {
@@ -677,6 +713,7 @@ export type DadosDaLocacaoParaVistoria = {
   extras: string[];
   cancelamentoAprovado: boolean;
   trocaPendente: boolean;
+  diferencaTrocaCentavos: number;
   parcelasAbertas: { numero: number; total: number; vencimento: string; valorCentavos: number }[];
 };
 
@@ -700,6 +737,7 @@ export function dadosDaLocacaoParaVistoria(id: number): DadosDaLocacaoParaVistor
     extras: s.extras ?? [],
     cancelamentoAprovado: s.cancelamento?.status === "aprovado",
     trocaPendente: !!s.trocaPendente,
+    diferencaTrocaCentavos: s.diferencaTrocaCentavos ?? 0,
     parcelasAbertas: parcelas.flatMap((p, i) => (["aberta", "vence_hoje", "atrasada"].includes(p[3]) ? [{ numero: i + 1, total: parcelas.length, vencimento: p[1], valorCentavos: p[2] }] : [])),
   };
 }
@@ -735,4 +773,11 @@ export function aplicarDevolucaoEncerrada(id: number, em: string, antecipado: bo
 /** A troca de veículo vai para as duas vistorias; o falso só marca que há troca pendente e guarda o id da devolução. */
 export function vincularDevolucao(id: number, devolucaoId: number): void {
   achar(id).devolucaoId = devolucaoId;
+}
+
+/** Só para testes: a entrega do veículo novo (saída concluída) ou a diferença do período de uma troca concluída. */
+export function simularTroca(id: number, estado: { saidaConcluida?: boolean; diferencaCentavos?: number }): void {
+  const s = achar(id);
+  if (estado.saidaConcluida !== undefined && s.troca) s.troca.saidaConcluida = estado.saidaConcluida;
+  if (estado.diferencaCentavos !== undefined) s.diferencaTrocaCentavos = estado.diferencaCentavos;
 }

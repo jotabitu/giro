@@ -9,7 +9,7 @@ import { clientes, ErroApi, locacoes, type ClienteCompleto, type ClienteResumo, 
 import { ROTULO_PERIODICIDADE } from "@/lib/clientes";
 import { mensagemDoErro } from "@/lib/erros";
 import { celular, dataCurta, dataHoraCurta, dinheiro, diaDe, horaCurta, km, placa } from "@/lib/formatos";
-import { dataEHora, rotuloDaParcela, seloDaParcela, textoDoPeriodo, textoFaltam } from "@/lib/locacoes";
+import { dataEHora, rotuloDaParcela, rotuloDaVistoriaDaTroca, seloDaParcela, textoDoPeriodo, textoFaltam } from "@/lib/locacoes";
 import { tomDoStatus } from "@/lib/tom";
 import { AcoesDaLocacao } from "./AcoesDaLocacao";
 import { TelaDeErro } from "./Comuns";
@@ -18,6 +18,7 @@ import { TelaDeErro } from "./Comuns";
 // As duas versões são árvores separadas, escolhidas por um <div> com hidden / md:hidden (nunca no mesmo elemento de uma classe wl-).
 // Tudo que é valor, situação e ação vem da API; o vistoriador recebe a locação sem valores e a tela só omite o que não vem.
 
+const ROTULO_CONTA: Record<string, string> = { aberta: "em aberto", vence_hoje: "vence hoje", atrasada: "atrasada", paga: "paga", cancelada: "cancelada" };
 const ABREV: Record<string, string> = { diaria: "dia", semanal: "sem", mensal: "mês" };
 
 function Linha({ rotulo, children }: { rotulo: ReactNode; children: ReactNode }) {
@@ -188,6 +189,34 @@ function Cancelamento({ l }: { l: LocacaoCompleta }) {
   );
 }
 
+/** A troca pendente (LOC-09): os dois veículos, o motivo e o andamento das duas vistorias. Sem valores para o vistoriador. */
+function Troca({ l }: { l: LocacaoCompleta }) {
+  const t = l.troca;
+  if (!t) return null;
+  return (
+    <Panel titulo="Troca de veículo" subtitulo="Pendente: a locação segue no veículo atual até as duas vistorias terminarem">
+      <dl>
+        <Linha rotulo="Veículo atual">
+          {t.veiculo_antigo.modelo} · <span className="wl-mono">{placa(t.veiculo_antigo.placa)}</span>
+        </Linha>
+        <Linha rotulo="Veículo novo">
+          {t.veiculo_novo.modelo} · <span className="wl-mono">{placa(t.veiculo_novo.placa)}</span>
+        </Linha>
+        <Linha rotulo="Motivo">{t.motivo}</Linha>
+        {t.pedida_em && <Linha rotulo="Pedida em">{dataHoraCurta(t.pedida_em)}</Linha>}
+        {t.devolucao_vistoria && <Linha rotulo="Chegada do veículo atual">{rotuloDaVistoriaDaTroca(t.devolucao_vistoria.status)}</Linha>}
+        {t.saida_vistoria && <Linha rotulo="Saída do veículo novo">{rotuloDaVistoriaDaTroca(t.saida_vistoria.status)}</Linha>}
+        {t.preco && <Linha rotulo="Preço do veículo novo">{dinheiro(t.preco.valor_periodo_centavos)}</Linha>}
+        {t.caucao && (
+          <Linha rotulo="Diferença de caução">
+            {dinheiro(t.caucao.valor_centavos)} · {ROTULO_CONTA[t.caucao.status] ?? t.caucao.status}
+          </Linha>
+        )}
+      </dl>
+    </Panel>
+  );
+}
+
 function Historico({ l, historico }: { l: LocacaoCompleta; historico: HistoricoDaLocacao | undefined }) {
   const itens = historico?.resultados ?? [];
   const prevista = l.devolucao.prevista_para;
@@ -304,6 +333,7 @@ export function DetalheDaLocacao({ id }: { id: number }) {
             <section className="wl-panel">
               <Prazo l={l} />
             </section>
+            <Troca l={l} />
             <Cancelamento l={l} />
             <Resumo l={l} />
             <Historico l={l} historico={historico.data} />
@@ -334,6 +364,7 @@ export function DetalheDaLocacao({ id }: { id: number }) {
             {l.veiculo.modelo} · {placa(l.veiculo.placa)}
           </div>
         </section>
+        <Troca l={l} />
         <Cancelamento l={l} />
         {l.precos && (
           <section className="wl-panel">
