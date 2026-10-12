@@ -23,6 +23,7 @@ from apps.auditoria.models import EventoAuditoria
 from apps.clientes import selectors
 from apps.clientes.models import Cliente, DocumentoCliente
 from apps.contas.models import Usuario
+from apps.financeiro import leituras as financeiro_leituras
 from apps.locacoes import leituras as locacoes_leituras
 from apps.plataforma.models import Empresa
 from apps.plataforma.services import abrir_acesso_suporte
@@ -698,6 +699,7 @@ def test_cli_05_ca_014_16_desbloqueio_automatico_ao_quitar(moto):
         assert _get(moto, ana["id"])["status"] == "bloqueado"
     finally:
         leituras.remover_contador(selectors.ALVO, selectors.CONTADOR_ATRASO_PARA_BLOQUEIO)
+        financeiro_leituras.registrar()  # volta o contador de verdade de `financeiro` (T-017)
 
 
 def test_cli_05_ca_014_17_bloqueio_e_desbloqueio_manuais(moto):
@@ -888,6 +890,7 @@ def fornecedores_falsos():
     leituras.remover_filtro(selectors.ALVO, "com_locacao")
     leituras.remover_filtro(selectors.ALVO, "em_aberto")
     locacoes_leituras.registrar()  # volta o filtro de verdade de `locacoes` (T-015)
+    financeiro_leituras.registrar()  # e o de `financeiro` (T-017)
 
 
 def _seed_da_lista(moto: MotoRapida) -> None:
@@ -957,7 +960,7 @@ def test_cli_06_ca_014_21_contagens_e_indicadores(moto):
     assert corpo["contagens"] == {
         "todos": 7,
         "com_locacao": 0,  # o filtro de `locacoes` existe desde a T-015
-        "em_aberto": None,
+        "em_aberto": 0,  # o filtro de `financeiro` existe desde a T-017
         "bloqueados": 1,
         "incompletos": 1,
         "inativos": 0,
@@ -965,7 +968,7 @@ def test_cli_06_ca_014_21_contagens_e_indicadores(moto):
     assert corpo["indicadores"] == {
         "novos_no_mes_anterior": 0,
         "com_locacao_pct": "0.00",
-        "em_aberto_total_centavos": None,
+        "em_aberto_total_centavos": 0,
     }
     assert _lista(moto, situacao="com_locacao")["resultados"] == []
     # Clientes de setembro contam como novos do mês anterior.
