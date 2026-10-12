@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 
 import environ
 from celery.schedules import crontab
@@ -9,6 +10,21 @@ from celery.schedules import crontab
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 env = environ.Env()
+
+# Valores de exemplo do .env.example: só valem em desenvolvimento. config.settings.prod os recusa.
+CHAVE_DADOS_PESSOAIS_DE_EXEMPLO = "1:O6Era8PkgBlfbOR6Nt6IGvnBlEL9vRRNA3iXRdxDtkg="
+CHAVE_SEGREDOS_DE_EXEMPLO = "1:b/jBUdVpQ6mwUQJnFhzjnMkTVZvziqLLZfoEWrBDhs0="
+PEPPER_DE_EXEMPLO = "07128db7f37327bc0128ca29852fae5bf3b0f67c758ad430d12af360c0332089"
+
+
+def env_preenchida(nome: str, padrao: str) -> str:
+    """Valor da variável; ausente ou vazia (`NOME=` no .env) cai no padrão de desenvolvimento.
+
+    `env(nome, default=...)` só usa o padrão quando a variável não existe, e o compose entrega
+    `NOME=` do .env como string vazia (T-133). Produção confere a variável crua em prod.py.
+    """
+    return env(nome, default="").strip() or padrao
+
 
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
@@ -207,7 +223,7 @@ SPECTACULAR_SETTINGS = {
     },
 }
 
-SIMPLE_JWT = {
+SIMPLE_JWT: dict[str, Any] = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
     # Teto do refresh, acima da sessão mais longa: quem decide é a sessão (12 h ou 30 dias, USR-06).
     "REFRESH_TOKEN_LIFETIME": timedelta(days=31),
@@ -216,7 +232,7 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": True,
     # Chave própria dos tokens: vazar uma não compromete a outra. Em prod.py é obrigatória e
     # diferente de SECRET_KEY; em dev e testes cai em SECRET_KEY.
-    "SIGNING_KEY": env("JWT_SIGNING_KEY", default=SECRET_KEY),
+    "SIGNING_KEY": env_preenchida("JWT_SIGNING_KEY", SECRET_KEY),
 }
 
 # --- Celery (ADR 0012) ---
@@ -280,9 +296,12 @@ GIRO_PROXIES_CONFIAVEIS = env.int("GIRO_PROXIES_CONFIAVEIS", default=1)
 
 # --- Cifra de dados pessoais e segredos (ADR 0014). Nenhuma delas é a SECRET_KEY. ---
 # Chaves: "<id>:<base64 de 32 bytes>[,<id>:<chave>...]"; a de maior id cifra.
-GIRO_CHAVE_DADOS_PESSOAIS = env("GIRO_CHAVE_DADOS_PESSOAIS")
-GIRO_CHAVE_SEGREDOS = env("GIRO_CHAVE_SEGREDOS")
-GIRO_PEPPER_HMAC = env("GIRO_PEPPER_HMAC")
+# Vazias (ou ausentes) caem nos valores de exemplo; em prod.py são obrigatórias e próprias.
+GIRO_CHAVE_DADOS_PESSOAIS = env_preenchida(
+    "GIRO_CHAVE_DADOS_PESSOAIS", CHAVE_DADOS_PESSOAIS_DE_EXEMPLO
+)
+GIRO_CHAVE_SEGREDOS = env_preenchida("GIRO_CHAVE_SEGREDOS", CHAVE_SEGREDOS_DE_EXEMPLO)
+GIRO_PEPPER_HMAC = env_preenchida("GIRO_PEPPER_HMAC", PEPPER_DE_EXEMPLO)
 
 # --- Integrações (backend/integracoes/) ---
 # CEP: "falso" (CEPs do seed) em dev e testes; "viacep" em homologação e produção.

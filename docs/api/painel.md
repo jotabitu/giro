@@ -123,9 +123,10 @@ A resposta tem sempre `variante` (a mesma de `eu.navegacao.inicio.variante`), `s
                   "recebido_centavos": 111190, "a_receber_hoje_centavos": 262580, "despesas_centavos": 4800, "saldo_dia_centavos": 106390 }
 }
 ```
-- `atencao` e `pendencias.titulo` contam as locações da aba `precisam_acao` (`locacoes.md`).
+- `atencao` e `pendencias.titulo` contam as locações da aba `precisam_acao` (`locacoes.md`). Com zero: `atencao.texto` "Nenhum contrato pede atenção" e `pendencias.titulo` "Nenhum contrato precisa de ação hoje"; com 1, "1 contrato pede atenção" e "1 contrato precisa de ação hoje".
 - `frota_ativa`: veículos fora de `vendido` e `baixado`. `ocupacao_pct` (`VEI-06`) no período escolhido. `meta_ocupacao_pct` vem de `ConfiguracaoEmpresa` (padrão 80,00; telas `Login` e `Main`).
-- `receita_locacao` (depende do período): parcelas de locação pagas no período, sem caução (`FIN-13`).
+- `receita_locacao` (depende do período): valor das contas de locação pagas no período (parcelas e cobranças do acerto), sem caução e **sem multa e juros por atraso** (`FIN-15`; multa e juros ficam na DRE, `FIN-13`).
+- Tendência de `alugados_agora`: diferença para a mesma hora de 7 dias atrás. Sobe: "6 a mais esta semana", `tendencia: "sobe"`; cai: "3 a menos esta semana", `tendencia: "desce"`; igual: `contexto` e `tendencia` `null`.
 - `em_atraso`: clientes com conta `atrasada`, e o total em atraso no contexto (seed: 2 clientes, R$ 1.646,40).
 - `devolucoes_semana`: locações com fim previsto de hoje até 6 dias à frente, mais as `devolucao_atrasada`, em ordem de data; `situacao` como na lista de locações.
 - `pendencias.itens`: devoluções atrasadas, parcelas que vencem até amanhã e, quando o app `manutencao` existir, preventivas vencidas. Cada item leva `destino` (chave do menu e filtro) para "Ver pendências".
@@ -145,6 +146,7 @@ A resposta tem sempre `variante` (a mesma de `eu.navegacao.inicio.variante`), `s
 }
 ```
 - `teste` vem `null` quando a empresa não está `em_teste`.
+- `convidar_equipe.detalhe`: "1 convite enviado", "3 convites enviados"; sem convite, "Chame quem vai usar o sistema com você".
 - `primeiros_passos` vem dos passos da implantação (`IMP-05`, `plataforma.UsoEmpresa.passos_implantacao`). Os itens "Instalar o app no celular do vistoriador" e "Conectar o WhatsApp da loja" da tela só entram quando esses recursos existirem; até lá, não vêm.
 - Ao existir a 1ª locação ou venda (`IMP-01`), a variante passa a `geral`.
 
@@ -165,7 +167,8 @@ A resposta tem sempre `variante` (a mesma de `eu.navegacao.inicio.variante`), `s
 }
 ```
 - `aprovacoes`: pedidos `pendente` da filial que ele pode decidir, **sem os que ele mesmo fez** (`APR-09`), do mais antigo para o mais novo, até 5 itens. As ações usam `aprovacoes.md`.
-- `equipe_hoje`: só pessoas ativas ligadas à filial (`USR-08`). `online` = sessão usada nos últimos 5 minutos (`contas.Sessao.ultimo_uso`). `resumo` é texto pronto do dia: vistoriador "2 de 6 vistorias feitas"; vendedor "3 locações hoje" (metas e propostas na fase 2); quem não fez nada hoje, "último acesso ontem".
+- `equipe_hoje`: só pessoas ativas ligadas à filial (`USR-08`). `online` = sessão usada nos últimos 5 minutos (`contas.Sessao.ultimo_uso`). `resumo` é texto pronto do dia: vistoriador "2 de 6 vistorias feitas"; vendedor "3 locações hoje" (metas e propostas na fase 2); quem não fez nada hoje, o último acesso: "último acesso hoje", "último acesso ontem", "último acesso em 03 out" (dia com 2 dígitos e mês abreviado, no fuso da filial) ou, quem nunca entrou, "ainda não acessou".
+- `receita_semana`: os últimos 7 dias contra os 7 anteriores, na base da `receita_locacao`. Sobe: "6% a mais que a anterior", `tendencia: "sobe"`; cai: "6% a menos que a anterior", `tendencia: "desce"` (percentual inteiro, arredondado meio para cima); igual ou semana anterior sem receita: `contexto` e `tendencia` `null`.
 - `em_manutencao` vem com `valor: null` até o app `manutencao` existir (o frontend esconde o cartão).
 
 ### Variante `vendedor` (fase 1: locação; tela `Vendedor` completa na fase 2)
@@ -211,7 +214,7 @@ Sem valores em dinheiro. As abas Amanhã e Semana chamam `GET /api/vistorias/age
 }
 ```
 - `entra_hoje`: o "vence hoje" da `FIN-15` (contas não pagas com vencimento hoje, sem caução), com a quantidade de parcelas no contexto; mesmo número de `caixa_hoje.a_receber_hoje_centavos` e de `vence_hoje_*` em `financeiro.md` (seed em 07 out: 262580 em 6 parcelas); `sai_hoje`: despesas `a_pagar` com vencimento hoje; `em_atraso`: total `atrasada` e número de clientes.
-- `para_hoje` (`USR-08`): só reembolsos `a_fazer` e despesas a pagar vencendo até hoje. **Sem aprovações**: o financeiro não decide `APR-03` nem `APR-04`.
+- `para_hoje` (`USR-08`): só reembolsos `a_fazer` e despesas a pagar vencendo até hoje. Texto do reembolso pela forma (`DEV-02`): "Devolver R$ 183,00 a Juliana Rocha por Pix", "... no cartão" (estorno) e "... em dinheiro". O de dinheiro só aparece até a T-017: com o caixa, o dinheiro sai na hora e o reembolso nasce `feito`. **Sem aprovações**: o financeiro não decide `APR-03` nem `APR-04`.
 - `saldo_em_contas`, `fluxo_previsto` e `conciliacao` vêm `null` até a fase 2 (conciliação bancária).
 
 ---

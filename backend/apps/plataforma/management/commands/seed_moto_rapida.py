@@ -34,6 +34,8 @@ class Command(BaseCommand):
         if resultado.existente:
             self.stdout.write(f"Já existia: {', '.join(resultado.existente)}.")
         self.stdout.write(f"Acesso: http://{moto_rapida.SUBDOMINIO}.localhost:3000/entrar")
+        _, email = moto_rapida.DONO_DA_PLATAFORMA
+        self.stdout.write(f"  plataforma    {email}  {moto_rapida.SENHA_DEV}  (2 etapas: --codigo)")
         for email, perfil in moto_rapida.PESSOAS.values():
             dois = "  (2 etapas: --codigo)" if perfil in moto_rapida.PERFIS_COM_2FA else ""
             self.stdout.write(f"  {perfil:<13} {email}  {moto_rapida.SENHA_DEV}{dois}")

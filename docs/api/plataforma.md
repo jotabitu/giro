@@ -275,6 +275,7 @@ Os apps da empresa usam só estas funções do `plataforma` (ADR 0011):
 | `plataforma.services.exigir_limite(item)` | `item` ∈ `veiculos`, `filiais`, `usuarios`. Levanta `LimiteDoPlano` → 422 `{ "codigo": "PLT-03", "mensagem": "Seu plano permite até 3 filiais. Para abrir outra, mude de plano.", "detalhes": { "item": "filiais", "usado": 3, "limite": 3 } }`. Chamada pelo serviço de criação de filial, veículo (inclusive importação, `IMP-03`) e convite de usuário, dentro da transação, com `SELECT ... FOR UPDATE` no `UsoEmpresa` para duas criações simultâneas não passarem do limite. |
 | `plataforma.services.atualizar_uso(item, delta)` | Mantém `UsoEmpresa` em dia; chamada pelos mesmos serviços ao criar, desativar ou reativar. A tarefa noturna `plataforma.recalcular_uso` corrige qualquer diferença contando de verdade em cada schema. |
 | `plataforma.services.registrar_passo_implantacao(passo)` | Marca o passo da implantação e move o funil (`IMP-05`). |
+| `plataforma.services.concluir_implantacao(objeto)` | Na confirmação da 1ª locação (ou venda), marca o passo `primeira_locacao` uma vez só, com o evento `implantacao.concluir` na auditoria da empresa (`IMP-01`). |
 | `plataforma.services.registrar_acesso()` | Atualiza `ultimo_acesso_em` (no máximo 1 escrita a cada 5 min por empresa). |
 
 Ao chegar a 90% de um item, `exigir_limite`/`atualizar_uso` agendam a notificação "limite do plano em 90%" para os administradores (uma vez por item e por mês).
