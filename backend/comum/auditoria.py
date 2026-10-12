@@ -173,3 +173,48 @@ def auditar(
             motivo=motivo,
             regra=regra,
         )
+
+
+# --- Leitura dos eventos (T-018, docs/api/auditoria.md) ---
+
+
+@dataclass(frozen=True)
+class Texto:
+    """`resumo` e `detalhe` prontos para a tela: o frontend não monta frase."""
+
+    resumo: str
+    detalhe: str = ""
+
+
+# O formatador recebe o evento e um dicionário de apoio da requisição (cache das consultas).
+Formatador = Callable[[Any, dict[str, Any]], Texto | None]
+_formatadores: dict[str, Formatador] = {}
+
+
+def registrar_formatador(acoes: str | tuple[str, ...], funcao: Formatador) -> None:
+    """Chame no `ready()` do app dono das ações: `registrar_formatador("caixa.abrir", f)`.
+
+    Ação sem formatador sai pelo texto genérico do app `auditoria` (verbo e objeto).
+    """
+    for acao in (acoes,) if isinstance(acoes, str) else acoes:
+        _formatadores[acao] = funcao
+
+
+def formatador(acao: str) -> Formatador | None:
+    return _formatadores.get(acao)
+
+
+# Consultas que o app `auditoria` faz aos apps de cima sem importá-los (ADR 0011): ids → dados.
+Consulta = Callable[[set[int]], dict[int, Any]]
+_consultas: dict[str, Consulta] = {}
+
+
+def registrar_consulta(nome: str, funcao: Consulta) -> None:
+    """`filiais` (id → nome) pelo app `filiais`; `acessos_suporte` (id → atendente, motivo,
+    permissão, início e fim) pelo app `plataforma`."""
+    _consultas[nome] = funcao
+
+
+def consultar(nome: str, ids: set[int]) -> dict[int, Any]:
+    funcao = _consultas.get(nome)
+    return funcao(ids) if funcao is not None and ids else {}

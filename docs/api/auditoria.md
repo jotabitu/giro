@@ -1,6 +1,6 @@
 # Auditoria e exportação
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-043) · **App:** `auditoria` (schema da empresa **e** `public`) · **Regras:** AUD-01 a AUD-03, AUD-07, AUD-09, PLT-07, PLT-08, PLT-09, AUT-11 · **ADRs:** 0010, 0014, 0016 · **Segurança:** S-06, S-10, S-15 · **Critérios:** `docs/qa/criterios/T-018.md` · **Telas:** Admin-Auditoria, Plat-Auditoria, Admin-Exportar
+**Dono:** arquiteto · **Versão:** 12 out 2026 (T-151; antes 07 out 2026, T-043) · **App:** `auditoria` (schema da empresa **e** `public`) · **Regras:** AUD-01 a AUD-03, AUD-07, AUD-09, PLT-07, PLT-08, PLT-09, AUT-11 · **ADRs:** 0010, 0014, 0016 · **Segurança:** S-06, S-10, S-15 · **Critérios:** `docs/qa/criterios/T-018.md` · **Telas:** Admin-Auditoria, Plat-Auditoria, Admin-Exportar
 
 Convenções gerais em `docs/api/README.md`. Modelo: item 25 e `Exportacao` em `docs/decisoes/modelo-de-dados.md`. A gravação dos eventos é de `comum.auditoria` (ADR 0010); este contrato é a consulta e a exportação.
 
@@ -25,10 +25,10 @@ O token de suporte não consulta a auditoria da empresa (403 `PLT-07`): o suport
   "ator": { "tipo": "usuario", "id": 3, "nome": "Bruna Alves", "iniciais": "BA" },
   "suporte": null,
   "categoria": "financeiro",
-  "acao": "caixa.sangria",
+  "acao": "movimento_caixa.sangria",
   "resumo": "Fez sangria de R$ 500,00",
   "detalhe": "Caixa da Filial Centro",
-  "objeto": { "tipo": "caixa", "id": 240, "codigo": null, "filial": "Filial Centro" },
+  "objeto": { "tipo": "movimentocaixa", "id": 412, "codigo": null, "filial": "Filial Centro" },
   "regra": null
 }
 ```
@@ -37,9 +37,15 @@ O token de suporte não consulta a auditoria da empresa (403 `PLT-07`): o suport
 - `suporte` (`AUD-03`): `{ "atendente": "Diego Santos", "motivo": "Chamado #1042", "permissao": "ver", "acesso_suporte_id": 31 }` em todo evento ligado a um acesso de suporte; a tela destaca a linha.
 - `resumo` e `detalhe` são textos prontos montados pela API a partir da `acao` e dos dados do evento (cada app registra o formatador das suas ações em `comum.auditoria`). O frontend não monta frase.
 - `categoria` (`AUD-02`): `financeiro`, `operacao`, `configuracoes`, `seguranca`, `suporte`.
+- `objeto.tipo` é o nome do model do objeto do evento; a `acao` segue `<objeto>.<verbo>`.
+- Movimentos de caixa (`movimento_caixa.entrada`, `.saida`, `.sangria`, `.estornar`, `.estorno_motivo`, `FIN-07`): o objeto é o `MovimentoCaixa` e o evento leva a filial do caixa (`objeto.filial` e o filtro `?filial=`), porque o movimento não tem filial própria (T-150). O `detalhe` da sangria é "Caixa da <filial>"; a descrição digitada vai no `depois` do detalhe do evento.
 
 ### GET /api/auditoria/eventos/{id}/
-Detalhe, com `antes` e `depois` (só os campos mudados) já tratados pela classificação da ADR 0014: campos omitidos vêm como `{ "alterado": true }`, mascarados vêm mascarados (CA-018-06: o CPF da Juliana aparece `***.218.330-**`), `ip` e `aparelho` do ator.
+Detalhe, com `antes` e `depois` (só os campos mudados) já tratados pela classificação da ADR 0014 (item 3 e nota de 12 out 2026): campos omitidos vêm como `{ "alterado": true }`, mascarados vêm mascarados, `ip` e `aparelho` do ator.
+
+CA-018-06, edição do cadastro da Juliana:
+- CPF e CNH (`documento`, `cnh_numero`, `responsavel_cpf`) são `CampoCifrado` e vêm sempre omitidos, em `antes` e `depois`: `"documento": { "alterado": true }`. Nenhum dígito vai para o evento; a máscara `***.218.330-**` (`AUD-04`, `AUD-09`) é só das telas, listas e exportações de cadastro.
+- Endereço: só a cidade e a UF vêm inteiras; CEP, logradouro, número, complemento e bairro vêm como `"***"`. Ex.: mudança de rua em Fortaleza dá `"antes": { "logradouro": "***", "numero": "***" }`, `"depois": { "logradouro": "***", "numero": "***" }`; mudança de cidade dá também `"cidade": "Fortaleza"` → `"Caucaia"`.
 
 ---
 
@@ -76,17 +82,25 @@ Query: as mesmas da empresa, mais `?empresa=<id>`. A aba "Acessos de suporte" é
 
 ## Exportação (AUD-07, S-15)
 
-Vale para a empresa (`/api/exportacoes/`, administrador) e para a plataforma (`/api/plataforma/exportacoes/`, dono, só auditoria em CSV).
+Vale para a empresa (`/api/exportacoes/`, administrador). A exportação da plataforma (`/api/plataforma/exportacoes/`, dono, só auditoria em CSV) é da fase 2.
+
+### O que existe no MVP (opção A do dono, 12 out 2026, T-151)
+Só a **auditoria em CSV**, por período (`AUD-07`, nota de 12 out nas regras). Os outros itens (`clientes`, `veiculos`, `locacoes_contratos`, `financeiro`, `vistorias_fotos`), o formato `planilha`, o backup completo `zip`, o backup automático (`AUT-11`) e a exportação da plataforma vão para a fase 2. O contrato abaixo descreve o corpo completo para a fase 2 não mudar o formato; no MVP:
+
+- **A tela `Admin-Exportar` é fixa e não consulta disponibilidade:** mostra só o período e o botão de exportar a auditoria em CSV, e manda sempre `{ "itens": ["auditoria"], "formato": "csv", "periodo": { "de", "ate" } | null }`. Os outros itens, os outros formatos e o cartão do backup automático não aparecem, nem desabilitados. Não há endpoint de opções no MVP; se a fase 2 precisar que a tela descubra o que está liberado, ele entra com a fase 2.
+- **Qualquer outro item ou formato responde 422** `{ "codigo": "exportacao_indisponivel", "mensagem": "Por enquanto, só a auditoria em CSV pode ser exportada." }`, e nada é criado. Vale para um item fora da lista disponível, mesmo junto da auditoria (`["auditoria", "clientes"]`), para `planilha` e para `zip`.
+- `zip` sem 2 etapas recentes responde antes o 403 `2fa_recente` (a checagem das 2 etapas vem primeiro); com elas, o 422 `exportacao_indisponivel`.
+- `GET /api/exportacoes/backup-automatico/` (e o `PATCH`) não existem no MVP.
 
 ### POST /api/exportacoes/
-Corpo: `{ "itens": ["clientes", "veiculos", "locacoes_contratos", "financeiro", "vistorias_fotos", "auditoria"], "formato": "planilha" | "csv" | "zip", "periodo": { "de": "2026-01-01", "ate": "2026-10-07" } | null }`.
-- `zip` é o backup completo (todos os itens, com fotos): exige token com 2 etapas confirmadas há no máximo 15 minutos (`amr` com `otp` e `auth_time` recente); senão 403 `{ "codigo": "2fa_recente", "mensagem": "Confirme o código do autenticador para gerar o backup completo" }`. Gera evento `seguranca`.
+No MVP só `["auditoria"]` com `csv` passa; o resto é 422 `exportacao_indisponivel` (acima). Corpo: `{ "itens": ["clientes", "veiculos", "locacoes_contratos", "financeiro", "vistorias_fotos", "auditoria"], "formato": "planilha" | "csv" | "zip", "periodo": { "de": "2026-01-01", "ate": "2026-10-07" } | null }`.
+- *(fase 2)* `zip` é o backup completo (todos os itens, com fotos): exige token com 2 etapas confirmadas há no máximo 15 minutos (`amr` com `otp` e `auth_time` recente); senão 403 `{ "codigo": "2fa_recente", "mensagem": "Confirme o código do autenticador para gerar o backup completo" }`. Gera evento `seguranca`.
 - Células de texto que começam com `=`, `+`, `-`, `@`, tabulação ou retorno de carro saem com apóstrofo na frente (injeção de fórmula, `docs/api/README.md`).
 - Dados pessoais saem como a pessoa veria na tela: o administrador vê completos; a auditoria sai sempre com a classificação da ADR 0014 (CA-018-13).
-202: `{ "id": 17, "status": "na_fila" }`. Uma task gera o arquivo no storage privado e avisa por e-mail com o link.
+202: `{ "id": 17, "status": "na_fila" }`. 422 `exportacao_indisponivel` para item ou formato fora do MVP. Uma task gera o arquivo no storage privado e avisa por e-mail com o link.
 
 ### GET /api/exportacoes/
-"Exportações recentes": `{ "resultados": [ { "id", "solicitada_em", "solicitada_por": "Mariana Costa" | "Automático", "conteudo": "Financeiro · setembro", "formato", "tamanho_bytes", "status": "na_fila" | "pronta" | "expirada" | "falhou", "expira_em" } ] }`.
+"Exportações recentes": `{ "resultados": [ { "id", "solicitada_em", "solicitada_por": "Mariana Costa" | "Automático", "conteudo": "Auditoria · 01/10/2026 a 07/10/2026", "formato", "tamanho_bytes", "status": "na_fila" | "pronta" | "expirada" | "falhou", "expira_em" } ] }`. "Automático" (backup mensal) e "Backup completo" no `conteudo` só aparecem na fase 2.
 
 ### GET /api/exportacoes/{id}/baixar/
 O "link de 7 dias" do e-mail é esta rota do sistema, não uma URL do storage (S-15):
@@ -95,7 +109,7 @@ O "link de 7 dias" do e-mail é esta rota do sistema, não uma URL do storage (S
 - Cada download grava `exportacao.baixar` (categoria `seguranca`).
 - Depois de 7 dias: 410 `{ "codigo": "exportacao_expirada" }`; o arquivo é apagado do storage.
 
-### Backup automático (AUT-11)
+### Backup automático (AUT-11) · fase 2
 `GET /api/exportacoes/backup-automatico/` → `{ "ativo": true, "frequencia": "mensal", "dia": 1, "hora": "09:00", "inclui_fotos": true, "envia_para": ["mariana@motorapida.com.br"] }`.
 `PATCH` · administrador · `{ ativo?, inclui_fotos? }`. Os destinatários são sempre os administradores da empresa (não se digita e-mail). A tarefa `aut_11_backup_mensal` gera uma `Exportacao` `zip` com `solicitada_por = null` ("Automático").
 

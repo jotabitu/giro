@@ -131,6 +131,7 @@ class Provedor(Protocol):
     def existe(self, caminho: str) -> bool: ...
     def tamanho(self, caminho: str) -> int: ...
     def url(self, caminho: str, expira_em: datetime) -> str: ...
+    def apagar(self, caminho: str) -> None: ...
 
 
 # --- Falso: na memória, para desenvolvimento e testes ---
@@ -153,6 +154,9 @@ class ProvedorFalso:
 
     def tamanho(self, caminho: str) -> int:
         return len(guardados[caminho][0])
+
+    def apagar(self, caminho: str) -> None:
+        guardados.pop(caminho, None)
 
     def url(self, caminho: str, expira_em: datetime) -> str:
         expira = str(int(expira_em.timestamp()))
@@ -207,6 +211,9 @@ class ProvedorS3:
     def tamanho(self, caminho: str) -> int:
         return int(self.cliente.head_object(Bucket=self.bucket, Key=caminho)["ContentLength"])
 
+    def apagar(self, caminho: str) -> None:
+        self.cliente.delete_object(Bucket=self.bucket, Key=caminho)
+
     def url(self, caminho: str, expira_em: datetime) -> str:
         segundos = max(1, int((expira_em - relogio.agora()).total_seconds()))
         return str(
@@ -231,6 +238,11 @@ def url_assinada(caminho: str) -> UrlAssinada:
     """Nova a cada chamada; vale 15 minutos (AUD-05)."""
     expira_em = relogio.agora() + VALIDADE_DA_URL
     return UrlAssinada(provedor().url(caminho, expira_em), expira_em)
+
+
+def apagar_temporario(caminho: str) -> None:
+    """Só para arquivo temporário (exportação vencida, AUD-07). Arquivo de negócio não sai."""
+    provedor().apagar(caminho)
 
 
 @deconstructible

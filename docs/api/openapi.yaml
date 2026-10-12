@@ -150,6 +150,137 @@ paths:
               schema:
                 $ref: '#/components/schemas/Assinatura'
           description: ''
+  /api/auditoria/eventos/:
+    get:
+      operationId: auditoria_eventos_list
+      summary: Auditoria da empresa (AUD-02, AUD-03)
+      parameters:
+      - in: query
+        name: ate
+        schema:
+          type: string
+        description: data no fuso da empresa (2026-10-07)
+      - in: query
+        name: ator
+        schema:
+          type: integer
+        description: id do usuário
+      - in: query
+        name: ator_tipo
+        schema:
+          type: string
+          enum:
+          - sistema
+          - suporte
+          - usuario
+      - in: query
+        name: categoria
+        schema:
+          type: string
+          enum:
+          - configuracoes
+          - financeiro
+          - operacao
+          - seguranca
+          - suporte
+      - in: query
+        name: de
+        schema:
+          type: string
+        description: data no fuso da empresa (2026-10-01)
+      - in: query
+        name: filial
+        schema:
+          type: integer
+      - in: query
+        name: objeto_codigo
+        schema:
+          type: string
+        description: LOC-2856
+      - in: query
+        name: objeto_id
+        schema:
+          type: integer
+      - in: query
+        name: objeto_tipo
+        schema:
+          type: string
+      - in: query
+        name: periodo
+        schema:
+          type: string
+          enum:
+          - 30d
+          - 7d
+          - 90d
+        description: padrão 7d
+      tags:
+      - auditoria
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeEventos'
+          description: ''
+  /api/auditoria/eventos/{id}/:
+    get:
+      operationId: auditoria_eventos_retrieve
+      summary: Evento com antes e depois já classificados (AUD-01, ADR 0014)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - auditoria
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoDetalhe'
+          description: ''
+  /api/auditoria/pessoas/:
+    get:
+      operationId: auditoria_pessoas_list
+      summary: Pessoas para o filtro da auditoria
+      parameters:
+      - in: query
+        name: ate
+        schema:
+          type: string
+        description: data no fuso da empresa (2026-10-07)
+      - in: query
+        name: de
+        schema:
+          type: string
+        description: data no fuso da empresa (2026-10-01)
+      - in: query
+        name: periodo
+        schema:
+          type: string
+          enum:
+          - 30d
+          - 7d
+          - 90d
+        description: padrão 7d
+      tags:
+      - auditoria
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDePessoas'
+          description: ''
   /api/auth/2fa/ativar/:
     post:
       operationId: auth_2fa_ativar_create
@@ -1547,6 +1678,66 @@ paths:
               schema:
                 $ref: '#/components/schemas/Cep'
           description: ''
+  /api/exportacoes/:
+    get:
+      operationId: exportacoes_list
+      summary: Exportações recentes (AUD-07)
+      tags:
+      - exportacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeExportacoes'
+          description: ''
+    post:
+      operationId: exportacoes_create
+      summary: Pedir exportação (AUD-07); backup completo pede 2 etapas recentes (S-15)
+      tags:
+      - exportacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportacaoEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ExportacaoEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExportacaoEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportacaoCriada'
+          description: ''
+  /api/exportacoes/{id}/baixar/:
+    get:
+      operationId: exportacoes_baixar_retrieve
+      summary: Baixar a exportação (S-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - exportacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '302':
+          description: Redireciona para a URL assinada de 15 minutos
+        '410':
+          description: exportacao_expirada
   /api/extras/:
     get:
       operationId: extras_list
@@ -3437,6 +3628,106 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PlanoEspecial'
+          description: ''
+  /api/plataforma/auditoria/eventos/:
+    get:
+      operationId: plataforma_auditoria_eventos_list
+      summary: Auditoria da plataforma (AUD-03, PLT-07, PLT-08)
+      parameters:
+      - in: query
+        name: ate
+        schema:
+          type: string
+        description: data no fuso da empresa (2026-10-07)
+      - in: query
+        name: ator
+        schema:
+          type: integer
+        description: id do usuário
+      - in: query
+        name: ator_tipo
+        schema:
+          type: string
+          enum:
+          - sistema
+          - suporte
+          - usuario
+      - in: query
+        name: categoria
+        schema:
+          type: string
+          enum:
+          - configuracoes
+          - financeiro
+          - operacao
+          - seguranca
+          - suporte
+      - in: query
+        name: de
+        schema:
+          type: string
+        description: data no fuso da empresa (2026-10-01)
+      - in: query
+        name: empresa
+        schema:
+          type: integer
+      - in: query
+        name: filial
+        schema:
+          type: integer
+      - in: query
+        name: objeto_codigo
+        schema:
+          type: string
+        description: LOC-2856
+      - in: query
+        name: objeto_id
+        schema:
+          type: integer
+      - in: query
+        name: objeto_tipo
+        schema:
+          type: string
+      - in: query
+        name: periodo
+        schema:
+          type: string
+          enum:
+          - 30d
+          - 7d
+          - 90d
+        description: padrão 7d
+      tags:
+      - plataforma
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeEventosDaPlataforma'
+          description: ''
+  /api/plataforma/auditoria/eventos/{id}/:
+    get:
+      operationId: plataforma_auditoria_evento_retrieve
+      summary: Evento da plataforma com antes e depois já classificados
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - plataforma
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventoDetalheDaPlataforma'
           description: ''
   /api/plataforma/auth/2fa/configurar/:
     post:
@@ -5424,6 +5715,23 @@ components:
       required:
       - access
       - codigos_recuperacao
+    Ator:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/TipoAtorEnum'
+        id:
+          type: integer
+          nullable: true
+        nome:
+          type: string
+        iniciais:
+          type: string
+      required:
+      - id
+      - iniciais
+      - nome
+      - tipo
     Avaria:
       type: object
       properties:
@@ -5755,6 +6063,20 @@ components:
       - proximo_preco
       - tipo_veiculo
       - veiculos
+    CategoriaAuditoriaEnum:
+      enum:
+      - financeiro
+      - operacao
+      - configuracoes
+      - seguranca
+      - suporte
+      type: string
+      description: |-
+        * `financeiro` - Financeiro
+        * `operacao` - Operação
+        * `configuracoes` - Configurações
+        * `seguranca` - Segurança
+        * `suporte` - Suporte
     CategoriaDespesaEnum:
       enum:
       - fixas
@@ -7487,6 +7809,16 @@ components:
       - nome_exibicao
       - somente_leitura
       - status
+    EmpresaDoEvento:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome_exibicao:
+          type: string
+      required:
+      - id
+      - nome_exibicao
     EmpresaLista:
       type: object
       properties:
@@ -7770,6 +8102,264 @@ components:
       - permissoes_extras
       - pode
       - suporte
+    Evento:
+      type: object
+      properties:
+        id:
+          type: integer
+        ocorrido_em:
+          type: string
+          format: date-time
+        ator:
+          $ref: '#/components/schemas/Ator'
+        suporte:
+          allOf:
+          - $ref: '#/components/schemas/SuporteDoEvento'
+          nullable: true
+        categoria:
+          $ref: '#/components/schemas/CategoriaAuditoriaEnum'
+        acao:
+          type: string
+        resumo:
+          type: string
+        detalhe:
+          type: string
+        objeto:
+          allOf:
+          - $ref: '#/components/schemas/ObjetoDoEvento'
+          nullable: true
+        regra:
+          type: string
+          nullable: true
+      required:
+      - acao
+      - ator
+      - categoria
+      - detalhe
+      - id
+      - objeto
+      - ocorrido_em
+      - regra
+      - resumo
+      - suporte
+    EventoDaPlataforma:
+      type: object
+      properties:
+        id:
+          type: integer
+        ocorrido_em:
+          type: string
+          format: date-time
+        ator:
+          $ref: '#/components/schemas/Ator'
+        suporte:
+          allOf:
+          - $ref: '#/components/schemas/SuporteDoEvento'
+          nullable: true
+        categoria:
+          $ref: '#/components/schemas/CategoriaAuditoriaEnum'
+        acao:
+          type: string
+        resumo:
+          type: string
+        detalhe:
+          type: string
+        objeto:
+          allOf:
+          - $ref: '#/components/schemas/ObjetoDoEvento'
+          nullable: true
+        regra:
+          type: string
+          nullable: true
+        empresa:
+          allOf:
+          - $ref: '#/components/schemas/EmpresaDoEvento'
+          nullable: true
+      required:
+      - acao
+      - ator
+      - categoria
+      - detalhe
+      - empresa
+      - id
+      - objeto
+      - ocorrido_em
+      - regra
+      - resumo
+      - suporte
+    EventoDetalhe:
+      type: object
+      properties:
+        id:
+          type: integer
+        ocorrido_em:
+          type: string
+          format: date-time
+        ator:
+          $ref: '#/components/schemas/Ator'
+        suporte:
+          allOf:
+          - $ref: '#/components/schemas/SuporteDoEvento'
+          nullable: true
+        categoria:
+          $ref: '#/components/schemas/CategoriaAuditoriaEnum'
+        acao:
+          type: string
+        resumo:
+          type: string
+        detalhe:
+          type: string
+        objeto:
+          allOf:
+          - $ref: '#/components/schemas/ObjetoDoEvento'
+          nullable: true
+        regra:
+          type: string
+          nullable: true
+        antes:
+          type: object
+          additionalProperties: {}
+        depois:
+          type: object
+          additionalProperties: {}
+        ip:
+          type: string
+          nullable: true
+        aparelho:
+          type: string
+      required:
+      - acao
+      - antes
+      - aparelho
+      - ator
+      - categoria
+      - depois
+      - detalhe
+      - id
+      - ip
+      - objeto
+      - ocorrido_em
+      - regra
+      - resumo
+      - suporte
+    EventoDetalheDaPlataforma:
+      type: object
+      properties:
+        id:
+          type: integer
+        ocorrido_em:
+          type: string
+          format: date-time
+        ator:
+          $ref: '#/components/schemas/Ator'
+        suporte:
+          allOf:
+          - $ref: '#/components/schemas/SuporteDoEvento'
+          nullable: true
+        categoria:
+          $ref: '#/components/schemas/CategoriaAuditoriaEnum'
+        acao:
+          type: string
+        resumo:
+          type: string
+        detalhe:
+          type: string
+        objeto:
+          allOf:
+          - $ref: '#/components/schemas/ObjetoDoEvento'
+          nullable: true
+        regra:
+          type: string
+          nullable: true
+        antes:
+          type: object
+          additionalProperties: {}
+        depois:
+          type: object
+          additionalProperties: {}
+        ip:
+          type: string
+          nullable: true
+        aparelho:
+          type: string
+        empresa:
+          allOf:
+          - $ref: '#/components/schemas/EmpresaDoEvento'
+          nullable: true
+      required:
+      - acao
+      - antes
+      - aparelho
+      - ator
+      - categoria
+      - depois
+      - detalhe
+      - empresa
+      - id
+      - ip
+      - objeto
+      - ocorrido_em
+      - regra
+      - resumo
+      - suporte
+    Exportacao:
+      type: object
+      properties:
+        id:
+          type: integer
+        solicitada_em:
+          type: string
+          format: date-time
+        solicitada_por:
+          type: string
+        conteudo:
+          type: string
+        formato:
+          $ref: '#/components/schemas/FormatoExportacaoEnum'
+        tamanho_bytes:
+          type: integer
+          nullable: true
+        status:
+          $ref: '#/components/schemas/StatusExportacaoEnum'
+        expira_em:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - conteudo
+      - expira_em
+      - formato
+      - id
+      - solicitada_em
+      - solicitada_por
+      - status
+      - tamanho_bytes
+    ExportacaoCriada:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          $ref: '#/components/schemas/StatusExportacaoEnum'
+      required:
+      - id
+      - status
+    ExportacaoEntrada:
+      type: object
+      properties:
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemExportacaoEnum'
+        formato:
+          $ref: '#/components/schemas/FormatoExportacaoEnum'
+        periodo:
+          allOf:
+          - $ref: '#/components/schemas/Periodo'
+          nullable: true
+      required:
+      - formato
+      - itens
     Extra:
       type: object
       properties:
@@ -8194,6 +8784,16 @@ components:
         * `cartao` - Cartão
         * `boleto` - Boleto
         * `dinheiro` - Dinheiro
+    FormatoExportacaoEnum:
+      enum:
+      - planilha
+      - csv
+      - zip
+      type: string
+      description: |-
+        * `planilha` - Planilha
+        * `csv` - CSV
+        * `zip` - Backup completo
     Foto:
       type: object
       properties:
@@ -8507,6 +9107,22 @@ components:
       - com_locacao_pct
       - em_aberto_total_centavos
       - novos_no_mes_anterior
+    IndicadoresDaAuditoria:
+      type: object
+      properties:
+        acessos_suporte_30d:
+          type: integer
+        acessos_suporte_com_edicao_30d:
+          type: integer
+        logins_bloqueados_hoje:
+          type: integer
+        mudancas_de_preco_7d:
+          type: integer
+      required:
+      - acessos_suporte_30d
+      - acessos_suporte_com_edicao_30d
+      - logins_bloqueados_hoje
+      - mudancas_de_preco_7d
     IndicadoresDaImplantacao:
       type: object
       properties:
@@ -9022,6 +9638,22 @@ components:
       - destino
       - gravidade
       - texto
+    ItemExportacaoEnum:
+      enum:
+      - clientes
+      - veiculos
+      - locacoes_contratos
+      - financeiro
+      - vistorias_fotos
+      - auditoria
+      type: string
+      description: |-
+        * `clientes` - Clientes
+        * `veiculos` - Veículos
+        * `locacoes_contratos` - Locações e contratos
+        * `financeiro` - Financeiro
+        * `vistorias_fotos` - Vistorias e fotos
+        * `auditoria` - Auditoria
     ItemHistoricoLocacao:
       type: object
       properties:
@@ -9324,6 +9956,60 @@ components:
       - contagens
       - proximo
       - resultados
+    ListaDeEventos:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Evento'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - proximo
+      - resultados
+    ListaDeEventosDaPlataforma:
+      type: object
+      properties:
+        indicadores:
+          $ref: '#/components/schemas/IndicadoresDaAuditoria'
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventoDaPlataforma'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - indicadores
+      - proximo
+      - resultados
+    ListaDeExportacoes:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Exportacao'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - proximo
+      - resultados
     ListaDeExtras:
       type: object
       properties:
@@ -9439,6 +10125,23 @@ components:
       required:
       - anterior
       - contagens
+      - proximo
+      - resultados
+    ListaDePessoas:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/PessoaDaAuditoria'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
       - proximo
       - resultados
     ListaDePlanos:
@@ -10246,6 +10949,25 @@ components:
     NullEnum:
       enum:
       - null
+    ObjetoDoEvento:
+      type: object
+      properties:
+        tipo:
+          type: string
+        id:
+          type: integer
+          nullable: true
+        codigo:
+          type: string
+          nullable: true
+        filial:
+          type: string
+          nullable: true
+      required:
+      - codigo
+      - filial
+      - id
+      - tipo
     Ocupacao:
       type: object
       properties:
@@ -11011,6 +11733,18 @@ components:
         * `diaria` - Diária
         * `semanal` - Semanal
         * `mensal` - Mensal
+    Periodo:
+      type: object
+      properties:
+        de:
+          type: string
+          format: date
+        ate:
+          type: string
+          format: date
+      required:
+      - ate
+      - de
     PeriodoAtual:
       type: object
       properties:
@@ -11057,6 +11791,20 @@ components:
       description: |-
         * `ver` - Só ver
         * `ver_editar` - Ver e editar
+    PessoaDaAuditoria:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/TipoAtorEnum'
+        id:
+          type: integer
+          nullable: true
+        nome:
+          type: string
+      required:
+      - id
+      - nome
+      - tipo
     PessoaDaEquipe:
       type: object
       properties:
@@ -12320,6 +13068,18 @@ components:
       description: |-
         * `aceito` - aceito
         * `pendente` - pendente
+    StatusExportacaoEnum:
+      enum:
+      - na_fila
+      - pronta
+      - expirada
+      - falhou
+      type: string
+      description: |-
+        * `na_fila` - Na fila
+        * `pronta` - Pronta
+        * `expirada` - Expirada
+        * `falhou` - Falhou
     StatusModeloContratoEnum:
       enum:
       - publicado
@@ -12402,6 +13162,22 @@ components:
       description: |-
         * `ver` - ver
         * `ver_editar` - ver_editar
+    SuporteDoEvento:
+      type: object
+      properties:
+        atendente:
+          type: string
+        motivo:
+          type: string
+        permissao:
+          type: string
+        acesso_suporte_id:
+          type: integer
+      required:
+      - acesso_suporte_id
+      - atendente
+      - motivo
+      - permissao
     TendenciaEnum:
       enum:
       - sobe
@@ -12453,6 +13229,16 @@ components:
       - dias_restantes
       - fim
       - texto
+    TipoAtorEnum:
+      enum:
+      - usuario
+      - sistema
+      - suporte
+      type: string
+      description: |-
+        * `usuario` - Usuário
+        * `sistema` - Sistema
+        * `suporte` - Suporte Giro
     TipoClienteEnum:
       enum:
       - pf
