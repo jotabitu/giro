@@ -2,8 +2,8 @@
 
 Parte 1 (T-016, divisão de 09 out): a vistoria de saída e de chegada como entidade, a agenda e as
 avarias abertas: CA-016-01 a 08 e 21. Parte 2 (T-109): a devolução e o acerto, CA-016-09 a 14, 16,
-17, 19 e 20. A troca de veículo (CA-016-15) fica com a T-092 e a devolução em dinheiro (CA-016-18)
-com o caixa da T-017; esses ficam `xfail` aqui.
+17, 19 e 20. A troca de veículo (CA-016-15) fica com a T-092, e a devolução em dinheiro (CA-016-18)
+passou com o caixa da T-017.
 
 Cenário da T-015: Moto Rápida em 07 out 2026, 10:00, Filial Centro, com a LOC-2856 de Lucas
 (SAK1D39, Street semanal) e a carteira de outubro quando o caso é do seed.
@@ -37,7 +37,6 @@ from comum import arquivos, eventos
 from integracoes.whatsapp import falso as whatsapp
 
 from . import carteira
-from .apoio import aguarda, pendente
 from .frota import montar_frota
 from .test_t012_filiais import MotoRapida
 from .test_t013_veiculos import _caucaia
@@ -1848,6 +1847,32 @@ def test_loc_09_segunda_troca_com_caucao_menor_fica_para_o_acerto(cenario, julia
 # --- Caixa (T-017) ---
 
 
-@aguarda("T-017")
-def test_fin_07_ca_016_18_devolucao_em_dinheiro_exige_caixa(cenario):
-    pendente(codigo="FIN-07", saida_dinheiro=18300)
+def test_fin_07_ca_016_18_devolucao_em_dinheiro_exige_caixa(cenario, juliana, relogio):
+    """Os R$ 183,00 da Juliana em dinheiro: sem o caixa da Filial Centro aberto, 422 `FIN-07` e
+    nada muda; com o caixa aberto, saem como saída em dinheiro ligada à devolução."""
+    corpo = _juliana_pronta(cenario, juliana, relogio)
+    devolucao_id = corpo["id"]
+    assert _forma(cenario, devolucao_id, "dinheiro").status_code == 200
+    sem_caixa = _encerrar(cenario, devolucao_id)
+    assert sem_caixa.status_code == 422
+    assert sem_caixa.json()["codigo"] == "FIN-07"
+    assert sem_caixa.json()["mensagem"] == "Abra o caixa do dia para devolver em dinheiro"
+    assert Devolucao.objects.get(pk=devolucao_id).status == "rascunho"
+    assert not Reembolso.objects.exists()
+
+    caixas = "/api/financeiro/caixas/"
+    aberto = cenario.moto.api("Bruna").post(caixas, {"troco_centavos": 20000}, format="json")
+    assert aberto.status_code == 201, aberto.json()
+    assert _encerrar(cenario, devolucao_id).status_code == 200
+    reembolso = Reembolso.objects.get(origem_tipo="devolucao", origem_id=devolucao_id)
+    assert (reembolso.valor_centavos, reembolso.forma, reembolso.status) == (
+        18300,
+        "dinheiro",
+        "feito",
+    )
+    saida = reembolso.movimento_caixa
+    assert saida is not None
+    assert (saida.tipo, saida.forma, saida.valor_centavos) == ("saida", "dinheiro", 18300)
+    assert (saida.origem_tipo, saida.origem_id) == ("devolucao", devolucao_id)
+    caixa = cenario.moto.api("Bruna").get(f"{caixas}hoje/").json()
+    assert caixa["resumo"]["gaveta"]["esperado_centavos"] == 20000 - 18300

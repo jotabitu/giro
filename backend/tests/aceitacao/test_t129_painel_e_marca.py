@@ -226,7 +226,8 @@ def test_usr_08_vistoriador_com_a_agenda_do_dia(cenario, com_carteira):  # noqa:
 
 def test_usr_08_fin_15_financeiro(cenario, com_carteira):  # noqa: F811
     """Seed em 07 out: entra hoje R$ 2.625,80 em 6 parcelas; em atraso R$ 1.646,40 em 2
-    clientes; sem caixa (T-017) e sem despesa (FIN-05)."""
+    clientes; sem caixa aberto e sem despesa (T-017: a parte do caixa e das despesas está em
+    `test_t017_financeiro.py`)."""
     corpo = cenario.moto.api("Lúcia").get(INICIO).json()
     assert corpo["variante"] == "financeiro"
     kpis = _kpis(corpo)
@@ -234,9 +235,9 @@ def test_usr_08_fin_15_financeiro(cenario, com_carteira):  # noqa: F811
     assert kpis["entra_hoje"]["contexto"] == "6 parcelas"
     assert kpis["em_atraso"]["valor"] == {"tipo": "centavos", "valor": 164640}
     assert kpis["em_atraso"]["contexto"] == "2 clientes"
-    assert kpis["sai_hoje"]["valor"] is None
+    assert kpis["sai_hoje"]["valor"] == {"tipo": "centavos", "valor": 0}
     assert kpis["saldo_em_contas"]["valor"] is None
-    assert corpo["caixas_do_dia"] is None
+    assert corpo["caixas_do_dia"] == []
     assert corpo["para_hoje"] == []
     assert (corpo["fluxo_previsto"], corpo["conciliacao"]) == (None, None)
 
@@ -251,16 +252,19 @@ def test_usr_05_contadores_seguem_o_menu(cenario, com_carteira):  # noqa: F811
         "locacoes": 42,
         "veiculos": 86,
     }
-    # Sem `financeiro` em GIRO_MODULOS_ATIVOS, o financeiro não tem item com contador.
-    assert cenario.moto.api("Lúcia").get(CONTADORES).json()["contadores"] == {}
+    # Com `financeiro` em GIRO_MODULOS_ATIVOS (T-017), o financeiro vê os itens dele.
+    assert cenario.moto.api("Lúcia").get(CONTADORES).json()["contadores"] == {
+        "contas_a_pagar": 0,
+        "receber": 2,
+    }
 
 
 def test_fin_15_contador_receber_conta_parcelas_atrasadas(cenario, com_carteira, settings):  # noqa: F811
     settings.GIRO_MODULOS_ATIVOS = [*settings.GIRO_MODULOS_ATIVOS, "financeiro"]
     contadores = cenario.moto.api("Lúcia").get(CONTADORES).json()["contadores"]
     assert contadores["receber"] == 2  # Carlos e Rafael
-    assert contadores["contas_a_pagar"] is None  # despesas (FIN-05)
-    assert contadores["conciliacao"] is None  # fase 2
+    assert contadores["contas_a_pagar"] == 0  # nenhuma despesa a pagar vencendo (FIN-05)
+    assert "conciliacao" not in contadores  # fase 2: fora do menu
 
 
 # --- Escopo, erros, suporte e cache ---
