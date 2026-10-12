@@ -67,3 +67,20 @@ Toda célula de texto que começa com `=`, `+`, `-`, `@`, tabulação ou retorno
 **Auditoria**
 
 Todo endpoint que muda dado grava evento (ADR 0010). O contrato só cita a `acao` gravada quando ela não é óbvia.
+
+## Ambiente
+
+`GET /api/ambiente/` (empresa) e `GET /api/plataforma/ambiente/` (plataforma). ADR 0021.
+
+Perfis: público, sem login. `Cache-Control: no-store`. Throttle padrão de anônimo.
+
+200:
+
+```json
+{ "hoje": "2026-10-07", "data_simulada": true }
+```
+
+- `hoje`: o dia do relógio do domínio em `America/Sao_Paulo` (`comum.relogio.hoje()`). É o "hoje" de toda tela que precisa de um (agenda, "vence hoje", data padrão de formulário); o frontend não usa a data do navegador para isso.
+- `data_simulada`: `true` só no desenvolvimento com `GIRO_DATA_REFERENCIA` ligada; em produção, sempre `false`. Com `true`, o frontend mostra a faixa "Data simulada: 07/10/2026. Ambiente de desenvolvimento." no topo de todas as telas.
+
+Com a data ligada, toda resposta da API traz também o cabeçalho `X-Giro-Data-Simulada: 2026-10-07`.
