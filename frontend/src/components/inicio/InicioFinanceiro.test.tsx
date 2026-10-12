@@ -17,10 +17,10 @@ const BASE: InicioDe<"financeiro"> = {
   conciliacao: null,
 };
 
-describe("início do financeiro: blocos null não aparecem (USR-08)", () => {
-  it("esconde o bloco Caixas do dia enquanto a API manda null e o cartão de KPI sem valor", () => {
+describe("início do financeiro (USR-08)", () => {
+  it("esconde o cartão de KPI sem valor e mostra Caixas do dia vazio", () => {
     const html = renderToStaticMarkup(<InicioFinanceiro d={BASE} />);
-    expect(html).not.toContain("Caixas do dia");
+    expect(html).toContain("Nenhum caixa aberto hoje.");
     expect(html).not.toContain("Saldo em contas");
     expect(html).toContain("R$ 2.625,80");
   });
@@ -29,5 +29,15 @@ describe("início do financeiro: blocos null não aparecem (USR-08)", () => {
     const html = renderToStaticMarkup(<InicioFinanceiro d={{ ...BASE, caixas_do_dia: [{ filial: "Filial Centro", status: "aberto", aberto_por: "Bruna Alves", esperado_gaveta_centavos: 28_100 }] }} />);
     expect(html).toContain("Caixas do dia");
     expect(html).toContain("Aberto por Bruna Alves");
+  });
+});
+
+describe("início sem blocos (campo null da API, USR-08)", () => {
+  const nulos = (o: object) => o as never;
+  it("financeiro: para_hoje e caixas_do_dia null mostram os vazios e mantêm entra hoje", () => {
+    const html = renderToStaticMarkup(<InicioFinanceiro d={nulos({ ...BASE, para_hoje: null, caixas_do_dia: null })} />);
+    expect(html).toContain("Nada para pagar ou devolver hoje.");
+    expect(html).toContain("Nenhum caixa aberto hoje.");
+    expect(html).toContain("R$ 2.625,80");
   });
 });

@@ -60,11 +60,15 @@ export function InicioGeral({ d, periodo, aoMudarPeriodo }: { d: InicioDe<"geral
   );
   const ha = atualizadoHa(d.atualizado_em);
   const caixa = d.caixa_hoje;
+  // Blocos `null` da API não quebram a tela (USR-08): o que falta vira lista vazia.
+  const segmentos = d.frota?.segmentos ?? [];
+  const devolucoes = d.devolucoes_semana?.linhas ?? [];
+  const pendencias = d.pendencias?.itens ?? [];
 
   return (
     <div className="flex flex-col gap-6">
       <CabecalhoInicio saudacao={d.saudacao}>
-        {d.atencao.quantidade > 0 && (
+        {d.atencao && d.atencao.quantidade > 0 && (
           <StatusBadge tom="marca" icone={<Icone de={TriangleAlert} />}>
             {d.atencao.texto}
           </StatusBadge>
@@ -83,21 +87,21 @@ export function InicioGeral({ d, periodo, aoMudarPeriodo }: { d: InicioDe<"geral
           <div className="md:hidden">{controlePeriodo}</div>
           <KpisDoPainel kpis={d.kpis} />
           <FleetBar
-            nota={d.frota.nota}
-            segmentos={d.frota.segmentos.map((s) => ({ chave: s.status, rotulo: s.rotulo, contagem: s.quantidade, destaque: DESTAQUE_DA_FROTA[s.status] }))}
+            nota={d.frota?.nota ?? ""}
+            segmentos={segmentos.map((s) => ({ chave: s.status, rotulo: s.rotulo, contagem: s.quantidade, destaque: DESTAQUE_DA_FROTA[s.status] }))}
           />
         </div>
       </Panel>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <Panel titulo="Devoluções da semana" subtitulo={d.devolucoes_semana.subtitulo}>
-          <DataTable colunas={COLUNAS} linhas={d.devolucoes_semana.linhas} chaveDaLinha={(l) => l.codigo} legenda="Devoluções da semana" />
+        <Panel titulo="Devoluções da semana" subtitulo={d.devolucoes_semana?.subtitulo}>
+          <DataTable colunas={COLUNAS} linhas={devolucoes} chaveDaLinha={(l) => l.codigo} legenda="Devoluções da semana" />
         </Panel>
         <div className="flex flex-col gap-6">
           <AlertCard
             atualizadoHa={ha}
-            titulo={d.pendencias.titulo}
-            itens={d.pendencias.itens.map((i) => ({ texto: i.texto, gravidade: GRAVIDADE_DO_ALERTA[i.gravidade] }))}
+            titulo={d.pendencias?.titulo ?? "Nenhum contrato precisa de ação hoje"}
+            itens={pendencias.map((i) => ({ texto: i.texto, gravidade: GRAVIDADE_DO_ALERTA[i.gravidade] }))}
             acao={
               <Link href={hrefDoDestino("locacoes", "aba=precisam_acao") ?? "/locacoes"} className="wl-btn wl-btn--brand">
                 Ver pendências

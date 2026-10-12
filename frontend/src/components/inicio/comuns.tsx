@@ -7,8 +7,8 @@ import { formatarValor } from "@/lib/painel";
 export function KpisDoPainel({ kpis }: { kpis: Kpi[] }) {
   return (
     <KpiGrid>
-      {kpis.flatMap((k) =>
-        k.valor === null
+      {(kpis ?? []).flatMap((k) =>
+        !k.valor
           ? []
           : [
               <KpiTile
