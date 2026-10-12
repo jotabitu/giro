@@ -109,6 +109,45 @@ def test_r03_prod_recusa_pepper_curto_ou_igual_a_outro_segredo():
     recusa("repetir outro segredo", GIRO_PEPPER_HMAC=repetido, JWT_SIGNING_KEY=repetido)
 
 
+CHAVES_OBRIGATORIAS = [
+    "JWT_SIGNING_KEY",
+    "GIRO_CHAVE_DADOS_PESSOAIS",
+    "GIRO_CHAVE_SEGREDOS",
+    "GIRO_PEPPER_HMAC",
+]
+
+
+@pytest.mark.parametrize("nome", CHAVES_OBRIGATORIAS)
+@pytest.mark.parametrize("valor", ["", "   ", None])
+def test_t133_prod_recusa_chave_vazia_ou_ausente(nome, valor):
+    recusa(f"Defina {nome}", **{nome: valor})
+
+
+def test_t133_dev_com_variaveis_vazias_cai_nos_padroes():
+    # O compose entrega `NOME=` do .env como string vazia; o login não pode assinar com chave vazia.
+    resultado = rodar(
+        "import json; from django.conf import settings as s;"
+        "print(json.dumps([s.SIMPLE_JWT['SIGNING_KEY'], s.SECRET_KEY, s.GIRO_PEPPER_HMAC,"
+        "s.GIRO_CHAVE_DADOS_PESSOAIS, s.GIRO_CHAVE_SEGREDOS]))",
+        DJANGO_SETTINGS_MODULE="config.settings.dev",
+        **dict.fromkeys(CHAVES_OBRIGATORIAS, ""),
+    )
+    assert resultado.returncode == 0, resultado.stderr
+    assinatura, segredo, pepper, dados, segredos = json.loads(resultado.stdout)
+    assert assinatura == segredo == "segredo-django-de-teste"
+    assert len(pepper) >= 32
+    assert dados and segredos and dados != segredos
+
+
+def test_t133_dev_com_chave_dos_tokens_preenchida_usa_a_chave():
+    resultado = rodar(
+        "from django.conf import settings as s; print(s.SIMPLE_JWT['SIGNING_KEY'])",
+        DJANGO_SETTINGS_MODULE="config.settings.dev",
+    )
+    assert resultado.returncode == 0, resultado.stderr
+    assert resultado.stdout.strip() == "segredo-dos-tokens-de-teste"
+
+
 @pytest.mark.parametrize("rede", ["0.0.0.0/0", "::/0", "nao-e-rede"])
 def test_prod_recusa_rede_de_proxy_aberta_ou_invalida(rede):
     recusa("GIRO_REDES_PROXY", GIRO_REDES_PROXY=rede)
