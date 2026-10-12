@@ -2,7 +2,7 @@
 
 from django.urls import URLPattern, path
 
-from . import suporte
+from . import auditoria, suporte
 from .views import AssinaturaView, EmpresaDetalheView, EmpresasView, PlanosView
 
 urls_plataforma: list[URLPattern] = [
@@ -13,6 +13,16 @@ urls_plataforma: list[URLPattern] = [
         "empresas/<int:pk>/acessos-suporte/",
         suporte.AbrirAcessoSuporteView.as_view(),
         name="plataforma-empresa-acessos-suporte",
+    ),
+    path(
+        "auditoria/eventos/",
+        auditoria.EventosDaPlataformaView.as_view(),
+        name="plataforma-auditoria-eventos",
+    ),
+    path(
+        "auditoria/eventos/<int:pk>/",
+        auditoria.EventoDaPlataformaView.as_view(),
+        name="plataforma-auditoria-evento",
     ),
 ]
 
