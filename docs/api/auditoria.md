@@ -1,6 +1,6 @@
 # Auditoria e exportação
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-043) · **App:** `auditoria` (schema da empresa **e** `public`) · **Regras:** AUD-01 a AUD-03, AUD-07, AUD-09, PLT-07, PLT-08, PLT-09, AUT-11 · **ADRs:** 0010, 0014, 0016 · **Segurança:** S-06, S-10, S-15 · **Critérios:** `docs/qa/criterios/T-018.md` · **Telas:** Admin-Auditoria, Plat-Auditoria, Admin-Exportar
+**Dono:** arquiteto · **Versão:** 12 out 2026 (T-151; antes 07 out 2026, T-043) · **App:** `auditoria` (schema da empresa **e** `public`) · **Regras:** AUD-01 a AUD-03, AUD-07, AUD-09, PLT-07, PLT-08, PLT-09, AUT-11 · **ADRs:** 0010, 0014, 0016 · **Segurança:** S-06, S-10, S-15 · **Critérios:** `docs/qa/criterios/T-018.md` · **Telas:** Admin-Auditoria, Plat-Auditoria, Admin-Exportar
 
 Convenções gerais em `docs/api/README.md`. Modelo: item 25 e `Exportacao` em `docs/decisoes/modelo-de-dados.md`. A gravação dos eventos é de `comum.auditoria` (ADR 0010); este contrato é a consulta e a exportação.
 
@@ -25,10 +25,10 @@ O token de suporte não consulta a auditoria da empresa (403 `PLT-07`): o suport
   "ator": { "tipo": "usuario", "id": 3, "nome": "Bruna Alves", "iniciais": "BA" },
   "suporte": null,
   "categoria": "financeiro",
-  "acao": "caixa.sangria",
+  "acao": "movimento_caixa.sangria",
   "resumo": "Fez sangria de R$ 500,00",
   "detalhe": "Caixa da Filial Centro",
-  "objeto": { "tipo": "caixa", "id": 240, "codigo": null, "filial": "Filial Centro" },
+  "objeto": { "tipo": "movimentocaixa", "id": 412, "codigo": null, "filial": "Filial Centro" },
   "regra": null
 }
 ```
@@ -37,9 +37,15 @@ O token de suporte não consulta a auditoria da empresa (403 `PLT-07`): o suport
 - `suporte` (`AUD-03`): `{ "atendente": "Diego Santos", "motivo": "Chamado #1042", "permissao": "ver", "acesso_suporte_id": 31 }` em todo evento ligado a um acesso de suporte; a tela destaca a linha.
 - `resumo` e `detalhe` são textos prontos montados pela API a partir da `acao` e dos dados do evento (cada app registra o formatador das suas ações em `comum.auditoria`). O frontend não monta frase.
 - `categoria` (`AUD-02`): `financeiro`, `operacao`, `configuracoes`, `seguranca`, `suporte`.
+- `objeto.tipo` é o nome do model do objeto do evento; a `acao` segue `<objeto>.<verbo>`.
+- Movimentos de caixa (`movimento_caixa.entrada`, `.saida`, `.sangria`, `.estornar`, `.estorno_motivo`, `FIN-07`): o objeto é o `MovimentoCaixa` e o evento leva a filial do caixa (`objeto.filial` e o filtro `?filial=`), porque o movimento não tem filial própria (T-150). O `detalhe` da sangria é "Caixa da <filial>"; a descrição digitada vai no `depois` do detalhe do evento.
 
 ### GET /api/auditoria/eventos/{id}/
-Detalhe, com `antes` e `depois` (só os campos mudados) já tratados pela classificação da ADR 0014: campos omitidos vêm como `{ "alterado": true }`, mascarados vêm mascarados (CA-018-06: o CPF da Juliana aparece `***.218.330-**`), `ip` e `aparelho` do ator.
+Detalhe, com `antes` e `depois` (só os campos mudados) já tratados pela classificação da ADR 0014 (item 3 e nota de 12 out 2026): campos omitidos vêm como `{ "alterado": true }`, mascarados vêm mascarados, `ip` e `aparelho` do ator.
+
+CA-018-06, edição do cadastro da Juliana:
+- CPF e CNH (`documento`, `cnh_numero`, `responsavel_cpf`) são `CampoCifrado` e vêm sempre omitidos, em `antes` e `depois`: `"documento": { "alterado": true }`. Nenhum dígito vai para o evento; a máscara `***.218.330-**` (`AUD-04`, `AUD-09`) é só das telas, listas e exportações de cadastro.
+- Endereço: só a cidade e a UF vêm inteiras; CEP, logradouro, número, complemento e bairro vêm como `"***"`. Ex.: mudança de rua em Fortaleza dá `"antes": { "logradouro": "***", "numero": "***" }`, `"depois": { "logradouro": "***", "numero": "***" }`; mudança de cidade dá também `"cidade": "Fortaleza"` → `"Caucaia"`.
 
 ---
 
