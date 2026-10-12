@@ -23,7 +23,9 @@ from apps.financeiro.models import (
     Caixa,
     CobrancaExterna,
     ContaReceber,
+    Despesa,
     MovimentoCaixa,
+    MovimentoImutavel,
     PendenciaPagamento,
 )
 from apps.locacoes.models import Locacao
@@ -39,8 +41,9 @@ from integracoes.whatsapp import falso as whatsapp
 from . import carteira
 from .conftest import HOST_PLATAFORMA
 from .conftest import cliente as cliente_http
+from .test_t013_veiculos import _caucaia
 from .test_t015_locacoes import cenario  # noqa: F401 - fixture
-from .test_t016_vistorias import _contrato_com_juros
+from .test_t016_vistorias import _contrato_com_juros, _jpg
 
 CONTAS = "/api/financeiro/contas-receber/"
 CAIXAS = "/api/financeiro/caixas/"
@@ -549,3 +552,430 @@ def test_fin_01_contas_nao_vazam_entre_empresas(cenario, com_carteira, empresa_b
 def test_fin_01_vistoriador_nao_ve_contas(cenario, com_carteira):  # noqa: F811
     assert cenario.moto.api("João").get(CONTAS).status_code == 403
     assert cenario.moto.api("João").get(f"{CAIXAS}hoje/").status_code == 403
+
+
+# --- Caixa do dia (FIN-07, FIN-08, APR-04) ---
+
+
+def _avulsa(cenario, cliente: str, valor: int) -> ContaReceber:  # noqa: F811
+    return financeiro.lancar_avulsa(
+        filial_id=cenario.frota.centro.pk,
+        cliente_id=cenario.clientes[cliente].pk,
+        tipo="outro",
+        descricao=f"Recebimento de {cliente}",
+        vencimento=date(2026, 10, 7),
+        valor_centavos=valor,
+    )
+
+
+def _pix_no_caixa(cenario, conta: ContaReceber, capturar: Any) -> None:  # noqa: F811
+    gerada = cenario.moto.api("Bruna").post(
+        f"{CONTAS}{conta.pk}/cobranca/", {"tipo": "pix", "no_caixa": True}, format="json"
+    )
+    assert gerada.status_code == 201, gerada.json()
+    cobranca = CobrancaExterna.objects.get(pk=gerada.json()["id"])
+    assert _webhook(capturar, pagamentos.simular_pagamento(cobranca.externo_id)) == 200
+
+
+def _despesa(cenario, quem: str = "Bruna", **campos: Any) -> Any:  # noqa: F811
+    corpo = {
+        "descricao": "Óleo 1 litro",
+        "valor_centavos": 4800,
+        "data": "2026-10-07",
+        "vencimento": "2026-10-07",
+        "categoria": "manutencao",
+        **campos,
+    }
+    return cenario.moto.api(quem).post("/api/financeiro/despesas/", corpo, format="multipart")
+
+
+@pytest.fixture
+def caixa_do_seed(
+    cenario,  # noqa: F811
+    lucas,
+    recebimentos,
+    relogio,
+    django_capture_on_commit_callbacks,
+) -> Caixa:
+    """CA-017-13: o caixa de 07 out da Filial Centro, com os movimentos da tabela."""
+    relogio.em("2026-10-07 07:55")
+    assert _abrir(cenario).status_code == 201
+    relogio.em("2026-10-07 08:02")
+    _pix_no_caixa(cenario, _avulsa(cenario, "Juliana", 32900), django_capture_on_commit_callbacks)
+    relogio.em("2026-10-07 08:40")
+    diego = _avulsa(cenario, "Diego", 10900)
+    assert _receber(cenario, diego, 10900, "cartao_credito").status_code == 200
+    relogio.em("2026-10-07 09:15")
+    assert _receber(cenario, _conta(lucas), 32900).status_code == 200
+    assert _receber(cenario, _conta(lucas, "caucao"), 30000).status_code == 200
+    relogio.em("2026-10-07 10:30")
+    caixa = Caixa.objects.get()
+    sangria = cenario.moto.api("Bruna").post(
+        f"{CAIXAS}{caixa.pk}/sangria/",
+        {"valor_centavos": 50000, "descricao": "Depósito no banco"},
+        format="json",
+    )
+    assert sangria.status_code == 201, sangria.json()
+    relogio.em("2026-10-07 11:05")
+    _pix_no_caixa(cenario, _avulsa(cenario, "Carlos", 4490), django_capture_on_commit_callbacks)
+    relogio.em("2026-10-07 11:20")
+    qxa = cenario.frota.veiculos["QXA4B21"].pk
+    oleo = _despesa(cenario, veiculo_id=qxa, pago_no_caixa=True)
+    assert oleo.status_code == 201, oleo.json()
+    return caixa
+
+
+def test_fin_07_ca_017_12_um_caixa_por_filial_por_dia(cenario, lucas):  # noqa: F811
+    assert _abrir(cenario, quem="João").status_code == 403
+    sem_caixa = _receber(cenario, _conta(lucas), 32900)
+    assert sem_caixa.status_code == 422
+    assert sem_caixa.json()["codigo"] == "FIN-07"
+    assert sem_caixa.json()["mensagem"] == "Abra o caixa do dia para receber"
+    aberto = _abrir(cenario)
+    assert aberto.status_code == 201
+    assert (aberto.json()["status"], aberto.json()["data"]) == ("aberto", "2026-10-07")
+    assert aberto.json()["resumo"]["gaveta"]["esperado_centavos"] == 20000
+    for quem in ("Bruna", "Rodrigo"):
+        de_novo = _abrir(cenario, quem=quem)
+        assert de_novo.status_code == 409
+        assert de_novo.json()["codigo"] == "FIN-07"
+        assert de_novo.json()["mensagem"] == "O caixa de hoje desta filial já foi aberto"
+    # Duas chamadas ao mesmo tempo: a restrição única (filial, data) segura a segunda.
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Caixa.objects.create(
+            filial=cenario.frota.centro,
+            data=date(2026, 10, 7),
+            aberto_por=cenario.pessoas["Rodrigo"],
+            troco_centavos=0,
+        )
+    # A Filial Caucaia abre o próprio caixa; Lúcia (financeiro) também abre.
+    caucaia = _caucaia(cenario.moto)
+    outro = _abrir(cenario, quem="Lúcia", HTTP_X_FILIAL=str(caucaia.pk))
+    assert outro.status_code == 201, outro.json()
+    hoje = cenario.moto.api("Bruna").get(f"{CAIXAS}hoje/").json()
+    assert hoje["id"] == aberto.json()["id"]
+
+
+def test_fin_07_ca_017_13_caixa_de_07_out_do_seed(cenario, caixa_do_seed):  # noqa: F811
+    corpo = cenario.moto.api("Bruna").get(f"{CAIXAS}hoje/").json()
+    resumo = corpo["resumo"]
+    assert (resumo["entrou_hoje_centavos"], resumo["recebimentos"]) == (111190, 5)
+    assert resumo["por_forma"]["pix"] == {"centavos": 37390, "quantidade": 2}
+    assert resumo["por_forma"]["cartao"] == {
+        "centavos": 10900,
+        "quantidade": 1,
+        "texto": "cai em 30 dias",
+    }
+    assert resumo["por_forma"]["dinheiro"] == {"centavos": 62900, "quantidade": 2}
+    assert resumo["gaveta"] == {
+        "troco_centavos": 20000,
+        "entradas_dinheiro_centavos": 62900,
+        "saidas_dinheiro_centavos": 54800,
+        "esperado_centavos": 28100,
+    }
+    assert corpo["aberto_por"]["nome"] == "Bruna"
+    movimentos = cenario.moto.api("Bruna").get(f"{CAIXAS}{corpo['id']}/movimentos/").json()
+    tipos = [(m["tipo"], m["forma"], m["valor_centavos"]) for m in movimentos["resultados"]]
+    assert tipos == [
+        ("entrada", "pix", 32900),
+        ("entrada", "cartao_credito", 10900),
+        ("entrada", "dinheiro", 32900),
+        ("entrada", "dinheiro", 30000),
+        ("sangria", "dinheiro", 50000),
+        ("entrada", "pix", 4490),
+        ("saida", "dinheiro", 4800),
+    ]
+    assert movimentos["resultados"][0]["registrado_por"] == "Sistema"  # Pix pelo webhook
+
+
+def test_fin_07_ca_017_14_fechar_sem_diferenca(cenario, caixa_do_seed):  # noqa: F811
+    api = cenario.moto.api("Bruna")
+    url = f"{CAIXAS}{caixa_do_seed.pk}/"
+    maior = api.post(f"{url}sangria/", {"valor_centavos": 30000, "descricao": "x"}, format="json")
+    assert maior.status_code == 422
+    assert maior.json()["codigo"] == "sangria_maior_que_gaveta"
+    fechado = api.post(f"{url}fechar/", {"contado_centavos": 28100}, format="json")
+    assert fechado.status_code == 200, fechado.json()
+    assert fechado.json()["status"] == "fechado"
+    fechamento = fechado.json()["fechamento"]
+    contagem = (
+        fechamento["contado_centavos"],
+        fechamento["esperado_centavos"],
+        fechamento["diferenca_centavos"],
+    )
+    assert contagem == (28100, 28100, 0)
+    for resposta in (
+        api.post(f"{url}sangria/", {"valor_centavos": 100, "descricao": "x"}, format="json"),
+        api.post(f"{url}fechar/", {"contado_centavos": 28100}, format="json"),
+    ):
+        assert resposta.status_code == 409
+        assert resposta.json()["codigo"] == "FIN-07"
+        assert resposta.json()["mensagem"] == "Este caixa já foi fechado"
+
+
+def _pedido_do_caixa(caixa: Caixa) -> int:
+    caixa.refresh_from_db()
+    assert caixa.pedido_aprovacao_id is not None
+    return caixa.pedido_aprovacao_id
+
+
+def test_fin_07_apr_04_ca_017_15_diferenca_vai_para_o_gerente(cenario, caixa_do_seed):  # noqa: F811
+    api = cenario.moto.api("Bruna")
+    url = f"{CAIXAS}{caixa_do_seed.pk}/fechar/"
+    sem_motivo = api.post(url, {"contado_centavos": 27100}, format="json")
+    assert sem_motivo.status_code == 400
+    assert sem_motivo.json()["codigo"] == "validacao"
+    falta = api.post(
+        url, {"contado_centavos": 27100, "motivo_diferenca": "Troco errado"}, format="json"
+    )
+    assert falta.status_code == 200, falta.json()
+    assert falta.json()["status"] == "aguardando_aprovacao"
+    assert falta.json()["fechamento"]["diferenca_centavos"] == -1000
+    assert Notificacao.objects.filter(
+        destinatario=cenario.pessoas["Rodrigo"], tipo="caixa_com_diferenca"
+    ).exists()
+    # Rodrigo recusa: volta a aberto, e Bruna conta de novo.
+    pedido = _pedido_do_caixa(caixa_do_seed)
+    recusa = cenario.moto.api("Rodrigo").post(
+        f"/api/aprovacoes/{pedido}/recusar/", {"motivo": "Conte de novo"}, format="json"
+    )
+    assert recusa.status_code == 200, recusa.json()
+    caixa_do_seed.refresh_from_db()
+    assert (caixa_do_seed.status, caixa_do_seed.diferenca_centavos) == ("aberto", None)
+    # Uma sobra de R$ 5,00 também precisa de motivo e aprovação; Rodrigo aprova.
+    sobra = api.post(url, {"contado_centavos": 28600, "motivo_diferenca": "Sobra"}, format="json")
+    assert sobra.json()["status"] == "aguardando_aprovacao"
+    assert sobra.json()["fechamento"]["diferenca_centavos"] == 500
+    aprovado = cenario.moto.api("Rodrigo").post(
+        f"/api/aprovacoes/{_pedido_do_caixa(caixa_do_seed)}/aprovar/", {}, format="json"
+    )
+    assert aprovado.status_code == 200, aprovado.json()
+    caixa_do_seed.refresh_from_db()
+    assert (caixa_do_seed.status, caixa_do_seed.diferenca_centavos) == ("fechado", 500)
+
+
+def test_apr_09_ca_017_15_gerente_nao_aprova_a_propria_diferenca(cenario, caixa_do_seed):  # noqa: F811
+    rodrigo = cenario.moto.api("Rodrigo")
+    rodrigo.post(
+        f"{CAIXAS}{caixa_do_seed.pk}/fechar/",
+        {"contado_centavos": 27100, "motivo_diferenca": "Troco errado"},
+        format="json",
+    )
+    pedido = _pedido_do_caixa(caixa_do_seed)
+    proprio = rodrigo.post(f"/api/aprovacoes/{pedido}/aprovar/", {}, format="json")
+    assert proprio.status_code == 403
+    assert proprio.json()["codigo"] == "APR-09"
+    mariana = cenario.moto.api("Mariana")
+    outro = mariana.post(f"/api/aprovacoes/{pedido}/aprovar/", {}, format="json")
+    assert outro.status_code == 200, outro.json()
+    caixa_do_seed.refresh_from_db()
+    assert caixa_do_seed.status == "fechado"
+
+
+def test_fin_08_aut_08_ca_017_16_fechamento_automatico(cenario, relogio):  # noqa: F811
+    from apps.financeiro.tasks import aut_08_fechamento_automatico_do_caixa
+
+    _abrir(cenario)
+    caucaia = _caucaia(cenario.moto, "Bruna")
+    _abrir(cenario, HTTP_X_FILIAL=str(caucaia.pk))
+    em_aprovacao = Caixa.objects.get(filial=caucaia)
+    financeiro.fechar_caixa(
+        em_aprovacao, cenario.pessoas["Bruna"], contado_centavos=0, motivo_diferenca="Sumiu"
+    )
+    # 23:59 em São Paulo já é 08 out em UTC; o dia do caixa é o de São Paulo.
+    agora = relogio.em("2026-10-07 23:59")
+    assert agora.astimezone(ZoneInfo("UTC")).date() == date(2026, 10, 8)
+    schema = cenario.moto.empresa.schema_name
+    assert aut_08_fechamento_automatico_do_caixa(schema) == 1
+    centro = Caixa.objects.get(filial=cenario.frota.centro)
+    assert centro.data == date(2026, 10, 7)
+    situacao = (centro.status, centro.contado_centavos, centro.diferenca_centavos)
+    assert situacao == ("fechado_sem_conferencia", None, None)
+    assert Notificacao.objects.filter(
+        destinatario=cenario.pessoas["Rodrigo"], tipo="caixa_sem_conferencia"
+    ).exists()
+    em_aprovacao.refresh_from_db()
+    assert em_aprovacao.status == "aguardando_aprovacao"
+    assert aut_08_fechamento_automatico_do_caixa(schema) == 0
+
+
+def test_fin_07_ca_017_17_movimento_imutavel(cenario, caixa_do_seed):  # noqa: F811
+    cartao = MovimentoCaixa.objects.get(forma="cartao_credito")
+    cartao.descricao = "outra"
+    with pytest.raises(MovimentoImutavel):
+        cartao.save()
+    with pytest.raises(MovimentoImutavel):
+        cartao.delete()
+    url = f"{CAIXAS}{caixa_do_seed.pk}/movimentos/{cartao.pk}/estornar/"
+    assert cenario.moto.api("Bruna").post(url, {"motivo": "x"}, format="json").status_code == 403
+    estorno = cenario.moto.api("Rodrigo").post(url, {"motivo": "Lançado errado"}, format="json")
+    assert estorno.status_code == 201, estorno.json()
+    assert (estorno.json()["estorno_de"], estorno.json()["valor_centavos"]) == (cartao.pk, 10900)
+    cartao.refresh_from_db()
+    assert cartao.valor_centavos == 10900  # o original não muda
+    resumo = financeiro_selectors.resumo_do_caixa(caixa_do_seed)
+    assert resumo["entrou_hoje_centavos"] == 111190 - 10900
+    assert resumo["por_forma"]["cartao"]["centavos"] == 0
+    assert resumo["gaveta"]["esperado_centavos"] == 28100  # cartão não mexe na gaveta
+
+
+def test_fil_06_ca_017_18_caixa_aberto_impede_desativar_a_filial(cenario):  # noqa: F811
+    caucaia = _caucaia(cenario.moto, "Bruna")
+    _abrir(cenario, HTTP_X_FILIAL=str(caucaia.pk))
+    url = f"/api/filiais/{caucaia.pk}/desativar/"
+    mariana = cenario.moto.api("Mariana")
+    recusa = mariana.post(url, {"motivo": "Fechou"}, format="json")
+    assert recusa.status_code == 422
+    assert recusa.json()["codigo"] == "FIL-06"
+    assert recusa.json()["detalhes"]["operacao"]["caixas"] == 1
+    caixa = Caixa.objects.get(filial=caucaia)
+    financeiro.fechar_caixa(
+        caixa, cenario.pessoas["Bruna"], contado_centavos=20000, motivo_diferenca=None
+    )
+    # Fechado, e com uma conta a receber em aberto da filial: desativa (CA-012-16).
+    financeiro.lancar_avulsa(
+        filial_id=caucaia.pk,
+        cliente_id=cenario.clientes["Diego"].pk,
+        tipo="outro",
+        descricao="Conta em aberto",
+        vencimento=date(2026, 10, 20),
+        valor_centavos=1000,
+    )
+    assert mariana.post(url, {"motivo": "Fechou"}, format="json").status_code == 200
+
+
+# --- Despesas (FIN-05, FIN-06, APR-03) ---
+
+
+def _decidir(cenario, despesa_id: int, acao: str = "aprovar", quem: str = "Rodrigo") -> Any:  # noqa: F811
+    pedido = Despesa.objects.get(pk=despesa_id).pedido_aprovacao_id
+    corpo = {"motivo": "Orçamento caro"} if acao == "recusar" else {}
+    return cenario.moto.api(quem).post(f"/api/aprovacoes/{pedido}/{acao}/", corpo, format="json")
+
+
+def _pagar(cenario, despesa_id: int, forma: str) -> Any:  # noqa: F811
+    return cenario.moto.api("Lúcia").post(
+        f"/api/financeiro/despesas/{despesa_id}/pagar/",
+        {"forma": forma, "pago_em": "2026-10-07T13:00:00Z"},
+        format="multipart",
+    )
+
+
+def test_fin_05_fin_06_ca_017_19_despesas_de_outubro(cenario, caixa_do_seed):  # noqa: F811
+    pmz = cenario.frota.veiculos["PMZ3E17"].pk
+    pneus = _despesa(cenario, "João", descricao="Pneus (2)", valor_centavos=120000, veiculo_id=pmz)
+    assert pneus.status_code == 201, pneus.json()
+    assert pneus.json()["status"] == "aguardando_aprovacao"
+    assert pneus.json()["rotulo_situacao"] == "Aguardando gerente"
+    fixas = {"categoria": "fixas"}
+    luz = _despesa(
+        cenario,
+        "Lúcia",
+        descricao="Conta de luz",
+        valor_centavos=41230,
+        data="2026-10-06",
+        vencimento="2026-10-10",
+        **fixas,
+    ).json()
+    assert luz["status"] == "a_pagar"
+    aluguel = _despesa(
+        cenario,
+        "Lúcia",
+        descricao="Aluguel do ponto",
+        valor_centavos=350000,
+        data="2026-10-05",
+        vencimento="2026-10-05",
+        **fixas,
+    ).json()
+    assert aluguel["status"] == "aguardando_aprovacao"
+    assert _decidir(cenario, aluguel["id"]).status_code == 200
+    assert _pagar(cenario, aluguel["id"], "boleto").json()["status"] == "paga"
+    ipva = _despesa(
+        cenario,
+        "Lúcia",
+        descricao="IPVA ROE2A88",
+        valor_centavos=18640,
+        data="2026-10-03",
+        vencimento="2026-10-31",
+        categoria="impostos",
+    ).json()
+    assert ipva["status"] == "a_pagar"  # abaixo de R$ 500 não vai para aprovação
+    rastreadores = _despesa(
+        cenario,
+        "Lúcia",
+        descricao="Rastreadores (86)",
+        valor_centavos=172000,
+        data="2026-10-02",
+        vencimento="2026-10-02",
+        categoria="rastreamento",
+    ).json()
+    assert _decidir(cenario, rastreadores["id"]).status_code == 200
+    assert _pagar(cenario, rastreadores["id"], "cartao").json()["status"] == "paga"
+
+    corpo = cenario.moto.api("Lúcia").get("/api/financeiro/despesas/", {"mes": "2026-10"}).json()
+    indicadores = corpo["indicadores"]
+    assert indicadores["gasto_mes_centavos"] == 706670
+    assert indicadores["aguardando_aprovacao_centavos"] == 120000
+    assert indicadores["aguardando_aprovacao_quantidade"] == 1
+    assert indicadores["por_categoria"] == {
+        "fixas": 391230,
+        "rastreamento": 172000,
+        "manutencao": 124800,
+        "impostos": 18640,
+    }
+    contagens = {"aguardando_aprovacao": 1, "a_pagar": 2, "paga": 3, "recusada": 0}
+    assert corpo["contagens"] == contagens
+
+
+def test_fin_05_apr_03_ca_017_20_limite_de_500(cenario):  # noqa: F811
+    assert _despesa(cenario, valor_centavos=50000).json()["status"] == "a_pagar"
+    assert _despesa(cenario, valor_centavos=50001).json()["status"] == "aguardando_aprovacao"
+    pneus = _despesa(cenario, "João", descricao="Pneus (2)", valor_centavos=120000).json()
+    assert _decidir(cenario, pneus["id"]).status_code == 200
+    assert Despesa.objects.get(pk=pneus["id"]).status == "a_pagar"
+    # Recusa com motivo: recusada, e João é avisado.
+    outra = _despesa(cenario, "João", descricao="Pneus de novo", valor_centavos=120000).json()
+    assert _decidir(cenario, outra["id"], "recusar").status_code == 200
+    assert Despesa.objects.get(pk=outra["id"]).status == "recusada"
+    assert Notificacao.objects.filter(
+        destinatario=cenario.pessoas["João"], tipo="despesa_recusada"
+    ).exists()
+    # Quem lançou não aprova a própria despesa (APR-09).
+    propria = _despesa(cenario, "Rodrigo", valor_centavos=60000).json()
+    assert _decidir(cenario, propria["id"]).status_code == 403
+    # João lança manutenção; fixas, não. E não vê a lista.
+    assert _despesa(cenario, "João", categoria="fixas").status_code == 403
+    assert cenario.moto.api("João").get("/api/financeiro/despesas/").status_code == 403
+
+
+def test_fin_05_ca_017_21_despesa_paga_no_caixa(cenario, caixa_do_seed):  # noqa: F811
+    oleo = Despesa.objects.get(descricao="Óleo 1 litro")
+    assert oleo.status == "paga"
+    assert oleo.movimento_caixa is not None
+    assert (oleo.movimento_caixa.tipo, oleo.movimento_caixa.forma) == ("saida", "dinheiro")
+    veiculo = cenario.frota.veiculos["QXA4B21"]
+    ficha = cenario.moto.api("Rodrigo").get(f"/api/veiculos/{veiculo.pk}/").json()
+    assert ficha["indicadores_financeiros"]["custo_manutencao_ano_centavos"] == 4800
+    acima = _despesa(cenario, valor_centavos=50001, pago_no_caixa=True)
+    assert acima.status_code == 422
+    assert acima.json()["codigo"] == "APR-03"
+
+
+def test_fin_06_aud_05_ca_017_22_nota_e_veiculo(cenario, relogio):  # noqa: F811
+    veiculo = cenario.frota.veiculos["PMZ3E17"]
+    resposta = _despesa(
+        cenario,
+        "João",
+        descricao="Pneus",
+        valor_centavos=30000,
+        veiculo_id=veiculo.pk,
+        nota=_jpg("nota.jpg"),
+    )
+    assert resposta.status_code == 201, resposta.json()
+    nota = resposta.json()["nota"]
+    expira = datetime.fromisoformat(nota["url_expira_em"].replace("Z", "+00:00"))
+    assert expira > relogio.agora
+    assert resposta.json()["veiculo"] == {"id": veiculo.pk, "placa": "PMZ3E17"}
+    ficha = cenario.moto.api("Rodrigo").get(f"/api/veiculos/{veiculo.pk}/").json()
+    assert ficha["indicadores_financeiros"]["custo_manutencao_ano_centavos"] == 30000
+    assert _despesa(cenario, categoria="festas").status_code == 400
