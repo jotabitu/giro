@@ -24,6 +24,7 @@ Uma decisão por arquivo. Para mudar uma decisão, escreva uma nova ADR que subs
 | [0018](0018-ajustes-da-conferencia-da-fundacao.md) | Ajustes da conferência da fundação (T-001) | aceita |
 | [0019](0019-pedido-de-aprovacao-pela-porta-em-comum.md) | Pedido de aprovação aberto por uma porta em `comum` (`comum.aprovacoes.pedir`) | aceita, detalha a 0011 |
 | [0020](0020-formato-dos-momentos-na-api.md) | Momentos da API em UTC com `Z`, sem fração, formatados só pelo renderizador de `comum` | aceita, detalha a 0006 |
+| [0021](0021-data-de-referencia-no-desenvolvimento.md) | Data de referência do relógio só no desenvolvimento (`GIRO_DATA_REFERENCIA`), com a hora real e a faixa "Data simulada" na tela | aceita, detalha a 0009 |
 
 O modelo de dados detalhado fica em [`modelo-de-dados.md`](modelo-de-dados.md).
 
