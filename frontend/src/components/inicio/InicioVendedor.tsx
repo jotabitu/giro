@@ -15,6 +15,8 @@ import { CabecalhoInicio, KpisDoPainel, LinhaDoPainel, ListaDoPainel, Vazio } fr
  */
 export function InicioVendedor({ d }: { d: InicioDe<"vendedor"> }) {
   const { eu } = useSessao();
+  const parcelas = d.parcelas_atrasadas ?? [];
+  const precisamAcao = d.precisam_acao ?? [];
   return (
     <div className="flex flex-col gap-6">
       <CabecalhoInicio saudacao={d.saudacao}>
@@ -30,11 +32,11 @@ export function InicioVendedor({ d }: { d: InicioDe<"vendedor"> }) {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel titulo="Parcelas atrasadas" subtitulo="das suas locações">
-          {d.parcelas_atrasadas.length === 0 ? (
+          {parcelas.length === 0 ? (
             <Vazio>Nenhuma parcela atrasada nas suas locações.</Vazio>
           ) : (
             <ListaDoPainel rotulo="Parcelas atrasadas">
-              {d.parcelas_atrasadas.map((p) => (
+              {parcelas.map((p) => (
                 <LinhaDoPainel
                   key={p.conta_id}
                   titulo={p.cliente}
@@ -58,11 +60,11 @@ export function InicioVendedor({ d }: { d: InicioDe<"vendedor"> }) {
         </Panel>
 
         <Panel titulo="Precisam de ação">
-          {d.precisam_acao.length === 0 ? (
+          {precisamAcao.length === 0 ? (
             <Vazio>Nenhuma locação sua pede ação agora.</Vazio>
           ) : (
             <ListaDoPainel rotulo="Locações que precisam de ação">
-              {d.precisam_acao.map((l) => (
+              {precisamAcao.map((l) => (
                 <LinhaDoPainel
                   key={l.locacao_id}
                   titulo={l.cliente}

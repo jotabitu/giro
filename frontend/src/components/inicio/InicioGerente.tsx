@@ -15,7 +15,9 @@ function iniciais(nome: string) {
 /** Início do gerente (USR-08): aprovações da filial, indicadores, equipe de hoje e frota. */
 export function InicioGerente({ d }: { d: InicioDe<"gerente"> }) {
   const { eu } = useSessao();
-  const { aprovacoes } = d;
+  const aprovacoes = d.aprovacoes ?? { total: 0, mais_antigo: null, itens: [] };
+  const equipe = d.equipe_hoje ?? [];
+  const segmentosDaFrota = d.frota_filial?.segmentos ?? [];
   return (
     <div className="flex flex-col gap-6">
       <CabecalhoInicio saudacao={d.saudacao} subtitulo={eu.filiais.length === 1 ? eu.filiais[0]?.nome : undefined}>
@@ -60,11 +62,11 @@ export function InicioGerente({ d }: { d: InicioDe<"gerente"> }) {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel titulo="Equipe hoje">
-          {d.equipe_hoje.length === 0 ? (
+          {equipe.length === 0 ? (
             <Vazio>Ninguém da equipe está ligado a esta filial.</Vazio>
           ) : (
             <ListaDoPainel rotulo="Equipe de hoje">
-              {d.equipe_hoje.map((p) => (
+              {equipe.map((p) => (
                 <LinhaDoPainel
                   key={p.usuario_id}
                   titulo={
@@ -88,8 +90,8 @@ export function InicioGerente({ d }: { d: InicioDe<"gerente"> }) {
         </Panel>
         <Panel titulo="Frota da filial">
           <FleetBar
-            titulo={`${d.frota_filial.total} veículos`}
-            segmentos={d.frota_filial.segmentos.map((s, i) => ({ chave: s.rotulo, rotulo: s.rotulo, contagem: s.quantidade, destaque: i === 1 ? "marca" : undefined }))}
+            titulo={`${d.frota_filial?.total ?? 0} veículos`}
+            segmentos={segmentosDaFrota.map((s, i) => ({ chave: s.rotulo, rotulo: s.rotulo, contagem: s.quantidade, destaque: i === 1 ? "marca" : undefined }))}
           />
         </Panel>
       </div>

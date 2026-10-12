@@ -17,6 +17,8 @@ import {
 import { mensagemDoErro } from "@/lib/erros";
 import { dataCurta, dinheiro, dinheiroSemZeros, km, mesAno, percentual, placa } from "@/lib/formatos";
 import { situacaoDoDocumento } from "@/lib/frota";
+import { temNoMenu } from "@/lib/menu";
+import { useSessao } from "@/lib/sessao";
 import { tomDoStatus } from "@/lib/tom";
 
 // Referência: docs/telas/html/Veiculo-Desktop.dc.html e Veiculo-Mobile.dc.html.
@@ -59,7 +61,8 @@ const COLUNAS_MANUTENCOES: ColunaTabela<ManutencaoDoVeiculo>[] = [
 type Consultas = {
   docs: UseQueryResult<DocumentoVeiculo[]>;
   locacoes: UseQueryResult<LocacoesDoVeiculo>;
-  manutencoes: UseQueryResult<ManutencoesDoVeiculo>;
+  /** `null` enquanto o módulo de manutenção não está no menu: a seção não aparece (lista vazia diria "nenhuma manutenção"). */
+  manutencoes: UseQueryResult<ManutencoesDoVeiculo> | null;
 };
 
 const proximaManutencao = (v: VeiculoDetalhe) => (v.manutencao?.proxima ? `próxima: ${v.manutencao.proxima.servico.toLowerCase()} aos ${km(v.manutencao.proxima.km)}` : undefined);
@@ -171,6 +174,7 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
             )}
           </Panel>
 
+          {manutencoes && (
           <Panel titulo="Manutenções" acao={proximaManutencao(v) ? <span className="text-[13px] text-ink-muted">{proximaManutencao(v)}</span> : undefined}>
             {manutencoes.isError && <p role="alert">{mensagemDoErro(manutencoes.error)}</p>}
             {manutencoes.data?.resultados.length === 0 && <p className="text-body text-ink-muted">Nenhuma manutenção registrada.</p>}
@@ -178,6 +182,7 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
               <DataTable colunas={COLUNAS_MANUTENCOES} linhas={manutencoes.data.resultados} chaveDaLinha={(m) => String(m.id)} legenda="Manutenções do veículo" />
             )}
           </Panel>
+          )}
         </div>
 
         <aside className="flex min-w-0 flex-[1_1_340px] flex-col gap-6">
@@ -274,6 +279,7 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
         <ListaDeDocumentos docs={docs} />
       </CartaoDoCelular>
 
+      {manutencoes && (
       <CartaoDoCelular titulo="Manutenções">
         {manutencoes.isError && <p role="alert">{mensagemDoErro(manutencoes.error)}</p>}
         {manutencoes.data?.resultados.length === 0 && <p className="text-body text-ink-muted">Nenhuma manutenção registrada.</p>}
@@ -287,6 +293,7 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
           </dl>
         )}
       </CartaoDoCelular>
+      )}
 
       {v.acoes.editar && (
         <div className="grid grid-cols-2 gap-2">
@@ -307,7 +314,10 @@ export function FichaVeiculo({ id }: { id: number }) {
   const ficha = useQuery({ queryKey: ["veiculo", id], queryFn: () => veiculos.obter(id) });
   const docs = useQuery({ queryKey: ["veiculo", id, "documentos"], queryFn: () => veiculos.documentos(id) });
   const locacoes = useQuery({ queryKey: ["veiculo", id, "locacoes"], queryFn: () => veiculos.locacoes(id) });
-  const manutencoes = useQuery({ queryKey: ["veiculo", id, "manutencoes"], queryFn: () => veiculos.manutencoes(id) });
+  const { eu } = useSessao();
+  const comManutencoes = temNoMenu(eu.navegacao, "manutencoes");
+  const consultaManutencoes = useQuery({ queryKey: ["veiculo", id, "manutencoes"], queryFn: () => veiculos.manutencoes(id), enabled: comManutencoes });
+  const manutencoes = comManutencoes ? consultaManutencoes : null;
 
   if (ficha.isError) {
     return (

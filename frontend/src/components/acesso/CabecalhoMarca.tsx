@@ -2,21 +2,17 @@
 
 import { useMarcaDaEmpresa } from "@/lib/marca-empresa";
 
-function iniciais(nome: string) {
-  return nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("");
-}
-
 /** Logo e nome da locadora (white label). A marca Giro só aparece no rodapé "Tecnologia Giro". */
 export function CabecalhoMarca() {
   const marca = useMarcaDaEmpresa();
   return (
     <div className="flex items-center gap-3">
       <div className="wl-logo-slot" aria-hidden="true">
-        {marca.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- logo da empresa vem de URL externa (S3)
-          <img src={marca.logoUrl} alt="" width={40} height={40} style={{ borderRadius: "inherit", objectFit: "cover" }} />
+        {marca.logo ? (
+          // eslint-disable-next-line @next/next/no-img-element -- logo servido pela API (S-12): sempre <img>, nunca inline
+          <img src={marca.logo.url} alt="" width={40} height={40} style={{ borderRadius: "inherit", objectFit: "contain" }} />
         ) : (
-          iniciais(marca.nome)
+          marca.iniciais
         )}
       </div>
       <span className="text-heading">{marca.nome}</span>

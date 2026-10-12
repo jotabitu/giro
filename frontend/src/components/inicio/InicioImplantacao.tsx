@@ -16,7 +16,9 @@ const CONVITE: Record<string, { rotulo: string; tom: "sucesso" | "alerta" | "neu
 
 /** Início da implantação (USR-08, IMP-01): administrador antes da 1ª locação ou venda. Passos e convites vêm da API. */
 export function InicioImplantacao({ d }: { d: InicioDe<"implantacao"> }) {
-  const p = d.primeiros_passos;
+  const p = d.primeiros_passos ?? { concluidos: 0, total: 0, pct: "0", itens: [] };
+  const convites = d.convites ?? [];
+  const ind = d.indicadores ?? { frota_cadastrada: 0, alugados_agora: 0, clientes: 0, a_receber_centavos: 0 };
   return (
     <div className="flex flex-col gap-6">
       {d.teste && (
@@ -63,11 +65,11 @@ export function InicioImplantacao({ d }: { d: InicioDe<"implantacao"> }) {
         </Panel>
 
         <Panel titulo="Convites" acao={<Link href="/admin/usuarios" className="wl-btn wl-btn--quiet wl-btn--sm">Ver usuários</Link>}>
-          {d.convites.length === 0 ? (
+          {convites.length === 0 ? (
             <Vazio>Nenhum convite enviado ainda.</Vazio>
           ) : (
             <ListaDoPainel rotulo="Convites">
-              {d.convites.map((c) => {
+              {convites.map((c) => {
                 const s = CONVITE[c.status] ?? { rotulo: c.status, tom: "neutro" as const };
                 return (
                   <LinhaDoPainel
@@ -88,10 +90,10 @@ export function InicioImplantacao({ d }: { d: InicioDe<"implantacao"> }) {
       </div>
 
       <KpiGrid>
-        <KpiTile rotulo="Frota cadastrada" valor={String(d.indicadores.frota_cadastrada)} />
-        <KpiTile rotulo="Alugados agora" valor={String(d.indicadores.alugados_agora)} />
-        <KpiTile rotulo="Clientes" valor={String(d.indicadores.clientes)} />
-        <KpiTile rotulo="A receber" valor={dinheiro(d.indicadores.a_receber_centavos)} />
+        <KpiTile rotulo="Frota cadastrada" valor={String(ind.frota_cadastrada)} />
+        <KpiTile rotulo="Alugados agora" valor={String(ind.alugados_agora)} />
+        <KpiTile rotulo="Clientes" valor={String(ind.clientes)} />
+        <KpiTile rotulo="A receber" valor={dinheiro(ind.a_receber_centavos)} />
       </KpiGrid>
     </div>
   );

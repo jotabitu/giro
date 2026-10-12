@@ -1,5 +1,4 @@
-// Painel na API real (docs/api/painel.md). O app `relatorios` do backend ainda não expõe rotas
-// (ausentes do openapi.yaml): enquanto isso, as chamadas respondem 404 e as telas mostram o estado de erro.
+// Painel na API real (docs/api/painel.md): início por variante e contadores do menu.
 import { http } from "./http";
 import type { Contadores, Inicio, Periodo } from "./tipos-painel";
 

@@ -59,7 +59,7 @@ export function Sidebar({
         <div className="wl-logo-slot" aria-hidden="true">
           {marca.logoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element -- logo da empresa vem de URL externa (S3)
-            <img src={marca.logoSrc} alt="" width={40} height={40} style={{ borderRadius: "inherit", objectFit: "cover" }} />
+            <img src={marca.logoSrc} alt="" width={40} height={40} style={{ borderRadius: "inherit", objectFit: "contain" }} />
           ) : (
             (marca.iniciais ?? iniciaisDe(marca.nome))
           )}
