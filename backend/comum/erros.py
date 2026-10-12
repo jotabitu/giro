@@ -78,6 +78,12 @@ class SemPermissao(ErroDeNegocio):
     status_http: int = status.HTTP_403_FORBIDDEN
 
 
+class Expirado(ErroDeNegocio):
+    """O recurso existiu e não vale mais (ex.: link de exportação depois de 7 dias). HTTP 410."""
+
+    status_http: int = status.HTTP_410_GONE
+
+
 class MuitasTentativas(ErroDeNegocio):
     """Bloqueio por tentativas erradas (PLT-08, USR-06). HTTP 429."""
 

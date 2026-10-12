@@ -220,6 +220,13 @@ SPECTACULAR_SETTINGS = {
         "TipoValorEnum": ["numero", "centavos", "pct"],
         "TipoParaHojeEnum": ["reembolso", "despesa"],
         "StatusConviteEnum": ["aceito", "pendente"],
+        # Auditoria e exportação (T-018), sem renomear o `categoria` da CNH nem os `status`.
+        "CategoriaEnum": "apps.clientes.models.CategoriaCnh",
+        "CategoriaAuditoriaEnum": "comum.auditoria.Categoria",
+        "TipoAtorEnum": "comum.auditoria.TipoAtor",
+        "ItemExportacaoEnum": "apps.auditoria.models.ItemExportacao",
+        "FormatoExportacaoEnum": "apps.auditoria.models.FormatoExportacao",
+        "StatusExportacaoEnum": "apps.auditoria.models.StatusExportacao",
     },
 }
 

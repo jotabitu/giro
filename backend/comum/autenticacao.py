@@ -35,6 +35,7 @@ from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.state import token_backend
 from rest_framework_simplejwt.tokens import RefreshToken, Token
 
+from comum import relogio
 from comum.conexao import conexao
 from comum.erros import NaoAutenticado, SemPermissao
 
@@ -43,6 +44,9 @@ CLAIM_EMPRESA = "empresa_id"
 CLAIM_AMR = "amr"
 CLAIM_SESSAO = "sid"
 CLAIM_APARELHO = "aparelho"
+# Quando as 2 etapas foram confirmadas (segundos UTC). Só no login completo, nunca na rotação:
+# ações sensíveis pedem a confirmação recente (backup completo, S-15).
+CLAIM_AUTH_TIME = "auth_time"
 AMR_SENHA = ("pwd",)
 AMR_SENHA_E_CODIGO = ("pwd", "otp")
 
@@ -106,12 +110,16 @@ def emitir_tokens(
     schema, empresa_id = _empresa_atual()
     if empresa_id is None:
         raise RuntimeError("Sem empresa na conexão: não é possível emitir token.")
+    amr = list(amr)
+    login_completo = sid is None
     if sid is None:
         sid = sessoes().abrir(usuario, tipo)
     refresh = RefreshToken.for_user(usuario)
     refresh[CLAIM_SCHEMA] = schema
     refresh[CLAIM_EMPRESA] = empresa_id
     refresh[CLAIM_AMR] = list(amr)
+    if login_completo and "otp" in amr:
+        refresh[CLAIM_AUTH_TIME] = int(relogio.agora().timestamp())
     refresh[CLAIM_SESSAO] = sid
     sessoes().vincular(sid, str(refresh[api_settings.JTI_CLAIM]))
     return refresh
