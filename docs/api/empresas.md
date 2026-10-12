@@ -1,6 +1,6 @@
 # Empresas: marca da locadora
 
-**Dono:** arquiteto · **Versão:** 10 out 2026 (T-128) · **App:** `empresas` (schema da empresa) · **Regras:** IMP (passo 5 · Marca), USR-02 (nome no autenticador) · **ADRs:** 0004 (white label por tokens), 0002 (empresa pelo subdomínio) · **Segurança:** S-12 (logo SVG) · **Telas:** Login, Convite, Acesso-Senha, Admin-Marca (prévia), Onboarding-Marca, e a casca (`Main`, `Menu`)
+**Dono:** arquiteto · **Versão:** 12 out 2026 (T-132; antes T-128) · **App:** `empresas` (schema da empresa) · **Regras:** IMP (passo 5 · Marca), USR-02 (nome no autenticador) · **ADRs:** 0004 (white label por tokens), 0002 (empresa pelo subdomínio) · **Segurança:** S-12 (logo SVG) · **Telas:** Login, Convite, Acesso-Senha, Admin-Marca (prévia), Onboarding-Marca, e a casca (`Main`, `Menu`)
 
 Convenções gerais em `docs/api/README.md`. Este contrato traz só a **leitura** da marca. A edição (tela `Admin-Marca` e passo `Onboarding-Marca`: trocar logo, cor e nome, com a sanitização da S-12) fica para a tarefa da marca da empresa e acrescenta a rota de escrita aqui.
 
@@ -37,10 +37,10 @@ Público (sem `Authorization`; com token também responde igual). Também para o
 | `nome_exibicao` | `ConfiguracaoEmpresa.nome_exibicao`; vazio, cai no `plataforma.Empresa.nome_exibicao` (o nome da compra). Nunca vem vazio. |
 | `iniciais` | As duas primeiras iniciais das palavras do nome, ignorando "de", "da", "do", "das", "dos" e "e", em maiúsculas ("Moto Rápida" → "MR"; nome de uma palavra só → as duas primeiras letras). É o que a tela mostra no lugar do logo ("Sem logo, usamos as iniciais", `Onboarding-Marca`). |
 | `logo` | `null` sem logo. Com logo: `url` relativa ao host (mesma origem), com a versão na query, e as dimensões do `viewBox` (ou da imagem) para reservar espaço. O frontend mostra **sempre** por `<img src>`, nunca inline (S-12). |
-| `cor` | `ConfiguracaoEmpresa.cor_marca` em `#RRGGBB` maiúsculo; sem cor configurada, a padrão do design system, `#C8F04A`. |
-| `cor_sobre` | Cor do texto sobre `cor`: `#111114` ou `#FFFFFF`, a de maior contraste (luminância relativa da WCAG; a mesma conta das telas: `#111114` quando `(L + 0,05) / 0,0555 ≥ 1,05 / (L + 0,05)`). |
-| `cor_suave` | Fundo suave no tema claro: cada canal `c + (255 − c) × 0,82`, arredondado (a conta das telas). Para `#C8F04A` dá `#EEF9CC`, o `--brand-soft` do `wl-theme.css`. |
-| `cor_suave_escuro` | Fundo suave no tema escuro. Para `#C8F04A` é `#2B3510`, o `--brand-soft` escuro do `wl-theme.css`; para as outras cores, a fórmula é confirmada pelo design-system antes da implementação (ver handoff da T-128). |
+| `cor` | `ConfiguracaoEmpresa.cor_marca` em `#RRGGBB` maiúsculo; com `cor_marca` vazio (sem cor configurada), a padrão do design system, `#C8F04A`. |
+| `cor_sobre` | Cor do texto sobre `cor`: `#111114` ou `#FFFFFF`, a de maior razão de contraste WCAG com `cor`. Razão = `(Y_claro + 0,05) / (Y_escuro + 0,05)`, com `Y = 0,2126 R + 0,7152 G + 0,0722 B` em sRGB linear; empate fica com `#111114`. A razão nunca fica abaixo de 4,69:1. |
+| `cor_suave` | Fundo suave no tema claro (`--brand-soft`): a `cor` em OKLCH (OKLab de Björn Ottosson, a partir do sRGB linear), trocada para `L = 0,96`, `C = 0,31 × C_cor`, mesmo `H`; volta para sRGB com clamp de cada canal em [0, 1] e `round()`. Para a cor padrão `#C8F04A` vale o valor fixo do `wl-theme.css`, `#EEF9CC` (a fórmula daria `#EBF9CD`). |
+| `cor_suave_escuro` | Fundo suave no tema escuro: a mesma conta com `L = 0,31`. Para `#C8F04A` vale o valor fixo do `wl-theme.css`, `#2B3510` (igual ao da fórmula). |
 | `personalizada` | `false` enquanto a empresa não salvou marca (nem logo nem cor); o frontend pode usar isso só para a prévia do assistente. |
 | `versao` | Resumo curto (8 caracteres hexadecimais) do nome, da cor e do conteúdo do logo. Muda quando qualquer um muda. |
 
@@ -82,10 +82,22 @@ A tarefa que implementa esta leitura acrescenta à linha única de `Configuracao
 | `nome_exibicao` | texto(80), vazio permitido | vazio (cai no nome da compra) |
 | `logo` | arquivo no storage privado do schema, nulo | nulo |
 | `logo_largura`, `logo_altura` | inteiro positivo, nulo | nulo |
-| `cor_marca` | texto(7) `#RRGGBB`, nulo, `CHECK` do formato | nulo (padrão do design system) |
+| `cor_marca` | texto(7) `#RRGGBB`, vazio permitido (nunca nulo), `CHECK` do formato | vazio (padrão do design system) |
 | `meta_ocupacao_pct` | percentual, 2 casas | `80.00` (usada pelo painel, `painel.md`) |
 
-`cor_sobre`, `cor_suave`, `cor_suave_escuro` e `versao` são calculados na leitura (função pura em `empresas/marca.py`, testada com as seis cores do `Onboarding-Marca`), não guardados. O modelo de dados listava `cor_marca_suave` e `cor_sobre_marca` como campos; passam a ser calculados, para não existirem duas fontes da mesma cor.
+`cor_sobre`, `cor_suave`, `cor_suave_escuro` e `versao` são calculados na leitura (função pura em `empresas/marca.py`, testada com as seis cores do `Onboarding-Marca`), não guardados. A função é Python puro, sem dependência nova, e os testes cobrem também os exemplos da tabela abaixo. O modelo de dados listava `cor_marca_suave` e `cor_sobre_marca` como campos; passam a ser calculados, para não existirem duas fontes da mesma cor.
+
+`cor_marca` é texto vazio, e não nulo, quando a empresa não escolheu cor (o ruff proíbe `null` em `CharField`, regra DJ001; decisão 1 do handoff da T-129). Vazio e padrão significam a mesma coisa; a API nunca devolve vazio em `cor`.
+
+Exemplos da fórmula das cores (conferidos no backend):
+
+| `cor` | `cor_sobre` | `cor_suave` | `cor_suave_escuro` |
+| --- | --- | --- | --- |
+| `#C8F04A` (padrão, valores fixos) | `#111114` | `#EEF9CC` | `#2B3510` |
+| `#1D4ED8` | `#FFFFFF` | `#DBF2FF` | `#1F2F52` |
+| `#C62828` | `#FFFFFF` | `#FFE3DC` | `#4A2320` |
+
+Texto sobre as suaves: `#111114` sobre `cor_suave` e `#F4F4F6` sobre `cor_suave_escuro`, os dois acima de 11:1 nesses exemplos.
 
 O seed (`seed_moto_rapida`) grava a marca da Moto Rápida pelo serviço de escrita quando ele existir; até lá, a Moto Rápida responde com o padrão (nome "Moto Rápida", `MR`, `#C8F04A`), que é o mesmo das telas.
 
