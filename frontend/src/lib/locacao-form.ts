@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { EntradaDaLocacao, ExtraDeLocacao, FormaPagamento, LocacaoCompleta, ParcelamentoMensal, PlanoEspecial, Periodicidade } from "@/lib/api";
+import { agoraDaTela } from "@/lib/ambiente";
 import { instanteDeLocal, localDeInstante } from "@/lib/formatos";
 
 /** Modalidade escolhida na tela: uma periodicidade da tabela ou um plano especial (`especial:<id>`). */
@@ -29,12 +30,12 @@ export const esquemaLocacao = z.object({
 export type ValoresLocacao = Omit<z.infer<typeof esquemaLocacao>, "modalidade" | "cliente_id" | "veiculo_id"> & { modalidade: Modalidade; cliente_id: number | null; veiculo_id: number | null };
 
 /** "07/10 09:30" arredondado para os próximos 30 minutos, em `datetime-local`. */
-export function retiradaPadrao(agora = new Date()): string {
+export function retiradaPadrao(agora = agoraDaTela()): string {
   const meia = 30 * 60_000;
   return localDeInstante(new Date(Math.ceil(agora.getTime() / meia) * meia).toISOString());
 }
 
-export function valoresIniciais(cliente: number | null, veiculo: number | null, agora = new Date()): ValoresLocacao {
+export function valoresIniciais(cliente: number | null, veiculo: number | null, agora = agoraDaTela()): ValoresLocacao {
   return { cliente_id: cliente, veiculo_id: veiculo, modalidade: "semanal", inicio: retiradaPadrao(agora), fim: "", extras: [], desconto: "0", forma_pagamento: "pix_automatico", parcelamento_mensal: "a_vista", primeiro_vencimento: "" };
 }
 

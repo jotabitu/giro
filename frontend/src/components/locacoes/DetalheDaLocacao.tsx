@@ -8,6 +8,7 @@ import { Button, Icone, Panel, StatusBadge } from "@/design-system";
 import { clientes, ErroApi, locacoes, type ClienteCompleto, type ClienteResumo, type HistoricoDaLocacao, type LocacaoCompleta } from "@/lib/api";
 import { ROTULO_PERIODICIDADE } from "@/lib/clientes";
 import { mensagemDoErro } from "@/lib/erros";
+import { useAgora } from "@/lib/ambiente";
 import { celular, dataCurta, dataHoraCurta, dinheiro, diaDe, horaCurta, km, placa } from "@/lib/formatos";
 import { dataEHora, rotuloDaParcela, rotuloDaVistoriaDaTroca, seloDaParcela, textoDoPeriodo, textoFaltam } from "@/lib/locacoes";
 import { tomDoStatus } from "@/lib/tom";
@@ -218,10 +219,11 @@ function Troca({ l }: { l: LocacaoCompleta }) {
 }
 
 function Historico({ l, historico }: { l: LocacaoCompleta; historico: HistoricoDaLocacao | undefined }) {
+  const agora = useAgora();
   const itens = historico?.resultados ?? [];
   const prevista = l.devolucao.prevista_para;
   const mostraPrevista = prevista && (l.status === "ativa" || l.status === "devolucao_atrasada");
-  const previstaTexto = prevista ? (diaDe(prevista) === diaDe(new Date().toISOString()) ? `hoje, ${horaCurta(prevista)}` : dataHoraCurta(prevista)) : "";
+  const previstaTexto = prevista ? (diaDe(prevista) === diaDe(agora.toISOString()) ? `hoje, ${horaCurta(prevista)}` : dataHoraCurta(prevista)) : "";
   return (
     <Panel titulo="Histórico">
       <ol className="relative flex flex-col pl-[26px] before:absolute before:bottom-2 before:left-[6px] before:top-2 before:w-[2px] before:bg-line">

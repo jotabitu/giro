@@ -12,7 +12,8 @@ import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { clientes, ErroApi, locacoes, veiculos, type EntradaDaLocacao, type Periodicidade, type PlanoEspecial } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { dataCompleta, dinheiro, dinheiroSemZeros, diaDe, instanteDeLocal, localDeInstante } from "@/lib/formatos";
-import { corpoDaLocacao, descontoValido, esquemaLocacao, FORMAS_DE_PAGAMENTO, opcoesDeParcelamento, valoresDoRascunho, valoresIniciais, type Modalidade, type ValoresLocacao } from "@/lib/locacao-form";
+import { agoraNoDia, useAgora, useAmbiente } from "@/lib/ambiente";
+import { corpoDaLocacao, descontoValido, esquemaLocacao, FORMAS_DE_PAGAMENTO, opcoesDeParcelamento, retiradaPadrao, valoresDoRascunho, valoresIniciais, type Modalidade, type ValoresLocacao } from "@/lib/locacao-form";
 import { textoDoPeriodo } from "@/lib/locacoes";
 import { CartaoDoCliente, CartaoDoVeiculo, EscolherCliente, EscolherVeiculo } from "./SeletoresDaLocacao";
 
@@ -73,13 +74,23 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
   const cache = useQueryClient();
   const [escolhendo, setEscolhendo] = useState<"cliente" | "veiculo" | null>(null);
   const [rascunhoId, setRascunhoId] = useState<number | null>(rascunhoInicial ?? null);
-  const agora = useRef(new Date());
+  const agoraDaPagina = useAgora();
+  const agora = useRef(agoraDaPagina);
 
-  const { register, handleSubmit, watch, setValue, reset, clearErrors, formState: { errors } } = useForm<ValoresLocacao>({
+  const { register, handleSubmit, watch, setValue, reset, clearErrors, formState: { errors, dirtyFields } } = useForm<ValoresLocacao>({
     resolver: zodResolver(esquemaLocacao) as unknown as Resolver<ValoresLocacao>,
     defaultValues: valoresIniciais(clienteInicial ?? null, veiculoInicial ?? null, agora.current),
   });
   const v = watch();
+
+  // O "hoje" da API pode chegar depois do primeiro desenho: a retirada padrão acompanha, se ninguém mexeu nela.
+  const hojeDaApi = useAmbiente()?.hoje;
+  useEffect(() => {
+    if (!hojeDaApi || rascunhoInicial || dirtyFields.inicio) return;
+    agora.current = agoraNoDia(hojeDaApi);
+    setValue("inicio", retiradaPadrao(agora.current));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só quando o hoje da API muda
+  }, [hojeDaApi]);
 
   const extras = useQuery({ queryKey: ["extras"], queryFn: () => locacoes.extras() });
   const planos = useQuery({ queryKey: ["planos-especiais"], queryFn: () => locacoes.planosEspeciais() });
@@ -108,7 +119,7 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
   const sim = simulacao.data;
   const periodicidade: Periodicidade = corpo?.periodicidade ?? (v.modalidade.startsWith("especial:") ? (listaPlanos.find((p) => `especial:${p.id}` === v.modalidade)?.periodicidade ?? "semanal") : (v.modalidade as Periodicidade));
   const un = UNIDADE[periodicidade];
-  const hoje = diaDe(agora.current.toISOString());
+  const hoje = diaDe(agoraDaPagina.toISOString());
 
   const erroSim = (campo: string) => campoDoErro(simulacao.error, campo);
   const impedimentos = sim?.impedimentos ?? [];

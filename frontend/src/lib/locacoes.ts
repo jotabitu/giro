@@ -1,5 +1,6 @@
 import type { CodigoAcaoLocacao, LocacaoResumo, ParcelaDaLocacao, Periodicidade, StatusParcela } from "@/lib/api";
 import type { TomStatus } from "@/design-system";
+import { agoraDaTela } from "@/lib/ambiente";
 import { dataCurta, diaDe, horaCurta } from "@/lib/formatos";
 
 /** Para onde a ação principal da linha leva (a API só diz qual é a ação). */
@@ -11,7 +12,7 @@ export function rotaDaAcaoLocacao(l: Pick<LocacaoResumo, "id" | "acao_principal"
 }
 
 /** "05 set → 12 set". O dia de hoje sai "hoje"; a hora da devolução aparece quando a API diz que devolve hoje. */
-export function periodoDaLocacao(l: Pick<LocacaoResumo, "inicio" | "fim_previsto" | "sinais">, agora: Date = new Date()): string {
+export function periodoDaLocacao(l: Pick<LocacaoResumo, "inicio" | "fim_previsto" | "sinais">, agora: Date = agoraDaTela()): string {
   if (!l.inicio) return "—";
   const hoje = diaDe(agora.toISOString());
   const ini = diaDe(l.inicio) === hoje ? "hoje" : dataCurta(l.inicio);
