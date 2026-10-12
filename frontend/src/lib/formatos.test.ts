@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dataCompleta, dataCurta, dinheiro, dinheiroSemZeros, saudacao } from "./formatos";
+import { dataCompleta, dataCurta, dinheiro, dinheiroSemZeros, dinheiroSemZerosOuTraco, saudacao } from "./formatos";
 
 describe("formatos", () => {
   it("dinheiro em centavos", () => {
@@ -39,5 +39,14 @@ describe("formatos de lista", () => {
     expect(mascaraCnpj("11222333000181")).toBe("11.222.333/0001-81");
     expect(mascaraCelular("85988771203")).toBe("(85) 98877-1203");
     expect(celular("85988771203")).toBe("(85) 98877-1203");
+  });
+});
+
+describe("dinheiroSemZerosOuTraco (D-04, D-06)", () => {
+  it("valor ausente da API vira traço, nunca R$ 0", () => {
+    expect(dinheiroSemZerosOuTraco(null)).toBe("—");
+    expect(dinheiroSemZerosOuTraco(undefined)).toBe("—");
+    expect(dinheiroSemZerosOuTraco(0)).toBe(dinheiroSemZeros(0));
+    expect(dinheiroSemZerosOuTraco(134700)).toBe("R$ 1.347");
   });
 });

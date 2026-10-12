@@ -232,7 +232,7 @@ export function Devolucao({ locacaoId }: { locacaoId: number }) {
               <PainelDeItens v={v} edicao={edicao} desativado={vistoriaConcluida} />
             </>
           )}
-          {etapa === "acerto" && <EtapaDoAcerto d={d} aoMudar={() => void recarregar()} />}
+          {etapa === "acerto" && <EtapaDoAcerto d={d} semNivel={d.vistoria.combustivel == null} aoMudar={() => void recarregar()} />}
           {etapa === "recibo" && <EtapaDoRecibo d={d} aoMudar={() => void recarregar()} />}
         </div>
 
@@ -240,7 +240,7 @@ export function Devolucao({ locacaoId }: { locacaoId: number }) {
           {acerto && (
             <Panel titulo="Acerto">
               <div className="flex flex-col gap-4">
-                <ResumoDoAcerto acerto={acerto} />
+                <ResumoDoAcerto acerto={acerto} semNivel={d.vistoria.combustivel == null} />
                 <AvisosDoAcerto acerto={acerto} />
                 {edicao.erro && (
                   <p role="alert" className="text-body text-critical">

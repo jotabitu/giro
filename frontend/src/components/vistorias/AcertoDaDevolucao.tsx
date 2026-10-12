@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Button, Icone, Panel, TextField } from "@/design-system";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { vistorias, type AcertoDaDevolucao, type DevolucaoCompleta, type FormaDevolucaoAcerto, type ItemDoAcerto } from "@/lib/api";
+import { useSessao } from "@/lib/sessao";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { dinheiro } from "@/lib/formatos";
 import { centavosDoTexto } from "@/lib/veiculos";
@@ -32,14 +33,20 @@ function Linha({ rotulo, valor, forte }: { rotulo: string; valor: string; forte?
 
 export const tituloDoResultado = (tipo: AcertoDaDevolucao["resultado"]["tipo"]) => (tipo === "devolver" ? "Devolver ao cliente" : tipo === "cobrar" ? "Cobrar do cliente" : "Saldo zerado");
 
-/** Os itens do acerto em linhas, a caução e o resultado, como na referência (somente leitura). */
-export function ResumoDoAcerto({ acerto }: { acerto: AcertoDaDevolucao }) {
+/** Combustível sem o nível da chegada: a API devolve R$ 0,00 e a descrição "(falta o nível na chegada)"; a tela pede o nível. */
+function LinhaDoItem({ item, semNivel }: { item: ItemDoAcerto; semNivel: boolean }) {
+  if (semNivel && item.tipo === "combustivel") return <Linha rotulo="Combustível" valor="Informe o nível na chegada" />;
+  return <Linha rotulo={item.descricao} valor={dinheiro(item.valor_centavos)} />;
+}
+
+/** Os itens do acerto em linhas, a caução e o resultado, como na referência (somente leitura). `semNivel`: a chegada ainda não tem o combustível. */
+export function ResumoDoAcerto({ acerto, semNivel = false }: { acerto: AcertoDaDevolucao; semNivel?: boolean }) {
   const r = acerto.resultado;
   return (
     <div>
       <div>
         {acerto.itens.map((i) => (
-          <Linha key={i.id} rotulo={i.descricao} valor={dinheiro(i.valor_centavos)} />
+          <LinhaDoItem key={i.id} item={i} semNivel={semNivel} />
         ))}
         {acerto.creditos.map((c) => (
           <Linha key={c.id} rotulo={c.descricao} valor={`+ ${dinheiro(c.valor_centavos)}`} />
@@ -55,11 +62,15 @@ export function ResumoDoAcerto({ acerto }: { acerto: AcertoDaDevolucao }) {
   );
 }
 
+/** DEV-07 manda pedir o encerramento ao gerente; quem encerra (administrador, gerente) não recebe esse aviso. */
 export function AvisosDoAcerto({ acerto }: { acerto: AcertoDaDevolucao }) {
-  if (acerto.avisos.length === 0) return null;
+  const { eu } = useSessao();
+  const podeEncerrar = eu.pode.locacoes_cancelar === "sim" || eu.pode.locacoes_cancelar === "aprova";
+  const avisos = acerto.avisos.filter((a) => !(a.codigo === "DEV-07" && podeEncerrar));
+  if (avisos.length === 0) return null;
   return (
     <ul className="flex flex-col gap-2">
-      {acerto.avisos.map((a) => (
+      {avisos.map((a) => (
         <li key={a.codigo} className="flex items-start gap-3 rounded-md bg-warning-soft px-4 py-3 text-body text-warning-ink">
           <Icone de={Info} />
           <span>{a.mensagem}</span>
@@ -81,7 +92,7 @@ function ValorEditavel({ item, aoSalvar, desativado, erro }: { item: ItemDoAcert
 }
 
 /** Etapa 2 · Acerto: itens calculados, valores informados, multa de trânsito e forma de devolução. */
-export function EtapaDoAcerto({ d, aoMudar }: { d: DevolucaoCompleta; aoMudar: () => void }) {
+export function EtapaDoAcerto({ d, aoMudar, semNivel = false }: { d: DevolucaoCompleta; aoMudar: () => void; semNivel?: boolean }) {
   const cache = useQueryClient();
   const acerto = d.acerto;
   const concluido = d.status === "concluida";
@@ -107,7 +118,7 @@ export function EtapaDoAcerto({ d, aoMudar }: { d: DevolucaoCompleta; aoMudar: (
             {acerto.itens
               .filter((i) => i.modo === "calculado")
               .map((i) => (
-                <Linha key={i.id} rotulo={i.descricao} valor={dinheiro(i.valor_centavos)} />
+                <LinhaDoItem key={i.id} item={i} semNivel={semNivel} />
               ))}
             {acerto.creditos.map((c) => (
               <Linha key={c.id} rotulo={c.descricao} valor={`+ ${dinheiro(c.valor_centavos)}`} />

@@ -2,15 +2,20 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { contas, vistorias } from "@/lib/api";
+import { contas, vistorias, type AcertoDaDevolucao, type Eu } from "@/lib/api";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push() {}, replace() {} }), usePathname: () => "/locacoes/2836/devolucao", useSearchParams: () => new URLSearchParams() }));
 
+const sessao = vi.hoisted(() => ({ eu: null as unknown }));
+vi.mock("@/lib/sessao", () => ({ useSessao: () => ({ eu: sessao.eu as Eu, sair: async () => {} }) }));
+
+import { AvisosDoAcerto, ResumoDoAcerto } from "./AcertoDaDevolucao";
 import { Devolucao } from "./Devolucao";
 
 async function entrarComo(email: string) {
   const r = await contas.entrar({ email, senha: "senhaforte123", aparelho: "desktop" });
   if (r.etapa !== "pronto") throw new Error("esperava pronto");
+  sessao.eu = await contas.eu();
 }
 
 async function pagina(locacaoId: number): Promise<{ html: string; t: string }> {
@@ -66,5 +71,28 @@ describe("devolução da LOC-2836 (Juliana Rocha, Factor 150), gerente", () => {
     expect(t).not.toMatch(/R\$ \d/);
     expect(t).not.toContain("Acerto");
     expect(t).not.toContain("2 · Acerto");
+  });
+});
+
+describe("acerto: aviso de encerramento antecipado e combustível sem nível (D-15, D-16)", () => {
+  const aviso = { codigo: "DEV-07", mensagem: "A devolução é antes do fim do contrato. Peça o encerramento antecipado ao gerente." };
+  const acerto = async () => ({ ...((await vistorias.obterDevolucao(701)).acerto as AcertoDaDevolucao), avisos: [aviso] });
+
+  it("o gerente encerra, então não recebe o pedido de falar com o gerente", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    expect(renderToStaticMarkup(<AvisosDoAcerto acerto={await acerto()} />)).not.toContain("Peça o encerramento");
+  });
+
+  it("quem só pede o encerramento (vendedora) continua vendo o aviso", async () => {
+    await entrarComo("bruna@motorapida.com.br");
+    expect(renderToStaticMarkup(<AvisosDoAcerto acerto={await acerto()} />)).toContain("Peça o encerramento antecipado ao gerente.");
+  });
+
+  it("sem o nível na chegada, a linha de combustível pede o nível em vez de R$ 0,00", async () => {
+    const a = await acerto();
+    const html = renderToStaticMarkup(<ResumoDoAcerto acerto={a} semNivel />);
+    expect(html).toContain("Informe o nível na chegada");
+    expect(html).not.toContain("faltou 1/4 tanque");
+    expect(renderToStaticMarkup(<ResumoDoAcerto acerto={a} />)).toContain("faltou 1/4 tanque");
   });
 });
