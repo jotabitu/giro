@@ -168,7 +168,7 @@ Perfis: quem pode cadastrar. Também vem dentro do detalhe. Para cadastro ainda 
 - `situacao`: `ok`, `pendente`, `problema`.
 - `cpf`: dígito verificador. "Regular" na Receita depende de integração e fica fora do MVP (decisão de 07 out 2026, consulta de crédito); o rótulo é "CPF válido".
 - `lista_bloqueio`: o documento, ou o CPF do responsável na PJ, pertence a cliente `bloqueado` da empresa.
-- `historico`: atrasos anteriores na empresa (fornecido por `financeiro`, ADR 0015; `pendente` com rótulo "Sem histórico" enquanto não existir).
+- `historico`: atrasos na empresa (fornecido por `financeiro`, ADR 0015), com as situações e os rótulos da `CLI-04`: `problema` "Conta em atraso na empresa", `pendente` "Já pagou com atraso na empresa", `ok` "Sem atraso na empresa", `ok` "Cliente novo na empresa". Atraso contado pela `FIN-03`. Com o módulo financeiro desligado, `pendente` "Sem histórico".
 - `credito`: não aparece no MVP (fase 2, parceiro pago por consulta).
 
 ## Bloqueio (CLI-05, APR-05)
