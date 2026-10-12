@@ -37,7 +37,7 @@ describe("lista de locações, vendedora", () => {
   it("indicadores, filtros e linhas na ordem da referência", async () => {
     const t = texto(await pagina("bruna@motorapida.com.br"));
     ordem(t, ["Locações", "Filial Centro · 42 ativas", "Nova locação"]);
-    ordem(t, ["Ativas", "42", "71% da frota alugada", "Devolução atrasada", "Rafael · 25 dias", "Pagamentos atrasados", "R$ 1.646,40"]);
+    ordem(t, ["Ativas", "42", "71% da frota alugada", "Devolução atrasada", "Rafael · 25 dias", "Locações com parcela atrasada", "R$ 1.646,40 em atraso"]);
     ordem(t, ["Todas", "42", "Precisam de ação", "4", "Devolvem hoje", "Encerradas", "310"]);
     ordem(t, ["Cliente", "Veículo", "Plano e período", "Situação", "Pagamento"]);
     ordem(t, ["Rafael Sousa", "LOC-2790", "Honda Pop 110i", "PQD-6E21", "Semanal", "05 set → 12 set", "Devolução atrasada 25 dias", "R$ 1.347,00 em aberto", "Cobrar"]);
@@ -52,7 +52,7 @@ describe("lista de locações, vendedora", () => {
   it("celular: cartões com veículo, placa e período numa linha", async () => {
     const t = texto(await pagina("bruna@motorapida.com.br"));
     expect(t).toContain("Honda Pop 110i · PQD-6E21 · 05 set → 12 set");
-    expect(t).toContain("Atrasados");
+    expect(t).toContain("Parcela atrasada");
   });
 
   it("o vistoriador não tem a lista (a API responde 403)", async () => {
