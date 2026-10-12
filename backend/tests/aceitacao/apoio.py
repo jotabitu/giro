@@ -7,6 +7,8 @@ o qa preenche o corpo (arrange, ato, assert) e remove o `xfail` quando o endpoin
 
 import pytest
 
+from seed.frota import PRECOS_SEED  # noqa: F401  (a tabela é do seed; os testes importam daqui)
+
 DATA_DE_REFERENCIA = "2026-10-07"
 FUSO = "America/Sao_Paulo"
 
@@ -52,15 +54,6 @@ USUARIOS_SEED = {
     "João Silva": ("vistoriador", "convite_pendente"),
     "Lúcia Freitas": ("financeiro", "convite_pendente"),
     "Felipe Nunes": ("vendedor", "desativado"),
-}
-
-# Tabela de preços da Filial Centro (T-013):
-# categoria → (veículos, diária, semanal, mensal, caução).
-PRECOS_SEED = {
-    "Urbana 110–125": (42, 4490, 29940, 109000, 30000),
-    "Street 150–160": (32, 5490, 32900, 119000, 30000),
-    "Scooter premium": (6, 7990, 44900, 159000, 50000),
-    "Carro compacto": (6, 10900, 64900, 229000, 80000),
 }
 
 CONTAGENS_FROTA_SEED = {

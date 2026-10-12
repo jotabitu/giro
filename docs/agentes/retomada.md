@@ -17,13 +17,17 @@ docker compose up        # sobe db, redis, backend, worker, beat e frontend
 
 Para ver só o frontend: `cd frontend && npm ci && npm run dev` e abrir http://localhost:3000. Rode `npm ci` de novo sempre que um PR mudar `package.json`.
 
-Contas de teste do frontend (dados falsos até a T-011), senha `senhaforte123`:
+Contas de desenvolvimento (T-127): o login é real, e o `make seed` (comando `seed_moto_rapida`, idempotente) cria a empresa Moto Rápida. Entre em http://motorapida.localhost:3000/entrar. Senha de todas: `giro-dev-2026`.
 
 | E-mail | Perfil | 2 etapas |
 | --- | --- | --- |
-| `mariana@motorapida.com.br` | administradora | código `123456` |
+| `mariana@motorapida.com.br` | administradora | exige o código |
 | `rodrigo@motorapida.com.br` | gerente | não pede |
-| `financeiro@motorapida.com.br` | financeiro | ativa com `123456` |
+| `bruna@motorapida.com.br` | vendedora | não pede |
+| `joao@motorapida.com.br` | vistoriador | não pede |
+| `lucia@motorapida.com.br` | financeiro | exige o código |
+
+O código de 2 etapas de agora sai de `docker compose exec backend python manage.py seed_moto_rapida --codigo mariana@motorapida.com.br` (a semente do autenticador é fixa, só para desenvolvimento). O seed não roda com as configurações de produção. O que depende do financeiro da T-017 (contas a pagar, caixa, baixas, vendas e comissões) fica para a T-019. O seed congela o relógio em 07 out 2026 só enquanto roda; depois o sistema usa a data de verdade, então "vence hoje" e "atrasada" das telas seguem o dia real.
 
 ## 2. Um worktree por agente
 
