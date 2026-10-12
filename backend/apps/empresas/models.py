@@ -2,7 +2,9 @@
 
 Uma linha só por schema, criada junto com a empresa (`plataforma.empresa_criada`). Por enquanto
 `exige_2fa_todos` (USR-02, T-011), as regras configuráveis que a locação usa (T-015) e a multa e
-os juros do contrato (FIN-03, T-090); marca e ramo entram com a tela Config.
+os juros do contrato (FIN-03, T-090), a marca e a meta de ocupação (T-129, `docs/api/empresas.md`);
+o ramo entra com a tela Config. A cor sobre a marca e as cores suaves são calculadas na leitura
+(`marca.py`), nunca guardadas.
 """
 
 from decimal import Decimal
@@ -10,6 +12,7 @@ from typing import ClassVar
 
 from django.db import models
 
+from comum import arquivos
 from comum.campos import CentavosField, PercentualField
 from comum.models import ModeloBase
 
@@ -22,10 +25,23 @@ class ConfiguracaoEmpresa(ModeloBase):
     # FIN-03: multa até 2% e juros até 1% ao mês; vão para o contrato (T-090).
     multa_atraso_pct = PercentualField(default=Decimal("2.00"))
     juros_mes_pct = PercentualField(default=Decimal("1.00"))
+    # Marca (ADR 0004). Vazio ou nulo = o padrão: nome da compra e a cor do design system.
+    nome_exibicao = models.CharField(max_length=80, blank=True, default="")
+    logo = models.FileField(
+        storage=arquivos.armazenamento_privado,
+        upload_to=arquivos.caminho_privado,
+        null=True,
+        blank=True,
+    )
+    logo_largura = models.PositiveIntegerField(null=True, blank=True)
+    logo_altura = models.PositiveIntegerField(null=True, blank=True)
+    cor_marca = models.CharField(max_length=7, blank=True, default="")  # "#RRGGBB"
+    meta_ocupacao_pct = PercentualField(default=Decimal("80.00"))  # painel (VEI-06)
     # Trava de linha única: sempre 1.
     unica = models.PositiveSmallIntegerField(default=1, unique=True, editable=False)
 
-    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {}
+    # O nome de exibição é o da marca, público na tela de login: vai inteiro.
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["nome_exibicao"]}
 
     class Meta:
         verbose_name = "configuração da empresa"
@@ -38,6 +54,10 @@ class ConfiguracaoEmpresa(ModeloBase):
             models.CheckConstraint(
                 condition=models.Q(juros_mes_pct__gte=0, juros_mes_pct__lte=Decimal("1.00")),
                 name="configuracao_juros_ate_1_pct",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(cor_marca="") | models.Q(cor_marca__regex=r"^#[0-9A-F]{6}$"),
+                name="configuracao_cor_marca_hex",
             ),
         ]
 

@@ -5,6 +5,7 @@ Interface para os outros apps (contrato de veículos): `preco_vigente(categoria,
 `locacoes`, `manutencao` e `financeiro` pelo registro de leituras (ADR 0015).
 """
 
+from collections.abc import Iterable
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
@@ -425,11 +426,13 @@ def ocupacao(veiculo: Veiculo, dias: int = PERIODO_OCUPACAO_DIAS) -> dict[str, A
     return {"pct": _pct(*_tempos(eventos, fim - timedelta(days=dias), fim)), "periodo_dias": dias}
 
 
-def ocupacao_da_frota(filial_id: int, dias: int = PERIODO_OCUPACAO_DIAS) -> str:
-    """Média ponderada pelos dias (VEI-06): soma dos dias alugados ÷ soma dos dias na frota."""
+def ocupacao_da_frota(filial_id: int | Iterable[int], dias: int = PERIODO_OCUPACAO_DIAS) -> str:
+    """Média ponderada pelos dias (VEI-06): soma dos dias alugados ÷ soma dos dias na frota.
+    Uma filial ou várias (o painel com "Todas as filiais")."""
     fim = relogio.agora()
     inicio = fim - timedelta(days=dias)
-    ids = list(Veiculo.objects.filter(filial_id=filial_id).values_list("pk", flat=True))
+    filiais = [filial_id] if isinstance(filial_id, int) else list(filial_id)
+    ids = list(Veiculo.objects.filter(filial_id__in=filiais).values_list("pk", flat=True))
     alugado = timedelta(0)
     na_frota = timedelta(0)
     for eventos in _eventos(ids, fim).values():
@@ -437,6 +440,21 @@ def ocupacao_da_frota(filial_id: int, dias: int = PERIODO_OCUPACAO_DIAS) -> str:
         alugado += a
         na_frota += f
     return _pct(alugado, na_frota)
+
+
+def da_frota(filiais: Iterable[int]) -> QuerySet[Veiculo]:
+    """Veículos das filiais do escopo do painel (`relatorios`); `contagens` tira os de fora da
+    frota."""
+    return Veiculo.objects.filter(filial_id__in=list(filiais))
+
+
+def alugados_em(filiais: Iterable[int], momento: datetime) -> int:
+    """Veículos das filiais cujo último status até `momento` era `alugado` (histórico, VEI-06).
+    Base da tendência "6 a mais esta semana" do painel."""
+    ids = list(da_frota(filiais).values_list("pk", flat=True))
+    return sum(
+        1 for eventos in _eventos(ids, momento).values() if eventos and eventos[-1][1] == S.ALUGADO
+    )
 
 
 # --- Fornecido a filiais (ADR 0015) ---

@@ -19,3 +19,11 @@ relatorios/
 ```
 
 Contrato da API: `docs/api/relatorios.md` (escrito pelo arquiteto antes da implementação).
+
+## Implementado (T-129)
+
+- `GET /api/painel/contadores/` e `GET /api/painel/inicio/` (`docs/api/painel.md`, "Rotas, perfis e o que entra no MVP"), em `config/urls.py`, sem depender de `relatorios` em `GIRO_MODULOS_ATIVOS`.
+- `selectors.py`: `contadores(usuario, escopo, chaves)` e `inicio(usuario, variante, escopo, periodo, empresa)`, só a partir dos `selectors` dos outros apps. Regra do MVP: número só com fonte existente; senão `null` (caixa, despesas, manutenção, vendas, conciliação).
+- A variante e as chaves dos contadores vêm de `contas.selectors.navegacao_de` (a mesma navegação do `eu`). O escopo (`Escopo`) sai de `filtrar_por_filial` na view.
+- Cache por schema, pessoa, filial e rota (`painel:<schema>:<usuario>:<filial ou todas>:<rota>[:<periodo>]`): 5 min no início, 60 s nos contadores. Suporte: "só ver", variante do administrador.
+- Quando a T-017 (caixa) e a despesa entrarem, cada uma liga o seu bloco aqui (`caixa_hoje`, `caixas_do_dia`, `sai_hoje`, `despesas`, `contas_a_pagar`, `para_hoje`) com o teste do seed.

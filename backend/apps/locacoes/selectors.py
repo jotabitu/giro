@@ -6,13 +6,14 @@ Os sinais (`pagamento_atrasado`, `devolve_hoje`, `cancelamento_pendente`) são c
 nunca guardados. As parcelas vêm de `financeiro.selectors` (ADR 0011).
 """
 
+from collections.abc import Iterable
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
-from django.db.models import Q, QuerySet
+from django.db.models import Count, Q, QuerySet
 
 from apps.auditoria.models import EventoAuditoria
 from apps.contratos import selectors as contratos_selectors
@@ -94,7 +95,7 @@ def simular(dados: dict[str, Any], filial: Filial, usuario: Any) -> dict[str, An
 
 
 def base() -> QuerySet[Any]:
-    qs = Locacao.objects.select_related("cliente", "veiculo", "plano_especial", "filial")
+    qs = Locacao.objects.select_related("cliente", "veiculo__categoria", "plano_especial", "filial")
     return financeiro_selectors.anotar_resumo_da_origem(qs, ORIGEM, relogio.hoje())
 
 
@@ -260,7 +261,13 @@ def pagamento(locacao: Locacao) -> dict[str, Any]:
         rotulo, tom = "Pago", "sucesso"
     else:
         rotulo, tom = FormaPagamento(locacao.forma_pagamento).label, "neutro"
-    return {"rotulo": rotulo, "tom": tom, "em_aberto_centavos": em_aberto}
+    return {
+        "rotulo": rotulo,
+        "tom": tom,
+        "em_aberto_centavos": em_aberto,
+        # Contas pagas sem a caução, como o `total_pago_centavos` do cliente (T-128, FIN-13).
+        "pago_centavos": int(getattr(locacao, "fin_pago_sem_caucao_centavos", 0) or 0),
+    }
 
 
 def acao_principal(locacao: Locacao, sinal: dict[str, bool]) -> dict[str, str]:
@@ -283,6 +290,7 @@ def linha(locacao: Locacao) -> dict[str, Any]:
             "id": locacao.veiculo_id,
             "modelo": f"{locacao.veiculo.marca} {locacao.veiculo.modelo}",
             "placa": locacao.veiculo.placa,
+            "tipo": locacao.veiculo.categoria.tipo_veiculo,
         },
         "periodicidade": locacao.periodicidade,
         "plano_especial": {"id": plano.pk, "nome": plano.nome} if plano else None,
@@ -293,6 +301,56 @@ def linha(locacao: Locacao) -> dict[str, Any]:
         "pagamento": pagamento(locacao),
         "acao_principal": acao_principal(locacao, sinal),
     }
+
+
+# --- Painel (`relatorios`, docs/api/painel.md) ---
+
+
+def das_filiais(filiais: Iterable[int], vendedor_id: int | None = None) -> QuerySet[Any]:
+    """A base da lista nas filiais do escopo; com `vendedor_id`, só as que ele criou (USR-08)."""
+    qs = base().filter(filial_id__in=list(filiais))
+    return qs.filter(vendedor_id=vendedor_id) if vendedor_id is not None else qs
+
+
+def devolucoes_da_semana(qs: QuerySet[Any]) -> list[Locacao]:
+    """Fim previsto de hoje até 6 dias à frente, mais as `devolucao_atrasada`, por data."""
+    comeco, _ = _intervalo_do_dia(relogio.hoje())
+    _, fim = _intervalo_do_dia(relogio.hoje() + timedelta(days=6))
+    return list(
+        qs.filter(
+            Q(status=S.ATIVA, fim_previsto__gte=comeco, fim_previsto__lt=fim)
+            | Q(status=S.DEVOLUCAO_ATRASADA)
+        ).order_by("fim_previsto", "id")
+    )
+
+
+def linha_do_painel(locacao: Locacao) -> dict[str, Any]:
+    """Linha curta das devoluções da semana e de "precisam de ação" do vendedor."""
+    rotulo = situacao(locacao, sinais(locacao))
+    return {
+        "locacao_id": locacao.pk,
+        "codigo": locacao.codigo,
+        "placa": locacao.veiculo.placa,
+        "veiculo": f"{locacao.veiculo.marca} {locacao.veiculo.modelo}",
+        "cliente": locacao.cliente.nome,
+        "data": _local(locacao.fim_previsto).date(),
+        "situacao": {"rotulo": rotulo["rotulo"], "tom": rotulo["tom"]},
+    }
+
+
+def criadas_hoje_por_vendedor(filiais: Iterable[int]) -> dict[int, int]:
+    """Locações (fora dos rascunhos) criadas hoje, por vendedor: o resumo da equipe do gerente."""
+    comeco, fim = _intervalo_do_dia(relogio.hoje())
+    return dict(
+        Locacao.objects.filter(
+            filial_id__in=list(filiais), criado_em__gte=comeco, criado_em__lt=fim
+        )
+        .exclude(status=S.RASCUNHO)
+        .order_by()
+        .values_list("vendedor_id")
+        .annotate(total=Count("id"))
+        .values_list("vendedor_id", "total")
+    )
 
 
 # --- Detalhe ---
