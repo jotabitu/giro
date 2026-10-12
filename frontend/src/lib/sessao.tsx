@@ -1,13 +1,29 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
 import { contas, ErroApi, type Eu } from "@/lib/api";
-import { aoPerderSessao } from "@/lib/api/http";
+import { accessAtual, aoPerderSessao } from "@/lib/api/http";
+import { useEnderecoSemEmpresa } from "@/lib/endereco";
 import { useMarcaDaEmpresa } from "@/lib/marca-empresa";
 
 const CHAVE = ["eu"] as const;
+const VALIDADE = 5 * 60_000;
+
+/** Renova só quando não há access na memória (recarga da página); com access vencido, o cliente HTTP renova no 401. */
+async function buscarEu(): Promise<Eu> {
+  if (!accessAtual()) await contas.renovar();
+  return contas.eu();
+}
+
+/**
+ * O login grava o usuário com `setQueryData` antes de a casca montar a consulta. Sem `queryFn` registrada,
+ * qualquer nova leitura dessa chave falhava com "No queryFn was passed" e a casca mostrava "Não foi possível carregar sua conta".
+ */
+export function registrarConsulta(cliente: QueryClient) {
+  cliente.setQueryDefaults(CHAVE, { queryFn: buscarEu, staleTime: VALIDADE });
+}
 
 type Sessao = { eu: Eu; sair: () => Promise<void> };
 const Contexto = createContext<Sessao | null>(null);
@@ -18,14 +34,9 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const cliente = useQueryClient();
   useMarcaDaEmpresa();
 
-  const consulta = useQuery({
-    queryKey: CHAVE,
-    queryFn: async () => {
-      await contas.renovar();
-      return contas.eu();
-    },
-    staleTime: 5 * 60_000,
-  });
+  const semEmpresa = useEnderecoSemEmpresa();
+  registrarConsulta(cliente);
+  const consulta = useQuery({ queryKey: CHAVE, queryFn: buscarEu, staleTime: VALIDADE, enabled: !semEmpresa });
 
   const sair = useCallback(async () => {
     await contas.sair();
@@ -43,7 +54,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     [cliente, router],
   );
 
-  const semSessao = consulta.error instanceof ErroApi && consulta.error.status === 401;
+  const semSessao = semEmpresa || consulta.error instanceof ErroApi && consulta.error.status === 401;
   useEffect(() => {
     if (semSessao) router.replace("/entrar");
   }, [semSessao, router]);
@@ -78,5 +89,8 @@ export function useSessao(): Sessao {
 /** Grava o usuário que o login devolveu, para a casca não pedir de novo. */
 export function useGuardarSessao() {
   const cliente = useQueryClient();
-  return (usuario: Eu) => cliente.setQueryData(CHAVE, usuario);
+  return (usuario: Eu) => {
+    registrarConsulta(cliente);
+    cliente.setQueryData(CHAVE, usuario);
+  };
 }

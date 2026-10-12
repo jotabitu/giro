@@ -2159,6 +2159,736 @@ paths:
               schema:
                 $ref: '#/components/schemas/MinhasFiliais'
           description: ''
+  /api/financeiro/caixas/:
+    post:
+      operationId: financeiro_caixas_create
+      summary: Abrir o caixa do dia com o troco (FIN-07)
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AbrirCaixa'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AbrirCaixa'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AbrirCaixa'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Caixa'
+          description: ''
+  /api/financeiro/caixas/{id}/:
+    get:
+      operationId: financeiro_caixas_retrieve
+      summary: Caixa do dia
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Caixa'
+          description: ''
+  /api/financeiro/caixas/{id}/fechar/:
+    post:
+      operationId: financeiro_caixas_fechar_create
+      summary: 'Fechar o caixa: diferença exige motivo e vai para o gerente (FIN-07,
+        APR-04)'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FecharCaixa'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/FecharCaixa'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FecharCaixa'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Caixa'
+          description: ''
+  /api/financeiro/caixas/{id}/movimentos/:
+    get:
+      operationId: financeiro_caixas_movimentos_retrieve
+      summary: Movimentos do caixa
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: tipo
+        schema:
+          type: string
+          enum:
+          - entrada
+          - saida
+          - sangria
+      tags:
+      - financeiro
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movimentos'
+          description: ''
+  /api/financeiro/caixas/{id}/movimentos/{mid}/estornar/:
+    post:
+      operationId: financeiro_caixas_movimentos_estornar_create
+      summary: 'Estornar um movimento: o original não muda (CA-017-17)'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: mid
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MotivoFinanceiro'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MotivoFinanceiro'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MotivoFinanceiro'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movimento'
+          description: ''
+  /api/financeiro/caixas/{id}/sangria/:
+    post:
+      operationId: financeiro_caixas_sangria_create
+      summary: 'Sangria: dinheiro tirado da gaveta (FIN-07)'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Sangria'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Sangria'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Sangria'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movimento'
+          description: ''
+  /api/financeiro/caixas/hoje/:
+    get:
+      operationId: financeiro_caixas_hoje_retrieve
+      summary: Caixa de hoje da filial (FIN-07)
+      tags:
+      - financeiro
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Caixa'
+          description: 'Ou `{caixa: null}`'
+  /api/financeiro/contas-receber/:
+    get:
+      operationId: financeiro_contas_receber_list
+      summary: Contas a receber (FIN-01, FIN-02, FIN-03, FIN-15)
+      parameters:
+      - in: query
+        name: busca
+        schema:
+          type: string
+      - in: query
+        name: cliente
+        schema:
+          type: integer
+      - in: query
+        name: faixa
+        schema:
+          type: string
+          enum:
+          - '1_7'
+          - '8_30'
+          - mais_30
+      - in: query
+        name: forma
+        schema:
+          type: string
+      - in: query
+        name: ordem
+        schema:
+          type: string
+          enum:
+          - -valor
+          - vencimento
+      - in: query
+        name: origem_id
+        schema:
+          type: integer
+      - in: query
+        name: origem_tipo
+        schema:
+          type: string
+      - in: query
+        name: periodo
+        schema:
+          type: string
+          enum:
+          - hoje
+          - mes
+          - semana
+      - in: query
+        name: situacao
+        schema:
+          type: string
+          enum:
+          - a_vencer
+          - atrasadas
+          - canceladas
+          - pagas
+          - vencem_hoje
+      tags:
+      - financeiro
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeContas'
+          description: ''
+    post:
+      operationId: financeiro_contas_receber_create
+      summary: 'Novo lançamento avulso: multa, avaria ou outro'
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Lancamento'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Lancamento'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Lancamento'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conta'
+          description: ''
+  /api/financeiro/contas-receber/{id}/:
+    get:
+      operationId: financeiro_contas_receber_retrieve
+      summary: Conta a receber com o histórico
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContaDetalhe'
+          description: ''
+  /api/financeiro/contas-receber/{id}/cancelar/:
+    post:
+      operationId: financeiro_contas_receber_cancelar_create
+      summary: Cancelar (FIN-01)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MotivoFinanceiro'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MotivoFinanceiro'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MotivoFinanceiro'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conta'
+          description: ''
+  /api/financeiro/contas-receber/{id}/cobranca/:
+    post:
+      operationId: financeiro_contas_receber_cobranca_create
+      summary: Gerar Pix ou boleto do valor de hoje (FIN-03, FIN-04)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CobrancaEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CobrancaEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CobrancaEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cobranca'
+          description: ''
+  /api/financeiro/contas-receber/{id}/cobrar/:
+    post:
+      operationId: financeiro_contas_receber_cobrar_create
+      summary: Cobrar pelo WhatsApp, com o Pix do valor de hoje (AUT-03)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoteAceito'
+          description: ''
+  /api/financeiro/contas-receber/{id}/estornar/:
+    post:
+      operationId: financeiro_contas_receber_estornar_create
+      summary: 'Estornar a conta paga: nasce uma conta aberta igual (CA-017-09)'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MotivoFinanceiro'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MotivoFinanceiro'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MotivoFinanceiro'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conta'
+          description: ''
+  /api/financeiro/contas-receber/{id}/receber/:
+    post:
+      operationId: financeiro_contas_receber_receber_create
+      summary: 'Baixa no caixa: dinheiro ou cartão (FIN-01, FIN-03, FIN-04, FIN-07)'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Receber'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Receber'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Receber'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conta'
+          description: ''
+  /api/financeiro/contas-receber/cobrar-em-lote/:
+    post:
+      operationId: financeiro_contas_receber_cobrar_em_lote_create
+      summary: Cobrar todos pelo WhatsApp (até 100, uma vez por conta por dia)
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Lote'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Lote'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Lote'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoteAceito'
+          description: ''
+  /api/financeiro/contas-receber/renegociar/:
+    post:
+      operationId: financeiro_contas_receber_renegociar_create
+      summary: 'Renegociar: as originais vão para renegociada e nascem as novas (FIN-01)'
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Renegociar'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Renegociar'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Renegociar'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contas'
+          description: ''
+  /api/financeiro/despesas/:
+    get:
+      operationId: financeiro_despesas_list
+      summary: Despesas do mês (FIN-05, FIN-06)
+      parameters:
+      - in: query
+        name: categoria
+        schema:
+          type: string
+          enum:
+          - fixas
+          - impostos
+          - manutencao
+          - outros
+          - pessoal
+          - rastreamento
+      - in: query
+        name: mes
+        schema:
+          type: string
+        description: 2026-10
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - a_pagar
+          - aguardando_aprovacao
+          - paga
+          - recusada
+      - in: query
+        name: veiculo
+        schema:
+          type: integer
+      tags:
+      - financeiro
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeDespesas'
+          description: ''
+    post:
+      operationId: financeiro_despesas_create
+      summary: 'Lançar despesa: acima de R$ 500 vai para o gerente (FIN-05, APR-03)'
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DespesaEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Despesa'
+          description: ''
+  /api/financeiro/despesas/{id}/:
+    get:
+      operationId: financeiro_despesas_retrieve
+      summary: Despesa (nota com link de 15 minutos)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Despesa'
+          description: ''
+  /api/financeiro/despesas/{id}/pagar/:
+    post:
+      operationId: financeiro_despesas_pagar_create
+      summary: Pagar a despesa a pagar (FIN-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PagarDespesa'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Despesa'
+          description: ''
+  /api/financeiro/pendencias-pagamento/:
+    get:
+      operationId: financeiro_pendencias_pagamento_retrieve
+      summary: Pagamentos para conferir (S-14)
+      tags:
+      - financeiro
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendenciasPagamento'
+          description: ''
+  /api/financeiro/pendencias-pagamento/{id}/resolver/:
+    post:
+      operationId: financeiro_pendencias_pagamento_resolver_create
+      summary: 'Resolver a pendência: baixar ou ignorar, com o motivo'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolverPendencia'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResolverPendencia'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResolverPendencia'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendenciaPagamento'
+          description: ''
+  /api/financeiro/reembolsos/:
+    get:
+      operationId: financeiro_reembolsos_retrieve
+      summary: Devoluções ao cliente (DEV-02)
+      parameters:
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - a_fazer
+          - feito
+      tags:
+      - financeiro
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reembolsos'
+          description: ''
+  /api/financeiro/reembolsos/{id}/feito/:
+    post:
+      operationId: financeiro_reembolsos_feito_create
+      summary: Marcar a devolução como feita, com o comprovante
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Comprovante'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reembolso'
+          description: ''
   /api/locacoes/:
     get:
       operationId: locacoes_list
@@ -4499,6 +5229,14 @@ components:
       - duracao_minutos
       - motivo
       - permissao
+    AbrirCaixa:
+      type: object
+      properties:
+        troco_centavos:
+          type: integer
+          minimum: 0
+      required:
+      - troco_centavos
     AcaoAgenda:
       type: object
       properties:
@@ -4520,6 +5258,14 @@ components:
       required:
       - destino
       - rotulo
+    AcaoEnum:
+      enum:
+      - baixar
+      - ignorar
+      type: string
+      description: |-
+        * `baixar` - Baixar
+        * `ignorar` - Ignorar
     AcaoLocacao:
       type: object
       properties:
@@ -4703,6 +5449,44 @@ components:
       - estender_teste
       - mudar_plano
       - suspender
+    AcoesDaConta:
+      type: object
+      properties:
+        receber:
+          type: boolean
+        gerar_pix:
+          type: boolean
+        gerar_boleto:
+          type: boolean
+        cobrar:
+          type: boolean
+        cancelar:
+          type: boolean
+        renegociar:
+          type: boolean
+        estornar:
+          type: boolean
+      required:
+      - cancelar
+      - cobrar
+      - estornar
+      - gerar_boleto
+      - gerar_pix
+      - receber
+      - renegociar
+    AcoesDoCaixa:
+      type: object
+      properties:
+        sangria:
+          type: boolean
+        fechar:
+          type: boolean
+        receber:
+          type: boolean
+      required:
+      - fechar
+      - receber
+      - sangria
     AcoesDoVeiculo:
       type: object
       properties:
@@ -5088,6 +5872,41 @@ components:
       description: |-
         * `atraso` - atraso
         * `manual` - manual
+    Caixa:
+      type: object
+      properties:
+        id:
+          type: integer
+        filial:
+          $ref: '#/components/schemas/Ref'
+        data:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/StatusCaixaEnum'
+        aberto_por:
+          $ref: '#/components/schemas/Ref'
+        aberto_em:
+          type: string
+          format: date-time
+        resumo:
+          $ref: '#/components/schemas/ResumoCaixa'
+        fechamento:
+          allOf:
+          - $ref: '#/components/schemas/Fechamento'
+          nullable: true
+        acoes:
+          $ref: '#/components/schemas/AcoesDoCaixa'
+      required:
+      - aberto_em
+      - aberto_por
+      - acoes
+      - data
+      - fechamento
+      - filial
+      - id
+      - resumo
+      - status
     CaixaDoDia:
       type: object
       properties:
@@ -5258,6 +6077,22 @@ components:
         * `configuracoes` - Configurações
         * `seguranca` - Segurança
         * `suporte` - Suporte
+    CategoriaDespesaEnum:
+      enum:
+      - fixas
+      - manutencao
+      - rastreamento
+      - impostos
+      - pessoal
+      - outros
+      type: string
+      description: |-
+        * `fixas` - Fixas
+        * `manutencao` - Manutenção
+        * `rastreamento` - Rastreamento
+        * `impostos` - Impostos
+        * `pessoal` - Pessoal
+        * `outros` - Outros
     CategoriaEntrada:
       type: object
       properties:
@@ -5626,6 +6461,64 @@ components:
           type: string
           format: date
           nullable: true
+    Cobranca:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+        valor_centavos:
+          type: integer
+        vence_em:
+          type: string
+          format: date
+        pix_copia_e_cola:
+          type: string
+          nullable: true
+        qr_code_url:
+          type: string
+          nullable: true
+        linha_digitavel:
+          type: string
+          nullable: true
+        boleto_url:
+          type: string
+          nullable: true
+        status:
+          type: string
+      required:
+      - boleto_url
+      - id
+      - linha_digitavel
+      - pix_copia_e_cola
+      - qr_code_url
+      - status
+      - tipo
+      - valor_centavos
+      - vence_em
+    CobrancaEntrada:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/CobrancaEntradaTipoEnum'
+        vence_em:
+          type: string
+          format: date
+          nullable: true
+        no_caixa:
+          type: boolean
+          default: false
+      required:
+      - tipo
+    CobrancaEntradaTipoEnum:
+      enum:
+      - pix
+      - boleto
+      type: string
+      description: |-
+        * `pix` - Pix
+        * `boleto` - Boleto
     CobrancaEnum:
       enum:
       - por_periodo
@@ -5751,6 +6644,13 @@ components:
       - fotos
       - itens
       - km
+    Comprovante:
+      type: object
+      properties:
+        comprovante:
+          type: string
+          format: uri
+          nullable: true
     CondicoesLocacao:
       type: object
       properties:
@@ -5811,6 +6711,209 @@ components:
       required:
       - contrato
       - empresa
+    Conta:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+        numero:
+          type: integer
+          nullable: true
+        total_parcelas:
+          type: integer
+          nullable: true
+        origem:
+          $ref: '#/components/schemas/OrigemDaConta'
+        cliente:
+          $ref: '#/components/schemas/Ref'
+        filial:
+          $ref: '#/components/schemas/Ref'
+        veiculo_placa:
+          type: string
+          nullable: true
+        vencimento:
+          type: string
+          format: date
+        valor_centavos:
+          type: integer
+        status:
+          $ref: '#/components/schemas/StatusContaReceberEnum'
+        dias_atraso:
+          type: integer
+        faixa_atraso:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/FaixaAtrasoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        forma_prevista:
+          type: string
+          nullable: true
+        observacao:
+          type: string
+          nullable: true
+        valor_hoje:
+          $ref: '#/components/schemas/ValorHoje'
+        pago_em:
+          type: string
+          format: date-time
+          nullable: true
+        forma:
+          type: string
+          nullable: true
+        multa_centavos:
+          type: integer
+        juros_centavos:
+          type: integer
+        estorno_de:
+          type: integer
+          nullable: true
+        estornada_em:
+          type: string
+          format: date-time
+          nullable: true
+        cobranca_aberta:
+          allOf:
+          - $ref: '#/components/schemas/Cobranca'
+          nullable: true
+        acoes:
+          $ref: '#/components/schemas/AcoesDaConta'
+      required:
+      - acoes
+      - cliente
+      - cobranca_aberta
+      - dias_atraso
+      - estornada_em
+      - estorno_de
+      - faixa_atraso
+      - filial
+      - forma
+      - forma_prevista
+      - id
+      - juros_centavos
+      - multa_centavos
+      - numero
+      - observacao
+      - origem
+      - pago_em
+      - status
+      - tipo
+      - total_parcelas
+      - valor_centavos
+      - valor_hoje
+      - veiculo_placa
+      - vencimento
+    ContaDetalhe:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+        numero:
+          type: integer
+          nullable: true
+        total_parcelas:
+          type: integer
+          nullable: true
+        origem:
+          $ref: '#/components/schemas/OrigemDaConta'
+        cliente:
+          $ref: '#/components/schemas/Ref'
+        filial:
+          $ref: '#/components/schemas/Ref'
+        veiculo_placa:
+          type: string
+          nullable: true
+        vencimento:
+          type: string
+          format: date
+        valor_centavos:
+          type: integer
+        status:
+          $ref: '#/components/schemas/StatusContaReceberEnum'
+        dias_atraso:
+          type: integer
+        faixa_atraso:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/FaixaAtrasoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        forma_prevista:
+          type: string
+          nullable: true
+        observacao:
+          type: string
+          nullable: true
+        valor_hoje:
+          $ref: '#/components/schemas/ValorHoje'
+        pago_em:
+          type: string
+          format: date-time
+          nullable: true
+        forma:
+          type: string
+          nullable: true
+        multa_centavos:
+          type: integer
+        juros_centavos:
+          type: integer
+        estorno_de:
+          type: integer
+          nullable: true
+        estornada_em:
+          type: string
+          format: date-time
+          nullable: true
+        cobranca_aberta:
+          allOf:
+          - $ref: '#/components/schemas/Cobranca'
+          nullable: true
+        acoes:
+          $ref: '#/components/schemas/AcoesDaConta'
+        historico:
+          type: array
+          items:
+            $ref: '#/components/schemas/HistoricoDaConta'
+      required:
+      - acoes
+      - cliente
+      - cobranca_aberta
+      - dias_atraso
+      - estornada_em
+      - estorno_de
+      - faixa_atraso
+      - filial
+      - forma
+      - forma_prevista
+      - historico
+      - id
+      - juros_centavos
+      - multa_centavos
+      - numero
+      - observacao
+      - origem
+      - pago_em
+      - status
+      - tipo
+      - total_parcelas
+      - valor_centavos
+      - valor_hoje
+      - veiculo_placa
+      - vencimento
+    ContaNova:
+      type: object
+      properties:
+        vencimento:
+          type: string
+          format: date
+        valor_centavos:
+          type: integer
+          minimum: 1
+      required:
+      - valor_centavos
+      - vencimento
     Contadores:
       type: object
       properties:
@@ -5963,6 +7066,22 @@ components:
       - convites
       - desativados
       - todos
+    ContagensDespesas:
+      type: object
+      properties:
+        aguardando_aprovacao:
+          type: integer
+        a_pagar:
+          type: integer
+        paga:
+          type: integer
+        recusada:
+          type: integer
+      required:
+      - a_pagar
+      - aguardando_aprovacao
+      - paga
+      - recusada
     ContagensLocacoes:
       type: object
       properties:
@@ -5985,6 +7104,34 @@ components:
       - encerradas
       - precisam_acao
       - rascunhos
+    ContagensReceber:
+      type: object
+      properties:
+        todas:
+          type: integer
+        atrasadas:
+          type: integer
+        vencem_hoje:
+          type: integer
+        a_vencer:
+          type: integer
+        pagas:
+          type: integer
+      required:
+      - a_vencer
+      - atrasadas
+      - pagas
+      - todas
+      - vencem_hoje
+    Contas:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conta'
+      required:
+      - resultados
     Contato:
       type: object
       properties:
@@ -6244,6 +7391,110 @@ components:
       - pct
       - pedido_aprovacao_id
       - status
+    Despesa:
+      type: object
+      properties:
+        id:
+          type: integer
+        data:
+          type: string
+          format: date
+        descricao:
+          type: string
+        categoria:
+          $ref: '#/components/schemas/CategoriaDespesaEnum'
+        veiculo:
+          allOf:
+          - $ref: '#/components/schemas/VeiculoRef'
+          nullable: true
+        filial:
+          $ref: '#/components/schemas/FilialRef'
+        valor_centavos:
+          type: integer
+        vencimento:
+          type: string
+          format: date
+        status:
+          $ref: '#/components/schemas/DespesaStatusEnum'
+        pago_em:
+          type: string
+          format: date-time
+          nullable: true
+        forma:
+          type: string
+          nullable: true
+        lancada_por:
+          $ref: '#/components/schemas/Ref'
+        nota:
+          allOf:
+          - $ref: '#/components/schemas/Nota'
+          nullable: true
+        pedido_aprovacao_id:
+          type: integer
+          nullable: true
+        rotulo_situacao:
+          type: string
+      required:
+      - categoria
+      - data
+      - descricao
+      - filial
+      - forma
+      - id
+      - lancada_por
+      - nota
+      - pago_em
+      - pedido_aprovacao_id
+      - rotulo_situacao
+      - status
+      - valor_centavos
+      - veiculo
+      - vencimento
+    DespesaEntrada:
+      type: object
+      properties:
+        descricao:
+          type: string
+          maxLength: 150
+        valor_centavos:
+          type: integer
+          minimum: 1
+        data:
+          type: string
+          format: date
+        vencimento:
+          type: string
+          format: date
+        categoria:
+          $ref: '#/components/schemas/CategoriaDespesaEnum'
+        veiculo_id:
+          type: integer
+          nullable: true
+        nota:
+          type: string
+          format: uri
+          nullable: true
+        pago_no_caixa:
+          type: boolean
+          default: false
+      required:
+      - categoria
+      - data
+      - descricao
+      - valor_centavos
+      - vencimento
+    DespesaStatusEnum:
+      enum:
+      - aguardando_aprovacao
+      - a_pagar
+      - paga
+      - recusada
+      type: string
+      description: |-
+        * `aguardando_aprovacao` - aguardando_aprovacao
+        * `a_pagar` - a_pagar
+        * `paga` - paga
+        * `recusada` - recusada
     DespesasLancarEnum:
       enum:
       - todas
@@ -7174,6 +8425,75 @@ components:
           default: 1
       required:
       - extra_id
+    FaixaAtrasoEnum:
+      enum:
+      - '1_7'
+      - '8_30'
+      - mais_30
+      type: string
+      description: |-
+        * `1_7` - 1_7
+        * `8_30` - 8_30
+        * `mais_30` - mais_30
+    Faixas:
+      type: object
+      properties:
+        '1_7':
+          type: integer
+        '8_30':
+          type: integer
+        mais_30:
+          type: integer
+      required:
+      - '1_7'
+      - '8_30'
+      - mais_30
+    Fechamento:
+      type: object
+      properties:
+        contado_centavos:
+          type: integer
+          nullable: true
+        esperado_centavos:
+          type: integer
+          nullable: true
+        diferenca_centavos:
+          type: integer
+          nullable: true
+        motivo_diferenca:
+          type: string
+          nullable: true
+        fechado_por:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          nullable: true
+        fechado_em:
+          type: string
+          format: date-time
+          nullable: true
+        pedido_aprovacao_id:
+          type: integer
+          nullable: true
+      required:
+      - contado_centavos
+      - diferenca_centavos
+      - esperado_centavos
+      - fechado_em
+      - fechado_por
+      - motivo_diferenca
+      - pedido_aprovacao_id
+    FecharCaixa:
+      type: object
+      properties:
+        contado_centavos:
+          type: integer
+          minimum: 0
+        motivo_diferenca:
+          type: string
+          nullable: true
+          maxLength: 200
+      required:
+      - contado_centavos
     Feriado:
       type: object
       properties:
@@ -7393,6 +8713,13 @@ components:
       - matriz
       - nome
       - preco_litro_centavos
+    FilialRef:
+      type: object
+      properties:
+        id:
+          type: integer
+      required:
+      - id
     FilialResumo:
       type: object
       properties:
@@ -7411,6 +8738,20 @@ components:
       description: |-
         * `locacao` - Locação
         * `venda` - Venda
+    FormaDespesaEnum:
+      enum:
+      - pix
+      - boleto
+      - cartao
+      - transferencia
+      - dinheiro
+      type: string
+      description: |-
+        * `pix` - Pix
+        * `boleto` - Boleto
+        * `cartao` - Cartão
+        * `transferencia` - Transferência
+        * `dinheiro` - Dinheiro
     FormaDevolucaoAcertoEnum:
       enum:
       - pix
@@ -7551,6 +8892,22 @@ components:
       - nota
       - ocupacao_pct
       - segmentos
+    Gaveta:
+      type: object
+      properties:
+        troco_centavos:
+          type: integer
+        entradas_dinheiro_centavos:
+          type: integer
+        saidas_dinheiro_centavos:
+          type: integer
+        esperado_centavos:
+          type: integer
+      required:
+      - entradas_dinheiro_centavos
+      - esperado_centavos
+      - saidas_dinheiro_centavos
+      - troco_centavos
     Gerente:
       type: object
       properties:
@@ -7584,6 +8941,25 @@ components:
       required:
       - grupo
       - itens
+    HistoricoDaConta:
+      type: object
+      properties:
+        em:
+          type: string
+          format: date-time
+        acao:
+          type: string
+        por:
+          type: string
+          nullable: true
+        motivo:
+          type: string
+          nullable: true
+      required:
+      - acao
+      - em
+      - motivo
+      - por
     HistoricoLocacao:
       type: object
       properties:
@@ -7763,6 +9139,25 @@ components:
       - alugados_agora
       - clientes
       - frota_cadastrada
+    IndicadoresDespesas:
+      type: object
+      properties:
+        gasto_mes_centavos:
+          type: integer
+        aguardando_aprovacao_centavos:
+          type: integer
+        aguardando_aprovacao_quantidade:
+          type: integer
+        a_pagar_semana_centavos:
+          type: integer
+        por_categoria:
+          $ref: '#/components/schemas/PorCategoria'
+      required:
+      - a_pagar_semana_centavos
+      - aguardando_aprovacao_centavos
+      - aguardando_aprovacao_quantidade
+      - gasto_mes_centavos
+      - por_categoria
     IndicadoresLocacoes:
       type: object
       properties:
@@ -7793,6 +9188,41 @@ components:
       - frota_alugada_pct
       - pagamentos_atrasados
       - pagamentos_atrasados_centavos
+    IndicadoresReceber:
+      type: object
+      properties:
+        previsto_mes_centavos:
+          type: integer
+        previsto_mes_parcelas:
+          type: integer
+        recebido_mes_centavos:
+          type: integer
+        recebido_pct:
+          type: string
+          nullable: true
+        vence_hoje_centavos:
+          type: integer
+        vence_hoje_parcelas:
+          type: integer
+        em_atraso_centavos:
+          type: integer
+        em_atraso_clientes:
+          type: integer
+        em_atraso_parcelas:
+          type: integer
+        faixas:
+          $ref: '#/components/schemas/Faixas'
+      required:
+      - em_atraso_centavos
+      - em_atraso_clientes
+      - em_atraso_parcelas
+      - faixas
+      - previsto_mes_centavos
+      - previsto_mes_parcelas
+      - recebido_mes_centavos
+      - recebido_pct
+      - vence_hoje_centavos
+      - vence_hoje_parcelas
     InicioDoPainel:
       oneOf:
       - $ref: '#/components/schemas/InicioGeral'
@@ -8327,6 +9757,42 @@ components:
       - contexto
       - rotulo
       - valor
+    Lancamento:
+      type: object
+      properties:
+        cliente_id:
+          type: integer
+        tipo:
+          $ref: '#/components/schemas/LancamentoTipoEnum'
+        descricao:
+          type: string
+          maxLength: 150
+        vencimento:
+          type: string
+          format: date
+        valor_centavos:
+          type: integer
+          minimum: 1
+        origem:
+          allOf:
+          - $ref: '#/components/schemas/OrigemEntrada'
+          nullable: true
+      required:
+      - cliente_id
+      - descricao
+      - tipo
+      - valor_centavos
+      - vencimento
+    LancamentoTipoEnum:
+      enum:
+      - multa
+      - avaria
+      - outro
+      type: string
+      description: |-
+        * `multa` - Multa
+        * `avaria` - Avaria
+        * `outro` - Outro
     LeituraKm:
       type: object
       properties:
@@ -8403,6 +9869,52 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Cliente'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - contagens
+      - indicadores
+      - proximo
+      - resultados
+    ListaDeContas:
+      type: object
+      properties:
+        indicadores:
+          $ref: '#/components/schemas/IndicadoresReceber'
+        contagens:
+          $ref: '#/components/schemas/ContagensReceber'
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conta'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - contagens
+      - indicadores
+      - proximo
+      - resultados
+    ListaDeDespesas:
+      type: object
+      properties:
+        indicadores:
+          $ref: '#/components/schemas/IndicadoresDespesas'
+        contagens:
+          $ref: '#/components/schemas/ContagensDespesas'
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Despesa'
         proximo:
           type: string
           nullable: true
@@ -9009,6 +10521,24 @@ components:
       - altura
       - largura
       - url
+    Lote:
+      type: object
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+          maxItems: 100
+          minItems: 1
+      required:
+      - ids
+    LoteAceito:
+      type: object
+      properties:
+        enviadas:
+          type: integer
+      required:
+      - enviadas
     Marca:
       type: object
       properties:
@@ -9249,12 +10779,74 @@ components:
         * `roubo` - roubo
         * `sucata` - sucata
         * `outro` - outro
+    MotivoFinanceiro:
+      type: object
+      properties:
+        motivo:
+          type: string
+          maxLength: 200
+      required:
+      - motivo
     MotivoOpcional:
       type: object
       properties:
         motivo:
           type: string
           maxLength: 500
+    Movimento:
+      type: object
+      properties:
+        id:
+          type: integer
+        hora:
+          type: string
+          format: date-time
+        tipo:
+          $ref: '#/components/schemas/MovimentoTipoEnum'
+        forma:
+          type: string
+        descricao:
+          type: string
+        valor_centavos:
+          type: integer
+        origem:
+          allOf:
+          - $ref: '#/components/schemas/OrigemDaConta'
+          nullable: true
+        registrado_por:
+          type: string
+        estorno_de:
+          type: integer
+          nullable: true
+      required:
+      - descricao
+      - estorno_de
+      - forma
+      - hora
+      - id
+      - origem
+      - registrado_por
+      - tipo
+      - valor_centavos
+    MovimentoTipoEnum:
+      enum:
+      - entrada
+      - saida
+      - sangria
+      type: string
+      description: |-
+        * `entrada` - entrada
+        * `saida` - saida
+        * `sangria` - sangria
+    Movimentos:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Movimento'
+      required:
+      - resultados
     MudancaDePreco:
       type: object
       properties:
@@ -9320,6 +10912,17 @@ components:
         * `aprova` - aprova
         * `pede` - pede
         * `nao` - nao
+    Nota:
+      type: object
+      properties:
+        url:
+          type: string
+        url_expira_em:
+          type: string
+          format: date-time
+      required:
+      - url
+      - url_expira_em
     NovoPreco:
       type: object
       properties:
@@ -9389,6 +10992,41 @@ components:
       - codigo
       - id
       - tipo
+    OrigemDaConta:
+      type: object
+      properties:
+        tipo:
+          type: string
+        id:
+          type: integer
+          nullable: true
+        codigo:
+          type: string
+          nullable: true
+      required:
+      - codigo
+      - id
+      - tipo
+    OrigemEntrada:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/OrigemEntradaTipoEnum'
+        id:
+          type: integer
+      required:
+      - id
+      - tipo
+    OrigemEntradaTipoEnum:
+      enum:
+      - locacao
+      - venda
+      - devolucao
+      type: string
+      description: |-
+        * `locacao` - Locação
+        * `venda` - Venda
+        * `devolucao` - Devolução
     OrigemEnum:
       enum:
       - nacional
@@ -9434,6 +11072,21 @@ components:
       - pago_centavos
       - rotulo
       - tom
+    PagarDespesa:
+      type: object
+      properties:
+        forma:
+          $ref: '#/components/schemas/FormaDespesaEnum'
+        pago_em:
+          type: string
+          format: date-time
+        comprovante:
+          type: string
+          format: uri
+          nullable: true
+      required:
+      - forma
+      - pago_em
     PainelEnum:
       enum:
       - todas_filiais
@@ -10001,6 +11654,40 @@ components:
         * `APR-04` - Diferença no caixa
         * `APR-05` - Desbloqueio de cliente
         * `APR-06` - Correção de km para baixo
+    PendenciaPagamento:
+      type: object
+      properties:
+        id:
+          type: integer
+        motivo:
+          type: string
+        status:
+          type: string
+        valor_pago_centavos:
+          type: integer
+          nullable: true
+        cobranca:
+          $ref: '#/components/schemas/Cobranca'
+        conta_id:
+          type: integer
+        cliente:
+          $ref: '#/components/schemas/Ref'
+        resolucao:
+          type: string
+          nullable: true
+        criada_em:
+          type: string
+          format: date-time
+      required:
+      - cliente
+      - cobranca
+      - conta_id
+      - criada_em
+      - id
+      - motivo
+      - resolucao
+      - status
+      - valor_pago_centavos
     Pendencias:
       type: object
       properties:
@@ -10013,6 +11700,15 @@ components:
       required:
       - itens
       - titulo
+    PendenciasPagamento:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendenciaPagamento'
+      required:
+      - resultados
     PerfilEnum:
       enum:
       - administrador
@@ -10396,6 +12092,46 @@ components:
       - veiculos
       - vendas_criar
       - vistorias_fazer
+    PorCategoria:
+      type: object
+      properties:
+        fixas:
+          type: integer
+        manutencao:
+          type: integer
+        rastreamento:
+          type: integer
+        impostos:
+          type: integer
+        pessoal:
+          type: integer
+        outros:
+          type: integer
+    PorForma:
+      type: object
+      properties:
+        centavos:
+          type: integer
+        quantidade:
+          type: integer
+        texto:
+          type: string
+      required:
+      - centavos
+      - quantidade
+    PorFormas:
+      type: object
+      properties:
+        pix:
+          $ref: '#/components/schemas/PorForma'
+        cartao:
+          $ref: '#/components/schemas/PorForma'
+        dinheiro:
+          $ref: '#/components/schemas/PorForma'
+      required:
+      - cartao
+      - dinheiro
+      - pix
     PosicaoEnum:
       enum:
       - frente
@@ -10633,6 +12369,27 @@ components:
       required:
       - em_minutos
       - item_id
+    Receber:
+      type: object
+      properties:
+        forma:
+          $ref: '#/components/schemas/ReceberFormaEnum'
+        valor_centavos:
+          type: integer
+          minimum: 1
+      required:
+      - forma
+      - valor_centavos
+    ReceberFormaEnum:
+      enum:
+      - dinheiro
+      - cartao_debito
+      - cartao_credito
+      type: string
+      description: |-
+        * `dinheiro` - Dinheiro
+        * `cartao_debito` - Débito
+        * `cartao_credito` - Crédito
     Recibo:
       type: object
       properties:
@@ -10664,6 +12421,75 @@ components:
       required:
       - senha_nova
       - token
+    Reembolso:
+      type: object
+      properties:
+        id:
+          type: integer
+        cliente:
+          $ref: '#/components/schemas/Ref'
+        origem:
+          $ref: '#/components/schemas/OrigemDaConta'
+        valor_centavos:
+          type: integer
+        forma:
+          $ref: '#/components/schemas/ReembolsoFormaEnum'
+        status:
+          $ref: '#/components/schemas/ReembolsoStatusEnum'
+        feito_em:
+          type: string
+          format: date-time
+          nullable: true
+        comprovante:
+          allOf:
+          - $ref: '#/components/schemas/Nota'
+          nullable: true
+      required:
+      - cliente
+      - comprovante
+      - feito_em
+      - forma
+      - id
+      - origem
+      - status
+      - valor_centavos
+    ReembolsoFormaEnum:
+      enum:
+      - pix
+      - dinheiro
+      - estorno_cartao
+      type: string
+      description: |-
+        * `pix` - pix
+        * `dinheiro` - dinheiro
+        * `estorno_cartao` - estorno_cartao
+    ReembolsoStatusEnum:
+      enum:
+      - a_fazer
+      - feito
+      type: string
+      description: |-
+        * `a_fazer` - a_fazer
+        * `feito` - feito
+    Reembolsos:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reembolso'
+      required:
+      - resultados
+    Ref:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+      - id
+      - nome
     ReferenciaCliente:
       type: object
       properties:
@@ -10700,6 +12526,26 @@ components:
       description: |-
         * `preco_fixo` - Preço fixo
         * `desconto` - Desconto
+    Renegociar:
+      type: object
+      properties:
+        contas:
+          type: array
+          items:
+            type: integer
+          maxItems: 50
+          minItems: 1
+        novas:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContaNova'
+        motivo:
+          type: string
+          maxLength: 200
+      required:
+      - contas
+      - motivo
+      - novas
     RenovarLocacao:
       type: object
       properties:
@@ -10711,6 +12557,17 @@ components:
           type: string
           format: date-time
           nullable: true
+    ResolverPendencia:
+      type: object
+      properties:
+        acao:
+          $ref: '#/components/schemas/AcaoEnum'
+        motivo:
+          type: string
+          maxLength: 180
+      required:
+      - acao
+      - motivo
     Responsavel:
       type: object
       properties:
@@ -10795,6 +12652,22 @@ components:
       - texto
       - tipo
       - valor_centavos
+    ResumoCaixa:
+      type: object
+      properties:
+        entrou_hoje_centavos:
+          type: integer
+        recebimentos:
+          type: integer
+        por_forma:
+          $ref: '#/components/schemas/PorFormas'
+        gaveta:
+          $ref: '#/components/schemas/Gaveta'
+      required:
+      - entrou_hoje_centavos
+      - gaveta
+      - por_forma
+      - recebimentos
     ResumoIdNome:
       type: object
       properties:
@@ -10830,6 +12703,18 @@ components:
       - inicio
       - km_livre
       - periodicidade
+    Sangria:
+      type: object
+      properties:
+        valor_centavos:
+          type: integer
+          minimum: 1
+        descricao:
+          type: string
+          maxLength: 150
+      required:
+      - descricao
+      - valor_centavos
     SegmentoDaFrota:
       type: object
       properties:
@@ -11123,6 +13008,18 @@ components:
       - codigo
       - rotulo
       - tom
+    StatusCaixaEnum:
+      enum:
+      - aberto
+      - aguardando_aprovacao
+      - fechado
+      - fechado_sem_conferencia
+      type: string
+      description: |-
+        * `aberto` - aberto
+        * `aguardando_aprovacao` - aguardando_aprovacao
+        * `fechado` - fechado
+        * `fechado_sem_conferencia` - fechado_sem_conferencia
     StatusClienteEnum:
       enum:
       - incompleto
@@ -11135,6 +13032,22 @@ components:
         * `ativo` - Ativo
         * `bloqueado` - Bloqueado
         * `inativo` - Inativo
+    StatusContaReceberEnum:
+      enum:
+      - aberta
+      - vence_hoje
+      - atrasada
+      - paga
+      - cancelada
+      - renegociada
+      type: string
+      description: |-
+        * `aberta` - aberta
+        * `vence_hoje` - vence_hoje
+        * `atrasada` - atrasada
+        * `paga` - paga
+        * `cancelada` - cancelada
+        * `renegociada` - renegociada
     StatusContratoEnum:
       enum:
       - gerado
@@ -11785,6 +13698,32 @@ components:
       - status
       - todas_filiais
       - ultimo_acesso_em
+    ValorHoje:
+      type: object
+      properties:
+        data:
+          type: string
+          format: date
+        dias_atraso:
+          type: integer
+        principal_centavos:
+          type: integer
+        multa_centavos:
+          type: integer
+        juros_centavos:
+          type: integer
+        total_centavos:
+          type: integer
+        cobra_juros:
+          type: boolean
+      required:
+      - cobra_juros
+      - data
+      - dias_atraso
+      - juros_centavos
+      - multa_centavos
+      - principal_centavos
+      - total_centavos
     ValorTipado:
       type: object
       properties:
@@ -12130,6 +14069,16 @@ components:
       - filial_id
       - marca
       - modelo
+      - placa
+    VeiculoRef:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+      required:
+      - id
       - placa
     VeiculosEnum:
       enum:

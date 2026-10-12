@@ -50,6 +50,28 @@ class Sequencia(models.Model):
         return f"{self.chave}: {self.ultimo_numero}"
 
 
+class WebhookRecebido(models.Model):
+    """Aviso de um parceiro (pagamentos), nos dois schemas (S-14): o `evento_id` único faz o mesmo
+    aviso valer uma vez só. O corpo fica guardado para conferência; a baixa nunca confia nele e
+    consulta o parceiro."""
+
+    provedor = models.CharField(max_length=20)
+    evento_id = models.CharField(max_length=100, unique=True)
+    recebido_em = models.DateTimeField()
+    corpo = models.JSONField(default=dict)
+    processado_em = models.DateTimeField(null=True, blank=True)
+    resultado = models.CharField(max_length=40, blank=True, default="")
+
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"omitir": ["corpo"]}
+
+    class Meta:
+        verbose_name = "webhook recebido"
+        verbose_name_plural = "webhooks recebidos"
+
+    def __str__(self) -> str:
+        return f"{self.provedor} {self.evento_id}"
+
+
 class ModeloComCodigo(models.Model):
     """Código legível sequencial por empresa (`LOC-2856`), gerado no primeiro `save()`."""
 

@@ -14,7 +14,7 @@
 
 **Regras cobertas:** AUD-01, AUD-02, AUD-03, AUD-07, AUD-09, PLT-07, PLT-08, PLT-09. Testes em `backend/tests/aceitacao/test_t018_auditoria.py`, um por critério (CA-018-01 a 16, 18 testes, todos passando), com o código da regra no nome.
 
-**Conferido antes do push:** ruff, ruff format, mypy, `makemigrations --check`, os testes da T-018 e os afetados um arquivo por vez (comum: auditoria, arquivos, tarefas; tests: rotas, permissões das rotas, limites entre apps, campos sensíveis, formato das datas, autenticação, isolamento, fundação; aceitação T-010, T-011, T-011 segurança, T-012, T-014, T-058, T-068; apps plataforma e contas). No frontend, `npm run api:gerar` e `npm run typecheck` sem erro.
+**Conferido antes do push:** ruff, ruff format, mypy, `makemigrations --check`, os testes da T-018 e os afetados um arquivo por vez (comum: auditoria, arquivos, tarefas; tests: rotas, permissões das rotas, limites entre apps, campos sensíveis, formato das datas, autenticação, isolamento, fundação; aceitação T-010, T-011, T-011 segurança, T-012, T-014, T-017 (depois do merge da `main`), T-058, T-068; apps plataforma e contas). No frontend, `npm run api:gerar` e `npm run typecheck` sem erro.
 
 **Decisões de implementação (Arquiteto, confira):**
 1. Formatadores: a auditoria traz os textos das ações que já existem (`textos.py`), lendo só o próprio evento; o app dono pode registrar o seu com `registrar_formatador` e ele passa na frente.
@@ -32,5 +32,5 @@
 
 **Próximo passo para quem recebe:**
 - **Frontend:** telas `Admin-Auditoria` e `Plat-Auditoria` exibem `resumo`, `detalhe`, `ator.iniciais` e o bloco `suporte` como vêm (linha em destaque quando `suporte` não é nulo); filtro "Pessoa" de `/api/auditoria/pessoas/` (usuário vai em `?ator=`, Sistema e Suporte Giro em `?ator_tipo=`). O backup completo pede login com código há no máximo 15 minutos: o 403 `2fa_recente` leva a pessoa a entrar de novo com o código.
-- **QA:** conferir na tela os 9 eventos do CA-018-09 quando o seed tiver o financeiro (T-017).
+- **QA:** conferir na tela os 9 eventos do CA-018-09 com o seed (o financeiro da T-017 já está na `main`).
 - **Produto e arquiteto:** as três entradas da T-018 no backlog.

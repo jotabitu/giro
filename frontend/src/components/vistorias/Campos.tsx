@@ -75,7 +75,7 @@ function Caixa({ marcado, indefinido, aoMudar, desativado, rotulo }: { marcado: 
   useEffect(() => {
     if (ref.current) ref.current.indeterminate = indefinido;
   }, [indefinido]);
-  return <input ref={ref} type="checkbox" aria-label={rotulo} className="h-5 w-5 shrink-0" checked={marcado} disabled={desativado} onChange={aoMudar} />;
+  return <input ref={ref} type="checkbox" aria-label={rotulo} className="wl-marcar" checked={marcado} disabled={desativado} onChange={aoMudar} />;
 }
 
 /** Itens conferidos. Sem resposta fica indefinido (traço); marcar é "ok", desmarcar é "com problema". */
@@ -163,7 +163,7 @@ export function DialogoDeAvaria({ chegada, enviando, erro, aoFechar, aoConfirmar
         </div>
         {chegada && (
           <label className="flex min-h-[44px] items-center gap-3 text-body">
-            <input type="checkbox" className="h-5 w-5" checked={oficina} onChange={(e) => setOficina(e.target.checked)} />
+            <input type="checkbox" className="wl-marcar" checked={oficina} onChange={(e) => setOficina(e.target.checked)} />
             O veículo vai para a oficina
           </label>
         )}

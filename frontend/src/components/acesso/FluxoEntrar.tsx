@@ -10,10 +10,12 @@ import { z } from "zod";
 import { Button, Icone, StatusBadge, TextField } from "@/design-system";
 import { contas, type Eu } from "@/lib/api";
 import { aparelhoAtual, mensagemDoErro } from "@/lib/erros";
+import { useEnderecoSemEmpresa } from "@/lib/endereco";
 import { useGuardarSessao } from "@/lib/sessao";
 import { Aviso } from "./Aviso";
 import { Ativar2fa } from "./Ativar2fa";
 import { CabecalhoMarca, RodapeGiro } from "./CabecalhoMarca";
+import { EnderecoSemEmpresa } from "./EnderecoSemEmpresa";
 import { VerificarCodigo } from "./VerificarCodigo";
 
 const esquema = z.object({
@@ -28,6 +30,7 @@ type Etapa = { nome: "credenciais" } | { nome: "verificar"; token: string } | { 
 export function FluxoEntrar() {
   const router = useRouter();
   const guardar = useGuardarSessao();
+  const semEmpresa = useEnderecoSemEmpresa();
   const [etapa, setEtapa] = useState<Etapa>({ nome: "credenciais" });
   const [erro, setErro] = useState<string | null>(null);
   const {
@@ -52,6 +55,8 @@ export function FluxoEntrar() {
       setErro(mensagemDoErro(e));
     }
   }
+
+  if (semEmpresa) return <EnderecoSemEmpresa />;
 
   if (etapa.nome === "configurar") {
     return <Ativar2fa tokenPre={etapa.token} exige aoConcluir={concluir} />;

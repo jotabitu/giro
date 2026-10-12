@@ -12,6 +12,9 @@ o app de cima consulta o registro sem importar o de baixo (ADR 0011).
 - Contador: `registrar_contador(alvo="filiais.Filial", nome="veiculos", contar=lambda id: ...)`.
   `contar(alvo, id, nomes)` devolve todos os pedidos; contador não registrado vale 0
   (ex.: operação que impede desativar a filial, FIL-06).
+- Total: `registrar_total(alvo, nome, somar)`, uma soma sobre uma lista do app de cima (ex.:
+  `em_aberto_centavos` dos clientes, de `financeiro`). `total(alvo, nome, qs)` devolve `None`
+  quando o fornecedor ainda não existe.
 """
 
 from collections import defaultdict
@@ -88,3 +91,15 @@ def remover_filtro(alvo: str, nome: str) -> None:
 
 def filtro(alvo: str, nome: str) -> Callable[[QuerySet[Any]], QuerySet[Any]] | None:
     return _filtros.get(alvo, {}).get(nome)
+
+
+_totais: dict[str, dict[str, Callable[[QuerySet[Any]], int]]] = defaultdict(dict)
+
+
+def registrar_total(alvo: str, nome: str, somar: Callable[[QuerySet[Any]], int]) -> None:
+    _totais[alvo][nome] = somar
+
+
+def total(alvo: str, nome: str, queryset: QuerySet[Any]) -> int | None:
+    somar = _totais.get(alvo, {}).get(nome)
+    return int(somar(queryset)) if somar is not None else None

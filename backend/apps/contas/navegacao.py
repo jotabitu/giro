@@ -139,7 +139,7 @@ ITENS: dict[str, Item] = {
             "conciliacao",
             lambda p: bool(p["financeiro_pagar"]),
             Recurso.CONTAS_RECEBER,
-            modulo="financeiro",
+            modulo="conciliacao",  # fase 2 (FIN-11, FIN-12): fica fora com o financeiro ligado
         ),
         Item("relatorios", "Relatórios", None, _ve_painel, Recurso.RELATORIOS, None, "relatorios"),
         Item(

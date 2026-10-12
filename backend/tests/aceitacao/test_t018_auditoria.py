@@ -2,8 +2,8 @@
 
 Roda na `empresa_a` com as pessoas da Moto Rápida e a Filial Centro, relógio em 07 out 2026.
 A gravação vem de cada módulo; aqui se testa a consulta e as garantias. Os eventos do caixa e das
-despesas (T-017, ainda fora da `main`) entram direto na tabela, com a ação e os campos que o
-financeiro grava; o resto passa pelos serviços de verdade.
+despesas entram direto na tabela, nas horas do CA-018-09, com a ação e os campos do contrato; o
+resto passa pelos serviços de verdade.
 """
 
 import csv
