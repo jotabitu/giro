@@ -20,11 +20,11 @@ Branch `t-144-contrato-t017`, criada a partir de `origin/t-017-financeiro` (PR #
 - 401 `webhook_invalido` sem gravar nada; `WebhookRecebido` com `evento_id` único (repetido não faz nada); 200 na hora e baixa só na task; a task trava o webhook, consulta o parceiro, compara o valor com a cobrança e manda para pendência valor diferente, estorno no parceiro e conta que não está mais aberta. Limite de 120/min por IP, contando os recusados.
 - Nada a ajustar no código. Fica para a T-029: a conta principal (`FaturaAssinatura`) e o IP real atrás do proxy no limite por IP (S-17).
 
-**Ajuste de código pedido:** **T-145** (backend, no backlog): `status` de `caixa_hoje` e `caixas_do_dia` como `ChoiceField`. Hoje o OpenAPI sai `string`, e o cliente tipado não recebe o enum. É pequeno e não bloqueia a T-023.
+**Ajuste de código pedido:** **T-146** (backend, no backlog): `status` de `caixa_hoje` e `caixas_do_dia` como `ChoiceField`. Hoje o OpenAPI sai `string`, e o cliente tipado não recebe o enum. É pequeno e não bloqueia a T-023.
 
 **Regras:** FIN-01, FIN-03, FIN-04, FIN-07, FIN-08, FIL-06, DEV-02, AUT-03, AUT-05; S-14.
 
 **Próximo passo:**
-- **Orquestrador:** abrir o PR depois do #150; pôr a T-145 na fila do backend.
+- **Orquestrador:** abrir o PR depois do #150; pôr a T-146 na fila do backend.
 - **Frontend (T-023):** usar `financeiro.md` e `painel.md` desta branch; `caixa_hoje` pode vir `fechado` ou `aguardando_aprovacao`, então mostre o status; traduza os códigos do `historico`.
 - **Segurança:** a conferência do webhook está descrita no passo 1 dos Webhooks de `financeiro.md`.
