@@ -223,3 +223,8 @@ def anotar_usuarios(queryset: QuerySet[Any]) -> QuerySet[Any]:
 def montar_usuarios(filial: Any) -> dict[str, Any] | None:
     valor = getattr(filial, "_indicador_usuarios", None)
     return None if valor is None else {"usuarios": valor}
+
+
+def nomes_das_filiais(ids: set[int]) -> dict[int, str]:
+    """Inclusive as desativadas: o evento antigo continua dizendo onde aconteceu."""
+    return dict(Filial.objects.filter(pk__in=ids).values_list("pk", "nome"))

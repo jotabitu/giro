@@ -39,3 +39,12 @@ def exige_permissao(permissao: str) -> type[BasePermission]:
 
     PermissaoDaPlataforma.__name__ = f"Pode_{permissao}"
     return PermissaoDaPlataforma
+
+
+class SoDono(BasePermission):
+    """Auditoria da plataforma: só o dono (CA-018-15; a tabela da PLT-09 não tem outra função)."""
+
+    def has_permission(self, request: "Request", view: "APIView") -> bool:
+        if getattr(request.user, "funcao_plataforma", "") != "dono":
+            raise SemPermissao("PLT-09", "Sua função não permite esta ação")
+        return True

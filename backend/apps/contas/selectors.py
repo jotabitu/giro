@@ -333,3 +333,8 @@ def chaves_de_contador(nav: dict[str, Any]) -> set[str]:
         for item in grupo["itens"]
         if item["contador"]
     }
+
+
+def emails_de_usuarios(ids: set[int]) -> dict[int, str]:
+    """Para a auditoria (login bloqueado de quem) e o aviso da exportação pronta (T-018)."""
+    return dict(Usuario.objects.filter(pk__in=ids).values_list("pk", "email"))

@@ -242,6 +242,12 @@ SPECTACULAR_SETTINGS = {
         "TipoCobrancaPedidaEnum": ["pix", "boleto"],
         "FormaRecebimentoEnum": ["dinheiro", "cartao_debito", "cartao_credito"],
         "OrigemDoLancamentoEnum": ["locacao", "venda", "devolucao"],
+        # Auditoria e exportação (T-018), sem renomear os enums que já existiam.
+        "CategoriaAuditoriaEnum": "comum.auditoria.Categoria",
+        "TipoAtorEnum": "comum.auditoria.TipoAtor",
+        "ItemExportacaoEnum": "apps.auditoria.models.ItemExportacao",
+        "FormatoExportacaoEnum": "apps.auditoria.models.FormatoExportacao",
+        "StatusExportacaoEnum": "apps.auditoria.models.StatusExportacao",
     },
 }
 
