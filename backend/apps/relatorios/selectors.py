@@ -3,8 +3,8 @@ USR-07, USR-08, IMP-01, VEI-06, FIN-01, FIN-13, FIN-15, APR-09).
 
 Só leitura, a partir dos `selectors` dos outros apps (ADR 0011, nível 13). Regra do MVP: um
 número sai quando a fonte dele já existe no backend; senão, `null` (o bloco ou o KPI inteiro).
-Nenhum número é estimado ou fixo. Caixa (T-017), despesas, manutenção, vendas e conciliação
-ainda não existem e vêm `null`.
+Nenhum número é estimado ou fixo. Caixa e despesas vêm do `financeiro` (T-017); manutenção,
+vendas e conciliação ainda não existem e vêm `null`.
 """
 
 from collections.abc import Callable
@@ -185,6 +185,8 @@ def _aprovacoes_pendentes(usuario: Any, escopo: Escopo) -> Any:
     ).filter(filial_id__in=escopo.filiais)
 
 
+PERFIS_QUE_APROVAM_DESPESA = frozenset({"administrador", "gerente"})  # APR-03
+
 CONTADORES: dict[str, Callable[[Any, Escopo], int | None]] = {
     "veiculos": lambda u, e: veiculos_selectors.contagens(veiculos_selectors.da_frota(e.filiais))[
         "todos"
@@ -194,6 +196,15 @@ CONTADORES: dict[str, Callable[[Any, Escopo], int | None]] = {
     ).count(),
     "aprovacoes": lambda u, e: _aprovacoes_pendentes(u, e).count(),
     "receber": lambda u, e: financeiro_selectors.atrasadas(e.filiais, relogio.hoje()).quantidade,
+    # APR-03 e APR-09: quem não aprova despesa fica sem contador.
+    "despesas": lambda u, e: (
+        financeiro_selectors.despesas_para_aprovar(e.filiais, u.pk)
+        if getattr(u, "perfil", "") in PERFIS_QUE_APROVAM_DESPESA
+        else None
+    ),
+    "contas_a_pagar": lambda u, e: financeiro_selectors.despesas_a_pagar_vencendo(
+        e.filiais, relogio.hoje()
+    ).count(),
     "usuarios": lambda u, e: contas_selectors.contagens_de_usuarios()["convites"],
     "agenda": lambda u, e: _agenda_pendente(e),
     "avarias": lambda u, e: (
@@ -203,8 +214,8 @@ CONTADORES: dict[str, Callable[[Any, Escopo], int | None]] = {
 
 
 def contadores(usuario: Any, escopo: Escopo, chaves: set[str]) -> dict[str, int | None]:
-    """Só as chaves dos itens do menu da pessoa; sem fonte (despesas, contas a pagar,
-    manutenções, conciliação, propostas), `null`."""
+    """Só as chaves dos itens do menu da pessoa; sem fonte (manutenções, conciliação,
+    propostas), `null`."""
     return {
         chave: (CONTADORES[chave](usuario, escopo) if chave in CONTADORES else None)
         for chave in sorted(chaves)
@@ -328,8 +339,16 @@ def _geral(usuario: Any, escopo: Escopo, periodo: str) -> dict[str, Any]:
             ),
             "itens": itens,
         },
-        "caixa_hoje": None,  # caixa da T-017
+        "caixa_hoje": _caixa_hoje(escopo),
     }
+
+
+def _caixa_hoje(escopo: Escopo) -> dict[str, Any] | None:
+    """O caixa de hoje da filial; `null` com "Todas as filiais" ou sem caixa hoje (FIN-07)."""
+    filial = escopo.filial()
+    if filial is None:
+        return None
+    return financeiro_selectors.caixa_hoje_do_painel(filial.pk, relogio.hoje())
 
 
 # --- Variante `implantacao` (administrador antes da 1ª locação, tela Pos-Dashboard) ---
@@ -622,8 +641,8 @@ def _vistoriador(usuario: Any, escopo: Escopo, periodo: str) -> dict[str, Any]:
 
 
 def _para_hoje(escopo: Escopo) -> list[dict[str, Any]]:
-    """USR-08: só reembolsos a fazer; as despesas a pagar entram com elas (FIN-05)."""
-    return [
+    """USR-08: reembolsos a fazer e despesas a pagar vencendo até hoje (FIN-05)."""
+    reembolsos = [
         {
             "texto": (
                 f"Devolver {formatar_reais(r.valor_centavos)} a {r.cliente.nome} "
@@ -634,12 +653,26 @@ def _para_hoje(escopo: Escopo) -> list[dict[str, Any]]:
         }
         for r in financeiro_selectors.reembolsos_a_fazer(escopo.filiais)
     ]
+    despesas = [
+        {
+            "texto": f"Pagar {d.descricao[:1].lower()}{d.descricao[1:]} · "
+            f"{formatar_reais(d.valor_centavos)}",
+            "tipo": "despesa",
+            "destino": {"chave": "contas_a_pagar", "id": d.pk},
+        }
+        for d in financeiro_selectors.despesas_a_pagar_vencendo(escopo.filiais, relogio.hoje())
+    ]
+    return reembolsos + despesas
 
 
 def _financeiro(usuario: Any, escopo: Escopo, periodo: str) -> dict[str, Any]:
     hoje = relogio.hoje()
     entra = financeiro_selectors.vencem_entre(escopo.filiais, hoje, hoje)
     atraso = financeiro_selectors.atrasadas(escopo.filiais, hoje)
+    vencem_hoje = financeiro_selectors.despesas_a_pagar_vencendo(escopo.filiais, hoje).filter(
+        vencimento=hoje
+    )
+    sai = financeiro_selectors.Soma(sum(d.valor_centavos for d in vencem_hoje), len(vencem_hoje))
     return {
         "kpis": [
             _kpi(
@@ -649,7 +682,13 @@ def _financeiro(usuario: Any, escopo: Escopo, periodo: str) -> dict[str, Any]:
                 entra.centavos,
                 _plural(entra.quantidade, "parcela", "parcelas"),
             ),
-            _kpi("sai_hoje", "Sai hoje", None, None),  # despesas (FIN-05)
+            _kpi(
+                "sai_hoje",
+                "Sai hoje",
+                "centavos",
+                sai.centavos,
+                _plural(sai.quantidade, "conta a pagar", "contas a pagar"),
+            ),
             _kpi(
                 "em_atraso",
                 "Em atraso",
@@ -659,7 +698,7 @@ def _financeiro(usuario: Any, escopo: Escopo, periodo: str) -> dict[str, Any]:
             ),
             _kpi("saldo_em_contas", "Saldo em contas", None, None),  # fase 2
         ],
-        "caixas_do_dia": None,  # caixa da T-017
+        "caixas_do_dia": financeiro_selectors.caixas_de_hoje(escopo.filiais, hoje),
         "para_hoje": _para_hoje(escopo),
         "fluxo_previsto": None,  # fase 2
         "conciliacao": None,
