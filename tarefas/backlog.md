@@ -116,6 +116,12 @@ Levantadas pelo arquiteto em T-122 (10 out 2026), para o produto:
 
 - (T-122) As 2 dúvidas do contrato da troca foram decididas em 10 out 2026 pelo dono do produto, com as opções do contrato: (1) cancelar a troca com a saída do veículo novo já concluída é recusado com 409 `troca_saida_concluida`; (2) no mensal em 4 semanais, a diferença do período em curso desconta o que as parcelas refeitas já subiram (`ja_refeito_centavos`). O estado `descartada` da vistoria entrou na tabela de estados. Regras na T-124 (`LOC-09`); o contrato da T-122 já segue as duas; código na T-123.
 
+Levantadas pelo backend em T-017 (12 out 2026), para o produto (o código segue o padrão descrito até a decisão):
+
+- [decisão] (T-017, `CLI-04`) Item `historico` da análise do cadastro: o contrato só tem o exemplo "Sem atraso na empresa". O código: conta vencida em aberto → `problema`, "Conta em atraso na empresa"; alguma conta paga depois do vencimento → `pendente`, "Já pagou com atraso na empresa"; nenhuma conta → "Sem histórico" (como antes). Confirmar situações e textos.
+- [decisão] (T-017, `FIN-15`) Tela `Receber`: `?periodo=semana` é de segunda a domingo da semana de hoje e, sem `periodo`, vale o mês. A caução fica fora das abas e da lista geral e só aparece filtrando por cliente ou por origem (para ser recebida no `Caixa`). Confirmar.
+- [decisão] (T-017, `AUT-03`, `CLI-05`) Régua: `financeiro.parcela_atrasou` sai em 1, 3 e 7 dias e todo dia a partir do 15º (o contrato diz "1, 3, 7 e 15"), para um dia sem a tarefa não deixar de bloquear; o bloqueio é idempotente. Os textos do WhatsApp (D-1, D0, D+3, D+7 e o recibo do Pix) são do backend, ex.: "Moto Rápida: olá, Carlos. A parcela 2 de 5 venceu em 30/09. O valor hoje é R$ 306,09." Revisar os textos.
+
 ## Fase 0 · Fundação
 
 ### T-001 · Esqueleto do backend

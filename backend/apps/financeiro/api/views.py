@@ -58,12 +58,12 @@ from .serializers import (
     ListaDeDespesasSerializer,
     LoteAceitoSerializer,
     LoteSerializer,
-    MotivoSerializer,
+    MotivoFinanceiroSerializer,
     MovimentoSerializer,
     MovimentosSerializer,
     PagarDespesaSerializer,
-    PendenciaSerializer,
-    PendenciasSerializer,
+    PendenciaPagamentoSerializer,
+    PendenciasPagamentoSerializer,
     ReceberSerializer,
     ReembolsoSerializer,
     ReembolsosSerializer,
@@ -291,10 +291,12 @@ class CancelarContaView(APIView):
         return [p() for p in GERENCIAM]
 
     @extend_schema(
-        request=MotivoSerializer, responses={200: ContaSerializer}, summary="Cancelar (FIN-01)"
+        request=MotivoFinanceiroSerializer,
+        responses={200: ContaSerializer},
+        summary="Cancelar (FIN-01)",
     )
     def post(self, request: Request, pk: int) -> Response:
-        motivo = _entrada(MotivoSerializer, request)["motivo"]
+        motivo = _entrada(MotivoFinanceiroSerializer, request)["motivo"]
         conta = services.cancelar(_conta(request, pk), motivo=motivo)
         return _conta_resposta(conta, request)
 
@@ -336,12 +338,12 @@ class EstornarContaView(APIView):
         return [p() for p in GERENCIAM]
 
     @extend_schema(
-        request=MotivoSerializer,
+        request=MotivoFinanceiroSerializer,
         responses={200: ContaSerializer},
         summary="Estornar a conta paga: nasce uma conta aberta igual (CA-017-09)",
     )
     def post(self, request: Request, pk: int) -> Response:
-        motivo = _entrada(MotivoSerializer, request)["motivo"]
+        motivo = _entrada(MotivoFinanceiroSerializer, request)["motivo"]
         nova = services.estornar(
             _conta(request, pk), request.user, motivo=motivo, filial_id=_filial_unica(request)
         )
@@ -402,7 +404,9 @@ class PendenciasView(APIView):
     def get_permissions(self) -> Any:
         return [p() for p in PAGAM]
 
-    @extend_schema(responses=PendenciasSerializer, summary="Pagamentos para conferir (S-14)")
+    @extend_schema(
+        responses=PendenciasPagamentoSerializer, summary="Pagamentos para conferir (S-14)"
+    )
     def get(self, request: Request) -> Response:
         qs = PendenciaPagamento.objects.select_related("cobranca__conta_receber__cliente").filter(
             cobranca__conta_receber__filial_id__in=_filiais_do_escopo(request)
@@ -410,7 +414,7 @@ class PendenciasView(APIView):
         if request.query_params.get("status") in ("aberta", "resolvida"):
             qs = qs.filter(status=request.query_params["status"])
         return envelope_sem_paginas(
-            PendenciasSerializer(
+            PendenciasPagamentoSerializer(
                 {"resultados": [selectors.representacao_pendencia(p) for p in qs[:200]]}
             ).data["resultados"]
         )
@@ -428,7 +432,7 @@ class ResolverPendenciaView(APIView):
 
     @extend_schema(
         request=ResolverPendenciaSerializer,
-        responses={200: PendenciaSerializer},
+        responses={200: PendenciaPagamentoSerializer},
         summary="Resolver a pendência: baixar ou ignorar, com o motivo",
     )
     def post(self, request: Request, pk: int) -> Response:
@@ -444,7 +448,9 @@ class ResolverPendenciaView(APIView):
         resolvida = PendenciaPagamento.objects.select_related(
             "cobranca__conta_receber__cliente"
         ).get(pk=resolvida.pk)
-        return Response(PendenciaSerializer(selectors.representacao_pendencia(resolvida)).data)
+        return Response(
+            PendenciaPagamentoSerializer(selectors.representacao_pendencia(resolvida)).data
+        )
 
 
 # --- Caixa do dia ---
@@ -557,12 +563,12 @@ class EstornarMovimentoView(APIView):
         return [p() for p in GERENCIAM]
 
     @extend_schema(
-        request=MotivoSerializer,
+        request=MotivoFinanceiroSerializer,
         responses={201: MovimentoSerializer},
         summary="Estornar um movimento: o original não muda (CA-017-17)",
     )
     def post(self, request: Request, pk: int, mid: int) -> Response:
-        motivo = _entrada(MotivoSerializer, request)["motivo"]
+        motivo = _entrada(MotivoFinanceiroSerializer, request)["motivo"]
         movimento = MovimentoCaixa.objects.filter(caixa=_caixa(request, pk), pk=mid).first()
         if movimento is None:
             raise Http404

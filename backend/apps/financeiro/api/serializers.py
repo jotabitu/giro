@@ -36,12 +36,14 @@ class LoteSerializer(serializers.Serializer[Any]):
     ids = serializers.ListField(child=serializers.IntegerField(), min_length=1, max_length=100)
 
 
-class MotivoSerializer(serializers.Serializer[Any]):
+class MotivoFinanceiroSerializer(serializers.Serializer[Any]):
     motivo = serializers.CharField(max_length=200)
 
 
 class OrigemEntradaSerializer(serializers.Serializer[Any]):
-    tipo = serializers.ChoiceField(choices=[("locacao", "Locação"), ("venda", "Venda")])
+    tipo = serializers.ChoiceField(
+        choices=[("locacao", "Locação"), ("venda", "Venda"), ("devolucao", "Devolução")]
+    )
     id = serializers.IntegerField()
 
 
@@ -117,7 +119,7 @@ class RefSerializer(serializers.Serializer[Any]):
     nome = serializers.CharField()
 
 
-class OrigemSerializer(serializers.Serializer[Any]):
+class OrigemDaContaSerializer(serializers.Serializer[Any]):
     tipo = serializers.CharField()
     id = serializers.IntegerField(allow_null=True)
     codigo = serializers.CharField(allow_null=True)
@@ -160,7 +162,7 @@ class ContaSerializer(serializers.Serializer[Any]):
     tipo = serializers.CharField()
     numero = serializers.IntegerField(allow_null=True)
     total_parcelas = serializers.IntegerField(allow_null=True)
-    origem = OrigemSerializer()
+    origem = OrigemDaContaSerializer()
     cliente = RefSerializer()
     filial = RefSerializer()
     veiculo_placa = serializers.CharField(allow_null=True)
@@ -305,7 +307,7 @@ class MovimentoSerializer(serializers.Serializer[Any]):
     forma = serializers.CharField()
     descricao = serializers.CharField()
     valor_centavos = serializers.IntegerField()
-    origem = OrigemSerializer(allow_null=True)
+    origem = OrigemDaContaSerializer(allow_null=True)
     registrado_por = serializers.CharField()
     estorno_de = serializers.IntegerField(allow_null=True)
 
@@ -379,7 +381,7 @@ class ListaDeDespesasSerializer(serializers.Serializer[Any]):
 class ReembolsoSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     cliente = RefSerializer()
-    origem = OrigemSerializer()
+    origem = OrigemDaContaSerializer()
     valor_centavos = serializers.IntegerField()
     forma = serializers.ChoiceField(choices=["pix", "dinheiro", "estorno_cartao"])
     status = serializers.ChoiceField(choices=["a_fazer", "feito"])
@@ -391,7 +393,7 @@ class ReembolsosSerializer(serializers.Serializer[Any]):
     resultados = ReembolsoSerializer(many=True)
 
 
-class PendenciaSerializer(serializers.Serializer[Any]):
+class PendenciaPagamentoSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     motivo = serializers.CharField()
     status = serializers.CharField()
@@ -403,5 +405,5 @@ class PendenciaSerializer(serializers.Serializer[Any]):
     criada_em = serializers.DateTimeField()
 
 
-class PendenciasSerializer(serializers.Serializer[Any]):
-    resultados = PendenciaSerializer(many=True)
+class PendenciasPagamentoSerializer(serializers.Serializer[Any]):
+    resultados = PendenciaPagamentoSerializer(many=True)

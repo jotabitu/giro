@@ -206,6 +206,26 @@ SPECTACULAR_SETTINGS = {
         "TipoValorEnum": ["numero", "centavos", "pct"],
         "TipoParaHojeEnum": ["reembolso", "despesa"],
         "StatusConviteEnum": ["aceito", "pendente"],
+        # Financeiro (T-017).
+        "StatusContaReceberEnum": [
+            "aberta",
+            "vence_hoje",
+            "atrasada",
+            "paga",
+            "cancelada",
+            "renegociada",
+        ],
+        "StatusCaixaEnum": ["aberto", "aguardando_aprovacao", "fechado", "fechado_sem_conferencia"],
+        "StatusDespesaEnum": "apps.financeiro.models.StatusDespesa",
+        "StatusReembolsoEnum": "apps.financeiro.models.StatusReembolso",
+        "CategoriaDespesaEnum": "apps.financeiro.models.CategoriaDespesa",
+        "CategoriaEnum": "apps.clientes.models.CategoriaCnh",  # nome que clientes já publicava
+        "FormaDespesaEnum": "apps.financeiro.models.FormaDespesa",
+        "TipoMovimentoEnum": "apps.financeiro.models.TipoMovimento",
+        "TipoLancamentoEnum": ["multa", "avaria", "outro"],
+        "TipoCobrancaPedidaEnum": ["pix", "boleto"],
+        "FormaRecebimentoEnum": ["dinheiro", "cartao_debito", "cartao_credito"],
+        "OrigemDoLancamentoEnum": ["locacao", "venda", "devolucao"],
     },
 }
 
