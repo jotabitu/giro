@@ -1,7 +1,8 @@
 """Views finas de veículos, categorias, preços e extras (docs/api/veiculos.md).
 
-Ver a frota é de todos os perfis, no escopo das suas filiais (USR-07); fora dele, 404. Escrever
-segue a tabela "Quem pode" do contrato.
+Ver a frota é de todos os perfis, no escopo das suas filiais (USR-07); fora dele, 404. O
+vistoriador vê sem valores, e não abre preços nem extras (D-25, USR-09). Escrever segue a tabela
+"Quem pode" do contrato.
 """
 
 from typing import Any
@@ -62,6 +63,10 @@ GESTAO: list[type[BasePermission]] = com_padrao(exige_perfil("administrador", "g
 LEITURA_DE_KM: list[type[BasePermission]] = com_padrao(
     exige_perfil("administrador", "gerente", "vistoriador")
 )
+# Preços e extras são só dinheiro: todos menos o vistoriador (D-25, USR-09).
+VEEM_VALORES: list[type[BasePermission]] = com_padrao(
+    exige_perfil("administrador", "gerente", "vendedor", "financeiro")
+)
 
 
 def _entrada(classe: type[Serializer[Any]], request: Request) -> dict[str, Any]:
@@ -83,7 +88,12 @@ def _representacao(
     veiculo = Veiculo.objects.select_related("categoria", "filial").get(pk=veiculo.pk)
     dados = selectors.representacao(veiculo, request.user, detalhe=detalhe)
     classe = VeiculoDetalheSerializer if detalhe else VeiculoSerializer
-    return Response(classe(dados).data, status=codigo)
+    return Response(_para(request, classe(dados).data), status=codigo)
+
+
+def _para(request: Request, dados: Any) -> Any:
+    """O vistoriador não recebe valores (D-25, USR-09)."""
+    return dados if selectors.ve_valores(request.user) else selectors.sem_valores(dados)
 
 
 # --- Frota ---
@@ -132,7 +142,8 @@ class VeiculosView(APIView):
             for v in pagina
         ]
         return paginacao.get_paginated_response(
-            VeiculoSerializer(dados, many=True).data, extras={"contagens": contagens}
+            _para(request, VeiculoSerializer(dados, many=True).data),
+            extras={"contagens": contagens},
         )
 
     @extend_schema(
@@ -390,7 +401,7 @@ class CategoriasView(APIView):
             request.query_params.get("ativo"),
         ).select_related("filial")
         dados = [selectors.representacao_categoria(c) for c in qs]
-        return Response({"resultados": CategoriaSerializer(dados, many=True).data})
+        return Response({"resultados": _para(request, CategoriaSerializer(dados, many=True).data)})
 
     @extend_schema(
         request=CategoriaEntradaSerializer,
@@ -448,9 +459,8 @@ class PrecosView(APIView):
     suporte_somente_leitura = True  # o suporte em "só ver" lê (PLT-07)
 
     def get_permissions(self) -> Any:
-        if self.request.method == "POST":
-            return [permissao() for permissao in SO_ADMINISTRADOR]
-        return super().get_permissions()
+        permissoes = SO_ADMINISTRADOR if self.request.method == "POST" else VEEM_VALORES
+        return [permissao() for permissao in permissoes]
 
     @extend_schema(
         responses=ListaDePrecosSerializer,
@@ -518,9 +528,8 @@ class ExtrasView(APIView):
     suporte_somente_leitura = True  # o suporte em "só ver" lê (PLT-07)
 
     def get_permissions(self) -> Any:
-        if self.request.method == "POST":
-            return [permissao() for permissao in SO_ADMINISTRADOR]
-        return super().get_permissions()
+        permissoes = SO_ADMINISTRADOR if self.request.method == "POST" else VEEM_VALORES
+        return [permissao() for permissao in permissoes]
 
     @extend_schema(
         responses=ListaDeExtrasSerializer,

@@ -81,7 +81,8 @@ function novaVistoria(d: DadosDaLocacaoParaVistoria, tipo: "saida" | "devolucao"
     status: "rascunho",
     locacao: { id: d.id, codigo: d.codigo },
     veiculo: { id: d.veiculo.id, placa: d.veiculo.placa, modelo: d.veiculo.modelo, ano: 2025 },
-    cliente: { nome: d.cliente.nome, cnh },
+    // O falso não guarda o celular nem as pendências do cliente; a API manda os dois (USR-09).
+    cliente: { nome: d.cliente.nome, celular: "85988771203", cnh, retirada_liberada: tipo === "saida" ? true : null },
     km: null,
     km_ultima_leitura: ultima,
     combustivel: null,

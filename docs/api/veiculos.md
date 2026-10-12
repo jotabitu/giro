@@ -16,7 +16,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 8 a 10 e apoio (`Prec
 | Baixar | sim | — | — | — | — |
 | Categorias, preços e extras | sim | — | — | — | — |
 
-Ver é liberado a todos os perfis no escopo das suas filiais porque toda a operação (nova locação, vistoria, caixa) consulta o veículo; dados de compra (`valor_compra_centavos`) só saem para administrador e gerente.
+Ver é liberado a todos os perfis no escopo das suas filiais porque toda a operação (nova locação, vistoria, caixa) consulta o veículo; dados de compra (`valor_compra_centavos`) só saem para administrador e gerente. O vistoriador recebe a frota, a ficha e as categorias sem valor em dinheiro: sem nenhum campo `_centavos`, sem `preco_vigente`, `proximo_preco`, `indicadores_financeiros` e `data_compra` (as chaves vêm ausentes); o histórico de preços da categoria e os extras respondem 403 para ele (`USR-09`, T-136).
 
 ## Representação do veículo
 
@@ -190,7 +190,7 @@ Perfil: administrador. Corpo: `{ nome, tipo_veiculo, filial_id? }` e, no `POST`,
 `POST /api/categorias/{id}/desativar/` e `/reativar/`: desativada some da escolha em cadastros novos; 422 `categoria_com_veiculos` se ainda houver veículos ativos nela.
 
 ### GET /api/categorias/{id}/precos/
-Perfis: todos. Histórico (`LOC-15`), do mais novo ao mais velho: `{ "resultados": [ { "vigente_desde": "2026-10-01", "diaria_centavos": 5490, "semanal_centavos": 32900, "mensal_centavos": 119000, "caucao_centavos": 30000, "alterado_por": "Mariana Costa", "alterado_em": "..." } ] }`.
+Perfis: todos menos o vistoriador (403). Histórico (`LOC-15`), do mais novo ao mais velho: `{ "resultados": [ { "vigente_desde": "2026-10-01", "diaria_centavos": 5490, "semanal_centavos": 32900, "mensal_centavos": 119000, "caucao_centavos": 30000, "alterado_por": "Mariana Costa", "alterado_em": "..." } ] }`.
 
 ### POST /api/categorias/{id}/precos/
 Perfil: administrador. Corpo: `{ vigente_desde, diaria_centavos, semanal_centavos, mensal_centavos, caucao_centavos }`.
@@ -204,7 +204,7 @@ Perfil: administrador. Todas as mudanças de preço da empresa, para "Histórico
 
 ## Extras (LOC-02)
 
-`GET /api/extras/` (todos os perfis; só os ativos, e `?ativo=false` mostra os desativados) → `{ "resultados": [ { "id", "nome": "Capacete extra", "valor_centavos": 1500, "cobranca": "por_periodo" | "unica", "ativo": true } ] }`.
+`GET /api/extras/` (todos os perfis menos o vistoriador, 403; só os ativos, e `?ativo=false` mostra os desativados) → `{ "resultados": [ { "id", "nome": "Capacete extra", "valor_centavos": 1500, "cobranca": "por_periodo" | "unica", "ativo": true } ] }`.
 `POST /api/extras/`, `PATCH /api/extras/{id}/`, `POST /api/extras/{id}/desativar/` · administrador. Mudar o valor vale para locações novas.
 
 Planos especiais (`Entregador`, `Mensal fidelidade`) aparecem na tela `Precos`, mas são do app `locacoes` e ficam no contrato de locações (T-015). As "Regras de cobrança" da mesma tela vêm de `ConfiguracaoEmpresa` (contrato de empresas).

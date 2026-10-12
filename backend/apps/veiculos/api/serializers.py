@@ -178,11 +178,12 @@ class VeiculoSerializer(serializers.Serializer[Any]):
     capacidade_tanque_litros = serializers.DecimalField(
         max_digits=5, decimal_places=1, allow_null=True
     )
-    preco_vigente = PrecoSerializer(allow_null=True)
-    valor_venda_centavos = serializers.IntegerField(allow_null=True)
-    referencia_fipe_centavos = serializers.IntegerField(allow_null=True)
-    valor_compra_centavos = serializers.IntegerField(allow_null=True)
-    data_compra = serializers.DateField(allow_null=True)
+    # Ausentes para o vistoriador, que não vê valores (D-25, USR-09).
+    preco_vigente = PrecoSerializer(allow_null=True, required=False)
+    valor_venda_centavos = serializers.IntegerField(allow_null=True, required=False)
+    referencia_fipe_centavos = serializers.IntegerField(allow_null=True, required=False)
+    valor_compra_centavos = serializers.IntegerField(allow_null=True, required=False)
+    data_compra = serializers.DateField(allow_null=True, required=False)
     entrou_na_frota_em = serializers.DateField()
     situacao = SituacaoDoVeiculoSerializer()
     locacao_atual = serializers.JSONField(allow_null=True)
@@ -206,7 +207,7 @@ class HistoricoStatusSerializer(serializers.Serializer[Any]):
 
 
 class VeiculoDetalheSerializer(VeiculoSerializer):
-    indicadores_financeiros = serializers.JSONField(allow_null=True)
+    indicadores_financeiros = serializers.JSONField(allow_null=True, required=False)
     ocupacao = OcupacaoSerializer()
     historico_status = HistoricoStatusSerializer(many=True)
 
@@ -238,8 +239,9 @@ class CategoriaSerializer(serializers.Serializer[Any]):
     ativo = serializers.BooleanField()
     modelos_resumo = serializers.CharField()
     veiculos = serializers.IntegerField()
-    preco_vigente = PrecoComDataSerializer(allow_null=True)
-    proximo_preco = PrecoComDataSerializer(allow_null=True)
+    # Ausentes para o vistoriador (D-25, USR-09).
+    preco_vigente = PrecoComDataSerializer(allow_null=True, required=False)
+    proximo_preco = PrecoComDataSerializer(allow_null=True, required=False)
 
 
 class ListaDeCategoriasSerializer(serializers.Serializer[Any]):

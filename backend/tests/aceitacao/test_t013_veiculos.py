@@ -149,11 +149,49 @@ def test_vei_01_ca_013_03_valor_de_compra_so_para_gestao(moto, frota):
     for nome in ("Mariana", "Rodrigo"):
         corpo = moto.api(nome).get(_url(sak)).json()
         assert (corpo["valor_compra_centavos"], corpo["data_compra"]) == (1390000, "2025-03-10")
-    for nome in ("Bruna", "João", "Lúcia"):
+    for nome in ("Bruna", "Lúcia"):
         corpo = moto.api(nome).get(_url(sak)).json()
         assert (corpo["valor_compra_centavos"], corpo["data_compra"]) == (None, None), nome
         lista = moto.api(nome).get("/api/veiculos/", {"busca": "SAK1D39"}).json()
         assert lista["resultados"][0]["valor_compra_centavos"] is None
+    # O vistoriador não recebe nem a chave (test_usr_09_vistoriador_ve_veiculo_sem_valores).
+    assert "valor_compra_centavos" not in moto.api("João").get(_url(sak)).json()
+
+
+def _chaves(dados: Any) -> set[str]:
+    if isinstance(dados, dict):
+        return set(dados) | {c for v in dados.values() for c in _chaves(v)}
+    if isinstance(dados, list):
+        return {c for v in dados for c in _chaves(v)}
+    return set()
+
+
+SO_VALORES = {"preco_vigente", "proximo_preco", "indicadores_financeiros", "data_compra"}
+
+
+def test_usr_09_vistoriador_ve_veiculo_sem_valores(moto, frota):
+    """D-25: João consulta a frota e a ficha sem diária, preço, venda nem compra; preços e
+    extras são só dinheiro e respondem 403 para ele."""
+    sak = frota.veiculos["SAK1D39"]
+    joao = moto.api("João")
+    lista = joao.get("/api/veiculos/").json()
+    ficha = joao.get(_url(sak)).json()
+    categorias = joao.get("/api/categorias/").json()
+    for corpo in (lista, ficha, categorias):
+        chaves = _chaves(corpo)
+        assert not [c for c in chaves if c.endswith("_centavos")]
+        assert not SO_VALORES & chaves
+    assert ficha["placa"] == "SAK1D39" and ficha["km_atual"] == sak.km_atual
+    assert lista["contagens"]["todos"] > 0
+    assert joao.get(f"/api/categorias/{sak.categoria_id}/precos/").status_code == 403
+    assert joao.get("/api/extras/").status_code == 403
+
+    # Os demais perfis continuam com a diária (coluna da Frota).
+    for nome in ("Mariana", "Rodrigo", "Bruna", "Lúcia"):
+        api = moto.api(nome)
+        assert api.get(_url(sak)).json()["preco_vigente"]["diaria_centavos"] == 5490, nome
+        assert api.get(f"/api/categorias/{sak.categoria_id}/precos/").status_code == 200
+        assert api.get("/api/extras/").status_code == 200
 
 
 def test_vei_01_ca_013_04_escopo_de_filial(moto, frota):
@@ -871,7 +909,7 @@ def test_aud_05_ca_013_20_arquivo_privado(moto, frota, relogio):
 
 
 def test_loc_01_ca_013_21_tabela_do_seed(moto, frota):
-    for nome in ("Mariana", "Bruna", "João"):
+    for nome in ("Mariana", "Bruna", "Lúcia"):  # o vistoriador vê sem preço (USR-09)
         corpo = moto.api(nome).get("/api/categorias/", {"filial": frota.centro.pk}).json()
         tabela = {
             c["nome"]: (

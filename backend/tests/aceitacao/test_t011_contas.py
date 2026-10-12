@@ -1633,6 +1633,7 @@ def test_usr_05_usr_08_navegacao_por_perfil(adm, settings):
         ("Financeiro", ["caixa", "receber", "despesas", "relatorios"]),
     ]
     assert rodrigo["menu_completo"][2]["itens"][2]["contador"] == "despesas"  # aprova despesas
+    assert rodrigo["menu_completo"][0]["itens"][0]["rotulo"] == "Visão da filial"
 
     # Bruna, vendedora: só o que é dela; sem aprovações, veículos nem relatórios.
     bruna = _navegacao(adm, "Bruna")
@@ -1648,18 +1649,13 @@ def test_usr_05_usr_08_navegacao_por_perfil(adm, settings):
         ("Financeiro", ["caixa", "receber", "despesas"]),
     ]
     assert bruna["menu_completo"][2]["itens"][2]["contador"] is None  # lança, não aprova
+    assert bruna["menu_completo"][0]["itens"][0]["rotulo"] == "Início"
     assert bruna["barra_celular"] == ["inicio", "nova_locacao", "locacoes", "mais"]
 
-    # João, vistoriador: a agenda do dia; vê locações (vistoria), mas não cria.
+    # João, vistoriador: um menu só, o da agenda (test_usr_05_menu_completo_do_vistoriador).
     joao = _navegacao(adm, "João")
     assert joao["inicio"]["variante"] == "vistoriador"
-    assert _chaves(joao["menu_inicio"]) == [(None, ["agenda", "consultar_veiculo", "avarias"])]
-    assert _chaves(joao["menu_completo"]) == [
-        (None, ["inicio", "veiculos"]),
-        ("Operação", ["locacoes", "manutencoes"]),
-        ("Financeiro", ["despesas"]),
-    ]
-    assert joao["barra_celular"] == ["inicio", "veiculos", "locacoes", "mais"]
+    assert joao["menu_completo"] == joao["menu_inicio"]
 
     # Lúcia, financeiro: o menu da tela Financeiro; sem veículos nem locações.
     lucia = _navegacao(adm, "Lúcia")
@@ -1672,6 +1668,7 @@ def test_usr_05_usr_08_navegacao_por_perfil(adm, settings):
         ("Operação", ["clientes"]),
         ("Financeiro", ["caixa", "receber", "despesas", "comissoes", "conciliacao", "relatorios"]),
     ]
+    assert lucia["menu_completo"][0]["itens"][0]["rotulo"] == "Início"
     assert lucia["barra_celular"] == ["inicio", "mais"]
 
     # A permissão extra de aprovar desconto traz Aprovações para a vendedora (USR-03).
@@ -1679,6 +1676,20 @@ def test_usr_05_usr_08_navegacao_por_perfil(adm, settings):
     vendedora.permissoes_extras = ["aprovar_desconto"]
     vendedora.save()
     assert _chaves(_navegacao(adm, "Bruna")["menu_completo"])[0] == (None, ["inicio", "aprovacoes"])
+
+
+def test_usr_05_menu_completo_do_vistoriador(adm, settings):
+    """USR-05 (T-141): João tem um menu só, sem "Visão geral" (não vê painel) e sem
+    "Locações" (chega à vistoria pela agenda); a barra do celular leva a Consultar veículo."""
+    settings.GIRO_MODULOS_ATIVOS = TODOS_OS_MODULOS
+    joao = _navegacao(adm, "João")
+    esperado = [(None, ["agenda", "consultar_veiculo", "avarias"])]
+    assert _chaves(joao["menu_inicio"]) == esperado
+    assert _chaves(joao["menu_completo"]) == esperado
+    rotulos = [item["rotulo"] for grupo in joao["menu_completo"] for item in grupo["itens"]]
+    assert rotulos == ["Vistorias de hoje", "Consultar veículo", "Avarias abertas"]
+    assert "Visão geral" not in rotulos and "Locações" not in rotulos
+    assert joao["barra_celular"] == ["inicio", "veiculos", "mais"]
 
 
 def test_usr_05_plano_atividade_e_modulos_escondem_itens(adm, settings, planos):

@@ -810,7 +810,8 @@ paths:
   /api/clientes/{id}/:
     get:
       operationId: clientes_retrieve
-      summary: 'Cliente: completo para quem cadastra, resumido para os demais (AUD-04)'
+      summary: 'Cliente: completo para quem cadastra, a ficha do financeiro e o resumo
+        (AUD-04, USR-09)'
       parameters:
       - in: path
         name: id
@@ -5751,8 +5752,6 @@ components:
       - id
       - modelos_resumo
       - nome
-      - preco_vigente
-      - proximo_preco
       - tipo_veiculo
       - veiculos
     CategoriaDespesaEnum:
@@ -5906,14 +5905,24 @@ components:
       - nome
     ClienteDaVistoria:
       type: object
+      description: 'USR-09: o que o vistoriador vê do cliente, vindo com a vistoria.'
       properties:
         nome:
+          type: string
+        celular:
           type: string
         cnh:
           type: string
           nullable: true
+        retirada_liberada:
+          type: boolean
+          nullable: true
+          description: Na saída, se a retirada está liberada (CLI-02, CLI-03, CLI-05);
+            `null` na devolução.
       required:
+      - celular
       - nome
+      - retirada_liberada
     ClienteDetalhe:
       type: object
       description: 'Representação completa: só quem cadastra, nunca o suporte.'
@@ -13047,7 +13056,6 @@ components:
       - categoria
       - chassi
       - cor
-      - data_compra
       - documentos_resumo
       - entrou_na_frota_em
       - filial
@@ -13060,14 +13068,10 @@ components:
       - modelo
       - motivo_status
       - placa
-      - preco_vigente
-      - referencia_fipe_centavos
       - renavam
       - situacao
       - status
       - tipo_veiculo
-      - valor_compra_centavos
-      - valor_venda_centavos
     VeiculoDaLocacao:
       type: object
       properties:
@@ -13202,13 +13206,11 @@ components:
       - categoria
       - chassi
       - cor
-      - data_compra
       - documentos_resumo
       - entrou_na_frota_em
       - filial
       - historico_status
       - id
-      - indicadores_financeiros
       - km_atual
       - km_atualizado_em
       - locacao_atual
@@ -13218,14 +13220,10 @@ components:
       - motivo_status
       - ocupacao
       - placa
-      - preco_vigente
-      - referencia_fipe_centavos
       - renavam
       - situacao
       - status
       - tipo_veiculo
-      - valor_compra_centavos
-      - valor_venda_centavos
     VeiculoEntrada:
       type: object
       properties:
