@@ -16,11 +16,10 @@ async function entrarComo(email: string) {
 }
 
 async function pagina(id: number): Promise<{ desktop: string; celular: string }> {
-  const [c, locacoes, historico] = await Promise.all([clientes.obter(id), clientes.locacoes(id), clientes.historico(id)]);
+  const [c, locacoes] = await Promise.all([clientes.obter(id), clientes.locacoes(id)]);
   const cache = new QueryClient();
   cache.setQueryData(["cliente", id], c);
   cache.setQueryData(["cliente", id, "locacoes"], locacoes);
-  cache.setQueryData(["cliente", id, "historico"], historico);
   const html = renderToStaticMarkup(
     <QueryClientProvider client={cache}>
       <DetalheDoCliente id={id} />
@@ -62,9 +61,9 @@ describe("detalhe do cliente, gerente: Juliana Rocha", () => {
     ordem(t, ["Clientes", "Juliana Rocha", "Em dia", "Cadastro completo", "Pessoa física · cliente desde mar 2026", "WhatsApp", "Editar", "Iniciar locação"]);
     ordem(t, ["Total pago", "R$ 2.674", "em 3 locações", "Em aberto", "R$ 0", "nenhuma parcela vencida", "Caução em garantia", "R$ 300", "LOC-2836", "Atrasos", "0", "em pagamentos e devoluções"]);
     ordem(t, ["Locação atual", "Devolução em 14 out às 18:00", "Yamaha Factor 150", "PNB-7C04", "LOC-2836 · Semanal R$ 329,00 · 30 set → 14 out 18:00 · 2 de 2 semanas pagas", "Ver locação", "Receber devolução"]);
-    ordem(t, ["Locações", "3 no total · nenhuma com atraso", "Contrato", "Veículo", "Situação", "Pago", "LOC-2760", "Mensal · 01 ago → 31 ago", "R$ 1.190,00", "caução devolvida", "LOC-2701", "Honda CG 160 Fan · QXA-4B21"]);
+    ordem(t, ["Locações", "3 no total · nenhuma com atraso", "Contrato", "Veículo", "Situação", "Pago", "LOC-2760", "Mensal · 01 ago → 31 ago", "R$ 890,00", "LOC-2701", "Honda CG 160 Fan · QXA-4B21"]);
     ordem(t, ["Documentos", "4 de 4 enviados", "CNH · frente", "CNH · verso", "Selfie com documento", "Comprovante de residência"]);
-    ordem(t, ["Histórico", "Pagou a 2ª semana da LOC-2836", "Retirou a Yamaha Factor 150 (LOC-2836)", "Encerrou a LOC-2760 sem pendências", "Cadastro criado"]);
+    expect(t).not.toContain("Histórico");
     ordem(t, ["Dados pessoais", "Mostrar", "CPF", "***.218.330-**", "Nascimento", "02/07/1994 · 32 anos", "Celular", "(85) 98114-2290", "E-mail", "Profissão", "Entregadora", "Endereço", "Rua Monsenhor Bruno, 1120", "Aldeota · Fortaleza, CE", "Referência", "Sandra Rocha · mãe", "(85) 98822-4410"]);
     ordem(t, ["Pode alugar", "CPF válido", "CNH categoria A", "Fora da lista de bloqueio", "Carteira de motorista", "Número", "0381•••••62", "Categoria", "Validade", "18/11/2030", "Dados do cliente (LGPD)", "Só o administrador exporta ou anonimiza."]);
     expect(t).not.toContain("Exportar dados do cliente");
@@ -90,7 +89,7 @@ describe("detalhe do cliente, gerente: Juliana Rocha", () => {
     ordem(t, ["(85) 98114-2290 · cliente desde mar 2026", "R$ 2.674", "3 locações", "R$ 0", "sem atrasos"]);
     ordem(t, ["Devolução em 14 out 18:00", "Yamaha Factor 150", "PNB-7C04", "LOC-2836", "R$ 329,00/sem", "2 de 2 semanas pagas · caução R$ 300,00"]);
     ordem(t, ["CPF", "***.218.330-**", "Nascimento", "02/07/1994", "E-mail", "Endereço", "Rua Monsenhor Bruno, 1120 · Aldeota", "CNH", "A · até 18/11/2030"]);
-    ordem(t, ["LOC-2836", "Semanal · 30 set → 14 out 18:00", "R$ 958,00", "LOC-2760", "R$ 1.190,00", "LOC-2701", "R$ 526,00"]);
+    ordem(t, ["LOC-2836", "Semanal · 30 set → 14 out 18:00", "R$ 658,00", "LOC-2760", "R$ 890,00", "LOC-2701", "R$ 526,00"]);
     ordem(t, ["CNH", "frente e verso", "Selfie", "Comprovante", "Termo LGPD"]);
     expect(t).not.toContain("Histórico");
     expect(t).not.toContain("Pode alugar");

@@ -77,6 +77,11 @@ const estaEm = (rota: string, href: string) => {
   return rota === caminho || rota.startsWith(`${caminho}/`);
 };
 
+/** A pessoa vê o item no menu? Seção sem módulo ainda (ex.: Manutenções, fase 2) fica escondida até o item existir (T-128). */
+export function temNoMenu(nav: Navegacao, chave: string): boolean {
+  return nav.menu_completo.some((g) => g.itens.some((i) => i.chave === chave));
+}
+
 /** O menu da tela inicial só vale na rota inicial do perfil; nas telas compartilhadas vale o completo (USR-05). */
 export function gruposDaRota(nav: Navegacao, rotaAtual: string): GrupoNavegacao[] {
   const noInicio = estaEm(rotaAtual, nav.inicio.rota);

@@ -83,29 +83,27 @@ export type ClienteCompleto = ClienteResumo & {
   analise: AnaliseCadastro;
 };
 
-// FORA DO CONTRATO de clientes: o histórico de locações da ficha vem de GET /api/locacoes/?cliente= (T-015), que ainda não devolve
-// o valor pago nem os preços congelados. Os campos marcados abaixo são falsos até esse contrato existir.
-export type LocacaoDoCliente = {
-  id: number;
-  codigo: string;
-  status: "aguardando_retirada" | "ativa" | "devolucao_atrasada" | "encerrada" | "cancelada";
-  veiculo: { id: number; modelo: string; placa: string; /** Falso: o ícone da ficha. */ tipo_veiculo: "moto" | "carro" };
-  periodicidade: "diaria" | "semanal" | "mensal";
-  inicio: string;
-  fim_previsto: string;
-  situacao: { codigo: string; rotulo: string; tom: TomApi };
-  /** Falso: total pago na locação, caução incluída, e o texto que o explica ("2 semanas + caução R$ 300,00"). */
-  pago_centavos: number;
-  pago_detalhe: string;
-  /** Falso: preço congelado, caução e parcelas, que vêm do detalhe da locação. */
+/** Preço, parcelas e caução da locação em andamento, lidos do detalhe dela (`GET /api/locacoes/{id}/`). Só a locação atual os traz. */
+export type DetalheDaLocacaoAtual = {
   valor_periodo_centavos: number;
   caucao_centavos: number;
   caucao_em_garantia: boolean;
   parcelas_pagas: number;
   parcelas_total: number;
 };
-export type LocacoesDoCliente = { total: number; /** Falso: locações com devolução ou pagamento atrasado. */ com_atraso: number; resultados: LocacaoDoCliente[] };
 
-/** Falso: não há endpoint de linha do tempo do cliente. Montada de auditoria, pagamentos e vistorias. */
-export type EventoDoCliente = { em: string; rotulo: string; detalhe: string };
-export type HistoricoDoCliente = { resultados: EventoDoCliente[] };
+/** Linha de `GET /api/locacoes/?cliente=` (docs/api/locacoes.md): `pagamento.pago_centavos` (sem a caução) e `veiculo.tipo` vêm prontos. */
+export type LocacaoDoCliente = {
+  id: number;
+  codigo: string;
+  status: "aguardando_retirada" | "ativa" | "devolucao_atrasada" | "encerrada" | "cancelada";
+  veiculo: { id: number; modelo: string; placa: string; tipo: "moto" | "carro" };
+  periodicidade: "diaria" | "semanal" | "mensal";
+  inicio: string;
+  fim_previsto: string;
+  situacao: { codigo: string; rotulo: string; tom: TomApi };
+  pago_centavos: number;
+  /** Só na locação em andamento. */
+  detalhe?: DetalheDaLocacaoAtual;
+};
+export type LocacoesDoCliente = { total: number; /** Locações com devolução ou pagamento atrasado (`sinais` da lista). */ com_atraso: number; resultados: LocacaoDoCliente[] };

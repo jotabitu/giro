@@ -3,6 +3,7 @@
 import { clientesApi } from "./clientes";
 import { contasApi } from "./contas";
 import { locacoesApi } from "./locacoes";
+import { marcaApi } from "./marca";
 import { relatoriosApi } from "./relatorios";
 import { veiculosApi } from "./veiculos";
 import { vistoriasApi } from "./vistorias";
@@ -12,6 +13,7 @@ export const relatorios = relatoriosApi;
 export const veiculos = veiculosApi;
 export const clientes = clientesApi;
 export const locacoes = locacoesApi;
+export const marca = marcaApi;
 export const vistorias = vistoriasApi;
 export * from "./tipos";
 export * from "./tipos-frota";

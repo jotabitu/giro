@@ -14,7 +14,7 @@ import {
   StatusBadge,
   type ColunaTabela,
 } from "@/design-system";
-import type { InicioDe, Periodo } from "@/lib/api";
+import type { InicioDe, PendenciaInicio, Periodo } from "@/lib/api";
 import { dataCurta, dinheiro, placa } from "@/lib/formatos";
 import { hrefDoDestino } from "@/lib/menu";
 import { atualizadoHa, tomDoStatus } from "@/lib/painel";
@@ -37,6 +37,9 @@ const COLUNAS: ColunaTabela<Linha>[] = [
     ),
   },
 ];
+
+/** Gravidade da API (`critica`, `alerta`, `info`) no vocabulário do AlertCard; `info` não leva marcação. */
+const GRAVIDADE_DO_ALERTA: Record<PendenciaInicio["gravidade"], "critica" | "atencao" | undefined> = { critica: "critica", alerta: "atencao", info: undefined };
 
 const DESTAQUE_DA_FROTA: Record<string, "marca" | "solido"> = { alugado: "marca", a_venda: "solido" };
 
@@ -94,7 +97,7 @@ export function InicioGeral({ d, periodo, aoMudarPeriodo }: { d: InicioDe<"geral
           <AlertCard
             atualizadoHa={ha}
             titulo={d.pendencias.titulo}
-            itens={d.pendencias.itens.map((i) => ({ texto: i.texto, gravidade: i.gravidade === "info" ? undefined : i.gravidade }))}
+            itens={d.pendencias.itens.map((i) => ({ texto: i.texto, gravidade: GRAVIDADE_DO_ALERTA[i.gravidade] }))}
             acao={
               <Link href={hrefDoDestino("locacoes", "aba=precisam_acao") ?? "/locacoes"} className="wl-btn wl-btn--brand">
                 Ver pendências

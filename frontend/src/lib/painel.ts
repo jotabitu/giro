@@ -1,6 +1,6 @@
-import type { TomStatus } from "@/design-system";
 import { dataCurta, dinheiro } from "@/lib/formatos";
-import type { Situacao, ValorTipado } from "@/lib/api";
+import type { ValorTipado } from "@/lib/api";
+import { tomDoStatus } from "@/lib/tom";
 
 /** Percentual da API ("71.00", "66.67") em "71%" e "66,67%". */
 export function percentual(texto: string): string {
@@ -24,12 +24,7 @@ export function formatarValor(v: ValorTipado): string {
   return new Intl.NumberFormat("pt-BR").format(v.valor);
 }
 
-const TOM: Record<Situacao["tom"], TomStatus> = { sucesso: "sucesso", info: "info", alerta: "alerta", perigo: "critico", neutro: "neutro" };
-
-/** Tom da API (`perigo`) no tom do StatusBadge (`critico`). */
-export function tomDoStatus(tom: Situacao["tom"]): TomStatus {
-  return TOM[tom] ?? "neutro";
-}
+export { tomDoStatus };
 
 /** "atualizado há 6 min" a partir de `atualizado_em`. */
 export function atualizadoHa(iso: string, agora = new Date()): string {

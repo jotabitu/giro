@@ -1,4 +1,5 @@
 // Tipos do contrato docs/api/contas.md. TEMPORÁRIO: sai quando o cliente gerado do OpenAPI (T-011) existir.
+import type { components } from "./schema";
 
 export type Perfil = "administrador" | "gerente" | "vendedor" | "vistoriador" | "financeiro";
 export type Aparelho = "desktop" | "celular";
@@ -66,8 +67,8 @@ export type Convite = {
   exige_2fa: boolean;
 };
 
-/** Marca da empresa (contrato de empresas, ainda não escrito). */
-export type MarcaEmpresa = { nome: string; logoUrl?: string; corHex?: string };
+/** Marca da empresa (GET /api/marca/, docs/api/empresas.md): nome, iniciais, logo e as quatro cores já calculadas. */
+export type MarcaEmpresa = components["schemas"]["Marca"];
 
 /** Erro no formato da API: { codigo, mensagem, detalhes }. `campos` vem em 400 `validacao`. */
 export class ErroApi extends Error {

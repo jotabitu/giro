@@ -38,26 +38,28 @@ export function InicioFinanceiro({ d }: { d: InicioDe<"financeiro"> }) {
           )}
         </Panel>
 
-        <Panel titulo="Caixas do dia">
-          {d.caixas_do_dia.length === 0 ? (
-            <Vazio>Nenhum caixa aberto hoje.</Vazio>
-          ) : (
-            <ListaDoPainel rotulo="Caixas do dia">
-              {d.caixas_do_dia.map((c) => (
-                <LinhaDoPainel
-                  key={c.filial}
-                  titulo={c.filial}
-                  apoio={`${c.aberto_por ? `Aberto por ${c.aberto_por} · ` : ""}esperado na gaveta ${dinheiro(c.esperado_gaveta_centavos)}`}
-                  fim={
-                    <StatusBadge tom={c.status === "aberto" ? "sucesso" : "neutro"} compacto>
-                      {STATUS_DO_CAIXA[c.status] ?? c.status}
-                    </StatusBadge>
-                  }
-                />
-              ))}
-            </ListaDoPainel>
-          )}
-        </Panel>
+        {d.caixas_do_dia && (
+          <Panel titulo="Caixas do dia">
+            {d.caixas_do_dia.length === 0 ? (
+              <Vazio>Nenhum caixa aberto hoje.</Vazio>
+            ) : (
+              <ListaDoPainel rotulo="Caixas do dia">
+                {d.caixas_do_dia.map((c) => (
+                  <LinhaDoPainel
+                    key={c.filial}
+                    titulo={c.filial}
+                    apoio={`${c.aberto_por ? `Aberto por ${c.aberto_por} · ` : ""}esperado na gaveta ${dinheiro(c.esperado_gaveta_centavos)}`}
+                    fim={
+                      <StatusBadge tom={c.status === "aberto" ? "sucesso" : "neutro"} compacto>
+                        {STATUS_DO_CAIXA[c.status] ?? c.status}
+                      </StatusBadge>
+                    }
+                  />
+                ))}
+              </ListaDoPainel>
+            )}
+          </Panel>
+        )}
       </div>
     </div>
   );

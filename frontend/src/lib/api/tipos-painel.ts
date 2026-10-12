@@ -1,132 +1,62 @@
-// Tipos do contrato docs/api/painel.md. TEMPORÁRIO: sai quando o cliente gerado do OpenAPI (T-011) existir.
+// Tipos do painel, a partir do cliente gerado do OpenAPI (src/lib/api/schema.d.ts, `npm run api:gerar`).
+// O gerador deixa `valor` como `unknown` e os tons como `string`; aqui eles ganham os valores fechados do contrato (docs/api/painel.md).
+import type { components } from "./schema";
 import type { VarianteInicio } from "./tipos";
+import type { TomApi } from "./tipos-frota";
+import type { AgendaDoDia, ItemDaAgenda } from "./tipos-vistorias";
+
+type S = components["schemas"];
 
 /** Todo número de KPI vem tipado: dinheiro em centavos, percentual como texto com 2 casas. */
 export type ValorTipado = { tipo: "numero"; valor: number } | { tipo: "centavos"; valor: number } | { tipo: "pct"; valor: string };
 
-export type Situacao = { rotulo: string; tom: "sucesso" | "info" | "alerta" | "perigo" | "neutro" };
+export type Situacao = { rotulo: string; tom: TomApi };
 
 /** `valor: null` = módulo que ainda não existe (USR-08): o cartão não aparece. */
-export type Kpi = {
-  chave: string;
-  rotulo: string;
-  valor: ValorTipado | null;
-  contexto: string | null;
-  destaque?: boolean;
-  tendencia?: "sobe" | "desce";
-};
+export type Kpi = Omit<S["Kpi"], "valor"> & { valor: ValorTipado | null };
 
-export type Contadores = { atualizado_em: string; contadores: Record<string, number | null> };
+export type Contadores = Omit<S["Contadores"], "contadores"> & { contadores: Record<string, number | null> };
 
-export type DestinoPendencia = { chave: string; filtro?: string; id?: number };
+export type DestinoPendencia = S["Destino"];
 
-export type PendenciaInicio = { texto: string; gravidade: "critica" | "atencao" | "info"; destino: DestinoPendencia };
+export type PendenciaInicio = S["ItemDePendencia"];
 
-export type InicioGeral = {
-  variante: "geral";
-  atencao: { quantidade: number; texto: string };
+type ComSituacao<T> = Omit<T, "situacao"> & { situacao: Situacao };
+
+export type InicioGeral = Omit<S["InicioGeral"], "kpis" | "devolucoes_semana"> & {
   kpis: Kpi[];
-  frota: {
-    ocupacao_pct: string;
-    meta_ocupacao_pct: string;
-    nota: string;
-    segmentos: { status: string; rotulo: string; quantidade: number }[];
-  };
-  devolucoes_semana: {
-    subtitulo: string;
-    linhas: { locacao_id: number; codigo: string; placa: string; veiculo: string; cliente: string; data: string; situacao: Situacao }[];
-  };
-  pendencias: { titulo: string; itens: PendenciaInicio[] };
-  caixa_hoje: {
-    filial: string;
-    data: string;
-    status: string;
-    recebido_centavos: number;
-    a_receber_hoje_centavos: number;
-    despesas_centavos: number;
-    saldo_dia_centavos: number;
-  } | null;
+  devolucoes_semana: Omit<S["DevolucoesDaSemana"], "linhas"> & { linhas: ComSituacao<S["LinhaDeDevolucao"]>[] };
 };
 
-export type PassoImplantacao = {
-  chave: string;
-  rotulo: string;
-  detalhe: string;
-  concluido: boolean;
-  acao?: { rotulo: string; destino: string };
-};
+export type PassoImplantacao = S["PassoDoInicio"];
 
-export type InicioImplantacao = {
-  variante: "implantacao";
-  teste: { fim: string; dias_restantes: number; texto: string } | null;
-  primeiros_passos: { concluidos: number; total: number; pct: string; itens: PassoImplantacao[] };
-  convites: { nome: string; contato: string; perfil: string; status: string }[];
-  indicadores: { frota_cadastrada: number; alugados_agora: number; clientes: number; a_receber_centavos: number };
-};
+export type InicioImplantacao = S["InicioImplantacao"];
 
-export type InicioGerente = {
-  variante: "gerente";
-  aprovacoes: {
-    total: number;
-    mais_antigo: string | null;
-    itens: { id: number; tipo: string; titulo: string; detalhe: string; acoes: ("recusar" | "aprovar")[] }[];
-  };
+export type InicioGerente = Omit<S["InicioGerente"], "kpis" | "aprovacoes"> & {
   kpis: Kpi[];
-  equipe_hoje: { usuario_id: number; nome: string; perfil: string; resumo: string; online: boolean }[];
-  frota_filial: { total: number; segmentos: { rotulo: string; quantidade: number }[] };
+  aprovacoes: Omit<S["AprovacoesDoInicio"], "itens"> & { itens: (Omit<S["ItemDeAprovacao"], "acoes"> & { acoes: ("recusar" | "aprovar")[] })[] };
 };
 
-export type InicioVendedor = {
-  variante: "vendedor";
+export type InicioVendedor = Omit<S["InicioVendedor"], "kpis" | "precisam_acao"> & {
   kpis: Kpi[];
-  parcelas_atrasadas: { conta_id: number; cliente: string; locacao: string; vencimento: string; valor_centavos: number; dias: number; acao: string }[];
-  precisam_acao: { locacao_id: number; codigo: string; cliente: string; situacao: Situacao }[];
-  meta: null;
-  funil: null;
-  comissao_prevista: null;
-  propostas: null;
+  precisam_acao: ComSituacao<S["LocacaoQuePrecisaDeAcao"]>[];
 };
 
-export type ItemAgenda = {
-  id: string;
-  tipo: "saida" | "devolucao";
-  horario: string;
-  veiculo: { id: number; placa: string; modelo: string };
-  cliente: { nome: string };
-  locacao: { id: number; codigo: string };
-  situacao: { codigo: string; rotulo: string; tom: Situacao["tom"] };
-  vistoria_id: number | null;
-  acao: { codigo: "iniciar" | "continuar" | "abrir"; rotulo: string };
-};
+export type ItemAgenda = ItemDaAgenda;
 
 /** Corpo de GET /api/vistorias/agenda/ (docs/api/vistorias.md). */
-export type Agenda = {
-  resumo: string;
-  proxima: { item_id: string; em_minutos: number } | null;
-  avarias_abertas: number;
-  resultados: ItemAgenda[];
-};
+export type Agenda = AgendaDoDia;
 
-export type InicioVistoriador = { variante: "vistoriador"; agenda: Agenda; avarias_abertas: number };
+export type InicioVistoriador = Omit<S["InicioVistoriador"], "agenda"> & { agenda: Agenda };
 
-export type InicioFinanceiro = {
-  variante: "financeiro";
-  kpis: Kpi[];
-  caixas_do_dia: { filial: string; status: string; aberto_por: string | null; esperado_gaveta_centavos: number }[];
-  para_hoje: { texto: string; tipo: "reembolso" | "despesa"; destino: DestinoPendencia }[];
-  fluxo_previsto: null;
-  conciliacao: null;
-};
+export type InicioFinanceiro = Omit<S["InicioFinanceiro"], "kpis"> & { kpis: Kpi[] };
+
 
 export type Periodo = "hoje" | "7d" | "30d";
 
-export type Inicio = { saudacao: string; atualizado_em: string } & (
-  | InicioGeral
-  | InicioImplantacao
-  | InicioGerente
-  | InicioVendedor
-  | InicioVistoriador
-  | InicioFinanceiro
-);
+export type Inicio = (InicioGeral | InicioImplantacao | InicioGerente | InicioVendedor | InicioVistoriador | InicioFinanceiro);
+
+/** O que a API devolve de cada variante, sem `saudacao` e `atualizado_em` (as respostas falsas juntam os dois). */
+export type CorpoDoInicio<T> = Omit<T, "saudacao" | "atualizado_em">;
 
 export type InicioDe<V extends VarianteInicio> = Extract<Inicio, { variante: V }>;

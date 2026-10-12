@@ -5,6 +5,7 @@ import { contaAtualFalsa, pausa } from "./falso";
 import { ErroApi } from "@/lib/api/tipos";
 import type {
   Contadores,
+  CorpoDoInicio,
   Inicio,
   InicioFinanceiro,
   InicioGeral,
@@ -22,7 +23,7 @@ const CONTADORES: Record<string, number | null> = { veiculos: 86, locacoes: 42, 
 const CONTADORES_DA_IMPLANTACAO: Record<string, number | null> = { ...CONTADORES, veiculos: 83, locacoes: 0, aprovacoes: 0, receber: 0, despesas: 0 };
 const CONTADORES_DO_VENDEDOR: Record<string, number | null> = { ...CONTADORES, locacoes: 12 };
 
-function geral(periodo: Periodo): InicioGeral {
+function geral(periodo: Periodo): CorpoDoInicio<InicioGeral> {
   const receita = { hoje: 262_000, "7d": 1_840_000, "30d": 7_960_000 }[periodo];
   const rotuloPeriodo = { hoje: "hoje", "7d": "últimos 7 dias", "30d": "últimos 30 dias" }[periodo];
   return {
@@ -68,7 +69,7 @@ function geral(periodo: Periodo): InicioGeral {
   };
 }
 
-const implantacao = (): InicioImplantacao => ({
+const implantacao = (): CorpoDoInicio<InicioImplantacao> => ({
   variante: "implantacao",
   teste: { fim: "2026-10-21", dias_restantes: 14, texto: "Seu teste grátis termina em 14 dias (21 out)." },
   primeiros_passos: {
@@ -88,7 +89,7 @@ const implantacao = (): InicioImplantacao => ({
   indicadores: { frota_cadastrada: 83, alugados_agora: 0, clientes: 0, a_receber_centavos: 0 },
 });
 
-const gerente = (): InicioGerente => ({
+const gerente = (): CorpoDoInicio<InicioGerente> => ({
   variante: "gerente",
   aprovacoes: {
     total: 3,
@@ -121,7 +122,7 @@ const gerente = (): InicioGerente => ({
   },
 });
 
-const vendedor = (): InicioVendedor => ({
+const vendedor = (): CorpoDoInicio<InicioVendedor> => ({
   variante: "vendedor",
   kpis: [
     { chave: "minhas_locacoes_ativas", rotulo: "Minhas locações ativas", valor: { tipo: "numero", valor: 12 }, contexto: null },
@@ -136,7 +137,7 @@ const vendedor = (): InicioVendedor => ({
   propostas: null,
 });
 
-const vistoriador = (): InicioVistoriador => ({
+const vistoriador = (): CorpoDoInicio<InicioVistoriador> => ({
   variante: "vistoriador",
   avarias_abertas: 2,
   agenda: {
@@ -152,7 +153,7 @@ const vistoriador = (): InicioVistoriador => ({
   },
 });
 
-const financeiro = (): InicioFinanceiro => ({
+const financeiro = (): CorpoDoInicio<InicioFinanceiro> => ({
   variante: "financeiro",
   kpis: [
     { chave: "entra_hoje", rotulo: "Entra hoje", valor: { tipo: "centavos", valor: 90_740 }, contexto: "3 parcelas" },
