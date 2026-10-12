@@ -13,7 +13,7 @@ import { ROTULO_PERIODICIDADE } from "@/lib/clientes";
 import { mensagemDoErro } from "@/lib/erros";
 import { useBuscaNaUrl, useFiltrosNaUrl } from "@/lib/filtros-url";
 import { dinheiro, placa, percentual } from "@/lib/formatos";
-import { periodoDaLocacao, rotaDaAcaoLocacao } from "@/lib/locacoes";
+import { periodoDaLocacao, rotaDaAcaoLocacao, rotuloDoPagamento } from "@/lib/locacoes";
 import { useSessao } from "@/lib/sessao";
 import { tomDoStatus } from "@/lib/tom";
 
@@ -52,7 +52,7 @@ const COLUNAS: ColunaTabela<LocacaoResumo>[] = [
   { chave: "veiculo", titulo: "Veículo", celula: (l) => <CelulaDupla principal={<span className="font-normal">{l.veiculo.modelo}</span>} secundaria={placa(l.veiculo.placa)} /> },
   { chave: "plano", titulo: "Plano e período", celula: (l) => <CelulaDupla principal={ROTULO_PERIODICIDADE[l.periodicidade]} secundaria={periodoDaLocacao(l)} /> },
   { chave: "situacao", titulo: "Situação", celula: (l) => <Situacao l={l} /> },
-  { chave: "pagamento", titulo: "Pagamento", celula: (l) => <span className="text-caption">{l.pagamento?.rotulo ?? "—"}</span> },
+  { chave: "pagamento", titulo: "Pagamento", celula: (l) => <span className="text-caption">{l.pagamento ? rotuloDoPagamento(l.pagamento) : "—"}</span> },
   {
     chave: "acao",
     titulo: "",
@@ -76,7 +76,7 @@ function CartaoDaLocacao({ l }: { l: LocacaoResumo }) {
       </span>
       <span className="flex flex-wrap items-center gap-2">
         <Situacao l={l} />
-        {l.pagamento && <span className="text-caption text-ink-muted">{l.pagamento.rotulo}</span>}
+        {l.pagamento && <span className="text-caption text-ink-muted">{rotuloDoPagamento(l.pagamento)}</span>}
         <Icone de={ChevronRight} className="ml-auto text-ink-muted" />
       </span>
     </Link>
@@ -142,13 +142,13 @@ export function ListaLocacoes() {
               <KpiTile destaque rotulo="Ativas" valor={String(ind.ativas)} contexto={ind.frota_alugada_pct ? `${percentual(ind.frota_alugada_pct)} da frota alugada` : undefined} />
               <KpiTile rotulo="Devolvem hoje" valor={String(ind.devolvem_hoje)} contexto={ind.devolvem_hoje_ate_12h > 0 ? `${ind.devolvem_hoje_ate_12h} até as 12:00` : undefined} />
               <KpiTile rotulo="Devolução atrasada" valor={String(ind.devolucao_atrasada)} contexto={ind.devolucao_atrasada_destaque ?? undefined} />
-              <KpiTile rotulo="Pagamentos atrasados" valor={String(ind.pagamentos_atrasados)} contexto={dinheiro(ind.pagamentos_atrasados_centavos)} />
+              <KpiTile rotulo="Locações com parcela atrasada" valor={String(ind.pagamentos_atrasados)} contexto={`${dinheiro(ind.pagamentos_atrasados_centavos)} em atraso`} />
             </KpiGrid>
           </div>
           <div className="md:hidden">
             <KpiGrid>
               <KpiTile rotulo="Devolvem hoje" valor={String(ind.devolvem_hoje)} contexto={ind.devolvem_hoje_ate_12h > 0 ? `${ind.devolvem_hoje_ate_12h} até 12:00` : undefined} />
-              <KpiTile rotulo="Atrasados" valor={String(ind.pagamentos_atrasados)} contexto={dinheiro(ind.pagamentos_atrasados_centavos)} />
+              <KpiTile rotulo="Parcela atrasada" valor={String(ind.pagamentos_atrasados)} contexto={`${dinheiro(ind.pagamentos_atrasados_centavos)} em atraso`} />
             </KpiGrid>
           </div>
         </>

@@ -11,6 +11,16 @@ export function rotaDaAcaoLocacao(l: Pick<LocacaoResumo, "id" | "acao_principal"
   return `/locacoes/${l.id}`;
 }
 
+const FORMAS_AVULSAS = new Set(["Pix", "Boleto", "Dinheiro"]);
+
+/**
+ * Coluna Pagamento da lista: mesmo vocabulário em todas as linhas ("Pago", "R$ X em aberto"). Quando está em dia, a API pode
+ * mandar a forma de pagamento avulsa ("Pix"); isso a tela diz "Pago". "Pix automático" e "Cartão" aparecem na referência e ficam.
+ */
+export function rotuloDoPagamento(p: NonNullable<LocacaoResumo["pagamento"]>): string {
+  return p.em_aberto_centavos === 0 && FORMAS_AVULSAS.has(p.rotulo) ? "Pago" : p.rotulo;
+}
+
 /** "05 set → 12 set". O dia de hoje sai "hoje"; a hora da devolução aparece quando a API diz que devolve hoje. */
 export function periodoDaLocacao(l: Pick<LocacaoResumo, "inicio" | "fim_previsto" | "sinais">, agora: Date = agoraDaTela()): string {
   if (!l.inicio) return "—";

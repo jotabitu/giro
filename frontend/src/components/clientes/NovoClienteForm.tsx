@@ -213,7 +213,7 @@ export function NovoClienteForm() {
           <AnaliseDoCadastro analise={analise.data} carregando={analise.isFetching} />
           <section className="wl-panel flex flex-col gap-4">
             <label className="flex items-start gap-3 text-body">
-              <input type="checkbox" className="mt-1 h-5 w-5 shrink-0" {...register("consentimento")} />
+              <input type="checkbox" className="wl-marcar" {...register("consentimento")} />
               <span>O cliente autorizou o uso dos dados para locação e cobrança, conforme a política de privacidade da empresa.</span>
             </label>
             <button type="button" disabled={ocupado} onClick={() => void salvarEAlugar()} className="wl-btn wl-btn--solid">

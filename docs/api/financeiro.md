@@ -1,6 +1,6 @@
 # Financeiro: contas a receber, caixa do dia, despesas e pagamentos
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-043), emendas de 09 out 2026 (T-088) · **App:** `financeiro` (schema da empresa) · **Regras:** FIN-01 a FIN-08, APR-03, APR-04, APR-09, LOC-04, LOC-05, LOC-07, CLI-05, DEV-02, FIL-06, AUT-03, AUT-04, AUT-05, AUT-08 · **ADRs:** 0007, 0011, 0012, 0014 · **Segurança:** S-05, S-14 · **Critérios:** `docs/qa/criterios/T-017.md` · **Telas:** Receber, Caixa, Despesas, Financeiro
+**Dono:** arquiteto · **Versão:** 07 out 2026 (T-043), emendas de 09 out 2026 (T-088) e 12 out 2026 (T-144, diferenças da T-017) · **App:** `financeiro` (schema da empresa) · **Regras:** FIN-01 a FIN-08, APR-03, APR-04, APR-09, LOC-04, LOC-05, LOC-07, CLI-05, DEV-02, FIL-06, AUT-03, AUT-04, AUT-05, AUT-08 · **ADRs:** 0007, 0011, 0012, 0014 · **Segurança:** S-05, S-14 · **Critérios:** `docs/qa/criterios/T-017.md` · **Telas:** Receber, Caixa, Despesas, Financeiro
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 18, 19, 21 e 22 e apoio em `docs/decisoes/modelo-de-dados.md`. Base: `/api/financeiro/`.
 
@@ -54,9 +54,10 @@ Toda conta devolve o valor a pagar **hoje**, calculado pela API:
   "veiculo_placa": "QXA4B21",
   "vencimento": "2026-09-30", "valor_centavos": 29940,
   "status": "atrasada", "faixa_atraso": "1_7",
-  "forma_prevista": "pix_automatico",
+  "forma_prevista": "pix_automatico", "dias_atraso": 7, "observacao": null,
   "valor_hoje": { ... },
   "pago_em": null, "forma": null, "multa_centavos": 0, "juros_centavos": 0,
+  "estorno_de": null, "estornada_em": null,
   "cobranca_aberta": { "id": 55, "tipo": "pix", "vence_em": "...", "pix_copia_e_cola": "...", "qr_code_url": "..." },
   "acoes": { "receber": true, "gerar_pix": true, "gerar_boleto": true, "cobrar": true,
              "cancelar": true, "renegociar": true, "estornar": false }
@@ -66,6 +67,9 @@ Toda conta devolve o valor a pagar **hoje**, calculado pela API:
 - `tipo`: `parcela`, `caucao`, `multa`, `avaria`, `acerto`, `outro`. Caução não é receita (`LOC-04`): não entra em "previsto", "recebido" nem "em aberto".
 - `status` como na `FIN-01`: o banco guarda `aberta`, `paga`, `cancelada`, `renegociada`; a API devolve `vence_hoje` (vencimento hoje) e `atrasada` (vencimento antes de hoje) para contas `aberta`, sem tarefa à meia-noite.
 - `faixa_atraso` (`FIN-02`): `1_7`, `8_30`, `mais_30`, ou `null` (não atrasada).
+- `dias_atraso` (T-144): o mesmo `valor_hoje.dias_atraso`, repetido no topo para a coluna da lista; 0 quando não está atrasada.
+- `observacao` (T-144): texto curto (até 150) que o serviço de origem grava na conta; `null` quando vazio. Só leitura.
+- `estorno_de` e `estornada_em` (T-144): ver o estorno abaixo. `estorno_de` é o `id` da conta original (na conta nova); `estornada_em` é quando a original foi estornada.
 
 ### GET /api/financeiro/contas-receber/
 Query: `?periodo=hoje|semana|mes` (vencimento), `?situacao=atrasadas|vencem_hoje|a_vencer|pagas|canceladas`, `?faixa=1_7|8_30|mais_30`, `?cliente=<id>`, `?origem_tipo=&origem_id=`, `?forma=`, `?busca=` (cliente, código), `?ordem=vencimento|-valor`. Filial pelo `X-Filial` (`todas` para administrador e financeiro).
@@ -96,7 +100,13 @@ Números da `FIN-15` (base: contas da filial, sem caução e sem `cancelada` e `
 Caso do seed (`FIN-15`, linha "Contas a receber de outubro em 07 out" das regras, carteira em `docs/qa/carteira-outubro/`): Filial Centro, `?periodo=mes`, em 07 out. A vencer soma 3597460 em 92 parcelas.
 
 ### GET /api/financeiro/contas-receber/{id}/
-200: representação mais `historico` (cobranças geradas, mensagens enviadas, baixa, estorno).
+200: representação mais `historico`, do mais antigo para o mais novo (T-144):
+```json
+"historico": [ { "em": "2026-10-07T13:02:00Z", "acao": "conta_receber.cobrar", "por": null, "motivo": null },
+               { "em": "2026-10-07T13:02:00Z", "acao": "cobranca.pix", "por": null, "motivo": null } ]
+```
+- `acao` é o código do evento de auditoria da conta (`conta_receber.criar`, `.pagar`, `.cobrar`, `.cancelar`, `.renegociar`, `.estornar`, `.ajustar_valor`) ou `cobranca.pix` / `cobranca.boleto` para cada cobrança gerada. O frontend traduz o código em texto; código desconhecido aparece como está.
+- `por`: nome de quem fez, `null` para o sistema. `motivo`: o motivo informado, quando houver.
 
 ### POST /api/financeiro/contas-receber/
 "Novo lançamento" avulso. Perfis: administrador, gerente, financeiro.
@@ -104,7 +114,7 @@ Corpo: `{ cliente_id, tipo: "multa" | "avaria" | "outro", descricao, vencimento,
 As parcelas e a caução de locação **não** nascem aqui: vêm de `locacoes.services` (`locacoes.md`).
 
 ### POST /api/financeiro/contas-receber/{id}/receber/
-Baixa no caixa (`FIN-04`: dinheiro e cartão). Perfis: quem recebe.
+Baixa no caixa (`FIN-04`: dinheiro e cartão). Perfis: quem recebe. A conta é achada em qualquer filial do escopo da pessoa, sem filtrar pelo `X-Filial` (`FIL-06`: paga-se no caixa de outra filial); lista e detalhe seguem o `X-Filial` (T-144).
 Corpo: `{ "forma": "dinheiro" | "cartao_debito" | "cartao_credito", "valor_centavos": 30609 }`.
 - Usa o caixa `aberto` da filial da requisição (`X-Filial`), que pode ser diferente da filial da conta (`FIL-06`); a conta mantém a filial de origem.
 - `valor_centavos` tem que ser igual a `valor_hoje.total_centavos`. Diferente → 422 `{ "codigo": "FIN-01", "mensagem": "Não existe pagamento parcial. Receba o valor inteiro ou renegocie." }` (CA-017-06).
@@ -112,20 +122,20 @@ Corpo: `{ "forma": "dinheiro" | "cartao_debito" | "cartao_credito", "valor_centa
 422 `{ "codigo": "FIN-07", "mensagem": "Abra o caixa do dia para receber" }` sem caixa aberto. 409 `transicao_conta` se não estiver `aberta`.
 
 ### POST /api/financeiro/contas-receber/{id}/cobranca/
-"Gerar Pix" e boleto. Corpo: `{ "tipo": "pix" | "boleto" }`.
+"Gerar Pix" e boleto. Corpo: `{ "tipo": "pix" | "boleto", "vence_em"?: "2026-10-10", "no_caixa"?: false }`. A conta é achada como em `receber/` (`FIL-06`).
 201: a `CobrancaExterna`:
 ```json
 { "id": 55, "tipo": "pix", "valor_centavos": 30609, "vence_em": "2026-10-07",
   "pix_copia_e_cola": "000201...", "qr_code_url": "...", "linha_digitavel": null, "boleto_url": null,
   "status": "aguardando" }
 ```
-- O valor é o `valor_hoje` do dia; Pix vence no fim do dia, boleto na data pedida (`{ "vence_em" }`, padrão: vencimento da conta, ou hoje se já venceu).
+- O valor é o `valor_hoje` do dia; multa e juros ficam os do dia em que a cobrança foi gerada, e são esses que a baixa pelo webhook grava na conta (T-144). Pix vence no fim do dia, boleto na data pedida (`{ "vence_em" }`, padrão: vencimento da conta, ou hoje se já venceu).
 - Gerar outra cobrança cancela a aberta no parceiro.
-- Gerada pela tela `Caixa`, a cobrança guarda o caixa: a baixa pelo webhook entra como entrada `pix` nesse caixa (`FIN-07`). Gerada fora do caixa (régua, `AUT-03`), não passa pelo caixa.
+- `no_caixa: true` (T-144) é como a tela `Caixa` gera o Pix: a cobrança guarda o caixa `aberto` da filial do `X-Filial`, e a baixa pelo webhook entra como entrada `pix` nesse caixa (`FIN-07`). Sem caixa aberto: 422 `FIN-07` "Abra o caixa do dia para receber"; com `X-Filial: todas`: 400 `validacao` (`filial`). Se o caixa fechar antes do pagamento, a baixa acontece sem movimento (Pix não passa pela gaveta e caixa fechado não recebe movimento). Sem `no_caixa` (tela `Receber`, régua `AUT-03`), não passa pelo caixa.
 - Sem subconta aprovada (`plataforma.ContaPagamento`): 422 `{ "codigo": "recebimentos_desligados", "mensagem": "Conecte os recebimentos para gerar Pix e boleto" }` (implantação, passo 10).
 
 ### POST /api/financeiro/contas-receber/{id}/cobrar/ · POST /api/financeiro/contas-receber/cobrar-em-lote/
-"Cobrar" e "Cobrar todos pelo WhatsApp". Corpo do lote: `{ "ids": [ ... ] }` (até 100). 202. Envia a mensagem de cobrança com Pix do valor do dia, com a marca da locadora (`AUT-03`), uma vez por conta por dia.
+"Cobrar" e "Cobrar todos pelo WhatsApp". Corpo do lote: `{ "ids": [ ... ] }` (até 100). 202 `{ "enviadas": 1 }` nos dois (T-144): quantas mensagens saíram. Conta que não está `aberta`, cliente sem celular ou conta já cobrada hoje não conta e não é erro. Com os recebimentos ligados, a mensagem gera um Pix novo (o que cancela a cobrança aberta, como acima). Envia a mensagem de cobrança com Pix do valor do dia, com a marca da locadora (`AUT-03`), uma vez por conta por dia, pelo WhatsApp e por e-mail, com os textos de "Régua de cobrança: textos".
 
 ### POST /api/financeiro/contas-receber/{id}/cancelar/
 Perfis: administrador, gerente, financeiro. Corpo: `{ motivo }`. Só `aberta`. 200 `cancelada`. Também chamado por serviço (locação cancelada antes da retirada, `LOC-12`).
@@ -136,11 +146,44 @@ Corpo: `{ "contas": [9010], "novas": [ { "vencimento": "2026-10-15", "valor_cent
 
 ### POST /api/financeiro/contas-receber/{id}/estornar/
 Só `paga`. Corpo: `{ motivo }`. Conta paga não se edita: a correção é estorno (CA-017-09).
+Conta paga com a caução (`forma = caucao`, `DEV-02`) não se estorna aqui: 422 `DEV-02` (T-144).
 200: a original continua `paga` com `estornada_em`; nasce uma conta `aberta` igual (mesmo valor e vencimento) com `estorno_de` = original, e, se a baixa foi no caixa, um movimento de estorno no caixa aberto. Para **devolver dinheiro** ao cliente, use as devoluções abaixo, não o estorno.
 
 ### Cobrança recorrente (AUT-04)
 
 Locação com `forma_pagamento = pix_automatico` (ou cartão recorrente) ganha uma autorização no parceiro na ativação (`AutorizacaoRecorrente`). No vencimento de cada parcela, `aut_04_cobranca_recorrente` cria a `CobrancaExterna` daquela conta usando a autorização; a baixa vem pelo webhook. A referência externa de cada cobrança é o `id` da conta, para casar o pagamento sem ambiguidade.
+
+### Régua de cobrança: textos (AUT-03, AUT-05)
+
+Textos fixados pelo produto (T-147, opção B da análise da T-017). Mudança de texto passa pelo produto. Os exemplos são do Carlos (LOC-2841, Street semanal R$ 299,40, 5 parcelas) e da Moto Rápida.
+
+**Partes do texto**
+
+- Abertura: `{marca}: olá, {primeiro nome}.`, com o nome da locadora, nunca Giro.
+- Conta, pelo `tipo`, com a origem por extenso (`locação` ou `venda`) e o código:
+  - `parcela`: "a parcela 2 de 5 da locação LOC-2841";
+  - `acerto`, `multa`, `avaria`: "a cobrança de acerto da locação LOC-2841" (de multa, de avaria);
+  - `outro`: "a cobrança da locação LOC-2841".
+  No começo da frase, com maiúscula ("A parcela 2 de 5...").
+- Valor: o `valor_hoje` do dia (`FIN-03`, `devido_ate`). A mensagem não faz conta.
+- Pix: com os recebimentos ligados, "Pague pelo Pix copia e cola: {código}" (cobrança gerada como em `POST .../cobranca/`). Sem subconta (`recebimentos_desligados`), "Pague na loja ou fale com a gente por aqui."
+
+**Mensagens**
+
+| Momento | Texto (WhatsApp) | Assunto do e-mail |
+| --- | --- | --- |
+| D-1 | "Moto Rápida: olá, Carlos. A parcela 3 de 5 da locação LOC-2841, de R$ 299,40, vence amanhã, 07/10." | "Moto Rápida: lembrete de vencimento" |
+| D0 | "Moto Rápida: olá, Carlos. A parcela 3 de 5 da locação LOC-2841, de R$ 299,40, vence hoje. Pague pelo Pix copia e cola: …" | "Moto Rápida: vence hoje" |
+| D+3 e D+7 | "Moto Rápida: olá, Carlos. A parcela 2 de 5 da locação LOC-2841 venceu em 30/09. O valor hoje é R$ 306,09, com multa e juros. Pague pelo Pix copia e cola: …" (D+7, 07/10; em D+3, 03/10, R$ 305,69) | "Moto Rápida: conta em atraso" |
+| "Cobrar" manual antes de D-1 | "Moto Rápida: olá, Carlos. A parcela 4 de 5 da locação LOC-2841, de R$ 299,40, vence em 14/10." | "Moto Rápida: lembrete de vencimento" |
+| "Cobrar" manual em atraso, fora de D+3 e D+7 | o texto de D+3 e D+7, com o valor do dia | "Moto Rápida: conta em atraso" |
+| Conta de outro tipo, D-1 | "Moto Rápida: olá, Carlos. A cobrança de acerto da locação LOC-2841, de R$ 365,37, vence amanhã, 10/10." | "Moto Rápida: lembrete de vencimento" |
+| Recibo (`AUT-05`) | "Moto Rápida: recebemos R$ 306,09 por Pix em 07/10, da parcela 2 de 5 da locação LOC-2841. Este é o seu recibo." | (só WhatsApp, `AUT-05`) |
+
+- Em atraso sem multa nem juros (contrato sem a cláusula, `contratos.selectors.permite_juros`), sai "O valor é R$ 299,40." sem "com multa e juros".
+- Forma no recibo: "por Pix", "por boleto", "pelo Pix automático", "no cartão de crédito", "no cartão de débito", "em dinheiro". O dia é o do pagamento em `America/Sao_Paulo`; o valor, o total pago (principal, multa e juros).
+- Canais (`AUT-03`): WhatsApp quando o cliente tem celular e e-mail quando tem e-mail; os dois quando tem os dois. O e-mail sai com o nome da locadora como remetente e o mesmo texto no corpo. Cliente sem celular e sem e-mail não recebe nada, e a conta segue na lista de cobrança.
+- Uma vez por conta por dia, contando os dois canais.
 
 ---
 
@@ -201,7 +244,7 @@ Query: `?tipo=entrada|saida|sangria`. 200: `{ "resultados": [ { "id", "hora": ".
 Corpo: `{ valor_centavos, descricao }` (ex.: "depósito no banco"). 201: o movimento. 422 `{ "codigo": "sangria_maior_que_gaveta" }` se passar do esperado na gaveta.
 
 ### POST /api/financeiro/caixas/{id}/movimentos/{mid}/estornar/
-Corpo: `{ motivo }`. 201: movimento de estorno, no caixa aberto de hoje, com `estorno_de`; o original não muda (CA-017-17). Estornar a entrada de uma conta recebida usa `contas-receber/{id}/estornar/`.
+Corpo: `{ motivo }`. 201: movimento de estorno, no caixa aberto de hoje, com `estorno_de`, o mesmo `tipo` e a mesma `forma` do original; o resumo do dia desconta o estornado. O original não muda (CA-017-17). Estornar a entrada de uma conta recebida usa `contas-receber/{id}/estornar/`.
 
 ### POST /api/financeiro/caixas/{id}/fechar/
 Corpo: `{ "contado_centavos": 28100, "motivo_diferenca": null }`.
@@ -239,6 +282,9 @@ Caso do seed (CA-017-19): outubro **706670**; aguardando aprovação **120000** 
 - Vistoriador só lança `manutencao` (403 nas outras).
 201. Regras: FIN-05, FIN-06, APR-03.
 
+### GET /api/financeiro/despesas/{id}/
+200: a representação (T-144). Mesmos perfis e o mesmo `X-Filial` da lista; fora do escopo, 404.
+
 ### POST /api/financeiro/despesas/{id}/pagar/
 Perfis: administrador, financeiro. Corpo: `{ forma: "pix" | "boleto" | "cartao" | "transferencia" | "dinheiro", pago_em, comprovante? }`. Só `a_pagar`. `dinheiro` sai do caixa aberto. 200 `paga`.
 
@@ -268,23 +314,28 @@ class ProvedorPagamentos(Protocol):
 
 - Valores sempre em centavos; datas como `date`. Nenhum tipo do SDK do parceiro sai da interface.
 - A implementação falsa guarda as cobranças em memória e oferece `simular_pagamento(cobranca_id, valor_centavos=None)` para os testes (CA-017-07).
+- `validar_webhook` (T-144) só lê o corpo e o token do cabeçalho e devolve o `EventoWebhook` com o `token` (ou `None` se o corpo não é um aviso). Quem confere o token é a view (passo 1 abaixo), porque o hash fica em `plataforma.ContaPagamento`, que o provedor não conhece.
+- `ContaPagamento.chave_api_cifrada` entra na T-029 com o Asaas real; até lá, o provedor falso não precisa de chave.
 - `ContaPagamentoRef` é a conta principal do Giro (faturas, `plataforma`) ou a subconta da empresa (`plataforma.ContaPagamento`).
 
 ## Webhooks (FIN-04, AUT-05, S-14)
 
 ### POST /api/webhooks/pagamentos/asaas/
-Servido no host `admin.<dominio>` (schema `public`), sem autenticação de usuário. Rate limit por IP.
-1. `validar_webhook` confere o token do cabeçalho com `hmac.compare_digest` contra o `webhook_token_hash` de cada `ContaPagamento` (e da conta principal). Não confere → 401 e nada é gravado.
-2. Acha a empresa pela conta, entra no schema dela e grava `WebhookRecebido` (`provedor`, `evento_id` **único**, `recebido_em`, corpo bruto). Evento repetido → 200 sem fazer nada (idempotência, CA-017-07).
+Servido no host `admin.<dominio>` (schema `public`), sem autenticação de usuário. Rate limit de 120 por minuto por IP (`webhook_ip`), contando também os recusados: 429 acima disso. Fora do OpenAPI.
+1. `validar_webhook` extrai o evento e o token. A view calcula o SHA-256 do token e procura a `ContaPagamento` pelo `webhook_token_hash` (coluna única), conferindo com `hmac.compare_digest` (T-144). O token é aleatório e longo, por isso o hash sem sal basta e a busca pelo hash não vaza nada por tempo. Sem token, token que não confere ou corpo que não é aviso → 401 `{ "codigo": "webhook_invalido" }` e nada é gravado. A conta principal (`FaturaAssinatura`) entra na T-029.
+2. Acha a empresa pela conta, entra no schema dela e grava `WebhookRecebido` (`provedor`, `evento_id` **único**, `recebido_em`, o evento extraído e o corpo recebido). Evento repetido → 200 sem fazer nada (idempotência, CA-017-07).
 3. Responde **200** na hora. Não baixa nada dentro da requisição.
 4. A task `aut_05_processar_webhook(schema, webhook_id)` consulta a cobrança no parceiro (`consultar_cobranca`, com a chave da subconta) e **não confia no corpo do webhook**:
    - paga e `valor_pago_centavos == CobrancaExterna.valor_centavos` → baixa a conta (`forma` = `pix` ou `boleto`), registra a entrada no caixa se a cobrança foi gerada no caixa, publica `financeiro.parcela_paga` e envia o recibo por WhatsApp. Ator da auditoria: `sistema`, regra `AUT-05`.
    - paga com valor diferente → não baixa; cria uma pendência para o financeiro (`PendenciaPagamento`) e avisa o administrador e o financeiro.
    - estornada no parceiro → pendência, nunca reabre sozinha.
+   - paga, mas a conta já não está `aberta` (cancelada, renegociada, paga por outro caminho) → pendência, não baixa (T-144).
+   - cobrança que a empresa não conhece → só registra o resultado `cobranca_desconhecida`.
+   - a task trava o `WebhookRecebido` e não repete o que já tem `processado_em`.
    - `processado_em` e `resultado` gravados no `WebhookRecebido`.
 O mesmo fluxo vale para a `FaturaAssinatura` no `public` (`plataforma`).
 
-`GET /api/financeiro/pendencias-pagamento/` e `POST .../{id}/resolver/` `{ acao: "baixar" | "ignorar", motivo }` · administrador, financeiro.
+`GET /api/financeiro/pendencias-pagamento/` e `POST .../{id}/resolver/` `{ acao: "baixar" | "ignorar", motivo }` · administrador, financeiro. Pendências e avisos do webhook vão para todos os administradores e financeiros ativos.
 
 ---
 
@@ -298,6 +349,6 @@ O mesmo fluxo vale para a `FaturaAssinatura` no `public` (`plataforma`).
 | `financeiro.services.devolver_ao_cliente(origem, valor, forma)` | cria o `Reembolso`. |
 | `financeiro.services.cancelar_contas_da_origem(origem, motivo)` | locação cancelada antes da retirada. |
 | evento `financeiro.parcela_paga` | `conta_id`, `cliente_id`, `tipo`, `origem_tipo`, `origem_id`, `valor_centavos`, `pago_em`. Assinado por `locacoes` (1º pagamento) e `clientes` (desbloqueio `CLI-05`). |
-| evento `financeiro.parcela_atrasou` | `conta_id`, `cliente_id`, `tipo`, `origem_tipo`, `origem_id`, `vencimento`, `dias_atraso`. Tarefa diária às 09:00 junto da régua (`AUT-03`): publica para cada conta que completou 1, 3, 7 e 15 dias de atraso; `clientes` bloqueia no 15º (CA-017-11: vencida em 23 set → bloqueio em 08 out). |
+| evento `financeiro.parcela_atrasou` | `conta_id`, `cliente_id`, `tipo`, `origem_tipo`, `origem_id`, `vencimento`, `dias_atraso`. Tarefa diária às 09:00 junto da régua (`AUT-03`): publica para cada conta que completou 1, 3 e 7 dias de atraso e, a partir de 15 dias, uma vez por conta (a conta guarda `bloqueio_pedido_em`; se a tarefa não rodou no 15º dia, publica na próxima vez, `AUT-03`); `clientes` bloqueia com 15 dias ou mais (CA-017-11: vencida em 23 set → bloqueio em 08 out). Depois do desbloqueio manual (`CLI-05`), a mesma conta não pede o bloqueio de novo. |
 | anotações fornecidas (ADR 0015) | bloco `financeiro` de `clientes` (com `conta_mais_antiga_id`), bloco `historico` da análise de `clientes`, contadores `contas_atrasadas_15_dias` e `em_aberto_centavos` por cliente, `indicadores_financeiros` de `veiculos` (`VEI-05`), contador de caixas abertos para `filiais` (`FIL-06`), filtro `em_aberto`. |
 | tarefas | `aut_03_regua_de_cobranca` (09:00), `aut_04_cobranca_recorrente` (no vencimento), `aut_05_processar_webhook`, `aut_08_fechamento_automatico_do_caixa` (23:59). |

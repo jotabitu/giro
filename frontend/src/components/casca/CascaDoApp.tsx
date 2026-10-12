@@ -82,15 +82,15 @@ function Gaveta({ aberta, aoFechar }: { aberta: boolean; aoFechar: () => void })
 function ItemBarra({ href, rotulo, icone, ativo, destaque }: { href: string; rotulo: string; icone: ReactNode; ativo: boolean; destaque?: boolean }) {
   if (destaque) {
     return (
-      <Link href={href} aria-label={rotulo} className="grid size-[48px] place-items-center rounded-full bg-brand text-on-brand">
+      <Link href={href} aria-label={rotulo} className="grid size-[48px] shrink-0 place-items-center rounded-full bg-brand text-on-brand">
         {icone}
       </Link>
     );
   }
   return (
-    <Link href={href} aria-label={rotulo} aria-current={ativo ? "page" : undefined} className={`flex h-[48px] min-w-[48px] items-center justify-center gap-2 rounded-pill px-3 ${ativo ? "bg-solid text-on-solid" : "text-ink"}`}>
+    <Link href={href} aria-label={rotulo} aria-current={ativo ? "page" : undefined} className={`flex h-[48px] min-w-0 flex-1 basis-0 flex-col items-center justify-center rounded-pill ${ativo ? "bg-solid text-on-solid" : "text-ink"}`}>
       {icone}
-      {ativo && <span className="text-caption font-medium">{rotulo}</span>}
+      {ativo && <span className="max-w-full truncate text-caption font-medium leading-none">{rotulo}</span>}
     </Link>
   );
 }
@@ -103,7 +103,7 @@ function BarraInferior() {
   const rota = usePathname();
   const ativo = (h: string) => rota === h || rota.startsWith(`${h}/`);
   return (
-    <nav aria-label="Navegação principal" className="fixed inset-x-4 bottom-4 z-30 flex items-center justify-between rounded-pill bg-surface p-2 shadow-pop md:hidden">
+    <nav aria-label="Navegação principal" className="fixed inset-x-4 bottom-4 z-30 flex items-center gap-1 rounded-pill bg-surface p-2 shadow-pop md:hidden">
       {destinosDaBarra(eu.navegacao.barra_celular).map((d) => (
         <ItemBarra
           key={d.chave}

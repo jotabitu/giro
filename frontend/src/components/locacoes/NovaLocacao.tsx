@@ -100,11 +100,14 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
 
   // Retomar um rascunho: o formulário volta do detalhe da locação.
   const rascunho = useQuery({ queryKey: ["locacao", rascunhoInicial], queryFn: () => locacoes.obter(rascunhoInicial ?? 0), enabled: !!rascunhoInicial, retry: false });
+  // A cobrança (D-30) depende do plano: só aparece depois que a pessoa escolhe um (ou retoma um rascunho).
+  const [planoEscolhido, setPlanoEscolhido] = useState(false);
   const carregado = useRef(false);
   useEffect(() => {
     if (carregado.current || !rascunho.data || !extras.data) return;
     carregado.current = true;
     reset(valoresDoRascunho(rascunho.data, extras.data.resultados));
+    setPlanoEscolhido(true);
   }, [rascunho.data, extras.data, reset]);
 
   const corpo = useMemo(() => corpoDaLocacao(v, listaPlanos), [v, listaPlanos]);
@@ -144,7 +147,7 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
     )();
 
   const descontoErro = !descontoValido(v.desconto) ? "Informe um percentual, como 5 ou 2,5" : erroSim("desconto_pct");
-  const pronto = !!sim && !simulacao.isError && impedimentos.length === 0 && !salvar.isPending && !descontoErro;
+  const pronto = planoEscolhido && !!sim && !simulacao.isError && impedimentos.length === 0 && !salvar.isPending && !descontoErro;
   const erroDoEnvio = salvar.error instanceof ErroApi ? salvar.error : null;
   const linkDoErro = typeof erroDoEnvio?.detalhes?.link === "string" ? erroDoEnvio.detalhes.link : null;
 
@@ -177,6 +180,7 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
   }
 
   const modalidade = (m: Modalidade) => () => {
+    setPlanoEscolhido(true);
     setValue("modalidade", m);
     setValue("fim", "");
     if (m !== "mensal") setValue("parcelamento_mensal", "a_vista");
@@ -219,13 +223,14 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
           <Panel titulo="Plano e período">
             <div className="flex flex-col gap-4">
               <div role="group" aria-label="Modalidade" className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                <Plano ativo={v.modalidade === "diaria"} nome="Diária" detalhe={preco ? `${dinheiro(preco.diaria_centavos)} / dia` : undefined} onClick={modalidade("diaria")} />
-                <Plano ativo={v.modalidade === "semanal"} nome="Semanal" detalhe={preco ? `${dinheiro(preco.semanal_centavos)} / semana` : undefined} onClick={modalidade("semanal")} />
-                <Plano ativo={v.modalidade === "mensal"} nome="Mensal" detalhe={preco ? `${dinheiroSemZeros(preco.mensal_centavos)} / mês` : undefined} onClick={modalidade("mensal")} />
+                <Plano ativo={planoEscolhido && v.modalidade === "diaria"} nome="Diária" detalhe={preco ? `${dinheiro(preco.diaria_centavos)} / dia` : undefined} onClick={modalidade("diaria")} />
+                <Plano ativo={planoEscolhido && v.modalidade === "semanal"} nome="Semanal" detalhe={preco ? `${dinheiro(preco.semanal_centavos)} / semana` : undefined} onClick={modalidade("semanal")} />
+                <Plano ativo={planoEscolhido && v.modalidade === "mensal"} nome="Mensal" detalhe={preco ? `${dinheiroSemZeros(preco.mensal_centavos)} / mês` : undefined} onClick={modalidade("mensal")} />
                 {listaPlanos.map((p) => (
                   <Plano key={p.id} ativo={v.modalidade === `especial:${p.id}`} nome={p.nome} detalhe={detalheDoPlano(p)} onClick={modalidade(`especial:${p.id}`)} />
                 ))}
               </div>
+              {!planoEscolhido && <p className="text-caption text-ink-muted">Escolha o plano para ver a cobrança.</p>}
               {erroSim("plano_especial_id") && <p role="alert" className="text-caption text-critical">{erroSim("plano_especial_id")}</p>}
               <div className="grid gap-4 md:grid-cols-3">
                 <TextField
@@ -251,39 +256,41 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
             </div>
           </Panel>
 
-          <Panel titulo="Cobrança">
-            <div className="grid gap-4 md:grid-cols-2">
-              <CampoSelecao
-                rotulo="Parcelamento"
-                value={opcoes.some((o) => o.valor === v.parcelamento_mensal) ? v.parcelamento_mensal : "a_vista"}
-                onChange={(e) => setValue("parcelamento_mensal", e.target.value as ValoresLocacao["parcelamento_mensal"])}
-                opcoes={opcoes.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))}
-              />
-              <CampoSelecao rotulo="Forma de pagamento" value={v.forma_pagamento} onChange={(e) => setValue("forma_pagamento", e.target.value as ValoresLocacao["forma_pagamento"])} opcoes={FORMAS_DE_PAGAMENTO.map((f) => ({ valor: f.valor, rotulo: f.rotulo }))} />
-              <TextField
-                cheio
-                mono
-                rotulo="Primeiro vencimento"
-                type="date"
-                value={primeiroVencimento}
-                onChange={(e) => setValue("primeiro_vencimento", e.target.value)}
-                dica={primeiroVencimento ? dataCompleta(primeiroVencimento) : undefined}
-              />
-              <TextField cheio rotulo="Caução" value={sim ? dinheiro(sim.caucao_centavos) : "—"} readOnly dica="Devolvida no encerramento sem pendências" />
-              <TextField
-                cheio
-                rotulo="Desconto (%)"
-                inputMode="decimal"
-                erro={descontoErro}
-                dica={sim?.precisa_aprovacao_desconto ? "Este desconto precisa da aprovação do gerente. As parcelas saem sem desconto até a decisão." : undefined}
-                {...register("desconto")}
-              />
-            </div>
-            <p className="mt-4 flex items-start gap-2 rounded-md bg-surface-sunken px-4 py-3 text-caption text-ink-muted">
-              <Icone de={Info} />
-              Com 15 dias de atraso numa parcela, o cliente é bloqueado e o gerente é avisado.
-            </p>
-          </Panel>
+          {planoEscolhido && (
+            <Panel titulo="Cobrança">
+              <div className="grid gap-4 md:grid-cols-2">
+                <CampoSelecao
+                  rotulo="Parcelamento"
+                  value={opcoes.some((o) => o.valor === v.parcelamento_mensal) ? v.parcelamento_mensal : "a_vista"}
+                  onChange={(e) => setValue("parcelamento_mensal", e.target.value as ValoresLocacao["parcelamento_mensal"])}
+                  opcoes={opcoes.map((o) => ({ valor: o.valor, rotulo: o.rotulo }))}
+                />
+                <CampoSelecao rotulo="Forma de pagamento" value={v.forma_pagamento} onChange={(e) => setValue("forma_pagamento", e.target.value as ValoresLocacao["forma_pagamento"])} opcoes={FORMAS_DE_PAGAMENTO.map((f) => ({ valor: f.valor, rotulo: f.rotulo }))} />
+                <TextField
+                  cheio
+                  mono
+                  rotulo="Primeiro vencimento"
+                  type="date"
+                  value={primeiroVencimento}
+                  onChange={(e) => setValue("primeiro_vencimento", e.target.value)}
+                  dica={primeiroVencimento ? dataCompleta(primeiroVencimento) : undefined}
+                />
+                <TextField cheio rotulo="Caução" value={sim ? dinheiro(sim.caucao_centavos) : "—"} readOnly dica="Devolvida no encerramento sem pendências" />
+                <TextField
+                  cheio
+                  rotulo="Desconto (%)"
+                  inputMode="decimal"
+                  erro={descontoErro}
+                  dica={sim?.precisa_aprovacao_desconto ? "Este desconto precisa da aprovação do gerente. As parcelas saem sem desconto até a decisão." : undefined}
+                  {...register("desconto")}
+                />
+              </div>
+              <p className="mt-4 flex items-start gap-2 rounded-md bg-surface-sunken px-4 py-3 text-caption text-ink-muted">
+                <Icone de={Info} />
+                Com 15 dias de atraso numa parcela, o cliente é bloqueado e o gerente é avisado.
+              </p>
+            </Panel>
+          )}
 
           <Panel titulo="Adicionais">
             {extras.isPending && <p className="text-body text-ink-muted">Carregando os adicionais…</p>}
@@ -291,7 +298,7 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
             <div className="flex flex-col">
               {extras.data?.resultados.map((x) => (
                 <label key={x.id} className="flex min-h-[44px] items-center gap-3 border-b border-line py-2 text-body last:border-b-0">
-                  <input type="checkbox" className="h-5 w-5" checked={v.extras.includes(x.id)} onChange={() => alternarExtra(x.id)} />
+                  <input type="checkbox" className="wl-marcar" checked={v.extras.includes(x.id)} onChange={() => alternarExtra(x.id)} />
                   <span className="flex-1">{x.nome}</span>
                   <span className="text-ink-muted">
                     {dinheiro(x.valor_centavos)} / {x.cobranca === "unica" ? "único" : un.por}

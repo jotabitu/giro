@@ -71,7 +71,7 @@ const COLUNAS: ColunaTabela<ClienteResumo>[] = [
   {
     chave: "pago",
     titulo: "Total pago",
-    celula: (c) => <CelulaDupla principal={<span className="wl-mono">{dinheiro(c.financeiro?.total_pago_centavos ?? 0)}</span>} secundaria="pago no total" />,
+    celula: (c) => <CelulaDupla principal={<span className="wl-mono">{c.financeiro ? dinheiro(c.financeiro.total_pago_centavos) : "—"}</span>} secundaria={c.financeiro ? "pago no total" : undefined} />,
   },
   { chave: "desde", titulo: "Cliente desde", mono: true, celula: (c) => mesAno(c.cliente_desde) },
   {
