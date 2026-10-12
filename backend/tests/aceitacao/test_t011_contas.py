@@ -1570,6 +1570,7 @@ TODOS_OS_MODULOS = [
     "aprovacoes",
     "auditoria",
     "clientes",
+    "conciliacao",  # fase 2: a conciliação tem o próprio módulo (T-017)
     "contas",
     "empresas",
     "filiais",

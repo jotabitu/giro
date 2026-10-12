@@ -30,7 +30,7 @@ from apps.financeiro.models import (
 )
 from apps.locacoes.models import Locacao
 from apps.notificacoes.models import Notificacao
-from apps.plataforma.models import ContaPagamento
+from apps.plataforma.models import ContaPagamento, UsoEmpresa
 from comum.codigos import ajustar_sequencia
 from comum.erros import Conflito
 from comum.models import WebhookRecebido
@@ -979,3 +979,79 @@ def test_fin_06_aud_05_ca_017_22_nota_e_veiculo(cenario, relogio):  # noqa: F811
     ficha = cenario.moto.api("Rodrigo").get(f"/api/veiculos/{veiculo.pk}/").json()
     assert ficha["indicadores_financeiros"]["custo_manutencao_ano_centavos"] == 30000
     assert _despesa(cenario, categoria="festas").status_code == 400
+
+
+# --- Painel: caixa e despesas (docs/api/painel.md, T-128) ---
+
+PAINEL = "/api/painel/"
+
+
+def _kpis(corpo: dict[str, Any]) -> dict[str, Any]:
+    return {kpi["chave"]: kpi for kpi in corpo["kpis"]}
+
+
+def test_fin_07_fin_15_caixa_hoje_no_painel_do_administrador(
+    cenario,  # noqa: F811
+    com_carteira,
+    caixa_do_seed,
+):
+    UsoEmpresa.objects.filter(empresa=cenario.moto.empresa).update(
+        passos_implantacao={"conta": "2026-09-20", "filial": "2026-09-21", "primeira_locacao": "x"}
+    )
+    corpo = cenario.moto.api("Mariana").get(f"{PAINEL}inicio/").json()
+    assert corpo["variante"] == "geral"
+    assert corpo["caixa_hoje"] == {
+        "filial": "Filial Centro",
+        "data": "2026-10-07",
+        "status": "aberto",
+        "recebido_centavos": 111190,
+        "a_receber_hoje_centavos": 262580,  # o "vence hoje" da FIN-15
+        "despesas_centavos": 4800,
+        "saldo_dia_centavos": 106390,
+    }
+    todas = cenario.moto.api("Mariana", HTTP_X_FILIAL="todas").get(f"{PAINEL}inicio/").json()
+    assert todas["caixa_hoje"] is None
+
+
+def test_fin_05_fin_07_caixas_e_despesas_no_painel_do_financeiro(
+    cenario,  # noqa: F811
+    caixa_do_seed,
+):
+    _despesa(
+        cenario,
+        "Lúcia",
+        descricao="Conta de luz",
+        valor_centavos=41230,
+        data="2026-10-06",
+        vencimento="2026-10-07",
+        categoria="fixas",
+    )
+    corpo = cenario.moto.api("Lúcia").get(f"{PAINEL}inicio/").json()
+    assert corpo["caixas_do_dia"] == [
+        {
+            "filial": "Filial Centro",
+            "status": "aberto",
+            "aberto_por": "Bruna",
+            "esperado_gaveta_centavos": 28100,
+        }
+    ]
+    sai = _kpis(corpo)["sai_hoje"]
+    assert (sai["valor"], sai["contexto"]) == (
+        {"tipo": "centavos", "valor": 41230},
+        "1 conta a pagar",
+    )
+    assert corpo["para_hoje"][-1]["texto"] == "Pagar conta de luz · R$ 412,30"
+    assert corpo["para_hoje"][-1]["destino"]["chave"] == "contas_a_pagar"
+    assert cenario.moto.api("Lúcia").get(f"{PAINEL}contadores/").json()["contadores"] == {
+        "contas_a_pagar": 1,
+        "receber": 0,
+    }
+
+
+def test_apr_03_apr_09_contador_de_despesas(cenario):  # noqa: F811
+    _despesa(cenario, "João", descricao="Pneus (2)", valor_centavos=120000)
+    _despesa(cenario, "Rodrigo", descricao="Conserto do portão", valor_centavos=60000)
+    contar = cenario.moto.api("Rodrigo").get(f"{PAINEL}contadores/").json()["contadores"]
+    assert contar["despesas"] == 1  # a dele não conta (APR-09)
+    mariana = cenario.moto.api("Mariana").get(f"{PAINEL}contadores/").json()["contadores"]
+    assert mariana["despesas"] == 2

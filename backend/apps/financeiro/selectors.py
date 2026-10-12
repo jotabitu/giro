@@ -904,3 +904,60 @@ def representacao_pendencia(pendencia: PendenciaPagamento) -> dict[str, Any]:
         "resolucao": pendencia.resolucao or None,
         "criada_em": pendencia.criado_em,
     }
+
+
+# --- Painel: caixa e despesas (`relatorios`, docs/api/painel.md) ---
+
+
+def caixas_de_hoje(filiais: Iterable[int], hoje: date) -> list[dict[str, Any]]:
+    """`caixas_do_dia` do início do financeiro: o caixa de hoje de cada filial do escopo."""
+    caixas = (
+        Caixa.objects.filter(filial_id__in=list(filiais), data=hoje)
+        .select_related("filial", "aberto_por")
+        .order_by("-filial__matriz", "filial__nome")
+    )
+    return [
+        {
+            "filial": caixa.filial.nome,
+            "status": caixa.status,
+            "aberto_por": caixa.aberto_por.nome,
+            "esperado_gaveta_centavos": esperado_na_gaveta(caixa),
+        }
+        for caixa in caixas
+    ]
+
+
+def caixa_hoje_do_painel(filial_id: int, hoje: date) -> dict[str, Any] | None:
+    """`caixa_hoje` do início do administrador: recebido no caixa, o "vence hoje" da FIN-15,
+    as despesas pagas no caixa e o saldo do dia (recebido − despesas). Sem caixa hoje: `None`."""
+    caixa = Caixa.objects.select_related("filial").filter(filial_id=filial_id, data=hoje).first()
+    if caixa is None:
+        return None
+    recebido = int(resumo_do_caixa(caixa)["entrou_hoje_centavos"])
+    despesas = saidas_do_caixa_centavos(caixa)
+    return {
+        "filial": caixa.filial.nome,
+        "data": caixa.data,
+        "status": caixa.status,
+        "recebido_centavos": recebido,
+        "a_receber_hoje_centavos": vencem_entre([filial_id], hoje, hoje).centavos,
+        "despesas_centavos": despesas,
+        "saldo_dia_centavos": recebido - despesas,
+    }
+
+
+def despesas_para_aprovar(filiais: Iterable[int], exceto_usuario_id: int | None) -> int:
+    """Contador `despesas`: aguardando aprovação, sem as que a pessoa lançou (APR-09)."""
+    return int(
+        Despesa.objects.filter(
+            filial_id__in=list(filiais), status=StatusDespesa.AGUARDANDO_APROVACAO
+        )
+        .exclude(lancada_por_id=exceto_usuario_id)
+        .count()
+    )
+
+
+def despesas_a_pagar_vencendo(filiais: Iterable[int], ate: date) -> QuerySet[Despesa]:
+    return Despesa.objects.filter(
+        filial_id__in=list(filiais), status=StatusDespesa.A_PAGAR, vencimento__lte=ate
+    ).order_by("vencimento", "id")
