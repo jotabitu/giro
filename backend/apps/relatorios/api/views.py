@@ -1,10 +1,9 @@
 """Views finas do painel (`docs/api/painel.md`, "Rotas, perfis e o que entra no MVP").
 
-Todos os perfis; a variante é a do `eu` (`contas.navegacao`), nunca da query. A filial vem só
-de `filtrar_por_filial` (USR-07). O suporte só lê (`suporte_somente_leitura`), com a variante
-e o escopo do administrador. Cache por empresa, pessoa, filial e rota: 5 minutos no início, 60
-segundos nos contadores; nunca compartilhado entre pessoas (escopo e APR-09 dependem de quem
-pede).
+Todos os perfis; a variante é a do `eu` (`contas.navegacao`), nunca da query. A filial vem só de
+`filtrar_por_filial` (USR-07). O suporte só lê (`suporte_somente_leitura`), com a variante e o
+escopo do administrador. Cache por empresa, pessoa, filial, rota e variante: 5 minutos no início, 60
+segundos nos contadores; nunca compartilhado entre pessoas (escopo e APR-09 dependem de quem pede).
 """
 
 from collections.abc import Callable
@@ -55,8 +54,13 @@ class _Painel(APIView):
     escopo_de_relatorio = True  # "Todas as filiais" com a extra `relatorios_todas_filiais`
     suporte_somente_leitura = True
 
-    def _chave(self, request: Request, escopo: selectors.Escopo, rota: str) -> str:
-        return f"painel:{schema_atual()}:{_quem(request.user)}:{escopo.chave}:{rota}"
+    def _chave(
+        self, request: Request, escopo: selectors.Escopo, rota: str, nav: dict[str, Any]
+    ) -> str:
+        # A variante na chave: com a 1ª locação (IMP-01) o administrador sai da implantação na
+        # hora, sem esperar o cache vencer.
+        variante = nav["inicio"]["variante"]
+        return f"painel:{schema_atual()}:{_quem(request.user)}:{escopo.chave}:{rota}:{variante}"
 
 
 class ContadoresView(_Painel):
@@ -66,16 +70,16 @@ class ContadoresView(_Painel):
     )
     def get(self, request: Request) -> Response:
         escopo = _escopo(request)
+        nav = contas_selectors.navegacao_de(request.user, request.tenant)  # type: ignore[attr-defined]
 
         def montar() -> dict[str, Any]:
-            nav = contas_selectors.navegacao_de(request.user, request.tenant)  # type: ignore[attr-defined]
             chaves = contas_selectors.chaves_de_contador(nav)
             return {
                 "atualizado_em": relogio.agora(),
                 "contadores": selectors.contadores(request.user, escopo, chaves),
             }
 
-        chave = self._chave(request, escopo, "contadores")
+        chave = self._chave(request, escopo, "contadores", nav)
         return Response(_em_cache(chave, PRAZO_DOS_CONTADORES, montar))
 
 
@@ -94,11 +98,12 @@ class InicioView(_Painel):
         escopo = _escopo(request)
         empresa = request.tenant  # type: ignore[attr-defined]
 
+        nav = contas_selectors.navegacao_de(request.user, empresa)
+        variante = nav["inicio"]["variante"]
+
         def montar() -> dict[str, Any]:
-            nav = contas_selectors.navegacao_de(request.user, empresa)
-            variante = nav["inicio"]["variante"]
             dados = selectors.inicio(request.user, variante, escopo, periodo, empresa)
             return dict(SERIALIZER_DA_VARIANTE[variante](dados).data)
 
-        chave = f"{self._chave(request, escopo, 'inicio')}:{periodo}"
+        chave = f"{self._chave(request, escopo, 'inicio', nav)}:{periodo}"
         return Response(_em_cache(chave, PRAZO_DO_INICIO, montar))
