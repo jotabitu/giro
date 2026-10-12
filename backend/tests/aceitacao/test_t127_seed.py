@@ -59,6 +59,7 @@ def test_seed_127_01_cria_a_empresa_de_exemplo(semeado):
     assert "Criado: empresa" in semeado
     assert Empresa.objects.filter(subdominio="motorapida").count() == 1
     empresa = Empresa.objects.get(subdominio="motorapida")
+    assert empresa.plano is not None
     assert (empresa.nome_exibicao, empresa.plano.nome) == ("Moto Rápida", "Profissional")
     assert str(empresa.teste_inicio) == "2026-10-07"
     contagens = _contagens()
