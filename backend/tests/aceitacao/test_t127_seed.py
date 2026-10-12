@@ -222,3 +222,22 @@ def test_seed_138_07_historico_da_loc_2836_nas_datas_do_caso(semeado):
             for e in eventos
         }
         assert dias and dias <= {"2026-10-01", "2026-10-07"}
+
+
+def test_plt_08_seed_138_08_dono_da_plataforma_e_outras_empresas(semeado):
+    """Dono no público com 2 etapas e 4 empresas; ativa e inadimplente pelas transições."""
+    from apps.contas.models import Autenticador
+
+    dono = Usuario.objects.get(email="dono@giro.example")
+    assert (dono.funcao_plataforma, dono.status) == ("dono", "ativo")
+    assert Autenticador.objects.filter(user=dono, confirmed=True).exists()
+    estados = dict(
+        Empresa.objects.exclude(subdominio="motorapida")
+        .exclude(subdominio=None)
+        .values_list("subdominio", "status")
+    )
+    assert estados["pedalada"] == "ativa"
+    assert estados["rodavida"] == "inadimplente"
+    assert set(estados) == {"pedalada", "rodavida", "ventosul", "estradafacil"}
+    depois = _semear()
+    assert "Criado: nada novo" in depois
