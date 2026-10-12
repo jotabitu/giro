@@ -1,25 +1,49 @@
-"""Leituras das contas a receber e das comissões (FIN-01, FIN-09).
+"""Leituras das contas a receber, do caixa, das despesas e das comissões (FIN-01 a FIN-09,
+FIN-15).
 
 Interface para os outros apps: `contas_da_origem`, `representacao_conta`, `primeiro_pagamento_em`,
 `pago_da_origem_centavos`, `reembolsos_da_origem`, `anotar_resumo_da_origem` (uma query para a
-lista inteira da origem), `comissoes_confirmadas_centavos` e `devido_ate` (a única conta da
-FIN-03).
+lista inteira da origem), `comissoes_confirmadas_centavos`, `devido_ate` (a única conta da
+FIN-03) e as leituras do painel (`relatorios`).
 """
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from django.db.models import Count, IntegerField, Min, OuterRef, Q, QuerySet, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
+from apps.auditoria.models import EventoAuditoria
 from apps.contratos.selectors import permite_juros
+from apps.empresas.models import ConfiguracaoEmpresa
 from apps.empresas.selectors import configuracao
+from comum import arquivos, leituras
 from comum.dinheiro import aplicar_percentual, juros_pro_rata
 
-from .models import Comissao, ContaReceber, Reembolso, StatusComissao, StatusConta, TipoConta
+from .models import (
+    Caixa,
+    CobrancaExterna,
+    Comissao,
+    ContaReceber,
+    Despesa,
+    FormaMovimento,
+    FormaPagamento,
+    MovimentoCaixa,
+    OrigemTipo,
+    PendenciaPagamento,
+    Reembolso,
+    StatusCaixa,
+    StatusCobranca,
+    StatusComissao,
+    StatusConta,
+    StatusDespesa,
+    TipoConta,
+    TipoMovimento,
+)
 
 
 def status_exibido(status: str, vencimento: date, hoje: date) -> str:
@@ -47,18 +71,30 @@ class Devido:
         return self.valor_centavos + self.multa_centavos + self.juros_centavos
 
 
-def devido_ate(conta: ContaReceber, dia: date) -> Devido:
+def devido_ate(
+    conta: ContaReceber,
+    dia: date,
+    *,
+    cobra_juros: bool | None = None,
+    taxas: ConfiguracaoEmpresa | None = None,
+) -> Devido:
     """FIN-03, a única conta de multa e juros: o acerto da devolução (DEV-01), o valor do dia das
     contas a receber e o recebimento no caixa usam esta função. O atraso conta do dia seguinte
     ao vencimento, ou ao dia em que a conta nasceu, se ela nasceu vencida, até `dia`. Multa uma
     vez, a partir de 1 dia de atraso; juros pro rata dia, com mês de 30 dias. Sem a cláusula no
     contrato da origem, não cobra nenhum dos dois. Ex.: 29940 vencida em 30 set, paga em 07 out,
-    2% + 1% ao mês → 29940 + 599 + 70 = 30609."""
+    2% + 1% ao mês → 29940 + 599 + 70 = 30609.
+
+    `cobra_juros` e `taxas` já lidos poupam uma consulta por conta numa lista."""
     inicio = max(conta.vencimento, timezone.localdate(conta.criado_em))
     dias = (dia - inicio).days
-    if dias <= 0 or not permite_juros(conta.origem_tipo, conta.origem_id):
-        return Devido(conta.valor_centavos, 0, 0, max(dias, 0))
-    taxas = configuracao()
+    if dias <= 0:
+        return Devido(conta.valor_centavos, 0, 0, 0)
+    if cobra_juros is None:
+        cobra_juros = permite_juros(conta.origem_tipo, conta.origem_id)
+    if not cobra_juros:
+        return Devido(conta.valor_centavos, 0, 0, dias)
+    taxas = taxas or configuracao()
     return Devido(
         conta.valor_centavos,
         aplicar_percentual(conta.valor_centavos, taxas.multa_atraso_pct),
@@ -266,3 +302,662 @@ def reembolsos_a_fazer(filiais: Iterable[int]) -> QuerySet[Reembolso]:
         .select_related("cliente")
         .order_by("criado_em", "id")
     )
+
+
+# --- Contas a receber da tela `Receber` (FIN-01, FIN-02, FIN-03, FIN-15) ---
+
+CONTA = "financeiro.ContaReceber"  # alvo das leituras compostas (ADR 0015): `locacoes` dá a placa
+RECEBEM = frozenset({"administrador", "gerente", "vendedor", "financeiro"})
+GERENCIAM = frozenset({"administrador", "gerente", "financeiro"})
+PERIODOS = ("hoje", "semana", "mes")
+SITUACOES = ("atrasadas", "vencem_hoje", "a_vencer", "pagas", "canceladas")
+FAIXAS = ("1_7", "8_30", "mais_30")
+ORDENS = {"vencimento": ("vencimento", "id"), "-valor": ("-valor_centavos", "-id")}
+
+
+def dias_de_atraso(vencimento: date, hoje: date) -> int:
+    """Dias desde o vencimento (FIN-01, FIN-02). A cobrança usa `devido_ate` (FIN-03)."""
+    return max((hoje - vencimento).days, 0)
+
+
+def faixa_de_atraso(dias: int) -> str | None:
+    """FIN-02: 1–7, 8–30 e mais de 30 dias. Vence hoje (0 dias) não entra em faixa."""
+    if dias <= 0:
+        return None
+    if dias <= 7:
+        return "1_7"
+    if dias <= 30:
+        return "8_30"
+    return "mais_30"
+
+
+def _faixa_q(faixa: str, hoje: date) -> Q:
+    """A faixa pela data do vencimento, a mesma regra de `faixa_de_atraso`."""
+    if faixa == "1_7":
+        return Q(vencimento__gte=hoje - timedelta(days=7), vencimento__lt=hoje)
+    if faixa == "8_30":
+        return Q(vencimento__gte=hoje - timedelta(days=30), vencimento__lt=hoje - timedelta(days=7))
+    return Q(vencimento__lt=hoje - timedelta(days=30))
+
+
+def periodo(nome: str | None, hoje: date) -> tuple[date, date]:
+    """Vencimentos do período da tela: hoje, a semana (segunda a domingo) ou o mês (padrão)."""
+    if nome == "hoje":
+        return hoje, hoje
+    if nome == "semana":
+        inicio = hoje - timedelta(days=hoje.weekday())
+        return inicio, inicio + timedelta(days=6)
+    inicio = hoje.replace(day=1)
+    return inicio, _mes_seguinte(inicio) - timedelta(days=1)
+
+
+def _mes_seguinte(dia: date) -> date:
+    return date(dia.year + dia.month // 12, dia.month % 12 + 1, 1)
+
+
+def _q_situacao(situacao: str, hoje: date, de: date, ate: date) -> Q:
+    """FIN-01 pela data, sem tarefa à meia-noite. `atrasadas` ignora o período (FIN-15)."""
+    aberta = Q(status=StatusConta.ABERTA)
+    no_periodo = Q(vencimento__gte=de, vencimento__lte=ate)
+    return {
+        "atrasadas": aberta & Q(vencimento__lt=hoje),
+        "vencem_hoje": aberta & Q(vencimento=hoje) & no_periodo,
+        "a_vencer": aberta & Q(vencimento__gt=hoje) & no_periodo,
+        "pagas": Q(status=StatusConta.PAGA) & no_periodo,
+        "canceladas": Q(status=StatusConta.CANCELADA) & no_periodo,
+    }[situacao]
+
+
+def base_das_contas() -> QuerySet[ContaReceber]:
+    return ContaReceber.objects.select_related("cliente", "filial").prefetch_related("cobrancas")
+
+
+def filtrar_contas(qs: QuerySet[ContaReceber], params: Any, hoje: date) -> QuerySet[ContaReceber]:
+    """Os filtros da tela. Sem `situacao`, as quatro abas (FIN-15): `todas` é a soma delas. A
+    caução não é receita (LOC-04) e só aparece quando a lista é de um cliente ou de uma origem."""
+    de, ate = periodo(params.get("periodo"), hoje)
+    situacao = params.get("situacao")
+    if situacao in SITUACOES:
+        qs = qs.filter(_q_situacao(situacao, hoje, de, ate))
+    else:
+        abas = Q()
+        for aba in ("atrasadas", "vencem_hoje", "a_vencer", "pagas"):
+            abas |= _q_situacao(aba, hoje, de, ate)
+        qs = qs.filter(abas)
+    if params.get("faixa") in FAIXAS:
+        qs = qs.filter(_faixa_q(params["faixa"], hoje), status=StatusConta.ABERTA)
+    da_origem = params.get("origem_tipo") and str(params.get("origem_id", "")).isdigit()
+    if da_origem:
+        qs = qs.filter(origem_tipo=params["origem_tipo"], origem_id=int(params["origem_id"]))
+    if str(params.get("cliente", "")).isdigit():
+        qs = qs.filter(cliente_id=int(params["cliente"]))
+    elif not da_origem:
+        qs = qs.exclude(tipo=TipoConta.CAUCAO)
+    if params.get("forma"):
+        qs = qs.filter(forma=params["forma"])
+    busca = (params.get("busca") or "").strip()
+    if busca:
+        qs = qs.filter(Q(cliente__nome__icontains=busca) | Q(origem_codigo__icontains=busca))
+    return qs
+
+
+def indicadores_e_contagens(filiais: Iterable[int], params: Any, hoje: date) -> dict[str, Any]:
+    """Os números da `FIN-15`: contas da filial, sem caução e sem `cancelada` e `renegociada`,
+    valores sem multa e juros. Os indicadores não seguem `periodo` nem `situacao`; as abas seguem
+    o `periodo` (menos `atrasadas`)."""
+    base = contas_do_painel(filiais)
+    inicio_mes, fim_mes = periodo("mes", hoje)
+    previsto = _somar(base.filter(vencimento__gte=inicio_mes, vencimento__lte=fim_mes))
+    recebido = _somar(
+        base.filter(vencimento__gte=inicio_mes, vencimento__lte=fim_mes, status=StatusConta.PAGA)
+    )
+    vence_hoje = vencem_entre(filiais, hoje, hoje)
+    atraso = atrasadas(filiais, hoje)
+    faixas = {
+        faixa: _somar(base.filter(_faixa_q(faixa, hoje), status=StatusConta.ABERTA)).centavos
+        for faixa in FAIXAS
+    }
+    pct = None
+    if previsto.centavos:
+        pct = str(
+            (Decimal(recebido.centavos * 100) / previsto.centavos).quantize(
+                Decimal("0.01"), ROUND_HALF_UP
+            )
+        )
+    de, ate = periodo(params.get("periodo"), hoje)
+    contagens = {
+        aba: base.filter(_q_situacao(aba, hoje, de, ate)).count()
+        for aba in ("atrasadas", "vencem_hoje", "a_vencer", "pagas")
+    }
+    return {
+        "indicadores": {
+            "previsto_mes_centavos": previsto.centavos,
+            "previsto_mes_parcelas": previsto.quantidade,
+            "recebido_mes_centavos": recebido.centavos,
+            "recebido_pct": pct,
+            "vence_hoje_centavos": vence_hoje.centavos,
+            "vence_hoje_parcelas": vence_hoje.quantidade,
+            "em_atraso_centavos": atraso.centavos,
+            "em_atraso_clientes": atraso.clientes,
+            "em_atraso_parcelas": atraso.quantidade,
+            "faixas": faixas,
+        },
+        "contagens": {"todas": sum(contagens.values()), **contagens},
+    }
+
+
+class JurosDaPagina:
+    """Lê a configuração e a cláusula de juros uma vez por origem, para a página inteira."""
+
+    def __init__(self) -> None:
+        self._taxas: ConfiguracaoEmpresa | None = None
+        self._cobra: dict[tuple[str, int], bool] = {}
+
+    def devido(self, conta: ContaReceber, dia: date) -> Devido:
+        if self._taxas is None:
+            self._taxas = configuracao()
+        chave = (conta.origem_tipo, conta.origem_id)
+        if chave not in self._cobra:
+            self._cobra[chave] = permite_juros(*chave)
+        return devido_ate(conta, dia, cobra_juros=self._cobra[chave], taxas=self._taxas)
+
+    def cobra(self, conta: ContaReceber) -> bool:
+        chave = (conta.origem_tipo, conta.origem_id)
+        if chave not in self._cobra:
+            self._cobra[chave] = permite_juros(*chave)
+        return self._cobra[chave]
+
+
+def valor_hoje(
+    conta: ContaReceber, hoje: date, juros: JurosDaPagina | None = None
+) -> dict[str, Any]:
+    """O valor a pagar hoje, calculado pela API (FIN-03). Conta que não está em aberto: o que foi
+    gravado na baixa."""
+    if conta.status != StatusConta.ABERTA:
+        principal, multa, juros_c, dias = (
+            conta.valor_centavos,
+            conta.multa_centavos,
+            conta.juros_centavos,
+            0,
+        )
+        cobra = multa + juros_c > 0
+    else:
+        juros = juros or JurosDaPagina()
+        devido = juros.devido(conta, hoje)
+        principal, multa, juros_c, dias = (
+            devido.valor_centavos,
+            devido.multa_centavos,
+            devido.juros_centavos,
+            devido.dias_atraso,
+        )
+        cobra = juros.cobra(conta)
+    return {
+        "data": hoje,
+        "dias_atraso": dias,
+        "principal_centavos": principal,
+        "multa_centavos": multa,
+        "juros_centavos": juros_c,
+        "total_centavos": principal + multa + juros_c,
+        "cobra_juros": cobra,
+    }
+
+
+def cobranca_aberta(conta: ContaReceber) -> dict[str, Any] | None:
+    for cobranca in conta.cobrancas.all():
+        if cobranca.status == StatusCobranca.AGUARDANDO:
+            return representacao_cobranca(cobranca)
+    return None
+
+
+def representacao_cobranca(cobranca: CobrancaExterna) -> dict[str, Any]:
+    pix = cobranca.tipo == "pix"
+    return {
+        "id": cobranca.pk,
+        "tipo": cobranca.tipo,
+        "valor_centavos": cobranca.valor_centavos,
+        "vence_em": cobranca.vence_em,
+        "pix_copia_e_cola": cobranca.pix_copia_e_cola or None,
+        "qr_code_url": cobranca.url if pix else None,
+        "linha_digitavel": cobranca.linha_digitavel or None,
+        "boleto_url": None if pix else (cobranca.url or None),
+        "status": cobranca.status,
+    }
+
+
+def acoes_da_conta(conta: ContaReceber, perfil: str) -> dict[str, bool]:
+    aberta = conta.status == StatusConta.ABERTA
+    recebe = aberta and perfil in RECEBEM
+    gerencia = perfil in GERENCIAM
+    return {
+        "receber": recebe,
+        "gerar_pix": recebe,
+        "gerar_boleto": recebe,
+        "cobrar": recebe,
+        "cancelar": aberta and gerencia,
+        "renegociar": aberta and gerencia,
+        "estornar": conta.status == StatusConta.PAGA
+        and conta.estornada_em is None
+        and conta.forma != FormaPagamento.CAUCAO
+        and gerencia,
+    }
+
+
+def representacao_completa(
+    conta: ContaReceber, hoje: date, perfil: str, juros: JurosDaPagina | None = None
+) -> dict[str, Any]:
+    """A conta da tela `Receber` (contrato de financeiro, "Representação")."""
+    dias = dias_de_atraso(conta.vencimento, hoje) if conta.status == StatusConta.ABERTA else 0
+    locacao = leituras.blocos(CONTA, conta).get("locacao") or {}
+    return {
+        "id": conta.pk,
+        "tipo": conta.tipo,
+        "numero": conta.numero_parcela,
+        "total_parcelas": conta.total_parcelas,
+        "origem": {
+            "tipo": conta.origem_tipo,
+            "id": conta.origem_id,
+            "codigo": conta.origem_codigo or None,
+        },
+        "cliente": {"id": conta.cliente_id, "nome": conta.cliente.nome},
+        "filial": {"id": conta.filial_id, "nome": conta.filial.nome},
+        "veiculo_placa": locacao.get("veiculo_placa"),
+        "vencimento": conta.vencimento,
+        "valor_centavos": conta.valor_centavos,
+        "status": status_exibido(conta.status, conta.vencimento, hoje),
+        "dias_atraso": dias,
+        "faixa_atraso": faixa_de_atraso(dias),
+        "forma_prevista": locacao.get("forma_prevista"),
+        "observacao": conta.observacao or None,
+        "valor_hoje": valor_hoje(conta, hoje, juros),
+        "pago_em": conta.pago_em,
+        "forma": conta.forma or None,
+        "multa_centavos": conta.multa_centavos,
+        "juros_centavos": conta.juros_centavos,
+        "estorno_de": conta.estorno_de_id,
+        "estornada_em": conta.estornada_em,
+        "cobranca_aberta": cobranca_aberta(conta),
+        "acoes": acoes_da_conta(conta, perfil),
+    }
+
+
+def historico_da_conta(conta: ContaReceber) -> list[dict[str, Any]]:
+    """Cobranças geradas, baixa, estorno e mudanças, da auditoria (mais antigo primeiro)."""
+    eventos = EventoAuditoria.objects.filter(
+        objeto_tipo="contareceber", objeto_id=conta.pk
+    ).order_by("ocorrido_em", "id")
+    linhas = [
+        {
+            "em": evento.ocorrido_em,
+            "acao": evento.acao,
+            "por": evento.ator_nome,
+            "motivo": evento.motivo or None,
+        }
+        for evento in eventos
+    ]
+    for cobranca in conta.cobrancas.all():
+        linhas.append(
+            {
+                "em": cobranca.criado_em,
+                "acao": f"cobranca.{cobranca.tipo}",
+                "por": None,
+                "motivo": None,
+            }
+        )
+    return sorted(linhas, key=lambda linha: linha["em"])
+
+
+def em_aberto_do_cliente(cliente_id: int, hoje: date) -> int:
+    """CA-017-03: vencidas e não pagas, sem caução. `vence_hoje` não entra."""
+    total = (
+        ContaReceber.objects.filter(
+            cliente_id=cliente_id, status=StatusConta.ABERTA, vencimento__lt=hoje
+        )
+        .exclude(tipo=TipoConta.CAUCAO)
+        .aggregate(total=Sum("valor_centavos"))["total"]
+    )
+    return int(total or 0)
+
+
+# --- Caixa do dia (FIN-07) ---
+
+
+def caixa_do_dia(filial_id: int, dia: date) -> Caixa | None:
+    caixa: Caixa | None = Caixa.objects.filter(filial_id=filial_id, data=dia).first()
+    return caixa
+
+
+def _sinal(movimento: MovimentoCaixa) -> int:
+    """O estorno desconta o original: mesmo tipo e forma, valor com sinal trocado (CA-017-17)."""
+    return -1 if movimento.estorno_de_id is not None else 1
+
+
+def resumo_do_caixa(caixa: Caixa) -> dict[str, Any]:
+    """FIN-07: entrou hoje (com a caução recebida), por forma, e a gaveta esperada = troco +
+    entradas em dinheiro − saídas em dinheiro (saídas e sangrias)."""
+    movimentos = list(caixa.movimentos.all())
+    estornados = {m.estorno_de_id for m in movimentos if m.estorno_de_id is not None}
+    entradas = [m for m in movimentos if m.tipo == TipoMovimento.ENTRADA]
+    por_forma: dict[str, dict[str, Any]] = {
+        "pix": {"centavos": 0, "quantidade": 0},
+        "cartao": {"centavos": 0, "quantidade": 0, "texto": "cai em 30 dias"},
+        "dinheiro": {"centavos": 0, "quantidade": 0},
+    }
+    for movimento in entradas:
+        grupo = "cartao" if movimento.forma.startswith("cartao") else movimento.forma
+        por_forma[grupo]["centavos"] += _sinal(movimento) * movimento.valor_centavos
+        if movimento.estorno_de_id is None and movimento.pk not in estornados:
+            por_forma[grupo]["quantidade"] += 1
+    entradas_dinheiro = sum(
+        _sinal(m) * m.valor_centavos for m in entradas if m.forma == FormaMovimento.DINHEIRO
+    )
+    saidas_dinheiro = sum(
+        _sinal(m) * m.valor_centavos
+        for m in movimentos
+        if m.tipo != TipoMovimento.ENTRADA and m.forma == FormaMovimento.DINHEIRO
+    )
+    return {
+        "entrou_hoje_centavos": sum(_sinal(m) * m.valor_centavos for m in entradas),
+        "recebimentos": sum(
+            1 for m in entradas if m.estorno_de_id is None and m.pk not in estornados
+        ),
+        "por_forma": por_forma,
+        "gaveta": {
+            "troco_centavos": caixa.troco_centavos,
+            "entradas_dinheiro_centavos": entradas_dinheiro,
+            "saidas_dinheiro_centavos": saidas_dinheiro,
+            "esperado_centavos": caixa.troco_centavos + entradas_dinheiro - saidas_dinheiro,
+        },
+    }
+
+
+def esperado_na_gaveta(caixa: Caixa) -> int:
+    return int(resumo_do_caixa(caixa)["gaveta"]["esperado_centavos"])
+
+
+def saidas_do_caixa_centavos(caixa: Caixa) -> int:
+    """Despesas pagas no caixa (saídas, sem sangria): o "despesas" do caixa no painel."""
+    return sum(
+        _sinal(m) * m.valor_centavos
+        for m in caixa.movimentos.all()
+        if m.tipo == TipoMovimento.SAIDA and m.origem_tipo == OrigemTipo.DESPESA
+    )
+
+
+def _pessoa(usuario: Any) -> dict[str, Any] | None:
+    return {"id": usuario.pk, "nome": usuario.nome} if usuario is not None else None
+
+
+def representacao_caixa(caixa: Caixa, perfil: str) -> dict[str, Any]:
+    aberto = caixa.status == StatusCaixa.ABERTO
+    fechamento = None
+    if caixa.status != StatusCaixa.ABERTO or caixa.contado_centavos is not None:
+        fechamento = {
+            "contado_centavos": caixa.contado_centavos,
+            "esperado_centavos": caixa.esperado_centavos,
+            "diferenca_centavos": caixa.diferenca_centavos,
+            "motivo_diferenca": caixa.motivo_diferenca or None,
+            "fechado_por": _pessoa(caixa.fechado_por),
+            "fechado_em": caixa.fechado_em,
+            "pedido_aprovacao_id": caixa.pedido_aprovacao_id,
+        }
+    opera = perfil in RECEBEM
+    return {
+        "id": caixa.pk,
+        "filial": {"id": caixa.filial_id, "nome": caixa.filial.nome},
+        "data": caixa.data,
+        "status": caixa.status,
+        "aberto_por": _pessoa(caixa.aberto_por),
+        "aberto_em": caixa.criado_em,
+        "resumo": resumo_do_caixa(caixa),
+        "fechamento": fechamento,
+        "acoes": {
+            "sangria": aberto and opera,
+            "fechar": aberto and opera,
+            "receber": aberto and opera,
+        },
+    }
+
+
+def representacao_movimento(movimento: MovimentoCaixa) -> dict[str, Any]:
+    origem = None
+    if movimento.origem_tipo:
+        origem = {
+            "tipo": movimento.origem_tipo,
+            "id": movimento.origem_id,
+            "codigo": movimento.origem_codigo or None,
+        }
+    return {
+        "id": movimento.pk,
+        "hora": movimento.criado_em,
+        "tipo": movimento.tipo,
+        "forma": movimento.forma,
+        "descricao": movimento.descricao,
+        "valor_centavos": movimento.valor_centavos,
+        "origem": origem,
+        "registrado_por": movimento.registrado_por.nome if movimento.registrado_por else "Sistema",
+        "estorno_de": movimento.estorno_de_id,
+    }
+
+
+def caixas_abertos_da_filial(filial_id: int) -> int:
+    """FIL-06: caixa `aberto` ou `aguardando_aprovacao` impede desativar a filial."""
+    return int(
+        Caixa.objects.filter(
+            filial_id=filial_id,
+            status__in=(StatusCaixa.ABERTO, StatusCaixa.AGUARDANDO_APROVACAO),
+        ).count()
+    )
+
+
+# --- Despesas (FIN-05, FIN-06) ---
+
+
+def rotulo_da_despesa(despesa: Despesa) -> str:
+    return {
+        StatusDespesa.AGUARDANDO_APROVACAO: "Aguardando gerente",
+        StatusDespesa.A_PAGAR: "A pagar",
+        StatusDespesa.PAGA: "Paga",
+        StatusDespesa.RECUSADA: "Recusada",
+    }[StatusDespesa(despesa.status)]
+
+
+def representacao_despesa(despesa: Despesa) -> dict[str, Any]:
+    nota = None
+    if despesa.nota:
+        assinada = arquivos.url_assinada(despesa.nota.name)
+        nota = {"url": assinada.url, "url_expira_em": assinada.expira_em}
+    return {
+        "id": despesa.pk,
+        "data": despesa.data,
+        "descricao": despesa.descricao,
+        "categoria": despesa.categoria,
+        "veiculo": (
+            {"id": despesa.veiculo_id, "placa": despesa.veiculo.placa}
+            if despesa.veiculo is not None
+            else None
+        ),
+        "filial": {"id": despesa.filial_id},
+        "valor_centavos": despesa.valor_centavos,
+        "vencimento": despesa.vencimento,
+        "status": despesa.status,
+        "pago_em": despesa.pago_em,
+        "forma": despesa.forma or None,
+        "lancada_por": _pessoa(despesa.lancada_por),
+        "nota": nota,
+        "pedido_aprovacao_id": despesa.pedido_aprovacao_id,
+        "rotulo_situacao": rotulo_da_despesa(despesa),
+    }
+
+
+def base_das_despesas() -> QuerySet[Despesa]:
+    return Despesa.objects.select_related("veiculo", "lancada_por")
+
+
+def mes_pedido(texto: str | None, hoje: date) -> date:
+    """`?mes=2026-10`; sem ele (ou inválido), o mês de hoje."""
+    try:
+        ano, mes = (int(x) for x in (texto or "").split("-"))
+        return date(ano, mes, 1)
+    except ValueError:
+        return hoje.replace(day=1)
+
+
+def filtrar_despesas(qs: QuerySet[Despesa], params: Any, hoje: date) -> QuerySet[Despesa]:
+    inicio = mes_pedido(params.get("mes"), hoje)
+    qs = qs.filter(data__gte=inicio, data__lt=_mes_seguinte(inicio))
+    if params.get("status"):
+        qs = qs.filter(status=params["status"])
+    if params.get("categoria"):
+        qs = qs.filter(categoria=params["categoria"])
+    if str(params.get("veiculo", "")).isdigit():
+        qs = qs.filter(veiculo_id=int(params["veiculo"]))
+    return qs
+
+
+def indicadores_das_despesas(qs: QuerySet[Despesa], params: Any, hoje: date) -> dict[str, Any]:
+    """Os números da tela `Despesas` no mês pedido (CA-017-19). Recusadas não entram no gasto."""
+    inicio = mes_pedido(params.get("mes"), hoje)
+    do_mes = qs.filter(data__gte=inicio, data__lt=_mes_seguinte(inicio)).exclude(
+        status=StatusDespesa.RECUSADA
+    )
+    aguardando = do_mes.filter(status=StatusDespesa.AGUARDANDO_APROVACAO).aggregate(
+        centavos=Coalesce(Sum("valor_centavos"), 0), quantidade=Count("id")
+    )
+    fim_semana = hoje + timedelta(days=6 - hoje.weekday())
+    a_pagar_semana = qs.filter(status=StatusDespesa.A_PAGAR, vencimento__lte=fim_semana).aggregate(
+        centavos=Coalesce(Sum("valor_centavos"), 0)
+    )["centavos"]
+    por_categoria = {
+        linha["categoria"]: int(linha["centavos"])
+        for linha in do_mes.values("categoria")
+        .annotate(centavos=Sum("valor_centavos"))
+        .order_by("-centavos")
+    }
+    contagens = {
+        status: qs.filter(data__gte=inicio, data__lt=_mes_seguinte(inicio), status=status).count()
+        for status in StatusDespesa.values
+    }
+    return {
+        "indicadores": {
+            "gasto_mes_centavos": int(do_mes.aggregate(t=Coalesce(Sum("valor_centavos"), 0))["t"]),
+            "aguardando_aprovacao_centavos": int(aguardando["centavos"]),
+            "aguardando_aprovacao_quantidade": int(aguardando["quantidade"]),
+            "a_pagar_semana_centavos": int(a_pagar_semana),
+            "por_categoria": por_categoria,
+        },
+        "contagens": contagens,
+    }
+
+
+def custo_do_veiculo_no_ano(veiculo_id: int, hoje: date) -> int:
+    """VEI-05: despesas do veículo no ano (sem as recusadas), o `custo_manutencao_ano`."""
+    total = (
+        Despesa.objects.filter(veiculo_id=veiculo_id, data__year=hoje.year)
+        .exclude(status=StatusDespesa.RECUSADA)
+        .aggregate(total=Sum("valor_centavos"))["total"]
+    )
+    return int(total or 0)
+
+
+def despesas_a_pagar_ate(filiais: Iterable[int], dia: date) -> Soma:
+    """Despesas `a_pagar` com vencimento até `dia` (contas a pagar do painel)."""
+    total = Despesa.objects.filter(
+        filial_id__in=list(filiais), status=StatusDespesa.A_PAGAR, vencimento__lte=dia
+    ).aggregate(centavos=Coalesce(Sum("valor_centavos"), 0), quantidade=Count("id"))
+    return Soma(int(total["centavos"]), int(total["quantidade"]))
+
+
+# --- Reembolsos e pendências ---
+
+
+def representacao_reembolso(reembolso: Reembolso) -> dict[str, Any]:
+    comprovante = None
+    if reembolso.comprovante:
+        assinada = arquivos.url_assinada(reembolso.comprovante.name)
+        comprovante = {"url": assinada.url, "url_expira_em": assinada.expira_em}
+    return {
+        "id": reembolso.pk,
+        "cliente": {"id": reembolso.cliente_id, "nome": reembolso.cliente.nome},
+        "origem": {
+            "tipo": reembolso.origem_tipo,
+            "id": reembolso.origem_id,
+            "codigo": reembolso.origem_codigo or None,
+        },
+        "valor_centavos": reembolso.valor_centavos,
+        "forma": reembolso.forma,
+        "status": reembolso.status,
+        "feito_em": reembolso.feito_em,
+        "comprovante": comprovante,
+    }
+
+
+def representacao_pendencia(pendencia: PendenciaPagamento) -> dict[str, Any]:
+    conta = pendencia.cobranca.conta_receber
+    return {
+        "id": pendencia.pk,
+        "motivo": pendencia.motivo,
+        "status": pendencia.status,
+        "valor_pago_centavos": pendencia.valor_pago_centavos,
+        "cobranca": representacao_cobranca(pendencia.cobranca),
+        "conta_id": conta.pk,
+        "cliente": {"id": conta.cliente_id, "nome": conta.cliente.nome},
+        "resolucao": pendencia.resolucao or None,
+        "criada_em": pendencia.criado_em,
+    }
+
+
+# --- Painel: caixa e despesas (`relatorios`, docs/api/painel.md) ---
+
+
+def caixas_de_hoje(filiais: Iterable[int], hoje: date) -> list[dict[str, Any]]:
+    """`caixas_do_dia` do início do financeiro: o caixa de hoje de cada filial do escopo."""
+    caixas = (
+        Caixa.objects.filter(filial_id__in=list(filiais), data=hoje)
+        .select_related("filial", "aberto_por")
+        .order_by("-filial__matriz", "filial__nome")
+    )
+    return [
+        {
+            "filial": caixa.filial.nome,
+            "status": caixa.status,
+            "aberto_por": caixa.aberto_por.nome,
+            "esperado_gaveta_centavos": esperado_na_gaveta(caixa),
+        }
+        for caixa in caixas
+    ]
+
+
+def caixa_hoje_do_painel(filial_id: int, hoje: date) -> dict[str, Any] | None:
+    """`caixa_hoje` do início do administrador: recebido no caixa, o "vence hoje" da FIN-15,
+    as despesas pagas no caixa e o saldo do dia (recebido − despesas). Sem caixa hoje: `None`."""
+    caixa = Caixa.objects.select_related("filial").filter(filial_id=filial_id, data=hoje).first()
+    if caixa is None:
+        return None
+    recebido = int(resumo_do_caixa(caixa)["entrou_hoje_centavos"])
+    despesas = saidas_do_caixa_centavos(caixa)
+    return {
+        "filial": caixa.filial.nome,
+        "data": caixa.data,
+        "status": caixa.status,
+        "recebido_centavos": recebido,
+        "a_receber_hoje_centavos": vencem_entre([filial_id], hoje, hoje).centavos,
+        "despesas_centavos": despesas,
+        "saldo_dia_centavos": recebido - despesas,
+    }
+
+
+def despesas_para_aprovar(filiais: Iterable[int], exceto_usuario_id: int | None) -> int:
+    """Contador `despesas`: aguardando aprovação, sem as que a pessoa lançou (APR-09)."""
+    return int(
+        Despesa.objects.filter(
+            filial_id__in=list(filiais), status=StatusDespesa.AGUARDANDO_APROVACAO
+        )
+        .exclude(lancada_por_id=exceto_usuario_id)
+        .count()
+    )
+
+
+def despesas_a_pagar_vencendo(filiais: Iterable[int], ate: date) -> QuerySet[Despesa]:
+    return Despesa.objects.filter(
+        filial_id__in=list(filiais), status=StatusDespesa.A_PAGAR, vencimento__lte=ate
+    ).order_by("vencimento", "id")

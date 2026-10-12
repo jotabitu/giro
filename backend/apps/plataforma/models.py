@@ -264,3 +264,36 @@ class AcessoSuporte(MaquinaDeEstados, ModeloBase):
 
     def __str__(self) -> str:
         return f"Acesso de suporte {self.pk}"
+
+
+class StatusContaPagamento(models.TextChoices):
+    PENDENTE = "pendente", "Pendente"
+    APROVADA = "aprovada", "Aprovada"
+    RECUSADA = "recusada", "Recusada"
+
+
+class ContaPagamento(ModeloBase):
+    """A subconta da empresa no parceiro de pagamentos (ADR 0007, `FIL-04`). O webhook chega no
+    `public`, acha a empresa pelo hash do token e só então entra no schema dela (S-14).
+
+    A T-017 traz o mínimo para o webhook e para "recebimentos desligados"; a chave da API cifrada
+    (`chave_api_cifrada`, ADR 0014) e a criação da subconta entram com a T-029."""
+
+    empresa = models.OneToOneField(
+        Empresa, on_delete=models.PROTECT, related_name="conta_pagamento"
+    )
+    provedor = models.CharField(max_length=10, default="asaas")
+    conta_externa_id = models.CharField(max_length=60, unique=True)
+    webhook_token_hash = models.CharField(max_length=64, unique=True)
+    status = models.CharField(
+        max_length=10, choices=StatusContaPagamento.choices, default=StatusContaPagamento.PENDENTE
+    )
+
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"omitir": ["webhook_token_hash"]}
+
+    class Meta:
+        verbose_name = "conta de pagamento"
+        verbose_name_plural = "contas de pagamento"
+
+    def __str__(self) -> str:
+        return f"{self.provedor} {self.conta_externa_id}"
