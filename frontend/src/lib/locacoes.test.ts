@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { periodoDaLocacao, rotaDaAcaoLocacao, rotuloDaParcela, seloDaParcela, textoDaEstimativa, textoDoPeriodo, textoFaltam } from "./locacoes";
+import { periodoDaLocacao, rotaDaAcaoLocacao, rotuloDaParcela, rotuloDoPagamento, seloDaParcela, textoDaEstimativa, textoDoPeriodo, textoFaltam } from "./locacoes";
 
 const sinais = { pagamento_atrasado: false, devolve_hoje: false, cancelamento_pendente: false };
 
@@ -49,5 +49,20 @@ describe("textos", () => {
     expect(rotaDaAcaoLocacao({ id: 7, acao_principal: { codigo: "cobrar", rotulo: "Cobrar" } })).toBe("/financeiro/receber");
     expect(rotaDaAcaoLocacao({ id: 7, acao_principal: { codigo: "receber_devolucao", rotulo: "Receber devolução" } })).toBe("/locacoes/7/devolucao");
     expect(rotaDaAcaoLocacao({ id: 7, acao_principal: { codigo: "abrir", rotulo: "Abrir" } })).toBe("/locacoes/7");
+  });
+});
+
+describe("rotuloDoPagamento (D-22)", () => {
+  const base = { em_aberto_centavos: 0, pago_centavos: 0 };
+  it("em dia com forma de pagamento vira Pago, como as outras linhas", () => {
+    expect(rotuloDoPagamento({ ...base, rotulo: "Pix", tom: "sucesso" })).toBe("Pago");
+    expect(rotuloDoPagamento({ ...base, rotulo: "Pago", tom: "sucesso" })).toBe("Pago");
+    expect(rotuloDoPagamento({ ...base, rotulo: "Pix automático", tom: "sucesso" })).toBe("Pix automático");
+    expect(rotuloDoPagamento({ ...base, rotulo: "Cartão", tom: "sucesso" })).toBe("Cartão");
+  });
+  it("valor em aberto, multa e valor pago antes da retirada seguem o texto da API", () => {
+    expect(rotuloDoPagamento({ ...base, em_aberto_centavos: 134700, rotulo: "R$ 1.347,00 em aberto", tom: "perigo" })).toBe("R$ 1.347,00 em aberto");
+    expect(rotuloDoPagamento({ ...base, rotulo: "Multa R$ 84,80", tom: "sucesso" })).toBe("Multa R$ 84,80");
+    expect(rotuloDoPagamento({ ...base, rotulo: "R$ 329,00 pago", tom: "sucesso" })).toBe("R$ 329,00 pago");
   });
 });

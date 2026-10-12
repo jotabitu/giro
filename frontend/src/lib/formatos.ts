@@ -14,6 +14,11 @@ export function dinheiroSemZeros(centavos: number): string {
   return centavos % 100 === 0 ? dinheiro(centavos).replace(/,00$/, "") : dinheiro(centavos);
 }
 
+/** Valor que a API pode não mandar (`null`): sem número, "—". Nunca "R$ 0". */
+export function dinheiroSemZerosOuTraco(centavos: number | null | undefined): string {
+  return centavos == null ? "—" : dinheiroSemZeros(centavos);
+}
+
 /** "06 out" para listas. Aceita AAAA-MM-DD ou instante UTC; o dia é o de America/Sao_Paulo. */
 export function dataCurta(iso: string): string {
   const partes = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "numeric" }).formatToParts(paraData(iso));

@@ -15,7 +15,7 @@ import {
 } from "@/lib/api";
 import { cnhMascarada, linhasDoEndereco, ROTULO_PERIODICIDADE, textoDePendencias, textoDeParcelas } from "@/lib/clientes";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
-import { celular, dataCompleta, dataCurta, dinheiro, dinheiroSemZeros, horaCurta, iniciais, mascaraCnpj, mascaraCpf, mesAno, placa, soDigitos } from "@/lib/formatos";
+import { celular, dataCompleta, dataCurta, dinheiro, dinheiroSemZeros, dinheiroSemZerosOuTraco, horaCurta, iniciais, mascaraCnpj, mascaraCpf, mesAno, placa, soDigitos } from "@/lib/formatos";
 import { tomDoStatus } from "@/lib/tom";
 import { useSessao } from "@/lib/sessao";
 import { AnaliseDoCadastro } from "./AnaliseDoCadastro";
@@ -237,8 +237,8 @@ function DesktopCompleto({ c, locacoes, docs, podeLocar, administrador }: Dados 
       </header>
 
       <KpiGrid>
-        <KpiTile destaque rotulo="Total pago" valor={dinheiroSemZeros(fin?.total_pago_centavos ?? 0)} contexto={lista ? `em ${lista.total} locações` : undefined} />
-        <KpiTile rotulo="Em aberto" valor={dinheiroSemZeros(fin?.em_aberto_centavos ?? 0)} contexto={(fin?.em_aberto_centavos ?? 0) > 0 ? "parcelas vencidas" : "nenhuma parcela vencida"} />
+        <KpiTile destaque rotulo="Total pago" valor={dinheiroSemZerosOuTraco(fin?.total_pago_centavos)} contexto={lista ? `em ${lista.total} locações` : undefined} />
+        <KpiTile rotulo="Em aberto" valor={dinheiroSemZerosOuTraco(fin?.em_aberto_centavos)} contexto={fin ? (fin.em_aberto_centavos > 0 ? "parcelas vencidas" : "nenhuma parcela vencida") : undefined} />
         <KpiTile rotulo="Caução em garantia" valor={dinheiroSemZeros(caucao)} contexto={atual && caucao > 0 ? atual.codigo : "sem caução retida"} />
         <KpiTile rotulo="Atrasos" valor={String(lista?.com_atraso ?? 0)} contexto="em pagamentos e devoluções" />
       </KpiGrid>
@@ -456,10 +456,10 @@ function CelularCompleto({ c, locacoes, docs, podeLocar }: Dados & { c: ClienteC
 
       <div className="grid grid-cols-2 gap-2">
         <div className={KPI_DO_CELULAR}>
-          <KpiTile destaque rotulo="Total pago" valor={dinheiroSemZeros(fin?.total_pago_centavos ?? 0)} contexto={lista ? `${lista.total} locações` : undefined} />
+          <KpiTile destaque rotulo="Total pago" valor={dinheiroSemZerosOuTraco(fin?.total_pago_centavos)} contexto={lista ? `${lista.total} locações` : undefined} />
         </div>
         <div className={`${KPI_DO_CELULAR} [&_.wl-kpi]:bg-surface`}>
-          <KpiTile rotulo="Em aberto" valor={dinheiroSemZeros(fin?.em_aberto_centavos ?? 0)} contexto={(fin?.em_aberto_centavos ?? 0) > 0 ? "parcelas vencidas" : "sem atrasos"} />
+          <KpiTile rotulo="Em aberto" valor={dinheiroSemZerosOuTraco(fin?.em_aberto_centavos)} contexto={fin ? (fin.em_aberto_centavos > 0 ? "parcelas vencidas" : "sem atrasos") : undefined} />
         </div>
       </div>
 
