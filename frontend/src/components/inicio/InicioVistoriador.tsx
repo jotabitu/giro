@@ -37,7 +37,7 @@ const COLUNAS: ColunaTabela<ItemAgenda>[] = [
 
 /** Início do vistoriador (USR-08): agenda do dia e avarias abertas. Sem valores em dinheiro. */
 export function InicioVistoriador({ d }: { d: InicioDe<"vistoriador"> }) {
-  const { agenda } = d;
+  const agenda = d.agenda ?? { resumo: "", proxima: null, avarias_abertas: 0, resultados: [] };
   const proxima = agenda.proxima ? agenda.resultados.find((i) => i.id === agenda.proxima?.item_id) : undefined;
   return (
     <div className="flex flex-col gap-6">

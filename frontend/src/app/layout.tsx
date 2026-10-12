@@ -21,7 +21,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <head>
         {/* CSS gerado só de tokens.ts e marca.ts (conteúdo próprio, cor validada como #rrggbb). */}
         <style dangerouslySetInnerHTML={{ __html: cssDosTemas() }} />
-        {/* Marca da empresa: troca em execução por aplicarMarca(). A cor da empresa entra aqui quando a API existir. */}
+        {/* Marca da empresa: troca em execução por aplicarMarca(). As cores da empresa vêm de GET /api/marca/ (lib/marca-empresa.ts). */}
         <style id={ID_ESTILO_MARCA} dangerouslySetInnerHTML={{ __html: cssDaMarca(MARCA_PADRAO) }} />
       </head>
       <body>

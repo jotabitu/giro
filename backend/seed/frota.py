@@ -122,6 +122,76 @@ NOMEADOS: dict[str, dict[str, Any]] = {
 }
 
 
+# Só no seed de conferência (T-138): os veículos das locações das telas, com as placas delas. O
+# SAK1D39 fica alugado (LOC-2856, Lucas). Os testes de aceitação usam `NOMEADOS` como estava.
+NOMEADOS_DA_CONFERENCIA: dict[str, dict[str, Any]] = {
+    **NOMEADOS,
+    "SAK1D39": {**NOMEADOS["SAK1D39"], "status": "alugado"},
+    "PQD6E21": {
+        "categoria": "Urbana 110–125",
+        "status": "alugado",  # LOC-2790, Rafael Sousa
+        "chassi": "9C2JC7510PR100621",
+        "marca": "Honda",
+        "modelo": "Pop 110i",
+        "ano_fabricacao": 2023,
+        "ano_modelo": 2023,
+        "cor": "preta",
+        "km_atual": 24380,
+    },
+    "RJD5B38": {
+        "categoria": "Urbana 110–125",
+        "status": "alugado",  # LOC-2850, Marcos Viana
+        "chassi": "9C2JC4810PR103875",
+        "marca": "Honda",
+        "modelo": "Biz 125",
+        "ano_fabricacao": 2024,
+        "ano_modelo": 2024,
+        "cor": "vermelha",
+        "km_atual": 11260,
+    },
+    "SBC0J44": {
+        "categoria": "Scooter premium",
+        "status": "alugado",  # LOC-2812, Patrícia Gomes
+        "chassi": "9C6SG5010PR004404",
+        "marca": "Yamaha",
+        "modelo": "NMax 160",
+        "ano_fabricacao": 2024,
+        "ano_modelo": 2024,
+        "cor": "azul",
+        "km_atual": 8740,
+    },
+    "RKP3D26": {
+        "categoria": "Carro compacto",
+        "status": "alugado",  # LOC-2848, Diego Martins
+        "chassi": "93YRBB005PJ226126",
+        "marca": "Renault",
+        "modelo": "Kwid",
+        "ano_fabricacao": 2023,
+        "ano_modelo": 2023,
+        "cor": "branca",
+        "km_atual": 33470,
+    },
+}
+
+CORES = ("preta", "vermelha", "branca", "azul", "prata", "cinza")
+ANOS = (2023, 2024, 2025, 2024, 2023)
+LETRAS = "ABCDEFGHJKLMNPQRSTUVWXYZ"  # sem I e O
+
+
+def placa_do_seed(numero: int) -> str:
+    """Placa Mercosul fictícia e fixa por número (AAA1A11), fora das placas dos veículos citados."""
+    n = (numero * 7919 + 4421) % (len(LETRAS) ** 3 * 10)
+    letras, digito = divmod(n, 10)
+    a, resto = divmod(letras, len(LETRAS) ** 2)
+    b, c = divmod(resto, len(LETRAS))
+    fim = f"{LETRAS[numero % 24]}{numero % 10}{(numero // 10) % 10}"
+    return f"{LETRAS[a]}{LETRAS[b]}{LETRAS[c]}{digito}{fim}"
+
+
+def chassi_do_seed(numero: int) -> str:
+    return f"9C2JC{numero:05d}RR{100000 + numero * 17:06d}"[:17]
+
+
 @dataclass
 class Frota:
     centro: Filial
@@ -167,16 +237,17 @@ def cadastrar_veiculo(
 ) -> Veiculo:
     """Veículo pelo serviço de cadastro (nasce `disponivel`) e, se for o caso, a transição de
     status com a origem `seed`."""
+    ano = ANOS[numero % len(ANOS)]
     padrao: dict[str, Any] = {
-        "placa": f"GEN{numero:04d}",
-        "chassi": f"9C2GEN{numero:011d}",
+        "placa": placa_do_seed(numero),
+        "chassi": chassi_do_seed(numero),
         "marca": "Honda",
         "modelo": "Pop 110i",
-        "ano_fabricacao": 2024,
-        "ano_modelo": 2024,
-        "cor": "preta",
-        "km_atual": 1000 + numero,
-        "entrou_na_frota_em": date(2025, 1, 10),
+        "ano_fabricacao": ano,
+        "ano_modelo": ano,
+        "cor": CORES[numero % len(CORES)],
+        "km_atual": 1500 + (numero * 1373) % 28000,
+        "entrou_na_frota_em": date(ano + 1 if ano < 2025 else ano, 1 + numero % 9, 10),
     }
     veiculo = veiculos_services.cadastrar(
         {**padrao, **dados, "categoria_id": categoria.pk, "filial_id": filial.pk}
@@ -193,10 +264,10 @@ def montar_frota(centro: Filial, empresa: Any, relogio: RelogioDoSeed) -> Frota:
     numero = 0
     for nome, (_, modelos, por_status) in DISTRIBUICAO.items():
         categoria = frota.categorias[nome]
-        nomeados = [p for p, d in NOMEADOS.items() if d["categoria"] == nome]
+        nomeados = [p for p, d in NOMEADOS_DA_CONFERENCIA.items() if d["categoria"] == nome]
         faltam = dict(por_status)
         for placa in nomeados:
-            dados = {k: v for k, v in NOMEADOS[placa].items() if k != "categoria"}
+            dados = {k: v for k, v in NOMEADOS_DA_CONFERENCIA[placa].items() if k != "categoria"}
             faltam[dados["status"]] -= 1
             status = dados.pop("status")
             frota.veiculos[placa] = cadastrar_veiculo(

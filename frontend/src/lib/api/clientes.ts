@@ -5,7 +5,7 @@ import type {
   ClienteCompleto,
   ClienteResumo,
   FiltroClientes,
-  HistoricoDoCliente,
+  DetalheDaLocacaoAtual,
   ListaClientes,
   LocacaoDoCliente,
   LocacoesDoCliente,
@@ -14,26 +14,29 @@ import type {
 } from "./tipos-clientes";
 import type { LocacaoCompleta, ListaLocacoes } from "./tipos-locacoes";
 
-const SEM_FIM = new Set(["encerrada", "cancelada"]);
+const EM_ANDAMENTO = new Set(["aguardando_retirada", "ativa", "devolucao_atrasada"]);
 
-function daLocacao(l: LocacaoCompleta): LocacaoDoCliente {
-  const parcelas = (l.parcelas ?? []).filter((p) => p.tipo === "parcela");
-  const caucao = (l.parcelas ?? []).find((p) => p.tipo === "caucao");
+function daLinha(l: ListaLocacoes["resultados"][number]): LocacaoDoCliente {
   return {
     id: l.id,
     codigo: l.codigo,
     status: l.status as LocacaoDoCliente["status"],
-    // O contrato de locações não traz o tipo do veículo; a ficha só usa para o ícone.
-    veiculo: { id: l.veiculo.id, modelo: l.veiculo.modelo, placa: l.veiculo.placa, tipo_veiculo: "moto" },
+    veiculo: { id: l.veiculo.id, modelo: l.veiculo.modelo, placa: l.veiculo.placa, tipo: l.veiculo.tipo },
     periodicidade: l.periodicidade,
     inicio: l.inicio ?? "",
     fim_previsto: l.fim_previsto ?? "",
     situacao: l.situacao,
-    pago_centavos: l.total_pago_centavos ?? 0,
-    pago_detalhe: "",
+    pago_centavos: l.pagamento?.pago_centavos ?? 0,
+  };
+}
+
+function doDetalhe(l: LocacaoCompleta): DetalheDaLocacaoAtual {
+  const parcelas = (l.parcelas ?? []).filter((p) => p.tipo === "parcela");
+  const caucao = (l.parcelas ?? []).find((p) => p.tipo === "caucao");
+  return {
     valor_periodo_centavos: l.precos?.valor_periodo_centavos ?? 0,
     caucao_centavos: l.precos?.caucao_centavos ?? 0,
-    caucao_em_garantia: !SEM_FIM.has(l.status) && caucao?.status === "paga",
+    caucao_em_garantia: caucao?.status === "paga",
     parcelas_pagas: parcelas.filter((p) => p.status === "paga").length,
     parcelas_total: parcelas.length,
   };
@@ -56,21 +59,17 @@ export const clientesApi = {
     return http.post<ClienteCompleto>("/api/clientes/", c);
   },
 
-  /** `GET /api/locacoes/?cliente=` mais o detalhe de cada uma, de onde saem o pago, a caução e as parcelas. */
+  /** `GET /api/locacoes/?cliente=`: o pago e o tipo do veículo vêm na linha. Só a locação em andamento abre o detalhe, para o preço, as parcelas e a caução. */
   async locacoes(id: number): Promise<LocacoesDoCliente> {
     const lista = await http.get<ListaLocacoes>("/api/locacoes/", { cliente: id, ordem: "-inicio", tamanho: 100 });
-    const detalhes = await Promise.all(lista.resultados.map((l) => http.get<LocacaoCompleta>(`/api/locacoes/${l.id}/`)));
+    const resultados = lista.resultados.map(daLinha);
+    const atual = resultados.find((l) => EM_ANDAMENTO.has(l.status));
+    if (atual) atual.detalhe = doDetalhe(await http.get<LocacaoCompleta>(`/api/locacoes/${atual.id}/`));
     return {
-      total: lista.resultados.length,
+      total: resultados.length,
       com_atraso: lista.resultados.filter((l) => l.sinais.pagamento_atrasado || l.status === "devolucao_atrasada").length,
-      resultados: detalhes.map(daLocacao),
+      resultados,
     };
-  },
-
-  /** Não existe rota de linha do tempo do cliente (a auditoria é só leitura da plataforma): a seção vem vazia. */
-  async historico(id: number): Promise<HistoricoDoCliente> {
-    void id;
-    return { resultados: [] };
   },
 
   enviarDocumento(id: number, tipo: TipoDocumentoCliente, arquivo: File): Promise<ClienteCompleto> {

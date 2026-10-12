@@ -1,9 +1,12 @@
 // Ficha do veículo (T-102) contra docs/telas/html/Veiculo-Desktop.dc.html e Veiculo-Mobile.dc.html.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeAll, describe, expect, it } from "vitest";
-import { contas, veiculos, type VeiculoDetalhe } from "@/lib/api";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { contas, veiculos, type Eu, type VeiculoDetalhe } from "@/lib/api";
 import { FichaVeiculo } from "./FichaVeiculo";
+
+const sessao = vi.hoisted(() => ({ eu: null as unknown }));
+vi.mock("@/lib/sessao", () => ({ useSessao: () => ({ eu: sessao.eu as Eu, sair: async () => {} }) }));
 
 async function pagina(id: number): Promise<{ desktop: string; celular: string }> {
   const [ficha, docs, locacoes, manutencoes] = await Promise.all([veiculos.obter(id), veiculos.documentos(id), veiculos.locacoes(id), veiculos.manutencoes(id)]);
@@ -34,6 +37,7 @@ const ordem = (h: string, trechos: string[]) => {
 async function entrarComo(email: string) {
   const r = await contas.entrar({ email, senha: "senhaforte123", aparelho: "desktop" });
   if (r.etapa !== "pronto") throw new Error("esperava pronto");
+  sessao.eu = await contas.eu();
 }
 
 describe("ficha do veículo, gerente", () => {
@@ -112,4 +116,18 @@ describe("ficha do veículo sem histórico", () => {
 it("o tipo de veículo vem do contrato", async () => {
   const v: VeiculoDetalhe = await veiculos.obter(503);
   expect(v.tipo_veiculo).toBe("carro");
+});
+
+describe("ficha do veículo sem o módulo de manutenção no menu", () => {
+  it("esconde a seção Manutenções em vez de mostrá-la vazia (T-128)", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    const eu = sessao.eu as Eu;
+    sessao.eu = { ...eu, navegacao: { ...eu.navegacao, menu_completo: eu.navegacao.menu_completo.map((g) => ({ ...g, itens: g.itens.filter((i) => i.chave !== "manutencoes") })) } };
+    const { desktop, celular } = await pagina(504);
+    for (const h of [desktop, celular]) {
+      expect(h).not.toContain("Manutenções");
+      expect(h).not.toContain("Nenhuma manutenção registrada.");
+      expect(h).toContain("Documentos");
+    }
+  });
 });

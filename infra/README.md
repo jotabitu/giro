@@ -107,10 +107,10 @@ Valores por ambiente (o processo precisa de `DJANGO_SETTINGS_MODULE`; `wsgi.py`,
 | Variável | dev | homologação | produção |
 | --- | --- | --- | --- |
 | `DJANGO_SETTINGS_MODULE` | `config.settings.dev` | `config.settings.prod` | `config.settings.prod` |
-| `JWT_SIGNING_KEY` | vazia (usa `DJANGO_SECRET_KEY`) | obrigatória, própria | obrigatória, própria |
+| `JWT_SIGNING_KEY` | ausente ou vazia (usa `DJANGO_SECRET_KEY`) | obrigatória, própria; vazia é recusada | obrigatória, própria; vazia é recusada |
 | `GIRO_PROXIES_CONFIAVEIS` | 1 (Next) | 1 (proxy reverso) | 1 (proxy reverso) |
 | `GIRO_REDES_PROXY` | faixas privadas do Docker | rede do proxy reverso | rede do proxy reverso |
-| `GIRO_CHAVE_DADOS_PESSOAIS`, `GIRO_CHAVE_SEGREDOS`, `GIRO_PEPPER_HMAC` | valores de exemplo do `.env.example` | obrigatórios, próprios, do cofre | obrigatórios, próprios, do cofre |
+| `GIRO_CHAVE_DADOS_PESSOAIS`, `GIRO_CHAVE_SEGREDOS`, `GIRO_PEPPER_HMAC` | valores de exemplo do `.env.example` (ausente ou vazia cai neles) | obrigatórios, próprios, do cofre; vazios são recusados | obrigatórios, próprios, do cofre; vazios são recusados |
 
 Modelos de homologação e produção, só com o que difere do dev: `infra/deploy/homologacao.env.example` e `infra/deploy/producao.env.example`. A `GIRO_REDES_PROXY` deles é um exemplo (`10.20.0.0/24`, `10.10.0.0/24`) e deve ser trocada pela sub-rede real do proxy reverso quando o ambiente existir; `prod.py` recusa lista vazia, rede inválida e `/0`.
 | `DJANGO_HSTS_SEGUNDOS` / `DJANGO_HSTS_PRELOAD` | não se aplica | curto / 0 até estabilizar | 31536000 / 1 |

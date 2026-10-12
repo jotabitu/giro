@@ -2,19 +2,21 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { aplicarMarca } from "@/design-system";
-import type { Eu, MarcaEmpresa } from "@/lib/api";
+import { ID_ESTILO_MARCA } from "@/design-system";
+import { marca as marcaApi } from "@/lib/api";
+import { cssDaMarcaDaApi, MARCA_NEUTRA, marcaDaTela, type MarcaDaTela } from "@/lib/marca";
 
-// Ainda não existe contrato de marca da empresa (logo e cor: tela Admin-Marca, app `empresas`). Até lá o nome vem de
-// `eu.empresa.nome_exibicao`, a cor fica a do design system e a tela de login, sem sessão, usa o texto neutro abaixo.
-const SEM_SESSAO: MarcaEmpresa = { nome: "Sua locadora" };
-
-/** Marca da locadora (logo, cor, nome): aplica --brand, --on-brand e --brand-soft quando a API trouxer a cor. */
-export function useMarcaDaEmpresa(): MarcaEmpresa {
-  const { data } = useQuery<Eu>({ queryKey: ["eu"], enabled: false });
-  const marca: MarcaEmpresa = data ? { nome: data.empresa.nome_exibicao } : SEM_SESSAO;
+/**
+ * Marca da locadora (GET /api/marca/, a mesma com ou sem sessão): aplica --brand, --on-brand e --brand-soft
+ * com as cores que a API calculou e devolve nome, iniciais e logo. Uma leitura por carga, renovada a cada 5 min.
+ * Sem empresa no host (404) ou com falha, vale a marca neutra.
+ */
+export function useMarcaDaEmpresa(): MarcaDaTela {
+  const { data } = useQuery({ queryKey: ["marca"], queryFn: () => marcaApi.obter(), staleTime: 5 * 60_000 });
+  const css = data ? cssDaMarcaDaApi(data) : null;
   useEffect(() => {
-    if (marca.corHex) aplicarMarca(marca.corHex);
-  }, [marca.corHex]);
-  return marca;
+    const el = document.getElementById(ID_ESTILO_MARCA);
+    if (css && el) el.textContent = css;
+  }, [css]);
+  return data === undefined ? MARCA_NEUTRA : marcaDaTela(data);
 }

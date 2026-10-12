@@ -7,7 +7,6 @@ import {
   type ClienteCompleto,
   type ClienteResumo,
   type FiltroClientes,
-  type HistoricoDoCliente,
   type ListaClientes,
   type LocacoesDoCliente,
   type NovoCliente,
@@ -78,20 +77,11 @@ const LOCACOES: Record<number, LocacoesDoCliente> = {
     total: 3,
     com_atraso: 0,
     resultados: [
-      { id: 2836, codigo: "LOC-2836", status: "ativa", veiculo: { id: 412, modelo: "Yamaha Factor 150", placa: "PNB7C04", tipo_veiculo: "moto" }, periodicidade: "semanal", inicio: "2026-09-30T21:00:00Z", fim_previsto: "2026-10-14T21:00:00Z", situacao: { codigo: "ativa", rotulo: "Ativa", tom: "sucesso" }, pago_centavos: 95800, pago_detalhe: "2 semanas + caução R$ 300,00", valor_periodo_centavos: 32900, caucao_centavos: 30000, caucao_em_garantia: true, parcelas_pagas: 2, parcelas_total: 2 },
-      { id: 2760, codigo: "LOC-2760", status: "encerrada", veiculo: { id: 412, modelo: "Yamaha Factor 150", placa: "PNB7C04", tipo_veiculo: "moto" }, periodicidade: "mensal", inicio: "2026-08-01T15:00:00Z", fim_previsto: "2026-08-31T15:00:00Z", situacao: { codigo: "encerrada", rotulo: "Encerrada", tom: "neutro" }, pago_centavos: 119000, pago_detalhe: "caução devolvida", valor_periodo_centavos: 89000, caucao_centavos: 30000, caucao_em_garantia: false, parcelas_pagas: 1, parcelas_total: 1 },
-      { id: 2701, codigo: "LOC-2701", status: "encerrada", veiculo: { id: 501, modelo: "Honda CG 160 Fan", placa: "QXA4B21", tipo_veiculo: "moto" }, periodicidade: "semanal", inicio: "2026-06-02T15:00:00Z", fim_previsto: "2026-06-12T15:00:00Z", situacao: { codigo: "encerrada", rotulo: "Encerrada", tom: "neutro" }, pago_centavos: 52600, pago_detalhe: "1 semana + 3 diárias + combustível", valor_periodo_centavos: 29900, caucao_centavos: 30000, caucao_em_garantia: false, parcelas_pagas: 1, parcelas_total: 1 },
+      { id: 2836, codigo: "LOC-2836", status: "ativa", veiculo: { id: 412, modelo: "Yamaha Factor 150", placa: "PNB7C04", tipo: "moto" }, periodicidade: "semanal", inicio: "2026-09-30T21:00:00Z", fim_previsto: "2026-10-14T21:00:00Z", situacao: { codigo: "ativa", rotulo: "Ativa", tom: "sucesso" }, pago_centavos: 65800, detalhe: { valor_periodo_centavos: 32900, caucao_centavos: 30000, caucao_em_garantia: true, parcelas_pagas: 2, parcelas_total: 2 } },
+      { id: 2760, codigo: "LOC-2760", status: "encerrada", veiculo: { id: 412, modelo: "Yamaha Factor 150", placa: "PNB7C04", tipo: "moto" }, periodicidade: "mensal", inicio: "2026-08-01T15:00:00Z", fim_previsto: "2026-08-31T15:00:00Z", situacao: { codigo: "encerrada", rotulo: "Encerrada", tom: "neutro" }, pago_centavos: 89000 },
+      { id: 2701, codigo: "LOC-2701", status: "encerrada", veiculo: { id: 501, modelo: "Honda CG 160 Fan", placa: "QXA4B21", tipo: "moto" }, periodicidade: "semanal", inicio: "2026-06-02T15:00:00Z", fim_previsto: "2026-06-12T15:00:00Z", situacao: { codigo: "encerrada", rotulo: "Encerrada", tom: "neutro" }, pago_centavos: 52600 },
     ],
   },
-};
-
-const HISTORICO: Record<number, HistoricoDoCliente["resultados"]> = {
-  1201: [
-    { em: "2026-10-07T11:02:00Z", rotulo: "Pagou a 2ª semana da LOC-2836", detalhe: "Pix · R$ 329,00" },
-    { em: "2026-10-01T15:00:00Z", rotulo: "Retirou a Yamaha Factor 150 (LOC-2836)", detalhe: "vistoria de saída por João Silva" },
-    { em: "2026-08-31T15:00:00Z", rotulo: "Encerrou a LOC-2760 sem pendências", detalhe: "caução de R$ 300,00 devolvida" },
-    { em: "2026-03-04T13:00:00Z", rotulo: "Cadastro criado", detalhe: "por Bruna Alves · autorizou o uso dos dados (LGPD)" },
-  ],
 };
 
 const TIPOS_DOCUMENTO: TipoDocumentoCliente[] = ["cnh_frente", "cnh_verso", "selfie_documento", "comprovante_residencia"];
@@ -302,15 +292,10 @@ export const clientesFalso = {
     return completo(r);
   },
 
-  // Falsos: vêm de GET /api/locacoes/?cliente= (T-015) e de eventos de auditoria; ainda sem contrato para a ficha do cliente.
+  // Como a API: a lista de GET /api/locacoes/?cliente= e, só na locação em andamento, o detalhe dela.
   async locacoes(id: number): Promise<LocacoesDoCliente> {
     await pausa(150);
     return LOCACOES[id] ?? { total: 0, com_atraso: 0, resultados: [] };
-  },
-
-  async historico(id: number): Promise<HistoricoDoCliente> {
-    await pausa(150);
-    return { resultados: HISTORICO[id] ?? [] };
   },
 
   async enviarDocumento(id: number, tipo: TipoDocumentoCliente, arquivo: File): Promise<ClienteCompleto> {
