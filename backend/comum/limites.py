@@ -97,6 +97,12 @@ class AcessoPorIP(_PorIP):
     scope = "acesso_ip"
 
 
+class MarcaPorIP(_PorIP):
+    """Marca e logo da empresa, públicas e lidas em toda abertura do login (`empresas.md`)."""
+
+    scope = "marca_ip"
+
+
 class CepPorUsuario(_PorUsuario):
     """Busca de CEP: cada CEP novo é uma chamada ao ViaCEP (F-05 da T-064)."""
 

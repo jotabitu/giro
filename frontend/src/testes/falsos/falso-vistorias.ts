@@ -246,17 +246,25 @@ function acertoDe(dev: Devolucao): AcertoDaDevolucao {
     itens.push({ id: 4000 + p.numero, tipo: "parcela_aberta", descricao: `Parcela ${p.numero} de ${p.total} · ${venc}`, valor_centavos: devido.total, modo: "calculado", avaria_id: null, conta_id: 9000 + p.numero });
   }
   itens.push(...dev.informados.filter((i) => i.tipo !== "avaria"));
+  // LOC-09: um item `diferenca_troca` por troca concluída; negativa vira crédito, com o valor sempre positivo.
+  const creditos: ItemDoAcerto[] = [];
+  if (d.diferencaTrocaCentavos !== 0) {
+    const credito = d.diferencaTrocaCentavos < 0;
+    const item: ItemDoAcerto = { id: 5000, tipo: "diferenca_troca", descricao: "Diferença do período de 07/10 a 14/10 na troca pela Yamaha NMax 160 GEN0001", valor_centavos: Math.abs(d.diferencaTrocaCentavos), modo: "calculado", avaria_id: null, conta_id: null, natureza: credito ? "credito" : "cobranca" };
+    (credito ? creditos : itens).push(item);
+  }
   const total = itens.reduce((a, i) => a + i.valor_centavos, 0);
-  const saldo = d.caucaoCentavos - total;
+  const totalCreditos = creditos.reduce((a, i) => a + i.valor_centavos, 0);
+  const saldo = d.caucaoCentavos + totalCreditos - total;
   const tipo = saldo > 0 ? "devolver" : saldo < 0 ? "cobrar" : "zerado";
   const antecipada = diaDe(dev.devolvidaEm) < diaDe(d.fim) && !d.cancelamentoAprovado;
   return {
     status: dev.status === "concluida" ? "concluido" : "rascunho",
     caucao_centavos: d.caucaoCentavos,
     itens,
-    creditos: [],
+    creditos,
     total_cobrancas_centavos: total,
-    total_creditos_centavos: 0,
+    total_creditos_centavos: totalCreditos,
     saldo_centavos: saldo,
     resultado: {
       tipo,

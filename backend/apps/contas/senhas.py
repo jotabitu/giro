@@ -10,7 +10,7 @@ from typing import Any
 from django.contrib.auth.password_validation import CommonPasswordValidator
 from django.core.exceptions import ValidationError
 
-from comum.conexao import conexao
+from comum.empresa import nome_da_empresa
 
 TAMANHO_MINIMO = 12
 
@@ -46,7 +46,7 @@ class DiferenteDoEmailEDaEmpresa:
         proibidas = {_comparavel(email), _comparavel(email.split("@")[0])}
         if senha_comparavel and senha_comparavel in proibidas - {""}:
             raise ValidationError("A senha não pode ser o seu e-mail.", code="senha_e_email")
-        empresa = getattr(getattr(conexao(), "tenant", None), "nome_exibicao", "") or ""
+        empresa = nome_da_empresa()
         if empresa and senha_comparavel == _comparavel(empresa):
             raise ValidationError("A senha não pode ser o nome da empresa.", code="senha_e_empresa")
 

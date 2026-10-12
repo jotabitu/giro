@@ -330,3 +330,8 @@ def item_da_lista(empresa: Empresa) -> dict[str, Any]:
         "situacao": situacao(empresa),
         "ultimo_acesso_em": uso.ultimo_acesso_em,
     }
+
+
+def passos_implantacao(empresa: Empresa) -> dict[str, Any]:
+    """`{passo: concluído em}` da implantação (IMP-05), lido do `public` (painel da empresa)."""
+    return dict(_uso(empresa).passos_implantacao or {})

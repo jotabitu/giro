@@ -19,6 +19,7 @@ from apps.empresas.selectors import configuracao
 from apps.financeiro import selectors as financeiro_selectors
 from comum import relogio
 from comum.dinheiro import aplicar_percentual, formatar_reais
+from comum.empresa import nome_da_empresa
 from comum.erros import Conflito
 
 from .models import FormaPagamento, Locacao, Periodicidade, StatusDesconto, StatusLocacao
@@ -96,7 +97,7 @@ def valores(locacao: Locacao) -> dict[str, str]:
     cidade_da_empresa = getattr(empresa, "cidade", "") or filial.cidade
     uf_da_empresa = getattr(empresa, "uf", "") or filial.uf
     return {
-        "empresa.nome": str(getattr(empresa, "nome_exibicao", "")),
+        "empresa.nome": nome_da_empresa(),
         "empresa.razao_social": str(getattr(empresa, "razao_social", "") or ""),
         "empresa.cnpj": _cpf_ou_cnpj(str(getattr(empresa, "cnpj", "") or "")),
         "empresa.endereco": _endereco(filial),

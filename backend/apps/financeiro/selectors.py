@@ -6,6 +6,7 @@ lista inteira da origem), `comissoes_confirmadas_centavos` e `devido_ate` (a ún
 FIN-03).
 """
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
@@ -141,7 +142,8 @@ def _soma(filtro: Q, origem_tipo: str) -> Subquery:
 
 def anotar_resumo_da_origem(qs: QuerySet[Any], origem_tipo: str, hoje: date) -> QuerySet[Any]:
     """Para listas da origem, sem N+1: `fin_atrasado_centavos` (vencidas e não pagas),
-    `fin_parcela_atrasada` (a mais antiga), `fin_pago_centavos` (com caução) e `fin_abertas`."""
+    `fin_parcela_atrasada` (a mais antiga), `fin_pago_centavos` (com caução),
+    `fin_pago_sem_caucao_centavos` (FIN-13, a linha da lista de locações) e `fin_abertas`."""
     atrasada = Q(status=StatusConta.ABERTA, vencimento__lt=hoje)
     primeira_atrasada = Subquery(
         ContaReceber.objects.filter(
@@ -167,6 +169,9 @@ def anotar_resumo_da_origem(qs: QuerySet[Any], origem_tipo: str, hoje: date) -> 
         fin_atrasado_centavos=Coalesce(_soma(atrasada, origem_tipo), 0),
         fin_parcela_atrasada=primeira_atrasada,
         fin_pago_centavos=Coalesce(_soma(Q(status=StatusConta.PAGA), origem_tipo), 0),
+        fin_pago_sem_caucao_centavos=Coalesce(
+            _soma(Q(status=StatusConta.PAGA) & ~Q(tipo=TipoConta.CAUCAO), origem_tipo), 0
+        ),
         fin_abertas=Coalesce(abertas, 0),
     )
 
@@ -178,3 +183,86 @@ def comissoes_confirmadas_centavos(usuario_id: int, mes: date) -> int:
         usuario_id=usuario_id, status=StatusComissao.CONFIRMADA, mes_pagamento=seguinte
     ).aggregate(total=Sum("valor_centavos"))["total"]
     return int(total or 0)
+
+
+# --- Painel (`relatorios`, docs/api/painel.md) ---
+
+
+@dataclass(frozen=True)
+class Soma:
+    centavos: int
+    quantidade: int
+    clientes: int = 0
+
+
+def contas_do_painel(filiais: Iterable[int]) -> QuerySet[ContaReceber]:
+    """FIN-15: contas das filiais do escopo, sem caução e sem as canceladas e renegociadas.
+    Valores sem multa e juros."""
+    return ContaReceber.objects.filter(filial_id__in=list(filiais)).exclude(
+        Q(tipo=TipoConta.CAUCAO) | Q(status__in=(StatusConta.CANCELADA, StatusConta.RENEGOCIADA))
+    )
+
+
+def _somar(qs: QuerySet[ContaReceber]) -> Soma:
+    total = qs.aggregate(
+        centavos=Coalesce(Sum("valor_centavos"), 0),
+        quantidade=Count("id"),
+        clientes=Count("cliente_id", distinct=True),
+    )
+    return Soma(int(total["centavos"]), int(total["quantidade"]), int(total["clientes"]))
+
+
+def atrasadas(filiais: Iterable[int], hoje: date, origens: Iterable[int] | None = None) -> Soma:
+    """FIN-01 e FIN-15: contas `atrasada` (abertas e vencidas), de qualquer mês. Com `origens`,
+    só as dessas locações (as do vendedor)."""
+    qs = contas_do_painel(filiais).filter(status=StatusConta.ABERTA, vencimento__lt=hoje)
+    if origens is not None:
+        qs = qs.filter(origem_tipo="locacao", origem_id__in=list(origens))
+    return _somar(qs)
+
+
+def atrasadas_das_origens(origens: Iterable[int], hoje: date) -> QuerySet[ContaReceber]:
+    """Parcelas atrasadas das locações do vendedor, da mais antiga para a mais nova."""
+    return (
+        ContaReceber.objects.filter(
+            origem_tipo="locacao",
+            origem_id__in=list(origens),
+            status=StatusConta.ABERTA,
+            vencimento__lt=hoje,
+        )
+        .exclude(tipo=TipoConta.CAUCAO)
+        .select_related("cliente")
+        .order_by("vencimento", "id")
+    )
+
+
+def vencem_entre(filiais: Iterable[int], de: date, ate: date) -> Soma:
+    """Contas ainda não pagas com vencimento entre `de` e `ate` (o "vence hoje" da FIN-15 com
+    `de == ate == hoje`)."""
+    return _somar(
+        contas_do_painel(filiais).filter(
+            status=StatusConta.ABERTA, vencimento__gte=de, vencimento__lte=ate
+        )
+    )
+
+
+def em_aberto(filiais: Iterable[int]) -> int:
+    """Tudo o que ainda não foi pago, sem caução (o "a receber" da implantação)."""
+    return _somar(contas_do_painel(filiais).filter(status=StatusConta.ABERTA)).centavos
+
+
+def receita_de_locacao(filiais: Iterable[int], de: datetime, ate: datetime) -> int:
+    """Contas de locação pagas no período, sem caução (FIN-13), pelo valor da conta."""
+    return _somar(
+        contas_do_painel(filiais).filter(
+            origem_tipo="locacao", status=StatusConta.PAGA, pago_em__gte=de, pago_em__lt=ate
+        )
+    ).centavos
+
+
+def reembolsos_a_fazer(filiais: Iterable[int]) -> QuerySet[Reembolso]:
+    return (
+        Reembolso.objects.filter(filial_id__in=list(filiais), status="a_fazer")
+        .select_related("cliente")
+        .order_by("criado_em", "id")
+    )

@@ -32,6 +32,7 @@ from comum.autenticacao import (
     recusar_token_de_suporte,
     veio_do_frontend,
 )
+from comum.empresa import nome_da_empresa
 from comum.erros import (
     Conflito,
     ErroDeRegra,
@@ -443,7 +444,7 @@ class Configurar2FAView(APIView):
         if not services.pode_configurar_2fa(usuario):
             raise SemPermissao("convite_expirado", services.CONVITE_VENCIDO)
         dispositivo = dois_fatores.novo_autenticador(usuario)
-        marca = str(getattr(request.tenant, "nome_exibicao", ""))  # type: ignore[attr-defined]
+        marca = nome_da_empresa()  # o nome no autenticador (USR-02) é o da marca
         return Response(
             {
                 "otpauth_uri": dispositivo.config_url_para(marca),

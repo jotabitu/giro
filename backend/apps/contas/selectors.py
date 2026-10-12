@@ -9,7 +9,7 @@ from typing import Any
 from django.db.models import Count, Exists, Max, OuterRef, Q, Subquery
 
 from comum import permissoes
-from comum.empresa import STATUS_OPERANDO
+from comum.empresa import STATUS_OPERANDO, nome_da_empresa
 
 from . import navegacao
 from .models import Perfil, PermissaoExtra, StatusUsuario, Usuario
@@ -245,7 +245,7 @@ def dados_do_eu_suporte(ator: Any, empresa: Any) -> dict[str, Any]:
             "motivo": ator.motivo,
         },
         "empresa": {
-            "nome_exibicao": getattr(empresa, "nome_exibicao", ""),
+            "nome_exibicao": nome_da_empresa(),  # o mesmo de GET /api/marca/
             "status": status_empresa,
             "somente_leitura": status_empresa not in STATUS_OPERANDO,
         },
@@ -275,8 +275,61 @@ def dados_do_eu(usuario: Usuario, empresa: Any) -> dict[str, Any]:
         "navegacao": navegacao.da_empresa(empresa, usuario.perfil, pode),
         "suporte": None,
         "empresa": {
-            "nome_exibicao": getattr(empresa, "nome_exibicao", ""),
+            "nome_exibicao": nome_da_empresa(),  # o mesmo de GET /api/marca/
             "status": status_empresa,
             "somente_leitura": status_empresa not in STATUS_OPERANDO,
         },
+    }
+
+
+# --- Painel (`relatorios`, docs/api/painel.md) ---
+
+STATUS_DO_CONVITE = {StatusUsuario.ATIVO: "aceito", StatusUsuario.CONVITE_PENDENTE: "pendente"}
+
+
+def convites_enviados() -> list[dict[str, Any]]:
+    """Quem foi convidado (aceitou ou não), na ordem do convite: a implantação (USR-08)."""
+    return [
+        {
+            "nome": usuario.nome,
+            "contato": usuario.email,
+            "perfil": usuario.perfil,
+            "status": STATUS_DO_CONVITE[StatusUsuario(usuario.status)],
+        }
+        for usuario in Usuario.objects.filter(
+            convites__isnull=False, status__in=list(STATUS_DO_CONVITE)
+        )
+        .annotate(primeiro=Max("convites__criado_em"))
+        .order_by("primeiro", "id")
+    ]
+
+
+def ativos_com_ultimo_uso(ids: set[int]) -> list[Usuario]:
+    """Pessoas ativas entre `ids`, com `ultimo_uso` (a sessão usada por último, ou `None`)."""
+    return list(
+        Usuario.objects.filter(pk__in=ids, status=StatusUsuario.ATIVO)
+        .annotate(ultimo_uso=Max("sessoes__ultimo_uso"))
+        .order_by("nome", "id")
+    )
+
+
+def navegacao_de(usuario: Any, empresa: Any) -> dict[str, Any]:
+    """A mesma navegação do `eu` (USR-05, USR-08): o painel tira dela a variante e as chaves
+    dos contadores. O suporte tem a variante e o alcance do administrador."""
+    if getattr(usuario, "e_suporte", False):
+        return navegacao.da_empresa(
+            empresa, Perfil.ADMINISTRADOR, pode_do_suporte(usuario.permissao)
+        )
+    pode = calcular_pode(usuario.perfil, list(usuario.permissoes_extras))
+    return navegacao.da_empresa(empresa, usuario.perfil, pode)
+
+
+def chaves_de_contador(nav: dict[str, Any]) -> set[str]:
+    """As chaves `contador` dos itens que a navegação montou para a pessoa."""
+    return {
+        item["contador"]
+        for menu in ("menu_inicio", "menu_completo")
+        for grupo in nav[menu]
+        for item in grupo["itens"]
+        if item["contador"]
     }

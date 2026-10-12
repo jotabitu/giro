@@ -272,6 +272,9 @@ Levantadas pelo arquiteto em T-122 (10 out 2026), para o produto:
 ### T-018 · Tela e consulta da auditoria
 - **Agente:** backend · **Depende de:** T-011 · **Regras:** AUD-01 a AUD-03 (o registro dos eventos já vem de T-001) · **Telas:** Admin-Auditoria, Plat-Auditoria · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-018.md` (CA-018-01 a 16) passam, com o código da regra no nome do teste.
 
+### T-130 · Edição da marca da empresa (Admin-Marca)
+- **Agente:** arquiteto (contrato), depois backend e frontend · **Depende de:** T-129 · **Telas:** Admin-Marca, Onboarding-Marca · **Segurança:** S-12 · **Pronto quando:** o administrador da empresa envia o logo, escolhe a cor e o nome de exibição; o upload passa pela sanitização da S-12 com limite de tamanho, e a Segurança decide se aceita PNG além de SVG (a tela diz "PNG ou SVG, até 2 MB", o modelo de dados dizia só SVG); a troca invalida o cache de `GET /api/marca/` pela `versao`; auditoria da mudança; a prévia na tela usa as cores calculadas pela API, sem conta no frontend. Levantada na T-128 (`tarefas/handoffs/T-128-arquiteto.md`); a nota da T-012 sobre marca continua valendo. Não bloqueia o piloto: sem marca configurada, a API devolve o padrão.
+
 ### T-019 · Seed Moto Rápida
 - **Agente:** qa · **Depende de:** T-013 a T-017 · **Pronto quando:** `make seed` cria a empresa de exemplo e todos os casos da tabela "Dados de referência para testes" passam.
 - **Placas do seed (T-028):** PQD-6E21 (Pop do Rafael, LOC-2790), RJD-5B38 (Biz do Marcos, LOC-2850), RKP-3D26 (Kwid do Diego, LOC-2848); reserva do Kwid LOC-2857.
@@ -294,9 +297,6 @@ Levantadas pelo arquiteto em T-122 (10 out 2026), para o produto:
 
 ### T-021 · Telas de veículos e clientes
 - **Agente:** frontend · **Depende de:** T-020, T-013, T-014 · **Telas:** Frota, Veiculo, Clientes, Cliente · **Nota:** pode começar com dados falsos de `docs/api/veiculos.md` e `clientes.md`, como a T-020
-
-### T-125 · Frontend: cancelar a troca de veículo (T-121, T-122)
-- **Agente:** frontend · **Depende de:** T-022, T-123 · **Regras:** LOC-09, LOC-12 · **Pronto quando:** no detalhe da locação, botão "Cancelar troca" quando `acoes.cancelar_troca` vier `true`, com motivo, pela rota da T-122; com troca pendente, o botão de cancelar a locação some (`acoes.cancelar` `false`); no 409 `troca_pendente`, mostre "Conclua ou cancele a troca antes"; no 409 `troca_saida_concluida`, a mensagem da API; o acerto mostra o item da diferença do período em curso como a API devolve, inclusive o crédito. Tipos do OpenAPI regerado depois da T-123.
 
 ### T-023 · Telas do financeiro básico
 - **Agente:** frontend · **Depende de:** T-020, T-017 · **Telas:** Receber, Caixa, Financeiro

@@ -6,7 +6,6 @@ por IP e por token, e mostra só o contrato daquele token.
 
 from typing import Any
 
-from django.db import connection
 from django.http import Http404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -16,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 
+from comum.empresa import nome_da_empresa
 from comum.limites import LIMITES_DE_ASSINATURA
 from comum.paginacao import envelope_sem_paginas
 from comum.permissoes import EmpresaOperando, com_padrao, exige_perfil
@@ -178,9 +178,8 @@ class Publica(APIView):
 
 
 def _empresa_da_assinatura() -> dict[str, Any]:
-    empresa: Any = getattr(connection, "tenant", None)
     return {
-        "nome_exibicao": str(getattr(empresa, "nome_exibicao", "")),
+        "nome_exibicao": nome_da_empresa(),
         "logo_url": None,  # a marca (logo e cor) entra com a tela Config
         "cor_marca": None,
     }

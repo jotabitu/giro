@@ -16,7 +16,7 @@ export type LocacaoResumo = Omit<S["Locacao"], "status" | "periodicidade" | "sit
   periodicidade: Periodicidade;
   situacao: { codigo: string; rotulo: string; tom: TomApi };
   /** Ausente para o vistoriador. */
-  pagamento?: { rotulo: string; tom: TomApi; em_aberto_centavos: number };
+  pagamento?: { rotulo: string; tom: TomApi; em_aberto_centavos: number; pago_centavos: number };
   acao_principal: { codigo: CodigoAcaoLocacao; rotulo: string };
 };
 
@@ -50,6 +50,8 @@ export type AvisoLocacao = S["CodigoMensagemLocacao"];
 export type PedidoDeCancelamento = S["CancelamentoPedido"]["pedido_aprovacao"];
 export type FormaDevolucaoCancelamento = "pix" | "estorno_cartao";
 export type TrocaPedida = S["TrocaPedida"];
+export type TrocaCancelada = S["TrocaCanceladaResposta"];
+export type TrocaDaLocacao = S["TrocaPendente"];
 
 export type FormaPagamento = "pix" | "pix_automatico" | "cartao" | "boleto" | "dinheiro";
 export type ParcelamentoMensal = "a_vista" | "quatro_semanais";

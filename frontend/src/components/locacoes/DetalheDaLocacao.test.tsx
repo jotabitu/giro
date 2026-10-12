@@ -108,3 +108,32 @@ describe("detalhe da locação: cancelamento pendente (LOC-2812) e perfis", () =
     expect(t).not.toContain("Registrar devolução");
   });
 });
+
+describe("detalhe da locação com troca de veículo pendente (LOC-09, LOC-12)", () => {
+  it("mostra o bloco da troca e o botão Cancelar troca, sem Cancelar locação; ao cancelar, o botão some", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    await locacoes.trocarVeiculo(2841, { veiculo_novo_id: 504, motivo: "Pane no veículo" });
+    const { desktop, celular } = await pagina(2841);
+    const t = texto(desktop);
+    ordem(t, ["Troca de veículo", "Veículo atual", "Veículo novo", "SAK-1D39", "Motivo", "Pane no veículo", "Chegada do veículo atual", "Em andamento", "Saída do veículo novo", "Em andamento"]);
+    expect(t).toContain("Cancelar troca");
+    expect(t).not.toContain("Cancelar locação");
+    expect(t).not.toContain("Trocar veículo");
+    expect(texto(celular)).toContain("Cancelar troca");
+    await locacoes.cancelarTroca(2841, { motivo: "Resolvido" });
+    const depois = texto((await pagina(2841)).desktop);
+    expect(depois).not.toContain("Cancelar troca");
+    expect(depois).not.toContain("Chegada do veículo atual");
+    expect(depois).toContain("Cancelar locação");
+  });
+
+  it("vistoriador vê a troca sem preço nem caução", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    await locacoes.trocarVeiculo(2836, { veiculo_novo_id: 504, motivo: "Pneu" });
+    await entrarComo("joao@motorapida.com.br");
+    const t = texto((await pagina(2836)).desktop);
+    expect(t).toContain("Troca de veículo");
+    expect(t).not.toContain("Preço do veículo novo");
+    expect(t).not.toContain("Cancelar troca");
+  });
+});
