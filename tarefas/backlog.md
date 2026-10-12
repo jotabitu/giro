@@ -295,6 +295,9 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto (o código segue 
 ### T-149 · Suíte do backend mais rápida no CI
 - **Agente:** qa (fixture do seed), depois devops (paralelismo) · **Depende de:** T-145 · **Pronto quando:** a suíte do backend no CI volta para perto do tempo de antes dos testes do seed (de 11 min para uns 4 min ou menos), sem perder teste: (1) medir com `pytest --durations=25` no CI e registrar os mais lentos no handoff; (2) os testes do seed (`tests/aceitacao/test_t127_seed.py`) rodam `seed_moto_rapida` uma vez por módulo ou sessão e compartilham o resultado, com limpeza no fim; (3) se ainda passar de 5 min, `pytest-xdist` com um banco por worker, motivo da dependência no PR; (4) opcional, ruff e mypy em job próprio, em paralelo. Sugestões do handoff `tarefas/handoffs/T-145-devops.md`. Aprovada pelo dono em 12 out 2026.
 
+### T-146 · Status do caixa como enum no painel
+- **Agente:** backend · **Depende de:** T-017 · **Regras:** FIN-07, FIN-08 · **Pronto quando:** `status` de `caixa_hoje` e de `caixas_do_dia` em `GET /api/painel/inicio/` é `ChoiceField` com `aberto`, `aguardando_aprovacao`, `fechado` e `fechado_sem_conferencia` (hoje é `CharField` e o OpenAPI sai `string`, sem o enum para o cliente tipado); `openapi.yaml` regenerado; teste com o caixa de hoje `fechado` aparecendo em `caixa_hoje` (`test_fin_07_caixa_hoje_em_qualquer_status`). Levantada na T-144 (`tarefas/handoffs/T-144-arquiteto.md`).
+
 ### T-019 · Seed Moto Rápida
 - **Agente:** qa · **Depende de:** T-013 a T-017 · **Pronto quando:** `make seed` cria a empresa de exemplo e todos os casos da tabela "Dados de referência para testes" passam.
 - **Placas do seed (T-028):** PQD-6E21 (Pop do Rafael, LOC-2790), RJD-5B38 (Biz do Marcos, LOC-2850), RKP-3D26 (Kwid do Diego, LOC-2848); reserva do Kwid LOC-2857.

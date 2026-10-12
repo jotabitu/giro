@@ -36,7 +36,7 @@ Convenções gerais em `docs/api/README.md`. A estrutura do menu e a variante do
 | `receita_locacao`, `em_atraso` | sim | `financeiro.selectors` sobre `ContaReceber` (pagas no período sem caução, `FIN-13`; atrasadas, `FIN-01`) |
 | `devolucoes_semana` | sim | `locacoes.selectors` (`situacao` como na lista) |
 | `pendencias.itens` | devoluções atrasadas e parcelas que vencem até amanhã; preventivas, só com `manutencao` | `locacoes`, `financeiro` |
-| `caixa_hoje` | `null` até o caixa da T-017 | — |
+| `caixa_hoje` | sim (T-017) | `financeiro.selectors.caixa_hoje_do_painel` |
 | **`implantacao`** inteira | sim | `plataforma` (teste e `UsoEmpresa.passos_implantacao`, lidos do `public` pela interface de `plataforma.md`), `contas` (convites), `veiculos`, `clientes`, `locacoes`; `a_receber_centavos` de `financeiro` |
 | **`gerente`** `aprovacoes`, `ocupacao`, `receita_semana`, `devolucoes_atrasadas`, `equipe_hoje`, `frota_filial` | sim | como acima; `equipe_hoje` com `contas.Sessao.ultimo_uso` e o resumo do dia de `vistorias` e `locacoes` |
 | `em_manutencao` | `valor: null` (fase 2) | — |
@@ -44,8 +44,8 @@ Convenções gerais em `docs/api/README.md`. A estrutura do menu e a variante do
 | `meta`, `funil`, `comissao_prevista`, `propostas` | `null` (fase 2) | — |
 | **`vistoriador`** inteira | sim | `vistorias.selectors` (o mesmo corpo da agenda) |
 | **`financeiro`** `entra_hoje`, `em_atraso` | sim | `financeiro.selectors` (`FIN-15`, `FIN-01`) |
-| `sai_hoje` | `valor: null` até existir a despesa | — |
-| `caixas_do_dia` | `null` até o caixa da T-017 (o frontend esconde o bloco) | — |
+| `sai_hoje` | sim (T-017) | `financeiro.selectors` (despesas `a_pagar` com vencimento hoje) |
+| `caixas_do_dia` | sim (T-017): lista, `[]` sem caixa hoje (o frontend esconde o bloco vazio) | `financeiro.selectors.caixas_de_hoje` |
 | `para_hoje` | sim, só com os reembolsos `a_fazer` (`Reembolso`, T-091); as despesas entram com elas | `financeiro` |
 | `saldo_em_contas`, `fluxo_previsto`, `conciliacao` | `null` (fase 2) | — |
 
@@ -130,7 +130,7 @@ A resposta tem sempre `variante` (a mesma de `eu.navegacao.inicio.variante`), `s
 - `em_atraso`: clientes com conta `atrasada`, e o total em atraso no contexto (seed: 2 clientes, R$ 1.646,40).
 - `devolucoes_semana`: locações com fim previsto de hoje até 6 dias à frente, mais as `devolucao_atrasada`, em ordem de data; `situacao` como na lista de locações.
 - `pendencias.itens`: devoluções atrasadas, parcelas que vencem até amanhã e, quando o app `manutencao` existir, preventivas vencidas. Cada item leva `destino` (chave do menu e filtro) para "Ver pendências".
-- `caixa_hoje`: o caixa do dia da filial (`null` com `X-Filial: todas` ou sem caixa aberto); `saldo_dia_centavos` = recebido − despesas pagas no caixa. `a_receber_hoje_centavos` é o "vence hoje" da `FIN-15` (contas não pagas com vencimento hoje), o mesmo `vence_hoje_centavos` de `financeiro.md`. Seed em 07 out (`FIN-15`, carteira de outubro): R$ 2.625,80 em 6 parcelas. Caixa da Filial Centro: recebido 111190 (`FIN-07`), saldo 111190 − 4800 = 106390.
+- `caixa_hoje` (revisto na T-144): o caixa de hoje da filial **em qualquer status** (`aberto`, `aguardando_aprovacao`, `fechado`, `fechado_sem_conferencia`, como em `financeiro.md`), com o `status` para a tela mostrar a situação; `null` só com `X-Filial: todas` ou quando a filial não abriu caixa hoje. `recebido_centavos` é o `resumo.entrou_hoje_centavos` do caixa; `despesas_centavos` são as saídas de despesa pagas no caixa, sem sangria; `saldo_dia_centavos` = recebido − despesas pagas no caixa. `a_receber_hoje_centavos` é o "vence hoje" da `FIN-15` (contas não pagas com vencimento hoje), o mesmo `vence_hoje_centavos` de `financeiro.md`. Seed em 07 out (`FIN-15`, carteira de outubro): R$ 2.625,80 em 6 parcelas. Caixa da Filial Centro: recebido 111190 (`FIN-07`), saldo 111190 − 4800 = 106390.
 
 ### Variante `implantacao` (administrador antes da 1ª locação ou venda, tela `Pos-Dashboard`)
 
@@ -215,6 +215,7 @@ Sem valores em dinheiro. As abas Amanhã e Semana chamam `GET /api/vistorias/age
 ```
 - `entra_hoje`: o "vence hoje" da `FIN-15` (contas não pagas com vencimento hoje, sem caução), com a quantidade de parcelas no contexto; mesmo número de `caixa_hoje.a_receber_hoje_centavos` e de `vence_hoje_*` em `financeiro.md` (seed em 07 out: 262580 em 6 parcelas); `sai_hoje`: despesas `a_pagar` com vencimento hoje; `em_atraso`: total `atrasada` e número de clientes.
 - `para_hoje` (`USR-08`): só reembolsos `a_fazer` e despesas a pagar vencendo até hoje. Texto do reembolso pela forma (`DEV-02`): "Devolver R$ 183,00 a Juliana Rocha por Pix", "... no cartão" (estorno) e "... em dinheiro". O de dinheiro só aparece até a T-017: com o caixa, o dinheiro sai na hora e o reembolso nasce `feito`. **Sem aprovações**: o financeiro não decide `APR-03` nem `APR-04`.
+- `caixas_do_dia`: o caixa de hoje de cada filial do escopo, em qualquer status (os mesmos valores do `caixa_hoje`), matriz primeiro; `[]` quando nenhuma filial abriu caixa hoje.
 - `saldo_em_contas`, `fluxo_previsto` e `conciliacao` vêm `null` até a fase 2 (conciliação bancária).
 
 ---
