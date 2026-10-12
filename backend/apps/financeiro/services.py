@@ -1,41 +1,75 @@
-"""Regras das contas a receber, dos reembolsos e das comissões (FIN-01, FIN-09, DEV-02). Único
-lugar que grava nestes models.
+"""Regras das contas a receber, do caixa do dia, das despesas, dos reembolsos e das comissões
+(FIN-01 a FIN-09, APR-03, APR-04, DEV-02, AUT-03, AUT-05, AUT-08). Único lugar que grava nestes
+models.
 
-Interface para os outros apps (ADR 0011, `locacoes` e `vendas` chamam para baixo):
-`criar_contas`, `ajustar_valor`, `cancelar_abertas`, `lancar_comissao`, `confirmar_comissao`,
-`estornar_comissao`, `devolver_ao_cliente`, `pagar_com_caucao` e `marcar_paga`. Esta última é a
-porta da baixa até a T-017 trazer o caixa e o Pix: grava o pagamento e publica
-`financeiro.parcela_paga`, como a baixa de verdade vai publicar.
+Interface para os outros apps (ADR 0011, `locacoes`, `vistorias` e `vendas` chamam para baixo):
+`criar_contas`, `ajustar_valor`, `cancelar_abertas`, `cancelar_conta`, `lancar_comissao`,
+`confirmar_comissao`, `estornar_comissao`, `devolver_ao_cliente` (dinheiro sai pelo caixa),
+`pagar_com_caucao` e `marcar_paga` (baixa sem caixa nem parceiro: a caução e o seed).
+
+Toda baixa passa por `_baixar`: grava a forma, a hora, a multa e os juros (FIN-03) e publica
+`financeiro.parcela_paga`. As portas são o caixa (`receber`, FIN-04), o webhook do parceiro
+(`processar_webhook`, AUT-05) e a caução do acerto (`pagar_com_caucao`, DEV-02).
 """
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
-from django.db import transaction
+from django.contrib.auth import get_user_model
+from django.db import IntegrityError, connection, transaction
+from django.utils import timezone
 
+from apps.auditoria.models import EventoAuditoria
 from apps.filiais.models import Filial
 from apps.filiais.selectors import gerentes
 from apps.notificacoes.services import avisar
-from comum import estados, relogio
-from comum.auditoria import Categoria, auditar
+from apps.plataforma.models import ContaPagamento, StatusContaPagamento
+from comum import aprovacoes, estados, relogio
+from comum.auditoria import Categoria, TipoAtor, ator_atual, auditar, registrar_evento
 from comum.dinheiro import formatar_reais
-from comum.erros import Conflito, ErroDeValidacao
+from comum.empresa import nome_da_empresa
+from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao
 from comum.eventos import publicar
+from comum.models import WebhookRecebido
+from integracoes.pagamentos import provedor as provedor_de_pagamentos
+from integracoes.pagamentos.base import (
+    ContaPagamentoRef,
+    EventoWebhook,
+    Pagador,
+    PedidoCobranca,
+)
+from integracoes.whatsapp import enviar_whatsapp
 
 from . import selectors
 from .models import (
+    Caixa,
+    CategoriaDespesa,
+    CobrancaExterna,
     Comissao,
     ContaReceber,
+    Despesa,
+    FormaDespesa,
+    FormaMovimento,
     FormaPagamento,
     FormaReembolso,
+    MotivoPendencia,
+    MovimentoCaixa,
+    OrigemTipo,
+    PendenciaPagamento,
     Reembolso,
     RegraComissao,
     Renegociacao,
+    StatusCaixa,
+    StatusCobranca,
     StatusComissao,
     StatusConta,
+    StatusDespesa,
+    StatusPendencia,
     StatusReembolso,
+    TipoCobranca,
     TipoConta,
+    TipoMovimento,
 )
 
 
@@ -167,34 +201,50 @@ def marcar_paga(
     pago_em: datetime | None = None,
     devido: selectors.Devido | None = None,
 ) -> None:
-    """Porta da baixa até a T-017 (caixa, Pix, cartão): grava o pagamento, com a multa e os
-    juros de `devido` (FIN-03), e publica `financeiro.parcela_paga` na mesma transação
-    (ADR 0011)."""
+    """Baixa sem caixa nem parceiro: o acerto da devolução (`forma = caucao`, DEV-02), a
+    importação do seed e os testes. Grava o pagamento, com a multa e os juros de `devido`
+    (FIN-03), e publica `financeiro.parcela_paga` na mesma transação (ADR 0011)."""
     with transaction.atomic():
-        travada = _travar(conta)
-        travada.forma = forma
-        travada.pago_em = pago_em or relogio.agora()
-        mais: tuple[str, ...] = ("forma", "pago_em")
-        if devido is not None:
-            travada.multa_centavos = devido.multa_centavos
-            travada.juros_centavos = devido.juros_centavos
-            mais = (*mais, "multa_centavos", "juros_centavos")
-        estados.transicionar(
-            travada,
-            StatusConta.PAGA,
-            acao="conta_receber.pagar",
-            mais_campos=mais,
-        )
-        publicar(
-            "financeiro.parcela_paga",
-            parcela_id=travada.pk,
-            cliente_id=travada.cliente_id,
-            origem_tipo=travada.origem_tipo,
-            origem_id=travada.origem_id,
-            tipo=travada.tipo,
-        )
+        _baixar(_travar(conta), forma=forma, pago_em=pago_em, devido=devido)
     conta.refresh_from_db()
     conta._status_salvo = conta.status
+
+
+def _baixar(
+    travada: ContaReceber,
+    *,
+    forma: str,
+    pago_em: datetime | None = None,
+    devido: selectors.Devido | None = None,
+    movimento: MovimentoCaixa | None = None,
+    regra: str = "",
+) -> None:
+    """A baixa, única para todas as portas (caixa, webhook, caução): `aberta` → `paga`, com a
+    forma, a hora, a multa e os juros gravados, e o evento `financeiro.parcela_paga`."""
+    travada.forma = forma
+    travada.pago_em = pago_em or relogio.agora()
+    mais: tuple[str, ...] = ("forma", "pago_em")
+    if devido is not None:
+        travada.multa_centavos = devido.multa_centavos
+        travada.juros_centavos = devido.juros_centavos
+        mais = (*mais, "multa_centavos", "juros_centavos")
+    if movimento is not None:
+        travada.movimento_caixa = movimento
+        mais = (*mais, "movimento_caixa")
+    estados.transicionar(
+        travada, StatusConta.PAGA, acao="conta_receber.pagar", regra=regra, mais_campos=mais
+    )
+    publicar(
+        "financeiro.parcela_paga",
+        parcela_id=travada.pk,
+        conta_id=travada.pk,
+        cliente_id=travada.cliente_id,
+        origem_tipo=travada.origem_tipo,
+        origem_id=travada.origem_id,
+        tipo=travada.tipo,
+        valor_centavos=travada.valor_centavos,
+        pago_em=travada.pago_em,
+    )
 
 
 # --- Comissões (FIN-09) ---
@@ -380,8 +430,7 @@ def _renegociar_no_acerto(
     return renegociacao
 
 
-# O dinheiro sai pelo caixa do dia, que chega com a T-017.
-FORMAS_SEM_CAIXA = (FormaReembolso.PIX, FormaReembolso.ESTORNO_CARTAO)
+MENSAGEM_DEVOLVER_SEM_CAIXA = "Abra o caixa do dia para devolver em dinheiro"
 
 
 def devolver_ao_cliente(
@@ -394,14 +443,14 @@ def devolver_ao_cliente(
     motivo: str = "",
     regra: str = "",
 ) -> Reembolso | None:
-    """O `Reembolso` `a_fazer`, na transação de quem chama, e o aviso no sino dos gerentes da
-    filial (decisão de 07 out 2026, item 21). Valor zero não gera reembolso."""
+    """O `Reembolso`, na transação de quem chama (DEV-02). Valor zero não gera reembolso.
+
+    - Dinheiro sai na hora pelo caixa aberto da filial (saída ligada à origem) e o reembolso
+      nasce `feito`. Sem caixa aberto: 422 `FIN-07` (CA-016-18).
+    - Pix e estorno no cartão nascem `a_fazer`, com o aviso no sino dos gerentes da filial
+      (decisão de 07 out 2026, item 21)."""
     if valor_centavos <= 0:
         return None
-    if forma not in FORMAS_SEM_CAIXA:
-        raise ErroDeValidacao(
-            {"forma_devolucao": ["Devolva por Pix ou estorno no cartão. Dinheiro sai pelo caixa."]}
-        )
     with transaction.atomic():
         reembolso = Reembolso(
             filial_id=filial_id,
@@ -411,6 +460,23 @@ def devolver_ao_cliente(
             motivo=motivo[:200],
             **origem.campos(),
         )
+        if forma == FormaReembolso.DINHEIRO:
+            caixa = _caixa_aberto(filial_id, MENSAGEM_DEVOLVER_SEM_CAIXA)
+            reembolso.movimento_caixa = _registrar_movimento(
+                caixa,
+                tipo=TipoMovimento.SAIDA,
+                forma=FormaMovimento.DINHEIRO,
+                valor_centavos=valor_centavos,
+                descricao=(motivo or f"Devolução ao cliente · {origem.codigo}")[:150],
+                usuario=_usuario_do_ator(),
+                origem=origem,
+            )
+            reembolso.status = StatusReembolso.FEITO
+            reembolso.feito_em = relogio.agora()
+            reembolso.feito_por_id = _usuario_do_ator()
+            with auditar(reembolso, "reembolso.criar", Categoria.FINANCEIRO, regra=regra):
+                reembolso.save()
+            return reembolso
         with auditar(reembolso, "reembolso.criar", Categoria.FINANCEIRO, regra=regra):
             reembolso.save()
         avisar(
@@ -444,3 +510,1012 @@ def marcar_reembolso_feito(
         )
     reembolso.refresh_from_db()
     return reembolso
+
+
+# --- Quem age ---
+
+
+def _usuario_do_ator() -> int | None:
+    """O id da pessoa que age agora, ou `None` quando é o Sistema (webhook, tarefas)."""
+    ator = ator_atual()
+    return ator.id if ator.tipo == TipoAtor.USUARIO else None
+
+
+def _id(usuario: Any) -> int | None:
+    pk = getattr(usuario, "pk", None)
+    return int(pk) if pk is not None else None
+
+
+# --- Caixa do dia (FIN-07, FIN-08, APR-04) ---
+
+MENSAGEM_ABRA_O_CAIXA = "Abra o caixa do dia para receber"
+MENSAGEM_JA_ABERTO = "O caixa de hoje desta filial já foi aberto"
+MENSAGEM_JA_FECHADO = "Este caixa já foi fechado"
+
+
+def caixa_ja_fechado() -> Conflito:
+    return Conflito("FIN-07", MENSAGEM_JA_FECHADO)
+
+
+def abrir_caixa(filial: Filial, usuario: Any, troco_centavos: int) -> Caixa:
+    """FIN-07: um caixa por filial por dia, mesmo com duas chamadas ao mesmo tempo (restrição
+    única `(filial, data)`)."""
+    hoje = relogio.hoje()
+    if Caixa.objects.filter(filial=filial, data=hoje).exists():
+        raise Conflito("FIN-07", MENSAGEM_JA_ABERTO)
+    try:
+        with transaction.atomic():
+            caixa = Caixa(
+                filial=filial, data=hoje, aberto_por=usuario, troco_centavos=troco_centavos
+            )
+            with auditar(caixa, "caixa.abrir", Categoria.FINANCEIRO, regra="FIN-07"):
+                caixa.save()
+    except IntegrityError as erro:
+        raise Conflito("FIN-07", MENSAGEM_JA_ABERTO) from erro
+    return caixa
+
+
+def _caixa_aberto(filial_id: int, mensagem: str = MENSAGEM_ABRA_O_CAIXA) -> Caixa:
+    """O caixa `aberto` de hoje da filial, travado. Sem ele: 422 `FIN-07`."""
+    caixa: Caixa | None = (
+        Caixa.objects.select_for_update()
+        .filter(filial_id=filial_id, data=relogio.hoje(), status=StatusCaixa.ABERTO)
+        .first()
+    )
+    if caixa is None:
+        raise ErroDeRegra("FIN-07", mensagem)
+    return caixa
+
+
+def _travar_caixa_aberto(caixa: Caixa) -> Caixa:
+    travado: Caixa = Caixa.objects.select_for_update().get(pk=caixa.pk)
+    if travado.status != StatusCaixa.ABERTO:
+        raise caixa_ja_fechado()
+    return travado
+
+
+def _registrar_movimento(
+    caixa: Caixa,
+    *,
+    tipo: str,
+    forma: str,
+    valor_centavos: int,
+    descricao: str,
+    usuario: int | None,
+    origem: Origem | None = None,
+    estorno_de: MovimentoCaixa | None = None,
+) -> MovimentoCaixa:
+    """Um movimento num caixa `aberto` (já travado por quem chama). Imutável depois de gravado."""
+    if caixa.status != StatusCaixa.ABERTO:
+        raise caixa_ja_fechado()
+    movimento = MovimentoCaixa(
+        caixa=caixa,
+        tipo=tipo,
+        forma=forma,
+        valor_centavos=valor_centavos,
+        descricao=descricao[:150],
+        registrado_por_id=usuario,
+        estorno_de=estorno_de,
+        **(origem.campos() if origem is not None else {}),
+    )
+    acao = "movimento_caixa.estornar" if estorno_de is not None else f"movimento_caixa.{tipo}"
+    with auditar(movimento, acao, Categoria.FINANCEIRO, regra="FIN-07"):
+        movimento.save()
+    return movimento
+
+
+def sangria(caixa: Caixa, usuario: Any, *, valor_centavos: int, descricao: str) -> MovimentoCaixa:
+    """Dinheiro tirado da gaveta (ex.: depósito no banco). Não passa do que há na gaveta."""
+    with transaction.atomic():
+        travado = _travar_caixa_aberto(caixa)
+        esperado = selectors.esperado_na_gaveta(travado)
+        if valor_centavos > esperado:
+            raise ErroDeRegra(
+                "sangria_maior_que_gaveta",
+                f"A gaveta tem {formatar_reais(esperado)}. A sangria não pode passar disso.",
+                {"esperado_centavos": esperado},
+            )
+        return _registrar_movimento(
+            travado,
+            tipo=TipoMovimento.SANGRIA,
+            forma=FormaMovimento.DINHEIRO,
+            valor_centavos=valor_centavos,
+            descricao=descricao,
+            usuario=_id(usuario),
+        )
+
+
+def estornar_movimento(movimento: MovimentoCaixa, usuario: Any, *, motivo: str) -> MovimentoCaixa:
+    """CA-017-17: o original não muda; nasce um movimento de estorno no caixa aberto de hoje da
+    filial, apontando para ele, e o resumo do dia considera os dois."""
+    with transaction.atomic():
+        original: MovimentoCaixa = (
+            MovimentoCaixa.objects.select_for_update().select_related("caixa").get(pk=movimento.pk)
+        )
+        if (
+            original.estorno_de_id is not None
+            or MovimentoCaixa.objects.filter(estorno_de=original).exists()
+        ):
+            raise Conflito("movimento_estornado", "Este movimento já foi estornado.")
+        caixa = _caixa_aberto(original.caixa.filial_id, "Abra o caixa do dia para estornar")
+        estorno = _registrar_movimento(
+            caixa,
+            tipo=original.tipo,
+            forma=original.forma,
+            valor_centavos=original.valor_centavos,
+            descricao=f"Estorno: {original.descricao}",
+            usuario=_id(usuario),
+            origem=(
+                Origem(original.origem_tipo, original.origem_id or 0, original.origem_codigo)
+                if original.origem_tipo
+                else None
+            ),
+            estorno_de=original,
+        )
+        registrar_evento(
+            "movimento_caixa.estorno_motivo",
+            Categoria.FINANCEIRO,
+            objeto=estorno,
+            motivo=motivo,
+            regra="FIN-07",
+        )
+    return estorno
+
+
+def fechar_caixa(
+    caixa: Caixa, usuario: Any, *, contado_centavos: int, motivo_diferenca: str | None
+) -> Caixa:
+    """FIN-07 e APR-04. Contado igual ao esperado: `fechado`. Diferente (falta ou sobra): exige o
+    motivo, vai para `aguardando_aprovacao` e nasce o pedido para os gerentes da filial."""
+    motivo = (motivo_diferenca or "").strip()
+    with transaction.atomic():
+        travado: Caixa = Caixa.objects.select_for_update().select_related("filial").get(pk=caixa.pk)
+        if travado.status != StatusCaixa.ABERTO:
+            raise caixa_ja_fechado()
+        esperado = selectors.esperado_na_gaveta(travado)
+        diferenca = contado_centavos - esperado
+        if diferenca != 0 and not motivo:
+            raise ErroDeValidacao(
+                {"motivo_diferenca": ["Conte de novo ou diga o motivo da diferença."]}
+            )
+        travado.contado_centavos = contado_centavos
+        travado.esperado_centavos = esperado
+        travado.diferenca_centavos = diferenca
+        travado.motivo_diferenca = motivo[:200] if diferenca else ""
+        travado.fechado_por = usuario
+        travado.fechado_em = relogio.agora()
+        campos = (
+            "contado_centavos",
+            "esperado_centavos",
+            "diferenca_centavos",
+            "motivo_diferenca",
+            "fechado_por",
+            "fechado_em",
+        )
+        if diferenca == 0:
+            estados.transicionar(
+                travado,
+                StatusCaixa.FECHADO,
+                acao="caixa.fechar",
+                regra="FIN-07",
+                mais_campos=campos,
+            )
+            return travado
+        sentido = "falta" if diferenca < 0 else "sobra"
+        pedido = aprovacoes.pedir(
+            tipo="APR-04",
+            origem_tipo="caixa",
+            origem_id=travado.pk,
+            origem_codigo=None,
+            filial_id=travado.filial_id,
+            solicitante=usuario,
+            titulo=f"Diferença de {formatar_reais(abs(diferenca))} no caixa",
+            detalhe=(
+                f"{travado.filial.nome} · {travado.data:%d/%m} · {sentido} de "
+                f"{formatar_reais(abs(diferenca))}"
+            ),
+            motivo=motivo,
+            valor_centavos=abs(diferenca),
+            dados={"diferenca_centavos": diferenca},
+        )
+        travado.pedido_aprovacao_id = pedido.id
+        estados.transicionar(
+            travado,
+            StatusCaixa.AGUARDANDO_APROVACAO,
+            motivo=motivo,
+            acao="caixa.fechar_com_diferenca",
+            regra="APR-04",
+            mais_campos=(*campos, "pedido_aprovacao_id"),
+        )
+        avisar(
+            [g["id"] for g in gerentes(travado.filial) if g["id"] != _id(usuario)],
+            tipo="caixa_com_diferenca",
+            titulo=(
+                f"Caixa de {travado.data:%d/%m} com {sentido} de "
+                f"{formatar_reais(abs(diferenca))}: {motivo}"
+            )[:200],
+            link="/aprovacoes",
+            chave=f"caixa-diferenca-{travado.pk}-{pedido.id}",
+        )
+    return travado
+
+
+def decidir_diferenca_do_caixa(caixa_id: int, status_pedido: str, motivo: str) -> None:
+    """Volta do pedido APR-04 (assinante de `aprovacoes.pedido_decidido`). Aprovado: `fechado`
+    com a diferença registrada. Recusado ou cancelado: volta a `aberto` para contar de novo."""
+    with transaction.atomic():
+        caixa: Caixa | None = Caixa.objects.select_for_update().filter(pk=caixa_id).first()
+        if caixa is None or caixa.status != StatusCaixa.AGUARDANDO_APROVACAO:
+            return
+        if status_pedido == "aprovado":
+            estados.transicionar(
+                caixa, StatusCaixa.FECHADO, motivo=motivo, acao="caixa.fechar", regra="APR-04"
+            )
+            return
+        caixa.contado_centavos = None
+        caixa.esperado_centavos = None
+        caixa.diferenca_centavos = None
+        caixa.fechado_por = None
+        caixa.fechado_em = None
+        caixa.pedido_aprovacao_id = None
+        estados.transicionar(
+            caixa,
+            StatusCaixa.ABERTO,
+            motivo=motivo,
+            acao="caixa.reabrir",
+            regra="APR-04",
+            mais_campos=(
+                "contado_centavos",
+                "esperado_centavos",
+                "diferenca_centavos",
+                "fechado_por",
+                "fechado_em",
+                "pedido_aprovacao_id",
+            ),
+        )
+
+
+def fechar_caixas_sem_conferencia() -> int:
+    """FIN-08 (AUT-08, 23:59 em `America/Sao_Paulo`): caixa ainda `aberto` de hoje ou de antes
+    vai para `fechado_sem_conferencia`, sem contado nem diferença, e vira tarefa para os gerentes
+    da filial. `aguardando_aprovacao` não é mexido. Idempotente."""
+    fechados = 0
+    for caixa_id in Caixa.objects.filter(
+        status=StatusCaixa.ABERTO, data__lte=relogio.hoje()
+    ).values_list("pk", flat=True):
+        with transaction.atomic():
+            caixa: Caixa = (
+                Caixa.objects.select_for_update().select_related("filial").get(pk=caixa_id)
+            )
+            if caixa.status != StatusCaixa.ABERTO:
+                continue
+            caixa.esperado_centavos = selectors.esperado_na_gaveta(caixa)
+            caixa.fechado_em = relogio.agora()
+            estados.transicionar(
+                caixa,
+                StatusCaixa.FECHADO_SEM_CONFERENCIA,
+                acao="caixa.fechar_sem_conferencia",
+                regra="FIN-08",
+                mais_campos=("esperado_centavos", "fechado_em"),
+            )
+            avisar(
+                [g["id"] for g in gerentes(caixa.filial)],
+                tipo="caixa_sem_conferencia",
+                titulo=(
+                    f"Confira o caixa de {caixa.data:%d/%m} da {caixa.filial.nome}: "
+                    "fechou sem conferência"
+                ),
+                link=f"/financeiro/caixa/{caixa.pk}",
+                urgente=True,
+                chave=f"caixa-sem-conferencia-{caixa.pk}",
+            )
+            fechados += 1
+    return fechados
+
+
+# --- Baixa no caixa (FIN-01, FIN-03, FIN-04) ---
+
+
+def descricao_da_conta(conta: ContaReceber) -> str:
+    """ "Juliana Rocha · LOC-2836 · parcela 2 de 5", para o movimento do caixa e o recibo."""
+    if conta.tipo == TipoConta.PARCELA and conta.numero_parcela:
+        rotulo = f"parcela {conta.numero_parcela}"
+        if conta.total_parcelas:
+            rotulo += f" de {conta.total_parcelas}"
+    else:
+        rotulo = TipoConta(conta.tipo).label.lower()
+    partes = [conta.cliente.nome, conta.origem_codigo, rotulo]
+    return " · ".join(p for p in partes if p)[:150]
+
+
+def conta_nao_esta_aberta(conta: ContaReceber) -> Conflito:
+    return Conflito(
+        "transicao_conta",
+        f"Esta conta está {StatusConta(conta.status).label.lower()}.",
+        {"de": conta.status},
+    )
+
+
+def receber(
+    conta: ContaReceber, usuario: Any, *, forma: str, valor_centavos: int, filial_id: int
+) -> ContaReceber:
+    """Baixa no caixa (FIN-04: dinheiro e cartão) pelo caixa aberto da filial da requisição, que
+    pode ser outra filial que a da conta (FIL-06). O valor tem de ser o devido de hoje (FIN-03):
+    não existe pagamento parcial (FIN-01)."""
+    with transaction.atomic():
+        travada = _travar(conta)
+        if travada.status != StatusConta.ABERTA:
+            raise conta_nao_esta_aberta(travada)
+        devido = selectors.devido_ate(travada, relogio.hoje())
+        if valor_centavos != devido.total_centavos:
+            raise ErroDeRegra(
+                "FIN-01",
+                "Não existe pagamento parcial. Receba o valor inteiro ou renegocie.",
+                {"valor_hoje_centavos": devido.total_centavos},
+            )
+        caixa = _caixa_aberto(filial_id)
+        movimento = _registrar_movimento(
+            caixa,
+            tipo=TipoMovimento.ENTRADA,
+            forma=forma,
+            valor_centavos=devido.total_centavos,
+            descricao=descricao_da_conta(travada),
+            usuario=_id(usuario),
+            origem=Origem(travada.origem_tipo, travada.origem_id, travada.origem_codigo),
+        )
+        _baixar(travada, forma=forma, devido=devido, movimento=movimento, regra="FIN-04")
+    conta.refresh_from_db()
+    return conta
+
+
+# --- Lançamento avulso, cancelar, renegociar e estornar (FIN-01) ---
+
+
+def lancar_avulsa(
+    *,
+    filial_id: int,
+    cliente_id: int,
+    tipo: str,
+    descricao: str,
+    vencimento: date,
+    valor_centavos: int,
+    origem: Origem | None = None,
+) -> ContaReceber:
+    """ "Novo lançamento": multa, avaria ou outro. Parcelas e caução vêm das locações."""
+    criadas = criar_contas(
+        origem or Origem(OrigemTipo.CLIENTE, cliente_id),
+        filial_id=filial_id,
+        cliente_id=cliente_id,
+        contas=[NovaConta(tipo, vencimento, valor_centavos, observacao=descricao[:150])],
+    )
+    return criadas[0]
+
+
+def cancelar(conta: ContaReceber, *, motivo: str, regra: str = "") -> ContaReceber:
+    """Só a conta em aberto vai para `cancelada` (FIN-01). Paga ou cancelada: 409."""
+    with transaction.atomic():
+        travada = _travar(conta)
+        if travada.status != StatusConta.ABERTA:
+            raise conta_nao_esta_aberta(travada)
+        estados.transicionar(
+            travada,
+            StatusConta.CANCELADA,
+            motivo=motivo,
+            acao="conta_receber.cancelar",
+            regra=regra or "FIN-01",
+        )
+    conta.refresh_from_db()
+    return conta
+
+
+@dataclass(frozen=True)
+class ContaNova:
+    vencimento: date
+    valor_centavos: int
+
+
+def renegociar(
+    contas: list[ContaReceber], novas: list[ContaNova], *, motivo: str, usuario: Any
+) -> list[ContaReceber]:
+    """FIN-01: as originais vão para `renegociada`, ligadas por uma `Renegociacao` às novas
+    (`aberta`), e saem do em aberto. A soma e os vencimentos das novas vêm do pedido."""
+    with transaction.atomic():
+        travadas = [_travar(c) for c in sorted(contas, key=lambda c: c.pk)]
+        for travada in travadas:
+            if travada.status != StatusConta.ABERTA:
+                raise conta_nao_esta_aberta(travada)
+        clientes = {t.cliente_id for t in travadas}
+        if len(clientes) != 1:
+            raise ErroDeValidacao({"contas": ["Renegocie as contas de um cliente por vez."]})
+        primeira = travadas[0]
+        origens = {(t.origem_tipo, t.origem_id) for t in travadas}
+        origem = (
+            Origem(primeira.origem_tipo, primeira.origem_id, primeira.origem_codigo)
+            if len(origens) == 1
+            else Origem(OrigemTipo.CLIENTE, primeira.cliente_id)
+        )
+        tipos = {t.tipo for t in travadas}
+        tipo = primeira.tipo if len(tipos) == 1 else TipoConta.ACERTO
+        renegociacao = Renegociacao(
+            motivo=motivo[:200],
+            por=usuario,
+            em=relogio.agora(),
+            origem_tipo=OrigemTipo.CLIENTE,
+            origem_id=primeira.cliente_id,
+        )
+        with auditar(renegociacao, "renegociacao.criar", Categoria.FINANCEIRO, regra="FIN-01"):
+            renegociacao.save()
+        for travada in travadas:
+            travada.renegociada_em = renegociacao
+            estados.transicionar(
+                travada,
+                StatusConta.RENEGOCIADA,
+                motivo=motivo,
+                acao="conta_receber.renegociar",
+                regra="FIN-01",
+                mais_campos=("renegociada_em",),
+            )
+        return criar_contas(
+            origem,
+            filial_id=primeira.filial_id,
+            cliente_id=primeira.cliente_id,
+            contas=[
+                NovaConta(
+                    tipo,
+                    nova.vencimento,
+                    nova.valor_centavos,
+                    numero_parcela=numero if len(novas) > 1 else None,
+                    total_parcelas=len(novas) if len(novas) > 1 else None,
+                    observacao="Renegociada",
+                    nasceu_de_id=renegociacao.pk,
+                )
+                for numero, nova in enumerate(novas, start=1)
+            ],
+        )
+
+
+def estornar(
+    conta: ContaReceber, usuario: Any, *, motivo: str, filial_id: int | None
+) -> ContaReceber:
+    """CA-017-09: conta paga não se edita. A original continua `paga`, com `estornada_em`; nasce
+    uma conta `aberta` igual (mesmo valor e vencimento), com `estorno_de`. Se a baixa foi no
+    caixa, um movimento de estorno no caixa aberto de hoje. Devolve a conta nova."""
+    with transaction.atomic():
+        travada = _travar(conta)
+        if travada.status != StatusConta.PAGA or travada.estornada_em is not None:
+            raise Conflito(
+                "transicao_conta",
+                "Só uma conta paga e ainda não estornada pode ser estornada.",
+                {"de": travada.status},
+            )
+        if travada.forma == FormaPagamento.CAUCAO:
+            raise ErroDeRegra(
+                "DEV-02", "A conta paga com a caução se corrige no acerto da devolução."
+            )
+        movimento = travada.movimento_caixa
+        if (
+            movimento is not None
+            and not MovimentoCaixa.objects.filter(estorno_de=movimento).exists()
+        ):
+            caixa = _caixa_aberto(
+                filial_id or movimento.caixa.filial_id, "Abra o caixa do dia para estornar"
+            )
+            _registrar_movimento(
+                caixa,
+                tipo=movimento.tipo,
+                forma=movimento.forma,
+                valor_centavos=movimento.valor_centavos,
+                descricao=f"Estorno: {movimento.descricao}",
+                usuario=_id(usuario),
+                origem=Origem(travada.origem_tipo, travada.origem_id, travada.origem_codigo),
+                estorno_de=movimento,
+            )
+        with auditar(
+            travada, "conta_receber.estornar", Categoria.FINANCEIRO, motivo=motivo, regra="FIN-01"
+        ):
+            travada.estornada_em = relogio.agora()
+            travada.save(update_fields=["estornada_em", "atualizado_em"])
+        nova = ContaReceber(
+            filial_id=travada.filial_id,
+            cliente_id=travada.cliente_id,
+            tipo=travada.tipo,
+            numero_parcela=travada.numero_parcela,
+            total_parcelas=travada.total_parcelas,
+            vencimento=travada.vencimento,
+            valor_centavos=travada.valor_centavos,
+            observacao=travada.observacao,
+            estorno_de=travada,
+            origem_tipo=travada.origem_tipo,
+            origem_id=travada.origem_id,
+            origem_codigo=travada.origem_codigo,
+        )
+        with auditar(
+            nova, "conta_receber.criar", Categoria.FINANCEIRO, motivo=motivo, regra="FIN-01"
+        ):
+            nova.save()
+    conta.refresh_from_db()
+    return nova
+
+
+# --- Cobrança por Pix e boleto, webhook e pendências (FIN-04, AUT-05, S-14) ---
+
+
+def conta_de_pagamento() -> ContaPagamento | None:
+    """A subconta aprovada da empresa atual (`plataforma.ContaPagamento`)."""
+    empresa_id = getattr(getattr(connection, "tenant", None), "pk", None)
+    if empresa_id is None:
+        return None
+    conta: ContaPagamento | None = ContaPagamento.objects.filter(
+        empresa_id=empresa_id, status=StatusContaPagamento.APROVADA
+    ).first()
+    return conta
+
+
+def recebimentos_desligados() -> ErroDeRegra:
+    return ErroDeRegra("recebimentos_desligados", "Conecte os recebimentos para gerar Pix e boleto")
+
+
+def gerar_cobranca(
+    conta: ContaReceber,
+    *,
+    tipo: str,
+    vence_em: date | None = None,
+    caixa_filial_id: int | None = None,
+) -> CobrancaExterna:
+    """Pix ou boleto do valor de hoje (FIN-03). Gerar outra cancela a que está aberta no
+    parceiro. Gerada pela tela `Caixa` (`caixa_filial_id`), guarda o caixa: a baixa pelo webhook
+    entra como entrada nesse caixa (FIN-07)."""
+    subconta = conta_de_pagamento()
+    if subconta is None:
+        raise recebimentos_desligados()
+    ref = ContaPagamentoRef(subconta.conta_externa_id)
+    parceiro = provedor_de_pagamentos()
+    hoje = relogio.hoje()
+    with transaction.atomic():
+        travada = _travar(conta)
+        if travada.status != StatusConta.ABERTA:
+            raise conta_nao_esta_aberta(travada)
+        caixa = _caixa_aberto(caixa_filial_id) if caixa_filial_id is not None else None
+        for aberta in CobrancaExterna.objects.select_for_update().filter(
+            conta_receber=travada, status=StatusCobranca.AGUARDANDO
+        ):
+            parceiro.cancelar_cobranca(ref, aberta.externo_id)
+            estados.transicionar(
+                aberta, StatusCobranca.CANCELADA, acao="cobranca.cancelar", regra="FIN-04"
+            )
+        valor = selectors.devido_ate(travada, hoje).total_centavos
+        vencimento = (
+            hoje if tipo == TipoCobranca.PIX else (vence_em or max(travada.vencimento, hoje))
+        )
+        cliente = travada.cliente
+        gerada = parceiro.criar_cobranca(
+            ref,
+            PedidoCobranca(
+                tipo=tipo,
+                valor_centavos=valor,
+                vencimento=vencimento,
+                referencia_externa=str(travada.pk),
+                pagador=Pagador(cliente.nome, cliente.documento_claro(), cliente.celular),
+            ),
+        )
+        cobranca = CobrancaExterna(
+            conta_receber=travada,
+            tipo=tipo,
+            externo_id=gerada.id,
+            valor_centavos=valor,
+            vence_em=vencimento,
+            pix_copia_e_cola=gerada.pix_copia_e_cola,
+            linha_digitavel=gerada.linha_digitavel,
+            url=gerada.qr_code_url if tipo == TipoCobranca.PIX else gerada.boleto_url,
+            caixa=caixa,
+        )
+        with auditar(cobranca, f"cobranca.{tipo}", Categoria.FINANCEIRO, regra="FIN-04"):
+            cobranca.save()
+    return cobranca
+
+
+def registrar_webhook(evento: EventoWebhook, corpo: dict[str, Any]) -> WebhookRecebido | None:
+    """Grava o aviso no schema da empresa. O mesmo `evento_id` de novo: `None`, e nada acontece
+    (CA-017-07)."""
+    try:
+        with transaction.atomic():
+            return WebhookRecebido.objects.create(
+                provedor=evento.provedor,
+                evento_id=evento.evento_id,
+                recebido_em=relogio.agora(),
+                corpo={
+                    "evento": {
+                        "tipo": evento.tipo,
+                        "cobranca_id": evento.cobranca_id,
+                        "referencia_externa": evento.referencia_externa,
+                    },
+                    "bruto": corpo,
+                },
+            )
+    except IntegrityError:
+        return None
+
+
+def _avisar_financeiro(titulo: str, chave: str) -> None:
+    pessoas = get_user_model().objects.filter(
+        perfil__in=("administrador", "financeiro"), status="ativo"
+    )
+    avisar(
+        list(pessoas.values_list("pk", flat=True)),
+        tipo="pendencia_pagamento",
+        titulo=titulo[:200],
+        link="/financeiro/pendencias",
+        urgente=True,
+        chave=chave,
+    )
+
+
+def _pendencia(
+    cobranca: CobrancaExterna, motivo: str, valor_pago_centavos: int | None
+) -> PendenciaPagamento:
+    pendencia = PendenciaPagamento(
+        cobranca=cobranca, motivo=motivo, valor_pago_centavos=valor_pago_centavos
+    )
+    with auditar(pendencia, "pendencia_pagamento.criar", Categoria.FINANCEIRO, regra="AUT-05"):
+        pendencia.save()
+    conta = cobranca.conta_receber
+    _avisar_financeiro(
+        f"Pagamento para conferir: {MotivoPendencia(motivo).label.lower()} "
+        f"({conta.cliente.nome}, {conta.origem_codigo or 'conta ' + str(conta.pk)})",
+        f"pendencia-{pendencia.pk}",
+    )
+    return pendencia
+
+
+def _enviar_recibo(conta: ContaReceber) -> None:
+    """AUT-05: o recibo por WhatsApp, com a marca da locadora."""
+    if not conta.cliente.celular:
+        return
+    total = conta.valor_centavos + conta.multa_centavos + conta.juros_centavos
+    enviar_whatsapp(
+        conta.cliente.celular,
+        f"{nome_da_empresa()}: recebemos {formatar_reais(total)} da "
+        f"{descricao_da_conta(conta)}. Este é o seu recibo.",
+    )
+
+
+def processar_webhook(webhook_id: int) -> str:
+    """AUT-05. Não confia no corpo: consulta a cobrança no parceiro. Paga com o valor da
+    cobrança: baixa (forma pix ou boleto), entra no caixa se foi gerada nele, publica
+    `financeiro.parcela_paga` e manda o recibo. Valor diferente, conta que não está mais em
+    aberto ou estorno no parceiro: pendência para o financeiro, nunca baixa nem reabre sozinho.
+    Idempotente: o webhook já processado não faz nada."""
+    with transaction.atomic():
+        webhook: WebhookRecebido = WebhookRecebido.objects.select_for_update().get(pk=webhook_id)
+        if webhook.processado_em is not None:
+            return webhook.resultado
+        resultado = _processar(webhook)
+        webhook.processado_em = relogio.agora()
+        webhook.resultado = resultado
+        webhook.save(update_fields=["processado_em", "resultado"])
+    return resultado
+
+
+def _processar(webhook: WebhookRecebido) -> str:
+    cobranca_id = str(webhook.corpo.get("evento", {}).get("cobranca_id", ""))
+    cobranca: CobrancaExterna | None = (
+        CobrancaExterna.objects.select_for_update(of=("self",))
+        .select_related("conta_receber__cliente", "caixa")
+        .filter(externo_id=cobranca_id)
+        .first()
+    )
+    if cobranca is None:
+        return "cobranca_desconhecida"
+    subconta = conta_de_pagamento()
+    if subconta is None:
+        return "recebimentos_desligados"
+    situacao = provedor_de_pagamentos().consultar_cobranca(
+        ContaPagamentoRef(subconta.conta_externa_id), cobranca.externo_id
+    )
+    if situacao.status == "estornada":
+        _pendencia(cobranca, MotivoPendencia.ESTORNADA_NO_PARCEIRO, situacao.valor_pago_centavos)
+        return "estornada_no_parceiro"
+    if situacao.status != "paga":
+        return situacao.status
+    if cobranca.status == StatusCobranca.PAGA:
+        return "ja_baixada"
+    conta = _travar(cobranca.conta_receber)
+    if situacao.valor_pago_centavos != cobranca.valor_centavos:
+        if cobranca.status == StatusCobranca.AGUARDANDO:
+            estados.transicionar(
+                cobranca, StatusCobranca.DIVERGENTE, acao="cobranca.divergente", regra="AUT-05"
+            )
+        _pendencia(cobranca, MotivoPendencia.VALOR_DIFERENTE, situacao.valor_pago_centavos)
+        return "valor_diferente"
+    if conta.status != StatusConta.ABERTA:
+        _pendencia(cobranca, MotivoPendencia.SEM_CONTA, situacao.valor_pago_centavos)
+        return "conta_nao_aberta"
+    forma = situacao.forma or cobranca.tipo
+    movimento = None
+    caixa = cobranca.caixa
+    if caixa is not None and forma == FormaMovimento.PIX:
+        travado = Caixa.objects.select_for_update().get(pk=caixa.pk)
+        if travado.status == StatusCaixa.ABERTO:
+            movimento = _registrar_movimento(
+                travado,
+                tipo=TipoMovimento.ENTRADA,
+                forma=FormaMovimento.PIX,
+                valor_centavos=cobranca.valor_centavos,
+                descricao=descricao_da_conta(conta),
+                usuario=None,
+                origem=Origem(conta.origem_tipo, conta.origem_id, conta.origem_codigo),
+            )
+    # A multa e os juros são os do dia em que a cobrança foi gerada: é o valor que foi pago.
+    devido = selectors.devido_ate(conta, timezone.localdate(cobranca.criado_em))
+    if cobranca.status == StatusCobranca.AGUARDANDO:
+        estados.transicionar(cobranca, StatusCobranca.PAGA, acao="cobranca.paga", regra="AUT-05")
+    _baixar(
+        conta,
+        forma=forma,
+        pago_em=situacao.pago_em,
+        devido=devido,
+        movimento=movimento,
+        regra="AUT-05",
+    )
+    _enviar_recibo(conta)
+    return "baixada"
+
+
+def resolver_pendencia(
+    pendencia: PendenciaPagamento, *, acao: str, motivo: str
+) -> PendenciaPagamento:
+    """O financeiro decide: `baixar` (a conta é baixada pela forma da cobrança, com o valor do
+    parceiro) ou `ignorar`. As duas encerram a pendência, com o motivo."""
+    with transaction.atomic():
+        travada: PendenciaPagamento = (
+            PendenciaPagamento.objects.select_for_update(of=("self",))
+            .select_related("cobranca__conta_receber")
+            .get(pk=pendencia.pk)
+        )
+        if travada.status != StatusPendencia.ABERTA:
+            raise Conflito("transicao_pendencia", "Esta pendência já foi resolvida.")
+        if acao == "baixar":
+            conta = _travar(travada.cobranca.conta_receber)
+            if conta.status != StatusConta.ABERTA:
+                raise conta_nao_esta_aberta(conta)
+            devido = selectors.devido_ate(conta, timezone.localdate(travada.cobranca.criado_em))
+            _baixar(conta, forma=travada.cobranca.tipo, devido=devido, regra="AUT-05")
+        travada.resolucao = f"{acao}: {motivo}"[:200]
+        estados.transicionar(
+            travada,
+            StatusPendencia.RESOLVIDA,
+            motivo=motivo,
+            acao=f"pendencia_pagamento.{acao}",
+            regra="AUT-05",
+            mais_campos=("resolucao",),
+        )
+    return travada
+
+
+# --- Cobrança pelo WhatsApp e régua (AUT-03) ---
+
+
+def _ja_cobrada_hoje(conta: ContaReceber) -> bool:
+    inicio = datetime.combine(relogio.hoje(), time.min, tzinfo=timezone.get_current_timezone())
+    return EventoAuditoria.objects.filter(
+        objeto_tipo="contareceber",
+        objeto_id=conta.pk,
+        acao="conta_receber.cobrar",
+        ocorrido_em__gte=inicio,
+    ).exists()
+
+
+def cobrar(conta: ContaReceber) -> bool:
+    """A mensagem de cobrança pelo WhatsApp, com o valor do dia e o Pix quando os recebimentos
+    estão ligados, com a marca da locadora (AUT-03). Uma vez por conta por dia; devolve se
+    mandou."""
+    if conta.status != StatusConta.ABERTA or not conta.cliente.celular:
+        return False
+    if _ja_cobrada_hoje(conta):
+        return False
+    hoje = relogio.hoje()
+    valor = formatar_reais(selectors.devido_ate(conta, hoje).total_centavos)
+    inicio = f"{nome_da_empresa()}: olá, {conta.cliente.nome.split()[0]}."
+    conta_texto = descricao_da_conta(conta).split(" · ", 1)[-1]
+    if conta.vencimento >= hoje:
+        texto = f"{inicio} A {conta_texto} de {valor} vence em {conta.vencimento:%d/%m}."
+    else:
+        texto = (
+            f"{inicio} A {conta_texto} venceu em {conta.vencimento:%d/%m}. O valor hoje é {valor}."
+        )
+    if conta_de_pagamento() is not None:
+        cobranca = gerar_cobranca(conta, tipo=TipoCobranca.PIX)
+        texto += f" Pix copia e cola: {cobranca.pix_copia_e_cola}"
+    enviar_whatsapp(conta.cliente.celular, texto)
+    registrar_evento("conta_receber.cobrar", Categoria.FINANCEIRO, objeto=conta, regra="AUT-03")
+    return True
+
+
+DIAS_PARA_BLOQUEIO = 15  # CLI-05
+DIAS_QUE_PUBLICAM_ATRASO = (1, 3, 7)
+DIAS_DA_REGUA = (-1, 0, 3, 7)  # D-1 lembrete, D0 com Pix, D+3 e D+7 nova cobrança
+
+
+def regua_de_cobranca() -> int:
+    """AUT-03, às 09:00: cobra pelo WhatsApp em D-1, D0, D+3 e D+7 e publica
+    `financeiro.parcela_atrasou` para cada conta que completou 1, 3 ou 7 dias de atraso, e
+    todo dia a partir de 15 (o bloqueio do CLI-05 é idempotente, e um dia perdido não deixa de
+    bloquear). A caução não entra. Devolve quantos eventos publicou."""
+    hoje = relogio.hoje()
+    publicados = 0
+    contas = (
+        ContaReceber.objects.select_related("cliente")
+        .filter(status=StatusConta.ABERTA, vencimento__lte=hoje + timedelta(days=1))
+        .exclude(tipo=TipoConta.CAUCAO)
+    )
+    for conta in contas:
+        dias = (hoje - conta.vencimento).days
+        if dias in DIAS_DA_REGUA:
+            cobrar(conta)
+        if dias in DIAS_QUE_PUBLICAM_ATRASO or dias >= DIAS_PARA_BLOQUEIO:
+            publicar(
+                "financeiro.parcela_atrasou",
+                conta_id=conta.pk,
+                cliente_id=conta.cliente_id,
+                tipo=conta.tipo,
+                origem_tipo=conta.origem_tipo,
+                origem_id=conta.origem_id,
+                vencimento=conta.vencimento,
+                dias_atraso=dias,
+            )
+            publicados += 1
+    return publicados
+
+
+# --- Despesas (FIN-05, FIN-06, APR-03) ---
+
+LIMITE_SEM_APROVACAO = 50000  # R$ 500,00 (FIN-05, APR-03)
+
+
+def lancar_despesa(
+    *,
+    filial: Filial,
+    usuario: Any,
+    descricao: str,
+    valor_centavos: int,
+    data: date,
+    vencimento: date,
+    categoria: str,
+    veiculo_id: int | None = None,
+    nota: Any = None,
+    pago_no_caixa: bool = False,
+) -> Despesa:
+    """Até R$ 500 nasce `a_pagar` (ou `paga`, com a saída em dinheiro no caixa aberto); acima,
+    `aguardando_aprovacao`, com o pedido APR-03 para o gerente, e não pode ser paga no caixa."""
+    acima = valor_centavos > LIMITE_SEM_APROVACAO
+    if acima and pago_no_caixa:
+        raise ErroDeRegra(
+            "APR-03",
+            "Despesa acima de R$ 500,00 precisa da aprovação do gerente antes de ser paga.",
+        )
+    with transaction.atomic():
+        despesa = Despesa(
+            filial=filial,
+            data=data,
+            descricao=descricao[:150],
+            categoria=categoria,
+            valor_centavos=valor_centavos,
+            vencimento=vencimento,
+            veiculo_id=veiculo_id,
+            lancada_por=usuario,
+            status=StatusDespesa.AGUARDANDO_APROVACAO if acima else StatusDespesa.A_PAGAR,
+        )
+        if pago_no_caixa:
+            caixa = _caixa_aberto(filial.pk, "Abra o caixa do dia para pagar no caixa")
+            despesa.status = StatusDespesa.PAGA
+            despesa.forma = FormaDespesa.DINHEIRO
+            despesa.pago_em = relogio.agora()
+        with auditar(despesa, "despesa.lancar", Categoria.FINANCEIRO, regra="FIN-05"):
+            despesa.save()
+            if nota is not None:
+                despesa.nota.save(nota.name, nota, save=False)
+                despesa.save(update_fields=["nota"])
+        if pago_no_caixa:
+            despesa.movimento_caixa = _registrar_movimento(
+                caixa,
+                tipo=TipoMovimento.SAIDA,
+                forma=FormaMovimento.DINHEIRO,
+                valor_centavos=valor_centavos,
+                descricao=descricao,
+                usuario=_id(usuario),
+                origem=Origem(OrigemTipo.DESPESA, despesa.pk),
+            )
+            despesa.save(update_fields=["movimento_caixa", "atualizado_em"])
+        if acima:
+            pedido = aprovacoes.pedir(
+                tipo="APR-03",
+                origem_tipo="despesa",
+                origem_id=despesa.pk,
+                origem_codigo=None,
+                filial_id=filial.pk,
+                solicitante=usuario,
+                titulo=f"Despesa de {formatar_reais(valor_centavos)}",
+                detalhe=f"{descricao} · {CategoriaDespesa(categoria).label}"[:300],
+                valor_centavos=valor_centavos,
+            )
+            despesa.pedido_aprovacao_id = pedido.id
+            despesa.save(update_fields=["pedido_aprovacao_id", "atualizado_em"])
+            avisar(
+                [g["id"] for g in gerentes(filial) if g["id"] != _id(usuario)],
+                tipo="despesa_para_aprovar",
+                titulo=f"Aprovar despesa de {formatar_reais(valor_centavos)}: {descricao}"[:200],
+                link="/aprovacoes",
+                chave=f"despesa-{despesa.pk}",
+            )
+    return despesa
+
+
+def decidir_despesa(despesa_id: int, status_pedido: str, motivo: str) -> None:
+    """Volta do pedido APR-03: aprovado → `a_pagar`; recusado → `recusada`, e quem lançou é
+    avisado. Cancelado por quem pediu: a despesa fica como está."""
+    with transaction.atomic():
+        despesa: Despesa | None = Despesa.objects.select_for_update().filter(pk=despesa_id).first()
+        if despesa is None or despesa.status != StatusDespesa.AGUARDANDO_APROVACAO:
+            return
+        if status_pedido == "aprovado":
+            estados.transicionar(
+                despesa,
+                StatusDespesa.A_PAGAR,
+                motivo=motivo,
+                acao="despesa.aprovar",
+                regra="APR-03",
+            )
+            return
+        if status_pedido != "recusado":
+            return
+        despesa.motivo_recusa = motivo[:300]
+        estados.transicionar(
+            despesa,
+            StatusDespesa.RECUSADA,
+            motivo=motivo,
+            acao="despesa.recusar",
+            regra="APR-03",
+            mais_campos=("motivo_recusa",),
+        )
+        avisar(
+            [despesa.lancada_por_id],
+            tipo="despesa_recusada",
+            titulo=f"Despesa recusada: {despesa.descricao}. {motivo}"[:200],
+            link=f"/financeiro/despesas/{despesa.pk}",
+        )
+
+
+def pagar_despesa(
+    despesa: Despesa, usuario: Any, *, forma: str, pago_em: datetime, comprovante: Any = None
+) -> Despesa:
+    """Só `a_pagar`. Em dinheiro, sai do caixa aberto da filial da despesa."""
+    with transaction.atomic():
+        travada: Despesa = Despesa.objects.select_for_update().get(pk=despesa.pk)
+        if travada.status != StatusDespesa.A_PAGAR:
+            raise Conflito(
+                "transicao_despesa",
+                "Só uma despesa a pagar pode ser paga.",
+                {"de": travada.status},
+            )
+        travada.forma = forma
+        travada.pago_em = pago_em
+        mais: tuple[str, ...] = ("forma", "pago_em")
+        if forma == FormaDespesa.DINHEIRO:
+            caixa = _caixa_aberto(travada.filial_id, "Abra o caixa do dia para pagar no caixa")
+            travada.movimento_caixa = _registrar_movimento(
+                caixa,
+                tipo=TipoMovimento.SAIDA,
+                forma=FormaMovimento.DINHEIRO,
+                valor_centavos=travada.valor_centavos,
+                descricao=travada.descricao,
+                usuario=_id(usuario),
+                origem=Origem(OrigemTipo.DESPESA, travada.pk),
+            )
+            mais = (*mais, "movimento_caixa")
+        if comprovante is not None:
+            travada.comprovante.save(comprovante.name, comprovante, save=False)
+            mais = (*mais, "comprovante")
+        estados.transicionar(
+            travada, StatusDespesa.PAGA, acao="despesa.pagar", regra="FIN-05", mais_campos=mais
+        )
+    return travada

@@ -123,3 +123,9 @@ class AssinaturaPorToken(_PorToken):
 
 LIMITES_DE_ASSINATURA = [AssinaturaPorIP, AssinaturaPorToken]
 LIMITES_DE_ENTRAR = [EntrarPorIPMinuto, EntrarPorIPHora, EntrarPorEmailMinuto, EntrarPorEmailHora]
+
+
+class WebhookPorIP(_PorIP):
+    """Webhook do parceiro de pagamentos, sem login (S-14, contrato de financeiro)."""
+
+    scope = "webhook_ip"
