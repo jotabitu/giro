@@ -156,7 +156,13 @@ def semear() -> Resultado:
                     relogio.em("2026-10-07 10:00")
                     if not Locacao.objects.exists():
                         _publicar_modelo_de_contrato()
-                        carteira.carregar(base, pessoas["Bruna Alves"], relogio)
+                        carteira.carregar(
+                            base,
+                            pessoas["Bruna Alves"],
+                            relogio,
+                            gerente=pessoas["Rodrigo Pinheiro"],
+                            conferencia=True,
+                        )
                         _bloquear_rafael()
                         criado.append("locações")
             else:
