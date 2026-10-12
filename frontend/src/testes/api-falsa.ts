@@ -8,7 +8,7 @@ import { locacoesFalso } from "./falsos/falso-locacoes";
 import { vistoriasFalso } from "./falsos/falso-vistorias";
 
 export const contas = contasFalso;
-export const marcaDaEmpresa = marcaFalsa;
+export const marca = marcaFalsa;
 export const relatorios = relatoriosFalso;
 export const veiculos = veiculosFalso;
 export const clientes = clientesFalso;

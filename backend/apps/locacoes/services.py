@@ -24,6 +24,7 @@ from apps.filiais.models import Filial
 from apps.financeiro import selectors as financeiro_selectors
 from apps.financeiro import services as financeiro
 from apps.notificacoes.services import avisar
+from apps.plataforma import services as plataforma
 from apps.veiculos import selectors as veiculos_selectors
 from apps.veiculos import services as veiculos
 from apps.veiculos.models import Categoria as CategoriaVeiculo
@@ -453,7 +454,8 @@ def _contas(locacao: Locacao, conta: calculo.Calculo) -> list[financeiro.NovaCon
 def confirmar(locacao: Locacao, usuario: Any, primeiro_vencimento: date | None = None) -> Locacao:
     """`rascunho` → `aguardando_retirada`. Na mesma transação: preços de hoje congelados
     (LOC-15), contas a receber (parcelas e caução), comissão `pendente` (FIN-09), reserva do
-    veículo com início futuro e, com desconto acima do limite, o pedido `APR-01`."""
+    veículo com início futuro, com desconto acima do limite o pedido `APR-01` e, na 1ª locação
+    da empresa, a implantação concluída (IMP-01)."""
     with transaction.atomic():
         travada = _travar(locacao)
         if travada.status != S.RASCUNHO:
@@ -539,6 +541,7 @@ def confirmar(locacao: Locacao, usuario: Any, primeiro_vencimento: date | None =
                 )
         if pendente:
             _pedir_desconto(travada, usuario, pedido_pct)
+        plataforma.concluir_implantacao(travada)
     _recarregar(locacao)
     return locacao
 

@@ -5,9 +5,12 @@ from django.core.exceptions import ImproperlyConfigured
 
 from config.settings.base import *  # noqa: F403
 from config.settings.base import (
+    CHAVE_DADOS_PESSOAIS_DE_EXEMPLO,
+    CHAVE_SEGREDOS_DE_EXEMPLO,
     GIRO_CHAVE_DADOS_PESSOAIS,
     GIRO_CHAVE_SEGREDOS,
     GIRO_PEPPER_HMAC,
+    PEPPER_DE_EXEMPLO,
     SECRET_KEY,
     SIMPLE_JWT,
     env,
@@ -35,6 +38,16 @@ SHOW_PUBLIC_IF_NO_TENANT_FOUND = False
 EXPOR_DOCUMENTACAO_DA_API = env.bool("GIRO_EXPOR_DOCUMENTACAO_DA_API", default=False)
 
 # Segredos próprios de produção: falha ao subir se faltarem ou se repetirem.
+# Variável ausente ou vazia vale como não definida: base.py cai nos padrões de desenvolvimento,
+# e produção não pode subir com eles (T-133).
+for _nome in (
+    "JWT_SIGNING_KEY",
+    "GIRO_CHAVE_DADOS_PESSOAIS",
+    "GIRO_CHAVE_SEGREDOS",
+    "GIRO_PEPPER_HMAC",
+):
+    if not env(_nome, default="").strip():
+        raise ImproperlyConfigured(f"Defina {_nome}: vazia ou ausente não é aceita em produção.")
 if SIMPLE_JWT["SIGNING_KEY"] == SECRET_KEY:
     raise ImproperlyConfigured("Defina JWT_SIGNING_KEY, diferente de DJANGO_SECRET_KEY.")
 _redes_proxy = env.list("GIRO_REDES_PROXY", default=[])
@@ -51,10 +64,10 @@ for _rede in _redes_proxy:
 # Cifra de dados pessoais (ADR 0014, R-03 da T-050): os valores do .env.example estão no
 # repositório e não valem em homologação nem em produção.
 _MATERIAL_DE_EXEMPLO = {
-    "O6Era8PkgBlfbOR6Nt6IGvnBlEL9vRRNA3iXRdxDtkg=",
-    "b/jBUdVpQ6mwUQJnFhzjnMkTVZvziqLLZfoEWrBDhs0=",
+    CHAVE_DADOS_PESSOAIS_DE_EXEMPLO.split(":", 1)[1],
+    CHAVE_SEGREDOS_DE_EXEMPLO.split(":", 1)[1],
 }
-_PEPPER_DE_EXEMPLO = "07128db7f37327bc0128ca29852fae5bf3b0f67c758ad430d12af360c0332089"
+_PEPPER_DE_EXEMPLO = PEPPER_DE_EXEMPLO
 
 
 def _material(valor: str) -> set[str]:

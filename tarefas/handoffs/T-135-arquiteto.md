@@ -6,7 +6,7 @@
 - **Continuam no relógio real:** `criado_em`, `atualizado_em`, `ocorrido_em` (auto_now), JWT, TOTP, throttles e o agendamento do Beat. As tarefas do Beat leem o dia pelo `relogio`.
 - **A tela avisa:** rota pública `GET /api/ambiente/` (e `/api/plataforma/ambiente/`) com `{ "hoje", "data_simulada" }`, contrato em `docs/api/README.md`, seção "Ambiente". Cabeçalho `X-Giro-Data-Simulada` em toda resposta com a data ligada. Faixa fixa "Data simulada: 07/10/2026. Ambiente de desenvolvimento." em todas as telas. O "hoje" das telas vem dessa rota, e não do navegador.
 - **Quem liga e desliga:** o `.env.example` já vem com `2026-10-07`, ligado. Quem usa o ambiente edita o próprio `.env` e roda `make relogio` (alvo novo, recria backend, worker e beat). Para desligar, deixe a variável vazia. O `make seed` continua com o próprio relógio de 07 out (`seed/relogio.py`), sem depender da variável.
-- **Quadro:** T-136 (backend, com aval do devops no `Makefile` e no `.env.example`) e T-137 (frontend) no backlog; T-135 em `feito.md` com "PR a abrir".
+- **Quadro:** T-142 (backend, com aval do devops no `Makefile` e no `.env.example`) e T-143 (frontend) no backlog; T-135 em `feito.md` com "PR a abrir".
 
 **Onde:** `docs/decisoes/0021-data-de-referencia-no-desenvolvimento.md`, `docs/decisoes/README.md`, `docs/api/README.md` (seção "Ambiente"), `tarefas/backlog.md`, `tarefas/feito.md`.
 
@@ -21,8 +21,8 @@
 **O que ficou de fora:** data simulada em homologação (pediria outra ADR). Onde um contrato mostra `criado_em` como momento do negócio (ex.: `pedido_em` das aprovações), a tela do desenvolvimento mostra a data real. Isso não afeta regra nem produção.
 
 **Próximo passo para quem recebe:**
-- **Orquestrador:** abrir o PR. A T-136 pode andar junto com a T-133 (as duas mexem em `config/settings` e no `.env.example`; uma depois da outra evita conflito).
-- **Backend:** T-136.
-- **Devops:** dar aval no PR da T-136 para o `make relogio` e o `.env.example`.
-- **Frontend:** T-137, depois da T-136.
-- **QA:** depois da T-133 e da T-136, refazer a conferência das telas da T-127 com a data em 07 out, e a devolução da LOC-2836 com `GIRO_DATA_REFERENCIA=2026-10-14`, antes das 19:00 no horário real.
+- **Orquestrador:** abrir o PR. A T-142 pode andar junto com a T-133 (as duas mexem em `config/settings` e no `.env.example`; uma depois da outra evita conflito).
+- **Backend:** T-142.
+- **Devops:** dar aval no PR da T-142 para o `make relogio` e o `.env.example`.
+- **Frontend:** T-143, depois da T-142.
+- **QA:** depois da T-133 e da T-142, refazer a conferência das telas da T-127 com a data em 07 out, e a devolução da LOC-2836 com `GIRO_DATA_REFERENCIA=2026-10-14`, antes das 19:00 no horário real.

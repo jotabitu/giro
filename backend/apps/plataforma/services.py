@@ -2,7 +2,8 @@
 uso e abre ou encerra o acesso de suporte.
 
 Os apps da empresa usam só `exigir_limite`, `atualizar_uso`, `registrar_passo_implantacao`,
-`registrar_acesso` e `registrar_contador` (contrato da plataforma, "Interface interna").
+`concluir_implantacao`, `registrar_acesso` e `registrar_contador` (contrato da plataforma,
+"Interface interna").
 """
 
 import re
@@ -12,7 +13,7 @@ from datetime import timedelta
 from typing import Any
 
 from django.conf import settings
-from django.db import IntegrityError, ProgrammingError, transaction
+from django.db import IntegrityError, ProgrammingError, models, transaction
 from django.db.models import Q
 from django_tenants.utils import (
     get_public_schema_name,
@@ -337,14 +338,18 @@ def etapa_do_funil(passos_concluidos: dict[str, Any]) -> str:
     return Empresa.EtapaImplantacao.CONCLUIDA
 
 
-def registrar_passo_implantacao(passo: str, empresa: Empresa | None = None) -> None:
-    """Marca o passo como concluído hoje e move a etapa do funil quando ela muda."""
+def registrar_passo_implantacao(passo: str, empresa: Empresa | None = None) -> bool:
+    """Marca o passo como concluído hoje e move a etapa do funil quando ela muda.
+
+    Devolve se o passo é novo (False quando já estava concluído).
+    """
     if passo not in dict(PASSOS_IMPLANTACAO):
         raise ValueError(f"Passo desconhecido: {passo}")
     empresa = _empresa(empresa)
     with schema_context(get_public_schema_name()), transaction.atomic():
         uso = _uso_travado(empresa)
-        if passo not in uso.passos_implantacao:
+        novo = passo not in uso.passos_implantacao
+        if novo:
             uso.passos_implantacao = {
                 **uso.passos_implantacao,
                 passo: relogio.hoje().isoformat(),
@@ -356,6 +361,24 @@ def registrar_passo_implantacao(passo: str, empresa: Empresa | None = None) -> N
             atual.etapa_implantacao = etapa
             atual.etapa_implantacao_desde = relogio.agora()
             atual.save(update_fields=["etapa_implantacao", "etapa_implantacao_desde"])
+    return novo
+
+
+def concluir_implantacao(objeto: models.Model, empresa: Empresa | None = None) -> bool:
+    """IMP-01: a 1ª locação (ou venda) conclui a implantação, uma vez só e com auditoria.
+
+    Chamada dentro da transação que confirma `objeto`: se ela desfaz, o passo também sai. A
+    leitura sem trava evita disputar a linha de `UsoEmpresa` a cada locação depois da primeira.
+    """
+    empresa = _empresa(empresa)
+    with schema_context(get_public_schema_name()):
+        feito = UsoEmpresa.objects.filter(
+            empresa=empresa, passos_implantacao__has_key="primeira_locacao"
+        ).exists()
+    if feito or not registrar_passo_implantacao("primeira_locacao", empresa):
+        return False
+    registrar_evento("implantacao.concluir", Categoria.CONFIGURACOES, objeto=objeto, regra="IMP-01")
+    return True
 
 
 def registrar_acesso(empresa: Empresa | None = None) -> None:

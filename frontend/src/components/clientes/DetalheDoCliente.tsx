@@ -9,7 +9,6 @@ import {
   clientes,
   type ClienteCompleto,
   type ClienteResumo,
-  type HistoricoDoCliente,
   type LocacaoDoCliente,
   type LocacoesDoCliente,
   type TipoDocumentoCliente,
@@ -39,7 +38,6 @@ type Documentos = {
 type Dados = {
   c: ClienteResumo | ClienteCompleto;
   locacoes: UseQueryResult<LocacoesDoCliente>;
-  historico: UseQueryResult<HistoricoDoCliente>;
   docs: Documentos;
   podeLocar: boolean;
   administrador: boolean;
@@ -121,7 +119,7 @@ const COLUNAS_LOCACOES: ColunaTabela<LocacaoDoCliente>[] = [
       </StatusBadge>
     ),
   },
-  { chave: "pago", titulo: "Pago", celula: (l) => <CelulaDupla principal={dinheiro(l.pago_centavos)} secundaria={l.pago_detalhe} /> },
+  { chave: "pago", titulo: "Pago", celula: (l) => dinheiro(l.pago_centavos) },
 ];
 
 function Estado({ consulta, vazio, children }: { consulta: UseQueryResult<unknown>; vazio?: boolean; children: ReactNode }) {
@@ -192,12 +190,12 @@ const dataDoDocumento = (c: ClienteCompleto, tipo: TipoDocumentoCliente) => {
 
 // ---------------------------------------------------------------------------------------------- desktop
 
-function DesktopCompleto({ c, locacoes, historico, docs, podeLocar, administrador }: Dados & { c: ClienteCompleto }) {
+function DesktopCompleto({ c, locacoes, docs, podeLocar, administrador }: Dados & { c: ClienteCompleto }) {
   const [mostrar, setMostrar] = useState(false);
   const fin = c.financeiro;
   const lista = locacoes.data;
   const atual = lista?.resultados.find((l) => l.id === c.locacao_atual?.id);
-  const caucao = lista?.resultados.filter((l) => l.caucao_em_garantia).reduce((t, l) => t + l.caucao_centavos, 0) ?? 0;
+  const caucao = atual?.detalhe?.caucao_em_garantia ? atual.detalhe.caucao_centavos : 0;
   const pj = c.tipo === "pj";
   const endereco = linhasDoEndereco(c.endereco);
   const enviados = c.documentos.filter((d) => d.enviado_em !== null).length;
@@ -264,7 +262,7 @@ function DesktopCompleto({ c, locacoes, historico, docs, podeLocar, administrado
             {c.locacao_atual ? (
               <div className="flex flex-wrap items-center gap-4 rounded-lg bg-surface-sunken p-4">
                 <span className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-md bg-surface text-ink-muted">
-                  <ComIcone tipo={atual?.veiculo.tipo_veiculo ?? "moto"} />
+                  <ComIcone tipo={atual?.veiculo.tipo ?? "moto"} />
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="text-[17px] font-semibold">
@@ -278,7 +276,7 @@ function DesktopCompleto({ c, locacoes, historico, docs, podeLocar, administrado
                   </div>
                   <div className="mt-[2px] text-[14px] text-ink-muted">
                     {atual
-                      ? `${atual.codigo} · ${ROTULO_PERIODICIDADE[atual.periodicidade]} ${dinheiro(atual.valor_periodo_centavos)} · ${periodoDaLocacao(atual)} · ${textoDeParcelas(atual.parcelas_pagas, atual.parcelas_total, atual.periodicidade)}`
+                      ? `${atual.codigo} · ${ROTULO_PERIODICIDADE[atual.periodicidade]} ${atual.detalhe ? `${dinheiro(atual.detalhe.valor_periodo_centavos)} · ` : ""}${periodoDaLocacao(atual)}${atual.detalhe ? ` · ${textoDeParcelas(atual.detalhe.parcelas_pagas, atual.detalhe.parcelas_total, atual.periodicidade)}` : ""}`
                       : [c.locacao_atual.codigo, c.locacao_atual.detalhe].filter(Boolean).join(" · ")}
                   </div>
                 </div>
@@ -307,22 +305,6 @@ function DesktopCompleto({ c, locacoes, historico, docs, podeLocar, administrado
               ))}
             </div>
           </Panel>
-
-          <section className="wl-panel">
-            <h2 className="mb-3 text-[20px] font-semibold leading-[26px]">Histórico</h2>
-            <Estado consulta={historico} vazio={historico.data?.resultados.length === 0}>
-              <ol className="relative flex flex-col pl-[26px] before:absolute before:bottom-2 before:left-[6px] before:top-2 before:w-[2px] before:bg-line before:content-['']">
-                {historico.data?.resultados.map((e) => (
-                  <li key={`${e.em}${e.rotulo}`} className="relative py-2 before:absolute before:-left-[25px] before:top-[13px] before:h-3 before:w-3 before:rounded-pill before:bg-solid before:content-['']">
-                    <div className="font-medium">{e.rotulo}</div>
-                    <div className="text-[13px] text-ink-muted">
-                      {dataCurta(e.em)}, {horaCurta(e.em)} · {e.detalhe}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </Estado>
-          </section>
         </div>
 
         <aside className="flex min-w-0 flex-[1_1_340px] flex-col gap-6">
@@ -434,7 +416,7 @@ function CelularCompleto({ c, locacoes, docs, podeLocar }: Dados & { c: ClienteC
   const fin = c.financeiro;
   const lista = locacoes.data;
   const atual = lista?.resultados.find((l) => l.id === c.locacao_atual?.id);
-  const caucao = atual?.caucao_em_garantia ? atual.caucao_centavos : 0;
+  const caucao = atual?.detalhe?.caucao_em_garantia ? atual.detalhe.caucao_centavos : 0;
   const pj = c.tipo === "pj";
   const endereco = linhasDoEndereco(c.endereco);
   const cnhEnviada = c.documentos.filter((d) => d.tipo.startsWith("cnh")).every((d) => d.enviado_em !== null);
@@ -502,14 +484,14 @@ function CelularCompleto({ c, locacoes, docs, podeLocar }: Dados & { c: ClienteC
           </div>
           <div className="flex items-center gap-3">
             <span className="grid h-[52px] w-[52px] shrink-0 place-items-center rounded-md bg-surface-sunken text-ink-muted">
-              <ComIcone tipo={atual?.veiculo.tipo_veiculo ?? "moto"} />
+              <ComIcone tipo={atual?.veiculo.tipo ?? "moto"} />
             </span>
             <div>
               <div className="font-medium">{atual ? atual.veiculo.modelo : c.locacao_atual.veiculo}</div>
               <div className="text-[14px] text-ink-muted">
                 {atual ? (
                   <>
-                    <span className="wl-mono">{placa(atual.veiculo.placa)}</span> · <span className="wl-mono">{atual.codigo}</span> · {dinheiro(atual.valor_periodo_centavos)}/{atual.periodicidade === "semanal" ? "sem" : atual.periodicidade === "mensal" ? "mês" : "dia"}
+                    <span className="wl-mono">{placa(atual.veiculo.placa)}</span> · <span className="wl-mono">{atual.codigo}</span> · {atual.detalhe && <> · {dinheiro(atual.detalhe.valor_periodo_centavos)}/{atual.periodicidade === "semanal" ? "sem" : atual.periodicidade === "mensal" ? "mês" : "dia"}</>}
                   </>
                 ) : (
                   <span className="wl-mono">{c.locacao_atual.codigo}</span>
@@ -517,9 +499,9 @@ function CelularCompleto({ c, locacoes, docs, podeLocar }: Dados & { c: ClienteC
               </div>
             </div>
           </div>
-          {atual && (
+          {atual?.detalhe && (
             <div className="text-[14px] text-ink-muted">
-              {textoDeParcelas(atual.parcelas_pagas, atual.parcelas_total, atual.periodicidade)}
+              {textoDeParcelas(atual.detalhe.parcelas_pagas, atual.detalhe.parcelas_total, atual.periodicidade)}
               {caucao > 0 ? ` · caução ${dinheiro(caucao)}` : ""}
             </div>
           )}
@@ -615,7 +597,6 @@ export function DetalheDoCliente({ id }: { id: number }) {
   const cache = useQueryClient();
   const consulta = useQuery({ queryKey: ["cliente", id], queryFn: () => clientes.obter(id) });
   const locacoes = useQuery({ queryKey: ["cliente", id, "locacoes"], queryFn: () => clientes.locacoes(id) });
-  const historico = useQuery({ queryKey: ["cliente", id, "historico"], queryFn: () => clientes.historico(id) });
   const [erros, setErros] = useState<Documentos["erros"]>({});
   const [enviando, setEnviando] = useState<TipoDocumentoCliente | null>(null);
 
@@ -659,7 +640,6 @@ export function DetalheDoCliente({ id }: { id: number }) {
   const dados: Dados = {
     c,
     locacoes,
-    historico,
     docs: { enviando, erros, enviar: podeCadastrar ? (tipo, arquivo) => enviar.mutate({ tipo, arquivo }) : null },
     podeLocar: eu.pode.locacoes_criar && (c.status === "ativo" || c.status === "incompleto"),
     administrador: eu.perfil === "administrador",

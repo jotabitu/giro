@@ -10,13 +10,20 @@ from dataclasses import dataclass
 from typing import Any
 
 from django.db import transaction
-from django_tenants.utils import tenant_context
+from django_tenants.utils import get_public_schema_name, schema_context, tenant_context
 
 from apps.clientes import services as clientes_services
 from apps.clientes.models import Cliente
 from apps.contas import services as contas_services
 from apps.contas.dois_fatores import confirmar_autenticador, novo_autenticador
-from apps.contas.models import Autenticador, Convite, Perfil, StatusUsuario, Usuario
+from apps.contas.models import (
+    Autenticador,
+    Convite,
+    FuncaoPlataforma,
+    Perfil,
+    StatusUsuario,
+    Usuario,
+)
 from apps.contratos import prontos
 from apps.contratos import services as contratos_services
 from apps.contratos.models import ModeloContrato
@@ -26,6 +33,7 @@ from apps.locacoes.models import Locacao
 from apps.plataforma.models import Empresa, Plano
 from apps.plataforma.services import Administrador, criar_empresa
 from apps.veiculos.models import Veiculo
+from comum.estados import transicionar
 
 from . import carteira, frota
 from .relogio import RelogioDoSeed
@@ -72,6 +80,81 @@ CENTRO: dict[str, Any] = {
 }
 
 
+# Equipe da plataforma Giro (schema público): o dono, com 2 etapas (PLT-08, PLT-09).
+DONO_DA_PLATAFORMA = ("Dono Giro", "dono@giro.example")
+# Empresas fictícias para o painel da plataforma (PLT-01, PLT-02). subdomínio → (nome, estado,
+# início do teste). A assinatura ativa e a inadimplente seguem a tabela de estados (em_teste →
+# ativa → inadimplente). Pausada e cancelada ficam em teste: `Empresa.TRANSICOES` ainda não tem
+# serviço de pausar nem de cancelar (fase 2), e o seed não grava estado direto (ver T-138).
+OUTRAS_EMPRESAS = {
+    "pedalada": ("Pedalada Motos", "ativa", "2026-08-03"),
+    "rodavida": ("Roda Vida Locações", "inadimplente", "2026-07-06"),
+    "ventosul": ("Vento Sul Veículos", "pausada", "2026-08-17"),
+    "estradafacil": ("Estrada Fácil Aluguel", "cancelada", "2026-06-01"),
+}
+DIA_DA_ATIVACAO = {"ativa": "2026-08-18", "inadimplente": "2026-07-21"}
+DIA_DA_FALTA = "2026-09-25"  # fatura de 21 set sem pagamento: inadimplente (PLT-02)
+
+
+def _cnpj_ficticio(base: int) -> str:
+    digitos = [int(d) for d in f"{base:08d}0001"]
+    for _ in range(2):
+        pesos = [(len(digitos) - i - 1) % 8 + 2 for i in range(len(digitos))]
+        soma = sum(d * p for d, p in zip(digitos, pesos, strict=True))
+        resto = soma % 11
+        digitos.append(0 if resto < 2 else 11 - resto)
+    texto = "".join(map(str, digitos))
+    return f"{texto[:2]}.{texto[2:5]}.{texto[5:8]}/{texto[8:12]}-{texto[12:]}"
+
+
+def _dono_da_plataforma(criado: list[str]) -> None:
+    """Usuário da plataforma no schema público, com a função Dono e 2 etapas confirmadas."""
+    nome, email = DONO_DA_PLATAFORMA
+    with schema_context(get_public_schema_name()):
+        if Usuario.objects.filter(email=email).exists():
+            return
+        with transaction.atomic():
+            usuario, _ = contas_services.convidar_equipe_plataforma(
+                email, FuncaoPlataforma.DONO, nome
+            )
+            _ativar(usuario)
+        criado.append("dono da plataforma")
+
+
+def _outras_empresas(relogio: RelogioDoSeed, criado: list[str]) -> None:
+    """4 empresas pequenas (empresa, administrador e uma filial), cada uma no estado da assinatura
+    que os serviços alcançam hoje."""
+    for numero, (subdominio, (nome, estado, inicio)) in enumerate(OUTRAS_EMPRESAS.items(), 1):
+        with schema_context(get_public_schema_name()):
+            if Empresa.objects.filter(subdominio=subdominio).exists():
+                continue
+        relogio.em(f"{inicio} 09:00")
+        email = f"admin@{subdominio}.example"
+        empresa = criar_empresa(
+            razao_social=f"{nome} Ltda",
+            nome_exibicao=nome,
+            cnpj=_cnpj_ficticio(30000000 + numero * 1111),
+            subdominio=subdominio,
+            plano=Plano.objects.get(nome="Essencial" if numero % 2 else "Profissional"),
+            administrador=Administrador(nome=f"Admin {nome.split()[0]}", email=email),
+            cidade="Fortaleza",
+            uf="CE",
+        )
+        with tenant_context(empresa):
+            administrador = Usuario.objects.get(email=email)
+            _ativar(administrador)
+            filiais_services.criar_filial(
+                {**CENTRO, "nome": "Filial Matriz", "cnpj": None}, administrador
+            )
+        if estado in DIA_DA_ATIVACAO:
+            relogio.em(f"{DIA_DA_ATIVACAO[estado]} 09:00")
+            transicionar(empresa, "ativa", acao="empresa.ativar", regra="PLT-01")
+        if estado == "inadimplente":
+            relogio.em(f"{DIA_DA_FALTA} 09:00")
+            transicionar(empresa, "inadimplente", acao="empresa.inadimplente", regra="PLT-02")
+        criado.append(f"empresa {subdominio}")
+
+
 @dataclass
 class Resultado:
     empresa: Empresa
@@ -92,7 +175,7 @@ def _ativar(usuario: Usuario) -> None:
     convite = Convite.objects.filter(usuario=usuario, aceito_em__isnull=True).latest("criado_em")
     token = contas_services.renovar_token(convite)
     contas_services.aceitar_convite(token, SENHA_DEV, usuario.nome)
-    if usuario.perfil in PERFIS_COM_2FA:
+    if usuario.funcao_plataforma or usuario.perfil in PERFIS_COM_2FA:
         _autenticador_fixo(usuario)
     contas_services.ativar_depois_do_2fa(usuario)
     usuario.refresh_from_db()
@@ -156,11 +239,20 @@ def semear() -> Resultado:
                     relogio.em("2026-10-07 10:00")
                     if not Locacao.objects.exists():
                         _publicar_modelo_de_contrato()
-                        carteira.carregar(base, pessoas["Bruna Alves"], relogio)
+                        carteira.carregar(
+                            base,
+                            pessoas["Bruna Alves"],
+                            relogio,
+                            gerente=pessoas["Rodrigo Pinheiro"],
+                            conferencia=True,
+                        )
                         _bloquear_rafael()
                         criado.append("locações")
             else:
                 existente.append("frota")
+    with RelogioDoSeed(INICIO) as relogio:
+        _dono_da_plataforma(criado)
+        _outras_empresas(relogio, criado)
     return Resultado(empresa, criado, existente)
 
 
@@ -174,8 +266,9 @@ def _bloquear_rafael() -> None:
 
 def codigo_de_2fa(email: str) -> str:
     """Código TOTP de agora do autenticador do seed (relógio de verdade)."""
+    plataforma = email.strip().lower() == DONO_DA_PLATAFORMA[1]
     empresa = Empresa.objects.get(subdominio=SUBDOMINIO)
-    with tenant_context(empresa):
+    with schema_context(get_public_schema_name()) if plataforma else tenant_context(empresa):
         dispositivo = Autenticador.objects.get(user__email=email.strip().lower(), confirmed=True)
         return f"{dispositivo.totp().token():0{dispositivo.DIGITOS}d}"
 

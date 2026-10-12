@@ -237,8 +237,25 @@ export const contasFalso = {
   },
 };
 
-/** Marca da empresa (contrato de empresas, ainda não escrito). */
-export const marcaFalsa: MarcaEmpresa = { nome: "Moto Rápida", corHex: "#c8f04a" };
+/** Marca da empresa como a API devolve em GET /api/marca/ (docs/api/empresas.md), sem logo. */
+export const MARCA_FALSA: MarcaEmpresa = {
+  nome_exibicao: "Moto Rápida",
+  iniciais: "MR",
+  logo: null,
+  cor: "#C8F04A",
+  cor_sobre: "#111114",
+  cor_suave: "#EEF9CC",
+  cor_suave_escuro: "#2B3510",
+  personalizada: false,
+  versao: "00000000",
+};
+
+export const marcaFalsa = {
+  async obter(): Promise<MarcaEmpresa | null> {
+    await pausa();
+    return MARCA_FALSA;
+  },
+};
 
 /** Quem está logado, como a API veria (os agregados do painel dependem da pessoa). */
 export function contaAtualFalsa(): { nome: string; variante: VarianteInicio; eu: Eu } | null {

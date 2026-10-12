@@ -12,6 +12,9 @@ const ACAO = { reembolso: "Devolver", despesa: "Pagar" } as const;
 
 /** Início do financeiro (USR-08): o que entra e sai hoje. Sem aprovações; saldo, fluxo e conciliação são fase 2. */
 export function InicioFinanceiro({ d }: { d: InicioDe<"financeiro"> }) {
+  // Bloco ou lista `null` não quebra a tela: `para_hoje` e `caixas_do_dia` sem conteúdo caem no estado vazio.
+  const paraHoje = d.para_hoje ?? [];
+  const caixas = d.caixas_do_dia ?? [];
   return (
     <div className="flex flex-col gap-6">
       <CabecalhoInicio saudacao={d.saudacao} subtitulo="todas as filiais" />
@@ -19,11 +22,11 @@ export function InicioFinanceiro({ d }: { d: InicioDe<"financeiro"> }) {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel titulo="Para hoje">
-          {d.para_hoje.length === 0 ? (
+          {paraHoje.length === 0 ? (
             <Vazio>Nada para pagar ou devolver hoje.</Vazio>
           ) : (
             <ListaDoPainel rotulo="Para hoje">
-              {d.para_hoje.map((t) => (
+              {paraHoje.map((t) => (
                 <LinhaDoPainel
                   key={`${t.tipo}-${t.destino.id}`}
                   titulo={t.texto}
@@ -39,24 +42,24 @@ export function InicioFinanceiro({ d }: { d: InicioDe<"financeiro"> }) {
         </Panel>
 
         <Panel titulo="Caixas do dia">
-          {d.caixas_do_dia.length === 0 ? (
-            <Vazio>Nenhum caixa aberto hoje.</Vazio>
-          ) : (
-            <ListaDoPainel rotulo="Caixas do dia">
-              {d.caixas_do_dia.map((c) => (
-                <LinhaDoPainel
-                  key={c.filial}
-                  titulo={c.filial}
-                  apoio={`${c.aberto_por ? `Aberto por ${c.aberto_por} · ` : ""}esperado na gaveta ${dinheiro(c.esperado_gaveta_centavos)}`}
-                  fim={
-                    <StatusBadge tom={c.status === "aberto" ? "sucesso" : "neutro"} compacto>
-                      {STATUS_DO_CAIXA[c.status] ?? c.status}
-                    </StatusBadge>
-                  }
-                />
-              ))}
-            </ListaDoPainel>
-          )}
+            {caixas.length === 0 ? (
+              <Vazio>Nenhum caixa aberto hoje.</Vazio>
+            ) : (
+              <ListaDoPainel rotulo="Caixas do dia">
+                {caixas.map((c) => (
+                  <LinhaDoPainel
+                    key={c.filial}
+                    titulo={c.filial}
+                    apoio={`${c.aberto_por ? `Aberto por ${c.aberto_por} · ` : ""}esperado na gaveta ${dinheiro(c.esperado_gaveta_centavos)}`}
+                    fim={
+                      <StatusBadge tom={c.status === "aberto" ? "sucesso" : "neutro"} compacto>
+                        {STATUS_DO_CAIXA[c.status] ?? c.status}
+                      </StatusBadge>
+                    }
+                  />
+                ))}
+              </ListaDoPainel>
+            )}
         </Panel>
       </div>
     </div>

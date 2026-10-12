@@ -29,7 +29,7 @@ export function SidebarDaEmpresa() {
   // Esconde o seletor quando a pessoa tem uma filial só (docs/design-system/components/Sidebar).
   // Sem lista de filiais no componente ainda: mostra a primeira. Ver handoff T-020.
   const filial = eu.filiais.length > 1 ? { nome: eu.filiais[0]?.nome ?? "", cidade: "" } : undefined;
-  return <Sidebar componenteLink={Link} marca={{ nome: marca.nome, logoSrc: marca.logoUrl }} filial={filial} grupos={grupos} />;
+  return <Sidebar componenteLink={Link} marca={{ nome: marca.nome, logoSrc: marca.logo?.url, iniciais: marca.iniciais }} filial={filial} grupos={grupos} />;
 }
 
 function BotaoSair() {
@@ -134,7 +134,12 @@ export function CascaDoApp({ children }: { children: ReactNode }) {
       <div className="flex items-center justify-between gap-3 p-4 pb-0 md:hidden">
         <div className="flex items-center gap-3">
           <div className="wl-logo-slot" aria-hidden="true">
-            {marca.nome.slice(0, 2).toUpperCase()}
+            {marca.logo ? (
+              // eslint-disable-next-line @next/next/no-img-element -- logo servido pela API (S-12): sempre <img>, nunca inline
+              <img src={marca.logo.url} alt="" width={40} height={40} style={{ borderRadius: "inherit", objectFit: "contain" }} />
+            ) : (
+              marca.iniciais
+            )}
           </div>
           <span className="text-heading">{marca.nome}</span>
         </div>

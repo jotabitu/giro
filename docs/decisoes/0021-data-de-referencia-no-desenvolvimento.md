@@ -76,8 +76,8 @@ Desligada (sempre, em produção): `{ "hoje": "2026-10-12", "data_simulada": fal
 
 ## Consequências
 
-- **Tarefa do backend (T-136):** itens 1 a 4 do lado do backend: `GIRO_DATA_REFERENCIA` nas configurações (base, dev, prod e test), `comum.relogio` como acima, a rota de ambiente nos dois urlconfs (contrato em `docs/api/README.md`, seção "Ambiente"), o cabeçalho, o aviso `giro.W001` e o `WARNING` ao subir, o `.env.example` e o alvo `make relogio`. Testes: `test_adr_0021_*` (data de referência em `hoje()` com a hora real; desligada com variável vazia; `prod.py` recusa subir; rota e cabeçalho ligados e desligados). Mudança em `Makefile` e `.env.example` com aval do devops no PR.
-- **Tarefa do frontend (T-137):** a faixa do item 4 em todas as cascas, e o "hoje" das telas pela rota de ambiente.
+- **Tarefa do backend (T-142):** itens 1 a 4 do lado do backend: `GIRO_DATA_REFERENCIA` nas configurações (base, dev, prod e test), `comum.relogio` como acima, a rota de ambiente nos dois urlconfs (contrato em `docs/api/README.md`, seção "Ambiente"), o cabeçalho, o aviso `giro.W001` e o `WARNING` ao subir, o `.env.example` e o alvo `make relogio`. Testes: `test_adr_0021_*` (data de referência em `hoje()` com a hora real; desligada com variável vazia; `prod.py` recusa subir; rota e cabeçalho ligados e desligados). Mudança em `Makefile` e `.env.example` com aval do devops no PR.
+- **Tarefa do frontend (T-143):** a faixa do item 4 em todas as cascas, e o "hoje" das telas pela rota de ambiente.
 - O relógio do domínio passa a depender de `settings`, sem custo em produção (um `None` lido por chamada).
 - Um "agora" do domínio fica em uma data e o `criado_em` da mesma linha, em outra. Em tela, o que mostra "quando aconteceu" para o usuário é o momento do negócio, nunca o `criado_em`. Onde um contrato hoje expõe `criado_em` como momento do negócio (ex.: `pedido_em` das aprovações), a tela mostra a data real no desenvolvimento, sem efeito em regra. Não muda nada em produção, onde os dois relógios são o mesmo.
-- O qa refaz a conferência das telas da T-127 com a data ligada, depois da T-133 (login) e da T-136.
+- O qa refaz a conferência das telas da T-127 com a data ligada, depois da T-133 (login) e da T-142.
