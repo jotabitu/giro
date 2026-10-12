@@ -169,6 +169,8 @@ REST_FRAMEWORK = {
         # Link de assinatura de contrato (S-15).
         "assinatura_ip": "10/min",
         "assinatura_token": "20/min",
+        # Webhook do parceiro de pagamentos (S-14).
+        "webhook_ip": "120/min",
     },
 }
 
@@ -255,6 +257,16 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
         "task": "contratos_avisar_aditivos_sem_assinatura_de_todas",
         "schedule": crontab(hour=8, minute=0),
     },
+    # AUT-03: régua de cobrança (WhatsApp e atraso para o bloqueio, CLI-05), às 09:00.
+    "aut_03_regua_de_cobranca": {
+        "task": "aut_03_regua_de_cobranca_de_todas",
+        "schedule": crontab(hour=9, minute=0),
+    },
+    # AUT-08: caixa não fechado fecha sozinho sem conferência (FIN-08), às 23:59.
+    "aut_08_fechamento_automatico_do_caixa": {
+        "task": "aut_08_fechamento_automatico_do_caixa_de_todas",
+        "schedule": crontab(hour=23, minute=59),
+    },
     "aut_15_encerrar_acessos_de_suporte_vencidos": {
         "task": "aut_15_encerrar_acessos_de_suporte_vencidos",
         "schedule": crontab(minute="*"),
@@ -296,6 +308,7 @@ GIRO_MODULOS_ATIVOS = env.list(
         "contas",
         "contratos",
         "filiais",
+        "financeiro",
         "locacoes",
         "plataforma",
         "veiculos",
@@ -313,6 +326,8 @@ S3_CHAVE_DE_ACESSO = env("S3_CHAVE_DE_ACESSO", default="")
 S3_CHAVE_SECRETA = env("S3_CHAVE_SECRETA", default="")
 # WhatsApp: só o "falso" (mensagens na memória) até a integração real.
 GIRO_PROVEDOR_WHATSAPP = env("GIRO_PROVEDOR_WHATSAPP", default="falso")
+# Pagamentos (Pix, boleto, webhook): só o "falso" (cobranças na memória) até a T-029 (Asaas).
+GIRO_PROVEDOR_PAGAMENTOS = env("GIRO_PROVEDOR_PAGAMENTOS", default="falso")
 
 # --- E-mail ---
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")

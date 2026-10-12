@@ -12,6 +12,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from apps.contas.api.urls import urls_plataforma as urls_contas
 from apps.contas.login_admin import LoginDoAdmin
+from apps.financeiro.api.urls import urls_webhooks
 from apps.plataforma.api.urls import urls_plataforma
 
 admin.site.__class__ = OTPAdminSite
@@ -21,6 +22,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("admin/", admin.site.urls),
     path("api/plataforma/", include(urls_contas)),
     path("api/plataforma/", include(urls_plataforma)),
+    path("api/", include(urls_webhooks)),
 ]
 
 # Documentação da API só onde EXPOR_DOCUMENTACAO_DA_API permite (fechada em produção).

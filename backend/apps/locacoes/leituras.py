@@ -5,15 +5,20 @@
   contador `locacao_aberta` (CLI-09).
 - `filiais.Filial`: `locacoes_ativas` no bloco `indicadores` e o contador `locacoes` (FIL-06).
 - `veiculos.Categoria`: contador `locacoes_em_andamento` (LOC-15, aviso do preço novo).
+- `financeiro.ContaReceber`: bloco `locacao` (`veiculo_placa` e `forma_prevista`) da conta cuja
+  origem é uma locação (contrato de financeiro, "Representação").
+- `veiculos.Veiculo`: `rendeu_no_ano_centavos` no bloco `indicadores_financeiros` (VEI-05), as
+  contas pagas das locações do veículo no ano, sem caução.
 """
 
 from datetime import date
 from typing import Any
 
-from django.db.models import Count, IntegerField, OuterRef, QuerySet, Subquery
+from django.db.models import Count, IntegerField, OuterRef, QuerySet, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
+from apps.financeiro.models import ContaReceber, StatusConta, TipoConta
 from comum import leituras, relogio
 
 from .models import ABERTAS, Locacao, Periodicidade, StatusLocacao
@@ -23,6 +28,8 @@ VEICULO = "veiculos.Veiculo"
 CLIENTE = "clientes.Cliente"
 FILIAL = "filiais.Filial"
 CATEGORIA = "veiculos.Categoria"
+CONTA = "financeiro.ContaReceber"
+ORIGEM = "locacao"
 CAMPOS = {
     "id": "pk",
     "codigo": "codigo",
@@ -183,7 +190,69 @@ def _sem_anotacao(queryset: QuerySet[Any]) -> QuerySet[Any]:
     return queryset
 
 
+# --- financeiro.ContaReceber ---
+
+
+def anotar_conta(queryset: QuerySet[Any]) -> QuerySet[Any]:
+    da_origem = Locacao.objects.filter(pk=OuterRef("origem_id"))
+    return queryset.annotate(  # type: ignore[no-any-return]
+        loc_placa=Subquery(da_origem.values("veiculo__placa")[:1]),
+        loc_forma=Subquery(da_origem.values("forma_pagamento")[:1]),
+    )
+
+
+def montar_conta(conta: Any) -> dict[str, Any] | None:
+    if conta.origem_tipo != ORIGEM:
+        return None
+    if hasattr(conta, "loc_placa"):
+        return {"veiculo_placa": conta.loc_placa, "forma_prevista": conta.loc_forma}
+    linha = (
+        Locacao.objects.filter(pk=conta.origem_id)
+        .values("veiculo__placa", "forma_pagamento")
+        .first()
+    )
+    if linha is None:
+        return None
+    return {"veiculo_placa": linha["veiculo__placa"], "forma_prevista": linha["forma_pagamento"]}
+
+
+# --- veiculos.Veiculo: o que rendeu (VEI-05) ---
+
+
+def _rendeu_no_ano(veiculo_id: Any) -> Subquery:
+    return Subquery(
+        ContaReceber.objects.filter(
+            origem_tipo=ORIGEM,
+            origem_id__in=Locacao.objects.filter(veiculo_id=veiculo_id).values("pk"),
+            status=StatusConta.PAGA,
+            pago_em__year=relogio.hoje().year,
+        )
+        .exclude(tipo=TipoConta.CAUCAO)
+        .order_by()
+        .values("origem_tipo")  # um grupo só: todas são de locação
+        .annotate(total=Sum("valor_centavos"))
+        .values("total"),
+        output_field=IntegerField(),
+    )
+
+
+def anotar_rendimento(queryset: QuerySet[Any]) -> QuerySet[Any]:
+    return queryset.annotate(  # type: ignore[no-any-return]
+        loc_rendeu_ano=Coalesce(_rendeu_no_ano(OuterRef("pk")), 0)
+    )
+
+
+def montar_rendimento(veiculo: Any) -> dict[str, Any]:
+    if not hasattr(veiculo, "loc_rendeu_ano"):
+        veiculo = anotar_rendimento(type(veiculo).objects.filter(pk=veiculo.pk)).get()
+    return {"rendeu_no_ano_centavos": int(veiculo.loc_rendeu_ano)}
+
+
 def registrar() -> None:
+    leituras.registrar_anotacao(CONTA, "locacao", anotar_conta, montar_conta)
+    leituras.registrar_anotacao(
+        VEICULO, "indicadores_financeiros", anotar_rendimento, montar_rendimento
+    )
     leituras.registrar_anotacao(VEICULO, "locacao_atual", anotar_veiculo, montar_veiculo)
     leituras.registrar_anotacao(CLIENTE, "locacao_atual", anotar_cliente, montar_cliente_atual)
     # A anotação da locação atual já serve aos dois blocos do cliente.

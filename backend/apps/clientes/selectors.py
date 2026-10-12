@@ -529,7 +529,10 @@ def indicadores(qs: QuerySet[Cliente], contagem: dict[str, int | None]) -> dict[
     return {
         "novos_no_mes_anterior": novos,
         "com_locacao_pct": pct,
-        "em_aberto_total_centavos": None,
+        # Fornecido por `financeiro` (ADR 0015): vencidas e não pagas, sem caução (FIN-01).
+        "em_aberto_total_centavos": leituras.total(
+            ALVO, "em_aberto_centavos", qs.exclude(status=S.INATIVO)
+        ),
     }
 
 
