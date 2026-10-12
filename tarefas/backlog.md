@@ -40,6 +40,12 @@ Levantadas pelo arquiteto em T-043 (07 out 2026):
 - Decidido em 07 out 2026 (DEV-02, item 21): devolução de caução e reembolsos por Pix: no MVP o sistema registra o valor a devolver (`Reembolso`, `a_fazer`) e a pessoa faz o Pix pela conta da locadora e marca como feito com o comprovante; transferência automática pelo parceiro só depois das proteções de saque da subconta (S-05). Confirmar se atende o botão "Encerrar e devolver R$ 183,00 por Pix" da `Devolucao`.
 - [divergência] Telas do financeiro e da auditoria (para T-028): `Receber` usa faixas 1–7, 8–15, 16–30 e 30+ (`FIN-02`: 1–7, 8–30, mais de 30) e mostra Rafael com parcela de R$ 350,00 de 05 set; `Caixa` gera Pix de R$ 299,40 para a parcela atrasada de Carlos (com multa e juros, `FIN-03`, são R$ 306,09); `Admin-Auditoria` diz "3 senhas erradas" (`USR-06`: 5); `Admin-Exportar` mostra Lúcia (financeiro) exportando, mas exportar é da Administração (só administrador).
 
+Levantadas pelo backend em T-018 (12 out 2026):
+
+- [divergência] CA-018-06 e `docs/api/auditoria.md` dizem que o CPF editado aparece mascarado (`***.218.330-**`) no `antes`/`depois`, mas o CPF e a CNH do cliente são `CampoCifrado` e a ADR 0014 (item 3) os grava omitidos (`{"alterado": true}`), que é mais restrito. A T-018 seguiu a ADR (nenhum evento tem os dígitos, o teste busca na tabela). Produto e arquiteto: ajustar o critério e o contrato, ou nova ADR se quiserem a máscara.
+- [decisão] Exportação (CA-018-13, `AUD-07`): a T-018 entrega a auditoria em CSV (pedido, fila, arquivo no storage privado com fórmulas neutralizadas, e-mail, link 302 de 15 min, 410 depois de 7 dias, `zip` pedindo 2 etapas recentes). Os outros itens (clientes, veículos, locações, financeiro, vistorias), a `planilha` (.xlsx pede dependência nova) e o `zip` respondem 422 `exportacao_indisponivel`. Padrão seguido até virar tarefa: o orquestrador cria a exportação completa (fase 2, com `AUT-11`) e a exportação da plataforma (`/api/plataforma/exportacoes/`).
+- [divergência] A T-017 (PR #150) grava a sangria como `movimento_caixa.sangria`, com objeto `movimentocaixa` e sem `filial_id`; o contrato da auditoria mostra `caixa.sangria` com objeto `caixa` e "Caixa da Filial Centro". A auditoria escreve o texto certo para as duas ações, mas o filtro por filial e o objeto só batem com o contrato quando o financeiro gravar o caixa (arquiteto decide; ajuste pequeno no backend depois do merge da T-017).
+
 Levantadas pelo produto em T-037, T-041 e T-047 (07 out 2026); estavam no commit 0a81a9b e saíram no merge 1050b77, restauradas pela T-049. Em todas vale o seed:
 
 - [divergência] `Filial` (para T-028): mostra "3 de 3 filiais" e as filiais Caucaia e Messejana, mas o seed tem 1 filial (`Filiais` mostra "1 de 3"); "após o check-in" deve ser "após a devolução".
@@ -268,9 +274,6 @@ Levantadas pelo arquiteto em T-122 (10 out 2026), para o produto:
 
 ### T-017 · Contas a receber, caixa do dia, baixa
 - **Agente:** backend · **Depende de:** T-015 · **Regras:** FIN-01 a FIN-08 · **Telas:** Receber, Caixa, Financeiro · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-017.md` (CA-017-01 a 23) passam, com o código da regra no nome do teste. · **Inclui:** usar o `juros_pro_rata` de `comum/dinheiro.py`, que vem da T-114 (CA-017-08: Carlos 70, Rafael 1123)
-
-### T-018 · Tela e consulta da auditoria
-- **Agente:** backend · **Depende de:** T-011 · **Regras:** AUD-01 a AUD-03 (o registro dos eventos já vem de T-001) · **Telas:** Admin-Auditoria, Plat-Auditoria · **Pronto quando:** todos os critérios de `docs/qa/criterios/T-018.md` (CA-018-01 a 16) passam, com o código da regra no nome do teste.
 
 ### T-130 · Edição da marca da empresa (Admin-Marca)
 - **Agente:** arquiteto (contrato), depois backend e frontend · **Depende de:** T-129 · **Telas:** Admin-Marca, Onboarding-Marca · **Segurança:** S-12 · **Pronto quando:** o administrador da empresa envia o logo, escolhe a cor e o nome de exibição; o upload passa pela sanitização da S-12 com limite de tamanho, e a Segurança decide se aceita PNG além de SVG (a tela diz "PNG ou SVG, até 2 MB", o modelo de dados dizia só SVG); a troca invalida o cache de `GET /api/marca/` pela `versao`; auditoria da mudança; a prévia na tela usa as cores calculadas pela API, sem conta no frontend. Levantada na T-128 (`tarefas/handoffs/T-128-arquiteto.md`); a nota da T-012 sobre marca continua valendo. Não bloqueia o piloto: sem marca configurada, a API devolve o padrão.
