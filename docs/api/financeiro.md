@@ -135,7 +135,7 @@ Corpo: `{ "forma": "dinheiro" | "cartao_debito" | "cartao_credito", "valor_centa
 - Sem subconta aprovada (`plataforma.ContaPagamento`): 422 `{ "codigo": "recebimentos_desligados", "mensagem": "Conecte os recebimentos para gerar Pix e boleto" }` (implantação, passo 10).
 
 ### POST /api/financeiro/contas-receber/{id}/cobrar/ · POST /api/financeiro/contas-receber/cobrar-em-lote/
-"Cobrar" e "Cobrar todos pelo WhatsApp". Corpo do lote: `{ "ids": [ ... ] }` (até 100). 202 `{ "enviadas": 1 }` nos dois (T-144): quantas mensagens saíram. Conta que não está `aberta`, cliente sem celular ou conta já cobrada hoje não conta e não é erro. Com os recebimentos ligados, a mensagem gera um Pix novo (o que cancela a cobrança aberta, como acima). Envia a mensagem de cobrança com Pix do valor do dia, com a marca da locadora (`AUT-03`), uma vez por conta por dia.
+"Cobrar" e "Cobrar todos pelo WhatsApp". Corpo do lote: `{ "ids": [ ... ] }` (até 100). 202 `{ "enviadas": 1 }` nos dois (T-144): quantas mensagens saíram. Conta que não está `aberta`, cliente sem celular ou conta já cobrada hoje não conta e não é erro. Com os recebimentos ligados, a mensagem gera um Pix novo (o que cancela a cobrança aberta, como acima). Envia a mensagem de cobrança com Pix do valor do dia, com a marca da locadora (`AUT-03`), uma vez por conta por dia, pelo WhatsApp e por e-mail, com os textos de "Régua de cobrança: textos".
 
 ### POST /api/financeiro/contas-receber/{id}/cancelar/
 Perfis: administrador, gerente, financeiro. Corpo: `{ motivo }`. Só `aberta`. 200 `cancelada`. Também chamado por serviço (locação cancelada antes da retirada, `LOC-12`).
@@ -152,6 +152,38 @@ Conta paga com a caução (`forma = caucao`, `DEV-02`) não se estorna aqui: 422
 ### Cobrança recorrente (AUT-04)
 
 Locação com `forma_pagamento = pix_automatico` (ou cartão recorrente) ganha uma autorização no parceiro na ativação (`AutorizacaoRecorrente`). No vencimento de cada parcela, `aut_04_cobranca_recorrente` cria a `CobrancaExterna` daquela conta usando a autorização; a baixa vem pelo webhook. A referência externa de cada cobrança é o `id` da conta, para casar o pagamento sem ambiguidade.
+
+### Régua de cobrança: textos (AUT-03, AUT-05)
+
+Textos fixados pelo produto (T-147, opção B da análise da T-017). Mudança de texto passa pelo produto. Os exemplos são do Carlos (LOC-2841, Street semanal R$ 299,40, 5 parcelas) e da Moto Rápida.
+
+**Partes do texto**
+
+- Abertura: `{marca}: olá, {primeiro nome}.`, com o nome da locadora, nunca Giro.
+- Conta, pelo `tipo`, com a origem por extenso (`locação` ou `venda`) e o código:
+  - `parcela`: "a parcela 2 de 5 da locação LOC-2841";
+  - `acerto`, `multa`, `avaria`: "a cobrança de acerto da locação LOC-2841" (de multa, de avaria);
+  - `outro`: "a cobrança da locação LOC-2841".
+  No começo da frase, com maiúscula ("A parcela 2 de 5...").
+- Valor: o `valor_hoje` do dia (`FIN-03`, `devido_ate`). A mensagem não faz conta.
+- Pix: com os recebimentos ligados, "Pague pelo Pix copia e cola: {código}" (cobrança gerada como em `POST .../cobranca/`). Sem subconta (`recebimentos_desligados`), "Pague na loja ou fale com a gente por aqui."
+
+**Mensagens**
+
+| Momento | Texto (WhatsApp) | Assunto do e-mail |
+| --- | --- | --- |
+| D-1 | "Moto Rápida: olá, Carlos. A parcela 3 de 5 da locação LOC-2841, de R$ 299,40, vence amanhã, 07/10." | "Moto Rápida: lembrete de vencimento" |
+| D0 | "Moto Rápida: olá, Carlos. A parcela 3 de 5 da locação LOC-2841, de R$ 299,40, vence hoje. Pague pelo Pix copia e cola: …" | "Moto Rápida: vence hoje" |
+| D+3 e D+7 | "Moto Rápida: olá, Carlos. A parcela 2 de 5 da locação LOC-2841 venceu em 30/09. O valor hoje é R$ 306,09, com multa e juros. Pague pelo Pix copia e cola: …" (D+7, 07/10; em D+3, 03/10, R$ 305,69) | "Moto Rápida: conta em atraso" |
+| "Cobrar" manual antes de D-1 | "Moto Rápida: olá, Carlos. A parcela 4 de 5 da locação LOC-2841, de R$ 299,40, vence em 14/10." | "Moto Rápida: lembrete de vencimento" |
+| "Cobrar" manual em atraso, fora de D+3 e D+7 | o texto de D+3 e D+7, com o valor do dia | "Moto Rápida: conta em atraso" |
+| Conta de outro tipo, D-1 | "Moto Rápida: olá, Carlos. A cobrança de acerto da locação LOC-2841, de R$ 365,37, vence amanhã, 10/10." | "Moto Rápida: lembrete de vencimento" |
+| Recibo (`AUT-05`) | "Moto Rápida: recebemos R$ 306,09 por Pix em 07/10, da parcela 2 de 5 da locação LOC-2841. Este é o seu recibo." | (só WhatsApp, `AUT-05`) |
+
+- Em atraso sem multa nem juros (contrato sem a cláusula, `contratos.selectors.permite_juros`), sai "O valor é R$ 299,40." sem "com multa e juros".
+- Forma no recibo: "por Pix", "por boleto", "pelo Pix automático", "no cartão de crédito", "no cartão de débito", "em dinheiro". O dia é o do pagamento em `America/Sao_Paulo`; o valor, o total pago (principal, multa e juros).
+- Canais (`AUT-03`): WhatsApp quando o cliente tem celular e e-mail quando tem e-mail; os dois quando tem os dois. O e-mail sai com o nome da locadora como remetente e o mesmo texto no corpo. Cliente sem celular e sem e-mail não recebe nada, e a conta segue na lista de cobrança.
+- Uma vez por conta por dia, contando os dois canais.
 
 ---
 
@@ -317,6 +349,6 @@ O mesmo fluxo vale para a `FaturaAssinatura` no `public` (`plataforma`).
 | `financeiro.services.devolver_ao_cliente(origem, valor, forma)` | cria o `Reembolso`. |
 | `financeiro.services.cancelar_contas_da_origem(origem, motivo)` | locação cancelada antes da retirada. |
 | evento `financeiro.parcela_paga` | `conta_id`, `cliente_id`, `tipo`, `origem_tipo`, `origem_id`, `valor_centavos`, `pago_em`. Assinado por `locacoes` (1º pagamento) e `clientes` (desbloqueio `CLI-05`). |
-| evento `financeiro.parcela_atrasou` | `conta_id`, `cliente_id`, `tipo`, `origem_tipo`, `origem_id`, `vencimento`, `dias_atraso`. Tarefa diária às 09:00 junto da régua (`AUT-03`): publica para cada conta que completou 1, 3, 7 e 15 dias de atraso; `clientes` bloqueia no 15º (CA-017-11: vencida em 23 set → bloqueio em 08 out). |
+| evento `financeiro.parcela_atrasou` | `conta_id`, `cliente_id`, `tipo`, `origem_tipo`, `origem_id`, `vencimento`, `dias_atraso`. Tarefa diária às 09:00 junto da régua (`AUT-03`): publica para cada conta que completou 1, 3 e 7 dias de atraso e, a partir de 15 dias, uma vez por conta (a conta guarda `bloqueio_pedido_em`; se a tarefa não rodou no 15º dia, publica na próxima vez, `AUT-03`); `clientes` bloqueia com 15 dias ou mais (CA-017-11: vencida em 23 set → bloqueio em 08 out). Depois do desbloqueio manual (`CLI-05`), a mesma conta não pede o bloqueio de novo. |
 | anotações fornecidas (ADR 0015) | bloco `financeiro` de `clientes` (com `conta_mais_antiga_id`), bloco `historico` da análise de `clientes`, contadores `contas_atrasadas_15_dias` e `em_aberto_centavos` por cliente, `indicadores_financeiros` de `veiculos` (`VEI-05`), contador de caixas abertos para `filiais` (`FIL-06`), filtro `em_aberto`. |
 | tarefas | `aut_03_regua_de_cobranca` (09:00), `aut_04_cobranca_recorrente` (no vencimento), `aut_05_processar_webhook`, `aut_08_fechamento_automatico_do_caixa` (23:59). |
