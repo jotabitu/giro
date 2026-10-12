@@ -575,6 +575,11 @@ Toda ação que muda dado de negócio grava um evento de auditoria que ninguém 
 
 *Mudanças em 07 out 2026 (T-037):* criada a `AUD-09` (achado S-02 da segurança, T-032, decidido pelo dono do produto); `PLT-07` passou a citá-la.
 
+*Mudanças em 12 out 2026 (T-151):* decisões do dono do produto sobre os dois pontos do backend na T-018 (análise do produto, opção A nos dois).
+- **Exportação no MVP (`AUD-07`):** no MVP, a tela `Admin-Exportar` exporta só a auditoria, em CSV, por período, com o link de 7 dias; os outros itens, formatos e o cartão do backup automático não aparecem (nem desabilitados). Vão para a fase 2: clientes, veículos, locações e contratos, financeiro, vistorias e fotos; a planilha; o backup completo em ZIP; o backup mensal (`AUT-11`); a exportação da plataforma; a `AUD-06` e a `AUD-08`. Antes, a regra não dizia o que do `AUD-07` era MVP. O que fica de fora segue o quadro (fase 2) e os critérios de pronto do MVP, que pedem só a auditoria ativa.
+- **Pedido do titular até a fase 2 (`AUD-06`):** sem a exportação de um cliente e a anonimização no sistema, o pedido do titular é atendido à mão: o administrador da locadora pede à equipe Giro, que gera os dados ou anonimiza o cadastro. Vale até a `AUD-06` existir.
+- **CPF e CNH no evento (`AUD-04`, `AUD-09`):** a máscara de CPF e CNH é das telas, listas e exportações de cadastro. No evento de auditoria, CPF e CNH ficam omitidos ("alterado", sem nenhum dígito), porque o evento é guardado por 5 anos e a anonimização da `AUD-06` não o alcança. É o que o código da T-018 faz; ADR 0014, nota de 12 out 2026.
+
 ## Dados de referência para testes
 
 Todas as telas usam a mesma empresa de exemplo. Use estes dados como seed do banco de desenvolvimento e como casos de teste: os cálculos do sistema têm que chegar exatamente nestes números.
