@@ -108,7 +108,7 @@ export function Ativar2fa({ tokenPre, exige, aoConcluir }: { tokenPre: string; e
             </Button>
           </div>
           <label className="flex items-center gap-2 text-body">
-            <input type="checkbox" checked={guardei} onChange={(e) => setGuardei(e.target.checked)} className="size-5 accent-[var(--solid)]" />
+            <input type="checkbox" checked={guardei} onChange={(e) => setGuardei(e.target.checked)} className="wl-marcar" />
             Guardei os códigos em um lugar seguro
           </label>
           <div className="grid md:flex">

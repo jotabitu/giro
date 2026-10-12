@@ -56,10 +56,11 @@ describe("nova locação: Lucas Ferreira, CG 160 Fan SAK-1D39, semanal Street", 
     ordem(t, ["Cliente e veículo", "Lucas Ferreira", "CPF ***.456.789-**", "Cadastro incompleto", "Trocar", "Honda CG 160 Fan", "SAK-1D39 · 3.120 km", "Trocar"]);
     ordem(t, ["Plano e período", "Diária", "R$ 54,90 / dia", "Semanal", "R$ 329,00 / semana", "Mensal", "Entregador", "R$ 279,00 / semana"]);
     ordem(t, ["Retirada", "Devolução prevista", "1 semana · renova a cada semana", "Franquia de km", "Km livre em todos os planos"]);
-    ordem(t, ["Cobrança", "Parcelamento", "Semanal · cobra a cada 7 dias", "Forma de pagamento", "Pix automático", "Primeiro vencimento", "Caução", "Devolvida no encerramento sem pendências", "Desconto (%)"]);
+    // D-30: a cobrança só aparece depois do plano escolhido (a escolha é interação; aqui a página abre sem plano).
+    expect(t).toContain("Escolha o plano para ver a cobrança.");
+    expect(t).not.toContain("cobra a cada 7 dias");
+    expect(t).not.toContain("Forma de pagamento");
     expect(html).toContain('value="Livre"');
-    expect(html).toContain('value="R$ 300,00"');
-    expect(t).toContain("Com 15 dias de atraso numa parcela, o cliente é bloqueado e o gerente é avisado.");
     ordem(t, ["Adicionais", "Capacete extra", "R$ 3,00 / semana", "Baú traseiro", "Proteção contra roubo e furto", "Condutor adicional"]);
     ordem(t, ["Resumo", "1 semana × R$ 329,00", "R$ 329,00", "Adicionais", "R$ 0,00", "Desconto", "– R$ 0,00", "Caução (devolvida no fim)", "R$ 300,00", "Valor por semana", "R$ 329,00", "Próximas semanas", "R$ 329,00", "Hoje, na retirada", "R$ 629,00", "Hoje: primeira semana mais caução."]);
     ordem(t, ["Continuar para vistoria", "Salvar como reserva"]);
