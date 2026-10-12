@@ -35,7 +35,7 @@ jobs:
               .github/workflows/*) backend=true; frontend=true; infra=true ;;
               backend/*) backend=true ;;
               frontend/*) frontend=true ;;
-              docs/api/*) backend=true; frontend=true ;;
+              docs/api/openapi.yaml) backend=true; frontend=true ;;
               infra/*|docker-compose*.yml|.env.example|Makefile) infra=true ;;
             esac
           done
