@@ -8,12 +8,14 @@ do Rafael (CLI-05) e que uma segunda rodada não duplica nada.
 from decimal import Decimal
 from io import StringIO
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 from django.core.management import call_command
 from django.db import connection
 from django_tenants.utils import tenant_context
 
+from apps.auditoria.models import EventoAuditoria
 from apps.clientes.models import Cliente
 from apps.contas.models import Usuario
 from apps.filiais.models import Filial
@@ -68,8 +70,8 @@ def test_seed_127_01_cria_a_empresa_de_exemplo(semeado):
     assert contagens["categorias"] == 4
     assert contagens["precos"] == 5  # a Street tem o preço de antes de 01 out
     assert contagens["veiculos"] == CONTAGENS_FROTA_SEED["todos"] == 86
-    assert contagens["locacoes"] == 42
-    assert contagens["clientes"] == 42
+    assert contagens["locacoes"] == 42 + 9  # as 42 abertas e uma reserva por veículo reservado
+    assert contagens["clientes"] == 42 + 9
 
 
 def test_seed_127_02_roda_duas_vezes_sem_duplicar(semeado):
@@ -132,3 +134,110 @@ def test_seed_127_07_copia_dos_csv_igual_a_docs():
         pytest.skip("docs/ não está montada neste ambiente")
     for arquivo in ("locacoes.csv", "parcelas.csv"):
         assert (PASTA / arquivo).read_bytes() == (docs / arquivo).read_bytes(), arquivo
+
+
+def _no_tenant():
+    return tenant_context(Empresa.objects.get(subdominio="motorapida"))
+
+
+def test_seed_138_01_reservado_tem_locacao_aguardando_retirada(semeado):
+    """D-01: cada `reservado` tem uma locação `aguardando_retirada`; o Kwid é a LOC-2857."""
+    with _no_tenant():
+        reservados = Veiculo.objects.filter(status="reservado")
+        assert reservados.count() == 9
+        for veiculo in reservados:
+            locacao = Locacao.objects.get(veiculo=veiculo, status="aguardando_retirada")
+            assert locacao.inicio.date().isoformat() > "2026-10-07"
+        assert Locacao.objects.get(veiculo__placa="RHT9F02").codigo == "LOC-2857"
+        assert Locacao.objects.filter(status="aguardando_retirada").count() == 9
+
+
+def test_loc_05_seed_138_02_planos_e_valores_da_tabela(semeado):
+    """D-05: o período de cada locação é o da tabela (LOC-01); só a conta da LOC-2790 é dada."""
+    with _no_tenant():
+        rafael = Locacao.objects.get(codigo="LOC-2790")
+        assert (rafael.periodicidade, rafael.valor_periodo_centavos) == ("semanal", 29940)
+        assert rafael.diaria_centavos == 4490
+        conta = ContaReceber.objects.get(origem_codigo="LOC-2790")
+        assert (conta.valor_centavos, conta.status) == (134700, "aberta")
+
+
+def test_cli_03_seed_138_03_so_o_rafael_com_cadastro_incompleto(semeado):
+    """D-07: os demais clientes têm os 4 documentos e saem de `incompleto`."""
+    with _no_tenant():
+        assert Cliente.objects.filter(status="incompleto").count() == 0
+        rafael = Cliente.objects.get(nome="Rafael Sousa")
+        assert (rafael.status, rafael.documentos.count()) == ("bloqueado", 0)
+        outros = Cliente.objects.exclude(pk=rafael.pk)
+        assert all(c.documentos.filter(ativo=True).count() == 4 for c in outros)
+
+
+def test_seed_138_04_nomes_e_placas_menos_genericos(semeado):
+    """D-08, D-09: sem "Cliente NN" nem placa GEN; as placas das telas nas locações citadas."""
+    with _no_tenant():
+        assert not Cliente.objects.filter(nome__startswith="Cliente ").exists()
+        assert not Veiculo.objects.filter(placa__startswith="GEN").exists()
+        placas = {
+            "LOC-2790": "PQD6E21",
+            "LOC-2812": "SBC0J44",
+            "LOC-2848": "RKP3D26",
+            "LOC-2850": "RJD5B38",
+            "LOC-2856": "SAK1D39",
+        }
+        for codigo, placa in placas.items():
+            assert Locacao.objects.get(codigo=codigo).veiculo.placa == placa
+        assert Veiculo.objects.filter(status="alugado").count() == 42
+
+
+def test_loc_05_seed_138_05_parcela_1_nao_nasce_atrasada(semeado):
+    """D-21: a 1ª parcela das locações ativas está paga; só a conta dada da LOC-2790 não."""
+    with _no_tenant():
+        abertas = ContaReceber.objects.filter(
+            tipo="parcela", numero_parcela=1, origem_tipo="locacao"
+        ).exclude(status="paga")
+        codigos = {c.origem_codigo for c in abertas}
+        reservas = set(
+            Locacao.objects.filter(status="aguardando_retirada").values_list("codigo", flat=True)
+        )
+        assert codigos - reservas == {"LOC-2790"}
+
+
+def test_seed_138_06_locacoes_divididas_entre_vendedores(semeado):
+    """D-24: a Bruna e o Rodrigo vendem; a Bruna fica com as locações das telas."""
+    with _no_tenant():
+        vendedores = set(Locacao.objects.values_list("vendedor__email", flat=True))
+        assert vendedores == {"bruna@motorapida.com.br", "rodrigo@motorapida.com.br"}
+        assert Locacao.objects.get(codigo="LOC-2836").vendedor.email == "bruna@motorapida.com.br"
+
+
+def test_seed_138_07_historico_da_loc_2836_nas_datas_do_caso(semeado):
+    """D-13: os eventos da locação levam o momento do relógio do seed, não a hora do seed rodar."""
+    with _no_tenant():
+        locacao = Locacao.objects.get(codigo="LOC-2836")
+        eventos = EventoAuditoria.objects.filter(
+            objeto_tipo__icontains="locacao", objeto_id=locacao.pk
+        )
+        dias = {
+            e.ocorrido_em.astimezone(ZoneInfo("America/Sao_Paulo")).date().isoformat()
+            for e in eventos
+        }
+        assert dias and dias <= {"2026-10-01", "2026-10-07"}
+
+
+def test_plt_08_seed_138_08_dono_da_plataforma_e_outras_empresas(semeado):
+    """Dono no público com 2 etapas e 4 empresas; ativa e inadimplente pelas transições."""
+    from apps.contas.models import Autenticador
+
+    dono = Usuario.objects.get(email="dono@giro.example")
+    assert (dono.funcao_plataforma, dono.status) == ("dono", "ativo")
+    assert Autenticador.objects.filter(user=dono, confirmed=True).exists()
+    estados = dict(
+        Empresa.objects.exclude(subdominio="motorapida")
+        .exclude(subdominio=None)
+        .values_list("subdominio", "status")
+    )
+    assert estados["pedalada"] == "ativa"
+    assert estados["rodavida"] == "inadimplente"
+    assert set(estados) == {"pedalada", "rodavida", "ventosul", "estradafacil"}
+    depois = _semear()
+    assert "Criado: nada novo" in depois
