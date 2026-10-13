@@ -17,7 +17,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 18, 19, 21 e 22 e apo
 | Aprovar diferença de caixa (`APR-04`) | sim | sim | — | — | — |
 | Lançar despesa | sim | sim | sim | só manutenção | sim |
 | Lançar despesa como paga no caixa (`FIN-05`) | sim | sim | sim (sua filial) | — | sim |
-| Exportar as despesas em CSV (`FIN-16`, `AUD-07`) | sim | — | — | — | — |
+| Exportar as despesas em CSV (`FIN-16`, `AUD-07`) | sim | — | — | — | sim |
 | Aprovar despesa acima de R$ 500 (`APR-03`) | sim | sim | — | — | — |
 | Pagar despesa, marcar devolução ao cliente como feita | sim | — | — | — | sim |
 
@@ -332,7 +332,7 @@ A aprovação e a recusa (`aguardando_aprovacao` → `a_pagar` ou `recusada`) pa
 
 ### Exportar as despesas (`FIN-16`, `AUD-07`, T-177)
 
-O botão "Exportar" da tela `Despesas`, só para o administrador, pede `POST /api/exportacoes/` com `{ "itens": ["despesas"], "formato": "csv", "mes": "2026-10", "filial_id": 1 | null }`, com o mês e a filial da tela (`null` = todas). A busca e a aba escolhidas não vão no pedido (CA-DES-07). O fluxo, o arquivo, as colunas e o texto em "Exportações recentes" estão em `auditoria.md`, "Despesas em CSV". As linhas do arquivo vêm de `financeiro.exportacao.linhas_das_despesas`, registrada no `auditoria` (seção "Eventos e interface interna", abaixo).
+O botão "Exportar" da tela `Despesas`, só para o administrador e o financeiro (decisão do dono, 13 out 2026, no PR #187; o botão aparece com `pode.despesas_exportar`, `contas.md`), pede `POST /api/exportacoes/` com `{ "itens": ["despesas"], "formato": "csv", "mes": "2026-10", "filial_id": 1 | null }`, com o mês e a filial da tela (`null` = todas). A busca e a aba escolhidas não vão no pedido (CA-DES-07). O fluxo, o arquivo, as colunas e o texto em "Exportações recentes" estão em `auditoria.md`, "Despesas em CSV". As linhas do arquivo vêm de `financeiro.exportacao.linhas_das_despesas`, registrada no `auditoria` (seção "Eventos e interface interna", abaixo).
 
 ---
 

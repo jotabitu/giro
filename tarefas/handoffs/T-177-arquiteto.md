@@ -14,7 +14,12 @@
 
 **Regras cobertas:** FIN-05, FIN-06, FIN-07, FIN-16, AUD-07, APR-03.
 
-## Decisões
+## Decisões do dono no PR #187 (13 out 2026)
+
+- **O financeiro também exporta as despesas** (não só o administrador): perfis por item em `POST /api/exportacoes/` (`auditoria` só administrador; `despesas` administrador e financeiro), no download e em "Exportações recentes" (o financeiro vê só as das despesas). Chave nova `pode.despesas_exportar` em `contas.md`, para o frontend não deduzir o botão pelo perfil.
+- **Placa com hífen no CSV:** `PMZ-3E17`, hífen depois do 3º caractere nas placas de 7.
+
+## Decisões do arquiteto
 
 | # | Ponto | Decisão |
 | --- | --- | --- |
@@ -23,14 +28,13 @@
 | 3 | Quem monta o CSV das despesas | `financeiro`, por um registro de itens em `auditoria/exportacao.py` (o app de baixo registra, o de cima chama, como na ADR 0015). `auditoria` não pode importar `financeiro` (ADR 0011). Sem ADR nova. |
 | 4 | Item e corpo | Item novo `despesas`, separado de `financeiro` (fase 2). `mes` e `filial_id` no corpo, e não o `X-Filial`: a task roda depois, então a filial fica gravada em `parametros`, com o nome copiado. |
 | 5 | Despesas junto de outro item | 422 `exportacao_indisponivel`: período e filial não combinam com a auditoria. |
-| 6 | Formato das células | Datas `DD/MM/AAAA`, valor `1200,00`, rótulos em vez de códigos, placa como guardada; mesmo CSV da auditoria (BOM, `;`, proteção contra fórmula). |
+| 6 | Formato das células | Datas `DD/MM/AAAA`, valor `1200,00`, rótulos em vez de códigos, placa com hífen (decisão do dono); mesmo CSV da auditoria (BOM, `;`, proteção contra fórmula). |
 
 **O que ficou de fora:**
-- O seed ainda não lança despesas (não achei as 6 de outubro em `backend/seed/`). A T-178 pede "o seed com nota nas 6 despesas": se o seed das despesas for da T-019 (qa), o orquestrador decide quem faz.
-- A placa no CSV sai sem hífen (`PMZ3E17`), como a API guarda. Se o dono quiser com hífen, é uma linha no `financeiro/exportacao.py`.
+- Seed: o PR #180 (T-019, qa) já lança as 6 despesas de outubro; a T-178 só acrescenta a nota nelas (orquestrador, 13 out 2026).
 
 **Próximo passo para quem recebe:**
 - **Orquestrador:** abrir o PR depois do #186 (esta branch saiu da `origin/t-176-decisoes-t167`).
 - **Backend (T-178):** contrato pronto; `test_*` como na T-178. A mensagem do 422 `FIN-07` muda em `lancar_despesa`, e a do `exportacao_indisponivel` em `auditoria/services.py`.
-- **Frontend (T-179):** "Exportar" só com `pode` de administrador, com o mês e a filial da tela; o indicador da despesa por veículo some com `null`; "Foto da nota" obrigatória; a mensagem do 422 aparece como vier.
+- **Frontend (T-179):** "Exportar" só com `pode.despesas_exportar` (administrador e financeiro), com o mês e a filial da tela; o indicador da despesa por veículo some com `null`; "Foto da nota" obrigatória; a mensagem do 422 aparece como vier.
 - **QA:** a coluna `veiculo` sem hífen e o texto de `conteudo` fecham o "texto final no contrato" do CA-DES-06.

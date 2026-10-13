@@ -9,7 +9,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: item 25 e `Exportacao` em `
 | Ação | Empresa | Plataforma |
 | --- | --- | --- |
 | Consultar a auditoria | administrador (os demais perfis: 403) | dono (as demais funções: 403, CA-018-15) |
-| Exportar | administrador | dono |
+| Exportar | administrador; as despesas, também o financeiro (T-177) | dono |
 | Escrever, editar ou apagar evento | ninguém: não existe endpoint (`POST`, `PUT`, `PATCH`, `DELETE` → 405) | ninguém |
 
 O token de suporte não consulta a auditoria da empresa (403 `PLT-07`): o suporte não lê o rastro de quem audita o próprio suporte.
@@ -82,7 +82,7 @@ Query: as mesmas da empresa, mais `?empresa=<id>`. A aba "Acessos de suporte" é
 
 ## Exportação (AUD-07, S-15)
 
-Vale para a empresa (`/api/exportacoes/`, administrador). A exportação da plataforma (`/api/plataforma/exportacoes/`, dono, só auditoria em CSV) é da fase 2.
+Vale para a empresa (`/api/exportacoes/`: administrador; o item `despesas`, também o financeiro). A exportação da plataforma (`/api/plataforma/exportacoes/`, dono, só auditoria em CSV) é da fase 2.
 
 ### O que existe no MVP (opção A do dono, 12 out 2026, T-151)
 A **auditoria em CSV**, por período (`AUD-07`, nota de 12 out nas regras), e, desde a decisão do dono de 13 out 2026 (T-176, nota de 13 out na `AUD-07`), as **despesas em CSV**, por mês e filial, pedidas pelo botão "Exportar" da tela `Despesas` (seção "Despesas em CSV", abaixo). Os outros itens (`clientes`, `veiculos`, `locacoes_contratos`, `financeiro`, `vistorias_fotos`), o formato `planilha`, o backup completo `zip`, o backup automático (`AUT-11`) e a exportação da plataforma vão para a fase 2. O contrato abaixo descreve o corpo completo para a fase 2 não mudar o formato; no MVP:
@@ -94,7 +94,7 @@ A **auditoria em CSV**, por período (`AUD-07`, nota de 12 out nas regras), e, d
 - `GET /api/exportacoes/backup-automatico/` (e o `PATCH`) não existem no MVP.
 
 ### POST /api/exportacoes/
-No MVP só `["auditoria"]` e `["despesas"]`, cada um sozinho, com `csv` passam; o resto é 422 `exportacao_indisponivel` (acima). Perfil: administrador (os outros perfis: 403, CA-DES-08); token de suporte: 403 (é escrita). Corpo da auditoria: `{ "itens": ["clientes", "veiculos", "locacoes_contratos", "financeiro", "vistorias_fotos", "auditoria"], "formato": "planilha" | "csv" | "zip", "periodo": { "de": "2026-01-01", "ate": "2026-10-07" } | null }`.
+No MVP só `["auditoria"]` e `["despesas"]`, cada um sozinho, com `csv` passam; o resto é 422 `exportacao_indisponivel` (acima). Perfis **por item**: `auditoria`, só o administrador; `despesas`, o administrador e o financeiro (decisão do dono, 13 out 2026, PR #187). Fora disso, 403 `{ "codigo": "permissao" }` (o financeiro pedindo a auditoria; o gerente e o vendedor pedindo as despesas, CA-DES-08); token de suporte: 403 (é escrita). Corpo da auditoria: `{ "itens": ["clientes", "veiculos", "locacoes_contratos", "financeiro", "vistorias_fotos", "auditoria"], "formato": "planilha" | "csv" | "zip", "periodo": { "de": "2026-01-01", "ate": "2026-10-07" } | null }`.
 - *(fase 2)* `zip` é o backup completo (todos os itens, com fotos): exige token com 2 etapas confirmadas há no máximo 15 minutos (`amr` com `otp` e `auth_time` recente); senão 403 `{ "codigo": "2fa_recente", "mensagem": "Confirme o código do autenticador para gerar o backup completo" }`. Gera evento `seguranca`.
 - Células de texto que começam com `=`, `+`, `-`, `@`, tabulação ou retorno de carro saem com apóstrofo na frente (injeção de fórmula, `docs/api/README.md`).
 - Dados pessoais saem como a pessoa veria na tela: o administrador vê completos; a auditoria sai sempre com a classificação da ADR 0014 (CA-018-13).
@@ -102,11 +102,11 @@ No MVP só `["auditoria"]` e `["despesas"]`, cada um sozinho, com `csv` passam; 
 
 ### Despesas em CSV (`FIN-16`, `AUD-07`, T-177)
 
-Pedido pelo botão "Exportar" da tela `Despesas` (não pela `Admin-Exportar`), só para o administrador. Mesmo fluxo da auditoria: `POST /api/exportacoes/`, `na_fila` → `pronta` na task, arquivo no storage privado, e-mail com o link, 7 dias, `GET /api/exportacoes/{id}/baixar/` com o evento `exportacao.baixar` a cada download, e a linha em "Exportações recentes".
+Pedido pelo botão "Exportar" da tela `Despesas` (não pela `Admin-Exportar`), pelo administrador ou pelo financeiro. Mesmo fluxo da auditoria: `POST /api/exportacoes/`, `na_fila` → `pronta` na task, arquivo no storage privado, e-mail com o link, 7 dias, `GET /api/exportacoes/{id}/baixar/` com o evento `exportacao.baixar` a cada download, e a linha em "Exportações recentes".
 
 Corpo: `{ "itens": ["despesas"], "formato": "csv", "mes": "2026-10", "filial_id": 1 | null }`.
 - `mes` obrigatório, `AAAA-MM` (400 `{ "mes": ["Escolha o mês no formato 2026-10."] }`); `periodo` não vale com `despesas` (400 `{ "periodo": ["Para as despesas, use o mês."] }`). O serviço grava `periodo_inicio` e `periodo_fim` com o primeiro e o último dia do mês.
-- `filial_id`: a filial escolhida na tela (a mesma do `X-Filial`); `null` = todas as filiais. Filial que não existe na empresa: 400 `{ "filial_id": ["Filial não encontrada."] }`. Desativada vale (tem despesas antigas, `FIL-06`). O administrador vê todas, então não há outra checagem de escopo.
+- `filial_id`: a filial escolhida na tela (a mesma do `X-Filial`); `null` = todas as filiais. Filial que não existe na empresa: 400 `{ "filial_id": ["Filial não encontrada."] }`. Desativada vale (tem despesas antigas, `FIL-06`). O administrador e o financeiro veem todas as filiais (`USR-07`), então não há outra checagem de escopo.
 - Fica em `Exportacao.parametros` (JSON novo, padrão `{}`): `{ "mes": "2026-10", "filial_id": 1, "filial_nome": "Filial Centro" }`, com o nome copiado no pedido (como `solicitada_por_nome`), e entra no evento `exportacao.pedir`.
 - A busca e a aba da tela não vão no pedido: o arquivo é sempre o mês e a filial inteiros (CA-DES-07).
 
@@ -119,7 +119,7 @@ Arquivo `despesas.csv`, como o da auditoria: UTF-8 com BOM, separador `;`, uma l
 | `data`, `vencimento` | `DD/MM/AAAA` | `07/10/2026` |
 | `descricao` | como lançada | `Pneus (2 unidades)` |
 | `categoria` | rótulo | `Manutenção` |
-| `veiculo` | placa como guardada; vazio sem veículo | `PMZ3E17` |
+| `veiculo` | placa **com hífen** depois do 3º caractere, como nas telas (decisão do dono, 13 out 2026, PR #187): `PMZ3E17` → `PMZ-3E17`, `ROE2A88` → `ROE-2A88`; placa guardada fora de 7 caracteres sai como está; vazio sem veículo | `PMZ-3E17` |
 | `filial` | nome da filial da despesa | `Filial Centro` |
 | `valor` | reais com vírgula, sem separador de milhar nem "R$" (a planilha lê como número) | `1200,00` |
 | `situacao` | rótulo do status: "Aguardando aprovação", "A pagar", "Paga", "Recusada" | `Aguardando aprovação` |
@@ -132,11 +132,11 @@ Arquivo `despesas.csv`, como o da auditoria: UTF-8 com BOM, separador `;`, uma l
 - `ItemExportacao` ganha `despesas` ("Despesas"), separado de `financeiro`, que continua sendo o item da fase 2 (todo o financeiro). `DISPONIVEIS` ganha `("despesas", "csv")`.
 
 ### GET /api/exportacoes/
-"Exportações recentes": `{ "resultados": [ { "id", "solicitada_em", "solicitada_por": "Mariana Costa" | "Automático", "conteudo": "Auditoria · 01/10/2026 a 07/10/2026" | "Despesas · Filial Centro · 01/10/2026 a 31/10/2026", "formato", "tamanho_bytes", "status": "na_fila" | "pronta" | "expirada" | "falhou", "expira_em" } ] }`. As despesas aparecem aqui como as da auditoria, com a filial no `conteudo` ("Todas as filiais" quando `filial_id` é `null`). "Automático" (backup mensal) e "Backup completo" no `conteudo` só aparecem na fase 2.
+"Exportações recentes": `{ "resultados": [ { "id", "solicitada_em", "solicitada_por": "Mariana Costa" | "Automático", "conteudo": "Auditoria · 01/10/2026 a 07/10/2026" | "Despesas · Filial Centro · 01/10/2026 a 31/10/2026", "formato", "tamanho_bytes", "status": "na_fila" | "pronta" | "expirada" | "falhou", "expira_em" } ] }`. As despesas aparecem aqui como as da auditoria, com a filial no `conteudo` ("Todas as filiais" quando `filial_id` é `null`). "Automático" (backup mensal) e "Backup completo" no `conteudo` só aparecem na fase 2. Perfis: o administrador vê todas; o financeiro vê só as de `despesas`, de qualquer pessoa (na tela `Despesas`); os outros perfis, 403.
 
 ### GET /api/exportacoes/{id}/baixar/
 O "link de 7 dias" do e-mail é esta rota do sistema, não uma URL do storage (S-15):
-- Exige login de administrador (e 2 etapas recentes para `zip`), dentro dos 7 dias da `expira_em`.
+- Exige login de quem pode exportar o item (administrador; nas despesas, também o financeiro), e 2 etapas recentes para `zip`, dentro dos 7 dias da `expira_em`. Outro perfil: 403 `permissao`.
 - Responde **302** para uma URL assinada do storage válida por 15 minutos (`AUD-05`).
 - Cada download grava `exportacao.baixar` (categoria `seguranca`).
 - Depois de 7 dias: 410 `{ "codigo": "exportacao_expirada" }`; o arquivo é apagado do storage.
