@@ -15,9 +15,13 @@ from zoneinfo import ZoneInfo
 
 from apps.clientes import services as clientes_services
 from apps.clientes.models import Cliente, DocumentoCliente, TipoDocumentoCliente
+from apps.contratos import marcadores
+from apps.contratos import selectors as contratos_selectors
+from apps.contratos.models import Contrato
 from apps.financeiro import selectors as financeiro_selectors
 from apps.financeiro import services as financeiro
 from apps.financeiro.models import ContaReceber
+from apps.locacoes import contrato as locacoes_contrato
 from apps.locacoes import services as locacoes_services
 from apps.locacoes.models import Locacao
 from apps.veiculos import services as veiculos_services
@@ -273,6 +277,8 @@ def _confirmar(
     locacoes_services.confirmar(locacao, vendedor)
     relogio.em(retirada)
     locacoes_services.registrar_vistoria_saida(locacao, km=veiculo.km_atual)
+    if conferencia:
+        _contrato_assinado(locacao, relogio.agora)
     locacoes_services.registrar_contrato_assinado(locacao.pk, relogio.agora)
     for conta in financeiro_selectors.contas_da_origem("locacao", locacao.pk):
         if conta.tipo == "caucao" or conta.numero_parcela == 1:
@@ -290,6 +296,33 @@ def _confirmar(
     relogio.em(agora.strftime("%Y-%m-%d %H:%M"))
     locacao.refresh_from_db()
     return locacao
+
+
+def _contrato_assinado(locacao: Locacao, assinado_em: datetime) -> None:
+    """O contrato assinado na retirada, com a versão publicada do modelo (IMP-04) e a cláusula
+    de multa e juros dele (FIN-03). Sem contrato, a parcela atrasada vale só o principal (T-163).
+    Gravado direto, como a locação: sem PDF nem link de assinatura."""
+    modelo = contratos_selectors.modelo_publicado()
+    if modelo is None:
+        raise RuntimeError("O seed publica o modelo de contrato antes das locações")
+    locacao = Locacao.objects.select_related("filial", "cliente", "veiculo").get(pk=locacao.pk)
+    valores = locacoes_contrato.valores(locacao)
+    valores["contrato.data"] = assinado_em.astimezone(FUSO).strftime("%d/%m/%Y")
+    Contrato.objects.create(
+        origem_tipo="locacao",
+        origem_id=locacao.pk,
+        origem_codigo=locacao.codigo,
+        filial=locacao.filial,
+        cliente=locacao.cliente,
+        modelo=modelo,
+        versao_modelo=modelo.versao,
+        tipo="contrato",
+        titulo=f"Contrato de {modelo.nome[:1].lower()}{modelo.nome[1:]}",
+        status="assinado",
+        versao_texto_html=marcadores.substituir(modelo.texto, valores),
+        clausula_juros=marcadores.tem_clausula_juros(modelo.texto),
+        assinado_em=assinado_em,
+    )
 
 
 def carregar(
@@ -386,6 +419,8 @@ def carregar(
                 forma="pix" if paga else "",
                 pago_em=pago_em if paga else None,
             )
+        if conferencia:
+            _contrato_assinado(locacao, locacao.inicio)
         # As parcelas nasceram com a locação, e não hoje: o atraso da FIN-03 conta do vencimento.
         ContaReceber.objects.filter(origem_tipo="locacao", origem_id=locacao.pk).update(
             criado_em=momento(inicio)

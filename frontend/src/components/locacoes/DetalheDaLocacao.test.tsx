@@ -15,11 +15,12 @@ async function entrarComo(email: string) {
 
 async function pagina(id: number): Promise<{ desktop: string; celular: string }> {
   const l = await locacoes.obter(id);
-  const [historico, cliente] = await Promise.all([locacoes.historico(id), clientes.obter(l.cliente.id)]);
+  // O vistoriador não abre a ficha do cliente (403, USR-09): sem ela no cache, a tela mostra o nome sem link.
+  const [historico, cliente] = await Promise.all([locacoes.historico(id), clientes.obter(l.cliente.id).catch(() => undefined)]);
   const cache = new QueryClient();
   cache.setQueryData(["locacao", id], l);
   cache.setQueryData(["locacao", id, "historico"], historico);
-  cache.setQueryData(["cliente", l.cliente.id], cliente);
+  if (cliente) cache.setQueryData(["cliente", l.cliente.id], cliente);
   const html = renderToStaticMarkup(
     <QueryClientProvider client={cache}>
       <DetalheDaLocacao id={id} />

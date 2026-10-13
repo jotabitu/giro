@@ -25,6 +25,9 @@ export type ClienteResumo = {
   financeiro: { total_pago_centavos: number; em_aberto_centavos: number; a_devolver_centavos: number } | null;
   venda_aberta: { id: number; codigo: string; veiculo: string } | null;
   acao_principal: AcaoPrincipal | null;
+  /** Só na ficha completa e na ficha do financeiro (USR-09, T-136): contato e motivo do bloqueio. */
+  email?: string | null;
+  bloqueio?: BloqueioDoCliente | null;
 };
 
 export type ListaClientes = {
