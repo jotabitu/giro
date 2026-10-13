@@ -166,10 +166,10 @@ function Movimentos({ caixaId }: { caixaId: number }) {
                     </td>
                     <td>
                       <StatusBadge tom="neutro" compacto>
-                        {m.tipo === "sangria" ? "Sangria" : rotuloDaForma(m.forma)}
+                        {rotuloDaForma(m.forma)}
                       </StatusBadge>
                     </td>
-                    <td>{m.descricao}</td>
+                    <td>{m.tipo === "sangria" ? `Sangria · ${m.descricao}` : m.descricao}</td>
                     <td style={{ textAlign: "right", fontWeight: 500 }}>
                       {sinal(m)}
                       {dinheiro(m.valor_centavos)}
@@ -309,7 +309,7 @@ export function CaixaDoDia() {
           <KpiTile destaque rotulo="Entrou hoje" valor={dinheiro(resumo.entrou_hoje_centavos)} contexto={`${resumo.recebimentos} ${resumo.recebimentos === 1 ? "recebimento" : "recebimentos"}`} />
           <KpiTile rotulo="Pix" valor={dinheiro(p.pix.centavos)} contexto={p.pix.texto ?? `${p.pix.quantidade} ${p.pix.quantidade === 1 ? "recebimento" : "recebimentos"}`} />
           <KpiTile rotulo="Cartão" valor={dinheiro(p.cartao.centavos)} contexto={p.cartao.texto ?? `${p.cartao.quantidade} ${p.cartao.quantidade === 1 ? "recebimento" : "recebimentos"}`} />
-          <KpiTile rotulo="Dinheiro" valor={dinheiro(p.dinheiro.centavos)} contexto={p.dinheiro.texto ?? `${p.dinheiro.quantidade} ${p.dinheiro.quantidade === 1 ? "recebimento" : "recebimentos"}`} />
+          <KpiTile rotulo="Dinheiro na gaveta" valor={dinheiro(resumo.gaveta.esperado_centavos)} contexto={p.dinheiro.texto ?? "confere no fechamento"} />
         </KpiGrid>
       </div>
       <section className="rounded-xl bg-solid p-5 text-on-solid md:hidden" aria-label="Entrou hoje">

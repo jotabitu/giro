@@ -170,6 +170,9 @@ export function ListaReceber() {
   const mostrar = ABAS.map((a) => ({ valor: a.valor, rotulo: a.rotulo, contagem: c?.[a.chave] }) satisfies OpcaoChip);
   const mostrarCelular = ABAS.filter((a) => a.valor !== "todas").map((a) => ({ valor: a.valor, rotulo: a.curto, contagem: c?.[a.chave] }) satisfies OpcaoChip);
   const filial = eu.filiais[0]?.nome;
+  // Lançamento avulso: administrador, gerente e financeiro (contrato financeiro.md, "Quem pode"). Nenhum
+  // `pode` cobre os três; a união abaixo exclui vendedor e vistoriador (USR-05).
+  const podeLancar = eu.pode.despesas_aprovar || eu.pode.financeiro_pagar;
   const mes = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", month: "long", year: "numeric" }).format(new Date());
   const total = c?.[ABAS.find((a) => a.valor === aba)?.chave ?? "todas"];
 
@@ -189,7 +192,7 @@ export function ListaReceber() {
         <div className="min-w-0 flex-1 md:flex-none">
           <h1 className="text-title md:text-display">Contas a receber</h1>
           <p className="mt-1 text-body text-ink-muted">
-            <span className="capitalize">{mes}</span>
+            {mes.charAt(0).toUpperCase() + mes.slice(1)}
             {filial ? ` · ${filial}` : ""}
           </p>
         </div>
@@ -197,9 +200,11 @@ export function ListaReceber() {
           <div className="hidden md:block">
             <SegmentedControl rotulo="Período" opcoes={PERIODOS} valor={periodo} aoMudar={(v) => definir({ periodo: v === "mes" ? null : v })} />
           </div>
-          <Button variante="solido" icone={<Icone de={Plus} />} onClick={() => setAberto({ tipo: "novo" })}>
-            Novo lançamento
-          </Button>
+          {podeLancar && (
+            <Button variante="solido" icone={<Icone de={Plus} />} onClick={() => setAberto({ tipo: "novo" })}>
+              Novo lançamento
+            </Button>
+          )}
         </div>
       </header>
 

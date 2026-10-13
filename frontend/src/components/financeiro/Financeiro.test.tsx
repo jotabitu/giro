@@ -55,6 +55,15 @@ async function paginaCaixa(dia: DiaDoCaixaFalso = "aberto"): Promise<string> {
 beforeEach(() => reiniciarFinanceiroFalso());
 
 describe("contas a receber, na ordem da referência (FIN-01, FIN-02, FIN-15)", () => {
+  it("Novo lançamento só para gerente (e não para a vendedora), e o mês sai sem maiúscula no meio (USR-05)", async () => {
+    await entrar("bruna@motorapida.com.br");
+    const bruna = texto(await paginaReceber());
+    expect(bruna).not.toContain("Novo lançamento");
+    expect(bruna).not.toContain(" De ");
+    await entrar("rodrigo@motorapida.com.br");
+    expect(texto(await paginaReceber())).toContain("Novo lançamento");
+  });
+
   it("indicadores, faixas, abas e as duas contas em atraso", async () => {
     await entrar("rodrigo@motorapida.com.br");
     const t = texto(await paginaReceber());
@@ -126,9 +135,9 @@ describe("caixa do dia (FIN-07, APR-04)", () => {
     await entrar("bruna@motorapida.com.br");
     const t = texto(await paginaCaixa());
     ordem(t, ["Caixa do dia", "Quarta, 07 out", "Filial Centro", "aberto por Bruna Alves às 07:55", "Sangria", "Fechar caixa"]);
-    ordem(t, ["Entrou hoje", "R$ 1.111,90", "5 recebimentos", "Pix", "R$ 373,90", "Cartão", "R$ 109,00", "cai em 30 dias", "Dinheiro", "R$ 629,00"]);
+    ordem(t, ["Entrou hoje", "R$ 1.111,90", "5 recebimentos", "Pix", "R$ 373,90", "Cartão", "R$ 109,00", "cai em 30 dias", "Dinheiro na gaveta", "R$ 281,00", "confere no fechamento"]);
     ordem(t, ["Movimentos", "Todos", "Entradas", "Saídas", "Hora", "Forma", "Descrição", "Valor"]);
-    ordem(t, ["08:02", "Pix", "Juliana Rocha · LOC-2836 · 2ª semana", "R$ 329,00", "Sangria", "Depósito no banco", "− R$ 500,00", "Óleo · QXA4B21", "− R$ 48,00"]);
+    ordem(t, ["08:02", "Pix", "Juliana Rocha · LOC-2836 · 2ª semana", "R$ 329,00", "Dinheiro", "Sangria · Depósito no banco", "− R$ 500,00", "Óleo · QXA4B21", "− R$ 48,00"]);
     ordem(t, ["Receber pagamento"]);
     ordem(t, ["Gaveta", "Abertura (troco)", "R$ 200,00", "Entradas em dinheiro", "R$ 629,00", "Saídas em dinheiro", "− R$ 548,00", "Deve ter na gaveta", "R$ 281,00"]);
   });
