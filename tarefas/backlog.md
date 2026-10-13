@@ -25,8 +25,6 @@ A dúvida do backend na T-069 (reativar quem teve o convite cancelado) foi anali
 
 Levantadas pelo backend em T-027 (12 out 2026), para o produto e o arquiteto:
 
-- [decisão] Cor do veículo na planilha: `docs/api/importacao.md` lista `cor` como coluna opcional, mas o cadastro pela tela (`veiculos.services.cadastrar`, contrato de veículos) exige a cor, e a importação usa as mesmas validações (`IMP-02`). Hoje a linha sem cor fica com erro "Cor em branco". Opções: A) manter (a cor vira obrigatória também no modelo da planilha); B) a importação aceita sem cor e o cadastro passa a aceitar cor vazia.
-- [decisão] Célula com mais de 1.000 caracteres: o contrato diz que a linha fica com erro, e também manda usar `csv.field_size_limit` de 1.000 no `.csv`, que interrompe a leitura do arquivo. Hoje: no `.xlsx` a linha fica com erro; no `.csv` o arquivo é recusado (400, "A linha N tem uma célula com mais de 1.000 caracteres"). Opções: A) manter assim; B) ler o `.csv` com limite maior e marcar só a linha.
 
 Levantadas pelo arquiteto em T-030 (07 out 2026):
 
@@ -338,6 +336,9 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 
 ### T-163 · Multa e juros no valor de hoje da parcela atrasada
 - **Agente:** backend, com o qa · **Depende de:** T-017 · **Regras:** FIN-03 · **Pronto quando:** investigar por que, no compose de 12 out, a parcela atrasada há 12 dias do Carlos (LOC-2841, R$ 299,40) veio em `valor_hoje` sem multa e juros (só o principal); se for defeito, corrigir com teste `test_fin_03_*` no caso do seed; se for regra (carência, parcela de locação sem multa, data de referência), explicar no handoff e o produto confirma. O qa confere o caso nos dados de referência. Levantada pelo frontend na T-023 (divergência c).
+
+### T-164 · Decisões da T-027: cor obrigatória e célula longa no .csv
+- **Agente:** arquiteto (contrato e código da planilha), depois produto (critério) · **Depende de:** T-027 · **Regras:** IMP-02 · **Decisões (12 out 2026):** (1) cor, do dono: opção A, a cor é obrigatória também na planilha, como no cadastro pela tela (está no CRLV e identifica a moto na vistoria); o código já faz assim (análise em `C:/Users/Jota/Documents/giro-produto/analise-t027.md`, fora do git); (2) célula longa, do arquiteto: opção B, no `.csv` a linha fica com erro como no `.xlsx`, `field_size_limit` sobe para 5 MB e o corte em 1.000 continua na validação da linha; célula com aspas sem fechar continua recusando o arquivo ("A linha N tem aspas sem fechar") (`analise-t027-arquiteto.md`) · **Pronto quando:** (arquiteto) `docs/api/importacao.md` com a cor em negrito e o texto da célula longa; `planilha.py` com a mudança e os 4 testes `test_imp_02_*`; (produto) `docs/qa/criterios/T-027.md` com a cor obrigatória e a célula longa no `.csv`; o caso 83 + 3 = 86 continua igual.
 
 ### T-019 · Seed Moto Rápida
 - **Agente:** qa · **Depende de:** T-013 a T-017 · **Pronto quando:** `make seed` cria a empresa de exemplo e todos os casos da tabela "Dados de referência para testes" passam.
