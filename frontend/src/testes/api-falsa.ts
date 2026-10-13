@@ -3,6 +3,7 @@
 import { clientesFalso } from "./falsos/falso-clientes";
 import { veiculosFalso } from "./falsos/falso-frota";
 import { contasFalso, marcaFalsa } from "./falsos/falso";
+import { ambienteFalso } from "./falsos/falso-ambiente";
 import { relatoriosFalso } from "./falsos/falso-painel";
 import { financeiroFalso } from "./falsos/falso-financeiro";
 import { locacoesFalso } from "./falsos/falso-locacoes";
@@ -10,6 +11,7 @@ import { vistoriasFalso } from "./falsos/falso-vistorias";
 
 export const contas = contasFalso;
 export const marca = marcaFalsa;
+export const ambiente = ambienteFalso;
 export const relatorios = relatoriosFalso;
 export const veiculos = veiculosFalso;
 export const clientes = clientesFalso;
