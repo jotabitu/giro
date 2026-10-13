@@ -10,7 +10,7 @@ O cliente é da empresa, compartilhado entre filiais: a lista não é filtrada p
 
 | Ação | Administrador | Gerente | Vendedor | Vistoriador | Financeiro |
 | --- | --- | --- | --- | --- | --- |
-| Ver lista (CPF mascarado) | sim | sim | sim | sim | sim |
+| Ver lista (CPF mascarado) e ficha | sim | sim | sim | — (403, `USR-09`) | sim |
 | Ver dados pessoais completos e documentos (`AUD-04`) | sim | sim | sim | — | — |
 | Cadastrar e editar | sim | sim | sim | — | — |
 | Bloquear manualmente | sim | sim | — | — | — |
@@ -18,7 +18,7 @@ O cliente é da empresa, compartilhado entre filiais: a lista não é filtrada p
 | Inativar e reativar | sim | sim | — | — | — |
 | Exportar dados do titular e anonimizar (`AUD-06`, fase 2) | sim | — | — | — | — |
 
-Quem não pode ver os dados completos recebe só a representação resumida, com CPF mascarado, sem endereço, CNH e documentos. O token de suporte (`PLT-07`) **sempre** recebe a resumida, mesmo com permissão `ver_editar` (`AUD-09`): ele pode editar campos do cadastro, mas a resposta não traz documento, CNH nem URLs de documento.
+Quem não pode ver os dados completos recebe só a representação resumida, com CPF mascarado, sem endereço, CNH e documentos; o financeiro recebe a ficha do financeiro (abaixo, `USR-09`). O vistoriador não abre a lista nem a ficha: 403 `{ "codigo": "permissao", "mensagem": "Seu perfil não tem acesso a esta ação." }`; ele vê do cliente só o que vem com a vistoria (`vistorias.md`, `USR-09`). O token de suporte (`PLT-07`) **sempre** recebe a resumida, mesmo com permissão `ver_editar` (`AUD-09`): ele pode editar campos do cadastro, mas a resposta não traz documento, CNH nem URLs de documento.
 
 ## Representação
 
@@ -42,6 +42,10 @@ Quem não pode ver os dados completos recebe só a representação resumida, com
 
 - CNPJ não é dado pessoal e sai inteiro em `documento_mascarado` para PJ.
 - `situacao` e `acao_principal` são decididas pela API (ver abaixo).
+
+### Ficha do financeiro (detalhe, perfil `financeiro`, `USR-09`, T-136)
+
+A resumida mais `email` e `bloqueio` (o mesmo bloco da completa, com o motivo do bloqueio). `acao_principal` só vem quando é `cobrar` (`CLI-07`); nos demais casos vem `null`. Sem `documento`, CNH, endereço, referência, documentos, pendências nem `analise` (`AUD-04`, `CLI-04`). As locações do cliente vêm de `GET /api/locacoes/?cliente=<id>`, e as parcelas atrasadas e os pagamentos, de `GET /api/financeiro/contas-receber/?cliente=<id>`, que o financeiro já pode ler. A lista continua com a resumida.
 
 ### Completa (detalhe, para quem pode cadastrar)
 
@@ -105,7 +109,7 @@ Enquanto o fornecedor não existe, o bloco vem `null` (em T-014, todos).
 ---
 
 ## GET /api/clientes/
-Perfis: todos.
+Perfis: todos menos o vistoriador (403, `USR-09`).
 Query: `?situacao=com_locacao|em_aberto|bloqueados|incompletos|inativos` (`CLI-06`). Sem `situacao`, a lista padrão não traz clientes `inativo`; eles só aparecem com `?situacao=inativos`. Também: `?tipo=pf|pj`, `?busca=`, `?ordem=-criado_em|nome|-total_pago`.
 - `busca` com só dígitos (11 ou 14) procura CPF/CNPJ exato pelo hash (ADR 0014); com texto, procura no nome (`icontains`, com índice em `Lower(nome)`) e no celular. Trigram (`pg_trgm`) só quando o volume pedir, com ADR de infraestrutura.
 200:
@@ -122,7 +126,7 @@ Query: `?situacao=com_locacao|em_aberto|bloqueados|incompletos|inativos` (`CLI-0
 - Exportar: `POST /api/clientes/exportar/`, só administrador, 202 (`AUD-07`).
 
 ## GET /api/clientes/{id}/
-Perfis: todos. Completa para quem pode cadastrar; resumida para os demais.
+Perfis: todos menos o vistoriador (403, `USR-09`). Completa para quem pode cadastrar; a ficha do financeiro para o financeiro; resumida para o suporte (`AUD-09`).
 
 ## POST /api/clientes/
 Perfis: administrador, gerente, vendedor.

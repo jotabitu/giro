@@ -113,8 +113,16 @@ class VeiculoDaVistoriaSerializer(serializers.Serializer[Any]):
 
 
 class ClienteDaVistoriaSerializer(serializers.Serializer[Any]):
+    """USR-09: o que o vistoriador vê do cliente, vindo com a vistoria."""
+
     nome = serializers.CharField()
+    celular = serializers.CharField()
     cnh = serializers.CharField(allow_null=True, required=False)
+    retirada_liberada = serializers.BooleanField(
+        allow_null=True,
+        help_text="Na saída, se a retirada está liberada (CLI-02, CLI-03, CLI-05); "
+        "`null` na devolução.",
+    )
 
 
 class LeituraKmSerializer(serializers.Serializer[Any]):

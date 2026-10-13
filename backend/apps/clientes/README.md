@@ -35,7 +35,7 @@ Contrato da API: `docs/api/clientes.md` (escrito pelo arquiteto antes da impleme
 - `selectors.py`:
   - `pendencias`, `situacao_da_cnh`, `analise` e `analise_de_dados` (`CLI-02`, `CLI-04`);
   - a interface para os outros apps: `impedimentos_para_retirada`, `impedimentos_para_nova_locacao` e `impedimentos_para_venda`;
-  - `resumida` e `completa` (`AUD-04`); `pode_ver_completo` nega o completo ao suporte em qualquer modo (`AUD-09`). Cada URL de documento gerada grava `documento_cliente.ver` (`AUD-05`);
+  - `resumida`, `do_financeiro` (`USR-09`: a resumida com e-mail e bloqueio, e só Cobrar) e `completa` (`AUD-04`); `PERFIS_QUE_VEEM` deixa o vistoriador fora da lista e da ficha (403, `USR-09`); `pode_ver_completo` nega o completo ao suporte em qualquer modo (`AUD-09`). Cada URL de documento gerada grava `documento_cliente.ver` (`AUD-05`);
   - a lista: `filtrar`, `buscar` (CPF ou CNPJ só pelo hash), `contagens` e `indicadores`.
 - `eventos.py`: assinantes de `aprovacoes.pedido_decidido` (`APR-05`), `financeiro.parcela_atrasou` e `financeiro.parcela_paga`.
 

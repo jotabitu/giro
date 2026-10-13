@@ -1,8 +1,9 @@
 """Views finas de clientes (docs/api/clientes.md).
 
 O cliente é da empresa, compartilhado entre filiais: nada aqui filtra pelo `X-Filial`. Ver a
-lista é de todos os perfis, com CPF mascarado (AUD-04); o detalhe completo é só de quem cadastra
-e nunca do suporte Giro (AUD-09). Escrever segue a tabela "Quem pode" do contrato.
+lista é de todos os perfis menos o vistoriador (403, USR-09), com CPF mascarado (AUD-04); o
+detalhe completo é só de quem cadastra e nunca do suporte Giro (AUD-09); o financeiro recebe a
+ficha do financeiro (USR-09). Escrever segue a tabela "Quem pode" do contrato.
 """
 
 from typing import Any
@@ -26,6 +27,7 @@ from ..models import Cliente
 from .serializers import (
     AnaliseClienteSerializer,
     ClienteDetalheSerializer,
+    ClienteDoFinanceiroSerializer,
     ClienteEdicaoSerializer,
     ClienteEntradaSerializer,
     ClienteSerializer,
@@ -39,7 +41,15 @@ CADASTRO: list[type[BasePermission]] = com_padrao(
     exige_perfil("administrador", "gerente", "vendedor")
 )
 GESTAO: list[type[BasePermission]] = com_padrao(exige_perfil("administrador", "gerente"))
+LEITURA: list[type[BasePermission]] = com_padrao(exige_perfil(*selectors.PERFIS_QUE_VEEM))
 DIRETO = frozenset({"administrador", "gerente"})  # desbloqueiam sem pedir (CLI-05)
+
+
+SERIALIZER_DA_VARIANTE: dict[str, type[Serializer[Any]]] = {
+    "completa": ClienteDetalheSerializer,
+    "financeiro": ClienteDoFinanceiroSerializer,
+    "resumida": ClienteSerializer,
+}
 
 
 def _entrada(classe: type[Serializer[Any]], request: Request, **kwargs: Any) -> dict[str, Any]:
@@ -56,18 +66,16 @@ def _representacao(
     cliente: Cliente, request: Request, codigo: int = status.HTTP_200_OK
 ) -> Response:
     cliente = Cliente.objects.get(pk=cliente.pk)
-    dados, completa = selectors.representacao(cliente, request.user)
-    classe = ClienteDetalheSerializer if completa else ClienteSerializer
-    return Response(classe(dados).data, status=codigo)
+    dados, variante = selectors.representacao(cliente, request.user)
+    return Response(SERIALIZER_DA_VARIANTE[variante](dados).data, status=codigo)
 
 
 class ClientesView(APIView):
     suporte_somente_leitura = True  # o suporte lê, sempre mascarado (PLT-07, AUD-09)
 
     def get_permissions(self) -> Any:
-        if self.request.method == "POST":
-            return [permissao() for permissao in CADASTRO]
-        return super().get_permissions()
+        permissoes = CADASTRO if self.request.method == "POST" else LEITURA
+        return [permissao() for permissao in permissoes]
 
     @extend_schema(
         responses=ListaDeClientesSerializer,
@@ -119,13 +127,13 @@ class ClienteView(APIView):
     suporte_somente_leitura = True  # resumida para o suporte (AUD-09)
 
     def get_permissions(self) -> Any:
-        if self.request.method == "PATCH":
-            return [permissao() for permissao in CADASTRO]
-        return super().get_permissions()
+        permissoes = CADASTRO if self.request.method == "PATCH" else LEITURA
+        return [permissao() for permissao in permissoes]
 
     @extend_schema(
         responses=ClienteDetalheSerializer,
-        summary="Cliente: completo para quem cadastra, resumido para os demais (AUD-04)",
+        summary="Cliente: completo para quem cadastra, a ficha do financeiro e o resumo (AUD-04, "
+        "USR-09)",
     )
     def get(self, request: Request, pk: int) -> Response:
         return _representacao(_cliente(pk), request)

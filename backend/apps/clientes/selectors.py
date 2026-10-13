@@ -31,6 +31,8 @@ S = StatusCliente
 ALVO = "clientes.Cliente"
 BLOCOS = ("locacao_atual", "ultima_locacao", "financeiro", "venda_aberta")
 PERFIS_DE_CADASTRO = frozenset({"administrador", "gerente", "vendedor"})
+# USR-09: o vistoriador não abre a lista nem a ficha do cliente (vê o cliente pela vistoria).
+PERFIS_QUE_VEEM = frozenset({*PERFIS_DE_CADASTRO, "financeiro"})
 DIAS_DE_TOLERANCIA_DA_CNH = 30  # CLI-02
 TIPOS_DE_DOCUMENTO = [t.value for t in TipoDocumentoCliente]
 # Contador registrado por `financeiro` (ADR 0015): contas do cliente com 15 dias ou mais de
@@ -412,14 +414,6 @@ def completa(cliente: Cliente) -> dict[str, Any]:
                 "celular": cliente.responsavel_celular,
             }
         )
-    bloqueio = None
-    if cliente.status == S.BLOQUEADO:
-        bloqueio = {
-            "motivo": cliente.bloqueio_motivo,
-            "desde": cliente.bloqueio_desde,
-            "descricao": cliente.bloqueio_descricao,
-            "desbloqueia_sozinho": cliente.bloqueio_motivo == "atraso",
-        }
     return {
         **resumida(cliente),
         "documento": cliente.documento_claro(),
@@ -448,18 +442,44 @@ def completa(cliente: Cliente) -> dict[str, Any]:
             }
         ),
         "consentimento_em": cliente.consentimento_em,
-        "bloqueio": bloqueio,
+        "bloqueio": _bloqueio(cliente),
         "documentos": _documentos(cliente, ativos),
         "pendencias": pendencias(cliente, enviados),
         "analise": analise(cliente, enviados),
     }
 
 
-def representacao(cliente: Cliente, usuario: Any) -> tuple[dict[str, Any], bool]:
-    """`(dados, completa?)` conforme quem pede."""
+def _bloqueio(cliente: Cliente) -> dict[str, Any] | None:
+    if cliente.status != S.BLOQUEADO:
+        return None
+    return {
+        "motivo": cliente.bloqueio_motivo,
+        "desde": cliente.bloqueio_desde,
+        "descricao": cliente.bloqueio_descricao,
+        "desbloqueia_sozinho": cliente.bloqueio_motivo == "atraso",
+    }
+
+
+def do_financeiro(cliente: Cliente) -> dict[str, Any]:
+    """USR-09: a resumida com o e-mail e o motivo do bloqueio, e Cobrar como única ação
+    (CLI-07). Sem documentos, endereço nem análise do cadastro (CLI-04, AUD-04)."""
+    dados = resumida(cliente)
+    acao = dados["acao_principal"]
+    return {
+        **dados,
+        "email": cliente.email,
+        "bloqueio": _bloqueio(cliente),
+        "acao_principal": acao if acao and acao["codigo"] == "cobrar" else None,
+    }
+
+
+def representacao(cliente: Cliente, usuario: Any) -> tuple[dict[str, Any], str]:
+    """`(dados, variante)` conforme quem pede: `completa`, `financeiro` ou `resumida`."""
     if pode_ver_completo(usuario):
-        return completa(cliente), True
-    return resumida(cliente), False
+        return completa(cliente), "completa"
+    if getattr(usuario, "perfil", None) == "financeiro":
+        return do_financeiro(cliente), "financeiro"
+    return resumida(cliente), "resumida"
 
 
 # --- Lista (CLI-06) ---

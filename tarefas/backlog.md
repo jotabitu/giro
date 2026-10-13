@@ -267,10 +267,7 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 
 ## Fase 1 · MVP
 
-Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entra no PR #160 antes do merge:
-
-### T-155 · (M-01) Vistoriador sem os preços dos planos especiais (média)
-- **Agente:** backend · **Depende de:** T-136 · **Regras:** USR-09 · **Pronto quando:** `GET /api/planos-especiais/` responde 403 ao vistoriador (hoje, na branch do PR #160, devolve `preco_centavos` e `desconto_pct`; `PlanosEspeciaisView` usa as permissões padrão no GET); o GET passa a usar a lista de quem lê locações (`LEEM_A_LISTA`); teste `test_usr_09_vistoriador_nao_ve_planos_especiais`. Pode entrar no próprio PR #160 antes do merge.
+Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entrou no PR #160 (ver `feito.md`).
 
 ### T-157 · (M-03) Produção recusa e-mail no console e armazenamento falso (média)
 - **Agente:** backend · **Depende de:** — · **Pronto quando:** `config/settings/prod.py` recusa subir com `EMAIL_BACKEND` de console, locmem ou arquivo (o padrão de `base.py` é o console, e os e-mails de senha, convite e assinatura levam o token) e com `GIRO_ARMAZENAMENTO` diferente de `s3`, como já faz com as chaves; pagamentos e WhatsApp `falso` entram na mesma trava quando as integrações reais existirem (T-029); teste que importa `prod.py` com o ambiente montado. Antes de homologação.
