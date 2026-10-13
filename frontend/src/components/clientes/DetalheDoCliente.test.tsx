@@ -2,7 +2,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { clientes, contas, type Eu } from "@/lib/api";
+import { clientes, contas, financeiro, type Eu } from "@/lib/api";
 
 const sessao = vi.hoisted(() => ({ eu: null as unknown }));
 vi.mock("@/lib/sessao", () => ({ useSessao: () => ({ eu: sessao.eu as Eu, sair: async () => {} }) }));
@@ -11,7 +11,7 @@ import { DetalheDoCliente } from "./DetalheDoCliente";
 
 async function entrarComo(email: string) {
   const r = await contas.entrar({ email, senha: "senhaforte123", aparelho: "desktop" });
-  if (r.etapa !== "pronto") throw new Error("esperava pronto");
+  if (r.etapa !== "pronto") await contas.verificar2fa(r.token_pre_2fa, { codigo: "123456" });
   sessao.eu = await contas.eu();
 }
 
@@ -135,17 +135,42 @@ describe("detalhe do cliente: outros estados", () => {
     expect(celular).not.toContain("Locação atual");
   });
 
-  it("perfil sem permissão de cadastro vê só o resumo", async () => {
+  it("usr_09: vistoriador não abre a ficha do cliente (403)", async () => {
     await entrarComo("joao@motorapida.com.br");
+    await expect(clientes.obter(1201)).rejects.toMatchObject({ status: 403, message: "Seu perfil não tem acesso a esta ação." });
+    await expect(clientes.listar()).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("usr_09: financeiro vê contato, bloqueio, locações e o financeiro do cliente, com Cobrar como única ação", async () => {
+    await entrarComo("financeiro@motorapida.com.br");
+    const id = 1203;
+    const [c, locacoes, atrasadas, pagas] = await Promise.all([
+      clientes.obter(id),
+      clientes.locacoes(id),
+      financeiro.listarContas({ cliente: id, situacao: "atrasadas" }),
+      financeiro.listarContas({ cliente: id, situacao: "pagas" }),
+    ]);
+    expect(c.acao_principal?.codigo).toBe("cobrar");
+    expect("documentos" in c).toBe(false);
     const cache = new QueryClient();
-    cache.setQueryData(["cliente", 1201], await clientes.obter(1201));
-    const h = renderToStaticMarkup(
-      <QueryClientProvider client={cache}>
-        <DetalheDoCliente id={1201} />
-      </QueryClientProvider>,
+    cache.setQueryData(["cliente", id], c);
+    cache.setQueryData(["cliente", id, "locacoes"], locacoes);
+    cache.setQueryData(["cliente", id, "contas", "atrasadas"], atrasadas);
+    cache.setQueryData(["cliente", id, "contas", "pagas"], pagas);
+    const t = texto(
+      renderToStaticMarkup(
+        <QueryClientProvider client={cache}>
+          <DetalheDoCliente id={id} />
+        </QueryClientProvider>,
+      ),
     );
-    expect(h).toContain("Seu perfil vê só o resumo do cliente.");
-    expect(h).not.toContain("Dados pessoais");
-    expect(h).not.toContain("Documentos");
+    ordem(t, ["Rafael Sousa", "Cobrar", "Conta com 15 dias de atraso", "Total pago", "Em aberto", "Parcelas atrasadas", "LOC-2790 · PQD-6E21", "25 dias", "R$ 1.385,17", "Locações", "Contato", "Celular", "E-mail", "Pagamentos"]);
+    for (const fora of ["Documentos", "Dados pessoais", "Endereço", "CNH", "Pode alugar", "Iniciar locação", "Editar", "Seu perfil vê só o resumo"]) expect(t, fora).not.toContain(fora);
+  });
+
+  it("usr_09: financeiro sem conta atrasada não tem Cobrar", async () => {
+    await entrarComo("financeiro@motorapida.com.br");
+    const c = await clientes.obter(1201);
+    expect(c.acao_principal).toBeNull();
   });
 });

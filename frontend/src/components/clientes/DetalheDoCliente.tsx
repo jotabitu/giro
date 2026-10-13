@@ -20,6 +20,7 @@ import { tomDoStatus } from "@/lib/tom";
 import { useSessao } from "@/lib/sessao";
 import { AnaliseDoCadastro } from "./AnaliseDoCadastro";
 import { ROTULO_DOCUMENTO } from "./BotaoDocumento";
+import { FichaDoFinanceiro } from "./FichaDoFinanceiro";
 
 // Referência: docs/telas/html/Cliente-Detalhe-Desktop.dc.html e Cliente-Detalhe-Mobile.dc.html.
 // As duas versões são árvores separadas, escolhidas por um <div> com hidden / md:hidden. A classe wl- define `display`
@@ -634,7 +635,7 @@ export function DetalheDoCliente({ id }: { id: number }) {
       </p>
     );
   }
-  if (!completo(c)) return <SoResumo c={c} />;
+  if (!completo(c)) return eu.perfil === "financeiro" ? <FichaDoFinanceiro c={c} /> : <SoResumo c={c} />;
 
   const podeCadastrar = eu.pode.clientes_cadastrar;
   const dados: Dados = {

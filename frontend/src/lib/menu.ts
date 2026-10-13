@@ -24,7 +24,7 @@ import {
   Wrench,
   type LucideIcon,
 } from "lucide-react";
-import type { GrupoNavegacao, Navegacao } from "@/lib/api";
+import type { Eu, GrupoNavegacao, Navegacao } from "@/lib/api";
 
 /** Rota e ícone de cada `chave` de item de menu. O que aparece e o rótulo vêm da API (`eu.navegacao`, USR-05). */
 const DESTINOS: Record<string, { href: string; icone: LucideIcon }> = {
@@ -82,10 +82,30 @@ export function temNoMenu(nav: Navegacao, chave: string): boolean {
   return nav.menu_completo.some((g) => g.itens.some((i) => i.chave === chave));
 }
 
-/** O menu da tela inicial só vale na rota inicial do perfil; nas telas compartilhadas vale o completo (USR-05). */
+const chavesDe = (grupos: GrupoNavegacao[]) => grupos.flatMap((g) => g.itens.map((i) => i.chave));
+const abreRota = (grupos: GrupoNavegacao[], rota: string) => chavesDe(grupos).some((c) => DESTINOS[c] && estaEm(rota, DESTINOS[c].href));
+
+/** O menu da tela inicial vale no início e nas rotas que os itens dele abrem (só o caminho, com sub-rotas); no resto vale o completo (USR-05). */
 export function gruposDaRota(nav: Navegacao, rotaAtual: string): GrupoNavegacao[] {
-  const noInicio = estaEm(rotaAtual, nav.inicio.rota);
-  return noInicio && nav.menu_inicio.length > 0 ? nav.menu_inicio : nav.menu_completo;
+  const noMenuDoInicio = estaEm(rotaAtual, nav.inicio.rota) || abreRota(nav.menu_inicio, rotaAtual);
+  return noMenuDoInicio && nav.menu_inicio.length > 0 ? nav.menu_inicio : nav.menu_completo;
+}
+
+/**
+ * A pessoa pode abrir esta rota? Vale o que o menu do perfil mostra (menu do início e menu completo), mais as telas
+ * que o menu não lista mas que um item dele leva a (D-26, USR-09). A API continua respondendo 403 ao que o perfil não pode ler.
+ */
+export function rotaPermitida(eu: Pick<Eu, "pode" | "navegacao">, rota: string): boolean {
+  const { pode, navegacao: nav } = eu;
+  if (estaEm(rota, nav.inicio.rota) || estaEm(rota, "/mais")) return true;
+  const noMenu = (...chaves: string[]) => chaves.some((c) => chavesDe(nav.menu_completo).includes(c) || chavesDe(nav.menu_inicio).includes(c));
+  if (rota === "/locacoes/nova") return pode.locacoes_criar && noMenu("locacoes");
+  if (/^\/locacoes\/\d+\/(vistoria|devolucao)(\/|$)/.test(rota)) return pode.vistorias_fazer;
+  // A ficha da locação abre da lista, da ficha do cliente (financeiro, para receber) e da lista de avarias (vistoriador).
+  if (/^\/locacoes\/\d+$/.test(rota)) return noMenu("locacoes", "receber", "clientes", "avarias");
+  if (rota === "/clientes/novo") return pode.clientes_cadastrar && noMenu("clientes");
+  if (rota === "/veiculos/novo") return pode.veiculos === "editar" && noMenu("veiculos");
+  return abreRota(nav.menu_completo, rota) || abreRota(nav.menu_inicio, rota);
 }
 
 /** Liga o menu pronto da API às rotas e aos ícones, com a rota ativa e os contadores. Chave desconhecida fica de fora. */
