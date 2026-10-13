@@ -122,6 +122,10 @@ NOMEADOS: dict[str, dict[str, Any]] = {
 }
 
 
+# Tanque por categoria (litros): a CG 160 e a Factor levam 16 L; a NMax, 8 L (DEV-01, troca da
+# LOC-2836).
+TANQUE = {"Street 150–160": Decimal("16.0"), "Scooter premium": Decimal("8.0")}
+
 # Só no seed de conferência (T-138): os veículos das locações das telas, com as placas delas. O
 # SAK1D39 fica alugado (LOC-2856, Lucas). Os testes de aceitação usam `NOMEADOS` como estava.
 NOMEADOS_DA_CONFERENCIA: dict[str, dict[str, Any]] = {
@@ -159,6 +163,7 @@ NOMEADOS_DA_CONFERENCIA: dict[str, dict[str, Any]] = {
         "ano_modelo": 2024,
         "cor": "azul",
         "km_atual": 8740,
+        "capacidade_tanque_litros": Decimal("8.0"),
     },
     "RKP3D26": {
         "categoria": "Carro compacto",
@@ -277,6 +282,9 @@ def montar_frota(centro: Filial, empresa: Any, relogio: RelogioDoSeed) -> Frota:
             for _ in range(quantos):
                 numero += 1
                 marca, modelo = modelos[numero % len(modelos)]
-                cadastrar_veiculo(numero, categoria, centro, status, marca=marca, modelo=modelo)
+                tanque = {"capacidade_tanque_litros": TANQUE[nome]} if nome in TANQUE else {}
+                cadastrar_veiculo(
+                    numero, categoria, centro, status, marca=marca, modelo=modelo, **tanque
+                )
     recalcular_uso(empresa)
     return frota
