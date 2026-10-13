@@ -51,7 +51,7 @@ Query: `?dia=hoje|amanha|semana` (padrão `hoje`). Filial pelo `X-Filial`.
   "id": 3001, "tipo": "saida", "status": "rascunho",
   "locacao": { "id": 2856, "codigo": "LOC-2856" },
   "veiculo": { "id": 501, "placa": "SAK1D39", "modelo": "Honda CG 160 Fan", "ano": 2025 },
-  "cliente": { "nome": "Lucas Ferreira", "cnh": "Categoria A · válida" },
+  "cliente": { "nome": "Lucas Ferreira", "celular": "85988771203", "cnh": "Categoria A · válida", "retirada_liberada": false },
   "km": 3120, "km_ultima_leitura": { "km": 3118, "em": "2026-10-05" },
   "combustivel": "cheio",
   "fotos": [
@@ -74,6 +74,7 @@ Query: `?dia=hoje|amanha|semana` (padrão `hoje`). Filial pelo `X-Filial`.
 - `itens`: a lista padrão do ramo vem preenchida na criação (`VIS-02`): pneus e freios, luzes e buzina, retrovisores, documento e chave, acessórios entregues (capacete etc.). Os extras da locação entram como itens (ex.: "Capacete extra").
 - `avarias` da saída já trazem as avarias abertas do veículo como `preexistente: true` (`VIS-01`): elas não são cobradas na devolução.
 - `resumo_locacao` não traz os campos `_centavos` para o vistoriador.
+- `cliente` é tudo o que o vistoriador vê do cliente, que ele não abre na lista nem na ficha (`USR-09`, T-136): nome, celular, a CNH e `retirada_liberada`. Na saída, `retirada_liberada` é `true` quando nada do cliente impede a retirada (cadastro completo, `CLI-03`; CNH na categoria e na validade, `CLI-02`; cliente não bloqueado nem inativo, `CLI-05`, `CLI-09`); o motivo vem em `pendencias` e no 422 do concluir. Na devolução, `null`.
 - `status`: `rascunho`, `concluida` ou `descartada`. `descartada` só vem do cancelamento da troca de veículo (`LOC-09`, abaixo): o rascunho da saída do veículo novo e o da chegada do antigo. Não volta a `rascunho`, não se edita nem conclui (409 `{ "codigo": "vistoria_descartada", "mensagem": "Esta vistoria foi descartada com o cancelamento da troca." }` em `PATCH`, fotos, avarias e concluir), não aparece na agenda nem conta como rascunho da locação, e fica guardada com fotos e respostas, com `descartada_em` e o motivo.
 
 ### POST /api/locacoes/{id}/vistorias/

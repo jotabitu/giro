@@ -212,7 +212,15 @@ class ProvedorS3:
         return int(self.cliente.head_object(Bucket=self.bucket, Key=caminho)["ContentLength"])
 
     def apagar(self, caminho: str) -> None:
+        """Com versionamento no bucket, apaga também as versões antigas e o marcador de
+        exclusão: o arquivo temporário não fica recuperável (importação de clientes)."""
         self.cliente.delete_object(Bucket=self.bucket, Key=caminho)
+        resposta = self.cliente.list_object_versions(Bucket=self.bucket, Prefix=caminho)
+        for item in [*resposta.get("Versions", []), *resposta.get("DeleteMarkers", [])]:
+            if item["Key"] == caminho and item.get("VersionId") not in (None, "null"):
+                self.cliente.delete_object(
+                    Bucket=self.bucket, Key=caminho, VersionId=item["VersionId"]
+                )
 
     def url(self, caminho: str, expira_em: datetime) -> str:
         segundos = max(1, int((expira_em - relogio.agora()).total_seconds()))
@@ -241,7 +249,8 @@ def url_assinada(caminho: str) -> UrlAssinada:
 
 
 def apagar_temporario(caminho: str) -> None:
-    """Só para arquivo temporário (exportação vencida, AUD-07). Arquivo de negócio não sai."""
+    """Só para arquivo temporário (exportação vencida, AUD-07; planilha da importação). Arquivo
+    de negócio não sai."""
     provedor().apagar(caminho)
 
 

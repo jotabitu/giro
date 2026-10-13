@@ -313,7 +313,7 @@ def test_aud_04_ca_014_07_mascara_nas_listas(moto):
     _criar(moto, JULIANA)
     _criar(moto, LUCAS)
     _criar(moto, PJ)
-    for quem in ("Mariana", "Rodrigo", "Bruna", "João", "Lúcia"):
+    for quem in ("Mariana", "Rodrigo", "Bruna", "Lúcia"):  # o vistoriador não lista (USR-09)
         resultados = {c["nome"]: c for c in _lista(moto, quem)["resultados"]}
         assert resultados["Juliana Rocha"]["documento_mascarado"] == "***.218.330-**"
         assert resultados["Lucas Ferreira"]["documento_mascarado"] == "***.456.789-**"
@@ -330,10 +330,10 @@ def test_aud_04_ca_014_08_detalhe_completo_so_para_quem_cadastra(moto):
         assert corpo["cnh"]["numero"] == "04512345678"
         assert corpo["endereco"]["cidade"] == "Fortaleza"
         assert corpo["idade"] == 28
+    corpo = _get(moto, juliana["id"], "Lúcia")  # a ficha do financeiro (USR-09)
+    assert corpo["documento_mascarado"] == "***.218.330-**"
+    assert not CAMPOS_COMPLETOS & set(corpo)
     for quem in ("João", "Lúcia"):
-        corpo = _get(moto, juliana["id"], quem)
-        assert corpo["documento_mascarado"] == "***.218.330-**"
-        assert not CAMPOS_COMPLETOS & set(corpo)
         assert moto.api(quem).get(f"{LISTA}{juliana['id']}/analise/").status_code == 403
 
 
@@ -937,6 +937,82 @@ def test_cli_07_ca_014_19_acao_principal_com_os_blocos(moto, fornecedores_falsos
     assert acoes["Juliana Rocha"]["codigo"] == "ver_locacao"
     assert acoes["Patrícia Gomes"]["alvo"] == {"tipo": "locacao", "id": 2812}
     assert acoes["Ana Beatriz Lima"]["codigo"] == "nova_locacao"
+
+
+# --- O que cada perfil vê do cliente (USR-09, T-136) ---
+
+
+def test_usr_09_vistoriador_nao_abre_lista_nem_ficha_do_cliente(moto):
+    """D-25, D-29: João recebe 403 na lista e na ficha; vê o cliente só pela vistoria."""
+    juliana = _criar(moto, JULIANA)
+    for url in (LISTA, f"{LISTA}{juliana['id']}/", f"{LISTA}?situacao=em_aberto"):
+        resposta = moto.api("João").get(url)
+        assert resposta.status_code == 403, url
+        assert resposta.json()["codigo"] == "permissao"
+        assert resposta.json()["mensagem"] == "Seu perfil não tem acesso a esta ação."
+    # Os demais perfis continuam abrindo.
+    for quem in ("Mariana", "Rodrigo", "Bruna", "Lúcia"):
+        assert moto.api(quem).get(f"{LISTA}{juliana['id']}/").status_code == 200
+
+
+CAMPOS_DO_FINANCEIRO = {
+    "id",
+    "tipo",
+    "nome",
+    "documento_mascarado",
+    "celular",
+    "email",
+    "status",
+    "situacao",
+    "bloqueio",
+    "cliente_desde",
+    "locacao_atual",
+    "ultima_locacao",
+    "financeiro",
+    "venda_aberta",
+    "acao_principal",
+}
+
+
+def test_usr_09_financeiro_ficha_do_cliente_com_contato_e_financeiro(moto, fornecedores_falsos):
+    """D-28: Lúcia vê nome, situação com o motivo do bloqueio, CPF mascarado, celular, e-mail,
+    a locação e o financeiro do cliente; sem documentos, endereço nem análise (AUD-04, CLI-04).
+    A única ação é Cobrar (CLI-07)."""
+    _seed_da_lista(moto)
+    _acao(moto, "Rodrigo", Cliente.objects.get(nome="Ana Beatriz Lima").pk, "bloquear", "Fraude")
+    por_nome = {c.nome: c.pk for c in Cliente.objects.all()}
+
+    carlos = _get(moto, por_nome["Carlos Menezes"], "Lúcia")
+    assert set(carlos) == CAMPOS_DO_FINANCEIRO
+    assert carlos["documento_mascarado"].startswith("***.")
+    assert carlos["email"] == CARLOS["email"]
+    assert carlos["financeiro"]["em_aberto_centavos"] == 29940
+    assert carlos["acao_principal"] == {
+        "codigo": "cobrar",
+        "rotulo": "Cobrar",
+        "alvo": {"tipo": "conta", "id": 9001},
+    }
+    assert carlos["bloqueio"] is None
+
+    ana = _get(moto, por_nome["Ana Beatriz Lima"], "Lúcia")
+    assert ana["situacao"]["codigo"] == "bloqueado"
+    assert ana["bloqueio"]["motivo"] == "manual"
+    assert ana["bloqueio"]["descricao"] == "Fraude"
+
+    # Sem conta em aberto, nenhuma ação: nem Nova locação, nem Ver proposta, nem Completar.
+    for nome in ("Juliana Rocha", "Diego Martins", "Lucas Ferreira"):
+        assert _get(moto, por_nome[nome], "Lúcia")["acao_principal"] is None
+
+    # Não edita, não bloqueia, não desbloqueia, não inativa.
+    alvo = por_nome["Carlos Menezes"]
+    assert _patch(moto, alvo, {"profissao": "X"}, "Lúcia").status_code == 403
+    for acao in ("bloquear", "desbloquear", "inativar", "reativar"):
+        assert _acao(moto, "Lúcia", alvo, acao).status_code == 403
+    assert moto.api("Lúcia").get(f"{LISTA}{alvo}/analise/").status_code == 403
+
+    # A lista dela é a resumida, com o CPF mascarado.
+    linha = {c["nome"]: c for c in _lista(moto, "Lúcia")["resultados"]}["Carlos Menezes"]
+    assert not {"email", "bloqueio"} & set(linha)
 
 
 def test_cli_06_ca_014_20_situacao_na_lista(moto, fornecedores_falsos):

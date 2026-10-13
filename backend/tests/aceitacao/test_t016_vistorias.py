@@ -552,6 +552,29 @@ def test_vis_ca_016_07_vistoriador_nao_ve_valores(cenario, lucas):
     assert da_bruna.json()["valor_centavos"] == 8500
 
 
+def test_usr_09_vistoria_traz_do_cliente_nome_celular_e_retirada(cenario, relogio):
+    """USR-09: o vistoriador não abre a ficha do cliente; a vistoria traz o que ela usa."""
+    vistoria = _saida(cenario, _lucas_2856(cenario)["id"])
+    lucas = cenario.cliente("Lucas")
+    assert vistoria["cliente"] == {
+        "nome": "Lucas Ferreira",
+        "celular": lucas.celular,
+        "cnh": vistoria["cliente"]["cnh"],
+        "retirada_liberada": False,  # cadastro incompleto (CLI-03)
+    }
+    assert cenario.moto.api("João").get(f"/api/clientes/{lucas.pk}/").status_code == 403
+
+    _completar(lucas)
+    joao = cenario.moto.api("João")
+    corpo = joao.get(f"{VISTORIAS}{vistoria['id']}/").json()
+    assert corpo["cliente"]["retirada_liberada"] is True
+
+    hoje = relogio.agora.date()
+    Cliente.objects.filter(pk=lucas.pk).update(cnh_validade=hoje - timedelta(days=31))
+    corpo = joao.get(f"{VISTORIAS}{vistoria['id']}/").json()
+    assert corpo["cliente"]["retirada_liberada"] is False  # CNH vencida há mais de 30 dias
+
+
 def test_vis_financeiro_nao_faz_vistoria(cenario, lucas):
     criada = _lucas_2856(cenario)
     lucia = cenario.moto.api("Lúcia")

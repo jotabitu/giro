@@ -727,6 +727,49 @@ def test_loc_ca_015_16_vistoriador_sem_lista_e_sem_valores(cenario, com_carteira
     assert "parcelas" not in detalhe and "pagamento" not in detalhe
 
 
+def test_usr_09_vistoriador_nao_ve_planos_especiais(cenario):
+    """T-155 (M-01 da T-024): a lista dos planos especiais leva preço e desconto; o vistoriador
+    recebe 403, como na lista de locações. Os outros perfis que leem locações continuam vendo."""
+    resposta = cenario.moto.api("João").get("/api/planos-especiais/")
+    assert resposta.status_code == 403
+    assert "preco_centavos" not in resposta.content.decode()
+    for nome in ("Mariana", "Rodrigo", "Bruna", "Lúcia"):
+        assert cenario.moto.api(nome).get("/api/planos-especiais/").status_code == 200, nome
+
+
+def test_usr_09_financeiro_ficha_da_locacao_so_para_leitura(cenario, com_carteira):
+    """D-27, USR-09: Lúcia vê a ficha inteira (parcelas, pagamentos, caução, contrato e
+    histórico) e só recebe; não faz vistoria, devolução, renovação, troca nem cancelamento."""
+    carlos = com_carteira["LOC-2841"].pk  # parcela atrasada
+    lucia = cenario.moto.api("Lúcia")
+    detalhe = cenario.detalhe(carlos, "Lúcia")
+    assert detalhe["parcelas"] and "total_pago_centavos" in detalhe
+    assert "precos" in detalhe and "contrato" in detalhe
+    assert lucia.get(f"{LISTA}{carlos}/historico/").status_code == 200
+    assert {acao: valor for acao, valor in detalhe["acoes"].items() if valor} == {
+        "receber": True,
+        **({"imprimir_contrato": True} if detalhe["acoes"]["imprimir_contrato"] else {}),
+    }
+    # As locações do cliente, para a ficha do cliente (USR-09).
+    cliente = com_carteira["LOC-2841"].cliente_id
+    assert lucia.get(LISTA, {"cliente": cliente}).status_code == 200
+
+    proibidas = [
+        ("post", f"{LISTA}{carlos}/renovar/", {"periodos": 1}),
+        ("post", f"{LISTA}{carlos}/renovar/simular/", {"periodos": 1}),
+        ("post", f"{LISTA}{carlos}/cancelar/", {"motivo": "Teste"}),
+        ("post", f"{LISTA}{carlos}/cancelamento/simular/", {}),
+        ("post", f"{LISTA}{carlos}/contrato/reenviar/", {}),
+        ("post", f"{LISTA}{carlos}/vistorias/", {"tipo": "saida"}),
+        ("post", f"{LISTA}{carlos}/devolucao/", {}),
+        ("post", f"{LISTA}{carlos}/trocar-veiculo/", {"veiculo_novo_id": 1, "motivo": "X"}),
+        ("patch", f"{LISTA}{carlos}/", {"observacoes": "X"}),
+    ]
+    for metodo, url, corpo in proibidas:
+        resposta = getattr(lucia, metodo)(url, corpo, format="json")
+        assert resposta.status_code == 403, (url, resposta.json())
+
+
 def test_usr_07_locacao_fora_da_filial_responde_404(cenario):
     criada = cenario.confirmada()
     caucaia = _caucaia(cenario.moto, "Bruna")

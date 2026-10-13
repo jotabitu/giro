@@ -31,7 +31,7 @@ Contrato da API: `docs/api/vistorias.md` (escrito pelo arquiteto antes da implem
   - `editar`, `enviar_foto`, `registrar_avaria` e `remover_avaria`, só em rascunho (409 `vistoria_concluida` depois);
   - `concluir`: 422 com **todas** as pendências em `detalhes.pendencias` (`VIS-01`, `VIS-02`, `VIS-03`, `km_nao_informado`, `VEI-01` com o link de Corrigir km e, só na saída nova, `CLI-03`, `CLI-02`, `CLI-05` e `VEI-03` com `detalhes.documentos`). Conclui, atualiza o km (`VEI-02`) e, na saída, chama `locacoes.services.registrar_vistoria_saida`;
   - `corrigir` (`VIS-04`): copia os dados, as fotos (o mesmo arquivo) e as avarias.
-- `selectors.py`: `representacao`, `avarias_abertas`, `avaria_aberta`, `agenda` (`VIS-05`) e `sem_valores` (o vistoriador não recebe `_centavos` nem `acerto`; aplicado depois do serializer, nas views).
+- `selectors.py`: `representacao` (o bloco `cliente` traz nome, celular, CNH e `retirada_liberada`, tudo o que o vistoriador vê do cliente, `USR-09`), `avarias_abertas`, `avaria_aberta`, `agenda` (`VIS-05`) e `sem_valores` (o vistoriador não recebe `_centavos` nem `acerto`; aplicado depois do serializer, nas views).
 - Rotas: `POST /api/locacoes/{id}/vistorias/`, `GET` e `PATCH /api/vistorias/{id}/`, `.../fotos/`, `.../avarias/` (e `DELETE .../avarias/{avaria_id}/`), `.../concluir/`, `.../corrigir/`, `GET /api/vistorias/agenda/` e `GET /api/vistorias/avarias/`.
 
 ## Implementado (T-109, devolução e acerto)

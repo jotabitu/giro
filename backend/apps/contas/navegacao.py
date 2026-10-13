@@ -57,7 +57,8 @@ def _ve_painel(pode: Pode) -> bool:
 ITENS: dict[str, Item] = {
     item.chave: item
     for item in [
-        Item("inicio", "Visão geral"),
+        # USR-05: todos menos o vistoriador, que não vê painel; o rótulo é o do início do perfil.
+        Item("inicio", "Visão geral", None, lambda p: p["painel"] != "nao"),
         Item("aprovacoes", "Aprovações", "aprovacoes", decide_pedidos, modulo="aprovacoes"),
         Item(
             "veiculos",
@@ -72,7 +73,8 @@ ITENS: dict[str, Item] = {
             "locacoes",
             "Locações",
             "locacoes",
-            lambda p: bool(p["locacoes_criar"] or p["vistorias_fazer"]),
+            # O vistoriador não lista locações: chega à vistoria pela agenda (USR-05, VIS-05).
+            lambda p: bool(p["locacoes_criar"]),
             Recurso.LOCACOES_VISTORIA,
             "aluga",
             "locacoes",
@@ -282,6 +284,13 @@ VARIANTE_DO_PERFIL: dict[str, str] = {
     Perfil.FINANCEIRO: "financeiro",
 }
 
+# O rótulo do item `inicio` no menu completo é o do início do perfil (USR-05).
+ROTULO_DO_INICIO: dict[str, str] = {
+    "gerente": "Visão da filial",
+    "vendedor": "Início",
+    "financeiro": "Início",
+}
+
 BARRA_CELULAR = ["inicio", "veiculos", "nova_locacao", "locacoes", "mais"]
 
 
@@ -300,6 +309,16 @@ def _contador(item: Item, ctx: Contexto) -> str | None:
     if item.chave == "despesas" and not ctx.pode["despesas_aprovar"]:
         return None
     return item.contador
+
+
+def _com_rotulo_do_inicio(grupos: Grupos, qual: str) -> Grupos:
+    rotulo = ROTULO_DO_INICIO.get(qual)
+    if rotulo is None:
+        return grupos
+    return [
+        (grupo, [("inicio", rotulo) if entrada == "inicio" else entrada for entrada in chaves])
+        for grupo, chaves in grupos
+    ]
 
 
 def _montar(grupos: Grupos, ctx: Contexto) -> list[dict[str, Any]]:
@@ -346,18 +365,23 @@ def montar(
         modulos=frozenset(settings.GIRO_MODULOS_ATIVOS if modulos is None else modulos),
     )
     qual = variante(perfil, implantacao_concluida)
-    completo = _montar(MENU_COMPLETO, ctx)
+    menu_inicio = _montar(MENU_INICIO[qual], ctx) if qual in MENU_INICIO else None
+    # USR-05: o vistoriador tem um menu só; o completo dele é o do início.
+    if qual == "vistoriador" and menu_inicio is not None:
+        completo = menu_inicio
+    else:
+        completo = _montar(_com_rotulo_do_inicio(MENU_COMPLETO, qual), ctx)
     visiveis = {item["chave"] for grupo in completo for item in grupo["itens"]}
     barra = {
         "inicio": True,
-        "veiculos": "veiculos" in visiveis,
+        "veiculos": bool(visiveis & {"veiculos", "consultar_veiculo"}),
         "nova_locacao": "locacoes" in visiveis and bool(pode["locacoes_criar"]),
         "locacoes": "locacoes" in visiveis,
         "mais": True,
     }
     return {
         "inicio": {"rota": "/inicio", "variante": qual},
-        "menu_inicio": _montar(MENU_INICIO[qual], ctx) if qual in MENU_INICIO else completo,
+        "menu_inicio": completo if menu_inicio is None else menu_inicio,
         "menu_completo": completo,
         "barra_celular": [chave for chave in BARRA_CELULAR if barra[chave]],
     }

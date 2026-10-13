@@ -366,6 +366,31 @@ def representacao(
     return dados
 
 
+# Blocos que só têm dinheiro: saem inteiros para quem não vê valores.
+BLOCOS_DE_VALOR = frozenset({"preco_vigente", "proximo_preco", "indicadores_financeiros"})
+
+
+def ve_valores(usuario: Any) -> bool:
+    """D-25, USR-09: o vistoriador não recebe valor em dinheiro (preço, venda, compra)."""
+    return getattr(usuario, "perfil", "") != "vistoriador"
+
+
+def sem_valores(dados: Any) -> Any:
+    """Sem nenhum campo `_centavos` e sem os blocos de preço. Aplicado depois do serializer, que
+    preencheria com `null` o campo que falta."""
+    if isinstance(dados, dict):
+        return {
+            chave: sem_valores(valor)
+            for chave, valor in dados.items()
+            if not chave.endswith("_centavos")
+            and chave not in BLOCOS_DE_VALOR
+            and chave != "data_compra"
+        }
+    if isinstance(dados, list):
+        return [sem_valores(item) for item in dados]
+    return dados
+
+
 def historico_status(veiculo: Veiculo) -> list[dict[str, Any]]:
     return [
         {

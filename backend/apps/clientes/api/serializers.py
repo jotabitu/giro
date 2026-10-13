@@ -181,6 +181,13 @@ class AnaliseClienteSerializer(serializers.Serializer[Any]):
     itens = ItemAnaliseClienteSerializer(many=True)
 
 
+class ClienteDoFinanceiroSerializer(ClienteSerializer):
+    """USR-09: a ficha do cliente para o financeiro, com contato e o motivo do bloqueio."""
+
+    email = serializers.CharField()
+    bloqueio = BloqueioClienteSerializer(allow_null=True)
+
+
 class ClienteDetalheSerializer(ClienteSerializer):
     """Representação completa: só quem cadastra, nunca o suporte."""
 

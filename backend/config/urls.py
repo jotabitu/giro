@@ -25,6 +25,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("api/", include("apps.relatorios.api.urls")),
     path("api/", include("apps.empresas.api.urls")),
     path("api/", include("apps.auditoria.api.urls")),
+    path("api/", include("apps.importacao.api.urls")),
     path("api/ambiente/", AmbienteView.as_view(), name="ambiente"),
 ]
 

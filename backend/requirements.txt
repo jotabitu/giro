@@ -19,3 +19,7 @@ Pillow>=11.1,<13
 weasyprint>=66,<70
 # HTML do modelo de contrato com lista branca de tags (S-09, T-090).
 nh3>=0.2.18,<1
+# Planilha da importação (T-027, docs/api/importacao.md): leitura em streaming do .xlsx e o
+# modelo para baixar; o defusedxml protege o openpyxl de entidades XML e explosão quadrática.
+openpyxl>=3.1.5,<3.2
+defusedxml>=0.7.1,<0.8

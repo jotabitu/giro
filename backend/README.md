@@ -36,6 +36,7 @@ backend/
 | `automacoes` | empresa | AUT | Tarefas Celery AUT-01 a AUT-15, agendadas por empresa no fuso America/Sao_Paulo. |
 | `auditoria` | empresa + public | AUD | Eventos imutáveis, exportação de dados, anonimização LGPD, retenção após cancelamento. |
 | `relatorios` | empresa | FIN-13, relatórios | Indicadores das telas iniciais, relatórios e DRE (só leitura, a partir dos outros apps). |
+| `importacao` | empresa | IMP-02, IMP-03, IMP-05 | Importação de veículos e clientes por planilha: validação linha a linha, correção, gravação até o limite do plano (ADR 0017). |
 
 Ordem de dependência entre apps e eventos de domínio: ADR 0011. Teste: `tests/test_limites_entre_apps.py`.
 

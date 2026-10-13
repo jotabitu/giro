@@ -246,11 +246,10 @@ def test_usr_08_fin_15_financeiro(cenario, com_carteira):  # noqa: F811
 
 
 def test_usr_05_contadores_seguem_o_menu(cenario, com_carteira):  # noqa: F811
+    # João tem um menu só (USR-05, T-136): sem Locações e sem Veículos, sem esses contadores.
     assert cenario.moto.api("João").get(CONTADORES).json()["contadores"] == {
         "agenda": 1,
         "avarias": 0,
-        "locacoes": 42,
-        "veiculos": 86,
     }
     # Com `financeiro` em GIRO_MODULOS_ATIVOS (T-017), o financeiro vê os itens dele.
     assert cenario.moto.api("Lúcia").get(CONTADORES).json()["contadores"] == {

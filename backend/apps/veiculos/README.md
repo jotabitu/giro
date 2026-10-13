@@ -50,6 +50,7 @@ Contrato da API: `docs/api/veiculos.md` (escrito pelo arquiteto antes da impleme
   - 30 dias antes, alerta no sino dos gerentes da filial (`FIL-02`), uma vez por documento, e o evento `veiculos.documento_vencendo`;
   - no dia, CRLV ou seguro: `disponivel` vai para `indisponivel` ("Seguro vencido"), com a origem `documento`; `alugado`, `reservado` e `em_manutencao` não mudam, e os gerentes recebem uma tarefa urgente (T-085).
 - `selectors.resumos_de_documentos` (o `documentos_resumo` da ficha e da lista) e `representacao_documento`, com a URL assinada nova a cada leitura.
+- `selectors.ve_valores` e `sem_valores` (D-25, `USR-09`): o vistoriador recebe frota, ficha e categorias sem `_centavos` nem blocos de preço, aplicado depois do serializer; preços e extras respondem 403 a ele.
 - Rotas: `GET` e `POST /api/veiculos/{id}/documentos/` (multipart) e `GET .../documentos/historico/`.
 
 ## Implementado (T-083)
