@@ -45,7 +45,7 @@ MESES = ("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "
 
 def base() -> QuerySet[Vistoria]:
     return Vistoria.objects.select_related(
-        "locacao", "locacao__cliente", "locacao__filial", "veiculo", "responsavel"
+        "locacao", "locacao__cliente", "locacao__filial", "veiculo__categoria", "responsavel"
     )
 
 
@@ -81,6 +81,24 @@ def _cnh(locacao: Locacao) -> str | None:
     if not cliente.cnh_categoria or situacao is None:
         return None
     return f"Categoria {cliente.cnh_categoria} · {SITUACAO_CNH[situacao]}"
+
+
+def _cliente(vistoria: Vistoria) -> dict[str, Any]:
+    """USR-09: do cliente, só o que a vistoria usa (o vistoriador não abre a ficha dele): nome,
+    celular, a CNH e, na saída, se a retirada está liberada (CLI-02, CLI-03, CLI-05)."""
+    locacao = vistoria.locacao
+    cliente = locacao.cliente
+    liberada = None
+    if vistoria.tipo == TipoVistoria.SAIDA:
+        liberada = not clientes_selectors.impedimentos_para_retirada(
+            cliente, vistoria.veiculo.categoria.tipo_veiculo, relogio.hoje()
+        )
+    return {
+        "nome": cliente.nome,
+        "celular": cliente.celular,
+        "cnh": _cnh(locacao),
+        "retirada_liberada": liberada,
+    }
 
 
 def representacao_foto(foto: FotoVistoria) -> dict[str, Any]:
@@ -171,7 +189,7 @@ def representacao(vistoria: Vistoria) -> dict[str, Any]:
         "status": vistoria.status,
         "locacao": {"id": locacao.pk, "codigo": locacao.codigo},
         "veiculo": _veiculo(veiculo),
-        "cliente": {"nome": locacao.cliente.nome, "cnh": _cnh(locacao)},
+        "cliente": _cliente(vistoria),
         "km": vistoria.km,
         "km_ultima_leitura": {
             "km": veiculo.km_atual,

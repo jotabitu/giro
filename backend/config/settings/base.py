@@ -82,6 +82,7 @@ TENANT_APPS = [
     "apps.vendas",
     "apps.automacoes",
     "apps.relatorios",
+    "apps.importacao",
 ]
 
 INSTALLED_APPS = list(SHARED_APPS) + [app for app in TENANT_APPS if app not in SHARED_APPS]
@@ -222,6 +223,10 @@ SPECTACULAR_SETTINGS = {
         "TipoValorEnum": ["numero", "centavos", "pct"],
         "TipoParaHojeEnum": ["reembolso", "despesa"],
         "StatusConviteEnum": ["aceito", "pendente"],
+        # Importação (T-027).
+        "TipoImportacaoEnum": "apps.importacao.models.TipoImportacao",
+        "StatusImportacaoEnum": "apps.importacao.models.StatusImportacao",
+        "StatusLinhaImportacaoEnum": "apps.importacao.models.StatusLinha",
         # Financeiro (T-017).
         "StatusContaReceberEnum": [
             "aberta",
@@ -308,6 +313,11 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
     "aut_08_fechamento_automatico_do_caixa": {
         "task": "aut_08_fechamento_automatico_do_caixa_de_todas",
         "schedule": crontab(hour=23, minute=59),
+    },
+    # Planilhas e linhas da importação saem 30 dias depois do envio (docs/api/importacao.md).
+    "importacao_limpar": {
+        "task": "importacao_limpar_de_todas",
+        "schedule": crontab(hour=4, minute=0),
     },
     "aut_15_encerrar_acessos_de_suporte_vencidos": {
         "task": "aut_15_encerrar_acessos_de_suporte_vencidos",
