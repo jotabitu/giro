@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Button, CelulaDupla, DataTable, Icone, KpiGrid, KpiTile, SearchField, StatusBadge, type ColunaTabela } from "@/design-system";
 import { FiltroChips, type OpcaoChip } from "@/components/lista/FiltroChips";
 import { Paginacao } from "@/components/lista/Paginacao";
+import { useAmbiente } from "@/lib/ambiente";
 import { locacoes, type AbaLocacoes, type LocacaoResumo, type Periodicidade } from "@/lib/api";
 import { ROTULO_PERIODICIDADE } from "@/lib/clientes";
 import { mensagemDoErro } from "@/lib/erros";
@@ -84,6 +85,7 @@ function CartaoDaLocacao({ l }: { l: LocacaoResumo }) {
 
 /** Locações: indicadores, abas, filtros e lista. */
 export function ListaLocacoes() {
+  useAmbiente(); // o "hoje" da API muda o texto dos horários e períodos
   const router = useRouter();
   const { eu } = useSessao();
   const { valor, definir } = useFiltrosNaUrl();
