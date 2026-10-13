@@ -386,25 +386,34 @@ def filtrar_contas(qs: QuerySet[ContaReceber], params: Any, hoje: date) -> Query
         qs = qs.filter(abas)
     if params.get("faixa") in FAIXAS:
         qs = qs.filter(_faixa_q(params["faixa"], hoje), status=StatusConta.ABERTA)
-    da_origem = params.get("origem_tipo") and str(params.get("origem_id", "")).isdigit()
-    if da_origem:
-        qs = qs.filter(origem_tipo=params["origem_tipo"], origem_id=int(params["origem_id"]))
-    if str(params.get("cliente", "")).isdigit():
-        qs = qs.filter(cliente_id=int(params["cliente"]))
-    elif not da_origem:
+    qs, de_um_recorte = _recortar(qs, params)
+    if not de_um_recorte:
         qs = qs.exclude(tipo=TipoConta.CAUCAO)
     if params.get("forma"):
         qs = qs.filter(forma=params["forma"])
+    return qs
+
+
+def _recortar(qs: QuerySet[ContaReceber], params: Any) -> tuple[QuerySet[ContaReceber], bool]:
+    """`?cliente=`, `?origem_tipo=&origem_id=` e `?busca=`: valem para a lista e para as
+    contagens (FIN-15, T-148). Devolve também se a lista é de um cliente ou de uma origem, que é
+    quando a caução aparece."""
+    da_origem = bool(params.get("origem_tipo") and str(params.get("origem_id", "")).isdigit())
+    if da_origem:
+        qs = qs.filter(origem_tipo=params["origem_tipo"], origem_id=int(params["origem_id"]))
+    do_cliente = str(params.get("cliente", "")).isdigit()
+    if do_cliente:
+        qs = qs.filter(cliente_id=int(params["cliente"]))
     busca = (params.get("busca") or "").strip()
     if busca:
         qs = qs.filter(Q(cliente__nome__icontains=busca) | Q(origem_codigo__icontains=busca))
-    return qs
+    return qs, da_origem or do_cliente
 
 
 def indicadores_e_contagens(filiais: Iterable[int], params: Any, hoje: date) -> dict[str, Any]:
     """Os números da `FIN-15`: contas da filial, sem caução e sem `cancelada` e `renegociada`,
-    valores sem multa e juros. Os indicadores não seguem `periodo` nem `situacao`; as abas seguem
-    o `periodo` (menos `atrasadas`)."""
+    valores sem multa e juros. Os indicadores são da filial e não seguem filtro; as abas seguem
+    o `periodo` (menos `atrasadas`) e o recorte de cliente, origem e busca (T-148)."""
     base = contas_do_painel(filiais)
     inicio_mes, fim_mes = periodo("mes", hoje)
     previsto = _somar(base.filter(vencimento__gte=inicio_mes, vencimento__lte=fim_mes))
@@ -425,8 +434,9 @@ def indicadores_e_contagens(filiais: Iterable[int], params: Any, hoje: date) -> 
             )
         )
     de, ate = periodo(params.get("periodo"), hoje)
+    recorte, _ = _recortar(base, params)  # a caução já está fora da base
     contagens = {
-        aba: base.filter(_q_situacao(aba, hoje, de, ate)).count()
+        aba: recorte.filter(_q_situacao(aba, hoje, de, ate)).count()
         for aba in ("atrasadas", "vencem_hoje", "a_vencer", "pagas")
     }
     return {

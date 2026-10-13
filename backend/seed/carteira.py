@@ -209,7 +209,7 @@ def nome_exibido(nome: str) -> str:
 
 def _completar(cliente: Cliente) -> None:
     """CLI-03: os 4 documentos enviados (só o registro, sem arquivo) e o cadastro sai de
-    `incompleto`. O Rafael é o único que fica sem (D-07)."""
+    `incompleto` (D-07). Todos, o Rafael também: ele volta `ativo` ao quitar (CA-019-30)."""
     for tipo in TipoDocumentoCliente.values:
         DocumentoCliente.objects.get_or_create(cliente=cliente, tipo=tipo)
     clientes_services.acertar_cadastro(cliente)
@@ -223,7 +223,7 @@ def _cliente(nome: str, numero: int, conferencia: bool = False) -> Cliente:
         return existente
     documento = (CPF_DAS_TELAS if conferencia else {}).get(nome) or cpf(400000000 + numero * 7919)
     novo: Cliente = clientes_services.cadastrar(pessoa(nome, documento, f"8599{numero:07d}"))
-    if conferencia and nome != "Rafael Sousa":
+    if conferencia:
         _completar(novo)
     return novo
 

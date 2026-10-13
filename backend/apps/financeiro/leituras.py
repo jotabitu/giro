@@ -14,7 +14,7 @@ from datetime import timedelta
 from typing import Any
 
 from django.db.models import Exists, F, IntegerField, OuterRef, Q, QuerySet, Subquery, Sum
-from django.db.models.functions import Coalesce, TruncDate
+from django.db.models.functions import Coalesce, Greatest, TruncDate
 
 from comum import leituras, relogio
 
@@ -25,6 +25,7 @@ CLIENTE = "clientes.Cliente"
 FILIAL = "filiais.Filial"
 VEICULO = "veiculos.Veiculo"
 DIAS_PARA_BLOQUEIO = 15  # CLI-05
+NOVO = {"situacao": "ok", "rotulo": "Cliente novo na empresa"}  # CLI-04
 
 
 def _vencidas(hoje: Any) -> Q:
@@ -73,18 +74,26 @@ def montar_cliente(cliente: Any) -> dict[str, Any]:
     }
 
 
-def montar_historico(cliente: Any) -> dict[str, str] | None:
-    """Item `historico` da análise do cadastro (CLI-04): atrasos na empresa. Sem conta nenhuma,
-    nada (a análise mostra "Sem histórico")."""
-    contas = ContaReceber.objects.filter(cliente_id=cliente.pk).exclude(tipo=TipoConta.CAUCAO)
+def montar_historico(cliente: Any | None) -> dict[str, str]:
+    """Item `historico` da análise do cadastro (CLI-04): atrasos na empresa, sem a caução, com o
+    atraso contado como na FIN-03 (do dia seguinte ao mais tarde entre o vencimento e o dia em
+    que a conta nasceu, em `America/Sao_Paulo`). Vale a primeira situação que servir. Sem conta
+    nenhuma, ou na análise antes do cadastro (`None`), o cliente é novo na empresa."""
+    if cliente is None:
+        return dict(NOVO)
+    contas = (
+        ContaReceber.objects.filter(cliente_id=cliente.pk)
+        .exclude(tipo=TipoConta.CAUCAO)
+        .annotate(inicio_atraso=Greatest(F("vencimento"), TruncDate("criado_em")))
+    )
     if not contas.exists():
-        return None
-    if contas.filter(_vencidas(relogio.hoje())).exists():
+        return dict(NOVO)
+    if contas.filter(status=StatusConta.ABERTA, inicio_atraso__lt=relogio.hoje()).exists():
         return {"situacao": "problema", "rotulo": "Conta em atraso na empresa"}
     pagou_atrasado = (
         contas.filter(status=StatusConta.PAGA)
         .annotate(dia_pago=TruncDate("pago_em"))
-        .filter(dia_pago__gt=F("vencimento"))
+        .filter(dia_pago__gt=F("inicio_atraso"))
         .exists()
     )
     if pagou_atrasado:

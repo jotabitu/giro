@@ -185,14 +185,14 @@ def test_loc_05_seed_138_02_planos_e_valores_da_tabela(semeado):
         assert (conta.valor_centavos, conta.status) == (134700, "aberta")
 
 
-def test_cli_03_seed_138_03_so_o_rafael_com_cadastro_incompleto(semeado):
-    """D-07: os demais clientes têm os 4 documentos e saem de `incompleto`."""
+def test_cli_03_seed_138_03_todos_com_os_4_documentos(semeado):
+    """D-07, T-019: todos os clientes, o Rafael também, têm os 4 documentos e saem de
+    `incompleto`; ele fica `bloqueado` pelo atraso (CLI-05)."""
     with _no_tenant():
         assert Cliente.objects.filter(status="incompleto").count() == 0
         rafael = Cliente.objects.get(nome="Rafael Sousa")
-        assert (rafael.status, rafael.documentos.count()) == ("bloqueado", 0)
-        outros = Cliente.objects.exclude(pk=rafael.pk)
-        assert all(c.documentos.filter(ativo=True).count() == 4 for c in outros)
+        assert rafael.status == "bloqueado"
+        assert all(c.documentos.filter(ativo=True).count() == 4 for c in Cliente.objects.all())
 
 
 def test_seed_138_04_nomes_e_placas_menos_genericos(semeado):
@@ -311,3 +311,28 @@ def test_fin_03_seed_163_01_parcela_atrasada_cobra_multa_e_juros(semeado):
         assert sorted(contratos.values_list("origem_codigo", flat=True)) == sorted(
             retiradas.values_list("codigo", flat=True)
         )
+
+
+def test_adr_0021_painel_do_seed_com_a_data_de_referencia(db, planos, _seed_do_modulo):
+    """T-142: com o relógio real e GIRO_DATA_REFERENCIA em 07 out (sem a fixture `relogio`), o
+    painel do financeiro mostra o mesmo que com o relógio congelado: em atraso R$ 1.646,40 em 2
+    clientes e "entra hoje" R$ 2.625,80 em 6 parcelas, como nas regras (T-019: o seed segue o CSV,
+    sem o contorno D-21 da T-138)."""
+    from datetime import date
+
+    from django.test import override_settings
+
+    from comum.autenticacao import AMR_SENHA_E_CODIGO, emitir_tokens
+
+    empresa = Empresa.objects.get(subdominio="motorapida")
+    with override_settings(GIRO_DATA_REFERENCIA=date(2026, 10, 7)):
+        with tenant_context(empresa):
+            lucia = Usuario.objects.get(email="lucia@motorapida.com.br")
+            token = str(emitir_tokens(lucia, AMR_SENHA_E_CODIGO).access_token)
+        resposta = cliente("motorapida.localhost", token).get("/api/painel/inicio/")
+    assert resposta.status_code == 200, resposta.json()
+    assert resposta["X-Giro-Data-Simulada"] == "2026-10-07"
+    kpis = {kpi["chave"]: kpi for kpi in resposta.json()["kpis"]}
+    assert kpis["em_atraso"]["valor"] == {"tipo": "centavos", "valor": 164640}
+    assert kpis["em_atraso"]["contexto"] == "2 clientes"
+    assert kpis["entra_hoje"]["valor"] == {"tipo": "centavos", "valor": 262580}

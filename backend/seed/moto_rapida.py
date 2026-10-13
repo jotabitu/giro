@@ -7,13 +7,12 @@ de verdade). O financeiro de 07 out (caixa, despesas, caução) vem de `seed/fin
 """
 
 from dataclasses import dataclass
+from datetime import date
 from typing import Any
 
 from django.db import transaction
 from django_tenants.utils import get_public_schema_name, schema_context, tenant_context
 
-from apps.clientes import services as clientes_services
-from apps.clientes.models import Cliente
 from apps.contas import services as contas_services
 from apps.contas.dois_fatores import confirmar_autenticador, novo_autenticador
 from apps.contas.models import (
@@ -29,7 +28,8 @@ from apps.contratos import services as contratos_services
 from apps.contratos.models import ModeloContrato
 from apps.filiais import services as filiais_services
 from apps.filiais.models import Filial
-from apps.financeiro.models import Caixa
+from apps.financeiro import services as financeiro_services
+from apps.financeiro.models import Caixa, ContaReceber, StatusConta
 from apps.locacoes import services as locacoes_services
 from apps.locacoes.models import Locacao, PlanoEspecial
 from apps.plataforma.models import Empresa, Plano
@@ -323,11 +323,12 @@ def _configuracao(criado: list[str]) -> None:
 
 
 def _bloquear_rafael() -> None:
-    """Caso "Bloqueio" (CLI-05): Rafael Sousa, conta de 12 set, 25 dias de atraso em 07 out."""
-    from datetime import date
-
-    rafael = Cliente.objects.get(nome="Rafael Sousa")
-    clientes_services.bloquear_por_atraso(rafael.pk, 25, date(2026, 9, 12))
+    """Caso "Bloqueio" (CLI-05): Rafael Sousa, conta de 12 set, 25 dias de atraso em 07 out. O
+    pedido fica gravado na conta, como a régua faz (AUT-03): o desbloqueio manual vale."""
+    conta = ContaReceber.objects.get(
+        cliente__nome="Rafael Sousa", status=StatusConta.ABERTA, vencimento=date(2026, 9, 12)
+    )
+    financeiro_services.pedir_bloqueio(conta, 25)
 
 
 def codigo_de_2fa(email: str) -> str:

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Button, Dialogo, Icone, KpiGrid, KpiTile, Panel, SegmentedControl, StatusBadge, TextField } from "@/design-system";
 import { caixaAberto, financeiro, type Caixa, type MovimentoDoCaixa } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
+import { useFilial } from "@/lib/filial-escolhida";
 import { dinheiro, horaCurta } from "@/lib/formatos";
 import { diaDaSemanaEData, ROTULO_STATUS_DO_CAIXA, rotuloDaForma, TOM_STATUS_DO_CAIXA } from "@/lib/financeiro";
 import { centavosDoTexto } from "@/lib/veiculos";
@@ -246,13 +247,24 @@ function SituacaoDoFechamento({ caixa }: { caixa: Caixa }) {
 /** Caixa do dia da filial: resumo, movimentos, gaveta, recebimento e fechamento. */
 export function CaixaDoDia() {
   const cliente = useQueryClient();
-  const consulta = useQuery({ queryKey: ["caixa", "hoje"], queryFn: () => financeiro.caixaDeHoje() });
+  // O caixa é de uma filial só: com "Todas as filiais" a API não soma caixas, então a tela pede a escolha (CA-023-16).
+  const todas = useFilial()?.todas ?? false;
+  const consulta = useQuery({ queryKey: ["caixa", "hoje"], queryFn: () => financeiro.caixaDeHoje(), enabled: !todas });
   const [dialogo, setDialogo] = useState<"sangria" | "fechar" | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const r = consulta.data;
   const caixa = r && caixaAberto(r) ? r : null;
   const atualizar = () => cliente.invalidateQueries({ queryKey: ["caixa"] });
 
+  if (todas)
+    return (
+      <div className="flex flex-col gap-6">
+        <header>
+          <h1 className="text-title md:text-display">Caixa do dia</h1>
+          <p className="mt-1 text-body text-ink-muted">O caixa é de uma filial. Escolha uma filial no menu para abrir, receber ou ver os movimentos.</p>
+        </header>
+      </div>
+    );
   if (consulta.isPending)
     return (
       <p className="text-body text-ink-muted" aria-busy="true">

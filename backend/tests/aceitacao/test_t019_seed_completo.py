@@ -6,7 +6,7 @@ cada teste pede à API ou ao serviço o número da regra e compara. O estado de 
 de outras datas movem o relógio dentro do próprio teste, que desfaz tudo no fim.
 
 Casos que dependem de módulo que não existe (vendas, comissões, conciliação, DRE, manutenção) ou
-de código da T-148 e da T-150 ficam `xfail(strict)` com a tarefa que os destrava.
+de código da T-150 ficam `xfail(strict)` com a tarefa que os destrava.
 """
 
 import csv
@@ -20,6 +20,7 @@ from django_tenants.utils import get_public_schema_name, schema_context, tenant_
 
 from apps.aprovacoes.models import PedidoAprovacao
 from apps.auditoria.models import EventoAuditoria
+from apps.clientes import services as clientes_services
 from apps.clientes.models import Cliente
 from apps.clientes.services import buscar_por_hash
 from apps.contas.models import Usuario
@@ -34,7 +35,7 @@ from apps.plataforma.models import Empresa, UsoEmpresa
 from apps.veiculos.models import Categoria, PrecoCategoria, Veiculo
 from apps.vistorias.models import Devolucao, Vistoria
 from comum.autenticacao import AMR_SENHA_E_CODIGO, emitir_tokens
-from seed.carteira import PASTA
+from seed.carteira import PASTA, pessoa
 
 from .conftest import cliente as cliente_http
 from .test_t016_vistorias import (
@@ -338,12 +339,10 @@ def test_cli_03_seed_019_12_os_clientes_das_telas(seed):
     lucas = Cliente.objects.get(nome="Lucas Ferreira")
     assert juliana.documento_hash == buscar_por_hash("05221833018")
     assert lucas.documento_hash == buscar_por_hash("12345678909")
-    sem_documentos = Cliente.objects.filter(documentos__isnull=True)
-    assert [c.nome for c in sem_documentos] == ["Rafael Sousa"]
-    outros = Cliente.objects.exclude(nome="Rafael Sousa")
-    assert all(c.documentos.filter(ativo=True).count() == 4 for c in outros)
-    assert all(c.consentimento_em is not None for c in outros)
-    assert set(outros.values_list("status", flat=True)) == {"ativo"}
+    todos = Cliente.objects.all()
+    assert all(c.documentos.filter(ativo=True).count() == 4 for c in todos)
+    assert all(c.consentimento_em is not None for c in todos)
+    assert set(todos.exclude(nome="Rafael Sousa").values_list("status", flat=True)) == {"ativo"}
 
 
 def test_cli_05_seed_019_13_bloqueio_do_rafael(seed):
@@ -357,7 +356,6 @@ def test_cli_05_seed_019_13_bloqueio_do_rafael(seed):
     assert evento.ator_tipo == "sistema"  # o bloqueio automático é a exceção (CA-019-25)
 
 
-@pytest.mark.xfail(strict=True, reason="T-148: histórico pela FIN-03 e 'Cliente novo na empresa'")
 def test_cli_04_seed_019_14_historico_da_analise_em_07_out(seed):
     """Juliana e Lucas `ok`, Carlos e Rafael `problema`, cliente novo `ok`."""
 
@@ -370,9 +368,8 @@ def test_cli_04_seed_019_14_historico_da_analise_em_07_out(seed):
     assert situacao("Lucas Ferreira") == "ok: Sem atraso na empresa"
     assert situacao("Carlos Menezes") == "problema: Conta em atraso na empresa"
     assert situacao("Rafael Sousa") == "problema: Conta em atraso na empresa"
-    com_conta = ContaReceber.objects.values("cliente_id")
-    novo = Cliente.objects.exclude(pk__in=com_conta).first()
-    assert novo is not None
+    # O cliente cadastrado hoje, sem conta, é o do caso (nenhum do seed está nessa situação).
+    novo = clientes_services.cadastrar(pessoa("Cliente de hoje", "52998224725", "85999990000"))
     assert financeiro_leituras.montar_historico(novo) == {
         "situacao": "ok",
         "rotulo": "Cliente novo na empresa",
@@ -885,9 +882,8 @@ def test_fin_03_seed_019_30_multa_e_juros_no_caixa(seed):
     assert pago.status_code == 200, pago.json()
     rafael.refresh_from_db()
     assert (rafael.multa_centavos, rafael.juros_centavos) == (2694, 1123)
-    # CLI-05: desbloqueia sozinho. Sem documentos (CA-019-12) ele volta `incompleto` (CLI-03,
-    # CLI-09), e não `ativo` como diz o CA-019-30: [decisão] no backlog.
-    assert Cliente.objects.get(nome="Rafael Sousa").status == "incompleto"
+    # CLI-05: desbloqueia sozinho; com os 4 documentos volta `ativo` (CA-019-30).
+    assert Cliente.objects.get(nome="Rafael Sousa").status == "ativo"
 
 
 # --- Fase 2: sem módulo no backend (CA-019-31) ---

@@ -117,6 +117,9 @@ class ContaReceber(MaquinaDeEstados, ModeloBase, ComOrigem):
         "self", on_delete=models.PROTECT, null=True, blank=True, related_name="estornos"
     )
     estornada_em = models.DateTimeField(null=True, blank=True)
+    # Dia em que a régua pediu o bloqueio do cliente por esta conta: uma vez por conta (AUT-03,
+    # CLI-05), para o desbloqueio manual valer até outra conta completar 15 dias.
+    bloqueio_pedido_em = models.DateField(null=True, blank=True)
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = {
         "aberta": {"paga", "cancelada", "renegociada"},

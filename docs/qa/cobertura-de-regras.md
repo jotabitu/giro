@@ -282,14 +282,14 @@ Testes em `backend/tests/aceitacao/test_t019_seed_completo.py` (`test_<regra>_se
 | CA-019-10 | QXA-4B21 (estado, km de 23 set) | passa; troca de óleo: xfail, sem módulo de manutenção |
 | CA-019-11 | Factor (16 L, 21.870 km, saída cheia) e NMax (8 L) | passa |
 | CA-019-12, 13, 15 | Clientes, bloqueio do Rafael, em aberto R$ 1.646,40 | passa |
-| CA-019-14 | Histórico da análise em 07 out | xfail: T-148 |
+| CA-019-14 | Histórico da análise em 07 out | passa (T-148) |
 | CA-019-16 a 19 | 51 locações, as das telas, parcelas do CSV (sem D-21), reservas em novembro | passa |
 | CA-019-20, 21 | Contas a receber do mês e da semana | passa |
 | CA-019-22, 23 | Caixa de 07 out (gaveta R$ 281,00) e despesas de outubro (R$ 7.066,70) | passa |
-| CA-019-24 | Contadores, aprovações, Lúcia e João | passa (agenda do João: ver [decisão] no backlog) |
+| CA-019-24 | Contadores, aprovações, Lúcia e João | passa (agenda do João com a devolução atrasada da LOC-2790; critério ajustado na T-166) |
 | CA-019-25 | Eventos nas horas e com o ator do caso | passa; sangria com a filial: xfail, T-150 |
 | CA-019-26 a 29 | Devolução da LOC-2836 (R$ 183,00), troca (R$ 263,00), LOC-2812, LOC-2841 em 07, 16, 28 e 30 out | passa |
-| CA-019-30 | Multa e juros no caixa (Carlos 30609, Rafael 138517) | passa; Rafael volta `incompleto`: [decisão] no backlog |
+| CA-019-30 | Multa e juros no caixa (Carlos 30609, Rafael 138517) | passa; Rafael com os 4 documentos volta `ativo` (critério ajustado na T-166) |
 | CA-019-31 | Venda VEN-0177, comissões, conciliação, DRE | xfail: sem módulo |
 
 Os `xfail(strict)` avisam quando o código chegar.
