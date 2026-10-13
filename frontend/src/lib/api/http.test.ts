@@ -281,3 +281,22 @@ describe("sair e entrar de novo (T-161)", () => {
     expect(chamada(3)[0]).toBe("/api/auth/entrar/");
   });
 });
+
+describe("401 atrasado da sessão que acabou (T-161)", () => {
+  it("não derruba a sessão de quem entrou depois; a chamada repete com o access novo", async () => {
+    definirAccess("antigo");
+    const perdeu = vi.fn();
+    const fora = aoPerderSessao(perdeu);
+    let soltar: (r: Response) => void = () => {};
+    fetchMock.mockImplementationOnce(() => new Promise<Response>((res) => (soltar = res)));
+    const chamadaAntiga = http.get("/api/painel/contadores/");
+    definirAccess("novo");
+    responder({ corpo: { ok: true } });
+    soltar(new Response(JSON.stringify({ codigo: "nao_autenticado", mensagem: "x" }), { status: 401 }));
+    await expect(chamadaAntiga).resolves.toEqual({ ok: true });
+    expect(chamada(1)[1].headers.Authorization).toBe("Bearer novo");
+    expect(perdeu).not.toHaveBeenCalled();
+    expect(accessAtual()).toBe("novo");
+    fora();
+  });
+});

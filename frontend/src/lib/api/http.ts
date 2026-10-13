@@ -134,19 +134,25 @@ export async function chamarComStatus<T>(metodo: string, caminho: string, o: Opc
   if (r.status === 401 && !o.semSessao && !o.token && !o.comCookie) {
     const erro = await lerErro(r.clone());
     if (erro.codigo === "nao_autenticado") {
-      try {
-        await renovarAccess();
-      } catch {
-        perdeuSessao();
-        throw erro;
+      // Outra pessoa entrou enquanto esta chamada voava (sair e entrar de novo): repete com o access novo, sem renovar.
+      if (access && access !== token) {
+        r = await enviar(metodo, caminho, o, access);
+      } else {
+        try {
+          await renovarAccess();
+        } catch {
+          if (access === token) perdeuSessao();
+          throw erro;
+        }
+        r = await enviar(metodo, caminho, o, access);
       }
-      r = await enviar(metodo, caminho, o, access);
     }
   }
 
   if (!r.ok) {
     const erro = await lerErro(r);
-    if (erro.status === 401 && !o.semSessao && !o.token && !o.comCookie) perdeuSessao();
+    // Um 401 atrasado da sessão que já acabou não derruba a sessão nova.
+    if (erro.status === 401 && !o.semSessao && !o.token && !o.comCookie && (access === token || access === null)) perdeuSessao();
     throw erro;
   }
   if (r.status === 204) return { status: 204, dados: undefined as T };
