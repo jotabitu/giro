@@ -15,16 +15,24 @@ export type OpcoesDaChamada = {
   semSessao?: boolean;
   /** Rotas do cookie de refresh (`renovar`, `sair`) exigem `X-Requested-With: giro` (ADR 0013). */
   comCookie?: boolean;
+  /** Rota que não depende da filial escolhida (`/auth/eu/`, `/filiais/minhas/`): sem `X-Filial`. */
+  semFilial?: boolean;
 };
 
 const MSG_GENERICA = "Não foi possível concluir agora. Tente de novo.";
 
 let access: string | null = null;
+let filial: string | null = null;
 let renovando: Promise<string> | null = null;
 const ouvintes = new Set<() => void>();
 
 export function definirAccess(token: string | null) {
   access = token;
+}
+
+/** Filial escolhida no seletor (`"todas"` ou o id), enviada em `X-Filial` (docs/api/filiais.md). `null` = sem cabeçalho. */
+export function definirFilial(escolha: string | null) {
+  filial = escolha;
 }
 
 export function accessAtual(): string | null {
@@ -39,6 +47,7 @@ export function aoPerderSessao(ouvinte: () => void): () => void {
 
 function perdeuSessao() {
   access = null;
+  filial = null;
   ouvintes.forEach((o) => o());
 }
 
@@ -86,6 +95,7 @@ async function enviar(metodo: string, caminho: string, o: OpcoesDaChamada, token
   const headers: Record<string, string> = { Accept: "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (o.comCookie) headers["X-Requested-With"] = "giro";
+  if (filial && token && !o.comCookie && !o.semFilial) headers["X-Filial"] = filial;
   let corpo: BodyInit | undefined;
   if (o.corpo instanceof FormData) corpo = o.corpo;
   else if (o.corpo !== undefined) {

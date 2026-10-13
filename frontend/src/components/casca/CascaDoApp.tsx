@@ -5,8 +5,9 @@ import { Car, Ellipsis, KeyRound, LayoutGrid, LogOut, Menu, Plus, X } from "luci
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Icone, IconButton, Sidebar, type GrupoMenu } from "@/design-system";
+import { Icone, IconButton, SeletorDeFilial, Sidebar, type GrupoMenu } from "@/design-system";
 import { relatorios } from "@/lib/api";
+import { useFilial } from "@/lib/filial-escolhida";
 import { useMarcaDaEmpresa } from "@/lib/marca-empresa";
 import { destinosDaBarra, gruposDaRota, montarMenu } from "@/lib/menu";
 import { useSessao } from "@/lib/sessao";
@@ -23,13 +24,19 @@ export function useGruposDoMenu(): GrupoMenu[] {
 }
 
 export function SidebarDaEmpresa() {
-  const { eu } = useSessao();
   const marca = useMarcaDaEmpresa();
   const grupos = useGruposDoMenu();
-  // Esconde o seletor quando a pessoa tem uma filial só (docs/design-system/components/Sidebar).
-  // Sem lista de filiais no componente ainda: mostra a primeira. Ver handoff T-020.
-  const filial = eu.filiais.length > 1 ? { nome: eu.filiais[0]?.nome ?? "", cidade: "" } : undefined;
-  return <Sidebar componenteLink={Link} marca={{ nome: marca.nome, logoSrc: marca.logo?.url, iniciais: marca.iniciais }} filial={filial} grupos={grupos} />;
+  const filial = useFilial();
+  // Só com mais de uma opção no escopo (USR-07); com uma filial e sem "Todas", o seletor nem aparece.
+  const seletor = filial?.escolha ? (
+    <SeletorDeFilial
+      filiais={filial.filiais.map((f) => ({ id: String(f.id), nome: f.nome, cidade: f.cidade }))}
+      valor={filial.escolha}
+      aoMudar={filial.trocar}
+      permiteTodas={filial.podeEscolherTodas}
+    />
+  ) : undefined;
+  return <Sidebar componenteLink={Link} marca={{ nome: marca.nome, logoSrc: marca.logo?.url, iniciais: marca.iniciais }} seletorDeFilial={seletor} grupos={grupos} />;
 }
 
 function BotaoSair() {
