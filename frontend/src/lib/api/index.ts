@@ -1,5 +1,6 @@
 // Fronteira da API para as telas: cada módulo chama a API real (docs/api/openapi.yaml) pelo cliente de ./http.
 // Nos testes, o alias de vitest.config.ts troca este módulo pelas fixtures de src/testes/.
+import { assinaturaApi } from "./assinatura";
 import { clientesApi } from "./clientes";
 import { contasApi } from "./contas";
 import { financeiroApi } from "./financeiro";
@@ -22,6 +23,7 @@ export const filiais = filiaisApi;
 export const ambiente = ambienteApi;
 export const vistorias = vistoriasApi;
 export const financeiro = financeiroApi;
+export const assinatura = assinaturaApi;
 export const aprovacoes = aprovacoesApi;
 export * from "./tipos";
 export * from "./tipos-frota";
@@ -30,3 +32,4 @@ export * from "./tipos-painel";
 export * from "./tipos-locacoes";
 export * from "./tipos-vistorias";
 export * from "./tipos-financeiro";
+export * from "./tipos-assinatura";
