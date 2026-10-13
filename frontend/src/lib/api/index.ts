@@ -2,6 +2,7 @@
 // Nos testes, o alias de vitest.config.ts troca este módulo pelas fixtures de src/testes/.
 import { clientesApi } from "./clientes";
 import { contasApi } from "./contas";
+import { financeiroApi } from "./financeiro";
 import { locacoesApi } from "./locacoes";
 import { marcaApi } from "./marca";
 import { relatoriosApi } from "./relatorios";
@@ -15,9 +16,11 @@ export const clientes = clientesApi;
 export const locacoes = locacoesApi;
 export const marca = marcaApi;
 export const vistorias = vistoriasApi;
+export const financeiro = financeiroApi;
 export * from "./tipos";
 export * from "./tipos-frota";
 export * from "./tipos-clientes";
 export * from "./tipos-painel";
 export * from "./tipos-locacoes";
 export * from "./tipos-vistorias";
+export * from "./tipos-financeiro";

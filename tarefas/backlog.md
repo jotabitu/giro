@@ -322,9 +322,6 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 ### T-021 · Telas de veículos e clientes
 - **Agente:** frontend · **Depende de:** T-020, T-013, T-014 · **Telas:** Frota, Veiculo, Clientes, Cliente · **Nota:** pode começar com dados falsos de `docs/api/veiculos.md` e `clientes.md`, como a T-020
 
-### T-023 · Telas do financeiro básico
-- **Agente:** frontend · **Depende de:** T-020, T-017 · **Telas:** Receber, Caixa, Financeiro
-
 ### T-024 · Revisão de segurança do MVP
 - **Agente:** seguranca · **Depende de:** T-011, T-014, T-018 · **Pronto quando:** checklist de `.claude/agents/seguranca.md` aplicado, achados viram tarefas.
 

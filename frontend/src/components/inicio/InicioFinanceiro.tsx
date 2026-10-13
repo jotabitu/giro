@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { Panel, StatusBadge } from "@/design-system";
-import type { InicioDe } from "@/lib/api";
+import type { InicioDe, StatusDoCaixa } from "@/lib/api";
 import { dinheiro } from "@/lib/formatos";
+import { ROTULO_STATUS_DO_CAIXA, TOM_STATUS_DO_CAIXA } from "@/lib/financeiro";
 import { hrefDoDestino } from "@/lib/menu";
 import { CabecalhoInicio, KpisDoPainel, LinhaDoPainel, ListaDoPainel, Vazio } from "./comuns";
 
-const STATUS_DO_CAIXA: Record<string, string> = { aberto: "Aberto", fechado: "Fechado", nao_aberto: "Não aberto" };
 const ACAO = { reembolso: "Devolver", despesa: "Pagar" } as const;
 
 /** Início do financeiro (USR-08): o que entra e sai hoje. Sem aprovações; saldo, fluxo e conciliação são fase 2. */
@@ -49,11 +49,15 @@ export function InicioFinanceiro({ d }: { d: InicioDe<"financeiro"> }) {
                 {caixas.map((c) => (
                   <LinhaDoPainel
                     key={c.filial}
-                    titulo={c.filial}
+                    titulo={
+                      <Link href="/financeiro/caixa" className="text-ink no-underline hover:underline">
+                        {c.filial}
+                      </Link>
+                    }
                     apoio={`${c.aberto_por ? `Aberto por ${c.aberto_por} · ` : ""}esperado na gaveta ${dinheiro(c.esperado_gaveta_centavos)}`}
                     fim={
-                      <StatusBadge tom={c.status === "aberto" ? "sucesso" : "neutro"} compacto>
-                        {STATUS_DO_CAIXA[c.status] ?? c.status}
+                      <StatusBadge tom={TOM_STATUS_DO_CAIXA[c.status as StatusDoCaixa] ?? "neutro"} compacto>
+                        {ROTULO_STATUS_DO_CAIXA[c.status as StatusDoCaixa] ?? c.status}
                       </StatusBadge>
                     }
                   />
