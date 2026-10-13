@@ -244,3 +244,40 @@ describe("filial escolhida (USR-07, T-161)", () => {
     expect(chamada(2)[1].headers["X-Filial"]).toBeUndefined();
   });
 });
+
+describe("sair e entrar de novo (T-161)", () => {
+  it("depois de sair com uma filial escolhida, o login seguinte sai na hora, sem cabeçalho de filial", async () => {
+    definirAccess("abc");
+    definirFilial("todas");
+    responder({ status: 204 });
+    await contasApi.sair();
+    expect(accessAtual()).toBeNull();
+
+    responder({ corpo: { etapa: "pronto", access: "novo", usuario: { id: 4 } } });
+    const r = await contasApi.entrar({ email: "bruna@motorapida.com.br", senha: "x", aparelho: "desktop" });
+    expect(r.etapa).toBe("pronto");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(chamada(1)[0]).toBe("/api/auth/entrar/");
+    expect(chamada(1)[1].headers.Authorization).toBeUndefined();
+    expect(chamada(1)[1].headers["X-Filial"]).toBeUndefined();
+    expect(accessAtual()).toBe("novo");
+
+    responder({ corpo: {} });
+    await http.get("/api/veiculos/");
+    expect(chamada(2)[1].headers["X-Filial"]).toBeUndefined();
+  });
+
+  it("sair com a API falhando e uma renovação recusada no meio não prende o login seguinte", async () => {
+    definirAccess("abc");
+    definirFilial("1");
+    const fora = aoPerderSessao(() => {});
+    responder({ status: 401, corpo: { codigo: "nao_autenticado", mensagem: "x" } }, { status: 401, corpo: { codigo: "token_invalido", mensagem: "x" } }, { status: 500 });
+    await falha(http.get("/api/filiais/minhas/"));
+    await falha(contasApi.sair());
+    fora();
+
+    responder({ corpo: { etapa: "pronto", access: "novo", usuario: { id: 4 } } });
+    await expect(contasApi.entrar({ email: "bruna@motorapida.com.br", senha: "x", aparelho: "desktop" })).resolves.toMatchObject({ etapa: "pronto" });
+    expect(chamada(3)[0]).toBe("/api/auth/entrar/");
+  });
+});
