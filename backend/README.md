@@ -82,6 +82,6 @@ docker compose exec backend python manage.py convidar_equipe_plataforma larissa@
 docker compose exec backend python manage.py spectacular --urlconf config.urls_openapi --file /tmp/openapi.yaml --validate
 ```
 
-Os testes criam as empresas `empresa_a` (`empresa-a.localhost`) e `empresa_b` uma vez por banco de teste (`--reuse-db`). Depois de mudar migração, rode `pytest --create-db`.
+Os testes criam as empresas `empresa_a` (`empresa-a.localhost`) e `empresa_b` uma vez por banco de teste (`--reuse-db`). Depois de mudar migração, rode `pytest --create-db`. O CI roda `pytest -n auto --dist loadfile --create-db` (pytest-xdist, um banco por worker, cada arquivo de teste num worker só); localmente a máquina tem pouca memória, então siga com um processo.
 
 O Admin só existe em `admin.localhost:8000/admin/` e exige 2 etapas (OTPAdminSite): crie um dispositivo TOTP para o usuário pelo shell antes do primeiro login.
