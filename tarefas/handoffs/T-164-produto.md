@@ -21,7 +21,7 @@
   - CA-027-21 com a cor obrigatória na planilha modelo;
   - CA-027-23 novo: mesma célula longa no `.xlsx` e no `.csv`, corte em 1.000, coluna descartada sem erro, quebra de linha aceita até 1.000 caracteres.
 - `tarefas/backlog.md`: a seção da T-164 saiu.
-- `tarefas/feito.md`: linha da T-164 com o PR #173.
+- `tarefas/feito.md`: linha da T-164 com o PR #174.
 
 **Regras cobertas:** IMP-02.
 
@@ -31,4 +31,4 @@
 - **QA:** conferir a mensagem da linha sem cor. `OBRIGATORIAS_VEICULO` em `linhas.py` não lista `cor`, então o "Cor em branco" que o backend relatou na T-027 deve vir do serviço do cadastro. O critério pede `campo: cor`, `codigo: validacao`, "Cor em branco". Se a mensagem sair diferente, avise o produto.
 - **Frontend (tela `Onboarding-Importar`):** nada novo; a mensagem de aspas sem fechar aparece como vier da API.
 
-**Próximo passo:** o orquestrador abre o PR #173.
+**Próximo passo:** o orquestrador abre o PR #174.
