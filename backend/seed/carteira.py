@@ -336,11 +336,10 @@ def carregar(
         locacao.save()
         for posicao, conta in enumerate(contas, start=1):
             vencimento = date.fromisoformat(conta["vencimento"])
-            # LOC-05: a parcela 1 é paga na retirada, então não nasce em aberto nem atrasada
-            # (D-21); a conta atrasada dada da LOC-2790 é a exceção.
-            paga = conta["situacao"] == "paga" or (
-                conferencia and posicao == 1 and codigo != "LOC-2790"
-            )
+            # A situação é a do CSV da tabela "Contas a receber de outubro em 07 out" (FIN-15):
+            # as parcelas 1 em aberto ou "vence hoje" ficam assim, porque os números da regra
+            # (Recebido R$ 13.401,70 em 30, Vence hoje 6) dependem delas. T-019 desfez o D-21.
+            paga = conta["situacao"] == "paga"
             pago_em = datetime.combine(min(vencimento, HOJE_DO_SEED), time(10), tzinfo=FUSO)
             ContaReceber.objects.create(
                 filial=frota.centro,

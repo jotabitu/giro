@@ -3,7 +3,7 @@
 Cria, pelos serviços de domínio e de forma idempotente (cada passo confere o que já existe):
 empresa com subdomínio, Filial Centro, uma pessoa por perfil, as 4 categorias com os preços, as
 86 motos e carros, os clientes e as 42 locações abertas de 07 out 2026 (LOC-2836 pela confirmação
-de verdade). Fica para a T-019: contas a pagar, caixa, baixas, vendas e comissões.
+de verdade). O financeiro de 07 out (caixa, despesas, caução) vem de `seed/financeiro.py` (T-019).
 """
 
 from dataclasses import dataclass
@@ -29,6 +29,7 @@ from apps.contratos import services as contratos_services
 from apps.contratos.models import ModeloContrato
 from apps.filiais import services as filiais_services
 from apps.filiais.models import Filial
+from apps.financeiro.models import Caixa
 from apps.locacoes.models import Locacao
 from apps.plataforma.models import Empresa, Plano
 from apps.plataforma.services import Administrador, criar_empresa
@@ -36,6 +37,7 @@ from apps.veiculos.models import Veiculo
 from comum.estados import transicionar
 
 from . import carteira, frota
+from . import financeiro as financeiro_do_seed
 from .relogio import RelogioDoSeed
 
 SUBDOMINIO = "motorapida"
@@ -250,6 +252,10 @@ def semear() -> Resultado:
                         criado.append("locações")
             else:
                 existente.append("frota")
+            if not Caixa.objects.exists():
+                with transaction.atomic():
+                    financeiro_do_seed.carregar(centro, pessoas, relogio)
+                    criado.append("financeiro")
     with RelogioDoSeed(INICIO) as relogio:
         _dono_da_plataforma(criado)
         _outras_empresas(relogio, criado)

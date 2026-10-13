@@ -269,3 +269,30 @@ Uma linha por código de `docs/regras-de-negocio.md` (136 códigos). "Testes" co
 | VIS-03 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
 | VIS-04 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
 | VIS-05 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
+
+## T-019 · Casos da tabela "Dados de referência para testes" sobre o seed
+
+Testes em `backend/tests/aceitacao/test_t019_seed_completo.py`, sobre o banco que o `make seed` deixa (pedem à API o número da regra). Data: 12 out 2026.
+
+| Regra | Caso | Teste | Status |
+| --- | --- | --- | --- |
+| FIN-15 | Recebido, vence hoje, em atraso e abas de outubro | `test_fin_15_t019_recebido_vence_hoje_e_atraso_em_07_out` | passa |
+| FIN-15 | Previsto 128 parcelas e A vencer 92, sem as reservas | `test_fin_15_t019_previsto_e_a_vencer_sem_as_reservas` | passa |
+| FIN-15 | Previsto exato da tabela (com as reservas do seed) | `test_fin_15_t019_previsto_exato_da_tabela` | xfail: [decisão] reservas |
+| FIN-15 | Semana de 05 a 11 out | `test_fin_15_semana_de_segunda_a_domingo` | xfail: T-148 |
+| FIN-15, FIN-05 | Contadores do menu (Mariana) | `test_fin_15_fin_05_t019_contadores_do_menu_da_mariana` | passa |
+| FIN-01 | Em aberto dos clientes R$ 1.646,40 | `test_fin_01_t019_em_aberto_dos_clientes` | passa |
+| FIN-07 | Caixa de 07 out: gaveta R$ 281,00, R$ 1.111,90 em 5 | `test_fin_07_t019_caixa_de_07_out`, `test_fin_07_t019_entradas_do_caixa_apontam_para_as_contas` | passa |
+| FIN-05 | Despesas de outubro R$ 7.066,70 | `test_fin_05_t019_despesas_de_outubro` | passa |
+| LOC-05 | Cauções pagas do seed | `test_loc_05_t019_caucoes_pagas_do_seed` | passa |
+| DEV-02 | Acerto LOC-2836: devolver R$ 183,00 | `test_dev_02_t019_acerto_da_loc_2836_devolve_183` | passa |
+| DEV-07 | Devolução antecipada LOC-2841: cobrar R$ 365,37 | `test_dev_07_t019_devolucao_antecipada_do_carlos_cobra_365_37` | passa |
+| LOC-12 | Encerramento antecipado LOC-2812: multa R$ 84,80, devolve R$ 286,20 | `test_loc_12_t019_encerramento_antecipado_da_loc_2812` | passa |
+| CLI-05 | Bloqueio do Rafael | `test_cli_05_t019_bloqueio_do_rafael` | passa |
+| CLI-04 | Histórico da análise em 07 out | `test_cli_04_historico_da_analise_em_07_out` | xfail: T-148 |
+| VEN-02, VEN-04 | Venda VEN-0177 | `test_ven_02_t019_venda_ven_0177` | xfail: sem módulo de vendas |
+| FIN-09, FIN-10 | Comissões (R$ 632,04; outubro R$ 968,00; setembro R$ 1.890,00) | `test_fin_09_t019_comissao_da_venda_ven_0177` | xfail: sem módulo de vendas |
+| FIN-12 | Conciliação R$ 137,10 | `test_fin_12_t019_conciliacao_diferenca_de_137_10` | xfail: sem módulo |
+| FIN-13 | DRE de setembro R$ 34.231,30 | `test_fin_13_t019_dre_de_setembro_34231_30` | xfail: sem selector |
+
+Já cobertos antes, sobre o seed: acerto/total pago da LOC-2836 (`test_loc_15_seed_127_05_*`), uso do plano (T-010), funil (T-129), preço antigo da LOC-2841 e da LOC-2836 (T-015, T-127). Os xfail `strict` avisam quando o código chegar.

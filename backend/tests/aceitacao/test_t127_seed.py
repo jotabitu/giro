@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 from django.core.management import call_command
-from django.db import connection
+from django.db import connection, transaction
 from django_tenants.utils import tenant_context
 
 from apps.auditoria.models import EventoAuditoria
@@ -52,9 +52,32 @@ def _contagens() -> dict[str, int]:
         }
 
 
+@pytest.fixture(scope="module")
+def _seed_do_modulo(django_db_setup, django_db_blocker):
+    """Roda o seed uma vez por módulo, numa transação que fica aberta e volta no fim (T-149).
+
+    Cada teste abre o savepoint dele por cima e volta ao estado do seed; quem semeia de novo
+    (127_02, 138_08) só escreve dentro do próprio savepoint. Sem commit: nada sobra no banco.
+    """
+    with django_db_blocker.unblock():
+        bloco = transaction.atomic()
+        bloco.__enter__()
+        try:
+            saida = _semear()
+        except BaseException:
+            transaction.set_rollback(True)
+            bloco.__exit__(None, None, None)
+            raise
+    yield saida
+    with django_db_blocker.unblock():
+        connection.set_schema_to_public()
+        transaction.set_rollback(True)
+        bloco.__exit__(None, None, None)
+
+
 @pytest.fixture
-def semeado(db, relogio, planos):
-    return _semear()
+def semeado(db, relogio, planos, _seed_do_modulo):
+    return _seed_do_modulo
 
 
 def test_seed_127_01_cria_a_empresa_de_exemplo(semeado):
@@ -189,17 +212,19 @@ def test_seed_138_04_nomes_e_placas_menos_genericos(semeado):
         assert Veiculo.objects.filter(status="alugado").count() == 42
 
 
-def test_loc_05_seed_138_05_parcela_1_nao_nasce_atrasada(semeado):
-    """D-21: a 1ª parcela das locações ativas está paga; só a conta dada da LOC-2790 não."""
+def test_loc_05_seed_138_05_parcela_1_pela_situacao_do_csv(semeado):
+    """T-019 desfez o D-21: a situação das parcelas é a do CSV da tabela (FIN-15), porque
+    Recebido e Vence hoje da regra dependem das parcelas 1 em aberto. As reservas não têm
+    parcela paga."""
     with _no_tenant():
-        abertas = ContaReceber.objects.filter(
-            tipo="parcela", numero_parcela=1, origem_tipo="locacao"
-        ).exclude(status="paga")
-        codigos = {c.origem_codigo for c in abertas}
         reservas = set(
             Locacao.objects.filter(status="aguardando_retirada").values_list("codigo", flat=True)
         )
-        assert codigos - reservas == {"LOC-2790"}
+        pagas_das_reservas = ContaReceber.objects.filter(
+            origem_codigo__in=reservas, status="paga"
+        ).count()
+        assert pagas_das_reservas == 0
+        assert ContaReceber.objects.get(origem_codigo="LOC-2790").status == "aberta"
 
 
 def test_seed_138_06_locacoes_divididas_entre_vendedores(semeado):
