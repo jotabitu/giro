@@ -331,10 +331,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 ### T-165 · Fotos da vistoria em PNG com paleta perdem as cores (baixa)
 - **Agente:** backend · **Depende de:** — · **Regras:** VIS-02 · **Pronto quando:** `comum.arquivos.sem_metadados` mantém as cores de um PNG em modo `P` (com paleta e `tRNS`): hoje faz `Image.new(imagem.mode, ...)` + `paste`, e a imagem nova sai sem a paleta. Converter para `RGBA` (ou copiar a paleta) antes de gravar, sem voltar a gravar metadados; teste com PNG em paleta comparando os pixels. Não é falha de segurança. Levantada pela segurança na decisão do PNG da T-153 (12 out 2026, `C:/Users/Jota/Documents/giro-produto/decisao-t153-seguranca.md`, fora do git).
 
-### T-019 · Seed Moto Rápida
-- **Agente:** qa · **Depende de:** T-013 a T-017 · **Pronto quando:** `make seed` cria a empresa de exemplo e todos os casos da tabela "Dados de referência para testes" passam.
-- **Placas do seed (T-028):** PQD-6E21 (Pop do Rafael, LOC-2790), RJD-5B38 (Biz do Marcos, LOC-2850), RKP-3D26 (Kwid do Diego, LOC-2848); reserva do Kwid LOC-2857.
-- **Critérios (T-152):** `docs/qa/criterios/T-019.md`. Corrige dois pontos do seed da T-138: as locações geradas com o 1º vencimento de outubro em 07 out ou depois começam um período antes, sem pagar as parcelas de 07 out (item D-21, CA-019-18), e as 9 reservas retiram de 03 a 13 nov, para não mudar os números de outubro (CA-019-19).
 ### T-026 · Desenhar telas que faltam para o MVP
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** "Esqueci a senha" e "Ativar verificação em 2 etapas" (desktop e celular) em `docs/telas/html/`, no mesmo padrão das telas de acesso, e no índice. Bloqueia a parte de 2FA de T-020.
 
