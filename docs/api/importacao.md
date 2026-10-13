@@ -1,6 +1,6 @@
 # Importação por planilha
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-044) · **App:** `importacao` (schema da empresa, ADR 0017) · **Regras:** IMP-02, IMP-03, IMP-05, PLT-03, VEI-01, CLI-01, CLI-03, AUD-04, AUD-09 · **ADRs:** 0012, 0014, 0017 · **Telas:** Onboarding-Importar (passo 11 da implantação)
+**Dono:** arquiteto · **Versão:** 12 out 2026 (T-164: cor obrigatória e célula longa no `.csv`; antes T-044) · **App:** `importacao` (schema da empresa, ADR 0017) · **Regras:** IMP-02, IMP-03, IMP-05, PLT-03, VEI-01, CLI-01, CLI-03, AUD-04, AUD-09 · **ADRs:** 0012, 0014, 0017 · **Telas:** Onboarding-Importar (passo 11 da implantação)
 
 Convenções gerais em `docs/api/README.md`. Base: `/api/importacoes/`.
 
@@ -28,12 +28,13 @@ Uma importação em andamento por tipo de cada vez: enviar outra planilha do mes
 
 - `.xlsx` ou `.csv` (UTF-8, separador `;` ou `,`), até 5 MB e 5.000 linhas, primeira linha com os nomes das colunas.
 - Colunas reconhecidas pelo nome, sem diferenciar maiúsculas e acentos; colunas não reconhecidas são descartadas antes de gravar a linha.
-- Célula com mais de 1.000 caracteres: a linha fica com erro (`validacao`).
+- Célula com mais de 1.000 caracteres numa coluna reconhecida: a linha fica com erro (`validacao`, "Célula com mais de 1.000 caracteres" no campo da coluna), no `.xlsx` e no `.csv`. A célula é guardada com os primeiros 1.000 caracteres, para a correção em "Corrigir aqui". Em coluna não reconhecida não há erro: a coluna é descartada.
+- No `.csv`, célula com mais de 1.000 caracteres **e** quebra de linha dentro é aspas sem fechar (o resto do arquivo viraria uma célula só, e as linhas seguintes sumiriam sem aviso): o arquivo é recusado com "A linha N tem aspas sem fechar. Confira o arquivo e envie de novo.", com N a linha do arquivo onde a célula começa. Quebra de linha em célula de até 1.000 caracteres é aceita.
 
 ### GET /api/importacoes/modelo/?tipo=veiculos|clientes
 200: arquivo `.xlsx` com as colunas abaixo, uma linha de exemplo e uma aba "Instruções".
 
-**Veículos** (obrigatórias em negrito): **placa**, **chassi**, renavam, **marca**, **modelo**, **ano_fabricacao**, **ano_modelo**, cor, **km**, **categoria** (nome, como em `Precos`), filial (nome; vazio = filial escolhida no envio), capacidade_tanque_litros, valor_compra, data_compra.
+**Veículos** (obrigatórias em negrito): **placa**, **chassi**, renavam, **marca**, **modelo**, **ano_fabricacao**, **ano_modelo**, **cor**, **km**, **categoria** (nome, como em `Precos`), filial (nome; vazio = filial escolhida no envio), capacidade_tanque_litros, valor_compra, data_compra.
 **Clientes**: **tipo** (`pf`/`pj`; vazio = deduzido pelo documento), **nome**, **documento** (CPF ou CNPJ), **celular**, email, nascimento, profissao, cnh_numero, cnh_categoria, cnh_validade, cnh_primeira_habilitacao, cep, logradouro, numero, complemento, bairro, cidade, uf, referencia_nome, referencia_parentesco, referencia_telefone, responsavel_nome, responsavel_cpf.
 
 Valores em reais aceitam `13900`, `13.900,00` ou `13900.00`; datas, `dd/mm/aaaa` ou `aaaa-mm-dd`.
@@ -70,7 +71,7 @@ Valores em reais aceitam `13900`, `13.900,00` ou `13900.00`; datas, `dd/mm/aaaa`
 `multipart/form-data`: `tipo` (`veiculos` | `clientes`), `arquivo`, `filial_id?` (padrão para a coluna filial vazia; obrigatório se a empresa tem mais de uma filial e a coluna não vem).
 202: a importação em `validando`. A task `importacao_validar(schema, id, ator)` lê o arquivo e valida cada linha.
 - **Arquivo de clientes:** apagado do storage (todas as versões, se o bucket tiver versionamento) assim que a validação grava as linhas cifradas; daí em diante só as linhas existem. O de veículos fica até `apagar_em`.
-400 `validacao`: extensão, tamanho, arquivo vazio, coluna obrigatória faltando no cabeçalho (`detalhes.colunas_faltando`).
+400 `validacao`: extensão, tamanho, arquivo vazio, coluna obrigatória faltando no cabeçalho (`detalhes.colunas_faltando`), aspas sem fechar no `.csv`.
 
 ### Validação de cada linha (IMP-02)
 
@@ -125,7 +126,7 @@ Só `validada`. 200 `cancelada`; nada é gravado nos cadastros.
 - O tipo é conferido pelo **conteúdo**, não pela extensão: `.xlsx` precisa ser um zip com `[Content_Types].xml`; `.csv` precisa decodificar como UTF-8 (com ou sem BOM, que é removido).
 - `.xlsx`, antes de abrir: soma de `ZipInfo.file_size` de todas as entradas até 50 MB e no máximo 200 entradas; acima disso, recusado (400 `validacao`).
 - `.xlsx`, ao abrir: `openpyxl.load_workbook(read_only=True, data_only=True, keep_links=False, keep_vba=False)`, com `defusedxml` instalado (protege de entidades XML e explosão quadrática). Dependências novas `openpyxl` e `defusedxml`, registrar no PR. As linhas são contadas no streaming (sem confiar em `max_row` nem `dimension`), parando em 5.001.
-- `.csv`: `csv.field_size_limit` de 1.000 caracteres por campo.
+- `.csv`: `csv.field_size_limit` do tamanho máximo do arquivo (5 MB), para nenhuma célula interromper a leitura; a memória já está limitada pelos 5 MB. O limite de 1.000 caracteres é da validação da linha, não da leitura (T-164).
 - As duas tasks têm limite de tempo (validar: 5 min; importar: 15 min).
 - A planilha nunca é executada: só valores de célula, sem fórmulas, macros ou links externos.
 - A auditoria não guarda o conteúdo das linhas (ADR 0014).
