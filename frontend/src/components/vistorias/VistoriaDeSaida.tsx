@@ -8,7 +8,7 @@ import { Button, Icone, Panel, StatusBadge } from "@/design-system";
 import { TelaDeErro } from "@/components/locacoes/Comuns";
 import { vistorias, type Vistoria } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
-import { dataCurta, dinheiro, placa } from "@/lib/formatos";
+import { celular, dataCurta, dinheiro, placa } from "@/lib/formatos";
 import { ROTULO_PERIODICIDADE } from "@/lib/clientes";
 import { linkDaPendencia, pendenciasDoErro, textoDaPendencia } from "@/lib/vistorias";
 import { PainelDeFotos, PainelDeItens, PainelDeKmECombustivel } from "./PartesDaVistoria";
@@ -59,10 +59,18 @@ function ResumoDaLocacao({ v }: { v: Vistoria }) {
       </div>
       <dl>
         <Linha rotulo="Cliente">{v.cliente.nome}</Linha>
+        <Linha rotulo="Celular">{celular(v.cliente.celular)}</Linha>
         {v.cliente.cnh && (
           <Linha rotulo="CNH">
             <StatusBadge tom="sucesso" compacto>
               {v.cliente.cnh}
+            </StatusBadge>
+          </Linha>
+        )}
+        {v.cliente.retirada_liberada !== null && (
+          <Linha rotulo="Retirada">
+            <StatusBadge tom={v.cliente.retirada_liberada ? "sucesso" : "alerta"} compacto>
+              {v.cliente.retirada_liberada ? "Liberada" : "Não liberada"}
             </StatusBadge>
           </Linha>
         )}

@@ -43,7 +43,7 @@ const DEFINICOES: Definicao[] = [
   { chave: "inicio", rotulo: "Visão geral" },
   { chave: "aprovacoes", rotulo: "Aprovações", contador: "aprovacoes", permissao: decidePedidos, modulo: "aprovacoes" },
   { chave: "veiculos", rotulo: "Veículos", contador: "veiculos", permissao: (p) => p.veiculos !== "nao", modulo: "veiculos" },
-  { chave: "locacoes", rotulo: "Locações", contador: "locacoes", permissao: (p) => p.locacoes_criar || p.vistorias_fazer, recurso: "locacoes_vistoria", atividade: "aluga", modulo: "locacoes" },
+  { chave: "locacoes", rotulo: "Locações", contador: "locacoes", permissao: (p) => p.locacoes_criar, recurso: "locacoes_vistoria", atividade: "aluga", modulo: "locacoes" },
   { chave: "vendas", rotulo: "Vendas", permissao: (p) => p.vendas_criar, recurso: "vendas_comissoes", atividade: "vende", modulo: "vendas" },
   { chave: "clientes", rotulo: "Clientes", permissao: (p) => p.clientes_cadastrar || p.caixa_receber, modulo: "clientes" },
   { chave: "manutencoes", rotulo: "Manutenções", contador: "manutencoes", permissao: (p) => p.os_abrir, recurso: "manutencao_despesas", modulo: "manutencao" },
@@ -77,12 +77,15 @@ type Entrada = string | readonly [string, string];
 type Grupos = readonly (readonly [string | null, readonly Entrada[]])[];
 
 /** Tabela "Itens do menu_completo" do contrato, na ordem. */
-const MENU_COMPLETO: Grupos = [
-  [null, ["inicio", "aprovacoes", "veiculos"]],
+const menuCompleto = (rotuloDoInicio: string): Grupos => [
+  [null, [["inicio", rotuloDoInicio], "aprovacoes", "veiculos"]],
   ["Operação", ["locacoes", "vendas", "clientes", "manutencoes"]],
   ["Financeiro", ["caixa", "receber", "despesas", "comissoes", "conciliacao", "relatorios"]],
   ["Administração", ["config", "marca", "filiais", "usuarios", "assinatura", "auditoria"]],
 ];
+
+/** O rótulo de `inicio` no menu completo é o do início do perfil (USR-05). */
+const ROTULO_DO_INICIO: Partial<Record<VarianteInicio, string>> = { gerente: "Visão da filial", vendedor: "Início", financeiro: "Início" };
 
 /** Menu da tela inicial de cada variante (telas Gerente, Vendedor, Vistoriador e Financeiro). */
 const MENU_INICIO: Partial<Record<VarianteInicio, Grupos>> = {
@@ -128,16 +131,17 @@ function montar(grupos: Grupos, pode: Pode, ctx: ContextoNavegacao): GrupoNavega
 /** `contexto` troca plano, atividade e módulos; sem ele, vale o plano Profissional, aluga e vende, todos os módulos. */
 export function navegacaoFalsa(_perfil: Perfil, pode: Pode, variante: VarianteInicio, contexto: Partial<ContextoNavegacao> = {}): Navegacao {
   const ctx = { ...CONTEXTO_PADRAO, ...contexto };
-  const completo = montar(MENU_COMPLETO, pode, ctx);
+  const inicio = MENU_INICIO[variante];
+  // Vistoriador: um menu só, igual ao do início, sem Visão geral nem Locações (USR-05, T-141).
+  const completo = variante === "vistoriador" && inicio ? montar(inicio, pode, ctx) : montar(menuCompleto(ROTULO_DO_INICIO[variante] ?? "Visão geral"), pode, ctx);
   const visiveis = new Set(completo.flatMap((g) => g.itens.map((i) => i.chave)));
   const barra: Record<string, boolean> = {
     inicio: true,
-    veiculos: visiveis.has("veiculos"),
+    veiculos: visiveis.has("veiculos") || visiveis.has("consultar_veiculo"),
     nova_locacao: visiveis.has("locacoes") && pode.locacoes_criar,
     locacoes: visiveis.has("locacoes"),
     mais: true,
   };
-  const inicio = MENU_INICIO[variante];
   return {
     inicio: { rota: "/inicio", variante },
     menu_inicio: inicio ? montar(inicio, pode, ctx) : completo,

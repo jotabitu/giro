@@ -402,7 +402,7 @@ const reais = (centavos: number) => `R$ ${(centavos / 100).toFixed(2).replace(".
 /** O que a API faz em POST /api/locacoes/simular/ (calculo.py): preços da categoria, plano especial, extras, desconto e parcelas. */
 async function simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
   exigirCria();
-  const [cliente, veiculo] = await Promise.all([clientesFalso.obter(e.cliente_id), veiculosFalso.obter(e.veiculo_id)]);
+  const [cliente, veiculo] = await Promise.all([clientesFalso.interno(e.cliente_id), veiculosFalso.obter(e.veiculo_id)]);
   const campos: Record<string, string> = {};
   const plano = e.plano_especial_id ? PLANOS.find((p) => p.id === e.plano_especial_id) : undefined;
   if (e.plano_especial_id && (!plano || plano.periodicidade !== e.periodicidade)) campos.plano_especial_id = "Este plano não vale para a modalidade escolhida";
@@ -414,7 +414,7 @@ async function simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
   if (!/^\d{1,3}(\.\d{1,2})?$/.test(e.desconto_pct) || Number(e.desconto_pct) > 100) campos.desconto_pct = "Informe um percentual de 0 a 100";
   if (Object.keys(campos).length > 0) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, campos);
 
-  const pv = veiculo.preco_vigente;
+  const pv = veiculo.preco_vigente!;
   const precoDe = (k: number) => {
     if (plano?.regra === "preco_fixo" && plano.preco_centavos) return plano.preco_centavos;
     const tabela = e.periodicidade === "diaria" ? pv.diaria_centavos : e.periodicidade === "semanal" ? pv.semanal_centavos : pv.mensal_centavos;
@@ -471,7 +471,7 @@ async function simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
 }
 
 async function semente(id: number, e: EntradaDaLocacao, status: StatusLocacao, anterior?: Semente): Promise<Semente> {
-  const [sim, cliente, veiculo] = await Promise.all([simular(e), clientesFalso.obter(e.cliente_id), veiculosFalso.obter(e.veiculo_id)]);
+  const [sim, cliente, veiculo] = await Promise.all([simular(e), clientesFalso.interno(e.cliente_id), veiculosFalso.obter(e.veiculo_id)]);
   const confirmada = status !== "rascunho";
   return {
     id,

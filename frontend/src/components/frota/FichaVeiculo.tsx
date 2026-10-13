@@ -191,15 +191,15 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
             <dl>
               <Linha rotulo="Chassi">{v.chassi}</Linha>
               {v.renavam && <Linha rotulo="Renavam">{v.renavam}</Linha>}
-              {v.valor_compra_centavos !== null && (
+              {v.valor_compra_centavos != null && (
                 <Linha rotulo="Compra">
                   {v.data_compra ? `${mesAno(v.data_compra)} · ` : ""}
                   {dinheiroSemZeros(v.valor_compra_centavos)}
                 </Linha>
               )}
-              {v.referencia_fipe_centavos !== null && <Linha rotulo="Valor de venda (FIPE)">{dinheiroSemZeros(v.referencia_fipe_centavos)}</Linha>}
-              {v.valor_venda_centavos !== null && <Linha rotulo="À venda por">{dinheiroSemZeros(v.valor_venda_centavos)}</Linha>}
-              <Linha rotulo="Plano padrão">Semanal {dinheiro(v.preco_vigente.semanal_centavos)}</Linha>
+              {v.referencia_fipe_centavos != null && <Linha rotulo="Valor de venda (FIPE)">{dinheiroSemZeros(v.referencia_fipe_centavos)}</Linha>}
+              {v.valor_venda_centavos != null && <Linha rotulo="À venda por">{dinheiroSemZeros(v.valor_venda_centavos)}</Linha>}
+              {v.preco_vigente && <Linha rotulo="Plano padrão">Semanal {dinheiro(v.preco_vigente.semanal_centavos)}</Linha>}
             </dl>
           </section>
           <section className="wl-panel">

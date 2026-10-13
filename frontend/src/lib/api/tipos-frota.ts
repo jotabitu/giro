@@ -26,11 +26,12 @@ export type Veiculo = {
   km_atual: number;
   km_atualizado_em: string;
   capacidade_tanque_litros: string | null;
-  preco_vigente: PrecoVigente;
-  valor_venda_centavos: number | null;
-  referencia_fipe_centavos: number | null;
-  valor_compra_centavos: number | null;
-  data_compra: string | null;
+  /** Estes cinco campos vêm ausentes para o vistoriador (D-25, USR-09): a tela esconde o que não vier. */
+  preco_vigente?: PrecoVigente;
+  valor_venda_centavos?: number | null;
+  referencia_fipe_centavos?: number | null;
+  valor_compra_centavos?: number | null;
+  data_compra?: string | null;
   entrou_na_frota_em: string;
   situacao: { codigo: string; rotulo: string; tom: TomApi };
   locacao_atual: { id: number; codigo: string; status: string; cliente_nome: string; inicio: string; fim_previsto: string; alerta?: string } | null;
@@ -50,7 +51,8 @@ export type Veiculo = {
 };
 
 export type VeiculoDetalhe = Veiculo & {
-  indicadores_financeiros: { rendeu_no_ano_centavos: number; custo_manutencao_ano_centavos: number } | null;
+  /** Ausente para o vistoriador. */
+  indicadores_financeiros?: { rendeu_no_ano_centavos: number; custo_manutencao_ano_centavos: number } | null;
   ocupacao: { pct: string; periodo_dias: number };
   historico_status: { de: StatusVeiculo; para: StatusVeiculo; em: string; origem_codigo: string | null }[];
 };

@@ -244,6 +244,15 @@ function Historico({ l, historico }: { l: LocacaoCompleta; historico: HistoricoD
   );
 }
 
+function ComLinkDoCliente({ id, liberado, children }: { id: number; liberado: boolean; children: ReactNode }) {
+  if (!liberado) return <div className="flex items-center gap-3 text-ink">{children}</div>;
+  return (
+    <Link href={`/clientes/${id}`} className="flex items-center gap-3 text-ink no-underline">
+      {children}
+    </Link>
+  );
+}
+
 /** Detalhe da locação: veículo, cliente, pagamentos, contrato, prazo, resumo e histórico. */
 export function DetalheDaLocacao({ id }: { id: number }) {
   const [aviso, setAviso] = useState<string | null>(null);
@@ -263,6 +272,8 @@ export function DetalheDaLocacao({ id }: { id: number }) {
 
   const l = locacao.data;
   const contato = contatoDoCliente(cliente.data);
+  // USR-09: o vistoriador recebe 403 na ficha do cliente; o nome fica sem link para uma página que ele não abre.
+  const clienteLiberado = !(cliente.error instanceof ErroApi && cliente.error.status === 403);
   const ehCarro = veiculoEhCarro(l.veiculo.modelo);
   const pagas = l.parcelas?.filter((p) => p.tipo === "parcela" && p.status === "paga").length ?? 0;
   const totalParcelas = l.parcelas?.filter((p) => p.tipo === "parcela").length ?? 0;
@@ -285,13 +296,13 @@ export function DetalheDaLocacao({ id }: { id: number }) {
           </div>
         </div>
       </div>
-      <Link href={`/clientes/${l.cliente.id}`} className="flex items-center gap-3 text-ink no-underline">
+      <ComLinkDoCliente id={l.cliente.id} liberado={clienteLiberado}>
         <Miniatura icone={User} />
         <div>
           <div className="text-body font-medium">{l.cliente.nome}</div>
           {contato && <div className="text-caption text-ink-muted">{contato}</div>}
         </div>
-      </Link>
+      </ComLinkDoCliente>
     </>
   );
 
