@@ -264,3 +264,48 @@ def test_plt_08_seed_138_08_dono_da_plataforma_e_outras_empresas(semeado):
     assert set(estados) == {"pedalada", "rodavida", "ventosul", "estradafacil"}
     depois = _semear()
     assert "Criado: nada novo" in depois
+
+
+def test_fin_03_seed_163_01_parcela_atrasada_cobra_multa_e_juros(semeado):
+    """T-163: as locações do seed têm o contrato assinado com a cláusula de multa e juros, então a
+    parcela atrasada vale mais que o principal. Carlos, LOC-2841, parcela 2 (29940, 30 set): em
+    07 out, 7 dias → 29940 + 599 + 70 = 30609; em 12 out, 12 dias → 29940 + 599 + 120 = 30659.
+    Rafael, LOC-2790 (134700, 12 set), em 07 out: 2694 de multa e 1123 de juros."""
+    from datetime import date
+
+    from apps.contratos.models import Contrato
+    from apps.financeiro import selectors as financeiro_selectors
+
+    with _no_tenant():
+        carlos = ContaReceber.objects.get(
+            origem_codigo="LOC-2841", tipo="parcela", numero_parcela=2
+        )
+        assert financeiro_selectors.valor_hoje(carlos, date(2026, 10, 7)) == {
+            "data": date(2026, 10, 7),
+            "dias_atraso": 7,
+            "principal_centavos": 29940,
+            "multa_centavos": 599,
+            "juros_centavos": 70,
+            "total_centavos": 30609,
+            "cobra_juros": True,
+        }
+        doze = financeiro_selectors.valor_hoje(carlos, date(2026, 10, 12))
+        assert (doze["dias_atraso"], doze["multa_centavos"], doze["juros_centavos"]) == (
+            12,
+            599,
+            120,
+        )
+        assert doze["total_centavos"] == 30659
+        rafael = ContaReceber.objects.get(origem_codigo="LOC-2790", status="aberta")
+        devido = financeiro_selectors.devido_ate(rafael, date(2026, 10, 7))
+        assert (devido.multa_centavos, devido.juros_centavos, devido.total_centavos) == (
+            2694,
+            1123,
+            138517,
+        )
+        # Um contrato assinado por locação retirada; as reservas ainda não assinaram.
+        retiradas = Locacao.objects.exclude(status="aguardando_retirada")
+        contratos = Contrato.objects.filter(tipo="contrato", status="assinado", clausula_juros=True)
+        assert sorted(contratos.values_list("origem_codigo", flat=True)) == sorted(
+            retiradas.values_list("codigo", flat=True)
+        )
