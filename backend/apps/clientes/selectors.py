@@ -215,9 +215,10 @@ def _item_lista_de_bloqueio(hashes: list[str]) -> dict[str, str]:
 
 
 def _item_historico(cliente: Cliente | None) -> dict[str, str]:
-    """Fornecido por `financeiro` (bloco `historico`, ADR 0015)."""
-    historico = leituras.blocos(ALVO, cliente).get("historico") if cliente is not None else None
-    if historico is None:
+    """Fornecido por `financeiro` (bloco `historico`, ADR 0015). Sem o módulo financeiro, "Sem
+    histórico" (CLI-04)."""
+    historico = leituras.bloco(ALVO, "historico", cliente)
+    if not historico:
         return _item("historico", "pendente", "Sem histórico")
     return _item("historico", historico["situacao"], historico["rotulo"])
 

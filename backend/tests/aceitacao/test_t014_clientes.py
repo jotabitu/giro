@@ -506,7 +506,7 @@ def test_cli_02_ca_014_13_itens_da_analise(moto):
         {"codigo": "cpf", "situacao": "ok", "rotulo": "CPF válido"},
         {"codigo": "cnh", "situacao": "ok", "rotulo": "CNH categoria A, válida"},
         {"codigo": "lista_bloqueio", "situacao": "ok", "rotulo": "Fora da lista de bloqueio"},
-        {"codigo": "historico", "situacao": "pendente", "rotulo": "Sem histórico"},
+        {"codigo": "historico", "situacao": "ok", "rotulo": "Cliente novo na empresa"},
         {"codigo": "documentos", "situacao": "ok", "rotulo": "Documentos enviados"},
     ]
     assert juliana["analise"]["itens"] == esperado
