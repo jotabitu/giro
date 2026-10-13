@@ -336,9 +336,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 ### T-162 · Flag `lancamento_avulso` em `pode`
 - **Agente:** backend, depois frontend · **Depende de:** T-023 · **Regras:** tabela de perfis, FIN-07 · **Pronto quando:** `pode` (contas, `docs/api/contas.md`) devolve `lancamento_avulso` para quem pode fazer lançamento avulso no caixa pela tabela de perfis (hoje o frontend usa `despesas_aprovar || financeiro_pagar`, que dá administrador, gerente e financeiro); contrato atualizado e teste por perfil; o frontend troca a condição do botão "Novo lançamento" pela flag. Se a tabela de perfis não disser quem faz o lançamento avulso, `[decisão]` para o produto antes do código. Levantada pelo frontend na T-023 (divergência b).
 
-### T-163 · Multa e juros no valor de hoje da parcela atrasada
-- **Agente:** backend, com o qa · **Depende de:** T-017 · **Regras:** FIN-03 · **Pronto quando:** investigar por que, no compose de 12 out, a parcela atrasada há 12 dias do Carlos (LOC-2841, R$ 299,40) veio em `valor_hoje` sem multa e juros (só o principal); se for defeito, corrigir com teste `test_fin_03_*` no caso do seed; se for regra (carência, parcela de locação sem multa, data de referência), explicar no handoff e o produto confirma. O qa confere o caso nos dados de referência. Levantada pelo frontend na T-023 (divergência c).
-
 ### T-019 · Seed Moto Rápida
 - **Agente:** qa · **Depende de:** T-013 a T-017 · **Pronto quando:** `make seed` cria a empresa de exemplo e todos os casos da tabela "Dados de referência para testes" passam.
 - **Placas do seed (T-028):** PQD-6E21 (Pop do Rafael, LOC-2790), RJD-5B38 (Biz do Marcos, LOC-2850), RKP-3D26 (Kwid do Diego, LOC-2848); reserva do Kwid LOC-2857.
