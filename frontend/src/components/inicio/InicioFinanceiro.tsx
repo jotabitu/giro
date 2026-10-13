@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Panel, StatusBadge } from "@/design-system";
 import type { InicioDe, StatusDoCaixa } from "@/lib/api";
 import { dinheiro } from "@/lib/formatos";
-import { ROTULO_STATUS_DO_CAIXA, TOM_STATUS_DO_CAIXA } from "@/lib/financeiro";
+import { diaDaSemanaEData, ROTULO_STATUS_DO_CAIXA, TOM_STATUS_DO_CAIXA } from "@/lib/financeiro";
 import { hrefDoDestino } from "@/lib/menu";
 import { CabecalhoInicio, KpisDoPainel, LinhaDoPainel, ListaDoPainel, Vazio } from "./comuns";
 
@@ -15,9 +15,11 @@ export function InicioFinanceiro({ d }: { d: InicioDe<"financeiro"> }) {
   // Bloco ou lista `null` não quebra a tela: `para_hoje` e `caixas_do_dia` sem conteúdo caem no estado vazio.
   const paraHoje = d.para_hoje ?? [];
   const caixas = d.caixas_do_dia ?? [];
+  // O dia vem de `atualizado_em` (instante da API) no fuso da empresa; a tela só formata.
+  const dia = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo" }).format(new Date(d.atualizado_em));
   return (
     <div className="flex flex-col gap-6">
-      <CabecalhoInicio saudacao={d.saudacao} subtitulo="todas as filiais" />
+      <CabecalhoInicio saudacao={d.saudacao} subtitulo={`${diaDaSemanaEData(dia)} · todas as filiais`} />
       <KpisDoPainel kpis={d.kpis} />
 
       <div className="grid gap-6 xl:grid-cols-2">

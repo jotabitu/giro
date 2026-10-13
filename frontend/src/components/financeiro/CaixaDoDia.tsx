@@ -142,7 +142,17 @@ function Movimentos({ caixaId }: { caixaId: number }) {
   const sinal = (m: MovimentoDoCaixa) => (m.tipo === "entrada" ? "" : "− ");
 
   return (
-    <Panel titulo="Movimentos" acao={<SegmentedControl rotulo="Filtro" opcoes={FILTROS} valor={filtro} aoMudar={setFiltro} />}>
+    <Panel
+      titulo="Movimentos"
+      acao={
+        <div className="hidden md:block">
+          <SegmentedControl rotulo="Filtro" opcoes={FILTROS} valor={filtro} aoMudar={setFiltro} />
+        </div>
+      }
+    >
+      <div className="mb-3 md:hidden">
+        <SegmentedControl rotulo="Filtro" opcoes={FILTROS} valor={filtro} aoMudar={setFiltro} />
+      </div>
       {consulta.isPending && <p className="text-body text-ink-muted" aria-busy="true">Carregando os movimentos…</p>}
       {consulta.isError && <p role="alert" className="text-body">{mensagemDoErro(consulta.error)}</p>}
       {consulta.data && linhas.length === 0 && <p className="py-4 text-body text-ink-muted">Nenhum movimento ainda. Os recebimentos de hoje aparecem aqui.</p>}
@@ -183,7 +193,7 @@ function Movimentos({ caixaId }: { caixaId: number }) {
             {linhas.map((m) => (
               <li key={m.id} className="flex justify-between gap-3 border-b border-line py-3 text-body last:border-b-0">
                 <span className="min-w-0">
-                  <span className="wl-mono">{horaCurta(m.hora)}</span> · {m.descricao}
+                  <span className="wl-mono">{horaCurta(m.hora)}</span> · {m.tipo === "sangria" ? `Sangria · ${m.descricao}` : m.descricao}
                 </span>
                 <span className={`shrink-0 font-medium ${m.tipo === "entrada" ? "" : "text-critical-ink"}`}>
                   {sinal(m)}

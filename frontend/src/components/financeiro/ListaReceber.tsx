@@ -150,6 +150,7 @@ export function ListaReceber() {
     queryKey: ["contas-receber", { aba, periodo, busca: buscaNaUrl }],
     queryFn: () => financeiro.listarContas({ periodo, situacao: aba === "todas" ? undefined : aba, busca: buscaNaUrl || undefined }),
     placeholderData: (anterior) => anterior,
+    enabled: eu.pode.caixa_receber,
   });
   const d = consulta.data;
   const ind = d?.indicadores;
@@ -185,6 +186,14 @@ export function ListaReceber() {
     { chave: "situacao", titulo: "Situação", celula: (x) => <Situacao c={x} /> },
     { chave: "acao", titulo: "", celula: (x) => <BotaoCobrar c={x} aoCobrar={(y) => cobrar.mutate(y)} ocupado={ocupado} /> },
   ];
+
+  // USR-09: quem não recebe (vistoriador) não tem a tela; a rota mostra só o aviso.
+  if (!eu.pode.caixa_receber)
+    return (
+      <p role="alert" className="rounded-lg bg-warning-soft p-4 text-body text-warning-ink">
+        Seu perfil não tem acesso a Contas a receber.
+      </p>
+    );
 
   return (
     <div className="flex flex-col gap-6">
