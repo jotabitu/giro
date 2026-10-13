@@ -14,9 +14,13 @@ Toda baixa passa por `_baixar`: grava a forma, a hora, a multa e os juros (FIN-0
 
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
+from email.headerregistry import Address
+from email.utils import parseaddr
 from typing import Any
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.mail import send_mail
 from django.db import IntegrityError, connection, transaction
 from django.utils import timezone
 
@@ -1167,16 +1171,35 @@ def _pendencia(
     return pendencia
 
 
+FORMAS_NO_RECIBO: dict[str, str] = {
+    FormaPagamento.PIX: "por Pix",
+    FormaPagamento.BOLETO: "por boleto",
+    FormaPagamento.PIX_AUTOMATICO: "pelo Pix automático",
+    FormaPagamento.CARTAO_CREDITO: "no cartão de crédito",
+    FormaPagamento.CARTAO_DEBITO: "no cartão de débito",
+    FormaPagamento.DINHEIRO: "em dinheiro",
+}
+
+
+def texto_do_recibo(conta: ContaReceber) -> str:
+    """AUT-05: o total pago (principal, multa e juros), a forma e o dia do pagamento em
+    `America/Sao_Paulo`, com a marca da locadora (`docs/api/financeiro.md`, "Régua de cobrança:
+    textos")."""
+    total = conta.valor_centavos + conta.multa_centavos + conta.juros_centavos
+    forma = FORMAS_NO_RECIBO.get(conta.forma)
+    pago_em = timezone.localdate(conta.pago_em) if conta.pago_em else relogio.hoje()
+    como = f" {forma}" if forma else ""
+    return (
+        f"{nome_da_empresa()}: recebemos {formatar_reais(total)}{como} em {pago_em:%d/%m}, "
+        f"da {conta_no_texto(conta)}. Este é o seu recibo."
+    )
+
+
 def _enviar_recibo(conta: ContaReceber) -> None:
-    """AUT-05: o recibo por WhatsApp, com a marca da locadora."""
+    """AUT-05: o recibo pelo WhatsApp, com a marca da locadora (o e-mail é só da régua)."""
     if not conta.cliente.celular:
         return
-    total = conta.valor_centavos + conta.multa_centavos + conta.juros_centavos
-    enviar_whatsapp(
-        conta.cliente.celular,
-        f"{nome_da_empresa()}: recebemos {formatar_reais(total)} da "
-        f"{descricao_da_conta(conta)}. Este é o seu recibo.",
-    )
+    enviar_whatsapp(conta.cliente.celular, texto_do_recibo(conta))
 
 
 def processar_webhook(webhook_id: int) -> str:
@@ -1292,7 +1315,7 @@ def resolver_pendencia(
     return travada
 
 
-# --- Cobrança pelo WhatsApp e régua (AUT-03) ---
+# --- Cobrança pelo WhatsApp e por e-mail, e a régua (AUT-03) ---
 
 
 def _ja_cobrada_hoje(conta: ContaReceber) -> bool:
@@ -1305,28 +1328,99 @@ def _ja_cobrada_hoje(conta: ContaReceber) -> bool:
     ).exists()
 
 
+ORIGENS_NO_TEXTO: dict[str, str] = {OrigemTipo.LOCACAO: "locação", OrigemTipo.VENDA: "venda"}
+
+
+def conta_no_texto(conta: ContaReceber) -> str:
+    """A conta pelo tipo, com a origem por extenso: "parcela 2 de 5 da locação LOC-2841",
+    "cobrança de acerto da locação LOC-2841", "cobrança da locação LOC-2841" (AUT-03)."""
+    if conta.tipo == TipoConta.PARCELA:
+        rotulo = "parcela"
+        if conta.numero_parcela:
+            rotulo += f" {conta.numero_parcela}"
+            if conta.total_parcelas:
+                rotulo += f" de {conta.total_parcelas}"
+    elif conta.tipo == TipoConta.OUTRO:
+        rotulo = "cobrança"
+    else:
+        rotulo = f"cobrança de {TipoConta(conta.tipo).label.lower()}"
+    origem = ORIGENS_NO_TEXTO.get(conta.origem_tipo)
+    if origem and conta.origem_codigo:
+        rotulo += f" da {origem} {conta.origem_codigo}"
+    return rotulo
+
+
+@dataclass(frozen=True)
+class MensagemDeCobranca:
+    assunto: str
+    texto: str
+
+
+def mensagem_de_cobranca(conta: ContaReceber, *, pix: str | None) -> MensagemDeCobranca:
+    """O texto do momento (`docs/api/financeiro.md`, "Régua de cobrança: textos"): antes do
+    vencimento, o lembrete sem Pix; no dia e em atraso, com o Pix (`pix`), ou a loja quando os
+    recebimentos estão desligados (`None`). O valor é o do dia (FIN-03)."""
+    hoje = relogio.hoje()
+    marca = nome_da_empresa()
+    devido = selectors.devido_ate(conta, hoje)
+    valor = formatar_reais(devido.total_centavos)
+    descrita = conta_no_texto(conta)  # "a parcela...", no começo da frase com maiúscula
+    inicio = f"{marca}: olá, {conta.cliente.nome.split()[0]}. A {descrita}"
+    if pix:
+        pague = f" Pague pelo Pix copia e cola: {pix}"
+    else:
+        pague = " Pague na loja ou fale com a gente por aqui."
+    if conta.vencimento > hoje:
+        if conta.vencimento == hoje + timedelta(days=1):
+            quando = f"amanhã, {conta.vencimento:%d/%m}"
+        else:
+            quando = f"em {conta.vencimento:%d/%m}"
+        return MensagemDeCobranca(
+            f"{marca}: lembrete de vencimento", f"{inicio}, de {valor}, vence {quando}."
+        )
+    if conta.vencimento == hoje:
+        return MensagemDeCobranca(
+            f"{marca}: vence hoje", f"{inicio}, de {valor}, vence hoje.{pague}"
+        )
+    if devido.multa_centavos or devido.juros_centavos:
+        valor_do_dia = f"O valor hoje é {valor}, com multa e juros."
+    else:
+        valor_do_dia = f"O valor é {valor}."
+    return MensagemDeCobranca(
+        f"{marca}: conta em atraso",
+        f"{inicio} venceu em {conta.vencimento:%d/%m}. {valor_do_dia}{pague}",
+    )
+
+
+def _remetente() -> str:
+    """O endereço de `DEFAULT_FROM_EMAIL` com o nome da locadora (AUT-03)."""
+    _, endereco = parseaddr(settings.DEFAULT_FROM_EMAIL)
+    return str(Address(display_name=nome_da_empresa(), addr_spec=endereco))
+
+
 def cobrar(conta: ContaReceber) -> bool:
-    """A mensagem de cobrança pelo WhatsApp, com o valor do dia e o Pix quando os recebimentos
-    estão ligados, com a marca da locadora (AUT-03). Uma vez por conta por dia; devolve se
-    mandou."""
-    if conta.status != StatusConta.ABERTA or not conta.cliente.celular:
+    """A mensagem de cobrança do momento, com a marca da locadora (AUT-03): pelo WhatsApp
+    quando o cliente tem celular e por e-mail quando tem e-mail, com o mesmo texto. No dia e em
+    atraso, gera o Pix do valor do dia quando os recebimentos estão ligados. Uma vez por conta
+    por dia, contando os dois canais; devolve se cobrou (sem celular e sem e-mail, não)."""
+    cliente = conta.cliente
+    if conta.status != StatusConta.ABERTA or not (cliente.celular or cliente.email):
         return False
     if _ja_cobrada_hoje(conta):
         return False
-    hoje = relogio.hoje()
-    valor = formatar_reais(selectors.devido_ate(conta, hoje).total_centavos)
-    inicio = f"{nome_da_empresa()}: olá, {conta.cliente.nome.split()[0]}."
-    conta_texto = descricao_da_conta(conta).split(" · ", 1)[-1]
-    if conta.vencimento >= hoje:
-        texto = f"{inicio} A {conta_texto} de {valor} vence em {conta.vencimento:%d/%m}."
-    else:
-        texto = (
-            f"{inicio} A {conta_texto} venceu em {conta.vencimento:%d/%m}. O valor hoje é {valor}."
+    pix = None
+    if conta.vencimento <= relogio.hoje() and conta_de_pagamento() is not None:
+        pix = gerar_cobranca(conta, tipo=TipoCobranca.PIX).pix_copia_e_cola
+    mensagem = mensagem_de_cobranca(conta, pix=pix)
+    if cliente.celular:
+        enviar_whatsapp(cliente.celular, mensagem.texto)
+    if cliente.email:
+        send_mail(
+            subject=mensagem.assunto,
+            message=mensagem.texto,
+            from_email=_remetente(),
+            recipient_list=[cliente.email],
         )
-    if conta_de_pagamento() is not None:
-        cobranca = gerar_cobranca(conta, tipo=TipoCobranca.PIX)
-        texto += f" Pix copia e cola: {cobranca.pix_copia_e_cola}"
-    enviar_whatsapp(conta.cliente.celular, texto)
     registrar_evento("conta_receber.cobrar", Categoria.FINANCEIRO, objeto=conta, regra="AUT-03")
     return True
 
@@ -1336,11 +1430,37 @@ DIAS_QUE_PUBLICAM_ATRASO = (1, 3, 7)
 DIAS_DA_REGUA = (-1, 0, 3, 7)  # D-1 lembrete, D0 com Pix, D+3 e D+7 nova cobrança
 
 
+def pedir_bloqueio(conta: ContaReceber, dias_atraso: int) -> bool:
+    """CLI-05, AUT-03: publica `financeiro.parcela_atrasou` com os dias de hoje e grava o dia do
+    pedido, uma vez por conta. Depois do desbloqueio manual, esta conta não bloqueia de novo.
+    Devolve se publicou."""
+    marcadas = ContaReceber.objects.filter(pk=conta.pk, bloqueio_pedido_em__isnull=True).update(
+        bloqueio_pedido_em=relogio.hoje()
+    )
+    if not marcadas:
+        return False
+    _publicar_atraso(conta, dias_atraso)
+    return True
+
+
+def _publicar_atraso(conta: ContaReceber, dias: int) -> None:
+    publicar(
+        "financeiro.parcela_atrasou",
+        conta_id=conta.pk,
+        cliente_id=conta.cliente_id,
+        tipo=conta.tipo,
+        origem_tipo=conta.origem_tipo,
+        origem_id=conta.origem_id,
+        vencimento=conta.vencimento,
+        dias_atraso=dias,
+    )
+
+
 def regua_de_cobranca() -> int:
-    """AUT-03, às 09:00: cobra pelo WhatsApp em D-1, D0, D+3 e D+7 e publica
-    `financeiro.parcela_atrasou` para cada conta que completou 1, 3 ou 7 dias de atraso, e
-    todo dia a partir de 15 (o bloqueio do CLI-05 é idempotente, e um dia perdido não deixa de
-    bloquear). A caução não entra. Devolve quantos eventos publicou."""
+    """AUT-03, às 09:00: cobra em D-1, D0, D+3 e D+7 (WhatsApp e e-mail) e publica
+    `financeiro.parcela_atrasou` para cada conta que completou 1, 3 ou 7 dias de atraso. Com 15
+    dias ou mais, pede o bloqueio do CLI-05 uma vez por conta: se a tarefa não rodou no 15º dia,
+    o pedido sai na próxima vez. A caução não entra. Devolve quantos eventos publicou."""
     hoje = relogio.hoje()
     publicados = 0
     contas = (
@@ -1352,17 +1472,10 @@ def regua_de_cobranca() -> int:
         dias = (hoje - conta.vencimento).days
         if dias in DIAS_DA_REGUA:
             cobrar(conta)
-        if dias in DIAS_QUE_PUBLICAM_ATRASO or dias >= DIAS_PARA_BLOQUEIO:
-            publicar(
-                "financeiro.parcela_atrasou",
-                conta_id=conta.pk,
-                cliente_id=conta.cliente_id,
-                tipo=conta.tipo,
-                origem_tipo=conta.origem_tipo,
-                origem_id=conta.origem_id,
-                vencimento=conta.vencimento,
-                dias_atraso=dias,
-            )
+        if dias in DIAS_QUE_PUBLICAM_ATRASO:
+            _publicar_atraso(conta, dias)
+            publicados += 1
+        elif dias >= DIAS_PARA_BLOQUEIO and pedir_bloqueio(conta, dias):
             publicados += 1
     return publicados
 
