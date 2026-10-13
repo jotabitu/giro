@@ -1,0 +1,27 @@
+# T-148 · Código das decisões da T-017: histórico, bloqueio uma vez por conta e textos da régua · backend → frontend, qa, orquestrador
+
+**O que foi feito:**
+- **Histórico da análise (`CLI-04`, decisão 1):** `financeiro.leituras.montar_historico` conta o atraso pela `FIN-03` (o mais tarde entre o vencimento e o dia em que a conta nasceu, em `America/Sao_Paulo`), sem caução. Sem conta, ou na análise antes do cadastro (`POST /api/clientes/analisar/`), devolve `ok` "Cliente novo na empresa". "Sem histórico" só aparece sem o fornecedor do bloco (módulo financeiro desligado). Novo `comum.leituras.bloco(alvo, nome, objeto)`, que lê um bloco só e aceita objeto `None`.
+- **Bloqueio uma vez por conta (`AUT-03`, `CLI-05`, decisão 3a):** novo campo `ContaReceber.bloqueio_pedido_em` (`DateField`, migração `0005`). Com 15 dias ou mais, `regua_de_cobranca` chama `pedir_bloqueio`, que grava a data e publica `financeiro.parcela_atrasou` só se o campo estiver vazio (update condicional, idempotente). 1, 3 e 7 dias continuam publicando. O Arquiteto confirmou o campo e descartou a alternativa sem migração. O seed pede o bloqueio do Rafael pelo mesmo serviço, então a conta dele já sai marcada e o desbloqueio manual vale.
+- **Textos da régua (`AUT-03`, decisão 3b):** `mensagem_de_cobranca` monta o texto do momento pelos textos de `docs/api/financeiro.md`: D-1 "vence amanhã", antes disso "vence em 14/10" (lembrete, sem Pix), D0 "vence hoje" com o Pix, e em atraso "venceu em" com o valor do dia ("com multa e juros" só quando há multa ou juros). Sem recebimentos: "Pague na loja ou fale com a gente por aqui." `conta_no_texto` descreve a conta pelo tipo ("parcela 2 de 5 da locação LOC-2841", "cobrança de acerto da...", "cobrança da..."). `cobrar` manda pelo WhatsApp e por e-mail (`send_mail`, remetente com o nome da locadora e o endereço de `DEFAULT_FROM_EMAIL`, assunto da tabela). Continua uma vez por conta por dia, contando os dois canais. O Pix só é gerado no dia do vencimento e em atraso. Antes, era gerado também no lembrete.
+- **Recibo (`AUT-05`):** `texto_do_recibo` traz o total pago, a forma e o dia do pagamento em São Paulo ("recebemos R$ 306,09 por Pix em 07/10, da parcela 2 de 5 da locação LOC-2841"). O recibo continua só pelo WhatsApp.
+- **Contagens do `Receber` (`FIN-15`, decisão 2):** as `contagens` passam a seguir `?cliente=`, `?origem_tipo=&origem_id=` e `?busca=`, sempre sem caução. `?situacao=`, `?faixa=` e `?forma=` não mudam as contagens, e os indicadores continuam os da filial, sem filtro. Antes, as contagens ignoravam esses recortes (na lista do Lucas, `todas` vinha 130 em vez de 1). A decisão e a frase do contrato são do **Arquiteto** (13 out 2026). A semana de segunda a domingo já funcionava assim e ganhou o teste do caso.
+
+**Onde:** `backend/apps/financeiro/{leituras,services,selectors,models}.py`, `backend/apps/financeiro/migrations/0005_contareceber_bloqueio_pedido_em.py`, `backend/apps/clientes/selectors.py`, `backend/comum/leituras.py`, `backend/seed/moto_rapida.py`, `backend/tests/aceitacao/test_t148_decisoes_t017.py` (novo), `backend/tests/aceitacao/test_t014_clientes.py` (o histórico do cliente sem conta passou a "Cliente novo na empresa").
+
+**Contrato:** `docs/api/financeiro.md`:
+- Rota `cobrar`, com o texto confirmado pelo **Produto** em 13 out 2026: `enviadas` conta contas cobradas e não mensagens por canal; "cliente sem celular **e sem e-mail**" não conta; o Pix só sai no dia e em atraso.
+- Novo item depois de `contagens`, com a frase do **Arquiteto**.
+
+O OpenAPI não mudou: o campo novo não é exposto.
+
+**Regras cobertas:** CLI-04, CLI-05, AUT-03, AUT-05, FIN-03, FIN-15. Testes: `test_cli_04_historico_conta_que_nasce_vencida_nao_e_atraso`, `test_cli_04_historico_pagou_com_atraso_fica_pendente`, `test_cli_04_historico_cliente_novo_ok`, `test_cli_05_desbloqueio_manual_nao_volta_a_bloquear`, `test_aut_03_bloqueio_recupera_dia_perdido`, `test_aut_03_texto_d_menos_1`, `test_aut_03_texto_d0_com_pix`, `test_aut_03_texto_d0_sem_recebimentos`, `test_aut_03_texto_d_mais_7_valor_do_dia` (R$ 306,09), `test_aut_03_texto_d_mais_3_e_sem_clausula` (R$ 305,69), `test_aut_03_texto_acerto` (R$ 365,37), `test_aut_03_email_mesmo_texto`, `test_aut_03_cobrar_em_lote_conta_contas`, `test_aut_05_recibo_texto`, `test_aut_05_recibo_forma_e_dia`, `test_fin_15_semana_de_segunda_a_domingo` (Todas 36, A vencer 13, Pagas 15), `test_fin_15_contagens_do_cliente_sem_caucao` (Lucas: 2 linhas, `todas` 1). CA-017-11 continua passando.
+
+**O que ficou de fora:**
+- Os dias que a régua usa para D-1, D0, D+3, D+7 e D+15 continuam contados do vencimento, como antes. A multa, os juros e o histórico seguem a `FIN-03` (dia em que a conta nasceu).
+- `CobrancaExterna.criado_em` é `auto_now_add` (hora real), e o `relogio` congelado dos testes não chega nele. No teste do recibo com juros, a hora da cobrança é ajustada à mão. Em produção, as duas horas são iguais.
+
+**Próximo passo para quem recebe:**
+- **Frontend:** nada a mudar na API tipada. Na tela `Receber`, as abas com filtro de cliente, origem ou busca passam a mostrar os números do recorte. O botão "Cobrar todos pelo WhatsApp" mantém o nome e segue a mesma regra de canais.
+- **QA:** os dois casos novos dos dados de referência ("Histórico da análise em 07 out" e "Contas a receber da semana em 07 out") estão cobertos aqui; falta levá-los ao seed e aos critérios.
+- **Orquestrador:** abrir o PR.

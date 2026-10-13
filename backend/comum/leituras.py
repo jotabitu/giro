@@ -64,6 +64,18 @@ def blocos(alvo: str, objeto: Any) -> dict[str, dict[str, Any]]:
     return resultado
 
 
+def bloco(alvo: str, nome: str, objeto: Any) -> dict[str, Any] | None:
+    """Só o bloco `nome`; `None` quando ele não tem fornecedor. O objeto pode ser `None` (ex.: a
+    análise antes do cadastro), e o fornecedor do bloco decide o que devolver."""
+    fornecedores = [a for a in _anotacoes.get(alvo, ()) if a.bloco == nome]
+    if not fornecedores:
+        return None
+    resultado: dict[str, Any] = {}
+    for anotacao in fornecedores:
+        resultado.update(anotacao.montar(objeto) or {})
+    return resultado
+
+
 def registrar_contador(alvo: str, nome: str, contar: Callable[[int], int]) -> None:
     _contadores[alvo][nome] = contar
 
