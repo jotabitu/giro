@@ -4,6 +4,7 @@ mypy>=1.15
 django-stubs[compatible-mypy]>=5.2,<5.3
 djangorestframework-stubs>=3.16
 celery-types>=0.23
+types-openpyxl>=3.1.5
 pytest>=8.3
 pytest-django>=4.11
 # Suíte em paralelo no CI, um banco por worker (T-149); localmente segue em um processo.

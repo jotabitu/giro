@@ -179,6 +179,7 @@ class Origem(models.TextChoices):
     VENDA = "venda", "Venda"
     DOCUMENTO = "documento", "Documento"
     APROVACAO = "aprovacao", "Aprovação"
+    IMPORTACAO = "importacao", "Importação"
 
 
 class ComOrigem(models.Model):

@@ -23,6 +23,11 @@ As dúvidas de filiais da T-030 e de contas da T-036 (itens 6 a 10) foram decidi
 
 A dúvida do backend na T-069 (reativar quem teve o convite cancelado) foi analisada na T-075 e decidida em 08 out 2026: opção B. Vira regra na T-076 e código na T-077.
 
+Levantadas pelo backend em T-027 (12 out 2026), para o produto e o arquiteto:
+
+- [decisão] Cor do veículo na planilha: `docs/api/importacao.md` lista `cor` como coluna opcional, mas o cadastro pela tela (`veiculos.services.cadastrar`, contrato de veículos) exige a cor, e a importação usa as mesmas validações (`IMP-02`). Hoje a linha sem cor fica com erro "Cor em branco". Opções: A) manter (a cor vira obrigatória também no modelo da planilha); B) a importação aceita sem cor e o cadastro passa a aceitar cor vazia.
+- [decisão] Célula com mais de 1.000 caracteres: o contrato diz que a linha fica com erro, e também manda usar `csv.field_size_limit` de 1.000 no `.csv`, que interrompe a leitura do arquivo. Hoje: no `.xlsx` a linha fica com erro; no `.csv` o arquivo é recusado (400, "A linha N tem uma célula com mais de 1.000 caracteres"). Opções: A) manter assim; B) ler o `.csv` com limite maior e marcar só a linha.
+
 Levantadas pelo arquiteto em T-030 (07 out 2026):
 
 - [divergência] Dados de exemplo nas telas da plataforma (para T-028): `Plat-Empresa-Detalhe` mostra CNPJ 41.208.733/0001-52 (seed: 12.345.678/0001-10), FAT-0001 vencendo em 21 out (PLT-01: dia seguinte ao fim do teste, 22 out) e "13 dias" de teste em 07 out (contrato: 14); `Plat-Empresas` mostra Moto Rápida com 4 usuários (seed: 5).
@@ -262,6 +267,28 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 
 ## Fase 1 · MVP
 
+Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entrou no PR #160 (ver `feito.md`).
+
+### T-157 · (M-03) Produção recusa e-mail no console e armazenamento falso (média)
+- **Agente:** backend · **Depende de:** — · **Pronto quando:** `config/settings/prod.py` recusa subir com `EMAIL_BACKEND` de console, locmem ou arquivo (o padrão de `base.py` é o console, e os e-mails de senha, convite e assinatura levam o token) e com `GIRO_ARMAZENAMENTO` diferente de `s3`, como já faz com as chaves; pagamentos e WhatsApp `falso` entram na mesma trava quando as integrações reais existirem (T-029); teste que importa `prod.py` com o ambiente montado. Antes de homologação.
+
+### T-158 · (M-04) Configuração do proxy reverso: tamanho do corpo e cabeçalhos `X-Forwarded-*` (média)
+- **Agente:** devops, com o backend · **Depende de:** — · **Pronto quando:** a configuração do proxy de homologação e produção está em `infra/`, com limite de corpo de 12 MB (os uploads só são conferidos por `comum/arquivos.validar` depois de recebidos inteiros, e o Django não limita arquivo em multipart), `X-Forwarded-Host`, `X-Forwarded-Proto` e `X-Forwarded-For` sempre sobrescritos pelo proxy (o `TenantMainMiddleware` escolhe a empresa por `get_host()`, que segue o `X-Forwarded-Host` com `USE_X_FORWARDED_HOST = True`) e rate limit de borda em `/api/auth/` e no webhook; no backend, `USE_X_FORWARDED_HOST` só em `prod.py`; checklist no `infra/README.md`. Antes de homologação.
+
+### T-156 · (M-02) Custo e rendimento do veículo fora da ficha do vendedor (média)
+- **Agente:** backend, depois frontend · **Depende de:** T-136 · **Regras:** tabela de perfis, USR-09, VEI-05 · **Decisão:** opção A do dono do produto em 12 out 2026 (regra na T-156 do produto) · **Pronto quando:**
+  - (backend) em `GET /api/veiculos/{id}/`, a chave `indicadores_financeiros` (`rendeu_no_ano_centavos`, `custo_manutencao_ano_centavos`) só vem para administrador, gerente e financeiro, pela mesma checagem do `valor_compra_centavos` em `veiculos/selectors.representacao` com o financeiro incluído; para vendedor e vistoriador a chave vem **ausente** (não `null`, não zero), como no D-25; OpenAPI com a chave opcional; teste `test_usr_09_vendedor_sem_custo_do_veiculo`;
+  - CA: dado a Bruna (vendedora), quando faz `GET /api/veiculos/{id}/` de um veículo da filial dela, então a resposta não tem `indicadores_financeiros`, e o resto da ficha (situação, ocupação, km, documentos, preços) vem como antes;
+  - CA: dado o Rodrigo (gerente), a Mariana (administradora) ou a Lúcia (financeiro), quando fazem a mesma leitura, então recebem `rendeu_no_ano_centavos` e `custo_manutencao_ano_centavos` com os mesmos valores de hoje;
+  - CA: dado o João (vistoriador), nada muda: o bloco continua ausente (D-25);
+  - (frontend) na ficha do veículo (`Veiculo`, desktop e celular), os cartões "Rendeu no ano" e "Custo de manutenção" só aparecem quando a API manda o bloco; logada como Bruna, a fileira de indicadores mostra só ocupação e km, sem cartão vazio, traço ou espaço reservado. A tela não decide pelo perfil, só pela chave.
+
+### T-159 · (M-05) Login não revela e-mail com convite pendente (baixa)
+- **Agente:** backend · **Depende de:** — · **Regras:** USR-01, USR-06 · **Pronto quando:** em `POST /api/auth/entrar/`, quem tem convite pendente e ainda não tem senha recebe o mesmo 401 `credenciais_invalidas` (e o mesmo tempo) de um e-mail que não existe; hoje o 403 `convite_pendente` sai antes de conferir a senha e permite saber quem foi convidado; o 403 só depois da senha certa; teste `test_usr_06_convite_pendente_nao_revela_email`.
+
+### T-160 · (M-06) API navegável do DRF desligada em produção (baixa)
+- **Agente:** backend · **Depende de:** — · **Pronto quando:** `prod.py` deixa em `DEFAULT_RENDERER_CLASSES` só o `comum.renderizacao.JSONRenderer` (hoje o `BrowsableAPIRenderer` de `base.py` mostra formulários e descrições das views no navegador, o que o S-17 fechou para o OpenAPI); teste que confere a lista em produção.
+
 - **Nota da T-012 (08/10):** a S-12 (SVG do logo sanitizado e exibido só por `<img>`) vale para `ConfiguracaoEmpresa.logo` (app `empresas`), e não para a filial. Entra na tarefa da marca da empresa (`Admin-Marca`), a criar.
 
 ### T-093 · Momentos em UTC na API
@@ -300,22 +327,31 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 ### T-150 · Filial nos eventos de movimento de caixa
 - **Agente:** backend · **Depende de:** T-018 · **Regras:** FIN-07, AUD-01, AUD-02 · **Decisão:** arquiteto, 12 out 2026 (a ação continua `movimento_caixa.sangria`, objeto `movimentocaixa`, padrão `<objeto>.<verbo>`) · **Pronto quando:** os eventos `movimento_caixa.*` (entrada, saída, sangria, estorno, `estorno_motivo`) gravam o `filial_id` do caixa: `registrar_evento` e `auditar` em `comum/auditoria.py` aceitam `filial_id: int | None = None` (keyword; quando vier, vale ele, senão `getattr(objeto, "filial_id", None)`; sem mudança de schema); `_registrar_movimento` e o `registrar_evento("movimento_caixa.estorno_motivo", ...)` de `estornar_movimento` em `financeiro/services.py` passam `filial_id=caixa.filial_id`; em `auditoria/textos.py` o detalhe da `movimento_caixa.sangria` vira "Caixa da <filial>" (consulta `filiais`) e sai a entrada `caixa.sangria`, que nenhum serviço grava; sem migração de dados (eventos imutáveis, ADR 0010; o seed é recriado). Testes: `test_fin_07_sangria_audita_com_filial_do_caixa` (seed em 07 out: a sangria de R$ 500,00 da Bruna em `GET /api/auditoria/eventos/?filial=<Filial Centro>` com `resumo` "Fez sangria de R$ 500,00", `detalhe` "Caixa da Filial Centro" e `objeto.filial` "Filial Centro"); `test_fin_07_movimentos_e_estorno_auditam_com_filial` (entrada, saída e estorno com o `filial_id` do caixa; filtro por outra filial não os traz); os testes da auditoria de objetos com `filial_id` próprio passam sem mudança. Contrato em `docs/api/auditoria.md` já ajustado na T-151.
 
+### T-161 · Seletor de filial no app e o cabeçalho `X-Filial`
+- **Agente:** frontend · **Depende de:** T-023 · **Contrato:** `docs/api/filiais.md` (seletor e `X-Filial: <id>` ou `todas`) · **Pronto quando:** o shell mostra o seletor de filial (só filiais ativas) para quem tem mais de uma filial no escopo, guarda a escolha e envia `X-Filial` em todas as requisições; "Todas as filiais" (`X-Filial: todas`) só para quem pode, como diz o contrato (administrador e financeiro); as telas do financeiro deixam de usar a primeira filial e passam a respeitar a escolha (CA-023-05 e CA-023-16, Mariana e Lúcia); teste por perfil. Levantada pelo frontend na T-023 (divergência a do handoff `tarefas/handoffs/T-023-frontend.md`).
+
+### T-162 · Flag `lancamento_avulso` em `pode`
+- **Agente:** backend, depois frontend · **Depende de:** T-023 · **Regras:** tabela de perfis, FIN-07 · **Pronto quando:** `pode` (contas, `docs/api/contas.md`) devolve `lancamento_avulso` para quem pode fazer lançamento avulso no caixa pela tabela de perfis (hoje o frontend usa `despesas_aprovar || financeiro_pagar`, que dá administrador, gerente e financeiro); contrato atualizado e teste por perfil; o frontend troca a condição do botão "Novo lançamento" pela flag. Se a tabela de perfis não disser quem faz o lançamento avulso, `[decisão]` para o produto antes do código. Levantada pelo frontend na T-023 (divergência b).
+
+### T-163 · Multa e juros no valor de hoje da parcela atrasada
+- **Agente:** backend, com o qa · **Depende de:** T-017 · **Regras:** FIN-03 · **Pronto quando:** investigar por que, no compose de 12 out, a parcela atrasada há 12 dias do Carlos (LOC-2841, R$ 299,40) veio em `valor_hoje` sem multa e juros (só o principal); se for defeito, corrigir com teste `test_fin_03_*` no caso do seed; se for regra (carência, parcela de locação sem multa, data de referência), explicar no handoff e o produto confirma. O qa confere o caso nos dados de referência. Levantada pelo frontend na T-023 (divergência c).
+
 ### T-019 · Seed Moto Rápida
 - **Agente:** qa · **Depende de:** T-013 a T-017 · **Pronto quando:** `make seed` cria a empresa de exemplo e todos os casos da tabela "Dados de referência para testes" passam.
 - **Placas do seed (T-028):** PQD-6E21 (Pop do Rafael, LOC-2790), RJD-5B38 (Biz do Marcos, LOC-2850), RKP-3D26 (Kwid do Diego, LOC-2848); reserva do Kwid LOC-2857.
+- **Critérios (T-152):** `docs/qa/criterios/T-019.md`. Corrige dois pontos do seed da T-138: as locações geradas com o 1º vencimento de outubro em 07 out ou depois começam um período antes, sem pagar as parcelas de 07 out (item D-21, CA-019-18), e as 9 reservas retiram de 03 a 13 nov, para não mudar os números de outubro (CA-019-19).
 
 ### T-026 · Desenhar telas que faltam para o MVP
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** "Esqueci a senha" e "Ativar verificação em 2 etapas" (desktop e celular) em `docs/telas/html/`, no mesmo padrão das telas de acesso, e no índice. Bloqueia a parte de 2FA de T-020.
 
-### T-027 · Importação de veículos e clientes por planilha
-- **Agente:** backend · **Depende de:** T-013, T-014 · **Regras:** IMP (passo de importar) · **Telas:** Onboarding-Importar · **Por quê:** critério de pronto do MVP "dados antigos migrados e conferidos".
-
 ### T-028 · Limpar dados de exemplo das telas
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`. Inclui `Despesas-Desktop` e `Despesas-Mobile`: aguardando aprovação é R$ 1.200,00 (não R$ 1.386,40) e o IPVA de R$ 186,40 nasce `a_pagar` (FIN-05), apontado pelo qa na T-040.
 - **Estado do QXA-4B21 (T-112, decisão do dono em 09/10, opção A):** corrigir Frota, Veiculo, Main, Vistoriador e a OS-119 em Manutencao conforme o caso "Estado do QXA-4B21 em 07 out" dos dados de referência e as divergências levantadas pelo produto em T-112 (acima, em Pontos em aberto): Alugado no tom `solido` (não azul) e "Colocar à venda" só em veículo `disponivel`.
+- **Da T-152 (12 out 2026):** `Financeiro` (desktop e celular) sem "Saldo em contas", "Fluxo de caixa previsto", "Conciliar", "Aprovar despesa", "Pagar OS-0193", "Cobrar 2 clientes" em Para hoje e o seletor de período; "Sai hoje" e o contador "Contas a pagar" pelo seed (0 em 07 out); `Receber` sem "Exportar"; no menu das telas, "Locações" é 51 no seed (42 da carteira e 9 reservas) e "Usuários" não tem número (nenhum convite pendente).
 
 ### T-029 · Integração com o Asaas (sandbox)
 - **Agente:** backend · **Depende de:** T-017 · **Segurança:** `WebhookRecebido` com `evento_id` único e conferência na API do Asaas, throttle (S-14, S-17) · **Regras:** FIN-01 a FIN-04, AUT-04, AUT-05 · **Pronto quando:** `backend/integracoes/pagamentos/asaas.py` implementa a interface de pagamentos (criar subconta da empresa, cobrança Pix e boleto, assinatura recorrente, webhook de baixa com verificação e idempotência), testado contra o sandbox; a implementação falsa continua sendo a padrão em testes.
+- **Critérios (T-152):** `docs/qa/criterios/T-029.md` (testes de contrato com respostas gravadas no CI; sandbox só local, sem chave no repositório).
 
 ### T-020 · Telas de acesso e casca do app (sidebar e menu do celular)
 - **Agente:** frontend · **Depende de:** T-002, T-004, T-011 · **Telas:** Login, Acesso-Senha, Convite, Main, Menu, e a navegação padrão descrita em `docs/telas/README.md`
@@ -323,14 +359,9 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 ### T-021 · Telas de veículos e clientes
 - **Agente:** frontend · **Depende de:** T-020, T-013, T-014 · **Telas:** Frota, Veiculo, Clientes, Cliente · **Nota:** pode começar com dados falsos de `docs/api/veiculos.md` e `clientes.md`, como a T-020
 
-### T-023 · Telas do financeiro básico
-- **Agente:** frontend · **Depende de:** T-020, T-017 · **Telas:** Receber, Caixa, Financeiro
-
-### T-024 · Revisão de segurança do MVP
-- **Agente:** seguranca · **Depende de:** T-011, T-014, T-018 · **Pronto quando:** checklist de `.claude/agents/seguranca.md` aplicado, achados viram tarefas.
-
 ### T-025 · Testes ponta a ponta do fluxo de locação
 - **Agente:** qa · **Depende de:** T-022, T-023 · **Pronto quando:** Playwright cobre login → nova locação → vistoria de saída → devolução → baixa no caixa, no desktop e no celular.
+- **Critérios (T-152):** `docs/qa/criterios/T-025.md` (LOC-2858: R$ 629,00 na retirada; acerto de R$ 80,00 recebido no caixa em 14 out). Relógio com data e hora controladas no ambiente do E2E: qa com o arquiteto.
 
 ## Dúvidas abertas da T-020 (frontend)
 

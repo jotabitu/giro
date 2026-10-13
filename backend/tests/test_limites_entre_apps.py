@@ -23,6 +23,7 @@ NIVEL = {
     "vendas": 12,
     "automacoes": 13,
     "relatorios": 13,
+    "importacao": 13,  # ADR 0017
 }
 
 

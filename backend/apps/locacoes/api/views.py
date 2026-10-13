@@ -323,9 +323,10 @@ class PdfDoContratoView(APIView):
 
 class PlanosEspeciaisView(APIView):
     def get_permissions(self) -> Any:
-        if self.request.method == "POST":
-            return [permissao() for permissao in ADMINISTRADOR]
-        return super().get_permissions()
+        # USR-09 (T-155, M-01 da T-024): os preços dos planos são de quem lê locações; o
+        # vistoriador recebe 403.
+        permissoes = ADMINISTRADOR if self.request.method == "POST" else LEEM_A_LISTA
+        return [permissao() for permissao in permissoes]
 
     @extend_schema(
         responses=ListaDePlanosEspeciaisSerializer,
