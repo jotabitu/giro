@@ -602,6 +602,7 @@ def test_importacao_conteudo_extensao_tamanho_e_cabecalho(moto):
         "modelo",
         "ano_fabricacao",
         "ano_modelo",
+        "cor",  # T-164: obrigatória
         "km",
         "categoria",
     ]
@@ -655,15 +656,6 @@ def test_importacao_csv_com_bom_ponto_e_virgula_e_cabecalho_com_acento(
     assert todas[0]["status"] == "pronta"
     assert "observacao" not in todas[0]["dados"]  # coluna não reconhecida sai
     assert todas[0]["dados"]["placa"] == "qaa-0001"
-    # No .csv, a célula acima de 1.000 caracteres (`csv.field_size_limit`) recusa o arquivo.
-    escritor.writerow(
-        ["QAA0002", "x", "Honda", "CG", "2024", "2024", "Preta", "10", "U", "y" * 1001]
-    )
-    longa = _enviar(api, texto.getvalue().encode("utf-8"), "frota.csv")
-    assert longa.status_code == 400
-    assert longa.json()["campos"] == {
-        "arquivo": ["A linha 3 tem uma célula com mais de 1.000 caracteres."]
-    }
 
 
 def test_importacao_celula_longa_no_xlsx_deixa_a_linha_com_erro(
@@ -679,6 +671,99 @@ def test_importacao_celula_longa_no_xlsx_deixa_a_linha_com_erro(
     assert linha["erros"] == [
         {"campo": "cor", "codigo": "validacao", "mensagem": "Célula com mais de 1.000 caracteres"}
     ]
+
+
+# --- Célula longa no .csv (T-164: a linha fica com erro, como no .xlsx) ---
+
+LONGA = [
+    {"campo": "modelo", "codigo": "validacao", "mensagem": "Célula com mais de 1.000 caracteres"}
+]
+
+
+def _csv(cabecalho: list[str], linhas: list[list[Any]]) -> bytes:
+    texto = io.StringIO()
+    escritor = csv.writer(texto, delimiter=";")
+    escritor.writerow(cabecalho)
+    for linha in linhas:
+        escritor.writerow(linha)
+    return texto.getvalue().encode("utf-8")
+
+
+def _frota_com_modelo_longo() -> list[list[Any]]:
+    linhas = _frota(3)
+    linhas[1][3] = "y" * 1500  # linha 3 da planilha
+    return linhas
+
+
+def _contagens(api, importacao_id: int) -> tuple[int, int]:
+    """(prontas, com_erro) de `GET /api/importacoes/{id}/`."""
+    contagens = api.get(f"{URL}{importacao_id}/").json()["contagens"]
+    return contagens["prontas"], contagens["com_erro"]
+
+
+def test_imp_02_celula_longa_no_csv_deixa_a_linha_com_erro(
+    moto, django_capture_on_commit_callbacks
+):
+    api = moto.api()
+    resposta = _rodando(
+        django_capture_on_commit_callbacks,
+        _enviar,
+        api,
+        _csv(COLUNAS_VEICULO, _frota_com_modelo_longo()),
+        "frota.csv",
+    )
+    assert resposta.status_code == 202, resposta.json()
+    imp = resposta.json()["id"]
+    assert _contagens(api, imp) == (2, 1)
+    com_erro = _linhas(api, imp, "com_erro")
+    assert [linha["numero"] for linha in com_erro] == [3]
+    assert com_erro[0]["erros"] == LONGA
+    assert com_erro[0]["dados"]["modelo"] == "y" * 1000  # guardada cortada, para corrigir
+
+
+def test_imp_02_celula_longa_igual_no_xlsx_e_no_csv(moto, django_capture_on_commit_callbacks):
+    api = moto.api()
+    resultados = []
+    for conteudo, nome in (
+        (_xlsx(COLUNAS_VEICULO, _frota_com_modelo_longo()), "frota.xlsx"),
+        (_csv(COLUNAS_VEICULO, _frota_com_modelo_longo()), "frota.csv"),
+    ):
+        imp = _rodando(django_capture_on_commit_callbacks, _enviar, api, conteudo, nome).json()[
+            "id"
+        ]
+        com_erro = _linhas(api, imp, "com_erro")
+        resultados.append(
+            (_contagens(api, imp), [(lin["numero"], lin["erros"]) for lin in com_erro])
+        )
+    assert resultados[0] == resultados[1] == ((2, 1), [(3, LONGA)])
+
+
+def test_imp_02_csv_com_aspas_sem_fechar_e_recusado(moto):
+    cabecalho = ";".join(COLUNAS_VEICULO)
+    boa = "QAA0001;9C2KC2210PR000001;Honda;CG 160 Fan;2024;2024;Preta;1000;Urbana 110–125"
+    quebrada = 'QAA0002;9C2KC2210PR000002;Honda;"CG 160 Fan;2024;2024;Preta;1001;Urbana'
+    resto = "\n".join(f"QAA{i:04d};x;Honda;CG;2024;2024;Preta;{i};Urbana" for i in range(3, 80))
+    conteudo = f"{cabecalho}\n{boa}\n{quebrada}\n{resto}\n".encode()
+    resposta = _enviar(moto.api(), conteudo, "frota.csv")
+    assert resposta.status_code == 400
+    assert resposta.json()["campos"] == {
+        "arquivo": ["A linha 3 tem aspas sem fechar. Confira o arquivo e envie de novo."]
+    }
+
+
+def test_imp_02_celula_longa_em_coluna_descartada_nao_da_erro(
+    moto, django_capture_on_commit_callbacks
+):
+    linhas = [[*linha, "y" * 1500] for linha in _frota(2)]
+    api = moto.api()
+    for conteudo, nome in (
+        (_xlsx([*COLUNAS_VEICULO, "Observação"], linhas), "frota.xlsx"),
+        (_csv([*COLUNAS_VEICULO, "Observação"], linhas), "frota.csv"),
+    ):
+        imp = _rodando(django_capture_on_commit_callbacks, _enviar, api, conteudo, nome).json()[
+            "id"
+        ]
+        assert _contagens(api, imp) == (2, 0), nome
 
 
 # --- Fluxo ---

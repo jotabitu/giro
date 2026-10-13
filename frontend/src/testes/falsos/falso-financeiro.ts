@@ -50,7 +50,7 @@ function conta(p: Partial<ContaReceber> & Pick<ContaReceber, "id" | "cliente" | 
 const CONTAS: ContaReceber[] = [
   conta({
     id: 9011,
-    cliente: { id: 1190, nome: "Rafael Sousa" },
+    cliente: { id: 1203, nome: "Rafael Sousa" },
     origem: { tipo: "locacao", id: 2790, codigo: "LOC-2790" },
     veiculo_placa: "PQD6E21",
     numero: 4,
@@ -65,7 +65,7 @@ const CONTAS: ContaReceber[] = [
   }),
   conta({
     id: 9010,
-    cliente: { id: 1188, nome: "Carlos Menezes" },
+    cliente: { id: 1202, nome: "Carlos Menezes" },
     origem: { tipo: "locacao", id: 2841, codigo: "LOC-2841" },
     veiculo_placa: "QXA4B21",
     numero: 2,
@@ -91,7 +91,7 @@ const CONTAS: ContaReceber[] = [
   }),
   conta({
     id: 9030,
-    cliente: { id: 1210, nome: "Lucas Ferreira" },
+    cliente: { id: 1206, nome: "Lucas Ferreira" },
     origem: { tipo: "locacao", id: 2856, codigo: "LOC-2856" },
     numero: 2,
     total_parcelas: 4,
@@ -212,6 +212,7 @@ export const financeiroFalso = {
     const filtradas = contas.filter((c) => {
       if (f.situacao && !SITUACAO[f.situacao].includes(c.status)) return false;
       if (f.faixa && c.faixa_atraso !== f.faixa) return false;
+      if (f.cliente && c.cliente.id !== f.cliente) return false;
       if (busca && !semAcento(`${c.cliente.nome} ${c.origem.codigo ?? ""} ${c.veiculo_placa ?? ""}`).includes(busca)) return false;
       return true;
     });

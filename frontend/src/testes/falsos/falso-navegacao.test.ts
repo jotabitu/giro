@@ -64,16 +64,12 @@ describe("navegação do falso por perfil (USR-05, USR-08)", () => {
     expect(n.barra_celular).toEqual(["inicio", "nova_locacao", "locacoes", "mais"]);
   });
 
-  it("vistoriador: agenda do dia; vê locações pela vistoria, mas não cria", async () => {
+  it("vistoriador: um menu só, igual ao do início, sem Visão geral nem Locações", async () => {
     const { navegacao: n } = await euDe("joao@motorapida.com.br");
     expect(n.inicio.variante).toBe("vistoriador");
     expect(chaves(n.menu_inicio)).toEqual([[null, ["agenda", "consultar_veiculo", "avarias"]]]);
-    expect(chaves(n.menu_completo)).toEqual([
-      [null, ["inicio", "veiculos"]],
-      ["Operação", ["locacoes", "manutencoes"]],
-      ["Financeiro", ["despesas"]],
-    ]);
-    expect(n.barra_celular).toEqual(["inicio", "veiculos", "locacoes", "mais"]);
+    expect(n.menu_completo).toEqual(n.menu_inicio);
+    expect(n.barra_celular).toEqual(["inicio", "veiculos", "mais"]);
   });
 
   it("financeiro: Comissões no lugar de Relatórios no início; sem veículos nem locações", async () => {

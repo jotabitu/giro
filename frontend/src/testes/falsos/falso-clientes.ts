@@ -207,6 +207,17 @@ function normalizar(t: string): string {
   return t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
+/** USR-09: o vistoriador não abre lista nem ficha do cliente; vê só o que vem com a vistoria. */
+function semAcessoDoVistoriador() {
+  if (perfilAtualFalso() === "vistoriador") throw new ErroApi(403, "permissao", "Seu perfil não tem acesso a esta ação.");
+}
+
+/** Ficha do financeiro (USR-09, T-136): a resumida mais e-mail e bloqueio; `acao_principal` só quando é cobrar (CLI-07). */
+function fichaDoFinanceiro(r: Registro): ClienteResumo {
+  const { bloqueio } = completo(r);
+  return { ...resumo(r), acao_principal: acaoDe(r)?.codigo === "cobrar" ? acaoDe(r) : null, email: r.extra?.email ?? null, bloqueio };
+}
+
 function podeVerCompleto(): boolean {
   const p = perfilAtualFalso();
   return p === "administrador" || p === "gerente" || p === "vendedor";
@@ -214,6 +225,7 @@ function podeVerCompleto(): boolean {
 
 export const clientesFalso = {
   async listar(f: FiltroClientes = {}): Promise<ListaClientes> {
+    semAcessoDoVistoriador();
     await pausa(200);
     const ativos = REGISTROS.filter((r) => r.status !== "inativo");
     const doFiltro = (r: Registro) => {
@@ -250,9 +262,18 @@ export const clientesFalso = {
 
   async obter(id: number): Promise<ClienteResumo | ClienteCompleto> {
     await pausa(150);
+    semAcessoDoVistoriador();
     const r = REGISTROS.find((x) => x.id === id);
     if (!r) throw new ErroApi(404, "nao_encontrado", "Cliente não encontrado");
+    if (perfilAtualFalso() === "financeiro") return fichaDoFinanceiro(r);
     return podeVerCompleto() ? completo(r) : resumo(r);
+  },
+
+  /** Leitura do próprio falso para montar vistoria e locação: a regra de quem vê o quê é da rota, não do serviço. */
+  async interno(id: number): Promise<ClienteCompleto> {
+    const r = REGISTROS.find((x) => x.id === id);
+    if (!r) throw new ErroApi(404, "nao_encontrado", "Cliente não encontrado");
+    return completo(r);
   },
 
   async analisar(corpo: Partial<NovoCliente>): Promise<AnaliseCadastro> {

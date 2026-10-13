@@ -9,7 +9,7 @@ import { Icone, IconButton, SeletorDeFilial, Sidebar, type GrupoMenu } from "@/d
 import { relatorios } from "@/lib/api";
 import { useFilial } from "@/lib/filial-escolhida";
 import { useMarcaDaEmpresa } from "@/lib/marca-empresa";
-import { destinosDaBarra, gruposDaRota, montarMenu } from "@/lib/menu";
+import { destinosDaBarra, gruposDaRota, montarMenu, rotaPermitida } from "@/lib/menu";
 import { useSessao } from "@/lib/sessao";
 
 /** Menu do usuário no formato do componente Sidebar: o que a API mandou em `eu.navegacao`, com os contadores (a cada 60 s). */
@@ -125,6 +125,18 @@ function BarraInferior() {
   );
 }
 
+/** D-26: a rota que o menu do perfil não mostra responde só com o aviso, sem chamar a API da tela. */
+export function GuardaDeRota({ children }: { children: ReactNode }) {
+  const { eu } = useSessao();
+  const rota = usePathname();
+  if (rotaPermitida(eu, rota)) return <>{children}</>;
+  return (
+    <p role="alert" className="rounded-lg bg-warning-soft p-4 text-body text-warning-ink">
+      Seu perfil não tem acesso a esta página.
+    </p>
+  );
+}
+
 /** Casca do app: sidebar de 280px no desktop; no celular, cabeçalho com gaveta e barra inferior (Início, Veículos, +, Locações, Mais). */
 export function CascaDoApp({ children }: { children: ReactNode }) {
   const marca = useMarcaDaEmpresa();
@@ -154,7 +166,7 @@ export function CascaDoApp({ children }: { children: ReactNode }) {
       </div>
       <Gaveta aberta={gaveta} aoFechar={() => setGaveta(false)} />
 
-      <main className="min-w-0 flex-1 p-4 pb-[104px] md:p-0">{children}</main>
+      <main className="min-w-0 flex-1 p-4 pb-[104px] md:p-0"><GuardaDeRota>{children}</GuardaDeRota></main>
       <BarraInferior />
     </div>
   );

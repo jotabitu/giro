@@ -38,7 +38,7 @@ describe("POST /api/veiculos/ no falso", () => {
     expect(criado.placa).toBe("TBC5H21");
     expect(criado.status).toBe("disponivel");
     expect(criado.categoria.nome).toBe("Urbana 110");
-    expect(criado.preco_vigente.diaria_centavos).toBe(3990);
+    expect(criado.preco_vigente?.diaria_centavos).toBe(3990);
     expect(criado.valor_compra_centavos).toBe(1349000);
     const lista = await veiculosFalso.listar({ busca: "TBC5H21" });
     expect(lista.resultados.map((x) => x.id)).toContain(criado.id);

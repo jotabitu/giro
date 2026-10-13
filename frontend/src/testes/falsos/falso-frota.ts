@@ -94,7 +94,20 @@ function podeEditar(): boolean {
   return p === "administrador" || p === "gerente";
 }
 
+/** D-25, USR-09: o vistoriador recebe a frota sem preço, valor de venda, FIPE, compra nem indicadores. As chaves vêm ausentes, não `null`. */
+function semValores<T extends Veiculo>(v: T): T {
+  if (perfilAtualFalso() !== "vistoriador") return v;
+  const { preco_vigente: _a, valor_venda_centavos: _b, referencia_fipe_centavos: _c, valor_compra_centavos: _d, data_compra: _e, ...resto } = v;
+  void [_a, _b, _c, _d, _e];
+  if ("indicadores_financeiros" in resto) delete (resto as Partial<VeiculoDetalhe>).indicadores_financeiros;
+  return resto as T;
+}
+
 function montar(s: Semente): Veiculo {
+  return semValores(montarCompleto(s));
+}
+
+function montarCompleto(s: Semente): Veiculo {
   const editar = podeEditar();
   const base = ROTULO[s.status] ?? { rotulo: s.status, tom: "neutro" as TomApi };
   const atrasada = s.locacao?.atrasada === true;
@@ -156,7 +169,9 @@ const CHASSI = /^[A-Z0-9]{17}$/;
 export const veiculosFalso = {
   async categorias(filtro: { filial?: number; tipo_veiculo?: TipoVeiculo } = {}): Promise<CategoriaVeiculo[]> {
     await pausa(150);
-    return CATEGORIAS.filter((c) => c.ativo && (!filtro.tipo_veiculo || c.tipo_veiculo === filtro.tipo_veiculo) && (!filtro.filial || !c.filial || c.filial.id === filtro.filial));
+    const lista = CATEGORIAS.filter((c) => c.ativo && (!filtro.tipo_veiculo || c.tipo_veiculo === filtro.tipo_veiculo) && (!filtro.filial || !c.filial || c.filial.id === filtro.filial));
+    // O vistoriador lê as categorias sem preço (D-25): a chave vem ausente.
+    return perfilAtualFalso() === "vistoriador" ? lista.map((c) => ({ ...c, preco_vigente: undefined }) as unknown as CategoriaVeiculo) : lista;
   },
 
   /** POST /api/veiculos/ (VEI-01, PLT-03). O veículo entra `disponivel`. */
@@ -261,12 +276,13 @@ export const veiculosFalso = {
     if (!s) throw new ErroApi(404, "nao_encontrado", "Veículo não encontrado");
     const v = montar(s);
     const financeiro = perfilAtualFalso() !== "vendedor" && perfilAtualFalso() !== "vistoriador";
-    return {
+    const detalhe: VeiculoDetalhe = {
       ...v,
       indicadores_financeiros: financeiro ? { rendeu_no_ano_centavos: 987000, custo_manutencao_ano_centavos: 35300 } : null,
       ocupacao: { pct: "86.00", periodo_dias: 90 },
       historico_status: [{ de: "disponivel", para: "alugado", em: "2026-09-30T12:00:00Z", origem_codigo: "LOC-2841" }],
     };
+    return semValores(detalhe);
   },
 
   async documentos(id: number): Promise<DocumentoVeiculo[]> {

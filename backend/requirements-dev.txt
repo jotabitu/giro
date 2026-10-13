@@ -7,3 +7,5 @@ celery-types>=0.23
 types-openpyxl>=3.1.5
 pytest>=8.3
 pytest-django>=4.11
+# Suíte em paralelo no CI, um banco por worker (T-149); localmente segue em um processo.
+pytest-xdist>=3.6,<4

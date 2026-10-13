@@ -20,13 +20,13 @@ type DocumentoDaApi = { id: number; tipo: string; validade: string | null; situa
 
 export const veiculosApi = {
   async categorias(filtro: { filial?: number; tipo_veiculo?: TipoVeiculo } = {}): Promise<CategoriaVeiculo[]> {
-    const r = await http.get<{ resultados: (Omit<CategoriaVeiculo, "preco_vigente"> & { preco_vigente: CategoriaVeiculo["preco_vigente"] | null })[] }>("/api/categorias/", {
+    const r = await http.get<{ resultados: (Omit<CategoriaVeiculo, "preco_vigente"> & { preco_vigente?: CategoriaVeiculo["preco_vigente"] | null })[] }>("/api/categorias/", {
       ativo: true,
       filial: filtro.filial,
       tipo_veiculo: filtro.tipo_veiculo,
     });
-    // Categoria sem preço vigente não serve para cadastrar nem alugar.
-    return r.resultados.filter((c): c is CategoriaVeiculo => c.preco_vigente !== null);
+    // Categoria sem preço vigente (ou sem o preço, como para o vistoriador) não serve para cadastrar nem alugar.
+    return r.resultados.filter((c): c is CategoriaVeiculo => c.preco_vigente != null);
   },
 
   async criar(v: NovoVeiculo): Promise<VeiculoDetalhe> {
