@@ -8,6 +8,8 @@ import re
 from datetime import date
 from typing import Any
 
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
 
 from comum import aprovacoes, arquivos, estados, relogio
@@ -19,6 +21,7 @@ from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao
 
 from . import selectors
 from .models import (
+    CategoriaCnh,
     Cliente,
     DocumentoCliente,
     MotivoBloqueio,
@@ -233,6 +236,52 @@ def cadastrar(dados: dict[str, Any]) -> Cliente:
         )
         acertar_cadastro(cliente)
     return cliente
+
+
+def validar_novo(dados: dict[str, Any]) -> list[dict[str, str]]:
+    """IMP-02: as validações de `cadastrar` (e do formato que o serializer confere: e-mail e
+    categoria da CNH), sem gravar. Recebe o corpo do POST e devolve `[{campo, codigo,
+    mensagem}]`, vazia quando cabe cadastrar. O documento sai com `CLI-01`.
+
+    As mensagens nunca repetem o valor: a importação guarda os erros sem cifra."""
+    erros: list[dict[str, str]] = []
+
+    def erro(campo: str, mensagem: str) -> None:
+        codigo = "CLI-01" if campo == "documento" else "validacao"
+        erros.append({"campo": campo, "codigo": codigo, "mensagem": mensagem})
+
+    tipo = dados.get("tipo")
+    if tipo not in TipoCliente.values:
+        erro("tipo", "Use pf ou pj.")
+        return erros
+    for campo, mensagem in (("documento", "Informe o documento."), ("nome", "Informe o nome.")):
+        if not str(dados.get(campo) or "").strip():
+            erro(campo, mensagem)
+    if not str(dados.get("celular") or "").strip():
+        erro("celular", "Informe o celular.")
+    try:
+        _limpar(tipo, dados)
+    except ErroDeValidacao as invalido:
+        ja_tem = {e["campo"] for e in erros}
+        for campo, mensagens in invalido.campos.items():
+            for mensagem in mensagens if campo not in ja_tem else []:
+                erro(campo, mensagem)
+    email = str(dados.get("email") or "").strip()
+    if email:
+        try:
+            validate_email(email)
+        except ValidationError:
+            erro("email", "E-mail inválido.")
+    categoria = ((dados.get("cnh") or {}).get("categoria") or "").strip().upper()
+    if categoria and categoria not in CategoriaCnh.values:
+        erro("cnh.categoria", "Categoria da CNH inválida.")
+    documento = so_digitos(str(dados.get("documento") or ""))
+    if documento and not any(e["campo"] == "documento" for e in erros):
+        try:
+            _conferir_unico(documento)
+        except Conflito as conflito:
+            erro("documento", conflito.mensagem)
+    return erros
 
 
 def editar(cliente: Cliente, dados: dict[str, Any]) -> Cliente:

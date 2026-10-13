@@ -23,6 +23,11 @@ As dúvidas de filiais da T-030 e de contas da T-036 (itens 6 a 10) foram decidi
 
 A dúvida do backend na T-069 (reativar quem teve o convite cancelado) foi analisada na T-075 e decidida em 08 out 2026: opção B. Vira regra na T-076 e código na T-077.
 
+Levantadas pelo backend em T-027 (12 out 2026), para o produto e o arquiteto:
+
+- [decisão] Cor do veículo na planilha: `docs/api/importacao.md` lista `cor` como coluna opcional, mas o cadastro pela tela (`veiculos.services.cadastrar`, contrato de veículos) exige a cor, e a importação usa as mesmas validações (`IMP-02`). Hoje a linha sem cor fica com erro "Cor em branco". Opções: A) manter (a cor vira obrigatória também no modelo da planilha); B) a importação aceita sem cor e o cadastro passa a aceitar cor vazia.
+- [decisão] Célula com mais de 1.000 caracteres: o contrato diz que a linha fica com erro, e também manda usar `csv.field_size_limit` de 1.000 no `.csv`, que interrompe a leitura do arquivo. Hoje: no `.xlsx` a linha fica com erro; no `.csv` o arquivo é recusado (400, "A linha N tem uma célula com mais de 1.000 caracteres"). Opções: A) manter assim; B) ler o `.csv` com limite maior e marcar só a linha.
+
 Levantadas pelo arquiteto em T-030 (07 out 2026):
 
 - [divergência] Dados de exemplo nas telas da plataforma (para T-028): `Plat-Empresa-Detalhe` mostra CNPJ 41.208.733/0001-52 (seed: 12.345.678/0001-10), FAT-0001 vencendo em 21 out (PLT-01: dia seguinte ao fim do teste, 22 out) e "13 dias" de teste em 07 out (contrato: 14); `Plat-Empresas` mostra Moto Rápida com 4 usuários (seed: 5).
@@ -305,9 +310,6 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 
 ### T-026 · Desenhar telas que faltam para o MVP
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** "Esqueci a senha" e "Ativar verificação em 2 etapas" (desktop e celular) em `docs/telas/html/`, no mesmo padrão das telas de acesso, e no índice. Bloqueia a parte de 2FA de T-020.
-
-### T-027 · Importação de veículos e clientes por planilha
-- **Agente:** backend · **Depende de:** T-013, T-014 · **Regras:** IMP (passo de importar) · **Telas:** Onboarding-Importar · **Por quê:** critério de pronto do MVP "dados antigos migrados e conferidos".
 
 ### T-028 · Limpar dados de exemplo das telas
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`. Inclui `Despesas-Desktop` e `Despesas-Mobile`: aguardando aprovação é R$ 1.200,00 (não R$ 1.386,40) e o IPVA de R$ 186,40 nasce `a_pagar` (FIN-05), apontado pelo qa na T-040.

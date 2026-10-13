@@ -368,14 +368,41 @@ def _criar(limpos: dict[str, Any], status: str, origem: OrigemDaMudanca) -> Veic
     return veiculo
 
 
-def cadastrar(dados: dict[str, Any]) -> Veiculo:
+def cadastrar(dados: dict[str, Any], *, origem: OrigemDaMudanca | None = None) -> Veiculo:
     """POST /api/veiculos/: 400 nos campos, 409 `VEI-01` na placa ou no chassi, 422 `PLT-03`
-    no limite. Nasce `disponivel`, com o histórico inicial e a primeira leitura de km."""
+    no limite. Nasce `disponivel`, com o histórico inicial e a primeira leitura de km.
+
+    A importação por planilha (IMP-02) passa `origem=OrigemDaMudanca("importacao", id)`."""
     limpos = _limpar_cadastro(dados)
     with transaction.atomic():
         _conferir_unicos(limpos["placa"], limpos["chassi"])
         exigir_limite("veiculos")
-        return _criar(limpos, S.DISPONIVEL, OrigemDaMudanca(Origem.CADASTRO))
+        return _criar(limpos, S.DISPONIVEL, origem or OrigemDaMudanca(Origem.CADASTRO))
+
+
+def validar_novo(dados: dict[str, Any]) -> list[dict[str, str]]:
+    """IMP-02: as validações de `cadastrar`, sem gravar e sem o limite do plano (a importação
+    o confere ao gravar). Devolve `[{campo, codigo, mensagem}]`, vazia quando cabe cadastrar.
+    Placa e chassi, no formato ou repetidos na empresa em qualquer estado, saem com `VEI-01`."""
+    erros: list[dict[str, str]] = []
+    try:
+        _limpar_cadastro(dados)
+    except ErroDeValidacao as erro:
+        for campo, mensagens in erro.campos.items():
+            codigo = "VEI-01" if campo in ("placa", "chassi") else "validacao"
+            erros += [{"campo": campo, "codigo": codigo, "mensagem": m} for m in mensagens]
+    com_erro = {erro["campo"] for erro in erros}
+    for campo, normalizar in (("placa", normalizar_placa), ("chassi", normalizar_chassi)):
+        valor = normalizar(str(dados.get(campo) or ""))
+        if campo in com_erro or not valor:
+            continue
+        try:
+            _conferir_unicos(
+                valor if campo == "placa" else None, valor if campo == "chassi" else None
+            )
+        except Conflito as conflito:
+            erros.append({"campo": campo, "codigo": "VEI-01", "mensagem": conflito.mensagem})
+    return erros
 
 
 CAMPOS_EDITAVEIS = (
