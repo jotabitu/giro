@@ -83,3 +83,7 @@ export class ErroApi extends Error {
     this.name = "ErroApi";
   }
 }
+
+/** GET /api/ambiente/ e /api/plataforma/ambiente/ (docs/api/README.md, "Ambiente"; ADR 0021). TEMPORÁRIO: sai quando a T-142 puser a rota no OpenAPI. */
+export type Ambiente = { hoje: string; data_simulada: boolean };
+export type EscopoDoAmbiente = "empresa" | "plataforma";

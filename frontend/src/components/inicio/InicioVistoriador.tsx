@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { CelulaDupla, DataTable, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
+import { useAmbiente } from "@/lib/ambiente";
 import type { InicioDe, ItemAgenda } from "@/lib/api";
 import { placa } from "@/lib/formatos";
 import { horaCurta, horarioDaAgenda, tomDoStatus } from "@/lib/painel";
@@ -37,6 +38,7 @@ const COLUNAS: ColunaTabela<ItemAgenda>[] = [
 
 /** Início do vistoriador (USR-08): agenda do dia e avarias abertas. Sem valores em dinheiro. */
 export function InicioVistoriador({ d }: { d: InicioDe<"vistoriador"> }) {
+  useAmbiente(); // o "hoje" da API muda o texto dos horários e períodos
   const agenda = d.agenda ?? { resumo: "", proxima: null, avarias_abertas: 0, resultados: [] };
   const proxima = agenda.proxima ? agenda.resultados.find((i) => i.id === agenda.proxima?.item_id) : undefined;
   return (

@@ -1,3 +1,4 @@
+import { agoraDaTela } from "@/lib/ambiente";
 import { dataCurta, dinheiro } from "@/lib/formatos";
 import type { ValorTipado } from "@/lib/api";
 import { tomDoStatus } from "@/lib/tom";
@@ -49,7 +50,7 @@ export function rotuloDoPerfil(perfil: string): string {
 const diaSp = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d);
 
 /** "09:30" quando é hoje; "06 out 18:00" nos outros dias (devolução atrasada). */
-export function horarioDaAgenda(iso: string, agora = new Date()): string {
+export function horarioDaAgenda(iso: string, agora = agoraDaTela()): string {
   const d = new Date(iso);
   if (diaSp(d) === diaSp(agora)) return horaCurta(iso);
   return `${dataCurta(iso)} ${horaCurta(iso)}`;

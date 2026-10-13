@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { CelulaDupla, DataTable, Icone, Panel, SegmentedControl, StatusBadge, type ColunaTabela } from "@/design-system";
+import { useAmbiente } from "@/lib/ambiente";
 import { vistorias, type DiaDaAgenda, type ItemDaAgenda } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { useFiltrosNaUrl } from "@/lib/filtros-url";
@@ -84,6 +85,7 @@ function Grupo({ um, varios, itens }: { um: string; varios: string; itens: ItemD
 
 /** Agenda do vistoriador: retiradas e devoluções do dia, a próxima vistoria e a ação de cada uma. */
 export function AgendaDoVistoriador() {
+  useAmbiente(); // o "hoje" da API muda o texto dos horários e períodos
   const { valor, definir } = useFiltrosNaUrl();
   const dia = (["hoje", "amanha", "semana"].includes(valor("dia") ?? "") ? valor("dia") : "hoje") as DiaDaAgenda;
   const consulta = useQuery({ queryKey: ["agenda", dia], queryFn: () => vistorias.agenda(dia), placeholderData: (a) => a });
