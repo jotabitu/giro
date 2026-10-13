@@ -262,6 +262,26 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 
 ## Fase 1 · MVP
 
+Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), sem número; nenhuma alta:
+
+### (sem número) M-01 · Vistoriador sem os preços dos planos especiais (média)
+- **Agente:** backend · **Depende de:** T-136 · **Regras:** USR-09 · **Pronto quando:** `GET /api/planos-especiais/` responde 403 ao vistoriador (hoje, na branch do PR #160, devolve `preco_centavos` e `desconto_pct`; `PlanosEspeciaisView` usa as permissões padrão no GET); o GET passa a usar a lista de quem lê locações (`LEEM_A_LISTA`); teste `test_usr_09_vistoriador_nao_ve_planos_especiais`. Pode entrar no próprio PR #160 antes do merge.
+
+### (sem número) M-03 · Produção recusa e-mail no console e armazenamento falso (média)
+- **Agente:** backend · **Depende de:** — · **Pronto quando:** `config/settings/prod.py` recusa subir com `EMAIL_BACKEND` de console, locmem ou arquivo (o padrão de `base.py` é o console, e os e-mails de senha, convite e assinatura levam o token) e com `GIRO_ARMAZENAMENTO` diferente de `s3`, como já faz com as chaves; pagamentos e WhatsApp `falso` entram na mesma trava quando as integrações reais existirem (T-029); teste que importa `prod.py` com o ambiente montado. Antes de homologação.
+
+### (sem número) M-04 · Configuração do proxy reverso: tamanho do corpo e cabeçalhos `X-Forwarded-*` (média)
+- **Agente:** devops, com o backend · **Depende de:** — · **Pronto quando:** a configuração do proxy de homologação e produção está em `infra/`, com limite de corpo de 12 MB (os uploads só são conferidos por `comum/arquivos.validar` depois de recebidos inteiros, e o Django não limita arquivo em multipart), `X-Forwarded-Host`, `X-Forwarded-Proto` e `X-Forwarded-For` sempre sobrescritos pelo proxy (o `TenantMainMiddleware` escolhe a empresa por `get_host()`, que segue o `X-Forwarded-Host` com `USE_X_FORWARDED_HOST = True`) e rate limit de borda em `/api/auth/` e no webhook; no backend, `USE_X_FORWARDED_HOST` só em `prod.py`; checklist no `infra/README.md`. Antes de homologação.
+
+### (sem número) M-02 · Custo e rendimento do veículo fora da ficha do vendedor (média) `[decisão]`
+- **Agente:** produto (decisão), depois backend · **Depende de:** T-136 · **Regras:** tabela de perfis, USR-09, VEI-05 · **Pronto quando:** o produto decide se o vendedor recebe `indicadores_financeiros` (`rendeu_no_ano_centavos`, `custo_manutencao_ano_centavos`) em `GET /api/veiculos/{id}/` (hoje recebe; o checklist da segurança pede que o vendedor não receba custo nem margem, e a regra não diz); proposta: só administrador, gerente e financeiro, com a chave ausente para os demais, como no D-25; teste `test_usr_09_vendedor_sem_custo_do_veiculo`.
+
+### (sem número) M-05 · Login não revela e-mail com convite pendente (baixa)
+- **Agente:** backend · **Depende de:** — · **Regras:** USR-01, USR-06 · **Pronto quando:** em `POST /api/auth/entrar/`, quem tem convite pendente e ainda não tem senha recebe o mesmo 401 `credenciais_invalidas` (e o mesmo tempo) de um e-mail que não existe; hoje o 403 `convite_pendente` sai antes de conferir a senha e permite saber quem foi convidado; o 403 só depois da senha certa; teste `test_usr_06_convite_pendente_nao_revela_email`.
+
+### (sem número) M-06 · API navegável do DRF desligada em produção (baixa)
+- **Agente:** backend · **Depende de:** — · **Pronto quando:** `prod.py` deixa em `DEFAULT_RENDERER_CLASSES` só o `comum.renderizacao.JSONRenderer` (hoje o `BrowsableAPIRenderer` de `base.py` mostra formulários e descrições das views no navegador, o que o S-17 fechou para o OpenAPI); teste que confere a lista em produção.
+
 - **Nota da T-012 (08/10):** a S-12 (SVG do logo sanitizado e exibido só por `<img>`) vale para `ConfiguracaoEmpresa.logo` (app `empresas`), e não para a filial. Entra na tarefa da marca da empresa (`Admin-Marca`), a criar.
 
 ### T-093 · Momentos em UTC na API
@@ -324,9 +344,6 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 
 ### T-023 · Telas do financeiro básico
 - **Agente:** frontend · **Depende de:** T-020, T-017 · **Telas:** Receber, Caixa, Financeiro
-
-### T-024 · Revisão de segurança do MVP
-- **Agente:** seguranca · **Depende de:** T-011, T-014, T-018 · **Pronto quando:** checklist de `.claude/agents/seguranca.md` aplicado, achados viram tarefas.
 
 ### T-025 · Testes ponta a ponta do fluxo de locação
 - **Agente:** qa · **Depende de:** T-022, T-023 · **Pronto quando:** Playwright cobre login → nova locação → vistoria de saída → devolução → baixa no caixa, no desktop e no celular.
