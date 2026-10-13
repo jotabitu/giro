@@ -727,6 +727,16 @@ def test_loc_ca_015_16_vistoriador_sem_lista_e_sem_valores(cenario, com_carteira
     assert "parcelas" not in detalhe and "pagamento" not in detalhe
 
 
+def test_usr_09_vistoriador_nao_ve_planos_especiais(cenario):
+    """T-155 (M-01 da T-024): a lista dos planos especiais leva preço e desconto; o vistoriador
+    recebe 403, como na lista de locações. Os outros perfis que leem locações continuam vendo."""
+    resposta = cenario.moto.api("João").get("/api/planos-especiais/")
+    assert resposta.status_code == 403
+    assert "preco_centavos" not in resposta.content.decode()
+    for nome in ("Mariana", "Rodrigo", "Bruna", "Lúcia"):
+        assert cenario.moto.api(nome).get("/api/planos-especiais/").status_code == 200, nome
+
+
 def test_usr_09_financeiro_ficha_da_locacao_so_para_leitura(cenario, com_carteira):
     """D-27, USR-09: Lúcia vê a ficha inteira (parcelas, pagamentos, caução, contrato e
     histórico) e só recebe; não faz vistoria, devolução, renovação, troca nem cancelamento."""
