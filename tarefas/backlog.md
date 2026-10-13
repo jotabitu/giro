@@ -30,6 +30,10 @@ Levantadas pelo backend em T-027 (12 out 2026), para o produto e o arquiteto:
 
 Levantadas pelo arquiteto em T-030 (07 out 2026):
 
+- [decisão] (qa, T-019) Rafael Sousa sem documentos volta `incompleto`, e não `ativo`, depois de quitar a conta (CA-019-30 diz `ativo`; CA-019-12 manda o Rafael ficar sem documentos; `CLI-03` e `CLI-09` mandam o cadastro incompleto ficar `incompleto`). O teste `test_fin_03_seed_019_30_multa_e_juros_no_caixa` confere `incompleto`. Produto: ou o Rafael ganha os 4 documentos no seed (e a tela do cliente bloqueado sem documentos deixa de existir), ou o critério passa a dizer `incompleto`.
+- [decisão] (qa, T-019) A agenda do João em 07 out traz a devolução atrasada da LOC-2790 (12 set), e o CA-019-24 diz agenda vazia. O teste confere que não há nada em 07 out e que o único item é o do Rafael. Produto: a devolução atrasada fica na agenda do vistoriador (então o critério muda) ou sai dela?
+- [decisão] (qa, T-019) Troca de óleo da QXA-4B21 (CA-019-10: última aos 18.900 km, próxima aos 19.900) não tem onde morar: `apps/manutencao` é só README (`MAN-03`). `xfail` em `test_man_03_seed_019_10_proxima_troca_de_oleo_aos_19900`; o seed ganha o dado quando o módulo existir.
+- [decisão] (qa, T-019) Sem módulo no backend, os casos da fase 2 (CA-019-31) seguem `xfail`: venda VEN-0177, comissões, conciliação e DRE de setembro. Orquestrador: criar as tarefas de backend desses módulos; o seed ganha os dados com cada um.
 - [divergência] Dados de exemplo nas telas da plataforma (para T-028): `Plat-Empresa-Detalhe` mostra CNPJ 41.208.733/0001-52 (seed: 12.345.678/0001-10), FAT-0001 vencendo em 21 out (PLT-01: dia seguinte ao fim do teste, 22 out) e "13 dias" de teste em 07 out (contrato: 14); `Plat-Empresas` mostra Moto Rápida com 4 usuários (seed: 5).
 
 Levantadas pelo arquiteto em T-036 (07 out 2026):
@@ -95,9 +99,6 @@ Levantadas pelo backend em T-016 parte 1 (09 out 2026):
 Levantadas pelo backend em T-109 (09 out 2026). O código segue o que está entre parênteses:
 
 - (T-109) As duas decisões (ordem da caução no `DEV-02` e parcela do dia no `DEV-01`) e a devolução antes do fim sem encerramento aprovado foram decididas em 09 out 2026 pelo dono do produto: `DEV-02` opção A com o ajuste (a parcela que não cabe inteira vai para `renegociada` e entra na conta única do saldo), `DEV-01` opção B e a nova `DEV-07` (opção A). Regra e critérios na T-113 (CA-016-13, 22, 23 e 24); o código muda numa tarefa do backend (handoff da T-113).
-- [decisão] (qa, T-019) As 9 reservas do seed (`aguardando_retirada`, T-138 D-01) têm 17 parcelas em outubro (R$ 7.257,20) que entram em "Previsto" e "A vencer" da tela `Receber`: o seed dá 145 parcelas e A vencer 109, e a linha "Contas a receber de outubro em 07 out" fala de 128 e 92 (as 42 locações abertas). Produto: a parcela de locação ainda não retirada conta na FIN-15 ou não? Se não conta, o backend a tira dos números e o teste `test_fin_15_t019_previsto_exato_da_tabela` (xfail) passa; se conta, a linha da regra muda. Hoje `test_fin_15_t019_previsto_e_a_vencer_sem_as_reservas` prova que, sem as reservas, bate.
-- [decisão] (qa, T-019) A T-138 (D-21) pagou a parcela 1 de 10 locações que o CSV da carteira deixa em aberto ou "vence hoje"; com isso o seed dava Recebido R$ 23.078,10, e a regra diz R$ 13.401,70 em 30. A T-019 voltou o seed ao CSV (vale a regra). Consequência: com o relógio de verdade (depois de 07 out) essas parcelas aparecem atrasadas até a `GIRO_DATA_REFERENCIA` (T-142) entrar. Produto: confirmar que a tabela é a que vale.
-- [decisão] (qa, T-019) Casos da tabela sem módulo no backend, hoje `xfail(strict)` em `test_t019_seed_completo.py`: venda VEN-0177 (`VEN-02`, `VEN-04`), comissões (`FIN-09`, `FIN-10`, incluindo a de R$ 632,04), conciliação (`FIN-12`, R$ 137,10) e DRE de setembro (`FIN-13`, R$ 34.231,30). O seed ganha os dados (vendas, extrato, lançamentos de setembro) quando cada módulo existir; produto e orquestrador: criar as tarefas de backend desses módulos.
 
 Levantadas pelo arquiteto na revisão da T-114 (09 out 2026), para o produto:
 
@@ -340,11 +341,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 
 ### T-163 · Multa e juros no valor de hoje da parcela atrasada
 - **Agente:** backend, com o qa · **Depende de:** T-017 · **Regras:** FIN-03 · **Pronto quando:** investigar por que, no compose de 12 out, a parcela atrasada há 12 dias do Carlos (LOC-2841, R$ 299,40) veio em `valor_hoje` sem multa e juros (só o principal); se for defeito, corrigir com teste `test_fin_03_*` no caso do seed; se for regra (carência, parcela de locação sem multa, data de referência), explicar no handoff e o produto confirma. O qa confere o caso nos dados de referência. Levantada pelo frontend na T-023 (divergência c).
-
-### T-019 · Seed Moto Rápida
-- **Agente:** qa · **Depende de:** T-013 a T-017 · **Pronto quando:** `make seed` cria a empresa de exemplo e todos os casos da tabela "Dados de referência para testes" passam.
-- **Placas do seed (T-028):** PQD-6E21 (Pop do Rafael, LOC-2790), RJD-5B38 (Biz do Marcos, LOC-2850), RKP-3D26 (Kwid do Diego, LOC-2848); reserva do Kwid LOC-2857.
-- **Critérios (T-152):** `docs/qa/criterios/T-019.md`. Corrige dois pontos do seed da T-138: as locações geradas com o 1º vencimento de outubro em 07 out ou depois começam um período antes, sem pagar as parcelas de 07 out (item D-21, CA-019-18), e as 9 reservas retiram de 03 a 13 nov, para não mudar os números de outubro (CA-019-19).
 
 ### T-026 · Desenhar telas que faltam para o MVP
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** "Esqueci a senha" e "Ativar verificação em 2 etapas" (desktop e celular) em `docs/telas/html/`, no mesmo padrão das telas de acesso, e no índice. Bloqueia a parte de 2FA de T-020.

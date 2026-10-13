@@ -8,7 +8,7 @@ os alugados da frota (`frota.py`), na mesma proporção.
 
 import csv
 from collections import defaultdict
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -24,6 +24,7 @@ from apps.veiculos import services as veiculos_services
 from apps.veiculos.models import Veiculo
 from comum.codigos import ajustar_sequencia
 
+from .ator import como
 from .frota import PRECOS_SEED, Frota
 
 PASTA = Path(__file__).resolve().parent / "dados" / "carteira-outubro"  # cópia de docs/qa/
@@ -59,16 +60,18 @@ VENDE_O_GERENTE = 3
 HOJE_DO_SEED = date(2026, 10, 7)
 # Retiradas futuras (dias úteis) das reservas: uma locação `aguardando_retirada` por veículo
 # `reservado` (D-01). O Kwid RHT9F02 é a LOC-2857.
+# Em novembro, para as contas que nascem na confirmação (parcela 1 e caução) não mudarem nenhum
+# número de outubro (CA-019-19).
 RETIRADAS_DAS_RESERVAS = (
-    "2026-10-13",
-    "2026-10-14",
-    "2026-10-15",
-    "2026-10-16",
-    "2026-10-19",
-    "2026-10-20",
-    "2026-10-21",
-    "2026-10-22",
-    "2026-10-23",
+    "2026-11-03",
+    "2026-11-04",
+    "2026-11-05",
+    "2026-11-06",
+    "2026-11-09",
+    "2026-11-10",
+    "2026-11-11",
+    "2026-11-12",
+    "2026-11-13",
 )
 RESERVADO_PRIMEIRO = "RHT9F02"
 # Nomes fictícios no lugar de "Cliente NN" (os 35 primeiros) e dos clientes das 9 reservas.
@@ -118,6 +121,8 @@ NOMES = (
     "Tales Gondim",
     "Vanessa Leitão",
 )
+# CPF dos clientes que as telas mostram (CA-019-12); os outros levam CPF gerado.
+CPF_DAS_TELAS = {"Juliana Rocha": "05221833018", "Lucas Ferreira": "12345678909"}
 # Início e fim das locações das telas (regras, "Dados de referência para testes").
 DATAS: dict[str, tuple[str, str]] = {
     "LOC-2790": ("2026-08-13 09:00", "2026-09-12 18:00"),
@@ -133,6 +138,19 @@ FIM_DAS_GERADAS = "2026-11-30 18:00"
 # (LOC-2836: início em 30 set, confirmada em 01 out, "Preço da LOC-2836"). Código → (confirmação,
 # início, retirada). A parcela 1 vence em 30 set e é paga na retirada, sem multa (FIN-03, padrão A).
 CONFIRMADAS = {"LOC-2836": ("2026-10-01 09:00", "2026-09-30 18:00", "2026-10-01 09:10")}
+
+
+def _periodo_anterior(primeira: date, plano: str) -> date | None:
+    """O vencimento do período anterior, para a locação gerada cujo 1º vencimento de outubro é
+    07 out ou depois (semanal: 7 dias antes; mensal: 1 mês antes). A diária e as locações com
+    parcela antes de 07 out não têm."""
+    if primeira < HOJE_DO_SEED or PERIODICIDADE[plano] == "diaria":
+        return None
+    if PERIODICIDADE[plano] == "semanal":
+        return primeira - timedelta(days=7)
+    mes = primeira.month - 1 or 12
+    ano = primeira.year - (1 if mes == 12 else 0)
+    return date(ano, mes, min(primeira.day, 28))
 
 
 def momento(texto: str) -> datetime:
@@ -199,9 +217,8 @@ def _cliente(nome: str, numero: int, conferencia: bool = False) -> Cliente:
     existente: Cliente | None = Cliente.objects.filter(nome=nome).first()
     if existente is not None:
         return existente
-    novo: Cliente = clientes_services.cadastrar(
-        pessoa(nome, cpf(400000000 + numero * 7919), f"8599{numero:07d}")
-    )
+    documento = (CPF_DAS_TELAS if conferencia else {}).get(nome) or cpf(400000000 + numero * 7919)
+    novo: Cliente = clientes_services.cadastrar(pessoa(nome, documento, f"8599{numero:07d}"))
     if conferencia and nome != "Rafael Sousa":
         _completar(novo)
     return novo
@@ -300,20 +317,33 @@ def carregar(
         categoria = CATEGORIAS[linha["categoria"]]
         veiculo = frota.veiculos[placas[codigo]] if codigo in placas else livres[categoria].pop(0)
         if codigo in CONFIRMADAS:
-            locacoes[codigo] = _confirmar(codigo, linha, numero, frota, quem, relogio, conferencia)
+            with como(quem):
+                locacoes[codigo] = _confirmar(
+                    codigo, linha, numero, frota, quem, relogio, conferencia
+                )
             continue
         contas = sorted(parcelas[codigo], key=lambda p: p["vencimento"])
         primeira = date.fromisoformat(contas[0]["vencimento"]) if contas else date(2026, 10, 1)
         # A locação já está ativa em 07 out: a retirada não é depois do dia (D-21).
-        inicio, fim = DATAS.get(
-            codigo,
-            (
-                datetime.combine(
-                    min(primeira, HOJE_DO_SEED) if conferencia else primeira, time(9)
-                ).isoformat(" "),
-                FIM_DAS_GERADAS,
-            ),
-        )
+        anterior = _periodo_anterior(primeira, linha["plano"]) if conferencia else None
+        if codigo in DATAS or anterior is None:
+            inicio, fim = DATAS.get(
+                codigo,
+                (
+                    datetime.combine(
+                        min(primeira, HOJE_DO_SEED) if conferencia else primeira, time(9)
+                    ).isoformat(" "),
+                    FIM_DAS_GERADAS,
+                ),
+            )
+        else:
+            # CA-019-18: começou um período antes, com essa parcela paga na retirada (LOC-05);
+            # nenhuma locação começa depois de 07 out.
+            inicio, fim = datetime.combine(anterior, time(9)).isoformat(" "), FIM_DAS_GERADAS
+            contas = [
+                {**contas[0], "vencimento": anterior.isoformat(), "situacao": "paga"},
+                *contas,
+            ]
         locacao = Locacao(
             numero=int(codigo.split("-")[1]),
             codigo=codigo,
@@ -387,22 +417,23 @@ def _reservas(frota: Frota, vendedora: Any, gerente: Any) -> dict[str, Locacao]:
         )
         scooter = nomes_das_categorias[veiculo.categoria_id] == "Scooter premium"
         vendedor = gerente if posicao % VENDE_O_GERENTE == 0 else vendedora
-        locacao = locacoes_services.criar_rascunho(
-            {
-                "cliente_id": _cliente(NOMES[35 + posicao], 100 + posicao, True).pk,
-                "veiculo_id": veiculo.pk,
-                "periodicidade": "mensal" if scooter else "semanal",
-                "plano_especial_id": None,
-                "inicio": momento(f"{RETIRADAS_DAS_RESERVAS[posicao]} 09:00"),
-                "periodos": 1 if scooter else 2,
-                "extras": [],
-                "desconto_pct": "0.00",
-                "forma_pagamento": "pix",
-            },
-            frota.centro,
-            vendedor,
-        )
-        locacoes_services.confirmar(locacao, vendedor)
+        with como(vendedor):
+            locacao = locacoes_services.criar_rascunho(
+                {
+                    "cliente_id": _cliente(NOMES[35 + posicao], 100 + posicao, True).pk,
+                    "veiculo_id": veiculo.pk,
+                    "periodicidade": "mensal" if scooter else "semanal",
+                    "plano_especial_id": None,
+                    "inicio": momento(f"{RETIRADAS_DAS_RESERVAS[posicao]} 09:00"),
+                    "periodos": 1 if scooter else 2,
+                    "extras": [],
+                    "desconto_pct": "0.00",
+                    "forma_pagamento": "pix",
+                },
+                frota.centro,
+                vendedor,
+            )
+            locacoes_services.confirmar(locacao, vendedor)
         locacao.refresh_from_db()
         reservas[locacao.codigo] = locacao
     return reservas

@@ -30,10 +30,11 @@ from apps.contratos.models import ModeloContrato
 from apps.filiais import services as filiais_services
 from apps.filiais.models import Filial
 from apps.financeiro.models import Caixa
-from apps.locacoes.models import Locacao
+from apps.locacoes import services as locacoes_services
+from apps.locacoes.models import Locacao, PlanoEspecial
 from apps.plataforma.models import Empresa, Plano
-from apps.plataforma.services import Administrador, criar_empresa
-from apps.veiculos.models import Veiculo
+from apps.plataforma.services import Administrador, criar_empresa, registrar_passo_implantacao
+from apps.veiculos.models import Categoria, Veiculo
 from comum.estados import transicionar
 
 from . import carteira, frota
@@ -121,6 +122,28 @@ def _dono_da_plataforma(criado: list[str]) -> None:
             )
             _ativar(usuario)
         criado.append("dono da plataforma")
+
+
+# Equipe da plataforma (linha "Pessoas" dos dados de referência): a Larissa fica com o convite
+# pendente.
+EQUIPE_DA_PLATAFORMA = (
+    ("Diego Santos", "diego@giro.example", FuncaoPlataforma.SUPORTE, True),
+    ("Paula Andrade", "paula@giro.example", FuncaoPlataforma.FINANCEIRO, True),
+    ("Caio Ribeiro", "caio@giro.example", FuncaoPlataforma.SUCESSO, True),
+    ("Larissa Melo", "larissa@giro.example", FuncaoPlataforma.SUPORTE, False),
+)
+
+
+def _equipe_da_plataforma(criado: list[str]) -> None:
+    with schema_context(get_public_schema_name()):
+        for nome, email, funcao, ativa in EQUIPE_DA_PLATAFORMA:
+            if Usuario.objects.filter(email=email).exists():
+                continue
+            with transaction.atomic():
+                usuario, _ = contas_services.convidar_equipe_plataforma(email, funcao, nome)
+                if ativa:
+                    _ativar(usuario)
+            criado.append(f"equipe {nome.split()[0]}")
 
 
 def _outras_empresas(relogio: RelogioDoSeed, criado: list[str]) -> None:
@@ -252,14 +275,51 @@ def semear() -> Resultado:
                         criado.append("locações")
             else:
                 existente.append("frota")
+            _configuracao(criado)
             if not Caixa.objects.exists():
                 with transaction.atomic():
                     financeiro_do_seed.carregar(centro, pessoas, relogio)
                     criado.append("financeiro")
     with RelogioDoSeed(INICIO) as relogio:
         _dono_da_plataforma(criado)
+        _equipe_da_plataforma(criado)
         _outras_empresas(relogio, criado)
     return Resultado(empresa, criado, existente)
+
+
+PASSOS_FEITOS_NO_DEV = ("marca", "ramo", "precos", "contrato", "recebimentos", "importar", "equipe")
+
+
+def _configuracao(criado: list[str]) -> None:
+    """Planos especiais da tabela (Entregador R$ 279,00 por semana, Mensal fidelidade −10% a
+    partir do 3º mês) e os passos do assistente de implantação (IMP-01): a Moto Rápida já passou
+    por todos, e a Mariana entra no painel geral."""
+    if not PlanoEspecial.objects.exists():
+        urbana = Categoria.objects.get(nome="Urbana 110–125")
+        locacoes_services.criar_plano(
+            {
+                "nome": "Entregador",
+                "periodicidade": "semanal",
+                "regra": "preco_fixo",
+                "preco_centavos": 27900,
+                "categorias": [urbana.pk],
+                "condicoes": "Km livre e troca de óleo inclusa",
+            }
+        )
+        locacoes_services.criar_plano(
+            {
+                "nome": "Mensal fidelidade",
+                "periodicidade": "mensal",
+                "regra": "desconto",
+                "desconto_pct": "10.00",
+                "a_partir_do_periodo": 3,
+                "categorias": [],
+                "condicoes": "10% a partir do 3º mês seguido",
+            }
+        )
+        criado.append("planos especiais")
+    for passo in PASSOS_FEITOS_NO_DEV:
+        registrar_passo_implantacao(passo)
 
 
 def _bloquear_rafael() -> None:
@@ -272,7 +332,8 @@ def _bloquear_rafael() -> None:
 
 def codigo_de_2fa(email: str) -> str:
     """Código TOTP de agora do autenticador do seed (relógio de verdade)."""
-    plataforma = email.strip().lower() == DONO_DA_PLATAFORMA[1]
+    equipe = {DONO_DA_PLATAFORMA[1], *(e for _, e, _, ativa in EQUIPE_DA_PLATAFORMA if ativa)}
+    plataforma = email.strip().lower() in equipe
     empresa = Empresa.objects.get(subdominio=SUBDOMINIO)
     with schema_context(get_public_schema_name()) if plataforma else tenant_context(empresa):
         dispositivo = Autenticador.objects.get(user__email=email.strip().lower(), confirmed=True)

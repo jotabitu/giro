@@ -17,11 +17,14 @@ from apps.filiais import services as filiais_services
 from apps.filiais.models import Filial
 from apps.financeiro import services as financeiro
 from apps.financeiro.models import Caixa, ContaReceber, Despesa
+from apps.locacoes import services as locacoes_services
 from apps.locacoes.models import Locacao
 from apps.veiculos.models import Veiculo
 from apps.vistorias import services as vistorias
 from apps.vistorias.models import Vistoria
+from comum import relogio as relogio_do_giro
 
+from .ator import como
 from .relogio import RelogioDoSeed
 
 FUSO = ZoneInfo("America/Sao_Paulo")
@@ -74,6 +77,7 @@ def _contrato_com_juros(locacao: Locacao) -> None:
         tipo="contrato",
         titulo="Contrato de locação",
         status="assinado",
+        assinado_em=datetime(2026, 9, 23, 9, 0, tzinfo=FUSO),  # assinado antes de 01 out (LOC-15)
         versao_texto_html="<p>Multa de 2% e juros de 1% ao mês.</p>",
         clausula_juros=True,
     )
@@ -91,7 +95,7 @@ def _entrada(caixa: Caixa, conta: ContaReceber, forma: str, usuario: Usuario | N
         origem=financeiro.Origem(conta.origem_tipo, conta.origem_id, conta.origem_codigo),
     )
     ContaReceber.objects.filter(pk=conta.pk).update(
-        movimento_caixa=movimento, forma=forma, pago_em=movimento.criado_em
+        movimento_caixa=movimento, forma=forma, pago_em=relogio_do_giro.agora()
     )
 
 
@@ -104,75 +108,93 @@ def _conta(codigo: str, vencimento: str) -> ContaReceber:
 
 def _caixa_de_07_out(centro: Filial, bruna: Usuario, relogio: RelogioDoSeed) -> None:
     relogio.em("2026-10-07 07:55")
-    caixa = financeiro.abrir_caixa(centro, bruna, 20000)
+    with como(bruna):
+        caixa = financeiro.abrir_caixa(centro, bruna, 20000)
     relogio.em("2026-10-07 08:02")
     _entrada(caixa, _conta("LOC-2836", "2026-10-07"), "pix", None)  # webhook: "Sistema"
     relogio.em("2026-10-07 08:40")
-    _entrada(caixa, _conta("LOC-2848", "2026-10-07"), "cartao_credito", bruna)
+    with como(bruna):
+        _entrada(caixa, _conta("LOC-2848", "2026-10-07"), "cartao_credito", bruna)
     relogio.em("2026-10-07 09:15")
     lucas = Locacao.objects.get(codigo="LOC-2856")
-    _entrada(caixa, _conta("LOC-2856", "2026-10-07"), "dinheiro", bruna)
-    _entrada(caixa, _caucao_paga(lucas, 30000, relogio.agora), "dinheiro", bruna)
+    with como(bruna):
+        _entrada(caixa, _conta("LOC-2856", "2026-10-07"), "dinheiro", bruna)
+        _entrada(caixa, _caucao_paga(lucas, 30000, relogio.agora), "dinheiro", bruna)
     relogio.em("2026-10-07 10:30")
-    financeiro.sangria(caixa, bruna, valor_centavos=50000, descricao="Depósito no banco")
+    with como(bruna):
+        financeiro.sangria(caixa, bruna, valor_centavos=50000, descricao="Depósito no banco")
     relogio.em("2026-10-07 11:05")
     _entrada(caixa, _conta("LOC-2826", "2026-10-07"), "pix", None)
     relogio.em("2026-10-07 11:20")
-    financeiro.lancar_despesa(
-        filial=centro,
-        usuario=bruna,
-        descricao="Óleo 1 litro",
-        valor_centavos=4800,
-        data=date(2026, 10, 7),
-        vencimento=date(2026, 10, 7),
-        categoria="manutencao",
-        veiculo_id=Veiculo.objects.get(placa="QXA4B21").pk,
-        pago_no_caixa=True,
-    )
+    with como(bruna):
+        financeiro.lancar_despesa(
+            filial=centro,
+            usuario=bruna,
+            descricao="Óleo 1 litro",
+            valor_centavos=4800,
+            data=date(2026, 10, 7),
+            vencimento=date(2026, 10, 7),
+            categoria="manutencao",
+            veiculo_id=Veiculo.objects.get(placa="QXA4B21").pk,
+            pago_no_caixa=True,
+        )
 
 
 def _despesas_de_outubro(centro: Filial, pessoas: dict[str, Usuario], relogio: Any) -> None:
-    """As outras 5 despesas da tabela: só os pneus (acima de R$ 500) ficam aguardando o gerente;
-    aluguel e rastreadores foram aprovados pelo Rodrigo e pagos."""
-    lucia = pessoas["Lúcia Freitas"]
+    """As outras 5 despesas da tabela (CA-019-23), cada uma no dia dela: só os pneus (acima de
+    R$ 500) ficam aguardando o gerente; aluguel e rastreadores foram aprovados pelo Rodrigo e
+    pagos no dia (boleto e cartão)."""
+    lucia, joao = pessoas["Lúcia Freitas"], pessoas["João Silva"]
     rodrigo = pessoas["Rodrigo Pinheiro"]
 
     def lancar(
         quem: Usuario, descricao: str, valor: int, dia: str, vence: str, categoria: str, **mais: Any
     ) -> Despesa:
-        return financeiro.lancar_despesa(
-            filial=centro,
-            usuario=quem,
-            descricao=descricao,
-            valor_centavos=valor,
-            data=date.fromisoformat(dia),
-            vencimento=date.fromisoformat(vence),
-            categoria=categoria,
-            **mais,
-        )
+        relogio.em(f"{dia} 09:00")
+        with como(quem):
+            return financeiro.lancar_despesa(
+                filial=centro,
+                usuario=quem,
+                descricao=descricao,
+                valor_centavos=valor,
+                data=date.fromisoformat(dia),
+                vencimento=date.fromisoformat(vence),
+                categoria=categoria,
+                **mais,
+            )
 
     def aprovar_e_pagar(despesa: Despesa, forma: str) -> None:
         despesa.refresh_from_db()
         pedido = PedidoAprovacao.objects.get(pk=despesa.pedido_aprovacao_id or 0)
-        aprovacoes.aprovar(pedido, rodrigo)
+        relogio.em(f"{despesa.data.isoformat()} 10:00")
+        with como(rodrigo):
+            aprovacoes.aprovar(pedido, rodrigo)
         despesa.refresh_from_db()
-        financeiro.pagar_despesa(
-            despesa, lucia, forma=forma, pago_em=datetime(2026, 10, 7, 13, 0, tzinfo=FUSO)
-        )
+        relogio.em(f"{despesa.data.isoformat()} 11:00")
+        with como(lucia):
+            financeiro.pagar_despesa(despesa, lucia, forma=forma, pago_em=relogio.agora)
 
-    relogio.em("2026-10-07 09:00")
     pmz = Veiculo.objects.get(placa="PMZ3E17").pk
-    joao = pessoas["João Silva"]
-    lancar(joao, "Pneus (2)", 120000, "2026-10-07", "2026-10-07", "manutencao", veiculo_id=pmz)
-    lancar(lucia, "Conta de luz", 41230, "2026-10-06", "2026-10-10", "fixas")
-    aluguel = lancar(lucia, "Aluguel do ponto", 350000, "2026-10-05", "2026-10-05", "fixas")
-    lancar(lucia, "IPVA ROE2A88", 18640, "2026-10-03", "2026-10-31", "impostos")
     rastreadores = lancar(
         lucia, "Rastreadores (86)", 172000, "2026-10-02", "2026-10-02", "rastreamento"
     )
-    relogio.em("2026-10-07 10:00")
-    aprovar_e_pagar(aluguel, "boleto")
     aprovar_e_pagar(rastreadores, "cartao")
+    lancar(lucia, "IPVA ROE2A88", 18640, "2026-10-03", "2026-10-31", "impostos")
+    aluguel = lancar(lucia, "Aluguel do ponto", 350000, "2026-10-05", "2026-10-05", "fixas")
+    aprovar_e_pagar(aluguel, "boleto")
+    lancar(lucia, "Conta de luz", 41230, "2026-10-06", "2026-10-10", "fixas")
+    lancar(joao, "Pneus (2)", 120000, "2026-10-07", "2026-10-07", "manutencao", veiculo_id=pmz)
+
+
+def _pedido_de_encerramento_da_loc_2812(pessoas: dict[str, Usuario], relogio: Any) -> None:
+    """Bruna pede em 07 out o encerramento antecipado da Patrícia: `APR-02` pendente para o
+    Rodrigo, sinal `cancelamento_pendente` (CA-019-17)."""
+    relogio.em("2026-10-07 09:30")
+    bruna = pessoas["Bruna Alves"]
+    with como(bruna):
+        locacoes_services.cancelar(
+            Locacao.objects.get(codigo="LOC-2812"), bruna, motivo="Cliente vai mudar de cidade"
+        )
 
 
 def carregar(centro: Filial, pessoas: dict[str, Usuario], relogio: RelogioDoSeed) -> None:
@@ -187,6 +209,12 @@ def carregar(centro: Filial, pessoas: dict[str, Usuario], relogio: RelogioDoSeed
     carlos = Locacao.objects.get(codigo="LOC-2841")
     Locacao.objects.filter(pk=carlos.pk).update(periodos=5)  # 5 semanas, de 23 set a 28 out
     _contrato_com_juros(carlos)
-    _caixa_de_07_out(centro, pessoas["Bruna Alves"], relogio)
+    _contrato_com_juros(Locacao.objects.get(codigo="LOC-2790"))  # multa e juros do Rafael
+    # O km do QXA-4B21 é o lido na vistoria de saída de 23 set (CA-019-10).
+    Veiculo.objects.filter(pk=carlos.veiculo_id).update(
+        km_atualizado_em=datetime(2026, 9, 23, 9, 0, tzinfo=FUSO)
+    )
     _despesas_de_outubro(centro, pessoas, relogio)
-    relogio.em("2026-10-07 10:00")
+    _caixa_de_07_out(centro, pessoas["Bruna Alves"], relogio)
+    _pedido_de_encerramento_da_loc_2812(pessoas, relogio)
+    relogio.em("2026-10-07 12:00")

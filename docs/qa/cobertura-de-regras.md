@@ -270,29 +270,26 @@ Uma linha por código de `docs/regras-de-negocio.md` (136 códigos). "Testes" co
 | VIS-04 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
 | VIS-05 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
 
-## T-019 · Casos da tabela "Dados de referência para testes" sobre o seed
+## T-019 · Seed completo: critérios CA-019-01 a 31
 
-Testes em `backend/tests/aceitacao/test_t019_seed_completo.py`, sobre o banco que o `make seed` deixa (pedem à API o número da regra). Data: 12 out 2026.
+Testes em `backend/tests/aceitacao/test_t019_seed_completo.py` (`test_<regra>_seed_019_NN_*`), sobre o banco que o `make seed` deixa, com o relógio em 07 out 2026 12:00 (os casos de outras datas movem o relógio no próprio teste). Data: 13 out 2026.
 
-| Regra | Caso | Teste | Status |
-| --- | --- | --- | --- |
-| FIN-15 | Recebido, vence hoje, em atraso e abas de outubro | `test_fin_15_t019_recebido_vence_hoje_e_atraso_em_07_out` | passa |
-| FIN-15 | Previsto 128 parcelas e A vencer 92, sem as reservas | `test_fin_15_t019_previsto_e_a_vencer_sem_as_reservas` | passa |
-| FIN-15 | Previsto exato da tabela (com as reservas do seed) | `test_fin_15_t019_previsto_exato_da_tabela` | xfail: [decisão] reservas |
-| FIN-15 | Semana de 05 a 11 out | `test_fin_15_semana_de_segunda_a_domingo` | xfail: T-148 |
-| FIN-15, FIN-05 | Contadores do menu (Mariana) | `test_fin_15_fin_05_t019_contadores_do_menu_da_mariana` | passa |
-| FIN-01 | Em aberto dos clientes R$ 1.646,40 | `test_fin_01_t019_em_aberto_dos_clientes` | passa |
-| FIN-07 | Caixa de 07 out: gaveta R$ 281,00, R$ 1.111,90 em 5 | `test_fin_07_t019_caixa_de_07_out`, `test_fin_07_t019_entradas_do_caixa_apontam_para_as_contas` | passa |
-| FIN-05 | Despesas de outubro R$ 7.066,70 | `test_fin_05_t019_despesas_de_outubro` | passa |
-| LOC-05 | Cauções pagas do seed | `test_loc_05_t019_caucoes_pagas_do_seed` | passa |
-| DEV-02 | Acerto LOC-2836: devolver R$ 183,00 | `test_dev_02_t019_acerto_da_loc_2836_devolve_183` | passa |
-| DEV-07 | Devolução antecipada LOC-2841: cobrar R$ 365,37 | `test_dev_07_t019_devolucao_antecipada_do_carlos_cobra_365_37` | passa |
-| LOC-12 | Encerramento antecipado LOC-2812: multa R$ 84,80, devolve R$ 286,20 | `test_loc_12_t019_encerramento_antecipado_da_loc_2812` | passa |
-| CLI-05 | Bloqueio do Rafael | `test_cli_05_t019_bloqueio_do_rafael` | passa |
-| CLI-04 | Histórico da análise em 07 out | `test_cli_04_historico_da_analise_em_07_out` | xfail: T-148 |
-| VEN-02, VEN-04 | Venda VEN-0177 | `test_ven_02_t019_venda_ven_0177` | xfail: sem módulo de vendas |
-| FIN-09, FIN-10 | Comissões (R$ 632,04; outubro R$ 968,00; setembro R$ 1.890,00) | `test_fin_09_t019_comissao_da_venda_ven_0177` | xfail: sem módulo de vendas |
-| FIN-12 | Conciliação R$ 137,10 | `test_fin_12_t019_conciliacao_diferenca_de_137_10` | xfail: sem módulo |
-| FIN-13 | DRE de setembro R$ 34.231,30 | `test_fin_13_t019_dre_de_setembro_34231_30` | xfail: sem selector |
+| Critério | Caso | Status |
+| --- | --- | --- |
+| CA-019-01, 02 | Idempotência, sem dado real | passa (`test_seed_127_02`, `test_seed_127_07`, T-127) |
+| CA-019-03 a 07 | Empresa, 5 pessoas, uso do plano, implantação concluída, plataforma e equipe | passa |
+| CA-019-08, 09 | Tabela de preços e configuração; frota de 86 | passa |
+| CA-019-10 | QXA-4B21 (estado, km de 23 set) | passa; troca de óleo: xfail, sem módulo de manutenção |
+| CA-019-11 | Factor (16 L, 21.870 km, saída cheia) e NMax (8 L) | passa |
+| CA-019-12, 13, 15 | Clientes, bloqueio do Rafael, em aberto R$ 1.646,40 | passa |
+| CA-019-14 | Histórico da análise em 07 out | xfail: T-148 |
+| CA-019-16 a 19 | 51 locações, as das telas, parcelas do CSV (sem D-21), reservas em novembro | passa |
+| CA-019-20, 21 | Contas a receber do mês e da semana | passa |
+| CA-019-22, 23 | Caixa de 07 out (gaveta R$ 281,00) e despesas de outubro (R$ 7.066,70) | passa |
+| CA-019-24 | Contadores, aprovações, Lúcia e João | passa (agenda do João: ver [decisão] no backlog) |
+| CA-019-25 | Eventos nas horas e com o ator do caso | passa; sangria com a filial: xfail, T-150 |
+| CA-019-26 a 29 | Devolução da LOC-2836 (R$ 183,00), troca (R$ 263,00), LOC-2812, LOC-2841 em 07, 16, 28 e 30 out | passa |
+| CA-019-30 | Multa e juros no caixa (Carlos 30609, Rafael 138517) | passa; Rafael volta `incompleto`: [decisão] no backlog |
+| CA-019-31 | Venda VEN-0177, comissões, conciliação, DRE | xfail: sem módulo |
 
-Já cobertos antes, sobre o seed: acerto/total pago da LOC-2836 (`test_loc_15_seed_127_05_*`), uso do plano (T-010), funil (T-129), preço antigo da LOC-2841 e da LOC-2836 (T-015, T-127). Os xfail `strict` avisam quando o código chegar.
+Os `xfail(strict)` avisam quando o código chegar.
