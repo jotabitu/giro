@@ -46,7 +46,7 @@ COLUNAS: dict[str, tuple[Coluna, ...]] = {
         Coluna("modelo", "Modelo", True, "CG 160 Fan"),
         Coluna("ano_fabricacao", "Ano de fabricação", True, "2023"),
         Coluna("ano_modelo", "Ano do modelo", True, "2023"),
-        Coluna("cor", "Cor", exemplo="Preta"),
+        Coluna("cor", "Cor", True, "Preta"),  # T-164: obrigatória, como no cadastro
         Coluna("km", "Km", True, "18250"),
         Coluna("categoria", "Categoria", True, "Street 150–160"),
         Coluna("filial", "Filial", exemplo="Filial Centro"),
@@ -202,15 +202,21 @@ def _linhas_csv(conteudo: bytes) -> Iterator[list[Any]]:
         raise _arquivo_invalido("Salve o .csv em UTF-8 e envie de novo.") from erro
     primeira = texto.split("\n", 1)[0]
     separador = ";" if primeira.count(";") >= primeira.count(",") else ","
-    anterior = csv.field_size_limit(MAX_CELULA)
+    # T-164: o limite de leitura é o do arquivo (5 MB), para nenhuma célula interromper a leitura.
+    # Os 1.000 caracteres são da validação da linha (`_montar`), como no .xlsx.
+    anterior = csv.field_size_limit(MAX_BYTES)
     try:
         leitor = csv.reader(io.StringIO(texto, newline=""), delimiter=separador)
-        try:
-            yield from leitor
-        except csv.Error as erro:
-            raise _arquivo_invalido(
-                f"A linha {leitor.line_num} tem uma célula com mais de 1.000 caracteres."
-            ) from erro
+        inicio = 1
+        for valores in leitor:
+            if any(len(v) > MAX_CELULA and ("\n" in v or "\r" in v) for v in valores):
+                # Célula longa com quebra de linha é aspas sem fechar: o resto do arquivo
+                # viraria uma célula só, e as linhas seguintes sumiriam sem aviso.
+                raise _arquivo_invalido(
+                    f"A linha {inicio} tem aspas sem fechar. Confira o arquivo e envie de novo."
+                )
+            yield valores
+            inicio = leitor.line_num + 1
     finally:
         csv.field_size_limit(anterior)
 
