@@ -339,7 +339,7 @@ export const vistoriasFalso = {
     if (d.status !== "aguardando_retirada" && !d.trocaPendente) throw new ErroApi(409, "transicao_locacao", "A vistoria de saída só vale para uma locação aguardando a retirada");
     const existente = [...VISTORIAS.values()].find((r) => r.dados.id === locacaoId && r.v.tipo === "saida" && r.v.status === "rascunho");
     if (existente) return montar(existente);
-    const cliente = await clientesFalso.obter(d.cliente.id);
+    const cliente = await clientesFalso.interno(d.cliente.id);
     const cnh = "cnh" in cliente && cliente.cnh?.categoria ? `Categoria ${cliente.cnh.categoria} · válida` : null;
     return montar(novaVistoria(d, "saida", cnh, 0, { km: 7420, em: "2026-10-05" }));
   },
@@ -426,7 +426,7 @@ export const vistoriasFalso = {
     if (v.km === null) pendencias.push({ codigo: "km_nao_informado", mensagem: "Informe a quilometragem" });
     else if (v.km < r.kmDoVeiculo) pendencias.push({ codigo: "VEI-01", mensagem: `O km informado é menor que o atual do veículo (${new Intl.NumberFormat("pt-BR").format(r.kmDoVeiculo)} km). Corrija o km do veículo antes.`, km_atual: r.kmDoVeiculo, corrigir_km: `/api/veiculos/${v.veiculo.id}/corrigir-km/` });
     if (v.tipo === "saida") {
-      const cliente = await clientesFalso.obter(r.dados.cliente.id);
+      const cliente = await clientesFalso.interno(r.dados.cliente.id);
       if (cliente.status === "incompleto") pendencias.push({ codigo: "CLI-03", mensagem: "Cadastro do cliente incompleto. Envie os documentos antes da retirada." });
       if (cliente.status === "bloqueado") pendencias.push({ codigo: "CLI-05", mensagem: "Cliente bloqueado por atraso. Quite o que deve antes da retirada." });
     }

@@ -32,7 +32,7 @@ function Miniatura({ tipo }: { tipo: TipoVeiculo }) {
   );
 }
 
-const COLUNAS: ColunaTabela<Veiculo>[] = [
+const TODAS_AS_COLUNAS: ColunaTabela<Veiculo>[] = [
   {
     chave: "veiculo",
     titulo: "Veículo",
@@ -75,8 +75,12 @@ const COLUNAS: ColunaTabela<Veiculo>[] = [
   },
 ];
 
+/** Sem o preço na resposta (vistoriador, D-25), a coluna "Diária" não aparece. */
+const colunasDa = (veiculos: Veiculo[]) => (veiculos.some((v) => v.preco_vigente) ? TODAS_AS_COLUNAS : TODAS_AS_COLUNAS.filter((c) => c.chave !== "diaria"));
+
 function CartaoDoVeiculo({ v }: { v: Veiculo }) {
   const fato = fatoDoVeiculo(v);
+  const valorDiaria = diaria(v);
   return (
     <Link href={`/veiculos/${v.id}`} className="flex flex-col gap-3 rounded-lg bg-surface p-4 text-ink no-underline">
       <span className="flex items-center gap-3">
@@ -91,15 +95,17 @@ function CartaoDoVeiculo({ v }: { v: Veiculo }) {
           {v.situacao.rotulo}
         </StatusBadge>
       </span>
-      <span className="grid grid-cols-3 border-t border-line pt-3 text-body">
+      <span className={`grid ${valorDiaria ? "grid-cols-3" : "grid-cols-2"} border-t border-line pt-3 text-body`}>
         <span>
           <span className="block text-caption text-ink-muted">Km</span>
           {new Intl.NumberFormat("pt-BR").format(v.km_atual)}
         </span>
-        <span>
-          <span className="block text-caption text-ink-muted">Diária</span>
-          {diaria(v)}
-        </span>
+        {valorDiaria && (
+          <span>
+            <span className="block text-caption text-ink-muted">Diária</span>
+            {valorDiaria}
+          </span>
+        )}
         <span className="min-w-0">
           <span className="block text-caption text-ink-muted">{fato.rotulo}</span>
           <span className="block truncate">{fato.valor}</span>
@@ -188,7 +194,7 @@ export function ListaVeiculos() {
         {d && d.resultados.length > 0 && (
           <>
             <div className="hidden overflow-x-auto md:block">
-              <DataTable colunas={COLUNAS} linhas={d.resultados} chaveDaLinha={(v) => String(v.id)} aoAbrir={(v) => router.push(`/veiculos/${v.id}`)} legenda="Veículos" />
+              <DataTable colunas={colunasDa(d.resultados)} linhas={d.resultados} chaveDaLinha={(v) => String(v.id)} aoAbrir={(v) => router.push(`/veiculos/${v.id}`)} legenda="Veículos" />
             </div>
             <div className="flex flex-col gap-3 md:hidden">
               {d.resultados.map((v) => (

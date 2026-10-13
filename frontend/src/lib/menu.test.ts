@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { contas, relatorios, type Eu } from "@/lib/api";
-import { destinosDaBarra, gruposDaRota, hrefDoDestino, montarMenu } from "./menu";
+import { destinosDaBarra, gruposDaRota, hrefDoDestino, montarMenu, rotaPermitida } from "./menu";
 
 async function euDe(email: string): Promise<Eu> {
   const r = await contas.entrar({ email, senha: "senhaforte123", aparelho: "desktop" });
@@ -30,22 +30,40 @@ describe("menu vindo de eu.navegacao (USR-05)", () => {
     expect(rotulos(menu)).not.toContain("Comissões");
   });
 
-  it("fora do início vale o menu completo, não o do início", async () => {
+  it("fora do início e das rotas dos itens dele vale o menu completo, não o do início", async () => {
     const eu = await euDe("rodrigo@motorapida.com.br");
-    expect(rotulos(menuDe(eu, "/clientes"))).toContain("Visão geral");
-    expect(rotulos(menuDe(eu, "/clientes"))).not.toContain("Visão da filial");
+    expect(rotulos(menuDe(eu, "/financeiro/despesas"))).toContain("Despesas");
+    expect(rotulos(menuDe(eu, "/financeiro/despesas"))).not.toContain("Caixa da filial");
+    expect(rotulos(menuDe(eu, "/inicio"))).toContain("Caixa da filial");
   });
 
-  it("financeiro não vê Veículos nem Locações", async () => {
-    const itens = rotulos(menuDe(await euDe("financeiro@motorapida.com.br"), "/financeiro/receber"));
-    expect(itens).not.toContain("Veículos");
-    expect(itens).not.toContain("Locações");
-    expect(itens).toContain("Conciliação");
+  it("usr_05: nas rotas que os itens do menu do início abrem, vale o menu do início", async () => {
+    const eu = await euDe("rodrigo@motorapida.com.br");
+    const doInicio = rotulos(menuDe(eu, "/inicio"));
+    expect(rotulos(menuDe(eu, "/clientes"))).toEqual(doInicio);
+    expect(rotulos(menuDe(eu, "/veiculos/501"))).toEqual(doInicio);
   });
 
-  it("vistoriador: menu do início só com agenda, consulta e avarias", async () => {
-    const itens = rotulos(menuDe(await euDe("joao@motorapida.com.br"), "/inicio"));
-    expect(itens).toEqual(["Vistorias de hoje", "Consultar veículo", "Avarias abertas"]);
+  it("usr_05: financeiro em /financeiro/receber mantém o menu do perfil e em /clientes vê o completo", async () => {
+    const eu = await euDe("financeiro@motorapida.com.br");
+    expect(rotulos(menuDe(eu, "/financeiro/receber"))).toEqual(rotulos(menuDe(eu, "/inicio")));
+    const completo = rotulos(menuDe(eu, "/clientes"));
+    expect(completo).toContain("Conciliação");
+    expect(completo).not.toContain("Veículos");
+    expect(completo).not.toContain("Locações");
+  });
+
+  it("usr_05: vistoriador vê o mesmo menu do início em /vistorias e em /vistorias/avarias, com Vistorias de hoje ativo", async () => {
+    const eu = await euDe("joao@motorapida.com.br");
+    const doInicio = rotulos(menuDe(eu, "/inicio"));
+    expect(doInicio).toEqual(["Vistorias de hoje", "Consultar veículo", "Avarias abertas"]);
+    for (const rota of ["/vistorias", "/vistorias/avarias"]) {
+      expect(rotulos(menuDe(eu, rota))).toEqual(doInicio);
+    }
+    const agenda = menuDe(eu, "/vistorias/avarias").flatMap((g) => g.itens).find((i) => i.chave === "agenda");
+    expect(agenda?.ativo).toBe(true);
+    expect(rotulos(menuDe(eu, "/vistorias"))).not.toContain("Visão geral");
+    expect(rotulos(menuDe(eu, "/vistorias"))).not.toContain("Locações");
   });
 
   it("marca o item ativo e leva o contador da API; contador nulo ou zero não aparece", async () => {
@@ -70,11 +88,9 @@ describe("barra do celular vinda de eu.navegacao.barra_celular", () => {
     expect(destinosDaBarra(eu.navegacao.barra_celular).map((d) => d.chave)).toEqual(["inicio", "nova_locacao", "locacoes", "mais"]);
   });
 
-  it("vistoriador não tem o +", async () => {
+  it("usr_05: vistoriador tem Início, Veículos e Mais, sem o + nem Locações", async () => {
     const eu = await euDe("joao@motorapida.com.br");
-    const chaves = destinosDaBarra(eu.navegacao.barra_celular).map((d) => d.chave);
-    expect(chaves).not.toContain("nova_locacao");
-    expect(chaves).toContain("mais");
+    expect(destinosDaBarra(eu.navegacao.barra_celular).map((d) => d.chave)).toEqual(["inicio", "veiculos", "mais"]);
   });
 
   it("administrador tem os cinco destinos, com as rotas", async () => {
@@ -140,5 +156,38 @@ describe("variante do início (USR-08)", () => {
     const { contadores } = await relatorios.contadores();
     const pedidos = eu.navegacao.menu_inicio.concat(eu.navegacao.menu_completo).flatMap((g) => g.itens.map((i) => i.contador).filter((c): c is string => c !== null));
     for (const chave of pedidos) expect(chave in contadores, `contador ${chave}`).toBe(true);
+  });
+});
+
+describe("guarda de rota: o que o menu do perfil não mostra (D-26, USR-09)", () => {
+  it("usr_09: vistoriador não abre clientes, financeiro, locações nem cadastro de veículo", async () => {
+    const eu = await euDe("joao@motorapida.com.br");
+    for (const rota of ["/clientes", "/clientes/12", "/clientes/novo", "/financeiro/receber", "/financeiro/caixa", "/locacoes", "/locacoes/nova", "/veiculos/novo", "/admin/usuarios", "/relatorios"]) {
+      expect(rotaPermitida(eu, rota), rota).toBe(false);
+    }
+  });
+
+  it("usr_09: vistoriador abre início, frota, ficha do veículo, agenda, avarias, vistoria e devolução", async () => {
+    const eu = await euDe("joao@motorapida.com.br");
+    for (const rota of ["/inicio", "/mais", "/veiculos", "/veiculos/501", "/vistorias", "/vistorias/avarias", "/locacoes/2856/vistoria", "/locacoes/2856/devolucao", "/locacoes/2856"]) {
+      expect(rotaPermitida(eu, rota), rota).toBe(true);
+    }
+  });
+
+  it("usr_09: financeiro abre contas a receber, caixa, clientes e a ficha da locação; não abre frota nem vistoria", async () => {
+    const eu = await euDe("financeiro@motorapida.com.br");
+    for (const rota of ["/inicio", "/financeiro/receber", "/financeiro/caixa", "/financeiro/despesas", "/clientes", "/clientes/12", "/locacoes/2856"]) {
+      expect(rotaPermitida(eu, rota), rota).toBe(true);
+    }
+    for (const rota of ["/veiculos", "/veiculos/501", "/locacoes", "/locacoes/nova", "/locacoes/2856/vistoria", "/clientes/novo", "/vistorias", "/admin/marca"]) {
+      expect(rotaPermitida(eu, rota), rota).toBe(false);
+    }
+  });
+
+  it("usr_05: administrador abre tudo que o menu tem, inclusive os cadastros", async () => {
+    const eu = await euDe("mariana@motorapida.com.br");
+    for (const rota of ["/veiculos/novo", "/clientes/novo", "/locacoes/nova", "/admin/marca", "/locacoes/2856/devolucao"]) {
+      expect(rotaPermitida(eu, rota), rota).toBe(true);
+    }
   });
 });
