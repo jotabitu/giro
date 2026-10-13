@@ -68,6 +68,10 @@ export type Convite = {
 };
 
 /** Marca da empresa (GET /api/marca/, docs/api/empresas.md): nome, iniciais, logo e as quatro cores já calculadas. */
+/** Filial do seletor (GET /api/filiais/minhas/): só as ativas e ligadas à pessoa. */
+export type MinhaFilial = components["schemas"]["MinhaFilial"];
+export type MinhasFiliais = components["schemas"]["MinhasFiliais"];
+
 export type MarcaEmpresa = components["schemas"]["Marca"];
 
 /** Erro no formato da API: { codigo, mensagem, detalhes }. `campos` vem em 400 `validacao`. */

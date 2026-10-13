@@ -12,6 +12,7 @@ import { rotuloDaForma, rotuloDaParcela, origemDaConta, situacaoDaConta } from "
 import { useBuscaNaUrl, useFiltrosNaUrl } from "@/lib/filtros-url";
 import { dataCurta, dinheiro, percentual } from "@/lib/formatos";
 import { dinheiroCurto } from "@/lib/painel";
+import { useFilial } from "@/lib/filial-escolhida";
 import { useSessao } from "@/lib/sessao";
 import { BaixaDaConta } from "./BaixaDaConta";
 import { Confirmacao, ErroDoFinanceiro } from "./Comuns";
@@ -170,7 +171,7 @@ export function ListaReceber() {
   const ocupado = cobrar.isPending || cobrarTodos.isPending;
   const mostrar = ABAS.map((a) => ({ valor: a.valor, rotulo: a.rotulo, contagem: c?.[a.chave] }) satisfies OpcaoChip);
   const mostrarCelular = ABAS.filter((a) => a.valor !== "todas").map((a) => ({ valor: a.valor, rotulo: a.curto, contagem: c?.[a.chave] }) satisfies OpcaoChip);
-  const filial = eu.filiais[0]?.nome;
+  const filial = useFilial()?.nome ?? eu.filiais[0]?.nome;
   // Lançamento avulso: administrador, gerente e financeiro (contrato financeiro.md, "Quem pode"). Nenhum
   // `pode` cobre os três; a união abaixo exclui vendedor e vistoriador (USR-05).
   const podeLancar = eu.pode.despesas_aprovar || eu.pode.financeiro_pagar;

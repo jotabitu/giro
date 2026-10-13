@@ -15,16 +15,24 @@ export type OpcoesDaChamada = {
   semSessao?: boolean;
   /** Rotas do cookie de refresh (`renovar`, `sair`) exigem `X-Requested-With: giro` (ADR 0013). */
   comCookie?: boolean;
+  /** Rota que não depende da filial escolhida (`/auth/eu/`, `/filiais/minhas/`): sem `X-Filial`. */
+  semFilial?: boolean;
 };
 
 const MSG_GENERICA = "Não foi possível concluir agora. Tente de novo.";
 
 let access: string | null = null;
+let filial: string | null = null;
 let renovando: Promise<string> | null = null;
 const ouvintes = new Set<() => void>();
 
 export function definirAccess(token: string | null) {
   access = token;
+}
+
+/** Filial escolhida no seletor (`"todas"` ou o id), enviada em `X-Filial` (docs/api/filiais.md). `null` = sem cabeçalho. */
+export function definirFilial(escolha: string | null) {
+  filial = escolha;
 }
 
 export function accessAtual(): string | null {
@@ -39,6 +47,7 @@ export function aoPerderSessao(ouvinte: () => void): () => void {
 
 function perdeuSessao() {
   access = null;
+  filial = null;
   ouvintes.forEach((o) => o());
 }
 
@@ -86,6 +95,7 @@ async function enviar(metodo: string, caminho: string, o: OpcoesDaChamada, token
   const headers: Record<string, string> = { Accept: "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (o.comCookie) headers["X-Requested-With"] = "giro";
+  if (filial && token && !o.comCookie && !o.semFilial) headers["X-Filial"] = filial;
   let corpo: BodyInit | undefined;
   if (o.corpo instanceof FormData) corpo = o.corpo;
   else if (o.corpo !== undefined) {
@@ -124,19 +134,25 @@ export async function chamarComStatus<T>(metodo: string, caminho: string, o: Opc
   if (r.status === 401 && !o.semSessao && !o.token && !o.comCookie) {
     const erro = await lerErro(r.clone());
     if (erro.codigo === "nao_autenticado") {
-      try {
-        await renovarAccess();
-      } catch {
-        perdeuSessao();
-        throw erro;
+      // Outra pessoa entrou enquanto esta chamada voava (sair e entrar de novo): repete com o access novo, sem renovar.
+      if (access && access !== token) {
+        r = await enviar(metodo, caminho, o, access);
+      } else {
+        try {
+          await renovarAccess();
+        } catch {
+          if (access === token) perdeuSessao();
+          throw erro;
+        }
+        r = await enviar(metodo, caminho, o, access);
       }
-      r = await enviar(metodo, caminho, o, access);
     }
   }
 
   if (!r.ok) {
     const erro = await lerErro(r);
-    if (erro.status === 401 && !o.semSessao && !o.token && !o.comCookie) perdeuSessao();
+    // Um 401 atrasado da sessão que já acabou não derruba a sessão nova.
+    if (erro.status === 401 && !o.semSessao && !o.token && !o.comCookie && (access === token || access === null)) perdeuSessao();
     throw erro;
   }
   if (r.status === 204) return { status: 204, dados: undefined as T };

@@ -1,7 +1,7 @@
 // Cliente HTTP (T-126): JWT, renovação, erros 401/403/409/422 no formato da API e cursores das listas.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ErroApi } from "./tipos";
-import { accessAtual, aoPerderSessao, chamar, chamarComStatus, cursoresDaLista, definirAccess, http, renovarAccess } from "./http";
+import { accessAtual, aoPerderSessao, chamar, chamarComStatus, cursoresDaLista, definirAccess, definirFilial, http, renovarAccess } from "./http";
 import { contasApi } from "./contas";
 import { locacoesApi } from "./locacoes";
 
@@ -16,6 +16,7 @@ function responder(...respostas: Resposta[]) {
 const chamada = (n: number) => fetchMock.mock.calls[n] as [string, RequestInit & { headers: Record<string, string> }];
 
 beforeEach(() => {
+  definirFilial(null);
   fetchMock = vi.fn();
   vi.stubGlobal("fetch", fetchMock);
   definirAccess(null);
@@ -200,5 +201,102 @@ describe("locações", () => {
     responder({ corpo: { resultados: [], proximo: null, anterior: null } });
     await locacoesApi.listar({ aba: "abertas", busca: "lucas", cursor: "xyz" });
     expect(chamada(0)[0]).toBe("/api/locacoes/?aba=abertas&busca=lucas&cursor=xyz");
+  });
+});
+
+describe("filial escolhida (USR-07, T-161)", () => {
+  it("manda X-Filial com o id ou com \"todas\" em toda chamada da sessão", async () => {
+    definirAccess("abc");
+    definirFilial("2");
+    responder({ corpo: { resultados: [] } }, { corpo: { resultados: [] } });
+    await http.get("/api/financeiro/contas-receber/");
+    definirFilial("todas");
+    await http.post("/api/financeiro/caixas/", { troco_centavos: 20000 });
+    expect(chamada(0)[1].headers["X-Filial"]).toBe("2");
+    expect(chamada(1)[1].headers["X-Filial"]).toBe("todas");
+  });
+
+  it("sem escolha, sem cabeçalho; e as rotas de conta, seletor, login e renovação nunca levam", async () => {
+    definirAccess("abc");
+    responder({ corpo: {} });
+    await http.get("/api/veiculos/");
+    expect(chamada(0)[1].headers["X-Filial"]).toBeUndefined();
+
+    definirFilial("1");
+    responder({ corpo: { id: 1 } }, { corpo: { pode_escolher_todas: false, resultados: [] } }, { corpo: { etapa: "verificar_2fa" } }, { corpo: { access: "novo" } });
+    await contasApi.eu();
+    await chamar("GET", "/api/filiais/minhas/", { semFilial: true });
+    await contasApi.entrar({ email: "a@b.c", senha: "x", aparelho: "desktop" });
+    await renovarAccess();
+    for (const n of [1, 2, 3, 4]) expect(chamada(n)[1].headers["X-Filial"], String(n)).toBeUndefined();
+  });
+
+  it("sessão perdida esquece a filial", async () => {
+    definirAccess("abc");
+    definirFilial("1");
+    const sair = aoPerderSessao(() => {});
+    responder({ status: 401, corpo: { codigo: "nao_autenticado", mensagem: "x" } }, { status: 401, corpo: { codigo: "token_invalido", mensagem: "x" } });
+    await falha(http.get("/api/veiculos/"));
+    sair();
+    definirAccess("outro");
+    responder({ corpo: {} });
+    await http.get("/api/veiculos/");
+    expect(chamada(2)[1].headers["X-Filial"]).toBeUndefined();
+  });
+});
+
+describe("sair e entrar de novo (T-161)", () => {
+  it("depois de sair com uma filial escolhida, o login seguinte sai na hora, sem cabeçalho de filial", async () => {
+    definirAccess("abc");
+    definirFilial("todas");
+    responder({ status: 204 });
+    await contasApi.sair();
+    expect(accessAtual()).toBeNull();
+
+    responder({ corpo: { etapa: "pronto", access: "novo", usuario: { id: 4 } } });
+    const r = await contasApi.entrar({ email: "bruna@motorapida.com.br", senha: "x", aparelho: "desktop" });
+    expect(r.etapa).toBe("pronto");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(chamada(1)[0]).toBe("/api/auth/entrar/");
+    expect(chamada(1)[1].headers.Authorization).toBeUndefined();
+    expect(chamada(1)[1].headers["X-Filial"]).toBeUndefined();
+    expect(accessAtual()).toBe("novo");
+
+    responder({ corpo: {} });
+    await http.get("/api/veiculos/");
+    expect(chamada(2)[1].headers["X-Filial"]).toBeUndefined();
+  });
+
+  it("sair com a API falhando e uma renovação recusada no meio não prende o login seguinte", async () => {
+    definirAccess("abc");
+    definirFilial("1");
+    const fora = aoPerderSessao(() => {});
+    responder({ status: 401, corpo: { codigo: "nao_autenticado", mensagem: "x" } }, { status: 401, corpo: { codigo: "token_invalido", mensagem: "x" } }, { status: 500 });
+    await falha(http.get("/api/filiais/minhas/"));
+    await falha(contasApi.sair());
+    fora();
+
+    responder({ corpo: { etapa: "pronto", access: "novo", usuario: { id: 4 } } });
+    await expect(contasApi.entrar({ email: "bruna@motorapida.com.br", senha: "x", aparelho: "desktop" })).resolves.toMatchObject({ etapa: "pronto" });
+    expect(chamada(3)[0]).toBe("/api/auth/entrar/");
+  });
+});
+
+describe("401 atrasado da sessão que acabou (T-161)", () => {
+  it("não derruba a sessão de quem entrou depois; a chamada repete com o access novo", async () => {
+    definirAccess("antigo");
+    const perdeu = vi.fn();
+    const fora = aoPerderSessao(perdeu);
+    let soltar: (r: Response) => void = () => {};
+    fetchMock.mockImplementationOnce(() => new Promise<Response>((res) => (soltar = res)));
+    const chamadaAntiga = http.get("/api/painel/contadores/");
+    definirAccess("novo");
+    responder({ corpo: { ok: true } });
+    soltar(new Response(JSON.stringify({ codigo: "nao_autenticado", mensagem: "x" }), { status: 401 }));
+    await expect(chamadaAntiga).resolves.toEqual({ ok: true });
+    expect(chamada(1)[1].headers.Authorization).toBe("Bearer novo");
+    expect(perdeu).not.toHaveBeenCalled();
+    expect(accessAtual()).toBe("novo");
+    fora();
   });
 });
