@@ -25,6 +25,8 @@ A dúvida do backend na T-069 (reativar quem teve o convite cancelado) foi anali
 
 Levantadas pelo arquiteto em T-030 (07 out 2026):
 
+- [decisão] (qa, T-019) Troca de óleo da QXA-4B21 (CA-019-10: última aos 18.900 km, próxima aos 19.900) não tem onde morar: `apps/manutencao` é só README (`MAN-03`). `xfail` em `test_man_03_seed_019_10_proxima_troca_de_oleo_aos_19900`; o seed ganha o dado quando o módulo existir.
+- [decisão] (qa, T-019) Sem módulo no backend, os casos da fase 2 (CA-019-31) seguem `xfail`: venda VEN-0177, comissões, conciliação e DRE de setembro. Orquestrador: criar as tarefas de backend desses módulos; o seed ganha os dados com cada um.
 - [divergência] Dados de exemplo nas telas da plataforma (para T-028): `Plat-Empresa-Detalhe` mostra CNPJ 41.208.733/0001-52 (seed: 12.345.678/0001-10), FAT-0001 vencendo em 21 out (PLT-01: dia seguinte ao fim do teste, 22 out) e "13 dias" de teste em 07 out (contrato: 14); `Plat-Empresas` mostra Moto Rápida com 4 usuários (seed: 5).
 
 Levantadas pelo arquiteto em T-036 (07 out 2026):
@@ -88,7 +90,6 @@ Levantadas pelo backend em T-016 parte 1 (09 out 2026):
 Levantadas pelo backend em T-109 (09 out 2026). O código segue o que está entre parênteses:
 
 - (T-109) As duas decisões (ordem da caução no `DEV-02` e parcela do dia no `DEV-01`) e a devolução antes do fim sem encerramento aprovado foram decididas em 09 out 2026 pelo dono do produto: `DEV-02` opção A com o ajuste (a parcela que não cabe inteira vai para `renegociada` e entra na conta única do saldo), `DEV-01` opção B e a nova `DEV-07` (opção A). Regra e critérios na T-113 (CA-016-13, 22, 23 e 24); o código muda numa tarefa do backend (handoff da T-113).
-- [divergência] (qa, T-019) O seed de teste não tem o preço do litro da Filial Centro (R$ 5,50), a vistoria de saída da LOC-2836 (cheio, 18.402 km; a PNB7C04 está com 21.870 km) nem a caução paga da LOC-2841 e da LOC-2812. (Os testes da T-109 gravam esses dados na fixture.)
 
 Levantadas pelo arquiteto na revisão da T-114 (09 out 2026), para o produto:
 
@@ -327,11 +328,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 
 ### T-173 · Tela de Configurações
 - **Agente:** arquiteto (contrato), depois backend e frontend · **Depende de:** — · **Regras:** IMP, LOC · **Telas:** Config (desktop e celular) · **Pronto quando:** (arquiteto) confere o que `docs/telas/html/Config-*.dc.html` mostra e o que já tem contrato (a API não tem rota de configurações hoje; marca é a T-153/T-154, preços em `/api/precos/`, modelos de contrato em `/api/contratos/`), escreve o contrato do que faltar e propõe as tarefas de backend, sem número; (frontend) `/admin/configuracoes` igual à referência, ligada à API real. Pedida pelo dono em 13 out 2026.
-
-### T-019 · Seed Moto Rápida
-- **Agente:** qa · **Depende de:** T-013 a T-017 · **Pronto quando:** `make seed` cria a empresa de exemplo e todos os casos da tabela "Dados de referência para testes" passam.
-- **Placas do seed (T-028):** PQD-6E21 (Pop do Rafael, LOC-2790), RJD-5B38 (Biz do Marcos, LOC-2850), RKP-3D26 (Kwid do Diego, LOC-2848); reserva do Kwid LOC-2857.
-- **Critérios (T-152):** `docs/qa/criterios/T-019.md`. Corrige dois pontos do seed da T-138: as locações geradas com o 1º vencimento de outubro em 07 out ou depois começam um período antes, sem pagar as parcelas de 07 out (item D-21, CA-019-18), e as 9 reservas retiram de 03 a 13 nov, para não mudar os números de outubro (CA-019-19).
 
 ### T-028 · Limpar dados de exemplo das telas
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`. Inclui `Despesas-Desktop` e `Despesas-Mobile`: aguardando aprovação é R$ 1.200,00 (não R$ 1.386,40) e o IPVA de R$ 186,40 nasce `a_pagar` (FIN-05), apontado pelo qa na T-040.
