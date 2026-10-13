@@ -6,9 +6,11 @@ movimentos, a baixa, o estorno, as cobranças externas (Pix e boleto), as pendê
 as despesas.
 """
 
+from datetime import date
 from typing import Any, ClassVar
 
 from django.db import models
+from django.utils import timezone
 
 from comum import arquivos
 from comum.auditoria import Categoria
@@ -386,6 +388,9 @@ class CobrancaExterna(MaquinaDeEstados, ModeloBase):
     externo_id = models.CharField(max_length=60, unique=True)
     valor_centavos = CentavosField()
     vence_em = models.DateField()
+    # O dia (America/Sao_Paulo, pelo `comum.relogio`) em que a cobrança foi gerada: a multa e os
+    # juros da baixa são os desse dia (T-144). Nulo nas anteriores à T-029, que usam `criado_em`.
+    gerada_no_dia = models.DateField(null=True, blank=True)
     pix_copia_e_cola = models.TextField(blank=True, default="")
     linha_digitavel = models.CharField(max_length=60, blank=True, default="")
     url = models.CharField(max_length=300, blank=True, default="")
@@ -394,6 +399,9 @@ class CobrancaExterna(MaquinaDeEstados, ModeloBase):
         Caixa, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
     )
     status = models.CharField(max_length=12, choices=StatusCobranca.choices, default="aguardando")
+
+    def dia_da_geracao(self) -> date:
+        return self.gerada_no_dia or timezone.localdate(self.criado_em)
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = {
         "aguardando": {"paga", "cancelada", "vencida", "divergente"},
