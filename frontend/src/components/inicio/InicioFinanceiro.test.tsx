@@ -23,6 +23,7 @@ describe("início do financeiro (USR-08)", () => {
     expect(html).toContain("Nenhum caixa aberto hoje.");
     expect(html).not.toContain("Saldo em contas");
     expect(html).toContain("R$ 2.625,80");
+    expect(html).toContain("Quarta, 07 out · todas as filiais");
   });
 
   it("mostra Caixas do dia quando vem a lista", () => {
