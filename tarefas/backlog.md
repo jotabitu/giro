@@ -23,9 +23,6 @@ As dúvidas de filiais da T-030 e de contas da T-036 (itens 6 a 10) foram decidi
 
 A dúvida do backend na T-069 (reativar quem teve o convite cancelado) foi analisada na T-075 e decidida em 08 out 2026: opção B. Vira regra na T-076 e código na T-077.
 
-Levantadas pelo backend em T-027 (12 out 2026), para o produto e o arquiteto:
-
-
 Levantadas pelo arquiteto em T-030 (07 out 2026):
 
 - [divergência] Dados de exemplo nas telas da plataforma (para T-028): `Plat-Empresa-Detalhe` mostra CNPJ 41.208.733/0001-52 (seed: 12.345.678/0001-10), FAT-0001 vencendo em 21 out (PLT-01: dia seguinte ao fim do teste, 22 out) e "13 dias" de teste em 07 out (contrato: 14); `Plat-Empresas` mostra Moto Rápida com 4 usuários (seed: 5).
