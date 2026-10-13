@@ -45,10 +45,35 @@ jobs:
             echo "infra=$infra"
           } | tee -a "$GITHUB_OUTPUT"
 
+  # Lint e tipos em paralelo com os testes: saem do caminho crítico (T-149).
+  # Não carrega o app nem o banco, então dispensa Postgres, Redis e bibliotecas do WeasyPrint.
+  backend-lint:
+    needs: areas
+    if: needs.areas.outputs.backend == 'true'
+    name: Backend (lint e tipos)
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings.test
+      DJANGO_SECRET_KEY: chave-so-para-ci
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy .
+
   backend:
     needs: areas
     if: needs.areas.outputs.backend == 'true'
-    name: Backend (lint, tipos, testes, OpenAPI)
+    name: Backend (testes, OpenAPI)
     runs-on: ubuntu-latest
     services:
       db:
@@ -84,10 +109,9 @@ jobs:
       - name: Dependências do sistema (WeasyPrint)
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b shared-mime-info
       - run: pip install -r requirements-dev.txt
-      - run: ruff check .
-      - run: ruff format --check .
-      - run: mypy .
-      - run: pytest -q
+      # xdist com um banco por worker (test_giro_gw0...). loadfile mantém cada módulo num worker só,
+      # para a fixture de módulo do seed rodar uma vez. --create-db anula o --reuse-db do addopts.
+      - run: pytest -q -n auto --dist loadfile --create-db --durations=15
       - name: OpenAPI gerado igual a docs/api/openapi.yaml
         run: |
           python manage.py spectacular --urlconf config.urls_openapi --file "$RUNNER_TEMP/openapi.yaml" --validate
