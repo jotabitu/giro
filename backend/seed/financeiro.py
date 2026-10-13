@@ -12,7 +12,6 @@ from zoneinfo import ZoneInfo
 from apps.aprovacoes import services as aprovacoes
 from apps.aprovacoes.models import PedidoAprovacao
 from apps.contas.models import Usuario
-from apps.contratos.models import Contrato
 from apps.filiais import services as filiais_services
 from apps.filiais.models import Filial
 from apps.financeiro import services as financeiro
@@ -62,24 +61,6 @@ def _saida(locacao: Locacao, quando: datetime) -> None:
         combustivel="cheio",
         itens=[{**i, "ok": True} for i in vistorias.itens_iniciais(locacao, veiculo)],
         concluida_em=quando,
-    )
-
-
-def _contrato_com_juros(locacao: Locacao) -> None:
-    """O contrato assinado com a cláusula de multa e juros (FIN-03), que a devolução do Carlos
-    precisa (casos "Devolução antecipada LOC-2841")."""
-    Contrato.objects.create(
-        origem_tipo="locacao",
-        origem_id=locacao.pk,
-        origem_codigo=locacao.codigo,
-        filial=locacao.filial,
-        cliente=locacao.cliente,
-        tipo="contrato",
-        titulo="Contrato de locação",
-        status="assinado",
-        assinado_em=datetime(2026, 9, 23, 9, 0, tzinfo=FUSO),  # assinado antes de 01 out (LOC-15)
-        versao_texto_html="<p>Multa de 2% e juros de 1% ao mês.</p>",
-        clausula_juros=True,
     )
 
 
@@ -208,8 +189,6 @@ def carregar(centro: Filial, pessoas: dict[str, Usuario], relogio: RelogioDoSeed
         _saida(locacao, locacao.inicio)
     carlos = Locacao.objects.get(codigo="LOC-2841")
     Locacao.objects.filter(pk=carlos.pk).update(periodos=5)  # 5 semanas, de 23 set a 28 out
-    _contrato_com_juros(carlos)
-    _contrato_com_juros(Locacao.objects.get(codigo="LOC-2790"))  # multa e juros do Rafael
     # O km do QXA-4B21 é o lido na vistoria de saída de 23 set (CA-019-10).
     Veiculo.objects.filter(pk=carlos.veiculo_id).update(
         km_atualizado_em=datetime(2026, 9, 23, 9, 0, tzinfo=FUSO)
