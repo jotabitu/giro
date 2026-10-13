@@ -287,9 +287,6 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 ### T-140 · Dias de atraso do bloqueio e km de saída da devolução
 - **Agente:** backend · **Depende de:** — · **Regras:** CLI-05, DEV-08, FIN-03 · **Pronto quando:** (D-03) no bloqueio automático, `bloqueio.descricao` de `GET /api/clientes/{id}/` é montada na leitura com os dias de atraso de hoje (dia corrido em `America/Sao_Paulo`, como a lista e a locação): Rafael em 12 out, "Conta com 30 dias de atraso desde 12/09/2026"; em 07 out, 25 dias; o evento de auditoria do bloqueio continua com o número do dia em que aconteceu; teste `test_cli_05_dias_de_atraso_de_hoje`. (D-12) o comparativo da devolução (`saida` de km e combustível em `vistorias.selectors`) usa o km e o combustível de saída gravados na locação, o mesmo `km_saida` da ficha; na troca, os do veículo que volta; LOC-2836 mostra 21.870 km na saída nas duas telas; teste `test_dev_08_km_de_saida_igual_na_ficha_e_na_devolucao`. Levantada na T-139 (`tarefas/handoffs/T-139-produto.md`).
 
-### T-152 · Critérios de aceite das tarefas do MVP que faltam
-- **Agente:** produto · **Depende de:** — · **Pronto quando:** `docs/qa/criterios/` tem T-019 (seed completo), T-023 (telas do financeiro), T-025 (ponta a ponta), T-027 (importação) e T-029 (Asaas), no formato das anteriores (`CA-0XX-NN`, com os números do seed Moto Rápida); T-027 e T-023 primeiro (backend e frontend já nelas), depois T-019 (qa). Aprovada pelo dono em 12 out 2026.
-
 ### T-149 · Suíte do backend mais rápida no CI
 - **Agente:** qa (fixture do seed), depois devops (paralelismo) · **Depende de:** T-145 · **Pronto quando:** a suíte do backend no CI volta para perto do tempo de antes dos testes do seed (de 11 min para uns 4 min ou menos), sem perder teste: (1) medir com `pytest --durations=25` no CI e registrar os mais lentos no handoff; (2) os testes do seed (`tests/aceitacao/test_t127_seed.py`) rodam `seed_moto_rapida` uma vez por módulo ou sessão e compartilham o resultado, com limpeza no fim; (3) se ainda passar de 5 min, `pytest-xdist` com um banco por worker, motivo da dependência no PR; (4) opcional, ruff e mypy em job próprio, em paralelo. Sugestões do handoff `tarefas/handoffs/T-145-devops.md`. Aprovada pelo dono em 12 out 2026.
 
@@ -305,19 +302,23 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 ### T-019 · Seed Moto Rápida
 - **Agente:** qa · **Depende de:** T-013 a T-017 · **Pronto quando:** `make seed` cria a empresa de exemplo e todos os casos da tabela "Dados de referência para testes" passam.
 - **Placas do seed (T-028):** PQD-6E21 (Pop do Rafael, LOC-2790), RJD-5B38 (Biz do Marcos, LOC-2850), RKP-3D26 (Kwid do Diego, LOC-2848); reserva do Kwid LOC-2857.
+- **Critérios (T-152):** `docs/qa/criterios/T-019.md`. Corrige dois pontos do seed da T-138: as locações geradas com o 1º vencimento de outubro em 07 out ou depois começam um período antes, sem pagar as parcelas de 07 out (item D-21, CA-019-18), e as 9 reservas retiram de 03 a 13 nov, para não mudar os números de outubro (CA-019-19).
 
 ### T-026 · Desenhar telas que faltam para o MVP
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** "Esqueci a senha" e "Ativar verificação em 2 etapas" (desktop e celular) em `docs/telas/html/`, no mesmo padrão das telas de acesso, e no índice. Bloqueia a parte de 2FA de T-020.
 
 ### T-027 · Importação de veículos e clientes por planilha
 - **Agente:** backend · **Depende de:** T-013, T-014 · **Regras:** IMP (passo de importar) · **Telas:** Onboarding-Importar · **Por quê:** critério de pronto do MVP "dados antigos migrados e conferidos".
+- **Critérios (T-152):** `docs/qa/criterios/T-027.md` (planilha de 86 linhas: 83 prontas, 3 com erro, 86 depois de corrigir; limite do plano; suporte; dados temporários).
 
 ### T-028 · Limpar dados de exemplo das telas
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`. Inclui `Despesas-Desktop` e `Despesas-Mobile`: aguardando aprovação é R$ 1.200,00 (não R$ 1.386,40) e o IPVA de R$ 186,40 nasce `a_pagar` (FIN-05), apontado pelo qa na T-040.
 - **Estado do QXA-4B21 (T-112, decisão do dono em 09/10, opção A):** corrigir Frota, Veiculo, Main, Vistoriador e a OS-119 em Manutencao conforme o caso "Estado do QXA-4B21 em 07 out" dos dados de referência e as divergências levantadas pelo produto em T-112 (acima, em Pontos em aberto): Alugado no tom `solido` (não azul) e "Colocar à venda" só em veículo `disponivel`.
+- **Da T-152 (12 out 2026):** `Financeiro` (desktop e celular) sem "Saldo em contas", "Fluxo de caixa previsto", "Conciliar", "Aprovar despesa", "Pagar OS-0193", "Cobrar 2 clientes" em Para hoje e o seletor de período; "Sai hoje" e o contador "Contas a pagar" pelo seed (0 em 07 out); `Receber` sem "Exportar"; no menu das telas, "Locações" é 51 no seed (42 da carteira e 9 reservas) e "Usuários" não tem número (nenhum convite pendente).
 
 ### T-029 · Integração com o Asaas (sandbox)
 - **Agente:** backend · **Depende de:** T-017 · **Segurança:** `WebhookRecebido` com `evento_id` único e conferência na API do Asaas, throttle (S-14, S-17) · **Regras:** FIN-01 a FIN-04, AUT-04, AUT-05 · **Pronto quando:** `backend/integracoes/pagamentos/asaas.py` implementa a interface de pagamentos (criar subconta da empresa, cobrança Pix e boleto, assinatura recorrente, webhook de baixa com verificação e idempotência), testado contra o sandbox; a implementação falsa continua sendo a padrão em testes.
+- **Critérios (T-152):** `docs/qa/criterios/T-029.md` (testes de contrato com respostas gravadas no CI; sandbox só local, sem chave no repositório).
 
 ### T-020 · Telas de acesso e casca do app (sidebar e menu do celular)
 - **Agente:** frontend · **Depende de:** T-002, T-004, T-011 · **Telas:** Login, Acesso-Senha, Convite, Main, Menu, e a navegação padrão descrita em `docs/telas/README.md`
@@ -327,12 +328,14 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 
 ### T-023 · Telas do financeiro básico
 - **Agente:** frontend · **Depende de:** T-020, T-017 · **Telas:** Receber, Caixa, Financeiro
+- **Critérios (T-152):** `docs/qa/criterios/T-023.md`. Divergências das telas no CA-023-25 e no CA-023-26 (para a T-028).
 
 ### T-024 · Revisão de segurança do MVP
 - **Agente:** seguranca · **Depende de:** T-011, T-014, T-018 · **Pronto quando:** checklist de `.claude/agents/seguranca.md` aplicado, achados viram tarefas.
 
 ### T-025 · Testes ponta a ponta do fluxo de locação
 - **Agente:** qa · **Depende de:** T-022, T-023 · **Pronto quando:** Playwright cobre login → nova locação → vistoria de saída → devolução → baixa no caixa, no desktop e no celular.
+- **Critérios (T-152):** `docs/qa/criterios/T-025.md` (LOC-2858: R$ 629,00 na retirada; acerto de R$ 80,00 recebido no caixa em 14 out). Relógio com data e hora controladas no ambiente do E2E: qa com o arquiteto.
 
 ## Dúvidas abertas da T-020 (frontend)
 
