@@ -267,6 +267,26 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 
 ## Fase 1 · MVP
 
+Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entra no PR #160 antes do merge:
+
+### T-155 · (M-01) Vistoriador sem os preços dos planos especiais (média)
+- **Agente:** backend · **Depende de:** T-136 · **Regras:** USR-09 · **Pronto quando:** `GET /api/planos-especiais/` responde 403 ao vistoriador (hoje, na branch do PR #160, devolve `preco_centavos` e `desconto_pct`; `PlanosEspeciaisView` usa as permissões padrão no GET); o GET passa a usar a lista de quem lê locações (`LEEM_A_LISTA`); teste `test_usr_09_vistoriador_nao_ve_planos_especiais`. Pode entrar no próprio PR #160 antes do merge.
+
+### T-157 · (M-03) Produção recusa e-mail no console e armazenamento falso (média)
+- **Agente:** backend · **Depende de:** — · **Pronto quando:** `config/settings/prod.py` recusa subir com `EMAIL_BACKEND` de console, locmem ou arquivo (o padrão de `base.py` é o console, e os e-mails de senha, convite e assinatura levam o token) e com `GIRO_ARMAZENAMENTO` diferente de `s3`, como já faz com as chaves; pagamentos e WhatsApp `falso` entram na mesma trava quando as integrações reais existirem (T-029); teste que importa `prod.py` com o ambiente montado. Antes de homologação.
+
+### T-158 · (M-04) Configuração do proxy reverso: tamanho do corpo e cabeçalhos `X-Forwarded-*` (média)
+- **Agente:** devops, com o backend · **Depende de:** — · **Pronto quando:** a configuração do proxy de homologação e produção está em `infra/`, com limite de corpo de 12 MB (os uploads só são conferidos por `comum/arquivos.validar` depois de recebidos inteiros, e o Django não limita arquivo em multipart), `X-Forwarded-Host`, `X-Forwarded-Proto` e `X-Forwarded-For` sempre sobrescritos pelo proxy (o `TenantMainMiddleware` escolhe a empresa por `get_host()`, que segue o `X-Forwarded-Host` com `USE_X_FORWARDED_HOST = True`) e rate limit de borda em `/api/auth/` e no webhook; no backend, `USE_X_FORWARDED_HOST` só em `prod.py`; checklist no `infra/README.md`. Antes de homologação.
+
+### T-156 · (M-02) Custo e rendimento do veículo fora da ficha do vendedor (média) `[decisão]`
+- **Agente:** produto (decisão), depois backend · **Depende de:** T-136 · **Regras:** tabela de perfis, USR-09, VEI-05 · **Pronto quando:** o produto decide se o vendedor recebe `indicadores_financeiros` (`rendeu_no_ano_centavos`, `custo_manutencao_ano_centavos`) em `GET /api/veiculos/{id}/` (hoje recebe; o checklist da segurança pede que o vendedor não receba custo nem margem, e a regra não diz); proposta: só administrador, gerente e financeiro, com a chave ausente para os demais, como no D-25; teste `test_usr_09_vendedor_sem_custo_do_veiculo`.
+
+### T-159 · (M-05) Login não revela e-mail com convite pendente (baixa)
+- **Agente:** backend · **Depende de:** — · **Regras:** USR-01, USR-06 · **Pronto quando:** em `POST /api/auth/entrar/`, quem tem convite pendente e ainda não tem senha recebe o mesmo 401 `credenciais_invalidas` (e o mesmo tempo) de um e-mail que não existe; hoje o 403 `convite_pendente` sai antes de conferir a senha e permite saber quem foi convidado; o 403 só depois da senha certa; teste `test_usr_06_convite_pendente_nao_revela_email`.
+
+### T-160 · (M-06) API navegável do DRF desligada em produção (baixa)
+- **Agente:** backend · **Depende de:** — · **Pronto quando:** `prod.py` deixa em `DEFAULT_RENDERER_CLASSES` só o `comum.renderizacao.JSONRenderer` (hoje o `BrowsableAPIRenderer` de `base.py` mostra formulários e descrições das views no navegador, o que o S-17 fechou para o OpenAPI); teste que confere a lista em produção.
+
 - **Nota da T-012 (08/10):** a S-12 (SVG do logo sanitizado e exibido só por `<img>`) vale para `ConfiguracaoEmpresa.logo` (app `empresas`), e não para a filial. Entra na tarefa da marca da empresa (`Admin-Marca`), a criar.
 
 ### T-093 · Momentos em UTC na API
@@ -275,9 +295,13 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 ### T-091 · Locação: renovação, atraso, cancelamento e encerramento
 - **Agente:** backend · **Depende de:** T-090 · **Regras:** LOC-08, LOC-10 a LOC-13, FIL-03, APR-02, AUT-02 · **Pronto quando:** CA-015-17 e 19 a 24 e o estorno do CA-015-25 passam, com o código da regra no nome do teste: renovação com aditivo; atraso com `calcular_atraso` e `aut_02`; cancelamento e encerramento antecipado com APR-02, reembolso e comissão estornada.
 
-### T-130 · Edição da marca da empresa (Admin-Marca)
-- **Agente:** arquiteto (contrato), depois backend e frontend · **Depende de:** T-129 · **Telas:** Admin-Marca, Onboarding-Marca · **Segurança:** S-12 · **Pronto quando:** o administrador da empresa envia o logo, escolhe a cor e o nome de exibição; o upload passa pela sanitização da S-12 com limite de tamanho, e a Segurança decide se aceita PNG além de SVG (a tela diz "PNG ou SVG, até 2 MB", o modelo de dados dizia só SVG); a troca invalida o cache de `GET /api/marca/` pela `versao`; auditoria da mudança; a prévia na tela usa as cores calculadas pela API, sem conta no frontend. Levantada na T-128 (`tarefas/handoffs/T-128-arquiteto.md`); a nota da T-012 sobre marca continua valendo. Não bloqueia o piloto: sem marca configurada, a API devolve o padrão.
+### T-153 · Escrita da marca (backend)
+- **Agente:** backend · **Depende de:** T-129 · **ADR:** 0022 · **Contrato:** `docs/api/empresas.md` ("Escrita da marca") · **Regras:** IMP-05, S-12 · **Pronto quando:** `empresas/logo.py` com `limpar_logo` pela ADR 0022 (`defusedxml`, dependência nova com motivo no PR; listas fechadas em constantes iguais às da ADR; recusa do conteúdo ativo com `WARNING` sem conteúdo no log); `empresas.services.salvar_marca` numa transação com `select_for_update`, evento `empresa.alterar_marca` (categoria `configuracoes`, `CAMPOS_AUDITORIA` com `nome_exibicao`, `cor_marca` e `logo`), e no `on_commit` apaga a chave `marca:<schema>` e o arquivo antigo (e o novo se a transação falhar), e chama `registrar_passo_implantacao("marca")`; `PATCH /api/marca/` (multipart e JSON, só administrador, 403 ao suporte e à empresa sem operação, 30 por hora por usuário) e `POST /api/marca/simular/` (120 por minuto por usuário), com as mensagens do contrato; sem mudança idempotente não grava evento nem muda a `versao`; PNG responde 400 "Envie o logo em SVG." até a `[decisão]` da Segurança (se aceito antes da entrega, implementa o item 6 da ADR); OpenAPI regenerado e `api:gerar` no frontend; testes `test_s_12_*` (um por vetor da ADR, e os que passam), `test_imp_05_salvar_marca_marca_o_passo`, `test_marca_simular_seis_cores` (tabela "As seis cores do `Onboarding-Marca`"), `test_marca_patch_invalida_cache_e_versao` (`ETag` novo; `If-None-Match` com a versão antiga recebe 200), `test_marca_patch_so_administrador`.
+- **Contrato pronto (12 out 2026, arquiteto):** `docs/api/empresas.md`, seção "Escrita da marca (T-130)" (`POST /api/marca/simular/` e `PATCH /api/marca/`), e ADR 0022 (sanitização do logo). Cor padrão pela saída (b) de `cores-da-marca.md` (valores fixos do `wl-theme.css` para `#C8F04A`), como o código da T-129 já faz. Handoff: `tarefas/handoffs/T-130-arquiteto.md`.
+- [decisão] **(Segurança) O logo aceita PNG além de SVG?** A tela diz "PNG ou SVG, fundo transparente, até 2 MB"; o modelo de dados dizia só SVG. O desenho para os dois casos está na ADR 0022 (item 6: PNG reconferido e codificado de novo pelo Pillow, até 4.096 px, sem metadados, servido com `nosniff`). A favor do PNG: Gmail e Outlook não mostram SVG em e-mail, e as mensagens ao cliente saem com o logo da locadora (seção "Tarefas automáticas" das regras); muita locadora pequena só tem o logo em PNG. Contra: mais um formato a tratar. Recomendação do arquiteto: aceitar, com o tratamento da ADR 0022. Até a decisão, o backend aceita só SVG e a ajuda da tela diz "SVG, fundo transparente, até 2 MB". Quem responde: **seguranca**; avise o orquestrador e o arquiteto.
 
+### T-154 · Tela Empresa e marca e passo Marca do assistente (frontend)
+- **Agente:** frontend · **Depende de:** T-153 · **Contrato:** `docs/api/empresas.md` · **Telas:** Admin-Marca, Onboarding-Marca · **Pronto quando:** `/admin/marca` com o bloco "Marca" (logo com Trocar e Remover, Cor principal, Nome que aparece para clientes) e a "Prévia", ligados a `GET /api/marca/`, `POST /api/marca/simular/` e `PATCH /api/marca/`; os blocos "Dados da empresa" e "Endereço do sistema" ficam fora (sem contrato); no assistente, só "Logo" e "Cor de destaque" com as seis cores, ligados às mesmas rotas, se a casca do assistente existir (senão, o componente fica pronto para ela); a prévia usa só as cores da simulação (nenhuma conta de cor no frontend; o script das telas de referência é desenho), e o logo não salvo aparece por `URL.createObjectURL` em `<img>`, nunca inline; depois de salvar, a consulta `marca` recebe o corpo e é invalidada, e a casca troca as cores; erro 400 no campo com a `mensagem` da API; ajuda do logo conforme a `[decisão]` do PNG; testes do componente (prévia com `#2F6FED` → `cor_sobre` `#FFFFFF` e `cor_suave` `#DBF3FF` vindos da API mockada; logo por `<img>`; Remover mostra as iniciais).
 
 ### T-142 · Data de referência do relógio no desenvolvimento (backend)
 - **Agente:** backend (com aval do devops no `Makefile` e no `.env.example`) · **Depende de:** T-135 · **ADR:** 0021 · **Contrato:** `docs/api/README.md`, seção "Ambiente" · **Pronto quando:** `GIRO_DATA_REFERENCIA` (`AAAA-MM-DD`) lida só em `config/settings/dev.py` (vazia ou ausente = desligada; formato errado não sobe), `None` em `base.py` e `test.py`, e `prod.py` recusa subir com ela não vazia; `comum.relogio.agora()` devolve a data de referência com a hora real de São Paulo e `hoje()` a segue; `GET /api/ambiente/` e `GET /api/plataforma/ambiente/` públicas (`hoje`, `data_simulada`, `no-store`); cabeçalho `X-Giro-Data-Simulada` em toda resposta com a data ligada; aviso `giro.W001` no `check` e `WARNING` ao subir backend, worker e beat; `.env.example` com `GIRO_DATA_REFERENCIA=2026-10-07` e comentário; alvo `make relogio` (recria backend, worker e beat); `docs/agentes/retomada.md` diz como mudar a data; OpenAPI e cliente do frontend regerados; testes `test_adr_0021_*` (ligada, desligada, vazia, produção recusa, rota e cabeçalho nos dois urlconfs). Com o seed da T-127 e a data em 07 out, o painel mostra os números das regras (em atraso 164640, entra hoje 262580).
@@ -307,6 +331,7 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 ### T-019 · Seed Moto Rápida
 - **Agente:** qa · **Depende de:** T-013 a T-017 · **Pronto quando:** `make seed` cria a empresa de exemplo e todos os casos da tabela "Dados de referência para testes" passam.
 - **Placas do seed (T-028):** PQD-6E21 (Pop do Rafael, LOC-2790), RJD-5B38 (Biz do Marcos, LOC-2850), RKP-3D26 (Kwid do Diego, LOC-2848); reserva do Kwid LOC-2857.
+- **Critérios (T-152):** `docs/qa/criterios/T-019.md`. Corrige dois pontos do seed da T-138: as locações geradas com o 1º vencimento de outubro em 07 out ou depois começam um período antes, sem pagar as parcelas de 07 out (item D-21, CA-019-18), e as 9 reservas retiram de 03 a 13 nov, para não mudar os números de outubro (CA-019-19).
 
 ### T-026 · Desenhar telas que faltam para o MVP
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** "Esqueci a senha" e "Ativar verificação em 2 etapas" (desktop e celular) em `docs/telas/html/`, no mesmo padrão das telas de acesso, e no índice. Bloqueia a parte de 2FA de T-020.
@@ -314,9 +339,11 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 ### T-028 · Limpar dados de exemplo das telas
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`. Inclui `Despesas-Desktop` e `Despesas-Mobile`: aguardando aprovação é R$ 1.200,00 (não R$ 1.386,40) e o IPVA de R$ 186,40 nasce `a_pagar` (FIN-05), apontado pelo qa na T-040.
 - **Estado do QXA-4B21 (T-112, decisão do dono em 09/10, opção A):** corrigir Frota, Veiculo, Main, Vistoriador e a OS-119 em Manutencao conforme o caso "Estado do QXA-4B21 em 07 out" dos dados de referência e as divergências levantadas pelo produto em T-112 (acima, em Pontos em aberto): Alugado no tom `solido` (não azul) e "Colocar à venda" só em veículo `disponivel`.
+- **Da T-152 (12 out 2026):** `Financeiro` (desktop e celular) sem "Saldo em contas", "Fluxo de caixa previsto", "Conciliar", "Aprovar despesa", "Pagar OS-0193", "Cobrar 2 clientes" em Para hoje e o seletor de período; "Sai hoje" e o contador "Contas a pagar" pelo seed (0 em 07 out); `Receber` sem "Exportar"; no menu das telas, "Locações" é 51 no seed (42 da carteira e 9 reservas) e "Usuários" não tem número (nenhum convite pendente).
 
 ### T-029 · Integração com o Asaas (sandbox)
 - **Agente:** backend · **Depende de:** T-017 · **Segurança:** `WebhookRecebido` com `evento_id` único e conferência na API do Asaas, throttle (S-14, S-17) · **Regras:** FIN-01 a FIN-04, AUT-04, AUT-05 · **Pronto quando:** `backend/integracoes/pagamentos/asaas.py` implementa a interface de pagamentos (criar subconta da empresa, cobrança Pix e boleto, assinatura recorrente, webhook de baixa com verificação e idempotência), testado contra o sandbox; a implementação falsa continua sendo a padrão em testes.
+- **Critérios (T-152):** `docs/qa/criterios/T-029.md` (testes de contrato com respostas gravadas no CI; sandbox só local, sem chave no repositório).
 
 ### T-020 · Telas de acesso e casca do app (sidebar e menu do celular)
 - **Agente:** frontend · **Depende de:** T-002, T-004, T-011 · **Telas:** Login, Acesso-Senha, Convite, Main, Menu, e a navegação padrão descrita em `docs/telas/README.md`
@@ -326,12 +353,11 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 
 ### T-023 · Telas do financeiro básico
 - **Agente:** frontend · **Depende de:** T-020, T-017 · **Telas:** Receber, Caixa, Financeiro
-
-### T-024 · Revisão de segurança do MVP
-- **Agente:** seguranca · **Depende de:** T-011, T-014, T-018 · **Pronto quando:** checklist de `.claude/agents/seguranca.md` aplicado, achados viram tarefas.
+- **Critérios (T-152):** `docs/qa/criterios/T-023.md`. Divergências das telas no CA-023-25 e no CA-023-26 (para a T-028).
 
 ### T-025 · Testes ponta a ponta do fluxo de locação
 - **Agente:** qa · **Depende de:** T-022, T-023 · **Pronto quando:** Playwright cobre login → nova locação → vistoria de saída → devolução → baixa no caixa, no desktop e no celular.
+- **Critérios (T-152):** `docs/qa/criterios/T-025.md` (LOC-2858: R$ 629,00 na retirada; acerto de R$ 80,00 recebido no caixa em 14 out). Relógio com data e hora controladas no ambiente do E2E: qa com o arquiteto.
 
 ## Dúvidas abertas da T-020 (frontend)
 

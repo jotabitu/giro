@@ -2,6 +2,7 @@ import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { AmbienteDaTela } from "@/components/casca/FaixaDataSimulada";
 import { cssDaMarca, ID_ESTILO_MARCA, MARCA_PADRAO } from "@/design-system/marca";
 import { cssDosTemas } from "@/design-system/tokens";
 import { Provedores } from "@/lib/provedores";
@@ -25,6 +26,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <style id={ID_ESTILO_MARCA} dangerouslySetInnerHTML={{ __html: cssDaMarca(MARCA_PADRAO) }} />
       </head>
       <body>
+        <AmbienteDaTela />
         <Provedores>{children}</Provedores>
       </body>
     </html>
