@@ -326,9 +326,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 ### T-169 · Tela de Administração › Usuários
 - **Agente:** frontend · **Depende de:** T-136 · **Regras:** USR-01 a USR-09 · **Telas:** Admin-Usuarios (desktop e celular) · **Contrato:** `docs/api/contas.md` (`/api/usuarios/`, convites, desativar, reativar, reenviar e cancelar convite, redefinir 2 etapas, sessões) · **Pronto quando:** `/admin/usuarios` igual a `docs/telas/html/Admin-Usuarios-*.dc.html`, ligada à API real; só o administrador; testes. Pedida pelo dono em 13 out 2026.
 
-### T-170 · Tela de Administração › Assinatura
-- **Agente:** frontend · **Depende de:** — · **Regras:** PLT · **Telas:** Admin-Assinatura (desktop e celular) · **Contrato:** `docs/api/plataforma.md` e `empresas.md` (`/api/assinatura/`) · **Pronto quando:** `/admin/assinatura` igual a `docs/telas/html/Admin-Assinatura-*.dc.html`, ligada à API real, só com o que o contrato tem (pausar e cancelar a assinatura são da fase 2: o botão não aparece ou fica desabilitado com aviso; o que faltar vira `[decisão]`); só o administrador; testes. Pedida pelo dono em 13 out 2026.
-
 ### T-171 · Telas de Auditoria da empresa e Exportar dados
 - **Agente:** frontend · **Depende de:** T-018, T-151 · **Regras:** AUD-01 a AUD-04, AUD-07 · **Telas:** Admin-Auditoria e Admin-Exportar (desktop e celular) · **Contrato:** `docs/api/auditoria.md` (`/api/auditoria/eventos/`, `{id}/`, `pessoas/`, `/api/exportacoes/`, `{id}/baixar/`) · **Pronto quando:** `/admin/auditoria` igual a `docs/telas/html/Admin-Auditoria-*.dc.html` e a exportação igual a `Admin-Exportar-*.dc.html`, ligadas à API real; a exportação mostra só a auditoria em CSV (decisão da T-018, opção A, seção "O que existe no MVP" do contrato); só o administrador; testes. Pedida pelo dono em 13 out 2026.
 
@@ -358,6 +355,8 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 - Resolvido na T-047: **Início por perfil.** Vistoriador tem `painel: "nao"`; a T-020 mostra um aviso no lugar da visão geral. Falta definir a rota inicial de vistoriador, vendedor, gerente e financeiro (telas de início por perfil).
 - Resolvido na T-047: **Contadores do menu e tela Main** vêm de `relatorios` (agregados), sem contrato em `docs/api/`. Hoje são dados falsos. Dono: arquiteto.
 - **Pedido ao design-system:** seletor de filial com lista (USR-07, "Todas as filiais" para administrador); diálogo/gaveta para o menu do celular; KPI com valor longo ("R$ 18,4 mil") quebra em 3 linhas a 390px.
+
+- [decisão] (T-170, Assinatura) `GET /api/assinatura/` só entrega plano, estado, teste, faixa de aviso e uso. A referência pede mais, e a tela ficou sem isso, sem inventar: (1) "Mudar de plano" e "Comparar planos" (sem rota; mudar plano é da plataforma, `PLT-04`); (2) "Escolher forma de pagamento" e o bloco Forma de pagamento (cartão, Pix automático, boleto); (3) a tabela de Faturas (as faturas da empresa só existem na fase 2); (4) "Dados da nota fiscal" (razão social, CNPJ e e-mail de cobrança); (5) o cartão do plano Completo. "Cancelar assinatura" (`PLT-06`) é da fase 2: o botão aparece desabilitado com aviso e o link para exportar os dados. Também: a referência diz "R$ 449,00 por mês, a partir de 21 out", mas pelo `PLT-01` a 1ª fatura vence no dia seguinte ao fim do teste (22 out); a tela diz "depois do teste", sem data. Arquiteto: contratos de forma de pagamento, faturas e dados fiscais da empresa para a fase 2; design-system: marcar nas telas `Admin-Assinatura-*` o que é fase 2.
 
 ## Fase 2 em diante
 
