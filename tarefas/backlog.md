@@ -307,6 +307,27 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 ### T-165 · Fotos da vistoria em PNG com paleta perdem as cores (baixa)
 - **Agente:** backend · **Depende de:** — · **Regras:** VIS-02 · **Pronto quando:** `comum.arquivos.sem_metadados` mantém as cores de um PNG em modo `P` (com paleta e `tRNS`): hoje faz `Image.new(imagem.mode, ...)` + `paste`, e a imagem nova sai sem a paleta. Converter para `RGBA` (ou copiar a paleta) antes de gravar, sem voltar a gravar metadados; teste com PNG em paleta comparando os pixels. Não é falha de segurança. Levantada pela segurança na decisão do PNG da T-153 (12 out 2026, `C:/Users/Jota/Documents/giro-produto/decisao-t153-seguranca.md`, fora do git).
 
+### T-167 · Tela de Despesas
+- **Agente:** frontend · **Depende de:** T-017 · **Regras:** FIN-05, APR-03 · **Telas:** Despesas (desktop e celular) · **Contrato:** `docs/api/financeiro.md` (`/api/financeiro/despesas/`, `{id}/`, `{id}/pagar/`) · **Pronto quando:** `/financeiro/despesas` igual à referência `docs/telas/html/Despesas-Desktop.dc.html` e `Despesas-Mobile.dc.html`, ligada à API real (lista, nova despesa, pagar, aprovação pela APR-03), só com o que o contrato tem (o que a tela pedir e a API não tiver vira `[decisão]` no backlog, sem inventar); perfis pela tabela de perfis e `pode`; testes. Pedida pelo dono em 13 out 2026: o menu já leva a `/financeiro/despesas`.
+
+### T-168 · Telas de Filiais (lista e nova filial)
+- **Agente:** frontend · **Depende de:** T-161 · **Regras:** FIL-01 a FIL-06 · **Telas:** Filiais e Filial (desktop e celular) · **Contrato:** `docs/api/filiais.md` (`/api/filiais/`, `{id}/`, desativar, reativar, tornar-matriz, feriados) · **Pronto quando:** `/admin/filiais` e a tela de nova filial iguais a `docs/telas/html/Filiais-*.dc.html` e `Filial-*.dc.html`, ligadas à API real; só o administrador; testes. Pedida pelo dono em 13 out 2026.
+
+### T-169 · Tela de Administração › Usuários
+- **Agente:** frontend · **Depende de:** T-136 · **Regras:** USR-01 a USR-09 · **Telas:** Admin-Usuarios (desktop e celular) · **Contrato:** `docs/api/contas.md` (`/api/usuarios/`, convites, desativar, reativar, reenviar e cancelar convite, redefinir 2 etapas, sessões) · **Pronto quando:** `/admin/usuarios` igual a `docs/telas/html/Admin-Usuarios-*.dc.html`, ligada à API real; só o administrador; testes. Pedida pelo dono em 13 out 2026.
+
+### T-170 · Tela de Administração › Assinatura
+- **Agente:** frontend · **Depende de:** — · **Regras:** PLT · **Telas:** Admin-Assinatura (desktop e celular) · **Contrato:** `docs/api/plataforma.md` e `empresas.md` (`/api/assinatura/`) · **Pronto quando:** `/admin/assinatura` igual a `docs/telas/html/Admin-Assinatura-*.dc.html`, ligada à API real, só com o que o contrato tem (pausar e cancelar a assinatura são da fase 2: o botão não aparece ou fica desabilitado com aviso; o que faltar vira `[decisão]`); só o administrador; testes. Pedida pelo dono em 13 out 2026.
+
+### T-171 · Telas de Auditoria da empresa e Exportar dados
+- **Agente:** frontend · **Depende de:** T-018, T-151 · **Regras:** AUD-01 a AUD-04, AUD-07 · **Telas:** Admin-Auditoria e Admin-Exportar (desktop e celular) · **Contrato:** `docs/api/auditoria.md` (`/api/auditoria/eventos/`, `{id}/`, `pessoas/`, `/api/exportacoes/`, `{id}/baixar/`) · **Pronto quando:** `/admin/auditoria` igual a `docs/telas/html/Admin-Auditoria-*.dc.html` e a exportação igual a `Admin-Exportar-*.dc.html`, ligadas à API real; a exportação mostra só a auditoria em CSV (decisão da T-018, opção A, seção "O que existe no MVP" do contrato); só o administrador; testes. Pedida pelo dono em 13 out 2026.
+
+### T-172 · Tela do assistente: importar dados por planilha
+- **Agente:** frontend · **Depende de:** T-027, T-164 · **Regras:** IMP-01 a IMP-06 · **Telas:** Onboarding-Importar (desktop e celular) · **Contrato:** `docs/api/importacao.md` (`/api/importacoes/`, modelo, linhas, corrigir, ignorar, importar, cancelar) · **Critérios:** `docs/qa/criterios/T-027.md` · **Pronto quando:** a tela de importação igual a `docs/telas/html/Onboarding-Importar-*.dc.html`, ligada à API real (baixar modelo, enviar, ver linhas com erro, corrigir aqui, ignorar, importar); testes. Pedida pelo dono em 13 out 2026.
+
+### T-173 · Tela de Configurações
+- **Agente:** arquiteto (contrato), depois backend e frontend · **Depende de:** — · **Regras:** IMP, LOC · **Telas:** Config (desktop e celular) · **Pronto quando:** (arquiteto) confere o que `docs/telas/html/Config-*.dc.html` mostra e o que já tem contrato (a API não tem rota de configurações hoje; marca é a T-153/T-154, preços em `/api/precos/`, modelos de contrato em `/api/contratos/`), escreve o contrato do que faltar e propõe as tarefas de backend, sem número; (frontend) `/admin/configuracoes` igual à referência, ligada à API real. Pedida pelo dono em 13 out 2026.
+
 ### T-019 · Seed Moto Rápida
 - **Agente:** qa · **Depende de:** T-013 a T-017 · **Pronto quando:** `make seed` cria a empresa de exemplo e todos os casos da tabela "Dados de referência para testes" passam.
 - **Placas do seed (T-028):** PQD-6E21 (Pop do Rafael, LOC-2790), RJD-5B38 (Biz do Marcos, LOC-2850), RKP-3D26 (Kwid do Diego, LOC-2848); reserva do Kwid LOC-2857.
