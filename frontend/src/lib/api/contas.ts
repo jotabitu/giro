@@ -1,5 +1,5 @@
 // Contas na API real (docs/api/contas.md, T-011 e T-072): login, 2 etapas, renovação, sair, convite e senha.
-import { definirAccess, http, renovarAccess } from "./http";
+import { chamar, definirAccess, definirFilial, http, renovarAccess } from "./http";
 import type { Aparelho, Configurar2fa, Convite, Eu, RespostaEntrar } from "./tipos";
 
 /** Guarda o access de quem terminou o login (o refresh já foi para o cookie). */
@@ -26,7 +26,7 @@ export const contasApi = {
   },
 
   eu(): Promise<Eu> {
-    return http.get<Eu>("/api/auth/eu/");
+    return chamar<Eu>("GET", "/api/auth/eu/", { semFilial: true });
   },
 
   async sair(): Promise<void> {
@@ -34,6 +34,7 @@ export const contasApi = {
       await http.post<void>("/api/auth/sair/", undefined, { comCookie: true });
     } finally {
       definirAccess(null);
+      definirFilial(null);
     }
   },
 
