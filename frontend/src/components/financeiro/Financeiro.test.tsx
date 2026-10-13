@@ -8,6 +8,8 @@ import { composicaoDoValor, diaDaSemanaEData, rotuloDaParcela, situacaoDaConta, 
 
 const sessao = vi.hoisted(() => ({ eu: null as unknown }));
 vi.mock("@/lib/sessao", () => ({ useSessao: () => ({ eu: sessao.eu as Eu, sair: async () => {} }) }));
+const filialDaTela = vi.hoisted(() => ({ atual: null as null | { todas: boolean; nome: string } }));
+vi.mock("@/lib/filial-escolhida", () => ({ useFilial: () => filialDaTela.atual }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push() {}, replace() {} }), usePathname: () => "/financeiro/receber", useSearchParams: () => new URLSearchParams() }));
 
 import { CaixaDoDia } from "./CaixaDoDia";
@@ -25,7 +27,11 @@ const ordem = (h: string, trechos: string[]) => {
 
 async function entrar(email: string) {
   const r = await contas.entrar({ email, senha: "senhaforte123", aparelho: "desktop" });
-  if (r.etapa !== "pronto") throw new Error("esperava pronto");
+  if (r.etapa === "configurar_2fa") await contas.configurar2fa(r.token_pre_2fa);
+  if (r.etapa !== "pronto") {
+    const v = await contas.verificar2fa(r.token_pre_2fa, { codigo: "123456" });
+    if (v.etapa !== "pronto") throw new Error("esperava pronto");
+  }
   sessao.eu = await contas.eu();
 }
 
@@ -52,7 +58,29 @@ async function paginaCaixa(dia: DiaDoCaixaFalso = "aberto"): Promise<string> {
   );
 }
 
-beforeEach(() => reiniciarFinanceiroFalso());
+beforeEach(() => {
+  reiniciarFinanceiroFalso();
+  filialDaTela.atual = null;
+});
+
+describe("filial escolhida no seletor (T-161, CA-023-05, CA-023-16)", () => {
+  it("Receber mostra a filial escolhida no cabeçalho, inclusive Todas as filiais", async () => {
+    await entrar("financeiro@motorapida.com.br");
+    filialDaTela.atual = { todas: true, nome: "Todas as filiais" };
+    expect(texto(await paginaReceber())).toContain("Todas as filiais");
+    filialDaTela.atual = { todas: false, nome: "Filial Aldeota" };
+    expect(texto(await paginaReceber())).toContain("Filial Aldeota");
+  });
+
+  it("o caixa é de uma filial: com Todas as filiais a tela pede a escolha, sem abrir nem receber", async () => {
+    await entrar("mariana@motorapida.com.br");
+    filialDaTela.atual = { todas: true, nome: "Todas as filiais" };
+    const t = texto(await paginaCaixa());
+    expect(t).toContain("Escolha uma filial no menu");
+    expect(t).not.toContain("Receber pagamento");
+    expect(t).not.toContain("Abrir caixa");
+  });
+});
 
 describe("contas a receber, na ordem da referência (FIN-01, FIN-02, FIN-15)", () => {
   it("Novo lançamento só para gerente (e não para a vendedora), e o mês sai sem maiúscula no meio (USR-05)", async () => {

@@ -3,6 +3,7 @@
 import { clientesApi } from "./clientes";
 import { contasApi } from "./contas";
 import { financeiroApi } from "./financeiro";
+import { filiaisApi } from "./filiais";
 import { locacoesApi } from "./locacoes";
 import { ambienteApi } from "./ambiente";
 import { marcaApi } from "./marca";
@@ -16,6 +17,7 @@ export const veiculos = veiculosApi;
 export const clientes = clientesApi;
 export const locacoes = locacoesApi;
 export const marca = marcaApi;
+export const filiais = filiaisApi;
 export const ambiente = ambienteApi;
 export const vistorias = vistoriasApi;
 export const financeiro = financeiroApi;

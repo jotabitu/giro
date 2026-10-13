@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button, Dialogo } from "@/design-system";
 import { financeiro, type ContaReceber, type FormaDeRecebimento } from "@/lib/api";
 import { dinheiro } from "@/lib/formatos";
+import { useFilial } from "@/lib/filial-escolhida";
 import { linhaDaConta, rotuloDaForma } from "@/lib/financeiro";
 import { EscolhaDeOpcao, ErroDoFinanceiro, LinhasDeValor } from "./Comuns";
 
@@ -14,6 +15,7 @@ const FORMAS: FormaDeRecebimento[] = ["dinheiro", "cartao_debito", "cartao_credi
 export function BaixaDaConta({ conta, aoFechar, aoConcluir }: { conta: ContaReceber; aoFechar: () => void; aoConcluir: (mensagem: string) => void }) {
   const cliente = useQueryClient();
   const [forma, setForma] = useState<FormaDeRecebimento>("dinheiro");
+  const todas = useFilial()?.todas ?? false;
   const v = conta.valor_hoje;
   const receber = useMutation({
     mutationFn: () => financeiro.receber(conta.id, { forma, valor_centavos: v.total_centavos }),
@@ -37,7 +39,7 @@ export function BaixaDaConta({ conta, aoFechar, aoConcluir }: { conta: ContaRece
           <Button variante="quieto" onClick={aoFechar}>
             Voltar
           </Button>
-          <Button variante="solido" disabled={receber.isPending} onClick={() => receber.mutate()}>
+          <Button variante="solido" disabled={receber.isPending || todas} onClick={() => receber.mutate()}>
             {receber.isPending ? "Recebendo…" : `Receber ${dinheiro(v.total_centavos)}`}
           </Button>
         </>
@@ -55,6 +57,7 @@ export function BaixaDaConta({ conta, aoFechar, aoConcluir }: { conta: ContaRece
           />
         </div>
         <EscolhaDeOpcao rotulo="Forma" opcoes={FORMAS.map((f) => ({ valor: f, rotulo: rotuloDaForma(f) }))} valor={forma} aoMudar={setForma} />
+        {todas && <p className="text-caption text-ink-muted">O dinheiro entra no caixa de uma filial. Escolha a filial no menu para dar baixa.</p>}
         {receber.isError && <ErroDoFinanceiro erro={receber.error} />}
       </div>
     </Dialogo>

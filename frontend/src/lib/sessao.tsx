@@ -40,6 +40,8 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
 
   const sair = useCallback(async () => {
     await contas.sair();
+    // Consultas da área da empresa ainda em voo ou esperando nova tentativa não podem sobreviver ao login seguinte.
+    await cliente.cancelQueries();
     cliente.clear();
     router.replace("/entrar");
   }, [cliente, router]);
