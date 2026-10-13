@@ -332,9 +332,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 ### T-171 · Telas de Auditoria da empresa e Exportar dados
 - **Agente:** frontend · **Depende de:** T-018, T-151 · **Regras:** AUD-01 a AUD-04, AUD-07 · **Telas:** Admin-Auditoria e Admin-Exportar (desktop e celular) · **Contrato:** `docs/api/auditoria.md` (`/api/auditoria/eventos/`, `{id}/`, `pessoas/`, `/api/exportacoes/`, `{id}/baixar/`) · **Pronto quando:** `/admin/auditoria` igual a `docs/telas/html/Admin-Auditoria-*.dc.html` e a exportação igual a `Admin-Exportar-*.dc.html`, ligadas à API real; a exportação mostra só a auditoria em CSV (decisão da T-018, opção A, seção "O que existe no MVP" do contrato); só o administrador; testes. Pedida pelo dono em 13 out 2026.
 
-### T-172 · Tela do assistente: importar dados por planilha
-- **Agente:** frontend · **Depende de:** T-027, T-164 · **Regras:** IMP-01 a IMP-06 · **Telas:** Onboarding-Importar (desktop e celular) · **Contrato:** `docs/api/importacao.md` (`/api/importacoes/`, modelo, linhas, corrigir, ignorar, importar, cancelar) · **Critérios:** `docs/qa/criterios/T-027.md` · **Pronto quando:** a tela de importação igual a `docs/telas/html/Onboarding-Importar-*.dc.html`, ligada à API real (baixar modelo, enviar, ver linhas com erro, corrigir aqui, ignorar, importar); testes. Pedida pelo dono em 13 out 2026.
-
 ### T-173 · Tela de Configurações
 - **Agente:** arquiteto (contrato), depois backend e frontend · **Depende de:** — · **Regras:** IMP, LOC · **Telas:** Config (desktop e celular) · **Pronto quando:** (arquiteto) confere o que `docs/telas/html/Config-*.dc.html` mostra e o que já tem contrato (a API não tem rota de configurações hoje; marca é a T-153/T-154, preços em `/api/precos/`, modelos de contrato em `/api/contratos/`), escreve o contrato do que faltar e propõe as tarefas de backend, sem número; (frontend) `/admin/configuracoes` igual à referência, ligada à API real. Pedida pelo dono em 13 out 2026.
 
@@ -358,6 +355,8 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 - Resolvido na T-047: **Início por perfil.** Vistoriador tem `painel: "nao"`; a T-020 mostra um aviso no lugar da visão geral. Falta definir a rota inicial de vistoriador, vendedor, gerente e financeiro (telas de início por perfil).
 - Resolvido na T-047: **Contadores do menu e tela Main** vêm de `relatorios` (agregados), sem contrato em `docs/api/`. Hoje são dados falsos. Dono: arquiteto.
 - **Pedido ao design-system:** seletor de filial com lista (USR-07, "Todas as filiais" para administrador); diálogo/gaveta para o menu do celular; KPI com valor longo ("R$ 18,4 mil") quebra em 3 linhas a 390px.
+
+- [decisão] (T-172, Importar) O assistente de implantação ainda não tem as telas dos outros passos nem a API do andamento deles, então: (1) a lista "Passo 7 de 8" mostra só a posição; os passos anteriores não aparecem como feitos, porque nenhuma API diz isso (`UsoEmpresa.passos_implantacao` só chega agregado em `primeiros_passos` do início). (2) "Voltar" e "Salvar e sair" levam ao início; "Continuar" e "Cadastrar um por um depois" levam a Usuários (o passo "Convidar equipe" ainda não tem tela). (3) A tela abre em `/implantacao/importar` sem o menu do app, com a moldura do assistente; os outros passos devem entrar em `/implantacao/...` do mesmo jeito. (4) O download da planilha modelo busca o arquivo com o login (a rota exige o token); conferir no compose. Arquiteto: expor o andamento dos passos no `eu` ou no painel; design-system: dizer se a correção de linha ("Corrigir aqui") abre dentro da lista, como feito, ou em gaveta.
 
 ## Fase 2 em diante
 
