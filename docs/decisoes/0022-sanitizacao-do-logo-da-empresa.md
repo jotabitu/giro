@@ -1,6 +1,6 @@
 # Sanitização do logo da empresa
 
-**Status:** aceita · 12 out 2026 · detalha a S-12 para a escrita da marca (T-130); a parte do PNG espera a Segurança
+**Status:** aceita · 12 out 2026 · detalha a S-12 para a escrita da marca (T-130); PNG aceito pela Segurança em 13 out 2026 (nota no item 6)
 
 ## Contexto
 
@@ -14,7 +14,7 @@ O `nh3`, já no projeto, sanitiza HTML e não serve para SVG (o parser de HTML5 
 
 ### 1. O arquivo gravado é sempre um arquivo novo, montado pelo backend
 
-Nada do que foi enviado vai para o storage como veio. O SVG é lido, limpo e serializado de novo; o PNG (se aceito, item 6) é decodificado e codificado de novo. O código fica em `empresas/logo.py`, função pura `limpar_logo(conteudo: bytes) -> LogoLimpo(conteudo, extensao, largura, altura)`, que levanta `LogoInvalido(mensagem)` com as mensagens do contrato.
+Nada do que foi enviado vai para o storage como veio. O SVG é lido, limpo e serializado de novo; o PNG (item 6) é decodificado e codificado de novo. O código fica em `empresas/logo.py`, função pura `limpar_logo(conteudo: bytes) -> LogoLimpo(conteudo, extensao, largura, altura)`, que levanta `LogoInvalido(mensagem)` com as mensagens do contrato.
 
 ### 2. Leitura do SVG
 
@@ -59,11 +59,22 @@ As listas ficam em constantes de `empresas/logo.py` iguais às desta ADR. Mudar 
 - Depois da limpeza, tem que sobrar ao menos um `path`, `rect`, `circle`, `ellipse`, `line`, `polyline`, `polygon` ou `text` com conteúdo → senão "Não encontramos desenho neste SVG.".
 - Serializado em UTF-8, sem declaração XML, com o namespace SVG padrão e `xlink` só se usado.
 
-### 6. PNG (depende da Segurança)
+### 6. PNG (aceito em 13 out 2026, ver a nota)
 
-A tela diz "PNG ou SVG, até 2 MB"; o modelo de dados dizia só SVG. Quem decide é a Segurança (`[decisão]` da T-130 no backlog). Até lá, o backend implementa só o SVG e responde PNG com 400 "Envie o logo em SVG.".
+A tela diz "PNG ou SVG, até 2 MB"; o modelo de dados dizia só SVG. Quem decide é a Segurança (`[decisão]` da T-130 no backlog). Até lá, o backend implementava só o SVG (superado pela nota abaixo).
 
 Se o PNG for aceito, o desenho já está definido: assinatura `\x89PNG` nos primeiros bytes; Pillow (já no projeto) com `Image.MAX_IMAGE_PIXELS` em 4096 × 4096; `verify()` e reabertura; até 4.096 pixels de lado; codificado de novo como PNG RGBA (mantém a transparência), sem os blocos de texto e metadados, como as fotos da vistoria. `logo_largura` e `logo_altura` em pixels.
+
+**Nota de 13 out 2026 (T-153): PNG aceito pela Segurança** (`C:/Users/Jota/Documents/giro-produto/decisao-t153-seguranca.md`, fora do git). O backend aceita PNG com estas condições, que substituem o parágrafo acima onde ele diverge:
+
+1. **Formato:** os 8 primeiros bytes são a assinatura completa `\x89PNG\r\n\x1a\n` (a de `comum/arquivos.py`), nunca a extensão nem o `Content-Type`. Os 2 MB são conferidos antes de abrir. Depois de abrir, `imagem.format == "PNG"`; outro formato (assinatura forjada) é erro de leitura.
+2. **Pixels antes de decodificar:** lado até 4.096 px e área até 4.096 × 4.096, conferidos em `imagem.size` logo depois do `Image.open` (que só lê o cabeçalho) e antes do `load()`; largura e altura de pelo menos 1. **Não** mudar `Image.MAX_IMAGE_PIXELS`: é global do processo e quebraria as fotos da vistoria de 48 MP, e o Pillow só levanta erro acima do dobro dele. Proteção extra opcional: `warnings.catch_warnings()` com `simplefilter("error", Image.DecompressionBombWarning)` só dentro de `limpar_logo`.
+3. **Verificação e reabertura:** `Image.open` → `verify()` → reabrir dos bytes → conferir o tamanho de novo → `load()`. `UnidentifiedImageError`, `OSError`, `ValueError`, `SyntaxError`, `DecompressionBombError` ou `DecompressionBombWarning` viram 400 de leitura, nunca 500 e nunca o texto da exceção na resposta.
+4. **Codificação nova, sem metadados:** `convert("RGBA")` antes de copiar os pixels (mantém a transparência de PNG em paleta com `tRNS`, em cinza e de 16 bits); **não** reaproveitar `comum.arquivos.sem_metadados`, que perde a paleta do modo `P`. Grava com `Image.new("RGBA", tamanho)` e `paste` (ou `frombytes`) e `save(format="PNG", optimize=True)` sem `pnginfo`, `exif`, `icc_profile` nem `save_all`: saem `tEXt`, `zTXt`, `iTXt`, `eXIf`, `iCCP`, `tIME`, `pHYs` e os blocos privados. PNG animado grava só o primeiro quadro, sem erro. Os bytes enviados não vão para o storage nem para o log.
+5. **Resultado:** `logo_largura` e `logo_altura` são os pixels do PNG gravado; se o PNG novo passar de 2 MB, "O logo passa de 2 MB.". Nome no storage pelo resumo do conteúdo limpo.
+6. **Mensagem de leitura:** PNG que não abre, truncado, com assinatura forjada ou de outro formato depois de aberto: "Não conseguimos ler este PNG. Exporte o logo de novo pelo seu programa de desenho.", com `WARNING` no log (schema e id do usuário, sem conteúdo), como no SVG.
+
+Servir e mostrar não muda (item 7). Testes com `s_12` no nome: `test_s_12_png_passa_sem_metadados`, `test_s_12_png_em_paleta_mantem_cores_e_transparencia`, `test_s_12_png_acima_de_4096_recusado_sem_decodificar`, `test_s_12_png_assinatura_forjada`, `test_s_12_png_truncado`, `test_s_12_png_poliglota`, `test_s_12_png_animado_grava_primeiro_quadro` e `test_s_12_png_servido_com_nosniff`.
 
 ### 7. Depois de gravar
 

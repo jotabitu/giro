@@ -1,6 +1,6 @@
 # Empresas: marca da locadora
 
-**Dono:** arquiteto · **Versão:** 12 out 2026 (T-130, escrita da marca; antes T-132 e T-128) · **App:** `empresas` (schema da empresa) · **Regras:** IMP (passo 5 · Marca), USR-02 (nome no autenticador) · **ADRs:** 0004 (white label por tokens), 0002 (empresa pelo subdomínio), 0005 (simulação), 0022 (sanitização do logo) · **Segurança:** S-12 (logo SVG) · **Telas:** Login, Convite, Acesso-Senha, Admin-Marca (prévia), Onboarding-Marca, e a casca (`Main`, `Menu`)
+**Dono:** arquiteto · **Versão:** 13 out 2026 (T-153, PNG aceito; antes T-130, T-132 e T-128) · **App:** `empresas` (schema da empresa) · **Regras:** IMP (passo 5 · Marca), USR-02 (nome no autenticador) · **ADRs:** 0004 (white label por tokens), 0002 (empresa pelo subdomínio), 0005 (simulação), 0022 (sanitização do logo) · **Segurança:** S-12 (logo SVG) · **Telas:** Login, Convite, Acesso-Senha, Admin-Marca (prévia), Onboarding-Marca, e a casca (`Main`, `Menu`)
 
 Convenções gerais em `docs/api/README.md`. Este contrato traz a **leitura** da marca (T-128) e a **escrita** (T-130: tela `Admin-Marca` e passo `Onboarding-Marca`, com logo, cor e nome, a sanitização da S-12 e a prévia das cores pela API).
 
@@ -112,7 +112,7 @@ Salva a marca. `multipart/form-data` quando há logo novo; JSON também é aceit
 | --- | --- |
 | `nome_exibicao` | Texto; espaços nas pontas removidos; até 80 caracteres; sem caracteres de controle. Vazio volta para o nome da compra. |
 | `cor` | `#RRGGBB`, maiúsculas ou minúsculas (grava em maiúsculas). Vazio volta para a cor padrão. Qualquer cor vale: o texto em cima dela é sempre o de maior contraste (`cor_sobre`, nunca abaixo de 4,69:1). |
-| `logo` | Arquivo até **2 MB**. O formato vem do conteúdo, nunca da extensão nem do `Content-Type`: SVG (texto que começa, depois de BOM e espaços, por `<?xml` ou `<svg`) ou PNG (assinatura `\x89PNG`). Passa pelo tratamento da ADR 0022 e é gravado já limpo. **PNG depende da decisão da Segurança** (`[decisão]` da T-130 no backlog): até ela decidir, o backend aceita só SVG e responde PNG com 400 "Envie o logo em SVG.". |
+| `logo` | Arquivo até **2 MB**. O formato vem do conteúdo, nunca da extensão nem do `Content-Type`: SVG (texto que começa, depois de BOM e espaços, por `<?xml` ou `<svg`) ou PNG (assinatura completa `\x89PNG\r\n\x1a\n`). Passa pelo tratamento da ADR 0022 (PNG: item 6 e a nota de 13 out 2026, aceito pela Segurança) e é gravado já limpo. |
 | `remover_logo` | `true` apaga o logo; a marca volta às iniciais. Junto com `logo` → 400. |
 
 200: o mesmo corpo de `GET /api/marca/`, já com a `versao` nova, e `ETag` com ela. O frontend grava esse corpo na consulta `marca` do TanStack Query e a invalida; a casca troca as cores na hora.
@@ -125,9 +125,10 @@ Corpo sem nenhum campo, ou com os mesmos valores salvos e sem logo: 200 com a ma
 | --- | --- |
 | `cor` | "Use uma cor no formato #RRGGBB." |
 | `nome_exibicao` | "Use até 80 caracteres." |
-| `logo` | "Envie o logo em SVG ou PNG." (formato desconhecido; "Envie o logo em SVG." enquanto o PNG não for aceito) |
-| `logo` | "O logo passa de 2 MB." |
+| `logo` | "Envie o logo em SVG ou PNG." (formato desconhecido) |
+| `logo` | "O logo passa de 2 MB." (o enviado, ou o PNG depois de codificado de novo) |
 | `logo` | "Não conseguimos ler este SVG. Exporte o logo de novo pelo seu programa de desenho." (XML inválido, DTD, entidade, raiz que não é `svg`) |
+| `logo` | "Não conseguimos ler este PNG. Exporte o logo de novo pelo seu programa de desenho." (PNG que não abre, truncado, com assinatura forjada ou de outro formato depois de aberto) |
 | `logo` | "O SVG tem conteúdo que não aceitamos, como script ou link externo. Exporte o logo de novo, só com o desenho." (conteúdo ativo, ADR 0022, item 3) |
 | `logo` | "O SVG precisa de tamanho definido (viewBox)." |
 | `logo` | "Não encontramos desenho neste SVG." (nada desenhável depois da limpeza) |
@@ -147,7 +148,7 @@ Nada no modelo muda além de `CAMPOS_AUDITORIA`: os campos da T-129 bastam.
 
 **Frontend:**
 - "Trocar logo" e "Enviar logo" abrem o seletor com `accept` do formato aceito; a tela confere extensão e os 2 MB antes de enviar, só para avisar mais cedo (a API confere de novo). A prévia do arquivo ainda não salvo usa `URL.createObjectURL` em `<img>`, nunca o SVG inline (S-12). Depois de salvar, usa a `url` da API.
-- O texto da ajuda segue a decisão do PNG: "PNG ou SVG, fundo transparente, até 2 MB" se aceito; senão "SVG, fundo transparente, até 2 MB".
+- O texto da ajuda é "PNG ou SVG, fundo transparente, até 2 MB", e o seletor usa `accept="image/png,image/svg+xml,.png,.svg"`.
 - "Remover" manda `remover_logo: true` no "Salvar"; até lá, a prévia já mostra as iniciais.
 - Erro 400 aparece no campo, com a `mensagem` da API.
 
