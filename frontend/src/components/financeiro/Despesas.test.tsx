@@ -1,0 +1,226 @@
+// Despesas (T-167) contra docs/telas/html/Despesas-*.dc.html, com os números do seed de 07 out (FIN-05, APR-03).
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderToStaticMarkup } from "react-dom/server";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { aprovacoes, contas, financeiro, type Eu } from "@/lib/api";
+import { financeiroApi } from "@/lib/api/financeiro";
+import { corpoDaDespesa, mesDe, nomeDoMes, pagoEmDoDia } from "@/lib/despesas";
+import { origemDaDespesa, rotuloDaCategoria } from "@/lib/financeiro";
+import { reiniciarFinanceiroFalso } from "@/testes/falsos/falso-financeiro";
+
+const sessao = vi.hoisted(() => ({ eu: null as unknown }));
+vi.mock("@/lib/sessao", () => ({ useSessao: () => ({ eu: sessao.eu as Eu, sair: async () => {} }) }));
+const filialDaTela = vi.hoisted(() => ({ atual: null as null | { todas: boolean; nome: string } }));
+vi.mock("@/lib/filial-escolhida", () => ({ useFilial: () => filialDaTela.atual }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push() {}, replace() {} }), usePathname: () => "/financeiro/despesas", useSearchParams: () => new URLSearchParams() }));
+
+import { DetalheDaDespesa } from "./DetalheDaDespesa";
+import { ListaDespesas } from "./ListaDespesas";
+
+const texto = (h: string) => h.replace(/<[^>]+>/g, "|").replace(/\|+/g, "|");
+
+async function entrar(email: string) {
+  const r = await contas.entrar({ email, senha: "senhaforte123", aparelho: "desktop" });
+  if (r.etapa === "configurar_2fa") await contas.configurar2fa(r.token_pre_2fa);
+  if (r.etapa !== "pronto") {
+    const v = await contas.verificar2fa(r.token_pre_2fa, { codigo: "123456" });
+    if (v.etapa !== "pronto") throw new Error("esperava pronto");
+  }
+  sessao.eu = await contas.eu();
+}
+
+async function pagina(aba: "todas" | "aguardando_aprovacao" = "todas"): Promise<string> {
+  const cache = new QueryClient();
+  const dados = await financeiro.listarDespesas({ mes: "2026-10", status: aba === "todas" ? undefined : aba });
+  cache.setQueryData(["despesas", { aba, mes: "2026-10", cursor: undefined }], dados);
+  return renderToStaticMarkup(
+    <QueryClientProvider client={cache}>
+      <ListaDespesas />
+    </QueryClientProvider>,
+  );
+}
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-07T15:00:00Z"));
+  reiniciarFinanceiroFalso();
+  filialDaTela.atual = null;
+});
+afterEach(() => vi.useRealTimers());
+
+describe("lista de despesas (FIN-05, CA-017-19)", () => {
+  it("mostra os indicadores do seed: outubro R$ 7.066,70 e aguardando aprovação 1 de R$ 1.200,00", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const t = texto(await pagina());
+    expect(t).toContain("Despesas");
+    expect(t).toContain("Outubro · Filial Centro");
+    expect(t).toContain("Gasto em outubro");
+    expect(t).toContain("R$ 7.066,70");
+    expect(t).toContain("Aguardando aprovação|1|R$ 1.200,00");
+    expect(t).toContain("A pagar esta semana");
+    expect(t).toContain("R$ 412,30");
+  });
+
+  it("lista as seis despesas com a situação que a API mandou e quem lançou", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const t = texto(await pagina());
+    for (const trecho of ["Pneus (2 unidades)", "Manutenção · PMZ-3E17", "Aguardando gerente", "João Silva", "Óleo 1 litro", "Pago · caixa", "Conta de luz", "Fixa · Filial Centro", "Vence 10 out", "Aluguel do ponto", "Pago · boleto", "IPVA ROE-2A88", "Impostos · ROE-2A88", "A pagar", "Rastreadores (86)", "Pago · cartão"]) {
+      expect(t, trecho).toContain(trecho);
+    }
+    expect(t).toContain("R$ 3.500,00");
+    expect(t).toContain("R$ 186,40");
+  });
+
+  it("o IPVA de R$ 186,40 nasce a pagar e não entra em aguardando (FIN-05)", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const lista = await financeiro.listarDespesas({ mes: "2026-10" });
+    expect(lista.resultados.find((x) => x.descricao.startsWith("IPVA"))?.status).toBe("a_pagar");
+    expect(lista.indicadores.aguardando_aprovacao_centavos).toBe(120000);
+  });
+
+  it("filtros Todas, Aguardando 1, A pagar 2 e Pagas, e Por categoria com os valores da API", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const html = await pagina();
+    const t = texto(html);
+    expect(t).toContain("Aguardando 1");
+    expect(t).toContain("A pagar 2");
+    expect(t).toContain("Pagas");
+    expect(t).toContain("Por categoria");
+    expect(t).toContain("R$ 3.912,30");
+    expect(html).toContain('aria-label="Nova despesa"');
+    expect(t).toContain("Acima de R$ 500 vai para o gerente aprovar antes de pagar.");
+  });
+
+  it("o formulário tem os campos da referência", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const t = texto(await pagina());
+    for (const campo of ["Descrição", "Valor", "Data", "Categoria", "Veículo (opcional)", "Foto da nota", "Lançar despesa"]) expect(t, campo).toContain(campo);
+  });
+
+  it("vistoriador não vê a lista e só lança manutenção (tabela de perfis)", async () => {
+    await entrar("joao@motorapida.com.br");
+    const html = await pagina();
+    const t = texto(html);
+    expect(t).not.toContain("Pneus (2 unidades)");
+    expect(t).not.toContain("Gasto em outubro");
+    expect(t).toContain("Lançar despesa");
+    expect(t).toContain("Seu perfil lança só despesas de manutenção.");
+    expect(html).not.toContain('value="fixas"');
+    expect(html).toContain('value="manutencao"');
+  });
+});
+
+describe("detalhe e decisão (APR-03, APR-09)", () => {
+  const detalhe = async (email: string, id: number) => {
+    await entrar(email);
+    const d = await financeiro.obterDespesa(id);
+    return texto(
+      renderToStaticMarkup(
+        <QueryClientProvider client={new QueryClient()}>
+          <DetalheDaDespesa id={id} inicial={d} eu={sessao.eu as Eu} aoFechar={() => {}} aoConcluir={() => {}} />
+        </QueryClientProvider>,
+      ),
+    );
+  };
+
+  it("o gerente aprova ou recusa os pneus, que outra pessoa lançou", async () => {
+    const t = await detalhe("rodrigo@motorapida.com.br", 801);
+    expect(t).toContain("Aprovar");
+    expect(t).toContain("Recusar");
+    expect(t).not.toContain("Pagar");
+  });
+
+  it("quem lançou não decide o próprio pedido (APR-09)", async () => {
+    await entrar("joao@motorapida.com.br");
+    const d = await financeiro.obterDespesa(801);
+    expect(d.lancada_por.id).toBe((sessao.eu as Eu).id);
+    const t = await detalhe("joao@motorapida.com.br", 801);
+    expect(t).not.toContain("Aprovar");
+  });
+
+  it("o financeiro paga despesa a pagar e não aprova", async () => {
+    const t = await detalhe("financeiro@motorapida.com.br", 803);
+    expect(t).toContain("Pagar");
+    expect(t).not.toContain("Aprovar");
+    expect(t).toContain("R$ 412,30");
+    expect(t).toContain("Vence 10 out");
+  });
+
+  it("vendedor só vê o detalhe", async () => {
+    const t = await detalhe("bruna@motorapida.com.br", 803);
+    expect(t).not.toContain("Pagar");
+    expect(t).not.toContain("Aprovar");
+  });
+});
+
+describe("API falsa e envio (contrato financeiro.md)", () => {
+  it("acima de R$ 500 nasce aguardando aprovação e não pode ser paga no caixa", async () => {
+    const nova = await financeiro.lancarDespesa({ descricao: "Bateria", valor_centavos: 50001, data: "2026-10-07", vencimento: "2026-10-07", categoria: "manutencao" });
+    expect(nova.status).toBe("aguardando_aprovacao");
+    await expect(financeiro.lancarDespesa({ descricao: "Bateria", valor_centavos: 60000, data: "2026-10-07", vencimento: "2026-10-07", categoria: "manutencao", pago_no_caixa: true })).rejects.toMatchObject({ codigo: "APR-03" });
+  });
+
+  it("até R$ 500 nasce a pagar; pagar muda para paga", async () => {
+    const nova = await financeiro.lancarDespesa({ descricao: "Filtro", valor_centavos: 50000, data: "2026-10-07", vencimento: "2026-10-07", categoria: "manutencao" });
+    expect(nova.status).toBe("a_pagar");
+    const paga = await financeiro.pagarDespesa(nova.id, { forma: "pix", pago_em: "2026-10-07T15:00:00Z" });
+    expect(paga.status).toBe("paga");
+  });
+
+  it("aprovar leva a despesa para a pagar e recusar exige o motivo", async () => {
+    await aprovacoes.aprovar(91);
+    expect((await financeiro.obterDespesa(801)).status).toBe("a_pagar");
+    reiniciarFinanceiroFalso();
+    await expect(aprovacoes.recusar(91, " ")).rejects.toMatchObject({ status: 400 });
+    await aprovacoes.recusar(91, "Sem orçamento");
+    expect((await financeiro.obterDespesa(801)).status).toBe("recusada");
+  });
+
+  it("o cliente HTTP manda multipart com a nota e deixa de fora o que não foi preenchido", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: 1 }), { status: 201, headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const nota = new File(["x"], "nota.jpg", { type: "image/jpeg" });
+      await financeiroApi.lancarDespesa({ descricao: "Pneus", valor_centavos: 120000, data: "2026-10-07", vencimento: "2026-10-07", categoria: "manutencao", veiculo_id: null, nota, pago_no_caixa: false });
+      const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit & { headers: Record<string, string> }];
+      expect(url).toBe("/api/financeiro/despesas/");
+      expect(init.method).toBe("POST");
+      expect(init.headers["Content-Type"]).toBeUndefined();
+      const f = init.body as FormData;
+      expect(f.get("valor_centavos")).toBe("120000");
+      expect(f.get("categoria")).toBe("manutencao");
+      expect(f.get("pago_no_caixa")).toBe("false");
+      expect(f.has("veiculo_id")).toBe(false);
+      expect((f.get("nota") as File).name).toBe("nota.jpg");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe("apoio da tela", () => {
+  it("mês e nome do mês em America/Sao_Paulo", () => {
+    expect(mesDe(new Date("2026-11-01T01:00:00Z"))).toBe("2026-10");
+    expect(nomeDoMes("2026-10")).toBe("Outubro");
+  });
+
+  it("origem: categoria e placa, ou a filial quando não há veículo", () => {
+    const filiais = [{ id: 1, nome: "Filial Centro" }];
+    expect(origemDaDespesa({ categoria: "manutencao", veiculo: { id: 1, placa: "PMZ3E17" }, filial: { id: 1 } }, filiais)).toBe("Manutenção · PMZ-3E17");
+    expect(origemDaDespesa({ categoria: "fixas", veiculo: null, filial: { id: 1 } }, filiais)).toBe("Fixa · Filial Centro");
+    expect(rotuloDaCategoria("rastreamento")).toBe("Rastreamento");
+  });
+
+  it("corpo: vencimento igual à data quando não informado; valor ou descrição vazios não enviam", () => {
+    const base = { descricao: " Troca de pneu ", valor: "150,00", data: "2026-10-07", vencimento: "", categoria: "manutencao" as const, veiculoId: null, nota: null, pagoNoCaixa: false };
+    expect(corpoDaDespesa(base)).toMatchObject({ descricao: "Troca de pneu", valor_centavos: 15000, vencimento: "2026-10-07" });
+    expect(corpoDaDespesa({ ...base, valor: "abc" })).toBeNull();
+    expect(corpoDaDespesa({ ...base, descricao: " " })).toBeNull();
+  });
+
+  it("pagar em outro dia vale meio-dia de Brasília; hoje vale agora", () => {
+    const agora = new Date("2026-10-07T15:00:00Z");
+    expect(pagoEmDoDia("2026-10-07", agora)).toBe(agora.toISOString());
+    expect(pagoEmDoDia("2026-10-05", agora)).toBe("2026-10-05T15:00:00.000Z");
+  });
+});

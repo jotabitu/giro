@@ -307,9 +307,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 ### T-165 · Fotos da vistoria em PNG com paleta perdem as cores (baixa)
 - **Agente:** backend · **Depende de:** — · **Regras:** VIS-02 · **Pronto quando:** `comum.arquivos.sem_metadados` mantém as cores de um PNG em modo `P` (com paleta e `tRNS`): hoje faz `Image.new(imagem.mode, ...)` + `paste`, e a imagem nova sai sem a paleta. Converter para `RGBA` (ou copiar a paleta) antes de gravar, sem voltar a gravar metadados; teste com PNG em paleta comparando os pixels. Não é falha de segurança. Levantada pela segurança na decisão do PNG da T-153 (12 out 2026, `C:/Users/Jota/Documents/giro-produto/decisao-t153-seguranca.md`, fora do git).
 
-### T-167 · Tela de Despesas
-- **Agente:** frontend · **Depende de:** T-017 · **Regras:** FIN-05, APR-03 · **Telas:** Despesas (desktop e celular) · **Contrato:** `docs/api/financeiro.md` (`/api/financeiro/despesas/`, `{id}/`, `{id}/pagar/`) · **Pronto quando:** `/financeiro/despesas` igual à referência `docs/telas/html/Despesas-Desktop.dc.html` e `Despesas-Mobile.dc.html`, ligada à API real (lista, nova despesa, pagar, aprovação pela APR-03), só com o que o contrato tem (o que a tela pedir e a API não tiver vira `[decisão]` no backlog, sem inventar); perfis pela tabela de perfis e `pode`; testes. Pedida pelo dono em 13 out 2026: o menu já leva a `/financeiro/despesas`.
-
 ### T-168 · Telas de Filiais (lista e nova filial)
 - **Agente:** frontend · **Depende de:** T-161 · **Regras:** FIL-01 a FIL-06 · **Telas:** Filiais e Filial (desktop e celular) · **Contrato:** `docs/api/filiais.md` (`/api/filiais/`, `{id}/`, desativar, reativar, tornar-matriz, feriados) · **Pronto quando:** `/admin/filiais` e a tela de nova filial iguais a `docs/telas/html/Filiais-*.dc.html` e `Filial-*.dc.html`, ligadas à API real; só o administrador; testes. Pedida pelo dono em 13 out 2026.
 
@@ -352,6 +349,10 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 - Resolvido na T-047: **Início por perfil.** Vistoriador tem `painel: "nao"`; a T-020 mostra um aviso no lugar da visão geral. Falta definir a rota inicial de vistoriador, vendedor, gerente e financeiro (telas de início por perfil).
 - Resolvido na T-047: **Contadores do menu e tela Main** vêm de `relatorios` (agregados), sem contrato em `docs/api/`. Hoje são dados falsos. Dono: arquiteto.
 - **Pedido ao design-system:** seletor de filial com lista (USR-07, "Todas as filiais" para administrador); diálogo/gaveta para o menu do celular; KPI com valor longo ("R$ 18,4 mil") quebra em 3 linhas a 390px.
+
+- [decisão] (T-167, Despesas) A tela de referência pede o que o contrato `financeiro.md` não tem; a tela foi feita sem esses itens, sem inventar: (1) o indicador "Despesa por veículo" (R$ 82 no mês) não existe em `indicadores`; (2) o botão "Exportar" não tem rota de despesas (`/api/exportacoes/` é só da auditoria, T-018); (3) a busca "Buscar despesa" não tem `?busca=` na lista; (4) o texto de apoio de "A pagar esta semana" ("conta de luz") e o subtítulo "Mensalidade" de Rastreadores não vêm da API. Dono: arquiteto (contrato) e design-system (se a referência perde os itens). Produto, se a despesa por veículo for indicador do MVP.
+- [decisão] (T-167, Despesas) O formulário da referência não tem "Vencimento" nem "Já paguei em dinheiro, pelo caixa", mas a API exige `vencimento` e só cria a despesa `paga` no caixa com `pago_no_caixa` (a referência mostra "Pago · caixa" no óleo). A tela acrescentou os dois campos (vencimento começa igual à data; o caixa só aparece para quem abre e fecha caixa). Design-system: atualizar as telas `Despesas-*` com os dois campos, ou dizer que saem.
+- [decisão] (T-167, Despesas) Pagar, aprovar e recusar não aparecem na referência (a linha só tem o clipe da nota). A tela abre um diálogo ao clicar na linha, com Pagar (administrador e financeiro, só `a_pagar`), Aprovar e Recusar (`despesas_aprovar`, nunca o próprio pedido, `APR-09`). Design-system: desenhar o diálogo; produto: confirmar que o gerente aprova também por aqui, e não só pela tela `Aprovações` (fase 2).
 
 ## Fase 2 em diante
 
