@@ -2890,6 +2890,222 @@ paths:
               schema:
                 $ref: '#/components/schemas/Reembolso'
           description: ''
+  /api/importacoes/:
+    get:
+      operationId: importacoes_list
+      summary: Importações dos últimos 30 dias
+      tags:
+      - importacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeImportacoes'
+          description: ''
+    post:
+      operationId: importacoes_create
+      summary: 'Enviar planilha (IMP-02): valida as linhas em segundo plano'
+      tags:
+      - importacoes
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Envio'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Importacao'
+          description: ''
+  /api/importacoes/{id}/:
+    get:
+      operationId: importacoes_retrieve
+      summary: Importação
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - importacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Importacao'
+          description: ''
+  /api/importacoes/{id}/cancelar/:
+    post:
+      operationId: importacoes_cancelar_create
+      summary: Cancelar
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - importacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Importacao'
+          description: ''
+  /api/importacoes/{id}/importar/:
+    post:
+      operationId: importacoes_importar_create
+      summary: Importar as linhas prontas, até o limite do plano (IMP-03)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - importacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Importacao'
+          description: ''
+  /api/importacoes/{id}/linhas/:
+    get:
+      operationId: importacoes_linhas_retrieve
+      summary: Linhas da planilha, na ordem da planilha
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - acima_do_limite
+          - com_erro
+          - importada
+          - pronta
+      tags:
+      - importacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeLinhas'
+          description: ''
+  /api/importacoes/{id}/linhas/{numero}/:
+    patch:
+      operationId: importacoes_linhas_partial_update
+      summary: '"Corrigir aqui": revalida a linha na hora (IMP-02)'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: numero
+        schema:
+          type: integer
+        required: true
+      tags:
+      - importacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCorrecao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCorrecao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCorrecao'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Linha'
+          description: ''
+  /api/importacoes/{id}/linhas/{numero}/ignorar/:
+    post:
+      operationId: importacoes_linhas_ignorar_create
+      summary: Tirar a linha da importação
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: numero
+        schema:
+          type: integer
+        required: true
+      tags:
+      - importacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Linha'
+          description: ''
+  /api/importacoes/modelo/:
+    get:
+      operationId: importacoes_modelo_retrieve
+      summary: Planilha modelo, com uma linha de exemplo e a aba Instruções
+      parameters:
+      - in: query
+        name: tipo
+        schema:
+          type: string
+          enum:
+          - clientes
+          - veiculos
+        required: true
+      tags:
+      - importacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/locacoes/:
     get:
       operationId: locacoes_list
@@ -5810,6 +6026,16 @@ components:
       required:
       - descricao
       - foto_id
+    Aviso:
+      type: object
+      properties:
+        codigo:
+          type: string
+        mensagem:
+          type: string
+      required:
+      - codigo
+      - mensagem
     AvisoAcerto:
       type: object
       properties:
@@ -7052,6 +7278,25 @@ components:
       - motos
       - reservado
       - todos
+    ContagensDaImportacao:
+      type: object
+      properties:
+        linhas:
+          type: integer
+        prontas:
+          type: integer
+        com_erro:
+          type: integer
+        importadas:
+          type: integer
+        acima_do_limite:
+          type: integer
+      required:
+      - acima_do_limite
+      - com_erro
+      - importadas
+      - linhas
+      - prontas
     ContagensDePedidos:
       type: object
       properties:
@@ -8002,6 +8247,34 @@ components:
       required:
       - access
       - usuario
+    Envio:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/TipoImportacaoEnum'
+        arquivo:
+          type: string
+          format: uri
+        filial_id:
+          type: integer
+          nullable: true
+      required:
+      - arquivo
+      - tipo
+    ErroDaLinha:
+      type: object
+      properties:
+        campo:
+          type: string
+        codigo:
+          type: string
+          description: '`VEI-01`, `CLI-01` ou `validacao`.'
+        mensagem:
+          type: string
+      required:
+      - campo
+      - codigo
+      - mensagem
     Etapa:
       type: object
       properties:
@@ -8619,6 +8892,16 @@ components:
       - matriz
       - nome
       - preco_litro_centavos
+    FilialDaImportacao:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+      - id
+      - nome
     FilialEntrada:
       type: object
       description: Forma do corpo. O horário vai como veio para o serviço validar
@@ -9081,6 +9364,58 @@ components:
       - etapa_funil
       - passos
       - total
+    Importacao:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          $ref: '#/components/schemas/TipoImportacaoEnum'
+        arquivo:
+          type: string
+          description: Nome original do arquivo; exiba escapado.
+        status:
+          $ref: '#/components/schemas/StatusImportacaoEnum'
+        filial_padrao:
+          allOf:
+          - $ref: '#/components/schemas/FilialDaImportacao'
+          nullable: true
+        contagens:
+          $ref: '#/components/schemas/ContagensDaImportacao'
+        plano:
+          allOf:
+          - $ref: '#/components/schemas/PlanoDaImportacao'
+          nullable: true
+          description: Só em veículos (IMP-03); clientes não têm limite.
+        aviso:
+          allOf:
+          - $ref: '#/components/schemas/Aviso'
+          nullable: true
+        enviada_por:
+          type: string
+        enviada_em:
+          type: string
+          format: date-time
+        concluida_em:
+          type: string
+          format: date-time
+          nullable: true
+        apagar_em:
+          type: string
+          format: date
+      required:
+      - apagar_em
+      - arquivo
+      - aviso
+      - concluida_em
+      - contagens
+      - enviada_em
+      - enviada_por
+      - filial_padrao
+      - id
+      - plano
+      - status
+      - tipo
     Indicadores:
       type: object
       properties:
@@ -9813,6 +10148,33 @@ components:
       required:
       - em
       - km
+    Linha:
+      type: object
+      properties:
+        numero:
+          type: integer
+        status:
+          $ref: '#/components/schemas/StatusLinhaImportacaoEnum'
+        dados:
+          type: object
+          additionalProperties:
+            type: string
+          description: 'Os valores das colunas reconhecidas. Para o suporte, linha
+            de cliente resumida (AUD-09): nome, tipo, documento_mascarado e celular.'
+        erros:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErroDaLinha'
+        objeto:
+          allOf:
+          - $ref: '#/components/schemas/ObjetoDaLinha'
+          nullable: true
+      required:
+      - dados
+      - erros
+      - numero
+      - objeto
+      - status
     LinhaDeDevolucao:
       type: object
       properties:
@@ -10055,6 +10417,40 @@ components:
       required:
       - anterior
       - plano
+      - proximo
+      - resultados
+    ListaDeImportacoes:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Importacao'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - proximo
+      - resultados
+    ListaDeLinhas:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Linha'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
       - proximo
       - resultados
     ListaDeLocacoes:
@@ -10958,6 +11354,24 @@ components:
     NullEnum:
       enum:
       - null
+    ObjetoDaLinha:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/ObjetoDaLinhaTipoEnum'
+        id:
+          type: integer
+      required:
+      - id
+      - tipo
+    ObjetoDaLinhaTipoEnum:
+      enum:
+      - veiculo
+      - cliente
+      type: string
+      description: |-
+        * `veiculo` - veiculo
+        * `cliente` - cliente
     ObjetoDoEvento:
       type: object
       properties:
@@ -11312,6 +11726,15 @@ components:
           nullable: true
         consentimento:
           type: boolean
+    PatchedCorrecao:
+      type: object
+      properties:
+        dados:
+          type: object
+          additionalProperties:
+            type: string
+            nullable: true
+          description: Só os campos corrigidos, com os nomes das colunas da planilha.
     PatchedEditarEu:
       type: object
       properties:
@@ -11902,6 +12325,21 @@ components:
       - ciclo
       - nome
       - preco_contratado_centavos
+    PlanoDaImportacao:
+      type: object
+      properties:
+        usado:
+          type: integer
+        limite:
+          type: integer
+          nullable: true
+        cabem:
+          type: integer
+          nullable: true
+      required:
+      - cabem
+      - limite
+      - usado
     PlanoDasFiliais:
       type: object
       properties:
@@ -13089,6 +13527,36 @@ components:
         * `pronta` - Pronta
         * `expirada` - Expirada
         * `falhou` - Falhou
+    StatusImportacaoEnum:
+      enum:
+      - validando
+      - validada
+      - importando
+      - concluida
+      - falhou
+      - cancelada
+      type: string
+      description: |-
+        * `validando` - Validando
+        * `validada` - Validada
+        * `importando` - Importando
+        * `concluida` - Concluída
+        * `falhou` - Falhou
+        * `cancelada` - Cancelada
+    StatusLinhaImportacaoEnum:
+      enum:
+      - pronta
+      - com_erro
+      - importada
+      - acima_do_limite
+      - ignorada
+      type: string
+      description: |-
+        * `pronta` - Pronta
+        * `com_erro` - Com erro
+        * `importada` - Importada
+        * `acima_do_limite` - Acima do limite
+        * `ignorada` - Ignorada
     StatusModeloContratoEnum:
       enum:
       - publicado
@@ -13280,6 +13748,14 @@ components:
         * `ipva` - IPVA
         * `seguro` - Seguro
         * `rastreador` - Rastreador
+    TipoImportacaoEnum:
+      enum:
+      - veiculos
+      - clientes
+      type: string
+      description: |-
+        * `veiculos` - Veículos
+        * `clientes` - Clientes
     TipoParaHojeEnum:
       enum:
       - reembolso

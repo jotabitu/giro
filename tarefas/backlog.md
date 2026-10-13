@@ -23,6 +23,11 @@ As dúvidas de filiais da T-030 e de contas da T-036 (itens 6 a 10) foram decidi
 
 A dúvida do backend na T-069 (reativar quem teve o convite cancelado) foi analisada na T-075 e decidida em 08 out 2026: opção B. Vira regra na T-076 e código na T-077.
 
+Levantadas pelo backend em T-027 (12 out 2026), para o produto e o arquiteto:
+
+- [decisão] Cor do veículo na planilha: `docs/api/importacao.md` lista `cor` como coluna opcional, mas o cadastro pela tela (`veiculos.services.cadastrar`, contrato de veículos) exige a cor, e a importação usa as mesmas validações (`IMP-02`). Hoje a linha sem cor fica com erro "Cor em branco". Opções: A) manter (a cor vira obrigatória também no modelo da planilha); B) a importação aceita sem cor e o cadastro passa a aceitar cor vazia.
+- [decisão] Célula com mais de 1.000 caracteres: o contrato diz que a linha fica com erro, e também manda usar `csv.field_size_limit` de 1.000 no `.csv`, que interrompe a leitura do arquivo. Hoje: no `.xlsx` a linha fica com erro; no `.csv` o arquivo é recusado (400, "A linha N tem uma célula com mais de 1.000 caracteres"). Opções: A) manter assim; B) ler o `.csv` com limite maior e marcar só a linha.
+
 Levantadas pelo arquiteto em T-030 (07 out 2026):
 
 - [divergência] Dados de exemplo nas telas da plataforma (para T-028): `Plat-Empresa-Detalhe` mostra CNPJ 41.208.733/0001-52 (seed: 12.345.678/0001-10), FAT-0001 vencendo em 21 out (PLT-01: dia seguinte ao fim do teste, 22 out) e "13 dias" de teste em 07 out (contrato: 14); `Plat-Empresas` mostra Moto Rápida com 4 usuários (seed: 5).
@@ -270,8 +275,13 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 ### T-158 · (M-04) Configuração do proxy reverso: tamanho do corpo e cabeçalhos `X-Forwarded-*` (média)
 - **Agente:** devops, com o backend · **Depende de:** — · **Pronto quando:** a configuração do proxy de homologação e produção está em `infra/`, com limite de corpo de 12 MB (os uploads só são conferidos por `comum/arquivos.validar` depois de recebidos inteiros, e o Django não limita arquivo em multipart), `X-Forwarded-Host`, `X-Forwarded-Proto` e `X-Forwarded-For` sempre sobrescritos pelo proxy (o `TenantMainMiddleware` escolhe a empresa por `get_host()`, que segue o `X-Forwarded-Host` com `USE_X_FORWARDED_HOST = True`) e rate limit de borda em `/api/auth/` e no webhook; no backend, `USE_X_FORWARDED_HOST` só em `prod.py`; checklist no `infra/README.md`. Antes de homologação.
 
-### T-156 · (M-02) Custo e rendimento do veículo fora da ficha do vendedor (média) `[decisão]`
-- **Agente:** produto (decisão), depois backend · **Depende de:** T-136 · **Regras:** tabela de perfis, USR-09, VEI-05 · **Pronto quando:** o produto decide se o vendedor recebe `indicadores_financeiros` (`rendeu_no_ano_centavos`, `custo_manutencao_ano_centavos`) em `GET /api/veiculos/{id}/` (hoje recebe; o checklist da segurança pede que o vendedor não receba custo nem margem, e a regra não diz); proposta: só administrador, gerente e financeiro, com a chave ausente para os demais, como no D-25; teste `test_usr_09_vendedor_sem_custo_do_veiculo`.
+### T-156 · (M-02) Custo e rendimento do veículo fora da ficha do vendedor (média)
+- **Agente:** backend, depois frontend · **Depende de:** T-136 · **Regras:** tabela de perfis, USR-09, VEI-05 · **Decisão:** opção A do dono do produto em 12 out 2026 (regra na T-156 do produto) · **Pronto quando:**
+  - (backend) em `GET /api/veiculos/{id}/`, a chave `indicadores_financeiros` (`rendeu_no_ano_centavos`, `custo_manutencao_ano_centavos`) só vem para administrador, gerente e financeiro, pela mesma checagem do `valor_compra_centavos` em `veiculos/selectors.representacao` com o financeiro incluído; para vendedor e vistoriador a chave vem **ausente** (não `null`, não zero), como no D-25; OpenAPI com a chave opcional; teste `test_usr_09_vendedor_sem_custo_do_veiculo`;
+  - CA: dado a Bruna (vendedora), quando faz `GET /api/veiculos/{id}/` de um veículo da filial dela, então a resposta não tem `indicadores_financeiros`, e o resto da ficha (situação, ocupação, km, documentos, preços) vem como antes;
+  - CA: dado o Rodrigo (gerente), a Mariana (administradora) ou a Lúcia (financeiro), quando fazem a mesma leitura, então recebem `rendeu_no_ano_centavos` e `custo_manutencao_ano_centavos` com os mesmos valores de hoje;
+  - CA: dado o João (vistoriador), nada muda: o bloco continua ausente (D-25);
+  - (frontend) na ficha do veículo (`Veiculo`, desktop e celular), os cartões "Rendeu no ano" e "Custo de manutenção" só aparecem quando a API manda o bloco; logada como Bruna, a fileira de indicadores mostra só ocupação e km, sem cartão vazio, traço ou espaço reservado. A tela não decide pelo perfil, só pela chave.
 
 ### T-159 · (M-05) Login não revela e-mail com convite pendente (baixa)
 - **Agente:** backend · **Depende de:** — · **Regras:** USR-01, USR-06 · **Pronto quando:** em `POST /api/auth/entrar/`, quem tem convite pendente e ainda não tem senha recebe o mesmo 401 `credenciais_invalidas` (e o mesmo tempo) de um e-mail que não existe; hoje o 403 `convite_pendente` sai antes de conferir a senha e permite saber quem foi convidado; o 403 só depois da senha certa; teste `test_usr_06_convite_pendente_nao_revela_email`.
@@ -328,10 +338,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 ### T-026 · Desenhar telas que faltam para o MVP
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** "Esqueci a senha" e "Ativar verificação em 2 etapas" (desktop e celular) em `docs/telas/html/`, no mesmo padrão das telas de acesso, e no índice. Bloqueia a parte de 2FA de T-020.
 
-### T-027 · Importação de veículos e clientes por planilha
-- **Agente:** backend · **Depende de:** T-013, T-014 · **Regras:** IMP (passo de importar) · **Telas:** Onboarding-Importar · **Por quê:** critério de pronto do MVP "dados antigos migrados e conferidos".
-- **Critérios (T-152):** `docs/qa/criterios/T-027.md` (planilha de 86 linhas: 83 prontas, 3 com erro, 86 depois de corrigir; limite do plano; suporte; dados temporários).
-
 ### T-028 · Limpar dados de exemplo das telas
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`. Inclui `Despesas-Desktop` e `Despesas-Mobile`: aguardando aprovação é R$ 1.200,00 (não R$ 1.386,40) e o IPVA de R$ 186,40 nasce `a_pagar` (FIN-05), apontado pelo qa na T-040.
 - **Estado do QXA-4B21 (T-112, decisão do dono em 09/10, opção A):** corrigir Frota, Veiculo, Main, Vistoriador e a OS-119 em Manutencao conforme o caso "Estado do QXA-4B21 em 07 out" dos dados de referência e as divergências levantadas pelo produto em T-112 (acima, em Pontos em aberto): Alugado no tom `solido` (não azul) e "Colocar à venda" só em veículo `disponivel`.
@@ -346,10 +352,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 
 ### T-021 · Telas de veículos e clientes
 - **Agente:** frontend · **Depende de:** T-020, T-013, T-014 · **Telas:** Frota, Veiculo, Clientes, Cliente · **Nota:** pode começar com dados falsos de `docs/api/veiculos.md` e `clientes.md`, como a T-020
-
-### T-023 · Telas do financeiro básico
-- **Agente:** frontend · **Depende de:** T-020, T-017 · **Telas:** Receber, Caixa, Financeiro
-- **Critérios (T-152):** `docs/qa/criterios/T-023.md`. Divergências das telas no CA-023-25 e no CA-023-26 (para a T-028).
 
 ### T-025 · Testes ponta a ponta do fluxo de locação
 - **Agente:** qa · **Depende de:** T-022, T-023 · **Pronto quando:** Playwright cobre login → nova locação → vistoria de saída → devolução → baixa no caixa, no desktop e no celular.

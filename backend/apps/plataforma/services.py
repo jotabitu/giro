@@ -1,9 +1,9 @@
 """Regras da plataforma (PLT-01, PLT-03, PLT-07, IMP-05). Único lugar que cria empresa, mexe no
 uso e abre ou encerra o acesso de suporte.
 
-Os apps da empresa usam só `exigir_limite`, `atualizar_uso`, `registrar_passo_implantacao`,
-`concluir_implantacao`, `registrar_acesso` e `registrar_contador` (contrato da plataforma,
-"Interface interna").
+Os apps da empresa usam só `exigir_limite`, `vagas_no_plano` (importação), `atualizar_uso`,
+`registrar_passo_implantacao`, `concluir_implantacao`, `registrar_acesso` e
+`registrar_contador` (contrato da plataforma, "Interface interna").
 """
 
 import re
@@ -267,6 +267,30 @@ def exigir_limite(item: str, empresa: Empresa | None = None) -> None:
             f"Seu plano permite até {limite} {nome}. Para {acao}, mude de plano.",
             {"item": item, "usado": usado, "limite": limite},
         )
+
+
+@dataclass(frozen=True)
+class Vagas:
+    """Quantos `item` ainda cabem no plano; `cabem` e `limite` nulos quando não há limite."""
+
+    cabem: int | None
+    limite: int | None
+    plano: str
+
+
+def vagas_no_plano(item: str, empresa: Empresa | None = None) -> Vagas:
+    """IMP-03: trava o `UsoEmpresa` (`SELECT ... FOR UPDATE`, até o commit) e devolve quantos
+    `item` cabem. Para gravar vários cadastros de uma vez sem passar do limite."""
+    if item not in Item.values:
+        raise ValueError(f"Item sem limite no plano: {item}")
+    if not transaction.get_connection().in_atomic_block:
+        raise RuntimeError("vagas_no_plano precisa rodar dentro da transação dos cadastros.")
+    empresa = _empresa(empresa)
+    uso = _uso_travado(empresa)
+    plano = _plano_atual(empresa)
+    limite = plano.limite(item) if plano else None
+    cabem = None if limite is None else max(0, limite - int(getattr(uso, item)))
+    return Vagas(cabem=cabem, limite=limite, plano=plano.nome if plano else "")
 
 
 def chegou_a_90(usado: int, limite: int | None) -> bool:
