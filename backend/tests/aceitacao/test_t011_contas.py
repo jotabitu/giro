@@ -1697,6 +1697,23 @@ def test_usr_05_menu_completo_do_vistoriador(adm, settings):
     assert joao["barra_celular"] == ["inicio", "veiculos", "mais"]
 
 
+def test_usr_05_menu_do_administrador_tem_auditoria(adm):
+    """T-180: com os módulos padrão, a Mariana vê "Auditoria" na Administração (a tela da
+    T-171); Configurações e Empresa e marca ficam fora até as telas existirem (`empresas`)."""
+    from django.conf import settings as configuracao
+
+    assert "auditoria" in configuracao.GIRO_MODULOS_ATIVOS
+    mariana = _navegacao(adm, "Mariana")
+    administracao = dict(_chaves(mariana["menu_completo"]))["Administração"]
+    assert administracao == ["filiais", "usuarios", "assinatura", "auditoria"]
+    item = mariana["menu_completo"][-1]["itens"][-1]
+    assert (item["chave"], item["rotulo"]) == ("auditoria", "Auditoria")
+    # Só o administrador: o gerente e o financeiro não veem.
+    for nome in ("Rodrigo", "Lúcia"):
+        chaves = [c for _, itens in _chaves(_navegacao(adm, nome)["menu_completo"]) for c in itens]
+        assert "auditoria" not in chaves
+
+
 def test_usr_05_plano_atividade_e_modulos_escondem_itens(adm, settings, planos):
     from apps.contas import navegacao, selectors
 
