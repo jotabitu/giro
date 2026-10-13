@@ -18,6 +18,9 @@ DEBUG = False
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 CELERY_TASK_ALWAYS_EAGER = True
+# ADR 0021: os testes usam a fixture `relogio`; quem testa a data de referência usa
+# override_settings.
+GIRO_DATA_REFERENCIA = None
 CELERY_TASK_EAGER_PROPAGATES = True
 CACHES = {
     "default": {

@@ -4,6 +4,21 @@ info:
   version: 0.1.0
   description: Contrato da API do Giro. Gerado pelo backend (make api-schema).
 paths:
+  /api/ambiente/:
+    get:
+      operationId: ambiente_retrieve
+      description: 'Pública, sem login: com ou sem token (inclusive o do suporte),
+        a resposta é a mesma.'
+      summary: Hoje e se a data é simulada (ADR 0021)
+      tags:
+      - ambiente
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ambiente'
+          description: ''
   /api/aprovacoes/:
     get:
       operationId: aprovacoes_list
@@ -3629,6 +3644,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/PlanoEspecial'
           description: ''
+  /api/plataforma/ambiente/:
+    get:
+      operationId: plataforma_ambiente_retrieve
+      description: 'Pública, sem login: com ou sem token (inclusive o do suporte),
+        a resposta é a mesma.'
+      summary: Hoje e se a data é simulada (ADR 0021)
+      tags:
+      - plataforma
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ambiente'
+          description: ''
   /api/plataforma/auditoria/eventos/:
     get:
       operationId: plataforma_auditoria_eventos_list
@@ -5597,6 +5627,19 @@ components:
         * `cliente` - cliente
         * `venda` - venda
         * `locacao` - locacao
+    Ambiente:
+      type: object
+      properties:
+        hoje:
+          type: string
+          format: date
+          description: O dia do relógio do domínio em America/Sao_Paulo.
+        data_simulada:
+          type: boolean
+          description: '`true` só no desenvolvimento com GIRO_DATA_REFERENCIA ligada.'
+      required:
+      - data_simulada
+      - hoje
     AnaliseCliente:
       type: object
       properties:

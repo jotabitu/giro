@@ -9,6 +9,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from apps.contas.api.urls import urls_empresa as urls_contas
 from apps.plataforma.api.urls import urls_empresa as urls_assinatura
+from comum.ambiente import AmbienteView
 
 urlpatterns: list[URLPattern | URLResolver] = [
     path("api/", include(urls_contas)),
@@ -24,6 +25,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("api/", include("apps.relatorios.api.urls")),
     path("api/", include("apps.empresas.api.urls")),
     path("api/", include("apps.auditoria.api.urls")),
+    path("api/ambiente/", AmbienteView.as_view(), name="ambiente"),
 ]
 
 # Documentação da API só onde EXPOR_DOCUMENTACAO_DA_API permite (fechada em produção).
