@@ -6,11 +6,16 @@ import type {
   CobrancaDaConta,
   ContaReceber,
   ContaReceberDetalhe,
+  Despesa,
+  FiltroDespesas,
   FiltroReceber,
   FormaDeRecebimento,
   LancamentoAvulso,
   ListaContasReceber,
+  ListaDespesas,
   MovimentoDoCaixa,
+  NovaDespesa,
+  PagamentoDeDespesa,
 } from "./tipos-financeiro";
 
 export const financeiroApi = {
@@ -70,4 +75,31 @@ export const financeiroApi = {
   fecharCaixa(caixaId: number, corpo: { contado_centavos: number; motivo_diferenca?: string | null }): Promise<Caixa> {
     return http.post(`/api/financeiro/caixas/${caixaId}/fechar/`, corpo);
   },
+
+  listarDespesas(f: FiltroDespesas = {}): Promise<ListaDespesas> {
+    return http.get("/api/financeiro/despesas/", { mes: f.mes, status: f.status, categoria: f.categoria, veiculo: f.veiculo, cursor: f.cursor });
+  },
+
+  obterDespesa(id: number): Promise<Despesa> {
+    return http.get(`/api/financeiro/despesas/${id}/`);
+  },
+
+  /** Multipart (nota em foto ou PDF). A API decide o estado: até R$ 500 `a_pagar`, acima `aguardando_aprovacao` (FIN-05, APR-03). */
+  lancarDespesa(corpo: NovaDespesa): Promise<Despesa> {
+    return http.post("/api/financeiro/despesas/", formulario(corpo));
+  },
+
+  pagarDespesa(id: number, corpo: PagamentoDeDespesa): Promise<Despesa> {
+    return http.post(`/api/financeiro/despesas/${id}/pagar/`, formulario(corpo));
+  },
 };
+
+/** Campos ausentes ficam fora do multipart; arquivo vai como arquivo. */
+function formulario(corpo: object): FormData {
+  const f = new FormData();
+  for (const [campo, valor] of Object.entries(corpo)) {
+    if (valor === undefined || valor === null || valor === "") continue;
+    f.append(campo, valor instanceof Blob ? valor : String(valor));
+  }
+  return f;
+}
