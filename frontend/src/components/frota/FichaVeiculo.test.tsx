@@ -131,3 +131,18 @@ describe("ficha do veículo sem o módulo de manutenção no menu", () => {
     }
   });
 });
+
+describe("ficha do veículo, vistoriador (D-25, USR-09)", () => {
+  it("usr_09: a ficha vem sem valores e a tela não mostra compra, venda, plano padrão, rendimento nem custo", async () => {
+    await entrarComo("joao@motorapida.com.br");
+    const ficha = await veiculos.obter(501);
+    for (const chave of ["preco_vigente", "valor_venda_centavos", "referencia_fipe_centavos", "valor_compra_centavos", "data_compra", "indicadores_financeiros"]) expect(chave in ficha, chave).toBe(false);
+    const { desktop, celular } = await pagina(501);
+    for (const h of [desktop, celular]) {
+      const t = texto(h);
+      for (const fora of ["Compra", "Valor de venda", "À venda por", "Plano padrão", "Rendeu no ano", "Custo de manutenção", "Manutenções"]) expect(t, fora).not.toContain(fora);
+      expect(t).not.toMatch(/R\$ \d/);
+      expect(t).toContain("Ocupação");
+    }
+  });
+});

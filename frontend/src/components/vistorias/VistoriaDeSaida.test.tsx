@@ -59,4 +59,11 @@ describe("vistoria de saída da LOC-2856 (Lucas Ferreira, CG 160 Fan)", () => {
     expect(t).not.toMatch(/R\$ \d/);
     expect(t).not.toContain("Caução");
   });
+
+  it("usr_09: o vistoriador vê do cliente só nome, celular, CNH e se a retirada está liberada", async () => {
+    await entrarComo("joao@motorapida.com.br");
+    const { t } = await pagina(2856);
+    ordem(t, ["Cliente", "Lucas Ferreira", "Celular", "(85) 98877-1203", "CNH", "Retirada", "Liberada", "Período"]);
+    for (const fora of ["CPF", "E-mail", "Endereço", "Documentos do cliente"]) expect(t, fora).not.toContain(fora);
+  });
 });
