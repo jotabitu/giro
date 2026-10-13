@@ -1,6 +1,6 @@
 # Financeiro: contas a receber, caixa do dia, despesas e pagamentos
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-043), emendas de 09 out 2026 (T-088) e 12 out 2026 (T-144, diferenças da T-017) · **App:** `financeiro` (schema da empresa) · **Regras:** FIN-01 a FIN-08, APR-03, APR-04, APR-09, LOC-04, LOC-05, LOC-07, CLI-05, DEV-02, FIL-06, AUT-03, AUT-04, AUT-05, AUT-08 · **ADRs:** 0007, 0011, 0012, 0014 · **Segurança:** S-05, S-14 · **Critérios:** `docs/qa/criterios/T-017.md` · **Telas:** Receber, Caixa, Despesas, Financeiro
+**Dono:** arquiteto · **Versão:** 07 out 2026 (T-043), emendas de 09 out 2026 (T-088) 12 out 2026 (T-144, diferenças da T-017) e 13 out 2026 (T-177, despesas: busca, exportar, despesa por veículo, nota obrigatória) · **App:** `financeiro` (schema da empresa) · **Regras:** FIN-01 a FIN-08, FIN-16, AUD-07, APR-03, APR-04, APR-09, LOC-04, LOC-05, LOC-07, CLI-05, DEV-02, FIL-06, AUT-03, AUT-04, AUT-05, AUT-08 · **ADRs:** 0007, 0011, 0012, 0014 · **Segurança:** S-05, S-14 · **Critérios:** `docs/qa/criterios/T-017.md`, `docs/qa/criterios/despesas.md` · **Telas:** Receber, Caixa, Despesas, Financeiro
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 18, 19, 21 e 22 e apoio em `docs/decisoes/modelo-de-dados.md`. Base: `/api/financeiro/`.
 
@@ -16,6 +16,8 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 18, 19, 21 e 22 e apo
 | Abrir e fechar caixa, sangria | sim | sim | sim (sua filial) | — | sim |
 | Aprovar diferença de caixa (`APR-04`) | sim | sim | — | — | — |
 | Lançar despesa | sim | sim | sim | só manutenção | sim |
+| Lançar despesa como paga no caixa (`FIN-05`) | sim | sim | sim (sua filial) | — | sim |
+| Exportar as despesas em CSV (`FIN-16`, `AUD-07`) | sim | — | — | — | — |
 | Aprovar despesa acima de R$ 500 (`APR-03`) | sim | sim | — | — | — |
 | Pagar despesa, marcar devolução ao cliente como feita | sim | — | — | — | sim |
 
@@ -259,7 +261,7 @@ Caso CA-017-15: contado 27100 com motivo "Troco errado" → `aguardando_aprovaca
 
 ---
 
-## Despesas (FIN-05, FIN-06, APR-03)
+## Despesas (FIN-05, FIN-06, FIN-16, APR-03)
 
 ### Representação
 ```json
@@ -270,18 +272,55 @@ Caso CA-017-15: contado 27100 com motivo "Troco errado" → `aguardando_aprovaca
   "nota": { "url": "...", "url_expira_em": "..." }, "pedido_aprovacao_id": 91,
   "rotulo_situacao": "Aguardando gerente" }
 ```
+`nota` vem `null` só nas despesas lançadas antes da nota obrigatória (T-177) e na que nascer da OS (`MAN-05`, fase 2).
 
 ### GET /api/financeiro/despesas/
-Query: `?mes=2026-10`, `?status=`, `?categoria=`, `?veiculo=<id>`. Filial pelo `X-Filial`.
-200 com `indicadores`: `{ "gasto_mes_centavos": 706670, "aguardando_aprovacao_centavos": 120000, "aguardando_aprovacao_quantidade": 1, "a_pagar_semana_centavos": 41230, "por_categoria": { "fixas": 391230, "rastreamento": 172000, "manutencao": 124800, "impostos": 18640 } }` e `contagens` por status.
-Caso do seed (CA-017-19): outubro **706670**; aguardando aprovação **120000** (só os pneus; o IPVA de 18640 nasce `a_pagar`).
+Query: `?mes=2026-10` (padrão: o mês de hoje), `?status=`, `?categoria=`, `?veiculo=<id>`, `?busca=`. Filial pelo `X-Filial` (`todas` para administrador e financeiro).
+200 (seed, Filial Centro, `?mes=2026-10&busca=pneu`):
+```json
+{
+  "indicadores": {
+    "gasto_mes_centavos": 706670, "despesa_por_veiculo_centavos": 8217,
+    "aguardando_aprovacao_centavos": 120000, "aguardando_aprovacao_quantidade": 1,
+    "a_pagar_semana_centavos": 41230,
+    "por_categoria": { "fixas": 391230, "rastreamento": 172000, "manutencao": 124800, "impostos": 18640 }
+  },
+  "contagens": { "aguardando_aprovacao": 1, "a_pagar": 0, "paga": 0, "recusada": 0 },
+  "resultados": [ { "id": 801, "descricao": "Pneus (2 unidades)", "...": "representação" } ],
+  "proximo": null, "anterior": null
+}
+```
+Caso do seed (CA-017-19, CA-DES-01): outubro na Filial Centro, **706670**; despesa por veículo **8217**; aguardando aprovação **120000** (só os pneus; o IPVA de 18640 nasce `a_pagar`).
+
+Números da `FIN-16` (base: despesas da filial do `X-Filial`, ou de todas, com `data` no mês pedido):
+- `gasto_mes_centavos`: soma do valor, pagas ou não, sem as `recusada`.
+- `despesa_por_veiculo_centavos` (T-177): `gasto_mes_centavos` ÷ veículos da mesma filial (ou de todas) fora de `vendido` e `baixado`, contados no fim do último dia do mês em `America/Sao_Paulo`; no mês corrente e num mês futuro, hoje. Divisão em `Decimal`, arredondada **uma vez** para o centavo com `ROUND_HALF_UP`: 706670 ÷ 86 = 8217,09 → **8217**; com os pneus recusados e um veículo `baixado`, 586670 ÷ 85 = **6902** (CA-DES-02). Sem nenhum veículo, `null` (CA-DES-03): o frontend não mostra valor nem zero.
+  - A contagem vem de uma função nova, `veiculos.selectors.frota_ativa_em(dia, filiais) -> int` (`financeiro` está abaixo de `veiculos` na ADR 0011), pelo último status do histórico (`HistoricoStatusVeiculo`) até o fim daquele dia: veículo cadastrado depois do dia não conta; o vendido ou baixado depois do dia conta. A filial é a atual do veículo (a troca de filial não tem histórico).
+- `contagens`: uma chave por status, as despesas do mês. Seguem a `?busca=` (como em contas a receber); `?status=`, `?categoria=` e `?veiculo=` não mudam as contagens.
+- **Os indicadores não mudam com nenhum filtro** (`?status=`, `?categoria=`, `?veiculo=`, `?busca=`): são sempre os do mês e da filial.
+
+`?busca=` (`FIN-16`, T-177), dentro do mês e da filial:
+- Acha a despesa quando o termo está na **descrição**, sem diferenciar maiúsculas, minúsculas e acentos ("oleo" acha "Óleo 1 litro"), **ou** na **placa** do veículo ligado, sem hífen nem espaço ("pmz-3e17" e "PMZ3E17" acham os pneus).
+- Como fazer, sem extensão nova no PostgreSQL: a despesa ganha o campo `descricao_busca` (texto em minúsculas e sem acento, por `unicodedata` NFKD), gravado pelo serviço ao lançar, com migração de dados para as que já existem; o termo passa pela mesma função e entra em `descricao_busca__contains`. Para a placa, o termo passa por `veiculos.services.normalizar_placa` e entra em `veiculo__placa__contains` (a placa já é guardada assim); termo que fica vazio depois de normalizado não procura na placa. As duas condições se juntam com OU.
+- Termo vazio ou só com espaços é ignorado; acima de 60 caracteres, 400 `validacao` no campo `busca`.
+- Casos (CA-DES-04, CA-DES-05): "pneu" → só os pneus, contagens `aguardando_aprovacao` 1, `a_pagar` 0, `paga` 0, `recusada` 0, indicadores iguais aos sem busca; "pmz-3e17" → só os pneus; "ROE" → só "IPVA ROE-2A88"; "oleo" → só o óleo.
 
 ### POST /api/financeiro/despesas/
-`multipart/form-data`: `descricao`, `valor_centavos`, `data`, `vencimento`, `categoria` (`fixas`, `manutencao`, `rastreamento`, `impostos`, `pessoal`, `outros`), `veiculo_id?`, `nota?` (imagem ou PDF até 10 MB), `pago_no_caixa?` (bool), `forma?`.
-- Até 50000 (R$ 500,00) → `a_pagar`; com `pago_no_caixa`, nasce `paga` com um movimento de saída em dinheiro no caixa aberto.
-- Acima de 50000 → `aguardando_aprovacao` e pedido `APR-03`; não pode ser lançada como paga no caixa (422 `APR-03`).
-- Vistoriador só lança `manutencao` (403 nas outras).
-201. Regras: FIN-05, FIN-06, APR-03.
+`multipart/form-data`: `descricao`, `valor_centavos`, `data`, `vencimento`, `categoria` (`fixas`, `manutencao`, `rastreamento`, `impostos`, `pessoal`, `outros`), `veiculo_id?`, `nota` (imagem ou PDF até 10 MB, **obrigatória**, `FIN-06`), `pago_no_caixa?` (bool). A filial é a do `X-Filial`, como hoje. Não há `forma` no lançamento: com `pago_no_caixa`, a forma é sempre dinheiro.
+- Até 50000 (R$ 500,00) → `a_pagar`; com `pago_no_caixa`, nasce `paga`, forma `dinheiro`, com um movimento de saída em dinheiro no caixa aberto de hoje da filial (CA-DES-11).
+- Acima de 50000 → `aguardando_aprovacao` e pedido `APR-03`.
+- `data` e `vencimento` são obrigatórios. A tela começa com o vencimento igual à data (CA-DES-10); a API não copia um no outro.
+
+Erros, nesta ordem. Em nenhum deles algo é gravado: nem a despesa, nem a nota no storage, nem o movimento no caixa.
+1. 403 `{ "codigo": "FIN-06", "mensagem": "Seu perfil lança só despesas de manutenção." }`: vistoriador com outra categoria (como hoje).
+2. 403 `{ "codigo": "FIN-05", "mensagem": "Seu perfil não paga despesa pelo caixa." }`: `pago_no_caixa: true` de quem não abre e fecha caixa (tabela "Quem pode": o vistoriador), CA-DES-14.
+3. 400 `validacao` por campo: sem `nota`, `{ "nota": ["Envie a foto da nota."] }` (CA-DES-15); arquivo fora de imagem ou PDF, ou acima de 10 MB, com as mensagens de `comum.arquivos`; os outros campos como hoje.
+4. 422 `{ "codigo": "APR-03", "mensagem": "Despesa acima de R$ 500,00 precisa da aprovação do gerente antes de ser paga." }`: `pago_no_caixa` acima de 50000, com ou sem caixa aberto (CA-DES-13).
+5. 422 `{ "codigo": "FIN-07", "mensagem": "Abra o caixa do dia para pagar por ele" }`: `pago_no_caixa` sem caixa `aberto` hoje na filial, fechado ou não aberto (CA-DES-12). Muda só a mensagem; hoje o serviço diz "Abra o caixa do dia para pagar no caixa".
+
+201: a representação. Regras: FIN-05, FIN-06, FIN-07, APR-03.
+
+A nota obrigatória vale para o lançamento por esta rota. A despesa que nascer da OS concluída (`MAN-05`, fase 2) é criada pelo serviço de manutenção, sem passar por aqui, e segue as regras dela: `lancar_despesa` continua aceitando `nota=None`, e quem exige a nota é a rota. O seed lança as 6 despesas de outubro com nota (um PDF pequeno de exemplo).
 
 ### GET /api/financeiro/despesas/{id}/
 200: a representação (T-144). Mesmos perfis e o mesmo `X-Filial` da lista; fora do escopo, 404.
@@ -290,6 +329,10 @@ Caso do seed (CA-017-19): outubro **706670**; aguardando aprovação **120000** 
 Perfis: administrador, financeiro. Corpo: `{ forma: "pix" | "boleto" | "cartao" | "transferencia" | "dinheiro", pago_em, comprovante? }`. Só `a_pagar`. `dinheiro` sai do caixa aberto. 200 `paga`.
 
 A aprovação e a recusa (`aguardando_aprovacao` → `a_pagar` ou `recusada`) passam pelo pedido em `aprovacoes.md`.
+
+### Exportar as despesas (`FIN-16`, `AUD-07`, T-177)
+
+O botão "Exportar" da tela `Despesas`, só para o administrador, pede `POST /api/exportacoes/` com `{ "itens": ["despesas"], "formato": "csv", "mes": "2026-10", "filial_id": 1 | null }`, com o mês e a filial da tela (`null` = todas). A busca e a aba escolhidas não vão no pedido (CA-DES-07). O fluxo, o arquivo, as colunas e o texto em "Exportações recentes" estão em `auditoria.md`, "Despesas em CSV". As linhas do arquivo vêm de `financeiro.exportacao.linhas_das_despesas`, registrada no `auditoria` (seção "Eventos e interface interna", abaixo).
 
 ---
 
@@ -352,4 +395,5 @@ O mesmo fluxo vale para a `FaturaAssinatura` no `public` (`plataforma`).
 | evento `financeiro.parcela_paga` | `conta_id`, `cliente_id`, `tipo`, `origem_tipo`, `origem_id`, `valor_centavos`, `pago_em`. Assinado por `locacoes` (1º pagamento) e `clientes` (desbloqueio `CLI-05`). |
 | evento `financeiro.parcela_atrasou` | `conta_id`, `cliente_id`, `tipo`, `origem_tipo`, `origem_id`, `vencimento`, `dias_atraso`. Tarefa diária às 09:00 junto da régua (`AUT-03`): publica para cada conta que completou 1, 3 e 7 dias de atraso e, a partir de 15 dias, uma vez por conta (a conta guarda `bloqueio_pedido_em`; se a tarefa não rodou no 15º dia, publica na próxima vez, `AUT-03`); `clientes` bloqueia com 15 dias ou mais (CA-017-11: vencida em 23 set → bloqueio em 08 out). Depois do desbloqueio manual (`CLI-05`), a mesma conta não pede o bloqueio de novo. |
 | anotações fornecidas (ADR 0015) | bloco `financeiro` de `clientes` (com `conta_mais_antiga_id`), bloco `historico` da análise de `clientes`, contadores `contas_atrasadas_15_dias` e `em_aberto_centavos` por cliente, `indicadores_financeiros` de `veiculos` (`VEI-05`), contador de caixas abertos para `filiais` (`FIL-06`), filtro `em_aberto`. |
+| item de exportação `despesas` (T-177) | `financeiro/exportacao.py` registra no `auditoria` (`auditoria.exportacao.registrar_item`) a validação do pedido, as linhas do CSV e o texto de "Exportações recentes" (`auditoria.md`, "Despesas em CSV"). |
 | tarefas | `aut_03_regua_de_cobranca` (09:00), `aut_04_cobranca_recorrente` (no vencimento), `aut_05_processar_webhook`, `aut_08_fechamento_automatico_do_caixa` (23:59). |
