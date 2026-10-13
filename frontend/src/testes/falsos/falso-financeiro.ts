@@ -8,11 +8,17 @@ import type {
   CobrancaDaConta,
   ContaReceber,
   ContaReceberDetalhe,
+  Despesa,
+  FiltroDespesas,
   FiltroReceber,
   FormaDeRecebimento,
   LancamentoAvulso,
   ListaContasReceber,
+  ListaDespesas,
   MovimentoDoCaixa,
+  NovaDespesa,
+  PagamentoDeDespesa,
+  PedidoDeAprovacao,
 } from "@/lib/api/tipos-financeiro";
 import { pausa } from "./falso";
 
@@ -113,11 +119,29 @@ const CONTAS: ContaReceber[] = [
   }),
 ];
 
+// Despesas de outubro do seed (regras, "Despesas de outubro"): 6 lançamentos, R$ 7.066,70; aguardando aprovação R$ 1.200,00 (só os pneus).
+const LUCIA = { id: 7, nome: "Lúcia Freitas" };
+function despesa(p: Pick<Despesa, "id" | "data" | "descricao" | "categoria" | "valor_centavos" | "vencimento" | "status" | "rotulo_situacao" | "lancada_por"> & Partial<Despesa>): Despesa {
+  return { veiculo: null, filial: { id: 1 }, pago_em: null, forma: null, nota: null, pedido_aprovacao_id: null, ...p };
+}
+const DESPESAS: Despesa[] = [
+  despesa({ id: 801, data: "2026-10-07", descricao: "Pneus (2 unidades)", categoria: "manutencao", veiculo: { id: 88, placa: "PMZ3E17" }, valor_centavos: 120000, vencimento: "2026-10-07", status: "aguardando_aprovacao", rotulo_situacao: "Aguardando gerente", lancada_por: { id: 5, nome: "João Silva" }, pedido_aprovacao_id: 91, nota: { url: "/notas/801.jpg", url_expira_em: "2026-10-07T13:15:00Z" } }),
+  despesa({ id: 802, data: "2026-10-07", descricao: "Óleo 1 litro", categoria: "manutencao", veiculo: { id: 12, placa: "QXA4B21" }, valor_centavos: 4800, vencimento: "2026-10-07", status: "paga", rotulo_situacao: "Pago · caixa", lancada_por: { id: 4, nome: "Bruna Alves" }, pago_em: "2026-10-07T14:20:00Z", forma: "dinheiro" }),
+  despesa({ id: 803, data: "2026-10-06", descricao: "Conta de luz", categoria: "fixas", valor_centavos: 41230, vencimento: "2026-10-10", status: "a_pagar", rotulo_situacao: "Vence 10 out", lancada_por: LUCIA }),
+  despesa({ id: 804, data: "2026-10-05", descricao: "Aluguel do ponto", categoria: "fixas", valor_centavos: 350000, vencimento: "2026-10-05", status: "paga", rotulo_situacao: "Pago · boleto", lancada_por: LUCIA, pago_em: "2026-10-05T12:00:00Z", forma: "boleto" }),
+  despesa({ id: 805, data: "2026-10-03", descricao: "IPVA ROE-2A88", categoria: "impostos", veiculo: { id: 31, placa: "ROE2A88" }, valor_centavos: 18640, vencimento: "2026-10-31", status: "a_pagar", rotulo_situacao: "A pagar", lancada_por: LUCIA }),
+  despesa({ id: 806, data: "2026-10-02", descricao: "Rastreadores (86)", categoria: "rastreamento", valor_centavos: 172000, vencimento: "2026-10-02", status: "paga", rotulo_situacao: "Pago · cartão", lancada_por: LUCIA, pago_em: "2026-10-02T12:00:00Z", forma: "cartao" }),
+];
+
+const ROTULO_PAGO: Record<string, string> = { pix: "Pix", boleto: "boleto", cartao: "cartão", transferencia: "transferência", dinheiro: "caixa" };
+
 let contas: ContaReceber[] = [];
 let caixa: Caixa | null = null;
 let movimentos: MovimentoDoCaixa[] = [];
 let proximoMovimento = 500;
 let cobradasHoje = new Set<number>();
+let despesas: Despesa[] = [];
+let proximaDespesa = 810;
 
 const SITUACAO: Record<NonNullable<FiltroReceber["situacao"]>, ContaReceber["status"][]> = {
   atrasadas: ["atrasada"],
@@ -172,6 +196,8 @@ export type DiaDoCaixaFalso = "aberto" | "sem_caixa" | "fechado" | "aguardando";
 export function reiniciarFinanceiroFalso(dia: DiaDoCaixaFalso = "aberto") {
   contas = CONTAS.map((c) => ({ ...c, acoes: { ...c.acoes }, valor_hoje: { ...c.valor_hoje } }));
   cobradasHoje = new Set();
+  despesas = DESPESAS.map((d) => ({ ...d }));
+  proximaDespesa = 810;
   proximoMovimento = 500;
   movimentos = dia === "sem_caixa" ? [] : movimentosDoSeed();
   caixa = dia === "sem_caixa" ? null : caixaDoSeed();
@@ -200,6 +226,39 @@ const indicadores = () => ({
   em_atraso_parcelas: 2,
   faixas: { "1_7": 29940, "8_30": 134700, mais_30: 0 },
 });
+
+const pedidoFalso = (id: number, status: PedidoDeAprovacao["status"], motivo: string | null = null): PedidoDeAprovacao => ({
+  id,
+  tipo: "APR-03",
+  status,
+  titulo: "Despesa de R$ 1.200,00",
+  detalhe: "Pneus (2 unidades) · PMZ-3E17",
+  origem: { tipo: "despesa", id: 801, codigo: null },
+  filial: { id: 1, nome: "Filial Centro" },
+  solicitante: { id: 5, nome: "João Silva" },
+  pedido_em: "2026-10-07T12:00:00Z",
+  motivo_pedido: null,
+  valor_centavos: 120000,
+  pct: null,
+  decidido_por: { id: 2, nome: "Rodrigo Pinheiro" },
+  decidido_em: "2026-10-07T13:00:00Z",
+  motivo_recusa: motivo,
+  pode_decidir: false,
+});
+
+export const aprovacoesFalso = {
+  async aprovar(id: number): Promise<PedidoDeAprovacao> {
+    await pausa(60);
+    despesas = despesas.map((d) => (d.pedido_aprovacao_id === id ? { ...d, status: "a_pagar", rotulo_situacao: "A pagar" } : d));
+    return pedidoFalso(id, "aprovado");
+  },
+  async recusar(id: number, motivo: string): Promise<PedidoDeAprovacao> {
+    await pausa(60);
+    if (!motivo.trim()) throw new ErroApi(400, "validacao", "Dados inválidos.", undefined, { motivo: "Informe o motivo da recusa." });
+    despesas = despesas.map((d) => (d.pedido_aprovacao_id === id ? { ...d, status: "recusada", rotulo_situacao: "Recusada" } : d));
+    return pedidoFalso(id, "recusado", motivo);
+  },
+};
 
 const semAcento = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 const naoEncontrada = () => new ErroApi(404, "nao_encontrado", "Conta não encontrada.");
@@ -363,5 +422,74 @@ export const financeiroFalso = {
     };
     caixa = { ...caixa, status: diferenca === 0 ? "fechado" : "aguardando_aprovacao", fechamento, acoes: { sangria: false, fechar: false, receber: false } };
     return { ...caixa };
+  },
+
+  async listarDespesas(f: FiltroDespesas = {}): Promise<ListaDespesas> {
+    await pausa(60);
+    const doMes = despesas.filter((d) => d.data.startsWith(f.mes ?? "2026-10"));
+    const lista = doMes.filter((d) => (!f.status || d.status === f.status) && (!f.categoria || d.categoria === f.categoria) && (!f.veiculo || d.veiculo?.id === f.veiculo));
+    const soma = (xs: Despesa[]) => xs.reduce((t, d) => t + d.valor_centavos, 0);
+    const aguardando = doMes.filter((d) => d.status === "aguardando_aprovacao");
+    const por: Record<string, number> = {};
+    for (const d of doMes) por[d.categoria] = (por[d.categoria] ?? 0) + d.valor_centavos;
+    return {
+      indicadores: {
+        gasto_mes_centavos: soma(doMes.filter((d) => d.status !== "recusada")),
+        aguardando_aprovacao_centavos: soma(aguardando),
+        aguardando_aprovacao_quantidade: aguardando.length,
+        a_pagar_semana_centavos: soma(doMes.filter((d) => d.status === "a_pagar" && d.vencimento <= "2026-10-14")),
+        por_categoria: por,
+      },
+      contagens: {
+        aguardando_aprovacao: aguardando.length,
+        a_pagar: doMes.filter((d) => d.status === "a_pagar").length,
+        paga: doMes.filter((d) => d.status === "paga").length,
+        recusada: doMes.filter((d) => d.status === "recusada").length,
+      },
+      resultados: lista.map((d) => ({ ...d })),
+      proximo: null,
+      anterior: null,
+    };
+  },
+
+  async obterDespesa(id: number): Promise<Despesa> {
+    await pausa(40);
+    const d = despesas.find((x) => x.id === id);
+    if (!d) throw new ErroApi(404, "nao_encontrado", "Despesa não encontrada.");
+    return { ...d };
+  },
+
+  async lancarDespesa(corpo: NovaDespesa): Promise<Despesa> {
+    await pausa(60);
+    if (!corpo.descricao.trim()) throw new ErroApi(400, "validacao", "Dados inválidos.", undefined, { descricao: "Informe a descrição." });
+    if (corpo.valor_centavos > 50000 && corpo.pago_no_caixa) throw new ErroApi(422, "APR-03", "Despesa acima de R$ 500,00 precisa de aprovação antes de ser paga.");
+    const acima = corpo.valor_centavos > 50000;
+    const nova = despesa({
+      id: proximaDespesa++,
+      data: corpo.data,
+      descricao: corpo.descricao,
+      categoria: corpo.categoria,
+      valor_centavos: corpo.valor_centavos,
+      vencimento: corpo.vencimento,
+      status: acima ? "aguardando_aprovacao" : corpo.pago_no_caixa ? "paga" : "a_pagar",
+      rotulo_situacao: acima ? "Aguardando gerente" : corpo.pago_no_caixa ? "Pago · caixa" : "A pagar",
+      lancada_por: { id: 1, nome: "Mariana Costa" },
+      veiculo: corpo.veiculo_id ? { id: corpo.veiculo_id, placa: "SAK1D39" } : null,
+      pedido_aprovacao_id: acima ? 95 : null,
+      nota: corpo.nota ? { url: "/notas/nova.jpg", url_expira_em: "2026-10-07T13:15:00Z" } : null,
+    });
+    despesas = [nova, ...despesas];
+    return { ...nova };
+  },
+
+  async pagarDespesa(id: number, corpo: PagamentoDeDespesa): Promise<Despesa> {
+    await pausa(60);
+    const atual = despesas.find((x) => x.id === id);
+    if (!atual) throw new ErroApi(404, "nao_encontrado", "Despesa não encontrada.");
+    if (atual.status !== "a_pagar") throw new ErroApi(409, "transicao_despesa", "Só despesa a pagar pode ser paga.");
+    if (corpo.forma === "dinheiro" && (!caixa || caixa.status !== "aberto")) throw semCaixa();
+    const paga: Despesa = { ...atual, status: "paga", pago_em: corpo.pago_em, forma: corpo.forma, rotulo_situacao: `Pago · ${ROTULO_PAGO[corpo.forma]}` };
+    despesas = despesas.map((x) => (x.id === id ? paga : x));
+    return { ...paga };
   },
 };

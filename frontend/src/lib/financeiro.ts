@@ -1,7 +1,7 @@
 // Textos do financeiro. Só rótulos e formatação: valor do dia, multa, juros e status vêm prontos da API (docs/api/financeiro.md).
 import type { TomStatus } from "@/design-system";
-import type { ContaReceber, FormaDaBaixa, FormaDoMovimento, FormaPrevista, StatusDoCaixa, TipoDeConta } from "@/lib/api";
-import { dataCurta, dinheiro } from "@/lib/formatos";
+import type { CategoriaDaDespesa, ContaReceber, Despesa, FormaDaBaixa, FormaDaDespesa, FormaDoMovimento, FormaPrevista, StatusDaDespesa, StatusDoCaixa, TipoDeConta } from "@/lib/api";
+import { dataCurta, dinheiro, placa } from "@/lib/formatos";
 
 const FORMAS: Record<FormaPrevista | FormaDaBaixa | FormaDoMovimento, string> = {
   pix: "Pix",
@@ -106,3 +106,38 @@ const ACOES: Record<string, string> = {
 
 /** O código do evento vira texto; código desconhecido aparece como está (docs/api/financeiro.md). */
 export const textoDoEvento = (acao: string): string => ACOES[acao] ?? acao;
+
+// Despesas (FIN-05, FIN-06). O estado e o texto da situação ("Aguardando gerente", "Vence 10 out", "Pago · caixa") vêm da API.
+
+export const CATEGORIAS_DA_DESPESA: { valor: CategoriaDaDespesa; rotulo: string }[] = [
+  { valor: "fixas", rotulo: "Fixas" },
+  { valor: "manutencao", rotulo: "Manutenção" },
+  { valor: "rastreamento", rotulo: "Rastreamento" },
+  { valor: "impostos", rotulo: "Impostos" },
+  { valor: "pessoal", rotulo: "Pessoal" },
+  { valor: "outros", rotulo: "Outros" },
+];
+
+export const rotuloDaCategoria = (c: CategoriaDaDespesa): string => CATEGORIAS_DA_DESPESA.find((x) => x.valor === c)?.rotulo ?? c;
+
+export const FORMAS_DE_PAGAR_DESPESA: { valor: FormaDaDespesa; rotulo: string }[] = [
+  { valor: "pix", rotulo: "Pix" },
+  { valor: "boleto", rotulo: "Boleto" },
+  { valor: "cartao", rotulo: "Cartão" },
+  { valor: "transferencia", rotulo: "Transferência" },
+  { valor: "dinheiro", rotulo: "Dinheiro" },
+];
+
+export const TOM_DA_DESPESA: Record<StatusDaDespesa, TomStatus> = {
+  aguardando_aprovacao: "alerta",
+  a_pagar: "info",
+  paga: "sucesso",
+  recusada: "critico",
+};
+
+/** "Manutenção · PMZ-3E17" ou, sem veículo, "Fixa · Filial Centro". A filial vem pelo id, das filiais da pessoa. */
+export function origemDaDespesa(d: Pick<Despesa, "categoria" | "veiculo" | "filial">, filiais: { id: number; nome: string }[]): string {
+  const categoria = d.categoria === "fixas" ? "Fixa" : rotuloDaCategoria(d.categoria);
+  const onde = d.veiculo ? placa(d.veiculo.placa) : filiais.find((f) => f.id === d.filial.id)?.nome;
+  return [categoria, onde].filter(Boolean).join(" · ");
+}
