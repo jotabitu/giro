@@ -355,10 +355,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 ### T-021 · Telas de veículos e clientes
 - **Agente:** frontend · **Depende de:** T-020, T-013, T-014 · **Telas:** Frota, Veiculo, Clientes, Cliente · **Nota:** pode começar com dados falsos de `docs/api/veiculos.md` e `clientes.md`, como a T-020
 
-### T-023 · Telas do financeiro básico
-- **Agente:** frontend · **Depende de:** T-020, T-017 · **Telas:** Receber, Caixa, Financeiro
-- **Critérios (T-152):** `docs/qa/criterios/T-023.md`. Divergências das telas no CA-023-25 e no CA-023-26 (para a T-028).
-
 ### T-025 · Testes ponta a ponta do fluxo de locação
 - **Agente:** qa · **Depende de:** T-022, T-023 · **Pronto quando:** Playwright cobre login → nova locação → vistoria de saída → devolução → baixa no caixa, no desktop e no celular.
 - **Critérios (T-152):** `docs/qa/criterios/T-025.md` (LOC-2858: R$ 629,00 na retirada; acerto de R$ 80,00 recebido no caixa em 14 out). Relógio com data e hora controladas no ambiente do E2E: qa com o arquiteto.
