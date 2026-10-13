@@ -7,6 +7,7 @@ import { Button, Dialogo, TextField } from "@/design-system";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { locacoes, veiculos, type FormaDevolucaoCancelamento, type LocacaoCompleta, type SimulacaoDoCancelamento } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
+import { agoraDaTela } from "@/lib/ambiente";
 import { dataCurta, diaDe, dinheiro, placa } from "@/lib/formatos";
 import { dataEHora, textoDaEstimativa, textoDoPeriodo } from "@/lib/locacoes";
 
@@ -105,7 +106,7 @@ function Renovar({ l, aoFechar, aoConcluir }: { l: LocacaoCompleta; aoFechar: ()
 function Cancelar({ l, aoFechar, aoConcluir }: { l: LocacaoCompleta; aoFechar: () => void; aoConcluir: (m: string) => void }) {
   const cliente = useQueryClient();
   const pedir = l.acoes.cancelar === "pedir";
-  const [data, setData] = useState(() => diaDe(new Date().toISOString()));
+  const [data, setData] = useState(() => diaDe(agoraDaTela().toISOString()));
   const [motivo, setMotivo] = useState("");
   const [forma, setForma] = useState<FormaDevolucaoCancelamento>("pix");
   const simulacao = useQuery<SimulacaoDoCancelamento>({ queryKey: ["locacao", l.id, "cancelamento", data], queryFn: () => locacoes.simularCancelamento(l.id, { data: data || null }), retry: false });

@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 from django.core.management import call_command
-from django.db import connection
+from django.db import connection, transaction
 from django_tenants.utils import tenant_context
 
 from apps.auditoria.models import EventoAuditoria
@@ -52,9 +52,32 @@ def _contagens() -> dict[str, int]:
         }
 
 
+@pytest.fixture(scope="module")
+def _seed_do_modulo(django_db_setup, django_db_blocker):
+    """Roda o seed uma vez por módulo, numa transação que fica aberta e volta no fim (T-149).
+
+    Cada teste abre o savepoint dele por cima e volta ao estado do seed; quem semeia de novo
+    (127_02, 138_08) só escreve dentro do próprio savepoint. Sem commit: nada sobra no banco.
+    """
+    with django_db_blocker.unblock():
+        bloco = transaction.atomic()
+        bloco.__enter__()
+        try:
+            saida = _semear()
+        except BaseException:
+            transaction.set_rollback(True)
+            bloco.__exit__(None, None, None)
+            raise
+    yield saida
+    with django_db_blocker.unblock():
+        connection.set_schema_to_public()
+        transaction.set_rollback(True)
+        bloco.__exit__(None, None, None)
+
+
 @pytest.fixture
-def semeado(db, relogio, planos):
-    return _semear()
+def semeado(db, relogio, planos, _seed_do_modulo):
+    return _seed_do_modulo
 
 
 def test_seed_127_01_cria_a_empresa_de_exemplo(semeado):
