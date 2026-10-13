@@ -37,6 +37,12 @@ SHOW_PUBLIC_IF_NO_TENANT_FOUND = False
 # Documentação da API fechada, salvo se o ambiente pedir (S-17).
 EXPOR_DOCUMENTACAO_DA_API = env.bool("GIRO_EXPOR_DOCUMENTACAO_DA_API", default=False)
 
+# Data simulada só no desenvolvimento (ADR 0021): um .env de desenvolvimento copiado para o
+# servidor não sobe.
+if env("GIRO_DATA_REFERENCIA", default="").strip():
+    raise ImproperlyConfigured("GIRO_DATA_REFERENCIA só vale no desenvolvimento.")
+GIRO_DATA_REFERENCIA = None
+
 # Segredos próprios de produção: falha ao subir se faltarem ou se repetirem.
 # Variável ausente ou vazia vale como não definida: base.py cai nos padrões de desenvolvimento,
 # e produção não pode subir com eles (T-133).

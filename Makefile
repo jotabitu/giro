@@ -6,13 +6,14 @@ COMPOSE := docker compose
 BACKEND_RUN := $(COMPOSE) run --rm backend
 FRONTEND_RUN := $(COMPOSE) run --rm --no-deps frontend
 
-.PHONY: help up down logs ps check infra-check backend-check frontend-check seed migrate shell api-schema api-client
+.PHONY: help up down logs ps check infra-check backend-check frontend-check seed migrate shell api-schema api-client relogio
 
 help:
 	@echo "make up              sobe tudo (Postgres, Redis, backend, worker, beat, frontend)"
 	@echo "make down            para tudo (make down V=1 apaga também os volumes)"
 	@echo "make check           infra + backend + frontend"
 	@echo "make seed            carrega a empresa Moto Rápida"
+	@echo "make relogio         aplica GIRO_DATA_REFERENCIA do .env (recria backend, worker e beat)"
 	@echo "make migrate         migrate_schemas em todos os schemas"
 	@echo "make api-schema      gera docs/api/openapi.yaml"
 	@echo "make api-client      gera o cliente tipado do frontend"
@@ -44,6 +45,10 @@ migrate: .env
 
 seed: .env
 	$(COMPOSE) exec backend python manage.py seed_moto_rapida
+
+# ADR 0021: backend, worker e beat leem o mesmo .env e ficam sempre na mesma data.
+relogio: .env
+	$(COMPOSE) up -d --force-recreate backend worker beat
 
 # MSYS_NO_PATHCONV: no Git Bash, impede que /tmp/... vire caminho do Windows.
 api-schema: .env

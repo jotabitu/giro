@@ -309,3 +309,29 @@ def test_fin_03_seed_163_01_parcela_atrasada_cobra_multa_e_juros(semeado):
         assert sorted(contratos.values_list("origem_codigo", flat=True)) == sorted(
             retiradas.values_list("codigo", flat=True)
         )
+
+
+def test_adr_0021_painel_do_seed_com_a_data_de_referencia(db, planos, _seed_do_modulo):
+    """T-142: com o relógio real e GIRO_DATA_REFERENCIA em 07 out (sem a fixture `relogio`), o
+    painel do financeiro mostra o mesmo que com o relógio congelado: em atraso R$ 1.646,40 em 2
+    clientes, como nas regras. O "entra hoje" fica em R$ 299,40 (1 parcela), e não nos
+    R$ 2.625,80 das regras, porque o seed paga as parcelas que venceriam até 07 out (T-138,
+    D-21); com a data ligada, esse contorno pode sair do seed (qa)."""
+    from datetime import date
+
+    from django.test import override_settings
+
+    from comum.autenticacao import AMR_SENHA_E_CODIGO, emitir_tokens
+
+    empresa = Empresa.objects.get(subdominio="motorapida")
+    with override_settings(GIRO_DATA_REFERENCIA=date(2026, 10, 7)):
+        with tenant_context(empresa):
+            lucia = Usuario.objects.get(email="lucia@motorapida.com.br")
+            token = str(emitir_tokens(lucia, AMR_SENHA_E_CODIGO).access_token)
+        resposta = cliente("motorapida.localhost", token).get("/api/painel/inicio/")
+    assert resposta.status_code == 200, resposta.json()
+    assert resposta["X-Giro-Data-Simulada"] == "2026-10-07"
+    kpis = {kpi["chave"]: kpi for kpi in resposta.json()["kpis"]}
+    assert kpis["em_atraso"]["valor"] == {"tipo": "centavos", "valor": 164640}
+    assert kpis["em_atraso"]["contexto"] == "2 clientes"
+    assert kpis["entra_hoje"]["valor"] == {"tipo": "centavos", "valor": 29940}

@@ -12,3 +12,11 @@ class ComumConfig(AppConfig):
         from comum.worker import conectar
 
         conectar()
+
+        # ADR 0021: aviso no `check` e ao subir (backend, worker e beat passam por aqui).
+        from django.core.checks import register
+
+        from comum.ambiente import avisar_ao_subir, conferir_data_de_referencia
+
+        register(conferir_data_de_referencia)
+        avisar_ao_subir()

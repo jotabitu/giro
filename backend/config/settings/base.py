@@ -1,6 +1,6 @@
 """Configuração comum a todos os ambientes. Valores vêm das variáveis de `.env.example`."""
 
-from datetime import timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -112,6 +112,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "comum.middleware.AtorDaRequisicaoMiddleware",
+    "comum.ambiente.DataSimuladaMiddleware",  # só age com GIRO_DATA_REFERENCIA (ADR 0021)
 ]
 
 TEMPLATES = [
@@ -186,10 +187,15 @@ REST_FRAMEWORK = {
         # Link de assinatura de contrato (S-15).
         "assinatura_ip": "10/min",
         "assinatura_token": "20/min",
+        # Rota de ambiente, pública (ADR 0021).
+        "ambiente_ip": "120/min",
         # Webhook do parceiro de pagamentos (S-14).
         "webhook_ip": "120/min",
     },
 }
+
+# Data de referência do relógio (ADR 0021): só `dev.py` lê GIRO_DATA_REFERENCIA.
+GIRO_DATA_REFERENCIA: date | None = None
 
 # /api/schema/ e /api/docs/ (config/urls.py e urls_publico.py). Fechados em produção (S-17).
 EXPOR_DOCUMENTACAO_DA_API = env.bool("GIRO_EXPOR_DOCUMENTACAO_DA_API", default=True)

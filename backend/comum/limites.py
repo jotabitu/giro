@@ -91,6 +91,12 @@ class _PorToken(SimpleRateThrottle):
         return self.cache_format % {"scope": self.scope, "ident": ident}
 
 
+class AmbientePorIP(_PorIP):
+    """`GET /api/ambiente/`, pública (ADR 0021)."""
+
+    scope = "ambiente_ip"
+
+
 class AcessoPorIP(_PorIP):
     """Convite (ver e aceitar), renovar e a etapa de 2 etapas."""
 
