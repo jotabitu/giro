@@ -42,6 +42,8 @@ Cada model declara `CAMPOS_AUDITORIA = {"omitir": [...], "mascarar": [...]}`; o 
 | mascarar | máscara fixa | documento (CPF `***.218.330-**`; CNPJ inteiro), CNH (`*******1234`), nome de cliente PF (iniciais), nascimento (só o ano), celular e telefone (`(85) *****-1234`), e-mail (`l***@g***.com`), endereço do cliente (só cidade e UF), nome da referência (iniciais), `Contrato.assinado_ip` (/24), `LancamentoBancario.pagador` (iniciais) |
 | inteiro | valor | valores, status, datas de negócio, ids, códigos; nome e e-mail do funcionário (ele é o ator) |
 
+*Nota de 12 out 2026 (T-151, decisão do dono sobre a divergência da T-018):* a linha "mascarar" cita CPF e CNH, e a linha "omitir" cita todo `CampoCifrado`; vale a omissão. No evento de auditoria todo `CampoCifrado` (`Cliente.documento`, `Cliente.cnh_numero`, `Cliente.responsavel_cpf`) é omitido, `{"alterado": true}`, sem exceção: mascarar exigiria decifrar na gravação e guardar parte do documento por 5 anos (`AUD-02`) numa tabela imutável, fora do alcance da anonimização (`AUD-06`). A máscara de CPF (`***.218.330-**`) e de CNH (`*******1234`) vale para campos não cifrados e para telas, listas e exportações de cadastro (`AUD-04`, `AUD-09`), montada a partir do valor decifrado como no item 2. Não é decisão nova; esclarece este item.
+
 `ip` e `aparelho` do ator ficam inteiros. Um teste de arquitetura falha se algum model tiver campo cujo nome case com `cpf|cnh|documento|senha|password|token|chave|secret|celular|telefone|email|endereco|logradouro|nascimento|ip` sem estar classificado.
 
 ## Consequências
