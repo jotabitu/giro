@@ -380,6 +380,24 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 - Resolvido na T-190: (T-175, Aprovações) indicadores e contagens das abas entram com a `APR-12` (D12); o pedido ganha o bloco `resumo` por tipo; a frase das 4 horas sai (`APR-08`, fase 2); "Meus pedidos" aprovado; "Ver proposta" some até a venda ter tela. Propostas 9 a 12 da T-190.
 - Resolvido na T-190: (T-183, Assinatura) [D-1] a [D-10] respondidas nas regras `PLT-01` a `PLT-06` e `PLT-11` a `PLT-15` (ver a seção da T-183). Cancelar e pausar (`PLT-06`) entram no MVP: propostas 3, 4 e 7 da T-190.
 
+### T-205 · Caução na busca do caixa (D-01 da T-025)
+- **Agente:** backend · **Depende de:** — · **Regras:** FIN-15 · **Critérios:** CA-023-15 · **Pronto quando:** a busca do caixa por locação traz a caução a receber (`financeiro/selectors.py::_recortar` considera `?busca=`), e a caução pode ser recebida pela tela do caixa; teste `test_fin_15_busca_do_caixa_traz_caucao`. O QA troca o contorno do E2E (`e2e/`) pela tela.
+
+### T-206 · Mensagens da API nas telas de saída e de caixa (D-02 e D-03 da T-025)
+- **Agente:** frontend · **Depende de:** — · **Regras:** VEI-01, FIN-01 · **Critérios:** CA-025-09 · **Pronto quando:** (D-02) km de saída menor que o do veículo mostra a mensagem da API ("O km informado é menor que o atual…"), em vez de deixar o botão desligado com "Informe a quilometragem"; (D-03) sem caixa aberto, a tela diz "Abra o caixa do dia para receber"; testes.
+
+### T-207 · Vistoriador sem 403 ao abrir a vistoria (D-05 da T-025)
+- **Agente:** backend (com o frontend, se a chamada não for necessária) · **Depende de:** — · **Regras:** USR-09 · **Pronto quando:** o João (vistoriador) abre a vistoria sem 403: ou a tela deixa de chamar `GET /api/clientes/{id}/` e usa o que a vistoria já traz, ou a API devolve ao vistoriador só o que a USR-09 permite; teste com o perfil do vistoriador.
+
+### T-208 · Enviar contrato e página pública de assinatura (lacuna da T-025)
+- **Agente:** frontend · **Depende de:** — · **Regras:** LOC-04 · **Contrato:** `docs/api/contratos.md` (`POST /api/locacoes/{id}/contrato/` e as rotas públicas de assinatura) · **Telas:** as de assinatura em `docs/telas/html` · **Pronto quando:** botão para gerar e enviar o contrato na locação e página pública `/assinar` (sem login, celular), ligadas à API real; testes. O QA troca o contorno do CA-025-05 pela tela.
+
+### T-209 · Ajustes de cadastro e caixa achados no E2E (lacunas da T-025)
+- **Agente:** frontend · **Depende de:** — · **Regras:** CLI-01, FIN-01 · **Pronto quando:** (b) as fotos do cliente podem ser enviadas antes do primeiro "Salvar cliente", para "Salvar e iniciar locação" já ter as fotos; (c) o CEP preenche rua, bairro e cidade; (e) no celular o caixa mostra "N recebimentos"; testes. O item (d), a vendedora sem acesso à Frota, vai ao produto como divergência.
+
+### T-210 · Fotos no desenvolvimento sem bloqueio da CSP (D-06 da T-025)
+- **Agente:** devops (com o backend) · **Depende de:** — · **Pronto quando:** em desenvolvimento as URLs assinadas das fotos apontam para um endereço que o navegador alcança e a CSP permite (sem `arquivos.invalid`); as fotos da comparação da devolução aparecem e o console fica limpo; o E2E deixa de tolerar o erro da CSP.
+
 ## Fase 2 em diante
 
 Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a FIN-13), manutenção (MAN), automações (AUT), implantação self-service (IMP), relatórios e DRE, exportação (AUD-06, AUD-07). A cobrança da assinatura, cancelar e pausar e a `AUD-08` entraram no MVP em 14 out 2026 (T-183, T-190); continuam aqui a `Plat-Cobranca` e os adicionais. Da exportação (`AUD-07`), o MVP tem só a auditoria em CSV (T-018); a fase 2 traz os outros itens (clientes, veículos, locações e contratos, financeiro, vistorias e fotos), a planilha (.xlsx, dependência nova registrada no PR), o backup completo em ZIP com as 2 etapas recentes, o backup mensal (`AUT-11`) com o cartão da tela, a exportação da plataforma (`/api/plataforma/exportacoes/`), o pedido do titular (`AUD-06`, à mão até lá) e o prazo após o cancelamento (`AUD-08`), decisão do dono de 12 out 2026 (T-151). O orquestrador quebra em tarefas quando a fase 1 fechar.
