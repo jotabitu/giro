@@ -25,6 +25,7 @@ import secrets
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import IO, Any, Protocol
 from urllib.parse import quote, urlencode
 
@@ -145,24 +146,67 @@ def assinar(caminho: str, expira: str, nonce: str) -> str:
     ).hexdigest()
 
 
+def _diretorio_falso() -> Path | None:
+    """Pasta do armazenamento falso em disco (só no desenvolvimento, T-218). Vazia = memória."""
+    pasta = getattr(settings, "GIRO_ARQUIVOS_FALSOS_DIRETORIO", "")
+    return Path(pasta) if pasta else None
+
+
+def _arquivo_em_disco(pasta: Path, caminho: str) -> Path:
+    alvo = (pasta / caminho).resolve()
+    if not alvo.is_relative_to(pasta.resolve()):
+        raise ValueError("Caminho fora da pasta de arquivos.")
+    return alvo
+
+
+def ler_falso(caminho: str) -> tuple[bytes, str] | None:
+    """Conteúdo e tipo guardados no provedor falso, ou None se não existir."""
+    pasta = _diretorio_falso()
+    if pasta is None:
+        return guardados.get(caminho)
+    try:
+        alvo = _arquivo_em_disco(pasta, caminho)
+        tipo = alvo.with_name(alvo.name + ".tipo").read_text(encoding="utf-8")
+        return alvo.read_bytes(), tipo
+    except (OSError, ValueError):
+        return None
+
+
 class ProvedorFalso:
-    """Guarda na memória e assina a URL com HMAC da SECRET_KEY, com um `nonce`, para cada
-    leitura gerar uma URL diferente, como o S3 faz."""
+    """Guarda na memória (testes) ou numa pasta em disco (desenvolvimento, quando
+    `GIRO_ARQUIVOS_FALSOS_DIRETORIO` está definida) e assina a URL com HMAC da SECRET_KEY, com um
+    `nonce`, para cada leitura gerar uma URL diferente, como o S3 faz."""
 
     def salvar(self, caminho: str, conteudo: bytes, tipo_conteudo: str) -> None:
-        guardados[caminho] = (conteudo, tipo_conteudo)
+        pasta = _diretorio_falso()
+        if pasta is None:
+            guardados[caminho] = (conteudo, tipo_conteudo)
+            return
+        alvo = _arquivo_em_disco(pasta, caminho)
+        alvo.parent.mkdir(parents=True, exist_ok=True)
+        alvo.write_bytes(conteudo)
+        alvo.with_name(alvo.name + ".tipo").write_text(tipo_conteudo, encoding="utf-8")
 
     def ler(self, caminho: str) -> bytes:
-        return guardados[caminho][0]
+        guardado = ler_falso(caminho)
+        if guardado is None:
+            raise KeyError(caminho)
+        return guardado[0]
 
     def existe(self, caminho: str) -> bool:
-        return caminho in guardados
+        return ler_falso(caminho) is not None
 
     def tamanho(self, caminho: str) -> int:
-        return len(guardados[caminho][0])
+        return len(self.ler(caminho))
 
     def apagar(self, caminho: str) -> None:
-        guardados.pop(caminho, None)
+        pasta = _diretorio_falso()
+        if pasta is None:
+            guardados.pop(caminho, None)
+            return
+        alvo = _arquivo_em_disco(pasta, caminho)
+        alvo.unlink(missing_ok=True)
+        alvo.with_name(alvo.name + ".tipo").unlink(missing_ok=True)
 
     def url(self, caminho: str, expira_em: datetime) -> str:
         expira = str(int(expira_em.timestamp()))
