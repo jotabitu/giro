@@ -283,7 +283,7 @@ export function CaixaDoDia() {
       <div className="flex flex-col gap-6">
         <header>
           <h1 className="text-title md:text-display">Caixa do dia</h1>
-          <p className="mt-1 text-body text-ink-muted">O caixa de hoje ainda não foi aberto.</p>
+          <p className="mt-1 text-body text-ink-muted">O caixa de hoje ainda não foi aberto. Abra o caixa do dia para receber.</p>
         </header>
         {aviso && <Confirmacao>{aviso}</Confirmacao>}
         {r && "pode_abrir" in r && !r.pode_abrir ? <p className="text-body text-ink-muted">Você não pode abrir o caixa desta filial.</p> : <Abrir aoConcluir={() => void atualizar()} />}

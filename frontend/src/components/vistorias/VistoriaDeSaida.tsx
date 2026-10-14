@@ -118,7 +118,7 @@ export function VistoriaDeSaida({ locacaoId }: { locacaoId: number }) {
   if (inicio.isError) return <TelaDeErro erro={inicio.error} voltar={{ href: `/locacoes/${locacaoId}`, rotulo: "Voltar para a locação" }} />;
   if (!v) return null;
 
-  const falta = textoDaPendencia(v);
+  const falta = v.pendencias[0] === "km" && edicao.avisoDoKm ? edicao.avisoDoKm.mensagem : textoDaPendencia(v);
   const pendencias = pendenciasDoErro(concluir.error);
   const concluida = v.status === "concluida";
 

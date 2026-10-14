@@ -1,5 +1,5 @@
 import type { Combustivel, PendenciaDaVistoria, PosicaoFoto, Vistoria } from "@/lib/api";
-import { ErroApi } from "@/lib/api";
+import { ErroApi, vistorias as apiVistorias } from "@/lib/api";
 
 /** Os cinco níveis do tanque, na ordem da tela (Reserva, 1/4, 1/2, 3/4, Cheio). */
 export const NIVEIS: { valor: Combustivel; rotulo: string; curto: string }[] = [
@@ -58,4 +58,18 @@ export function linkDaPendencia(p: PendenciaDaVistoria, v: Pick<Vistoria, "veicu
   if (p.codigo === "VEI-03") return { href: `/veiculos/${v.veiculo.id}`, rotulo: "Ver documentos" };
   if (p.codigo.startsWith("CLI-")) return { href: `/locacoes/${v.locacao.id}`, rotulo: "Ver a locação" };
   return null;
+}
+
+/**
+ * A mensagem do `VEI-01` ("O km informado é menor que o atual…") para a vistoria com km digitado.
+ * A vistoria só traz o código curto da pendência; a mensagem vem do 422 da conclusão, que com o km pendente nunca conclui.
+ */
+export async function avisoDoKmDaApi(v: Pick<Vistoria, "id" | "km" | "pendencias">): Promise<PendenciaDaVistoria | null> {
+  if (v.km === null || !v.pendencias.includes("km")) return null;
+  try {
+    await apiVistorias.concluir(v.id);
+    return null;
+  } catch (erro) {
+    return pendenciasDoErro(erro).find((p) => p.codigo === "VEI-01") ?? null;
+  }
 }
