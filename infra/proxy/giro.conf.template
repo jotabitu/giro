@@ -1,0 +1,83 @@
+# Proxy reverso de homologação e produção (T-158, M-04; ADR 0013 e 0018).
+#
+# Modelo do nginx: a imagem oficial troca ${VARIAVEL} ao subir (pasta /etc/nginx/templates).
+# Variáveis: DOMINIO_BASE (girolocadoras.com.br), BACKEND_UPSTREAM (host:porta do Django),
+# FRONTEND_UPSTREAM (host:porta do Next) e CERT_DIR (pasta de fullchain.pem e privkey.pem do
+# certificado curinga). Este arquivo é a referência do comportamento; se o ambiente usar outro
+# proxy, a lista de `infra/README.md` ("Proxy reverso") diz o que ele precisa fazer igual.
+
+# Rate limit de borda por IP. A chave é o IP da conexão (o proxy é a primeira parada).
+limit_req_zone $binary_remote_addr zone=giro_auth:10m rate=10r/m;
+limit_req_zone $binary_remote_addr zone=giro_webhook:10m rate=120r/m;
+limit_req_status 429;
+limit_conn_status 429;
+
+# Host desconhecido não chega ao Django.
+server {
+    listen 80 default_server;
+    listen 443 ssl default_server;
+    server_name _;
+    ssl_certificate     ${CERT_DIR}/fullchain.pem;
+    ssl_certificate_key ${CERT_DIR}/privkey.pem;
+    return 444;
+}
+
+server {
+    listen 80;
+    server_name ${DOMINIO_BASE} *.${DOMINIO_BASE};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name *.${DOMINIO_BASE};
+
+    ssl_certificate     ${CERT_DIR}/fullchain.pem;
+    ssl_certificate_key ${CERT_DIR}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+
+    # Corpo de até 12 MB (T-158). O Django não limita arquivo em multipart e os uploads só são
+    # conferidos por comum/arquivos.validar depois de recebidos inteiros; o maior arquivo
+    # aceito pela aplicação cabe aqui com folga para o multipart. Acima disso: 413.
+    client_max_body_size 12m;
+    client_body_timeout 30s;
+    client_header_timeout 15s;
+
+    # Cabeçalhos de encaminhamento SEMPRE sobrescritos, nunca repassados do cliente (T-158).
+    # O TenantMainMiddleware escolhe a empresa por get_host(), que segue o X-Forwarded-Host
+    # (USE_X_FORWARDED_HOST = True em prod.py): um valor forjado pelo cliente trocaria de empresa.
+    # X-Forwarded-For leva só o IP da conexão (comum.rede conta GIRO_PROXIES_CONFIAVEIS = 1).
+    # Se houver balanceador na frente deste proxy, ver "Proxy reverso" em infra/README.md.
+    proxy_http_version 1.1;
+    proxy_set_header Host               $host;
+    proxy_set_header X-Forwarded-Host   $host;
+    proxy_set_header X-Forwarded-Proto  $scheme;
+    proxy_set_header X-Forwarded-For    $remote_addr;
+    proxy_set_header X-Real-IP          $remote_addr;
+    proxy_set_header Forwarded          "";
+    proxy_set_header Connection         "";
+
+    # /api/ vai direto ao Django, sem passar pelo Next (o middleware do Next apaga o
+    # X-Forwarded-For, ADR 0018).
+    location /api/auth/ {
+        limit_req zone=giro_auth burst=10 nodelay;
+        proxy_pass http://${BACKEND_UPSTREAM};
+    }
+
+    # Aviso de pagamento do parceiro, no host da plataforma (urls_publico.py).
+    location /api/webhooks/ {
+        limit_req zone=giro_webhook burst=60 nodelay;
+        client_max_body_size 1m;
+        proxy_pass http://${BACKEND_UPSTREAM};
+    }
+
+    location /api/ {
+        proxy_read_timeout 60s;
+        proxy_pass http://${BACKEND_UPSTREAM};
+    }
+
+    location / {
+        proxy_pass http://${FRONTEND_UPSTREAM};
+    }
+}

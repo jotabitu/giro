@@ -6,6 +6,8 @@ from config.settings.base import *  # noqa: F403
 from config.settings.base import env
 
 DEBUG = True
+# O rewrite do Next repassa o Host original em X-Forwarded-Host (T-158).
+USE_X_FORWARDED_HOST = True
 
 # ADR 0021: data de referência do relógio do domínio (AAAA-MM-DD). Vazia ou ausente = desligada;
 # fora do formato, o processo não sobe.

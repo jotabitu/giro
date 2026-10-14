@@ -100,6 +100,18 @@ Todos os serviços do `docker-compose.yml` têm `restart: unless-stopped`: volta
 
 Nota para a subida do Next: no Next 16 `middleware.ts` passa a se chamar `proxy.ts`; mover `frontend/src/middleware.ts` quando a versão subir. O destino do rewrite é lido no build (`output: standalone`) e, em `next dev`, em execução.
 
+## Proxy reverso (T-158, M-04)
+
+Modelo em `infra/proxy/giro.conf.template` (nginx; a imagem oficial troca as variáveis `DOMINIO_BASE`, `BACKEND_UPSTREAM`, `FRONTEND_UPSTREAM` e `CERT_DIR` ao subir; `nginx -t` passa com a imagem 1.27). O produto do proxy ainda depende da ADR de deploy; se for outro, ele precisa cumprir esta lista antes de homologação:
+
+- [ ] Corpo de até 12 MB (`client_max_body_size 12m`; 413 acima). O Django não limita arquivo em multipart e `comum/arquivos.validar` só confere depois de receber tudo. O webhook tem 1 MB.
+- [ ] `X-Forwarded-Host`, `X-Forwarded-Proto` e `X-Forwarded-For` **sobrescritos** pelo proxy (`$host`, `$scheme`, `$remote_addr`), nunca repassados do cliente; `Forwarded` apagado. O `TenantMainMiddleware` escolhe a empresa por `get_host()`, que segue o `X-Forwarded-Host`.
+- [ ] `X-Forwarded-For` com um só valor (o IP da conexão), para `GIRO_PROXIES_CONFIAVEIS=1`. Com balanceador na frente, o proxy deve confiar nele (`set_real_ip_from`/`real_ip_header`) e o valor de `GIRO_PROXIES_CONFIAVEIS` e de `GIRO_REDES_PROXY` acompanha a cadeia real.
+- [ ] `/api/` vai direto ao Django, sem passar pelo Next; o Django só é alcançável pelo proxy (regra de rede do ambiente).
+- [ ] Rate limit de borda: `/api/auth/` (10 por minuto por IP, rajada de 10) e `/api/webhooks/` (120 por minuto, rajada de 60), resposta 429. Soma-se aos limites da aplicação, não os substitui.
+- [ ] Host desconhecido recusado no proxy (444); HTTP redireciona para HTTPS; certificado curinga.
+- [ ] Backend: `USE_X_FORWARDED_HOST` é `False` em `base.py` e `test.py`, e `True` só em `dev.py` (o rewrite do Next) e `prod.py`. Teste `test_t158_x_forwarded_host_so_em_dev_e_prod`.
+
 ## Endurecimento de produção (T-035)
 
 Valores por ambiente (o processo precisa de `DJANGO_SETTINGS_MODULE`; `wsgi.py`, `asgi.py` e `config/celery.py` não têm mais padrão e falham sem ele, C-04):
