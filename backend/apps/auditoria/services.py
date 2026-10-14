@@ -1,7 +1,8 @@
 """Exportação (AUD-07, S-15; docs/api/auditoria.md). Única forma de mudar o status dela.
 
-Nesta entrega (T-018) só a auditoria em CSV é gerada; os outros itens e formatos respondem 422
-`exportacao_indisponivel` até a tarefa da exportação completa (ver o handoff da T-018).
+No MVP saem a auditoria em CSV (T-018) e as despesas em CSV (T-178), estas montadas pelo
+`financeiro` pelo registro de `exportacao.py`; os outros itens e formatos respondem 422
+`exportacao_indisponivel` até a exportação completa da fase 2.
 """
 
 import csv
@@ -20,6 +21,7 @@ from comum.erros import ErroDeRegra, ErroDeValidacao, Expirado, SemPermissao
 from comum.estados import transicionar
 
 from . import selectors
+from .exportacao import item_registrado
 from .models import (
     EventoAuditoria,
     Exportacao,
@@ -36,12 +38,15 @@ DOIS_FATORES_RECENTE_ERRO = (
 )
 INDISPONIVEL = (
     "exportacao_indisponivel",
-    "Por enquanto, só a auditoria em CSV pode ser exportada.",
+    "Por enquanto, só a auditoria e as despesas podem ser exportadas, em CSV.",
 )
 EXPIRADA = ("exportacao_expirada", "O link desta exportação venceu. Peça uma nova exportação.")
 NAO_PRONTA = ("exportacao_nao_pronta", "O arquivo ainda não está pronto.")
 # Itens e formatos que já têm gerador (o resto vem com a exportação completa).
-DISPONIVEIS = {(ItemExportacao.AUDITORIA.value, FormatoExportacao.CSV.value)}
+DISPONIVEIS = {
+    (ItemExportacao.AUDITORIA.value, FormatoExportacao.CSV.value),
+    (ItemExportacao.DESPESAS.value, FormatoExportacao.CSV.value),
+}
 
 
 def dois_fatores_recente(payload: dict[str, Any]) -> bool:
@@ -67,10 +72,25 @@ def _periodo(periodo: dict[str, Any] | None) -> tuple[date | None, date | None]:
     return de, ate
 
 
+def _periodo_do_mes(mes: str) -> tuple[date, date]:
+    """Primeiro e último dia do mês `AAAA-MM` (já conferido por quem registrou o item)."""
+    inicio = date.fromisoformat(f"{mes}-01")
+    seguinte = date(inicio.year + inicio.month // 12, inicio.month % 12 + 1, 1)
+    return inicio, seguinte - timedelta(days=1)
+
+
 def solicitar(
-    *, itens: list[str], formato: str, periodo: dict[str, Any] | None, token: dict[str, Any]
+    *,
+    itens: list[str],
+    formato: str,
+    periodo: dict[str, Any] | None,
+    token: dict[str, Any],
+    dados: dict[str, Any] | None = None,
 ) -> Exportacao:
-    """POST /api/exportacoes/: 202 `na_fila`. O arquivo sai da tarefa `auditoria_exportar`."""
+    """POST /api/exportacoes/: 202 `na_fila`. O arquivo sai da tarefa `auditoria_exportar`.
+
+    Item registrado por outro app (as despesas) vai sozinho: período e filial são diferentes. O
+    corpo passa pelo `validar` dele, e o mês vira `periodo_inicio` e `periodo_fim`."""
     if formato == FormatoExportacao.ZIP:
         itens = list(ItemExportacao.values)  # backup completo: tudo, com fotos
         if not dois_fatores_recente(token):
@@ -79,7 +99,17 @@ def solicitar(
         raise ErroDeValidacao({"itens": ["Escolha ao menos um item."]})
     if any((item, formato) not in DISPONIVEIS for item in itens):
         raise ErroDeRegra(*INDISPONIVEL)
-    de, ate = _periodo(periodo)
+    registrado = next((r for i in set(itens) if (r := item_registrado(i)) is not None), None)
+    if registrado is not None and len(set(itens)) > 1:
+        raise ErroDeRegra(*INDISPONIVEL)
+    parametros: dict[str, Any] = {}
+    de: date | None
+    ate: date | None
+    if registrado is not None:
+        parametros = registrado.validar({**(dados or {}), "periodo": periodo})
+        de, ate = _periodo_do_mes(parametros["mes"])
+    else:
+        de, ate = _periodo(periodo)
     ator = auditoria.ator_atual()
     with transaction.atomic():
         exportacao = Exportacao.objects.create(
@@ -89,6 +119,7 @@ def solicitar(
             formato=formato,
             periodo_inicio=de,
             periodo_fim=ate,
+            parametros=parametros,
         )
         registrar_evento(
             "exportacao.pedir",
@@ -163,10 +194,10 @@ def _json(valor: Any) -> str:
     return json.dumps(valor, cls=DjangoJSONEncoder, ensure_ascii=False) if valor else ""
 
 
-def _csv(linhas: list[list[Any]]) -> bytes:
+def _csv(linhas: list[list[Any]], colunas: tuple[str, ...] = COLUNAS) -> bytes:
     saida = io.StringIO()
     escritor = csv.writer(saida, delimiter=";")
-    escritor.writerow(COLUNAS)
+    escritor.writerow(colunas)
     for linha in linhas:
         escritor.writerow([celula(v) for v in linha])
     return saida.getvalue().encode("utf-8-sig")  # BOM: a planilha abre os acentos certos
@@ -177,9 +208,15 @@ def gerar(exportacao_id: int) -> Exportacao | None:
     exportacao: Exportacao | None = Exportacao.objects.filter(pk=exportacao_id).first()
     if exportacao is None or exportacao.status != StatusExportacao.NA_FILA:
         return exportacao
+    item = exportacao.itens[0] if len(exportacao.itens) == 1 else ""
+    registrado = item_registrado(item)
     try:
-        conteudo = _csv(_linhas_da_auditoria(exportacao))
-        caminho = f"{schema_atual()}/auditoria/exportacao/{exportacao.pk}/auditoria.csv"
+        if registrado is not None:
+            conteudo = _csv(registrado.linhas(exportacao), registrado.colunas)
+        else:
+            item = "auditoria"
+            conteudo = _csv(_linhas_da_auditoria(exportacao))
+        caminho = f"{schema_atual()}/auditoria/exportacao/{exportacao.pk}/{item}.csv"
         arquivos.provedor().salvar(caminho, conteudo, "text/csv")
     except Exception:
         transicionar(exportacao, StatusExportacao.FALHOU, acao="exportacao.falhar", regra="AUD-07")
@@ -243,6 +280,9 @@ def baixar(exportacao: Exportacao, token: dict[str, Any]) -> str:
 
 def conteudo_rotulo(exportacao: Exportacao) -> str:
     """ "Auditoria · 01/10 a 07/10" para a lista de exportações recentes."""
+    registrado = item_registrado(exportacao.itens[0]) if len(exportacao.itens) == 1 else None
+    if registrado is not None:
+        return registrado.conteudo(exportacao)
     rotulos = dict(ItemExportacao.choices)
     nomes = ", ".join(str(rotulos.get(i, i)) for i in exportacao.itens)
     if exportacao.formato == FormatoExportacao.ZIP:

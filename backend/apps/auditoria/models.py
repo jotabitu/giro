@@ -96,6 +96,7 @@ class ItemExportacao(models.TextChoices):
     FINANCEIRO = "financeiro", "Financeiro"
     VISTORIAS_FOTOS = "vistorias_fotos", "Vistorias e fotos"
     AUDITORIA = "auditoria", "Auditoria"
+    DESPESAS = "despesas", "Despesas"  # da tela Despesas, por mês e filial (FIN-16, T-177)
 
 
 class FormatoExportacao(models.TextChoices):
@@ -124,6 +125,8 @@ class Exportacao(MaquinaDeEstados, ModeloBase):
     formato = models.CharField(max_length=10, choices=FormatoExportacao.choices)
     periodo_inicio = models.DateField(null=True, blank=True)
     periodo_fim = models.DateField(null=True, blank=True)
+    # Despesas: `{"mes", "filial_id", "filial_nome"}`, com o nome copiado no pedido (T-177).
+    parametros = models.JSONField(default=dict, blank=True)
     status = models.CharField(
         max_length=10, choices=StatusExportacao.choices, default=StatusExportacao.NA_FILA
     )

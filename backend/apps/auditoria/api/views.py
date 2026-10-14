@@ -1,8 +1,8 @@
 """Views finas da auditoria da empresa e da exportação (docs/api/auditoria.md).
 
-Só o administrador (CA-018-08). O token de suporte recebe 403 `PLT-07`: o suporte não lê o
-rastro de quem audita o próprio suporte. Não existe escrita de evento: `POST`, `PUT`, `PATCH` e
-`DELETE` respondem 405 (CA-018-01).
+Só o administrador (CA-018-08); na exportação, as despesas também pelo financeiro (T-177). O
+token de suporte recebe 403 `PLT-07`: o suporte não lê o rastro de quem audita o próprio suporte.
+Não existe escrita de evento: `POST`, `PUT`, `PATCH` e `DELETE` respondem 405 (CA-018-01).
 """
 
 from typing import Any
@@ -11,6 +11,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -22,7 +23,7 @@ from comum.paginacao import PaginacaoPorCursor, envelope_sem_paginas
 from comum.permissoes import com_padrao, exige_perfil
 
 from .. import selectors, services
-from ..models import EventoAuditoria, Exportacao
+from ..models import EventoAuditoria, Exportacao, ItemExportacao
 from .serializers import (
     EventoDetalheSerializer,
     EventoSerializer,
@@ -36,6 +37,9 @@ from .serializers import (
 )
 
 ADMINISTRADOR: list[type[BasePermission]] = com_padrao(exige_perfil("administrador"))
+# AUD-07: o administrador exporta tudo; o financeiro, só as despesas (decisão de 13 out 2026).
+EXPORTAM: list[type[BasePermission]] = com_padrao(exige_perfil("administrador", "financeiro"))
+SO_DESPESAS = [ItemExportacao.DESPESAS.value]
 
 PERIODO = [
     OpenApiParameter("periodo", enum=list(selectors.PERIODOS), description="padrão 7d"),
@@ -124,34 +128,59 @@ def _exportacao(exportacao: Exportacao) -> dict[str, Any]:
     }
 
 
-class ExportacoesView(SoAdministrador):
+def _exporta_os_itens(request: Request, itens: list[str]) -> bool:
+    """O administrador, qualquer item; o financeiro, só as despesas (403 `permissao`)."""
+    if getattr(request.user, "perfil", None) == "administrador":
+        return True
+    return sorted(set(itens)) == SO_DESPESAS
+
+
+def _conferir_itens(request: Request, itens: list[str]) -> None:
+    if not _exporta_os_itens(request, itens):
+        raise PermissionDenied("Seu perfil não tem acesso a esta ação.")
+
+
+class Exportam(APIView):
+    permission_classes = EXPORTAM
+    suporte_proibido = True  # 403 PLT-07, mesmo com "ver e editar"
+
+
+class ExportacoesView(Exportam):
     @extend_schema(
         responses=ListaDeExportacoesSerializer,
         operation_id="exportacoes_list",
-        summary="Exportações recentes (AUD-07)",
+        summary="Exportações recentes (AUD-07); o financeiro vê só as de despesas",
     )
     def get(self, request: Request) -> Response:
+        qs = Exportacao.objects.all()
+        if getattr(request.user, "perfil", None) != "administrador":
+            qs = qs.filter(itens=SO_DESPESAS)
         paginacao = PaginacaoPorCursor()
         paginacao.ordering = ("-criado_em", "-id")  # type: ignore[assignment]
-        pagina = paginacao.paginate_queryset(Exportacao.objects.all(), request, view=self) or []
+        pagina = paginacao.paginate_queryset(qs, request, view=self) or []
         dados = [_exportacao(e) for e in pagina]
         return paginacao.get_paginated_response(ExportacaoSerializer(dados, many=True).data)
 
     @extend_schema(
         request=ExportacaoEntradaSerializer,
         responses={202: ExportacaoCriadaSerializer},
-        summary="Pedir exportação (AUD-07); backup completo pede 2 etapas recentes (S-15)",
+        summary=(
+            "Pedir exportação (AUD-07): auditoria ou despesas (FIN-16); backup completo pede 2 "
+            "etapas recentes (S-15)"
+        ),
     )
     def post(self, request: Request) -> Response:
         entrada = ExportacaoEntradaSerializer(data=request.data)
         entrada.is_valid(raise_exception=True)
         dados = entrada.validated_data
+        _conferir_itens(request, list(dados["itens"]))
         periodo = dados.get("periodo")
         exportacao = services.solicitar(
             itens=list(dados["itens"]),
             formato=dados["formato"],
             periodo={"de": str(periodo["de"]), "ate": str(periodo["ate"])} if periodo else None,
             token=token_da_requisicao(request),
+            dados={"mes": dados.get("mes"), "filial_id": dados.get("filial_id")},
         )
         from ..tasks import auditoria_exportar
 
@@ -164,7 +193,7 @@ class ExportacoesView(SoAdministrador):
         )
 
 
-class BaixarExportacaoView(SoAdministrador):
+class BaixarExportacaoView(Exportam):
     @extend_schema(
         responses={
             302: OpenApiResponse(description="Redireciona para a URL assinada de 15 minutos"),
@@ -174,6 +203,7 @@ class BaixarExportacaoView(SoAdministrador):
     )
     def get(self, request: Request, pk: int) -> Response:
         exportacao = get_object_or_404(Exportacao, pk=pk)
+        _conferir_itens(request, list(exportacao.itens))
         if services.vencida(exportacao):
             services.expirar(exportacao)
             exportacao.refresh_from_db()
