@@ -317,7 +317,20 @@ class TrocaPendenteSerializer(serializers.Serializer[Any]):
     caucao = CaucaoDaTrocaSerializer(allow_null=True, required=False)
 
 
+class ClienteDaLocacaoSerializer(serializers.Serializer[Any]):
+    """USR-09: o que a ficha da locação mostra do cliente, sem abrir a ficha dele."""
+
+    id = serializers.IntegerField()
+    nome = serializers.CharField()
+    celular = serializers.CharField(allow_null=True)
+    cnh_categoria = serializers.CharField(allow_null=True)
+    ficha_liberada = serializers.BooleanField(
+        help_text="O perfil abre a ficha do cliente; falso para o vistoriador (USR-09)."
+    )
+
+
 class LocacaoDetalheSerializer(LocacaoSerializer):
+    cliente = ClienteDaLocacaoSerializer()  # type: ignore[assignment]
     filial = IdNomeLocacaoSerializer()
     vendedor = IdNomeLocacaoSerializer()
     periodos = serializers.IntegerField()
