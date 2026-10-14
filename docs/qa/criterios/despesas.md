@@ -26,13 +26,16 @@ Quando busca "pmz-3e17", então traz só os pneus (veículo PMZ3E17). Quando bus
 ## Exportar (`FIN-16`, `AUD-07`)
 
 **CA-DES-06 · Exportação de outubro**
-Dado a Mariana (administradora) na tela de outubro da Filial Centro, quando clica em "Exportar", então nasce uma exportação `na_fila` que fica `pronta` em segundo plano, o link chega por e-mail e vale 7 dias, e "Exportações recentes" mostra "Despesas · 01/10/2026 a 31/10/2026" (texto final no contrato). O CSV tem 6 linhas, uma por despesa, somando R$ 7.066,70, com data, descrição, categoria, veículo, filial, valor, vencimento, situação, pago em, forma e quem lançou.
+Dado a Mariana (administradora) na tela de outubro da Filial Centro, quando clica em "Exportar", então nasce uma exportação `na_fila` que fica `pronta` em segundo plano, o link chega por e-mail e vale 7 dias, e "Exportações recentes" mostra "Despesas · 01/10/2026 a 31/10/2026" (texto final no contrato). O CSV tem 6 linhas, uma por despesa, somando R$ 7.066,70, com data, descrição, categoria, veículo, filial, valor, vencimento, situação, pago em, forma e quem lançou. O veículo sai pela placa com hífen: a linha dos pneus traz PMZ-3E17, a do óleo QXA-4B21; as despesas sem veículo saem com o campo vazio.
+
+**CA-DES-06b · O financeiro exporta**
+Dado a Lúcia (financeiro) na mesma tela, quando clica em "Exportar", então a exportação nasce igual à da Mariana, o link chega no e-mail dela, e ela baixa o arquivo pela rota de baixar (com o evento `exportacao.baixar`). A Lúcia continua sem exportar a auditoria (403) e sem a tela `Admin-Exportar`.
 
 **CA-DES-07 · A busca e a aba não mudam o arquivo**
 Com a busca "pneu" e a aba "Pagas" escolhidas, o CSV continua com as 6 linhas do mês.
 
-**CA-DES-08 · Só o administrador exporta**
-Dado a Lúcia (financeiro), o Rodrigo (gerente) ou a Bruna (vendedora), então a tela não mostra "Exportar" e o pedido direto à API é recusado (403). A tela `Admin-Exportar` continua só com a auditoria.
+**CA-DES-08 · Só o administrador e o financeiro exportam**
+Dado o Rodrigo (gerente), a Bruna (vendedora) ou o João (vistoriador), então a tela não mostra "Exportar" e o pedido direto à API é recusado (403). A tela `Admin-Exportar` continua só com a auditoria.
 
 **CA-DES-09 · Recusada sai no arquivo**
 Com os pneus recusados, o CSV continua com 6 linhas, e a dos pneus traz a situação recusada.
