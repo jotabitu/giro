@@ -45,17 +45,10 @@ export function exigirHoraSegura() {
   }
 }
 
-/** Mensagens do navegador que são conhecidas e têm dono. Qualquer outra derruba o teste. */
-const ERROS_CONHECIDOS: { padrao: RegExp; motivo: string }[] = [
-  // Em desenvolvimento as URLs assinadas das fotos apontam para `arquivos.invalid` e a CSP as bloqueia (D-05 do handoff T-025).
-  { padrao: /arquivos\.invalid/, motivo: "URL de foto do armazenamento de desenvolvimento bloqueada pela CSP" },
-];
-
 export type Vigia = {
   erros: string[];
   respostas5xx: string[];
   respostas4xx: string[];
-  conhecidos: string[];
   /** Declara que a próxima resposta com esse status e esse caminho é esperada (passo que provoca o erro de propósito). */
   esperar: (status: number, caminho: RegExp) => void;
   /** Declara uma resposta de erro que é defeito aberto (vira anotação, ou falha com E2E_ESTRITO=1). */
@@ -75,7 +68,6 @@ export function vigiar(page: Page): Vigia {
     erros: [],
     respostas5xx: [],
     respostas4xx: [],
-    conhecidos: [],
     esperar(status, caminho) {
       esperadas.push({ status, caminho });
     },
@@ -100,8 +92,7 @@ export function vigiar(page: Page): Vigia {
     if (m.type() !== "error") return;
     const texto = m.text();
     if (texto.startsWith("Failed to load resource")) return;
-    if (ERROS_CONHECIDOS.some((c) => c.padrao.test(texto))) vigia.conhecidos.push(texto.slice(0, 120));
-    else vigia.erros.push(texto);
+    vigia.erros.push(texto);
   });
   page.on("pageerror", (e) => vigia.erros.push(`pageerror: ${e.message}`));
   page.on("response", (r) => {
