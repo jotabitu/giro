@@ -41,7 +41,7 @@ def configuracao_de_prod(**variaveis: str | None) -> dict[str, Any]:
         "print(json.dumps({k: getattr(s, k) for k in ("
         "'SHOW_PUBLIC_IF_NO_TENANT_FOUND','SECURE_HSTS_SECONDS','SECURE_HSTS_PRELOAD',"
         "'SECURE_HSTS_INCLUDE_SUBDOMAINS','SECURE_REFERRER_POLICY','X_FRAME_OPTIONS',"
-        "'EXPOR_DOCUMENTACAO_DA_API')}))",
+        "'EXPOR_DOCUMENTACAO_DA_API','USE_X_FORWARDED_HOST')}))",
         **variaveis,
     )
     assert resultado.returncode == 0, resultado.stderr
@@ -55,6 +55,17 @@ def test_s16_prod_nao_serve_o_public_em_host_desconhecido():
 def test_s17_prod_fecha_schema_e_docs_por_padrao():
     assert configuracao_de_prod()["EXPOR_DOCUMENTACAO_DA_API"] is False
     assert configuracao_de_prod(GIRO_EXPOR_DOCUMENTACAO_DA_API="1")["EXPOR_DOCUMENTACAO_DA_API"]
+
+
+def test_t158_x_forwarded_host_so_em_dev_e_prod():
+    assert configuracao_de_prod()["USE_X_FORWARDED_HOST"] is True
+    for modulo, esperado in (("test", False), ("dev", True), ("base", False)):
+        resultado = rodar(
+            "from django.conf import settings as s; print(s.USE_X_FORWARDED_HOST)",
+            DJANGO_SETTINGS_MODULE=f"config.settings.{modulo}",
+        )
+        assert resultado.returncode == 0, resultado.stderr
+        assert resultado.stdout.strip() == str(esperado)
 
 
 def test_s18_prod_hsts_com_preload_e_cabecalhos():
