@@ -12,7 +12,9 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "api:gerar": "node scripts/gerar-api.mjs"
+    "api:gerar": "node scripts/gerar-api.mjs",
+    "e2e": "playwright test",
+    "e2e:tipos": "tsc --noEmit -p e2e/tsconfig.json"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -28,6 +30,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
+    "@playwright/test": "^1.56.1",
     "@types/node": "^22.15.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
