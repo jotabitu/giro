@@ -21,8 +21,11 @@ from apps.auditoria.models import EventoAuditoria
 from apps.contratos.selectors import permite_juros
 from apps.empresas.models import ConfiguracaoEmpresa
 from apps.empresas.selectors import configuracao
+from apps.veiculos.selectors import frota_ativa_em
+from apps.veiculos.services import normalizar_placa
 from comum import arquivos, leituras
 from comum.dinheiro import aplicar_percentual, juros_pro_rata
+from comum.erros import ErroDeValidacao
 
 from .models import (
     Caixa,
@@ -43,6 +46,7 @@ from .models import (
     StatusDespesa,
     TipoConta,
     TipoMovimento,
+    texto_de_busca,
 )
 
 
@@ -396,8 +400,9 @@ def filtrar_contas(qs: QuerySet[ContaReceber], params: Any, hoje: date) -> Query
 
 def _recortar(qs: QuerySet[ContaReceber], params: Any) -> tuple[QuerySet[ContaReceber], bool]:
     """`?cliente=`, `?origem_tipo=&origem_id=` e `?busca=`: valem para a lista e para as
-    contagens (FIN-15, T-148). Devolve também se a lista é de um cliente ou de uma origem, que é
-    quando a caução aparece."""
+    contagens (FIN-15, T-148). Devolve também se a lista é recortada (cliente, origem ou busca),
+    que é quando a caução aparece: a busca do caixa por cliente ou locação traz a caução a
+    receber (CA-023-15, T-205)."""
     da_origem = bool(params.get("origem_tipo") and str(params.get("origem_id", "")).isdigit())
     if da_origem:
         qs = qs.filter(origem_tipo=params["origem_tipo"], origem_id=int(params["origem_id"]))
@@ -407,7 +412,7 @@ def _recortar(qs: QuerySet[ContaReceber], params: Any) -> tuple[QuerySet[ContaRe
     busca = (params.get("busca") or "").strip()
     if busca:
         qs = qs.filter(Q(cliente__nome__icontains=busca) | Q(origem_codigo__icontains=busca))
-    return qs, da_origem or do_cliente
+    return qs, da_origem or do_cliente or bool(busca)
 
 
 def indicadores_e_contagens(filiais: Iterable[int], params: Any, hoje: date) -> dict[str, Any]:
@@ -812,9 +817,33 @@ def mes_pedido(texto: str | None, hoje: date) -> date:
         return hoje.replace(day=1)
 
 
+BUSCA_MAXIMO = 60  # FIN-16
+
+
+def termo_de_busca(params: Any) -> str:
+    """`?busca=`: vazio ou só espaços é ignorado; acima de 60 caracteres, 400 (FIN-16)."""
+    termo = str(params.get("busca") or "").strip()
+    if len(termo) > BUSCA_MAXIMO:
+        raise ErroDeValidacao({"busca": [f"Use até {BUSCA_MAXIMO} caracteres na busca."]})
+    return termo
+
+
+def buscar_despesas(qs: QuerySet[Despesa], termo: str) -> QuerySet[Despesa]:
+    """A descrição, sem diferenciar maiúsculas e acentos, ou a placa do veículo, sem hífen nem
+    espaço (FIN-16). Termo que fica vazio depois de normalizado não procura na placa."""
+    if not termo:
+        return qs
+    condicao = Q(descricao_busca__contains=texto_de_busca(termo))
+    placa = normalizar_placa(termo)
+    if placa:
+        condicao |= Q(veiculo__placa__contains=placa)
+    return qs.filter(condicao)
+
+
 def filtrar_despesas(qs: QuerySet[Despesa], params: Any, hoje: date) -> QuerySet[Despesa]:
     inicio = mes_pedido(params.get("mes"), hoje)
     qs = qs.filter(data__gte=inicio, data__lt=_mes_seguinte(inicio))
+    qs = buscar_despesas(qs, termo_de_busca(params))
     if params.get("status"):
         qs = qs.filter(status=params["status"])
     if params.get("categoria"):
@@ -824,9 +853,22 @@ def filtrar_despesas(qs: QuerySet[Despesa], params: Any, hoje: date) -> QuerySet
     return qs
 
 
-def indicadores_das_despesas(qs: QuerySet[Despesa], params: Any, hoje: date) -> dict[str, Any]:
-    """Os números da tela `Despesas` no mês pedido (CA-017-19). Recusadas não entram no gasto."""
+def despesa_por_veiculo(gasto_centavos: int, veiculos: int) -> int | None:
+    """FIN-16: o gasto do mês ÷ a frota ativa, arredondado uma vez (ROUND_HALF_UP). Sem
+    veículo, `None`: a tela não mostra valor nem zero (CA-DES-03)."""
+    if veiculos <= 0:
+        return None
+    valor = Decimal(gasto_centavos) / Decimal(veiculos)
+    return int(valor.quantize(Decimal(1), rounding=ROUND_HALF_UP))
+
+
+def indicadores_das_despesas(
+    qs: QuerySet[Despesa], params: Any, hoje: date, filiais: Iterable[int]
+) -> dict[str, Any]:
+    """Os números da tela `Despesas` no mês pedido (CA-017-19). Recusadas não entram no gasto.
+    Os indicadores não mudam com nenhum filtro; as contagens seguem só a busca (FIN-16)."""
     inicio = mes_pedido(params.get("mes"), hoje)
+    fim_do_mes = _mes_seguinte(inicio) - timedelta(days=1)
     do_mes = qs.filter(data__gte=inicio, data__lt=_mes_seguinte(inicio)).exclude(
         status=StatusDespesa.RECUSADA
     )
@@ -843,13 +885,17 @@ def indicadores_das_despesas(qs: QuerySet[Despesa], params: Any, hoje: date) -> 
         .annotate(centavos=Sum("valor_centavos"))
         .order_by("-centavos")
     }
-    contagens = {
-        status: qs.filter(data__gte=inicio, data__lt=_mes_seguinte(inicio), status=status).count()
-        for status in StatusDespesa.values
-    }
+    buscadas = buscar_despesas(
+        qs.filter(data__gte=inicio, data__lt=_mes_seguinte(inicio)), termo_de_busca(params)
+    )
+    contagens = {status: buscadas.filter(status=status).count() for status in StatusDespesa.values}
+    gasto = int(do_mes.aggregate(t=Coalesce(Sum("valor_centavos"), 0))["t"])
+    # A frota do último dia do mês; no mês corrente (ou futuro), a de hoje.
+    frota = frota_ativa_em(min(fim_do_mes, hoje), filiais)
     return {
         "indicadores": {
-            "gasto_mes_centavos": int(do_mes.aggregate(t=Coalesce(Sum("valor_centavos"), 0))["t"]),
+            "gasto_mes_centavos": gasto,
+            "despesa_por_veiculo_centavos": despesa_por_veiculo(gasto, frota),
             "aguardando_aprovacao_centavos": int(aguardando["centavos"]),
             "aguardando_aprovacao_quantidade": int(aguardando["quantidade"]),
             "a_pagar_semana_centavos": int(a_pagar_semana),

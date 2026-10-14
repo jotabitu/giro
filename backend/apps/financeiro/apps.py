@@ -6,6 +6,7 @@ class FinanceiroConfig(AppConfig):
     label = "financeiro"
 
     def ready(self) -> None:
-        from . import eventos, leituras  # noqa: F401 - registra os assinantes
+        from . import eventos, exportacao, leituras  # noqa: F401 - registra os assinantes
 
         leituras.registrar()
+        exportacao.registrar()  # item `despesas` da exportação (FIN-16, AUD-07)

@@ -23,6 +23,7 @@ from integracoes.whatsapp import falso as whatsapp
 from .test_t015_locacoes import cenario  # noqa: F401 - fixture
 from .test_t016_vistorias import _contrato_com_juros
 from .test_t017_financeiro import (  # noqa: F401 - fixtures
+    CAIXAS,
     CONTAS,
     _carlos,
     _conta,
@@ -375,3 +376,28 @@ def test_fin_15_contagens_do_cliente_sem_caucao(cenario):  # noqa: F811
     assert corpo["contagens"]["todas"] == 1
     assert corpo["indicadores"] == geral["indicadores"]
     assert "caucao" not in {c["tipo"] for c in geral["resultados"]}
+
+
+def test_fin_15_busca_do_caixa_traz_caucao(cenario):  # noqa: F811
+    """D-01 da T-025 (CA-023-15): a busca do caixa por locação ou por cliente traz a caução do
+    Lucas (LOC-2856, R$ 300,00), que as contagens não contam, e a caução é recebida no caixa."""
+    criada = cenario.confirmada(periodos=2)
+    locacao = Locacao.objects.get(pk=criada["id"])
+    api = cenario.moto.api("Bruna")
+    for termo in (locacao.codigo, locacao.cliente.nome.split()[0]):
+        corpo = api.get(CONTAS, {"busca": termo}).json()
+        caucoes = [c for c in corpo["resultados"] if c["tipo"] == "caucao"]
+        assert [c["origem"]["codigo"] for c in caucoes] == [locacao.codigo]
+        assert caucoes[0]["valor_centavos"] == 30000
+        assert corpo["contagens"]["todas"] == len(corpo["resultados"]) - 1
+    geral = api.get(CONTAS).json()
+    assert "caucao" not in {c["tipo"] for c in geral["resultados"]}
+
+    assert api.post(CAIXAS, {"troco_centavos": 20000}, format="json").status_code == 201
+    resposta = api.post(
+        f"{CONTAS}{caucoes[0]['id']}/receber/",
+        {"forma": "dinheiro", "valor_centavos": 30000},
+        format="json",
+    )
+    assert resposta.status_code == 200, resposta.content
+    assert ContaReceber.objects.get(pk=caucoes[0]["id"]).status == "paga"

@@ -105,6 +105,8 @@ export function rotaPermitida(eu: Pick<Eu, "pode" | "navegacao">, rota: string):
   if (/^\/locacoes\/\d+$/.test(rota)) return noMenu("locacoes", "receber", "clientes", "avarias");
   // Exportar dados abre pelo botão da Auditoria e é do mesmo perfil (administrador).
   if (rota === "/admin/exportar") return noMenu("auditoria");
+  // Passos do assistente de implantação: Administração, só do administrador (CA-027-16).
+  if (rota === "/implantacao" || rota.startsWith("/implantacao/")) return pode.administracao;
   if (rota === "/clientes/novo") return pode.clientes_cadastrar && noMenu("clientes");
   if (rota === "/veiculos/novo") return pode.veiculos === "editar" && noMenu("veiculos");
   return abreRota(nav.menu_completo, rota) || abreRota(nav.menu_inicio, rota);

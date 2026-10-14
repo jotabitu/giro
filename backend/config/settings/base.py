@@ -366,6 +366,7 @@ GIRO_MODULOS_ATIVOS = env.list(
     default=[
         "aprovacoes",
         "clientes",
+        "configuracoes",
         "contas",
         "contratos",
         "filiais",
@@ -380,6 +381,10 @@ GIRO_PROVEDOR_CEP = env("GIRO_PROVEDOR_CEP", default="falso")
 # Arquivos privados (ADR 0009, AUD-05): "falso" (na memória) em dev e testes; "s3" com um bucket
 # privado compatível com S3 em homologação e produção.
 GIRO_ARMAZENAMENTO = env("GIRO_ARMAZENAMENTO", default="falso")
+# Base das URLs assinadas do armazenamento "falso". Nos testes não resolve (.invalid); `dev.py`
+# aponta para a rota de mesma origem de `comum/arquivos_dev.py`, que o navegador alcança e a CSP
+# (`img-src 'self'`) permite (T-210).
+GIRO_ARQUIVOS_FALSOS_BASE = "https://arquivos.invalid"
 S3_BUCKET = env("S3_BUCKET", default="")
 S3_ENDPOINT_URL = env("S3_ENDPOINT_URL", default="")
 S3_REGIAO = env("S3_REGIAO", default="")
@@ -387,8 +392,14 @@ S3_CHAVE_DE_ACESSO = env("S3_CHAVE_DE_ACESSO", default="")
 S3_CHAVE_SECRETA = env("S3_CHAVE_SECRETA", default="")
 # WhatsApp: só o "falso" (mensagens na memória) até a integração real.
 GIRO_PROVEDOR_WHATSAPP = env("GIRO_PROVEDOR_WHATSAPP", default="falso")
-# Pagamentos (Pix, boleto, webhook): só o "falso" (cobranças na memória) até a T-029 (Asaas).
+# Pagamentos (Pix, boleto, webhook): "falso" (cobranças na memória) ou "asaas" (T-029). A chave
+# da conta principal só abre subcontas; cada subconta tem a sua, cifrada no banco (S-05).
 GIRO_PROVEDOR_PAGAMENTOS = env("GIRO_PROVEDOR_PAGAMENTOS", default="falso")
+GIRO_ASAAS_URL = env("GIRO_ASAAS_URL", default="https://api-sandbox.asaas.com/v3")
+GIRO_ASAAS_CHAVE_API = env("GIRO_ASAAS_CHAVE_API", default="")
+# Vazio: https://admin.<DOMINIO_BASE>/api/webhooks/pagamentos/asaas/. No desenvolvimento com o
+# sandbox, o endereço HTTPS de um túnel até a máquina.
+GIRO_URL_WEBHOOK_PAGAMENTOS = env("GIRO_URL_WEBHOOK_PAGAMENTOS", default="")
 
 # --- E-mail ---
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")

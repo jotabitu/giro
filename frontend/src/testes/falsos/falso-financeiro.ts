@@ -9,6 +9,7 @@ import type {
   ContaReceber,
   ContaReceberDetalhe,
   Despesa,
+  ExportacaoCriada,
   FiltroDespesas,
   FiltroReceber,
   FormaDeRecebimento,
@@ -18,9 +19,10 @@ import type {
   MovimentoDoCaixa,
   NovaDespesa,
   PagamentoDeDespesa,
+  PedidoDeExportacaoDeDespesas,
   PedidoDeAprovacao,
 } from "@/lib/api/tipos-financeiro";
-import { pausa } from "./falso";
+import { pausa, perfilAtualFalso } from "./falso";
 
 const HOJE = "2026-10-07";
 const CENTRO = { id: 1, nome: "Filial Centro" };
@@ -141,6 +143,9 @@ let movimentos: MovimentoDoCaixa[] = [];
 let proximoMovimento = 500;
 let cobradasHoje = new Set<number>();
 let despesas: Despesa[] = [];
+export const pedidosDeExportacao: PedidoDeExportacaoDeDespesas[] = [];
+/** Pedidos de aprovação: nascem do seed na primeira leitura, e `reiniciarFinanceiroFalso` os apaga (TDZ: o seed vem depois). */
+let pedidos: { id: number }[] | null = null;
 let proximaDespesa = 810;
 
 const SITUACAO: Record<NonNullable<FiltroReceber["situacao"]>, ContaReceber["status"][]> = {
@@ -197,6 +202,8 @@ export function reiniciarFinanceiroFalso(dia: DiaDoCaixaFalso = "aberto") {
   contas = CONTAS.map((c) => ({ ...c, acoes: { ...c.acoes }, valor_hoje: { ...c.valor_hoje } }));
   cobradasHoje = new Set();
   despesas = DESPESAS.map((d) => ({ ...d }));
+  pedidos = null;
+  pedidosDeExportacao.length = 0;
   proximaDespesa = 810;
   proximoMovimento = 500;
   movimentos = dia === "sem_caixa" ? [] : movimentosDoSeed();
@@ -227,36 +234,81 @@ const indicadores = () => ({
   faixas: { "1_7": 29940, "8_30": 134700, mais_30: 0 },
 });
 
-const pedidoFalso = (id: number, status: PedidoDeAprovacao["status"], motivo: string | null = null): PedidoDeAprovacao => ({
-  id,
-  tipo: "APR-03",
-  status,
-  titulo: "Despesa de R$ 1.200,00",
-  detalhe: "Pneus (2 unidades) · PMZ-3E17",
-  origem: { tipo: "despesa", id: 801, codigo: null },
-  filial: { id: 1, nome: "Filial Centro" },
-  solicitante: { id: 5, nome: "João Silva" },
-  pedido_em: "2026-10-07T12:00:00Z",
+type PedidoSeed = Omit<PedidoDeAprovacao, "pode_decidir">;
+const CENTRO_REF = { id: 1, nome: "Filial Centro" };
+const pedido = (p: Partial<PedidoSeed> & Pick<PedidoSeed, "id" | "tipo" | "titulo" | "detalhe" | "origem" | "solicitante" | "pedido_em">): PedidoSeed => ({
+  status: "pendente",
+  filial: CENTRO_REF,
   motivo_pedido: null,
-  valor_centavos: 120000,
+  valor_centavos: null,
   pct: null,
-  decidido_por: { id: 2, nome: "Rodrigo Pinheiro" },
-  decidido_em: "2026-10-07T13:00:00Z",
-  motivo_recusa: motivo,
-  pode_decidir: false,
+  decidido_por: null,
+  decidido_em: null,
+  motivo_recusa: null,
+  ...p,
 });
+const RODRIGO = { id: 2, nome: "Rodrigo Pinheiro" };
+const SEED_PEDIDOS: PedidoSeed[] = [
+  pedido({ id: 88, tipo: "APR-01", titulo: "Desconto de 8% na venda para Diego Martins", detalhe: "VEN-0177", origem: { tipo: "venda", id: 177, codigo: "VEN-0177" }, solicitante: { id: 4, nome: "Bruna Alves" }, pedido_em: "2026-10-07T13:00:00Z", pct: "8.00", valor_centavos: 183200 }),
+  pedido({ id: 89, tipo: "APR-02", titulo: "Encerrar antes do fim a LOC-2812 · Patrícia Gomes", detalhe: "a cliente pediu pelo WhatsApp", origem: { tipo: "locacao", id: 2812, codigo: "LOC-2812" }, solicitante: { id: 4, nome: "Bruna Alves" }, pedido_em: "2026-10-07T14:00:00Z", valor_centavos: 8480 }),
+  pedido({ id: 91, tipo: "APR-03", titulo: "Despesa de R$ 1.200,00", detalhe: "Pneus (2 unidades) · PMZ-3E17", origem: { tipo: "despesa", id: 801, codigo: null }, solicitante: { id: 5, nome: "João Silva" }, pedido_em: "2026-10-07T14:20:00Z", valor_centavos: 120000 }),
+  pedido({ id: 80, tipo: "APR-04", status: "aprovado", titulo: "Diferença de caixa de R$ 3,50", detalhe: "caixa fechado com a diferença", origem: { tipo: "caixa", id: 238, codigo: null }, solicitante: { id: 4, nome: "Bruna Alves" }, pedido_em: "2026-10-06T21:00:00Z", decidido_por: RODRIGO, decidido_em: "2026-10-06T21:30:00Z" }),
+  pedido({ id: 77, tipo: "APR-01", status: "recusado", titulo: "Desconto de 12% · Pop 110i", detalhe: "VEN-0170", origem: { tipo: "venda", id: 170, codigo: "VEN-0170" }, solicitante: { id: 4, nome: "Bruna Alves" }, pedido_em: "2026-10-05T14:00:00Z", pct: "12.00", decidido_por: RODRIGO, decidido_em: "2026-10-05T15:00:00Z", motivo_recusa: "abaixo do preço mínimo" }),
+  pedido({ id: 74, tipo: "APR-06", status: "aprovado", titulo: "Correção de km · RJD-5B38", detalhe: "12.480 → 12.408 km, erro de digitação", origem: { tipo: "veiculo", id: 14, codigo: null }, solicitante: { id: 5, nome: "João Silva" }, pedido_em: "2026-10-04T12:00:00Z", decidido_por: RODRIGO, decidido_em: "2026-10-04T13:00:00Z" }),
+  pedido({ id: 70, tipo: "APR-05", status: "aprovado", titulo: "Desbloqueio de Ana Beatriz Lima", detalhe: "quitou o atraso", origem: { tipo: "cliente", id: 1210, codigo: null }, solicitante: { id: 4, nome: "Bruna Alves" }, pedido_em: "2026-10-02T12:00:00Z", decidido_por: RODRIGO, decidido_em: "2026-10-02T13:00:00Z" }),
+];
+const quemSou = (): number | null => {
+  const perfil = perfilAtualFalso();
+  return perfil === "vendedor" ? 4 : perfil === "vistoriador" ? 5 : perfil === "gerente" ? 2 : perfil === "administrador" ? 1 : null;
+};
+const comoApi = (p: PedidoSeed): PedidoDeAprovacao => ({ ...p, pode_decidir: p.status === "pendente" && ["gerente", "administrador"].includes(perfilAtualFalso() ?? "") && p.solicitante.id !== quemSou() });
+const achaPedido = (id: number) => {
+  const p = todos().find((x) => x.id === id);
+  if (!p) throw new ErroApi(404, "nao_encontrado", "Pedido não encontrado.");
+  return p;
+};
+const decidir = (id: number, status: "aprovado" | "recusado" | "cancelado", motivo: string | null = null): PedidoDeAprovacao => {
+  const p = achaPedido(id);
+  if (p.status !== "pendente") throw new ErroApi(409, "transicao_pedido", "Este pedido já foi decidido.");
+  const novo: PedidoSeed = { ...p, status, motivo_recusa: motivo, decidido_por: status === "cancelado" ? null : RODRIGO, decidido_em: "2026-10-07T15:10:00Z" };
+  pedidos = todos().map((x) => (x.id === id ? novo : x));
+  return comoApi(novo);
+};
+
+const todos = (): PedidoSeed[] => {
+  pedidos ??= SEED_PEDIDOS.map((p) => ({ ...p }));
+  return pedidos as PedidoSeed[];
+};
 
 export const aprovacoesFalso = {
+  async listar(f: { status?: PedidoDeAprovacao["status"]; tipo?: PedidoDeAprovacao["tipo"]; minhas?: boolean } = {}): Promise<{ contagens: { pendente: number }; resultados: PedidoDeAprovacao[] }> {
+    await pausa(40);
+    const perfil = perfilAtualFalso();
+    const decide = perfil === "gerente" || perfil === "administrador";
+    const eu = quemSou();
+    const base = f.minhas ? todos().filter((p) => p.solicitante.id === eu) : decide ? todos().filter((p) => p.solicitante.id !== eu) : [];
+    const lista = base
+      .filter((p) => p.status === (f.status ?? "pendente") && (!f.tipo || p.tipo === f.tipo))
+      .sort((a, b) => (f.status && f.status !== "pendente" ? b.pedido_em.localeCompare(a.pedido_em) : a.pedido_em.localeCompare(b.pedido_em)));
+    return { contagens: { pendente: base.filter((p) => p.status === "pendente").length }, resultados: lista.map(comoApi) };
+  },
   async aprovar(id: number): Promise<PedidoDeAprovacao> {
     await pausa(60);
+    const r = decidir(id, "aprovado");
     despesas = despesas.map((d) => (d.pedido_aprovacao_id === id ? { ...d, status: "a_pagar", rotulo_situacao: "A pagar" } : d));
-    return pedidoFalso(id, "aprovado");
+    return r;
   },
   async recusar(id: number, motivo: string): Promise<PedidoDeAprovacao> {
     await pausa(60);
     if (!motivo.trim()) throw new ErroApi(400, "validacao", "Dados inválidos.", undefined, { motivo: "Informe o motivo da recusa." });
+    const r = decidir(id, "recusado", motivo);
     despesas = despesas.map((d) => (d.pedido_aprovacao_id === id ? { ...d, status: "recusada", rotulo_situacao: "Recusada" } : d));
-    return pedidoFalso(id, "recusado", motivo);
+    return r;
+  },
+  async cancelar(id: number): Promise<PedidoDeAprovacao> {
+    await pausa(60);
+    if (achaPedido(id).solicitante.id !== quemSou()) throw new ErroApi(403, "so_quem_pediu", "Só quem fez o pedido pode cancelar");
+    return decidir(id, "cancelado");
   },
 };
 
@@ -427,29 +479,43 @@ export const financeiroFalso = {
   async listarDespesas(f: FiltroDespesas = {}): Promise<ListaDespesas> {
     await pausa(60);
     const doMes = despesas.filter((d) => d.data.startsWith(f.mes ?? "2026-10"));
-    const lista = doMes.filter((d) => (!f.status || d.status === f.status) && (!f.categoria || d.categoria === f.categoria) && (!f.veiculo || d.veiculo?.id === f.veiculo));
+    // `?busca=` (FIN-16): descrição ou placa, sem acento nem hífen; muda a lista e as contagens, não os indicadores.
+    const normal = (t: string) => t.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase();
+    const termo = normal((f.busca ?? "").trim());
+    const placaDoTermo = termo.replace(/[\s-]/g, "");
+    const buscadas = termo ? doMes.filter((d) => normal(d.descricao).includes(termo) || (placaDoTermo !== "" && !!d.veiculo && normal(d.veiculo.placa).includes(placaDoTermo))) : doMes;
+    const lista = buscadas.filter((d) => (!f.status || d.status === f.status) && (!f.categoria || d.categoria === f.categoria) && (!f.veiculo || d.veiculo?.id === f.veiculo));
     const soma = (xs: Despesa[]) => xs.reduce((t, d) => t + d.valor_centavos, 0);
     const aguardando = doMes.filter((d) => d.status === "aguardando_aprovacao");
     const por: Record<string, number> = {};
     for (const d of doMes) por[d.categoria] = (por[d.categoria] ?? 0) + d.valor_centavos;
+    const gasto = soma(doMes.filter((d) => d.status !== "recusada"));
     return {
       indicadores: {
-        gasto_mes_centavos: soma(doMes.filter((d) => d.status !== "recusada")),
+        gasto_mes_centavos: gasto,
+        despesa_por_veiculo_centavos: Math.round(gasto / 86), // FIN-16: 86 veículos ativos no seed; quem divide é a API
         aguardando_aprovacao_centavos: soma(aguardando),
         aguardando_aprovacao_quantidade: aguardando.length,
         a_pagar_semana_centavos: soma(doMes.filter((d) => d.status === "a_pagar" && d.vencimento <= "2026-10-14")),
         por_categoria: por,
       },
       contagens: {
-        aguardando_aprovacao: aguardando.length,
-        a_pagar: doMes.filter((d) => d.status === "a_pagar").length,
-        paga: doMes.filter((d) => d.status === "paga").length,
-        recusada: doMes.filter((d) => d.status === "recusada").length,
+        aguardando_aprovacao: buscadas.filter((d) => d.status === "aguardando_aprovacao").length,
+        a_pagar: buscadas.filter((d) => d.status === "a_pagar").length,
+        paga: buscadas.filter((d) => d.status === "paga").length,
+        recusada: buscadas.filter((d) => d.status === "recusada").length,
       },
       resultados: lista.map((d) => ({ ...d })),
       proximo: null,
       anterior: null,
     };
+  },
+
+  /** Pedidos feitos à exportação, para o teste conferir o corpo: sempre o mês e a filial, nunca a busca nem a aba. */
+  async exportarDespesas(pedido: PedidoDeExportacaoDeDespesas): Promise<ExportacaoCriada> {
+    await pausa(40);
+    pedidosDeExportacao.push(pedido);
+    return { id: 17, status: "na_fila" };
   },
 
   async obterDespesa(id: number): Promise<Despesa> {

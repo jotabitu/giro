@@ -1,6 +1,6 @@
 # Modelo de dados
 
-**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
+**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
 
 Este documento diz, para cada uma das 25 entidades das regras, o app dono, o schema, os campos, os índices e as restrições. As entidades de apoio (que não estão na lista das regras mas são necessárias) vêm no fim de cada app. Mudança aqui passa pelo arquiteto; o backend implementa a partir daqui e do contrato do módulo em `docs/api/`.
 
@@ -74,12 +74,16 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | `nome_exibicao` | texto(80) | cópia do nome para o painel da plataforma |
 | `cidade`, `uf` | texto(80), texto(2) | lista de empresas |
 | `responsavel_nome`, `responsavel_email`, `responsavel_telefone` | texto | contato do administrador na compra |
+| `email_cobranca` | texto(254) | faturas, boleto, régua da assinatura e NFS-e (`PLT-02`, `PLT-15`); nasce igual a `responsavel_email` (T-183, `docs/api/assinatura.md`) |
+| `endereco_cep`, `endereco_logradouro`, `endereco_numero`, `endereco_complemento`, `endereco_bairro`, `endereco_cidade`, `endereco_uf` | texto, nulos | endereço da nota fiscal da assinatura (`PLT-15`, T-193); a compra não pede |
 | `cnpj` | texto(14), único | só dígitos, validado (`CLI-01` vale para CNPJ) |
 | `subdominio` | texto(63), único | `motorapida` |
 | `plano` | FK → `Plano` | |
 | `ciclo` | enum `mensal`, `anual` | |
 | `preco_contratado_centavos` | centavos | `PLT-05` |
-| `plano_proximo` | FK → `Plano`, nulo | downgrade agendado (`PLT-04`) |
+| `plano_proximo` | FK → `Plano`, nulo | downgrade ou mudança de ciclo agendados (`PLT-04`) |
+| `ciclo_proximo` | enum `mensal`, `anual`, nulo | mudança de ciclo pela equipe, na próxima fatura (`PLT-04`, T-193) |
+| `dia_vencimento` | int 1 a 31 | `PLT-01`: dia de `teste_fim + 1`; muda na volta da pausa e na reativação (`PLT-06`) |
 | `status` | enum `em_teste`, `ativa`, `inadimplente`, `suspensa`, `pausada`, `cancelada` | transições da seção "Plataforma e assinatura" |
 | `teste_inicio`, `teste_fim` | data | `PLT-01` (Moto Rápida: 07 a 21 out) |
 | `pausada_ate` | data, nulo | máximo 3 meses |
@@ -102,16 +106,25 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | Campo | Tipo | Observação |
 | --- | --- | --- |
 | `empresa` | FK → `Empresa` | |
-| `competencia` | data (dia 1 do mês) | |
+| `tipo` | enum `mensalidade`, `diferenca_plano` | `diferenca_plano` = upgrade no meio do período (`PLT-04`, T-183) |
+| `competencia` | data (dia 1 do mês) | mês do início do período |
+| `periodo_inicio`, `periodo_fim` | data | período coberto (`PLT-01`) |
+| `plano` | FK → `Plano` | plano cobrado (o da descrição) |
 | `valor_centavos` | centavos | |
 | `vencimento` | data | |
 | `status` | enum `aberta`, `paga`, `atrasada`, `cancelada` | regras, "Estados das entidades sem seção própria" |
-| `forma` | enum `pix`, `boleto`, `cartao`, nulo | |
+| `forma` | enum `pix`, `boleto`, `cartao`, nulo | como foi paga |
+| `cobranca_emitida_em` | momento, nulo | quando a cobrança foi criada no parceiro (5 dias antes, `PLT-02`) |
 | `pago_em` | momento, nulo | |
 | `cobranca_externa_id` | texto(60), nulo, único | id da cobrança no Asaas (conta principal) |
-| `tentativas_cartao` | int | `PLT-02` (nova tentativa no dia seguinte) |
+| `tentativas_cartao` | int, até 2 | `PLT-02` (uma tentativa a mais, no dia seguinte) |
+| `cartao_recusado_em` | momento, nulo | última recusa; alimenta a `situacao` da tela |
+| `nota_situacao` | enum `processando`, `emitida`, `erro`, nulo | NFS-e da assinatura (`PLT-15`, T-193) |
+| `nota_numero`, `nota_externa_id`, `nota_url` | texto, nulos | número, id no Asaas e link do PDF |
+| `nota_pedida_em` | momento, nulo | |
 
-- Restrição: única por `(empresa, competencia)` quando `status <> cancelada`.
+- Restrição: única por `(empresa, competencia)` quando `tipo = mensalidade` e `status <> cancelada`.
+- A 1ª fatura nasce em `criar_empresa` (`aberta`, vencimento `teste_fim + 1`, `PLT-01`); estender o teste move o vencimento e o período.
 - Índices: `(status, vencimento)` para a régua `AUT-13`.
 
 ### 4. Usuário da plataforma · `contas.Usuario` no schema public
@@ -138,6 +151,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | Model | App | Campos principais |
 | --- | --- | --- |
 | `ContaPagamento` | plataforma | `empresa` (1:1), `provedor` enum `asaas`, `conta_externa_id` único, `id_cifra` (UUID, ADR 0014), `chave_api_cifrada` (`CampoCifrado` com `GIRO_CHAVE_SEGREDOS`, decifrada só em `integracoes/pagamentos/`, ADR 0014), `webhook_token_hash` único, `status` enum `pendente`, `aprovada`, `recusada`. O webhook chega no `public`, acha a empresa pelo token e só então entra no schema dela (ADR 0007). |
+| `FormaPagamentoAssinatura` | plataforma | `empresa` (1:1), `forma` enum `cartao`, `pix_automatico`, `boleto`, nulo; `status` enum `pendente`, `ativa`, `recusada`; `cliente_externo_id` (pagador na conta principal), `autorizacao_externa_id` (Pix automático), `id_cifra` (UUID), `cartao_token_cifrado` (`CampoCifrado`, ADR 0014 e 0023, nunca sai na API nem na auditoria), `cartao_bandeira`, `cartao_final` (4 dígitos). Trocar de forma cancela a autorização e apaga o token (T-183). |
 | `Chamado` | plataforma | `numero` (#1042), `empresa` FK, `assunto`, `status`, `responsavel` FK usuário. Fase 2. |
 | `Convite` | contas | ver item 7 (serve aos dois schemas). |
 
@@ -451,6 +465,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `filial` | FK → `Filial` | |
 | `data` | data | data da despesa (lista e competência) |
 | `descricao` | texto(150) | |
+| `descricao_busca` | texto(150) | descrição em minúsculas e sem acento, gravada pelo serviço; base da `?busca=` (`FIN-16`, T-177) |
 | `categoria` | enum `fixas`, `manutencao`, `rastreamento`, `impostos`, `pessoal`, `outros` | `FIN-06` |
 | `valor_centavos` | centavos | |
 | `vencimento` | data | |
@@ -551,7 +566,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 
 ### 25. Evento de auditoria · `auditoria.EventoAuditoria`
 
-Campos, índices e imutabilidade na ADR 0010. Existe nos dois schemas. Apoio `Exportacao` (`AUD-07`): `solicitada_por`, `itens` (lista enum), `formato` enum `planilha`, `csv`, `zip`, `periodo_inicio`, `periodo_fim`, `status` enum `na_fila`, `pronta`, `expirada`, `falhou`, `arquivo`, `expira_em` (+7 dias).
+Campos, índices e imutabilidade na ADR 0010. Existe nos dois schemas. Apoio `Exportacao` (`AUD-07`): `solicitada_por`, `itens` (lista enum), `formato` enum `planilha`, `csv`, `zip`, `periodo_inicio`, `periodo_fim`, `status` enum `na_fila`, `pronta`, `expirada`, `falhou`, `arquivo`, `expira_em` (+7 dias), `parametros` json (padrão `{}`; nas despesas, `mes`, `filial_id` e `filial_nome`, T-177). `itens` aceita também `despesas` (`FIN-16`).
 
 ### Apoio do schema da empresa (outros apps)
 

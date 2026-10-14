@@ -92,7 +92,14 @@ class DespesaEntradaSerializer(serializers.Serializer[Any]):
     vencimento = serializers.DateField()
     categoria = serializers.ChoiceField(choices=CategoriaDespesa.choices)
     veiculo_id = serializers.IntegerField(required=False, allow_null=True)
-    nota = serializers.FileField(required=False, allow_null=True)
+    nota = serializers.FileField(
+        error_messages={
+            "required": "Envie a foto da nota.",
+            "null": "Envie a foto da nota.",
+            "empty": "Envie a foto da nota.",
+            "invalid": "Envie a foto da nota.",
+        }
+    )  # FIN-06: obrigatória no lançamento por esta rota
     pago_no_caixa = serializers.BooleanField(required=False, default=False)
 
 
@@ -357,6 +364,7 @@ class PorCategoriaSerializer(serializers.Serializer[Any]):
 
 class IndicadoresDespesasSerializer(serializers.Serializer[Any]):
     gasto_mes_centavos = serializers.IntegerField()
+    despesa_por_veiculo_centavos = serializers.IntegerField(allow_null=True)
     aguardando_aprovacao_centavos = serializers.IntegerField()
     aguardando_aprovacao_quantidade = serializers.IntegerField()
     a_pagar_semana_centavos = serializers.IntegerField()

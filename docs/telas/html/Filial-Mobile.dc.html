@@ -69,22 +69,24 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 
 <section class="card">
 <h2 class="h2">Contato e horário</h2>
+<label class="wl-field"><span class="wl-field__label">Telefone</span><input class="wl-input" value="(85) 3274-0000" inputmode="tel"></label>
 <label class="wl-field"><span class="wl-field__label">WhatsApp de atendimento</span><input class="wl-input" value="(85) 98800-0000" inputmode="tel"></label>
 <label class="wl-field"><span class="wl-field__label">E-mail</span><input class="wl-input" value="messejana@motorapida.com.br" inputmode="email"></label>
 <div>
-<div class="hrow"><span>Segunda a sexta</span><span class="wl-mono">08:00 – 18:00</span></div>
+<div class="hrow"><span>Segunda a sexta</span><span class="wl-mono">08:00 – 12:00 · 14:00 – 18:00</span></div>
 <div class="hrow"><span>Sábado</span><span class="wl-mono">08:00 – 12:00</span></div>
 <div class="hrow"><span>Domingo</span><span style="color: var(--ink-muted);">Fechado</span></div>
 </div>
 <div><div style="font-weight: 500; margin-bottom: 4px;">Feriados da filial</div><p style="margin: 0 0 10px; font-size: 14px; line-height: 20px; color: var(--ink-muted);">Datas em que a filial fica fechada. A cada ano o sistema sugere os nacionais; você confirma ou acrescenta os locais.</p><div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;"><span class="wl-badge wl-badge--sm">12 out · Nossa Senhora Aparecida</span><span class="wl-badge wl-badge--sm">02 nov · Finados</span><span class="wl-badge wl-badge--sm">15 nov · Proclamação da República</span><span class="wl-badge wl-badge--sm">25 dez · Natal</span><button class="wl-btn wl-btn--quiet wl-btn--sm" style="height: 28px; padding: 0 10px; font-size: 13px;">Adicionar feriado</button></div></div>
+<p style="margin: 0; font-size: 13px; line-height: 18px; color: var(--ink-muted);">Cada dia aceita até 2 intervalos, para quem fecha no almoço.</p>
 <button class="wl-btn wl-btn--quiet wl-btn--sm" style="align-self: flex-start;">Editar horários</button>
 </section>
 
 <section class="card">
 <h2 class="h2">Operação</h2>
 <label class="wl-field"><span class="wl-field__label">Gerente responsável</span><input class="wl-input" value="Nenhum gerente ligado ainda" disabled><span class="wl-field__hint">Quem gerencia é quem tem perfil gerente nesta filial, em Usuários.</span></label>
-<div class="two">
-</div>
+<label class="wl-field"><span class="wl-field__label">Preço do litro do combustível</span><input class="wl-input wl-mono" placeholder="R$ 0,00" inputmode="decimal"><span class="wl-field__hint">Sem preço, o acerto da devolução pede o valor à mão. Só o administrador altera.</span></label>
+<p style="margin: 0; font-size: 13px; line-height: 18px; color: var(--ink-muted);">O recebimento é da empresa; o preço pode ser da empresa ou da filial.</p>
 </section>
 
 <div style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 10px; padding: 16px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line);">
