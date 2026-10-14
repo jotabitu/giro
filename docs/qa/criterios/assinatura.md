@@ -1,6 +1,6 @@
 # Assinatura, planos, cancelar e pausar (decisões da T-190) · critérios de aceite
 
-**Regras:** PLT-01, PLT-02, PLT-03, PLT-04, PLT-05, PLT-06, PLT-11, PLT-12, PLT-13, PLT-14, PLT-15, AUT-03, AUT-13, AUD-08, tabela de estados da empresa · **Contrato:** `docs/api/assinatura.md` (T-183), a ajustar pelo arquiteto; cancelar e pausar ainda sem contrato · **Telas:** Admin-Assinatura, Admin-Cancelar, Compra-Planos, Compra-Checkout, Plat-Planos (desktop e celular) · **Decisão:** dono do produto, 14 out 2026 (T-190)
+**Regras:** PLT-01, PLT-02, PLT-03, PLT-04, PLT-05, PLT-06, PLT-11, PLT-12, PLT-13, PLT-14, PLT-15, AUT-03, AUT-13, AUD-08, tabela de estados da empresa · **Contrato:** `docs/api/assinatura.md` (T-183), a ajustar pelo arquiteto; cancelar e pausar ainda sem contrato · **Telas:** Admin-Assinatura, Admin-Cancelar, Compra-Planos, Compra-Checkout, Plat-Planos (desktop e celular) · **Decisão:** dono do produto, 14 out 2026 (T-190; pontos em aberto e `[decisão]` da T-193 resolvidos na T-211, CA-ASS-40 a 48; reativação no período pago na T-216, CA-ASS-49)
 
 As tarefas de código destes critérios ainda não têm número (propostas em `tarefas/backlog.md`, seção da T-190); as que já existem (T-184 a T-189) estão citadas onde se aplicam. Quando tiverem número, cada critério leva o número da tarefa que o cobre. Seed Moto Rápida: plano Profissional mensal, teste de 07 a 21 out 2026, compra sem cartão, 86 veículos, 1 filial, 5 usuários, Mariana Costa administradora. Fuso `America/Sao_Paulo`, relógio de referência (ADR 0021). O nome do teste leva o código da regra (`test_plt_04_...`).
 
@@ -99,7 +99,7 @@ Dado a Moto Rápida `suspensa` em 22 out (sem forma), quando a Mariana escolhe a
 Dado a Moto Rápida `ativa` em 05 nov, depois do upgrade de 01 nov, então a lista traz a fatura de diferença (R$ 304,84, vence 04 nov, conforme paga ou não) e a FAT-0001 (`paga`, "Paga em 22 out", com o recibo do parceiro); a aberta ou atrasada tem "Pagar".
 
 **CA-ASS-29 · Nota fiscal e CNPJ**
-Dado a FAT-0001 paga, então o Giro emite a NFS-e para Moto Rápida Locações Ltda, CNPJ 12.345.678/0001-95, enviada ao e-mail de cobrança (enquanto o cadastro municipal do Giro não estiver pronto, este critério fica `xfail` e o bloco só guarda os dados). Quando a Mariana troca o e-mail de cobrança para financeiro@motorapida.com.br, a próxima fatura, a régua e a nota vão para ele. Quando tenta trocar o CNPJ, é recusado com "O CNPJ não muda por aqui. Fale com o suporte."
+Dado a FAT-0001 paga, então o Giro emite a NFS-e para Moto Rápida Locações Ltda, CNPJ 12.345.678/0001-95, Av. Bezerra de Menezes, 1200, São Gerardo, Fortaleza, CE, CEP 60325-000 (CA-ASS-47), enviada ao e-mail de cobrança (enquanto o cadastro municipal do Giro não estiver pronto, este critério fica `xfail` e o bloco só guarda os dados). Quando a Mariana troca o e-mail de cobrança para financeiro@motorapida.com.br, a próxima fatura, a régua e a nota vão para ele. Quando tenta trocar o CNPJ, é recusado com "O CNPJ não muda por aqui. Fale com o suporte."
 
 ## Cancelar e pausar (`PLT-06`, `AUD-08`)
 
@@ -132,3 +132,37 @@ Na `Admin-Cancelar` e na `Admin-Assinatura`, "Exportar dados antes" leva à `Adm
 
 **CA-ASS-39 · Contratos dos clientes**
 Dado a Moto Rápida cancelada, então os contratos já assinados com clientes finais continuam válidos (nenhum contrato muda de estado com o cancelamento).
+
+## Pontos em aberto resolvidos (T-211)
+
+**CA-ASS-40 · Downgrade agendado que deixa de caber**
+Dado uma empresa no Completo `ativa` com 86 veículos, 1 filial e 5 usuários, período de 22 out a 21 nov, com o Profissional agendado em 01 nov, quando o administrador convida mais 6 pessoas em 12 nov (11 usuários), então em 17 nov, na geração da fatura de 22 nov, o downgrade não acontece: a fatura de 22 nov sai com R$ 899,00, a tela deixa de dizer "O plano Profissional vale a partir de 22 nov", a empresa continua no Completo, e o administrador e o e-mail de cobrança recebem um e-mail com o motivo (11 de 10 usuários). Auditoria do downgrade recusado, pelo sistema. `test_plt_04_downgrade_agendado_deixa_de_caber`.
+
+**CA-ASS-41 · Downgrade que cabia na geração da fatura**
+Dado a mesma empresa sem convidar ninguém até 17 nov, quando a fatura de 22 nov sai com R$ 449,00 e o administrador convida as 6 pessoas em 19 nov, então os convites são aceitos (o limite ainda é o do Completo), e em 22 nov o plano vira Profissional com 11 de 10 usuários: ninguém sai, e um novo convite é recusado pelo limite (`PLT-03`) até sobrar vaga.
+
+**CA-ASS-42 · Pausa com a fatura do período seguinte já emitida**
+Dado a Moto Rápida `ativa`, FAT-0001 paga, e a FAT-0002 de 22 nov emitida em 17 nov, quando a Mariana pausa por 2 meses em 19 nov, então a FAT-0002 vira `cancelada` (nada é cobrado em 22 nov), a empresa continua `ativa` até 21 nov e fica `pausada` de 22 nov a 21 jan 2027, como no CA-ASS-35. `test_plt_06_pausa_comeca_no_fim_do_periodo_pago`.
+
+**CA-ASS-43 · Desfazer o cancelamento no teste**
+Dado a Moto Rápida cancelada em 10 out, no teste (CA-ASS-30), quando a Mariana desfaz o cancelamento em 15 out pela `Admin-Assinatura`, então a FAT-0001 continua `cancelada` e nasce a FAT-0002 `aberta`, R$ 449,00, vencendo em 22 out, "Plano Profissional · 22 out a 21 nov"; a empresa continua `em_teste` até 21 out, não vira `cancelada` em 22 out, e nenhum apagamento fica marcado. O desfazer fica na auditoria. `test_plt_06_desfazer_cancelamento_no_teste`.
+
+**CA-ASS-44 · Desfazer o cancelamento na ativa**
+Dado a Moto Rápida `ativa`, FAT-0001 paga, cancelada em 05 nov, quando a Mariana desfaz em 10 nov, então a fatura de 22 nov é gerada em 17 nov, como sempre, e a empresa segue `ativa` depois de 21 nov. Dado o cancelamento em 19 nov (FAT-0002 de 22 nov `cancelada`), quando ela desfaz em 20 nov, então nasce na hora a FAT-0003 `aberta`, R$ 449,00, vencendo em 22 nov, "Plano Profissional · 22 nov a 21 dez", com o boleto por e-mail em 20 nov; a FAT-0002 continua `cancelada`.
+
+**CA-ASS-45 · Quem não desfaz**
+Dado a Moto Rápida cancelada em 05 nov (acesso até 21 nov), quando a Mariana tenta desfazer em 22 nov, então não consegue (a empresa já é `cancelada` e não entra no sistema); só a equipe Giro reativa. Dado a Moto Rápida cancelada na hora como `inadimplente` (CA-ASS-34), não há o que desfazer. O Rodrigo, a Lúcia e o suporte Giro não desfazem (403, como no CA-ASS-19).
+
+**CA-ASS-46 · Reativar a cancelada com fatura em atraso**
+Dado a Moto Rápida cancelada em 25 out como `inadimplente`, com a FAT-0001 `atrasada`, quando a equipe Giro tenta reativar em 01 dez, então é recusado com "Receba a fatura em atraso antes de reativar." e nada muda. Quando a FAT-0001 é paga em 01 dez pela 2ª via (baixa pelo webhook) e a equipe reativa, então a empresa vira `ativa`, com a FAT-0002 de R$ 449,00 vencendo em 01 dez, "Plano Profissional · 01 dez a 31 dez", e as seguintes todo dia 1; a reativação fica na auditoria da empresa e na da plataforma, com o motivo. `test_plt_06_reativar_so_com_atrasada_paga`.
+
+**CA-ASS-47 · Endereço da nota nasce da matriz**
+Dado uma compra sem endereço (a `Compra-Checkout` não pede), antes do passo 6 os dados fiscais mostram o endereço vazio, e uma fatura paga nesse tempo não tem a nota pedida. Quando a Mariana cadastra no passo 6 a Filial Centro (matriz) em Av. Bezerra de Menezes, 1200, São Gerardo, Fortaleza, CE, CEP 60325-000, então os dados fiscais passam a ter esse endereço, e a nota que esperava é pedida (enquanto a NFS-e estiver desligada, como no CA-ASS-29, só o endereço é conferido). O seed Moto Rápida já nasce com esse endereço nos dados fiscais. `test_plt_15_endereco_nasce_da_matriz`.
+
+**CA-ASS-48 · Endereço da nota e da filial mudam separados**
+Dado a Moto Rápida do seed, quando a Mariana muda o número da Filial Centro para 1250 ou torna outra filial a matriz, então o endereço dos dados fiscais não muda. Quando ela muda o endereço da nota para Av. Dom Luís, 500, Sala 3, Meireles, Fortaleza, CE, CEP 60115-170, então as próximas notas levam esse endereço, e a Filial Centro continua na Bezerra de Menezes. A tela do passo 6 (`Onboarding-Filial`) pede o endereço pelo CEP e avisa que ele também vai na nota da assinatura; não diz "Mesmo endereço do CNPJ".
+
+## Reativação no período pago (T-216)
+
+**CA-ASS-49 · Reativar sem cobrar duas vezes o período pago**
+Dado a Moto Rápida `ativa` com a FAT-0001 (22 out a 21 nov) paga em 22 out, upgrade para o Completo em 01 nov com a diferença de R$ 304,84 vencendo em 04 nov e não paga (`inadimplente` em 05 nov), cancelada em 10 nov (`cancelada` na hora), quando a diferença é paga em 15 nov pela 2ª via e a equipe Giro reativa em 15 nov, então a empresa vira `ativa` em 15 nov, nenhuma fatura vence em 15 nov, a fatura nova de R$ 899,00 vence em 22 nov ("Plano Completo · 22 nov a 21 dez"), e as seguintes continuam todo dia 22. Na reativação depois de 21 nov (CA-ASS-46), a fatura nova vence no dia da volta. `test_plt_06_reativar_no_periodo_pago`.
