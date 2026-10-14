@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Aprovações · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.appr{display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid rgba(255,255,255,0.12)}
+.appr:last-child{border-bottom:0}
+.appr small{display:block;font-size:14px;color:var(--on-solid-muted)}
+.mate{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.mate:last-child{border-bottom:0}
+.av{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:50%;background:var(--surface-sunken);font-size:13px;font-weight:600}
+.mate small{display:block;font-size:14px;color:var(--ink-muted)}
+.chip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border:0;border-radius:999px;background:var(--surface-sunken);color:var(--ink);font:inherit;font-size:15px;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
+.chip .wl-count{background:var(--surface)}
+.chip[aria-pressed="true"] .wl-count{background:var(--brand);color:var(--on-brand)}
+.req{display:flex;flex-direction:column;gap:14px;padding:20px;border-radius:26px;background:var(--surface-sunken)}
+.req .top{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.req .who{font-size:14px;color:var(--ink-muted)}
+.req .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.req .cell{padding:12px 14px;border-radius:16px;background:var(--surface)}
+.req .cell small{display:block;font-size:13px;color:var(--ink-muted)}
+.req .cell b{font-weight:600}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.hist{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)}
+.hist:last-child{border-bottom:0}
+.hist small{display:block;font-size:13px;color:var(--ink-muted)}
+.ico{display:grid;place-items:center;width:28px;height:28px;flex:none;border-radius:50%}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1500px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<nav class="wl-sidebar" aria-label="Menu principal" style="flex: 0 0 280px;">
+<div class="wl-brand-row"><div class="wl-logo-slot" aria-hidden="true">MR</div><div class="wl-brand-name">Moto Rápida</div></div>
+<div class="wl-switcher">
+<div class="wl-switcher__icon"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg></div>
+<div class="wl-switcher__text"><span class="wl-switcher__name">Filial Centro</span><span class="wl-switcher__sub">Rodrigo · Gerente</span></div>
+</div>
+<a class="wl-nav-item" href="Gerente-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>Visão da filial</a>
+<a class="wl-nav-item" href="Aprovacoes-Desktop.dc.html" aria-current="page"><svg class="wl-i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"></path></svg>Aprovações<span class="wl-count">3</span></a>
+<a class="wl-nav-item" href="Frota-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg>Veículos<span class="wl-count">86</span></a>
+<div class="wl-nav-label">Operação</div>
+<a class="wl-nav-item" href="Locacoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>Locações</a>
+<a class="wl-nav-item" href="Venda-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="7.5" r="1"></circle></svg>Vendas</a>
+<a class="wl-nav-item" href="Clientes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.6-1.6-4.8-4-5.6"></path></svg>Clientes</a>
+<a class="wl-nav-item" href="Manutencao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M15 4a5 5 0 0 0-4.6 6.9L4 17.3V20h2.7l6.4-6.4A5 5 0 0 0 20 9l-3 1-2-2z"></path></svg>Manutenções</a>
+<div class="wl-nav-label">Filial</div>
+<a class="wl-nav-item" href="Caixa-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg>Caixa da filial</a>
+<a class="wl-nav-item" href="#"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.6-1.6-4.8-4-5.6"></path></svg>Equipe</a>
+<a class="wl-nav-item" href="Relatorios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><path d="M8 16v-4M12 16V8M16 16v-6"></path></svg>Relatórios</a>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
+<div><h1 style="margin: 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Aprovações</h1><p style="margin: 6px 0 0; color: var(--ink-muted);">Filial Centro · pedidos que dependem de você</p></div>
+</header>
+<section class="wl-kpis" style="grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));"><div class="wl-kpi wl-kpi--solid"><div class="wl-kpi__label">Esperando você</div><div class="wl-kpi__value">3</div><div class="wl-kpi__meta">mais antigo há 2 h</div></div><div class="wl-kpi"><div class="wl-kpi__label">Aprovadas em outubro</div><div class="wl-kpi__value">23</div><div class="wl-kpi__meta">tempo médio de 38 min</div></div><div class="wl-kpi"><div class="wl-kpi__label">Recusadas em outubro</div><div class="wl-kpi__value">3</div><div class="wl-kpi__meta">sempre com motivo</div></div><div class="wl-kpi"><div class="wl-kpi__label">Descontos aprovados</div><div class="wl-kpi__value">R$ 2.410</div><div class="wl-kpi__meta">em 5 vendas e locações</div></div></section>
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+<section class="wl-panel" style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+<button class="chip" aria-pressed="true">Pendentes<span class="wl-count">3</span></button><button class="chip" aria-pressed="false">Aprovadas<span class="wl-count">23</span></button><button class="chip" aria-pressed="false">Recusadas<span class="wl-count">3</span></button>
+<select class="wl-input" style="margin-left: auto; width: 200px; height: 40px;"><option>Todos os tipos</option></select>
+</div>
+<article class="req"><div class="top"><span class="wl-badge wl-badge--sm">Desconto</span><span class="lbl wl-mono">APR-01</span><span class="wl-badge wl-badge--sm wl-badge--warning"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg>Mais antigo</span></div>
+<div><div style="font-size: 19px; font-weight: 600; letter-spacing: -0.01em;">Desconto de 8% na venda para Diego Martins</div><div class="who">Bruna Alves · vendedora · há 2 h · VEN-0177</div></div>
+<div class="grid3"><div class="cell"><small>Preço de tabela</small><b>R$ 22.900,00</b></div><div class="cell"><small>Com desconto</small><b>R$ 21.068,00</b></div><div class="cell"><small>Desconto</small><b>R$ 1.832,00 · 8%</b></div><div class="cell"><small>Pagamento</small><b>R$ 5.000 + 12 × R$ 1.339,00</b></div></div>
+<p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--ink-muted);">O limite da Bruna é 5%. A comissão prevista é R$ 632,04 (3%).</p>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;"><a href="Venda-Desktop.dc.html" class="wl-btn wl-btn--sm" style="text-decoration: none; background: var(--surface);">Ver proposta</a><span style="flex: 1;"></span><button class="wl-btn wl-btn--sm" style="background: var(--surface);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="M6 6l12 12M18 6 6 18"></path></svg>Recusar</button><button class="wl-btn wl-btn--solid wl-btn--sm"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg>Aprovar</button></div></article>
+<article class="req"><div class="top"><span class="wl-badge wl-badge--sm">Cancelamento</span><span class="lbl wl-mono">APR-02</span></div>
+<div><div style="font-size: 19px; font-weight: 600; letter-spacing: -0.01em;">Encerrar antes do fim a LOC-2812 · Patrícia Gomes</div><div class="who">Bruna Alves · vendedora · há 1 h · a cliente pediu pelo WhatsApp</div></div>
+<div class="grid3"><div class="cell"><small>Plano</small><b>NMax 160 · mensal R$ 1.590,00</b></div><div class="cell"><small>Dias restantes</small><b>8 de 30 · até 15 out</b></div><div class="cell"><small>Multa (20%)</small><b>R$ 84,80</b></div><div class="cell"><small>Devolver à cliente</small><b>R$ 286,20</b></div></div>
+<p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--ink-muted);">Ao aprovar, a locação vai para a devolução: vistoria, acerto e devolução da caução.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;"><a href="Locacoes-Desktop.dc.html" class="wl-btn wl-btn--sm" style="text-decoration: none; background: var(--surface);">Ver locação</a><span style="flex: 1;"></span><button class="wl-btn wl-btn--sm" style="background: var(--surface);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="M6 6l12 12M18 6 6 18"></path></svg>Recusar</button><button class="wl-btn wl-btn--solid wl-btn--sm"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg>Aprovar</button></div></article>
+<article class="req"><div class="top"><span class="wl-badge wl-badge--sm">Despesa</span><span class="lbl wl-mono">APR-03</span></div>
+<div><div style="font-size: 19px; font-weight: 600; letter-spacing: -0.01em;">Despesa de R$ 1.200,00 · 2 pneus</div><div class="who">João Silva · vistoriador · há 40 min · PMZ-3E17</div></div>
+<div class="grid3"><div class="cell"><small>Fornecedor</small><b>Moto Peças CE</b></div><div class="cell"><small>Veículo</small><b>Honda Pop 110i · PMZ-3E17</b></div><div class="cell"><small>Valor</small><b>R$ 1.200,00</b></div><div class="cell"><small>Vencimento</small><b>15 out · boleto</b></div></div>
+<p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--ink-muted);">Acima de R$ 500 precisa da sua aprovação. Aprovada, vai para o financeiro pagar.</p>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;"><a href="Despesas-Desktop.dc.html" class="wl-btn wl-btn--sm" style="text-decoration: none; background: var(--surface);">Ver despesa</a><span style="flex: 1;"></span><button class="wl-btn wl-btn--sm" style="background: var(--surface);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="M6 6l12 12M18 6 6 18"></path></svg>Recusar</button><button class="wl-btn wl-btn--solid wl-btn--sm"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg>Aprovar</button></div></article>
+</section>
+<aside style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+<section class="wl-panel"><h2 class="wl-panel__title" style="font-size: 20px; margin-bottom: 4px;">Decididas recentemente</h2><div class="hist"><span class="ico" style="background: var(--success-soft); color: var(--success-ink);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span><div><div style="font-weight: 500;">Diferença de caixa de R$ 3,50</div><small>Rodrigo aprovou · 06 out · caixa fechado com a diferença</small></div></div><div class="hist"><span class="ico" style="background: var(--critical-soft); color: var(--critical-ink);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="M6 6l12 12M18 6 6 18"></path></svg></span><div><div style="font-weight: 500;">Desconto de 12% · Pop 110i</div><small>Rodrigo recusou · 05 out · "abaixo do preço mínimo"</small></div></div><div class="hist"><span class="ico" style="background: var(--success-soft); color: var(--success-ink);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span><div><div style="font-weight: 500;">Correção de km · RJD-5B38</div><small>Rodrigo aprovou · 04 out · 12.480 → 12.408 km, erro de digitação</small></div></div><div class="hist"><span class="ico" style="background: var(--success-soft); color: var(--success-ink);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span><div><div style="font-weight: 500;">Desbloqueio de Ana Beatriz Lima</div><small>Rodrigo aprovou · 02 out · quitou o atraso</small></div></div></section>
+<section class="wl-panel" style="background: var(--surface-sunken); display: flex; flex-direction: column; gap: 10px; font-size: 14px; line-height: 20px; color: var(--ink-muted);">
+<div style="font-weight: 600; color: var(--ink); font-size: 16px;">O que passa por aqui</div>
+<div>Descontos acima de 5%, cancelamentos de locação, despesas e orçamentos acima de R$ 500, diferença no caixa, desbloqueio de cliente e correção de km para baixo.</div>
+<div>Recusar pede um motivo, que vai para quem pediu. Pedido sem resposta em 4 horas úteis avisa a administradora.</div>
+<div>Você não aprova pedidos feitos por você mesmo. Tudo fica na auditoria.</div>
+</section>
+</aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>
