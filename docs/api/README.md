@@ -51,7 +51,7 @@ Valem para todos os contratos; cada contrato só descreve o que foge daqui.
 | --- | --- | --- |
 | 400 | campo inválido ou faltando | `{ "codigo": "validacao", "mensagem": "Confira os campos destacados", "campos": { "cnpj": ["CNPJ inválido"] } }` |
 | 401 | sem token, token vencido ou de outro schema | `{ "codigo": "nao_autenticado", "mensagem": ... }` |
-| 403 | perfil, função, filial ou empresa sem operação | `{ "codigo": "<REGRA>" ou "permissao", "mensagem": ... }` |
+| 403 | perfil, função, filial, empresa sem operação ou módulo fora do plano (`PLT-12`, `plataforma.md`) | `{ "codigo": "<REGRA>" ou "permissao", "mensagem": ... }` |
 | 404 | não existe ou fora do escopo da pessoa (filial de outra pessoa responde 404, não 403) | `{ "codigo": "nao_encontrado", "mensagem": ... }` |
 | 409 | transição de status recusada ou conflito de unicidade | `{ "codigo": "<REGRA>", "mensagem": ..., "detalhes": { ... } }` |
 | 422 | regra de negócio recusou | `{ "codigo": "<REGRA>", "mensagem": ..., "detalhes": { ... } }` |
