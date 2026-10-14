@@ -9,6 +9,7 @@ import type {
   ContaReceber,
   ContaReceberDetalhe,
   Despesa,
+  ExportacaoCriada,
   FiltroDespesas,
   FiltroReceber,
   FormaDeRecebimento,
@@ -18,6 +19,7 @@ import type {
   MovimentoDoCaixa,
   NovaDespesa,
   PagamentoDeDespesa,
+  PedidoDeExportacaoDeDespesas,
   PedidoDeAprovacao,
 } from "@/lib/api/tipos-financeiro";
 import { pausa, perfilAtualFalso } from "./falso";
@@ -141,6 +143,7 @@ let movimentos: MovimentoDoCaixa[] = [];
 let proximoMovimento = 500;
 let cobradasHoje = new Set<number>();
 let despesas: Despesa[] = [];
+export const pedidosDeExportacao: PedidoDeExportacaoDeDespesas[] = [];
 /** Pedidos de aprovação: nascem do seed na primeira leitura, e `reiniciarFinanceiroFalso` os apaga (TDZ: o seed vem depois). */
 let pedidos: { id: number }[] | null = null;
 let proximaDespesa = 810;
@@ -200,6 +203,7 @@ export function reiniciarFinanceiroFalso(dia: DiaDoCaixaFalso = "aberto") {
   cobradasHoje = new Set();
   despesas = DESPESAS.map((d) => ({ ...d }));
   pedidos = null;
+  pedidosDeExportacao.length = 0;
   proximaDespesa = 810;
   proximoMovimento = 500;
   movimentos = dia === "sem_caixa" ? [] : movimentosDoSeed();
@@ -475,30 +479,43 @@ export const financeiroFalso = {
   async listarDespesas(f: FiltroDespesas = {}): Promise<ListaDespesas> {
     await pausa(60);
     const doMes = despesas.filter((d) => d.data.startsWith(f.mes ?? "2026-10"));
-    const lista = doMes.filter((d) => (!f.status || d.status === f.status) && (!f.categoria || d.categoria === f.categoria) && (!f.veiculo || d.veiculo?.id === f.veiculo));
+    // `?busca=` (FIN-16): descrição ou placa, sem acento nem hífen; muda a lista e as contagens, não os indicadores.
+    const normal = (t: string) => t.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase();
+    const termo = normal((f.busca ?? "").trim());
+    const placaDoTermo = termo.replace(/[\s-]/g, "");
+    const buscadas = termo ? doMes.filter((d) => normal(d.descricao).includes(termo) || (placaDoTermo !== "" && !!d.veiculo && normal(d.veiculo.placa).includes(placaDoTermo))) : doMes;
+    const lista = buscadas.filter((d) => (!f.status || d.status === f.status) && (!f.categoria || d.categoria === f.categoria) && (!f.veiculo || d.veiculo?.id === f.veiculo));
     const soma = (xs: Despesa[]) => xs.reduce((t, d) => t + d.valor_centavos, 0);
     const aguardando = doMes.filter((d) => d.status === "aguardando_aprovacao");
     const por: Record<string, number> = {};
     for (const d of doMes) por[d.categoria] = (por[d.categoria] ?? 0) + d.valor_centavos;
+    const gasto = soma(doMes.filter((d) => d.status !== "recusada"));
     return {
       indicadores: {
-        gasto_mes_centavos: soma(doMes.filter((d) => d.status !== "recusada")),
-        despesa_por_veiculo_centavos: null, // FIN-16: valor da API (T-178); a tela é da T-179
+        gasto_mes_centavos: gasto,
+        despesa_por_veiculo_centavos: Math.round(gasto / 86), // FIN-16: 86 veículos ativos no seed; quem divide é a API
         aguardando_aprovacao_centavos: soma(aguardando),
         aguardando_aprovacao_quantidade: aguardando.length,
         a_pagar_semana_centavos: soma(doMes.filter((d) => d.status === "a_pagar" && d.vencimento <= "2026-10-14")),
         por_categoria: por,
       },
       contagens: {
-        aguardando_aprovacao: aguardando.length,
-        a_pagar: doMes.filter((d) => d.status === "a_pagar").length,
-        paga: doMes.filter((d) => d.status === "paga").length,
-        recusada: doMes.filter((d) => d.status === "recusada").length,
+        aguardando_aprovacao: buscadas.filter((d) => d.status === "aguardando_aprovacao").length,
+        a_pagar: buscadas.filter((d) => d.status === "a_pagar").length,
+        paga: buscadas.filter((d) => d.status === "paga").length,
+        recusada: buscadas.filter((d) => d.status === "recusada").length,
       },
       resultados: lista.map((d) => ({ ...d })),
       proximo: null,
       anterior: null,
     };
+  },
+
+  /** Pedidos feitos à exportação, para o teste conferir o corpo: sempre o mês e a filial, nunca a busca nem a aba. */
+  async exportarDespesas(pedido: PedidoDeExportacaoDeDespesas): Promise<ExportacaoCriada> {
+    await pausa(40);
+    pedidosDeExportacao.push(pedido);
+    return { id: 17, status: "na_fila" };
   },
 
   async obterDespesa(id: number): Promise<Despesa> {

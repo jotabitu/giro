@@ -34,7 +34,7 @@ export type ValoresDaDespesa = {
 /** Só o que a tela precisa para chamar a API. Valor, limite de R$ 500 e perfil são conferidos por ela. */
 export function corpoDaDespesa(v: ValoresDaDespesa): NovaDespesa | null {
   const centavos = centavosDoTexto(v.valor);
-  if (centavos === null || v.descricao.trim() === "" || v.data === "") return null;
+  if (centavos === null || v.descricao.trim() === "" || v.data === "" || v.nota === null) return null;
   return {
     descricao: v.descricao.trim(),
     valor_centavos: centavos,

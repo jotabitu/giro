@@ -162,8 +162,8 @@ export function NovaDespesa({ eu, aoLancar }: { eu: Eu; aoLancar: (d: Despesa) =
       <div className="flex flex-col gap-1">
         <label className="flex h-[72px] cursor-pointer items-center justify-center gap-2 rounded-[18px] border-[1.5px] border-dashed border-line px-4 text-caption text-ink-muted has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2">
           <Icone de={Camera} />
-          <span className="min-w-0 truncate">{nota ? nota.name : "Foto da nota"}</span>
-          <input ref={arquivo} type="file" accept="image/*,application/pdf" className="sr-only" aria-label="Foto da nota" onChange={(e) => escolherNota(e.target.files?.[0] ?? null)} />
+          <span className="min-w-0 truncate">{nota ? nota.name : "Foto da nota (obrigatória)"}</span>
+          <input ref={arquivo} type="file" accept="image/*,application/pdf" className="sr-only" aria-label="Foto da nota" aria-required="true" required onChange={(e) => escolherNota(e.target.files?.[0] ?? null)} />
         </label>
         {nota && (
           <button
