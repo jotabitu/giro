@@ -23,3 +23,8 @@
 - Fora do escopo, mas contra a `PLT-11` (função que não existe não aparece em texto): `Admin-Marca-*` ("Domínio próprio … no plano Completo") e `Integracoes-*` (cartões "Nota fiscal (NF-e / NFS-e)" no Completo e "Assinatura digital" como item do plano). Decisão do produto antes de mexer.
 
 **Próximo passo para quem recebe:** orquestrador abre o PR e segue com a T-214 (`Onboarding-Filial` e desfazer cancelamento, PR #206). Frontend das T-187 e T-198 pode usar as telas como estão.
+
+## Ajuste de 14 out (PLT-11, pedido do orquestrador)
+
+- `Admin-Marca` (desktop e celular): saiu a dica "Domínio próprio (ex.: app.motorapida.com.br) no plano Completo"; o endereço pelo subdomínio fica.
+- `Integracoes` (desktop e celular): saiu o cartão "Nota fiscal (NF-e / NFS-e)" (Plano Completo, "Conhecer"), sem "em breve".
