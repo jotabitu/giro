@@ -51,7 +51,13 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 
 <section class="card">
 <h2 class="h2">Endereço</h2>
-<label style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border-radius: 16px; background: var(--surface-sunken); font-size: 15px; line-height: 22px;"><input type="checkbox" checked style="width: 22px; height: 22px; margin: 0; accent-color: var(--solid); flex: none;"><span>Mesmo endereço do CNPJ<br><span style="font-size: 14px; color: var(--ink-muted);">Rua Barão do Rio Branco, 1200, Centro</span></span></label>
+<label class="wl-field"><span class="wl-field__label">CEP</span><input class="wl-input" value="60325-000" inputmode="numeric" autocomplete="postal-code"></label>
+<label class="wl-field"><span class="wl-field__label">Rua</span><input class="wl-input" value="Av. Bezerra de Menezes"></label>
+<label class="wl-field"><span class="wl-field__label">Número</span><input class="wl-input" value="1200" inputmode="numeric"></label>
+<label class="wl-field"><span class="wl-field__label">Complemento</span><input class="wl-input" value=""></label>
+<label class="wl-field"><span class="wl-field__label">Bairro</span><input class="wl-input" value="São Gerardo"></label>
+<label class="wl-field"><span class="wl-field__label">Cidade</span><input class="wl-input" value="Fortaleza · CE" readonly></label>
+<p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--ink-muted);">Este endereço também vai na nota fiscal da sua assinatura. Você muda só a nota em Administração › Assinatura.</p>
 <label class="wl-field"><span class="wl-field__label">Nome da filial</span><input class="wl-input" value="Filial Centro"></label>
 <label class="wl-field"><span class="wl-field__label">WhatsApp de atendimento</span><input class="wl-input" value="(85) 98800-1000" inputmode="tel"></label>
 </section>

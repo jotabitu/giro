@@ -64,7 +64,15 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 
 <div>
 <h2 class="sub">Endereço</h2>
-<label style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; margin-bottom: 16px; border-radius: 18px; background: var(--surface-sunken);"><input type="checkbox" checked style="width: 22px; height: 22px; margin: 0; accent-color: var(--solid);"><span>Mesmo endereço do CNPJ <span style="color: var(--ink-muted);">· Rua Barão do Rio Branco, 1200, Centro, Fortaleza</span></span></label>
+<div class="grid">
+<label class="wl-field"><span class="wl-field__label">CEP</span><input class="wl-input" value="60325-000" inputmode="numeric" autocomplete="postal-code"></label>
+<label class="wl-field"><span class="wl-field__label">Rua</span><input class="wl-input" value="Av. Bezerra de Menezes"></label>
+<label class="wl-field"><span class="wl-field__label">Número</span><input class="wl-input" value="1200" inputmode="numeric"></label>
+<label class="wl-field"><span class="wl-field__label">Complemento</span><input class="wl-input" value=""></label>
+<label class="wl-field"><span class="wl-field__label">Bairro</span><input class="wl-input" value="São Gerardo"></label>
+<label class="wl-field"><span class="wl-field__label">Cidade</span><input class="wl-input" value="Fortaleza · CE" readonly></label>
+</div>
+<p style="margin: 10px 0 16px; font-size: 14px; color: var(--ink-muted);">Este endereço também vai na nota fiscal da sua assinatura. Você muda só a nota em Administração › Assinatura.</p>
 <div class="grid">
 <label class="wl-field"><span class="wl-field__label">Nome da filial</span><input class="wl-input" value="Filial Centro"></label>
 <label class="wl-field"><span class="wl-field__label">Nome curto no seletor</span><input class="wl-input" value="Centro"></label>
