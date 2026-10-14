@@ -13,12 +13,11 @@ import {
   criarLocacao,
   gerarContratoEPegarToken,
   menuDoVistoriador,
-  receberCaucaoPeloBackend,
   receberEmDinheiro,
   vistoriaDeChegada,
   vistoriaDeSaida,
 } from "./suporte/passos";
-import { defeitoConhecido, entrar, exigirHoraSegura, horaDeAgora, novaSessao, semRolagemLateral, visivel } from "./suporte/tela";
+import { entrar, exigirHoraSegura, horaDeAgora, novaSessao, semRolagemLateral, visivel } from "./suporte/tela";
 
 test("locação completa no celular: Bruna na frente, João nas vistorias", async ({ browser }, info) => {
   exigirHoraSegura();
@@ -26,6 +25,8 @@ test("locação completa no celular: Bruna na frente, João nas vistorias", asyn
   const bruna = await novaSessao(browser, info);
   const joao = await novaSessao(browser, info);
   const hora = horaDeAgora();
+  joao.vigia.conhecer(404, /\/api\/arquivos-dev\/.*\/vistorias\/fotovistoria\//, "D-07", "fotos da saída somem com o reinício do backend: o armazenamento falso de desenvolvimento é em memória");
+  bruna.vigia.conhecer(404, /\/api\/arquivos-dev\/.*\/vistorias\/fotovistoria\//, "D-07", "fotos da saída somem com o reinício do backend: o armazenamento falso de desenvolvimento é em memória");
   joao.vigia.conhecer(403, /\/api\/clientes\/\d+\//, "D-05", "o vistoriador toma 403 ao abrir o cliente na vistoria (USR-09 pede nome, celular e retirada liberada)");
 
   await entrar(bruna.page, "bruna");
@@ -55,10 +56,7 @@ test("locação completa no celular: Bruna na frente, João nas vistorias", asyn
     await assinarPeloLink(browser, info, gerarContratoEPegarToken(locacao.codigo));
     await bruna.page.goto("/financeiro/caixa");
     await receberEmDinheiro(bruna.page, locacao.codigo, /R\$ 329,00/);
-    const achou = await defeitoConhecido("D-01", "a caução não aparece na busca por locação do caixa (FIN-15, CA-023-15)", async () => {
-      await receberEmDinheiro(bruna.page, locacao.codigo, /R\$ 300,00/);
-    });
-    if (!achou) receberCaucaoPeloBackend(locacao.id, 30_000);
+    await receberEmDinheiro(bruna.page, locacao.codigo, /R\$ 300,00/);
     await caixaMostra(bruna.page, { entrou: "R$ 1.740,90", recebimentos: "7 recebimentos", gaveta: "R$ 910,00", movimentos: 9 });
     await semRolagemLateral(bruna.page, "caixa do dia");
     await bruna.page.goto(`/locacoes/${locacao.id}`);
