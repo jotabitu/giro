@@ -77,6 +77,7 @@ from .models import (
     TipoCobranca,
     TipoConta,
     TipoMovimento,
+    texto_de_busca,
 )
 
 
@@ -1542,7 +1543,8 @@ def lancar_despesa(
     pago_no_caixa: bool = False,
 ) -> Despesa:
     """Até R$ 500 nasce `a_pagar` (ou `paga`, com a saída em dinheiro no caixa aberto); acima,
-    `aguardando_aprovacao`, com o pedido APR-03 para o gerente, e não pode ser paga no caixa."""
+    `aguardando_aprovacao`, com o pedido APR-03 para o gerente, e não pode ser paga no caixa.
+    A nota é obrigatória na rota (FIN-06); aqui aceita `None` para a despesa que nasce da OS."""
     acima = valor_centavos > LIMITE_SEM_APROVACAO
     if acima and pago_no_caixa:
         raise ErroDeRegra(
@@ -1554,6 +1556,7 @@ def lancar_despesa(
             filial=filial,
             data=data,
             descricao=descricao[:150],
+            descricao_busca=texto_de_busca(descricao[:150]),
             categoria=categoria,
             valor_centavos=valor_centavos,
             vencimento=vencimento,
@@ -1562,7 +1565,7 @@ def lancar_despesa(
             status=StatusDespesa.AGUARDANDO_APROVACAO if acima else StatusDespesa.A_PAGAR,
         )
         if pago_no_caixa:
-            caixa = _caixa_aberto(filial.pk, "Abra o caixa do dia para pagar no caixa")
+            caixa = _caixa_aberto(filial.pk, "Abra o caixa do dia para pagar por ele")
             despesa.status = StatusDespesa.PAGA
             despesa.forma = FormaDespesa.DINHEIRO
             despesa.pago_em = relogio.agora()
