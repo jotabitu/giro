@@ -1477,6 +1477,8 @@ def test_plt_07_lista_de_rotas_que_o_suporte_le():
         # Painel (T-129): números agregados, sem dado pessoal completo.
         "api/painel/contadores/",
         "api/painel/inicio/",
+        # T-181: Configurações, só contagens e textos (sem auditoria e exportar para o suporte).
+        "api/configuracoes/",
     }
 
 
