@@ -435,6 +435,7 @@ export const financeiroFalso = {
     return {
       indicadores: {
         gasto_mes_centavos: soma(doMes.filter((d) => d.status !== "recusada")),
+        despesa_por_veiculo_centavos: null, // FIN-16: valor da API (T-178); a tela é da T-179
         aguardando_aprovacao_centavos: soma(aguardando),
         aguardando_aprovacao_quantidade: aguardando.length,
         a_pagar_semana_centavos: soma(doMes.filter((d) => d.status === "a_pagar" && d.vencimento <= "2026-10-14")),

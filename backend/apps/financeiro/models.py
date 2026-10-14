@@ -6,6 +6,7 @@ movimentos, a baixa, o estorno, as cobranças externas (Pix e boleto), as pendê
 as despesas.
 """
 
+import unicodedata
 from typing import Any, ClassVar
 
 from django.db import models
@@ -484,6 +485,12 @@ class FormaDespesa(models.TextChoices):
     DINHEIRO = "dinheiro", "Dinheiro"
 
 
+def texto_de_busca(texto: str) -> str:
+    """Minúsculas e sem acento (NFKD): "Óleo" → "oleo". A busca das despesas (FIN-16)."""
+    decomposto = unicodedata.normalize("NFKD", texto or "")
+    return "".join(c for c in decomposto if not unicodedata.combining(c)).lower()
+
+
 class Despesa(MaquinaDeEstados, ModeloBase):
     """Conta a pagar (FIN-05). Acima de R$ 500 nasce `aguardando_aprovacao` (APR-03); até R$ 500,
     `a_pagar`, ou `paga` quando lançada como paga no caixa."""
@@ -491,6 +498,8 @@ class Despesa(MaquinaDeEstados, ModeloBase):
     filial = models.ForeignKey("filiais.Filial", on_delete=models.PROTECT, related_name="+")
     data = models.DateField()
     descricao = models.CharField(max_length=150)
+    # A descrição em minúsculas e sem acento, para a busca (FIN-16): gravada pelo serviço.
+    descricao_busca = models.CharField(max_length=150, blank=True, default="")
     categoria = models.CharField(max_length=15, choices=CategoriaDespesa.choices)
     valor_centavos = CentavosField()
     vencimento = models.DateField()

@@ -2,12 +2,15 @@
 
 Roda depois da carteira, pelos serviços de domínio: preço do litro da Filial Centro, vistoria de
 saída da LOC-2836, caução paga da LOC-2841, LOC-2812 e LOC-2856, o caixa de 07 out (caso "Caixa de
-07 out", `FIN-07`) e as 6 despesas de outubro (`FIN-05`). O caixa fica aberto, como na tela.
+07 out", `FIN-07`) e as 6 despesas de outubro (`FIN-05`), cada uma com a nota (`FIN-06`, um PDF
+pequeno de exemplo). O caixa fica aberto, como na tela.
 """
 
 from datetime import date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
+
+from django.core.files.base import ContentFile
 
 from apps.aprovacoes import services as aprovacoes
 from apps.aprovacoes.models import PedidoAprovacao
@@ -29,6 +32,17 @@ from .relogio import RelogioDoSeed
 FUSO = ZoneInfo("America/Sao_Paulo")
 PRECO_DO_LITRO_CENTAVOS = 550  # DEV-01: "preço da bomba" da Filial Centro (R$ 5,50)
 CAUCOES = {"LOC-2841": 30000, "LOC-2812": 50000}  # Street e Scooter premium (tabela de preços)
+# Nota de exemplo das despesas (FIN-06): um PDF de uma página em branco.
+PDF_DA_NOTA = (
+    b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+    b"2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
+    b"3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\n"
+    b"trailer<</Root 1 0 R>>\n%%EOF\n"
+)
+
+
+def _nota() -> "ContentFile[bytes]":
+    return ContentFile(PDF_DA_NOTA, name="nota.pdf")
 
 
 def _caucao_paga(locacao: Locacao, valor: int, quando: datetime) -> ContaReceber:
@@ -117,6 +131,7 @@ def _caixa_de_07_out(centro: Filial, bruna: Usuario, relogio: RelogioDoSeed) -> 
             vencimento=date(2026, 10, 7),
             categoria="manutencao",
             veiculo_id=Veiculo.objects.get(placa="QXA4B21").pk,
+            nota=_nota(),
             pago_no_caixa=True,
         )
 
@@ -141,6 +156,7 @@ def _despesas_de_outubro(centro: Filial, pessoas: dict[str, Usuario], relogio: A
                 data=date.fromisoformat(dia),
                 vencimento=date.fromisoformat(vence),
                 categoria=categoria,
+                nota=_nota(),
                 **mais,
             )
 
