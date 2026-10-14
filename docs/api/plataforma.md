@@ -1,6 +1,6 @@
 # Plataforma
 
-**Dono:** arquiteto · **Versão:** 08 out 2026 (T-055; T-030) · **App:** `plataforma` (+ `contas` no schema `public`, ADR 0008) · **Regras:** PLT-01, PLT-03, PLT-04, PLT-07, PLT-08, PLT-09, IMP-05 · **Telas:** Plat-Login, Plat-Empresas, Plat-Empresa-Detalhe, Plat-Planos, Plat-Equipe, Admin-Assinatura
+**Dono:** arquiteto · **Versão:** 14 out 2026 (T-183; T-055; T-030) · **App:** `plataforma` (+ `contas` no schema `public`, ADR 0008) · **Regras:** PLT-01, PLT-03, PLT-04, PLT-07, PLT-08, PLT-09, IMP-05 · **Telas:** Plat-Login, Plat-Empresas, Plat-Empresa-Detalhe, Plat-Planos, Plat-Equipe, Admin-Assinatura
 
 Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-dados.md` (itens 1 a 5 e apoio do public).
 
@@ -237,6 +237,8 @@ Efeitos: e-mail ao administrador da empresa na hora; evento nas duas auditorias.
 ## Do lado da empresa: assinatura e uso do plano · fase 1
 
 Servido em `<subdominio>.<dominio>/api/` (schema da empresa), implementado em `plataforma/api/` e lido do `public`.
+
+O resto da tela `Admin-Assinatura` (mudar e comparar planos, forma de pagamento, faturas, dados da nota fiscal, cartão do plano Completo e os campos novos deste `GET`: `teste.inicio`, `proxima_fatura`, `plano_proximo` e os blocos do administrador) está em `docs/api/assinatura.md` (T-183). A ação `mudar-plano` abaixo e a da empresa usam o mesmo serviço `plataforma.services.mudar_plano`.
 
 ### GET /api/assinatura/
 Perfis: todos (cada tela mostra o que precisa; o administrador vê tudo).
