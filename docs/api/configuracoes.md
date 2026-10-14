@@ -133,7 +133,7 @@ O frontend liga `chave` → rota (referência em `docs/telas/README.md`, "Rotas 
 | `notificacoes` | `/admin/notificacoes` (sem tela) |
 | `assinatura` | `/admin/assinatura` |
 | `auditoria` | `/admin/auditoria` |
-| `exportar` | `/admin/auditoria/exportar` |
+| `exportar` | `/admin/exportar` |
 
 `acao.destino`: `nova_locacao` → `/locacoes/nova`; `implantacao` → definido no contrato do assistente.
 
