@@ -185,14 +185,14 @@ def test_loc_05_seed_138_02_planos_e_valores_da_tabela(semeado):
         assert (conta.valor_centavos, conta.status) == (134700, "aberta")
 
 
-def test_cli_03_seed_138_03_so_o_rafael_com_cadastro_incompleto(semeado):
-    """D-07: os demais clientes têm os 4 documentos e saem de `incompleto`."""
+def test_cli_03_seed_138_03_todos_com_os_4_documentos(semeado):
+    """D-07, T-019: todos os clientes, o Rafael também, têm os 4 documentos e saem de
+    `incompleto`; ele fica `bloqueado` pelo atraso (CLI-05)."""
     with _no_tenant():
         assert Cliente.objects.filter(status="incompleto").count() == 0
         rafael = Cliente.objects.get(nome="Rafael Sousa")
-        assert (rafael.status, rafael.documentos.count()) == ("bloqueado", 0)
-        outros = Cliente.objects.exclude(pk=rafael.pk)
-        assert all(c.documentos.filter(ativo=True).count() == 4 for c in outros)
+        assert rafael.status == "bloqueado"
+        assert all(c.documentos.filter(ativo=True).count() == 4 for c in Cliente.objects.all())
 
 
 def test_seed_138_04_nomes_e_placas_menos_genericos(semeado):
@@ -212,17 +212,19 @@ def test_seed_138_04_nomes_e_placas_menos_genericos(semeado):
         assert Veiculo.objects.filter(status="alugado").count() == 42
 
 
-def test_loc_05_seed_138_05_parcela_1_nao_nasce_atrasada(semeado):
-    """D-21: a 1ª parcela das locações ativas está paga; só a conta dada da LOC-2790 não."""
+def test_loc_05_seed_138_05_parcela_1_pela_situacao_do_csv(semeado):
+    """T-019 desfez o D-21: a situação das parcelas é a do CSV da tabela (FIN-15), porque
+    Recebido e Vence hoje da regra dependem das parcelas 1 em aberto. As reservas não têm
+    parcela paga."""
     with _no_tenant():
-        abertas = ContaReceber.objects.filter(
-            tipo="parcela", numero_parcela=1, origem_tipo="locacao"
-        ).exclude(status="paga")
-        codigos = {c.origem_codigo for c in abertas}
         reservas = set(
             Locacao.objects.filter(status="aguardando_retirada").values_list("codigo", flat=True)
         )
-        assert codigos - reservas == {"LOC-2790"}
+        pagas_das_reservas = ContaReceber.objects.filter(
+            origem_codigo__in=reservas, status="paga"
+        ).count()
+        assert pagas_das_reservas == 0
+        assert ContaReceber.objects.get(origem_codigo="LOC-2790").status == "aberta"
 
 
 def test_seed_138_06_locacoes_divididas_entre_vendedores(semeado):
@@ -314,9 +316,8 @@ def test_fin_03_seed_163_01_parcela_atrasada_cobra_multa_e_juros(semeado):
 def test_adr_0021_painel_do_seed_com_a_data_de_referencia(db, planos, _seed_do_modulo):
     """T-142: com o relógio real e GIRO_DATA_REFERENCIA em 07 out (sem a fixture `relogio`), o
     painel do financeiro mostra o mesmo que com o relógio congelado: em atraso R$ 1.646,40 em 2
-    clientes, como nas regras. O "entra hoje" fica em R$ 299,40 (1 parcela), e não nos
-    R$ 2.625,80 das regras, porque o seed paga as parcelas que venceriam até 07 out (T-138,
-    D-21); com a data ligada, esse contorno pode sair do seed (qa)."""
+    clientes e "entra hoje" R$ 2.625,80 em 6 parcelas, como nas regras (T-019: o seed segue o CSV,
+    sem o contorno D-21 da T-138)."""
     from datetime import date
 
     from django.test import override_settings
@@ -334,4 +335,4 @@ def test_adr_0021_painel_do_seed_com_a_data_de_referencia(db, planos, _seed_do_m
     kpis = {kpi["chave"]: kpi for kpi in resposta.json()["kpis"]}
     assert kpis["em_atraso"]["valor"] == {"tipo": "centavos", "valor": 164640}
     assert kpis["em_atraso"]["contexto"] == "2 clientes"
-    assert kpis["entra_hoje"]["valor"] == {"tipo": "centavos", "valor": 29940}
+    assert kpis["entra_hoje"]["valor"] == {"tipo": "centavos", "valor": 262580}

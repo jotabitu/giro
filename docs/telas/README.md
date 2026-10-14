@@ -37,6 +37,7 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 | 6 · Administração › Assinatura | [desktop](html/Admin-Assinatura-Desktop.dc.html) · [celular](html/Admin-Assinatura-Mobile.dc.html) | `(empresa)/admin/assinatura` | `plataforma` | PLT |
 | 7 · Início do financeiro | [desktop](html/Financeiro-Desktop.dc.html) · [celular](html/Financeiro-Mobile.dc.html) | `(empresa)/inicio` | `relatorios (agregados)` | USR, AUT |
 | 8 · Início do gerente | [desktop](html/Gerente-Desktop.dc.html) · [celular](html/Gerente-Mobile.dc.html) | `(empresa)/inicio` | `relatorios (agregados)` | USR, AUT |
+| Aprovações | [desktop](html/Aprovacoes-Desktop.dc.html) · [celular](html/Aprovacoes-Mobile.dc.html) | `(empresa)/aprovacoes` | `aprovacoes` | APR-01 a APR-11 |
 
 ## Operação essencial
 
@@ -147,7 +148,7 @@ Cada `chave` da navegação de `GET /api/auth/eu/` (`docs/api/contas.md`) abre u
 | `chave` | Rota | Tela | Observação |
 | --- | --- | --- | --- |
 | `inicio` | `/inicio` | Main e inícios por perfil | variante pela API (`USR-08`) |
-| `aprovacoes` | `/aprovacoes` | sem tela ainda | app `aprovacoes`; tela da fase 2 (até lá, os pedidos aparecem no início do gerente) |
+| `aprovacoes` | `/aprovacoes` | Aprovações | app `aprovacoes`; entra na fase 1 (T-175); os pedidos também aparecem no início do gerente |
 | `veiculos` | `/veiculos` | Frota | |
 | `locacoes` | `/locacoes` | Locações | nova locação em `/locacoes/nova`; vistoria e devolução em `/locacoes/[id]/vistoria` e `/locacoes/[id]/devolucao` |
 | `vendas` | `/vendas` | Vendas | fase 2 |
