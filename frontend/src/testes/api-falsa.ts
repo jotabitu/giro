@@ -1,6 +1,8 @@
 // Faz o papel de `@/lib/api` nos testes (alias em vitest.config.ts): a mesma fronteira, com as fixtures de ./falsos.
 // Fora dos testes ninguém importa esta pasta (regra no-restricted-imports do ESLint).
 import { aprovacoesFalso } from "./falsos/falso-financeiro";
+import { auditoriaFalso } from "./falsos/falso-auditoria";
+import { configuracoesFalso } from "./falsos/falso-configuracoes";
 import { clientesFalso } from "./falsos/falso-clientes";
 import { veiculosFalso } from "./falsos/falso-frota";
 import { contasFalso, marcaFalsa } from "./falsos/falso";
@@ -15,6 +17,7 @@ import { usuariosFalso } from "./falsos/falso-usuarios";
 import { vistoriasFalso } from "./falsos/falso-vistorias";
 
 export const contas = contasFalso;
+export const configuracoes = configuracoesFalso;
 export const marca = marcaFalsa;
 export const filiais = { ...filiaisFalso, ...filiaisAdminFalso };
 export const ambiente = ambienteFalso;
@@ -24,6 +27,7 @@ export const clientes = clientesFalso;
 export const locacoes = locacoesFalso;
 export const vistorias = vistoriasFalso;
 export const financeiro = financeiroFalso;
+export const auditoria = auditoriaFalso;
 export const importacao = importacaoFalso;
 export const aprovacoes = aprovacoesFalso;
 export const usuarios = usuariosFalso;
@@ -34,5 +38,7 @@ export * from "@/lib/api/tipos-painel";
 export * from "@/lib/api/tipos-locacoes";
 export * from "@/lib/api/tipos-vistorias";
 export * from "@/lib/api/tipos-financeiro";
+export * from "@/lib/api/tipos-auditoria";
 export * from "@/lib/api/tipos-importacao";
 export * from "@/lib/api/tipos-usuarios";
+export * from "@/lib/api/tipos-configuracoes";

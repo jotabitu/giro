@@ -16,3 +16,10 @@ except ValueError as erro:
     raise ImproperlyConfigured(
         f"GIRO_DATA_REFERENCIA fora do formato AAAA-MM-DD: {_data_de_referencia!r}."
     ) from erro
+
+# T-210: com o armazenamento "falso", as URLs das fotos apontam para a própria API (mesma origem).
+GIRO_ARQUIVOS_FALSOS_BASE = "/api/arquivos-dev"
+
+# T-218: pasta (volume do compose) onde o armazenamento "falso" guarda as fotos, para elas
+# sobreviverem ao reinício do backend. Vazia ou ausente = memória, como nos testes.
+GIRO_ARQUIVOS_FALSOS_DIRETORIO = env("GIRO_ARQUIVOS_FALSOS_DIRETORIO", default="").strip()

@@ -53,7 +53,7 @@ Uma única instalação atende várias empresas: cada uma vê o sistema com a pr
 
 **Pontos legais:** perante a LGPD, você é operador dos dados de cada cliente; são necessários termos de uso e um acordo de tratamento de dados com cada empresa.
 
-**Impacto no roadmap:** multiempresa e personalização de marca entram na fase 1; planos e cobrança da assinatura entram na fase 3.
+**Impacto no roadmap:** multiempresa e personalização de marca entram na fase 1. Planos, módulos por plano, cobrança da assinatura, cancelar e pausar também entram na fase 1 (decisão do dono do produto em 14 out 2026, T-190, `PLT-01` a `PLT-15`); antes, ficavam na fase 3. Continuam para depois a tela de cobrança da plataforma (`Plat-Cobranca`, fase 2) e os adicionais (filial, pacote de veículos, assinatura digital avulsa).
 
 ## Implantação de um novo cliente
 

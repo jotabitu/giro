@@ -5,16 +5,17 @@ Modelo em `docs/decisoes/modelo-de-dados.md` (itens 1 e 2 e apoio). Empresa nasc
 """
 
 from datetime import date, timedelta
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from django.conf import settings
 from django.db import models
 from django_tenants.models import DomainMixin, TenantMixin
 
+from comum import cripto
 from comum.auditoria import Categoria
-from comum.campos import CentavosField
+from comum.campos import CampoCifrado, CentavosField
 from comum.estados import MaquinaDeEstados
-from comum.models import ModeloAtivavel, ModeloBase
+from comum.models import ModeloAtivavel, ModeloBase, ModeloComCifra
 
 DIAS_DE_TESTE = 14  # PLT-01
 
@@ -272,28 +273,52 @@ class StatusContaPagamento(models.TextChoices):
     RECUSADA = "recusada", "Recusada"
 
 
-class ContaPagamento(ModeloBase):
+class ContaPagamento(MaquinaDeEstados, ModeloComCifra, ModeloBase):
     """A subconta da empresa no parceiro de pagamentos (ADR 0007, `FIL-04`). O webhook chega no
     `public`, acha a empresa pelo hash do token e só então entra no schema dela (S-14).
 
-    A T-017 traz o mínimo para o webhook e para "recebimentos desligados"; a chave da API cifrada
-    (`chave_api_cifrada`, ADR 0014) e a criação da subconta entram com a T-029."""
+    A chave da API da subconta (T-029) fica cifrada com a chave dos segredos (ADR 0014, S-05) e só
+    é decifrada dentro de `integracoes/pagamentos`, por `integracoes.pagamentos.referencia`."""
 
     empresa = models.OneToOneField(
         Empresa, on_delete=models.PROTECT, related_name="conta_pagamento"
     )
     provedor = models.CharField(max_length=10, default="asaas")
     conta_externa_id = models.CharField(max_length=60, unique=True)
+    carteira_id = models.CharField(max_length=60, blank=True, default="")
+    chave_api_cifrada = CampoCifrado(tipo=cripto.SEGREDOS)
     webhook_token_hash = models.CharField(max_length=64, unique=True)
     status = models.CharField(
         max_length=10, choices=StatusContaPagamento.choices, default=StatusContaPagamento.PENDENTE
     )
 
-    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"omitir": ["webhook_token_hash"]}
+    TRANSICOES: ClassVar[dict[str, set[str]]] = {
+        StatusContaPagamento.PENDENTE: {
+            StatusContaPagamento.APROVADA,
+            StatusContaPagamento.RECUSADA,
+        },
+        StatusContaPagamento.APROVADA: set(),
+        StatusContaPagamento.RECUSADA: set(),
+    }
+    REGRA_TRANSICAO = "FIN-04"
+    CATEGORIA_AUDITORIA = Categoria.CONFIGURACOES
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
+        "omitir": ["webhook_token_hash", "chave_api_cifrada"]
+    }
+
+    if TYPE_CHECKING:  # criados por CampoCifrado.contribute_to_class
+
+        def chave_api_cifrada_claro(self) -> str: ...
+
+        def definir_chave_api_cifrada(self, valor: str | None) -> None: ...
 
     class Meta:
         verbose_name = "conta de pagamento"
         verbose_name_plural = "contas de pagamento"
+
+    def empresa_id_da_cifra(self) -> int:
+        # No public: a cifra amarra a chave à empresa da subconta, não à da conexão.
+        return int(self.empresa_id)
 
     def __str__(self) -> str:
         return f"{self.provedor} {self.conta_externa_id}"

@@ -2,11 +2,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { aprovacoes, contas, financeiro, type Eu } from "@/lib/api";
+import { aprovacoes, contas, financeiro, type Eu, type ListaDespesas as DadosDeDespesas } from "@/lib/api";
 import { financeiroApi } from "@/lib/api/financeiro";
 import { corpoDaDespesa, mesDe, nomeDoMes, pagoEmDoDia } from "@/lib/despesas";
 import { origemDaDespesa, rotuloDaCategoria } from "@/lib/financeiro";
-import { reiniciarFinanceiroFalso } from "@/testes/falsos/falso-financeiro";
+import { pedidosDeExportacao, reiniciarFinanceiroFalso } from "@/testes/falsos/falso-financeiro";
 
 const sessao = vi.hoisted(() => ({ eu: null as unknown }));
 vi.mock("@/lib/sessao", () => ({ useSessao: () => ({ eu: sessao.eu as Eu, sair: async () => {} }) }));
@@ -29,10 +29,10 @@ async function entrar(email: string) {
   sessao.eu = await contas.eu();
 }
 
-async function pagina(aba: "todas" | "aguardando_aprovacao" = "todas"): Promise<string> {
+async function pagina(aba: "todas" | "aguardando_aprovacao" = "todas", alterar?: (d: DadosDeDespesas) => DadosDeDespesas): Promise<string> {
   const cache = new QueryClient();
   const dados = await financeiro.listarDespesas({ mes: "2026-10", status: aba === "todas" ? undefined : aba });
-  cache.setQueryData(["despesas", { aba, mes: "2026-10", cursor: undefined }], dados);
+  cache.setQueryData(["despesas", { aba, mes: "2026-10", cursor: undefined, busca: "" }], alterar ? alterar(dados) : dados);
   return renderToStaticMarkup(
     <QueryClientProvider client={cache}>
       <ListaDespesas />
@@ -95,6 +95,79 @@ describe("lista de despesas (FIN-05, CA-017-19)", () => {
     await entrar("mariana@motorapida.com.br");
     const t = texto(await pagina());
     for (const campo of ["Descrição", "Valor", "Data", "Categoria", "Veículo (opcional)", "Foto da nota", "Lançar despesa"]) expect(t, campo).toContain(campo);
+  });
+
+  it("CA-DES-01: a despesa por veículo de outubro é R$ 82,17, o valor que a API mandou", async () => {
+    await entrar("financeiro@motorapida.com.br");
+    expect((await financeiro.listarDespesas({ mes: "2026-10" })).indicadores.despesa_por_veiculo_centavos).toBe(8217);
+    expect(texto(await pagina())).toContain("Despesa por veículo|R$ 82,17|no mês");
+  });
+
+  it("CA-DES-03: sem veículos a API manda null e a tela não mostra valor nem zero", async () => {
+    await entrar("financeiro@motorapida.com.br");
+    const t = texto(await pagina("todas", (d) => ({ ...d, indicadores: { ...d.indicadores, despesa_por_veiculo_centavos: null } })));
+    expect(t).toContain("Despesa por veículo|—");
+    expect(t).not.toContain("Despesa por veículo|R$");
+  });
+
+  it("CA-DES-04: a busca 'pneu' filtra a lista e as contagens, e os indicadores continuam os do mês", async () => {
+    await entrar("financeiro@motorapida.com.br");
+    const sem = await financeiro.listarDespesas({ mes: "2026-10" });
+    const r = await financeiro.listarDespesas({ mes: "2026-10", busca: "pneu" });
+    expect(r.resultados.map((x) => x.descricao)).toEqual(["Pneus (2 unidades)"]);
+    expect(r.contagens).toEqual({ aguardando_aprovacao: 1, a_pagar: 0, paga: 0, recusada: 0 });
+    expect(r.indicadores).toEqual(sem.indicadores);
+    expect(r.indicadores.gasto_mes_centavos).toBe(706670);
+    expect(r.indicadores.aguardando_aprovacao_centavos).toBe(120000);
+  });
+
+  it("a busca acha pela placa, com hífen, e sem acento", async () => {
+    await entrar("financeiro@motorapida.com.br");
+    const achou = async (busca: string) => (await financeiro.listarDespesas({ mes: "2026-10", busca })).resultados.map((x) => x.descricao);
+    expect(await achou("pmz-3e17")).toEqual(["Pneus (2 unidades)"]);
+    expect(await achou("ROE")).toEqual(["IPVA ROE-2A88"]);
+    expect(await achou("oleo")).toEqual(["Óleo 1 litro"]);
+  });
+
+  it("o campo de busca e a nota obrigatória aparecem na tela", async () => {
+    await entrar("financeiro@motorapida.com.br");
+    const html = await pagina();
+    expect(html).toContain('placeholder="Buscar despesa"');
+    expect(html).toContain('aria-label="Buscar despesa"');
+    expect(texto(html)).toContain("Foto da nota (obrigatória)");
+    expect(html).toContain('aria-required="true"');
+  });
+
+  it("CA-DES-06 e CA-DES-06b: administrador e financeiro veem Exportar, pela flag de pode", async () => {
+    for (const email of ["mariana@motorapida.com.br", "financeiro@motorapida.com.br"]) {
+      await entrar(email);
+      expect((sessao.eu as Eu).pode.despesas_exportar, email).toBe(true);
+      expect(texto(await pagina()), email).toContain("Exportar");
+    }
+  });
+
+  it("CA-DES-08: gerente, vendedor e vistoriador não veem Exportar", async () => {
+    for (const email of ["rodrigo@motorapida.com.br", "bruna@motorapida.com.br", "joao@motorapida.com.br"]) {
+      await entrar(email);
+      expect(texto(await pagina()), email).not.toContain("Exportar");
+    }
+  });
+
+  it("CA-DES-06: o pedido leva só o mês e a filial, em /api/exportacoes/", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ id: 17, status: "na_fila" }), { status: 202, headers: { "content-type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      await financeiroApi.exportarDespesas({ mes: "2026-10", filial_id: 1 });
+      const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+      expect(url).toBe("/api/exportacoes/");
+      expect(init.method).toBe("POST");
+      expect(JSON.parse(String(init.body))).toEqual({ itens: ["despesas"], formato: "csv", mes: "2026-10", filial_id: 1 });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    await entrar("mariana@motorapida.com.br");
+    expect(await financeiro.exportarDespesas({ mes: "2026-10", filial_id: null })).toEqual({ id: 17, status: "na_fila" });
+    expect(pedidosDeExportacao).toEqual([{ mes: "2026-10", filial_id: null }]);
   });
 
   it("vistoriador não vê a lista e só lança manutenção (tabela de perfis)", async () => {
@@ -211,8 +284,10 @@ describe("apoio da tela", () => {
     expect(rotuloDaCategoria("rastreamento")).toBe("Rastreamento");
   });
 
-  it("corpo: vencimento igual à data quando não informado; valor ou descrição vazios não enviam", () => {
-    const base = { descricao: " Troca de pneu ", valor: "150,00", data: "2026-10-07", vencimento: "", categoria: "manutencao" as const, veiculoId: null, nota: null, pagoNoCaixa: false };
+  it("corpo: vencimento igual à data quando não informado; valor, descrição ou nota vazios não enviam (CA-DES-15)", () => {
+    const nota = new File(["x"], "nota.jpg", { type: "image/jpeg" });
+    const base = { descricao: " Troca de pneu ", valor: "150,00", data: "2026-10-07", vencimento: "", categoria: "manutencao" as const, veiculoId: null, nota, pagoNoCaixa: false };
+    expect(corpoDaDespesa({ ...base, nota: null })).toBeNull();
     expect(corpoDaDespesa(base)).toMatchObject({ descricao: "Troca de pneu", valor_centavos: 15000, vencimento: "2026-10-07" });
     expect(corpoDaDespesa({ ...base, valor: "abc" })).toBeNull();
     expect(corpoDaDespesa({ ...base, descricao: " " })).toBeNull();

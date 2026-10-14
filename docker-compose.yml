@@ -7,8 +7,11 @@ x-backend: &backend
     dockerfile: infra/docker/backend.Dockerfile
   env_file: .env
   restart: unless-stopped
+  environment:
+    GIRO_ARQUIVOS_FALSOS_DIRETORIO: /arquivos-dev
   volumes:
     - ./backend:/app
+    - arquivosdev:/arquivos-dev
   depends_on:
     db:
       condition: service_healthy
@@ -52,6 +55,7 @@ services:
   backend:
     <<: *backend
     environment:
+      GIRO_ARQUIVOS_FALSOS_DIRETORIO: /arquivos-dev
       RODAR_MIGRACOES: "1"
     ports:
       - "${PORTA_BACKEND}:8000"
@@ -83,5 +87,6 @@ services:
 volumes:
   pgdata:
   redisdata:
+  arquivosdev:
   frontend_node_modules:
   frontend_next:

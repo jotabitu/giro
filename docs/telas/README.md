@@ -177,3 +177,20 @@ Cada `chave` da navegação de `GET /api/auth/eu/` (`docs/api/contas.md`) abre u
 | `minhas_comissoes` | `/financeiro/comissoes` | Comissões | **corrigida** (era `/financeiro/minhas-comissoes`): para o vendedor a API devolve só as dele; fase 2 |
 
 Itens com filtro na rota (`?aba=`, `?status=`) contam como ativos pelo caminho, sem a query.
+
+## Rotas dos cartões de Configurações
+
+A tela `Configurações` (`/admin/configuracoes`) lista cartões de `GET /api/configuracoes/` (`docs/api/configuracoes.md`, T-173). Cada `chave` abre uma rota fixa; cartão sem tela não vem da API.
+
+| `chave` | Rota | Tela |
+| --- | --- | --- |
+| `marca` | `/admin/marca` | Empresa e marca |
+| `filiais` | `/admin/filiais` | Filiais |
+| `usuarios` | `/admin/usuarios` | Administração › Usuários |
+| `precos` | `/admin/precos` | Tabelas de preço |
+| `modelos_contrato` | `/admin/contratos` | Modelos de contrato |
+| `integracoes` | `/admin/integracoes` | Integrações (fase 2) |
+| `notificacoes` | `/admin/notificacoes` | sem tela |
+| `assinatura` | `/admin/assinatura` | Administração › Assinatura |
+| `auditoria` | `/admin/auditoria` | Auditoria da empresa |
+| `exportar` | `/admin/exportar` | Exportar dados |
