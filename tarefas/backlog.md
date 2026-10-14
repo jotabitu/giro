@@ -323,9 +323,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 ### T-168 · Telas de Filiais (lista e nova filial)
 - **Agente:** frontend · **Depende de:** T-161 · **Regras:** FIL-01 a FIL-06 · **Telas:** Filiais e Filial (desktop e celular) · **Contrato:** `docs/api/filiais.md` (`/api/filiais/`, `{id}/`, desativar, reativar, tornar-matriz, feriados) · **Pronto quando:** `/admin/filiais` e a tela de nova filial iguais a `docs/telas/html/Filiais-*.dc.html` e `Filial-*.dc.html`, ligadas à API real; só o administrador; testes. Pedida pelo dono em 13 out 2026.
 
-### T-169 · Tela de Administração › Usuários
-- **Agente:** frontend · **Depende de:** T-136 · **Regras:** USR-01 a USR-09 · **Telas:** Admin-Usuarios (desktop e celular) · **Contrato:** `docs/api/contas.md` (`/api/usuarios/`, convites, desativar, reativar, reenviar e cancelar convite, redefinir 2 etapas, sessões) · **Pronto quando:** `/admin/usuarios` igual a `docs/telas/html/Admin-Usuarios-*.dc.html`, ligada à API real; só o administrador; testes. Pedida pelo dono em 13 out 2026.
-
 ### T-170 · Tela de Administração › Assinatura
 - **Agente:** frontend · **Depende de:** — · **Regras:** PLT · **Telas:** Admin-Assinatura (desktop e celular) · **Contrato:** `docs/api/plataforma.md` e `empresas.md` (`/api/assinatura/`) · **Pronto quando:** `/admin/assinatura` igual a `docs/telas/html/Admin-Assinatura-*.dc.html`, ligada à API real, só com o que o contrato tem (pausar e cancelar a assinatura são da fase 2: o botão não aparece ou fica desabilitado com aviso; o que faltar vira `[decisão]`); só o administrador; testes. Pedida pelo dono em 13 out 2026.
 
@@ -358,6 +355,8 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 - Resolvido na T-047: **Início por perfil.** Vistoriador tem `painel: "nao"`; a T-020 mostra um aviso no lugar da visão geral. Falta definir a rota inicial de vistoriador, vendedor, gerente e financeiro (telas de início por perfil).
 - Resolvido na T-047: **Contadores do menu e tela Main** vêm de `relatorios` (agregados), sem contrato em `docs/api/`. Hoje são dados falsos. Dono: arquiteto.
 - **Pedido ao design-system:** seletor de filial com lista (USR-07, "Todas as filiais" para administrador); diálogo/gaveta para o menu do celular; KPI com valor longo ("R$ 18,4 mil") quebra em 3 linhas a 390px.
+
+- [decisão] (T-169, Usuários) Diferenças entre a referência e o contrato: (1) as telas usam o feminino ("Administradora", "Ativa", "Vendedora"), mas a API não manda gênero; a tela usa o masculino neutro ("Administrador", "Ativo · 2FA"). (2) A referência não tem busca, filtro por perfil nem por filial, que a API aceita; ficaram de fora. (3) A referência não desenha o que o contrato tem além do básico: redefinir as 2 etapas, sessões abertas com Encerrar, Reativar acesso e Cancelar convite no desktop. A tela os põe no painel da pessoa. (4) No celular a referência não tem a edição da pessoa; ela abre numa gaveta de baixo com o mesmo painel. (5) "Hoje ele vê só a Filial Centro" e "Fica registrado na auditoria" são textos da referência; os outros apoios das permissões foram escritos pela tela. Design-system: ajustar as telas `Admin-Usuarios-*` com esses itens; produto: revisar os textos de apoio.
 
 ## Fase 2 em diante
 
