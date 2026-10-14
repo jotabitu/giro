@@ -380,6 +380,10 @@ GIRO_PROVEDOR_CEP = env("GIRO_PROVEDOR_CEP", default="falso")
 # Arquivos privados (ADR 0009, AUD-05): "falso" (na memória) em dev e testes; "s3" com um bucket
 # privado compatível com S3 em homologação e produção.
 GIRO_ARMAZENAMENTO = env("GIRO_ARMAZENAMENTO", default="falso")
+# Base das URLs assinadas do armazenamento "falso". Nos testes não resolve (.invalid); `dev.py`
+# aponta para a rota de mesma origem de `comum/arquivos_dev.py`, que o navegador alcança e a CSP
+# (`img-src 'self'`) permite (T-210).
+GIRO_ARQUIVOS_FALSOS_BASE = "https://arquivos.invalid"
 S3_BUCKET = env("S3_BUCKET", default="")
 S3_ENDPOINT_URL = env("S3_ENDPOINT_URL", default="")
 S3_REGIAO = env("S3_REGIAO", default="")
