@@ -156,6 +156,11 @@ def categorias(
     return qs.order_by("nome", "id")
 
 
+def categorias_ativas() -> int:
+    """Categorias ativas da empresa e das filiais (cartão Tabelas de preço de Configurações)."""
+    return int(Categoria.ativos.count())
+
+
 def modelos_resumo(categoria: Categoria) -> str:
     modelos = (
         categoria.veiculos.exclude(status__in=FORA_DA_FROTA)

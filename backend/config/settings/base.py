@@ -366,6 +366,7 @@ GIRO_MODULOS_ATIVOS = env.list(
     default=[
         "aprovacoes",
         "clientes",
+        "configuracoes",
         "contas",
         "contratos",
         "filiais",

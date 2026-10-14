@@ -71,7 +71,7 @@ Ordem fixa: `marca`, `filiais`, `usuarios`, `precos`, `modelos_contrato`, `integ
 
 | `chave` | `titulo` | Vem quando o app está ativo | `resumo` |
 | --- | --- | --- | --- |
-| `marca` | Empresa e marca | `empresas` | "Logo, cor, nome e endereço do sistema" (fixo) |
+| `marca` | Empresa e marca | `empresas` (fora do padrão até a T-153 e a T-154; o item `config` do menu tem chave própria, `configuracoes`) | "Logo, cor, nome e endereço do sistema" (fixo) |
 | `filiais` | Filiais | `filiais` | Filiais ativas. Uma: "1 filial · {nome}, {cidade}". Mais de uma, em até 3 cidades: "{n} filiais · {cidades}" ("2 filiais · Fortaleza e Caucaia"); em 4 cidades ou mais: "{n} filiais em {c} cidades". |
 | `usuarios` | Usuários e perfis | `contas` | Uso do plano (`usuarios` de `GET /api/assinatura/`: `ativo` e `convite_pendente`, `PLT-03`): "{usado} de {limite} usuários"; plano sem limite: "{usado} usuários". Com convites pendentes, acrescenta " · 1 convite" ou " · {n} convites". |
 | `precos` | Tabelas de preço | `veiculos` | Categorias ativas: "{n} categorias" ("1 categoria"); com planos especiais ativos, acrescenta " · 1 plano especial" ou " · {n} planos especiais" (o plano especial é do app `locacoes`; com `locacoes` fora de `GIRO_MODULOS_ATIVOS`, não entra no texto). Nenhuma categoria: "Nenhuma categoria cadastrada". |
@@ -108,7 +108,7 @@ Nenhum. São contagens pequenas, e a tela é aberta pouco e logo depois de mudar
 
 | Cartão | Função | Existe? |
 | --- | --- | --- |
-| `filiais` | `filiais.selectors.resumo_das_filiais()` → `{ "ativas": int, "cidades": [str], "unica": { "nome", "cidade" } \| None }` | nova |
+| `filiais` | `filiais.selectors.resumo_das_filiais_ativas()` → `{ "ativas": int, "cidades": [str], "unica": { "nome", "cidade" } \| None }` | nova (`resumo_das_filiais(usuario)` já existia, para o `eu`) |
 | `usuarios` | `plataforma.selectors.uso_do_plano()["usuarios"]` e `contas.selectors.convites_pendentes()` → int | a primeira existe; a segunda é nova (o contador `usuarios` do painel já conta o mesmo: reaproveitar) |
 | `precos` | `veiculos.selectors.categorias_ativas()` → int e `locacoes.selectors.planos_especiais_ativos()` → int | novas |
 | `modelos_contrato` | `contratos.selectors.resumo_dos_modelos()` → `{ "modelos": int, "rascunhos": int, "tem_publicado_de_locacao": bool }` | nova (`modelo_publicado` já existe para o `IMP-04`) |
@@ -137,7 +137,7 @@ O frontend liga `chave` → rota (referência em `docs/telas/README.md`, "Rotas 
 
 `acao.destino`: `nova_locacao` → `/locacoes/nova`; `implantacao` → definido no contrato do assistente.
 
-O item `config` do menu depende de `empresas` em `GIRO_MODULOS_ATIVOS` (`contas.md`), que hoje não está no padrão do backend. A tarefa do backend acrescenta `empresas` ao padrão; isso também liga o item "Empresa e marca", que leva à tela da T-154.
+O item `config` do menu depende de `configuracoes` em `GIRO_MODULOS_ATIVOS` (`contas.md`), uma chave própria que a T-181 acrescentou ao padrão do backend. `empresas` continua fora do padrão até a T-153 e a T-154 entregarem a tela Empresa e marca: ele liga o item `marca` do menu e o cartão `marca`. `GET /api/configuracoes/` responde sempre, como o painel, sem depender de `configuracoes` (decisão do arquiteto na T-181). Na T-192 (módulos por plano), `configuracoes` entra em todos os planos, como a administração.
 
 ## Casos para teste (seed Moto Rápida)
 
