@@ -25,7 +25,6 @@ test("locação completa no desktop: login, cliente, locação, vistoria, assina
   exigirHoraSegura();
   await restaurarSeed();
   const { page, vigia } = await novaSessao(browser, info);
-  vigia.conhecer(404, /\/api\/arquivos-dev\/.*\/vistorias\/fotovistoria\//, "D-07", "fotos da saída somem com o reinício do backend: o armazenamento falso de desenvolvimento é em memória");
   const hora = horaDeAgora();
 
   await test.step("CA-025-01 · Entrar: senha errada não entra; a certa cai no início da vendedora", async () => {

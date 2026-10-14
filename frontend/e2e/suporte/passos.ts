@@ -337,18 +337,15 @@ export async function abrirDevolucao(page: Page, locacaoId: number) {
 }
 
 /**
- * DEV-08: as fotos aparecem de fato (a imagem carrega), sem tolerância à CSP.
- * D-07: as fotos da saída, enviadas em 07 out, somem quando o E2E recria o backend para virar o relógio, porque o
- * armazenamento falso guarda em memória (`comum/arquivos.py::guardados`) e a URL devolve 404. As de agora são conferidas sempre.
+ * DEV-08: as fotos da saída (enviadas em 07 out) e as de agora aparecem de fato (a imagem carrega), sem tolerância
+ * à CSP e depois de o E2E recriar o backend para virar o relógio (armazenamento de desenvolvimento em disco, T-218).
  */
 async function conferirFotosDaComparacao(page: Page) {
-  const carregadas = async (lado: string) => {
+  for (const lado of ["Saída", "Agora"]) {
     const imagens = page.locator(`img[alt^="${lado} ·"]:visible`);
     await expect(imagens.first()).toBeVisible();
     await expect.poll(() => imagens.evaluateAll((els) => els.length > 0 && els.every((e) => (e as HTMLImageElement).complete && (e as HTMLImageElement).naturalWidth > 0)), { message: `fotos "${lado}" da comparação carregadas` }).toBe(true);
-  };
-  await carregadas("Agora");
-  await defeitoConhecido("D-07", "fotos da saída somem com o reinício do backend: o armazenamento falso de desenvolvimento é em memória", () => carregadas("Saída"));
+  }
 }
 
 /**

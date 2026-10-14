@@ -25,8 +25,6 @@ test("locação completa no celular: Bruna na frente, João nas vistorias", asyn
   const bruna = await novaSessao(browser, info);
   const joao = await novaSessao(browser, info);
   const hora = horaDeAgora();
-  joao.vigia.conhecer(404, /\/api\/arquivos-dev\/.*\/vistorias\/fotovistoria\//, "D-07", "fotos da saída somem com o reinício do backend: o armazenamento falso de desenvolvimento é em memória");
-  bruna.vigia.conhecer(404, /\/api\/arquivos-dev\/.*\/vistorias\/fotovistoria\//, "D-07", "fotos da saída somem com o reinício do backend: o armazenamento falso de desenvolvimento é em memória");
   joao.vigia.conhecer(403, /\/api\/clientes\/\d+\//, "D-05", "o vistoriador toma 403 ao abrir o cliente na vistoria (USR-09 pede nome, celular e retirada liberada)");
 
   await entrar(bruna.page, "bruna");
