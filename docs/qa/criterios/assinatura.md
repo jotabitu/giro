@@ -1,6 +1,6 @@
 # Assinatura, planos, cancelar e pausar (decisões da T-190) · critérios de aceite
 
-**Regras:** PLT-01, PLT-02, PLT-03, PLT-04, PLT-05, PLT-06, PLT-11, PLT-12, PLT-13, PLT-14, PLT-15, AUT-03, AUT-13, AUD-08, tabela de estados da empresa · **Contrato:** `docs/api/assinatura.md` (T-183), a ajustar pelo arquiteto; cancelar e pausar ainda sem contrato · **Telas:** Admin-Assinatura, Admin-Cancelar, Compra-Planos, Compra-Checkout, Plat-Planos (desktop e celular) · **Decisão:** dono do produto, 14 out 2026 (T-190; pontos em aberto e `[decisão]` da T-193 resolvidos na T-211, CA-ASS-40 a 48)
+**Regras:** PLT-01, PLT-02, PLT-03, PLT-04, PLT-05, PLT-06, PLT-11, PLT-12, PLT-13, PLT-14, PLT-15, AUT-03, AUT-13, AUD-08, tabela de estados da empresa · **Contrato:** `docs/api/assinatura.md` (T-183), a ajustar pelo arquiteto; cancelar e pausar ainda sem contrato · **Telas:** Admin-Assinatura, Admin-Cancelar, Compra-Planos, Compra-Checkout, Plat-Planos (desktop e celular) · **Decisão:** dono do produto, 14 out 2026 (T-190; pontos em aberto e `[decisão]` da T-193 resolvidos na T-211, CA-ASS-40 a 48; reativação no período pago na T-216, CA-ASS-49)
 
 As tarefas de código destes critérios ainda não têm número (propostas em `tarefas/backlog.md`, seção da T-190); as que já existem (T-184 a T-189) estão citadas onde se aplicam. Quando tiverem número, cada critério leva o número da tarefa que o cobre. Seed Moto Rápida: plano Profissional mensal, teste de 07 a 21 out 2026, compra sem cartão, 86 veículos, 1 filial, 5 usuários, Mariana Costa administradora. Fuso `America/Sao_Paulo`, relógio de referência (ADR 0021). O nome do teste leva o código da regra (`test_plt_04_...`).
 
@@ -161,3 +161,8 @@ Dado uma compra sem endereço (a `Compra-Checkout` não pede), antes do passo 6 
 
 **CA-ASS-48 · Endereço da nota e da filial mudam separados**
 Dado a Moto Rápida do seed, quando a Mariana muda o número da Filial Centro para 1250 ou torna outra filial a matriz, então o endereço dos dados fiscais não muda. Quando ela muda o endereço da nota para Av. Dom Luís, 500, Sala 3, Meireles, Fortaleza, CE, CEP 60115-170, então as próximas notas levam esse endereço, e a Filial Centro continua na Bezerra de Menezes. A tela do passo 6 (`Onboarding-Filial`) pede o endereço pelo CEP e avisa que ele também vai na nota da assinatura; não diz "Mesmo endereço do CNPJ".
+
+## Reativação no período pago (T-216)
+
+**CA-ASS-49 · Reativar sem cobrar duas vezes o período pago**
+Dado a Moto Rápida `ativa` com a FAT-0001 (22 out a 21 nov) paga em 22 out, upgrade para o Completo em 01 nov com a diferença de R$ 304,84 vencendo em 04 nov e não paga (`inadimplente` em 05 nov), cancelada em 10 nov (`cancelada` na hora), quando a diferença é paga em 15 nov pela 2ª via e a equipe Giro reativa em 15 nov, então a empresa vira `ativa` em 15 nov, nenhuma fatura vence em 15 nov, a fatura nova de R$ 899,00 vence em 22 nov ("Plano Completo · 22 nov a 21 dez"), e as seguintes continuam todo dia 22. Na reativação depois de 21 nov (CA-ASS-46), a fatura nova vence no dia da volta. `test_plt_06_reativar_no_periodo_pago`.

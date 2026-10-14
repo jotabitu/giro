@@ -53,6 +53,11 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
 <header><div style="font-size: 14px; color: var(--ink-muted);">Administração</div><h1 style="margin: 6px 0 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Assinatura</h1></header>
 
+<section role="status" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-radius: 24px; background: var(--warning-soft); color: var(--ink);">
+<div><div style="font-weight: 600;">Assinatura cancelada</div><div style="font-size: 14px; color: var(--warning-ink);">Você tem acesso até 21 nov. Depois disso, a empresa fica sem acesso e nada mais é cobrado.</div></div>
+<button class="wl-btn wl-btn--sm" style="background: var(--surface);">Desfazer cancelamento</button>
+</section>
+
 <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
 <div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
 
@@ -60,7 +65,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <div style="flex: 1 1 260px;">
 <div style="display: flex; gap: 8px; align-items: center;"><span style="font-size: 14px; color: var(--on-solid-muted);">Seu plano</span><span class="wl-badge wl-badge--sm wl-badge--brand">Teste grátis até 21 out</span></div>
 <div style="margin-top: 6px; font-size: 36px; line-height: 40px; font-weight: 600; letter-spacing: -0.03em;">Profissional</div>
-<div style="margin-top: 4px; color: var(--on-solid-muted);">R$ 449,00 por mês, a partir de 21 out</div>
+<div style="margin-top: 4px; color: var(--on-solid-muted);">R$ 449,00 por mês, a partir de 22 out</div>
 </div>
 <div style="display: flex; flex-wrap: wrap; gap: 10px;">
 <button class="wl-btn" style="background: rgba(255,255,255,0.12); color: inherit;">Mudar de plano</button>
@@ -93,7 +98,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <table class="wl-table">
 <thead><tr><th>Vencimento</th><th>Descrição</th><th>Valor</th><th>Situação</th></tr></thead>
 <tbody>
-<tr><td class="wl-mono">21 out</td><td>Plano Profissional · outubro a novembro</td><td>R$ 449,00</td><td><span class="wl-badge wl-badge--sm wl-badge--warning">Sem forma de pagamento</span></td></tr>
+<tr><td class="wl-mono">22 out</td><td>Plano Profissional · 22 out a 21 nov</td><td>R$ 449,00</td><td><span class="wl-badge wl-badge--sm wl-badge--warning">Sem forma de pagamento</span></td></tr>
 <tr><td class="wl-mono">07 out</td><td>Teste grátis de 14 dias</td><td>R$ 0,00</td><td><span class="wl-badge wl-badge--sm wl-badge--success">Ativo</span></td></tr>
 </tbody>
 </table>
@@ -107,13 +112,13 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <button class="wl-btn wl-btn--quiet wl-btn--sm" style="margin-top: 14px;">Editar</button>
 </section>
 <section class="wl-panel" style="background: var(--surface-sunken);">
-<div style="font-weight: 600; margin-bottom: 6px;">Precisa de NF-e ou domínio próprio?</div>
-<p style="margin: 0 0 14px; font-size: 14px; line-height: 20px; color: var(--ink-muted);">O plano Completo inclui emissão de notas, assinatura digital, portal do cliente e veículos sem limite.</p>
+<div style="font-weight: 600; margin-bottom: 6px;">Precisa de mais veículos ou filiais?</div>
+<p style="margin: 0 0 14px; font-size: 14px; line-height: 20px; color: var(--ink-muted);">O plano Completo inclui:</p>
+<ul style="margin: 0 0 14px; padding-left: 18px; font-size: 14px; line-height: 20px; color: var(--ink-muted);"><li>Veículos, filiais e usuários sem limite</li><li>Implantação acompanhada por chamada</li><li>Suporte prioritário</li></ul>
 <button class="wl-btn wl-btn--sm" style="background: var(--surface);">Comparar planos</button>
 </section>
 <section style="padding: 0 8px;">
 <a href="Admin-Cancelar-Desktop.dc.html" style="font-size: 14px; color: var(--ink-muted);">Cancelar assinatura</a>
-<p style="margin: 6px 0 0; font-size: 13px; line-height: 18px; color: var(--ink-muted);">Você pode exportar todos os seus dados antes de cancelar.</p>
 </section>
 </aside>
 </div>
