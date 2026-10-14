@@ -2,6 +2,7 @@
 // Fora dos testes ninguém importa esta pasta (regra no-restricted-imports do ESLint).
 import { aprovacoesFalso } from "./falsos/falso-financeiro";
 import { assinaturaFalso } from "./falsos/falso-assinatura";
+import { auditoriaFalso } from "./falsos/falso-auditoria";
 import { configuracoesFalso } from "./falsos/falso-configuracoes";
 import { clientesFalso } from "./falsos/falso-clientes";
 import { veiculosFalso } from "./falsos/falso-frota";
@@ -28,6 +29,7 @@ export const locacoes = locacoesFalso;
 export const vistorias = vistoriasFalso;
 export const financeiro = financeiroFalso;
 export const assinatura = assinaturaFalso;
+export const auditoria = auditoriaFalso;
 export const importacao = importacaoFalso;
 export const aprovacoes = aprovacoesFalso;
 export const usuarios = usuariosFalso;
@@ -39,6 +41,7 @@ export * from "@/lib/api/tipos-locacoes";
 export * from "@/lib/api/tipos-vistorias";
 export * from "@/lib/api/tipos-financeiro";
 export * from "@/lib/api/tipos-assinatura";
+export * from "@/lib/api/tipos-auditoria";
 export * from "@/lib/api/tipos-importacao";
 export * from "@/lib/api/tipos-usuarios";
 export * from "@/lib/api/tipos-configuracoes";
