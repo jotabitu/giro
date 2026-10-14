@@ -103,6 +103,8 @@ export function rotaPermitida(eu: Pick<Eu, "pode" | "navegacao">, rota: string):
   if (/^\/locacoes\/\d+\/(vistoria|devolucao)(\/|$)/.test(rota)) return pode.vistorias_fazer;
   // A ficha da locação abre da lista, da ficha do cliente (financeiro, para receber) e da lista de avarias (vistoriador).
   if (/^\/locacoes\/\d+$/.test(rota)) return noMenu("locacoes", "receber", "clientes", "avarias");
+  // Exportar dados abre pelo botão da Auditoria e é do mesmo perfil (administrador).
+  if (rota === "/admin/exportar") return noMenu("auditoria");
   // Passos do assistente de implantação: Administração, só do administrador (CA-027-16).
   if (rota === "/implantacao" || rota.startsWith("/implantacao/")) return pode.administracao;
   if (rota === "/clientes/novo") return pode.clientes_cadastrar && noMenu("clientes");

@@ -12,7 +12,7 @@ export const CARTOES: Record<ChaveDoCartao, { href: string; icone: LucideIcon }>
   notificacoes: { href: "/admin/notificacoes", icone: Bell },
   assinatura: { href: "/admin/assinatura", icone: Star },
   auditoria: { href: "/admin/auditoria", icone: ShieldCheck },
-  exportar: { href: "/admin/auditoria/exportar", icone: Download },
+  exportar: { href: "/admin/exportar", icone: Download },
 };
 
 /** Destino do botão da faixa da implantação; o assistente ainda não tem contrato por passo, então abre o assistente. */

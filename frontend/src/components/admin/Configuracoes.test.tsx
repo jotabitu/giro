@@ -40,7 +40,7 @@ describe("Configurações", () => {
     expect([...ordem].sort((a, b) => a - b)).toEqual(ordem);
     expect(h).toContain("5 de 10 usuários");
     expect(h).toContain("Profissional · teste até 21 out");
-    for (const href of ["/admin/marca", "/admin/filiais", "/admin/usuarios", "/admin/precos", "/admin/contratos", "/admin/assinatura", "/admin/auditoria", "/admin/auditoria/exportar"]) expect(h).toContain(`href="${href}"`);
+    for (const href of ["/admin/marca", "/admin/filiais", "/admin/usuarios", "/admin/precos", "/admin/contratos", "/admin/assinatura", "/admin/auditoria", "/admin/exportar"]) expect(h).toContain(`href="${href}"`);
     expect(h).not.toContain("Implantação concluída");
     expect(h).not.toContain("Integrações");
   });
