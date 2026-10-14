@@ -101,12 +101,20 @@ Funções: todas. Sem paginação (poucos itens).
   { "id": 2, "nome": "Profissional", "ativo": true, "ordem": 2,
     "preco_mensal_centavos": 44900, "meses_cobrados_no_anual": 10, "preco_anual_centavos": 449000,
     "limite_veiculos": 150, "limite_filiais": 3, "limite_usuarios": 10,
-    "recursos": ["locacoes_vistoria", "contas_receber", "contrato_digital", "vendas_comissoes", "manutencao_despesas", "relatorios"],
+    "recursos": ["locacoes_vistoria", "contas_receber", "contrato_digital", "vendas_comissoes", "manutencao_despesas", "conciliacao", "relatorios", "recebimento_parceiro", "cobranca_whatsapp"],
     "empresas_no_plano": 71 }
 ], "proximo": null, "anterior": null }
 ```
 `limite_*` nulo = ilimitado. `preco_anual_centavos` é calculado pela API.
-Valores de `recursos`: `locacoes_vistoria`, `contas_receber`, `contrato_digital`, `vendas_comissoes`, `manutencao_despesas`, `relatorios`, `dominio_proprio`, `api_integracoes`, `suporte_prioritario`.
+Valores de `recursos` (ADR 0024, `PLT-12`): `locacoes_vistoria`, `contas_receber`, `contrato_digital`, `vendas_comissoes`, `manutencao_despesas`, `conciliacao`, `relatorios`, `recebimento_parceiro`, `cobranca_whatsapp`, `suporte_prioritario`. Saíram `dominio_proprio` e `api_integracoes` (`PLT-11`: não existem; voltam com uma ADR quando existirem). Os três planos (migração de dados da T-196):
+
+| Plano | `recursos` |
+| --- | --- |
+| Essencial | `locacoes_vistoria`, `contas_receber`, `contrato_digital` |
+| Profissional | os do Essencial, mais `vendas_comissoes`, `manutencao_despesas`, `conciliacao`, `relatorios`, `recebimento_parceiro`, `cobranca_whatsapp` |
+| Completo | os do Profissional, mais `suporte_prioritario` |
+
+`recursos` é o que o código liga; os textos de "O que inclui" são o catálogo (`PLT-11`, `itens` em `assinatura.md`). No `PATCH` (fase 2), valor fora da lista: 400 `validacao`.
 
 ### POST /api/plataforma/planos/ · PATCH /api/plataforma/planos/{id}/ · POST /api/plataforma/planos/{id}/duplicar/ · fase 2
 Função: dono (`planos_e_precos`). Corpo com os campos acima menos os calculados.
@@ -275,6 +283,39 @@ Caso do seed: Moto Rápida → 86 de 150, 1 de 3, 5 de 10, nenhum `aviso` (`PLT-
 
 ---
 
+## Módulos por plano (`PLT-12`, ADR 0024)
+
+O conjunto da empresa é `recursos_da_empresa()`: os `recursos` do plano atual, menos `locacoes_vistoria` quando o ramo (`ConfiguracaoEmpresa.atividade`, passo 7) não aluga e menos `vendas_comissoes` quando não vende. `GIRO_MODULOS_ATIVOS` continua global e só esconde do menu o app ainda não entregue.
+
+**Recusa.** Rota de módulo desligado, em leitura e escrita, para qualquer perfil e para o token de suporte, antes da conferência de perfil e filial:
+
+| HTTP | Corpo |
+| --- | --- |
+| 403 | `{ "codigo": "PLT-12", "mensagem": "Seu plano não inclui {módulo}. Para usar, mude de plano.", "detalhes": { "recurso": "<recurso>", "motivo": "plano" } }` |
+| 403 | `{ "codigo": "PLT-12", "mensagem": "Sua empresa não está configurada para {alugar\|vender}. Mude em Configurações.", "detalhes": { "recurso": "<recurso>", "motivo": "ramo" } }` |
+
+`{módulo}` é o nome do recurso: Locação e vistoria, Contas a receber, Contrato digital, Vendas e comissões, Manutenção e despesas, Conciliação, Relatórios, Pix e boleto automáticos, Cobrança pelo WhatsApp.
+
+**Rotas por recurso.** As views declaram `recurso_do_plano` (ou `recurso_por_acao`); o teste das rotas confere esta tabela.
+
+| Recurso | Rotas |
+| --- | --- |
+| `locacoes_vistoria` | `/api/locacoes/...`, `/api/planos-especiais/...`, `/api/vistorias/...` (inclusive agenda e avarias), `/api/devolucoes/...`. Ficam abertas (núcleo, `veiculos`): `/api/categorias/...`, `/api/extras/...`, preços |
+| `contas_receber` | nenhuma rota fecha no MVP (todos os planos têm): `/api/financeiro/contas-receber/...`, `/api/financeiro/caixas/...`, devoluções ao cliente |
+| `contrato_digital` | nenhuma rota fecha (todos os planos têm) |
+| `vendas_comissoes` | `/api/vendas/...` (fase 2), `/api/financeiro/comissoes/...` (fase 2) |
+| `manutencao_despesas` | `/api/manutencao/...` (fase 2), `/api/financeiro/despesas/...` (inclusive exportar) |
+| `conciliacao` | `/api/financeiro/conciliacao/...` (fase 2) |
+| `relatorios` | `/api/relatorios/...` (fase 2). **Não** fecham: `/api/painel/...` e `/api/configuracoes/` |
+| `recebimento_parceiro` | `POST /api/financeiro/contas-receber/{id}/cobranca/` (Pix e boleto pela subconta), cobrança recorrente (`AUT-04`), passo `recebimentos` e as rotas da subconta da empresa (`ContaPagamento`). O webhook do parceiro não fecha: pagamento de cobrança gerada antes do downgrade ainda baixa a conta |
+| `cobranca_whatsapp` | nenhuma rota fecha: `cobrar/` e `cobrar-em-lote/` continuam, só sem o canal WhatsApp (`financeiro.md`) |
+
+Rotas que ainda não existem entram na tabela com o contrato do módulo delas; quem escreve o contrato diz o recurso.
+
+**Implantação.** Sem `recebimento_parceiro`, o passo `recebimentos` sai da lista de `PASSOS_IMPLANTACAO` da empresa: no Essencial são 9 passos, e `concluidos`, `total` e `faltam` (`configuracoes.md`, `GET /api/plataforma/empresas/{id}/`) contam 9. Passo `recebimentos` já marcado continua guardado e volta a contar ao subir de plano.
+
+**Downgrade.** O que está aberto nos módulos que saem recusa o downgrade (`assinatura.md`, 422 `PLT-04` com `detalhes.abertos`; grupos na ADR 0024, item 7). O painel da plataforma (`mudar-plano`, fase 2) usa o mesmo serviço e a mesma recusa.
+
 ## Interface interna para os outros apps (não é HTTP)
 
 Os apps da empresa usam só estas funções do `plataforma` (ADR 0011):
@@ -288,5 +329,7 @@ Os apps da empresa usam só estas funções do `plataforma` (ADR 0011):
 | `plataforma.services.registrar_passo_implantacao(passo)` | Marca o passo da implantação e move o funil (`IMP-05`). |
 | `plataforma.services.concluir_implantacao(objeto)` | Na confirmação da 1ª locação (ou venda), marca o passo `primeira_locacao` uma vez só, com o evento `implantacao.concluir` na auditoria da empresa (`IMP-01`). |
 | `plataforma.services.registrar_acesso()` | Atualiza `ultimo_acesso_em` (no máximo 1 escrita a cada 5 min por empresa). |
+| `plataforma.selectors.recursos_da_empresa(empresa=None)` | `frozenset` dos recursos ligados (plano e ramo, ADR 0024). Os apps de cima usam `comum.empresa.tem_recurso(recurso)`, que `plataforma` registra no `ready()`; no `public`, `True`. Lido uma vez por pedido. |
+| `plataforma.services.pendencias_dos_modulos(empresa, recursos_que_saem)` | Entra no schema da empresa e soma os grupos registrados em `comum.modulos.registrar_pendencia` para os recursos que saem; devolve a lista `abertos` de `assinatura.md` (só grupos com quantidade > 0). Usada por `mudar_plano` (pedido, simulação e `excede`) e por `gerar_faturas`. |
 
 Ao chegar a 90% de um item, `exigir_limite`/`atualizar_uso` agendam a notificação "limite do plano em 90%" para os administradores (uma vez por item e por mês).

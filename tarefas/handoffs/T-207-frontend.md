@@ -1,0 +1,7 @@
+# T-207 · Parte da tela: cliente da locação sem abrir a ficha · frontend → orquestrador, qa
+
+**O que foi feito:** `DetalheDaLocacao` não chama mais `GET /api/clientes/{id}/`. A linha de contato ("(85) 98114-2290 · CNH A"), a linha "Telefone" e o link do nome vêm de `cliente.celular`, `cliente.cnh_categoria` e `cliente.ficha_liberada` do `GET /api/locacoes/{id}/` (contrato da branch `t-207-vistoriador-403`). Sem `ficha_liberada` o nome fica sem link (vistoriador, USR-09); sem celular a linha de contato some. O 403 deixa de ser usado para decidir o link.
+**Onde:** `components/locacoes/DetalheDaLocacao.tsx`, `lib/api/tipos-locacoes.ts` (`cliente` do detalhe é `ClienteDaLocacao`), falso `testes/falsos/falso-locacoes.ts` (o `obter` devolve celular e CNH do falso de clientes e `ficha_liberada` conforme o perfil; cliente que o falso de clientes não conhece fica sem contato), `DetalheDaLocacao.test.tsx`. `npm run api:gerar` regenerou o cliente tipado.
+**Regras cobertas:** USR-09. Testes: `t_207_vistoriador_ve_celular_e_cnh_sem_link_para_a_ficha` e `t_207_gerente_ve_o_mesmo_contato_com_link_para_a_ficha`. `npm test` (464), `tsc` e `eslint` limpos. Não conferi no navegador.
+**Para o QA:** tirar o `joao.vigia.conhecer(403, ..., "D-05", ...)` de `frontend/e2e/celular.spec.ts`.
+**Próximo passo para quem recebe:** o PR desta branch depende do da `t-207-vistoriador-403` (a branch já contém os commits dela); abrir depois dele ou junto.

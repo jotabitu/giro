@@ -4,7 +4,7 @@
 
 Decisão do dono em 14 out 2026: a tela `Admin-Assinatura` entra inteira no MVP, com a cobrança real. Este contrato completa o que `GET /api/assinatura/` (`plataforma.md`, "Do lado da empresa") ainda não entregava, levantado na T-170: mudar e comparar planos, forma de pagamento, faturas, dados da nota fiscal, o cartão do plano acima e a data da 1ª fatura. "Cancelar assinatura" e pausar (`PLT-06`, tela `Admin-Cancelar`) têm contrato próprio (T-194); aqui só aparecem onde mexem nas faturas.
 
-Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-dados.md` (itens 2 e 3 e apoio do `public`). Os módulos que cada plano liga (`PLT-12`) estão na ADR da T-192.
+Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-dados.md` (itens 2 e 3 e apoio do `public`). Os módulos que cada plano liga (`PLT-12`) estão na ADR 0024 e em `plataforma.md`, "Módulos por plano".
 
 > **O que mudou na T-193 (decisões do dono de 14 out 2026, regras na T-190).** Saíram as marcas [D-1] a [D-10]: as respostas estão nas regras e na tabela "Decisões de 14 out 2026". Mudou em relação ao que este contrato recomendava: (1) escolher a forma de pagamento **não** ativa a empresa; ela fica `em_teste` até o fim do teste, e só a 1ª fatura paga leva a `ativa` (U1); (2) a `oferta` vira o cartão "Precisa de mais veículos ou filiais?", com os itens prontos da `PLT-11`, sem domínio próprio nem API (U11). Entraram: uma tentativa só do cartão e "Pagar" por outro meio (U8), a NFS-e pelo parceiro depois de paga e o endereço nos dados fiscais (U9, `PLT-15`), os e-mails de cobrança, a mudança no teste com a 1ª fatura já paga (`PLT-04`), a mudança de ciclo e a reativação da cancelada pela equipe, e o vencimento depois da volta da pausa. Quem já começou a T-185, a T-186 ou a T-187 confere a seção "O que muda para as tarefas abertas", no fim.
 
@@ -126,8 +126,8 @@ Administrador. "Mudar de plano" e "Comparar planos" abrem a mesma lista. Sem pag
 
 - Só planos `ativo=true`, mais o plano atual mesmo se desativado (`PLT-05`: quem já assina continua).
 - Preço mostrado é o de **tabela**; o atual mostra também `preco_contratado_centavos` (pode ser diferente, `PLT-05`). A comparação é no ciclo atual (`PLT-04`, CA-ASS-18); `preco_anual_centavos` vem para a tela mostrar o anual como informação.
-- `itens`: os textos da `PLT-11` ("O que inclui"), do mesmo catálogo da `oferta`, separados em itens. Substituem a lista de códigos de `recursos` nesta rota; o código do módulo que o plano liga fica no backend (ADR da T-192).
-- `mudanca`: `upgrade` se o plano tem `ordem` maior, `downgrade` se menor, `null` no atual. `cabe` e `excede` usam a mesma contagem do `uso` (`PLT-03`, `PLT-04`): Moto Rápida não cabe no Essencial (86 de 30 veículos, 5 de 3 usuários; 1 filial cabe). O que fica aberto nos módulos que saem (`PLT-12`) entra em `excede` pela ADR da T-192 (CA-ASS-24).
+- `itens`: os textos da `PLT-11` ("O que inclui"), do mesmo catálogo da `oferta`, separados em itens. Substituem a lista de códigos de `recursos` nesta rota; o código do módulo que o plano liga fica no backend (`Plano.recursos`, ADR 0024).
+- `mudanca`: `upgrade` se o plano tem `ordem` maior, `downgrade` se menor, `null` no atual. `cabe` e `excede` usam a mesma contagem do `uso` (`PLT-03`, `PLT-04`): Moto Rápida não cabe no Essencial (86 de 30 veículos, 5 de 3 usuários; 1 filial cabe). O que fica aberto nos módulos que saem (`PLT-12`) entra em `excede.abertos`, no mesmo formato de `detalhes.abertos` da 422 abaixo (ADR 0024, CA-ASS-24); um plano com `abertos` tem `cabe: false`. No seed, a Moto Rápida tem despesas de outubro em aberto (os pneus de R$ 1.200,00 aguardando aprovação e as que nasceram `a_pagar`, dados de referência `FIN-05`), então o Essencial dela traz também `abertos`, contados na hora; a QA fixa os números no teste a partir do seed (T-204).
 
 ## POST /api/assinatura/mudanca-plano/simular/
 
@@ -161,7 +161,19 @@ Administrador. Mesmo corpo do simular, mais `"confirmar_valor_centavos"` = `dife
 200: o corpo de `GET /api/assinatura/` já atualizado.
 
 Erros:
-- 422 `{ "codigo": "PLT-04", "mensagem": "Seu uso não cabe no plano Essencial. Desative veículos ou usuários antes de mudar.", "detalhes": { "veiculos": { "usado": 86, "limite": 30 }, "usuarios": { "usado": 5, "limite": 3 } } }` (CA-ASS-15). Os grupos abertos dos módulos que saem (`PLT-12`) entram em `detalhes` pela ADR da T-192.
+- 422 `{ "codigo": "PLT-04", "mensagem": "Seu uso não cabe no plano Essencial. Desative veículos ou usuários antes de mudar.", "detalhes": { "veiculos": { "usado": 86, "limite": 30 }, "usuarios": { "usado": 5, "limite": 3 } } }` (CA-ASS-15; o exemplo mostra só os limites: a Moto Rápida do seed tem também despesas abertas, então a recusa dela traz `abertos`, como abaixo, e o produto ajusta o texto do CA-ASS-15).
+- 422 `PLT-04` também quando um módulo que sai tem algo aberto (`PLT-12`, ADR 0024), com todos os impedimentos de uma vez, como a `FIL-06`:
+  ```json
+  { "codigo": "PLT-04",
+    "mensagem": "Seu uso não cabe no plano Essencial. Resolva o que está aberto antes de mudar: 1 despesa a pagar e 1 OS aberta.",
+    "detalhes": {
+      "abertos": [
+        { "grupo": "despesas_a_pagar", "quantidade": 1, "texto": "1 despesa a pagar" },
+        { "grupo": "ordens_servico", "quantidade": 1, "texto": "1 OS aberta" }
+      ],
+      "abertos_texto": "1 despesa a pagar e 1 OS aberta" } }
+  ```
+  (CA-ASS-24). Grupos, na ordem: `despesas_aguardando_aprovacao` ("1 despesa aguardando aprovação", "{n} despesas aguardando aprovação"), `despesas_a_pagar` ("1 despesa a pagar", "{n} despesas a pagar"), `ordens_servico` ("1 OS aberta", "{n} OS abertas": OS fora de `concluida` e `cancelada`), `vendas` ("1 venda aberta", "{n} vendas abertas", `VEN-10`), `comissoes` ("1 comissão a pagar", "{n} comissões a pagar": ainda não `paga` nem `estornada`, `FIN-09`). Só vêm os grupos com quantidade maior que zero e dos módulos que saem (de Profissional ou Completo para Essencial: `manutencao_despesas` e `vendas_comissoes`; entre Profissional e Completo nenhum módulo sai). `abertos_texto` junta os `texto` com ", " e " e " antes do último. Com limite e módulo ao mesmo tempo, `detalhes` traz os dois (`veiculos`, `usuarios`, `filiais` e `abertos`) e a mensagem é "Seu uso não cabe no plano Essencial. Desative veículos ou usuários e resolva o que está aberto antes de mudar: {abertos_texto}." Quem conta é `plataforma.services.pendencias_dos_modulos` (ADR 0024, item 7).
 - 409 `{ "codigo": "transicao_empresa", "mensagem": "Pague a fatura em atraso antes de mudar de plano." }` em `inadimplente` e `suspensa` (`PLT-04`, CA-ASS-17).
 - 409 `{ "codigo": "transicao_empresa", "mensagem": "Já existe uma mudança agendada para 22 nov. Desfaça antes de escolher outra." }` com `plano_proximo` preenchido e outro downgrade pedido. Um upgrade com downgrade agendado desfaz o agendamento e segue como upgrade.
 - 422 `mudanca_ciclo`, `mesmo_plano` como no simular.
@@ -350,8 +362,8 @@ Do lado da equipe Giro; não há rota da empresa. No MVP, a equipe usa o Django 
 ## O que muda para as tarefas abertas
 
 - **T-184 (faturas e conta principal):** `Empresa.dia_vencimento`, `ciclo_proximo` e `endereco_*`; na `FaturaAssinatura`, os campos da nota (`nota_situacao`, `nota_numero`, `nota_externa_id`, `nota_url`, `nota_pedida_em`); a 1ª fatura e o seed não mudam (FAT-0001, 22 out, 44900); o pagador leva o endereço. Modelo em `modelo-de-dados.md`.
-- **T-185 (rotas):** `oferta` com `titulo` e `itens` (sai `recursos_a_mais` e `sem_limite`); `itens` no lugar de `recursos` em `planos/`; `acoes.desfazer_mudanca_plano`; upgrade no teste com a 1ª fatura paga; 409 da segunda mudança agendada; `meio` no `pagar/`; `endereco` nos dados fiscais; `acoes.nota_fiscal` e `nota_fiscal` no detalhe; `prazo` só com `forma` nula. Os testes de `PLT-04` seguem a conta da regra (R$ 304,84).
-- **T-186 (régua e estados):** a forma **não** ativa a empresa; a tabela de transições acima (vira `ativa` no dia seguinte ao teste com a 1ª paga); `inadimplente` em D+1; emissão 5 dias antes; teto de 2 tentativas do cartão; e-mails para o `email_cobranca` e os administradores; downgrade que deixou de caber; `dia_vencimento` com o mês sem o dia. Testes `test_plt_01_*`, `test_plt_02_*` com o relógio de referência e os casos CA-ASS-01 a 12.
+- **T-185 (rotas):** `oferta` com `titulo` e `itens` (sai `recursos_a_mais` e `sem_limite`); `itens` no lugar de `recursos` em `planos/`; `acoes.desfazer_mudanca_plano`; upgrade no teste com a 1ª fatura paga; 409 da segunda mudança agendada; `meio` no `pagar/`; `endereco` nos dados fiscais; `acoes.nota_fiscal` e `nota_fiscal` no detalhe; `prazo` só com `forma` nula. Os testes de `PLT-04` seguem a conta da regra (R$ 304,84). `excede.abertos` e a 422 com `detalhes.abertos` usam `pendencias_dos_modulos`, que a T-196 entrega; se a T-185 fechar antes, os grupos valem 0 (`test_plt_12_downgrade_recusado_com_modulo_aberto` fica com a T-196).
+- **T-186 (régua e estados):** a forma **não** ativa a empresa; a tabela de transições acima (vira `ativa` no dia seguinte ao teste com a 1ª paga); `inadimplente` em D+1; emissão 5 dias antes; teto de 2 tentativas do cartão; e-mails para o `email_cobranca` e os administradores; downgrade que deixou de caber (limites e, pela ADR 0024, `pendencias_dos_modulos` no schema da empresa; o e-mail leva o `abertos_texto`); `dia_vencimento` com o mês sem o dia. Testes `test_plt_01_*`, `test_plt_02_*` com o relógio de referência e os casos CA-ASS-01 a 12.
 - **T-187 (tela):** cartão da `oferta` só com o que vier (título e itens da API); comparação com `itens`; "Pagar" depois da 2ª recusa oferece Pix ou boleto (`meio`); endereço no bloco de dados fiscais; botão da nota na fatura paga com `acoes.nota_fiscal`; "Desfazer" do downgrade com `acoes.desfazer_mudanca_plano`.
 - **T-188 (telas de referência):** sem mudança além do que a T-200 já pede (título "Precisa de mais veículos ou filiais?").
 - **T-189 (segurança):** o `meio` do `pagar/` não troca a forma (sem novo token); dados da nota sem dado pessoal além dos da empresa.

@@ -362,11 +362,14 @@ GIRO_PEPPER_HMAC = env_preenchida("GIRO_PEPPER_HMAC", PEPPER_DE_EXEMPLO)
 # --- Integrações (backend/integracoes/) ---
 # CEP: "falso" (CEPs do seed) em dev e testes; "viacep" em homologação e produção.
 # Módulos (apps) já entregues: o menu do `eu` esconde os outros, para nunca levar a uma tela
-# que não existe (USR-05, T-047). Cada entrega acrescenta o seu.
+# que não existe (USR-05, T-047). Cada entrega acrescenta o seu. Fora por enquanto: `empresas`
+# (Configurações e Empresa e marca, sem tela até a T-154 e a T-173), `relatorios` (fase 2; o
+# painel do início responde sem ele), `vendas`, `manutencao` e `conciliacao` (fase 2).
 GIRO_MODULOS_ATIVOS = env.list(
     "GIRO_MODULOS_ATIVOS",
     default=[
         "aprovacoes",
+        "auditoria",
         "clientes",
         "configuracoes",
         "contas",

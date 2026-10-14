@@ -16,6 +16,7 @@ from django.conf import settings
 from django.db.models import Count, Q, QuerySet
 
 from apps.auditoria.models import EventoAuditoria
+from apps.clientes import selectors as clientes_selectors
 from apps.contratos import selectors as contratos_selectors
 from apps.contratos.models import Contrato, StatusContrato
 from apps.filiais.models import Filial
@@ -548,6 +549,19 @@ def _cancelamento(locacao: Locacao) -> dict[str, Any] | None:
     }
 
 
+def _cliente_do_detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
+    """USR-09: o celular e a CNH vêm com a locação, e `ficha_liberada` diz se o perfil abre a
+    ficha do cliente; o vistoriador não abre (`GET /api/clientes/{id}/` responde 403)."""
+    cliente = locacao.cliente
+    return {
+        "id": cliente.pk,
+        "nome": cliente.nome,
+        "celular": cliente.celular or None,
+        "cnh_categoria": cliente.cnh_categoria or None,
+        "ficha_liberada": getattr(usuario, "perfil", "") in clientes_selectors.PERFIS_QUE_VEEM,
+    }
+
+
 def detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
     hoje = relogio.hoje()
     contrato = contratos_selectors.contrato_vigente(ORIGEM, locacao.pk)
@@ -561,6 +575,7 @@ def detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
     vendedor = locacao.vendedor
     return {
         **linha(locacao),
+        "cliente": _cliente_do_detalhe(locacao, usuario),
         "filial": {"id": locacao.filial_id, "nome": locacao.filial.nome},
         "vendedor": {"id": vendedor.pk, "nome": vendedor.nome},
         "periodos": locacao.periodos,

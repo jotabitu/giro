@@ -6569,6 +6569,31 @@ components:
           type: string
       required:
       - nome
+    ClienteDaLocacao:
+      type: object
+      description: 'USR-09: o que a ficha da locação mostra do cliente, sem abrir
+        a ficha dele.'
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        celular:
+          type: string
+          nullable: true
+        cnh_categoria:
+          type: string
+          nullable: true
+        ficha_liberada:
+          type: boolean
+          description: O perfil abre a ficha do cliente; falso para o vistoriador
+            (USR-09).
+      required:
+      - celular
+      - cnh_categoria
+      - ficha_liberada
+      - id
+      - nome
     ClienteDaVistoria:
       type: object
       description: 'USR-09: o que o vistoriador vê do cliente, vindo com a vistoria.'
@@ -10911,7 +10936,7 @@ components:
         status:
           type: string
         cliente:
-          $ref: '#/components/schemas/IdNomeLocacao'
+          $ref: '#/components/schemas/ClienteDaLocacao'
         veiculo:
           $ref: '#/components/schemas/VeiculoDaLocacao'
         periodicidade:

@@ -2,7 +2,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { clientes, contas, locacoes } from "@/lib/api";
+import { contas, locacoes } from "@/lib/api";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push() {}, replace() {} }), usePathname: () => "/locacoes", useSearchParams: () => new URLSearchParams() }));
 
@@ -13,21 +13,19 @@ async function entrarComo(email: string) {
   if (r.etapa !== "pronto") throw new Error("esperava pronto");
 }
 
-async function pagina(id: number): Promise<{ desktop: string; celular: string }> {
+async function pagina(id: number): Promise<{ desktop: string; celular: string; html: string }> {
   const l = await locacoes.obter(id);
-  // O vistoriador não abre a ficha do cliente (403, USR-09): sem ela no cache, a tela mostra o nome sem link.
-  const [historico, cliente] = await Promise.all([locacoes.historico(id), clientes.obter(l.cliente.id).catch(() => undefined)]);
+  const historico = await locacoes.historico(id);
   const cache = new QueryClient();
   cache.setQueryData(["locacao", id], l);
   cache.setQueryData(["locacao", id, "historico"], historico);
-  if (cliente) cache.setQueryData(["cliente", l.cliente.id], cliente);
   const html = renderToStaticMarkup(
     <QueryClientProvider client={cache}>
       <DetalheDaLocacao id={id} />
     </QueryClientProvider>,
   );
   const [, desktop = "", celular = ""] = html.match(/^<div class="hidden flex-col gap-6 md:flex">(.*)<\/div><div class="flex flex-col gap-4 md:hidden">(.*)<\/div>$/s) ?? [];
-  return { desktop, celular };
+  return { desktop, celular, html };
 }
 
 const texto = (h: string) => h.replace(/<[^>]+>/g, "|").replace(/\|+/g, "|");
@@ -136,5 +134,23 @@ describe("detalhe da locação com troca de veículo pendente (LOC-09, LOC-12)",
     expect(t).toContain("Troca de veículo");
     expect(t).not.toContain("Preço do veículo novo");
     expect(t).not.toContain("Cancelar troca");
+  });
+});
+
+describe("cliente na locação sem abrir a ficha (USR-09, D-05 da T-025)", () => {
+  it("t_207_vistoriador_ve_celular_e_cnh_sem_link_para_a_ficha", async () => {
+    await entrarComo("joao@motorapida.com.br");
+    const { desktop, html } = await pagina(2836);
+    const t = texto(desktop);
+    expect(t).toContain("Juliana Rocha");
+    expect(t).toContain("(85) 98114-2290 · CNH A");
+    expect(html).not.toContain('href="/clientes/');
+  });
+
+  it("t_207_gerente_ve_o_mesmo_contato_com_link_para_a_ficha", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    const { desktop, html } = await pagina(2836);
+    expect(texto(desktop)).toContain("(85) 98114-2290 · CNH A");
+    expect(html).toContain('href="/clientes/1201"');
   });
 });

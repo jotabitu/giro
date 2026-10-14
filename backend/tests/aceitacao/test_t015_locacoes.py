@@ -727,6 +727,32 @@ def test_loc_ca_015_16_vistoriador_sem_lista_e_sem_valores(cenario, com_carteira
     assert "parcelas" not in detalhe and "pagamento" not in detalhe
 
 
+def test_usr_09_vistoriador_ve_o_cliente_na_locacao_sem_abrir_a_ficha(cenario, com_carteira):
+    """T-207 (D-05 da T-025): a ficha da locação traz o celular e a CNH do cliente, e
+    `ficha_liberada` diz se o perfil abre a ficha dele; a tela não precisa chamar
+    `GET /api/clientes/{id}/`, que continua 403 para o vistoriador. A lista segue com id e nome."""
+    locacao = com_carteira["LOC-2841"]
+    cliente = locacao.cliente
+    esperado = {
+        "id": cliente.pk,
+        "nome": cliente.nome,
+        "celular": cliente.celular,
+        "cnh_categoria": cliente.cnh_categoria,
+    }
+    joao = cenario.detalhe(locacao.pk, "João")["cliente"]
+    assert joao == {**esperado, "ficha_liberada": False}
+    assert cenario.moto.api("João").get(f"/api/clientes/{cliente.pk}/").status_code == 403
+    for nome in ("Mariana", "Rodrigo", "Bruna", "Lúcia"):
+        assert cenario.detalhe(locacao.pk, nome)["cliente"] == {
+            **esperado,
+            "ficha_liberada": True,
+        }, nome
+        resposta = cenario.moto.api(nome).get(f"/api/clientes/{cliente.pk}/")
+        assert resposta.status_code == 200, nome
+    linha = _linha(cenario.moto.api("Rodrigo").get(LISTA, {"tamanho": 100}).json(), "LOC-2841")
+    assert linha["cliente"] == {"id": cliente.pk, "nome": cliente.nome}
+
+
 def test_usr_09_vistoriador_nao_ve_planos_especiais(cenario):
     """T-155 (M-01 da T-024): a lista dos planos especiais leva preço e desconto; o vistoriador
     recebe 403, como na lista de locações. Os outros perfis que leem locações continuam vendo."""

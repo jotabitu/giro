@@ -224,6 +224,7 @@ function detalhe(s: Semente): LocacaoCompleta {
   const periodos = Math.max(1, Math.round((Date.parse(s.fim) - Date.parse(s.inicio)) / (s.periodicidade === "diaria" ? DIA : s.periodicidade === "semanal" ? 7 * DIA : 30 * DIA)));
   const base: LocacaoCompleta = {
     ...resumo(s),
+    cliente: { ...s.cliente, celular: null, cnh_categoria: null, ficha_liberada: !vistoriador },
     filial: FILIAL,
     vendedor: VENDEDOR,
     periodos,
@@ -579,7 +580,11 @@ export const locacoesFalso = {
 
   async obter(id: number): Promise<LocacaoCompleta> {
     await pausa(150);
-    return detalhe(achar(id));
+    const s = achar(id);
+    // Algumas locações da semente têm cliente que o falso de clientes não conhece: ficam sem contato.
+    const cliente = await clientesFalso.interno(s.cliente.id).catch(() => null);
+    const d = detalhe(s);
+    return { ...d, cliente: { ...d.cliente, celular: cliente?.celular ?? null, cnh_categoria: cliente?.cnh?.categoria ?? null } };
   },
 
   async historico(id: number): Promise<HistoricoDaLocacao> {

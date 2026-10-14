@@ -5,7 +5,7 @@ import { Bike, Car, ChevronLeft, FileText, User } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { Button, Icone, Panel, StatusBadge } from "@/design-system";
-import { clientes, ErroApi, locacoes, type ClienteCompleto, type ClienteResumo, type HistoricoDaLocacao, type LocacaoCompleta } from "@/lib/api";
+import { ErroApi, locacoes, type HistoricoDaLocacao, type LocacaoCompleta } from "@/lib/api";
 import { ROTULO_PERIODICIDADE } from "@/lib/clientes";
 import { mensagemDoErro } from "@/lib/erros";
 import { useAgora } from "@/lib/ambiente";
@@ -39,17 +39,14 @@ function Miniatura({ icone }: { icone: typeof Bike }) {
   );
 }
 
-type Cliente = ClienteResumo | ClienteCompleto;
-
 function veiculoEhCarro(modelo: string) {
   return /kwid|mobi|argo|onix|hb20|uno|gol|polo|sandero|logan|etios|ka\b/i.test(modelo);
 }
 
-/** "(85) 98114-2290 · CNH A": vem do cadastro do cliente, só para quem pode ver. */
-function contatoDoCliente(c: Cliente | undefined): string | null {
-  if (!c) return null;
-  const cnh = "cnh" in c && c.cnh?.categoria ? ` · CNH ${c.cnh.categoria}` : "";
-  return `${celular(c.celular)}${cnh}`;
+/** "(85) 98114-2290 · CNH A": o que a API manda no cliente da locação. */
+function contatoDoCliente(c: LocacaoCompleta["cliente"]): string | null {
+  if (!c.celular) return null;
+  return `${celular(c.celular)}${c.cnh_categoria ? ` · CNH ${c.cnh_categoria}` : ""}`;
 }
 
 function textoDoPeriodoEmDatas(l: LocacaoCompleta): string {
@@ -258,8 +255,6 @@ export function DetalheDaLocacao({ id }: { id: number }) {
   const [aviso, setAviso] = useState<string | null>(null);
   const locacao = useQuery({ queryKey: ["locacao", id], queryFn: () => locacoes.obter(id), retry: (n, e) => !(e instanceof ErroApi) && n < 2 });
   const historico = useQuery({ queryKey: ["locacao", id, "historico"], queryFn: () => locacoes.historico(id), enabled: locacao.isSuccess });
-  const clienteId = locacao.data?.cliente.id;
-  const cliente = useQuery({ queryKey: ["cliente", clienteId], queryFn: () => clientes.obter(clienteId ?? 0), enabled: clienteId !== undefined, retry: false });
 
   if (locacao.isPending) {
     return (
@@ -271,9 +266,9 @@ export function DetalheDaLocacao({ id }: { id: number }) {
   if (locacao.isError) return <TelaDeErro erro={locacao.error} voltar={{ href: "/locacoes", rotulo: "Voltar para Locações" }} />;
 
   const l = locacao.data;
-  const contato = contatoDoCliente(cliente.data);
-  // USR-09: o vistoriador recebe 403 na ficha do cliente; o nome fica sem link para uma página que ele não abre.
-  const clienteLiberado = !(cliente.error instanceof ErroApi && cliente.error.status === 403);
+  const contato = contatoDoCliente(locacao.data.cliente);
+  // USR-09: o vistoriador não abre a ficha do cliente; a API manda `ficha_liberada` e o nome fica sem link para ele.
+  const clienteLiberado = l.cliente.ficha_liberada;
   const ehCarro = veiculoEhCarro(l.veiculo.modelo);
   const pagas = l.parcelas?.filter((p) => p.tipo === "parcela" && p.status === "paga").length ?? 0;
   const totalParcelas = l.parcelas?.filter((p) => p.tipo === "parcela").length ?? 0;
@@ -392,7 +387,7 @@ export function DetalheDaLocacao({ id }: { id: number }) {
                 </Linha>
               )}
               <Linha rotulo="Caução">{dinheiro(l.precos.caucao_centavos)}</Linha>
-              {cliente.data && <Linha rotulo="Telefone">{celular(cliente.data.celular)}</Linha>}
+              {l.cliente.celular && <Linha rotulo="Telefone">{celular(l.cliente.celular)}</Linha>}
             </dl>
           </section>
         )}
