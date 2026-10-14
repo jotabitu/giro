@@ -51,3 +51,30 @@ def test_t210_link_vencido_e_recusado(monkeypatch):
     depois = relogio.agora() + timedelta(minutes=16)
     monkeypatch.setattr(relogio, "agora", lambda: depois)
     assert _abrir(url).status_code == 403
+
+
+def test_t218_foto_em_disco_sobrevive_ao_reinicio(tmp_path):
+    """Com a pasta definida, o conteúdo fica em disco e não depende do dicionário da memória."""
+    caminho = "motorapida/vistorias/fotovistoria/2/def.jpg"
+    with override_settings(
+        GIRO_ARQUIVOS_FALSOS_BASE="/api/arquivos-dev",
+        GIRO_ARQUIVOS_FALSOS_DIRETORIO=str(tmp_path),
+    ):
+        arquivos.ProvedorFalso().salvar(caminho, b"\xff\xd8\xffdisco", "image/jpeg")
+        assert caminho not in arquivos.guardados
+        guardados_antes = dict(arquivos.guardados)
+        arquivos.guardados.clear()  # simula o backend recriado: a memória volta vazia
+        try:
+            resposta = _abrir(arquivos.url_assinada(caminho).url)
+            assert resposta.status_code == 200
+            assert resposta["Content-Type"] == "image/jpeg"
+            assert resposta.content == b"\xff\xd8\xffdisco"
+            arquivos.ProvedorFalso().apagar(caminho)
+            assert not arquivos.ProvedorFalso().existe(caminho)
+        finally:
+            arquivos.guardados.update(guardados_antes)
+
+
+def test_t218_caminho_fora_da_pasta_e_recusado(tmp_path):
+    with override_settings(GIRO_ARQUIVOS_FALSOS_DIRETORIO=str(tmp_path)):
+        assert arquivos.ler_falso("../fora.jpg") is None

@@ -10,7 +10,6 @@ import {
   contaDoAcertoPaga,
   criarLocacao,
   gerarContratoEPegarToken,
-  receberCaucaoPeloBackend,
   receberEmDinheiro,
   recusarCpfJaCadastrado,
   situacaoNaFrota,
@@ -18,7 +17,7 @@ import {
   vistoriaDeSaida,
   vistoriaFechadaParaEdicao,
 } from "./suporte/passos";
-import { defeitoConhecido, entrar, exigirHoraSegura, horaDeAgora, novaSessao, semRolagemLateral, SENHA, visivel } from "./suporte/tela";
+import { entrar, exigirHoraSegura, horaDeAgora, novaSessao, semRolagemLateral, SENHA, visivel } from "./suporte/tela";
 
 test.describe.configure({ mode: "serial" });
 
@@ -83,11 +82,7 @@ test("locação completa no desktop: login, cliente, locação, vistoria, assina
     await page.goto("/financeiro/caixa");
     await expect(page.getByText("R$ 281,00").first()).toBeVisible();
     await receberEmDinheiro(page, locacao.codigo, /R\$ 329,00/);
-    // D-01: a busca do caixa não traz a caução (a API só a inclui por cliente ou origem, e a tela busca por texto).
-    const achou = await defeitoConhecido("D-01", "a caução não aparece na busca por locação do caixa (FIN-15, CA-023-15)", async () => {
-      await receberEmDinheiro(page, locacao.codigo, /R$ 300,00/);
-    });
-    if (!achou) receberCaucaoPeloBackend(locacao.id, 30_000);
+    await receberEmDinheiro(page, locacao.codigo, /R\$ 300,00/);
     await caixaMostra(page, { entrou: "R$ 1.740,90", recebimentos: "7 recebimentos", gaveta: "R$ 910,00", movimentos: 9 });
   });
 

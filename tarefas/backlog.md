@@ -359,9 +359,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 - Resolvido na T-190: texto do cartão "Exportar dados" no MVP fica "Baixe a auditoria em CSV", como o contrato (U18, nota de 14 out 2026 na auditoria).
 - **Fora da T-173, sem contrato (orquestrador):** as "Regras de cobrança" da tela `Precos` e do passo `Onboarding-Precos` (tolerância, combustível, desconto do vendedor; a tela do assistente pede também franquia de km e km excedente, que as regras não têm) são citadas em `veiculos.md` como "contrato de empresas", mas `empresas.md` não as tem; e `exige_2fa_todos` ("exigir 2 etapas para todos", `contas.md`) não aparece em nenhuma tela da empresa. Os dois pedem tela ou contrato antes de tarefa.
 
-### T-182 · Tela de Configurações (frontend)
-- **Agente:** frontend · **Depende de:** T-181 · **Contrato:** `docs/api/configuracoes.md` · **Telas:** Config (desktop e celular) · **Pronto quando:** `/admin/configuracoes` igual a `docs/telas/html/Config-Desktop.dc.html` e `Config-Mobile.dc.html`, ligada a `GET /api/configuracoes/`: um cartão por item de `cartoes`, na ordem da API, com `titulo` e `resumo` como vêm e o link pela tabela "Rotas dos cartões" (`chave` → rota, ícone no frontend); cartão que não vem não aparece; a faixa da implantação só com `implantacao` diferente de `null` (no celular, como a referência, sem a faixa), com o botão só quando `acao` vier; só o administrador (guarda de rota pelo menu, T-136); testes do componente (seed: 8 cartões e sem faixa; faixa com 6 de 10 e sem botão; `acao` `nova_locacao` leva a `/locacoes/nova`).
-
 ### T-028 · Limpar dados de exemplo das telas
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`. Inclui `Despesas-Desktop` e `Despesas-Mobile`: aguardando aprovação é R$ 1.200,00 (não R$ 1.386,40) e o IPVA de R$ 186,40 nasce `a_pagar` (FIN-05), apontado pelo qa na T-040.
 - **Estado do QXA-4B21 (T-112, decisão do dono em 09/10, opção A):** corrigir Frota, Veiculo, Main, Vistoriador e a OS-119 em Manutencao conforme o caso "Estado do QXA-4B21 em 07 out" dos dados de referência e as divergências levantadas pelo produto em T-112 (acima, em Pontos em aberto): Alugado no tom `solido` (não azul) e "Colocar à venda" só em veículo `disponivel`.
@@ -404,6 +401,9 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 
 ### T-210 · Fotos no desenvolvimento sem bloqueio da CSP (D-06 da T-025)
 - **Agente:** devops (com o backend) · **Depende de:** — · **Pronto quando:** em desenvolvimento as URLs assinadas das fotos apontam para um endereço que o navegador alcança e a CSP permite (sem `arquivos.invalid`); as fotos da comparação da devolução aparecem e o console fica limpo; o E2E deixa de tolerar o erro da CSP.
+
+### T-218 · Fotos do desenvolvimento que sobrevivem ao reinício do backend (D-07 da T-212)
+- **Agente:** devops (com o backend) · **Depende de:** T-210 · **Pronto quando:** no desenvolvimento, o armazenamento "falso" (`comum/arquivos.py`, hoje um dicionário na memória) guarda os arquivos em disco (volume do compose), e as fotos da saída continuam abrindo em `/api/arquivos-dev/` depois que o backend é recriado (o E2E recria para virar o relógio de 07 para 14 out); testes e homologação/produção não mudam; o QA tira a anotação do D-07 do E2E. Detalhe em `tarefas/handoffs/T-212-qa.md`.
 
 ## Fase 2 em diante
 

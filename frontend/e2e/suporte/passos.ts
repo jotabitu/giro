@@ -284,6 +284,8 @@ export async function assinarPeloLink(browser: Browser, info: TestInfo, token: s
 
 async function buscarContaNoCaixa(page: Page, texto: string) {
   const campo = page.getByLabel("Buscar a conta a receber");
+  // Limpa antes: o campo guarda a busca do recebimento anterior e o mesmo texto não refaz a consulta.
+  await campo.fill("");
   await campo.fill(texto);
   return page.getByRole("list", { name: "Contas em aberto" });
 }
@@ -301,24 +303,6 @@ export async function receberEmDinheiro(page: Page, busca: string, linha: RegExp
   await expect(page.getByText(new RegExp(`${valor.replace(/[$.]/g, "\\$&")} recebidos de ${CLIENTE.nome}`))).toBeVisible();
   await page.getByRole("button", { name: "Receber outro pagamento" }).click();
   return valor;
-}
-
-/** A caução pode não aparecer na busca (D-01 do handoff); aí o teste a recebe pelo serviço e segue, com a falha registrada. */
-export function receberCaucaoPeloBackend(locacaoId: number, valorCentavos: number) {
-  const saida = executarNoBackend(`
-from django_tenants.utils import schema_context
-from apps.plataforma.models import Empresa
-from apps.financeiro.models import ContaReceber
-from apps.financeiro import services
-from apps.contas.models import Usuario
-empresa = Empresa.objects.get(subdominio="motorapida")
-with schema_context(empresa.schema_name):
-    usuario = Usuario.objects.get(email="bruna@motorapida.com.br")
-    conta = ContaReceber.objects.get(origem_id=${locacaoId}, tipo="caucao", status="aberta")
-    services.receber(conta, usuario, forma="dinheiro", valor_centavos=${valorCentavos}, filial_id=conta.filial_id)
-    print("PAGO=sim")
-`);
-  expect(saida.PAGO).toBe("sim");
 }
 
 export async function caixaMostra(page: Page, esperado: { entrou: string; recebimentos: string; gaveta: string; movimentos: number }) {
@@ -353,6 +337,18 @@ export async function abrirDevolucao(page: Page, locacaoId: number) {
 }
 
 /**
+ * DEV-08: as fotos da saída (enviadas em 07 out) e as de agora aparecem de fato (a imagem carrega), sem tolerância
+ * à CSP e depois de o E2E recriar o backend para virar o relógio (armazenamento de desenvolvimento em disco, T-218).
+ */
+async function conferirFotosDaComparacao(page: Page) {
+  for (const lado of ["Saída", "Agora"]) {
+    const imagens = page.locator(`img[alt^="${lado} ·"]:visible`);
+    await expect(imagens.first()).toBeVisible();
+    await expect.poll(() => imagens.evaluateAll((els) => els.length > 0 && els.every((e) => (e as HTMLImageElement).complete && (e as HTMLImageElement).naturalWidth > 0)), { message: `fotos "${lado}" da comparação carregadas` }).toBe(true);
+  }
+}
+
+/**
  * Etapa 1 · Vistoria de chegada (DEV-08): o lado "saída" mostra o km e o combustível da vistoria de saída.
  * Km de chegada = saída + 420, tanque cheio, o risco antigo fica sem cobrança e a carenagem nova entra com foto,
  * sem "vai para oficina". Quem faz a vistoria não dá o valor da avaria: ele é dado no acerto, por quem fecha a conta.
@@ -371,6 +367,7 @@ export async function vistoriaDeChegada(page: Page, locacaoId: number, opcoes: {
   await nivelCheio(page);
   await page.getByRole("button", { name: "Tirar mais fotos" }).click();
   await enviarFotos(page);
+  await conferirFotosDaComparacao(page);
   await marcarItens(page);
   await registrarAvaria(page, AVARIA_NOVA.descricao, false);
 
