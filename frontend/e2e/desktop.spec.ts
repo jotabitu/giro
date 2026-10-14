@@ -37,7 +37,7 @@ test("locação completa no desktop: login, cliente, locação, vistoria, assina
     await expect(page.getByRole("alert")).toBeVisible();
     await expect(page).toHaveURL(/\/entrar/);
     await entrar(page, "bruna");
-    await expect(page.getByText("Boa", { exact: false }).first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: /, Bruna$/ })).toBeVisible();
     await expect(page.getByRole("link", { name: "Locações" }).first()).toBeVisible();
     await expect(page.getByRole("link", { name: "Clientes" }).first()).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Menu principal" }).getByRole("link", { name: /Usuários|Auditoria|Marca/ })).toHaveCount(0);
@@ -88,17 +88,18 @@ test("locação completa no desktop: login, cliente, locação, vistoria, assina
       await receberEmDinheiro(page, locacao.codigo, /R$ 300,00/);
     });
     if (!achou) receberCaucaoPeloBackend(locacao.id, 30_000);
-    await caixaMostra(page, { entrou: "R$ 1.740,90", recebimentos: "7 recebimentos", gaveta: "R$ 910,00" });
+    await caixaMostra(page, { entrou: "R$ 1.740,90", recebimentos: "7 recebimentos", gaveta: "R$ 910,00", movimentos: 9 });
   });
 
   await test.step("CA-025-07 · Locação ativa", async () => {
     await page.goto(`/locacoes/${locacao.id}`);
     await expect(visivel(page.getByText("Ativa", { exact: true }))).toBeVisible();
     await expect(visivel(page.getByText("saiu com 28.420 km"))).toBeVisible();
-    await situacaoNaFrota(page, "HUG-1S04", "Alugado");
+    await situacaoNaFrota(browser, info, "HUG-1S04", "Alugado");
     await semRolagemLateral(page, "ficha da locação");
   });
 
+  await page.goto("about:blank");
   await definirData("2026-10-14");
   // Uma semana depois a sessão de 07 out já expirou no relógio simulado: a Bruna entra de novo.
   vigia.esperar(401, /\/api\/auth\//);
@@ -107,13 +108,13 @@ test("locação completa no desktop: login, cliente, locação, vistoria, assina
     await entrar(page, "bruna");
     await vistoriaDeChegada(page, locacao.id);
     await acertarEEncerrar(page, locacao.id);
-    await situacaoNaFrota(page, "HUG-1S04", "Disponível");
+    await situacaoNaFrota(browser, info, "HUG-1S04", "Disponível");
   });
 
   await test.step("CA-025-09 · Baixa do acerto no caixa de 14 out: R$ 80,00, gaveta de R$ 280,00", async () => {
     await abrirCaixaDe14Out(page);
-    await receberEmDinheiro(page, locacao.codigo, /R$ 80,00/);
-    await caixaMostra(page, { entrou: "R$ 80,00", recebimentos: "1 recebimento", gaveta: "R$ 280,00" });
+    await receberEmDinheiro(page, locacao.codigo, /R\$ 80,00/);
+    await caixaMostra(page, { entrou: "R$ 80,00", recebimentos: "1 recebimento", gaveta: "R$ 280,00", movimentos: 1 });
     await contaDoAcertoPaga(page, locacao.id, locacao.codigo);
   });
 

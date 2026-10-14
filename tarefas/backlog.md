@@ -351,9 +351,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 ### [decisão] Pix Automático: quando cobrar a parcela (AUT-04, levantada na T-029)
 - **Para:** produto · **Contexto:** o contrato (`docs/api/financeiro.md`, "Cobrança recorrente") diz que `aut_04_cobranca_recorrente` cobra "no vencimento de cada parcela". Pela documentação do Asaas, a cobrança do Pix Automático tem de ser criada **de 2 a 10 dias úteis antes do vencimento**, e a autorização só fica ativa depois que o cliente paga a primeira cobrança pelo QR. Falta decidir: quantos dias antes a tarefa cria a cobrança da parcela, o que acontece com a parcela que vence antes de a autorização ficar ativa, e se a locação diária ou quinzenal pode ter Pix Automático (o Asaas aceita semanal, mensal, trimestral, semestral e anual). O provedor já está pronto (`asaas.py`, T-029); o fluxo na locação espera esta decisão (handoff `tarefas/handoffs/T-029-backend.md`, item 1).
 
-### T-025 · Testes ponta a ponta do fluxo de locação
-- **Agente:** qa · **Depende de:** T-022, T-023 · **Pronto quando:** Playwright cobre login → nova locação → vistoria de saída → devolução → baixa no caixa, no desktop e no celular.
-- **Critérios (T-152):** `docs/qa/criterios/T-025.md` (LOC-2858: R$ 629,00 na retirada; acerto de R$ 80,00 recebido no caixa em 14 out). Relógio com data e hora controladas no ambiente do E2E: qa com o arquiteto.
 
 ## Dúvidas abertas da T-020 (frontend)
 

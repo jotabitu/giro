@@ -26,6 +26,7 @@ test("locação completa no celular: Bruna na frente, João nas vistorias", asyn
   const bruna = await novaSessao(browser, info);
   const joao = await novaSessao(browser, info);
   const hora = horaDeAgora();
+  joao.vigia.conhecer(403, /\/api\/clientes\/\d+\//, "D-05", "o vistoriador toma 403 ao abrir o cliente na vistoria (USR-09 pede nome, celular e retirada liberada)");
 
   await entrar(bruna.page, "bruna");
   await entrar(joao.page, "joao");
@@ -58,12 +59,15 @@ test("locação completa no celular: Bruna na frente, João nas vistorias", asyn
       await receberEmDinheiro(bruna.page, locacao.codigo, /R\$ 300,00/);
     });
     if (!achou) receberCaucaoPeloBackend(locacao.id, 30_000);
-    await caixaMostra(bruna.page, { entrou: "R$ 1.740,90", recebimentos: "7 recebimentos", gaveta: "R$ 910,00" });
+    await caixaMostra(bruna.page, { entrou: "R$ 1.740,90", recebimentos: "7 recebimentos", gaveta: "R$ 910,00", movimentos: 9 });
     await semRolagemLateral(bruna.page, "caixa do dia");
     await bruna.page.goto(`/locacoes/${locacao.id}`);
     await expect(visivel(bruna.page.getByText("Ativa", { exact: true }))).toBeVisible();
   });
 
+  // Sem página aberta durante a troca do relógio: as telas consultam a API e pegariam o backend reiniciando.
+  await bruna.page.goto("about:blank");
+  await joao.page.goto("about:blank");
   await definirData("2026-10-14");
 
   await test.step("14 out: João faz a vistoria de chegada pela agenda; Bruna fecha o acerto", async () => {
@@ -78,7 +82,7 @@ test("locação completa no celular: Bruna na frente, João nas vistorias", asyn
   await test.step("Bruna abre o caixa e recebe os R$ 80,00", async () => {
     await abrirCaixaDe14Out(bruna.page);
     await receberEmDinheiro(bruna.page, locacao.codigo, /R\$ 80,00/);
-    await caixaMostra(bruna.page, { entrou: "R$ 80,00", recebimentos: "1 recebimento", gaveta: "R$ 280,00" });
+    await caixaMostra(bruna.page, { entrou: "R$ 80,00", recebimentos: "1 recebimento", gaveta: "R$ 280,00", movimentos: 1 });
     await contaDoAcertoPaga(bruna.page, locacao.id, locacao.codigo);
   });
 

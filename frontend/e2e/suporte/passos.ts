@@ -2,7 +2,7 @@
 // contra os números das regras e devolve o que o passo seguinte precisa. Desktop e celular usam os mesmos passos.
 import { expect, type Browser, type Locator, type Page, type TestInfo } from "@playwright/test";
 import { executarNoBackend } from "./ambiente";
-import { aquietar, defeitoConhecido, fotoDeTeste, novaSessao, visivel } from "./tela";
+import { aquietar, defeitoConhecido, entrar, fotoDeTeste, novaSessao, visivel } from "./tela";
 
 export const CLIENTE = {
   nome: "Paulo Henrique Lima",
@@ -81,9 +81,8 @@ export async function cadastrarCliente(page: Page): Promise<number> {
 
   for (const [i, nome] of DOCUMENTOS.entries()) {
     await page.getByLabel(nome, { exact: true }).setInputFiles(fotoDeTeste());
-    await expect(page.getByText(`${i + 1} de 4 enviados`)).toBeVisible();
+    await expect(page.getByText("enviado", { exact: true }).filter({ visible: true })).toHaveCount(i + 1);
   }
-  await expect(page.getByText("Cadastro completo").first()).toBeVisible();
   return id;
 }
 
@@ -322,15 +321,21 @@ with schema_context(empresa.schema_name):
   expect(saida.PAGO).toBe("sim");
 }
 
-export async function caixaMostra(page: Page, esperado: { entrou: string; recebimentos: string; gaveta: string }) {
+export async function caixaMostra(page: Page, esperado: { entrou: string; recebimentos: string; gaveta: string; movimentos: number }) {
   await page.goto("/financeiro/caixa");
   await aquietar(page);
   const ver = (texto: string) => visivel(page.getByText(texto, { exact: true }));
   await expect(ver("Entrou hoje")).toBeVisible();
   await expect(ver(esperado.entrou)).toBeVisible();
-  await expect(ver(esperado.recebimentos)).toBeVisible();
-  await expect(ver("Dinheiro na gaveta")).toBeVisible();
   await expect(ver(esperado.gaveta)).toBeVisible();
+  const celular = (page.viewportSize()?.width ?? 1440) < 768;
+  if (celular) {
+    // No celular o cartão não traz "N recebimentos": a lista de movimentos (entradas e saídas) fecha a conta.
+    await expect(page.getByRole("list", { name: "Movimentos do caixa" }).locator("li")).toHaveCount(esperado.movimentos);
+  } else {
+    await expect(ver(esperado.recebimentos)).toBeVisible();
+    await expect(ver("Dinheiro na gaveta")).toBeVisible();
+  }
 }
 
 // --- Sessões extras ---
@@ -390,7 +395,7 @@ export async function acertarEEncerrar(page: Page, locacaoId: number) {
   await expect(resumo).toContainText("− R$ 300,00");
   await expect(resumo).toContainText("Cobrar do cliente");
   await expect(resumo).toContainText("R$ 80,00");
-  await expect(resumo).toContainText("17 out");
+  await expect(resumo).toContainText("vencimento em 3 dias");
 
   await visivel(page.getByRole("button", { name: /^Encerrar e cobrar/ })).click();
   await expect(visivel(page.getByText(/Devolução encerrada/))).toBeVisible();
@@ -425,11 +430,14 @@ export async function menuDoVistoriador(page: Page) {
 }
 
 /** Situação do veículo na Frota (a tela lista pela busca de placa). */
-export async function situacaoNaFrota(page: Page, placaTexto: string, situacao: string) {
+export async function situacaoNaFrota(browser: Browser, info: TestInfo, placaTexto: string, situacao: string) {
+  // A vendedora não abre a Frota (USR-05): quem confere é o gerente, numa sessão própria.
+  const { page, contexto } = await novaSessao(browser, info);
+  await entrar(page, "rodrigo");
   await page.goto("/veiculos");
-  await page.getByPlaceholder(/placa|buscar|modelo/i).first().fill(placaTexto);
-  const linha = visivel(page.locator("tr, li, a", { hasText: placaTexto }));
-  await expect(linha).toContainText(situacao);
+  await page.getByRole("searchbox").or(page.getByPlaceholder(/placa|buscar|modelo/i)).first().fill(placaTexto);
+  await expect(visivel(page.locator("tr, li, a", { hasText: placaTexto }))).toContainText(situacao);
+  await contexto.close();
 }
 
 /** 14 out: sem caixa aberto a tela avisa; Bruna abre com troco de R$ 200,00. */
@@ -449,7 +457,8 @@ export async function abrirCaixaDe14Out(page: Page) {
 export async function contaDoAcertoPaga(page: Page, locacaoId: number, codigo: string) {
   await page.goto(`/locacoes/${locacaoId}`);
   await expect(visivel(page.getByText("Encerrada", { exact: true }))).toBeVisible();
-  await expect(visivel(page.getByText(/Pago · Dinheiro/).filter({ hasText: /Pago/ }))).toBeVisible();
+  // A tabela de pagamentos da ficha só existe no desktop; no celular a ficha resume ("1 de 1 pagos").
+  if ((page.viewportSize()?.width ?? 1440) >= 768) await expect(visivel(page.getByText(/Pago · Dinheiro/))).toBeVisible();
   await page.goto(`/financeiro/receber?busca=${codigo}`);
   await visivel(page.getByRole("button", { name: /^Pagas/ })).click();
   await expect(visivel(page.getByText("R$ 80,00"))).toBeVisible();

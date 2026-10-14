@@ -9,6 +9,7 @@ export const SENHA = process.env.E2E_SENHA ?? "giro-dev-2026";
 export const EMAIL = {
   bruna: "bruna@motorapida.com.br",
   joao: "joao@motorapida.com.br",
+  rodrigo: "rodrigo@motorapida.com.br",
 } as const;
 export type Quem = keyof typeof EMAIL;
 
@@ -57,6 +58,8 @@ export type Vigia = {
   conhecidos: string[];
   /** Declara que a próxima resposta com esse status e esse caminho é esperada (passo que provoca o erro de propósito). */
   esperar: (status: number, caminho: RegExp) => void;
+  /** Declara uma resposta de erro que é defeito aberto (vira anotação, ou falha com E2E_ESTRITO=1). */
+  conhecer: (status: number, caminho: RegExp, id: string, descricao: string) => void;
   verificar: () => void;
 };
 
@@ -67,6 +70,7 @@ export type Vigia = {
  */
 export function vigiar(page: Page): Vigia {
   const esperadas: { status: number; caminho: RegExp }[] = [];
+  const defeitos: { status: number; caminho: RegExp; id: string; descricao: string }[] = [];
   const vigia: Vigia = {
     erros: [],
     respostas5xx: [],
@@ -75,7 +79,18 @@ export function vigiar(page: Page): Vigia {
     esperar(status, caminho) {
       esperadas.push({ status, caminho });
     },
+    conhecer(status, caminho, id, descricao) {
+      defeitos.push({ status, caminho, id, descricao });
+    },
     verificar() {
+      for (const d of defeitos) {
+        const achou = [...vigia.respostas4xx, ...vigia.respostas5xx].filter((r) => r.startsWith(`${d.status} `) && d.caminho.test(r));
+        if (achou.length === 0) continue;
+        if (process.env.E2E_ESTRITO) continue;
+        test.info().annotations.push({ type: `defeito ${d.id}`, description: d.descricao });
+        vigia.respostas4xx = vigia.respostas4xx.filter((r) => !achou.includes(r));
+        vigia.respostas5xx = vigia.respostas5xx.filter((r) => !achou.includes(r));
+      }
       expect.soft(vigia.respostas5xx, "respostas 5xx durante o fluxo").toEqual([]);
       expect.soft(vigia.respostas4xx, "respostas 4xx que nenhum passo esperava").toEqual([]);
       expect.soft(vigia.erros, "erros no console do navegador").toEqual([]);

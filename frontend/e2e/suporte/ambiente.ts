@@ -145,6 +145,26 @@ export async function restaurarSeed() {
   compose(["exec", "-T", "redis", "redis-cli", "FLUSHALL"]);
   subirComData(DATA_DO_SEED);
   await esperarApi(DATA_DO_SEED);
+  await garantirFrontend();
+}
+
+/** O frontend do compose tem que estar de pé (o Docker pode ter sido reiniciado). */
+async function garantirFrontend(limiteMs = 240_000): Promise<void> {
+  compose(["up", "-d", "--no-deps", "frontend"]);
+  const fim = Date.now() + limiteMs;
+  for (;;) {
+    const ok = await new Promise<boolean>((resolver) => {
+      const pedido = http.get({ host: "127.0.0.1", port: Number(PORTA_FRONTEND), path: "/entrar", headers: { host: `${SUBDOMINIO}.localhost:${PORTA_FRONTEND}` }, timeout: 20_000 }, (r) => {
+        r.resume();
+        resolver((r.statusCode ?? 500) < 500);
+      });
+      pedido.on("error", () => resolver(false));
+      pedido.on("timeout", () => pedido.destroy());
+    });
+    if (ok) return;
+    if (Date.now() > fim) throw new Error("O frontend não respondeu em 240 s.");
+    await new Promise((r) => setTimeout(r, 2000));
+  }
 }
 
 /**
