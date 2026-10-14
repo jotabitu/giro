@@ -451,6 +451,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `filial` | FK → `Filial` | |
 | `data` | data | data da despesa (lista e competência) |
 | `descricao` | texto(150) | |
+| `descricao_busca` | texto(150) | descrição em minúsculas e sem acento, gravada pelo serviço; base da `?busca=` (`FIN-16`, T-177) |
 | `categoria` | enum `fixas`, `manutencao`, `rastreamento`, `impostos`, `pessoal`, `outros` | `FIN-06` |
 | `valor_centavos` | centavos | |
 | `vencimento` | data | |
@@ -551,7 +552,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 
 ### 25. Evento de auditoria · `auditoria.EventoAuditoria`
 
-Campos, índices e imutabilidade na ADR 0010. Existe nos dois schemas. Apoio `Exportacao` (`AUD-07`): `solicitada_por`, `itens` (lista enum), `formato` enum `planilha`, `csv`, `zip`, `periodo_inicio`, `periodo_fim`, `status` enum `na_fila`, `pronta`, `expirada`, `falhou`, `arquivo`, `expira_em` (+7 dias).
+Campos, índices e imutabilidade na ADR 0010. Existe nos dois schemas. Apoio `Exportacao` (`AUD-07`): `solicitada_por`, `itens` (lista enum), `formato` enum `planilha`, `csv`, `zip`, `periodo_inicio`, `periodo_fim`, `status` enum `na_fila`, `pronta`, `expirada`, `falhou`, `arquivo`, `expira_em` (+7 dias), `parametros` json (padrão `{}`; nas despesas, `mes`, `filial_id` e `filial_nome`, T-177). `itens` aceita também `despesas` (`FIN-16`).
 
 ### Apoio do schema da empresa (outros apps)
 
