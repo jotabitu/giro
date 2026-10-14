@@ -577,16 +577,20 @@ def _pix_no_caixa(cenario, conta: ContaReceber, capturar: Any) -> None:  # noqa:
     assert _webhook(capturar, pagamentos.simular_pagamento(cobranca.externo_id)) == 200
 
 
-def _despesa(cenario, quem: str = "Bruna", **campos: Any) -> Any:  # noqa: F811
+def _despesa(cenario, quem: str = "Bruna", cabecalhos=None, **campos: Any) -> Any:  # noqa: F811
+    """Lança pela API, com a nota (obrigatória, FIN-06); `nota=None` manda sem ela."""
     corpo = {
         "descricao": "Óleo 1 litro",
         "valor_centavos": 4800,
         "data": "2026-10-07",
         "vencimento": "2026-10-07",
         "categoria": "manutencao",
+        "nota": _jpg("nota.jpg"),
         **campos,
     }
-    return cenario.moto.api(quem).post("/api/financeiro/despesas/", corpo, format="multipart")
+    corpo = {k: v for k, v in corpo.items() if v is not None}
+    api = cenario.moto.api(quem, **(cabecalhos or {}))
+    return api.post("/api/financeiro/despesas/", corpo, format="multipart")
 
 
 @pytest.fixture

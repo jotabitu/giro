@@ -448,7 +448,9 @@ def test_aud_02_ca_018_08_so_o_administrador(aud):
     for nome in ("Rodrigo", "Bruna", "João", "Lúcia"):
         assert aud.moto.api(nome).get(EVENTOS).status_code == 403
         assert aud.moto.api(nome).get("/api/auditoria/pessoas/").status_code == 403
-        assert aud.moto.api(nome).get(EXPORTACOES).status_code == 403
+        # O financeiro vê as exportações das despesas (decisão do dono de 13 out 2026, T-177).
+        esperado = 200 if nome == "Lúcia" else 403
+        assert aud.moto.api(nome).get(EXPORTACOES).status_code == esperado
     suporte = token_de_suporte(aud.moto, "ver_editar")
     for rota in (EVENTOS, "/api/auditoria/pessoas/", EXPORTACOES):
         recusa = suporte.get(rota)

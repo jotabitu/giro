@@ -1,16 +1,17 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { Paperclip, Plus } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Download, Paperclip, Plus } from "lucide-react";
 import { useState } from "react";
-import { CelulaDupla, DataTable, Icone, KpiGrid, KpiTile, ProgressBar, SegmentedControl, StatusBadge, type ColunaTabela } from "@/design-system";
+import { Button, CelulaDupla, DataTable, Icone, KpiGrid, KpiTile, ProgressBar, SearchField, SegmentedControl, StatusBadge, type ColunaTabela } from "@/design-system";
 import { Paginacao } from "@/components/lista/Paginacao";
 import { financeiro, type Despesa, type StatusDaDespesa } from "@/lib/api";
 import { useAgora } from "@/lib/ambiente";
 import { mesDe, nomeDoMes } from "@/lib/despesas";
 import { mensagemDoErro } from "@/lib/erros";
 import { origemDaDespesa, rotuloDaCategoria, TOM_DA_DESPESA } from "@/lib/financeiro";
-import { useFiltrosNaUrl } from "@/lib/filtros-url";
+import { useBuscaNaUrl, useFiltrosNaUrl } from "@/lib/filtros-url";
+import { TODAS } from "@/lib/filial";
 import { useFilial } from "@/lib/filial-escolhida";
 import { dataCurta, dinheiro } from "@/lib/formatos";
 import { dinheiroCurto } from "@/lib/painel";
@@ -90,6 +91,8 @@ export function ListaDespesas({ abrirId }: { abrirId?: number }) {
   const { valor, definir } = useFiltrosNaUrl();
   const aba = (valor("aba") ?? "todas") as Aba;
   const cursor = valor("cursor") ?? undefined;
+  const buscaNaUrl = valor("busca") ?? "";
+  const [busca, setBusca] = useBuscaNaUrl(definir, buscaNaUrl);
   const mes = mesDe(useAgora());
   const [detalhe, setDetalhe] = useState<{ id: number; inicial?: Despesa } | null>(abrirId ? { id: abrirId } : null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -99,8 +102,8 @@ export function ListaDespesas({ abrirId }: { abrirId?: number }) {
   const podeLancar = eu.pode.despesas_lancar !== "nao";
 
   const consulta = useQuery({
-    queryKey: ["despesas", { aba, mes, cursor }],
-    queryFn: () => financeiro.listarDespesas({ mes, status: aba === "todas" ? undefined : aba, cursor }),
+    queryKey: ["despesas", { aba, mes, cursor, busca: buscaNaUrl }],
+    queryFn: () => financeiro.listarDespesas({ mes, status: aba === "todas" ? undefined : aba, busca: buscaNaUrl || undefined, cursor }),
     placeholderData: (anterior) => anterior,
     enabled: veLista,
   });
@@ -110,6 +113,15 @@ export function ListaDespesas({ abrirId }: { abrirId?: number }) {
   const despesas = d?.resultados ?? [];
   const filial = useFilial()?.nome ?? eu.filiais[0]?.nome;
   const nomeDoMesAtual = nomeDoMes(mes);
+
+  // Exportar (FIN-16): quem pode vem da API, não do nome do perfil. O pedido leva o mês e a filial da tela, sem a busca nem a aba.
+  const podeExportar = eu.pode.despesas_exportar;
+  const escolhida = useFilial()?.escolha ?? null;
+  const filialDaExportacao = escolhida === null ? (eu.filiais[0]?.id ?? null) : escolhida === TODAS ? null : Number(escolhida);
+  const exportar = useMutation({
+    mutationFn: () => financeiro.exportarDespesas({ mes, filial_id: filialDaExportacao }),
+    onSuccess: () => setAviso("Exportação pedida. O link para baixar o arquivo chega no seu e-mail."),
+  });
 
   const origem = (x: Despesa) => origemDaDespesa(x, eu.filiais);
   const colunas: ColunaTabela<Despesa>[] = [
@@ -144,6 +156,14 @@ export function ListaDespesas({ abrirId }: { abrirId?: number }) {
             {filial ? ` · ${filial}` : ""}
           </p>
         </div>
+        {podeExportar && (
+          <div className="ml-auto hidden md:block">
+            <Button onClick={() => exportar.mutate()} disabled={exportar.isPending}>
+              <Icone de={Download} />
+              {exportar.isPending ? "Pedindo…" : "Exportar"}
+            </Button>
+          </div>
+        )}
         {podeLancar && (
           <a href="#nova-despesa" aria-label="Nova despesa" className="wl-icon-btn wl-icon-btn--sm ml-auto size-11 md:hidden">
             <Icone de={Plus} />
@@ -152,6 +172,11 @@ export function ListaDespesas({ abrirId }: { abrirId?: number }) {
       </header>
 
       {aviso && <Confirmacao>{aviso}</Confirmacao>}
+      {exportar.isError && (
+        <p role="alert" className="text-body text-critical-ink">
+          {mensagemDoErro(exportar.error)}
+        </p>
+      )}
 
       {ind && (
         <KpiGrid>
@@ -159,6 +184,8 @@ export function ListaDespesas({ abrirId }: { abrirId?: number }) {
           <KpiTile rotulo="Aguardando aprovação" valor={String(ind.aguardando_aprovacao_quantidade)} contexto={dinheiro(ind.aguardando_aprovacao_centavos)} />
           <div className="hidden md:contents">
             <KpiTile rotulo="A pagar esta semana" valor={dinheiroCurto(ind.a_pagar_semana_centavos)} />
+            {/* FIN-16: a API divide; sem veículo ela manda `null` e a tela não mostra valor nem zero. */}
+            <KpiTile rotulo="Despesa por veículo" valor={ind.despesa_por_veiculo_centavos == null ? "—" : dinheiro(ind.despesa_por_veiculo_centavos)} contexto="no mês" />
           </div>
         </KpiGrid>
       )}
@@ -169,6 +196,9 @@ export function ListaDespesas({ abrirId }: { abrirId?: number }) {
             <section className="wl-panel" aria-label="Despesas do mês">
               <div className="mb-5 hidden flex-wrap items-center gap-3 md:flex">
                 <SegmentedControl rotulo="Filtro" opcoes={abas} valor={aba} aoMudar={(v) => definir({ aba: v === "todas" ? null : v })} />
+                <div className="ml-auto w-[220px]">
+                  <SearchField placeholder="Buscar despesa" aria-label="Buscar despesa" value={busca} onChange={(e) => setBusca(e.target.value)} />
+                </div>
               </div>
               <h2 className="mb-1 text-heading md:hidden">Últimas</h2>
 
@@ -182,7 +212,7 @@ export function ListaDespesas({ abrirId }: { abrirId?: number }) {
                   Carregando as despesas…
                 </p>
               )}
-              {d && despesas.length === 0 && <p className="py-6 text-center text-body text-ink-muted">{aba === "todas" ? "Nenhuma despesa neste mês." : "Nenhuma despesa nesta situação."}</p>}
+              {d && despesas.length === 0 && <p className="py-6 text-center text-body text-ink-muted">{buscaNaUrl ? "Nenhuma despesa com essa busca. Mude o termo." : aba === "todas" ? "Nenhuma despesa neste mês." : "Nenhuma despesa nesta situação."}</p>}
               {d && despesas.length > 0 && (
                 <>
                   <div className="hidden overflow-x-auto md:block">

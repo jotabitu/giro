@@ -1,34 +1,34 @@
 # Assinatura da empresa (Admin › Assinatura)
 
-**Dono:** arquiteto · **Versão:** 14 out 2026 (T-183) · **App:** `plataforma` (lê e grava no `public`, servido no host da empresa) · **Regras:** PLT-01, PLT-02, PLT-03, PLT-04, PLT-05, AUT-13, tabela de estados da empresa · **ADR:** 0007, 0023 · **Telas:** Admin-Assinatura (desktop e celular)
+**Dono:** arquiteto · **Versão:** 14 out 2026 (T-193; T-183) · **App:** `plataforma` (lê e grava no `public`, servido no host da empresa) · **Regras:** PLT-01, PLT-02, PLT-03, PLT-04, PLT-05, PLT-11, PLT-13, PLT-14, PLT-15, AUT-13, tabela de estados da empresa · **ADR:** 0007, 0023 · **Telas:** Admin-Assinatura (desktop e celular) · **Critérios:** `docs/qa/criterios/assinatura.md` (CA-ASS-01 a 21 e 26 a 29)
 
-Decisão do dono em 14 out 2026: a tela `Admin-Assinatura` entra inteira no MVP. Este contrato completa o que `GET /api/assinatura/` (`plataforma.md`, "Do lado da empresa") ainda não entregava, levantado na T-170: mudar e comparar planos, forma de pagamento, faturas, dados da nota fiscal, o cartão do plano Completo e a data da 1ª fatura. "Cancelar assinatura" (`PLT-06`, tela `Admin-Cancelar`) e pausar estão com o produto e **não** fazem parte deste contrato.
+Decisão do dono em 14 out 2026: a tela `Admin-Assinatura` entra inteira no MVP, com a cobrança real. Este contrato completa o que `GET /api/assinatura/` (`plataforma.md`, "Do lado da empresa") ainda não entregava, levantado na T-170: mudar e comparar planos, forma de pagamento, faturas, dados da nota fiscal, o cartão do plano acima e a data da 1ª fatura. "Cancelar assinatura" e pausar (`PLT-06`, tela `Admin-Cancelar`) têm contrato próprio (T-194); aqui só aparecem onde mexem nas faturas.
 
-Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-dados.md` (itens 2 e 3 e apoio do `public`).
+Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-dados.md` (itens 2 e 3 e apoio do `public`). Os módulos que cada plano liga (`PLT-12`) estão na ADR da T-192.
 
-> **Pontos que dependem do produto.** Onde a regra não diz, o contrato marca **[D-n]** e segue a opção recomendada, para backend e frontend poderem começar. As perguntas estão no fim ("Decisões pedidas ao produto") e no backlog, seção da T-183. Se o produto escolher outra opção, muda só o trecho marcado.
+> **O que mudou na T-193 (decisões do dono de 14 out 2026, regras na T-190).** Saíram as marcas [D-1] a [D-10]: as respostas estão nas regras e na tabela "Decisões de 14 out 2026". Mudou em relação ao que este contrato recomendava: (1) escolher a forma de pagamento **não** ativa a empresa; ela fica `em_teste` até o fim do teste, e só a 1ª fatura paga leva a `ativa` (U1); (2) a `oferta` vira o cartão "Precisa de mais veículos ou filiais?", com os itens prontos da `PLT-11`, sem domínio próprio nem API (U11). Entraram: uma tentativa só do cartão e "Pagar" por outro meio (U8), a NFS-e pelo parceiro depois de paga e o endereço nos dados fiscais (U9, `PLT-15`), os e-mails de cobrança, a mudança no teste com a 1ª fatura já paga (`PLT-04`), a mudança de ciclo e a reativação da cancelada pela equipe, e o vencimento depois da volta da pausa. Quem já começou a T-185, a T-186 ou a T-187 confere a seção "O que muda para as tarefas abertas", no fim.
 
 ---
 
 ## Quem usa
 
 - `GET /api/assinatura/` continua para **todos os perfis** (as telas de Filiais, Usuários e Veículos leem o `uso`). Os blocos novos do administrador (`forma_pagamento`, `dados_fiscais`, `oferta`, `acoes`) vêm **ausentes** para os outros perfis, como o bloco do vendedor em `veiculos.md`.
-- Todas as outras rotas deste contrato são **só do administrador** (tabela de perfis: "Administração ... assinatura"). Outro perfil: 403 `{ "codigo": "permissao", "mensagem": "Só o administrador mexe na assinatura" }`.
-- Suporte Giro dentro da empresa (`PLT-07`): só lê. Nenhuma escrita deste contrato aceita token de suporte, nem com "ver e editar" (dinheiro e dados fiscais da empresa são decisão do administrador): 403 `{ "codigo": "PLT-07", "mensagem": "O suporte não mexe na assinatura da empresa" }`.
+- Todas as outras rotas deste contrato são **só do administrador** (tabela de perfis: "Administração ... assinatura"; `PLT-04`, `PLT-13`). Outro perfil: 403 `{ "codigo": "permissao", "mensagem": "Só o administrador mexe na assinatura" }`.
+- Suporte Giro dentro da empresa (`PLT-07`): só lê. Nenhuma escrita deste contrato aceita token de suporte, nem com "ver e editar" (dinheiro e dados fiscais da empresa são decisão do administrador): 403 `{ "codigo": "PLT-07", "mensagem": "O suporte não mexe na assinatura da empresa" }`. CA-ASS-19.
 
 ### Estado da empresa e o que cada rota aceita
 
-`somente_leitura` (empresa `suspensa`, `pausada` ou `cancelada`) faz todo endpoint de escrita responder 403 `empresa_sem_operacao` (`plataforma.md`). **Exceção:** a empresa `suspensa` precisa conseguir pagar para voltar a `ativa` na hora (tabela de estados), então estas rotas continuam abertas para ela: `PUT forma-pagamento/`, `POST faturas/{codigo}/pagar/` e `PATCH dados-fiscais/`. A exceção fica numa lista explícita na permissão de `somente_leitura`, com teste.
+`somente_leitura` (empresa `suspensa`, `pausada` ou `cancelada`) faz todo endpoint de escrita responder 403 `empresa_sem_operacao` (`plataforma.md`). **Exceção** (`PLT-13`, tabela de estados): a empresa `suspensa` precisa conseguir pagar para voltar a `ativa` na hora, então estas rotas continuam abertas para ela: `PUT forma-pagamento/`, `POST faturas/{codigo}/pagar/` e `PATCH dados-fiscais/`. A exceção fica numa lista explícita na permissão de `somente_leitura`, com teste (CA-ASS-27).
 
 | Rota | `em_teste` | `ativa` | `inadimplente` | `suspensa` | `pausada`, `cancelada` |
 | --- | --- | --- | --- | --- | --- |
-| ler (`GET`) | sim | sim | sim | sim | sim |
-| mudar de plano | sim | sim | não [D-5] | não [D-5] | não |
+| ler (`GET`) | sim | sim | sim | sim | sim (`cancelada` não entra no sistema, `AUD-08`) |
+| mudar de plano e desfazer o downgrade | sim | sim | não (`PLT-04`) | não (`PLT-04`) | não |
 | forma de pagamento | sim | sim | sim | sim | não |
 | pagar fatura | sim | sim | sim | sim | não |
 | dados fiscais | sim | sim | sim | sim | não |
 
-Fora da tabela: 409 `{ "codigo": "transicao_empresa", "mensagem": "<texto do caso>" }`, com os textos de cada rota abaixo.
+Fora da tabela: 409 `{ "codigo": "transicao_empresa", "mensagem": "<texto do caso>" }`, com os textos de cada rota abaixo. Em `pausada` e `cancelada` a 403 `empresa_sem_operacao` vem antes.
 
 ---
 
@@ -56,38 +56,48 @@ Os campos de hoje (`plano`, `status`, `teste`, `faixa_aviso`, `uso`, `somente_le
   "dados_fiscais": {
     "razao_social": "Moto Rápida Locações Ltda",
     "cnpj": "12345678000195",
-    "email_cobranca": "financeiro@motorapida.com.br"
+    "endereco": null,
+    "email_cobranca": "mariana@motorapida.com.br"
   },
   "oferta": {
-    "plano": { "id": 3, "nome": "Completo" },
-    "recursos_a_mais": ["dominio_proprio", "api_integracoes", "suporte_prioritario"],
-    "sem_limite": ["veiculos", "filiais", "usuarios"]
+    "titulo": "Precisa de mais veículos ou filiais?",
+    "plano": { "id": 3, "nome": "Completo", "preco_mensal_centavos": 89900 },
+    "itens": ["Veículos, filiais e usuários sem limite", "Implantação acompanhada por chamada", "Suporte prioritário"]
   },
-  "acoes": { "mudar_plano": true, "escolher_forma_pagamento": true, "editar_dados_fiscais": true, "cancelar": false }
+  "acoes": { "mudar_plano": true, "desfazer_mudanca_plano": false, "escolher_forma_pagamento": true, "editar_dados_fiscais": true, "cancelar": false }
 }
 ```
 
 - `teste.inicio` é novo (a tabela de faturas mostra a linha do teste com essa data). `teste` é `null` fora de `em_teste`.
-- **`proxima_fatura`** é o que a tela mostra em "R$ 449,00 por mês, a partir de …". A 1ª fatura vence **no dia seguinte ao fim do teste** (`PLT-01`): Moto Rápida, teste de 07 a 21 out, vence em **22 out**. A referência diz "a partir de 21 out" e erra: vale a regra (a tela mostra `proxima_fatura.vencimento`, correção pedida ao design-system). Com um downgrade agendado, `valor_centavos` já é o do plano menor. `null` em `pausada` e `cancelada`. A descrição segue o período da fatura [D-2].
-- **`plano_proximo`**: `{ "id", "nome", "vale_em": "2026-11-22" }` quando há downgrade agendado (`PLT-04`); senão `null`. A tela mostra "Muda para Essencial em 22 nov" com `vale_em`.
-- **`forma_pagamento`**:
+- **`status`** segue a tabela de estados: a empresa fica `em_teste` até `teste.fim`, **mesmo com a forma escolhida ou a 1ª fatura paga** (`PLT-01`, U1). Com isso continuam a faixa "Teste grátis até 21 out", os avisos da `IMP-06` e a troca livre de plano (CA-ASS-02, CA-ASS-03).
+- **`proxima_fatura`** é o que a tela mostra em "R$ 449,00 por mês, a partir de …": a próxima fatura do período (`tipo = mensalidade`) ainda não paga, ou a que ainda vai nascer. A 1ª fatura vence **no dia seguinte ao fim do teste** (`PLT-01`): Moto Rápida, teste de 07 a 21 out, vence em **22 out** (a referência diz 21 out e erra; correção na T-188). Com a FAT-0001 já paga no teste, a próxima é a de 22 nov ("Plano Profissional · 22 nov a 21 dez"). Com um downgrade ou mudança de ciclo agendados, `valor_centavos` e `descricao` já são os do que vale na virada. `null` em `pausada` e `cancelada` (o que a T-194 mostra no lugar fica no contrato dela).
+- **`plano_proximo`**: `{ "id", "nome", "ciclo", "vale_em": "2026-11-22" }` quando há downgrade (`PLT-04`) ou mudança de ciclo pela equipe agendados; senão `null`. A tela mostra "Muda para Essencial em 22 nov" com `vale_em`.
+- **`forma_pagamento`** (`PLT-13`):
   - `forma`: `cartao`, `pix_automatico`, `boleto` ou `null`.
   - `cartao`: `{ "bandeira": "visa", "final": "4242" }` quando já há cartão guardado no parceiro; senão `null`. O Giro nunca tem o número do cartão (ADR 0023).
   - `situacao.codigo`, na ordem (a primeira que valer):
 
-    | `codigo` | Quando | `rotulo` (exemplo) | `tom` |
+    | `codigo` | Quando | `rotulo` | `tom` |
     | --- | --- | --- | --- |
-    | `sem_forma` | `forma` nula | "Nenhuma cadastrada. Escolha até 21 out para não perder o acesso." (em teste; fora dele, "Nenhuma cadastrada.") | `alerta` |
+    | `sem_forma` | `forma` nula | em teste: "Nenhuma cadastrada. Escolha até 21 out para não perder o acesso."; fora dele: "Nenhuma cadastrada." | `alerta` |
     | `aguardando_autorizacao` | Pix automático pedido e ainda não autorizado no banco | "Autorize o Pix automático no app do seu banco." | `alerta` |
-    | `cartao_recusado` | a última cobrança no cartão foi recusada (`PLT-02`) | "O cartão foi recusado. Tentamos de novo amanhã." | `perigo` |
-    | `cartao_na_primeira_fatura` | cartão escolhido e ainda sem cartão guardado [D-6] | "Você cadastra o cartão ao pagar a primeira fatura." | `info` |
-    | `ativa` | resto | "Cartão Visa final 4242 · cobrança automática todo mês", "Pix automático autorizado", "Boleto enviado por e-mail 5 dias antes" [D-7] | `sucesso` |
-  - `prazo`: último dia para escolher sem perder o acesso = `teste.fim` em `em_teste` [D-1]; `null` fora do teste.
-- **`dados_fiscais`**: ver `PATCH /api/assinatura/dados-fiscais/`. CNPJ só com dígitos.
-- **`oferta`** é o cartão "Precisa de NF-e ou domínio próprio?": o primeiro plano ativo acima do atual pela `ordem`, com os `recursos` dele que o atual não tem e os limites que ele não tem (`sem_limite`). `null` quando a empresa já está no plano mais alto (Completo) ou não há plano acima. O texto do cartão é montado só com o que vier aqui; a referência cita "emissão de notas" e "portal do cliente", que não existem nos recursos, e "assinatura digital", que já é do Profissional (`contrato_digital`) [D-10].
-- **`acoes`** já cruza perfil, estado da empresa e a tabela acima; o frontend mostra só o que vier `true`. `cancelar` fica `false` até o contrato da `PLT-06` (produto): o link "Cancelar assinatura" fica como a T-170 deixou.
+    | `cartao_recusado` | a última cobrança no cartão foi recusada (`PLT-02`) | 1ª recusa: "O cartão foi recusado. Tentamos de novo amanhã."; 2ª: "O cartão foi recusado de novo. Pague a fatura por Pix ou boleto." | `perigo` |
+    | `cartao_na_primeira_fatura` | `cartao` escolhido e ainda sem cartão guardado | "Você cadastra o cartão ao pagar a primeira fatura." | `info` |
+    | `ativa` | resto | "Cartão Visa final 4242 · cobrança automática todo mês", "Pix automático autorizado", "Boleto enviado por e-mail 5 dias antes" | `sucesso` |
+  - `prazo`: último dia para escolher a forma sem a empresa ir a `suspensa` no dia seguinte = `teste.fim`, só em `em_teste` com `forma` nula; senão `null`. Escolher a forma **não** muda o `status` (U1): ela só evita a suspensão no fim do teste e deixa a 1ª fatura seguir a régua.
+- **`dados_fiscais`** (`PLT-15`): ver `PATCH /api/assinatura/dados-fiscais/`. CNPJ só com dígitos. `endereco` é `null` até o administrador preencher (a compra não pede endereço).
+- **`oferta`** é o cartão do plano acima (`PLT-11`): o primeiro plano ativo acima do atual pela `ordem`. `titulo` é sempre "Precisa de mais veículos ou filiais?"; `itens` são os textos prontos do que o plano acima inclui e o atual não, na ordem da tabela da `PLT-11`, montados pela API a partir do catálogo (a mesma fonte da `Compra-Planos` e da `Plat-Planos`). Nunca citam NF-e, domínio próprio, portal do cliente, API e integrações nem contrato digital como extra (CA-ASS-20, CA-ASS-21). `null` quando a empresa já está no Completo ou não há plano ativo acima. O frontend não monta texto de recurso: mostra `titulo`, `plano.nome`, o preço e os `itens`, e "Ver planos" abre a lista de `GET /api/assinatura/planos/`.
 
-Caso do seed: Moto Rápida em 07 out → `proxima_fatura` 22 out, 44900, `forma` nula com `sem_forma` e prazo 21 out, `oferta` Completo, `acoes` todas `true` menos `cancelar`.
+  | Plano atual | `oferta.plano` | `itens` |
+  | --- | --- | --- |
+  | Essencial | Profissional | "Vendas, manutenção e despesas", "Pix e boleto automáticos, cobrança pelo WhatsApp", "Comissão de vendedores e relatórios", "Até 150 veículos, 3 filiais e 10 usuários" |
+  | Profissional | Completo | "Veículos, filiais e usuários sem limite", "Implantação acompanhada por chamada", "Suporte prioritário" |
+  | Completo | — | `oferta: null` |
+
+  Os textos de cada plano ficam num só lugar no backend (o catálogo da `PLT-11`, `plataforma/catalogo.py`, função pura), com teste que confere a tabela da regra. Quando o produto mudar a `PLT-11`, muda só esse arquivo.
+- **`acoes`** já cruza perfil, estado da empresa e a tabela acima; o frontend mostra só o que vier `true`. `desfazer_mudanca_plano` vem `true` com downgrade agendado pelo administrador. `cancelar` (e `pausar`) ficam no contrato da T-194; até ele, `cancelar: false` e o link "Cancelar assinatura" fica como a T-170 deixou.
+
+Caso do seed: Moto Rápida em 07 out → `status` `em_teste`, `proxima_fatura` 22 out, 44900, `forma` nula com `sem_forma` e prazo 21 out, `endereco` nulo, `email_cobranca` igual ao e-mail da Mariana, `oferta` Completo com os 3 itens, `acoes` todas `true` menos `desfazer_mudanca_plano` e `cancelar`.
 
 ---
 
@@ -101,7 +111,7 @@ Administrador. "Mudar de plano" e "Comparar planos" abrem a mesma lista. Sem pag
     { "id": 1, "nome": "Essencial", "ordem": 1, "atual": false,
       "preco_mensal_centavos": 19900, "preco_anual_centavos": 199000,
       "limite_veiculos": 30, "limite_filiais": 1, "limite_usuarios": 3,
-      "recursos": ["locacoes_vistoria", "contas_receber"],
+      "itens": ["Locação, vistoria e contas a receber", "Contrato digital, assinado pelo cliente no celular", "Sua marca e seu endereço de acesso"],
       "mudanca": "downgrade",
       "cabe": false,
       "excede": { "veiculos": { "usado": 86, "limite": 30 }, "usuarios": { "usado": 5, "limite": 3 } } },
@@ -109,14 +119,15 @@ Administrador. "Mudar de plano" e "Comparar planos" abrem a mesma lista. Sem pag
     { "id": 3, "nome": "Completo", "ordem": 3, "atual": false,
       "preco_mensal_centavos": 89900, "preco_anual_centavos": 899000,
       "limite_veiculos": null, "limite_filiais": null, "limite_usuarios": null,
-      "recursos": ["...todos..."], "mudanca": "upgrade", "cabe": true, "excede": {} }
+      "itens": ["Tudo do Profissional", "Veículos, filiais e usuários sem limite", "Implantação acompanhada por chamada", "Suporte prioritário"],
+      "mudanca": "upgrade", "cabe": true, "excede": {} }
   ] }
 ```
 
 - Só planos `ativo=true`, mais o plano atual mesmo se desativado (`PLT-05`: quem já assina continua).
-- Preço mostrado é o de **tabela**; o atual mostra também `preco_contratado_centavos` (pode ser diferente, `PLT-05`).
-- `mudanca`: `upgrade` se o plano tem `ordem` maior, `downgrade` se menor, `null` no atual. `cabe` e `excede` usam a mesma contagem do `uso` (`PLT-03`, `PLT-04`): Moto Rápida não cabe no Essencial (86 de 30 veículos, 5 de 3 usuários; 1 filial cabe).
-- Os rótulos dos `recursos` são os mesmos da `Compra-Planos`, no frontend (lista fechada em `plataforma.md`, "Planos").
+- Preço mostrado é o de **tabela**; o atual mostra também `preco_contratado_centavos` (pode ser diferente, `PLT-05`). A comparação é no ciclo atual (`PLT-04`, CA-ASS-18); `preco_anual_centavos` vem para a tela mostrar o anual como informação.
+- `itens`: os textos da `PLT-11` ("O que inclui"), do mesmo catálogo da `oferta`, separados em itens. Substituem a lista de códigos de `recursos` nesta rota; o código do módulo que o plano liga fica no backend (ADR da T-192).
+- `mudanca`: `upgrade` se o plano tem `ordem` maior, `downgrade` se menor, `null` no atual. `cabe` e `excede` usam a mesma contagem do `uso` (`PLT-03`, `PLT-04`): Moto Rápida não cabe no Essencial (86 de 30 veículos, 5 de 3 usuários; 1 filial cabe). O que fica aberto nos módulos que saem (`PLT-12`) entra em `excede` pela ADR da T-192 (CA-ASS-24).
 
 ## POST /api/assinatura/mudanca-plano/simular/
 
@@ -124,7 +135,7 @@ Administrador. Não grava nada (ADR 0005). Corpo: `{ "plano_id": 3, "ciclo": "me
 
 200:
 ```json
-{ "tipo": "upgrade", "vale_em": "2026-10-07",
+{ "tipo": "upgrade", "vale_em": "2026-10-10",
   "preco_novo_centavos": 89900,
   "diferenca_centavos": 0,
   "fatura_diferenca": null,
@@ -132,11 +143,14 @@ Administrador. Não grava nada (ADR 0005). Corpo: `{ "plano_id": 3, "ciclo": "me
   "mensagem": "O plano Completo vale agora. A primeira fatura, em 22 out, fica em R$ 899,00." }
 ```
 
-- **Upgrade** (`PLT-04`): vale na hora.
-  - Em `em_teste`: não há cobrança; muda o plano, o `preco_contratado_centavos` passa ao preço de tabela do plano novo (`PLT-05`: é assinatura nova) e a 1ª fatura (ainda `aberta`, sem cobrança no parceiro ou com a cobrança refeita) passa ao valor novo.
-  - Em `ativa`: cobra a diferença proporcional [D-3]. Recomendação: `(preço novo − preço contratado) × dias que faltam no período ÷ dias do período`, contando o dia da mudança, `ROUND_HALF_UP` no centavo (ADR 0009), numa **fatura avulsa** (`tipo = diferenca_plano`) que vence em 3 dias, cobrada pela forma cadastrada (no cartão, cobra na hora). Ex. com essa opção: período de 22 out a 21 nov (31 dias), mudança de Profissional para Completo em 01 nov → 45000 × 21 ÷ 31 = 30483,87 → **30484** (R$ 304,84). `fatura_diferenca` traz `{ "valor_centavos": 30484, "vencimento": "2026-11-04" }`.
-- **Downgrade** (`PLT-04`): só se o uso couber; vale na próxima fatura. Não cabe → 422 (abaixo). Cabe → `tipo: "downgrade"`, `vale_em` = vencimento da próxima fatura, `diferenca_centavos: 0`, `mensagem` "O plano Essencial vale a partir de 22 nov. Até lá, você continua no Profissional." Em `em_teste`, o downgrade vale na hora (não há fatura paga a respeitar) e a 1ª fatura passa ao valor novo [D-3].
-- **Ciclo** diferente do atual (mensal ↔ anual): 422 `{ "codigo": "mudanca_ciclo", "mensagem": "Para mudar entre mensal e anual, fale com o suporte." }` até o produto decidir [D-4].
+O plano novo entra pelo preço de tabela dele no ciclo da empresa, que vira o `preco_contratado_centavos` (`PLT-04`, `PLT-05`).
+
+- **No teste com a 1ª fatura em aberto** (`em_teste`, FAT-0001 não paga): troca livre e sem cobrança. Upgrade e downgrade valem na hora (o downgrade também só se couber); a 1ª fatura passa ao valor do plano novo (a cobrança dela, se já emitida no parceiro, é refeita com o valor novo); o teste não reinicia nem muda de data. CA-ASS-13: Moto Rápida para o Completo em 10 out → `tipo: "upgrade"`, `vale_em` 10 out, `diferenca_centavos: 0`, FAT-0001 a 89900.
+- **Upgrade com período pago** (`ativa`, ou `em_teste` com a 1ª fatura já paga): vale na hora e cobra a diferença proporcional (`PLT-04`): `(preço novo − preço contratado) × dias que faltam no período ÷ dias do período`, contando o dia da mudança, com o preço do ciclo da empresa, em `Decimal`, `ROUND_HALF_UP` uma vez no centavo (ADR 0009). O período é o da fatura paga que está correndo (no teste com a 1ª já paga, o da 1ª fatura; antes de ele começar, "dias que faltam" é o período inteiro). A diferença vai numa **fatura avulsa** (`tipo = diferenca_plano`) que vence em 3 dias, cobrada pela forma cadastrada (no cartão guardado, cobrada na hora). `fatura_diferenca`: `{ "valor_centavos": 30484, "vencimento": "2026-11-04", "descricao": "Mudança para o plano Completo · 01 a 21 nov" }`.
+  - CA-ASS-14: período de 22 out a 21 nov (31 dias), Profissional para Completo em 01 nov → 45000 × 21 ÷ 31 = 30483,87 → **30484** (R$ 304,84), vence 04 nov; a fatura de 22 nov já vem com 89900.
+  - No teste com a FAT-0001 paga em 18 out e o upgrade em 19 out: 45000 × 31 ÷ 31 = **45000**, "Mudança para o plano Completo · 22 out a 21 nov", vence em 22 out; a empresa continua `em_teste` até 21 out.
+- **Downgrade com período pago**: só se o uso couber (limites e módulos, `PLT-03`, `PLT-12`); não cabe → 422 (abaixo). Cabe → `tipo: "downgrade"`, `vale_em` = vencimento da próxima fatura, `diferenca_centavos: 0`, `mensagem` "O plano Essencial vale a partir de 22 nov. Até lá, você continua no Profissional." Nada é cobrado nem devolvido (CA-ASS-16).
+- **Ciclo** diferente do atual (mensal ↔ anual): 422 `{ "codigo": "mudanca_ciclo", "mensagem": "Para mudar entre mensal e anual, fale com o suporte." }` (`PLT-04`, CA-ASS-18). A equipe muda pela plataforma (ver "Mudança de ciclo e reativação pela equipe").
 - Mesmo plano e ciclo: 422 `{ "codigo": "mesmo_plano", "mensagem": "Este já é o seu plano." }`.
 - Plano inativo (que não é o atual): 404.
 
@@ -147,25 +161,28 @@ Administrador. Mesmo corpo do simular, mais `"confirmar_valor_centavos"` = `dife
 200: o corpo de `GET /api/assinatura/` já atualizado.
 
 Erros:
-- 422 `{ "codigo": "PLT-04", "mensagem": "Seu uso não cabe no plano Essencial. Desative veículos ou usuários antes de mudar.", "detalhes": { "veiculos": { "usado": 86, "limite": 30 }, "usuarios": { "usado": 5, "limite": 3 } } }`.
-- 409 `transicao_empresa` "Pague a fatura em atraso antes de mudar de plano." (`inadimplente`, `suspensa`) [D-5].
+- 422 `{ "codigo": "PLT-04", "mensagem": "Seu uso não cabe no plano Essencial. Desative veículos ou usuários antes de mudar.", "detalhes": { "veiculos": { "usado": 86, "limite": 30 }, "usuarios": { "usado": 5, "limite": 3 } } }` (CA-ASS-15). Os grupos abertos dos módulos que saem (`PLT-12`) entram em `detalhes` pela ADR da T-192.
+- 409 `{ "codigo": "transicao_empresa", "mensagem": "Pague a fatura em atraso antes de mudar de plano." }` em `inadimplente` e `suspensa` (`PLT-04`, CA-ASS-17).
+- 409 `{ "codigo": "transicao_empresa", "mensagem": "Já existe uma mudança agendada para 22 nov. Desfaça antes de escolher outra." }` com `plano_proximo` preenchido e outro downgrade pedido. Um upgrade com downgrade agendado desfaz o agendamento e segue como upgrade.
 - 422 `mudanca_ciclo`, `mesmo_plano` como no simular.
 
-Serviço único `plataforma.services.mudar_plano(empresa, plano, ciclo, por, motivo=None)`, o mesmo da ação `mudar-plano` do painel da plataforma (`plataforma.md`, "Ações sobre a empresa"). Trava a `Empresa` e o `UsoEmpresa` (`SELECT ... FOR UPDATE`) para a conta do uso e a mudança serem da mesma foto. Downgrade grava `plano_proximo`; a tarefa da virada da fatura aplica. Auditoria `empresa.mudar_plano` no `public` (categoria cobrança) e na auditoria da empresa (categoria configurações), com plano antigo, novo, ciclo e a diferença.
+Serviço único `plataforma.services.mudar_plano(empresa, plano, ciclo, por, motivo=None)`, o mesmo da ação `mudar-plano` do painel da plataforma (`plataforma.md`, "Ações sobre a empresa"). Trava a `Empresa` e o `UsoEmpresa` (`SELECT ... FOR UPDATE`) para a conta do uso e a mudança serem da mesma foto. Downgrade grava `plano_proximo`; a tarefa `gerar_faturas` aplica na virada. Auditoria `empresa.mudar_plano` no `public` (categoria cobrança) e na auditoria da empresa (categoria configurações), com plano antigo, novo, ciclo e a diferença. Teste com o código: `test_plt_04_upgrade_em_teste`, `test_plt_04_upgrade_proporcional`, `test_plt_04_upgrade_no_teste_com_primeira_paga`, `test_plt_04_downgrade_nao_cabe`, `test_plt_04_downgrade_agendado_e_desfeito`.
 
 ## DELETE /api/assinatura/mudanca-plano/
 
-Administrador. Desfaz o downgrade agendado (`plano_proximo` → nulo) [D-5]. 200 com o corpo de `GET /api/assinatura/`. Sem downgrade agendado: 404.
+Administrador. Desfaz o downgrade agendado (`plano_proximo` → nulo) até a véspera de `vale_em` (`PLT-04`). 200 com o corpo de `GET /api/assinatura/`; a próxima fatura volta ao valor de antes (CA-ASS-16: desfeito em 10 nov, a de 22 nov volta a 89900). Sem downgrade agendado, ou com a mudança de ciclo feita pela equipe (só a equipe desfaz): 404. Auditoria `empresa.desfazer_mudanca_plano` nos dois lugares.
+
+**Downgrade agendado que deixa de caber** (ponto em aberto da T-190, padrão A): se na virada o uso não couber mais no plano menor (limites ou módulos), `gerar_faturas` não aplica o downgrade, limpa `plano_proximo`, gera a fatura no plano atual e manda e-mail ao administrador e ao e-mail de cobrança com o motivo (o mesmo `detalhes` da 422 `PLT-04`). Auditoria `empresa.mudar_plano_recusado` (ator `sistema`, regra `PLT-04`).
 
 ---
 
 ## PUT /api/assinatura/forma-pagamento/
 
-Administrador. Corpo: `{ "forma": "cartao" | "pix_automatico" | "boleto" }`. Os dados do cartão **nunca** passam pelo Giro (ADR 0023); não há campo de cartão neste corpo.
+Administrador (`PLT-13`). Corpo: `{ "forma": "cartao" | "pix_automatico" | "boleto" }`. Os dados do cartão **nunca** passam pelo Giro (ADR 0023); não há campo de cartão neste corpo.
 
 200:
 ```json
-{ "forma_pagamento": { "forma": "pix_automatico", "situacao": { "codigo": "aguardando_autorizacao", "...": "..." }, "cartao": null, "prazo": "2026-10-21" },
+{ "forma_pagamento": { "forma": "pix_automatico", "situacao": { "codigo": "aguardando_autorizacao", "...": "..." }, "cartao": null, "prazo": null },
   "proximo_passo": { "tipo": "autorizar_pix", "pix_copia_e_cola": "000201...", "expira_em": "2026-10-08T15:00:00Z" } }
 ```
 
@@ -173,12 +190,12 @@ Administrador. Corpo: `{ "forma": "cartao" | "pix_automatico" | "boleto" }`. Os 
 
 | Forma | O que o backend faz | `proximo_passo` |
 | --- | --- | --- |
-| `boleto` | grava a forma. O boleto de cada fatura é criado no parceiro N dias antes do vencimento e vai para o `email_cobranca` [D-7]. | `null` |
+| `boleto` | grava a forma. O boleto (com Pix) de cada fatura é criado no parceiro 5 dias antes do vencimento e vai por e-mail nesse dia (`PLT-02`). | `null` |
 | `pix_automatico` | cria a autorização recorrente na conta principal (`criar_autorizacao_recorrente`, frequência do ciclo, valor = `preco_contratado_centavos`). A forma fica `aguardando_autorizacao` até o webhook confirmar. | `{ "tipo": "autorizar_pix", "pix_copia_e_cola", "expira_em" }`; o frontend desenha o QR a partir do copia e cola (como na T-029). |
-| `cartao` | grava a forma. O cartão é digitado **na página do parceiro**, ao pagar uma fatura; o parceiro guarda o cartão, e as faturas seguintes são cobradas nele sem passar pela tela [D-6]. Se há fatura `aberta` ou `atrasada` agora, devolve o link dela. | `{ "tipo": "pagina_parceiro", "url": "https://...", "fatura": "FAT-0001" }` ou `null` (em teste, com a 1ª fatura ainda longe [D-6]) |
+| `cartao` | grava a forma. O cartão é digitado **na página do parceiro** ao pagar a 1ª fatura (o link vai no lembrete do D-3 e no "Pagar"); o parceiro guarda o cartão, e as faturas seguintes são cobradas nele no dia do vencimento, sem passar pela tela (`PLT-13`). Se há fatura `aberta` com cobrança já emitida ou `atrasada` agora, devolve a página dela. | `{ "tipo": "pagina_parceiro", "url": "https://...", "fatura": "FAT-0001" }` ou `null` (a 1ª fatura ainda sem cobrança emitida) |
 
-- Trocar de forma cancela a anterior no parceiro: autorização do Pix automático cancelada (`cancelar_autorizacao`) e token do cartão esquecido. Cobranças já emitidas de faturas abertas continuam valendo até o vencimento; a próxima sai pela forma nova.
-- `em_teste` → `ativa` quando a forma fica cadastrada [D-1]. Com boleto, na hora; com Pix automático, quando o banco autoriza; com cartão, como decidido em [D-6].
+- **A forma não muda o estado da empresa** (`PLT-13`, tabela de estados): `em_teste` continua `em_teste`, `suspensa` continua `suspensa` até pagar. CA-ASS-02.
+- **A troca vale para a próxima cobrança e para a fatura em aberto** (`PLT-13`, CA-ASS-26). Trocar de forma cancela a anterior no parceiro: autorização do Pix automático cancelada (`cancelar_autorizacao`) e token do cartão esquecido. Fatura `aberta` ou `atrasada` com cobrança já emitida em outra forma: a cobrança antiga é cancelada no parceiro e a nova sai pela forma nova (na emissão, ou no "Pagar"). Se o parceiro disser que a antiga já foi paga, nada é cancelado e a baixa segue pelo webhook.
 - Parceiro fora do ar: 503 `{ "codigo": "parceiro_indisponivel", "mensagem": "Não conseguimos falar com o parceiro de pagamento. Tente de novo em alguns minutos." }` (o mesmo da T-029), nada gravado. Parceiro recusou: 422 `parceiro_recusou` com o motivo.
 - Auditoria `assinatura.forma_pagamento` (forma antiga e nova; nunca token nem dado do cartão), nos dois lugares.
 
@@ -186,7 +203,7 @@ Administrador. Corpo: `{ "forma": "cartao" | "pix_automatico" | "boleto" }`. Os 
 
 ## GET /api/assinatura/faturas/
 
-Administrador. Lista da tabela "Faturas", da mais nova para a mais antiga, 25 por página. `?status=aberta|paga|atrasada|cancelada`.
+Administrador. Lista da tabela "Faturas" (`PLT-14`), da mais nova para a mais antiga, 25 por página. `?status=aberta|paga|atrasada|cancelada`.
 
 ```json
 { "resultados": [
@@ -194,77 +211,120 @@ Administrador. Lista da tabela "Faturas", da mais nova para a mais antiga, 25 po
       "descricao": "Plano Profissional · 22 out a 21 nov", "periodo": { "inicio": "2026-10-22", "fim": "2026-11-21" },
       "valor_centavos": 44900, "status": "aberta", "forma": null, "pago_em": null,
       "situacao": { "codigo": "sem_forma", "rotulo": "Sem forma de pagamento", "tom": "alerta" },
-      "acoes": { "pagar": false, "recibo": false } },
+      "acoes": { "pagar": false, "recibo": false, "nota_fiscal": false } },
     { "tipo": "teste", "codigo": null, "vencimento": "2026-10-07",
       "descricao": "Teste grátis de 14 dias", "periodo": { "inicio": "2026-10-07", "fim": "2026-10-21" },
       "valor_centavos": 0, "status": null, "forma": null, "pago_em": null,
       "situacao": { "codigo": "teste_ativo", "rotulo": "Ativo", "tom": "info" },
-      "acoes": { "pagar": false, "recibo": false } }
+      "acoes": { "pagar": false, "recibo": false, "nota_fiscal": false } }
   ],
   "proximo": null, "anterior": null }
 ```
 
 - A linha do teste não é uma `FaturaAssinatura`: a API a acrescenta no fim da lista (última página) com os dados do teste, `tipo: "teste"`. Depois do teste, `situacao` `teste_concluido` "Concluído", `neutro`. Empresa que não passou por teste não tem a linha.
-- A 1ª fatura existe desde a criação da empresa (`criar_empresa`, `aberta`, vencimento `teste_fim + 1`, valor do plano), como já mostra `faturas_recentes` no painel da plataforma. Estender o teste (`plataforma.md`) move o vencimento e o período dela.
+- A 1ª fatura existe desde a criação da empresa (`criar_empresa`, `aberta`, vencimento `teste_fim + 1`, valor do plano, `PLT-01`, `PLT-14`), e `faturas_recentes` do painel da plataforma lê as mesmas faturas. Estender o teste (`plataforma.md`) move o vencimento e o período dela, e o dia de vencimento das seguintes.
 - `situacao`, na ordem:
 
   | `codigo` | Quando | `rotulo` | `tom` |
   | --- | --- | --- | --- |
   | `paga` | `paga` | "Paga em 22 out" | `sucesso` |
   | `cancelada` | `cancelada` | "Cancelada" | `neutro` |
+  | `cartao_recusado` | aberta ou atrasada com a última tentativa no cartão recusada | 1ª recusa: "Cartão recusado · nova tentativa amanhã"; 2ª: "Cartão recusado · pague por Pix ou boleto" | `perigo` |
   | `atrasada` | `atrasada` | "12 dias atrasada" | `perigo` |
-  | `cartao_recusado` | aberta ou atrasada com a última tentativa no cartão recusada | "Cartão recusado · nova tentativa amanhã" | `perigo` |
   | `sem_forma` | aberta e a empresa sem forma | "Sem forma de pagamento" | `alerta` |
   | `aguardando` | aberta com forma | "Vence em 22 out" (ou "Vence hoje") | `info` |
 
-- `descricao`: "Plano <nome> · <início> a <fim do período>" (mensal) ou "Plano <nome> anual · out 2026 a out 2027"; a fatura de diferença, "Mudança para o plano Completo · 01 a 21 nov" [D-2], [D-3]. A referência mostra "outubro a novembro"; o período exato depende de [D-2].
-- `acoes.pagar`: `aberta` ou `atrasada`, a empresa tem forma, e o estado permite (tabela do início). `acoes.recibo`: `paga`.
-- `forma`: a forma pela qual foi paga (`cartao`, `pix`, `boleto`); `null` em aberto.
+- `descricao` (`PLT-14`): "Plano Profissional · 22 out a 21 nov" (mensal), "Plano Profissional anual · out 2026 a out 2027" (anual), "Mudança para o plano Completo · 01 a 21 nov" (diferença do upgrade). Mês com o mesmo dia, como "22 out a 21 nov"; meses diferentes dentro do texto não levam o ano, salvo no anual.
+- `acoes.pagar`: `aberta` ou `atrasada` e o estado permite (tabela do início). Sem forma cadastrada, `pagar` vem `false` na `aberta` que ainda não venceu e `true` na `atrasada` e em qualquer fatura da `suspensa` (o corpo de `pagar/` escolhe o meio). `acoes.recibo`: `paga`. `acoes.nota_fiscal`: `paga` com a nota `emitida` (`PLT-15`).
+- `forma`: o meio pelo qual foi paga (`cartao`, `pix`, `boleto`); `null` em aberto.
 
 ## GET /api/assinatura/faturas/{codigo}/
 
 Administrador. Uma linha do formato acima, mais:
-- `cobranca`: `{ "forma": "boleto", "linha_digitavel": "...", "url_boleto": "https://...", "pix_copia_e_cola": null, "url_pagina": null, "vencimento": "2026-10-22" }` quando há cobrança emitida no parceiro; senão `null`.
+- `cobranca`: `{ "forma": "boleto", "linha_digitavel": "...", "url_boleto": "https://...", "pix_copia_e_cola": "...", "url_pagina": null, "vencimento": "2026-10-22" }` quando há cobrança emitida no parceiro; senão `null`.
 - `recibo_url`: comprovante do parceiro quando `paga`; senão `null`. É link do parceiro com validade dele; o Giro não gera PDF de recibo no MVP.
+- `nota_fiscal` (`PLT-15`): `{ "situacao": "emitida" | "processando" | "erro", "numero": "2026/118", "url": "https://..." }` quando a emissão foi pedida ao parceiro; `null` antes disso e enquanto a emissão estiver desligada (ver "Nota fiscal da assinatura"). `erro` não mostra o motivo do parceiro ao administrador ("A nota está com a equipe Giro."); a equipe vê pelo Django Admin.
 
 `codigo` de outra empresa: 404.
 
 ## POST /api/assinatura/faturas/{codigo}/pagar/
 
-Administrador. Para pagar agora uma fatura `aberta` ou `atrasada` (o botão aparece com `acoes.pagar`). Sem corpo: usa a forma cadastrada.
+Administrador. Para pagar agora uma fatura `aberta` ou `atrasada` (o botão aparece com `acoes.pagar`). Corpo opcional: `{ "meio": "cartao" | "pix" | "boleto" }`.
 
-200: o `cobranca` do detalhe, já emitido. Para `cartao`, `url_pagina` é a página do parceiro onde o cartão é digitado (e fica guardado para as próximas, ADR 0023). Para `pix_automatico`, a cobrança avulsa por Pix da fatura (a autorização recorrente só cobra no vencimento). Se já existe cobrança válida no parceiro, devolve a mesma; não cria duas (como a T-029 faz nas contas a receber).
+- Sem `meio`, usa a forma cadastrada: `cartao` → página do parceiro; `pix_automatico` → Pix avulso da fatura (a autorização recorrente só cobra no vencimento); `boleto` → boleto com Pix.
+- Com `meio`, paga por outro meio **sem trocar a forma cadastrada**: é o caminho da `PLT-02` depois da 2ª recusa do cartão (CA-ASS-12) e o da `suspensa` sem forma (CA-ASS-27). Para mudar a forma das próximas, `PUT forma-pagamento/`.
 
-Erros: 409 `{ "codigo": "fatura_nao_pagavel", "mensagem": "Esta fatura já foi paga ou cancelada." }`; 422 `{ "codigo": "sem_forma_pagamento", "mensagem": "Escolha a forma de pagamento antes." }`; 503 `parceiro_indisponivel`; 422 `parceiro_recusou`.
+200: o `cobranca` do detalhe, já emitido. Para `cartao`, `url_pagina` é a página do parceiro onde o cartão é digitado (e fica guardado para as próximas, ADR 0023). Se já existe cobrança válida no parceiro no mesmo meio, devolve a mesma; não cria duas (como a T-029 faz nas contas a receber). Em outro meio, cancela a antiga no parceiro antes de criar a nova (uma cobrança viva por fatura).
 
-A baixa **nunca** vem desta rota: vem do webhook (`financeiro.md`, "Webhooks", "O mesmo fluxo vale para a `FaturaAssinatura`"), que consulta a cobrança no parceiro antes de baixar. Fatura paga → `paga`, `pago_em`, `forma`; `inadimplente` ou `suspensa` sem outra fatura atrasada → `ativa` na hora (tabela de estados); auditoria `fatura_assinatura.pagar` (ator `sistema`, regra `PLT-02`).
+Erros: 409 `{ "codigo": "fatura_nao_pagavel", "mensagem": "Esta fatura já foi paga ou cancelada." }`; 422 `{ "codigo": "sem_forma_pagamento", "mensagem": "Escolha a forma de pagamento antes." }` (sem forma e sem `meio`); 503 `parceiro_indisponivel`; 422 `parceiro_recusou`.
+
+A baixa **nunca** vem desta rota: vem do webhook (`financeiro.md`, "Webhooks", "O mesmo fluxo vale para a `FaturaAssinatura`"), que consulta a cobrança no parceiro antes de baixar. Fatura paga → `paga`, `pago_em`, `forma`, e daí não se edita (`PLT-14`). Efeito no estado da empresa (tabela de estados):
+- `em_teste`, 1ª fatura paga antes do fim do teste: continua `em_teste`; vira `ativa` no dia seguinte ao fim do teste (tarefa `virar_estados`, abaixo). Nenhuma mensagem da régua sai depois do pagamento (CA-ASS-03).
+- `em_teste` no dia do vencimento, `inadimplente` ou `suspensa`, sem outra fatura atrasada: `ativa` na hora (CA-ASS-04 a 06, CA-ASS-27).
+- Auditoria `fatura_assinatura.pagar` (ator `sistema`, regra `PLT-14`), e o pedido da NFS-e (abaixo).
 
 ---
 
 ## PATCH /api/assinatura/dados-fiscais/
 
-Administrador. Corpo (parcial): `{ "razao_social": "Moto Rápida Locações Ltda", "email_cobranca": "financeiro@motorapida.com.br" }`.
+Administrador (`PLT-15`). Corpo (parcial):
+```json
+{ "razao_social": "Moto Rápida Locações Ltda",
+  "endereco": { "cep": "60115170", "logradouro": "Av. Dom Luís", "numero": "500", "complemento": "Sala 3", "bairro": "Meireles", "cidade": "Fortaleza", "uf": "CE" },
+  "email_cobranca": "financeiro@motorapida.com.br" }
+```
 
-200: `{ "dados_fiscais": { "razao_social", "cnpj", "email_cobranca" } }`.
+200: `{ "dados_fiscais": { "razao_social", "cnpj", "endereco", "email_cobranca" } }`.
 
-- `email_cobranca` é campo novo da `Empresa`. Nasce igual ao e-mail do administrador da compra (`responsavel_email`). Recebe as faturas, o boleto, a régua da assinatura (`PLT-02`, `AUT-13`) e o comprovante. O WhatsApp da régua continua no `responsavel_telefone`.
-- `razao_social`: até 150 caracteres. É a mesma `Empresa.razao_social` do painel da plataforma e do bloco "Dados da empresa" da `Admin-Marca` (fora do contrato de `empresas.md`): uma só origem, no `public`. Mudar a razão social atualiza o cadastro do pagador no parceiro (conta principal) antes da próxima cobrança.
-- **CNPJ não muda por aqui**: o campo não é aceito (400 `validacao` "O CNPJ não muda por aqui. Fale com o suporte."). Trocar o CNPJ é trocar quem contrata, e fica com a equipe da plataforma [D-9].
-- A emissão da nota fiscal da assinatura (NFS-e do Giro para a empresa) não está nas regras [D-9]: até a decisão, o bloco só guarda e mostra os dados.
+- `email_cobranca` (`Empresa.email_cobranca`) nasce igual ao e-mail do administrador da compra (`responsavel_email`). Recebe as faturas, o boleto, a régua da assinatura (`PLT-02`, `AUT-13`), o comprovante e a NFS-e. A troca vale a partir da próxima mensagem (CA-ASS-29).
+- `razao_social`: até 150 caracteres. É a mesma `Empresa.razao_social` do painel da plataforma e do bloco "Dados da empresa" da `Admin-Marca`: uma só origem, no `public`.
+- `endereco`: o endereço da nota (`Empresa.endereco_*`), no formato do endereço da filial (`filiais.md`): CEP com 8 dígitos, UF da lista; `complemento` opcional, o resto obrigatório quando o bloco vem. A compra não pede endereço, e a empresa nasce com ele nulo. Sem endereço, a nota não é pedida ao parceiro (ver abaixo), e a tela mostra o bloco com o endereço vazio.
+- Mudar a razão social ou o endereço atualiza o pagador na conta principal (`criar_ou_atualizar_pagador`) antes da próxima cobrança e vale para as próximas notas; nota já emitida não muda.
+- **CNPJ não muda por aqui**: o campo não é aceito (400 `{ "codigo": "validacao", "campos": { "cnpj": "O CNPJ não muda por aqui. Fale com o suporte." } }`). Trocar o CNPJ é trocar quem contrata, e fica com a equipe Giro (`PLT-15`).
 - Auditoria `empresa.dados_fiscais` nos dois lugares, com antes e depois.
 
 ---
 
 ## Faturas, cobrança e régua (sem rota; para o backend)
 
-O que precisa existir no `public` para a tela mostrar dados reais. Não há rota nova da plataforma aqui; `Plat-Cobranca` continua na fase 2.
+O que precisa existir no `public` para a tela mostrar dados reais. As faturas de todas as empresas, do lado da equipe Giro, ficam no Django Admin até a `Plat-Cobranca` (fase 2; `plataforma.md`, "Faturas de todas as empresas", `PLT-14`).
 
 - **Conta principal** do Giro no parceiro (ADR 0007): `ContaPagamentoRef` sem subconta, chave do ambiente (`GIRO_ASAAS_CHAVE_API`), como a T-029 já deixou preparado (CA-029-18). O webhook da conta principal tem token próprio, guardado só como hash em configuração (`GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH`), e a view do webhook procura primeiro a `ContaPagamento` e, se o token for o da conta principal, trata como fatura da assinatura no `public`.
-- **Pagador**: cada empresa vira um cliente na conta principal (`cliente_externo_id` em `FormaPagamentoAssinatura`), com razão social, CNPJ e `email_cobranca`, criado na primeira cobrança, com as notificações do parceiro desligadas (as mensagens são do Giro).
-- **Geração das faturas** (tarefa diária `plataforma.gerar_faturas`, 06:00): cria a fatura do período seguinte quando a atual vence, com o `preco_contratado_centavos` (ou o do `plano_proximo`, que é aplicado nessa hora). Única por `(empresa, competencia)` para `tipo = mensalidade`.
-- **Emissão no parceiro** N dias antes do vencimento [D-7]: boleto (e e-mail), cobrança do Pix automático pela autorização (o parceiro pede de 2 a 10 dias úteis antes, ver T-029), cartão no dia do vencimento pelo token guardado.
-- **Régua `AUT-13`** às 09:00, pela `PLT-02`: D-3 lembrete por e-mail; D0 e-mail + WhatsApp; D+3 e-mail + WhatsApp; D+7 aviso de suspensão (e-mail e tarefa de ligação para a equipe, fase 2 a tela); D+15 suspensão. Cartão recusado: uma nova tentativa no dia seguinte (`tentativas_cartao`).
-- **Transições da empresa** pelo serviço de estados: fatura vencida sem pagamento → `inadimplente` (D+1); D+15 → `suspensa`; paga → `ativa`. Fim do teste sem forma cadastrada → `suspensa` no dia seguinte ao fim [D-1]. Cada transição grava auditoria no `public` e na empresa, e a `faixa_aviso` já existente passa a ter dados reais.
+- **Pagador**: cada empresa vira um cliente na conta principal (`cliente_externo_id` em `FormaPagamentoAssinatura`), com razão social, CNPJ, endereço e `email_cobranca`, criado na primeira cobrança, com as notificações do parceiro desligadas (as mensagens são do Giro).
+- **Dia de vencimento** (`PLT-01`): `Empresa.dia_vencimento` (1 a 31) nasce com o dia de `teste_fim + 1` e muda só quando a empresa volta da pausa ou é reativada pela equipe (o dia da volta, `PLT-06`) ou quando a equipe estende o teste. Em mês sem esse dia, vence no último dia do mês, e no mês seguinte volta ao `dia_vencimento` (CA-ASS-08: 31 jan, 28 fev, 31 mar). Cada fatura paga do vencimento até a véspera do vencimento seguinte; anual, do vencimento até a véspera do mesmo dia no ano seguinte, com 10 mensalidades (CA-ASS-09). `competencia` = mês do início do período. Função pura `plataforma.calendario.proximo_periodo(dia_vencimento, ciclo, inicio)`, com teste dos casos da `PLT-01`.
+- **Geração das faturas** (tarefa diária `plataforma.gerar_faturas`, 06:00): 5 dias antes do vencimento seguinte, cria a fatura do período seguinte com o `preco_contratado_centavos`, aplicando antes o que estiver agendado em `plano_proximo` (downgrade, ou ciclo pela equipe; o downgrade que deixou de caber não é aplicado, ver acima). Única por `(empresa, competencia)` para `tipo = mensalidade`. Não gera para `pausada` nem `cancelada`, nem para a empresa com cancelamento marcado cujo acesso acaba antes do período (T-194).
+- **Emissão no parceiro** (`PLT-02`), na mesma tarefa: 5 dias antes do vencimento, o boleto com Pix (e o e-mail nesse dia) ou a cobrança do Pix automático pela autorização (o parceiro pede de 2 a 10 dias úteis antes, ver T-029); com `cartao` e sem cartão guardado, a cobrança com a página do parceiro, cujo link vai no D-3 e no "Pagar". Cartão guardado: cobrado no dia do vencimento pelo token (`cobrar_cartao_salvo`), às 06:00.
+- **Cartão recusado** (`PLT-02`, U8): a tarefa grava `cartao_recusado_em` e soma `tentativas_cartao`; com 1 tentativa, cobra de novo uma vez no dia seguinte; com 2, não há outra tentativa automática, e a régua segue (CA-ASS-12). A empresa paga por outro meio com `pagar/` e `meio`. O teto de 2 fica numa constante com o código da regra, com teste `test_plt_02_cartao_uma_tentativa_a_mais`.
+- **Régua `AUT-13`** às 09:00, pela `PLT-02`: D-3 lembrete por e-mail; D0 e-mail + WhatsApp; D+3 e-mail + WhatsApp; D+7 aviso de suspensão (e-mail e tarefa de ligação para a equipe, a tela é fase 2); D+15 suspensão. Os e-mails vão para o `email_cobranca` e para os administradores ativos da empresa; o WhatsApp, para o `responsavel_telefone`. Fatura paga, cancelada, ou empresa `cancelada`: a régua para (`PLT-06`).
+- **Transições da empresa** (tarefa `plataforma.virar_estados`, 00:05, e o webhook), pelo serviço de estados, com auditoria no `public` e na empresa, e a `faixa_aviso` já existente passando a ter dados reais:
+
+  | De | Quando | Para |
+  | --- | --- | --- |
+  | `em_teste` | dia seguinte ao fim do teste, com a 1ª fatura paga | `ativa` |
+  | `em_teste` | 1ª fatura paga a partir do dia seguinte ao fim do teste | `ativa` na hora |
+  | `em_teste` | dia seguinte ao fim do teste, sem forma de pagamento | `suspensa` (CA-ASS-06) |
+  | `em_teste` | dia seguinte ao vencimento da 1ª fatura (D+1), com forma e sem pagamento | `inadimplente` (CA-ASS-05, CA-ASS-11) |
+  | `ativa` | D+1 de uma fatura sem pagamento | `inadimplente` |
+  | `inadimplente` | D+15 | `suspensa` |
+  | `inadimplente`, `suspensa` | fatura paga, sem outra atrasada | `ativa` na hora |
+
+  Com a FAT-0001 vencendo em 22 out: com forma e sem pagamento, `inadimplente` em 23 out e `suspensa` em 06 nov; sem forma, `suspensa` já em 22 out (CA-ASS-05, CA-ASS-06). A `suspensa` sem forma que paga depois volta a `ativa`, e a próxima fatura continua no `dia_vencimento` (22 nov).
+- **Faturas e cancelamento ou pausa**: o que acontece com a 1ª fatura, a fatura do período seguinte já emitida e a régua quando a empresa cancela ou pausa está no contrato da T-194 (`PLT-06`). Volta da pausa: `ativa` com uma fatura nova vencendo no dia da volta, e `dia_vencimento` passa a esse dia (CA-ASS-35, CA-ASS-36).
+
+### Nota fiscal da assinatura (`PLT-15`)
+
+- Depois da baixa de cada fatura, a tarefa `plataforma.emitir_nota_fatura` (Celery, depois do commit) pede a NFS-e ao parceiro pela conta principal (Asaas), com o tomador da `Empresa` (razão social, CNPJ, endereço, `email_cobranca`) e o serviço do Giro (código do serviço, alíquota e cadastro municipal na configuração, `GIRO_NFSE_*`, nunca no código). O retorno vem por webhook da conta principal (ou consulta, se o parceiro não avisar), e a nota vai por e-mail para o `email_cobranca` com o link do PDF. Situações: `processando`, `emitida` (número e link), `erro` (fica para a equipe no Django Admin, que pede de novo).
+- **Ligada só com `GIRO_NFSE_ASSINATURA_ATIVA=true`.** Enquanto o cadastro municipal do Giro não estiver pronto (a validar com o contador), a configuração fica desligada: nada é pedido, `nota_fiscal` vem `null` e o bloco só guarda e mostra os dados (CA-ASS-29 em `xfail`). A tarefa de código é a T-197, `[bloqueada]`.
+- Sem endereço na empresa, a nota não é pedida e a fatura fica marcada para a equipe (Django Admin, filtro "nota pendente"); quando o endereço é preenchido, a tarefa pede as notas pendentes das faturas pagas.
+- A interface de pagamentos (ADR 0007) ganha `emitir_nota_servico(conta, pedido)` e `situacao_nota(conta, id_externo)`; o fake de pagamentos devolve `emitida` com número fixo, para os testes.
+- Fatura paga que for estornada no parceiro: o cancelamento da nota fica com a equipe (fase 2, `Plat-Cobranca`).
+
+### Mudança de ciclo e reativação pela equipe
+
+Do lado da equipe Giro; não há rota da empresa. No MVP, a equipe usa o Django Admin, que chama o mesmo serviço das ações da plataforma (fase 2, `plataforma.md`, "Ações sobre a empresa").
+
+- **Mensal ↔ anual** (`PLT-04`, U4): `plataforma.services.mudar_plano(empresa, plano, ciclo, por, motivo)` com o ciclo novo grava `plano_proximo` e `ciclo_proximo` e vale na próxima fatura, com o preço de tabela do plano no ciclo novo, que vira o preço contratado. A tela da empresa mostra a mudança em `plano_proximo` (sem `desfazer_mudanca_plano`). Auditoria `empresa.mudar_ciclo` nos dois lugares, com o motivo.
+- **Reativar a `cancelada`** (`PLT-06`, `AUD-08`): só dentro dos 90 dias (`apagar_em` no futuro), por `plataforma.services.reativar_empresa(empresa, por, motivo)`: volta a `ativa` como na volta da pausa, com uma fatura nova de `preco_contratado_centavos` vencendo no dia, `dia_vencimento` passando a esse dia, e limpa `cancelada_em`, `acesso_ate` e `apagar_em`. Depois dos 90 dias (dados apagados): 409 `transicao_empresa`. Fatura atrasada de antes do cancelamento: `[decisão]` com o produto (backlog, T-193); até a resposta, a reativação é recusada com 409 `{ "codigo": "fatura_em_atraso", "mensagem": "Receba a fatura em atraso antes de reativar." }`. Auditoria `empresa.reativar` nos dois lugares, com o motivo.
 
 ---
 
@@ -272,31 +332,27 @@ O que precisa existir no `public` para a tela mostrar dados reais. Não há rota
 
 | HTTP | `codigo` | Quando |
 | --- | --- | --- |
+| 400 | `validacao` | campo inválido; CNPJ enviado em `dados-fiscais/` |
 | 403 | `permissao` | perfil que não é administrador |
 | 403 | `PLT-07` | escrita com token de suporte |
 | 403 | `empresa_sem_operacao` | `pausada`, `cancelada` (a `suspensa` paga, ver o início) |
-| 409 | `transicao_empresa` | mudar de plano fora de `em_teste` e `ativa` [D-5] |
+| 409 | `transicao_empresa` | mudar de plano fora de `em_teste` e `ativa`; outra mudança já agendada |
 | 409 | `valor_mudou` | diferença do upgrade mudou entre simular e confirmar |
 | 409 | `fatura_nao_pagavel` | fatura paga ou cancelada |
 | 422 | `PLT-04` | downgrade com uso que não cabe |
 | 422 | `mudanca_ciclo`, `mesmo_plano` | ver mudança de plano |
-| 422 | `sem_forma_pagamento` | pagar sem forma cadastrada |
+| 422 | `sem_forma_pagamento` | pagar sem forma cadastrada e sem `meio` |
 | 422 | `parceiro_recusou` | o parceiro recusou (mensagem dele, sem o nome do parceiro) |
 | 503 | `parceiro_indisponivel` | o parceiro não respondeu |
 
 ---
 
-## Decisões pedidas ao produto
+## O que muda para as tarefas abertas
 
-O contrato segue a recomendação de cada uma; a resposta pode mudar só o trecho marcado.
-
-- **[D-1] Quando a empresa em teste vira `ativa`, e o que acontece no fim do teste.** A tabela de estados diz, em `em_teste`, "forma de pagamento cadastrada → `ativa`", e em `ativa`, "entra quando a 1ª fatura é paga". A 1ª fatura vence no dia seguinte ao fim do teste (`PLT-01`), e "14 dias sem pagamento → `suspensa`" cai antes dela. **Recomendo:** forma cadastrada → `ativa` (a 1ª fatura segue a régua como as outras); sem forma até o fim do teste → `suspensa` no dia seguinte (22 out), e volta a `ativa` ao cadastrar e pagar. Bate com "Escolha até 21 out para não perder o acesso" da tela e com "avisamos 3 dias antes do fim do teste" da `Compra-Checkout`.
-- **[D-2] Dia de vencimento e período das faturas seguintes.** A regra só diz a 1ª. **Recomendo:** todo mês no mesmo dia da 1ª (Moto Rápida: dia 22), período de 22 a 21; em mês sem esse dia, o último dia do mês. Anual: uma fatura de 10 mensalidades por 12 meses. `competencia` = mês do início do período.
-- **[D-3] Diferença proporcional do upgrade (`PLT-04`).** A regra diz "cobra a diferença proporcional" sem a conta nem o jeito de cobrar. **Recomendo:** (preço novo − preço contratado) × dias que faltam ÷ dias do período, contando o dia da mudança, numa fatura avulsa que vence em 3 dias (no cartão, cobra na hora); em teste, nada a cobrar, e a 1ª fatura passa ao valor novo (vale também para o downgrade em teste). Ex.: R$ 304,84 de Profissional para Completo em 01 nov.
-- **[D-4] Mudar entre mensal e anual pela tela.** A regra não fala. **Recomendo:** fora do MVP (o suporte faz pela plataforma); a tela compara os planos no ciclo atual.
-- **[D-5] Em que estados a empresa muda de plano, e se o downgrade agendado pode ser desfeito.** **Recomendo:** só em `em_teste` e `ativa` (inadimplente paga antes); o downgrade agendado pode ser desfeito até a virada.
-- **[D-6] Cartão sem cobrar na hora.** A tela promete "cobrança automática todo mês", a `Compra-Checkout` diz "nada é cobrado agora", e o Giro não deve receber o número do cartão (ADR 0023). **Recomendo:** escolher "cartão" só grava a forma; o cartão é digitado na página do parceiro ao pagar a 1ª fatura (o link vai no e-mail do D-3 e no botão "Pagar"), e daí em diante a cobrança é automática. Para a regra D-1, a forma "cartão" já conta como cadastrada. A outra opção (guardar o cartão no teste com uma pré-autorização estornada) depende do parceiro e fica para o backend testar no sandbox, se o produto preferir.
-- **[D-7] Antecedência da cobrança.** A tela diz "Boleto enviado por e-mail 5 dias antes"; a régua (`PLT-02`) começa no D-3; o Pix automático precisa ser emitido de 2 a 10 dias úteis antes (T-029). **Recomendo:** boleto e Pix automático emitidos 5 dias antes do vencimento (boleto vai por e-mail nesse dia), cartão cobrado no dia; a régua continua como está.
-- **[D-8] O que o cartão de crédito recusado faz depois da nova tentativa.** `PLT-02` diz "tenta de novo no dia seguinte". **Recomendo:** uma nova tentativa só; depois, a régua segue (a empresa pode pagar por outro meio pelo botão "Pagar").
-- **[D-9] Nota fiscal da assinatura e troca de CNPJ.** As regras não dizem se o Giro emite a NFS-e da assinatura (a `FIL-04` diz que o sistema não emite nota para as locadoras, que é outra coisa) nem quem troca o CNPJ. **Recomendo:** o Giro emite a NFS-e da assinatura pelo parceiro depois de cada pagamento (precisa do cadastro municipal do Giro; se não der para o MVP, o bloco só guarda os dados); razão social e e-mail de cobrança editáveis pelo administrador; CNPJ só pela equipe da plataforma.
-- **[D-10] O cartão do plano Completo.** A referência cita "emissão de notas" (a `FIL-04` diz que o sistema não emite), "assinatura digital" (já do Profissional) e "portal do cliente" (não está nos recursos). **Recomendo:** o cartão aparece para quem não está no Completo e lista só os recursos reais do plano acima (`oferta`), sem NF-e nem portal até existirem; o título muda para algo como "Precisa de domínio próprio?" (texto do produto).
+- **T-184 (faturas e conta principal):** `Empresa.dia_vencimento`, `ciclo_proximo` e `endereco_*`; na `FaturaAssinatura`, os campos da nota (`nota_situacao`, `nota_numero`, `nota_externa_id`, `nota_url`, `nota_pedida_em`); a 1ª fatura e o seed não mudam (FAT-0001, 22 out, 44900); o pagador leva o endereço. Modelo em `modelo-de-dados.md`.
+- **T-185 (rotas):** `oferta` com `titulo` e `itens` (sai `recursos_a_mais` e `sem_limite`); `itens` no lugar de `recursos` em `planos/`; `acoes.desfazer_mudanca_plano`; upgrade no teste com a 1ª fatura paga; 409 da segunda mudança agendada; `meio` no `pagar/`; `endereco` nos dados fiscais; `acoes.nota_fiscal` e `nota_fiscal` no detalhe; `prazo` só com `forma` nula. Os testes de `PLT-04` seguem a conta da regra (R$ 304,84).
+- **T-186 (régua e estados):** a forma **não** ativa a empresa; a tabela de transições acima (vira `ativa` no dia seguinte ao teste com a 1ª paga); `inadimplente` em D+1; emissão 5 dias antes; teto de 2 tentativas do cartão; e-mails para o `email_cobranca` e os administradores; downgrade que deixou de caber; `dia_vencimento` com o mês sem o dia. Testes `test_plt_01_*`, `test_plt_02_*` com o relógio de referência e os casos CA-ASS-01 a 12.
+- **T-187 (tela):** cartão da `oferta` só com o que vier (título e itens da API); comparação com `itens`; "Pagar" depois da 2ª recusa oferece Pix ou boleto (`meio`); endereço no bloco de dados fiscais; botão da nota na fatura paga com `acoes.nota_fiscal`; "Desfazer" do downgrade com `acoes.desfazer_mudanca_plano`.
+- **T-188 (telas de referência):** sem mudança além do que a T-200 já pede (título "Precisa de mais veículos ou filiais?").
+- **T-189 (segurança):** o `meio` do `pagar/` não troca a forma (sem novo token); dados da nota sem dado pessoal além dos da empresa.
+- **T-197 (NFS-e, bloqueada):** a seção "Nota fiscal da assinatura".
