@@ -1,0 +1,9 @@
+# T-170 · Tela de Administração › Assinatura · frontend → orquestrador, qa, design-system, arquiteto
+
+**O que foi feito:** `/admin/assinatura` com a hierarquia de `Admin-Assinatura-Desktop` e `Mobile`: cartão escuro "Seu plano" (selo "Teste grátis até 21 out", nome do plano, preço e dias de teste que faltam), painel "Uso do plano" com as três barras (86 de 150 veículos, 1 de 3 filiais, 5 de 10 usuários), e "Avisamos quando chegar a 90% de qualquer limite." A partir de 90% a barra ganha "Perto do limite."; em 100% diz "No limite: não dá para cadastrar mais. O que já existe continua funcionando." (`PLT-03`). Empresa inadimplente, suspensa ou pausada mostra a `faixa_aviso` que a API manda, e `somente_leitura` avisa que a empresa está só para consulta. Só o administrador.
+**Só com o que o contrato tem:** não há "Mudar de plano", forma de pagamento, faturas, dados da nota fiscal nem "Comparar planos" (sem rota). "Cancelar assinatura" fica desabilitado com aviso, com o link para exportar os dados (cancelar e pausar são da fase 2).
+**Onde:** `frontend/src/components/admin/AssinaturaDaEmpresa.tsx`, `app/(empresa)/admin/assinatura/page.tsx`, `lib/assinatura.ts`, `lib/api/{assinatura,tipos-assinatura,index}.ts`, fixture `testes/falsos/falso-assinatura.ts`, `components/admin/Assinatura.test.tsx`.
+**Contrato:** `GET /api/assinatura/` (`docs/api/plataforma.md`, "Do lado da empresa").
+**Regras cobertas:** PLT-01, PLT-03 (testes: seed 86/150, 1/3, 5/10 sem aviso; aviso e bloqueio por escrito; inadimplente com faixa; só o administrador).
+**Verificação:** `npm run lint`, `npm run typecheck`, `npm test` (404 testes) e `npm run build` limpos. Não conferi no navegador (precisa do compose): olhar 1440 px e 390 px.
+**Próximo passo para quem recebe:** pôr a branch `t-170-assinatura` no compose. O orquestrador abre o PR. Sigo para a T-172.

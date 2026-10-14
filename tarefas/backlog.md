@@ -310,9 +310,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 ### T-165 · Fotos da vistoria em PNG com paleta perdem as cores (baixa)
 - **Agente:** backend · **Depende de:** — · **Regras:** VIS-02 · **Pronto quando:** `comum.arquivos.sem_metadados` mantém as cores de um PNG em modo `P` (com paleta e `tRNS`): hoje faz `Image.new(imagem.mode, ...)` + `paste`, e a imagem nova sai sem a paleta. Converter para `RGBA` (ou copiar a paleta) antes de gravar, sem voltar a gravar metadados; teste com PNG em paleta comparando os pixels. Não é falha de segurança. Levantada pela segurança na decisão do PNG da T-153 (12 out 2026, `C:/Users/Jota/Documents/giro-produto/decisao-t153-seguranca.md`, fora do git).
 
-### T-170 · Tela de Administração › Assinatura
-- **Agente:** frontend · **Depende de:** — · **Regras:** PLT · **Telas:** Admin-Assinatura (desktop e celular) · **Contrato:** `docs/api/plataforma.md` e `empresas.md` (`/api/assinatura/`) · **Pronto quando:** `/admin/assinatura` igual a `docs/telas/html/Admin-Assinatura-*.dc.html`, ligada à API real, só com o que o contrato tem (pausar e cancelar entram no MVP pela T-190, em tarefa própria; até lá, o botão não aparece; o que faltar vira `[decisão]`); só o administrador; testes. Pedida pelo dono em 13 out 2026.
-
 ### T-183 · Contrato da Assinatura completa
 - **Agente:** arquiteto · **Depende de:** T-170, T-029 · **Regras:** PLT-01 a PLT-05, AUT-13 · **Telas:** Admin-Assinatura (desktop e celular) · **Estado:** contrato escrito, PR a abrir (`docs/api/assinatura.md`, ADR 0023, modelo de dados). Decisão do dono em 14 out 2026: a tela entra inteira no MVP. Cancelar e pausar (`PLT-06`) ficam com o produto.
 - **Tarefas (numeradas pelo orquestrador em 14 out 2026):**
