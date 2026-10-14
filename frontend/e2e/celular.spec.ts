@@ -13,12 +13,11 @@ import {
   criarLocacao,
   gerarContratoEPegarToken,
   menuDoVistoriador,
-  receberCaucaoPeloBackend,
   receberEmDinheiro,
   vistoriaDeChegada,
   vistoriaDeSaida,
 } from "./suporte/passos";
-import { defeitoConhecido, entrar, exigirHoraSegura, horaDeAgora, novaSessao, semRolagemLateral, visivel } from "./suporte/tela";
+import { entrar, exigirHoraSegura, horaDeAgora, novaSessao, semRolagemLateral, visivel } from "./suporte/tela";
 
 test("locação completa no celular: Bruna na frente, João nas vistorias", async ({ browser }, info) => {
   exigirHoraSegura();
@@ -55,10 +54,7 @@ test("locação completa no celular: Bruna na frente, João nas vistorias", asyn
     await assinarPeloLink(browser, info, gerarContratoEPegarToken(locacao.codigo));
     await bruna.page.goto("/financeiro/caixa");
     await receberEmDinheiro(bruna.page, locacao.codigo, /R\$ 329,00/);
-    const achou = await defeitoConhecido("D-01", "a caução não aparece na busca por locação do caixa (FIN-15, CA-023-15)", async () => {
-      await receberEmDinheiro(bruna.page, locacao.codigo, /R\$ 300,00/);
-    });
-    if (!achou) receberCaucaoPeloBackend(locacao.id, 30_000);
+    await receberEmDinheiro(bruna.page, locacao.codigo, /R\$ 300,00/);
     await caixaMostra(bruna.page, { entrou: "R$ 1.740,90", recebimentos: "7 recebimentos", gaveta: "R$ 910,00", movimentos: 9 });
     await semRolagemLateral(bruna.page, "caixa do dia");
     await bruna.page.goto(`/locacoes/${locacao.id}`);

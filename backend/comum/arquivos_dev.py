@@ -22,7 +22,7 @@ def servir(request: HttpRequest, caminho: str) -> HttpResponse:
         return HttpResponseForbidden("Assinatura inválida.")
     if not expira.isdigit() or int(expira) < int(relogio.agora().timestamp()):
         return HttpResponseForbidden("Link vencido.")
-    guardado = arquivos.guardados.get(unquote(caminho))
+    guardado = arquivos.ler_falso(unquote(caminho))
     if guardado is None:
         raise Http404
     conteudo, tipo = guardado
