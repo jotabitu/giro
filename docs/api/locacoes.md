@@ -64,6 +64,8 @@ A linha mais:
 
 ```json
 {
+  "cliente": { "id": 1201, "nome": "Juliana Rocha", "celular": "85988771203", "cnh_categoria": "A",
+               "ficha_liberada": true },
   "filial": { "id": 1, "nome": "Filial Centro" },
   "vendedor": { "id": 3, "nome": "Bruna Alves" },
   "precos": { "valor_periodo_centavos": 32900, "diaria_centavos": 5490, "caucao_centavos": 30000,
@@ -90,6 +92,7 @@ A linha mais:
 }
 ```
 
+- `cliente` no detalhe traz, além de `id` e `nome` (os da linha da lista), o `celular` e a `cnh_categoria` (`null` se o cadastro não tem) e `ficha_liberada`: `true` se o perfil abre a ficha do cliente (`GET /api/clientes/{id}/`), `false` para o vistoriador, que recebe 403 lá (`USR-09`, T-207). A tela da locação usa isso no lugar de chamar a ficha do cliente.
 - `total_pago_centavos` inclui a caução paga, como na tela. Caso do seed (`LOC-06`, `LOC-05`): LOC-2836 = 32900 + 32900 + 30000 = **95800**.
 - `parcelas` vêm de `financeiro.selectors` (`financeiro` está acima de `locacoes`, ADR 0011). Status como em `FIN-01` (`vence_hoje` e `atrasada` calculados).
 - `acoes.cancelar`: `direto`, `pedir` ou `false`, conforme o perfil. É `false` com uma troca de veículo pendente (`LOC-12`, T-122).

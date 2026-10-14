@@ -25,7 +25,8 @@ export type ParcelaDaLocacao = Omit<S["ParcelaLocacao"], "tipo" | "status"> & { 
 export type CancelamentoDaLocacao = Omit<S["CancelamentoLocacao"], "status"> & { status: "pendente" | "aprovado" };
 
 export type LocacaoCompleta = Omit<S["LocacaoDetalhe"], keyof LocacaoResumo | "parcelas" | "acoes" | "cancelamento" | "periodicidade"> &
-  LocacaoResumo & {
+  Omit<LocacaoResumo, "cliente"> & {
+    cliente: S["ClienteDaLocacao"];
     parcelas?: ParcelaDaLocacao[];
     cancelamento: CancelamentoDaLocacao | null;
     acoes: Omit<S["AcoesLocacao"], "cancelar"> & { cancelar: "direto" | "pedir" | false };
