@@ -173,7 +173,7 @@ describe("caixa do dia (FIN-07, APR-04)", () => {
   it("sem caixa aberto, pede o troco e não mostra recebimento", async () => {
     await entrar("bruna@motorapida.com.br");
     const t = texto(await paginaCaixa("sem_caixa"));
-    expect(t).toContain("O caixa de hoje ainda não foi aberto.");
+    expect(t).toContain("O caixa de hoje ainda não foi aberto. Abra o caixa do dia para receber.");
     ordem(t, ["Abrir o caixa de hoje", "Troco na gaveta (R$)", "Abrir caixa"]);
     expect(t).not.toContain("Receber pagamento");
   });

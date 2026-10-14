@@ -113,7 +113,7 @@ function montar(r: Registro): Vistoria {
   const faltam = OBRIGATORIAS.filter((p) => !feitas.includes(p));
   const pendencias: string[] = [];
   if (faltam.length > 0) pendencias.push("fotos");
-  if (v.km === null) pendencias.push("km");
+  if (v.km === null || v.km < r.kmDoVeiculo) pendencias.push("km");
   if (!v.combustivel) pendencias.push("combustivel");
   if (v.itens.some((i) => i.ok === null)) pendencias.push("itens");
   const vistoriador = perfilAtualFalso() === "vistoriador";

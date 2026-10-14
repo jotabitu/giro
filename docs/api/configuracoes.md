@@ -25,7 +25,7 @@ Não existia rota de configurações: o novo aqui é só `GET /api/configuracoes
 ## Regras gerais
 
 - **A API decide, a tela mostra.** Os cartões vêm na ordem da tela, com título e resumo prontos (plural, separador "·", data curta). O frontend não conta nada nem monta texto; só liga a `chave` à rota (tabela "Rotas dos cartões") e escolhe o ícone.
-- **Cartão sem tela não vem (`USR-05`).** Como o menu (`contas.md`, "Menu e início"), um cartão só vem quando o app da tela de destino está em `GIRO_MODULOS_ATIVOS`, pela mesma tabela de item e app do menu. `integracoes` e `notificacoes` não vêm no MVP: não têm tela nem contrato. Nunca vem cartão desabilitado nem com número de exemplo.
+- **Cartão sem tela não vem (`USR-05`).** Como o menu (`contas.md`, "Menu e início"), um cartão só vem quando o app da tela de destino está em `GIRO_MODULOS_ATIVOS`, pela mesma tabela de item e app do menu. Nenhum cartão depende de recurso do plano (todos são do núcleo, `PLT-12`); só o resumo de `precos` conta planos especiais quando `locacoes_vistoria` está ligado na empresa (ADR 0024). `integracoes` e `notificacoes` não vêm no MVP: não têm tela nem contrato. Nunca vem cartão desabilitado nem com número de exemplo.
 - **Por que `relatorios`.** O resumo lê de oito apps (`empresas`, `filiais`, `contas`, `plataforma`, `veiculos`, `locacoes`, `contratos`, `auditoria`). Pela ADR 0011 só os apps do nível 13 leem de todos; `empresas` (nível 4) não pode importar `filiais` nem `locacoes`. O painel (`painel.md`) já mora em `relatorios` pelo mesmo motivo. `relatorios` chama só os selectors listados em "Fontes", nunca os models dos outros apps.
 - **Empresa inteira.** O resumo é da empresa, não da filial: ignora o `X-Filial` (o administrador vê todas as filiais de qualquer jeito). Conta categorias da empresa e das filiais.
 
@@ -74,7 +74,7 @@ Ordem fixa: `marca`, `filiais`, `usuarios`, `precos`, `modelos_contrato`, `integ
 | `marca` | Empresa e marca | `empresas` (fora do padrão até a T-153 e a T-154; o item `config` do menu tem chave própria, `configuracoes`) | "Logo, cor, nome e endereço do sistema" (fixo) |
 | `filiais` | Filiais | `filiais` | Filiais ativas. Uma: "1 filial · {nome}, {cidade}". Mais de uma, em até 3 cidades: "{n} filiais · {cidades}" ("2 filiais · Fortaleza e Caucaia"); em 4 cidades ou mais: "{n} filiais em {c} cidades". |
 | `usuarios` | Usuários e perfis | `contas` | Uso do plano (`usuarios` de `GET /api/assinatura/`: `ativo` e `convite_pendente`, `PLT-03`): "{usado} de {limite} usuários"; plano sem limite: "{usado} usuários". Com convites pendentes, acrescenta " · 1 convite" ou " · {n} convites". |
-| `precos` | Tabelas de preço | `veiculos` | Categorias ativas: "{n} categorias" ("1 categoria"); com planos especiais ativos, acrescenta " · 1 plano especial" ou " · {n} planos especiais" (o plano especial é do app `locacoes`; com `locacoes` fora de `GIRO_MODULOS_ATIVOS`, não entra no texto). Nenhuma categoria: "Nenhuma categoria cadastrada". |
+| `precos` | Tabelas de preço | `veiculos` | Categorias ativas: "{n} categorias" ("1 categoria"); com planos especiais ativos, acrescenta " · 1 plano especial" ou " · {n} planos especiais" (o plano especial é do app `locacoes`; com `locacoes` fora de `GIRO_MODULOS_ATIVOS` ou `locacoes_vistoria` desligado na empresa, não entra no texto). Nenhuma categoria: "Nenhuma categoria cadastrada". |
 | `modelos_contrato` | Modelos de contrato | `contratos` | Modelos não arquivados: "{n} modelos" ("1 modelo"); com rascunho em aberto (modelo `rascunho` ou publicado com `tem_rascunho`, `contratos.md`), acrescenta " · 1 rascunho" ou " · {n} rascunhos". Sem modelo de locação publicado: "Nenhum modelo publicado" (é o que trava a 1ª locação, `IMP-04`). |
 | `integracoes` | Integrações | não vem no MVP | — |
 | `notificacoes` | Notificações | não vem no MVP | — |
@@ -87,7 +87,7 @@ Quando a fase 2 entregar as integrações e as notificações, cada uma acrescen
 ### Implantação
 
 - `implantacao` vem `null` quando a implantação está concluída (`IMP-01`: passo `primeira_locacao` marcado, por `plataforma.services.concluir_implantacao`). Depois disso a faixa some de vez.
-- Antes disso: `concluidos` e `total` são os de `plataforma.selectors.implantacao` (os 10 passos de `plataforma.md`, `IMP-05`). `titulo` é "Implantação concluída em {concluidos} de {total} passos".
+- Antes disso: `concluidos` e `total` são os de `plataforma.selectors.implantacao` (os 10 passos de `plataforma.md`, `IMP-05`; 9 sem `recebimento_parceiro`, como no Essencial, em que `recebimentos` não entra em `total` nem em `faltam`, `PLT-12`). `titulo` é "Implantação concluída em {concluidos} de {total} passos".
 - `faltam` lista os passos ainda abertos, na ordem dos passos, com estes nomes: `conta` "conta e acesso", `marca` "empresa e marca", `filial` "primeira filial", `ramo` "o que a empresa faz", `precos` "tabela de preços", `contrato` "contrato", `recebimentos` "recebimentos", `importar` "importar dados", `equipe` "equipe", `primeira_locacao` "a 1ª locação". Juntados com ", " e " e " antes do último, com "Faltam " no começo e ponto final ("Falta a 1ª locação." quando é um só).
 - `acao`: o botão "Continuar implantação" leva ao passo aberto do assistente, que ainda não tem contrato nem tela. Até ele existir, `acao` vem `null` e a faixa aparece sem botão, **exceto** quando o único passo aberto é `primeira_locacao`: aí `acao` é `{ "rotulo": "Fazer uma locação de teste", "destino": "nova_locacao" }`, o mesmo destino do início de implantação (`painel.md`). Quando o assistente for contratado, `acao` passa a `{ "rotulo": "Continuar implantação", "destino": "implantacao", "passo": "<primeiro passo aberto>" }`; o contrato do assistente acrescenta isso aqui.
 - Os passos são lidos do `public` pela interface de `plataforma` (`plataforma.selectors.passos_implantacao`), como no painel; nada de consulta direta ao `public` em `relatorios`.
@@ -133,11 +133,11 @@ O frontend liga `chave` → rota (referência em `docs/telas/README.md`, "Rotas 
 | `notificacoes` | `/admin/notificacoes` (sem tela) |
 | `assinatura` | `/admin/assinatura` |
 | `auditoria` | `/admin/auditoria` |
-| `exportar` | `/admin/auditoria/exportar` |
+| `exportar` | `/admin/exportar` |
 
 `acao.destino`: `nova_locacao` → `/locacoes/nova`; `implantacao` → definido no contrato do assistente.
 
-O item `config` do menu depende de `configuracoes` em `GIRO_MODULOS_ATIVOS` (`contas.md`), uma chave própria que a T-181 acrescentou ao padrão do backend. `empresas` continua fora do padrão até a T-153 e a T-154 entregarem a tela Empresa e marca: ele liga o item `marca` do menu e o cartão `marca`. `GET /api/configuracoes/` responde sempre, como o painel, sem depender de `configuracoes` (decisão do arquiteto na T-181). Na T-192 (módulos por plano), `configuracoes` entra em todos os planos, como a administração.
+O item `config` do menu depende de `configuracoes` em `GIRO_MODULOS_ATIVOS` (`contas.md`), uma chave própria que a T-181 acrescentou ao padrão do backend. `empresas` continua fora do padrão até a T-153 e a T-154 entregarem a tela Empresa e marca: ele liga o item `marca` do menu e o cartão `marca`. `GET /api/configuracoes/` responde sempre, como o painel, sem depender de `configuracoes` (decisão do arquiteto na T-181). Pela ADR 0024 (T-192), `configuracoes` é do núcleo: entra em todos os planos, como a administração, sem recurso.
 
 ## Casos para teste (seed Moto Rápida)
 
@@ -151,6 +151,7 @@ O item `config` do menu depende de `configuracoes` em `GIRO_MODULOS_ATIVOS` (`co
 | Token de suporte | sem `auditoria` e sem `exportar`; o resto igual |
 | Gerente, vendedor, vistoriador, financeiro | 403 `permissao` |
 | Empresa nova, passos `conta`, `marca`, `filial`, `ramo`, `precos` e `equipe` marcados | `implantacao`: 6 de 10, "Faltam contrato, recebimentos, importar dados e a 1ª locação.", `acao: null` |
+| Empresa no Essencial com os mesmos 6 passos | `implantacao`: 6 de 9, "Faltam contrato, importar dados e a 1ª locação." (sem `recebimentos`) |
 | Só `primeira_locacao` aberto | "Implantação concluída em 9 de 10 passos", "Falta a 1ª locação.", `acao` com `nova_locacao` |
 | Sem modelo de locação publicado | `modelos_contrato`: "Nenhum modelo publicado" |
 

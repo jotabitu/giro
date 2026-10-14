@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Panel, TextField } from "@/design-system";
 import type { Vistoria } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { dataCurta, soDigitos } from "@/lib/formatos";
+import { linkDaPendencia } from "@/lib/vistorias";
 import { Avarias, DialogoDeAvaria, GradeDeFotos, ListaDeItens, NiveisDeCombustivel } from "./Campos";
 import type { VistoriaEmEdicao } from "./useVistoriaEmEdicao";
 
@@ -40,6 +42,7 @@ export function PainelDeKmECombustivel({
     else setTexto(km === null ? "" : milhar(km));
   };
   const dica = dicaDoKm ?? `Última leitura: ${milhar(v.km_ultima_leitura.km)} km em ${dataCurta(v.km_ultima_leitura.em)}`;
+  const link = edicao.avisoDoKm ? linkDaPendencia(edicao.avisoDoKm, v) : null;
   return (
     <Panel titulo={titulo}>
       <div className="flex flex-col gap-4">
@@ -55,8 +58,14 @@ export function PainelDeKmECombustivel({
             onBlur={confirmar}
             onKeyDown={(e) => e.key === "Enter" && confirmar()}
             dica={dica}
+            erro={edicao.avisoDoKm?.mensagem}
           />
         </div>
+        {link && (
+          <Link href={link.href} className="text-caption underline">
+            {link.rotulo}
+          </Link>
+        )}
         <div>
           <div className="wl-field__label mb-2">{rotuloCombustivel}</div>
           <NiveisDeCombustivel valor={v.combustivel} desativado={desativado} aoMudar={(c) => edicao.editar.mutate({ combustivel: c })} />

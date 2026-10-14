@@ -2,7 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { vistorias, type AvariaDaVistoria, type EdicaoDaVistoria, type PosicaoFoto, type Vistoria } from "@/lib/api";
+import { avisoDoKmDaApi } from "@/lib/vistorias";
+import { vistorias, type PendenciaDaVistoria, type AvariaDaVistoria, type EdicaoDaVistoria, type PosicaoFoto, type Vistoria } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 
 /**
@@ -20,7 +21,16 @@ export function useVistoriaEmEdicao(id: number | undefined, aoMudar?: () => void
     aoMudar?.();
   };
 
-  const editar = useMutation({ mutationFn: (patch: EdicaoDaVistoria) => vistorias.editar(id ?? 0, patch), onSuccess: guardar });
+  // A vistoria só traz o código curto da pendência ("km"). A mensagem do VEI-01 ("O km informado é menor que o atual…") vem do 422 da conclusão,
+  // então, com um km digitado que a API ainda aponta como pendência, a tela pergunta a ela e mostra a mensagem no campo do km.
+  const [avisoDoKm, setAvisoDoKm] = useState<PendenciaDaVistoria | null>(null);
+  const editar = useMutation({
+    mutationFn: (patch: EdicaoDaVistoria) => vistorias.editar(id ?? 0, patch),
+    onSuccess: (v, patch) => {
+      guardar(v);
+      if ("km" in patch) void avisoDoKmDaApi(v).then(setAvisoDoKm);
+    },
+  });
   const foto = useMutation({
     mutationFn: async ({ posicao, arquivo }: { posicao: PosicaoFoto; arquivo: File }) => {
       setFotoEnviando(posicao);
@@ -52,6 +62,8 @@ export function useVistoriaEmEdicao(id: number | undefined, aoMudar?: () => void
     remover,
     concluir,
     fotoEnviando,
+    /** A pendência `VEI-01` da API (km menor que o do veículo), para mostrar no campo do km; `null` quando não há. */
+    avisoDoKm: consulta.data?.pendencias.includes("km") ? avisoDoKm : null,
     /** Texto do último erro de edição, foto ou avaria; `null` quando está tudo certo. */
     erro: erroDeEdicao ? mensagemDoErro(erroDeEdicao) : null,
   };

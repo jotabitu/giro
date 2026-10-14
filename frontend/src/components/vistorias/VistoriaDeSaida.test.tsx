@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { contas, vistorias } from "@/lib/api";
+import { avisoDoKmDaApi } from "@/lib/vistorias";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push() {}, replace() {} }), usePathname: () => "/locacoes/2856/vistoria", useSearchParams: () => new URLSearchParams() }));
 
@@ -65,5 +66,19 @@ describe("vistoria de saída da LOC-2856 (Lucas Ferreira, CG 160 Fan)", () => {
     const { t } = await pagina(2856);
     ordem(t, ["Cliente", "Lucas Ferreira", "Celular", "(85) 98877-1203", "CNH", "Retirada", "Liberada", "Período"]);
     for (const fora of ["CPF", "E-mail", "Endereço", "Documentos do cliente"]) expect(t, fora).not.toContain(fora);
+  });
+});
+
+describe("km menor que o do veículo (VEI-01, D-02 da T-025)", () => {
+  beforeAll(() => entrarComo("bruna@motorapida.com.br"));
+
+  it("t_206_a_mensagem_da_api_chega_ao_campo_do_km", async () => {
+    const v = await vistorias.iniciarSaida(2856);
+    expect(await avisoDoKmDaApi(v)).toBeNull(); // sem km digitado a pendência é só "Informe a quilometragem"
+    const menor = await vistorias.editar(v.id, { km: 100 });
+    expect(menor.pode_concluir).toBe(false);
+    const aviso = await avisoDoKmDaApi(menor);
+    expect(aviso?.codigo).toBe("VEI-01");
+    expect(aviso?.mensagem).toMatch(/menor que o atual/);
   });
 });
