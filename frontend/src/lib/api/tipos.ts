@@ -91,3 +91,20 @@ export class ErroApi extends Error {
 /** GET /api/ambiente/ e /api/plataforma/ambiente/ (docs/api/README.md, "Ambiente"; ADR 0021). TEMPORÁRIO: sai quando a T-142 puser a rota no OpenAPI. */
 export type Ambiente = { hoje: string; data_simulada: boolean };
 export type EscopoDoAmbiente = "empresa" | "plataforma";
+
+// Administração › Filiais (docs/api/filiais.md), a partir do cliente gerado.
+export type DiaDaSemana = "seg" | "ter" | "qua" | "qui" | "sex" | "sab" | "dom";
+export type Intervalo = components["schemas"]["Intervalo"];
+export type HorarioDaFilial = Record<DiaDaSemana, Intervalo[]>;
+export type EnderecoDaFilial = components["schemas"]["Endereco"];
+export type FilialDaLista = Omit<components["schemas"]["FilialNaLista"], "horario"> & { horario: HorarioDaFilial };
+export type FilialDetalhada = Omit<components["schemas"]["Filial"], "horario"> & { horario: HorarioDaFilial };
+export type PlanoDeFiliais = components["schemas"]["PlanoDasFiliais"];
+export type ListaFiliais = Omit<components["schemas"]["ListaDeFiliais"], "resultados"> & { resultados: FilialDaLista[] };
+export type FeriadoDaFilial = components["schemas"]["Feriado"];
+export type SugestaoDeFeriado = components["schemas"]["Sugestao"];
+export type FeriadoNovo = components["schemas"]["FeriadoEntrada"];
+export type CepEncontrado = components["schemas"]["Cep"];
+/** Corpo do POST e do PATCH: o gerador deixou `horario` solto; aqui ele tem os sete dias. */
+export type CorpoDaFilial = Omit<components["schemas"]["FilialEntrada"], "horario"> & { horario: HorarioDaFilial };
+export type ImpedimentosDaDesativacao = { matriz: boolean; ultima_filial: boolean; operacao: { veiculos: number; locacoes: number; caixas: number } };
