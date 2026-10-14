@@ -1,6 +1,6 @@
 # Modelo de dados
 
-**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
+**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
 
 Este documento diz, para cada uma das 25 entidades das regras, o app dono, o schema, os campos, os índices e as restrições. As entidades de apoio (que não estão na lista das regras mas são necessárias) vêm no fim de cada app. Mudança aqui passa pelo arquiteto; o backend implementa a partir daqui e do contrato do módulo em `docs/api/`.
 
@@ -74,6 +74,7 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | `nome_exibicao` | texto(80) | cópia do nome para o painel da plataforma |
 | `cidade`, `uf` | texto(80), texto(2) | lista de empresas |
 | `responsavel_nome`, `responsavel_email`, `responsavel_telefone` | texto | contato do administrador na compra |
+| `email_cobranca` | texto(254) | faturas, boleto e régua da assinatura (`PLT-02`); nasce igual a `responsavel_email` (T-183, `docs/api/assinatura.md`) |
 | `cnpj` | texto(14), único | só dígitos, validado (`CLI-01` vale para CNPJ) |
 | `subdominio` | texto(63), único | `motorapida` |
 | `plano` | FK → `Plano` | |
@@ -102,16 +103,22 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | Campo | Tipo | Observação |
 | --- | --- | --- |
 | `empresa` | FK → `Empresa` | |
-| `competencia` | data (dia 1 do mês) | |
+| `tipo` | enum `mensalidade`, `diferenca_plano` | `diferenca_plano` = upgrade no meio do período (`PLT-04`, T-183) |
+| `competencia` | data (dia 1 do mês) | mês do início do período |
+| `periodo_inicio`, `periodo_fim` | data | período coberto (`PLT-01`; dia de cobrança em [D-2] da T-183) |
+| `plano` | FK → `Plano` | plano cobrado (o da descrição) |
 | `valor_centavos` | centavos | |
 | `vencimento` | data | |
 | `status` | enum `aberta`, `paga`, `atrasada`, `cancelada` | regras, "Estados das entidades sem seção própria" |
-| `forma` | enum `pix`, `boleto`, `cartao`, nulo | |
+| `forma` | enum `pix`, `boleto`, `cartao`, nulo | como foi paga |
+| `cobranca_emitida_em` | momento, nulo | quando a cobrança foi criada no parceiro ([D-7] da T-183) |
 | `pago_em` | momento, nulo | |
 | `cobranca_externa_id` | texto(60), nulo, único | id da cobrança no Asaas (conta principal) |
 | `tentativas_cartao` | int | `PLT-02` (nova tentativa no dia seguinte) |
+| `cartao_recusado_em` | momento, nulo | última recusa; alimenta a `situacao` da tela |
 
-- Restrição: única por `(empresa, competencia)` quando `status <> cancelada`.
+- Restrição: única por `(empresa, competencia)` quando `tipo = mensalidade` e `status <> cancelada`.
+- A 1ª fatura nasce em `criar_empresa` (`aberta`, vencimento `teste_fim + 1`, `PLT-01`); estender o teste move o vencimento e o período.
 - Índices: `(status, vencimento)` para a régua `AUT-13`.
 
 ### 4. Usuário da plataforma · `contas.Usuario` no schema public
@@ -138,6 +145,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | Model | App | Campos principais |
 | --- | --- | --- |
 | `ContaPagamento` | plataforma | `empresa` (1:1), `provedor` enum `asaas`, `conta_externa_id` único, `id_cifra` (UUID, ADR 0014), `chave_api_cifrada` (`CampoCifrado` com `GIRO_CHAVE_SEGREDOS`, decifrada só em `integracoes/pagamentos/`, ADR 0014), `webhook_token_hash` único, `status` enum `pendente`, `aprovada`, `recusada`. O webhook chega no `public`, acha a empresa pelo token e só então entra no schema dela (ADR 0007). |
+| `FormaPagamentoAssinatura` | plataforma | `empresa` (1:1), `forma` enum `cartao`, `pix_automatico`, `boleto`, nulo; `status` enum `pendente`, `ativa`, `recusada`; `cliente_externo_id` (pagador na conta principal), `autorizacao_externa_id` (Pix automático), `id_cifra` (UUID), `cartao_token_cifrado` (`CampoCifrado`, ADR 0014 e 0023, nunca sai na API nem na auditoria), `cartao_bandeira`, `cartao_final` (4 dígitos). Trocar de forma cancela a autorização e apaga o token (T-183). |
 | `Chamado` | plataforma | `numero` (#1042), `empresa` FK, `assunto`, `status`, `responsavel` FK usuário. Fase 2. |
 | `Convite` | contas | ver item 7 (serve aos dois schemas). |
 
