@@ -82,6 +82,27 @@ def modelos(arquivados: bool = False) -> list[dict[str, Any]]:
     return sorted(itens, key=lambda item: (str(item["nome"]).casefold(), item["id"]))
 
 
+def resumo_dos_modelos() -> dict[str, Any]:
+    """O cartão Modelos de contrato de Configurações, numa consulta só: modelos (grupos) não
+    arquivados, os com rascunho em aberto (`tem_rascunho` de `modelos()`) e se há modelo de
+    locação publicado (`IMP-04`, o mesmo de `modelo_publicado`)."""
+    ultimas: dict[Any, ModeloContrato] = {}
+    tem_publicado_de_locacao = False
+    for modelo in (
+        ModeloContrato.objects.filter(arquivado=False)
+        .order_by("-versao")
+        .only("grupo", "versao", "finalidade", "publicado", "publicado_em")
+    ):
+        ultimas.setdefault(modelo.grupo, modelo)
+        if modelo.publicado and modelo.finalidade == Finalidade.LOCACAO:
+            tem_publicado_de_locacao = True
+    return {
+        "modelos": len(ultimas),
+        "rascunhos": sum(1 for m in ultimas.values() if not m.publicado and m.publicado_em is None),
+        "tem_publicado_de_locacao": tem_publicado_de_locacao,
+    }
+
+
 def detalhe_do_modelo(modelo: ModeloContrato) -> dict[str, Any]:
     versoes = list(ModeloContrato.objects.filter(grupo=modelo.grupo).order_by("-versao"))
     gerados = _gerados_por_versao()
