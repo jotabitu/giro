@@ -400,8 +400,9 @@ def filtrar_contas(qs: QuerySet[ContaReceber], params: Any, hoje: date) -> Query
 
 def _recortar(qs: QuerySet[ContaReceber], params: Any) -> tuple[QuerySet[ContaReceber], bool]:
     """`?cliente=`, `?origem_tipo=&origem_id=` e `?busca=`: valem para a lista e para as
-    contagens (FIN-15, T-148). Devolve também se a lista é de um cliente ou de uma origem, que é
-    quando a caução aparece."""
+    contagens (FIN-15, T-148). Devolve também se a lista é recortada (cliente, origem ou busca),
+    que é quando a caução aparece: a busca do caixa por cliente ou locação traz a caução a
+    receber (CA-023-15, T-205)."""
     da_origem = bool(params.get("origem_tipo") and str(params.get("origem_id", "")).isdigit())
     if da_origem:
         qs = qs.filter(origem_tipo=params["origem_tipo"], origem_id=int(params["origem_id"]))
@@ -411,7 +412,7 @@ def _recortar(qs: QuerySet[ContaReceber], params: Any) -> tuple[QuerySet[ContaRe
     busca = (params.get("busca") or "").strip()
     if busca:
         qs = qs.filter(Q(cliente__nome__icontains=busca) | Q(origem_codigo__icontains=busca))
-    return qs, da_origem or do_cliente
+    return qs, da_origem or do_cliente or bool(busca)
 
 
 def indicadores_e_contagens(filiais: Iterable[int], params: Any, hoje: date) -> dict[str, Any]:
