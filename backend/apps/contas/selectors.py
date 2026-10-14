@@ -155,6 +155,13 @@ def contagens_de_usuarios() -> dict[str, int]:
     return {chave: int(valor) for chave, valor in totais.items()}
 
 
+def convites_pendentes() -> int:
+    """Convites ainda não aceitos: o contador `usuarios` do painel e o cartão de Configurações."""
+    return int(
+        Usuario.objects.exclude(perfil="").filter(status=StatusUsuario.CONVITE_PENDENTE).count()
+    )
+
+
 def item_de_usuario(usuario: Usuario, eu: Usuario) -> dict[str, Any]:
     """Um item da lista. `usuario` vem de `usuarios()`, com as anotações."""
     pendente = usuario.status == StatusUsuario.CONVITE_PENDENTE

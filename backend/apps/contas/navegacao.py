@@ -145,7 +145,11 @@ ITENS: dict[str, Item] = {
         ),
         Item("relatorios", "Relatórios", None, _ve_painel, Recurso.RELATORIOS, None, "relatorios"),
         Item(
-            "config", "Configurações", None, lambda p: bool(p["administracao"]), modulo="empresas"
+            "config",
+            "Configurações",
+            None,
+            lambda p: bool(p["administracao"]),
+            modulo="configuracoes",  # chave própria: "marca" fica em "empresas" (T-181)
         ),
         Item(
             "marca", "Empresa e marca", None, lambda p: bool(p["administracao"]), modulo="empresas"
@@ -292,6 +296,11 @@ ROTULO_DO_INICIO: dict[str, str] = {
 }
 
 BARRA_CELULAR = ["inicio", "veiculos", "nova_locacao", "locacoes", "mais"]
+
+
+def modulos_ativos() -> frozenset[str]:
+    """`GIRO_MODULOS_ATIVOS`: o menu e os cartões de Configurações seguem a mesma lista."""
+    return frozenset(settings.GIRO_MODULOS_ATIVOS)
 
 
 def _aparece(item: Item, ctx: Contexto) -> bool:
