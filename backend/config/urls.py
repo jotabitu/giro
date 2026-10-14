@@ -10,6 +10,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from apps.contas.api.urls import urls_empresa as urls_contas
 from apps.plataforma.api.urls import urls_empresa as urls_assinatura
 from comum.ambiente import AmbienteView
+from comum.arquivos_dev import servir as servir_arquivo_falso
 
 urlpatterns: list[URLPattern | URLResolver] = [
     path("api/", include(urls_contas)),
@@ -35,3 +36,7 @@ if settings.EXPOR_DOCUMENTACAO_DA_API:
         path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
         path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
     ]
+
+# Só no desenvolvimento (T-210): as fotos do armazenamento "falso" abrem na mesma origem da tela.
+if settings.GIRO_ARQUIVOS_FALSOS_BASE.startswith("/"):
+    urlpatterns += [path("api/arquivos-dev/<path:caminho>", servir_arquivo_falso)]

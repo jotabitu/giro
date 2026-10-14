@@ -358,9 +358,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 - Resolvido na T-190: texto do cartão "Exportar dados" no MVP fica "Baixe a auditoria em CSV", como o contrato (U18, nota de 14 out 2026 na auditoria).
 - **Fora da T-173, sem contrato (orquestrador):** as "Regras de cobrança" da tela `Precos` e do passo `Onboarding-Precos` (tolerância, combustível, desconto do vendedor; a tela do assistente pede também franquia de km e km excedente, que as regras não têm) são citadas em `veiculos.md` como "contrato de empresas", mas `empresas.md` não as tem; e `exige_2fa_todos` ("exigir 2 etapas para todos", `contas.md`) não aparece em nenhuma tela da empresa. Os dois pedem tela ou contrato antes de tarefa.
 
-### T-181 · Resumo da tela de Configurações (backend)
-- **Agente:** backend · **Depende de:** — · **Contrato:** `docs/api/configuracoes.md` · **Regras:** USR-05, PLT-03, PLT-07, IMP-01, IMP-04, IMP-05 · **Pronto quando:** `GET /api/configuracoes/` em `relatorios` (`relatorios/selectors.py` com `configuracoes(...)` e os textos em `relatorios/configuracoes.py`, função pura), só administrador (403 `permissao` aos outros perfis) e token de suporte sem `auditoria` e `exportar`; cartão só quando o app da tela está em `GIRO_MODULOS_ATIVOS` (a tabela de item e app de `contas.navegacao`); `integracoes` e `notificacoes` não vêm; selectors novos `filiais.selectors.resumo_das_filiais`, `contas.selectors.convites_pendentes` (o mesmo número do contador `usuarios` do painel), `veiculos.selectors.categorias_ativas`, `locacoes.selectors.planos_especiais_ativos` e `contratos.selectors.resumo_dos_modelos`; `implantacao` pela interface de `plataforma` (`null` depois do `IMP-01`, `acao` só com `nova_locacao` quando falta só a 1ª locação); `empresas` entra no padrão de `GIRO_MODULOS_ATIVOS` (liga Configurações e Empresa e marca no menu); OpenAPI regenerado e `api:gerar` no frontend; testes com os casos da tabela "Casos para teste" do contrato (`test_usr_05_configuracoes_so_cartoes_de_apps_ativos`, `test_plt_03_configuracoes_usuarios_conta_convites`, `test_imp_05_configuracoes_faixa_da_implantacao`, `test_imp_04_configuracoes_sem_modelo_publicado`, `test_plt_07_configuracoes_suporte_sem_auditoria`) e no máximo 10 queries.
-
 ### T-182 · Tela de Configurações (frontend)
 - **Agente:** frontend · **Depende de:** T-181 · **Contrato:** `docs/api/configuracoes.md` · **Telas:** Config (desktop e celular) · **Pronto quando:** `/admin/configuracoes` igual a `docs/telas/html/Config-Desktop.dc.html` e `Config-Mobile.dc.html`, ligada a `GET /api/configuracoes/`: um cartão por item de `cartoes`, na ordem da API, com `titulo` e `resumo` como vêm e o link pela tabela "Rotas dos cartões" (`chave` → rota, ícone no frontend); cartão que não vem não aparece; a faixa da implantação só com `implantacao` diferente de `null` (no celular, como a referência, sem a faixa), com o botão só quando `acao` vier; só o administrador (guarda de rota pelo menu, T-136); testes do componente (seed: 8 cartões e sem faixa; faixa com 6 de 10 e sem botão; `acao` `nova_locacao` leva a `/locacoes/nova`).
 
@@ -373,9 +370,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 ### [decisão] Pix Automático: quando cobrar a parcela (AUT-04, levantada na T-029)
 - **Para:** produto · **Contexto:** o contrato (`docs/api/financeiro.md`, "Cobrança recorrente") diz que `aut_04_cobranca_recorrente` cobra "no vencimento de cada parcela". Pela documentação do Asaas, a cobrança do Pix Automático tem de ser criada **de 2 a 10 dias úteis antes do vencimento**, e a autorização só fica ativa depois que o cliente paga a primeira cobrança pelo QR. Falta decidir: quantos dias antes a tarefa cria a cobrança da parcela, o que acontece com a parcela que vence antes de a autorização ficar ativa, e se a locação diária ou quinzenal pode ter Pix Automático (o Asaas aceita semanal, mensal, trimestral, semestral e anual). O provedor já está pronto (`asaas.py`, T-029); o fluxo na locação espera esta decisão (handoff `tarefas/handoffs/T-029-backend.md`, item 1).
 
-### T-025 · Testes ponta a ponta do fluxo de locação
-- **Agente:** qa · **Depende de:** T-022, T-023 · **Pronto quando:** Playwright cobre login → nova locação → vistoria de saída → devolução → baixa no caixa, no desktop e no celular.
-- **Critérios (T-152):** `docs/qa/criterios/T-025.md` (LOC-2858: R$ 629,00 na retirada; acerto de R$ 80,00 recebido no caixa em 14 out). Relógio com data e hora controladas no ambiente do E2E: qa com o arquiteto.
 
 ## Dúvidas abertas da T-020 (frontend)
 
@@ -390,6 +384,25 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 - Resolvido na T-190: (T-172, Importar) o arquiteto expõe o andamento dos passos; Voltar, Salvar e sair e Continuar provisórios aprovados; `/implantacao/...` sem menu aprovado; "Corrigir aqui" dentro da lista; download da planilha com login a conferir no compose (devops). Propostas 9, 10 e 12 da T-190.
 - Resolvido na T-190: (T-175, Aprovações) indicadores e contagens das abas entram com a `APR-12` (D12); o pedido ganha o bloco `resumo` por tipo; a frase das 4 horas sai (`APR-08`, fase 2); "Meus pedidos" aprovado; "Ver proposta" some até a venda ter tela. Propostas 9 a 12 da T-190.
 - Resolvido na T-190: (T-183, Assinatura) [D-1] a [D-10] respondidas nas regras `PLT-01` a `PLT-06` e `PLT-11` a `PLT-15` (ver a seção da T-183). Cancelar e pausar (`PLT-06`) entram no MVP: propostas 3, 4 e 7 da T-190.
+- [decisão] (T-181, Configurações) Empresa sem filial ativa: o contrato não diz o resumo do cartão Filiais; o backend usa "Nenhuma filial ativa" (como "Nenhuma categoria cadastrada" em Tabelas de preço). Produto: confirmar ou trocar o texto.
+
+### T-205 · Caução na busca do caixa (D-01 da T-025)
+- **Agente:** backend · **Depende de:** — · **Regras:** FIN-15 · **Critérios:** CA-023-15 · **Pronto quando:** a busca do caixa por locação traz a caução a receber (`financeiro/selectors.py::_recortar` considera `?busca=`), e a caução pode ser recebida pela tela do caixa; teste `test_fin_15_busca_do_caixa_traz_caucao`. O QA troca o contorno do E2E (`e2e/`) pela tela.
+
+### T-206 · Mensagens da API nas telas de saída e de caixa (D-02 e D-03 da T-025)
+- **Agente:** frontend · **Depende de:** — · **Regras:** VEI-01, FIN-01 · **Critérios:** CA-025-09 · **Pronto quando:** (D-02) km de saída menor que o do veículo mostra a mensagem da API ("O km informado é menor que o atual…"), em vez de deixar o botão desligado com "Informe a quilometragem"; (D-03) sem caixa aberto, a tela diz "Abra o caixa do dia para receber"; testes.
+
+### T-207 · Vistoriador sem 403 ao abrir a vistoria (D-05 da T-025)
+- **Agente:** backend (com o frontend, se a chamada não for necessária) · **Depende de:** — · **Regras:** USR-09 · **Pronto quando:** o João (vistoriador) abre a vistoria sem 403: ou a tela deixa de chamar `GET /api/clientes/{id}/` e usa o que a vistoria já traz, ou a API devolve ao vistoriador só o que a USR-09 permite; teste com o perfil do vistoriador.
+
+### T-208 · Enviar contrato e página pública de assinatura (lacuna da T-025)
+- **Agente:** frontend · **Depende de:** — · **Regras:** LOC-04 · **Contrato:** `docs/api/contratos.md` (`POST /api/locacoes/{id}/contrato/` e as rotas públicas de assinatura) · **Telas:** as de assinatura em `docs/telas/html` · **Pronto quando:** botão para gerar e enviar o contrato na locação e página pública `/assinar` (sem login, celular), ligadas à API real; testes. O QA troca o contorno do CA-025-05 pela tela.
+
+### T-209 · Ajustes de cadastro e caixa achados no E2E (lacunas da T-025)
+- **Agente:** frontend · **Depende de:** — · **Regras:** CLI-01, FIN-01 · **Pronto quando:** (b) as fotos do cliente podem ser enviadas antes do primeiro "Salvar cliente", para "Salvar e iniciar locação" já ter as fotos; (c) o CEP preenche rua, bairro e cidade; (e) no celular o caixa mostra "N recebimentos"; testes. O item (d), a vendedora sem acesso à Frota, vai ao produto como divergência.
+
+### T-210 · Fotos no desenvolvimento sem bloqueio da CSP (D-06 da T-025)
+- **Agente:** devops (com o backend) · **Depende de:** — · **Pronto quando:** em desenvolvimento as URLs assinadas das fotos apontam para um endereço que o navegador alcança e a CSP permite (sem `arquivos.invalid`); as fotos da comparação da devolução aparecem e o console fica limpo; o E2E deixa de tolerar o erro da CSP.
 
 ## Fase 2 em diante
 
