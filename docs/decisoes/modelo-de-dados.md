@@ -59,7 +59,7 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | `limite_veiculos` | int, nulo | nulo = sem limite (Completo) |
 | `limite_filiais` | int, nulo | |
 | `limite_usuarios` | int, nulo | |
-| `recursos` | json (lista de enum) | módulos liberados |
+| `recursos` | json (lista de enum `Recurso`) | módulos que o plano liga (`PLT-12`, ADR 0024): `locacoes_vistoria`, `contas_receber`, `contrato_digital`, `vendas_comissoes`, `manutencao_despesas`, `conciliacao`, `relatorios`, `recebimento_parceiro`, `cobranca_whatsapp`, `suporte_prioritario`. Os da empresa = estes menos o que o ramo (`ConfiguracaoEmpresa.atividade`) não pede; calculados, não guardados |
 | `ordem` | int | ordem na tela `Compra-Planos` |
 
 - `PLT-05`: preço novo vale só para assinaturas novas. Por isso a `Empresa` guarda o preço contratado; o `Plano` guarda o preço de tabela.

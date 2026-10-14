@@ -136,6 +136,7 @@ Corpo: `{ "forma": "dinheiro" | "cartao_debito" | "cartao_credito", "valor_centa
 - Gerar outra cobrança cancela a aberta no parceiro.
 - `no_caixa: true` (T-144) é como a tela `Caixa` gera o Pix: a cobrança guarda o caixa `aberto` da filial do `X-Filial`, e a baixa pelo webhook entra como entrada `pix` nesse caixa (`FIN-07`). Sem caixa aberto: 422 `FIN-07` "Abra o caixa do dia para receber"; com `X-Filial: todas`: 400 `validacao` (`filial`). Se o caixa fechar antes do pagamento, a baixa acontece sem movimento (Pix não passa pela gaveta e caixa fechado não recebe movimento). Sem `no_caixa` (tela `Receber`, régua `AUT-03`), não passa pelo caixa.
 - Sem subconta aprovada (`plataforma.ContaPagamento`): 422 `{ "codigo": "recebimentos_desligados", "mensagem": "Conecte os recebimentos para gerar Pix e boleto" }` (implantação, passo 10).
+- Plano sem `recebimento_parceiro` (Essencial): 403 `PLT-12` ("Seu plano não inclui Pix e boleto automáticos. Para usar, mude de plano."), antes de olhar a subconta (`plataforma.md`, "Módulos por plano"). O cliente paga no caixa (`PLT-12`).
 
 ### POST /api/financeiro/contas-receber/{id}/cobrar/ · POST /api/financeiro/contas-receber/cobrar-em-lote/
 "Cobrar" e "Cobrar todos pelo WhatsApp". Corpo do lote: `{ "ids": [ ... ] }` (até 100). 202 `{ "enviadas": 1 }` nos dois (T-144). `enviadas`: quantas contas foram cobradas (uma por conta, pelo WhatsApp, pelo e-mail ou pelos dois). Conta que não está `aberta`, cliente sem celular e sem e-mail ou conta já cobrada hoje não conta e não é erro. No dia do vencimento e em atraso, com os recebimentos ligados, a mensagem gera um Pix novo do valor do dia (o que cancela a cobrança aberta, como acima); antes do vencimento é só o lembrete, sem Pix. Envia a mensagem de cobrança com a marca da locadora (`AUT-03`), uma vez por conta por dia, pelo WhatsApp e por e-mail, com os textos de "Régua de cobrança: textos".
@@ -185,7 +186,7 @@ Textos fixados pelo produto (T-147, opção B da análise da T-017). Mudança de
 
 - Em atraso sem multa nem juros (contrato sem a cláusula, `contratos.selectors.permite_juros`), sai "O valor é R$ 299,40." sem "com multa e juros".
 - Forma no recibo: "por Pix", "por boleto", "pelo Pix automático", "no cartão de crédito", "no cartão de débito", "em dinheiro". O dia é o do pagamento em `America/Sao_Paulo`; o valor, o total pago (principal, multa e juros).
-- Canais (`AUT-03`): WhatsApp quando o cliente tem celular e e-mail quando tem e-mail; os dois quando tem os dois. O e-mail sai com o nome da locadora como remetente e o mesmo texto no corpo. Cliente sem celular e sem e-mail não recebe nada, e a conta segue na lista de cobrança.
+- Canais (`AUT-03`): WhatsApp quando o cliente tem celular e e-mail quando tem e-mail; os dois quando tem os dois. Sem `cobranca_whatsapp` na empresa (Essencial, `PLT-12`, ADR 0024), só e-mail: cliente sem e-mail não recebe nada, e a conta segue na lista. Sem `recebimento_parceiro` (Essencial), nunca há Pix nem boleto na mensagem: vale o texto de `recebimentos_desligados` ("Pague na loja..."), e não há recibo da `AUT-05`. O e-mail sai com o nome da locadora como remetente e o mesmo texto no corpo. Cliente sem celular e sem e-mail não recebe nada, e a conta segue na lista de cobrança.
 - Uma vez por conta por dia, contando os dois canais.
 
 ---
