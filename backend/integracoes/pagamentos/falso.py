@@ -2,6 +2,7 @@
 
 `simular_pagamento(cobranca_id, valor_centavos=None)` faz o parceiro dizer que a cobrança foi
 paga (com outro valor, se pedido) e devolve o corpo do webhook que ele mandaria (CA-017-07).
+Subcontas e autorizações recorrentes também ficam na memória (T-029).
 """
 
 import json
@@ -15,11 +16,15 @@ from comum import relogio
 
 from . import CABECALHO_DO_TOKEN
 from .base import (
+    Autorizacao,
     Cobranca,
     ContaPagamentoRef,
+    DadosEmpresa,
     EventoWebhook,
     PedidoCobranca,
+    PedidoRecorrencia,
     SituacaoCobranca,
+    Subconta,
 )
 
 
@@ -31,14 +36,47 @@ class _Guardada:
 
 
 cobrancas: dict[str, _Guardada] = {}
+subcontas: dict[str, str] = {}  # conta_externa_id -> status
+autorizacoes: dict[str, Autorizacao] = {}
 _numeros = count(1)
 
 
 def limpar() -> None:
     cobrancas.clear()
+    subcontas.clear()
+    autorizacoes.clear()
 
 
 class PagamentosFalso:
+    def criar_subconta(self, empresa: DadosEmpresa) -> Subconta:
+        numero = next(_numeros)
+        conta_externa_id = f"acc_falso_{numero:06d}"
+        subcontas[conta_externa_id] = "pendente"
+        return Subconta(conta_externa_id, f"wal_falso_{numero:06d}", f"chave_falsa_{numero:06d}")
+
+    def consultar_subconta(self, conta: ContaPagamentoRef) -> str:
+        return subcontas.get(conta.conta_externa_id, "pendente")
+
+    def criar_autorizacao_recorrente(
+        self, conta: ContaPagamentoRef, pedido: PedidoRecorrencia
+    ) -> Autorizacao:
+        autorizacao = Autorizacao(
+            f"aut_falso_{next(_numeros):06d}", "pendente", "00020126falsoautorizacao"
+        )
+        autorizacoes[autorizacao.id] = autorizacao
+        return autorizacao
+
+    def cobrar_com_autorizacao(
+        self, conta: ContaPagamentoRef, autorizacao_id: str, pedido: PedidoCobranca
+    ) -> Cobranca:
+        if autorizacoes[autorizacao_id].status != "ativa":
+            raise ValueError("Autorização que não está ativa não cobra.")
+        return self.criar_cobranca(conta, pedido)
+
+    def cancelar_autorizacao(self, conta: ContaPagamentoRef, autorizacao_id: str) -> None:
+        if autorizacao_id in autorizacoes:
+            autorizacoes[autorizacao_id] = replace(autorizacoes[autorizacao_id], status="cancelada")
+
     def criar_cobranca(self, conta: ContaPagamentoRef, pedido: PedidoCobranca) -> Cobranca:
         numero = next(_numeros)
         cobranca_id = f"pay_falso_{numero:06d}"

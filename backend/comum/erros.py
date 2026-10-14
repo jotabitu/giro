@@ -90,6 +90,12 @@ class MuitasTentativas(ErroDeNegocio):
     status_http: int = status.HTTP_429_TOO_MANY_REQUESTS
 
 
+class ParceiroForaDoAr(ErroDeNegocio):
+    """Um parceiro externo (pagamentos) não respondeu. HTTP 503: tentar de novo depois."""
+
+    status_http: int = status.HTTP_503_SERVICE_UNAVAILABLE
+
+
 class EmpresaSemOperacao(ErroDeNegocio):
     """Empresa suspensa, pausada ou cancelada tentou escrever. HTTP 403."""
 
