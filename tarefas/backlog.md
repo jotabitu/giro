@@ -389,9 +389,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 ### T-205 · Caução na busca do caixa (D-01 da T-025)
 - **Agente:** backend · **Depende de:** — · **Regras:** FIN-15 · **Critérios:** CA-023-15 · **Pronto quando:** a busca do caixa por locação traz a caução a receber (`financeiro/selectors.py::_recortar` considera `?busca=`), e a caução pode ser recebida pela tela do caixa; teste `test_fin_15_busca_do_caixa_traz_caucao`. O QA troca o contorno do E2E (`e2e/`) pela tela.
 
-### T-206 · Mensagens da API nas telas de saída e de caixa (D-02 e D-03 da T-025)
-- **Agente:** frontend · **Depende de:** — · **Regras:** VEI-01, FIN-01 · **Critérios:** CA-025-09 · **Pronto quando:** (D-02) km de saída menor que o do veículo mostra a mensagem da API ("O km informado é menor que o atual…"), em vez de deixar o botão desligado com "Informe a quilometragem"; (D-03) sem caixa aberto, a tela diz "Abra o caixa do dia para receber"; testes.
-
 ### T-207 · Vistoriador sem 403 ao abrir a vistoria (D-05 da T-025)
 - **Agente:** backend (com o frontend, se a chamada não for necessária) · **Depende de:** — · **Regras:** USR-09 · **Pronto quando:** o João (vistoriador) abre a vistoria sem 403: ou a tela deixa de chamar `GET /api/clientes/{id}/` e usa o que a vistoria já traz, ou a API devolve ao vistoriador só o que a USR-09 permite; teste com o perfil do vistoriador.
 

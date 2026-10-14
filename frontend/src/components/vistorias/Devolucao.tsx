@@ -178,7 +178,7 @@ export function Devolucao({ locacaoId }: { locacaoId: number }) {
   const concluida = d.status === "concluida";
   const etapa: Etapa = etapaEscolhida ?? (concluida ? "recibo" : "vistoria");
   const pendencias = pendenciasDoErro(concluirVistoria.error);
-  const falta = textoDaPendencia(v);
+  const falta = v.pendencias[0] === "km" && edicao.avisoDoKm ? edicao.avisoDoKm.mensagem : textoDaPendencia(v);
   const vistoriaConcluida = v.status === "concluida";
 
   const opcoes = [
