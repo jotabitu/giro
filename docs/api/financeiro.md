@@ -361,6 +361,7 @@ class ProvedorPagamentos(Protocol):
 - `validar_webhook` (T-144) só lê o corpo e o token do cabeçalho e devolve o `EventoWebhook` com o `token` (ou `None` se o corpo não é um aviso). Quem confere o token é a view (passo 1 abaixo), porque o hash fica em `plataforma.ContaPagamento`, que o provedor não conhece.
 - `ContaPagamento.chave_api_cifrada` entra na T-029 com o Asaas real; até lá, o provedor falso não precisa de chave.
 - `ContaPagamentoRef` é a conta principal do Giro (faturas, `plataforma`) ou a subconta da empresa (`plataforma.ContaPagamento`).
+- Para a assinatura (T-183, ADR 0023), a conta principal ganha `criar_ou_atualizar_pagador` (a empresa como cliente da conta principal), `cobrar_cartao_salvo(conta, token, pedido)` e, em `SituacaoCobranca`, `cartao` (token, bandeira, final) quando o pagamento foi no cartão. O número do cartão nunca entra na interface: o cartão é digitado na página do parceiro (`cartao_link`).
 
 ## Webhooks (FIN-04, AUT-05, S-14)
 
