@@ -33,15 +33,18 @@ from comum import aprovacoes, estados, relogio
 from comum.auditoria import Categoria, TipoAtor, ator_atual, auditar, registrar_evento
 from comum.dinheiro import formatar_reais
 from comum.empresa import nome_da_empresa
-from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao
+from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, ParceiroForaDoAr
 from comum.eventos import publicar
 from comum.models import WebhookRecebido
 from integracoes.pagamentos import provedor as provedor_de_pagamentos
+from integracoes.pagamentos import referencia
 from integracoes.pagamentos.base import (
-    ContaPagamentoRef,
     EventoWebhook,
     Pagador,
+    ParceiroIndisponivel,
+    ParceiroRecusou,
     PedidoCobranca,
+    StatusDesconhecido,
 )
 from integracoes.whatsapp import enviar_whatsapp
 
@@ -1060,6 +1063,14 @@ def recebimentos_desligados() -> ErroDeRegra:
     return ErroDeRegra("recebimentos_desligados", "Conecte os recebimentos para gerar Pix e boleto")
 
 
+def parceiro_fora_do_ar() -> ParceiroForaDoAr:
+    """CA-029-16: o parceiro não respondeu; nada ficou gravado pela metade."""
+    return ParceiroForaDoAr(
+        "parceiro_indisponivel",
+        "Não conseguimos falar com o parceiro de pagamento. Tente de novo em alguns minutos.",
+    )
+
+
 def gerar_cobranca(
     conta: ContaReceber,
     *,
@@ -1069,11 +1080,27 @@ def gerar_cobranca(
 ) -> CobrancaExterna:
     """Pix ou boleto do valor de hoje (FIN-03). Gerar outra cancela a que está aberta no
     parceiro. Gerada pela tela `Caixa` (`caixa_filial_id`), guarda o caixa: a baixa pelo webhook
-    entra como entrada nesse caixa (FIN-07)."""
+    entra como entrada nesse caixa (FIN-07). Parceiro fora do ar: 503 e nada gravado
+    (CA-029-16)."""
+    try:
+        return _gerar_cobranca(conta, tipo=tipo, vence_em=vence_em, caixa_filial_id=caixa_filial_id)
+    except ParceiroIndisponivel as erro:
+        raise parceiro_fora_do_ar() from erro
+    except ParceiroRecusou as erro:
+        raise ErroDeRegra("parceiro_recusou", erro.mensagem) from erro
+
+
+def _gerar_cobranca(
+    conta: ContaReceber,
+    *,
+    tipo: str,
+    vence_em: date | None,
+    caixa_filial_id: int | None,
+) -> CobrancaExterna:
     subconta = conta_de_pagamento()
     if subconta is None:
         raise recebimentos_desligados()
-    ref = ContaPagamentoRef(subconta.conta_externa_id)
+    ref = referencia(subconta)
     parceiro = provedor_de_pagamentos()
     hoje = relogio.hoje()
     with transaction.atomic():
@@ -1100,7 +1127,9 @@ def gerar_cobranca(
                 valor_centavos=valor,
                 vencimento=vencimento,
                 referencia_externa=str(travada.pk),
-                pagador=Pagador(cliente.nome, cliente.documento_claro(), cliente.celular),
+                pagador=Pagador(
+                    cliente.nome, cliente.documento_claro(), cliente.celular, cliente.email
+                ),
             ),
         )
         cobranca = CobrancaExterna(
@@ -1109,6 +1138,7 @@ def gerar_cobranca(
             externo_id=gerada.id,
             valor_centavos=valor,
             vence_em=vencimento,
+            gerada_no_dia=hoje,
             pix_copia_e_cola=gerada.pix_copia_e_cola,
             linha_digitavel=gerada.linha_digitavel,
             url=gerada.qr_code_url if tipo == TipoCobranca.PIX else gerada.boleto_url,
@@ -1233,9 +1263,19 @@ def _processar(webhook: WebhookRecebido) -> str:
     subconta = conta_de_pagamento()
     if subconta is None:
         return "recebimentos_desligados"
-    situacao = provedor_de_pagamentos().consultar_cobranca(
-        ContaPagamentoRef(subconta.conta_externa_id), cobranca.externo_id
-    )
+    try:
+        situacao = provedor_de_pagamentos().consultar_cobranca(
+            referencia(subconta), cobranca.externo_id
+        )
+    except StatusDesconhecido:
+        # CA-029-08: o financeiro confere no parceiro; nunca vira baixa.
+        conta = cobranca.conta_receber
+        _avisar_financeiro(
+            f"Pagamento para conferir: o parceiro mandou uma situação que o sistema não conhece "
+            f"({conta.cliente.nome}, {conta.origem_codigo or 'conta ' + str(conta.pk)})",
+            f"webhook-{webhook.pk}",
+        )
+        return "status_desconhecido"
     if situacao.status == "estornada":
         _pendencia(cobranca, MotivoPendencia.ESTORNADA_NO_PARCEIRO, situacao.valor_pago_centavos)
         return "estornada_no_parceiro"
@@ -1270,7 +1310,7 @@ def _processar(webhook: WebhookRecebido) -> str:
                 origem=Origem(conta.origem_tipo, conta.origem_id, conta.origem_codigo),
             )
     # A multa e os juros são os do dia em que a cobrança foi gerada: é o valor que foi pago.
-    devido = selectors.devido_ate(conta, timezone.localdate(cobranca.criado_em))
+    devido = selectors.devido_ate(conta, cobranca.dia_da_geracao())
     if cobranca.status == StatusCobranca.AGUARDANDO:
         estados.transicionar(cobranca, StatusCobranca.PAGA, acao="cobranca.paga", regra="AUT-05")
     _baixar(
@@ -1302,7 +1342,7 @@ def resolver_pendencia(
             conta = _travar(travada.cobranca.conta_receber)
             if conta.status != StatusConta.ABERTA:
                 raise conta_nao_esta_aberta(conta)
-            devido = selectors.devido_ate(conta, timezone.localdate(travada.cobranca.criado_em))
+            devido = selectors.devido_ate(conta, travada.cobranca.dia_da_geracao())
             _baixar(conta, forma=travada.cobranca.tipo, devido=devido, regra="AUT-05")
         travada.resolucao = f"{acao}: {motivo}"[:200]
         estados.transicionar(
@@ -1411,7 +1451,10 @@ def cobrar(conta: ContaReceber) -> bool:
         return False
     pix = None
     if conta.vencimento <= relogio.hoje() and conta_de_pagamento() is not None:
-        pix = gerar_cobranca(conta, tipo=TipoCobranca.PIX).pix_copia_e_cola
+        try:
+            pix = gerar_cobranca(conta, tipo=TipoCobranca.PIX).pix_copia_e_cola
+        except (ParceiroForaDoAr, ErroDeRegra):
+            pix = None  # a mensagem sai sem o Pix; a régua não para por um cliente
     mensagem = mensagem_de_cobranca(conta, pix=pix)
     if cliente.celular:
         enviar_whatsapp(cliente.celular, mensagem.texto)

@@ -19,7 +19,7 @@ def preencher(apps, schema_editor):  # type: ignore[no-untyped-def]
 
 
 class Migration(migrations.Migration):
-    dependencies = [("financeiro", "0005_contareceber_bloqueio_pedido_em")]
+    dependencies = [("financeiro", "0006_dia_da_cobranca")]
 
     operations = [
         migrations.AddField(
