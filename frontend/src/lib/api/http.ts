@@ -17,6 +17,8 @@ export type OpcoesDaChamada = {
   comCookie?: boolean;
   /** Rota que não depende da filial escolhida (`/auth/eu/`, `/filiais/minhas/`): sem `X-Filial`. */
   semFilial?: boolean;
+  /** A resposta é um arquivo: devolve o `Blob` em vez de JSON (download de exportação). */
+  blob?: boolean;
 };
 
 const MSG_GENERICA = "Não foi possível concluir agora. Tente de novo.";
@@ -156,6 +158,7 @@ export async function chamarComStatus<T>(metodo: string, caminho: string, o: Opc
     throw erro;
   }
   if (r.status === 204) return { status: 204, dados: undefined as T };
+  if (o.blob) return { status: r.status, dados: (await r.blob()) as T };
   return { status: r.status, dados: cursoresDaLista(await r.json()) as T };
 }
 
