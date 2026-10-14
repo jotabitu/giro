@@ -7,7 +7,7 @@ export type Atividade = "aluga" | "vende" | "ambos";
 
 /** Apps entregues (`GIRO_MODULOS_ATIVOS`). No falso valem todos, para o desenvolvimento ver o menu cheio. */
 export const TODOS_OS_MODULOS = [
-  "aprovacoes", "auditoria", "clientes", "contas", "empresas", "filiais", "financeiro",
+  "aprovacoes", "auditoria", "clientes", "configuracoes", "contas", "empresas", "filiais", "financeiro",
   "locacoes", "manutencao", "plataforma", "relatorios", "veiculos", "vendas", "vistorias",
 ] as const;
 
@@ -53,7 +53,7 @@ const DEFINICOES: Definicao[] = [
   { chave: "comissoes", rotulo: "Comissões", permissao: (p) => p.financeiro_pagar, recurso: "vendas_comissoes", modulo: "vendas" },
   { chave: "conciliacao", rotulo: "Conciliação", contador: "conciliacao", permissao: (p) => p.financeiro_pagar, recurso: "contas_receber", modulo: "financeiro" },
   { chave: "relatorios", rotulo: "Relatórios", permissao: vePainel, recurso: "relatorios", modulo: "relatorios" },
-  { chave: "config", rotulo: "Configurações", permissao: (p) => p.administracao, modulo: "empresas" },
+  { chave: "config", rotulo: "Configurações", permissao: (p) => p.administracao, modulo: "configuracoes" },
   { chave: "marca", rotulo: "Empresa e marca", permissao: (p) => p.administracao, modulo: "empresas" },
   { chave: "filiais", rotulo: "Filiais", permissao: (p) => p.administracao, modulo: "filiais" },
   { chave: "usuarios", rotulo: "Usuários", contador: "usuarios", permissao: (p) => p.administracao, modulo: "contas" },
