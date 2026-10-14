@@ -18,7 +18,9 @@ from django.conf import settings
 
 from apps.aprovacoes import selectors as aprovacoes_selectors
 from apps.clientes import selectors as clientes_selectors
+from apps.contas import navegacao
 from apps.contas import selectors as contas_selectors
+from apps.contratos import selectors as contratos_selectors
 from apps.empresas import selectors as empresas_selectors
 from apps.filiais import selectors as filiais_selectors
 from apps.filiais.models import Filial
@@ -29,6 +31,8 @@ from apps.veiculos import selectors as veiculos_selectors
 from apps.vistorias import selectors as vistorias_selectors
 from comum import relogio
 from comum.dinheiro import formatar_reais
+
+from . import configuracoes as textos_de_configuracoes
 
 PERIODOS = {"hoje": 1, "7d": 7, "30d": 30}
 PERIODO_PADRAO = "7d"
@@ -205,7 +209,7 @@ CONTADORES: dict[str, Callable[[Any, Escopo], int | None]] = {
     "contas_a_pagar": lambda u, e: financeiro_selectors.despesas_a_pagar_vencendo(
         e.filiais, relogio.hoje()
     ).count(),
-    "usuarios": lambda u, e: contas_selectors.contagens_de_usuarios()["convites"],
+    "usuarios": lambda u, e: contas_selectors.convites_pendentes(),
     "agenda": lambda u, e: _agenda_pendente(e),
     "avarias": lambda u, e: (
         vistorias_selectors.avarias_abertas().filter(veiculo__filial_id__in=e.filiais).count()
@@ -729,4 +733,61 @@ def inicio(
         "saudacao": saudacao(getattr(usuario, "nome", ""), _fuso(escopo)),
         "atualizado_em": relogio.agora(),
         **blocos,
+    }
+
+
+# --- Configurações (`docs/api/configuracoes.md`) ---
+
+
+def _modulo_do_cartao() -> dict[str, str]:
+    """A tabela de item e app do menu (`contas.navegacao`), mais os cartões sem item."""
+    do_menu = {
+        chave: str(navegacao.ITENS[chave].modulo)
+        for chave in ("marca", "filiais", "usuarios", "assinatura", "auditoria")
+    }
+    return {**do_menu, **textos_de_configuracoes.MODULO_PROPRIO}
+
+
+def configuracoes(usuario: Any, suporte: bool) -> dict[str, Any]:
+    """`GET /api/configuracoes/`: os cartões da empresa inteira (ignora o `X-Filial`) e a faixa
+    da implantação. Só os selectors listados em "Fontes" do contrato; cada um só é chamado
+    quando o cartão dele vem."""
+    modulos = navegacao.modulos_ativos()
+    visiveis = textos_de_configuracoes.visiveis(_modulo_do_cartao(), modulos, suporte)
+    empresa = plataforma_selectors.empresa_atual()
+    assinatura = plataforma_selectors.assinatura(empresa)
+    fontes = textos_de_configuracoes.Fontes(
+        filiais=filiais_selectors.resumo_das_filiais_ativas() if "filiais" in visiveis else None,
+        usuarios=(
+            (
+                assinatura["uso"]["usuarios"]["usado"],
+                assinatura["uso"]["usuarios"]["limite"],
+                contas_selectors.convites_pendentes(),
+            )
+            if "usuarios" in visiveis
+            else None
+        ),
+        precos=(
+            (
+                veiculos_selectors.categorias_ativas(),
+                locacoes_selectors.planos_especiais_ativos() if "locacoes" in modulos else None,
+            )
+            if "precos" in visiveis
+            else None
+        ),
+        modelos=(
+            contratos_selectors.resumo_dos_modelos() if "modelos_contrato" in visiveis else None
+        ),
+        assinatura={
+            "plano": assinatura["plano"]["nome"],
+            "status": assinatura["status"],
+            "ciclo": assinatura["plano"]["ciclo"],
+            "teste_fim": (assinatura["teste"] or {}).get("fim"),
+            "pausada_ate": empresa.pausada_ate,
+        },
+    )
+    passos = plataforma_selectors.implantacao(empresa)["passos"]
+    return {
+        "cartoes": textos_de_configuracoes.cartoes(visiveis, fontes),
+        "implantacao": textos_de_configuracoes.implantacao(passos),
     }

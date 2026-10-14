@@ -1,4 +1,5 @@
-"""Formas das respostas do painel (`docs/api/painel.md`): só descrevem o que o selector monta."""
+"""Formas das respostas do painel (`docs/api/painel.md`) e de Configurações
+(`docs/api/configuracoes.md`): só descrevem o que o selector monta."""
 
 from typing import Any
 
@@ -306,3 +307,44 @@ INICIO_RESPOSTA = PolymorphicProxySerializer(
     serializers=SERIALIZER_DA_VARIANTE,
     resource_type_field_name="variante",
 )
+
+
+# --- Configurações (`docs/api/configuracoes.md`) ---
+
+
+class CartaoDeConfiguracoesSerializer(serializers.Serializer[Any]):
+    chave = serializers.ChoiceField(
+        choices=[
+            "marca",
+            "filiais",
+            "usuarios",
+            "precos",
+            "modelos_contrato",
+            "integracoes",
+            "notificacoes",
+            "assinatura",
+            "auditoria",
+            "exportar",
+        ]
+    )
+    titulo = serializers.CharField()
+    resumo = serializers.CharField()
+
+
+class AcaoDaImplantacaoSerializer(serializers.Serializer[Any]):
+    rotulo = serializers.CharField()
+    destino = serializers.ChoiceField(choices=["nova_locacao", "implantacao"])
+    passo = serializers.CharField(required=False)
+
+
+class ImplantacaoDeConfiguracoesSerializer(serializers.Serializer[Any]):
+    concluidos = serializers.IntegerField()
+    total = serializers.IntegerField()
+    titulo = serializers.CharField()
+    faltam = serializers.CharField()
+    acao = AcaoDaImplantacaoSerializer(allow_null=True)
+
+
+class ConfiguracoesSerializer(serializers.Serializer[Any]):
+    cartoes = CartaoDeConfiguracoesSerializer(many=True)
+    implantacao = ImplantacaoDeConfiguracoesSerializer(allow_null=True)
