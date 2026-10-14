@@ -201,6 +201,7 @@ class PodeDaEmpresaSerializer(serializers.Serializer[Any]):
     caixa_abrir_fechar = serializers.BooleanField()
     despesas_lancar = serializers.ChoiceField(choices=["todas", "manutencao", "nao"])
     despesas_aprovar = serializers.BooleanField()
+    despesas_exportar = serializers.BooleanField()
     financeiro_pagar = serializers.BooleanField()
     os_abrir = serializers.BooleanField()
     administracao = serializers.BooleanField()
