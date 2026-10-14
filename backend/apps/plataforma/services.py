@@ -7,6 +7,7 @@ Os apps da empresa usam só `exigir_limite`, `vagas_no_plano` (importação), `a
 """
 
 import re
+import secrets
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import timedelta
@@ -28,6 +29,7 @@ from comum.auditoria import (
     Categoria,
     TipoAtor,
     ator_atual,
+    auditar,
     registrar_evento,
     retrato,
     usar_ator,
@@ -35,20 +37,31 @@ from comum.auditoria import (
 from comum.autenticacao import SUPORTE_TERMINOU, AtorSuporte, emitir_token_suporte
 from comum.conexao import conexao
 from comum.documentos import cnpj_valido, so_digitos
-from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, LimiteDoPlano, NaoAutenticado
+from comum.erros import (
+    Conflito,
+    ErroDeRegra,
+    ErroDeValidacao,
+    LimiteDoPlano,
+    NaoAutenticado,
+    ParceiroForaDoAr,
+)
 from comum.estados import transicionar
 from comum.eventos import publicar
+from integracoes.pagamentos import hash_do_token, provedor, referencia
+from integracoes.pagamentos.base import DadosEmpresa, ParceiroIndisponivel, ParceiroRecusou
 
 from .models import (
     DIAS_DE_TESTE,
     DURACOES_DO_SUPORTE,
     AcessoSuporte,
+    ContaPagamento,
     Dominio,
     Empresa,
     Item,
     PermissaoSuporte,
     Plano,
     StatusAcessoSuporte,
+    StatusContaPagamento,
     UsoEmpresa,
 )
 
@@ -627,3 +640,91 @@ def definir_bloqueio_do_suporte(empresa: Empresa, *, bloquear: bool, motivo: str
             for acesso in ativos:
                 revogar_acesso_suporte(acesso, motivo or "Suporte bloqueado pelo administrador")
     return bloquear
+
+
+# --- Recebimentos: subconta no parceiro de pagamentos (passo 10, ADR 0007, T-029) ---
+
+PARCEIRO_FORA_DO_AR = (
+    "parceiro_indisponivel",
+    "Não conseguimos falar com o parceiro de pagamento. Tente de novo em alguns minutos.",
+)
+
+
+def url_do_webhook_de_pagamentos() -> str:
+    """No host da plataforma (contrato de financeiro, "Webhooks"). `GIRO_URL_WEBHOOK_PAGAMENTOS`
+    troca o endereço no desenvolvimento com o sandbox (um túnel HTTPS até a máquina)."""
+    return getattr(settings, "GIRO_URL_WEBHOOK_PAGAMENTOS", "") or (
+        f"https://{settings.SUBDOMINIO_PLATAFORMA}.{settings.DOMINIO_BASE}"
+        "/api/webhooks/pagamentos/asaas/"
+    )
+
+
+def conectar_recebimentos(
+    *,
+    nome: str,
+    documento: str,
+    email: str,
+    celular: str,
+    logradouro: str,
+    numero: str,
+    bairro: str,
+    cep: str,
+    faturamento_mensal_centavos: int,
+    complemento: str = "",
+    tipo_empresa: str = "",
+) -> ContaPagamento:
+    """CA-029-01: abre a subconta da empresa da conexão no parceiro e guarda a chave cifrada
+    (S-05) e o hash do token do webhook (S-14). A subconta nasce `pendente` até o parceiro
+    aprovar; o passo `recebimentos` da implantação fica feito. Recusa do parceiro: nada é
+    gravado, e o motivo vai para a tela (CA-029-02)."""
+    empresa = _empresa(None)
+    if ContaPagamento.objects.filter(empresa=empresa).exists():
+        raise Conflito("recebimentos_conectados", "Os recebimentos já estão conectados.")
+    token = secrets.token_urlsafe(32)
+    try:
+        subconta = provedor().criar_subconta(
+            DadosEmpresa(
+                nome=nome,
+                documento=so_digitos(documento),
+                email=email,
+                celular=so_digitos(celular),
+                logradouro=logradouro,
+                numero=numero,
+                bairro=bairro,
+                cep=so_digitos(cep),
+                faturamento_mensal_centavos=faturamento_mensal_centavos,
+                webhook_url=url_do_webhook_de_pagamentos(),
+                webhook_token=token,
+                complemento=complemento,
+                tipo_empresa=tipo_empresa,
+            )
+        )
+    except ParceiroRecusou as erro:
+        raise ErroDeRegra("parceiro_recusou", erro.mensagem) from erro
+    except ParceiroIndisponivel as erro:
+        raise ParceiroForaDoAr(*PARCEIRO_FORA_DO_AR) from erro
+    conta = ContaPagamento(
+        empresa=empresa,
+        provedor=getattr(settings, "GIRO_PROVEDOR_PAGAMENTOS", "asaas"),
+        conta_externa_id=subconta.conta_externa_id,
+        carteira_id=subconta.carteira_id,
+        webhook_token_hash=hash_do_token(token),
+    )
+    conta.definir_chave_api_cifrada(subconta.chave_api)
+    with transaction.atomic():
+        with auditar(conta, "conta_pagamento.criar", Categoria.CONFIGURACOES, regra="FIN-04"):
+            conta.save()
+        registrar_passo_implantacao("recebimentos", empresa)
+    return conta
+
+
+def atualizar_recebimentos() -> ContaPagamento | None:
+    """Consulta no parceiro se a subconta `pendente` da empresa da conexão foi aprovada ou
+    recusada. Só com a aprovação o Pix e o boleto ficam ligados (CA-029-02)."""
+    conta: ContaPagamento | None = ContaPagamento.objects.filter(empresa=_empresa(None)).first()
+    if conta is None or conta.status != StatusContaPagamento.PENDENTE:
+        return conta
+    situacao = provedor().consultar_subconta(referencia(conta))
+    if situacao in (StatusContaPagamento.APROVADA, StatusContaPagamento.RECUSADA):
+        transicionar(conta, situacao, acao=f"conta_pagamento.{situacao}", regra="FIN-04")
+    return conta

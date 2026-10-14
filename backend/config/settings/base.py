@@ -387,8 +387,14 @@ S3_CHAVE_DE_ACESSO = env("S3_CHAVE_DE_ACESSO", default="")
 S3_CHAVE_SECRETA = env("S3_CHAVE_SECRETA", default="")
 # WhatsApp: só o "falso" (mensagens na memória) até a integração real.
 GIRO_PROVEDOR_WHATSAPP = env("GIRO_PROVEDOR_WHATSAPP", default="falso")
-# Pagamentos (Pix, boleto, webhook): só o "falso" (cobranças na memória) até a T-029 (Asaas).
+# Pagamentos (Pix, boleto, webhook): "falso" (cobranças na memória) ou "asaas" (T-029). A chave
+# da conta principal só abre subcontas; cada subconta tem a sua, cifrada no banco (S-05).
 GIRO_PROVEDOR_PAGAMENTOS = env("GIRO_PROVEDOR_PAGAMENTOS", default="falso")
+GIRO_ASAAS_URL = env("GIRO_ASAAS_URL", default="https://api-sandbox.asaas.com/v3")
+GIRO_ASAAS_CHAVE_API = env("GIRO_ASAAS_CHAVE_API", default="")
+# Vazio: https://admin.<DOMINIO_BASE>/api/webhooks/pagamentos/asaas/. No desenvolvimento com o
+# sandbox, o endereço HTTPS de um túnel até a máquina.
+GIRO_URL_WEBHOOK_PAGAMENTOS = env("GIRO_URL_WEBHOOK_PAGAMENTOS", default="")
 
 # --- E-mail ---
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
