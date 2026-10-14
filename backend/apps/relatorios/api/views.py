@@ -11,6 +11,7 @@ from typing import Any
 
 from django.core.cache import cache
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -21,10 +22,15 @@ from apps.filiais.selectors import filtrar_por_filial
 from comum import relogio
 from comum.conexao import schema_atual
 from comum.erros import ErroDeValidacao
-from comum.permissoes import TODAS_AS_FILIAIS, filial_pedida
+from comum.permissoes import TODAS_AS_FILIAIS, com_padrao, filial_pedida
 
 from .. import selectors
-from .serializers import INICIO_RESPOSTA, SERIALIZER_DA_VARIANTE, ContadoresSerializer
+from .serializers import (
+    INICIO_RESPOSTA,
+    SERIALIZER_DA_VARIANTE,
+    ConfiguracoesSerializer,
+    ContadoresSerializer,
+)
 
 PRAZO_DO_INICIO = 5 * 60
 PRAZO_DOS_CONTADORES = 60
@@ -107,3 +113,33 @@ class InicioView(_Painel):
 
         chave = f"{self._chave(request, escopo, 'inicio', nav)}:{periodo}"
         return Response(_em_cache(chave, PRAZO_DO_INICIO, montar))
+
+
+# --- Configurações (`docs/api/configuracoes.md`) ---
+
+
+class Administracao(BasePermission):
+    """Quem tem `pode.administracao` (administrador e o suporte, que entra como ele)."""
+
+    message = "Seu perfil não tem acesso a esta página"
+
+    def has_permission(self, request: Request, view: Any) -> bool:
+        return bool(contas_selectors.pode(request.user, "administracao"))
+
+
+class ConfiguracoesView(APIView):
+    """Os cartões de Configurações. Sem cache: voltar de Filiais ou de Usuários mostra o número
+    novo. Responde com a empresa sem operação (é leitura) e sem depender de `configuracoes` em
+    `GIRO_MODULOS_ATIVOS`, que só liga o item do menu."""
+
+    permission_classes = com_padrao(Administracao)
+    suporte_somente_leitura = True
+
+    @extend_schema(
+        responses=ConfiguracoesSerializer,
+        summary="Resumo de Configurações (USR-05, PLT-03, PLT-07, IMP-01, IMP-04, IMP-05)",
+    )
+    def get(self, request: Request) -> Response:
+        suporte = bool(getattr(request.user, "e_suporte", False))
+        dados = selectors.configuracoes(request.user, suporte)
+        return Response(ConfiguracoesSerializer(dados).data)

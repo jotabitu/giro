@@ -1220,6 +1220,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/AnaliseCliente'
           description: ''
+  /api/configuracoes/:
+    get:
+      operationId: configuracoes_retrieve
+      description: |-
+        Os cartões de Configurações. Sem cache: voltar de Filiais ou de Usuários mostra o número
+        novo. Responde com a empresa sem operação (é leitura) e sem depender de `configuracoes` em
+        `GIRO_MODULOS_ATIVOS`, que só liga o item do menu.
+      summary: Resumo de Configurações (USR-05, PLT-03, PLT-07, IMP-01, IMP-04, IMP-05)
+      tags:
+      - configuracoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Configuracoes'
+          description: ''
   /api/contratos/marcadores/:
     get:
       operationId: contratos_marcadores_retrieve
@@ -5502,6 +5521,18 @@ components:
       required:
       - codigo
       - rotulo
+    AcaoDaImplantacao:
+      type: object
+      properties:
+        rotulo:
+          type: string
+        destino:
+          $ref: '#/components/schemas/DestinoEnum'
+        passo:
+          type: string
+      required:
+      - destino
+      - rotulo
     AcaoDoPasso:
       type: object
       properties:
@@ -6303,6 +6334,43 @@ components:
           type: string
           default: ''
           maxLength: 500
+    CartaoDeConfiguracoes:
+      type: object
+      properties:
+        chave:
+          $ref: '#/components/schemas/CartaoDeConfiguracoesChaveEnum'
+        titulo:
+          type: string
+        resumo:
+          type: string
+      required:
+      - chave
+      - resumo
+      - titulo
+    CartaoDeConfiguracoesChaveEnum:
+      enum:
+      - marca
+      - filiais
+      - usuarios
+      - precos
+      - modelos_contrato
+      - integracoes
+      - notificacoes
+      - assinatura
+      - auditoria
+      - exportar
+      type: string
+      description: |-
+        * `marca` - marca
+        * `filiais` - filiais
+        * `usuarios` - usuarios
+        * `precos` - precos
+        * `modelos_contrato` - modelos_contrato
+        * `integracoes` - integracoes
+        * `notificacoes` - notificacoes
+        * `assinatura` - assinatura
+        * `auditoria` - auditoria
+        * `exportar` - exportar
     Categoria:
       type: object
       properties:
@@ -6955,6 +7023,20 @@ components:
       - contrato_assinado_em
       - primeiro_pagamento_em
       - vistoria_saida_ok_em
+    Configuracoes:
+      type: object
+      properties:
+        cartoes:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartaoDeConfiguracoes'
+        implantacao:
+          allOf:
+          - $ref: '#/components/schemas/ImplantacaoDeConfiguracoes'
+          nullable: true
+      required:
+      - cartoes
+      - implantacao
     Configurar:
       type: object
       properties:
@@ -7820,6 +7902,14 @@ components:
           type: integer
       required:
       - chave
+    DestinoEnum:
+      enum:
+      - nova_locacao
+      - implantacao
+      type: string
+      description: |-
+        * `nova_locacao` - nova_locacao
+        * `implantacao` - implantacao
     Devolucao:
       type: object
       properties:
@@ -9419,6 +9509,27 @@ components:
       - concluidos
       - etapa_funil
       - passos
+      - total
+    ImplantacaoDeConfiguracoes:
+      type: object
+      properties:
+        concluidos:
+          type: integer
+        total:
+          type: integer
+        titulo:
+          type: string
+        faltam:
+          type: string
+        acao:
+          allOf:
+          - $ref: '#/components/schemas/AcaoDaImplantacao'
+          nullable: true
+      required:
+      - acao
+      - concluidos
+      - faltam
+      - titulo
       - total
     Importacao:
       type: object

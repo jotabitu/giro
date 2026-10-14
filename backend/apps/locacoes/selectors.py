@@ -704,6 +704,11 @@ def planos_especiais(ativo: str | None = None) -> QuerySet[PlanoEspecial]:
     return qs.filter(ativo=True)
 
 
+def planos_especiais_ativos() -> int:
+    """Cartão Tabelas de preço de Configurações (LOC-01)."""
+    return int(PlanoEspecial.ativos.count())
+
+
 def representacao_plano(plano: PlanoEspecial) -> dict[str, Any]:
     return {
         "id": plano.pk,
