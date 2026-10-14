@@ -39,6 +39,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: `contas.Usuario`, `Convite`
 | `caixa_abrir_fechar` | bool | sim | sim | sim (sua filial) | — | sim |
 | `despesas_lancar` | `todas`, `manutencao`, `nao` | `todas` | `todas` | `todas` | `manutencao` | `todas` |
 | `despesas_aprovar` | bool | sim | sim | — | — | — |
+| `despesas_exportar` | bool | sim | — | — | — | sim |
 | `financeiro_pagar` | bool | sim | — | — | — | sim |
 | `os_abrir` | bool | sim | sim | — | sim | — |
 | `administracao` | bool | sim | — | — | — | — |

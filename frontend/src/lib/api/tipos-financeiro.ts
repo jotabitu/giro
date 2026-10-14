@@ -64,3 +64,7 @@ export type FiltroDespesas = { mes?: string; status?: StatusDaDespesa; categoria
 export type NovaDespesa = Omit<S["DespesaEntrada"], "nota" | "veiculo_id" | "pago_no_caixa"> & { veiculo_id?: number | null; nota?: File | null; pago_no_caixa?: boolean };
 export type PagamentoDeDespesa = Omit<S["PagarDespesa"], "comprovante"> & { comprovante?: File | null };
 export type PedidoDeAprovacao = S["Pedido"];
+export type StatusDoPedido = S["PedidoStatusEnum"];
+export type TipoDoPedido = S["PedidoTipoEnum"];
+export type FiltroPedidos = { status?: StatusDoPedido; tipo?: TipoDoPedido; minhas?: boolean };
+export type ListaPedidos = { contagens: { pendente: number }; resultados: PedidoDeAprovacao[] };

@@ -31,6 +31,9 @@ CACHES = {
 }
 GIRO_REDES_PROXY = ["10.0.0.0/8"]
 GIRO_PROXIES_CONFIAVEIS = 1
+# T-029: os testes nunca falam com o Asaas de verdade, mesmo com a chave do sandbox no ambiente
+# (os testes do sandbox criam o cliente deles).
+GIRO_PROVEDOR_PAGAMENTOS = "falso"
 
 # App só de teste com um model que usa ModeloComCodigo e MaquinaDeEstados.
 TENANT_APPS = [*TENANT_APPS, "tests.app_exemplo"]
