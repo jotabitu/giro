@@ -139,6 +139,12 @@ class Provedor(Protocol):
 guardados: dict[str, tuple[bytes, str]] = {}
 
 
+def assinar(caminho: str, expira: str, nonce: str) -> str:
+    return hmac.new(
+        settings.SECRET_KEY.encode(), f"{caminho}|{expira}|{nonce}".encode(), hashlib.sha256
+    ).hexdigest()
+
+
 class ProvedorFalso:
     """Guarda na memória e assina a URL com HMAC da SECRET_KEY, com um `nonce`, para cada
     leitura gerar uma URL diferente, como o S3 faz."""
@@ -161,13 +167,10 @@ class ProvedorFalso:
     def url(self, caminho: str, expira_em: datetime) -> str:
         expira = str(int(expira_em.timestamp()))
         nonce = secrets.token_hex(8)
-        assinatura = hmac.new(
-            settings.SECRET_KEY.encode(),
-            f"{caminho}|{expira}|{nonce}".encode(),
-            hashlib.sha256,
-        ).hexdigest()
+        assinatura = assinar(caminho, expira, nonce)
         consulta = urlencode({"expira": expira, "nonce": nonce, "assinatura": assinatura})
-        return f"https://arquivos.invalid/{quote(caminho)}?{consulta}"
+        base = settings.GIRO_ARQUIVOS_FALSOS_BASE
+        return f"{base}/{quote(caminho)}?{consulta}"
 
 
 # --- S3 (ou compatível) ---

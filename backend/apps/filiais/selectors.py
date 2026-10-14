@@ -53,6 +53,17 @@ def resumo_das_filiais(usuario: Any) -> list[dict[str, Any]]:
     return [{"id": f.pk, "nome": f.nome} for f in minhas_filiais(usuario)]
 
 
+def resumo_das_filiais_ativas() -> dict[str, Any]:
+    """O cartão Filiais de Configurações (`docs/api/configuracoes.md`): quantas ativas, as
+    cidades (sem repetir, na ordem da lista) e, quando é uma só, o nome e a cidade dela."""
+    filiais = list(Filial.ativos.order_by("-matriz", "nome", "id").values("nome", "cidade"))
+    return {
+        "ativas": len(filiais),
+        "cidades": list(dict.fromkeys(filial["cidade"] for filial in filiais)),
+        "unica": filiais[0] if len(filiais) == 1 else None,
+    }
+
+
 @dataclass(frozen=True)
 class TodasAsFiliais:
     """`X-Filial: todas`. `ids` são todas as filiais da empresa, inclusive as desativadas, que

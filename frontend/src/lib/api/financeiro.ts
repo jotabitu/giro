@@ -7,6 +7,7 @@ import type {
   ContaReceber,
   ContaReceberDetalhe,
   Despesa,
+  ExportacaoCriada,
   FiltroDespesas,
   FiltroReceber,
   FormaDeRecebimento,
@@ -16,6 +17,7 @@ import type {
   MovimentoDoCaixa,
   NovaDespesa,
   PagamentoDeDespesa,
+  PedidoDeExportacaoDeDespesas,
 } from "./tipos-financeiro";
 
 export const financeiroApi = {
@@ -77,7 +79,7 @@ export const financeiroApi = {
   },
 
   listarDespesas(f: FiltroDespesas = {}): Promise<ListaDespesas> {
-    return http.get("/api/financeiro/despesas/", { mes: f.mes, status: f.status, categoria: f.categoria, veiculo: f.veiculo, cursor: f.cursor });
+    return http.get("/api/financeiro/despesas/", { mes: f.mes, status: f.status, categoria: f.categoria, veiculo: f.veiculo, busca: f.busca, cursor: f.cursor });
   },
 
   obterDespesa(id: number): Promise<Despesa> {
@@ -87,6 +89,11 @@ export const financeiroApi = {
   /** Multipart (nota em foto ou PDF). A API decide o estado: até R$ 500 `a_pagar`, acima `aguardando_aprovacao` (FIN-05, APR-03). */
   lancarDespesa(corpo: NovaDespesa): Promise<Despesa> {
     return http.post("/api/financeiro/despesas/", formulario(corpo));
+  },
+
+  /** Cria a exportação das despesas do mês e da filial da tela; o link chega por e-mail (`AUD-07`). A busca e a aba não vão no pedido. */
+  exportarDespesas(pedido: PedidoDeExportacaoDeDespesas): Promise<ExportacaoCriada> {
+    return http.post("/api/exportacoes/", { itens: ["despesas"], formato: "csv", mes: pedido.mes, filial_id: pedido.filial_id });
   },
 
   pagarDespesa(id: number, corpo: PagamentoDeDespesa): Promise<Despesa> {

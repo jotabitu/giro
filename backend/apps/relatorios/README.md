@@ -27,3 +27,9 @@ Contrato da API: `docs/api/relatorios.md` (escrito pelo arquiteto antes da imple
 - A variante e as chaves dos contadores vêm de `contas.selectors.navegacao_de` (a mesma navegação do `eu`). O escopo (`Escopo`) sai de `filtrar_por_filial` na view.
 - Cache por schema, pessoa, filial e rota (`painel:<schema>:<usuario>:<filial ou todas>:<rota>[:<periodo>]`): 5 min no início, 60 s nos contadores. Suporte: "só ver", variante do administrador.
 - Quando a T-017 (caixa) e a despesa entrarem, cada uma liga o seu bloco aqui (`caixa_hoje`, `caixas_do_dia`, `sai_hoje`, `despesas`, `contas_a_pagar`, `para_hoje`) com o teste do seed.
+
+## Implementado (T-181)
+
+- `GET /api/configuracoes/` (`docs/api/configuracoes.md`): só quem tem `pode.administracao` (403 `permissao` aos outros), o suporte sem `auditoria` e `exportar` (PLT-07), sem cache e sem depender de `configuracoes` em `GIRO_MODULOS_ATIVOS` (essa chave liga só o item `config` do menu).
+- `selectors.configuracoes(usuario, suporte)` chama só os selectors da tabela "Fontes" (8 consultas com todos os cartões); os textos ficam em `configuracoes.py`, função pura.
+- Cartão só de app ativo, pela tabela de item e app de `contas.navegacao` (USR-05). `marca` depende de `empresas`, fora do padrão até a T-153 e a T-154.

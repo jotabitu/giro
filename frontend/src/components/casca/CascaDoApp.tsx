@@ -140,7 +140,10 @@ export function GuardaDeRota({ children }: { children: ReactNode }) {
 /** Casca do app: sidebar de 280px no desktop; no celular, cabeçalho com gaveta e barra inferior (Início, Veículos, +, Locações, Mais). */
 export function CascaDoApp({ children }: { children: ReactNode }) {
   const marca = useMarcaDaEmpresa();
+  const rota = usePathname();
   const [gaveta, setGaveta] = useState(false);
+  // O assistente de implantação tem a própria moldura (passos no lugar do menu): sem sidebar nem barra inferior.
+  if (rota === "/implantacao" || rota.startsWith("/implantacao/")) return <GuardaDeRota>{children}</GuardaDeRota>;
   return (
     <div className="min-h-screen bg-canvas md:flex md:gap-6 md:p-6">
       <aside className="sticky top-6 hidden h-[calc(100vh-48px)] shrink-0 flex-col gap-2 overflow-y-auto md:flex">

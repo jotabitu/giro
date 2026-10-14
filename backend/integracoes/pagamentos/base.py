@@ -1,22 +1,32 @@
 """Interface de pagamentos (contrato de financeiro, "Interface de pagamentos"; ADR 0007).
 
 Só `financeiro` e `plataforma` chamam esta interface. Valores sempre em centavos e datas como
-`date`; nenhum tipo do SDK do parceiro sai daqui. `falso.py` é a implementação padrão em
-desenvolvimento e testes; `asaas.py` (a real) entra com a T-029, que também traz a subconta, a
-cobrança recorrente (AUT-04) e a chave da API cifrada (S-05).
+`date`; nenhum tipo, campo ou status do parceiro sai daqui. `falso.py` é a implementação padrão
+em desenvolvimento e testes; `asaas.py` é a real (T-029).
+
+A chave da subconta (S-05) chega cifrada: `ContaPagamentoRef.decifrar_chave` só é chamada dentro
+da implementação, no momento da chamada ao parceiro.
 """
 
-from collections.abc import Mapping
-from dataclasses import dataclass
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Protocol
 
 
+def _sem_chave() -> str:
+    return ""
+
+
 @dataclass(frozen=True)
 class ContaPagamentoRef:
-    """A conta principal do Giro ou a subconta da empresa (`plataforma.ContaPagamento`)."""
+    """A conta principal do Giro ou a subconta da empresa (`plataforma.ContaPagamento`).
+
+    `decifrar_chave` devolve a chave da API da subconta; vazio para a conta principal, que usa a
+    chave do ambiente."""
 
     conta_externa_id: str
+    decifrar_chave: Callable[[], str] = field(default=_sem_chave, repr=False, compare=False)
 
 
 @dataclass(frozen=True)
@@ -24,6 +34,7 @@ class Pagador:
     nome: str
     documento: str = ""
     celular: str = ""
+    email: str = ""
 
 
 @dataclass(frozen=True)
@@ -68,7 +79,81 @@ class EventoWebhook:
     token: str
 
 
+@dataclass(frozen=True)
+class DadosEmpresa:
+    """O que o passo "Recebimentos" manda para abrir a subconta (ADR 0007). `webhook_token` é o
+    token aleatório que o parceiro devolve no cabeçalho de cada aviso; só o hash fica guardado."""
+
+    nome: str
+    documento: str  # CNPJ (ou CPF), só dígitos
+    email: str
+    celular: str
+    logradouro: str
+    numero: str
+    bairro: str
+    cep: str
+    faturamento_mensal_centavos: int
+    webhook_url: str
+    webhook_token: str = field(repr=False)
+    complemento: str = ""
+    tipo_empresa: str = ""  # mei | limitada | individual | associacao
+
+
+@dataclass(frozen=True)
+class Subconta:
+    """`chave_api` só existe nesta resposta: quem recebe cifra e guarda (S-05)."""
+
+    conta_externa_id: str
+    carteira_id: str
+    chave_api: str = field(repr=False)
+    status: str = "pendente"  # pendente | aprovada | recusada
+
+
+@dataclass(frozen=True)
+class PedidoRecorrencia:
+    """Autorização de cobrança recorrente (AUT-04): o pagador aprova uma vez, e cada parcela é
+    cobrada depois com `cobrar_com_autorizacao`. A primeira cobrança vai junto da autorização."""
+
+    referencia_externa: str  # id da locação (até 35 caracteres)
+    frequencia: str  # semanal | mensal | trimestral | semestral | anual
+    inicio: date
+    valor_centavos: int
+    primeira_cobranca_centavos: int
+    pagador: Pagador
+    fim: date | None = None
+    descricao: str = ""
+
+
+@dataclass(frozen=True)
+class Autorizacao:
+    id: str
+    status: str  # pendente | ativa | cancelada | recusada | expirada
+    pix_copia_e_cola: str = ""
+
+
+class ParceiroIndisponivel(Exception):
+    """O parceiro não respondeu no tempo limite ou respondeu 5xx. Nada foi feito pela metade."""
+
+
+class ParceiroRecusou(Exception):
+    """O parceiro recusou o pedido (dados inválidos). `mensagem` vem em português e pode ir para
+    a tela de quem trabalha na locadora."""
+
+    def __init__(self, mensagem: str) -> None:
+        super().__init__(mensagem)
+        self.mensagem = mensagem
+
+
+class StatusDesconhecido(Exception):
+    """O parceiro devolveu um status que o Giro não conhece: vira erro para o financeiro, nunca
+    uma baixa (CA-029-08)."""
+
+
 class ProvedorPagamentos(Protocol):
+    def criar_subconta(self, empresa: DadosEmpresa) -> Subconta: ...
+
+    def consultar_subconta(self, conta: ContaPagamentoRef) -> str: ...
+
     def criar_cobranca(self, conta: ContaPagamentoRef, pedido: PedidoCobranca) -> Cobranca: ...
 
     def cancelar_cobranca(self, conta: ContaPagamentoRef, cobranca_id: str) -> None: ...
@@ -76,6 +161,16 @@ class ProvedorPagamentos(Protocol):
     def consultar_cobranca(
         self, conta: ContaPagamentoRef, cobranca_id: str
     ) -> SituacaoCobranca: ...
+
+    def criar_autorizacao_recorrente(
+        self, conta: ContaPagamentoRef, pedido: PedidoRecorrencia
+    ) -> Autorizacao: ...
+
+    def cobrar_com_autorizacao(
+        self, conta: ContaPagamentoRef, autorizacao_id: str, pedido: PedidoCobranca
+    ) -> Cobranca: ...
+
+    def cancelar_autorizacao(self, conta: ContaPagamentoRef, autorizacao_id: str) -> None: ...
 
     def validar_webhook(
         self, cabecalhos: Mapping[str, str], corpo: bytes

@@ -47,6 +47,7 @@ TABELA_DO_PODE: dict[str, dict[str, Any]] = {
     "caixa_abrir_fechar": _so(ADM, GER, VEN, FIN),
     "despesas_lancar": {ADM: "todas", GER: "todas", VEN: "todas", VIS: "manutencao", FIN: "todas"},
     "despesas_aprovar": _so(ADM, GER),
+    "despesas_exportar": _so(ADM, FIN),  # FIN-16, AUD-07 (T-177)
     "financeiro_pagar": _so(ADM, FIN),
     "os_abrir": _so(ADM, GER, VIS),
     "administracao": _so(ADM),
@@ -153,6 +154,13 @@ def contagens_de_usuarios() -> dict[str, int]:
     filtros = {nome: Count("pk", filter=Q(status=status)) for nome, status in SITUACOES.items()}
     totais = Usuario.objects.exclude(perfil="").aggregate(todos=Count("pk"), **filtros)
     return {chave: int(valor) for chave, valor in totais.items()}
+
+
+def convites_pendentes() -> int:
+    """Convites ainda não aceitos: o contador `usuarios` do painel e o cartão de Configurações."""
+    return int(
+        Usuario.objects.exclude(perfil="").filter(status=StatusUsuario.CONVITE_PENDENTE).count()
+    )
 
 
 def item_de_usuario(usuario: Usuario, eu: Usuario) -> dict[str, Any]:
