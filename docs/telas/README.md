@@ -193,4 +193,4 @@ A tela `Configurações` (`/admin/configuracoes`) lista cartões de `GET /api/co
 | `notificacoes` | `/admin/notificacoes` | sem tela |
 | `assinatura` | `/admin/assinatura` | Administração › Assinatura |
 | `auditoria` | `/admin/auditoria` | Auditoria da empresa |
-| `exportar` | `/admin/auditoria/exportar` | Exportar dados |
+| `exportar` | `/admin/exportar` | Exportar dados |
