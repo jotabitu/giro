@@ -1,7 +1,7 @@
 """T-210: no desenvolvimento a URL assinada da foto é da mesma origem e abre no navegador."""
 
 from datetime import timedelta
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlsplit
 
 import pytest
 from django.test import RequestFactory, override_settings
@@ -21,9 +21,7 @@ def _foto():
 
 def _abrir(url: str):
     partes = urlsplit(url)
-    pedido = RequestFactory().get(
-        partes.path, partes.query and dict(p.split("=") for p in partes.query.split("&"))
-    )
+    pedido = RequestFactory().get(partes.path, dict(parse_qsl(partes.query)))
     return servir(pedido, partes.path.removeprefix("/api/arquivos-dev/"))
 
 
