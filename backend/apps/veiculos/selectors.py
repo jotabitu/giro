@@ -6,11 +6,12 @@ Interface para os outros apps (contrato de veículos): `preco_vigente(categoria,
 """
 
 from collections.abc import Iterable
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from django.db.models import Count, Q, QuerySet
+from django.utils import timezone
 
 from comum import arquivos, leituras, relogio
 from comum.permissoes import filiais_permitidas
@@ -485,6 +486,21 @@ def alugados_em(filiais: Iterable[int], momento: datetime) -> int:
     return sum(
         1 for eventos in _eventos(ids, momento).values() if eventos and eventos[-1][1] == S.ALUGADO
     )
+
+
+def frota_ativa_em(dia: date, filiais: Iterable[int]) -> int:
+    """Veículos das filiais fora de `vendido` e `baixado` no fim de `dia` em America/Sao_Paulo,
+    pelo último status do histórico (FIN-16, despesa por veículo). Cadastrado depois do dia não
+    conta; vendido ou baixado depois do dia conta. A filial é a atual do veículo."""
+    fim = timezone.make_aware(datetime.combine(dia + timedelta(days=1), time.min))
+    ultimo: dict[int, str] = {}
+    for veiculo_id, para in (
+        HistoricoStatusVeiculo.objects.filter(veiculo__filial_id__in=list(filiais), em__lt=fim)
+        .order_by("veiculo_id", "em", "id")
+        .values_list("veiculo_id", "para")
+    ):
+        ultimo[veiculo_id] = para
+    return sum(1 for para in ultimo.values() if para not in FORA_DA_FROTA)
 
 
 # --- Fornecido a filiais (ADR 0015) ---

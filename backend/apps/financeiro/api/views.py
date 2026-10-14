@@ -12,7 +12,7 @@ from django.db import transaction
 from django.http import Http404
 from django_tenants.utils import tenant_context
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.request import Request
@@ -625,8 +625,11 @@ class DespesasView(APIView):
             ),
             OpenApiParameter("categoria", enum=CategoriaDespesa.values),
             OpenApiParameter("veiculo", int),
+            OpenApiParameter(
+                "busca", str, description="descrição ou placa, até 60 caracteres (FIN-16)"
+            ),
         ],
-        summary="Despesas do mês (FIN-05, FIN-06)",
+        summary="Despesas do mês (FIN-05, FIN-06, FIN-16)",
     )
     def get(self, request: Request) -> Response:
         hoje = relogio.hoje()
@@ -637,20 +640,26 @@ class DespesasView(APIView):
         pagina = paginacao.paginate_queryset(qs, request, view=self) or []
         return paginacao.get_paginated_response(
             DespesaSerializer([selectors.representacao_despesa(d) for d in pagina], many=True).data,
-            extras=selectors.indicadores_das_despesas(todas, request.query_params, hoje),
+            extras=selectors.indicadores_das_despesas(
+                todas, request.query_params, hoje, _filiais_do_escopo(request)
+            ),
         )
 
     @extend_schema(
         request={"multipart/form-data": DespesaEntradaSerializer},
         responses={201: DespesaSerializer},
-        summary="Lançar despesa: acima de R$ 500 vai para o gerente (FIN-05, APR-03)",
+        summary="Lançar despesa: acima de R$ 500 vai para o gerente (FIN-05, FIN-06, APR-03)",
     )
     def post(self, request: Request) -> Response:
+        # As recusas de perfil vêm antes da validação dos campos (docs/api/financeiro.md).
+        if _perfil(request) == "vistoriador":
+            if request.data.get("categoria") != "manutencao":
+                raise SemPermissao("FIN-06", "Seu perfil lança só despesas de manutenção.")
+            pago_no_caixa = str(request.data.get("pago_no_caixa", "")).lower()
+            if pago_no_caixa in serializers.BooleanField.TRUE_VALUES:
+                raise SemPermissao("FIN-05", "Seu perfil não paga despesa pelo caixa.")
         dados = _entrada(DespesaEntradaSerializer, request)
-        if _perfil(request) == "vistoriador" and dados["categoria"] != "manutencao":
-            raise SemPermissao("FIN-06", "Seu perfil lança só despesas de manutenção.")
-        if dados.get("nota") is not None:
-            arquivos.validar(dados["nota"], "nota")
+        arquivos.validar(dados["nota"], "nota")
         veiculo_id = dados.get("veiculo_id")
         despesa = services.lancar_despesa(
             filial=Filial.objects.get(pk=_filial_do_caixa(request)),
@@ -661,7 +670,7 @@ class DespesasView(APIView):
             vencimento=dados["vencimento"],
             categoria=dados["categoria"],
             veiculo_id=_veiculo_existente(veiculo_id),
-            nota=dados.get("nota"),
+            nota=dados["nota"],
             pago_no_caixa=dados.get("pago_no_caixa", False),
         )
         despesa = selectors.base_das_despesas().get(pk=despesa.pk)

@@ -82,6 +82,9 @@ class ExportacaoEntradaSerializer(serializers.Serializer[Any]):
     )
     formato = serializers.ChoiceField(choices=FormatoExportacao.choices)
     periodo = PeriodoSerializer(allow_null=True, required=False)
+    # Só com `despesas` (FIN-16): o mês `AAAA-MM` e a filial da tela (`null` = todas).
+    mes = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    filial_id = serializers.IntegerField(required=False, allow_null=True)
 
 
 class ExportacaoCriadaSerializer(serializers.Serializer[Any]):

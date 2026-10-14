@@ -1716,7 +1716,7 @@ paths:
   /api/exportacoes/:
     get:
       operationId: exportacoes_list
-      summary: Exportações recentes (AUD-07)
+      summary: Exportações recentes (AUD-07); o financeiro vê só as de despesas
       tags:
       - exportacoes
       security:
@@ -1730,7 +1730,8 @@ paths:
           description: ''
     post:
       operationId: exportacoes_create
-      summary: Pedir exportação (AUD-07); backup completo pede 2 etapas recentes (S-15)
+      summary: 'Pedir exportação (AUD-07): auditoria ou despesas (FIN-16); backup
+        completo pede 2 etapas recentes (S-15)'
       tags:
       - exportacoes
       requestBody:
@@ -2717,8 +2718,13 @@ paths:
   /api/financeiro/despesas/:
     get:
       operationId: financeiro_despesas_list
-      summary: Despesas do mês (FIN-05, FIN-06)
+      summary: Despesas do mês (FIN-05, FIN-06, FIN-16)
       parameters:
+      - in: query
+        name: busca
+        schema:
+          type: string
+        description: descrição ou placa, até 60 caracteres (FIN-16)
       - in: query
         name: categoria
         schema:
@@ -2761,7 +2767,8 @@ paths:
           description: ''
     post:
       operationId: financeiro_despesas_create
-      summary: 'Lançar despesa: acima de R$ 500 vai para o gerente (FIN-05, APR-03)'
+      summary: 'Lançar despesa: acima de R$ 500 vai para o gerente (FIN-05, FIN-06,
+        APR-03)'
       tags:
       - financeiro
       requestBody:
@@ -7852,7 +7859,6 @@ components:
         nota:
           type: string
           format: uri
-          nullable: true
         pago_no_caixa:
           type: boolean
           default: false
@@ -7860,6 +7866,7 @@ components:
       - categoria
       - data
       - descricao
+      - nota
       - valor_centavos
       - vencimento
     DespesaStatusEnum:
@@ -8772,6 +8779,12 @@ components:
           allOf:
           - $ref: '#/components/schemas/Periodo'
           nullable: true
+        mes:
+          type: string
+          nullable: true
+        filial_id:
+          type: integer
+          nullable: true
       required:
       - formato
       - itens
@@ -9642,6 +9655,9 @@ components:
       properties:
         gasto_mes_centavos:
           type: integer
+        despesa_por_veiculo_centavos:
+          type: integer
+          nullable: true
         aguardando_aprovacao_centavos:
           type: integer
         aguardando_aprovacao_quantidade:
@@ -9654,6 +9670,7 @@ components:
       - a_pagar_semana_centavos
       - aguardando_aprovacao_centavos
       - aguardando_aprovacao_quantidade
+      - despesa_por_veiculo_centavos
       - gasto_mes_centavos
       - por_categoria
     IndicadoresLocacoes:
@@ -10144,6 +10161,7 @@ components:
       - financeiro
       - vistorias_fotos
       - auditoria
+      - despesas
       type: string
       description: |-
         * `clientes` - Clientes
@@ -10152,6 +10170,7 @@ components:
         * `financeiro` - Financeiro
         * `vistorias_fotos` - Vistorias e fotos
         * `auditoria` - Auditoria
+        * `despesas` - Despesas
     ItemHistoricoLocacao:
       type: object
       properties:
@@ -12671,6 +12690,8 @@ components:
           $ref: '#/components/schemas/DespesasLancarEnum'
         despesas_aprovar:
           type: boolean
+        despesas_exportar:
+          type: boolean
         financeiro_pagar:
           type: boolean
         os_abrir:
@@ -12684,6 +12705,7 @@ components:
       - clientes_cadastrar
       - desconto_acima_limite
       - despesas_aprovar
+      - despesas_exportar
       - despesas_lancar
       - financeiro_pagar
       - locacoes_cancelar

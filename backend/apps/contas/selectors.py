@@ -47,6 +47,7 @@ TABELA_DO_PODE: dict[str, dict[str, Any]] = {
     "caixa_abrir_fechar": _so(ADM, GER, VEN, FIN),
     "despesas_lancar": {ADM: "todas", GER: "todas", VEN: "todas", VIS: "manutencao", FIN: "todas"},
     "despesas_aprovar": _so(ADM, GER),
+    "despesas_exportar": _so(ADM, FIN),  # FIN-16, AUD-07 (T-177)
     "financeiro_pagar": _so(ADM, FIN),
     "os_abrir": _so(ADM, GER, VIS),
     "administracao": _so(ADM),

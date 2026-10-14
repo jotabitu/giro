@@ -17,6 +17,7 @@ export type Pode = {
   caixa_abrir_fechar: boolean;
   despesas_lancar: "todas" | "manutencao" | "nao";
   despesas_aprovar: boolean;
+  despesas_exportar: boolean;
   financeiro_pagar: boolean;
   os_abrir: boolean;
   administracao: boolean;

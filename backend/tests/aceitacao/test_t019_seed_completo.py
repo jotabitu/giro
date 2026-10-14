@@ -668,6 +668,14 @@ def test_fin_05_seed_019_23_despesas_de_outubro(seed):
     assert ipva["status"] == "a_pagar"
 
 
+def test_fin_16_despesa_por_veiculo_no_seed(seed):
+    # CA-DES-01: 706670 ÷ 86 veículos = 8217,09 → 8217. As 6 despesas têm nota (FIN-06).
+    corpo = _api(seed, "Lúcia").get("/api/financeiro/despesas/", {"mes": "2026-10"}).json()
+    assert corpo["indicadores"]["despesa_por_veiculo_centavos"] == 8217
+    assert all(d["nota"] and d["nota"]["url"] for d in corpo["resultados"])
+    assert len(corpo["resultados"]) == 6
+
+
 def test_fin_15_seed_019_24_inicio_e_contadores_em_07_out(seed):
     mariana = _api(seed, "Mariana").get("/api/painel/contadores/").json()["contadores"]
     assert (mariana["receber"], mariana["despesas"], mariana["veiculos"], mariana["locacoes"]) == (

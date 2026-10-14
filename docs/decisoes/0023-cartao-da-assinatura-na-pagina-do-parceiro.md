@@ -23,5 +23,5 @@ No jeito 2 o número do cartão passa pelo nosso frontend, proxy, backend, logs 
 
 - O Giro fica no questionário mais simples do PCI (SAQ A), porque o cartão só existe na página do parceiro.
 - A pessoa sai da tela do Giro para digitar o cartão e volta pelo link de retorno. A página do parceiro mostra a marca do parceiro; para a assinatura do Giro (cobrança do Giro à locadora) isso não fere o white label.
-- Cadastrar o cartão sem cobrar nada, no teste, depende de o parceiro aceitar pré-autorização pela página; a regra de quando o cartão é pedido fica com o produto (`[D-6]` em `docs/api/assinatura.md`).
+- Cadastrar o cartão sem cobrar nada, no teste, depende de o parceiro aceitar pré-autorização pela página; a regra de quando o cartão é pedido fica com o produto (`[D-6]` em `docs/api/assinatura.md`). Resolvido em 14 out 2026 (T-190, `PLT-13`): o cartão é digitado na página do parceiro ao pagar a 1ª fatura, sem pré-autorização.
 - Vale também, no futuro, para o cartão do cliente final da locadora (subconta): mesmo princípio, mesma interface.
