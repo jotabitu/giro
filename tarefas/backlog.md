@@ -181,8 +181,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entrou no PR #160 (ver `feito.md`).
 
-### T-157 · (M-03) Produção recusa e-mail no console e armazenamento falso (média)
-- **Agente:** backend · **Depende de:** — · **Pronto quando:** `config/settings/prod.py` recusa subir com `EMAIL_BACKEND` de console, locmem ou arquivo (o padrão de `base.py` é o console, e os e-mails de senha, convite e assinatura levam o token) e com `GIRO_ARMAZENAMENTO` diferente de `s3`, como já faz com as chaves; pagamentos e WhatsApp `falso` entram na mesma trava quando as integrações reais existirem (T-029); teste que importa `prod.py` com o ambiente montado. Antes de homologação.
 
 ### T-156 · (M-02) Custo e rendimento do veículo fora da ficha do vendedor (média)
 - **Agente:** backend, depois frontend · **Depende de:** T-136 · **Regras:** tabela de perfis, USR-09, VEI-05 · **Decisão:** opção A do dono do produto em 12 out 2026 (regra na T-156 do produto) · **Pronto quando:**
