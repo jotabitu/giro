@@ -129,6 +129,59 @@ Concluída. As tarefas entregues estão em `tarefas/feito.md`.
 
 ## Fase 1 · MVP
 
+### Notas do dono de 15 out 2026 (testes na mão)
+
+Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, depois telas, depois o que pede regra. As três dúvidas do fim contrariavam regras já escritas e foram decididas pelo dono no mesmo dia.
+
+### T-238 · Subir as telas de referência novas e alteradas (design-system)
+- **Agente:** design-system · **Depende de:** — · **Pronto quando:** as telas que estão só na pasta local do dono entram no git num PR: as novas `Movimentacoes-*`, `Movimentacao-Nova-*`, `Movimentacao-Chegada-Mobile`, `Veiculo-Novo-*`, `Cliente-Detalhe-*` e `Aprovacoes-*` (sem rastreio no git) e as alteradas, entre elas `Veiculo-Desktop` e `Veiculo-Mobile`; `docs/telas/README.md` com as linhas novas (rota, app, regras); conferência com as regras (o que não bater vira `[divergência]`). Sem isso, T-242, T-243 e T-246 não têm a referência certa na `main`. Pedir ao dono a cópia dos arquivos (a pasta `docs/telas/html` dele).
+
+### T-239 · Bug: locação não passa do passo 1
+- **Agente:** frontend (backend se a causa for a API) · **Depende de:** — · **Regras:** LOC-01, CLI-01 · **Telas:** Nova locação · **Pronto quando:** com o passo 1 (Dados) preenchido, os botões de seguir para a vistoria e de salvar como reserva ficam ativos e funcionam; a causa está no handoff (validação do formulário, campo escondido obrigatório, resposta da API); teste do componente que preenche o passo 1 e clica nos dois botões; repetir no E2E da locação. Relato do dono: "preencho tudo do passo 1 e não deixa clicar nos botões".
+
+### T-240 · Bug: cadastrar veículo mostra erro mas grava
+- **Agente:** frontend, com backend · **Depende de:** — · **Regras:** VEI-01 · **Telas:** Veiculo-Novo · **Pronto quando:** "Salvar veículo" com dados válidos mostra sucesso e abre a ficha; se uma etapa depois de criar falhar (fotos, documentos, leitura da ficha), o veículo criado não vira erro genérico, e a mensagem diz o que faltou; clicar duas vezes não tenta criar de novo (botão travado durante o envio); teste do componente com a criação 201 e uma etapa seguinte com erro; teste do backend se a causa for lá. Relato do dono: erro "não foi possível cadastrar"; no segundo clique, "placa já cadastrada"; e o veículo estava gravado.
+
+### T-241 · Bug: contador de Aprovações no menu demora a mudar
+- **Agente:** frontend · **Depende de:** — · **Regras:** APR-12, FIN-15 (contadores) · **Pronto quando:** ao aprovar ou recusar um pedido, o número de Aprovações no menu lateral muda na hora (invalidar a consulta dos contadores do menu junto com a das aprovações; o mesmo para Despesas e Contas a receber, se tiverem o mesmo problema); teste que aprova e confere o contador sem esperar o intervalo de atualização.
+
+### T-242 · Ficha do veículo igual à referência
+- **Agente:** frontend · **Depende de:** T-238 · **Regras:** VEI-01 a VEI-06 · **Telas:** Veiculo-Desktop (e Veiculo-Mobile) · **Pronto quando:** a ficha do veículo fica idêntica à referência `docs/telas/html/Veiculo-Desktop.dc.html` (pedido do dono: "design idêntico"), com os componentes do design system e os dados da API; o que a referência mostra e a API não manda vira pedido ao arquiteto, não número inventado na tela; revisão visual do design-system lado a lado.
+
+### T-243 · Editar veículo
+- **Agente:** frontend (backend se não houver rota de edição) · **Depende de:** T-238, T-242 · **Regras:** VEI-01, VEI-04 · **Telas:** a referência da edição vem na T-238; se não houver, reaproveitar `Veiculo-Novo` com os dados preenchidos, conferido com o design-system · **Pronto quando:** "Editar" na ficha abre a edição do veículo; salvar grava pela API e volta à ficha; placa e chassi únicos (`VEI-01`) com a mensagem da API no campo; a filial não se troca aqui (só por transferência, `VEI-04`); km não diminui; testes do componente e, se a rota for nova, do backend, com auditoria.
+
+### T-244 · Despesas: ajustes da tela
+- **Agente:** frontend · **Depende de:** — · **Regras:** FIN-05, FIN-06 · **Telas:** Despesas-Desktop, Despesas-Mobile · **Pronto quando:** sai o botão "+ Avulso"; "Exportar" vai para a direita do cabeçalho; a busca de despesas fica dentro do bloco da lista (hoje sai da div); conferido com a referência no desktop e no celular.
+
+### T-245 · Despesa ligada ao veículo sem a filial na lista
+- **Agente:** backend, depois frontend · **Depende de:** — · **Regras:** FIN-06, FIL-05 · **Pronto quando:** a despesa ligada a um veículo mostra a filial dela na lista e no detalhe, como as outras (hoje só aparece a placa); a filial vem da API (a `Despesa` já tem `filial`), não da tela; teste da leitura com despesa ligada a veículo.
+
+### T-246 · Movimentações de veículos (regras)
+- **Agente:** produto, depois arquiteto · **Depende de:** T-238 · **Regras:** VEI-04 e regras novas · **Telas:** Movimentacoes-*, Movimentacao-Nova-*, Movimentacao-Chegada-Mobile · **Pronto quando:** a referência leva veículos entre filiais, lava-jato, oficina e despachante, com código `MT-`, agendamento, vistoria rápida na chegada e despesa ligada (lavagem de R$ 35,00). O produto escreve as regras (estados da movimentação, status do veículo fora da filial, relação com a transferência da `VEI-04` e com a OS da manutenção) e os critérios, e diz se entra no MVP ou na fase 2. Depois, o orquestrador numera contrato (arquiteto), backend e tela (frontend).
+
+### T-247 · Leitura do CRLV-e e da CNH por PDF (regras e ADR)
+- **Agente:** produto, depois arquiteto e segurança · **Depende de:** — · **Regras:** VEI-01, VEI-03, CLI-01, CLI-02 · **Pronto quando:** o produto diz o que se preenche sozinho no cadastro do veículo (placa, chassi, Renavam, modelo, ano, cor, validade do CRLV) e do cliente (nome, CPF, nascimento, número, categoria e validade da CNH), se a pessoa confere antes de salvar e em que fase entra; o arquiteto escreve a ADR (texto do PDF ou QR code assinado, biblioteca nova, onde roda, limite de tamanho); a segurança revisa (CNH e CPF são dados pessoais, upload de PDF, `AUD-09`). Depois, o orquestrador numera backend e frontend.
+
+- Decidido em 15 out 2026 pelo dono (**Clientes por filial**): opção A com um ajuste. O cliente continua da empresa (seção Clientes), e a lista de Clientes não segue o seletor de filial do topo. Ela ganha um filtro de filial, como os outros filtros da lista, com "Todas as filiais" como padrão. Escolhida uma filial, a lista mostra os clientes com pelo menos uma locação nela (o cliente não tem filial de cadastro; quem nunca alugou só aparece em "Todas as filiais"). O filtro oferece as filiais a que a pessoa tem acesso (`USR-07`). Regra na T-248.
+- Decidido em 15 out 2026 pelo dono (**Administrador aprova o próprio pedido**): opção B. O administrador pode aprovar o próprio pedido; os outros perfis continuam proibidos (`APR-09`); o evento de auditoria marca "aprovou o próprio pedido". Regra na T-248.
+- Decidido em 15 out 2026 pelo dono (**Criar usuário sem convite**): opção A. O acesso continua nascendo por convite, e a senha só a pessoa cria (`USR-01`); no painel da pessoa com convite pendente, o administrador tem "Copiar link do convite" para mandar por outro canal. Como o banco guarda só o hash do token, copiar gera um link novo de 7 dias e invalida o anterior (P-06), como o reenvio, e grava evento de auditoria. Regra na T-248.
+
+### T-248 · Regras das decisões de 15 out (clientes, aprovação, convite)
+- **Agente:** produto · **Depende de:** — · **Regras:** seção Clientes, USR-07, APR-09, USR-01, AUD · **Pronto quando:** as três decisões acima entram em `docs/regras-de-negocio.md` (tabela "Decisões de 15 out 2026" e o texto das regras) e em critérios, com casos do seed: o filtro da lista de Clientes (Moto Rápida com 1 filial: "Todas" e "Filial Centro" dão o mesmo número; com a Filial Caucaia de exemplo, um cliente com locação só na Caucaia); a Mariana (administradora) lança uma despesa de R$ 1.200,00 e aprova ela mesma, com o evento; o Rodrigo (gerente) não aprova o próprio pedido; o link copiado invalida o anterior.
+
+### T-249 · Contratos das decisões de 15 out
+- **Agente:** arquiteto · **Depende de:** T-248 · **Pronto quando:** `docs/api/clientes.md` com o parâmetro `filial` na lista (sem ele, todas; recusa de filial sem acesso); `docs/api/aprovacoes.md` com o administrador aprovando o próprio pedido (`acoes.aprovar` verdadeiro para ele) e o evento; `docs/api/contas.md` com a rota do link do convite (só administrador, só `convite_pendente`, resposta com o link uma vez, evento, limite por hora) e o `acoes` do usuário para a tela mostrar o botão.
+
+### T-250 · Backend das decisões de 15 out
+- **Agente:** backend · **Depende de:** T-249 · **Pronto quando:** filtro `filial` na lista de clientes (`test_cli_lista_filtra_por_filial`); exceção do administrador na `APR-09` com o evento (`test_apr_09_administrador_aprova_o_proprio_pedido`, `test_apr_09_gerente_nao_aprova_o_proprio_pedido`); rota do link do convite que invalida o anterior (`test_usr_01_copiar_link_invalida_o_anterior`, `test_usr_01_copiar_link_so_administrador`); OpenAPI regenerado e `api:gerar` no frontend.
+
+### T-251 · Telas das decisões de 15 out
+- **Agente:** frontend · **Depende de:** T-250 · **Telas:** Clientes, Aprovacoes, Admin-Usuarios · **Pronto quando:** filtro de filial na lista de Clientes, com "Todas as filiais" como padrão, independente do seletor do topo; o botão Aprovar aparece pelo `acoes` da API (sem regra de perfil na tela); "Copiar link do convite" no painel da pessoa com convite pendente, com o aviso "O link anterior deixa de valer." e cópia para a área de transferência; testes dos componentes.
+
+### T-252 · Revisão do link do convite na tela
+- **Agente:** segurança · **Depende de:** T-250 · **Pronto quando:** a segurança revisa a rota e a tela do link copiável: só administrador, link mostrado uma vez e fora de log, limite por hora, evento de auditoria, invalidação do anterior, e o suporte Giro sem acesso à rota.
+
 Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entrou no PR #160 (ver `feito.md`).
 
 ### T-157 · (M-03) Produção recusa e-mail no console e armazenamento falso (média)
