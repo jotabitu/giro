@@ -183,13 +183,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-252 · Revisão do link do convite na tela
 - **Agente:** segurança · **Depende de:** T-250 · **Pronto quando:** a segurança revisa a rota e a tela do link copiável: só administrador, link mostrado uma vez e fora de log, limite por hora, evento de auditoria, invalidação do anterior, e o suporte Giro sem acesso à rota.
 
-### T-261 · Pendências do produto no backlog
-- **Agente:** produto · **Depende de:** — · **Regras:** USR-05, AUT-04, LOC-05, PLT-12, FIL-06 · **Pronto quando:** as dúvidas abertas do produto no backlog estão respondidas, com o padrão quando não mudam regra, e o que muda regra está em "Pontos em aberto" para o dono. · **Estado (16 out 2026):** feito, PR #255; handoff `tarefas/handoffs/T-261-produto.md`.
-  - **Respondidas pelo produto:** (a) T-181: fica "Nenhuma filial ativa"; (b) T-224, item 1: fica o texto do arquiteto para a recusa de "só vende" no Essencial; (d) T-105: a LOC-2856 do seed está certa, e o CA-016-08 diz que o critério é fixture.
-  - **Para o dono (mudam regra, com padrão valendo até a resposta):** (c) T-209 item d: "Veículos" no menu do vendedor na fase 1 (A); Pix Automático nas parcelas (`AUT-04`), em três partes.
-
-Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entrou no PR #160 (ver `feito.md`).
-
 
 ### T-156 · (M-02) Custo e rendimento do veículo fora da ficha do vendedor (média)
 - **Backend feito (15 out 2026):** PR #246 (`tarefas/handoffs/T-156-backend.md`); OpenAPI sem diferença. **Falta o frontend:** os cartões só quando a API manda `indicadores_financeiros`.
