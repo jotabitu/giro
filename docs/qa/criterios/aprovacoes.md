@@ -33,3 +33,6 @@ A tela não mostra a frase do aviso ao administrador depois de 4 horas úteis (`
 
 **CA-APR-10 · Células do pedido de desconto**
 Dado o pedido de desconto do CA-APR-02, então o detalhe mostra os valores vindos da API, sem conta na tela: preço de tabela R$ 329,00, com desconto R$ 302,68, desconto R$ 26,32 (8%) e "O limite de Bruna é 5%." (sem artigo: a API não sabe o gênero de ninguém, como em "A devolver").
+
+**CA-APR-11 · Células do pedido de despesa**
+Dado o pedido dos pneus (João, 07 out, R$ 1.200,00, PMZ-3E17, vencimento 07 out), então o detalhe mostra categoria Manutenção, descrição "Pneus (2)", veículo PMZ-3E17, valor R$ 1.200,00 e vencimento 07 out, e não mostra "Fornecedor" nem a forma de pagamento: a despesa não tem fornecedor e só ganha a forma ao ser paga (`APR-03`, `FIN-05`; decisão do dono de 15 out 2026, T-235).

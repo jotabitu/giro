@@ -229,12 +229,31 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 - **Pronto quando:** a segurança diz, com base na LGPD, se esses dados podem ficar (registro fiscal das faturas e notas do Giro) e por quanto tempo, ou se a linha deve ficar só com o CNPJ e as faturas. Se precisar mudar a `AUD-08`, avisa o produto com a opção A ou B.
 - **Junto:** o prazo de guarda das faturas fica com o dono e o contador ("Pontos em aberto" das regras); a segurança não decide o prazo, só se o dado pode ficar.
 
-### [decisão] O que fica da empresa apagada: opção B da segurança (T-230, `AUD-08`, `PLT-14`)
+### ~~[decisão]~~ O que fica da empresa apagada: opção B da segurança (T-230, `AUD-08`, `PLT-14`)
+- **Resolvido na T-235 (dono, 15 out 2026):** B para toda empresa, (a) para a fatura atrasada, e a compra de novo sem teste e esperando a fatura atrasada (`AUD-08`, `PLT-14`, `PLT-16`, CA-ASS-58 a 62).
 - **Para:** produto (e o dono) · **Depois:** arquiteto (`cancelamento.md`, `assinatura.md`, `auditoria.md`) e backend (T-195).
 - **Recomendação da segurança (B, igual para toda empresa, MEI ou não):** a linha apagada fica só com o CNPJ (sem razão social, nome de exibição, endereço e contato); a fatura guarda o tomador como foi na nota e ele sai com ela, no prazo de guarda; a auditoria do `public` guarda quais dados mudaram, sem os valores; depois da última fatura, o CNPJ sai e ficam reservados o subdomínio e o schema. **A**, o que está na `AUD-08` hoje, guarda nome e às vezes CPF e endereço de casa do MEI sem prazo e sem obrigação legal que peça a linha.
 - **Junto (B-02):** `cnpj` único só entre empresas não apagadas, para a mesma empresa poder comprar de novo depois do apagamento.
 - **Fatura atrasada no 90º dia:** (a) ela guarda o `email_cobranca` até a baixa ou o fim do prazo (recomendado, a dívida não some, `PLT-06`); (b) o Giro não cobra mais depois do apagamento.
 - **Não depende do prazo** das faturas (dono e contador): só diz o que fica e preso a quê.
+
+### T-235 · Regras do apagamento pela T-230
+- **Agente:** produto · **Depende de:** T-230 · **Regras:** AUD-08, PLT-14, PLT-16, PLT-06, APR-03 · **Estado:** regras e critérios escritos, PR a abrir. O dono aprovou em 15 out 2026:
+  - opção B do apagamento, para toda empresa;
+  - (a) para a fatura atrasada no 90º dia, que guarda o e-mail de cobrança;
+  - compra de novo sem teste e esperando a fatura atrasada (`PLT-16`, regra nova);
+  - fornecedor e forma fora do pedido de despesa (A).
+
+  Critérios CA-ASS-58 (reescrito pela B), CA-ASS-59 a 62, CA-APR-11. Dado de referência "Volta da Moto Rápida depois do apagamento".
+- **Tarefa (numerada pelo orquestrador em 15 out 2026):** **T-236 · arquiteto · Contratos pela T-235** (consequências técnicas da opção B):
+  - `assinatura.md`: `FaturaAssinatura.tomador_*` gravados ao pedir a nota (ou na baixa, sem nota) e imutáveis depois; `emitir_nota_fatura` lê o tomador da fatura (M-01, `test_plt_14_fatura_guarda_tomador`).
+  - `cancelamento.md`, "O que fica no `public`": limpar também `razao_social`, `nome_exibicao` e `endereco_*`, e manter cidade e UF; a fatura `atrasada` guarda o `email_cobranca` até a baixa; o pagador no Asaas perde e-mail e telefone (B-01); depois da última fatura, limpar o `cnpj` (`test_aud_08_linha_apagada_so_com_cnpj`, `test_aud_08_fatura_atrasada_guarda_email`).
+  - `auditoria.md`: no `public`, os eventos `empresa.*` com razão social, endereço e contato guardam "alterado" (M-03, `test_aud_08_auditoria_publica_sem_endereco`).
+  - `plataforma.md`: `cnpj` único só entre empresas não apagadas (B-02); a compra de novo da `PLT-16` (sem teste, empresa `ativa` com a 1ª fatura vencendo na compra, as duas recusas e o aviso na tela de compra; `test_plt_16_*`, CA-ASS-61 e 62).
+  - `aprovacoes.md`: o `resumo` do `APR-03` com a descrição da despesa (CA-APR-11).
+
+  Depois, a T-195 (backend) entra junto, se ainda aberta.
+- **Tarefa (numerada pelo orquestrador em 15 out 2026):** **T-237 · design-system · Tela `Aprovacoes` sem fornecedor.** No pedido de despesa (desktop e celular), tirar "Fornecedor" e "15 out · boleto" e mostrar categoria, descrição, veículo, valor e vencimento, com os pneus do seed (Manutenção, "Pneus (2)", PMZ-3E17, R$ 1.200,00, 07 out). Pode ir com a T-028 ou a T-200, se ainda abertas. Junto: a `Compra-Checkout` ganha o aviso "Este CNPJ já usou o teste grátis. A 1ª fatura vence hoje." (`PLT-16`).
 
 ### T-028 · Limpar dados de exemplo das telas
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`. Inclui `Despesas-Desktop` e `Despesas-Mobile`: aguardando aprovação é R$ 1.200,00 (não R$ 1.386,40) e o IPVA de R$ 186,40 nasce `a_pagar` (FIN-05), apontado pelo qa na T-040.
@@ -266,7 +285,8 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 - Pedido ao design-system (T-224): a troca do ramo em Configurações (`PLT-12`) não tem tela de referência nem cartão em `GET /api/configuracoes/`. A rota já existe no contrato (`PUT /api/ramo/`, `empresas.md`); a tela pode reaproveitar o `Onboarding-Ramo` e mostrar a recusa com o `abertos_texto`.
 - Para o produto (T-224): (1) a recusa de "só vende" no `PUT /api/ramo/` do Essencial, que a tela não deixa acontecer, usa "O plano Essencial não inclui vendas. Escolha locação, ou locação e venda." (texto do arquiteto; trocar se quiser); (2) o CA-ASS-50 diz "1 comissão não paga" e a API devolve o texto do grupo `comissoes` já contratado, "1 comissão a pagar"; ajustar o critério ou pedir a troca do texto.
 - Proposta do produto (T-223, para a T-196, backend, depois da T-224): somar `test_plt_12_troca_de_ramo_com_algo_aberto`, `test_plt_12_essencial_sem_so_vende`, `test_plt_12_downgrade_so_vende` e `test_plt_12_comissao_so_depois_do_upgrade`, e o `test_plt_04_downgrade_nao_cabe` conferindo os `abertos` do seed (despesas 1 aguardando aprovação e 2 a pagar). Critérios: CA-ASS-15 e CA-ASS-22 a 25, 50 a 53. O frontend do passo 7 (`Onboarding-Ramo`) e de Configurações mostra as opções e a recusa que a API devolve.
-- [decisão] (T-201, Aprovações) A tela `Aprovacoes` mostra "Fornecedor" e "15 out · boleto" no pedido de despesa (`APR-03`), mas a despesa não tem fornecedor (`FIN-05`, `FIN-06`) e só tem forma depois de paga. Padrão do contrato até a resposta: o `resumo` sai com categoria, veículo, valor e vencimento, sem fornecedor nem forma. Produto: a despesa ganha fornecedor (e a forma prevista) ou a tela perde as duas células?
+- Resolvido na T-235 (dono, 15 out 2026): opção A, a tela perde as duas células e mostra categoria, descrição, veículo, valor e vencimento (CA-APR-11). O `resumo` do contrato ganha a descrição.
+- ~~[decisão]~~ (T-201, Aprovações) A tela `Aprovacoes` mostra "Fornecedor" e "15 out · boleto" no pedido de despesa (`APR-03`), mas a despesa não tem fornecedor (`FIN-05`, `FIN-06`) e só tem forma depois de paga. Padrão do contrato até a resposta: o `resumo` sai com categoria, veículo, valor e vencimento, sem fornecedor nem forma. Produto: a despesa ganha fornecedor (e a forma prevista) ou a tela perde as duas células?
 - [decisão] (T-181, Configurações) Empresa sem filial ativa: o contrato não diz o resumo do cartão Filiais; o backend usa "Nenhuma filial ativa" (como "Nenhuma categoria cadastrada" em Tabelas de preço). Produto: confirmar ou trocar o texto.
 
 - [decisão] (T-208, para o backend) `GET /api/locacoes/{id}/` não manda uma ação para gerar o contrato (só `imprimir_contrato` e `reenviar_contrato`). A tela usa "aguardando retirada + sem contrato vigente + sem desconto pendente + `acoes.cancelar` verdadeiro (quem cria locação)". Sugestão: `acoes.gerar_contrato` no selector `acoes()` e a tela passa a ler só ele.
