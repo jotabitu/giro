@@ -21,7 +21,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 18, 19, 21 e 22 e apo
 | Aprovar despesa acima de R$ 500 (`APR-03`) | sim | sim | — | — | — |
 | Pagar despesa, marcar devolução ao cliente como feita | sim | — | — | — | sim |
 
-Quem lançou ou pediu nunca aprova o próprio pedido (`APR-09`). O vistoriador recebe 403 em todo o app.
+Quem lançou ou pediu não aprova o próprio pedido, salvo o administrador (`APR-09`, T-249; `aprovacoes.md`, "Administrador decide o próprio pedido"). O vistoriador recebe 403 em todo o app.
 
 ---
 
