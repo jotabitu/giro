@@ -183,6 +183,25 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-252 · Revisão do link do convite na tela
 - **Agente:** segurança · **Depende de:** T-250 · **Pronto quando:** a segurança revisa a rota e a tela do link copiável: só administrador, link mostrado uma vez e fora de log, limite por hora, evento de auditoria, invalidação do anterior, e o suporte Giro sem acesso à rota.
 
+### T-257 · Catálogo de marcas e modelos (backend)
+- **Agente:** backend · **Depende de:** ADR 0026 e `veiculos.md` do PR #250 (T-247), mesclado · **Regras:** VEI-08, VEI-01 · **Telas:** Veiculo-Novo (desktop e celular, "Modelo · Da lista FIPE")
+- **O que o contrato já diz** (`docs/api/veiculos.md`, "GET /api/veiculos/modelos/", e ADR 0026, item 7, no PR #250): a lista é local, nunca consultada na internet durante o uso; `GET /api/veiculos/modelos/?tipo=moto|carro&marca=&busca=` → `{ "resultados": [ { "marca", "modelo", "tipo" } ] }`; a leitura do CRLV-e normaliza o texto lido (sem acento, maiúsculas, sem pontuação) e só preenche marca e modelo com um modelo único; sem achar, ou com mais de um, manda `dicas.marca_modelo`.
+- **O que este quadro acrescenta** (arquiteto, T-259):
+  - o catálogo é um arquivo versionado no repositório, `backend/apps/veiculos/dados/catalogo_modelos.csv` (`marca`, `modelo`, `tipo`), lido uma vez por processo e guardado em memória. Não há tabela, migração nem schema `public`: é igual para todas as empresas e só muda por PR;
+  - o comando `python manage.py atualizar_catalogo_modelos <arquivo>` lê a tabela FIPE baixada pela equipe e regrava o CSV normalizado (sem duplicata, ordenado). A atualização é manual, por PR, sem chamada externa no código;
+  - o conteúdo inicial tem pelo menos os modelos do seed e dos arquivos de teste da T-247 (Pop 110i ES, CG 160 Fan, NMax 160 e os outros do seed). A carga completa da FIPE fica com quem tiver a tabela (equipe ou produto) e não trava a tarefa;
+  - a função `veiculos.catalogo.achar_modelo(texto) -> Modelo | None` é usada pela leitura (T-247): devolve um modelo só quando o texto normalizado bate com um único `marca + modelo` (igual, ou como começo único).
+- **Pronto quando:**
+  - `GET /api/veiculos/modelos/` com os filtros, até 50 resultados, em ordem de marca e modelo, para quem vê veículos (`pode.veiculos` ≠ `nao`);
+  - o CSV inicial e o comando;
+  - `achar_modelo`, usada pela leitura do CRLV-e quando ela existir;
+  - testes `test_vei_08_catalogo_acha_modelo_unico` (o "HONDA/POP 110I ES" do `crlv-tbc5h21.pdf` dá Honda Pop 110i ES), `test_vei_08_catalogo_ambiguo_nao_preenche` e `test_vei_08_lista_de_modelos_filtra`;
+  - OpenAPI regenerado e `api:gerar` no frontend.
+
+### T-259 · Cartão do ramo em Configurações (contrato)
+- **Agente:** arquiteto · **Depende de:** T-253 (PR #249) · **Regras:** PLT-12 · **Telas:** Config, Admin-Ramo · **Pronto quando:** `docs/api/configuracoes.md` com o cartão `ramo` em `GET /api/configuracoes/` (título, resumo pela API, ordem, quem recebe) e a rota `/admin/ramo` na tabela de rotas dos cartões e em `docs/telas/README.md`; resolve a divergência (1) da T-253.
+- **Estado (15 out 2026):** contrato escrito, PR a abrir (branch `t-259-cartao-ramo`); handoff `tarefas/handoffs/T-259-arquiteto.md`. O backend do cartão ainda não tem número; proposta: entra na T-196 (módulos por plano e ramo, ainda aberta) ou numa tarefa pequena, junto do frontend da `Admin-Ramo`.
+
 Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entrou no PR #160 (ver `feito.md`).
 
 
