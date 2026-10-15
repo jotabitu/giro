@@ -356,6 +356,22 @@ def test_cli_05_seed_019_13_bloqueio_do_rafael(seed):
     assert evento.ator_tipo == "sistema"  # o bloqueio automático é a exceção (CA-019-25)
 
 
+def test_cli_05_dias_de_atraso_de_hoje(seed, relogio):
+    """T-140 (D-03): a ficha mostra os dias de atraso de hoje; o evento, os do dia do bloqueio."""
+    rafael = Cliente.objects.get(nome="Rafael Sousa")
+
+    def descricao() -> str:
+        resposta = _api(seed).get(f"/api/clientes/{rafael.pk}/")
+        assert resposta.status_code == 200, resposta.json()
+        return str(resposta.json()["bloqueio"]["descricao"])
+
+    assert descricao() == "Conta com 25 dias de atraso desde 12/09/2026"
+    relogio.em("2026-10-12 12:00")
+    assert descricao() == "Conta com 30 dias de atraso desde 12/09/2026"
+    evento = EventoAuditoria.objects.get(acao="cliente.bloquear", objeto_id=rafael.pk)
+    assert evento.motivo == "Conta com 25 dias de atraso desde 12/09/2026"
+
+
 def test_cli_04_seed_019_14_historico_da_analise_em_07_out(seed):
     """Juliana e Lucas `ok`, Carlos e Rafael `problema`, cliente novo `ok`."""
 
@@ -811,6 +827,42 @@ def test_loc_09_seed_019_27_troca_de_veiculo_da_loc_2836(seed, relogio):
     reembolso = Reembolso.objects.get(origem_tipo="devolucao", origem_id=corpo["id"])
     assert (reembolso.valor_centavos, reembolso.forma) == (26300, "pix")
     assert Devolucao.objects.filter(locacao=juliana).count() == 1
+
+
+def _km_de_saida_da_devolucao(seed: Any, devolucao_id: int) -> int | None:
+    km = _ver(seed, devolucao_id)["comparacao"]["km"]["saida"]
+    return int(km) if km is not None else None
+
+
+def test_dev_08_km_de_saida_igual_na_ficha_e_na_devolucao(seed, relogio):
+    """T-140 (D-12): o "Saída" da devolução é o `km_saida` da locação, o mesmo da ficha, mesmo
+    sem a vistoria de saída vigente (o seed antigo não a criava)."""
+    juliana = _loc("LOC-2836")
+    assert seed.detalhe(juliana.pk)["km_saida"] == 21870
+    _ir_para(seed, relogio, "2026-10-14 18:00")
+    devolucao = _abrir_devolucao(seed, juliana.pk)
+    assert _km_de_saida_da_devolucao(seed, devolucao["id"]) == 21870
+    Vistoria.objects.filter(locacao=juliana, tipo="saida").update(vigente=False)
+    assert _km_de_saida_da_devolucao(seed, devolucao["id"]) == 21870
+
+
+def test_dev_08_km_de_saida_na_troca_e_o_do_veiculo_que_volta(seed, relogio):
+    """Na troca (LOC-09), o Factor volta com os 21.870 da saída dele; o NMax, com o km dele."""
+    juliana = _loc("LOC-2836")
+    _ir_para(seed, relogio, "2026-10-07 18:00")
+    nmax = Veiculo.objects.filter(modelo="NMax 160", status="disponivel").order_by("placa").first()
+    assert nmax is not None
+    troca = _troca_pedida(seed, juliana.pk, nmax)
+    devolucao = _abrir_devolucao(seed, juliana.pk)
+    assert _vistoriar(seed, troca["devolucao_vistoria_id"], 22000).status_code == 200
+    assert _km_de_saida_da_devolucao(seed, devolucao["id"]) == 21870
+    from apps.financeiro import services as financeiro_services
+
+    financeiro_services.marcar_paga(_caucao_da_troca(juliana), forma="pix")
+    assert _vistoriar(seed, troca["saida_vistoria_id"], nmax.km_atual).status_code == 200
+    assert seed.detalhe(juliana.pk)["km_saida"] == nmax.km_atual
+    final = _abrir_devolucao(seed, juliana.pk)
+    assert _km_de_saida_da_devolucao(seed, final["id"]) == nmax.km_atual
 
 
 def test_loc_12_seed_019_28_encerramento_antecipado_da_loc_2812(seed):

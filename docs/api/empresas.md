@@ -142,7 +142,7 @@ Limite: `comum.limites` por usuário, 30 por hora (upload); acima, 429 `muitas_r
 1. Valida e limpa o logo antes de abrir a transação (ADR 0022). O arquivo limpo é gravado no storage privado do schema com o resumo do conteúdo no nome (`marca/logo-<sha256 de 16 caracteres>.svg` ou `.png`), e `logo_largura` e `logo_altura` vêm do `viewBox` (SVG, arredondados, no mínimo 1) ou dos pixels (PNG).
 2. Grava `nome_exibicao`, `cor_marca` e o logo com evento `empresa.alterar_marca`, categoria `configuracoes` (ADR 0010). `CAMPOS_AUDITORIA` de `ConfiguracaoEmpresa` passa a ter `nome_exibicao`, `cor_marca` e `logo` inteiros: o logo aparece no evento pelo nome do arquivo, que é o resumo do conteúdo, nunca pelo conteúdo. A tela da auditoria mostra "Marca alterada".
 3. No `on_commit`: apaga `selectors.chave_da_marca()` e apaga do storage o arquivo antigo do logo (trocado ou removido). Se a transação falhar, apaga o arquivo novo. Logo não é registro de negócio: o arquivo antigo não fica guardado, e e-mail antigo com `?v=` velho mostra o logo atual (como já diz `GET /api/marca/logo/`).
-4. Chama `plataforma.services.registrar_passo_implantacao("marca")` (`IMP-05`; idempotente). Vale para o `Onboarding-Marca` ("Continuar") e para a `Admin-Marca`. "Pular por agora" não chama esta rota; como fica o passo pulado é do contrato do assistente de implantação, que ainda não existe.
+4. Chama `plataforma.services.registrar_passo_implantacao("marca")` (`IMP-05`; idempotente). Vale para o `Onboarding-Marca` ("Continuar") e para a `Admin-Marca`. "Pular por agora" não chama esta rota, e o passo continua aberto (`plataforma.md`, "GET /api/implantacao/", T-201).
 
 Nada no modelo muda além de `CAMPOS_AUDITORIA`: os campos da T-129 bastam.
 
