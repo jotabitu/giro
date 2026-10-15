@@ -173,7 +173,7 @@ def representar(eventos: Iterable[EventoAuditoria]) -> list[dict[str, Any]]:
     filiais = auditoria.consultar("filiais", {e.filial_id for e in eventos if e.filial_id})
     ids_acessos = {i for i in (_id_do_acesso(e) for e in eventos) if i is not None}
     acessos = auditoria.consultar("acessos_suporte", ids_acessos)
-    apoio: dict[str, Any] = {"acessos_suporte": dict(acessos)}
+    apoio: dict[str, Any] = {"acessos_suporte": dict(acessos), "filiais": dict(filiais)}
     resultado = []
     for evento in eventos:
         texto = textos.texto(evento, apoio)

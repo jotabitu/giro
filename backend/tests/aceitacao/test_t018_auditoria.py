@@ -148,8 +148,8 @@ class Auditoria:
         self.sangria = self.financeiro(
             "2026-10-07 10:30",
             self.bruna,
-            "caixa.sangria",
-            objeto_tipo="caixa",
+            "movimento_caixa.sangria",
+            objeto_tipo="movimentocaixa",
             objeto_id=240,
             depois={"valor_centavos": 50000, "tipo": "sangria"},
             regra="FIN-07",
@@ -262,7 +262,7 @@ def test_aud_01_ca_018_01_ninguem_edita_nem_apaga(aud):
             _falha_no_banco(ALTERAR, [publico.pk], papel)
             _falha_no_banco(APAGAR, [publico.pk], papel)
     connection.set_tenant(aud.moto.empresa)
-    assert EventoAuditoria.objects.get(pk=evento.pk).acao == "caixa.sangria"
+    assert EventoAuditoria.objects.get(pk=evento.pk).acao == "movimento_caixa.sangria"
 
     api = aud.moto.api()
     for rota in (EVENTOS, f"{EVENTOS}{evento.pk}/"):
@@ -323,10 +323,16 @@ def test_aud_01_ca_018_03_campos_do_evento(aud):
         "nome": "Bruna Alves",
         "iniciais": "BA",
     }
-    assert item["acao"] == "caixa.sangria"
+    assert item["acao"] == "movimento_caixa.sangria"
     assert item["categoria"] == "financeiro"
     assert item["resumo"] == "Fez sangria de R$ 500,00"
-    assert item["objeto"] == {"tipo": "caixa", "id": 240, "codigo": None, "filial": "Filial Centro"}
+    assert item["detalhe"] == "Caixa da Filial Centro"  # T-150
+    assert item["objeto"] == {
+        "tipo": "movimentocaixa",
+        "id": 240,
+        "codigo": None,
+        "filial": "Filial Centro",
+    }
     assert item["suporte"] is None
 
     detalhe = aud.moto.api().get(f"{EVENTOS}{evento.pk}/").json()
@@ -509,10 +515,8 @@ def test_aud_02_ca_018_10_filtros(aud):
     assert "Editou o usuário" not in " ".join(resumos("?periodo=7d"))  # 29 set fica de fora
     assert len(resumos("?de=2026-09-29&ate=2026-09-29")) == 1
     assert resumos("?objeto_codigo=LOC-2856") == ["Criou a locação LOC-2856"]
-    assert resumos("?objeto_tipo=caixa&objeto_id=240") == [
-        "Fez sangria de R$ 500,00",
-        "Abriu o caixa com troco de R$ 200,00",
-    ]
+    assert resumos("?objeto_tipo=caixa&objeto_id=240") == ["Abriu o caixa com troco de R$ 200,00"]
+    assert resumos("?objeto_tipo=movimentocaixa&objeto_id=240") == ["Fez sangria de R$ 500,00"]
     assert len(resumos(f"?filial={aud.centro.pk}")) == 5
     invalido = aud.moto.api().get(f"{EVENTOS}?categoria=outra")
     assert invalido.status_code == 400 and "categoria" in invalido.json()["campos"]
@@ -682,6 +686,6 @@ def test_aud_03_ca_018_16_plataforma_nao_le_a_empresa(equipe, aud):
     dono = cliente_http(HOST_PLATAFORMA, entrar(*equipe["Você"]))
     acoes = {e["acao"] for e in dono.get(f"{PLATAFORMA}?periodo=30d").json()["resultados"]}
     assert {"suporte.entrar", "suporte.sair"} <= acoes
-    assert not acoes & {"caixa.sangria", "caixa.abrir", "despesa.lancar", "locacao.criar"}
+    assert not acoes & {"movimento_caixa.sangria", "caixa.abrir", "despesa.lancar", "locacao.criar"}
     with schema_context("public"):
-        assert not EventoAuditoria.objects.filter(acao="caixa.sangria").exists()
+        assert not EventoAuditoria.objects.filter(acao="movimento_caixa.sangria").exists()

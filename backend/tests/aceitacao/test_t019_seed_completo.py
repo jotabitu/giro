@@ -5,8 +5,8 @@ cada teste pede à API ou ao serviço o número da regra e compara. O estado de 
 2026 às 12:00 (relógio do teste, igual a `GIRO_DATA_REFERENCIA=2026-10-07` da ADR 0021); os casos
 de outras datas movem o relógio dentro do próprio teste, que desfaz tudo no fim.
 
-Casos que dependem de módulo que não existe (vendas, comissões, conciliação, DRE, manutenção) ou
-de código da T-150 ficam `xfail(strict)` com a tarefa que os destrava.
+Casos que dependem de módulo que não existe (vendas, comissões, conciliação, DRE, manutenção)
+ficam `xfail(strict)` com a tarefa que os destrava.
 """
 
 import csv
@@ -733,11 +733,19 @@ def test_aud_01_seed_019_25_eventos_nas_horas_do_seed(seed):
     )
 
 
-@pytest.mark.xfail(strict=True, reason="T-150: filial nos eventos de movimento de caixa")
-def test_fin_07_seed_019_25_sangria_com_a_filial(seed):
+def test_fin_07_sangria_audita_com_filial_do_caixa(seed):
+    """T-150 (CA-019-25): a sangria da Bruna aparece no filtro da Filial Centro."""
     centro = Filial.objects.get()
     corpo = _api(seed, "Mariana").get("/api/auditoria/eventos/", {"filial": centro.pk}).json()
-    assert "Fez sangria de R$ 500,00" in [e["resumo"] for e in corpo["resultados"]]
+    sangrias = [e for e in corpo["resultados"] if e["acao"] == "movimento_caixa.sangria"]
+    assert len(sangrias) == 1
+    sangria = sangrias[0]
+    assert (sangria["resumo"], sangria["detalhe"]) == (
+        "Fez sangria de R$ 500,00",
+        "Caixa da Filial Centro",
+    )
+    assert sangria["ator"]["nome"] == "Bruna Alves"
+    assert sangria["objeto"]["filial"] == "Filial Centro"
 
 
 # --- Casos que rodam sobre o seed ---
