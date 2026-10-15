@@ -28,6 +28,7 @@ Uma decisão por arquivo. Para mudar uma decisão, escreva uma nova ADR que subs
 | [0022](0022-sanitizacao-do-logo-da-empresa.md) | Sanitização do logo da empresa: SVG relido com `defusedxml`, conteúdo ativo recusado, lista fechada; PNG reconstruído pelo Pillow (aceito pela Segurança em 13 out 2026) | aceita |
 | [0023](0023-cartao-da-assinatura-na-pagina-do-parceiro.md) | Cartão da assinatura só na página do parceiro: o número nunca passa pelo Giro; guarda token cifrado, bandeira e final | aceita, detalha a 0007 |
 | [0024](0024-modulos-por-plano.md) | Módulos por plano e por ramo, decididos por empresa: `Recurso` como módulo, 403 `PLT-12` nas rotas, leituras, tarefas e eventos pelo mesmo conjunto, pendências do downgrade por registro em `comum` | aceita, detalha a 0011 e a 0015 |
+| [0025](0025-apagamento-da-empresa-cancelada.md) | Apagamento da empresa cancelada no 90º dia: `DROP SCHEMA` pela conexão de migração numa função única que confere a empresa, storage pelo prefixo, passos retomáveis, o que fica no `public` | aceita, detalha a 0002, a 0010 e a 0016 |
 
 O modelo de dados detalhado fica em [`modelo-de-dados.md`](modelo-de-dados.md).
 
