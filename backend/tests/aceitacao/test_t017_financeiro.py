@@ -31,6 +31,7 @@ from apps.financeiro.models import (
 from apps.locacoes.models import Locacao
 from apps.notificacoes.models import Notificacao
 from apps.plataforma.models import ContaPagamento, UsoEmpresa
+from apps.relatorios.api.serializers import CaixaHojeSerializer
 from comum.codigos import ajustar_sequencia
 from comum.erros import Conflito
 from comum.models import WebhookRecebido
@@ -47,6 +48,7 @@ from .test_t016_vistorias import _contrato_com_juros, _jpg
 
 CONTAS = "/api/financeiro/contas-receber/"
 CAIXAS = "/api/financeiro/caixas/"
+AUDITORIA = "/api/auditoria/eventos/"
 WEBHOOK = "/api/webhooks/pagamentos/asaas/"
 TOKEN = "token-do-webhook-da-moto-rapida"
 FUSO = ZoneInfo("America/Sao_Paulo")
@@ -823,6 +825,31 @@ def test_fin_07_ca_017_17_movimento_imutavel(cenario, caixa_do_seed):  # noqa: F
     assert resumo["gaveta"]["esperado_centavos"] == 28100  # cartão não mexe na gaveta
 
 
+def test_fin_07_movimentos_e_estorno_auditam_com_filial(cenario, caixa_do_seed):  # noqa: F811
+    """T-150 (AUD-02): os eventos `movimento_caixa.*` levam a filial do caixa."""
+    cartao = MovimentoCaixa.objects.get(forma="cartao_credito")
+    url = f"{CAIXAS}{caixa_do_seed.pk}/movimentos/{cartao.pk}/estornar/"
+    estorno = cenario.moto.api("Rodrigo").post(url, {"motivo": "Lançado errado"}, format="json")
+    assert estorno.status_code == 201, estorno.json()
+    eventos = EventoAuditoria.objects.filter(acao__startswith="movimento_caixa.")
+    acoes = set(eventos.values_list("acao", flat=True))
+    assert {
+        "movimento_caixa.entrada",
+        "movimento_caixa.saida",
+        "movimento_caixa.sangria",
+        "movimento_caixa.estornar",
+        "movimento_caixa.estorno_motivo",
+    } <= acoes
+    assert set(eventos.values_list("filial_id", flat=True)) == {caixa_do_seed.filial_id}
+
+    caucaia = _caucaia(cenario.moto, "Bruna")
+    api = cenario.moto.api("Mariana")
+    centro = api.get(AUDITORIA, {"filial": caixa_do_seed.filial_id}).json()["resultados"]
+    outra = api.get(AUDITORIA, {"filial": caucaia.pk}).json()["resultados"]
+    assert {e["acao"] for e in centro} >= {"movimento_caixa.entrada", "movimento_caixa.estornar"}
+    assert not [e for e in outra if e["acao"].startswith("movimento_caixa.")]
+
+
 def test_fil_06_ca_017_18_caixa_aberto_impede_desativar_a_filial(cenario):  # noqa: F811
     caucaia = _caucaia(cenario.moto, "Bruna")
     _abrir(cenario, HTTP_X_FILIAL=str(caucaia.pk))
@@ -1015,6 +1042,34 @@ def test_fin_07_fin_15_caixa_hoje_no_painel_do_administrador(
     }
     todas = cenario.moto.api("Mariana", HTTP_X_FILIAL="todas").get(f"{PAINEL}inicio/").json()
     assert todas["caixa_hoje"] is None
+
+
+def test_fin_07_caixa_hoje_em_qualquer_status(
+    cenario,  # noqa: F811
+    com_carteira,
+    caixa_do_seed,
+):
+    """T-146: o caixa de hoje aparece também fechado, e o status sai do enum da FIN-07."""
+    financeiro.fechar_caixa(
+        caixa_do_seed,
+        cenario.pessoas["Bruna"],
+        contado_centavos=financeiro_selectors.esperado_na_gaveta(caixa_do_seed),
+        motivo_diferenca=None,
+    )
+    corpo = cenario.moto.api("Mariana").get(f"{PAINEL}inicio/").json()
+    assert (corpo["caixa_hoje"]["filial"], corpo["caixa_hoje"]["status"]) == (
+        "Filial Centro",
+        "fechado",
+    )
+    financeiro_corpo = cenario.moto.api("Lúcia").get(f"{PAINEL}inicio/").json()
+    assert [c["status"] for c in financeiro_corpo["caixas_do_dia"]] == ["fechado"]
+    campo = CaixaHojeSerializer().fields["status"]
+    assert set(campo.choices) == {
+        "aberto",
+        "aguardando_aprovacao",
+        "fechado",
+        "fechado_sem_conferencia",
+    }
 
 
 def test_fin_05_fin_07_caixas_e_despesas_no_painel_do_financeiro(

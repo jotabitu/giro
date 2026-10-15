@@ -700,8 +700,10 @@ def _ir_para(cenario: Cenario, relogio: Any, quando: str) -> None:
 
 
 def _saida_direta(locacao: Locacao, km: int, combustivel: str, quando: str) -> Vistoria:
-    """A vistoria de saída que a carteira não tem, concluída e com todos os itens ok."""
+    """A vistoria de saída que a carteira não tem, concluída e com todos os itens ok. O km vai
+    também para a locação, como na conclusão pela API (DEV-08)."""
     veiculo = Veiculo.objects.select_related("categoria").get(pk=locacao.veiculo_id)
+    Locacao.objects.filter(pk=locacao.pk).update(km_saida=km)
     itens = [{**i, "ok": True} for i in services.itens_iniciais(locacao, veiculo)]
     return Vistoria.objects.create(
         locacao=locacao,
