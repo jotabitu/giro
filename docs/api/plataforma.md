@@ -150,15 +150,15 @@ Query: `?situacao=em_teste|com_problema|saindo|ativa`, `?plano=<id>`, `?status=<
 
 | `codigo` | Quando | `rotulo` (exemplo) | `tom` | Aba |
 | --- | --- | --- | --- | --- |
-| `cancelando` | `cancelada` e `acesso_ate` ≥ hoje | "Cancela em 30 out" | `alerta` | saindo |
+| `cancelando` | cancelamento marcado: `acesso_ate` preenchido e `status` diferente de `cancelada` (`cancelamento.md`) | "Cancela em 30 out" (dia seguinte a `acesso_ate`) | `alerta` | saindo |
 | `suspensa` | `suspensa` | "Suspensa" | `perigo` | com_problema |
 | `fatura_atrasada` | `inadimplente` | "Fatura 12 dias atrasada" | `perigo` | com_problema |
 | `implantacao_parada` | em teste e 3 dias ou mais no mesmo passo (`IMP-05`) | "Parada no passo 4" | `alerta` | com_problema |
 | `perto_do_limite` | algum uso ≥ 90% do limite (`PLT-03`) | "Perto do limite" | `alerta` | com_problema |
 | `em_teste` | `em_teste` | "Teste · dia 1" | `info` | em_teste |
-| `pausada` | `pausada` | "Pausada até 07 jan" | `neutro` | — |
+| `pausada` | `pausada` | "Pausada até 07 jan" (`pausada_ate`) | `neutro` | — |
 | `ativa` | `ativa` | "Ativa" | `sucesso` | ativa |
-| `cancelada` | `cancelada` e `acesso_ate` < hoje | "Cancelada" | `neutro` | — |
+| `cancelada` | `cancelada` | "Cancelada" ("Dados apagados" com `apagada_em`) | `neutro` | — |
 
 `uso` e `ultimo_acesso_em` vêm de `UsoEmpresa` (resumo no `public`, ver modelo), sem entrar no schema de cada empresa a cada lista.
 
@@ -276,7 +276,7 @@ Perfis: todos (cada tela mostra o que precisa; o administrador vê tudo).
 ```
 - `aviso` = uso ≥ 90%; `bloqueado` = uso ≥ 100% (só novos cadastros daquele item, `PLT-03`).
 - `faixa_aviso`: texto pronto da faixa do topo quando a empresa está `inadimplente`, `suspensa` ou `pausada`; `null` se não houver.
-- `somente_leitura` = empresa `suspensa`, `pausada` ou `cancelada`; todo endpoint de escrita responde 403 `{ "codigo": "empresa_sem_operacao" }` nesse caso.
+- `somente_leitura` = empresa `suspensa`, `pausada` ou `cancelada`; todo endpoint de escrita responde 403 `{ "codigo": "empresa_sem_operacao" }` nesse caso, fora a lista explícita de exceções (pagar e forma de pagamento na `suspensa`, `assinatura.md`; cancelar na `suspensa` e na `pausada` e voltar da pausa, `cancelamento.md`). A `cancelada` não chega aqui: todo pedido dela recebe 403 `empresa_cancelada` (`cancelamento.md`, `AUD-08`).
 - Contagem: veículos que não estão `vendido` nem `baixado`; filiais ativas; usuários `ativo` e `convite_pendente` (`USR-01`, `USR-04`).
 
 Caso do seed: Moto Rápida → 86 de 150, 1 de 3, 5 de 10, nenhum `aviso` (`PLT-03`).

@@ -86,11 +86,15 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | `dia_vencimento` | int 1 a 31 | `PLT-01`: dia de `teste_fim + 1`; muda na volta da pausa e na reativação depois do fim do período pago; na reativação com o período pago correndo, não muda (`PLT-06`, T-217) |
 | `status` | enum `em_teste`, `ativa`, `inadimplente`, `suspensa`, `pausada`, `cancelada` | transições da seção "Plataforma e assinatura" |
 | `teste_inicio`, `teste_fim` | data | `PLT-01` (Moto Rápida: 07 a 21 out) |
-| `pausada_ate` | data, nulo | máximo 3 meses |
-| `cancelada_em` | momento, nulo | |
-| `acesso_ate` | data, nulo | fim do período pago após cancelar |
-| `apagar_em` | data, nulo | `cancelada_em` + 90 dias (`AUD-08`) |
-| `motivo_cancelamento` | texto, nulo | `PLT-06` |
+| `pausa_inicio` | data, nulo | pausa marcada: dia seguinte ao fim do período pago (`PLT-06`, T-194); agendada enquanto `ativa` |
+| `pausada_ate` | data, nulo | último dia da pausa: `pausa_inicio` + 1 a 3 meses − 1 dia |
+| `cancelamento_pedido_em` | momento, nulo | quando o administrador cancelou (`PLT-06`, T-194); limpo no desfazer |
+| `motivo_cancelamento` | enum `preco_alto`, `faltou_funcao`, `outro_sistema`, `fechar_ou_pausar`, `outro`, nulo | `PLT-06`; não muda nada no cancelamento |
+| `acesso_ate` | data, nulo | último dia de acesso com cancelamento marcado (fim do teste ou do período pago); nulo no cancelamento na hora. Cancelamento marcado = preenchido e `status` ≠ `cancelada` |
+| `cancelada_em` | momento, nulo | quando o `status` virou `cancelada` |
+| `apagar_em` | data, nulo | dia de `cancelada_em` + 90 dias (`AUD-08`) |
+| `aviso_apagamento_enviado_em` | momento, nulo | aviso de 7 dias antes, uma vez só (`AUD-08`, T-194) |
+| `apagada_em` | momento, nulo | fim do apagamento (ADR 0025); a linha fica, sem os dados de contato |
 | `suporte_bloqueado` | bool | administrador bloqueou o suporte (`PLT-07`) |
 | `etapa_implantacao` | enum `conta`, `marca`, `filial`, `precos`, `dados`, `primeira_locacao`, `concluida` | funil `IMP-05` |
 | `etapa_implantacao_desde` | momento | "precisam de ajuda" com 3 dias |
@@ -122,9 +126,13 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | `nota_situacao` | enum `processando`, `emitida`, `erro`, nulo | NFS-e da assinatura (`PLT-15`, T-193) |
 | `nota_numero`, `nota_externa_id`, `nota_url` | texto, nulos | número, id no Asaas e link do PDF |
 | `nota_pedida_em` | momento, nulo | |
+| `motivo_cancelamento` | enum `cancelamento_assinatura`, `pausa`, nulo | por que a fatura foi cancelada (`PLT-06`, T-194) |
+| `cancelada_em` | momento, nulo | |
+| `substituida_por` | FK → `FaturaAssinatura`, nulo | a fatura que nasceu de novo no desfazer do cancelamento ou na desistência da pausa |
 
 - Restrição: única por `(empresa, competencia)` quando `tipo = mensalidade` e `status <> cancelada`.
 - A 1ª fatura nasce em `criar_empresa` (`aberta`, vencimento `teste_fim + 1`, `PLT-01`); estender o teste move o vencimento e o período.
+- Cancelar e pausar (`docs/api/cancelamento.md`) cancelam a fatura `mensalidade` do período seguinte ainda não paga; desfazer cria outra igual, `aberta`, com código novo, e a cancelada aponta para ela.
 - Índices: `(status, vencimento)` para a régua `AUT-13`.
 
 ### 4. Usuário da plataforma · `contas.Usuario` no schema public
