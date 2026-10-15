@@ -83,7 +83,7 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | `preco_contratado_centavos` | centavos | `PLT-05` |
 | `plano_proximo` | FK → `Plano`, nulo | downgrade ou mudança de ciclo agendados (`PLT-04`); o downgrade é conferido na geração da fatura e aplicado no vencimento (`aplicar_mudanca_agendada`, T-213) |
 | `ciclo_proximo` | enum `mensal`, `anual`, nulo | mudança de ciclo pela equipe, na próxima fatura (`PLT-04`, T-193) |
-| `dia_vencimento` | int 1 a 31 | `PLT-01`: dia de `teste_fim + 1`; muda na volta da pausa e na reativação (`PLT-06`) |
+| `dia_vencimento` | int 1 a 31 | `PLT-01`: dia de `teste_fim + 1`; muda na volta da pausa e na reativação depois do fim do período pago; na reativação com o período pago correndo, não muda (`PLT-06`, T-217) |
 | `status` | enum `em_teste`, `ativa`, `inadimplente`, `suspensa`, `pausada`, `cancelada` | transições da seção "Plataforma e assinatura" |
 | `teste_inicio`, `teste_fim` | data | `PLT-01` (Moto Rápida: 07 a 21 out) |
 | `pausada_ate` | data, nulo | máximo 3 meses |
