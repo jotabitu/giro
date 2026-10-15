@@ -13,7 +13,7 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 | Tela | Arquivos | Rota no frontend | App no backend | Regras |
 | --- | --- | --- | --- | --- |
 | 1 · Escolha do plano | [desktop](html/Compra-Planos-Desktop.dc.html) · [celular](html/Compra-Planos-Mobile.dc.html) | `(publico)/compra, (empresa)/implantacao` | `plataforma, empresas` | PLT, IMP |
-| 2 · Criar conta e pagar | [desktop](html/Compra-Checkout-Desktop.dc.html) · [celular](html/Compra-Checkout-Mobile.dc.html) | `(publico)/compra, (empresa)/implantacao` | `plataforma, empresas` | PLT, IMP |
+| 2 · Criar conta e pagar | [desktop](html/Compra-Checkout-Desktop.dc.html) · [celular](html/Compra-Checkout-Mobile.dc.html) | `(publico)/compra, (empresa)/implantacao` | `plataforma, empresas` | PLT (PLT-16: aviso de CNPJ que já usou o teste), IMP |
 | 3 · Ambiente pronto | [desktop](html/Compra-Pronto-Desktop.dc.html) · [celular](html/Compra-Pronto-Mobile.dc.html) | `(publico)/compra, (empresa)/implantacao` | `plataforma, empresas` | PLT, IMP |
 | 4 · Primeiro acesso | [desktop](html/Acesso-Senha-Desktop.dc.html) · [celular](html/Acesso-Senha-Mobile.dc.html) | `(publico)/entrar` | `contas` | USR |
 | 5 · Empresa e marca | [desktop](html/Onboarding-Marca-Desktop.dc.html) · [celular](html/Onboarding-Marca-Mobile.dc.html) | `(publico)/compra, (empresa)/implantacao` | `plataforma, empresas` | PLT, IMP |
