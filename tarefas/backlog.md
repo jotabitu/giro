@@ -123,143 +123,7 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 
 ## Fase 0 · Fundação
 
-### T-001 · Esqueleto do backend
-- **Agente:** backend
-- **Depende de:** T-003
-- **Regras:** convenções de `CLAUDE.md`
-- **Pronto quando:** `backend/` com projeto Django 5, settings divididos (base, dev, test, prod), django-tenants configurado com schema público e de empresa, DRF, drf-spectacular servindo `/api/schema/`, pytest rodando, `make backend-check` verde. Inclui `backend/comum/`: model base com código sequencial por empresa (`LOC-2856`), campos de dinheiro em centavos, erro de negócio com código de regra e o registro de evento de auditoria (AUD-01), para que todo módulo já nasça auditado.
-
-### T-002 · Esqueleto do frontend
-- **Agente:** frontend
-- **Depende de:** T-003
-- **Pronto quando:** `frontend/` com Next.js App Router, TypeScript estrito, Tailwind lendo os tokens de `src/design-system/tokens.ts`, grupos de rota `(publico)`, `(empresa)`, `(plataforma)`, ESLint e Vitest verdes.
-
-### T-003 · Ambiente de desenvolvimento
-- **Agente:** devops
-- **Pronto quando:** `docker compose up` sobe Postgres 16, Redis, backend, worker Celery, beat e frontend; `.env.example` completo; `make up`, `make down`, `make check`.
-
-### T-004 · Portar o design system para código
-- **Agente:** design-system
-- **Depende de:** T-002
-- **Pronto quando:** `frontend/src/design-system/` com tokens (claro e escuro), variáveis `--brand`, `--brand-soft`, `--on-brand` trocáveis em tempo de execução, e os 12 componentes de `docs/design-system/components/` como componentes React com página de preview.
-
-### T-005 · CI
-- **Agente:** devops
-- **Depende de:** T-001, T-002
-- **Pronto quando:** os 5 pontos para o devops do handoff da T-001 resolvidos (desvio do Makefile, `MSYS_NO_PATHCONV`, CORS fora do `.env.example`, proxy de mesma origem `/api/`); GitHub Actions roda lint, testes e build do backend e do frontend em todo PR; gera o OpenAPI e falha se `docs/api/openapi.yaml` estiver desatualizado.
-
-### T-006 · ADRs iniciais revisadas
-- **Agente:** arquiteto
-- **Pronto quando:** as ADRs de `docs/decisoes/` revisadas e o modelo de dados das 25 entidades desenhado em `docs/decisoes/modelo-de-dados.md`, com schema (público ou empresa) de cada uma.
-
-### T-030 · Contratos da API de plataforma e filiais
-- **Agente:** arquiteto
-- **Depende de:** T-006
-- **Regras:** PLT-01, PLT-03, PLT-08, PLT-09, USR-07
-- **Pronto quando:** `docs/api/plataforma.md` e `docs/api/filiais.md` com endpoints, payloads, erros e permissões por perfil. Destrava T-010 e T-012.
-
-### T-031 · Responder as dúvidas de regra da T-006
-- **Agente:** produto
-- **Depende de:** T-006
-- **Pronto quando:** as cinco `[decisão]` levantadas pelo arquiteto (status não listados, `cancelada` na venda, venda aberta, arredondamento, chassi único) analisadas com recomendação em "Pontos em aberto" de `docs/regras-de-negocio.md`, para o dono do produto aprovar.
-
-### T-032 · Revisão de segurança do desenho da fundação
-- **Agente:** seguranca
-- **Depende de:** T-006
-- **Pronto quando:** ADRs 0008 a 0012 e o modelo de dados revisados, com atenção a campos mascarados na auditoria (0010), guarda de `plataforma.ContaPagamento.chave_api_cifrada` e token de suporte (0008). Relatório em `docs/seguranca/`; achados altos viram tarefas.
-
-### T-033 · Dados sensíveis na fundação: cifra, hash de busca e classificação da auditoria
-- **Agente:** backend
-- **Depende de:** T-001
-- **Regras:** CLI-01, AUD-01, AUD-04, AUD-06 · **ADR:** 0014 (itens 2 e 3) · **Segurança:** S-05, S-06, S-07
-- **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA` aplicado por `comum.auditoria` e o teste de arquitetura de campos sensíveis; os testes obrigatórios da ADR 0014 que não dependem de cliente ou sessão; `cryptography` registrada no PR e os três segredos no `.env.example`. Inclui C-01 (diff da auditoria calculado antes da máscara) e C-02 (tarefa com schema apagado não cai no public) da T-039, e o ator de quem disparou a tarefa em `na_empresa` (ADR 0018 item 3, ponto 1 da T-045). Bloqueia T-011 e T-014.
-
-### T-034 · Auditoria e Celery endurecidos
-- **Agente:** backend (papéis do banco com ADR do arquiteto e configuração do devops)
-- **Depende de:** T-001
-- **Regras:** AUD-01, AUD-02 · **Segurança:** S-10, S-11, C-03 (IP real atrás do proxy por `X-Forwarded-For`, só quando `REMOTE_ADDR` está em `GIRO_REDES_PROXY`, contando `GIRO_PROXIES_CONFIAVEIS` da direita, ADR 0018 item 4), C-05 (trigger sem `TRUNCATE`, mesmo que S-10)
-- **Pronto quando:** critério do item "[média] Auditoria e Celery endurecidos" de `docs/seguranca/2026-10-07-fundacao.md` (trigger também em `TRUNCATE`, expurgo só com mais de 5 anos, `na_empresa` restaura ator e schema, `task_prerun`/`task_postrun` voltam ao public, cache com `make_key`, `@tarefa_de_empresa` recusa `public` e schema inexistente, tasks recebem só ids).
-- **Também:** R-01 (média: cifra e hash falham dentro de `na_empresa` e `@tarefa_de_empresa`; usar `tenant_context`) e R-04 da T-050, antes da T-017.
-
-### T-035 · Endurecimento de produção
-- **Agente:** devops
-- **Depende de:** T-001, T-002
-- **ADR:** 0016 (papéis de banco separados, S-10) · **Segurança:** S-16, S-17, S-18, C-04 (`wsgi.py`, `asgi.py` e `config/celery.py` sem padrão `dev`; falha se `DJANGO_SETTINGS_MODULE` não vier em produção)
-- **Pronto quando:** `SHOW_PUBLIC_IF_NO_TENANT_FOUND = False` em `prod.py`; HSTS com preload, `Referrer-Policy`, `X-Frame-Options: DENY`, CSP no front; `/api/schema/` e `/api/docs/` fechados em produção (ponto 5 da T-045; ajuste no backend junto); `GIRO_PROXIES_CONFIAVEIS` e `GIRO_REDES_PROXY` por ambiente e `X-Forwarded-For` no proxy de mesma origem (ADR 0018); `SIMPLE_JWT["SIGNING_KEY"]` com variável própria. Precisa estar pronta antes do primeiro deploy de homologação.
-
-### T-036 · Contratos da API de contas, veículos e clientes
-- **Agente:** arquiteto
-- **Depende de:** T-030
-- **Regras:** USR-01 a USR-07, VEI-01 a VEI-07, CLI-01 a CLI-08, AUD-04, AUD-05 · **ADRs:** 0013, 0014
-- **Pronto quando:** `docs/api/contas.md` (inclui sessões, 2 etapas e convite), `docs/api/veiculos.md` e `docs/api/clientes.md` no padrão de `docs/api/README.md`. Destrava T-011, T-013 e T-014.
-
-### T-037 · Dúvidas da T-030 e critérios de aceite de T-010 a T-014
-- **Agente:** produto
-- **Depende de:** T-030, T-031
-- **Pronto quando:** recomendação para as `[decisão]` da T-030 (campos da tela Filial sem regra, desativação de filial com operação) em "Pontos em aberto"; critérios de aceite com números do seed para T-010, T-011, T-012, T-013 e T-014, no formato que o qa transforma em teste.
-
-### T-038 · Contratos da API de locações, vistorias e devolução
-- **Agente:** arquiteto
-- **Depende de:** T-036
-- **Regras:** LOC-01 a LOC-15, VIS-01 a VIS-05, DEV-01 a DEV-06 · **Segurança:** S-09 (marcadores fechados do `ModeloContrato`, `url_fetcher`), S-15 (token de assinatura)
-- **Pronto quando:** `docs/api/locacoes.md` (reserva, contrato, ciclo de status, assinatura) e `docs/api/vistorias.md` (saída, devolução e acerto) no padrão de `docs/api/README.md`, com o caso LOC-2836 = R$ 183,00 descrito no exemplo de resposta do acerto. Destrava T-015 e T-016.
-
-### T-039 · Revisão de segurança do código da T-001
-- **Agente:** seguranca
-- **Depende de:** T-001
-- **Pronto quando:** `comum/autenticacao.py`, `comum/auditoria.py` (máscaras), o trigger de `apps/auditoria/migrations/0002_trigger_imutavel.py`, settings e rotas revisados contra as ADRs 0008 a 0013; relatório em `docs/seguranca/`; achados viram tarefas.
-
-### T-040 · Cobertura de regras e esqueleto dos testes de aceitação de T-010 a T-014
-- **Agente:** qa
-- **Depende de:** T-001, T-037
-- **Pronto quando:** `docs/qa/cobertura-de-regras.md` com a tabela regra → teste → status para todas as regras com código; em `backend/tests/aceitacao/`, um teste por critério de `docs/qa/criterios/T-010.md` a `T-014.md`, com o código da regra no nome, marcados `xfail` (motivo: tarefa ainda não implementada) até o backend entregar. Os testes rodam no CI sem quebrar.
-
-### T-041 · Critérios de aceite de T-015 a T-018
-- **Agente:** produto
-- **Depende de:** T-037, T-038
-- **Pronto quando:** `docs/qa/criterios/T-015.md` a `T-018.md` com números do seed (LOC-2836 = R$ 183,00, caixa de 07 out = gaveta R$ 281,00 e os demais casos da tabela de referência), apontados no "Pronto quando" das tarefas.
-
-### T-042 · Componente de código de 6 dígitos (OTP)
-- **Agente:** design-system
-- **Depende de:** T-004, T-026
-- **Pronto quando:** componente `CodigoVerificacao` em `frontend/src/design-system/` como na tela `Ativar-2FA` (6 casas, colar o código inteiro, avanço e volta com teclado, estado de erro, `autocomplete="one-time-code"`, acessível), com preview e testes. Usado pela T-020.
-
-### T-043 · Contratos da API de financeiro e auditoria
-- **Agente:** arquiteto
-- **Depende de:** T-038
-- **Regras:** FIN-01 a FIN-08, AUD-01 a AUD-03, AUD-09 · **Segurança:** S-14 (webhooks)
-- **Pronto quando:** `docs/api/financeiro.md` (contas a receber, caixa do dia, baixa, interface de pagamentos para a T-029) e `docs/api/auditoria.md`, com o caso do caixa de 07 out (gaveta R$ 281,00). Inclui alinhar `vistorias.md` (fórmula do combustível da DEV-01, exemplo com chegada em 3/4) e `locacoes.md` (renovação e troca decididas: LOC-08, LOC-09) às decisões da T-041. Destrava T-017 e T-018.
-
-### T-044 · Contrato da API de importação por planilha
-- **Agente:** arquiteto
-- **Depende de:** T-036
-- **Regras:** IMP-02 e o passo "importar dados" do assistente de implantação, VEI-01, CLI-01
-- **Pronto quando:** `docs/api/importacao.md` (envio da planilha, validação linha a linha com os erros da tela `Onboarding-Importar`, confirmação, relatório), com os campos cifrados da ADR 0014. Destrava T-027.
-
-### T-045 · Conferir decisões de implementação da T-001 contra as ADRs
-- **Agente:** arquiteto
-- **Depende de:** T-001
-- **Pronto quando:** as "Decisões de implementação (Arquiteto, confira)" do handoff da T-001 conferidas contra as ADRs 0008 a 0012 e o modelo de dados; o que divergir vira ajuste de ADR ou tarefa para o backend, sem bloquear a T-033.
-
-### T-046 · Componentes pedidos pela T-020
-- **Agente:** design-system
-- **Depende de:** T-004
-- **Pronto quando:** seletor de filial, diálogo e gaveta (shadcn/ui por cima dos tokens, se fizer sentido; registrar no PR) e `KpiTile` com valor longo no celular, com preview e testes. Usados pela T-020 e pela T-021.
-
-### T-047 · Menu por permissão e agregados do painel
-- **Agente:** arquiteto (com o produto para o início por perfil)
-- **Depende de:** T-036
-- **Pronto quando:** `docs/api/contas.md` devolve `menu` (módulos liberados) em `GET /api/eu/`, para a tela não inferir de `pode`; rota inicial por perfil definida com o produto (vistoriador, vendedor, gerente, financeiro); `docs/api/painel.md` com os contadores do menu e os indicadores da tela `Main`. Resolve as três `[decisão]` da T-020.
-
-### T-050 · Revisão de segurança do código da T-033
-- **Agente:** seguranca
-- **Depende de:** T-033
-- **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA`, `na_empresa` e o teste de arquitetura revisados contra a ADR 0014 (itens 2 e 3), a ADR 0018 (item 3) e os achados S-05, S-06, S-07, C-01 e C-02; relatório em `docs/seguranca/`; achados viram tarefas.
-
-### T-065 · Login trata o 401 e o 429 da T-058
-- **Agente:** frontend
-- **Depende de:** T-058
-- **Pronto quando:** as telas de acesso tratam as respostas novas de `docs/api/plataforma.md` (entrar sem código responde 401 em vez de 400; 429 do bloqueio de 5 senhas e 429 `muitas_requisicoes`), com mensagem nas palavras das telas, nos dados falsos, e com teste.
+Concluída. As tarefas entregues estão em `tarefas/feito.md`.
 
 ## Fase 1 · MVP
 
@@ -267,9 +131,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 
 ### T-157 · (M-03) Produção recusa e-mail no console e armazenamento falso (média)
 - **Agente:** backend · **Depende de:** — · **Pronto quando:** `config/settings/prod.py` recusa subir com `EMAIL_BACKEND` de console, locmem ou arquivo (o padrão de `base.py` é o console, e os e-mails de senha, convite e assinatura levam o token) e com `GIRO_ARMAZENAMENTO` diferente de `s3`, como já faz com as chaves; pagamentos e WhatsApp `falso` entram na mesma trava quando as integrações reais existirem (T-029); teste que importa `prod.py` com o ambiente montado. Antes de homologação.
-
-### T-158 · (M-04) Configuração do proxy reverso: tamanho do corpo e cabeçalhos `X-Forwarded-*` (média)
-- **Agente:** devops, com o backend · **Depende de:** — · **Pronto quando:** a configuração do proxy de homologação e produção está em `infra/`, com limite de corpo de 12 MB (os uploads só são conferidos por `comum/arquivos.validar` depois de recebidos inteiros, e o Django não limita arquivo em multipart), `X-Forwarded-Host`, `X-Forwarded-Proto` e `X-Forwarded-For` sempre sobrescritos pelo proxy (o `TenantMainMiddleware` escolhe a empresa por `get_host()`, que segue o `X-Forwarded-Host` com `USE_X_FORWARDED_HOST = True`) e rate limit de borda em `/api/auth/` e no webhook; no backend, `USE_X_FORWARDED_HOST` só em `prod.py`; checklist no `infra/README.md`. Antes de homologação.
 
 ### T-156 · (M-02) Custo e rendimento do veículo fora da ficha do vendedor (média)
 - **Agente:** backend, depois frontend · **Depende de:** T-136 · **Regras:** tabela de perfis, USR-09, VEI-05 · **Decisão:** opção A do dono do produto em 12 out 2026 (regra na T-156 do produto) · **Pronto quando:**
@@ -350,13 +211,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 - **Agente:** produto · **Depende de:** T-211 · **Regras:** PLT-06, PLT-01 · **Estado:** regra e critério escritos, PR a abrir. Decisão do produto, a pedido do dono, em 14 out 2026: na reativação da `cancelada` pela equipe, com o último período pago ainda correndo, a fatura nova vence no dia seguinte ao fim dele e o dia de vencimento não muda; senão, vence no dia da volta, como antes. Critério CA-ASS-49; dado de referência "Reativação da Moto Rápida no período pago".
 - **Tarefa (numerada pelo orquestrador em 14 out 2026):** **T-217 · arquiteto · Contrato da reativação** (`assinatura.md`, "Mudança de ciclo e reativação pela equipe"; `plataforma.md`, ação `reativar`). `plataforma.services.reativar_empresa`: o vencimento da fatura nova é o dia seguinte ao fim do último período de fatura `mensalidade` `paga`, quando ele ainda não acabou, e `dia_vencimento` fica como está; senão, vence no dia da volta e `dia_vencimento` passa a esse dia. Avisar a T-184 e a T-186 e quem fizer a reativação no backend; teste `test_plt_06_reativar_no_periodo_pago` (CA-ASS-49).
 
-
-### T-173 · Tela de Configurações
-- **Agente:** arquiteto (contrato), depois backend e frontend · **Depende de:** — · **Regras:** IMP, LOC · **Telas:** Config (desktop e celular) · **Pronto quando:** (arquiteto) confere o que `docs/telas/html/Config-*.dc.html` mostra e o que já tem contrato (a API não tem rota de configurações hoje; marca é a T-153/T-154, preços em `/api/precos/`, modelos de contrato em `/api/contratos/`), escreve o contrato do que faltar e propõe as tarefas de backend, sem número; (frontend) `/admin/configuracoes` igual à referência, ligada à API real. Pedida pelo dono em 13 out 2026.
-- **Contrato pronto (13 out 2026, arquiteto):** `docs/api/configuracoes.md` (`GET /api/configuracoes/`, em `relatorios`: os cartões com título e resumo prontos e a faixa da implantação); rotas dos cartões em `docs/telas/README.md`. Integrações e Notificações não vêm no MVP (sem tela nem contrato); o botão "Continuar implantação" espera o contrato do assistente. Handoff: `tarefas/handoffs/T-173-arquiteto.md`.
-- Resolvido na T-190: texto do cartão "Exportar dados" no MVP fica "Baixe a auditoria em CSV", como o contrato (U18, nota de 14 out 2026 na auditoria).
-- **Fora da T-173, sem contrato (orquestrador):** as "Regras de cobrança" da tela `Precos` e do passo `Onboarding-Precos` (tolerância, combustível, desconto do vendedor; a tela do assistente pede também franquia de km e km excedente, que as regras não têm) são citadas em `veiculos.md` como "contrato de empresas", mas `empresas.md` não as tem; e `exige_2fa_todos` ("exigir 2 etapas para todos", `contas.md`) não aparece em nenhuma tela da empresa. Os dois pedem tela ou contrato antes de tarefa.
-
 ### T-028 · Limpar dados de exemplo das telas
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`. Inclui `Despesas-Desktop` e `Despesas-Mobile`: aguardando aprovação é R$ 1.200,00 (não R$ 1.386,40) e o IPVA de R$ 186,40 nasce `a_pagar` (FIN-05), apontado pelo qa na T-040.
 - **Estado do QXA-4B21 (T-112, decisão do dono em 09/10, opção A):** corrigir Frota, Veiculo, Main, Vistoriador e a OS-119 em Manutencao conforme o caso "Estado do QXA-4B21 em 07 out" dos dados de referência e as divergências levantadas pelo produto em T-112 (acima, em Pontos em aberto): Alugado no tom `solido` (não azul) e "Colocar à venda" só em veículo `disponivel`.
@@ -365,7 +219,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 
 ### [decisão] Pix Automático: quando cobrar a parcela (AUT-04, levantada na T-029)
 - **Para:** produto · **Contexto:** o contrato (`docs/api/financeiro.md`, "Cobrança recorrente") diz que `aut_04_cobranca_recorrente` cobra "no vencimento de cada parcela". Pela documentação do Asaas, a cobrança do Pix Automático tem de ser criada **de 2 a 10 dias úteis antes do vencimento**, e a autorização só fica ativa depois que o cliente paga a primeira cobrança pelo QR. Falta decidir: quantos dias antes a tarefa cria a cobrança da parcela, o que acontece com a parcela que vence antes de a autorização ficar ativa, e se a locação diária ou quinzenal pode ter Pix Automático (o Asaas aceita semanal, mensal, trimestral, semestral e anual). O provedor já está pronto (`asaas.py`, T-029); o fluxo na locação espera esta decisão (handoff `tarefas/handoffs/T-029-backend.md`, item 1).
-
 
 ## Dúvidas abertas da T-020 (frontend)
 
@@ -386,24 +239,11 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 - (T-192, para o produto) CA-ASS-15: a Moto Rápida do seed tem despesas de outubro abertas (pneus aguardando aprovação e as `a_pagar`); pela `PLT-12`, a recusa do Essencial passa a listar também esses grupos (`detalhes.abertos`). Ajustar o texto do critério.
 - [decisão] (T-181, Configurações) Empresa sem filial ativa: o contrato não diz o resumo do cartão Filiais; o backend usa "Nenhuma filial ativa" (como "Nenhuma categoria cadastrada" em Tabelas de preço). Produto: confirmar ou trocar o texto.
 
-### T-205 · Caução na busca do caixa (D-01 da T-025)
-- **Agente:** backend · **Depende de:** — · **Regras:** FIN-15 · **Critérios:** CA-023-15 · **Pronto quando:** a busca do caixa por locação traz a caução a receber (`financeiro/selectors.py::_recortar` considera `?busca=`), e a caução pode ser recebida pela tela do caixa; teste `test_fin_15_busca_do_caixa_traz_caucao`. O QA troca o contorno do E2E (`e2e/`) pela tela.
-
-### T-207 · Vistoriador sem 403 ao abrir a vistoria (D-05 da T-025)
-- **Agente:** backend (com o frontend, se a chamada não for necessária) · **Depende de:** — · **Regras:** USR-09 · **Pronto quando:** o João (vistoriador) abre a vistoria sem 403: ou a tela deixa de chamar `GET /api/clientes/{id}/` e usa o que a vistoria já traz, ou a API devolve ao vistoriador só o que a USR-09 permite; teste com o perfil do vistoriador.
-
 ### T-208 · Enviar contrato e página pública de assinatura (lacuna da T-025)
 - **Agente:** frontend · **Depende de:** — · **Regras:** LOC-04 · **Contrato:** `docs/api/contratos.md` (`POST /api/locacoes/{id}/contrato/` e as rotas públicas de assinatura) · **Telas:** as de assinatura em `docs/telas/html` · **Pronto quando:** botão para gerar e enviar o contrato na locação e página pública `/assinar` (sem login, celular), ligadas à API real; testes. O QA troca o contorno do CA-025-05 pela tela.
 
 ### T-209 · Ajustes de cadastro e caixa achados no E2E (lacunas da T-025)
 - **Agente:** frontend · **Depende de:** — · **Regras:** CLI-01, FIN-01 · **Pronto quando:** (b) as fotos do cliente podem ser enviadas antes do primeiro "Salvar cliente", para "Salvar e iniciar locação" já ter as fotos; (c) o CEP preenche rua, bairro e cidade; (e) no celular o caixa mostra "N recebimentos"; testes. O item (d), a vendedora sem acesso à Frota, vai ao produto como divergência.
-
-### T-210 · Fotos no desenvolvimento sem bloqueio da CSP (D-06 da T-025)
-- **Agente:** devops (com o backend) · **Depende de:** — · **Pronto quando:** em desenvolvimento as URLs assinadas das fotos apontam para um endereço que o navegador alcança e a CSP permite (sem `arquivos.invalid`); as fotos da comparação da devolução aparecem e o console fica limpo; o E2E deixa de tolerar o erro da CSP.
-- [decisão] (T-171, Auditoria e Exportar) Diferenças entre as referências e o contrato `auditoria.md`: (1) o contrato diz 9 eventos em "Últimos 7 dias" no seed (CA-018-09), e a referência lista 10, com "Mudou a tabela de preço" de 01 out; o seed do frontend segue a referência. (2) O contrato não dá o tom de cada evento; a tela usa a categoria (suporte em alerta, configurações e segurança em info) e a regra `USR-06`/`PLT-08` para "Login bloqueado" em crítico. (3) A referência mostra contagem no chip "Suporte 2"; a lista não devolve contagens por categoria, e o chip ficou sem número. (4) `Admin-Exportar` na referência tem seis itens, três formatos e o cartão do Backup automático; a tela do MVP mostra só a auditoria em CSV e o período (opção A de 12 out), sem os outros nem desabilitados. (5) O download de uma exportação exige o login (token só em memória), então a tela busca o arquivo com `Authorization` e segue o 302 para a URL assinada; precisa de conferência no compose (CORS do storage na resposta do redirecionamento). Arquiteto/devops: confirmar o (5); design-system: ajustar `Admin-Exportar-*` e o chip.
-
-### T-218 · Fotos do desenvolvimento que sobrevivem ao reinício do backend (D-07 da T-212)
-- **Agente:** devops (com o backend) · **Depende de:** T-210 · **Pronto quando:** no desenvolvimento, o armazenamento "falso" (`comum/arquivos.py`, hoje um dicionário na memória) guarda os arquivos em disco (volume do compose), e as fotos da saída continuam abrindo em `/api/arquivos-dev/` depois que o backend é recriado (o E2E recria para virar o relógio de 07 para 14 out); testes e homologação/produção não mudam; o QA tira a anotação do D-07 do E2E. Detalhe em `tarefas/handoffs/T-212-qa.md`.
 
 ## Fase 2 em diante
 
