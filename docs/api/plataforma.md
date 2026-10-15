@@ -1,6 +1,6 @@
 # Plataforma
 
-**Dono:** arquiteto · **Versão:** 14 out 2026 (T-193; T-183; T-055; T-030) · **App:** `plataforma` (+ `contas` no schema `public`, ADR 0008) · **Regras:** PLT-01, PLT-03, PLT-04, PLT-06, PLT-07, PLT-08, PLT-09, PLT-14, IMP-05 · **Telas:** Plat-Login, Plat-Empresas, Plat-Empresa-Detalhe, Plat-Planos, Plat-Equipe, Admin-Assinatura
+**Dono:** arquiteto · **Versão:** 15 out 2026 (T-201, andamento do assistente; T-193; T-183; T-055; T-030) · **App:** `plataforma` (+ `contas` no schema `public`, ADR 0008) · **Regras:** PLT-01, PLT-03, PLT-04, PLT-06, PLT-07, PLT-08, PLT-09, PLT-14, IMP-01, IMP-05 · **Telas:** Plat-Login, Plat-Empresas, Plat-Empresa-Detalhe, Plat-Planos, Plat-Equipe, Admin-Assinatura, a moldura do assistente (`Onboarding-*`)
 
 Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-dados.md` (itens 1 a 5 e apoio do public).
 
@@ -281,6 +281,37 @@ Perfis: todos (cada tela mostra o que precisa; o administrador vê tudo).
 
 Caso do seed: Moto Rápida → 86 de 150, 1 de 3, 5 de 10, nenhum `aviso` (`PLT-03`).
 
+### GET /api/implantacao/ · andamento do assistente (T-201)
+Perfis: administrador e token de suporte (só leitura); os demais, 403 `{ "codigo": "permissao" }`. As rotas `/implantacao/*` do frontend são só do administrador. Lido do `public` (`UsoEmpresa.passos_implantacao`) por `plataforma.selectors.andamento_do_assistente(empresa)`, como o `GET /api/assinatura/`. Decisão da T-190 (proposta 9, T-172): a moldura do assistente marca os passos feitos pelo que a API manda, e não por conta própria.
+
+200 (empresa no Profissional com 6 dos 10 passos da implantação, o exemplo da faixa de `Configurações`):
+```json
+{
+  "concluida": false,
+  "total": 8,
+  "feitos": 5,
+  "proximo": "contrato",
+  "passos": [
+    { "passo": "marca",        "numero": 1, "rotulo": "Empresa e marca",     "feito": true,  "feito_em": "2026-10-07" },
+    { "passo": "filial",       "numero": 2, "rotulo": "Primeira filial",     "feito": true,  "feito_em": "2026-10-07" },
+    { "passo": "ramo",         "numero": 3, "rotulo": "O que a empresa faz", "feito": true,  "feito_em": "2026-10-07" },
+    { "passo": "precos",       "numero": 4, "rotulo": "Tabela de preços",    "feito": true,  "feito_em": "2026-10-07" },
+    { "passo": "contrato",     "numero": 5, "rotulo": "Modelo de contrato",  "feito": false, "feito_em": null },
+    { "passo": "recebimentos", "numero": 6, "rotulo": "Recebimentos",        "feito": false, "feito_em": null },
+    { "passo": "importar",     "numero": 7, "rotulo": "Importar dados",      "feito": false, "feito_em": null },
+    { "passo": "equipe",       "numero": 8, "rotulo": "Convidar equipe",     "feito": true,  "feito_em": "2026-10-07" }
+  ]
+}
+```
+- **Os passos do assistente** são os 10 passos da implantação (acima, "Passos da implantação") menos `conta` (feito na compra, antes do assistente) e `primeira_locacao` (feita fora dele, na nova locação): 8 passos, nesta ordem, com os rótulos da tela (diferentes dos rótulos do painel da plataforma em `contrato` e `equipe`). No Essencial (sem `recebimento_parceiro`, `PLT-12`), `recebimentos` sai: 7 passos, e `importar` é o 6 ("Passo 6 de 7"). Passo `recebimentos` guardado continua guardado e volta ao subir de plano.
+- `numero` e `total` são o "Passo N de M" da tela; a tela acha o próprio passo pela chave e não conta nada. `feito_em` é a data, em `America/Sao_Paulo`, em que o passo foi marcado.
+- `feito` vem de `registrar_passo_implantacao` (cada contrato diz qual ação marca o seu passo: `empresas.md` a marca, `filiais.md` a filial, `importacao.md` o importar, e assim por diante). Pular ("Pular por agora", "Cadastrar um por um depois") e "Salvar e sair" **não** marcam passo: o passo continua `feito: false` e o assistente só navega. Não há rota de pular. Isso fecha o ponto que `empresas.md` deixava para "o contrato do assistente".
+- `proximo`: o primeiro passo do assistente ainda não feito, na ordem; `null` quando todos estão feitos.
+- `concluida` = `IMP-01` (passo `primeira_locacao` marcado). Com `true`, a tela inicial deixa de ser a de implantação (`contas.md`, `inicio.variante`); o assistente continua abrindo para quem quiser terminar um passo.
+- Contagens diferentes de propósito: aqui conta o assistente (5 de 8); a faixa de `Configurações` e o painel da plataforma contam os 10 passos da implantação (6 de 10). A tela não mostra os dois lado a lado (T-200).
+- O botão "Continuar implantação" da `Configurações` (`configuracoes.md`, `acao`) continua como está até as telas dos passos existirem no frontend; quando existirem, `acao.passo` passa a ser o `proximo` daqui.
+- Teste (T-202): `test_imp_05_andamento_do_assistente` (o exemplo acima dá 5 de 8 com `proximo: "contrato"`; no Essencial, 7 passos sem `recebimentos`; pular não marca; vendedor 403; token de suporte 200).
+
 ---
 
 ## Módulos por plano (`PLT-12`, ADR 0024)
@@ -314,7 +345,9 @@ Rotas que ainda não existem entram na tabela com o contrato do módulo delas; q
 
 **Implantação.** Sem `recebimento_parceiro`, o passo `recebimentos` sai da lista de `PASSOS_IMPLANTACAO` da empresa: no Essencial são 9 passos, e `concluidos`, `total` e `faltam` (`configuracoes.md`, `GET /api/plataforma/empresas/{id}/`) contam 9. Passo `recebimentos` já marcado continua guardado e volta a contar ao subir de plano.
 
-**Downgrade.** O que está aberto nos módulos que saem recusa o downgrade (`assinatura.md`, 422 `PLT-04` com `detalhes.abertos`; grupos na ADR 0024, item 7). O painel da plataforma (`mudar-plano`, fase 2) usa o mesmo serviço e a mesma recusa.
+**Downgrade.** O que está aberto nos módulos que saem recusa o downgrade (`assinatura.md`, 422 `PLT-04` com `detalhes.abertos`; grupos na ADR 0024, item 7), e também a atividade que o plano novo não aceita (`detalhes.atividade`: quem só vende não vai para o Essencial, ADR 0024, item 10). O painel da plataforma (`mudar-plano`, fase 2) usa o mesmo serviço e a mesma recusa.
+
+**Ramo.** Trocar o ramo (passo 7 e Configurações, `PUT /api/ramo/` em `empresas.md`) passa pela mesma conta: as atividades aceitas no plano atual (Essencial: `aluga` e `ambos`) e o que está aberto nos módulos que saem, com o grupo `locacoes` a mais (422 `PLT-12`, ADR 0024, item 9).
 
 ## Interface interna para os outros apps (não é HTTP)
 
@@ -330,7 +363,9 @@ Os apps da empresa usam só estas funções do `plataforma` (ADR 0011):
 | `plataforma.services.copiar_endereco_da_matriz(endereco)` | Chamada por `filiais.services.criar_filial` quando a filial nasce matriz; grava o endereço da nota da assinatura só se a empresa ainda não tem (`PLT-15`, `assinatura.md`). |
 | `plataforma.services.concluir_implantacao(objeto)` | Na confirmação da 1ª locação (ou venda), marca o passo `primeira_locacao` uma vez só, com o evento `implantacao.concluir` na auditoria da empresa (`IMP-01`). |
 | `plataforma.services.registrar_acesso()` | Atualiza `ultimo_acesso_em` (no máximo 1 escrita a cada 5 min por empresa). |
+| `plataforma.selectors.recursos_para(plano, atividade)` | Função pura: `plano.recursos` menos `locacoes_vistoria` quando `atividade` não aluga e menos `vendas_comissoes` quando não vende. Base de `recursos_da_empresa`, do downgrade e da troca de ramo (ADR 0024, itens 2, 7 e 9). |
+| `plataforma.selectors.atividades_aceitas(plano)` | Atividades com pelo menos um módulo de operação (`locacoes_vistoria` ou `vendas_comissoes`) em `recursos_para(plano, atividade)`, na ordem `aluga`, `vende`, `ambos`. Essencial: `("aluga", "ambos")` (ADR 0024, item 10). |
 | `plataforma.selectors.recursos_da_empresa(empresa=None)` | `frozenset` dos recursos ligados (plano e ramo, ADR 0024). Os apps de cima usam `comum.empresa.tem_recurso(recurso)`, que `plataforma` registra no `ready()`; no `public`, `True`. Lido uma vez por pedido. |
-| `plataforma.services.pendencias_dos_modulos(empresa, recursos_que_saem)` | Entra no schema da empresa e soma os grupos registrados em `comum.modulos.registrar_pendencia` para os recursos que saem; devolve a lista `abertos` de `assinatura.md` (só grupos com quantidade > 0). Usada por `mudar_plano` (pedido, simulação e `excede`) e por `gerar_faturas`. |
+| `plataforma.services.pendencias_dos_modulos(empresa, recursos_que_saem)` | Entra no schema da empresa e soma os grupos registrados em `comum.modulos.registrar_pendencia` para os recursos que saem; devolve a lista `abertos` de `assinatura.md` (só grupos com quantidade > 0). Com `empresa=None`, conta no schema corrente. Usada por `mudar_plano` (pedido, simulação e `excede`), por `gerar_faturas` e por `empresas.services.mudar_ramo` (ADR 0024, item 9). |
 
 Ao chegar a 90% de um item, `exigir_limite`/`atualizar_uso` agendam a notificação "limite do plano em 90%" para os administradores (uma vez por item e por mês).

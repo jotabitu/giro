@@ -3,8 +3,8 @@
 - `clientes.Cliente`: bloco `financeiro` (`total_pago_centavos` sem caução, `em_aberto_centavos`
   das contas vencidas e não pagas, `a_devolver_centavos` dos reembolsos a fazer e
   `conta_mais_antiga_id`), bloco `historico` (item da análise, CLI-04), filtro `em_aberto`,
-  contadores `contas_atrasadas_15_dias` (CLI-05) e `em_aberto_centavos` (CLI-09) e o total
-  `em_aberto_centavos` da lista (CA-017-03).
+  contadores `contas_atrasadas_15_dias` e `dias_de_atraso` (CLI-05) e `em_aberto_centavos`
+  (CLI-09) e o total `em_aberto_centavos` da lista (CA-017-03).
 - `filiais.Filial`: contador `caixas`, os caixas `aberto` ou `aguardando_aprovacao` (FIL-06).
 - `veiculos.Veiculo`: `custo_manutencao_ano_centavos` no bloco `indicadores_financeiros`
   (VEI-05, FIN-06); o `rendeu_no_ano_centavos` vem de `locacoes`, que sabe o veículo da locação.
@@ -134,6 +134,19 @@ def contas_atrasadas_15_dias(cliente_id: int) -> int:
     )
 
 
+def dias_de_atraso(cliente_id: int) -> int:
+    """CLI-05: os dias de atraso de hoje da conta vencida mais antiga do cliente, sem a caução
+    (dia corrido em `America/Sao_Paulo`, como a FIN-03). Sem conta vencida, 0."""
+    hoje = relogio.hoje()
+    vencimento = (
+        ContaReceber.objects.filter(_vencidas(hoje), cliente_id=cliente_id)
+        .order_by("vencimento")
+        .values_list("vencimento", flat=True)
+        .first()
+    )
+    return (hoje - vencimento).days if vencimento is not None else 0
+
+
 def em_aberto_centavos(cliente_id: int) -> int:
     return selectors.em_aberto_do_cliente(cliente_id, relogio.hoje())
 
@@ -170,6 +183,7 @@ def registrar() -> None:
     leituras.registrar_anotacao(CLIENTE, "historico", _sem_anotacao, montar_historico)
     leituras.registrar_filtro(CLIENTE, "em_aberto", em_aberto)
     leituras.registrar_contador(CLIENTE, "contas_atrasadas_15_dias", contas_atrasadas_15_dias)
+    leituras.registrar_contador(CLIENTE, "dias_de_atraso", dias_de_atraso)
     leituras.registrar_contador(CLIENTE, "em_aberto_centavos", em_aberto_centavos)
     leituras.registrar_total(CLIENTE, "em_aberto_centavos", total_em_aberto)
     leituras.registrar_contador(FILIAL, "caixas", selectors.caixas_abertos_da_filial)
