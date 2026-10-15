@@ -1,8 +1,12 @@
 # Cancelar e pausar a assinatura (Admin › Cancelar assinatura)
 
-**Dono:** arquiteto · **Versão:** 15 out 2026 (T-194, com o acréscimo da T-211) · **App:** `plataforma` (lê e grava no `public`, servido no host da empresa) · **Regras:** PLT-06, AUD-08, PLT-01, PLT-02, PLT-04, PLT-13, PLT-14, tabela de estados da empresa · **ADR:** 0010, 0012, 0016, 0025 · **Telas:** Admin-Cancelar e Admin-Assinatura (desktop e celular) · **Critérios:** `docs/qa/criterios/assinatura.md` (CA-ASS-30 a 39, 42 a 45)
+**Dono:** arquiteto · **Versão:** 15 out 2026 (T-194, com os acréscimos da T-211 e da T-231) · **App:** `plataforma` (lê e grava no `public`, servido no host da empresa) · **Regras:** PLT-06, AUD-08, PLT-01, PLT-02, PLT-04, PLT-13, PLT-14, tabela de estados da empresa · **ADR:** 0010, 0012, 0016, 0025 · **Telas:** Admin-Cancelar e Admin-Assinatura (desktop e celular) · **Critérios:** `docs/qa/criterios/assinatura.md` (CA-ASS-30 a 39, 42 a 45, 54 a 58)
 
-Decisão do dono em 14 out 2026 (T-190): cancelar e pausar entram no MVP. Os pontos em aberto da T-190 foram decididos na T-211 (a pausa começa no fim do período pago; o administrador desfaz o cancelamento pela tela até o último dia de acesso). Este contrato completa `assinatura.md`, que já tem a mudança de plano, as faturas, a régua e a reativação pela equipe; aqui ficam as rotas da `Admin-Cancelar`, a pausa, o desfazer, o que acontece com as faturas e a régua, e o apagamento no 90º dia.
+Decisão do dono em 14 out 2026 (T-190): cancelar e pausar entram no MVP. Os pontos em aberto da T-190 foram decididos na T-211 (a pausa começa no fim do período pago; o administrador desfaz o cancelamento pela tela até o último dia de acesso).
+
+> **O que mudou na T-231 (decisões do dono de 15 out 2026, regras na T-229).** Os cinco casos que eram `[decisão]` ficaram com o padrão deste contrato (opção A em todos), e as marcas saíram: (1) cancelar em teste com a 1ª fatura paga segue a `ativa`, com acesso até o fim do período da 1ª fatura e sem estorno (CA-ASS-54); (2) o administrador desiste da pausa agendada até o último dia do período pago, com a ação nova `acoes.desistir_pausa`, e "Voltar da pausa" fica só para a `pausada` (CA-ASS-55); (3) mudar de plano e pausar com o cancelamento marcado são recusados, e o downgrade agendado continua (CA-ASS-56); (4) a fatura de diferença em aberto continua devida durante a pausa (CA-ASS-57); (5) o que fica no `public` depois do apagamento (CA-ASS-58). O prazo de guarda das faturas fica com o dono e o contador, e o MEI e o empresário individual, com a segurança (T-230).
+
+Este contrato completa `assinatura.md`, que já tem a mudança de plano, as faturas, a régua e a reativação pela equipe; aqui ficam as rotas da `Admin-Cancelar`, a pausa, o desfazer, o que acontece com as faturas e a régua, e o apagamento no 90º dia.
 
 Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-dados.md` (itens 2 e 3). Datas no fuso `America/Sao_Paulo`; "hoje" é a data local (ADR 0021 no desenvolvimento).
 
@@ -24,7 +28,7 @@ Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-
 | cancelar | sim, acesso até o fim do teste | sim, acesso até o fim do período pago | sim, `cancelada` na hora | sim, na hora | sim, na hora |
 | desfazer o cancelamento | com cancelamento marcado | com cancelamento marcado | — | — | — |
 | pausar | não | sim | não | não | não |
-| voltar da pausa | — | com pausa marcada (desiste, ver "Desistir da pausa") | — | — | sim |
+| voltar da pausa | — | com pausa agendada: desiste, até a véspera de `pausa_inicio` | — | — | sim |
 
 Fora da tabela: 409 `{ "codigo": "transicao_empresa", "mensagem": "<texto do caso>" }`, com os textos de cada rota abaixo.
 
@@ -47,7 +51,7 @@ Os campos de `assinatura.md` não mudam. Entram dois blocos, `null` quando não 
     "rotulo": "Assinatura cancelada. Você tem acesso até 21 nov."
   },
   "pausa": null,
-  "acoes": { "...": "as de assinatura.md", "cancelar": false, "desfazer_cancelamento": true, "pausar": false, "voltar_pausa": false }
+  "acoes": { "...": "as de assinatura.md", "cancelar": false, "desfazer_cancelamento": true, "pausar": false, "voltar_pausa": false, "desistir_pausa": false }
 }
 ```
 
@@ -64,7 +68,8 @@ Os campos de `assinatura.md` não mudam. Entram dois blocos, `null` quando não 
   - `cancelar`: administrador, sem cancelamento marcado, `status` em `em_teste`, `ativa`, `inadimplente`, `suspensa` ou `pausada`. Substitui o `cancelar: false` provisório de `assinatura.md`.
   - `desfazer_cancelamento`: administrador, cancelamento marcado e hoje ≤ `acesso_ate`.
   - `pausar`: administrador, `ativa`, sem cancelamento nem pausa marcados.
-  - `voltar_pausa`: administrador, pausa marcada (agendada ou em andamento).
+  - `voltar_pausa`: administrador, `pausada` (pausa em andamento). Botão "Voltar da pausa".
+  - `desistir_pausa`: administrador, `ativa` com pausa agendada (hoje < `pausa_inicio`, isto é, até o último dia do período pago). Botão "Desistir da pausa". As duas ações nunca vêm `true` juntas e chamam a mesma rota (`DELETE pausa/`).
   - Com cancelamento marcado, `mudar_plano`, `desfazer_mudanca_plano` e `pausar` vêm `false`.
 
 ---
@@ -116,6 +121,7 @@ Administrador. Tudo o que a `Admin-Cancelar` mostra, montado pela API para o est
   | Estado | `acesso` | `cobrancas` |
   | --- | --- | --- |
   | `em_teste` (1ª fatura em aberto) | "continua até 21 out" (fim do teste) | "nenhuma" |
+  | `em_teste` (1ª fatura paga) | como a `ativa`: "continua até 21 nov" (fim do período da 1ª fatura); no anual, "continua até 21 out 2027", sem devolução | como a `ativa` |
   | `ativa` mensal | "continua até 21 nov" (fim do período pago) | "nenhuma" |
   | `ativa` anual | "continua até 21 out 2027", sem devolução | "nenhuma. Os meses que faltam não são devolvidos." |
   | `ativa` com fatura de diferença do upgrade em aberto | como a `ativa` | "nenhuma nova. A fatura FAT-0003, de R$ 304,84, continua devida." |
@@ -141,13 +147,13 @@ Administrador. Corpo:
 
 200: o corpo de `GET /api/assinatura/` já atualizado (com `cancelamento` preenchido, ou `status: "cancelada"` quando foi na hora; nesse caso, a próxima requisição da empresa já é recusada, e a tela mostra a página de empresa cancelada).
 
-Serviço `plataforma.services.cancelar_assinatura(empresa, motivo, por)`, numa transação, com a `Empresa` travada (`SELECT ... FOR UPDATE`). A conta das datas é uma função pura, `plataforma.calendario.datas_do_cancelamento(hoje, status, teste_fim, fim_do_periodo_pago)`, que devolve `acesso_ate`, `cancelada_em` e `apagar_em`, com teste dos casos dos dados de referência ("Cancelamento da Moto Rápida").
+Serviço `plataforma.services.cancelar_assinatura(empresa, motivo, por)`, numa transação, com a `Empresa` travada (`SELECT ... FOR UPDATE`). A conta das datas é uma função pura, `plataforma.calendario.datas_do_cancelamento(hoje, status, teste_fim, fim_do_periodo_pago)`, que devolve `acesso_ate`, `cancelada_em` e `apagar_em`, com teste dos casos dos dados de referência ("Cancelamento da Moto Rápida", (a) a (d)). `fim_do_periodo_pago` é o maior `periodo_fim` das faturas `mensalidade` `paga`, ou nulo; na `em_teste`, ele vence o `teste_fim` quando existe (caso (d)).
 
 ### O que acontece em cada estado
 
 **Em teste com a 1ª fatura em aberto** (CA-ASS-30): cancelamento marcado, `acesso_ate` = `teste_fim`. A 1ª fatura vira `cancelada` (motivo `cancelamento_assinatura`), e a cobrança dela no parceiro, se já emitida, é cancelada. O `status` fica `em_teste` até o fim do teste; a empresa opera normalmente. Moto Rápida, cancelando em 10 out: acesso até 21 out, FAT-0001 `cancelada`, `cancelada` em 22 out, aviso em 13 jan 2027, apagamento em 20 jan 2027.
 
-**Em teste com a 1ª fatura já paga**: segue a `ativa` (período pago da 1ª fatura), como a mudança de plano no teste com a 1ª paga (`PLT-04`). `[decisão]` no backlog (padrão do contrato).
+**Em teste com a 1ª fatura já paga** (decisão do dono de 15 out 2026, T-229, opção A; CA-ASS-54): segue a `ativa`, como a mudança de plano no teste com a 1ª paga (`PLT-04`). Cancelamento marcado, `acesso_ate` = fim do período da 1ª fatura (o `periodo_fim` dela), sem estorno. O `status` segue como sem o cancelamento: `em_teste` até `teste_fim` e `ativa` no dia seguinte, pela transição de `assinatura.md` (1ª fatura paga); a empresa opera normalmente até `acesso_ate`. A fatura do período seguinte não é gerada (`gerar_faturas`, abaixo) e, se já tiver sido, vira `cancelada` como na `ativa`. O desfazer vale até `acesso_ate`. Moto Rápida, FAT-0001 (22 out a 21 nov) paga em 12 out, cancelando em 15 out: `em_teste` até 21 out, `ativa` de 22 out a 21 nov, nenhuma fatura em 22 nov, `cancelada` em 22 nov, apagamento em 20 fev 2027; desfazendo em 10 nov, nada nasce, e a fatura de 22 nov é gerada em 17 nov. Teste `test_plt_06_cancelar_no_teste_com_a_1a_paga`.
 
 **Ativa** (CA-ASS-32, CA-ASS-33): cancelamento marcado, `acesso_ate` = **fim do período pago** = o maior `periodo_fim` entre as faturas `mensalidade` `paga` (a véspera do próximo vencimento). Nada mais é gerado (`gerar_faturas`, abaixo). A fatura `mensalidade` do período seguinte, se já foi gerada e não foi paga, vira `cancelada` (motivo `cancelamento_assinatura`) e a cobrança dela no parceiro é cancelada; se já foi paga (boleto pago antes do vencimento), ela conta como período pago e o acesso vai até o fim dela. Faturas `diferenca_plano` em aberto **continuam devidas** (`PLT-06`), com a régua delas, até a empresa virar `cancelada`. Anual: o acesso vai até o fim do ano pago, sem devolução. Exemplos: cancela em 05 nov → acesso até 21 nov, nenhuma fatura em 22 nov, `cancelada` em 22 nov, apagamento em 20 fev 2027; cancela em 19 nov, depois de gerada a fatura de 22 nov em 17 nov → essa fatura vira `cancelada`. Anual de 22 out 2026 a 21 out 2027, cancela em 05 nov 2026 → acesso até 21 out 2027.
 
@@ -217,7 +223,7 @@ Administrador. **Voltar da pausa** (`PLT-06`, CA-ASS-36). Sem corpo. Entra na li
 - Moto Rápida, de volta em 10 dez: `ativa`, fatura de R$ 449,00 vencendo em 10 dez ("Plano Profissional · 10 dez a 09 jan"), e as seguintes todo dia 10.
 - Auditoria `empresa.voltar_pausa` nos dois lugares. Teste `test_plt_06_volta_manual_da_pausa`.
 
-**Agendada** (`ativa`, antes de `pausa_inicio`): **desiste da pausa**. Limpa `pausa_inicio` e `pausada_ate`, e a fatura que a pausa cancelou (motivo `pausa`) nasce de novo como no desfazer do cancelamento (mesmo valor, vencimento e período, cobrada pela forma cadastrada). `[decisão]` no backlog (padrão do contrato; a regra só fala da volta durante a pausa). Auditoria `empresa.desistir_pausa`. Teste `test_plt_06_desistir_da_pausa_agendada`.
+**Agendada** (`ativa`, hoje < `pausa_inicio`): **desiste da pausa** (`PLT-06`, decisão do dono de 15 out 2026, T-229, opção A; CA-ASS-55), pelo botão "Desistir da pausa" (`acoes.desistir_pausa`), até o último dia do período pago (a véspera de `pausa_inicio`). Serviço `plataforma.services.desistir_da_pausa(empresa, por)`, com a `Empresa` travada: limpa `pausa_inicio` e `pausada_ate`, e a fatura que a pausa cancelou (motivo `pausa`, sem `substituida_por`) nasce de novo como no desfazer do cancelamento: mesmo valor, vencimento e período, `aberta`, próximo código `FAT-`, a cancelada aponta para ela (`substituida_por`), e a cobrança sai pela forma cadastrada como na emissão (`PLT-02`). Se a pausa não cancelou nada (a fatura ainda não tinha sido gerada), nada nasce, e a `gerar_faturas` gera no dia certo. `status`, plano, `plano_proximo` e `dia_vencimento` não mudam. Moto Rápida, pausa pedida em 19 nov (FAT-0002 de 22 nov `cancelada`) e desistida em 20 nov: nasce a FAT-0003 `aberta`, R$ 449,00, vencendo em 22 nov, "Plano Profissional · 22 nov a 21 dez", com o boleto por e-mail em 20 nov; a empresa segue `ativa`. A partir de `pausa_inicio` a empresa já é `pausada`, e a mesma rota é a volta (acima). Auditoria `empresa.desistir_pausa` nos dois lugares, com a fatura nova. Teste `test_plt_06_desistir_da_pausa_agendada` (inclui o 403 do Rodrigo e do suporte).
 
 Sem pausa marcada: 409 `{ "codigo": "transicao_empresa", "mensagem": "Não há pausa para encerrar." }`.
 
@@ -225,12 +231,12 @@ Sem pausa marcada: 409 `{ "codigo": "transicao_empresa", "mensagem": "Não há p
 
 ## Mudanças enquanto há cancelamento ou pausa
 
-Padrão do contrato, na mesma `[decisão]` do backlog:
+Decisões do dono de 15 out 2026 (T-229, opção A; `PLT-06`, `PLT-04`):
 
-- **Cancelamento marcado:** mudar de plano (e desfazer o downgrade) é recusado com 409 `{ "codigo": "transicao_empresa", "mensagem": "Desfaça o cancelamento antes de mudar de plano." }`, e pausar, como acima. Forma de pagamento, pagar fatura e dados fiscais continuam (a diferença do upgrade em aberto continua devida e pode ser paga). `plano_proximo` fica como estava: se o cancelamento for desfeito, o downgrade segue.
+- **Cancelamento marcado** (CA-ASS-56): mudar de plano (e desfazer o downgrade) é recusado com 409 `{ "codigo": "transicao_empresa", "mensagem": "Desfaça o cancelamento antes de mudar de plano." }`, e pausar, como acima. Forma de pagamento, pagar fatura e dados fiscais continuam (a diferença do upgrade em aberto continua devida e pode ser paga). `plano_proximo` fica como estava: enquanto o cancelamento está marcado, a fatura do período seguinte não é gerada, então o downgrade não vira; se o cancelamento for desfeito, ele segue a conferência e a virada de `assinatura.md` na fatura seguinte. Empresa do CA-ASS-16, no Completo com o Profissional agendado para 22 nov, cancela em 05 nov e desfaz em 10 nov: a fatura de 22 nov é gerada em 17 nov e, cabendo, sai pelo Profissional. Teste `test_plt_06_mudar_de_plano_com_cancelamento_marcado`.
 - **Pausa agendada:** mudar de plano segue `assinatura.md` (é a `ativa`); o downgrade vale na fatura da volta.
 - **Pausa em andamento:** a `pausada` é `somente_leitura`; fora as exceções, nada se escreve.
-- **Fatura de diferença em aberto ao começar a pausa:** continua devida, com a régua dela; a empresa fica `pausada` e não vira `inadimplente` nem `suspensa` durante a pausa. Se ela ainda estiver `atrasada` na volta, a empresa volta `inadimplente` (D+1 já passou), e a contagem do D+15 segue o vencimento dela.
+- **Fatura de diferença em aberto ao começar a pausa** (CA-ASS-57): continua devida, com a régua dela (`AUT-13` roda para a `pausada`); a empresa fica `pausada` e não vira `inadimplente` nem `suspensa` durante a pausa (as transições de `assinatura.md` pulam a `pausada`). Se ela ainda estiver `atrasada` na volta (manual ou automática), `voltar_da_pausa` põe a empresa em `inadimplente` em vez de `ativa` (D+1 já passou), e a contagem do D+15 segue o vencimento dela: a `virar_estados` a leva a `suspensa` quando hoje ≥ vencimento + 15, como em `assinatura.md`. A fatura da volta nasce do mesmo jeito. Moto Rápida, pausa a partir de 22 nov e diferença vencendo em 23 nov: régua em 23 nov (D0) e 26 nov (D+3), `pausada` em 24 nov; volta em 01 dez sem pagar → `inadimplente`, e `suspensa` em 08 dez se não pagar. Teste `test_plt_06_diferenca_em_aberto_na_pausa`.
 
 ---
 
@@ -268,7 +274,7 @@ Para por inteiro na empresa `cancelada` (`PLT-06`), inclusive para as faturas `a
 
 - **Aviso, 7 dias antes:** tarefa diária `plataforma.aud_08_avisar_apagamento` (09:00, no `public`): empresas `cancelada`, `apagada_em` nulo, `aviso_apagamento_enviado_em` nulo e `apagar_em` − 7 ≤ hoje. Manda e-mail aos administradores ativos da empresa (lidos no schema dela) com a data: "Os dados da Moto Rápida serão apagados em 20 jan 2027. Para pedir uma cópia ou reativar a assinatura, fale com a equipe Giro." Grava `aviso_apagamento_enviado_em` (uma vez só). Moto Rápida em teste: aviso em 13 jan 2027. Auditoria `empresa.avisar_apagamento` no `public`. Teste `test_aud_08_aviso_7_dias_antes`.
 - **Apagamento no 90º dia:** tarefa diária `plataforma.aud_08_apagar_empresas` (03:30, no `public`): empresas `cancelada` com `apagar_em` ≤ hoje e `apagada_em` nulo, uma por vez, cada uma pelo serviço `plataforma.services.apagar_empresa(empresa_id)` (ADR 0025): trava a `Empresa`, confere de novo `status = cancelada` e `apagar_em` ≤ hoje, apaga os arquivos do prefixo `<schema>/` no storage, apaga o schema da empresa pela conexão de migração (ADR 0016), e limpa o `public` (abaixo). Cada passo pode rodar de novo; `apagada_em` só é gravado no fim. Falhou no meio: tenta de novo no dia seguinte e avisa o Sentry. Auditoria `empresa.apagar` no `public` (categoria segurança, ator `sistema`, regra `AUD-08`), com o schema, a quantidade de arquivos e a data. Testes `test_aud_08_apaga_no_90_dia`, `test_aud_08_nao_apaga_outra_empresa`, `test_aud_08_nao_apaga_reativada`.
-- **O que fica no `public`** (padrão do contrato, `[decisão]` no backlog): a linha da `Empresa`, com `status` `cancelada` e `apagada_em`, sem os dados de contato (`responsavel_nome`, `responsavel_email`, `responsavel_telefone`, `email_cobranca` limpos), mas com razão social, CNPJ e endereço, que estão nas faturas e nas notas do Giro; as `FaturaAssinatura` (registro de cobrança e nota fiscal do próprio Giro); a auditoria da plataforma (`AUD-02`, 5 anos). Saem: `Dominio`, `UsoEmpresa`, `ContaPagamento` (a chave cifrada da subconta; a subconta no parceiro é da locadora e não é fechada pelo Giro) e `FormaPagamentoAssinatura`. O `subdominio` e o `schema_name` ficam reservados (o endereço antigo não passa a outra locadora).
+- **O que fica no `public`** (`AUD-08`, decisão do dono de 15 out 2026, T-229, opção A; CA-ASS-58, teste `test_aud_08_o_que_fica_no_public`): a linha da `Empresa`, com `status` `cancelada` e `apagada_em`, sem os dados de contato (`responsavel_nome`, `responsavel_email`, `responsavel_telefone`, `email_cobranca` limpos), mas com razão social, CNPJ e endereço, que estão nas faturas e nas notas do Giro; as `FaturaAssinatura` (registro de cobrança e nota fiscal do próprio Giro); a auditoria da plataforma (`AUD-02`, 5 anos). Saem: `Dominio`, `UsoEmpresa`, `ContaPagamento` (a chave cifrada da subconta; a subconta no parceiro é da locadora e não é fechada pelo Giro) e `FormaPagamentoAssinatura`. O `subdominio` e o `schema_name` ficam reservados (o endereço antigo não passa a outra locadora). As faturas ficam sem data para sair até o dono e o contador decidirem o prazo de guarda ("Pontos em aberto" das regras); nenhuma tarefa apaga faturas. Se a T-230 (segurança) mudar o que fica para o MEI e o empresário individual, a limpeza da linha muda aqui.
 - A tarefa que apaga tem de existir antes do 90º dia do primeiro cancelamento real (`AUD-08`): a T-195 entrega as duas tarefas junto com o cancelamento.
 
 ---
@@ -282,7 +288,7 @@ Para por inteiro na empresa `cancelada` (`PLT-06`), inclusive para as faturas `a
 | 403 | `PLT-07` | escrita com token de suporte |
 | 403 | `empresa_sem_operacao` | escrita fora das exceções na `suspensa` e na `pausada` |
 | 403 | `empresa_cancelada` | qualquer pedido de uma empresa `cancelada` |
-| 409 | `transicao_empresa` | cancelar já cancelada; desfazer sem cancelamento; pausar fora da `ativa` ou com pausa ou cancelamento marcados; voltar sem pausa; mudar de plano com cancelamento marcado |
+| 409 | `transicao_empresa` | cancelar já cancelada; desfazer sem cancelamento; pausar fora da `ativa` ou com pausa ou cancelamento marcados; voltar ou desistir sem pausa; mudar de plano com cancelamento marcado |
 | 422 | `nome_nao_confere` | nome digitado diferente do nome da empresa |
 | 503 | `parceiro_indisponivel` | o parceiro não respondeu ao cancelar ou emitir uma cobrança (nada é gravado) |
 
@@ -290,10 +296,10 @@ Para por inteiro na empresa `cancelada` (`PLT-06`), inclusive para as faturas `a
 
 ## O que muda para as tarefas abertas
 
-- **T-195 (backend, cancelar, pausar e apagamento):** tudo deste contrato. Modelo: `Empresa.cancelamento_pedido_em`, `motivo_cancelamento` enum, `pausa_inicio`, `aviso_apagamento_enviado_em`, `apagada_em`; `FaturaAssinatura.motivo_cancelamento`, `cancelada_em`, `substituida_por` (`modelo-de-dados.md`). Exceções do `somente_leitura`, `empresa_cancelada` no middleware, as transições em `virar_estados`, os filtros da `gerar_faturas`, as duas tarefas do `AUD-08` e o `apagar_empresa` da ADR 0025. Testes `test_plt_06_*` e `test_aud_08_*` acima, CA-ASS-30 a 39 e 42 a 45.
+- **T-195 (backend, cancelar, pausar e apagamento):** tudo deste contrato. Modelo: `Empresa.cancelamento_pedido_em`, `motivo_cancelamento` enum, `pausa_inicio`, `aviso_apagamento_enviado_em`, `apagada_em`; `FaturaAssinatura.motivo_cancelamento`, `cancelada_em`, `substituida_por` (`modelo-de-dados.md`). Exceções do `somente_leitura`, `empresa_cancelada` no middleware, as transições em `virar_estados`, os filtros da `gerar_faturas`, as duas tarefas do `AUD-08` e o `apagar_empresa` da ADR 0025. Testes `test_plt_06_*` e `test_aud_08_*` acima, CA-ASS-30 a 39, 42 a 45 e 54 a 58. Da T-231: `desistir_da_pausa`, o caso (d) em `datas_do_cancelamento`, a volta da pausa em `inadimplente` com a diferença atrasada, e o que fica no `public`.
 - **T-184, T-185 e T-186 (faturas, rotas, régua):** `acoes.cancelar` deixa de ser `false` fixo; `proxima_fatura` `null` com cancelamento ou pausa marcados; a `gerar_faturas` pula os períodos de depois do acesso e da pausa e emite as faturas `aberta` sem cobrança; a régua para na `cancelada`. Se a T-195 vier depois, os campos novos entram na migração dela.
-- **T-198 (frontend):** `Admin-Cancelar` lê `GET cancelamento/` (motivos, alternativas, `o_que_acontece`, nome) e manda `POST`; a `Admin-Assinatura` mostra `cancelamento.rotulo` com "Desfazer cancelamento" (`acoes.desfazer_cancelamento`), a `pausa` com "Voltar da pausa" ou "Desistir da pausa" (`acoes.voltar_pausa`), e a página da `empresa_cancelada`. CA-ASS-30, 31, 35 a 38, 43 a 45.
+- **T-198 (frontend):** `Admin-Cancelar` lê `GET cancelamento/` (motivos, alternativas, `o_que_acontece`, nome) e manda `POST`; a `Admin-Assinatura` mostra `cancelamento.rotulo` com "Desfazer cancelamento" (`acoes.desfazer_cancelamento`), a `pausa` com "Voltar da pausa" (`acoes.voltar_pausa`, só na `pausada`) ou "Desistir da pausa" (`acoes.desistir_pausa`, pausa agendada), as duas pela mesma rota, e a página da `empresa_cancelada`. CA-ASS-30, 31, 35 a 38, 43 a 45, 54 a 56.
 - **T-199 (segurança):** 2 etapas recentes para cancelar; ADR 0025 (conexão de migração na tarefa, conferência do schema antes de apagar, nada de outra empresa); o prazo dos backups do banco e do storage depois do 90º dia (com o devops).
 - **T-214 e T-200 (design-system):** os textos provisórios de `pausa.rotulo` e da faixa da `pausada`; a página da empresa cancelada.
-- **Qa (T-204, T-215):** CA-ASS-30 a 39 e 42 a 45 com o relógio de referência e os dados de referência "Cancelamento", "Pausa" e "Desfazer o cancelamento da Moto Rápida".
+- **Qa (T-204, T-215):** CA-ASS-30 a 39, 42 a 45 e 54 a 58 com o relógio de referência e os dados de referência "Cancelamento" (com o caso (d)), "Pausa" (com a desistência) e "Desfazer o cancelamento da Moto Rápida".
 - **Devops:** o worker do Celery que roda `aud_08_apagar_empresas` precisa da `DATABASE_URL_MIGRACAO` (ADR 0016, 0025).

@@ -607,7 +607,7 @@ def _registrar_movimento(
         **(origem.campos() if origem is not None else {}),
     )
     acao = "movimento_caixa.estornar" if estorno_de is not None else f"movimento_caixa.{tipo}"
-    with auditar(movimento, acao, Categoria.FINANCEIRO, regra="FIN-07"):
+    with auditar(movimento, acao, Categoria.FINANCEIRO, regra="FIN-07", filial_id=caixa.filial_id):
         movimento.save()
     return movimento
 
@@ -666,6 +666,7 @@ def estornar_movimento(movimento: MovimentoCaixa, usuario: Any, *, motivo: str) 
             objeto=estorno,
             motivo=motivo,
             regra="FIN-07",
+            filial_id=caixa.filial_id,
         )
     return estorno
 
