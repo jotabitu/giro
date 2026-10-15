@@ -186,15 +186,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entrou no PR #160 (ver `feito.md`).
 
 
-### T-156 · (M-02) Custo e rendimento do veículo fora da ficha do vendedor (média)
-- **Backend feito (15 out 2026):** PR #246 (`tarefas/handoffs/T-156-backend.md`); OpenAPI sem diferença. **Falta o frontend:** os cartões só quando a API manda `indicadores_financeiros`.
-- **Agente:** backend, depois frontend · **Depende de:** T-136 · **Regras:** tabela de perfis, USR-09, VEI-05 · **Decisão:** opção A do dono do produto em 12 out 2026 (regra na T-156 do produto) · **Pronto quando:**
-  - (backend) em `GET /api/veiculos/{id}/`, a chave `indicadores_financeiros` (`rendeu_no_ano_centavos`, `custo_manutencao_ano_centavos`) só vem para administrador, gerente e financeiro, pela mesma checagem do `valor_compra_centavos` em `veiculos/selectors.representacao` com o financeiro incluído; para vendedor e vistoriador a chave vem **ausente** (não `null`, não zero), como no D-25; OpenAPI com a chave opcional; teste `test_usr_09_vendedor_sem_custo_do_veiculo`;
-  - CA: dado a Bruna (vendedora), quando faz `GET /api/veiculos/{id}/` de um veículo da filial dela, então a resposta não tem `indicadores_financeiros`, e o resto da ficha (situação, ocupação, km, documentos, preços) vem como antes;
-  - CA: dado o Rodrigo (gerente), a Mariana (administradora) ou a Lúcia (financeiro), quando fazem a mesma leitura, então recebem `rendeu_no_ano_centavos` e `custo_manutencao_ano_centavos` com os mesmos valores de hoje;
-  - CA: dado o João (vistoriador), nada muda: o bloco continua ausente (D-25);
-  - (frontend) na ficha do veículo (`Veiculo`, desktop e celular), os cartões "Rendeu no ano" e "Custo de manutenção" só aparecem quando a API manda o bloco; logada como Bruna, a fileira de indicadores mostra só ocupação e km, sem cartão vazio, traço ou espaço reservado. A tela não decide pelo perfil, só pela chave.
-
 ### T-159 · (M-05) Login não revela e-mail com convite pendente (baixa)
 - **Agente:** backend · **Depende de:** — · **Regras:** USR-01, USR-06 · **Pronto quando:** em `POST /api/auth/entrar/`, quem tem convite pendente e ainda não tem senha recebe o mesmo 401 `credenciais_invalidas` (e o mesmo tempo) de um e-mail que não existe; hoje o 403 `convite_pendente` sai antes de conferir a senha e permite saber quem foi convidado; o 403 só depois da senha certa; teste `test_usr_06_convite_pendente_nao_revela_email`.
 

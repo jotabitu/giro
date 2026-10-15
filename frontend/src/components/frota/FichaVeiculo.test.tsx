@@ -101,6 +101,28 @@ describe("ficha do veículo, perfis sem financeiro nem edição", () => {
     expect(desktop).not.toContain("Compra");
     expect(desktop).toContain("Ocupação");
   });
+
+  it("t_156_vendedor_fileira_de_indicadores_sem_cartao_vazio_nem_lugar_reservado", async () => {
+    await entrarComo("bruna@motorapida.com.br");
+    expect("indicadores_financeiros" in (await veiculos.obter(501))).toBe(false);
+    const { desktop, celular } = await pagina(501);
+    // Desktop: só Ocupação e Km atual, em duas colunas; celular: só Ocupação, numa coluna.
+    expect(desktop.match(/class="wl-kpi[ "]/g)).toHaveLength(2);
+    expect(desktop).toContain("grid-template-columns:repeat(2, minmax(0, 1fr))");
+    expect(celular.match(/class="wl-kpi[ "]/g)).toHaveLength(1);
+    expect(celular).toContain("grid-cols-1");
+    expect(celular).not.toContain("grid-cols-2 gap-2 [&_.wl-kpi]");
+    for (const h of [desktop, celular]) expect(texto(h)).not.toMatch(/Rendeu no ano|Custo de manutenção|—/);
+  });
+
+  it("t_156_gerente_com_a_chave_mostra_os_quatro_cartoes_no_desktop_e_dois_no_celular", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    expect("indicadores_financeiros" in (await veiculos.obter(501))).toBe(true);
+    const { desktop, celular } = await pagina(501);
+    expect(desktop.match(/class="wl-kpi[ "]/g)).toHaveLength(4);
+    expect(desktop).not.toContain("grid-template-columns");
+    expect(celular.match(/class="wl-kpi[ "]/g)).toHaveLength(2);
+  });
 });
 
 describe("ficha do veículo sem histórico", () => {

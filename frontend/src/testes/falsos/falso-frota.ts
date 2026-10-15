@@ -278,7 +278,8 @@ export const veiculosFalso = {
     const financeiro = perfilAtualFalso() !== "vendedor" && perfilAtualFalso() !== "vistoriador";
     const detalhe: VeiculoDetalhe = {
       ...v,
-      indicadores_financeiros: financeiro ? { rendeu_no_ano_centavos: 987000, custo_manutencao_ano_centavos: 35300 } : null,
+      // T-156, USR-09: vendedor e vistoriador recebem a ficha sem a chave (ausente, não `null`).
+      ...(financeiro ? { indicadores_financeiros: { rendeu_no_ano_centavos: 987000, custo_manutencao_ano_centavos: 35300 } } : {}),
       ocupacao: { pct: "86.00", periodo_dias: 90 },
       historico_status: [{ de: "disponivel", para: "alugado", em: "2026-09-30T12:00:00Z", origem_codigo: "LOC-2841" }],
     };
