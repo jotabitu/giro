@@ -133,9 +133,6 @@ Concluída. As tarefas entregues estão em `tarefas/feito.md`.
 
 Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, depois telas, depois o que pede regra. As três dúvidas do fim contrariavam regras já escritas e foram decididas pelo dono no mesmo dia.
 
-### T-238 · Subir as telas de referência novas e alteradas (design-system)
-- **Agente:** design-system · **Depende de:** — · **Pronto quando:** as telas que estão só na pasta local do dono entram no git num PR: as novas `Movimentacoes-*`, `Movimentacao-Nova-*`, `Movimentacao-Chegada-Mobile`, `Veiculo-Novo-*`, `Cliente-Detalhe-*` e `Aprovacoes-*` (sem rastreio no git) e as alteradas, entre elas `Veiculo-Desktop` e `Veiculo-Mobile`; `docs/telas/README.md` com as linhas novas (rota, app, regras); conferência com as regras (o que não bater vira `[divergência]`). Sem isso, T-242, T-243 e T-246 não têm a referência certa na `main`. Pedir ao dono a cópia dos arquivos (a pasta `docs/telas/html` dele).
-
 ### T-239 · Bug: locação não passa do passo 1
 - **Agente:** frontend (backend se a causa for a API) · **Depende de:** — · **Regras:** LOC-01, CLI-01 · **Telas:** Nova locação · **Pronto quando:** com o passo 1 (Dados) preenchido, os botões de seguir para a vistoria e de salvar como reserva ficam ativos e funcionam; a causa está no handoff (validação do formulário, campo escondido obrigatório, resposta da API); teste do componente que preenche o passo 1 e clica nos dois botões; repetir no E2E da locação. Relato do dono: "preencho tudo do passo 1 e não deixa clicar nos botões".
 
