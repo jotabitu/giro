@@ -53,7 +53,7 @@ Dado a Moto Rápida `em_teste`, quando a Mariana muda para o Completo em 10 out,
 Dado a Moto Rápida `ativa`, FAT-0001 paga, quando a Mariana muda para o Completo em 01 nov, então o plano muda na hora e nasce uma fatura de diferença de R$ 304,84 (45000 × 21 ÷ 31 = 30483,87, arredondado uma vez), "Mudança para o plano Completo · 01 a 21 nov", vencendo em 04 nov; no cartão, cobrada na hora. O preço contratado passa a R$ 899,00, e a fatura de 22 nov vem com R$ 899,00. `test_plt_04_upgrade_proporcional`.
 
 **CA-ASS-15 · Downgrade que não cabe**
-Dado a Moto Rápida (`em_teste` ou `ativa`), quando a Mariana tenta o Essencial, então é recusado e a tela diz o que passa: 86 de 30 veículos e 5 de 3 usuários (1 filial cabe). Nada muda. `test_plt_04_downgrade_nao_cabe`.
+Dado a Moto Rápida (`em_teste` ou `ativa`), quando a Mariana tenta o Essencial, então é recusado e a tela diz o que passa: 86 de 30 veículos e 5 de 3 usuários (1 filial cabe). Diz também o que está aberto nos módulos que saem (`PLT-12`): 1 despesa aguardando aprovação (os pneus, R$ 1.200,00) e 2 despesas a pagar (IPVA ROE2A88 e conta de luz). O óleo, o aluguel e os rastreadores já estão pagos e não contam. O seed de 07 out não tem OS, venda nem comissão aberta, e esses grupos não aparecem. Nada muda. `test_plt_04_downgrade_nao_cabe`.
 
 **CA-ASS-16 · Downgrade agendado e desfeito**
 Dado uma empresa no Completo `ativa` com 86 veículos, 1 filial e 5 usuários, período de 22 out a 21 nov, quando o administrador muda para o Profissional em 01 nov, então nada é cobrado nem devolvido, a tela diz "O plano Profissional vale a partir de 22 nov. Até lá, você continua no Completo.", e a fatura de 22 nov vem com R$ 449,00. Quando ele desfaz em 10 nov, a fatura de 22 nov volta a R$ 899,00. Em 22 nov, sem desfazer, o plano vira Profissional.
@@ -166,3 +166,17 @@ Dado a Moto Rápida do seed, quando a Mariana muda o número da Filial Centro pa
 
 **CA-ASS-49 · Reativar sem cobrar duas vezes o período pago**
 Dado a Moto Rápida `ativa` com a FAT-0001 (22 out a 21 nov) paga em 22 out, upgrade para o Completo em 01 nov com a diferença de R$ 304,84 vencendo em 04 nov e não paga (`inadimplente` em 05 nov), cancelada em 10 nov (`cancelada` na hora), quando a diferença é paga em 15 nov pela 2ª via e a equipe Giro reativa em 15 nov, então a empresa vira `ativa` em 15 nov, nenhuma fatura vence em 15 nov, a fatura nova de R$ 899,00 vence em 22 nov ("Plano Completo · 22 nov a 21 dez"), e as seguintes continuam todo dia 22. Na reativação depois de 21 nov (CA-ASS-46), a fatura nova vence no dia da volta. `test_plt_06_reativar_no_periodo_pago`.
+
+## Ramo e comissão nos módulos por plano (T-223)
+
+**CA-ASS-50 · Troca de ramo com algo aberto**
+Dado uma empresa no Profissional que aluga e vende, com 1 locação `ativa` e 1 venda `aguardando_aprovacao` (comissão dela `pendente`), quando o administrador muda o ramo em Configurações para "só vende", então é recusado, e a recusa diz quanto falta: 1 locação aberta. Quando muda para "só aluga", então é recusado com 1 venda aberta e 1 comissão não paga. Nada muda nas duas. Quando a locação é encerrada e ele muda para "só vende", então é aceito: Locações e Vistorias somem do menu no pedido seguinte, a API recusa as rotas delas (403 `PLT-12`, `motivo: "ramo"`), e a locação encerrada continua no banco. `test_plt_12_troca_de_ramo_com_algo_aberto`.
+
+**CA-ASS-51 · Passo 7 do Essencial sem "só vende"**
+Dado uma empresa no Essencial no passo 7, então a tela oferece "aluga" e "aluga e vende", e "vende" aparece com o aviso "Vendas faz parte do plano Profissional."; "só vende" não pode ser escolhido, e a API recusa o pedido com "só vende" no Essencial. Quando ela escolhe "aluga e vende", então o menu tem Locações e não tem Vendas nem Comissões (CA-ASS-22). Quando ela sobe para o Profissional, então Vendas e Comissões aparecem no pedido seguinte, sem refazer o passo 7. `test_plt_12_essencial_sem_so_vende`.
+
+**CA-ASS-52 · Downgrade de quem só vende**
+Dado uma empresa no Profissional que só vende, sem nada aberto e dentro dos limites do Essencial, quando o administrador tenta o Essencial, então é recusado com "O plano Essencial não inclui vendas. Para mudar, sua empresa precisa alugar." Nada muda. `test_plt_12_downgrade_so_vende`.
+
+**CA-ASS-53 · Comissão de locação só depois do upgrade**
+Dado uma empresa no Essencial `em_teste` que aluga e vende, quando a Bruna confirma uma locação em 10 out, então nenhuma comissão é lançada, nem quando a locação fica `ativa` em 16 out. Quando a empresa sobe para o Profissional em 15 out (no teste, vale na hora) e a Bruna confirma outra locação em 16 out, então nasce a comissão de R$ 16,00 `pendente` só para essa (`FIN-09`), `confirmada` quando ela fica `ativa`. A locação de 10 out continua sem comissão. `test_plt_12_comissao_so_depois_do_upgrade`.
