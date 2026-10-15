@@ -1,6 +1,6 @@
 # Assinatura da empresa (Admin › Assinatura)
 
-**Dono:** arquiteto · **Versão:** 15 out 2026 (T-194, T-217, T-213; T-193; T-183) · **App:** `plataforma` (lê e grava no `public`, servido no host da empresa) · **Regras:** PLT-01, PLT-02, PLT-03, PLT-04, PLT-05, PLT-06, PLT-11, PLT-13, PLT-14, PLT-15, AUT-13, tabela de estados da empresa · **ADR:** 0007, 0023 · **Telas:** Admin-Assinatura (desktop e celular) · **Critérios:** `docs/qa/criterios/assinatura.md` (CA-ASS-01 a 21, 26 a 29, 40, 41 e 46 a 49)
+**Dono:** arquiteto · **Versão:** 15 out 2026 (T-231, T-194, T-217, T-213; T-193; T-183) · **App:** `plataforma` (lê e grava no `public`, servido no host da empresa) · **Regras:** PLT-01, PLT-02, PLT-03, PLT-04, PLT-05, PLT-06, PLT-11, PLT-13, PLT-14, PLT-15, AUT-13, tabela de estados da empresa · **ADR:** 0007, 0023 · **Telas:** Admin-Assinatura (desktop e celular) · **Critérios:** `docs/qa/criterios/assinatura.md` (CA-ASS-01 a 21, 26 a 29, 40, 41 e 46 a 49)
 
 Decisão do dono em 14 out 2026: a tela `Admin-Assinatura` entra inteira no MVP, com a cobrança real. Este contrato completa o que `GET /api/assinatura/` (`plataforma.md`, "Do lado da empresa") ainda não entregava, levantado na T-170: mudar e comparar planos, forma de pagamento, faturas, dados da nota fiscal, o cartão do plano acima e a data da 1ª fatura. "Cancelar assinatura", pausar, desfazer o cancelamento e o apagamento (`PLT-06`, `AUD-08`, tela `Admin-Cancelar`) estão em `docs/api/cancelamento.md` (T-194); aqui só aparecem onde mexem nas faturas.
 
@@ -103,7 +103,7 @@ Os campos de hoje (`plano`, `status`, `teste`, `faixa_aviso`, `uso`, `somente_le
   Os textos de cada plano ficam num só lugar no backend (o catálogo da `PLT-11`, `plataforma/catalogo.py`, função pura), com teste que confere a tabela da regra. Quando o produto mudar a `PLT-11`, muda só esse arquivo.
 - **`acoes`** já cruza perfil, estado da empresa e a tabela acima; o frontend mostra só o que vier `true`. `desfazer_mudanca_plano` vem `true` com downgrade agendado pelo administrador. `cancelar`, `desfazer_cancelamento`, `pausar` e `voltar_pausa` estão em `cancelamento.md`; com cancelamento marcado, `mudar_plano` e `desfazer_mudanca_plano` vêm `false`.
 
-Caso do seed: Moto Rápida em 07 out → `status` `em_teste`, `proxima_fatura` 22 out, 44900, `forma` nula com `sem_forma` e prazo 21 out, `endereco` igual ao da Filial Centro (Av. Bezerra de Menezes, 1200, São Gerardo, Fortaleza, CE, CEP 60325-000), `email_cobranca` igual ao e-mail da Mariana, `oferta` Completo com os 3 itens, `acoes` todas `true` menos `desfazer_mudanca_plano`, `desfazer_cancelamento`, `pausar` (em teste não pausa) e `voltar_pausa`; `cancelamento` e `pausa` `null`.
+Caso do seed: Moto Rápida em 07 out → `status` `em_teste`, `proxima_fatura` 22 out, 44900, `forma` nula com `sem_forma` e prazo 21 out, `endereco` igual ao da Filial Centro (Av. Bezerra de Menezes, 1200, São Gerardo, Fortaleza, CE, CEP 60325-000), `email_cobranca` igual ao e-mail da Mariana, `oferta` Completo com os 3 itens, `acoes` todas `true` menos `desfazer_mudanca_plano`, `desfazer_cancelamento`, `pausar` (em teste não pausa), `voltar_pausa` e `desistir_pausa`; `cancelamento` e `pausa` `null`.
 
 ---
 
@@ -120,7 +120,11 @@ Administrador. "Mudar de plano" e "Comparar planos" abrem a mesma lista. Sem pag
       "itens": ["Locação, vistoria e contas a receber", "Contrato digital, assinado pelo cliente no celular", "Sua marca e seu endereço de acesso"],
       "mudanca": "downgrade",
       "cabe": false,
-      "excede": { "veiculos": { "usado": 86, "limite": 30 }, "usuarios": { "usado": 5, "limite": 3 } } },
+      "excede": { "veiculos": { "usado": 86, "limite": 30 }, "usuarios": { "usado": 5, "limite": 3 },
+                  "abertos": [
+                    { "grupo": "despesas_aguardando_aprovacao", "quantidade": 1, "texto": "1 despesa aguardando aprovação" },
+                    { "grupo": "despesas_a_pagar", "quantidade": 2, "texto": "2 despesas a pagar" } ],
+                  "abertos_texto": "1 despesa aguardando aprovação e 2 despesas a pagar" } },
     { "id": 2, "nome": "Profissional", "ordem": 2, "atual": true, "...": "...", "mudanca": null, "cabe": true, "excede": {} },
     { "id": 3, "nome": "Completo", "ordem": 3, "atual": false,
       "preco_mensal_centavos": 89900, "preco_anual_centavos": 899000,
@@ -133,7 +137,7 @@ Administrador. "Mudar de plano" e "Comparar planos" abrem a mesma lista. Sem pag
 - Só planos `ativo=true`, mais o plano atual mesmo se desativado (`PLT-05`: quem já assina continua).
 - Preço mostrado é o de **tabela**; o atual mostra também `preco_contratado_centavos` (pode ser diferente, `PLT-05`). A comparação é no ciclo atual (`PLT-04`, CA-ASS-18); `preco_anual_centavos` vem para a tela mostrar o anual como informação.
 - `itens`: os textos da `PLT-11` ("O que inclui"), do mesmo catálogo da `oferta`, separados em itens. Substituem a lista de códigos de `recursos` nesta rota; o código do módulo que o plano liga fica no backend (`Plano.recursos`, ADR 0024).
-- `mudanca`: `upgrade` se o plano tem `ordem` maior, `downgrade` se menor, `null` no atual. `cabe` e `excede` usam a mesma contagem do `uso` (`PLT-03`, `PLT-04`): Moto Rápida não cabe no Essencial (86 de 30 veículos, 5 de 3 usuários; 1 filial cabe). O que fica aberto nos módulos que saem (`PLT-12`) entra em `excede.abertos`, no mesmo formato de `detalhes.abertos` da 422 abaixo (ADR 0024, CA-ASS-24); um plano com `abertos` tem `cabe: false`. No seed, a Moto Rápida tem despesas de outubro em aberto (os pneus de R$ 1.200,00 aguardando aprovação e as que nasceram `a_pagar`, dados de referência `FIN-05`), então o Essencial dela traz também `abertos`, contados na hora; a QA fixa os números no teste a partir do seed (T-204).
+- `mudanca`: `upgrade` se o plano tem `ordem` maior, `downgrade` se menor, `null` no atual. `cabe` e `excede` usam a mesma contagem do `uso` (`PLT-03`, `PLT-04`): Moto Rápida não cabe no Essencial (86 de 30 veículos, 5 de 3 usuários; 1 filial cabe). O que fica aberto nos módulos que saem (`PLT-12`) entra em `excede.abertos`, no mesmo formato de `detalhes.abertos` da 422 abaixo (ADR 0024, CA-ASS-24); um plano com `abertos` tem `cabe: false`. No seed de 07 out, o Essencial da Moto Rápida traz 1 despesa aguardando aprovação (os pneus, R$ 1.200,00) e 2 a pagar (IPVA ROE2A88 e conta de luz); o seed não tem OS, venda nem comissão aberta (CA-ASS-15, T-223). Quando a atividade de hoje não é aceita no plano (`PLT-12`: quem só vende, no Essencial), `excede.atividade` = `{ "atual": "vende", "aceitas": ["aluga", "ambos"] }` e `cabe: false` (ADR 0024, item 10, CA-ASS-52).
 
 ## POST /api/assinatura/mudanca-plano/simular/
 
@@ -155,7 +159,7 @@ O plano novo entra pelo preço de tabela dele no ciclo da empresa, que vira o `p
 - **Upgrade com período pago** (`ativa`, ou `em_teste` com a 1ª fatura já paga): vale na hora e cobra a diferença proporcional (`PLT-04`): `(preço novo − preço contratado) × dias que faltam no período ÷ dias do período`, contando o dia da mudança, com o preço do ciclo da empresa, em `Decimal`, `ROUND_HALF_UP` uma vez no centavo (ADR 0009). O período é o da fatura paga que está correndo (no teste com a 1ª já paga, o da 1ª fatura; antes de ele começar, "dias que faltam" é o período inteiro). A diferença vai numa **fatura avulsa** (`tipo = diferenca_plano`) que vence em 3 dias, cobrada pela forma cadastrada (no cartão guardado, cobrada na hora). `fatura_diferenca`: `{ "valor_centavos": 30484, "vencimento": "2026-11-04", "descricao": "Mudança para o plano Completo · 01 a 21 nov" }`.
   - CA-ASS-14: período de 22 out a 21 nov (31 dias), Profissional para Completo em 01 nov → 45000 × 21 ÷ 31 = 30483,87 → **30484** (R$ 304,84), vence 04 nov; a fatura de 22 nov já vem com 89900.
   - No teste com a FAT-0001 paga em 18 out e o upgrade em 19 out: 45000 × 31 ÷ 31 = **45000**, "Mudança para o plano Completo · 22 out a 21 nov", vence em 22 out; a empresa continua `em_teste` até 21 out.
-- **Downgrade com período pago**: só se o uso couber (limites e módulos, `PLT-03`, `PLT-12`); não cabe → 422 (abaixo). Cabe → `tipo: "downgrade"`, `vale_em` = vencimento da próxima fatura, `diferenca_centavos: 0`, `mensagem` "O plano Essencial vale a partir de 22 nov. Até lá, você continua no Profissional." Nada é cobrado nem devolvido (CA-ASS-16).
+- **Downgrade com período pago**: só se o uso couber (limites, módulos e ramo, `PLT-03`, `PLT-12`); não cabe → 422 (abaixo). Cabe → `tipo: "downgrade"`, `vale_em` = vencimento da próxima fatura, `diferenca_centavos: 0`, `mensagem` "O plano Essencial vale a partir de 22 nov. Até lá, você continua no Profissional." Nada é cobrado nem devolvido (CA-ASS-16).
 - **Ciclo** diferente do atual (mensal ↔ anual): 422 `{ "codigo": "mudanca_ciclo", "mensagem": "Para mudar entre mensal e anual, fale com o suporte." }` (`PLT-04`, CA-ASS-18). A equipe muda pela plataforma (ver "Mudança de ciclo e reativação pela equipe").
 - Mesmo plano e ciclo: 422 `{ "codigo": "mesmo_plano", "mensagem": "Este já é o seu plano." }`.
 - Plano inativo (que não é o atual): 404.
@@ -167,7 +171,19 @@ Administrador. Mesmo corpo do simular, mais `"confirmar_valor_centavos"` = `dife
 200: o corpo de `GET /api/assinatura/` já atualizado.
 
 Erros:
-- 422 `{ "codigo": "PLT-04", "mensagem": "Seu uso não cabe no plano Essencial. Desative veículos ou usuários antes de mudar.", "detalhes": { "veiculos": { "usado": 86, "limite": 30 }, "usuarios": { "usado": 5, "limite": 3 } } }` (CA-ASS-15; o exemplo mostra só os limites: a Moto Rápida do seed tem também despesas abertas, então a recusa dela traz `abertos`, como abaixo, e o produto ajusta o texto do CA-ASS-15).
+- 422 `PLT-04` quando o uso não cabe nos limites. Só limites: `{ "codigo": "PLT-04", "mensagem": "Seu uso não cabe no plano Essencial. Desative veículos ou usuários antes de mudar.", "detalhes": { "veiculos": { "usado": 86, "limite": 30 }, "usuarios": { "usado": 5, "limite": 3 } } }`. A Moto Rápida do seed tem também despesas abertas, então a recusa dela (CA-ASS-15) traz os dois:
+  ```json
+  { "codigo": "PLT-04",
+    "mensagem": "Seu uso não cabe no plano Essencial. Desative veículos ou usuários e resolva o que está aberto antes de mudar: 1 despesa aguardando aprovação e 2 despesas a pagar.",
+    "detalhes": {
+      "veiculos": { "usado": 86, "limite": 30 },
+      "usuarios": { "usado": 5, "limite": 3 },
+      "abertos": [
+        { "grupo": "despesas_aguardando_aprovacao", "quantidade": 1, "texto": "1 despesa aguardando aprovação" },
+        { "grupo": "despesas_a_pagar", "quantidade": 2, "texto": "2 despesas a pagar" } ],
+      "abertos_texto": "1 despesa aguardando aprovação e 2 despesas a pagar" } }
+  ```
+  A filial (1 de 1) cabe e não vem. Os pneus são a despesa aguardando aprovação; o IPVA ROE2A88 e a conta de luz, as a pagar; o óleo, o aluguel e os rastreadores já estão pagos (CA-ASS-15, T-223).
 - 422 `PLT-04` também quando um módulo que sai tem algo aberto (`PLT-12`, ADR 0024), com todos os impedimentos de uma vez, como a `FIL-06`:
   ```json
   { "codigo": "PLT-04",
@@ -179,13 +195,20 @@ Erros:
       ],
       "abertos_texto": "1 despesa a pagar e 1 OS aberta" } }
   ```
-  (CA-ASS-24). Grupos, na ordem: `despesas_aguardando_aprovacao` ("1 despesa aguardando aprovação", "{n} despesas aguardando aprovação"), `despesas_a_pagar` ("1 despesa a pagar", "{n} despesas a pagar"), `ordens_servico` ("1 OS aberta", "{n} OS abertas": OS fora de `concluida` e `cancelada`), `vendas` ("1 venda aberta", "{n} vendas abertas", `VEN-10`), `comissoes` ("1 comissão a pagar", "{n} comissões a pagar": ainda não `paga` nem `estornada`, `FIN-09`). Só vêm os grupos com quantidade maior que zero e dos módulos que saem (de Profissional ou Completo para Essencial: `manutencao_despesas` e `vendas_comissoes`; entre Profissional e Completo nenhum módulo sai). `abertos_texto` junta os `texto` com ", " e " e " antes do último. Com limite e módulo ao mesmo tempo, `detalhes` traz os dois (`veiculos`, `usuarios`, `filiais` e `abertos`) e a mensagem é "Seu uso não cabe no plano Essencial. Desative veículos ou usuários e resolva o que está aberto antes de mudar: {abertos_texto}." Quem conta é `plataforma.services.pendencias_dos_modulos` (ADR 0024, item 7).
+  (CA-ASS-24). Grupos, na ordem: `despesas_aguardando_aprovacao` ("1 despesa aguardando aprovação", "{n} despesas aguardando aprovação"), `despesas_a_pagar` ("1 despesa a pagar", "{n} despesas a pagar"), `ordens_servico` ("1 OS aberta", "{n} OS abertas": OS fora de `concluida` e `cancelada`), `vendas` ("1 venda aberta", "{n} vendas abertas", `VEN-10`), `comissoes` ("1 comissão a pagar", "{n} comissões a pagar": ainda não `paga` nem `estornada`, `FIN-09`). Só vêm os grupos com quantidade maior que zero e dos módulos que saem (de Profissional ou Completo para Essencial: `manutencao_despesas` e `vendas_comissoes`; entre Profissional e Completo nenhum módulo sai). `abertos_texto` junta os `texto` com ", " e " e " antes do último. Com limite e módulo ao mesmo tempo, `detalhes` traz os dois (`veiculos`, `usuarios`, `filiais` e `abertos`) e a mensagem é "Seu uso não cabe no plano Essencial. Desative veículos ou usuários e resolva o que está aberto antes de mudar: {abertos_texto}." Quem conta é `plataforma.services.pendencias_dos_modulos` (ADR 0024, item 7). O grupo `locacoes` nunca vem aqui: nenhum plano tira `locacoes_vistoria` (ele é da troca de ramo, `empresas.md`).
+- 422 `PLT-04` quando a atividade de hoje não é aceita no plano novo (`PLT-12`, ADR 0024, item 10, CA-ASS-52): empresa que só vende indo para o Essencial.
+  ```json
+  { "codigo": "PLT-04",
+    "mensagem": "O plano Essencial não inclui vendas. Para mudar, sua empresa precisa alugar.",
+    "detalhes": { "atividade": { "atual": "vende", "aceitas": ["aluga", "ambos"] } } }
+  ```
+  Com outros impedimentos ao mesmo tempo, `detalhes` traz todos (`atividade`, limites e `abertos`) e a mensagem é esta, porque o ramo se resolve primeiro: mudar para "aluga e vende" (`PUT /api/ramo/`) não tira módulo nenhum. A mesma conferência vale na virada de um downgrade agendado (`gerar_faturas`, "deixou de caber").
 - 409 `{ "codigo": "transicao_empresa", "mensagem": "Pague a fatura em atraso antes de mudar de plano." }` em `inadimplente` e `suspensa` (`PLT-04`, CA-ASS-17).
 - 409 `{ "codigo": "transicao_empresa", "mensagem": "Desfaça o cancelamento antes de mudar de plano." }` com cancelamento marcado (`cancelamento.md`); vale também para `DELETE mudanca-plano/`.
 - 409 `{ "codigo": "transicao_empresa", "mensagem": "Já existe uma mudança agendada para 22 nov. Desfaça antes de escolher outra." }` com `plano_proximo` preenchido e outro downgrade pedido. Um upgrade com downgrade agendado desfaz o agendamento e segue como upgrade.
 - 422 `mudanca_ciclo`, `mesmo_plano` como no simular.
 
-Serviço único `plataforma.services.mudar_plano(empresa, plano, ciclo, por, motivo=None)`, o mesmo da ação `mudar-plano` do painel da plataforma (`plataforma.md`, "Ações sobre a empresa"). Trava a `Empresa` e o `UsoEmpresa` (`SELECT ... FOR UPDATE`) para a conta do uso e a mudança serem da mesma foto. Downgrade grava `plano_proximo`; a tarefa `gerar_faturas` confere se ainda cabe e gera a fatura, e o plano muda no dia do vencimento (ver "Downgrade agendado: conferência e virada"). Auditoria `empresa.mudar_plano` no `public` (categoria cobrança) e na auditoria da empresa (categoria configurações), com plano antigo, novo, ciclo e a diferença. Teste com o código: `test_plt_04_upgrade_em_teste`, `test_plt_04_upgrade_proporcional`, `test_plt_04_upgrade_no_teste_com_primeira_paga`, `test_plt_04_downgrade_nao_cabe`, `test_plt_04_downgrade_agendado_e_desfeito`, `test_plt_04_downgrade_agendado_deixa_de_caber` (CA-ASS-40), `test_plt_04_downgrade_cabia_na_geracao` (CA-ASS-41).
+Serviço único `plataforma.services.mudar_plano(empresa, plano, ciclo, por, motivo=None)`, o mesmo da ação `mudar-plano` do painel da plataforma (`plataforma.md`, "Ações sobre a empresa"). Trava a `Empresa` e o `UsoEmpresa` (`SELECT ... FOR UPDATE`) para a conta do uso e a mudança serem da mesma foto. Downgrade grava `plano_proximo`; a tarefa `gerar_faturas` confere se ainda cabe e gera a fatura, e o plano muda no dia do vencimento (ver "Downgrade agendado: conferência e virada"). Auditoria `empresa.mudar_plano` no `public` (categoria cobrança) e na auditoria da empresa (categoria configurações), com plano antigo, novo, ciclo e a diferença. Teste com o código: `test_plt_04_upgrade_em_teste`, `test_plt_04_upgrade_proporcional`, `test_plt_04_upgrade_no_teste_com_primeira_paga`, `test_plt_04_downgrade_nao_cabe` (com os `abertos` do seed, CA-ASS-15), `test_plt_04_downgrade_agendado_e_desfeito`, `test_plt_04_downgrade_agendado_deixa_de_caber` (CA-ASS-40), `test_plt_04_downgrade_cabia_na_geracao` (CA-ASS-41), `test_plt_12_downgrade_so_vende` (CA-ASS-52).
 
 ## DELETE /api/assinatura/mudanca-plano/
 
@@ -195,7 +218,7 @@ Administrador. Desfaz o downgrade agendado (`plano_proximo` → nulo) até a vé
 
 Decisão do dono em 14 out 2026 (T-211, opção A).
 
-- **Conferência na geração da fatura.** Quando `gerar_faturas` vai criar a fatura do período seguinte (5 dias antes do vencimento, `PLT-02`) e há downgrade agendado em `plano_proximo`, ela confere o uso de novo, com a mesma conta da 422 `PLT-04` (limites do `UsoEmpresa` e `pendencias_dos_modulos` no schema da empresa, ADR 0024), com a `Empresa` e o `UsoEmpresa` travados.
+- **Conferência na geração da fatura.** Quando `gerar_faturas` vai criar a fatura do período seguinte (5 dias antes do vencimento, `PLT-02`) e há downgrade agendado em `plano_proximo`, ela confere o uso de novo, com a mesma conta da 422 `PLT-04` (limites do `UsoEmpresa`, `pendencias_dos_modulos` no schema da empresa e a atividade aceita no plano novo, ADR 0024, item 10: a empresa que passou a só vender depois de agendar o Essencial também não desce), com a `Empresa` e o `UsoEmpresa` travados.
 - **Não cabe** (CA-ASS-40): o downgrade não acontece. Limpa `plano_proximo` (a tela deixa de dizer "O plano Profissional vale a partir de 22 nov", e `acoes.desfazer_mudanca_plano` volta a `false`), gera a fatura pelo plano atual e pelo `preco_contratado_centavos` (R$ 899,00 no exemplo), e manda e-mail ao administrador e ao `email_cobranca` com o motivo, o mesmo `detalhes` da 422 (`excede`, `abertos`, `abertos_texto`: "11 de 10 usuários"). Auditoria `empresa.mudar_plano_recusado` no `public` e na empresa (ator `sistema`, regra `PLT-04`), com o plano agendado e o `detalhes`.
 - **Cabe** (CA-ASS-41): a fatura sai pelo plano menor (R$ 449,00), com a descrição dele ("Plano Profissional · 22 nov a 21 dez"), e `plano_proximo` continua até o vencimento. Até lá, `Empresa.plano` ainda é o atual, então `exigir_limite` e os módulos seguem o plano atual (os 6 convites de 19 nov entram). O que entrar nesses 5 dias não desfaz a mudança.
 - **Virada no dia do vencimento**: `plataforma.virar_estados` (00:05) chama `plataforma.services.aplicar_mudanca_agendada(empresa)` nas empresas com `plano_proximo` cujo `vale_em` é hoje e cuja fatura do período já foi gerada: grava `plano`, `ciclo` (com `ciclo_proximo`) e `preco_contratado_centavos` com o preço de tabela do plano novo, limpa `plano_proximo` e `ciclo_proximo`, e recalcula o `uso`. Não confere de novo: com 11 de 10 usuários, ninguém sai e novos convites ficam bloqueados até sobrar vaga (`PLT-03`); o que ficou aberto num módulo que sai fica guardado (`PLT-12`). Auditoria `empresa.mudar_plano` (ator `sistema`) nos dois lugares. A mudança de ciclo pela equipe vira pelo mesmo serviço.
@@ -379,7 +402,7 @@ Do lado da equipe Giro; não há rota da empresa. No MVP, a equipe usa o Django 
 | 409 | `valor_mudou` | diferença do upgrade mudou entre simular e confirmar |
 | 409 | `fatura_nao_pagavel` | fatura paga ou cancelada |
 | 409 | `fatura_em_atraso` | reativar a `cancelada` com fatura atrasada (equipe, `PLT-06`) |
-| 422 | `PLT-04` | downgrade com uso que não cabe |
+| 422 | `PLT-04` | downgrade com uso que não cabe (limites, algo aberto nos módulos que saem ou ramo não aceito no plano) |
 | 422 | `mudanca_ciclo`, `mesmo_plano` | ver mudança de plano |
 | 422 | `sem_forma_pagamento` | pagar sem forma cadastrada e sem `meio` |
 | 422 | `parceiro_recusou` | o parceiro recusou (mensagem dele, sem o nome do parceiro) |
@@ -416,3 +439,8 @@ Do lado da equipe Giro; não há rota da empresa. No MVP, a equipe usa o Django 
 - **T-185 (rotas):** `acoes.cancelar`, `desfazer_cancelamento`, `pausar`, `voltar_pausa` e os blocos `cancelamento` e `pausa` no `GET`; `proxima_fatura` `null` com cancelamento ou pausa marcados; 409 da mudança de plano com cancelamento marcado. As rotas de cancelar e pausar são da T-195.
 - **T-186 (régua e estados):** `gerar_faturas` pula os períodos depois de `acesso_ate` e a partir de `pausa_inicio`, e emite as faturas `aberta` sem cobrança com vencimento em até 5 dias; a régua para na `cancelada`. As transições novas de `virar_estados` são da T-195.
 - **Quem fizer `reativar_empresa`:** a fatura nova nasce sem forma de pagamento.
+
+**Da T-231 (decisões da T-229 em `cancelamento.md`):**
+
+- **T-185 (rotas):** entra `acoes.desistir_pausa` (pausa agendada); `voltar_pausa` passa a ser só da `pausada`. O 409 da mudança de plano com cancelamento marcado deixou de ser provisório (CA-ASS-56).
+- **T-186 (régua e estados):** a régua segue para a fatura de diferença da `pausada`, e as transições de `assinatura.md` pulam a `pausada`; na volta com a diferença atrasada, a empresa volta `inadimplente` (CA-ASS-57).

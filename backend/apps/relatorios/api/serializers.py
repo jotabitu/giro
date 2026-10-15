@@ -6,7 +6,11 @@ from typing import Any
 from drf_spectacular.utils import PolymorphicProxySerializer
 from rest_framework import serializers
 
+from apps.financeiro.models import StatusCaixa
 from apps.vistorias.api.serializers import AgendaSerializer
+
+# FIN-07, FIN-08: o mesmo `StatusCaixaEnum` do caixa no OpenAPI (ENUM_NAME_OVERRIDES).
+STATUS_CAIXA = [s.value for s in StatusCaixa]
 
 
 def _pct(**kwargs: Any) -> serializers.DecimalField:
@@ -123,7 +127,7 @@ class PendenciasSerializer(serializers.Serializer[Any]):
 class CaixaHojeSerializer(serializers.Serializer[Any]):
     filial = serializers.CharField()
     data = serializers.DateField()  # type: ignore[assignment]
-    status = serializers.CharField()
+    status = serializers.ChoiceField(choices=STATUS_CAIXA)
     recebido_centavos = serializers.IntegerField()
     a_receber_hoje_centavos = serializers.IntegerField()
     despesas_centavos = serializers.IntegerField()
@@ -280,7 +284,7 @@ class ParaHojeSerializer(serializers.Serializer[Any]):
 
 class CaixaDoDiaSerializer(serializers.Serializer[Any]):
     filial = serializers.CharField()
-    status = serializers.CharField()
+    status = serializers.ChoiceField(choices=STATUS_CAIXA)
     aberto_por = serializers.CharField()
     esperado_gaveta_centavos = serializers.IntegerField()
 

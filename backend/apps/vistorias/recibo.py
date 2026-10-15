@@ -67,7 +67,7 @@ def corpo(devolucao: Devolucao) -> tuple[str, pdf.Imagens]:
             f"<figcaption>{_e(POSICAO[foto.posicao])}</figcaption></figure>"
         )
 
-    km_saida = saida.km if saida is not None else None
+    km_saida = services.km_de_saida(locacao, chegada, saida)
     combustivel_saida = NIVEL.get(saida.combustivel, "-") if saida is not None else "-"
     partes = [
         f"<h1>Recibo de devolução · {_e(locacao.codigo)}</h1>",

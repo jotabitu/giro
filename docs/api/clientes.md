@@ -75,7 +75,7 @@ A resumida mais:
 
 - `documento` e `cnh.numero` são decifrados só nesta resposta (ADR 0014). `cnh.situacao`: `valida`, `vencida` (até 30 dias), `vencida_impede` (mais de 30 dias, `CLI-02`).
 - PJ: `responsavel` = `{ "nome", "cpf", "celular" }` do condutor; `cnh` é a do condutor.
-- `bloqueio`: `{ "motivo": "atraso" | "manual", "desde": "...", "descricao": "...", "desbloqueia_sozinho": true }`. `descricao` é o motivo de quem bloqueou, ou "Conta com N dias de atraso desde dd/mm/aaaa" no bloqueio automático.
+- `bloqueio`: `{ "motivo": "atraso" | "manual", "desde": "...", "descricao": "...", "desbloqueia_sozinho": true }`. `descricao` é o motivo de quem bloqueou, ou "Conta com N dias de atraso desde dd/mm/aaaa" no bloqueio automático. No automático, a descrição é montada na leitura com os dias de atraso de hoje da conta vencida mais antiga (sem a caução, dia corrido em `America/Sao_Paulo`); o número do dia do bloqueio fica no `motivo` do evento `cliente.bloquear` (`CLI-05`, T-140).
 - URLs dos documentos assinadas, 15 minutos (`AUD-05`); cada `GET` gera outras. Cada geração grava evento de auditoria de acesso a documento.
 - `pendencias`: o que falta para sair de `incompleto` (`CLI-03`). Valores: os 4 tipos de documento, `consentimento`, `cnh`, `endereco`, `referencia`, `nascimento` (PF), `responsavel` (PJ).
 
