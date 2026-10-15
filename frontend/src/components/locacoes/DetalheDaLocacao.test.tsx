@@ -154,3 +154,35 @@ describe("cliente na locação sem abrir a ficha (USR-09, D-05 da T-025)", () =>
     expect(html).toContain('href="/clientes/1201"');
   });
 });
+
+describe("detalhe da locação: enviar contrato (LOC-04, T-208)", () => {
+  async function semContrato(id: number) {
+    const l = await locacoes.obter(id);
+    const cache = new QueryClient();
+    cache.setQueryData(["locacao", id], { ...l, contrato: null, condicoes: { ...l.condicoes, contrato_assinado_em: null } });
+    return texto(renderToStaticMarkup(<QueryClientProvider client={cache}><DetalheDaLocacao id={id} /></QueryClientProvider>));
+  }
+
+  it("aguardando retirada sem contrato: o gerente vê Enviar contrato; com contrato enviado vê só Reenviar", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    const t = await semContrato(2856);
+    ordem(t, ["Contrato", "Enviar contrato", "Contrato ainda não enviado", "link de assinatura por WhatsApp"]);
+    const comContrato = texto((await pagina(2856)).desktop);
+    expect(comContrato).toContain("Reenviar por WhatsApp");
+    expect(comContrato).not.toContain("Enviar contrato");
+  });
+
+  it("locação ativa sem contrato não oferece o botão", async () => {
+    expect(await semContrato(2836)).not.toContain("Enviar contrato");
+  });
+
+  it("vistoriador não vê o botão", async () => {
+    await entrarComo("joao@motorapida.com.br");
+    expect(await semContrato(2856)).not.toContain("Enviar contrato");
+  });
+
+  it("a API falsa recusa o segundo pedido com contrato_existente", async () => {
+    await entrarComo("bruna@motorapida.com.br");
+    await expect(locacoes.gerarContrato(2856)).rejects.toMatchObject({ status: 409, codigo: "contrato_existente" });
+  });
+});
