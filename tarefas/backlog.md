@@ -183,6 +183,9 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-252 · Revisão do link do convite na tela
 - **Agente:** segurança · **Depende de:** T-250 · **Pronto quando:** a segurança revisa a rota e a tela do link copiável: só administrador, link mostrado uma vez e fora de log, limite por hora, evento de auditoria, invalidação do anterior, e o suporte Giro sem acesso à rota.
 
+### T-262 · Troca do ramo em Configurações (backend do cartão e tela)
+- **Agente:** backend, depois frontend · **Depende de:** T-259, T-253 · **Regras:** PLT-12 · **Contrato:** `docs/api/configuracoes.md` (cartão `ramo`, "O que a empresa faz") e `docs/api/empresas.md` (`GET` e `PUT /api/ramo/`) · **Telas:** Admin-Ramo-Desktop, Admin-Ramo-Mobile · **Pronto quando:** (backend) o cartão `ramo` em `GET /api/configuracoes/` depois de `marca`, com o resumo montado pela API ("Locação e venda · motos" no seed), ausente para o token de suporte, pela `empresas.selectors.configuracao()`; teste do cartão e da ausência para o suporte; (frontend) a rota `/admin/ramo` igual à referência, ligada a `GET` e `PUT /api/ramo/`, com as opções e o aviso que a API manda e a recusa 422 da `PLT-12` com o `abertos_texto`; testes do componente. Levantada pelo arquiteto na T-259.
+
 ### T-257 · Catálogo de marcas e modelos (backend)
 - **Agente:** backend · **Depende de:** ADR 0026 e `veiculos.md` do PR #250 (T-247), mesclado · **Regras:** VEI-08, VEI-01 · **Telas:** Veiculo-Novo (desktop e celular, "Modelo · Da lista FIPE")
 - **O que o contrato já diz** (`docs/api/veiculos.md`, "GET /api/veiculos/modelos/", e ADR 0026, item 7, no PR #250): a lista é local, nunca consultada na internet durante o uso; `GET /api/veiculos/modelos/?tipo=moto|carro&marca=&busca=` → `{ "resultados": [ { "marca", "modelo", "tipo" } ] }`; a leitura do CRLV-e normaliza o texto lido (sem acento, maiúsculas, sem pontuação) e só preenche marca e modelo com um modelo único; sem achar, ou com mais de um, manda `dicas.marca_modelo`.
@@ -197,12 +200,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
   - `achar_modelo`, usada pela leitura do CRLV-e quando ela existir;
   - testes `test_vei_08_catalogo_acha_modelo_unico` (o "HONDA/POP 110I ES" do `crlv-tbc5h21.pdf` dá Honda Pop 110i ES), `test_vei_08_catalogo_ambiguo_nao_preenche` e `test_vei_08_lista_de_modelos_filtra`;
   - OpenAPI regenerado e `api:gerar` no frontend.
-
-### T-259 · Cartão do ramo em Configurações (contrato)
-- **Agente:** arquiteto · **Depende de:** T-253 (PR #249) · **Regras:** PLT-12 · **Telas:** Config, Admin-Ramo · **Pronto quando:** `docs/api/configuracoes.md` com o cartão `ramo` em `GET /api/configuracoes/` (título, resumo pela API, ordem, quem recebe) e a rota `/admin/ramo` na tabela de rotas dos cartões e em `docs/telas/README.md`; resolve a divergência (1) da T-253.
-- **Estado (15 out 2026):** contrato escrito, PR #252 (branch `t-259-cartao-ramo`); handoff `tarefas/handoffs/T-259-arquiteto.md`. O backend do cartão ainda não tem número; proposta: entra na T-196 (módulos por plano e ramo, ainda aberta) ou numa tarefa pequena, junto do frontend da `Admin-Ramo`.
-
-Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entrou no PR #160 (ver `feito.md`).
 
 
 ### T-156 · (M-02) Custo e rendimento do veículo fora da ficha do vendedor (média)
