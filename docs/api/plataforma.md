@@ -226,7 +226,7 @@ Todas `POST /api/plataforma/empresas/{id}/<acao>/`, com `motivo` obrigatório, e
 | `estender-teste` | dono, sucesso | `{ dias, motivo }` | PLT-01 |
 | `mudar-plano` | dono, sucesso | `{ plano_id, ciclo, motivo }`. Upgrade vale na hora; downgrade e mudança de ciclo gravam `plano_proximo` (e `ciclo_proximo`) e valem na próxima fatura (`PLT-04`). Se o uso não cabe no plano menor: 422 `{ "codigo": "PLT-04", "detalhes": { "veiculos": { "usado": 86, "limite": 30 } } }` | PLT-04 |
 | `suspender` | dono, financeiro | `{ motivo }` | tabela de estados |
-| `reativar` | dono, financeiro | `{ motivo }`. Da `suspensa` → `ativa`; da `cancelada` dentro dos 90 dias, sem fatura atrasada (409 `fatura_em_atraso`), → `ativa` com fatura nova no dia (`plataforma.services.reativar_empresa`, `assinatura.md`, "Mudança de ciclo e reativação pela equipe") | tabela de estados, PLT-06 |
+| `reativar` | dono, financeiro | `{ motivo }`. Da `suspensa` → `ativa`; da `cancelada` dentro dos 90 dias, sem fatura atrasada (409 `fatura_em_atraso`), → `ativa` com fatura nova no dia seguinte ao fim do período pago, se ele ainda corre, ou no dia da volta (`plataforma.services.reativar_empresa`, `assinatura.md`, "Mudança de ciclo e reativação pela equipe") | tabela de estados, PLT-06 |
 
 ### POST /api/plataforma/empresas/{id}/acessos-suporte/ · fase 2
 Função com `entrar_como_suporte`. Corpo: `{ motivo, chamado_id?, duracao_minutos: 15|30|60, permissao: "ver"|"ver_editar" }`.
