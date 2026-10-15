@@ -184,7 +184,7 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 - **Agente:** segurança · **Depende de:** T-250 · **Pronto quando:** a segurança revisa a rota e a tela do link copiável: só administrador, link mostrado uma vez e fora de log, limite por hora, evento de auditoria, invalidação do anterior, e o suporte Giro sem acesso à rota.
 
 ### T-261 · Pendências do produto no backlog
-- **Agente:** produto · **Depende de:** — · **Regras:** USR-05, AUT-04, LOC-05, PLT-12, FIL-06 · **Pronto quando:** as dúvidas abertas do produto no backlog estão respondidas, com o padrão quando não mudam regra, e o que muda regra está em "Pontos em aberto" para o dono. · **Estado (16 out 2026):** feito, PR aberto; handoff `tarefas/handoffs/T-261-produto.md`.
+- **Agente:** produto · **Depende de:** — · **Regras:** USR-05, AUT-04, LOC-05, PLT-12, FIL-06 · **Pronto quando:** as dúvidas abertas do produto no backlog estão respondidas, com o padrão quando não mudam regra, e o que muda regra está em "Pontos em aberto" para o dono. · **Estado (16 out 2026):** feito, PR #255; handoff `tarefas/handoffs/T-261-produto.md`.
   - **Respondidas pelo produto:** (a) T-181: fica "Nenhuma filial ativa"; (b) T-224, item 1: fica o texto do arquiteto para a recusa de "só vende" no Essencial; (d) T-105: a LOC-2856 do seed está certa, e o CA-016-08 diz que o critério é fixture.
   - **Para o dono (mudam regra, com padrão valendo até a resposta):** (c) T-209 item d: "Veículos" no menu do vendedor na fase 1 (A); Pix Automático nas parcelas (`AUT-04`), em três partes.
 
