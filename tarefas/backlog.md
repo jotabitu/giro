@@ -184,6 +184,9 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-252 · Revisão do link do convite na tela
 - **Agente:** segurança · **Depende de:** T-250 · **Pronto quando:** a segurança revisa a rota e a tela do link copiável: só administrador, link mostrado uma vez e fora de log, limite por hora, evento de auditoria, invalidação do anterior, e o suporte Giro sem acesso à rota.
 
+### T-258 · Timeout do servidor para a leitura de PDF e cofre do deploy
+- **Agente:** devops · **Depende de:** — · **ADR:** 0026 (PR #250) · **Pronto quando:** o Gunicorn tem configuração versionada com `timeout` acima de 8 s com folga, para os 8 s de relógio do processo filho da leitura do CRLV-e e da CNH-e; o proxy dá a `/api/veiculos/leitura-crlv/` e `/api/clientes/leitura-cnh/` limite de corpo e de leitura próprios, sem afrouxar as outras rotas; memória e workers de homologação e produção conferidos e escritos em `infra/README.md` (o que está medido e o que é estimativa); `infra/deploy/*.env.example` e o README dizem o que preencher no cofre depois da T-157 (`EMAIL_HOST`, `GIRO_ARMAZENAMENTO=s3`, `GIRO_PROVEDOR_PAGAMENTOS=asaas`, `GIRO_ASAAS_CHAVE_API`); `nginx -t` passa.
+
 Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entrou no PR #160 (ver `feito.md`).
 
 
