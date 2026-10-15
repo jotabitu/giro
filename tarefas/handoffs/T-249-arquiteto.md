@@ -44,4 +44,4 @@
 - **Frontend (T-251):** filtro com as opções de `filiais/minhas/`; Aprovar e Recusar só por `pode_decidir`; "Copiar link do convite" por `acoes.copiar_link_convite`, com o `aviso` e sem guardar o link no estado nem no cache.
 - **Segurança (T-252):** confere a rota, o limite, o evento e a ausência do token em log.
 - **Qa:** CA-248-01 a 16.
-- **Orquestrador:** abrir o PR depois do #241.
+- **Orquestrador:** PR #245 aberto; mesclar depois do #241.
