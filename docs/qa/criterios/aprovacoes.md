@@ -32,4 +32,4 @@ Dado a Mariana com "Todas as filiais", então os números somam as filiais dela;
 A tela não mostra a frase do aviso ao administrador depois de 4 horas úteis (`APR-08`, fase 2).
 
 **CA-APR-10 · Células do pedido de desconto**
-Dado o pedido de desconto do CA-APR-02, então o detalhe mostra os valores vindos da API, sem conta na tela: preço de tabela R$ 329,00, com desconto R$ 302,68, desconto R$ 26,32 (8%) e "O limite da Bruna é 5%".
+Dado o pedido de desconto do CA-APR-02, então o detalhe mostra os valores vindos da API, sem conta na tela: preço de tabela R$ 329,00, com desconto R$ 302,68, desconto R$ 26,32 (8%) e "O limite de Bruna é 5%." (sem artigo: a API não sabe o gênero de ninguém, como em "A devolver").

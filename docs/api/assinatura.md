@@ -1,6 +1,6 @@
 # Assinatura da empresa (Admin › Assinatura)
 
-**Dono:** arquiteto · **Versão:** 15 out 2026 (T-194, T-217, T-213; T-193; T-183) · **App:** `plataforma` (lê e grava no `public`, servido no host da empresa) · **Regras:** PLT-01, PLT-02, PLT-03, PLT-04, PLT-05, PLT-06, PLT-11, PLT-13, PLT-14, PLT-15, AUT-13, tabela de estados da empresa · **ADR:** 0007, 0023 · **Telas:** Admin-Assinatura (desktop e celular) · **Critérios:** `docs/qa/criterios/assinatura.md` (CA-ASS-01 a 21, 26 a 29, 40, 41 e 46 a 49)
+**Dono:** arquiteto · **Versão:** 15 out 2026 (T-231, T-194, T-217, T-213; T-193; T-183) · **App:** `plataforma` (lê e grava no `public`, servido no host da empresa) · **Regras:** PLT-01, PLT-02, PLT-03, PLT-04, PLT-05, PLT-06, PLT-11, PLT-13, PLT-14, PLT-15, AUT-13, tabela de estados da empresa · **ADR:** 0007, 0023 · **Telas:** Admin-Assinatura (desktop e celular) · **Critérios:** `docs/qa/criterios/assinatura.md` (CA-ASS-01 a 21, 26 a 29, 40, 41 e 46 a 49)
 
 Decisão do dono em 14 out 2026: a tela `Admin-Assinatura` entra inteira no MVP, com a cobrança real. Este contrato completa o que `GET /api/assinatura/` (`plataforma.md`, "Do lado da empresa") ainda não entregava, levantado na T-170: mudar e comparar planos, forma de pagamento, faturas, dados da nota fiscal, o cartão do plano acima e a data da 1ª fatura. "Cancelar assinatura", pausar, desfazer o cancelamento e o apagamento (`PLT-06`, `AUD-08`, tela `Admin-Cancelar`) estão em `docs/api/cancelamento.md` (T-194); aqui só aparecem onde mexem nas faturas.
 
@@ -103,7 +103,7 @@ Os campos de hoje (`plano`, `status`, `teste`, `faixa_aviso`, `uso`, `somente_le
   Os textos de cada plano ficam num só lugar no backend (o catálogo da `PLT-11`, `plataforma/catalogo.py`, função pura), com teste que confere a tabela da regra. Quando o produto mudar a `PLT-11`, muda só esse arquivo.
 - **`acoes`** já cruza perfil, estado da empresa e a tabela acima; o frontend mostra só o que vier `true`. `desfazer_mudanca_plano` vem `true` com downgrade agendado pelo administrador. `cancelar`, `desfazer_cancelamento`, `pausar` e `voltar_pausa` estão em `cancelamento.md`; com cancelamento marcado, `mudar_plano` e `desfazer_mudanca_plano` vêm `false`.
 
-Caso do seed: Moto Rápida em 07 out → `status` `em_teste`, `proxima_fatura` 22 out, 44900, `forma` nula com `sem_forma` e prazo 21 out, `endereco` igual ao da Filial Centro (Av. Bezerra de Menezes, 1200, São Gerardo, Fortaleza, CE, CEP 60325-000), `email_cobranca` igual ao e-mail da Mariana, `oferta` Completo com os 3 itens, `acoes` todas `true` menos `desfazer_mudanca_plano`, `desfazer_cancelamento`, `pausar` (em teste não pausa) e `voltar_pausa`; `cancelamento` e `pausa` `null`.
+Caso do seed: Moto Rápida em 07 out → `status` `em_teste`, `proxima_fatura` 22 out, 44900, `forma` nula com `sem_forma` e prazo 21 out, `endereco` igual ao da Filial Centro (Av. Bezerra de Menezes, 1200, São Gerardo, Fortaleza, CE, CEP 60325-000), `email_cobranca` igual ao e-mail da Mariana, `oferta` Completo com os 3 itens, `acoes` todas `true` menos `desfazer_mudanca_plano`, `desfazer_cancelamento`, `pausar` (em teste não pausa), `voltar_pausa` e `desistir_pausa`; `cancelamento` e `pausa` `null`.
 
 ---
 
@@ -439,3 +439,8 @@ Do lado da equipe Giro; não há rota da empresa. No MVP, a equipe usa o Django 
 - **T-185 (rotas):** `acoes.cancelar`, `desfazer_cancelamento`, `pausar`, `voltar_pausa` e os blocos `cancelamento` e `pausa` no `GET`; `proxima_fatura` `null` com cancelamento ou pausa marcados; 409 da mudança de plano com cancelamento marcado. As rotas de cancelar e pausar são da T-195.
 - **T-186 (régua e estados):** `gerar_faturas` pula os períodos depois de `acesso_ate` e a partir de `pausa_inicio`, e emite as faturas `aberta` sem cobrança com vencimento em até 5 dias; a régua para na `cancelada`. As transições novas de `virar_estados` são da T-195.
 - **Quem fizer `reativar_empresa`:** a fatura nova nasce sem forma de pagamento.
+
+**Da T-231 (decisões da T-229 em `cancelamento.md`):**
+
+- **T-185 (rotas):** entra `acoes.desistir_pausa` (pausa agendada); `voltar_pausa` passa a ser só da `pausada`. O 409 da mudança de plano com cancelamento marcado deixou de ser provisório (CA-ASS-56).
+- **T-186 (régua e estados):** a régua segue para a fatura de diferença da `pausada`, e as transições de `assinatura.md` pulam a `pausada`; na volta com a diferença atrasada, a empresa volta `inadimplente` (CA-ASS-57).
