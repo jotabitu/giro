@@ -230,10 +230,17 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 - **Tarefa (numerada pelo orquestrador em 15 out 2026):** **T-231 · arquiteto · `cancelamento.md` pela T-229.** Tirar as marcas `[decisão]` dos 5 casos. A desistência da pausa vai até o último dia do período pago, e "Voltar da pausa" fica para a `pausada`. O downgrade agendado antes do cancelamento continua e só vale se for desfeito (o contrato já mantém `plano_proximo`). CA-ASS-54 a 58 para a T-195; o critério de cancelar em teste com a 1ª paga pede `test_plt_06_cancelar_no_teste_com_a_1a_paga`.
 
 ### T-230 · Revisão do MEI e do empresário individual no apagamento
-- **Agente:** segurança · **Depende de:** T-229 · **Regras:** AUD-08, PLT-06 · **Estado:** aprovada pelo dono em 15 out 2026, a fazer.
+- **Agente:** segurança · **Depende de:** T-229 · **Regras:** AUD-08, PLT-06 · **Estado:** entregue em 15 out 2026 (`docs/seguranca/2026-10-15-t230-mei-apagamento.md`, handoff `tarefas/handoffs/T-230-seguranca.md`); a decisão abaixo fica com o produto.
 - **O quê:** depois do apagamento (`AUD-08`), a linha da empresa fica no público com razão social, CNPJ e endereço. Para o MEI e o empresário individual, a razão social traz o nome da pessoa, e o endereço pode ser a casa dela: são dados pessoais que ficam depois do apagamento.
 - **Pronto quando:** a segurança diz, com base na LGPD, se esses dados podem ficar (registro fiscal das faturas e notas do Giro) e por quanto tempo, ou se a linha deve ficar só com o CNPJ e as faturas. Se precisar mudar a `AUD-08`, avisa o produto com a opção A ou B.
 - **Junto:** o prazo de guarda das faturas fica com o dono e o contador ("Pontos em aberto" das regras); a segurança não decide o prazo, só se o dado pode ficar.
+
+### [decisão] O que fica da empresa apagada: opção B da segurança (T-230, `AUD-08`, `PLT-14`)
+- **Para:** produto (e o dono) · **Depois:** arquiteto (`cancelamento.md`, `assinatura.md`, `auditoria.md`) e backend (T-195).
+- **Recomendação da segurança (B, igual para toda empresa, MEI ou não):** a linha apagada fica só com o CNPJ (sem razão social, nome de exibição, endereço e contato); a fatura guarda o tomador como foi na nota e ele sai com ela, no prazo de guarda; a auditoria do `public` guarda quais dados mudaram, sem os valores; depois da última fatura, o CNPJ sai e ficam reservados o subdomínio e o schema. **A**, o que está na `AUD-08` hoje, guarda nome e às vezes CPF e endereço de casa do MEI sem prazo e sem obrigação legal que peça a linha.
+- **Junto (B-02):** `cnpj` único só entre empresas não apagadas, para a mesma empresa poder comprar de novo depois do apagamento.
+- **Fatura atrasada no 90º dia:** (a) ela guarda o `email_cobranca` até a baixa ou o fim do prazo (recomendado, a dívida não some, `PLT-06`); (b) o Giro não cobra mais depois do apagamento.
+- **Não depende do prazo** das faturas (dono e contador): só diz o que fica e preso a quê.
 
 ### T-028 · Limpar dados de exemplo das telas
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`. Inclui `Despesas-Desktop` e `Despesas-Mobile`: aguardando aprovação é R$ 1.200,00 (não R$ 1.386,40) e o IPVA de R$ 186,40 nasce `a_pagar` (FIN-05), apontado pelo qa na T-040.
