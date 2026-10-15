@@ -111,11 +111,13 @@ def registrar_evento(
     depois: dict[str, Any] | None = None,
     motivo: str = "",
     regra: str = "",
+    filial_id: int | None = None,
 ) -> Any:
     """Grava um evento. Para ações sem objeto (login, exportação), omita `objeto`.
 
     Com `objeto`, `antes` e `depois` passam pela classificação do model (ADR 0014, item 3):
-    passe os valores reais, nunca já mascarados.
+    passe os valores reais, nunca já mascarados. A filial do evento é `filial_id`, quando vier
+    (o objeto sem filial própria, como o movimento do caixa), senão a do objeto (AUD-02).
     """
     evento_auditoria = apps.get_model("auditoria", "EventoAuditoria")
     # R-06 da T-050: o que vai para `antes`/`depois` sempre passa pela classificação, e só models
@@ -137,7 +139,7 @@ def registrar_evento(
         objeto_tipo=objeto._meta.model_name if objeto is not None else "",
         objeto_id=objeto.pk if objeto is not None else None,
         objeto_codigo=getattr(objeto, "codigo", "") or "",
-        filial_id=getattr(objeto, "filial_id", None),
+        filial_id=filial_id if filial_id is not None else getattr(objeto, "filial_id", None),
         antes=antes or {},
         depois=depois or {},
         motivo=motivo,
@@ -149,7 +151,13 @@ def registrar_evento(
 
 @contextmanager
 def auditar(
-    objeto: models.Model, acao: str, categoria: str, *, motivo: str = "", regra: str = ""
+    objeto: models.Model,
+    acao: str,
+    categoria: str,
+    *,
+    motivo: str = "",
+    regra: str = "",
+    filial_id: int | None = None,
 ) -> Iterator[None]:
     """Retrato antes e depois do bloco e evento gravado na mesma transação.
 
@@ -172,6 +180,7 @@ def auditar(
             depois=mudou_depois,
             motivo=motivo,
             regra=regra,
+            filial_id=filial_id,
         )
 
 

@@ -139,8 +139,14 @@ def _juntar(*partes: str) -> str:
 # --- Financeiro (as ações da T-017; o app pode registrar as próprias) ---
 
 
-def _sangria(evento: EventoAuditoria, _: dict[str, Any]) -> Texto:
-    return Texto(f"Fez sangria de {_valor(evento)}", str(evento.depois.get("descricao", "")))
+def _sangria(evento: EventoAuditoria, apoio: dict[str, Any]) -> Texto:
+    """FIN-07: o detalhe é o caixa de onde saiu o dinheiro (T-150)."""
+    filiais = apoio.setdefault("filiais", {})
+    if evento.filial_id is not None and evento.filial_id not in filiais:
+        filiais.update(auditoria.consultar("filiais", {evento.filial_id}))
+    nome = filiais.get(evento.filial_id) if evento.filial_id is not None else None
+    detalhe = f"Caixa da {nome}" if nome else str(evento.depois.get("descricao", ""))
+    return Texto(f"Fez sangria de {_valor(evento)}", detalhe)
 
 
 def _movimento(evento: EventoAuditoria, _: dict[str, Any]) -> Texto:
@@ -258,7 +264,6 @@ def _bloqueio_do_suporte(evento: EventoAuditoria, _: dict[str, Any]) -> Texto:
 
 
 DESTE_APP: dict[str, auditoria.Formatador] = {
-    "caixa.sangria": _sangria,
     "movimento_caixa.sangria": _sangria,
     "movimento_caixa.entrada": _movimento,
     "movimento_caixa.saida": _movimento,

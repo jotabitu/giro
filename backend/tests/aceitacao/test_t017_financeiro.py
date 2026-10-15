@@ -48,6 +48,7 @@ from .test_t016_vistorias import _contrato_com_juros, _jpg
 
 CONTAS = "/api/financeiro/contas-receber/"
 CAIXAS = "/api/financeiro/caixas/"
+AUDITORIA = "/api/auditoria/eventos/"
 WEBHOOK = "/api/webhooks/pagamentos/asaas/"
 TOKEN = "token-do-webhook-da-moto-rapida"
 FUSO = ZoneInfo("America/Sao_Paulo")
@@ -822,6 +823,31 @@ def test_fin_07_ca_017_17_movimento_imutavel(cenario, caixa_do_seed):  # noqa: F
     assert resumo["entrou_hoje_centavos"] == 111190 - 10900
     assert resumo["por_forma"]["cartao"]["centavos"] == 0
     assert resumo["gaveta"]["esperado_centavos"] == 28100  # cartão não mexe na gaveta
+
+
+def test_fin_07_movimentos_e_estorno_auditam_com_filial(cenario, caixa_do_seed):  # noqa: F811
+    """T-150 (AUD-02): os eventos `movimento_caixa.*` levam a filial do caixa."""
+    cartao = MovimentoCaixa.objects.get(forma="cartao_credito")
+    url = f"{CAIXAS}{caixa_do_seed.pk}/movimentos/{cartao.pk}/estornar/"
+    estorno = cenario.moto.api("Rodrigo").post(url, {"motivo": "Lançado errado"}, format="json")
+    assert estorno.status_code == 201, estorno.json()
+    eventos = EventoAuditoria.objects.filter(acao__startswith="movimento_caixa.")
+    acoes = set(eventos.values_list("acao", flat=True))
+    assert {
+        "movimento_caixa.entrada",
+        "movimento_caixa.saida",
+        "movimento_caixa.sangria",
+        "movimento_caixa.estornar",
+        "movimento_caixa.estorno_motivo",
+    } <= acoes
+    assert set(eventos.values_list("filial_id", flat=True)) == {caixa_do_seed.filial_id}
+
+    caucaia = _caucaia(cenario.moto, "Bruna")
+    api = cenario.moto.api("Mariana")
+    centro = api.get(AUDITORIA, {"filial": caixa_do_seed.filial_id}).json()["resultados"]
+    outra = api.get(AUDITORIA, {"filial": caucaia.pk}).json()["resultados"]
+    assert {e["acao"] for e in centro} >= {"movimento_caixa.entrada", "movimento_caixa.estornar"}
+    assert not [e for e in outra if e["acao"].startswith("movimento_caixa.")]
 
 
 def test_fil_06_ca_017_18_caixa_aberto_impede_desativar_a_filial(cenario):  # noqa: F811
