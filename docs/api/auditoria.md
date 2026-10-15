@@ -1,6 +1,6 @@
 # Auditoria e exportação
 
-**Dono:** arquiteto · **Versão:** 15 out 2026 (T-201, tom do evento e o evento de 01 out no seed; antes 13 out 2026, T-177, despesas em CSV; 12 out 2026, T-151; 07 out 2026, T-043) · **App:** `auditoria` (schema da empresa **e** `public`) · **Regras:** AUD-01 a AUD-03, AUD-07, LOC-15, FIN-16, AUD-09, PLT-07, PLT-08, PLT-09, AUT-11 · **ADRs:** 0010, 0014, 0016 · **Segurança:** S-06, S-10, S-15 · **Critérios:** `docs/qa/criterios/T-018.md`, `docs/qa/criterios/despesas.md` (CA-DES-06 a 09) · **Telas:** Admin-Auditoria, Plat-Auditoria, Admin-Exportar, Despesas (botão Exportar)
+**Dono:** arquiteto · **Versão:** 15 out 2026 (T-236, dados da empresa no `public`; T-201, tom do evento e o evento de 01 out no seed; antes 13 out 2026, T-177, despesas em CSV; 12 out 2026, T-151; 07 out 2026, T-043) · **App:** `auditoria` (schema da empresa **e** `public`) · **Regras:** AUD-01 a AUD-03, AUD-07, LOC-15, FIN-16, AUD-08, AUD-09, PLT-07, PLT-08, PLT-09, AUT-11 · **ADRs:** 0010, 0014, 0016, 0025 · **Segurança:** S-06, S-10, S-15 · **Critérios:** `docs/qa/criterios/T-018.md`, `docs/qa/criterios/despesas.md` (CA-DES-06 a 09), `docs/qa/criterios/assinatura.md` (CA-ASS-58) · **Telas:** Admin-Auditoria, Plat-Auditoria, Admin-Exportar, Despesas (botão Exportar)
 
 Convenções gerais em `docs/api/README.md`. Modelo: item 25 e `Exportacao` em `docs/decisoes/modelo-de-dados.md`. A gravação dos eventos é de `comum.auditoria` (ADR 0010); este contrato é a consulta e a exportação.
 
@@ -58,6 +58,18 @@ CA-018-06, edição do cadastro da Juliana:
 - CPF e CNH (`documento`, `cnh_numero`, `responsavel_cpf`) são `CampoCifrado` e vêm sempre omitidos, em `antes` e `depois`: `"documento": { "alterado": true }`. Nenhum dígito vai para o evento; a máscara `***.218.330-**` (`AUD-04`, `AUD-09`) é só das telas, listas e exportações de cadastro.
 - Endereço: só a cidade e a UF vêm inteiras; CEP, logradouro, número, complemento e bairro vêm como `"***"`. Ex.: mudança de rua em Fortaleza dá `"antes": { "logradouro": "***", "numero": "***" }`, `"depois": { "logradouro": "***", "numero": "***" }`; mudança de cidade dá também `"cidade": "Fortaleza"` → `"Caucaia"`.
 
+### Dados da empresa no `public` (`AUD-08`, T-236)
+
+A auditoria da plataforma fica 5 anos (`AUD-02`) e o apagamento da empresa não a alcança (ADR 0025). Por isso, no `public`, os eventos não guardam o valor dos dados da empresa que o apagamento limpa da linha (decisão do dono de 15 out 2026, T-235, opção B; achado M-03 da T-230). Vale para toda empresa, MEI ou não, e para todo evento cujo objeto é a `Empresa` (`empresa.criar`, `empresa.dados_fiscais`, `empresa.reativar` e os outros `empresa.*`).
+
+- **Gravados como `{ "alterado": true }` no `public`** (classe "omitir" da ADR 0014, só neste schema): `razao_social`, `nome_exibicao`, `endereco_*` (os sete, inclusive cidade e UF da nota), `email_cobranca`, `responsavel_nome`, `responsavel_email`, `responsavel_telefone`. Na criação, o `depois` traz só `{ "alterado": true }` para cada um. O valor não é gravado e mascarado depois: ele nunca entra na tabela do `public`.
+- **Continuam com o valor:** `cnpj`, `subdominio`, `cidade` e `uf` da lista, plano, ciclo, preços, datas e status. A equipe precisa deles, e eles já ficam na fatura ou na linha apagada.
+- **No schema da empresa**, o mesmo evento continua com o antes e o depois completos (o evento dos dois lugares é gravado duas vezes, ADR 0010), e sai com o schema no apagamento.
+- **Como:** `Empresa.CAMPOS_AUDITORIA` ganha a chave `omitir_no_public` com a lista acima; `comum.auditoria`, ao gravar no `public`, junta essa lista ao `omitir`. Um teste de arquitetura confere que os campos da lista acima estão em `omitir_no_public`, para um campo novo de contato da `Empresa` não escapar.
+- **Eventos antigos:** a auditoria é imutável, e não há empresa real antes do lançamento; os eventos do desenvolvimento ficam como estão, e o seed é recriado. Nada a migrar.
+- **Na tela** `Plat-Auditoria`, o detalhe mostra "alterado" nesses campos, como já faz com CPF e CNH. Em `"empresa": { "id", "nome_exibicao" }` da lista (abaixo), o nome vem da linha atual da `Empresa`; da empresa apagada, vem `nome_exibicao: null` com `cnpj` e `apagada: true`.
+- Teste com o código: `test_aud_08_auditoria_publica_sem_endereco` (CA-ASS-58): o `empresa.dados_fiscais` da Moto Rápida no `public` tem `{ "alterado": true }` na razão social, no endereço e no e-mail, e o mesmo evento no schema dela tem os valores; nenhuma linha da auditoria do `public` contém "Bezerra de Menezes" nem "mariana@".
+
 ---
 
 ## Auditoria da empresa (Admin-Auditoria)
@@ -99,7 +111,7 @@ Para o filtro "Pessoa": usuários que aparecem como ator no período, mais "Sist
 ## Auditoria da plataforma (Plat-Auditoria)
 
 ### GET /api/plataforma/auditoria/eventos/
-Função: dono. Eventos do schema `public` (equipe interna, acessos de suporte, cobrança da assinatura, planos, segurança do login da plataforma). Mesma representação, mais `"empresa": { "id", "nome_exibicao" }` (onde a ação aconteceu, ou `null`).
+Função: dono. Eventos do schema `public` (equipe interna, acessos de suporte, cobrança da assinatura, planos, segurança do login da plataforma). Mesma representação, mais `"empresa": { "id", "nome_exibicao", "cnpj", "apagada" }` (onde a ação aconteceu, ou `null`). Da empresa apagada (`AUD-08`), `nome_exibicao` vem `null` e a tela mostra "Dados apagados" com o CNPJ; depois de o CNPJ sair (fim do prazo de guarda das faturas), `cnpj` também vem `null`. Os campos de dados da empresa vêm como "alterado" (seção "Dados da empresa no `public`").
 Query: as mesmas da empresa, mais `?empresa=<id>`. A aba "Acessos de suporte" é `?categoria=suporte`; "Cobrança" é `?categoria=financeiro`.
 200 com `indicadores`: `{ "acessos_suporte_30d": 14, "acessos_suporte_com_edicao_30d": 3, "logins_bloqueados_hoje": 1, "mudancas_de_preco_7d": 1 }`.
 - Não lê os schemas das empresas (CA-018-16): ações de dentro da empresa, como "Bruna fez sangria", não aparecem.
