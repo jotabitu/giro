@@ -184,11 +184,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-252 · Revisão do link do convite na tela
 - **Agente:** segurança · **Depende de:** T-250 · **Pronto quando:** a segurança revisa a rota e a tela do link copiável: só administrador, link mostrado uma vez e fora de log, limite por hora, evento de auditoria, invalidação do anterior, e o suporte Giro sem acesso à rota.
 
-### T-258 · Timeout do servidor para a leitura de PDF e cofre do deploy
-- **Agente:** devops · **Depende de:** — · **ADR:** 0026 (PR #250) · **Pronto quando:** o Gunicorn tem configuração versionada com `timeout` acima de 8 s com folga, para os 8 s de relógio do processo filho da leitura do CRLV-e e da CNH-e; o proxy dá a `/api/veiculos/leitura-crlv/` e `/api/clientes/leitura-cnh/` limite de corpo e de leitura próprios, sem afrouxar as outras rotas; memória e workers de homologação e produção conferidos e escritos em `infra/README.md` (o que está medido e o que é estimativa); `infra/deploy/*.env.example` e o README dizem o que preencher no cofre depois da T-157 (`EMAIL_HOST`, `GIRO_ARMAZENAMENTO=s3`, `GIRO_PROVEDOR_PAGAMENTOS=asaas`, `GIRO_ASAAS_CHAVE_API`); `nginx -t` passa.
-
-Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entrou no PR #160 (ver `feito.md`).
-
 
 ### T-156 · (M-02) Custo e rendimento do veículo fora da ficha do vendedor (média)
 - **Backend feito (15 out 2026):** PR #246 (`tarefas/handoffs/T-156-backend.md`); OpenAPI sem diferença. **Falta o frontend:** os cartões só quando a API manda `indicadores_financeiros`.
@@ -312,6 +307,15 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
   Depois, a T-195 (backend) entra junto, se ainda aberta.
   **Estado (15 out 2026):** contratos ajustados, PR a abrir depois da T-235 (branch `t-236-contratos-apagamento`, empilhada sobre a `t-235-regras-apagamento`); handoff `tarefas/handoffs/T-236-arquiteto.md`. Para a T-184 (em andamento): campos `tomador_*` e `email_cobranca` na `FaturaAssinatura`, `gravar_tomador` na baixa e o teste no sandbox do `anonimizar_pagador`.
 - **Tarefa (numerada pelo orquestrador em 15 out 2026):** **T-237 · design-system · Tela `Aprovacoes` sem fornecedor.** No pedido de despesa (desktop e celular), tirar "Fornecedor" e "15 out · boleto" e mostrar categoria, descrição, veículo, valor e vencimento, com os pneus do seed (Manutenção, "Pneus (2)", PMZ-3E17, R$ 1.200,00, 07 out). Pode ir com a T-028 ou a T-200, se ainda abertas. Junto: a `Compra-Checkout` ganha o aviso "Este CNPJ já usou o teste grátis. A 1ª fatura vence hoje." (`PLT-16`).
+
+### T-264 · Servidor de aplicação de produção (ADR)
+- **Agente:** arquiteto, depois devops · **Depende de:** — · **Pronto quando:** a imagem do backend (`infra/docker/backend.Dockerfile`) sobe hoje com `python manage.py runserver`, o servidor de desenvolvimento do Django, que não serve para homologação nem produção (achado do devops na T-258). O arquiteto escreve a ADR (Gunicorn com o `infra/docker/gunicorn.conf.py` da T-258, ou outro, com o motivo; workers, timeouts, `runserver` só no compose de desenvolvimento) e o devops troca o comando da imagem e o compose de homologação, com o teste de subida. **Antes de qualquer homologação.**
+
+### T-265 · Código da leitura do CRLV-e (`VEI-08`, ADR 0026)
+- **Agente:** backend, depois frontend · **Depende de:** T-247 (revisão da segurança), T-257 · **Regras:** VEI-08, VEI-01, VEI-03 · **Contrato:** `docs/api/veiculos.md` (`POST /api/veiculos/leitura-crlv/`) · **Pronto quando:** o parser com pypdf no processo filho com os limites da ADR 0026, calibrado com CRLV-e reais; um semáforo de leituras simultâneas (pedido do devops na T-258); nada do conteúdo em log ou Sentry; CA-247-01 a 07; a tela de cadastro com "Preencher pelo CRLV-e". A CNH-e (`CLI-11`) fica para a fase 2 (decisão de 16 out).
+
+### T-266 · Produção recusa subir sem as variáveis do S3
+- **Agente:** backend · **Depende de:** — · **Pronto quando:** `prod.py` recusa subir com `S3_BUCKET` e as chaves do S3 ausentes ou vazias quando `GIRO_ARMAZENAMENTO=s3`, como a T-157 faz com o e-mail e os pagamentos; teste `test_t266_*`. Pedido do devops na T-258.
 
 ### T-028 · Limpar dados de exemplo das telas
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`. Inclui `Despesas-Desktop` e `Despesas-Mobile`: aguardando aprovação é R$ 1.200,00 (não R$ 1.386,40) e o IPVA de R$ 186,40 nasce `a_pagar` (FIN-05), apontado pelo qa na T-040.
