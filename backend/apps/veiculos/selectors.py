@@ -42,6 +42,8 @@ PERIODO_OCUPACAO_DIAS = 90
 # Dias que não contam como "na frota" para a ocupação (VEI-06).
 FORA_DA_OCUPACAO = frozenset({S.A_VENDA, S.VENDIDO, S.BAIXADO})
 GESTAO = frozenset({"administrador", "gerente"})
+# Rendimento e custo de manutenção do veículo (VEI-05, USR-09, T-156): a gestão e o financeiro.
+VEEM_CUSTO = GESTAO | {"financeiro"}
 LEEM_KM = frozenset({"administrador", "gerente", "vistoriador"})
 TOM = {
     S.DISPONIVEL: "sucesso",
@@ -366,7 +368,9 @@ def representacao(
         "acoes": acoes(veiculo, usuario),
     }
     if detalhe:
-        dados["indicadores_financeiros"] = blocos.get("indicadores_financeiros")
+        # Para vendedor e vistoriador a chave fica ausente, não nula (T-156).
+        if getattr(usuario, "perfil", "") in VEEM_CUSTO:
+            dados["indicadores_financeiros"] = blocos.get("indicadores_financeiros")
         dados["ocupacao"] = ocupacao(veiculo)
         dados["historico_status"] = historico_status(veiculo)
     return dados
