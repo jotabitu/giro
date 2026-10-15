@@ -12719,6 +12719,8 @@ components:
           type: boolean
         financeiro_pagar:
           type: boolean
+        lancamento_avulso:
+          type: boolean
         os_abrir:
           type: boolean
         administracao:
@@ -12733,6 +12735,7 @@ components:
       - despesas_exportar
       - despesas_lancar
       - financeiro_pagar
+      - lancamento_avulso
       - locacoes_cancelar
       - locacoes_criar
       - os_abrir

@@ -850,6 +850,33 @@ def test_fin_07_movimentos_e_estorno_auditam_com_filial(cenario, caixa_do_seed):
     assert not [e for e in outra if e["acao"].startswith("movimento_caixa.")]
 
 
+def test_fin_07_lancamento_avulso_por_perfil(cenario):  # noqa: F811
+    """T-162: `pode.lancamento_avulso` segue a linha de "Quem pode" de `financeiro.md`, a mesma
+    lista que a API aplica no `POST` de contas a receber (decisão do produto, 15 out 2026)."""
+    nomes = ("Mariana", "Rodrigo", "Bruna", "João", "Lúcia")
+    flags = {
+        nome: cenario.moto.api(nome).get("/api/auth/eu/").json()["pode"]["lancamento_avulso"]
+        for nome in nomes
+    }
+    assert flags == {
+        "Mariana": True,
+        "Rodrigo": True,
+        "Bruna": False,
+        "João": False,
+        "Lúcia": True,
+    }
+    corpo = {
+        "cliente_id": cenario.clientes["Juliana"].pk,
+        "tipo": "multa",
+        "descricao": "Multa de trânsito",
+        "vencimento": "2026-10-10",
+        "valor_centavos": 19500,
+    }
+    for nome in ("Bruna", "João"):
+        recusa = cenario.moto.api(nome).post(CONTAS, corpo, format="json")
+        assert recusa.status_code == 403, nome
+
+
 def test_fil_06_ca_017_18_caixa_aberto_impede_desativar_a_filial(cenario):  # noqa: F811
     caucaia = _caucaia(cenario.moto, "Bruna")
     _abrir(cenario, HTTP_X_FILIAL=str(caucaia.pk))

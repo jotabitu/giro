@@ -49,6 +49,9 @@ TABELA_DO_PODE: dict[str, dict[str, Any]] = {
     "despesas_aprovar": _so(ADM, GER),
     "despesas_exportar": _so(ADM, FIN),  # FIN-16, AUD-07 (T-177)
     "financeiro_pagar": _so(ADM, FIN),
+    # Lançamento avulso em contas a receber, cancelar, renegociar, estornar: linha da tabela de
+    # perfis (T-232) e de `financeiro.md` ("Quem pode"). A extra `cancelar_contrato` não dá.
+    "lancamento_avulso": _so(ADM, GER, FIN),
     "os_abrir": _so(ADM, GER, VIS),
     "administracao": _so(ADM),
 }
