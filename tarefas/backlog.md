@@ -200,7 +200,7 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 ### T-259 · Cartão do ramo em Configurações (contrato)
 - **Agente:** arquiteto · **Depende de:** T-253 (PR #249) · **Regras:** PLT-12 · **Telas:** Config, Admin-Ramo · **Pronto quando:** `docs/api/configuracoes.md` com o cartão `ramo` em `GET /api/configuracoes/` (título, resumo pela API, ordem, quem recebe) e a rota `/admin/ramo` na tabela de rotas dos cartões e em `docs/telas/README.md`; resolve a divergência (1) da T-253.
-- **Estado (15 out 2026):** contrato escrito, PR a abrir (branch `t-259-cartao-ramo`); handoff `tarefas/handoffs/T-259-arquiteto.md`. O backend do cartão ainda não tem número; proposta: entra na T-196 (módulos por plano e ramo, ainda aberta) ou numa tarefa pequena, junto do frontend da `Admin-Ramo`.
+- **Estado (15 out 2026):** contrato escrito, PR #252 (branch `t-259-cartao-ramo`); handoff `tarefas/handoffs/T-259-arquiteto.md`. O backend do cartão ainda não tem número; proposta: entra na T-196 (módulos por plano e ramo, ainda aberta) ou numa tarefa pequena, junto do frontend da `Admin-Ramo`.
 
 Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entrou no PR #160 (ver `feito.md`).
 

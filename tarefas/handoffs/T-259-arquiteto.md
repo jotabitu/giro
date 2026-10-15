@@ -14,7 +14,7 @@
 - `tarefas/backlog.md`:
   - seção da T-259;
   - seção da T-257 (catálogo de marcas e modelos): o que o contrato do PR #250 já diz, mais o desenho (CSV versionado, comando de atualização, `achar_modelo`) e o Pronto quando para o backend.
-- `tarefas/feito.md` (PR a abrir).
+- `tarefas/feito.md` (PR #252).
 
 **Regras cobertas:** PLT-12; VEI-08 (na T-257).
 
@@ -27,4 +27,4 @@
 **Próximo passo para quem recebe:**
 - **Backend:** o cartão em `relatorios/configuracoes.py` (texto puro, testado com os casos da tabela) e no seletor. O limite de 10 consultas continua.
 - **Frontend:** `ramo` → `/admin/ramo`; o resumo como vem.
-- **Orquestrador:** numerar o backend do cartão e abrir o PR.
+- **Orquestrador:** numerar o backend do cartão; PR #252 aberto, sem merge.
