@@ -1,6 +1,6 @@
 # Aprovações
 
-**Dono:** arquiteto · **Versão:** 15 out 2026 (T-236, descrição no pedido de despesa; T-201, números da `APR-12`, `resumo` e "Meus pedidos"); 07 out 2026 (T-043, mínimo para a fase 1), emendas de 09 out 2026 (T-088) · **App:** `aprovacoes` (schema da empresa) · **Regras:** APR-01 a APR-12, CLI-05, LOC-03, LOC-12, DEV-07, FIN-05, FIN-07, MAN-02, USR-07 · **ADR:** 0011 (origem genérica, evento `aprovacoes.pedido_decidido`), 0019 (porta `comum.aprovacoes`) · **Telas:** Aprovacoes (desktop e celular), Gerente (fase 2), e os avisos do sino · **Critérios:** `docs/qa/criterios/aprovacoes.md` (CA-APR-01 a 11)
+**Dono:** arquiteto · **Versão:** 15 out 2026 (T-249, administrador decide o próprio pedido; T-236, descrição no pedido de despesa; T-201, números da `APR-12`, `resumo` e "Meus pedidos"); 07 out 2026 (T-043, mínimo para a fase 1), emendas de 09 out 2026 (T-088) · **App:** `aprovacoes` (schema da empresa) · **Regras:** APR-01 a APR-12, CLI-05, LOC-03, LOC-12, DEV-07, FIN-05, FIN-07, MAN-02, USR-07 · **ADR:** 0011 (origem genérica, evento `aprovacoes.pedido_decidido`), 0019 (porta `comum.aprovacoes`) · **Telas:** Aprovacoes (desktop e celular), Gerente (fase 2), e os avisos do sino · **Critérios:** `docs/qa/criterios/aprovacoes.md` (CA-APR-01 a 11), `docs/qa/criterios/T-248.md` (CA-248-08 a 11)
 
 Convenções gerais em `docs/api/README.md`. Modelo: `PedidoAprovacao` em `docs/decisoes/modelo-de-dados.md`.
 
@@ -19,7 +19,7 @@ Os pedidos **nascem** nos outros módulos (desconto e cancelamento em `locacoes.
 | `APR-05` | desbloqueio manual de cliente (pedido do vendedor) | gerente, administrador |
 | `APR-06` | correção de km para baixo | gerente, administrador |
 
-- Quem pediu nunca decide o próprio pedido (`APR-09`): 403 `{ "codigo": "APR-09", "mensagem": "Outra pessoa precisa decidir este pedido" }`.
+- Quem pediu não decide o próprio pedido (`APR-09`): 403 `{ "codigo": "APR-09", "mensagem": "Outra pessoa precisa decidir este pedido" }`, **salvo o administrador** (decisão do dono de 15 out 2026, T-248; seção "Administrador decide o próprio pedido", abaixo). Gerente, vendedor, vistoriador e financeiro continuam recebendo o 403, também com a permissão extra (`USR-03`, CA-248-10 e 11). A exceção olha o perfil de quem decide na hora da decisão, não o de quando pediu.
 - Gerente decide pedidos das suas filiais; administrador, de todas.
 
 ## Representação
@@ -43,12 +43,15 @@ Os pedidos **nascem** nos outros módulos (desconto e cancelamento em `locacoes.
     "nota": "Acima de R$ 500 precisa de aprovação. Aprovada, vai para o financeiro pagar."
   },
   "pode_decidir": true,
-  "pode_cancelar": false
+  "pode_cancelar": false,
+  "proprio_pedido": false
 }
 ```
 `titulo` e `detalhe` são textos prontos da API; o vistoriador nunca vê pedidos com valor.
 - `resumo` (T-201): as células do cartão do pedido, na ordem da tela, e uma nota opcional. Textos prontos, com dinheiro, datas e km já formatados: a tela só desenha (CA-APR-10). Montado pela origem no momento do pedido e guardado (`PedidoAprovacao.resumo`): mostra o que valia quando o pedido foi feito, como o `titulo`. Pedido de antes da T-201 vem com `resumo: null`, e a tela mostra só `titulo` e `detalhe`. Células por tipo em "Resumo por tipo".
 - `pode_cancelar`: `true` só para quem fez o pedido, com ele `pendente` ("Meus pedidos").
+- `pode_decidir` (é o "acoes.aprovar" do backlog da T-249: um campo só para aprovar e recusar, porque quem aprova também recusa): `true` com o pedido `pendente`, do tipo e da filial que a pessoa decide, e feito por outra pessoa ou pelo próprio administrador. A tela mostra Aprovar e Recusar só por ele, sem regra de perfil (T-251).
+- `proprio_pedido` (T-249): no pedido decidido, `true` quando quem decidiu foi quem pediu (só o administrador chega a isso). A tela pode marcar "Aprovou o próprio pedido" no detalhe; no `pendente`, `false`.
 
 ## GET /api/aprovacoes/
 Query: `?status=pendente|aprovado|recusado|cancelado` (padrão `pendente`), `?tipo=`, `?minhas=true` (pedidos que eu fiz).
@@ -68,7 +71,7 @@ Query: `?status=pendente|aprovado|recusado|cancelado` (padrão `pendente`), `?ti
 ```
 A contagem `pendente` continua alimentando o sino do gerente. `indicadores` e `contagens` não dependem do `?status=`, do `?tipo=` nem do `?minhas=` (são da tela inteira); a lista, sim. O `mais_antigo_em` do exemplo é ilustrativo: vale a hora em que o seed grava o pedido mais antigo.
 
-**Escopo (`APR-12`, `USR-07`).** Tudo conta os pedidos que a pessoa decide (tabela "Quem decide": os tipos dela), na filial do `X-Filial` (com `todas`, a soma das filiais do escopo, CA-APR-08), sem os pedidos que ela mesma fez (`APR-09`, CA-APR-05). Pedido `cancelado` não entra em número nenhum (CA-APR-04). Quem não decide nenhum tipo (vendedor sem extra, vistoriador, financeiro) recebe tudo zerado e lista vazia, 200; "Meus pedidos" continua funcionando para essa pessoa.
+**Escopo (`APR-12`, `USR-07`).** Tudo conta os pedidos que a pessoa decide (tabela "Quem decide": os tipos dela), na filial do `X-Filial` (com `todas`, a soma das filiais do escopo, CA-APR-08), sem os pedidos que ela mesma fez (`APR-09`, CA-APR-05), **salvo para o administrador**, cujos pedidos entram nos números dele, porque ele pode decidi-los (`APR-12`, CA-248-08). Pedido `cancelado` não entra em número nenhum (CA-APR-04). Quem não decide nenhum tipo (vendedor sem extra, vistoriador, financeiro) recebe tudo zerado e lista vazia, 200; "Meus pedidos" continua funcionando para essa pessoa.
 
 **Mês (`APR-12`).** O mês corrente em `America/Sao_Paulo`, pelo dia da decisão (`decidido_em`): pedido feito em 30 set e aprovado em 01 out conta em outubro (CA-APR-06). Na virada do mês, Aprovadas e Recusadas voltam a zero; Esperando você não depende do mês.
 
@@ -84,7 +87,7 @@ A contagem `pendente` continua alimentando o sino do gerente. `indicadores` e `c
 **Lista por aba:**
 - `?status=pendente` (padrão, aba Pendentes): os mesmos de "Esperando você", do mais antigo para o mais novo (quem espera há mais tempo primeiro).
 - `?status=aprovado` e `?status=recusado` (abas Aprovadas e Recusadas): os decididos **no mês corrente**, do mais recente para o mais antigo (`decidido_em`). Mudou na T-201: antes vinham de qualquer mês. `?status=cancelado` sem `?minhas` continua respondendo (do mês), mas nenhuma aba usa.
-- `?minhas=true` (aba Meus pedidos): os pedidos que a pessoa fez, de qualquer mês e em qualquer status, os `pendente` primeiro (do mais antigo), depois os outros pela data da decisão ou do cancelamento, do mais recente; `?status=` filtra, se vier. Vem com `pode_decidir: false` e `pode_cancelar` (`true` no `pendente`); o cancelado aparece aqui como cancelado (CA-APR-04). Escopo de filial: o do `X-Filial`, como o resto.
+- `?minhas=true` (aba Meus pedidos): os pedidos que a pessoa fez, de qualquer mês e em qualquer status, os `pendente` primeiro (do mais antigo), depois os outros pela data da decisão ou do cancelamento, do mais recente; `?status=` filtra, se vier. Vem com `pode_cancelar` (`true` no `pendente`) e `pode_decidir` (`true` só no `pendente` do administrador; `false` para os outros perfis); o cancelado aparece aqui como cancelado (CA-APR-04). Escopo de filial: o do `X-Filial`, como o resto.
 - Paginação por cursor (25), como hoje. `?tipo=` filtra qualquer aba ("Todos os tipos" na tela).
 
 ## POST /api/aprovacoes/{id}/aprovar/
@@ -94,9 +97,19 @@ Corpo: `{ motivo? }`. 200: pedido `aprovado`. O `motivo` da aprovação vai para
 Corpo: `{ motivo }` (obrigatório, `APR-07`). 200: `recusado`. A origem volta ao estado anterior (despesa → `recusada`; caixa → `aberto`; desconto → 0) e quem pediu é avisado com o motivo.
 
 ## POST /api/aprovacoes/{id}/cancelar/
-Quem pediu desiste. 200: `cancelado`; a origem volta ao estado anterior. Outra pessoa: 403 `{ "codigo": "so_quem_pediu", "mensagem": "Só quem fez o pedido pode cancelar" }`. No pedido cancelado, `decidido_por` fica `null` (o `CHECK APR-09` não deixa ser quem pediu).
+Quem pediu desiste. 200: `cancelado`; a origem volta ao estado anterior. Outra pessoa: 403 `{ "codigo": "so_quem_pediu", "mensagem": "Só quem fez o pedido pode cancelar" }`. No pedido cancelado, `decidido_por` fica `null` (o `CHECK APR-09` só deixa ser quem pediu com a marca da decisão do administrador, abaixo).
 
 Erros comuns: 409 `transicao_pedido` em pedido já decidido; 403 `APR-09`; 404 fora do escopo de filial. Todo pedido, aprovação e recusa entra na auditoria (`APR-10`).
+
+### Administrador decide o próprio pedido (`APR-09`, T-249; CA-248-08 a 11)
+
+- **Pedido nasce igual.** O pedido do administrador nasce `pendente`, como o de todo mundo (a origem chama `comum.aprovacoes.pedir` do mesmo jeito; a despesa do administrador acima de R$ 500 nasce `aguardando_aprovacao`, `FIN-05`). Nada pula a aprovação.
+- **Quem pode decidir.** Ele mesmo ou outra pessoa que decide aquele tipo na filial; quem decide primeiro fecha o pedido, e o segundo recebe 409 `transicao_pedido` (CA-248-09). O pedido continua em "Meus pedidos" dele, com `pode_cancelar`.
+- **No serviço** (`aprovacoes.services._decidir`): se `solicitante == decisor` e o perfil do decisor não é `administrador`, 403 `APR-09`, como hoje. Se é administrador, grava `decidido_pelo_solicitante = true` junto com `aprovador`, na mesma transação. A conferência do perfil fica no serviço, não na view.
+- **No banco.** O `CHECK` `pedido_quem_pede_nao_aprova` passa a aceitar a exceção marcada: `aprovador IS NULL OR aprovador <> solicitante OR decidido_pelo_solicitante`, e um segundo `CHECK` impede a marca sem motivo: `NOT decidido_pelo_solicitante OR aprovador = solicitante`. O banco não conhece o perfil; o que ele garante é que todo pedido decidido por quem pediu está marcado, para a auditoria e os números. Campo novo `PedidoAprovacao.decidido_pelo_solicitante` (bool, padrão `false`; `modelo-de-dados.md`), que a API devolve como `proprio_pedido`.
+- **Evento (`APR-10`).** `pedido_aprovacao.aprovar` e `pedido_aprovacao.recusar` levam `decidido_pelo_solicitante: true` no `depois`, e o texto pronto da auditoria (`auditoria/textos.py`) vira "Aprovou o próprio pedido" ou "Recusou o próprio pedido" quando a marca vem, no lugar do "Aprovou" e "Recusou" de sempre. O evento `aprovacoes.pedido_decidido` ganha o campo `proprio_pedido` (bool), para a origem não precisar comparar ids. Recusar o próprio pedido exige motivo, como sempre (`APR-07`).
+- **Números (`APR-12`).** Para o administrador, os pedidos dele entram em Esperando você, Aprovadas, Recusadas, no tempo médio e nos Descontos aprovados, e na aba Pendentes. CA-248-08: Mariana lança em 08 out 10:00 e aprova às 10:30 → Esperando você 2 → 3 → 2; Aprovadas 3, tempo médio (40 + 140 + 30) ÷ 3 = 70 min, "1 h 10 min", para ela e para o Rodrigo. Para os outros perfis, nada muda: os próprios pedidos ficam fora (CA-248-10). O seletor `aprovacoes.selectors.que_decide` troca o `solicitante <> usuário` por `solicitante <> usuário OR perfil = administrador`.
+- Testes com o código: `test_apr_09_administrador_aprova_o_proprio_pedido` (CA-248-08), `test_apr_09_administrador_recusa_o_proprio_pedido` (CA-248-09), `test_apr_09_gerente_nao_aprova_o_proprio_pedido` (CA-248-10), `test_apr_09_permissao_extra_nao_abre_a_excecao` (CA-248-11) e `test_apr_09_check_exige_a_marca` (o `CHECK` recusa `aprovador = solicitante` sem a marca).
 
 ## Resumo por tipo (T-201)
 
@@ -126,7 +139,7 @@ As células do cartão de cada pedido, na ordem da tela. A origem monta o `resum
 | `comum.aprovacoes.pedir(tipo, origem_tipo, origem_id, origem_codigo, filial_id, solicitante, titulo, detalhe, motivo?, valor_centavos?, pct?, dados?, resumo?) -> PedidoRef` | `resumo` (T-201): `comum.aprovacoes.Resumo(celulas: list[tuple[str, str]], nota: str \| None)`, guardado como `{ "celulas": [{ "rotulo", "valor" }], "nota" }`; opcional na assinatura para não quebrar quem chama, mas toda origem passa a mandar (seção "Resumo por tipo"). Abre o pedido na transação de quem chama, com auditoria (`APR-10`) e aviso ao gerente depois do commit. Levanta `PedidoPendente` (409 `pedido_pendente`) se já houver um `pendente` igual. Implementada por `aprovacoes.services.pedir`, registrada no `ready()`. |
 | `comum.aprovacoes.pendente(tipo, origem_tipo, origem_id) -> PedidoRef \| None` | Para a representação da origem mostrar o pedido em aberto. |
 | `comum.aprovacoes.cancelar_pendentes(origem_tipo, origem_id, motivo) -> int` | A origem deixou de existir ou mudou de forma que o pedido não faz mais sentido (ex.: locação cancelada com desconto pendente). Pedidos ficam `cancelado` e publicam `pedido_decidido`. |
-| evento `aprovacoes.pedido_decidido` | `pedido_id`, `tipo`, `status` (`aprovado`, `recusado`, `cancelado`), `origem_tipo`, `origem_id`, `dados`, `decidido_por_id`, `motivo`, `motivo_pedido`. `decidido_por_id` é quem pediu no `cancelar` e `null` em `cancelar_pendentes`. `motivo_pedido` é o motivo de quem pediu (no `APR-06`, vira o motivo da leitura de correção). Cada app de origem assina em `<app>/eventos.py` e aplica o efeito pelo próprio serviço, na mesma transação. |
+| evento `aprovacoes.pedido_decidido` | `pedido_id`, `tipo`, `status` (`aprovado`, `recusado`, `cancelado`), `origem_tipo`, `origem_id`, `dados`, `decidido_por_id`, `motivo`, `motivo_pedido`, `proprio_pedido` (T-249; `true` quando o administrador decidiu o próprio pedido). `decidido_por_id` é quem pediu no `cancelar` e `null` em `cancelar_pendentes`. `motivo_pedido` é o motivo de quem pediu (no `APR-06`, vira o motivo da leitura de correção). Cada app de origem assina em `<app>/eventos.py` e aplica o efeito pelo próprio serviço, na mesma transação. |
 
 `dados` por tipo (chaves fixas, sem dado pessoal):
 
@@ -147,3 +160,9 @@ As células do cartão de cada pedido, na ordem da tela. A origem monta o `resum
   - Seed: os dois pedidos aprovados do caso "Números da tela Aprovações em 07 out" com as horas (aluguel do ponto 05 out 08:30 → 09:10; rastreadores 02 out 10:00 → 12:20, aprovados por Rodrigo) e os pendentes, todos com `resumo`, criados pelos serviços (com o relógio do seed), não por `create()` direto.
 - **T-203 (frontend):** os quatro indicadores e os números das abas pelo que vier em `indicadores` e `contagens`; as células e a nota do `resumo` (sem conta na tela); "Meus pedidos" com "Cancelar pedido" quando `pode_cancelar`; sem a frase das 4 horas; "Ver proposta" some até a venda ter tela; "Ver locação" e "Ver despesa" pela `origem`. CA-APR-01 a 10.
 - **T-204 (qa):** CA-APR-10 com "O limite de Bruna é 5%." (sem artigo: a API não sabe o gênero de ninguém); seed com as horas dos pedidos.
+
+## O que muda para as tarefas (T-249)
+
+- **T-250 (backend):** campo `PedidoAprovacao.decidido_pelo_solicitante` e os dois `CHECK` novos no lugar do `pedido_quem_pede_nao_aprova` (migração com `RemoveConstraint` e `AddConstraint`; os pedidos que existem passam, porque nenhum tem `aprovador = solicitante`); a exceção do administrador em `_decidir`; `proprio_pedido` na representação e no `pedido_decidido`; `que_decide` com os pedidos do administrador; `pode_decidir` no "Meus pedidos" do administrador; o texto da auditoria. Testes `test_apr_09_*` acima, com o CA-248-08 a 11.
+- **T-251 (frontend):** Aprovar e Recusar só por `pode_decidir`, também em "Meus pedidos" e no detalhe da despesa (`Despesas`); sem regra de perfil na tela.
+- **Qa:** CA-248-08 a 11.

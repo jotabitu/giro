@@ -62,7 +62,7 @@ Contrato da API: `docs/api/veiculos.md` (escrito pelo arquiteto antes da impleme
 - Para mudar o status: `services.transicionar(veiculo, "alugado", origem=services.OrigemDaMudanca("locacao", id, "LOC-2856"))`. Transição fora da tabela: 409 `transicao_veiculo`, com `detalhes = {de, para}`.
 - Vistoria e OS gravam o km por `services.atualizar_km(veiculo, km, origem=...)`. Km menor responde 422 `VEI-01`.
 - Para o preço numa data, use `selectors.preco_vigente(categoria, data)`. A locação copia o preço na assinatura (`LOC-15`).
-- Blocos da representação (ADR 0015), no alvo `"veiculos.Veiculo"`: `locacao_atual`, `manutencao` e `indicadores_financeiros`. O `documentos_resumo` vem do próprio app (T-079). Cada bloco pode ter `alerta: {codigo?, rotulo, tom}`, e o de maior gravidade vira a `situacao`.
+- Blocos da representação (ADR 0015), no alvo `"veiculos.Veiculo"`: `locacao_atual`, `manutencao` e `indicadores_financeiros`. O `documentos_resumo` vem do próprio app (T-079). Cada bloco pode ter `alerta: {codigo?, rotulo, tom}`, e o de maior gravidade vira a `situacao`. O `indicadores_financeiros` só sai na ficha para administrador, gerente e financeiro (`VEEM_CUSTO`); para os demais a chave fica ausente (`USR-09`, T-156).
 - `locacoes` registra o contador `("veiculos.Categoria", "locacoes_em_andamento")`, que a resposta de preço novo mostra em `locacoes_em_andamento_mantidas`.
 
 ## Fornecido a outros apps

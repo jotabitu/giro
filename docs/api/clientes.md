@@ -1,10 +1,10 @@
 # Clientes
 
-**Dono:** arquiteto · **Versão:** 15 out 2026 (T-247, leitura da CNH-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `clientes` (schema da empresa) · **Regras:** CLI-01 a CLI-08, AUD-04, AUD-05, AUD-06, APR-05, LOC-07 · **ADRs:** 0014 (documento cifrado), 0015 (blocos de outros apps), 0026 (leitura da CNH-e) · **Telas:** Clientes, Cliente
+**Dono:** arquiteto · **Versão:** 15 out 2026 (T-247, leitura da CNH-e; T-249, filtro de filial na lista); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `clientes` (schema da empresa) · **Regras:** CLI-01 a CLI-08, CLI-10, CLI-11, USR-07, AUD-04, AUD-05, AUD-06, APR-05, LOC-07 · **ADRs:** 0014 (documento cifrado), 0015 (blocos de outros apps), 0026 (leitura da CNH-e) · **Telas:** Clientes, Cliente · **Critérios:** `docs/qa/criterios/T-248.md` (CA-248-01 a 07), CA-247-08 a 12
 
 Convenções gerais em `docs/api/README.md`. Modelo: item 11 e `DocumentoCliente` em `docs/decisoes/modelo-de-dados.md`.
 
-O cliente é da empresa, compartilhado entre filiais: a lista não é filtrada pelo `X-Filial`.
+O cliente é da empresa, compartilhado entre filiais: a lista não é filtrada pelo `X-Filial` (`USR-07`, `CLI-10`). Ela tem um filtro de filial próprio, o `?filial=` (abaixo), que começa vazio ("Todas as filiais").
 
 ## Quem pode
 
@@ -110,7 +110,7 @@ Enquanto o fornecedor não existe, o bloco vem `null` (em T-014, todos).
 
 ## GET /api/clientes/
 Perfis: todos menos o vistoriador (403, `USR-09`).
-Query: `?situacao=com_locacao|em_aberto|bloqueados|incompletos|inativos` (`CLI-06`). Sem `situacao`, a lista padrão não traz clientes `inativo`; eles só aparecem com `?situacao=inativos`. Também: `?tipo=pf|pj`, `?busca=`, `?ordem=-criado_em|nome|-total_pago`.
+Query: `?situacao=com_locacao|em_aberto|bloqueados|incompletos|inativos` (`CLI-06`). Sem `situacao`, a lista padrão não traz clientes `inativo`; eles só aparecem com `?situacao=inativos`. Também: `?tipo=pf|pj`, `?busca=`, `?ordem=-criado_em|nome|-total_pago`, `?filial=<id>` (`CLI-10`, T-249).
 - `busca` com só dígitos (11 ou 14) procura CPF/CNPJ exato pelo hash (ADR 0014); com texto, procura no nome (`icontains`, com índice em `Lower(nome)`) e no celular. Trigram (`pg_trgm`) só quando o volume pedir, com ADR de infraestrutura.
 200:
 ```json
@@ -124,6 +124,15 @@ Query: `?situacao=com_locacao|em_aberto|bloqueados|incompletos|inativos` (`CLI-0
 - Filtros `com_locacao` e `em_aberto` são registrados por `locacoes` e `financeiro` (ADR 0015); até eles existirem, as contagens vêm `null`.
 - Caso do seed (`FIN-01`): em aberto = Carlos R$ 299,40 + Rafael R$ 1.347,00 = `em_aberto_total_centavos: 164640`, `em_aberto: 2`.
 - Exportar: `POST /api/clientes/exportar/`, só administrador, 202 (`AUD-07`).
+
+**Filtro de filial (`CLI-10`, decisão do dono de 15 out 2026, T-248; CA-248-01 a 07).**
+- **Sem `?filial`** ("Todas as filiais", o padrão para todo perfil): todos os clientes da empresa, como antes. O `X-Filial` do seletor do topo é ignorado nesta rota, e a tela não o usa para preencher o filtro (CA-248-06).
+- **Com `?filial=<id>`:** só os clientes com pelo menos uma locação nessa filial, em qualquer estado (inclusive `aguardando_retirada` e `cancelada`, CA-248-02). Cliente sem locação só aparece sem o filtro. Cliente com locação em duas filiais aparece nas duas, uma vez em cada (CA-248-03).
+- **Quem pode escolher:** só filial ativa do escopo da pessoa, `filiais.selectors.filiais_do_usuario(usuario)` (`USR-07`; administrador e financeiro, todas as ativas, sem estar ligados a elas). Filial de fora do escopo, desativada (`FIL-06`) ou que não existe: 403 `{ "codigo": "USR-07", "mensagem": "Você não tem acesso a esta filial" }`, a mesma resposta nos três casos (não revela se a filial existe). Valor que não é número: 400 `validacao`. As opções do filtro na tela são as de `GET /api/filiais/minhas/` (`filiais.md`), mais "Todas as filiais"; não há rota nova (CA-248-07).
+- **O que vale dentro da filial:** `situacao`, `tipo`, `busca` e `ordem` combinam com ela (CA-248-05); as `contagens` das abas e os `indicadores` contam só os clientes que passam no filtro de filial. Os números de cada cliente (blocos `financeiro`, `locacao_atual`, `ultima_locacao`) e as somas dos `indicadores` que vêm deles (`em_aberto_total_centavos`) continuam os do cliente na empresa inteira: o filtro escolhe **quem** aparece, não recorta os números (CA-248-04; Carlos na Caucaia mostra R$ 299,40 e a LOC-2841, da Centro).
+- **Como, sem `clientes` ler o model de `locacoes`** (ADR 0015, item 5): `locacoes` registra o filtro `filial` em `clientes` por `registrar_filtro("clientes", "filial", func)`, e a `func(queryset, filial_id)` devolve `queryset.filter(Exists(Locacao.objects.filter(cliente=OuterRef("pk"), filial_id=filial_id)))`. A conferência do escopo (`USR-07`) é de `clientes`, antes de chamar o filtro, por `comum.permissoes`. Sem o fornecedor registrado (módulo de locações desligado), `?filial` com filial válida devolve a lista vazia e as contagens zeradas. O índice de `Locacao` em `cliente` vira `(cliente, filial)` (`modelo-de-dados.md`).
+- O vistoriador continua sem a lista (403 `permissao`); o token de suporte usa o filtro com o mesmo escopo de filial que já tem nas outras listas (`PLT-07`).
+- Testes com o código: `test_cli_10_lista_filtra_por_filial` (CA-248-01 a 05; é o `test_cli_lista_filtra_por_filial` do backlog, com o código da regra no nome), `test_cli_10_lista_ignora_o_seletor` (CA-248-06) e `test_cli_10_filial_sem_acesso` (CA-248-07).
 
 ## GET /api/clientes/{id}/
 Perfis: todos menos o vistoriador (403, `USR-09`). Completa para quem pode cadastrar; a ficha do financeiro para o financeiro; resumida para o suporte (`AUD-09`).
@@ -214,14 +223,15 @@ Decidido pelo produto em 07 out 2026 (T-037).
 | contadores pedidos aos outros apps (ADR 0015) | `contas_atrasadas_15_dias` e `em_aberto_centavos` (`financeiro`), `locacao_aberta` (`locacoes`), `venda_aberta` (`vendas`): o `cliente_com_pendencia` do inativar. Sem o fornecedor, contam 0. |
 | `CAMPOS_AUDITORIA` | cifrados omitidos; nome (PF), nascimento, contatos, endereço e referência mascarados (ADR 0014). |
 
+## O que muda para as tarefas (T-249)
+
+- **T-250 (backend):** `?filial=` em `GET /api/clientes/`, com o escopo conferido em `clientes` e o filtro registrado por `locacoes` (ADR 0015); contagens e indicadores dentro do filtro; índice `(cliente, filial)` em `Locacao`. Testes `test_cli_10_*` acima.
+- **T-251 (frontend):** filtro de filial na lista, com as opções de `GET /api/filiais/minhas/` e "Todas as filiais" como padrão, sem ler o seletor do topo; a 403 `USR-07` mostra a mensagem da API. CA-248-01 a 07.
 ## Preencher pela CNH-e (`CLI-11`, ADR 0026, T-247)
-
 Na fase que o dono decidir ("Pontos em aberto" das regras; padrão: fase 2). Decisão técnica na ADR 0026, a mesma do CRLV-e (`veiculos.md`). A leitura não grava nada. Critérios CA-247-08 a 12.
-
 ### POST /api/clientes/leitura-cnh/
 Perfis: administrador, gerente e vendedor (quem cadastra cliente, `pode.clientes_cadastrar`); vistoriador e financeiro, 403 `permissao` (CA-247-12). **Token de suporte: 403 `PLT-07`**, porque a resposta traz o CPF completo, que o suporte nunca vê (`AUD-09`). É o padrão até a revisão da segurança.
 `multipart/form-data`: `arquivo` (o PDF da CNH-e, até **2 MB**). Serve ao cliente novo e ao cadastro já aberto; no cadastro aberto, a tela manda `cliente_id` (opcional) só para o aviso abaixo.
-
 200, com `Cache-Control: no-store`:
 ```json
 { "documento": "cnh",
@@ -237,11 +247,9 @@ Perfis: administrador, gerente e vendedor (quem cadastra cliente, `pode.clientes
 - `campos` traz só os 7 da `CLI-11`. Filiação, RG e órgão emissor, naturalidade, códigos de observação, foto e assinatura não são extraídos nem saem do processo filho (ADR 0026, item 4; CA-247-11). Os nomes dos campos são os do `POST /api/clientes/` (`documento` = `cpf`; `cnh.numero`, `cnh.categoria`, `cnh.validade`, `cnh.primeira_habilitacao`), e a tela faz o mapa.
 - `cliente_existente`: o CPF lido procurado pelo hash (`CLI-01`, ADR 0014). Vem `null` quando não há cliente com ele ou quando é o próprio `cliente_id` enviado. Quando vem, a tela avisa e oferece abrir o cadastro dele (CA-247-09); salvar como cliente novo continua recusado com o 409 `CLI-01` de sempre. Ele traz só `id` e `nome`, como o 409.
 - 422 `{ "codigo": "CLI-11", "mensagem": "Não conseguimos ler este documento. Preencha os campos à mão." }` e 400 `{ "codigo": "validacao", "campos": { "arquivo": "Envie o PDF da CNH-e." } }`, pelos mesmos motivos da leitura do CRLV-e. 429 `muitas_requisicoes` no mesmo limite, somado ao do CRLV-e (30 por hora por usuário, 200 por empresa).
-
 ### Salvar com a CNH-e lida
 `POST /api/clientes/` ou `PATCH /api/clientes/{id}/` em `multipart/form-data`, com os campos de sempre e mais `cnh_arquivo` (o mesmo PDF) e `leitura?`. Numa transação só, salva o cliente (com as validações de sempre: `CLI-01`, `CLI-02`) e grava o `DocumentoCliente` do tipo **`cnh_digital`**, no armazenamento privado (`AUD-05`, link de 15 minutos na leitura do documento). O nome do arquivo é gerado pelo backend.
 - O evento `cliente.criar` ou `cliente.editar` leva `preenchido_pelo_documento: { "tipo": "cnh", "campos": [...], "corrigidos": [...] }`, só com os nomes dos campos (o CPF e a CNH já são omitidos, ADR 0014; CA-247-11).
 - **Cadastro completo (`CLI-03`):** com o padrão A do ponto em aberto, o `cnh_digital` ativo vale pela `cnh_frente` e pela `cnh_verso`; a selfie e o comprovante de residência continuam obrigatórios (CA-247-08 e 10). Com a opção B, o `cnh_digital` é só mais um anexo. A regra de `pendencias` muda conforme a resposta do dono.
-
 ### O que muda para as tarefas (T-247, fase da CNH-e)
 - **Backend (sem número):** o parser da CNH-e no mesmo `integracoes/leitura_documentos/`; a rota; o multipart do `POST` e do `PATCH`; o tipo `cnh_digital` e as `pendencias` do `CLI-03`. Testes `test_cli_11_le_os_7_campos` (CA-247-08), `test_cli_11_cpf_ja_cadastrado` (CA-247-09), `test_cli_11_cliente_novo` (CA-247-10), `test_cli_11_nao_le_filiacao_nem_rg` (CA-247-11) e `test_cli_11_quem_pode` (CA-247-12, com o suporte).

@@ -82,6 +82,11 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 | --- | --- | --- | --- | --- |
 | Frota | [desktop](html/Frota-Desktop.dc.html) · [celular](html/Frota-Mobile.dc.html) | `(empresa)/veiculos` | `veiculos` | VEI |
 | Cadastrar veículo | [desktop](html/Veiculo-Novo-Desktop.dc.html) · [celular](html/Veiculo-Novo-Mobile.dc.html) | `(empresa)/veiculos/novo` | `veiculos` | VEI |
+| Movimentações | [desktop](html/Movimentacoes-Desktop.dc.html) · [celular](html/Movimentacoes-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes` (proposta, T-246) | `veiculos` (proposta, T-246) | VEI-04 e regras novas da T-246 |
+| Nova movimentação | [desktop](html/Movimentacao-Nova-Desktop.dc.html) · [celular](html/Movimentacao-Nova-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/nova` (proposta, T-246) | `veiculos` (proposta, T-246) | VEI-04 e regras novas da T-246 |
+| Registrar chegada | [celular](html/Movimentacao-Chegada-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/[id]/chegada` (proposta, T-246) | `veiculos` (proposta, T-246) | VEI-02, VEI-04 e regras novas da T-246 |
+
+As telas de movimentação (T-238) ainda não têm regra: o produto escreve as regras na T-246 (código do registro, estados, status do veículo fora da filial, relação com a transferência da `VEI-04` e com a OS). Rota e app acima são propostas, e o código das telas (`MOV-0043`) diverge do `MT-` pedido na T-246. A tela vale como referência visual até lá.
 
 ## Nova locação
 
