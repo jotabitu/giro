@@ -180,3 +180,20 @@ Dado uma empresa no Profissional que só vende, sem nada aberto e dentro dos lim
 
 **CA-ASS-53 · Comissão de locação só depois do upgrade**
 Dado uma empresa no Essencial `em_teste` que aluga e vende, quando a Bruna confirma uma locação em 10 out, então nenhuma comissão é lançada, nem quando a locação fica `ativa` em 16 out. Quando a empresa sobe para o Profissional em 15 out (no teste, vale na hora) e a Bruna confirma outra locação em 16 out, então nasce a comissão de R$ 16,00 `pendente` só para essa (`FIN-09`), `confirmada` quando ela fica `ativa`. A locação de 10 out continua sem comissão. `test_plt_12_comissao_so_depois_do_upgrade`.
+
+## Casos de cancelar e pausar que a regra não cobria (T-229)
+
+**CA-ASS-54 · Cancelar em teste com a 1ª fatura paga**
+Dado a Moto Rápida `em_teste` com a FAT-0001 (22 out a 21 nov) paga em 12 out, quando a Mariana cancela em 15 out, então nada é estornado, a empresa continua `em_teste` até 21 out e com acesso até 21 nov, nenhuma fatura sai em 22 nov, e a empresa vira `cancelada` em 22 nov, com apagamento em 20 fev 2027. Quando ela desfaz em 10 nov, então a empresa segue como se não tivesse cancelado, e a fatura de 22 nov é gerada em 17 nov. `test_plt_06_cancelar_no_teste_com_a_1a_paga`.
+
+**CA-ASS-55 · Desistir da pausa antes de começar**
+Dado a Moto Rápida `ativa`, FAT-0001 paga, que pediu em 19 nov a pausa de 2 meses (FAT-0002 de 22 nov `cancelada`, CA-ASS-42), quando a Mariana desiste em 20 nov pela `Admin-Assinatura`, então nasce a FAT-0003 `aberta`, R$ 449,00, vencendo em 22 nov, "Plano Profissional · 22 nov a 21 dez", a FAT-0002 continua `cancelada`, a empresa segue `ativa` depois de 21 nov, e a desistência fica na auditoria. Em 22 nov, já `pausada`, a opção é "Voltar da pausa" (CA-ASS-36). O Rodrigo e o suporte Giro não desistem (403). `test_plt_06_desistir_da_pausa_agendada`.
+
+**CA-ASS-56 · Mudar de plano com o cancelamento marcado**
+Dado a Moto Rápida `ativa` cancelada em 05 nov (acesso até 21 nov), quando a Mariana tenta o Completo ou o Essencial, então é recusado com "Desfaça o cancelamento antes de mudar de plano.", e pausar é recusado com "Desfaça o cancelamento antes de pausar." Trocar a forma de pagamento e pagar fatura continuam. Dado a empresa do CA-ASS-16, no Completo com o Profissional agendado para 22 nov, quando o administrador cancela em 05 nov, então o agendamento continua; quando ele desfaz o cancelamento em 10 nov, o Profissional vale em 22 nov, se couber (`PLT-04`). `test_plt_06_mudar_de_plano_com_cancelamento_marcado`.
+
+**CA-ASS-57 · Diferença em aberto durante a pausa**
+Dado a Moto Rápida `ativa` com a pausa de 2 meses começando em 22 nov e uma fatura de diferença de upgrade aberta vencendo em 23 nov, quando a pausa começa, então a fatura continua `aberta` e devida, e a régua dela segue (D0 em 23 nov, D+3 em 26 nov). Em 24 nov, sem pagar, a empresa continua `pausada`, sem virar `inadimplente`. Quando a Mariana volta da pausa em 01 dez com a fatura ainda atrasada, então a empresa volta `inadimplente`, e vira `suspensa` em 08 dez (D+15 do vencimento de 23 nov) se não pagar. `test_plt_06_diferenca_em_aberto_na_pausa`.
+
+**CA-ASS-58 · O que fica depois do apagamento**
+Dado a Moto Rápida cancelada em teste (CA-ASS-30, `cancelada` em 22 out), quando o apagamento roda em 20 jan 2027, então o schema e os arquivos da empresa saem. No painel da plataforma fica a linha da empresa, `cancelada` e marcada como apagada, com razão social, CNPJ 12.345.678/0001-95 e endereço da Filial Centro. O nome, o e-mail e o telefone da Mariana e o e-mail de cobrança ficam vazios. A FAT-0001 `cancelada` e a auditoria da plataforma continuam (`AUD-08`). `test_aud_08_o_que_fica_no_public`.
