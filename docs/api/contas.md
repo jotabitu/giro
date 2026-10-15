@@ -1,6 +1,6 @@
 # Contas: acesso, usuários, sessões e suporte
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-036) · **App:** `contas` (schema da empresa; o mesmo app atende a plataforma, ver `plataforma.md`) · **Regras:** USR-01 a USR-07, PLT-03, PLT-07, AUD-01 · **ADRs:** 0008, 0013, 0014 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios (e "Esqueci a senha" e "Ativar verificação em 2 etapas", da T-026)
+**Dono:** arquiteto · **Versão:** 15 out 2026 (T-201, nome curto da filial; T-036) · **App:** `contas` (schema da empresa; o mesmo app atende a plataforma, ver `plataforma.md`) · **Regras:** USR-01 a USR-07, PLT-03, PLT-07, AUD-01 · **ADRs:** 0008, 0013, 0014 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios (e "Esqueci a senha" e "Ativar verificação em 2 etapas", da T-026)
 
 Convenções gerais em `docs/api/README.md`. Modelo: `contas.Usuario`, `Convite`, `Sessao`, `filiais.UsuarioFilial` em `docs/decisoes/modelo-de-dados.md`. Base: `<subdominio>.<dominio>/api/`.
 
@@ -90,13 +90,15 @@ Qualquer usuário (e token de suporte, ver abaixo).
 {
   "id": 2, "nome": "Rodrigo Pinheiro", "email": "rodrigo@motorapida.com.br", "celular": "85998124410",
   "perfil": "gerente", "permissoes_extras": ["aprovar_desconto"],
-  "filiais": [ { "id": 1, "nome": "Filial Centro" } ],
+  "filiais": [ { "id": 1, "nome": "Filial Centro", "nome_curto": "Centro" } ],
   "dois_fatores": { "ativo": true, "obrigatorio": false, "codigos_recuperacao_restantes": 8 },
   "pode": { "painel": "filial", "veiculos": "editar", "...": "..." },
   "suporte": null,
   "empresa": { "nome_exibicao": "Moto Rápida", "status": "em_teste", "somente_leitura": false }
 }
 ```
+`filiais[].nome_curto` é o nome a mostrar nas listas curtas (`FIL-01`, T-201): o nome curto da filial, ou o nome quando ela não tem; vale também na lista e no detalhe de Usuários ("Centro" nas filiais da pessoa em `Admin-Usuarios`, CA-FIL-01). Vem de `resumo_das_filiais` (`filiais.md`, "Nome a mostrar").
+
 Marca (nome, logo e cores) vem de `GET /api/marca/` (`empresas.md`), pública, a mesma antes e depois do login. `empresa.nome_exibicao` daqui é o mesmo nome de lá.
 
 #### Menu e início (USR-05, USR-08, T-047)
@@ -228,7 +230,7 @@ Query: `?situacao=ativos|convites|desativados`, `?perfil=`, `?filial=<id>`, `?bu
   "contagens": { "todos": 6, "ativos": 3, "convites": 2, "desativados": 1 },
   "resultados": [
     { "id": 2, "nome": "Rodrigo Pinheiro", "email": "rodrigo@motorapida.com.br", "celular": null,
-      "perfil": "gerente", "filiais": [ { "id": 1, "nome": "Filial Centro" } ], "todas_filiais": false,
+      "perfil": "gerente", "filiais": [ { "id": 1, "nome": "Filial Centro", "nome_curto": "Centro" } ], "todas_filiais": false,
       "status": "ativo", "dois_fatores_ativo": true,
       "ultimo_acesso_em": "2026-10-07T10:12:00Z", "convite_expira_em": null, "eu": false }
   ],
