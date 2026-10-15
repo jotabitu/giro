@@ -131,6 +131,7 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 | --- | --- | --- | --- | --- |
 | Relatórios | [desktop](html/Relatorios-Desktop.dc.html) · [celular](html/Relatorios-Mobile.dc.html) | `(empresa)/relatorios` | `relatorios` | FIN, LOC, VEN |
 | Configurações | [desktop](html/Config-Desktop.dc.html) · [celular](html/Config-Mobile.dc.html) | `(empresa)/admin` | `empresas, locacoes` | IMP, LOC |
+| O que a empresa faz (troca do ramo) | [desktop](html/Admin-Ramo-Desktop.dc.html) · [celular](html/Admin-Ramo-Mobile.dc.html) | `(empresa)/admin/ramo` (proposta) | `empresas` | PLT-12, IMP (passo 7) |
 | Empresa e marca | [desktop](html/Admin-Marca-Desktop.dc.html) · [celular](html/Admin-Marca-Mobile.dc.html) | `(empresa)/admin` | `empresas, locacoes` | IMP, LOC |
 | Tabelas de preço | [desktop](html/Precos-Desktop.dc.html) · [celular](html/Precos-Mobile.dc.html) | `(empresa)/admin` | `empresas, locacoes` | IMP, LOC |
 | Modelos de contrato | [desktop](html/Contratos-Modelos-Desktop.dc.html) · [celular](html/Contratos-Modelos-Mobile.dc.html) | `(empresa)/admin` | `empresas, locacoes` | IMP, LOC |
