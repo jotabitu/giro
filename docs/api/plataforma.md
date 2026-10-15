@@ -226,7 +226,7 @@ Todas `POST /api/plataforma/empresas/{id}/<acao>/`, com `motivo` obrigatório, e
 | `estender-teste` | dono, sucesso | `{ dias, motivo }` | PLT-01 |
 | `mudar-plano` | dono, sucesso | `{ plano_id, ciclo, motivo }`. Upgrade vale na hora; downgrade e mudança de ciclo gravam `plano_proximo` (e `ciclo_proximo`) e valem na próxima fatura (`PLT-04`). Se o uso não cabe no plano menor: 422 `{ "codigo": "PLT-04", "detalhes": { "veiculos": { "usado": 86, "limite": 30 } } }` | PLT-04 |
 | `suspender` | dono, financeiro | `{ motivo }` | tabela de estados |
-| `reativar` | dono, financeiro | `{ motivo }`. Da `suspensa` → `ativa`; da `cancelada` dentro dos 90 dias → `ativa` com fatura nova no dia (`plataforma.services.reativar_empresa`, `assinatura.md`, "Mudança de ciclo e reativação pela equipe") | tabela de estados, PLT-06 |
+| `reativar` | dono, financeiro | `{ motivo }`. Da `suspensa` → `ativa`; da `cancelada` dentro dos 90 dias, sem fatura atrasada (409 `fatura_em_atraso`), → `ativa` com fatura nova no dia seguinte ao fim do período pago, se ele ainda corre, ou no dia da volta (`plataforma.services.reativar_empresa`, `assinatura.md`, "Mudança de ciclo e reativação pela equipe") | tabela de estados, PLT-06 |
 
 ### POST /api/plataforma/empresas/{id}/acessos-suporte/ · fase 2
 Função com `entrar_como_suporte`. Corpo: `{ motivo, chamado_id?, duracao_minutos: 15|30|60, permissao: "ver"|"ver_editar" }`.
@@ -327,6 +327,7 @@ Os apps da empresa usam só estas funções do `plataforma` (ADR 0011):
 | `plataforma.services.exigir_limite(item)` | `item` ∈ `veiculos`, `filiais`, `usuarios`. Levanta `LimiteDoPlano` → 422 `{ "codigo": "PLT-03", "mensagem": "Seu plano permite até 3 filiais. Para abrir outra, mude de plano.", "detalhes": { "item": "filiais", "usado": 3, "limite": 3 } }`. Chamada pelo serviço de criação de filial, veículo (inclusive importação, `IMP-03`) e convite de usuário, dentro da transação, com `SELECT ... FOR UPDATE` no `UsoEmpresa` para duas criações simultâneas não passarem do limite. |
 | `plataforma.services.atualizar_uso(item, delta)` | Mantém `UsoEmpresa` em dia; chamada pelos mesmos serviços ao criar, desativar ou reativar. A tarefa noturna `plataforma.recalcular_uso` corrige qualquer diferença contando de verdade em cada schema. |
 | `plataforma.services.registrar_passo_implantacao(passo)` | Marca o passo da implantação e move o funil (`IMP-05`). |
+| `plataforma.services.copiar_endereco_da_matriz(endereco)` | Chamada por `filiais.services.criar_filial` quando a filial nasce matriz; grava o endereço da nota da assinatura só se a empresa ainda não tem (`PLT-15`, `assinatura.md`). |
 | `plataforma.services.concluir_implantacao(objeto)` | Na confirmação da 1ª locação (ou venda), marca o passo `primeira_locacao` uma vez só, com o evento `implantacao.concluir` na auditoria da empresa (`IMP-01`). |
 | `plataforma.services.registrar_acesso()` | Atualiza `ultimo_acesso_em` (no máximo 1 escrita a cada 5 min por empresa). |
 | `plataforma.selectors.recursos_da_empresa(empresa=None)` | `frozenset` dos recursos ligados (plano e ramo, ADR 0024). Os apps de cima usam `comum.empresa.tem_recurso(recurso)`, que `plataforma` registra no `ready()`; no `public`, `True`. Lido uma vez por pedido. |
