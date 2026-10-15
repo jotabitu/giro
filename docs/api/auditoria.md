@@ -1,6 +1,6 @@
 # Auditoria e exportação
 
-**Dono:** arquiteto · **Versão:** 13 out 2026 (T-177, despesas em CSV; antes 12 out 2026, T-151, e 07 out 2026, T-043) · **App:** `auditoria` (schema da empresa **e** `public`) · **Regras:** AUD-01 a AUD-03, AUD-07, FIN-16, AUD-09, PLT-07, PLT-08, PLT-09, AUT-11 · **ADRs:** 0010, 0014, 0016 · **Segurança:** S-06, S-10, S-15 · **Critérios:** `docs/qa/criterios/T-018.md`, `docs/qa/criterios/despesas.md` (CA-DES-06 a 09) · **Telas:** Admin-Auditoria, Plat-Auditoria, Admin-Exportar, Despesas (botão Exportar)
+**Dono:** arquiteto · **Versão:** 15 out 2026 (T-201, tom do evento e o evento de 01 out no seed; antes 13 out 2026, T-177, despesas em CSV; 12 out 2026, T-151; 07 out 2026, T-043) · **App:** `auditoria` (schema da empresa **e** `public`) · **Regras:** AUD-01 a AUD-03, AUD-07, LOC-15, FIN-16, AUD-09, PLT-07, PLT-08, PLT-09, AUT-11 · **ADRs:** 0010, 0014, 0016 · **Segurança:** S-06, S-10, S-15 · **Critérios:** `docs/qa/criterios/T-018.md`, `docs/qa/criterios/despesas.md` (CA-DES-06 a 09) · **Telas:** Admin-Auditoria, Plat-Auditoria, Admin-Exportar, Despesas (botão Exportar)
 
 Convenções gerais em `docs/api/README.md`. Modelo: item 25 e `Exportacao` em `docs/decisoes/modelo-de-dados.md`. A gravação dos eventos é de `comum.auditoria` (ADR 0010); este contrato é a consulta e a exportação.
 
@@ -29,7 +29,8 @@ O token de suporte não consulta a auditoria da empresa (403 `PLT-07`): o suport
   "resumo": "Fez sangria de R$ 500,00",
   "detalhe": "Caixa da Filial Centro",
   "objeto": { "tipo": "movimentocaixa", "id": 412, "codigo": null, "filial": "Filial Centro" },
-  "regra": null
+  "regra": null,
+  "tom": null
 }
 ```
 
@@ -37,6 +38,16 @@ O token de suporte não consulta a auditoria da empresa (403 `PLT-07`): o suport
 - `suporte` (`AUD-03`): `{ "atendente": "Diego Santos", "motivo": "Chamado #1042", "permissao": "ver", "acesso_suporte_id": 31 }` em todo evento ligado a um acesso de suporte; a tela destaca a linha.
 - `resumo` e `detalhe` são textos prontos montados pela API a partir da `acao` e dos dados do evento (cada app registra o formatador das suas ações em `comum.auditoria`). O frontend não monta frase.
 - `categoria` (`AUD-02`): `financeiro`, `operacao`, `configuracoes`, `seguranca`, `suporte`.
+- `tom` (T-201): como a linha aparece na lista, decidido pela API (`null`, `info`, `alerta`, `perigo`, os mesmos tons de `situacao` nos outros contratos). `null` é texto comum; os outros viram o selo colorido da tela. A tela não escolhe tom pela `categoria` nem pela `acao`. Regra, nesta ordem:
+
+| Tom | Quando | Seed (CA-018-09) |
+| --- | --- | --- |
+| `alerta` | evento ligado a um acesso de suporte (`suporte` preenchido ou `ator.tipo` `suporte`): entrada, saída e cada escrita feita no acesso (`AUD-03`, o destaque do suporte) | "Diego Santos entrou como suporte", "Diego Santos saiu do modo suporte" |
+| `perigo` | as ações da lista `ACOES_PERIGO` em `auditoria/textos.py`; no MVP, só `usuario.bloqueado` (login bloqueado por senhas erradas, na empresa e na plataforma, `USR-06` e `PLT-08`) | "Login bloqueado" |
+| `info` | qualquer outro evento de `configuracoes` ou `seguranca` | "Convidou João Silva", "Mudou a tabela de preço" |
+| `null` | o resto (`financeiro`, `operacao`) | "Fez sangria de R$ 500,00", "Criou a locação LOC-2856" |
+
+  Um app que precise de outro tom numa ação dele acrescenta a ação à lista em `auditoria/textos.py`, com a regra que pede o destaque; não há tom guardado no evento (é leitura, como `resumo`). Vale também para a `Plat-Auditoria`.
 - `objeto.tipo` é o nome do model do objeto do evento; a `acao` segue `<objeto>.<verbo>`.
 - Movimentos de caixa (`movimento_caixa.entrada`, `.saida`, `.sangria`, `.estornar`, `.estorno_motivo`, `FIN-07`): o objeto é o `MovimentoCaixa` e o evento leva a filial do caixa (`objeto.filial` e o filtro `?filial=`), porque o movimento não tem filial própria (T-150). O `detalhe` da sangria é "Caixa da <filial>"; a descrição digitada vai no `depois` do detalhe do evento.
 
@@ -62,7 +73,23 @@ Query (combinam entre si, CA-018-10):
 200: `{ "resultados": [ ...eventos... ], "proximo": "...", "anterior": null }`, paginação por cursor (25 por página).
 Escopo (CA-018-12): só os eventos do schema da empresa, que já incluem a entrada e a saída do suporte nela (o serviço do suporte grava um evento em cada schema, ADR 0010). Nunca eventos de outra empresa nem da plataforma.
 
-Caso do seed (CA-018-09), "Últimos 7 dias" em 07 out: 9 eventos, do suporte de Diego (13:52 e 13:40) até o convite de João por Mariana (06 out, 18:10); `?categoria=financeiro` traz 4; `?ator=<Bruna>` traz 4; `?categoria=suporte` traz 2.
+Caso do seed (CA-018-09), "Últimos 7 dias" em 07 out: **10 eventos** (T-201), do suporte de Diego (07 out, 13:52 e 13:40) até a mudança da tabela de preço por Mariana (01 out, 17:42); `?categoria=financeiro` traz 4; `?ator=<Bruna>` traz 4; `?categoria=suporte` traz 2; `?categoria=seguranca` traz 2 (o login bloqueado e o convite); `?categoria=configuracoes` traz 1 (a tabela de preço). "Últimos 7 dias" é de hoje − 6 até hoje, em datas do fuso da empresa (`7d` = 01 a 07 out), por isso o evento de 01 out entra e os de 30 set não.
+
+**O evento de 01 out no seed (T-201, tela `Admin-Auditoria`).** É a troca de preço da Street que a `LOC-15` e a LOC-2841 já usam (semanal R$ 299,40 até 30 set, R$ 329,00 desde 01 out; `seed/frota.py`), que o seed hoje grava sem evento. Passa a ser gravado pelo próprio serviço (`veiculos.services.criar_preco`), com o relógio do seed em 01 out 2026, 17:42 (20:42Z), como Mariana Costa:
+```json
+{
+  "ocorrido_em": "2026-10-01T20:42:00Z",
+  "ator": { "tipo": "usuario", "id": 1, "nome": "Mariana Costa", "iniciais": "MC" },
+  "suporte": null, "categoria": "configuracoes", "acao": "categoria.definir_preco",
+  "resumo": "Mudou a tabela de preço",
+  "detalhe": "Street 150–160 · semanal R$ 299,40 → R$ 329,00",
+  "objeto": { "tipo": "categoria", "id": 2, "codigo": null, "filial": null },
+  "regra": "LOC-15", "tom": "info"
+}
+```
+- O evento `categoria.definir_preco` passa a levar `antes` com os valores do preço que valia na véspera de `vigente_desde` (só os que mudam) e `depois` com os novos, mais `vigente_desde`. Hoje leva só o `depois`.
+- Texto pronto (formatador de `veiculos`): com preço anterior, "Mudou a tabela de preço" e o detalhe "{categoria} · {período} {antes} → {depois}", um trecho por valor que mudou, separados por " · ", na ordem diária, semanal, quinzenal, mensal, caução; preço futuro ganha "a partir de {dd mmm}" no fim. Sem preço anterior (categoria nova), "Definiu a tabela de preço" e "{categoria} · {período} {valor}" dos valores preenchidos. `categoria.trocar_preco_agendado` usa o mesmo texto.
+- A data do evento (01 out) é a do dia em que o preço passou a valer, que o seed já tem; a hora 17:42 é a da tela e é nova no seed. Teste (T-202): `test_aud_02_evento_da_tabela_de_preco` e o CA-018-09 com 10 linhas (T-204).
 
 ### GET /api/auditoria/pessoas/
 Para o filtro "Pessoa": usuários que aparecem como ator no período, mais "Sistema" e "Suporte Giro". `{ "resultados": [ { "tipo": "usuario", "id": 3, "nome": "Bruna Alves" } ] }`.
