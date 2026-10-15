@@ -422,7 +422,7 @@ def _situacao_do_item(item: dict[str, Any] | None) -> str | None:
 def comparacao(locacao: Locacao, chegada: Vistoria) -> dict[str, Any]:
     """Saída × chegada do mesmo veículo na mesma locação (com troca, a do trecho atual)."""
     saida = services.saida_vigente(locacao.pk, chegada.veiculo_id)
-    km_saida = saida.km if saida is not None else None
+    km_saida = services.km_de_saida(locacao, chegada, saida)
     rodou = chegada.km - km_saida if chegada.km is not None and km_saida is not None else None
     combustivel = acerto.combustivel(
         capacidade_litros=chegada.veiculo.capacidade_tanque_litros,
