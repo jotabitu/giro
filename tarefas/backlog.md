@@ -29,6 +29,7 @@ Levantadas pelo arquiteto em T-030 (07 out 2026):
 - [decisão] (qa, T-019) Sem módulo no backend, os casos da fase 2 (CA-019-31) seguem `xfail`: venda VEN-0177, comissões, conciliação e DRE de setembro. Orquestrador: criar as tarefas de backend desses módulos; o seed ganha os dados com cada um.
 - Resolvido na T-211 (dono, 14 out 2026): **Reativar a empresa `cancelada` com fatura em atraso** (arquiteto, T-193): opção A, a equipe só reativa depois de receber a atrasada, como o contrato já recusa (`PLT-06`, CA-ASS-46).
 - Resolvido na T-211 (dono, 14 out 2026): **Endereço da empresa para a NFS-e da assinatura** (arquiteto, T-193): opção B, a compra não pede; o endereço nasce do endereço da filial matriz do passo 6, copiado uma vez, e se edita nos dados fiscais; o seed leva o da Filial Centro, CEP 60325-000 (`PLT-15`, CA-ASS-47 e 48).
+- [decisão] **Cancelar e pausar: casos que a `PLT-06` não cobre** (arquiteto, T-194; avisar o produto). O contrato `docs/api/cancelamento.md` segue um padrão em cada um, e a T-195 pode começar por ele: (1) **cancelar em teste com a 1ª fatura já paga**: padrão, como a `ativa`, com acesso até o fim do período da 1ª fatura (como a mudança de plano no teste com a 1ª paga, `PLT-04`); alternativa: acesso até o fim do teste e a 1ª fatura estornada; (2) **desistir da pausa antes de começar**: padrão, o administrador desiste pela "voltar da pausa" e a fatura que a pausa cancelou nasce de novo, como no desfazer do cancelamento; alternativa: só pelo suporte; (3) **mudar de plano com cancelamento marcado**: padrão, recusado ("Desfaça o cancelamento antes de mudar de plano."); alternativa: aceitar o upgrade com a diferença; (4) **fatura de diferença em aberto ao começar a pausa**: padrão, continua devida com a régua dela, a `pausada` não vira `inadimplente`, e volta `inadimplente` se ainda estiver atrasada; (5) **o que fica no `public` depois do apagamento** (`AUD-08`, ADR 0025): padrão, a linha da empresa sem os dados de contato, as faturas da assinatura (registro fiscal do Giro) e a auditoria da plataforma; alternativa: apagar também a razão social e o endereço da linha (as faturas guardam o tomador). A validar com o contador o prazo das faturas.
 - [divergência] Dados de exemplo nas telas da plataforma (para T-028): `Plat-Empresa-Detalhe` mostra CNPJ 41.208.733/0001-52 (seed: 12.345.678/0001-10), FAT-0001 vencendo em 21 out (PLT-01: dia seguinte ao fim do teste, 22 out) e "13 dias" de teste em 07 out (contrato: 14); `Plat-Empresas` mostra Moto Rápida com 4 usuários (seed: 5).
 
 Levantadas pelo arquiteto em T-036 (07 out 2026):
@@ -123,143 +124,7 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 
 ## Fase 0 · Fundação
 
-### T-001 · Esqueleto do backend
-- **Agente:** backend
-- **Depende de:** T-003
-- **Regras:** convenções de `CLAUDE.md`
-- **Pronto quando:** `backend/` com projeto Django 5, settings divididos (base, dev, test, prod), django-tenants configurado com schema público e de empresa, DRF, drf-spectacular servindo `/api/schema/`, pytest rodando, `make backend-check` verde. Inclui `backend/comum/`: model base com código sequencial por empresa (`LOC-2856`), campos de dinheiro em centavos, erro de negócio com código de regra e o registro de evento de auditoria (AUD-01), para que todo módulo já nasça auditado.
-
-### T-002 · Esqueleto do frontend
-- **Agente:** frontend
-- **Depende de:** T-003
-- **Pronto quando:** `frontend/` com Next.js App Router, TypeScript estrito, Tailwind lendo os tokens de `src/design-system/tokens.ts`, grupos de rota `(publico)`, `(empresa)`, `(plataforma)`, ESLint e Vitest verdes.
-
-### T-003 · Ambiente de desenvolvimento
-- **Agente:** devops
-- **Pronto quando:** `docker compose up` sobe Postgres 16, Redis, backend, worker Celery, beat e frontend; `.env.example` completo; `make up`, `make down`, `make check`.
-
-### T-004 · Portar o design system para código
-- **Agente:** design-system
-- **Depende de:** T-002
-- **Pronto quando:** `frontend/src/design-system/` com tokens (claro e escuro), variáveis `--brand`, `--brand-soft`, `--on-brand` trocáveis em tempo de execução, e os 12 componentes de `docs/design-system/components/` como componentes React com página de preview.
-
-### T-005 · CI
-- **Agente:** devops
-- **Depende de:** T-001, T-002
-- **Pronto quando:** os 5 pontos para o devops do handoff da T-001 resolvidos (desvio do Makefile, `MSYS_NO_PATHCONV`, CORS fora do `.env.example`, proxy de mesma origem `/api/`); GitHub Actions roda lint, testes e build do backend e do frontend em todo PR; gera o OpenAPI e falha se `docs/api/openapi.yaml` estiver desatualizado.
-
-### T-006 · ADRs iniciais revisadas
-- **Agente:** arquiteto
-- **Pronto quando:** as ADRs de `docs/decisoes/` revisadas e o modelo de dados das 25 entidades desenhado em `docs/decisoes/modelo-de-dados.md`, com schema (público ou empresa) de cada uma.
-
-### T-030 · Contratos da API de plataforma e filiais
-- **Agente:** arquiteto
-- **Depende de:** T-006
-- **Regras:** PLT-01, PLT-03, PLT-08, PLT-09, USR-07
-- **Pronto quando:** `docs/api/plataforma.md` e `docs/api/filiais.md` com endpoints, payloads, erros e permissões por perfil. Destrava T-010 e T-012.
-
-### T-031 · Responder as dúvidas de regra da T-006
-- **Agente:** produto
-- **Depende de:** T-006
-- **Pronto quando:** as cinco `[decisão]` levantadas pelo arquiteto (status não listados, `cancelada` na venda, venda aberta, arredondamento, chassi único) analisadas com recomendação em "Pontos em aberto" de `docs/regras-de-negocio.md`, para o dono do produto aprovar.
-
-### T-032 · Revisão de segurança do desenho da fundação
-- **Agente:** seguranca
-- **Depende de:** T-006
-- **Pronto quando:** ADRs 0008 a 0012 e o modelo de dados revisados, com atenção a campos mascarados na auditoria (0010), guarda de `plataforma.ContaPagamento.chave_api_cifrada` e token de suporte (0008). Relatório em `docs/seguranca/`; achados altos viram tarefas.
-
-### T-033 · Dados sensíveis na fundação: cifra, hash de busca e classificação da auditoria
-- **Agente:** backend
-- **Depende de:** T-001
-- **Regras:** CLI-01, AUD-01, AUD-04, AUD-06 · **ADR:** 0014 (itens 2 e 3) · **Segurança:** S-05, S-06, S-07
-- **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA` aplicado por `comum.auditoria` e o teste de arquitetura de campos sensíveis; os testes obrigatórios da ADR 0014 que não dependem de cliente ou sessão; `cryptography` registrada no PR e os três segredos no `.env.example`. Inclui C-01 (diff da auditoria calculado antes da máscara) e C-02 (tarefa com schema apagado não cai no public) da T-039, e o ator de quem disparou a tarefa em `na_empresa` (ADR 0018 item 3, ponto 1 da T-045). Bloqueia T-011 e T-014.
-
-### T-034 · Auditoria e Celery endurecidos
-- **Agente:** backend (papéis do banco com ADR do arquiteto e configuração do devops)
-- **Depende de:** T-001
-- **Regras:** AUD-01, AUD-02 · **Segurança:** S-10, S-11, C-03 (IP real atrás do proxy por `X-Forwarded-For`, só quando `REMOTE_ADDR` está em `GIRO_REDES_PROXY`, contando `GIRO_PROXIES_CONFIAVEIS` da direita, ADR 0018 item 4), C-05 (trigger sem `TRUNCATE`, mesmo que S-10)
-- **Pronto quando:** critério do item "[média] Auditoria e Celery endurecidos" de `docs/seguranca/2026-10-07-fundacao.md` (trigger também em `TRUNCATE`, expurgo só com mais de 5 anos, `na_empresa` restaura ator e schema, `task_prerun`/`task_postrun` voltam ao public, cache com `make_key`, `@tarefa_de_empresa` recusa `public` e schema inexistente, tasks recebem só ids).
-- **Também:** R-01 (média: cifra e hash falham dentro de `na_empresa` e `@tarefa_de_empresa`; usar `tenant_context`) e R-04 da T-050, antes da T-017.
-
-### T-035 · Endurecimento de produção
-- **Agente:** devops
-- **Depende de:** T-001, T-002
-- **ADR:** 0016 (papéis de banco separados, S-10) · **Segurança:** S-16, S-17, S-18, C-04 (`wsgi.py`, `asgi.py` e `config/celery.py` sem padrão `dev`; falha se `DJANGO_SETTINGS_MODULE` não vier em produção)
-- **Pronto quando:** `SHOW_PUBLIC_IF_NO_TENANT_FOUND = False` em `prod.py`; HSTS com preload, `Referrer-Policy`, `X-Frame-Options: DENY`, CSP no front; `/api/schema/` e `/api/docs/` fechados em produção (ponto 5 da T-045; ajuste no backend junto); `GIRO_PROXIES_CONFIAVEIS` e `GIRO_REDES_PROXY` por ambiente e `X-Forwarded-For` no proxy de mesma origem (ADR 0018); `SIMPLE_JWT["SIGNING_KEY"]` com variável própria. Precisa estar pronta antes do primeiro deploy de homologação.
-
-### T-036 · Contratos da API de contas, veículos e clientes
-- **Agente:** arquiteto
-- **Depende de:** T-030
-- **Regras:** USR-01 a USR-07, VEI-01 a VEI-07, CLI-01 a CLI-08, AUD-04, AUD-05 · **ADRs:** 0013, 0014
-- **Pronto quando:** `docs/api/contas.md` (inclui sessões, 2 etapas e convite), `docs/api/veiculos.md` e `docs/api/clientes.md` no padrão de `docs/api/README.md`. Destrava T-011, T-013 e T-014.
-
-### T-037 · Dúvidas da T-030 e critérios de aceite de T-010 a T-014
-- **Agente:** produto
-- **Depende de:** T-030, T-031
-- **Pronto quando:** recomendação para as `[decisão]` da T-030 (campos da tela Filial sem regra, desativação de filial com operação) em "Pontos em aberto"; critérios de aceite com números do seed para T-010, T-011, T-012, T-013 e T-014, no formato que o qa transforma em teste.
-
-### T-038 · Contratos da API de locações, vistorias e devolução
-- **Agente:** arquiteto
-- **Depende de:** T-036
-- **Regras:** LOC-01 a LOC-15, VIS-01 a VIS-05, DEV-01 a DEV-06 · **Segurança:** S-09 (marcadores fechados do `ModeloContrato`, `url_fetcher`), S-15 (token de assinatura)
-- **Pronto quando:** `docs/api/locacoes.md` (reserva, contrato, ciclo de status, assinatura) e `docs/api/vistorias.md` (saída, devolução e acerto) no padrão de `docs/api/README.md`, com o caso LOC-2836 = R$ 183,00 descrito no exemplo de resposta do acerto. Destrava T-015 e T-016.
-
-### T-039 · Revisão de segurança do código da T-001
-- **Agente:** seguranca
-- **Depende de:** T-001
-- **Pronto quando:** `comum/autenticacao.py`, `comum/auditoria.py` (máscaras), o trigger de `apps/auditoria/migrations/0002_trigger_imutavel.py`, settings e rotas revisados contra as ADRs 0008 a 0013; relatório em `docs/seguranca/`; achados viram tarefas.
-
-### T-040 · Cobertura de regras e esqueleto dos testes de aceitação de T-010 a T-014
-- **Agente:** qa
-- **Depende de:** T-001, T-037
-- **Pronto quando:** `docs/qa/cobertura-de-regras.md` com a tabela regra → teste → status para todas as regras com código; em `backend/tests/aceitacao/`, um teste por critério de `docs/qa/criterios/T-010.md` a `T-014.md`, com o código da regra no nome, marcados `xfail` (motivo: tarefa ainda não implementada) até o backend entregar. Os testes rodam no CI sem quebrar.
-
-### T-041 · Critérios de aceite de T-015 a T-018
-- **Agente:** produto
-- **Depende de:** T-037, T-038
-- **Pronto quando:** `docs/qa/criterios/T-015.md` a `T-018.md` com números do seed (LOC-2836 = R$ 183,00, caixa de 07 out = gaveta R$ 281,00 e os demais casos da tabela de referência), apontados no "Pronto quando" das tarefas.
-
-### T-042 · Componente de código de 6 dígitos (OTP)
-- **Agente:** design-system
-- **Depende de:** T-004, T-026
-- **Pronto quando:** componente `CodigoVerificacao` em `frontend/src/design-system/` como na tela `Ativar-2FA` (6 casas, colar o código inteiro, avanço e volta com teclado, estado de erro, `autocomplete="one-time-code"`, acessível), com preview e testes. Usado pela T-020.
-
-### T-043 · Contratos da API de financeiro e auditoria
-- **Agente:** arquiteto
-- **Depende de:** T-038
-- **Regras:** FIN-01 a FIN-08, AUD-01 a AUD-03, AUD-09 · **Segurança:** S-14 (webhooks)
-- **Pronto quando:** `docs/api/financeiro.md` (contas a receber, caixa do dia, baixa, interface de pagamentos para a T-029) e `docs/api/auditoria.md`, com o caso do caixa de 07 out (gaveta R$ 281,00). Inclui alinhar `vistorias.md` (fórmula do combustível da DEV-01, exemplo com chegada em 3/4) e `locacoes.md` (renovação e troca decididas: LOC-08, LOC-09) às decisões da T-041. Destrava T-017 e T-018.
-
-### T-044 · Contrato da API de importação por planilha
-- **Agente:** arquiteto
-- **Depende de:** T-036
-- **Regras:** IMP-02 e o passo "importar dados" do assistente de implantação, VEI-01, CLI-01
-- **Pronto quando:** `docs/api/importacao.md` (envio da planilha, validação linha a linha com os erros da tela `Onboarding-Importar`, confirmação, relatório), com os campos cifrados da ADR 0014. Destrava T-027.
-
-### T-045 · Conferir decisões de implementação da T-001 contra as ADRs
-- **Agente:** arquiteto
-- **Depende de:** T-001
-- **Pronto quando:** as "Decisões de implementação (Arquiteto, confira)" do handoff da T-001 conferidas contra as ADRs 0008 a 0012 e o modelo de dados; o que divergir vira ajuste de ADR ou tarefa para o backend, sem bloquear a T-033.
-
-### T-046 · Componentes pedidos pela T-020
-- **Agente:** design-system
-- **Depende de:** T-004
-- **Pronto quando:** seletor de filial, diálogo e gaveta (shadcn/ui por cima dos tokens, se fizer sentido; registrar no PR) e `KpiTile` com valor longo no celular, com preview e testes. Usados pela T-020 e pela T-021.
-
-### T-047 · Menu por permissão e agregados do painel
-- **Agente:** arquiteto (com o produto para o início por perfil)
-- **Depende de:** T-036
-- **Pronto quando:** `docs/api/contas.md` devolve `menu` (módulos liberados) em `GET /api/eu/`, para a tela não inferir de `pode`; rota inicial por perfil definida com o produto (vistoriador, vendedor, gerente, financeiro); `docs/api/painel.md` com os contadores do menu e os indicadores da tela `Main`. Resolve as três `[decisão]` da T-020.
-
-### T-050 · Revisão de segurança do código da T-033
-- **Agente:** seguranca
-- **Depende de:** T-033
-- **Pronto quando:** `comum/cripto.py`, `CampoCifrado`, `CampoHashBusca`, `CAMPOS_AUDITORIA`, `na_empresa` e o teste de arquitetura revisados contra a ADR 0014 (itens 2 e 3), a ADR 0018 (item 3) e os achados S-05, S-06, S-07, C-01 e C-02; relatório em `docs/seguranca/`; achados viram tarefas.
-
-### T-065 · Login trata o 401 e o 429 da T-058
-- **Agente:** frontend
-- **Depende de:** T-058
-- **Pronto quando:** as telas de acesso tratam as respostas novas de `docs/api/plataforma.md` (entrar sem código responde 401 em vez de 400; 429 do bloqueio de 5 senhas e 429 `muitas_requisicoes`), com mensagem nas palavras das telas, nos dados falsos, e com teste.
+Concluída. As tarefas entregues estão em `tarefas/feito.md`.
 
 ## Fase 1 · MVP
 
@@ -267,9 +132,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 
 ### T-157 · (M-03) Produção recusa e-mail no console e armazenamento falso (média)
 - **Agente:** backend · **Depende de:** — · **Pronto quando:** `config/settings/prod.py` recusa subir com `EMAIL_BACKEND` de console, locmem ou arquivo (o padrão de `base.py` é o console, e os e-mails de senha, convite e assinatura levam o token) e com `GIRO_ARMAZENAMENTO` diferente de `s3`, como já faz com as chaves; pagamentos e WhatsApp `falso` entram na mesma trava quando as integrações reais existirem (T-029); teste que importa `prod.py` com o ambiente montado. Antes de homologação.
-
-### T-158 · (M-04) Configuração do proxy reverso: tamanho do corpo e cabeçalhos `X-Forwarded-*` (média)
-- **Agente:** devops, com o backend · **Depende de:** — · **Pronto quando:** a configuração do proxy de homologação e produção está em `infra/`, com limite de corpo de 12 MB (os uploads só são conferidos por `comum/arquivos.validar` depois de recebidos inteiros, e o Django não limita arquivo em multipart), `X-Forwarded-Host`, `X-Forwarded-Proto` e `X-Forwarded-For` sempre sobrescritos pelo proxy (o `TenantMainMiddleware` escolhe a empresa por `get_host()`, que segue o `X-Forwarded-Host` com `USE_X_FORWARDED_HOST = True`) e rate limit de borda em `/api/auth/` e no webhook; no backend, `USE_X_FORWARDED_HOST` só em `prod.py`; checklist no `infra/README.md`. Antes de homologação.
 
 ### T-156 · (M-02) Custo e rendimento do veículo fora da ficha do vendedor (média)
 - **Agente:** backend, depois frontend · **Depende de:** T-136 · **Regras:** tabela de perfis, USR-09, VEI-05 · **Decisão:** opção A do dono do produto em 12 out 2026 (regra na T-156 do produto) · **Pronto quando:**
@@ -323,7 +185,7 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 - **Tarefas da T-190 (numeradas pelo orquestrador em 14 out 2026):**
   1. **T-192 · arquiteto · ADR dos módulos por plano (`PLT-12`).** `GIRO_MODULOS_ATIVOS` passa a valer por empresa (plano e ramo da implantação); tabela de app por plano; o código da recusa da rota de módulo desligado; navegação (`contas.navegacao`) e Configurações pelo conjunto da empresa; recusa do downgrade com o que está aberto em cada módulo (como a `FIL-06`); `AUT-03` só por e-mail e passo 10 fora no Essencial; `plataforma.md`, "Planos": sem `dominio_proprio` e `api_integracoes` nos `recursos` (`PLT-11`). CA-ASS-20 a 25. **Estado (14 out 2026):** ADR 0024 e contratos ajustados, PR a abrir; handoff `tarefas/handoffs/T-192-arquiteto.md`.
   2. **T-193 · arquiteto · Contrato da assinatura pelas decisões.** `assinatura.md` sem as marcas [D-n]: a forma não ativa a empresa e `forma_pagamento.prazo` (U1), uma tentativa só do cartão (U8), NFS-e pelo parceiro depois de paga e o e-mail de cobrança (U9, `PLT-15`), `oferta` com o título "Precisa de mais veículos ou filiais?" e os textos da `PLT-11` (U11), mudança no teste com a 1ª fatura já paga (`PLT-04`), ciclo e reativação da cancelada pela equipe; `plataforma.md`: faturas de todas as empresas pelo Django Admin até a `Plat-Cobranca` (U13). Avisar T-184 a T-189 do que mudar. CA-ASS-01 a 21 e 26 a 29. **Estado (14 out 2026):** contrato ajustado, PR a abrir (`assinatura.md` com "O que muda para as tarefas abertas", `plataforma.md` "Faturas de todas as empresas", modelo de dados); handoff `tarefas/handoffs/T-193-arquiteto.md`.
-  3. **T-194 · arquiteto · Contrato de cancelar e pausar (`PLT-06`, `AUD-08`).** Rotas (cancelar com motivo e nome digitado, pausar por 1 a 3 meses, voltar da pausa), `acoes.cancelar` e `acoes.pausar` e as datas de acesso e de pausa no `GET /api/assinatura/`, faturas canceladas, régua parada, os três pontos em aberto pelo padrão, a tarefa que apaga no 90º dia e o aviso de 7 dias. CA-ASS-30 a 39.
+  3. **T-194 · arquiteto · Contrato de cancelar e pausar (`PLT-06`, `AUD-08`).** Rotas (cancelar com motivo e nome digitado, pausar por 1 a 3 meses, voltar da pausa), `acoes.cancelar` e `acoes.pausar` e as datas de acesso e de pausa no `GET /api/assinatura/`, faturas canceladas, régua parada, os três pontos em aberto pelo padrão, a tarefa que apaga no 90º dia e o aviso de 7 dias. CA-ASS-30 a 39. **Estado (15 out 2026):** contrato `docs/api/cancelamento.md` e ADR 0025 escritos, com o acréscimo da T-211, PR a abrir (branch empilhada sobre a T-217); handoff `tarefas/handoffs/T-194-arquiteto.md`; 5 casos fora da regra em `[decisão]`, com padrão.
   4. **T-195 · backend · Cancelar, pausar e apagamento** (depois da T-194). `test_plt_06_*`, `test_aud_08_*`, CA-ASS-30 a 39. O apagamento tem de existir antes do 90º dia do primeiro cancelamento real.
   5. **T-196 · backend · Módulos por plano** (depois da T-192). `test_plt_12_*`, CA-ASS-22 a 25.
   6. **T-197 · backend · NFS-e da assinatura (`PLT-15`).** Emissão pelo parceiro depois da baixa; `[bloqueada]` até o contador confirmar e o cadastro municipal do Giro existir. CA-ASS-29.
@@ -338,21 +200,14 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 ### T-211 · Regras dos pontos em aberto de 14 out
 - **Agente:** produto · **Depende de:** T-190, T-193 · **Regras:** PLT-04, PLT-06, PLT-15 · **Estado:** regras e critérios escritos, PR a abrir. O dono aprovou o padrão nos 5: downgrade agendado que deixa de caber não acontece, com e-mail (A); a pausa começa no fim do período pago (A); desfazer o cancelamento pela tela até o último dia de acesso (A); reativar a `cancelada` só depois de paga a fatura em atraso (A); endereço da NFS-e nasce do endereço da filial matriz do passo 6, editável nos dados fiscais (B). Critérios CA-ASS-40 a 48 em `docs/qa/criterios/assinatura.md`; dados de referência "Desfazer o cancelamento da Moto Rápida", "Reativação da Moto Rápida com fatura em atraso", "Downgrade agendado que deixa de caber" e "Dados fiscais da Moto Rápida".
 - **Tarefas (numeradas pelo orquestrador em 14 out 2026):**
-  1. **T-194 (acréscimo) · arquiteto · Cancelar e pausar pelas decisões** (entra na T-194, se ainda aberta). Rota de desfazer o cancelamento (só administrador, até o último dia de acesso; recusa depois, e na empresa que cancelou na hora), `acoes.desfazer_cancelamento`, fatura cancelada (ou não gerada) nascendo de novo com o mesmo valor, vencimento e período, cobrada pela forma como na emissão; pausa que cancela a fatura do período seguinte já emitida; auditoria. CA-ASS-42 a 45.
-  2. **T-213 · arquiteto · Assinatura: endereço e downgrade** (`assinatura.md`, modelo de dados). `Empresa.endereco_*` copiado do endereço da matriz quando ela é criada (passo 6, `filiais.md`), uma vez, sem ligação depois; a nota que esperava o endereço é pedida quando ele existe; seed com o endereço da Filial Centro (o "Caso do seed" deixa de dizer `endereco` nulo); o downgrade conferido na geração da fatura, já no contrato, ganha CA-ASS-40 e 41; a reativação deixa de ser `[decisão]` (o 409 `fatura_em_atraso` fica, CA-ASS-46). Avisar T-184 (seed e cópia), T-185 e T-187 (dados fiscais).
+  1. **T-194 (acréscimo) · arquiteto · Cancelar e pausar pelas decisões** (entra na T-194, se ainda aberta). Rota de desfazer o cancelamento (só administrador, até o último dia de acesso; recusa depois, e na empresa que cancelou na hora), `acoes.desfazer_cancelamento`, fatura cancelada (ou não gerada) nascendo de novo com o mesmo valor, vencimento e período, cobrada pela forma como na emissão; pausa que cancela a fatura do período seguinte já emitida; auditoria. CA-ASS-42 a 45. **Estado (15 out 2026):** feito junto com a T-194 (`cancelamento.md`).
+  2. **T-213 · arquiteto · Assinatura: endereço e downgrade** (`assinatura.md`, modelo de dados). `Empresa.endereco_*` copiado do endereço da matriz quando ela é criada (passo 6, `filiais.md`), uma vez, sem ligação depois; a nota que esperava o endereço é pedida quando ele existe; seed com o endereço da Filial Centro (o "Caso do seed" deixa de dizer `endereco` nulo); o downgrade conferido na geração da fatura, já no contrato, ganha CA-ASS-40 e 41; a reativação deixa de ser `[decisão]` (o 409 `fatura_em_atraso` fica, CA-ASS-46). Avisar T-184 (seed e cópia), T-185 e T-187 (dados fiscais). **Estado (15 out 2026):** contrato ajustado, PR a abrir; handoff `tarefas/handoffs/T-213-arquiteto.md`.
   3. **T-214 · design-system · Tela `Onboarding-Filial` (desktop e celular).** O campo Endereço deixa de dizer "Mesmo endereço do CNPJ · Rua Barão do Rio Branco, 1200, Centro, Fortaleza" (nada lê o endereço do CNPJ): CEP que preenche rua, bairro e cidade, número e complemento, com o exemplo do seed (Av. Bezerra de Menezes, 1200, São Gerardo, Fortaleza, CE, CEP 60325-000), e a nota "Este endereço também vai na nota fiscal da sua assinatura. Você muda só a nota em Administração › Assinatura." Junto: na `Admin-Assinatura`, o estado de cancelamento marcado ("Assinatura cancelada. Você tem acesso até 21 nov.") com "Desfazer cancelamento". Pode ir com a T-200, se ainda aberta.
   4. **T-215 · qa · Seed e testes da T-211.** Endereço dos dados fiscais no seed igual ao da Filial Centro; testes de aceitação CA-ASS-40 a 48 com o relógio de referência, à medida que T-184, T-185, T-186 e T-195 fecharem (junto com a T-204, se ainda aberta).
 
 ### T-216 · Vencimento da fatura na reativação
 - **Agente:** produto · **Depende de:** T-211 · **Regras:** PLT-06, PLT-01 · **Estado:** regra e critério escritos, PR a abrir. Decisão do produto, a pedido do dono, em 14 out 2026: na reativação da `cancelada` pela equipe, com o último período pago ainda correndo, a fatura nova vence no dia seguinte ao fim dele e o dia de vencimento não muda; senão, vence no dia da volta, como antes. Critério CA-ASS-49; dado de referência "Reativação da Moto Rápida no período pago".
-- **Tarefa (numerada pelo orquestrador em 14 out 2026):** **T-217 · arquiteto · Contrato da reativação** (`assinatura.md`, "Mudança de ciclo e reativação pela equipe"; `plataforma.md`, ação `reativar`). `plataforma.services.reativar_empresa`: o vencimento da fatura nova é o dia seguinte ao fim do último período de fatura `mensalidade` `paga`, quando ele ainda não acabou, e `dia_vencimento` fica como está; senão, vence no dia da volta e `dia_vencimento` passa a esse dia. Avisar a T-184 e a T-186 e quem fizer a reativação no backend; teste `test_plt_06_reativar_no_periodo_pago` (CA-ASS-49).
-
-
-### T-173 · Tela de Configurações
-- **Agente:** arquiteto (contrato), depois backend e frontend · **Depende de:** — · **Regras:** IMP, LOC · **Telas:** Config (desktop e celular) · **Pronto quando:** (arquiteto) confere o que `docs/telas/html/Config-*.dc.html` mostra e o que já tem contrato (a API não tem rota de configurações hoje; marca é a T-153/T-154, preços em `/api/precos/`, modelos de contrato em `/api/contratos/`), escreve o contrato do que faltar e propõe as tarefas de backend, sem número; (frontend) `/admin/configuracoes` igual à referência, ligada à API real. Pedida pelo dono em 13 out 2026.
-- **Contrato pronto (13 out 2026, arquiteto):** `docs/api/configuracoes.md` (`GET /api/configuracoes/`, em `relatorios`: os cartões com título e resumo prontos e a faixa da implantação); rotas dos cartões em `docs/telas/README.md`. Integrações e Notificações não vêm no MVP (sem tela nem contrato); o botão "Continuar implantação" espera o contrato do assistente. Handoff: `tarefas/handoffs/T-173-arquiteto.md`.
-- Resolvido na T-190: texto do cartão "Exportar dados" no MVP fica "Baixe a auditoria em CSV", como o contrato (U18, nota de 14 out 2026 na auditoria).
-- **Fora da T-173, sem contrato (orquestrador):** as "Regras de cobrança" da tela `Precos` e do passo `Onboarding-Precos` (tolerância, combustível, desconto do vendedor; a tela do assistente pede também franquia de km e km excedente, que as regras não têm) são citadas em `veiculos.md` como "contrato de empresas", mas `empresas.md` não as tem; e `exige_2fa_todos` ("exigir 2 etapas para todos", `contas.md`) não aparece em nenhuma tela da empresa. Os dois pedem tela ou contrato antes de tarefa.
+- **Tarefa (numerada pelo orquestrador em 14 out 2026):** **T-217 · arquiteto · Contrato da reativação** (`assinatura.md`, "Mudança de ciclo e reativação pela equipe"; `plataforma.md`, ação `reativar`). `plataforma.services.reativar_empresa`: o vencimento da fatura nova é o dia seguinte ao fim do último período de fatura `mensalidade` `paga`, quando ele ainda não acabou, e `dia_vencimento` fica como está; senão, vence no dia da volta e `dia_vencimento` passa a esse dia. Avisar a T-184 e a T-186 e quem fizer a reativação no backend; teste `test_plt_06_reativar_no_periodo_pago` (CA-ASS-49). **Estado (15 out 2026):** contrato ajustado, PR a abrir depois da T-213 (branch empilhada); handoff `tarefas/handoffs/T-217-arquiteto.md`.
 
 ### T-028 · Limpar dados de exemplo das telas
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`. Inclui `Despesas-Desktop` e `Despesas-Mobile`: aguardando aprovação é R$ 1.200,00 (não R$ 1.386,40) e o IPVA de R$ 186,40 nasce `a_pagar` (FIN-05), apontado pelo qa na T-040.
@@ -362,7 +217,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 
 ### [decisão] Pix Automático: quando cobrar a parcela (AUT-04, levantada na T-029)
 - **Para:** produto · **Contexto:** o contrato (`docs/api/financeiro.md`, "Cobrança recorrente") diz que `aut_04_cobranca_recorrente` cobra "no vencimento de cada parcela". Pela documentação do Asaas, a cobrança do Pix Automático tem de ser criada **de 2 a 10 dias úteis antes do vencimento**, e a autorização só fica ativa depois que o cliente paga a primeira cobrança pelo QR. Falta decidir: quantos dias antes a tarefa cria a cobrança da parcela, o que acontece com a parcela que vence antes de a autorização ficar ativa, e se a locação diária ou quinzenal pode ter Pix Automático (o Asaas aceita semanal, mensal, trimestral, semestral e anual). O provedor já está pronto (`asaas.py`, T-029); o fluxo na locação espera esta decisão (handoff `tarefas/handoffs/T-029-backend.md`, item 1).
-
 
 ## Dúvidas abertas da T-020 (frontend)
 
@@ -377,30 +231,18 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 - Resolvido na T-190: (T-172, Importar) o arquiteto expõe o andamento dos passos; Voltar, Salvar e sair e Continuar provisórios aprovados; `/implantacao/...` sem menu aprovado; "Corrigir aqui" dentro da lista; download da planilha com login a conferir no compose (devops). Propostas 9, 10 e 12 da T-190.
 - Resolvido na T-190: (T-175, Aprovações) indicadores e contagens das abas entram com a `APR-12` (D12); o pedido ganha o bloco `resumo` por tipo; a frase das 4 horas sai (`APR-08`, fase 2); "Meus pedidos" aprovado; "Ver proposta" some até a venda ter tela. Propostas 9 a 12 da T-190.
 - Resolvido na T-190: (T-183, Assinatura) [D-1] a [D-10] respondidas nas regras `PLT-01` a `PLT-06` e `PLT-11` a `PLT-15` (ver a seção da T-183). Cancelar e pausar (`PLT-06`) entram no MVP: propostas 3, 4 e 7 da T-190.
-- [decisão] (T-192, módulos por plano) Mudar o ramo (`ConfiguracaoEmpresa.atividade`) desliga `locacoes_vistoria` ou `vendas_comissoes` sem conferir o que está aberto (a `PLT-12` só pede a conferência no downgrade). Padrão da ADR 0024 até a resposta: desliga, os dados ficam guardados. Produto: confirmar ou pedir a mesma recusa do downgrade.
-- [decisão] (T-192) Empresa no Essencial que escolhe "só vende" no passo 7 fica sem locações e sem vendas (interseção de plano e ramo, como a `PLT-12` diz). Produto: o passo 7 do Essencial deve oferecer "vende"? (Recomendação do arquiteto: no Essencial, o passo 7 mostra "vende" com o aviso de que vendas é do Profissional.)
-- [decisão] (T-192) Comissão de locação (R$ 16,00, `FIN-09`) no Essencial: comissões é módulo do Profissional, então pela ADR 0024 ela não nasce no Essencial. Produto: confirmar.
-- (T-192, para o produto) CA-ASS-15: a Moto Rápida do seed tem despesas de outubro abertas (pneus aguardando aprovação e as `a_pagar`); pela `PLT-12`, a recusa do Essencial passa a listar também esses grupos (`detalhes.abertos`). Ajustar o texto do critério.
+- Resolvido na T-223 (dono, 15 out 2026): **Mudar o ramo com algo aberto** (T-192): opção B, recusado como o downgrade; deixar de alugar conta as locações `aguardando_retirada`, `ativa` e `devolucao_atrasada`; deixar de vender, as vendas abertas e as comissões não pagas (`PLT-12`, CA-ASS-50). Muda o padrão da ADR 0024, que desligava sem conferir.
+- Resolvido na T-223 (dono, 15 out 2026): **"Só vende" no Essencial** (T-192): opção A, a recomendação do arquiteto; o passo 7 do Essencial mostra "vende" com o aviso "Vendas faz parte do plano Profissional." e só deixa escolher "aluga" ou "aluga e vende"; vendas e comissões ligam sozinhas ao subir de plano. Daí decorre que o downgrade para o Essencial de quem só vende é recusado (`PLT-12`, etapa 7, CA-ASS-51 e 52).
+- Resolvido na T-223 (dono, 15 out 2026): **Comissão de locação no Essencial** (T-192): opção A, como a ADR 0024; não é lançada, e depois do upgrade nasce só para as locações confirmadas a partir dele (`PLT-12`, `FIN-09`, CA-ASS-53).
+- Resolvido na T-223: (T-192) CA-ASS-15 lista também o que está aberto no seed de 07 out: 1 despesa aguardando aprovação (pneus) e 2 a pagar (IPVA ROE2A88 e luz); o seed não tem OS, venda nem comissão aberta.
+- Proposta do produto (T-223), numerada pelo orquestrador: **T-224 · arquiteto · ADR 0024 e contratos pelas decisões da T-223.** Troca de ramo em Configurações chama `pendencias_dos_modulos` com os recursos que saem, com o grupo novo `locacoes` (`locacoes_vistoria`: locações `aguardando_retirada`, `ativa` e `devolucao_atrasada`), e a recusa no formato do downgrade (`detalhes.abertos`); a atividade "só vende" recusada no Essencial (passo 7 e Configurações), e as opções do passo 7 vindas da API por plano, com o aviso; o downgrade para o Essencial recusado para quem só vende, com "O plano Essencial não inclui vendas. Para mudar, sua empresa precisa alugar."; a comissão só a partir do upgrade (o "não é refeito ao subir de plano" da ADR já cobre); `docs/api/assinatura.md`, exemplo do 422 do CA-ASS-15 com `abertos` (1 aguardando aprovação, 2 a pagar). CA-ASS-15, 50 a 53.
+- Proposta do produto (T-223, para a T-196, backend, depois da T-224): somar `test_plt_12_troca_de_ramo_com_algo_aberto`, `test_plt_12_essencial_sem_so_vende`, `test_plt_12_downgrade_so_vende` e `test_plt_12_comissao_so_depois_do_upgrade`, e o `test_plt_04_downgrade_nao_cabe` conferindo os `abertos` do seed (despesas 1 aguardando aprovação e 2 a pagar). Critérios: CA-ASS-15 e CA-ASS-22 a 25, 50 a 53. O frontend do passo 7 (`Onboarding-Ramo`) e de Configurações mostra as opções e a recusa que a API devolve.
 - [decisão] (T-181, Configurações) Empresa sem filial ativa: o contrato não diz o resumo do cartão Filiais; o backend usa "Nenhuma filial ativa" (como "Nenhuma categoria cadastrada" em Tabelas de preço). Produto: confirmar ou trocar o texto.
 
-### T-205 · Caução na busca do caixa (D-01 da T-025)
-- **Agente:** backend · **Depende de:** — · **Regras:** FIN-15 · **Critérios:** CA-023-15 · **Pronto quando:** a busca do caixa por locação traz a caução a receber (`financeiro/selectors.py::_recortar` considera `?busca=`), e a caução pode ser recebida pela tela do caixa; teste `test_fin_15_busca_do_caixa_traz_caucao`. O QA troca o contorno do E2E (`e2e/`) pela tela.
-
-### T-207 · Vistoriador sem 403 ao abrir a vistoria (D-05 da T-025)
-- **Agente:** backend (com o frontend, se a chamada não for necessária) · **Depende de:** — · **Regras:** USR-09 · **Pronto quando:** o João (vistoriador) abre a vistoria sem 403: ou a tela deixa de chamar `GET /api/clientes/{id}/` e usa o que a vistoria já traz, ou a API devolve ao vistoriador só o que a USR-09 permite; teste com o perfil do vistoriador.
-
-### T-208 · Enviar contrato e página pública de assinatura (lacuna da T-025)
-- **Agente:** frontend · **Depende de:** — · **Regras:** LOC-04 · **Contrato:** `docs/api/contratos.md` (`POST /api/locacoes/{id}/contrato/` e as rotas públicas de assinatura) · **Telas:** as de assinatura em `docs/telas/html` · **Pronto quando:** botão para gerar e enviar o contrato na locação e página pública `/assinar` (sem login, celular), ligadas à API real; testes. O QA troca o contorno do CA-025-05 pela tela.
+- [decisão] (T-208, para o backend) `GET /api/locacoes/{id}/` não manda uma ação para gerar o contrato (só `imprimir_contrato` e `reenviar_contrato`). A tela usa "aguardando retirada + sem contrato vigente + sem desconto pendente + `acoes.cancelar` verdadeiro (quem cria locação)". Sugestão: `acoes.gerar_contrato` no selector `acoes()` e a tela passa a ler só ele.
 
 ### T-209 · Ajustes de cadastro e caixa achados no E2E (lacunas da T-025)
 - **Agente:** frontend · **Depende de:** — · **Regras:** CLI-01, FIN-01 · **Pronto quando:** (b) as fotos do cliente podem ser enviadas antes do primeiro "Salvar cliente", para "Salvar e iniciar locação" já ter as fotos; (c) o CEP preenche rua, bairro e cidade; (e) no celular o caixa mostra "N recebimentos"; testes. O item (d), a vendedora sem acesso à Frota, vai ao produto como divergência.
-
-### T-210 · Fotos no desenvolvimento sem bloqueio da CSP (D-06 da T-025)
-- **Agente:** devops (com o backend) · **Depende de:** — · **Pronto quando:** em desenvolvimento as URLs assinadas das fotos apontam para um endereço que o navegador alcança e a CSP permite (sem `arquivos.invalid`); as fotos da comparação da devolução aparecem e o console fica limpo; o E2E deixa de tolerar o erro da CSP.
-- [decisão] (T-171, Auditoria e Exportar) Diferenças entre as referências e o contrato `auditoria.md`: (1) o contrato diz 9 eventos em "Últimos 7 dias" no seed (CA-018-09), e a referência lista 10, com "Mudou a tabela de preço" de 01 out; o seed do frontend segue a referência. (2) O contrato não dá o tom de cada evento; a tela usa a categoria (suporte em alerta, configurações e segurança em info) e a regra `USR-06`/`PLT-08` para "Login bloqueado" em crítico. (3) A referência mostra contagem no chip "Suporte 2"; a lista não devolve contagens por categoria, e o chip ficou sem número. (4) `Admin-Exportar` na referência tem seis itens, três formatos e o cartão do Backup automático; a tela do MVP mostra só a auditoria em CSV e o período (opção A de 12 out), sem os outros nem desabilitados. (5) O download de uma exportação exige o login (token só em memória), então a tela busca o arquivo com `Authorization` e segue o 302 para a URL assinada; precisa de conferência no compose (CORS do storage na resposta do redirecionamento). Arquiteto/devops: confirmar o (5); design-system: ajustar `Admin-Exportar-*` e o chip.
-
-### T-218 · Fotos do desenvolvimento que sobrevivem ao reinício do backend (D-07 da T-212)
-- **Agente:** devops (com o backend) · **Depende de:** T-210 · **Pronto quando:** no desenvolvimento, o armazenamento "falso" (`comum/arquivos.py`, hoje um dicionário na memória) guarda os arquivos em disco (volume do compose), e as fotos da saída continuam abrindo em `/api/arquivos-dev/` depois que o backend é recriado (o E2E recria para virar o relógio de 07 para 14 out); testes e homologação/produção não mudam; o QA tira a anotação do D-07 do E2E. Detalhe em `tarefas/handoffs/T-212-qa.md`.
 
 ## Fase 2 em diante
 
