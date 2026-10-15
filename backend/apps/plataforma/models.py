@@ -1,14 +1,16 @@
-"""Planos, empresas (tenants) e o resumo de uso no public (PLT-01, PLT-03, IMP-05).
+"""Planos, empresas (tenants), faturas da assinatura e o resumo de uso no public (PLT-01,
+PLT-03, PLT-13, PLT-14, IMP-05).
 
-Modelo em `docs/decisoes/modelo-de-dados.md` (itens 1 e 2 e apoio). Empresa nasce só por
+Modelo em `docs/decisoes/modelo-de-dados.md` (itens 1 a 3 e apoio). Empresa nasce só por
 `plataforma.services.criar_empresa`; status muda só por `comum.estados.transicionar`.
 """
 
 from datetime import date, timedelta
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from django.conf import settings
-from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models, transaction
 from django_tenants.models import DomainMixin, TenantMixin
 
 from comum import cripto
@@ -18,6 +20,7 @@ from comum.estados import MaquinaDeEstados
 from comum.models import ModeloAtivavel, ModeloBase, ModeloComCifra
 
 DIAS_DE_TESTE = 14  # PLT-01
+CAMPOS_DO_ENDERECO = ("cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf")
 
 
 class Recurso(models.TextChoices):
@@ -115,6 +118,17 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
     responsavel_nome = models.CharField(max_length=150, blank=True, default="")
     responsavel_email = models.EmailField(blank=True, default="")
     responsavel_telefone = models.CharField(max_length=13, blank=True, default="")
+    # Faturas, boleto, régua e NFS-e da assinatura (PLT-02, PLT-15). Nasce = responsavel_email.
+    email_cobranca = models.EmailField(blank=True, default="")
+    # Endereço da nota da assinatura (PLT-15): copiado uma vez da matriz
+    # (`copiar_endereco_da_matriz`), depois independente da filial. Vazios até lá; não voltam.
+    endereco_cep = models.CharField(max_length=8, blank=True, default="")
+    endereco_logradouro = models.CharField(max_length=150, blank=True, default="")
+    endereco_numero = models.CharField(max_length=20, blank=True, default="")
+    endereco_complemento = models.CharField(max_length=80, blank=True, default="")
+    endereco_bairro = models.CharField(max_length=80, blank=True, default="")
+    endereco_cidade = models.CharField(max_length=80, blank=True, default="")
+    endereco_uf = models.CharField(max_length=2, blank=True, default="")
     # Só dígitos. Nulo só na linha do public e nas empresas de teste da fundação.
     cnpj = models.CharField(max_length=14, unique=True, null=True, blank=True)
     subdominio = models.CharField(max_length=63, unique=True, null=True, blank=True)
@@ -125,6 +139,12 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
     preco_contratado_centavos = CentavosField(default=0)  # PLT-05
     plano_proximo = models.ForeignKey(
         Plano, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    # Mudança de ciclo pela equipe, na próxima fatura (PLT-04).
+    ciclo_proximo = models.CharField(max_length=10, choices=Ciclo.choices, blank=True, default="")
+    # PLT-01: dia de `teste_fim + 1`. Em mês sem esse dia, vence no último (`calendario`).
+    dia_vencimento = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(31)]
     )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.EM_TESTE)
     teste_inicio = models.DateField(null=True, blank=True)
@@ -151,7 +171,11 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
             "responsavel_nome",
             "responsavel_email",
             "responsavel_telefone",
+            "email_cobranca",
         ],
+        # O endereço da nota não vai para a auditoria do public (AUD-08, M-03 da T-230); a lista
+        # `omitir_no_public` completa, com o valor no schema da empresa, é da T-195.
+        "omitir": [f"endereco_{campo}" for campo in CAMPOS_DO_ENDERECO],
     }
 
     class Meta:
@@ -170,6 +194,14 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
     def primeira_cobranca(self) -> date | None:
         """PLT-01: a 1ª fatura vence no dia seguinte ao fim do teste."""
         return self.teste_fim + timedelta(days=1) if self.teste_fim else None
+
+    @property
+    def endereco(self) -> dict[str, str | None] | None:
+        """O endereço da nota no formato do endereço da filial (complemento vazio = `None`);
+        `None` antes do passo 6."""
+        if not self.endereco_cep:
+            return None
+        return {campo: getattr(self, f"endereco_{campo}") or None for campo in CAMPOS_DO_ENDERECO}
 
 
 class Dominio(DomainMixin):
@@ -322,3 +354,220 @@ class ContaPagamento(MaquinaDeEstados, ModeloComCifra, ModeloBase):
 
     def __str__(self) -> str:
         return f"{self.provedor} {self.conta_externa_id}"
+
+
+# --- Faturas da assinatura (PLT-01, PLT-02, PLT-13, PLT-14, PLT-15; T-184) ---
+
+
+class TipoFatura(models.TextChoices):
+    MENSALIDADE = "mensalidade", "Mensalidade"
+    DIFERENCA_PLANO = "diferenca_plano", "Diferença de plano"  # upgrade no meio do período
+
+
+class StatusFatura(models.TextChoices):
+    ABERTA = "aberta", "Aberta"
+    PAGA = "paga", "Paga"
+    ATRASADA = "atrasada", "Atrasada"
+    CANCELADA = "cancelada", "Cancelada"
+
+
+class FormaPagaFatura(models.TextChoices):
+    """Como a fatura foi paga."""
+
+    PIX = "pix", "Pix"
+    BOLETO = "boleto", "Boleto"
+    CARTAO = "cartao", "Cartão"
+
+
+class SituacaoNota(models.TextChoices):
+    PROCESSANDO = "processando", "Processando"
+    EMITIDA = "emitida", "Emitida"
+    ERRO = "erro", "Erro"
+
+
+class MotivoCancelamentoFatura(models.TextChoices):
+    CANCELAMENTO_ASSINATURA = "cancelamento_assinatura", "Cancelamento da assinatura"
+    PAUSA = "pausa", "Pausa"
+
+
+PREFIXO_FATURA = "FAT"
+TENTATIVAS_DO_CARTAO = 2  # PLT-02: a cobrança no vencimento e uma tentativa a mais
+
+
+class FaturaAssinatura(MaquinaDeEstados, ModeloBase):
+    """Cobrança do Giro à empresa, no public. Nasce só por `plataforma.services`; a baixa vem só
+    do webhook da conta principal, que consulta o parceiro antes (PLT-14). Paga não se edita.
+
+    `codigo` (`FAT-0001`) é sequencial por empresa (sequência `FAT-<empresa_id>` no public)."""
+
+    empresa = models.ForeignKey(Empresa, on_delete=models.PROTECT, related_name="faturas")
+    numero = models.PositiveIntegerField(editable=False)
+    codigo = models.CharField(max_length=20, editable=False)
+    tipo = models.CharField(max_length=20, choices=TipoFatura.choices)
+    competencia = models.DateField()  # dia 1 do mês do início do período
+    periodo_inicio = models.DateField()
+    periodo_fim = models.DateField()
+    plano = models.ForeignKey(Plano, on_delete=models.PROTECT, related_name="+")
+    # O ciclo cobrado: a descrição do anual é outra (PLT-14).
+    ciclo = models.CharField(max_length=10, choices=Empresa.Ciclo.choices)
+    valor_centavos = CentavosField()
+    vencimento = models.DateField()
+    status = models.CharField(
+        max_length=10, choices=StatusFatura.choices, default=StatusFatura.ABERTA
+    )
+    forma = models.CharField(max_length=10, choices=FormaPagaFatura.choices, blank=True, default="")
+    cobranca_emitida_em = models.DateTimeField(null=True, blank=True)
+    pago_em = models.DateTimeField(null=True, blank=True)
+    cobranca_externa_id = models.CharField(max_length=60, unique=True, null=True, blank=True)
+    tentativas_cartao = models.PositiveSmallIntegerField(
+        default=0, validators=[MaxValueValidator(TENTATIVAS_DO_CARTAO)]
+    )
+    cartao_recusado_em = models.DateTimeField(null=True, blank=True)
+    # NFS-e da assinatura (PLT-15; a emissão é da T-197).
+    nota_situacao = models.CharField(
+        max_length=12, choices=SituacaoNota.choices, blank=True, default=""
+    )
+    nota_numero = models.CharField(max_length=30, blank=True, default="")
+    nota_externa_id = models.CharField(max_length=60, blank=True, default="")
+    nota_url = models.URLField(max_length=500, blank=True, default="")
+    nota_pedida_em = models.DateTimeField(null=True, blank=True)
+    # Tomador como foi na nota, ou na baixa sem nota (PLT-14, T-236): gravado uma vez por
+    # `services.gravar_tomador` e imutável depois.
+    tomador_razao_social = models.CharField(max_length=150, blank=True, default="")
+    tomador_cnpj = models.CharField(max_length=14, blank=True, default="")
+    tomador_endereco = models.JSONField(null=True, blank=True)
+    tomador_gravado_em = models.DateTimeField(null=True, blank=True)
+    # Só na fatura `atrasada` de empresa apagada, até a baixa (AUD-08, T-195).
+    email_cobranca = models.EmailField(blank=True, default="")
+    # Cancelar e pausar (PLT-06, T-195).
+    motivo_cancelamento = models.CharField(
+        max_length=30, choices=MotivoCancelamentoFatura.choices, blank=True, default=""
+    )
+    cancelada_em = models.DateTimeField(null=True, blank=True)
+    substituida_por = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+
+    TRANSICOES: ClassVar[dict[str, set[str]]] = {
+        StatusFatura.ABERTA: {StatusFatura.PAGA, StatusFatura.ATRASADA, StatusFatura.CANCELADA},
+        StatusFatura.ATRASADA: {StatusFatura.PAGA, StatusFatura.CANCELADA},
+        StatusFatura.PAGA: set(),
+        StatusFatura.CANCELADA: set(),
+    }
+    REGRA_TRANSICAO = "PLT-14"
+    CATEGORIA_AUDITORIA = Categoria.FINANCEIRO
+    # O tomador e o e-mail podem identificar uma pessoa (MEI, T-230): os eventos da fatura, no
+    # public, não levam os valores (assinatura.md, "Tomador da fatura").
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
+        "inteiro": ["codigo"],
+        "omitir": ["tomador_razao_social", "tomador_cnpj", "tomador_endereco", "email_cobranca"],
+    }
+
+    class Meta:
+        verbose_name = "fatura da assinatura"
+        verbose_name_plural = "faturas da assinatura"
+        ordering = ["-vencimento", "-numero"]
+        constraints = [
+            models.UniqueConstraint(fields=["empresa", "numero"], name="fatura_numero_unico"),
+            models.UniqueConstraint(fields=["empresa", "codigo"], name="fatura_codigo_unico"),
+            # Uma mensalidade viva por período (PLT-01); a cancelada abre espaço para outra.
+            models.UniqueConstraint(
+                fields=["empresa", "competencia"],
+                condition=models.Q(tipo="mensalidade") & ~models.Q(status="cancelada"),
+                name="fatura_mensalidade_unica",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(tentativas_cartao__lte=TENTATIVAS_DO_CARTAO),
+                name="fatura_tentativas_cartao",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(periodo_fim__gte=models.F("periodo_inicio")),
+                name="fatura_periodo",
+            ),
+        ]
+        indexes = [models.Index(fields=["status", "vencimento"], name="fatura_status_vencimento")]
+
+    def __str__(self) -> str:
+        return f"{self.codigo} · empresa {self.empresa_id}"
+
+    @property
+    def descricao(self) -> str:
+        """ "Plano Profissional · 22 out a 21 nov" (PLT-14)."""
+        from .calendario import descricao_da_fatura
+
+        return descricao_da_fatura(
+            self.tipo, self.plano.nome, self.ciclo, self.periodo_inicio, self.periodo_fim
+        )
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if self._state.adding and not self.codigo:
+            from comum.codigos import formatar_codigo, proximo_numero
+
+            # O número sai na mesma transação da fatura, no public: rollback devolve o número.
+            with transaction.atomic():
+                self.numero = proximo_numero(f"{PREFIXO_FATURA}-{self.empresa_id}")
+                self.codigo = formatar_codigo(PREFIXO_FATURA, self.numero)
+                super().save(*args, **kwargs)
+            return
+        super().save(*args, **kwargs)
+
+
+class FormaAssinatura(models.TextChoices):
+    CARTAO = "cartao", "Cartão de crédito"
+    PIX_AUTOMATICO = "pix_automatico", "Pix automático"
+    BOLETO = "boleto", "Boleto"
+
+
+class StatusFormaPagamento(models.TextChoices):
+    PENDENTE = "pendente", "Pendente"  # Pix aguardando autorização, cartão ainda não guardado
+    ATIVA = "ativa", "Ativa"
+    RECUSADA = "recusada", "Recusada"
+
+
+class FormaPagamentoAssinatura(MaquinaDeEstados, ModeloComCifra, ModeloBase):
+    """Forma de pagamento da assinatura e o pagador da empresa na conta principal (PLT-13).
+
+    O número do cartão nunca passa pelo Giro (ADR 0023): fica só o token do parceiro, cifrado com
+    a chave dos segredos e decifrado só em `integracoes/pagamentos`, mais a bandeira e o final. O
+    token nunca sai na API, na auditoria nem no log."""
+
+    empresa = models.OneToOneField(
+        Empresa, on_delete=models.PROTECT, related_name="forma_pagamento"
+    )
+    forma = models.CharField(max_length=20, choices=FormaAssinatura.choices, blank=True, default="")
+    status = models.CharField(
+        max_length=10, choices=StatusFormaPagamento.choices, default=StatusFormaPagamento.PENDENTE
+    )
+    cliente_externo_id = models.CharField(max_length=60, blank=True, default="")
+    autorizacao_externa_id = models.CharField(max_length=60, blank=True, default="")
+    cartao_token_cifrado = CampoCifrado(tipo=cripto.SEGREDOS)
+    cartao_bandeira = models.CharField(max_length=20, blank=True, default="")
+    cartao_final = models.CharField(max_length=4, blank=True, default="")
+
+    TRANSICOES: ClassVar[dict[str, set[str]]] = {
+        StatusFormaPagamento.PENDENTE: {StatusFormaPagamento.ATIVA, StatusFormaPagamento.RECUSADA},
+        StatusFormaPagamento.ATIVA: {StatusFormaPagamento.PENDENTE, StatusFormaPagamento.RECUSADA},
+        StatusFormaPagamento.RECUSADA: {StatusFormaPagamento.PENDENTE, StatusFormaPagamento.ATIVA},
+    }
+    REGRA_TRANSICAO = "PLT-13"
+    CATEGORIA_AUDITORIA = Categoria.FINANCEIRO
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
+        "omitir": ["cartao_token_cifrado", "cliente_externo_id", "autorizacao_externa_id"]
+    }
+
+    if TYPE_CHECKING:  # criados por CampoCifrado.contribute_to_class
+
+        def cartao_token_cifrado_claro(self) -> str: ...
+
+        def definir_cartao_token_cifrado(self, valor: str | None) -> None: ...
+
+    class Meta:
+        verbose_name = "forma de pagamento da assinatura"
+        verbose_name_plural = "formas de pagamento da assinatura"
+
+    def empresa_id_da_cifra(self) -> int:
+        # No public: a cifra amarra o token à empresa dona dele, não à da conexão.
+        return int(self.empresa_id)
+
+    def __str__(self) -> str:
+        return f"Forma de pagamento da empresa {self.empresa_id}"

@@ -23,6 +23,7 @@ from rest_framework.views import APIView
 from apps.filiais.models import Filial
 from apps.filiais.selectors import filtrar_por_filial
 from apps.plataforma.models import ContaPagamento
+from apps.plataforma.services import registrar_webhook_principal, token_da_conta_principal
 from comum import arquivos, leituras, relogio
 from comum.erros import ErroDeValidacao, NaoAutenticado, SemPermissao
 from comum.limites import WebhookPorIP
@@ -732,7 +733,8 @@ class PagarDespesaView(APIView):
 
 class WebhookAsaasView(APIView):
     """Sem login: o token do cabeçalho tem de conferir com o hash guardado de uma
-    `ContaPagamento` (`hmac.compare_digest`). Grava o aviso no schema da empresa (`evento_id`
+    `ContaPagamento` (`hmac.compare_digest`) ou com o da conta principal (faturas da assinatura,
+    tratadas no public pela plataforma). Grava o aviso no schema da empresa (`evento_id`
     único: o repetido não faz nada) e responde 200 na hora; a baixa é da tarefa AUT-05."""
 
     authentication_classes: list[Any] = []
@@ -751,7 +753,19 @@ class WebhookAsaasView(APIView):
             .filter(webhook_token_hash=esperado)
             .first()
         )
-        if conta is None or not hmac.compare_digest(conta.webhook_token_hash, esperado):
+        if conta is None:
+            # Conta principal do Giro (faturas da assinatura, T-184): token próprio, só o hash
+            # em configuração; o aviso fica no public e a baixa é da plataforma.
+            if not token_da_conta_principal(evento.token):
+                raise NaoAutenticado("webhook_invalido", "Aviso não reconhecido.")
+            aviso = registrar_webhook_principal(evento, request.data)
+            if aviso is not None:
+                from apps.plataforma.tasks import plataforma_processar_webhook_fatura
+
+                aviso_id = aviso.pk
+                transaction.on_commit(lambda: plataforma_processar_webhook_fatura.delay(aviso_id))
+            return Response({"recebido": True})
+        if not hmac.compare_digest(conta.webhook_token_hash, esperado):
             raise NaoAutenticado("webhook_invalido", "Aviso não reconhecido.")
         empresa = conta.empresa
         with tenant_context(empresa):

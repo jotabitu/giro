@@ -13,7 +13,7 @@ from django_tenants.utils import get_public_schema_name
 from comum import relogio
 from comum.conexao import conexao
 
-from .models import Empresa, Item, UsoEmpresa
+from .models import Empresa, FaturaAssinatura, Item, StatusFatura, UsoEmpresa
 from .services import PASSOS_IMPLANTACAO, chegou_a_90, endereco_de_acesso, etapa_do_funil
 
 DIAS_PARA_IMPLANTACAO_PARADA = 3  # IMP-05
@@ -129,6 +129,40 @@ def _uso(empresa: Empresa) -> UsoEmpresa:
         return UsoEmpresa(empresa=empresa)
 
 
+def _rotulo_da_fatura_atrasada(empresa: Empresa) -> str:
+    """ "Fatura 12 dias atrasada", pela fatura atrasada mais antiga (T-184)."""
+    vencimento = (
+        FaturaAssinatura.objects.filter(empresa=empresa, status=StatusFatura.ATRASADA)
+        .order_by("vencimento")
+        .values_list("vencimento", flat=True)
+        .first()
+    )
+    if vencimento is None:
+        return "Fatura atrasada"
+    dias = (relogio.hoje() - vencimento).days
+    return f"Fatura {dias} {'dia' if dias == 1 else 'dias'} atrasada"
+
+
+def faturas_recentes(empresa: Empresa) -> list[dict[str, Any]]:
+    """As 5 faturas mais novas da empresa, da mais nova para a mais antiga (painel da
+    plataforma). A 1ª de quem passou pelo teste leva "1ª cobrança após o teste"."""
+    faturas = FaturaAssinatura.objects.filter(empresa=empresa).order_by("-vencimento", "-numero")
+    return [
+        {
+            "codigo": fatura.codigo,
+            "vencimento": fatura.vencimento,
+            "valor_centavos": fatura.valor_centavos,
+            "status": fatura.status,
+            "observacao": (
+                "1ª cobrança após o teste"
+                if fatura.numero == 1 and empresa.teste_fim is not None
+                else None
+            ),
+        }
+        for fatura in faturas[:5]
+    ]
+
+
 def situacao(empresa: Empresa) -> dict[str, str]:
     """`{codigo, rotulo, tom}`. A empresa precisa vir de `com_situacao`."""
     codigo: str = empresa.situacao_codigo
@@ -137,8 +171,7 @@ def situacao(empresa: Empresa) -> dict[str, str]:
     elif codigo == "suspensa":
         rotulo = "Suspensa"
     elif codigo == "fatura_atrasada":
-        # Os dias de atraso vêm da fatura (cobrança, fase 2).
-        rotulo = "Fatura atrasada"
+        rotulo = _rotulo_da_fatura_atrasada(empresa)
     elif codigo == "implantacao_parada":
         passo = _primeiro_passo_aberto(_uso(empresa).passos_implantacao)
         rotulo = f"Parada no passo {passo}"
@@ -298,10 +331,10 @@ def detalhe_empresa(empresa: Empresa) -> dict[str, Any]:
         },
         "implantacao": implantacao(empresa),
         "locacoes_total": _uso(empresa).locacoes_total,
-        # Chamados, faturas e ações sobre a empresa são da fase 2.
+        # Chamados e ações sobre a empresa são da fase 2.
         "chamados_abertos": 0,
         "suporte_bloqueado": empresa.suporte_bloqueado,
-        "faturas_recentes": [],
+        "faturas_recentes": faturas_recentes(empresa),
         "acoes": {
             "entrar_como_suporte": False,
             "estender_teste": False,

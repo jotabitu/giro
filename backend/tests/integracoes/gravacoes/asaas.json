@@ -147,5 +147,37 @@
   "cancelar_autorizacao": [
     {"metodo": "DELETE", "caminho": "/pix/automatic/authorizations/a33047b1-0000-4000-8000-000000002841",
      "resposta": {"status": 200, "corpo": {"id": "a33047b1-0000-4000-8000-000000002841", "status": "CANCELLED", "cancellationDate": "2026-10-07", "cancellationReason": "CANCELLED_BY_RECEIVER"}}}
+  ],
+
+  "t184_pagador_novo": [
+    {"metodo": "POST", "caminho": "/customers",
+     "resposta": {"status": 200, "corpo": {"object": "customer", "id": "cus_000000000901", "name": "Moto Rápida Locações Ltda", "cpfCnpj": "12345678000195", "email": "mariana@motorapida.com.br", "postalCode": "60325000", "address": "Av. Bezerra de Menezes", "addressNumber": "1200", "province": "São Gerardo", "notificationDisabled": true, "deleted": false}}}
+  ],
+
+  "t184_pagador_atualizado": [
+    {"metodo": "POST", "caminho": "/customers/cus_000000000901",
+     "resposta": {"status": 200, "corpo": {"object": "customer", "id": "cus_000000000901", "name": "Moto Rápida Locações Ltda", "cpfCnpj": "12345678000195", "email": "financeiro@motorapida.com.br", "postalCode": "60325000", "address": "Av. Bezerra de Menezes", "addressNumber": "1200", "province": "São Gerardo", "notificationDisabled": true, "deleted": false}}}
+  ],
+
+  "t184_fatura_no_cartao_pela_pagina": [
+    {"metodo": "GET", "caminho": "/payments", "consulta": ["externalReference", "status"],
+     "resposta": {"status": 200, "corpo": {"object": "list", "hasMore": false, "totalCount": 0, "limit": 10, "offset": 0, "data": []}}},
+    {"metodo": "POST", "caminho": "/payments",
+     "resposta": {"status": 200, "corpo": {"object": "payment", "id": "pay_t184fat0001", "customer": "cus_000000000901", "value": 449.0, "billingType": "CREDIT_CARD", "status": "PENDING", "dueDate": "2026-10-22", "externalReference": "fatura-1", "invoiceUrl": "https://sandbox.asaas.com/i/t184fat0001", "bankSlipUrl": null, "deleted": false}}}
+  ],
+
+  "t184_fatura_paga_no_cartao": [
+    {"metodo": "GET", "caminho": "/payments/pay_t184fat0001",
+     "resposta": {"status": 200, "corpo": {"object": "payment", "id": "pay_t184fat0001", "value": 449.0, "billingType": "CREDIT_CARD", "status": "CONFIRMED", "dueDate": "2026-10-22", "confirmedDate": "2026-10-07", "creditCard": {"creditCardNumber": "4242", "creditCardBrand": "VISA", "creditCardToken": "tok-ficticio-0000-t184"}, "deleted": false}}}
+  ],
+
+  "t184_cartao_salvo_cobrado": [
+    {"metodo": "POST", "caminho": "/payments",
+     "resposta": {"status": 200, "corpo": {"object": "payment", "id": "pay_t184fat0002", "customer": "cus_000000000901", "value": 449.0, "billingType": "CREDIT_CARD", "status": "CONFIRMED", "dueDate": "2026-11-22", "externalReference": "fatura-2", "deleted": false}}}
+  ],
+
+  "t184_cartao_salvo_recusado": [
+    {"metodo": "POST", "caminho": "/payments",
+     "resposta": {"status": 400, "corpo": {"errors": [{"code": "invalid_creditCard", "description": "Transação não autorizada. Verifique os dados do cartão de crédito e tente novamente."}]}}}
   ]
 }

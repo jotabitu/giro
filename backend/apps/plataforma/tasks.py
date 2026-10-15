@@ -1,5 +1,6 @@
 """Tarefas da plataforma: aviso de 90% do plano (PLT-03), correção noturna do uso, aviso de
-entrada do suporte e fim dos acessos vencidos (PLT-07, AUT-15)."""
+entrada do suporte e fim dos acessos vencidos (PLT-07, AUT-15), baixa das faturas da assinatura
+pelo webhook da conta principal (PLT-14) e as notas que esperavam o endereço (PLT-15)."""
 
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -11,6 +12,7 @@ from django.core.mail import send_mail
 from django_tenants.utils import get_public_schema_name, schema_context
 
 from comum.tarefas import para_cada_empresa, tarefa_de_empresa
+from integracoes.pagamentos.base import ParceiroIndisponivel
 
 from .models import Empresa, Item
 
@@ -104,3 +106,35 @@ def plataforma_recalcular_uso(schema_name: str) -> dict[str, int]:
 def plataforma_recalcular_uso_de_todas(**_: Any) -> int:
     """Agendada pelo Beat de madrugada; enfileira uma correção por empresa."""
     return para_cada_empresa(plataforma_recalcular_uso, inclui_suspensas=True)
+
+
+@shared_task(
+    name="plataforma_processar_webhook_fatura",
+    autoretry_for=(ParceiroIndisponivel,),
+    retry_backoff=60,
+    retry_backoff_max=60 * 60,
+    max_retries=24,
+)
+def plataforma_processar_webhook_fatura(webhook_id: int) -> str:
+    """PLT-14: baixa da fatura da assinatura pelo aviso da conta principal, depois de consultar
+    a cobrança no parceiro. Parceiro fora do ar: tenta de novo mais tarde (o aviso fica sem
+    `processado_em`)."""
+    from .services import processar_webhook_fatura
+
+    return processar_webhook_fatura(webhook_id)
+
+
+@shared_task(name="plataforma_pedir_notas_pendentes")
+def plataforma_pedir_notas_pendentes(empresa_id: int) -> int:
+    """PLT-15: quando a empresa passa a ter endereço, pede as notas das faturas pagas que
+    esperavam por ele. Só com `GIRO_NFSE_ASSINATURA_ATIVA`; a emissão é da T-197 (bloqueada até
+    o cadastro municipal), e até lá esta tarefa só conta as que esperam."""
+    from .models import FaturaAssinatura, StatusFatura
+    from .services import nfse_ligada
+
+    if not nfse_ligada():
+        return 0
+    with schema_context(get_public_schema_name()):
+        return FaturaAssinatura.objects.filter(
+            empresa_id=empresa_id, status=StatusFatura.PAGA, nota_situacao=""
+        ).count()

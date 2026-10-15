@@ -118,6 +118,14 @@ class AcoesSerializer(serializers.Serializer[Any]):
     suspender = serializers.BooleanField()
 
 
+class FaturaRecenteSerializer(serializers.Serializer[Any]):
+    codigo = serializers.CharField()
+    vencimento = serializers.DateField()
+    valor_centavos = serializers.IntegerField()
+    status = serializers.ChoiceField(choices=["aberta", "paga", "atrasada", "cancelada"])
+    observacao = serializers.CharField(allow_null=True)
+
+
 class EmpresaDetalheSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     razao_social = serializers.CharField()
@@ -140,7 +148,7 @@ class EmpresaDetalheSerializer(serializers.Serializer[Any]):
     locacoes_total = serializers.IntegerField()
     chamados_abertos = serializers.IntegerField()
     suporte_bloqueado = serializers.BooleanField()
-    faturas_recentes = serializers.ListField(child=serializers.DictField())
+    faturas_recentes = FaturaRecenteSerializer(many=True)
     acoes = AcoesSerializer()
 
 

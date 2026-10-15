@@ -12,7 +12,12 @@ from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.db.models.functions import Lower
 
-from apps.plataforma.services import atualizar_uso, exigir_limite, registrar_passo_implantacao
+from apps.plataforma.services import (
+    atualizar_uso,
+    copiar_endereco_da_matriz,
+    exigir_limite,
+    registrar_passo_implantacao,
+)
 from comum import leituras
 from comum.auditoria import Categoria, auditar, registrar_evento, retrato
 from comum.documentos import cnpj_valido, so_digitos
@@ -138,6 +143,11 @@ def criar_filial(dados: dict[str, Any], criada_por: Any) -> Filial:
         )
         atualizar_uso("filiais", 1)
         registrar_passo_implantacao("filial")
+        if matriz:
+            # PLT-15 (T-213): o endereço da nota da assinatura nasce da 1ª matriz, uma vez só.
+            copiar_endereco_da_matriz(
+                {campo: getattr(filial, campo) for campo in CAMPOS_ENDERECO}, filial.pk
+            )
     return filial
 
 
