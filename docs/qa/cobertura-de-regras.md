@@ -293,3 +293,23 @@ Testes em `backend/tests/aceitacao/test_t019_seed_completo.py` (`test_<regra>_se
 | CA-019-31 | Venda VEN-0177, comissões, conciliação, DRE | xfail: sem módulo |
 
 Os `xfail(strict)` avisam quando o código chegar.
+
+## Decisões de 14 out 2026: assinatura e aprovações (T-204, 15 out 2026)
+
+Critérios em `docs/qa/criterios/assinatura.md` (CA-ASS) e `aprovacoes.md` (CA-APR). Os testes de aceitação ficam em `backend/tests/aceitacao/` (assinatura em `test_t184_faturas.py` e `test_t127_seed.py`; seed das aprovações em `test_t204_decisoes_seed.py`) e os de cada app em `backend/apps/*/tests/`. **passa** = teste verde na `main`; **espera T-nnn** = o teste se escreve quando a tarefa de código fechar, com o nome do critério.
+
+| Critério | Teste | Status |
+| --- | --- | --- |
+| CA-ASS-01 | `test_plt_01_primeira_fatura_dia_seguinte_ao_teste`, `test_plt_01_seed_184_fatura_e_dados_fiscais` | passa (T-184) |
+| CA-ASS-07, 08 | `apps/plataforma/tests/test_calendario.py` (08), `test_plt_14_codigo_da_fatura_por_empresa` (07) | passa (T-184) |
+| CA-ASS-09 | `test_plt_01_primeira_fatura_do_anual` | passa (T-184) |
+| CA-ASS-47, 48 | `test_plt_15_endereco_nasce_da_matriz`, `test_plt_15_endereco_da_nota_e_da_filial_separados`, `test_plt_01_seed_184_fatura_e_dados_fiscais` | passa (T-184) |
+| CA-ASS-59 | `test_plt_14_fatura_guarda_tomador`, `test_plt_14_fatura_guarda_tomador_ao_pedir_a_nota` | passa (T-184) |
+| CA-ASS-02 a 06, 10 a 12 | `test_plt_02_*`, `test_aut_13_*` | espera T-186 (régua e estados); a baixa pelo webhook (`test_plt_14_webhook_da_fatura_baixa_uma_vez`) já passa |
+| CA-ASS-13 a 19, 40, 41 | `test_plt_04_*` | espera T-185 (rotas e `mudar_plano`) |
+| CA-ASS-20 a 25, 50 a 53 | `test_plt_11_*`, `test_plt_12_*` | espera T-196 (módulos por plano) |
+| CA-ASS-30 a 39, 42 a 46, 49, 54 a 58, 60 a 62 | `test_plt_06_*`, `test_aud_08_*`, `test_plt_16_*` | espera T-195 (cancelar, pausar e apagamento) |
+| CA-ASS-26 a 29 | NFS-e (`PLT-15`) | espera T-197 (bloqueada pelo contador) |
+| CA-APR-01 (horas do seed) | `test_apr_12_seed_horas_dos_pedidos_aprovados`, `test_apr_12_seed_tempo_medio_de_90_minutos`, `test_apr_12_seed_pendentes_sao_pneus_e_loc_2812` | passa (T-204): aluguel 05 out 08:30 → 09:10, rastreadores 02 out 10:00 → 12:20 |
+| CA-APR-01 a 11 (números e `resumo`) | `test_apr_12_*`, `test_apr_01_resumo_do_desconto` | espera T-202 |
+| CA-018-09 (10 eventos) e CA-018-10 (configurações = 1) | `test_aud_02_ca_018_09_lista_do_seed`, `test_aud_02_evento_da_tabela_de_preco` | espera T-202 (`criar_preco` grava o evento de 01 out 17:42) |

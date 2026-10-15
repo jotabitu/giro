@@ -144,9 +144,16 @@ def _despesas_de_outubro(centro: Filial, pessoas: dict[str, Usuario], relogio: A
     rodrigo = pessoas["Rodrigo Pinheiro"]
 
     def lancar(
-        quem: Usuario, descricao: str, valor: int, dia: str, vence: str, categoria: str, **mais: Any
+        quem: Usuario,
+        descricao: str,
+        valor: int,
+        dia: str,
+        vence: str,
+        categoria: str,
+        hora: str = "09:00",
+        **mais: Any,
     ) -> Despesa:
-        relogio.em(f"{dia} 09:00")
+        relogio.em(f"{dia} {hora}")
         with como(quem):
             return financeiro.lancar_despesa(
                 filial=centro,
@@ -160,25 +167,28 @@ def _despesas_de_outubro(centro: Filial, pessoas: dict[str, Usuario], relogio: A
                 **mais,
             )
 
-    def aprovar_e_pagar(despesa: Despesa, forma: str) -> None:
+    def aprovar_e_pagar(despesa: Despesa, forma: str, aprovada: str, paga: str) -> None:
         despesa.refresh_from_db()
         pedido = PedidoAprovacao.objects.get(pk=despesa.pedido_aprovacao_id or 0)
-        relogio.em(f"{despesa.data.isoformat()} 10:00")
+        relogio.em(f"{despesa.data.isoformat()} {aprovada}")
         with como(rodrigo):
             aprovacoes.aprovar(pedido, rodrigo)
         despesa.refresh_from_db()
-        relogio.em(f"{despesa.data.isoformat()} 11:00")
+        relogio.em(f"{despesa.data.isoformat()} {paga}")
         with como(lucia):
             financeiro.pagar_despesa(despesa, lucia, forma=forma, pago_em=relogio.agora)
 
     pmz = Veiculo.objects.get(placa="PMZ3E17").pk
+    # Horas do caso "Números da tela Aprovações em 07 out" (APR-12): 40 min e 2 h 20 min.
     rastreadores = lancar(
-        lucia, "Rastreadores (86)", 172000, "2026-10-02", "2026-10-02", "rastreamento"
+        lucia, "Rastreadores (86)", 172000, "2026-10-02", "2026-10-02", "rastreamento", "10:00"
     )
-    aprovar_e_pagar(rastreadores, "cartao")
+    aprovar_e_pagar(rastreadores, "cartao", "12:20", "12:30")
     lancar(lucia, "IPVA ROE2A88", 18640, "2026-10-03", "2026-10-31", "impostos")
-    aluguel = lancar(lucia, "Aluguel do ponto", 350000, "2026-10-05", "2026-10-05", "fixas")
-    aprovar_e_pagar(aluguel, "boleto")
+    aluguel = lancar(
+        lucia, "Aluguel do ponto", 350000, "2026-10-05", "2026-10-05", "fixas", "08:30"
+    )
+    aprovar_e_pagar(aluguel, "boleto", "09:10", "09:30")
     lancar(lucia, "Conta de luz", 41230, "2026-10-06", "2026-10-10", "fixas")
     lancar(joao, "Pneus (2)", 120000, "2026-10-07", "2026-10-07", "manutencao", veiculo_id=pmz)
 
