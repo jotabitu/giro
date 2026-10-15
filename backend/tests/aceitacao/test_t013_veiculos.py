@@ -194,6 +194,38 @@ def test_usr_09_vistoriador_ve_veiculo_sem_valores(moto, frota):
         assert api.get("/api/extras/").status_code == 200
 
 
+def test_usr_09_vendedor_sem_custo_do_veiculo(moto, frota):
+    """T-156: rendimento e custo de manutenção (VEI-05) só para administrador, gerente e
+    financeiro; para a vendedora a chave vem ausente, não nula, e o resto da ficha não muda."""
+    sak = frota.veiculos["SAK1D39"]
+    fichas = {
+        nome: moto.api(nome).get(_url(sak)).json() for nome in ("Mariana", "Rodrigo", "Lúcia")
+    }
+    indicadores = {nome: ficha["indicadores_financeiros"] for nome, ficha in fichas.items()}
+    esperado = leituras.blocos(selectors.ALVO, sak)["indicadores_financeiros"]
+    assert set(esperado) == {"rendeu_no_ano_centavos", "custo_manutencao_ano_centavos"}
+    assert indicadores == dict.fromkeys(fichas, esperado)
+
+    bruna = moto.api("Bruna").get(_url(sak))
+    assert bruna.status_code == 200
+    ficha = bruna.json()
+    assert "indicadores_financeiros" not in ficha
+    mariana = fichas["Mariana"]
+    for chave in (
+        "situacao",
+        "ocupacao",
+        "km_atual",
+        "documentos_resumo",
+        "preco_vigente",
+        "valor_venda_centavos",
+        "historico_status",
+    ):
+        assert ficha[chave] == mariana[chave], chave
+
+    # D-25: o vistoriador continua sem o bloco.
+    assert "indicadores_financeiros" not in moto.api("João").get(_url(sak)).json()
+
+
 def test_vei_01_ca_013_04_escopo_de_filial(moto, frota):
     caucaia = _caucaia(moto)
     de_caucaia = criar_veiculo(

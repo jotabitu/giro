@@ -207,9 +207,17 @@ class HistoricoStatusSerializer(serializers.Serializer[Any]):
 
 
 class VeiculoDetalheSerializer(VeiculoSerializer):
+    # Só para administrador, gerente e financeiro; ausente para os demais (USR-09, T-156).
     indicadores_financeiros = serializers.JSONField(allow_null=True, required=False)
     ocupacao = OcupacaoSerializer()
     historico_status = HistoricoStatusSerializer(many=True)
+
+    def to_representation(self, instance: Any) -> Any:
+        dados = super().to_representation(instance)
+        # O campo com allow_null viraria `null` quando a chave falta; aqui ela some.
+        if "indicadores_financeiros" not in instance:
+            dados.pop("indicadores_financeiros", None)
+        return dados
 
 
 class ContagensDaFrotaSerializer(serializers.Serializer[Any]):

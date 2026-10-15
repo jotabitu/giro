@@ -187,6 +187,7 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 
 
 ### T-156 · (M-02) Custo e rendimento do veículo fora da ficha do vendedor (média)
+- **Backend feito (15 out 2026):** PR #246 (`tarefas/handoffs/T-156-backend.md`); OpenAPI sem diferença. **Falta o frontend:** os cartões só quando a API manda `indicadores_financeiros`.
 - **Agente:** backend, depois frontend · **Depende de:** T-136 · **Regras:** tabela de perfis, USR-09, VEI-05 · **Decisão:** opção A do dono do produto em 12 out 2026 (regra na T-156 do produto) · **Pronto quando:**
   - (backend) em `GET /api/veiculos/{id}/`, a chave `indicadores_financeiros` (`rendeu_no_ano_centavos`, `custo_manutencao_ano_centavos`) só vem para administrador, gerente e financeiro, pela mesma checagem do `valor_compra_centavos` em `veiculos/selectors.representacao` com o financeiro incluído; para vendedor e vistoriador a chave vem **ausente** (não `null`, não zero), como no D-25; OpenAPI com a chave opcional; teste `test_usr_09_vendedor_sem_custo_do_veiculo`;
   - CA: dado a Bruna (vendedora), quando faz `GET /api/veiculos/{id}/` de um veículo da filial dela, então a resposta não tem `indicadores_financeiros`, e o resto da ficha (situação, ocupação, km, documentos, preços) vem como antes;
