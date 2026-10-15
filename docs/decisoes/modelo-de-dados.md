@@ -75,13 +75,13 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | `cidade`, `uf` | texto(80), texto(2) | lista de empresas |
 | `responsavel_nome`, `responsavel_email`, `responsavel_telefone` | texto | contato do administrador na compra |
 | `email_cobranca` | texto(254) | faturas, boleto, régua da assinatura e NFS-e (`PLT-02`, `PLT-15`); nasce igual a `responsavel_email` (T-183, `docs/api/assinatura.md`) |
-| `endereco_cep`, `endereco_logradouro`, `endereco_numero`, `endereco_complemento`, `endereco_bairro`, `endereco_cidade`, `endereco_uf` | texto, nulos | endereço da nota fiscal da assinatura (`PLT-15`, T-193); a compra não pede |
+| `endereco_cep`, `endereco_logradouro`, `endereco_numero`, `endereco_complemento`, `endereco_bairro`, `endereco_cidade`, `endereco_uf` | texto, nulos | endereço da nota fiscal da assinatura (`PLT-15`, T-193); a compra não pede; copiado uma vez do endereço da filial matriz quando ela é criada (`copiar_endereco_da_matriz`, T-213), depois independente da filial; não volta a nulo |
 | `cnpj` | texto(14), único | só dígitos, validado (`CLI-01` vale para CNPJ) |
 | `subdominio` | texto(63), único | `motorapida` |
 | `plano` | FK → `Plano` | |
 | `ciclo` | enum `mensal`, `anual` | |
 | `preco_contratado_centavos` | centavos | `PLT-05` |
-| `plano_proximo` | FK → `Plano`, nulo | downgrade ou mudança de ciclo agendados (`PLT-04`) |
+| `plano_proximo` | FK → `Plano`, nulo | downgrade ou mudança de ciclo agendados (`PLT-04`); o downgrade é conferido na geração da fatura e aplicado no vencimento (`aplicar_mudanca_agendada`, T-213) |
 | `ciclo_proximo` | enum `mensal`, `anual`, nulo | mudança de ciclo pela equipe, na próxima fatura (`PLT-04`, T-193) |
 | `dia_vencimento` | int 1 a 31 | `PLT-01`: dia de `teste_fim + 1`; muda na volta da pausa e na reativação (`PLT-06`) |
 | `status` | enum `em_teste`, `ativa`, `inadimplente`, `suspensa`, `pausada`, `cancelada` | transições da seção "Plataforma e assinatura" |
