@@ -1,6 +1,6 @@
 # Contas: acesso, usuários, sessões e suporte
 
-**Dono:** arquiteto · **Versão:** 15 out 2026 (T-201, nome curto da filial; T-036) · **App:** `contas` (schema da empresa; o mesmo app atende a plataforma, ver `plataforma.md`) · **Regras:** USR-01 a USR-07, PLT-03, PLT-07, AUD-01 · **ADRs:** 0008, 0013, 0014 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios (e "Esqueci a senha" e "Ativar verificação em 2 etapas", da T-026)
+**Dono:** arquiteto · **Versão:** 15 out 2026 (T-249, copiar link do convite e `acoes` do usuário; T-201, nome curto da filial; T-036) · **App:** `contas` (schema da empresa; o mesmo app atende a plataforma, ver `plataforma.md`) · **Regras:** USR-01 a USR-07, PLT-03, PLT-07, AUD-01 · **ADRs:** 0008, 0013, 0014 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios (e "Esqueci a senha" e "Ativar verificação em 2 etapas", da T-026) · **Critérios:** `docs/qa/criterios/T-248.md` (CA-248-12 a 16)
 
 Convenções gerais em `docs/api/README.md`. Modelo: `contas.Usuario`, `Convite`, `Sessao`, `filiais.UsuarioFilial` em `docs/decisoes/modelo-de-dados.md`. Base: `<subdominio>.<dominio>/api/`.
 
@@ -235,12 +235,15 @@ Query: `?situacao=ativos|convites|desativados`, `?perfil=`, `?filial=<id>`, `?bu
     { "id": 2, "nome": "Rodrigo Pinheiro", "email": "rodrigo@motorapida.com.br", "celular": null,
       "perfil": "gerente", "filiais": [ { "id": 1, "nome": "Filial Centro", "nome_curto": "Centro" } ], "todas_filiais": false,
       "status": "ativo", "dois_fatores_ativo": true,
-      "ultimo_acesso_em": "2026-10-07T10:12:00Z", "convite_expira_em": null, "eu": false }
+      "ultimo_acesso_em": "2026-10-07T10:12:00Z", "convite_expira_em": null, "eu": false,
+      "acoes": { "reenviar_convite": false, "copiar_link_convite": false, "cancelar_convite": false } }
   ],
   "proximo": null, "anterior": null
 }
 ```
 `plano` é o item `usuarios` de `GET /api/assinatura/`; conta `ativo` e `convite_pendente`. Administrador tem `todas_filiais: true`.
+
+`acoes` (T-249): os três botões do convite no painel da pessoa, `true` só com o usuário `convite_pendente` (vencido ou não) e pedido pelo administrador com token próprio; com token de suporte (`PLT-07`), todos `false`. A tela mostra "Reenviar convite", "Copiar link do convite" e "Cancelar convite" por eles, sem regra de status na tela. Os outros botões do painel continuam como estão.
 
 ### GET /api/usuarios/{id}/
 200: o item da lista mais:
@@ -263,6 +266,28 @@ Regras: USR-01, PLT-03.
 
 ### POST /api/usuarios/{id}/reenviar-convite/
 Só `convite_pendente`. Sem corpo. Reenvia pelos mesmos canais. 200: usuário com `convite_expira_em` novo (mais 7 dias); o link anterior deixa de valer. 409 `{ "codigo": "transicao_usuario" }` em outro status.
+
+### POST /api/usuarios/{id}/link-convite/ (copiar link do convite)
+
+Só o administrador, com token próprio (`USR-01`, decisão do dono de 15 out 2026, T-248; CA-248-12 a 16). Sem corpo. Gera um link novo de convite e o devolve **uma vez**, para a tela copiar e o administrador mandar por outro canal.
+
+200, com `Cache-Control: no-store`:
+```json
+{ "link": "https://motorapida.girolocadoras.com.br/convite#<token>",
+  "expira_em": "2026-10-16T23:59:59Z",
+  "aviso": "O link anterior deixa de valer.",
+  "usuario": { ...item da lista, com convite_expira_em novo... } }
+```
+
+- **O que faz** (`contas.services.gerar_link_convite(usuario, por)`, numa transação, com o usuário travado): invalida todo `Convite` ainda válido da pessoa (o do e-mail, o do reenvio e os links copiados antes), cria um `Convite` novo de 7 dias a partir de agora e devolve o token em claro, que só existe nesta resposta (o banco guarda o hash, ADR 0014). É a mesma função interna do reenviar, sem o envio: `reenviar-convite/` passa a ser `gerar_link_convite` + e-mail e WhatsApp. Por isso o reenvio invalida o link copiado, e o link copiado invalida o do reenvio (CA-248-13).
+- **Não envia nada:** nem e-mail nem WhatsApp (CA-248-12). O link tem o mesmo formato do e-mail, com o token no fragmento (`#`), e abre o mesmo fluxo de `consultar/` e `aceitar/`.
+- **Não muda o status nem o plano:** a pessoa continua `convite_pendente`, e a contagem do plano não muda (o convite já contava). Funciona com o convite vencido (CA-248-14: em 15 out, o link novo vence em 22 out).
+- **Status:** só `convite_pendente`; `ativo` e `desativado`: 409 `{ "codigo": "transicao_usuario", "mensagem": "Só dá para copiar o link de um convite pendente." }` (CA-248-15).
+- **Quem:** administrador (`pode.administracao`); outro perfil, 403 `permissao`; token de suporte, 403 `PLT-07`, com qualquer permissão de acesso (é rota de escrita em `usuarios`, abaixo em "Modo suporte").
+- **Limite** (`comum.limites`, número do arquiteto pedido na T-248): **5 por hora por pessoa convidada** e **20 por hora por administrador**, o que vier primeiro. Acima, 429 `muitas_requisicoes` (`README.md`) e nenhum link é gerado, nem o anterior é invalidado (o limite é conferido antes da transação). O de 5 cobre quem erra o canal algumas vezes; mais que isso é sinal de link vazando, e o reenvio por e-mail continua disponível. O de 20 cobre a implantação, em que o administrador convida a equipe de uma vez (o Profissional tem até 10 usuários).
+- **Auditoria** (`USR-01`, `AUD-01`): evento `usuario.copiar_link_convite`, categoria `seguranca`, objeto o usuário convidado, ator quem copiou, com `convite_expira_em` novo; **sem o link nem o token** (o `Convite` já tem `token_hash` omitido, ADR 0014). Texto pronto: "Copiou o link do convite". O link também não vai para log: a view não registra o corpo da resposta, e o Sentry já roda com `send_default_pii=False` (`config/settings/base.py`) e não manda corpo de resposta; a T-252 confere.
+- **Não volta depois:** `GET /api/usuarios/{id}/` nunca traz o link nem o token; para ter outro, copia de novo (CA-248-16).
+- Testes com o código: `test_usr_01_copiar_link_invalida_o_anterior` (CA-248-12 e 13), `test_usr_01_copiar_link_convite_vencido` (CA-248-14), `test_usr_01_copiar_link_so_administrador` (CA-248-15, perfis, suporte e status), `test_usr_01_copiar_link_limite_por_hora` (CA-248-15, 429) e `test_usr_01_copiar_link_evento_sem_token` (CA-248-16).
 
 ### POST /api/usuarios/{id}/cancelar-convite/
 Só `convite_pendente`. 200: usuário `desativado`; sai da contagem do plano.
@@ -304,7 +329,7 @@ A plataforma abre o acesso (`plataforma.md`) e manda o navegador para `https://<
 - Mesmo com `ver_editar`, o suporte nunca recebe CPF, CNH e documentos completos (`AUD-09`): os endpoints com dados pessoais devolvem a representação resumida para o token de suporte.
 - Não há refresh: no `fim` qualquer requisição responde 401 `PLT-07`, e o frontend mostra "O acesso de suporte terminou".
 - Com `permissao = "ver"`, rota não liberada para leitura do suporte responde 403 `{ "codigo": "PLT-07", "mensagem": "No modo só ver você não pode fazer isto" }`.
-- Token de suporte em `auth/entrar`, `renovar`, `sessoes`, `usuarios` (escrita) ou `convites` → 403 `PLT-07`.
+- Token de suporte em `auth/entrar`, `renovar`, `sessoes`, `usuarios` (escrita, inclusive `link-convite/`, T-249) ou `convites` → 403 `PLT-07`.
 
 ### POST /api/auth/suporte/sair/
 Token de suporte. 204. O `AcessoSuporte` vai para `encerrado`; evento nas duas auditorias.
@@ -328,3 +353,9 @@ Implementados no app `plataforma`, servidos no host da empresa. Perfil: administ
 | `contas.services.convidar(...)` | usado por `plataforma.criar_empresa` para o administrador da compra. |
 
 **Filiais do usuário.** `UsuarioFilial` é do app `filiais`, que fica abaixo de `contas` na ordem da ADR 0011. Por isso `contas` não grava o vínculo: o serviço publica `contas.filiais_do_usuario_definidas(usuario_id, filial_ids)` e o assinante em `filiais/eventos.py` grava, na mesma transação. Filial inexistente ou inativa faz o assinante levantar `ErroDeRegra` → 422 `{ "codigo": "filial_invalida" }` e nada é gravado. Para montar as respostas (`filiais: [{id, nome}]`), `contas` usa a função `filiais_do_usuario` que o app `filiais` registra em `comum.permissoes`, sem importar `filiais`.
+
+## O que muda para as tarefas (T-249)
+
+- **T-250 (backend):** `gerar_link_convite` em `contas.services`, usada pelo `reenviar-convite/` e pela rota nova `POST /api/usuarios/{id}/link-convite/`; os dois limites em `comum.limites`; o evento `usuario.copiar_link_convite` e o texto; `acoes` nos itens de `GET /api/usuarios/` e no detalhe. Testes `test_usr_01_copiar_link_*` acima (o backlog chama dois deles; os outros três cobrem o vencido, o limite e o evento). OpenAPI regenerado.
+- **T-251 (frontend):** "Copiar link do convite" por `acoes.copiar_link_convite`, com o `aviso` da resposta antes de copiar e o link copiado para a área de transferência; o link não fica guardado no estado da tela depois de copiado, nem em cache do TanStack Query (a mutação não grava o link em nenhuma consulta). CA-248-12 a 16.
+- **T-252 (segurança):** a rota, o limite, o evento sem token e a tela.
