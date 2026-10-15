@@ -7,9 +7,14 @@ from config.settings.base import *  # noqa: F403
 from config.settings.base import (
     CHAVE_DADOS_PESSOAIS_DE_EXEMPLO,
     CHAVE_SEGREDOS_DE_EXEMPLO,
+    EMAIL_BACKEND,
+    EMAIL_HOST,
+    GIRO_ARMAZENAMENTO,
+    GIRO_ASAAS_CHAVE_API,
     GIRO_CHAVE_DADOS_PESSOAIS,
     GIRO_CHAVE_SEGREDOS,
     GIRO_PEPPER_HMAC,
+    GIRO_PROVEDOR_PAGAMENTOS,
     PEPPER_DE_EXEMPLO,
     SECRET_KEY,
     SIMPLE_JWT,
@@ -44,6 +49,27 @@ EXPOR_DOCUMENTACAO_DA_API = env.bool("GIRO_EXPOR_DOCUMENTACAO_DA_API", default=F
 if env("GIRO_DATA_REFERENCIA", default="").strip():
     raise ImproperlyConfigured("GIRO_DATA_REFERENCIA só vale no desenvolvimento.")
 GIRO_DATA_REFERENCIA = None
+
+# Integrações de desenvolvimento não sobem (T-157). Os e-mails de senha, convite e assinatura
+# levam o token: no console, na memória ou em arquivo ele iria para o log ou para o disco, e o
+# "dummy" descarta sem avisar. Arquivos e cobranças falsos ficam na memória do processo.
+_EMAIL_DE_DESENVOLVIMENTO = {
+    "django.core.mail.backends.console.EmailBackend",
+    "django.core.mail.backends.locmem.EmailBackend",
+    "django.core.mail.backends.filebased.EmailBackend",
+    "django.core.mail.backends.dummy.EmailBackend",
+}
+if EMAIL_BACKEND.strip() in _EMAIL_DE_DESENVOLVIMENTO:
+    raise ImproperlyConfigured(f"EMAIL_BACKEND {EMAIL_BACKEND} só vale no desenvolvimento.")
+if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend" and not EMAIL_HOST.strip():
+    raise ImproperlyConfigured("Defina EMAIL_HOST para enviar e-mail por SMTP.")
+if GIRO_ARMAZENAMENTO != "s3":
+    raise ImproperlyConfigured("Defina GIRO_ARMAZENAMENTO=s3: o armazenamento falso não sobe.")
+if GIRO_PROVEDOR_PAGAMENTOS != "asaas":
+    raise ImproperlyConfigured("Defina GIRO_PROVEDOR_PAGAMENTOS=asaas: o falso não sobe.")
+if not GIRO_ASAAS_CHAVE_API.strip():
+    raise ImproperlyConfigured("Defina GIRO_ASAAS_CHAVE_API: vazia não é aceita em produção.")
+# WhatsApp: só existe o falso (mensagens na memória); entra nesta trava com a integração real.
 
 # Segredos próprios de produção: falha ao subir se faltarem ou se repetirem.
 # Variável ausente ou vazia vale como não definida: base.py cai nos padrões de desenvolvimento,
