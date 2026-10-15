@@ -787,6 +787,15 @@ def saida_vigente(locacao_id: int, veiculo_id: int) -> Vistoria | None:
     return saida
 
 
+def km_de_saida(locacao: Locacao, chegada: Vistoria, saida: Vistoria | None) -> int | None:
+    """DEV-08: o km de saída da devolução é o que a locação gravou, o mesmo da ficha. Na troca
+    (LOC-09), a locação só passa ao veículo novo na conclusão: antes dela, o `km_saida` ainda é o
+    do veículo que volta; depois, o veículo antigo fica com o km da vistoria de saída dele."""
+    if chegada.veiculo_id == locacao.veiculo_id and locacao.km_saida is not None:
+        return int(locacao.km_saida)
+    return saida.km if saida is not None else None
+
+
 def momento_da_devolucao(chegada: Vistoria) -> datetime:
     """O atraso é calculado na conclusão da vistoria de chegada (LOC-10, LOC-11); antes dela,
     a prévia usa a hora atual."""

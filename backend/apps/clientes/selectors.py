@@ -22,6 +22,7 @@ from comum.documentos import cnpj_valido, cpf_valido, so_digitos
 from .models import (
     Cliente,
     DocumentoCliente,
+    MotivoBloqueio,
     StatusCliente,
     TipoCliente,
     TipoDocumentoCliente,
@@ -38,6 +39,8 @@ TIPOS_DE_DOCUMENTO = [t.value for t in TipoDocumentoCliente]
 # Contador registrado por `financeiro` (ADR 0015): contas do cliente com 15 dias ou mais de
 # atraso. Sem o fornecedor, vale 0 (CLI-05).
 CONTADOR_ATRASO_PARA_BLOQUEIO = "contas_atrasadas_15_dias"
+# Também de `financeiro`: os dias de atraso de hoje da conta vencida mais antiga (CLI-05).
+CONTADOR_DIAS_DE_ATRASO = "dias_de_atraso"
 CONTADORES_DE_PENDENCIA = ("locacao_aberta", "venda_aberta", "em_aberto_centavos")
 
 
@@ -456,9 +459,21 @@ def _bloqueio(cliente: Cliente) -> dict[str, Any] | None:
     return {
         "motivo": cliente.bloqueio_motivo,
         "desde": cliente.bloqueio_desde,
-        "descricao": cliente.bloqueio_descricao,
+        "descricao": _descricao_do_bloqueio(cliente),
         "desbloqueia_sozinho": cliente.bloqueio_motivo == "atraso",
     }
+
+
+def _descricao_do_bloqueio(cliente: Cliente) -> str:
+    """CLI-05: no bloqueio automático, os dias de atraso de hoje, e não os do dia do bloqueio
+    (esses ficam no evento de auditoria). Sem conta vencida, vale a descrição gravada."""
+    if cliente.bloqueio_motivo != MotivoBloqueio.ATRASO:
+        return cliente.bloqueio_descricao
+    dias = leituras.contar(ALVO, cliente.pk, [CONTADOR_DIAS_DE_ATRASO])[CONTADOR_DIAS_DE_ATRASO]
+    if dias <= 0:
+        return cliente.bloqueio_descricao
+    desde = relogio.hoje() - timedelta(days=dias)
+    return f"Conta com {dias} dias de atraso desde {desde:%d/%m/%Y}"
 
 
 def do_financeiro(cliente: Cliente) -> dict[str, Any]:
