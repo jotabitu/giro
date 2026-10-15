@@ -392,8 +392,7 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 ### T-207 · Vistoriador sem 403 ao abrir a vistoria (D-05 da T-025)
 - **Agente:** backend (com o frontend, se a chamada não for necessária) · **Depende de:** — · **Regras:** USR-09 · **Pronto quando:** o João (vistoriador) abre a vistoria sem 403: ou a tela deixa de chamar `GET /api/clientes/{id}/` e usa o que a vistoria já traz, ou a API devolve ao vistoriador só o que a USR-09 permite; teste com o perfil do vistoriador.
 
-### T-208 · Enviar contrato e página pública de assinatura (lacuna da T-025)
-- **Agente:** frontend · **Depende de:** — · **Regras:** LOC-04 · **Contrato:** `docs/api/contratos.md` (`POST /api/locacoes/{id}/contrato/` e as rotas públicas de assinatura) · **Telas:** as de assinatura em `docs/telas/html` · **Pronto quando:** botão para gerar e enviar o contrato na locação e página pública `/assinar` (sem login, celular), ligadas à API real; testes. O QA troca o contorno do CA-025-05 pela tela.
+- [decisão] (T-208, para o backend) `GET /api/locacoes/{id}/` não manda uma ação para gerar o contrato (só `imprimir_contrato` e `reenviar_contrato`). A tela usa "aguardando retirada + sem contrato vigente + sem desconto pendente + `acoes.cancelar` verdadeiro (quem cria locação)". Sugestão: `acoes.gerar_contrato` no selector `acoes()` e a tela passa a ler só ele.
 
 ### T-209 · Ajustes de cadastro e caixa achados no E2E (lacunas da T-025)
 - **Agente:** frontend · **Depende de:** — · **Regras:** CLI-01, FIN-01 · **Pronto quando:** (b) as fotos do cliente podem ser enviadas antes do primeiro "Salvar cliente", para "Salvar e iniciar locação" já ter as fotos; (c) o CEP preenche rua, bairro e cidade; (e) no celular o caixa mostra "N recebimentos"; testes. O item (d), a vendedora sem acesso à Frota, vai ao produto como divergência.

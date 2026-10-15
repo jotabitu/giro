@@ -1,5 +1,6 @@
 // Locações na API real (docs/api/locacoes.md). A API decide valores e status; aqui só se monta a chamada.
 import { chamarComStatus, http } from "./http";
+import type { StatusDoContrato } from "./tipos-assinar";
 import type {
   EntradaDaLocacao,
   ExtraDeLocacao,
@@ -85,6 +86,11 @@ export const locacoesApi = {
   /** LOC-09: cancela a troca pendente; as vistorias da troca são descartadas e o veículo novo volta a ficar disponível. */
   cancelarTroca(id: number, corpo: { motivo: string }): Promise<TrocaCancelada> {
     return http.post(`/api/locacoes/${id}/trocar-veiculo/cancelar/`, corpo);
+  },
+
+  /** 202: o PDF e o envio do link saem em segundo plano. 422 `IMP-04` sem modelo publicado; 409 `contrato_existente`. */
+  gerarContrato(id: number): Promise<{ contrato_id: number; status: StatusDoContrato }> {
+    return http.post(`/api/locacoes/${id}/contrato/`);
   },
 
   async reenviarContrato(id: number): Promise<void> {
