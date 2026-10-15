@@ -41,8 +41,11 @@ Convenções gerais em `docs/api/README.md`. Modelo: `contas.Usuario`, `Convite`
 | `despesas_aprovar` | bool | sim | sim | — | — | — |
 | `despesas_exportar` | bool | sim | — | — | — | sim |
 | `financeiro_pagar` | bool | sim | — | — | — | sim |
+| `lancamento_avulso` | bool | sim | sim | — | — | sim |
 | `os_abrir` | bool | sim | sim | — | sim | — |
 | `administracao` | bool | sim | — | — | — | — |
+
+`lancamento_avulso` (T-162) é a linha "Lançamento avulso em contas a receber (multa, avaria, outro), cancelar, renegociar, estornar" da tabela de perfis (T-232) e de `financeiro.md` ("Quem pode"): o botão "Novo lançamento" de contas a receber e o `POST /api/financeiro/contas-receber/` seguem a mesma lista. A permissão extra `cancelar_contrato` não muda essa chave.
 
 Permissões extras (`USR-03`) somam e nunca tiram: `aprovar_desconto` muda `desconto_acima_limite` para `aprova`; `cancelar_contrato` muda `locacoes_cancelar` para `aprova`; `relatorios_todas_filiais` muda `painel` para `todas_filiais`. Quem pediu não aprova o próprio pedido (`APR-09`); isso é checado no pedido, não aqui.
 

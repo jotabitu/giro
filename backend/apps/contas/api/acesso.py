@@ -203,6 +203,7 @@ class PodeDaEmpresaSerializer(serializers.Serializer[Any]):
     despesas_aprovar = serializers.BooleanField()
     despesas_exportar = serializers.BooleanField()
     financeiro_pagar = serializers.BooleanField()
+    lancamento_avulso = serializers.BooleanField()
     os_abrir = serializers.BooleanField()
     administracao = serializers.BooleanField()
 
