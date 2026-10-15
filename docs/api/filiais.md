@@ -1,6 +1,6 @@
 # Filiais
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-030) · **App:** `filiais` (schema da empresa) · **Regras:** FIL-01 a FIL-06, PLT-03, USR-07, LOC-11 · **Telas:** Filiais, Filial, Onboarding-Filial
+**Dono:** arquiteto · **Versão:** 15 out 2026 (T-213; T-030) · **App:** `filiais` (schema da empresa) · **Regras:** FIL-01 a FIL-06, PLT-03, PLT-15, USR-07, LOC-11 · **Telas:** Filiais, Filial, Onboarding-Filial
 
 Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-dados.md` (item 6).
 
@@ -101,9 +101,9 @@ Obrigatórios: `nome`, `endereco` (todos os campos menos `complemento`), `horari
 400 `validacao`: CNPJ com dígito errado, CEP sem 8 dígitos, UF fora da lista, horário inválido.
 409 `{ "codigo": "filial_nome_em_uso", "mensagem": "Já existe uma filial com esse nome" }`.
 422 `PLT-03`: limite do plano (mensagem e `detalhes` no contrato da plataforma, `exigir_limite("filiais")`).
-Efeitos: se `matriz: true`, a matriz anterior deixa de ser matriz na mesma transação. A primeira filial da empresa é sempre matriz, mesmo que venha `false`. O administrador que criou a filial é ligado a ela. No assistente (Onboarding-Filial) marca o passo `filial` da implantação.
+Efeitos: se `matriz: true`, a matriz anterior deixa de ser matriz na mesma transação. A primeira filial da empresa é sempre matriz, mesmo que venha `false`. O administrador que criou a filial é ligado a ela. No assistente (Onboarding-Filial) marca o passo `filial` da implantação. Quando a filial nasce matriz, chama `plataforma.services.copiar_endereco_da_matriz(endereco)` na mesma transação: a empresa sem endereço da nota fiscal da assinatura recebe o desta filial, uma vez só (`PLT-15`, `assinatura.md`, "De onde vem o endereço"). Editar a filial, `tornar-matriz` e criar outra matriz depois não mudam o endereço da nota (CA-ASS-48). A tela do passo 6 avisa: "Este endereço também vai na nota fiscal da sua assinatura. Você muda só a nota em Administração › Assinatura."
 Na criação, nenhum feriado entra: a filial nasce sem feriados, e os nacionais aparecem como sugestão em `GET /api/filiais/{id}/feriados/sugestoes/` até o administrador confirmar (`FIL-03`, CA-012-08). Nada vale antes da confirmação.
-Regras: FIL-01, FIL-03, PLT-03.
+Regras: FIL-01, FIL-03, PLT-03, PLT-15.
 
 ## PATCH /api/filiais/{id}/
 Perfil: administrador. Corpo: qualquer subconjunto do `POST`, menos `matriz` (use `tornar-matriz`). `endereco`, `contato` e `horario` são trocados inteiros quando enviados.
