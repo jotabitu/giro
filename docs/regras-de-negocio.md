@@ -191,6 +191,7 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
 | Abrir e fechar caixa, sangria | sim | sim | sim (sua filial) | — | sim |
 | Lançar despesa | sim | sim | sim | sim (manutenção) | sim |
 | Aprovar despesa acima de R$ 500 | sim | aprova | — | — | — |
+| Lançamento avulso em contas a receber (multa, avaria, outro), cancelar, renegociar, estornar | sim | sim | — | — | sim |
 | Pagar contas, conciliação, comissões | sim | — | — | — | sim |
 | Abrir ordem de serviço | sim | sim | — | sim | — |
 | Exportar as despesas em CSV (tela `Despesas`, `FIN-16`) | sim | — | — | — | sim |
@@ -234,6 +235,7 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
 *Mudanças em 12 out 2026 (T-141):* a `USR-05` passou a dizer quais telas mantêm o menu do perfil (o início e as telas que os itens desse menu abrem) e o que entra no menu completo de cada perfil. Antes, só o início usava o menu do perfil: o vistoriador, ao abrir a própria agenda, recebia o menu completo, com "Visão geral" (ele não vê painel) e "Locações" com o total de todas, e a agenda sumia do menu (achado no compose da `main` b675292). O vistoriador passa a ter um menu só. Decisão do produto pela tabela de perfis e pelo contrato de locações, que já não dava a lista ao vistoriador; não muda o que nenhum perfil pode fazer.
 *Mudanças em 08 out 2026 (T-076):* `USR-04` passou a dizer como fica a reativação: quem nunca chegou a `ativo` volta para `convite_pendente`, com convite novo, e não mais `ativo` sem senha. É a única transição `desativado → convite_pendente`. Decisão do dono do produto em 08 out 2026 (opção B da T-075).
 *Mudanças em 12 out 2026 (T-156):* a `USR-09` passou a cobrir a ficha do veículo, e a tabela de perfis ganhou a linha do rendimento e do custo de manutenção (`VEI-05`): só administrador, gerente e financeiro. Antes, a regra não dizia, e a API mandava os dois números a todos menos o vistoriador; o vendedor via custo e rendimento de cada veículo (M-02 da revisão de segurança, T-024). Decisão do dono do produto em 12 out 2026 (opção A da T-156).
+*Mudanças em 15 out 2026 (T-232):* a tabela de perfis ganhou a linha do lançamento avulso em contas a receber ("Novo lançamento" de multa, avaria ou outro), com cancelar, renegociar e estornar: administrador, gerente e financeiro; vendedor e vistoriador não. Antes, só o contrato `docs/api/financeiro.md` ("Quem pode") dizia, e a API já aplicava. Decisão do produto pela tabela (o vendedor só pede o cancelamento da locação; pagar contas é do financeiro), a pedido do backend na T-162; não muda o que nenhum perfil pode fazer hoje. A permissão extra "cancelar contratos" (`USR-03`) não vale para esta linha.
 
 ## Filiais
 
