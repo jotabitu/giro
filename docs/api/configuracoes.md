@@ -1,6 +1,6 @@
 # Configurações: o resumo da Administração
 
-**Dono:** arquiteto · **Versão:** 13 out 2026 (T-173) · **App:** `relatorios` (schema da empresa; só leitura, nível 13 da ADR 0011) · **Regras:** USR-05, USR-08, PLT-03, PLT-07, IMP-01, IMP-04, IMP-05 · **ADRs:** 0005 (a API decide), 0011 (limites entre apps) · **Telas:** Config (desktop e celular)
+**Dono:** arquiteto · **Versão:** 15 out 2026 (T-201; T-173) · **App:** `relatorios` (schema da empresa; só leitura, nível 13 da ADR 0011) · **Regras:** FIL-01, USR-05, USR-08, PLT-03, PLT-07, IMP-01, IMP-04, IMP-05 · **ADRs:** 0005 (a API decide), 0011 (limites entre apps) · **Telas:** Config (desktop e celular)
 
 Convenções gerais em `docs/api/README.md`. A tela `Configurações` (`/admin/configuracoes`, chave `config` do menu) é uma lista de cartões, cada um com um título, uma linha de resumo e o link para a tela da área, mais a faixa da implantação no desktop. Ela **não edita nada**: cada área tem a sua tela e o seu contrato. Este contrato traz só a leitura que monta os cartões.
 
@@ -40,7 +40,7 @@ Perfis: quem tem `pode.administracao` (administrador). Os outros perfis: 403 `{ 
 {
   "cartoes": [
     { "chave": "marca", "titulo": "Empresa e marca", "resumo": "Logo, cor, nome e endereço do sistema" },
-    { "chave": "filiais", "titulo": "Filiais", "resumo": "1 filial · Filial Centro, Fortaleza" },
+    { "chave": "filiais", "titulo": "Filiais", "resumo": "1 filial · Centro, Fortaleza" },
     { "chave": "usuarios", "titulo": "Usuários e perfis", "resumo": "5 de 10 usuários" },
     { "chave": "precos", "titulo": "Tabelas de preço", "resumo": "4 categorias" },
     { "chave": "modelos_contrato", "titulo": "Modelos de contrato", "resumo": "1 modelo" },
@@ -72,7 +72,7 @@ Ordem fixa: `marca`, `filiais`, `usuarios`, `precos`, `modelos_contrato`, `integ
 | `chave` | `titulo` | Vem quando o app está ativo | `resumo` |
 | --- | --- | --- | --- |
 | `marca` | Empresa e marca | `empresas` (fora do padrão até a T-153 e a T-154; o item `config` do menu tem chave própria, `configuracoes`) | "Logo, cor, nome e endereço do sistema" (fixo) |
-| `filiais` | Filiais | `filiais` | Filiais ativas. Uma: "1 filial · {nome}, {cidade}". Mais de uma, em até 3 cidades: "{n} filiais · {cidades}" ("2 filiais · Fortaleza e Caucaia"); em 4 cidades ou mais: "{n} filiais em {c} cidades". |
+| `filiais` | Filiais | `filiais` | Filiais ativas. Uma: "1 filial · {nome a mostrar}, {cidade}", com o nome curto da filial, ou o nome quando ela não tem (`FIL-01`, T-201; Moto Rápida: "1 filial · Centro, Fortaleza", CA-FIL-01). Mais de uma, em até 3 cidades: "{n} filiais · {cidades}" ("2 filiais · Fortaleza e Caucaia"); em 4 cidades ou mais: "{n} filiais em {c} cidades". |
 | `usuarios` | Usuários e perfis | `contas` | Uso do plano (`usuarios` de `GET /api/assinatura/`: `ativo` e `convite_pendente`, `PLT-03`): "{usado} de {limite} usuários"; plano sem limite: "{usado} usuários". Com convites pendentes, acrescenta " · 1 convite" ou " · {n} convites". |
 | `precos` | Tabelas de preço | `veiculos` | Categorias ativas: "{n} categorias" ("1 categoria"); com planos especiais ativos, acrescenta " · 1 plano especial" ou " · {n} planos especiais" (o plano especial é do app `locacoes`; com `locacoes` fora de `GIRO_MODULOS_ATIVOS` ou `locacoes_vistoria` desligado na empresa, não entra no texto). Nenhuma categoria: "Nenhuma categoria cadastrada". |
 | `modelos_contrato` | Modelos de contrato | `contratos` | Modelos não arquivados: "{n} modelos" ("1 modelo"); com rascunho em aberto (modelo `rascunho` ou publicado com `tem_rascunho`, `contratos.md`), acrescenta " · 1 rascunho" ou " · {n} rascunhos". Sem modelo de locação publicado: "Nenhum modelo publicado" (é o que trava a 1ª locação, `IMP-04`). |

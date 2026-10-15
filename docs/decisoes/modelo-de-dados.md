@@ -86,11 +86,15 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | `dia_vencimento` | int 1 a 31 | `PLT-01`: dia de `teste_fim + 1`; muda na volta da pausa e na reativação depois do fim do período pago; na reativação com o período pago correndo, não muda (`PLT-06`, T-217) |
 | `status` | enum `em_teste`, `ativa`, `inadimplente`, `suspensa`, `pausada`, `cancelada` | transições da seção "Plataforma e assinatura" |
 | `teste_inicio`, `teste_fim` | data | `PLT-01` (Moto Rápida: 07 a 21 out) |
-| `pausada_ate` | data, nulo | máximo 3 meses |
-| `cancelada_em` | momento, nulo | |
-| `acesso_ate` | data, nulo | fim do período pago após cancelar |
-| `apagar_em` | data, nulo | `cancelada_em` + 90 dias (`AUD-08`) |
-| `motivo_cancelamento` | texto, nulo | `PLT-06` |
+| `pausa_inicio` | data, nulo | pausa marcada: dia seguinte ao fim do período pago (`PLT-06`, T-194); agendada enquanto `ativa` |
+| `pausada_ate` | data, nulo | último dia da pausa: `pausa_inicio` + 1 a 3 meses − 1 dia |
+| `cancelamento_pedido_em` | momento, nulo | quando o administrador cancelou (`PLT-06`, T-194); limpo no desfazer |
+| `motivo_cancelamento` | enum `preco_alto`, `faltou_funcao`, `outro_sistema`, `fechar_ou_pausar`, `outro`, nulo | `PLT-06`; não muda nada no cancelamento |
+| `acesso_ate` | data, nulo | último dia de acesso com cancelamento marcado (fim do teste ou do período pago); nulo no cancelamento na hora. Cancelamento marcado = preenchido e `status` ≠ `cancelada` |
+| `cancelada_em` | momento, nulo | quando o `status` virou `cancelada` |
+| `apagar_em` | data, nulo | dia de `cancelada_em` + 90 dias (`AUD-08`) |
+| `aviso_apagamento_enviado_em` | momento, nulo | aviso de 7 dias antes, uma vez só (`AUD-08`, T-194) |
+| `apagada_em` | momento, nulo | fim do apagamento (ADR 0025); a linha fica, sem os dados de contato |
 | `suporte_bloqueado` | bool | administrador bloqueou o suporte (`PLT-07`) |
 | `etapa_implantacao` | enum `conta`, `marca`, `filial`, `precos`, `dados`, `primeira_locacao`, `concluida` | funil `IMP-05` |
 | `etapa_implantacao_desde` | momento | "precisam de ajuda" com 3 dias |
@@ -122,9 +126,13 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | `nota_situacao` | enum `processando`, `emitida`, `erro`, nulo | NFS-e da assinatura (`PLT-15`, T-193) |
 | `nota_numero`, `nota_externa_id`, `nota_url` | texto, nulos | número, id no Asaas e link do PDF |
 | `nota_pedida_em` | momento, nulo | |
+| `motivo_cancelamento` | enum `cancelamento_assinatura`, `pausa`, nulo | por que a fatura foi cancelada (`PLT-06`, T-194) |
+| `cancelada_em` | momento, nulo | |
+| `substituida_por` | FK → `FaturaAssinatura`, nulo | a fatura que nasceu de novo no desfazer do cancelamento ou na desistência da pausa |
 
 - Restrição: única por `(empresa, competencia)` quando `tipo = mensalidade` e `status <> cancelada`.
 - A 1ª fatura nasce em `criar_empresa` (`aberta`, vencimento `teste_fim + 1`, `PLT-01`); estender o teste move o vencimento e o período.
+- Cancelar e pausar (`docs/api/cancelamento.md`) cancelam a fatura `mensalidade` do período seguinte ainda não paga; desfazer cria outra igual, `aberta`, com código novo, e a cancelada aponta para ela.
 - Índices: `(status, vencimento)` para a régua `AUT-13`.
 
 ### 4. Usuário da plataforma · `contas.Usuario` no schema public
@@ -164,6 +172,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | Campo | Tipo | Observação |
 | --- | --- | --- |
 | `nome` | texto(80), único | Filial Centro |
+| `nome_curto` | texto(30), vazio | `FIL-01`: no seletor, nas listas curtas e no resumo de Configurações; vazio = vale o nome. Seed Filial Centro = "Centro" (T-201) |
 | `cnpj` | texto(14), nulo | |
 | `inscricao_estadual`, `inscricao_municipal` | texto(20), nulo | |
 | `telefone`, `whatsapp`, `email` | texto(13), texto(13), email; nulos | contato da filial |
@@ -573,7 +582,7 @@ Campos, índices e imutabilidade na ADR 0010. Existe nos dois schemas. Apoio `Ex
 | Model | App | Campos principais |
 | --- | --- | --- |
 | `ConfiguracaoEmpresa` (uma linha só) | empresas | marca: `nome_exibicao` (vazio = nome da compra, `Empresa.nome_exibicao`), `logo` (arquivo limpo pela ADR 0022, SVG ou PNG; com `logo_largura` e `logo_altura`), `cor_marca` (hex `#RRGGBB`, vazio = padrão do design system); cor sobre a marca e cores suaves calculadas na leitura, não guardadas (ADR 0004, `docs/api/empresas.md`, T-128); ramo: `trabalha_com` (motos/carros/ambos), `atividade` (aluga/vende/ambos); regras configuráveis: `tolerancia_atraso_minutos` (60), `taxa_combustivel_centavos` (1000), `desconto_sem_aprovacao_pct` (5.00), `limite_aprovacao_despesa_centavos` (50000), `multa_atraso_pct` (2.00, teto 2), `juros_mes_pct` (1.00, teto 1), `comissao_venda_pct` (3.00), `comissao_locacao_centavos` (1600), `exige_2fa_todos` (bool), `meta_ocupacao_pct` (80.00, exibida no início e no login); `etapas_implantacao_concluidas` (lista). Os tetos de `FIN-03` são `CHECK` no banco. |
-| `PedidoAprovacao` | aprovacoes | `tipo` enum `APR-01` a `APR-06`, origem genérica, `filial` FK (escopo do gerente que decide), `solicitante` FK, `aprovador` FK nulo, `motivo_pedido` texto nulo, `titulo` e `detalhe` (textos prontos montados pela origem, ADR 0019), `valor_centavos` ou `pct` nulos, `dados` json, `status` enum `pendente`, `aprovado`, `recusado`, `cancelado` (quem pediu desistiu ou a origem deixou de existir), `motivo_recusa`, `decidido_em`, `lembrete_enviado_em` (`APR-08`). `CHECK (aprovador_id <> solicitante_id)` (`APR-09`). Um `pendente` por `(tipo, origem_tipo, origem_id)`. |
+| `PedidoAprovacao` | aprovacoes | `tipo` enum `APR-01` a `APR-06`, origem genérica, `filial` FK (escopo do gerente que decide), `solicitante` FK, `aprovador` FK nulo, `motivo_pedido` texto nulo, `titulo` e `detalhe` (textos prontos montados pela origem, ADR 0019), `valor_centavos` ou `pct` nulos, `dados` json, `resumo` json (células prontas montadas pela origem no pedido, congeladas; `{}` nos pedidos de antes da T-201; `docs/api/aprovacoes.md`, "Resumo por tipo"), `status` enum `pendente`, `aprovado`, `recusado`, `cancelado` (quem pediu desistiu ou a origem deixou de existir), `motivo_recusa`, `decidido_em`, `lembrete_enviado_em` (`APR-08`). `CHECK (aprovador_id <> solicitante_id)` (`APR-09`). Um `pendente` por `(tipo, origem_tipo, origem_id)`. Índice `(filial, status, decidido_em)` para os números da `APR-12`. |
 | `Notificacao` | notificacoes | `destinatario` FK usuário, `tipo`, `titulo`, `link`, `lida_em`. Índice `(destinatario, lida_em)`. |
 | `PreferenciaNotificacao` | notificacoes | `usuario`, `tipo`, `canais` (lista enum `sino`, `push`, `email`, `whatsapp`). Único `(usuario, tipo)`. |
 | `MensagemEnviada` | notificacoes | `canal`, `destino` (mascarado), `modelo`, origem genérica, `status` enum `na_fila`, `enviada`, `falhou`, `externo_id`. Idempotência das réguas. |
