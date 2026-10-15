@@ -314,7 +314,9 @@ Rotas que ainda não existem entram na tabela com o contrato do módulo delas; q
 
 **Implantação.** Sem `recebimento_parceiro`, o passo `recebimentos` sai da lista de `PASSOS_IMPLANTACAO` da empresa: no Essencial são 9 passos, e `concluidos`, `total` e `faltam` (`configuracoes.md`, `GET /api/plataforma/empresas/{id}/`) contam 9. Passo `recebimentos` já marcado continua guardado e volta a contar ao subir de plano.
 
-**Downgrade.** O que está aberto nos módulos que saem recusa o downgrade (`assinatura.md`, 422 `PLT-04` com `detalhes.abertos`; grupos na ADR 0024, item 7). O painel da plataforma (`mudar-plano`, fase 2) usa o mesmo serviço e a mesma recusa.
+**Downgrade.** O que está aberto nos módulos que saem recusa o downgrade (`assinatura.md`, 422 `PLT-04` com `detalhes.abertos`; grupos na ADR 0024, item 7), e também a atividade que o plano novo não aceita (`detalhes.atividade`: quem só vende não vai para o Essencial, ADR 0024, item 10). O painel da plataforma (`mudar-plano`, fase 2) usa o mesmo serviço e a mesma recusa.
+
+**Ramo.** Trocar o ramo (passo 7 e Configurações, `PUT /api/ramo/` em `empresas.md`) passa pela mesma conta: as atividades aceitas no plano atual (Essencial: `aluga` e `ambos`) e o que está aberto nos módulos que saem, com o grupo `locacoes` a mais (422 `PLT-12`, ADR 0024, item 9).
 
 ## Interface interna para os outros apps (não é HTTP)
 
@@ -329,7 +331,9 @@ Os apps da empresa usam só estas funções do `plataforma` (ADR 0011):
 | `plataforma.services.registrar_passo_implantacao(passo)` | Marca o passo da implantação e move o funil (`IMP-05`). |
 | `plataforma.services.concluir_implantacao(objeto)` | Na confirmação da 1ª locação (ou venda), marca o passo `primeira_locacao` uma vez só, com o evento `implantacao.concluir` na auditoria da empresa (`IMP-01`). |
 | `plataforma.services.registrar_acesso()` | Atualiza `ultimo_acesso_em` (no máximo 1 escrita a cada 5 min por empresa). |
+| `plataforma.selectors.recursos_para(plano, atividade)` | Função pura: `plano.recursos` menos `locacoes_vistoria` quando `atividade` não aluga e menos `vendas_comissoes` quando não vende. Base de `recursos_da_empresa`, do downgrade e da troca de ramo (ADR 0024, itens 2, 7 e 9). |
+| `plataforma.selectors.atividades_aceitas(plano)` | Atividades com pelo menos um módulo de operação (`locacoes_vistoria` ou `vendas_comissoes`) em `recursos_para(plano, atividade)`, na ordem `aluga`, `vende`, `ambos`. Essencial: `("aluga", "ambos")` (ADR 0024, item 10). |
 | `plataforma.selectors.recursos_da_empresa(empresa=None)` | `frozenset` dos recursos ligados (plano e ramo, ADR 0024). Os apps de cima usam `comum.empresa.tem_recurso(recurso)`, que `plataforma` registra no `ready()`; no `public`, `True`. Lido uma vez por pedido. |
-| `plataforma.services.pendencias_dos_modulos(empresa, recursos_que_saem)` | Entra no schema da empresa e soma os grupos registrados em `comum.modulos.registrar_pendencia` para os recursos que saem; devolve a lista `abertos` de `assinatura.md` (só grupos com quantidade > 0). Usada por `mudar_plano` (pedido, simulação e `excede`) e por `gerar_faturas`. |
+| `plataforma.services.pendencias_dos_modulos(empresa, recursos_que_saem)` | Entra no schema da empresa e soma os grupos registrados em `comum.modulos.registrar_pendencia` para os recursos que saem; devolve a lista `abertos` de `assinatura.md` (só grupos com quantidade > 0). Com `empresa=None`, conta no schema corrente. Usada por `mudar_plano` (pedido, simulação e `excede`), por `gerar_faturas` e por `empresas.services.mudar_ramo` (ADR 0024, item 9). |
 
 Ao chegar a 90% de um item, `exigir_limite`/`atualizar_uso` agendam a notificação "limite do plano em 90%" para os administradores (uma vez por item e por mês).
