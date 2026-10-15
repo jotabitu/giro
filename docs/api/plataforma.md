@@ -150,15 +150,15 @@ Query: `?situacao=em_teste|com_problema|saindo|ativa`, `?plano=<id>`, `?status=<
 
 | `codigo` | Quando | `rotulo` (exemplo) | `tom` | Aba |
 | --- | --- | --- | --- | --- |
-| `cancelando` | `cancelada` e `acesso_ate` ≥ hoje | "Cancela em 30 out" | `alerta` | saindo |
+| `cancelando` | cancelamento marcado: `acesso_ate` preenchido e `status` diferente de `cancelada` (`cancelamento.md`) | "Cancela em 30 out" (dia seguinte a `acesso_ate`) | `alerta` | saindo |
 | `suspensa` | `suspensa` | "Suspensa" | `perigo` | com_problema |
 | `fatura_atrasada` | `inadimplente` | "Fatura 12 dias atrasada" | `perigo` | com_problema |
 | `implantacao_parada` | em teste e 3 dias ou mais no mesmo passo (`IMP-05`) | "Parada no passo 4" | `alerta` | com_problema |
 | `perto_do_limite` | algum uso ≥ 90% do limite (`PLT-03`) | "Perto do limite" | `alerta` | com_problema |
 | `em_teste` | `em_teste` | "Teste · dia 1" | `info` | em_teste |
-| `pausada` | `pausada` | "Pausada até 07 jan" | `neutro` | — |
+| `pausada` | `pausada` | "Pausada até 07 jan" (`pausada_ate`) | `neutro` | — |
 | `ativa` | `ativa` | "Ativa" | `sucesso` | ativa |
-| `cancelada` | `cancelada` e `acesso_ate` < hoje | "Cancelada" | `neutro` | — |
+| `cancelada` | `cancelada` | "Cancelada" ("Dados apagados" com `apagada_em`) | `neutro` | — |
 
 `uso` e `ultimo_acesso_em` vêm de `UsoEmpresa` (resumo no `public`, ver modelo), sem entrar no schema de cada empresa a cada lista.
 
@@ -226,7 +226,7 @@ Todas `POST /api/plataforma/empresas/{id}/<acao>/`, com `motivo` obrigatório, e
 | `estender-teste` | dono, sucesso | `{ dias, motivo }` | PLT-01 |
 | `mudar-plano` | dono, sucesso | `{ plano_id, ciclo, motivo }`. Upgrade vale na hora; downgrade e mudança de ciclo gravam `plano_proximo` (e `ciclo_proximo`) e valem na próxima fatura (`PLT-04`). Se o uso não cabe no plano menor: 422 `{ "codigo": "PLT-04", "detalhes": { "veiculos": { "usado": 86, "limite": 30 } } }` | PLT-04 |
 | `suspender` | dono, financeiro | `{ motivo }` | tabela de estados |
-| `reativar` | dono, financeiro | `{ motivo }`. Da `suspensa` → `ativa`; da `cancelada` dentro dos 90 dias → `ativa` com fatura nova no dia (`plataforma.services.reativar_empresa`, `assinatura.md`, "Mudança de ciclo e reativação pela equipe") | tabela de estados, PLT-06 |
+| `reativar` | dono, financeiro | `{ motivo }`. Da `suspensa` → `ativa`; da `cancelada` dentro dos 90 dias, sem fatura atrasada (409 `fatura_em_atraso`), → `ativa` com fatura nova no dia seguinte ao fim do período pago, se ele ainda corre, ou no dia da volta (`plataforma.services.reativar_empresa`, `assinatura.md`, "Mudança de ciclo e reativação pela equipe") | tabela de estados, PLT-06 |
 
 ### POST /api/plataforma/empresas/{id}/acessos-suporte/ · fase 2
 Função com `entrar_como_suporte`. Corpo: `{ motivo, chamado_id?, duracao_minutos: 15|30|60, permissao: "ver"|"ver_editar" }`.
@@ -276,7 +276,7 @@ Perfis: todos (cada tela mostra o que precisa; o administrador vê tudo).
 ```
 - `aviso` = uso ≥ 90%; `bloqueado` = uso ≥ 100% (só novos cadastros daquele item, `PLT-03`).
 - `faixa_aviso`: texto pronto da faixa do topo quando a empresa está `inadimplente`, `suspensa` ou `pausada`; `null` se não houver.
-- `somente_leitura` = empresa `suspensa`, `pausada` ou `cancelada`; todo endpoint de escrita responde 403 `{ "codigo": "empresa_sem_operacao" }` nesse caso.
+- `somente_leitura` = empresa `suspensa`, `pausada` ou `cancelada`; todo endpoint de escrita responde 403 `{ "codigo": "empresa_sem_operacao" }` nesse caso, fora a lista explícita de exceções (pagar e forma de pagamento na `suspensa`, `assinatura.md`; cancelar na `suspensa` e na `pausada` e voltar da pausa, `cancelamento.md`). A `cancelada` não chega aqui: todo pedido dela recebe 403 `empresa_cancelada` (`cancelamento.md`, `AUD-08`).
 - Contagem: veículos que não estão `vendido` nem `baixado`; filiais ativas; usuários `ativo` e `convite_pendente` (`USR-01`, `USR-04`).
 
 Caso do seed: Moto Rápida → 86 de 150, 1 de 3, 5 de 10, nenhum `aviso` (`PLT-03`).
@@ -329,6 +329,7 @@ Os apps da empresa usam só estas funções do `plataforma` (ADR 0011):
 | `plataforma.services.exigir_limite(item)` | `item` ∈ `veiculos`, `filiais`, `usuarios`. Levanta `LimiteDoPlano` → 422 `{ "codigo": "PLT-03", "mensagem": "Seu plano permite até 3 filiais. Para abrir outra, mude de plano.", "detalhes": { "item": "filiais", "usado": 3, "limite": 3 } }`. Chamada pelo serviço de criação de filial, veículo (inclusive importação, `IMP-03`) e convite de usuário, dentro da transação, com `SELECT ... FOR UPDATE` no `UsoEmpresa` para duas criações simultâneas não passarem do limite. |
 | `plataforma.services.atualizar_uso(item, delta)` | Mantém `UsoEmpresa` em dia; chamada pelos mesmos serviços ao criar, desativar ou reativar. A tarefa noturna `plataforma.recalcular_uso` corrige qualquer diferença contando de verdade em cada schema. |
 | `plataforma.services.registrar_passo_implantacao(passo)` | Marca o passo da implantação e move o funil (`IMP-05`). |
+| `plataforma.services.copiar_endereco_da_matriz(endereco)` | Chamada por `filiais.services.criar_filial` quando a filial nasce matriz; grava o endereço da nota da assinatura só se a empresa ainda não tem (`PLT-15`, `assinatura.md`). |
 | `plataforma.services.concluir_implantacao(objeto)` | Na confirmação da 1ª locação (ou venda), marca o passo `primeira_locacao` uma vez só, com o evento `implantacao.concluir` na auditoria da empresa (`IMP-01`). |
 | `plataforma.services.registrar_acesso()` | Atualiza `ultimo_acesso_em` (no máximo 1 escrita a cada 5 min por empresa). |
 | `plataforma.selectors.recursos_para(plano, atividade)` | Função pura: `plano.recursos` menos `locacoes_vistoria` quando `atividade` não aluga e menos `vendas_comissoes` quando não vende. Base de `recursos_da_empresa`, do downgrade e da troca de ramo (ADR 0024, itens 2, 7 e 9). |

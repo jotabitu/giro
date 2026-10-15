@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bike, Car, ChevronLeft, FileText, User } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
@@ -10,7 +10,7 @@ import { ROTULO_PERIODICIDADE } from "@/lib/clientes";
 import { mensagemDoErro } from "@/lib/erros";
 import { useAgora } from "@/lib/ambiente";
 import { celular, dataCurta, dataHoraCurta, dinheiro, diaDe, horaCurta, km, placa } from "@/lib/formatos";
-import { dataEHora, rotuloDaParcela, rotuloDaVistoriaDaTroca, seloDaParcela, textoDoPeriodo, textoFaltam } from "@/lib/locacoes";
+import { dataEHora, podeEnviarContrato, rotuloDaParcela, rotuloDaVistoriaDaTroca, seloDaParcela, textoDoPeriodo, textoFaltam } from "@/lib/locacoes";
 import { tomDoStatus } from "@/lib/tom";
 import { AcoesDaLocacao } from "./AcoesDaLocacao";
 import { TelaDeErro } from "./Comuns";
@@ -128,9 +128,52 @@ function Pagamentos({ l }: { l: LocacaoCompleta }) {
 
 function Contrato({ l, aoConcluir }: { l: LocacaoCompleta; aoConcluir: (m: string) => void }) {
   const c = l.contrato;
+  const cliente = useQueryClient();
+  const enviar = useMutation({
+    mutationFn: () => locacoes.gerarContrato(l.id),
+    onSuccess: async () => {
+      await Promise.all([cliente.invalidateQueries({ queryKey: ["locacao", l.id] }), cliente.invalidateQueries({ queryKey: ["locacoes"] })]);
+      aoConcluir("Contrato enviado. O cliente recebe o link de assinatura por WhatsApp.");
+    },
+  });
   const reenviar = useMutation({ mutationFn: () => locacoes.reenviarContrato(l.id), onSuccess: () => aoConcluir(c?.status === "assinado" ? "Contrato reenviado por WhatsApp." : "Link de assinatura reenviado por WhatsApp.") });
   const imprimir = useMutation({ mutationFn: () => locacoes.pdfDoContrato(l.id), onSuccess: (r) => window.open(r.url, "_blank", "noopener") });
-  if (!c) return null;
+  if (!c || c.status === "cancelado") {
+    if (!podeEnviarContrato(l)) return null;
+    // IMP-04: sem modelo publicado a API recusa e manda o caminho para publicar um.
+    const semModelo = enviar.error instanceof ErroApi && enviar.error.codigo === "IMP-04";
+    return (
+      <Panel
+        titulo="Contrato"
+        acao={
+          <Button compacto variante="solido" disabled={enviar.isPending} onClick={() => enviar.mutate()}>
+            {enviar.isPending ? "Enviando…" : "Enviar contrato"}
+          </Button>
+        }
+      >
+        <div className="flex items-center gap-3">
+          <Miniatura icone={FileText} />
+          <div className="min-w-0 flex-1">
+            <div className="text-body font-medium">Contrato ainda não enviado</div>
+            <div className="text-caption text-ink-muted">O cliente recebe o link de assinatura por WhatsApp. Sem o contrato assinado, a locação não é liberada.</div>
+          </div>
+        </div>
+        {enviar.isError && (
+          <p role="alert" className="mt-3 text-caption text-critical">
+            {mensagemDoErro(enviar.error)}
+            {semModelo && (
+              <>
+                {" "}
+                <Link href="/admin/contratos" className="underline">
+                  Publicar um modelo
+                </Link>
+              </>
+            )}
+          </p>
+        )}
+      </Panel>
+    );
+  }
   const assinado = c.status === "assinado";
   const detalhe = assinado && c.assinado_em ? `Modelo “${c.modelo}” · assinado em ${dataCurta(c.assinado_em)}` : `Modelo “${c.modelo}” · aguardando assinatura${c.enviado_em ? `, enviado em ${dataCurta(c.enviado_em)}` : ""}`;
   return (

@@ -1,0 +1,14 @@
+# T-208 · Enviar contrato e página pública de assinatura · frontend → orquestrador, qa, backend
+
+**O que foi feito:**
+- Detalhe da locação: quando não há contrato vigente, o painel "Contrato" mostra "Enviar contrato" (`POST /api/locacoes/{id}/contrato/`, 202). Ao enviar, recarrega a locação e avisa "Contrato enviado. O cliente recebe o link de assinatura por WhatsApp." Erros da API aparecem no painel; no `IMP-04` (sem modelo publicado) vem o link "Publicar um modelo" para `/admin/contratos`.
+- Página pública `/assinar#<token>` (grupo `(publico)`, sem login, desenhada para o celular): lê o token do fragmento (some da barra), chama `POST /api/publico/assinaturas/consultar/`, mostra título, código, cliente e o PDF (link em nova aba), pede nome completo e aceite e chama `.../assinar/`. Erro `nome_nao_confere` e de `aceite` caem no campo; 410 `link_expirado` / `contrato_ja_assinado` e 404 têm tela própria; sucesso mostra "Contrato assinado" com data e hora. Marca da locadora no cabeçalho, "Tecnologia Giro" no rodapé; `referrer` e `robots` fechados na página.
+**Onde:** `frontend/src/components/assinar/AssinarContrato.tsx`, `app/(publico)/assinar/page.tsx`, `lib/api/assinar.ts` + `tipos-assinar.ts` (tipos do OpenAPI), `locacoes.gerarContrato`, `lib/locacoes.ts::podeEnviarContrato`, `components/locacoes/DetalheDaLocacao.tsx`; falsos de teste em `testes/falsos/falso-assinar.ts` e `falso-locacoes.ts`.
+**Contrato:** `docs/api/contratos.md` (e `openapi.yaml`, sem mudança).
+**Regras cobertas:** LOC-04 (contrato assinado como condição da retirada). Testes: `DetalheDaLocacao.test.tsx` ("enviar contrato (LOC-04, T-208)"), `AssinarContrato.test.tsx`, `locacoes.test.ts` (`podeEnviarContrato`). `npm run lint`, `tsc` e `vitest` (500 testes) limpos.
+**Conferido no navegador:** subi o front da branch na porta 3100 contra o backend da pilha de desenvolvimento e abri `/assinar#abc` em 390 px: o fragmento sai da barra, a API real responde 404 e a tela mostra "Link não encontrado". Não consegui conferir o caminho feliz (contrato real, nome, assinatura) porque criar o token exige `manage.py shell` no backend; esse caminho está coberto só pelos falsos. O QA fecha isso no E2E.
+**O que ficou de fora / dúvidas:**
+- A API não manda ação para gerar o contrato; a tela deduz (aguardando retirada, sem contrato vigente, sem desconto pendente, `acoes.cancelar` verdadeiro). Pedido ao backend registrado em `tarefas/backlog.md` (`acoes.gerar_contrato`).
+- O 404 de token desconhecido volta como `{"detail": ...}` do DRF, fora do envelope `{codigo, mensagem}`; a tela usa texto próprio. Backend pode alinhar.
+- O PDF abre em nova aba; não há pré-visualização embutida.
+**Próximo passo para quem recebe:** QA troca o contorno do CA-025-05 (hoje assina pelas rotas públicas num navegador sem login) pela tela: botão "Enviar contrato" na locação e a página `/assinar`. Orquestrador abre o PR.

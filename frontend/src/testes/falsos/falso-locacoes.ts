@@ -686,6 +686,16 @@ export const locacoesFalso = {
     return { troca: { id: trocaId, status: "cancelada", cancelada_em: AGORA_DO_SEED, saida_vistoria: { id: trocaId + 2, status: "descartada" }, devolucao_vistoria: { id: trocaId + 1, status: "descartada" }, conta_caucao: null, devolucao_id: null } };
   },
 
+  async gerarContrato(id: number): Promise<{ contrato_id: number; status: "enviado" }> {
+    await pausa(250);
+    const s = achar(id);
+    if (!acoesDe(s, perfilAtualFalso()).cancelar) throw new ErroApi(403, "sem_permissao", "Você não tem permissão para gerar o contrato");
+    if (s.corpo.contrato) throw new ErroApi(409, "contrato_existente", "Esta locação já tem contrato. Use reenviar para mandar de novo.");
+    s.corpo.contrato = { status: "enviado", modelo: "Locação semanal", assinadoEm: null };
+    s.eventos.push([AGORA_DO_SEED, "Contrato enviado por WhatsApp", "aguardando assinatura"]);
+    return { contrato_id: s.id + 100, status: "enviado" };
+  },
+
   async reenviarContrato(id: number): Promise<void> {
     await pausa(250);
     const s = achar(id);
