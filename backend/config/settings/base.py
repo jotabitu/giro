@@ -405,6 +405,11 @@ GIRO_ASAAS_CHAVE_API = env("GIRO_ASAAS_CHAVE_API", default="")
 # Vazio: https://admin.<DOMINIO_BASE>/api/webhooks/pagamentos/asaas/. No desenvolvimento com o
 # sandbox, o endereço HTTPS de um túnel até a máquina.
 GIRO_URL_WEBHOOK_PAGAMENTOS = env("GIRO_URL_WEBHOOK_PAGAMENTOS", default="")
+# Conta principal (faturas da assinatura, T-184): o webhook dela tem token próprio, e aqui fica
+# só o SHA-256 dele. Vazio: nenhum aviso é aceito como da conta principal.
+GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH = env("GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH", default="")
+# NFS-e da assinatura (PLT-15): desligada até o cadastro municipal do Giro (T-197).
+GIRO_NFSE_ASSINATURA_ATIVA = env.bool("GIRO_NFSE_ASSINATURA_ATIVA", default=False)
 
 # --- E-mail ---
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")

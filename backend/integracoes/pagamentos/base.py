@@ -30,16 +30,32 @@ class ContaPagamentoRef:
 
 
 @dataclass(frozen=True)
+class Endereco:
+    cep: str
+    logradouro: str
+    numero: str
+    bairro: str
+    cidade: str
+    uf: str
+    complemento: str = ""
+
+
+@dataclass(frozen=True)
 class Pagador:
+    """Quem paga. Na conta principal (assinatura), a empresa: `id_externo` é o cliente já criado
+    por `criar_ou_atualizar_pagador`, e a cobrança não procura de novo."""
+
     nome: str
     documento: str = ""
     celular: str = ""
     email: str = ""
+    endereco: Endereco | None = None
+    id_externo: str = ""
 
 
 @dataclass(frozen=True)
 class PedidoCobranca:
-    tipo: str  # pix | boleto | cartao_link
+    tipo: str  # pix | boleto | cartao_link (página do parceiro, ADR 0023)
     valor_centavos: int
     vencimento: date
     referencia_externa: str  # id da ContaReceber (ou da FaturaAssinatura)
@@ -56,6 +72,17 @@ class Cobranca:
     qr_code_url: str = ""
     linha_digitavel: str = ""
     boleto_url: str = ""
+    url_pagina: str = ""  # cartao_link: a página do parceiro onde o cartão é digitado
+
+
+@dataclass(frozen=True)
+class CartaoGuardado:
+    """O que o parceiro devolve do cartão pago na página dele (ADR 0023). Nunca o número: o token,
+    a bandeira e os 4 últimos dígitos. Quem recebe cifra o token e nunca o mostra."""
+
+    token: str = field(repr=False)
+    bandeira: str  # visa | mastercard | elo | amex | hipercard | ... (minúsculas)
+    final: str
 
 
 @dataclass(frozen=True)
@@ -63,7 +90,8 @@ class SituacaoCobranca:
     status: str  # aguardando | paga | vencida | cancelada | estornada
     valor_pago_centavos: int | None = None
     pago_em: datetime | None = None
-    forma: str = ""  # pix | boleto
+    forma: str = ""  # pix | boleto | cartao
+    cartao: CartaoGuardado | None = None  # paga no cartão (conta principal, ADR 0023)
 
 
 @dataclass(frozen=True)
@@ -131,6 +159,14 @@ class Autorizacao:
     pix_copia_e_cola: str = ""
 
 
+class CartaoRecusado(Exception):
+    """A cobrança no cartão guardado foi recusada (PLT-02). `mensagem` sem o nome do parceiro."""
+
+    def __init__(self, mensagem: str) -> None:
+        super().__init__(mensagem)
+        self.mensagem = mensagem
+
+
 class ParceiroIndisponivel(Exception):
     """O parceiro não respondeu no tempo limite ou respondeu 5xx. Nada foi feito pela metade."""
 
@@ -171,6 +207,19 @@ class ProvedorPagamentos(Protocol):
     ) -> Cobranca: ...
 
     def cancelar_autorizacao(self, conta: ContaPagamentoRef, autorizacao_id: str) -> None: ...
+
+    # Conta principal, para a assinatura (T-184, ADR 0023).
+
+    def criar_ou_atualizar_pagador(self, conta: ContaPagamentoRef, pagador: Pagador) -> str:
+        """Cria o cliente (ou atualiza o de `pagador.id_externo`) com as notificações do parceiro
+        desligadas e devolve o id dele."""
+        ...
+
+    def cobrar_cartao_salvo(
+        self, conta: ContaPagamentoRef, token: str, pedido: PedidoCobranca
+    ) -> Cobranca:
+        """Cobra no cartão guardado. Recusado: `CartaoRecusado`. A baixa vem pelo webhook."""
+        ...
 
     def validar_webhook(
         self, cabecalhos: Mapping[str, str], corpo: bytes

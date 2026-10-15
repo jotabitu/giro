@@ -8187,8 +8187,7 @@ components:
         faturas_recentes:
           type: array
           items:
-            type: object
-            additionalProperties: {}
+            $ref: '#/components/schemas/FaturaRecente'
         acoes:
           $ref: '#/components/schemas/Acoes'
       required:
@@ -8901,6 +8900,39 @@ components:
       - '1_7'
       - '8_30'
       - mais_30
+    FaturaRecente:
+      type: object
+      properties:
+        codigo:
+          type: string
+        vencimento:
+          type: string
+          format: date
+        valor_centavos:
+          type: integer
+        status:
+          $ref: '#/components/schemas/FaturaRecenteStatusEnum'
+        observacao:
+          type: string
+          nullable: true
+      required:
+      - codigo
+      - observacao
+      - status
+      - valor_centavos
+      - vencimento
+    FaturaRecenteStatusEnum:
+      enum:
+      - aberta
+      - paga
+      - atrasada
+      - cancelada
+      type: string
+      description: |-
+        * `aberta` - aberta
+        * `paga` - paga
+        * `atrasada` - atrasada
+        * `cancelada` - cancelada
     Fechamento:
       type: object
       properties:

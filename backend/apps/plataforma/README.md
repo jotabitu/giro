@@ -36,6 +36,17 @@ Contrato da API: `docs/api/plataforma.md` (escrito pelo arquiteto antes da imple
 - `api/suporte.py`: `POST /api/plataforma/empresas/{id}/acessos-suporte/` (função com `entrar_como_suporte`; a URL de entrada leva o token no fragmento) e, no host da empresa, `GET /api/suporte/`, `POST /api/suporte/bloquear/`, `liberar/` e `acessos/{id}/revogar/` (administrador; o suporte nunca usa).
 - Tarefas: `plataforma_avisar_entrada_do_suporte` e `aut_15_encerrar_acessos_de_suporte_vencidos` (Beat, a cada minuto).
 
+## Implementado (T-184: faturas da assinatura e conta principal)
+
+Contrato: `docs/api/assinatura.md` ("Faturas, cobrança e régua", "De onde vem o endereço", "Tomador da fatura"); ADR 0023.
+
+- `models.py`: `Empresa.email_cobranca`, `endereco_*`, `ciclo_proximo`, `dia_vencimento`; `FaturaAssinatura` (máquina `aberta` → `paga`, `atrasada`, `cancelada`; código `FAT-0001` por empresa, sequência `FAT-<empresa_id>` no public; uma mensalidade viva por competência; campos da nota, do tomador e do cancelamento); `FormaPagamentoAssinatura` (1:1, token do cartão cifrado, nunca na API nem na auditoria).
+- `calendario.py`: `proximo_periodo`, `vencimento_seguinte` (mês sem o dia vence no último) e `descricao_da_fatura` (PLT-01, PLT-14), funções puras.
+- `services.py`: `criar_empresa` cria a FAT-0001 (vence `teste_fim + 1`) e a forma vazia; `criar_fatura` (única porta), `criar_primeira_fatura`, `preco_no_ciclo`; `copiar_endereco_da_matriz` (chamado por `filiais.criar_filial`); `atualizar_pagador` (pagador na conta principal); `registrar_webhook_principal` e `processar_webhook_fatura` (baixa idempotente, consulta o parceiro, guarda o cartão só com a forma `cartao`); `gravar_tomador` (na baixa enquanto a NFS-e está desligada).
+- `tasks.py`: `plataforma_processar_webhook_fatura` (tenta de novo com o parceiro fora) e `plataforma_pedir_notas_pendentes` (só conta enquanto a T-197 não existe).
+- `admin.py`: faturas de todas as empresas só para leitura, com o filtro "nota pendente".
+- O webhook (`financeiro/api/views.py`) procura a `ContaPagamento` pelo token; sem ela, confere o hash da conta principal (`GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH`) e grava o aviso no public.
+
 ## Eventos publicados
 
 | Evento | Quando | Dados |

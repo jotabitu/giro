@@ -9,6 +9,10 @@ Nenhum nome de campo, tipo ou status do Asaas sai deste arquivo: tudo vira os ti
 - Valores: centavos viram reais por `Decimal` e voltam por `Decimal` (CA-029-05), sem `float`.
 - Marca da locadora: o pagador é criado com as notificações do Asaas desligadas; o cliente só
   recebe as mensagens do Giro, com a marca da locadora (AUT-03, AUT-05, CA-029-03).
+- Conta principal (assinatura, T-184, ADR 0023): `conta_principal()` sem chave de subconta usa a
+  chave do ambiente. O cartão é digitado só na página do parceiro (`cartao_link`, a `invoiceUrl`);
+  pago, a consulta devolve o token, a bandeira e o final (`creditCard`), e as próximas faturas são
+  cobradas por `cobrar_cartao_salvo` (`creditCardToken`). Pendente de conferir no sandbox.
 - Falhas: tempo limite de 10 s; sem resposta ou 5xx → `ParceiroIndisponivel`; 4xx →
   `ParceiroRecusou` com a mensagem do Asaas, que vem em português.
 """
@@ -32,6 +36,8 @@ from comum import relogio
 from . import CABECALHO_DO_TOKEN
 from .base import (
     Autorizacao,
+    CartaoGuardado,
+    CartaoRecusado,
     Cobranca,
     ContaPagamentoRef,
     DadosEmpresa,
@@ -55,8 +61,8 @@ URL_SANDBOX = "https://api-sandbox.asaas.com/v3"
 # respostas gravadas.
 Transporte = Callable[[str, str, bytes | None, Mapping[str, str]], tuple[int, bytes]]
 
-TIPOS = {"pix": "PIX", "boleto": "BOLETO"}
-FORMAS = {"PIX": "pix", "BOLETO": "boleto"}
+TIPOS = {"pix": "PIX", "boleto": "BOLETO", "cartao_link": "CREDIT_CARD"}
+FORMAS = {"PIX": "pix", "BOLETO": "boleto", "CREDIT_CARD": "cartao"}
 
 # CA-029-08. Pago: recebido (Pix, boleto compensado) ou confirmado (boleto antes da compensação).
 # Estorno e contestação viram pendência, nunca reabrem a conta. O resto é desconhecido.
@@ -285,7 +291,10 @@ class Asaas:
 
     def _pagador(self, conta: ContaPagamentoRef, pagador: Pagador) -> str:
         """O cliente da locadora na subconta: criado uma vez, achado pelo CPF depois (CA-029-04).
-        Com as notificações do Asaas desligadas (CA-029-03)."""
+        Com as notificações do Asaas desligadas (CA-029-03). Na conta principal, a empresa já
+        criada por `criar_ou_atualizar_pagador` vem com o `id_externo`."""
+        if pagador.id_externo:
+            return pagador.id_externo
         if pagador.documento:
             _, achados = self._chamar(
                 "GET", "/customers", conta=conta, consulta={"cpfCnpj": pagador.documento}
@@ -302,6 +311,62 @@ class Asaas:
             corpo["email"] = pagador.email
         _, criado = self._chamar("POST", "/customers", conta=conta, corpo=corpo)
         return str(criado["id"])
+
+    def criar_ou_atualizar_pagador(self, conta: ContaPagamentoRef, pagador: Pagador) -> str:
+        """A empresa como cliente da conta principal, com razão social, CNPJ, endereço e o e-mail
+        de cobrança, e as notificações do Asaas desligadas (as mensagens são do Giro)."""
+        corpo: dict[str, Any] = {
+            "name": pagador.nome,
+            "cpfCnpj": pagador.documento,
+            "email": pagador.email,
+            "notificationDisabled": True,
+        }
+        if pagador.celular:
+            corpo["mobilePhone"] = pagador.celular
+        if pagador.endereco is not None:
+            endereco = pagador.endereco
+            corpo.update(
+                {
+                    "postalCode": endereco.cep,
+                    "address": endereco.logradouro,
+                    "addressNumber": endereco.numero,
+                    "complement": endereco.complemento,
+                    "province": endereco.bairro,
+                }
+            )
+        if pagador.id_externo:
+            caminho = f"/customers/{quote(pagador.id_externo, safe='')}"
+            _, dados = self._chamar("POST", caminho, conta=conta, corpo=corpo)
+        else:
+            _, dados = self._chamar("POST", "/customers", conta=conta, corpo=corpo)
+        return str(dados["id"])
+
+    def cobrar_cartao_salvo(
+        self, conta: ContaPagamentoRef, token: str, pedido: PedidoCobranca
+    ) -> Cobranca:
+        """PLT-02: cobra no token do cartão guardado. Recusa do cartão (4xx) → `CartaoRecusado`."""
+        if pedido.valor_centavos <= 0:
+            raise ValueError("Cobrança sem valor.")
+        corpo: dict[str, Any] = {
+            "customer": self._pagador(conta, pedido.pagador),
+            "billingType": "CREDIT_CARD",
+            "value": reais(pedido.valor_centavos),
+            "dueDate": pedido.vencimento.isoformat(),
+            "externalReference": pedido.referencia_externa,
+            "creditCardToken": token,
+        }
+        try:
+            _, criada = self._chamar("POST", "/payments", conta=conta, corpo=corpo)
+        except ParceiroRecusou as erro:
+            raise CartaoRecusado(erro.mensagem) from erro
+        if centavos(criada["value"]) != pedido.valor_centavos:
+            raise ParceiroRecusou("O valor da cobrança voltou diferente do pedido.")
+        return Cobranca(
+            str(criada["id"]),
+            "cartao",
+            pedido.valor_centavos,
+            date.fromisoformat(str(criada["dueDate"])),
+        )
 
     # --- cobranças (FIN-04) ---
 
@@ -348,6 +413,14 @@ class Asaas:
         if centavos(criada["value"]) != pedido.valor_centavos:
             raise ParceiroRecusou("O valor da cobrança voltou diferente do pedido.")
         vencimento = date.fromisoformat(str(criada["dueDate"]))
+        if pedido.tipo == "cartao_link":
+            # O cartão é digitado só na página do parceiro (ADR 0023).
+            url = str(criada.get("invoiceUrl") or "")
+            if not url:
+                raise ParceiroIndisponivel("Cobrança no cartão sem a página do parceiro.")
+            return Cobranca(
+                cobranca_id, pedido.tipo, pedido.valor_centavos, vencimento, url_pagina=url
+            )
         caminho = f"/payments/{quote(cobranca_id, safe='')}"
         if pedido.tipo == "pix":
             _, pix = self._chamar("GET", f"{caminho}/pixQrCode", conta=conta)
@@ -413,6 +486,7 @@ class Asaas:
             valor_pago_centavos=centavos(dados["value"]),
             pago_em=_momento_do_pagamento(str(dia)) if dia else relogio.agora(),
             forma=forma,
+            cartao=_cartao(dados) if forma == "cartao" else None,
         )
 
     # --- Pix Automático (AUT-04) ---
@@ -485,6 +559,18 @@ def _autorizacao(dados: Mapping[str, Any]) -> Autorizacao:
         raise StatusDesconhecido(status_parceiro)
     return Autorizacao(
         id=str(dados["id"]), status=status, pix_copia_e_cola=str(dados.get("payload") or "")
+    )
+
+
+def _cartao(dados: Mapping[str, Any]) -> CartaoGuardado | None:
+    """O cartão pago na página do parceiro: token, bandeira e os 4 últimos (`creditCard`)."""
+    cartao = dados.get("creditCard")
+    if not isinstance(cartao, Mapping) or not cartao.get("creditCardToken"):
+        return None
+    return CartaoGuardado(
+        token=str(cartao["creditCardToken"]),
+        bandeira=str(cartao.get("creditCardBrand") or "").lower(),
+        final=str(cartao.get("creditCardNumber") or "")[-4:],
     )
 
 

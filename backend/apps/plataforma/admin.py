@@ -1,18 +1,21 @@
 """Django Admin da plataforma (ADR 0013, item 4): leitura, e "Criar empresa" pelo serviço.
 
-No MVP a empresa piloto nasce aqui. O formulário chama `services.criar_empresa`, que valida,
-cria o schema, convida o administrador e audita; nada é gravado direto pelo Admin.
+No MVP a empresa piloto nasce aqui, e a equipe vê as faturas de todas as empresas até a
+`Plat-Cobranca` (`plataforma.md`, "Faturas de todas as empresas"; PLT-14), só leitura. O
+formulário chama `services.criar_empresa`, que valida, cria o schema, convida o administrador e
+audita; nada é gravado direto pelo Admin.
 """
 
 from typing import Any
 
 from django import forms
 from django.contrib import admin
+from django.db.models import Q
 from django.http import HttpRequest
 
 from comum.erros import ErroDeNegocio, ErroDeValidacao
 
-from .models import Empresa, Plano, UsoEmpresa
+from .models import Empresa, FaturaAssinatura, Plano, StatusFatura, UsoEmpresa
 from .services import Administrador, criar_empresa, validar_criacao
 
 
@@ -117,3 +120,58 @@ class UsoEmpresaAdmin(SoLeitura):
 
     def has_add_permission(self, request: HttpRequest) -> bool:
         return False
+
+
+class NotaPendente(admin.SimpleListFilter):
+    """Faturas pagas sem nota pedida ou com a nota em erro (PLT-15)."""
+
+    title = "nota pendente"
+    parameter_name = "nota_pendente"
+
+    def lookups(self, request: HttpRequest, model_admin: Any) -> list[tuple[str, str]]:
+        return [("sim", "Sim")]
+
+    def queryset(self, request: HttpRequest, queryset: Any) -> Any:
+        if self.value() != "sim":
+            return queryset
+        return queryset.filter(status=StatusFatura.PAGA).filter(
+            Q(nota_situacao="") | Q(nota_situacao="erro")
+        )
+
+
+@admin.register(FaturaAssinatura)
+class FaturaAssinaturaAdmin(SoLeitura):
+    """Sem incluir, editar nem apagar: a baixa vem só do webhook, e fatura paga não se edita."""
+
+    list_display = [
+        "codigo",
+        "empresa",
+        "razao_social",
+        "cnpj",
+        "tipo",
+        "periodo_inicio",
+        "periodo_fim",
+        "valor_centavos",
+        "vencimento",
+        "status",
+        "forma",
+        "pago_em",
+        "tentativas_cartao",
+        "nota_situacao",
+        "tomador_razao_social",
+        "tomador_cnpj",
+    ]
+    list_filter = ["status", "tipo", "vencimento", "forma", NotaPendente]
+    search_fields = ["codigo", "empresa__razao_social", "empresa__cnpj"]
+    list_select_related = ["empresa", "plano"]
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    @admin.display(description="razão social")
+    def razao_social(self, obj: FaturaAssinatura) -> str:
+        return str(obj.empresa.razao_social)
+
+    @admin.display(description="CNPJ")
+    def cnpj(self, obj: FaturaAssinatura) -> str:
+        return str(obj.empresa.cnpj or "")

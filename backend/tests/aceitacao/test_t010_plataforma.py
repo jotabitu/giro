@@ -166,7 +166,16 @@ def test_plt_01_ca_010_03_vencimento_da_primeira_fatura(criar_empresa):
     empresa = criar_empresa()
     assert empresa.primeira_cobranca == date(2026, 10, 22)
     detalhe = selectors.detalhe_empresa(selectors.com_situacao().get(pk=empresa.pk))
-    assert detalhe["faturas_recentes"] == []
+    # T-184: a 1ª fatura nasce com a empresa (plataforma.md, exemplo do detalhe).
+    assert detalhe["faturas_recentes"] == [
+        {
+            "codigo": "FAT-0001",
+            "vencimento": date(2026, 10, 22),
+            "valor_centavos": 44900,
+            "status": "aberta",
+            "observacao": "1ª cobrança após o teste",
+        }
+    ]
 
 
 def test_plt_01_ca_010_04_subdominio_e_cnpj_unicos(criar_empresa):

@@ -6,11 +6,13 @@ Os apps da empresa usam só `exigir_limite`, `vagas_no_plano` (importação), `a
 `registrar_contador` (contrato da plataforma, "Interface interna").
 """
 
+import hmac
+import logging
 import re
 import secrets
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass
-from datetime import timedelta
+from datetime import date, timedelta
 from typing import Any
 
 from django.conf import settings
@@ -25,6 +27,7 @@ from django_tenants.utils import (
 
 from comum import relogio
 from comum.auditoria import (
+    ATOR_SISTEMA,
     Ator,
     Categoria,
     TipoAtor,
@@ -47,23 +50,44 @@ from comum.erros import (
 )
 from comum.estados import transicionar
 from comum.eventos import publicar
-from integracoes.pagamentos import hash_do_token, provedor, referencia
-from integracoes.pagamentos.base import DadosEmpresa, ParceiroIndisponivel, ParceiroRecusou
+from comum.models import WebhookRecebido
+from integracoes.pagamentos import conta_principal, hash_do_token, provedor, referencia
+from integracoes.pagamentos.base import (
+    CartaoGuardado,
+    DadosEmpresa,
+    Endereco,
+    EventoWebhook,
+    Pagador,
+    ParceiroIndisponivel,
+    ParceiroRecusou,
+    StatusDesconhecido,
+)
 
+from .calendario import Periodo, proximo_periodo
 from .models import (
+    CAMPOS_DO_ENDERECO,
     DIAS_DE_TESTE,
     DURACOES_DO_SUPORTE,
     AcessoSuporte,
     ContaPagamento,
     Dominio,
     Empresa,
+    FaturaAssinatura,
+    FormaAssinatura,
+    FormaPagaFatura,
+    FormaPagamentoAssinatura,
     Item,
     PermissaoSuporte,
     Plano,
     StatusAcessoSuporte,
     StatusContaPagamento,
+    StatusFatura,
+    StatusFormaPagamento,
+    TipoFatura,
     UsoEmpresa,
 )
+
+logger = logging.getLogger(__name__)
 
 SUBDOMINIOS_RESERVADOS = frozenset(
     {"admin", "www", "api", "app", "suporte", "status", "public", "information-schema"}
@@ -175,7 +199,8 @@ def criar_empresa(
     cidade: str = "",
     uf: str = "",
 ) -> Empresa:
-    """Empresa em teste, domínio, schema, uso e administrador convidado, numa transação.
+    """Empresa em teste, domínio, schema, uso, a 1ª fatura (PLT-01) e administrador
+    convidado, numa transação.
 
     O administrador nasce `convite_pendente` no schema da empresa (`contas`, pelo evento
     `plataforma.empresa_criada`); o e-mail do convite sai só depois do commit. Se algo falha,
@@ -197,12 +222,15 @@ def criar_empresa(
             responsavel_nome=administrador.nome.strip(),
             responsavel_email=administrador.email.strip().lower(),
             responsavel_telefone=so_digitos(administrador.celular),
+            email_cobranca=administrador.email.strip().lower(),
             plano=plano,
             ciclo=ciclo,
-            preco_contratado_centavos=plano.preco_mensal_centavos,
+            preco_contratado_centavos=preco_no_ciclo(plano, ciclo),
             status=Empresa.Status.EM_TESTE,
             teste_inicio=hoje,
             teste_fim=hoje + timedelta(days=DIAS_DE_TESTE),
+            # PLT-01: o dia da 1ª fatura (dia seguinte ao fim do teste).
+            dia_vencimento=(hoje + timedelta(days=DIAS_DE_TESTE + 1)).day,
             etapa_implantacao=Empresa.EtapaImplantacao.CONTA,
             etapa_implantacao_desde=relogio.agora(),
         )
@@ -221,6 +249,7 @@ def criar_empresa(
             domain=endereco_de_acesso(subdominio), tenant=empresa, is_primary=True
         )
         UsoEmpresa.objects.create(empresa=empresa)
+        FormaPagamentoAssinatura.objects.create(empresa=empresa)
         registrar_evento(
             "empresa.criar",
             Categoria.CONFIGURACOES,
@@ -228,6 +257,7 @@ def criar_empresa(
             depois=retrato(empresa),
             regra="PLT-01",
         )
+        criar_primeira_fatura(empresa)
         with tenant_context(empresa):
             publicar(
                 "plataforma.empresa_criada",
@@ -728,3 +758,302 @@ def atualizar_recebimentos() -> ContaPagamento | None:
     if situacao in (StatusContaPagamento.APROVADA, StatusContaPagamento.RECUSADA):
         transicionar(conta, situacao, acao=f"conta_pagamento.{situacao}", regra="FIN-04")
     return conta
+
+
+# --- Faturas da assinatura e conta principal (PLT-01, PLT-13, PLT-14, PLT-15; T-184, ADR 0023) ---
+
+
+def preco_no_ciclo(plano: Plano, ciclo: str) -> int:
+    """Preço de tabela do plano no ciclo (PLT-05): é o que vira o preço contratado."""
+    if ciclo == Empresa.Ciclo.ANUAL:
+        return plano.preco_anual_centavos
+    return int(plano.preco_mensal_centavos)
+
+
+def criar_fatura(
+    empresa: Empresa,
+    *,
+    tipo: str,
+    vencimento: date,
+    periodo: Periodo,
+    plano: Plano,
+    ciclo: str,
+    valor_centavos: int,
+    regra: str = "PLT-14",
+) -> FaturaAssinatura:
+    """Única porta de entrada das faturas, no public, com o código `FAT-NNNN` da empresa."""
+    with schema_context(get_public_schema_name()), transaction.atomic():
+        fatura = FaturaAssinatura(
+            empresa=empresa,
+            tipo=tipo,
+            competencia=periodo.competencia,
+            periodo_inicio=periodo.inicio,
+            periodo_fim=periodo.fim,
+            plano=plano,
+            ciclo=ciclo,
+            valor_centavos=valor_centavos,
+            vencimento=vencimento,
+        )
+        with auditar(fatura, "fatura_assinatura.criar", Categoria.FINANCEIRO, regra=regra):
+            fatura.save()
+    return fatura
+
+
+def criar_primeira_fatura(empresa: Empresa) -> FaturaAssinatura:
+    """PLT-01: a 1ª fatura nasce com a empresa, `aberta`, vencendo no dia seguinte ao fim do
+    teste, pelo plano e pelo preço contratados (Moto Rápida: FAT-0001, 22 out, 44900)."""
+    if empresa.plano is None or empresa.primeira_cobranca is None or not empresa.dia_vencimento:
+        raise ValueError("Empresa sem plano, teste ou dia de vencimento.")
+    vencimento = empresa.primeira_cobranca
+    return criar_fatura(
+        empresa,
+        tipo=TipoFatura.MENSALIDADE,
+        vencimento=vencimento,
+        periodo=proximo_periodo(empresa.dia_vencimento, empresa.ciclo, vencimento),
+        plano=empresa.plano,
+        ciclo=empresa.ciclo,
+        valor_centavos=int(empresa.preco_contratado_centavos),
+        regra="PLT-01",
+    )
+
+
+def nfse_ligada() -> bool:
+    """`GIRO_NFSE_ASSINATURA_ATIVA`: desligada até o cadastro municipal do Giro (T-197)."""
+    return bool(getattr(settings, "GIRO_NFSE_ASSINATURA_ATIVA", False))
+
+
+def _agendar_notas_pendentes(empresa_id: int) -> None:
+    if not nfse_ligada():
+        return
+    from .tasks import plataforma_pedir_notas_pendentes
+
+    transaction.on_commit(lambda: plataforma_pedir_notas_pendentes.delay(empresa_id))
+
+
+def copiar_endereco_da_matriz(
+    endereco: Mapping[str, Any], filial_id: int | None = None, empresa: Empresa | None = None
+) -> bool:
+    """PLT-15 (T-213): a filial que nasce matriz dá o endereço da nota da assinatura, uma vez só.
+    Chamado por `filiais.services.criar_filial` na mesma transação. Se a empresa já tem endereço
+    (de uma matriz anterior ou dos dados fiscais), não faz nada e devolve `False`. Depois, a nota
+    e a filial mudam cada uma por conta própria."""
+    empresa = _empresa(empresa)
+    with schema_context(get_public_schema_name()), transaction.atomic():
+        atual = Empresa.objects.select_for_update().get(pk=empresa.pk)
+        if atual.endereco_cep:
+            return False
+        motivo = f"Endereço da filial matriz {filial_id}" if filial_id else "Endereço da matriz"
+        with (
+            usar_ator(ATOR_SISTEMA),
+            auditar(
+                atual,
+                "empresa.dados_fiscais",
+                Categoria.CONFIGURACOES,
+                motivo=motivo,
+                regra="PLT-15",
+            ),
+        ):
+            for campo in CAMPOS_DO_ENDERECO:
+                setattr(atual, f"endereco_{campo}", endereco.get(campo) or "")
+            atual.save(update_fields=[f"endereco_{c}" for c in CAMPOS_DO_ENDERECO])
+        _agendar_notas_pendentes(atual.pk)
+    for campo in CAMPOS_DO_ENDERECO:
+        setattr(empresa, f"endereco_{campo}", getattr(atual, f"endereco_{campo}"))
+    return True
+
+
+def pagador_da_empresa(empresa: Empresa, cliente_externo_id: str = "") -> Pagador:
+    """A empresa como cliente da conta principal: razão social, CNPJ, endereço da nota e o
+    e-mail de cobrança (PLT-15)."""
+    endereco = empresa.endereco
+    return Pagador(
+        nome=empresa.razao_social or empresa.nome_exibicao,
+        documento=empresa.cnpj or "",
+        celular=empresa.responsavel_telefone,
+        email=empresa.email_cobranca or empresa.responsavel_email,
+        endereco=(
+            Endereco(
+                cep=endereco["cep"] or "",
+                logradouro=endereco["logradouro"] or "",
+                numero=endereco["numero"] or "",
+                bairro=endereco["bairro"] or "",
+                cidade=endereco["cidade"] or "",
+                uf=endereco["uf"] or "",
+                complemento=endereco["complemento"] or "",
+            )
+            if endereco
+            else None
+        ),
+        id_externo=cliente_externo_id,
+    )
+
+
+def forma_pagamento_da_empresa(empresa: Empresa) -> FormaPagamentoAssinatura:
+    """A linha da forma de pagamento, criada vazia na primeira vez (`forma` nula)."""
+    with schema_context(get_public_schema_name()):
+        forma, _ = FormaPagamentoAssinatura.objects.get_or_create(empresa=empresa)
+    return forma
+
+
+def atualizar_pagador(empresa: Empresa) -> str:
+    """Cria ou atualiza o pagador da empresa na conta principal (antes da cobrança e quando os
+    dados fiscais mudam) e guarda o id dele. Parceiro fora do ar: 503; recusou: 422."""
+    forma = forma_pagamento_da_empresa(empresa)
+    try:
+        cliente_id = provedor().criar_ou_atualizar_pagador(
+            conta_principal(), pagador_da_empresa(empresa, forma.cliente_externo_id)
+        )
+    except ParceiroRecusou as erro:
+        raise ErroDeRegra("parceiro_recusou", erro.mensagem) from erro
+    except ParceiroIndisponivel as erro:
+        raise ParceiroForaDoAr(*PARCEIRO_FORA_DO_AR) from erro
+    if cliente_id != forma.cliente_externo_id:
+        with schema_context(get_public_schema_name()), transaction.atomic():
+            forma = FormaPagamentoAssinatura.objects.select_for_update().get(pk=forma.pk)
+            forma.cliente_externo_id = cliente_id
+            forma.save(update_fields=["cliente_externo_id", "atualizado_em"])
+    return cliente_id
+
+
+def gravar_tomador(fatura: FaturaAssinatura) -> bool:
+    """PLT-14 (T-236, CA-ASS-59): a fatura guarda para quem a nota saiu, como estava na
+    `Empresa` naquele momento, e isso não muda depois. Grava uma vez só (devolve `False` se já
+    estava gravado). Único lugar que escreve nos `tomador_*`; sem evento próprio de auditoria."""
+    with schema_context(get_public_schema_name()), transaction.atomic():
+        travada = (
+            FaturaAssinatura.objects.select_for_update(of=("self",))
+            .select_related("empresa")
+            .get(pk=fatura.pk)
+        )
+        if travada.tomador_gravado_em is not None:
+            return False
+        empresa = travada.empresa
+        travada.tomador_razao_social = empresa.razao_social
+        travada.tomador_cnpj = empresa.cnpj or ""
+        travada.tomador_endereco = empresa.endereco
+        travada.tomador_gravado_em = relogio.agora()
+        campos = ["tomador_razao_social", "tomador_cnpj", "tomador_endereco", "tomador_gravado_em"]
+        travada.save(update_fields=[*campos, "atualizado_em"])
+    for campo in campos:
+        setattr(fatura, campo, getattr(travada, campo))
+    return True
+
+
+# Webhook da conta principal (assinatura.md, "Faturas, cobrança e régua"; S-14)
+
+
+def token_da_conta_principal(token: str) -> bool:
+    """O token do aviso confere com o hash do webhook da conta principal, guardado só em
+    configuração (`GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH`). Sem hash configurado, nunca confere."""
+    esperado = getattr(settings, "GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH", "") or ""
+    return bool(esperado and token) and hmac.compare_digest(esperado, hash_do_token(token))
+
+
+def registrar_webhook_principal(evento: EventoWebhook, corpo: Any) -> WebhookRecebido | None:
+    """Grava o aviso da conta principal no public. O mesmo `evento_id` de novo: `None`, e nada
+    acontece (idempotência)."""
+    with schema_context(get_public_schema_name()):
+        try:
+            with transaction.atomic():
+                return WebhookRecebido.objects.create(
+                    provedor=evento.provedor,
+                    evento_id=evento.evento_id,
+                    recebido_em=relogio.agora(),
+                    corpo={
+                        "evento": {
+                            "tipo": evento.tipo,
+                            "cobranca_id": evento.cobranca_id,
+                            "referencia_externa": evento.referencia_externa,
+                        },
+                        "conta": "principal",
+                        "bruto": corpo,
+                    },
+                )
+        except IntegrityError:
+            return None
+
+
+def processar_webhook_fatura(webhook_id: int) -> str:
+    """Baixa da fatura da assinatura pelo aviso da conta principal (PLT-14). Não confia no
+    corpo: consulta a cobrança no parceiro. Paga com o valor da fatura → `paga`, com `pago_em` e
+    a `forma`; pago na página do parceiro com a forma `cartao`, o cartão fica guardado (ADR 0023).
+    Valor diferente, estorno, fatura que não está em aberto ou situação desconhecida: não baixa;
+    fica no resultado do aviso para a equipe (Django Admin). Idempotente."""
+    with schema_context(get_public_schema_name()), transaction.atomic():
+        webhook: WebhookRecebido = WebhookRecebido.objects.select_for_update().get(pk=webhook_id)
+        if webhook.processado_em is not None:
+            return webhook.resultado
+        resultado = _processar_fatura(webhook)
+        webhook.processado_em = relogio.agora()
+        webhook.resultado = resultado
+        webhook.save(update_fields=["processado_em", "resultado"])
+    if resultado != "baixada":
+        logger.warning("Aviso %s da conta principal: %s", webhook.pk, resultado)
+    return resultado
+
+
+def _processar_fatura(webhook: WebhookRecebido) -> str:
+    cobranca_id = str(webhook.corpo.get("evento", {}).get("cobranca_id", ""))
+    fatura: FaturaAssinatura | None = (
+        FaturaAssinatura.objects.select_for_update(of=("self",))
+        .select_related("empresa")
+        .filter(cobranca_externa_id=cobranca_id)
+        .first()
+    )
+    if fatura is None or not cobranca_id:
+        return "cobranca_desconhecida"
+    try:
+        situacao = provedor().consultar_cobranca(conta_principal(), cobranca_id)
+    except StatusDesconhecido:
+        return "status_desconhecido"
+    if situacao.status == "estornada":
+        return "estornada_no_parceiro"  # cancelamento da nota e devolução: equipe (fase 2)
+    if situacao.status != "paga":
+        return situacao.status
+    if fatura.status == StatusFatura.PAGA:
+        return "ja_baixada"
+    if fatura.status not in (StatusFatura.ABERTA, StatusFatura.ATRASADA):
+        return "fatura_nao_aberta"
+    if situacao.valor_pago_centavos != fatura.valor_centavos:
+        return "valor_diferente"
+    if not nfse_ligada():
+        # Sem a emissão da nota (MVP, até a T-197), o tomador nasce na baixa (PLT-14, T-236).
+        gravar_tomador(fatura)
+    fatura.pago_em = situacao.pago_em or relogio.agora()
+    fatura.forma = situacao.forma if situacao.forma in FormaPagaFatura.values else ""
+    with usar_ator(ATOR_SISTEMA):
+        transicionar(
+            fatura,
+            StatusFatura.PAGA,
+            acao="fatura_assinatura.pagar",
+            regra="PLT-14",
+            mais_campos=("pago_em", "forma"),
+        )
+        if situacao.cartao is not None:
+            _guardar_cartao(fatura.empresa, situacao.cartao)
+    return "baixada"
+
+
+def _guardar_cartao(empresa: Empresa, cartao: CartaoGuardado) -> None:
+    """ADR 0023: o cartão digitado na página do parceiro fica para as próximas faturas, só se a
+    forma escolhida é o cartão. Pagar por cartão com outra forma (`meio` no "Pagar") não troca a
+    forma nem guarda token."""
+    forma = FormaPagamentoAssinatura.objects.select_for_update().filter(empresa=empresa).first()
+    if forma is None or forma.forma != FormaAssinatura.CARTAO:
+        return
+    with auditar(forma, "assinatura.cartao_guardado", Categoria.FINANCEIRO, regra="PLT-13"):
+        forma.definir_cartao_token_cifrado(cartao.token)
+        forma.cartao_bandeira = cartao.bandeira[:20]
+        forma.cartao_final = cartao.final[-4:]
+        forma.save(
+            update_fields=[
+                "cartao_token_cifrado",
+                "cartao_bandeira",
+                "cartao_final",
+                "atualizado_em",
+            ]
+        )
+    if forma.status != StatusFormaPagamento.ATIVA:
+        transicionar(
+            forma, StatusFormaPagamento.ATIVA, acao="assinatura.forma_ativa", regra="PLT-13"
+        )
