@@ -151,9 +151,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-243 · Editar veículo
 - **Agente:** frontend (backend se não houver rota de edição) · **Depende de:** T-238, T-242 · **Regras:** VEI-01, VEI-04 · **Telas:** a referência da edição vem na T-238; se não houver, reaproveitar `Veiculo-Novo` com os dados preenchidos, conferido com o design-system · **Pronto quando:** "Editar" na ficha abre a edição do veículo; salvar grava pela API e volta à ficha; placa e chassi únicos (`VEI-01`) com a mensagem da API no campo; a filial não se troca aqui (só por transferência, `VEI-04`); km não diminui; testes do componente e, se a rota for nova, do backend, com auditoria.
 
-### T-244 · Despesas: ajustes da tela
-- **Agente:** frontend · **Depende de:** — · **Regras:** FIN-05, FIN-06 · **Telas:** Despesas-Desktop, Despesas-Mobile · **Pronto quando:** sai o botão "+ Avulso"; "Exportar" vai para a direita do cabeçalho; a busca de despesas fica dentro do bloco da lista (hoje sai da div); conferido com a referência no desktop e no celular.
-
 ### T-245 · Despesa ligada ao veículo sem a filial na lista
 - **Agente:** backend, depois frontend · **Depende de:** — · **Regras:** FIN-06, FIL-05 · **Pronto quando:** a despesa ligada a um veículo mostra a filial dela na lista e no detalhe, como as outras (hoje só aparece a placa); a filial vem da API (a `Despesa` já tem `filial`), não da tela; teste da leitura com despesa ligada a veículo.
 
