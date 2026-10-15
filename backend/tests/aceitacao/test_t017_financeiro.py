@@ -31,6 +31,7 @@ from apps.financeiro.models import (
 from apps.locacoes.models import Locacao
 from apps.notificacoes.models import Notificacao
 from apps.plataforma.models import ContaPagamento, UsoEmpresa
+from apps.relatorios.api.serializers import CaixaHojeSerializer
 from comum.codigos import ajustar_sequencia
 from comum.erros import Conflito
 from comum.models import WebhookRecebido
@@ -1041,6 +1042,34 @@ def test_fin_07_fin_15_caixa_hoje_no_painel_do_administrador(
     }
     todas = cenario.moto.api("Mariana", HTTP_X_FILIAL="todas").get(f"{PAINEL}inicio/").json()
     assert todas["caixa_hoje"] is None
+
+
+def test_fin_07_caixa_hoje_em_qualquer_status(
+    cenario,  # noqa: F811
+    com_carteira,
+    caixa_do_seed,
+):
+    """T-146: o caixa de hoje aparece também fechado, e o status sai do enum da FIN-07."""
+    financeiro.fechar_caixa(
+        caixa_do_seed,
+        cenario.pessoas["Bruna"],
+        contado_centavos=financeiro_selectors.esperado_na_gaveta(caixa_do_seed),
+        motivo_diferenca=None,
+    )
+    corpo = cenario.moto.api("Mariana").get(f"{PAINEL}inicio/").json()
+    assert (corpo["caixa_hoje"]["filial"], corpo["caixa_hoje"]["status"]) == (
+        "Filial Centro",
+        "fechado",
+    )
+    financeiro_corpo = cenario.moto.api("Lúcia").get(f"{PAINEL}inicio/").json()
+    assert [c["status"] for c in financeiro_corpo["caixas_do_dia"]] == ["fechado"]
+    campo = CaixaHojeSerializer().fields["status"]
+    assert set(campo.choices) == {
+        "aberto",
+        "aguardando_aprovacao",
+        "fechado",
+        "fechado_sem_conferencia",
+    }
 
 
 def test_fin_05_fin_07_caixas_e_despesas_no_painel_do_financeiro(

@@ -6221,7 +6221,7 @@ components:
         filial:
           type: string
         status:
-          type: string
+          $ref: '#/components/schemas/StatusCaixaEnum'
         aberto_por:
           type: string
         esperado_gaveta_centavos:
@@ -6240,7 +6240,7 @@ components:
           type: string
           format: date
         status:
-          type: string
+          $ref: '#/components/schemas/StatusCaixaEnum'
         recebido_centavos:
           type: integer
         a_receber_hoje_centavos:

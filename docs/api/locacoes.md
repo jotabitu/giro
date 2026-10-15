@@ -193,7 +193,7 @@ Botões "Continuar para vistoria" e "Salvar como reserva". Corpo: `{ "primeiro_v
 - Cria as contas a receber em `financeiro`: as parcelas até o `fim_previsto` e a caução (`tipo = caucao`), todas com origem nesta locação.
 - Se o `inicio` é futuro (data posterior a hoje na filial), o veículo vai para `reservado`; senão fica `disponivel` até a ativação.
 - Desconto acima do limite: cria o pedido `APR-01` e devolve `"desconto": { "status": "pendente", "pedido_aprovacao_id": 88 }`. As parcelas nascem com o preço sem desconto e o contrato não é gerado até a decisão; aprovado, as parcelas abertas são refeitas com o desconto; recusado, o desconto volta a 0 e o vendedor é avisado com o motivo.
-- Comissão de locação nova (`FIN-09`, R$ 16,00) é lançada como `pendente` para o vendedor, vira `confirmada` na ativação, `paga` no dia 5 do mês seguinte (`FIN-09`) e `estornada` só se a locação for cancelada antes da retirada; o encerramento antecipado não estorna.
+- Comissão de locação nova (`FIN-09`, R$ 16,00) é lançada como `pendente` para o vendedor, vira `confirmada` na ativação, `paga` no dia 5 do mês seguinte (`FIN-09`) e `estornada` só se a locação for cancelada antes da retirada; o encerramento antecipado não estorna. Só é lançada se a empresa tem `vendas_comissoes` no momento da confirmação (`PLT-12`; no Essencial, nunca); a ativação, o pagamento e o estorno só mexem em comissão que existe, então a locação confirmada antes do upgrade nunca ganha comissão (ADR 0024, item 11, CA-ASS-53, `test_plt_12_comissao_so_depois_do_upgrade`).
 Erros:
 409 `{ "codigo": "LOC-03", "mensagem": "Veículo indisponível no período" }` (inclusive pela restrição de uma locação aberta por veículo).
 422 `CLI-05`, `cliente_inativo`, `CLI-02` (impedimentos da simulação).

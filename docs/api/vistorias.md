@@ -145,7 +145,7 @@ Perfis: quem faz vistoria. Locação `ativa` ou `devolucao_atrasada`.
   "acerto": { ...ver abaixo... }
 }
 ```
-`comparacao` sempre usa a vistoria de saída vigente do mesmo veículo e da mesma locação (com troca de veículo, a do trecho atual).
+`comparacao` sempre usa a vistoria de saída vigente do mesmo veículo e da mesma locação (com troca de veículo, a do trecho atual). O `km.saida` é o `km_saida` gravado na locação, o mesmo do detalhe da locação (`DEV-08`, T-140); na troca, enquanto ela está pendente, a locação ainda tem o km do veículo que volta, e depois de concluída o veículo antigo fica com o km da vistoria de saída dele. O combustível de saída vem da vistoria de saída (a locação não grava combustível).
 Com `vistoria = null` (troca cancelada com a chegada descartada, até o veículo voltar), `vistoria` e `comparacao` vêm `null`, o acerto traz só os itens que não dependem da chegada atual (os dos veículos trocados antes) e encerrar responde 422 `vistoria_pendente`. O detalhe da locação mostra `devolucao.devolucao_id` `null` nesse intervalo.
 
 **Um acerto só por locação** (`LOC-09`): na troca de veículo, a vistoria de chegada do veículo antigo não fecha conta. A devolução da locação é criada nessa hora, em `rascunho`, e recebe os itens do veículo antigo (avarias, combustível); o acerto final, na devolução do último veículo, soma tudo e desconta da caução total paga.
