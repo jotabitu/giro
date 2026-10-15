@@ -70,22 +70,23 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | Campo | Tipo | Observação |
 | --- | --- | --- |
 | `schema_name` | texto(63), único | do django-tenants; igual ao subdomínio com `_` no lugar de `-` |
-| `razao_social` | texto(150) | |
-| `nome_exibicao` | texto(80) | cópia do nome para o painel da plataforma |
-| `cidade`, `uf` | texto(80), texto(2) | lista de empresas |
-| `responsavel_nome`, `responsavel_email`, `responsavel_telefone` | texto | contato do administrador na compra |
-| `email_cobranca` | texto(254) | faturas, boleto, régua da assinatura e NFS-e (`PLT-02`, `PLT-15`); nasce igual a `responsavel_email` (T-183, `docs/api/assinatura.md`) |
-| `endereco_cep`, `endereco_logradouro`, `endereco_numero`, `endereco_complemento`, `endereco_bairro`, `endereco_cidade`, `endereco_uf` | texto, nulos | endereço da nota fiscal da assinatura (`PLT-15`, T-193); a compra não pede; copiado uma vez do endereço da filial matriz quando ela é criada (`copiar_endereco_da_matriz`, T-213), depois independente da filial; não volta a nulo |
-| `cnpj` | texto(14), único | só dígitos, validado (`CLI-01` vale para CNPJ) |
+| `razao_social` | texto(150) | vazio depois do apagamento (`AUD-08`, T-236) |
+| `nome_exibicao` | texto(80) | cópia do nome para o painel da plataforma; vazio depois do apagamento |
+| `cidade`, `uf` | texto(80), texto(2) | lista de empresas; ficam depois do apagamento |
+| `responsavel_nome`, `responsavel_email`, `responsavel_telefone` | texto | contato do administrador na compra; vazios depois do apagamento |
+| `email_cobranca` | texto(254) | faturas, boleto, régua da assinatura e NFS-e (`PLT-02`, `PLT-15`); nasce igual a `responsavel_email` (T-183, `docs/api/assinatura.md`); vazio depois do apagamento |
+| `endereco_cep`, `endereco_logradouro`, `endereco_numero`, `endereco_complemento`, `endereco_bairro`, `endereco_cidade`, `endereco_uf` | texto, nulos | endereço da nota fiscal da assinatura (`PLT-15`, T-193); a compra não pede; copiado uma vez do endereço da filial matriz quando ela é criada (`copiar_endereco_da_matriz`, T-213), depois independente da filial; não volta a nulo, salvo no apagamento (`AUD-08`) |
+| `cnpj` | texto(14), nulo, único entre as não apagadas | só dígitos, validado (`CLI-01` vale para CNPJ); restrição parcial com `apagada_em` nulo (B-02, T-236); sai (nulo) quando a última fatura da empresa apagada sai pelo prazo de guarda |
+| `empresa_anterior` | FK → `Empresa`, nulo, `PROTECT` | a empresa apagada com o mesmo CNPJ, na compra de quem já foi cliente (`PLT-16`, T-236) |
 | `subdominio` | texto(63), único | `motorapida` |
 | `plano` | FK → `Plano` | |
 | `ciclo` | enum `mensal`, `anual` | |
 | `preco_contratado_centavos` | centavos | `PLT-05` |
 | `plano_proximo` | FK → `Plano`, nulo | downgrade ou mudança de ciclo agendados (`PLT-04`); o downgrade é conferido na geração da fatura e aplicado no vencimento (`aplicar_mudanca_agendada`, T-213) |
 | `ciclo_proximo` | enum `mensal`, `anual`, nulo | mudança de ciclo pela equipe, na próxima fatura (`PLT-04`, T-193) |
-| `dia_vencimento` | int 1 a 31 | `PLT-01`: dia de `teste_fim + 1`; muda na volta da pausa e na reativação depois do fim do período pago; na reativação com o período pago correndo, não muda (`PLT-06`, T-217) |
+| `dia_vencimento` | int 1 a 31 | `PLT-01`: dia de `teste_fim + 1` (sem teste, `PLT-16`: dia da compra); muda na volta da pausa e na reativação depois do fim do período pago; na reativação com o período pago correndo, não muda (`PLT-06`, T-217) |
 | `status` | enum `em_teste`, `ativa`, `inadimplente`, `suspensa`, `pausada`, `cancelada` | transições da seção "Plataforma e assinatura" |
-| `teste_inicio`, `teste_fim` | data | `PLT-01` (Moto Rápida: 07 a 21 out) |
+| `teste_inicio`, `teste_fim` | data, nulos | `PLT-01` (Moto Rápida: 07 a 21 out); nulos na empresa sem teste (`PLT-16`) |
 | `pausa_inicio` | data, nulo | pausa marcada: dia seguinte ao fim do período pago (`PLT-06`, T-194); agendada enquanto `ativa` |
 | `pausada_ate` | data, nulo | último dia da pausa: `pausa_inicio` + 1 a 3 meses − 1 dia |
 | `cancelamento_pedido_em` | momento, nulo | quando o administrador cancelou (`PLT-06`, T-194); limpo no desfazer |
@@ -94,13 +95,14 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | `cancelada_em` | momento, nulo | quando o `status` virou `cancelada` |
 | `apagar_em` | data, nulo | dia de `cancelada_em` + 90 dias (`AUD-08`) |
 | `aviso_apagamento_enviado_em` | momento, nulo | aviso de 7 dias antes, uma vez só (`AUD-08`, T-194) |
-| `apagada_em` | momento, nulo | fim do apagamento (ADR 0025); a linha fica, sem os dados de contato |
+| `apagada_em` | momento, nulo | fim do apagamento (ADR 0025); a linha fica só com o CNPJ, plano, datas, cidade e UF (`AUD-08`, opção B, T-236; `docs/api/cancelamento.md`) |
 | `suporte_bloqueado` | bool | administrador bloqueou o suporte (`PLT-07`) |
 | `etapa_implantacao` | enum `conta`, `marca`, `filial`, `precos`, `dados`, `primeira_locacao`, `concluida` | funil `IMP-05` |
 | `etapa_implantacao_desde` | momento | "precisam de ajuda" com 3 dias |
 
 - `auto_create_schema = True`; criação só por `plataforma.services.criar_empresa` (`Compra-Pronto`, ou Django Admin no MVP).
-- Índices: `status`; `(etapa_implantacao, etapa_implantacao_desde)`.
+- Índices: `status`; `(etapa_implantacao, etapa_implantacao_desde)`; `cnpj` (comum, para achar as apagadas, `PLT-16`).
+- `CAMPOS_AUDITORIA` com `omitir_no_public`: razão social, nome de exibição, endereço, e-mail de cobrança e contato do responsável não entram na auditoria do `public` (`AUD-08`, T-236, `docs/api/auditoria.md`).
 - O tenant `public` também é uma linha de `Empresa` (exigência do django-tenants); o `id` entra na claim `empresa_id` dos tokens (ADR 0013).
 - Apoio: `UsoEmpresa` (1:1 com `Empresa`): `veiculos`, `filiais`, `usuarios` (int), `locacoes_total` (int), `ultimo_acesso_em` (momento, nulo), `passos_implantacao` (json `{passo: data}`), `aviso_90_enviado` (json `{item: mes}`). Resumo no `public` para a lista da plataforma e para `PLT-03`, mantido por `plataforma.services.atualizar_uso` e corrigido por tarefa noturna (contrato da plataforma).
 - Apoio: `Dominio(DomainMixin)`: `domain` único (`motorapida.girolocadoras.com.br`), `tenant` FK, `is_primary`. O tenant `public` tem `admin.girolocadoras.com.br` e `girolocadoras.com.br`.
@@ -129,6 +131,10 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | `motivo_cancelamento` | enum `cancelamento_assinatura`, `pausa`, nulo | por que a fatura foi cancelada (`PLT-06`, T-194) |
 | `cancelada_em` | momento, nulo | |
 | `substituida_por` | FK → `FaturaAssinatura`, nulo | a fatura que nasceu de novo no desfazer do cancelamento ou na desistência da pausa |
+| `tomador_razao_social`, `tomador_cnpj` | texto(150), texto(14), nulos | tomador como foi na nota, ou na baixa sem nota; gravado uma vez por `gravar_tomador` e imutável (`PLT-14`, T-236) |
+| `tomador_endereco` | json, nulo | endereço do tomador no formato do endereço da filial |
+| `tomador_gravado_em` | momento, nulo | |
+| `email_cobranca` | texto(254), vazio | só na fatura `atrasada` de empresa apagada, até a baixa (`AUD-08`, T-236) |
 
 - Restrição: única por `(empresa, competencia)` quando `tipo = mensalidade` e `status <> cancelada`.
 - A 1ª fatura nasce em `criar_empresa` (`aberta`, vencimento `teste_fim + 1`, `PLT-01`); estender o teste move o vencimento e o período.
@@ -608,6 +614,7 @@ Campos, índices e imutabilidade na ADR 0010. Existe nos dois schemas. Apoio `Ex
 | Quem pede não aprova | `CHECK` em `PedidoAprovacao` | `APR-09` |
 | Multa ≤ 2%, juros ≤ 1% ao mês | `CHECK` em `ConfiguracaoEmpresa` | `FIN-03` |
 | Uma fatura por empresa por competência | único parcial em `FaturaAssinatura` | — |
+| CNPJ único entre empresas não apagadas | único parcial em `Empresa.cnpj` com `apagada_em` nulo | `PLT-16`, `AUD-08` |
 | Webhook não processa duas vezes | único `WebhookRecebido.evento_id` e `CobrancaExterna.externo_id`; baixa só após consultar o parceiro e conferir o valor | `FIN-04`, S-14 |
 | Extrato não duplica | único `(conta, identificador_externo)` | `AUT-12` |
 | Auditoria imutável | triggers de linha e de `TRUNCATE`, papel `giro_app` só com `SELECT, INSERT` (ADR 0016) | `AUD-01` |

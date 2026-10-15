@@ -1,6 +1,6 @@
 # Plataforma
 
-**Dono:** arquiteto · **Versão:** 15 out 2026 (T-201, andamento do assistente; T-193; T-183; T-055; T-030) · **App:** `plataforma` (+ `contas` no schema `public`, ADR 0008) · **Regras:** PLT-01, PLT-03, PLT-04, PLT-06, PLT-07, PLT-08, PLT-09, PLT-14, IMP-01, IMP-05 · **Telas:** Plat-Login, Plat-Empresas, Plat-Empresa-Detalhe, Plat-Planos, Plat-Equipe, Admin-Assinatura, a moldura do assistente (`Onboarding-*`)
+**Dono:** arquiteto · **Versão:** 15 out 2026 (T-236, empresa apagada e compra de quem já foi cliente; T-201, andamento do assistente; T-193; T-183; T-055; T-030) · **App:** `plataforma` (+ `contas` no schema `public`, ADR 0008) · **Regras:** PLT-01, PLT-03, PLT-04, PLT-06, PLT-07, PLT-08, PLT-09, PLT-14, PLT-16, AUD-08, IMP-01, IMP-05 · **Telas:** Plat-Login, Plat-Empresas, Plat-Empresa-Detalhe, Plat-Planos, Plat-Equipe, Admin-Assinatura, a moldura do assistente (`Onboarding-*`)
 
 Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-dados.md` (itens 1 a 5 e apoio do public).
 
@@ -136,7 +136,8 @@ Query: `?situacao=em_teste|com_problema|saindo|ativa`, `?plano=<id>`, `?status=<
 {
   "contagens": { "todas": 148, "pagantes": 125, "em_teste": 23, "ativa": 117, "com_problema": 14, "saindo": 2 },
   "resultados": [
-    { "id": 12, "nome_exibicao": "Moto Rápida", "subdominio": "motorapida", "cidade": "Fortaleza", "uf": "CE",
+    { "id": 12, "nome_exibicao": "Moto Rápida", "cnpj": "12345678000195", "subdominio": "motorapida", "cidade": "Fortaleza", "uf": "CE",
+      "apagada": false, "ja_foi_cliente": false,
       "plano": { "id": 2, "nome": "Profissional" },
       "status": "em_teste",
       "uso": { "veiculos": 86, "limite_veiculos": 150, "filiais": 1, "usuarios": 5 },
@@ -160,6 +161,8 @@ Query: `?situacao=em_teste|com_problema|saindo|ativa`, `?plano=<id>`, `?status=<
 | `ativa` | `ativa` | "Ativa" | `sucesso` | ativa |
 | `cancelada` | `cancelada` | "Cancelada" ("Dados apagados" com `apagada_em`) | `neutro` | — |
 
+**Empresa apagada** (`AUD-08`, `cancelamento.md`, T-236): `apagada: true`, `nome_exibicao` `null`, `situacao` `cancelada` com o rótulo "Dados apagados", `uso` `null` e `ultimo_acesso_em` `null` (a `UsoEmpresa` saiu). A tela mostra o CNPJ no lugar do nome. `cidade`, `uf` e `subdominio` continuam (o subdomínio fica reservado). `?busca=` acha a apagada pelo CNPJ, enquanto ele existir na linha. `ja_foi_cliente` (`PLT-16`): `true` na empresa criada pela compra de um CNPJ já apagado.
+
 `uso` e `ultimo_acesso_em` vêm de `UsoEmpresa` (resumo no `public`, ver modelo), sem entrar no schema de cada empresa a cada lista.
 
 ### GET /api/plataforma/empresas/{id}/ · fase 1
@@ -170,7 +173,7 @@ Funções: todas.
   "id": 12, "razao_social": "Moto Rápida Locações Ltda", "nome_exibicao": "Moto Rápida", "cnpj": "12345678000195",
   "subdominio": "motorapida", "endereco_acesso": "motorapida.girolocadoras.com.br", "cidade": "Fortaleza", "uf": "CE",
   "responsavel": { "nome": "Mariana Costa", "email": "mariana@motorapida.com.br", "telefone": "85998124410" },
-  "cliente_desde": "2026-10-07",
+  "cliente_desde": "2026-10-07", "apagada": false, "ja_foi_cliente": null,
   "plano": { "id": 2, "nome": "Profissional" }, "ciclo": "mensal", "preco_contratado_centavos": 44900,
   "status": "em_teste", "situacao": { "codigo": "em_teste", "rotulo": "Teste · dia 1", "tom": "info" },
   "teste": { "inicio": "2026-10-07", "fim": "2026-10-21", "dias_restantes": 14 },
@@ -196,6 +199,8 @@ Funções: todas.
 - `fatura_atrasada` sai com os dias da fatura atrasada mais antiga ("Fatura 12 dias atrasada") quando as faturas existirem (T-184); antes, "Fatura atrasada", sem os dias.
 - `implantacao_parada` conta os 3 dias desde que a empresa chegou à etapa atual do funil (`IMP-05`); o rótulo "Parada no passo N" usa o primeiro dos 10 passos ainda aberto.
 - `teste.fim` e o vencimento da 1ª fatura seguem `PLT-01`: teste de 07 a 21 out, 1ª fatura vence em 22 out (dia seguinte ao fim). `dias_restantes` = `teste.fim` − hoje (em 07 out: 14).
+- **Empresa apagada** (T-236): `razao_social`, `nome_exibicao`, `responsavel` e `implantacao` vêm `null`; `uso` `null`; `cnpj`, plano, ciclo, preço, datas, `cidade` e `uf` continuam; `faturas_recentes` continua (as faturas ficam, com o tomador). `acoes` com tudo `false`.
+- `ja_foi_cliente` (`PLT-16`): `null`, ou `{ "empresa_id": 12, "apagada_em": "2027-01-20" }` quando a empresa nasceu da compra de um CNPJ já apagado (`Empresa.empresa_anterior`, a apagada mais recente com o mesmo CNPJ). A tela diz "Já foi cliente" com a data.
 - `acoes` já combina a função de quem pede com o estado da empresa; o frontend mostra só o que vier `true`.
 - Passos da implantação, nesta ordem: `conta`, `marca`, `filial`, `ramo`, `precos`, `contrato`, `recebimentos`, `importar`, `equipe`, `primeira_locacao`. `etapa_funil` é a etapa do funil de `IMP-05` (`conta`, `marca`, `filial`, `precos`, `dados`, `primeira_locacao`, `concluida`): a primeira etapa do funil cujo passo ainda não foi concluído, com `dados` = passo `importar`. Os passos `ramo`, `contrato`, `recebimentos` e `equipe` contam em `concluidos`, mas não movem o funil.
 - `faturas_recentes`: as 5 faturas mais novas da empresa (`FaturaAssinatura`, T-184), da mais nova para a mais antiga; vazio até a T-184.
@@ -214,7 +219,27 @@ Corpo:
 ```
 O serviço, numa transação: cria `Empresa` (`em_teste`, `teste_inicio` = hoje, `teste_fim` = hoje + 14, `preco_contratado_centavos` = preço do plano), `Dominio`, o schema (`migrate_schemas` daquela empresa), `UsoEmpresa`, `ConfiguracaoEmpresa` padrão e o administrador como `Usuario` `convite_pendente` com convite por e-mail (`USR-01`). O e-mail sai depois do commit.
 201: o mesmo corpo de `GET /empresas/{id}/`.
-409 `{ "codigo": "subdominio_em_uso" }`, `{ "codigo": "cnpj_em_uso" }`.
+409 `{ "codigo": "subdominio_em_uso" }`; 409 `{ "codigo": "cnpj_em_uso", "mensagem": "Este CNPJ já tem uma assinatura no Giro. Para voltar, fale com a equipe Giro." }`; 409 `{ "codigo": "fatura_anterior_em_atraso", "mensagem": "Há uma fatura em aberto da assinatura anterior. Fale com a equipe Giro para pagar antes de assinar de novo." }` (`PLT-16`, abaixo).
+
+**CNPJ único só entre empresas não apagadas** (achado B-02 da T-230, T-236): a restrição de `Empresa.cnpj` é parcial, `UniqueConstraint(fields=["cnpj"], condition=Q(apagada_em__isnull=True))`, com um índice comum em `cnpj` para achar as apagadas. Uma empresa apagada e uma nova podem ter o mesmo CNPJ; duas não apagadas, não.
+
+**Compra de quem já foi cliente** (`PLT-16`, decisão do dono de 15 out 2026, T-235; CA-ASS-61 e 62). `criar_empresa`, antes de criar, chama `plataforma.selectors.situacao_do_cnpj(cnpj)`, que devolve uma de quatro situações, nesta ordem:
+
+| Situação | Quando | O que a criação faz |
+| --- | --- | --- |
+| `em_uso` | há `Empresa` com o CNPJ e `apagada_em` nulo, em qualquer estado (inclusive a `cancelada` nos 90 dias) | recusa com 409 `cnpj_em_uso`; a volta da `cancelada` é pela reativação (`assinatura.md`) |
+| `fatura_em_atraso` | há empresa apagada com o CNPJ e alguma `FaturaAssinatura` dela `atrasada` | recusa com 409 `fatura_anterior_em_atraso`; paga a fatura pela 2ª via (baixa pelo webhook, `cancelamento.md`), a compra segue |
+| `ja_foi_cliente` | há empresa apagada com o CNPJ, sem fatura atrasada | cria a empresa **sem teste** (abaixo) |
+| `nova` | nenhuma linha com o CNPJ (ou o CNPJ já saiu da linha apagada, fim do prazo de guarda) | criação de sempre, com teste |
+
+Sem teste (`ja_foi_cliente`):
+- `Empresa` nasce `ativa`, com `teste_inicio` e `teste_fim` nulos, `empresa_anterior` = a apagada mais recente com o CNPJ, `dia_vencimento` = dia de hoje, e subdomínio novo (o antigo continua reservado na linha apagada; pedir o mesmo dá 409 `subdominio_em_uso`).
+- A 1ª fatura (`mensalidade`, `aberta`, valor do plano) vence hoje e cobre de hoje até a véspera do mesmo dia no mês seguinte (`proximo_periodo`; no anual, 12 meses). CA-ASS-61: compra em 01 mar 2027 → R$ 449,00 vencendo em 01 mar, "Plano Profissional · 01 mar a 31 mar", e as seguintes todo dia 1.
+- A empresa nasce sem forma de pagamento (a compra não pede cartão, ADR 0023). Na `Admin-Assinatura`, `acoes.pagar` vem `true` nessa fatura (vence hoje) e o administrador paga com o `meio`, ou escolhe a forma, que vale para a fatura em aberto (`PLT-13`). Sem pagamento, a régua é a da `ativa`: `inadimplente` em D+1 (`assinatura.md`).
+- Sem a linha do teste em `faturas/` (empresa que não passou por teste), com `teste` `null` no detalhe da plataforma e no `GET /api/assinatura/`, e sem os avisos da `IMP-06`, que só olham a `em_teste`. O assistente de implantação é o de sempre.
+- Auditoria `empresa.criar` com `ja_foi_cliente` e o `empresa_anterior` (só ids; os dados da empresa vão como "alterado" no `public`, `auditoria.md`).
+
+A tela de compra (`Compra-Checkout`, fase 2, sem rota pública ainda) usa o mesmo `situacao_do_cnpj` para avisar ao reconhecer o CNPJ: `ja_foi_cliente` → "Este CNPJ já usou o teste grátis. A 1ª fatura vence hoje."; as duas recusas com as mensagens acima. No MVP, a equipe cria pelo Django Admin, que mostra o mesmo aviso no formulário e as recusas como erro. Testes `test_plt_16_compra_de_novo_sem_teste` (CA-ASS-61) e `test_plt_16_compra_de_novo_recusada` (CA-ASS-62, os dois casos).
 400 `validacao`: subdomínio só aceita `a-z`, `0-9` e `-`, de 3 a 30 caracteres, e não pode ser reservado (`admin`, `www`, `api`, `app`, `suporte`, `status`).
 Regras: PLT-01.
 
@@ -238,7 +263,7 @@ Efeitos: e-mail ao administrador da empresa na hora; evento nas duas auditorias.
 
 Até a `Plat-Cobranca` (fase 2), a equipe Giro vê as faturas de todas as empresas pelo Django Admin (`PLT-14`, U13 das decisões de 14 out 2026). Só leitura, no `public`:
 
-- `FaturaAssinatura`: lista com código, empresa (razão social e CNPJ), tipo, período, valor, vencimento, status, forma, pago em, tentativas do cartão e situação da nota; filtros por status, tipo, vencimento, forma e "nota pendente"; busca por código, razão social e CNPJ. Sem incluir, editar nem apagar: a baixa vem só do webhook, e fatura paga não se edita (`PLT-14`). Ação "Pedir a nota de novo" nas faturas pagas com a nota em `erro` ou pendente (`PLT-15`, `assinatura.md`).
+- `FaturaAssinatura`: lista com código, empresa (razão social e CNPJ; na fatura com tomador gravado, o tomador dela, `assinatura.md`, "Tomador da fatura"; da empresa apagada sem tomador, "Dados apagados" e o CNPJ), tipo, período, valor, vencimento, status, forma, pago em, tentativas do cartão e situação da nota; filtros por status, tipo, vencimento, forma e "nota pendente"; busca por código, razão social e CNPJ (também os do tomador); filtro "empresa apagada". Na fatura `atrasada` de empresa apagada, o detalhe mostra o `email_cobranca` da fatura e o link da 2ª via da cobrança, para a equipe cobrar à mão (`AUD-08`, `cancelamento.md`). Sem incluir, editar nem apagar: a baixa vem só do webhook, e fatura paga não se edita (`PLT-14`). Ação "Pedir a nota de novo" nas faturas pagas com a nota em `erro` ou pendente (`PLT-15`, `assinatura.md`).
 - `Empresa`: ações "Mudar plano ou ciclo" e "Reativar", com motivo obrigatório, que chamam `mudar_plano` e `reativar_empresa` (os mesmos serviços das ações acima) e gravam a auditoria nos dois lugares com o usuário da equipe.
 - Quem entra no Django Admin é só o dono (`is_superuser` no `public`); as funções da `PLT-09` valem nas ações pela tela, na fase 2.
 

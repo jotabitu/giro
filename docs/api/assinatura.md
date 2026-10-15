@@ -1,6 +1,6 @@
 # Assinatura da empresa (Admin › Assinatura)
 
-**Dono:** arquiteto · **Versão:** 15 out 2026 (T-231, T-194, T-217, T-213; T-193; T-183) · **App:** `plataforma` (lê e grava no `public`, servido no host da empresa) · **Regras:** PLT-01, PLT-02, PLT-03, PLT-04, PLT-05, PLT-06, PLT-11, PLT-13, PLT-14, PLT-15, AUT-13, tabela de estados da empresa · **ADR:** 0007, 0023 · **Telas:** Admin-Assinatura (desktop e celular) · **Critérios:** `docs/qa/criterios/assinatura.md` (CA-ASS-01 a 21, 26 a 29, 40, 41 e 46 a 49)
+**Dono:** arquiteto · **Versão:** 15 out 2026 (T-236, T-231, T-194, T-217, T-213; T-193; T-183) · **App:** `plataforma` (lê e grava no `public`, servido no host da empresa) · **Regras:** PLT-01, PLT-02, PLT-03, PLT-04, PLT-05, PLT-06, PLT-11, PLT-13, PLT-14, PLT-15, PLT-16, AUD-08, AUT-13, tabela de estados da empresa · **ADR:** 0007, 0014, 0023 · **Telas:** Admin-Assinatura (desktop e celular) · **Critérios:** `docs/qa/criterios/assinatura.md` (CA-ASS-01 a 21, 26 a 29, 40, 41, 46 a 49 e 59)
 
 Decisão do dono em 14 out 2026: a tela `Admin-Assinatura` entra inteira no MVP, com a cobrança real. Este contrato completa o que `GET /api/assinatura/` (`plataforma.md`, "Do lado da empresa") ainda não entregava, levantado na T-170: mudar e comparar planos, forma de pagamento, faturas, dados da nota fiscal, o cartão do plano acima e a data da 1ª fatura. "Cancelar assinatura", pausar, desfazer o cancelamento e o apagamento (`PLT-06`, `AUD-08`, tela `Admin-Cancelar`) estão em `docs/api/cancelamento.md` (T-194); aqui só aparecem onde mexem nas faturas.
 
@@ -13,6 +13,8 @@ Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-
 > **O que mudou na T-194 (cancelar e pausar, regras da T-190 e da T-211).** O contrato de cancelar, pausar, desfazer e apagar é `cancelamento.md`. Aqui: `acoes.cancelar` deixa de ser `false` fixo, entram `acoes.desfazer_cancelamento`, `pausar` e `voltar_pausa` e os blocos `cancelamento` e `pausa`; `proxima_fatura` vem `null` com cancelamento ou pausa marcados; a `gerar_faturas` pula os períodos depois do acesso e dentro da pausa; com cancelamento marcado, mudar de plano é recusado; na `cancelada`, a forma de pagamento é desfeita no parceiro.
 
 > **O que mudou na T-217 (decisão do produto de 14 out 2026, regra na T-216).** A reativação da `cancelada` pela equipe não cobra duas vezes o período já pago: com o último período pago ainda correndo, a fatura nova vence no dia seguinte ao fim dele e `dia_vencimento` não muda; senão, vence no dia da volta, como antes (CA-ASS-49). Veja "Mudança de ciclo e reativação pela equipe".
+
+> **O que mudou na T-236 (decisões do dono de 15 out 2026, regras na T-235, achado M-01 da T-230).** A fatura passa a guardar o tomador como foi na nota, ou na baixa quando a emissão da nota está desligada, e ele não muda depois (`PLT-14`, CA-ASS-59): campos `tomador_*` na `FaturaAssinatura` e o serviço `gravar_tomador`; `emitir_nota_fatura` lê o tomador da fatura, não da `Empresa`. A auditoria `empresa.dados_fiscais` no `public` guarda "alterado" no lugar da razão social, do endereço e do e-mail (`auditoria.md`). O apagamento (`cancelamento.md`) e a compra de quem já foi cliente (`PLT-16`, `plataforma.md`) usam o mesmo tomador. Veja "Tomador da fatura" e "O que muda para as tarefas abertas".
 
 ---
 
@@ -329,14 +331,14 @@ Administrador (`PLT-15`). Corpo (parcial):
 - `email_cobranca` (`Empresa.email_cobranca`) nasce igual ao e-mail do administrador da compra (`responsavel_email`). Recebe as faturas, o boleto, a régua da assinatura (`PLT-02`, `AUT-13`), o comprovante e a NFS-e. A troca vale a partir da próxima mensagem (CA-ASS-29).
 - `razao_social`: até 150 caracteres. É a mesma `Empresa.razao_social` do painel da plataforma e do bloco "Dados da empresa" da `Admin-Marca`: uma só origem, no `public`.
 - `endereco`: o endereço da nota (`Empresa.endereco_*`), no formato do endereço da filial (`filiais.md`): CEP com 8 dígitos, UF da lista; `complemento` opcional, o resto obrigatório quando o bloco vem. Quando o bloco vem, vem inteiro; `endereco: null` é recusado (400 `validacao`), para a nota não voltar a esperar. Editar aqui não muda nenhuma filial (CA-ASS-48).
-- Mudar a razão social ou o endereço atualiza o pagador na conta principal (`criar_ou_atualizar_pagador`) antes da próxima cobrança e vale para as próximas notas; nota já emitida não muda.
+- Mudar a razão social ou o endereço atualiza o pagador na conta principal (`criar_ou_atualizar_pagador`) antes da próxima cobrança e vale para as próximas notas. Fatura com o tomador já gravado não muda (`PLT-14`, "Tomador da fatura"); a que ainda não tem tomador (aberta, atrasada, ou paga com a nota pendente) sai com os dados novos (CA-ASS-59: a FAT-0002 de 22 nov sai com a Dom Luís).
 - **CNPJ não muda por aqui**: o campo não é aceito (400 `{ "codigo": "validacao", "campos": { "cnpj": "O CNPJ não muda por aqui. Fale com o suporte." } }`). Trocar o CNPJ é trocar quem contrata, e fica com a equipe Giro (`PLT-15`).
-- Auditoria `empresa.dados_fiscais` nos dois lugares, com antes e depois.
+- Auditoria `empresa.dados_fiscais` nos dois lugares. No schema da empresa, com antes e depois completos. No `public`, a razão social, o endereço e o e-mail de cobrança vão como `{ "alterado": true }`, sem o valor (`AUD-08`, achado M-03 da T-230; `auditoria.md`, "Dados da empresa no `public`"). O mesmo vale para o evento da cópia do endereço da matriz, abaixo.
 
 **De onde vem o endereço** (`PLT-15`, decisão do dono em 14 out 2026, T-211, opção B; CA-ASS-47 e 48):
 
 - A compra (`Compra-Checkout`) não pede endereço, e a empresa nasce com `endereco_*` nulos. Antes do passo 6, os dados fiscais mostram o endereço vazio.
-- **Cópia única da matriz.** `filiais.services.criar_filial`, quando a filial nasce matriz, chama na mesma transação `plataforma.services.copiar_endereco_da_matriz(endereco)` (interface de `plataforma` para `filiais`, como `registrar_passo_implantacao`). O serviço trava a `Empresa` no `public` e só grava se ela ainda não tem endereço (`endereco_cep` nulo); senão, não faz nada. Na prática, copia uma vez, da primeira filial, seja ela criada pelo assistente (`Onboarding-Filial`), pela tela de Filiais ou pela importação. Auditoria `empresa.dados_fiscais` no `public` (ator `sistema`, regra `PLT-15`, com a filial de origem).
+- **Cópia única da matriz.** `filiais.services.criar_filial`, quando a filial nasce matriz, chama na mesma transação `plataforma.services.copiar_endereco_da_matriz(endereco)` (interface de `plataforma` para `filiais`, como `registrar_passo_implantacao`). O serviço trava a `Empresa` no `public` e só grava se ela ainda não tem endereço (`endereco_cep` nulo); senão, não faz nada. Na prática, copia uma vez, da primeira filial, seja ela criada pelo assistente (`Onboarding-Filial`), pela tela de Filiais ou pela importação. Auditoria `empresa.dados_fiscais` nos dois lugares (ator `sistema`, regra `PLT-15`, com a filial de origem): o endereço completo só no schema da empresa; no `public`, `{ "alterado": true }` (T-236; antes, só no `public`, com o valor).
 - **Sem ligação depois.** `editar_filial`, `tornar_matriz` e a criação de outra matriz não mudam o endereço da nota; o `PATCH` acima não muda filial nenhuma. `filiais` não lê o endereço da empresa.
 - **Nota que esperava.** Quando a empresa passa a ter endereço (pela cópia ou pelo `PATCH`), `transaction.on_commit` agenda `plataforma.pedir_notas_pendentes(empresa_id)`, que pede as notas das faturas pagas marcadas "nota pendente" (só com `GIRO_NFSE_ASSINATURA_ATIVA=true`; desligada, nada é pedido, e o critério só confere o endereço).
 - **Seed Moto Rápida.** A `Empresa` nasce com o endereço da Filial Centro (Av. Bezerra de Menezes, 1200, São Gerardo, Fortaleza, CE, CEP 60325-000), pelo mesmo serviço quando o seed cria a matriz. Testes `test_plt_15_endereco_nasce_da_matriz` (CA-ASS-47) e `test_plt_15_endereco_da_nota_e_da_filial_separados` (CA-ASS-48).
@@ -371,11 +373,28 @@ O que precisa existir no `public` para a tela mostrar dados reais. As faturas de
 
 ### Nota fiscal da assinatura (`PLT-15`)
 
-- Depois da baixa de cada fatura, a tarefa `plataforma.emitir_nota_fatura` (Celery, depois do commit) pede a NFS-e ao parceiro pela conta principal (Asaas), com o tomador da `Empresa` (razão social, CNPJ, endereço, `email_cobranca`) e o serviço do Giro (código do serviço, alíquota e cadastro municipal na configuração, `GIRO_NFSE_*`, nunca no código). O retorno vem por webhook da conta principal (ou consulta, se o parceiro não avisar), e a nota vai por e-mail para o `email_cobranca` com o link do PDF. Situações: `processando`, `emitida` (número e link), `erro` (fica para a equipe no Django Admin, que pede de novo).
+- Depois da baixa de cada fatura, a tarefa `plataforma.emitir_nota_fatura` (Celery, depois do commit) grava o tomador da fatura (`gravar_tomador`, abaixo, se ainda não estiver gravado) e pede a NFS-e ao parceiro pela conta principal (Asaas), com o tomador **da fatura** (`tomador_razao_social`, `tomador_cnpj`, `tomador_endereco`; nunca lido da `Empresa` depois de gravado), o e-mail de cobrança (o da `Empresa`; na empresa apagada, o da fatura, `cancelamento.md`) e o serviço do Giro (código do serviço, alíquota e cadastro municipal na configuração, `GIRO_NFSE_*`, nunca no código). O retorno vem por webhook da conta principal (ou consulta, se o parceiro não avisar), e a nota vai por e-mail para o `email_cobranca` com o link do PDF. Situações: `processando`, `emitida` (número e link), `erro` (fica para a equipe no Django Admin, que pede de novo).
 - **Ligada só com `GIRO_NFSE_ASSINATURA_ATIVA=true`.** Enquanto o cadastro municipal do Giro não estiver pronto (a validar com o contador), a configuração fica desligada: nada é pedido, `nota_fiscal` vem `null` e o bloco só guarda e mostra os dados (CA-ASS-29 em `xfail`). A tarefa de código é a T-197, `[bloqueada]`.
 - Sem endereço na empresa (antes do passo 6), a nota não é pedida e a fatura fica marcada para a equipe (Django Admin, filtro "nota pendente"); quando o endereço passa a existir (cópia da matriz ou dados fiscais), `pedir_notas_pendentes` pede as notas das faturas pagas (ver "De onde vem o endereço").
 - A interface de pagamentos (ADR 0007) ganha `emitir_nota_servico(conta, pedido)` e `situacao_nota(conta, id_externo)`; o fake de pagamentos devolve `emitida` com número fixo, para os testes.
 - Fatura paga que for estornada no parceiro: o cancelamento da nota fica com a equipe (fase 2, `Plat-Cobranca`).
+
+### Tomador da fatura (`PLT-14`, T-236)
+
+A fatura guarda para quem a nota saiu, como foi, e esse dado não muda depois: mudar os dados fiscais não muda fatura já emitida, e o apagamento da empresa (`AUD-08`) não depende da linha da `Empresa` para manter o registro fiscal (decisão do dono de 15 out 2026, T-235; achado M-01 da T-230; CA-ASS-59).
+
+- **Campos** (`FaturaAssinatura`, `modelo-de-dados.md`): `tomador_razao_social` (texto 150), `tomador_cnpj` (texto 14, só dígitos), `tomador_endereco` (JSON no formato do endereço da filial: `cep`, `logradouro`, `numero`, `complemento`, `bairro`, `cidade`, `uf`; `null` quando a empresa ainda não tinha endereço), `tomador_gravado_em` (momento). Todos nulos até a gravação.
+- **Serviço único:** `plataforma.services.gravar_tomador(fatura)`, com a fatura travada (`SELECT ... FOR UPDATE`). Se `tomador_gravado_em` já está preenchido, não faz nada. Senão, copia `razao_social`, `cnpj` e `endereco_*` da `Empresa` naquele momento e grava `tomador_gravado_em`. Nenhum outro código escreve nos `tomador_*`; o Django Admin mostra os campos só para leitura.
+- **Quando grava** (a primeira que acontecer):
+  1. ao pedir a nota (`emitir_nota_fatura` e `pedir_notas_pendentes`), logo antes do pedido ao parceiro: o tomador é o que foi na nota;
+  2. na baixa, quando a emissão está desligada (`GIRO_NFSE_ASSINATURA_ATIVA=false`, o caso do MVP até a T-197): o tomador é o que estava na `Empresa`, que é o que foi para o pagador da cobrança (o `PATCH dados-fiscais/` atualiza o pagador na hora);
+  3. no apagamento da empresa, para as faturas não canceladas que ainda não têm tomador (`cancelamento.md`, "O que fica no `public`").
+
+  Com a emissão ligada e a nota esperando o endereço (antes do passo 6), a baixa não grava: o tomador fica para quando a nota for pedida, já com o endereço.
+- **Fatura cancelada** não grava tomador (não teve nota nem pagamento).
+- **Na tela da empresa** nada muda: o detalhe da fatura não mostra o tomador (a nota emitida já mostra). Do lado da equipe, o Django Admin mostra o tomador na lista e no detalhe da fatura (`plataforma.md`, "Faturas de todas as empresas").
+- **Auditoria:** gravar o tomador não gera evento próprio (é cópia, sem decisão de ninguém); os eventos da fatura no `public` (baixa, nota) não levam os valores do tomador (`auditoria.md`).
+- Teste com o código: `test_plt_14_fatura_guarda_tomador` (CA-ASS-59): FAT-0001 paga em 22 out com a nota pedida na Bezerra de Menezes; a Mariana muda o endereço para a Dom Luís em 05 nov; a FAT-0001 continua na Bezerra de Menezes, e a FAT-0002 de 22 nov sai com a Dom Luís. Com a emissão desligada, o mesmo caso pela gravação na baixa.
 
 ### Mudança de ciclo e reativação pela equipe
 
@@ -444,3 +463,11 @@ Do lado da equipe Giro; não há rota da empresa. No MVP, a equipe usa o Django 
 
 - **T-185 (rotas):** entra `acoes.desistir_pausa` (pausa agendada); `voltar_pausa` passa a ser só da `pausada`. O 409 da mudança de plano com cancelamento marcado deixou de ser provisório (CA-ASS-56).
 - **T-186 (régua e estados):** a régua segue para a fatura de diferença da `pausada`, e as transições de `assinatura.md` pulam a `pausada`; na volta com a diferença atrasada, a empresa volta `inadimplente` (CA-ASS-57).
+
+**Da T-236 (tomador na fatura e apagamento, regras da T-235):**
+
+- **T-184 (faturas e conta principal):** os campos `tomador_razao_social`, `tomador_cnpj`, `tomador_endereco`, `tomador_gravado_em` e `email_cobranca` na `FaturaAssinatura` (na migração da fatura, se ainda não mesclada; senão, migração nova); `gravar_tomador` e a chamada na baixa pelo webhook (a emissão está desligada no MVP, então a baixa é onde o tomador nasce hoje); o Django Admin com os campos só para leitura. Teste `test_plt_14_fatura_guarda_tomador` pela baixa (a parte da nota fica `xfail` com o CA-ASS-29 até a T-197). A 1ª fatura e o seed não mudam: a FAT-0001 do seed não está paga, então nasce sem tomador. No sandbox, conferir a atualização do cliente sem e-mail e telefones (`anonimizar_pagador`, `cancelamento.md`).
+- **T-185 (rotas):** nenhuma rota muda. A auditoria do `PATCH dados-fiscais/` no `public` sai sem os valores (`auditoria.md`); o teste de rota que conferia o antes e depois no `public` passa a conferir no schema da empresa.
+- **T-197 (NFS-e, bloqueada):** `emitir_nota_fatura` e `pedir_notas_pendentes` chamam `gravar_tomador` antes do pedido e mandam o tomador da fatura.
+- **T-195 (apagamento):** `gravar_tomador` no passo (c) e o `email_cobranca` da fatura atrasada (`cancelamento.md`).
+- **Quem fizer a compra da `PLT-16`** (`plataforma.md`): a recusa olha as faturas `atrasada` das empresas apagadas com o mesmo CNPJ.
