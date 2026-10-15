@@ -378,6 +378,7 @@ def test_plt_14_fatura_guarda_tomador(
         "Moto Rápida Locações Ltda",
         "12345678000195",
     )
+    assert fat_1.tomador_endereco is not None
     assert fat_1.tomador_endereco["logradouro"] == "Av. Bezerra de Menezes"
     assert fat_1.tomador_gravado_em is not None
 
@@ -385,6 +386,7 @@ def test_plt_14_fatura_guarda_tomador(
     _mudar_endereco_da_nota(moto, DOM_LUIS)
     assert services.gravar_tomador(fat_1) is False  # gravado uma vez, não muda
     fat_1.refresh_from_db()
+    assert fat_1.tomador_endereco is not None
     assert fat_1.tomador_endereco["logradouro"] == "Av. Bezerra de Menezes"
 
     periodo = proximo_periodo(22, "mensal", date(2026, 11, 22))
