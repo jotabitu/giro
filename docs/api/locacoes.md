@@ -15,7 +15,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 12 e 13 (`PlanoEspeci
 | Cancelar | sim | sim (direto) | pede (`APR-02`) | — | — |
 | Planos especiais | sim | — | — | — | — |
 
-- Permissão extra `aprovar_desconto` dá ao vendedor o direito de aprovar pedidos de outros (`USR-03`); quem pediu nunca aprova o próprio (`APR-09`).
+- Permissão extra `aprovar_desconto` dá ao vendedor o direito de aprovar pedidos de outros (`USR-03`); quem pediu não aprova o próprio, e a permissão extra não abre a exceção, que é só do administrador (`APR-09`, T-249, `aprovacoes.md`).
 - Gerente cancela e dá desconto acima do limite direto, como no desbloqueio de cliente (decidido em 07 out 2026, T-041). Só o vendedor pede.
 - O vistoriador recebe a representação sem nenhum campo `_centavos` (`Vistoriador`: "Valores e dados de pagamento ficam ocultos").
 

@@ -19,6 +19,11 @@ AMBIENTE_PROD = {
     "GIRO_CHAVE_DADOS_PESSOAIS": "1:" + "A" * 43 + "=",
     "GIRO_CHAVE_SEGREDOS": "1:" + "B" * 43 + "=",
     "GIRO_PEPPER_HMAC": "p" * 40,
+    "EMAIL_BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+    "EMAIL_HOST": "smtp.example.com",
+    "GIRO_ARMAZENAMENTO": "s3",
+    "GIRO_PROVEDOR_PAGAMENTOS": "asaas",
+    "GIRO_ASAAS_CHAVE_API": "chave-do-asaas-de-teste",
 }
 
 
@@ -169,3 +174,48 @@ def test_c04_sem_padrao_dev_quando_a_variavel_falta(modulo):
     resultado = rodar(f"import {modulo}", DJANGO_SETTINGS_MODULE=None)
     assert resultado.returncode != 0
     assert "DJANGO_SETTINGS_MODULE" in resultado.stderr
+
+
+@pytest.mark.parametrize("tipo", ["console", "locmem", "filebased", "dummy"])
+def test_t157_prod_recusa_email_de_desenvolvimento(tipo):
+    recusa(
+        "só vale no desenvolvimento", EMAIL_BACKEND=f"django.core.mail.backends.{tipo}.EmailBackend"
+    )
+
+
+def test_t157_prod_recusa_email_sem_backend_definido():
+    # Sem a variável, base.py cai no console, que mandaria o token dos e-mails para o log.
+    recusa("só vale no desenvolvimento", EMAIL_BACKEND=None)
+
+
+@pytest.mark.parametrize("valor", ["", "  ", None])
+def test_t157_prod_recusa_smtp_sem_servidor(valor):
+    recusa("Defina EMAIL_HOST", EMAIL_HOST=valor)
+
+
+@pytest.mark.parametrize("valor", ["falso", "", None])
+def test_t157_prod_recusa_armazenamento_que_nao_e_s3(valor):
+    recusa("GIRO_ARMAZENAMENTO=s3", GIRO_ARMAZENAMENTO=valor)
+
+
+@pytest.mark.parametrize("valor", ["falso", "", None])
+def test_t157_prod_recusa_pagamentos_falso(valor):
+    recusa("GIRO_PROVEDOR_PAGAMENTOS=asaas", GIRO_PROVEDOR_PAGAMENTOS=valor)
+
+
+@pytest.mark.parametrize("valor", ["", "   ", None])
+def test_t157_prod_recusa_asaas_sem_chave(valor):
+    recusa("Defina GIRO_ASAAS_CHAVE_API", GIRO_ASAAS_CHAVE_API=valor)
+
+
+def test_t157_prod_sobe_com_as_integracoes_reais():
+    resultado = rodar(
+        "import json; from django.conf import settings as s;"
+        "print(json.dumps([s.EMAIL_BACKEND, s.GIRO_ARMAZENAMENTO, s.GIRO_PROVEDOR_PAGAMENTOS]))"
+    )
+    assert resultado.returncode == 0, resultado.stderr
+    assert json.loads(resultado.stdout) == [
+        "django.core.mail.backends.smtp.EmailBackend",
+        "s3",
+        "asaas",
+    ]
