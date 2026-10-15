@@ -238,6 +238,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `marca`, `modelo` | texto(40), texto(60) | Honda, CG 160 Fan |
 | `ano_fabricacao`, `ano_modelo` | int | |
 | `cor` | texto(30) | |
+| `combustivel` | enum `gasolina`, `etanol`, `flex`, `diesel`, `eletrico`, `hibrido`, nulo | `VEI-08` (T-247); nulo nos veículos de antes |
 | `km_atual` | int ≥ 0 | só sobe (`VEI-01`); muda por serviço |
 | `capacidade_tanque_litros` | `Decimal(5,1)`, nulo | base do combustível no acerto (`DEV-01`); seed PNB7C04 = 16.0 |
 | `categoria` | FK → `Categoria` | |
@@ -266,6 +267,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `validade` | data | |
 | `arquivo` | arquivo, nulo | |
 | `alerta_enviado_em` | momento, nulo | idempotência de `AUT-06` |
+| `exercicio` | int, nulo | ano do licenciamento, só no `crlv` (lido do CRLV-e, `VEI-08`, T-247) |
 
 - Índice `(validade)` filtrado por `ativo`. Renovar = novo documento e o antigo `ativo=False`. Único `(veiculo, tipo)` quando `ativo`.
 
@@ -295,7 +297,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 - Índices: `status`; `Lower(nome)` para a busca por nome (`icontains`; trigram só com ADR de infraestrutura, T-088); `cnh_validade`. Busca por CPF/CNPJ é exata, pelo hash.
 - `CAMPOS_AUDITORIA`: cifrados omitidos; nome, nascimento, contatos, endereço e referência mascarados (ADR 0014).
 - `total_pago` e `valor_em_aberto` (`CLI-06`) são calculados por selector a partir do financeiro, não guardados.
-- Apoio `DocumentoCliente`: `cliente`, `tipo` enum `cnh_frente`, `cnh_verso`, `selfie_documento`, `comprovante_residencia`, `arquivo`, ativável. O cliente sai de `incompleto` quando tem os 4 ativos (`CLI-03`).
+- Apoio `DocumentoCliente`: `cliente`, `tipo` enum `cnh_frente`, `cnh_verso`, `selfie_documento`, `comprovante_residencia`, `cnh_digital` (PDF da CNH-e lido, `CLI-11`, T-247; na fase dela), `arquivo`, ativável. O cliente sai de `incompleto` quando tem os 4 ativos (`CLI-03`); com a opção A do ponto em aberto da T-247, o `cnh_digital` ativo vale pela frente e pelo verso.
 
 ### 12. Plano de locação especial · `locacoes.PlanoEspecial` · ativável
 
