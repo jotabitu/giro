@@ -253,6 +253,7 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
   - `aprovacoes.md`: o `resumo` do `APR-03` com a descrição da despesa (CA-APR-11).
 
   Depois, a T-195 (backend) entra junto, se ainda aberta.
+  **Estado (15 out 2026):** contratos ajustados, PR a abrir depois da T-235 (branch `t-236-contratos-apagamento`, empilhada sobre a `t-235-regras-apagamento`); handoff `tarefas/handoffs/T-236-arquiteto.md`. Para a T-184 (em andamento): campos `tomador_*` e `email_cobranca` na `FaturaAssinatura`, `gravar_tomador` na baixa e o teste no sandbox do `anonimizar_pagador`.
 - **Tarefa (numerada pelo orquestrador em 15 out 2026):** **T-237 · design-system · Tela `Aprovacoes` sem fornecedor.** No pedido de despesa (desktop e celular), tirar "Fornecedor" e "15 out · boleto" e mostrar categoria, descrição, veículo, valor e vencimento, com os pneus do seed (Manutenção, "Pneus (2)", PMZ-3E17, R$ 1.200,00, 07 out). Pode ir com a T-028 ou a T-200, se ainda abertas. Junto: a `Compra-Checkout` ganha o aviso "Este CNPJ já usou o teste grátis. A 1ª fatura vence hoje." (`PLT-16`).
 
 ### T-028 · Limpar dados de exemplo das telas
