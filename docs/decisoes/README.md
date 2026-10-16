@@ -33,6 +33,8 @@ Uma decisão por arquivo. Para mudar uma decisão, escreva uma nova ADR que subs
 | [0027](0027-servidor-de-aplicacao-de-producao.md) | Servidor de homologação e produção: Gunicorn WSGI com `gthread` e o `gunicorn.conf.py` da T-258 (2 × 4 em homologação, 3 × 4 em produção, timeout 30 s, corte por requisição no proxy), imagem com alvos `dev` (`runserver`) e `producao` (sem root, só `requirements.txt`) | aceita, detalha a 0026 |
 | [0028](0028-app-movimentacoes.md) | App `movimentacoes` no nível 11 (ao lado de `vistorias`): vistoria rápida da chegada no próprio app, uma movimentação aberta por veículo com trava na linha do veículo (também no `confirmar` da locação), blocos na Frota e na ficha pela ADR 0015, despesa da parada pelo `lancar_despesa` com a origem `movimentacao`, transferência na chegada pelo serviço de `veiculos` e a rota `transferir` fora do contrato | aceita, detalha a 0011 e a 0015 |
 
+| [0029](0029-django-admin-pelo-proxy.md) | Django Admin da plataforma em `admin.<dominio>/admin/`, por um bloco próprio do host da plataforma no proxy; só `is_staff` (função Dono), 2 etapas, lista de IPs do cofre fechada por padrão (404 fora dela), limite no login e sessão de 4 horas | aceita, detalha a 0013 e a 0027 |
+
 O modelo de dados detalhado fica em [`modelo-de-dados.md`](modelo-de-dados.md).
 
 Modelo para uma nova ADR: título, status e data, contexto, decisão, consequências.
