@@ -180,6 +180,7 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 ### T-252 · Revisão do link do convite na tela
 - **Agente:** segurança · **Depende de:** T-250 · **Pronto quando:** a segurança revisa a rota e a tela do link copiável: só administrador, link mostrado uma vez e fora de log, limite por hora, evento de auditoria, invalidação do anterior, e o suporte Giro sem acesso à rota.
+- **Estado (16 out 2026, segurança):** rota revisada na branch `t-252-revisao-link-convite` (empilhada sobre a `t-250-backend-decisoes-15-out`), relatório `docs/seguranca/2026-10-16-t252-link-convite.md`. Os sete pontos da rota conferem; nenhum achado alto nem médio. B-01 (baixa, backend, a numerar): a tarefa do e-mail manda o link de um convite que o link copiado já invalidou (`xfail` estrito em `test_t252_seguranca_convite.py`). 404 ou 410 no link antigo: sem objeção de segurança, fica com o produto. **Falta a tela:** a lista do que conferir está no relatório e vale quando a T-251 entrar.
 
 Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entrou no PR #160 (ver `feito.md`).
 
