@@ -44,9 +44,9 @@ export type ProximaManutencao = {
 export type PosicaoDaFoto = "frente" | "traseira" | "lado_esquerdo" | "lado_direito" | "painel";
 export type VistoriaRecente = {
   id: number;
-  tipo: "saida" | "chegada";
+  tipo: "saida" | "devolucao";
   concluida_em: string;
-  vistoriador: { id: number; nome: string };
+  vistoriador: { id: number; nome: string } | null;
   locacao_codigo: string | null;
   total_fotos: number;
   fotos: { id: number; posicao: PosicaoDaFoto; url: string; url_expira_em: string }[];
