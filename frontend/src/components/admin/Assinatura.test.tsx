@@ -103,7 +103,7 @@ describe("assinatura (Admin-Assinatura)", () => {
 
 describe("apoio da tela", () => {
   it("situação e preço", () => {
-    const base = { plano: { nome: "Profissional", preco_contratado_centavos: 44900, ciclo: "mensal" }, teste: null };
+    const base = { plano: { id: 2, nome: "Profissional", preco_contratado_centavos: 44900, ciclo: "mensal" }, teste: null };
     expect(situacaoDaAssinatura({ status: "ativa", teste: null })).toEqual({ rotulo: "Ativa", tom: "sucesso" });
     expect(situacaoDaAssinatura({ status: "suspensa", teste: null }).tom).toBe("critico");
     expect(situacaoDaAssinatura({ status: "algo_novo", teste: null }).rotulo).toBe("algo_novo");

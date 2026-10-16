@@ -153,23 +153,102 @@ class EmpresaDetalheSerializer(serializers.Serializer[Any]):
 
 
 class PlanoDaAssinaturaSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField(allow_null=True)
     nome = serializers.CharField()
     preco_contratado_centavos = serializers.IntegerField()
     ciclo = serializers.CharField()
 
 
 class TesteDaAssinaturaSerializer(serializers.Serializer[Any]):
+    inicio = serializers.DateField(allow_null=True)
     fim = serializers.DateField()
     dias_restantes = serializers.IntegerField()
+
+
+class ProximaFaturaSerializer(serializers.Serializer[Any]):
+    vencimento = serializers.DateField()
+    valor_centavos = serializers.IntegerField()
+    descricao = serializers.CharField()
+
+
+class PlanoProximoSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    nome = serializers.CharField()
+    ciclo = serializers.CharField()
+    vale_em = serializers.DateField(allow_null=True)
+
+
+class CartaoDaFormaSerializer(serializers.Serializer[Any]):
+    """Só a bandeira e o final: o token do cartão nunca sai da API (ADR 0023)."""
+
+    bandeira = serializers.CharField()
+    final = serializers.CharField()
+
+
+class FormaDePagamentoSerializer(serializers.Serializer[Any]):
+    forma = serializers.ChoiceField(choices=["cartao", "pix_automatico", "boleto"], allow_null=True)
+    situacao = SituacaoSerializer()
+    cartao = CartaoDaFormaSerializer(allow_null=True)
+    prazo = serializers.DateField(allow_null=True)
+
+
+class EnderecoDaNotaSerializer(serializers.Serializer[Any]):
+    cep = serializers.CharField()
+    logradouro = serializers.CharField()
+    numero = serializers.CharField()
+    complemento = serializers.CharField(allow_null=True, required=False)
+    bairro = serializers.CharField()
+    cidade = serializers.CharField()
+    uf = serializers.CharField()
+
+
+class DadosFiscaisSerializer(serializers.Serializer[Any]):
+    razao_social = serializers.CharField()
+    cnpj = serializers.CharField(allow_null=True)
+    endereco = EnderecoDaNotaSerializer(allow_null=True)
+    email_cobranca = serializers.CharField()
+
+
+class PlanoDaOfertaSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    nome = serializers.CharField()
+    preco_mensal_centavos = serializers.IntegerField()
+
+
+class OfertaSerializer(serializers.Serializer[Any]):
+    titulo = serializers.CharField()
+    plano = PlanoDaOfertaSerializer()
+    itens = serializers.ListField(child=serializers.CharField())
+
+
+class AcoesDaAssinaturaSerializer(serializers.Serializer[Any]):
+    mudar_plano = serializers.BooleanField()
+    desfazer_mudanca_plano = serializers.BooleanField()
+    escolher_forma_pagamento = serializers.BooleanField()
+    editar_dados_fiscais = serializers.BooleanField()
 
 
 class AssinaturaSerializer(serializers.Serializer[Any]):
     plano = PlanoDaAssinaturaSerializer()
     status = serializers.CharField()
     teste = TesteDaAssinaturaSerializer(allow_null=True)
+    proxima_fatura = ProximaFaturaSerializer(allow_null=True)
+    plano_proximo = PlanoProximoSerializer(allow_null=True)
     faixa_aviso = serializers.CharField(allow_null=True)
     uso = UsoAssinaturaSerializer()
     somente_leitura = serializers.BooleanField()
+    # Só para o administrador (ausentes para os outros perfis).
+    forma_pagamento = FormaDePagamentoSerializer(required=False)
+    dados_fiscais = DadosFiscaisSerializer(required=False)
+    oferta = OfertaSerializer(required=False, allow_null=True)
+    acoes = AcoesDaAssinaturaSerializer(required=False)
+
+
+def representar_assinatura(dados: dict[str, Any]) -> dict[str, Any]:
+    """Os blocos do administrador ficam fora da resposta dos outros perfis (não vêm `null`)."""
+    return {
+        chave: valor for chave, valor in AssinaturaSerializer(dados).data.items() if chave in dados
+    }
 
 
 class ContagensSerializer(serializers.Serializer[Any]):
