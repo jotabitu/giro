@@ -24,6 +24,9 @@ AMBIENTE_PROD = {
     "GIRO_ARMAZENAMENTO": "s3",
     "GIRO_PROVEDOR_PAGAMENTOS": "asaas",
     "GIRO_ASAAS_CHAVE_API": "chave-do-asaas-de-teste",
+    "REDIS_URL": "redis://:senha-do-redis@redis:6379/0",
+    "CELERY_BROKER_URL": "redis://:senha-do-redis@redis:6379/1",
+    "CELERY_RESULT_BACKEND": "redis://:senha-do-redis@redis:6379/2",
 }
 
 
@@ -219,3 +222,24 @@ def test_t157_prod_sobe_com_as_integracoes_reais():
         "s3",
         "asaas",
     ]
+
+
+@pytest.mark.parametrize("url", ["postgres://giro@db:5432/giro", "postgres://db:5432/giro"])
+def test_t274_prod_recusa_banco_sem_senha(url):
+    recusa("DATABASE_URL sem senha", DATABASE_URL=url)
+
+
+@pytest.mark.parametrize("nome", ["REDIS_URL", "CELERY_BROKER_URL", "CELERY_RESULT_BACKEND"])
+@pytest.mark.parametrize("url", ["redis://redis:6379/0", "redis://usuario@redis:6379/0", None])
+def test_t274_prod_recusa_redis_sem_senha(nome, url):
+    # Ausente cai no padrão de base.py (`redis://redis:6379/N`), sem senha: também recusado.
+    recusa(f"{nome} sem senha", **{nome: url})
+
+
+def test_t274_prod_aceita_redis_com_senha_e_tls():
+    resultado = rodar(
+        "from django.conf import settings as s; print(s.REDIS_URL)",
+        REDIS_URL="rediss://usuario:senha@redis.interno:6380/0",
+    )
+    assert resultado.returncode == 0, resultado.stderr
+    assert resultado.stdout.strip() == "rediss://usuario:senha@redis.interno:6380/0"

@@ -30,14 +30,10 @@ docker run --rm -v "$TMPW/cert:/c" nginx:1.27 sh -c \
   'openssl req -x509 -newkey rsa:2048 -nodes -keyout /c/privkey.pem -out /c/fullchain.pem -subj /CN=teste -days 1 2>/dev/null'
 
 # Variáveis de homologação (infra/deploy/homologacao.env.example) com valores de teste.
-# Os dois URLs usam o superusuário, como o desenvolvimento (ADR 0016, item 5): com os papéis
-# separados a migração falha hoje em `ALTER FUNCTION auditoria_expurgar ... OWNER TO giro_expurgo`
-# (permission denied for schema public: o papel novo dono não tem CREATE no schema). Achado
-# levado ao orquestrador na T-264; não é da imagem nem do servidor.
-CHAVE_A=$(python3 -c 'import base64,os;print("1:"+base64.b64encode(os.urandom(32)).decode())' 2>/dev/null \
-  || python -c 'import base64,os;print("1:"+base64.b64encode(os.urandom(32)).decode())')
-CHAVE_B=$(python3 -c 'import base64,os;print("1:"+base64.b64encode(os.urandom(32)).decode())' 2>/dev/null \
-  || python -c 'import base64,os;print("1:"+base64.b64encode(os.urandom(32)).decode())')
+# Papéis separados (ADR 0016, corrigido na T-276): a migração entra como giro_migracao e o
+# serviço como giro_app. Banco e Redis só com senha (T-274).
+CHAVE_A=$(python3 -c 'import base64,os;print("1:"+base64.b64encode(os.urandom(32)).decode())' 2>/dev/null   || python -c 'import base64,os;print("1:"+base64.b64encode(os.urandom(32)).decode())')
+CHAVE_B=$(python3 -c 'import base64,os;print("1:"+base64.b64encode(os.urandom(32)).decode())' 2>/dev/null   || python -c 'import base64,os;print("1:"+base64.b64encode(os.urandom(32)).decode())')
 cat > "$TMP/teste.env" <<ENV
 DJANGO_SETTINGS_MODULE=config.settings.prod
 DOMINIO_BASE=homolog.teste
@@ -53,10 +49,11 @@ GIRO_REDES_PROXY=172.16.0.0/12
 GIRO_CHAVE_DADOS_PESSOAIS=$CHAVE_A
 GIRO_CHAVE_SEGREDOS=$CHAVE_B
 GIRO_PEPPER_HMAC=pepper-de-teste-com-mais-de-trinta-e-dois-bytes-aleatorios
-DATABASE_URL=postgres://giro:senha-admin@db:5432/giro
-DATABASE_URL_MIGRACAO=postgres://giro:senha-admin@db:5432/giro
-REDIS_URL=redis://redis:6379/0
-CELERY_BROKER_URL=redis://redis:6379/0
+DATABASE_URL=postgres://giro_app:senha-app@db:5432/giro
+DATABASE_URL_MIGRACAO=postgres://giro_migracao:senha-migracao@db:5432/giro
+REDIS_URL=redis://:senha-do-redis@redis:6379/0
+CELERY_BROKER_URL=redis://:senha-do-redis@redis:6379/1
+CELERY_RESULT_BACKEND=redis://:senha-do-redis@redis:6379/2
 EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
 EMAIL_HOST=smtp.teste.invalido
 GIRO_ARMAZENAMENTO=s3
@@ -97,6 +94,7 @@ services:
       retries: 20
   redis:
     image: redis:7-alpine
+    command: ["redis-server", "--requirepass", "senha-do-redis"]
   migrar:
     depends_on:
       db: {condition: service_healthy}
@@ -130,6 +128,24 @@ confere "requisição pelo proxy chegou ao Django (HTTP $CODIGO)" "[ $CODIGO -ge
 confere "estático do Admin servido pelo proxy" \
   "[ \"\$(curl -sk -o /dev/null -w '%{http_code}' -H 'Host: admin.homolog.teste' https://127.0.0.1:18443/static/admin/css/base.css)\" = 200 ]"
 confere "worker e beat de pé" "[ \$($COMPOSE ps -q worker beat | wc -l) -eq 2 ]"
+
+# Banco e Redis só com senha (T-274): o serviço recusa sem ela e os dois a exigem de quem chega.
+REDE="${PROJETO}_default"
+confere "Redis recusa quem não manda a senha"   "docker run --rm --network $REDE redis:7-alpine redis-cli -h redis ping | grep -q NOAUTH"
+confere "Redis atende com a senha"   "docker run --rm --network $REDE redis:7-alpine redis-cli -h redis -a senha-do-redis --no-auth-warning ping | grep -q PONG"
+confere "Postgres recusa o papel do serviço sem senha"   "! docker run --rm --network $REDE postgres:16 psql 'postgres://giro_app@db:5432/giro' -w -c 'select 1'"
+confere "Postgres atende com a senha"   "docker run --rm --network $REDE postgres:16 psql 'postgres://giro_app:senha-app@db:5432/giro' -w -c 'select 1'"
+recusa_sem_senha() { # variável, valor sem senha, trecho esperado da mensagem
+  SAIDA=$(docker run --rm --env-file "$TMPW/teste.env" -e "$1=$2" --entrypoint python     giro-backend:producao -c 'from django.conf import settings; settings.DEBUG' 2>&1 || true)
+  if echo "$SAIDA" | grep -q "$3"; then
+    echo "ok    imagem producao recusa $1 sem senha"
+  else
+    echo "FALHA imagem producao recusa $1 sem senha"; FALHAS=$((FALHAS + 1))
+  fi
+}
+recusa_sem_senha DATABASE_URL "postgres://giro_app@db:5432/giro" "DATABASE_URL sem senha"
+recusa_sem_senha REDIS_URL "redis://redis:6379/0" "REDIS_URL sem senha"
+recusa_sem_senha CELERY_BROKER_URL "redis://redis:6379/1" "CELERY_BROKER_URL sem senha"
 
 # docker stop com requisição em curso: aplicação de 8 s atrás do mesmo gunicorn.conf.py.
 mkdir -p "$TMP/lento"
