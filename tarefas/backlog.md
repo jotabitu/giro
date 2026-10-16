@@ -169,21 +169,16 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 - Decidido em 15 out 2026 pelo dono (**Administrador aprova o próprio pedido**): opção B. O administrador pode aprovar o próprio pedido; os outros perfis continuam proibidos (`APR-09`); o evento de auditoria marca "aprovou o próprio pedido". Regra escrita na T-248.
 - Decidido em 15 out 2026 pelo dono (**Criar usuário sem convite**): opção A. O acesso continua nascendo por convite, e a senha só a pessoa cria (`USR-01`); no painel da pessoa com convite pendente, o administrador tem "Copiar link do convite" para mandar por outro canal. Como o banco guarda só o hash do token, copiar gera um link novo de 7 dias e invalida o anterior (P-06), como o reenvio, e grava evento de auditoria. Regra escrita na T-248.
 
-
 ### T-249 · Contratos das decisões de 15 out
 - **Agente:** arquiteto · **Depende de:** T-248 · **Pronto quando:** `docs/api/clientes.md` com o parâmetro `filial` na lista (sem ele, todas; recusa de filial sem acesso); `docs/api/aprovacoes.md` com o administrador aprovando o próprio pedido (`acoes.aprovar` verdadeiro para ele) e o evento; `docs/api/contas.md` com a rota do link do convite (só administrador, só `convite_pendente`, resposta com o link uma vez, evento, limite por hora) e o `acoes` do usuário para a tela mostrar o botão.
 - **Estado (15 out 2026):** contratos ajustados, PR #245, mesclar depois do #241 da T-248 (branch `t-249-contratos-decisoes-15-out`, empilhada sobre a `t-248-regras-decisoes-15-out`); handoff `tarefas/handoffs/T-249-arquiteto.md`. Limite do link: 5 por hora por pessoa convidada e 20 por hora por administrador. A tela de aprovação usa o `pode_decidir` que já existe (não há `acoes.aprovar`).
 
-
-### T-251 · Telas das decisões de 15 out
-- **Agente:** frontend · **Depende de:** T-250 · **Telas:** Clientes, Aprovacoes, Admin-Usuarios · **Pronto quando:** filtro de filial na lista de Clientes, com "Todas as filiais" como padrão, independente do seletor do topo; o botão Aprovar aparece pelo `acoes` da API (sem regra de perfil na tela); "Copiar link do convite" no painel da pessoa com convite pendente, com o aviso "O link anterior deixa de valer." e cópia para a área de transferência; testes dos componentes.
 
 ### T-252 · Revisão do link do convite na tela
 - **Agente:** segurança · **Depende de:** T-250 · **Pronto quando:** a segurança revisa a rota e a tela do link copiável: só administrador, link mostrado uma vez e fora de log, limite por hora, evento de auditoria, invalidação do anterior, e o suporte Giro sem acesso à rota.
 - **Estado (16 out 2026, segurança):** rota revisada no PR #281 (branch `t-252-revisao-link-convite`) , empilhada sobre a `t-250-backend-decisoes-15-out`, relatório `docs/seguranca/2026-10-16-t252-link-convite.md`. Os sete pontos da rota conferem; nenhum achado alto nem médio. B-01 (baixa, backend, a numerar): a tarefa do e-mail manda o link de um convite que o link copiado já invalidou (`xfail` estrito em `test_t252_seguranca_convite.py`). 404 ou 410 no link antigo: sem objeção de segurança, fica com o produto. **Falta a tela:** a lista do que conferir está no relatório e vale quando a T-251 entrar.
 
 Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entrou no PR #160 (ver `feito.md`).
-
 
 ### T-156 · (M-02) Custo e rendimento do veículo fora da ficha do vendedor (média)
 - **Backend feito (15 out 2026):** PR #246 (`tarefas/handoffs/T-156-backend.md`); OpenAPI sem diferença. **Falta o frontend:** os cartões só quando a API manda `indicadores_financeiros`.

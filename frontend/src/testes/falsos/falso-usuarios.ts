@@ -1,7 +1,7 @@
 // DADOS FALSOS dos usuários nos testes (contrato: docs/api/contas.md, "Usuários"). Só api-falsa.ts importa este arquivo.
 // Seed da tela Admin-Usuarios: 6 pessoas, 5 de 10 no plano (as ativas e os convites pendentes contam; o desativado não).
 import { ErroApi } from "@/lib/api/tipos";
-import type { AlteracaoDeUsuario, ConviteNovo, FiltroUsuarios, ListaUsuarios, PermissaoDoUsuario, SessaoDoUsuario, UsuarioDetalhado } from "@/lib/api/tipos-usuarios";
+import type { AlteracaoDeUsuario, ConviteNovo, FiltroUsuarios, LinkDoConvite, ListaUsuarios, PermissaoDoUsuario, SessaoDoUsuario, UsuarioDetalhado } from "@/lib/api/tipos-usuarios";
 import { pausa } from "./falso";
 
 const CENTRO = { id: 1, nome: "Filial Centro" };
@@ -123,6 +123,14 @@ export const usuariosFalso = {
     await pausa(60);
     if (achar(id).status !== "convite_pendente") throw new ErroApi(409, "transicao_usuario", "Só convite pendente pode ser reenviado.");
     return trocar(id, { convite_expira_em: "2026-10-14T18:00:00Z" });
+  },
+
+  async copiarLinkDoConvite(id: number): Promise<LinkDoConvite> {
+    await pausa(60);
+    const u = achar(id);
+    if (u.status !== "convite_pendente") throw new ErroApi(409, "transicao_usuario", "Só convite pendente tem link.");
+    const usuario = trocar(id, { convite_expira_em: "2026-10-16T12:00:00Z" });
+    return { link: `https://motorapida.giro.example/convite/${id}-novo`, expira_em: "2026-10-16T12:00:00Z", aviso: "O link anterior deixa de valer.", usuario };
   },
 
   async cancelarConvite(id: number): Promise<UsuarioDetalhado> {
