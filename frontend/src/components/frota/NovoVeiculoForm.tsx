@@ -21,7 +21,7 @@ const CAMPO_DA_API: Record<string, Nome> = { valor_compra_centavos: "valor_compr
 
 type SelecaoProps = SelectHTMLAttributes<HTMLSelectElement> & { rotulo: string; erro?: string; dica?: string; opcoes: { valor: string; rotulo: string }[]; vazio: string };
 
-function Selecao({ rotulo, erro, dica, opcoes, vazio, id, ...resto }: SelecaoProps) {
+export function Selecao({ rotulo, erro, dica, opcoes, vazio, id, ...resto }: SelecaoProps) {
   const apoio = erro ?? dica;
   return (
     <div className={`wl-field wl-field--cheio ${erro ? "wl-field--error" : ""}`}>
@@ -41,7 +41,7 @@ function Selecao({ rotulo, erro, dica, opcoes, vazio, id, ...resto }: SelecaoPro
   );
 }
 
-function Preco({ rotulo, centavos }: { rotulo: string; centavos: number }) {
+export function Preco({ rotulo, centavos }: { rotulo: string; centavos: number }) {
   return (
     <div className="rounded-md bg-surface-sunken px-4 py-3">
       <span className="block text-caption text-ink-muted">{rotulo}</span>

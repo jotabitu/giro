@@ -189,9 +189,9 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
         </div>
         {podeAgir && (
           <div className="ml-auto flex flex-wrap gap-2">
-            <Button disabled title={EM_BREVE}>
+            <Link href={`/veiculos/${v.id}/editar`} className="wl-btn">
               Editar
-            </Button>
+            </Link>
             <Button disabled title={EM_BREVE} icone={<Icone de={ArrowLeftRight} />}>
               Movimentar
             </Button>

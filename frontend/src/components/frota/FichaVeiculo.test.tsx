@@ -76,8 +76,9 @@ describe("ficha do veículo, gerente", () => {
     ordem(t, ["CRLV 2026", "Em dia", "IPVA 2026", "Pago", "Seguro", "Vence em 18 dias", "Rastreador", "Online"]);
   });
 
-  it("desktop: o botão sólido é Colocar à venda e as quatro ações ficam desativadas (sem tela ou endpoint)", () => {
-    for (const nome of ["Editar", "Movimentar", "Mandar para oficina", "Colocar à venda"]) expect(desktop).toMatch(new RegExp(`<button[^>]*disabled[^>]*>(<svg.*?</svg>)?${nome}</button>`));
+  it("desktop: o botão sólido é Colocar à venda e Editar abre a edição e as outras três ficam desativadas (sem tela ou endpoint)", () => {
+    expect(desktop).toMatch(/<a class="wl-btn" href="\/veiculos\/501\/editar">Editar<\/a>/);
+    for (const nome of ["Movimentar", "Mandar para oficina", "Colocar à venda"]) expect(desktop).toMatch(new RegExp(`<button[^>]*disabled[^>]*>(<svg.*?</svg>)?${nome}</button>`));
     expect(desktop).toMatch(/wl-btn wl-btn--solid"[^>]*disabled/);
   });
 

@@ -7,6 +7,7 @@ import {
   type FiltroVeiculos,
   type ListaVeiculos,
   type LocacoesDoVeiculo,
+  type EdicaoVeiculo,
   type NovoVeiculo,
   type ManutencoesDoVeiculo,
   type StatusVeiculo,
@@ -229,6 +230,45 @@ export const veiculosFalso = {
     };
     SEMENTES.push(s);
     return veiculosFalso.obter(s.id);
+  },
+
+  /** PATCH /api/veiculos/{id}/ (VEI-01): administrador e gerente; placa, chassi, km e filial não mudam por aqui. */
+  async atualizar(id: number, v: EdicaoVeiculo): Promise<VeiculoDetalhe> {
+    await pausa(300);
+    if (!podeEditar()) throw new ErroApi(403, "sem_permissao", "Você não tem permissão para editar veículos");
+    const s = SEMENTES.find((x) => x.id === id);
+    if (!s) throw new ErroApi(404, "nao_encontrado", "Veículo não encontrado");
+    const campos: Record<string, string> = {};
+    if (v.marca !== undefined && !v.marca.trim()) campos.marca = "Informe a marca";
+    if (v.modelo !== undefined && !v.modelo.trim()) campos.modelo = "Informe o modelo";
+    if (v.cor !== undefined && !v.cor.trim()) campos.cor = "Informe a cor";
+    const ano = new Date().getFullYear();
+    const fabricacao = v.ano_fabricacao ?? s.anoFabricacao ?? s.ano;
+    const modelo = v.ano_modelo ?? s.ano;
+    if (v.ano_fabricacao !== undefined && (!Number.isInteger(fabricacao) || fabricacao < 1990 || fabricacao > ano + 1)) campos.ano_fabricacao = "Ano de fabricação inválido";
+    else if (v.ano_modelo !== undefined && (!Number.isInteger(modelo) || modelo < fabricacao || modelo > ano + 1)) campos.ano_modelo = "O ano do modelo não pode ser menor que o de fabricação";
+    if (v.renavam && !/^\d{9,11}$/.test(v.renavam)) campos.renavam = "Renavam deve ter de 9 a 11 números";
+    const categoria = v.categoria_id !== undefined ? CATEGORIAS.find((c) => c.id === v.categoria_id) : undefined;
+    if (v.categoria_id !== undefined) {
+      if (!categoria) campos.categoria_id = "Escolha a categoria";
+      else if (categoria.tipo_veiculo !== s.tipo) campos.categoria_id = "Esta categoria é de outro tipo de veículo";
+      else if (categoria.filial && categoria.filial.id !== (s.filialId ?? 1)) campos.categoria_id = "Esta categoria é de outra filial";
+    }
+    if (Object.keys(campos).length > 0) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, campos);
+    if (v.marca !== undefined) s.marca = v.marca.trim();
+    if (v.modelo !== undefined) s.modelo = v.modelo.trim();
+    if (v.ano_fabricacao !== undefined) s.anoFabricacao = v.ano_fabricacao;
+    if (v.ano_modelo !== undefined) s.ano = v.ano_modelo;
+    if (v.cor !== undefined) s.cor = v.cor.trim().toLowerCase();
+    if (categoria) {
+      s.categoriaId = categoria.id;
+      s.categoria = categoria.nome;
+    }
+    if (v.renavam !== undefined) s.renavam = v.renavam ?? undefined;
+    if (v.capacidade_tanque_litros !== undefined) s.tanque = v.capacidade_tanque_litros;
+    if (v.valor_compra_centavos !== undefined) s.compraCentavos = v.valor_compra_centavos;
+    if (v.data_compra !== undefined) s.dataCompra = v.data_compra;
+    return veiculosFalso.obter(id);
   },
 
   /** POST /api/veiculos/{id}/km/ (VEI-02): o km só sobe. */
