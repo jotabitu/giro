@@ -9,7 +9,7 @@
 - `frontend/src/app/layout.tsx`: saiu o import de `componentes.css`.
 - `frontend/src/design-system/README.md`: a regra (classe `wl-` nova entra na camada, nunca solta).
 
-**Dependência:** `postcss-import` 15.1.0 já está no `package-lock.json` (dependência do próprio Tailwind 3). Usei sem declará-la no `package.json`; se o time preferir, declarar como devDependency é uma linha.
+**Dependência:** `postcss-import` 15.1.0, declarada em `devDependencies` do `frontend/package.json` (versão exata, a mesma que o lock já trazia como dependência do Tailwind 3). Motivo: o `postcss.config.mjs` passou a usá-lo direto, para juntar `componentes.css` ao `globals.css` e o Tailwind pôr as classes `wl-` em `@layer components`; usar um pacote só porque outro o traz de brinde quebraria se o Tailwind deixasse de depender dele. O `package-lock.json` mudou só na linha de `devDependencies` do pacote raiz (a entrada do pacote em `node_modules` já existia).
 
 **Conferência no navegador (admin Mariana, 23 rotas a 1440 e 390 px, script que acusa `md:hidden` visível no desktop e `hidden md:*` visível no celular):**
 - Antes (app da `main`): 1440 px, 11 telas com o sintoma (o "Voltar" redondo em Aprovações, Filiais, Nova filial, Usuários, Auditoria, Configurações, Exportar, Assinatura e Cadastrar veículo; o "+" de Nova despesa; o "Nova filial" e o "Filtrar" em ícone); 390 px, 5 telas com o botão de texto de desktop aparecendo no celular (Importar planilha, Nova filial, "6 de 10 no plano", Exportar da Auditoria, Voltar da importação).
