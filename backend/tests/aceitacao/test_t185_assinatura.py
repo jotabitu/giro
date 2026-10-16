@@ -4,7 +4,8 @@ plano e dados fiscais (`docs/api/assinatura.md`; PLT-01, PLT-04, PLT-05, PLT-11,
 Também os requisitos que a segurança deixou para a T-185 na revisão da T-189
 (`docs/seguranca/2026-10-15-t189-cartao-conta-principal.md`, "Para a T-185"): o suporte nunca
 escreve na assinatura (1), a exceção da `suspensa` é uma lista explícita (2) e as rotas são só do
-administrador (3). Os requisitos 4 a 8 (forma de pagamento e faturas) são da parte 2.
+administrador (3). A lista completa da exceção e os requisitos 4 a 8 (forma de pagamento e
+faturas) estão em `test_t185b_forma_faturas.py`.
 
 Relógio em 07 out 2026, como o seed Moto Rápida: teste de 07 a 21 out, FAT-0001 de R$ 449,00 em
 22 out, 86 veículos, 1 filial e 5 usuários no Profissional.
@@ -450,6 +451,9 @@ def test_plt_04_upgrade_proporcional(moto, relogio):
     recusa = _mudar(api, "Completo", valor=30000)
     assert recusa.status_code == 409
     assert recusa.json()["codigo"] == "valor_mudou"
+    assert recusa.json()["mensagem"] == (
+        "O valor da diferença mudou. Confira o novo valor antes de confirmar."
+    )  # T-290
     assert recusa.json()["detalhes"] == {"diferenca_centavos": 30484}
     assert moto.recarregar().plano.nome == "Profissional"
 
@@ -878,12 +882,6 @@ def _rotas_que_escrevem_na_suspensa() -> set[tuple[str, str]]:
 
     visitar(urls.urlpatterns, "")
     return achadas
-
-
-def test_plt_13_ca_ass_27_excecao_da_suspensa_e_lista_explicita():
-    """Requisito 2: só as rotas de pagar escrevem na `suspensa`. Na parte 1, os dados fiscais;
-    a parte 2 junta `PUT forma-pagamento/` e `POST faturas/{codigo}/pagar/`."""
-    assert _rotas_que_escrevem_na_suspensa() == {("api/assinatura/dados-fiscais/", "PATCH")}
 
 
 def test_plt_13_ca_ass_27_suspensa_edita_os_dados_fiscais(moto):

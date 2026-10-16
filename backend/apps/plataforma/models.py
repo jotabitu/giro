@@ -403,6 +403,13 @@ class MotivoCancelamentoFatura(models.TextChoices):
 
 
 PREFIXO_FATURA = "FAT"
+CAMPOS_DA_COBRANCA = (
+    "cobranca_pix_copia_e_cola",
+    "cobranca_linha_digitavel",
+    "cobranca_boleto_url",
+    "cobranca_url_pagina",
+    "recibo_url",
+)
 TENTATIVAS_DO_CARTAO = 2  # PLT-02: a cobrança no vencimento e uma tentativa a mais
 
 
@@ -431,6 +438,16 @@ class FaturaAssinatura(MaquinaDeEstados, ModeloBase):
     cobranca_emitida_em = models.DateTimeField(null=True, blank=True)
     pago_em = models.DateTimeField(null=True, blank=True)
     cobranca_externa_id = models.CharField(max_length=60, unique=True, null=True, blank=True)
+    # A cobrança viva no parceiro, para o "Pagar" e o detalhe (T-185): uma por fatura.
+    cobranca_tipo = models.CharField(
+        max_length=12, blank=True, default=""
+    )  # pix, boleto, cartao_link
+    cobranca_pix_copia_e_cola = models.TextField(blank=True, default="")
+    cobranca_linha_digitavel = models.CharField(max_length=60, blank=True, default="")
+    cobranca_boleto_url = models.CharField(max_length=500, blank=True, default="")
+    cobranca_url_pagina = models.CharField(max_length=500, blank=True, default="")
+    # Comprovante do parceiro, gravado na baixa (PLT-14). O Giro não gera PDF de recibo no MVP.
+    recibo_url = models.CharField(max_length=500, blank=True, default="")
     tentativas_cartao = models.PositiveSmallIntegerField(
         default=0, validators=[MaxValueValidator(TENTATIVAS_DO_CARTAO)]
     )
@@ -472,7 +489,14 @@ class FaturaAssinatura(MaquinaDeEstados, ModeloBase):
     # public, não levam os valores (assinatura.md, "Tomador da fatura").
     CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
         "inteiro": ["codigo"],
-        "omitir": ["tomador_razao_social", "tomador_cnpj", "tomador_endereco", "email_cobranca"],
+        # Os dados para pagar e o recibo só saem na resposta ao administrador (T-189, item 8).
+        "omitir": [
+            "tomador_razao_social",
+            "tomador_cnpj",
+            "tomador_endereco",
+            "email_cobranca",
+            *CAMPOS_DA_COBRANCA,
+        ],
     }
 
     class Meta:

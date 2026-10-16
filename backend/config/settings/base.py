@@ -219,6 +219,11 @@ SPECTACULAR_SETTINGS = {
         # Assinatura (T-185): o ciclo da empresa e o tipo da mudança de plano, um nome só.
         "CicloEnum": [("mensal", "Mensal"), ("anual", "Anual")],
         "MudancaDePlanoEnum": ["upgrade", "downgrade"],
+        "StatusFaturaAssinaturaEnum": "apps.plataforma.models.StatusFatura",
+        "FormaPagaFaturaEnum": "apps.plataforma.models.FormaPagaFatura",
+        "FormaAssinaturaEnum": "apps.plataforma.models.FormaAssinatura",
+        "MeioDePagarEnum": ["cartao", "pix", "boleto"],
+        "TipoLinhaDaFaturaEnum": ["fatura", "teste"],
         "StatusVeiculoEnum": "apps.veiculos.models.StatusVeiculo",
         "TipoDocumentoEnum": "apps.veiculos.models.TipoDocumento",
         "TipoDocumentoClienteEnum": "apps.clientes.models.TipoDocumentoCliente",

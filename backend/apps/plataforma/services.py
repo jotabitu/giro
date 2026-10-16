@@ -58,6 +58,7 @@ from comum.eventos import publicar
 from comum.models import WebhookRecebido
 from integracoes.pagamentos import conta_principal, hash_do_token, provedor, referencia
 from integracoes.pagamentos.base import (
+    Autorizacao,
     CartaoGuardado,
     DadosEmpresa,
     Endereco,
@@ -65,6 +66,8 @@ from integracoes.pagamentos.base import (
     Pagador,
     ParceiroIndisponivel,
     ParceiroRecusou,
+    PedidoCobranca,
+    PedidoRecorrencia,
     StatusDesconhecido,
 )
 
@@ -1029,13 +1032,14 @@ def _processar_fatura(webhook: WebhookRecebido) -> str:
         gravar_tomador(fatura)
     fatura.pago_em = situacao.pago_em or relogio.agora()
     fatura.forma = situacao.forma if situacao.forma in FormaPagaFatura.values else ""
+    fatura.recibo_url = situacao.recibo_url[:500]
     with usar_ator(ATOR_SISTEMA):
         transicionar(
             fatura,
             StatusFatura.PAGA,
             acao="fatura_assinatura.pagar",
             regra="PLT-14",
-            mais_campos=("pago_em", "forma"),
+            mais_campos=("pago_em", "forma", "recibo_url"),
         )
         if situacao.cartao is not None:
             _guardar_cartao(fatura.empresa, situacao.cartao)
@@ -1407,16 +1411,10 @@ def _mudar_valor_da_fatura(fatura: FaturaAssinatura, plano: Plano, valor_centavo
     if fatura.plano_id == plano.pk and int(fatura.valor_centavos) == valor_centavos:
         return
     campos = ["plano", "valor_centavos"]
-    if fatura.cobranca_externa_id:
-        try:
-            provedor().cancelar_cobranca(conta_principal(), fatura.cobranca_externa_id)
-        except ParceiroIndisponivel as erro:
-            raise ParceiroForaDoAr(*PARCEIRO_FORA_DO_AR) from erro
-        except ParceiroRecusou as erro:
-            raise ErroDeRegra("parceiro_recusou", erro.mensagem) from erro
-        fatura.cobranca_externa_id = None
-        fatura.cobranca_emitida_em = None
-        campos += ["cobranca_externa_id", "cobranca_emitida_em"]
+    cobranca_id = fatura.cobranca_externa_id
+    if cobranca_id:
+        _no_parceiro(lambda: provedor().cancelar_cobranca(conta_principal(), cobranca_id))
+        campos += _limpar_cobranca(fatura)
     with auditar(fatura, "fatura_assinatura.mudar_valor", Categoria.FINANCEIRO, regra="PLT-04"):
         fatura.plano = plano
         fatura.valor_centavos = valor_centavos
@@ -1479,7 +1477,7 @@ def mudar_plano(
         ):
             raise Conflito(
                 "valor_mudou",
-                "O valor da mudança mudou. Confira antes de confirmar.",
+                "O valor da diferença mudou. Confira o novo valor antes de confirmar.",
                 {"diferenca_centavos": simulacao.diferenca_centavos},
             )
         atual = empresa.plano
@@ -1664,3 +1662,246 @@ def atualizar_dados_fiscais(empresa: Empresa, dados: Mapping[str, Any]) -> Empre
             empresa_id = atual.pk
             transaction.on_commit(lambda: plataforma_atualizar_pagador.delay(empresa_id))
     return atual
+
+
+# --- Forma de pagamento e faturas (PLT-02, PLT-13, PLT-14; T-185 parte 2, ADR 0023) ---
+
+MEIOS_DE_PAGAR = ("cartao", "pix", "boleto")
+# Na fatura, a cobrança no parceiro: o cartão é sempre a página dele (ADR 0023).
+TIPO_DA_COBRANCA = {"cartao": "cartao_link", "pix": "pix", "boleto": "boleto"}
+MEIO_DA_FORMA = {
+    FormaAssinatura.CARTAO: "cartao",
+    FormaAssinatura.PIX_AUTOMATICO: "pix",
+    FormaAssinatura.BOLETO: "boleto",
+}
+EM_ABERTO = (StatusFatura.ABERTA, StatusFatura.ATRASADA)
+FATURA_NAO_PAGAVEL = ("fatura_nao_pagavel", "Esta fatura já foi paga ou cancelada.")
+SEM_FORMA_PAGAMENTO = ("sem_forma_pagamento", "Escolha a forma de pagamento antes.")
+# O QR da autorização do Pix automático vale 24 horas no parceiro (`immediateQrCode`).
+VALIDADE_DO_QR_DA_AUTORIZACAO = timedelta(hours=24)
+CAMPOS_DA_COBRANCA_VIVA = (
+    "cobranca_externa_id",
+    "cobranca_emitida_em",
+    "cobranca_tipo",
+    "cobranca_pix_copia_e_cola",
+    "cobranca_linha_digitavel",
+    "cobranca_boleto_url",
+    "cobranca_url_pagina",
+)
+
+
+def _no_parceiro[T](chamada: Callable[[], T]) -> T:
+    """A chamada à conta principal: fora do ar, 503; recusou, 422 com a mensagem dele."""
+    try:
+        return chamada()
+    except ParceiroIndisponivel as erro:
+        raise ParceiroForaDoAr(*PARCEIRO_FORA_DO_AR) from erro
+    except ParceiroRecusou as erro:
+        raise ErroDeRegra("parceiro_recusou", erro.mensagem) from erro
+
+
+def _limpar_cobranca(fatura: FaturaAssinatura) -> list[str]:
+    fatura.cobranca_externa_id = None
+    fatura.cobranca_emitida_em = None
+    for campo in CAMPOS_DA_COBRANCA_VIVA[2:]:
+        setattr(fatura, campo, "")
+    return list(CAMPOS_DA_COBRANCA_VIVA)
+
+
+def _cancelar_cobranca_viva(fatura: FaturaAssinatura) -> bool:
+    """Uma cobrança viva por fatura: cancela a de agora no parceiro antes de outra nascer. Se o
+    parceiro diz que ela já foi paga, nada é cancelado (a baixa segue pelo webhook) e devolve
+    `False`."""
+    cobranca_id = fatura.cobranca_externa_id
+    if not cobranca_id:
+        return True
+    try:
+        situacao = _no_parceiro(
+            lambda: provedor().consultar_cobranca(conta_principal(), cobranca_id)
+        )
+    except StatusDesconhecido:
+        return False
+    if situacao.status == "paga":
+        return False
+    if situacao.status not in ("cancelada", "estornada"):
+        _no_parceiro(lambda: provedor().cancelar_cobranca(conta_principal(), cobranca_id))
+    campos = _limpar_cobranca(fatura)
+    with auditar(
+        fatura, "fatura_assinatura.cancelar_cobranca", Categoria.FINANCEIRO, regra="PLT-14"
+    ):
+        fatura.save(update_fields=[*campos, "atualizado_em"])
+    return True
+
+
+def _emitir_cobranca(fatura: FaturaAssinatura, meio: str) -> FaturaAssinatura:
+    """Cria a cobrança da fatura na conta principal, pelo `meio`, e guarda o que a tela mostra.
+    A fatura vencida sai para hoje (o parceiro não emite com vencimento passado)."""
+    empresa = Empresa.objects.get(pk=fatura.empresa_id)
+    cliente = atualizar_pagador(empresa)
+    pedido = PedidoCobranca(
+        TIPO_DA_COBRANCA[meio],
+        int(fatura.valor_centavos),
+        max(fatura.vencimento, relogio.hoje()),
+        f"fatura-{fatura.pk}",
+        pagador_da_empresa(empresa, cliente),
+    )
+    cobranca = _no_parceiro(lambda: provedor().criar_cobranca(conta_principal(), pedido))
+    fatura.cobranca_externa_id = cobranca.id
+    fatura.cobranca_emitida_em = relogio.agora()
+    fatura.cobranca_tipo = pedido.tipo
+    fatura.cobranca_pix_copia_e_cola = cobranca.pix_copia_e_cola
+    fatura.cobranca_linha_digitavel = cobranca.linha_digitavel[:60]
+    fatura.cobranca_boleto_url = cobranca.boleto_url[:500]
+    fatura.cobranca_url_pagina = cobranca.url_pagina[:500]
+    with auditar(fatura, "fatura_assinatura.emitir_cobranca", Categoria.FINANCEIRO, regra="PLT-14"):
+        fatura.save(update_fields=[*CAMPOS_DA_COBRANCA_VIVA, "atualizado_em"])
+    return fatura
+
+
+def _cobranca_pelo_meio(fatura: FaturaAssinatura, meio: str) -> FaturaAssinatura:
+    """A cobrança viva no mesmo meio é devolvida como está (não cria duas); em outro meio, a
+    antiga é cancelada antes (uma cobrança viva por fatura)."""
+    if fatura.cobranca_externa_id and fatura.cobranca_tipo == TIPO_DA_COBRANCA[meio]:
+        return fatura
+    if not _cancelar_cobranca_viva(fatura):
+        raise Conflito(*FATURA_NAO_PAGAVEL)
+    return _emitir_cobranca(fatura, meio)
+
+
+def pagar_fatura(empresa: Empresa, codigo: str, meio: str | None = None) -> FaturaAssinatura:
+    """O "Pagar" da fatura `aberta` ou `atrasada` (PLT-14). Sem `meio`, pela forma cadastrada
+    (cartão: a página do parceiro; Pix automático: o Pix avulso da fatura; boleto). Com `meio`,
+    paga por outro meio sem trocar a forma (PLT-02, depois da 2ª recusa do cartão; a `suspensa`
+    sem forma, CA-ASS-27). A baixa nunca vem daqui: vem do webhook."""
+    if meio is not None and meio not in MEIOS_DE_PAGAR:
+        raise ErroDeValidacao({"meio": ["Use cartao, pix ou boleto."]})
+    with no_publico(), transaction.atomic():
+        fatura = (
+            FaturaAssinatura.objects.select_for_update()
+            .filter(empresa_id=empresa.pk, codigo=codigo)
+            .first()
+        )
+        if fatura is None:
+            raise NaoEncontrado("nao_encontrado", "Fatura não encontrada.")
+        if fatura.status not in EM_ABERTO:
+            raise Conflito(*FATURA_NAO_PAGAVEL)
+        if meio is None:
+            forma = FormaPagamentoAssinatura.objects.filter(empresa_id=empresa.pk).first()
+            if forma is None or not forma.forma:
+                raise ErroDeRegra(*SEM_FORMA_PAGAMENTO)
+            meio = MEIO_DA_FORMA[FormaAssinatura(forma.forma)]
+        return _cobranca_pelo_meio(fatura, meio)
+
+
+def _esquecer_cartao(forma: FormaPagamentoAssinatura) -> list[str]:
+    """ADR 0023, item 3: trocar de forma apaga o token, a bandeira e o final, na linha travada
+    (um aviso atrasado do parceiro não regrava o cartão, `_guardar_cartao`)."""
+    forma.definir_cartao_token_cifrado(None)
+    forma.cartao_bandeira = ""
+    forma.cartao_final = ""
+    return ["cartao_token_cifrado", "cartao_bandeira", "cartao_final"]
+
+
+def _autorizar_pix(empresa: Empresa) -> Autorizacao:
+    """A autorização recorrente na conta principal: frequência do ciclo, valor = preço
+    contratado, a partir da próxima fatura (PLT-13)."""
+    cliente = atualizar_pagador(empresa)
+    proxima = proxima_mensalidade(empresa)
+    pedido = PedidoRecorrencia(
+        referencia_externa=f"assinatura-{empresa.pk}",
+        frequencia="anual" if empresa.ciclo == Empresa.Ciclo.ANUAL else "mensal",
+        inicio=proxima.vencimento if proxima else relogio.hoje(),
+        valor_centavos=int(empresa.preco_contratado_centavos),
+        primeira_cobranca_centavos=0,
+        pagador=pagador_da_empresa(empresa, cliente),
+        descricao=f"Assinatura {empresa.nome_exibicao}",
+    )
+    return _no_parceiro(lambda: provedor().criar_autorizacao_recorrente(conta_principal(), pedido))
+
+
+def _status_da_forma(forma: FormaPagamentoAssinatura) -> str:
+    """Boleto vale na hora; Pix automático espera a autorização no banco; cartão espera ser
+    digitado na página do parceiro (o que já está guardado continua valendo)."""
+    if forma.forma == FormaAssinatura.BOLETO:
+        return StatusFormaPagamento.ATIVA
+    if forma.forma == FormaAssinatura.CARTAO and forma.cartao_final:
+        return str(forma.status)
+    return StatusFormaPagamento.PENDENTE
+
+
+def escolher_forma_pagamento(empresa: Empresa, nova: str) -> dict[str, Any] | None:
+    """PLT-13: grava a forma e devolve o próximo passo. Não muda o estado da empresa (CA-ASS-02).
+    Vale para a próxima cobrança e para a fatura em aberto (CA-ASS-26): a forma anterior é
+    desfeita no parceiro (autorização do Pix cancelada, cartão esquecido) e a cobrança viva de
+    outra forma é cancelada; a nova sai na emissão ou no "Pagar". Os dados do cartão nunca passam
+    pelo Giro (ADR 0023)."""
+    if nova not in FormaAssinatura.values:
+        raise ErroDeValidacao({"forma": ["Escolha cartão, Pix automático ou boleto."]})
+    proximo_passo: dict[str, Any] | None = None
+    with no_publico(), transaction.atomic():
+        empresa = Empresa.objects.select_related("plano").get(pk=empresa.pk)
+        FormaPagamentoAssinatura.objects.get_or_create(empresa=empresa)
+        forma = FormaPagamentoAssinatura.objects.select_for_update().get(empresa=empresa)
+        antiga = forma.forma
+        autorizacao_antiga = forma.autorizacao_externa_id
+        campos = ["forma", "autorizacao_externa_id"]
+        # O que é novo no parceiro primeiro: se ele recusar, nada da forma antiga se perde.
+        if nova == FormaAssinatura.PIX_AUTOMATICO:
+            autorizacao = _autorizar_pix(empresa)
+            forma.autorizacao_externa_id = autorizacao.id
+            proximo_passo = {
+                "tipo": "autorizar_pix",
+                "pix_copia_e_cola": autorizacao.pix_copia_e_cola,
+                "expira_em": relogio.agora() + VALIDADE_DO_QR_DA_AUTORIZACAO,
+            }
+        else:
+            forma.autorizacao_externa_id = ""
+        if autorizacao_antiga and autorizacao_antiga != forma.autorizacao_externa_id:
+            _no_parceiro(
+                lambda: provedor().cancelar_autorizacao(conta_principal(), autorizacao_antiga)
+            )
+        if antiga == FormaAssinatura.CARTAO and nova != FormaAssinatura.CARTAO:
+            campos += _esquecer_cartao(forma)
+        forma.forma = nova
+        forma.save(update_fields=[*campos, "atualizado_em"])
+        status = _status_da_forma(forma)
+        if status != forma.status:
+            transicionar(forma, status, acao="assinatura.forma_situacao", regra="PLT-13")
+        tipo_novo = TIPO_DA_COBRANCA[MEIO_DA_FORMA[FormaAssinatura(nova)]]
+        em_aberto = list(
+            FaturaAssinatura.objects.select_for_update()
+            .filter(empresa=empresa, status__in=EM_ABERTO)
+            .order_by("vencimento")
+        )
+        # Para pagar agora: a atrasada, ou a aberta já emitida (antes de cancelar a cobrança).
+        pagavel = next(
+            (
+                f
+                for f in em_aberto
+                if f.status == StatusFatura.ATRASADA or f.cobranca_emitida_em is not None
+            ),
+            None,
+        )
+        for fatura in em_aberto:
+            if fatura.cobranca_externa_id and fatura.cobranca_tipo != tipo_novo:
+                _cancelar_cobranca_viva(fatura)
+        if nova == FormaAssinatura.CARTAO and pagavel is not None:
+            _cobranca_pelo_meio(pagavel, "cartao")
+            proximo_passo = {
+                "tipo": "pagina_parceiro",
+                "url": pagavel.cobranca_url_pagina,
+                "fatura": pagavel.codigo,
+            }
+        if antiga != nova:
+            # Só a forma antiga e a nova: nunca token nem dado do cartão (T-189, item 5).
+            for schema in (get_public_schema_name(), empresa.schema_name):
+                with schema_context(schema):
+                    registrar_evento(
+                        "assinatura.forma_pagamento",
+                        Categoria.FINANCEIRO,
+                        objeto=forma,
+                        antes={"forma": antiga or None},
+                        depois={"forma": nova},
+                        regra="PLT-13",
+                    )
+    return proximo_passo

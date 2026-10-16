@@ -8,22 +8,32 @@ pagar escrevem (`escreve_na_suspensa`, PLT-13, CA-ASS-27); mudar de plano respon
 
 from typing import Any
 
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from comum.erros import SemPermissao
+from comum.erros import ErroDeValidacao, NaoEncontrado, SemPermissao
+from comum.paginacao import PaginacaoPorCursor
 from comum.permissoes import com_padrao
 
 from .. import selectors, services
-from ..models import Empresa
+from ..models import (
+    Empresa,
+    FaturaAssinatura,
+    FormaAssinatura,
+    FormaPagaFatura,
+    SituacaoNota,
+    StatusFatura,
+)
 from .serializers import (
     AssinaturaSerializer,
     DadosFiscaisSerializer,
     EnderecoDaNotaSerializer,
+    FormaDePagamentoSerializer,
+    SituacaoSerializer,
     representar_assinatura,
 )
 
@@ -254,3 +264,166 @@ class DadosFiscaisView(EscritaDaAssinatura):
         with services.no_publico():
             resposta = {"dados_fiscais": selectors.dados_fiscais(empresa)}
         return Response(RespostaDosDadosFiscaisSerializer(resposta).data)
+
+
+# --- Forma de pagamento (PLT-13; ADR 0023) ---
+
+
+class PedidoDeFormaSerializer(serializers.Serializer[Any]):
+    """Sem campo de cartão: o cartão é digitado só na página do parceiro (ADR 0023)."""
+
+    forma = serializers.ChoiceField(choices=FormaAssinatura.choices)
+
+
+class ProximoPassoSerializer(serializers.Serializer[Any]):
+    tipo = serializers.ChoiceField(choices=["autorizar_pix", "pagina_parceiro"])
+    pix_copia_e_cola = serializers.CharField(required=False)
+    expira_em = serializers.DateTimeField(required=False)
+    url = serializers.CharField(required=False)
+    fatura = serializers.CharField(required=False)
+
+
+class RespostaDaFormaSerializer(serializers.Serializer[Any]):
+    forma_pagamento = FormaDePagamentoSerializer()
+    proximo_passo = ProximoPassoSerializer(allow_null=True)
+
+
+class FormaPagamentoView(EscritaDaAssinatura):
+    escreve_na_suspensa = frozenset({"PUT"})  # a suspensa escolhe a forma e paga (CA-ASS-27)
+
+    @extend_schema(
+        request=PedidoDeFormaSerializer,
+        responses=RespostaDaFormaSerializer,
+        summary="Escolher a forma de pagamento da assinatura (PLT-13)",
+    )
+    def put(self, request: Request) -> Response:
+        pedido = PedidoDeFormaSerializer(data=request.data)
+        pedido.is_valid(raise_exception=True)
+        empresa = _empresa(request)
+        proximo = services.escolher_forma_pagamento(empresa, pedido.validated_data["forma"])
+        with services.no_publico():
+            forma = selectors.forma_de_pagamento(Empresa.objects.get(pk=empresa.pk))
+        resposta = {"forma_pagamento": forma, "proximo_passo": proximo}
+        return Response(RespostaDaFormaSerializer(resposta).data)
+
+
+# --- Faturas (PLT-14) ---
+
+
+class PeriodoDaFaturaSerializer(serializers.Serializer[Any]):
+    inicio = serializers.DateField()
+    fim = serializers.DateField()
+
+
+class AcoesDaFaturaSerializer(serializers.Serializer[Any]):
+    pagar = serializers.BooleanField()
+    recibo = serializers.BooleanField()
+    nota_fiscal = serializers.BooleanField()
+
+
+class FaturaDaListaSerializer(serializers.Serializer[Any]):
+    tipo = serializers.ChoiceField(choices=["fatura", "teste"])
+    codigo = serializers.CharField(allow_null=True)
+    vencimento = serializers.DateField()
+    descricao = serializers.CharField()
+    periodo = PeriodoDaFaturaSerializer()
+    valor_centavos = serializers.IntegerField()
+    status = serializers.ChoiceField(choices=StatusFatura.choices, allow_null=True)
+    forma = serializers.ChoiceField(choices=FormaPagaFatura.choices, allow_null=True)
+    pago_em = serializers.DateTimeField(allow_null=True)
+    situacao = SituacaoSerializer()
+    acoes = AcoesDaFaturaSerializer()
+
+
+class ListaDeFaturasSerializer(serializers.Serializer[Any]):
+    resultados = FaturaDaListaSerializer(many=True)
+    proximo = serializers.CharField(allow_null=True)
+    anterior = serializers.CharField(allow_null=True)
+
+
+class CobrancaDaFaturaSerializer(serializers.Serializer[Any]):
+    forma = serializers.ChoiceField(choices=["cartao", "pix", "boleto"], allow_null=True)
+    linha_digitavel = serializers.CharField(allow_null=True)
+    url_boleto = serializers.CharField(allow_null=True)
+    pix_copia_e_cola = serializers.CharField(allow_null=True)
+    url_pagina = serializers.CharField(allow_null=True)
+    vencimento = serializers.DateField()
+
+
+class NotaFiscalSerializer(serializers.Serializer[Any]):
+    situacao = serializers.ChoiceField(choices=SituacaoNota.choices)
+    numero = serializers.CharField(allow_null=True)
+    url = serializers.CharField(allow_null=True)
+
+
+class FaturaDetalheSerializer(FaturaDaListaSerializer):
+    cobranca = CobrancaDaFaturaSerializer(allow_null=True)
+    recibo_url = serializers.CharField(allow_null=True)
+    nota_fiscal = NotaFiscalSerializer(allow_null=True)
+
+
+class PedidoDePagarSerializer(serializers.Serializer[Any]):
+    """Sem `meio`, pela forma cadastrada; com ele, por outro meio, sem trocar a forma."""
+
+    meio = serializers.ChoiceField(choices=["cartao", "pix", "boleto"], required=False)
+
+
+def _fatura(empresa: Empresa, codigo: str) -> FaturaAssinatura:
+    fatura = selectors.faturas_da_empresa(empresa).filter(codigo=codigo).first()
+    if fatura is None:
+        raise NaoEncontrado("nao_encontrado", "Fatura não encontrada.")
+    return fatura
+
+
+class FaturasView(LeituraDaAssinatura):
+    @extend_schema(
+        responses=ListaDeFaturasSerializer,
+        operation_id="assinatura_faturas_list",
+        parameters=[OpenApiParameter("status", enum=list(StatusFatura.values))],
+        summary="Faturas da assinatura (PLT-14)",
+    )
+    def get(self, request: Request) -> Response:
+        status = request.query_params.get("status") or None
+        if status is not None and status not in StatusFatura.values:
+            raise ErroDeValidacao({"status": ["Use aberta, paga, atrasada ou cancelada."]})
+        with services.no_publico():
+            empresa = Empresa.objects.get(pk=_empresa(request).pk)
+            contexto = selectors.contexto_das_faturas(empresa, request.user)
+            paginacao = PaginacaoPorCursor()
+            paginacao.ordering = ("-vencimento", "-numero")  # type: ignore[assignment]
+            faturas = selectors.faturas_da_empresa(empresa, status)
+            pagina = paginacao.paginate_queryset(faturas, request, view=self) or []
+            itens = [selectors.item_da_fatura(f, contexto) for f in pagina]
+            teste = selectors.linha_do_teste(empresa)
+            # A linha do teste vai no fim da última página, sem filtro de status.
+            if teste is not None and status is None and not paginacao.has_next:
+                itens.append(teste)
+        return paginacao.get_paginated_response(FaturaDaListaSerializer(itens, many=True).data)
+
+
+class FaturaView(LeituraDaAssinatura):
+    @extend_schema(responses=FaturaDetalheSerializer, summary="Fatura da assinatura (PLT-14)")
+    def get(self, request: Request, codigo: str) -> Response:
+        with services.no_publico():
+            empresa = Empresa.objects.get(pk=_empresa(request).pk)
+            contexto = selectors.contexto_das_faturas(empresa, request.user)
+            detalhe = selectors.detalhe_da_fatura(_fatura(empresa, codigo), contexto)
+        return Response(FaturaDetalheSerializer(detalhe).data)
+
+
+class PagarFaturaView(EscritaDaAssinatura):
+    escreve_na_suspensa = frozenset({"POST"})  # a suspensa paga e volta a ativa (CA-ASS-27)
+
+    @extend_schema(
+        request=PedidoDePagarSerializer,
+        responses=CobrancaDaFaturaSerializer,
+        summary="Pagar a fatura agora (PLT-14)",
+    )
+    def post(self, request: Request, codigo: str) -> Response:
+        pedido = PedidoDePagarSerializer(data=request.data)
+        pedido.is_valid(raise_exception=True)
+        meio = pedido.validated_data.get("meio")
+        fatura = services.pagar_fatura(_empresa(request), codigo, meio)
+        with services.no_publico():
+            cobranca = selectors.cobranca_da_fatura(fatura)
+        return Response(CobrancaDaFaturaSerializer(cobranca).data)

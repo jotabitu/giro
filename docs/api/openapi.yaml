@@ -194,6 +194,115 @@ paths:
               schema:
                 $ref: '#/components/schemas/RespostaDosDadosFiscais'
           description: ''
+  /api/assinatura/faturas/:
+    get:
+      operationId: assinatura_faturas_list
+      summary: Faturas da assinatura (PLT-14)
+      parameters:
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - aberta
+          - atrasada
+          - cancelada
+          - paga
+      tags:
+      - assinatura
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeFaturas'
+          description: ''
+  /api/assinatura/faturas/{codigo}/:
+    get:
+      operationId: assinatura_faturas_retrieve
+      summary: Fatura da assinatura (PLT-14)
+      parameters:
+      - in: path
+        name: codigo
+        schema:
+          type: string
+        required: true
+      tags:
+      - assinatura
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FaturaDetalhe'
+          description: ''
+  /api/assinatura/faturas/{codigo}/pagar/:
+    post:
+      operationId: assinatura_faturas_pagar_create
+      description: Nenhuma escrita da assinatura aceita o token de suporte (PLT-07,
+        T-189).
+      summary: Pagar a fatura agora (PLT-14)
+      parameters:
+      - in: path
+        name: codigo
+        schema:
+          type: string
+        required: true
+      tags:
+      - assinatura
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoDePagar'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PedidoDePagar'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PedidoDePagar'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CobrancaDaFatura'
+          description: ''
+  /api/assinatura/forma-pagamento/:
+    put:
+      operationId: assinatura_forma_pagamento_update
+      description: Nenhuma escrita da assinatura aceita o token de suporte (PLT-07,
+        T-189).
+      summary: Escolher a forma de pagamento da assinatura (PLT-13)
+      tags:
+      - assinatura
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoDeForma'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PedidoDeForma'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PedidoDeForma'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespostaDaForma'
+          description: ''
   /api/assinatura/mudanca-plano/:
     post:
       operationId: assinatura_mudanca_plano_create
@@ -5931,6 +6040,19 @@ components:
       - gerar_pix
       - receber
       - renegociar
+    AcoesDaFatura:
+      type: object
+      properties:
+        pagar:
+          type: boolean
+        recibo:
+          type: boolean
+        nota_fiscal:
+          type: boolean
+      required:
+      - nota_fiscal
+      - pagar
+      - recibo
     AcoesDoCaixa:
       type: object
       properties:
@@ -7101,6 +7223,36 @@ components:
       - tipo
       - valor_centavos
       - vence_em
+    CobrancaDaFatura:
+      type: object
+      properties:
+        forma:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/MeioDePagarEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        linha_digitavel:
+          type: string
+          nullable: true
+        url_boleto:
+          type: string
+          nullable: true
+        pix_copia_e_cola:
+          type: string
+          nullable: true
+        url_pagina:
+          type: string
+          nullable: true
+        vencimento:
+          type: string
+          format: date
+      required:
+      - forma
+      - linha_digitavel
+      - pix_copia_e_cola
+      - url_boleto
+      - url_pagina
+      - vencimento
     CobrancaEntrada:
       type: object
       properties:
@@ -9213,6 +9365,114 @@ components:
       - descricao
       - valor_centavos
       - vencimento
+    FaturaDaLista:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/TipoLinhaDaFaturaEnum'
+        codigo:
+          type: string
+          nullable: true
+        vencimento:
+          type: string
+          format: date
+        descricao:
+          type: string
+        periodo:
+          $ref: '#/components/schemas/PeriodoDaFatura'
+        valor_centavos:
+          type: integer
+        status:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/StatusFaturaAssinaturaEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        forma:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/FormaPagaFaturaEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        pago_em:
+          type: string
+          format: date-time
+          nullable: true
+        situacao:
+          $ref: '#/components/schemas/Situacao'
+        acoes:
+          $ref: '#/components/schemas/AcoesDaFatura'
+      required:
+      - acoes
+      - codigo
+      - descricao
+      - forma
+      - pago_em
+      - periodo
+      - situacao
+      - status
+      - tipo
+      - valor_centavos
+      - vencimento
+    FaturaDetalhe:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/TipoLinhaDaFaturaEnum'
+        codigo:
+          type: string
+          nullable: true
+        vencimento:
+          type: string
+          format: date
+        descricao:
+          type: string
+        periodo:
+          $ref: '#/components/schemas/PeriodoDaFatura'
+        valor_centavos:
+          type: integer
+        status:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/StatusFaturaAssinaturaEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        forma:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/FormaPagaFaturaEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        pago_em:
+          type: string
+          format: date-time
+          nullable: true
+        situacao:
+          $ref: '#/components/schemas/Situacao'
+        acoes:
+          $ref: '#/components/schemas/AcoesDaFatura'
+        cobranca:
+          allOf:
+          - $ref: '#/components/schemas/CobrancaDaFatura'
+          nullable: true
+        recibo_url:
+          type: string
+          nullable: true
+        nota_fiscal:
+          allOf:
+          - $ref: '#/components/schemas/NotaFiscal'
+          nullable: true
+      required:
+      - acoes
+      - cobranca
+      - codigo
+      - descricao
+      - forma
+      - nota_fiscal
+      - pago_em
+      - periodo
+      - recibo_url
+      - situacao
+      - status
+      - tipo
+      - valor_centavos
+      - vencimento
     FaturaRecente:
       type: object
       properties:
@@ -9546,6 +9806,16 @@ components:
       description: |-
         * `locacao` - Locação
         * `venda` - Venda
+    FormaAssinaturaEnum:
+      enum:
+      - cartao
+      - pix_automatico
+      - boleto
+      type: string
+      description: |-
+        * `cartao` - Cartão de crédito
+        * `pix_automatico` - Pix automático
+        * `boleto` - Boleto
     FormaDePagamento:
       type: object
       properties:
@@ -9611,6 +9881,16 @@ components:
       description: |-
         * `pix` - Pix
         * `estorno_cartao` - Estorno no cartão
+    FormaPagaFaturaEnum:
+      enum:
+      - pix
+      - boleto
+      - cartao
+      type: string
+      description: |-
+        * `pix` - Pix
+        * `boleto` - Boleto
+        * `cartao` - Cartão
     FormaPagamentoEnum:
       enum:
       - pix
@@ -10993,6 +11273,23 @@ components:
             $ref: '#/components/schemas/Extra'
       required:
       - resultados
+    ListaDeFaturas:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/FaturaDaLista'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - proximo
+      - resultados
     ListaDeFeriados:
       type: object
       properties:
@@ -11593,6 +11890,16 @@ components:
       - chave
       - exemplo
       - rotulo
+    MeioDePagarEnum:
+      enum:
+      - cartao
+      - pix
+      - boleto
+      type: string
+      description: |-
+        * `cartao` - cartao
+        * `pix` - pix
+        * `boleto` - boleto
     Mensagem:
       type: object
       properties:
@@ -11939,6 +12246,31 @@ components:
       required:
       - url
       - url_expira_em
+    NotaFiscal:
+      type: object
+      properties:
+        situacao:
+          $ref: '#/components/schemas/NotaFiscalSituacaoEnum'
+        numero:
+          type: string
+          nullable: true
+        url:
+          type: string
+          nullable: true
+      required:
+      - numero
+      - situacao
+      - url
+    NotaFiscalSituacaoEnum:
+      enum:
+      - processando
+      - emitida
+      - erro
+      type: string
+      description: |-
+        * `processando` - Processando
+        * `emitida` - Emitida
+        * `erro` - Erro
     NovoPreco:
       type: object
       properties:
@@ -12687,6 +13019,15 @@ components:
       - id
       - status
       - tipo
+    PedidoDeForma:
+      type: object
+      description: 'Sem campo de cartão: o cartão é digitado só na página do parceiro
+        (ADR 0023).'
+      properties:
+        forma:
+          $ref: '#/components/schemas/FormaAssinaturaEnum'
+      required:
+      - forma
     PedidoDeMudanca:
       type: object
       properties:
@@ -12697,6 +13038,13 @@ components:
       required:
       - ciclo
       - plano_id
+    PedidoDePagar:
+      type: object
+      description: Sem `meio`, pela forma cadastrada; com ele, por outro meio, sem
+        trocar a forma.
+      properties:
+        meio:
+          $ref: '#/components/schemas/MeioDePagarEnum'
     PedidoRef:
       type: object
       properties:
@@ -12842,6 +13190,18 @@ components:
           type: integer
       required:
       - dias
+      - fim
+      - inicio
+    PeriodoDaFatura:
+      type: object
+      properties:
+        inicio:
+          type: string
+          format: date
+        fim:
+          type: string
+          format: date
+      required:
       - fim
       - inicio
     PermissaoExtraDoUsuario:
@@ -13602,6 +13962,30 @@ components:
       - descricao
       - valor_centavos
       - vencimento
+    ProximoPasso:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/ProximoPassoTipoEnum'
+        pix_copia_e_cola:
+          type: string
+        expira_em:
+          type: string
+          format: date-time
+        url:
+          type: string
+        fatura:
+          type: string
+      required:
+      - tipo
+    ProximoPassoTipoEnum:
+      enum:
+      - autorizar_pix
+      - pagina_parceiro
+      type: string
+      description: |-
+        * `autorizar_pix` - autorizar_pix
+        * `pagina_parceiro` - pagina_parceiro
     Receber:
       type: object
       properties:
@@ -13852,6 +14236,18 @@ components:
       required:
       - id
       - nome
+    RespostaDaForma:
+      type: object
+      properties:
+        forma_pagamento:
+          $ref: '#/components/schemas/FormaDePagamento'
+        proximo_passo:
+          allOf:
+          - $ref: '#/components/schemas/ProximoPasso'
+          nullable: true
+      required:
+      - forma_pagamento
+      - proximo_passo
     RespostaDosDadosFiscais:
       type: object
       properties:
@@ -14350,6 +14746,18 @@ components:
         * `pronta` - Pronta
         * `expirada` - Expirada
         * `falhou` - Falhou
+    StatusFaturaAssinaturaEnum:
+      enum:
+      - aberta
+      - paga
+      - atrasada
+      - cancelada
+      type: string
+      description: |-
+        * `aberta` - Aberta
+        * `paga` - Paga
+        * `atrasada` - Atrasada
+        * `cancelada` - Cancelada
     StatusImportacaoEnum:
       enum:
       - validando
@@ -14584,6 +14992,14 @@ components:
       description: |-
         * `veiculos` - Veículos
         * `clientes` - Clientes
+    TipoLinhaDaFaturaEnum:
+      enum:
+      - fatura
+      - teste
+      type: string
+      description: |-
+        * `fatura` - fatura
+        * `teste` - teste
     TipoParaHojeEnum:
       enum:
       - reembolso

@@ -4,10 +4,12 @@ A `situacao` sai de uma anotação SQL só (`com_situacao`), usada pela lista (f
 contagens) e pelo detalhe: a ordem da tabela do contrato fica num lugar.
 """
 
+from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
 
 from django.db.models import Case, CharField, Count, F, Q, QuerySet, Value, When
+from django.utils import timezone
 from django_tenants.utils import get_public_schema_name
 
 from comum import relogio
@@ -23,6 +25,7 @@ from .models import (
     FormaPagamentoAssinatura,
     Item,
     Plano,
+    SituacaoNota,
     StatusFatura,
     StatusFormaPagamento,
     UsoEmpresa,
@@ -602,3 +605,151 @@ def item_da_lista(empresa: Empresa) -> dict[str, Any]:
 def passos_implantacao(empresa: Empresa) -> dict[str, Any]:
     """`{passo: concluído em}` da implantação (IMP-05), lido do `public` (painel da empresa)."""
     return dict(_uso(empresa).passos_implantacao or {})
+
+
+# --- Faturas da assinatura (PLT-14; T-185 parte 2) ---
+
+
+def faturas_da_empresa(empresa: Empresa, status: str | None = None) -> QuerySet[FaturaAssinatura]:
+    """Sempre filtradas pela empresa da requisição: `FAT-0001` existe em todas (T-189, item 7)."""
+    faturas = FaturaAssinatura.objects.filter(empresa_id=empresa.pk).select_related("plano")
+    return faturas.filter(status=status) if status else faturas
+
+
+def _situacao_da_fatura(fatura: FaturaAssinatura, sem_forma: bool, hoje: date) -> dict[str, str]:
+    """A primeira que valer, na ordem do contrato (PLT-02, PLT-14)."""
+    if fatura.status == StatusFatura.PAGA:
+        pago = timezone.localtime(fatura.pago_em).date() if fatura.pago_em else hoje
+        return {"codigo": "paga", "rotulo": f"Paga em {dia_e_mes(pago)}", "tom": "sucesso"}
+    if fatura.status == StatusFatura.CANCELADA:
+        return {"codigo": "cancelada", "rotulo": "Cancelada", "tom": "neutro"}
+    if fatura.cartao_recusado_em is not None:
+        rotulo = (
+            "Cartão recusado · pague por Pix ou boleto"
+            if fatura.tentativas_cartao >= TENTATIVAS_DO_CARTAO
+            else "Cartão recusado · nova tentativa amanhã"
+        )
+        return {"codigo": "cartao_recusado", "rotulo": rotulo, "tom": "perigo"}
+    if fatura.status == StatusFatura.ATRASADA:
+        dias = max(1, (hoje - fatura.vencimento).days)
+        rotulo = f"{dias} {'dia' if dias == 1 else 'dias'} atrasada"
+        return {"codigo": "atrasada", "rotulo": rotulo, "tom": "perigo"}
+    if sem_forma:
+        return {"codigo": "sem_forma", "rotulo": "Sem forma de pagamento", "tom": "alerta"}
+    rotulo = (
+        "Vence hoje" if fatura.vencimento == hoje else f"Vence em {dia_e_mes(fatura.vencimento)}"
+    )
+    return {"codigo": "aguardando", "rotulo": rotulo, "tom": "info"}
+
+
+@dataclass(frozen=True)
+class ContextoDasFaturas:
+    """O que vale para todas as linhas da página: lido uma vez."""
+
+    empresa: Empresa
+    sem_forma: bool
+    escreve: bool
+    hoje: date
+
+
+def contexto_das_faturas(empresa: Empresa, usuario: Any) -> ContextoDasFaturas:
+    forma = FormaPagamentoAssinatura.objects.filter(empresa_id=empresa.pk).first()
+    escreve = (
+        getattr(usuario, "perfil", None) == PERFIL_ADMINISTRADOR
+        and not getattr(usuario, "e_suporte", False)
+        and empresa.status in STATUS_QUE_PAGAM
+    )
+    return ContextoDasFaturas(empresa, not (forma and forma.forma), escreve, relogio.hoje())
+
+
+def _pode_pagar(fatura: FaturaAssinatura, contexto: ContextoDasFaturas) -> bool:
+    """`aberta` ou `atrasada` e o estado permite. Sem forma, a `aberta` que ainda não venceu não
+    tem "Pagar"; a `atrasada` e qualquer fatura da `suspensa` têm (o corpo escolhe o meio)."""
+    if not contexto.escreve or fatura.status not in (StatusFatura.ABERTA, StatusFatura.ATRASADA):
+        return False
+    if not contexto.sem_forma or contexto.empresa.status == Empresa.Status.SUSPENSA:
+        return True
+    return fatura.status == StatusFatura.ATRASADA or fatura.vencimento < contexto.hoje
+
+
+def item_da_fatura(fatura: FaturaAssinatura, contexto: ContextoDasFaturas) -> dict[str, Any]:
+    paga = fatura.status == StatusFatura.PAGA
+    return {
+        "tipo": "fatura",
+        "codigo": fatura.codigo,
+        "vencimento": fatura.vencimento,
+        "descricao": fatura.descricao,
+        "periodo": {"inicio": fatura.periodo_inicio, "fim": fatura.periodo_fim},
+        "valor_centavos": fatura.valor_centavos,
+        "status": fatura.status,
+        "forma": fatura.forma or None,
+        "pago_em": fatura.pago_em,
+        "situacao": _situacao_da_fatura(fatura, contexto.sem_forma, contexto.hoje),
+        "acoes": {
+            "pagar": _pode_pagar(fatura, contexto),
+            "recibo": paga,
+            "nota_fiscal": paga and fatura.nota_situacao == SituacaoNota.EMITIDA,
+        },
+    }
+
+
+def linha_do_teste(empresa: Empresa) -> dict[str, Any] | None:
+    """A linha do teste grátis no fim da lista: não é uma fatura (PLT-01, PLT-14)."""
+    if empresa.teste_inicio is None or empresa.teste_fim is None:
+        return None
+    dias = (empresa.teste_fim - empresa.teste_inicio).days
+    ativo = empresa.status == Empresa.Status.EM_TESTE and relogio.hoje() <= empresa.teste_fim
+    return {
+        "tipo": "teste",
+        "codigo": None,
+        "vencimento": empresa.teste_inicio,
+        "descricao": f"Teste grátis de {dias} dias",
+        "periodo": {"inicio": empresa.teste_inicio, "fim": empresa.teste_fim},
+        "valor_centavos": 0,
+        "status": None,
+        "forma": None,
+        "pago_em": None,
+        "situacao": (
+            {"codigo": "teste_ativo", "rotulo": "Ativo", "tom": "info"}
+            if ativo
+            else {"codigo": "teste_concluido", "rotulo": "Concluído", "tom": "neutro"}
+        ),
+        "acoes": {"pagar": False, "recibo": False, "nota_fiscal": False},
+    }
+
+
+def cobranca_da_fatura(fatura: FaturaAssinatura) -> dict[str, Any] | None:
+    """A cobrança viva no parceiro, para pagar. Só na resposta ao administrador; nunca na
+    auditoria (T-189, item 8)."""
+    if not fatura.cobranca_externa_id:
+        return None
+    forma = {"cartao_link": "cartao", "pix": "pix", "boleto": "boleto"}.get(fatura.cobranca_tipo)
+    return {
+        "forma": forma,
+        "linha_digitavel": fatura.cobranca_linha_digitavel or None,
+        "url_boleto": fatura.cobranca_boleto_url or None,
+        "pix_copia_e_cola": fatura.cobranca_pix_copia_e_cola or None,
+        "url_pagina": fatura.cobranca_url_pagina or None,
+        "vencimento": fatura.vencimento,
+    }
+
+
+def nota_fiscal_da_fatura(fatura: FaturaAssinatura) -> dict[str, Any] | None:
+    """PLT-15: nula antes do pedido e com a emissão desligada. O motivo do erro fica com a
+    equipe (Django Admin)."""
+    if not fatura.nota_situacao:
+        return None
+    return {
+        "situacao": fatura.nota_situacao,
+        "numero": fatura.nota_numero or None,
+        "url": fatura.nota_url or None,
+    }
+
+
+def detalhe_da_fatura(fatura: FaturaAssinatura, contexto: ContextoDasFaturas) -> dict[str, Any]:
+    return {
+        **item_da_fatura(fatura, contexto),
+        "cobranca": cobranca_da_fatura(fatura),
+        "recibo_url": (fatura.recibo_url or None) if fatura.status == StatusFatura.PAGA else None,
+        "nota_fiscal": nota_fiscal_da_fatura(fatura),
+    }
