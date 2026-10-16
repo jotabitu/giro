@@ -20,7 +20,7 @@ describe("navegação do falso por perfil (USR-05, USR-08)", () => {
     expect(n.inicio).toEqual({ rota: "/inicio", variante: "implantacao" });
     expect(chaves(n.menu_completo)).toEqual([
       [null, ["inicio", "aprovacoes", "veiculos"]],
-      ["Operação", ["locacoes", "vendas", "clientes", "manutencoes"]],
+      ["Operação", ["locacoes", "vendas", "clientes", "manutencoes", "movimentacoes"]],
       ["Financeiro", ["caixa", "receber", "despesas", "comissoes", "conciliacao", "relatorios"]],
       ["Administração", ADMINISTRACAO],
     ]);
@@ -34,14 +34,14 @@ describe("navegação do falso por perfil (USR-05, USR-08)", () => {
     expect(n.inicio.variante).toBe("gerente");
     expect(chaves(n.menu_inicio)).toEqual([
       [null, ["inicio", "aprovacoes", "veiculos"]],
-      ["Operação", ["locacoes", "vendas", "clientes", "manutencoes"]],
+      ["Operação", ["locacoes", "vendas", "clientes", "manutencoes", "movimentacoes"]],
       ["Filial", ["caixa", "relatorios"]],
     ]);
     expect(n.menu_inicio[0]!.itens[0]!.rotulo).toBe("Visão da filial");
     expect(n.menu_inicio[2]!.itens[0]!.rotulo).toBe("Caixa da filial");
     expect(chaves(n.menu_completo)).toEqual([
       [null, ["inicio", "aprovacoes", "veiculos"]],
-      ["Operação", ["locacoes", "vendas", "clientes", "manutencoes"]],
+      ["Operação", ["locacoes", "vendas", "clientes", "manutencoes", "movimentacoes"]],
       ["Financeiro", ["caixa", "receber", "despesas", "relatorios"]],
     ]);
     expect(n.menu_completo[2]!.itens[2]!.contador).toBe("despesas");
@@ -106,7 +106,7 @@ describe("plano, atividade e módulos escondem itens (USR-05)", () => {
     const n = navegacaoFalsa(eu.perfil, eu.pode, "geral", { recursos: ["locacoes_vistoria", "contas_receber", "contrato_digital"] });
     expect(chaves(n.menu_completo)).toEqual([
       [null, ["inicio", "aprovacoes", "veiculos"]],
-      ["Operação", ["locacoes", "clientes"]],
+      ["Operação", ["locacoes", "clientes", "movimentacoes"]],
       ["Financeiro", ["caixa", "receber", "conciliacao"]],
       ["Administração", ADMINISTRACAO],
     ]);
@@ -115,9 +115,9 @@ describe("plano, atividade e módulos escondem itens (USR-05)", () => {
   it("quem só aluga não vê vendas; quem só vende não vê locações", async () => {
     const { pode, perfil } = await gerente();
     const aluga = navegacaoFalsa(perfil, pode, "gerente", { atividade: "aluga" });
-    expect(aluga.menu_inicio[1]!.itens.map((i) => i.chave)).toEqual(["locacoes", "clientes", "manutencoes"]);
+    expect(aluga.menu_inicio[1]!.itens.map((i) => i.chave)).toEqual(["locacoes", "clientes", "manutencoes", "movimentacoes"]);
     const vende = navegacaoFalsa(perfil, pode, "gerente", { atividade: "vende" });
-    expect(vende.menu_inicio[1]!.itens.map((i) => i.chave)).toEqual(["vendas", "clientes", "manutencoes"]);
+    expect(vende.menu_inicio[1]!.itens.map((i) => i.chave)).toEqual(["vendas", "clientes", "manutencoes", "movimentacoes"]);
     expect(vende.barra_celular).toEqual(["inicio", "veiculos", "mais"]);
   });
 

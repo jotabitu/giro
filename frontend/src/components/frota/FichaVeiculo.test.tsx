@@ -219,3 +219,27 @@ describe("ficha do veículo, vistoriador (D-25, USR-09)", () => {
     expect(semAcesso({ isError: false, error: null })).toBe(false);
   });
 });
+
+describe("Movimentar e Transferir na ficha (MOV-02, MOV-06, T-289)", () => {
+  it("veículo disponível: Movimentar e Transferir abrem a Nova movimentação com o veículo", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    const { desktop } = await pagina(504);
+    expect(desktop).toContain('href="/veiculos/movimentacoes/nova?veiculo=504"');
+    expect(desktop).toContain('href="/veiculos/movimentacoes/nova?veiculo=504&amp;transferir=1"');
+    expect(texto(desktop)).toContain("Movimentar");
+    expect(texto(desktop)).toContain("Transferir");
+  });
+
+  it("veículo alugado: Movimentar desativado com o motivo da API e sem Transferir", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    const { desktop } = await pagina(501);
+    expect(desktop).toMatch(/<button[^>]*disabled[^>]*title="Veículo alugado não se movimenta\. O botão volta quando a LOC-2841 for devolvida\."[^>]*>/);
+    expect(desktop).not.toContain("transferir=1");
+  });
+
+  it("quem só lê a frota (vendedor) não vê Movimentar nem Transferir", async () => {
+    await entrarComo("bruna@motorapida.com.br");
+    const { desktop } = await pagina(504);
+    expect(texto(desktop)).not.toMatch(/Movimentar|Transferir/);
+  });
+});

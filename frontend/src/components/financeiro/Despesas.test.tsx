@@ -2,7 +2,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { aprovacoes, contas, financeiro, type Eu, type ListaDespesas as DadosDeDespesas } from "@/lib/api";
+import { aprovacoes, contas, financeiro, type Despesa, type Eu, type ListaDespesas as DadosDeDespesas } from "@/lib/api";
 import { financeiroApi } from "@/lib/api/financeiro";
 import { corpoDaDespesa, mesDe, nomeDoMes, pagoEmDoDia } from "@/lib/despesas";
 import { origemDaDespesa, rotuloDaCategoria } from "@/lib/financeiro";
@@ -333,5 +333,59 @@ describe("apoio da tela", () => {
     const agora = new Date("2026-10-07T15:00:00Z");
     expect(pagoEmDoDia("2026-10-07", agora)).toBe(agora.toISOString());
     expect(pagoEmDoDia("2026-10-05", agora)).toBe("2026-10-05T15:00:00.000Z");
+  });
+});
+
+describe("despesa sem nota e anexar a nota (MOV-04, CA-246-14)", () => {
+  const semNota = async (): Promise<Despesa> => ({
+    ...(await financeiro.obterDespesa(801)),
+    nota: null,
+    sem_nota: true,
+    origem: { tipo: "movimentacao", id: 1, codigo: "MOV-0001" },
+  });
+  const detalheCom = (d: Despesa) =>
+    texto(
+      renderToStaticMarkup(
+        <QueryClientProvider client={new QueryClient()}>
+          <DetalheDaDespesa id={d.id} inicial={d} eu={sessao.eu as Eu} aoFechar={() => {}} aoConcluir={() => {}} />
+        </QueryClientProvider>,
+      ),
+    );
+
+  it("a lista marca a despesa sem nota e não mostra o clipe", async () => {
+    await entrar("rodrigo@motorapida.com.br");
+    const h = await pagina("todas", (d) => ({ ...d, resultados: d.resultados.map((x) => (x.id === 801 ? { ...x, nota: null, sem_nota: true } : x)) }));
+    expect(texto(h)).toContain("Sem nota");
+    expect(h).not.toContain("Ver a nota de Pneus");
+  });
+
+  it("quem lança despesa vê a origem, o aviso e o Anexar nota", async () => {
+    const t = detalheCom(await semNota());
+    expect(t).toContain("Origem");
+    expect(t).toContain("MOV-0001");
+    expect(t).toContain("Sem nota. Anexe a foto quando o recibo chegar.");
+    expect(t).toContain("Anexar nota");
+  });
+
+  it("quem só lança despesa de manutenção (vistoriador) não vê o Anexar nota", async () => {
+    await entrar("joao@motorapida.com.br");
+    expect(detalheCom(await semNota())).not.toContain("Anexar nota");
+  });
+
+  it("com a nota o detalhe mostra Ver a nota e não o Anexar nota", async () => {
+    await entrar("rodrigo@motorapida.com.br");
+    const t = detalheCom({ ...(await semNota()), nota: { url: "/notas/801.jpg", url_expira_em: "2026-10-07T13:15:00Z" }, sem_nota: false });
+    expect(t).toContain("Ver a nota");
+    expect(t).not.toContain("Anexar nota");
+  });
+
+  it("anexar grava a nota, tira a marca, e uma segunda vez dá 409 nota_existente", async () => {
+    const nota = new File(["x"], "recibo.jpg", { type: "image/jpeg" });
+    const sem = (await financeiro.listarDespesas({ mes: "2026-10" })).resultados.find((d) => d.nota === null);
+    expect(sem).toBeDefined();
+    const depois = await financeiro.anexarNota(sem!.id, nota);
+    expect(depois.sem_nota).toBe(false);
+    expect(depois.nota).not.toBeNull();
+    await expect(financeiro.anexarNota(sem!.id, nota)).rejects.toMatchObject({ status: 409, codigo: "nota_existente" });
   });
 });

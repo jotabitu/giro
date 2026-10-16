@@ -553,6 +553,16 @@ export const financeiroFalso = {
     return { ...nova };
   },
 
+  async anexarNota(id: number, nota: File): Promise<Despesa> {
+    await pausa(60);
+    const atual = despesas.find((x) => x.id === id);
+    if (!atual) throw new ErroApi(404, "nao_encontrado", "Despesa não encontrada.");
+    if (atual.nota) throw new ErroApi(409, "nota_existente", "Esta despesa já tem nota.");
+    const com: Despesa = { ...atual, nota: { url: `/notas/${id}-${nota.size}.jpg`, url_expira_em: "2026-10-07T13:15:00Z" }, sem_nota: false };
+    despesas = despesas.map((x) => (x.id === id ? com : x));
+    return { ...com };
+  },
+
   async pagarDespesa(id: number, corpo: PagamentoDeDespesa): Promise<Despesa> {
     await pausa(60);
     const atual = despesas.find((x) => x.id === id);

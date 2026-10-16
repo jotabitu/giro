@@ -7,6 +7,8 @@ export type Aparelho = "desktop" | "celular";
 export type Pode = {
   painel: "todas_filiais" | "filial" | "proprios" | "nao";
   veiculos: "editar" | "km_e_avarias" | "ver" | "nao";
+  /** MOV-02: `gerir` (administrador e gerente), `levar` (vendedor e vistoriador, só as chegadas que levam), `nao`. */
+  movimentacoes: "gerir" | "levar" | "nao";
   clientes_cadastrar: boolean;
   locacoes_criar: boolean;
   vistorias_fazer: boolean;

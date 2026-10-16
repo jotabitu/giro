@@ -404,6 +404,7 @@ GIRO_MODULOS_ATIVOS = env.list(
         "filiais",
         "financeiro",
         "locacoes",
+        "movimentacoes",
         "plataforma",
         "veiculos",
         "vistorias",

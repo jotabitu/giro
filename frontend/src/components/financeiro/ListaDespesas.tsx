@@ -34,6 +34,12 @@ function Situacao({ d }: { d: Despesa }) {
 }
 
 function BotaoNota({ d }: { d: Despesa }) {
+  if (d.sem_nota)
+    return (
+      <StatusBadge tom="alerta" compacto>
+        Sem nota
+      </StatusBadge>
+    );
   if (!d.nota) return null;
   return (
     <a href={d.nota.url} target="_blank" rel="noreferrer" aria-label={`Ver a nota de ${d.descricao}`} onClick={(e) => e.stopPropagation()} className="wl-btn wl-btn--quiet wl-btn--sm">

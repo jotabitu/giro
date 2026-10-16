@@ -19,7 +19,7 @@ import type {
 const atualizadoHa6Min = () => new Date(Date.now() - 6 * 60_000).toISOString();
 
 // Valor de cada contador do contrato (seed em 07 out). `null` = módulo que ainda não existe.
-const CONTADORES: Record<string, number | null> = { veiculos: 86, locacoes: 42, aprovacoes: 3, receber: 7, despesas: 1, usuarios: 2, agenda: 6, avarias: 2, contas_a_pagar: 4, manutencoes: null, conciliacao: null, propostas: null };
+const CONTADORES: Record<string, number | null> = { veiculos: 86, locacoes: 42, aprovacoes: 3, receber: 7, despesas: 1, usuarios: 2, agenda: 6, avarias: 2, contas_a_pagar: 4, manutencoes: null, conciliacao: null, propostas: null, movimentacoes: null };
 const CONTADORES_DA_IMPLANTACAO: Record<string, number | null> = { ...CONTADORES, veiculos: 83, locacoes: 0, aprovacoes: 0, receber: 0, despesas: 0 };
 const CONTADORES_DO_VENDEDOR: Record<string, number | null> = { ...CONTADORES, locacoes: 12 };
 

@@ -96,6 +96,11 @@ export const financeiroApi = {
     return http.post("/api/exportacoes/", { itens: ["despesas"], formato: "csv", mes: pedido.mes, filial_id: pedido.filial_id });
   },
 
+  /** Anexa a nota depois (`MOV-04`): só na despesa sem nota; com nota, 409 `nota_existente`. */
+  anexarNota(id: number, nota: File): Promise<Despesa> {
+    return http.post(`/api/financeiro/despesas/${id}/nota/`, formulario({ nota }));
+  },
+
   pagarDespesa(id: number, corpo: PagamentoDeDespesa): Promise<Despesa> {
     return http.post(`/api/financeiro/despesas/${id}/pagar/`, formulario(corpo));
   },
