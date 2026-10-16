@@ -1,6 +1,6 @@
 # Leitura do CRLV-e e da CNH-e por PDF
 
-**Status:** proposta · 15 out 2026 · T-247 (regras `VEI-08` e `CLI-11` no PR #243) · revisão da segurança pendente (perguntas no handoff `tarefas/handoffs/T-247-arquiteto.md`)
+**Status:** aceita · 16 out 2026 (proposta em 15 out 2026) · T-247 (regras `VEI-08` e `CLI-11` no PR #243) · revisada pela segurança em 16 out 2026 (`docs/seguranca/2026-10-16-t247-leitura-pdf.md`, PR #265, sem achado alto); achados M-01, M-02, M-04, B-01 e B-04 incorporados na T-273
 
 ## Contexto
 
@@ -33,7 +33,9 @@ A leitura é uma ajuda para preencher, não uma prova: a pessoa confere os campo
 
 ### 3. Biblioteca: `pypdf`
 
-Dependência nova, **`pypdf`** (`>=5.1,<7`; licença BSD; Python puro, sem código nativo nem binário do sistema). O motivo vai no PR do backend. Usamos dela só a abertura do arquivo e a extração de texto com leiaute (`extract_text(extraction_mode="layout")`). Nada de formulário, anexo, JavaScript, decifração nem renderização.
+Dependência nova, **`pypdf`** (licença BSD; Python puro, sem código nativo nem binário do sistema). O motivo vai no PR do backend.
+
+**Versão mínima pelo `pip-audit` (M-04).** O limite de baixo não é um número fixo desta ADR: é a versão mais nova do `pypdf` sem aviso no `pip-audit` quando o backend começar a tarefa (a 6.0.0 corrige a bomba de descompressão da CVE-2025-55197, e as 6.x seguintes, laços e consumo excessivo em filtros), com o teto na próxima versão maior. A cada aviso novo no `pypdf`, o limite de baixo sobe para a versão corrigida. A verificação de vulnerabilidades do CI falha o PR com aviso no `pypdf`, sem exceção aceita: é a biblioteca que lê arquivo de fora. Usamos dela só a abertura do arquivo e a extração de texto com leiaute (`extract_text(extraction_mode="layout")`). Nada de formulário, anexo, JavaScript, decifração nem renderização.
 
 Descartadas:
 - **PyMuPDF:** licença AGPL, que obrigaria a abrir o código do Giro; e é código nativo (C) lendo arquivo de fora.
@@ -43,15 +45,18 @@ Descartadas:
 ### 4. Onde roda: na requisição, num processo filho isolado
 
 - A leitura roda **durante a requisição**, não no Celery: a tela espera a resposta, e um PDF de documento lê em décimos de segundo. Uma fila poria mais espera e mais um caminho para o arquivo, sem ganho.
-- A view **não** abre o PDF no processo do servidor web. Ela chama `integracoes.leitura_documentos.ler(tipo, conteudo)`, que roda um processo filho novo: `python -I -m integracoes.leitura_documentos.trabalhador <tipo>`. O PDF vai pela entrada padrão, e a resposta volta pela saída padrão, em JSON.
-- No filho, antes de abrir o arquivo: `RLIMIT_CPU` de 5 s, `RLIMIT_AS` de 512 MB, `RLIMIT_FSIZE` 0 (não escreve arquivo) e `RLIMIT_NOFILE` baixo. No pai, tempo máximo de 8 s de relógio; passou disso, o filho é morto e a leitura falha. Um PDF que trava, estoura memória ou entra em laço derruba só o filho, nunca o worker do Gunicorn.
+- A view **não** abre o PDF no processo do servidor web. Ela chama `integracoes.leitura_documentos.ler(tipo, conteudo)`, que roda um processo filho novo. O PDF vai pela entrada padrão, e a resposta volta pela saída padrão, em JSON.
+- **Como o filho é chamado (B-01).** Pelo caminho absoluto do arquivo, no modo isolado: `[sys.executable, "-I", <caminho absoluto de trabalhador.py>, <tipo>]`, com o caminho calculado a partir do `__file__` do módulo de `ler`, nunca de variável de ambiente. Não se usa `-m`: no Python 3.12 o `-I` implica `-P`, o diretório atual não entra no `sys.path`, e `python -I -m integracoes...` não acha o pacote (conferido pela segurança na imagem). O `-I` fica, porque é ele que impede o filho de ler `PYTHONPATH`, `PYTHONSTARTUP` e o site do usuário. O `trabalhador.py` põe no `sys.path` só o diretório dele, por caminho fixo, e importa `crlv.py` e `cnh.py` como módulos irmãos; os três importam só a biblioteca padrão e o `pypdf`, nunca `django`, `comum` ou outro app.
+- **Ambiente mínimo (M-01).** O filho não herda o ambiente do servidor, onde estão `DJANGO_SECRET_KEY`, `JWT_SIGNING_KEY`, `GIRO_CHAVE_DADOS_PESSOAIS`, `GIRO_CHAVE_SEGREDOS`, `GIRO_PEPPER_HMAC`, a chave do Asaas, `DATABASE_URL` e as chaves do S3. A chamada é `subprocess.run(..., env={"PATH": "/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8"}, close_fds=True, stdin=PIPE, stdout=PIPE, stderr=DEVNULL, start_new_session=True)`, e nada além de `PATH` e `LANG` entra no `env`. Um PDF que explore uma falha do parser não acha chave nenhuma no processo.
+- **Limites aplicados pelo próprio filho (M-02).** Nada de `preexec_fn`: a documentação do Python diz que ele não é seguro em processo com threads, e o worker `gthread` do Gunicorn (ADR 0027) tem threads; um filho travado entre o `fork` e o `exec` prenderia a thread até os 8 s. O `trabalhador.py` aplica os limites a si mesmo como primeira coisa, antes de qualquer import que não seja da biblioteca padrão (o `pypdf` vem depois): `RLIMIT_CPU` de 5 s, `RLIMIT_AS` de 512 MB, `RLIMIT_FSIZE` 0 (não escreve arquivo), `RLIMIT_NOFILE` baixo e `RLIMIT_CORE` 0 (sem core dump com o PDF e o texto em disco). Um processo comum pode baixar os próprios limites. Se algum `setrlimit` falhar, o filho sai com erro antes de ler o arquivo.
+- **No pai:** tempo máximo de 8 s de relógio; passou disso, o grupo de processos do filho é morto (`os.killpg`, por isso o `start_new_session`) e a leitura falha. O pai lê no máximo 64 KB da saída e confere de novo cada campo (só as chaves do tipo, tipos e tamanhos; B-02 e B-03 da segurança, detalhados na tarefa do backend). Um PDF que trava, estoura memória ou entra em laço derruba só o filho, nunca o worker do Gunicorn.
 - O filho **não importa o Django** nem toca no banco, nas chaves ou no armazenamento: recebe bytes e devolve campos. O código dele (`integracoes/leitura_documentos/`, com `crlv.py`, `cnh.py` e `trabalhador.py`) é de funções puras, testáveis sem o filho.
 - **Só os campos permitidos saem do filho.** O parser do CRLV-e nunca procura o proprietário; o da CNH-e nunca procura filiação, RG, naturalidade e observações. O texto bruto morre no filho: não volta ao pai, não vai para log, não vai para disco. A foto e a assinatura do titular são imagens, e a extração de texto não as lê.
 - Em ambiente sem `resource` (Windows fora do Docker), o filho roda sem os `RLIMIT` e só com o tempo do pai; o desenvolvimento e o CI usam o contêiner Linux.
 
 ### 5. Nenhuma consulta externa
 
-Nada sai do servidor na leitura: nem Detran, nem Senatran, nem FIPE online, nem a URL do QR code. A lista de marcas e modelos é a do cadastro, local (item 7). O filho não precisa de rede. Fechar a rede dele no contêiner (namespace ou política de rede) fica para a revisão da segurança e para o devops; o código não abre conexão em nenhum caminho.
+Nada sai do servidor na leitura: nem Detran, nem Senatran, nem FIPE online, nem a URL do QR code. A lista de marcas e modelos é a do cadastro, local (item 7). O filho não precisa de rede, e o código não abre conexão em nenhum caminho. **A rede fechada do filho não é condição do MVP** (segurança, resposta 1): o que pesaria numa falha explorável são as chaves, e o filho não as tem (item 4, M-01). As condições são o Postgres e o Redis exigirem senha em homologação e produção (devops, T-274) e nenhuma chave no ambiente do filho. Fechar a rede por namespace pede `unshare`, que o perfil padrão do Docker bloqueia; se a leitura for um dia para um contêiner próprio, ele sobe com `network_mode: none`.
 
 ### 6. Limites
 
@@ -64,7 +69,8 @@ Nada sai do servidor na leitura: nem Detran, nem Senatran, nem FIPE online, nem 
 | Tempo | 5 s de CPU no filho e 8 s de relógio no pai | filho e pai |
 | Memória | 512 MB de espaço de endereço no filho | filho |
 | Texto extraído | até 200 mil caracteres; acima, falha (documento oficial tem poucos milhares) | filho |
-| Requisições | 30 por hora por usuário e 200 por hora por empresa, em `comum.limites`; acima, 429 `muitas_requisicoes` | view |
+| Requisições | 30 por hora por usuário e 200 por hora por empresa, somando as duas rotas, em `comum.limites`; a recusa (400 e 422) também conta, e a contagem vem antes do filho; acima, 429 `muitas_requisicoes` | view |
+| Leituras ao mesmo tempo | 2 por processo (semáforo); cheio, 503 `leitura_ocupada` com `Retry-After` (pedido do devops na T-258, B-02 da segurança) | view |
 
 Os documentos oficiais ficam abaixo de 500 KB. 2 MB deixa folga e mantém o filho pequeno. O anexo ao salvar continua com o limite de 10 MB dos documentos, mas o arquivo anexado pela leitura é o mesmo de até 2 MB.
 
@@ -80,23 +86,25 @@ A `VEI-08` manda escolher a marca e o modelo da lista do cadastro (a tela diz "D
 
 - A leitura **não guarda o PDF** em lugar nenhum: nem no armazenamento, nem em disco temporário, nem em cache. O arquivo vive na memória do pai e do filho durante a requisição.
 - A tela guarda o arquivo no navegador e o manda de novo no "Salvar", junto com o cadastro. Se a pessoa desiste, nada ficou no servidor, e não há limpeza a fazer.
-- Para o evento de auditoria dizer o que veio do documento sem confiar na tela, a leitura devolve um comprovante `leitura`: um texto assinado com `django.core.signing` (sal próprio por tipo, validade de 30 min) que leva o tipo, o SHA-256 do arquivo e, para cada campo lido, um resumo HMAC do valor lido. O comprovante não leva o valor, então não carrega CPF nem número da CNH. No "Salvar", o serviço confere a assinatura e se o arquivo enviado tem o mesmo SHA-256. Depois compara os resumos com os valores gravados e registra no evento quais campos vieram do documento e quais a pessoa mudou. Sem comprovante, comprovante vencido ou arquivo diferente: o cadastro salva normalmente, sem a marca de leitura, e o arquivo, se veio, é anexado como um documento comum.
+- Para o evento de auditoria dizer o que veio do documento sem confiar na tela, a leitura devolve um comprovante `leitura`: um texto assinado com `django.core.signing` (sal próprio por tipo, validade de 30 min) que leva o tipo, o SHA-256 do arquivo, o `schema` da empresa, o id do usuário e, para cada campo lido, um resumo HMAC do valor lido. O comprovante não leva o valor, então não carrega CPF nem número da CNH.
+- **Chave própria do resumo (B-04).** O resumo usa uma chave só da leitura, derivada do pepper: `chave_leitura = HMAC(GIRO_PEPPER_HMAC, "leitura-documento")`, e leva o SHA-256 do arquivo junto: `HMAC(chave_leitura, sha256_do_arquivo || campo || valor)`. Assim ele nunca é igual ao `CampoHashBusca` do CPF guardado no banco (ADR 0014), e dois comprovantes do mesmo CPF, de arquivos diferentes, não se ligam. A segurança aceitou o resumo do CPF nessas condições (pergunta 3).
+- No "Salvar", o serviço confere a assinatura, se o `schema` e o usuário do comprovante são os da requisição e se o arquivo enviado tem o mesmo SHA-256. Depois compara os resumos com os valores gravados e registra no evento quais campos vieram do documento e quais a pessoa mudou. Sem comprovante, ou com ele vencido, de outra empresa, de outro usuário ou de outro arquivo: o comprovante é tratado como ausente, o cadastro salva normalmente, sem a marca de leitura, e o arquivo, se veio, é anexado como um documento comum. O salvar confere de novo os primeiros bytes e os 2 MB do arquivo e o grava com `Content-Type: application/pdf` fixado pelo backend (B-06).
 
 ### 9. O que nunca vai para log, Sentry ou evento
 
 - Nunca: o conteúdo do PDF, o texto extraído, o nome do arquivo (pode trazer o nome da pessoa), os valores lidos (CPF, número da CNH, nome, nascimento; e, no CRLV-e, nem placa, chassi e Renavam, por simplicidade) e o comprovante `leitura`.
 - O log da leitura é uma linha `INFO` com o tipo, o resultado (`lido`, `parcial` ou `falhou`), o motivo da falha por código fechado (`nao_pdf`, `grande`, `senha`, `sem_texto`, `paginas`, `tempo`, `memoria`, `nao_reconhecido`), a quantidade de campos, os milissegundos, o schema e o id do usuário.
-- A saída de erro do filho é descartada, não registrada. Falha no filho não sobe exceção com o conteúdo: o pai traduz para o código de motivo. No Sentry, só o código, sem variáveis locais (a função `ler` e a view ficam fora da captura de variáveis locais).
+- A saída de erro do filho é descartada, não registrada. Falha no filho não sobe exceção com o conteúdo, e a mensagem de erro do pai nunca inclui a saída do filho: o pai traduz para o código de motivo. No Sentry, só o código. O `sentry-sdk` não deixa tirar uma função só da captura de variáveis locais, então a captura sai do projeto inteiro: `include_local_variables=False` e `max_request_body_size="never"` no `sentry_sdk.init` (M-03 da segurança, com o devops na T-270), com um teste de transporte de mentira provando que um CPF numa variável local não chega ao evento.
 - O evento de auditoria do cadastro leva só a lista de campos vindos do documento e os corrigidos, sem valor. O CPF e a CNH já são omitidos por serem `CampoCifrado` (ADR 0014, nota de 12 out 2026).
 - A resposta da leitura sai com `Cache-Control: no-store`.
 
 ### 10. Quem pode
 
-A leitura do CRLV-e é de quem cadastra veículo (administrador e gerente); a da CNH-e, de quem cadastra cliente (administrador, gerente e vendedor). Os outros perfis recebem 403 `permissao`. O token de suporte (`PLT-07`) fica, até a revisão da segurança, com 403 `PLT-07` na leitura da CNH-e, porque ela mostraria o CPF completo (`AUD-09`); na do CRLV-e, segue a permissão de escrita do acesso de suporte. A segurança confirma ou troca.
+A leitura do CRLV-e é de quem cadastra veículo (administrador e gerente); a da CNH-e, de quem cadastra cliente (administrador, gerente e vendedor). Os outros perfis recebem 403 `permissao`. O token de suporte (`PLT-07`), como a segurança confirmou: 403 `PLT-07` na leitura da CNH-e nos dois modos, porque ela mostra o CPF completo (`AUD-09`); na do CRLV-e, só com o acesso "ver e editar", e 403 `PLT-07` em "só ver".
 
 ## Consequências
 
-- Uma dependência nova, `pypdf`, em Python puro. Ela entra no `requirements.txt` e na verificação de vulnerabilidades do CI.
+- Uma dependência nova, `pypdf`, em Python puro. Ela entra no `requirements.txt` e na verificação de vulnerabilidades do CI, com a versão mínima revista a cada aviso (item 3).
 - Um processo filho por leitura, de 100 a 200 ms de custo fixo. No volume esperado (cadastro de frota e de clientes), cabe. O limite por usuário e por empresa evita abuso. O `timeout` do Gunicorn tem de ficar acima de 8 s (devops confere).
 - A leitura falha em PDF sem texto, e a pessoa preenche à mão. Mudar isso pede OCR e nova ADR.
 - O parser depende do leiaute do Detran e da Senatran. Se o leiaute mudar, a leitura vira parcial ou falha, sem gravar nada errado, porque cada campo passa pelo validador e pela conferência da pessoa. O log com `nao_reconhecido` mostra quando isso começa.
@@ -104,5 +112,9 @@ A leitura do CRLV-e é de quem cadastra veículo (administrador e gerente); a da
 - Testes:
   - os parsers puros, com os arquivos fictícios do qa;
   - o filho com PDF que trava, PDF com senha, PDF gigante, imagem com extensão `.pdf` e PDF com JavaScript e anexo (nada executa, a leitura só não acha os campos);
-  - um teste que confere que o nome do proprietário e a filiação do arquivo de teste não aparecem na resposta nem nos registros de log capturados;
+  - um teste que confere que o nome do proprietário e a filiação do arquivo de teste não aparecem na resposta nem nos registros de log capturados, nem num evento do Sentry (transporte de mentira);
+  - o ambiente do filho: chamado com um tipo de teste, ele devolve `sorted(os.environ)`, e o resultado é só `LANG` e `PATH` (M-01);
+  - os limites: o filho lê `resource.getrlimit` depois de subir e confere os cinco valores, e o pai não usa `preexec_fn` (M-02);
+  - o isolamento do código: no fim do trabalhador, `django` e `comum` não estão em `sys.modules` (B-01);
+  - o comprovante: de outra empresa, de outro usuário ou de outro arquivo, o salvar não marca os campos; e o resumo de um CPF difere do `CampoHashBusca` do mesmo CPF (B-04);
   - os de rota, pelos critérios CA-247-01 a 12.

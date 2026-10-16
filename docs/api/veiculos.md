@@ -229,7 +229,7 @@ Planos especiais (`Entregador`, `Mensal fidelidade`) aparecem na tela `Precos`, 
 Decisão técnica na ADR 0026. A leitura não grava nada; só o `POST /api/veiculos/` grava, depois da conferência da pessoa. Critérios CA-247-01 a 07.
 
 ### POST /api/veiculos/leitura-crlv/
-Perfis: administrador e gerente (quem cadastra veículo, `pode.veiculos = editar`); os outros perfis, 403 `permissao` (CA-247-07). Token de suporte: segue a permissão de escrita do acesso (`PLT-07`), até a revisão da segurança.
+Perfis: administrador e gerente (quem cadastra veículo, `pode.veiculos = editar`); os outros perfis, 403 `permissao` (CA-247-07). Token de suporte: só com o acesso "ver e editar"; em "só ver", 403 `PLT-07` (confirmado pela segurança na T-247).
 `multipart/form-data`: `arquivo` (o PDF do CRLV-e, até **2 MB**).
 
 200, com `Cache-Control: no-store`:
@@ -254,7 +254,8 @@ Perfis: administrador e gerente (quem cadastra veículo, `pode.veiculos = editar
 
 422 `{ "codigo": "VEI-08", "mensagem": "Não conseguimos ler este documento. Preencha os campos à mão." }`: a mesma resposta para toda falha de leitura (CA-247-06). Isso vale para arquivo que não começa como PDF, acima de 2 MB, com senha, sem texto, com mais de 3 páginas, com tempo ou memória estourados, ou sem nenhum dos 9 campos reconhecido. A causa fica só no log, por código (ADR 0026, item 9).
 400 `{ "codigo": "validacao", "campos": { "arquivo": "Envie o PDF do CRLV-e." } }`: arquivo que não é PDF nem pela extensão nem pelos primeiros bytes, como a foto `foto-crlv.jpg`. O seletor da tela já aceita só `.pdf`.
-429 `muitas_requisicoes`: acima de 30 por hora por usuário ou de 200 por hora por empresa (`comum.limites`).
+429 `muitas_requisicoes`: acima de 30 por hora por usuário ou de 200 por hora por empresa, somando a leitura da CNH-e (`comum.limites`); as recusas 400 e 422 também contam.
+503 `{ "codigo": "leitura_ocupada", "mensagem": "Muitas leituras ao mesmo tempo. Tente de novo em instantes." }` com `Retry-After`: as 2 leituras simultâneas do processo estão ocupadas (ADR 0026, item 6).
 
 ### Salvar com o CRLV lido: POST /api/veiculos/ em `multipart/form-data`
 O corpo leva os campos do veículo, como no JSON, e mais o bloco do documento:
@@ -264,7 +265,8 @@ O corpo leva os campos do veículo, como no JSON, e mais o bloco do documento:
 
 O serviço faz tudo numa transação só: cria o veículo, com as validações de sempre (`VEI-01`, `PLT-03`), e o `DocumentoVeiculo` `crlv` com o arquivo, a validade e o exercício. No CA-247-04, a placa e o chassi do QXA-4B21 recebem o 409 `VEI-01` de sempre, e nada é criado. O arquivo só vai para o armazenamento privado nesse momento (`AUD-05`); se a transação falhar, o arquivo gravado é apagado, como no logo (`empresas.md`). O nome no armazenamento é gerado pelo backend, nunca o nome enviado.
 - Com o `leitura` válido e o SHA-256 do arquivo igual ao do comprovante, o evento `veiculo.criar` leva `preenchido_pelo_documento: { "tipo": "crlv", "campos": [...], "corrigidos": ["cor"] }`, sem valores. A tela da auditoria mostra "Campos preenchidos pelo CRLV-e" (CA-247-03).
-- Sem comprovante, com ele vencido ou com outro arquivo: o veículo e o documento são salvos do mesmo jeito, só sem a marca.
+- Sem comprovante, ou com ele vencido, de outra empresa, de outro usuário ou de outro arquivo: o veículo e o documento são salvos do mesmo jeito, só sem a marca (ADR 0026, item 8).
+- O `crlv_arquivo` passa de novo pelos primeiros bytes (`%PDF-`) e pelos 2 MB, sem confiar na leitura, e é gravado com `Content-Type: application/pdf` fixado pelo backend.
 
 ### GET /api/veiculos/modelos/ (catálogo; ainda sem tarefa)
 É a lista "Da lista FIPE" da tela, local e sem consulta externa. Query `?tipo=moto|carro`, `?marca=`, `?busca=` → `{ "resultados": [ { "marca": "Honda", "modelo": "Pop 110i ES", "tipo": "moto" } ] }`. De onde vem o arquivo e como ele se atualiza fica para a tarefa do catálogo (proposta no handoff da T-247). Enquanto ela não existe, a rota também não, e a leitura nunca preenche marca e modelo.
