@@ -135,9 +135,8 @@ export const TOM_DA_DESPESA: Record<StatusDaDespesa, TomStatus> = {
   recusada: "critico",
 };
 
-/** "Manutenção · PMZ-3E17" ou, sem veículo, "Fixa · Filial Centro". A filial vem pelo id, das filiais da pessoa. */
-export function origemDaDespesa(d: Pick<Despesa, "categoria" | "veiculo" | "filial">, filiais: { id: number; nome: string }[]): string {
+/** "Manutenção · PMZ-3E17 · Filial Centro" ou, sem veículo, "Fixa · Filial Centro". A filial é a `filial.nome` que a API manda (FIN-06, FIL-05). */
+export function origemDaDespesa(d: Pick<Despesa, "categoria" | "veiculo" | "filial">): string {
   const categoria = d.categoria === "fixas" ? "Fixa" : rotuloDaCategoria(d.categoria);
-  const onde = d.veiculo ? placa(d.veiculo.placa) : filiais.find((f) => f.id === d.filial.id)?.nome;
-  return [categoria, onde].filter(Boolean).join(" · ");
+  return [categoria, d.veiculo ? placa(d.veiculo.placa) : null, d.filial.nome].filter(Boolean).join(" · ");
 }
