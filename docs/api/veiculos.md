@@ -183,7 +183,7 @@ O que a ficha de referência mostra e a representação não trazia. Tudo só no
 
 **`acoes.movimentar`** (`MOV-02`, `MOV-03`): `true` para administrador e gerente com acesso à filial do veículo, com o veículo `disponivel`, `indisponivel`, `em_manutencao` ou `a_venda` e sem movimentação `agendada`, `em_transito` ou `no_local`. `motivo_movimentar`: quando o perfil pode movimentar mas o veículo não, o motivo, para a tela mostrar o botão desativado com ele: "Veículo alugado não se movimenta. O botão volta quando a LOC-2841 for devolvida.", "Veículo reservado não se movimenta.", "Veículo vendido não se movimenta.", "Veículo baixado não se movimenta.", "O veículo já está na MOV-0043."; `null` quando `movimentar` é `true` ou quando o perfil não movimenta (aí a tela não mostra o botão).
 
-**`acoes.transferir`** (`MOV-06`, T-286): continua `true` para administrador e gerente com o veículo que pode ser movimentado, mas agora abre a Nova movimentação com o destino em outra filial e a vistoria rápida marcada (CA-246-16); a transferência só vale na chegada. A rota `POST /api/veiculos/{id}/transferir/` sai do contrato (ADR 0028, item 6).
+**`acoes.transferir`** (`MOV-06`, T-286): continua `true` para administrador e gerente com o veículo que pode ser movimentado, mas agora abre a Nova movimentação com o destino em outra filial e a vistoria rápida marcada (CA-246-16); a transferência só vale na chegada. A rota `POST /api/veiculos/{id}/transferir/` saiu (ADR 0028, item 6; removida na T-288 parte 2).
 
 ### POST /api/veiculos/
 Perfis: administrador, gerente.
@@ -221,17 +221,8 @@ As transições de locação, vistoria, OS e venda não têm endpoint aqui: acon
 **Baixa com movimentação aberta** (`MOV-03`, decisão do dono em 16 out 2026, T-310; contrato na T-311): não há 409. A baixa leva o veículo a `baixado` e, na mesma transação, cancela a movimentação `agendada`, `em_transito` ou `no_local` dele com o motivo "Veículo baixado: {motivo}". As despesas das paradas ficam, a transferência não acontece e o veículo fica na filial em que está, que é a de saída. O detalhe está em `movimentacoes.md`, "Baixa do veículo com a movimentação aberta". 200: a representação, com `movimentacao_aberta: null`.
 - `acoes.aviso_baixar`: com `acoes.baixar` `true` e `movimentacao_aberta`, o texto para o diálogo da baixa, "A MOV-0001 será cancelada."; senão `null`. A tela mostra o texto como vem.
 
-### POST /api/veiculos/{id}/transferir/
-**Sai do contrato com as movimentações (T-286, ADR 0028, item 6).** "Transferir" na ficha abre a Nova movimentação (`MOV-06`), e a transferência acontece na chegada, por `veiculos.services.transferir` com a origem `movimentacao`. O backend remove a rota no PR em que o frontend troca o botão; até lá, vale o texto abaixo.
-
-Perfis: administrador, gerente (com acesso à filial de origem). Corpo: `{ filial_destino_id, categoria_id?, motivo? }`.
-Só com o veículo `disponivel`: senão 409 `{ "codigo": "VEI-04", "mensagem": "Só é possível transferir um veículo disponível" }`. Destino inativo ou igual à origem → 400.
-`categoria_id` (`VEI-04`, `FIL-04`, T-083):
-- obrigatório quando a categoria atual é só da filial de origem. Sem ele, 400 `validacao` em `categoria_id`;
-- tem que ser uma categoria ativa, do mesmo tipo de veículo, da empresa ou da filial de destino. Fora disso, 400 `validacao` em `categoria_id`;
-- com a categoria atual da empresa, pode faltar: o veículo continua nela.
-A categoria nova vale a partir da próxima locação (`LOC-01`); como o veículo está `disponivel`, nenhuma locação aberta muda de preço.
-Grava `TransferenciaVeiculo` com a filial e a categoria de origem e de destino (`VEI-04`), e a auditoria com a categoria de antes e a de depois. 200: representação.
+### POST /api/veiculos/{id}/transferir/ (saiu)
+**Saiu do contrato com as movimentações (T-286, ADR 0028, item 6; rota removida na T-288 parte 2).** "Transferir" na ficha abre a Nova movimentação (`MOV-06`), e a transferência acontece na chegada, por `veiculos.services.transferir` com a origem `movimentacao`. O `POST` responde 404. O serviço segue com as regras da `VEI-04` (categoria no destino, `TransferenciaVeiculo`, auditoria com a categoria de antes e a de depois) para a chegada, a importação e o seed.
 
 ## Km
 

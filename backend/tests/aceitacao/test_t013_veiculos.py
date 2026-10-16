@@ -30,7 +30,8 @@ from apps.veiculos.models import (
 )
 from apps.veiculos.tasks import aut_06_vencimento_de_documentos
 from comum import arquivos, eventos, leituras
-from comum.erros import TransicaoInvalida
+from comum.erros import Conflito, ErroDeValidacao, TransicaoInvalida
+from seed.ator import como
 
 from .apoio import CONTAGENS_FROTA_SEED, PRECOS_SEED
 from .frota import Frota, criar_veiculo, montar_frota
@@ -503,15 +504,28 @@ def test_vei_07_ca_013_12_servico_de_transicao(moto, frota):
 # --- Transferência (VEI-04, FIL-05) ---
 
 
+def _transferir(moto: MotoRapida, veiculo: Veiculo, filial_id: int, **campos: Any) -> Veiculo:
+    """A transferência pela chegada da movimentação ou pela importação: a rota saiu (ADR 0028)."""
+    with como(moto.pessoas["Rodrigo"]):
+        return services.transferir(veiculo, filial_id, **campos)
+
+
+def test_vei_04_mov_06_rota_transferir_saiu(moto, frota):
+    """'Transferir' abre a Nova movimentação (MOV-06); a rota antiga não existe mais."""
+    caucaia = _caucaia(moto, "Rodrigo")
+    sak = frota.veiculos["SAK1D39"]
+    resposta = _acao(moto, "Rodrigo", sak, "transferir", {"filial_destino_id": caucaia.pk})
+    assert resposta.status_code == 404
+    sak.refresh_from_db()
+    assert sak.filial_id == frota.centro.pk
+
+
 def test_vei_04_ca_013_13_transferencia_so_disponivel(moto, frota):
     caucaia = _caucaia(moto, "Rodrigo")
     sak, qxa = frota.veiculos["SAK1D39"], frota.veiculos["QXA4B21"]
-    destino = {"filial_destino_id": caucaia.pk, "motivo": "Falta moto na Caucaia"}
 
-    assert _acao(moto, "Bruna", sak, "transferir", destino).status_code == 403
-    resposta = _acao(moto, "Rodrigo", sak, "transferir", destino)
-    assert resposta.status_code == 200, resposta.json()
-    assert resposta.json()["filial"] == {"id": caucaia.pk, "nome": "Filial Caucaia"}
+    _transferir(moto, sak, caucaia.pk, motivo="Falta moto na Caucaia")
+    assert sak.filial_id == caucaia.pk
     transferencia = TransferenciaVeiculo.objects.get(veiculo=sak)
     assert (transferencia.filial_origem_id, transferencia.filial_destino_id) == (
         frota.centro.pk,
@@ -520,23 +534,22 @@ def test_vei_04_ca_013_13_transferencia_so_disponivel(moto, frota):
     assert transferencia.por_id == moto.pessoas["Rodrigo"].pk
     assert EventoAuditoria.objects.filter(acao="veiculo.transferir", regra="VEI-04").exists()
     # Categoria da empresa passa direto (CA-013-27): continua na Street 150–160.
-    assert resposta.json()["categoria"]["nome"] == "Street 150–160"
-    assert resposta.json()["preco_vigente"]["diaria_centavos"] == 5490
     street = frota.categorias["Street 150–160"]
+    assert sak.categoria_id == street.pk
     assert (transferencia.categoria_origem, transferencia.categoria_destino) == (street, street)
 
-    resposta = _acao(moto, "Rodrigo", qxa, "transferir", destino)
-    assert resposta.status_code == 409
-    assert resposta.json()["codigo"] == "VEI-04"
-    assert resposta.json()["mensagem"] == "Só é possível transferir um veículo disponível"
+    with pytest.raises(Conflito) as erro:
+        _transferir(moto, qxa, caucaia.pk)
+    assert erro.value.codigo == "VEI-04"
+    assert erro.value.mensagem == "Só é possível transferir um veículo disponível"
 
     pop = Veiculo.objects.filter(status="disponivel", filial=frota.centro).order_by("id")[0]
-    igual = {"filial_destino_id": frota.centro.pk}
-    assert _acao(moto, "Rodrigo", pop, "transferir", igual).status_code == 400
+    with pytest.raises(ErroDeValidacao):
+        _transferir(moto, pop, frota.centro.pk)
     messejana = moto.criar(_filial("Filial Messejana", cidade="Fortaleza")).json()
     filiais.desativar(Filial.objects.get(pk=messejana["id"]), "Fechou")
-    inativa = {"filial_destino_id": messejana["id"]}
-    assert _acao(moto, "Rodrigo", pop, "transferir", inativa).status_code == 400
+    with pytest.raises(ErroDeValidacao):
+        _transferir(moto, pop, messejana["id"])
     pop.refresh_from_db()
     assert pop.filial_id == frota.centro.pk
 
@@ -570,31 +583,27 @@ def test_vei_04_fil_04_ca_013_27_categoria_so_da_filial_na_transferencia(moto, f
     assert desativar.status_code == 200, desativar.json()
     resposta = moto.api("Rodrigo").patch(_url(sak), {"categoria_id": street_centro}, format="json")
     assert resposta.status_code == 200, resposta.json()
+    sak.refresh_from_db()
 
-    # Sem a categoria no destino: 400, e o veículo não sai da Centro.
-    destino: dict[str, Any] = {"filial_destino_id": caucaia.pk}
-    resposta = _acao(moto, "Rodrigo", sak, "transferir", destino)
-    assert resposta.status_code == 400
-    assert resposta.json()["codigo"] == "validacao"
-    assert "categoria_id" in resposta.json()["campos"]
+    # Sem a categoria no destino: recusa em `categoria_id`, e o veículo não sai da Centro.
+    with pytest.raises(ErroDeValidacao) as erro:
+        _transferir(moto, sak, caucaia.pk)
+    assert "categoria_id" in erro.value.campos
     invalidas = [street_centro, caucaia_inativa, frota.categorias["Carro compacto"].pk]
     for categoria_id in invalidas:
-        corpo = {**destino, "categoria_id": categoria_id}
-        resposta = _acao(moto, "Rodrigo", sak, "transferir", corpo)
-        assert resposta.status_code == 400, categoria_id
-        assert "categoria_id" in resposta.json()["campos"]
+        with pytest.raises(ErroDeValidacao) as erro:
+            _transferir(moto, sak, caucaia.pk, categoria_id=categoria_id)
+        assert "categoria_id" in erro.value.campos, categoria_id
     sak.refresh_from_db()
     assert (sak.filial_id, sak.categoria_id) == (frota.centro.pk, street_centro)
     assert not TransferenciaVeiculo.objects.filter(veiculo=sak).exists()
 
     # Com a Street Caucaia: vai, com o preço dela.
-    resposta = _acao(
-        moto, "Rodrigo", sak, "transferir", {**destino, "categoria_id": street_caucaia}
-    )
-    assert resposta.status_code == 200, resposta.json()
-    assert resposta.json()["filial"]["id"] == caucaia.pk
-    assert resposta.json()["categoria"] == {"id": street_caucaia, "nome": "Street Caucaia"}
-    assert resposta.json()["preco_vigente"]["diaria_centavos"] == 4990
+    _transferir(moto, sak, caucaia.pk, categoria_id=street_caucaia)
+    ficha = moto.api("Rodrigo").get(_url(sak)).json()
+    assert ficha["filial"]["id"] == caucaia.pk
+    assert ficha["categoria"] == {"id": street_caucaia, "nome": "Street Caucaia"}
+    assert ficha["preco_vigente"]["diaria_centavos"] == 4990
     transferencia = TransferenciaVeiculo.objects.get(veiculo=sak)
     assert (transferencia.categoria_origem_id, transferencia.categoria_destino_id) == (
         street_centro,
@@ -608,11 +617,10 @@ def test_vei_04_fil_04_ca_013_27_categoria_so_da_filial_na_transferencia(moto, f
 
     # De volta para a Centro com a Street 150–160, da empresa: diária 5490.
     empresa = frota.categorias["Street 150–160"].pk
-    corpo = {"filial_destino_id": frota.centro.pk, "categoria_id": empresa}
-    resposta = _acao(moto, "Rodrigo", sak, "transferir", corpo)
-    assert resposta.status_code == 200, resposta.json()
-    assert resposta.json()["categoria"]["nome"] == "Street 150–160"
-    assert resposta.json()["preco_vigente"]["diaria_centavos"] == 5490
+    _transferir(moto, sak, frota.centro.pk, categoria_id=empresa)
+    ficha = moto.api("Rodrigo").get(_url(sak)).json()
+    assert ficha["categoria"]["nome"] == "Street 150–160"
+    assert ficha["preco_vigente"]["diaria_centavos"] == 5490
 
 
 def test_fil_06_ca_013_14_veto_a_desativacao_da_filial(moto, frota):

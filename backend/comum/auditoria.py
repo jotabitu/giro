@@ -163,11 +163,14 @@ def auditar(
     motivo: str = "",
     regra: str = "",
     filial_id: int | None = None,
+    extras: Callable[[], dict[str, Any]] | None = None,
 ) -> Iterator[None]:
     """Retrato antes e depois do bloco e evento gravado na mesma transação.
 
     Uso: `with auditar(veiculo, "veiculo.editar", Categoria.OPERACAO): ... veiculo.save()`.
     O "antes" vem do banco, então o objeto pode ser alterado dentro ou fora do bloco.
+    `extras`: o que não está no retrato do objeto (ex.: as paradas da movimentação, T-314), lido
+    antes e depois do bloco e gravado inteiro nos dois lados.
     """
     with transaction.atomic():
         antes: dict[str, Any] = {}
@@ -175,8 +178,12 @@ def auditar(
             salvo = type(objeto)._base_manager.filter(pk=objeto.pk).first()
             if salvo is not None:
                 antes = retrato(salvo)
+        extras_antes = extras() if extras else {}
         yield
         mudou_antes, mudou_depois = diferenca(antes, retrato(objeto))
+        if extras:
+            mudou_antes = {**mudou_antes, **extras_antes}
+            mudou_depois = {**mudou_depois, **extras()}
         registrar_evento(
             acao,
             categoria,

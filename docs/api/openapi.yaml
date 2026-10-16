@@ -5942,39 +5942,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Veiculo'
           description: ''
-  /api/veiculos/{id}/transferir/:
-    post:
-      operationId: veiculos_transferir_create
-      summary: Transferir (VEI-04)
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: integer
-        required: true
-      tags:
-      - veiculos
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Transferir'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/Transferir'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/Transferir'
-        required: true
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Veiculo'
-          description: ''
   /api/veiculos/{id}/voltar-para-frota/:
     post:
       operationId: veiculos_voltar_para_frota_create
@@ -16136,19 +16103,6 @@ components:
           maxLength: 100
       required:
       - token
-    Transferir:
-      type: object
-      properties:
-        filial_destino_id:
-          type: integer
-        categoria_id:
-          type: integer
-          nullable: true
-        motivo:
-          type: string
-          default: ''
-      required:
-      - filial_destino_id
     TrechoLocacao:
       type: object
       properties:
