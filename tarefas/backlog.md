@@ -144,6 +144,7 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 ### T-245 · Despesa ligada ao veículo sem a filial na lista
 - **Agente:** backend, depois frontend · **Depende de:** — · **Regras:** FIN-06, FIL-05 · **Pronto quando:** a despesa ligada a um veículo mostra a filial dela na lista e no detalhe, como as outras (hoje só aparece a placa); a filial vem da API (a `Despesa` já tem `filial`), não da tela; teste da leitura com despesa ligada a veículo.
+- **Estado (16 out 2026):** backend feito, falta a tela. A lista e o detalhe mandam `filial` com `{id, nome}` (`RefSerializer`, como contas e caixa); `FilialRef` saiu do OpenAPI. Branch `t-245-filial-despesa`, handoff `tarefas/handoffs/T-245-backend.md`. Para o frontend: regenerar `schema.d.ts` e mostrar `despesa.filial.nome`.
 
 
 ### T-262 · Troca do ramo em Configurações (backend do cartão e tela)

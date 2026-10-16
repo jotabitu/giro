@@ -267,12 +267,13 @@ Caso CA-017-15: contado 27100 com motivo "Troco errado" → `aguardando_aprovaca
 ### Representação
 ```json
 { "id": 801, "data": "2026-10-07", "descricao": "Pneus (2 unidades)", "categoria": "manutencao",
-  "veiculo": { "id": 88, "placa": "PMZ3E17" }, "filial": { "id": 1 },
+  "veiculo": { "id": 88, "placa": "PMZ3E17" }, "filial": { "id": 1, "nome": "Filial Centro" },
   "valor_centavos": 120000, "vencimento": "2026-10-07", "status": "aguardando_aprovacao",
   "pago_em": null, "forma": null, "lancada_por": { "id": 4, "nome": "João Silva" },
   "nota": { "url": "...", "url_expira_em": "..." }, "pedido_aprovacao_id": 91,
   "rotulo_situacao": "Aguardando gerente" }
 ```
+`filial` traz `id` e `nome`, como em contas e caixa, também na despesa ligada a veículo (T-245): a tela mostra o nome que vem da API, não deduz a filial pelo veículo.
 `nota` vem `null` só nas despesas lançadas antes da nota obrigatória (T-177) e na que nascer da OS (`MAN-05`, fase 2).
 
 ### GET /api/financeiro/despesas/
