@@ -331,6 +331,9 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 ### [decisão] Baixa de veículo com movimentação aberta (MOV-03, levantada na T-300, T-302)
 
+### [decisão] Suporte Giro nas movimentações (MOV-02, PLT-07, levantada na T-315, T-318)
+- **Para:** dono do produto, pelo orquestrador · **Contexto:** o suporte em "ver e editar" age como administrador (ADR 0013), e a regra não diz se a movimentação é exceção. A) não: só lê; toda escrita das movimentações (criar, editar, iniciar, cancelar, chegada na parada e no destino, foto, local de apoio) dá 403 `PLT-07`; B) sim, como administrador, nunca como quem leva nem quem recebe. **Padrão: A** (o da segurança). Em "Pontos em aberto" das regras; handoff `tarefas/handoffs/T-318-produto.md`.
+
 ### ~~[decisão]~~ Baixa de veículo com movimentação aberta (MOV-03, levantada na T-300, T-302)
 - **Decidida pelo dono em 16 out 2026: B** (T-310, recomendação do produto). A baixa encerra a movimentação: a agendada e a iniciada viram `cancelada` (a iniciada com "Veículo baixado: {motivo}"), as despesas das paradas ficam, e na transferência o veículo continua na filial de saída. Regra `MOV-03`, tabela "Decisões de 16 out 2026", critérios CA-246-22 e 23. A recusa provisória da T-288 (A) deixa de valer.
 - **Para:** dono do produto, pelo orquestrador · **Contexto:** a baixa vale para qualquer status menos `alugado`, e a movimentação iniciada só termina com a chegada (km e vistoria), que o veículo roubado no caminho não tem. A) a baixa é recusada com movimentação aberta (409 `MOV-03`); B) a baixa encerra a movimentação: a agendada e a iniciada viram `cancelada`, com o motivo "Veículo baixado: {motivo}", as despesas das paradas ficam, e na transferência o veículo continua na filial de saída. **Padrão: B.** Até a resposta, a T-288 recusa (A). Em "Pontos em aberto" das regras; handoff `tarefas/handoffs/T-302-produto.md`.
