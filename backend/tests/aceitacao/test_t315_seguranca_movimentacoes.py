@@ -7,7 +7,6 @@ cenário da T-288.
 import io
 from typing import Any
 
-import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django_tenants.utils import schema_context
@@ -15,7 +14,8 @@ from PIL import Image
 
 from apps.auditoria.models import EventoAuditoria
 from apps.contas.models import Usuario
-from apps.movimentacoes.models import FotoChegadaMovimentacao, Movimentacao
+from apps.financeiro.models import Despesa
+from apps.movimentacoes.models import FotoChegadaMovimentacao, LocalApoio, Movimentacao
 from apps.plataforma.models import Empresa
 from apps.plataforma.services import abrir_acesso_suporte
 
@@ -28,6 +28,7 @@ from .test_t288_movimentacoes import (
     _corpo,
     _criada,
     _foto,
+    _lavagem,
     _post,
 )
 from .test_t288_movimentacoes import cenario as cenario
@@ -114,11 +115,34 @@ def test_plt_07_suporte_so_ver_nao_le_o_detalhe(cenario, relogio_jwt):
     assert foto.status_code == 403 and foto.json()["codigo"] == "PLT-07"
 
 
-@pytest.mark.xfail(strict=True, reason="T-315 M-01: o suporte que edita cria e recebe 500")
-def test_plt_07_suporte_ver_e_editar_cria_sem_erro(cenario, relogio_jwt):
+def test_plt_07_suporte_ver_e_editar_so_le_as_movimentacoes(cenario, relogio_jwt):
+    """CA-246-24 (T-319, opção A): mesmo em "ver e editar", toda escrita dá 403 PLT-07, sem 500;
+    o detalhe segue legível."""
+    mov = _com_vistoria(cenario)
+    local = LocalApoio.objects.create(nome="Lava Rápido Aldeota", tipo="lava_jato")
     api = _suporte(cenario, "ver_editar")
-    resposta = api.post(LISTA, _corpo(cenario), format="json")
-    assert resposta.status_code in (201, 403), resposta.status_code
+    assert api.get(f"{LISTA}{mov['id']}/").status_code == 200
+    parada = f"{mov['id']}/paradas/1/"
+    escritas: tuple[tuple[str, str, Any, str], ...] = (
+        ("post", "", _corpo(cenario, placa="PMZ3E17"), "json"),
+        ("patch", f"{mov['id']}/", {"agendada_para": "2026-10-10T11:00:00Z"}, "json"),
+        ("post", f"{mov['id']}/iniciar/", {}, "json"),
+        ("post", f"{mov['id']}/cancelar/", {"motivo": "Teste"}, "json"),
+        ("post", f"{parada}chegada/", {}, "json"),
+        ("post", f"{parada}saida/", {"valor_pago_centavos": 0}, "multipart"),
+        ("post", f"{mov['id']}/chegada/fotos/", {"posicao": "frente", "arquivo": _foto()},
+         "multipart"),
+        ("post", f"{mov['id']}/chegada/", {"km": 3146, "combustivel": "cheio"}, "json"),
+        ("post", "locais/", {"nome": "Oficina do Zé", "tipo": "oficina"}, "json"),
+        ("post", f"locais/{local.pk}/inativar/", {}, "json"),
+        ("post", f"locais/{local.pk}/reativar/", {}, "json"),
+    )  # fmt: skip
+    for metodo, rota, corpo, formato in escritas:
+        resposta = getattr(api, metodo)(f"{LISTA}{rota}", corpo, format=formato)
+        assert resposta.status_code == 403, (rota, resposta.status_code)
+        assert resposta.json()["codigo"] == "PLT-07", rota
+    assert Movimentacao.objects.count() == 1
+    assert not FotoChegadaMovimentacao.objects.exists()
 
 
 # --- Fotos da vistoria rápida (AUD-05) ---
@@ -170,8 +194,8 @@ def test_mov_02_so_quem_registra_a_chegada_envia_foto(cenario):
     assert not FotoChegadaMovimentacao.objects.exists()
 
 
-@pytest.mark.xfail(strict=True, reason="T-315 B-01: a foto da chegada trocada não gera evento")
 def test_aud_01_foto_da_chegada_trocada_fica_na_auditoria(cenario):
+    """B-01: cada envio gera `movimentacao.foto_chegada`, e a troca diz que substituiu."""
     mov = _com_vistoria(cenario)
     for _ in range(2):
         resposta = _post(
@@ -182,8 +206,50 @@ def test_aud_01_foto_da_chegada_trocada_fica_na_auditoria(cenario):
             format="multipart",
         )
         assert resposta.status_code == 201
-    eventos = EventoAuditoria.objects.filter(objeto_tipo="fotochegadamovimentacao")
-    assert eventos.count() == 2
+    eventos = EventoAuditoria.objects.filter(
+        acao="movimentacao.foto_chegada", objeto_id=mov["id"]
+    ).order_by("id")
+    foto = FotoChegadaMovimentacao.objects.get()
+    assert [e.depois for e in eventos] == [
+        {"posicao": "frente", "foto_id": foto.pk, "substituiu": False},
+        {"posicao": "frente", "foto_id": foto.pk, "substituiu": True},
+    ]
+    assert all(e.regra == "MOV-05" and e.objeto_codigo == mov["codigo"] for e in eventos)
+    assert all(e.ator_id == cenario.pessoas["João"].pk for e in eventos)
+
+
+def test_mov_02_quem_nao_registra_a_chegada_recebe_403_antes_de_ler_o_arquivo(cenario):
+    """B-02: o arquivo inválido do financeiro dá 403, não 400: a permissão vem antes da leitura."""
+    mov = _com_vistoria(cenario)
+    falsa = SimpleUploadedFile("foto.jpg", b"nao e imagem", "image/jpeg")
+    resposta = _post(
+        cenario,
+        "Lúcia",
+        f"{mov['id']}/chegada/fotos/",
+        {"posicao": "frente", "arquivo": falsa},
+        format="multipart",
+    )
+    assert resposta.status_code == 403, resposta.json()
+
+
+def test_aud_05_fin_06_nota_da_parada_sem_metadados(cenario):
+    """B-03: a nota fotografada perde o EXIF e o GPS, como as fotos; vale para toda nota."""
+    mov = _criada(cenario, paradas=_lavagem(cenario))
+    parada = mov["paradas"][0]["id"]
+    chegou = _post(cenario, "João", f"{mov['id']}/paradas/{parada}/chegada/")
+    assert chegou.status_code == 200, chegou.json()
+    saiu = _post(
+        cenario,
+        "João",
+        f"{mov['id']}/paradas/{parada}/saida/",
+        {"valor_pago_centavos": 3500, "nota": _foto_com_gps()},
+        format="multipart",
+    )
+    assert saiu.status_code == 200, saiu.json()
+    despesa = Despesa.objects.get()
+    assert "casa-do-joao" not in despesa.nota.name
+    with despesa.nota.open("rb") as arquivo, Image.open(arquivo) as lida:
+        assert not dict(lida.getexif())
 
 
 # --- Quem leva e quem recebe (MOV-02, MOV-06, T-300) ---

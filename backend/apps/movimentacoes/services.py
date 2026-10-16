@@ -494,6 +494,8 @@ def sair_parada(
     """Valor acima de zero gera a despesa da parada, pela FIN-05 (MOV-04, CA-246-02, 08, 14)."""
     if valor_pago_centavos < 0:
         raise ErroDeValidacao({"valor_pago_centavos": ["O valor não pode ser negativo."]})
+    # Quem não registra a chegada recebe o 403 antes de o servidor ler o arquivo (B-02, T-315).
+    exigir_chegada(movimentacao, usuario)
     if nota is not None:
         arquivos.validar(nota, "nota")
     with transaction.atomic():
@@ -541,9 +543,12 @@ def _pronta_para_o_destino(movimentacao: Movimentacao) -> None:
 def enviar_foto(
     movimentacao: Movimentacao, posicao: str, arquivo: Any, usuario: Any
 ) -> FotoChegadaMovimentacao:
-    """Uma por vez; a foto nova da mesma posição substitui a anterior (AUD-05)."""
+    """Uma por vez; a foto nova da mesma posição substitui a anterior (AUD-05), e cada envio fica
+    na auditoria, com a posição, a foto e se substituiu outra (MOV-05, B-01 da T-315)."""
     if posicao not in POSICOES:
         raise ErroDeValidacao({"posicao": ["Escolha frente, traseira, lado esquerdo ou direito."]})
+    # O 403 vem antes de decodificar a imagem (B-02, T-315).
+    exigir_chegada(movimentacao, usuario)
     formato = arquivos.validar(arquivo)
     if formato.extensao == "pdf":
         raise ErroDeValidacao({"arquivo": ["Envie uma foto JPG ou PNG."]})
@@ -554,12 +559,20 @@ def enviar_foto(
             raise Conflito("MOV-05", "Esta movimentação não tem vistoria rápida.")
         _pronta_para_o_destino(travada)
         foto = FotoChegadaMovimentacao.objects.filter(movimentacao=travada, posicao=posicao).first()
+        substituiu = foto is not None and bool(foto.arquivo)
         if foto is None:
             # O caminho do arquivo leva o id: a linha nasce antes (ADR 0009).
             foto = FotoChegadaMovimentacao.objects.create(movimentacao=travada, posicao=posicao)
         foto.por = usuario
         foto.arquivo.save(limpa.name, limpa, save=False)
         foto.save(update_fields=["por", "arquivo", "atualizado_em"])
+        registrar_evento(
+            "movimentacao.foto_chegada",
+            CategoriaAuditoria.OPERACAO,
+            objeto=travada,
+            depois={"posicao": posicao, "foto_id": foto.pk, "substituiu": substituiu},
+            regra="MOV-05",
+        )
     return foto
 
 

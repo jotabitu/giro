@@ -29,7 +29,7 @@ from apps.filiais.models import Filial
 from apps.filiais.selectors import gerentes
 from apps.notificacoes.services import avisar
 from apps.plataforma.models import ContaPagamento, StatusContaPagamento
-from comum import aprovacoes, estados, relogio
+from comum import aprovacoes, arquivos, estados, relogio
 from comum.auditoria import Categoria, TipoAtor, ator_atual, auditar, registrar_evento
 from comum.dinheiro import formatar_reais
 from comum.empresa import nome_da_empresa
@@ -1576,6 +1576,7 @@ def lancar_despesa(
         with auditar(despesa, "despesa.lancar", Categoria.FINANCEIRO, regra="FIN-05"):
             despesa.save()
             if nota is not None:
+                nota = arquivos.nota_limpa(nota)
                 despesa.nota.save(nota.name, nota, save=False)
                 despesa.save(update_fields=["nota"])
         if pago_no_caixa:
@@ -1656,6 +1657,7 @@ def anexar_nota(despesa: Despesa, nota: Any) -> Despesa:
         if travada.nota:
             raise Conflito("nota_existente", "Esta despesa já tem a nota.")
         with auditar(travada, "despesa.anexar_nota", Categoria.FINANCEIRO, regra="FIN-06"):
+            nota = arquivos.nota_limpa(nota)
             travada.nota.save(nota.name, nota, save=False)
             travada.save(update_fields=["nota", "atualizado_em"])
     return travada

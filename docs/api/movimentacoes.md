@@ -137,6 +137,7 @@ Saída da parada, com o valor pago ("confira com o recibo", `MOV-04`): `no_local
 
 ### POST /api/movimentacoes/{id}/chegada/fotos/
 Vistoria rápida (`MOV-05`). `multipart/form-data`: `posicao` (`frente`, `traseira`, `lado_esquerdo`, `lado_direito`) e `arquivo` (JPG ou PNG até 10 MB; reprocessada, sem metadados de localização, ADR 0028). Só com `vistoria_rapida`, em `em_transito`, com a `proxima_etapa` = `destino`. Nova foto da mesma posição substitui a anterior. 201: `{ "posicao", "url", "url_expira_em" }`. As fotos vão uma por vez porque o proxy aceita até 12 MB por corpo.
+- Quem não registra a chegada recebe 403 antes de o arquivo ser lido. Cada envio grava o evento `movimentacao.foto_chegada` (regra `MOV-05`), na movimentação, com `depois: { "posicao", "foto_id", "substituiu" }`, sem URL: a troca da foto fica na auditoria (B-01 da T-315, T-316).
 
 ### POST /api/movimentacoes/{id}/chegada/
 "Confirmar chegada" (`Movimentacao-Chegada-Mobile`): `em_transito` → `concluida`. Corpo `{ "km": 3146, "combustivel": "cheio", "recebido_por_id": 9 }`. Só com a `proxima_etapa` = `destino` (paradas todas saídas; senão 409 `parada_fora_de_ordem`).
