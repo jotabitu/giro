@@ -25,7 +25,6 @@ test("locação completa no celular: Bruna na frente, João nas vistorias", asyn
   const bruna = await novaSessao(browser, info);
   const joao = await novaSessao(browser, info);
   const hora = horaDeAgora();
-  joao.vigia.conhecer(403, /\/api\/clientes\/\d+\//, "D-05", "o vistoriador toma 403 ao abrir o cliente na vistoria (USR-09 pede nome, celular e retirada liberada)");
 
   await entrar(bruna.page, "bruna");
   await entrar(joao.page, "joao");
@@ -46,6 +45,7 @@ test("locação completa no celular: Bruna na frente, João nas vistorias", asyn
   await test.step("João vê só o menu dele e faz a vistoria de saída pela agenda, sem valores", async () => {
     await menuDoVistoriador(joao.page);
     await abrirPelaAgenda(joao.page, "vistoria", locacao.id);
+    joao.vigia.esperar(422, /\/api\/vistorias\/\d+\/concluir\//); // km menor que o do veículo (VEI-01)
     await vistoriaDeSaida(joao.page, locacao.id, { verValores: false });
     await semRolagemLateral(joao.page, "vistoria de saída");
   });

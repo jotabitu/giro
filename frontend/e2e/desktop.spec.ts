@@ -59,6 +59,7 @@ test("locação completa no desktop: login, cliente, locação, vistoria, assina
   expect(locacao.codigo).toBe("LOC-2866");
 
   await test.step("CA-025-04 · Passo 2: vistoria de saída", async () => {
+    vigia.esperar(422, /\/api\/vistorias\/\d+\/concluir\//); // km menor que o do veículo (VEI-01)
     await vistoriaDeSaida(page, locacao.id, { verValores: true });
     vigia.esperar(409, /\/api\/locacoes\/\d+\/vistorias\//);
     await vistoriaFechadaParaEdicao(page, locacao.id);
