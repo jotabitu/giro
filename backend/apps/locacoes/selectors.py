@@ -738,3 +738,9 @@ def representacao_plano(plano: PlanoEspecial) -> dict[str, Any]:
         "locacoes_ativas": Locacao.objects.filter(plano_especial=plano, status__in=ABERTAS).count(),
         "ativo": plano.ativo,
     }
+
+
+def locacao_aberta(veiculo: Any) -> Locacao | None:
+    """A locação `aguardando_retirada`, `ativa` ou `devolucao_atrasada` do veículo (no máximo
+    uma, LOC-03). Lida pela movimentação ao criar e ao iniciar (MOV-03, ADR 0028)."""
+    return Locacao.objects.filter(veiculo=veiculo, status__in=ABERTAS).order_by("-id").first()

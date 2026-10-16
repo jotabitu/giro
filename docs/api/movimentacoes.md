@@ -111,6 +111,7 @@ Regras: MOV-01 a MOV-03, MOV-06, VEI-04.
 
 ### PATCH /api/movimentacoes/{id}/
 Reagendar ou mudar a agendada (CA-246-05). Só `agendada`: mesmo corpo, menos `veiculo_id` e `sair_agora`. 200. Fora de `agendada`, 409 `transicao_movimentacao`.
+- `paradas` no corpo troca a lista inteira: as paradas da agendada são o plano da rota, sem chegada, saída, valor pago nem despesa, e são substituídas pelas novas (T-314). O que se planejou antes não se perde: o evento `movimentacao.editar` leva no antes e no depois a lista `paradas` (`local_id`, `servico`, `categoria`, `valor_previsto_centavos`, na ordem), além dos campos da movimentação. Depois de iniciada, nenhuma parada é apagada nem trocada.
 
 ### POST /api/movimentacoes/{id}/iniciar/
 `agendada` → `em_transito`. Corpo `{}`. Numa transação, com a linha do veículo travada (ADR 0028):
@@ -177,7 +178,7 @@ Sem rota aqui: o cancelamento vem de `POST /api/veiculos/{id}/baixar/` (`veiculo
 - as paradas não mudam: as despesas já lançadas na saída (`MOV-04`) ficam como estão, em qualquer status (`a_pagar`, `aguardando_aprovacao`, paga), e a parada em que o veículo estava (`no_local`) fica sem `saiu_em` e sem despesa;
 - na transferência, a `MOV-06` não acontece: sem `veiculos.services.transferir` e sem `TransferenciaVeiculo`. O veículo `baixado` fica na filial de saída (CA-246-23);
 - as fotos da chegada já enviadas ficam guardadas na movimentação; `chegada` continua `null`;
-- auditoria: `veiculo.baixar` (como hoje) e `movimentacao.cancelar` com o mesmo ator (o administrador), `detalhes: { "origem": "baixa_veiculo", "de": "em_transito", "motivo": "Veículo baixado: roubo" }`.
+- auditoria: `veiculo.baixar` (como hoje) e `movimentacao.cancelar` com o mesmo ator (o administrador), o motivo "Veículo baixado: roubo" e a regra `MOV-03`. O antes e o depois mostram o status de onde saiu (`em_transito`) e o `motivo_cancelamento`. O motivo já distingue o cancelamento da baixa do cancelamento pela tela, e por isso não há campo `origem` (T-314; o evento de auditoria não tem `detalhes` livres).
 - Quem leva perde o item Movimentações do menu se não tiver outra aberta (`MOV-02`, CA-246-22).
 
 Como os apps conversam (ADR 0011: `veiculos` não importa `movimentacoes`): `veiculos.services.baixar` publica o evento síncrono `veiculos.veiculo_baixado(veiculo_id, motivo_texto)` dentro da transação, e o assinante em `movimentacoes/eventos.py` chama `movimentacoes.services.cancelar_pela_baixa`, que trava a movimentação aberta e a cancela. Erro no assinante desfaz a baixa inteira. A ordem das travas é a de sempre (veículo, depois a movimentação), a mesma de Iniciar e da chegada, e por isso não há impasse. Sem o app instalado, ninguém assina e nada muda.

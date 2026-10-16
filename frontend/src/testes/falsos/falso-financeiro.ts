@@ -124,7 +124,9 @@ const CONTAS: ContaReceber[] = [
 // Despesas de outubro do seed (regras, "Despesas de outubro"): 6 lançamentos, R$ 7.066,70; aguardando aprovação R$ 1.200,00 (só os pneus).
 const LUCIA = { id: 7, nome: "Lúcia Freitas" };
 function despesa(p: Pick<Despesa, "id" | "data" | "descricao" | "categoria" | "valor_centavos" | "vencimento" | "status" | "rotulo_situacao" | "lancada_por"> & Partial<Despesa>): Despesa {
-  return { veiculo: null, filial: { id: 1, nome: "Filial Centro" }, pago_em: null, forma: null, nota: null, pedido_aprovacao_id: null, ...p };
+  const base = { veiculo: null, filial: { id: 1, nome: "Filial Centro" }, pago_em: null, forma: null, nota: null, origem: null, pedido_aprovacao_id: null, ...p };
+  // `sem_nota` vem da API (MOV-04, T-288): aqui, só quando o falso não traz a nota.
+  return { ...base, sem_nota: p.sem_nota ?? base.nota === null };
 }
 const DESPESAS: Despesa[] = [
   despesa({ id: 801, data: "2026-10-07", descricao: "Pneus (2 unidades)", categoria: "manutencao", veiculo: { id: 88, placa: "PMZ3E17" }, valor_centavos: 120000, vencimento: "2026-10-07", status: "aguardando_aprovacao", rotulo_situacao: "Aguardando gerente", lancada_por: { id: 5, nome: "João Silva" }, pedido_aprovacao_id: 91, nota: { url: "/notas/801.jpg", url_expira_em: "2026-10-07T13:15:00Z" } }),

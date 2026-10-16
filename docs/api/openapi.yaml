@@ -3035,6 +3035,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/Despesa'
           description: ''
+  /api/financeiro/despesas/{id}/nota/:
+    post:
+      operationId: financeiro_despesas_nota_create
+      description: |-
+        A nota que faltou na despesa da parada (MOV-04, CA-246-14): quem lança todas as
+        categorias (`despesas_lancar = todas`).
+      summary: Anexar a nota à despesa sem nota (MOV-04, FIN-06)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AnexarNota'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Despesa'
+          description: ''
   /api/financeiro/despesas/{id}/pagar/:
     post:
       operationId: financeiro_despesas_pagar_create
@@ -3972,6 +4002,467 @@ paths:
           description: ''
         '404':
           description: Sem logo (`nao_encontrado`)
+  /api/movimentacoes/:
+    get:
+      operationId: movimentacoes_list
+      summary: Movimentações
+      parameters:
+      - in: query
+        name: busca
+        schema:
+          type: string
+        description: código ou placa
+      - in: query
+        name: filial
+        schema:
+          type: integer
+      - in: query
+        name: levando
+        schema:
+          type: string
+          enum:
+          - eu
+      - in: query
+        name: periodo_fim
+        schema:
+          type: string
+        description: '2026-10-31'
+      - in: query
+        name: periodo_inicio
+        schema:
+          type: string
+        description: '2026-10-01'
+      - in: query
+        name: status
+        schema:
+          type: string
+        description: vários, separados por vírgula
+      - in: query
+        name: veiculo
+        schema:
+          type: integer
+      tags:
+      - movimentacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Lista'
+          description: ''
+    post:
+      operationId: movimentacoes_create
+      summary: Nova movimentação (MOV-01 a MOV-03, MOV-06, VEI-04)
+      tags:
+      - movimentacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NovaMovimentacao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NovaMovimentacao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NovaMovimentacao'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movimentacao'
+          description: ''
+  /api/movimentacoes/{id}/:
+    get:
+      operationId: movimentacoes_retrieve
+      summary: Movimentação
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - movimentacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movimentacao'
+          description: ''
+    patch:
+      operationId: movimentacoes_partial_update
+      summary: Reagendar ou mudar a agendada (CA-246-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - movimentacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEdicao'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEdicao'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEdicao'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movimentacao'
+          description: ''
+  /api/movimentacoes/{id}/cancelar/:
+    post:
+      operationId: movimentacoes_cancelar_create
+      summary: Cancelar a agendada
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - movimentacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Cancelar'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Cancelar'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Cancelar'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movimentacao'
+          description: ''
+  /api/movimentacoes/{id}/chegada/:
+    post:
+      operationId: movimentacoes_chegada_create
+      summary: Confirmar chegada no destino (MOV-05, MOV-06, VEI-01 a VEI-04)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - movimentacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChegadaEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ChegadaEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ChegadaEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movimentacao'
+          description: ''
+  /api/movimentacoes/{id}/chegada/fotos/:
+    post:
+      operationId: movimentacoes_chegada_fotos_create
+      summary: Foto da vistoria rápida (MOV-05, AUD-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - movimentacoes
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FotoEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Foto'
+          description: ''
+  /api/movimentacoes/{id}/iniciar/:
+    post:
+      operationId: movimentacoes_iniciar_create
+      summary: Iniciar (MOV-03)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - movimentacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movimentacao'
+          description: ''
+  /api/movimentacoes/{id}/paradas/{parada_id}/chegada/:
+    post:
+      operationId: movimentacoes_paradas_chegada_create
+      summary: Cheguei na parada (MOV-04)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: parada_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - movimentacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movimentacao'
+          description: ''
+  /api/movimentacoes/{id}/paradas/{parada_id}/saida/:
+    post:
+      operationId: movimentacoes_paradas_saida_create
+      summary: Saída da parada, com o valor pago (MOV-04, FIN-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: parada_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - movimentacoes
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SaidaDaParada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Movimentacao'
+          description: ''
+  /api/movimentacoes/{id}/recebedores/:
+    get:
+      operationId: movimentacoes_recebedores_retrieve
+      description: 'Quem pode receber na chegada (MOV-06, T-300): da filial de destino,
+        sem o financeiro.'
+      summary: Quem pode receber (MOV-06)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - movimentacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pessoas'
+          description: ''
+  /api/movimentacoes/locais/:
+    get:
+      operationId: movimentacoes_locais_retrieve
+      summary: Locais de apoio (MOV-01)
+      parameters:
+      - in: query
+        name: ativo
+        schema:
+          type: boolean
+      - in: query
+        name: busca
+        schema:
+          type: string
+      - in: query
+        name: tipo
+        schema:
+          type: string
+      tags:
+      - movimentacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeLocais'
+          description: ''
+    post:
+      operationId: movimentacoes_locais_create
+      summary: Novo local de apoio (MOV-01, CA-246-15)
+      tags:
+      - movimentacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NovoLocal'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/NovoLocal'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/NovoLocal'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Local'
+          description: ''
+  /api/movimentacoes/locais/{id}/inativar/:
+    post:
+      operationId: movimentacoes_locais_inativar_create
+      summary: Inativar local de apoio
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - movimentacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Local'
+          description: ''
+  /api/movimentacoes/locais/{id}/reativar/:
+    post:
+      operationId: movimentacoes_locais_reativar_create
+      summary: Reativar local de apoio
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - movimentacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Local'
+          description: ''
+  /api/movimentacoes/pessoas/:
+    get:
+      operationId: movimentacoes_pessoas_retrieve
+      description: 'Quem pode levar (MOV-02, T-300): administrador e gerente da filial.'
+      summary: Quem pode levar (MOV-02)
+      parameters:
+      - in: query
+        name: filial
+        schema:
+          type: integer
+        required: true
+      tags:
+      - movimentacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pessoas'
+          description: ''
+  /api/movimentacoes/quadro/:
+    get:
+      operationId: movimentacoes_quadro_retrieve
+      summary: Quadro das movimentações (MOV-01 a MOV-06)
+      parameters:
+      - in: query
+        name: filial
+        schema:
+          type: integer
+      tags:
+      - movimentacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quadro'
+          description: ''
   /api/painel/contadores/:
     get:
       operationId: painel_contadores_retrieve
@@ -5025,6 +5516,14 @@ paths:
         schema:
           type: integer
       - in: query
+        name: em_movimentacao
+        schema:
+          type: boolean
+      - in: query
+        name: movimentavel
+        schema:
+          type: boolean
+      - in: query
         name: ordem
         schema:
           type: string
@@ -5986,19 +6485,25 @@ components:
     Acoes:
       type: object
       properties:
-        entrar_como_suporte:
+        editar:
           type: boolean
-        estender_teste:
+        iniciar:
           type: boolean
-        mudar_plano:
+        cancelar:
           type: boolean
-        suspender:
+        chegar_parada:
+          type: boolean
+        sair_parada:
+          type: boolean
+        registrar_chegada:
           type: boolean
       required:
-      - entrar_como_suporte
-      - estender_teste
-      - mudar_plano
-      - suspender
+      - cancelar
+      - chegar_parada
+      - editar
+      - iniciar
+      - registrar_chegada
+      - sair_parada
     AcoesDaAssinatura:
       type: object
       properties:
@@ -6101,13 +6606,24 @@ components:
           type: boolean
         corrigir_km:
           type: boolean
+        movimentar:
+          type: boolean
+        motivo_movimentar:
+          type: string
+          nullable: true
+        aviso_baixar:
+          type: string
+          nullable: true
       required:
+      - aviso_baixar
       - baixar
       - bloquear
       - colocar_a_venda
       - corrigir_km
       - desbloquear
       - editar
+      - motivo_movimentar
+      - movimentar
       - registrar_km
       - transferir
       - voltar_para_frota
@@ -6212,6 +6728,14 @@ components:
             $ref: '#/components/schemas/ItemAnaliseCliente'
       required:
       - itens
+    AnexarNota:
+      type: object
+      properties:
+        nota:
+          type: string
+          format: uri
+      required:
+      - nota
     AprovacoesDoInicio:
       type: object
       properties:
@@ -6634,6 +7158,14 @@ components:
           $ref: '#/components/schemas/PedidoAprovacaoRef'
       required:
       - pedido_aprovacao
+    Cancelar:
+      type: object
+      properties:
+        motivo:
+          type: string
+          maxLength: 200
+      required:
+      - motivo
     CancelarLocacao:
       type: object
       properties:
@@ -6847,6 +7379,45 @@ components:
       - cidade
       - logradouro
       - uf
+    Chegada:
+      type: object
+      properties:
+        km:
+          type: integer
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        recebido_por:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          nullable: true
+        fotos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Foto'
+      required:
+      - combustivel
+      - fotos
+      - km
+      - recebido_por
+    ChegadaEntrada:
+      type: object
+      properties:
+        km:
+          type: integer
+          minimum: 0
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        recebido_por_id:
+          type: integer
+          nullable: true
+      required:
+      - km
     CicloEnum:
       enum:
       - mensal
@@ -7346,6 +7917,36 @@ components:
           nullable: true
       required:
       - valor_venda_centavos
+    Coluna:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/ColunaStatusEnum'
+        rotulo:
+          type: string
+        total:
+          type: integer
+        itens:
+          type: array
+          items:
+            $ref: '#/components/schemas/Linha'
+      required:
+      - itens
+      - rotulo
+      - status
+      - total
+    ColunaStatusEnum:
+      enum:
+      - agendada
+      - em_transito
+      - no_local
+      - concluida
+      type: string
+      description: |-
+        * `agendada` - agendada
+        * `em_transito` - em_transito
+        * `no_local` - no_local
+        * `concluida` - concluida
     CombustivelComparado:
       type: object
       properties:
@@ -7813,6 +8414,8 @@ components:
           type: integer
         indisponivel:
           type: integer
+        em_movimentacao:
+          type: integer
         motos:
           type: integer
         carros:
@@ -7823,6 +8426,7 @@ components:
       - carros
       - disponivel
       - em_manutencao
+      - em_movimentacao
       - indisponivel
       - motos
       - reservado
@@ -8251,6 +8855,12 @@ components:
           allOf:
           - $ref: '#/components/schemas/Nota'
           nullable: true
+        sem_nota:
+          type: boolean
+        origem:
+          allOf:
+          - $ref: '#/components/schemas/OrigemDaDespesa'
+          nullable: true
         pedido_aprovacao_id:
           type: integer
           nullable: true
@@ -8265,13 +8875,28 @@ components:
       - id
       - lancada_por
       - nota
+      - origem
       - pago_em
       - pedido_aprovacao_id
       - rotulo_situacao
+      - sem_nota
       - status
       - valor_centavos
       - veiculo
       - vencimento
+    DespesaDaParada:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+        sem_nota:
+          type: boolean
+      required:
+      - id
+      - sem_nota
+      - status
     DespesaEntrada:
       type: object
       properties:
@@ -9914,7 +10539,7 @@ components:
         id:
           type: integer
         posicao:
-          $ref: '#/components/schemas/PosicaoEnum'
+          $ref: '#/components/schemas/FotoPosicaoEnum'
         tirada_em:
           type: string
           format: date-time
@@ -9950,13 +10575,41 @@ components:
       type: object
       properties:
         posicao:
-          $ref: '#/components/schemas/PosicaoEnum'
+          $ref: '#/components/schemas/FotoEntradaPosicaoEnum'
         arquivo:
           type: string
           format: uri
       required:
       - arquivo
       - posicao
+    FotoEntradaPosicaoEnum:
+      enum:
+      - frente
+      - traseira
+      - lado_esquerdo
+      - lado_direito
+      type: string
+      description: |-
+        * `frente` - Frente
+        * `traseira` - Traseira
+        * `lado_esquerdo` - Lado esquerdo
+        * `lado_direito` - Lado direito
+    FotoPosicaoEnum:
+      enum:
+      - frente
+      - traseira
+      - lado_esquerdo
+      - lado_direito
+      - painel
+      - avaria
+      type: string
+      description: |-
+        * `frente` - Frente
+        * `traseira` - Traseira
+        * `lado_esquerdo` - Lado esquerdo
+        * `lado_direito` - Lado direito
+        * `painel` - Painel
+        * `avaria` - Avaria
     FotosObrigatorias:
       type: object
       properties:
@@ -11087,6 +11740,23 @@ components:
       - expira_em
       - link
       - usuario
+    Lista:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Linha'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - proximo
+      - resultados
     ListaDeAvarias:
       type: object
       properties:
@@ -11368,6 +12038,15 @@ components:
       - contagens
       - indicadores
       - proximo
+      - resultados
+    ListaDeLocais:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Local'
+      required:
       - resultados
     ListaDeMarcadores:
       type: object
@@ -11803,6 +12482,22 @@ components:
       - codigo
       - locacao_id
       - situacao
+    Local:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        tipo:
+          $ref: '#/components/schemas/TipoA50Enum'
+        ativo:
+          type: boolean
+      required:
+      - ativo
+      - id
+      - nome
+      - tipo
     LogoDaMarca:
       type: object
       properties:
@@ -12101,6 +12796,154 @@ components:
         motivo:
           type: string
           maxLength: 500
+    Movimentacao:
+      type: object
+      properties:
+        id:
+          type: integer
+        codigo:
+          type: string
+        status:
+          $ref: '#/components/schemas/MovimentacaoStatusEnum'
+        veiculo:
+          $ref: '#/components/schemas/VeiculoRef'
+        filial_saida:
+          $ref: '#/components/schemas/Ref'
+        destino:
+          $ref: '#/components/schemas/Ref'
+        transferencia:
+          type: boolean
+        categoria_destino:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
+          nullable: true
+        rota:
+          type: string
+        levado_por:
+          $ref: '#/components/schemas/Ref'
+        agendada_para:
+          type: string
+          format: date-time
+          nullable: true
+        iniciada_em:
+          type: string
+          format: date-time
+          nullable: true
+        concluida_em:
+          type: string
+          format: date-time
+          nullable: true
+        duracao_minutos:
+          type: integer
+          nullable: true
+        vistoria_rapida:
+          type: boolean
+        km_saida:
+          type: integer
+          nullable: true
+        cancelada_em:
+          type: string
+          format: date-time
+          nullable: true
+        motivo_cancelamento:
+          type: string
+          nullable: true
+        proxima_etapa:
+          type: string
+          nullable: true
+        custo_centavos:
+          type: integer
+        acoes:
+          $ref: '#/components/schemas/Acoes'
+        paradas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Parada'
+        fotos_chegada:
+          type: array
+          items:
+            $ref: '#/components/schemas/Foto'
+        chegada:
+          allOf:
+          - $ref: '#/components/schemas/Chegada'
+          nullable: true
+      required:
+      - acoes
+      - agendada_para
+      - cancelada_em
+      - categoria_destino
+      - chegada
+      - codigo
+      - concluida_em
+      - destino
+      - duracao_minutos
+      - filial_saida
+      - fotos_chegada
+      - id
+      - iniciada_em
+      - km_saida
+      - levado_por
+      - motivo_cancelamento
+      - paradas
+      - proxima_etapa
+      - rota
+      - status
+      - transferencia
+      - veiculo
+      - vistoria_rapida
+    MovimentacaoAberta:
+      type: object
+      properties:
+        id:
+          type: integer
+        codigo:
+          type: string
+        status:
+          $ref: '#/components/schemas/MovimentacaoAbertaStatusEnum'
+        rotulo:
+          type: string
+        tom:
+          type: string
+      required:
+      - codigo
+      - id
+      - rotulo
+      - status
+      - tom
+    MovimentacaoAbertaStatusEnum:
+      enum:
+      - agendada
+      - em_transito
+      - no_local
+      type: string
+      description: |-
+        * `agendada` - agendada
+        * `em_transito` - em_transito
+        * `no_local` - no_local
+    MovimentacaoStatusEnum:
+      enum:
+      - agendada
+      - em_transito
+      - no_local
+      - concluida
+      - cancelada
+      type: string
+      description: |-
+        * `agendada` - Agendada
+        * `em_transito` - Em trânsito
+        * `no_local` - No local de apoio
+        * `concluida` - Concluída
+        * `cancelada` - Cancelada
+    MovimentacoesEnum:
+      enum:
+      - gerir
+      - levar
+      - nao
+      type: string
+      description: |-
+        * `gerir` - gerir
+        * `levar` - levar
+        * `nao` - nao
     Movimento:
       type: object
       properties:
@@ -12264,6 +13107,67 @@ components:
         * `processando` - Processando
         * `emitida` - Emitida
         * `erro` - Erro
+    NovaMovimentacao:
+      type: object
+      properties:
+        paradas:
+          type: array
+          items:
+            $ref: '#/components/schemas/NovaParada'
+        destino_filial_id:
+          type: integer
+        categoria_destino_id:
+          type: integer
+          nullable: true
+        levado_por_id:
+          type: integer
+        agendada_para:
+          type: string
+          format: date-time
+          nullable: true
+        vistoria_rapida:
+          type: boolean
+          default: false
+        veiculo_id:
+          type: integer
+        sair_agora:
+          type: boolean
+          default: false
+      required:
+      - destino_filial_id
+      - levado_por_id
+      - veiculo_id
+    NovaParada:
+      type: object
+      properties:
+        local_id:
+          type: integer
+        servico:
+          type: string
+          maxLength: 80
+        valor_previsto_centavos:
+          type: integer
+          minimum: 0
+          default: 0
+        categoria:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CategoriaDespesaEnum'
+          - $ref: '#/components/schemas/NullEnum'
+      required:
+      - local_id
+      - servico
+    NovoLocal:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 80
+        tipo:
+          $ref: '#/components/schemas/TipoA50Enum'
+      required:
+      - nome
+      - tipo
     NovoPreco:
       type: object
       properties:
@@ -12367,6 +13271,21 @@ components:
       - id
       - tipo
     OrigemDaConta:
+      type: object
+      properties:
+        tipo:
+          type: string
+        id:
+          type: integer
+          nullable: true
+        codigo:
+          type: string
+          nullable: true
+      required:
+      - codigo
+      - id
+      - tipo
+    OrigemDaDespesa:
       type: object
       properties:
         tipo:
@@ -12486,6 +13405,45 @@ components:
       - destino
       - texto
       - tipo
+    Parada:
+      type: object
+      properties:
+        id:
+          type: integer
+        ordem:
+          type: integer
+        local:
+          $ref: '#/components/schemas/Local'
+        servico:
+          type: string
+        categoria:
+          $ref: '#/components/schemas/CategoriaDespesaEnum'
+        valor_previsto_centavos:
+          type: integer
+        chegou_em:
+          type: string
+          format: date-time
+          nullable: true
+        saiu_em:
+          type: string
+          format: date-time
+          nullable: true
+        valor_pago_centavos:
+          type: integer
+          nullable: true
+        despesa:
+          allOf:
+          - $ref: '#/components/schemas/DespesaDaParada'
+          nullable: true
+      required:
+      - categoria
+      - chegou_em
+      - despesa
+      - id
+      - local
+      - ordem
+      - saiu_em
+      - servico
     ParcelaAtrasada:
       type: object
       properties:
@@ -12686,6 +13644,27 @@ components:
             type: string
             nullable: true
           description: Só os campos corrigidos, com os nomes das colunas da planilha.
+    PatchedEdicao:
+      type: object
+      properties:
+        paradas:
+          type: array
+          items:
+            $ref: '#/components/schemas/NovaParada'
+        destino_filial_id:
+          type: integer
+        categoria_destino_id:
+          type: integer
+          nullable: true
+        levado_por_id:
+          type: integer
+        agendada_para:
+          type: string
+          format: date-time
+          nullable: true
+        vistoria_rapida:
+          type: boolean
+          default: false
     PatchedEditarEu:
       type: object
       properties:
@@ -13228,6 +14207,25 @@ components:
       description: |-
         * `ver` - Só ver
         * `ver_editar` - Ver e editar
+    Pessoa:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        perfil:
+          type: string
+        perfil_rotulo:
+          type: string
+        eu:
+          type: boolean
+      required:
+      - eu
+      - id
+      - nome
+      - perfil
+      - perfil_rotulo
     PessoaDaAuditoria:
       type: object
       properties:
@@ -13261,6 +14259,15 @@ components:
       - perfil
       - resumo
       - usuario_id
+    Pessoas:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pessoa'
+      required:
+      - resultados
     Plano:
       type: object
       properties:
@@ -13630,6 +14637,8 @@ components:
           type: boolean
         os_abrir:
           type: boolean
+        movimentacoes:
+          $ref: '#/components/schemas/MovimentacoesEnum'
         administracao:
           type: boolean
       required:
@@ -13645,6 +14654,7 @@ components:
       - lancamento_avulso
       - locacoes_cancelar
       - locacoes_criar
+      - movimentacoes
       - os_abrir
       - painel
       - veiculos
@@ -13690,22 +14700,6 @@ components:
       - cartao
       - dinheiro
       - pix
-    PosicaoEnum:
-      enum:
-      - frente
-      - traseira
-      - lado_esquerdo
-      - lado_direito
-      - painel
-      - avaria
-      type: string
-      description: |-
-        * `frente` - Frente
-        * `traseira` - Traseira
-        * `lado_esquerdo` - Lado esquerdo
-        * `lado_direito` - Lado direito
-        * `painel` - Painel
-        * `avaria` - Avaria
     Preco:
       type: object
       properties:
@@ -13979,6 +14973,15 @@ components:
       description: |-
         * `autorizar_pix` - autorizar_pix
         * `pagina_parceiro` - pagina_parceiro
+    Quadro:
+      type: object
+      properties:
+        colunas:
+          type: array
+          items:
+            $ref: '#/components/schemas/Coluna'
+      required:
+      - colunas
     Receber:
       type: object
       properties:
@@ -14332,6 +15335,18 @@ components:
       - inicio
       - km_livre
       - periodicidade
+    SaidaDaParada:
+      type: object
+      properties:
+        valor_pago_centavos:
+          type: integer
+          minimum: 0
+        nota:
+          type: string
+          format: uri
+          nullable: true
+      required:
+      - valor_pago_centavos
     Sangria:
       type: object
       properties:
@@ -14799,6 +15814,7 @@ components:
       - a_venda
       - vendido
       - baixado
+      - em_movimentacao
       type: string
       description: |-
         * `disponivel` - Disponível
@@ -14809,6 +15825,7 @@ components:
         * `a_venda` - À venda
         * `vendido` - Vendido
         * `baixado` - Baixado
+        * `em_movimentacao` - Em movimentação
     Sugestao:
       type: object
       properties:
@@ -14935,6 +15952,18 @@ components:
       - dias_restantes
       - fim
       - texto
+    TipoA50Enum:
+      enum:
+      - lava_jato
+      - oficina
+      - despachante
+      - outro
+      type: string
+      description: |-
+        * `lava_jato` - Lava-jato
+        * `oficina` - Oficina
+        * `despachante` - Despachante
+        * `outro` - Outro
     TipoAtorEnum:
       enum:
       - usuario
@@ -15551,6 +16580,10 @@ components:
           nullable: true
         documentos_resumo:
           nullable: true
+        movimentacao_aberta:
+          allOf:
+          - $ref: '#/components/schemas/MovimentacaoAberta'
+          nullable: true
         acoes:
           $ref: '#/components/schemas/AcoesDoVeiculo'
       required:
@@ -15572,6 +16605,7 @@ components:
       - marca
       - modelo
       - motivo_status
+      - movimentacao_aberta
       - placa
       - renavam
       - situacao
@@ -15693,9 +16727,15 @@ components:
           nullable: true
         documentos_resumo:
           nullable: true
+        movimentacao_aberta:
+          allOf:
+          - $ref: '#/components/schemas/MovimentacaoAberta'
+          nullable: true
         acoes:
           $ref: '#/components/schemas/AcoesDoVeiculo'
         indicadores_financeiros:
+          nullable: true
+        movimentacoes:
           nullable: true
         ocupacao:
           $ref: '#/components/schemas/Ocupacao'
@@ -15723,6 +16763,7 @@ components:
       - marca
       - modelo
       - motivo_status
+      - movimentacao_aberta
       - ocupacao
       - placa
       - renavam
