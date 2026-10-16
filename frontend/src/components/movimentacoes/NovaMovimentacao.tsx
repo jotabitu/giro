@@ -137,6 +137,7 @@ export function NovaMovimentacao() {
   // "Movimentar" e "Transferir" da ficha chegam com ?veiculo= e, na transferência, &destino=.
   const veiculoDaUrl = Number(params.get("veiculo")) || null;
   const destinoDaUrl = params.get("destino");
+  const transferirDaUrl = params.get("transferir") === "1";
   const daUrl = useQuery({ queryKey: ["veiculos", "detalhe", veiculoDaUrl], queryFn: () => veiculos.obter(veiculoDaUrl ?? 0), enabled: veiculoDaUrl !== null });
   useEffect(() => {
     if (daUrl.data && !veiculo) {
@@ -149,6 +150,11 @@ export function NovaMovimentacao() {
   const filialDeSaida = veiculo?.filial.id;
   const locais = useQuery({ queryKey: ["movimentacoes", "locais"], queryFn: () => movimentacoes.locais() });
   const minhas = useQuery({ queryKey: ["filiais-minhas"], queryFn: () => filiais.minhas(), staleTime: 5 * 60_000 });
+  // "Transferir" da ficha: já escolhe a primeira outra filial da pessoa como destino; ela pode trocar (MOV-06, CA-246-16).
+  const outraFilial = transferirDaUrl && !destinoDaUrl ? minhas.data?.resultados.find((f) => f.id !== filialDeSaida) : undefined;
+  useEffect(() => {
+    if (outraFilial && !v.destino_filial_id) setValue("destino_filial_id", String(outraFilial.id));
+  }, [outraFilial, v.destino_filial_id, setValue]);
   const quemLeva = useQuery({ queryKey: ["movimentacoes", "levam", filialDeSaida], queryFn: async () => (await movimentacoes.pessoas(filialDeSaida ?? 0)).resultados, enabled: filialDeSaida !== undefined });
   const transferencia = veiculo !== null && v.destino_filial_id !== "" && Number(v.destino_filial_id) !== filialDeSaida;
   const categoriasDoDestino = useQuery({

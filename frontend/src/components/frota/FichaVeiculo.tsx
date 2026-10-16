@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { ChevronLeft, Ellipsis, Tag, Truck, Wrench } from "lucide-react";
+import { ArrowLeftRight, ChevronLeft, Ellipsis, Tag, Truck, Wrench } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Button, DataTable, Icone, KpiGrid, KpiTile, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
@@ -135,10 +135,24 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
             <Link href={`/veiculos/${v.id}/editar`} className="wl-btn">
               Editar
             </Link>
-            {(v.acoes.movimentar || v.acoes.motivo_movimentar) && (
-              <Button disabled title={v.acoes.movimentar ? EM_BREVE : (v.acoes.motivo_movimentar ?? EM_BREVE)} icone={<Icone de={Truck} />}>
+            {v.acoes.movimentar ? (
+              <Link href={`/veiculos/movimentacoes/nova?veiculo=${v.id}`} className="wl-btn">
+                <Icone de={Truck} />
                 Movimentar
-              </Button>
+              </Link>
+            ) : (
+              v.acoes.motivo_movimentar && (
+                <Button disabled title={v.acoes.motivo_movimentar} icone={<Icone de={Truck} />}>
+                  Movimentar
+                </Button>
+              )
+            )}
+            {/* `acoes.transferir` abre a Nova movimentação com o destino em outra filial e a vistoria rápida marcada (MOV-06, CA-246-16). */}
+            {v.acoes.transferir && (
+              <Link href={`/veiculos/movimentacoes/nova?veiculo=${v.id}&transferir=1`} className="wl-btn">
+                <Icone de={ArrowLeftRight} />
+                Transferir
+              </Link>
             )}
             <Button disabled title={EM_BREVE} icone={<Icone de={Wrench} />}>
               Mandar para oficina
