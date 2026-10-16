@@ -139,6 +139,21 @@ def test_fin_16_busca_descricao_e_placa(cenario, outubro):  # noqa: F811
     assert _lista(cenario, busca="x" * 60).status_code == 200
 
 
+# --- Filial na despesa ligada a veículo (FIN-06, FIL-05, T-245) ---
+
+
+def test_fin_06_fil_05_filial_da_despesa_ligada_a_veiculo(cenario, outubro):  # noqa: F811
+    # A filial vem da API com id e nome, como em contas e caixa, na lista e no detalhe.
+    filial = {"id": outubro["centro"], "nome": "Filial Centro"}
+    pmz = cenario.frota.veiculos["PMZ3E17"].pk
+    lista = _lista(cenario, veiculo=str(pmz)).json()["resultados"]
+    assert [(d["veiculo"]["placa"], d["filial"]) for d in lista] == [("PMZ3E17", filial)]
+    detalhe = cenario.moto.api("Lúcia").get(f"{DESPESAS}{outubro['pneus']}/")
+    assert detalhe.status_code == 200
+    assert detalhe.json()["filial"] == filial
+    assert all(d["filial"] == filial for d in _lista(cenario).json()["resultados"])
+
+
 # --- Despesa por veículo (FIN-16, CA-DES-01 a CA-DES-03) ---
 
 

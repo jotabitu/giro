@@ -333,17 +333,13 @@ class VeiculoRefSerializer(serializers.Serializer[Any]):
     placa = serializers.CharField()
 
 
-class FilialRefSerializer(serializers.Serializer[Any]):
-    id = serializers.IntegerField()
-
-
 class DespesaSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     data = serializers.DateField()  # type: ignore[assignment]
     descricao = serializers.CharField()
     categoria = serializers.ChoiceField(choices=CategoriaDespesa.choices)
     veiculo = VeiculoRefSerializer(allow_null=True)
-    filial = FilialRefSerializer()
+    filial = RefSerializer()
     valor_centavos = serializers.IntegerField()
     vencimento = serializers.DateField()
     status = serializers.ChoiceField(
