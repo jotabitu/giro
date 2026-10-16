@@ -154,6 +154,9 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-267 · Ficha do veículo de referência pelas regras
 - **Agente:** design-system · **Depende de:** T-238, T-255 (e T-246, PR #248) · **Regras:** VEI-01, VEI-02, LOC-06, MAN-03, MOV-01, MOV-03 · **Telas:** Veiculo-Desktop, Veiculo-Mobile · **Pronto quando:** as duas fichas seguem o estado do QXA-4B21 em 07 out das regras (LOC-2841 de 23 set a 28 out, vistoria de saída e km de 23 set, chassi ...4401, troca de óleo aos 18.900 km) e o bloco Movimentações não mostra origem fora de filial, OS fora do seed nem veículo alugado em movimentação; as duas `[divergência]` da T-238 e da T-255 (ficha) marcadas como atendidas; handoff para o frontend copiar na T-242.
 
+### T-272 · Conferência visual no navegador (fichas da T-267 e fileira de indicadores da T-156)
+- **Agente:** design-system · **Depende de:** T-267, T-156 (PR #260) · **Regras:** VEI-05, USR-09 · **Telas:** Veiculo-Desktop, Veiculo-Mobile · **Pronto quando:** as duas fichas renderizadas no Chromium a 1440 e 390 px sem quebra; fileira de 2 e de 1 coluna da ficha sem os indicadores financeiros conferida no app com a Bruna (vendedora) e a Lúcia (financeiro); parecer sobre o `KpiGrid` com `colunas`.
+
 ### T-242 · Ficha do veículo igual à referência
 - **Agente:** frontend · **Depende de:** T-238, T-267 · **Regras:** VEI-01 a VEI-06 · **Telas:** Veiculo-Desktop (e Veiculo-Mobile) · **Pronto quando:** a ficha do veículo fica idêntica à referência `docs/telas/html/Veiculo-Desktop.dc.html` (pedido do dono: "design idêntico"), com os componentes do design system e os dados da API; o que a referência mostra e a API não manda vira pedido ao arquiteto, não número inventado na tela; revisão visual do design-system lado a lado.
 
