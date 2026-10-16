@@ -2483,3 +2483,203 @@ def gerar_faturas(hoje: date | None = None) -> Geracao:
                 _cada_uma(f"Cartão da fatura {pk}", partial(cobrar_cartao_da_fatura, pk, dia)),
             )
     return Geracao(geradas, emitidas, cartoes)
+
+
+# --- Régua da assinatura (AUT-13, PLT-02; T-186 parte 3, assinatura.md) ---
+
+# PLT-02: dias a partir do vencimento e o marco de cada um. O D+15 (suspensão) é da virada.
+MARCOS_DA_REGUA = {-3: "D-3", 0: "D0", 3: "D+3", 7: "D+7"}
+MARCOS_COM_WHATSAPP = frozenset({"D0", "D+3"})
+FUNCOES_QUE_LIGAM = ("dono", "financeiro")  # PLT-09: o Financeiro cuida da cobrança
+
+
+@dataclass(frozen=True)
+class MensagemDaRegua:
+    assunto: str
+    texto: str
+    whatsapp: str
+
+
+def _ja_avisada(fatura: FaturaAssinatura, marco: str) -> bool:
+    from apps.auditoria.models import EventoAuditoria
+
+    return EventoAuditoria.objects.filter(
+        objeto_tipo=FaturaAssinatura._meta.model_name,
+        objeto_id=fatura.pk,
+        acao="fatura_assinatura.regua",
+        depois__marco=marco,
+    ).exists()
+
+
+def _como_pagar(fatura: FaturaAssinatura, forma: FormaPagamentoAssinatura | None) -> str:
+    """O caminho de pagar desta fatura, pela cobrança viva ou pela forma cadastrada. Com o
+    cartão recusado, o mesmo que a tela diz (PLT-02, CA-ASS-12)."""
+    if _cartao_guardado(forma) and fatura.cartao_recusado_em is not None:
+        if fatura.tentativas_cartao >= TENTATIVAS_DO_CARTAO:
+            return (
+                "O cartão foi recusado de novo. "
+                "Pague por Pix ou boleto pelo botão Pagar, em Assinatura."
+            )
+        return "O cartão foi recusado. Tentamos de novo amanhã."
+    no_cartao = fatura.cobranca_tipo == COBRANCA_NO_CARTAO_GUARDADO or (
+        _cartao_guardado(forma) and fatura.status == StatusFatura.ABERTA
+    )
+    if forma is not None and no_cartao:
+        bandeira = forma.cartao_bandeira.capitalize() or "Cartão"
+        return f"A cobrança é automática no cartão {bandeira} final {forma.cartao_final}."
+    if fatura.cobranca_tipo == COBRANCA_PELA_AUTORIZACAO:
+        return "A cobrança é automática pelo Pix automático."
+    if fatura.cobranca_tipo == "cartao_link" and fatura.cobranca_url_pagina:
+        return f"Cadastre o cartão e pague por este link: {fatura.cobranca_url_pagina}"
+    if fatura.cobranca_tipo == "boleto" and fatura.cobranca_boleto_url:
+        return (
+            f"Boleto: {fatura.cobranca_boleto_url}\n"
+            f"Linha digitável: {fatura.cobranca_linha_digitavel}"
+        )
+    if fatura.cobranca_tipo == "pix" and fatura.cobranca_pix_copia_e_cola:
+        return f"Pix copia e cola: {fatura.cobranca_pix_copia_e_cola}"
+    if forma is None or not forma.forma:
+        return "Escolha a forma de pagamento em Assinatura e pague pelo botão Pagar."
+    return "Pague pelo botão Pagar, em Assinatura."
+
+
+def mensagem_da_regua(
+    fatura: FaturaAssinatura, marco: str, forma: FormaPagamentoAssinatura | None
+) -> MensagemDaRegua:
+    """Os textos de cada marco da PLT-02, com a marca Giro (a assinatura é do Giro com a
+    empresa). Português, frases curtas, sem exclamação."""
+    empresa = fatura.empresa
+    valor = formatar_reais(int(fatura.valor_centavos))
+    vence = dia_e_mes(fatura.vencimento)
+    suspende = dia_e_mes(fatura.vencimento + timedelta(days=DIAS_ATE_SUSPENDER))
+    resumo = f"A fatura {fatura.codigo} da {empresa.nome_exibicao}, de {valor}"
+    if marco == "D-3":
+        assunto = f"Giro: a fatura {fatura.codigo} vence em {vence}"
+        inicio = f"{resumo}, vence em {vence}."
+    elif marco == "D0":
+        assunto = f"Giro: a fatura {fatura.codigo} vence hoje"
+        inicio = f"{resumo}, vence hoje."
+    elif marco == "D+3":
+        assunto = f"Giro: a fatura {fatura.codigo} está em atraso"
+        inicio = (
+            f"{resumo}, venceu em {vence} e ainda não foi paga. "
+            f"Sem pagamento, o acesso fica só para leitura em {suspende}."
+        )
+    else:
+        assunto = f"Giro: o acesso da {empresa.nome_exibicao} será suspenso em {suspende}"
+        inicio = (
+            f"{resumo}, venceu em {vence} e ainda não foi paga. "
+            f"Em {suspende}, o acesso fica só para leitura até o pagamento. "
+            "A equipe Giro vai ligar para ajudar."
+        )
+    rodape = "Se você já pagou, desconsidere esta mensagem."
+    texto = f"{inicio}\n{_como_pagar(fatura, forma)}\n{rodape}"
+    return MensagemDaRegua(assunto, texto, f"{inicio} {rodape}")
+
+
+def _pedir_ligacao(fatura: FaturaAssinatura) -> int:
+    """D+7 (PLT-02): a tarefa de ligação para a equipe Giro. Sem a tela (fase 2,
+    `Plat-Cobranca`), vai por e-mail ao Dono e ao Financeiro da plataforma e fica na auditoria
+    do public. Devolve quantos receberam."""
+    from django.contrib.auth import get_user_model
+
+    empresa = fatura.empresa
+    registrar_evento(
+        "fatura_assinatura.pedir_ligacao",
+        Categoria.FINANCEIRO,
+        objeto=fatura,
+        depois={"empresa": empresa.pk},
+        regra="PLT-02",
+    )
+    equipe = list(
+        get_user_model()
+        .objects.filter(funcao_plataforma__in=FUNCOES_QUE_LIGAM, status="ativo")
+        .order_by("pk")
+        .values_list("email", flat=True)
+    )
+    if not equipe:
+        return 0
+    from django.core.mail import send_mail
+
+    suspende = dia_e_mes(fatura.vencimento + timedelta(days=DIAS_ATE_SUSPENDER))
+    send_mail(
+        subject=f"Ligar para a {empresa.nome_exibicao}: {fatura.codigo} com 7 dias de atraso",
+        message=(
+            f"A fatura {fatura.codigo} da {empresa.nome_exibicao}, de "
+            f"{formatar_reais(int(fatura.valor_centavos))}, venceu em "
+            f"{dia_e_mes(fatura.vencimento)} e ainda não foi paga. A suspensão é em {suspende}.\n"
+            f"Responsável: {empresa.responsavel_nome or 'sem nome'}, "
+            f"{empresa.responsavel_telefone or 'sem telefone'}."
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=equipe,
+    )
+    return len(equipe)
+
+
+def avisar_pela_regua(fatura_id: int, hoje: date) -> str | None:
+    """O marco de hoje desta fatura, uma vez só (o evento `fatura_assinatura.regua` é a marca).
+    E-mail ao `email_cobranca` e aos administradores; no D0 e no D+3, também WhatsApp ao
+    responsável; no D+7, a tarefa de ligação. Fatura paga ou cancelada, ou empresa `cancelada`:
+    nada (PLT-06). Devolve o marco avisado."""
+    from django.core.mail import send_mail
+
+    from integracoes.whatsapp import enviar_whatsapp
+
+    with schema_context(get_public_schema_name()), transaction.atomic():
+        fatura = (
+            FaturaAssinatura.objects.select_for_update(of=("self",))
+            .select_related("empresa")
+            .get(pk=fatura_id)
+        )
+        marco = MARCOS_DA_REGUA.get((hoje - fatura.vencimento).days)
+        if (
+            marco is None
+            or fatura.status not in EM_ABERTO
+            or fatura.empresa.status == Empresa.Status.CANCELADA
+            or _ja_avisada(fatura, marco)
+        ):
+            return None
+        forma = FormaPagamentoAssinatura.objects.filter(empresa_id=fatura.empresa_id).first()
+        mensagem = mensagem_da_regua(fatura, marco, forma)
+        destinatarios = destinatarios_da_cobranca(fatura.empresa)
+        celular = fatura.empresa.responsavel_telefone if marco in MARCOS_COM_WHATSAPP else ""
+        with usar_ator(ATOR_SISTEMA):
+            registrar_evento(
+                "fatura_assinatura.regua",
+                Categoria.FINANCEIRO,
+                objeto=fatura,
+                depois={"marco": marco, "whatsapp": bool(celular)},
+                regra="AUT-13",
+            )
+            if marco == "D+7":
+                _pedir_ligacao(fatura)
+        if destinatarios:
+            send_mail(
+                subject=mensagem.assunto,
+                message=mensagem.texto,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=destinatarios,
+            )
+        if celular:
+            enviar_whatsapp(celular, mensagem.whatsapp)
+    return marco
+
+
+def regua_da_assinatura(hoje: date | None = None) -> dict[str, int]:
+    """AUT-13, às 09:00 (PLT-02): D-3 lembrete por e-mail; D0 e D+3 e-mail e WhatsApp; D+7 aviso
+    de suspensão por e-mail e a tarefa de ligação. Só no dia exato de cada marco, como a
+    AUT-03; idempotente no mesmo dia. Devolve quantas faturas por marco."""
+    dia = hoje or relogio.hoje()
+    vencimentos = [dia - timedelta(days=dias) for dias in MARCOS_DA_REGUA]
+    with schema_context(get_public_schema_name()):
+        faturas = list(
+            FaturaAssinatura.objects.filter(status__in=EM_ABERTO, vencimento__in=vencimentos)
+            .exclude(empresa__status=Empresa.Status.CANCELADA)
+            .order_by("vencimento", "pk")
+            .values_list("pk", flat=True)
+        )
+        avisos: dict[str, int] = {}
+        for pk in faturas:
+            _contar(avisos, avisar_pela_regua(pk, dia))
+    return avisos
