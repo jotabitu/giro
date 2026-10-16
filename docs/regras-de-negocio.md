@@ -53,6 +53,7 @@ São 25 entidades principais. As 5 primeiras ficam no schema público (plataform
 | Conta a receber (parcela) | origem (locação/venda/multa/avaria), vencimento, valor, status, forma, pago em | Filial |  |
 | Despesa (conta a pagar) | descrição, categoria, valor, vencimento, veículo, nota, status | Filial |  |
 | Ordem de serviço | OS-, veículo, serviço, oficina, previsão, custo, status | Veículo | gera despesa |
+| Movimentação | MOV-, veículo, saída, paradas (local de apoio, serviço, valor), destino, quem leva, agendada para, km e vistoria rápida da chegada, status | Filial (de saída) | **fase 2**; seção Movimentações de veículos |
 | Caixa do dia | filial, data, aberto por, troco, status | Filial | 1 por filial por dia |
 | Movimento de caixa | tipo (entrada/saída/sangria), forma, valor, origem | Caixa do dia |  |
 | Lançamento bancário | data, descrição do extrato, valor, conciliado com | Empresa | importado do extrato |
@@ -202,6 +203,7 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
 | Lançamento avulso em contas a receber (multa, avaria, outro), cancelar, renegociar, estornar | sim | sim | — | — | sim |
 | Pagar contas, conciliação, comissões | sim | — | — | — | sim |
 | Abrir ordem de serviço | sim | sim | — | sim | — |
+| Criar e iniciar movimentação de veículo (**fase 2**, `MOV-02`; quem leva registra as chegadas) | sim | sim (sua filial) | — | — | — |
 | Exportar as despesas em CSV (tela `Despesas`, `FIN-16`) | sim | — | — | — | sim |
 | Administração (marca, filiais, usuários, preços, contratos, integrações, assinatura, auditoria, exportar) | sim | — | — | — | — |
 
@@ -267,7 +269,7 @@ A empresa tem ao menos uma filial ativa, e uma delas é a matriz. Veículos, loc
 
 ## Veículos
 
-O veículo tem 8 estados e só muda de estado por um evento de outro módulo (locação, vistoria, manutenção, venda) ou por ação explícita do gerente. Telas: `Frota`, `Veiculo`, `Manutencao`, `Vendas`.
+O veículo tem 8 estados (9 na fase 2, com `em_movimentacao`) e só muda de estado por um evento de outro módulo (locação, vistoria, manutenção, venda; movimentação na fase 2) ou por ação explícita do gerente. Telas: `Frota`, `Veiculo`, `Manutencao`, `Vendas`.
 
 | Estado | Significa | Pode ser alugado? | Aparece em |
 | --- | --- | --- | --- |
@@ -279,6 +281,7 @@ O veículo tem 8 estados e só muda de estado por um evento de outro módulo (lo
 | `a_venda` | saiu da frota de locação e está à venda | não | Vendas, Veículos à venda |
 | `vendido` | venda concluída | não | histórico |
 | `baixado` | perda total, roubo, sucata | não | histórico |
+| `em_movimentacao` | **fase 2** (`MOV-03`): saiu da filial numa movimentação (em trânsito ou num local de apoio) | não | Frota, Movimentações |
 
 **Transições permitidas**
 
@@ -300,6 +303,9 @@ O veículo tem 8 estados e só muda de estado por um evento de outro módulo (lo
 | `vendido` | `a_venda` | venda cancelada (`VEN-07`) | sistema |
 | `vendido` | `indisponivel` | veículo recomprado numa troca (`VEN-05`, `VEI-07`) | sistema |
 | qualquer, exceto `alugado` | `baixado` | baixa com motivo | administrador |
+| `disponivel` | `em_movimentacao` | **fase 2:** movimentação iniciada (`MOV-03`) | sistema |
+| `em_movimentacao` | `disponivel` | **fase 2:** chegada registrada no destino, com CRLV e seguro em dia (`MOV-05`) | sistema |
+| `em_movimentacao` | `indisponivel` | **fase 2:** chegada registrada com CRLV ou seguro vencido (`MOV-05`, `VEI-03`) | sistema |
 
 Qualquer outra transição é recusada pelo backend com erro de regra (HTTP 409).
 
@@ -325,9 +331,35 @@ Qualquer outra transição é recusada pelo backend com erro de regra (HTTP 409)
 *Mudanças em 12 out 2026 (T-156):* `VEI-05` passou a dizer quem vê o rendimento e o custo de manutenção do veículo (`USR-09`). O cálculo não mudou.
 *Mudanças em 08 out 2026 (T-082):* `VEI-04` passou a dizer o que acontece com a categoria só da filial de origem: a transferência pede a categoria no destino, e a da empresa passa direto. Antes, o veículo ia para o destino com a categoria e o preço da origem (dúvida do backend na T-013). Decisão do dono do produto em 08 out 2026 (opção B).
 *Mudanças em 09 out 2026 (T-094):* `VEI-06` passou a dizer que conta a fração de dia, como o código da T-013 já faz (dúvida do arquiteto na T-088). Decisão do dono do produto em 09 out 2026 (opção A).
+*Mudanças em 15 out 2026 (T-246):* o status `em_movimentacao` e as três transições dele entram na tabela, marcados como fase 2 (seção Movimentações de veículos).
 *Mudanças em 09 out 2026 (T-106):* acrescentada a transição `reservado` → `disponivel`, para a locação cancelada antes da retirada (`LOC-12`). Só o sistema faz essa transição; "Desbloquear" e "Voltar para a frota" não valem para o veículo `reservado`. Antes, a tabela não tinha como liberar o veículo de uma reserva cancelada (divergência do backend na T-091).
 *Mudanças em 15 out 2026 (T-247):* criada a `VEI-08` (preencher o cadastro pelo PDF do CRLV-e): os 9 campos lidos, o que fica com a pessoa (a validade do CRLV, que o documento não traz como data), a conferência antes de salvar e a leitura que falha. Antes, a tela `Veiculo-Novo` tinha "Preencher pelo documento", e nenhuma regra dizia o que ele faz. Fase em "Pontos em aberto" (padrão: MVP); a técnica fica com a ADR do arquiteto e a revisão da segurança.
 *Mudanças em 16 out 2026 (T-256):* a `VEI-08` passou a dizer que entra no MVP (opção B do ponto em aberto da T-247). Decisão do dono do produto em 16 out 2026.
+
+## Movimentações de veículos
+
+**Fase 2** (ponto em aberto "Fase das movimentações", padrão B). No MVP, o veículo muda de filial pela transferência da `VEI-04`, e lavagem, despachante e oficina são lançados em `Despesas` e na OS, como hoje. A movimentação registra a ida de um veículo da filial dele a locais de apoio (lava-jato, oficina, despachante) e a volta, ou a ida para outra filial, com quem leva, quando, o km e o custo de cada parada. Telas: `Movimentacoes` (quadro por estado), `Movimentacao-Nova`, `Movimentacao-Chegada-Mobile`. Código legível `MOV-0043`, sequencial por empresa, como nas telas: o `MT-` do pedido inicial se confundiria com modelos de moto como a Yamaha MT-03.
+
+| Estado | Significa |
+| --- | --- |
+| `agendada` | marcada para um dia e hora; o veículo continua onde está, no status dele |
+| `em_transito` | saiu e está a caminho da próxima parada ou do destino |
+| `no_local` | está num local de apoio (lava-jato, oficina, despachante) |
+| `concluida` | chegou ao destino, com o km registrado |
+| `cancelada` | desistida antes de sair |
+
+Transições: `agendada` → `em_transito` (Iniciar) ou `cancelada`; "Sair agora" já nasce `em_transito`; `em_transito` → `no_local` (chegou à parada) → `em_transito` (saiu da parada); `em_transito` → `concluida` (chegada no destino). Depois de iniciada, a movimentação não se cancela: ela termina com a chegada. `concluida` e `cancelada` não mudam mais. Toda mudança grava evento de auditoria (categoria operação).
+
+**Regras**
+
+- `MOV-01` **Rota.** A saída é sempre a filial do veículo. Depois vêm zero ou mais paradas, cada uma num local de apoio cadastrado pela empresa (nome e tipo: lava-jato, oficina, despachante ou outro), com o serviço e o valor previsto. O destino é sempre uma filial: a mesma (ida e volta) ou outra (transferência, `MOV-06`). O veículo não fica guardado fora de uma filial: o que fica dias na oficina é uma movimentação `no_local` até voltar.
+- `MOV-02` **Quem.** Criar, agendar, iniciar e cancelar: administrador e gerente da filial de saída. Quem leva é um usuário ativo ligado à filial de saída (qualquer perfil). Registrar a chegada numa parada ou no destino: quem leva, o gerente ou o administrador; na transferência, a chegada é recebida por um usuário da filial de destino ("Recebido por").
+- `MOV-03` **Quais veículos e o status deles.** Movimenta-se veículo `disponivel`, `indisponivel` (ex.: ir ao despachante renovar o CRLV), `em_manutencao` (ir à oficina da OS) ou `a_venda`. Veículo `alugado`, `reservado`, `vendido` ou `baixado` não se movimenta, e um veículo tem no máximo uma movimentação não concluída. O veículo `disponivel` vai para `em_movimentacao` ao iniciar e sai da Nova locação e da reserva; os outros mantêm o status, e a Frota mostra que estão em movimentação. A movimentação `agendada` não muda o status: se, na hora de iniciar, o veículo foi reservado ou alugado, Iniciar é recusado (409), e a pessoa cancela ou reagenda. Para a ocupação (`VEI-06`), `em_movimentacao` conta como dia na frota e não como alugado.
+- `MOV-04` **Paradas e despesa.** Ao sair de uma parada, quem registra confirma o valor pago ("confira com o recibo"). Valor acima de zero gera uma despesa ligada ao veículo (`FIN-06`), na filial de saída, com o vencimento no dia da parada, a categoria escolhida na parada (padrão "outros"; manutenção para oficina) e a descrição "MOV-0042 · Lavagem completa · Lava Rápido Aldeota". Ela segue a `FIN-05`: até R$ 500 nasce `a_pagar`, acima nasce `aguardando_aprovacao` (`APR-03`). A nota (`FIN-06`) é anexada na parada; sem ela, a despesa é gerada e fica marcada "sem nota". A parada de oficina pode citar a OS aberta do veículo (`OS-118`): aí o custo é o da OS (`MAN-05`), e a parada não gera despesa.
+- `MOV-05` **Chegada no destino.** Pede o km, que não diminui (`VEI-01`) e atualiza o veículo (`VEI-02`). A vistoria rápida (combustível e as 4 fotos: frente, traseira, esquerda e direita) é obrigatória na transferência e opcional na volta à mesma filial, marcada na criação. Ao confirmar: a movimentação fica `concluida`; o veículo `em_movimentacao` volta a `disponivel`, ou vai para `indisponivel` se o CRLV ou o seguro venceu no caminho (`VEI-03`, como na `MAN-05`); os outros continuam no status em que estavam.
+- `MOV-06` **Transferência pela movimentação.** Com o destino em outra filial, a transferência da `VEI-04` acontece na chegada: o veículo passa a ser da filial de destino e fica gravada a `TransferenciaVeiculo`. A categoria no destino é pedida na criação, pela regra da `VEI-04`. Na fase 2, "Transferir" na ficha do veículo abre a Nova movimentação com o destino preenchido; a `VEI-04` continua valendo para o resto.
+
+*Criada em 15 out 2026 (T-246)* a partir das telas de movimentação do dono (T-238). O "Pátio Maraponga" como origem e o destino "Filial ou local" das telas não seguem a `MOV-01` (`[divergência]` no backlog).
 
 ## Clientes
 
@@ -959,4 +991,5 @@ Os dois pontos em aberto da T-247 (leitura do CRLV-e e da CNH-e por PDF), levado
 - [x] **Desfazer o cancelamento** (`PLT-06`, T-190). **Decidido em 14 out 2026 pelo dono do produto: A** (T-211). Com o acesso ainda valendo (teste ou período pago), o administrador: A) desfaz o cancelamento pela tela `Admin-Assinatura` até o último dia de acesso; B) só pelo suporte. Padrão: **A**.
 - [ ] **Prazo de guarda das faturas da assinatura** (`AUD-08`, `PLT-14`, T-229). Com o dono do produto e o contador: por quanto tempo o Giro guarda as faturas e as notas de uma empresa apagada (em geral, 5 anos pelo prazo fiscal). Até a resposta, as faturas ficam guardadas, sem data para sair.
 - [x] **Fornecedor e forma no pedido de despesa** (`APR-03`, `FIN-05`, `FIN-06`, T-201). **Decidido em 15 out 2026 pelo dono do produto: A** (T-235). A tela `Aprovacoes` mostra "Fornecedor" e "15 out · boleto" no pedido de despesa, mas a despesa não tem fornecedor e só ganha a forma ao ser paga. A) a tela perde as duas células e mostra categoria, descrição, veículo, valor e vencimento; B) a despesa ganha os campos fornecedor e forma prevista no lançamento, para todas as despesas. Padrão: **A** (é o que o contrato da T-201 já faz; a descrição já diz o que é, como "Pneus (2)", e um campo novo no lançamento só por essa tela pede mudança na `Despesas`, no seed e na exportação, `FIN-16`).
+- [ ] **Fase das movimentações** (`MOV-01` a `MOV-06`, T-246). A) entram no MVP; B) ficam para a fase 2, e no MVP o veículo muda de filial pela `VEI-04`, com lavagem e despachante lançados em `Despesas`. Padrão: **B**. Elas trazem um status novo do veículo, que mexe na Frota, na Nova locação, na ocupação e na reserva; um cadastro novo (locais de apoio); despesa gerada fora da tela `Despesas`; e a ligação com a OS, que já é da fase 2 (`MAN-05`). O MVP já resolve o que é obrigatório: mudar de filial e lançar o custo.
 - [ ] **Telas que faltam desenhar:** esqueci a senha, 2 etapas, meu perfil, notificações, contas a pagar separada, multas de trânsito, documentos dos veículos, avarias abertas, pagamento e assinatura pelo cliente final, site de vendas.
