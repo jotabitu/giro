@@ -190,7 +190,7 @@ NIVEL_DE_APROVACAO = ["sim", "aprova", "pede", "nao"]
 
 class PodeDaEmpresaSerializer(serializers.Serializer[Any]):
     painel = serializers.ChoiceField(choices=["todas_filiais", "filial", "proprios", "nao"])
-    veiculos = serializers.ChoiceField(choices=["editar", "km_e_avarias", "nao"])
+    veiculos = serializers.ChoiceField(choices=["editar", "km_e_avarias", "ver", "nao"])
     clientes_cadastrar = serializers.BooleanField()
     locacoes_criar = serializers.BooleanField()
     vistorias_fazer = serializers.BooleanField()

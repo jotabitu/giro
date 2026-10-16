@@ -803,7 +803,7 @@ def test_usr_03_ca_011_20_pode_por_perfil(moto):
     assert pode("João")["veiculos"] == "km_e_avarias"
     assert pode("João")["despesas_lancar"] == "manutencao"
     assert pode("Lúcia")["financeiro_pagar"] is True
-    assert pode("Lúcia")["veiculos"] == "nao"
+    assert pode("Lúcia")["veiculos"] == "ver"  # T-287
     mariana = _get(moto.logar("Mariana"), EU, moto.empresa).json()
     assert mariana["pode"]["administracao"] is True
     assert mariana["empresa"] == {
@@ -1647,47 +1647,54 @@ def test_usr_05_usr_08_navegacao_por_perfil(adm, settings):
     assert rodrigo["menu_completo"][2]["itens"][2]["contador"] == "despesas"  # aprova despesas
     assert rodrigo["menu_completo"][0]["itens"][0]["rotulo"] == "Visão da filial"
 
-    # Bruna, vendedora: só o que é dela; sem aprovações, veículos nem relatórios.
+    # Bruna, vendedora: só o que é dela; sem aprovações nem relatórios. Veículos só para ler
+    # (T-287).
     bruna = _navegacao(adm, "Bruna")
     assert bruna["inicio"]["variante"] == "vendedor"
     assert _chaves(bruna["menu_inicio"]) == [
         (None, ["inicio"]),
-        ("Operação", ["locacoes", "clientes"]),
+        ("Operação", ["locacoes", "veiculos", "clientes"]),
         ("Vendas", ["propostas", "minhas_vendas", "veiculos_a_venda", "minhas_comissoes"]),
     ]
     assert _chaves(bruna["menu_completo"]) == [
-        (None, ["inicio"]),
+        (None, ["inicio", "veiculos"]),
         ("Operação", ["locacoes", "vendas", "clientes"]),
         ("Financeiro", ["caixa", "receber", "despesas"]),
     ]
     assert bruna["menu_completo"][2]["itens"][2]["contador"] is None  # lança, não aprova
     assert bruna["menu_completo"][0]["itens"][0]["rotulo"] == "Início"
-    assert bruna["barra_celular"] == ["inicio", "nova_locacao", "locacoes", "mais"]
+    assert bruna["barra_celular"] == ["inicio", "veiculos", "nova_locacao", "locacoes", "mais"]
 
     # João, vistoriador: um menu só, o da agenda (test_usr_05_menu_completo_do_vistoriador).
     joao = _navegacao(adm, "João")
     assert joao["inicio"]["variante"] == "vistoriador"
     assert joao["menu_completo"] == joao["menu_inicio"]
 
-    # Lúcia, financeiro: o menu da tela Financeiro; sem veículos nem locações.
+    # Lúcia, financeiro: o menu da tela Financeiro; sem locações. Veículos só para ler (T-287).
     lucia = _navegacao(adm, "Lúcia")
     assert lucia["inicio"]["variante"] == "financeiro"
     assert _chaves(lucia["menu_inicio"]) == [
-        (None, ["inicio", "receber", "contas_a_pagar", "caixa_e_bancos", "comissoes"]),
+        (
+            None,
+            ["inicio", "receber", "contas_a_pagar", "caixa_e_bancos", "veiculos", "comissoes"],
+        ),
     ]
     assert _chaves(lucia["menu_completo"]) == [
-        (None, ["inicio"]),
+        (None, ["inicio", "veiculos"]),
         ("Operação", ["clientes"]),
         ("Financeiro", ["caixa", "receber", "despesas", "comissoes", "conciliacao", "relatorios"]),
     ]
     assert lucia["menu_completo"][0]["itens"][0]["rotulo"] == "Início"
-    assert lucia["barra_celular"] == ["inicio", "mais"]
+    assert lucia["barra_celular"] == ["inicio", "veiculos", "mais"]
 
     # A permissão extra de aprovar desconto traz Aprovações para a vendedora (USR-03).
     vendedora = adm.pessoas["Bruna"]
     vendedora.permissoes_extras = ["aprovar_desconto"]
     vendedora.save()
-    assert _chaves(_navegacao(adm, "Bruna")["menu_completo"])[0] == (None, ["inicio", "aprovacoes"])
+    assert _chaves(_navegacao(adm, "Bruna")["menu_completo"])[0] == (
+        None,
+        ["inicio", "aprovacoes", "veiculos"],
+    )
 
 
 def test_usr_05_menu_completo_do_vistoriador(adm, settings):
