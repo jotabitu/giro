@@ -43,7 +43,10 @@ Convenções gerais em `docs/api/README.md`. Modelo: `contas.Usuario`, `Convite`
 | `financeiro_pagar` | bool | sim | — | — | — | sim |
 | `lancamento_avulso` | bool | sim | sim | — | — | sim |
 | `os_abrir` | bool | sim | sim | — | sim | — |
+| `movimentacoes` | `gerir`, `levar`, `nao` | `gerir` | `gerir` | `levar` | `levar` | `nao` |
 | `administracao` | bool | sim | — | — | — | — |
+
+`movimentacoes` (T-286, `MOV-02`): `gerir` cria, agenda, inicia, cancela e cria local de apoio (administrador e gerente, pelo escopo de filial); `levar` só registra as chegadas das movimentações que a pessoa leva; `nao`, nada. Detalhes em `movimentacoes.md`.
 
 `lancamento_avulso` (T-162) é a linha "Lançamento avulso em contas a receber (multa, avaria, outro), cancelar, renegociar, estornar" da tabela de perfis (T-232) e de `financeiro.md` ("Quem pode"): o botão "Novo lançamento" de contas a receber e o `POST /api/financeiro/contas-receber/` seguem a mesma lista. A permissão extra `cancelar_contrato` não muda essa chave.
 
@@ -143,6 +146,7 @@ Itens do `menu_completo`, na ordem:
 | Operação | `vendas` | Vendas | `vendas_criar` | `vendas_comissoes` | vende |
 | Operação | `clientes` | Clientes | `clientes_cadastrar` ou `caixa_receber` | — | — |
 | Operação | `manutencoes` | Manutenções | `os_abrir` | `manutencao_despesas` | — |
+| Operação | `movimentacoes` | Movimentações | `pode.movimentacoes` = `gerir`; para `levar`, só com uma movimentação `agendada`, `em_transito` ou `no_local` que a pessoa leva (contador: quantas) | — | — |
 | Financeiro | `caixa` | Caixa do dia | `caixa_receber` ou `caixa_abrir_fechar` | `contas_receber` | — |
 | Financeiro | `receber` | Contas a receber | `caixa_receber` | `contas_receber` | — |
 | Financeiro | `despesas` | Despesas | `despesas_lancar` ≠ `nao` | `manutencao_despesas` | — |

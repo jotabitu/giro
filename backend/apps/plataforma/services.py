@@ -11,11 +11,13 @@ import logging
 import re
 import secrets
 from collections.abc import Callable, Mapping
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import date, timedelta
 from typing import Any
 
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import validate_email
 from django.db import IntegrityError, ProgrammingError, models, transaction
 from django.db.models import Q
 from django_tenants.utils import (
@@ -33,19 +35,22 @@ from comum.auditoria import (
     TipoAtor,
     ator_atual,
     auditar,
+    diferenca,
     registrar_evento,
     retrato,
     usar_ator,
 )
 from comum.autenticacao import SUPORTE_TERMINOU, AtorSuporte, emitir_token_suporte
 from comum.conexao import conexao
-from comum.documentos import cnpj_valido, so_digitos
+from comum.dinheiro import formatar_reais, proporcional
+from comum.documentos import UFS, cnpj_valido, so_digitos
 from comum.erros import (
     Conflito,
     ErroDeRegra,
     ErroDeValidacao,
     LimiteDoPlano,
     NaoAutenticado,
+    NaoEncontrado,
     ParceiroForaDoAr,
 )
 from comum.estados import transicionar
@@ -63,7 +68,7 @@ from integracoes.pagamentos.base import (
     StatusDesconhecido,
 )
 
-from .calendario import Periodo, proximo_periodo
+from .calendario import Periodo, descricao_da_fatura, dia_e_mes, proximo_periodo
 from .models import (
     CAMPOS_DO_ENDERECO,
     DIAS_DE_TESTE,
@@ -843,19 +848,22 @@ def copiar_endereco_da_matriz(
         if atual.endereco_cep:
             return False
         motivo = f"Endereço da filial matriz {filial_id}" if filial_id else "Endereço da matriz"
-        with (
-            usar_ator(ATOR_SISTEMA),
-            auditar(
+        antes = retrato(atual)
+        for campo in CAMPOS_DO_ENDERECO:
+            setattr(atual, f"endereco_{campo}", endereco.get(campo) or "")
+        atual.save(update_fields=[f"endereco_{c}" for c in CAMPOS_DO_ENDERECO])
+        mudou_antes, mudou_depois = diferenca(antes, retrato(atual))
+        # Nos dois lugares (T-236): o endereço completo só no schema da empresa.
+        with usar_ator(ATOR_SISTEMA):
+            _registrar_nos_dois(
                 atual,
                 "empresa.dados_fiscais",
-                Categoria.CONFIGURACOES,
+                antes=mudou_antes,
+                depois=mudou_depois,
+                categoria_publica=Categoria.CONFIGURACOES,
                 motivo=motivo,
                 regra="PLT-15",
-            ),
-        ):
-            for campo in CAMPOS_DO_ENDERECO:
-                setattr(atual, f"endereco_{campo}", endereco.get(campo) or "")
-            atual.save(update_fields=[f"endereco_{c}" for c in CAMPOS_DO_ENDERECO])
+            )
         _agendar_notas_pendentes(atual.pk)
     for campo in CAMPOS_DO_ENDERECO:
         setattr(empresa, f"endereco_{campo}", getattr(atual, f"endereco_{campo}"))
@@ -1057,3 +1065,602 @@ def _guardar_cartao(empresa: Empresa, cartao: CartaoGuardado) -> None:
         transicionar(
             forma, StatusFormaPagamento.ATIVA, acao="assinatura.forma_ativa", regra="PLT-13"
         )
+
+
+# --- Mudança de plano e dados fiscais (PLT-04, PLT-05, PLT-15; T-185, assinatura.md) ---
+
+POR_ADMINISTRADOR = "administrador"  # pela tela Admin-Assinatura
+POR_EQUIPE = "equipe"  # pela plataforma (Django Admin no MVP): só ela muda o ciclo
+STATUS_QUE_MUDAM_DE_PLANO = frozenset({Empresa.Status.EM_TESTE, Empresa.Status.ATIVA})
+PAGUE_ANTES = ("transicao_empresa", "Pague a fatura em atraso antes de mudar de plano.")
+DESFACA_O_CANCELAMENTO = ("transicao_empresa", "Desfaça o cancelamento antes de mudar de plano.")
+MUDANCA_CICLO = ("mudanca_ciclo", "Para mudar entre mensal e anual, fale com o suporte.")
+MESMO_PLANO = ("mesmo_plano", "Este já é o seu plano.")
+DIAS_PARA_PAGAR_A_DIFERENCA = 3  # PLT-04
+
+
+def cancelamento_marcado(empresa: Empresa) -> bool:
+    """Cancelamento pedido e a empresa ainda com acesso (`cancelamento.md`, T-195)."""
+    return empresa.acesso_ate is not None and empresa.status != Empresa.Status.CANCELADA
+
+
+def _mensalidades(empresa: Empresa) -> models.QuerySet[FaturaAssinatura]:
+    return FaturaAssinatura.objects.filter(
+        empresa_id=empresa.pk, tipo=TipoFatura.MENSALIDADE
+    ).exclude(status=StatusFatura.CANCELADA)
+
+
+def periodo_pago_correndo(empresa: Empresa, hoje: date) -> FaturaAssinatura | None:
+    """A mensalidade paga cujo período ainda não acabou (no teste com a 1ª paga, a 1ª)."""
+    return (
+        _mensalidades(empresa)
+        .filter(status=StatusFatura.PAGA, periodo_fim__gte=hoje)
+        .order_by("periodo_inicio")
+        .first()
+    )
+
+
+@dataclass(frozen=True)
+class ProximaMensalidade:
+    """A próxima fatura do período ainda não paga, ou a que ainda vai nascer (PLT-01)."""
+
+    vencimento: date
+    periodo: Periodo
+    plano: Plano
+    ciclo: str
+    valor_centavos: int
+    fatura: FaturaAssinatura | None = None
+
+    @property
+    def descricao(self) -> str:
+        return descricao_da_fatura(
+            TipoFatura.MENSALIDADE,
+            self.plano.nome,
+            self.ciclo,
+            self.periodo.inicio,
+            self.periodo.fim,
+        )
+
+
+def _o_que_vale_na_virada(empresa: Empresa) -> tuple[Plano, str, int]:
+    """Plano, ciclo e preço da próxima fatura: o agendado (downgrade ou ciclo pela equipe), pelo
+    preço de tabela, ou o de hoje, pelo preço contratado (PLT-04, PLT-05)."""
+    plano = empresa.plano
+    if plano is None:
+        raise ValueError("Empresa sem plano.")
+    if empresa.plano_proximo_id or empresa.ciclo_proximo:
+        proximo = empresa.plano_proximo or plano
+        ciclo = empresa.ciclo_proximo or empresa.ciclo
+        return proximo, ciclo, preco_no_ciclo(proximo, ciclo)
+    return plano, empresa.ciclo, int(empresa.preco_contratado_centavos)
+
+
+def proxima_mensalidade(empresa: Empresa) -> ProximaMensalidade | None:
+    """A mensalidade em aberto mais antiga; sem ela, a que nasce depois do último período pago.
+    `None` sem nenhuma das duas (empresa sem fatura)."""
+    aberta = (
+        _mensalidades(empresa)
+        .filter(status__in=[StatusFatura.ABERTA, StatusFatura.ATRASADA])
+        .select_related("plano")
+        .order_by("vencimento")
+        .first()
+    )
+    if aberta is not None:
+        return ProximaMensalidade(
+            aberta.vencimento,
+            Periodo(aberta.periodo_inicio, aberta.periodo_fim),
+            aberta.plano,
+            aberta.ciclo,
+            int(aberta.valor_centavos),
+            aberta,
+        )
+    paga = _mensalidades(empresa).filter(status=StatusFatura.PAGA).order_by("-periodo_fim").first()
+    if paga is None or not empresa.dia_vencimento or empresa.plano is None:
+        return None
+    plano, ciclo, valor = _o_que_vale_na_virada(empresa)
+    vencimento = paga.periodo_fim + timedelta(days=1)
+    return ProximaMensalidade(
+        vencimento, proximo_periodo(empresa.dia_vencimento, ciclo, vencimento), plano, ciclo, valor
+    )
+
+
+def _juntar(textos: list[str], conector: str) -> str:
+    """ "a, b e c" (ou "a ou b")."""
+    if len(textos) <= 1:
+        return "".join(textos)
+    return f"{', '.join(textos[:-1])} {conector} {textos[-1]}"
+
+
+def pendencias_dos_modulos(empresa: Empresa, plano: Plano) -> list[dict[str, Any]]:
+    """O que fica aberto nos módulos que saem ao descer para `plano` (PLT-12, ADR 0024, item 7):
+    `[{grupo, quantidade, texto}]`, só os grupos com quantidade, na ordem do contrato.
+
+    A contagem por módulo é da T-196 (módulos por plano); até lá, nenhum grupo tem quantidade, e a
+    recusa do downgrade fica só nos limites (assinatura.md, "O que muda para as tarefas abertas").
+    """
+    return []
+
+
+def excede_no_plano(empresa: Empresa, plano: Plano, uso: UsoEmpresa) -> dict[str, Any]:
+    """O que não cabe em `plano` (PLT-03, PLT-04, PLT-12): os itens acima do limite (86 de 30) e
+    o que está aberto nos módulos que saem. Vazio = cabe."""
+    excede: dict[str, Any] = {}
+    for item in Item.values:
+        limite = plano.limite(item)
+        usado = int(getattr(uso, item))
+        if limite is not None and usado > limite:
+            excede[item] = {"usado": usado, "limite": limite}
+    abertos = pendencias_dos_modulos(empresa, plano)
+    if abertos:
+        excede["abertos"] = abertos
+        excede["abertos_texto"] = _juntar([grupo["texto"] for grupo in abertos], "e")
+    return excede
+
+
+def _recusa_do_downgrade(plano: Plano, excede: dict[str, Any]) -> ErroDeRegra:
+    """422 `PLT-04` com tudo o que não cabe de uma vez, como a `FIL-06`."""
+    itens = _juntar([Item(item).label for item in Item.values if item in excede], "ou")
+    abertos = excede.get("abertos_texto", "")
+    if itens and abertos:
+        acao = f"Desative {itens} e resolva o que está aberto antes de mudar: {abertos}."
+    elif itens:
+        acao = f"Desative {itens} antes de mudar."
+    else:
+        acao = f"Resolva o que está aberto antes de mudar: {abertos}."
+    return ErroDeRegra("PLT-04", f"Seu uso não cabe no plano {plano.nome}. {acao}", excede)
+
+
+def plano_acima(novo: Plano, atual: Plano) -> bool:
+    """Pela `ordem` do catálogo; na mesma ordem, pelo preço."""
+    return (novo.ordem, int(novo.preco_mensal_centavos)) > (
+        atual.ordem,
+        int(atual.preco_mensal_centavos),
+    )
+
+
+@dataclass(frozen=True)
+class FaturaDaDiferenca:
+    valor_centavos: int
+    vencimento: date
+    periodo: Periodo
+    descricao: str
+
+
+@dataclass(frozen=True)
+class Simulacao:
+    """O que acontece numa mudança de plano (simular e confirmar dão o mesmo, ADR 0005)."""
+
+    tipo: str  # upgrade, downgrade ou ciclo (só a equipe)
+    plano: Plano
+    ciclo: str
+    vale_em: date
+    vale_agora: bool
+    preco_novo_centavos: int
+    diferenca_centavos: int
+    fatura_diferenca: FaturaDaDiferenca | None
+    proxima: ProximaMensalidade | None
+    mensagem: str
+    # No teste com a 1ª fatura em aberto: troca livre, sem cobrança (PLT-04).
+    livre_no_teste: bool = False
+
+
+def _conferir_estado(empresa: Empresa) -> None:
+    """Só `em_teste` e `ativa` mudam de plano, e sem cancelamento marcado (PLT-04, PLT-06)."""
+    if cancelamento_marcado(empresa):
+        raise Conflito(*DESFACA_O_CANCELAMENTO)
+    if empresa.status in (Empresa.Status.INADIMPLENTE, Empresa.Status.SUSPENSA):
+        raise Conflito(*PAGUE_ANTES)
+    if empresa.status not in STATUS_QUE_MUDAM_DE_PLANO:
+        raise Conflito("transicao_empresa", "Sua empresa não pode mudar de plano agora.")
+
+
+def _diferenca_do_upgrade(
+    empresa: Empresa, plano: Plano, ciclo: str, preco_novo: int, hoje: date
+) -> FaturaDaDiferenca | None:
+    """(novo − contratado) × dias que faltam ÷ dias do período, contando o dia da mudança,
+    arredondada uma vez (PLT-04, ADR 0009): 45000 × 21 ÷ 31 = 30483,87 → 30484."""
+    correndo = periodo_pago_correndo(empresa, hoje)
+    if correndo is None:
+        return None
+    inicio = max(hoje, correndo.periodo_inicio)
+    dias = (correndo.periodo_fim - correndo.periodo_inicio).days + 1
+    faltam = (correndo.periodo_fim - inicio).days + 1
+    valor = proporcional(preco_novo - int(empresa.preco_contratado_centavos), faltam, dias)
+    if valor <= 0:
+        return None
+    return FaturaDaDiferenca(
+        valor,
+        hoje + timedelta(days=DIAS_PARA_PAGAR_A_DIFERENCA),
+        Periodo(inicio, correndo.periodo_fim),
+        descricao_da_fatura(
+            TipoFatura.DIFERENCA_PLANO, plano.nome, ciclo, inicio, correndo.periodo_fim
+        ),
+    )
+
+
+def _simular(
+    empresa: Empresa, plano: Plano, ciclo: str, uso: UsoEmpresa, hoje: date, por: str
+) -> Simulacao:
+    atual = empresa.plano
+    if atual is None:
+        raise ValueError("Empresa sem plano.")
+    _conferir_estado(empresa)
+    muda_ciclo = ciclo != empresa.ciclo
+    if muda_ciclo and por != POR_EQUIPE:
+        raise ErroDeRegra(*MUDANCA_CICLO)
+    if plano.pk == atual.pk and not muda_ciclo:
+        raise ErroDeRegra(*MESMO_PLANO)
+    preco_novo = preco_no_ciclo(plano, ciclo)
+    sobe = plano_acima(plano, atual)
+    tipo = "ciclo" if muda_ciclo else ("upgrade" if sobe else "downgrade")
+    if tipo != "upgrade" and plano.pk != atual.pk:
+        excede = excede_no_plano(empresa, plano, uso)
+        if excede:
+            raise _recusa_do_downgrade(plano, excede)
+    proxima = proxima_mensalidade(empresa)
+    nova = (
+        replace(proxima, plano=plano, ciclo=ciclo, valor_centavos=preco_novo) if proxima else None
+    )
+
+    livre = (
+        empresa.status == Empresa.Status.EM_TESTE
+        and not muda_ciclo
+        and not _mensalidades(empresa).filter(status=StatusFatura.PAGA).exists()
+    )
+    if livre:
+        mensagem = f"O plano {plano.nome} vale agora."
+        if nova is not None:
+            mensagem += (
+                f" A primeira fatura, em {dia_e_mes(nova.vencimento)}, "
+                f"fica em {formatar_reais(preco_novo)}."
+            )
+        return Simulacao(
+            tipo, plano, ciclo, hoje, True, preco_novo, 0, None, nova, mensagem, livre_no_teste=True
+        )
+
+    vale_em = proxima.vencimento if proxima else hoje
+    if (empresa.plano_proximo_id is not None and tipo != "upgrade") or empresa.ciclo_proximo:
+        raise Conflito(
+            "transicao_empresa",
+            f"Já existe uma mudança agendada para {dia_e_mes(vale_em)}. "
+            "Desfaça antes de escolher outra.",
+        )
+    if tipo == "upgrade":
+        fatura = _diferenca_do_upgrade(empresa, plano, ciclo, preco_novo, hoje)
+        mensagem = f"O plano {plano.nome} vale agora."
+        if fatura is not None:
+            mensagem += (
+                f" A diferença de {formatar_reais(fatura.valor_centavos)} vence em "
+                f"{dia_e_mes(fatura.vencimento)}."
+            )
+        diferenca = fatura.valor_centavos if fatura else 0
+        return Simulacao(
+            tipo, plano, ciclo, hoje, True, preco_novo, diferenca, fatura, nova, mensagem
+        )
+    if nova is not None and muda_ciclo:
+        dia = empresa.dia_vencimento or vale_em.day
+        nova = replace(nova, periodo=proximo_periodo(dia, ciclo, vale_em))
+    if tipo == "ciclo":
+        mensagem = f"O plano {plano.nome} {ciclo} vale a partir de {dia_e_mes(vale_em)}."
+    else:
+        mensagem = (
+            f"O plano {plano.nome} vale a partir de {dia_e_mes(vale_em)}. "
+            f"Até lá, você continua no {atual.nome}."
+        )
+    return Simulacao(tipo, plano, ciclo, vale_em, False, preco_novo, 0, None, nova, mensagem)
+
+
+def plano_para_mudar(plano_id: int, empresa: Empresa) -> Plano:
+    """O plano pedido: ativo, ou o atual mesmo desativado (PLT-05). Outro: 404."""
+    with no_publico():
+        plano = Plano.objects.filter(pk=plano_id).first()
+    if plano is None or (not plano.ativo and plano.pk != empresa.plano_id):
+        raise NaoEncontrado("nao_encontrado", "Plano não encontrado.")
+    return plano
+
+
+def _uso_sem_trava(empresa: Empresa) -> UsoEmpresa:
+    return UsoEmpresa.objects.filter(empresa_id=empresa.pk).first() or UsoEmpresa(empresa=empresa)
+
+
+def simular_mudanca_plano(
+    empresa: Empresa, plano: Plano, ciclo: str, por: str = POR_ADMINISTRADOR
+) -> Simulacao:
+    """Não grava nada (ADR 0005)."""
+    with no_publico():
+        empresa = Empresa.objects.select_related("plano", "plano_proximo").get(pk=empresa.pk)
+        return _simular(empresa, plano, ciclo, _uso_sem_trava(empresa), relogio.hoje(), por)
+
+
+def _registrar_nos_dois(
+    empresa: Empresa,
+    acao: str,
+    *,
+    antes: dict[str, Any],
+    depois: dict[str, Any],
+    categoria_publica: str,
+    categoria_empresa: str = Categoria.CONFIGURACOES,
+    motivo: str = "",
+    regra: str = "",
+) -> None:
+    """O mesmo fato no public e no schema da empresa (ADR 0010). No public, os dados que o
+    apagamento limpa vão como `{"alterado": true}` (AUD-08, `omitir_no_public`)."""
+    for schema, categoria in (
+        (get_public_schema_name(), categoria_publica),
+        (empresa.schema_name, categoria_empresa),
+    ):
+        with schema_context(schema):
+            registrar_evento(
+                acao,
+                categoria,
+                objeto=empresa,
+                antes=antes,
+                depois=depois,
+                motivo=motivo,
+                regra=regra,
+            )
+
+
+def _mudar_valor_da_fatura(fatura: FaturaAssinatura, plano: Plano, valor_centavos: int) -> None:
+    """A fatura em aberto passa ao plano e ao valor novos (PLT-04). A cobrança já emitida no
+    parceiro é cancelada, e a emissão sai de novo com o valor novo (`gerar_faturas`, PLT-02)."""
+    if fatura.plano_id == plano.pk and int(fatura.valor_centavos) == valor_centavos:
+        return
+    campos = ["plano", "valor_centavos"]
+    if fatura.cobranca_externa_id:
+        try:
+            provedor().cancelar_cobranca(conta_principal(), fatura.cobranca_externa_id)
+        except ParceiroIndisponivel as erro:
+            raise ParceiroForaDoAr(*PARCEIRO_FORA_DO_AR) from erro
+        except ParceiroRecusou as erro:
+            raise ErroDeRegra("parceiro_recusou", erro.mensagem) from erro
+        fatura.cobranca_externa_id = None
+        fatura.cobranca_emitida_em = None
+        campos += ["cobranca_externa_id", "cobranca_emitida_em"]
+    with auditar(fatura, "fatura_assinatura.mudar_valor", Categoria.FINANCEIRO, regra="PLT-04"):
+        fatura.plano = plano
+        fatura.valor_centavos = valor_centavos
+        fatura.save(update_fields=[*campos, "atualizado_em"])
+
+
+def _abertas_a_partir_de(empresa: Empresa, dia: date) -> list[FaturaAssinatura]:
+    """Mensalidades em aberto cujo período começa em `dia` ou depois, travadas."""
+    return list(
+        FaturaAssinatura.objects.select_for_update()
+        .filter(
+            empresa_id=empresa.pk,
+            tipo=TipoFatura.MENSALIDADE,
+            status=StatusFatura.ABERTA,
+            periodo_inicio__gte=dia,
+        )
+        .order_by("vencimento")
+    )
+
+
+def _empresa_travada(empresa: Empresa) -> Empresa:
+    travada: Empresa = (
+        Empresa.objects.select_for_update(of=("self",))
+        .select_related("plano", "plano_proximo")
+        .get(pk=empresa.pk)
+    )
+    return travada
+
+
+def mudar_plano(
+    empresa: Empresa,
+    plano: Plano,
+    ciclo: str,
+    por: str = POR_ADMINISTRADOR,
+    motivo: str | None = None,
+    *,
+    confirmar_valor_centavos: int | None = None,
+) -> Simulacao:
+    """Serviço único da mudança de plano (PLT-04, PLT-05): a tela do administrador e a ação da
+    plataforma (`por=POR_EQUIPE`, que também muda o ciclo, valendo na próxima fatura).
+
+    - No teste com a 1ª fatura em aberto: vale na hora, sem cobrança; a 1ª fatura passa ao valor
+      do plano novo (CA-ASS-13).
+    - Upgrade com período pago: vale na hora e cobra a diferença proporcional numa fatura avulsa
+      que vence em 3 dias (CA-ASS-14: R$ 304,84).
+    - Downgrade: só se couber; fica agendado em `plano_proximo` e vale na próxima fatura, que já
+      sai pelo plano menor (CA-ASS-16). A virada é da `virar_estados` (T-186).
+
+    Trava a `Empresa` e o `UsoEmpresa` para a conta do uso e a mudança serem da mesma foto.
+    `confirmar_valor_centavos` diferente da diferença de agora: 409 `valor_mudou`, nada gravado.
+    """
+    with no_publico(), transaction.atomic():
+        empresa = _empresa_travada(empresa)
+        uso = UsoEmpresa.objects.select_for_update().filter(empresa_id=empresa.pk).first()
+        hoje = relogio.hoje()
+        simulacao = _simular(empresa, plano, ciclo, uso or UsoEmpresa(empresa=empresa), hoje, por)
+        if (
+            confirmar_valor_centavos is not None
+            and confirmar_valor_centavos != simulacao.diferenca_centavos
+        ):
+            raise Conflito(
+                "valor_mudou",
+                "O valor da mudança mudou. Confira antes de confirmar.",
+                {"diferenca_centavos": simulacao.diferenca_centavos},
+            )
+        atual = empresa.plano
+        if atual is None:
+            raise ValueError("Empresa sem plano.")
+        antes = {
+            "plano": atual.nome,
+            "ciclo": empresa.ciclo,
+            "preco_contratado_centavos": int(empresa.preco_contratado_centavos),
+        }
+        if simulacao.vale_agora:
+            empresa.plano = plano
+            empresa.preco_contratado_centavos = simulacao.preco_novo_centavos
+            # Um upgrade desfaz o downgrade que estava agendado (assinatura.md).
+            empresa.plano_proximo = None
+            empresa.save(
+                update_fields=[
+                    "plano",
+                    "preco_contratado_centavos",
+                    "plano_proximo",
+                    "atualizado_em",
+                ]
+            )
+            # No teste, a 1ª fatura; com período pago, as dos períodos que ainda não começaram.
+            desde = date.min if simulacao.livre_no_teste else hoje + timedelta(days=1)
+            for fatura in _abertas_a_partir_de(empresa, desde):
+                _mudar_valor_da_fatura(fatura, plano, simulacao.preco_novo_centavos)
+            if simulacao.fatura_diferenca is not None:
+                avulsa = simulacao.fatura_diferenca
+                criar_fatura(
+                    empresa,
+                    tipo=TipoFatura.DIFERENCA_PLANO,
+                    vencimento=avulsa.vencimento,
+                    periodo=avulsa.periodo,
+                    plano=plano,
+                    ciclo=ciclo,
+                    valor_centavos=avulsa.valor_centavos,
+                    regra="PLT-04",
+                )
+        else:
+            empresa.plano_proximo = plano
+            empresa.ciclo_proximo = ciclo if simulacao.tipo == "ciclo" else ""
+            empresa.save(update_fields=["plano_proximo", "ciclo_proximo", "atualizado_em"])
+            if simulacao.tipo != "ciclo":
+                # A fatura da virada já gerada sai pelo plano menor (CA-ASS-16, CA-ASS-41).
+                for fatura in _abertas_a_partir_de(empresa, simulacao.vale_em):
+                    _mudar_valor_da_fatura(fatura, plano, simulacao.preco_novo_centavos)
+        _registrar_nos_dois(
+            empresa,
+            "empresa.mudar_ciclo" if simulacao.tipo == "ciclo" else "empresa.mudar_plano",
+            antes=antes,
+            depois={
+                "plano": plano.nome,
+                "ciclo": ciclo,
+                "preco_contratado_centavos": simulacao.preco_novo_centavos,
+                "diferenca_centavos": simulacao.diferenca_centavos,
+                "vale_em": simulacao.vale_em.isoformat(),
+            },
+            categoria_publica=Categoria.FINANCEIRO,
+            motivo=motivo or "",
+            regra="PLT-04",
+        )
+    return simulacao
+
+
+def desfazer_mudanca_plano(empresa: Empresa) -> None:
+    """Desfaz o downgrade agendado pelo administrador até a véspera (PLT-04, CA-ASS-16). A
+    fatura da virada já gerada pelo plano menor volta ao plano e ao preço de hoje. Sem downgrade
+    agendado, ou com a mudança de ciclo da equipe (só ela desfaz): 404."""
+    with no_publico(), transaction.atomic():
+        empresa = _empresa_travada(empresa)
+        _conferir_estado(empresa)
+        agendado, atual = empresa.plano_proximo, empresa.plano
+        if agendado is None or empresa.ciclo_proximo or atual is None:
+            raise NaoEncontrado("nao_encontrado", "Não há mudança de plano agendada.")
+        proxima = proxima_mensalidade(empresa)
+        hoje = relogio.hoje()
+        if proxima is not None and proxima.vencimento <= hoje:
+            raise Conflito(
+                "transicao_empresa",
+                f"A mudança para o plano {agendado.nome} já vale desde "
+                f"{dia_e_mes(proxima.vencimento)}.",
+            )
+        empresa.plano_proximo = None
+        empresa.save(update_fields=["plano_proximo", "atualizado_em"])
+        for fatura in _abertas_a_partir_de(empresa, hoje + timedelta(days=1)):
+            _mudar_valor_da_fatura(fatura, atual, int(empresa.preco_contratado_centavos))
+        _registrar_nos_dois(
+            empresa,
+            "empresa.desfazer_mudanca_plano",
+            antes={"plano_proximo": agendado.nome},
+            depois={"plano_proximo": None},
+            categoria_publica=Categoria.FINANCEIRO,
+            regra="PLT-04",
+        )
+
+
+def _validar_endereco(endereco: Any, erros: dict[str, list[str]]) -> dict[str, str]:
+    """O endereço da nota no formato do endereço da filial (`filiais.md`), o bloco inteiro."""
+    if not isinstance(endereco, Mapping):
+        erros["endereco"] = ["Informe o endereço completo."]
+        return {}
+    cep = so_digitos(str(endereco.get("cep") or ""))
+    if len(cep) != 8:
+        erros["endereco.cep"] = ["Informe o CEP com 8 dígitos."]
+    uf = str(endereco.get("uf") or "").strip().upper()
+    if uf not in UFS:
+        erros["endereco.uf"] = ["UF inválida."]
+    limpo = {"cep": cep, "uf": uf}
+    for campo in ("logradouro", "numero", "complemento", "bairro", "cidade"):
+        valor = str(endereco.get(campo) or "").strip()
+        tamanho = getattr(Empresa._meta.get_field(f"endereco_{campo}"), "max_length", 0) or 0
+        if campo != "complemento" and not valor:
+            erros[f"endereco.{campo}"] = ["Campo obrigatório."]
+        elif len(valor) > tamanho:
+            erros[f"endereco.{campo}"] = [f"Use até {tamanho} caracteres."]
+        limpo[campo] = valor
+    return limpo
+
+
+def _validar_dados_fiscais(dados: Mapping[str, Any]) -> dict[str, str]:
+    erros: dict[str, list[str]] = {}
+    if "cnpj" in dados:
+        erros["cnpj"] = ["O CNPJ não muda por aqui. Fale com o suporte."]
+    campos: dict[str, str] = {}
+    if "razao_social" in dados:
+        razao = str(dados["razao_social"] or "").strip()
+        if not razao:
+            erros["razao_social"] = ["Informe a razão social."]
+        elif len(razao) > 150:
+            erros["razao_social"] = ["Use até 150 caracteres."]
+        campos["razao_social"] = razao
+    if "email_cobranca" in dados:
+        email = str(dados["email_cobranca"] or "").strip().lower()
+        try:
+            validate_email(email)
+        except DjangoValidationError:
+            erros["email_cobranca"] = ["Informe um e-mail válido."]
+        campos["email_cobranca"] = email
+    if "endereco" in dados:
+        for campo, valor in _validar_endereco(dados["endereco"], erros).items():
+            campos[f"endereco_{campo}"] = valor
+    if erros:
+        raise ErroDeValidacao(erros)
+    return campos
+
+
+def atualizar_dados_fiscais(empresa: Empresa, dados: Mapping[str, Any]) -> Empresa:
+    """Dados da nota da assinatura (PLT-15): razão social, endereço (o bloco inteiro; nulo é
+    recusado) e e-mail de cobrança. O CNPJ não muda por aqui. Editar o endereço não muda filial
+    nenhuma (CA-ASS-48). Atualiza o pagador na conta principal depois do commit; com o endereço
+    novo, pede as notas que esperavam por ele."""
+    campos = _validar_dados_fiscais(dados)
+    with no_publico(), transaction.atomic():
+        atual: Empresa = Empresa.objects.select_for_update().get(pk=empresa.pk)
+        tinha_endereco = bool(atual.endereco_cep)
+        antes = retrato(atual)
+        for campo, valor in campos.items():
+            setattr(atual, campo, valor)
+        mudou_antes, mudou_depois = diferenca(antes, retrato(atual))
+        if not mudou_depois:
+            return atual
+        atual.save(update_fields=[*campos, "atualizado_em"])
+        _registrar_nos_dois(
+            atual,
+            "empresa.dados_fiscais",
+            antes=mudou_antes,
+            depois=mudou_depois,
+            categoria_publica=Categoria.CONFIGURACOES,
+            regra="PLT-15",
+        )
+        if not tinha_endereco and atual.endereco_cep:
+            _agendar_notas_pendentes(atual.pk)
+        tem_pagador = (
+            FormaPagamentoAssinatura.objects.filter(empresa=atual)
+            .exclude(cliente_externo_id="")
+            .exists()
+        )
+        if tem_pagador:
+            from .tasks import plataforma_atualizar_pagador
+
+            empresa_id = atual.pk
+            transaction.on_commit(lambda: plataforma_atualizar_pagador.delay(empresa_id))
+    return atual

@@ -47,6 +47,17 @@ Contrato: `docs/api/assinatura.md` ("Faturas, cobrança e régua", "De onde vem 
 - `admin.py`: faturas de todas as empresas só para leitura, com o filtro "nota pendente".
 - O webhook (`financeiro/api/views.py`) procura a `ContaPagamento` pelo token; sem ela, confere o hash da conta principal (`GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH`) e grava o aviso no public.
 
+## Implementado (T-185, parte 1: rotas da assinatura)
+
+Contrato: `docs/api/assinatura.md`. A parte 2 (forma de pagamento e faturas) vem na branch `t-185b-forma-faturas`.
+
+- `catalogo.py`: os textos da `PLT-11` num lugar só (`inclui` para Comparar planos, `a_mais` para o cartão do plano acima). Mudou a regra, muda só ele.
+- `services.py`: `mudar_plano` (serviço único da tela e da ação da plataforma; `por=POR_EQUIPE` também muda o ciclo, valendo na próxima fatura), `simular_mudanca_plano`, `desfazer_mudanca_plano`, `proxima_mensalidade`, `excede_no_plano`, `atualizar_dados_fiscais`. `pendencias_dos_modulos` devolve vazio até a T-196. Os fatos da empresa vão para as duas auditorias (`_registrar_nos_dois`), a cópia do endereço da matriz também.
+- `selectors.py`: `assinatura(empresa, usuario)` com `proxima_fatura`, `plano_proximo` e, só para o administrador, `forma_pagamento`, `dados_fiscais`, `oferta` e `acoes`; `planos_da_assinatura`.
+- `api/assinatura.py`: `GET assinatura/planos/`, `POST assinatura/mudanca-plano/simular/`, `POST` e `DELETE assinatura/mudanca-plano/`, `PATCH assinatura/dados-fiscais/`. Só o administrador (403 `permissao`); o suporte lê e nunca escreve (403 `PLT-07`, "O suporte não mexe na assinatura da empresa").
+- `tasks.py`: `plataforma_atualizar_pagador` (dados fiscais mudados, pagador na conta principal).
+- Em `comum`: `EmpresaOperando` aceita `escreve_na_suspensa` (lista explícita, conferida em teste) e `recusa_na_suspensa` (o 409 da regra no lugar do 403); `suporte_proibido` usa a `mensagem_suporte_proibido` da view; a classificação da auditoria ganhou `omitir_no_public` (dados que o apagamento limpa, `AUD-08`).
+
 ## Eventos publicados
 
 | Evento | Quando | Dados |

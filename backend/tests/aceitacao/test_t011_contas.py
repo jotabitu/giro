@@ -1458,6 +1458,8 @@ def test_plt_07_lista_de_rotas_que_o_suporte_le():
         "api/usuarios/",
         "api/usuarios/<int:pk>/",
         "api/assinatura/",
+        # T-185: Mudar e Comparar planos; o suporte lê e nunca escreve na assinatura.
+        "api/assinatura/planos/",
         "api/filiais/minhas/",
         "api/filiais/",
         "api/filiais/<int:pk>/",
