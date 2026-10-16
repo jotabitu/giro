@@ -152,6 +152,7 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-267 · Ficha do veículo de referência pelas regras
 - **Agente:** design-system · **Depende de:** T-238, T-255 (e T-246, PR #248) · **Regras:** VEI-01, VEI-02, LOC-06, MAN-03, MOV-01, MOV-03 · **Telas:** Veiculo-Desktop, Veiculo-Mobile · **Pronto quando:** as duas fichas seguem o estado do QXA-4B21 em 07 out das regras (LOC-2841 de 23 set a 28 out, vistoria de saída e km de 23 set, chassi ...4401, troca de óleo aos 18.900 km) e o bloco Movimentações não mostra origem fora de filial, OS fora do seed nem veículo alugado em movimentação; as duas `[divergência]` da T-238 e da T-255 (ficha) marcadas como atendidas; handoff para o frontend copiar na T-242.
 
+
 ### T-242 · Ficha do veículo igual à referência
 - **Agente:** frontend · **Depende de:** T-238, T-267 · **Regras:** VEI-01 a VEI-06 · **Telas:** Veiculo-Desktop (e Veiculo-Mobile) · **Pronto quando:** a ficha do veículo fica idêntica à referência `docs/telas/html/Veiculo-Desktop.dc.html` (pedido do dono: "design idêntico"), com os componentes do design system e os dados da API; o que a referência mostra e a API não manda vira pedido ao arquiteto, não número inventado na tela; revisão visual do design-system lado a lado.
 
@@ -311,6 +312,18 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
   Depois, a T-195 (backend) entra junto, se ainda aberta.
   **Estado (15 out 2026):** contratos ajustados, PR a abrir depois da T-235 (branch `t-236-contratos-apagamento`, empilhada sobre a `t-235-regras-apagamento`); handoff `tarefas/handoffs/T-236-arquiteto.md`. Para a T-184 (em andamento): campos `tomador_*` e `email_cobranca` na `FaturaAssinatura`, `gravar_tomador` na baixa e o teste no sandbox do `anonimizar_pagador`.
 - **Tarefa (numerada pelo orquestrador em 15 out 2026):** **T-237 · design-system · Tela `Aprovacoes` sem fornecedor.** No pedido de despesa (desktop e celular), tirar "Fornecedor" e "15 out · boleto" e mostrar categoria, descrição, veículo, valor e vencimento, com os pneus do seed (Manutenção, "Pneus (2)", PMZ-3E17, R$ 1.200,00, 07 out). Pode ir com a T-028 ou a T-200, se ainda abertas. Junto: a `Compra-Checkout` ganha o aviso "Este CNPJ já usou o teste grátis. A 1ª fatura vence hoje." (`PLT-16`).
+
+### T-276 · Migração com papéis de banco separados (auditoria)
+- **Agente:** segurança, depois backend · **Depende de:** — · **Pronto quando:** com os papéis `giro_migracao` e `giro_app` separados (homologação e produção, T-264), a migração falha em `ALTER FUNCTION auditoria_expurgar OWNER TO giro_expurgo` (permission denied for schema public; `backend/apps/auditoria/banco.py`). A segurança decide quem é dono da função e dos papéis (sem dar superusuário à migração) e o backend corrige, com teste de migração com os papéis separados. **Antes da homologação.** Achado do devops na T-264.
+
+### T-277 · Django Admin pelo proxy
+- **Agente:** arquiteto, depois devops · **Depende de:** T-264 · **Pronto quando:** o arquiteto decide como o Django Admin da plataforma é alcançado em homologação e produção (hoje `/` vai para o Next e o Admin fica inalcançável pelo proxy): caminho, host e quem acessa; o devops ajusta o proxy. Achado do devops na T-264.
+
+### T-278 · Ficha do veículo: painel de locações do vistoriador
+- **Agente:** frontend · **Depende de:** T-242 · **Pronto quando:** para o vistoriador, a ficha não mostra o painel Locações com "Seu perfil não tem acesso a esta ação": o painel some quando a API não manda os dados (sem decidir pelo perfil); teste do componente. Observação do design-system na T-272.
+
+### T-279 · Classes `wl-` fora de camada vencem o Tailwind
+- **Agente:** design-system · **Depende de:** — · **Pronto quando:** as classes `wl-` do design system ficam numa camada (`@layer components`) para os utilitários do Tailwind (como `md:hidden`) valerem por cima; varredura das telas com o mesmo sintoma do "+" de Nova despesa no desktop (T-244); conferência no navegador. Causa de fundo apontada pelo frontend na T-244.
 
 ### T-028 · Limpar dados de exemplo das telas
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`. Inclui `Despesas-Desktop` e `Despesas-Mobile`: aguardando aprovação é R$ 1.200,00 (não R$ 1.386,40) e o IPVA de R$ 186,40 nasce `a_pagar` (FIN-05), apontado pelo qa na T-040.
