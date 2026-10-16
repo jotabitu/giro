@@ -1,6 +1,6 @@
 # Veículos, categorias e preços
 
-**Dono:** arquiteto · **Versão:** 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-08, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07)
+**Dono:** arquiteto · **Versão:** 16 out 2026 (T-293, valor do dia na linha Pagamentos; T-286, movimentações; T-275, blocos da ficha); 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-08, MAN-03, VIS-01, FIN-01, MOV-01 a MOV-06, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 8 a 10 e apoio (`PrecoCategoria`, `Extra`, `HistoricoStatusVeiculo`, `LeituraKm`, `TransferenciaVeiculo`) em `docs/decisoes/modelo-de-dados.md`.
 
@@ -42,7 +42,9 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
   "manutencao": { "proxima": { "servico": "Troca de óleo", "km": 5000 }, "os_aberta": null },
   "documentos_resumo": { "pior_situacao": "em_dia" },
   "acoes": { "editar": true, "colocar_a_venda": true, "voltar_para_frota": false, "bloquear": true,
-             "desbloquear": false, "transferir": true, "baixar": false, "registrar_km": true, "corrigir_km": true }
+             "desbloquear": false, "transferir": true, "baixar": false, "registrar_km": true, "corrigir_km": true,
+             "movimentar": true, "motivo_movimentar": null },
+  "movimentacao_aberta": null
 }
 ```
 
@@ -50,7 +52,7 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
 - `preco_vigente`: preço da categoria vigente hoje (`LOC-15`). A coluna "Diária" da Frota usa `diaria_centavos`; veículo `a_venda` mostra `valor_venda_centavos`.
 - `situacao`: a API decide. Base no `status` do veículo; um bloco com `alerta` (ADR 0015) sobrepõe, ex.: "Atrasado" (`perigo`) quando a locação atual está `devolucao_atrasada`.
 - `acoes`: combina perfil, `status` e a tabela de transições; o frontend mostra só o que vier `true`. `corrigir_km` vem `true` também para o vistoriador, que pede a correção (`APR-06`).
-- `situacao.tom` pelo `status`: `sucesso` (`disponivel`), `info` (`reservado`), `solido` (`alugado`), `alerta` (`em_manutencao`) e `neutro` (`indisponivel`, `a_venda`, `vendido`, `baixado`).
+- `situacao.tom` pelo `status`: `sucesso` (`disponivel`), `info` (`reservado` e `em_movimentacao`, rótulo "Em movimentação"), `solido` (`alugado`), `alerta` (`em_manutencao`) e `neutro` (`indisponivel`, `a_venda`, `vendido`, `baixado`).
 - `valor_compra_centavos` e `data_compra` vêm `null` para quem não é administrador ou gerente.
 - `combustivel` (T-247, `VEI-08`): `gasolina`, `etanol`, `flex`, `diesel`, `eletrico`, `hibrido` ou `null` (veículo cadastrado antes). A tela `Veiculo-Novo` já tem o campo.
 
@@ -60,6 +62,11 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
 | --- | --- | --- | --- |
 | `locacao_atual` | `locacoes` | `{ "id", "codigo": "LOC-2841", "status", "cliente_nome": "Carlos Menezes", "inicio", "fim_previsto", "alerta"? }` para locação `aguardando_retirada`, `ativa` ou `devolucao_atrasada` do veículo | `null` |
 | `manutencao` | `manutencao` | `{ "proxima": { "servico", "km" } \| null, "os_aberta": { "id", "codigo": "OS-118", "status" } \| null, "alerta"? }` | `null` |
+| `locacao_atual.plano` e `locacao_atual.pagamento` (só no detalhe, T-275) | `locacoes` (com `financeiro.selectors`) | ver "Blocos da ficha" | ausentes |
+| `manutencao.proxima`, campos novos (só no detalhe, T-275) | `manutencao` | ver "Blocos da ficha" | `null`, como o bloco |
+| `vistoria_recente` (só no detalhe, T-275) | `vistorias` | ver "Blocos da ficha" | `null` |
+| `movimentacoes` (só no detalhe, T-275) | `movimentacoes` (ADR 0028) | ver "Blocos da ficha" | `null` |
+| `movimentacao_aberta` (lista e detalhe, T-286) | `movimentacoes` | `{ "id", "codigo": "MOV-0001", "status" }` da movimentação `agendada`, `em_transito` ou `no_local` do veículo. A Frota mostra "Em movimentação" no veículo `indisponivel`, `em_manutencao` ou `a_venda`, que mantém o status (`MOV-03`), e "Agendada" na agendada | `null` |
 | `indicadores_financeiros` (só no detalhe) | `financeiro` | `{ "rendeu_no_ano_centavos", "custo_manutencao_ano_centavos" }` (`VEI-05`) | `null` |
 
 ---
@@ -73,12 +80,14 @@ Query: `?status=`, `?tipo_veiculo=moto|carro`, `?categoria=<id>`, `?busca=` (pla
 ```json
 {
   "contagens": { "todos": 86, "disponivel": 16, "alugado": 42, "reservado": 9, "em_manutencao": 7, "a_venda": 12, "indisponivel": 0,
+                 "em_movimentacao": 0,
                  "motos": 80, "carros": 6 },
   "resultados": [ { ...representação, sem "indicadores_financeiros"... } ],
   "proximo": "...", "anterior": null
 }
 ```
-- `contagens` respeitam os filtros de filial e tipo, não o de status (para as abas).
+- `contagens` respeitam os filtros de filial e tipo, não o de status (para as abas). `em_movimentacao` conta só o status (`MOV-03`, T-286).
+- `?em_movimentacao=true`: os veículos com movimentação `agendada`, `em_transito` ou `no_local`, em qualquer status (o bloco `movimentacao_aberta`, abaixo; ADR 0028).
 - `vendido` e `baixado` só aparecem com `?status=vendido` ou `?status=baixado` (histórico).
 - Exportar: `POST /api/veiculos/exportar/` `{ formato: "planilha" | "csv", filtros }`, só administrador (exportar é da Administração), → 202 `{ "exportacao_id" }`; o arquivo sai pela exportação em segundo plano (`AUD-07`), não na resposta.
 
@@ -89,7 +98,62 @@ Query: `?status=`, `?tipo_veiculo=moto|carro`, `?categoria=<id>`, `?busca=` (pla
 "historico_status": [ { "de": "disponivel", "para": "alugado", "em": "...", "origem_tipo": "locacao", "origem_codigo": "LOC-2841", "motivo": null } ]
 ```
 - `ocupacao` (`VEI-06`): dias `alugado` ÷ dias na frota nos últimos 90 dias, a partir do `HistoricoStatusVeiculo`, excluindo os dias em `a_venda`, `vendido` e `baixado`. Calculada pelo app `veiculos`, pelo tempo exato entre as mudanças de status: conta a fração de dia (`VEI-06`), e um veículo alugado às 14:00 conta 0,42 daquele dia. Com mudanças em dias inteiros, dá o mesmo que contar dias.
-- Locações e manutenções da ficha vêm das listas dos outros módulos: `GET /api/locacoes/?veiculo=<id>` e `GET /api/manutencao/ordens/?veiculo=<id>` (contratos de locações e manutenção).
+- Locações e manutenções da ficha vêm das listas dos outros módulos: `GET /api/locacoes/?veiculo=<id>` e `GET /api/manutencao/ordens/?veiculo=<id>` (contratos de locações e manutenção). O "14 no total" é o `total` da lista de locações; as linhas são as que a lista devolve.
+
+#### Blocos da ficha (T-275, telas `Veiculo-Desktop` e `Veiculo-Mobile`)
+
+O que a ficha de referência mostra e a representação não trazia. Tudo só no `GET /api/veiculos/{id}/`; a lista da Frota não muda. Caso do QXA-4B21 em 07 out (dados de referência das regras):
+
+```json
+"locacao_atual": { "id": 2841, "codigo": "LOC-2841", "status": "ativa", "cliente_nome": "Carlos Menezes",
+  "inicio": "2026-09-23T12:00:00Z", "fim_previsto": "2026-10-28T12:00:00Z",
+  "plano": { "periodicidade": "semanal", "plano_especial": null, "valor_periodo_centavos": 29940 },
+  "pagamento": { "situacao": "atrasado", "rotulo": "Parcela 2 atrasada", "conta_id": 28412,
+                 "valor_centavos": 30609, "atrasadas": 1, "cobrar": true } },
+"manutencao": { "proxima": { "servico": "Troca de óleo", "km": 19900, "faltam_km": 950, "intervalo_km": 1000,
+                             "progresso_pct": "5.00", "dias_estimados": null,
+                             "depois": { "servico": "Revisão 20 mil", "km": 20000, "faltam_km": 1050 },
+                             "nota": "Faltando 500 km, abre uma OS agendada para a devolução." },
+                "os_aberta": null },
+"vistoria_recente": { "id": 3120, "tipo": "saida", "concluida_em": "2026-09-23T12:10:00Z",
+  "vistoriador": { "id": 4, "nome": "João Silva" }, "locacao_codigo": "LOC-2841", "total_fotos": 12,
+  "fotos": [ { "id": 901, "posicao": "frente", "url": "https://...assinada...", "url_expira_em": "..." } ],
+  "avarias": [ { "id": 51, "descricao": "Risco no tanque, lado esquerdo", "registrada_em": "2026-07-12T14:00:00Z",
+                 "preexistente": true, "locacao_codigo": null, "foto_id": 9 },
+               { "id": 77, "descricao": "Retrovisor direito trincado", "registrada_em": "2026-09-23T12:05:00Z",
+                 "preexistente": false, "locacao_codigo": "LOC-2841", "foto_id": 905 } ] },
+"movimentacoes": { "total": 0, "ultimas": [], "em_andamento": null },
+"acoes": { "...": "...", "movimentar": false, "motivo_movimentar": "Veículo alugado não se movimenta. O botão volta quando a LOC-2841 for devolvida." }
+```
+
+**`locacao_atual.plano`** (`LOC-01`, `LOC-15`): a periodicidade, o nome do plano especial (ou `null`) e o preço do período congelado na locação. A tela monta "Semanal R$ 299,40" com o rótulo da periodicidade e o valor formatado, sem conta. O vistoriador recebe `plano` sem `valor_periodo_centavos` (`USR-09`).
+
+**`locacao_atual.pagamento`** (`FIN-01`, `CLI-07`): a situação das contas a receber da locação (parcelas e caução), de `financeiro.selectors`, com o mesmo status calculado do detalhe da locação.
+- `situacao`: `atrasado` (alguma conta vencida e não paga, o sinal `pagamento_atrasado` da locação), senão `vence_hoje`, senão `em_dia`. Locação `aguardando_retirada` sem nenhuma conta vencida também é `em_dia`.
+- `conta_id`: a conta mais antiga da situação (a atrasada mais antiga; a que vence hoje); `null` em `em_dia`. `atrasadas`: quantas contas estão atrasadas.
+- `valor_centavos` (T-293, decisão do produto na T-290): o **valor do dia** da conta, com multa e juros (`FIN-03`), o mesmo `valor_hoje.total_centavos` do Receber (`financeiro.md`) e da mensagem do Cobrar; nunca o principal. No QXA-4B21 em 07 out: 29940 + 599 de multa + 70 de juros = **30609** ("Parcela 2 atrasada · R$ 306,09"; a referência mostra R$ 299,40, que é o principal). Na conta que vence hoje, o valor do dia é o principal. Com mais de uma atrasada, a soma dos valores do dia delas. `null` em `em_dia`.
+- `rotulo`, montado pela API: "Parcela 2 atrasada" (uma parcela), "Caução atrasada", "2 contas atrasadas" (mais de uma), "Parcela 3 vence hoje", "Em dia" (textos confirmados pelo produto na T-290).
+- `cobrar`: `true` com `situacao` `atrasado` ou `vence_hoje` e o perfil que cobra (`financeiro.md`: administrador, gerente, vendedor, financeiro). O botão "Cobrar" chama `POST /api/financeiro/contas-receber/{conta_id}/cobrar/` (com mais de uma atrasada, `cobrar-em-lote` com as contas da locação fica para a tela de Contas a receber; a ficha cobra a mais antiga). As recusas silenciosas (conta já cobrada hoje, cliente sem contato) são as de lá.
+- O vistoriador não recebe `pagamento` (a chave vem ausente), como não vê os pagamentos no histórico da locação.
+
+**`manutencao.proxima`**, campos novos (`MAN-03`; o fornecedor é o app `manutencao`, que ainda não existe, e até lá o bloco inteiro vem `null` e a tela esconde a Próxima manutenção):
+- `servico` e `km`: a preventiva que vence primeiro pelo km. `faltam_km` = `km` − `km_atual` (negativo quando passou). `intervalo_km`: o da regra da empresa para esse serviço (1.000 no óleo, 5.000 na revisão).
+- `progresso_pct`: (`intervalo_km` − `faltam_km`) ÷ `intervalo_km`, de 0 a 100 com 2 casas, para a barra. No QXA: (1.000 − 950) ÷ 1.000 = 5,00.
+- `depois`: a preventiva seguinte (outro serviço ou o mesmo no próximo intervalo), ou `null`.
+- `nota`: o texto do gatilho da `MAN-03` ("Faltando 500 km, abre uma OS agendada." ou, com o veículo alugado, "... agendada para a devolução."); `null` quando a OS agendada já existe (aí vem `os_aberta`).
+- `dias_estimados` ("cerca de 6 dias de uso"): `null` até o produto dizer como se calcula o uso médio (`[decisão]` da T-275 no backlog). Com `null`, a tela não mostra o trecho.
+
+**`vistoria_recente`** (`VIS-01`; fornecedor `vistorias`): a última vistoria concluída do veículo (saída ou chegada; `descartada` nunca), que no veículo alugado é a saída da locação atual. `null` se o veículo nunca teve vistoria.
+- `fotos`: só as posições fixas (`frente`, `traseira`, `lado_esquerdo`, `lado_direito`, `painel`), na ordem; `total_fotos` conta todas, com as de avaria. URL assinada de 15 minutos (`AUD-05`), gerada a cada `GET`. "Ver as 12 fotos" abre `GET /api/vistorias/{id}/`.
+- `avarias`: as avarias abertas do veículo (as de `GET /api/vistorias/avarias/?veiculo=<id>&abertas=true`), da mais antiga para a mais nova. `preexistente: true` é o "já existia, não cobrar"; `locacao_codigo` é a locação em que foi registrada ("registrado na saída da LOC-2841"). Não há campo de lado: o lado faz parte da `descricao`, como na vistoria. Sem valor em dinheiro.
+- Perfis: os que fazem vistoria (administrador, gerente, vendedor, vistoriador). O financeiro recebe a chave ausente.
+- "As vistorias anteriores" do link não têm lista por veículo neste contrato; a tela abre a vistoria recente. Uma lista `GET /api/vistorias/?veiculo=` fica para quando a tela pedir.
+
+**`movimentacoes`** (`MOV-01` a `MOV-06`, no MVP pela decisão do dono de 16 out 2026; fornecedor: o app `movimentacoes`, contrato em `movimentacoes.md`): `total` de movimentações do veículo, `ultimas` (até 3, mais nova primeiro: `{ "id", "codigo": "MOV-0043", "status", "destino_nome", "paradas": ["Lava Rápido Aldeota"], "iniciada_em", "concluida_em" }`) e `em_andamento` (a movimentação não concluída e não cancelada, com o mesmo formato, ou `null`; no máximo uma, `MOV-03`). "Ver todas" abre `GET /api/movimentacoes/?veiculo=<id>`. Até o app existir, o bloco vem `null`, e `acoes.movimentar` vem `false` com `motivo_movimentar` `null`. O vistoriador e o financeiro não recebem o bloco (a chave vem ausente).
+
+**`acoes.movimentar`** (`MOV-02`, `MOV-03`): `true` para administrador e gerente com acesso à filial do veículo, com o veículo `disponivel`, `indisponivel`, `em_manutencao` ou `a_venda` e sem movimentação `agendada`, `em_transito` ou `no_local`. `motivo_movimentar`: quando o perfil pode movimentar mas o veículo não, o motivo, para a tela mostrar o botão desativado com ele: "Veículo alugado não se movimenta. O botão volta quando a LOC-2841 for devolvida.", "Veículo reservado não se movimenta.", "Veículo vendido não se movimenta.", "Veículo baixado não se movimenta.", "O veículo já está na MOV-0043."; `null` quando `movimentar` é `true` ou quando o perfil não movimenta (aí a tela não mostra o botão).
+
+**`acoes.transferir`** (`MOV-06`, T-286): continua `true` para administrador e gerente com o veículo que pode ser movimentado, mas agora abre a Nova movimentação com o destino em outra filial e a vistoria rápida marcada (CA-246-16); a transferência só vale na chegada. A rota `POST /api/veiculos/{id}/transferir/` sai do contrato (ADR 0028, item 6).
 
 ### POST /api/veiculos/
 Perfis: administrador, gerente.
@@ -125,6 +189,8 @@ Todas `POST /api/veiculos/{id}/<acao>/`, respondem 200 com a representação. Tr
 As transições de locação, vistoria, OS e venda não têm endpoint aqui: acontecem pelos serviços desses módulos.
 
 ### POST /api/veiculos/{id}/transferir/
+**Sai do contrato com as movimentações (T-286, ADR 0028, item 6).** "Transferir" na ficha abre a Nova movimentação (`MOV-06`), e a transferência acontece na chegada, por `veiculos.services.transferir` com a origem `movimentacao`. O backend remove a rota no PR em que o frontend troca o botão; até lá, vale o texto abaixo.
+
 Perfis: administrador, gerente (com acesso à filial de origem). Corpo: `{ filial_destino_id, categoria_id?, motivo? }`.
 Só com o veículo `disponivel`: senão 409 `{ "codigo": "VEI-04", "mensagem": "Só é possível transferir um veículo disponível" }`. Destino inativo ou igual à origem → 400.
 `categoria_id` (`VEI-04`, `FIL-04`, T-083):
