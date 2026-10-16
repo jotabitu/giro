@@ -63,6 +63,17 @@ def link_do_convite(host: str, token: str) -> str:
     return f"https://{host}/convite#{token}"
 
 
+def host_da_empresa(schema_name: str) -> str:
+    """O domínio principal da empresa, o mesmo do link do e-mail."""
+    from django_tenants.utils import get_public_schema_name, schema_context
+
+    from apps.plataforma.models import Dominio
+
+    with schema_context(get_public_schema_name()):
+        dominio = Dominio.objects.get(tenant__schema_name=schema_name, is_primary=True)
+        return str(dominio.domain)
+
+
 def _invalidar_convites(usuario: Usuario, exceto: int | None = None) -> None:
     """P-06: os outros convites da pessoa vencem agora (o link antigo responde 410)."""
     agora = relogio.agora()
@@ -207,19 +218,48 @@ def _travar(usuario: Usuario) -> Usuario:
     return travado
 
 
+def gerar_link_convite(
+    usuario: Usuario,
+    por: Usuario,
+    mensagem: str = "Só dá para copiar o link de um convite pendente.",
+) -> tuple[Usuario, Convite, str]:
+    """Só `convite_pendente` (vencido ou não): convite novo de 7 dias, que invalida todos os
+    anteriores (o do e-mail, o do reenvio e os links copiados), sem mudar o status nem o plano.
+    Devolve o token em claro uma vez (USR-01, P-06). Chamar dentro de uma transação."""
+    usuario = _travar(usuario)
+    if usuario.status != StatusUsuario.CONVITE_PENDENTE:
+        raise Conflito("transicao_usuario", mensagem)
+    convite, token = criar_convite(usuario, enviado_por=por)
+    return usuario, convite, token
+
+
 def reenviar_convite(usuario: Usuario, por: Usuario) -> Usuario:
     """Só `convite_pendente`: convite novo de 7 dias pelos mesmos canais; o link anterior deixa
     de valer (P-06)."""
     with transaction.atomic():
-        usuario = _travar(usuario)
-        if usuario.status != StatusUsuario.CONVITE_PENDENTE:
-            raise Conflito("transicao_usuario", "Só um convite pendente pode ser reenviado.")
-        convite, _ = criar_convite(usuario, enviado_por=por)
+        usuario, convite, _ = gerar_link_convite(
+            usuario, por, "Só um convite pendente pode ser reenviado."
+        )
         registrar_evento(
             "usuario.reenviar_convite", Categoria.SEGURANCA, objeto=usuario, regra="USR-01"
         )
         _enviar_depois_do_commit(convite)
     return usuario
+
+
+def copiar_link_convite(usuario: Usuario, por: Usuario) -> tuple[Usuario, Convite, str]:
+    """ "Copiar link do convite" (USR-01, T-250): o link novo sai só na resposta, sem e-mail nem
+    WhatsApp. O evento leva o novo vencimento, nunca o link nem o token."""
+    with transaction.atomic():
+        usuario, convite, token = gerar_link_convite(usuario, por)
+        registrar_evento(
+            "usuario.copiar_link_convite",
+            Categoria.SEGURANCA,
+            objeto=usuario,
+            depois={"convite_expira_em": convite.expira_em.isoformat()},
+            regra="USR-01",
+        )
+    return usuario, convite, token
 
 
 def cancelar_convite(usuario: Usuario, por: Usuario) -> Usuario:
