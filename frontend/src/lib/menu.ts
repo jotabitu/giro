@@ -108,6 +108,8 @@ export function rotaPermitida(eu: Pick<Eu, "pode" | "navegacao">, rota: string):
   // Passos do assistente de implantação: Administração, só do administrador (CA-027-16).
   if (rota === "/implantacao" || rota.startsWith("/implantacao/")) return pode.administracao;
   if (rota === "/clientes/novo") return pode.clientes_cadastrar && noMenu("clientes");
+  // Quem só lê a frota (`ver`: vendedor e financeiro, USR-09) abre a lista e a ficha, não o cadastro nem a edição.
+  if (/^\/veiculos\/\d+\/editar$/.test(rota)) return pode.veiculos === "editar" && noMenu("veiculos");
   if (rota === "/veiculos/novo") return pode.veiculos === "editar" && noMenu("veiculos");
   return abreRota(nav.menu_completo, rota) || abreRota(nav.menu_inicio, rota);
 }

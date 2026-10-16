@@ -52,16 +52,16 @@ describe("navegação do falso por perfil (USR-05, USR-08)", () => {
     expect(n.inicio.variante).toBe("vendedor");
     expect(chaves(n.menu_inicio)).toEqual([
       [null, ["inicio"]],
-      ["Operação", ["locacoes", "clientes"]],
+      ["Operação", ["locacoes", "veiculos", "clientes"]],
       ["Vendas", ["propostas", "minhas_vendas", "veiculos_a_venda", "minhas_comissoes"]],
     ]);
     expect(chaves(n.menu_completo)).toEqual([
-      [null, ["inicio"]],
+      [null, ["inicio", "veiculos"]],
       ["Operação", ["locacoes", "vendas", "clientes"]],
       ["Financeiro", ["caixa", "receber", "despesas"]],
     ]);
     expect(n.menu_completo[2]!.itens[2]!.contador).toBeNull();
-    expect(n.barra_celular).toEqual(["inicio", "nova_locacao", "locacoes", "mais"]);
+    expect(n.barra_celular).toEqual(["inicio", "veiculos", "nova_locacao", "locacoes", "mais"]);
   });
 
   it("vistoriador: um menu só, igual ao do início, sem Visão geral nem Locações", async () => {
@@ -72,16 +72,16 @@ describe("navegação do falso por perfil (USR-05, USR-08)", () => {
     expect(n.barra_celular).toEqual(["inicio", "veiculos", "mais"]);
   });
 
-  it("financeiro: Comissões no lugar de Relatórios no início; sem veículos nem locações", async () => {
+  it("financeiro: Comissões no lugar de Relatórios no início, Veículos só para ler e sem locações", async () => {
     const { navegacao: n } = await euDe("financeiro@motorapida.com.br");
     expect(n.inicio.variante).toBe("financeiro");
-    expect(chaves(n.menu_inicio)).toEqual([[null, ["inicio", "receber", "contas_a_pagar", "caixa_e_bancos", "comissoes"]]]);
+    expect(chaves(n.menu_inicio)).toEqual([[null, ["inicio", "receber", "contas_a_pagar", "caixa_e_bancos", "veiculos", "comissoes"]]]);
     expect(chaves(n.menu_completo)).toEqual([
-      [null, ["inicio"]],
+      [null, ["inicio", "veiculos"]],
       ["Operação", ["clientes"]],
       ["Financeiro", ["caixa", "receber", "despesas", "comissoes", "conciliacao", "relatorios"]],
     ]);
-    expect(n.barra_celular).toEqual(["inicio", "mais"]);
+    expect(n.barra_celular).toEqual(["inicio", "veiculos", "mais"]);
   });
 });
 
@@ -127,7 +127,7 @@ describe("plano, atividade e módulos escondem itens (USR-05)", () => {
     const n = navegacaoFalsa(eu.perfil, eu.pode, "vendedor", { modulos, recursos: TODOS_OS_RECURSOS });
     expect(chaves(n.menu_inicio)).toEqual([
       [null, ["inicio"]],
-      ["Operação", ["locacoes", "clientes"]],
+      ["Operação", ["locacoes", "veiculos", "clientes"]],
     ]);
   });
 });

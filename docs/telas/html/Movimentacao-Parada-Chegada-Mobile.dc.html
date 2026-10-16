@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Chegada na parada · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.vrow{display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:24px;background:var(--surface);text-decoration:none;color:var(--ink)}
+.vtop{display:flex;align-items:center;gap:12px}
+.thumb{display:grid;place-items:center;width:48px;height:48px;flex:none;border-radius:14px;background:var(--surface-sunken);color:var(--ink-muted)}
+.vfacts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid var(--line);padding-top:10px;font-size:14px}
+.vfacts span{display:block;font-size:13px;color:var(--ink-muted)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 6px 0 14px;border:0;border-radius:999px;background:var(--surface);color:var(--ink);font:inherit;font-size:14px;white-space:nowrap}
+.chip .wl-count{min-width:24px;height:24px;padding:0 7px}
+.chip[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
+.chip[aria-pressed="true"] .wl-count{background:var(--brand);color:var(--on-brand)}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;align-items:start}
+.col{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:28px;background:var(--surface)}
+.col-head{display:flex;align-items:center;gap:8px;padding:4px 6px 6px;font-weight:600;font-size:16px}
+.col-head .dot{width:10px;height:10px;border-radius:50%}
+.col-head .wl-count{margin-left:auto}
+.mv{display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:20px;background:var(--surface-sunken)}
+.mv .t{font-weight:600;font-size:15px}
+.mv .p{font-size:13px;line-height:18px}
+.mv .m{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--ink-muted)}
+.mv .m span{display:inline-flex;align-items:center;gap:4px}
+.mv .f{display:flex;align-items:center;gap:8px;margin-top:2px}
+.mv .f b{margin-left:auto;font-size:13px;font-weight:600;white-space:nowrap}
+.mv .lbl.wl-mono{white-space:nowrap}
+.mv.now{background:var(--solid);color:var(--on-solid)}
+.mv.now .m,.mv.now .lbl{color:var(--on-solid-muted)}
+.add{display:flex;align-items:center;justify-content:center;gap:6px;height:42px;border-radius:16px;border:1.5px dashed var(--line);font-size:14px;color:var(--ink-muted)}
+.mcols{display:flex;align-items:flex-start;gap:12px;margin:0 -16px;padding:0 16px;overflow:hidden}
+.mcols .col{flex:0 0 300px}
+.tabs{display:flex;gap:8px;overflow:hidden}
+.tab{border:0;font:inherit;display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px;border-radius:999px;background:var(--surface);font-size:14px;white-space:nowrap}
+.tab[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.wl-field{width:100%}
+select.wl-input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-muted) 50%),linear-gradient(135deg,var(--ink-muted) 50%,transparent 50%);background-position:calc(100% - 22px) 21px,calc(100% - 16px) 21px;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+.sec{font-weight:600;font-size:15px;margin:4px 0 -2px}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.route{position:relative;display:flex;flex-direction:column;gap:8px;padding-left:34px}
+.route:before{content:"";position:absolute;left:13px;top:24px;bottom:24px;width:2px;background:var(--line)}
+.stop{position:relative;display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:18px;background:var(--surface-sunken)}
+.stop .pin{position:absolute;left:-34px;top:16px;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--surface);box-shadow:inset 0 0 0 2px var(--ink);font-size:12px;font-weight:700}
+.stop .pin.solid{background:var(--solid);color:var(--on-solid);box-shadow:none}
+.stop .pin.brand{background:var(--brand);color:var(--on-brand);box-shadow:none}
+.stop .hd{display:flex;align-items:center;gap:8px;font-weight:500}
+.stop .hd small{font-weight:400;color:var(--ink-muted);font-size:13px}
+.add{display:flex;align-items:center;gap:8px;height:42px;padding:0 14px;border-radius:14px;border:1.5px dashed var(--line);background:transparent;font:inherit;font-size:14px;color:var(--ink-muted)}
+.veh{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:var(--surface-sunken)}
+.veh .th{display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:12px;background:var(--surface)}
+.seg2{display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:999px;background:var(--surface-sunken)}
+.seg2 button{height:40px;border:0;border-radius:999px;background:transparent;font:inherit;font-size:14px;color:var(--ink)}
+.seg2 button[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
+.fuel{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.fuel button{height:42px;border:0;border-radius:12px;background:var(--surface-sunken);font:inherit;font-size:13px}
+.fuel button[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
+.ph{position:relative;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:92px;box-sizing:border-box;padding:10px 12px;border-radius:16px;background:var(--surface-sunken);font-size:13px}
+.ph .ok{position:absolute;top:8px;right:8px;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--success);color:#fff}
+.ph.todo{background:var(--surface);border:1.5px dashed var(--line);align-items:center;justify-content:center;color:var(--ink-muted)}
+.st{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.st:last-child{border-bottom:0}
+.st .n{display:grid;place-items:center;width:26px;height:26px;flex:none;border-radius:50%;font-size:12px;font-weight:700}
+.ups{display:flex;align-items:center;justify-content:center;gap:8px;height:72px;width:100%;border-radius:16px;border:1.5px dashed var(--line);background:var(--surface);font:inherit;font-size:14px;color:var(--ink-muted)}
+.now-card{display:flex;flex-direction:column;gap:6px;padding:16px;border-radius:20px;background:var(--solid);color:var(--on-solid)}
+.now-card .lbl{color:var(--on-solid-muted)}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 720px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;"><a href="Movimentacoes-Mobile.dc.html" aria-label="Voltar" class="wl-icon-btn wl-icon-btn--sm" style="width: 44px; height: 44px; flex: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a><div style="flex: 1;"><div style="font-size: 22px; line-height: 26px; font-weight: 600;">Chegada na parada</div><div class="lbl">MOV-0002 · Honda CG 160 Fan · SAK-1D39</div></div></header>
+<section style="padding: 6px 16px; border-radius: 24px; background: var(--surface);">
+<div class="st"><span class="n" style="background: var(--success-soft); color: var(--success-ink);"><svg class="wl-i" viewBox="0 0 24 24" style="width:14px;height:14px;stroke-width:2.5"><path d="m5 12 5 5 9-10"></path></svg></span><div style="flex: 1;">Filial Centro<div class="lbl">saiu 10:02 · 3.120 km</div></div></div>
+<div class="st"><span class="n" style="background: var(--brand); color: var(--on-brand);">1</span><div style="flex: 1;"><b style="font-weight: 600;">Lava Rápido Aldeota</b><div class="lbl">lavagem completa · próxima parada</div></div><span class="wl-badge wl-badge--sm wl-badge--info">Em trânsito</span></div>
+<div class="st"><span class="n" style="background: var(--surface-sunken); color: var(--ink-muted);">B</span><div style="flex: 1;">Filial Caucaia<div class="lbl">destino · transferência</div></div></div>
+</section>
+<section style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 24px; background: var(--surface);">
+<div class="now-card"><div style="display: flex; align-items: center; gap: 8px; font-weight: 600;"><svg class="wl-i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"></path></svg>Lava Rápido Aldeota</div><div>Lavagem completa</div><div class="lbl">Valor previsto R$ 35,00</div></div>
+<div class="lbl" style="font-size: 14px;">Toque em Cheguei quando estacionar no local. A hora fica registrada, e o veículo aparece em &quot;No local de apoio&quot; no quadro. O valor pago e a nota ficam para a saída.</div>
+</section>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line);"><a href="Movimentacao-Parada-Mobile.dc.html" class="wl-btn wl-btn--solid" style="width: 100%; box-sizing: border-box; height: 56px; justify-content: center; text-decoration: none;"><svg class="wl-i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"></path></svg>Cheguei ao Lava Rápido Aldeota</a></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

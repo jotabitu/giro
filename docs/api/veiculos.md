@@ -67,7 +67,8 @@ Veículo `disponivel` depois de iniciar a MOV-0002:
 "movimentacao_aberta": { "id": 2, "codigo": "MOV-0002", "status": "em_transito", "rotulo": "Em movimentação", "tom": "info" },
 "acoes": { "editar": true, "colocar_a_venda": false, "voltar_para_frota": false, "bloquear": false, "desbloquear": false,
            "transferir": false, "baixar": true, "registrar_km": false, "corrigir_km": true,
-           "movimentar": false, "motivo_movimentar": "O veículo já está na MOV-0002." }
+           "movimentar": false, "motivo_movimentar": "O veículo já está na MOV-0002.",
+           "aviso_baixar": "A MOV-0002 será cancelada." }
 ```
 
 Veículo `indisponivel` (CRLV vencido) com a ida ao despachante agendada:
@@ -79,7 +80,7 @@ Veículo `indisponivel` (CRLV vencido) com a ida ao despachante agendada:
 
 - `situacao` continua pelo `status` (tabela acima). A movimentação não sobrepõe a situação do veículo `indisponivel`, `em_manutencao` ou `a_venda`: a Frota mostra o `situacao` e, ao lado, o `movimentacao_aberta.rotulo` quando o bloco vem.
 - `movimentacao_aberta.rotulo` e `tom` são da API: `agendada` → "Movimentação agendada", `neutro`; `em_transito` → "Em movimentação", `info`; `no_local` → "No local de apoio", `info`. A tela não monta o texto a partir do `status`.
-- `acoes` com o veículo `em_movimentacao`: nenhuma transição manual (`bloquear`, `colocar_a_venda`, `transferir` e `movimentar` em `false`), porque ele volta pela chegada (`MOV-05`). `registrar_km` também vem `false`, porque o km entra na chegada (`VEI-01`). `baixar` segue a regra de sempre (qualquer status menos `alugado`).
+- `acoes` com o veículo `em_movimentacao`: nenhuma transição manual (`bloquear`, `colocar_a_venda`, `transferir` e `movimentar` em `false`), porque ele volta pela chegada (`MOV-05`). `registrar_km` também vem `false`, porque o km entra na chegada (`VEI-01`). `baixar` segue a regra de sempre (qualquer status menos `alugado`); com a movimentação aberta, ela é cancelada na baixa, e `acoes.aviso_baixar` traz "A MOV-0002 será cancelada." (T-311).
 - `historico_status`: as passagens por `em_movimentacao` vêm com `origem_tipo: "movimentacao"` e `origem_codigo: "MOV-0002"`.
 - Vistoriador e financeiro recebem `movimentacao_aberta` como os demais: é o estado do veículo, sem valor em dinheiro.
 
@@ -212,9 +213,12 @@ Todas `POST /api/veiculos/{id}/<acao>/`, respondem 200 com a representação. Tr
 | `desbloquear` | `{ motivo? }` | `indisponivel` → `disponivel`. 422 `VEI-03` se ainda há CRLV ou seguro vencido | administrador, gerente |
 | `colocar-a-venda` | `{ valor_venda_centavos, referencia_fipe_centavos? }` | `disponivel` → `a_venda` (`VEN-01`) | administrador, gerente |
 | `voltar-para-frota` | `{}` | `a_venda` → `disponivel`. 409 `VEN-10` se houver venda aberta do veículo | administrador, gerente |
-| `baixar` | `{ motivo: "perda_total" \| "roubo" \| "sucata" \| "outro", descricao }` | qualquer, exceto `alugado` → `baixado` | administrador |
+| `baixar` | `{ motivo: "perda_total" \| "roubo" \| "sucata" \| "outro", descricao }` | qualquer, exceto `alugado` → `baixado`, inclusive `em_movimentacao` e com movimentação aberta (abaixo) | administrador |
 
 As transições de locação, vistoria, OS e venda não têm endpoint aqui: acontecem pelos serviços desses módulos.
+
+**Baixa com movimentação aberta** (`MOV-03`, decisão do dono em 16 out 2026, T-310; contrato na T-311): não há 409. A baixa leva o veículo a `baixado` e, na mesma transação, cancela a movimentação `agendada`, `em_transito` ou `no_local` dele com o motivo "Veículo baixado: {motivo}". As despesas das paradas ficam, a transferência não acontece e o veículo fica na filial em que está, que é a de saída. O detalhe está em `movimentacoes.md`, "Baixa do veículo com a movimentação aberta". 200: a representação, com `movimentacao_aberta: null`.
+- `acoes.aviso_baixar`: com `acoes.baixar` `true` e `movimentacao_aberta`, o texto para o diálogo da baixa, "A MOV-0001 será cancelada."; senão `null`. A tela mostra o texto como vem.
 
 ### POST /api/veiculos/{id}/transferir/
 **Sai do contrato com as movimentações (T-286, ADR 0028, item 6).** "Transferir" na ficha abre a Nova movimentação (`MOV-06`), e a transferência acontece na chegada, por `veiculos.services.transferir` com a origem `movimentacao`. O backend remove a rota no PR em que o frontend troca o botão; até lá, vale o texto abaixo.
@@ -314,6 +318,7 @@ Planos especiais (`Entregador`, `Mensal fidelidade`) aparecem na tela `Precos`, 
 | `veiculos.services.atualizar_km(veiculo, km, *, origem)` | vistoria e OS (`VEI-02`). Recusa km menor (`VEI-01`). |
 | `veiculos.services.receber_na_troca(chassi, dados)` | venda com troca (`VEN-05`, `VEI-07`). |
 | `veiculos.selectors.preco_vigente(categoria, data)` | `LOC-01`, `LOC-15`. |
+| evento `veiculos.veiculo_baixado(veiculo_id, motivo_texto)` | publicado por `baixar` dentro da transação, síncrono; assinado por `movimentacoes`, que cancela a movimentação aberta (`MOV-03`, T-311). Falha no assinante desfaz a baixa. |
 | evento `veiculos.km_atualizado` | assinado por `manutencao` (preventivas, `MAN-03`). |
 | evento `veiculos.documento_vencendo` / tarefa `aut_06_vencimento_de_documentos` | `VEI-03`, `AUT-06`: 30 dias antes avisa; no dia, CRLV ou seguro vencido leva `disponivel` → `indisponivel`; veículo `alugado`, `reservado` ou `em_manutencao` não muda e gera tarefa urgente para os gerentes da filial (`FIL-02`). |
 | anotações de leitura fornecidas | `indicadores` de `Filial` (`veiculos`, `ocupacao_pct`), ver `filiais.md`. |

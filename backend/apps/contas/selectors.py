@@ -37,7 +37,8 @@ TABELA_DO_PODE: dict[str, dict[str, Any]] = {
         VIS: "nao",
         FIN: "todas_filiais",
     },
-    "veiculos": {ADM: "editar", GER: "editar", VEN: "nao", VIS: "km_e_avarias", FIN: "nao"},
+    # Vendedor e financeiro consultam a Frota e a ficha só para ler (USR-05, USR-09, T-287).
+    "veiculos": {ADM: "editar", GER: "editar", VEN: "ver", VIS: "km_e_avarias", FIN: "ver"},
     "clientes_cadastrar": _so(ADM, GER, VEN),
     "locacoes_criar": _so(ADM, GER, VEN),
     "vistorias_fazer": _so(ADM, GER, VEN, VIS),
