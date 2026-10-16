@@ -1,6 +1,7 @@
 """Views finas de clientes (docs/api/clientes.md).
 
-O cliente é da empresa, compartilhado entre filiais: nada aqui filtra pelo `X-Filial`. Ver a
+O cliente é da empresa, compartilhado entre filiais: nada aqui filtra pelo `X-Filial`; a lista tem
+o filtro `?filial=` próprio (CLI-10). Ver a
 lista é de todos os perfis menos o vistoriador (403, USR-09), com CPF mascarado (AUD-04); o
 detalhe completo é só de quem cadastra e nunca do suporte Giro (AUD-09); o financeiro recebe a
 ficha do financeiro (USR-09). Escrever segue a tabela "Quem pode" do contrato.
@@ -18,9 +19,16 @@ from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 
+from comum import leituras
 from comum.erros import ErroDeValidacao
 from comum.paginacao import PaginacaoPorCursor
-from comum.permissoes import com_padrao, exige_perfil, filiais_permitidas, filial_pedida
+from comum.permissoes import (
+    com_padrao,
+    exige_perfil,
+    filiais_permitidas,
+    filial_pedida,
+    sem_acesso_a_filial,
+)
 
 from .. import selectors, services
 from ..models import Cliente
@@ -70,6 +78,18 @@ def _representacao(
     return Response(SERIALIZER_DA_VARIANTE[variante](dados).data, status=codigo)
 
 
+def _da_filial(todos: Any, request: Request, valor: str) -> Any:
+    """CLI-10: filial do escopo da pessoa (USR-07); fora dele, desativada ou inexistente dão o
+    mesmo 403. O filtro escolhe quem aparece; os números do cliente seguem os da empresa."""
+    if not valor.isdigit():
+        raise ErroDeValidacao({"filial": ["Informe o número da filial."]})
+    filial_id = int(valor)
+    if filial_id not in filiais_permitidas(request.user):
+        raise sem_acesso_a_filial()
+    filtrar = leituras.filtro(selectors.ALVO, "filial")
+    return filtrar(todos, filial_id) if filtrar else todos.none()
+
+
 class ClientesView(APIView):
     suporte_somente_leitura = True  # o suporte lê, sempre mascarado (PLT-07, AUD-09)
 
@@ -85,14 +105,17 @@ class ClientesView(APIView):
             OpenApiParameter("tipo", enum=["pf", "pj"]),
             OpenApiParameter("busca", str),
             OpenApiParameter("ordem", enum=list(selectors.ORDENS)),
+            OpenApiParameter("filial", int, description="Clientes com locação na filial (CLI-10)"),
         ],
-        summary="Clientes (CLI-06, AUD-04)",
+        summary="Clientes (CLI-06, CLI-10, AUD-04)",
     )
     def get(self, request: Request) -> Response:
         parametros = request.query_params
         todos = Cliente.objects.all()
         if parametros.get("tipo") in ("pf", "pj"):
             todos = todos.filter(tipo=parametros["tipo"])
+        if parametros.get("filial"):
+            todos = _da_filial(todos, request, parametros["filial"])
         contagens = selectors.contagens(todos)
         qs = selectors.filtrar(
             todos,

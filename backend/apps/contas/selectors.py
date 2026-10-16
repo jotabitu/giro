@@ -182,7 +182,19 @@ def item_de_usuario(usuario: Usuario, eu: Usuario) -> dict[str, Any]:
         "ultimo_acesso_em": getattr(usuario, "ultimo_acesso_em", None),
         "convite_expira_em": getattr(usuario, "convite_expira", None) if pendente else None,
         "eu": usuario.pk == eu.pk,
+        "acoes": acoes_do_convite(usuario, eu),
     }
+
+
+def acoes_do_convite(usuario: Usuario, eu: Any) -> dict[str, bool]:
+    """Os três botões do convite (USR-01, T-250): só com o convite pendente, vencido ou não, e
+    para o administrador com token próprio; o suporte Giro não escreve em usuários (PLT-07)."""
+    pode = (
+        usuario.status == StatusUsuario.CONVITE_PENDENTE
+        and getattr(eu, "perfil", "") == Perfil.ADMINISTRADOR
+        and getattr(eu, "acesso_suporte_id", None) is None
+    )
+    return dict.fromkeys(("reenviar_convite", "copiar_link_convite", "cancelar_convite"), pode)
 
 
 def detalhe_de_usuario(usuario: Usuario, eu: Usuario) -> dict[str, Any]:
