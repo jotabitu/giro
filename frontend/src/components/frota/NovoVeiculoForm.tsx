@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bike, Car, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type SelectHTMLAttributes } from "react";
+import { useEffect, useRef, useState, type SelectHTMLAttributes } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
 import { Icone, Panel, SegmentedControl, TextField } from "@/design-system";
 import { ErroApi, veiculos, type CategoriaVeiculo } from "@/lib/api";
@@ -21,7 +21,7 @@ const CAMPO_DA_API: Record<string, Nome> = { valor_compra_centavos: "valor_compr
 
 type SelecaoProps = SelectHTMLAttributes<HTMLSelectElement> & { rotulo: string; erro?: string; dica?: string; opcoes: { valor: string; rotulo: string }[]; vazio: string };
 
-function Selecao({ rotulo, erro, dica, opcoes, vazio, id, ...resto }: SelecaoProps) {
+export function Selecao({ rotulo, erro, dica, opcoes, vazio, id, ...resto }: SelecaoProps) {
   const apoio = erro ?? dica;
   return (
     <div className={`wl-field wl-field--cheio ${erro ? "wl-field--error" : ""}`}>
@@ -41,7 +41,7 @@ function Selecao({ rotulo, erro, dica, opcoes, vazio, id, ...resto }: SelecaoPro
   );
 }
 
-function Preco({ rotulo, centavos }: { rotulo: string; centavos: number }) {
+export function Preco({ rotulo, centavos }: { rotulo: string; centavos: number }) {
   return (
     <div className="rounded-md bg-surface-sunken px-4 py-3">
       <span className="block text-caption text-ink-muted">{rotulo}</span>
@@ -88,7 +88,12 @@ export function NovoVeiculoForm() {
 
   const erro = (nome: Nome) => errors[nome]?.message;
 
+  // Dois cliques seguidos entram antes de `salvar.isPending` virar verdadeiro: sem isto o segundo tentaria criar de novo ("placa já cadastrada").
+  const enviando = useRef(false);
+
   async function enviar(valores: ValoresVeiculo, outro: boolean) {
+    if (enviando.current) return;
+    enviando.current = true;
     setErroGeral(null);
     setExistente(null);
     setSalvo(null);
@@ -119,6 +124,8 @@ export function NovoVeiculoForm() {
       } else {
         setErroGeral(mensagemDoErro(e));
       }
+    } finally {
+      enviando.current = false;
     }
   }
 
