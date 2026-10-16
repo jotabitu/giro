@@ -313,6 +313,7 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 
 ### T-273 · ADR 0026 pela revisão da segurança
 - **Agente:** arquiteto · **Depende de:** T-247 (revisão, PR #265) · **Pronto quando:** a ADR 0026 passa de proposta a aceita com os achados da segurança: M-01 (o processo filho recebe só o ambiente mínimo, sem chaves), M-02 (o filho aplica os próprios limites; nada de `preexec_fn` no Gunicorn `gthread`), M-04 (versão mínima do pypdf pelo pip-audit), B-01 (como o filho acha o pacote com `python -I`) e B-04 (chave própria para o comprovante da leitura); `veiculos.md` e `clientes.md` acertados se mudar algo do contrato.
+- **Estado (16 out 2026):** ADR 0026 aceita com M-01, M-02, M-04, B-01 e B-04; `veiculos.md` e `clientes.md` acertados (suporte confirmado, 503 `leitura_ocupada`, recusas no limite, comprovante amarrado à empresa e ao usuário, arquivo conferido de novo no salvar). Branch `t-273-adr-0026-revisada`, empilhada sobre a `t-247-revisao-seguranca`; handoff `tarefas/handoffs/T-273-arquiteto.md`.
 
 ### T-274 · Senha no Postgres e no Redis em homologação e produção
 - **Agente:** devops · **Depende de:** — · **Pronto quando:** homologação e produção sobem só com senha no Postgres e no Redis (condição da segurança na T-247 para o processo filho da leitura de PDF rodar sem rede fechada); exemplos de `infra/deploy` e o README do cofre com as variáveis; teste de subida que recusa sem senha.
