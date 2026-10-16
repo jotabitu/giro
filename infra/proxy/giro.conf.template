@@ -2,8 +2,8 @@
 #
 # Modelo do nginx: a imagem oficial troca ${VARIAVEL} ao subir (pasta /etc/nginx/templates).
 # Variáveis: DOMINIO_BASE (girolocadoras.com.br), BACKEND_UPSTREAM (host:porta do Django),
-# FRONTEND_UPSTREAM (host:porta do Next) e CERT_DIR (pasta de fullchain.pem e privkey.pem do
-# certificado curinga). Este arquivo é a referência do comportamento; se o ambiente usar outro
+# FRONTEND_UPSTREAM (host:porta do Next), ESTATICOS_DIR (collectstatic do backend, ADR 0027) e
+# CERT_DIR (pasta de fullchain.pem e privkey.pem do certificado curinga). Este arquivo é a referência do comportamento; se o ambiente usar outro
 # proxy, a lista de `infra/README.md` ("Proxy reverso") diz o que ele precisa fazer igual.
 
 # Rate limit de borda por IP. A chave é o IP da conexão (o proxy é a primeira parada).
@@ -73,6 +73,14 @@ server {
         limit_req zone=giro_webhook burst=60 nodelay;
         client_max_body_size 1m;
         proxy_pass http://${BACKEND_UPSTREAM};
+    }
+
+    # Estáticos do Django Admin da plataforma (collectstatic na imagem `producao`, T-264, ADR 0027).
+    # Só os do Django: o Next serve os dele em /_next/static/. Nada do que o usuário envia passa aqui.
+    location /static/ {
+        alias ${ESTATICOS_DIR}/;
+        expires 1h;
+        add_header X-Content-Type-Options nosniff always;
     }
 
     # Leitura do CRLV-e e da CNH-e por PDF (T-258, ADR 0026). O Django espera o processo filho por
