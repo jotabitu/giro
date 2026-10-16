@@ -174,12 +174,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 - **Estado (15 out 2026):** contratos ajustados, PR #245, mesclar depois do #241 da T-248 (branch `t-249-contratos-decisoes-15-out`, empilhada sobre a `t-248-regras-decisoes-15-out`); handoff `tarefas/handoffs/T-249-arquiteto.md`. Limite do link: 5 por hora por pessoa convidada e 20 por hora por administrador. A tela de aprovação usa o `pode_decidir` que já existe (não há `acoes.aprovar`).
 
 
-### T-252 · Revisão do link do convite na tela
-- **Agente:** segurança · **Depende de:** T-250 · **Pronto quando:** a segurança revisa a rota e a tela do link copiável: só administrador, link mostrado uma vez e fora de log, limite por hora, evento de auditoria, invalidação do anterior, e o suporte Giro sem acesso à rota.
-- **Rota revisada (16 out 2026):** PR #281 (`docs/seguranca/2026-10-16-t252-link-convite.md`), nenhum achado alto nem médio. Falta conferir a tela da T-251 (PR #276). O B-01 virou a T-282.
-- **Estado (16 out 2026, segurança):** rota revisada no PR #281 (branch `t-252-revisao-link-convite`) , empilhada sobre a `t-250-backend-decisoes-15-out`, relatório `docs/seguranca/2026-10-16-t252-link-convite.md`. Os sete pontos da rota conferem; nenhum achado alto nem médio. B-01 (baixa, backend, a numerar): a tarefa do e-mail manda o link de um convite que o link copiado já invalidou (`xfail` estrito em `test_t252_seguranca_convite.py`). 404 ou 410 no link antigo: sem objeção de segurança, fica com o produto. **Falta a tela:** a lista do que conferir está no relatório e vale quando a T-251 entrar.
-
-Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entrou no PR #160 (ver `feito.md`).
 
 ### T-156 · (M-02) Custo e rendimento do veículo fora da ficha do vendedor (média)
 - **Backend feito (15 out 2026):** PR #246 (`tarefas/handoffs/T-156-backend.md`); OpenAPI sem diferença. **Falta o frontend:** os cartões só quando a API manda `indicadores_financeiros`.
