@@ -15,7 +15,8 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push() {}, replace() {} 
 import { CartaoDaMovimentacao } from "./CartaoDaMovimentacao";
 import { NovaMovimentacao } from "./NovaMovimentacao";
 import { QuadroDeMovimentacoes } from "./QuadroDeMovimentacoes";
-import { RegistrarChegada } from "./RegistrarChegada";
+import { ParadaDaMovimentacao } from "./ParadaDaMovimentacao";
+import { dicaDoKm, RegistrarChegada } from "./RegistrarChegada";
 
 const texto = (h: string) => h.replace(/<[^>]+>/g, "|").replace(/\|+/g, "|");
 
@@ -210,5 +211,103 @@ describe("camada de exemplo do contrato (provisória)", () => {
     await expect(movimentacoes.criarLocal({ nome: "  lava rápido aldeota ", tipo: "lava_jato" })).rejects.toMatchObject({ status: 409, codigo: "local_existente" });
     const novo = await movimentacoes.criarLocal({ nome: "Despachante Norte", tipo: "despachante" });
     expect((await movimentacoes.locais()).resultados.map((l) => l.id)).toContain(novo.id);
+  });
+});
+
+describe("paradas: cheguei e saída (MOV-04, Movimentacao-Parada-*)", () => {
+  const nova = () =>
+    movimentacoes.criar({
+      veiculo_id: 510,
+      paradas: [{ local_id: 3, servico: "Lavagem completa", valor_previsto_centavos: 3500 }],
+      destino_filial_id: 1,
+      categoria_destino_id: null,
+      levado_por_id: 4,
+      sair_agora: true,
+      agendada_para: null,
+      vistoria_rapida: false,
+    });
+  const parada = async (id: number) => {
+    const cache = new QueryClient();
+    cache.setQueryData(["movimentacoes", "detalhe", id], await movimentacoes.obter(id));
+    return texto(comCache(cache, <ParadaDaMovimentacao id={id} />));
+  };
+
+  it("em trânsito, na próxima parada: Cheguei ao local, com o previsto e o aviso", async () => {
+    await entrarComo("joao@motorapida.com.br", "levar");
+    const m = await nova();
+    expect(m.acoes.chegar_parada).toBe(true);
+    const t = await parada(m.id);
+    expect(t).toContain("Chegada na parada");
+    expect(t).toContain("Cheguei ao Lava Rápido Aldeota");
+    expect(t).toContain("Valor previsto R$ 35,00");
+    expect(t).toContain("aparece em &quot;No local de apoio&quot;");
+    expect(t).not.toContain("Confirmar saída");
+  });
+
+  it("no local de apoio: o formulário de saída com o valor pago, a nota e as explicações", async () => {
+    await entrarComo("joao@motorapida.com.br", "levar");
+    const m = await nova();
+    const noLocal = await movimentacoes.chegarNaParada(m.id, m.paradas[0]!.id);
+    expect(noLocal.status).toBe("no_local");
+    expect(noLocal.acoes.sair_parada).toBe(true);
+    const t = await parada(m.id);
+    for (const trecho of ["Sair da parada", "Valor pago", "Confira com o recibo. Previsto na criação: R$ 35,00.", "Nota", 'fica marcada &quot;sem nota&quot;', "Valor zero não lança despesa.", "Confirmar saída"]) {
+      expect(t, trecho).toContain(trecho);
+    }
+    expect(t).not.toContain("Cheguei ao");
+  });
+
+  it("a saída com valor e sem nota lança a despesa marcada sem nota e volta a em trânsito, rumo ao destino", async () => {
+    await entrarComo("joao@motorapida.com.br", "levar");
+    const m = await nova();
+    await movimentacoes.chegarNaParada(m.id, m.paradas[0]!.id);
+    const depois = await movimentacoes.sairDaParada(m.id, m.paradas[0]!.id, { valor_pago_centavos: 3500 });
+    expect(depois.status).toBe("em_transito");
+    expect(depois.proxima_etapa).toBe("destino");
+    expect(depois.custo_centavos).toBe(3500);
+    expect(depois.paradas[0]!.despesa).toMatchObject({ status: "a_pagar", sem_nota: true });
+    expect(depois.acoes.registrar_chegada).toBe(true);
+  });
+
+  it("valor zero não lança despesa", async () => {
+    await entrarComo("joao@motorapida.com.br", "levar");
+    const m = await nova();
+    await movimentacoes.chegarNaParada(m.id, m.paradas[0]!.id);
+    const depois = await movimentacoes.sairDaParada(m.id, m.paradas[0]!.id, { valor_pago_centavos: 0 });
+    expect(depois.paradas[0]!.despesa).toBeNull();
+  });
+
+  it("parada fora de ordem e saída sem ter chegado são recusadas pela API", async () => {
+    await entrarComo("joao@motorapida.com.br", "levar");
+    const m = await nova();
+    await expect(movimentacoes.chegarNaParada(m.id, 99999)).rejects.toMatchObject({ status: 409, codigo: "parada_fora_de_ordem" });
+    await expect(movimentacoes.sairDaParada(m.id, m.paradas[0]!.id, { valor_pago_centavos: 100 })).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("o cartão do quadro mostra Cheguei na parada ou Registrar saída pelo que a API manda em acoes", async () => {
+    await entrarComo("joao@motorapida.com.br", "levar");
+    const m = await nova();
+    const linha = (await movimentacoes.quadro()).colunas.flatMap((c) => c.itens).find((x) => x.id === m.id) as LinhaDaMovimentacao;
+    expect(texto(comCache(new QueryClient(), <CartaoDaMovimentacao m={linha} ocupado={false} aoIniciar={() => {}} aoCancelar={() => {}} />))).toContain("Cheguei na parada");
+    const noLocal = { ...linha, acoes: { ...linha.acoes, chegar_parada: false, sair_parada: true } };
+    const t = texto(comCache(new QueryClient(), <CartaoDaMovimentacao m={noLocal} ocupado={false} aoIniciar={() => {}} aoCancelar={() => {}} />));
+    expect(t).toContain("Registrar saída");
+    expect(t).not.toContain("Cheguei na parada");
+  });
+});
+
+describe("rodou N km na chegada (T-302)", () => {
+  it("km digitado a partir do da saída mostra o que rodou, sempre com o mínimo", () => {
+    expect(dicaDoKm(3120, "3.146")).toBe("rodou 26 km · não pode ser menor que 3.120");
+    expect(dicaDoKm(3120, "3.120")).toBe("rodou 0 km · não pode ser menor que 3.120");
+  });
+
+  it("sem km ou abaixo do da saída mostra só o mínimo (a API recusa o resto, VEI-01)", () => {
+    expect(dicaDoKm(3120, "")).toBe("não pode ser menor que 3.120");
+    expect(dicaDoKm(3120, "3.000")).toBe("não pode ser menor que 3.120");
+  });
+
+  it("sem km de saída não mostra dica", () => {
+    expect(dicaDoKm(null, "3.146")).toBeUndefined();
   });
 });

@@ -17,9 +17,17 @@ import { COMBUSTIVEIS_DA_CHEGADA, POSICOES_DA_CHEGADA, ROTA_DAS_MOVIMENTACOES } 
 // Referência: docs/telas/html/Movimentacao-Chegada-Mobile.dc.html (MOV-04, MOV-05, MOV-06).
 // A API confere o km, o combustível, as 4 fotos e quem recebe, e devolve o erro no campo.
 
+/** "rodou 26 km · não pode ser menor que 3.120": só a conta de exibição (T-302); quem confere o km é a API (VEI-01). */
+export function dicaDoKm(kmDaSaida: number | null, texto: string): string | undefined {
+  if (kmDaSaida === null) return undefined;
+  const minimo = `não pode ser menor que ${kmComPontos(String(kmDaSaida))}`;
+  const digitado = Number(soDigitos(texto));
+  return texto !== "" && digitado >= kmDaSaida ? `rodou ${kmComPontos(String(digitado - kmDaSaida))} km · ${minimo}` : minimo;
+}
+
 const kmComPontos = (t: string) => new Intl.NumberFormat("pt-BR").format(Number(soDigitos(t) || 0));
 
-function Etapa({ marca, titulo, apoio, valor, destaque }: { marca: React.ReactNode; titulo: string; apoio: string; valor?: string; destaque?: boolean }) {
+export function Etapa({ marca, titulo, apoio, valor, destaque }: { marca: React.ReactNode; titulo: string; apoio: string; valor?: string; destaque?: boolean }) {
   return (
     <div className="flex items-center gap-3 border-b border-line py-[10px] text-body last:border-b-0">
       <span className="grid size-[26px] shrink-0 place-items-center rounded-pill bg-surface-sunken text-[12px] font-bold">{marca}</span>
@@ -143,7 +151,7 @@ export function RegistrarChegada({ id }: { id: number }) {
           }}
           className="flex flex-col gap-4"
         >
-          <TextField rotulo="Km na chegada" mono cheio inputMode="numeric" value={kmTexto} onChange={(e) => setKmTexto(e.target.value === "" ? "" : kmComPontos(e.target.value))} dica={m.km_saida !== null ? `não pode ser menor que ${kmComPontos(String(m.km_saida))}` : undefined} erro={erroDoKm} />
+          <TextField rotulo="Km na chegada" mono cheio inputMode="numeric" value={kmTexto} onChange={(e) => setKmTexto(e.target.value === "" ? "" : kmComPontos(e.target.value))} dica={dicaDoKm(m.km_saida, kmTexto)} erro={erroDoKm} />
 
           {m.vistoria_rapida && (
             <>

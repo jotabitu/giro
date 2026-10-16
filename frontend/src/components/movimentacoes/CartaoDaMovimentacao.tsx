@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Button, Icone } from "@/design-system";
 import type { LinhaDaMovimentacao } from "@/lib/api";
 import { dinheiro, nomeCurto, placa } from "@/lib/formatos";
-import { rotaDaChegada } from "@/lib/movimentacoes";
+import { rotaDaChegada, rotaDaParada } from "@/lib/movimentacoes";
 
 /**
  * Cartão do quadro (Movimentacoes-Desktop e Movimentacoes-Mobile). A rota, o resumo ("saiu 10:02 · 1 parada") e os botões
@@ -37,6 +37,16 @@ export function CartaoDaMovimentacao({ m, ocupado, aoIniciar, aoCancelar }: { m:
           <Button compacto variante="solido" disabled={ocupado} onClick={() => aoIniciar(m)}>
             Iniciar
           </Button>
+        )}
+        {m.acoes.chegar_parada && (
+          <Link href={rotaDaParada(m.id)} className="wl-btn wl-btn--brand wl-btn--sm">
+            Cheguei na parada
+          </Link>
+        )}
+        {m.acoes.sair_parada && (
+          <Link href={rotaDaParada(m.id)} className="wl-btn wl-btn--solid wl-btn--sm">
+            Registrar saída
+          </Link>
         )}
         {m.acoes.registrar_chegada && (
           <Link href={rotaDaChegada(m.id)} className="wl-btn wl-btn--brand wl-btn--sm">
