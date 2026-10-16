@@ -8,6 +8,56 @@ export type TomApi = "sucesso" | "info" | "alerta" | "atencao" | "perigo" | "neu
 
 export type PrecoVigente = { diaria_centavos: number; semanal_centavos: number; mensal_centavos: number; caucao_centavos: number };
 
+/** Blocos da ficha (T-275, "Blocos da ficha" de veiculos.md). Só vêm no detalhe e podem faltar: a tela esconde o que não vier. */
+export type PagamentoDaLocacao = {
+  situacao: "atrasado" | "vence_hoje" | "em_dia";
+  /** Montado pela API ("Parcela 2 atrasada", "Em dia"). */
+  rotulo: string;
+  conta_id: number | null;
+  /** Valor do dia, com multa e juros (FIN-03). */
+  valor_centavos: number;
+  atrasadas: number;
+  cobrar: boolean;
+};
+export type LocacaoAtualDoVeiculo = {
+  id: number;
+  codigo: string;
+  status: string;
+  cliente_nome: string;
+  inicio: string;
+  fim_previsto: string;
+  alerta?: string;
+  plano?: { periodicidade: "diaria" | "semanal" | "mensal"; plano_especial: string | null; valor_periodo_centavos?: number };
+  pagamento?: PagamentoDaLocacao;
+};
+export type ProximaManutencao = {
+  servico: string;
+  km: number;
+  faltam_km?: number;
+  intervalo_km?: number;
+  /** De 0 a 100, com 2 casas, para a barra. */
+  progresso_pct?: string;
+  dias_estimados?: number | null;
+  depois?: { servico: string; km: number; faltam_km: number } | null;
+  nota?: string | null;
+};
+export type PosicaoDaFoto = "frente" | "traseira" | "lado_esquerdo" | "lado_direito" | "painel";
+export type VistoriaRecente = {
+  id: number;
+  tipo: "saida" | "chegada";
+  concluida_em: string;
+  vistoriador: { id: number; nome: string };
+  locacao_codigo: string | null;
+  total_fotos: number;
+  fotos: { id: number; posicao: PosicaoDaFoto; url: string; url_expira_em: string }[];
+  avarias: { id: number; descricao: string; registrada_em: string; preexistente: boolean; locacao_codigo: string | null; foto_id: number | null }[];
+};
+export type MovimentacoesDoVeiculo = {
+  total: number;
+  ultimas: { id: number; codigo: string; status: string; destino_nome: string; paradas: string[]; iniciada_em: string; concluida_em: string | null }[];
+  em_andamento: unknown;
+};
+
 export type Veiculo = {
   id: number;
   placa: string;
@@ -34,8 +84,8 @@ export type Veiculo = {
   data_compra?: string | null;
   entrou_na_frota_em: string;
   situacao: { codigo: string; rotulo: string; tom: TomApi };
-  locacao_atual: { id: number; codigo: string; status: string; cliente_nome: string; inicio: string; fim_previsto: string; alerta?: string } | null;
-  manutencao: { proxima: { servico: string; km: number } | null; os_aberta: { id: number; codigo: string; status: string } | null; alerta?: string } | null;
+  locacao_atual: LocacaoAtualDoVeiculo | null;
+  manutencao: { proxima: ProximaManutencao | null; os_aberta: { id: number; codigo: string; status: string } | null; alerta?: string } | null;
   documentos_resumo: { pior_situacao: "em_dia" | "vence_em_breve" | "vencido" };
   acoes: {
     editar: boolean;
@@ -47,6 +97,9 @@ export type Veiculo = {
     baixar: boolean;
     registrar_km: boolean;
     corrigir_km: boolean;
+    /** T-275: `movimentar` e o motivo quando for `false`; ausentes até a API mandar. */
+    movimentar?: boolean;
+    motivo_movimentar?: string | null;
   };
 };
 
@@ -54,6 +107,9 @@ export type VeiculoDetalhe = Veiculo & {
   /** Ausente para o vistoriador. */
   indicadores_financeiros?: { rendeu_no_ano_centavos: number; custo_manutencao_ano_centavos: number } | null;
   ocupacao: { pct: string; periodo_dias: number };
+  /** Ausente para o financeiro e quando o veículo nunca teve vistoria. */
+  vistoria_recente?: VistoriaRecente | null;
+  movimentacoes?: MovimentacoesDoVeiculo | null;
   historico_status: { de: StatusVeiculo; para: StatusVeiculo; em: string; origem_codigo: string | null }[];
 };
 
