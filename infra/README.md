@@ -112,6 +112,10 @@ Modelo em `infra/proxy/giro.conf.template` (nginx; a imagem oficial troca as var
 - [ ] Host desconhecido recusado no proxy (444); HTTP redireciona para HTTPS; certificado curinga.
 - [ ] Backend: `USE_X_FORWARDED_HOST` é `False` em `base.py` e `test.py`, e `True` só em `dev.py` (o rewrite do Next) e `prod.py`. Teste `test_t158_x_forwarded_host_so_em_dev_e_prod`.
 
+## Sentry sem segredos (T-270)
+
+O backend e o worker iniciam o Sentry por `comum/sentry.py` (`opcoes_do_sentry`), com `SENTRY_DSN_BACKEND` (vazio desliga): sem variáveis locais da pilha, sem corpo de requisição, sem o cabeçalho `asaas-access-token`, `Authorization` e cookies (nas rotas `/api/webhooks/`, sem cabeçalho nenhum), `creditCardToken` e afins pelo `EventScrubber` recursivo, e só o nome da tarefa nas tarefas do Celery. O rastro da pilha e a mensagem da exceção continuam, então a mensagem nunca pode carregar dado pessoal. Testes em `backend/tests/aceitacao/test_t270_sentry.py`, com um transporte de mentira. O Sentry do frontend ainda não existe; quando entrar, precisa da mesma regra (sem corpo de requisição, sem cabeçalhos) e do host do DSN em `connect-src`.
+
 ## Endurecimento de produção (T-035)
 
 Valores por ambiente (o processo precisa de `DJANGO_SETTINGS_MODULE`; `wsgi.py`, `asgi.py` e `config/celery.py` não têm mais padrão e falham sem ele, C-04):

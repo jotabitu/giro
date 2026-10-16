@@ -426,12 +426,10 @@ SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT", default="dev")
 if SENTRY_DSN_BACKEND:
     import sentry_sdk
 
-    sentry_sdk.init(
-        dsn=SENTRY_DSN_BACKEND,
-        environment=SENTRY_ENVIRONMENT,
-        send_default_pii=False,
-        traces_sample_rate=0.0,
-    )
+    from comum.sentry import opcoes_do_sentry
+
+    # Sem variáveis locais, corpo de requisição nem token do webhook (T-270).
+    sentry_sdk.init(**opcoes_do_sentry(SENTRY_DSN_BACKEND, SENTRY_ENVIRONMENT))
 
 LOGGING = {
     "version": 1,
