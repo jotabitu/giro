@@ -117,9 +117,44 @@ describe("painel da pessoa", () => {
   it("convite pendente: reenviar e cancelar; desativado: reativar", async () => {
     await entrar("mariana@motorapida.com.br");
     expect(texto(await painel(5))).toContain("Reenviar convite|Cancelar convite");
+    expect(texto(await painel(5))).toContain("Copiar link do convite");
     const t = texto(await painel(8));
     expect(t).toContain("Reativar acesso");
     expect(t).not.toContain("Salvar alterações");
+  });
+});
+
+describe("copiar link do convite (USR-01, CA-248-12 a 15)", () => {
+  it("o botão e o aviso aparecem só no convite pendente, pelo acoes da API", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const pendente = texto(await painel(5));
+    expect(pendente).toContain("Copiar link do convite");
+    expect(pendente).toContain("O link anterior deixa de valer.");
+    for (const id of [1, 8]) expect(texto(await painel(id)), `usuário ${id}`).not.toContain("Copiar link do convite");
+  });
+
+  it("sem acoes.copiar_link_convite o botão some, mesmo com convite pendente", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const cache = new QueryClient();
+    const u = await usuarios.obter(5);
+    cache.setQueryData(["usuarios", "detalhe", 5], { ...u, acoes: { ...u.acoes, copiar_link_convite: false } });
+    cache.setQueryData(["usuarios", "sessoes", 5], []);
+    const t = texto(
+      renderToStaticMarkup(
+        <QueryClientProvider client={cache}>
+          <PainelDoUsuario id={5} eu={sessao.eu as Eu} aoConcluir={() => {}} />
+        </QueryClientProvider>,
+      ),
+    );
+    expect(t).not.toContain("Copiar link do convite");
+    expect(t).toContain("Reenviar convite");
+  });
+
+  it("a API devolve o link novo e o aviso; ativo e desativado respondem 409", async () => {
+    const r = await usuarios.copiarLinkDoConvite(5);
+    expect(r.link).toContain("/convite/");
+    expect(r.aviso).toBe("O link anterior deixa de valer.");
+    await expect(usuarios.copiarLinkDoConvite(1)).rejects.toMatchObject({ status: 409, codigo: "transicao_usuario" });
   });
 });
 

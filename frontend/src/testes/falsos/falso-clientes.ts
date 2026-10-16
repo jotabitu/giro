@@ -238,7 +238,8 @@ export const clientesFalso = {
         default: return r.status !== "inativo";
       }
     };
-    let lista = REGISTROS.filter(doFiltro);
+    // CLI-10: o filtro de filial escolhe quem aparece; no seed, todo cliente tem locação só na Filial Centro (id 1).
+    let lista = f.filial !== undefined && f.filial !== 1 ? [] : REGISTROS.filter(doFiltro);
     if (f.busca) {
       const dig = digitos(f.busca);
       lista = lista.filter((r) => ((dig.length === 11 || dig.length === 14) && !/\D/.test(f.busca ?? "") ? r.documento === dig : normalizar(r.nome).includes(normalizar(f.busca ?? "")) || r.celular.includes(dig || "x")));
