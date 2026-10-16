@@ -34,7 +34,7 @@ export function Confirmacao({ children }: { children: ReactNode }) {
 }
 
 /** Linhas "rótulo ... valor" de um resumo (gaveta, valor do dia). */
-export function LinhasDeValor({ linhas }: { linhas: { rotulo: string; valor: string; forte?: boolean }[] }) {
+export function LinhasDeValor({ linhas }: { linhas: { rotulo: string; valor: ReactNode; forte?: boolean }[] }) {
   return (
     <dl>
       {linhas.map((l) => (

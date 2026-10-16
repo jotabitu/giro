@@ -305,14 +305,14 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-317 · Varredura do suporte nas rotas de escrita
 - **Agente:** qa · **Depende de:** T-316 · **Regras:** PLT-07 · **Pronto quando:** um teste percorre as rotas de escrita com token de suporte "ver e editar" e exige que nenhuma responda 500 (o mesmo `*_por=usuario` num campo que exige `contas.Usuario` aparece no financeiro: `lancada_por`, `aberto_por`, `fechado_por`, `feito_por`); o que falhar vira tarefa de backend. Sugestão da segurança na T-315.
 
+### T-320 · OpenAPI das Movimentações sem nomes repetidos
+- **Agente:** backend · **Depende de:** T-288 parte 1 (PR #324) · **Regras:** MOV-01 · **Pronto quando:** o OpenAPI gerado não repete nomes de componente: o `VeiculoRef` das movimentações não perde `modelo` e `status` para o outro `VeiculoRef`; `Quadro.itens` aponta para o item do quadro, não para a `Linha` da importação; o quadro declara os parâmetros `busca` e `levando`. Nomes únicos pelo `ref_name` dos serializers, OpenAPI regenerado, `api:gerar` e os tipos locais da T-289 trocados pelos gerados (o frontend confere). Achado do frontend na T-289 (handoff `tarefas/handoffs/T-289-frontend.md`).
+
 ### T-288 · Movimentações: backend
 - **Parte 1 entregue (16 out 2026):** branch `t-288-movimentacoes-backend`, handoff `tarefas/handoffs/T-288-backend.md`. Falta a parte 2 (t-288b): a saída da rota `transferir` com o frontend, o teste de concorrência e os totais de despesas de outubro do CA-246-02.
 - **Na parte 2 (T-314, 16 out 2026):** `movimentacoes.services.editar` grava o `movimentacao.editar` com as `paradas` no antes e no depois (na ordem, com `local_id`, `servico`, `categoria`, `valor_previsto_centavos`), sem mudar o formato do evento; teste `test_mov_01_editar_agendada_guarda_paradas_antigas_na_auditoria` (handoff `tarefas/handoffs/T-314-arquiteto.md`).
 - **Agente:** backend · **Depende de:** T-286 · **Regras:** MOV-01 a MOV-06, VEI-04, FIN-05, APR-03 · **Contrato:** `docs/api/movimentacoes.md`, ADR 0028 · **Pronto quando:** o que a seção da T-286 pede do backend (app `movimentacoes`, estados, paradas e despesa, chegada com vistoria rápida, transferência na chegada, uma aberta por veículo, blocos na Frota e na ficha, `pode.movimentacoes`), com testes `test_mov_*` e o OpenAPI regenerado.
 - **Junto (T-300, 16 out 2026):** `GET /api/movimentacoes/pessoas/?filial=` e `GET /api/movimentacoes/{id}/recebedores/` (a mesma função valida `levado_por_id` e `recebido_por_id`), a seção "Veículo em movimentação" de `veiculos.md` (`movimentacao_aberta`, `acoes`, histórico com origem `movimentacao`, filtro `?movimentavel=true`); até o produto responder, a baixa de veículo com movimentação aberta é recusada (409 `MOV-03`). Handoff `tarefas/handoffs/T-300-arquiteto.md`.
-
-### T-289 · Movimentações: telas
-- **Agente:** frontend · **Depende de:** T-288 · **Telas:** Movimentacoes-*, Movimentacao-Nova-*, Movimentacao-Chegada-Mobile · **Pronto quando:** o que a seção da T-286 pede do frontend, igual às referências, ligado à API; testes dos componentes.
 
 ### Textos da T-185 (parte 1) fora do contrato · respondidos na T-290
 - **Cartão no anual (produto, 16 out 2026): fica "todo ano".** "Cartão Visa final 4242 · cobrança automática todo ano" no ciclo anual, "todo mês" no mensal (`PLT-13`). O arquiteto acrescenta a linha do anual na tabela da forma em `assinatura.md`.

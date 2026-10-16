@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { Button, Dialogo, StatusBadge, TextField } from "@/design-system";
 import { atualizarAposDecisao } from "@/lib/aprovacoes";
@@ -38,6 +39,15 @@ export function DetalheDaDespesa({ id, inicial, eu, aoFechar, aoConcluir }: { id
     aoFechar();
   };
 
+  const anexar = useMutation({
+    mutationFn: (nota: File) => financeiro.anexarNota(id, nota),
+    onSuccess: async () => {
+      await cliente.invalidateQueries({ queryKey: ["despesas"] });
+      setAviso("Nota anexada.");
+    },
+  });
+  const [aviso, setAviso] = useState<string | null>(null);
+
   const pagar = useMutation({
     mutationFn: () => financeiro.pagarDespesa(id, { forma, pago_em: pagoEmDoDia(dia || diaDe(agora.toISOString()), agora), comprovante }),
     onSuccess: () => depois("Despesa paga."),
@@ -51,6 +61,8 @@ export function DetalheDaDespesa({ id, inicial, eu, aoFechar, aoConcluir }: { id
     onSuccess: () => depois("Despesa recusada."),
   });
 
+  // Anexar a nota é de quem lança despesa (`despesas_lancar` = `todas`, MOV-04); a API confere de novo.
+  const podeAnexar = d !== undefined && d.sem_nota && eu.pode.despesas_lancar === "todas";
   const podePagar = d?.status === "a_pagar" && eu.pode.financeiro_pagar;
   // Quem decide o pedido é a API (`pode_decidir`, APR-03 e APR-09): a tela não olha perfil nem quem lançou.
   const pedidos = useQuery({ queryKey: ["aprovacoes", "esperando"], queryFn: () => aprovacoes.listar({ status: "pendente" }), enabled: d?.status === "aguardando_aprovacao" });
@@ -150,6 +162,7 @@ export function DetalheDaDespesa({ id, inicial, eu, aoFechar, aoConcluir }: { id
                   { rotulo: "Vencimento", valor: dataCompleta(d.vencimento) },
                   ...(d.veiculo ? [{ rotulo: "Veículo", valor: placa(d.veiculo.placa) }] : []),
                   ...(d.pago_em ? [{ rotulo: "Pago em", valor: dataCompleta(d.pago_em) }] : []),
+                  ...(d.origem?.tipo === "movimentacao" && d.origem.codigo ? [{ rotulo: "Origem", valor: <Link href={`/veiculos/movimentacoes?busca=${d.origem.codigo}`} className="text-ink underline">{d.origem.codigo}</Link> }] : []),
                 ]}
               />
             </div>
@@ -158,7 +171,38 @@ export function DetalheDaDespesa({ id, inicial, eu, aoFechar, aoConcluir }: { id
                 Ver a nota
               </a>
             ) : (
-              <p className="text-caption text-ink-muted">Sem foto da nota.</p>
+              <div className="flex flex-col gap-2">
+                <p className="text-caption text-ink-muted">{d.sem_nota ? "Sem nota. Anexe a foto quando o recibo chegar." : "Sem foto da nota."}</p>
+                {podeAnexar && (
+                  <label className="wl-btn wl-btn--sm self-start">
+                    Anexar nota
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      aria-label="Anexar nota"
+                      className="sr-only"
+                      disabled={anexar.isPending}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        if (f.size > TAMANHO_MAXIMO_DA_NOTA) {
+                          setErroDoArquivo("A nota pode ter até 10 MB. Escolha um arquivo menor.");
+                          return;
+                        }
+                        setErroDoArquivo(null);
+                        setAviso(null);
+                        anexar.mutate(f);
+                      }}
+                    />
+                  </label>
+                )}
+                {aviso && (
+                  <p role="status" className="text-caption text-ink-muted">
+                    {aviso}
+                  </p>
+                )}
+                {(erroDoArquivo || anexar.isError) && <ErroDoFinanceiro erro={anexar.error ?? new Error(erroDoArquivo ?? "")} />}
+              </div>
             )}
 
             {modo === "pagar" && (

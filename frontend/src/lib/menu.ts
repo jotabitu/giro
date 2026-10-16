@@ -18,6 +18,7 @@ import {
   Settings,
   ShieldCheck,
   Tag,
+  Truck,
   UserCog,
   Users,
   Wallet,
@@ -31,6 +32,7 @@ const DESTINOS: Record<string, { href: string; icone: LucideIcon }> = {
   inicio: { href: "/inicio", icone: LayoutGrid },
   aprovacoes: { href: "/aprovacoes", icone: CheckCheck },
   veiculos: { href: "/veiculos", icone: Car },
+  movimentacoes: { href: "/veiculos/movimentacoes", icone: Truck },
   locacoes: { href: "/locacoes", icone: KeyRound },
   vendas: { href: "/vendas", icone: Tag },
   clientes: { href: "/clientes", icone: Users },
@@ -111,13 +113,22 @@ export function rotaPermitida(eu: Pick<Eu, "pode" | "navegacao">, rota: string):
   // Quem só lê a frota (`ver`: vendedor e financeiro, USR-09) abre a lista e a ficha, não o cadastro nem a edição.
   if (/^\/veiculos\/\d+\/editar$/.test(rota)) return pode.veiculos === "editar" && noMenu("veiculos");
   if (rota === "/veiculos/novo") return pode.veiculos === "editar" && noMenu("veiculos");
+  // Movimentações (MOV-02, USR-05): o quadro, a Nova movimentação e a chegada valem para quem tem o item no menu; ficam fora do "Veículos".
+  if (rota === "/veiculos/movimentacoes" || rota.startsWith("/veiculos/movimentacoes/")) return noMenu("movimentacoes");
   return abreRota(nav.menu_completo, rota) || abreRota(nav.menu_inicio, rota);
 }
 
 /** Liga o menu pronto da API às rotas e aos ícones, com a rota ativa e os contadores. Chave desconhecida fica de fora. */
 export function montarMenu(grupos: GrupoNavegacao[], rotaAtual: string, contadores: Record<string, number | null> = {}): GrupoMontado[] {
-  // Itens diferentes podem dividir o caminho (ex.: Frota e Veículos à venda); só o primeiro fica ativo.
-  let achouAtivo = false;
+  // Itens diferentes podem dividir o caminho (ex.: Frota e Veículos à venda) ou um conter o outro (Veículos e Movimentações):
+  // fica ativo só o de caminho mais longo; em empate, o primeiro.
+  const candidatos = grupos.flatMap((g) =>
+    g.itens.flatMap((i) => {
+      const href = DESTINOS[i.chave]?.href;
+      return href && estaEm(rotaAtual, href) ? [{ chave: i.chave, tamanho: caminhoDe(href)?.length ?? 0 }] : [];
+    }),
+  );
+  const ativoChave = candidatos.reduce<{ chave: string; tamanho: number } | null>((melhor, c) => (!melhor || c.tamanho > melhor.tamanho ? c : melhor), null)?.chave;
   return grupos
     .map((g) => ({
       rotulo: g.grupo ?? undefined,
@@ -125,8 +136,7 @@ export function montarMenu(grupos: GrupoNavegacao[], rotaAtual: string, contador
         const destino = DESTINOS[i.chave];
         if (!destino) return [];
         const total = i.contador ? contadores[i.contador] : null;
-        const ativo = !achouAtivo && estaEm(rotaAtual, destino.href);
-        achouAtivo ||= ativo;
+        const ativo = i.chave === ativoChave;
         return [{ chave: i.chave, rotulo: i.rotulo, href: destino.href, icone: destino.icone, ativo, total: total || undefined }];
       }),
     }))

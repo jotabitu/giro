@@ -8,7 +8,7 @@ export type Atividade = "aluga" | "vende" | "ambos";
 /** Apps entregues (`GIRO_MODULOS_ATIVOS`). No falso valem todos, para o desenvolvimento ver o menu cheio. */
 export const TODOS_OS_MODULOS = [
   "aprovacoes", "auditoria", "clientes", "configuracoes", "contas", "empresas", "filiais", "financeiro",
-  "locacoes", "manutencao", "plataforma", "relatorios", "veiculos", "vendas", "vistorias",
+  "locacoes", "manutencao", "movimentacoes", "plataforma", "relatorios", "veiculos", "vendas", "vistorias",
 ] as const;
 
 /** Recursos do plano Profissional. */
@@ -45,6 +45,7 @@ const DEFINICOES: Definicao[] = [
   { chave: "veiculos", rotulo: "Veículos", contador: "veiculos", permissao: (p) => p.veiculos !== "nao", modulo: "veiculos" },
   { chave: "locacoes", rotulo: "Locações", contador: "locacoes", permissao: (p) => p.locacoes_criar, recurso: "locacoes_vistoria", atividade: "aluga", modulo: "locacoes" },
   { chave: "vendas", rotulo: "Vendas", permissao: (p) => p.vendas_criar, recurso: "vendas_comissoes", atividade: "vende", modulo: "vendas" },
+  { chave: "movimentacoes", rotulo: "Movimentações", permissao: (p) => p.movimentacoes === "gerir", modulo: "movimentacoes" },
   { chave: "clientes", rotulo: "Clientes", permissao: (p) => p.clientes_cadastrar || p.caixa_receber, modulo: "clientes" },
   { chave: "manutencoes", rotulo: "Manutenções", contador: "manutencoes", permissao: (p) => p.os_abrir, recurso: "manutencao_despesas", modulo: "manutencao" },
   { chave: "caixa", rotulo: "Caixa do dia", permissao: (p) => p.caixa_receber || p.caixa_abrir_fechar, recurso: "contas_receber", modulo: "financeiro" },
@@ -79,7 +80,7 @@ type Grupos = readonly (readonly [string | null, readonly Entrada[]])[];
 /** Tabela "Itens do menu_completo" do contrato, na ordem. */
 const menuCompleto = (rotuloDoInicio: string): Grupos => [
   [null, [["inicio", rotuloDoInicio], "aprovacoes", "veiculos"]],
-  ["Operação", ["locacoes", "vendas", "clientes", "manutencoes"]],
+  ["Operação", ["locacoes", "vendas", "clientes", "manutencoes", "movimentacoes"]],
   ["Financeiro", ["caixa", "receber", "despesas", "comissoes", "conciliacao", "relatorios"]],
   ["Administração", ["config", "marca", "filiais", "usuarios", "assinatura", "auditoria"]],
 ];
@@ -91,7 +92,7 @@ const ROTULO_DO_INICIO: Partial<Record<VarianteInicio, string>> = { gerente: "Vi
 const MENU_INICIO: Partial<Record<VarianteInicio, Grupos>> = {
   gerente: [
     [null, [["inicio", "Visão da filial"], "aprovacoes", "veiculos"]],
-    ["Operação", ["locacoes", "vendas", "clientes", "manutencoes"]],
+    ["Operação", ["locacoes", "vendas", "clientes", "manutencoes", "movimentacoes"]],
     ["Filial", [["caixa", "Caixa da filial"], "relatorios"]],
   ],
   vendedor: [
