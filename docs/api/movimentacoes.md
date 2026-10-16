@@ -1,6 +1,6 @@
 # Movimentações de veículos
 
-**Dono:** arquiteto · **Versão:** 16 out 2026 (T-286) · **App:** `movimentacoes` (schema da empresa, ADR 0028) · **Regras:** MOV-01 a MOV-06, VEI-01 a VEI-04, VEI-06, FIN-05, FIN-06, APR-03, AUD-05, USR-07 · **ADRs:** 0011, 0015, 0028 · **Telas:** Movimentacoes (desktop e celular), Movimentacao-Nova (desktop e celular), Movimentacao-Chegada-Mobile · **Critérios:** `docs/qa/criterios/T-246.md` (CA-246-01 a 16)
+**Dono:** arquiteto · **Versão:** 16 out 2026 (T-286; T-300: quem leva e quem recebe) · **App:** `movimentacoes` (schema da empresa, ADR 0028) · **Regras:** MOV-01 a MOV-06, VEI-01 a VEI-04, VEI-06, FIN-05, FIN-06, APR-03, AUD-05, USR-07 · **ADRs:** 0011, 0015, 0028 · **Telas:** Movimentacoes (desktop e celular), Movimentacao-Nova (desktop e celular), Movimentacao-Chegada-Mobile · **Critérios:** `docs/qa/criterios/T-246.md` (CA-246-01 a 16)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 26 e 27 de `docs/decisoes/modelo-de-dados.md`. A despesa da parada está em `financeiro.md`; o status do veículo, a ficha e a Frota, em `veiculos.md`.
 
@@ -98,7 +98,7 @@ Tela `Movimentacao-Nova`. Corpo:
 - `destino_filial_id`: uma filial ativa da empresa, a de saída (ida e volta) ou outra (transferência). A filial de saída é sempre a do veículo; não vem no corpo.
 - `categoria_destino_id`: na transferência, pela `VEI-04`: obrigatória quando a categoria do veículo é só da filial de saída (400 `validacao` "Escolha a categoria do veículo na Filial Caucaia."), e tem de ser uma categoria ativa do mesmo tipo de veículo, da empresa ou da filial de destino. Fora da transferência, ignorada.
 - `vistoria_rapida`: na transferência é sempre `true` (a API grava `true` mesmo que venha `false`); na volta à mesma filial, a escolha da tela (`MOV-05`).
-- `levado_por_id`: usuário ativo ligado à filial de saída, de qualquer perfil menos o financeiro (400 `validacao` em `levado_por_id`).
+- `levado_por_id`: usuário ativo ligado à filial de saída, de qualquer perfil menos o financeiro (400 `validacao` em `levado_por_id`). A escolha vem de `GET /api/movimentacoes/pessoas/?filial=<filial do veículo>` ("Quem leva e quem recebe").
 - `sair_agora: true` nasce `em_transito` (com os efeitos de Iniciar, abaixo); senão, `agendada_para` é obrigatório e no futuro, e nasce `agendada`.
 201: a representação, com o código `MOV-` da empresa.
 Erros:
@@ -139,9 +139,35 @@ Vistoria rápida (`MOV-05`). `multipart/form-data`: `posicao` (`frente`, `trasei
 "Confirmar chegada" (`Movimentacao-Chegada-Mobile`): `em_transito` → `concluida`. Corpo `{ "km": 3146, "combustivel": "cheio", "recebido_por_id": 9 }`. Só com a `proxima_etapa` = `destino` (paradas todas saídas; senão 409 `parada_fora_de_ordem`).
 - `km`: obrigatório, nunca menor que o atual: 422 `{ "codigo": "VEI-01", "mensagem": "O km informado é menor que o atual (3.120).", "detalhes": { "km_atual": 3120 } }` (CA-246-03). Atualiza o veículo e grava a `LeituraKm` com a origem (`veiculos.services.atualizar_km`, `VEI-02`).
 - Com `vistoria_rapida`: `combustivel` (enum da vistoria) e as 4 fotos são obrigatórios. Falta algo: 400 `{ "codigo": "validacao", "campos": { "combustivel": ["Informe o combustível."], "fotos": ["Faltam 2 fotos."] } }` (CA-246-09). Sem vistoria rápida, só o km (CA-246-03).
-- `recebido_por_id`: na transferência, obrigatório, um usuário ativo ligado à filial de destino (400 em `recebido_por_id`); fora dela, ignorado.
+- `recebido_por_id`: na transferência, obrigatório, um usuário ativo ligado à filial de destino (400 em `recebido_por_id`); fora dela, ignorado. A escolha vem de `GET /api/movimentacoes/{id}/recebedores/`.
 Numa transação, com a linha do veículo travada: a movimentação fica `concluida` com `concluida_em`; o veículo `em_movimentacao` vai para `disponivel`, ou para `indisponivel` com o motivo do documento (ex.: "CRLV vencido") se o CRLV ou o seguro está vencido no dia da chegada (`VEI-03`, CA-246-10); os outros status não mudam. Na transferência, `veiculos.services.transferir` com a categoria pedida na criação e a origem `movimentacao` (`MOV-06`, ADR 0028): o veículo passa a ser da filial de destino, com a `TransferenciaVeiculo` gravada (CA-246-09).
 200: a representação. Regras: MOV-05, MOV-06, VEI-01 a VEI-04.
+
+## Quem leva e quem recebe (T-300)
+
+Duas listas curtas para as escolhas das telas, no lugar de `GET /api/usuarios/`, que é só do administrador. Trazem só o necessário para escolher uma pessoa: sem e-mail, celular nem filiais (LGPD).
+
+```json
+{ "resultados": [
+  { "id": 4, "nome": "João Silva", "perfil": "vistoriador", "perfil_rotulo": "Vistoriador", "eu": false },
+  { "id": 2, "nome": "Rodrigo Alves", "perfil": "gerente", "perfil_rotulo": "Gerente", "eu": true } ] }
+```
+
+- "Ligado à filial" é o vínculo `filiais.UsuarioFilial` com a filial. O administrador conta em todas as filiais ativas, como no seletor (`USR-07`). Só usuários ativos (convite pendente e inativo ficam de fora).
+- Ordem pelo nome, sem diferença de maiúsculas e acentos. `eu: true` marca quem está logado, para a tela poder mostrar "(você)"; a escolha continua da pessoa.
+- Sem paginação: uma filial tem poucas pessoas. Token de suporte (`PLT-07`) lê.
+- A lista é uma ajuda para escolher. Quem decide é o `POST` (e o `PATCH`) e a chegada, que conferem de novo o `levado_por_id` e o `recebido_por_id` (400 `validacao`, acima), pela mesma função (`pessoas_da_filial`, em "Interface interna"). A pessoa desligada da filial entre a lista e o envio é recusada ali.
+
+### GET /api/movimentacoes/pessoas/?filial=<id>
+Quem pode levar (`MOV-02`), para a Nova movimentação e a agendada em edição. Perfis: administrador e gerente (`pode.movimentacoes = gerir`); o gerente só para uma filial dele.
+- `filial`: obrigatório; é a filial de saída, a do veículo (a tela já a tem do veículo escolhido). Usuários ativos ligados a ela, de todos os perfis **menos o financeiro**.
+- Erros: sem `filial`, ou filial que não existe ou está inativa → 400 `{ "codigo": "validacao", "campos": { "filial": ["Escolha uma filial."] } }`; vendedor, vistoriador e financeiro → 403 `permissao`; gerente com filial fora das dele → 403 `permissao` (CA-246-11).
+
+### GET /api/movimentacoes/{id}/recebedores/
+Quem pode receber o veículo na chegada da transferência ("Recebido por", `MOV-06`), para `Movimentacao-Chegada-Mobile`. A filial é a de destino da própria movimentação. Por isso a rota pende da movimentação e não recebe `?filial=`: quem leva (vendedor ou vistoriador) vê só a lista da filial para onde está levando, e não pode listar as pessoas de qualquer filial.
+- Usuários ativos ligados à filial de destino, **de todos os perfis**, financeiro incluído: a regra (`MOV-02`) e o `recebido_por_id` da chegada pedem só "um usuário ativo ligado à filial de destino". Se o produto excluir algum perfil, muda aqui e na validação da chegada juntos.
+- Perfis: quem pode registrar a chegada dela (tabela do início: administrador, gerente da filial de saída e quem leva). Fora disso, 403 `permissao`; id inexistente, 404.
+- Em qualquer status e também fora da transferência, a resposta é a lista; a tela só pergunta "Recebido por" quando `transferencia` é `true`.
 
 ## Locais de apoio
 
@@ -161,7 +187,7 @@ Administrador. 200. O local inativo sai da escolha e continua nas movimentaçõe
 | `veiculos.md` | status `em_movimentacao` (rótulo "Em movimentação", tom `info`); bloco `movimentacao_aberta` na lista e no detalhe; filtro `?em_movimentacao=true`; contador da Frota; `acoes.movimentar` e `acoes.transferir` (que abre a Nova movimentação); a rota `transferir` sai (ADR 0028, item 6) |
 | `locacoes.md` | veículo `em_movimentacao` não aparece na escolha da Nova locação nem na reserva (já fica de fora por não ser `disponivel`); `confirmar` trava a linha do veículo (ADR 0028, item 3) |
 | `financeiro.md` | origem `movimentacao` na despesa; `sem_nota`; `POST /api/financeiro/despesas/{id}/nota/` |
-| `contas.md` | `pode.movimentacoes`; item de menu `movimentacoes` |
+| `contas.md` | `pode.movimentacoes`; item de menu `movimentacoes`. `GET /api/usuarios/` continua só do administrador: as escolhas de quem leva e quem recebe usam as listas deste contrato (T-300) |
 | Ocupação (`VEI-06`) | sem mudança: `em_movimentacao` conta como dia na frota e não como alugado (CA-246-12) |
 | `AUT-06` | veículo `em_movimentacao` com CRLV ou seguro vencendo não muda de status; tarefa urgente aos gerentes; a chegada decide (`MOV-05`) |
 
@@ -169,6 +195,7 @@ Administrador. 200. O local inativo sai da escolha e continua nas movimentaçõe
 
 | Função | Uso |
 | --- | --- |
+| `contas.selectors.pessoas_da_filial(filial_id, excluir_perfis=())` | usuários ativos ligados à filial (administrador em todas), com `id`, `nome` e `perfil`; base de `pessoas/` e `recebedores/` e da validação de `levado_por_id` e `recebido_por_id`, para a lista e a recusa usarem a mesma conta (T-300). O vínculo vem de `filiais_do_usuario`, registrado em `comum.permissoes`, sem `contas` importar `filiais` (ADR 0011) |
 | `movimentacoes.selectors.aberta(veiculo)` | a movimentação `agendada`, `em_transito` ou `no_local` do veículo; base do bloco `movimentacao_aberta` (registro de leituras, ADR 0015) |
 | `locacoes.selectors.locacao_aberta(veiculo)` | lido ao criar e iniciar (`MOV-03`) |
 | `veiculos.services.travar`, `transicionar`, `atualizar_km`, `transferir(..., origem=movimentacao)` | ADR 0028 |

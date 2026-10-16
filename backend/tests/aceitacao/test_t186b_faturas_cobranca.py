@@ -162,18 +162,15 @@ def test_plt_02_sem_forma_nada_e_emitido(moto, relogio, django_capture_on_commit
 def test_plt_13_pix_automatico_autorizado_e_cobrado_pela_autorizacao(
     moto, relogio, conta_principal_ligada, django_capture_on_commit_callbacks
 ):
-    """Antes de autorizar no banco, a forma fica `aguardando_autorizacao` e nada é emitido. O aviso
-    da autorização (conferido no parceiro) tira a forma da espera, e a cobrança da FAT-0001 sai
-    pela autorização, sem boleto."""
+    """Antes de autorizar no banco, a forma fica `aguardando_autorizacao`. O aviso da autorização
+    (conferido no parceiro) tira a forma da espera, e a cobrança da FAT-0001, emitida depois,
+    sai pela autorização, sem boleto. Sem a autorização na emissão, ver a T-297."""
     relogio.em("2026-10-10 10:00")
     services.escolher_forma_pagamento(moto.recarregar(), "pix_automatico")
     forma = _forma(moto)
     assert forma.status == StatusFormaPagamento.PENDENTE
-    assert _gerar(relogio, "2026-10-17", django_capture_on_commit_callbacks).emitidas == {
-        "aguardando_autorizacao": 1
-    }
 
-    relogio.em("2026-10-17 10:00")
+    relogio.em("2026-10-16 10:00")
     corpo = pagamentos.autorizar_pix(forma.autorizacao_externa_id)
     assert _webhook(django_capture_on_commit_callbacks, corpo) == 200
     assert _webhook(django_capture_on_commit_callbacks, corpo) == 200  # o mesmo aviso de novo
@@ -182,7 +179,7 @@ def test_plt_13_pix_automatico_autorizado_e_cobrado_pela_autorizacao(
     assert situacao["rotulo"] == "Pix automático autorizado"
     assert [e.regra for e in _eventos("assinatura.forma_ativa", "public")] == ["PLT-13"]
 
-    assert _gerar(relogio, "2026-10-18", django_capture_on_commit_callbacks).emitidas == {
+    assert _gerar(relogio, "2026-10-17", django_capture_on_commit_callbacks).emitidas == {
         "pix_automatico": 1
     }
     fatura = moto.fatura("FAT-0001")

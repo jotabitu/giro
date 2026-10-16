@@ -791,7 +791,7 @@ def representacao_despesa(despesa: Despesa) -> dict[str, Any]:
             if despesa.veiculo is not None
             else None
         ),
-        "filial": {"id": despesa.filial_id},
+        "filial": {"id": despesa.filial_id, "nome": despesa.filial.nome},
         "valor_centavos": despesa.valor_centavos,
         "vencimento": despesa.vencimento,
         "status": despesa.status,
@@ -805,7 +805,7 @@ def representacao_despesa(despesa: Despesa) -> dict[str, Any]:
 
 
 def base_das_despesas() -> QuerySet[Despesa]:
-    return Despesa.objects.select_related("veiculo", "lancada_por")
+    return Despesa.objects.select_related("veiculo", "filial", "lancada_por")
 
 
 def mes_pedido(texto: str | None, hoje: date) -> date:

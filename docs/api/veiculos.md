@@ -56,6 +56,33 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
 - `valor_compra_centavos` e `data_compra` vêm `null` para quem não é administrador ou gerente.
 - `combustivel` (T-247, `VEI-08`): `gasolina`, `etanol`, `flex`, `diesel`, `eletrico`, `hibrido` ou `null` (veículo cadastrado antes). A tela `Veiculo-Novo` já tem o campo.
 
+### Veículo em movimentação (`MOV-03`, T-286, T-300)
+
+O status `em_movimentacao` entra no enum `status` do veículo (e no `?status=`, nas `contagens` e no `historico_status`). Só o veículo `disponivel` passa a ele, ao iniciar a movimentação. O `indisponivel`, o `em_manutencao` e o `a_venda` mantêm o status, e o que mostra a movimentação é o bloco `movimentacao_aberta`.
+
+Veículo `disponivel` depois de iniciar a MOV-0002:
+```json
+"status": "em_movimentacao", "motivo_status": null,
+"situacao": { "codigo": "em_movimentacao", "rotulo": "Em movimentação", "tom": "info" },
+"movimentacao_aberta": { "id": 2, "codigo": "MOV-0002", "status": "em_transito", "rotulo": "Em movimentação", "tom": "info" },
+"acoes": { "editar": true, "colocar_a_venda": false, "voltar_para_frota": false, "bloquear": false, "desbloquear": false,
+           "transferir": false, "baixar": true, "registrar_km": false, "corrigir_km": true,
+           "movimentar": false, "motivo_movimentar": "O veículo já está na MOV-0002." }
+```
+
+Veículo `indisponivel` (CRLV vencido) com a ida ao despachante agendada:
+```json
+"status": "indisponivel", "motivo_status": "CRLV vencido",
+"situacao": { "codigo": "indisponivel", "rotulo": "Indisponível", "tom": "neutro" },
+"movimentacao_aberta": { "id": 1, "codigo": "MOV-0001", "status": "agendada", "rotulo": "Movimentação agendada", "tom": "neutro" }
+```
+
+- `situacao` continua pelo `status` (tabela acima). A movimentação não sobrepõe a situação do veículo `indisponivel`, `em_manutencao` ou `a_venda`: a Frota mostra o `situacao` e, ao lado, o `movimentacao_aberta.rotulo` quando o bloco vem.
+- `movimentacao_aberta.rotulo` e `tom` são da API: `agendada` → "Movimentação agendada", `neutro`; `em_transito` → "Em movimentação", `info`; `no_local` → "No local de apoio", `info`. A tela não monta o texto a partir do `status`.
+- `acoes` com o veículo `em_movimentacao`: nenhuma transição manual (`bloquear`, `colocar_a_venda`, `transferir` e `movimentar` em `false`), porque ele volta pela chegada (`MOV-05`). `registrar_km` também vem `false`, porque o km entra na chegada (`VEI-01`). `baixar` segue a regra de sempre (qualquer status menos `alugado`).
+- `historico_status`: as passagens por `em_movimentacao` vêm com `origem_tipo: "movimentacao"` e `origem_codigo: "MOV-0002"`.
+- Vistoriador e financeiro recebem `movimentacao_aberta` como os demais: é o estado do veículo, sem valor em dinheiro.
+
 ### Blocos de outros apps (ADR 0015)
 
 | Bloco | Fornecedor | Conteúdo | Antes do fornecedor existir |
@@ -66,7 +93,7 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
 | `manutencao.proxima`, campos novos (só no detalhe, T-275) | `manutencao` | ver "Blocos da ficha" | `null`, como o bloco |
 | `vistoria_recente` (só no detalhe, T-275) | `vistorias` | ver "Blocos da ficha" | `null` |
 | `movimentacoes` (só no detalhe, T-275) | `movimentacoes` (ADR 0028) | ver "Blocos da ficha" | `null` |
-| `movimentacao_aberta` (lista e detalhe, T-286) | `movimentacoes` | `{ "id", "codigo": "MOV-0001", "status" }` da movimentação `agendada`, `em_transito` ou `no_local` do veículo. A Frota mostra "Em movimentação" no veículo `indisponivel`, `em_manutencao` ou `a_venda`, que mantém o status (`MOV-03`), e "Agendada" na agendada | `null` |
+| `movimentacao_aberta` (lista e detalhe, T-286; formato fechado na T-300) | `movimentacoes` | `{ "id", "codigo": "MOV-0001", "status", "rotulo", "tom" }` da movimentação `agendada`, `em_transito` ou `no_local` do veículo; ver "Veículo em movimentação", acima | `null` |
 | `indicadores_financeiros` (só no detalhe) | `financeiro` | `{ "rendeu_no_ano_centavos", "custo_manutencao_ano_centavos" }` (`VEI-05`) | `null` |
 
 ---
@@ -87,7 +114,8 @@ Query: `?status=`, `?tipo_veiculo=moto|carro`, `?categoria=<id>`, `?busca=` (pla
 }
 ```
 - `contagens` respeitam os filtros de filial e tipo, não o de status (para as abas). `em_movimentacao` conta só o status (`MOV-03`, T-286).
-- `?em_movimentacao=true`: os veículos com movimentação `agendada`, `em_transito` ou `no_local`, em qualquer status (o bloco `movimentacao_aberta`, abaixo; ADR 0028).
+- `?em_movimentacao=true`: os veículos com movimentação `agendada`, `em_transito` ou `no_local`, em qualquer status (o bloco `movimentacao_aberta`, acima; ADR 0028).
+- `?movimentavel=true` (T-300): a escolha do veículo na Nova movimentação. Só os veículos para os quais `acoes.movimentar` viria `true`: `disponivel` sem locação `aguardando_retirada`, `indisponivel`, `em_manutencao` ou `a_venda`, sem movimentação aberta, nas filiais em que o usuário cria movimentação (`MOV-02`, `MOV-03`). Combina com `?busca=` e `?tipo_veiculo=`. A tela não filtra por conta própria, e o 409 `MOV-03` do `POST` continua como última palavra (o veículo pode mudar entre a lista e o envio). Para vendedor, vistoriador e financeiro, a lista vem vazia.
 - `vendido` e `baixado` só aparecem com `?status=vendido` ou `?status=baixado` (histórico).
 - Exportar: `POST /api/veiculos/exportar/` `{ formato: "planilha" | "csv", filtros }`, só administrador (exportar é da Administração), → 202 `{ "exportacao_id" }`; o arquivo sai pela exportação em segundo plano (`AUD-07`), não na resposta.
 
