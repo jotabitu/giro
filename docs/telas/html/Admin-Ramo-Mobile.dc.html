@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>O que a empresa faz · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.co{display:flex;align-items:center;gap:12px}
+.co .lg{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:10px;font-size:12px;font-weight:700;color:#ffffff}
+.mini{height:6px;width:90px;border-radius:999px;background:var(--surface-sunken);overflow:hidden}
+.mini i{display:block;height:100%;border-radius:999px;background:var(--solid)}
+.row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row small,.muted{color:var(--ink-muted)}
+.row small{display:block;font-size:13px;line-height:18px}
+.card{padding:16px;border-radius:24px;background:var(--surface)}
+.h2{margin:0;font-size:20px;font-weight:600}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px}
+.kv:last-child{border-bottom:0}
+.kv span:first-child{color:var(--ink-muted)}
+.kv span:last-child{font-weight:500;text-align:right}
+.thumb{display:grid;place-items:center;width:52px;height:52px;flex:none;border-radius:14px;background:var(--surface-sunken);color:var(--ink-muted)}
+.chip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border:0;border-radius:999px;background:var(--surface-sunken);color:var(--ink);font:inherit;font-size:15px;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
+.chip .wl-count{background:var(--surface)}
+.chip[aria-pressed="true"] .wl-count{background:var(--brand);color:var(--on-brand)}
+.tl{position:relative;padding-left:26px}
+.tl:before{content:"";position:absolute;left:6px;top:8px;bottom:8px;width:2px;background:var(--line)}
+.tl>div{position:relative;padding:8px 0}
+.tl>div:before{content:"";position:absolute;left:-25px;top:13px;width:12px;height:12px;border-radius:50%;background:var(--surface);box-shadow:inset 0 0 0 2px var(--ink)}
+.tl>div.done:before{background:var(--solid);box-shadow:none}
+.opt{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--line);font-size:15px;background:var(--surface)}
+.opt.on{box-shadow:inset 0 0 0 2px var(--ink)}
+.h2{margin:0;font-size:20px;line-height:26px;font-weight:600}
+
+
+.ro{display:flex;align-items:flex-start;gap:12px;padding:16px;border:1.5px solid var(--line);border-radius:20px;background:var(--surface);font:inherit;color:var(--ink);text-align:left;cursor:pointer;width:100%;box-sizing:border-box}
+.ro .bx{display:grid;place-items:center;width:24px;height:24px;flex:none;border-radius:8px;border:1.5px solid var(--line);color:transparent}
+.ro[aria-pressed="true"]{border-color:var(--solid);box-shadow:inset 0 0 0 1px var(--solid)}
+.ro[aria-pressed="true"] .bx{background:var(--solid);border-color:var(--solid);color:var(--on-solid)}
+.ro[aria-disabled="true"]{cursor:default}
+.ro small{display:block;margin-top:2px;font-size:14px;line-height:20px;color:var(--ink-muted)}
+.ro .av{display:block;margin-top:8px;font-size:14px;line-height:20px;color:var(--warning-ink)}
+.ros{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.mod{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
+.mod:last-child{border-bottom:0}
+.sub{margin:0 0 12px;font-size:18px;line-height:24px;font-weight:600}
+.rec{display:flex;flex-direction:column;gap:8px;padding:16px;border-radius:20px;background:var(--critical-soft);color:var(--critical-ink)}
+.okb{display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:20px;background:var(--success-soft);color:var(--success-ink);font-size:15px}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1720px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 10px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;"><a href="Config-Mobile.dc.html" aria-label="Voltar" class="wl-icon-btn wl-icon-btn--sm" style="width: 44px; height: 44px; flex: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a><div style="flex: 1; min-width: 0;"><div style="font-size: 13px; color: var(--ink-muted); display: flex; align-items: center; gap: 4px;"><svg class="wl-i" viewBox="0 0 24 24" style="width:13px;height:13px"><rect x="5" y="10" width="14" height="10" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>Configurações</div><div style="font-size: 22px; line-height: 28px; font-weight: 600;">O que a empresa faz</div></div></header>
+<p style="margin: 0; color: var(--ink-muted); font-size: 15px;">Ligamos só o que você usa, para o menu ficar simples</p>
+<section class="card" style="display: flex; flex-direction: column; gap: 22px;">
+<div class="wl-field" style="gap:8px;">
+<span class="wl-field__label">Estado de exemplo (só na referência)</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-for list="{{estados}}" as="e" hint-placeholder-count="3"><button class="chip" aria-pressed="{{e.pressed}}" onClick="{{e.pick}}">{{e.label}}</button></sc-for>
+</div></div>
+
+<sc-if value="{{recusa}}" hint-placeholder-val="{{false}}">
+<div class="rec" role="alert">
+<div style="font-weight: 600;">Não foi possível trocar o ramo</div>
+<div>{{recusaTexto}}</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px;">
+<a class="wl-btn wl-btn--sm" href="{{recusaLink}}" style="text-decoration: none;">{{recusaLinkTexto}}</a>
+<button class="wl-btn wl-btn--quiet wl-btn--sm" onClick="{{desfazer}}">Manter o ramo atual</button>
+</div>
+<div style="font-size: 14px;">Nada mudou. Resolva o que está aberto e tente de novo.</div>
+</div>
+</sc-if>
+<sc-if value="{{salvo}}" hint-placeholder-val="{{false}}">
+<div class="okb" role="status"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg>Ramo salvo. O menu muda agora, e nada foi apagado.</div>
+</sc-if>
+
+<div>
+<h2 class="sub">Atividades</h2>
+<div class="ros">
+<sc-for list="{{atividades}}" as="item" hint-placeholder-count="2">
+<button class="ro" aria-pressed="{{item.pressed}}" aria-disabled="{{item.travado}}" onClick="{{item.toggle}}"><span class="bx"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span><span><span style="font-weight: 500;">{{item.label}}</span><small>{{item.desc}}</small><sc-if value="{{item.temAviso}}" hint-placeholder-val="{{false}}"><span class="av">{{item.aviso}}</span></sc-if></span></button>
+</sc-for>
+</div>
+<p class="lbl" style="margin: 10px 0 0; font-size: 14px;">{{dica}}</p>
+</div>
+
+<div>
+<h2 class="sub">Tipos de veículo</h2>
+<div class="ros">
+<sc-for list="{{tipos}}" as="item" hint-placeholder-count="2">
+<button class="ro" aria-pressed="{{item.pressed}}" onClick="{{item.toggle}}"><span class="bx"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span><span><span style="font-weight: 500;">{{item.label}}</span><small>{{item.desc}}</small></span></button>
+</sc-for>
+</div>
+</div>
+
+<div style="display: flex; gap: 10px;"><a class="wl-btn wl-btn--quiet" href="Config-Mobile.dc.html" style="flex: 1; text-decoration: none; justify-content: center;">Cancelar</a><button class="wl-btn wl-btn--solid" aria-disabled="{{salvarAria}}" onClick="{{salvar}}" style="flex: 2; justify-content: center; {{salvarEstilo}}">Salvar</button></div>
+</section>
+<section class="wl-panel">
+<div style="font-weight: 600; margin-bottom: 4px;">Módulos que vamos ligar</div>
+<div style="font-size: 14px; color: var(--ink-muted); margin-bottom: 8px;">{{totalOn}} módulos no plano {{plano}}</div>
+<sc-for list="{{modulos}}" as="m" hint-placeholder-count="9">
+<div class="mod"><span style="display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--success-soft); color: var(--success-ink);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>{{m.name}}</div>
+</sc-for>
+</section>
+<section class="wl-panel" style="background: var(--surface-sunken);">
+<div style="font-weight: 600; margin-bottom: 6px;">O que acontece com os dados</div>
+<div style="font-size: 15px;">Nada é apagado. O que ficar desligado fica guardado e volta se você ligar de novo. Só o administrador troca o ramo.</div>
+</section>
+<nav aria-label="Navegação principal" style="position: absolute; left: 16px; right: 16px; bottom: 20px; display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow-pop);">
+<a href="Dashboard-Mobile.dc.html" aria-label="Início" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg></a>
+<a href="Frota-Mobile.dc.html" aria-label="Veículos" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg></a>
+<a href="Locacao-Mobile.dc.html" aria-label="Nova locação" style="display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--brand); color: var(--on-brand);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></a>
+<a href="Locacoes-Mobile.dc.html" aria-label="Locações" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg></a>
+<a href="Menu-Mobile.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 16px; border-radius: 999px; background: var(--solid); color: var(--on-solid); text-decoration: none; font-size: 14px; font-weight: 500;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>Mais</a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"vista":{"editor":"text","default":"Mobile"},"$preview":{"width":390,"height":1720}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var self = this;
+    var vista = this.props.vista || 'Desktop';
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    var NOMES = { prof: 'Profissional', aberto: 'Profissional', ess: 'Essencial' };
+    var MOD = {
+      prof: {
+        aluga: ['Locação e vistoria', 'Contas a receber', 'Contrato digital', 'Manutenção e despesas', 'Conciliação', 'Relatórios', 'Pix e boleto automáticos', 'Cobrança pelo WhatsApp'],
+        vende: ['Contas a receber', 'Contrato digital', 'Vendas e comissões', 'Manutenção e despesas', 'Conciliação', 'Relatórios', 'Pix e boleto automáticos', 'Cobrança pelo WhatsApp'],
+        ambos: ['Locação e vistoria', 'Contas a receber', 'Contrato digital', 'Vendas e comissões', 'Manutenção e despesas', 'Conciliação', 'Relatórios', 'Pix e boleto automáticos', 'Cobrança pelo WhatsApp']
+      },
+      ess: {
+        aluga: ['Locação e vistoria', 'Contas a receber', 'Contrato digital'],
+        ambos: ['Locação e vistoria', 'Contas a receber', 'Contrato digital']
+      }
+    };
+    var est = (this.state && this.state.estado) || 'prof';
+    var guardado = (this.state && this.state.guardado) || (est === 'ess' ? { locacao: true, venda: false, motos: true, carros: false } : { locacao: true, venda: true, motos: true, carros: false });
+    var s = (this.state && this.state.sel) || guardado;
+    var fb = (this.state && this.state.fb) || null;
+    var essencial = est === 'ess';
+    function reset(novo) {
+      var g0 = novo === 'ess' ? { locacao: true, venda: false, motos: true, carros: false } : { locacao: true, venda: true, motos: true, carros: false };
+      self.setState({ estado: novo, guardado: g0, sel: g0, fb: null });
+    }
+    function toggle(key) {
+      return function () {
+        var n = Object.assign({}, s);
+        if (key === 'locacao' && essencial) { return; }
+        n[key] = !n[key];
+        var quer = key === 'locacao' || key === 'venda';
+        if (quer && !n.locacao && !n.venda) { return; }
+        if (!quer && !n.motos && !n.carros) { return; }
+        self.setState({ sel: n, fb: null });
+      };
+    }
+    function atividade(x) { return x.locacao && x.venda ? 'ambos' : (x.locacao ? 'aluga' : 'vende'); }
+    var atividades = [
+      { label: 'Locação', desc: 'Aluguel por dia, semana ou mês', pressed: s.locacao ? 'true' : 'false', travado: essencial ? 'true' : 'false', temAviso: false, aviso: '', toggle: toggle('locacao') },
+      { label: 'Venda de veículos', desc: 'Novos, seminovos e consignados', pressed: s.venda ? 'true' : 'false', travado: 'false', temAviso: essencial, aviso: 'Vendas faz parte do plano Profissional.', toggle: toggle('venda') }
+    ];
+    var tipos = [
+      { label: 'Motos', desc: 'Inclui scooters e motos de entrega', pressed: s.motos ? 'true' : 'false', toggle: toggle('motos') },
+      { label: 'Carros', desc: 'Passeio e utilitários leves', pressed: s.carros ? 'true' : 'false', toggle: toggle('carros') }
+    ];
+    var mods = MOD[essencial ? 'ess' : 'prof'][atividade(s)];
+    var mudou = s.locacao !== guardado.locacao || s.venda !== guardado.venda || s.motos !== guardado.motos || s.carros !== guardado.carros;
+    var estados = [['prof', 'Profissional'], ['aberto', 'Profissional com venda aberta'], ['ess', 'Essencial']].map(function (e) {
+      return { label: e[1], pressed: est === e[0] ? 'true' : 'false', pick: function () { reset(e[0]); } };
+    });
+    function salvar() {
+      if (!mudou) { return; }
+      if (guardado.locacao && !s.locacao) {
+        self.setState({ fb: { tipo: 'recusa', texto: 'Para deixar de alugar, resolva o que está aberto: 51 locações abertas.', link: 'Locacoes-' + vista + '.dc.html', linkTexto: 'Ver locações abertas' } });
+        return;
+      }
+      if (guardado.venda && !s.venda && est === 'aberto') {
+        self.setState({ fb: { tipo: 'recusa', texto: 'Para deixar de vender, resolva o que está aberto: 1 venda aberta e 1 comissão a pagar.', link: 'Vendas-' + vista + '.dc.html', linkTexto: 'Ver vendas abertas' } });
+        return;
+      }
+      self.setState({ guardado: Object.assign({}, s), fb: { tipo: 'ok' } });
+    }
+    var dica = essencial
+      ? 'No Essencial, locação fica ligada. Venda de veículos pode ser marcada junto, e passa a valer no plano Profissional.'
+      : 'Marque as duas se a empresa aluga e vende. Pelo menos uma precisa ficar marcada.';
+    return {
+      brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')',
+      estados: estados, atividades: atividades, tipos: tipos, dica: dica,
+      modulos: mods.map(function (m) { return { name: m }; }), totalOn: mods.length, plano: NOMES[est],
+      recusa: !!(fb && fb.tipo === 'recusa'), recusaTexto: (fb && fb.texto) || '', recusaLink: (fb && fb.link) || '#', recusaLinkTexto: (fb && fb.linkTexto) || '',
+      salvo: !!(fb && fb.tipo === 'ok'),
+      desfazer: function () { self.setState({ sel: Object.assign({}, guardado), fb: null }); },
+      salvar: salvar,
+      salvarEstilo: mudou ? '' : 'opacity: 0.4; pointer-events: none;',
+      salvarAria: mudou ? 'false' : 'true'
+    };
+  }
+}
+</script>
+</body>
+</html>

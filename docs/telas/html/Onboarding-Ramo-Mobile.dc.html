@@ -15,14 +15,18 @@ body{margin:0}
 a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 .sub{margin:0 0 10px 4px;font-size:17px;line-height:22px;font-weight:600}
 .opts{display:flex;flex-direction:column;gap:8px}
+.mod{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
+.mod:last-child{border-bottom:0}
 .opt{display:flex;align-items:flex-start;gap:12px;padding:14px;border:1.5px solid var(--line);border-radius:20px;background:var(--surface);font:inherit;font-size:15px;color:var(--ink);text-align:left}
 .opt .box{display:grid;place-items:center;width:24px;height:24px;flex:none;border-radius:8px;border:1.5px solid var(--line);color:transparent}
 .opt[aria-pressed="true"]{border-color:var(--solid);box-shadow:inset 0 0 0 1px var(--solid)}
 .opt[aria-pressed="true"] .box{background:var(--solid);border-color:var(--solid);color:var(--on-solid)}
 .opt small{display:block;margin-top:2px;font-size:13px;line-height:18px;color:var(--ink-muted)}
+.opt[aria-disabled="true"]{cursor:default}
+.opt .av{display:block;margin-top:8px;font-size:14px;line-height:20px;color:var(--warning-ink)}
 </style>
 </helmet>
-<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1600px; box-sizing: border-box; padding: 16px 16px 130px; display: flex; flex-direction: column; gap: 16px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1340px; box-sizing: border-box; padding: 16px 16px 130px; display: flex; flex-direction: column; gap: 16px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
 
 <header style="display: flex; align-items: center; gap: 10px; padding-top: 8px;">
 <div class="wl-logo-slot" style="width: 34px; height: 34px; border-radius: 10px; font-size: 13px;">MR</div>
@@ -46,42 +50,41 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 
 <div style="padding: 4px 4px 0;">
 <h1 style="margin: 0; font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -0.02em;">O que a Moto Rápida faz?</h1>
-<p style="margin: 8px 0 0; font-size: 15px; line-height: 22px; color: var(--ink-muted);">Ligamos só o que você usa. Dá para mudar depois.</p>
+<p style="margin: 8px 0 0; font-size: 15px; line-height: 22px; color: var(--ink-muted);">Ligamos só o que você usa, para o menu ficar simples. Dá para mudar depois em Configurações.</p>
 </div>
+
+<div class="wl-field" style="gap:8px;">
+<span class="wl-field__label">Estado de exemplo (só na referência)</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-for list="{{estados}}" as="e" hint-placeholder-count="2"><button class="wl-btn wl-btn--sm" aria-pressed="{{e.pressed}}" onClick="{{e.pick}}" style="{{e.estilo}}">{{e.label}}</button></sc-for>
+</div></div>
 
 <div>
 <h2 class="sub">Atividades</h2>
 <div class="opts">
 <sc-for list="{{atividades}}" as="item" hint-placeholder-count="2">
-<button class="opt" aria-pressed="{{item.pressed}}" onClick="{{item.toggle}}"><span class="box"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span><span><span style="font-weight: 500;">{{item.label}}</span><small>{{item.desc}}</small></span></button>
+<button class="opt" aria-pressed="{{item.pressed}}" aria-disabled="{{item.travado}}" onClick="{{item.toggle}}"><span class="box"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span><span><span style="font-weight: 500;">{{item.label}}</span><small>{{item.desc}}</small><sc-if value="{{item.temAviso}}" hint-placeholder-val="{{false}}"><span class="av">{{item.aviso}}</span></sc-if></span></button>
 </sc-for>
 </div>
+<p style="margin: 8px 4px 0; font-size: 14px; line-height: 20px; color: var(--ink-muted);">{{dica}}</p>
 </div>
 
 <div>
 <h2 class="sub">Tipos de veículo</h2>
 <div class="opts" style="display: grid; grid-template-columns: 1fr 1fr;">
 <sc-for list="{{tipos}}" as="item" hint-placeholder-count="2">
-<button class="opt" aria-pressed="{{item.pressed}}" onClick="{{item.toggle}}"><span class="box"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span><span style="font-weight: 500;">{{item.label}}</span></button>
+<button class="opt" aria-pressed="{{item.pressed}}" onClick="{{item.toggle}}"><span class="box"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span><span><span style="font-weight: 500;">{{item.label}}</span></span></button>
 </sc-for>
 </div>
 </div>
 
-<sc-if value="{{temLocacao}}" hint-placeholder-val="{{true}}">
-<div>
-<h2 class="sub">Como você aluga</h2>
-<div class="opts">
-<sc-for list="{{modalidades}}" as="item" hint-placeholder-count="4">
-<button class="opt" aria-pressed="{{item.pressed}}" onClick="{{item.toggle}}"><span class="box"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span><span><span style="font-weight: 500;">{{item.label}}</span><small>{{item.desc}}</small></span></button>
+<section style="padding: 16px; border-radius: 20px; background: var(--surface);">
+<div style="font-weight: 600; margin-bottom: 4px;">Módulos que vamos ligar</div>
+<div style="font-size: 14px; color: var(--ink-muted); margin-bottom: 8px;">{{totalOn}} módulos no plano {{plano}}</div>
+<sc-for list="{{modulos}}" as="m" hint-placeholder-count="9">
+<div class="mod"><span style="display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--success-soft); color: var(--success-ink);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>{{m.name}}</div>
 </sc-for>
-</div>
-</div>
-</sc-if>
-
-<div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 20px; background: var(--surface-sunken); font-size: 14px; line-height: 20px;">
-<span class="wl-badge wl-badge--sm wl-badge--solid">{{totalOn}} de 9</span>
-<span style="color: var(--ink-muted);">módulos ligados · CNH: {{cnhCurta}}</span>
-</div>
+</section>
 
 <div style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 10px; padding: 14px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line);">
 <a class="wl-btn" href="Onboarding-Filial-Mobile.dc.html" style="height: 56px; text-decoration: none;">Voltar</a>
@@ -89,7 +92,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1600}}'>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1340}}'>
 class Component extends DCLogic {
   renderVals() {
     var self = this;
@@ -100,25 +103,52 @@ class Component extends DCLogic {
     var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
     var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
     function mix(c) { return Math.round(c + (255 - c) * 0.82); }
-    var s = (this.state && this.state.sel) || { locacao: true, venda: true, motos: true, carros: false, diaria: true, semanal: true, mensal: true, entregador: true };
-    function opt(key, label, desc) {
-      return {
-        label: label, desc: desc, pressed: s[key] ? 'true' : 'false',
-        toggle: function () { var n = Object.assign({}, s); n[key] = !n[key]; self.setState({ sel: n }); }
+    var MOD = {
+      prof: {
+        aluga: ['Locação e vistoria', 'Contas a receber', 'Contrato digital', 'Manutenção e despesas', 'Conciliação', 'Relatórios', 'Pix e boleto automáticos', 'Cobrança pelo WhatsApp'],
+        vende: ['Contas a receber', 'Contrato digital', 'Vendas e comissões', 'Manutenção e despesas', 'Conciliação', 'Relatórios', 'Pix e boleto automáticos', 'Cobrança pelo WhatsApp'],
+        ambos: ['Locação e vistoria', 'Contas a receber', 'Contrato digital', 'Vendas e comissões', 'Manutenção e despesas', 'Conciliação', 'Relatórios', 'Pix e boleto automáticos', 'Cobrança pelo WhatsApp']
+      },
+      ess: {
+        aluga: ['Locação e vistoria', 'Contas a receber', 'Contrato digital'],
+        ambos: ['Locação e vistoria', 'Contas a receber', 'Contrato digital']
+      }
+    };
+    var est = (this.state && this.state.estado) || 'prof';
+    var essencial = est === 'ess';
+    var s = (this.state && this.state.sel) || (essencial ? { locacao: true, venda: false, motos: true, carros: false } : { locacao: true, venda: true, motos: true, carros: false });
+    function reset(novo) {
+      self.setState({ estado: novo, sel: novo === 'ess' ? { locacao: true, venda: false, motos: true, carros: false } : { locacao: true, venda: true, motos: true, carros: false } });
+    }
+    function toggle(key) {
+      return function () {
+        var n = Object.assign({}, s);
+        if (key === 'locacao' && essencial) { return; }
+        n[key] = !n[key];
+        var quer = key === 'locacao' || key === 'venda';
+        if (quer && !n.locacao && !n.venda) { return; }
+        if (!quer && !n.motos && !n.carros) { return; }
+        self.setState({ sel: n });
       };
     }
-    var recorrente = s.locacao && (s.semanal || s.mensal || s.entregador);
-    var flags = [true, !!s.locacao, !!s.locacao, !!recorrente, !!s.venda, !!s.venda, !!s.venda, true, true];
-    var on = flags.filter(function (f) { return f; }).length;
-    var cnh = s.motos && s.carros ? 'A e B' : (s.carros ? 'B' : (s.motos ? 'A' : '—'));
+    var ativ = s.locacao && s.venda ? 'ambos' : (s.locacao ? 'aluga' : 'vende');
+    var mods = MOD[essencial ? 'ess' : 'prof'][ativ];
+    var estados = [['prof', 'Profissional'], ['ess', 'Essencial']].map(function (e) {
+      return { label: e[1], pressed: est === e[0] ? 'true' : 'false', estilo: est === e[0] ? 'background: var(--solid); color: var(--on-solid);' : '', pick: function () { reset(e[0]); } };
+    });
     return {
       brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')',
-      atividades: [opt('locacao', 'Locação', 'Aluguel por dia, semana ou mês'), opt('venda', 'Venda de veículos', 'Novos, seminovos e consignados')],
-      tipos: [opt('motos', 'Motos', ''), opt('carros', 'Carros', '')],
-      modalidades: [opt('diaria', 'Diária', 'Turistas e uso eventual'), opt('semanal', 'Semanal', 'Cobrança toda semana'), opt('mensal', 'Mensal', 'Contratos de 30 dias ou mais'), opt('entregador', 'Entregadores e apps', 'Plano semanal com opção de compra')],
-      temLocacao: !!s.locacao,
-      totalOn: on,
-      cnhCurta: cnh
+      estados: estados,
+      atividades: [
+        { label: 'Locação', desc: 'Aluguel por dia, semana ou mês', pressed: s.locacao ? 'true' : 'false', travado: essencial ? 'true' : 'false', temAviso: false, aviso: '', toggle: toggle('locacao') },
+        { label: 'Venda de veículos', desc: 'Novos, seminovos e consignados', pressed: s.venda ? 'true' : 'false', travado: 'false', temAviso: essencial, aviso: 'Vendas faz parte do plano Profissional.', toggle: toggle('venda') }
+      ],
+      tipos: [
+        { label: 'Motos', desc: 'Inclui scooters e motos de entrega', pressed: s.motos ? 'true' : 'false', toggle: toggle('motos') },
+        { label: 'Carros', desc: 'Passeio e utilitários leves', pressed: s.carros ? 'true' : 'false', toggle: toggle('carros') }
+      ],
+      dica: essencial ? 'No Essencial, locação fica ligada. Venda de veículos pode ser marcada junto, e passa a valer no plano Profissional.' : 'Marque as duas se a empresa aluga e vende. Pelo menos uma precisa ficar marcada.',
+      modulos: mods.map(function (m) { return { name: m }; }), totalOn: mods.length, plano: essencial ? 'Essencial' : 'Profissional'
     };
   }
 }
