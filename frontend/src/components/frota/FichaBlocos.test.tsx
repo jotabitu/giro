@@ -4,7 +4,7 @@ import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it } from "vitest";
 import { contas, veiculos, type VeiculoDetalhe, type VistoriaRecente } from "@/lib/api";
-import { AgoraDesktop, FotosEAvarias, MovimentacoesDoVeiculo } from "./FichaBlocos";
+import { AgoraDesktop, FotosEAvarias, FotosEAvariasCelular, MovimentacoesCelular, MovimentacoesDoVeiculo } from "./FichaBlocos";
 
 let base: VeiculoDetalhe;
 beforeAll(async () => {
@@ -163,5 +163,27 @@ describe("Movimentações (desktop)", () => {
     expect(t).toContain("MOV-0043");
     expect(t).toContain("Lava Rápido Aldeota → Filial Centro");
     expect(t).toContain("29 set");
+  });
+});
+
+describe("Blocos da ficha no celular", () => {
+  it("fotos e avarias: tipo, data e avarias numeradas; some sem vistoria", () => {
+    expect(html(<FotosEAvariasCelular vistoria={null} />)).toBe("");
+    const t = texto(html(<FotosEAvariasCelular vistoria={vistoria} />));
+    expect(t).toContain("saída · 23 set");
+    expect(t).toContain("Retrovisor direito trincado");
+    expect(t).toContain("23 set · registrado na saída da LOC-2841");
+  });
+
+  it("fotos e avarias sem avaria diz que não há", () => {
+    const t = texto(html(<FotosEAvariasCelular vistoria={{ ...vistoria, tipo: "devolucao", fotos: [], total_fotos: 0, avarias: [] }} />));
+    expect(t).toContain("devolução · 23 set");
+    expect(t).toContain("Nenhuma avaria registrada.");
+  });
+
+  it("movimentações: texto vazio com o motivo da API e some sem o bloco", () => {
+    expect(html(<MovimentacoesCelular v={{ ...base, movimentacoes: undefined }} />)).toBe("");
+    const v: VeiculoDetalhe = { ...base, movimentacoes: { total: 0, ultimas: [], em_andamento: null }, acoes: { ...base.acoes, movimentar: false, motivo_movimentar: "Veículo alugado não se movimenta." } };
+    expect(texto(html(<MovimentacoesCelular v={v} />))).toContain("Nenhuma movimentação. Veículo alugado não se movimenta.");
   });
 });

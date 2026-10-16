@@ -19,7 +19,7 @@ import { mensagemDoErro } from "@/lib/erros";
 import { dataCurta, dinheiro, dinheiroSemZeros, km, mesAno, percentual, placa } from "@/lib/formatos";
 import { situacaoDoDocumento } from "@/lib/frota";
 import { temNoMenu } from "@/lib/menu";
-import { AgoraDesktop, FotosEAvarias, MovimentacoesDoVeiculo } from "./FichaBlocos";
+import { AgoraDesktop, FotosEAvarias, FotosEAvariasCelular, MovimentacoesCelular, MovimentacoesDoVeiculo } from "./FichaBlocos";
 import { useSessao } from "@/lib/sessao";
 import { tomDoStatus } from "@/lib/tom";
 
@@ -265,6 +265,8 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
         </button>
       </header>
 
+      <FotosEAvariasCelular vistoria={v.vistoria_recente} />
+
       <div className={`grid ${fin ? "grid-cols-2" : "grid-cols-1"} gap-2 ${KPI_DO_CELULAR}`}>
         {fin && <KpiTile rotulo="Rendeu no ano" valor={dinheiroSemZeros(fin.rendeu_no_ano_centavos)} contexto="locações − custos" />}
         <KpiTile rotulo="Ocupação" valor={percentual(v.ocupacao.pct)} contexto={`${v.ocupacao.periodo_dias} dias`} />
@@ -285,6 +287,13 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
               <span className="wl-mono">{atual.codigo}</span>
             </Linha>
             <Linha rotulo="Devolve">{dataCurta(atual.fim_previsto)}</Linha>
+            {atual.pagamento && (
+              <Linha rotulo="Pagamento">
+                <StatusBadge tom={atual.pagamento.situacao === "em_dia" ? "sucesso" : "alerta"} compacto>
+                  {atual.pagamento.rotulo}
+                </StatusBadge>
+              </Linha>
+            )}
             {atual.alerta && (
               <Linha rotulo="Alerta">
                 <StatusBadge tom="alerta" compacto>
@@ -324,6 +333,8 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
         )}
       </CartaoDoCelular>
       )}
+
+      <MovimentacoesCelular v={v} />
 
       {v.acoes.editar && (
         <div className="grid grid-cols-2 gap-2">
