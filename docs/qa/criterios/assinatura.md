@@ -89,6 +89,9 @@ Dado uma empresa no Profissional com 3 de 3 filiais, quando o administrador tent
 
 ## Forma de pagamento, faturas e nota (`PLT-13`, `PLT-14`, `PLT-15`)
 
+**CA-ASS-63 · Pix automático ainda não autorizado** (`PLT-13`, `PLT-02`, T-296)
+Dado a Moto Rápida em teste, quando a Mariana escolhe Pix automático em 10 out e não autoriza no banco, então em 17 out o boleto com Pix da FAT-0001 (vence 22 out) é criado no parceiro e vai por e-mail para o e-mail de cobrança e para a Mariana, com a linha "Seu Pix automático ainda não foi autorizado. Esta fatura vai por boleto com Pix.", e a forma continua "Autorize o Pix automático no app do seu banco.". Quando ela autoriza em 20 out, a forma passa a "Pix automático autorizado", a FAT-0001 continua no boleto (sem cobrança pelo Pix automático, nenhuma cobrança a mais no parceiro) e pode ser paga pelo boleto ou pelo "Pagar"; a FAT-0002 (22 nov a 21 dez) nasce em 17 nov e é cobrada pela autorização, sem boleto. Sem autorizar até 17 nov, a FAT-0002 também sai em boleto com Pix.
+
 **CA-ASS-26 · Troca da forma**
 Dado a Moto Rápida `ativa` com boleto, quando a Mariana troca para Pix automático em 10 nov e autoriza no banco, então a fatura de 22 nov é cobrada pelo Pix automático (cobrança criada em 17 nov, sem boleto), e a empresa continua `ativa`. Dado a fatura de 22 nov já `atrasada`, quando ela troca a forma, então o "Pagar" dessa fatura passa a usar a forma nova.
 
