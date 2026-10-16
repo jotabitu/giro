@@ -345,9 +345,6 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 
 - [decisão] (T-208, para o backend) `GET /api/locacoes/{id}/` não manda uma ação para gerar o contrato (só `imprimir_contrato` e `reenviar_contrato`). A tela usa "aguardando retirada + sem contrato vigente + sem desconto pendente + `acoes.cancelar` verdadeiro (quem cria locação)". Sugestão: `acoes.gerar_contrato` no selector `acoes()` e a tela passa a ler só ele.
 
-### T-209 · Ajustes de cadastro e caixa achados no E2E (lacunas da T-025)
-- **Agente:** frontend · **Depende de:** — · **Regras:** CLI-01, FIN-01 · **Pronto quando:** (b) as fotos do cliente podem ser enviadas antes do primeiro "Salvar cliente", para "Salvar e iniciar locação" já ter as fotos; (c) o CEP preenche rua, bairro e cidade; (e) no celular o caixa mostra "N recebimentos"; testes. O item (d), a vendedora sem acesso à Frota, vai ao produto como divergência.
-
 ## Fase 2 em diante
 
 Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a FIN-13), manutenção (MAN), automações (AUT), implantação self-service (IMP), relatórios e DRE, exportação (AUD-06, AUD-07). A cobrança da assinatura, cancelar e pausar e a `AUD-08` entraram no MVP em 14 out 2026 (T-183, T-190); continuam aqui a `Plat-Cobranca` e os adicionais. Da exportação (`AUD-07`), o MVP tem só a auditoria em CSV (T-018); a fase 2 traz os outros itens (clientes, veículos, locações e contratos, financeiro, vistorias e fotos), a planilha (.xlsx, dependência nova registrada no PR), o backup completo em ZIP com as 2 etapas recentes, o backup mensal (`AUT-11`) com o cartão da tela, a exportação da plataforma (`/api/plataforma/exportacoes/`), o pedido do titular (`AUD-06`, à mão até lá) e o prazo após o cancelamento (`AUD-08`), decisão do dono de 12 out 2026 (T-151). O orquestrador quebra em tarefas quando a fase 1 fechar.
