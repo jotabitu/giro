@@ -77,7 +77,7 @@ Perfis: quem cria locação. Locação `aguardando_retirada`, sem pedido de desc
 2. Gera o PDF numa task Celery com tempo limite de 60 s e memória limitada (S-09). O `url_fetcher` do WeasyPrint só entrega o logo da própria empresa, lido do storage do schema atual; qualquer outra URL (`http`, `https`, `file`, `data` externa, IP interno) é recusada.
 3. Grava o `hash_pdf` (SHA-256) e cria o link de assinatura.
 4. Envia o link por WhatsApp (e e-mail, se houver) com a marca da locadora; `status = enviado`.
-422 `IMP-04` sem modelo publicado; 409 `{ "codigo": "contrato_existente" }` se já há contrato vigente não cancelado (use reenviar).
+422 `IMP-04` sem modelo publicado; 409 `{ "codigo": "contrato_existente" }` se já há contrato vigente não cancelado (use reenviar); 409 `contrato_fora_de_hora` fora de `aguardando_retirada`; 409 `desconto_pendente` com o pedido de desconto aguardando decisão; 409 `{ "codigo": "cancelamento_em_curso", "mensagem": "A locação tem um cancelamento em andamento." }` com pedido de cancelamento pendente ou aprovado (T-263). O detalhe da locação diz antes se o `POST` passa: `acoes.gerar_contrato` (`locacoes.md`).
 
 ### Link de assinatura (S-15)
 

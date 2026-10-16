@@ -32,6 +32,11 @@ export function KpiVariacao({ children }: { children: ReactNode }) {
 }
 
 /** Grade de quatro indicadores (duas colunas em tela estreita). */
-export function KpiGrid({ children }: { children: ReactNode }) {
-  return <div className="wl-kpis">{children}</div>;
+/** `colunas` só quando há menos cartões que as 4 colunas do padrão (ex.: ficha do veículo sem os indicadores financeiros): a fileira não deixa lugar vazio. */
+export function KpiGrid({ children, colunas }: { children: ReactNode; colunas?: number }) {
+  return (
+    <div className="wl-kpis" style={colunas ? { gridTemplateColumns: `repeat(${colunas}, minmax(0, 1fr))` } : undefined}>
+      {children}
+    </div>
+  );
 }

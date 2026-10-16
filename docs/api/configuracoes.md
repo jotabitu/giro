@@ -1,6 +1,6 @@
 # Configurações: o resumo da Administração
 
-**Dono:** arquiteto · **Versão:** 15 out 2026 (T-201; T-173) · **App:** `relatorios` (schema da empresa; só leitura, nível 13 da ADR 0011) · **Regras:** FIL-01, USR-05, USR-08, PLT-03, PLT-07, IMP-01, IMP-04, IMP-05 · **ADRs:** 0005 (a API decide), 0011 (limites entre apps) · **Telas:** Config (desktop e celular)
+**Dono:** arquiteto · **Versão:** 15 out 2026 (T-259, cartão do ramo; T-201; T-173) · **App:** `relatorios` (schema da empresa; só leitura, nível 13 da ADR 0011) · **Regras:** FIL-01, USR-05, USR-08, PLT-03, PLT-07, PLT-12, IMP-01, IMP-04, IMP-05 · **ADRs:** 0005 (a API decide), 0011 (limites entre apps) · **Telas:** Config e Admin-Ramo (desktop e celular)
 
 Convenções gerais em `docs/api/README.md`. A tela `Configurações` (`/admin/configuracoes`, chave `config` do menu) é uma lista de cartões, cada um com um título, uma linha de resumo e o link para a tela da área, mais a faixa da implantação no desktop. Ela **não edita nada**: cada área tem a sua tela e o seu contrato. Este contrato traz só a leitura que monta os cartões.
 
@@ -9,6 +9,7 @@ Convenções gerais em `docs/api/README.md`. A tela `Configurações` (`/admin/c
 | Cartão da tela | Tela de destino | Contrato da área | O resumo vem de |
 | --- | --- | --- | --- |
 | Empresa e marca | `Admin-Marca` | `empresas.md` (T-153, T-154) | texto fixo |
+| O que a empresa faz | `Admin-Ramo` (T-253) | `empresas.md` (`GET` e `PUT /api/ramo/`, T-224) | `empresas` (o ramo guardado) |
 | Filiais | `Filiais` | `filiais.md` (T-168) | `filiais` |
 | Usuários e perfis | `Admin-Usuarios` | `contas.md` (T-169) | `plataforma` (uso do plano) e `contas` (convites) |
 | Tabelas de preço | `Precos` | `veiculos.md` (categorias e preços), `locacoes.md` (planos especiais) | `veiculos` e `locacoes` |
@@ -40,6 +41,7 @@ Perfis: quem tem `pode.administracao` (administrador). Os outros perfis: 403 `{ 
 {
   "cartoes": [
     { "chave": "marca", "titulo": "Empresa e marca", "resumo": "Logo, cor, nome e endereço do sistema" },
+    { "chave": "ramo", "titulo": "O que a empresa faz", "resumo": "Locação e venda · motos" },
     { "chave": "filiais", "titulo": "Filiais", "resumo": "1 filial · Centro, Fortaleza" },
     { "chave": "usuarios", "titulo": "Usuários e perfis", "resumo": "5 de 10 usuários" },
     { "chave": "precos", "titulo": "Tabelas de preço", "resumo": "4 categorias" },
@@ -67,11 +69,12 @@ Uma empresa ainda implantando (como na tela de referência):
 
 ### Cartões
 
-Ordem fixa: `marca`, `filiais`, `usuarios`, `precos`, `modelos_contrato`, `integracoes`, `notificacoes`, `assinatura`, `auditoria`, `exportar` (a da tela). Um cartão que não vem não deixa buraco.
+Ordem fixa: `marca`, `ramo`, `filiais`, `usuarios`, `precos`, `modelos_contrato`, `integracoes`, `notificacoes`, `assinatura`, `auditoria`, `exportar` (a da tela). Um cartão que não vem não deixa buraco.
 
 | `chave` | `titulo` | Vem quando o app está ativo | `resumo` |
 | --- | --- | --- | --- |
 | `marca` | Empresa e marca | `empresas` (fora do padrão até a T-153 e a T-154; o item `config` do menu tem chave própria, `configuracoes`) | "Logo, cor, nome e endereço do sistema" (fixo) |
+| `ramo` | O que a empresa faz | `empresas` (como o `marca`); não vem para o token de suporte, porque a tela só serve para trocar o ramo, e escrita com token de suporte é 403 `PLT-07` (T-259) | O ramo guardado (`PLT-12`): "{atividades} · {tipos}". Atividades: `aluga` "Locação", `vende` "Venda", `ambos` "Locação e venda". Tipos: `motos` "motos", `carros` "carros", `ambos` "motos e carros". Seed Moto Rápida: "Locação e venda · motos". Empresa que ainda não passou pelo passo 7 tem o padrão do modelo (`ambos` e `motos`, ADR 0024), e o texto é o mesmo. A referência da T-253 mostra o texto fixo "Locação, venda e tipos de veículo"; vale o da API. |
 | `filiais` | Filiais | `filiais` | Filiais ativas. Uma: "1 filial · {nome a mostrar}, {cidade}", com o nome curto da filial, ou o nome quando ela não tem (`FIL-01`, T-201; Moto Rápida: "1 filial · Centro, Fortaleza", CA-FIL-01). Mais de uma, em até 3 cidades: "{n} filiais · {cidades}" ("2 filiais · Fortaleza e Caucaia"); em 4 cidades ou mais: "{n} filiais em {c} cidades". |
 | `usuarios` | Usuários e perfis | `contas` | Uso do plano (`usuarios` de `GET /api/assinatura/`: `ativo` e `convite_pendente`, `PLT-03`): "{usado} de {limite} usuários"; plano sem limite: "{usado} usuários". Com convites pendentes, acrescenta " · 1 convite" ou " · {n} convites". |
 | `precos` | Tabelas de preço | `veiculos` | Categorias ativas: "{n} categorias" ("1 categoria"); com planos especiais ativos, acrescenta " · 1 plano especial" ou " · {n} planos especiais" (o plano especial é do app `locacoes`; com `locacoes` fora de `GIRO_MODULOS_ATIVOS` ou `locacoes_vistoria` desligado na empresa, não entra no texto). Nenhuma categoria: "Nenhuma categoria cadastrada". |
@@ -108,6 +111,7 @@ Nenhum. São contagens pequenas, e a tela é aberta pouco e logo depois de mudar
 
 | Cartão | Função | Existe? |
 | --- | --- | --- |
+| `ramo` | `empresas.selectors.configuracao()` (`atividade` e `trabalha_com`) | existe |
 | `filiais` | `filiais.selectors.resumo_das_filiais_ativas()` → `{ "ativas": int, "cidades": [str], "unica": { "nome", "cidade" } \| None }` | nova (`resumo_das_filiais(usuario)` já existia, para o `eu`) |
 | `usuarios` | `plataforma.selectors.uso_do_plano()["usuarios"]` e `contas.selectors.convites_pendentes()` → int | a primeira existe; a segunda é nova (o contador `usuarios` do painel já conta o mesmo: reaproveitar) |
 | `precos` | `veiculos.selectors.categorias_ativas()` → int e `locacoes.selectors.planos_especiais_ativos()` → int | novas |
@@ -125,6 +129,7 @@ O frontend liga `chave` → rota (referência em `docs/telas/README.md`, "Rotas 
 | `chave` | Rota |
 | --- | --- |
 | `marca` | `/admin/marca` |
+| `ramo` | `/admin/ramo` (T-253, T-259) |
 | `filiais` | `/admin/filiais` |
 | `usuarios` | `/admin/usuarios` |
 | `precos` | `/admin/precos` |
@@ -143,12 +148,14 @@ O item `config` do menu depende de `configuracoes` em `GIRO_MODULOS_ATIVOS` (`co
 
 | Caso | Esperado |
 | --- | --- |
-| Administradora (Mariana) em 07 out, todos os apps ativos | os 8 cartões do primeiro exemplo, com os resumos dele; `implantacao: null` (a carteira do seed tem locações, `IMP-01`) |
+| Administradora (Mariana) em 07 out, todos os apps ativos | os 9 cartões do primeiro exemplo (com `ramo` "Locação e venda · motos"), com os resumos dele; `implantacao: null` (a carteira do seed tem locações, `IMP-01`) |
 | Mesma empresa com 2 convites pendentes | `usuarios`: "7 de 10 usuários · 2 convites" (convite pendente conta no uso, `PLT-03`) |
 | Planos `Entregador` e `Mensal fidelidade` criados | `precos`: "4 categorias · 2 planos especiais" |
 | Um rascunho de modelo a mais | `modelos_contrato`: "2 modelos · 1 rascunho" |
 | `auditoria` fora de `GIRO_MODULOS_ATIVOS` | sem `auditoria` e sem `exportar` |
-| Token de suporte | sem `auditoria` e sem `exportar`; o resto igual |
+| Token de suporte | sem `ramo`, `auditoria` e `exportar`; o resto igual |
+| Ramo trocado para só locação de motos e carros (`PUT /api/ramo/`) | `ramo`: "Locação · motos e carros" (sem cache, já no pedido seguinte) |
+| Essencial, aluga e vende, motos | `ramo`: "Locação e venda · motos" (o que está guardado; o plano não muda o texto) |
 | Gerente, vendedor, vistoriador, financeiro | 403 `permissao` |
 | Empresa nova, passos `conta`, `marca`, `filial`, `ramo`, `precos` e `equipe` marcados | `implantacao`: 6 de 10, "Faltam contrato, recebimentos, importar dados e a 1ª locação.", `acao: null` |
 | Empresa no Essencial com os mesmos 6 passos | `implantacao`: 6 de 9, "Faltam contrato, importar dados e a 1ª locação." (sem `recebimentos`) |
