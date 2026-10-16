@@ -334,7 +334,8 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 ### [decisão] Baixa de veículo com movimentação aberta (MOV-03, levantada na T-300, T-302)
 
-### [decisão] Suporte Giro nas movimentações (MOV-02, PLT-07, levantada na T-315, T-318)
+### ~~[decisão]~~ Suporte Giro nas movimentações (MOV-02, PLT-07, levantada na T-315, T-318)
+- **Decidida pelo dono em 16 out 2026: A** (T-319, recomendação do produto e da segurança). Mesmo em "ver e editar", o suporte só lê as movimentações; toda escrita dá 403 `PLT-07`. Regras `MOV-02` e `PLT-07`, tabela "Decisões de 16 out 2026", critério CA-246-24. A T-316 já faz A.
 - **Para:** dono do produto, pelo orquestrador · **Contexto:** o suporte em "ver e editar" age como administrador (ADR 0013), e a regra não diz se a movimentação é exceção. A) não: só lê; toda escrita das movimentações (criar, editar, iniciar, cancelar, chegada na parada e no destino, foto, local de apoio) dá 403 `PLT-07`; B) sim, como administrador, nunca como quem leva nem quem recebe. **Padrão: A** (o da segurança). Em "Pontos em aberto" das regras; handoff `tarefas/handoffs/T-318-produto.md`.
 
 ### ~~[decisão]~~ Baixa de veículo com movimentação aberta (MOV-03, levantada na T-300, T-302)
