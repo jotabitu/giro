@@ -108,7 +108,7 @@ export function NovaDespesa({ eu, aoLancar }: { eu: Eu; aoLancar: (d: Despesa) =
       setNota(null);
       setPagoNoCaixa(false);
       if (arquivo.current) arquivo.current.value = "";
-      await Promise.all([cliente.invalidateQueries({ queryKey: ["despesas"] }), cliente.invalidateQueries({ queryKey: ["contadores"] })]);
+      await Promise.all([cliente.invalidateQueries({ queryKey: ["despesas"] }), cliente.invalidateQueries({ queryKey: ["aprovacoes"] }), cliente.invalidateQueries({ queryKey: ["contadores"] })]);
       aoLancar(d);
     },
   });

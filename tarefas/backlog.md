@@ -142,9 +142,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-240 · Bug: cadastrar veículo mostra erro mas grava
 - **Agente:** frontend, com backend · **Depende de:** — · **Regras:** VEI-01 · **Telas:** Veiculo-Novo · **Pronto quando:** "Salvar veículo" com dados válidos mostra sucesso e abre a ficha; se uma etapa depois de criar falhar (fotos, documentos, leitura da ficha), o veículo criado não vira erro genérico, e a mensagem diz o que faltou; clicar duas vezes não tenta criar de novo (botão travado durante o envio); teste do componente com a criação 201 e uma etapa seguinte com erro; teste do backend se a causa for lá. Relato do dono: erro "não foi possível cadastrar"; no segundo clique, "placa já cadastrada"; e o veículo estava gravado.
 
-### T-241 · Bug: contador de Aprovações no menu demora a mudar
-- **Agente:** frontend · **Depende de:** — · **Regras:** APR-12, FIN-15 (contadores) · **Pronto quando:** ao aprovar ou recusar um pedido, o número de Aprovações no menu lateral muda na hora (invalidar a consulta dos contadores do menu junto com a das aprovações; o mesmo para Despesas e Contas a receber, se tiverem o mesmo problema); teste que aprova e confere o contador sem esperar o intervalo de atualização.
-
 ### T-242 · Ficha do veículo igual à referência
 - **Agente:** frontend · **Depende de:** T-238 · **Regras:** VEI-01 a VEI-06 · **Telas:** Veiculo-Desktop (e Veiculo-Mobile) · **Pronto quando:** a ficha do veículo fica idêntica à referência `docs/telas/html/Veiculo-Desktop.dc.html` (pedido do dono: "design idêntico"), com os componentes do design system e os dados da API; o que a referência mostra e a API não manda vira pedido ao arquiteto, não número inventado na tela; revisão visual do design-system lado a lado.
 

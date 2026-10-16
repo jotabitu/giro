@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { Button, Dialogo, StatusBadge, TextField } from "@/design-system";
+import { atualizarAposDecisao } from "@/lib/aprovacoes";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { aprovacoes, financeiro, type Despesa, type Eu, type FormaDaDespesa } from "@/lib/api";
 import { useAgora } from "@/lib/ambiente";
@@ -32,7 +33,7 @@ export function DetalheDaDespesa({ id, inicial, eu, aoFechar, aoConcluir }: { id
   const d = consulta.data;
 
   const depois = async (mensagem: string) => {
-    await Promise.all([cliente.invalidateQueries({ queryKey: ["despesas"] }), cliente.invalidateQueries({ queryKey: ["contadores"] })]);
+    await atualizarAposDecisao(cliente);
     aoConcluir(mensagem);
     aoFechar();
   };
