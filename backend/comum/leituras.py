@@ -34,7 +34,8 @@ class Anotacao:
 
 _anotacoes: dict[str, list[Anotacao]] = defaultdict(list)
 _contadores: dict[str, dict[str, Callable[[int], int]]] = defaultdict(dict)
-_filtros: dict[str, dict[str, Callable[[QuerySet[Any]], QuerySet[Any]]]] = defaultdict(dict)
+# Filtro: `filtrar(queryset, *argumentos)`; o `filial` da lista de clientes recebe o id (CLI-10).
+_filtros: dict[str, dict[str, Callable[..., QuerySet[Any]]]] = defaultdict(dict)
 
 
 def registrar_anotacao(
@@ -90,9 +91,7 @@ def contar(alvo: str, objeto_id: int, nomes: Iterable[str]) -> dict[str, int]:
     return {nome: int(registrados[nome](objeto_id)) if nome in registrados else 0 for nome in nomes}
 
 
-def registrar_filtro(
-    alvo: str, nome: str, filtrar: Callable[[QuerySet[Any]], QuerySet[Any]]
-) -> None:
+def registrar_filtro(alvo: str, nome: str, filtrar: Callable[..., QuerySet[Any]]) -> None:
     _filtros[alvo][nome] = filtrar
 
 
@@ -101,7 +100,7 @@ def remover_filtro(alvo: str, nome: str) -> None:
     _filtros.get(alvo, {}).pop(nome, None)
 
 
-def filtro(alvo: str, nome: str) -> Callable[[QuerySet[Any]], QuerySet[Any]] | None:
+def filtro(alvo: str, nome: str) -> Callable[..., QuerySet[Any]] | None:
     return _filtros.get(alvo, {}).get(nome)
 
 

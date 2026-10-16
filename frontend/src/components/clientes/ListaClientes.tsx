@@ -5,9 +5,10 @@ import { ChevronRight, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CelulaDupla, DataTable, Icone, KpiGrid, KpiTile, SearchField, SegmentedControl, StatusBadge, type ColunaTabela } from "@/design-system";
+import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { FiltroChips, type OpcaoChip } from "@/components/lista/FiltroChips";
 import { Paginacao } from "@/components/lista/Paginacao";
-import { clientes, type ClienteResumo, type FiltroClientes, type SituacaoCliente } from "@/lib/api";
+import { clientes, filiais as filiaisApi, type ClienteResumo, type FiltroClientes, type SituacaoCliente } from "@/lib/api";
 import { rotaDaAcao } from "@/lib/clientes";
 import { mensagemDoErro } from "@/lib/erros";
 import { celular, dinheiro, iniciais, mesAno, percentual } from "@/lib/formatos";
@@ -128,15 +129,18 @@ export function ListaClientes() {
   const { valor, definir } = useFiltrosNaUrl();
   const situacao = valor("situacao") ?? "todos";
   const ordem = (valor("ordem") ?? "-criado_em") as Ordem;
+  // CLI-10: o filtro da lista é próprio e começa em "Todas as filiais"; o seletor do topo não o muda.
+  const filialDaLista = valor("filial") ?? "";
   const cursor = valor("cursor") ?? undefined;
   const buscaNaUrl = valor("busca") ?? "";
   const [busca, setBusca] = useBuscaNaUrl(definir, buscaNaUrl);
 
   const consulta = useQuery({
-    queryKey: ["clientes", { situacao, ordem, busca: buscaNaUrl, cursor }],
-    queryFn: () => clientes.listar({ situacao: situacao === "todos" ? undefined : (situacao as SituacaoCliente), ordem, busca: buscaNaUrl || undefined, cursor }),
+    queryKey: ["clientes", { filial: filialDaLista, situacao, ordem, busca: buscaNaUrl, cursor }],
+    queryFn: () => clientes.listar({ filial: filialDaLista ? Number(filialDaLista) : undefined, situacao: situacao === "todos" ? undefined : (situacao as SituacaoCliente), ordem, busca: buscaNaUrl || undefined, cursor }),
     placeholderData: (anterior) => anterior,
   });
+  const minhas = useQuery({ queryKey: ["filiais", "minhas"], queryFn: () => filiaisApi.minhas(), staleTime: 5 * 60_000 });
   const d = consulta.data;
   const c = d?.contagens;
   const ind = d?.indicadores;
@@ -185,6 +189,16 @@ export function ListaClientes() {
           <div className="min-w-0 flex-1">
             <FiltroChips rotulo="Situação" opcoes={opcoes} valor={situacao} aoMudar={(v) => definir({ situacao: v === "todos" ? null : v })} />
           </div>
+          {(minhas.data?.resultados.length ?? 0) > 0 && (
+            <div className="w-full md:w-[220px]">
+              <CampoSelecao
+                rotulo="Filial"
+                value={filialDaLista}
+                onChange={(e) => definir({ filial: e.target.value || null })}
+                opcoes={[{ valor: "", rotulo: "Todas as filiais" }, ...(minhas.data?.resultados ?? []).map((f) => ({ valor: String(f.id), rotulo: f.nome }))]}
+              />
+            </div>
+          )}
           <div className="hidden md:block">
             <SegmentedControl
               rotulo="Ordenar por"

@@ -19,6 +19,7 @@ export type Pode = {
   despesas_aprovar: boolean;
   despesas_exportar: boolean;
   financeiro_pagar: boolean;
+  lancamento_avulso: boolean;
   os_abrir: boolean;
   administracao: boolean;
 };

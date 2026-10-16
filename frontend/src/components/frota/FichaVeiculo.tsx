@@ -6,6 +6,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Button, DataTable, Icone, KpiGrid, KpiTile, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
 import {
+  ErroApi,
   veiculos,
   type DocumentoVeiculo,
   type LocacaoDoVeiculo,
@@ -160,6 +161,11 @@ function AgoraDesktop({ v }: { v: VeiculoDetalhe }) {
   );
 }
 
+/** A API recusa (403) a lista de locações a quem não tem acesso; o painel some em vez de mostrar o aviso (T-278). */
+export function semAcesso(consulta: Pick<UseQueryResult, "isError" | "error">): boolean {
+  return consulta.isError && consulta.error instanceof ErroApi && consulta.error.status === 403;
+}
+
 function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } & Consultas) {
   const fin = v.indicadores_financeiros;
   const podeAgir = v.acoes.editar;
@@ -189,9 +195,9 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
         </div>
         {podeAgir && (
           <div className="ml-auto flex flex-wrap gap-2">
-            <Button disabled title={EM_BREVE}>
+            <Link href={`/veiculos/${v.id}/editar`} className="wl-btn">
               Editar
-            </Button>
+            </Link>
             <Button disabled title={EM_BREVE} icone={<Icone de={ArrowLeftRight} />}>
               Movimentar
             </Button>
@@ -205,7 +211,7 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
         )}
       </header>
 
-      <KpiGrid>
+      <KpiGrid colunas={fin ? undefined : 2}>
         {fin && <KpiTile destaque rotulo="Rendeu no ano" valor={dinheiroSemZeros(fin.rendeu_no_ano_centavos)} contexto="locações − custos" />}
         <KpiTile rotulo="Ocupação" valor={percentual(v.ocupacao.pct)} contexto={`últimos ${v.ocupacao.periodo_dias} dias`} />
         {fin && <KpiTile rotulo="Custo de manutenção" valor={dinheiroSemZeros(fin.custo_manutencao_ano_centavos)} contexto="no ano" />}
@@ -216,6 +222,7 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
         <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-6">
           <AgoraDesktop v={v} />
 
+          {!semAcesso(locacoes) && (
           <Panel titulo="Locações" acao={locacoes.data ? <span className="text-[13px] text-ink-muted">{locacoes.data.total} no total</span> : undefined}>
             {locacoes.isError && <p role="alert">{mensagemDoErro(locacoes.error)}</p>}
             {locacoes.data?.resultados.length === 0 && <p className="text-body text-ink-muted">Este veículo ainda não foi alugado.</p>}
@@ -223,6 +230,7 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
               <DataTable colunas={COLUNAS_LOCACOES} linhas={locacoes.data.resultados} chaveDaLinha={(l) => String(l.id)} legenda="Locações do veículo" />
             )}
           </Panel>
+          )}
 
           {manutencoes && (
           <Panel titulo="Manutenções" acao={proximaManutencao(v) ? <span className="text-[13px] text-ink-muted">{proximaManutencao(v)}</span> : undefined}>
@@ -300,7 +308,7 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
         </button>
       </header>
 
-      <div className={`grid grid-cols-2 gap-2 ${KPI_DO_CELULAR}`}>
+      <div className={`grid ${fin ? "grid-cols-2" : "grid-cols-1"} gap-2 ${KPI_DO_CELULAR}`}>
         {fin && <KpiTile rotulo="Rendeu no ano" valor={dinheiroSemZeros(fin.rendeu_no_ano_centavos)} contexto="locações − custos" />}
         <KpiTile rotulo="Ocupação" valor={percentual(v.ocupacao.pct)} contexto={`${v.ocupacao.periodo_dias} dias`} />
       </div>
@@ -378,7 +386,7 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
 export function FichaVeiculo({ id }: { id: number }) {
   const ficha = useQuery({ queryKey: ["veiculo", id], queryFn: () => veiculos.obter(id) });
   const docs = useQuery({ queryKey: ["veiculo", id, "documentos"], queryFn: () => veiculos.documentos(id) });
-  const locacoes = useQuery({ queryKey: ["veiculo", id, "locacoes"], queryFn: () => veiculos.locacoes(id) });
+  const locacoes = useQuery({ queryKey: ["veiculo", id, "locacoes"], queryFn: () => veiculos.locacoes(id), retry: (n, e) => !(e instanceof ErroApi && e.status === 403) && n < 2 });
   const { eu } = useSessao();
   const comManutencoes = temNoMenu(eu.navegacao, "manutencoes");
   const consultaManutencoes = useQuery({ queryKey: ["veiculo", id, "manutencoes"], queryFn: () => veiculos.manutencoes(id), enabled: comManutencoes });

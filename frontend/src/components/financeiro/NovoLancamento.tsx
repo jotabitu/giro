@@ -33,7 +33,7 @@ export function NovoLancamento({ aoFechar, aoConcluir }: { aoFechar: () => void;
       return financeiro.lancar({ cliente_id: quem.id, tipo, descricao: descricao.trim(), vencimento, valor_centavos: centavos });
     },
     onSuccess: async () => {
-      await cliente.invalidateQueries({ queryKey: ["contas-receber"] });
+      await Promise.all([cliente.invalidateQueries({ queryKey: ["contas-receber"] }), cliente.invalidateQueries({ queryKey: ["contadores"] })]);
       aoConcluir(`Lançamento de ${dinheiro(centavos ?? 0)} criado para ${quem?.nome}.`);
       aoFechar();
     },

@@ -1,6 +1,6 @@
 # Locações
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-038), troca de veículo em 10 out 2026 (T-122) · **App:** `locacoes` (schema da empresa) · **Regras:** LOC-01 a LOC-15, CLI-02, CLI-03, CLI-05, IMP-04, APR-01, APR-02, FIL-03, FIL-05, FIN-09 · **ADRs:** 0005, 0011, 0015 · **Telas:** Locacoes, Locacao, Locacao-Detalhe
+**Dono:** arquiteto · **Versão:** 07 out 2026 (T-038), troca de veículo em 10 out 2026 (T-122), `acoes.gerar_contrato` em 15 out 2026 (T-263) · **App:** `locacoes` (schema da empresa) · **Regras:** LOC-01 a LOC-15, CLI-02, CLI-03, CLI-05, IMP-04, APR-01, APR-02, FIL-03, FIL-05, FIN-09 · **ADRs:** 0005, 0011, 0015 · **Telas:** Locacoes, Locacao, Locacao-Detalhe
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 12 e 13 (`PlanoEspecial`, `Locacao`, `TrechoLocacao`, `ExtraLocacao`) em `docs/decisoes/modelo-de-dados.md`. Vistoria, devolução e acerto estão em `vistorias.md`; modelo de contrato, PDF e assinatura, em `contratos.md`; receber parcela no caixa ou por Pix, em `financeiro.md` (T-017).
 
@@ -87,7 +87,7 @@ A linha mais:
   "cancelamento": null,
   "troca": null,
   "acoes": { "renovar": true, "registrar_devolucao": true, "trocar_veiculo": true, "cancelar_troca": false,
-             "cancelar": "direto", "imprimir_contrato": true, "reenviar_contrato": true,
+             "cancelar": "direto", "gerar_contrato": false, "imprimir_contrato": true, "reenviar_contrato": true,
              "continuar_vistoria": false, "receber": false }
 }
 ```
@@ -96,6 +96,7 @@ A linha mais:
 - `total_pago_centavos` inclui a caução paga, como na tela. Caso do seed (`LOC-06`, `LOC-05`): LOC-2836 = 32900 + 32900 + 30000 = **95800**.
 - `parcelas` vêm de `financeiro.selectors` (`financeiro` está acima de `locacoes`, ADR 0011). Status como em `FIN-01` (`vence_hoje` e `atrasada` calculados).
 - `acoes.cancelar`: `direto`, `pedir` ou `false`, conforme o perfil. É `false` com uma troca de veículo pendente (`LOC-12`, T-122).
+- `acoes.gerar_contrato` (T-263, passo 3 do fluxo da retirada): `true` quando `POST /api/locacoes/{id}/contrato/` passaria, pelas mesmas condições do serviço: perfil que cria locação (administrador, gerente, vendedor), locação `aguardando_retirada`, sem pedido de desconto pendente (`APR-01`), sem cancelamento em curso (`LOC-12`) e sem contrato vigente (o `contrato` do detalhe é `null` ou `cancelado`). Não olha o modelo publicado: sem ele, o botão aparece e o `POST` responde 422 `IMP-04` com o atalho para publicar (`IMP-04` manda mostrar o atalho). A tela mostra "Enviar contrato" só por ele; com contrato vigente, as ações são `reenviar_contrato` e `imprimir_contrato`. Na LOC-2836 (ativa, contrato assinado) é `false`.
 - `acoes.trocar_veiculo`: quem cria, locação `ativa`, sem cancelamento em curso e sem troca pendente.
 - `acoes.cancelar_troca`: quem cria, com uma troca pendente cuja saída do veículo novo não foi concluída (T-122). `acoes.renovar` continua `true` com a troca pendente (`LOC-08`).
 - `troca`: a troca pendente, ou `null` (as concluídas aparecem em `trechos` e no histórico, as canceladas só no histórico):

@@ -44,7 +44,7 @@ function doDetalhe(l: LocacaoCompleta): DetalheDaLocacaoAtual {
 
 export const clientesApi = {
   listar(f: FiltroClientes = {}): Promise<ListaClientes> {
-    return http.get<ListaClientes>("/api/clientes/", { situacao: f.situacao, busca: f.busca, ordem: f.ordem, cursor: f.cursor });
+    return http.get<ListaClientes>("/api/clientes/", { filial: f.filial, situacao: f.situacao, busca: f.busca, ordem: f.ordem, cursor: f.cursor });
   },
 
   obter(id: number): Promise<ClienteResumo | ClienteCompleto> {

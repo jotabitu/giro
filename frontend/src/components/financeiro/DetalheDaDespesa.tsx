@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { Button, Dialogo, StatusBadge, TextField } from "@/design-system";
+import { atualizarAposDecisao } from "@/lib/aprovacoes";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { aprovacoes, financeiro, type Despesa, type Eu, type FormaDaDespesa } from "@/lib/api";
 import { useAgora } from "@/lib/ambiente";
@@ -16,7 +17,7 @@ type Modo = "ver" | "pagar" | "recusar";
 
 /**
  * Detalhe da despesa: dados, nota e as ações do perfil. Pagar é do administrador e do financeiro (só `a_pagar`);
- * aprovar e recusar são de quem aprova (APR-03) e nunca do próprio pedido (APR-09). A API confere tudo de novo.
+ * aprovar e recusar aparecem quando a API diz `pode_decidir` no pedido (APR-03, APR-09). A API confere tudo de novo.
  */
 export function DetalheDaDespesa({ id, inicial, eu, aoFechar, aoConcluir }: { id: number; inicial?: Despesa; eu: Eu; aoFechar: () => void; aoConcluir: (mensagem: string) => void }) {
   const cliente = useQueryClient();
@@ -32,7 +33,7 @@ export function DetalheDaDespesa({ id, inicial, eu, aoFechar, aoConcluir }: { id
   const d = consulta.data;
 
   const depois = async (mensagem: string) => {
-    await Promise.all([cliente.invalidateQueries({ queryKey: ["despesas"] }), cliente.invalidateQueries({ queryKey: ["contadores"] })]);
+    await atualizarAposDecisao(cliente);
     aoConcluir(mensagem);
     aoFechar();
   };
@@ -51,7 +52,9 @@ export function DetalheDaDespesa({ id, inicial, eu, aoFechar, aoConcluir }: { id
   });
 
   const podePagar = d?.status === "a_pagar" && eu.pode.financeiro_pagar;
-  const podeDecidir = d?.status === "aguardando_aprovacao" && d.pedido_aprovacao_id !== null && eu.pode.despesas_aprovar && d.lancada_por.id !== eu.id;
+  // Quem decide o pedido é a API (`pode_decidir`, APR-03 e APR-09): a tela não olha perfil nem quem lançou.
+  const pedidos = useQuery({ queryKey: ["aprovacoes", "esperando"], queryFn: () => aprovacoes.listar({ status: "pendente" }), enabled: d?.status === "aguardando_aprovacao" });
+  const podeDecidir = d?.status === "aguardando_aprovacao" && d.pedido_aprovacao_id !== null && pedidos.data?.resultados.some((p) => p.id === d.pedido_aprovacao_id && p.pode_decidir) === true;
   const ocupado = pagar.isPending || aprovar.isPending || recusar.isPending;
 
   function escolherComprovante(f: File | null) {
