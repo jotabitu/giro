@@ -24,7 +24,7 @@ Contrato da API: `docs/api/aprovacoes.md` (escrito pelo arquiteto antes da imple
 
 - `models.py`: `PedidoAprovacao`, uma máquina de estados (`pendente` → `aprovado`, `recusado` ou `cancelado`).
   - Tem a origem genérica, a `filial`, os textos prontos `titulo` e `detalhe` e os `dados` por tipo.
-  - No banco: `CHECK` "quem pede não aprova" (`APR-09`) e um só `pendente` por `(tipo, origem_tipo, origem_id)`.
+  - No banco: dois `CHECK` "quem pede não aprova, salvo marcado" (`APR-09`: `aprovador <> solicitante` ou `decidido_pelo_solicitante`, e a marca só com a igualdade; o perfil de administrador é conferido em `_decidir`, T-250) e um só `pendente` por `(tipo, origem_tipo, origem_id)`.
 - `services.pedir`: grava o pedido e a auditoria (`APR-10`). Um pedido igual pendente levanta `comum.aprovacoes.PedidoPendente` (409 `pedido_pendente`).
 - `services.cancelar_pendentes`: cancela os pendentes e publica `aprovacoes.pedido_decidido`.
 - `selectors.pendente`.
@@ -34,10 +34,10 @@ Contrato da API: `docs/api/aprovacoes.md` (escrito pelo arquiteto antes da imple
 
 - `selectors.QUEM_DECIDE`: a tabela "Quem decide" do contrato. `APR-01` e `APR-02` também com as extras `aprovar_desconto` e `cancelar_contrato`; os outros, gerente e administrador.
 - `selectors.decisor`: os tipos e as filiais de quem decide, uma vez por requisição. O administrador decide em todas as filiais, inclusive as desativadas.
-- `GET /api/aprovacoes/`: os pedidos que a pessoa decide, no `X-Filial`, sem os que ela fez (`APR-09`). Com `?minhas=true`, os próprios. Mais antigo primeiro, com `contagens.pendente`.
+- `GET /api/aprovacoes/`: os pedidos que a pessoa decide, no `X-Filial`, sem os que ela fez, salvo o administrador (`APR-09`, T-250). Com `?minhas=true`, os próprios. Mais antigo primeiro, com `contagens.pendente`.
 - `aprovar`, `recusar` (motivo obrigatório, `APR-07`) e `cancelar` (só quem pediu):
   - fora do escopo, 404;
-  - o próprio pedido, 403 `APR-09`;
+  - o próprio pedido, 403 `APR-09` (menos o administrador, que decide com a marca `proprio_pedido` e o texto "Aprovou o próprio pedido" na auditoria);
   - já decidido, 409 `transicao_pedido`.
 - Toda decisão grava quem e quando na mesma auditoria da mudança de status (`APR-10`) e publica `aprovacoes.pedido_decidido` na mesma transação. Se o efeito na origem falha, a decisão volta.
 - O assinante do `APR-06` fica em `veiculos/eventos.py`.

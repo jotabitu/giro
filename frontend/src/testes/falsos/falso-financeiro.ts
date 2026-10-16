@@ -239,6 +239,7 @@ const CENTRO_REF = { id: 1, nome: "Filial Centro" };
 const pedido = (p: Partial<PedidoSeed> & Pick<PedidoSeed, "id" | "tipo" | "titulo" | "detalhe" | "origem" | "solicitante" | "pedido_em">): PedidoSeed => ({
   status: "pendente",
   filial: CENTRO_REF,
+  proprio_pedido: false,
   motivo_pedido: null,
   valor_centavos: null,
   pct: null,
@@ -261,7 +262,7 @@ const quemSou = (): number | null => {
   const perfil = perfilAtualFalso();
   return perfil === "vendedor" ? 4 : perfil === "vistoriador" ? 5 : perfil === "gerente" ? 2 : perfil === "administrador" ? 1 : null;
 };
-const comoApi = (p: PedidoSeed): PedidoDeAprovacao => ({ ...p, pode_decidir: p.status === "pendente" && ["gerente", "administrador"].includes(perfilAtualFalso() ?? "") && p.solicitante.id !== quemSou() });
+const comoApi = (p: PedidoSeed): PedidoDeAprovacao => ({ ...p, pode_decidir: p.status === "pendente" && ["gerente", "administrador"].includes(perfilAtualFalso() ?? "") && (p.solicitante.id !== quemSou() || perfilAtualFalso() === "administrador") });
 const achaPedido = (id: number) => {
   const p = todos().find((x) => x.id === id);
   if (!p) throw new ErroApi(404, "nao_encontrado", "Pedido não encontrado.");
@@ -286,7 +287,7 @@ export const aprovacoesFalso = {
     const perfil = perfilAtualFalso();
     const decide = perfil === "gerente" || perfil === "administrador";
     const eu = quemSou();
-    const base = f.minhas ? todos().filter((p) => p.solicitante.id === eu) : decide ? todos().filter((p) => p.solicitante.id !== eu) : [];
+    const base = f.minhas ? todos().filter((p) => p.solicitante.id === eu) : decide ? todos().filter((p) => p.solicitante.id !== eu || perfil === "administrador") : [];
     const lista = base
       .filter((p) => p.status === (f.status ?? "pendente") && (!f.tipo || p.tipo === f.tipo))
       .sort((a, b) => (f.status && f.status !== "pendente" ? b.pedido_em.localeCompare(a.pedido_em) : a.pedido_em.localeCompare(b.pedido_em)));
@@ -545,6 +546,8 @@ export const financeiroFalso = {
       nota: corpo.nota ? { url: "/notas/nova.jpg", url_expira_em: "2026-10-07T13:15:00Z" } : null,
     });
     despesas = [nova, ...despesas];
+    // O pedido APR-03 nasce com a despesa; quem a lançou é a administradora (id 1), que também decide (APR-09).
+    if (acima) todos().push(pedido({ id: 95, tipo: "APR-03", titulo: "Despesa lançada", detalhe: corpo.descricao, origem: { tipo: "despesa", id: nova.id, codigo: null }, solicitante: { id: 1, nome: "Mariana Costa" }, pedido_em: "2026-10-08T13:00:00Z", valor_centavos: corpo.valor_centavos }));
     return { ...nova };
   },
 
