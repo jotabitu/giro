@@ -1,17 +1,23 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { Button, Icone, ProgressBar, StatusBadge } from "@/design-system";
 import { assinatura as api } from "@/lib/api";
 import { avisoDeUso, ITENS_DO_USO, percentualDeUso, precoDoPlano, situacaoDaAssinatura } from "@/lib/assinatura";
 import { mensagemDoErro } from "@/lib/erros";
+import { dataCurta, dinheiro } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
+import { DadosFiscaisDaAssinatura } from "./DadosFiscaisDaAssinatura";
+import { FaturasDaAssinatura } from "./FaturasDaAssinatura";
+import { FormaDePagamentoDaAssinatura } from "./FormaDePagamentoDaAssinatura";
+import { PlanosDaAssinatura } from "./PlanosDaAssinatura";
 
 // Referência: docs/telas/html/Admin-Assinatura-Desktop.dc.html e Admin-Assinatura-Mobile.dc.html.
-// Na fase 1 o contrato só entrega plano, estado, teste, faixa de aviso e uso (`GET /api/assinatura/`). Mudar de plano, forma de
-// pagamento, faturas, dados da nota fiscal e comparar planos não têm rota; cancelar e pausar são da fase 2 (ver `[decisão]` no quadro).
+// Tudo o que cada bloco mostra e permite vem da API (`GET /api/assinatura/`, `acoes`); a tela não calcula valor, data nem permissão.
+// Cancelar e pausar são da T-195 (docs/api/cancelamento.md).
 
 /** Barra de uso de um item do plano (PLT-03): o número, o limite e, se for o caso, o aviso por escrito. */
 function Medidor({ item, uso }: { item: (typeof ITENS_DO_USO)[number]; uso: { usado: number; limite: number | null; aviso: boolean; bloqueado: boolean } }) {
@@ -36,12 +42,22 @@ function Medidor({ item, uso }: { item: (typeof ITENS_DO_USO)[number]; uso: { us
   );
 }
 
-/** Administração › Assinatura: o plano, o estado da assinatura e o uso dos limites. Só leitura nesta fase. */
+/** Administração › Assinatura: plano, uso, forma de pagamento, faturas, dados da nota fiscal e a oferta do plano acima. */
 export function AssinaturaDaEmpresa() {
   const { eu } = useSessao();
   const podeVer = eu.pode.administracao;
   const consulta = useQuery({ queryKey: ["assinatura"], queryFn: () => api.obter(), enabled: podeVer });
   const a = podeVer ? consulta.data : undefined;
+  const cliente = useQueryClient();
+  const [planos, setPlanos] = useState<"mudar" | "comparar" | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const desfazer = useMutation({
+    mutationFn: () => api.desfazerMudanca(),
+    onSuccess: async () => {
+      await Promise.all([cliente.invalidateQueries({ queryKey: ["assinatura"] }), cliente.invalidateQueries({ queryKey: ["contadores"] })]);
+      setAviso("Mudança de plano desfeita. Você continua no plano de hoje.");
+    },
+  });
 
   if (!podeVer)
     return (
@@ -80,6 +96,11 @@ export function AssinaturaDaEmpresa() {
           {a.faixa_aviso}
         </p>
       )}
+      {aviso && (
+        <p role="status" className="rounded-lg bg-success-soft p-4 text-body text-success-ink">
+          {aviso}
+        </p>
+      )}
       {a?.somente_leitura && (
         <p role="note" className="rounded-lg bg-surface-sunken p-4 text-body text-ink-muted">
           Sua empresa está só para consulta no momento. Dá para ver tudo, mas não para cadastrar ou alterar.
@@ -101,6 +122,37 @@ export function AssinaturaDaEmpresa() {
               {a.teste && a.status === "em_teste" && (
                 <div className="text-caption text-on-solid-muted">{a.teste.dias_restantes === 1 ? "Falta 1 dia" : `Faltam ${a.teste.dias_restantes} dias`} de teste grátis.</div>
               )}
+              {a.plano_proximo && (
+                <div className="text-caption text-on-solid-muted md:text-body">
+                  Muda para {a.plano_proximo.nome}
+                  {a.plano_proximo.vale_em ? ` em ${dataCurta(a.plano_proximo.vale_em)}` : ""}
+                  {a.proxima_fatura ? `, a ${dinheiro(a.proxima_fatura.valor_centavos)}` : ""}.
+                </div>
+              )}
+              {(a.acoes?.mudar_plano || a.acoes?.desfazer_mudanca_plano || (a.acoes?.escolher_forma_pagamento && a.forma_pagamento?.forma === null)) && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {a.acoes.mudar_plano && (
+                    <Button variante="quieto" onClick={() => setPlanos("mudar")}>
+                      Mudar de plano
+                    </Button>
+                  )}
+                  {a.acoes.desfazer_mudanca_plano && (
+                    <Button variante="quieto" disabled={desfazer.isPending} onClick={() => desfazer.mutate()}>
+                      {desfazer.isPending ? "Desfazendo…" : "Desfazer mudança"}
+                    </Button>
+                  )}
+                  {a.acoes.escolher_forma_pagamento && a.forma_pagamento?.forma === null && (
+                    <a href="#forma-de-pagamento" className="wl-btn wl-btn--quiet">
+                      Escolher forma de pagamento
+                    </a>
+                  )}
+                </div>
+              )}
+              {desfazer.isError && (
+                <p role="alert" className="m-0 rounded-md bg-critical-soft p-3 text-caption text-critical-ink">
+                  {mensagemDoErro(desfazer.error)}
+                </p>
+              )}
             </section>
 
             <section className="wl-panel" aria-label="Uso do plano">
@@ -112,9 +164,34 @@ export function AssinaturaDaEmpresa() {
               </div>
               <p className="mt-3.5 mb-0 text-caption text-ink-muted">Avisamos quando chegar a 90% de qualquer limite.</p>
             </section>
+
+            {a.forma_pagamento && (
+              <div id="forma-de-pagamento">
+                <FormaDePagamentoDaAssinatura forma={a.forma_pagamento} pode={a.acoes?.escolher_forma_pagamento === true} />
+              </div>
+            )}
+            {a.forma_pagamento && <FaturasDaAssinatura forma={a.forma_pagamento.forma ?? null} />}
+            {a.dados_fiscais && <DadosFiscaisDaAssinatura dados={a.dados_fiscais} pode={a.acoes?.editar_dados_fiscais === true} aoConcluir={setAviso} />}
           </div>
 
-          <aside className="flex min-w-0 flex-col gap-4 md:flex-[1_1_300px]" aria-label="Cancelamento">
+          <aside className="flex min-w-0 flex-col gap-4 md:flex-[1_1_300px]" aria-label="Oferta e cancelamento">
+            {a.oferta && (
+              <section className="wl-panel flex flex-col gap-3" aria-label="Plano acima">
+                <h2 className="text-heading">{a.oferta.titulo}</h2>
+                <p className="m-0 text-body">O plano {a.oferta.plano.nome} inclui:</p>
+                <ul className="m-0 flex list-disc flex-col gap-1 pl-5 text-body">
+                  {a.oferta.itens.map((i) => (
+                    <li key={i}>{i}</li>
+                  ))}
+                </ul>
+                <p className="m-0 text-caption text-ink-muted">{dinheiro(a.oferta.plano.preco_mensal_centavos)} por mês</p>
+                <div>
+                  <Button variante="quieto" onClick={() => setPlanos("comparar")}>
+                    Comparar planos
+                  </Button>
+                </div>
+              </section>
+            )}
             <section className="flex flex-col gap-2 px-2">
               <div>
                 <Button compacto disabled aria-describedby="cancelar-ajuda">
@@ -128,6 +205,7 @@ export function AssinaturaDaEmpresa() {
           </aside>
         </div>
       )}
+      {planos && <PlanosDaAssinatura podeMudar={planos === "mudar" && a?.acoes?.mudar_plano === true} aoFechar={() => setPlanos(null)} aoConcluir={setAviso} />}
     </div>
   );
 }
