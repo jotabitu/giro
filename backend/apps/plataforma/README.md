@@ -85,6 +85,11 @@ Contrato: `docs/api/assinatura.md` ("Transições da empresa" e "Downgrade agend
 - Aviso do Pix automático autorizado: o webhook da conta principal lê o aviso da autorização (`EventoWebhook.autorizacao_id`), consulta a autorização no parceiro (`consultar_autorizacao`, novo na interface) e, ativa, leva a forma a `ativa` (`assinatura.forma_ativa`). Outra situação não muda a forma e fica no resultado do aviso.
 - `tasks.py`: `plataforma_gerar_faturas`, `plataforma_cobrar_cartao`, `plataforma_enviar_boleto` e `plataforma_avisar_downgrade_recusado`. Os e-mails vão para o `email_cobranca` e os administradores ativos (`destinatarios_da_cobranca`), com a marca Giro.
 
+## Implementado (T-186, parte 3: régua da assinatura)
+
+- `services.py`: `regua_da_assinatura` (`aut_13_regua_assinatura`, Beat 09:00, `PLT-02`): no dia exato de cada marco (`MARCOS_DA_REGUA`), `avisar_pela_regua` manda o D-3 por e-mail, o D0 e o D+3 por e-mail e WhatsApp (`responsavel_telefone`) e o D+7 por e-mail, com a tarefa de ligação (`_pedir_ligacao`: e-mail ao Dono e ao Financeiro da plataforma e o evento `fatura_assinatura.pedir_ligacao`, até a `Plat-Cobranca` da fase 2). Uma vez por marco: o evento `fatura_assinatura.regua` (`depois.marco`) é a marca. Fatura paga ou cancelada e empresa `cancelada` ficam fora (`PLT-06`).
+- `mensagem_da_regua`: os textos de cada marco, com o caminho de pagar da fatura (boleto, página do cartão, cartão guardado, Pix automático, cartão recusado como na tela).
+
 ## Eventos publicados
 
 | Evento | Quando | Dados |
