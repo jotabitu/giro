@@ -7,25 +7,17 @@ Recebem só ids; tokens são gerados aqui, na hora do envio, e nunca passam pela
 from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
-from django_tenants.utils import get_public_schema_name, schema_context
 
 from comum.empresa import nome_da_empresa
 from comum.tarefas import tarefa_de_empresa
 from integracoes.whatsapp import enviar_whatsapp
 
 from .models import Convite, RedefinicaoSenha, Usuario
-from .services import link_do_convite, renovar_token, renovar_token_de_senha
+from .services import host_da_empresa, link_do_convite, renovar_token, renovar_token_de_senha
 
 
 def _marca_e_host(schema_name: str) -> tuple[str, str]:
-    from apps.plataforma.models import Dominio
-
-    with schema_context(get_public_schema_name()):
-        dominio = Dominio.objects.select_related("tenant").get(
-            tenant__schema_name=schema_name, is_primary=True
-        )
-        host = str(dominio.domain)
-    return nome_da_empresa(), host
+    return nome_da_empresa(), host_da_empresa(schema_name)
 
 
 @shared_task(name="contas_enviar_convite")

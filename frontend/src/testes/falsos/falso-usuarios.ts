@@ -18,6 +18,7 @@ const permissoes = (perfil: UsuarioDetalhado["perfil"], marcadas: PermissaoDoUsu
 
 function pessoa(p: Pick<UsuarioDetalhado, "id" | "nome" | "email" | "perfil" | "status"> & Partial<UsuarioDetalhado>): UsuarioDetalhado {
   const todas = p.perfil === "administrador";
+  const pendente = p.status === "convite_pendente";
   return {
     celular: null,
     filiais: todas ? [CENTRO, ALDEOTA] : [CENTRO],
@@ -29,6 +30,8 @@ function pessoa(p: Pick<UsuarioDetalhado, "id" | "nome" | "email" | "perfil" | "
     permissoes_extras: permissoes(p.perfil),
     entrou_em: null,
     ...p,
+    // Os botões do convite, como a API manda ao administrador (T-249).
+    acoes: { reenviar_convite: pendente, copiar_link_convite: pendente, cancelar_convite: pendente },
   };
 }
 

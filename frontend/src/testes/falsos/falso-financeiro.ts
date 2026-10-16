@@ -239,6 +239,7 @@ const CENTRO_REF = { id: 1, nome: "Filial Centro" };
 const pedido = (p: Partial<PedidoSeed> & Pick<PedidoSeed, "id" | "tipo" | "titulo" | "detalhe" | "origem" | "solicitante" | "pedido_em">): PedidoSeed => ({
   status: "pendente",
   filial: CENTRO_REF,
+  proprio_pedido: false,
   motivo_pedido: null,
   valor_centavos: null,
   pct: null,

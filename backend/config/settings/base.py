@@ -193,6 +193,9 @@ REST_FRAMEWORK = {
         "ambiente_ip": "120/min",
         # Webhook do parceiro de pagamentos (S-14).
         "webhook_ip": "120/min",
+        # Copiar link do convite (USR-01, T-249).
+        "link_convite_convidado": "5/hour",
+        "link_convite_administrador": "20/hour",
     },
 }
 

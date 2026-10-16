@@ -16,7 +16,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from comum.autenticacao import AMR_SENHA
+from comum.conexao import schema_atual
 from comum.empresa import nome_da_empresa
+from comum.limites import LIMITES_DO_LINK_CONVITE
 from comum.paginacao import PaginacaoPorCursor
 from comum.permissoes import com_padrao, exige_perfil, resumo_das_filiais
 
@@ -63,6 +65,14 @@ class ContagensDeUsuariosSerializer(serializers.Serializer[Any]):
     desativados = serializers.IntegerField()
 
 
+class AcoesDoUsuarioSerializer(serializers.Serializer[Any]):
+    """Os botões do convite no painel da pessoa (T-249)."""
+
+    reenviar_convite = serializers.BooleanField()
+    copiar_link_convite = serializers.BooleanField()
+    cancelar_convite = serializers.BooleanField()
+
+
 class UsuarioItemSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     nome = serializers.CharField()
@@ -76,6 +86,7 @@ class UsuarioItemSerializer(serializers.Serializer[Any]):
     ultimo_acesso_em = serializers.DateTimeField(allow_null=True)
     convite_expira_em = serializers.DateTimeField(allow_null=True)
     eu = serializers.BooleanField()
+    acoes = AcoesDoUsuarioSerializer()
 
 
 class ListaDeUsuariosSerializer(serializers.Serializer[Any]):
@@ -95,6 +106,13 @@ class PermissaoExtraDoUsuarioSerializer(serializers.Serializer[Any]):
 class UsuarioDetalheSerializer(UsuarioItemSerializer):
     permissoes_extras = PermissaoExtraDoUsuarioSerializer(many=True)
     entrou_em = serializers.DateTimeField(allow_null=True)
+
+
+class LinkDoConviteSerializer(serializers.Serializer[Any]):
+    link = serializers.CharField()
+    expira_em = serializers.DateTimeField()
+    aviso = serializers.CharField()
+    usuario = UsuarioDetalheSerializer()
 
 
 class ConvidarSerializer(serializers.Serializer[Any]):
@@ -260,6 +278,26 @@ class ReenviarConviteView(AcaoSobreUsuario):
     @extend_schema(request=None, responses=UsuarioDetalheSerializer, summary="Reenviar convite")
     def post(self, request: Request, pk: int) -> Response:
         return _detalhe(request, services.reenviar_convite(_usuario(pk), _eu(request)))
+
+
+class LinkDoConviteView(AcaoSobreUsuario):
+    """Copiar link do convite (USR-01, T-250): o link sai só nesta resposta, sem cache; os
+    limites por hora são conferidos antes de gerar ou invalidar qualquer convite."""
+
+    throttle_classes = LIMITES_DO_LINK_CONVITE
+
+    @extend_schema(
+        request=None, responses=LinkDoConviteSerializer, summary="Copiar link do convite (USR-01)"
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        usuario, convite, token = services.copiar_link_convite(_usuario(pk), _eu(request))
+        corpo = {
+            "link": services.link_do_convite(services.host_da_empresa(schema_atual()), token),
+            "expira_em": convite.expira_em,
+            "aviso": "O link anterior deixa de valer.",
+            "usuario": selectors.detalhe_de_usuario(usuario, _eu(request)),
+        }
+        return Response(LinkDoConviteSerializer(corpo).data, headers={"Cache-Control": "no-store"})
 
 
 class CancelarConviteView(AcaoSobreUsuario):
