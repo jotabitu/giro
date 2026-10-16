@@ -173,6 +173,7 @@ O que a ficha de referência mostra e a representação não trazia. Tudo só no
 - `dias_estimados` ("cerca de 6 dias de uso"): `null` até o produto dizer como se calcula o uso médio (`[decisão]` da T-275 no backlog). Com `null`, a tela não mostra o trecho.
 
 **`vistoria_recente`** (`VIS-01`; fornecedor `vistorias`): a última vistoria concluída do veículo (saída ou chegada; `descartada` nunca), que no veículo alugado é a saída da locação atual. `null` se o veículo nunca teve vistoria.
+- `tipo`: `saida` ou `devolucao` (a chegada), os mesmos valores de `vistorias.md`. `vistoriador`: o responsável pela vistoria, ou `null` se ela não tem um.
 - `fotos`: só as posições fixas (`frente`, `traseira`, `lado_esquerdo`, `lado_direito`, `painel`), na ordem; `total_fotos` conta todas, com as de avaria. URL assinada de 15 minutos (`AUD-05`), gerada a cada `GET`. "Ver as 12 fotos" abre `GET /api/vistorias/{id}/`.
 - `avarias`: as avarias abertas do veículo (as de `GET /api/vistorias/avarias/?veiculo=<id>&abertas=true`), da mais antiga para a mais nova. `preexistente: true` é o "já existia, não cobrar"; `locacao_codigo` é a locação em que foi registrada ("registrado na saída da LOC-2841"). Não há campo de lado: o lado faz parte da `descricao`, como na vistoria. Sem valor em dinheiro.
 - Perfis: os que fazem vistoria (administrador, gerente, vendedor, vistoriador). O financeiro recebe a chave ausente.

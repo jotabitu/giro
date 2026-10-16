@@ -1,0 +1,14 @@
+# T-275 · Blocos da ficha do veículo · backend → frontend, qa, orquestrador
+
+**O que foi feito:** o `GET /api/veiculos/{id}/` passa a mandar os blocos da ficha do contrato ("Blocos da ficha", `docs/api/veiculos.md`):
+- `locacao_atual.plano` (`periodicidade`, `plano_especial`, `valor_periodo_centavos`) e `locacao_atual.pagamento` (`situacao`, `rotulo`, `conta_id`, `valor_centavos`, `atrasadas`, `cobrar`). O valor é o do dia, com multa e juros (`FIN-03`, T-293): QXA-4B21 em 07 out = "Parcela 2 atrasada", 30609. Com mais de uma atrasada, "N contas atrasadas" e a soma; `conta_id` é a mais antiga. `cobrar` só para administrador, gerente, vendedor e financeiro. O vistoriador recebe o `plano` sem o valor e não recebe `pagamento`.
+- `vistoria_recente`: a última vistoria concluída e vigente do veículo, com as 5 fotos fixas na ordem (URL assinada de 15 min, `AUD-05`), `total_fotos` com as de avaria, e as avarias abertas do veículo (mais antiga primeiro, sem valor). `null` se o veículo nunca teve vistoria; ausente para o financeiro.
+- `acoes.movimentar` e `movimentacoes` (da T-288) conferidos com teste.
+
+**Onde:** `backend/apps/locacoes/leituras.py` (`montar_ficha`, alvo `veiculos.Veiculo:ficha`), `backend/apps/vistorias/leituras.py` (`montar_ficha`), `backend/apps/veiculos/selectors.py` (`_da_locacao`, `COBRAM`), `backend/apps/veiculos/api/serializers.py` (`VistoriaRecenteSerializer`). Os blocos ficam no alvo só da ficha: a lista da Frota não faz essas consultas.
+**Contrato:** `GET /api/veiculos/{id}/` (`docs/api/openapi.yaml` regenerado; `api:gerar` rodado). Acrescentei em `veiculos.md` uma linha que só explicita o que já valia: `vistoria_recente.tipo` é `saida` ou `devolucao` (os valores de `vistorias.md`) e `vistoriador` pode ser `null`.
+**Regras cobertas:** LOC-01, FIN-01, FIN-03, CLI-07, USR-09, VIS-01, AUD-05, MOV-02, MOV-03 (testes em `backend/tests/aceitacao/test_t275_ficha_blocos.py`: `test_vei_ficha_pagamento_da_locacao`, `test_vei_ficha_vistoria_recente`, `test_mov_03_acao_movimentar`). Também rodei t013, t015, t016, t287, t288 e t315: 179 passaram, 2 xfail (os estritos da T-315).
+**O que ficou de fora:** `manutencao.proxima` segue `null` até o app `manutencao` (fase 2). A divergência de design da T-275 (foto "Pneu", "Alugada") continua no backlog, para o design-system.
+**Próximo passo para quem recebe:**
+- frontend: o tipo temporário `VistoriaRecente.tipo` em `frontend/src/lib/api/tipos-frota.ts` diz `"saida" | "chegada"`; a API manda `"saida" | "devolucao"`. A `FichaBlocos.tsx` só testa `=== "saida"` e mostra "chegada" no resto, então a tela já funciona; basta acertar o tipo (ou trocar pelo gerado). `pagamento.valor_centavos` vem `null` em `em_dia` (a tela já não usa o valor nesse caso). As outras chaves batem com a tela.
+- qa: conferir a ficha do QXA-4B21 no seed em 07 out ("Parcela 2 atrasada · R$ 306,09", Cobrar, fotos da saída).

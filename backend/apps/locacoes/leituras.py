@@ -9,6 +9,7 @@
   origem é uma locação (contrato de financeiro, "Representação").
 - `veiculos.Veiculo`: `rendeu_no_ano_centavos` no bloco `indicadores_financeiros` (VEI-05), as
   contas pagas das locações do veículo no ano, sem caução.
+- `veiculos.Veiculo:ficha`: `plano` e `pagamento` da locação atual, só na ficha (T-275).
 """
 
 from datetime import date
@@ -18,6 +19,7 @@ from django.db.models import Count, Exists, IntegerField, OuterRef, QuerySet, Su
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
+from apps.financeiro import selectors as financeiro_selectors
 from apps.financeiro.models import ContaReceber, StatusConta, TipoConta
 from comum import leituras, relogio
 
@@ -25,6 +27,7 @@ from .models import ABERTAS, Locacao, Periodicidade, StatusLocacao
 
 S = StatusLocacao
 VEICULO = "veiculos.Veiculo"
+FICHA = "veiculos.Veiculo:ficha"
 CLIENTE = "clientes.Cliente"
 FILIAL = "filiais.Filial"
 CATEGORIA = "veiculos.Categoria"
@@ -255,12 +258,86 @@ def montar_rendimento(veiculo: Any) -> dict[str, Any]:
     return {"rendeu_no_ano_centavos": int(veiculo.loc_rendeu_ano)}
 
 
+# --- veiculos.Veiculo:ficha: plano e pagamento da locação atual (T-275) ---
+
+
+def _rotulo_da_conta(conta: ContaReceber, situacao: str) -> str:
+    if conta.tipo == TipoConta.PARCELA:
+        nome = f"Parcela {conta.numero_parcela}"
+    else:
+        nome = TipoConta(conta.tipo).label
+    return f"{nome} {situacao}"
+
+
+def _pagamento(locacao: Locacao) -> dict[str, Any]:
+    """FIN-01, CLI-07: atrasado, senão vence hoje, senão em dia. O valor é o do dia, com multa e
+    juros (FIN-03, T-293), o mesmo do Receber. O `cobrar` aqui é só da situação: o perfil que
+    cobra fica com quem monta a ficha."""
+    hoje = relogio.hoje()
+    abertas = list(
+        financeiro_selectors.contas_da_origem(ORIGEM, locacao.pk).filter(status=StatusConta.ABERTA)
+    )
+    atrasadas = [c for c in abertas if c.vencimento < hoje]
+    do_dia = [c for c in abertas if c.vencimento == hoje]
+    juros = financeiro_selectors.JurosDaPagina()
+    if atrasadas:
+        rotulo = (
+            _rotulo_da_conta(atrasadas[0], "atrasada")
+            if len(atrasadas) == 1
+            else f"{len(atrasadas)} contas atrasadas"
+        )
+        situacao, conta = "atrasado", atrasadas[0]
+        valor: int | None = sum(juros.devido(c, hoje).total_centavos for c in atrasadas)
+    elif do_dia:
+        situacao, conta = "vence_hoje", do_dia[0]
+        rotulo = _rotulo_da_conta(conta, "vence hoje")
+        valor = juros.devido(conta, hoje).total_centavos
+    else:
+        return {
+            "situacao": "em_dia",
+            "rotulo": "Em dia",
+            "conta_id": None,
+            "valor_centavos": None,
+            "atrasadas": 0,
+            "cobrar": False,
+        }
+    return {
+        "situacao": situacao,
+        "rotulo": rotulo,
+        "conta_id": conta.pk,
+        "valor_centavos": valor,
+        "atrasadas": len(atrasadas),
+        "cobrar": True,
+    }
+
+
+def montar_ficha(veiculo: Any) -> dict[str, Any] | None:
+    locacao = (
+        Locacao.objects.filter(status__in=ABERTAS, veiculo_id=veiculo.pk)
+        .select_related("plano_especial")
+        .order_by("-id")
+        .first()
+    )
+    if locacao is None:
+        return None
+    return {
+        "plano": {
+            "periodicidade": locacao.periodicidade,
+            "plano_especial": locacao.plano_especial.nome if locacao.plano_especial else None,
+            "valor_periodo_centavos": locacao.valor_periodo_centavos,
+        },
+        "pagamento": _pagamento(locacao),
+    }
+
+
 def registrar() -> None:
     leituras.registrar_anotacao(CONTA, "locacao", anotar_conta, montar_conta)
     leituras.registrar_anotacao(
         VEICULO, "indicadores_financeiros", anotar_rendimento, montar_rendimento
     )
     leituras.registrar_anotacao(VEICULO, "locacao_atual", anotar_veiculo, montar_veiculo)
+    # Só a ficha pede plano e pagamento: alvo próprio, para a Frota não consultá-los.
+    leituras.registrar_anotacao(FICHA, "locacao_atual", _sem_anotacao, montar_ficha)
     leituras.registrar_anotacao(CLIENTE, "locacao_atual", anotar_cliente, montar_cliente_atual)
     # A anotação da locação atual já serve aos dois blocos do cliente.
     leituras.registrar_anotacao(CLIENTE, "ultima_locacao", _sem_anotacao, montar_cliente_ultima)
