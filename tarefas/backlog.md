@@ -142,8 +142,6 @@ Concluída. As tarefas entregues estão em `tarefas/feito.md`.
 
 Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, depois telas, depois o que pede regra. As três dúvidas do fim contrariavam regras já escritas e foram decididas pelo dono no mesmo dia.
 
-### T-239 · Bug: locação não passa do passo 1
-- **Agente:** frontend (backend se a causa for a API) · **Depende de:** — · **Regras:** LOC-01, CLI-01 · **Telas:** Nova locação · **Pronto quando:** com o passo 1 (Dados) preenchido, os botões de seguir para a vistoria e de salvar como reserva ficam ativos e funcionam; a causa está no handoff (validação do formulário, campo escondido obrigatório, resposta da API); teste do componente que preenche o passo 1 e clica nos dois botões; repetir no E2E da locação. Relato do dono: "preencho tudo do passo 1 e não deixa clicar nos botões".
 
 ### T-240 · Bug: cadastrar veículo mostra erro mas grava
 - **Agente:** frontend, com backend · **Depende de:** — · **Regras:** VEI-01 · **Telas:** Veiculo-Novo · **Pronto quando:** "Salvar veículo" com dados válidos mostra sucesso e abre a ficha; se uma etapa depois de criar falhar (fotos, documentos, leitura da ficha), o veículo criado não vira erro genérico, e a mensagem diz o que faltou; clicar duas vezes não tenta criar de novo (botão travado durante o envio); teste do componente com a criação 201 e uma etapa seguinte com erro; teste do backend se a causa for lá. Relato do dono: erro "não foi possível cadastrar"; no segundo clique, "placa já cadastrada"; e o veículo estava gravado.
@@ -153,6 +151,7 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 ### T-267 · Ficha do veículo de referência pelas regras
 - **Agente:** design-system · **Depende de:** T-238, T-255 (e T-246, PR #248) · **Regras:** VEI-01, VEI-02, LOC-06, MAN-03, MOV-01, MOV-03 · **Telas:** Veiculo-Desktop, Veiculo-Mobile · **Pronto quando:** as duas fichas seguem o estado do QXA-4B21 em 07 out das regras (LOC-2841 de 23 set a 28 out, vistoria de saída e km de 23 set, chassi ...4401, troca de óleo aos 18.900 km) e o bloco Movimentações não mostra origem fora de filial, OS fora do seed nem veículo alugado em movimentação; as duas `[divergência]` da T-238 e da T-255 (ficha) marcadas como atendidas; handoff para o frontend copiar na T-242.
+
 
 ### T-244 · Despesas: ajustes da tela
 - **Agente:** frontend · **Depende de:** — · **Regras:** FIN-05, FIN-06 · **Telas:** Despesas-Desktop, Despesas-Mobile · **Pronto quando:** sai o botão "+ Avulso"; "Exportar" vai para a direita do cabeçalho; a busca de despesas fica dentro do bloco da lista (hoje sai da div); conferido com a referência no desktop e no celular.
@@ -183,8 +182,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 ### T-252 · Revisão do link do convite na tela
 - **Agente:** segurança · **Depende de:** T-250 · **Pronto quando:** a segurança revisa a rota e a tela do link copiável: só administrador, link mostrado uma vez e fora de log, limite por hora, evento de auditoria, invalidação do anterior, e o suporte Giro sem acesso à rota.
-
-Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entrou no PR #160 (ver `feito.md`).
 
 
 ### T-156 · (M-02) Custo e rendimento do veículo fora da ficha do vendedor (média)
@@ -310,6 +307,18 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
   **Estado (15 out 2026):** contratos ajustados, PR a abrir depois da T-235 (branch `t-236-contratos-apagamento`, empilhada sobre a `t-235-regras-apagamento`); handoff `tarefas/handoffs/T-236-arquiteto.md`. Para a T-184 (em andamento): campos `tomador_*` e `email_cobranca` na `FaturaAssinatura`, `gravar_tomador` na baixa e o teste no sandbox do `anonimizar_pagador`.
 - **Tarefa (numerada pelo orquestrador em 15 out 2026):** **T-237 · design-system · Tela `Aprovacoes` sem fornecedor.** No pedido de despesa (desktop e celular), tirar "Fornecedor" e "15 out · boleto" e mostrar categoria, descrição, veículo, valor e vencimento, com os pneus do seed (Manutenção, "Pneus (2)", PMZ-3E17, R$ 1.200,00, 07 out). Pode ir com a T-028 ou a T-200, se ainda abertas. Junto: a `Compra-Checkout` ganha o aviso "Este CNPJ já usou o teste grátis. A 1ª fatura vence hoje." (`PLT-16`).
 
+### T-276 · Migração com papéis de banco separados (auditoria)
+- **Agente:** segurança, depois backend · **Depende de:** — · **Pronto quando:** com os papéis `giro_migracao` e `giro_app` separados (homologação e produção, T-264), a migração falha em `ALTER FUNCTION auditoria_expurgar OWNER TO giro_expurgo` (permission denied for schema public; `backend/apps/auditoria/banco.py`). A segurança decide quem é dono da função e dos papéis (sem dar superusuário à migração) e o backend corrige, com teste de migração com os papéis separados. **Antes da homologação.** Achado do devops na T-264.
+
+### T-277 · Django Admin pelo proxy
+- **Agente:** arquiteto, depois devops · **Depende de:** T-264 · **Pronto quando:** o arquiteto decide como o Django Admin da plataforma é alcançado em homologação e produção (hoje `/` vai para o Next e o Admin fica inalcançável pelo proxy): caminho, host e quem acessa; o devops ajusta o proxy. Achado do devops na T-264.
+
+### T-278 · Ficha do veículo: painel de locações do vistoriador
+- **Agente:** frontend · **Depende de:** T-242 · **Pronto quando:** para o vistoriador, a ficha não mostra o painel Locações com "Seu perfil não tem acesso a esta ação": o painel some quando a API não manda os dados (sem decidir pelo perfil); teste do componente. Observação do design-system na T-272.
+
+### T-279 · Classes `wl-` fora de camada vencem o Tailwind
+- **Agente:** design-system · **Depende de:** — · **Pronto quando:** as classes `wl-` do design system ficam numa camada (`@layer components`) para os utilitários do Tailwind (como `md:hidden`) valerem por cima; varredura das telas com o mesmo sintoma do "+" de Nova despesa no desktop (T-244); conferência no navegador. Causa de fundo apontada pelo frontend na T-244.
+
 ### T-275 · Dados da ficha do veículo que a API não manda
 - **Agente:** arquiteto, depois backend · **Depende de:** T-242 (PR #266), T-267 · **Telas:** Veiculo-Desktop, Veiculo-Mobile · **Pronto quando:** o contrato de `GET /api/veiculos/{id}/` (`veiculos.md`) diz o que a ficha de referência mostra e a API não manda (pedidos do frontend no handoff da T-242): o plano e os pagamentos da locação atual (com o Cobrar), o km, a barra e o serviço seguinte da próxima manutenção, as fotos e avarias da vistoria de saída e o bloco de movimentações com `acoes.movimentar` (este só se as Movimentações entrarem no MVP; senão, fica ausente); o que não tiver regra vira `[decisão]` para o produto; depois, o backend implementa com testes. Junto: o selo "Alugado" da API contra "Alugada" da referência (design-system decide pela regra).
 
@@ -340,7 +349,8 @@ Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguran
 - Resolvido na T-223 (dono, 15 out 2026): **Comissão de locação no Essencial** (T-192): opção A, como a ADR 0024; não é lançada, e depois do upgrade nasce só para as locações confirmadas a partir dele (`PLT-12`, `FIN-09`, CA-ASS-53).
 - Resolvido na T-223: (T-192) CA-ASS-15 lista também o que está aberto no seed de 07 out: 1 despesa aguardando aprovação (pneus) e 2 a pagar (IPVA ROE2A88 e luz); o seed não tem OS, venda nem comissão aberta.
 - Resolvido na T-224 (arquiteto, PR a abrir): ADR 0024 revista (itens 7, 9, 10 e 11) e contratos pelas decisões da T-223: `GET` e `PUT /api/ramo/` em `docs/api/empresas.md` (passo 7 e Configurações, `atividades_aceitas` e o aviso por plano, recusa 422 `PLT-12` com `detalhes.abertos` e o grupo novo `locacoes`); downgrade de quem só vende recusado com `detalhes.atividade` e o 422 do CA-ASS-15 com os `abertos` do seed em `docs/api/assinatura.md`; `recursos_para` e `atividades_aceitas` em `plataforma.md`; comissão de locação só com o módulo ligado na confirmação em `locacoes.md`.
-- Pedido ao design-system (T-224): a troca do ramo em Configurações (`PLT-12`) não tem tela de referência nem cartão em `GET /api/configuracoes/`. A rota já existe no contrato (`PUT /api/ramo/`, `empresas.md`); a tela pode reaproveitar o `Onboarding-Ramo` e mostrar a recusa com o `abertos_texto`.
+- Pedido ao design-system (T-224): atendido na T-253 (telas `Admin-Ramo-*`, ver `tarefas/handoffs/T-253-design-system.md`).
+- [divergência] Troca do ramo (T-253, para a T-196 e o frontend): (1) `GET /api/configuracoes/` precisa de um cartão `ramo` ("O que a empresa faz", "Locação, venda e tipos de veículo") para o hub `Config-*` mostrar o atalho; hoje a referência o traz fixo. (2) O CA-ASS-50 diz "1 comissão não paga" e a API devolve "1 comissão a pagar" (já com o produto, T-224); a tela mostra o `abertos_texto` da API. (3) No seed de 07 out a Moto Rápida tem 51 locações abertas (42 da carteira e 9 reservas, T-019), então "deixar de alugar" mostra "51 locações abertas"; o "1 locação aberta" do CA-ASS-50 é a fixture do teste. (4) O `Onboarding-Ramo` ainda mostra "Como você aluga", "CNH exigida" e nove módulos com nomes que a API não usa, e não mostra o aviso do Essencial nem as opções por `atividades_aceitas`; a tela do passo 7 precisa seguir `Admin-Ramo-*` (tarefa nova para o design-system, se o produto confirmar).
 - Para o produto (T-224): (1) a recusa de "só vende" no `PUT /api/ramo/` do Essencial, que a tela não deixa acontecer, usa "O plano Essencial não inclui vendas. Escolha locação, ou locação e venda." (texto do arquiteto; trocar se quiser); (2) o CA-ASS-50 diz "1 comissão não paga" e a API devolve o texto do grupo `comissoes` já contratado, "1 comissão a pagar"; ajustar o critério ou pedir a troca do texto.
 - Proposta do produto (T-223, para a T-196, backend, depois da T-224): somar `test_plt_12_troca_de_ramo_com_algo_aberto`, `test_plt_12_essencial_sem_so_vende`, `test_plt_12_downgrade_so_vende` e `test_plt_12_comissao_so_depois_do_upgrade`, e o `test_plt_04_downgrade_nao_cabe` conferindo os `abertos` do seed (despesas 1 aguardando aprovação e 2 a pagar). Critérios: CA-ASS-15 e CA-ASS-22 a 25, 50 a 53. O frontend do passo 7 (`Onboarding-Ramo`) e de Configurações mostra as opções e a recusa que a API devolve.
 - Resolvido na T-235 (dono, 15 out 2026): opção A, a tela perde as duas células e mostra categoria, descrição, veículo, valor e vencimento (CA-APR-11). O `resumo` do contrato ganha a descrição.
