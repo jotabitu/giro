@@ -218,18 +218,51 @@ class HistoricoStatusSerializer(serializers.Serializer[Any]):
     motivo = serializers.CharField(allow_null=True)
 
 
+class FotoDaVistoriaRecenteSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    posicao = serializers.ChoiceField(
+        choices=["frente", "traseira", "lado_esquerdo", "lado_direito", "painel"]
+    )
+    url = serializers.CharField()
+    url_expira_em = serializers.DateTimeField()
+
+
+class AvariaDaVistoriaRecenteSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    descricao = serializers.CharField()
+    registrada_em = serializers.DateTimeField()
+    preexistente = serializers.BooleanField()
+    locacao_codigo = serializers.CharField(allow_null=True)
+    foto_id = serializers.IntegerField(allow_null=True)
+
+
+class VistoriaRecenteSerializer(serializers.Serializer[Any]):
+    """VIS-01, T-275: a última vistoria concluída, com as fotos fixas e as avarias abertas."""
+
+    id = serializers.IntegerField()
+    tipo = serializers.ChoiceField(choices=["saida", "devolucao"])
+    concluida_em = serializers.DateTimeField()
+    vistoriador = IdNomeSerializer(allow_null=True)
+    locacao_codigo = serializers.CharField(allow_null=True)
+    total_fotos = serializers.IntegerField()
+    fotos = FotoDaVistoriaRecenteSerializer(many=True)
+    avarias = AvariaDaVistoriaRecenteSerializer(many=True)
+
+
 class VeiculoDetalheSerializer(VeiculoSerializer):
     # Só para administrador, gerente e financeiro; ausente para os demais (USR-09, T-156).
     indicadores_financeiros = serializers.JSONField(allow_null=True, required=False)
     # Ausente para vistoriador e financeiro (T-275).
     movimentacoes = serializers.JSONField(allow_null=True, required=False)
+    # Ausente para o financeiro; `null` se o veículo nunca teve vistoria (T-275).
+    vistoria_recente = VistoriaRecenteSerializer(allow_null=True, required=False)
     ocupacao = OcupacaoSerializer()
     historico_status = HistoricoStatusSerializer(many=True)
 
     def to_representation(self, instance: Any) -> Any:
         dados = super().to_representation(instance)
         # O campo com allow_null viraria `null` quando a chave falta; aqui ela some.
-        for chave in ("indicadores_financeiros", "movimentacoes"):
+        for chave in ("indicadores_financeiros", "movimentacoes", "vistoria_recente"):
             if chave not in instance:
                 dados.pop(chave, None)
         return dados
