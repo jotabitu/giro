@@ -999,12 +999,17 @@ paths:
   /api/clientes/:
     get:
       operationId: clientes_list
-      summary: Clientes (CLI-06, AUD-04)
+      summary: Clientes (CLI-06, CLI-10, AUD-04)
       parameters:
       - in: query
         name: busca
         schema:
           type: string
+      - in: query
+        name: filial
+        schema:
+          type: integer
+        description: Clientes com locação na filial (CLI-10)
       - in: query
         name: ordem
         schema:
@@ -4718,6 +4723,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/UsuarioDetalhe'
           description: ''
+  /api/usuarios/{id}/link-convite/:
+    post:
+      operationId: usuarios_link_convite_create
+      description: |-
+        Copiar link do convite (USR-01, T-250): o link sai só nesta resposta, sem cache; os
+        limites por hora são conferidos antes de gerar ou invalidar qualquer convite.
+      summary: Copiar link do convite (USR-01)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - usuarios
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkDoConvite'
+          description: ''
   /api/usuarios/{id}/reativar/:
     post:
       operationId: usuarios_reativar_create
@@ -5915,6 +5944,20 @@ components:
       - fechar
       - receber
       - sangria
+    AcoesDoUsuario:
+      type: object
+      description: Os botões do convite no painel da pessoa (T-249).
+      properties:
+        reenviar_convite:
+          type: boolean
+        copiar_link_convite:
+          type: boolean
+        cancelar_convite:
+          type: boolean
+      required:
+      - cancelar_convite
+      - copiar_link_convite
+      - reenviar_convite
     AcoesDoVeiculo:
       type: object
       properties:
@@ -10754,6 +10797,23 @@ components:
       required:
       - rotulo
       - valor_centavos
+    LinkDoConvite:
+      type: object
+      properties:
+        link:
+          type: string
+        expira_em:
+          type: string
+          format: date-time
+        aviso:
+          type: string
+        usuario:
+          $ref: '#/components/schemas/UsuarioDetalhe'
+      required:
+      - aviso
+      - expira_em
+      - link
+      - usuario
     ListaDeAvarias:
       type: object
       properties:
@@ -12567,6 +12627,8 @@ components:
           nullable: true
         pode_decidir:
           type: boolean
+        proprio_pedido:
+          type: boolean
       required:
       - decidido_em
       - decidido_por
@@ -12579,6 +12641,7 @@ components:
       - pct
       - pedido_em
       - pode_decidir
+      - proprio_pedido
       - solicitante
       - status
       - tipo
@@ -14877,6 +14940,8 @@ components:
           nullable: true
         eu:
           type: boolean
+        acoes:
+          $ref: '#/components/schemas/AcoesDoUsuario'
         permissoes_extras:
           type: array
           items:
@@ -14886,6 +14951,7 @@ components:
           format: date-time
           nullable: true
       required:
+      - acoes
       - celular
       - convite_expira_em
       - dois_fatores_ativo
@@ -14935,7 +15001,10 @@ components:
           nullable: true
         eu:
           type: boolean
+        acoes:
+          $ref: '#/components/schemas/AcoesDoUsuario'
       required:
+      - acoes
       - celular
       - convite_expira_em
       - dois_fatores_ativo

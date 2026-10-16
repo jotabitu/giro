@@ -7,7 +7,6 @@ import { cssDaMarca, ID_ESTILO_MARCA, MARCA_PADRAO } from "@/design-system/marca
 import { cssDosTemas } from "@/design-system/tokens";
 import { Provedores } from "@/lib/provedores";
 import "./globals.css";
-import "@/design-system/componentes.css";
 
 // Renderização por requisição: a CSP usa um nonce novo a cada resposta (src/middleware.ts), e
 // página pré-renderizada em build não o recebe nos scripts inline do Next.

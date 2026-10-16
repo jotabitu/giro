@@ -138,6 +138,21 @@ describe("lista de despesas (FIN-05, CA-017-19)", () => {
     expect(html).toContain('aria-required="true"');
   });
 
+  it("t_244_cabecalho_e_busca_como_a_referencia: o + é só do celular, Exportar fica à direita e a busca cabe no bloco da lista", async () => {
+    await entrar("financeiro@motorapida.com.br");
+    const html = await pagina();
+    // O `.wl-icon-btn` define `display` e vence o `md:hidden` do próprio link: quem some no desktop é o wrapper.
+    expect(html).toMatch(/<div class="ml-auto md:hidden"><a [^>]*aria-label="Nova despesa"/);
+    expect(html).not.toMatch(/<a [^>]*aria-label="Nova despesa"[^>]*md:hidden/);
+    expect(texto(html)).not.toContain("Avulso");
+    // Exportar à direita do cabeçalho, no desktop.
+    expect(html).toMatch(/<div class="ml-auto hidden md:block"><button[^>]*>(<svg.*?<\/svg>)?Exportar/);
+    // A busca (360px no padrão do design system) ocupa só os 220px do bloco, dentro do painel da lista.
+    const painel = html.slice(html.indexOf('aria-label="Despesas do mês"'));
+    expect(painel).toContain('w-[220px] [&amp;_.wl-search]:!w-full');
+    expect(painel.indexOf('aria-label="Buscar despesa"')).toBeGreaterThan(0);
+  });
+
   it("CA-DES-06 e CA-DES-06b: administrador e financeiro veem Exportar, pela flag de pode", async () => {
     for (const email of ["mariana@motorapida.com.br", "financeiro@motorapida.com.br"]) {
       await entrar(email);
@@ -184,12 +199,18 @@ describe("lista de despesas (FIN-05, CA-017-19)", () => {
 });
 
 describe("detalhe e decisão (APR-03, APR-09)", () => {
-  const detalhe = async (email: string, id: number) => {
-    await entrar(email);
+  const detalhe = async (email: string, id: number, decide?: boolean, jaEntrou = false) => {
+    // Para trocar o `pode_decidir`, os pedidos vêm da lista da administradora, que decide todos.
+    if (!jaEntrou) await entrar(decide !== undefined ? "mariana@motorapida.com.br" : email);
+    const pendentes = await aprovacoes.listar({ status: "pendente" });
+    if (!jaEntrou) await entrar(email);
     const d = await financeiro.obterDespesa(id);
+    const cache = new QueryClient();
+    // `decide` troca o `pode_decidir` que a API mandou, para provar que a tela só lê esse campo.
+    cache.setQueryData(["aprovacoes", "esperando"], decide === undefined ? pendentes : { ...pendentes, resultados: pendentes.resultados.map((p) => ({ ...p, pode_decidir: decide })) });
     return texto(
       renderToStaticMarkup(
-        <QueryClientProvider client={new QueryClient()}>
+        <QueryClientProvider client={cache}>
           <DetalheDaDespesa id={id} inicial={d} eu={sessao.eu as Eu} aoFechar={() => {}} aoConcluir={() => {}} />
         </QueryClientProvider>,
       ),
@@ -209,6 +230,20 @@ describe("detalhe e decisão (APR-03, APR-09)", () => {
     expect(d.lancada_por.id).toBe((sessao.eu as Eu).id);
     const t = await detalhe("joao@motorapida.com.br", 801);
     expect(t).not.toContain("Aprovar");
+  });
+
+  it("CA-248-08: o botão Aprovar vem do pode_decidir da API, não do perfil nem de quem lançou", async () => {
+    expect(await detalhe("bruna@motorapida.com.br", 801, true)).toContain("Aprovar");
+    expect(await detalhe("rodrigo@motorapida.com.br", 801, false)).not.toContain("Aprovar");
+  });
+
+  it("CA-248-08: a administradora vê Aprovar no pedido que ela mesma lançou", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const nova = await financeiro.lancarDespesa({ descricao: "Revisão do QXA-4B21", valor_centavos: 120000, data: "2026-10-08", vencimento: "2026-10-08", categoria: "manutencao" });
+    expect(nova.status).toBe("aguardando_aprovacao");
+    const t = await detalhe("mariana@motorapida.com.br", nova.id, undefined, true);
+    expect(t).toContain("Aprovar");
+    expect(t).toContain("Recusar");
   });
 
   it("o financeiro paga despesa a pagar e não aprova", async () => {

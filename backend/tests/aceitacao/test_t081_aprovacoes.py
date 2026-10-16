@@ -119,6 +119,7 @@ def test_apr_06_ca_013_16_gerente_aprova_e_o_km_e_corrigido(moto, frota, sak, de
         "decidido_em": None,
         "motivo_recusa": None,
         "pode_decidir": True,
+        "proprio_pedido": False,
     }
 
     resposta = _decidir(moto, "Rodrigo", pedido_id, "aprovar")

@@ -1,8 +1,9 @@
 """Views finas das aprovações (docs/api/aprovacoes.md).
 
 Todos os perfis leem a lista: quem decide vê os pedidos que decide (tabela "Quem decide", nas
-suas filiais, sem os que fez, APR-09) e todos veem os próprios com `?minhas=true`. Decidir fora
-do escopo responde 404; decidir o próprio pedido, 403 `APR-09` (no serviço).
+suas filiais, sem os que fez, salvo o administrador, APR-09) e todos veem os próprios com
+`?minhas=true`. Decidir fora do escopo responde 404; decidir o próprio pedido, 403 `APR-09` para
+quem não é administrador (no serviço).
 """
 
 from typing import Any

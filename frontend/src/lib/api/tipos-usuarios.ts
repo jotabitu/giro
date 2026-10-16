@@ -15,4 +15,5 @@ export type SituacaoDeUsuarios = "ativos" | "convites" | "desativados";
 export type FiltroUsuarios = { situacao?: SituacaoDeUsuarios; perfil?: S["PerfilEnum"]; filial?: number; busca?: string; cursor?: string };
 export type ConviteNovo = S["Convidar"];
 export type AlteracaoDeUsuario = S["PatchedAlterarUsuario"];
+export type LinkDoConvite = S["LinkDoConvite"];
 export type SessaoDoUsuario = S["Sessao"];

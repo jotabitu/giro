@@ -4,15 +4,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
 import { Panel, SegmentedControl, TextField } from "@/design-system";
-import { clientes, ErroApi, type ClienteCompleto } from "@/lib/api";
+import { clientes, filiais, ErroApi, type ClienteCompleto, type TipoDocumentoCliente } from "@/lib/api";
 import { esquemaCliente, paraCorpo, VALORES_INICIAIS, type ValoresCliente } from "@/lib/clientes";
 import { mensagemDoErro } from "@/lib/erros";
-import { mascaraCelular, mascaraCep, mascaraCnpj, mascaraCpf } from "@/lib/formatos";
+import { mascaraCelular, mascaraCep, mascaraCnpj, mascaraCpf, soDigitos } from "@/lib/formatos";
 import { AnaliseDoCadastro } from "./AnaliseDoCadastro";
-import { BotaoDocumento } from "./BotaoDocumento";
+import { BotaoDocumento, ROTULO_DOCUMENTO } from "./BotaoDocumento";
 
 type Nome = FieldPath<ValoresCliente>;
 
@@ -59,6 +59,27 @@ export function NovoClienteForm() {
     placeholderData: (anterior) => anterior,
   });
 
+  // Fotos escolhidas antes do cadastro existir: ficam aqui e sobem logo depois do POST (CLI-01).
+  const [arquivos, setArquivos] = useState<Partial<Record<TipoDocumentoCliente, File>>>({});
+  const [cepAviso, setCepAviso] = useState<string | null>(null);
+  const ultimoCep = useRef("");
+
+  async function buscarCep(texto: string) {
+    const cep = soDigitos(texto);
+    if (cep.length !== 8 || cep === ultimoCep.current) return;
+    ultimoCep.current = cep;
+    try {
+      const r = await filiais.cep(cep);
+      setCepAviso(null);
+      setValue("endereco.logradouro", r.logradouro, { shouldDirty: true });
+      setValue("endereco.bairro", r.bairro, { shouldDirty: true });
+      setValue("endereco.cidade", r.cidade, { shouldDirty: true });
+      setValue("endereco.uf", r.uf, { shouldDirty: true });
+    } catch {
+      setCepAviso("Não achamos esse CEP. Preencha o endereço à mão.");
+    }
+  }
+
   const salvar = useMutation({ mutationFn: (v: ValoresCliente) => clientes.criar(paraCorpo(v)) });
 
   /** Campos com a máscara de digitação; a API recebe só os dígitos. */
@@ -83,7 +104,21 @@ export function NovoClienteForm() {
     setErroGeral(null);
     setExistente(null);
     try {
-      depois(await salvar.mutateAsync(v));
+      const criado = await salvar.mutateAsync(v);
+      const falhas: string[] = [];
+      for (const [tipo, arquivo] of Object.entries(arquivos) as [TipoDocumentoCliente, File][]) {
+        try {
+          await clientes.enviarDocumento(criado.id, tipo, arquivo);
+        } catch {
+          falhas.push(ROTULO_DOCUMENTO[tipo]);
+        }
+      }
+      if (falhas.length > 0) {
+        setErroGeral(`Cliente salvo, mas não enviamos: ${falhas.join(", ")}. Abra a ficha do cliente para enviar de novo.`);
+        setExistente({ id: criado.id, nome: "" });
+        return;
+      }
+      depois(criado);
     } catch (e) {
       if (e instanceof ErroApi && e.status === 409 && e.codigo === "CLI-01") {
         const id = Number(e.detalhes?.cliente_id);
@@ -137,7 +172,7 @@ export function NovoClienteForm() {
         <p role="alert" className="rounded-lg bg-warning-soft p-4 text-body text-warning-ink">
           {existente.nome ? `${existente.nome} já está cadastrado com este documento. ` : ""}
           <Link href={`/clientes/${existente.id}`} className="underline">
-            Abrir o cadastro existente
+            {existente.nome ? "Abrir o cadastro existente" : "Abrir a ficha do cliente"}
           </Link>
         </p>
       )}
@@ -182,15 +217,31 @@ export function NovoClienteForm() {
               <TextField cheio mono type="date" rotulo="Primeira habilitação" erro={erro("cnh.primeira_habilitacao")} {...register("cnh.primeira_habilitacao")} />
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <BotaoDocumento tipo="cnh_frente" enviado={false} />
-              <BotaoDocumento tipo="cnh_verso" enviado={false} />
-              <BotaoDocumento tipo="selfie_documento" enviado={false} />
+              <BotaoDocumento tipo="cnh_frente" enviado={Boolean(arquivos.cnh_frente)} aoEscolher={(f) => setArquivos((a) => ({ ...a, cnh_frente: f }))} />
+              <BotaoDocumento tipo="cnh_verso" enviado={Boolean(arquivos.cnh_verso)} aoEscolher={(f) => setArquivos((a) => ({ ...a, cnh_verso: f }))} />
+              <BotaoDocumento tipo="selfie_documento" enviado={Boolean(arquivos.selfie_documento)} aoEscolher={(f) => setArquivos((a) => ({ ...a, selfie_documento: f }))} />
             </div>
           </Panel>
 
           <Panel titulo="Endereço">
             <div className="grid gap-4 md:grid-cols-2">
-              <TextField cheio mono rotulo="CEP" inputMode="numeric" erro={erro("endereco.cep")} {...comMascara("endereco.cep", mascaraCep)} />
+              <TextField
+                cheio
+                mono
+                rotulo="CEP"
+                inputMode="numeric"
+                erro={erro("endereco.cep") ?? cepAviso ?? undefined}
+                {...(() => {
+                  const r = comMascara("endereco.cep", mascaraCep);
+                  return {
+                    ...r,
+                    onChange: (e: ChangeEvent<HTMLInputElement>) => {
+                      void buscarCep(mascaraCep(e.target.value));
+                      return r.onChange(e);
+                    },
+                  };
+                })()}
+              />
               <TextField cheio rotulo="Rua" erro={erro("endereco.logradouro")} {...register("endereco.logradouro")} />
               <TextField cheio rotulo="Número" erro={erro("endereco.numero")} {...register("endereco.numero")} />
               <TextField cheio rotulo="Bairro" erro={erro("endereco.bairro")} {...register("endereco.bairro")} />
@@ -198,7 +249,7 @@ export function NovoClienteForm() {
               <TextField cheio rotulo="UF" maxLength={2} erro={erro("endereco.uf")} {...register("endereco.uf")} />
             </div>
             <div className="mt-4 md:max-w-[50%]">
-              <BotaoDocumento tipo="comprovante_residencia" enviado={false} />
+              <BotaoDocumento tipo="comprovante_residencia" enviado={Boolean(arquivos.comprovante_residencia)} aoEscolher={(f) => setArquivos((a) => ({ ...a, comprovante_residencia: f }))} />
             </div>
           </Panel>
 

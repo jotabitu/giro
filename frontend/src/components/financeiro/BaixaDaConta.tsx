@@ -20,7 +20,7 @@ export function BaixaDaConta({ conta, aoFechar, aoConcluir }: { conta: ContaRece
   const receber = useMutation({
     mutationFn: () => financeiro.receber(conta.id, { forma, valor_centavos: v.total_centavos }),
     onSuccess: async () => {
-      await Promise.all([cliente.invalidateQueries({ queryKey: ["contas-receber"] }), cliente.invalidateQueries({ queryKey: ["caixa"] })]);
+      await Promise.all([cliente.invalidateQueries({ queryKey: ["contas-receber"] }), cliente.invalidateQueries({ queryKey: ["caixa"] }), cliente.invalidateQueries({ queryKey: ["contadores"] })]);
       aoConcluir(`${dinheiro(v.total_centavos)} recebidos de ${conta.cliente.nome}.`);
       aoFechar();
     },

@@ -172,9 +172,8 @@ export function ListaReceber() {
   const mostrar = ABAS.map((a) => ({ valor: a.valor, rotulo: a.rotulo, contagem: c?.[a.chave] }) satisfies OpcaoChip);
   const mostrarCelular = ABAS.filter((a) => a.valor !== "todas").map((a) => ({ valor: a.valor, rotulo: a.curto, contagem: c?.[a.chave] }) satisfies OpcaoChip);
   const filial = useFilial()?.nome ?? eu.filiais[0]?.nome;
-  // Lançamento avulso: administrador, gerente e financeiro (contrato financeiro.md, "Quem pode"). Nenhum
-  // `pode` cobre os três; a união abaixo exclui vendedor e vistoriador (USR-05).
-  const podeLancar = eu.pode.despesas_aprovar || eu.pode.financeiro_pagar;
+  // Lançamento avulso: quem pode é a API (`pode.lancamento_avulso`, T-162), sem regra de perfil na tela.
+  const podeLancar = eu.pode.lancamento_avulso;
   const mes = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", month: "long", year: "numeric" }).format(new Date());
   const total = c?.[ABAS.find((a) => a.valor === aba)?.chave ?? "todas"];
 

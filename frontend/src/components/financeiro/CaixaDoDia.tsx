@@ -99,7 +99,7 @@ function Fechar({ caixa, aoFechar, aoConcluir }: { caixa: Caixa; aoFechar: () =>
   const fechar = useMutation({
     mutationFn: () => financeiro.fecharCaixa(caixa.id, { contado_centavos: centavos ?? 0, motivo_diferenca: motivo.trim() || null }),
     onSuccess: async (r) => {
-      await cliente.invalidateQueries({ queryKey: ["caixa"] });
+      await Promise.all([cliente.invalidateQueries({ queryKey: ["caixa"] }), cliente.invalidateQueries({ queryKey: ["aprovacoes"] }), cliente.invalidateQueries({ queryKey: ["contadores"] })]);
       aoConcluir(r.status === "aguardando_aprovacao" ? "Fechamento enviado ao gerente. O caixa fecha quando ele aprovar a diferença." : "Caixa fechado.");
       aoFechar();
     },
@@ -337,6 +337,7 @@ export function CaixaDoDia() {
       <section className="rounded-xl bg-solid p-5 text-on-solid md:hidden" aria-label="Entrou hoje">
         <span className="block text-caption text-on-solid-muted">Entrou hoje</span>
         <span className="block text-display">{dinheiro(resumo.entrou_hoje_centavos)}</span>
+        <span className="block text-caption text-on-solid-muted">{`${resumo.recebimentos} ${resumo.recebimentos === 1 ? "recebimento" : "recebimentos"}`}</span>
         <span className="block text-caption text-on-solid-muted">
           Pix {dinheiro(p.pix.centavos)} · Cartão {dinheiro(p.cartao.centavos)} · Dinheiro {dinheiro(p.dinheiro.centavos)}
         </span>

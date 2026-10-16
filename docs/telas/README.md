@@ -191,6 +191,7 @@ A tela `Configurações` (`/admin/configuracoes`) lista cartões de `GET /api/co
 | `chave` | Rota | Tela |
 | --- | --- | --- |
 | `marca` | `/admin/marca` | Empresa e marca |
+| `ramo` | `/admin/ramo` | O que a empresa faz (`Admin-Ramo`, T-253; rota confirmada na T-259) |
 | `filiais` | `/admin/filiais` | Filiais |
 | `usuarios` | `/admin/usuarios` | Administração › Usuários |
 | `precos` | `/admin/precos` | Tabelas de preço |

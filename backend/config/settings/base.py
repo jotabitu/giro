@@ -193,6 +193,9 @@ REST_FRAMEWORK = {
         "ambiente_ip": "120/min",
         # Webhook do parceiro de pagamentos (S-14).
         "webhook_ip": "120/min",
+        # Copiar link do convite (USR-01, T-249).
+        "link_convite_convidado": "5/hour",
+        "link_convite_administrador": "20/hour",
     },
 }
 
@@ -429,12 +432,10 @@ SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT", default="dev")
 if SENTRY_DSN_BACKEND:
     import sentry_sdk
 
-    sentry_sdk.init(
-        dsn=SENTRY_DSN_BACKEND,
-        environment=SENTRY_ENVIRONMENT,
-        send_default_pii=False,
-        traces_sample_rate=0.0,
-    )
+    from comum.sentry import opcoes_do_sentry
+
+    # Sem variáveis locais, corpo de requisição nem token do webhook (T-270).
+    sentry_sdk.init(**opcoes_do_sentry(SENTRY_DSN_BACKEND, SENTRY_ENVIRONMENT))
 
 LOGGING = {
     "version": 1,
