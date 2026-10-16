@@ -1,6 +1,6 @@
 # Movimentações de veículos
 
-**Dono:** arquiteto · **Versão:** 16 out 2026 (T-286; T-300: quem leva e quem recebe) · **App:** `movimentacoes` (schema da empresa, ADR 0028) · **Regras:** MOV-01 a MOV-06, VEI-01 a VEI-04, VEI-06, FIN-05, FIN-06, APR-03, AUD-05, USR-07 · **ADRs:** 0011, 0015, 0028 · **Telas:** Movimentacoes (desktop e celular), Movimentacao-Nova (desktop e celular), Movimentacao-Chegada-Mobile · **Critérios:** `docs/qa/criterios/T-246.md` (CA-246-01 a 16)
+**Dono:** arquiteto · **Versão:** 16 out 2026 (T-286; T-300: quem leva e quem recebe; T-311: baixa do veículo) · **App:** `movimentacoes` (schema da empresa, ADR 0028) · **Regras:** MOV-01 a MOV-06, VEI-01 a VEI-04, VEI-06, FIN-05, FIN-06, APR-03, AUD-05, USR-07 · **ADRs:** 0011, 0015, 0028 · **Telas:** Movimentacoes (desktop e celular), Movimentacao-Nova (desktop e celular), Movimentacao-Chegada-Mobile · **Critérios:** `docs/qa/criterios/T-246.md` (CA-246-01 a 16)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 26 e 27 de `docs/decisoes/modelo-de-dados.md`. A despesa da parada está em `financeiro.md`; o status do veículo, a ficha e a Frota, em `veiculos.md`.
 
@@ -22,7 +22,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 26 e 27 de `docs/deci
 
 ## Estados
 
-`agendada` → `em_transito` (Iniciar) ou `cancelada`; "Sair agora" nasce `em_transito`; `em_transito` → `no_local` (chegou à parada) → `em_transito` (saiu da parada); `em_transito` → `concluida` (chegada no destino, depois de todas as paradas). `concluida` e `cancelada` não mudam mais. Transição fora disso: 409 `{ "codigo": "transicao_movimentacao", "mensagem": "Não é possível <ação> uma movimentação <status>", "detalhes": { "de": "em_transito", "para": "cancelada" } }` (CA-246-06). Toda mudança grava evento de auditoria de operação com o código e o veículo (CA-246-13): `movimentacao.criar`, `.editar`, `.iniciar`, `.chegar_parada`, `.sair_parada`, `.concluir`, `.cancelar`.
+`agendada` → `em_transito` (Iniciar) ou `cancelada`; "Sair agora" nasce `em_transito`; `em_transito` → `no_local` (chegou à parada) → `em_transito` (saiu da parada); `em_transito` → `concluida` (chegada no destino, depois de todas as paradas). `concluida` e `cancelada` não mudam mais. A exceção é a baixa do veículo: `agendada`, `em_transito` ou `no_local` → `cancelada`, sem rota própria ("Baixa do veículo com a movimentação aberta", abaixo). Transição fora disso: 409 `{ "codigo": "transicao_movimentacao", "mensagem": "Não é possível <ação> uma movimentação <status>", "detalhes": { "de": "em_transito", "para": "cancelada" } }` (CA-246-06). Toda mudança grava evento de auditoria de operação com o código e o veículo (CA-246-13): `movimentacao.criar`, `.editar`, `.iniciar`, `.chegar_parada`, `.sair_parada`, `.concluir`, `.cancelar`.
 
 ## Representação
 
@@ -36,6 +36,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 26 e 27 de `docs/deci
   "rota": "Centro → Lava Rápido Aldeota → Filial Caucaia",
   "levado_por": { "id": 4, "nome": "João Silva" },
   "agendada_para": null, "iniciada_em": "2026-10-07T13:02:00Z", "concluida_em": null,
+  "cancelada_em": null, "motivo_cancelamento": null,
   "duracao_minutos": null,
   "vistoria_rapida": true, "km_saida": 3120,
   "paradas": [
@@ -56,6 +57,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 26 e 27 de `docs/deci
 - `transferencia`: destino diferente da filial de saída (`MOV-06`). `categoria_destino` só existe na transferência.
 - `km_saida`: o km do veículo ao iniciar. `duracao_minutos`: de `iniciada_em` a `concluida_em`, só na concluída ("1 h 10 min" é formatação da tela).
 - `proxima_etapa`: `parada:<id>` (a próxima parada sem chegada, ou a parada atual em `no_local`), `destino` ou `null` (agendada, concluída, cancelada). A chegada no destino só é aceita depois da saída da última parada.
+- `cancelada_em` e `motivo_cancelamento`: na `cancelada`. O motivo é o digitado no Cancelar, ou "Veículo baixado: roubo" quando veio da baixa (T-311).
 - `custo_centavos`: soma dos `valor_pago_centavos` das paradas.
 - `despesa`: a despesa gerada na saída da parada, ou `null` (parada ainda aberta ou valor zero). `sem_nota` como em `financeiro.md`.
 - `chegada`: depois da conclusão, `{ "km": 3146, "combustivel": "cheio", "recebido_por": { "id": 9, "nome": "Paulo Lima" }, "fotos": [ { "posicao": "frente", "url": "...", "url_expira_em": "..." } ] }`. Antes dela, as fotos já enviadas vêm em `fotos_chegada` (mesmo formato), para a tela contar "Fotos · 2 de 4".
@@ -118,7 +120,7 @@ Reagendar ou mudar a agendada (CA-246-05). Só `agendada`: mesmo corpo, menos `v
 200: a representação.
 
 ### POST /api/movimentacoes/{id}/cancelar/
-Corpo `{ "motivo": "..." }`. Só `agendada` → `cancelada`; o veículo não muda. Depois de iniciada, 409 `transicao_movimentacao` (CA-246-06).
+Corpo `{ "motivo": "..." }`. Só `agendada` → `cancelada`; o veículo não muda. Depois de iniciada, 409 `transicao_movimentacao` (CA-246-06). A iniciada só é cancelada pela baixa do veículo (abaixo).
 
 ## Paradas e chegada
 
@@ -169,6 +171,17 @@ Quem pode receber o veículo na chegada da transferência ("Recebido por", `MOV-
 - Perfis: quem pode registrar a chegada dela (tabela do início: administrador, gerente da filial de saída e quem leva). Fora disso, 403 `permissao`; id inexistente, 404.
 - Em qualquer status e também fora da transferência, a resposta é a lista; a tela só pergunta "Recebido por" quando `transferencia` é `true`.
 
+### Baixa do veículo com a movimentação aberta (`MOV-03`, T-310, T-311)
+Sem rota aqui: o cancelamento vem de `POST /api/veiculos/{id}/baixar/` (`veiculos.md`), só do administrador, e a baixa **não é recusada** pela movimentação aberta. Na mesma transação da baixa, com a linha do veículo travada:
+- a movimentação `agendada`, `em_transito` ou `no_local` do veículo vira `cancelada`, com `motivo_cancelamento` "Veículo baixado: {motivo}". O `{motivo}` é o rótulo do motivo da baixa em minúsculas ("roubo", "perda total", "sucata"); no `outro`, a `descricao` da baixa. É a única saída de `em_transito` e `no_local` para `cancelada` (CA-246-22, 23);
+- as paradas não mudam: as despesas já lançadas na saída (`MOV-04`) ficam como estão, em qualquer status (`a_pagar`, `aguardando_aprovacao`, paga), e a parada em que o veículo estava (`no_local`) fica sem `saiu_em` e sem despesa;
+- na transferência, a `MOV-06` não acontece: sem `veiculos.services.transferir` e sem `TransferenciaVeiculo`. O veículo `baixado` fica na filial de saída (CA-246-23);
+- as fotos da chegada já enviadas ficam guardadas na movimentação; `chegada` continua `null`;
+- auditoria: `veiculo.baixar` (como hoje) e `movimentacao.cancelar` com o mesmo ator (o administrador), `detalhes: { "origem": "baixa_veiculo", "de": "em_transito", "motivo": "Veículo baixado: roubo" }`.
+- Quem leva perde o item Movimentações do menu se não tiver outra aberta (`MOV-02`, CA-246-22).
+
+Como os apps conversam (ADR 0011: `veiculos` não importa `movimentacoes`): `veiculos.services.baixar` publica o evento síncrono `veiculos.veiculo_baixado(veiculo_id, motivo_texto)` dentro da transação, e o assinante em `movimentacoes/eventos.py` chama `movimentacoes.services.cancelar_pela_baixa`, que trava a movimentação aberta e a cancela. Erro no assinante desfaz a baixa inteira. A ordem das travas é a de sempre (veículo, depois a movimentação), a mesma de Iniciar e da chegada, e por isso não há impasse. Sem o app instalado, ninguém assina e nada muda.
+
 ## Locais de apoio
 
 ### GET /api/movimentacoes/locais/
@@ -196,6 +209,7 @@ Administrador. 200. O local inativo sai da escolha e continua nas movimentaçõe
 | Função | Uso |
 | --- | --- |
 | `contas.selectors.pessoas_da_filial(filial_id, excluir_perfis=())` | usuários ativos ligados à filial (administrador em todas), com `id`, `nome` e `perfil`; base de `pessoas/` e `recebedores/` e da validação de `levado_por_id` e `recebido_por_id`, para a lista e a recusa usarem a mesma conta (T-300). O vínculo vem de `filiais_do_usuario`, registrado em `comum.permissoes`, sem `contas` importar `filiais` (ADR 0011) |
+| evento `veiculos.veiculo_baixado` → `movimentacoes.services.cancelar_pela_baixa(veiculo, motivo_texto)` | baixa com a movimentação aberta (`MOV-03`, T-311), síncrono e na transação da baixa |
 | `movimentacoes.selectors.aberta(veiculo)` | a movimentação `agendada`, `em_transito` ou `no_local` do veículo; base do bloco `movimentacao_aberta` (registro de leituras, ADR 0015) |
 | `locacoes.selectors.locacao_aberta(veiculo)` | lido ao criar e iniciar (`MOV-03`) |
 | `veiculos.services.travar`, `transicionar`, `atualizar_km`, `transferir(..., origem=movimentacao)` | ADR 0028 |
