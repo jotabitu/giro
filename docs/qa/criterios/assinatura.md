@@ -265,3 +265,11 @@ Dado a Moto Rápida com boleto, a FAT-0001 sem pagamento e o celular do respons�
 
 **CA-ASS-67 · D+7 e a ligação**
 Dado a Moto Rápida com boleto e a FAT-0001 sem pagamento, quando a régua roda em 29 out (D+7), então o e-mail tem o assunto "Giro: a empresa Moto Rápida fica suspensa em 06 nov" e termina o início com "A equipe Giro vai ligar para o responsável pela assinatura.", e o Dono e o Financeiro da plataforma recebem "Ligação de cobrança: Moto Rápida, FAT-0001 com 7 dias de atraso" com o responsável e o e-mail de cobrança. Sem o celular do responsável, o e-mail da empresa sai sem a frase da ligação, e o da equipe diz "celular não cadastrado". `test_aut_13_d7_e_a_ligacao`.
+
+## Marco da régua perdido (T-308)
+
+Decisão do dono do produto em 16 out 2026, opção B (`PLT-02`, `AUT-13`).
+
+**CA-ASS-68 · Só o D+7 é recuperado**
+Dado a Moto Rápida com boleto e a FAT-0001 (R$ 449,00, vencendo em 22 out) sem pagamento, quando a tarefa da régua não roda em 25 out (D+3) nem em 29 out (D+7) e volta a rodar em 30 out, então em 30 out sai o aviso de suspensão do D+7 (assunto "Giro: a empresa Moto Rápida fica suspensa em 06 nov") para o e-mail de cobrança e a Mariana, e a tarefa de ligação para o Dono e o Financeiro da plataforma; o D+3 não sai. Em 31 out, nada sai de novo. Se a tarefa só voltar em 06 nov (depois do D+14, 05 nov), o D+7 não sai. Com a FAT-0001 paga em 29 out, ou a empresa `cancelada`, nada sai em 30 out. `test_aut_13_d7_perdido_sai_ate_d14`.
+
