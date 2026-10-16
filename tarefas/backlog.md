@@ -313,6 +313,7 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 ### T-288 · Movimentações: backend
 - **Agente:** backend · **Depende de:** T-286 · **Regras:** MOV-01 a MOV-06, VEI-04, FIN-05, APR-03 · **Contrato:** `docs/api/movimentacoes.md`, ADR 0028 · **Pronto quando:** o que a seção da T-286 pede do backend (app `movimentacoes`, estados, paradas e despesa, chegada com vistoria rápida, transferência na chegada, uma aberta por veículo, blocos na Frota e na ficha, `pode.movimentacoes`), com testes `test_mov_*` e o OpenAPI regenerado.
+- **Junto (T-300, 16 out 2026):** `GET /api/movimentacoes/pessoas/?filial=` e `GET /api/movimentacoes/{id}/recebedores/` (a mesma função valida `levado_por_id` e `recebido_por_id`), a seção "Veículo em movimentação" de `veiculos.md` (`movimentacao_aberta`, `acoes`, histórico com origem `movimentacao`, filtro `?movimentavel=true`); até o produto responder, a baixa de veículo com movimentação aberta é recusada (409 `MOV-03`). Handoff `tarefas/handoffs/T-300-arquiteto.md`.
 
 ### T-289 · Movimentações: telas
 - **Agente:** frontend · **Depende de:** T-288 · **Telas:** Movimentacoes-*, Movimentacao-Nova-*, Movimentacao-Chegada-Mobile · **Pronto quando:** o que a seção da T-286 pede do frontend, igual às referências, ligado à API; testes dos componentes.
