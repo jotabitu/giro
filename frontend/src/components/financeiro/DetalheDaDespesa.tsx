@@ -79,7 +79,7 @@ export function DetalheDaDespesa({ id, inicial, eu, aoFechar, aoConcluir }: { id
       aoFechar={aoFechar}
       fecharAoClicarFora={modo === "ver"}
       titulo={d ? d.descricao : "Despesa"}
-      descricao={d ? `${origemDaDespesa(d, eu.filiais)} · lançada em ${dataCompleta(d.data)}` : undefined}
+      descricao={d ? `${origemDaDespesa(d)} · lançada em ${dataCompleta(d.data)}` : undefined}
       acoes={
         modo === "pagar" ? (
           <>

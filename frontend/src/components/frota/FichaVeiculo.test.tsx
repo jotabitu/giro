@@ -36,7 +36,10 @@ const ordem = (h: string, trechos: string[]) => {
 
 async function entrarComo(email: string) {
   const r = await contas.entrar({ email, senha: "senhaforte123", aparelho: "desktop" });
-  if (r.etapa !== "pronto") throw new Error("esperava pronto");
+  if (r.etapa !== "pronto") {
+    const v = await contas.verificar2fa(r.token_pre_2fa, { codigo: "123456" });
+    if (v.etapa !== "pronto") throw new Error("esperava pronto");
+  }
   sessao.eu = await contas.eu();
 }
 
@@ -110,6 +113,22 @@ describe("ficha do veículo, perfis sem financeiro nem edição", () => {
     expect(desktop).not.toContain("Custo de manutenção");
     expect(desktop).not.toContain("Compra");
     expect(desktop).toContain("Ocupação");
+  });
+
+  it("usr_09: financeiro lê a ficha com rendimento e custo da API e sem compra nem botões de escrita", async () => {
+    await entrarComo("financeiro@motorapida.com.br");
+    const ficha = await veiculos.obter(501);
+    expect(Object.values(ficha.acoes).filter(Boolean)).toEqual([]);
+    expect(ficha.indicadores_financeiros).toBeDefined();
+    const { desktop, celular } = await pagina(501);
+    expect(texto(desktop)).toContain("Rendeu no ano");
+    expect(texto(desktop)).toContain("Custo de manutenção");
+    expect(texto(celular)).toContain("Rendeu no ano");
+    for (const h of [desktop, celular]) {
+      expect(h).not.toMatch(/Editar|Colocar à venda|Bloquear|Transferir|Baixar|Registrar km|Corrigir km/);
+      expect(h).not.toContain("/editar");
+    }
+    expect(desktop).not.toContain("Compra");
   });
 
   it("t_156_vendedor_fileira_de_indicadores_sem_cartao_vazio_nem_lugar_reservado", async () => {

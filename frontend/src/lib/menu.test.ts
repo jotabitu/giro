@@ -49,7 +49,7 @@ describe("menu vindo de eu.navegacao (USR-05)", () => {
     expect(rotulos(menuDe(eu, "/financeiro/receber"))).toEqual(rotulos(menuDe(eu, "/inicio")));
     const completo = rotulos(menuDe(eu, "/clientes"));
     expect(completo).toContain("Conciliação");
-    expect(completo).not.toContain("Veículos");
+    expect(completo).toContain("Veículos");
     expect(completo).not.toContain("Locações");
   });
 
@@ -84,9 +84,14 @@ describe("menu vindo de eu.navegacao (USR-05)", () => {
 });
 
 describe("barra do celular vinda de eu.navegacao.barra_celular", () => {
-  it("vendedor com locação: Início, +, Locações e Mais, sem Veículos", async () => {
+  it("usr_09: vendedor com locação: Início, Veículos, +, Locações e Mais", async () => {
     const eu = await euDe("bruna@motorapida.com.br");
-    expect(destinosDaBarra(eu.navegacao.barra_celular).map((d) => d.chave)).toEqual(["inicio", "nova_locacao", "locacoes", "mais"]);
+    expect(destinosDaBarra(eu.navegacao.barra_celular).map((d) => d.chave)).toEqual(["inicio", "veiculos", "nova_locacao", "locacoes", "mais"]);
+  });
+
+  it("usr_09: financeiro tem Início, Veículos e Mais, sem o + nem Locações", async () => {
+    const eu = await euDe("financeiro@motorapida.com.br");
+    expect(destinosDaBarra(eu.navegacao.barra_celular).map((d) => d.chave)).toEqual(["inicio", "veiculos", "mais"]);
   });
 
   it("usr_05: vistoriador tem Início, Veículos e Mais, sem o + nem Locações", async () => {
@@ -175,12 +180,12 @@ describe("guarda de rota: o que o menu do perfil não mostra (D-26, USR-09)", ()
     }
   });
 
-  it("usr_09: financeiro abre contas a receber, caixa, clientes e a ficha da locação; não abre frota nem vistoria", async () => {
+  it("usr_09: financeiro abre contas a receber, caixa, clientes e a ficha da locação; abre a frota só para ler e não abre vistoria", async () => {
     const eu = await euDe("financeiro@motorapida.com.br");
-    for (const rota of ["/inicio", "/financeiro/receber", "/financeiro/caixa", "/financeiro/despesas", "/clientes", "/clientes/12", "/locacoes/2856"]) {
+    for (const rota of ["/inicio", "/financeiro/receber", "/financeiro/caixa", "/financeiro/despesas", "/clientes", "/clientes/12", "/locacoes/2856", "/veiculos", "/veiculos/501"]) {
       expect(rotaPermitida(eu, rota), rota).toBe(true);
     }
-    for (const rota of ["/veiculos", "/veiculos/501", "/locacoes", "/locacoes/nova", "/locacoes/2856/vistoria", "/clientes/novo", "/vistorias", "/admin/marca"]) {
+    for (const rota of ["/veiculos/novo", "/veiculos/501/editar", "/locacoes", "/locacoes/nova", "/locacoes/2856/vistoria", "/clientes/novo", "/vistorias", "/admin/marca"]) {
       expect(rotaPermitida(eu, rota), rota).toBe(false);
     }
   });

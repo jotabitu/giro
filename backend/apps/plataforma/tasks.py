@@ -1,8 +1,8 @@
 """Tarefas da plataforma: aviso de 90% do plano (PLT-03), correção noturna do uso, aviso de
 entrada do suporte e fim dos acessos vencidos (PLT-07, AUT-15), baixa das faturas da assinatura
 pelo webhook da conta principal (PLT-14), as notas que esperavam o endereço (PLT-15), a virada
-dos estados da assinatura (PLT-01, PLT-02, PLT-04) e a geração, a emissão e a cobrança no cartão
-das faturas (PLT-02, PLT-04, PLT-13)."""
+dos estados da assinatura (PLT-01, PLT-02, PLT-04), a geração, a emissão e a cobrança no cartão
+das faturas (PLT-02, PLT-04, PLT-13) e a régua da assinatura (AUT-13)."""
 
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -20,6 +20,10 @@ from integracoes.pagamentos.base import ParceiroIndisponivel
 from .models import Empresa, Item
 
 FUSO = "America/Sao_Paulo"
+# PLT-13, CA-ASS-63: a linha do e-mail do boleto quando o Pix automático ainda não foi autorizado.
+PIX_AUTOMATICO_PENDENTE = (
+    "Seu Pix automático ainda não foi autorizado. Esta fatura vai por boleto com Pix."
+)
 
 
 @shared_task(name="plataforma_avisar_limite_90")
@@ -143,9 +147,10 @@ def plataforma_cobrar_cartao(fatura_id: int) -> str:
 
 
 @shared_task(name="plataforma_enviar_boleto")
-def plataforma_enviar_boleto(fatura_id: int) -> int:
+def plataforma_enviar_boleto(fatura_id: int, pix_pendente: bool = False) -> int:
     """PLT-02: o boleto (com Pix) vai por e-mail no dia em que é criado, 5 dias antes do
-    vencimento, para o e-mail de cobrança e os administradores (PLT-15). Marca Giro."""
+    vencimento, para o e-mail de cobrança e os administradores (PLT-15). Marca Giro. Com
+    `pix_pendente`, a fatura saiu em boleto porque o Pix automático não foi autorizado (PLT-13)."""
     from comum.dinheiro import formatar_reais
 
     from .calendario import descricao_da_fatura, dia_e_mes
@@ -166,7 +171,8 @@ def plataforma_enviar_boleto(fatura_id: int) -> int:
     send_mail(
         subject=f"Giro: boleto da fatura {fatura.codigo}, vence em {vence}",
         message=(
-            f"A fatura {fatura.codigo} da {fatura.empresa.nome_exibicao} ({descricao}), de "
+            (f"{PIX_AUTOMATICO_PENDENTE}\n" if pix_pendente else "")
+            + f"A fatura {fatura.codigo} da {fatura.empresa.nome_exibicao} ({descricao}), de "
             f"{formatar_reais(int(fatura.valor_centavos))}, vence em {vence}.\n"
             f"Boleto: {fatura.cobranca_boleto_url}\n"
             f"Linha digitável: {fatura.cobranca_linha_digitavel}\n"
@@ -210,6 +216,15 @@ def plataforma_avisar_downgrade_recusado(
         recipient_list=destinatarios,
     )
     return len(destinatarios)
+
+
+@shared_task(name="aut_13_regua_assinatura")
+def aut_13_regua_assinatura(**_: Any) -> dict[str, int]:
+    """AUT-13, às 09:00 (PLT-02): D-3 lembrete por e-mail; D0 e D+3 e-mail e WhatsApp; D+7 aviso
+    de suspensão e a tarefa de ligação da equipe. Idempotente no mesmo dia."""
+    from .services import regua_da_assinatura
+
+    return regua_da_assinatura()
 
 
 @shared_task(name="plataforma_recalcular_uso")

@@ -41,11 +41,11 @@ describe("guarda de rota por perfil", () => {
     expect(h).toContain("conteúdo da tela");
   });
 
-  it.each(["/veiculos", "/locacoes", "/vistorias"])("usr_09: financeiro em %s vê só o aviso", async (rota) => {
+  it.each(["/locacoes", "/vistorias", "/veiculos/novo", "/veiculos/501/editar"])("usr_09: financeiro em %s vê só o aviso", async (rota) => {
     expect(await em("financeiro@motorapida.com.br", rota)).toContain(SEM_ACESSO);
   });
 
-  it.each(["/clientes/1203", "/financeiro/receber", "/locacoes/2790"])("usr_09: financeiro em %s abre a tela", async (rota) => {
+  it.each(["/clientes/1203", "/financeiro/receber", "/locacoes/2790", "/veiculos", "/veiculos/501"])("usr_09: financeiro em %s abre a tela", async (rota) => {
     expect(await em("financeiro@motorapida.com.br", rota)).toContain("conteúdo da tela");
   });
 

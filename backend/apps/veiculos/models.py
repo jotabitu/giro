@@ -104,16 +104,27 @@ class StatusVeiculo(models.TextChoices):
     A_VENDA = "a_venda", "À venda"
     VENDIDO = "vendido", "Vendido"
     BAIXADO = "baixado", "Baixado"
+    EM_MOVIMENTACAO = "em_movimentacao", "Em movimentação"  # MOV-03, ADR 0028
 
 
 S = StatusVeiculo
 # Saíram da empresa: não contam no plano (PLT-03) nem na operação da filial (FIL-06), e só
 # aparecem na frota com o filtro explícito.
 FORA_DA_FROTA = (S.VENDIDO, S.BAIXADO)
+# MOV-03: o que se movimenta (e chega por transferência, MOV-06).
+MOVIMENTAVEIS = frozenset({S.DISPONIVEL, S.INDISPONIVEL, S.EM_MANUTENCAO, S.A_VENDA})
 # Seção "Veículos" das regras, "Transições permitidas".
 _BAIXAR = {S.BAIXADO}
 TRANSICOES_VEICULO: dict[str, set[str]] = {
-    S.DISPONIVEL: {S.RESERVADO, S.ALUGADO, S.EM_MANUTENCAO, S.INDISPONIVEL, S.A_VENDA, *_BAIXAR},
+    S.DISPONIVEL: {
+        S.RESERVADO,
+        S.ALUGADO,
+        S.EM_MANUTENCAO,
+        S.INDISPONIVEL,
+        S.A_VENDA,
+        S.EM_MOVIMENTACAO,
+        *_BAIXAR,
+    },
     S.RESERVADO: {S.ALUGADO, S.DISPONIVEL, *_BAIXAR},  # DISPONIVEL: reserva cancelada (LOC-12)
     S.ALUGADO: {S.DISPONIVEL, S.EM_MANUTENCAO},
     S.EM_MANUTENCAO: {S.DISPONIVEL, *_BAIXAR},
@@ -121,6 +132,8 @@ TRANSICOES_VEICULO: dict[str, set[str]] = {
     S.A_VENDA: {S.DISPONIVEL, S.VENDIDO, *_BAIXAR},
     S.VENDIDO: {S.A_VENDA, S.INDISPONIVEL, *_BAIXAR},
     S.BAIXADO: set(),
+    # Volta pela chegada da movimentação: `indisponivel` com documento vencido (MOV-05).
+    S.EM_MOVIMENTACAO: {S.DISPONIVEL, S.INDISPONIVEL, *_BAIXAR},
 }
 
 
@@ -180,6 +193,7 @@ class Origem(models.TextChoices):
     DOCUMENTO = "documento", "Documento"
     APROVACAO = "aprovacao", "Aprovação"
     IMPORTACAO = "importacao", "Importação"
+    MOVIMENTACAO = "movimentacao", "Movimentação"  # MOV-03, MOV-05, MOV-06
 
 
 class ComOrigem(models.Model):

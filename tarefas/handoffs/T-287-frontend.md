@@ -1,0 +1,8 @@
+# T-287 · Veículos no menu do vendedor e do financeiro (tela) · frontend → orquestrador, qa
+
+**O que foi feito:** `pode.veiculos` ganhou `ver` no tipo do frontend. Veículos aparece no menu e na barra do celular do vendedor e do financeiro pelo que a API manda; a frota e a ficha abrem só para ler. Nenhum botão de escrita: a tela já seguia `acoes` (todas `false`) e `pode.veiculos === "editar"` para "Cadastrar veículo". Rendimento e custo só aparecem quando a API manda `indicadores_financeiros` (financeiro sim, vendedor não); valor de compra só para quem recebe. Nada trata `ver` como `nao`.
+**Onde:** `frontend/src/lib/api/tipos.ts` (`ver`), `frontend/src/lib/menu.ts` (`rotaPermitida`: `/veiculos/{id}/editar` só para `editar`), falsos (`falso.ts`, `falso-navegacao.ts`: `menu_inicio` do vendedor e do financeiro com Veículos). `npm run api:gerar` não mudou o schema (a branch do backend já o trazia).
+**Contrato:** `docs/api/contas.md` (`pode.veiculos`, `menu_inicio`), `docs/api/veiculos.md` (`acoes`, `indicadores_financeiros`).
+**Regras cobertas:** USR-05, USR-09. Testes: `menu.test.ts` (barra e rotas do vendedor e do financeiro), `GuardaDeRota.test.tsx`, `falso-navegacao.test.ts`, `ListaVeiculos.test.tsx` (vendedor e financeiro leem sem "Cadastrar veículo"), `FichaVeiculo.test.tsx` (financeiro com rendimento e custo, sem ações nem Compra). Suíte inteira: 570 passando; `tsc` e `eslint` limpos.
+**O que ficou de fora:** as telas de referência `docs/telas` não têm Frota para vendedor nem financeiro; usei a mesma da gerência, sem as ações. QA confere CA-283-01 a 06 com Bruna e Lúcia no ambiente real.
+**Próximo passo para quem recebe:** orquestrador abre o PR (depois do #315); QA valida.

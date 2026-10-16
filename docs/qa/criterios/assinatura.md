@@ -215,3 +215,61 @@ Dado a Moto Rápida cancelada em teste (CA-ASS-30, apagada em 20 jan 2027), quan
 
 **CA-ASS-62 · Compra de novo recusada**
 Dado a Moto Rápida do CA-ASS-60 (apagada em 23 jan 2027 com a FAT-0001 atrasada), quando alguém tenta comprar com o mesmo CNPJ em 01 mar 2027, então é recusado com "Há uma fatura em aberto da assinatura anterior. Fale com a equipe Giro para pagar antes de assinar de novo."; paga a FAT-0001 pela 2ª via, a compra segue como no CA-ASS-61. Dado a Moto Rápida cancelada em 05 nov e ainda não apagada, quando alguém tenta comprar com o mesmo CNPJ em 10 dez, então é recusado com "Este CNPJ já tem uma assinatura no Giro. Para voltar, fale com a equipe Giro." (a volta é pela reativação, CA-ASS-46). `test_plt_16_compra_de_novo_recusada`.
+
+## Textos da régua da assinatura (T-299)
+
+Textos fixados pelo produto em 16 out 2026, na leitura do que o backend escreveu na T-186 parte 3 (`apps/plataforma/services.py`, `mensagem_da_regua`, `_como_pagar` e `_pedir_ligacao`). Mudança de texto passa pelo produto. A régua é do Giro com a empresa, então a marca é Giro (`PLT-02`, `AUT-13`). Exemplo: Moto Rápida, FAT-0001 de R$ 449,00, vencendo em 22 out, suspensão em 06 nov (D+15). Datas como nas telas da assinatura ("22 out").
+
+**Partes do texto**
+
+- Fatura: "A fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00". Sempre "da empresa {nome}", porque o nome pode ser masculino ("da Moto Rápida", mas "do Auto Center Sul").
+- Suspensão, com as palavras da tabela de estados: "a empresa fica suspensa: só ver e exportar os dados, sem criar locação, venda nem cobrança".
+- Caminho de pagar, pela cobrança viva (o que o backend já faz, com dois ajustes):
+  - boleto: "Boleto: {link}" e, na linha de baixo, "Linha digitável: {linha}";
+  - Pix: "Pix copia e cola: {código}";
+  - cartão ainda não digitado: "Cadastre o cartão e pague por este link: {link}";
+  - cartão guardado: "A cobrança é automática no cartão Visa final 4242.";
+  - Pix automático autorizado: "O pagamento sai pelo Pix automático no dia do vencimento." (antes: "A cobrança é automática pelo Pix automático.");
+  - cartão recusado uma vez: "O cartão foi recusado. Tentamos de novo amanhã."; duas vezes: "O cartão foi recusado de novo. Pague por Pix ou boleto pelo botão Pagar, em Assinatura.";
+  - sem forma: "Escolha a forma de pagamento em Assinatura e pague pelo botão Pagar."; outro caso: "Pague pelo botão Pagar, em Assinatura.".
+- Endereço da página: todo e-mail tem, antes do rodapé, a linha "Assinatura: {endereço da página Admin-Assinatura da empresa}" (`(empresa)/admin/assinatura`, no subdomínio dela), para quem lê o e-mail não ter de procurar onde fica "Assinatura".
+- Rodapé: "Se você já pagou, desconsidere esta mensagem.". Na cobrança automática que ainda não falhou (cartão guardado sem recusa ou Pix automático autorizado), no D-3 e no D0, o rodapé é "Não é preciso fazer nada.".
+
+**Mensagens**
+
+| Marco | Assunto do e-mail | Início do texto |
+| --- | --- | --- |
+| D-3 | "Giro: a fatura FAT-0001 vence em 22 out" | "A fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00, vence em 22 out." |
+| D0 | "Giro: a fatura FAT-0001 vence hoje" | "A fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00, vence hoje." |
+| D+3 | "Giro: a fatura FAT-0001 está em atraso" | "A fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00, venceu em 22 out e ainda não foi paga. Sem o pagamento, em 06 nov a empresa fica suspensa: só ver e exportar os dados, sem criar locação, venda nem cobrança." |
+| D+7 | "Giro: a empresa Moto Rápida fica suspensa em 06 nov" | "A fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00, venceu em 22 out e ainda não foi paga. Em 06 nov, a empresa fica suspensa: só ver e exportar os dados, sem criar locação, venda nem cobrança. Pagando, o acesso volta na hora. A equipe Giro vai ligar para o responsável pela assinatura." |
+
+- O e-mail é: início, caminho de pagar, endereço da página e rodapé, um por linha.
+- **D+7 sem telefone do responsável:** sai sem a frase "A equipe Giro vai ligar para o responsável pela assinatura.", porque ninguém vai ligar. A tarefa de ligação continua saindo para a equipe (ela decide como falar com a empresa). Antes, a frase era "A equipe Giro vai ligar para ajudar." e saía sempre.
+- **WhatsApp (D0 e D+3):** começa com "Giro: " (o início segue em minúscula, como no assunto) e leva o caminho de pagar e o rodapé na mesma mensagem: "Giro: a fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00, vence hoje. Boleto: {link} Se você já pagou, desconsidere esta mensagem.". No boleto, só o link (sem a linha digitável); nos outros caminhos, a mesma frase do e-mail. Antes, o WhatsApp não dizia de quem era nem como pagar.
+
+**Tarefa de ligação (D+7, e-mail para o Dono e o Financeiro da plataforma)**
+
+- Assunto: "Ligação de cobrança: Moto Rápida, FAT-0001 com 7 dias de atraso" (antes: "Ligar para a Moto Rápida: ...", com o mesmo problema do "da").
+- Texto: "A fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00, venceu em 22 out e ainda não foi paga. A suspensão é em 06 nov.", e na linha de baixo "Responsável: Mariana Costa, {celular}." e "E-mail de cobrança: {email_cobranca}.". Sem nome ou sem celular: "nome não cadastrado", "celular não cadastrado" (antes: "sem nome", "sem telefone").
+- **Fase 2:** a tarefa de ligação hoje é esse e-mail mais o evento `fatura_assinatura.pedir_ligacao` na auditoria do public, sem fila nem tela. Quando a tela `Plat-Cobranca` entrar (fase 2), a ligação vira item de uma fila com quem ligou, quando e o resultado; o ponto de troca no código é `_pedir_ligacao`.
+
+**CA-ASS-64 · Textos da régua no boleto**
+Dado a Moto Rápida com boleto e a FAT-0001 emitida em 17 out, sem pagamento, quando a régua roda em 19 out, 22 out, 25 out e 29 out, então os e-mails para o e-mail de cobrança e a Mariana têm os assuntos e os inícios da tabela acima, com "Boleto: {link}", "Linha digitável: {linha}", a linha "Assinatura: {endereço}" e o rodapé "Se você já pagou, desconsidere esta mensagem.". Nenhum texto tem "da Moto Rápida" sem "empresa", nem exclamação. `test_aut_13_textos_da_regua_no_boleto`.
+
+**CA-ASS-65 · Cobrança automática não pede nada**
+Dado a Moto Rápida `ativa` com cartão Visa final 4242 guardado e a fatura de 22 nov, quando a régua roda em 19 nov (D-3), então o e-mail diz "A cobrança é automática no cartão Visa final 4242." e termina com "Não é preciso fazer nada.". Com o Pix automático autorizado, "O pagamento sai pelo Pix automático no dia do vencimento." e o mesmo rodapé. Recusado o cartão em 22 nov, o D+3 de 25 nov volta ao rodapé "Se você já pagou, desconsidere esta mensagem.". `test_aut_13_automatica_nao_pede_nada`.
+
+**CA-ASS-66 · WhatsApp com a marca e o caminho de pagar**
+Dado a Moto Rápida com boleto, a FAT-0001 sem pagamento e o celular do responsável cadastrado, quando a régua roda em 22 out (D0), então o WhatsApp é "Giro: a fatura FAT-0001 da empresa Moto Rápida, de R$ 449,00, vence hoje. Boleto: {link} Se você já pagou, desconsidere esta mensagem.". `test_aut_13_whatsapp_com_marca_e_caminho`.
+
+**CA-ASS-67 · D+7 e a ligação**
+Dado a Moto Rápida com boleto e a FAT-0001 sem pagamento, quando a régua roda em 29 out (D+7), então o e-mail tem o assunto "Giro: a empresa Moto Rápida fica suspensa em 06 nov" e termina o início com "A equipe Giro vai ligar para o responsável pela assinatura.", e o Dono e o Financeiro da plataforma recebem "Ligação de cobrança: Moto Rápida, FAT-0001 com 7 dias de atraso" com o responsável e o e-mail de cobrança. Sem o celular do responsável, o e-mail da empresa sai sem a frase da ligação, e o da equipe diz "celular não cadastrado". `test_aut_13_d7_e_a_ligacao`.
+
+## Marco da régua perdido (T-308)
+
+Decisão do dono do produto em 16 out 2026, opção B (`PLT-02`, `AUT-13`).
+
+**CA-ASS-68 · Só o D+7 é recuperado**
+Dado a Moto Rápida com boleto e a FAT-0001 (R$ 449,00, vencendo em 22 out) sem pagamento, quando a tarefa da régua não roda em 25 out (D+3) nem em 29 out (D+7) e volta a rodar em 30 out, então em 30 out sai o aviso de suspensão do D+7 (assunto "Giro: a empresa Moto Rápida fica suspensa em 06 nov") para o e-mail de cobrança e a Mariana, e a tarefa de ligação para o Dono e o Financeiro da plataforma; o D+3 não sai. Em 31 out, nada sai de novo. Se a tarefa só voltar em 06 nov (depois do D+14, 05 nov), o D+7 não sai. Com a FAT-0001 paga em 29 out, ou a empresa `cancelada`, nada sai em 30 out. `test_aut_13_d7_perdido_sai_ate_d14`.
+

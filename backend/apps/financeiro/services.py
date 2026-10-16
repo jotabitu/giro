@@ -1542,10 +1542,12 @@ def lancar_despesa(
     veiculo_id: int | None = None,
     nota: Any = None,
     pago_no_caixa: bool = False,
+    origem: Origem | None = None,
 ) -> Despesa:
     """Até R$ 500 nasce `a_pagar` (ou `paga`, com a saída em dinheiro no caixa aberto); acima,
     `aguardando_aprovacao`, com o pedido APR-03 para o gerente, e não pode ser paga no caixa.
-    A nota é obrigatória na rota (FIN-06); aqui aceita `None` para a despesa que nasce da OS."""
+    A nota é obrigatória na rota (FIN-06); aqui aceita `None` para a despesa que nasce da OS ou
+    da parada da movimentação, que vem com a `origem` (MOV-04, ADR 0028)."""
     acima = valor_centavos > LIMITE_SEM_APROVACAO
     if acima and pago_no_caixa:
         raise ErroDeRegra(
@@ -1564,6 +1566,7 @@ def lancar_despesa(
             veiculo_id=veiculo_id,
             lancada_por=usuario,
             status=StatusDespesa.AGUARDANDO_APROVACAO if acima else StatusDespesa.A_PAGAR,
+            **(origem.campos() if origem is not None else {}),
         )
         if pago_no_caixa:
             caixa = _caixa_aberto(filial.pk, "Abra o caixa do dia para pagar por ele")
@@ -1643,6 +1646,19 @@ def decidir_despesa(despesa_id: int, status_pedido: str, motivo: str) -> None:
             titulo=f"Despesa recusada: {despesa.descricao}. {motivo}"[:200],
             link=f"/financeiro/despesas/{despesa.pk}",
         )
+
+
+def anexar_nota(despesa: Despesa, nota: Any) -> Despesa:
+    """A nota que faltou na parada da movimentação (MOV-04, CA-246-14), em qualquer status.
+    Com nota já anexada, 409 `nota_existente`."""
+    with transaction.atomic():
+        travada: Despesa = Despesa.objects.select_for_update().get(pk=despesa.pk)
+        if travada.nota:
+            raise Conflito("nota_existente", "Esta despesa já tem a nota.")
+        with auditar(travada, "despesa.anexar_nota", Categoria.FINANCEIRO, regra="FIN-06"):
+            travada.nota.save(nota.name, nota, save=False)
+            travada.save(update_fields=["nota", "atualizado_em"])
+    return travada
 
 
 def pagar_despesa(

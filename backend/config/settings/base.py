@@ -81,6 +81,7 @@ TENANT_APPS = [
     "apps.manutencao",
     "apps.locacoes",
     "apps.vistorias",
+    "apps.movimentacoes",
     "apps.vendas",
     "apps.automacoes",
     "apps.relatorios",
@@ -311,6 +312,11 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
     "plataforma_gerar_faturas": {
         "task": "plataforma_gerar_faturas",
         "schedule": crontab(hour=6, minute=0),
+    },
+    # AUT-13: régua da assinatura (PLT-02), às 09:00.
+    "aut_13_regua_assinatura": {
+        "task": "aut_13_regua_assinatura",
+        "schedule": crontab(hour=9, minute=0),
     },
     # AUT-15: encerra os acessos de suporte vencidos (PLT-07).
     # AUT-06: vencimento de documentos de veículos (VEI-03), às 07:00.

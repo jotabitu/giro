@@ -27,6 +27,7 @@ from comum.eventos import publicar
 from .models import (
     DOCUMENTOS_QUE_BLOQUEIAM,
     FORA_DA_FROTA,
+    MOVIMENTAVEIS,
     TRANSICOES_VEICULO,
     Categoria,
     DocumentoVeiculo,
@@ -59,6 +60,7 @@ _VERBO = {
     S.A_VENDA: "colocar à venda",
     S.VENDIDO: "vender",
     S.BAIXADO: "baixar",
+    S.EM_MOVIMENTACAO: "movimentar",
 }
 MOTIVOS_DE_BAIXA = {
     "perda_total": "Perda total",
@@ -93,9 +95,14 @@ def formatar_km(km: int) -> str:
     return f"{km:,}".replace(",", ".")
 
 
-def _travar(veiculo: Veiculo) -> Veiculo:
+def travar(veiculo: Veiculo) -> Veiculo:
+    """A linha do veículo travada até o fim da transação: movimentação e locação conferem o
+    status com ela (ADR 0028, item 3)."""
     travado: Veiculo = Veiculo.objects.select_for_update().get(pk=veiculo.pk)
     return travado
+
+
+_travar = travar
 
 
 def _recarregar(veiculo: Veiculo) -> None:
@@ -213,13 +220,23 @@ def voltar_para_frota(veiculo: Veiculo) -> Veiculo:
 
 
 def baixar(veiculo: Veiculo, motivo: str, descricao: str) -> Veiculo:
-    """Qualquer estado, exceto `alugado`, vai para `baixado` (perda total, roubo, sucata)."""
+    """Qualquer estado, exceto `alugado`, vai para `baixado` (perda total, roubo, sucata).
+    A movimentação aberta do veículo é cancelada pelo assinante de `veiculos.baixado`, na mesma
+    transação (MOV-03, decisão do dono de 16 out 2026, opção B)."""
     if motivo not in MOTIVOS_DE_BAIXA:
         raise ErroDeValidacao({"motivo": ["Escolha perda total, roubo, sucata ou outro."]})
     texto = MOTIVOS_DE_BAIXA[motivo]
     if descricao.strip():
         texto = f"{texto}: {descricao.strip()}"
-    return transicionar(veiculo, S.BAIXADO, origem=MANUAL, motivo=texto, acao="baixar")
+    # "Veículo baixado: roubo" na movimentação cancelada; no `outro`, a descrição (T-311).
+    if motivo == "outro":
+        motivo_texto = descricao.strip() or "outro"
+    else:
+        motivo_texto = MOTIVOS_DE_BAIXA[motivo].lower()
+    with transaction.atomic():
+        transicionar(veiculo, S.BAIXADO, origem=MANUAL, motivo=texto, acao="baixar")
+        publicar("veiculos.veiculo_baixado", veiculo_id=veiculo.pk, motivo_texto=motivo_texto)
+    return veiculo
 
 
 # --- Cadastro (VEI-01, PLT-03) ---
@@ -499,7 +516,7 @@ def receber_na_troca(chassi: str, dados: dict[str, Any]) -> Veiculo:
 # --- Transferência (VEI-04, FIL-05) ---
 
 
-def _categoria_no_destino(veiculo: Veiculo, destino: Filial, categoria_id: int | None) -> Categoria:
+def categoria_no_destino(veiculo: Veiculo, destino: Filial, categoria_id: int | None) -> Categoria:
     """VEI-04, FIL-04: categoria só da filial de origem pede a categoria no destino (ativa, do
     mesmo tipo, da empresa ou do destino). Categoria da empresa passa direto e continua; com
     `categoria_id` válido, o veículo vai para ela."""
@@ -528,10 +545,17 @@ def _categoria_no_destino(veiculo: Veiculo, destino: Filial, categoria_id: int |
 
 
 def transferir(
-    veiculo: Veiculo, filial_destino_id: int, motivo: str = "", categoria_id: int | None = None
+    veiculo: Veiculo,
+    filial_destino_id: int,
+    motivo: str = "",
+    categoria_id: int | None = None,
+    *,
+    origem: OrigemDaMudanca = MANUAL,
 ) -> Veiculo:
     """Só `disponivel` (VEI-04), então nenhuma locação aberta muda de preço: a categoria nova
-    vale a partir da próxima locação (LOC-01)."""
+    vale a partir da próxima locação (LOC-01). Pela chegada da movimentação (origem
+    `movimentacao`, MOV-06), também `indisponivel`, `em_manutencao` e `a_venda` (ADR 0028)."""
+    pela_movimentacao = origem.tipo == Origem.MOVIMENTACAO
     with transaction.atomic():
         travado = _travar(veiculo)
         destino = Filial.ativos.filter(pk=filial_destino_id).first()
@@ -539,9 +563,10 @@ def transferir(
             raise ErroDeValidacao(
                 {"filial_destino_id": ["Escolha outra filial ativa como destino."]}
             )
-        if travado.status != S.DISPONIVEL:
+        aceitos = MOVIMENTAVEIS if pela_movimentacao else {S.DISPONIVEL}
+        if travado.status not in aceitos:
             raise Conflito("VEI-04", "Só é possível transferir um veículo disponível")
-        categoria = _categoria_no_destino(travado, destino, categoria_id)
+        categoria = categoria_no_destino(travado, destino, categoria_id)
         origem_id, categoria_origem_id = travado.filial_id, travado.categoria_id
         with auditar(
             travado,
@@ -610,6 +635,8 @@ def atualizar_km(veiculo: Veiculo, km: int, *, origem: OrigemDaMudanca = MANUAL)
         raise ErroDeValidacao({"km": ["O km não pode ser negativo."]})
     with transaction.atomic():
         travado = _travar(veiculo)
+        if travado.status == S.EM_MOVIMENTACAO and origem.tipo != Origem.MOVIMENTACAO:
+            raise Conflito("MOV-05", "O km do veículo em movimentação entra na chegada.")
         if km < travado.km_atual:
             raise km_menor(travado.km_atual)
         _gravar_km(travado, km, origem)
@@ -695,6 +722,7 @@ EM_USO_NO_VENCIMENTO = {
     S.ALUGADO: "alugado",
     S.RESERVADO: "reservado",
     S.EM_MANUTENCAO: "em manutenção",
+    S.EM_MOVIMENTACAO: "em movimentação",  # a chegada decide (MOV-05)
 }
 
 

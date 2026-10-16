@@ -18,6 +18,7 @@ from comum.permissoes import filiais_permitidas
 
 from .models import (
     FORA_DA_FROTA,
+    MOVIMENTAVEIS,
     TRANSICOES_VEICULO,
     Categoria,
     DocumentoVeiculo,
@@ -38,6 +39,7 @@ from .services import (
 S = StatusVeiculo
 ALVO = "veiculos.Veiculo"
 ALVO_FILIAL = "filiais.Filial"
+ALVO_FICHA = "veiculos.Veiculo:ficha"  # blocos só da ficha (movimentações, T-275)
 PERIODO_OCUPACAO_DIAS = 90
 # Dias que não contam como "na frota" para a ocupação (VEI-06).
 FORA_DA_OCUPACAO = frozenset({S.A_VENDA, S.VENDIDO, S.BAIXADO})
@@ -54,6 +56,7 @@ TOM = {
     S.A_VENDA: "neutro",
     S.VENDIDO: "neutro",
     S.BAIXADO: "neutro",
+    S.EM_MOVIMENTACAO: "info",
 }
 GRAVIDADE = {"perigo": 3, "alerta": 2, "info": 1}
 ORDENS = {"placa": "placa", "-km_atual": "-km_atual", "modelo": "modelo"}
@@ -240,6 +243,20 @@ def filtrar(
     return qs
 
 
+def com_movimentacao(
+    qs: QuerySet[Veiculo], usuario: Any, *, em_movimentacao: bool, movimentavel: bool
+) -> QuerySet[Veiculo]:
+    """`?em_movimentacao=true` e `?movimentavel=true` da Frota (MOV-03, T-300), registrados pelo
+    app `movimentacoes`. Sem ele, ninguém está em movimentação, e ninguém se movimenta."""
+    if em_movimentacao:
+        filtrar_aberta = leituras.filtro(ALVO, "em_movimentacao")
+        qs = filtrar_aberta(qs) if filtrar_aberta else qs.none()
+    if movimentavel:
+        filtrar_movimentaveis = leituras.filtro(ALVO, "movimentavel")
+        qs = filtrar_movimentaveis(qs, usuario) if filtrar_movimentaveis else qs.none()
+    return qs
+
+
 def do_tipo(qs: QuerySet[Veiculo], tipo_veiculo: str | None) -> QuerySet[Veiculo]:
     if tipo_veiculo in TipoVeiculo.values:
         return qs.filter(categoria__tipo_veiculo=tipo_veiculo)
@@ -272,6 +289,7 @@ def contagens(qs: QuerySet[Veiculo]) -> dict[str, int]:
                 S.EM_MANUTENCAO,
                 S.A_VENDA,
                 S.INDISPONIVEL,
+                S.EM_MOVIMENTACAO,
             )
         },
         "motos": por_tipo.get(TipoVeiculo.MOTO, 0),
@@ -279,24 +297,64 @@ def contagens(qs: QuerySet[Veiculo]) -> dict[str, int]:
     }
 
 
-def acoes(veiculo: Veiculo, usuario: Any) -> dict[str, bool]:
+def motivo_de_nao_movimentar(veiculo: Veiculo, blocos: dict[str, dict[str, Any]]) -> str | None:
+    """Por que o veículo não se movimenta agora (MOV-03); `None` quando se movimenta. O mesmo
+    texto vai no `motivo_movimentar` da ficha e no 409 da criação."""
+    aberta = blocos.get("movimentacao_aberta")
+    if aberta:
+        return f"O veículo já está na {aberta['codigo']}."
+    locacao = blocos.get("locacao_atual") or {}
+    status = veiculo.status
+    if status == S.ALUGADO:
+        codigo = locacao.get("codigo")
+        if codigo:
+            return (
+                f"Veículo alugado não se movimenta. O botão volta quando a {codigo} for devolvida."
+            )
+        return "Veículo alugado não se movimenta."
+    if status == S.DISPONIVEL and locacao.get("status") == "aguardando_retirada":
+        return f"O veículo está reservado na {locacao['codigo']}."
+    if status not in MOVIMENTAVEIS:
+        return f"Veículo {S(status).label.lower()} não se movimenta."
+    return None
+
+
+def acoes(
+    veiculo: Veiculo, usuario: Any, blocos: dict[str, dict[str, Any]] | None = None
+) -> dict[str, Any]:
     """Perfil, status e a tabela de transições: o frontend mostra só o que vier `true`."""
+    if blocos is None:
+        blocos = leituras.blocos(ALVO, veiculo)
     perfil = getattr(usuario, "perfil", "")
     gestao = perfil in GESTAO
     status = veiculo.status
     na_frota = status not in FORA_DA_FROTA
     pode_ir = TRANSICOES_VEICULO.get(status, set())
+    motivo = motivo_de_nao_movimentar(veiculo, blocos)
     return {
         "editar": gestao and na_frota,
         "colocar_a_venda": gestao and status == S.DISPONIVEL,
         "voltar_para_frota": gestao and status == S.A_VENDA,
         "bloquear": gestao and status == S.DISPONIVEL,
         "desbloquear": gestao and status == S.INDISPONIVEL,
-        "transferir": gestao and status == S.DISPONIVEL,
+        # "Transferir" abre a Nova movimentação com o destino em outra filial (MOV-06).
+        "transferir": gestao and motivo is None,
+        # A baixa cancela a movimentação aberta (MOV-03, opção B do dono).
         "baixar": perfil == "administrador" and S.BAIXADO in pode_ir,
-        "registrar_km": perfil in LEEM_KM and na_frota,
+        # O km do veículo em movimentação entra na chegada (MOV-05).
+        "registrar_km": perfil in LEEM_KM and na_frota and status != S.EM_MOVIMENTACAO,
         # O vistoriador pede a correção, que vai para a aprovação do gerente (APR-06).
         "corrigir_km": perfil in LEEM_KM and na_frota,
+        "movimentar": gestao and motivo is None,
+        "motivo_movimentar": motivo if gestao else None,
+        # O diálogo da baixa avisa que a movimentação aberta será cancelada (T-311).
+        "aviso_baixar": (
+            f"A {blocos['movimentacao_aberta']['codigo']} será cancelada."
+            if perfil == "administrador"
+            and S.BAIXADO in pode_ir
+            and blocos.get("movimentacao_aberta")
+            else None
+        ),
     }
 
 
@@ -365,12 +423,16 @@ def representacao(
         "locacao_atual": blocos.get("locacao_atual"),
         "manutencao": blocos.get("manutencao"),
         "documentos_resumo": documentos.get(veiculo.pk),
-        "acoes": acoes(veiculo, usuario),
+        "movimentacao_aberta": blocos.get("movimentacao_aberta"),
+        "acoes": acoes(veiculo, usuario, blocos),
     }
     if detalhe:
         # Para vendedor e vistoriador a chave fica ausente, não nula (T-156).
         if getattr(usuario, "perfil", "") in VEEM_CUSTO:
             dados["indicadores_financeiros"] = blocos.get("indicadores_financeiros")
+        # As movimentações do veículo; ausente para vistoriador e financeiro (T-275).
+        if getattr(usuario, "perfil", "") not in ("vistoriador", "financeiro"):
+            dados["movimentacoes"] = leituras.bloco(ALVO_FICHA, "movimentacoes", veiculo)
         dados["ocupacao"] = ocupacao(veiculo)
         dados["historico_status"] = historico_status(veiculo)
     return dados

@@ -791,7 +791,7 @@ def representacao_despesa(despesa: Despesa) -> dict[str, Any]:
             if despesa.veiculo is not None
             else None
         ),
-        "filial": {"id": despesa.filial_id},
+        "filial": {"id": despesa.filial_id, "nome": despesa.filial.nome},
         "valor_centavos": despesa.valor_centavos,
         "vencimento": despesa.vencimento,
         "status": despesa.status,
@@ -799,13 +799,24 @@ def representacao_despesa(despesa: Despesa) -> dict[str, Any]:
         "forma": despesa.forma or None,
         "lancada_por": _pessoa(despesa.lancada_por),
         "nota": nota,
+        # A despesa da parada pode nascer sem a nota, que se anexa depois (MOV-04).
+        "sem_nota": not despesa.nota,
+        "origem": (
+            {
+                "tipo": despesa.origem_tipo,
+                "id": despesa.origem_id,
+                "codigo": despesa.origem_codigo or None,
+            }
+            if despesa.origem_tipo
+            else None
+        ),
         "pedido_aprovacao_id": despesa.pedido_aprovacao_id,
         "rotulo_situacao": rotulo_da_despesa(despesa),
     }
 
 
 def base_das_despesas() -> QuerySet[Despesa]:
-    return Despesa.objects.select_related("veiculo", "lancada_por")
+    return Despesa.objects.select_related("veiculo", "filial", "lancada_por")
 
 
 def mes_pedido(texto: str | None, hoje: date) -> date:
