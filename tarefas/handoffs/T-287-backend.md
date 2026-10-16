@@ -1,0 +1,10 @@
+# T-287 · Veículos no menu do vendedor e do financeiro · backend → frontend, qa
+
+**O que foi feito:** `pode.veiculos` ganhou o valor `ver`, que é o do vendedor e o do financeiro (antes `nao`). Com ele, Veículos entra no `menu_inicio` do vendedor (Operação: `locacoes`, `veiculos`, `clientes`) e do financeiro (`inicio`, `receber`, `contas_a_pagar`, `caixa_e_bancos`, `veiculos`, `comissoes`), no `menu_completo` dos dois (grupo sem título, depois do início) e na `barra_celular` (`veiculos`). A Frota e a ficha já respondiam a todos os perfis no escopo das filiais; o que muda é o menu. As `acoes` da ficha vêm todas `false` para os dois, e a escrita (cadastrar, editar, bloquear, colocar à venda, km, transferir, baixar) responde 403. O rendimento e o custo (`indicadores_financeiros`, `VEI-05`) seguem só para administrador, gerente e financeiro; o valor de compra, só para administrador e gerente.
+**Onde:** `backend/apps/contas/selectors.py` (tabela do `pode`), `backend/apps/contas/navegacao.py` (`MENU_INICIO`), `backend/apps/contas/api/acesso.py` (enum).
+**Contrato:** `docs/api/contas.md` (linha `veiculos` da tabela do `pode` e os `menu_inicio` do vendedor e do financeiro); `docs/api/openapi.yaml` (`VeiculosEnum` com `ver`). `npm run api:gerar` e `npm run typecheck` sem erro.
+**Regras cobertas:** USR-05, USR-09 (testes em `backend/tests/aceitacao/test_t287_veiculos_leitura.py`: `test_usr_05_pode_veiculos_por_perfil`, `test_usr_09_vendedor_e_financeiro_leem_a_frota_e_a_ficha`, `test_usr_09_vendedor_e_financeiro_nao_escrevem_no_veiculo`; `test_usr_05_usr_08_navegacao_por_perfil` e `test_usr_03_ca_011_20_pode_por_perfil` atualizados).
+**O que ficou de fora:** a parte do frontend.
+**Próximo passo para quem recebe:**
+- **Frontend:** o item Veículos já vem no menu dos dois; ligar a rota como nos outros perfis. Os botões de cadastro e de status já se escondem por `pode.veiculos === "editar"` e pelas `acoes`; conferir que nenhum caminho trata `ver` como `nao` (por exemplo, `pode.veiculos !== "nao"`). CA-283-01 a 06.
+- **QA:** CA-283-01 a 06 com Bruna e Lúcia.

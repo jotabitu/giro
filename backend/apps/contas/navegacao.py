@@ -269,14 +269,21 @@ MENU_INICIO: dict[str, Grupos] = {
     ],
     "vendedor": [
         (None, [("inicio", "Início")]),
-        ("Operação", ["locacoes", "clientes"]),
+        ("Operação", ["locacoes", "veiculos", "clientes"]),
         ("Vendas", ["propostas", "minhas_vendas", "veiculos_a_venda", "minhas_comissoes"]),
     ],
     "vistoriador": [(None, ["agenda", "consultar_veiculo", "avarias"])],
     "financeiro": [
         (
             None,
-            [("inicio", "Início"), "receber", "contas_a_pagar", "caixa_e_bancos", "comissoes"],
+            [
+                ("inicio", "Início"),
+                "receber",
+                "contas_a_pagar",
+                "caixa_e_bancos",
+                "veiculos",
+                "comissoes",
+            ],
         ),
     ],
 }

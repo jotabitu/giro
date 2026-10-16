@@ -1,6 +1,6 @@
 # Contas: acesso, usuários, sessões e suporte
 
-**Dono:** arquiteto · **Versão:** 15 out 2026 (T-249, copiar link do convite e `acoes` do usuário; T-201, nome curto da filial; T-036) · **App:** `contas` (schema da empresa; o mesmo app atende a plataforma, ver `plataforma.md`) · **Regras:** USR-01 a USR-07, PLT-03, PLT-07, AUD-01 · **ADRs:** 0008, 0013, 0014 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios (e "Esqueci a senha" e "Ativar verificação em 2 etapas", da T-026) · **Critérios:** `docs/qa/criterios/T-248.md` (CA-248-12 a 16)
+**Dono:** arquiteto · **Versão:** 16 out 2026 (T-287, `pode.veiculos = ver` para vendedor e financeiro e Veículos no menu dos dois); 15 out 2026 (T-249, copiar link do convite e `acoes` do usuário; T-201, nome curto da filial; T-036) · **App:** `contas` (schema da empresa; o mesmo app atende a plataforma, ver `plataforma.md`) · **Regras:** USR-01 a USR-07, PLT-03, PLT-07, AUD-01 · **ADRs:** 0008, 0013, 0014 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios (e "Esqueci a senha" e "Ativar verificação em 2 etapas", da T-026) · **Critérios:** `docs/qa/criterios/T-248.md` (CA-248-12 a 16)
 
 Convenções gerais em `docs/api/README.md`. Modelo: `contas.Usuario`, `Convite`, `Sessao`, `filiais.UsuarioFilial` em `docs/decisoes/modelo-de-dados.md`. Base: `<subdominio>.<dominio>/api/`.
 
@@ -28,7 +28,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: `contas.Usuario`, `Convite`
 | Chave | Valores | Administrador | Gerente | Vendedor | Vistoriador | Financeiro |
 | --- | --- | --- | --- | --- | --- | --- |
 | `painel` | `todas_filiais`, `filial`, `proprios`, `nao` | `todas_filiais` | `filial` | `proprios` | `nao` | `todas_filiais` |
-| `veiculos` | `editar`, `km_e_avarias`, `nao` | `editar` | `editar` | `nao` | `km_e_avarias` | `nao` |
+| `veiculos` | `editar`, `km_e_avarias`, `ver`, `nao` | `editar` | `editar` | `ver` | `km_e_avarias` | `ver` |
 | `clientes_cadastrar` | bool | sim | sim | sim | — | — |
 | `locacoes_criar` | bool | sim | sim | sim | — | — |
 | `vistorias_fazer` | bool | sim | sim | sim | sim | — |
@@ -160,9 +160,9 @@ Os `menu_inicio` de cada variante seguem as telas `Gerente`, `Vendedor`, `Vistor
 | Variante | Grupos e itens, na ordem |
 | --- | --- |
 | `gerente` | — `inicio` ("Visão da filial"), `aprovacoes`, `veiculos` · Operação: `locacoes`, `vendas`, `clientes`, `manutencoes` · Filial: `caixa` ("Caixa da filial"), `relatorios` |
-| `vendedor` | — `inicio` ("Início") · Operação: `locacoes`, `clientes` · Vendas: `propostas`, `minhas_vendas`, `veiculos_a_venda`, `minhas_comissoes` |
+| `vendedor` | — `inicio` ("Início") · Operação: `locacoes`, `veiculos`, `clientes` · Vendas: `propostas`, `minhas_vendas`, `veiculos_a_venda`, `minhas_comissoes` |
 | `vistoriador` | — `agenda`, `consultar_veiculo`, `avarias` |
-| `financeiro` | — `inicio` ("Início"), `receber`, `contas_a_pagar`, `caixa_e_bancos`, `comissoes` |
+| `financeiro` | — `inicio` ("Início"), `receber`, `contas_a_pagar`, `caixa_e_bancos`, `veiculos`, `comissoes` |
 
 - Itens próprios do início: `agenda` e `avarias` pedem `vistorias_fazer`, o recurso `locacoes_vistoria` e a atividade aluga. `consultar_veiculo` pede `pode.veiculos` ≠ `nao`. Os quatro do vendedor pedem `vendas_criar`, o recurso `vendas_comissoes` e a atividade vende. `contas_a_pagar` pede `financeiro_pagar` e o recurso `manutencao_despesas`. `caixa_e_bancos` pede `caixa_abrir_fechar` e o recurso `contas_receber`.
 - `despesas` só traz `contador` para quem aprova despesas (`despesas_aprovar`); para quem só lança, `contador: null`, como em `painel.md`.
