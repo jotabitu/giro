@@ -66,6 +66,15 @@ Contrato: `docs/api/assinatura.md`. A parte 2 (forma de pagamento e faturas) vem
 - `api/assinatura.py`: `PUT assinatura/forma-pagamento/`, `GET assinatura/faturas/`, `GET assinatura/faturas/{codigo}/`, `POST assinatura/faturas/{codigo}/pagar/`. Com as três rotas de pagar, a lista `escreve_na_suspensa` fica completa (CA-ASS-27).
 - Interface de pagamentos: `SituacaoCobranca.recibo_url` (Asaas: `transactionReceiptUrl`).
 
+## Implementado (T-186, parte 1: estados e virada)
+
+Contrato: `docs/api/assinatura.md` ("Transições da empresa" e "Downgrade agendado: conferência e virada"). As partes 2 (geração e emissão das faturas, cartão guardado, Pix automático autorizado) e 3 (mensagens da régua `AUT-13`) vêm nas branches `t-186b` e `t-186c`.
+
+- `services.py`: `virar_estados` (faturas vencidas em `atrasada` em D+1, `aplicar_mudanca_agendada` e `estado_do_dia` por empresa, cada uma na sua transação, idempotente); `transicionar_empresa` (o estado no public e o mesmo fato na empresa); `voltar_a_ativa_ao_pagar`, chamada na baixa (`_processar_fatura`): `inadimplente` ou `suspensa` sem outra atrasada, ou `em_teste` com a 1ª paga depois do fim do teste, vira `ativa` na hora. `DIAS_ATE_SUSPENDER = 15` conta do vencimento da atrasada mais antiga.
+- `models.py`: `Empresa.TRANSICOES` ganhou `em_teste` → `inadimplente` (com forma e sem pagar, em D+1).
+- `tasks.py`: `plataforma_virar_estados`, no Beat às 00:05.
+- `comum.estados`: `refresh_from_db` passa a atualizar o status salvo, para a cópia relida salvar outros campos.
+
 ## Eventos publicados
 
 | Evento | Quando | Dados |

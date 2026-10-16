@@ -1,6 +1,7 @@
 """Tarefas da plataforma: aviso de 90% do plano (PLT-03), correção noturna do uso, aviso de
 entrada do suporte e fim dos acessos vencidos (PLT-07, AUT-15), baixa das faturas da assinatura
-pelo webhook da conta principal (PLT-14) e as notas que esperavam o endereço (PLT-15)."""
+pelo webhook da conta principal (PLT-14), as notas que esperavam o endereço (PLT-15) e a virada
+dos estados da assinatura (PLT-01, PLT-02, PLT-04)."""
 
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -91,6 +92,21 @@ def aut_15_encerrar_acessos_de_suporte_vencidos(**_: Any) -> int:
     from .services import encerrar_acessos_vencidos
 
     return encerrar_acessos_vencidos()
+
+
+@shared_task(name="plataforma_virar_estados")
+def plataforma_virar_estados(**_: Any) -> dict[str, Any]:
+    """Às 00:05: faturas vencidas em `atrasada` (D+1), os planos agendados que valem hoje
+    (PLT-04) e os estados das empresas (PLT-01, PLT-02; tabela de transições de `assinatura.md`).
+    Idempotente no mesmo dia."""
+    from .services import virar_estados
+
+    virada = virar_estados()
+    return {
+        "atrasadas": virada.atrasadas,
+        "mudancas_de_plano": virada.mudancas_de_plano,
+        "estados": virada.estados,
+    }
 
 
 @shared_task(name="plataforma_recalcular_uso")
