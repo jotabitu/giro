@@ -1,6 +1,6 @@
 # T-291 · Django Admin pelo proxy · devops → orquestrador, arquiteto, segurança
 
-Branch `t-291-admin-proxy`, **empilhada sobre a `origin/t-277-admin-pelo-proxy`** (ADR 0029, PR #290). Mesclar o #290 antes. A base não tinha ainda o #271 e o #279 se eles não estavam mesclados: confira a ordem.
+Branch `t-291-admin-proxy`, **empilhada sobre a `origin/t-277-admin-pelo-proxy`** (ADR 0029, PR #290). Mesclar o #290 antes. A base já traz a imagem `producao`, o compose de homologação e o teste de subida (T-264).
 
 **O que foi feito:**
 - `infra/proxy/giro.conf.template`: o `geo $admin_permitido` (default 0, `include /etc/nginx/admin-ips.conf`) e dois blocos `server`: o dos hosts das empresas (`*.<domínio>`, como antes) e o do host da plataforma (`<SUBDOMINIO_PLATAFORMA>.<domínio>`, nome exato vence o curinga), este com `location /admin/` para o Django. Fora da lista, 404 (não 403). `location = /admin/login/` na zona `giro_auth` (10 por minuto por IP). `X-Robots-Tag: noindex, nofollow` nas duas.
