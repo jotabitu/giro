@@ -20,8 +20,8 @@
 - **AUT-06:** o veículo `em_movimentacao` com o documento vencendo não muda de status e gera a tarefa urgente aos gerentes.
 
 **Onde:** `backend/apps/movimentacoes/`, `backend/apps/veiculos/{models,services,selectors}.py`, `backend/apps/financeiro/{models,services,selectors}.py` e `api/`, `backend/apps/contas/{selectors,navegacao}.py`, `backend/apps/locacoes/{services,selectors}.py`. Migrações: `movimentacoes/0001_movimentacoes`, `veiculos/0005_em_movimentacao`, `financeiro/0008_despesa_origem`.
-**Contrato:** `docs/api/movimentacoes.md`, `veiculos.md` (T-300 e T-311), `financeiro.md` e `contas.md`; `docs/api/openapi.yaml` regenerado.
-**Regras cobertas:** MOV-01 a MOV-06, VEI-01 a VEI-04, VEI-06, FIN-05, FIN-06, APR-03, USR-09. Testes em `backend/tests/aceitacao/test_t288_movimentacoes.py` (29):
+**Contrato:** `docs/api/movimentacoes.md`, `veiculos.md` (T-300 e T-311), `financeiro.md` e `contas.md`; `docs/api/openapi.yaml` regenerado; no frontend, `api:gerar` e `typecheck` sem erro depois de o falso das despesas (`testes/falsos/falso-financeiro.ts`) ganhar `sem_nota` e `origem`, e os testes de componentes com 298 passed.
+**Regras cobertas:** MOV-01 a MOV-06, VEI-01 a VEI-04, VEI-06, FIN-05, FIN-06, APR-03, USR-09. Testes em `backend/tests/aceitacao/test_t288_movimentacoes.py` (28, com `test_mov_05_aut_06_documento_vence_em_movimentacao`):
 - `test_mov_*` pelos CA-246-01 a 19;
 - a baixa: `test_mov_03_baixa_cancela_movimentacao_iniciada`, `test_mov_03_baixa_na_transferencia_nao_transfere`, `test_mov_03_baixa_cancela_agendada` e `test_mov_03_falha_no_assinante_desfaz_a_baixa`;
 - `test_mov_03_movimentavel_exclui_alugado_e_reservado` (T-300);
