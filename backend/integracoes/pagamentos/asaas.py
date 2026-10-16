@@ -532,6 +532,17 @@ class Asaas:
         if status == 404:
             logger.warning("Asaas não achou a autorização %s para cancelar", autorizacao_id)
 
+    def consultar_autorizacao(self, conta: ContaPagamentoRef, autorizacao_id: str) -> Autorizacao:
+        status, dados = self._chamar(
+            "GET",
+            f"/pix/automatic/authorizations/{quote(autorizacao_id, safe='')}",
+            conta=conta,
+            aceitar=(404,),
+        )
+        if status == 404:
+            return Autorizacao(autorizacao_id, "cancelada")
+        return _autorizacao(dados)
+
     # --- webhook (S-14) ---
 
     def validar_webhook(self, cabecalhos: Mapping[str, str], corpo: bytes) -> EventoWebhook | None:
@@ -540,6 +551,19 @@ class Asaas:
         token = cabecalhos.get(CABECALHO_DO_TOKEN, "")
         try:
             dados = json.loads(corpo)
+            if "payment" not in dados and "pixAutomaticAuthorization" in dados:
+                # PLT-13: a autorização do Pix Automático mudou (conta principal). Nomes do
+                # evento e do objeto a conferir no sandbox.
+                autorizacao = dados["pixAutomaticAuthorization"]
+                return EventoWebhook(
+                    provedor="asaas",
+                    evento_id=str(dados["id"]),
+                    tipo=str(dados["event"]),
+                    cobranca_id="",
+                    referencia_externa=str(autorizacao.get("contractId") or ""),
+                    token=token,
+                    autorizacao_id=str(autorizacao["id"]),
+                )
             pagamento = dados["payment"]
             return EventoWebhook(
                 provedor="asaas",
@@ -549,7 +573,7 @@ class Asaas:
                 referencia_externa=str(pagamento.get("externalReference") or ""),
                 token=token,
             )
-        except (ValueError, KeyError, TypeError):
+        except (ValueError, KeyError, TypeError, AttributeError):
             return None
 
 

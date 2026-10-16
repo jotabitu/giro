@@ -6,7 +6,8 @@ Subcontas e autorizações recorrentes também ficam na memória (T-029).
 
 Conta principal (T-184): os pagadores ficam em `pagadores`; a cobrança `cartao_link` paga por
 `simular_pagamento` devolve um cartão guardado (`CARTAO_DE_TESTE`), e `recusar_cartao(token)` faz
-o parceiro recusar as próximas cobranças naquele token.
+o parceiro recusar as próximas cobranças naquele token. `autorizar_pix(autorizacao_id)` ativa a
+autorização do Pix Automático e devolve o corpo do aviso (PLT-13).
 """
 
 import json
@@ -94,6 +95,9 @@ class PagamentosFalso:
         if autorizacao_id in autorizacoes:
             autorizacoes[autorizacao_id] = replace(autorizacoes[autorizacao_id], status="cancelada")
 
+    def consultar_autorizacao(self, conta: ContaPagamentoRef, autorizacao_id: str) -> Autorizacao:
+        return autorizacoes.get(autorizacao_id) or Autorizacao(autorizacao_id, "cancelada")
+
     def criar_ou_atualizar_pagador(self, conta: ContaPagamentoRef, pagador: Pagador) -> str:
         cliente_id = pagador.id_externo or f"cus_falso_{next(_numeros):06d}"
         pagadores[cliente_id] = pagador
@@ -150,6 +154,16 @@ class PagamentosFalso:
         token = cabecalhos.get(CABECALHO_DO_TOKEN, "")
         try:
             dados = json.loads(corpo)
+            if "payment" not in dados and "pixAutomaticAuthorization" in dados:
+                return EventoWebhook(
+                    provedor="asaas",
+                    evento_id=str(dados["id"]),
+                    tipo=str(dados["event"]),
+                    cobranca_id="",
+                    referencia_externa="",
+                    token=token,
+                    autorizacao_id=str(dados["pixAutomaticAuthorization"]["id"]),
+                )
             pagamento = dados["payment"]
             return EventoWebhook(
                 provedor="asaas",
@@ -159,7 +173,7 @@ class PagamentosFalso:
                 referencia_externa=str(pagamento.get("externalReference") or ""),
                 token=token,
             )
-        except (ValueError, KeyError, TypeError):
+        except (ValueError, KeyError, TypeError, AttributeError):
             return None
 
 
@@ -185,6 +199,16 @@ def simular_pagamento(
         recibo_url=f"https://pagamentos.falso/recibo/{cobranca_id}",
     )
     return corpo_do_webhook(cobranca_id, "PAYMENT_RECEIVED", evento_id)
+
+
+def autorizar_pix(autorizacao_id: str, *, evento_id: str | None = None) -> dict[str, Any]:
+    """A autorização fica ativa no banco; devolve o corpo do aviso que o parceiro mandaria."""
+    autorizacoes[autorizacao_id] = replace(autorizacoes[autorizacao_id], status="ativa")
+    return {
+        "id": evento_id or f"evt_{autorizacao_id}_ativada",
+        "event": "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED",
+        "pixAutomaticAuthorization": {"id": autorizacao_id},
+    }
 
 
 def simular_estorno(cobranca_id: str, *, evento_id: str | None = None) -> dict[str, Any]:

@@ -1,7 +1,8 @@
 """Tarefas da plataforma: aviso de 90% do plano (PLT-03), correção noturna do uso, aviso de
 entrada do suporte e fim dos acessos vencidos (PLT-07, AUT-15), baixa das faturas da assinatura
-pelo webhook da conta principal (PLT-14), as notas que esperavam o endereço (PLT-15) e a virada
-dos estados da assinatura (PLT-01, PLT-02, PLT-04)."""
+pelo webhook da conta principal (PLT-14), as notas que esperavam o endereço (PLT-15), a virada
+dos estados da assinatura (PLT-01, PLT-02, PLT-04) e a geração, a emissão e a cobrança no cartão
+das faturas (PLT-02, PLT-04, PLT-13)."""
 
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -107,6 +108,108 @@ def plataforma_virar_estados(**_: Any) -> dict[str, Any]:
         "mudancas_de_plano": virada.mudancas_de_plano,
         "estados": virada.estados,
     }
+
+
+@shared_task(name="plataforma_gerar_faturas")
+def plataforma_gerar_faturas(**_: Any) -> dict[str, Any]:
+    """Às 06:00 (PLT-02): faturas do período seguinte 5 dias antes do vencimento, com a
+    conferência do downgrade agendado (PLT-04); a emissão no parceiro; e o cartão guardado no
+    vencimento, com uma tentativa a mais. Idempotente no mesmo dia."""
+    from .services import gerar_faturas
+
+    geracao = gerar_faturas()
+    return {
+        "faturas": geracao.faturas,
+        "emitidas": geracao.emitidas,
+        "cartoes": geracao.cartoes,
+    }
+
+
+@shared_task(
+    name="plataforma_cobrar_cartao",
+    autoretry_for=(ParceiroForaDoAr,),
+    retry_backoff=60,
+    retry_backoff_max=60 * 60,
+    max_retries=24,
+)
+def plataforma_cobrar_cartao(fatura_id: int) -> str:
+    """PLT-04: a diferença do upgrade no cartão guardado, na hora. Parceiro fora do ar: tenta de
+    novo mais tarde (a tentativa não conta)."""
+    from comum import relogio
+
+    from .services import cobrar_cartao_da_fatura
+
+    return cobrar_cartao_da_fatura(fatura_id, relogio.hoje())
+
+
+@shared_task(name="plataforma_enviar_boleto")
+def plataforma_enviar_boleto(fatura_id: int) -> int:
+    """PLT-02: o boleto (com Pix) vai por e-mail no dia em que é criado, 5 dias antes do
+    vencimento, para o e-mail de cobrança e os administradores (PLT-15). Marca Giro."""
+    from comum.dinheiro import formatar_reais
+
+    from .calendario import descricao_da_fatura, dia_e_mes
+    from .models import FaturaAssinatura
+    from .services import destinatarios_da_cobranca
+
+    with schema_context(get_public_schema_name()):
+        fatura = FaturaAssinatura.objects.select_related("empresa", "plano").get(pk=fatura_id)
+        if fatura.cobranca_tipo != "boleto" or not fatura.cobranca_boleto_url:
+            return 0
+        destinatarios = destinatarios_da_cobranca(fatura.empresa)
+    if not destinatarios:
+        return 0
+    descricao = descricao_da_fatura(
+        fatura.tipo, fatura.plano.nome, fatura.ciclo, fatura.periodo_inicio, fatura.periodo_fim
+    )
+    vence = dia_e_mes(fatura.vencimento)
+    send_mail(
+        subject=f"Giro: boleto da fatura {fatura.codigo}, vence em {vence}",
+        message=(
+            f"A fatura {fatura.codigo} da {fatura.empresa.nome_exibicao} ({descricao}), de "
+            f"{formatar_reais(int(fatura.valor_centavos))}, vence em {vence}.\n"
+            f"Boleto: {fatura.cobranca_boleto_url}\n"
+            f"Linha digitável: {fatura.cobranca_linha_digitavel}\n"
+            f"Pix copia e cola: {fatura.cobranca_pix_copia_e_cola}\n"
+            "Você também paga pelo botão Pagar, em Assinatura."
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=destinatarios,
+    )
+    return len(destinatarios)
+
+
+@shared_task(name="plataforma_avisar_downgrade_recusado")
+def plataforma_avisar_downgrade_recusado(
+    empresa_id: int, plano_id: int, vencimento: str, excede: dict[str, Any]
+) -> int:
+    """PLT-04 (CA-ASS-40): o downgrade agendado deixou de caber na geração da fatura. O
+    administrador e o e-mail de cobrança recebem o motivo, como na recusa."""
+    from datetime import date
+
+    from .calendario import dia_e_mes
+    from .models import Plano
+    from .services import destinatarios_da_cobranca, texto_do_que_excede
+
+    with schema_context(get_public_schema_name()):
+        empresa = Empresa.objects.select_related("plano").get(pk=empresa_id)
+        agendado = Plano.objects.get(pk=plano_id)
+        destinatarios = destinatarios_da_cobranca(empresa)
+    if not destinatarios or empresa.plano is None:
+        return 0
+    dia = dia_e_mes(date.fromisoformat(vencimento))
+    send_mail(
+        subject=f"Giro: a mudança para o plano {agendado.nome} não aconteceu",
+        message=(
+            f"A {empresa.nome_exibicao} ia mudar para o plano {agendado.nome} em {dia}, mas o uso "
+            f"de hoje não cabe nele: {texto_do_que_excede(excede)}.\n"
+            f"Por isso, a fatura de {dia} saiu pelo plano {empresa.plano.nome}, e a empresa "
+            "continua nele. Para mudar, ajuste o uso e escolha o plano de novo em Assinatura."
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=destinatarios,
+    )
+    return len(destinatarios)
 
 
 @shared_task(name="plataforma_recalcular_uso")

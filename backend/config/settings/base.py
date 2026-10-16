@@ -307,6 +307,11 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
         "task": "plataforma_virar_estados",
         "schedule": crontab(hour=0, minute=5),
     },
+    # Faturas da assinatura (PLT-02): geração 5 dias antes, emissão e cartão no vencimento.
+    "plataforma_gerar_faturas": {
+        "task": "plataforma_gerar_faturas",
+        "schedule": crontab(hour=6, minute=0),
+    },
     # AUT-15: encerra os acessos de suporte vencidos (PLT-07).
     # AUT-06: vencimento de documentos de veículos (VEI-03), às 07:00.
     "aut_06_vencimento_de_documentos": {

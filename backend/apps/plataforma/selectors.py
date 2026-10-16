@@ -723,7 +723,13 @@ def cobranca_da_fatura(fatura: FaturaAssinatura) -> dict[str, Any] | None:
     auditoria (T-189, item 8)."""
     if not fatura.cobranca_externa_id:
         return None
-    forma = {"cartao_link": "cartao", "pix": "pix", "boleto": "boleto"}.get(fatura.cobranca_tipo)
+    forma = {
+        "cartao_link": "cartao",
+        "cartao": "cartao",
+        "pix": "pix",
+        "pix_auto": "pix",
+        "boleto": "boleto",
+    }.get(fatura.cobranca_tipo)
     return {
         "forma": forma,
         "linha_digitavel": fatura.cobranca_linha_digitavel or None,

@@ -75,6 +75,16 @@ Contrato: `docs/api/assinatura.md` ("Transições da empresa" e "Downgrade agend
 - `tasks.py`: `plataforma_virar_estados`, no Beat às 00:05.
 - `comum.estados`: `refresh_from_db` passa a atualizar o status salvo, para a cópia relida salvar outros campos.
 
+## Implementado (T-186, parte 2: geração, emissão e cartão guardado)
+
+- `services.py`: `gerar_faturas` (Beat, 06:00), em três passos, cada fatura ou empresa na sua transação e idempotente:
+  1. `gerar_fatura_do_periodo`: 5 dias antes do vencimento seguinte (`DIAS_DE_ANTECEDENCIA`), a mensalidade do período seguinte para `em_teste`, `ativa`, `inadimplente` e `suspensa`, nunca depois do `acesso_ate`. Com downgrade agendado, confere o uso de novo (`excede_no_plano`, `Empresa` e `UsoEmpresa` travados): não cabe, o agendamento cai, a fatura sai pelo plano atual, auditoria `empresa.mudar_plano_recusado` nos dois lugares e e-mail com o motivo (CA-ASS-40); cabe, a fatura sai pelo plano agendado (CA-ASS-41).
+  2. `emitir_cobranca_da_fatura`: a fatura `aberta` sem cobrança que vence em até 5 dias sai pela forma: boleto (e o e-mail no dia), Pix automático pela autorização ativa (`cobranca_tipo = pix_auto`), página do parceiro para o cartão ainda não digitado. Cartão guardado espera o vencimento; sem forma ou com a autorização pendente, nada sai.
+  3. `cobrar_cartao_da_fatura`: o cartão guardado no vencimento (a diferença do upgrade, na hora), pelo token decifrado só em `integracoes.pagamentos.cobrar_cartao_guardado` (ADR 0023). Recusado: `cartao_recusado_em` e mais uma tentativa; a 2ª é no dia seguinte, e com `TENTATIVAS_DO_CARTAO` (2) não há outra (CA-ASS-12).
+- Diferença do upgrade com cartão guardado: `mudar_plano` agenda `plataforma_cobrar_cartao` depois do commit (tenta de novo com o parceiro fora). Nas outras formas, a diferença sai no passo 2.
+- Aviso do Pix automático autorizado: o webhook da conta principal lê o aviso da autorização (`EventoWebhook.autorizacao_id`), consulta a autorização no parceiro (`consultar_autorizacao`, novo na interface) e, ativa, leva a forma a `ativa` (`assinatura.forma_ativa`). Outra situação não muda a forma e fica no resultado do aviso.
+- `tasks.py`: `plataforma_gerar_faturas`, `plataforma_cobrar_cartao`, `plataforma_enviar_boleto` e `plataforma_avisar_downgrade_recusado`. Os e-mails vão para o `email_cobranca` e os administradores ativos (`destinatarios_da_cobranca`), com a marca Giro.
+
 ## Eventos publicados
 
 | Evento | Quando | Dados |
