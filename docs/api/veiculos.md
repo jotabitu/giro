@@ -1,6 +1,6 @@
 # Veículos, categorias e preços
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-07, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015 · **Telas:** Frota, Veiculo, Precos
+**Dono:** arquiteto · **Versão:** 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-08, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 8 a 10 e apoio (`PrecoCategoria`, `Extra`, `HistoricoStatusVeiculo`, `LeituraKm`, `TransferenciaVeiculo`) em `docs/decisoes/modelo-de-dados.md`.
 
@@ -26,7 +26,7 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
   "placa": "SAK1D39",
   "chassi": "9C2KC2210RR004417",
   "renavam": "01289934410",
-  "marca": "Honda", "modelo": "CG 160 Fan", "ano_fabricacao": 2025, "ano_modelo": 2025, "cor": "vermelha",
+  "marca": "Honda", "modelo": "CG 160 Fan", "ano_fabricacao": 2025, "ano_modelo": 2025, "cor": "vermelha", "combustivel": "gasolina",
   "tipo_veiculo": "moto",
   "categoria": { "id": 2, "nome": "Street 150–160" },
   "filial": { "id": 1, "nome": "Filial Centro" },
@@ -52,6 +52,7 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
 - `acoes`: combina perfil, `status` e a tabela de transições; o frontend mostra só o que vier `true`. `corrigir_km` vem `true` também para o vistoriador, que pede a correção (`APR-06`).
 - `situacao.tom` pelo `status`: `sucesso` (`disponivel`), `info` (`reservado`), `solido` (`alugado`), `alerta` (`em_manutencao`) e `neutro` (`indisponivel`, `a_venda`, `vendido`, `baixado`).
 - `valor_compra_centavos` e `data_compra` vêm `null` para quem não é administrador ou gerente.
+- `combustivel` (T-247, `VEI-08`): `gasolina`, `etanol`, `flex`, `diesel`, `eletrico`, `hibrido` ou `null` (veículo cadastrado antes). A tela `Veiculo-Novo` já tem o campo.
 
 ### Blocos de outros apps (ADR 0015)
 
@@ -92,7 +93,7 @@ Query: `?status=`, `?tipo_veiculo=moto|carro`, `?categoria=<id>`, `?busca=` (pla
 
 ### POST /api/veiculos/
 Perfis: administrador, gerente.
-Corpo: `{ placa, chassi, renavam?, marca, modelo, ano_fabricacao, ano_modelo, cor, km_atual, categoria_id, filial_id, capacidade_tanque_litros?, valor_compra_centavos?, data_compra?, entrou_na_frota_em? }`. Sem `capacidade_tanque_litros`, o combustível do acerto é informado à mão (`DEV-01`).
+Corpo: `{ placa, chassi, renavam?, marca, modelo, ano_fabricacao, ano_modelo, cor, combustivel?, km_atual, categoria_id, filial_id, capacidade_tanque_litros?, valor_compra_centavos?, data_compra?, entrou_na_frota_em? }`. Com o CRLV lido (`VEI-08`), o mesmo corpo vai em `multipart/form-data`, com o bloco do documento ("Preencher pelo CRLV-e", abaixo). Sem `capacidade_tanque_litros`, o combustível do acerto é informado à mão (`DEV-01`).
 201: representação (status `disponivel`).
 400 `validacao`: placa ou chassi fora do formato, categoria de outra filial, ano inválido.
 409 `{ "codigo": "VEI-01", "mensagem": "Já existe um veículo com esta placa", "detalhes": { "campo": "placa", "veiculo_id": 77 } }`; o mesmo para `chassi`. Vale para veículo em qualquer estado, inclusive `vendido` e `baixado`.
@@ -102,7 +103,7 @@ Recompra numa troca (`VEN-05`, `VEI-07`) não passa por aqui: a venda chama `vei
 Regras: VEI-01, PLT-03.
 
 ### PATCH /api/veiculos/{id}/
-Perfis: administrador, gerente. Corpo: `renavam`, `marca`, `modelo`, `ano_fabricacao`, `ano_modelo`, `cor`, `categoria_id`, `capacidade_tanque_litros`, `valor_compra_centavos`, `data_compra`.
+Perfis: administrador, gerente. Corpo: `renavam`, `marca`, `modelo`, `ano_fabricacao`, `ano_modelo`, `cor`, `combustivel`, `categoria_id`, `capacidade_tanque_litros`, `valor_compra_centavos`, `data_compra`.
 Não mudam por aqui: `placa` e `chassi` (corrigir é ação do administrador, abaixo), `status`, `km_atual`, `filial`.
 Mudar a categoria vale para locações novas; locação em andamento mantém o preço congelado (`LOC-15`).
 
@@ -160,7 +161,7 @@ Regras: VEI-01, APR-06.
 - `arquivo.url` é assinada e vale 15 minutos (`AUD-05`); cada `GET` gera outra.
 
 ### POST /api/veiculos/{id}/documentos/
-Perfis: administrador, gerente. `multipart/form-data`: `tipo`, `validade`, `arquivo?` (PDF, JPG ou PNG, até 10 MB).
+Perfis: administrador, gerente. `multipart/form-data`: `tipo`, `validade`, `exercicio?` (só no `crlv`: o ano do licenciamento, T-247), `arquivo?` (PDF, JPG ou PNG, até 10 MB).
 201. Se já existe documento ativo do mesmo tipo, ele fica inativo (renovação). Renovar CRLV ou seguro de veículo `indisponivel` por vencimento não libera sozinho: o gerente usa `desbloquear`.
 
 ### GET /api/veiculos/{id}/documentos/historico/
@@ -222,3 +223,58 @@ Planos especiais (`Entregador`, `Mensal fidelidade`) aparecem na tela `Precos`, 
 | evento `veiculos.km_atualizado` | assinado por `manutencao` (preventivas, `MAN-03`). |
 | evento `veiculos.documento_vencendo` / tarefa `aut_06_vencimento_de_documentos` | `VEI-03`, `AUT-06`: 30 dias antes avisa; no dia, CRLV ou seguro vencido leva `disponivel` → `indisponivel`; veículo `alugado`, `reservado` ou `em_manutencao` não muda e gera tarefa urgente para os gerentes da filial (`FIL-02`). |
 | anotações de leitura fornecidas | `indicadores` de `Filial` (`veiculos`, `ocupacao_pct`), ver `filiais.md`. |
+
+## Preencher pelo CRLV-e (`VEI-08`, ADR 0026, T-247)
+
+Decisão técnica na ADR 0026. A leitura não grava nada; só o `POST /api/veiculos/` grava, depois da conferência da pessoa. Critérios CA-247-01 a 07.
+
+### POST /api/veiculos/leitura-crlv/
+Perfis: administrador e gerente (quem cadastra veículo, `pode.veiculos = editar`); os outros perfis, 403 `permissao` (CA-247-07). Token de suporte: segue a permissão de escrita do acesso (`PLT-07`), até a revisão da segurança.
+`multipart/form-data`: `arquivo` (o PDF do CRLV-e, até **2 MB**).
+
+200, com `Cache-Control: no-store`:
+```json
+{ "documento": "crlv",
+  "campos": { "placa": "TBC5H21", "chassi": "9C2JC7510SR000123", "renavam": "01234567890",
+              "marca": "Honda", "modelo": "Pop 110i ES", "ano_fabricacao": 2025, "ano_modelo": 2026,
+              "cor": "vermelha", "combustivel": "gasolina" },
+  "lidos": ["placa", "chassi", "renavam", "marca", "modelo", "ano_fabricacao", "ano_modelo", "cor", "combustivel"],
+  "quantidade": 9,
+  "rotulo": "CRLV-e lido · 9 campos preenchidos",
+  "exercicio": 2026,
+  "dicas": { "marca_modelo": null },
+  "leitura": "<comprovante assinado>" }
+```
+- `campos` traz só os 9 da `VEI-08`. Campo não lido vem `null` e fica fora de `lidos`. `quantidade` é o tamanho de `lidos`, e a tela usa o `rotulo` como vem ("1 campo preenchido", no singular). Nunca vêm o nome, o CPF ou o CNPJ do proprietário, nem campo fora da lista (CA-247-02).
+- `marca` e `modelo` só vêm quando o texto acha um modelo único no catálogo do cadastro (ADR 0026, item 7). Senão, os dois vêm `null`, ficam fora de `lidos`, e `dicas.marca_modelo` traz o texto lido ("HONDA/POP 110I ES") para a tela mostrar como dica (CA-247-05: 7 campos). Até o catálogo existir, é sempre assim.
+- `cor` vem no texto do cadastro, em minúsculas ("vermelha"). `combustivel` vem no enum: `ALCOOL/GASOLINA` vira `flex`, e um valor fora do enum fica fora de `lidos`.
+- `exercicio`: o ano do licenciamento, para o documento CRLV; não conta nos 9. A validade do CRLV não vem (`VEI-08`): a pessoa informa.
+- `leitura`: comprovante assinado, válido por 30 minutos, sem os valores (ADR 0026, item 8). A tela o guarda junto com o arquivo e manda os dois ao salvar.
+- A tela troca os campos lidos pelo que veio e os marca "lido do documento"; os outros campos não mudam.
+
+422 `{ "codigo": "VEI-08", "mensagem": "Não conseguimos ler este documento. Preencha os campos à mão." }`: a mesma resposta para toda falha de leitura (CA-247-06). Isso vale para arquivo que não começa como PDF, acima de 2 MB, com senha, sem texto, com mais de 3 páginas, com tempo ou memória estourados, ou sem nenhum dos 9 campos reconhecido. A causa fica só no log, por código (ADR 0026, item 9).
+400 `{ "codigo": "validacao", "campos": { "arquivo": "Envie o PDF do CRLV-e." } }`: arquivo que não é PDF nem pela extensão nem pelos primeiros bytes, como a foto `foto-crlv.jpg`. O seletor da tela já aceita só `.pdf`.
+429 `muitas_requisicoes`: acima de 30 por hora por usuário ou de 200 por hora por empresa (`comum.limites`).
+
+### Salvar com o CRLV lido: POST /api/veiculos/ em `multipart/form-data`
+O corpo leva os campos do veículo, como no JSON, e mais o bloco do documento:
+- `crlv_arquivo`: o mesmo PDF lido (até 2 MB);
+- `crlv_validade`, obrigatória quando vem o arquivo (400 `validacao`, "Informe a validade do CRLV."), e `crlv_exercicio?`;
+- `leitura?`: o comprovante da leitura.
+
+O serviço faz tudo numa transação só: cria o veículo, com as validações de sempre (`VEI-01`, `PLT-03`), e o `DocumentoVeiculo` `crlv` com o arquivo, a validade e o exercício. No CA-247-04, a placa e o chassi do QXA-4B21 recebem o 409 `VEI-01` de sempre, e nada é criado. O arquivo só vai para o armazenamento privado nesse momento (`AUD-05`); se a transação falhar, o arquivo gravado é apagado, como no logo (`empresas.md`). O nome no armazenamento é gerado pelo backend, nunca o nome enviado.
+- Com o `leitura` válido e o SHA-256 do arquivo igual ao do comprovante, o evento `veiculo.criar` leva `preenchido_pelo_documento: { "tipo": "crlv", "campos": [...], "corrigidos": ["cor"] }`, sem valores. A tela da auditoria mostra "Campos preenchidos pelo CRLV-e" (CA-247-03).
+- Sem comprovante, com ele vencido ou com outro arquivo: o veículo e o documento são salvos do mesmo jeito, só sem a marca.
+
+### GET /api/veiculos/modelos/ (catálogo; ainda sem tarefa)
+É a lista "Da lista FIPE" da tela, local e sem consulta externa. Query `?tipo=moto|carro`, `?marca=`, `?busca=` → `{ "resultados": [ { "marca": "Honda", "modelo": "Pop 110i ES", "tipo": "moto" } ] }`. De onde vem o arquivo e como ele se atualiza fica para a tarefa do catálogo (proposta no handoff da T-247). Enquanto ela não existe, a rota também não, e a leitura nunca preenche marca e modelo.
+
+### O que muda para as tarefas (T-247)
+- **Backend (sem número):**
+  - a dependência `pypdf`, com o motivo no PR;
+  - `integracoes/leitura_documentos/`: o processo filho, o parser do CRLV-e e os limites;
+  - a rota de leitura e o `POST` em multipart com o documento;
+  - `Veiculo.combustivel` e `DocumentoVeiculo.exercicio` (`modelo-de-dados.md`);
+  - testes `test_vei_08_le_os_9_campos` (CA-247-01), `test_vei_08_nao_le_o_proprietario` (CA-247-02), `test_vei_08_salva_com_o_documento` (CA-247-03), `test_vei_08_validacoes_de_sempre` (CA-247-04), `test_vei_08_modelo_fora_da_lista` (CA-247-05), `test_vei_08_nao_da_para_ler` (CA-247-06), `test_vei_08_quem_pode` (CA-247-07) e os do processo filho da ADR 0026.
+- **Frontend (sem número):** "Preencher pelo documento" para quem tem `pode.veiculos = editar`; os campos marcados, o `rotulo` e as `dicas` como vierem; o arquivo e o `leitura` guardados até o salvar; a mensagem da 422 como vem.
+- **Qa:** os arquivos de teste de `docs/qa/criterios/T-247.md`.

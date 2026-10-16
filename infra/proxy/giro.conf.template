@@ -9,6 +9,9 @@
 # Rate limit de borda por IP. A chave é o IP da conexão (o proxy é a primeira parada).
 limit_req_zone $binary_remote_addr zone=giro_auth:10m rate=10r/m;
 limit_req_zone $binary_remote_addr zone=giro_webhook:10m rate=120r/m;
+# Leitura de PDF (ADR 0026): cada chamada abre um processo filho no Django. A aplicação limita
+# 30 por hora por usuário e 200 por hora por empresa; a borda só segura rajada por IP.
+limit_req_zone $binary_remote_addr zone=giro_leitura:10m rate=20r/m;
 limit_req_status 429;
 limit_conn_status 429;
 
@@ -69,6 +72,18 @@ server {
     location /api/webhooks/ {
         limit_req zone=giro_webhook burst=60 nodelay;
         client_max_body_size 1m;
+        proxy_pass http://${BACKEND_UPSTREAM};
+    }
+
+    # Leitura do CRLV-e e da CNH-e por PDF (T-258, ADR 0026). O Django espera o processo filho por
+    # até 8 s; 20 s de leitura dão folga sem ficar mais frouxos que o resto (/api/ tem 60 s). O
+    # arquivo da leitura tem até 2 MB: 3 MB cobrem o multipart. O salvar com o PDF anexado (até
+    # 10 MB) é outra rota e vale o limite de 12 MB do servidor.
+    location ~ ^/api/(veiculos/leitura-crlv|clientes/leitura-cnh)/$ {
+        limit_req zone=giro_leitura burst=5 nodelay;
+        client_max_body_size 3m;
+        proxy_read_timeout 20s;
+        proxy_send_timeout 20s;
         proxy_pass http://${BACKEND_UPSTREAM};
     }
 

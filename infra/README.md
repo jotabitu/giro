@@ -112,6 +112,43 @@ Modelo em `infra/proxy/giro.conf.template` (nginx; a imagem oficial troca as var
 - [ ] Host desconhecido recusado no proxy (444); HTTP redireciona para HTTPS; certificado curinga.
 - [ ] Backend: `USE_X_FORWARDED_HOST` é `False` em `base.py` e `test.py`, e `True` só em `dev.py` (o rewrite do Next) e `prod.py`. Teste `test_t158_x_forwarded_host_so_em_dev_e_prod`.
 
+## Servidor da aplicação e leitura de PDF (T-258)
+
+`infra/docker/gunicorn.conf.py` é a configuração de homologação e produção (`gunicorn -c infra/docker/gunicorn.conf.py config.wsgi:application`); o desenvolvimento segue no `runserver`. **Ainda não há imagem de produção:** `gunicorn` não está em `requirements.txt` e o Dockerfile roda `runserver`. Quando o deploy sair da ADR, a imagem instala o Gunicorn (dependência nova, com o motivo no PR) e usa esse arquivo; a configuração foi só carregada e conferida com `gunicorn --check-config`.
+
+**Por que isso importa para a ADR 0026:** a leitura do CRLV-e e da CNH-e espera um processo filho por até 8 s de relógio, dentro da requisição.
+
+| Camada | Valor | Observação |
+| --- | --- | --- |
+| Gunicorn `timeout` | 30 s (3,75 vezes os 8 s) | Valor global: o Gunicorn não tem limite por rota. No `gthread` ele só mata worker que parou de responder ao mestre, não corta requisição lenta. |
+| Proxy, leitura (`/api/veiculos/leitura-crlv/`, `/api/clientes/leitura-cnh/`) | 20 s de leitura e envio, corpo de 3 MB, 20 requisições por minuto por IP (rajada de 5) | É o corte por requisição. O arquivo lido tem até 2 MB. |
+| Proxy, resto de `/api/` | 60 s, corpo de 12 MB | Como estava na T-158: nenhuma outra rota ficou mais frouxa. |
+
+Conferido com `nginx -t` e com um servidor de mentira atrás do proxy (1,27): corpo de 2,8 MB passa na rota de leitura, 4 MB dá 413 nela e na CNH-e, 4 MB passa em `/api/veiculos/`, 13 MB dá 413; passada a rajada, 429. O salvar do veículo com o PDF anexado (até 10 MB, ADR 0026) não é a rota de leitura e vale os 12 MB.
+
+**Workers e memória** (estimativa; o código da leitura ainda não existe, então nada abaixo foi medido com o filho real):
+
+- Cada leitura em andamento custa até 512 MB de espaço de endereço no filho (`RLIMIT_AS`, que é virtual: o consumo real do `pypdf` num PDF de 500 KB deve ser bem menor) mais o worker que espera. O worker do Django em desenvolvimento ocupa cerca de 140 MiB parado (`docker stats`, `runserver`, medido em 15 out); em produção conte 250 a 300 MiB por worker, valor assumido.
+- `gthread` com threads deixa qualquer requisição abrir um filho, então o pior caso é workers vezes threads leituras ao mesmo tempo. Os limites da aplicação (30 por hora por usuário, 200 por hora por empresa) e os da borda tornam isso raro, mas não impossível.
+- Homologação: 2 workers, 4 threads, contêiner com 2 GiB (2 × 300 MiB mais 2 filhos de 512 MiB cabem; 8 filhos não). Produção: 3 workers, 4 threads, 4 GiB (3 × 300 MiB mais 5 filhos). Os dois números assumem que a leitura simultânea fica em 2 a 5 por vez.
+- **Pedido ao backend:** limitar as leituras simultâneas por processo (um semáforo de 2) e devolver 429 ou 503 `leitura_ocupada` quando cheio. Com isso o pior caso deixa de depender de workers vezes threads e o teto de memória fica fechado. Medir o filho real (RSS de pico num CRLV-e e numa CNH-e fictícios) assim que o parser existir e rever esta tabela.
+- O filho não precisa de rede (ADR 0026, item 5). Fechar a rede dele pelo contêiner (política de rede ou usuário sem rota) é pergunta aberta da segurança; o devops espera a resposta.
+
+## Cofre do deploy depois da T-157
+
+`prod.py` recusa subir com e-mail de desenvolvimento, SMTP sem `EMAIL_HOST`, `GIRO_ARMAZENAMENTO` diferente de `s3`, `GIRO_PROVEDOR_PAGAMENTOS` diferente de `asaas` ou `GIRO_ASAAS_CHAVE_API` vazia. O que preencher, por ambiente:
+
+| Variável | Homologação | Produção |
+| --- | --- | --- |
+| `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | SMTP de teste da própria conta, com remetente `EMAIL_FROM` | SMTP de produção (porta 587 com TLS; mude `EMAIL_PORT` se o provedor for outro) |
+| `GIRO_ARMAZENAMENTO` | `s3` | `s3` |
+| `S3_BUCKET`, `S3_ENDPOINT_URL`, `S3_REGIAO`, `S3_CHAVE_DE_ACESSO`, `S3_CHAVE_SECRETA` | bucket próprio da homologação | bucket próprio da produção, nunca o mesmo da homologação |
+| `GIRO_PROVEDOR_PAGAMENTOS` | `asaas` | `asaas` |
+| `GIRO_ASAAS_URL` | `https://api-sandbox.asaas.com/v3` (já no modelo) | `https://api.asaas.com/v3` (já no modelo) |
+| `GIRO_ASAAS_CHAVE_API` | chave do sandbox | chave de produção |
+
+Os dois modelos (`infra/deploy/*.env.example`) já listavam essas variáveis desde a T-157; a T-258 acrescentou o comentário do que preencher e as três do Gunicorn. O `prod.py` não confere os `S3_*`: com eles em branco o processo sobe e o erro só aparece na primeira foto (a sugestão ao backend é a mesma trava, no mesmo `prod.py`, e vai no handoff). WhatsApp continua só com o falso e entra na trava quando a integração real existir.
+
 ## Endurecimento de produção (T-035)
 
 Valores por ambiente (o processo precisa de `DJANGO_SETTINGS_MODULE`; `wsgi.py`, `asgi.py` e `config/celery.py` não têm mais padrão e falham sem ele, C-04):

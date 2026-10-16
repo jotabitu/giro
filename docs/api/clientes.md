@@ -1,6 +1,6 @@
 # Clientes
 
-**Dono:** arquiteto · **Versão:** 15 out 2026 (T-249, filtro de filial na lista); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `clientes` (schema da empresa) · **Regras:** CLI-01 a CLI-08, CLI-10, USR-07, AUD-04, AUD-05, AUD-06, APR-05, LOC-07 · **ADRs:** 0014 (documento cifrado), 0015 (blocos de outros apps) · **Telas:** Clientes, Cliente · **Critérios:** `docs/qa/criterios/T-248.md` (CA-248-01 a 07)
+**Dono:** arquiteto · **Versão:** 15 out 2026 (T-247, leitura da CNH-e; T-249, filtro de filial na lista); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `clientes` (schema da empresa) · **Regras:** CLI-01 a CLI-08, CLI-10, CLI-11, USR-07, AUD-04, AUD-05, AUD-06, APR-05, LOC-07 · **ADRs:** 0014 (documento cifrado), 0015 (blocos de outros apps), 0026 (leitura da CNH-e) · **Telas:** Clientes, Cliente · **Critérios:** `docs/qa/criterios/T-248.md` (CA-248-01 a 07), CA-247-08 a 12
 
 Convenções gerais em `docs/api/README.md`. Modelo: item 11 e `DocumentoCliente` em `docs/decisoes/modelo-de-dados.md`.
 
@@ -161,7 +161,7 @@ Perfis: administrador, gerente, vendedor. Corpo: qualquer campo do `POST` menos 
 200: completa. Completar a última pendência leva `incompleto` → `ativo`; tirar um dado obrigatório leva `ativo` → `incompleto`. Cliente `bloqueado` continua bloqueado.
 
 ## POST /api/clientes/{id}/documentos/
-Perfis: administrador, gerente, vendedor. `multipart/form-data`: `tipo` (`cnh_frente`, `cnh_verso`, `selfie_documento`, `comprovante_residencia`), `arquivo` (JPG, PNG ou PDF, até 10 MB; a imagem é reprocessada e perde os metadados).
+Perfis: administrador, gerente, vendedor. `multipart/form-data`: `tipo` (`cnh_frente`, `cnh_verso`, `selfie_documento`, `comprovante_residencia`; `cnh_digital` só pelo salvar com a CNH-e lida, abaixo), `arquivo` (JPG, PNG ou PDF, até 10 MB; a imagem é reprocessada e perde os metadados).
 201: a completa. Substitui o documento ativo do mesmo tipo (o anterior fica guardado, inativo). Pode levar o cliente a `ativo`.
 
 ## Análise do cadastro (CLI-04)
@@ -227,3 +227,29 @@ Decidido pelo produto em 07 out 2026 (T-037).
 
 - **T-250 (backend):** `?filial=` em `GET /api/clientes/`, com o escopo conferido em `clientes` e o filtro registrado por `locacoes` (ADR 0015); contagens e indicadores dentro do filtro; índice `(cliente, filial)` em `Locacao`. Testes `test_cli_10_*` acima.
 - **T-251 (frontend):** filtro de filial na lista, com as opções de `GET /api/filiais/minhas/` e "Todas as filiais" como padrão, sem ler o seletor do topo; a 403 `USR-07` mostra a mensagem da API. CA-248-01 a 07.
+## Preencher pela CNH-e (`CLI-11`, ADR 0026, T-247)
+Na fase que o dono decidir ("Pontos em aberto" das regras; padrão: fase 2). Decisão técnica na ADR 0026, a mesma do CRLV-e (`veiculos.md`). A leitura não grava nada. Critérios CA-247-08 a 12.
+### POST /api/clientes/leitura-cnh/
+Perfis: administrador, gerente e vendedor (quem cadastra cliente, `pode.clientes_cadastrar`); vistoriador e financeiro, 403 `permissao` (CA-247-12). **Token de suporte: 403 `PLT-07`**, porque a resposta traz o CPF completo, que o suporte nunca vê (`AUD-09`). É o padrão até a revisão da segurança.
+`multipart/form-data`: `arquivo` (o PDF da CNH-e, até **2 MB**). Serve ao cliente novo e ao cadastro já aberto; no cadastro aberto, a tela manda `cliente_id` (opcional) só para o aviso abaixo.
+200, com `Cache-Control: no-store`:
+```json
+{ "documento": "cnh",
+  "campos": { "nome": "Lucas Ferreira", "cpf": "12345678909", "nascimento": "1998-02-14",
+              "cnh_numero": "01234567890", "cnh_categoria": "A", "cnh_validade": "2030-01-10",
+              "cnh_primeira_habilitacao": "2018-03-01" },
+  "lidos": ["nome", "cpf", "nascimento", "cnh_numero", "cnh_categoria", "cnh_validade", "cnh_primeira_habilitacao"],
+  "quantidade": 7,
+  "rotulo": "CNH-e lida · 7 campos preenchidos",
+  "cliente_existente": { "id": 1201, "nome": "Lucas Ferreira" },
+  "leitura": "<comprovante assinado>" }
+```
+- `campos` traz só os 7 da `CLI-11`. Filiação, RG e órgão emissor, naturalidade, códigos de observação, foto e assinatura não são extraídos nem saem do processo filho (ADR 0026, item 4; CA-247-11). Os nomes dos campos são os do `POST /api/clientes/` (`documento` = `cpf`; `cnh.numero`, `cnh.categoria`, `cnh.validade`, `cnh.primeira_habilitacao`), e a tela faz o mapa.
+- `cliente_existente`: o CPF lido procurado pelo hash (`CLI-01`, ADR 0014). Vem `null` quando não há cliente com ele ou quando é o próprio `cliente_id` enviado. Quando vem, a tela avisa e oferece abrir o cadastro dele (CA-247-09); salvar como cliente novo continua recusado com o 409 `CLI-01` de sempre. Ele traz só `id` e `nome`, como o 409.
+- 422 `{ "codigo": "CLI-11", "mensagem": "Não conseguimos ler este documento. Preencha os campos à mão." }` e 400 `{ "codigo": "validacao", "campos": { "arquivo": "Envie o PDF da CNH-e." } }`, pelos mesmos motivos da leitura do CRLV-e. 429 `muitas_requisicoes` no mesmo limite, somado ao do CRLV-e (30 por hora por usuário, 200 por empresa).
+### Salvar com a CNH-e lida
+`POST /api/clientes/` ou `PATCH /api/clientes/{id}/` em `multipart/form-data`, com os campos de sempre e mais `cnh_arquivo` (o mesmo PDF) e `leitura?`. Numa transação só, salva o cliente (com as validações de sempre: `CLI-01`, `CLI-02`) e grava o `DocumentoCliente` do tipo **`cnh_digital`**, no armazenamento privado (`AUD-05`, link de 15 minutos na leitura do documento). O nome do arquivo é gerado pelo backend.
+- O evento `cliente.criar` ou `cliente.editar` leva `preenchido_pelo_documento: { "tipo": "cnh", "campos": [...], "corrigidos": [...] }`, só com os nomes dos campos (o CPF e a CNH já são omitidos, ADR 0014; CA-247-11).
+- **Cadastro completo (`CLI-03`):** com o padrão A do ponto em aberto, o `cnh_digital` ativo vale pela `cnh_frente` e pela `cnh_verso`; a selfie e o comprovante de residência continuam obrigatórios (CA-247-08 e 10). Com a opção B, o `cnh_digital` é só mais um anexo. A regra de `pendencias` muda conforme a resposta do dono.
+### O que muda para as tarefas (T-247, fase da CNH-e)
+- **Backend (sem número):** o parser da CNH-e no mesmo `integracoes/leitura_documentos/`; a rota; o multipart do `POST` e do `PATCH`; o tipo `cnh_digital` e as `pendencias` do `CLI-03`. Testes `test_cli_11_le_os_7_campos` (CA-247-08), `test_cli_11_cpf_ja_cadastrado` (CA-247-09), `test_cli_11_cliente_novo` (CA-247-10), `test_cli_11_nao_le_filiacao_nem_rg` (CA-247-11) e `test_cli_11_quem_pode` (CA-247-12, com o suporte).
