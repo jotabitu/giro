@@ -153,9 +153,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 - **Agente:** design-system · **Depende de:** T-238, T-255 (e T-246, PR #248) · **Regras:** VEI-01, VEI-02, LOC-06, MAN-03, MOV-01, MOV-03 · **Telas:** Veiculo-Desktop, Veiculo-Mobile · **Pronto quando:** as duas fichas seguem o estado do QXA-4B21 em 07 out das regras (LOC-2841 de 23 set a 28 out, vistoria de saída e km de 23 set, chassi ...4401, troca de óleo aos 18.900 km) e o bloco Movimentações não mostra origem fora de filial, OS fora do seed nem veículo alugado em movimentação; as duas `[divergência]` da T-238 e da T-255 (ficha) marcadas como atendidas; handoff para o frontend copiar na T-242.
 
 
-### T-244 · Despesas: ajustes da tela
-- **Agente:** frontend · **Depende de:** — · **Regras:** FIN-05, FIN-06 · **Telas:** Despesas-Desktop, Despesas-Mobile · **Pronto quando:** sai o botão "+ Avulso"; "Exportar" vai para a direita do cabeçalho; a busca de despesas fica dentro do bloco da lista (hoje sai da div); conferido com a referência no desktop e no celular.
-
 ### T-245 · Despesa ligada ao veículo sem a filial na lista
 - **Agente:** backend, depois frontend · **Depende de:** — · **Regras:** FIN-06, FIL-05 · **Pronto quando:** a despesa ligada a um veículo mostra a filial dela na lista e no detalhe, como as outras (hoje só aparece a placa); a filial vem da API (a `Despesa` já tem `filial`), não da tela; teste da leitura com despesa ligada a veículo.
 
