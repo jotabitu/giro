@@ -29,6 +29,8 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 .opt small{display:block;margin-top:2px;font-size:14px;line-height:20px;color:var(--ink-muted)}
 .mod{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
 .mod:last-child{border-bottom:0}
+.opt[aria-disabled="true"]{cursor:default}
+.opt .av{display:block;margin-top:8px;font-size:14px;line-height:20px;color:var(--warning-ink)}
 </style>
 </helmet>
 <div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 960px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
@@ -65,13 +67,20 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <p style="margin: 8px 0 0; color: var(--ink-muted);">Ligamos só o que você usa, para o menu ficar simples. Dá para mudar depois em Configurações.</p>
 </div>
 
+<div class="wl-field" style="gap:8px;">
+<span class="wl-field__label">Estado de exemplo (só na referência)</span>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-for list="{{estados}}" as="e" hint-placeholder-count="2"><button class="wl-btn wl-btn--sm" aria-pressed="{{e.pressed}}" onClick="{{e.pick}}" style="{{e.estilo}}">{{e.label}}</button></sc-for>
+</div></div>
+
 <div>
 <h2 class="sub">Atividades</h2>
 <div class="opts">
 <sc-for list="{{atividades}}" as="item" hint-placeholder-count="2">
-<button class="opt" aria-pressed="{{item.pressed}}" onClick="{{item.toggle}}"><span class="box"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span><span><span style="font-weight: 500;">{{item.label}}</span><small>{{item.desc}}</small></span></button>
+<button class="opt" aria-pressed="{{item.pressed}}" aria-disabled="{{item.travado}}" onClick="{{item.toggle}}"><span class="box"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span><span><span style="font-weight: 500;">{{item.label}}</span><small>{{item.desc}}</small><sc-if value="{{item.temAviso}}" hint-placeholder-val="{{false}}"><span class="av">{{item.aviso}}</span></sc-if></span></button>
 </sc-for>
 </div>
+<p style="margin: 10px 0 0; font-size: 14px; color: var(--ink-muted);">{{dica}}</p>
 </div>
 
 <div>
@@ -83,17 +92,6 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 </div>
 </div>
 
-<sc-if value="{{temLocacao}}" hint-placeholder-val="{{true}}">
-<div>
-<h2 class="sub">Como você aluga</h2>
-<div class="opts">
-<sc-for list="{{modalidades}}" as="item" hint-placeholder-count="4">
-<button class="opt" aria-pressed="{{item.pressed}}" onClick="{{item.toggle}}"><span class="box"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span><span><span style="font-weight: 500;">{{item.label}}</span><small>{{item.desc}}</small></span></button>
-</sc-for>
-</div>
-</div>
-</sc-if>
-
 <div style="display: flex; flex-wrap: wrap; gap: 12px; padding-top: 8px; border-top: 1px solid var(--line);">
 <a class="wl-btn wl-btn--quiet" href="Onboarding-Filial-Desktop.dc.html" style="margin-top: 16px; text-decoration: none;">Voltar</a>
 <a class="wl-btn wl-btn--solid" href="Onboarding-Precos-Desktop.dc.html" style="margin: 16px 0 0 auto; padding: 0 32px; text-decoration: none;">Continuar</a>
@@ -103,14 +101,14 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <aside style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
 <section class="wl-panel">
 <div style="font-weight: 600; margin-bottom: 4px;">Módulos que vamos ligar</div>
-<div style="font-size: 14px; color: var(--ink-muted); margin-bottom: 8px;">{{totalOn}} de 9 módulos</div>
-<sc-for list="{{modulos}}" as="m" hint-placeholder-count="6">
-<div class="mod" style="color: {{m.color}};"><span style="display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: {{m.dot}}; color: {{m.dotInk}};"><svg class="wl-i" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke-width: 2.5;"><path d="{{m.icon}}"></path></svg></span>{{m.name}}</div>
+<div style="font-size: 14px; color: var(--ink-muted); margin-bottom: 8px;">{{totalOn}} módulos no plano {{plano}}</div>
+<sc-for list="{{modulos}}" as="m" hint-placeholder-count="9">
+<div class="mod"><span style="display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--success-soft); color: var(--success-ink);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 13px; height: 13px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>{{m.name}}</div>
 </sc-for>
 </section>
 <section class="wl-panel" style="background: var(--surface-sunken);">
-<div style="font-weight: 600; margin-bottom: 6px;">CNH exigida na locação</div>
-<div style="font-size: 15px;">{{cnh}}</div>
+<div style="font-weight: 600; margin-bottom: 6px;">Dá para mudar depois</div>
+<div style="font-size: 15px;">Em Configurações, no cartão O que a empresa faz. Nada é apagado: o que ficar desligado fica guardado.</div>
 </section>
 </aside>
 </div>
@@ -127,46 +125,52 @@ class Component extends DCLogic {
     var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
     var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
     function mix(c) { return Math.round(c + (255 - c) * 0.82); }
-    var s = (this.state && this.state.sel) || { locacao: true, venda: true, motos: true, carros: false, diaria: true, semanal: true, mensal: true, entregador: true };
-    function opt(key, label, desc) {
-      return {
-        label: label, desc: desc, pressed: s[key] ? 'true' : 'false',
-        toggle: function () { var n = Object.assign({}, s); n[key] = !n[key]; self.setState({ sel: n }); }
+    var MOD = {
+      prof: {
+        aluga: ['Locação e vistoria', 'Contas a receber', 'Contrato digital', 'Manutenção e despesas', 'Conciliação', 'Relatórios', 'Pix e boleto automáticos', 'Cobrança pelo WhatsApp'],
+        vende: ['Contas a receber', 'Contrato digital', 'Vendas e comissões', 'Manutenção e despesas', 'Conciliação', 'Relatórios', 'Pix e boleto automáticos', 'Cobrança pelo WhatsApp'],
+        ambos: ['Locação e vistoria', 'Contas a receber', 'Contrato digital', 'Vendas e comissões', 'Manutenção e despesas', 'Conciliação', 'Relatórios', 'Pix e boleto automáticos', 'Cobrança pelo WhatsApp']
+      },
+      ess: {
+        aluga: ['Locação e vistoria', 'Contas a receber', 'Contrato digital'],
+        ambos: ['Locação e vistoria', 'Contas a receber', 'Contrato digital']
+      }
+    };
+    var est = (this.state && this.state.estado) || 'prof';
+    var essencial = est === 'ess';
+    var s = (this.state && this.state.sel) || (essencial ? { locacao: true, venda: false, motos: true, carros: false } : { locacao: true, venda: true, motos: true, carros: false });
+    function reset(novo) {
+      self.setState({ estado: novo, sel: novo === 'ess' ? { locacao: true, venda: false, motos: true, carros: false } : { locacao: true, venda: true, motos: true, carros: false } });
+    }
+    function toggle(key) {
+      return function () {
+        var n = Object.assign({}, s);
+        if (key === 'locacao' && essencial) { return; }
+        n[key] = !n[key];
+        var quer = key === 'locacao' || key === 'venda';
+        if (quer && !n.locacao && !n.venda) { return; }
+        if (!quer && !n.motos && !n.carros) { return; }
+        self.setState({ sel: n });
       };
     }
-    var recorrente = s.locacao && (s.semanal || s.mensal || s.entregador);
-    var mods = [
-      { name: 'Clientes e documentos', on: true },
-      { name: 'Locações e contratos', on: !!s.locacao },
-      { name: 'Vistoria pelo celular', on: !!s.locacao },
-      { name: 'Cobrança recorrente', on: !!recorrente },
-      { name: 'Vendas e propostas', on: !!s.venda },
-      { name: 'Comissões de vendedores', on: !!s.venda },
-      { name: 'Avaliação de troca', on: !!s.venda },
-      { name: 'Manutenção da frota', on: true },
-      { name: 'Financeiro e relatórios', on: true }
-    ];
-    var on = 0;
-    var modulos = mods.map(function (m) {
-      if (m.on) { on += 1; }
-      return {
-        name: m.name,
-        color: m.on ? 'var(--ink)' : 'var(--ink-muted)',
-        dot: m.on ? 'var(--success-soft)' : 'var(--surface-sunken)',
-        dotInk: m.on ? 'var(--success-ink)' : 'var(--ink-muted)',
-        icon: m.on ? 'm5 12 5 5 9-10' : 'M7 12h10'
-      };
+    var ativ = s.locacao && s.venda ? 'ambos' : (s.locacao ? 'aluga' : 'vende');
+    var mods = MOD[essencial ? 'ess' : 'prof'][ativ];
+    var estados = [['prof', 'Profissional'], ['ess', 'Essencial']].map(function (e) {
+      return { label: e[1], pressed: est === e[0] ? 'true' : 'false', estilo: est === e[0] ? 'background: var(--solid); color: var(--on-solid);' : '', pick: function () { reset(e[0]); } };
     });
-    var cnh = s.motos && s.carros ? 'Categoria A para motos e B para carros' : (s.carros ? 'Categoria B' : (s.motos ? 'Categoria A' : 'Escolha um tipo de veículo'));
     return {
       brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')',
-      atividades: [opt('locacao', 'Locação', 'Aluguel por dia, semana ou mês'), opt('venda', 'Venda de veículos', 'Novos, seminovos e consignados')],
-      tipos: [opt('motos', 'Motos', 'Inclui scooters e motos de entrega'), opt('carros', 'Carros', 'Passeio e utilitários leves')],
-      modalidades: [opt('diaria', 'Diária', 'Turistas e uso eventual'), opt('semanal', 'Semanal', 'Cobrança toda semana'), opt('mensal', 'Mensal', 'Contratos de 30 dias ou mais'), opt('entregador', 'Entregadores e motoristas de app', 'Plano semanal com opção de compra')],
-      temLocacao: !!s.locacao,
-      modulos: modulos,
-      totalOn: on,
-      cnh: cnh
+      estados: estados,
+      atividades: [
+        { label: 'Locação', desc: 'Aluguel por dia, semana ou mês', pressed: s.locacao ? 'true' : 'false', travado: essencial ? 'true' : 'false', temAviso: false, aviso: '', toggle: toggle('locacao') },
+        { label: 'Venda de veículos', desc: 'Novos, seminovos e consignados', pressed: s.venda ? 'true' : 'false', travado: 'false', temAviso: essencial, aviso: 'Vendas faz parte do plano Profissional.', toggle: toggle('venda') }
+      ],
+      tipos: [
+        { label: 'Motos', desc: 'Inclui scooters e motos de entrega', pressed: s.motos ? 'true' : 'false', toggle: toggle('motos') },
+        { label: 'Carros', desc: 'Passeio e utilitários leves', pressed: s.carros ? 'true' : 'false', toggle: toggle('carros') }
+      ],
+      dica: essencial ? 'No Essencial, locação fica ligada. Venda de veículos pode ser marcada junto, e passa a valer no plano Profissional.' : 'Marque as duas se a empresa aluga e vende. Pelo menos uma precisa ficar marcada.',
+      modulos: mods.map(function (m) { return { name: m }; }), totalOn: mods.length, plano: essencial ? 'Essencial' : 'Profissional'
     };
   }
 }

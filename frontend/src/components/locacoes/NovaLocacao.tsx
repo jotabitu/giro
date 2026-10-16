@@ -13,6 +13,7 @@ import { clientes, ErroApi, locacoes, veiculos, type EntradaDaLocacao, type Peri
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { dataCompleta, dinheiro, dinheiroSemZeros, diaDe, instanteDeLocal, localDeInstante } from "@/lib/formatos";
 import { agoraNoDia, useAgora, useAmbiente } from "@/lib/ambiente";
+import { useFilial } from "@/lib/filial-escolhida";
 import { corpoDaLocacao, descontoValido, esquemaLocacao, FORMAS_DE_PAGAMENTO, opcoesDeParcelamento, retiradaPadrao, valoresDoRascunho, valoresIniciais, type Modalidade, type ValoresLocacao } from "@/lib/locacao-form";
 import { textoDoPeriodo } from "@/lib/locacoes";
 import { CartaoDoCliente, CartaoDoVeiculo, EscolherCliente, EscolherVeiculo } from "./SeletoresDaLocacao";
@@ -75,6 +76,8 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
   const [escolhendo, setEscolhendo] = useState<"cliente" | "veiculo" | null>(null);
   const [rascunhoId, setRascunhoId] = useState<number | null>(rascunhoInicial ?? null);
   const agoraDaPagina = useAgora();
+  // "Todas as filiais" não cria locação: ela nasce numa filial só (a API pede o X-Filial de uma).
+  const todasAsFiliais = useFilial()?.todas ?? false;
   const agora = useRef(agoraDaPagina);
 
   const { register, handleSubmit, watch, setValue, reset, clearErrors, formState: { errors, dirtyFields } } = useForm<ValoresLocacao>({
@@ -115,7 +118,7 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
   const simulacao = useQuery({
     queryKey: ["locacao-simulacao", corpoAtrasado],
     queryFn: () => locacoes.simular(JSON.parse(corpoAtrasado) as EntradaDaLocacao),
-    enabled: corpoAtrasado !== "null" && planos.isSuccess,
+    enabled: corpoAtrasado !== "null" && planos.isSuccess && !todasAsFiliais,
     placeholderData: (anterior) => anterior,
     retry: false,
   });
@@ -125,6 +128,10 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
   const hoje = diaDe(agoraDaPagina.toISOString());
 
   const erroSim = (campo: string) => campoDoErro(simulacao.error, campo);
+  const avisoDeFilial = todasAsFiliais ? "Escolha uma filial no menu para criar a locação." : erroSim("filial");
+  // Erro de campo que nenhum campo da tela mostra: aparece no resumo, para o botão não ficar desligado sem explicação.
+  const camposDaTela = ["filial", "plano_especial_id", "inicio", "fim_previsto", "periodos", "desconto_pct"];
+  const erroSemCampo = simulacao.error instanceof ErroApi && simulacao.error.campos ? Object.entries(simulacao.error.campos).find(([c]) => !camposDaTela.includes(c))?.[1] : undefined;
   const impedimentos = sim?.impedimentos ?? [];
 
   const salvar = useMutation({
@@ -147,7 +154,7 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
     )();
 
   const descontoErro = !descontoValido(v.desconto) ? "Informe um percentual, como 5 ou 2,5" : erroSim("desconto_pct");
-  const pronto = planoEscolhido && !!sim && !simulacao.isError && impedimentos.length === 0 && !salvar.isPending && !descontoErro;
+  const pronto = planoEscolhido && !todasAsFiliais && !!sim && !simulacao.isError && impedimentos.length === 0 && !salvar.isPending && !descontoErro;
   const erroDoEnvio = salvar.error instanceof ErroApi ? salvar.error : null;
   const linkDoErro = typeof erroDoEnvio?.detalhes?.link === "string" ? erroDoEnvio.detalhes.link : null;
 
@@ -311,7 +318,8 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
 
         <aside className="flex min-w-0 flex-col gap-6 md:sticky md:top-6">
           <Panel titulo="Resumo">
-            {!sim && !simulacao.isError && <p className="text-body text-ink-muted">{corpo ? "Calculando…" : "Escolha o cliente e o veículo para ver os valores."}</p>}
+            {(avisoDeFilial ?? erroSemCampo) && <p role="alert" className="text-body">{avisoDeFilial ?? erroSemCampo}</p>}
+            {!sim && !simulacao.isError && !avisoDeFilial && <p className="text-body text-ink-muted">{corpo ? "Calculando…" : "Escolha o cliente e o veículo para ver os valores."}</p>}
             {simulacao.isError && !(simulacao.error instanceof ErroApi && simulacao.error.campos) && <p role="alert" className="text-body">{mensagemDoErro(simulacao.error)}</p>}
             {sim && (
               <div aria-busy={simulacao.isFetching}>
