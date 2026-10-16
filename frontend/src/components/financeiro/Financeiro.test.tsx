@@ -92,6 +92,32 @@ describe("contas a receber, na ordem da referência (FIN-01, FIN-02, FIN-15)", (
     expect(texto(await paginaReceber())).toContain("Novo lançamento");
   });
 
+  it("T-162: Novo lançamento por perfil, pela flag pode.lancamento_avulso", async () => {
+    for (const [email, vê] of [
+      ["mariana@motorapida.com.br", true],
+      ["rodrigo@motorapida.com.br", true],
+      ["financeiro@motorapida.com.br", true],
+      ["bruna@motorapida.com.br", false],
+      ["joao@motorapida.com.br", false],
+    ] as const) {
+      await entrar(email);
+      expect((sessao.eu as Eu).pode.lancamento_avulso, email).toBe(vê);
+      const t = texto(await paginaReceber());
+      if (vê) expect(t, email).toContain("Novo lançamento");
+      else expect(t, email).not.toContain("Novo lançamento");
+    }
+  });
+
+  it("T-162: a tela segue só a flag, não as outras permissões", async () => {
+    await entrar("rodrigo@motorapida.com.br");
+    const eu = sessao.eu as Eu;
+    sessao.eu = { ...eu, pode: { ...eu.pode, lancamento_avulso: false } };
+    expect(texto(await paginaReceber())).not.toContain("Novo lançamento");
+    const bruna = await entrar("bruna@motorapida.com.br").then(() => sessao.eu as Eu);
+    sessao.eu = { ...bruna, pode: { ...bruna.pode, lancamento_avulso: true } };
+    expect(texto(await paginaReceber())).toContain("Novo lançamento");
+  });
+
   it("indicadores, faixas, abas e as duas contas em atraso", async () => {
     await entrar("rodrigo@motorapida.com.br");
     const t = texto(await paginaReceber());
