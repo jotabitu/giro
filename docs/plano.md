@@ -3,7 +3,7 @@
 Oct 6, 2026 · @João Victor
 
 > **Leia primeiro:** este é o plano original (visão, módulos, roadmap). Onde ele divergir de `regras-de-negocio.md`, valem as regras. Divergências conhecidas:
-> - Estados do veículo: valem os 8 das regras (`disponivel`, `reservado`, `alugado`, `em_manutencao`, `indisponivel`, `a_venda`, `vendido`, `baixado`); "em preparação" não existe. Veículo da troca entra como `indisponivel` (VEN-05).
+> - Estados do veículo: valem os 9 das regras (`disponivel`, `reservado`, `alugado`, `em_manutencao`, `indisponivel`, `a_venda`, `vendido`, `baixado` e `em_movimentacao`, este das movimentações, no MVP desde 16 out 2026); "em preparação" não existe. Veículo da troca entra como `indisponivel` (VEN-05).
 > - Pagamento parcial não existe (FIN-01): paga a parcela inteira ou renegocia.
 > - 2FA obrigatório para administrador e financeiro, opcional para os demais (USR-02).
 > - Exclusão: `ativo=False` ou status cancelado, não `deletado_em`. Dinheiro só em centavos inteiros (ADR 0003).

@@ -6,6 +6,7 @@ Cada model declara o que é sensível; o resto vai inteiro para `antes`/`depois`
         "omitir": ["password"],                       # vira {"alterado": true}
         "mascarar": {"documento": "documento", "celular": "telefone"},
         "inteiro": ["email"],                         # sensível pelo nome, mas vai inteiro
+        "omitir_no_public": ["razao_social"],         # vira {"alterado": true} só no public
     }
 
 `mascarar` também aceita lista; o tipo da máscara sai do nome do campo. São omitidos sem
@@ -156,6 +157,9 @@ class Classificacao:
     omitir: frozenset[str]
     mascarar: dict[str, str]
     inteiro: frozenset[str]
+    # Dados da empresa que o apagamento limpa (AUD-08, T-236): no schema da empresa vão como a
+    # classe acima manda; no public, que fica 5 anos, só `{"alterado": true}`.
+    omitir_no_public: frozenset[str] = frozenset()
 
     def classificados(self) -> frozenset[str]:
         return self.omitir | frozenset(self.mascarar) | self.inteiro
@@ -183,7 +187,7 @@ def _omitido_automaticamente(campo: "models.Field[Any, Any]") -> bool:
 @cache
 def classificacao(modelo: type[models.Model]) -> Classificacao:
     declarado: dict[str, Any] = getattr(modelo, "CAMPOS_AUDITORIA", {})
-    desconhecidas = set(declarado) - {"omitir", "mascarar", "inteiro"}
+    desconhecidas = set(declarado) - {"omitir", "mascarar", "inteiro", "omitir_no_public"}
     if desconhecidas:
         raise ValueError(f"{modelo.__name__}.CAMPOS_AUDITORIA: chaves {sorted(desconhecidas)}.")
 
@@ -193,7 +197,10 @@ def classificacao(modelo: type[models.Model]) -> Classificacao:
 
     mascarar_declarado = declarado.get("mascarar", {})
     inteiro = set(declarado.get("inteiro", ()))
-    for nome in set(declarado.get("omitir", ())) | set(mascarar_declarado) | inteiro:
+    omitir_no_public = frozenset(declarado.get("omitir_no_public", ()))
+    for nome in (
+        set(declarado.get("omitir", ())) | set(mascarar_declarado) | inteiro | omitir_no_public
+    ):
         if nome not in campos:
             raise ValueError(f"{modelo.__name__}.CAMPOS_AUDITORIA cita campo inexistente: {nome}")
 
@@ -204,7 +211,7 @@ def classificacao(modelo: type[models.Model]) -> Classificacao:
     for nome, tipo in mascarar.items():
         if tipo not in MASCARAS:
             raise ValueError(f"{modelo.__name__}.{nome}: máscara desconhecida '{tipo}'.")
-    return Classificacao(frozenset(omitir), mascarar, frozenset(inteiro))
+    return Classificacao(frozenset(omitir), mascarar, frozenset(inteiro), omitir_no_public)
 
 
 def campos_sensiveis_sem_classificacao(modelo: type[models.Model]) -> list[str]:
@@ -218,17 +225,23 @@ def campos_sensiveis_sem_classificacao(modelo: type[models.Model]) -> list[str]:
 
 
 def aplicar(
-    modelo: type[models.Model], antes: dict[str, Any], depois: dict[str, Any]
+    modelo: type[models.Model],
+    antes: dict[str, Any],
+    depois: dict[str, Any],
+    *,
+    no_public: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Recebe a diferença com valores reais e devolve o que pode ir para o evento."""
+    """Recebe a diferença com valores reais e devolve o que pode ir para o evento. `no_public`:
+    o evento vai para o schema public, e `omitir_no_public` também é omitido."""
     regras = classificacao(modelo)
+    omitir = regras.omitir | regras.omitir_no_public if no_public else regras.omitir
     nomes = {c.attname: c.name for c in modelo._meta.concrete_fields}
 
     def tratar(lado: dict[str, Any], *, e_depois: bool) -> dict[str, Any]:
         tratado: dict[str, Any] = {}
         for chave, valor in lado.items():
             nome = nomes.get(chave, chave)
-            if nome in regras.omitir:
+            if nome in omitir:
                 if e_depois:
                     tratado[chave] = OMITIDO
             elif nome in regras.mascarar and valor not in (None, ""):
@@ -242,6 +255,6 @@ def aplicar(
     novo_depois = tratar(depois, e_depois=True)
     # Campo omitido que só existia no "antes" (raro) ainda marca que mudou.
     for chave in antes:
-        if nomes.get(chave, chave) in regras.omitir and chave not in novo_depois:
+        if nomes.get(chave, chave) in omitir and chave not in novo_depois:
             novo_depois[chave] = OMITIDO
     return tratar(antes, e_depois=False), novo_depois

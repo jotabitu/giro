@@ -13,8 +13,32 @@ from django_tenants.utils import get_public_schema_name
 from comum import relogio
 from comum.conexao import conexao
 
-from .models import Empresa, FaturaAssinatura, Item, StatusFatura, UsoEmpresa
-from .services import PASSOS_IMPLANTACAO, chegou_a_90, endereco_de_acesso, etapa_do_funil
+from . import catalogo
+from .calendario import dia_e_mes
+from .models import (
+    TENTATIVAS_DO_CARTAO,
+    Empresa,
+    FaturaAssinatura,
+    FormaAssinatura,
+    FormaPagamentoAssinatura,
+    Item,
+    Plano,
+    StatusFatura,
+    StatusFormaPagamento,
+    UsoEmpresa,
+)
+from .services import (
+    PASSOS_IMPLANTACAO,
+    STATUS_QUE_MUDAM_DE_PLANO,
+    ProximaMensalidade,
+    cancelamento_marcado,
+    chegou_a_90,
+    endereco_de_acesso,
+    etapa_do_funil,
+    excede_no_plano,
+    plano_acima,
+    proxima_mensalidade,
+)
 
 DIAS_PARA_IMPLANTACAO_PARADA = 3  # IMP-05
 MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
@@ -51,6 +75,9 @@ FAIXA_AVISO = {
     ),
 }
 STATUS_SOMENTE_LEITURA = frozenset({"suspensa", "pausada", "cancelada"})
+# Forma de pagamento, pagar e dados fiscais: a `suspensa` também, para voltar a `ativa` (PLT-13).
+STATUS_QUE_PAGAM = frozenset({"em_teste", "ativa", "inadimplente", "suspensa"})
+PERFIL_ADMINISTRADOR = "administrador"
 
 
 def empresa_atual() -> Empresa:
@@ -260,26 +287,233 @@ def dias_restantes(empresa: Empresa) -> int | None:
     return max(0, (empresa.teste_fim - relogio.hoje()).days)
 
 
-def assinatura(empresa: Empresa | None = None) -> dict[str, Any]:
+def assinatura(empresa: Empresa | None = None, usuario: Any = None) -> dict[str, Any]:
+    """`GET /api/assinatura/` (PLT-01, PLT-03, PLT-11, PLT-13, PLT-15; assinatura.md). Os blocos
+    `forma_pagamento`, `dados_fiscais`, `oferta` e `acoes` só para o administrador (e para o
+    suporte, que lê com as ações desligadas)."""
     empresa = empresa or empresa_atual()
-    empresa = Empresa.objects.select_related("plano").get(pk=empresa.pk)
+    empresa = Empresa.objects.select_related("plano", "plano_proximo").get(pk=empresa.pk)
     plano = empresa.plano
-    return {
+    proxima = proxima_mensalidade(empresa)
+    dados: dict[str, Any] = {
         "plano": {
+            "id": plano.pk if plano else None,
             "nome": plano.nome if plano else "",
             "preco_contratado_centavos": empresa.preco_contratado_centavos,
             "ciclo": empresa.ciclo,
         },
         "status": empresa.status,
         "teste": (
-            {"fim": empresa.teste_fim, "dias_restantes": dias_restantes(empresa)}
+            {
+                "inicio": empresa.teste_inicio,
+                "fim": empresa.teste_fim,
+                "dias_restantes": dias_restantes(empresa),
+            }
             if empresa.status == Empresa.Status.EM_TESTE
             else None
         ),
+        "proxima_fatura": _proxima_fatura(empresa, proxima),
+        "plano_proximo": _plano_proximo(empresa, proxima),
         "faixa_aviso": FAIXA_AVISO.get(empresa.status),
         "uso": uso_do_plano(empresa),
         "somente_leitura": empresa.status in STATUS_SOMENTE_LEITURA,
     }
+    if getattr(usuario, "perfil", None) != PERFIL_ADMINISTRADOR:
+        return dados
+    return {
+        **dados,
+        "forma_pagamento": forma_de_pagamento(empresa),
+        "dados_fiscais": dados_fiscais(empresa),
+        "oferta": oferta(empresa),
+        "acoes": acoes_da_assinatura(empresa, usuario),
+    }
+
+
+def _proxima_fatura(empresa: Empresa, proxima: ProximaMensalidade | None) -> dict[str, Any] | None:
+    """O "R$ 449,00 por mês, a partir de 22 out" (PLT-01). Nula na `pausada` e na `cancelada`,
+    e com o cancelamento marcado (`cancelamento.md`)."""
+    sem_proxima = empresa.status in (Empresa.Status.PAUSADA, Empresa.Status.CANCELADA)
+    if proxima is None or sem_proxima or cancelamento_marcado(empresa):
+        return None
+    return {
+        "vencimento": proxima.vencimento,
+        "valor_centavos": proxima.valor_centavos,
+        "descricao": proxima.descricao,
+    }
+
+
+def _plano_proximo(empresa: Empresa, proxima: ProximaMensalidade | None) -> dict[str, Any] | None:
+    """O downgrade (PLT-04) ou a mudança de ciclo da equipe agendados."""
+    if empresa.plano_proximo is None:
+        return None
+    return {
+        "id": empresa.plano_proximo.pk,
+        "nome": empresa.plano_proximo.nome,
+        "ciclo": empresa.ciclo_proximo or empresa.ciclo,
+        "vale_em": proxima.vencimento if proxima else None,
+    }
+
+
+def _situacao_do_cartao(empresa: Empresa, forma: FormaPagamentoAssinatura) -> dict[str, str]:
+    recusada = (
+        FaturaAssinatura.objects.filter(
+            empresa_id=empresa.pk,
+            status__in=[StatusFatura.ABERTA, StatusFatura.ATRASADA],
+            cartao_recusado_em__isnull=False,
+        )
+        .order_by("-cartao_recusado_em")
+        .first()
+    )
+    if recusada is not None:
+        rotulo = (
+            "O cartão foi recusado de novo. Pague a fatura por Pix ou boleto."
+            if recusada.tentativas_cartao >= TENTATIVAS_DO_CARTAO
+            else "O cartão foi recusado. Tentamos de novo amanhã."
+        )
+        return {"codigo": "cartao_recusado", "rotulo": rotulo, "tom": "perigo"}
+    if not forma.cartao_final:
+        return {
+            "codigo": "cartao_na_primeira_fatura",
+            "rotulo": "Você cadastra o cartão ao pagar a primeira fatura.",
+            "tom": "info",
+        }
+    periodo = "todo ano" if empresa.ciclo == Empresa.Ciclo.ANUAL else "todo mês"
+    bandeira = forma.cartao_bandeira.capitalize() or "Cartão"
+    return {
+        "codigo": "ativa",
+        "rotulo": f"Cartão {bandeira} final {forma.cartao_final} · cobrança automática {periodo}",
+        "tom": "sucesso",
+    }
+
+
+def _situacao_da_forma(empresa: Empresa, forma: FormaPagamentoAssinatura | None) -> dict[str, str]:
+    """A primeira que valer, na ordem do contrato (PLT-02, PLT-13)."""
+    if forma is None or not forma.forma:
+        rotulo = "Nenhuma cadastrada."
+        if empresa.status == Empresa.Status.EM_TESTE and empresa.teste_fim:
+            rotulo += f" Escolha até {dia_e_mes(empresa.teste_fim)} para não perder o acesso."
+        return {"codigo": "sem_forma", "rotulo": rotulo, "tom": "alerta"}
+    if forma.forma == FormaAssinatura.CARTAO:
+        return _situacao_do_cartao(empresa, forma)
+    if forma.forma == FormaAssinatura.PIX_AUTOMATICO:
+        if forma.status == StatusFormaPagamento.PENDENTE:
+            return {
+                "codigo": "aguardando_autorizacao",
+                "rotulo": "Autorize o Pix automático no app do seu banco.",
+                "tom": "alerta",
+            }
+        return {"codigo": "ativa", "rotulo": "Pix automático autorizado", "tom": "sucesso"}
+    return {"codigo": "ativa", "rotulo": "Boleto enviado por e-mail 5 dias antes", "tom": "sucesso"}
+
+
+def forma_de_pagamento(empresa: Empresa) -> dict[str, Any]:
+    """PLT-13. O token do cartão nunca sai daqui: só a bandeira e o final (ADR 0023)."""
+    forma = FormaPagamentoAssinatura.objects.filter(empresa_id=empresa.pk).first()
+    codigo = (forma.forma if forma else "") or None
+    return {
+        "forma": codigo,
+        "situacao": _situacao_da_forma(empresa, forma),
+        "cartao": (
+            {"bandeira": forma.cartao_bandeira, "final": forma.cartao_final}
+            if forma and forma.cartao_final
+            else None
+        ),
+        # Último dia para escolher sem ir a `suspensa` no dia seguinte (PLT-01, PLT-13).
+        "prazo": (
+            empresa.teste_fim
+            if empresa.status == Empresa.Status.EM_TESTE and codigo is None
+            else None
+        ),
+    }
+
+
+def dados_fiscais(empresa: Empresa) -> dict[str, Any]:
+    """PLT-15: CNPJ só com dígitos; `endereco` nulo antes da matriz (passo 6)."""
+    return {
+        "razao_social": empresa.razao_social,
+        "cnpj": empresa.cnpj,
+        "endereco": empresa.endereco,
+        "email_cobranca": empresa.email_cobranca,
+    }
+
+
+def oferta(empresa: Empresa) -> dict[str, Any] | None:
+    """O cartão do plano acima (PLT-11): o primeiro plano ativo acima do atual pela `ordem`, com
+    o que ele inclui e o atual não. Nulo no Completo."""
+    plano = empresa.plano
+    if plano is None:
+        return None
+    ativos = Plano.objects.filter(ativo=True).order_by("ordem", "id")
+    acima = next((p for p in ativos if plano_acima(p, plano)), None)
+    if acima is None:
+        return None
+    return {
+        "titulo": catalogo.TITULO_DA_OFERTA,
+        "plano": {
+            "id": acima.pk,
+            "nome": acima.nome,
+            "preco_mensal_centavos": acima.preco_mensal_centavos,
+        },
+        "itens": list(catalogo.textos(acima.nome).a_mais),
+    }
+
+
+def acoes_da_assinatura(empresa: Empresa, usuario: Any) -> dict[str, bool]:
+    """Perfil, estado da empresa e a tabela do início de assinatura.md. O suporte lê, nunca
+    escreve (PLT-07, CA-ASS-19): tudo `false` para ele. Cancelar e pausar são da T-195."""
+    escreve = getattr(usuario, "perfil", None) == PERFIL_ADMINISTRADOR and not getattr(
+        usuario, "e_suporte", False
+    )
+    muda = (
+        escreve
+        and empresa.status in STATUS_QUE_MUDAM_DE_PLANO
+        and not cancelamento_marcado(empresa)
+    )
+    paga = escreve and empresa.status in STATUS_QUE_PAGAM
+    return {
+        "mudar_plano": muda,
+        "desfazer_mudanca_plano": (
+            muda and empresa.plano_proximo_id is not None and not empresa.ciclo_proximo
+        ),
+        "escolher_forma_pagamento": paga,
+        "editar_dados_fiscais": paga,
+    }
+
+
+def planos_da_assinatura(empresa: Empresa | None = None) -> dict[str, Any]:
+    """`GET /api/assinatura/planos/`: os planos ativos e o atual (PLT-05), com o preço de tabela,
+    os textos da PLT-11 e se o uso cabe (PLT-04). A comparação é no ciclo atual (CA-ASS-18)."""
+    empresa = empresa or empresa_atual()
+    empresa = Empresa.objects.select_related("plano").get(pk=empresa.pk)
+    atual = empresa.plano
+    uso = UsoEmpresa.objects.filter(empresa_id=empresa.pk).first() or UsoEmpresa()
+    planos = Plano.objects.filter(Q(ativo=True) | Q(pk=empresa.plano_id)).order_by("ordem", "id")
+    resultados = []
+    for plano in planos:
+        e_atual = atual is not None and plano.pk == atual.pk
+        excede = {} if e_atual else excede_no_plano(empresa, plano, uso)
+        mudanca = None
+        if not e_atual and atual is not None:
+            mudanca = "upgrade" if plano_acima(plano, atual) else "downgrade"
+        item: dict[str, Any] = {
+            "id": plano.pk,
+            "nome": plano.nome,
+            "ordem": plano.ordem,
+            "atual": e_atual,
+            "preco_mensal_centavos": plano.preco_mensal_centavos,
+            "preco_anual_centavos": plano.preco_anual_centavos,
+            "limite_veiculos": plano.limite_veiculos,
+            "limite_filiais": plano.limite_filiais,
+            "limite_usuarios": plano.limite_usuarios,
+            "itens": list(catalogo.textos(plano.nome).inclui),
+            "mudanca": mudanca,
+            "cabe": not excede,
+            "excede": excede,
+        }
+        if e_atual:
+            item["preco_contratado_centavos"] = empresa.preco_contratado_centavos
+        resultados.append(item)
+    return {"ciclo_atual": empresa.ciclo, "resultados": resultados}
 
 
 # --- Detalhe (Plat-Empresa-Detalhe) ---

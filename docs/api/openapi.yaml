@@ -151,8 +151,9 @@ paths:
   /api/assinatura/:
     get:
       operationId: assinatura_retrieve
-      description: 'Do lado da empresa: plano, uso e situação da assinatura (PLT-03).
-        Todos os perfis.'
+      description: |-
+        Do lado da empresa: plano, uso e situação da assinatura (PLT-03). Todos os perfis; os
+        blocos do administrador só para ele (assinatura.md).
       summary: Assinatura e uso do plano (PLT-03)
       tags:
       - assinatura
@@ -164,6 +165,119 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Assinatura'
+          description: ''
+  /api/assinatura/dados-fiscais/:
+    patch:
+      operationId: assinatura_dados_fiscais_partial_update
+      description: Nenhuma escrita da assinatura aceita o token de suporte (PLT-07,
+        T-189).
+      summary: Dados da nota fiscal da assinatura (PLT-15)
+      tags:
+      - assinatura
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPedidoDeDadosFiscais'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPedidoDeDadosFiscais'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPedidoDeDadosFiscais'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespostaDosDadosFiscais'
+          description: ''
+  /api/assinatura/mudanca-plano/:
+    post:
+      operationId: assinatura_mudanca_plano_create
+      description: Nenhuma escrita da assinatura aceita o token de suporte (PLT-07,
+        T-189).
+      summary: Mudar de plano (PLT-04, PLT-05)
+      tags:
+      - assinatura
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmarMudanca'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ConfirmarMudanca'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ConfirmarMudanca'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assinatura'
+          description: ''
+    delete:
+      operationId: assinatura_mudanca_plano_destroy
+      description: Nenhuma escrita da assinatura aceita o token de suporte (PLT-07,
+        T-189).
+      summary: Desfazer o downgrade agendado (PLT-04)
+      tags:
+      - assinatura
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/assinatura/mudanca-plano/simular/:
+    post:
+      operationId: assinatura_mudanca_plano_simular_create
+      description: Nenhuma escrita da assinatura aceita o token de suporte (PLT-07,
+        T-189).
+      summary: Simular a mudança de plano, sem gravar (PLT-04)
+      tags:
+      - assinatura
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoDeMudanca'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PedidoDeMudanca'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PedidoDeMudanca'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Simulacao'
+          description: ''
+  /api/assinatura/planos/:
+    get:
+      operationId: assinatura_planos_list
+      summary: Planos para mudar e comparar (PLT-04, PLT-11)
+      tags:
+      - assinatura
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanosParaMudar'
           description: ''
   /api/auditoria/eventos/:
     get:
@@ -5514,6 +5628,19 @@ paths:
           description: ''
 components:
   schemas:
+    Aberto:
+      type: object
+      properties:
+        grupo:
+          type: string
+        quantidade:
+          type: integer
+        texto:
+          type: string
+      required:
+      - grupo
+      - quantidade
+      - texto
     AbrirAcesso:
       type: object
       properties:
@@ -5763,6 +5890,22 @@ components:
       - estender_teste
       - mudar_plano
       - suspender
+    AcoesDaAssinatura:
+      type: object
+      properties:
+        mudar_plano:
+          type: boolean
+        desfazer_mudanca_plano:
+          type: boolean
+        escolher_forma_pagamento:
+          type: boolean
+        editar_dados_fiscais:
+          type: boolean
+      required:
+      - desfazer_mudanca_plano
+      - editar_dados_fiscais
+      - escolher_forma_pagamento
+      - mudar_plano
     AcoesDaConta:
       type: object
       properties:
@@ -6009,6 +6152,14 @@ components:
           allOf:
           - $ref: '#/components/schemas/TesteDaAssinatura'
           nullable: true
+        proxima_fatura:
+          allOf:
+          - $ref: '#/components/schemas/ProximaFatura'
+          nullable: true
+        plano_proximo:
+          allOf:
+          - $ref: '#/components/schemas/PlanoProximo'
+          nullable: true
         faixa_aviso:
           type: string
           nullable: true
@@ -6016,9 +6167,21 @@ components:
           $ref: '#/components/schemas/UsoAssinatura'
         somente_leitura:
           type: boolean
+        forma_pagamento:
+          $ref: '#/components/schemas/FormaDePagamento'
+        dados_fiscais:
+          $ref: '#/components/schemas/DadosFiscais'
+        oferta:
+          allOf:
+          - $ref: '#/components/schemas/Oferta'
+          nullable: true
+        acoes:
+          $ref: '#/components/schemas/AcoesDaAssinatura'
       required:
       - faixa_aviso
       - plano
+      - plano_proximo
+      - proxima_fatura
       - somente_leitura
       - status
       - teste
@@ -6377,6 +6540,18 @@ components:
           type: string
           default: ''
           maxLength: 500
+    CartaoDaForma:
+      type: object
+      description: 'Só a bandeira e o final: o token do cartão nunca sai da API (ADR
+        0023).'
+      properties:
+        bandeira:
+          type: string
+        final:
+          type: string
+      required:
+      - bandeira
+      - final
     CartaoDeConfiguracoes:
       type: object
       properties:
@@ -6550,6 +6725,14 @@ components:
       - cidade
       - logradouro
       - uf
+    CicloEnum:
+      enum:
+      - mensal
+      - anual
+      type: string
+      description: |-
+        * `mensal` - Mensal
+        * `anual` - Anual
     Cliente:
       type: object
       description: 'Representação resumida: listas e quem não cadastra (AUD-04, AUD-09).'
@@ -7129,6 +7312,20 @@ components:
           type: string
           format: date
           nullable: true
+    ConfirmarMudanca:
+      type: object
+      properties:
+        plano_id:
+          type: integer
+        ciclo:
+          $ref: '#/components/schemas/CicloEnum'
+        confirmar_valor_centavos:
+          type: integer
+          minimum: 0
+      required:
+      - ciclo
+      - confirmar_valor_centavos
+      - plano_id
     ConfirmarSenha:
       type: object
       properties:
@@ -7823,6 +8020,25 @@ components:
       - saida
       type: string
       description: '* `saida` - Saída'
+    DadosFiscais:
+      type: object
+      properties:
+        razao_social:
+          type: string
+        cnpj:
+          type: string
+          nullable: true
+        endereco:
+          allOf:
+          - $ref: '#/components/schemas/EnderecoDaNota'
+          nullable: true
+        email_cobranca:
+          type: string
+      required:
+      - cnpj
+      - email_cobranca
+      - endereco
+      - razao_social
     DesbloquearVeiculo:
       type: object
       properties:
@@ -8369,6 +8585,31 @@ components:
       - logradouro
       - numero
       - uf
+    EnderecoDaNota:
+      type: object
+      properties:
+        cep:
+          type: string
+        logradouro:
+          type: string
+        numero:
+          type: string
+        complemento:
+          type: string
+          nullable: true
+        bairro:
+          type: string
+        cidade:
+          type: string
+        uf:
+          type: string
+      required:
+      - bairro
+      - cep
+      - cidade
+      - logradouro
+      - numero
+      - uf
     EnderecoEntradaCliente:
       type: object
       properties:
@@ -8791,6 +9032,21 @@ components:
       - regra
       - resumo
       - suporte
+    Excede:
+      type: object
+      properties:
+        veiculos:
+          $ref: '#/components/schemas/LimiteExcedido'
+        filiais:
+          $ref: '#/components/schemas/LimiteExcedido'
+        usuarios:
+          $ref: '#/components/schemas/LimiteExcedido'
+        abertos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Aberto'
+        abertos_texto:
+          type: string
     Exportacao:
       type: object
       properties:
@@ -8943,6 +9199,20 @@ components:
       - '1_7'
       - '8_30'
       - mais_30
+    FaturaDaDiferenca:
+      type: object
+      properties:
+        valor_centavos:
+          type: integer
+        vencimento:
+          type: string
+          format: date
+        descricao:
+          type: string
+      required:
+      - descricao
+      - valor_centavos
+      - vencimento
     FaturaRecente:
       type: object
       properties:
@@ -9276,6 +9546,39 @@ components:
       description: |-
         * `locacao` - Locação
         * `venda` - Venda
+    FormaDePagamento:
+      type: object
+      properties:
+        forma:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/FormaDePagamentoFormaEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        situacao:
+          $ref: '#/components/schemas/Situacao'
+        cartao:
+          allOf:
+          - $ref: '#/components/schemas/CartaoDaForma'
+          nullable: true
+        prazo:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - cartao
+      - forma
+      - prazo
+      - situacao
+    FormaDePagamentoFormaEnum:
+      enum:
+      - cartao
+      - pix_automatico
+      - boleto
+      type: string
+      description: |-
+        * `cartao` - cartao
+        * `pix_automatico` - pix_automatico
+        * `boleto` - boleto
     FormaDespesaEnum:
       enum:
       - pix
@@ -10421,6 +10724,16 @@ components:
       required:
       - em
       - km
+    LimiteExcedido:
+      type: object
+      properties:
+        usado:
+          type: integer
+        limite:
+          type: integer
+      required:
+      - limite
+      - usado
     Linha:
       type: object
       properties:
@@ -11542,6 +11855,14 @@ components:
             $ref: '#/components/schemas/Movimento'
       required:
       - resultados
+    MudancaDePlanoEnum:
+      enum:
+      - upgrade
+      - downgrade
+      type: string
+      description: |-
+        * `upgrade` - upgrade
+        * `downgrade` - downgrade
     MudancaDePreco:
       type: object
       properties:
@@ -11691,6 +12012,21 @@ components:
       required:
       - pct
       - periodo_dias
+    Oferta:
+      type: object
+      properties:
+        titulo:
+          type: string
+        plano:
+          $ref: '#/components/schemas/PlanoDaOferta'
+        itens:
+          type: array
+          items:
+            type: string
+      required:
+      - itens
+      - plano
+      - titulo
     Origem:
       type: object
       properties:
@@ -12158,6 +12494,19 @@ components:
           maxLength: 80
         texto:
           type: string
+    PatchedPedidoDeDadosFiscais:
+      type: object
+      description: Parcial. `endereco` vem inteiro (nulo é recusado); o CNPJ não muda
+        por aqui.
+      properties:
+        razao_social:
+          type: string
+          maxLength: 150
+        endereco:
+          $ref: '#/components/schemas/EnderecoDaNota'
+        email_cobranca:
+          type: string
+          format: email
     PatchedPlanoEspecialEntrada:
       type: object
       properties:
@@ -12338,6 +12687,16 @@ components:
       - id
       - status
       - tipo
+    PedidoDeMudanca:
+      type: object
+      properties:
+        plano_id:
+          type: integer
+        ciclo:
+          $ref: '#/components/schemas/CicloEnum'
+      required:
+      - ciclo
+      - plano_id
     PedidoRef:
       type: object
       properties:
@@ -12608,6 +12967,9 @@ components:
     PlanoDaAssinatura:
       type: object
       properties:
+        id:
+          type: integer
+          nullable: true
         nome:
           type: string
         preco_contratado_centavos:
@@ -12616,6 +12978,7 @@ components:
           type: string
       required:
       - ciclo
+      - id
       - nome
       - preco_contratado_centavos
     PlanoDaImportacao:
@@ -12633,6 +12996,19 @@ components:
       - cabem
       - limite
       - usado
+    PlanoDaOferta:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        preco_mensal_centavos:
+          type: integer
+      required:
+      - id
+      - nome
+      - preco_mensal_centavos
     PlanoDasFiliais:
       type: object
       properties:
@@ -12748,6 +13124,77 @@ components:
       - nome
       - periodicidade
       - regra
+    PlanoParaMudar:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        ordem:
+          type: integer
+        atual:
+          type: boolean
+        preco_mensal_centavos:
+          type: integer
+        preco_anual_centavos:
+          type: integer
+        preco_contratado_centavos:
+          type: integer
+        limite_veiculos:
+          type: integer
+          nullable: true
+        limite_filiais:
+          type: integer
+          nullable: true
+        limite_usuarios:
+          type: integer
+          nullable: true
+        itens:
+          type: array
+          items:
+            type: string
+        mudanca:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/MudancaDePlanoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        cabe:
+          type: boolean
+        excede:
+          $ref: '#/components/schemas/Excede'
+      required:
+      - atual
+      - cabe
+      - excede
+      - id
+      - itens
+      - limite_filiais
+      - limite_usuarios
+      - limite_veiculos
+      - mudanca
+      - nome
+      - ordem
+      - preco_anual_centavos
+      - preco_mensal_centavos
+    PlanoProximo:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        ciclo:
+          type: string
+        vale_em:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - ciclo
+      - id
+      - nome
+      - vale_em
     PlanoResumo:
       type: object
       properties:
@@ -12758,6 +13205,18 @@ components:
       required:
       - id
       - nome
+    PlanosParaMudar:
+      type: object
+      properties:
+        ciclo_atual:
+          $ref: '#/components/schemas/CicloEnum'
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanoParaMudar'
+      required:
+      - ciclo_atual
+      - resultados
     Pode:
       type: object
       properties:
@@ -13115,6 +13574,34 @@ components:
       required:
       - em_minutos
       - item_id
+    ProximaFatura:
+      type: object
+      properties:
+        vencimento:
+          type: string
+          format: date
+        valor_centavos:
+          type: integer
+        descricao:
+          type: string
+      required:
+      - descricao
+      - valor_centavos
+      - vencimento
+    ProximaFaturaDaMudanca:
+      type: object
+      properties:
+        vencimento:
+          type: string
+          format: date
+        valor_centavos:
+          type: integer
+        descricao:
+          type: string
+      required:
+      - descricao
+      - valor_centavos
+      - vencimento
     Receber:
       type: object
       properties:
@@ -13365,6 +13852,13 @@ components:
       required:
       - id
       - nome
+    RespostaDosDadosFiscais:
+      type: object
+      properties:
+        dados_fiscais:
+          $ref: '#/components/schemas/DadosFiscais'
+      required:
+      - dados_fiscais
     RespostaItem:
       type: object
       properties:
@@ -13521,6 +14015,36 @@ components:
             $ref: '#/components/schemas/Sessao'
       required:
       - resultados
+    Simulacao:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/MudancaDePlanoEnum'
+        vale_em:
+          type: string
+          format: date
+        preco_novo_centavos:
+          type: integer
+        diferenca_centavos:
+          type: integer
+        fatura_diferenca:
+          allOf:
+          - $ref: '#/components/schemas/FaturaDaDiferenca'
+          nullable: true
+        proxima_fatura:
+          allOf:
+          - $ref: '#/components/schemas/ProximaFaturaDaMudanca'
+          nullable: true
+        mensagem:
+          type: string
+      required:
+      - diferenca_centavos
+      - fatura_diferenca
+      - mensagem
+      - preco_novo_centavos
+      - proxima_fatura
+      - tipo
+      - vale_em
     SimulacaoCancelamento:
       type: object
       properties:
@@ -13983,6 +14507,10 @@ components:
     TesteDaAssinatura:
       type: object
       properties:
+        inicio:
+          type: string
+          format: date
+          nullable: true
         fim:
           type: string
           format: date
@@ -13991,6 +14519,7 @@ components:
       required:
       - dias_restantes
       - fim
+      - inicio
     TesteDoInicio:
       type: object
       properties:
