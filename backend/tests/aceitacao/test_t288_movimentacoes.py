@@ -125,7 +125,8 @@ def test_mov_01_mov_03_ca_246_01_ida_ao_lava_jato(cenario):
     assert (mov["km_saida"], mov["proxima_etapa"]) == (3120, f"parada:{_parada(mov)}")
     sak = _veiculo(cenario, "SAK1D39")
     assert sak.status == "em_movimentacao"
-    assert sak.historico.last().origem_codigo == "MOV-0001"
+    ultima = sak.historico.last()
+    assert ultima is not None and ultima.origem_codigo == "MOV-0001"
     # Some da Nova locação e não pode ser reservado.
     resposta = cenario.criar(veiculo=sak)
     assert cenario.confirmar(resposta["id"]).status_code in (409, 422)
@@ -181,7 +182,8 @@ def test_mov_05_vei_01_ca_246_03_chegada_no_destino(cenario):
     assert chegou.json()["chegada"]["km"] == 3146
     sak = _veiculo(cenario, "SAK1D39")
     assert (sak.status, sak.km_atual) == ("disponivel", 3146)
-    assert sak.leituras_km.last().origem_codigo == "MOV-0001"
+    leitura = sak.leituras_km.last()
+    assert leitura is not None and leitura.origem_codigo == "MOV-0001"
 
 
 # --- CA-246-04, 05, 06, 19: quem não se movimenta e a agendada ---
@@ -275,6 +277,7 @@ def test_mov_04_apr_03_ca_246_08_despesa_acima_de_500(cenario):
     saiu = _passar_pela_parada(cenario, mov, 65000)
     despesa = Despesa.objects.get(pk=saiu["paradas"][0]["despesa"]["id"])
     assert despesa.status == "aguardando_aprovacao"
+    assert despesa.pedido_aprovacao_id is not None
     assert PedidoAprovacao.objects.filter(pk=despesa.pedido_aprovacao_id, tipo="APR-03").exists()
 
 
