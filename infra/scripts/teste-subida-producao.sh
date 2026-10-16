@@ -26,6 +26,7 @@ confere() { # descrição, comando
 }
 
 mkdir -p "$TMP/cert"
+cp infra/deploy/homologacao.admin-ips.conf.example "$TMP/admin-ips.conf"  # o modelo entregue: vazio
 docker run --rm -v "$TMPW/cert:/c" nginx:1.27 sh -c \
   'openssl req -x509 -newkey rsa:2048 -nodes -keyout /c/privkey.pem -out /c/fullchain.pem -subj /CN=teste -days 1 2>/dev/null'
 
@@ -69,7 +70,8 @@ GUNICORN_WORKERS=2
 GUNICORN_THREADS=4
 GUNICORN_TIMEOUT=30
 CERT_DIR_HOST=$TMPW/cert
-FRONTEND_UPSTREAM=backend:8000
+FRONTEND_UPSTREAM=frontend:3000
+ADMIN_IPS_ARQUIVO=$TMPW/admin-ips.conf
 PORTA_HTTP=18080
 PORTA_HTTPS=18443
 ENV_FILE=$TMPW/teste.env
@@ -92,6 +94,22 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
+  frontend:
+    # Next de mentira: qualquer GET responde "NEXT", para ver o que o proxy manda para o frontend.
+    image: python:3.12-slim-bookworm
+    command:
+      - python
+      - -c
+      - |
+        import http.server
+        class H(http.server.BaseHTTPRequestHandler):
+            def do_GET(s):
+                s.send_response(200); s.end_headers(); s.wfile.write(b"NEXT")
+            def log_message(*a): pass
+        http.server.ThreadingHTTPServer(("0.0.0.0", 3000), H).serve_forever()
+  proxy:
+    depends_on:
+      frontend: {condition: service_started}
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--requirepass", "senha-do-redis"]
@@ -146,6 +164,36 @@ recusa_sem_senha() { # variável, valor sem senha, trecho esperado da mensagem
 recusa_sem_senha DATABASE_URL "postgres://giro_app@db:5432/giro" "DATABASE_URL sem senha"
 recusa_sem_senha REDIS_URL "redis://redis:6379/0" "REDIS_URL sem senha"
 recusa_sem_senha CELERY_BROKER_URL "redis://redis:6379/1" "CELERY_BROKER_URL sem senha"
+
+# Django Admin pelo proxy (T-291, ADR 0029): fechado com a lista de IPs vazia (o modelo do cofre),
+# aberto só para o IP que entra na lista, e o Next intacto nos hosts das empresas.
+PLAT="admin.homolog.teste"
+EMP="motorapida.homolog.teste"
+IPCLIENTE=$($COMPOSE logs proxy 2>/dev/null | grep -m1 'GET /api/plataforma/ambiente/' \
+  | sed -E 's/.*\| +([0-9a-fA-F:.]+) - -.*/\1/')
+http() { # host, caminho: devolve o código; corpo em $TMP/corpo e cabeçalhos em $TMP/cab
+  curl -sk -o "$TMPW/corpo" -D "$TMPW/cab" -w '%{http_code}' -H "Host: $1" "https://127.0.0.1:18443$2" || true
+}
+verifica() { # descrição, obtido, esperado
+  if [ "$2" = "$3" ]; then echo "ok    $1"; else echo "FALHA $1 (esperava $3, veio $2)"; FALHAS=$((FALHAS + 1)); fi
+}
+[ -n "$IPCLIENTE" ] || { echo "FALHA não achei o IP do cliente no log do proxy"; FALHAS=$((FALHAS + 1)); }
+verifica "Admin fechado com a lista vazia: /admin/ dá 404" "$(http $PLAT /admin/)" 404
+verifica "Admin fechado com a lista vazia: /admin/login/ dá 404" "$(http $PLAT /admin/login/)" 404
+verifica "host da plataforma segue no Next em /" "$(http $PLAT /; cat "$TMP/corpo")" "200NEXT"
+verifica "host da empresa: /admin/contratos fica no Next" "$(http $EMP /admin/contratos; cat "$TMP/corpo")" "200NEXT"
+echo "$IPCLIENTE 1;" > "$TMP/admin-ips.conf"
+$COMPOSE exec -T proxy nginx -s reload >/dev/null 2>&1
+sleep 2
+verifica "IP na lista: /admin/login/ responde 200" "$(http $PLAT /admin/login/)" 200
+confere "IP na lista: é a tela de login do Django" "grep -q csrfmiddlewaretoken $TMP/corpo"
+confere "IP na lista: resposta com X-Robots-Tag noindex" "grep -qi '^x-robots-tag: noindex' $TMP/cab"
+verifica "IP na lista: login com os estáticos (login.css)" "$(http $PLAT /static/admin/css/login.css)" 200
+verifica "host da empresa continua no Next com o IP na lista" "$(http $EMP /admin/login/; cat "$TMP/corpo")" "200NEXT"
+: > "$TMP/admin-ips.conf"
+$COMPOSE exec -T proxy nginx -s reload >/dev/null 2>&1
+sleep 2
+verifica "lista esvaziada de novo: /admin/login/ volta a dar 404" "$(http $PLAT /admin/login/)" 404
 
 # docker stop com requisição em curso: aplicação de 8 s atrás do mesmo gunicorn.conf.py.
 mkdir -p "$TMP/lento"
