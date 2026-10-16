@@ -143,9 +143,6 @@ Concluída. As tarefas entregues estão em `tarefas/feito.md`.
 Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, depois telas, depois o que pede regra. As três dúvidas do fim contrariavam regras já escritas e foram decididas pelo dono no mesmo dia.
 
 
-### T-240 · Bug: cadastrar veículo mostra erro mas grava
-- **Agente:** frontend, com backend · **Depende de:** — · **Regras:** VEI-01 · **Telas:** Veiculo-Novo · **Pronto quando:** "Salvar veículo" com dados válidos mostra sucesso e abre a ficha; se uma etapa depois de criar falhar (fotos, documentos, leitura da ficha), o veículo criado não vira erro genérico, e a mensagem diz o que faltou; clicar duas vezes não tenta criar de novo (botão travado durante o envio); teste do componente com a criação 201 e uma etapa seguinte com erro; teste do backend se a causa for lá. Relato do dono: erro "não foi possível cadastrar"; no segundo clique, "placa já cadastrada"; e o veículo estava gravado.
-
 ### T-241 · Bug: contador de Aprovações no menu demora a mudar
 - **Agente:** frontend · **Depende de:** — · **Regras:** APR-12, FIN-15 (contadores) · **Pronto quando:** ao aprovar ou recusar um pedido, o número de Aprovações no menu lateral muda na hora (invalidar a consulta dos contadores do menu junto com a das aprovações; o mesmo para Despesas e Contas a receber, se tiverem o mesmo problema); teste que aprova e confere o contador sem esperar o intervalo de atualização.
 

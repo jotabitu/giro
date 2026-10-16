@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bike, Car, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type SelectHTMLAttributes } from "react";
+import { useEffect, useRef, useState, type SelectHTMLAttributes } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
 import { Icone, Panel, SegmentedControl, TextField } from "@/design-system";
 import { ErroApi, veiculos, type CategoriaVeiculo } from "@/lib/api";
@@ -88,7 +88,12 @@ export function NovoVeiculoForm() {
 
   const erro = (nome: Nome) => errors[nome]?.message;
 
+  // Dois cliques seguidos entram antes de `salvar.isPending` virar verdadeiro: sem isto o segundo tentaria criar de novo ("placa já cadastrada").
+  const enviando = useRef(false);
+
   async function enviar(valores: ValoresVeiculo, outro: boolean) {
+    if (enviando.current) return;
+    enviando.current = true;
     setErroGeral(null);
     setExistente(null);
     setSalvo(null);
@@ -119,6 +124,8 @@ export function NovoVeiculoForm() {
       } else {
         setErroGeral(mensagemDoErro(e));
       }
+    } finally {
+      enviando.current = false;
     }
   }
 
