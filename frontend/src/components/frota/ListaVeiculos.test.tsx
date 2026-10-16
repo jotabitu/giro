@@ -12,7 +12,10 @@ import { ListaVeiculos } from "./ListaVeiculos";
 
 async function pagina(email: string): Promise<string> {
   const r = await contas.entrar({ email, senha: "senhaforte123", aparelho: "desktop" });
-  if (r.etapa !== "pronto") throw new Error("esperava pronto");
+  if (r.etapa !== "pronto") {
+    const v = await contas.verificar2fa(r.token_pre_2fa, { codigo: "123456" });
+    if (v.etapa !== "pronto") throw new Error("esperava pronto");
+  }
   sessao.eu = await contas.eu();
   const cache = new QueryClient();
   cache.setQueryData(["veiculos", { status: "todos", tipo: "todos", busca: "", cursor: undefined }], await veiculos.listar({ status: "todos" }));
@@ -37,6 +40,13 @@ describe("lista da frota por perfil", () => {
     expect(t).toContain("Quilometragem");
     expect(t).not.toContain("Diária");
     expect(t).not.toMatch(/R\$ \d/);
+    expect(t).not.toContain("Cadastrar veículo");
+  });
+
+  it.each([["vendedor", "bruna@motorapida.com.br"], ["financeiro", "financeiro@motorapida.com.br"]])("usr_09: %s lê a frota com a Diária e sem o botão de cadastro", async (_perfil, email) => {
+    const t = await pagina(email);
+    expect(t).toContain("QXA-4B21");
+    expect(t).toContain("Diária");
     expect(t).not.toContain("Cadastrar veículo");
   });
 });

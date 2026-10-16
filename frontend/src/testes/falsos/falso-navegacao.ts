@@ -96,11 +96,11 @@ const MENU_INICIO: Partial<Record<VarianteInicio, Grupos>> = {
   ],
   vendedor: [
     [null, [["inicio", "Início"]]],
-    ["Operação", ["locacoes", "clientes"]],
+    ["Operação", ["locacoes", "veiculos", "clientes"]],
     ["Vendas", ["propostas", "minhas_vendas", "veiculos_a_venda", "minhas_comissoes"]],
   ],
   vistoriador: [[null, ["agenda", "consultar_veiculo", "avarias"]]],
-  financeiro: [[null, [["inicio", "Início"], "receber", "contas_a_pagar", "caixa_e_bancos", "comissoes"]]],
+  financeiro: [[null, [["inicio", "Início"], "receber", "contas_a_pagar", "caixa_e_bancos", "veiculos", "comissoes"]]],
 };
 
 const BARRA_CELULAR = ["inicio", "veiculos", "nova_locacao", "locacoes", "mais"];

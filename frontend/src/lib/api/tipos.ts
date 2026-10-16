@@ -6,7 +6,7 @@ export type Aparelho = "desktop" | "celular";
 
 export type Pode = {
   painel: "todas_filiais" | "filial" | "proprios" | "nao";
-  veiculos: "editar" | "km_e_avarias" | "nao";
+  veiculos: "editar" | "km_e_avarias" | "ver" | "nao";
   clientes_cadastrar: boolean;
   locacoes_criar: boolean;
   vistorias_fazer: boolean;
