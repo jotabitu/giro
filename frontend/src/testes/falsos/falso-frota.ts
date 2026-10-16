@@ -157,6 +157,8 @@ function montarCompleto(s: Semente): Veiculo {
       baixar: perfilAtualFalso() === "administrador" && s.status !== "alugado",
       registrar_km: editar || perfilAtualFalso() === "vistoriador",
       corrigir_km: editar,
+      // T-275 (MOV-03): só o veículo disponível se movimenta; o alugado diz por quê.
+      ...(editar ? { movimentar: s.status === "disponivel", motivo_movimentar: s.status === "alugado" && s.locacao ? `Veículo alugado não se movimenta. O botão volta quando a ${s.locacao.codigo} for devolvida.` : null } : {}),
     },
   };
 }

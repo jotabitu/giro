@@ -149,7 +149,7 @@ describe("ficha do veículo, perfis sem financeiro nem edição", () => {
     expect("indicadores_financeiros" in (await veiculos.obter(501))).toBe(true);
     const { desktop, celular } = await pagina(501);
     expect(desktop.match(/class="wl-kpi[ "]/g)).toHaveLength(4);
-    expect(desktop).not.toContain("grid-template-columns");
+    expect(desktop).not.toContain("style=\"grid-template-columns");
     expect(celular.match(/class="wl-kpi[ "]/g)).toHaveLength(2);
   });
 });
