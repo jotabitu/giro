@@ -448,6 +448,10 @@ def test_vei_02_ca_013_11_acoes_combina_perfil_e_estado(moto, frota):
         "baixar": False,
         "registrar_km": True,
         "corrigir_km": True,
+        # MOV-02, MOV-03 (T-288): "Movimentar" e o motivo quando não pode.
+        "movimentar": True,
+        "motivo_movimentar": None,
+        "aviso_baixar": None,
     }
     assert moto.api("Mariana").get(_url(sak)).json()["acoes"]["baixar"] is True
     bruna = moto.api("Bruna").get(_url(sak)).json()["acoes"]

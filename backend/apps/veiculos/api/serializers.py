@@ -156,6 +156,17 @@ class AcoesDoVeiculoSerializer(serializers.Serializer[Any]):
     baixar = serializers.BooleanField()
     registrar_km = serializers.BooleanField()
     corrigir_km = serializers.BooleanField()
+    movimentar = serializers.BooleanField()  # MOV-02, MOV-03
+    motivo_movimentar = serializers.CharField(allow_null=True)
+    aviso_baixar = serializers.CharField(allow_null=True)  # MOV-03 (T-311)
+
+
+class MovimentacaoAbertaSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    codigo = serializers.CharField()
+    status = serializers.ChoiceField(choices=["agendada", "em_transito", "no_local"])
+    rotulo = serializers.CharField()
+    tom = serializers.CharField()
 
 
 class VeiculoSerializer(serializers.Serializer[Any]):
@@ -189,6 +200,7 @@ class VeiculoSerializer(serializers.Serializer[Any]):
     locacao_atual = serializers.JSONField(allow_null=True)
     manutencao = serializers.JSONField(allow_null=True)
     documentos_resumo = serializers.JSONField(allow_null=True)
+    movimentacao_aberta = MovimentacaoAbertaSerializer(allow_null=True)  # MOV-03
     acoes = AcoesDoVeiculoSerializer()
 
 
@@ -209,14 +221,17 @@ class HistoricoStatusSerializer(serializers.Serializer[Any]):
 class VeiculoDetalheSerializer(VeiculoSerializer):
     # Só para administrador, gerente e financeiro; ausente para os demais (USR-09, T-156).
     indicadores_financeiros = serializers.JSONField(allow_null=True, required=False)
+    # Ausente para vistoriador e financeiro (T-275).
+    movimentacoes = serializers.JSONField(allow_null=True, required=False)
     ocupacao = OcupacaoSerializer()
     historico_status = HistoricoStatusSerializer(many=True)
 
     def to_representation(self, instance: Any) -> Any:
         dados = super().to_representation(instance)
         # O campo com allow_null viraria `null` quando a chave falta; aqui ela some.
-        if "indicadores_financeiros" not in instance:
-            dados.pop("indicadores_financeiros", None)
+        for chave in ("indicadores_financeiros", "movimentacoes"):
+            if chave not in instance:
+                dados.pop(chave, None)
         return dados
 
 
@@ -228,6 +243,7 @@ class ContagensDaFrotaSerializer(serializers.Serializer[Any]):
     em_manutencao = serializers.IntegerField()
     a_venda = serializers.IntegerField()
     indisponivel = serializers.IntegerField()
+    em_movimentacao = serializers.IntegerField()
     motos = serializers.IntegerField()
     carros = serializers.IntegerField()
 

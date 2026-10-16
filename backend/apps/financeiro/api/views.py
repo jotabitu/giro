@@ -44,6 +44,7 @@ from ..models import (
 )
 from .serializers import (
     AbrirCaixaSerializer,
+    AnexarNotaSerializer,
     CaixaSerializer,
     CobrancaEntradaSerializer,
     CobrancaSerializer,
@@ -700,6 +701,26 @@ class DespesaView(APIView):
         return Response(
             DespesaSerializer(selectors.representacao_despesa(_despesa(request, pk))).data
         )
+
+
+class NotaDespesaView(APIView):
+    """A nota que faltou na despesa da parada (MOV-04, CA-246-14): quem lança todas as
+    categorias (`despesas_lancar = todas`)."""
+
+    parser_classes = [MultiPartParser, FormParser]
+    permission_classes = OPERAM
+
+    @extend_schema(
+        request={"multipart/form-data": AnexarNotaSerializer},
+        responses={200: DespesaSerializer},
+        summary="Anexar a nota à despesa sem nota (MOV-04, FIN-06)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        dados = _entrada(AnexarNotaSerializer, request)
+        arquivos.validar(dados["nota"], "nota")
+        despesa = services.anexar_nota(_despesa(request, pk), dados["nota"])
+        despesa = selectors.base_das_despesas().get(pk=despesa.pk)
+        return Response(DespesaSerializer(selectors.representacao_despesa(despesa)).data)
 
 
 class PagarDespesaView(APIView):

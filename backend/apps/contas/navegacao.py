@@ -13,9 +13,11 @@ from typing import Any
 from django.conf import settings
 
 from apps.plataforma.models import Recurso
+from comum import leituras
 
 from .models import Perfil
 
+ALVO_USUARIO = "contas.Usuario"
 # `ConfiguracaoEmpresa.atividade` ainda não existe (entra com a tela Config); até lá, os dois.
 ATIVIDADE_PADRAO = "ambos"
 
@@ -31,6 +33,8 @@ class Item:
     recurso: str | None = None
     atividade: str | None = None  # "aluga" ou "vende"
     modulo: str | None = None  # app que precisa estar em GIRO_MODULOS_ATIVOS
+    # Também para quem leva uma movimentação aberta (`pode.movimentacoes = levar`, MOV-02).
+    ou_se_leva: bool = False
 
 
 @dataclass(frozen=True)
@@ -39,6 +43,7 @@ class Contexto:
     recursos: frozenset[str]
     atividade: str
     modulos: frozenset[str]
+    levando: int = 0  # movimentações abertas que a pessoa leva (MOV-02)
 
 
 def decide_pedidos(pode: Pode) -> bool:
@@ -102,6 +107,14 @@ ITENS: dict[str, Item] = {
             lambda p: bool(p["os_abrir"]),
             Recurso.MANUTENCAO_DESPESAS,
             modulo="manutencao",
+        ),
+        Item(
+            "movimentacoes",
+            "Movimentações",
+            "movimentacoes",
+            lambda p: p["movimentacoes"] == "gerir",
+            modulo="movimentacoes",
+            ou_se_leva=True,
         ),
         Item(
             "caixa",
@@ -254,7 +267,7 @@ Grupos = list[tuple[str | None, list[str | tuple[str, str]]]]
 # Tabela "Itens do menu_completo" do contrato, na ordem.
 MENU_COMPLETO: Grupos = [
     (None, ["inicio", "aprovacoes", "veiculos"]),
-    ("Operação", ["locacoes", "vendas", "clientes", "manutencoes"]),
+    ("Operação", ["locacoes", "vendas", "clientes", "manutencoes", "movimentacoes"]),
     ("Financeiro", ["caixa", "receber", "despesas", "comissoes", "conciliacao", "relatorios"]),
     ("Administração", ["config", "marca", "filiais", "usuarios", "assinatura", "auditoria"]),
 ]
@@ -264,15 +277,15 @@ MENU_COMPLETO: Grupos = [
 MENU_INICIO: dict[str, Grupos] = {
     "gerente": [
         (None, [("inicio", "Visão da filial"), "aprovacoes", "veiculos"]),
-        ("Operação", ["locacoes", "vendas", "clientes", "manutencoes"]),
+        ("Operação", ["locacoes", "vendas", "clientes", "manutencoes", "movimentacoes"]),
         ("Filial", [("caixa", "Caixa da filial"), "relatorios"]),
     ],
     "vendedor": [
         (None, [("inicio", "Início")]),
-        ("Operação", ["locacoes", "clientes"]),
+        ("Operação", ["locacoes", "clientes", "movimentacoes"]),
         ("Vendas", ["propostas", "minhas_vendas", "veiculos_a_venda", "minhas_comissoes"]),
     ],
-    "vistoriador": [(None, ["agenda", "consultar_veiculo", "avarias"])],
+    "vistoriador": [(None, ["agenda", "consultar_veiculo", "avarias", "movimentacoes"])],
     "financeiro": [
         (
             None,
@@ -310,6 +323,8 @@ def _aparece(item: Item, ctx: Contexto) -> bool:
         return False
     if item.atividade is not None and ctx.atividade not in (item.atividade, "ambos"):
         return False
+    if item.ou_se_leva and ctx.pode.get("movimentacoes") == "levar" and ctx.levando > 0:
+        return True
     return item.permissao(ctx.pode)
 
 
@@ -366,12 +381,14 @@ def montar(
     implantacao_concluida: bool,
     atividade: str = ATIVIDADE_PADRAO,
     modulos: list[str] | frozenset[str] | None = None,
+    levando: int = 0,
 ) -> dict[str, Any]:
     ctx = Contexto(
         pode=pode,
         recursos=frozenset(recursos),
         atividade=atividade,
         modulos=frozenset(settings.GIRO_MODULOS_ATIVOS if modulos is None else modulos),
+        levando=levando,
     )
     qual = variante(perfil, implantacao_concluida)
     menu_inicio = _montar(MENU_INICIO[qual], ctx) if qual in MENU_INICIO else None
@@ -396,7 +413,16 @@ def montar(
     }
 
 
-def da_empresa(empresa: Any, perfil: str, pode: Pode) -> dict[str, Any]:
+def levando(usuario: Any) -> int:
+    """Movimentações abertas que a pessoa leva, pelo contador que o app `movimentacoes`
+    registra (ADR 0015); 0 sem o app."""
+    pk = getattr(usuario, "pk", None)
+    if pk is None:
+        return 0
+    return leituras.contar(ALVO_USUARIO, pk, ["movimentacoes_levando"])["movimentacoes_levando"]
+
+
+def da_empresa(empresa: Any, perfil: str, pode: Pode, *, levando: int = 0) -> dict[str, Any]:
     """A navegação de quem está na empresa: recursos do plano e a implantação (IMP-01)."""
     from apps.plataforma.models import UsoEmpresa
 
@@ -411,4 +437,5 @@ def da_empresa(empresa: Any, perfil: str, pode: Pode) -> dict[str, Any]:
         pode=pode,
         recursos=list(getattr(plano, "recursos", None) or []),
         implantacao_concluida="primeira_locacao" in passos,
+        levando=levando,
     )

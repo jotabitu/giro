@@ -4,6 +4,7 @@
 (USR-03). O frontend monta menu e botões só com isso.
 """
 
+import unicodedata
 from typing import Any
 
 from django.db.models import Count, Exists, Max, OuterRef, Q, Subquery
@@ -53,6 +54,8 @@ TABELA_DO_PODE: dict[str, dict[str, Any]] = {
     # perfis (T-232) e de `financeiro.md` ("Quem pode"). A extra `cancelar_contrato` não dá.
     "lancamento_avulso": _so(ADM, GER, FIN),
     "os_abrir": _so(ADM, GER, VIS),
+    # MOV-02 (T-286): `levar` só registra as chegadas das movimentações que a pessoa leva.
+    "movimentacoes": {ADM: "gerir", GER: "gerir", VEN: "levar", VIS: "levar", FIN: "nao"},
     "administracao": _so(ADM),
 }
 
@@ -295,7 +298,9 @@ def dados_do_eu(usuario: Usuario, empresa: Any) -> dict[str, Any]:
             "codigos_recuperacao_restantes": dois_fatores.codigos_restantes(usuario),
         },
         "pode": pode,
-        "navegacao": navegacao.da_empresa(empresa, usuario.perfil, pode),
+        "navegacao": navegacao.da_empresa(
+            empresa, usuario.perfil, pode, levando=navegacao.levando(usuario)
+        ),
         "suporte": None,
         "empresa": {
             "nome_exibicao": nome_da_empresa(),  # o mesmo de GET /api/marca/
@@ -344,7 +349,24 @@ def navegacao_de(usuario: Any, empresa: Any) -> dict[str, Any]:
             empresa, Perfil.ADMINISTRADOR, pode_do_suporte(usuario.permissao)
         )
     pode = calcular_pode(usuario.perfil, list(usuario.permissoes_extras))
-    return navegacao.da_empresa(empresa, usuario.perfil, pode)
+    return navegacao.da_empresa(empresa, usuario.perfil, pode, levando=navegacao.levando(usuario))
+
+
+# --- Quem leva e quem recebe (movimentações, T-300) ---
+
+
+def pessoas_da_filial(filial_id: int, excluir_perfis: tuple[str, ...] = ()) -> list[Usuario]:
+    """Usuários ativos ligados à filial (o administrador em todas, USR-07), pelo nome: base das
+    listas de quem leva e quem recebe e da validação de `levado_por_id` e `recebido_por_id`
+    (MOV-02, MOV-06). O vínculo vem de `comum.permissoes` (ADR 0011)."""
+    ativos = Usuario.objects.filter(status=StatusUsuario.ATIVO).exclude(perfil__in=excluir_perfis)
+    ligados = [u for u in ativos if filial_id in permissoes.filiais_permitidas(u)]
+    return sorted(ligados, key=lambda u: (_sem_acento(u.nome), u.pk))
+
+
+def _sem_acento(texto: str) -> str:
+    decomposto = unicodedata.normalize("NFKD", texto)
+    return "".join(c for c in decomposto if not unicodedata.combining(c)).casefold()
 
 
 def chaves_de_contador(nav: dict[str, Any]) -> set[str]:
