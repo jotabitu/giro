@@ -53,16 +53,18 @@ def tipos_que_decide(usuario: Any) -> set[str]:
 @dataclass(frozen=True)
 class Decisor:
     """Quem decide, calculado uma vez por requisição: os tipos e as filiais (`None` = todas,
-    o administrador, inclusive as filiais desativadas)."""
+    o administrador, inclusive as filiais desativadas). `decide_os_proprios`: só o
+    administrador decide o próprio pedido (APR-09, T-250)."""
 
     usuario_id: int
     tipos: frozenset[str]
     filiais: frozenset[int] | None
+    decide_os_proprios: bool = False
 
     def decide(self, pedido: PedidoAprovacao) -> bool:
         return (
             pedido.status == S.PENDENTE
-            and pedido.solicitante_id != self.usuario_id  # APR-09
+            and (self.decide_os_proprios or pedido.solicitante_id != self.usuario_id)  # APR-09
             and pedido.tipo in self.tipos
             and (self.filiais is None or pedido.filial_id in self.filiais)
         )
@@ -74,15 +76,17 @@ def decisor(usuario: Any) -> Decisor:
         usuario.pk,
         frozenset(tipos_que_decide(usuario)),
         None if todas else frozenset(filiais_permitidas(usuario)),
+        decide_os_proprios=todas,
     )
 
 
 def que_decide(quem: Decisor) -> QuerySet[PedidoAprovacao]:
-    """Pedidos dos tipos que a pessoa decide, nas filiais dela, sem os que ela fez (APR-09)."""
+    """Pedidos dos tipos que a pessoa decide, nas filiais dela, sem os que ela fez (APR-09);
+    os do administrador entram, porque ele pode decidi-los (APR-12, T-250)."""
     qs = PedidoAprovacao.objects.filter(tipo__in=quem.tipos)
     if quem.filiais is not None:
         qs = qs.filter(filial_id__in=quem.filiais)
-    return qs.exclude(solicitante_id=quem.usuario_id)
+    return qs if quem.decide_os_proprios else qs.exclude(solicitante_id=quem.usuario_id)
 
 
 def visiveis(quem: Decisor) -> QuerySet[PedidoAprovacao]:
@@ -139,4 +143,6 @@ def representacao(pedido: PedidoAprovacao, quem: Decisor) -> dict[str, Any]:
         "decidido_em": pedido.decidido_em,
         "motivo_recusa": pedido.motivo_recusa or None,
         "pode_decidir": quem.decide(pedido),
+        # APR-09: quem decidiu foi quem pediu (só o administrador chega a isso).
+        "proprio_pedido": pedido.decidido_pelo_solicitante,
     }
