@@ -106,6 +106,8 @@ class EventoWebhook:
     cobranca_id: str
     referencia_externa: str
     token: str
+    # Aviso de autorização do Pix Automático (conta principal, PLT-13): sem cobrança.
+    autorizacao_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -208,6 +210,10 @@ class ProvedorPagamentos(Protocol):
     ) -> Cobranca: ...
 
     def cancelar_autorizacao(self, conta: ContaPagamentoRef, autorizacao_id: str) -> None: ...
+
+    def consultar_autorizacao(
+        self, conta: ContaPagamentoRef, autorizacao_id: str
+    ) -> Autorizacao: ...
 
     # Conta principal, para a assinatura (T-184, ADR 0023).
 

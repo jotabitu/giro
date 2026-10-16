@@ -10,7 +10,7 @@ from typing import Protocol
 
 from django.conf import settings
 
-from .base import ContaPagamentoRef, ProvedorPagamentos
+from .base import Cobranca, ContaPagamentoRef, PedidoCobranca, ProvedorPagamentos
 
 CABECALHO_DO_TOKEN = "asaas-access-token"  # noqa: S105 - nome do cabeçalho, não o token
 CONTA_PRINCIPAL = "principal"
@@ -49,3 +49,15 @@ def conta_principal() -> ContaPagamentoRef:
 
 def hash_do_token(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+class _ComCartao(Protocol):
+    def cartao_token_cifrado_claro(self) -> str: ...
+
+
+def cobrar_cartao_guardado(forma: _ComCartao, pedido: PedidoCobranca) -> Cobranca:
+    """ADR 0023: o token do cartão da assinatura só é decifrado aqui, na hora da cobrança pela
+    conta principal, e não volta para quem chamou. Recusado: `CartaoRecusado`."""
+    return provedor().cobrar_cartao_salvo(
+        conta_principal(), forma.cartao_token_cifrado_claro(), pedido
+    )

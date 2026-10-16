@@ -13,6 +13,7 @@ import secrets
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass, replace
 from datetime import date, timedelta
+from functools import partial
 from typing import Any
 
 from django.conf import settings
@@ -20,6 +21,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, ProgrammingError, models, transaction
 from django.db.models import Q
+from django.utils import timezone
 from django_tenants.utils import (
     get_public_schema_name,
     schema_context,
@@ -56,10 +58,17 @@ from comum.erros import (
 from comum.estados import transicionar
 from comum.eventos import publicar
 from comum.models import WebhookRecebido
-from integracoes.pagamentos import conta_principal, hash_do_token, provedor, referencia
+from integracoes.pagamentos import (
+    cobrar_cartao_guardado,
+    conta_principal,
+    hash_do_token,
+    provedor,
+    referencia,
+)
 from integracoes.pagamentos.base import (
     Autorizacao,
     CartaoGuardado,
+    CartaoRecusado,
     DadosEmpresa,
     Endereco,
     EventoWebhook,
@@ -76,6 +85,7 @@ from .models import (
     CAMPOS_DO_ENDERECO,
     DIAS_DE_TESTE,
     DURACOES_DO_SUPORTE,
+    TENTATIVAS_DO_CARTAO,
     AcessoSuporte,
     ContaPagamento,
     Dominio,
@@ -975,6 +985,7 @@ def registrar_webhook_principal(evento: EventoWebhook, corpo: Any) -> WebhookRec
                             "tipo": evento.tipo,
                             "cobranca_id": evento.cobranca_id,
                             "referencia_externa": evento.referencia_externa,
+                            "autorizacao_id": evento.autorizacao_id,
                         },
                         "conta": "principal",
                         "bruto": corpo,
@@ -998,12 +1009,15 @@ def processar_webhook_fatura(webhook_id: int) -> str:
         webhook.processado_em = relogio.agora()
         webhook.resultado = resultado
         webhook.save(update_fields=["processado_em", "resultado"])
-    if resultado != "baixada":
+    if resultado not in ("baixada", "autorizada"):
         logger.warning("Aviso %s da conta principal: %s", webhook.pk, resultado)
     return resultado
 
 
 def _processar_fatura(webhook: WebhookRecebido) -> str:
+    autorizacao_id = str(webhook.corpo.get("evento", {}).get("autorizacao_id") or "")
+    if autorizacao_id:
+        return _processar_autorizacao(autorizacao_id)
     cobranca_id = str(webhook.corpo.get("evento", {}).get("cobranca_id", ""))
     fatura: FaturaAssinatura | None = (
         FaturaAssinatura.objects.select_for_update(of=("self",))
@@ -1045,6 +1059,33 @@ def _processar_fatura(webhook: WebhookRecebido) -> str:
             _guardar_cartao(fatura.empresa, situacao.cartao)
         voltar_a_ativa_ao_pagar(_empresa_travada(fatura.empresa), relogio.hoje())
     return "baixada"
+
+
+def _processar_autorizacao(autorizacao_id: str) -> str:
+    """PLT-13: o aviso de que a autorização do Pix Automático mudou. Não confia no corpo: consulta
+    a autorização no parceiro. Ativa → a forma sai de `aguardando_autorizacao` e as próximas
+    faturas são cobradas por ela (`gerar_faturas`). Outra situação (recusada, expirada,
+    cancelada no banco) não muda a forma: fica no resultado do aviso para a equipe."""
+    forma = (
+        FormaPagamentoAssinatura.objects.select_for_update()
+        .filter(autorizacao_externa_id=autorizacao_id)
+        .first()
+    )
+    if forma is None:
+        return "autorizacao_desconhecida"  # de uma forma já trocada, ou de outra conta
+    try:
+        autorizacao = provedor().consultar_autorizacao(conta_principal(), autorizacao_id)
+    except StatusDesconhecido:
+        return "status_desconhecido"
+    if autorizacao.status != "ativa":
+        return f"autorizacao_{autorizacao.status}"
+    if forma.forma != FormaAssinatura.PIX_AUTOMATICO or forma.status == StatusFormaPagamento.ATIVA:
+        return "ja_autorizada"
+    with usar_ator(ATOR_SISTEMA):
+        transicionar(
+            forma, StatusFormaPagamento.ATIVA, acao="assinatura.forma_ativa", regra="PLT-13"
+        )
+    return "autorizada"
 
 
 def _guardar_cartao(empresa: Empresa, cartao: CartaoGuardado) -> None:
@@ -1508,7 +1549,7 @@ def mudar_plano(
                 _mudar_valor_da_fatura(fatura, plano, simulacao.preco_novo_centavos)
             if simulacao.fatura_diferenca is not None:
                 avulsa = simulacao.fatura_diferenca
-                criar_fatura(
+                diferenca = criar_fatura(
                     empresa,
                     tipo=TipoFatura.DIFERENCA_PLANO,
                     vencimento=avulsa.vencimento,
@@ -1518,6 +1559,7 @@ def mudar_plano(
                     valor_centavos=avulsa.valor_centavos,
                     regra="PLT-04",
                 )
+                _cobrar_diferenca_no_cartao(empresa, diferenca)
         else:
             empresa.plano_proximo = plano
             empresa.ciclo_proximo = ciclo if simulacao.tipo == "ciclo" else ""
@@ -1542,6 +1584,19 @@ def mudar_plano(
             regra="PLT-04",
         )
     return simulacao
+
+
+def _cobrar_diferenca_no_cartao(empresa: Empresa, fatura: FaturaAssinatura) -> None:
+    """PLT-04: com o cartão guardado, a diferença do upgrade é cobrada na hora, depois do commit
+    (o parceiro fora do ar não desfaz a mudança: a tarefa tenta de novo). Nas outras formas, a
+    cobrança sai na `gerar_faturas`, que emite as faturas que vencem em até 5 dias."""
+    forma = FormaPagamentoAssinatura.objects.filter(empresa_id=empresa.pk).first()
+    if not _cartao_guardado(forma):
+        return
+    from .tasks import plataforma_cobrar_cartao
+
+    fatura_id = fatura.pk
+    transaction.on_commit(lambda: plataforma_cobrar_cartao.delay(fatura_id))
 
 
 def desfazer_mudanca_plano(empresa: Empresa) -> None:
@@ -1675,6 +1730,10 @@ MEIO_DA_FORMA = {
     FormaAssinatura.PIX_AUTOMATICO: "pix",
     FormaAssinatura.BOLETO: "boleto",
 }
+# A cobrança que não é do "Pagar": a do Pix Automático pela autorização e a do cartão guardado.
+# Um "Pagar" depois delas cria a de outro tipo (Pix avulso, página do cartão) e cancela a antiga.
+COBRANCA_PELA_AUTORIZACAO = "pix_auto"
+COBRANCA_NO_CARTAO_GUARDADO = "cartao"
 EM_ABERTO = (StatusFatura.ABERTA, StatusFatura.ATRASADA)
 FATURA_NAO_PAGAVEL = ("fatura_nao_pagavel", "Esta fatura já foi paga ou cancelada.")
 SEM_FORMA_PAGAMENTO = ("sem_forma_pagamento", "Escolha a forma de pagamento antes.")
@@ -1734,22 +1793,34 @@ def _cancelar_cobranca_viva(fatura: FaturaAssinatura) -> bool:
     return True
 
 
-def _emitir_cobranca(fatura: FaturaAssinatura, meio: str) -> FaturaAssinatura:
-    """Cria a cobrança da fatura na conta principal, pelo `meio`, e guarda o que a tela mostra.
-    A fatura vencida sai para hoje (o parceiro não emite com vencimento passado)."""
+def _pedido_da_fatura(fatura: FaturaAssinatura, tipo: str) -> PedidoCobranca:
+    """A fatura vencida sai para hoje (o parceiro não emite com vencimento passado)."""
     empresa = Empresa.objects.get(pk=fatura.empresa_id)
     cliente = atualizar_pagador(empresa)
-    pedido = PedidoCobranca(
-        TIPO_DA_COBRANCA[meio],
+    return PedidoCobranca(
+        tipo,
         int(fatura.valor_centavos),
         max(fatura.vencimento, relogio.hoje()),
         f"fatura-{fatura.pk}",
         pagador_da_empresa(empresa, cliente),
     )
-    cobranca = _no_parceiro(lambda: provedor().criar_cobranca(conta_principal(), pedido))
+
+
+def _emitir_cobranca(
+    fatura: FaturaAssinatura, meio: str, autorizacao_id: str = ""
+) -> FaturaAssinatura:
+    """Cria a cobrança da fatura na conta principal, pelo `meio`, e guarda o que a tela mostra.
+    Com `autorizacao_id`, é a cobrança do Pix Automático pela autorização (PLT-02, PLT-13)."""
+    pedido = _pedido_da_fatura(fatura, TIPO_DA_COBRANCA[meio])
+    if autorizacao_id:
+        cobranca = _no_parceiro(
+            lambda: provedor().cobrar_com_autorizacao(conta_principal(), autorizacao_id, pedido)
+        )
+    else:
+        cobranca = _no_parceiro(lambda: provedor().criar_cobranca(conta_principal(), pedido))
     fatura.cobranca_externa_id = cobranca.id
     fatura.cobranca_emitida_em = relogio.agora()
-    fatura.cobranca_tipo = pedido.tipo
+    fatura.cobranca_tipo = COBRANCA_PELA_AUTORIZACAO if autorizacao_id else pedido.tipo
     fatura.cobranca_pix_copia_e_cola = cobranca.pix_copia_e_cola
     fatura.cobranca_linha_digitavel = cobranca.linha_digitavel[:60]
     fatura.cobranca_boleto_url = cobranca.boleto_url[:500]
@@ -2113,3 +2184,302 @@ def virar_estados(hoje: date | None = None) -> Virada:
             if novo is not None:
                 estados[novo] = estados.get(novo, 0) + 1
     return Virada(atrasadas, mudancas, estados)
+
+
+# --- Geração, emissão e cartão guardado (PLT-02, PLT-04, PLT-13; T-186 parte 2, assinatura.md) ---
+
+DIAS_DE_ANTECEDENCIA = 5  # PLT-02: a fatura e a cobrança nascem 5 dias antes do vencimento
+STATUS_QUE_GERAM_FATURA = frozenset(
+    {
+        Empresa.Status.EM_TESTE,
+        Empresa.Status.ATIVA,
+        Empresa.Status.INADIMPLENTE,
+        Empresa.Status.SUSPENSA,
+    }
+)
+
+
+def destinatarios_da_cobranca(empresa: Empresa) -> list[str]:
+    """PLT-02, PLT-15: o e-mail de cobrança e os administradores ativos da empresa, sem repetir."""
+    from django.contrib.auth import get_user_model
+
+    with schema_context(empresa.schema_name):
+        administradores = list(
+            get_user_model()
+            .objects.filter(perfil="administrador", status="ativo")
+            .order_by("pk")
+            .values_list("email", flat=True)
+        )
+    destinatarios: list[str] = []
+    for email in [empresa.email_cobranca, *administradores]:
+        if email and email.lower() not in {d.lower() for d in destinatarios}:
+            destinatarios.append(email)
+    return destinatarios
+
+
+def texto_do_que_excede(excede: Mapping[str, Any]) -> str:
+    """O motivo do downgrade recusado, para o e-mail: "11 de 10 usuários e 1 OS aberta"."""
+    partes = [
+        f"{excede[item]['usado']} de {excede[item]['limite']} {Item(item).label}"
+        for item in Item.values
+        if item in excede
+    ]
+    if excede.get("abertos_texto"):
+        partes.append(str(excede["abertos_texto"]))
+    return _juntar(partes, "e")
+
+
+def _recusar_downgrade_agendado(
+    empresa: Empresa, agendado: Plano, excede: dict[str, Any], vencimento: date
+) -> None:
+    """CA-ASS-40: o uso deixou de caber no plano agendado. O agendamento cai, a fatura sai pelo
+    plano atual, e o administrador e o e-mail de cobrança recebem o motivo."""
+    empresa.plano_proximo = None
+    empresa.ciclo_proximo = ""
+    empresa.save(update_fields=["plano_proximo", "ciclo_proximo", "atualizado_em"])
+    with usar_ator(ATOR_SISTEMA):
+        _registrar_nos_dois(
+            empresa,
+            "empresa.mudar_plano_recusado",
+            antes={"plano_proximo": agendado.nome},
+            depois={"plano_proximo": None, "detalhes": excede},
+            categoria_publica=Categoria.FINANCEIRO,
+            regra="PLT-04",
+        )
+    from .tasks import plataforma_avisar_downgrade_recusado
+
+    empresa_id, plano_id, dia = empresa.pk, agendado.pk, vencimento.isoformat()
+    transaction.on_commit(
+        lambda: plataforma_avisar_downgrade_recusado.delay(empresa_id, plano_id, dia, excede)
+    )
+
+
+def gerar_fatura_do_periodo(empresa_id: int, hoje: date) -> FaturaAssinatura | None:
+    """PLT-02: 5 dias antes do vencimento seguinte, a fatura do período seguinte, pelo que vale na
+    virada (o plano agendado pelo preço de tabela, ou o de hoje pelo preço contratado). Antes,
+    confere se o downgrade agendado ainda cabe (PLT-04, CA-ASS-40 e 41), com a `Empresa` e o
+    `UsoEmpresa` travados. Não gera para a `pausada` nem a `cancelada`, nem o período que começa
+    depois do fim do acesso (cancelamento marcado). Idempotente: uma mensalidade por período."""
+    with schema_context(get_public_schema_name()), transaction.atomic():
+        empresa = _empresa_travada(Empresa(pk=empresa_id))
+        if empresa.status not in STATUS_QUE_GERAM_FATURA or not empresa.dia_vencimento:
+            return None
+        ultima = _mensalidades(empresa).order_by("-periodo_fim").first()
+        if ultima is None or empresa.plano is None:
+            return None  # a 1ª fatura nasce com a empresa (criar_primeira_fatura)
+        vencimento = ultima.periodo_fim + timedelta(days=1)
+        if hoje < vencimento - timedelta(days=DIAS_DE_ANTECEDENCIA):
+            return None
+        if empresa.acesso_ate is not None and vencimento > empresa.acesso_ate:
+            return None  # PLT-06: nada é cobrado depois do fim do acesso
+        agendado = empresa.plano_proximo
+        if agendado is not None and agendado.pk != empresa.plano_id:
+            uso = UsoEmpresa.objects.select_for_update().filter(empresa_id=empresa.pk).first()
+            excede = excede_no_plano(empresa, agendado, uso or UsoEmpresa(empresa=empresa))
+            if excede:
+                _recusar_downgrade_agendado(empresa, agendado, excede, vencimento)
+        plano, ciclo, valor = _o_que_vale_na_virada(empresa)
+        return criar_fatura(
+            empresa,
+            tipo=TipoFatura.MENSALIDADE,
+            vencimento=vencimento,
+            periodo=proximo_periodo(empresa.dia_vencimento, ciclo, vencimento),
+            plano=plano,
+            ciclo=ciclo,
+            valor_centavos=valor,
+            regra="PLT-02",
+        )
+
+
+def _cartao_guardado(forma: FormaPagamentoAssinatura | None) -> bool:
+    return (
+        forma is not None
+        and forma.forma == FormaAssinatura.CARTAO
+        and bool(forma.cartao_final)
+        and bool(forma.cartao_token_cifrado)
+    )
+
+
+def emitir_cobranca_da_fatura(fatura_id: int, hoje: date) -> str:
+    """PLT-02, PLT-13: a cobrança da fatura `aberta` sem cobrança, 5 dias antes do vencimento,
+    pela forma cadastrada: o boleto com Pix (e o e-mail nesse dia), a cobrança do Pix Automático
+    pela autorização, ou a página do parceiro para o cartão ainda não digitado. O cartão guardado
+    é cobrado no dia do vencimento (`cobrar_cartao_da_fatura`). Devolve o que foi feito.
+    Idempotente: a fatura com cobrança não sai de novo."""
+    with schema_context(get_public_schema_name()), transaction.atomic():
+        fatura = FaturaAssinatura.objects.select_for_update().get(pk=fatura_id)
+        limite = hoje + timedelta(days=DIAS_DE_ANTECEDENCIA)
+        if (
+            fatura.status != StatusFatura.ABERTA
+            or fatura.cobranca_externa_id
+            or fatura.vencimento > limite
+        ):
+            return "nada"
+        forma = FormaPagamentoAssinatura.objects.filter(empresa_id=fatura.empresa_id).first()
+        if forma is None or not forma.forma:
+            return "sem_forma"  # paga pelo "Pagar" com `meio` (CA-ASS-27)
+        if forma.forma == FormaAssinatura.BOLETO:
+            _emitir_cobranca(fatura, "boleto")
+            from .tasks import plataforma_enviar_boleto
+
+            transaction.on_commit(lambda: plataforma_enviar_boleto.delay(fatura_id))
+            return "boleto"
+        if forma.forma == FormaAssinatura.PIX_AUTOMATICO:
+            if forma.status != StatusFormaPagamento.ATIVA or not forma.autorizacao_externa_id:
+                return "aguardando_autorizacao"
+            _emitir_cobranca(fatura, "pix", forma.autorizacao_externa_id)
+            return "pix_automatico"
+        if _cartao_guardado(forma):
+            return "cartao_guardado"
+        _emitir_cobranca(fatura, "cartao")  # o link vai no lembrete do D-3 e no "Pagar"
+        return "cartao_link"
+
+
+def _cobravel_no_cartao(fatura: FaturaAssinatura, hoje: date) -> str | None:
+    """Por que a fatura não é cobrada no cartão hoje, ou `None` se é. A do período no dia do
+    vencimento; a da diferença do upgrade, na hora (PLT-04); recusada, uma vez a mais no dia
+    seguinte, e não há terceira (PLT-02, CA-ASS-12)."""
+    if fatura.status not in EM_ABERTO:
+        return "nao_aberta"
+    if fatura.cobranca_tipo == COBRANCA_NO_CARTAO_GUARDADO and fatura.cobranca_externa_id:
+        return "ja_cobrada"  # a baixa vem pelo webhook
+    if fatura.tentativas_cartao >= TENTATIVAS_DO_CARTAO:
+        return "sem_tentativa"
+    if fatura.cartao_recusado_em is not None:
+        if timezone.localdate(fatura.cartao_recusado_em) >= hoje:
+            return "tenta_amanha"
+    elif fatura.tipo == TipoFatura.MENSALIDADE and fatura.vencimento > hoje:
+        return "antes_do_vencimento"
+    return None
+
+
+def cobrar_cartao_da_fatura(fatura_id: int, hoje: date) -> str:
+    """PLT-02, ADR 0023: cobra a fatura no cartão guardado, pelo token, que só é decifrado na
+    porta de `integracoes/pagamentos`. Recusado: grava `cartao_recusado_em`, soma uma tentativa e
+    a régua segue. A baixa vem pelo webhook. Parceiro fora do ar: `ParceiroForaDoAr`, e nada muda
+    (a tentativa não conta). Idempotente."""
+    with schema_context(get_public_schema_name()), transaction.atomic():
+        fatura = FaturaAssinatura.objects.select_for_update().get(pk=fatura_id)
+        motivo = _cobravel_no_cartao(fatura, hoje)
+        if motivo is not None:
+            return motivo
+        forma = (
+            FormaPagamentoAssinatura.objects.select_for_update()
+            .filter(empresa_id=fatura.empresa_id)
+            .first()
+        )
+        if forma is None or not _cartao_guardado(forma):
+            return "sem_cartao"
+        if not _cancelar_cobranca_viva(fatura):
+            return "ja_paga"  # a página ou o boleto de antes já foi pago; a baixa segue
+        pedido = _pedido_da_fatura(fatura, COBRANCA_NO_CARTAO_GUARDADO)
+        try:
+            cobranca = _no_parceiro(lambda: cobrar_cartao_guardado(forma, pedido))
+        except CartaoRecusado:
+            fatura.tentativas_cartao += 1
+            fatura.cartao_recusado_em = relogio.agora()
+            with (
+                usar_ator(ATOR_SISTEMA),
+                auditar(
+                    fatura,
+                    "fatura_assinatura.cartao_recusado",
+                    Categoria.FINANCEIRO,
+                    regra="PLT-02",
+                ),
+            ):
+                fatura.save(
+                    update_fields=["tentativas_cartao", "cartao_recusado_em", "atualizado_em"]
+                )
+            return "recusado"
+        fatura.cobranca_externa_id = cobranca.id
+        fatura.cobranca_emitida_em = relogio.agora()
+        fatura.cobranca_tipo = COBRANCA_NO_CARTAO_GUARDADO
+        with (
+            usar_ator(ATOR_SISTEMA),
+            auditar(
+                fatura, "fatura_assinatura.cobrar_cartao", Categoria.FINANCEIRO, regra="PLT-02"
+            ),
+        ):
+            fatura.save(
+                update_fields=[
+                    "cobranca_externa_id",
+                    "cobranca_emitida_em",
+                    "cobranca_tipo",
+                    "atualizado_em",
+                ]
+            )
+        return "cobrada"
+
+
+def _cada_uma(nome: str, chamada: Callable[[], Any]) -> Any:
+    """Uma falha (parceiro fora do ar, recusa) não para as outras: fica no log, e a rodada
+    seguinte tenta de novo (nada foi gravado pela metade)."""
+    try:
+        return chamada()
+    except (ParceiroForaDoAr, ErroDeRegra, Conflito):
+        logger.warning("%s: fica para a próxima rodada", nome, exc_info=True)
+        return None
+
+
+def _contar(contagem: dict[str, int], feito: str | None) -> None:
+    if feito:
+        contagem[feito] = contagem.get(feito, 0) + 1
+
+
+@dataclass(frozen=True)
+class Geracao:
+    faturas: int
+    emitidas: dict[str, int]
+    cartoes: dict[str, int]
+
+
+def gerar_faturas(hoje: date | None = None) -> Geracao:
+    """Às 06:00 (PLT-02): as faturas do período seguinte 5 dias antes do vencimento, com a
+    conferência do downgrade; a emissão das faturas `aberta` sem cobrança que vencem em até 5 dias
+    (as novas e as que nasceram de outro jeito, como a diferença do upgrade); e o cartão guardado
+    no vencimento, com uma tentativa a mais no dia seguinte. Idempotente no mesmo dia."""
+    dia = hoje or relogio.hoje()
+    with schema_context(get_public_schema_name()):
+        empresas = list(
+            Empresa.objects.filter(status__in=STATUS_QUE_GERAM_FATURA)
+            .order_by("pk")
+            .values_list("pk", flat=True)
+        )
+        geradas = 0
+        for pk in empresas:
+            if _cada_uma(f"Fatura da empresa {pk}", partial(gerar_fatura_do_periodo, pk, dia)):
+                geradas += 1
+        a_emitir = list(
+            FaturaAssinatura.objects.filter(
+                status=StatusFatura.ABERTA,
+                cobranca_externa_id__isnull=True,
+                vencimento__lte=dia + timedelta(days=DIAS_DE_ANTECEDENCIA),
+                empresa__status__in=STATUS_QUE_GERAM_FATURA,
+            )
+            .order_by("vencimento", "pk")
+            .values_list("pk", flat=True)
+        )
+        emitidas: dict[str, int] = {}
+        for pk in a_emitir:
+            _contar(
+                emitidas,
+                _cada_uma(f"Cobrança da fatura {pk}", partial(emitir_cobranca_da_fatura, pk, dia)),
+            )
+        no_cartao = list(
+            FaturaAssinatura.objects.filter(
+                status__in=EM_ABERTO,
+                tentativas_cartao__lt=TENTATIVAS_DO_CARTAO,
+                empresa__forma_pagamento__forma=FormaAssinatura.CARTAO,
+                empresa__forma_pagamento__cartao_final__gt="",
+            )
+            .filter(Q(vencimento__lte=dia) | Q(tipo=TipoFatura.DIFERENCA_PLANO))
+            .order_by("vencimento", "pk")
+            .values_list("pk", flat=True)
+        )
+        cartoes: dict[str, int] = {}
+        for pk in no_cartao:
+            _contar(
+                cartoes,
+                _cada_uma(f"Cartão da fatura {pk}", partial(cobrar_cartao_da_fatura, pk, dia)),
+            )
+    return Geracao(geradas, emitidas, cartoes)

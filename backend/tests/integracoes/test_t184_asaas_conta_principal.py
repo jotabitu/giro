@@ -5,11 +5,12 @@ página do parceiro segue a documentação do Asaas e ainda precisa ser conferid
 (ADR 0023, item 4).
 """
 
+import json
 from datetime import date
 
 import pytest
 
-from integracoes.pagamentos import conta_principal
+from integracoes.pagamentos import CABECALHO_DO_TOKEN, conta_principal
 from integracoes.pagamentos.base import CartaoRecusado, Endereco, Pagador, PedidoCobranca
 
 from .gravacao import CHAVE_PRINCIPAL, asaas
@@ -125,3 +126,40 @@ def test_plt_02_asaas_cartao_salvo_recusado(relogio):
     with pytest.raises(CartaoRecusado, match="não autorizada"):
         provedor.cobrar_cartao_salvo(conta_principal(), "tok-ficticio-0000-t184", pedido)
     gravacao.conferir_fim()
+
+
+# --- Pix Automático da assinatura (PLT-13, T-186) ---
+
+AUTORIZACAO = "a33047b1-0000-4000-8000-000000000901"
+
+
+def test_plt_13_asaas_consulta_a_autorizacao_ativa():
+    provedor, gravacao = asaas("t186_autorizacao_ativa")
+    autorizacao = provedor.consultar_autorizacao(conta_principal(), AUTORIZACAO)
+    assert (autorizacao.id, autorizacao.status) == (AUTORIZACAO, "ativa")
+    gravacao.conferir_fim()
+
+
+def test_plt_13_asaas_autorizacao_que_nao_existe_volta_cancelada():
+    provedor, _ = asaas("t186_autorizacao_nao_encontrada")
+    assert provedor.consultar_autorizacao(conta_principal(), AUTORIZACAO).status == "cancelada"
+
+
+def test_plt_13_asaas_webhook_da_autorizacao():
+    """O aviso da autorização não traz `payment`: vira um evento sem cobrança, com o id da
+    autorização, e quem recebe consulta o parceiro antes de acreditar (S-14). Nomes do evento e
+    do objeto a conferir no sandbox."""
+    provedor, _ = asaas()
+    corpo = {
+        "id": "evt_t186_autorizacao_901",
+        "event": "PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED",
+        "pixAutomaticAuthorization": {"id": AUTORIZACAO, "contractId": "assinatura-901"},
+    }
+    evento = provedor.validar_webhook({CABECALHO_DO_TOKEN: "tok"}, json.dumps(corpo).encode())
+    assert evento is not None
+    assert (evento.cobranca_id, evento.autorizacao_id, evento.referencia_externa) == (
+        "",
+        AUTORIZACAO,
+        "assinatura-901",
+    )
+    assert (evento.evento_id, evento.token) == ("evt_t186_autorizacao_901", "tok")

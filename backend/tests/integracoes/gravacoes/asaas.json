@@ -179,5 +179,15 @@
   "t184_cartao_salvo_recusado": [
     {"metodo": "POST", "caminho": "/payments",
      "resposta": {"status": 400, "corpo": {"errors": [{"code": "invalid_creditCard", "description": "Transação não autorizada. Verifique os dados do cartão de crédito e tente novamente."}]}}}
+  ],
+
+  "t186_autorizacao_ativa": [
+    {"metodo": "GET", "caminho": "/pix/automatic/authorizations/a33047b1-0000-4000-8000-000000000901",
+     "resposta": {"status": 200, "corpo": {"id": "a33047b1-0000-4000-8000-000000000901", "contractId": "assinatura-901", "customerId": "cus_000000000901", "frequency": "MONTHLY", "startDate": "2026-10-22", "value": 449.0, "status": "ACTIVE"}}}
+  ],
+
+  "t186_autorizacao_nao_encontrada": [
+    {"metodo": "GET", "caminho": "/pix/automatic/authorizations/a33047b1-0000-4000-8000-000000000901",
+     "resposta": {"status": 404, "corpo": {"errors": [{"code": "not_found", "description": "Autorização não encontrada."}]}}}
   ]
 }
