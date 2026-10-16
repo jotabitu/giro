@@ -1,12 +1,16 @@
 import base64
 import ipaddress
+from urllib.parse import urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
 
 from config.settings.base import *  # noqa: F403
 from config.settings.base import (
+    CELERY_BROKER_URL,
+    CELERY_RESULT_BACKEND,
     CHAVE_DADOS_PESSOAIS_DE_EXEMPLO,
     CHAVE_SEGREDOS_DE_EXEMPLO,
+    DATABASES,
     EMAIL_BACKEND,
     EMAIL_HOST,
     GIRO_ARMAZENAMENTO,
@@ -16,6 +20,7 @@ from config.settings.base import (
     GIRO_PEPPER_HMAC,
     GIRO_PROVEDOR_PAGAMENTOS,
     PEPPER_DE_EXEMPLO,
+    REDIS_URL,
     SECRET_KEY,
     SIMPLE_JWT,
     env,
@@ -69,6 +74,17 @@ if GIRO_PROVEDOR_PAGAMENTOS != "asaas":
     raise ImproperlyConfigured("Defina GIRO_PROVEDOR_PAGAMENTOS=asaas: o falso não sobe.")
 if not GIRO_ASAAS_CHAVE_API.strip():
     raise ImproperlyConfigured("Defina GIRO_ASAAS_CHAVE_API: vazia não é aceita em produção.")
+# Banco e Redis só com senha (T-274, condição da segurança na T-247): a URL sem senha subiria
+# contra um serviço aberto na rede interna. Redis: `redis://:senha@host:6379/0`.
+if not DATABASES["default"].get("PASSWORD"):
+    raise ImproperlyConfigured("DATABASE_URL sem senha: produção só sobe com senha no Postgres.")
+for _nome, _url in (
+    ("CELERY_BROKER_URL", CELERY_BROKER_URL),
+    ("CELERY_RESULT_BACKEND", CELERY_RESULT_BACKEND),
+    ("REDIS_URL", REDIS_URL),
+):
+    if not urlsplit(_url).password:
+        raise ImproperlyConfigured(f"{_nome} sem senha: produção só sobe com senha no Redis.")
 # WhatsApp: só existe o falso (mensagens na memória); entra nesta trava com a integração real.
 
 # Segredos próprios de produção: falha ao subir se faltarem ou se repetirem.

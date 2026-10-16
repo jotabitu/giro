@@ -112,6 +112,59 @@ Modelo em `infra/proxy/giro.conf.template` (nginx; a imagem oficial troca as var
 - [ ] Host desconhecido recusado no proxy (444); HTTP redireciona para HTTPS; certificado curinga.
 - [ ] Backend: `USE_X_FORWARDED_HOST` é `False` em `base.py` e `test.py`, e `True` só em `dev.py` (o rewrite do Next) e `prod.py`. Teste `test_t158_x_forwarded_host_so_em_dev_e_prod`.
 
+## Servidor da aplicação e leitura de PDF (T-258)
+
+Homologação e produção sobem a imagem `producao` do `infra/docker/backend.Dockerfile` (ADR 0027, T-264): só `requirements.txt` (com o `gunicorn`), usuário `giro` sem root, `collectstatic` feito no build e `CMD gunicorn -c /app/gunicorn.conf.py config.wsgi:application`, com o `infra/docker/gunicorn.conf.py` da T-258. Worker e beat usam a mesma imagem com o comando deles. O alvo `dev` (requirements-dev, root, `runserver` com o código por bind mount) é o do `docker-compose.yml`; o Dockerfile sem `--target` produz o `dev`, então todo uso de homologação ou produção pede `--target producao`.
+
+`infra/deploy/docker-compose.homologacao.yml` sobe `estaticos`, `migrar`, `backend`, `worker`, `beat` e o `proxy` (nginx com `infra/proxy`). Banco, Redis e frontend ficam fora, por variável. O `migrar` roda `migrate_schemas` com `DATABASE_URL_MIGRACAO` e sai; o backend, o worker e o beat só sobem depois e usam `DATABASE_URL` (`giro_app`, sem DDL). É o mesmo cuidado de "uma migração por deploy" da ADR, com a credencial separada.
+
+**Estáticos do Admin (decisão do devops, ADR 0027):** o proxy serve `/static/` a partir de um volume, sem dependência nova (nada de whitenoise). O `collectstatic` roda no build da imagem; o serviço `estaticos` copia `/app/staticfiles` para o volume a cada subida (um volume nomeado só se preencheria na primeira vez), e o `proxy` o monta somente leitura. Só os estáticos do Django passam por aí; os do Next ficam em `/_next/static/`. **Em aberto:** o Django Admin vive em `admin.<domínio>/admin/` (`urls_publico.py`), mas o proxy manda `/` para o Next, então o Admin ainda não é alcançável pelo proxy. Rotear `/admin/` do host da plataforma para o Django, sem colidir com as rotas do Next, é decisão do arquiteto.
+
+**Teste de subida:** `sh infra/scripts/teste-subida-producao.sh` (Docker com Compose v2) builda o alvo `producao`, sobe o compose de homologação com banco e Redis descartáveis e as variáveis do `homologacao.env.example`, e confere: o processo 1 é o Gunicorn com 2 workers `gthread` e 4 threads; roda sem root e sem pytest; uma requisição pelo proxy chega ao Django; o estático do Admin sai pelo proxy; worker e beat de pé; e `docker stop` deixa terminar uma requisição de 8 s e sai com código 0. Passou em 16 out 2026 (17 conferências), com os papéis separados: a migração entra como `giro_migracao` (o serviço `migrar`) e o backend como `giro_app` (a T-276 corrigiu a troca de dono da função de expurgo da auditoria, que falhava com `permission denied for schema public`). Em banco gerenciado, aplicar o mesmo SQL do `infra/postgres/01-papeis.sh`, inclusive `ALTER SCHEMA public OWNER TO giro_migracao` e `GRANT giro_expurgo TO giro_migracao`.
+
+**Por que isso importa para a ADR 0026:** a leitura do CRLV-e e da CNH-e espera um processo filho por até 8 s de relógio, dentro da requisição.
+
+| Camada | Valor | Observação |
+| --- | --- | --- |
+| Gunicorn `timeout` | 30 s (3,75 vezes os 8 s) | Valor global: o Gunicorn não tem limite por rota. No `gthread` ele só mata worker que parou de responder ao mestre, não corta requisição lenta. |
+| Proxy, leitura (`/api/veiculos/leitura-crlv/`, `/api/clientes/leitura-cnh/`) | 20 s de leitura e envio, corpo de 3 MB, 20 requisições por minuto por IP (rajada de 5) | É o corte por requisição. O arquivo lido tem até 2 MB. |
+| Proxy, resto de `/api/` | 60 s, corpo de 12 MB | Como estava na T-158: nenhuma outra rota ficou mais frouxa. |
+
+Conferido com `nginx -t` e com um servidor de mentira atrás do proxy (1,27): corpo de 2,8 MB passa na rota de leitura, 4 MB dá 413 nela e na CNH-e, 4 MB passa em `/api/veiculos/`, 13 MB dá 413; passada a rajada, 429. O salvar do veículo com o PDF anexado (até 10 MB, ADR 0026) não é a rota de leitura e vale os 12 MB.
+
+**Workers e memória** (estimativa; o código da leitura ainda não existe, então nada abaixo foi medido com o filho real):
+
+- Cada leitura em andamento custa até 512 MB de espaço de endereço no filho (`RLIMIT_AS`, que é virtual: o consumo real do `pypdf` num PDF de 500 KB deve ser bem menor) mais o worker que espera. O worker do Django em desenvolvimento ocupa cerca de 140 MiB parado (`docker stats`, `runserver`, medido em 15 out); em produção conte 250 a 300 MiB por worker, valor assumido.
+- `gthread` com threads deixa qualquer requisição abrir um filho, então o pior caso é workers vezes threads leituras ao mesmo tempo. Os limites da aplicação (30 por hora por usuário, 200 por hora por empresa) e os da borda tornam isso raro, mas não impossível.
+- Homologação: 2 workers, 4 threads, contêiner com 2 GiB (2 × 300 MiB mais 2 filhos de 512 MiB cabem; 8 filhos não). Produção: 3 workers, 4 threads, 4 GiB (3 × 300 MiB mais 5 filhos). Os dois números assumem que a leitura simultânea fica em 2 a 5 por vez.
+- **Pedido ao backend:** limitar as leituras simultâneas por processo (um semáforo de 2) e devolver 429 ou 503 `leitura_ocupada` quando cheio. Com isso o pior caso deixa de depender de workers vezes threads e o teto de memória fica fechado. Medir o filho real (RSS de pico num CRLV-e e numa CNH-e fictícios) assim que o parser existir e rever esta tabela.
+- O filho não precisa de rede (ADR 0026, item 5). Fechar a rede dele pelo contêiner (política de rede ou usuário sem rota) é pergunta aberta da segurança; o devops espera a resposta.
+
+## Senha no Postgres e no Redis (T-274)
+
+Condição da segurança na T-247 (o processo filho da leitura de PDF roda sem rede fechada): em homologação e produção, banco e Redis só com senha.
+
+- **Backend:** `prod.py` recusa subir com `DATABASE_URL` sem senha e com `REDIS_URL`, `CELERY_BROKER_URL` ou `CELERY_RESULT_BACKEND` sem senha (a ausência de qualquer uma cai no padrão de `base.py`, sem senha, e também é recusada). Testes `test_t274_*` em `backend/tests/test_producao.py`.
+- **Cofre** (`infra/deploy/*.env.example`): `DATABASE_URL=postgres://giro_app:<senha>@<host>:5432/giro`, `DATABASE_URL_MIGRACAO=postgres://giro_migracao:<senha>@<host>:5432/giro`, `REDIS_URL=redis://:<senha>@<host>:6379/0`, `CELERY_BROKER_URL` (banco 1) e `CELERY_RESULT_BACKEND` (banco 2) no mesmo formato. Com TLS, `rediss://`. Senhas geradas por ambiente, nunca as de dev.
+- **Lado do serviço:** o Postgres gerenciado exige senha por padrão (`scram-sha-256`); o Redis tem de subir com `requirepass` (ou ACL com usuário). No teste de subida: `redis-server --requirepass`, e a conferência de que o Redis responde `NOAUTH` sem senha e o Postgres recusa `giro_app` sem senha.
+- **Teste de subida** (`infra/scripts/teste-subida-producao.sh`): além do que já conferia, o serviço do compose usa as URLs com senha, o Redis e o Postgres recusam quem não manda a senha, e a imagem `producao` recusa `DATABASE_URL`, `REDIS_URL` e `CELERY_BROKER_URL` sem senha, com a mensagem de `prod.py`.
+- **Não coberto:** a rede em si (Postgres e Redis só alcançáveis pela rede interna do ambiente) é regra de rede do deploy, sem teste aqui; senha forte e rotação são do cofre.
+
+## Cofre do deploy depois da T-157
+
+`prod.py` recusa subir com e-mail de desenvolvimento, SMTP sem `EMAIL_HOST`, `GIRO_ARMAZENAMENTO` diferente de `s3`, `GIRO_PROVEDOR_PAGAMENTOS` diferente de `asaas` ou `GIRO_ASAAS_CHAVE_API` vazia. O que preencher, por ambiente:
+
+| Variável | Homologação | Produção |
+| --- | --- | --- |
+| `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | SMTP de teste da própria conta, com remetente `EMAIL_FROM` | SMTP de produção (porta 587 com TLS; mude `EMAIL_PORT` se o provedor for outro) |
+| `GIRO_ARMAZENAMENTO` | `s3` | `s3` |
+| `S3_BUCKET`, `S3_ENDPOINT_URL`, `S3_REGIAO`, `S3_CHAVE_DE_ACESSO`, `S3_CHAVE_SECRETA` | bucket próprio da homologação | bucket próprio da produção, nunca o mesmo da homologação |
+| `GIRO_PROVEDOR_PAGAMENTOS` | `asaas` | `asaas` |
+| `GIRO_ASAAS_URL` | `https://api-sandbox.asaas.com/v3` (já no modelo) | `https://api.asaas.com/v3` (já no modelo) |
+| `GIRO_ASAAS_CHAVE_API` | chave do sandbox | chave de produção |
+
+Os dois modelos (`infra/deploy/*.env.example`) já listavam essas variáveis desde a T-157; a T-258 acrescentou o comentário do que preencher e as três do Gunicorn. O `prod.py` não confere os `S3_*`: com eles em branco o processo sobe e o erro só aparece na primeira foto (a sugestão ao backend é a mesma trava, no mesmo `prod.py`, e vai no handoff). WhatsApp continua só com o falso e entra na trava quando a integração real existir.
+
 ## Endurecimento de produção (T-035)
 
 Valores por ambiente (o processo precisa de `DJANGO_SETTINGS_MODULE`; `wsgi.py`, `asgi.py` e `config/celery.py` não têm mais padrão e falham sem ele, C-04):

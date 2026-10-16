@@ -8,6 +8,7 @@ import type {
   ListaVeiculos,
   LocacoesDoVeiculo,
   ManutencoesDoVeiculo,
+  EdicaoVeiculo,
   NovoVeiculo,
   TipoVeiculo,
   Veiculo,
@@ -32,6 +33,11 @@ export const veiculosApi = {
   /** O 201 já traz o veículo. Ler a ficha em seguida faria uma falha da leitura passar por falha do cadastro (T-240): quem abre a ficha é a página dela. */
   criar(v: NovoVeiculo): Promise<Veiculo> {
     return http.post<Veiculo>("/api/veiculos/", v);
+  },
+
+  /** PATCH (VEI-01): administrador e gerente; a resposta é a ficha completa. */
+  atualizar(id: number, v: EdicaoVeiculo): Promise<VeiculoDetalhe> {
+    return http.patch<VeiculoDetalhe>(`/api/veiculos/${id}/`, v);
   },
 
   registrarKm(id: number, km: number): Promise<Veiculo> {
