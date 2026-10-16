@@ -205,7 +205,8 @@ export function FotosEAvarias({ vistoria }: { vistoria: VistoriaRecente | null |
       titulo="Fotos e avarias"
       acao={
         <span className="text-[13px] text-ink-muted">
-          vistoria de {vistoria.tipo === "saida" ? "saída" : "chegada"} · {dataCurta(vistoria.concluida_em)} · {vistoria.vistoriador.nome}
+          vistoria de {vistoria.tipo === "saida" ? "saída" : "devolução"} · {dataCurta(vistoria.concluida_em)}
+          {vistoria.vistoriador ? ` · ${vistoria.vistoriador.nome}` : ""}
         </span>
       }
     >
@@ -218,9 +219,11 @@ export function FotosEAvarias({ vistoria }: { vistoria: VistoriaRecente | null |
               ))}
             </div>
           )}
-          <Link href="/vistorias" className="mt-[10px] inline-block text-[14px] text-ink-muted underline">
-            Ver as {vistoria.total_fotos} fotos da vistoria
-          </Link>
+          {vistoria.total_fotos > 0 && (
+            <Link href="/vistorias" className="mt-[10px] inline-block text-[14px] text-ink-muted underline">
+              Ver as {vistoria.total_fotos} fotos da vistoria
+            </Link>
+          )}
         </div>
         <div className="rounded-[22px] bg-surface-sunken px-4 py-[14px]">
           <div className="mb-1 font-semibold">{avarias.length === 0 ? "Nenhuma avaria registrada" : avarias.length === 1 ? "1 avaria registrada" : `${avarias.length} avarias registradas`}</div>
@@ -269,5 +272,71 @@ export function MovimentacoesDoVeiculo({ v }: { v: VeiculoDetalhe }) {
         </ul>
       )}
     </Panel>
+  );
+}
+
+/** Celular: "Fotos e avarias" no cartão da ficha, sem a silhueta nem o link (Veiculo-Mobile). Some sem `vistoria_recente`. */
+export function FotosEAvariasCelular({ vistoria }: { vistoria: VistoriaRecente | null | undefined }) {
+  if (!vistoria) return null;
+  const { fotos, avarias } = vistoria;
+  return (
+    <section className="rounded-lg bg-surface p-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-heading">Fotos e avarias</h2>
+        <span className="text-[13px] text-ink-muted">
+          {vistoria.tipo === "saida" ? "saída" : "devolução"} · {dataCurta(vistoria.concluida_em)}
+        </span>
+      </div>
+      {fotos.length > 0 && (
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          {fotos.map((f) => (
+            <Miniatura key={f.id} posicao={f.posicao} url={f.url} avarias={avarias.filter((a) => a.foto_id === f.id).length} />
+          ))}
+        </div>
+      )}
+      {avarias.length === 0 ? (
+        <p className="mt-2 text-body text-ink-muted">Nenhuma avaria registrada.</p>
+      ) : (
+        avarias.map((a, i) => (
+          <div key={a.id} className="flex items-start gap-3 border-b border-line py-[10px] last:border-b-0">
+            <span className="grid size-6 shrink-0 place-items-center rounded-full bg-warning text-[12px] font-bold text-on-warning">{i + 1}</span>
+            <div>
+              <div className="font-medium">{a.descricao}</div>
+              <div className="text-[13px] text-ink-muted">{descricaoDaAvaria(a)}</div>
+            </div>
+          </div>
+        ))
+      )}
+    </section>
+  );
+}
+
+/** Celular: "Movimentações" como cartão simples, com os mesmos dados do desktop. Some sem o bloco `movimentacoes`. */
+export function MovimentacoesCelular({ v }: { v: VeiculoDetalhe }) {
+  const m = v.movimentacoes;
+  if (!m) return null;
+  return (
+    <section className="rounded-lg bg-surface p-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-heading">Movimentações</h2>
+        <Link href="/veiculos/movimentacoes" className="inline-flex min-h-11 items-center text-[14px] text-ink-muted underline">
+          ver todas
+        </Link>
+      </div>
+      {m.ultimas.length === 0 ? (
+        <p className="text-body text-ink-muted">Nenhuma movimentação.{v.acoes.motivo_movimentar ? ` ${v.acoes.motivo_movimentar}` : ""}</p>
+      ) : (
+        <ul>
+          {m.ultimas.map((u) => (
+            <li key={u.id} className="flex justify-between gap-3 border-b border-line py-3 text-body last:border-b-0">
+              <span>
+                <span className="wl-mono">{u.codigo}</span> · {[...u.paradas, u.destino_nome].join(" → ")}
+              </span>
+              <span className="shrink-0 text-ink-muted">{dataCurta(u.iniciada_em)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
