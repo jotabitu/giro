@@ -299,9 +299,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-284 · Corrigir placa e chassi pela tela
 - **Agente:** frontend, com design-system · **Depende de:** T-243 · **Regras:** VEI-01 · **Contrato:** `POST /api/veiculos/{id}/corrigir-identificacao/` (só administrador; ver `docs/api/veiculos.md`) · **Pronto quando:** na edição do veículo, o administrador tem "Corrigir placa ou chassi", que abre a correção com o motivo que o contrato pedir, grava pela rota e mostra o erro da API no campo (placa e chassi únicos, chassi com 17 caracteres); os outros perfis não veem a ação (pelo que a API manda); referência desenhada pelo design-system se faltar; testes do componente. Pedido do dono em 16 out.
 
-### T-291 · Django Admin pelo proxy (devops)
-- **Agente:** devops · **Depende de:** T-277 · **ADR:** 0029 · **Pronto quando:** o bloco `server` do host da plataforma no proxy (com as `location` de hoje num include), a `location /admin/` com a lista de IPs do cofre fechada por padrão (404 fora dela), a zona `giro_auth` no `/admin/login/` e o `X-Robots-Tag: noindex`; o arquivo da lista vazio no cofre de homologação e produção; o teste de subida (404 com a lista vazia, login com estáticos com o IP na lista, `/admin/contratos` de empresa no Next); "Como abrir o Admin" no `infra/README.md`. Handoff da T-277.
-
 ### T-292 · Sessão do Admin em produção
 - **Agente:** backend · **Depende de:** T-277 · **ADR:** 0029 · **Pronto quando:** `prod.py` com a sessão de 4 h que expira ao fechar o navegador; `test_t277_is_staff_so_pelo_createsuperuser` (nenhuma rota da API dá `is_staff`). Handoff da T-277.
 
