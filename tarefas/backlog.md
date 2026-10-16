@@ -331,7 +331,8 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-299 · Leitura dos textos da régua da assinatura
 - **Agente:** produto · **Depende de:** T-186 parte 3 · **Regras:** AUT-13, PLT-02 · **Pronto quando:** o produto lê as mensagens da régua (D-3, D0, D+3, D+7 e o e-mail da ligação) escritas pelo backend em `apps/plataforma/services.py` (handoff `tarefas/handoffs/T-186c-backend.md`), principalmente o D+7 ("A equipe Giro vai ligar para ajudar."); põe os textos aprovados nas regras ou nos critérios; o que mudar vira tarefa de backend. Junto, uma nota para a fase 2: a "tarefa de ligação" hoje é e-mail ao Dono e ao Financeiro da plataforma mais o evento `fatura_assinatura.pedir_ligacao`, sem fila (ponto de troca `_pedir_ligacao`).
 
-### [decisão] Marco da régua da assinatura perdido (PLT-02, AUT-13, levantada na T-299)
+### ~~[decisão]~~ Marco da régua da assinatura perdido (PLT-02, AUT-13, levantada na T-299)
+- **Decidida pelo dono em 16 out 2026: B** (T-308, recomendação do produto). Só o D+7 sai depois, na próxima execução até o D+14, uma vez, com a ligação; o D-3, o D0 e o D+3 não são recuperados. Regras `PLT-02` e `AUT-13`, tabela "Decisões de 16 out 2026", critério CA-ASS-68. A T-303 já conta com B.
 - **Para:** dono do produto, pelo orquestrador · **Contexto:** se a tarefa das 09:00 não rodar no dia de um marco, a mensagem não sai depois (como na `AUT-03`); no D+7, perde-se o último aviso antes da suspensão e a tarefa de ligação. A) nenhum marco é recuperado; B) só o D+7 sai na próxima execução, até o D+14, uma vez. **Padrão: B.** Em "Pontos em aberto" das regras. Entra na tarefa de backend dos textos (handoff `tarefas/handoffs/T-299-produto.md`).
 
 ### T-303 · Textos da régua da assinatura
