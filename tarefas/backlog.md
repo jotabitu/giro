@@ -142,13 +142,6 @@ Concluída. As tarefas entregues estão em `tarefas/feito.md`.
 
 Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, depois telas, depois o que pede regra. As três dúvidas do fim contrariavam regras já escritas e foram decididas pelo dono no mesmo dia.
 
-### T-245 · Despesa ligada ao veículo sem a filial na lista
-- **Agente:** backend, depois frontend · **Depende de:** — · **Regras:** FIN-06, FIL-05 · **Pronto quando:** a despesa ligada a um veículo mostra a filial dela na lista e no detalhe, como as outras (hoje só aparece a placa); a filial vem da API (a `Despesa` já tem `filial`), não da tela; teste da leitura com despesa ligada a veículo.
-- **Estado (16 out 2026):** o frontend parou: a lista e o detalhe da despesa mandam `filial` só com `{id}` (`FilialRefSerializer`, `financeiro/api/serializers.py` e `selectors.py`). Falta o backend mandar `{id, nome}` (`RefSerializer`, como contas e caixa), regenerar o OpenAPI e `docs/api/financeiro.md`, com o teste da leitura de despesa ligada a veículo (FIN-06, FIL-05); depois, a tela (filial junto da placa em `ListaDespesas` e `DetalheDaDespesa`).
-
-- **Estado (16 out 2026):** backend feito, falta a tela. A lista e o detalhe mandam `filial` com `{id, nome}` (`RefSerializer`, como contas e caixa); `FilialRef` saiu do OpenAPI. Branch `t-245-filial-despesa`, handoff `tarefas/handoffs/T-245-backend.md`. Para o frontend: regenerar `schema.d.ts` e mostrar `despesa.filial.nome`.
-
-
 ### T-262 · Troca do ramo em Configurações (backend do cartão e tela)
 - **Agente:** backend, depois frontend · **Depende de:** T-259, T-253 · **Regras:** PLT-12 · **Contrato:** `docs/api/configuracoes.md` (cartão `ramo`, "O que a empresa faz") e `docs/api/empresas.md` (`GET` e `PUT /api/ramo/`) · **Telas:** Admin-Ramo-Desktop, Admin-Ramo-Mobile · **Pronto quando:** (backend) o cartão `ramo` em `GET /api/configuracoes/` depois de `marca`, com o resumo montado pela API ("Locação e venda · motos" no seed), ausente para o token de suporte, pela `empresas.selectors.configuracao()`; teste do cartão e da ausência para o suporte; (frontend) a rota `/admin/ramo` igual à referência, ligada a `GET` e `PUT /api/ramo/`, com as opções e o aviso que a API manda e a recusa 422 da `PLT-12` com o `abertos_texto`; testes do componente. Levantada pelo arquiteto na T-259.
 
@@ -328,11 +321,8 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 - **T-305 · arquiteto, depois backend** (numerada pelo orquestrador em 16 out 2026; achado da T-297). O boleto da conta principal sai sem `pix_copia_e_cola`: o `AsaasPagamentos.criar_cobranca` só busca o `pixQrCode` na cobrança `pix`, e o falso faz igual. O e-mail do boleto já imprime "Pix copia e cola:" vazio, e a T-298 conta com o Pix do boleto ("devolve o boleto, que já traz o `pix_copia_e_cola`"). Conferir no sandbox se o `GET /payments/{id}/pixQrCode` vale para o `BOLETO` e, se sim, preencher nos dois (vale também para o boleto das contas a receber, T-029).
 
-### T-299 · Leitura dos textos da régua da assinatura
-- **Agente:** produto · **Depende de:** T-186 parte 3 · **Regras:** AUT-13, PLT-02 · **Pronto quando:** o produto lê as mensagens da régua (D-3, D0, D+3, D+7 e o e-mail da ligação) escritas pelo backend em `apps/plataforma/services.py` (handoff `tarefas/handoffs/T-186c-backend.md`), principalmente o D+7 ("A equipe Giro vai ligar para ajudar."); põe os textos aprovados nas regras ou nos critérios; o que mudar vira tarefa de backend. Junto, uma nota para a fase 2: a "tarefa de ligação" hoje é e-mail ao Dono e ao Financeiro da plataforma mais o evento `fatura_assinatura.pedir_ligacao`, sem fila (ponto de troca `_pedir_ligacao`).
-
-### [decisão] Marco da régua da assinatura perdido (PLT-02, AUT-13, levantada na T-299)
-- **Para:** dono do produto, pelo orquestrador · **Contexto:** se a tarefa das 09:00 não rodar no dia de um marco, a mensagem não sai depois (como na `AUT-03`); no D+7, perde-se o último aviso antes da suspensão e a tarefa de ligação. A) nenhum marco é recuperado; B) só o D+7 sai na próxima execução, até o D+14, uma vez. **Padrão: B.** Em "Pontos em aberto" das regras. Entra na tarefa de backend dos textos (handoff `tarefas/handoffs/T-299-produto.md`).
+### ~~[decisão]~~ Marco da régua da assinatura perdido (PLT-02, AUT-13, levantada na T-299)
+- **Para:** dono do produto, pelo orquestrador · **Contexto:** se a tarefa das 09:00 não rodar no dia de um marco, a mensagem não sai depois (como na `AUT-03`); no D+7, perde-se o último aviso antes da suspensão e a tarefa de ligação. A) nenhum marco é recuperado; B) só o D+7 sai na próxima execução, até o D+14, uma vez. **Decidida pelo dono em 16 out 2026: B.** Em "Pontos em aberto" das regras. Entra na tarefa de backend dos textos (handoff `tarefas/handoffs/T-299-produto.md`).
 
 ### T-303 · Textos da régua da assinatura
 - **Agente:** backend · **Depende de:** T-186 parte 3 (PR #304), T-299, a `[decisão]` do marco perdido (acima) · **Regras:** AUT-13, PLT-02 · **Critérios:** CA-ASS-64 a 67 · **Pronto quando:** `mensagem_da_regua`, `_como_pagar` e `_pedir_ligacao` com os textos da seção "Textos da régua da assinatura (T-299)" de `docs/qa/criterios/assinatura.md` ("da empresa {nome}"; suspensão pela tabela de estados; D+7 com "Pagando, o acesso volta na hora." e a ligação só com `responsavel_telefone`; WhatsApp com "Giro: ", o caminho de pagar e o rodapé; "Não é preciso fazer nada." na cobrança automática sem recusa; "Assinatura: {endereço}" em todo e-mail; o e-mail da ligação com o novo assunto); o marco perdido conforme a decisão do dono; testes `test_aut_13_textos_da_regua_no_boleto`, `test_aut_13_automatica_nao_pede_nada`, `test_aut_13_whatsapp_com_marca_e_caminho`, `test_aut_13_d7_e_a_ligacao` e, se for a opção B, `test_aut_13_d7_perdido_sai_ate_d14`. Handoff de origem: `tarefas/handoffs/T-299-produto.md`.
@@ -391,9 +381,4 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ## Fase 2 em diante
 
 Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a FIN-13), manutenção (MAN), automações (AUT), implantação self-service (IMP), relatórios e DRE, exportação (AUD-06, AUD-07). A cobrança da assinatura, cancelar e pausar e a `AUD-08` entraram no MVP em 14 out 2026 (T-183, T-190); continuam aqui a `Plat-Cobranca` e os adicionais. Da exportação (`AUD-07`), o MVP tem só a auditoria em CSV (T-018); a fase 2 traz os outros itens (clientes, veículos, locações e contratos, financeiro, vistorias e fotos), a planilha (.xlsx, dependência nova registrada no PR), o backup completo em ZIP com as 2 etapas recentes, o backup mensal (`AUT-11`) com o cartão da tela, a exportação da plataforma (`/api/plataforma/exportacoes/`), o pedido do titular (`AUD-06`, à mão até lá) e o prazo após o cancelamento (`AUD-08`), decisão do dono de 12 out 2026 (T-151). O orquestrador quebra em tarefas quando a fase 1 fechar.
-
-### T-254 · E2E sem as anotações de D-02, D-03 e D-05
-- **Agente:** qa · **Depende de:** T-206, T-207 · **Regras:** VEI-01, FIN-09, USR-09 · **Estado:** entregue em 16 out 2026 (branch `t-254-e2e-sem-anotacoes`, PR a abrir), handoff `tarefas/handoffs/T-254-qa.md`.
-- **O quê:** tirar do E2E as marcas de falha esperada e as notas de D-02 (mensagem do VEI-01 na saída), D-03 ("Abra o caixa do dia para receber") e D-05 (403 do vistoriador ao abrir o cliente); o E2E passa sem elas.
-- **Pronto quando:** `npm run e2e` com 3 passed, sem anotação de defeito.
 
