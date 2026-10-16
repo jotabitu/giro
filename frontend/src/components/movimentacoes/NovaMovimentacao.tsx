@@ -149,7 +149,7 @@ export function NovaMovimentacao() {
   const filialDeSaida = veiculo?.filial.id;
   const locais = useQuery({ queryKey: ["movimentacoes", "locais"], queryFn: () => movimentacoes.locais() });
   const minhas = useQuery({ queryKey: ["filiais-minhas"], queryFn: () => filiais.minhas(), staleTime: 5 * 60_000 });
-  const quemLeva = useQuery({ queryKey: ["movimentacoes", "levam", filialDeSaida], queryFn: () => movimentacoes.quemPodeLevar(filialDeSaida ?? 0), enabled: filialDeSaida !== undefined });
+  const quemLeva = useQuery({ queryKey: ["movimentacoes", "levam", filialDeSaida], queryFn: async () => (await movimentacoes.pessoas(filialDeSaida ?? 0)).resultados, enabled: filialDeSaida !== undefined });
   const transferencia = veiculo !== null && v.destino_filial_id !== "" && Number(v.destino_filial_id) !== filialDeSaida;
   const categoriasDoDestino = useQuery({
     queryKey: ["categorias", { filial: v.destino_filial_id, tipo: veiculo?.tipo_veiculo }],
@@ -305,7 +305,7 @@ export function NovaMovimentacao() {
               rotulo="Quem leva"
               vazio="Escolha quem leva"
               dica={veiculo ? `Usuário da ${veiculo.filial.nome}.` : "Escolha o veículo primeiro."}
-              opcoes={(quemLeva.data ?? []).map((p) => ({ valor: String(p.id), rotulo: p.nome }))}
+              opcoes={(quemLeva.data ?? []).map((p) => ({ valor: String(p.id), rotulo: p.eu ? `${p.nome} (você)` : p.nome }))}
               erro={erro("levado_por_id")}
               {...register("levado_por_id")}
             />

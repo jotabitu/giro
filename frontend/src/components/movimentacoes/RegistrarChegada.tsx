@@ -75,7 +75,7 @@ export function RegistrarChegada({ id }: { id: number }) {
 
   const consulta = useQuery({ queryKey: ["movimentacoes", "detalhe", id], queryFn: () => movimentacoes.obter(id) });
   const m: Movimentacao | undefined = consulta.data;
-  const quemRecebe = useQuery({ queryKey: ["movimentacoes", "recebem", m?.destino.id], queryFn: () => movimentacoes.quemPodeReceber(m?.destino.id ?? 0), enabled: m?.transferencia === true });
+  const quemRecebe = useQuery({ queryKey: ["movimentacoes", "recebem", id], queryFn: async () => (await movimentacoes.recebedores(id)).resultados, enabled: m?.transferencia === true });
 
   const foto = useMutation({
     mutationFn: ({ posicao, arquivo }: { posicao: PosicaoDaFotoDaChegada; arquivo: File }) => movimentacoes.enviarFotoDaChegada(id, posicao, arquivo),
@@ -175,7 +175,7 @@ export function RegistrarChegada({ id }: { id: number }) {
               rotulo="Recebido por"
               vazio="Escolha quem recebe"
               dica={`Usuário da ${m.destino.nome}.`}
-              opcoes={(quemRecebe.data ?? []).map((p) => ({ valor: String(p.id), rotulo: p.nome }))}
+              opcoes={(quemRecebe.data ?? []).map((p) => ({ valor: String(p.id), rotulo: p.eu ? `${p.nome} (você)` : p.nome }))}
               value={recebidoPor}
               onChange={(e) => setRecebidoPor(e.target.value)}
               erro={campo("recebido_por_id")}

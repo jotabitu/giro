@@ -52,7 +52,7 @@ export function QuadroDeMovimentacoes() {
   const [aviso, setAviso] = useState<string | null>(null);
   const podeCriar = podeGerirMovimentacoes(eu);
 
-  const quadro = useQuery({ queryKey: ["movimentacoes", "quadro", { busca: filtro }], queryFn: () => movimentacoes.quadro({ busca: filtro || undefined }), placeholderData: (a) => a });
+  const quadro = useQuery({ queryKey: ["movimentacoes", "quadro"], queryFn: () => movimentacoes.quadro(), placeholderData: (a) => a });
   const atualizar = () => cliente.invalidateQueries({ queryKey: ["movimentacoes"] });
   const iniciar = useMutation({
     mutationFn: (m: LinhaDaMovimentacao) => movimentacoes.iniciar(m.id),
@@ -68,7 +68,13 @@ export function QuadroDeMovimentacoes() {
     },
   });
   const ocupado = iniciar.isPending || cancelar.isPending;
-  const colunas = quadro.data?.colunas ?? [];
+  // A API não filtra o quadro por texto: a busca só separa o que já veio (código, placa ou modelo), e o número da coluna acompanha.
+  const termo = filtro.trim().toLowerCase();
+  const colunas = (quadro.data?.colunas ?? []).map((c) => {
+    if (!termo) return c;
+    const itens = c.itens.filter((m) => [m.codigo, m.veiculo.placa, m.veiculo.modelo].some((t) => t.toLowerCase().includes(termo)));
+    return { ...c, itens, total: itens.length };
+  });
   const erro = iniciar.error ?? cancelar.error ?? quadro.error;
 
   return (

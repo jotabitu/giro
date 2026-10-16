@@ -1,78 +1,42 @@
-// PROVISÓRIO (T-289): tipos escritos à mão a partir de docs/api/movimentacoes.md, porque as rotas ainda não estão no OpenAPI
-// (T-288, backend). Quando a T-288 entregar e `npm run api:gerar` trouxer os schemas, trocar tudo isto pelos tipos gerados
-// (`components["schemas"][...]`) e apagar este arquivo. Não importe este arquivo fora de lib/api: use `@/lib/api`.
+// Tipos das Movimentações a partir do cliente gerado do OpenAPI (schema.d.ts, `npm run api:gerar`) e de docs/api/movimentacoes.md.
+// O gerador deixa alguns campos soltos; aqui eles ganham os valores fechados do contrato. Não importe este arquivo fora de lib/api: use `@/lib/api`.
+import type { components } from "./schema";
 import type { CategoriaDaDespesa } from "./tipos-financeiro";
 import type { Combustivel } from "./tipos-vistorias";
 
-export type StatusDaMovimentacao = "agendada" | "em_transito" | "no_local" | "concluida" | "cancelada";
+type S = components["schemas"];
+
+export type StatusDaMovimentacao = S["MovimentacaoStatusEnum"];
 export type TipoDoLocalDeApoio = "lava_jato" | "oficina" | "despachante" | "outro";
 export type PosicaoDaFotoDaChegada = "frente" | "traseira" | "lado_esquerdo" | "lado_direito";
 
-export type LocalDeApoio = { id: number; nome: string; tipo: TipoDoLocalDeApoio; ativo: boolean };
+export type LocalDeApoio = Omit<S["Local"], "tipo"> & { tipo: TipoDoLocalDeApoio };
 
-export type ParadaDaMovimentacao = {
-  id: number;
-  ordem: number;
-  local: LocalDeApoio;
-  servico: string;
-  categoria: CategoriaDaDespesa;
-  /** Ausente para o vistoriador (USR-09). */
-  valor_previsto_centavos?: number;
-  chegou_em: string | null;
-  saiu_em: string | null;
-  valor_pago_centavos?: number | null;
-  despesa: { id: number; status: string; sem_nota: boolean } | null;
-};
+export type ParadaDaMovimentacao = Omit<S["Parada"], "local" | "categoria"> & { local: LocalDeApoio; categoria: CategoriaDaDespesa };
 
-export type FotoDaChegada = { posicao: PosicaoDaFotoDaChegada; url: string; url_expira_em: string };
+export type FotoDaChegada = Omit<S["Foto"], "posicao"> & { posicao: PosicaoDaFotoDaChegada };
 
-export type ChegadaDaMovimentacao = {
-  km: number;
-  combustivel: Combustivel | null;
-  recebido_por: { id: number; nome: string } | null;
-  fotos: FotoDaChegada[];
-};
+export type ChegadaDaMovimentacao = Omit<S["Chegada"], "combustivel" | "fotos"> & { combustivel: Combustivel | null; fotos: FotoDaChegada[] };
 
 /** O que a tela mostra como botão: a API decide pelo perfil, pela filial, por quem leva, pelo status e pela próxima etapa. */
-export type AcoesDaMovimentacao = {
-  editar: boolean;
-  iniciar: boolean;
-  cancelar: boolean;
-  chegar_parada: boolean;
-  sair_parada: boolean;
-  registrar_chegada: boolean;
-};
+export type AcoesDaMovimentacao = S["Acoes"];
 
-export type Movimentacao = {
-  id: number;
-  codigo: string;
-  status: StatusDaMovimentacao;
-  veiculo: { id: number; placa: string; modelo: string; status: string };
-  filial_saida: { id: number; nome: string };
-  destino: { id: number; nome: string };
-  transferencia: boolean;
-  categoria_destino?: { id: number; nome: string } | null;
-  rota: string;
-  levado_por: { id: number; nome: string };
-  agendada_para: string | null;
-  iniciada_em: string | null;
-  concluida_em: string | null;
-  duracao_minutos: number | null;
-  vistoria_rapida: boolean;
-  km_saida: number | null;
+/** O OpenAPI hoje mistura `VeiculoRef` desta tela com a de outro app (só `id` e `placa`); o contrato e a API trazem também modelo e status. */
+export type VeiculoDaMovimentacao = { id: number; placa: string; modelo: string; status: string };
+
+export type Movimentacao = Omit<S["Movimentacao"], "veiculo" | "paradas" | "chegada" | "fotos_chegada"> & {
+  veiculo: VeiculoDaMovimentacao;
   paradas: ParadaDaMovimentacao[];
-  /** `parada:<id>`, `destino` ou `null` (agendada, concluída, cancelada). */
-  proxima_etapa: string | null;
   chegada: ChegadaDaMovimentacao | null;
   /** As fotos já enviadas, para a tela contar "Fotos · 2 de 4". */
-  fotos_chegada?: FotoDaChegada[];
-  /** Ausente para o vistoriador. */
-  custo_centavos?: number;
-  acoes: AcoesDaMovimentacao;
+  fotos_chegada: FotoDaChegada[];
 };
 
-/** Linha do quadro e da lista: a representação sem `paradas` e sem `chegada`, mais o total de paradas e o resumo pronto. */
-export type LinhaDaMovimentacao = Omit<Movimentacao, "paradas" | "chegada"> & { paradas_total: number; resumo: string };
+/**
+ * Linha do quadro e da lista: a representação sem `paradas` e sem `chegada`, mais o total de paradas e o resumo pronto.
+ * O OpenAPI hoje mistura esta linha com a da importação (`Linha`), então ela é derivada da representação (docs/api/movimentacoes.md, "Quadro").
+ */
+export type LinhaDaMovimentacao = Omit<Movimentacao, "paradas" | "chegada" | "fotos_chegada"> & { paradas_total: number; resumo: string };
 
 export type ColunaDoQuadro = { status: Exclude<StatusDaMovimentacao, "cancelada">; rotulo: string; total: number; itens: LinhaDaMovimentacao[] };
 export type QuadroDeMovimentacoes = { colunas: ColunaDoQuadro[] };
@@ -82,21 +46,22 @@ export type FiltroDeMovimentacoes = { filial?: number; busca?: string; levando?:
 /** `categoria` fica de fora: a API aplica o padrão (`outros`, e `manutencao` na oficina, MOV-04). */
 export type NovaParada = { local_id: number; servico: string; valor_previsto_centavos: number; categoria?: CategoriaDaDespesa };
 
-export type NovaMovimentacao = {
-  veiculo_id: number;
+export type NovaMovimentacao = Omit<S["NovaMovimentacao"], "paradas" | "categoria_destino_id" | "agendada_para"> & {
   paradas: NovaParada[];
-  destino_filial_id: number;
   categoria_destino_id: number | null;
-  levado_por_id: number;
-  sair_agora: boolean;
   /** ISO em UTC; obrigatório e no futuro quando `sair_agora` é falso. */
   agendada_para: string | null;
-  vistoria_rapida: boolean;
 };
 
 export type ChegadaNoDestino = { km: number; combustivel?: Combustivel; recebido_por_id?: number };
 
 export type NovoLocalDeApoio = { nome: string; tipo: TipoDoLocalDeApoio };
 
+/** Saída da parada (`MOV-04`): o valor pago e, se houver, a nota. */
+export type SaidaDaParada = { valor_pago_centavos: number; nota?: File };
+
+/** Quem pode levar (`/pessoas/`) e quem pode receber (`/{id}/recebedores/`): só o necessário para escolher, sem e-mail nem celular. */
+export type PessoaParaEscolher = S["Pessoa"];
+
 /** `pode.movimentacoes` de GET /api/auth/eu/ (docs/api/contas.md): `gerir` (administrador e gerente), `levar` (vendedor e vistoriador), `nao`. */
-export type PodeMovimentacoes = "gerir" | "levar" | "nao";
+export type PodeMovimentacoes = S["MovimentacoesEnum"];

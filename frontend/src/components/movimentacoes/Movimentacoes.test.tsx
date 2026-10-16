@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { contas, ErroApi, movimentacoes, type Eu, type LinhaDaMovimentacao } from "@/lib/api";
-import { reiniciarMovimentacoesDeExemplo } from "@/lib/api/movimentacoes";
+import { reiniciarMovimentacoesDeExemplo } from "@/testes/falsos/falso-movimentacoes";
 import { esquemaMovimentacao, paraCorpoMovimentacao, campoDoFormulario, VALORES_INICIAIS_MOVIMENTACAO } from "@/lib/movimentacao-form";
 
 const sessao = vi.hoisted(() => ({ eu: null as unknown }));
@@ -29,7 +29,7 @@ const comCache = (cache: QueryClient, filho: React.ReactNode) => renderToStaticM
 
 async function quadro(): Promise<string> {
   const cache = new QueryClient();
-  cache.setQueryData(["movimentacoes", "quadro", { busca: "" }], await movimentacoes.quadro());
+  cache.setQueryData(["movimentacoes", "quadro"], await movimentacoes.quadro());
   return comCache(cache, <QuadroDeMovimentacoes />);
 }
 
@@ -37,7 +37,7 @@ async function chegada(id: number): Promise<string> {
   const cache = new QueryClient();
   const m = await movimentacoes.obter(id);
   cache.setQueryData(["movimentacoes", "detalhe", id], m);
-  cache.setQueryData(["movimentacoes", "recebem", m.destino.id], await movimentacoes.quemPodeReceber(m.destino.id));
+  cache.setQueryData(["movimentacoes", "recebem", id], (await movimentacoes.recebedores(id)).resultados);
   return comCache(cache, <RegistrarChegada id={id} />);
 }
 

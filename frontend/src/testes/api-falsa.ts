@@ -14,7 +14,7 @@ import { filiaisFalso } from "./falsos/falso-filiais";
 import { filiaisAdminFalso } from "./falsos/falso-filiais-admin";
 import { financeiroFalso } from "./falsos/falso-financeiro";
 import { importacaoFalso } from "./falsos/falso-importacao";
-import { movimentacoesApi } from "@/lib/api/movimentacoes";
+import { movimentacoesFalso } from "./falsos/falso-movimentacoes";
 import { locacoesFalso } from "./falsos/falso-locacoes";
 import { usuariosFalso } from "./falsos/falso-usuarios";
 import { vistoriasFalso } from "./falsos/falso-vistorias";
@@ -36,8 +36,7 @@ export const auditoria = auditoriaFalso;
 export const importacao = importacaoFalso;
 export const aprovacoes = aprovacoesFalso;
 export const usuarios = usuariosFalso;
-// Provisório (T-289): a camada das Movimentações já é de exemplo, então os testes usam a mesma.
-export const movimentacoes = movimentacoesApi;
+export const movimentacoes = movimentacoesFalso;
 export * from "@/lib/api/tipos";
 export * from "@/lib/api/tipos-frota";
 export * from "@/lib/api/tipos-clientes";
