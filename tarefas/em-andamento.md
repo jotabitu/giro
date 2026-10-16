@@ -5,3 +5,4 @@ No máximo uma tarefa por agente. Formato: `T-0xx · título · agente · desde 
 - T-185 · Rotas da Assinatura (parte 1) · backend · desde 16/10
 - T-275 · Dados da ficha do veículo que a API não manda · arquiteto · desde 16/10
 - T-254 · E2E sem as anotações de D-02, D-03 e D-05 · qa · desde 16/10 (falta a rodada verde do desktop)
+- T-277 · Django Admin pelo proxy · arquiteto · desde 16/10
