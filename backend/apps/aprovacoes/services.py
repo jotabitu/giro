@@ -100,6 +100,7 @@ def _publicar_decisao(pedido: PedidoAprovacao, decidido_por_id: int | None, moti
         decidido_por_id=decidido_por_id,
         motivo=motivo,
         motivo_pedido=pedido.motivo_pedido,
+        proprio_pedido=pedido.decidido_pelo_solicitante,
     )
 
 
@@ -120,13 +121,16 @@ def _travar_pendente(pedido: PedidoAprovacao) -> PedidoAprovacao:
 
 
 def _decidir(pedido: PedidoAprovacao, decisor: Any, novo: str, motivo: str) -> PedidoAprovacao:
-    """Aprovar ou recusar: quem pediu nunca decide (APR-09), a decisão entra na auditoria
-    (APR-10) e o evento leva a origem a aplicar o efeito na mesma transação."""
+    """Aprovar ou recusar: quem pediu não decide, salvo o administrador, com a marca (APR-09); a
+    decisão entra na auditoria (APR-10) e o evento leva a origem a aplicar o efeito na mesma
+    transação. O perfil é o de quem decide agora, não o de quando pediu."""
     with transaction.atomic():
         travado = _travar_pendente(pedido)
-        if travado.solicitante_id == decisor.pk:
+        proprio = travado.solicitante_id == decisor.pk
+        if proprio and getattr(decisor, "perfil", "") != "administrador":
             raise quem_pediu_nao_decide()
         travado.aprovador = decisor
+        travado.decidido_pelo_solicitante = proprio
         travado.decidido_em = relogio.agora()
         travado.motivo_recusa = motivo if novo == S.RECUSADO else ""
         acao = "aprovar" if novo == S.APROVADO else "recusar"
@@ -136,7 +140,12 @@ def _decidir(pedido: PedidoAprovacao, decisor: Any, novo: str, motivo: str) -> P
             motivo=motivo,
             acao=f"pedido_aprovacao.{acao}",
             regra="APR-10",
-            mais_campos=("aprovador", "decidido_em", "motivo_recusa"),
+            mais_campos=(
+                "aprovador",
+                "decidido_em",
+                "motivo_recusa",
+                *(("decidido_pelo_solicitante",) if proprio else ()),
+            ),
         )
         _publicar_decisao(travado, decisor.pk, motivo)
     return travado

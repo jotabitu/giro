@@ -53,6 +53,7 @@ São 25 entidades principais. As 5 primeiras ficam no schema público (plataform
 | Conta a receber (parcela) | origem (locação/venda/multa/avaria), vencimento, valor, status, forma, pago em | Filial |  |
 | Despesa (conta a pagar) | descrição, categoria, valor, vencimento, veículo, nota, status | Filial |  |
 | Ordem de serviço | OS-, veículo, serviço, oficina, previsão, custo, status | Veículo | gera despesa |
+| Movimentação | MOV-, veículo, saída, paradas (local de apoio, serviço, valor), destino, quem leva, agendada para, km e vistoria rápida da chegada, status | Filial (de saída) | **fase 2**; seção Movimentações de veículos |
 | Caixa do dia | filial, data, aberto por, troco, status | Filial | 1 por filial por dia |
 | Movimento de caixa | tipo (entrada/saída/sangria), forma, valor, origem | Caixa do dia |  |
 | Lançamento bancário | data, descrição do extrato, valor, conciliado com | Empresa | importado do extrato |
@@ -162,7 +163,7 @@ Da compra até a 1ª locação são 12 etapas. As 4 primeiras são a compra e o 
 | 4 | Criar senha | `Acesso-Senha` | senha + 2 etapas do administrador | sim |
 | 5 | Marca | `Onboarding-Marca` | logo, cor, nome de exibição | não (usa padrão) |
 | 6 | Primeira filial | `Onboarding-Filial` | filial matriz com endereço e horário | sim |
-| 7 | Ramo | `Onboarding-Ramo` | trabalha com motos, carros ou os dois; aluga, vende ou os dois (no Essencial, "só vende" não aparece, `PLT-12`). Liga ou desliga módulos | sim |
+| 7 | Ramo | `Onboarding-Ramo` | trabalha com motos, carros ou os dois; aluga, vende ou os dois (no Essencial, "só vende" não aparece, `PLT-12`). Liga ou desliga módulos, com a lista que a API devolve. Mesmo conteúdo e mesmos textos da troca do ramo em Configurações (`Admin-Ramo`), sem "Como você aluga" nem "CNH exigida" (a CNH segue a `CLI-02`) | sim |
 | 8 | Preços | `Onboarding-Precos` | categorias com diária, semanal, mensal e caução | sim para quem aluga |
 | 9 | Contrato | `Onboarding-Contrato` | publica o 1º modelo de contrato (a partir de um modelo pronto) | sim para alugar |
 | 10 | Recebimentos | `Onboarding-Recebimentos` | conecta parceiro de pagamento (Pix, cartão, boleto) | não (só dinheiro e Pix manual) |
@@ -177,6 +178,8 @@ Da compra até a 1ª locação são 12 etapas. As 4 primeiras são a compra e o 
 - `IMP-04` Sem modelo de contrato publicado, o sistema não deixa concluir uma locação (aparece o atalho para o passo 9). Foi o motivo do chamado #1042 da Moto Rápida.
 - `IMP-05` O progresso de cada empresa alimenta o funil do painel da plataforma (`Plat-Implantacoes`): Conta → Marca → Filial → Preços → Dados → 1ª locação. Empresa que fica 3 dias ou mais no mesmo passo entra em "precisam de ajuda".
 - `IMP-06` Mensagens automáticas durante o teste: parada há 2 dias (e-mail + WhatsApp), faltam 3 dias de teste (e-mail), teste acabou (e-mail).
+
+*Mudanças em 16 out 2026 (T-256):* a etapa 7 passou a dizer que mostra o mesmo conteúdo da troca do ramo em Configurações (`Admin-Ramo`, T-253): atividades, tipos de veículo, os módulos que a API devolve e o aviso do Essencial, sem "Como você aluga" e "CNH exigida", que nenhuma regra pede (as modalidades são os planos da tabela de preços, `LOC-01`; a CNH segue a `CLI-02`). Antes, a tela `Onboarding-Ramo` mostrava os dois e nove módulos com nomes que a API não usa (divergência da T-253). Leitura do produto pela `PLT-12` e pela ADR 0024 (o passo 7 e Configurações usam o mesmo serviço); a tela muda em tarefa do design-system.
 
 ## Usuários, perfis e permissões
 
@@ -200,6 +203,7 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
 | Lançamento avulso em contas a receber (multa, avaria, outro), cancelar, renegociar, estornar | sim | sim | — | — | sim |
 | Pagar contas, conciliação, comissões | sim | — | — | — | sim |
 | Abrir ordem de serviço | sim | sim | — | sim | — |
+| Criar e iniciar movimentação de veículo (**fase 2**, `MOV-02`; quem leva registra as chegadas) | sim | sim (sua filial) | — | — | — |
 | Exportar as despesas em CSV (tela `Despesas`, `FIN-16`) | sim | — | — | — | sim |
 | Administração (marca, filiais, usuários, preços, contratos, integrações, assinatura, auditoria, exportar) | sim | — | — | — | — |
 
@@ -266,7 +270,7 @@ A empresa tem ao menos uma filial ativa, e uma delas é a matriz. Veículos, loc
 
 ## Veículos
 
-O veículo tem 8 estados e só muda de estado por um evento de outro módulo (locação, vistoria, manutenção, venda) ou por ação explícita do gerente. Telas: `Frota`, `Veiculo`, `Manutencao`, `Vendas`.
+O veículo tem 8 estados (9 na fase 2, com `em_movimentacao`) e só muda de estado por um evento de outro módulo (locação, vistoria, manutenção, venda; movimentação na fase 2) ou por ação explícita do gerente. Telas: `Frota`, `Veiculo`, `Manutencao`, `Vendas`.
 
 | Estado | Significa | Pode ser alugado? | Aparece em |
 | --- | --- | --- | --- |
@@ -278,6 +282,7 @@ O veículo tem 8 estados e só muda de estado por um evento de outro módulo (lo
 | `a_venda` | saiu da frota de locação e está à venda | não | Vendas, Veículos à venda |
 | `vendido` | venda concluída | não | histórico |
 | `baixado` | perda total, roubo, sucata | não | histórico |
+| `em_movimentacao` | **fase 2** (`MOV-03`): saiu da filial numa movimentação (em trânsito ou num local de apoio) | não | Frota, Movimentações |
 
 **Transições permitidas**
 
@@ -299,6 +304,9 @@ O veículo tem 8 estados e só muda de estado por um evento de outro módulo (lo
 | `vendido` | `a_venda` | venda cancelada (`VEN-07`) | sistema |
 | `vendido` | `indisponivel` | veículo recomprado numa troca (`VEN-05`, `VEI-07`) | sistema |
 | qualquer, exceto `alugado` | `baixado` | baixa com motivo | administrador |
+| `disponivel` | `em_movimentacao` | **fase 2:** movimentação iniciada (`MOV-03`) | sistema |
+| `em_movimentacao` | `disponivel` | **fase 2:** chegada registrada no destino, com CRLV e seguro em dia (`MOV-05`) | sistema |
+| `em_movimentacao` | `indisponivel` | **fase 2:** chegada registrada com CRLV ou seguro vencido (`MOV-05`, `VEI-03`) | sistema |
 
 Qualquer outra transição é recusada pelo backend com erro de regra (HTTP 409).
 
@@ -311,7 +319,7 @@ Qualquer outra transição é recusada pelo backend com erro de regra (HTTP 409)
 - `VEI-05` "Rendeu no ano" na ficha = receitas de locação recebidas do veículo − custos de manutenção e despesas ligadas a ele, no ano corrente. Ele e o custo de manutenção do ano só aparecem para administrador, gerente e financeiro (`USR-09`).
 - `VEI-06` Ocupação = dias alugado ÷ dias que o veículo esteve na frota no período (exclui `a_venda`, `vendido`, `baixado`). Ocupação da frota = média ponderada pelos dias. Conta o tempo exato entre as mudanças de status, com fração de dia: um veículo alugado às 14:00 conta 0,42 daquele dia (10 h ÷ 24 h).
 - `VEI-07` Veículo que volta para a empresa depois de vendido (recompra numa troca, `VEN-05`) reaproveita o cadastro existente, achado pelo chassi, e não ganha outro: vai de `vendido` para `indisponivel` até a vistoria, e o histórico continua no mesmo veículo.
-- `VEI-08` **Preencher pelo CRLV-e** (tela `Veiculo-Novo`, "Preencher pelo documento"). É opcional: o cadastro manual continua completo sem ele. Quem cadastra veículo (tabela de perfis) envia o PDF do CRLV-e, o arquivo digital emitido pelo Detran ou pela Carteira Digital de Trânsito, e não uma foto do papel.
+- `VEI-08` **Preencher pelo CRLV-e** (tela `Veiculo-Novo`, "Preencher pelo documento"). Entra no MVP (decisão de 16 out 2026). É opcional: o cadastro manual continua completo sem ele. Quem cadastra veículo (tabela de perfis) envia o PDF do CRLV-e, o arquivo digital emitido pelo Detran ou pela Carteira Digital de Trânsito, e não uma foto do papel.
   - **O que se preenche sozinho (9 campos):** placa, chassi, Renavam, marca, modelo, ano de fabricação, ano do modelo, cor e combustível. A marca e o modelo vêm da lista do cadastro (FIPE): se o texto do documento não achar um modelo da lista, os dois ficam para a pessoa escolher, com o texto lido como dica. A tela diz quantos campos foram preenchidos ("CRLV-e lido · 9 campos preenchidos"), pelo número que a API devolve.
   - **O que não se preenche:** a validade do CRLV, porque o documento traz o exercício (o ano), e não a data, que depende do calendário de licenciamento do Detran de cada estado; a pessoa informa a validade. Km, categoria de preço, filial, finalidade, valores e seguro também ficam com a pessoa. Nome e CPF ou CNPJ do proprietário não são lidos nem guardados.
   - **A pessoa confere antes de salvar.** Nada é gravado na leitura: os campos lidos aparecem marcados como "lido do documento", editáveis, e substituem o que estava neles. Só "Salvar veículo" grava, com as validações de sempre (`VEI-01`: placa e chassi únicos, chassi com 17 caracteres). Ao salvar, o PDF lido fica anexado como o documento CRLV do veículo, com o exercício lido.
@@ -324,8 +332,35 @@ Qualquer outra transição é recusada pelo backend com erro de regra (HTTP 409)
 *Mudanças em 12 out 2026 (T-156):* `VEI-05` passou a dizer quem vê o rendimento e o custo de manutenção do veículo (`USR-09`). O cálculo não mudou.
 *Mudanças em 08 out 2026 (T-082):* `VEI-04` passou a dizer o que acontece com a categoria só da filial de origem: a transferência pede a categoria no destino, e a da empresa passa direto. Antes, o veículo ia para o destino com a categoria e o preço da origem (dúvida do backend na T-013). Decisão do dono do produto em 08 out 2026 (opção B).
 *Mudanças em 09 out 2026 (T-094):* `VEI-06` passou a dizer que conta a fração de dia, como o código da T-013 já faz (dúvida do arquiteto na T-088). Decisão do dono do produto em 09 out 2026 (opção A).
+*Mudanças em 15 out 2026 (T-246):* o status `em_movimentacao` e as três transições dele entram na tabela, marcados como fase 2 (seção Movimentações de veículos).
 *Mudanças em 09 out 2026 (T-106):* acrescentada a transição `reservado` → `disponivel`, para a locação cancelada antes da retirada (`LOC-12`). Só o sistema faz essa transição; "Desbloquear" e "Voltar para a frota" não valem para o veículo `reservado`. Antes, a tabela não tinha como liberar o veículo de uma reserva cancelada (divergência do backend na T-091).
 *Mudanças em 15 out 2026 (T-247):* criada a `VEI-08` (preencher o cadastro pelo PDF do CRLV-e): os 9 campos lidos, o que fica com a pessoa (a validade do CRLV, que o documento não traz como data), a conferência antes de salvar e a leitura que falha. Antes, a tela `Veiculo-Novo` tinha "Preencher pelo documento", e nenhuma regra dizia o que ele faz. Fase em "Pontos em aberto" (padrão: MVP); a técnica fica com a ADR do arquiteto e a revisão da segurança.
+*Mudanças em 16 out 2026 (T-256):* a `VEI-08` passou a dizer que entra no MVP (opção B do ponto em aberto da T-247). Decisão do dono do produto em 16 out 2026.
+
+## Movimentações de veículos
+
+**Fase 2** (ponto em aberto "Fase das movimentações", padrão B). No MVP, o veículo muda de filial pela transferência da `VEI-04`, e lavagem, despachante e oficina são lançados em `Despesas` e na OS, como hoje. A movimentação registra a ida de um veículo da filial dele a locais de apoio (lava-jato, oficina, despachante) e a volta, ou a ida para outra filial, com quem leva, quando, o km e o custo de cada parada. Telas: `Movimentacoes` (quadro por estado), `Movimentacao-Nova`, `Movimentacao-Chegada-Mobile`. Código legível `MOV-0043`, sequencial por empresa, como nas telas: o `MT-` do pedido inicial se confundiria com modelos de moto como a Yamaha MT-03.
+
+| Estado | Significa |
+| --- | --- |
+| `agendada` | marcada para um dia e hora; o veículo continua onde está, no status dele |
+| `em_transito` | saiu e está a caminho da próxima parada ou do destino |
+| `no_local` | está num local de apoio (lava-jato, oficina, despachante) |
+| `concluida` | chegou ao destino, com o km registrado |
+| `cancelada` | desistida antes de sair |
+
+Transições: `agendada` → `em_transito` (Iniciar) ou `cancelada`; "Sair agora" já nasce `em_transito`; `em_transito` → `no_local` (chegou à parada) → `em_transito` (saiu da parada); `em_transito` → `concluida` (chegada no destino). Depois de iniciada, a movimentação não se cancela: ela termina com a chegada. `concluida` e `cancelada` não mudam mais. Toda mudança grava evento de auditoria (categoria operação).
+
+**Regras**
+
+- `MOV-01` **Rota.** A saída é sempre a filial do veículo. Depois vêm zero ou mais paradas, cada uma num local de apoio cadastrado pela empresa (nome e tipo: lava-jato, oficina, despachante ou outro), com o serviço e o valor previsto. O destino é sempre uma filial: a mesma (ida e volta) ou outra (transferência, `MOV-06`). O veículo não fica guardado fora de uma filial: o que fica dias na oficina é uma movimentação `no_local` até voltar.
+- `MOV-02` **Quem.** Criar, agendar, iniciar e cancelar: administrador e gerente da filial de saída. Quem leva é um usuário ativo ligado à filial de saída (qualquer perfil). Registrar a chegada numa parada ou no destino: quem leva, o gerente ou o administrador; na transferência, a chegada é recebida por um usuário da filial de destino ("Recebido por").
+- `MOV-03` **Quais veículos e o status deles.** Movimenta-se veículo `disponivel`, `indisponivel` (ex.: ir ao despachante renovar o CRLV), `em_manutencao` (ir à oficina da OS) ou `a_venda`. Veículo `alugado`, `reservado`, `vendido` ou `baixado` não se movimenta, e um veículo tem no máximo uma movimentação não concluída. O veículo `disponivel` vai para `em_movimentacao` ao iniciar e sai da Nova locação e da reserva; os outros mantêm o status, e a Frota mostra que estão em movimentação. A movimentação `agendada` não muda o status: se, na hora de iniciar, o veículo foi reservado ou alugado, Iniciar é recusado (409), e a pessoa cancela ou reagenda. Para a ocupação (`VEI-06`), `em_movimentacao` conta como dia na frota e não como alugado.
+- `MOV-04` **Paradas e despesa.** Ao sair de uma parada, quem registra confirma o valor pago ("confira com o recibo"). Valor acima de zero gera uma despesa ligada ao veículo (`FIN-06`), na filial de saída, com o vencimento no dia da parada, a categoria escolhida na parada (padrão "outros"; manutenção para oficina) e a descrição "MOV-0042 · Lavagem completa · Lava Rápido Aldeota". Ela segue a `FIN-05`: até R$ 500 nasce `a_pagar`, acima nasce `aguardando_aprovacao` (`APR-03`). A nota (`FIN-06`) é anexada na parada; sem ela, a despesa é gerada e fica marcada "sem nota". A parada de oficina pode citar a OS aberta do veículo (`OS-118`): aí o custo é o da OS (`MAN-05`), e a parada não gera despesa.
+- `MOV-05` **Chegada no destino.** Pede o km, que não diminui (`VEI-01`) e atualiza o veículo (`VEI-02`). A vistoria rápida (combustível e as 4 fotos: frente, traseira, esquerda e direita) é obrigatória na transferência e opcional na volta à mesma filial, marcada na criação. Ao confirmar: a movimentação fica `concluida`; o veículo `em_movimentacao` volta a `disponivel`, ou vai para `indisponivel` se o CRLV ou o seguro venceu no caminho (`VEI-03`, como na `MAN-05`); os outros continuam no status em que estavam.
+- `MOV-06` **Transferência pela movimentação.** Com o destino em outra filial, a transferência da `VEI-04` acontece na chegada: o veículo passa a ser da filial de destino e fica gravada a `TransferenciaVeiculo`. A categoria no destino é pedida na criação, pela regra da `VEI-04`. Na fase 2, "Transferir" na ficha do veículo abre a Nova movimentação com o destino preenchido; a `VEI-04` continua valendo para o resto.
+
+*Criada em 15 out 2026 (T-246)* a partir das telas de movimentação do dono (T-238). O "Pátio Maraponga" como origem e o destino "Filial ou local" das telas não seguem a `MOV-01` (`[divergência]` no backlog).
 
 ## Clientes
 
@@ -342,7 +377,7 @@ O cliente é da empresa (compartilhado entre filiais) e tem 4 estados: `incomple
 
 - `CLI-01` CPF e CNPJ validados pelo dígito verificador e únicos por empresa. CEP preenche rua, bairro e cidade.
 - `CLI-02` Para alugar moto, CNH categoria A; para carro, categoria B. As categorias C, D e E também alugam carro, porque incluem a B (CTB, art. 143), mas não alugam moto. AB, AC, AD e AE alugam moto e carro. CNH vencida há mais de 30 dias impede a retirada.
-- `CLI-03` Cliente fica `incompleto` enquanto faltar algum documento obrigatório. Pode ser salvo e pode ter locação criada, mas a retirada (vistoria de saída) só libera com o cadastro completo.
+- `CLI-03` Cliente fica `incompleto` enquanto faltar algum documento obrigatório. Pode ser salvo e pode ter locação criada, mas a retirada (vistoria de saída) só libera com o cadastro completo. Na fase 2, o PDF da CNH-e lido vale pela foto da CNH, frente e verso (`CLI-11`).
 - `CLI-04` Análise do cadastro (painel ao lado do formulário): CPF válido e regular, CNH válida na categoria, fora da lista de bloqueio da empresa, consulta de crédito (se a integração existir), histórico na empresa. Cada item mostra ok, pendente ou problema. O histórico olha as contas do cliente na empresa, sem a caução, e conta o atraso como na `FIN-03` (do dia seguinte ao mais tarde entre o vencimento e o dia em que a conta nasceu; a conta que nasce vencida e é paga no dia em que nasceu não é atraso). Vale a primeira situação que servir: alguma conta em aberto com atraso → `problema` "Conta em atraso na empresa"; alguma conta paga com atraso, em qualquer época → `pendente` "Já pagou com atraso na empresa"; alguma conta, sem atraso → `ok` "Sem atraso na empresa"; nenhuma conta → `ok` "Cliente novo na empresa".
 - `CLI-05` Bloqueio automático com 15 dias de atraso em qualquer valor (parcela, devolução, multa). Cliente bloqueado não faz nova locação nem compra; desbloqueia sozinho ao quitar. Gerente e administrador podem bloquear ou desbloquear manualmente, na hora, com motivo e evento de auditoria. O vendedor não desbloqueia: ele pede, e o gerente aprova (`APR-05`). No bloqueio automático, a ficha mostra os dias de atraso de hoje, contados como na `FIN-03` (dia corrido em `America/Sao_Paulo`), e não os do dia em que o bloqueio aconteceu: "Conta com 30 dias de atraso desde 12/09/2026" em 12 out para a parcela do Rafael. O número de dias do dia do bloqueio fica no evento de auditoria. O bloqueio automático é pedido uma vez por conta (`AUT-03`): depois do desbloqueio manual, o cliente continua `ativo` até outra conta dele completar 15 dias de atraso.
 - `CLI-06` A lista mostra, por cliente: situação, locação atual, total pago, valor em aberto e "cliente desde". Filtros: todos, com locação, em aberto, bloqueados, cadastro incompleto.
@@ -350,11 +385,11 @@ O cliente é da empresa (compartilhado entre filiais) e tem 4 estados: `incomple
 - `CLI-08` "Salvar e iniciar locação" grava o cliente e abre a Nova locação com ele já escolhido.
 - `CLI-09` Cliente `inativo`: gerente ou administrador inativa, com motivo; a ação é recusada se o cliente tem locação aberta, venda aberta ou valor em aberto. O inativo sai da lista padrão (aparece no filtro de inativos) e não faz locação nem compra. Gerente ou administrador reativa, com motivo, e ele volta a `ativo` ou `incompleto`, conforme o cadastro (`CLI-03`). Cliente `bloqueado` não pode ser inativado (409 `transicao_cliente`): primeiro ele é desbloqueado (`CLI-05`).
 - `CLI-10` **Filtro de filial na lista.** O cliente continua da empresa, sem filial de cadastro, e a lista de Clientes não segue o seletor de filial do topo (`USR-07`). Ela tem um filtro de filial, junto dos outros filtros (`CLI-06`), com "Todas as filiais" como padrão, para todo perfil que abre a lista. Escolhida uma filial, a lista mostra os clientes com pelo menos uma locação nela, em qualquer estado; quem nunca alugou só aparece em "Todas as filiais". O filtro oferece as filiais ativas a que a pessoa tem acesso (`USR-07`; administrador e financeiro, todas), e a API recusa filial sem acesso (403 `USR-07`). Os outros filtros, a busca e as contagens da lista valem dentro da filial escolhida. Os números de cada cliente (total pago, valor em aberto, locação atual) continuam os dele na empresa, em todas as filiais.
-- `CLI-11` **Preencher pela CNH-e** (tela `Cliente`, cadastro de pessoa física e do condutor responsável da pessoa jurídica). É opcional, e a fase está em "Pontos em aberto" (padrão: fase 2). Quem cadastra cliente (tabela de perfis) envia o PDF da CNH-e, exportado da Carteira Digital de Trânsito, e não uma foto do cartão.
+- `CLI-11` **Preencher pela CNH-e** (tela `Cliente`, cadastro de pessoa física e do condutor responsável da pessoa jurídica). É opcional e entra na fase 2 (decisão de 16 out 2026). Quem cadastra cliente (tabela de perfis) envia o PDF da CNH-e, exportado da Carteira Digital de Trânsito, e não uma foto do cartão.
   - **O que se preenche sozinho (7 campos):** nome, CPF, data de nascimento, número de registro da CNH, categoria, validade e data da 1ª habilitação.
   - **O que não se lê nem se guarda:** filiação, RG e órgão emissor, naturalidade, a foto e a assinatura do titular, e os códigos de observação. Contato, endereço, profissão e referência ficam com a pessoa.
   - **A pessoa confere antes de salvar,** como na `VEI-08`: nada é gravado na leitura; os campos lidos ficam marcados e editáveis; só "Salvar" grava, com as validações de sempre (`CLI-01`, dígito do CPF e CPF único; `CLI-02`, categoria e validade). Se o CPF lido é de um cliente já cadastrado, a tela avisa e oferece abrir o cadastro dele, sem criar outro (`CLI-01`).
-  - **O PDF lido** fica anexado ao salvar, no armazenamento privado dos documentos do cliente (`AUD-05`). Se ele vale pela foto da CNH (frente e verso) no cadastro completo (`CLI-03`) está em "Pontos em aberto" (padrão: vale).
+  - **O PDF lido** fica anexado ao salvar, no armazenamento privado dos documentos do cliente (`AUD-05`). Ele vale pela foto da CNH (frente e verso) no cadastro completo (`CLI-03`); a selfie com documento e o comprovante de residência continuam obrigatórios.
   - **Quando não dá para ler,** o mesmo da `VEI-08`, e nenhum campo muda. O CPF e o número da CNH lidos não vão para log nem para o evento de auditoria, que diz só que os campos vieram do documento (`AUD-04`; "CPF e CNH no evento", nota da T-151 em Auditoria).
 
 *Mudanças em 07 out 2026 (T-041):* `CLI-05` e `APR-05` passaram a dizer que gerente e administrador desbloqueiam direto e só o vendedor pede aprovação (decisão do dono do produto, item 12).
@@ -365,6 +400,7 @@ O cliente é da empresa (compartilhado entre filiais) e tem 4 estados: `incomple
 *Mudanças em 09 out 2026 (T-087):* `CLI-02` passou a dizer quais categorias de CNH alugam moto e carro (C, D e E alugam carro; AB a AE alugam os dois), e a `CLI-09` passou a dizer que cliente bloqueado não pode ser inativado. São as leituras do backend na T-014, confirmadas pelo dono do produto. O código da T-014 já faz isso.
 *Mudanças em 15 out 2026 (T-248):* criada a `CLI-10` (filtro de filial na lista de Clientes). O cliente continua da empresa; a lista não segue o seletor do topo e ganha o filtro, com "Todas as filiais" como padrão, e a filial escolhida mostra os clientes com locação nela. Antes, nenhuma regra dizia como a lista se comporta com mais de uma filial. Decisão do dono do produto em 15 out 2026 ("Clientes por filial", opção A com ajuste).
 *Mudanças em 15 out 2026 (T-247):* criada a `CLI-11` (preencher o cadastro pelo PDF da CNH-e): os 7 campos lidos, o que não se lê, a conferência antes de salvar e o CPF já cadastrado. Antes, nenhuma regra nem tela tratava a leitura da CNH. Fase e o PDF no lugar das fotos em "Pontos em aberto".
+*Mudanças em 16 out 2026 (T-256):* a `CLI-11` passou a dizer que entra na fase 2 (opção B) e que o PDF da CNH-e lido vale pela foto da CNH, frente e verso, no cadastro completo (opção A); a `CLI-03` cita a troca. Antes, os dois estavam em "Pontos em aberto". Decisões do dono do produto em 16 out 2026.
 
 ## Locação
 
@@ -936,6 +972,15 @@ Depois, três dúvidas das notas do dono (testes na mão) que contrariavam regra
 | Administrador aprova o próprio pedido (notas do dono) | **B:** o administrador pode decidir o próprio pedido; os outros perfis continuam proibidos; o evento marca "aprovou o próprio pedido" (`APR-09`, `APR-10`). | O administrador já tem todas as ações sem pedir; numa empresa sem outra pessoa que aprova, o pedido dele ficaria parado. A marca no evento mantém o controle. |
 | Criar usuário sem convite (notas do dono) | **A:** o acesso continua nascendo por convite, e a senha só a pessoa cria; o administrador ganha "Copiar link do convite", que gera um link novo de 7 dias, invalida o anterior e grava evento (`USR-01`). | Senha criada pelo administrador seria conhecida por outra pessoa e circularia fora do sistema; o link copiado resolve quem não recebe o e-mail. Como o banco guarda só o hash, o link antigo não pode ser mostrado (P-06 da segurança). |
 
+## Decisões de 16 out 2026
+
+Os dois pontos em aberto da T-247 (leitura do CRLV-e e da CNH-e por PDF), levados ao dono do produto com o padrão do produto, aprovado nos dois (T-256).
+
+| Pendência | Decisão | Por quê |
+| --- | --- | --- |
+| Fase da leitura do CRLV-e e da CNH-e (T-247) | **B:** o CRLV-e no MVP (`VEI-08`), a CNH-e na fase 2 (`CLI-11`). Nos dois, a ADR do arquiteto e a revisão da segurança vêm antes do código. | A tela `Veiculo-Novo` já tem a leitura do CRLV-e, e o cadastro da frota é o começo da implantação; a CNH-e não tem tela desenhada e traz mais dado pessoal. |
+| PDF da CNH-e no lugar das fotos (T-247) | **A:** o PDF lido vale pela foto da CNH, frente e verso, no cadastro completo; selfie e comprovante continuam obrigatórios (`CLI-11`, `CLI-03`). | O PDF é o documento oficial e é mais legível que a foto do cartão. |
+
 ## Pontos em aberto
 
 - [ ] **Registrar o domínio** girolocadoras.com.br (e girolocacao.com.br) no registro.br antes que alguém registre.
@@ -947,6 +992,5 @@ Depois, três dúvidas das notas do dono (testes na mão) que contrariavam regra
 - [x] **Desfazer o cancelamento** (`PLT-06`, T-190). **Decidido em 14 out 2026 pelo dono do produto: A** (T-211). Com o acesso ainda valendo (teste ou período pago), o administrador: A) desfaz o cancelamento pela tela `Admin-Assinatura` até o último dia de acesso; B) só pelo suporte. Padrão: **A**.
 - [ ] **Prazo de guarda das faturas da assinatura** (`AUD-08`, `PLT-14`, T-229). Com o dono do produto e o contador: por quanto tempo o Giro guarda as faturas e as notas de uma empresa apagada (em geral, 5 anos pelo prazo fiscal). Até a resposta, as faturas ficam guardadas, sem data para sair.
 - [x] **Fornecedor e forma no pedido de despesa** (`APR-03`, `FIN-05`, `FIN-06`, T-201). **Decidido em 15 out 2026 pelo dono do produto: A** (T-235). A tela `Aprovacoes` mostra "Fornecedor" e "15 out · boleto" no pedido de despesa, mas a despesa não tem fornecedor e só ganha a forma ao ser paga. A) a tela perde as duas células e mostra categoria, descrição, veículo, valor e vencimento; B) a despesa ganha os campos fornecedor e forma prevista no lançamento, para todas as despesas. Padrão: **A** (é o que o contrato da T-201 já faz; a descrição já diz o que é, como "Pneus (2)", e um campo novo no lançamento só por essa tela pede mudança na `Despesas`, no seed e na exportação, `FIN-16`).
-- [ ] **Fase da leitura do CRLV-e e da CNH-e** (`VEI-08`, `CLI-11`, T-247). A) os dois no MVP; B) o CRLV-e no MVP e a CNH-e na fase 2; C) os dois na fase 2. Padrão: **B**. A tela `Veiculo-Novo` já tem a leitura do CRLV-e, e o cadastro da frota é o começo da implantação; a CNH-e não tem tela desenhada e traz mais dado pessoal, que pede a revisão da segurança antes. Nos dois casos, a ADR do arquiteto vem antes do código.
-- [ ] **PDF da CNH-e no lugar das fotos** (`CLI-03`, `CLI-11`, T-247). A) o PDF lido vale pela foto da CNH (frente e verso) no cadastro completo; B) as fotos continuam obrigatórias, e o PDF é só mais um anexo. Padrão: **A** (o PDF é o documento oficial e é mais legível que a foto; a selfie com documento e o comprovante de residência continuam obrigatórios).
+- [ ] **Fase das movimentações** (`MOV-01` a `MOV-06`, T-246). A) entram no MVP; B) ficam para a fase 2, e no MVP o veículo muda de filial pela `VEI-04`, com lavagem e despachante lançados em `Despesas`. Padrão: **B**. Elas trazem um status novo do veículo, que mexe na Frota, na Nova locação, na ocupação e na reserva; um cadastro novo (locais de apoio); despesa gerada fora da tela `Despesas`; e a ligação com a OS, que já é da fase 2 (`MAN-05`). O MVP já resolve o que é obrigatório: mudar de filial e lançar o custo.
 - [ ] **Telas que faltam desenhar:** esqueci a senha, 2 etapas, meu perfil, notificações, contas a pagar separada, multas de trânsito, documentos dos veículos, avarias abertas, pagamento e assinatura pelo cliente final, site de vendas.

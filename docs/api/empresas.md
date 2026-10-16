@@ -156,7 +156,7 @@ Nada no modelo muda além de `CAMPOS_AUDITORIA`: os campos da T-129 bastam.
 
 ## Ramo da empresa (T-224)
 
-Passo 7 do assistente (`Onboarding-Ramo`, "O que a empresa faz") e a troca depois da implantação, em Configurações. As duas telas usam as mesmas rotas e o mesmo serviço, `empresas.services.mudar_ramo` (ADR 0024, itens 9 e 10). O ramo liga e desliga módulos junto com o plano (`PLT-12`): `aluga` pede `locacoes_vistoria`, `vende` pede `vendas_comissoes`.
+Passo 7 do assistente (`Onboarding-Ramo`, "O que a empresa faz") e a troca depois da implantação, em Configurações (tela `Admin-Ramo`, rota `/admin/ramo`, aberta pelo cartão `ramo` de `GET /api/configuracoes/`, T-259). As duas telas usam as mesmas rotas e o mesmo serviço, `empresas.services.mudar_ramo` (ADR 0024, itens 9 e 10). O ramo liga e desliga módulos junto com o plano (`PLT-12`): `aluga` pede `locacoes_vistoria`, `vende` pede `vendas_comissoes`.
 
 - **Perfis:** administrador, como a marca. Outro perfil: 403 `permissao`. O token de suporte lê o `GET` e recebe 403 no `PUT`. Empresa `suspensa`, `pausada` ou `cancelada`: 403 `empresa_sem_operacao` no `PUT`.
 - **Configurações não tem tela de ramo** entre as telas de referência; a rota fica pronta para ela (pendência no fim desta seção).

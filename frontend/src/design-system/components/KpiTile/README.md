@@ -22,6 +22,8 @@ import { KpiGrid, KpiTile, KpiVariacao } from "@/design-system";
 
 `valor` chega formatado da API; o componente não calcula. `KpiGrid` tem quatro colunas e passa a duas em telas estreitas.
 
+`colunas` (opcional, entra com o PR #260 da T-156) fixa o número de colunas quando há menos de quatro cartões, para a fileira não deixar lugar vazio: na ficha do veículo sem os indicadores financeiros (`USR-09`), `colunas={2}`. Vale em todas as larguras, inclusive nas estreitas (sobrepõe a passagem para duas colunas), então use só com 1 ou 2 cartões; no celular a ficha monta a própria grade de uma coluna.
+
 ## Valor longo no celular
 
 O número encolhe para caber no bloco e nunca é cortado: o componente passa o tamanho do texto ao CSS (`--chars`) e a fonte vai de 44px até o mínimo de 16px conforme a largura do bloco (container query). Em quatro colunas no desktop, `R$ 1.284.350,00` fica menor que `71%`; no celular, em duas colunas, encolhe mais. Abaixo do mínimo o texto quebra no espaço em vez de estourar. Mande o valor já formatado pela API, sem abreviar (nada de `1,2 mi`).

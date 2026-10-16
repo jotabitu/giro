@@ -1,6 +1,6 @@
 // Usuários da empresa na API real (docs/api/contas.md, "Usuários"). Só o administrador chama.
 import { http } from "./http";
-import type { AlteracaoDeUsuario, ConviteNovo, FiltroUsuarios, ListaUsuarios, SessaoDoUsuario, UsuarioDetalhado } from "./tipos-usuarios";
+import type { AlteracaoDeUsuario, ConviteNovo, FiltroUsuarios, LinkDoConvite, ListaUsuarios, SessaoDoUsuario, UsuarioDetalhado } from "./tipos-usuarios";
 
 export const usuariosApi = {
   listar(f: FiltroUsuarios = {}): Promise<ListaUsuarios> {
@@ -17,6 +17,11 @@ export const usuariosApi = {
 
   reenviarConvite(id: number): Promise<UsuarioDetalhado> {
     return http.post(`/api/usuarios/${id}/reenviar-convite/`, {});
+  },
+
+  /** Gera o link na hora (USR-01): ele só vem nesta resposta e o anterior deixa de valer. Não guardar. */
+  copiarLinkDoConvite(id: number): Promise<LinkDoConvite> {
+    return http.post(`/api/usuarios/${id}/link-convite/`, {});
   },
 
   cancelarConvite(id: number): Promise<UsuarioDetalhado> {
