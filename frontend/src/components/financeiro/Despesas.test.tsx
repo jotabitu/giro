@@ -314,8 +314,8 @@ describe("apoio da tela", () => {
 
   it("origem: categoria e placa, ou a filial quando não há veículo", () => {
     const filiais = [{ id: 1, nome: "Filial Centro" }];
-    expect(origemDaDespesa({ categoria: "manutencao", veiculo: { id: 1, placa: "PMZ3E17" }, filial: { id: 1 } }, filiais)).toBe("Manutenção · PMZ-3E17");
-    expect(origemDaDespesa({ categoria: "fixas", veiculo: null, filial: { id: 1 } }, filiais)).toBe("Fixa · Filial Centro");
+    expect(origemDaDespesa({ categoria: "manutencao", veiculo: { id: 1, placa: "PMZ3E17" }, filial: { id: 1, nome: "Filial Centro" } }, filiais)).toBe("Manutenção · PMZ-3E17");
+    expect(origemDaDespesa({ categoria: "fixas", veiculo: null, filial: { id: 1, nome: "Filial Centro" } }, filiais)).toBe("Fixa · Filial Centro");
     expect(rotuloDaCategoria("rastreamento")).toBe("Rastreamento");
   });
 
