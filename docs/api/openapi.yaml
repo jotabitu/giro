@@ -8230,7 +8230,7 @@ components:
           - $ref: '#/components/schemas/VeiculoRef'
           nullable: true
         filial:
-          $ref: '#/components/schemas/FilialRef'
+          $ref: '#/components/schemas/Ref'
         valor_centavos:
           type: integer
         vencimento:
@@ -9781,13 +9781,6 @@ components:
       - matriz
       - nome
       - preco_litro_centavos
-    FilialRef:
-      type: object
-      properties:
-        id:
-          type: integer
-      required:
-      - id
     FilialResumo:
       type: object
       properties:

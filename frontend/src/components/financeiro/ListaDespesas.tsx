@@ -123,7 +123,7 @@ export function ListaDespesas({ abrirId }: { abrirId?: number }) {
     onSuccess: () => setAviso("Exportação pedida. O link para baixar o arquivo chega no seu e-mail."),
   });
 
-  const origem = (x: Despesa) => origemDaDespesa(x, eu.filiais);
+  const origem = (x: Despesa) => origemDaDespesa(x);
   const colunas: ColunaTabela<Despesa>[] = [
     { chave: "data", titulo: "Data", mono: true, celula: (x) => <span className="wl-mono">{dataCurta(x.data)}</span> },
     { chave: "despesa", titulo: "Despesa", celula: (x) => <CelulaDupla principal={x.descricao} secundaria={origem(x)} /> },
