@@ -4,4 +4,3 @@ No máximo uma tarefa por agente. Formato: `T-0xx · título · agente · desde 
 
 - T-185 · Rotas da Assinatura (parte 1) · backend · desde 16/10
 - T-254 · E2E sem as anotações de D-02, D-03 e D-05 · qa · desde 16/10 (falta a rodada verde do desktop)
-- T-293 · Valor do dia na linha Pagamentos da ficha · arquiteto · desde 16/10
