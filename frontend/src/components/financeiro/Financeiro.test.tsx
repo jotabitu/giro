@@ -159,6 +159,13 @@ describe("baixa e cobrança", () => {
 });
 
 describe("caixa do dia (FIN-07, APR-04)", () => {
+  it("celular: o cartão Entrou hoje mostra a quantidade de recebimentos (T-209)", async () => {
+    await entrar("bruna@motorapida.com.br");
+    const html = await paginaCaixa();
+    const cartao = html.match(/<section class="[^"]*bg-solid[^"]*md:hidden"[^>]*>(.*?)<\/section>/s)?.[1] ?? "";
+    ordem(texto(cartao), ["Entrou hoje", "R$ 1.111,90", "5 recebimentos", "Pix"]);
+  });
+
   it("aberto: resumo, movimentos e gaveta na ordem da referência", async () => {
     await entrar("bruna@motorapida.com.br");
     const t = texto(await paginaCaixa());

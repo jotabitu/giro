@@ -23,3 +23,6 @@ nh3>=0.2.18,<1
 # modelo para baixar; o defusedxml protege o openpyxl de entidades XML e explosão quadrática.
 openpyxl>=3.1.5,<3.2
 defusedxml>=0.7.1,<0.8
+# Servidor WSGI de homologação e produção (ADR 0027, T-264); o desenvolvimento usa o runserver.
+# A 23 traz as correções de request smuggling das versões anteriores.
+gunicorn>=23,<24
