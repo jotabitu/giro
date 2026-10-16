@@ -436,9 +436,12 @@ def _tempos(
 
 
 def _pct(alugado: timedelta, na_frota: timedelta) -> str:
-    if not na_frota:
+    # Pelos segundos inteiros: o veículo cadastrado há menos de 1 s tem `na_frota` > 0 e 0 s,
+    # e 0 ÷ 0 levantava `InvalidOperation` (500 na ficha logo após o cadastro, T-240, VEI-06).
+    segundos = int(na_frota.total_seconds())
+    if segundos <= 0:
         return "0.00"
-    valor = Decimal(int(alugado.total_seconds()) * 100) / Decimal(int(na_frota.total_seconds()))
+    valor = Decimal(int(alugado.total_seconds()) * 100) / Decimal(segundos)
     return str(valor.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 

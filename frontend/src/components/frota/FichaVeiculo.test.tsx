@@ -2,8 +2,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { contas, veiculos, type Eu, type VeiculoDetalhe } from "@/lib/api";
-import { FichaVeiculo } from "./FichaVeiculo";
+import { contas, ErroApi, veiculos, type Eu, type VeiculoDetalhe } from "@/lib/api";
+import { FichaVeiculo, semAcesso } from "./FichaVeiculo";
 
 const sessao = vi.hoisted(() => ({ eu: null as unknown }));
 vi.mock("@/lib/sessao", () => ({ useSessao: () => ({ eu: sessao.eu as Eu, sair: async () => {} }) }));
@@ -59,29 +59,39 @@ describe("ficha do veículo, gerente", () => {
 
   it("desktop: seções e rótulos na ordem da referência", () => {
     const t = texto(desktop);
-    ordem(t, ["Veículos", "QXA-4B21", "Honda CG 160 Fan", "Editar", "Mandar para oficina", "Colocar à venda", "Rendeu no ano", "Ocupação", "Custo de manutenção", "Km atual", "Locações", "Manutenções", "Dados", "Documentos"]);
-    ordem(t, ["· 2023 · vermelha · Filial Centro", "R$ 9.870", "locações − custos", "86%", "últimos 90 dias", "R$ 353", "no ano", "18.950", "atualizado 07 out"]);
+    ordem(t, ["Veículos", "QXA-4B21", "Honda CG 160 Fan", "Editar", "Movimentar", "Mandar para oficina", "Colocar à venda", "Rendeu no ano", "Ocupação", "Custo de manutenção", "Km atual", "Agora", "Locações", "Manutenções", "Dados", "Documentos"]);
+    ordem(t, ["· 2023 · vermelha · Filial Centro", "R$ 9.870", "locações − custos", "86%", "últimos 90 dias", "R$ 353", "no ano", "18.950", "atualizado 23 set"]);
+    // "Agora": o que a API manda (T-242). Período, plano, pagamentos e "faltam X km" ficam como pedido ao arquiteto.
+    ordem(t, ["Agora", "Alugado desde 23 set", "Carlos Menezes", "LOC-2841", "Período", "23 set → 28 out", "Ver locação", "Próxima manutenção", "Troca de óleo", "aos 19.900 km"]);
+    expect(t).not.toContain("faltam");
+    expect(t).not.toContain("Cobrar");
+    expect(t).not.toContain("Movimentações");
+    expect(t).not.toContain("Fotos e avarias");
+    expect(desktop).not.toContain("Foto do veículo");
     expect(t).toContain("14 no total");
     expect(t).toContain("próxima: troca de óleo aos 19.900 km");
-    ordem(t, ["Contrato", "Cliente", "Período", "Situação", "LOC-2841", "Carlos Menezes", "30 set → 04 nov", "Em andamento", "LOC-2702", "LOC-2640"]);
-    ordem(t, ["Serviço", "Data", "Km", "Custo", "Troca de óleo", "12 set", "17.900 km", "R$ 48,00", "Pastilha de freio", "R$ 95,00", "Revisão 15 mil", "R$ 210,00"]);
-    ordem(t, ["Chassi", "9C2KC2210PR004417", "Renavam", "01289934410", "Compra", "mar 2023 · R$ 13.900", "Valor de venda (FIPE)", "R$ 12.400", "Plano padrão", "Semanal R$ 329,00"]);
+    ordem(t, ["Contrato", "Cliente", "Período", "Situação", "LOC-2841", "Carlos Menezes", "23 set → 28 out", "Em andamento", "LOC-2702", "LOC-2640"]);
+    ordem(t, ["Serviço", "Data", "Km", "Custo", "Troca de óleo", "12 set", "18.900 km", "R$ 48,00", "Pastilha de freio", "R$ 95,00", "Revisão 15 mil", "R$ 210,00"]);
+    ordem(t, ["Chassi", "9C2KC2210PR004401", "Renavam", "01289934410", "Compra", "mar 2023 · R$ 13.900", "Valor de venda (FIPE)", "R$ 12.400", "Categoria", "Street 150–160", "Preço de hoje", "Semanal R$ 329,00"]);
     ordem(t, ["CRLV 2026", "Em dia", "IPVA 2026", "Pago", "Seguro", "Vence em 18 dias", "Rastreador", "Online"]);
   });
 
-  it("desktop: o botão sólido é Colocar à venda e as três ações ficam desativadas (sem tela ou endpoint)", () => {
-    for (const nome of ["Editar", "Mandar para oficina", "Colocar à venda"]) expect(desktop).toMatch(new RegExp(`<button[^>]*disabled[^>]*>(<svg.*?</svg>)?${nome}</button>`));
+  it("desktop: o botão sólido é Colocar à venda e Editar abre a edição e as outras três ficam desativadas (sem tela ou endpoint)", () => {
+    expect(desktop).toMatch(/<a class="wl-btn" href="\/veiculos\/501\/editar">Editar<\/a>/);
+    for (const nome of ["Movimentar", "Mandar para oficina", "Colocar à venda"]) expect(desktop).toMatch(new RegExp(`<button[^>]*disabled[^>]*>(<svg.*?</svg>)?${nome}</button>`));
     expect(desktop).toMatch(/wl-btn wl-btn--solid"[^>]*disabled/);
   });
 
   it("celular: cabeçalho, KPIs, Agora, Documentos, Manutenções e botões, nessa ordem", () => {
-    ordem(celular, ['aria-label="Voltar"', "Honda CG 160 Fan", "QXA-4B21 · 2023 · atrasado", 'aria-label="Mais ações"', "Rendeu no ano", "Ocupação", "90 dias", "Agora", "Documentos", "Manutenções", "Oficina", "Colocar à venda"]);
+    ordem(celular, ['aria-label="Voltar"', "Honda CG 160 Fan", "QXA-4B21 · 2023 · alugado", 'aria-label="Mais ações"', "Rendeu no ano", "Ocupação", "90 dias", "Agora", "Próxima manutenção", "Documentos", "Manutenções", "Oficina", "Colocar à venda"]);
     const t = texto(celular);
-    ordem(t, ["Cliente", "Carlos Menezes", "Contrato", "LOC-2841", "Devolve", "04 nov"]);
+    ordem(t, ["Cliente", "Carlos Menezes", "Contrato", "LOC-2841", "Devolve", "28 out"]);
     ordem(t, ["Troca de óleo · 12 set", "R$ 48,00", "Pastilha de freio · 20 jul", "R$ 95,00", "Revisão 15 mil · 02 jul", "R$ 210,00"]);
     expect(t).not.toContain("Custo de manutenção");
     expect(t).not.toContain("Chassi");
     expect(celular).not.toContain("<table");
+    expect(celular).not.toContain("Foto do veículo");
+    expect(t).not.toContain("Fotos e avarias");
   });
 
   it("celular: alvos de toque de 44px no voltar e em Mais ações", () => {
@@ -100,6 +110,28 @@ describe("ficha do veículo, perfis sem financeiro nem edição", () => {
     expect(desktop).not.toContain("Custo de manutenção");
     expect(desktop).not.toContain("Compra");
     expect(desktop).toContain("Ocupação");
+  });
+
+  it("t_156_vendedor_fileira_de_indicadores_sem_cartao_vazio_nem_lugar_reservado", async () => {
+    await entrarComo("bruna@motorapida.com.br");
+    expect("indicadores_financeiros" in (await veiculos.obter(501))).toBe(false);
+    const { desktop, celular } = await pagina(501);
+    // Desktop: só Ocupação e Km atual, em duas colunas; celular: só Ocupação, numa coluna.
+    expect(desktop.match(/class="wl-kpi[ "]/g)).toHaveLength(2);
+    expect(desktop).toContain("grid-template-columns:repeat(2, minmax(0, 1fr))");
+    expect(celular.match(/class="wl-kpi[ "]/g)).toHaveLength(1);
+    expect(celular).toContain("grid-cols-1");
+    expect(celular).not.toContain("grid-cols-2 gap-2 [&_.wl-kpi]");
+    for (const h of [desktop, celular]) expect(texto(h)).not.toMatch(/Rendeu no ano|Custo de manutenção|—/);
+  });
+
+  it("t_156_gerente_com_a_chave_mostra_os_quatro_cartoes_no_desktop_e_dois_no_celular", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    expect("indicadores_financeiros" in (await veiculos.obter(501))).toBe(true);
+    const { desktop, celular } = await pagina(501);
+    expect(desktop.match(/class="wl-kpi[ "]/g)).toHaveLength(4);
+    expect(desktop).not.toContain("grid-template-columns");
+    expect(celular.match(/class="wl-kpi[ "]/g)).toHaveLength(2);
   });
 });
 
@@ -140,9 +172,31 @@ describe("ficha do veículo, vistoriador (D-25, USR-09)", () => {
     const { desktop, celular } = await pagina(501);
     for (const h of [desktop, celular]) {
       const t = texto(h);
-      for (const fora of ["Compra", "Valor de venda", "À venda por", "Plano padrão", "Rendeu no ano", "Custo de manutenção", "Manutenções"]) expect(t, fora).not.toContain(fora);
+      for (const fora of ["Compra", "Valor de venda", "À venda por", "Preço de hoje", "Rendeu no ano", "Custo de manutenção", "Manutenções"]) expect(t, fora).not.toContain(fora);
       expect(t).not.toMatch(/R\$ \d/);
       expect(t).toContain("Ocupação");
     }
+  });
+
+  it("T-278: sem os dados de locações (403 da API) o painel Locações some, sem decidir pelo perfil", async () => {
+    await entrarComo("joao@motorapida.com.br");
+    const cliente = new QueryClient({ defaultOptions: { queries: { retryOnMount: false } } });
+    cliente.setQueryData(["veiculo", 501], await veiculos.obter(501));
+    cliente.setQueryData(["veiculo", 501, "documentos"], await veiculos.documentos(501));
+    await cliente.fetchQuery({ queryKey: ["veiculo", 501, "locacoes"], queryFn: () => Promise.reject(new ErroApi(403, "sem_permissao", "Seu perfil não tem acesso a esta ação")), retry: false }).catch(() => {});
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={cliente}>
+        <FichaVeiculo id={501} />
+      </QueryClientProvider>,
+    );
+    expect(texto(html)).not.toContain("Seu perfil não tem acesso a esta ação");
+    expect(texto(html)).not.toContain("Locações");
+    expect(texto(html)).toContain("Ocupação");
+  });
+
+  it("T-278: outro erro de locações continua aparecendo no painel", () => {
+    expect(semAcesso({ isError: true, error: new ErroApi(500, "erro", "Falha") })).toBe(false);
+    expect(semAcesso({ isError: true, error: new ErroApi(403, "sem_permissao", "x") })).toBe(true);
+    expect(semAcesso({ isError: false, error: null })).toBe(false);
   });
 });
