@@ -211,7 +211,7 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
         )}
       </header>
 
-      <KpiGrid>
+      <KpiGrid colunas={fin ? undefined : 2}>
         {fin && <KpiTile destaque rotulo="Rendeu no ano" valor={dinheiroSemZeros(fin.rendeu_no_ano_centavos)} contexto="locações − custos" />}
         <KpiTile rotulo="Ocupação" valor={percentual(v.ocupacao.pct)} contexto={`últimos ${v.ocupacao.periodo_dias} dias`} />
         {fin && <KpiTile rotulo="Custo de manutenção" valor={dinheiroSemZeros(fin.custo_manutencao_ano_centavos)} contexto="no ano" />}
@@ -308,7 +308,7 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
         </button>
       </header>
 
-      <div className={`grid grid-cols-2 gap-2 ${KPI_DO_CELULAR}`}>
+      <div className={`grid ${fin ? "grid-cols-2" : "grid-cols-1"} gap-2 ${KPI_DO_CELULAR}`}>
         {fin && <KpiTile rotulo="Rendeu no ano" valor={dinheiroSemZeros(fin.rendeu_no_ano_centavos)} contexto="locações − custos" />}
         <KpiTile rotulo="Ocupação" valor={percentual(v.ocupacao.pct)} contexto={`${v.ocupacao.periodo_dias} dias`} />
       </div>
