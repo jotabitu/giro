@@ -18,6 +18,7 @@ import {
   Settings,
   ShieldCheck,
   Tag,
+  Truck,
   UserCog,
   Users,
   Wallet,
@@ -31,6 +32,7 @@ const DESTINOS: Record<string, { href: string; icone: LucideIcon }> = {
   inicio: { href: "/inicio", icone: LayoutGrid },
   aprovacoes: { href: "/aprovacoes", icone: CheckCheck },
   veiculos: { href: "/veiculos", icone: Car },
+  movimentacoes: { href: "/veiculos/movimentacoes", icone: Truck },
   locacoes: { href: "/locacoes", icone: KeyRound },
   vendas: { href: "/vendas", icone: Tag },
   clientes: { href: "/clientes", icone: Users },
@@ -109,6 +111,8 @@ export function rotaPermitida(eu: Pick<Eu, "pode" | "navegacao">, rota: string):
   if (rota === "/implantacao" || rota.startsWith("/implantacao/")) return pode.administracao;
   if (rota === "/clientes/novo") return pode.clientes_cadastrar && noMenu("clientes");
   if (rota === "/veiculos/novo") return pode.veiculos === "editar" && noMenu("veiculos");
+  // Movimentações (MOV-02, USR-05): o quadro, a Nova movimentação e a chegada valem para quem tem o item no menu; ficam fora do "Veículos".
+  if (rota === "/veiculos/movimentacoes" || rota.startsWith("/veiculos/movimentacoes/")) return noMenu("movimentacoes");
   return abreRota(nav.menu_completo, rota) || abreRota(nav.menu_inicio, rota);
 }
 

@@ -314,6 +314,7 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 ### T-289 · Movimentações: telas
 - **Agente:** frontend · **Depende de:** T-288 · **Telas:** Movimentacoes-*, Movimentacao-Nova-*, Movimentacao-Chegada-Mobile · **Pronto quando:** o que a seção da T-286 pede do frontend, igual às referências, ligado à API; testes dos componentes.
+- **Estado (16 out 2026):** em andamento, adiantada com aval do dono antes da T-288. Telas prontas na branch `t-289-movimentacoes-telas` (quadro, Nova movimentação, Registrar chegada, item de menu e guarda de rota), com os tipos provisórios do contrato em `lib/api/tipos-movimentacoes.ts` e a camada com dados de exemplo em `lib/api/movimentacoes.ts`. **Falta:** ligar na API real depois da T-288 (trocar a camada de exemplo por `http`, os tipos pelos gerados do OpenAPI, `pode.movimentacoes` em `Pode`); "Transferir" e "Movimentar" da ficha (`acoes.transferir`/`movimentar`, `?veiculo=&destino=` já aceitos na Nova movimentação); "sem nota" e "Anexar nota" em `Despesas`; tela da parada (sem referência). Dúvidas em `tarefas/handoffs/T-289-frontend.md`.
 
 ### Textos da T-185 (parte 1) fora do contrato · respondidos na T-290
 - **Cartão no anual (produto, 16 out 2026): fica "todo ano".** "Cartão Visa final 4242 · cobrança automática todo ano" no ciclo anual, "todo mês" no mensal (`PLT-13`). O arquiteto acrescenta a linha do anual na tabela da forma em `assinatura.md`.
