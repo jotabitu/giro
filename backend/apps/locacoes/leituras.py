@@ -14,7 +14,7 @@
 from datetime import date
 from typing import Any
 
-from django.db.models import Count, IntegerField, OuterRef, QuerySet, Subquery, Sum
+from django.db.models import Count, Exists, IntegerField, OuterRef, QuerySet, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
@@ -147,6 +147,13 @@ def com_locacao(queryset: QuerySet[Any]) -> QuerySet[Any]:
     return queryset.filter(pk__in=Locacao.objects.filter(status__in=ABERTAS).values("cliente_id"))
 
 
+def da_filial(queryset: QuerySet[Any], filial_id: int) -> QuerySet[Any]:
+    """CLI-10: clientes com pelo menos uma locação na filial, em qualquer estado."""
+    return queryset.filter(
+        Exists(Locacao.objects.filter(cliente_id=OuterRef("pk"), filial_id=filial_id))
+    )
+
+
 def locacao_aberta(cliente_id: int) -> int:
     return Locacao.objects.filter(cliente_id=cliente_id, status__in=ABERTAS).count()
 
@@ -258,6 +265,7 @@ def registrar() -> None:
     # A anotação da locação atual já serve aos dois blocos do cliente.
     leituras.registrar_anotacao(CLIENTE, "ultima_locacao", _sem_anotacao, montar_cliente_ultima)
     leituras.registrar_filtro(CLIENTE, "com_locacao", com_locacao)
+    leituras.registrar_filtro(CLIENTE, "filial", da_filial)
     leituras.registrar_contador(CLIENTE, "locacao_aberta", locacao_aberta)
     leituras.registrar_anotacao(FILIAL, "indicadores", anotar_filial, montar_filial)
     leituras.registrar_contador(FILIAL, "locacoes", locacoes_da_filial)

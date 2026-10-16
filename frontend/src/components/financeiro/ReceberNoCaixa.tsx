@@ -34,7 +34,7 @@ function Escolha({ conta, aoVoltar }: { conta: ContaReceber; aoVoltar: () => voi
   const v = conta.valor_hoje;
   const s = situacaoDaConta(conta);
 
-  const atualizar = () => Promise.all([cliente.invalidateQueries({ queryKey: ["caixa"] }), cliente.invalidateQueries({ queryKey: ["contas-receber"] })]);
+  const atualizar = () => Promise.all([cliente.invalidateQueries({ queryKey: ["caixa"] }), cliente.invalidateQueries({ queryKey: ["contas-receber"] }), cliente.invalidateQueries({ queryKey: ["contadores"] })]);
   const gerar = useMutation({ mutationFn: () => financeiro.gerarCobranca(conta.id, { tipo: "pix", no_caixa: true }), onSuccess: (c) => setPix(c) });
   const receber = useMutation({
     mutationFn: () => financeiro.receber(conta.id, { forma: forma === "cartao" ? cartao : "dinheiro", valor_centavos: v.total_centavos }),

@@ -103,6 +103,27 @@ class AcessoPorIP(_PorIP):
     scope = "acesso_ip"
 
 
+class LinkConvitePorAdministrador(_PorUsuario):
+    """Copiar link do convite: 20 por hora por administrador (USR-01, T-249)."""
+
+    scope = "link_convite_administrador"
+
+
+class LinkConvitePorConvidado(SimpleRateThrottle):
+    """Copiar link do convite: 5 por hora por pessoa convidada (USR-01, T-249)."""
+
+    scope = "link_convite_convidado"
+
+    def get_cache_key(self, request: Request, view: Any) -> str | None:
+        convidado = view.kwargs.get("pk")
+        if convidado is None:
+            return None
+        return self.cache_format % {"scope": self.scope, "ident": convidado}
+
+
+LIMITES_DO_LINK_CONVITE = [LinkConvitePorConvidado, LinkConvitePorAdministrador]
+
+
 class MarcaPorIP(_PorIP):
     """Marca e logo da empresa, públicas e lidas em toda abertura do login (`empresas.md`)."""
 

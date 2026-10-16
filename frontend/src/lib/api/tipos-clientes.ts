@@ -39,7 +39,7 @@ export type ListaClientes = {
 };
 
 export type SituacaoCliente = "com_locacao" | "em_aberto" | "bloqueados" | "incompletos" | "inativos";
-export type FiltroClientes = { situacao?: SituacaoCliente; busca?: string; ordem?: "-criado_em" | "nome" | "-total_pago"; cursor?: string };
+export type FiltroClientes = { filial?: number; situacao?: SituacaoCliente; busca?: string; ordem?: "-criado_em" | "nome" | "-total_pago"; cursor?: string };
 
 export type EnderecoCliente = { cep?: string; logradouro?: string; numero?: string; complemento?: string | null; bairro?: string; cidade?: string; uf?: string };
 

@@ -179,6 +179,11 @@ def _convidar(evento: EventoAuditoria, _: dict[str, Any]) -> Texto:
     return Texto(f"Convidou {nome}", PERFIS.get(str(evento.depois.get("perfil", "")), ""))
 
 
+def _copiar_link_convite(evento: EventoAuditoria, _: dict[str, Any]) -> Texto:
+    """USR-01 (T-250): o evento não tem o link nem o token."""
+    return Texto("Copiou o link do convite")
+
+
 def _bloqueio(evento: EventoAuditoria, apoio: dict[str, Any]) -> Texto:
     motivo = evento.motivo or "tentativas erradas"
     emails = apoio.setdefault("emails", {})
@@ -263,6 +268,17 @@ def _bloqueio_do_suporte(evento: EventoAuditoria, _: dict[str, Any]) -> Texto:
     return Texto(resumo, evento.motivo)
 
 
+def _decisao_do_pedido(evento: EventoAuditoria, _: dict[str, Any]) -> Texto | None:
+    """APR-09 e APR-10 (T-250): o administrador decidiu o próprio pedido. Sem a marca, o texto
+    genérico ("Aprovou o pedido de aprovação")."""
+    if not evento.depois.get("decidido_pelo_solicitante"):
+        return None
+    aprovou = evento.acao.endswith(".aprovar")
+    return Texto(
+        "Aprovou o próprio pedido" if aprovou else "Recusou o próprio pedido", evento.motivo
+    )
+
+
 DESTE_APP: dict[str, auditoria.Formatador] = {
     "movimento_caixa.sangria": _sangria,
     "movimento_caixa.entrada": _movimento,
@@ -271,6 +287,9 @@ DESTE_APP: dict[str, auditoria.Formatador] = {
     "caixa.abrir": _abrir_caixa,
     "despesa.lancar": _despesa,
     "usuario.convidar": _convidar,
+    "usuario.copiar_link_convite": _copiar_link_convite,
+    "pedido_aprovacao.aprovar": _decisao_do_pedido,
+    "pedido_aprovacao.recusar": _decisao_do_pedido,
     "usuario.bloqueado": _bloqueio,
     "suporte.entrar": _entrar,
     "suporte.sair": _terminar("Saiu do modo suporte"),

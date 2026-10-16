@@ -1,6 +1,15 @@
 // Textos de Aprovações. Título, detalhe, estado e quem pode decidir vêm prontos da API (docs/api/aprovacoes.md); aqui só rótulos e formatação.
+import type { QueryClient } from "@tanstack/react-query";
 import type { PedidoDeAprovacao, TipoDoPedido } from "@/lib/api";
 import { dataCurta } from "@/lib/formatos";
+
+/**
+ * Depois de aprovar, recusar ou cancelar: as listas de pedidos e despesas e os números do menu (Aprovações, Despesas)
+ * são lidos de novo na hora, sem esperar o intervalo de 60 s dos contadores (T-241).
+ */
+export function atualizarAposDecisao(cliente: QueryClient): Promise<unknown> {
+  return Promise.all(["aprovacoes", "despesas", "contadores"].map((k) => cliente.invalidateQueries({ queryKey: [k] })));
+}
 
 export const TIPOS_DE_PEDIDO: { valor: TipoDoPedido; rotulo: string; efeito: string }[] = [
   { valor: "APR-01", rotulo: "Desconto", efeito: "Ao aprovar, o preço com desconto é liberado." },

@@ -1,3 +1,5 @@
+@import "../design-system/componentes.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -12,6 +14,8 @@
   }
 }
 
+/* Classes wl- do app, na mesma camada dos componentes do design system. */
+@layer components {
 /* O atalho de teclado da busca não faz sentido no celular. */
 @media (max-width: 720px) {
   .wl-search .wl-kbd {
@@ -66,4 +70,5 @@
 .wl-marcar:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+}
 }
