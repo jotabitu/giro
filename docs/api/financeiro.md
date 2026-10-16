@@ -134,6 +134,7 @@ Corpo: `{ "forma": "dinheiro" | "cartao_debito" | "cartao_credito", "valor_centa
 ```
 - O valor é o `valor_hoje` do dia; multa e juros ficam os do dia em que a cobrança foi gerada, e são esses que a baixa pelo webhook grava na conta (T-144). Pix vence no fim do dia, boleto na data pedida (`{ "vence_em" }`, padrão: vencimento da conta, ou hoje se já venceu).
 - Gerar outra cobrança cancela a aberta no parceiro.
+- O boleto vem com o Pix dele (T-305, "O que cada cobrança devolve" na interface de pagamentos): `{ "tipo": "boleto", "linha_digitavel": "00190.00009 ...", "boleto_url": "https://...", "pix_copia_e_cola": "000201...", "qr_code_url": null, ... }`. O cliente paga pela linha digitável ou pelo Pix, e a baixa é a mesma pelo webhook. `pix_copia_e_cola` pode vir `null` no boleto quando o parceiro não habilitou o Pix na subconta; aí a tela e a mensagem da régua mostram só o boleto, sem a linha do Pix.
 - `no_caixa: true` (T-144) é como a tela `Caixa` gera o Pix: a cobrança guarda o caixa `aberto` da filial do `X-Filial`, e a baixa pelo webhook entra como entrada `pix` nesse caixa (`FIN-07`). Sem caixa aberto: 422 `FIN-07` "Abra o caixa do dia para receber"; com `X-Filial: todas`: 400 `validacao` (`filial`). Se o caixa fechar antes do pagamento, a baixa acontece sem movimento (Pix não passa pela gaveta e caixa fechado não recebe movimento). Sem `no_caixa` (tela `Receber`, régua `AUT-03`), não passa pelo caixa.
 - Sem subconta aprovada (`plataforma.ContaPagamento`): 422 `{ "codigo": "recebimentos_desligados", "mensagem": "Conecte os recebimentos para gerar Pix e boleto" }` (implantação, passo 10).
 - Plano sem `recebimento_parceiro` (Essencial): 403 `PLT-12` ("Seu plano não inclui Pix e boleto automáticos. Para usar, mude de plano."), antes de olhar a subconta (`plataforma.md`, "Módulos por plano"). O cliente paga no caixa (`PLT-12`).
@@ -367,6 +368,21 @@ class ProvedorPagamentos(Protocol):
 - `validar_webhook` (T-144) só lê o corpo e o token do cabeçalho e devolve o `EventoWebhook` com o `token` (ou `None` se o corpo não é um aviso). Quem confere o token é a view (passo 1 abaixo), porque o hash fica em `plataforma.ContaPagamento`, que o provedor não conhece.
 - `ContaPagamento.chave_api_cifrada` entra na T-029 com o Asaas real; até lá, o provedor falso não precisa de chave.
 - `ContaPagamentoRef` é a conta principal do Giro (faturas, `plataforma`) ou a subconta da empresa (`plataforma.ContaPagamento`).
+- **O que cada cobrança devolve** (`Cobranca`, T-305). Vale para a subconta (contas a receber, T-029) e para a conta principal (faturas da assinatura):
+
+  | `tipo` | `pix_copia_e_cola` | `linha_digitavel` e `boleto_url` | `url_pagina` |
+  | --- | --- | --- | --- |
+  | `pix` | sempre (sem ele, a cobrança é cancelada no parceiro e sobe `ParceiroIndisponivel`) | vazios | vazio |
+  | `boleto` | **o Pix do boleto**, quando o parceiro o dá (abaixo) | sempre | vazio |
+  | `cartao_link` | vazio | vazios | sempre |
+
+  No Asaas, o Pix do boleto sai do mesmo `GET /payments/{id}/pixQrCode` da cobrança `pix` (campo `payload`). A documentação diz que a rota "é compatível com cobranças `PIX`, `BOLETO` e `UNDEFINED` quando o Pix estiver disponível como forma de pagamento". No boleto, o Pix é um extra. Se o parceiro recusar o `pixQrCode` (400, Pix não disponível na conta), o boleto sai sem ele, com `pix_copia_e_cola` vazio e um aviso no log, e não é cancelado: a linha digitável basta para pagar. Se o parceiro não responder (`ParceiroIndisponivel`), vale o de sempre: a cobrança é cancelada e a tarefa ou a tela tenta de novo. `qr_code_url` fica vazio no Asaas (a imagem vem em base64 e não cabe numa URL); a tela desenha o QR a partir do copia e cola. Quem mostra o Pix do boleto (e-mail do boleto da assinatura, mensagem da régua `AUT-03`, tela) omite a linha do Pix quando o campo vem vazio e nunca imprime "Pix copia e cola:" sem código.
+
+  **A conferir no sandbox** (com a chave de sandbox de `test_t029_asaas_sandbox.py`, nunca chave real; o repositório é público):
+  1. `GET /payments/{id}/pixQrCode` de uma cobrança `BOLETO` devolve o `payload` na conta principal e numa subconta, e qual é o erro (código e texto) quando a conta não tem chave Pix.
+  2. O `expirationDate` do Pix do boleto. A documentação dá 12 meses depois do vencimento com chave Pix cadastrada, e até 23:59 do dia sem chave. Sem chave, o Pix do boleto enviado 5 dias antes já estaria vencido no dia de pagar. A conta principal e as subcontas precisam de chave Pix, e isso entra na abertura da subconta e no ambiente (devops).
+  3. O boleto pago pelo Pix: que `billingType` volta no `GET /payments/{id}` (segue `BOLETO` ou vira `PIX`) e o aviso do webhook. Disso depende a `forma` da baixa (`pix` ou `boleto`, `FIN-04`) e o `forma` da fatura da assinatura. Até a conferência, a baixa usa o que o parceiro devolve em `billingType`, como hoje (`FORMAS`).
+  4. Gravar as respostas novas em `gravacoes/asaas.json` (boleto com Pix, boleto sem Pix disponível), só com dados fictícios do seed.
 - Para a assinatura (T-183, ADR 0023), a conta principal ganha `criar_ou_atualizar_pagador` (a empresa como cliente da conta principal), `cobrar_cartao_salvo(conta, token, pedido)` e, em `SituacaoCobranca`, `cartao` (token, bandeira, final) quando o pagamento foi no cartão. O número do cartão nunca entra na interface: o cartão é digitado na página do parceiro (`cartao_link`).
 
 ## Webhooks (FIN-04, AUT-05, S-14)
