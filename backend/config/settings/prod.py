@@ -33,6 +33,10 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = env.bool("DJANGO_SECURE_SSL_REDIRECT", default=True)
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+# Só o Django Admin usa a sessão (a API usa tokens): curta e presa ao navegador (ADR 0029).
+# Sem SESSION_COOKIE_DOMAIN, o cookie fica no host da plataforma.
+SESSION_COOKIE_AGE = 4 * 60 * 60
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 # HSTS com preload (S-18). O preload exige pelo menos 1 ano; em homologação use um valor menor
 # em DJANGO_HSTS_SEGUNDOS e DJANGO_HSTS_PRELOAD=0 enquanto o domínio não estiver estável.

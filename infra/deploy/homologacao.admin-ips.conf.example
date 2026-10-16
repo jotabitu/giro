@@ -1,0 +1,7 @@
+# IPs que podem abrir o Django Admin da plataforma (T-291, ADR 0029). Vai para o cofre do ambiente
+# e é montado no proxy em /etc/nginx/admin-ips.conf. Uma linha por IP ou faixa, com o valor 1:
+#   203.0.113.10 1;
+#   198.51.100.0/24 1;
+# VAZIO (como está) = Admin fechado: o proxy responde 404 em /admin/. Abrir é editar o arquivo no
+# cofre, registrar no histórico dele e recarregar o proxy (`nginx -s reload`). Ver "Como abrir o
+# Admin" em infra/README.md.
