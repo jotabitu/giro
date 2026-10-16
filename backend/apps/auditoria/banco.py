@@ -6,7 +6,8 @@ que apaga evento (com mais de 5 anos). Os papéis são criados pelo devops
 (`infra/postgres/01-papeis.sh`); papel que não existe é ignorado, então em dev com um papel só
 nada muda.
 
-Roda depois de toda migração do schema (`post_migrate`) e pode rodar de novo sem efeito.
+Roda depois de toda migração do schema (`post_migrate`), como o papel da migração
+(`giro_migracao`, dono do schema, sem superusuário), e pode rodar de novo sem efeito.
 """
 
 from django.db.backends.utils import CursorWrapper
@@ -42,7 +43,12 @@ def aplicar_permissoes(cursor: CursorWrapper, schema: str) -> None:
     if tem_expurgo:
         cursor.execute(f"GRANT USAGE ON SCHEMA {s} TO {PAPEL_EXPURGO}")
         cursor.execute(f"GRANT SELECT, DELETE ON {s}.{TABELA} TO {PAPEL_EXPURGO}")
+        # O PostgreSQL só troca o dono se o dono novo tiver CREATE no schema. A migração roda
+        # como giro_migracao, dona do schema e sem superusuário: o CREATE vale só para a troca
+        # e sai em seguida, na mesma transação (T-276). O expurgo nunca cria nada no schema.
+        cursor.execute(f"GRANT CREATE ON SCHEMA {s} TO {PAPEL_EXPURGO}")
         cursor.execute(f"ALTER FUNCTION {funcao} OWNER TO {PAPEL_EXPURGO}")
+        cursor.execute(f"REVOKE CREATE ON SCHEMA {s} FROM {PAPEL_EXPURGO}")
 
     if tem_app:
         cursor.execute(f"GRANT USAGE ON SCHEMA {s} TO {PAPEL_APP}")
