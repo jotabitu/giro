@@ -20,6 +20,10 @@ from integracoes.pagamentos.base import ParceiroIndisponivel
 from .models import Empresa, Item
 
 FUSO = "America/Sao_Paulo"
+# PLT-13, CA-ASS-63: a linha do e-mail do boleto quando o Pix automático ainda não foi autorizado.
+PIX_AUTOMATICO_PENDENTE = (
+    "Seu Pix automático ainda não foi autorizado. Esta fatura vai por boleto com Pix."
+)
 
 
 @shared_task(name="plataforma_avisar_limite_90")
@@ -143,9 +147,10 @@ def plataforma_cobrar_cartao(fatura_id: int) -> str:
 
 
 @shared_task(name="plataforma_enviar_boleto")
-def plataforma_enviar_boleto(fatura_id: int) -> int:
+def plataforma_enviar_boleto(fatura_id: int, pix_pendente: bool = False) -> int:
     """PLT-02: o boleto (com Pix) vai por e-mail no dia em que é criado, 5 dias antes do
-    vencimento, para o e-mail de cobrança e os administradores (PLT-15). Marca Giro."""
+    vencimento, para o e-mail de cobrança e os administradores (PLT-15). Marca Giro. Com
+    `pix_pendente`, a fatura saiu em boleto porque o Pix automático não foi autorizado (PLT-13)."""
     from comum.dinheiro import formatar_reais
 
     from .calendario import descricao_da_fatura, dia_e_mes
@@ -166,7 +171,8 @@ def plataforma_enviar_boleto(fatura_id: int) -> int:
     send_mail(
         subject=f"Giro: boleto da fatura {fatura.codigo}, vence em {vence}",
         message=(
-            f"A fatura {fatura.codigo} da {fatura.empresa.nome_exibicao} ({descricao}), de "
+            (f"{PIX_AUTOMATICO_PENDENTE}\n" if pix_pendente else "")
+            + f"A fatura {fatura.codigo} da {fatura.empresa.nome_exibicao} ({descricao}), de "
             f"{formatar_reais(int(fatura.valor_centavos))}, vence em {vence}.\n"
             f"Boleto: {fatura.cobranca_boleto_url}\n"
             f"Linha digitável: {fatura.cobranca_linha_digitavel}\n"

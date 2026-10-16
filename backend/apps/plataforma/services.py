@@ -1842,7 +1842,8 @@ def _cobranca_pelo_meio(fatura: FaturaAssinatura, meio: str) -> FaturaAssinatura
 
 def pagar_fatura(empresa: Empresa, codigo: str, meio: str | None = None) -> FaturaAssinatura:
     """O "Pagar" da fatura `aberta` ou `atrasada` (PLT-14). Sem `meio`, pela forma cadastrada
-    (cartão: a página do parceiro; Pix automático: o Pix avulso da fatura; boleto). Com `meio`,
+    (cartão: a página do parceiro; Pix automático: o Pix avulso da fatura, ou o boleto vivo da
+    fatura emitida sem a autorização; boleto). Com `meio`,
     paga por outro meio sem trocar a forma (PLT-02, depois da 2ª recusa do cartão; a `suspensa`
     sem forma, CA-ASS-27). A baixa nunca vem daqui: vem do webhook."""
     if meio is not None and meio not in MEIOS_DE_PAGAR:
@@ -1862,6 +1863,14 @@ def pagar_fatura(empresa: Empresa, codigo: str, meio: str | None = None) -> Fatu
             if forma is None or not forma.forma:
                 raise ErroDeRegra(*SEM_FORMA_PAGAMENTO)
             meio = MEIO_DA_FORMA[FormaAssinatura(forma.forma)]
+            if (
+                forma.forma == FormaAssinatura.PIX_AUTOMATICO
+                and fatura.cobranca_externa_id
+                and fatura.cobranca_tipo == "boleto"
+            ):
+                # Emitida em boleto por falta da autorização: fica no boleto, que já traz o Pix
+                # (PLT-13, T-298); um Pix avulso cancelaria o boleto que foi por e-mail.
+                meio = "boleto"
         return _cobranca_pelo_meio(fatura, meio)
 
 
@@ -2300,10 +2309,21 @@ def _cartao_guardado(forma: FormaPagamentoAssinatura | None) -> bool:
     )
 
 
+def _emitir_boleto(fatura: FaturaAssinatura, pix_pendente: bool = False) -> None:
+    """O boleto com Pix e o e-mail nesse dia (PLT-02); com `pix_pendente`, o e-mail diz que o Pix
+    automático ainda não foi autorizado (PLT-13)."""
+    _emitir_cobranca(fatura, "boleto")
+    from .tasks import plataforma_enviar_boleto
+
+    fatura_id = fatura.pk
+    transaction.on_commit(lambda: plataforma_enviar_boleto.delay(fatura_id, pix_pendente))
+
+
 def emitir_cobranca_da_fatura(fatura_id: int, hoje: date) -> str:
     """PLT-02, PLT-13: a cobrança da fatura `aberta` sem cobrança, 5 dias antes do vencimento,
-    pela forma cadastrada: o boleto com Pix (e o e-mail nesse dia), a cobrança do Pix Automático
-    pela autorização, ou a página do parceiro para o cartão ainda não digitado. O cartão guardado
+    pela forma no dia da emissão: o boleto com Pix (e o e-mail nesse dia), a cobrança do Pix
+    Automático pela autorização (sem a autorização ativa, o boleto com Pix, CA-ASS-63), ou a
+    página do parceiro para o cartão ainda não digitado. O cartão guardado
     é cobrado no dia do vencimento (`cobrar_cartao_da_fatura`). Devolve o que foi feito.
     Idempotente: a fatura com cobrança não sai de novo."""
     with schema_context(get_public_schema_name()), transaction.atomic():
@@ -2319,14 +2339,14 @@ def emitir_cobranca_da_fatura(fatura_id: int, hoje: date) -> str:
         if forma is None or not forma.forma:
             return "sem_forma"  # paga pelo "Pagar" com `meio` (CA-ASS-27)
         if forma.forma == FormaAssinatura.BOLETO:
-            _emitir_cobranca(fatura, "boleto")
-            from .tasks import plataforma_enviar_boleto
-
-            transaction.on_commit(lambda: plataforma_enviar_boleto.delay(fatura_id))
+            _emitir_boleto(fatura)
             return "boleto"
         if forma.forma == FormaAssinatura.PIX_AUTOMATICO:
             if forma.status != StatusFormaPagamento.ATIVA or not forma.autorizacao_externa_id:
-                return "aguardando_autorizacao"
+                # PLT-13, CA-ASS-63: sem a autorização, a fatura sai como no boleto e fica nele
+                # até o fim; a forma não muda.
+                _emitir_boleto(fatura, pix_pendente=True)
+                return "boleto_sem_autorizacao"
             _emitir_cobranca(fatura, "pix", forma.autorizacao_externa_id)
             return "pix_automatico"
         if _cartao_guardado(forma):
