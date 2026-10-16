@@ -4,7 +4,9 @@
 # externo (FRONTEND_UPSTREAM). Uso:
 #   docker compose -f infra/deploy/docker-compose.homologacao.yml --env-file <cofre>.env up -d --build
 # Variáveis do compose (além das do modelo): PORTA_HTTP e PORTA_HTTPS (80 e 443 por padrão), CERT_DIR_HOST (pasta com fullchain.pem e
-# privkey.pem do certificado curinga), FRONTEND_UPSTREAM (host:porta do Next).
+# privkey.pem do certificado curinga), FRONTEND_UPSTREAM (host:porta do Next) e ADMIN_IPS_ARQUIVO
+# (arquivo do cofre com a lista de IPs do Django Admin; modelo em
+# infra/deploy/<ambiente>.admin-ips.conf.example). SUBDOMINIO_PLATAFORMA é opcional (admin).
 
 x-backend: &backend
   build:
@@ -67,12 +69,16 @@ services:
     restart: unless-stopped
     environment:
       DOMINIO_BASE: ${DOMINIO_BASE}
+      SUBDOMINIO_PLATAFORMA: ${SUBDOMINIO_PLATAFORMA:-admin}
       BACKEND_UPSTREAM: backend:8000
       FRONTEND_UPSTREAM: ${FRONTEND_UPSTREAM}
       CERT_DIR: /etc/ssl/giro
       ESTATICOS_DIR: /estaticos
     volumes:
       - ../proxy/giro.conf.template:/etc/nginx/templates/giro.conf.template:ro
+      - ../proxy/snippets:/etc/nginx/templates/snippets:ro
+      # Lista de IPs do Django Admin (T-291, ADR 0029), do cofre; vazia = Admin fechado.
+      - ${ADMIN_IPS_ARQUIVO}:/etc/nginx/admin-ips.conf:ro
       - ${CERT_DIR_HOST}:/etc/ssl/giro:ro
       - estaticos:/estaticos:ro
     ports:
