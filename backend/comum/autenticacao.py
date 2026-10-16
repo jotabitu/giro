@@ -250,7 +250,8 @@ def recusar_token_de_suporte(request: Request) -> None:
 def conferir_rota_do_suporte(request: Request, ator: AtorSuporte) -> None:
     """A view decide (ADR 0013, item 2):
 
-    - `suporte_proibido = True` (ou o conjunto de métodos proibidos): 403 `PLT-07` sempre;
+    - `suporte_proibido = True` (ou o conjunto de métodos proibidos): 403 `PLT-07` sempre, com a
+      mensagem de `mensagem_suporte_proibido` quando a view tem a dela (assinatura, CA-ASS-19);
     - "só ver": só métodos de leitura em views com `suporte_somente_leitura = True`;
     - `so_suporte = True`: rota do próprio suporte (`auth/suporte/sair/`), vale nos dois modos.
     """
@@ -259,7 +260,7 @@ def conferir_rota_do_suporte(request: Request, ator: AtorSuporte) -> None:
         return
     proibido = getattr(view, "suporte_proibido", False)
     if proibido is True or (isinstance(proibido, frozenset) and request.method in proibido):
-        raise SemPermissao(*SUPORTE_PROIBIDO)
+        raise SemPermissao(*getattr(view, "mensagem_suporte_proibido", SUPORTE_PROIBIDO))
     if ator.permissao == SUPORTE_SO_VER and (
         request.method not in SAFE_METHODS or not getattr(view, "suporte_somente_leitura", False)
     ):

@@ -27,6 +27,6 @@ describe("veiculosApi.criar (VEI-01, T-240)", () => {
     const criado = await veiculosApi.criar(NOVO);
     expect(criado).toMatchObject({ id: 90, placa: "TST2B34" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: "POST" });
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: "POST" });
   });
 });

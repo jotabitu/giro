@@ -2,18 +2,25 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { contas, veiculos } from "@/lib/api";
+import { contas, veiculos, type Eu } from "@/lib/api";
 import { definirAccess } from "@/lib/api/http";
 import { veiculosApi } from "@/lib/api/veiculos";
 import { paraCorpoEdicao, textoDeCentavos, valoresDoVeiculo } from "@/lib/veiculos";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push() {}, replace() {} }), usePathname: () => "/veiculos/501/editar", useSearchParams: () => new URLSearchParams() }));
 
+const sessao = vi.hoisted(() => ({ eu: null as unknown }));
+vi.mock("@/lib/sessao", () => ({ useSessao: () => ({ eu: sessao.eu as Eu, sair: async () => {} }) }));
+
 import { EditarVeiculo } from "./EditarVeiculo";
 
 async function entrarComo(email: string) {
   const r = await contas.entrar({ email, senha: "senhaforte123", aparelho: "desktop" });
-  if (r.etapa !== "pronto") throw new Error("esperava pronto");
+  if (r.etapa !== "pronto") {
+    const v = await contas.verificar2fa(r.token_pre_2fa, { codigo: "123456" });
+    if (v.etapa !== "pronto") throw new Error("esperava pronto");
+  }
+  sessao.eu = await contas.eu();
 }
 
 const ordem = (h: string, trechos: string[]) => {

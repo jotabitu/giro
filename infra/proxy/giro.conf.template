@@ -1,10 +1,12 @@
 # Proxy reverso de homologação e produção (T-158, M-04; ADR 0013 e 0018).
 #
 # Modelo do nginx: a imagem oficial troca ${VARIAVEL} ao subir (pasta /etc/nginx/templates).
-# Variáveis: DOMINIO_BASE (girolocadoras.com.br), BACKEND_UPSTREAM (host:porta do Django),
-# FRONTEND_UPSTREAM (host:porta do Next), ESTATICOS_DIR (collectstatic do backend, ADR 0027) e
-# CERT_DIR (pasta de fullchain.pem e privkey.pem do certificado curinga). Este arquivo é a referência do comportamento; se o ambiente usar outro
-# proxy, a lista de `infra/README.md` ("Proxy reverso") diz o que ele precisa fazer igual.
+# Variáveis: DOMINIO_BASE (girolocadoras.com.br), SUBDOMINIO_PLATAFORMA (admin), BACKEND_UPSTREAM
+# (host:porta do Django), FRONTEND_UPSTREAM (host:porta do Next), ESTATICOS_DIR (collectstatic do
+# backend, ADR 0027) e CERT_DIR (pasta de fullchain.pem e privkey.pem do certificado curinga). O
+# corpo comum dos servidores está em snippets/giro-locais.conf.template. Este arquivo é a
+# referência do comportamento; se o ambiente usar outro proxy, a lista de `infra/README.md`
+# ("Proxy reverso") diz o que ele precisa fazer igual.
 
 # Rate limit de borda por IP. A chave é o IP da conexão (o proxy é a primeira parada).
 limit_req_zone $binary_remote_addr zone=giro_auth:10m rate=10r/m;
@@ -14,6 +16,13 @@ limit_req_zone $binary_remote_addr zone=giro_webhook:10m rate=120r/m;
 limit_req_zone $binary_remote_addr zone=giro_leitura:10m rate=20r/m;
 limit_req_status 429;
 limit_conn_status 429;
+
+# Django Admin da plataforma (T-291, ADR 0029): só os IPs do arquivo do cofre entram. O arquivo
+# traz linhas `203.0.113.10 1;` (ou faixas `203.0.113.0/24 1;`). Vazio = Admin fechado.
+geo $admin_permitido {
+    default 0;
+    include /etc/nginx/admin-ips.conf;
+}
 
 # Host desconhecido não chega ao Django.
 server {
@@ -31,76 +40,37 @@ server {
     return 301 https://$host$request_uri;
 }
 
+# Hosts das empresas (<subdominio>.<DOMINIO_BASE>): /admin/ é a Administração da locadora, no Next.
 server {
     listen 443 ssl;
     http2 on;
     server_name *.${DOMINIO_BASE};
 
-    ssl_certificate     ${CERT_DIR}/fullchain.pem;
-    ssl_certificate_key ${CERT_DIR}/privkey.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
+    include /etc/nginx/conf.d/snippets/giro-locais.conf;
+}
 
-    # Corpo de até 12 MB (T-158). O Django não limita arquivo em multipart e os uploads só são
-    # conferidos por comum/arquivos.validar depois de recebidos inteiros; o maior arquivo
-    # aceito pela aplicação cabe aqui com folga para o multipart. Acima disso: 413.
-    client_max_body_size 12m;
-    client_body_timeout 30s;
-    client_header_timeout 15s;
+# Host da plataforma (nome exato vence o curinga): as mesmas rotas e o Django Admin em /admin/.
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${SUBDOMINIO_PLATAFORMA}.${DOMINIO_BASE};
 
-    # Cabeçalhos de encaminhamento SEMPRE sobrescritos, nunca repassados do cliente (T-158).
-    # O TenantMainMiddleware escolhe a empresa por get_host(), que segue o X-Forwarded-Host
-    # (USE_X_FORWARDED_HOST = True em prod.py): um valor forjado pelo cliente trocaria de empresa.
-    # X-Forwarded-For leva só o IP da conexão (comum.rede conta GIRO_PROXIES_CONFIAVEIS = 1).
-    # Se houver balanceador na frente deste proxy, ver "Proxy reverso" em infra/README.md.
-    proxy_http_version 1.1;
-    proxy_set_header Host               $host;
-    proxy_set_header X-Forwarded-Host   $host;
-    proxy_set_header X-Forwarded-Proto  $scheme;
-    proxy_set_header X-Forwarded-For    $remote_addr;
-    proxy_set_header X-Real-IP          $remote_addr;
-    proxy_set_header Forwarded          "";
-    proxy_set_header Connection         "";
-
-    # /api/ vai direto ao Django, sem passar pelo Next (o middleware do Next apaga o
-    # X-Forwarded-For, ADR 0018).
-    location /api/auth/ {
-        limit_req zone=giro_auth burst=10 nodelay;
-        proxy_pass http://${BACKEND_UPSTREAM};
-    }
-
-    # Aviso de pagamento do parceiro, no host da plataforma (urls_publico.py).
-    location /api/webhooks/ {
-        limit_req zone=giro_webhook burst=60 nodelay;
-        client_max_body_size 1m;
-        proxy_pass http://${BACKEND_UPSTREAM};
-    }
-
-    # Estáticos do Django Admin da plataforma (collectstatic na imagem `producao`, T-264, ADR 0027).
-    # Só os do Django: o Next serve os dele em /_next/static/. Nada do que o usuário envia passa aqui.
-    location /static/ {
-        alias ${ESTATICOS_DIR}/;
-        expires 1h;
-        add_header X-Content-Type-Options nosniff always;
-    }
-
-    # Leitura do CRLV-e e da CNH-e por PDF (T-258, ADR 0026). O Django espera o processo filho por
-    # até 8 s; 20 s de leitura dão folga sem ficar mais frouxos que o resto (/api/ tem 60 s). O
-    # arquivo da leitura tem até 2 MB: 3 MB cobrem o multipart. O salvar com o PDF anexado (até
-    # 10 MB) é outra rota e vale o limite de 12 MB do servidor.
-    location ~ ^/api/(veiculos/leitura-crlv|clientes/leitura-cnh)/$ {
-        limit_req zone=giro_leitura burst=5 nodelay;
-        client_max_body_size 3m;
-        proxy_read_timeout 20s;
-        proxy_send_timeout 20s;
-        proxy_pass http://${BACKEND_UPSTREAM};
-    }
-
-    location /api/ {
+    # Fora da lista de IPs, 404 (e não 403, para não confirmar que o Admin existe). Os dois
+    # `if` só fazem `return`, o uso seguro do `if` no nginx.
+    location /admin/ {
+        if ($admin_permitido = 0) { return 404; }
+        add_header X-Robots-Tag "noindex, nofollow" always;
         proxy_read_timeout 60s;
         proxy_pass http://${BACKEND_UPSTREAM};
     }
 
-    location / {
-        proxy_pass http://${FRONTEND_UPSTREAM};
+    # Login do Admin com o mesmo limite de /api/auth/ (10 por minuto por IP).
+    location = /admin/login/ {
+        if ($admin_permitido = 0) { return 404; }
+        add_header X-Robots-Tag "noindex, nofollow" always;
+        limit_req zone=giro_auth burst=10 nodelay;
+        proxy_pass http://${BACKEND_UPSTREAM};
     }
+
+    include /etc/nginx/conf.d/snippets/giro-locais.conf;
 }

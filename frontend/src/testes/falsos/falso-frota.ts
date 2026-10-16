@@ -7,6 +7,7 @@ import {
   type FiltroVeiculos,
   type ListaVeiculos,
   type LocacoesDoVeiculo,
+  type CorrecaoDeIdentificacao,
   type EdicaoVeiculo,
   type NovoVeiculo,
   type ManutencoesDoVeiculo,
@@ -230,6 +231,29 @@ export const veiculosFalso = {
     };
     SEMENTES.push(s);
     return veiculosFalso.obter(s.id);
+  },
+
+  /** POST /api/veiculos/{id}/corrigir-identificacao/ (VEI-01): só o administrador; placa e chassi únicos, chassi com 17 caracteres. */
+  async corrigirIdentificacao(id: number, c: CorrecaoDeIdentificacao): Promise<VeiculoDetalhe> {
+    await pausa(200);
+    if (perfilAtualFalso() !== "administrador") throw new ErroApi(403, "sem_permissao", "Só o administrador corrige placa ou chassi");
+    const s = SEMENTES.find((x) => x.id === id);
+    if (!s) throw new ErroApi(404, "nao_encontrado", "Veículo não encontrado");
+    const campos: Record<string, string> = {};
+    if (!c.motivo.trim()) campos.motivo = "Informe o motivo da correção";
+    if (c.placa === undefined && c.chassi === undefined) campos.placa = "Informe a placa ou o chassi corrigido";
+    const placa = c.placa?.replace(/[\s-]/g, "").toUpperCase();
+    const chassi = c.chassi?.replace(/\s/g, "").toUpperCase();
+    if (placa !== undefined && !/^[A-Z]{3}\d[A-Z0-9]\d{2}$/.test(placa)) campos.placa = "Placa inválida";
+    if (chassi !== undefined && chassi.length !== 17) campos.chassi = "O chassi tem 17 caracteres";
+    if (Object.keys(campos).length > 0) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, campos);
+    const outraPlaca = placa !== undefined ? SEMENTES.find((x) => x.id !== id && x.placa === placa) : undefined;
+    if (outraPlaca) throw new ErroApi(409, "VEI-01", "Já existe um veículo com esta placa", { campo: "placa", veiculo_id: outraPlaca.id });
+    const outroChassi = chassi !== undefined ? SEMENTES.find((x) => x.id !== id && x.chassi === chassi) : undefined;
+    if (outroChassi) throw new ErroApi(409, "VEI-01", "Já existe um veículo com este chassi", { campo: "chassi", veiculo_id: outroChassi.id });
+    if (placa !== undefined) s.placa = placa;
+    if (chassi !== undefined) s.chassi = chassi;
+    return veiculosFalso.obter(id);
   },
 
   /** PATCH /api/veiculos/{id}/ (VEI-01): administrador e gerente; placa, chassi, km e filial não mudam por aqui. */

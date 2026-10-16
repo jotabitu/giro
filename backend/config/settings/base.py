@@ -216,6 +216,9 @@ SPECTACULAR_SETTINGS = {
         "TipoSessaoEnum": "apps.contas.models.TipoSessao",
         "PermissaoExtraEnum": "apps.contas.models.PermissaoExtra",
         "PermissaoSuporteEnum": "apps.plataforma.models.PermissaoSuporte",
+        # Assinatura (T-185): o ciclo da empresa e o tipo da mudança de plano, um nome só.
+        "CicloEnum": [("mensal", "Mensal"), ("anual", "Anual")],
+        "MudancaDePlanoEnum": ["upgrade", "downgrade"],
         "StatusVeiculoEnum": "apps.veiculos.models.StatusVeiculo",
         "TipoDocumentoEnum": "apps.veiculos.models.TipoDocumento",
         "TipoDocumentoClienteEnum": "apps.clientes.models.TipoDocumentoCliente",

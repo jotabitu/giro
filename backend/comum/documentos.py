@@ -39,3 +39,9 @@ def cpf_valido(valor: str) -> bool:
     primeiro = _digito_cpf(cpf[:9])
     segundo = _digito_cpf(cpf[:9] + primeiro)
     return cpf[9:] == primeiro + segundo
+
+
+UFS = (
+    "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA",
+    "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
+)  # fmt: skip

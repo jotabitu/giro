@@ -11,7 +11,9 @@ import { Icone, Panel, TextField } from "@/design-system";
 import { ErroApi, veiculos, type CategoriaVeiculo, type VeiculoDetalhe } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { km, placa as placaComHifen } from "@/lib/formatos";
+import { useSessao } from "@/lib/sessao";
 import { esquemaVeiculo, paraCorpoEdicao, valoresDoVeiculo, type ValoresVeiculo } from "@/lib/veiculos";
+import { CorrigirIdentificacao } from "./CorrigirIdentificacao";
 import { Preco, Selecao } from "./NovoVeiculoForm";
 
 // Referência: Veiculo-Novo-Desktop|Mobile com os dados preenchidos (T-243; a edição não tem tela própria).
@@ -26,6 +28,11 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
   const cliente = useQueryClient();
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const enviando = useRef(false);
+  // Corrigir placa ou chassi é do administrador. A API ainda não manda uma ação para isso em `acoes`; até lá vale a flag `pode.administracao` (T-284).
+  const { eu } = useSessao();
+  const podeCorrigir = eu.pode.administracao;
+  const [corrigindo, setCorrigindo] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
 
   const {
     register,
@@ -81,6 +88,7 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
   const ocupado = salvar.isPending;
 
   return (
+    <>
     <form onSubmit={enviar} noValidate className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end gap-x-6 gap-y-3">
         <Link href={`/veiculos/${ficha.id}`} aria-label="Voltar para a ficha" className="wl-icon-btn md:hidden">
@@ -101,6 +109,11 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
         </div>
       </header>
 
+      {aviso && (
+        <p role="status" className="rounded-lg bg-success-soft p-4 text-body text-success-ink">
+          {aviso}
+        </p>
+      )}
       {erroGeral && (
         <p role="alert" className="rounded-lg bg-critical-soft p-4 text-body text-critical-ink">
           {erroGeral}
@@ -111,7 +124,7 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
         <div className="flex min-w-0 flex-col gap-6">
           <Panel titulo="Identificação">
             <div className="grid gap-4 md:grid-cols-2">
-              <TextField cheio mono rotulo="Placa" value={placaComHifen(ficha.placa)} readOnly dica="Placa e chassi não mudam aqui. Para corrigir um erro de digitação, fale com o administrador." />
+              <TextField cheio mono rotulo="Placa" value={placaComHifen(ficha.placa)} readOnly dica={podeCorrigir ? "Placa e chassi não mudam aqui. Para erro de digitação, use Corrigir placa ou chassi." : "Placa e chassi não mudam aqui. Para corrigir um erro de digitação, fale com o administrador."} />
               <TextField cheio rotulo="Marca" autoComplete="off" erro={erro("marca")} {...register("marca")} />
               <TextField cheio rotulo="Modelo" autoComplete="off" erro={erro("modelo")} {...register("modelo")} />
               <div className="grid grid-cols-2 gap-3">
@@ -124,6 +137,13 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
               <TextField cheio mono rotulo="Km atual" value={km(ficha.km_atual)} readOnly dica="O km sobe pela leitura ou pela vistoria e nunca diminui" />
               <TextField cheio mono rotulo="Capacidade do tanque (litros)" inputMode="decimal" dica="Opcional. Sem ela, o combustível da devolução é informado à mão" erro={erro("capacidade_tanque_litros")} {...register("capacidade_tanque_litros")} />
             </div>
+            {podeCorrigir && (
+              <div className="mt-4">
+                <button type="button" className="wl-btn wl-btn--quiet wl-btn--sm" onClick={() => setCorrigindo(true)}>
+                  Corrigir placa ou chassi
+                </button>
+              </div>
+            )}
           </Panel>
 
           <Panel titulo="Uso na frota">
@@ -175,6 +195,9 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
         </aside>
       </div>
     </form>
+    {/* Fora do form: Enter nos campos do diálogo não pode salvar a edição. */}
+    {corrigindo && <CorrigirIdentificacao ficha={ficha} aoFechar={() => setCorrigindo(false)} aoConcluir={setAviso} />}
+    </>
   );
 }
 
