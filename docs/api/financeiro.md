@@ -359,16 +359,20 @@ class ProvedorPagamentos(Protocol):
     def criar_autorizacao_recorrente(self, conta, pedido: PedidoRecorrencia) -> Autorizacao: ...  # Pix Automático ou cartão
     def cobrar_com_autorizacao(self, conta, autorizacao_id: str, pedido: PedidoCobranca) -> Cobranca: ...
     def cancelar_autorizacao(self, conta, autorizacao_id: str) -> None: ...
+    def consultar_autorizacao(self, conta, autorizacao_id: str) -> Autorizacao: ...
+        # status (pendente|ativa|cancelada|recusada|expirada); a que o parceiro não acha volta cancelada
     def validar_webhook(self, cabecalhos: Mapping[str, str], corpo: bytes) -> EventoWebhook | None: ...
-        # devolve provedor, evento_id, tipo, cobranca_id, referencia_externa; None se o token não confere
+        # devolve provedor, evento_id, tipo, cobranca_id, referencia_externa, token e autorizacao_id;
+        # None se o corpo não é um aviso
 ```
 
 - Valores sempre em centavos; datas como `date`. Nenhum tipo do SDK do parceiro sai da interface.
 - A implementação falsa guarda as cobranças em memória e oferece `simular_pagamento(cobranca_id, valor_centavos=None)` para os testes (CA-017-07).
 - `validar_webhook` (T-144) só lê o corpo e o token do cabeçalho e devolve o `EventoWebhook` com o `token` (ou `None` se o corpo não é um aviso). Quem confere o token é a view (passo 1 abaixo), porque o hash fica em `plataforma.ContaPagamento`, que o provedor não conhece.
+- **Aviso da autorização** (T-186 parte 2): o aviso de que uma autorização de Pix Automático mudou não tem cobrança. `validar_webhook` devolve o `EventoWebhook` com `autorizacao_id` preenchido e `cobranca_id` vazio, e quem processa confere a autorização com `consultar_autorizacao`, nunca pelo corpo (S-14), como a cobrança é conferida com `consultar_cobranca`. No MVP, só a conta principal recebe esse aviso (forma da assinatura, `assinatura.md`, "Aviso da autorização do Pix automático"). A locação não tem autorização no MVP (`AUT-04` na fase 2, T-283). Na implementação falsa, `autorizar_pix(autorizacao_id)` ativa a autorização para os testes. O nome do evento e do objeto no Asaas (`PIX_AUTOMATIC_RECURRING_AUTHORIZATION_ACTIVATED`, `pixAutomaticAuthorization`) segue a documentação e falta conferir no sandbox.
 - `ContaPagamento.chave_api_cifrada` entra na T-029 com o Asaas real; até lá, o provedor falso não precisa de chave.
 - `ContaPagamentoRef` é a conta principal do Giro (faturas, `plataforma`) ou a subconta da empresa (`plataforma.ContaPagamento`).
-- Para a assinatura (T-183, ADR 0023), a conta principal ganha `criar_ou_atualizar_pagador` (a empresa como cliente da conta principal), `cobrar_cartao_salvo(conta, token, pedido)` e, em `SituacaoCobranca`, `cartao` (token, bandeira, final) quando o pagamento foi no cartão. O número do cartão nunca entra na interface: o cartão é digitado na página do parceiro (`cartao_link`).
+- Para a assinatura (T-183, ADR 0023), a conta principal ganha `criar_ou_atualizar_pagador` (a empresa como cliente da conta principal), `cobrar_cartao_salvo(conta, token, pedido)` (chamado só por `integracoes.pagamentos.cobrar_cartao_guardado`, o único lugar que decifra o token) e, em `SituacaoCobranca`, `cartao` (token, bandeira, final) quando o pagamento foi no cartão. O número do cartão nunca entra na interface: o cartão é digitado na página do parceiro (`cartao_link`).
 
 ## Webhooks (FIN-04, AUT-05, S-14)
 
