@@ -1,8 +1,8 @@
 """Tarefas da plataforma: aviso de 90% do plano (PLT-03), correção noturna do uso, aviso de
 entrada do suporte e fim dos acessos vencidos (PLT-07, AUT-15), baixa das faturas da assinatura
 pelo webhook da conta principal (PLT-14), as notas que esperavam o endereço (PLT-15), a virada
-dos estados da assinatura (PLT-01, PLT-02, PLT-04) e a geração, a emissão e a cobrança no cartão
-das faturas (PLT-02, PLT-04, PLT-13)."""
+dos estados da assinatura (PLT-01, PLT-02, PLT-04), a geração, a emissão e a cobrança no cartão
+das faturas (PLT-02, PLT-04, PLT-13) e a régua da assinatura (AUT-13)."""
 
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -210,6 +210,15 @@ def plataforma_avisar_downgrade_recusado(
         recipient_list=destinatarios,
     )
     return len(destinatarios)
+
+
+@shared_task(name="aut_13_regua_assinatura")
+def aut_13_regua_assinatura(**_: Any) -> dict[str, int]:
+    """AUT-13, às 09:00 (PLT-02): D-3 lembrete por e-mail; D0 e D+3 e-mail e WhatsApp; D+7 aviso
+    de suspensão e a tarefa de ligação da equipe. Idempotente no mesmo dia."""
+    from .services import regua_da_assinatura
+
+    return regua_da_assinatura()
 
 
 @shared_task(name="plataforma_recalcular_uso")
