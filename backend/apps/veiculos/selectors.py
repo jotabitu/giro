@@ -47,6 +47,8 @@ GESTAO = frozenset({"administrador", "gerente"})
 # Rendimento e custo de manutenção do veículo (VEI-05, USR-09, T-156): a gestão e o financeiro.
 VEEM_CUSTO = GESTAO | {"financeiro"}
 LEEM_KM = frozenset({"administrador", "gerente", "vistoriador"})
+# Quem aperta o "Cobrar" da ficha (financeiro.md, Cobrar); o vistoriador nem recebe o pagamento.
+COBRAM = GESTAO | {"vendedor", "financeiro"}
 TOM = {
     S.DISPONIVEL: "sucesso",
     S.RESERVADO: "info",
@@ -427,15 +429,40 @@ def representacao(
         "acoes": acoes(veiculo, usuario, blocos),
     }
     if detalhe:
+        perfil = getattr(usuario, "perfil", "")
+        if dados["locacao_atual"]:
+            dados["locacao_atual"] = {**dados["locacao_atual"], **_da_locacao(veiculo, perfil)}
+        # A vistoria recente é de quem faz vistoria; ausente para o financeiro (T-275).
+        if perfil != "financeiro":
+            dados["vistoria_recente"] = (
+                leituras.bloco(ALVO_FICHA, "vistoria_recente", veiculo) or None
+            )
         # Para vendedor e vistoriador a chave fica ausente, não nula (T-156).
-        if getattr(usuario, "perfil", "") in VEEM_CUSTO:
+        if perfil in VEEM_CUSTO:
             dados["indicadores_financeiros"] = blocos.get("indicadores_financeiros")
         # As movimentações do veículo; ausente para vistoriador e financeiro (T-275).
-        if getattr(usuario, "perfil", "") not in ("vistoriador", "financeiro"):
+        if perfil not in ("vistoriador", "financeiro"):
             dados["movimentacoes"] = leituras.bloco(ALVO_FICHA, "movimentacoes", veiculo)
         dados["ocupacao"] = ocupacao(veiculo)
         dados["historico_status"] = historico_status(veiculo)
     return dados
+
+
+def _da_locacao(veiculo: Veiculo, perfil: str) -> dict[str, Any]:
+    """`plano` e `pagamento` da locação atual (LOC-01, FIN-01, T-275). O vistoriador recebe o
+    plano sem o valor e não recebe o pagamento (USR-09)."""
+    ficha = leituras.bloco(ALVO_FICHA, "locacao_atual", veiculo) or {}
+    extra: dict[str, Any] = {}
+    if "plano" in ficha:
+        plano = dict(ficha["plano"])
+        if perfil == "vistoriador":
+            plano.pop("valor_periodo_centavos", None)
+        extra["plano"] = plano
+    if "pagamento" in ficha and perfil != "vistoriador":
+        pagamento = dict(ficha["pagamento"])
+        pagamento["cobrar"] = bool(pagamento["cobrar"]) and perfil in COBRAM
+        extra["pagamento"] = pagamento
+    return extra
 
 
 # Blocos que só têm dinheiro: saem inteiros para quem não vê valores.

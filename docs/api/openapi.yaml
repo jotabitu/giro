@@ -6941,6 +6941,31 @@ components:
       - registrada_em
       - vai_para_oficina
       - veiculo
+    AvariaDaVistoriaRecente:
+      type: object
+      properties:
+        id:
+          type: integer
+        descricao:
+          type: string
+        registrada_em:
+          type: string
+          format: date-time
+        preexistente:
+          type: boolean
+        locacao_codigo:
+          type: string
+          nullable: true
+        foto_id:
+          type: integer
+          nullable: true
+      required:
+      - descricao
+      - foto_id
+      - id
+      - locacao_codigo
+      - preexistente
+      - registrada_em
     AvariaEntrada:
       type: object
       properties:
@@ -10571,6 +10596,37 @@ components:
       - agora
       - posicao
       - saida
+    FotoDaVistoriaRecente:
+      type: object
+      properties:
+        id:
+          type: integer
+        posicao:
+          $ref: '#/components/schemas/FotoDaVistoriaRecentePosicaoEnum'
+        url:
+          type: string
+        url_expira_em:
+          type: string
+          format: date-time
+      required:
+      - id
+      - posicao
+      - url
+      - url_expira_em
+    FotoDaVistoriaRecentePosicaoEnum:
+      enum:
+      - frente
+      - traseira
+      - lado_esquerdo
+      - lado_direito
+      - painel
+      type: string
+      description: |-
+        * `frente` - frente
+        * `traseira` - traseira
+        * `lado_esquerdo` - lado_esquerdo
+        * `lado_direito` - lado_direito
+        * `painel` - painel
     FotoEntrada:
       type: object
       properties:
@@ -16737,6 +16793,10 @@ components:
           nullable: true
         movimentacoes:
           nullable: true
+        vistoria_recente:
+          allOf:
+          - $ref: '#/components/schemas/VistoriaRecente'
+          nullable: true
         ocupacao:
           $ref: '#/components/schemas/Ocupacao'
         historico_status:
@@ -16982,6 +17042,52 @@ components:
         * `rascunho` - Rascunho
         * `concluida` - Concluída
         * `descartada` - Descartada
+    VistoriaRecente:
+      type: object
+      description: 'VIS-01, T-275: a última vistoria concluída, com as fotos fixas
+        e as avarias abertas.'
+      properties:
+        id:
+          type: integer
+        tipo:
+          $ref: '#/components/schemas/VistoriaRecenteTipoEnum'
+        concluida_em:
+          type: string
+          format: date-time
+        vistoriador:
+          allOf:
+          - $ref: '#/components/schemas/IdNome'
+          nullable: true
+        locacao_codigo:
+          type: string
+          nullable: true
+        total_fotos:
+          type: integer
+        fotos:
+          type: array
+          items:
+            $ref: '#/components/schemas/FotoDaVistoriaRecente'
+        avarias:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvariaDaVistoriaRecente'
+      required:
+      - avarias
+      - concluida_em
+      - fotos
+      - id
+      - locacao_codigo
+      - tipo
+      - total_fotos
+      - vistoriador
+    VistoriaRecenteTipoEnum:
+      enum:
+      - saida
+      - devolucao
+      type: string
+      description: |-
+        * `saida` - saida
+        * `devolucao` - devolucao
   securitySchemes:
     jwtAuth:
       type: http
