@@ -142,6 +142,9 @@ Concluída. As tarefas entregues estão em `tarefas/feito.md`.
 
 Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, depois telas, depois o que pede regra. As três dúvidas do fim contrariavam regras já escritas e foram decididas pelo dono no mesmo dia.
 
+### T-239 · Bug: locação não passa do passo 1
+- **Agente:** frontend (backend se a causa for a API) · **Depende de:** — · **Regras:** LOC-01, CLI-01 · **Telas:** Nova locação · **Pronto quando:** com o passo 1 (Dados) preenchido, os botões de seguir para a vistoria e de salvar como reserva ficam ativos e funcionam; a causa está no handoff (validação do formulário, campo escondido obrigatório, resposta da API); teste do componente que preenche o passo 1 e clica nos dois botões; repetir no E2E da locação. Relato do dono: "preencho tudo do passo 1 e não deixa clicar nos botões".
+
 
 ### T-241 · Bug: contador de Aprovações no menu demora a mudar
 - **Agente:** frontend · **Depende de:** — · **Regras:** APR-12, FIN-15 (contadores) · **Pronto quando:** ao aprovar ou recusar um pedido, o número de Aprovações no menu lateral muda na hora (invalidar a consulta dos contadores do menu junto com a das aprovações; o mesmo para Despesas e Contas a receber, se tiverem o mesmo problema); teste que aprova e confere o contador sem esperar o intervalo de atualização.
