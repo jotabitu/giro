@@ -10,7 +10,6 @@ ACOES = {
     "colocar-a-venda": views.ColocarAVendaView,
     "voltar-para-frota": views.VoltarParaFrotaView,
     "baixar": views.BaixarView,
-    "transferir": views.TransferirView,
     "km": views.KmView,
     "corrigir-km": views.CorrigirKmView,
     "corrigir-identificacao": views.CorrigirIdentificacaoView,

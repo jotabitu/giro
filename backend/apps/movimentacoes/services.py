@@ -339,6 +339,20 @@ def criar(dados: dict[str, Any], usuario: Any) -> Movimentacao:
     return movimentacao
 
 
+def _paradas_da_auditoria(movimentacao: Movimentacao) -> list[dict[str, Any]]:
+    """O plano da rota no antes e no depois da edição: as paradas da agendada são trocadas, e a
+    auditoria guarda as antigas (T-314)."""
+    return [
+        {
+            "local_id": p.local_id,
+            "servico": p.servico,
+            "categoria": p.categoria,
+            "valor_previsto_centavos": p.valor_previsto_centavos,
+        }
+        for p in ParadaMovimentacao.objects.filter(movimentacao=movimentacao).order_by("ordem")
+    ]
+
+
 def editar(movimentacao: Movimentacao, dados: dict[str, Any], usuario: Any) -> Movimentacao:
     """Só a `agendada` (CA-246-05): o mesmo corpo, menos o veículo e o "Sair agora"."""
     exigir_gestao(usuario, movimentacao.filial_saida_id)
@@ -352,7 +366,13 @@ def editar(movimentacao: Movimentacao, dados: dict[str, Any], usuario: Any) -> M
         travada: Movimentacao = Movimentacao.objects.select_for_update().get(pk=movimentacao.pk)
         if travada.status != S.AGENDADA:
             raise _transicao(travada.status, S.AGENDADA)
-        with auditar(travada, "movimentacao.editar", CategoriaAuditoria.OPERACAO, regra="MOV-01"):
+        with auditar(
+            travada,
+            "movimentacao.editar",
+            CategoriaAuditoria.OPERACAO,
+            regra="MOV-01",
+            extras=lambda: {"paradas": _paradas_da_auditoria(travada)},
+        ):
             for campo, valor in campos.items():
                 setattr(travada, campo, valor)
             travada.agendada_para = agendada_para

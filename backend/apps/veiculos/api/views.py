@@ -51,7 +51,6 @@ from .serializers import (
     PrecoCriadoSerializer,
     PrecoEntradaSerializer,
     PrecoHistoricoSerializer,
-    TransferirSerializer,
     VeiculoDetalheSerializer,
     VeiculoEdicaoSerializer,
     VeiculoEntradaSerializer,
@@ -261,23 +260,6 @@ class BaixarView(APIView):
     def post(self, request: Request, pk: int) -> Response:
         dados = _entrada(BaixarSerializer, request)
         veiculo = services.baixar(_veiculo(request, pk), dados["motivo"], dados["descricao"])
-        return _representacao(veiculo, request)
-
-
-class TransferirView(APIView):
-    permission_classes = GESTAO
-
-    @extend_schema(
-        request=TransferirSerializer, responses=VeiculoSerializer, summary="Transferir (VEI-04)"
-    )
-    def post(self, request: Request, pk: int) -> Response:
-        dados = _entrada(TransferirSerializer, request)
-        veiculo = services.transferir(
-            _veiculo(request, pk),
-            dados["filial_destino_id"],
-            dados["motivo"],
-            categoria_id=dados.get("categoria_id"),
-        )
         return _representacao(veiculo, request)
 
 

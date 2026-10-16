@@ -92,7 +92,6 @@ def test_usr_09_vendedor_e_financeiro_nao_escrevem_no_veiculo(moto, frota):
             ("bloquear", {"motivo": "Teste"}),
             ("colocar-a-venda", {}),
             ("km", {"km": sak.km_atual + 10}),
-            ("transferir", {"filial_id": frota.centro.pk}),
             ("baixar", {"motivo": "Teste"}),
         ):
             resposta = api.post(_url(sak, acao), corpo, format="json")

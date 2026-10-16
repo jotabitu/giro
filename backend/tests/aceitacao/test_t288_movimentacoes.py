@@ -18,11 +18,16 @@ from apps.auditoria.models import EventoAuditoria
 from apps.filiais import services as filiais
 from apps.financeiro.models import Despesa
 from apps.locacoes import leituras as locacoes_leituras
+from apps.locacoes import services as locacoes_services
+from apps.locacoes.models import Locacao
 from apps.movimentacoes import leituras as movimentacoes_leituras
+from apps.movimentacoes import services as movimentacoes_services
 from apps.movimentacoes.models import LocalApoio, Movimentacao
 from apps.plataforma.models import Empresa
 from apps.veiculos import selectors as veiculos_selectors
+from apps.veiculos import services as veiculos_services
 from apps.veiculos.models import Categoria, DocumentoVeiculo, TransferenciaVeiculo, Veiculo
+from comum.erros import Conflito
 
 from .frota import montar_frota
 from .test_t012_filiais import MotoRapida
@@ -475,6 +480,43 @@ def test_mov_01_ca_246_13_auditoria(cenario):
     assert Movimentacao.objects.get(pk=mov["id"]).paradas.get().despesa_id is None
 
 
+def test_mov_01_editar_agendada_guarda_paradas_antigas_na_auditoria(cenario):
+    """T-314: a edição troca as paradas da agendada, e a auditoria guarda as de antes."""
+    lavagem = _lavagem(cenario)
+    mov = _criada(cenario, sair_agora=False, agendada_para="2026-10-08T11:00:00Z", paradas=lavagem)
+    oficina = _local(cenario, "Oficina do Zé", "oficina")
+    nova = [{"local_id": oficina, "servico": "Troca de óleo", "valor_previsto_centavos": 9000}]
+    editada = cenario.moto.api("Rodrigo").patch(
+        f"{LISTA}{mov['id']}/",
+        {
+            **_corpo(cenario),
+            "sair_agora": False,
+            "agendada_para": "2026-10-08T11:00:00Z",
+            "paradas": nova,
+        },
+        format="json",
+    )
+    assert editada.status_code == 200, editada.json()
+    evento = EventoAuditoria.objects.get(objeto_id=mov["id"], acao="movimentacao.editar")
+    assert evento.regra == "MOV-01"
+    assert evento.antes["paradas"] == [
+        {
+            "local_id": lavagem[0]["local_id"],
+            "servico": "Lavagem completa",
+            "categoria": "outros",
+            "valor_previsto_centavos": 3500,
+        }
+    ]
+    assert evento.depois["paradas"] == [
+        {
+            "local_id": oficina,
+            "servico": "Troca de óleo",
+            "categoria": "manutencao",
+            "valor_previsto_centavos": 9000,
+        }
+    ]
+
+
 # --- CA-246-14, 15: sem nota e locais de apoio ---
 
 
@@ -677,3 +719,58 @@ def test_mov_05_aut_06_documento_vence_em_movimentacao(cenario):
     contagem = veiculos_services.aplicar_vencimento_de_documentos(date(2026, 10, 7))
     assert (contagem["indisponiveis"], contagem["tarefas"]) == (0, 1)
     assert _veiculo(cenario, "SAK1D39").status == "em_movimentacao"
+
+
+# --- Concorrência: iniciar a movimentação e confirmar a locação ao mesmo tempo (ADR 0028) ---
+
+
+def _quem_chega_primeiro(monkeypatch: Any, outra: Any) -> list[Any]:
+    """A outra operação termina enquanto esta espera a linha do veículo: na 1ª trava, a outra
+    roda inteira (com a trava dela) antes de esta seguir. Se a checagem viesse antes da trava,
+    esta passaria por cima da outra."""
+    original = veiculos_services.travar
+    feitas: list[Any] = []
+
+    def travar(veiculo: Veiculo) -> Veiculo:
+        if not feitas:
+            feitas.append(None)
+            feitas[0] = outra()
+        return original(veiculo)
+
+    monkeypatch.setattr(veiculos_services, "travar", travar)
+    return feitas
+
+
+def test_mov_03_confirmar_a_locacao_enquanto_a_movimentacao_espera_a_trava(cenario, monkeypatch):
+    mov = Movimentacao.objects.get(
+        pk=_criada(cenario, sair_agora=False, agendada_para="2026-10-08T11:00:00Z")["id"]
+    )
+    locacao = Locacao.objects.get(pk=cenario.criar(inicio="2026-10-09T12:00:00Z")["id"])
+    feitas = _quem_chega_primeiro(
+        monkeypatch,
+        lambda: locacoes_services.confirmar(locacao, cenario.pessoas["Bruna"]).status,
+    )
+    with pytest.raises(Conflito) as erro:
+        movimentacoes_services.iniciar(mov, cenario.pessoas["Rodrigo"])
+    assert feitas == ["aguardando_retirada"]
+    assert erro.value.codigo == "MOV-03"
+    # A reserva de início futuro leva o veículo a `reservado` (LOC-15).
+    assert erro.value.mensagem == "Veículo reservado não se movimenta."
+
+
+def test_mov_03_iniciar_a_movimentacao_enquanto_a_locacao_espera_a_trava(cenario, monkeypatch):
+    mov = Movimentacao.objects.get(
+        pk=_criada(cenario, sair_agora=False, agendada_para="2026-10-08T11:00:00Z")["id"]
+    )
+    locacao = Locacao.objects.get(pk=cenario.criar(inicio="2026-10-09T12:00:00Z")["id"])
+    feitas = _quem_chega_primeiro(
+        monkeypatch,
+        lambda: movimentacoes_services.iniciar(mov, cenario.pessoas["Rodrigo"]).status,
+    )
+    with pytest.raises(Conflito) as erro:
+        locacoes_services.confirmar(locacao, cenario.pessoas["Bruna"])
+    assert feitas == ["em_transito"]
+    # O veículo em movimentação não está livre no período (LOC-03).
+    assert (erro.value.codigo, erro.value.mensagem) == ("LOC-03", "Veículo indisponível no período")
+    locacao.refresh_from_db()
+    assert locacao.status == "rascunho"
