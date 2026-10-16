@@ -1,6 +1,6 @@
 # Modelo de dados
 
-**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
+**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183), fatura e forma de pagamento da assinatura em 16 out 2026 (T-294, pela T-185) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
 
 Este documento diz, para cada uma das 25 entidades das regras, o app dono, o schema, os campos, os índices e as restrições. As entidades de apoio (que não estão na lista das regras mas são necessárias) vêm no fim de cada app. Mudança aqui passa pelo arquiteto; o backend implementa a partir daqui e do contrato do módulo em `docs/api/`.
 
@@ -42,6 +42,8 @@ Este documento diz, para cada uma das 25 entidades das regras, o app dono, o sch
 | 23 | Lançamento bancário | `LancamentoBancario` | `financeiro` | empresa |
 | 24 | Comissão | `Comissao` | `financeiro` | empresa |
 | 25 | Evento de auditoria | `EventoAuditoria` | `auditoria` | public **e** empresa |
+| 26 | Movimentação | `Movimentacao` | `movimentacoes` | empresa |
+| 27 | Local de apoio | `LocalApoio` | `movimentacoes` | empresa |
 
 Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 0009) e `WebhookRecebido` (`provedor`, `evento_id` único, `recebido_em`, `corpo` json, `processado_em`, `resultado`; S-14).
 
@@ -102,7 +104,7 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 
 - `auto_create_schema = True`; criação só por `plataforma.services.criar_empresa` (`Compra-Pronto`, ou Django Admin no MVP).
 - Índices: `status`; `(etapa_implantacao, etapa_implantacao_desde)`; `cnpj` (comum, para achar as apagadas, `PLT-16`).
-- `CAMPOS_AUDITORIA` com `omitir_no_public`: razão social, nome de exibição, endereço, e-mail de cobrança e contato do responsável não entram na auditoria do `public` (`AUD-08`, T-236, `docs/api/auditoria.md`).
+- `CAMPOS_AUDITORIA` com `omitir_no_public`: razão social, nome de exibição, endereço, e-mail de cobrança e contato do responsável vão como `{"alterado": true}` na auditoria do `public` e com o valor no schema da empresa (`AUD-08`, T-236, `docs/api/auditoria.md`). A chave `omitir_no_public` existe em `comum.classificacao` desde a T-185, que também tirou o endereço do `omitir` (antes ele não ia a nenhum dos dois schemas).
 - O tenant `public` também é uma linha de `Empresa` (exigência do django-tenants); o `id` entra na claim `empresa_id` dos tokens (ADR 0013).
 - Apoio: `UsoEmpresa` (1:1 com `Empresa`): `veiculos`, `filiais`, `usuarios` (int), `locacoes_total` (int), `ultimo_acesso_em` (momento, nulo), `passos_implantacao` (json `{passo: data}`), `aviso_90_enviado` (json `{item: mes}`). Resumo no `public` para a lista da plataforma e para `PLT-03`, mantido por `plataforma.services.atualizar_uso` e corrigido por tarefa noturna (contrato da plataforma).
 - Apoio: `Dominio(DomainMixin)`: `domain` único (`motorapida.girolocadoras.com.br`), `tenant` FK, `is_primary`. O tenant `public` tem `admin.girolocadoras.com.br` e `girolocadoras.com.br`.
@@ -116,6 +118,7 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | `competencia` | data (dia 1 do mês) | mês do início do período |
 | `periodo_inicio`, `periodo_fim` | data | período coberto (`PLT-01`) |
 | `plano` | FK → `Plano` | plano cobrado (o da descrição) |
+| `ciclo` | enum `mensal`, `anual` | ciclo cobrado; a descrição do anual é outra (`PLT-14`) |
 | `valor_centavos` | centavos | |
 | `vencimento` | data | |
 | `status` | enum `aberta`, `paga`, `atrasada`, `cancelada` | regras, "Estados das entidades sem seção própria" |
@@ -123,6 +126,12 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 | `cobranca_emitida_em` | momento, nulo | quando a cobrança foi criada no parceiro (5 dias antes, `PLT-02`) |
 | `pago_em` | momento, nulo | |
 | `cobranca_externa_id` | texto(60), nulo, único | id da cobrança no Asaas (conta principal) |
+| `cobranca_tipo` | enum `pix`, `boleto`, `cartao_link`, vazio | a cobrança viva no parceiro, uma por fatura: o "Pagar" e o detalhe (`GET /api/assinatura/faturas/{codigo}/`, bloco `cobranca`; T-185, migração `plataforma.0010`) |
+| `cobranca_pix_copia_e_cola` | texto, vazio | Pix da cobrança viva |
+| `cobranca_linha_digitavel` | texto(60), vazio | boleto da cobrança viva |
+| `cobranca_boleto_url` | texto(500), vazio | PDF do boleto no parceiro |
+| `cobranca_url_pagina` | texto(500), vazio | página de pagamento do parceiro (cartão, ADR 0023) |
+| `recibo_url` | texto(500), vazio | comprovante do parceiro, gravado na baixa pelo webhook (`PLT-14`; Asaas `transactionReceiptUrl`); o Giro não gera recibo em PDF no MVP |
 | `tentativas_cartao` | int, até 2 | `PLT-02` (uma tentativa a mais, no dia seguinte) |
 | `cartao_recusado_em` | momento, nulo | última recusa; alimenta a `situacao` da tela |
 | `nota_situacao` | enum `processando`, `emitida`, `erro`, nulo | NFS-e da assinatura (`PLT-15`, T-193) |
@@ -140,6 +149,8 @@ Apoio em `comum` (os dois schemas): `Sequencia` (contadores dos códigos, ADR 00
 - A 1ª fatura nasce em `criar_empresa` (`aberta`, vencimento `teste_fim + 1`, `PLT-01`); estender o teste move o vencimento e o período.
 - Cancelar e pausar (`docs/api/cancelamento.md`) cancelam a fatura `mensalidade` do período seguinte ainda não paga; desfazer cria outra igual, `aberta`, com código novo, e a cancelada aponta para ela.
 - Índices: `(status, vencimento)` para a régua `AUT-13`.
+- Cobrança viva (T-185): pagar pelo mesmo meio reaproveita a cobrança; por outro meio, a antiga é cancelada no parceiro antes, e os campos `cobranca_*` passam à nova. A emissão 5 dias antes (`PLT-02`, T-186) grava pelos mesmos campos.
+- `CAMPOS_AUDITORIA`: `omitir` o tomador, o `email_cobranca`, os `cobranca_*` e o `recibo_url` (dados para pagar só na resposta ao administrador, item 8 da segurança na T-189); `inteiro` o `codigo`. `REGRA_TRANSICAO` = `PLT-14`, categoria financeiro.
 
 ### 4. Usuário da plataforma · `contas.Usuario` no schema public
 
@@ -165,7 +176,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | Model | App | Campos principais |
 | --- | --- | --- |
 | `ContaPagamento` | plataforma | `empresa` (1:1), `provedor` enum `asaas`, `conta_externa_id` único, `id_cifra` (UUID, ADR 0014), `chave_api_cifrada` (`CampoCifrado` com `GIRO_CHAVE_SEGREDOS`, decifrada só em `integracoes/pagamentos/`, ADR 0014), `webhook_token_hash` único, `status` enum `pendente`, `aprovada`, `recusada`. O webhook chega no `public`, acha a empresa pelo token e só então entra no schema dela (ADR 0007). |
-| `FormaPagamentoAssinatura` | plataforma | `empresa` (1:1), `forma` enum `cartao`, `pix_automatico`, `boleto`, nulo; `status` enum `pendente`, `ativa`, `recusada`; `cliente_externo_id` (pagador na conta principal), `autorizacao_externa_id` (Pix automático), `id_cifra` (UUID), `cartao_token_cifrado` (`CampoCifrado`, ADR 0014 e 0023, nunca sai na API nem na auditoria), `cartao_bandeira`, `cartao_final` (4 dígitos). Trocar de forma cancela a autorização e apaga o token (T-183). |
+| `FormaPagamentoAssinatura` | plataforma | `empresa` (1:1), `forma` enum `cartao`, `pix_automatico`, `boleto`, nulo; `status` enum `pendente`, `ativa`, `recusada`; `cliente_externo_id` (pagador na conta principal), `autorizacao_externa_id` (Pix automático), `id_cifra` (UUID), `cartao_token_cifrado` (`CampoCifrado`, ADR 0014 e 0023, nunca sai na API nem na auditoria), `cartao_bandeira`, `cartao_final` (4 dígitos). Trocar de forma cancela a autorização do Pix, apaga o token, a bandeira e o final na linha travada e cancela no parceiro a cobrança viva de outra forma (T-183, T-185). Transições do `status` (`PLT-13`): `pendente` → `ativa` ou `recusada`; `ativa` → `pendente` ou `recusada`; `recusada` → `pendente` ou `ativa`. Auditoria omite `cartao_token_cifrado`, `cliente_externo_id` e `autorizacao_externa_id`; o evento `assinatura.forma_pagamento` leva só a forma antiga e a nova. |
 | `Chamado` | plataforma | `numero` (#1042), `empresa` FK, `assunto`, `status`, `responsavel` FK usuário. Fase 2. |
 | `Convite` | contas | ver item 7 (serve aos dois schemas). |
 
@@ -243,7 +254,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `capacidade_tanque_litros` | `Decimal(5,1)`, nulo | base do combustível no acerto (`DEV-01`); seed PNB7C04 = 16.0 |
 | `categoria` | FK → `Categoria` | |
 | `filial` | FK → `Filial` | |
-| `status` | enum `disponivel`, `reservado`, `alugado`, `em_manutencao`, `indisponivel`, `a_venda`, `vendido`, `baixado` | transições da seção "Veículos" (`REGRA_TRANSICAO` = `VEI`) |
+| `status` | enum `disponivel`, `reservado`, `alugado`, `em_manutencao`, `indisponivel`, `a_venda`, `vendido`, `baixado`, `em_movimentacao` | transições da seção "Veículos" (`REGRA_TRANSICAO` = `VEI`); `em_movimentacao` pela T-286 (`MOV-03`) |
 | `motivo_status` | texto, nulo | bloqueio, baixa |
 | `valor_compra_centavos` | centavos, nulo | valor contábil (`FIN-13`) |
 | `data_compra` | data, nulo | ficha do veículo |
@@ -256,7 +267,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 - Transições extras de T-031: `vendido` → `a_venda` (venda cancelada, `VEN-07`) e `vendido` → `indisponivel` (recompra numa troca: o serviço acha o veículo pelo chassi e reaproveita o cadastro, `VEI-07`).
 - Apoio `HistoricoStatusVeiculo`: `veiculo` FK, `de`, `para`, `em` momento, `origem` genérica, `por` FK nulo. Base de `VEI-06` (ocupação). Índice `(veiculo, em)`.
 - Apoio `LeituraKm`: `veiculo`, `km`, `lido_em`, `origem` genérica (vistoria, OS, correção), `motivo` (correção para baixo, `APR-06`).
-- Apoio `TransferenciaVeiculo`: `veiculo`, `filial_origem`, `filial_destino`, `em`, `por` (`VEI-04`).
+- Apoio `TransferenciaVeiculo`: `veiculo`, `filial_origem`, `filial_destino`, `em`, `por` (`VEI-04`), origem genérica nula (`movimentacao` na transferência pela chegada, `MOV-06`, T-286).
 
 ### 10. Documento do veículo · `veiculos.DocumentoVeiculo` · ativável
 
@@ -487,8 +498,8 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `valor_centavos` | centavos | |
 | `vencimento` | data | |
 | `veiculo` | FK → `Veiculo`, nulo | custo do veículo (`VEI-05`) |
-| origem genérica | `ordem_servico`, nulo | `MAN-05` |
-| `nota` | arquivo, nulo | foto da nota |
+| origem genérica | `ordem_servico`, `movimentacao`, nulo | `MAN-05`; `MOV-04` (T-286, ADR 0028) |
+| `nota` | arquivo, nulo | foto da nota; nula só na despesa que nasce por serviço (OS, parada de movimentação), e aí a representação diz `sem_nota` |
 | `status` | enum `aguardando_aprovacao`, `a_pagar`, `paga`, `recusada` | `FIN-05` |
 | `pago_em` | momento, nulo | |
 | `forma` | enum `pix`, `boleto`, `cartao`, `transferencia`, `dinheiro`, nulo | |
@@ -581,6 +592,43 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 - Único `(origem_tipo, origem_id, usuario)` quando `status <> estornada` (uma comissão por venda ou locação nova). Índice `(usuario, mes_pagamento, status)`.
 - Regras configuráveis ficam em `ConfiguracaoEmpresa` (abaixo).
 
+### 26. Movimentação · `movimentacoes.Movimentacao` · código `MOV` · máquina
+
+App `movimentacoes` (ADR 0028), schema da empresa. Regras `MOV-01` a `MOV-06` (T-286).
+
+| Campo | Tipo | Observação |
+| --- | --- | --- |
+| `veiculo` | FK → `Veiculo` | |
+| `filial_saida` | FK → `Filial` | a do veículo na criação (`MOV-01`) |
+| `destino` | FK → `Filial` | sempre uma filial (`MOV-01`); diferente da saída = transferência (`MOV-06`) |
+| `categoria_destino` | FK → `Categoria`, nulo | só na transferência (`VEI-04`) |
+| `levado_por` | FK → `contas.Usuario` | usuário ativo da filial de saída (`MOV-02`) |
+| `criada_por` | FK → `contas.Usuario` | |
+| `agendada_para` | momento, nulo | nulo em "Sair agora" |
+| `iniciada_em`, `concluida_em`, `cancelada_em` | momento, nulo | |
+| `motivo_cancelamento` | texto(200), nulo | |
+| `vistoria_rapida` | bool | `true` sempre na transferência (`MOV-05`) |
+| `km_saida`, `km_chegada` | int, nulo | |
+| `combustivel_chegada` | enum `reserva`, `um_quarto`, `meio`, `tres_quartos`, `cheio`, nulo | o mesmo da vistoria |
+| `recebido_por` | FK → `contas.Usuario`, nulo | usuário da filial de destino, na transferência |
+| `status` | enum `agendada`, `em_transito`, `no_local`, `concluida`, `cancelada` | transições da seção "Movimentações de veículos" |
+
+- Índice único parcial em `veiculo` com `status IN ('agendada', 'em_transito', 'no_local')`: uma movimentação aberta por veículo (`MOV-03`).
+- `CHECK (destino_id = filial_saida_id OR vistoria_rapida)`; `CHECK (destino_id <> filial_saida_id OR categoria_destino_id IS NULL)`.
+- Índices: `(filial_saida, status)`, `(destino, status)`, `(levado_por, status)`.
+- Apoio `ParadaMovimentacao`: `movimentacao` FK, `ordem` int (único com a movimentação), `local` FK → `LocalApoio`, `servico` texto(80), `categoria` enum da `Despesa` (padrão `outros`; `manutencao` para oficina, `MOV-04`), `valor_previsto_centavos` centavos, `chegou_em` e `saiu_em` momento nulo, `valor_pago_centavos` centavos nulo, `despesa` FK → `financeiro.Despesa` nulo. Na fase 2, `ordem_servico` FK nulo (`MAN-05`).
+- Apoio `FotoChegadaMovimentacao`: `movimentacao` FK, `posicao` enum `frente`, `traseira`, `lado_esquerdo`, `lado_direito`, `arquivo` (armazenamento privado, `AUD-05`). Único `(movimentacao, posicao)`.
+
+### 27. Local de apoio · `movimentacoes.LocalApoio` · ativável
+
+| Campo | Tipo | Observação |
+| --- | --- | --- |
+| `nome` | texto(80) | |
+| `nome_busca` | texto(80), único | nome em minúsculas, sem acento e com espaços normalizados, gravado pelo serviço: o nome único da `MOV-01` |
+| `tipo` | enum `lava_jato`, `oficina`, `despachante`, `outro` | |
+
+- Da empresa, vale para todas as filiais (`MOV-01`). Inativado pelo administrador, nunca apagado.
+
 ### 25. Evento de auditoria · `auditoria.EventoAuditoria`
 
 Campos, índices e imutabilidade na ADR 0010. Existe nos dois schemas. Apoio `Exportacao` (`AUD-07`): `solicitada_por`, `itens` (lista enum), `formato` enum `planilha`, `csv`, `zip`, `periodo_inicio`, `periodo_fim`, `status` enum `na_fila`, `pronta`, `expirada`, `falhou`, `arquivo`, `expira_em` (+7 dias), `parametros` json (padrão `{}`; nas despesas, `mes`, `filial_id` e `filial_nome`, T-177). `itens` aceita também `despesas` (`FIN-16`).
@@ -611,6 +659,8 @@ Campos, índices e imutabilidade na ADR 0010. Existe nos dois schemas. Apoio `Ex
 | CPF/CNPJ único por empresa | `Cliente.documento_hash` único no schema | `CLI-01` |
 | Uma locação aberta por veículo | índice único parcial em `Locacao.veiculo` | regras, "Entidades" |
 | Uma venda aberta por veículo | índice único parcial em `Venda.veiculo` | `VEN-10` |
+| Uma movimentação aberta por veículo | índice único parcial em `Movimentacao.veiculo` | `MOV-03` |
+| Local de apoio com nome único na empresa | `LocalApoio.nome_busca` único | `MOV-01` |
 | Um caixa por filial por dia | único `(filial, data)` | `FIN-07` |
 | Uma matriz por empresa | único parcial em `Filial.matriz` | — |
 | Quem pede não aprova, salvo o administrador (marcado) | dois `CHECK` em `PedidoAprovacao` com `decidido_pelo_solicitante`; perfil conferido no serviço | `APR-09` |
