@@ -8,6 +8,7 @@ import type {
   ListaVeiculos,
   LocacoesDoVeiculo,
   ManutencoesDoVeiculo,
+  EdicaoVeiculo,
   NovoVeiculo,
   TipoVeiculo,
   Veiculo,
@@ -29,9 +30,14 @@ export const veiculosApi = {
     return r.resultados.filter((c): c is CategoriaVeiculo => c.preco_vigente != null);
   },
 
-  async criar(v: NovoVeiculo): Promise<VeiculoDetalhe> {
-    const criado = await http.post<Veiculo>("/api/veiculos/", v);
-    return veiculosApi.obter(criado.id);
+  /** O 201 já traz o veículo. Ler a ficha em seguida faria uma falha da leitura passar por falha do cadastro (T-240): quem abre a ficha é a página dela. */
+  criar(v: NovoVeiculo): Promise<Veiculo> {
+    return http.post<Veiculo>("/api/veiculos/", v);
+  },
+
+  /** PATCH (VEI-01): administrador e gerente; a resposta é a ficha completa. */
+  atualizar(id: number, v: EdicaoVeiculo): Promise<VeiculoDetalhe> {
+    return http.patch<VeiculoDetalhe>(`/api/veiculos/${id}/`, v);
   },
 
   registrarKm(id: number, km: number): Promise<Veiculo> {
