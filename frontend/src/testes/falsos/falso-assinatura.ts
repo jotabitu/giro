@@ -4,9 +4,11 @@ import type { Assinatura } from "@/lib/api/tipos-assinatura";
 import { pausa } from "./falso";
 
 const SEED: Assinatura = {
-  plano: { nome: "Profissional", preco_contratado_centavos: 44900, ciclo: "mensal" },
+  plano: { id: 2, nome: "Profissional", preco_contratado_centavos: 44900, ciclo: "mensal" },
   status: "em_teste",
-  teste: { fim: "2026-10-21", dias_restantes: 14 },
+  teste: { inicio: "2026-10-07", fim: "2026-10-21", dias_restantes: 14 },
+  proxima_fatura: { vencimento: "2026-10-22", valor_centavos: 44900, descricao: "Plano Profissional · 22 out a 21 nov" },
+  plano_proximo: null,
   faixa_aviso: null,
   uso: {
     veiculos: { usado: 86, limite: 150, aviso: false, bloqueado: false },

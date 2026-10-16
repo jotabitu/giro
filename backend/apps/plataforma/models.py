@@ -21,6 +21,17 @@ from comum.models import ModeloAtivavel, ModeloBase, ModeloComCifra
 
 DIAS_DE_TESTE = 14  # PLT-01
 CAMPOS_DO_ENDERECO = ("cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf")
+CAMPOS_ENDERECO_DA_NOTA = tuple(f"endereco_{campo}" for campo in CAMPOS_DO_ENDERECO)
+# Dados da empresa que o apagamento limpa (AUD-08): só `{"alterado": true}` na auditoria do public.
+DADOS_APAGADOS_DA_EMPRESA = (
+    "razao_social",
+    "nome_exibicao",
+    *CAMPOS_ENDERECO_DA_NOTA,
+    "email_cobranca",
+    "responsavel_nome",
+    "responsavel_email",
+    "responsavel_telefone",
+)
 
 
 class Recurso(models.TextChoices):
@@ -164,7 +175,9 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
     auto_drop_schema = False
 
     # O responsável é funcionário da locadora (o administrador): vai inteiro, como o
-    # nome e o e-mail do `Usuario` (ADR 0014, item 3).
+    # nome e o e-mail do `Usuario` (ADR 0014, item 3), no schema da empresa. No public, que fica
+    # 5 anos e o apagamento não alcança, os dados que o apagamento limpa vão como
+    # `{"alterado": true}` (AUD-08, T-236; `auditoria.md`, "Dados da empresa no `public`").
     CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
         "inteiro": [
             "nome_exibicao",
@@ -172,10 +185,9 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
             "responsavel_email",
             "responsavel_telefone",
             "email_cobranca",
+            *CAMPOS_ENDERECO_DA_NOTA,
         ],
-        # O endereço da nota não vai para a auditoria do public (AUD-08, M-03 da T-230); a lista
-        # `omitir_no_public` completa, com o valor no schema da empresa, é da T-195.
-        "omitir": [f"endereco_{campo}" for campo in CAMPOS_DO_ENDERECO],
+        "omitir_no_public": list(DADOS_APAGADOS_DA_EMPRESA),
     }
 
     class Meta:

@@ -20,11 +20,11 @@ from apps.plataforma.services import (
 )
 from comum import leituras
 from comum.auditoria import Categoria, auditar, registrar_evento, retrato
-from comum.documentos import cnpj_valido, so_digitos
+from comum.documentos import UFS, cnpj_valido, so_digitos
 from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao
 
 from .calendario import validar_horario
-from .models import UFS, FeriadoFilial, Filial, UsuarioFilial
+from .models import FeriadoFilial, Filial, UsuarioFilial
 
 ALVO = "filiais.Filial"
 # Grupos de operação que impedem desativar (FIL-06); cada app registra o seu contador.

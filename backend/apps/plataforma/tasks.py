@@ -11,6 +11,7 @@ from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django_tenants.utils import get_public_schema_name, schema_context
 
+from comum.erros import ParceiroForaDoAr
 from comum.tarefas import para_cada_empresa, tarefa_de_empresa
 from integracoes.pagamentos.base import ParceiroIndisponivel
 
@@ -138,3 +139,20 @@ def plataforma_pedir_notas_pendentes(empresa_id: int) -> int:
         return FaturaAssinatura.objects.filter(
             empresa_id=empresa_id, status=StatusFatura.PAGA, nota_situacao=""
         ).count()
+
+
+@shared_task(
+    name="plataforma_atualizar_pagador",
+    autoretry_for=(ParceiroForaDoAr,),
+    retry_backoff=60,
+    retry_backoff_max=60 * 60,
+    max_retries=24,
+)
+def plataforma_atualizar_pagador(empresa_id: int) -> str:
+    """PLT-15: os dados fiscais mudaram; o pagador da empresa na conta principal muda antes da
+    próxima cobrança. Parceiro fora do ar: tenta de novo mais tarde."""
+    from .services import atualizar_pagador
+
+    with schema_context(get_public_schema_name()):
+        empresa = Empresa.objects.get(pk=empresa_id)
+        return atualizar_pagador(empresa)
