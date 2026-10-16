@@ -38,14 +38,32 @@ Quem copia o link pode abri-lo e criar a senha no lugar da pessoa convidada. Iss
 
 O mesmo vale para o reenvio.
 
-## Para conferir na tela (quando a T-251 entrar)
+## A tela (T-251, PR #276)
 
-1. O botão aparece só com `acoes.copiar_link_convite`, e o texto do `aviso` vem da resposta, sem texto próprio.
-2. O link fica só na memória do componente e no momento de copiar:
-   - nada de `localStorage`, `sessionStorage`, URL, título da página nem `console`;
-   - na mutação do TanStack Query, sem `mutationKey` persistida e com o resultado descartado ao fechar (`reset()` ou `gcTime: 0`);
-   - nada de colocar a resposta no cache da consulta do usuário (`setQueryData`); o detalhe é relido.
-3. O link é mostrado uma vez. Ao fechar, ele some; para ver de novo, outro clique gera outro link, o anterior deixa de valer e o aviso diz isso.
-4. A cópia usa `navigator.clipboard.writeText`. Se a cópia falhar, a tela mostra o link para seleção manual, sem mandá-lo para log ou Sentry.
-5. O 429 e o 409 mostram a mensagem da API como vem; o 429 não tenta de novo sozinho.
-6. Nenhum `fetch` ou evento de análise leva o link (o Sentry do frontend, quando existir, sem `breadcrumbs` de resposta dessa rota).
+Conferida em `frontend/src/components/admin/PainelDoUsuario.tsx` e `frontend/src/lib/api/usuarios.ts` (branch `t-251-telas-decisoes`), pela lista que estava aqui.
+
+| Ponto | Situação |
+| --- | --- |
+| Botão só com `acoes.copiar_link_convite` | certo, com teste (`Usuarios.test.tsx`) |
+| Aviso do link anterior | certo: a mensagem de sucesso usa o `aviso` da resposta, e a nota fixa ao lado do botão diz o mesmo |
+| Link sem estado nem cache | certo: o link só existe dentro da função da mutação; o resultado guardado pela mutação é o `aviso`; nada de `setQueryData`, `localStorage`, URL ou `console`; o detalhe é relido (`invalidateQueries`) |
+| Link nunca mostrado na tela | certo: vai direto para a área de transferência |
+| Erro da API (409, 429) | certo: a mensagem vem da API (`mensagemDoErro`); nada tenta de novo sozinho |
+| Nada de log ou análise com o link | certo: o cliente HTTP não registra respostas, e não há persistência do cache |
+
+### B-02 · No Safari, a cópia falhava e cada tentativa gerava outro link · baixa (corrigido aqui)
+
+**Onde:** `PainelDoUsuario.tsx`, `copiarLink`: `navigator.clipboard.writeText(r.link)` depois do `await` da requisição.
+**Problema:** o Safari (iPhone e Mac) só aceita gravar na área de transferência durante o toque, e depois de esperar a rede a gravação é recusada. No celular, onde o link é mais usado (para mandar pelo WhatsApp), a cópia falharia sempre. Pior: cada tentativa gera um link novo, invalida o anterior, grava um evento na auditoria e gasta um dos 5 por hora. Na 6ª tentativa, a pessoa recebe o 429. Não vaza nada, mas leva a pessoa a insistir num botão que mexe em segurança.
+**Correção (nesta branch, com o aval do orquestrador):** `frontend/src/lib/area-de-transferencia.ts`, `copiarQuandoChegar(texto)`, chamado no `onClick` antes de qualquer `await`.
+- Com `ClipboardItem`: grava na hora, com a promessa do texto como conteúdo. É o caminho que o Safari aceita, e o Chrome e o Firefox também.
+- Sem `ClipboardItem`: espera o texto e usa `writeText`.
+- O erro da API continua sendo o que aparece, porque ele é lido antes do erro da cópia.
+Testes em `area-de-transferencia.test.ts`:
+- a gravação começa antes de o texto chegar;
+- o caminho sem `ClipboardItem`;
+- sem área de transferência (fora de HTTPS), rejeita;
+- se a API falhar, nada é gravado.
+**Não testado num Safari de verdade:** o ambiente de teste é Node. Vale o qa conferir num iPhone quando houver homologação.
+
+Observação para o frontend, sem efeito de segurança: na API falsa, o link sai como `/convite/<id>-novo`, e o da API real é `/convite#<token>`.

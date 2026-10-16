@@ -20,3 +20,15 @@
 - orquestrador: numerar o B-01 (backend);
 - frontend: ler "Para conferir na tela" antes de fechar a T-251;
 - eu revejo a tela quando a T-251 entrar.
+
+## Parte da tela (T-251, PR #276) · 16 out 2026
+
+**O que foi feito:** a tela conferida pela lista do relatório (seção "A tela"). Tudo certo:
+- botão por `acoes.copiar_link_convite`;
+- aviso da resposta;
+- link só dentro da mutação, nunca mostrado, sem estado, cache, URL ou log.
+
+**B-02, corrigido nesta branch** (mesclada com a `origin/t-251-telas-decisoes`, com o aval do orquestrador): o `writeText` depois do `await` falha no Safari, e cada tentativa gerava outro link e gastava o limite. Agora `copiarQuandoChegar` (`frontend/src/lib/area-de-transferencia.ts`) grava no clique, com `ClipboardItem` e a promessa do texto. O `PainelDoUsuario.tsx` chama pelo `onClick`.
+**Testes:** `area-de-transferencia.test.ts` (4) e `Usuarios.test.tsx` passam (21); lint e typecheck limpos (depois do `npm run api:gerar` no worktree).
+**O que ficou de fora:** conferir num iPhone de verdade (qa, em homologação). O link da API falsa não usa o `#` da real (frontend, sem efeito de segurança).
+**Próximo passo:** orquestrador mescla na ordem #272, #276 e #281; a T-252 está fechada.
