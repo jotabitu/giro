@@ -21,7 +21,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 18, 19, 21 e 22 e apo
 | Aprovar despesa acima de R$ 500 (`APR-03`) | sim | sim | — | — | — |
 | Pagar despesa, marcar devolução ao cliente como feita | sim | — | — | — | sim |
 
-Quem lançou ou pediu nunca aprova o próprio pedido (`APR-09`). O vistoriador recebe 403 em todo o app.
+Quem lançou ou pediu não aprova o próprio pedido, salvo o administrador (`APR-09`, T-249; `aprovacoes.md`, "Administrador decide o próprio pedido"). O vistoriador recebe 403 em todo o app.
 
 ---
 
@@ -325,6 +325,11 @@ A nota obrigatória vale para o lançamento por esta rota. A despesa que nascer 
 
 ### GET /api/financeiro/despesas/{id}/
 200: a representação (T-144). Mesmos perfis e o mesmo `X-Filial` da lista; fora do escopo, 404.
+
+### POST /api/financeiro/despesas/{id}/nota/
+Anexar a nota depois (T-286, `MOV-04`, CA-246-14). Perfis: quem lança despesa (`despesas_lancar` = `todas`). `multipart/form-data`: `nota` (imagem ou PDF até 10 MB, `comum.arquivos`). Só na despesa sem nota; com nota, 409 `{ "codigo": "nota_existente" }`. Vale em qualquer status, inclusive `paga`. 200: a despesa, com `sem_nota: false`. Evento `despesa.anexar_nota`.
+
+- **Origem `movimentacao` e `sem_nota` (T-286, ADR 0028, item 5).** A despesa da parada de uma movimentação nasce por `lancar_despesa(..., origem=...)`, com `origem_tipo = movimentacao` e o código `MOV-0001`, sem passar pela rota de lançamento; por isso pode nascer sem nota. A representação da despesa (lista e detalhe) ganha `sem_nota` (`true` quando não há nota) e `origem` (`{ "tipo": "movimentacao", "id", "codigo": "MOV-0001" }` ou `null`). A tela `Despesas` mostra a marca "sem nota" e o link para a movimentação. A rota `POST /api/financeiro/despesas/` continua exigindo a nota (`FIN-06`).
 
 ### POST /api/financeiro/despesas/{id}/pagar/
 Perfis: administrador, financeiro. Corpo: `{ forma: "pix" | "boleto" | "cartao" | "transferencia" | "dinheiro", pago_em, comprovante? }`. Só `a_pagar`. `dinheiro` sai do caixa aberto. 200 `paga`.

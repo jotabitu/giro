@@ -94,6 +94,23 @@ export type CategoriaVeiculo = {
 };
 
 /** Corpo de `POST /api/veiculos/`. Dinheiro em centavos, datas em ISO, placa sem hífen. */
+/** POST /api/veiculos/{id}/corrigir-identificacao/ (VEI-01): só o administrador; o motivo é obrigatório. */
+export type CorrecaoDeIdentificacao = { placa?: string; chassi?: string; motivo: string };
+
+/** PATCH /api/veiculos/{id}/ (VEI-01): placa, chassi, km e filial não mudam aqui. `null` limpa o campo opcional. */
+export type EdicaoVeiculo = {
+  renavam?: string | null;
+  marca?: string;
+  modelo?: string;
+  ano_fabricacao?: number;
+  ano_modelo?: number;
+  cor?: string;
+  categoria_id?: number;
+  capacidade_tanque_litros?: string | null;
+  valor_compra_centavos?: number | null;
+  data_compra?: string | null;
+};
+
 export type NovoVeiculo = {
   placa: string;
   chassi: string;

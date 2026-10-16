@@ -194,6 +194,38 @@ def test_usr_09_vistoriador_ve_veiculo_sem_valores(moto, frota):
         assert api.get("/api/extras/").status_code == 200
 
 
+def test_usr_09_vendedor_sem_custo_do_veiculo(moto, frota):
+    """T-156: rendimento e custo de manutenção (VEI-05) só para administrador, gerente e
+    financeiro; para a vendedora a chave vem ausente, não nula, e o resto da ficha não muda."""
+    sak = frota.veiculos["SAK1D39"]
+    fichas = {
+        nome: moto.api(nome).get(_url(sak)).json() for nome in ("Mariana", "Rodrigo", "Lúcia")
+    }
+    indicadores = {nome: ficha["indicadores_financeiros"] for nome, ficha in fichas.items()}
+    esperado = leituras.blocos(selectors.ALVO, sak)["indicadores_financeiros"]
+    assert set(esperado) == {"rendeu_no_ano_centavos", "custo_manutencao_ano_centavos"}
+    assert indicadores == dict.fromkeys(fichas, esperado)
+
+    bruna = moto.api("Bruna").get(_url(sak))
+    assert bruna.status_code == 200
+    ficha = bruna.json()
+    assert "indicadores_financeiros" not in ficha
+    mariana = fichas["Mariana"]
+    for chave in (
+        "situacao",
+        "ocupacao",
+        "km_atual",
+        "documentos_resumo",
+        "preco_vigente",
+        "valor_venda_centavos",
+        "historico_status",
+    ):
+        assert ficha[chave] == mariana[chave], chave
+
+    # D-25: o vistoriador continua sem o bloco.
+    assert "indicadores_financeiros" not in moto.api("João").get(_url(sak)).json()
+
+
 def test_vei_01_ca_013_04_escopo_de_filial(moto, frota):
     caucaia = _caucaia(moto)
     de_caucaia = criar_veiculo(
@@ -1138,6 +1170,19 @@ def test_vei_06_ca_013_29_ocupacao_com_fracao_de_dia(moto, frota, relogio):
     cedo = criar_veiculo(603, urbana, frota.centro)
     _historico_em(cedo, [("2026-09-27 00:00", "disponivel"), ("2026-10-02 00:00", "alugado")])
     assert api.get(_url(cedo)).json()["ocupacao"] == {"pct": "50.00", "periodo_dias": 90}
+
+
+def test_vei_06_veiculo_recem_cadastrado_sem_500(moto, frota, relogio):
+    """T-240: a ficha lida meio segundo depois do cadastro tem menos de 1 s na frota; a
+    ocupação é 0,00%, sem 500."""
+    relogio.em("2026-10-07 10:00:00")
+    criado = moto.api("Mariana").post("/api/veiculos/", _cadastro(frota), format="json")
+    assert criado.status_code == 201, criado.json()
+    relogio.em("2026-10-07 10:00:00.500")
+    ficha = moto.api("Mariana").get(f"/api/veiculos/{criado.json()['id']}/")
+    assert ficha.status_code == 200, ficha.content
+    assert ficha.json()["ocupacao"] == {"pct": "0.00", "periodo_dias": 90}
+    assert selectors._pct(timedelta(0), timedelta(milliseconds=500)) == "0.00"
 
 
 # --- Plano e isolamento ---

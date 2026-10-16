@@ -47,6 +47,34 @@ Contrato: `docs/api/assinatura.md` ("Faturas, cobrança e régua", "De onde vem 
 - `admin.py`: faturas de todas as empresas só para leitura, com o filtro "nota pendente".
 - O webhook (`financeiro/api/views.py`) procura a `ContaPagamento` pelo token; sem ela, confere o hash da conta principal (`GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH`) e grava o aviso no public.
 
+## Implementado (T-185, parte 1: rotas da assinatura)
+
+Contrato: `docs/api/assinatura.md`. A parte 2 (forma de pagamento e faturas) vem na branch `t-185b-forma-faturas`.
+
+- `catalogo.py`: os textos da `PLT-11` num lugar só (`inclui` para Comparar planos, `a_mais` para o cartão do plano acima). Mudou a regra, muda só ele.
+- `services.py`: `mudar_plano` (serviço único da tela e da ação da plataforma; `por=POR_EQUIPE` também muda o ciclo, valendo na próxima fatura), `simular_mudanca_plano`, `desfazer_mudanca_plano`, `proxima_mensalidade`, `excede_no_plano`, `atualizar_dados_fiscais`. `pendencias_dos_modulos` devolve vazio até a T-196. Os fatos da empresa vão para as duas auditorias (`_registrar_nos_dois`), a cópia do endereço da matriz também.
+- `selectors.py`: `assinatura(empresa, usuario)` com `proxima_fatura`, `plano_proximo` e, só para o administrador, `forma_pagamento`, `dados_fiscais`, `oferta` e `acoes`; `planos_da_assinatura`.
+- `api/assinatura.py`: `GET assinatura/planos/`, `POST assinatura/mudanca-plano/simular/`, `POST` e `DELETE assinatura/mudanca-plano/`, `PATCH assinatura/dados-fiscais/`. Só o administrador (403 `permissao`); o suporte lê e nunca escreve (403 `PLT-07`, "O suporte não mexe na assinatura da empresa").
+- `tasks.py`: `plataforma_atualizar_pagador` (dados fiscais mudados, pagador na conta principal).
+- Em `comum`: `EmpresaOperando` aceita `escreve_na_suspensa` (lista explícita, conferida em teste) e `recusa_na_suspensa` (o 409 da regra no lugar do 403); `suporte_proibido` usa a `mensagem_suporte_proibido` da view; a classificação da auditoria ganhou `omitir_no_public` (dados que o apagamento limpa, `AUD-08`).
+
+## Implementado (T-185, parte 2: forma de pagamento e faturas)
+
+- `models.py`: na `FaturaAssinatura`, a cobrança viva (`cobranca_tipo`, Pix, linha digitável, boleto, página do cartão) e o `recibo_url` da baixa (migração `0010`); fora da auditoria.
+- `services.py`: `escolher_forma_pagamento` (Pix automático pela autorização recorrente, cartão pela página do parceiro, boleto; a troca cancela a autorização, esquece o token e cancela a cobrança viva de outra forma) e `pagar_fatura` (pela forma ou por outro `meio`, sem trocar a forma; uma cobrança viva por fatura).
+- `selectors.py`: `faturas_da_empresa` (sempre da empresa da requisição), `item_da_fatura`, `linha_do_teste`, `detalhe_da_fatura`.
+- `api/assinatura.py`: `PUT assinatura/forma-pagamento/`, `GET assinatura/faturas/`, `GET assinatura/faturas/{codigo}/`, `POST assinatura/faturas/{codigo}/pagar/`. Com as três rotas de pagar, a lista `escreve_na_suspensa` fica completa (CA-ASS-27).
+- Interface de pagamentos: `SituacaoCobranca.recibo_url` (Asaas: `transactionReceiptUrl`).
+
+## Implementado (T-186, parte 1: estados e virada)
+
+Contrato: `docs/api/assinatura.md` ("Transições da empresa" e "Downgrade agendado: conferência e virada"). As partes 2 (geração e emissão das faturas, cartão guardado, Pix automático autorizado) e 3 (mensagens da régua `AUT-13`) vêm nas branches `t-186b` e `t-186c`.
+
+- `services.py`: `virar_estados` (faturas vencidas em `atrasada` em D+1, `aplicar_mudanca_agendada` e `estado_do_dia` por empresa, cada uma na sua transação, idempotente); `transicionar_empresa` (o estado no public e o mesmo fato na empresa); `voltar_a_ativa_ao_pagar`, chamada na baixa (`_processar_fatura`): `inadimplente` ou `suspensa` sem outra atrasada, ou `em_teste` com a 1ª paga depois do fim do teste, vira `ativa` na hora. `DIAS_ATE_SUSPENDER = 15` conta do vencimento da atrasada mais antiga.
+- `models.py`: `Empresa.TRANSICOES` ganhou `em_teste` → `inadimplente` (com forma e sem pagar, em D+1).
+- `tasks.py`: `plataforma_virar_estados`, no Beat às 00:05.
+- `comum.estados`: `refresh_from_db` passa a atualizar o status salvo, para a cópia relida salvar outros campos.
+
 ## Eventos publicados
 
 | Evento | Quando | Dados |

@@ -13,8 +13,10 @@ from typing import Any
 from django.apps import apps
 from django.db import models, transaction
 from django.db.models.fields.files import FieldFile
+from django_tenants.utils import get_public_schema_name
 
 from comum import classificacao
+from comum.conexao import conexao
 
 
 class Categoria(models.TextChoices):
@@ -127,7 +129,10 @@ def registrar_evento(
     if objeto is not None and not type(objeto).__module__.startswith(PACOTES_DO_GIRO):
         raise ValueError(f"{type(objeto).__name__} não é model do Giro; audite pelo dono dele.")
     if objeto is not None:
-        antes, depois = classificacao.aplicar(type(objeto), antes or {}, depois or {})
+        no_public = conexao().schema_name == get_public_schema_name()
+        antes, depois = classificacao.aplicar(
+            type(objeto), antes or {}, depois or {}, no_public=no_public
+        )
     ator = ator_atual()
     return evento_auditoria.objects.create(
         ator_tipo=ator.tipo,

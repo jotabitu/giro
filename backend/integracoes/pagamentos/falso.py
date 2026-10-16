@@ -182,6 +182,7 @@ def simular_pagamento(
         pago_em=pago_em,
         forma=forma,
         cartao=cartao,
+        recibo_url=f"https://pagamentos.falso/recibo/{cobranca_id}",
     )
     return corpo_do_webhook(cobranca_id, "PAYMENT_RECEIVED", evento_id)
 

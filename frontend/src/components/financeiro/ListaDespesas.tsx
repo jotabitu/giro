@@ -164,10 +164,13 @@ export function ListaDespesas({ abrirId }: { abrirId?: number }) {
             </Button>
           </div>
         )}
+        {/* O `.wl-icon-btn` define `display`, e isso vence o `md:hidden` do próprio link: o wrapper é quem some no desktop (a referência do desktop só tem Exportar). */}
         {podeLancar && (
-          <a href="#nova-despesa" aria-label="Nova despesa" className="wl-icon-btn wl-icon-btn--sm ml-auto size-11 md:hidden">
-            <Icone de={Plus} />
-          </a>
+          <div className="ml-auto md:hidden">
+            <a href="#nova-despesa" aria-label="Nova despesa" className="wl-icon-btn wl-icon-btn--sm size-11">
+              <Icone de={Plus} />
+            </a>
+          </div>
         )}
       </header>
 
@@ -196,7 +199,7 @@ export function ListaDespesas({ abrirId }: { abrirId?: number }) {
             <section className="wl-panel" aria-label="Despesas do mês">
               <div className="mb-5 hidden flex-wrap items-center gap-3 md:flex">
                 <SegmentedControl rotulo="Filtro" opcoes={abas} valor={aba} aoMudar={(v) => definir({ aba: v === "todas" ? null : v })} />
-                <div className="ml-auto w-[220px]">
+                <div className="ml-auto w-[220px] [&_.wl-search]:!w-full">
                   <SearchField placeholder="Buscar despesa" aria-label="Buscar despesa" value={busca} onChange={(e) => setBusca(e.target.value)} />
                 </div>
               </div>

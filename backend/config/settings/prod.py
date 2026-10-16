@@ -1,16 +1,26 @@
 import base64
 import ipaddress
+from urllib.parse import urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
 
 from config.settings.base import *  # noqa: F403
 from config.settings.base import (
+    CELERY_BROKER_URL,
+    CELERY_RESULT_BACKEND,
     CHAVE_DADOS_PESSOAIS_DE_EXEMPLO,
     CHAVE_SEGREDOS_DE_EXEMPLO,
+    DATABASES,
+    EMAIL_BACKEND,
+    EMAIL_HOST,
+    GIRO_ARMAZENAMENTO,
+    GIRO_ASAAS_CHAVE_API,
     GIRO_CHAVE_DADOS_PESSOAIS,
     GIRO_CHAVE_SEGREDOS,
     GIRO_PEPPER_HMAC,
+    GIRO_PROVEDOR_PAGAMENTOS,
     PEPPER_DE_EXEMPLO,
+    REDIS_URL,
     SECRET_KEY,
     SIMPLE_JWT,
     env,
@@ -23,6 +33,10 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = env.bool("DJANGO_SECURE_SSL_REDIRECT", default=True)
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+# Só o Django Admin usa a sessão (a API usa tokens): curta e presa ao navegador (ADR 0029).
+# Sem SESSION_COOKIE_DOMAIN, o cookie fica no host da plataforma.
+SESSION_COOKIE_AGE = 4 * 60 * 60
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 
 # HSTS com preload (S-18). O preload exige pelo menos 1 ano; em homologação use um valor menor
 # em DJANGO_HSTS_SEGUNDOS e DJANGO_HSTS_PRELOAD=0 enquanto o domínio não estiver estável.
@@ -44,6 +58,38 @@ EXPOR_DOCUMENTACAO_DA_API = env.bool("GIRO_EXPOR_DOCUMENTACAO_DA_API", default=F
 if env("GIRO_DATA_REFERENCIA", default="").strip():
     raise ImproperlyConfigured("GIRO_DATA_REFERENCIA só vale no desenvolvimento.")
 GIRO_DATA_REFERENCIA = None
+
+# Integrações de desenvolvimento não sobem (T-157). Os e-mails de senha, convite e assinatura
+# levam o token: no console, na memória ou em arquivo ele iria para o log ou para o disco, e o
+# "dummy" descarta sem avisar. Arquivos e cobranças falsos ficam na memória do processo.
+_EMAIL_DE_DESENVOLVIMENTO = {
+    "django.core.mail.backends.console.EmailBackend",
+    "django.core.mail.backends.locmem.EmailBackend",
+    "django.core.mail.backends.filebased.EmailBackend",
+    "django.core.mail.backends.dummy.EmailBackend",
+}
+if EMAIL_BACKEND.strip() in _EMAIL_DE_DESENVOLVIMENTO:
+    raise ImproperlyConfigured(f"EMAIL_BACKEND {EMAIL_BACKEND} só vale no desenvolvimento.")
+if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend" and not EMAIL_HOST.strip():
+    raise ImproperlyConfigured("Defina EMAIL_HOST para enviar e-mail por SMTP.")
+if GIRO_ARMAZENAMENTO != "s3":
+    raise ImproperlyConfigured("Defina GIRO_ARMAZENAMENTO=s3: o armazenamento falso não sobe.")
+if GIRO_PROVEDOR_PAGAMENTOS != "asaas":
+    raise ImproperlyConfigured("Defina GIRO_PROVEDOR_PAGAMENTOS=asaas: o falso não sobe.")
+if not GIRO_ASAAS_CHAVE_API.strip():
+    raise ImproperlyConfigured("Defina GIRO_ASAAS_CHAVE_API: vazia não é aceita em produção.")
+# Banco e Redis só com senha (T-274, condição da segurança na T-247): a URL sem senha subiria
+# contra um serviço aberto na rede interna. Redis: `redis://:senha@host:6379/0`.
+if not DATABASES["default"].get("PASSWORD"):
+    raise ImproperlyConfigured("DATABASE_URL sem senha: produção só sobe com senha no Postgres.")
+for _nome, _url in (
+    ("CELERY_BROKER_URL", CELERY_BROKER_URL),
+    ("CELERY_RESULT_BACKEND", CELERY_RESULT_BACKEND),
+    ("REDIS_URL", REDIS_URL),
+):
+    if not urlsplit(_url).password:
+        raise ImproperlyConfigured(f"{_nome} sem senha: produção só sobe com senha no Redis.")
+# WhatsApp: só existe o falso (mensagens na memória); entra nesta trava com a integração real.
 
 # Segredos próprios de produção: falha ao subir se faltarem ou se repetirem.
 # Variável ausente ou vazia vale como não definida: base.py cai nos padrões de desenvolvimento,

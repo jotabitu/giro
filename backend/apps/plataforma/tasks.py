@@ -1,6 +1,7 @@
 """Tarefas da plataforma: aviso de 90% do plano (PLT-03), correção noturna do uso, aviso de
 entrada do suporte e fim dos acessos vencidos (PLT-07, AUT-15), baixa das faturas da assinatura
-pelo webhook da conta principal (PLT-14) e as notas que esperavam o endereço (PLT-15)."""
+pelo webhook da conta principal (PLT-14), as notas que esperavam o endereço (PLT-15) e a virada
+dos estados da assinatura (PLT-01, PLT-02, PLT-04)."""
 
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -11,6 +12,7 @@ from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django_tenants.utils import get_public_schema_name, schema_context
 
+from comum.erros import ParceiroForaDoAr
 from comum.tarefas import para_cada_empresa, tarefa_de_empresa
 from integracoes.pagamentos.base import ParceiroIndisponivel
 
@@ -92,6 +94,21 @@ def aut_15_encerrar_acessos_de_suporte_vencidos(**_: Any) -> int:
     return encerrar_acessos_vencidos()
 
 
+@shared_task(name="plataforma_virar_estados")
+def plataforma_virar_estados(**_: Any) -> dict[str, Any]:
+    """Às 00:05: faturas vencidas em `atrasada` (D+1), os planos agendados que valem hoje
+    (PLT-04) e os estados das empresas (PLT-01, PLT-02; tabela de transições de `assinatura.md`).
+    Idempotente no mesmo dia."""
+    from .services import virar_estados
+
+    virada = virar_estados()
+    return {
+        "atrasadas": virada.atrasadas,
+        "mudancas_de_plano": virada.mudancas_de_plano,
+        "estados": virada.estados,
+    }
+
+
 @shared_task(name="plataforma_recalcular_uso")
 @tarefa_de_empresa(inclui_suspensas=True)
 def plataforma_recalcular_uso(schema_name: str) -> dict[str, int]:
@@ -138,3 +155,20 @@ def plataforma_pedir_notas_pendentes(empresa_id: int) -> int:
         return FaturaAssinatura.objects.filter(
             empresa_id=empresa_id, status=StatusFatura.PAGA, nota_situacao=""
         ).count()
+
+
+@shared_task(
+    name="plataforma_atualizar_pagador",
+    autoretry_for=(ParceiroForaDoAr,),
+    retry_backoff=60,
+    retry_backoff_max=60 * 60,
+    max_retries=24,
+)
+def plataforma_atualizar_pagador(empresa_id: int) -> str:
+    """PLT-15: os dados fiscais mudaram; o pagador da empresa na conta principal muda antes da
+    próxima cobrança. Parceiro fora do ar: tenta de novo mais tarde."""
+    from .services import atualizar_pagador
+
+    with schema_context(get_public_schema_name()):
+        empresa = Empresa.objects.get(pk=empresa_id)
+        return atualizar_pagador(empresa)

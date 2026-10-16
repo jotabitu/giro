@@ -92,6 +92,7 @@ class SituacaoCobranca:
     pago_em: datetime | None = None
     forma: str = ""  # pix | boleto | cartao
     cartao: CartaoGuardado | None = None  # paga no cartão (conta principal, ADR 0023)
+    recibo_url: str = ""  # comprovante do parceiro, quando paga (PLT-14)
 
 
 @dataclass(frozen=True)

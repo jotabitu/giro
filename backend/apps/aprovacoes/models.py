@@ -73,6 +73,8 @@ class PedidoAprovacao(MaquinaDeEstados, ModeloBase):
     motivo_recusa = models.CharField(max_length=300, blank=True, default="")
     decidido_em = models.DateTimeField(null=True, blank=True)
     lembrete_enviado_em = models.DateTimeField(null=True, blank=True)  # APR-08
+    # APR-09 (T-250): o administrador decidiu o próprio pedido; a API devolve `proprio_pedido`.
+    decidido_pelo_solicitante = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "pedido de aprovação"
@@ -83,11 +85,18 @@ class PedidoAprovacao(MaquinaDeEstados, ModeloBase):
             models.Index(fields=["filial", "status"], name="pedido_filial_status"),
         ]
         constraints = [
-            # APR-09: quem pediu não decide o próprio pedido.
+            # APR-09: quem pediu não decide o próprio pedido, salvo o administrador, sempre com
+            # a marca. O perfil é conferido no serviço; o banco garante a marca (T-250).
             models.CheckConstraint(
                 condition=models.Q(aprovador__isnull=True)
-                | ~models.Q(aprovador=models.F("solicitante")),
+                | ~models.Q(aprovador=models.F("solicitante"))
+                | models.Q(decidido_pelo_solicitante=True),
                 name="pedido_quem_pede_nao_aprova",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(decidido_pelo_solicitante=False)
+                | models.Q(aprovador=models.F("solicitante")),
+                name="pedido_marca_so_do_solicitante",
             ),
             models.UniqueConstraint(
                 fields=["tipo", "origem_tipo", "origem_id"],

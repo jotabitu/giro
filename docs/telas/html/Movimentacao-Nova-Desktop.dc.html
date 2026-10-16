@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Nova movimentação · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.thumb{display:grid;place-items:center;width:52px;height:52px;flex:none;border-radius:14px;background:var(--surface-sunken);color:var(--ink-muted)}
+.chip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 6px 0 16px;border:0;border-radius:999px;background:var(--surface-sunken);color:var(--ink);font:inherit;font-size:15px;cursor:pointer}
+.chip .wl-count{background:var(--surface)}
+.chip[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
+.chip[aria-pressed="true"] .wl-count{background:var(--brand);color:var(--on-brand)}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.board{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;align-items:start}
+.col{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:28px;background:var(--surface)}
+.col-head{display:flex;align-items:center;gap:8px;padding:4px 6px 6px;font-weight:600;font-size:16px}
+.col-head .dot{width:10px;height:10px;border-radius:50%}
+.col-head .wl-count{margin-left:auto}
+.mv{display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:20px;background:var(--surface-sunken)}
+.mv .t{font-weight:600;font-size:15px}
+.mv .p{font-size:13px;line-height:18px}
+.mv .m{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--ink-muted)}
+.mv .m span{display:inline-flex;align-items:center;gap:4px}
+.mv .f{display:flex;align-items:center;gap:8px;margin-top:2px}
+.mv .f b{margin-left:auto;font-size:13px;font-weight:600;white-space:nowrap}
+.mv .lbl.wl-mono{white-space:nowrap}
+.mv.now{background:var(--solid);color:var(--on-solid)}
+.mv.now .m,.mv.now .lbl{color:var(--on-solid-muted)}
+.add{display:flex;align-items:center;justify-content:center;gap:6px;height:42px;border-radius:16px;border:1.5px dashed var(--line);font-size:14px;color:var(--ink-muted)}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.wl-field{width:100%}
+select.wl-input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-muted) 50%),linear-gradient(135deg,var(--ink-muted) 50%,transparent 50%);background-position:calc(100% - 22px) 21px,calc(100% - 16px) 21px;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+.sec{font-weight:600;font-size:15px;margin:4px 0 -2px}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.route{position:relative;display:flex;flex-direction:column;gap:8px;padding-left:34px}
+.route:before{content:"";position:absolute;left:13px;top:24px;bottom:24px;width:2px;background:var(--line)}
+.stop{position:relative;display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:18px;background:var(--surface-sunken)}
+.stop .pin{position:absolute;left:-34px;top:16px;display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--surface);box-shadow:inset 0 0 0 2px var(--ink);font-size:12px;font-weight:700}
+.stop .pin.solid{background:var(--solid);color:var(--on-solid);box-shadow:none}
+.stop .pin.brand{background:var(--brand);color:var(--on-brand);box-shadow:none}
+.stop .hd{display:flex;align-items:center;gap:8px;font-weight:500}
+.stop .hd small{font-weight:400;color:var(--ink-muted);font-size:13px}
+.add{display:flex;align-items:center;gap:8px;height:42px;padding:0 14px;border-radius:14px;border:1.5px dashed var(--line);background:transparent;font:inherit;font-size:14px;color:var(--ink-muted)}
+.veh{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:var(--surface-sunken)}
+.veh .th{display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:12px;background:var(--surface)}
+.seg2{display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:999px;background:var(--surface-sunken)}
+.seg2 button{height:40px;border:0;border-radius:999px;background:transparent;font:inherit;font-size:14px;color:var(--ink)}
+.seg2 button[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
+.fuel{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.fuel button{height:42px;border:0;border-radius:12px;background:var(--surface-sunken);font:inherit;font-size:13px}
+.fuel button[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
+.ph{position:relative;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:92px;box-sizing:border-box;padding:10px 12px;border-radius:16px;background:var(--surface-sunken);font-size:13px}
+.ph .ok{position:absolute;top:8px;right:8px;display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--success);color:#fff}
+.ph.todo{background:var(--surface);border:1.5px dashed var(--line);align-items:center;justify-content:center;color:var(--ink-muted)}
+.st{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.st:last-child{border-bottom:0}
+.st .n{display:grid;place-items:center;width:26px;height:26px;flex:none;border-radius:50%;font-size:12px;font-weight:700}
+.scrim{position:absolute;inset:0;background:rgba(17,17,20,0.38)}
+.drawer{position:absolute;top:16px;right:16px;bottom:16px;width:520px;display:flex;flex-direction:column;border-radius:32px;background:var(--surface);box-shadow:var(--shadow-pop);overflow:hidden}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; min-height: 1200px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<nav class="wl-sidebar" aria-label="Menu principal" style="flex: 0 0 280px;">
+<div class="wl-brand-row"><div class="wl-logo-slot" aria-hidden="true">MR</div><div class="wl-brand-name">Moto Rápida</div></div>
+<div class="wl-switcher"><div class="wl-switcher__icon"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg></div><div class="wl-switcher__text"><span class="wl-switcher__name">Filial Centro</span><span class="wl-switcher__sub">Fortaleza, CE</span></div><svg class="wl-i" viewBox="0 0 24 24" style="color: var(--ink-muted);"><path d="m6 9 6 6 6-6"></path></svg></div>
+<a class="wl-nav-item" href="Main.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>Visão geral</a>
+<a class="wl-nav-item" href="Frota-Desktop.dc.html" aria-current="page"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg>Veículos<span class="wl-count">86</span></a>
+<div class="wl-nav-label">Operação</div>
+<a class="wl-nav-item" href="Locacoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>Locações<span class="wl-count">42</span></a>
+<a class="wl-nav-item" href="Vendas-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="7.5" r="1"></circle></svg>Vendas</a>
+<a class="wl-nav-item" href="Clientes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.6-1.6-4.8-4-5.6"></path></svg>Clientes</a>
+<a class="wl-nav-item" href="Manutencao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M15 4a5 5 0 0 0-4.6 6.9L4 17.3V20h2.7l6.4-6.4A5 5 0 0 0 20 9l-3 1-2-2z"></path></svg>Manutenções</a>
+<div class="wl-nav-label">Financeiro</div>
+<a class="wl-nav-item" href="Caixa-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3"></rect><circle cx="12" cy="12" r="2.5"></circle></svg>Caixa do dia</a>
+<a class="wl-nav-item" href="Receber-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg>Contas a receber<span class="wl-count">2</span></a>
+<a class="wl-nav-item" href="Despesas-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"></path></svg>Despesas<span class="wl-count">1</span></a>
+<a class="wl-nav-item" href="Comissoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M5 19 19 5"></path><circle cx="7" cy="7" r="2.5"></circle><circle cx="17" cy="17" r="2.5"></circle></svg>Comissões</a>
+<a class="wl-nav-item" href="Conciliacao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10 12 4l9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"></path></svg>Conciliação</a>
+<a class="wl-nav-item" href="Relatorios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><path d="M8 16v-4M12 16V8M16 16v-6"></path></svg>Relatórios</a>
+<div class="wl-nav-label">Administração<span style="display: inline-grid; place-items: center; margin-left: 6px; vertical-align: -2px;"><svg class="wl-i" viewBox="0 0 24 24" style="width: 13px; height: 13px;"><rect x="5" y="10" width="14" height="10" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg></span></div>
+<a class="wl-nav-item" href="Config-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"></path></svg>Configurações</a>
+<a class="wl-nav-item" href="Admin-Marca-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle></svg>Empresa e marca</a>
+<a class="wl-nav-item" href="Filiais-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg>Filiais</a>
+<a class="wl-nav-item" href="Admin-Usuarios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M17 8v6M14 11h6"></path></svg>Usuários<span class="wl-count">2</span></a>
+<a class="wl-nav-item" href="Admin-Assinatura-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9 5.5-.8z"></path></svg>Assinatura</a>
+<a class="wl-nav-item" href="Admin-Auditoria-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h3"></path></svg>Auditoria</a>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 20px;">
+<div style="font-size: 14px; color: var(--ink-muted);"><a href="Frota-Desktop.dc.html" style="color: var(--ink-muted); text-decoration: none;">Veículos</a> / Movimentações</div>
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-top: -8px;">
+<div><h1 style="margin: 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Movimentações</h1><p style="margin: 6px 0 0; color: var(--ink-muted);">Levar veículos entre filiais, lava-jato, oficina e despachante</p></div>
+<div style="margin-left: auto; display: flex; gap: 8px; align-items: center;"><label class="wl-search" style="width: 260px;"><svg class="wl-i" viewBox="0 0 24 24" style=""><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg><input type="search" placeholder="Placa ou modelo" aria-label="Buscar"></label><button class="wl-btn wl-btn--solid" style="height: 56px; padding: 0 28px;"><svg class="wl-i" viewBox="0 0 24 24" style=""><path d="M12 5v14M5 12h14"></path></svg>Nova movimentação</button></div>
+</header>
+<div class="board">
+<section class="col"><div class="col-head"><span class="dot" style="background: var(--ink-muted);"></span>Agendadas<span class="wl-count">0</span></div><div class="lbl" style="padding: 12px 4px; font-size: 14px;">Nenhuma movimentação agendada.</div><a href="Movimentacao-Nova-Desktop.dc.html" class="add" style="text-decoration: none;"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px;"><path d="M12 5v14M5 12h14"></path></svg>Nova</a></section>
+<section class="col"><div class="col-head"><span class="dot" style="background: var(--info);"></span>Em trânsito<span class="wl-count">1</span></div><div class="mv now"><div style="display: flex; justify-content: space-between; gap: 8px;"><span class="t">Honda CG 160 Fan</span><span class="lbl wl-mono">MOV-0002</span></div>
+<div class="p">Centro → Lava Rápido Aldeota → Filial Caucaia</div>
+<div class="m"><span class="wl-mono">SAK-1D39</span><span><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px;"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"></path></svg>João</span><span><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px;"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg>saiu 10:02 · 1 parada</span></div>
+<div class="f"><a href="Movimentacao-Chegada-Mobile.dc.html" class="wl-btn wl-btn--brand wl-btn--sm" style="text-decoration: none;">Registrar chegada</a></div></div></section>
+<section class="col"><div class="col-head"><span class="dot" style="background: var(--warning);"></span>No local de apoio<span class="wl-count">0</span></div><div class="lbl" style="padding: 12px 4px; font-size: 14px;">Nenhum veículo em local de apoio.</div></section>
+<section class="col"><div class="col-head"><span class="dot" style="background: var(--success);"></span>Concluídas<span class="wl-count">1</span></div><div class="mv"><div style="display: flex; justify-content: space-between; gap: 8px;"><span class="t">Honda CG 160 Fan</span><span class="lbl wl-mono">MOV-0001</span></div>
+<div class="p">Centro → Lava Rápido Aldeota → Centro</div>
+<div class="m"><span class="wl-mono">SAK-1D39</span><span><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px;"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c0-3.9 3.1-7 7-7s7 3.1 7 7"></path></svg>João</span><span><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px;"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg>hoje 08:30 · 1 h 10 min</span></div>
+<div class="f"><b>R$ 35,00</b></div></div></section>
+</div>
+<p style="margin: 0; font-size: 13px; line-height: 18px; color: var(--ink-muted);">Cada cartão muda de coluna pelo botão dele: Iniciar e Registrar chegada. Veículo alugado, reservado, vendido ou baixado não pode ser movimentado. Depois de sair, a movimentação termina com a chegada; só a agendada se cancela. Em movimentação, o veículo disponível some da Nova locação e da reserva. Na chegada, o km é atualizado e, se o destino for outra filial, o veículo passa a ser dela.</p>
+</main>
+<div class="scrim" aria-hidden="true"></div>
+<aside class="drawer" role="dialog" aria-label="Nova movimentação">
+<header style="display: flex; align-items: center; gap: 12px; padding: 24px 24px 12px;"><div style="flex: 1;"><div style="font-size: 24px; font-weight: 600; letter-spacing: -0.01em;">Nova movimentação</div><div class="lbl wl-mono">MOV-0003</div></div><a href="Movimentacoes-Desktop.dc.html" class="wl-icon-btn wl-icon-btn--sm" aria-label="Fechar" style="width: 44px; height: 44px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"></path></svg></a></header>
+<div style="flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 14px; padding: 4px 24px 16px;">
+<div class="sec">1 · Veículo</div>
+<label class="wl-search" style="width: 100%; box-sizing: border-box; height: 48px; background: var(--surface-sunken);"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg><input type="search" placeholder="Placa ou modelo" value="PMZ-3E17"></label>
+<div class="veh"><div class="th"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="5.5" cy="16" r="3"></circle><circle cx="18.5" cy="16" r="3"></circle><path d="M5.5 16 9 10h5l4.5 6M9 10 7.5 7.5H5M14 10l1-3h3"></path></svg></div><div style="flex: 1; min-width: 0;"><div style="font-weight: 600;">Honda Pop 110i · <span class="wl-mono" style="font-weight: 500;">PMZ-3E17</span></div><div class="lbl">Filial Centro · 9.884 km · OS aberta</div></div><span class="wl-badge wl-badge--sm wl-badge--warning">Em manutenção</span></div>
+<div class="sec">2 · Para onde vai</div>
+<div class="route">
+<div class="stop"><span class="pin solid">A</span><div class="hd">Saída · Filial Centro <small>onde o veículo está</small></div></div>
+<div class="stop"><span class="pin">1</span><div class="hd"><svg class="wl-i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"></path></svg>Parada</div><label class="wl-field"><span class="wl-field__label">Local de apoio</span><select class="wl-input"><option>Moto Peças CE · oficina</option></select></label><div class="two"><label class="wl-field"><span class="wl-field__label">Serviço</span><select class="wl-input"><option>Da OS</option></select></label><label class="wl-field"><span class="wl-field__label">Ordem de serviço</span><select class="wl-input"><option>OS-118</option></select><span class="wl-field__hint">Com a OS, o custo é o dela.</span></label></div></div>
+<button class="add"><svg class="wl-i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M12 5v14M5 12h14"></path></svg>Adicionar parada</button>
+<div class="stop"><span class="pin brand">B</span><div class="hd"><svg class="wl-i" viewBox="0 0 24 24" style="width:16px;height:16px"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg>Destino <span class="wl-badge wl-badge--sm wl-badge--info" style="margin-left: auto;">Ida e volta</span></div><label class="wl-field"><span class="wl-field__label">Filial de destino</span><select class="wl-input"><option>Filial Centro</option></select></label><div class="lbl">O destino é sempre uma filial. Em outra filial, o veículo passa a ser dela na chegada.</div></div>
+</div>
+<div class="sec">3 · Quando e quem leva</div>
+<div class="seg2" role="group" aria-label="Quando"><button aria-pressed="false">Sair agora</button><button aria-pressed="true">Agendar</button></div>
+<div class="two"><label class="wl-field"><span class="wl-field__label">Dia</span><input class="wl-input" value="08 out 2026"></label><label class="wl-field"><span class="wl-field__label">Hora</span><input class="wl-input" value="08:00"></label></div>
+<label class="wl-field"><span class="wl-field__label">Quem leva</span><select class="wl-input"><option>João Silva</option></select><span class="wl-field__hint">Usuário da Filial Centro.</span></label>
+<label style="display: flex; gap: 10px; align-items: center; font-size: 14px;"><input type="checkbox" style="width: 20px; height: 20px; margin: 0; accent-color: var(--solid);">Vistoria rápida na chegada (km, combustível e 4 fotos). Opcional na volta à mesma filial.</label>
+</div>
+<footer style="display: flex; flex-direction: column; gap: 10px; padding: 16px 24px 24px; border-top: 1px solid var(--line);">
+<div class="lbl" style="font-size: 14px;">O Pop 110i continua em manutenção do começo ao fim, e a parada não gera despesa: o custo é o da OS. Agendada, a movimentação não muda o status dele.</div>
+<div style="display: flex; gap: 8px; justify-content: flex-end;"><a href="Movimentacoes-Desktop.dc.html" class="wl-btn" style="text-decoration: none;">Cancelar</a><a href="Movimentacoes-Desktop.dc.html" class="wl-btn wl-btn--solid" style="text-decoration: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"></path><circle cx="7" cy="17.5" r="1.8"></circle><circle cx="17" cy="17.5" r="1.8"></circle></svg>Agendar movimentação</a></div>
+</footer>
+</aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

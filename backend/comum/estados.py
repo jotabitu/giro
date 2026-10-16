@@ -52,6 +52,13 @@ class MaquinaDeEstados(models.Model):
         super().save(*args, **kwargs)
         self._status_salvo = status_atual
 
+    def refresh_from_db(self, *args: Any, **kwargs: Any) -> None:
+        # O status relido do banco é o salvo: outra transação pode tê-lo mudado pela máquina.
+        super().refresh_from_db(*args, **kwargs)
+        campos = kwargs.get("fields")
+        if campos is None or "status" in campos:
+            self._status_salvo = self.__dict__.get("status")
+
 
 def _rotulo(modelo: type[models.Model], valor: str) -> str:
     campo = modelo._meta.get_field("status")

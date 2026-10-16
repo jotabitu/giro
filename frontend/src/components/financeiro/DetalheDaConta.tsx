@@ -53,7 +53,7 @@ export function DetalheDaConta({ id, aoFechar, aoDarBaixa, aoConcluir }: { id: n
   const c = consulta.data;
 
   const depois = async (mensagem?: string) => {
-    await cliente.invalidateQueries({ queryKey: ["contas-receber"] });
+    await Promise.all([cliente.invalidateQueries({ queryKey: ["contas-receber"] }), cliente.invalidateQueries({ queryKey: ["contadores"] })]);
     if (mensagem) {
       aoConcluir(mensagem);
       aoFechar();

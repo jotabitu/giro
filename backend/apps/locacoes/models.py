@@ -180,7 +180,7 @@ class Locacao(ModeloComCodigo, MaquinaDeEstados, ModeloBase):
         indexes = [
             models.Index(fields=["filial", "status"], name="locacao_filial_status"),
             models.Index(fields=["status", "fim_previsto"], name="locacao_status_fim"),
-            models.Index(fields=["cliente"], name="locacao_cliente"),
+            models.Index(fields=["cliente", "filial"], name="locacao_cliente_filial"),
             models.Index(fields=["veiculo"], name="locacao_veiculo"),
         ]
         constraints = [

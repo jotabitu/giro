@@ -42,6 +42,8 @@ PERIODO_OCUPACAO_DIAS = 90
 # Dias que não contam como "na frota" para a ocupação (VEI-06).
 FORA_DA_OCUPACAO = frozenset({S.A_VENDA, S.VENDIDO, S.BAIXADO})
 GESTAO = frozenset({"administrador", "gerente"})
+# Rendimento e custo de manutenção do veículo (VEI-05, USR-09, T-156): a gestão e o financeiro.
+VEEM_CUSTO = GESTAO | {"financeiro"}
 LEEM_KM = frozenset({"administrador", "gerente", "vistoriador"})
 TOM = {
     S.DISPONIVEL: "sucesso",
@@ -366,7 +368,9 @@ def representacao(
         "acoes": acoes(veiculo, usuario),
     }
     if detalhe:
-        dados["indicadores_financeiros"] = blocos.get("indicadores_financeiros")
+        # Para vendedor e vistoriador a chave fica ausente, não nula (T-156).
+        if getattr(usuario, "perfil", "") in VEEM_CUSTO:
+            dados["indicadores_financeiros"] = blocos.get("indicadores_financeiros")
         dados["ocupacao"] = ocupacao(veiculo)
         dados["historico_status"] = historico_status(veiculo)
     return dados
@@ -432,9 +436,12 @@ def _tempos(
 
 
 def _pct(alugado: timedelta, na_frota: timedelta) -> str:
-    if not na_frota:
+    # Pelos segundos inteiros: o veículo cadastrado há menos de 1 s tem `na_frota` > 0 e 0 s,
+    # e 0 ÷ 0 levantava `InvalidOperation` (500 na ficha logo após o cadastro, T-240, VEI-06).
+    segundos = int(na_frota.total_seconds())
+    if segundos <= 0:
         return "0.00"
-    valor = Decimal(int(alugado.total_seconds()) * 100) / Decimal(int(na_frota.total_seconds()))
+    valor = Decimal(int(alugado.total_seconds()) * 100) / Decimal(segundos)
     return str(valor.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 

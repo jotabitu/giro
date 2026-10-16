@@ -21,6 +21,17 @@ from comum.models import ModeloAtivavel, ModeloBase, ModeloComCifra
 
 DIAS_DE_TESTE = 14  # PLT-01
 CAMPOS_DO_ENDERECO = ("cep", "logradouro", "numero", "complemento", "bairro", "cidade", "uf")
+CAMPOS_ENDERECO_DA_NOTA = tuple(f"endereco_{campo}" for campo in CAMPOS_DO_ENDERECO)
+# Dados da empresa que o apagamento limpa (AUD-08): só `{"alterado": true}` na auditoria do public.
+DADOS_APAGADOS_DA_EMPRESA = (
+    "razao_social",
+    "nome_exibicao",
+    *CAMPOS_ENDERECO_DA_NOTA,
+    "email_cobranca",
+    "responsavel_nome",
+    "responsavel_email",
+    "responsavel_telefone",
+)
 
 
 class Recurso(models.TextChoices):
@@ -98,10 +109,11 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
         PRIMEIRA_LOCACAO = "primeira_locacao", "1ª locação"
         CONCLUIDA = "concluida", "Concluída"
 
-    # Coluna "Saída" da tabela de estados ("Plataforma e assinatura"). Pausar e cancelar
-    # nascem de ação do administrador e entram com essas ações (fase 2).
+    # Coluna "Saída" da tabela de estados ("Plataforma e assinatura") e as transições do
+    # contrato (`assinatura.md`; a em teste com forma e sem pagar vira inadimplente em D+1).
+    # Pausar e cancelar nascem de ação do administrador e entram com a T-195.
     TRANSICOES: ClassVar[dict[str, set[str]]] = {
-        "em_teste": {"ativa", "suspensa"},
+        "em_teste": {"ativa", "inadimplente", "suspensa"},
         "ativa": {"inadimplente"},
         "inadimplente": {"ativa", "suspensa"},
         "suspensa": {"ativa"},
@@ -164,7 +176,9 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
     auto_drop_schema = False
 
     # O responsável é funcionário da locadora (o administrador): vai inteiro, como o
-    # nome e o e-mail do `Usuario` (ADR 0014, item 3).
+    # nome e o e-mail do `Usuario` (ADR 0014, item 3), no schema da empresa. No public, que fica
+    # 5 anos e o apagamento não alcança, os dados que o apagamento limpa vão como
+    # `{"alterado": true}` (AUD-08, T-236; `auditoria.md`, "Dados da empresa no `public`").
     CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
         "inteiro": [
             "nome_exibicao",
@@ -172,10 +186,9 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
             "responsavel_email",
             "responsavel_telefone",
             "email_cobranca",
+            *CAMPOS_ENDERECO_DA_NOTA,
         ],
-        # O endereço da nota não vai para a auditoria do public (AUD-08, M-03 da T-230); a lista
-        # `omitir_no_public` completa, com o valor no schema da empresa, é da T-195.
-        "omitir": [f"endereco_{campo}" for campo in CAMPOS_DO_ENDERECO],
+        "omitir_no_public": list(DADOS_APAGADOS_DA_EMPRESA),
     }
 
     class Meta:
@@ -391,6 +404,13 @@ class MotivoCancelamentoFatura(models.TextChoices):
 
 
 PREFIXO_FATURA = "FAT"
+CAMPOS_DA_COBRANCA = (
+    "cobranca_pix_copia_e_cola",
+    "cobranca_linha_digitavel",
+    "cobranca_boleto_url",
+    "cobranca_url_pagina",
+    "recibo_url",
+)
 TENTATIVAS_DO_CARTAO = 2  # PLT-02: a cobrança no vencimento e uma tentativa a mais
 
 
@@ -419,6 +439,16 @@ class FaturaAssinatura(MaquinaDeEstados, ModeloBase):
     cobranca_emitida_em = models.DateTimeField(null=True, blank=True)
     pago_em = models.DateTimeField(null=True, blank=True)
     cobranca_externa_id = models.CharField(max_length=60, unique=True, null=True, blank=True)
+    # A cobrança viva no parceiro, para o "Pagar" e o detalhe (T-185): uma por fatura.
+    cobranca_tipo = models.CharField(
+        max_length=12, blank=True, default=""
+    )  # pix, boleto, cartao_link
+    cobranca_pix_copia_e_cola = models.TextField(blank=True, default="")
+    cobranca_linha_digitavel = models.CharField(max_length=60, blank=True, default="")
+    cobranca_boleto_url = models.CharField(max_length=500, blank=True, default="")
+    cobranca_url_pagina = models.CharField(max_length=500, blank=True, default="")
+    # Comprovante do parceiro, gravado na baixa (PLT-14). O Giro não gera PDF de recibo no MVP.
+    recibo_url = models.CharField(max_length=500, blank=True, default="")
     tentativas_cartao = models.PositiveSmallIntegerField(
         default=0, validators=[MaxValueValidator(TENTATIVAS_DO_CARTAO)]
     )
@@ -460,7 +490,14 @@ class FaturaAssinatura(MaquinaDeEstados, ModeloBase):
     # public, não levam os valores (assinatura.md, "Tomador da fatura").
     CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
         "inteiro": ["codigo"],
-        "omitir": ["tomador_razao_social", "tomador_cnpj", "tomador_endereco", "email_cobranca"],
+        # Os dados para pagar e o recibo só saem na resposta ao administrador (T-189, item 8).
+        "omitir": [
+            "tomador_razao_social",
+            "tomador_cnpj",
+            "tomador_endereco",
+            "email_cobranca",
+            *CAMPOS_DA_COBRANCA,
+        ],
     }
 
     class Meta:

@@ -48,6 +48,7 @@ Contrato da API: `docs/api/clientes.md` (escrito pelo arquiteto antes da impleme
 | bloco `historico` (`situacao`, `rotulo`) | `financeiro` | item `historico` da análise |
 | bloco `venda_aberta` | `vendas` | ação `ver_proposta` |
 | filtros `com_locacao` e `em_aberto` | `locacoes`, `financeiro` | abas e contagens; sem o filtro, a contagem é `null` |
+| filtro `filial` (`filtrar(qs, filial_id)`) | `locacoes` | `?filial=` da lista (`CLI-10`, T-250): clientes com locação na filial; escopo `USR-07` conferido na view; sem o fornecedor, lista vazia |
 | contador `contas_atrasadas_15_dias` | `financeiro` | desbloqueio automático só quando chega a 0 |
 | contadores `locacao_aberta`, `em_aberto_centavos`, `venda_aberta` | `locacoes`, `financeiro`, `vendas` | recusa de inativar (`cliente_com_pendencia`) |
 | evento `financeiro.parcela_atrasou(cliente_id, dias_atraso, vencimento?)` | `financeiro` | bloqueio com 15 dias |

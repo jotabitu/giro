@@ -193,6 +193,9 @@ REST_FRAMEWORK = {
         "ambiente_ip": "120/min",
         # Webhook do parceiro de pagamentos (S-14).
         "webhook_ip": "120/min",
+        # Copiar link do convite (USR-01, T-249).
+        "link_convite_convidado": "5/hour",
+        "link_convite_administrador": "20/hour",
     },
 }
 
@@ -213,6 +216,14 @@ SPECTACULAR_SETTINGS = {
         "TipoSessaoEnum": "apps.contas.models.TipoSessao",
         "PermissaoExtraEnum": "apps.contas.models.PermissaoExtra",
         "PermissaoSuporteEnum": "apps.plataforma.models.PermissaoSuporte",
+        # Assinatura (T-185): o ciclo da empresa e o tipo da mudança de plano, um nome só.
+        "CicloEnum": [("mensal", "Mensal"), ("anual", "Anual")],
+        "MudancaDePlanoEnum": ["upgrade", "downgrade"],
+        "StatusFaturaAssinaturaEnum": "apps.plataforma.models.StatusFatura",
+        "FormaPagaFaturaEnum": "apps.plataforma.models.FormaPagaFatura",
+        "FormaAssinaturaEnum": "apps.plataforma.models.FormaAssinatura",
+        "MeioDePagarEnum": ["cartao", "pix", "boleto"],
+        "TipoLinhaDaFaturaEnum": ["fatura", "teste"],
         "StatusVeiculoEnum": "apps.veiculos.models.StatusVeiculo",
         "TipoDocumentoEnum": "apps.veiculos.models.TipoDocumento",
         "TipoDocumentoClienteEnum": "apps.clientes.models.TipoDocumentoCliente",
@@ -290,6 +301,11 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
     "plataforma_recalcular_uso_de_todas": {
         "task": "plataforma_recalcular_uso_de_todas",
         "schedule": crontab(hour=3, minute=30),
+    },
+    # Virada da assinatura (PLT-01, PLT-02, PLT-04): faturas atrasadas, plano agendado e estados.
+    "plataforma_virar_estados": {
+        "task": "plataforma_virar_estados",
+        "schedule": crontab(hour=0, minute=5),
     },
     # AUT-15: encerra os acessos de suporte vencidos (PLT-07).
     # AUT-06: vencimento de documentos de veículos (VEI-03), às 07:00.
@@ -426,12 +442,10 @@ SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT", default="dev")
 if SENTRY_DSN_BACKEND:
     import sentry_sdk
 
-    sentry_sdk.init(
-        dsn=SENTRY_DSN_BACKEND,
-        environment=SENTRY_ENVIRONMENT,
-        send_default_pii=False,
-        traces_sample_rate=0.0,
-    )
+    from comum.sentry import opcoes_do_sentry
+
+    # Sem variáveis locais, corpo de requisição nem token do webhook (T-270).
+    sentry_sdk.init(**opcoes_do_sentry(SENTRY_DSN_BACKEND, SENTRY_ENVIRONMENT))
 
 LOGGING = {
     "version": 1,

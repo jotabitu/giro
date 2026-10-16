@@ -13,10 +13,6 @@ from comum.models import ModeloAtivavel, ModeloBase
 
 FUSO_PADRAO = "America/Sao_Paulo"
 DIAS_DA_SEMANA = ("seg", "ter", "qua", "qui", "sex", "sab", "dom")
-UFS = (
-    "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA",
-    "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO",
-)  # fmt: skip
 
 
 class Filial(ModeloBase, ModeloAtivavel):

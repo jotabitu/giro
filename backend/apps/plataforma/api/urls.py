@@ -2,7 +2,7 @@
 
 from django.urls import URLPattern, path
 
-from . import auditoria, suporte
+from . import assinatura, auditoria, suporte
 from .views import AssinaturaView, EmpresaDetalheView, EmpresasView, PlanosView
 
 urls_plataforma: list[URLPattern] = [
@@ -28,6 +28,42 @@ urls_plataforma: list[URLPattern] = [
 
 urls_empresa: list[URLPattern] = [
     path("assinatura/", AssinaturaView.as_view(), name="assinatura"),
+    path(
+        "assinatura/planos/",
+        assinatura.PlanosDaAssinaturaView.as_view(),
+        name="assinatura-planos",
+    ),
+    path(
+        "assinatura/mudanca-plano/simular/",
+        assinatura.SimularMudancaPlanoView.as_view(),
+        name="assinatura-mudanca-plano-simular",
+    ),
+    path(
+        "assinatura/mudanca-plano/",
+        assinatura.MudancaPlanoView.as_view(),
+        name="assinatura-mudanca-plano",
+    ),
+    path(
+        "assinatura/forma-pagamento/",
+        assinatura.FormaPagamentoView.as_view(),
+        name="assinatura-forma-pagamento",
+    ),
+    path("assinatura/faturas/", assinatura.FaturasView.as_view(), name="assinatura-faturas"),
+    path(
+        "assinatura/faturas/<str:codigo>/",
+        assinatura.FaturaView.as_view(),
+        name="assinatura-fatura",
+    ),
+    path(
+        "assinatura/faturas/<str:codigo>/pagar/",
+        assinatura.PagarFaturaView.as_view(),
+        name="assinatura-fatura-pagar",
+    ),
+    path(
+        "assinatura/dados-fiscais/",
+        assinatura.DadosFiscaisView.as_view(),
+        name="assinatura-dados-fiscais",
+    ),
     path("suporte/", suporte.SuporteView.as_view(), name="suporte"),
     path("suporte/bloquear/", suporte.BloquearSuporteView.as_view(), name="suporte-bloquear"),
     path("suporte/liberar/", suporte.LiberarSuporteView.as_view(), name="suporte-liberar"),
