@@ -2,8 +2,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { contas, veiculos, type Eu, type VeiculoDetalhe } from "@/lib/api";
-import { FichaVeiculo } from "./FichaVeiculo";
+import { contas, ErroApi, veiculos, type Eu, type VeiculoDetalhe } from "@/lib/api";
+import { FichaVeiculo, semAcesso } from "./FichaVeiculo";
 
 const sessao = vi.hoisted(() => ({ eu: null as unknown }));
 vi.mock("@/lib/sessao", () => ({ useSessao: () => ({ eu: sessao.eu as Eu, sair: async () => {} }) }));
@@ -154,5 +154,27 @@ describe("ficha do veículo, vistoriador (D-25, USR-09)", () => {
       expect(t).not.toMatch(/R\$ \d/);
       expect(t).toContain("Ocupação");
     }
+  });
+
+  it("T-278: sem os dados de locações (403 da API) o painel Locações some, sem decidir pelo perfil", async () => {
+    await entrarComo("joao@motorapida.com.br");
+    const cliente = new QueryClient({ defaultOptions: { queries: { retryOnMount: false } } });
+    cliente.setQueryData(["veiculo", 501], await veiculos.obter(501));
+    cliente.setQueryData(["veiculo", 501, "documentos"], await veiculos.documentos(501));
+    await cliente.fetchQuery({ queryKey: ["veiculo", 501, "locacoes"], queryFn: () => Promise.reject(new ErroApi(403, "sem_permissao", "Seu perfil não tem acesso a esta ação")), retry: false }).catch(() => {});
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={cliente}>
+        <FichaVeiculo id={501} />
+      </QueryClientProvider>,
+    );
+    expect(texto(html)).not.toContain("Seu perfil não tem acesso a esta ação");
+    expect(texto(html)).not.toContain("Locações");
+    expect(texto(html)).toContain("Ocupação");
+  });
+
+  it("T-278: outro erro de locações continua aparecendo no painel", () => {
+    expect(semAcesso({ isError: true, error: new ErroApi(500, "erro", "Falha") })).toBe(false);
+    expect(semAcesso({ isError: true, error: new ErroApi(403, "sem_permissao", "x") })).toBe(true);
+    expect(semAcesso({ isError: false, error: null })).toBe(false);
   });
 });
