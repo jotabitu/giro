@@ -252,3 +252,5 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-270 · Sentry sem o token do webhook e sem variáveis locais (B-01 da T-189, M-03 da T-247) · devops · PR #277 (branch t-270-sentry-sem-segredos) · tarefas/handoffs/T-270-devops.md · comum/sentry.py, 5 testes com transporte de mentira
 - T-162 · Flag lancamento_avulso em pode (frontend) · frontend · PR #278 (branch t-162-botao-lancamento-avulso)
 - T-241 · Bug: contador de Aprovações no menu demora a mudar · frontend · PR #280 (branch t-241-contador-aprovacoes)
+
+- T-279 · Classes wl- em @layer components · design-system · PR #282 (branch t-279-camada-wl) · tarefas/handoffs/T-279-design-system.md · `componentes.css` e as classes wl- do `globals.css` dentro de `@layer components`, importadas pelo `globals.css` com `postcss-import`; `md:hidden`, `hidden`, `size-11` e afins passam a valer. Varredura de 23 telas a 1440 e 390 px: 16 com o sintoma antes, 0 depois.
