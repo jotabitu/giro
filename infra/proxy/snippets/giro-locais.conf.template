@@ -1,0 +1,71 @@
+# Corpo comum dos blocos `server` do host da plataforma e dos hosts das empresas (T-291, ADR 0029):
+# o que vale para os dois fica aqui, para não divergir. Incluído por giro.conf.template.
+# O nginx da imagem oficial gera conf.d/snippets/giro-locais.conf (fora do include `conf.d/*.conf`).
+
+ssl_certificate     ${CERT_DIR}/fullchain.pem;
+ssl_certificate_key ${CERT_DIR}/privkey.pem;
+ssl_protocols TLSv1.2 TLSv1.3;
+
+# Corpo de até 12 MB (T-158). O Django não limita arquivo em multipart e os uploads só são
+# conferidos por comum/arquivos.validar depois de recebidos inteiros; o maior arquivo
+# aceito pela aplicação cabe aqui com folga para o multipart. Acima disso: 413.
+client_max_body_size 12m;
+client_body_timeout 30s;
+client_header_timeout 15s;
+
+# Cabeçalhos de encaminhamento SEMPRE sobrescritos, nunca repassados do cliente (T-158).
+# O TenantMainMiddleware escolhe a empresa por get_host(), que segue o X-Forwarded-Host
+# (USE_X_FORWARDED_HOST = True em prod.py): um valor forjado pelo cliente trocaria de empresa.
+# X-Forwarded-For leva só o IP da conexão (comum.rede conta GIRO_PROXIES_CONFIAVEIS = 1).
+# Se houver balanceador na frente deste proxy, ver "Proxy reverso" em infra/README.md.
+proxy_http_version 1.1;
+proxy_set_header Host               $host;
+proxy_set_header X-Forwarded-Host   $host;
+proxy_set_header X-Forwarded-Proto  $scheme;
+proxy_set_header X-Forwarded-For    $remote_addr;
+proxy_set_header X-Real-IP          $remote_addr;
+proxy_set_header Forwarded          "";
+proxy_set_header Connection         "";
+
+# /api/ vai direto ao Django, sem passar pelo Next (o middleware do Next apaga o
+# X-Forwarded-For, ADR 0018).
+location /api/auth/ {
+    limit_req zone=giro_auth burst=10 nodelay;
+    proxy_pass http://${BACKEND_UPSTREAM};
+}
+
+# Aviso de pagamento do parceiro, no host da plataforma (urls_publico.py).
+location /api/webhooks/ {
+    limit_req zone=giro_webhook burst=60 nodelay;
+    client_max_body_size 1m;
+    proxy_pass http://${BACKEND_UPSTREAM};
+}
+
+# Estáticos do Django Admin da plataforma (collectstatic na imagem `producao`, T-264, ADR 0027).
+# Só os do Django: o Next serve os dele em /_next/static/. Nada do que o usuário envia passa aqui.
+location /static/ {
+    alias ${ESTATICOS_DIR}/;
+    expires 1h;
+    add_header X-Content-Type-Options nosniff always;
+}
+
+# Leitura do CRLV-e e da CNH-e por PDF (T-258, ADR 0026). O Django espera o processo filho por
+# até 8 s; 20 s de leitura dão folga sem ficar mais frouxos que o resto (/api/ tem 60 s). O
+# arquivo da leitura tem até 2 MB: 3 MB cobrem o multipart. O salvar com o PDF anexado (até
+# 10 MB) é outra rota e vale o limite de 12 MB do servidor.
+location ~ ^/api/(veiculos/leitura-crlv|clientes/leitura-cnh)/$ {
+    limit_req zone=giro_leitura burst=5 nodelay;
+    client_max_body_size 3m;
+    proxy_read_timeout 20s;
+    proxy_send_timeout 20s;
+    proxy_pass http://${BACKEND_UPSTREAM};
+}
+
+location /api/ {
+    proxy_read_timeout 60s;
+    proxy_pass http://${BACKEND_UPSTREAM};
+}
+
+location / {
+    proxy_pass http://${FRONTEND_UPSTREAM};
+}
