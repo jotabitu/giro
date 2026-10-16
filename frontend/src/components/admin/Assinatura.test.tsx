@@ -11,6 +11,14 @@ vi.mock("@/lib/sessao", () => ({ useSessao: () => ({ eu: sessao.eu as Eu, sair: 
 
 import { AssinaturaDaEmpresa } from "./AssinaturaDaEmpresa";
 
+const ordem = (h: string, trechos: string[]) => {
+  let pos = -1;
+  for (const t of trechos) {
+    const i = h.indexOf(t, pos + 1);
+    expect(i, t).toBeGreaterThan(pos);
+    pos = i;
+  }
+};
 const texto = (h: string) => h.replace(/<[^>]+>/g, "|").replace(/\|+/g, "|");
 
 async function entrar(email: string) {
@@ -26,6 +34,7 @@ async function entrar(email: string) {
 async function pagina(): Promise<string> {
   const cache = new QueryClient();
   cache.setQueryData(["assinatura"], await assinatura.obter());
+  cache.setQueryData(["assinatura", "faturas"], await assinatura.faturas());
   return renderToStaticMarkup(
     <QueryClientProvider client={cache}>
       <AssinaturaDaEmpresa />
@@ -39,7 +48,7 @@ describe("assinatura (Admin-Assinatura)", () => {
   it("plano em teste: nome, selo, preço e dias que faltam", async () => {
     await entrar("mariana@motorapida.com.br");
     const t = texto(await pagina());
-    for (const trecho of ["Administração", "Assinatura", "Seu plano", "Teste grátis até 21 out", "Profissional", "R$ 449,00 por mês, depois do teste", "Faltam 14 dias de teste grátis."]) {
+    for (const trecho of ["Administração", "Assinatura", "Seu plano", "Teste grátis até 21 out", "Profissional", "R$ 449,00 por mês, a partir de 22 out", "Faltam 14 dias de teste grátis."]) {
       expect(t, trecho).toContain(trecho);
     }
   });
@@ -60,11 +69,48 @@ describe("assinatura (Admin-Assinatura)", () => {
     expect(html).toContain('aria-valuenow="50"');
   });
 
-  it("sem rota na API: nada de pagamento, faturas, nota fiscal nem trocar de plano; cancelar fica desabilitado com aviso", async () => {
+  it("T-187: blocos na ordem da referência, cada um pelo que a API manda", async () => {
     await entrar("mariana@motorapida.com.br");
     const html = await pagina();
     const t = texto(html);
-    for (const fora of ["Mudar de plano", "Escolher forma de pagamento", "Forma de pagamento", "Faturas", "Dados da nota fiscal", "Comparar planos"]) expect(t, fora).not.toContain(fora);
+    ordem(t, ["Seu plano", "Mudar de plano", "Escolher forma de pagamento", "Uso do plano", "Forma de pagamento", "Nenhuma cadastrada. Escolha até 21 out para não perder o acesso.", "Cartão de crédito", "Cobrança automática todo mês", "Pix automático", "Autoriza uma vez no app do banco", "Boleto", "Enviado por e-mail 5 dias antes", "Faturas", "Vencimento", "Descrição", "Valor", "Situação", "22 out", "Plano Profissional · 22 out a 21 nov", "R$ 449,00", "Sem forma de pagamento", "07 out", "Teste grátis de 14 dias", "R$ 0,00", "Ativo", "Dados da nota fiscal", "Editar", "Moto Rápida Locações Ltda", "CNPJ 12.345.678/0001-95", "financeiro@motorapida.com.br", "Av. Bezerra de Menezes, 1200"]);
+    ordem(t, ["Precisa de mais veículos ou filiais?", "O plano Completo inclui:", "Veículos, filiais e usuários sem limite", "Implantação acompanhada por chamada", "Suporte prioritário", "Comparar planos", "Cancelar assinatura"]);
+    expect(t).toContain("R$ 449,00 por mês, a partir de 22 out");
+    expect(t).not.toMatch(/NF-e|domínio|portal|integraç/i);
+    expect(html).toMatch(/<button[^>]*disabled[^>]*>[^<]*Cancelar assinatura/);
+  });
+
+  it("T-187: sem acoes da API, não há botão de mudar, escolher forma, editar nem pagar", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const seed = await assinatura.obter();
+    definirAssinaturaFalsa({ acoes: { mudar_plano: false, desfazer_mudanca_plano: false, escolher_forma_pagamento: false, editar_dados_fiscais: false }, oferta: null });
+    const t = texto(await pagina());
+    for (const fora of ["Mudar de plano", "Escolher forma de pagamento", "Editar", "Comparar planos", "Pagar"]) expect(t, fora).not.toContain(fora);
+    expect(t).toContain("Forma de pagamento");
+    expect(seed.acoes?.mudar_plano).toBe(true);
+  });
+
+  it("T-187: downgrade agendado mostra para qual plano muda e o Desfazer, só com acoes.desfazer_mudanca_plano", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const seed = await assinatura.obter();
+    definirAssinaturaFalsa({
+      status: "ativa",
+      teste: null,
+      plano_proximo: { id: 1, nome: "Essencial", ciclo: "mensal", vale_em: "2026-11-22" },
+      proxima_fatura: { vencimento: "2026-11-22", valor_centavos: 19900, descricao: "Plano Essencial · 22 nov a 21 dez" },
+      acoes: { ...(seed.acoes as NonNullable<typeof seed.acoes>), desfazer_mudanca_plano: true },
+    });
+    const t = texto(await pagina());
+    expect(t).toContain("Muda para Essencial em 22 nov, a R$ 199,00.");
+    expect(t).toContain("Desfazer mudança");
+    definirAssinaturaFalsa({ plano_proximo: { id: 1, nome: "Essencial", ciclo: "mensal", vale_em: "2026-11-22" } });
+    expect(texto(await pagina())).not.toContain("Desfazer mudança");
+  });
+
+  it("T-187: sem forma, o cancelar continua desabilitado com o aviso", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const html = await pagina();
+    const t = texto(html);
     expect(t).toContain("Cancelar assinatura");
     expect(html).toMatch(/<button[^>]*disabled[^>]*>[^<]*Cancelar assinatura/);
     expect(t).toContain("O cancelamento por aqui chega em uma próxima versão.");
@@ -86,13 +132,13 @@ describe("assinatura (Admin-Assinatura)", () => {
 
   it("empresa inadimplente mostra a faixa da API e somente leitura avisa", async () => {
     await entrar("mariana@motorapida.com.br");
-    definirAssinaturaFalsa({ status: "inadimplente", teste: null, faixa_aviso: "Sua fatura está atrasada.", somente_leitura: true });
+    definirAssinaturaFalsa({ status: "inadimplente", teste: null, proxima_fatura: null, faixa_aviso: "Sua fatura está atrasada.", somente_leitura: true });
     const t = texto(await pagina());
     expect(t).toContain("Sua fatura está atrasada.");
     expect(t).toContain("Fatura em atraso");
     expect(t).toContain("Sua empresa está só para consulta no momento.");
     expect(t).toContain("R$ 449,00 por mês");
-    expect(t).not.toContain("depois do teste");
+    expect(t).not.toContain("a partir de");
   });
 
   it("só o administrador acessa", async () => {
@@ -103,12 +149,14 @@ describe("assinatura (Admin-Assinatura)", () => {
 
 describe("apoio da tela", () => {
   it("situação e preço", () => {
-    const base = { plano: { id: 2, nome: "Profissional", preco_contratado_centavos: 44900, ciclo: "mensal" }, teste: null };
+    const plano = { id: 2, nome: "Profissional", preco_contratado_centavos: 44900, ciclo: "mensal" };
+    const prox = { vencimento: "2026-10-22", valor_centavos: 44900, descricao: "Plano Profissional" };
     expect(situacaoDaAssinatura({ status: "ativa", teste: null })).toEqual({ rotulo: "Ativa", tom: "sucesso" });
     expect(situacaoDaAssinatura({ status: "suspensa", teste: null }).tom).toBe("critico");
     expect(situacaoDaAssinatura({ status: "algo_novo", teste: null }).rotulo).toBe("algo_novo");
-    expect(precoDoPlano({ ...base, status: "ativa" })).toBe("R$ 449,00 por mês");
-    expect(precoDoPlano({ plano: { ...base.plano, ciclo: "anual" }, status: "ativa" })).toBe("R$ 449,00 por ano");
+    expect(precoDoPlano({ plano, proxima_fatura: null })).toBe("R$ 449,00 por mês");
+    expect(precoDoPlano({ plano, proxima_fatura: prox })).toBe("R$ 449,00 por mês, a partir de 22 out");
+    expect(precoDoPlano({ plano: { ...plano, ciclo: "anual" }, proxima_fatura: null })).toBe("R$ 449,00 por ano");
   });
 
   it("barra: proporção do limite, vazia sem limite, nunca passa de 100", () => {
