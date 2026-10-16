@@ -2,7 +2,7 @@
 // contra os números das regras e devolve o que o passo seguinte precisa. Desktop e celular usam os mesmos passos.
 import { expect, type Browser, type Locator, type Page, type TestInfo } from "@playwright/test";
 import { executarNoBackend } from "./ambiente";
-import { aquietar, defeitoConhecido, entrar, fotoDeTeste, novaSessao, visivel } from "./tela";
+import { aquietar, entrar, fotoDeTeste, novaSessao, visivel } from "./tela";
 
 export const CLIENTE = {
   nome: "Paulo Henrique Lima",
@@ -202,10 +202,7 @@ export async function vistoriaDeSaida(page: Page, locacaoId: number, opcoes: { v
   await kmDaSaida.fill(String(KM_DO_CADASTRO - 420));
   await kmDaSaida.blur();
   await expect(concluir).toBeDisabled();
-  // D-02: o botão fica desligado com o texto genérico "Informe a quilometragem"; a mensagem do VEI-01 (km menor que o atual) não chega à tela.
-  await defeitoConhecido("D-02", "km menor que o do veículo (VEI-01): a tela não mostra a mensagem da API", async () => {
-    await expect(visivel(page.getByText(/menor que o atual/))).toBeVisible({ timeout: 3000 });
-  });
+  await expect(visivel(page.getByText(/menor que o atual/))).toBeVisible();
   await expect(page).toHaveURL(/\/vistoria$/);
 
   await digitarKm(page, "Quilometragem na saída", KM_DO_CADASTRO);
@@ -441,10 +438,7 @@ export async function situacaoNaFrota(browser: Browser, info: TestInfo, placaTex
 export async function abrirCaixaDe14Out(page: Page) {
   await page.goto("/financeiro/caixa");
   await expect(page.getByText("Abrir o caixa de hoje")).toBeVisible();
-  // D-03: receber sem caixa aberto deveria mostrar "Abra o caixa do dia para receber".
-  await defeitoConhecido("D-03", "sem caixa aberto a tela não diz \"Abra o caixa do dia para receber\"", async () => {
-    await expect(visivel(page.getByText("Abra o caixa do dia para receber"))).toBeVisible({ timeout: 3000 });
-  });
+  await expect(visivel(page.getByText("Abra o caixa do dia para receber"))).toBeVisible();
   await page.getByLabel("Troco na gaveta (R$)").fill("200,00");
   await page.getByRole("button", { name: "Abrir caixa" }).click();
   await expect(visivel(page.getByText("Aberto", { exact: true }))).toBeVisible();

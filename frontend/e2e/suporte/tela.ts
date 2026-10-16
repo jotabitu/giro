@@ -2,7 +2,7 @@
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { expect, test, type Browser, type BrowserContext, type Locator, type Page, type TestInfo } from "@playwright/test";
+import { expect, type Browser, type BrowserContext, type Locator, type Page, type TestInfo } from "@playwright/test";
 
 /** Senha de desenvolvimento do seed (backend/seed/moto_rapida.py, `SENHA_DEV`). Não é segredo: só vale no compose local. */
 export const SENHA = process.env.E2E_SENHA ?? "giro-dev-2026";
@@ -51,8 +51,6 @@ export type Vigia = {
   respostas4xx: string[];
   /** Declara que a próxima resposta com esse status e esse caminho é esperada (passo que provoca o erro de propósito). */
   esperar: (status: number, caminho: RegExp) => void;
-  /** Declara uma resposta de erro que é defeito aberto (vira anotação, ou falha com E2E_ESTRITO=1). */
-  conhecer: (status: number, caminho: RegExp, id: string, descricao: string) => void;
   verificar: () => void;
 };
 
@@ -63,7 +61,6 @@ export type Vigia = {
  */
 export function vigiar(page: Page): Vigia {
   const esperadas: { status: number; caminho: RegExp }[] = [];
-  const defeitos: { status: number; caminho: RegExp; id: string; descricao: string }[] = [];
   const vigia: Vigia = {
     erros: [],
     respostas5xx: [],
@@ -71,18 +68,7 @@ export function vigiar(page: Page): Vigia {
     esperar(status, caminho) {
       esperadas.push({ status, caminho });
     },
-    conhecer(status, caminho, id, descricao) {
-      defeitos.push({ status, caminho, id, descricao });
-    },
     verificar() {
-      for (const d of defeitos) {
-        const achou = [...vigia.respostas4xx, ...vigia.respostas5xx].filter((r) => r.startsWith(`${d.status} `) && d.caminho.test(r));
-        if (achou.length === 0) continue;
-        if (process.env.E2E_ESTRITO) continue;
-        test.info().annotations.push({ type: `defeito ${d.id}`, description: d.descricao });
-        vigia.respostas4xx = vigia.respostas4xx.filter((r) => !achou.includes(r));
-        vigia.respostas5xx = vigia.respostas5xx.filter((r) => !achou.includes(r));
-      }
       expect.soft(vigia.respostas5xx, "respostas 5xx durante o fluxo").toEqual([]);
       expect.soft(vigia.respostas4xx, "respostas 4xx que nenhum passo esperava").toEqual([]);
       expect.soft(vigia.erros, "erros no console do navegador").toEqual([]);
@@ -139,20 +125,4 @@ export const visivel = (l: Locator): Locator => l.filter({ visible: true }).firs
 /** Aguarda a rede ficar quieta: as telas buscam dados depois de montar. */
 export async function aquietar(page: Page) {
   await page.waitForLoadState("networkidle");
-}
-
-/**
- * Confere algo que o contrato ou os critérios pedem e que o produto ainda não faz (defeito aberto, ver o handoff da T-025).
- * Sem E2E_ESTRITO a falha vira anotação no relatório e o fluxo segue; com E2E_ESTRITO=1 ela derruba o teste.
- * Quando o defeito for corrigido, a conferência passa e o envelope sai.
- */
-export async function defeitoConhecido(id: string, descricao: string, verificar: () => Promise<void>): Promise<boolean> {
-  try {
-    await verificar();
-    return true;
-  } catch (erro) {
-    if (process.env.E2E_ESTRITO) throw erro;
-    test.info().annotations.push({ type: `defeito ${id}`, description: descricao });
-    return false;
-  }
 }
