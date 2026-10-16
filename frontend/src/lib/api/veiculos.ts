@@ -2,6 +2,7 @@
 import { http } from "./http";
 import type { ListaLocacoes } from "./tipos-locacoes";
 import type {
+  CorrecaoDeIdentificacao,
   CategoriaVeiculo,
   DocumentoVeiculo,
   FiltroVeiculos,
@@ -38,6 +39,11 @@ export const veiculosApi = {
   /** PATCH (VEI-01): administrador e gerente; a resposta é a ficha completa. */
   atualizar(id: number, v: EdicaoVeiculo): Promise<VeiculoDetalhe> {
     return http.patch<VeiculoDetalhe>(`/api/veiculos/${id}/`, v);
+  },
+
+  /** Erro de digitação na placa ou no chassi (administrador). 409 `VEI-01` se colidir com outro veículo. */
+  corrigirIdentificacao(id: number, c: CorrecaoDeIdentificacao): Promise<VeiculoDetalhe> {
+    return http.post<VeiculoDetalhe>(`/api/veiculos/${id}/corrigir-identificacao/`, c);
   },
 
   registrarKm(id: number, km: number): Promise<Veiculo> {

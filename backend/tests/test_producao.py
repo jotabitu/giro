@@ -85,6 +85,23 @@ def test_s18_prod_hsts_com_preload_e_cabecalhos():
     assert cfg["X_FRAME_OPTIONS"] == "DENY"
 
 
+def test_t277_prod_sessao_do_admin_de_4_horas_que_fecha_com_o_navegador():
+    resultado = rodar(
+        "import json; from django.conf import settings as s;"
+        "print(json.dumps({k: getattr(s, k) for k in ("
+        "'SESSION_COOKIE_AGE','SESSION_EXPIRE_AT_BROWSER_CLOSE','SESSION_COOKIE_SECURE',"
+        "'SESSION_COOKIE_DOMAIN','CSRF_COOKIE_SECURE')}))"
+    )
+    assert resultado.returncode == 0, resultado.stderr
+    assert json.loads(resultado.stdout) == {
+        "SESSION_COOKIE_AGE": 4 * 60 * 60,
+        "SESSION_EXPIRE_AT_BROWSER_CLOSE": True,
+        "SESSION_COOKIE_SECURE": True,
+        "SESSION_COOKIE_DOMAIN": None,
+        "CSRF_COOKIE_SECURE": True,
+    }
+
+
 def test_s18_prod_recusa_chave_dos_tokens_igual_a_chave_do_django():
     resultado = rodar("import django.conf as c; c.settings.DEBUG", JWT_SIGNING_KEY=None)
     assert resultado.returncode != 0
