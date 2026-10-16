@@ -37,4 +37,13 @@ describe("rotas das Movimentações", () => {
     expect(itens.find((i) => i.chave === "movimentacoes")).toMatchObject({ rotulo: "Movimentações", href: "/veiculos/movimentacoes" });
     expect(hrefDoDestino("movimentacoes")).toBe("/veiculos/movimentacoes");
   });
+
+  it("em /veiculos/movimentacoes só Movimentações fica ativo, e em /veiculos só Veículos", async () => {
+    const eu = comItem(await euDe("rodrigo@motorapida.com.br"), true);
+    const ativos = (rota: string) => montarMenu(eu.navegacao.menu_completo, rota).flatMap((g) => g.itens).filter((i) => i.ativo).map((i) => i.chave);
+    expect(ativos("/veiculos/movimentacoes")).toEqual(["movimentacoes"]);
+    expect(ativos("/veiculos/movimentacoes/2/chegada")).toEqual(["movimentacoes"]);
+    expect(ativos("/veiculos")).toEqual(["veiculos"]);
+    expect(ativos("/veiculos/12")).toEqual(["veiculos"]);
+  });
 });

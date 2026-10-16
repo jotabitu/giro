@@ -118,8 +118,15 @@ export function rotaPermitida(eu: Pick<Eu, "pode" | "navegacao">, rota: string):
 
 /** Liga o menu pronto da API às rotas e aos ícones, com a rota ativa e os contadores. Chave desconhecida fica de fora. */
 export function montarMenu(grupos: GrupoNavegacao[], rotaAtual: string, contadores: Record<string, number | null> = {}): GrupoMontado[] {
-  // Itens diferentes podem dividir o caminho (ex.: Frota e Veículos à venda); só o primeiro fica ativo.
-  let achouAtivo = false;
+  // Itens diferentes podem dividir o caminho (ex.: Frota e Veículos à venda) ou um conter o outro (Veículos e Movimentações):
+  // fica ativo só o de caminho mais longo; em empate, o primeiro.
+  const candidatos = grupos.flatMap((g) =>
+    g.itens.flatMap((i) => {
+      const href = DESTINOS[i.chave]?.href;
+      return href && estaEm(rotaAtual, href) ? [{ chave: i.chave, tamanho: caminhoDe(href)?.length ?? 0 }] : [];
+    }),
+  );
+  const ativoChave = candidatos.reduce<{ chave: string; tamanho: number } | null>((melhor, c) => (!melhor || c.tamanho > melhor.tamanho ? c : melhor), null)?.chave;
   return grupos
     .map((g) => ({
       rotulo: g.grupo ?? undefined,
@@ -127,8 +134,7 @@ export function montarMenu(grupos: GrupoNavegacao[], rotaAtual: string, contador
         const destino = DESTINOS[i.chave];
         if (!destino) return [];
         const total = i.contador ? contadores[i.contador] : null;
-        const ativo = !achouAtivo && estaEm(rotaAtual, destino.href);
-        achouAtivo ||= ativo;
+        const ativo = i.chave === ativoChave;
         return [{ chave: i.chave, rotulo: i.rotulo, href: destino.href, icone: destino.icone, ativo, total: total || undefined }];
       }),
     }))

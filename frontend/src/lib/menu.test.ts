@@ -53,15 +53,16 @@ describe("menu vindo de eu.navegacao (USR-05)", () => {
     expect(completo).not.toContain("Locações");
   });
 
-  it("usr_05: vistoriador vê o mesmo menu do início em /vistorias e em /vistorias/avarias, com Vistorias de hoje ativo", async () => {
+  it("usr_05: vistoriador vê o mesmo menu do início em /vistorias e em /vistorias/avarias, com o item de caminho mais longo ativo", async () => {
     const eu = await euDe("joao@motorapida.com.br");
     const doInicio = rotulos(menuDe(eu, "/inicio"));
     expect(doInicio).toEqual(["Vistorias de hoje", "Consultar veículo", "Avarias abertas"]);
     for (const rota of ["/vistorias", "/vistorias/avarias"]) {
       expect(rotulos(menuDe(eu, rota))).toEqual(doInicio);
     }
-    const agenda = menuDe(eu, "/vistorias/avarias").flatMap((g) => g.itens).find((i) => i.chave === "agenda");
-    expect(agenda?.ativo).toBe(true);
+    const itens = menuDe(eu, "/vistorias/avarias").flatMap((g) => g.itens);
+    expect(itens.find((i) => i.chave === "avarias")?.ativo).toBe(true);
+    expect(itens.find((i) => i.chave === "agenda")?.ativo).toBe(false);
     expect(rotulos(menuDe(eu, "/vistorias"))).not.toContain("Visão geral");
     expect(rotulos(menuDe(eu, "/vistorias"))).not.toContain("Locações");
   });
