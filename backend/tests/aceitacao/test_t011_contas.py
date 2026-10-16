@@ -1483,6 +1483,13 @@ def test_plt_07_lista_de_rotas_que_o_suporte_le():
         "api/painel/inicio/",
         # T-181: Configurações, só contagens e textos (sem auditoria e exportar para o suporte).
         "api/configuracoes/",
+        # T-288: quadro, lista, quem leva, quem recebe e locais, sem URL assinada (a
+        # movimentação com as fotos da chegada fica fora).
+        "api/movimentacoes/",
+        "api/movimentacoes/quadro/",
+        "api/movimentacoes/pessoas/",
+        "api/movimentacoes/locais/",
+        "api/movimentacoes/<int:pk>/recebedores/",
     }
 
 

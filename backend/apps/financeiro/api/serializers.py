@@ -323,6 +323,12 @@ class MovimentosSerializer(serializers.Serializer[Any]):
     resultados = MovimentoSerializer(many=True)
 
 
+class OrigemDaDespesaSerializer(serializers.Serializer[Any]):
+    tipo = serializers.CharField()
+    id = serializers.IntegerField(allow_null=True)
+    codigo = serializers.CharField(allow_null=True)
+
+
 class NotaSerializer(serializers.Serializer[Any]):
     url = serializers.CharField()
     url_expira_em = serializers.DateTimeField()
@@ -349,8 +355,14 @@ class DespesaSerializer(serializers.Serializer[Any]):
     forma = serializers.CharField(allow_null=True)
     lancada_por = RefSerializer()
     nota = NotaSerializer(allow_null=True)
+    sem_nota = serializers.BooleanField()
+    origem = OrigemDaDespesaSerializer(allow_null=True)
     pedido_aprovacao_id = serializers.IntegerField(allow_null=True)
     rotulo_situacao = serializers.CharField()
+
+
+class AnexarNotaSerializer(serializers.Serializer[Any]):
+    nota = serializers.FileField(error_messages={"required": "Envie a foto da nota."})
 
 
 class PorCategoriaSerializer(serializers.Serializer[Any]):

@@ -20,6 +20,7 @@ NIVEL = {
     "manutencao": 9,
     "locacoes": 10,
     "vistorias": 11,
+    "movimentacoes": 11,
     "vendas": 12,
     "automacoes": 13,
     "relatorios": 13,

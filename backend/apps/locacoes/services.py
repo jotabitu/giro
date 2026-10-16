@@ -460,6 +460,9 @@ def confirmar(locacao: Locacao, usuario: Any, primeiro_vencimento: date | None =
         travada = _travar(locacao)
         if travada.status != S.RASCUNHO:
             raise transicao_invalida(travada.status, S.AGUARDANDO_RETIRADA)
+        if travada.veiculo_id is not None:
+            # A mesma linha que a movimentação trava ao iniciar: uma espera a outra (ADR 0028).
+            veiculos.travar(travada.veiculo)
         dados = _formulario(travada)
         if primeiro_vencimento is not None:
             dados["primeiro_vencimento"] = primeiro_vencimento

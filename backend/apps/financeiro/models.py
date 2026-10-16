@@ -31,6 +31,7 @@ class OrigemTipo(models.TextChoices):
     CAIXA = "caixa", "Caixa"
     CLIENTE = "cliente", "Cliente"
     VEICULO = "veiculo", "Veículo"
+    MOVIMENTACAO = "movimentacao", "Movimentação"  # despesa da parada (MOV-04, ADR 0028)
 
 
 class ComOrigem(models.Model):
@@ -536,6 +537,12 @@ class Despesa(MaquinaDeEstados, ModeloBase):
     lancada_por = models.ForeignKey("contas.Usuario", on_delete=models.PROTECT, related_name="+")
     pedido_aprovacao_id = models.BigIntegerField(null=True, blank=True)  # APR-03
     motivo_recusa = models.CharField(max_length=300, blank=True, default="")
+    # Quem gerou a despesa fora da rota de lançamento (a parada da movimentação, MOV-04).
+    origem_tipo = models.CharField(
+        max_length=15, choices=OrigemTipo.choices, blank=True, default=""
+    )
+    origem_id = models.BigIntegerField(null=True, blank=True)
+    origem_codigo = models.CharField(max_length=20, blank=True, default="")
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = {
         "aguardando_aprovacao": {"a_pagar", "recusada"},
