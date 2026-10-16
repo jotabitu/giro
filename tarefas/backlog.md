@@ -168,14 +168,10 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 - Decidido em 15 out 2026 pelo dono (**Administrador aprova o próprio pedido**): opção B. O administrador pode aprovar o próprio pedido; os outros perfis continuam proibidos (`APR-09`); o evento de auditoria marca "aprovou o próprio pedido". Regra escrita na T-248.
 - Decidido em 15 out 2026 pelo dono (**Criar usuário sem convite**): opção A. O acesso continua nascendo por convite, e a senha só a pessoa cria (`USR-01`); no painel da pessoa com convite pendente, o administrador tem "Copiar link do convite" para mandar por outro canal. Como o banco guarda só o hash do token, copiar gera um link novo de 7 dias e invalida o anterior (P-06), como o reenvio, e grava evento de auditoria. Regra escrita na T-248.
 
-
 ### T-249 · Contratos das decisões de 15 out
 - **Agente:** arquiteto · **Depende de:** T-248 · **Pronto quando:** `docs/api/clientes.md` com o parâmetro `filial` na lista (sem ele, todas; recusa de filial sem acesso); `docs/api/aprovacoes.md` com o administrador aprovando o próprio pedido (`acoes.aprovar` verdadeiro para ele) e o evento; `docs/api/contas.md` com a rota do link do convite (só administrador, só `convite_pendente`, resposta com o link uma vez, evento, limite por hora) e o `acoes` do usuário para a tela mostrar o botão.
 - **Estado (15 out 2026):** contratos ajustados, PR #245, mesclar depois do #241 da T-248 (branch `t-249-contratos-decisoes-15-out`, empilhada sobre a `t-248-regras-decisoes-15-out`); handoff `tarefas/handoffs/T-249-arquiteto.md`. Limite do link: 5 por hora por pessoa convidada e 20 por hora por administrador. A tela de aprovação usa o `pode_decidir` que já existe (não há `acoes.aprovar`).
 
-
-### T-251 · Telas das decisões de 15 out
-- **Agente:** frontend · **Depende de:** T-250 · **Telas:** Clientes, Aprovacoes, Admin-Usuarios · **Pronto quando:** filtro de filial na lista de Clientes, com "Todas as filiais" como padrão, independente do seletor do topo; o botão Aprovar aparece pelo `acoes` da API (sem regra de perfil na tela); "Copiar link do convite" no painel da pessoa com convite pendente, com o aviso "O link anterior deixa de valer." e cópia para a área de transferência; testes dos componentes.
 
 ### T-252 · Revisão do link do convite na tela
 - **Agente:** segurança · **Depende de:** T-250 · **Pronto quando:** a segurança revisa a rota e a tela do link copiável: só administrador, link mostrado uma vez e fora de log, limite por hora, evento de auditoria, invalidação do anterior, e o suporte Giro sem acesso à rota.
@@ -198,6 +194,14 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
   - testes `test_vei_08_catalogo_acha_modelo_unico` (o "HONDA/POP 110I ES" do `crlv-tbc5h21.pdf` dá Honda Pop 110i ES), `test_vei_08_catalogo_ambiguo_nao_preenche` e `test_vei_08_lista_de_modelos_filtra`;
   - OpenAPI regenerado e `api:gerar` no frontend.
 
+### T-156 · (M-02) Custo e rendimento do veículo fora da ficha do vendedor (média)
+- **Backend feito (15 out 2026):** PR #246 (`tarefas/handoffs/T-156-backend.md`); OpenAPI sem diferença. **Falta o frontend:** os cartões só quando a API manda `indicadores_financeiros`.
+- **Agente:** backend, depois frontend · **Depende de:** T-136 · **Regras:** tabela de perfis, USR-09, VEI-05 · **Decisão:** opção A do dono do produto em 12 out 2026 (regra na T-156 do produto) · **Pronto quando:**
+  - (backend) em `GET /api/veiculos/{id}/`, a chave `indicadores_financeiros` (`rendeu_no_ano_centavos`, `custo_manutencao_ano_centavos`) só vem para administrador, gerente e financeiro, pela mesma checagem do `valor_compra_centavos` em `veiculos/selectors.representacao` com o financeiro incluído; para vendedor e vistoriador a chave vem **ausente** (não `null`, não zero), como no D-25; OpenAPI com a chave opcional; teste `test_usr_09_vendedor_sem_custo_do_veiculo`;
+  - CA: dado a Bruna (vendedora), quando faz `GET /api/veiculos/{id}/` de um veículo da filial dela, então a resposta não tem `indicadores_financeiros`, e o resto da ficha (situação, ocupação, km, documentos, preços) vem como antes;
+  - CA: dado o Rodrigo (gerente), a Mariana (administradora) ou a Lúcia (financeiro), quando fazem a mesma leitura, então recebem `rendeu_no_ano_centavos` e `custo_manutencao_ano_centavos` com os mesmos valores de hoje;
+  - CA: dado o João (vistoriador), nada muda: o bloco continua ausente (D-25);
+  - (frontend) na ficha do veículo (`Veiculo`, desktop e celular), os cartões "Rendeu no ano" e "Custo de manutenção" só aparecem quando a API manda o bloco; logada como Bruna, a fileira de indicadores mostra só ocupação e km, sem cartão vazio, traço ou espaço reservado. A tela não decide pelo perfil, só pela chave.
 
 ### T-159 · (M-05) Login não revela e-mail com convite pendente (baixa)
 - **Agente:** backend · **Depende de:** — · **Regras:** USR-01, USR-06 · **Pronto quando:** em `POST /api/auth/entrar/`, quem tem convite pendente e ainda não tem senha recebe o mesmo 401 `credenciais_invalidas` (e o mesmo tempo) de um e-mail que não existe; hoje o 403 `convite_pendente` sai antes de conferir a senha e permite saber quem foi convidado; o 403 só depois da senha certa; teste `test_usr_06_convite_pendente_nao_revela_email`.

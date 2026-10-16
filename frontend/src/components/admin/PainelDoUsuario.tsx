@@ -41,6 +41,19 @@ function Edicao({ u, eu, aoConcluir }: { u: UsuarioDetalhado; eu: Eu; aoConcluir
   });
   const redefinir = useMutation({ mutationFn: () => usuarios.redefinir2fa(u.id, motivo.trim()), onSuccess: () => depois(`A verificação em 2 etapas de ${u.nome} foi apagada. No próximo acesso ela configura de novo.`) });
   const reenviar = useMutation({ mutationFn: () => usuarios.reenviarConvite(u.id), onSuccess: () => depois(`Convite reenviado a ${u.email}. O link anterior deixou de valer.`) });
+  // O link só existe aqui dentro: vai direto para a área de transferência e não fica em estado nem em cache (USR-01).
+  const copiarLink = useMutation({
+    mutationFn: async () => {
+      const r = await usuarios.copiarLinkDoConvite(u.id);
+      try {
+        await navigator.clipboard.writeText(r.link);
+      } catch {
+        throw new Error("Não deu para copiar o link. Toque em Copiar link do convite de novo.");
+      }
+      return r.aviso;
+    },
+    onSuccess: (aviso) => depois(`Link do convite de ${u.nome} copiado. ${aviso}`),
+  });
   const cancelar = useMutation({ mutationFn: () => usuarios.cancelarConvite(u.id), onSuccess: () => depois(`Convite de ${u.email} cancelado.`) });
 
   const ativo = u.status === "ativo";
@@ -56,8 +69,8 @@ function Edicao({ u, eu, aoConcluir }: { u: UsuarioDetalhado; eu: Eu; aoConcluir
       u.filiais.map((f) => f.id),
     ) ||
     !igual(extras, marcadasAntes);
-  const ocupado = [salvar, desativar, reativar, redefinir, reenviar, cancelar].some((m) => m.isPending);
-  const erroDaAcao = [desativar, reativar, redefinir, reenviar, cancelar].find((m) => m.isError)?.error;
+  const ocupado = [salvar, desativar, reativar, redefinir, reenviar, copiarLink, cancelar].some((m) => m.isPending);
+  const erroDaAcao = [desativar, reativar, redefinir, reenviar, copiarLink, cancelar].find((m) => m.isError)?.error;
   const nomesDasFiliais = eu.filiais.filter((f) => filiais.includes(f.id)).map((f) => f.nome);
 
   return (
@@ -97,13 +110,27 @@ function Edicao({ u, eu, aoConcluir }: { u: UsuarioDetalhado; eu: Eu; aoConcluir
       )}
 
       {pendente && (
-        <div className="grid grid-cols-2 gap-2">
-          <Button compacto variante="quieto" disabled={ocupado} onClick={() => reenviar.mutate()}>
-            Reenviar convite
-          </Button>
-          <Button compacto variante="quieto" disabled={ocupado} onClick={() => cancelar.mutate()}>
-            Cancelar convite
-          </Button>
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2">
+            {u.acoes.reenviar_convite && (
+              <Button compacto variante="quieto" disabled={ocupado} onClick={() => reenviar.mutate()}>
+                Reenviar convite
+              </Button>
+            )}
+            {u.acoes.cancelar_convite && (
+              <Button compacto variante="quieto" disabled={ocupado} onClick={() => cancelar.mutate()}>
+                Cancelar convite
+              </Button>
+            )}
+          </div>
+          {u.acoes.copiar_link_convite && (
+            <>
+              <Button compacto variante="quieto" disabled={ocupado} onClick={() => copiarLink.mutate()}>
+                {copiarLink.isPending ? "Copiando…" : "Copiar link do convite"}
+              </Button>
+              <p className="text-caption leading-[18px] text-ink-muted">Gera um link novo, sem enviar e-mail. O link anterior deixa de valer.</p>
+            </>
+          )}
         </div>
       )}
 

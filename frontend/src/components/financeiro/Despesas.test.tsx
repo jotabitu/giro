@@ -199,12 +199,18 @@ describe("lista de despesas (FIN-05, CA-017-19)", () => {
 });
 
 describe("detalhe e decisão (APR-03, APR-09)", () => {
-  const detalhe = async (email: string, id: number) => {
-    await entrar(email);
+  const detalhe = async (email: string, id: number, decide?: boolean, jaEntrou = false) => {
+    // Para trocar o `pode_decidir`, os pedidos vêm da lista da administradora, que decide todos.
+    if (!jaEntrou) await entrar(decide !== undefined ? "mariana@motorapida.com.br" : email);
+    const pendentes = await aprovacoes.listar({ status: "pendente" });
+    if (!jaEntrou) await entrar(email);
     const d = await financeiro.obterDespesa(id);
+    const cache = new QueryClient();
+    // `decide` troca o `pode_decidir` que a API mandou, para provar que a tela só lê esse campo.
+    cache.setQueryData(["aprovacoes", "esperando"], decide === undefined ? pendentes : { ...pendentes, resultados: pendentes.resultados.map((p) => ({ ...p, pode_decidir: decide })) });
     return texto(
       renderToStaticMarkup(
-        <QueryClientProvider client={new QueryClient()}>
+        <QueryClientProvider client={cache}>
           <DetalheDaDespesa id={id} inicial={d} eu={sessao.eu as Eu} aoFechar={() => {}} aoConcluir={() => {}} />
         </QueryClientProvider>,
       ),
@@ -224,6 +230,20 @@ describe("detalhe e decisão (APR-03, APR-09)", () => {
     expect(d.lancada_por.id).toBe((sessao.eu as Eu).id);
     const t = await detalhe("joao@motorapida.com.br", 801);
     expect(t).not.toContain("Aprovar");
+  });
+
+  it("CA-248-08: o botão Aprovar vem do pode_decidir da API, não do perfil nem de quem lançou", async () => {
+    expect(await detalhe("bruna@motorapida.com.br", 801, true)).toContain("Aprovar");
+    expect(await detalhe("rodrigo@motorapida.com.br", 801, false)).not.toContain("Aprovar");
+  });
+
+  it("CA-248-08: a administradora vê Aprovar no pedido que ela mesma lançou", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const nova = await financeiro.lancarDespesa({ descricao: "Revisão do QXA-4B21", valor_centavos: 120000, data: "2026-10-08", vencimento: "2026-10-08", categoria: "manutencao" });
+    expect(nova.status).toBe("aguardando_aprovacao");
+    const t = await detalhe("mariana@motorapida.com.br", nova.id, undefined, true);
+    expect(t).toContain("Aprovar");
+    expect(t).toContain("Recusar");
   });
 
   it("o financeiro paga despesa a pagar e não aprova", async () => {
