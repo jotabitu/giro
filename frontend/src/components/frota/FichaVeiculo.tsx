@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { ArrowLeftRight, ChevronLeft, Ellipsis, Tag, Wrench } from "lucide-react";
+import { ChevronLeft, Ellipsis, Tag, Truck, Wrench } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Button, DataTable, Icone, KpiGrid, KpiTile, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
@@ -16,9 +16,10 @@ import {
   type VeiculoDetalhe,
 } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
-import { dataCurta, dinheiro, dinheiroSemZeros, iniciais, km, mesAno, percentual, placa } from "@/lib/formatos";
+import { dataCurta, dinheiro, dinheiroSemZeros, km, mesAno, percentual, placa } from "@/lib/formatos";
 import { situacaoDoDocumento } from "@/lib/frota";
 import { temNoMenu } from "@/lib/menu";
+import { AgoraDesktop, FotosEAvarias, MovimentacoesDoVeiculo } from "./FichaBlocos";
 import { useSessao } from "@/lib/sessao";
 import { tomDoStatus } from "@/lib/tom";
 
@@ -30,7 +31,7 @@ const EM_BREVE = "Ainda não está disponível";
 
 function Linha({ rotulo, children }: { rotulo: string; children: ReactNode }) {
   return (
-    <div className="flex justify-between gap-3 border-b border-line py-3 text-body last:border-b-0">
+    <div className="flex justify-between gap-3 border-b border-line py-[11px] text-body last:border-b-0">
       <dt className="text-ink-muted">{rotulo}</dt>
       <dd className="text-right font-medium">{children}</dd>
     </div>
@@ -97,70 +98,6 @@ function ListaDeDocumentos({ docs }: { docs: UseQueryResult<DocumentoVeiculo[]> 
   );
 }
 
-/** Próxima manutenção como a API manda (serviço e km). "Faltam X km", a barra e o "depois" ficam para quando a API devolver (pedido ao arquiteto, T-242). */
-function ProximaManutencao({ v }: { v: VeiculoDetalhe }) {
-  const proxima = v.manutencao?.proxima;
-  if (!proxima) return null;
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-caption text-ink-muted">Próxima manutenção</span>
-      <span className="text-body font-medium">{proxima.servico}</span>
-      <span className="text-caption text-ink-muted">aos {km(proxima.km)}</span>
-      {v.manutencao?.alerta && <span className="text-caption text-ink-muted">{v.manutencao.alerta}</span>}
-    </div>
-  );
-}
-
-/** "Agora" do desktop: a locação em curso e a próxima manutenção, só com o que a API manda. */
-function AgoraDesktop({ v }: { v: VeiculoDetalhe }) {
-  const atual = v.locacao_atual;
-  if (!atual && !v.manutencao?.proxima) return null;
-  return (
-    <Panel
-      titulo="Agora"
-      acao={
-        <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
-          {atual ? `${v.situacao.rotulo} desde ${dataCurta(atual.inicio)}` : v.situacao.rotulo}
-        </StatusBadge>
-      }
-    >
-      <div className="grid gap-6 md:grid-cols-2">
-        {atual && (
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <div aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-brand text-[13px] font-semibold text-on-brand">
-                {iniciais(atual.cliente_nome)}
-              </div>
-              <div className="min-w-0">
-                <div className="text-body font-medium">{atual.cliente_nome}</div>
-                <div className="wl-mono text-caption text-ink-muted">{atual.codigo}</div>
-              </div>
-            </div>
-            <dl>
-              <Linha rotulo="Período">
-                {dataCurta(atual.inicio)} → {dataCurta(atual.fim_previsto)}
-              </Linha>
-              {atual.alerta && (
-                <Linha rotulo="Alerta">
-                  <StatusBadge tom="alerta" compacto>
-                    {atual.alerta}
-                  </StatusBadge>
-                </Linha>
-              )}
-            </dl>
-            <div>
-              <Link href={`/locacoes/${atual.id}`} className="wl-btn wl-btn--sm">
-                Ver locação
-              </Link>
-            </div>
-          </div>
-        )}
-        <ProximaManutencao v={v} />
-      </div>
-    </Panel>
-  );
-}
-
 /** A API recusa (403) a lista de locações a quem não tem acesso; o painel some em vez de mostrar o aviso (T-278). */
 export function semAcesso(consulta: Pick<UseQueryResult, "isError" | "error">): boolean {
   return consulta.isError && consulta.error instanceof ErroApi && consulta.error.status === 403;
@@ -171,7 +108,7 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
   const podeAgir = v.acoes.editar;
   return (
     <div className="flex flex-col gap-6">
-      <nav aria-label="Caminho" className="flex gap-[6px] text-caption text-ink-muted">
+      <nav aria-label="Caminho" className="flex gap-[6px] text-[14px] text-ink-muted">
         <Link href="/veiculos" className="text-ink-muted no-underline">
           Veículos
         </Link>{" "}
@@ -198,9 +135,11 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
             <Link href={`/veiculos/${v.id}/editar`} className="wl-btn">
               Editar
             </Link>
-            <Button disabled title={EM_BREVE} icone={<Icone de={ArrowLeftRight} />}>
-              Movimentar
-            </Button>
+            {(v.acoes.movimentar || v.acoes.motivo_movimentar) && (
+              <Button disabled title={v.acoes.movimentar ? EM_BREVE : (v.acoes.motivo_movimentar ?? EM_BREVE)} icone={<Icone de={Truck} />}>
+                Movimentar
+              </Button>
+            )}
             <Button disabled title={EM_BREVE} icone={<Icone de={Wrench} />}>
               Mandar para oficina
             </Button>
@@ -222,6 +161,8 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
         <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-6">
           <AgoraDesktop v={v} />
 
+          <FotosEAvarias vistoria={v.vistoria_recente} />
+
           {!semAcesso(locacoes) && (
           <Panel titulo="Locações" acao={locacoes.data ? <span className="text-[13px] text-ink-muted">{locacoes.data.total} no total</span> : undefined}>
             {locacoes.isError && <p role="alert">{mensagemDoErro(locacoes.error)}</p>}
@@ -241,6 +182,8 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
             )}
           </Panel>
           )}
+
+          <MovimentacoesDoVeiculo v={v} />
         </div>
 
         <aside className="flex min-w-0 flex-[1_1_340px] flex-col gap-6">
