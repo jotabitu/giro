@@ -193,7 +193,7 @@ button.wl-pipe__col[aria-pressed="true"] .wl-pipe__bar { outline: 2px solid var(
 
 /* KpiTile: o número encolhe até caber no bloco (valor longo no celular) */
 .wl-kpi { container-type: inline-size; }
-.wl-kpi__value { font-size: clamp(16px, calc(100cqw / (var(--chars, 6) * 0.62)), 44px); line-height: 1.05; overflow-wrap: anywhere; }
+.wl-kpi__value { font-size: clamp(16px, calc(100cqw / (var(--chars, 6) * 0.62)), 44px); line-height: 1; overflow-wrap: anywhere; }
 
 /* SeletorDeFilial */
 .wl-seletor { position: relative; margin-bottom: var(--space-2); }
