@@ -302,6 +302,11 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
         "task": "plataforma_recalcular_uso_de_todas",
         "schedule": crontab(hour=3, minute=30),
     },
+    # Virada da assinatura (PLT-01, PLT-02, PLT-04): faturas atrasadas, plano agendado e estados.
+    "plataforma_virar_estados": {
+        "task": "plataforma_virar_estados",
+        "schedule": crontab(hour=0, minute=5),
+    },
     # AUT-15: encerra os acessos de suporte vencidos (PLT-07).
     # AUT-06: vencimento de documentos de veículos (VEI-03), às 07:00.
     "aut_06_vencimento_de_documentos": {

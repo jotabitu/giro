@@ -109,10 +109,11 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
         PRIMEIRA_LOCACAO = "primeira_locacao", "1ª locação"
         CONCLUIDA = "concluida", "Concluída"
 
-    # Coluna "Saída" da tabela de estados ("Plataforma e assinatura"). Pausar e cancelar
-    # nascem de ação do administrador e entram com essas ações (fase 2).
+    # Coluna "Saída" da tabela de estados ("Plataforma e assinatura") e as transições do
+    # contrato (`assinatura.md`; a em teste com forma e sem pagar vira inadimplente em D+1).
+    # Pausar e cancelar nascem de ação do administrador e entram com a T-195.
     TRANSICOES: ClassVar[dict[str, set[str]]] = {
-        "em_teste": {"ativa", "suspensa"},
+        "em_teste": {"ativa", "inadimplente", "suspensa"},
         "ativa": {"inadimplente"},
         "inadimplente": {"ativa", "suspensa"},
         "suspensa": {"ativa"},

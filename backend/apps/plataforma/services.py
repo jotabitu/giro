@@ -1043,6 +1043,7 @@ def _processar_fatura(webhook: WebhookRecebido) -> str:
         )
         if situacao.cartao is not None:
             _guardar_cartao(fatura.empresa, situacao.cartao)
+        voltar_a_ativa_ao_pagar(_empresa_travada(fatura.empresa), relogio.hoje())
     return "baixada"
 
 
@@ -1905,3 +1906,210 @@ def escolher_forma_pagamento(empresa: Empresa, nova: str) -> dict[str, Any] | No
                         regra="PLT-13",
                     )
     return proximo_passo
+
+
+# --- Estados da empresa e virada do dia (PLT-01, PLT-02, PLT-04; T-186, assinatura.md) ---
+
+DIAS_ATE_SUSPENDER = 15  # PLT-02: D+15 da fatura atrasada mais antiga
+STATUS_QUE_VOLTAM_AO_PAGAR = frozenset({Empresa.Status.INADIMPLENTE, Empresa.Status.SUSPENSA})
+
+
+def transicionar_empresa(empresa: Empresa, novo: str, *, regra: str, motivo: str = "") -> None:
+    """Muda o estado da empresa no public e registra o mesmo fato na empresa (ADR 0010).
+    Quem chama trava a `Empresa` e escolhe o ator (a virada e o webhook usam o sistema)."""
+    antigo = empresa.status
+    with schema_context(get_public_schema_name()):
+        transicionar(empresa, novo, acao=f"empresa.{novo}", regra=regra, motivo=motivo)
+    with schema_context(empresa.schema_name):
+        registrar_evento(
+            f"empresa.{novo}",
+            Categoria.CONFIGURACOES,
+            objeto=empresa,
+            antes={"status": antigo},
+            depois={"status": novo},
+            motivo=motivo,
+            regra=regra,
+        )
+
+
+def _atrasada_mais_antiga(empresa: Empresa) -> FaturaAssinatura | None:
+    """A fatura atrasada mais antiga, mensalidade ou diferença do upgrade."""
+    return (
+        FaturaAssinatura.objects.filter(empresa_id=empresa.pk, status=StatusFatura.ATRASADA)
+        .order_by("vencimento", "numero")
+        .first()
+    )
+
+
+def _primeira_paga(empresa: Empresa) -> bool:
+    primeira = _mensalidades(empresa).order_by("periodo_inicio", "numero").first()
+    return primeira is not None and primeira.status == StatusFatura.PAGA
+
+
+def _tem_forma(empresa: Empresa) -> bool:
+    return FormaPagamentoAssinatura.objects.filter(empresa_id=empresa.pk).exclude(forma="").exists()
+
+
+def marcar_faturas_atrasadas(hoje: date) -> int:
+    """PLT-02: a fatura `aberta` sem pagamento passa a `atrasada` no dia seguinte ao vencimento
+    (D+1). Idempotente: a já atrasada não entra de novo."""
+    vencidas = list(
+        FaturaAssinatura.objects.filter(status=StatusFatura.ABERTA, vencimento__lt=hoje)
+        .order_by("empresa_id", "vencimento")
+        .values_list("pk", flat=True)
+    )
+    marcadas = 0
+    for pk in vencidas:
+        with transaction.atomic():
+            fatura = FaturaAssinatura.objects.select_for_update().get(pk=pk)
+            if fatura.status != StatusFatura.ABERTA:
+                continue
+            transicionar(
+                fatura, StatusFatura.ATRASADA, acao="fatura_assinatura.atrasar", regra="PLT-02"
+            )
+            marcadas += 1
+    return marcadas
+
+
+def estado_do_dia(empresa: Empresa, hoje: date) -> str | None:
+    """Para onde a empresa vai hoje pela tabela de transições (`assinatura.md`), ou `None`. Só
+    as do relógio: a volta a `ativa` ao pagar é da baixa (`voltar_a_ativa_ao_pagar`). Pausar,
+    cancelar e voltar da pausa entram antes destas com a T-195."""
+    status = empresa.status
+    if status == Empresa.Status.EM_TESTE:
+        if empresa.teste_fim is None or hoje <= empresa.teste_fim:
+            return None
+        if _primeira_paga(empresa):
+            return Empresa.Status.ATIVA  # paga no teste: ativa no dia seguinte ao fim dele
+        if not _tem_forma(empresa):
+            return Empresa.Status.SUSPENSA  # CA-ASS-06: sem forma no fim do teste
+        if _atrasada_mais_antiga(empresa) is not None:
+            return Empresa.Status.INADIMPLENTE  # CA-ASS-05: com forma e sem pagar, em D+1
+        return None
+    atrasada = _atrasada_mais_antiga(empresa)
+    if atrasada is None:
+        return None
+    if status == Empresa.Status.ATIVA:
+        return Empresa.Status.INADIMPLENTE
+    suspende_em = atrasada.vencimento + timedelta(days=DIAS_ATE_SUSPENDER)
+    if status == Empresa.Status.INADIMPLENTE and hoje >= suspende_em:
+        return Empresa.Status.SUSPENSA
+    return None
+
+
+def virar_estado_da_empresa(empresa_id: int, hoje: date) -> str | None:
+    """Aplica `estado_do_dia` com a `Empresa` travada. Devolve o estado novo, se mudou."""
+    with schema_context(get_public_schema_name()), transaction.atomic():
+        empresa = Empresa.objects.select_for_update(of=("self",)).get(pk=empresa_id)
+        novo = estado_do_dia(empresa, hoje)
+        if novo is None:
+            return None
+        with usar_ator(ATOR_SISTEMA):
+            transicionar_empresa(empresa, novo, regra="PLT-02")
+    return novo
+
+
+def voltar_a_ativa_ao_pagar(empresa: Empresa, hoje: date) -> bool:
+    """Tabela de estados: a `inadimplente` ou a `suspensa` sem outra fatura atrasada volta a
+    `ativa` na hora; a `em_teste` também, se a 1ª fatura foi paga depois do fim do teste.
+    Chamada na baixa, com a `Empresa` travada e o ator do sistema."""
+    if empresa.status == Empresa.Status.EM_TESTE:
+        fim_do_teste = empresa.teste_fim is not None and hoje > empresa.teste_fim
+        if not fim_do_teste or not _primeira_paga(empresa):
+            return False
+    elif empresa.status not in STATUS_QUE_VOLTAM_AO_PAGAR:
+        return False
+    if _atrasada_mais_antiga(empresa) is not None:
+        return False
+    transicionar_empresa(empresa, Empresa.Status.ATIVA, regra="PLT-02")
+    return True
+
+
+def aplicar_mudanca_agendada(empresa_id: int, hoje: date) -> bool:
+    """PLT-04 (CA-ASS-41): no dia do vencimento, o plano agendado (downgrade ou ciclo pela
+    equipe) passa a valer, se a fatura do período que começa já saiu por ele. Não confere o uso
+    de novo: o que passar do limite segue a PLT-03. Idempotente."""
+    with schema_context(get_public_schema_name()), transaction.atomic():
+        empresa = _empresa_travada(Empresa(pk=empresa_id))
+        novo, atual = empresa.plano_proximo, empresa.plano
+        if novo is None or atual is None:
+            return False
+        ciclo = empresa.ciclo_proximo or empresa.ciclo
+        gerada = (
+            _mensalidades(empresa)
+            .filter(periodo_inicio__lte=hoje, periodo_fim__gte=hoje, plano_id=novo.pk, ciclo=ciclo)
+            .exists()
+        )
+        if not gerada:
+            return False
+        antes = {
+            "plano": atual.nome,
+            "ciclo": empresa.ciclo,
+            "preco_contratado_centavos": int(empresa.preco_contratado_centavos),
+        }
+        empresa.plano = novo
+        empresa.ciclo = ciclo
+        empresa.preco_contratado_centavos = preco_no_ciclo(novo, ciclo)
+        empresa.plano_proximo = None
+        empresa.ciclo_proximo = ""
+        empresa.save(
+            update_fields=[
+                "plano",
+                "ciclo",
+                "preco_contratado_centavos",
+                "plano_proximo",
+                "ciclo_proximo",
+                "atualizado_em",
+            ]
+        )
+        with usar_ator(ATOR_SISTEMA):
+            _registrar_nos_dois(
+                empresa,
+                "empresa.mudar_plano",
+                antes=antes,
+                depois={
+                    "plano": novo.nome,
+                    "ciclo": ciclo,
+                    "preco_contratado_centavos": int(empresa.preco_contratado_centavos),
+                    "vale_em": hoje.isoformat(),
+                },
+                categoria_publica=Categoria.FINANCEIRO,
+                regra="PLT-04",
+            )
+    recalcular_uso(empresa)
+    return True
+
+
+@dataclass(frozen=True)
+class Virada:
+    atrasadas: int
+    mudancas_de_plano: int
+    estados: dict[str, int]
+
+
+def virar_estados(hoje: date | None = None) -> Virada:
+    """A virada do dia (00:05): faturas vencidas em `atrasada`, os planos agendados que valem
+    hoje e os estados das empresas, cada empresa na sua transação. Idempotente: rodar de novo
+    no mesmo dia não muda nada, e o que falhou entra na rodada seguinte."""
+    hoje = hoje or relogio.hoje()
+    with schema_context(get_public_schema_name()):
+        atrasadas = marcar_faturas_atrasadas(hoje)
+        agendadas = list(
+            Empresa.objects.filter(plano_proximo__isnull=False).values_list("pk", flat=True)
+        )
+        mudancas = sum(aplicar_mudanca_agendada(pk, hoje) for pk in agendadas)
+        vivas = list(
+            Empresa.objects.filter(
+                status__in=[
+                    Empresa.Status.EM_TESTE,
+                    Empresa.Status.ATIVA,
+                    Empresa.Status.INADIMPLENTE,
+                ]
+            ).values_list("pk", flat=True)
+        )
+        estados: dict[str, int] = {}
+        for pk in vivas:
+            novo = virar_estado_da_empresa(pk, hoje)
+            if novo is not None:
+                estados[novo] = estados.get(novo, 0) + 1
+    return Virada(atrasadas, mudancas, estados)

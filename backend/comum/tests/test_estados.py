@@ -59,6 +59,19 @@ def test_save_recusa_mudanca_de_status_direta(empresa_a):
         pedido.save()
 
 
+def test_save_depois_de_reler_o_status_mudado_por_outra_copia(empresa_a):
+    """A cópia relida do banco salva outros campos sem acusar mudança de status (T-186)."""
+    pedido = Pedido.objects.create(cliente="Larissa")
+    copia = Pedido.objects.get(pk=pedido.pk)
+    transicionar(pedido, "ativa")
+    copia.refresh_from_db()
+    copia.cliente = "L."
+    copia.save(update_fields=["cliente"])
+    copia.status = "cancelada"
+    with pytest.raises(MudancaDeStatusForaDaMaquina):
+        copia.save()
+
+
 def test_update_recusa_mudanca_de_status(empresa_a):
     Pedido.objects.create(cliente="Larissa")
     with pytest.raises(MudancaDeStatusForaDaMaquina):
