@@ -68,7 +68,7 @@ type Semente = {
 };
 
 const SEMENTES: Semente[] = [
-  { id: 501, placa: "QXA4B21", marca: "Honda", modelo: "CG 160 Fan", ano: 2023, cor: "vermelha", tipo: "moto", categoria: "Street 150–160", status: "alugado", km: 18950, diaria: 5490, semanal: 32900, proximaKm: 19900, servico: "Troca de óleo", locacao: { codigo: "LOC-2841", cliente: "Carlos Menezes", fim: "2026-11-04", atrasada: true }, chassi: "9C2KC2210PR004417" },
+  { id: 501, placa: "QXA4B21", marca: "Honda", modelo: "CG 160 Fan", ano: 2023, cor: "vermelha", tipo: "moto", categoria: "Street 150–160", status: "alugado", km: 18950, diaria: 5490, semanal: 32900, proximaKm: 19900, servico: "Troca de óleo", locacao: { codigo: "LOC-2841", cliente: "Carlos Menezes", fim: "2026-10-28", atrasada: false }, chassi: "9C2KC2210PR004401" },
   { id: 502, placa: "PNB7C04", marca: "Yamaha", modelo: "Factor 150", ano: 2023, cor: "preta", tipo: "moto", categoria: "Street 150–160", status: "alugado", km: 21870, diaria: 5490, semanal: 32900, proximaKm: 25000, locacao: { codigo: "LOC-2843", cliente: "Juliana Rocha", fim: "2026-10-07" }, chassi: "9C6RG3110PR003302" },
   { id: 503, placa: "ROE2A88", marca: "Fiat", modelo: "Mobi Like", ano: 2023, cor: "branco", tipo: "carro", categoria: "Compacto", status: "alugado", km: 38405, diaria: 11900, semanal: 69900, proximaKm: 40000, locacao: { codigo: "LOC-2846", cliente: "Pedro Alencar", fim: "2026-10-08" }, chassi: "9BD341A5JPY887120" },
   { id: 504, placa: "SAK1D39", marca: "Honda", modelo: "CG 160 Fan", ano: 2025, cor: "vermelha", tipo: "moto", categoria: "Street 150–160", status: "disponivel", km: 3120, diaria: 5490, semanal: 32900, proximaKm: 5000, chassi: "9C2KC2210RR004417" },
@@ -127,7 +127,7 @@ function montarCompleto(s: Semente): Veiculo {
     status: s.status,
     motivo_status: null,
     km_atual: s.km,
-    km_atualizado_em: "2026-10-07T11:00:00Z",
+    km_atualizado_em: s.locacao ? "2026-09-23T12:00:00Z" : "2026-10-07T11:00:00Z",
     capacidade_tanque_litros: s.tanque !== undefined ? s.tanque : s.tipo === "moto" ? "16.0" : "47.0",
     preco_vigente: { diaria_centavos: s.diaria, semanal_centavos: s.semanal, mensal_centavos: s.semanal * 4, caucao_centavos: 30000 },
     valor_venda_centavos: s.vendaCentavos ?? null,
@@ -137,7 +137,7 @@ function montarCompleto(s: Semente): Veiculo {
     entrou_na_frota_em: s.entrouEm ?? "2023-03-12",
     situacao: atrasada ? { codigo: "atrasado", rotulo: "Atrasado", tom: "perigo" } : { codigo: s.status, ...base },
     locacao_atual: s.locacao
-      ? { id: s.id * 10, codigo: s.locacao.codigo, status: atrasada ? "devolucao_atrasada" : "ativa", cliente_nome: s.locacao.cliente, inicio: "2026-09-30", fim_previsto: s.locacao.fim, alerta: atrasada ? "Devolução atrasada" : undefined }
+      ? { id: s.id * 10, codigo: s.locacao.codigo, status: atrasada ? "devolucao_atrasada" : "ativa", cliente_nome: s.locacao.cliente, inicio: "2026-09-23", fim_previsto: s.locacao.fim, alerta: atrasada ? "Devolução atrasada" : undefined }
       : null,
     manutencao: {
       proxima: { servico: s.servico ?? "Revisão", km: s.proximaKm },
@@ -280,7 +280,7 @@ export const veiculosFalso = {
       ...v,
       indicadores_financeiros: financeiro ? { rendeu_no_ano_centavos: 987000, custo_manutencao_ano_centavos: 35300 } : null,
       ocupacao: { pct: "86.00", periodo_dias: 90 },
-      historico_status: [{ de: "disponivel", para: "alugado", em: "2026-09-30T12:00:00Z", origem_codigo: "LOC-2841" }],
+      historico_status: [{ de: "disponivel", para: "alugado", em: "2026-09-23T12:00:00Z", origem_codigo: "LOC-2841" }],
     };
     return semValores(detalhe);
   },
@@ -306,8 +306,8 @@ export const veiculosFalso = {
     return {
       total: 14,
       resultados: [
-        { id: 5010, codigo: "LOC-2841", cliente_nome: "Carlos Menezes", inicio: "2026-09-30", fim: "2026-11-04", situacao: { rotulo: "Em andamento", tom: "info" } },
-        { id: 5009, codigo: "LOC-2702", cliente_nome: "Ana Beatriz Lima", inicio: "2026-08-01", fim: "2026-09-29", situacao: { rotulo: "Encerrada", tom: "neutro" } },
+        { id: 5010, codigo: "LOC-2841", cliente_nome: "Carlos Menezes", inicio: "2026-09-23", fim: "2026-10-28", situacao: { rotulo: "Em andamento", tom: "info" } },
+        { id: 5009, codigo: "LOC-2702", cliente_nome: "Ana Beatriz Lima", inicio: "2026-08-01", fim: "2026-09-22", situacao: { rotulo: "Encerrada", tom: "neutro" } },
         { id: 5008, codigo: "LOC-2640", cliente_nome: "Marcos Viana", inicio: "2026-07-03", fim: "2026-07-31", situacao: { rotulo: "Encerrada", tom: "neutro" } },
       ],
     };
@@ -318,7 +318,7 @@ export const veiculosFalso = {
     if (id !== 501) return { resultados: [] };
     return {
       resultados: [
-        { id: 1, servico: "Troca de óleo", data: "2026-09-12", km: 17900, custo_centavos: 4800 },
+        { id: 1, servico: "Troca de óleo", data: "2026-09-12", km: 18900, custo_centavos: 4800 },
         { id: 2, servico: "Pastilha de freio", data: "2026-07-20", km: 15300, custo_centavos: 9500 },
         { id: 3, servico: "Revisão 15 mil", data: "2026-07-02", km: 15010, custo_centavos: 21000 },
       ],
