@@ -116,6 +116,8 @@ class VeiculosView(APIView):
             OpenApiParameter("categoria", int),
             OpenApiParameter("busca", str),
             OpenApiParameter("ordem", enum=list(selectors.ORDENS)),
+            OpenApiParameter("em_movimentacao", bool),
+            OpenApiParameter("movimentavel", bool),
         ],
         summary="Frota (VEI-06)",
     )
@@ -129,6 +131,12 @@ class VeiculosView(APIView):
             status=parametros.get("status"),
             categoria=parametros.get("categoria"),
             busca=parametros.get("busca"),
+        )
+        qs = selectors.com_movimentacao(
+            qs,
+            request.user,
+            em_movimentacao=parametros.get("em_movimentacao") == "true",
+            movimentavel=parametros.get("movimentavel") == "true",
         )
         paginacao = PaginacaoPorCursor()
         ordem = selectors.ORDENS.get(parametros.get("ordem", ""), "placa")

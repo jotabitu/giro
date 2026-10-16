@@ -31,6 +31,7 @@ urlpatterns = [
     path("financeiro/caixas/<int:pk>/fechar/", views.FecharCaixaView.as_view()),
     path("financeiro/despesas/", views.DespesasView.as_view()),
     path("financeiro/despesas/<int:pk>/", views.DespesaView.as_view()),
+    path("financeiro/despesas/<int:pk>/nota/", views.NotaDespesaView.as_view()),
     path("financeiro/despesas/<int:pk>/pagar/", views.PagarDespesaView.as_view()),
 ]
 

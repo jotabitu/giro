@@ -64,6 +64,7 @@ CONTAGENS_FROTA_SEED = {
     "em_manutencao": 7,
     "a_venda": 12,
     "indisponivel": 0,
+    "em_movimentacao": 0,  # MOV-03 (T-288)
     "motos": 80,
     "carros": 6,
 }

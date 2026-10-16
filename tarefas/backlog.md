@@ -300,6 +300,7 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 - Leitura do arquiteto, **aceita pelo produto (T-290)** e registrada na `MOV-03`: o veículo `disponivel` com locação `aguardando_retirada` (início hoje) conta como "reservado" na `MOV-03` e não se movimenta (409 `MOV-03`), porque já tem dono para hoje.
 
 ### T-288 · Movimentações: backend
+- **Parte 1 entregue (16 out 2026):** branch `t-288-movimentacoes-backend`, handoff `tarefas/handoffs/T-288-backend.md`. Falta a parte 2 (t-288b): a saída da rota `transferir` com o frontend, o teste de concorrência e os totais de despesas de outubro do CA-246-02.
 - **Agente:** backend · **Depende de:** T-286 · **Regras:** MOV-01 a MOV-06, VEI-04, FIN-05, APR-03 · **Contrato:** `docs/api/movimentacoes.md`, ADR 0028 · **Pronto quando:** o que a seção da T-286 pede do backend (app `movimentacoes`, estados, paradas e despesa, chegada com vistoria rápida, transferência na chegada, uma aberta por veículo, blocos na Frota e na ficha, `pode.movimentacoes`), com testes `test_mov_*` e o OpenAPI regenerado.
 - **Junto (T-300, 16 out 2026):** `GET /api/movimentacoes/pessoas/?filial=` e `GET /api/movimentacoes/{id}/recebedores/` (a mesma função valida `levado_por_id` e `recebido_por_id`), a seção "Veículo em movimentação" de `veiculos.md` (`movimentacao_aberta`, `acoes`, histórico com origem `movimentacao`, filtro `?movimentavel=true`); até o produto responder, a baixa de veículo com movimentação aberta é recusada (409 `MOV-03`). Handoff `tarefas/handoffs/T-300-arquiteto.md`.
 

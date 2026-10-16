@@ -81,6 +81,7 @@ TENANT_APPS = [
     "apps.manutencao",
     "apps.locacoes",
     "apps.vistorias",
+    "apps.movimentacoes",
     "apps.vendas",
     "apps.automacoes",
     "apps.relatorios",

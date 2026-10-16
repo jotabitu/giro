@@ -205,6 +205,7 @@ class PodeDaEmpresaSerializer(serializers.Serializer[Any]):
     financeiro_pagar = serializers.BooleanField()
     lancamento_avulso = serializers.BooleanField()
     os_abrir = serializers.BooleanField()
+    movimentacoes = serializers.ChoiceField(choices=["gerir", "levar", "nao"])  # MOV-02
     administracao = serializers.BooleanField()
 
 
