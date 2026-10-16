@@ -64,7 +64,7 @@ describe("lista de despesas (FIN-05, CA-017-19)", () => {
   it("lista as seis despesas com a situação que a API mandou e quem lançou", async () => {
     await entrar("mariana@motorapida.com.br");
     const t = texto(await pagina());
-    for (const trecho of ["Pneus (2 unidades)", "Manutenção · PMZ-3E17", "Aguardando gerente", "João Silva", "Óleo 1 litro", "Pago · caixa", "Conta de luz", "Fixa · Filial Centro", "Vence 10 out", "Aluguel do ponto", "Pago · boleto", "IPVA ROE-2A88", "Impostos · ROE-2A88", "A pagar", "Rastreadores (86)", "Pago · cartão"]) {
+    for (const trecho of ["Pneus (2 unidades)", "Manutenção · PMZ-3E17 · Filial Centro", "Aguardando gerente", "João Silva", "Óleo 1 litro", "Pago · caixa", "Conta de luz", "Fixa · Filial Centro", "Vence 10 out", "Aluguel do ponto", "Pago · boleto", "IPVA ROE-2A88", "Impostos · ROE-2A88 · Filial Centro", "A pagar", "Rastreadores (86)", "Pago · cartão"]) {
       expect(t, trecho).toContain(trecho);
     }
     expect(t).toContain("R$ 3.500,00");
@@ -312,10 +312,11 @@ describe("apoio da tela", () => {
     expect(nomeDoMes("2026-10")).toBe("Outubro");
   });
 
-  it("origem: categoria e placa, ou a filial quando não há veículo", () => {
-    const filiais = [{ id: 1, nome: "Filial Centro" }];
-    expect(origemDaDespesa({ categoria: "manutencao", veiculo: { id: 1, placa: "PMZ3E17" }, filial: { id: 1 } }, filiais)).toBe("Manutenção · PMZ-3E17");
-    expect(origemDaDespesa({ categoria: "fixas", veiculo: null, filial: { id: 1 } }, filiais)).toBe("Fixa · Filial Centro");
+  it("origem: categoria, placa e a filial da API; sem veículo, categoria e filial (FIN-06, FIL-05)", () => {
+    const centro = { id: 1, nome: "Filial Centro" };
+    expect(origemDaDespesa({ categoria: "manutencao", veiculo: { id: 1, placa: "PMZ3E17" }, filial: centro })).toBe("Manutenção · PMZ-3E17 · Filial Centro");
+    expect(origemDaDespesa({ categoria: "manutencao", veiculo: { id: 1, placa: "PMZ3E17" }, filial: { id: 2, nome: "Filial Aldeota" } })).toBe("Manutenção · PMZ-3E17 · Filial Aldeota");
+    expect(origemDaDespesa({ categoria: "fixas", veiculo: null, filial: centro })).toBe("Fixa · Filial Centro");
     expect(rotuloDaCategoria("rastreamento")).toBe("Rastreamento");
   });
 
