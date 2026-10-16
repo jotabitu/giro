@@ -45,6 +45,7 @@ class PedidoSerializer(serializers.Serializer[Any]):
     decidido_em = serializers.DateTimeField(allow_null=True)
     motivo_recusa = serializers.CharField(allow_null=True)
     pode_decidir = serializers.BooleanField()
+    proprio_pedido = serializers.BooleanField()
 
 
 class ContagensDePedidosSerializer(serializers.Serializer[Any]):

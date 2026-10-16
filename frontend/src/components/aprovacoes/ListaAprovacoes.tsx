@@ -8,7 +8,7 @@ import { Button, Dialogo, Icone, KpiGrid, KpiTile, StatusBadge, TextField } from
 import { Confirmacao, ErroDoFinanceiro } from "@/components/financeiro/Comuns";
 import { aprovacoes, type PedidoDeAprovacao, type StatusDoPedido, type TipoDoPedido } from "@/lib/api";
 import { useAgora } from "@/lib/ambiente";
-import { efeitoDoTipo, haQuanto, linhaDaDecisao, linkDaOrigem, rotuloDoTipo, TIPOS_DE_PEDIDO } from "@/lib/aprovacoes";
+import { atualizarAposDecisao, efeitoDoTipo, haQuanto, linhaDaDecisao, linkDaOrigem, rotuloDoTipo, TIPOS_DE_PEDIDO } from "@/lib/aprovacoes";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { useFiltrosNaUrl } from "@/lib/filtros-url";
 import { useFilial } from "@/lib/filial-escolhida";
@@ -133,7 +133,7 @@ export function ListaAprovacoes({ destaqueId }: { destaqueId?: number }) {
   const aprovadas = useQuery({ queryKey: ["aprovacoes", "decididas", "aprovado"], queryFn: () => aprovacoes.listar({ status: "aprovado" }) });
   const recusadas = useQuery({ queryKey: ["aprovacoes", "decididas", "recusado"], queryFn: () => aprovacoes.listar({ status: "recusado" }) });
 
-  const atualizar = () => Promise.all([cliente.invalidateQueries({ queryKey: ["aprovacoes"] }), cliente.invalidateQueries({ queryKey: ["contadores"] }), cliente.invalidateQueries({ queryKey: ["despesas"] })]);
+  const atualizar = () => atualizarAposDecisao(cliente);
   const aprovar = useMutation({ mutationFn: (p: PedidoDeAprovacao) => aprovacoes.aprovar(p.id).then(() => p), onSuccess: async (p) => (await atualizar(), setAviso(`Aprovado: ${p.titulo}.`)) });
   const recusar = useMutation({
     mutationFn: () => aprovacoes.recusar(recusando?.id ?? 0, motivo.trim()),

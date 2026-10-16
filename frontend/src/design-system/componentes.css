@@ -1,6 +1,10 @@
 /* Estilos dos componentes do design system. Porta de docs/design-system/components/bundle.css:
    só tokens (var(--...)), nenhuma cor fixa. O tema e a marca da empresa chegam pelas variáveis CSS. */
 
+/* Tudo em @layer components do Tailwind: os utilitários (md:hidden, hidden, w-full...) vêm depois e valem por cima.
+   Fora de camada, a classe wl- vencia o utilitário (sintoma: o "+" de Nova despesa aparecia no desktop). */
+@layer components {
+
 .wl-i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .wl-mono { font-family: var(--font-mono); font-size: 14px; letter-spacing: 0.02em; }
 .wl-muted { color: var(--ink-muted); }
@@ -241,3 +245,4 @@ button.wl-pipe__col[aria-pressed="true"] .wl-pipe__bar { outline: 2px solid var(
 .wl-linha__titulo { font-weight: 500; overflow-wrap: anywhere; }
 .wl-linha__apoio { color: var(--ink-muted); font-size: 14px; line-height: 20px; overflow-wrap: anywhere; }
 .wl-linha__acao { flex: none; }
+}

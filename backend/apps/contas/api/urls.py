@@ -51,6 +51,11 @@ urls_empresa: list[URLPattern] = [
         name="usuario-reenviar-convite",
     ),
     path(
+        "usuarios/<int:pk>/link-convite/",
+        usuarios.LinkDoConviteView.as_view(),
+        name="usuario-link-convite",
+    ),
+    path(
         "usuarios/<int:pk>/cancelar-convite/",
         usuarios.CancelarConviteView.as_view(),
         name="usuario-cancelar-convite",
