@@ -1,6 +1,6 @@
 # Veículos, categorias e preços
 
-**Dono:** arquiteto · **Versão:** 16 out 2026 (T-286, movimentações; T-275, blocos da ficha); 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-08, MAN-03, VIS-01, FIN-01, MOV-01 a MOV-06, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07)
+**Dono:** arquiteto · **Versão:** 16 out 2026 (T-293, valor do dia na linha Pagamentos; T-286, movimentações; T-275, blocos da ficha); 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-08, MAN-03, VIS-01, FIN-01, MOV-01 a MOV-06, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 8 a 10 e apoio (`PrecoCategoria`, `Extra`, `HistoricoStatusVeiculo`, `LeituraKm`, `TransferenciaVeiculo`) em `docs/decisoes/modelo-de-dados.md`.
 
@@ -109,7 +109,7 @@ O que a ficha de referência mostra e a representação não trazia. Tudo só no
   "inicio": "2026-09-23T12:00:00Z", "fim_previsto": "2026-10-28T12:00:00Z",
   "plano": { "periodicidade": "semanal", "plano_especial": null, "valor_periodo_centavos": 29940 },
   "pagamento": { "situacao": "atrasado", "rotulo": "Parcela 2 atrasada", "conta_id": 28412,
-                 "valor_centavos": 29940, "atrasadas": 1, "cobrar": true } },
+                 "valor_centavos": 30609, "atrasadas": 1, "cobrar": true } },
 "manutencao": { "proxima": { "servico": "Troca de óleo", "km": 19900, "faltam_km": 950, "intervalo_km": 1000,
                              "progresso_pct": "5.00", "dias_estimados": null,
                              "depois": { "servico": "Revisão 20 mil", "km": 20000, "faltam_km": 1050 },
@@ -130,8 +130,9 @@ O que a ficha de referência mostra e a representação não trazia. Tudo só no
 
 **`locacao_atual.pagamento`** (`FIN-01`, `CLI-07`): a situação das contas a receber da locação (parcelas e caução), de `financeiro.selectors`, com o mesmo status calculado do detalhe da locação.
 - `situacao`: `atrasado` (alguma conta vencida e não paga, o sinal `pagamento_atrasado` da locação), senão `vence_hoje`, senão `em_dia`. Locação `aguardando_retirada` sem nenhuma conta vencida também é `em_dia`.
-- `conta_id` e `valor_centavos`: a conta mais antiga da situação (a atrasada mais antiga; a que vence hoje); `null` em `em_dia`. `atrasadas`: quantas contas estão atrasadas.
-- `rotulo`, montado pela API: "Parcela 2 atrasada" (uma parcela), "Caução atrasada", "2 contas atrasadas" (mais de uma), "Parcela 3 vence hoje", "Em dia". Com mais de uma atrasada, `valor_centavos` é a soma delas.
+- `conta_id`: a conta mais antiga da situação (a atrasada mais antiga; a que vence hoje); `null` em `em_dia`. `atrasadas`: quantas contas estão atrasadas.
+- `valor_centavos` (T-293, decisão do produto na T-290): o **valor do dia** da conta, com multa e juros (`FIN-03`), o mesmo `valor_hoje.total_centavos` do Receber (`financeiro.md`) e da mensagem do Cobrar; nunca o principal. No QXA-4B21 em 07 out: 29940 + 599 de multa + 70 de juros = **30609** ("Parcela 2 atrasada · R$ 306,09"; a referência mostra R$ 299,40, que é o principal). Na conta que vence hoje, o valor do dia é o principal. Com mais de uma atrasada, a soma dos valores do dia delas. `null` em `em_dia`.
+- `rotulo`, montado pela API: "Parcela 2 atrasada" (uma parcela), "Caução atrasada", "2 contas atrasadas" (mais de uma), "Parcela 3 vence hoje", "Em dia" (textos confirmados pelo produto na T-290).
 - `cobrar`: `true` com `situacao` `atrasado` ou `vence_hoje` e o perfil que cobra (`financeiro.md`: administrador, gerente, vendedor, financeiro). O botão "Cobrar" chama `POST /api/financeiro/contas-receber/{conta_id}/cobrar/` (com mais de uma atrasada, `cobrar-em-lote` com as contas da locação fica para a tela de Contas a receber; a ficha cobra a mais antiga). As recusas silenciosas (conta já cobrada hoje, cliente sem contato) são as de lá.
 - O vistoriador não recebe `pagamento` (a chave vem ausente), como não vê os pagamentos no histórico da locação.
 
