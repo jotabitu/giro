@@ -383,7 +383,7 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a FIN-13), manutenção (MAN), automações (AUT), implantação self-service (IMP), relatórios e DRE, exportação (AUD-06, AUD-07). A cobrança da assinatura, cancelar e pausar e a `AUD-08` entraram no MVP em 14 out 2026 (T-183, T-190); continuam aqui a `Plat-Cobranca` e os adicionais. Da exportação (`AUD-07`), o MVP tem só a auditoria em CSV (T-018); a fase 2 traz os outros itens (clientes, veículos, locações e contratos, financeiro, vistorias e fotos), a planilha (.xlsx, dependência nova registrada no PR), o backup completo em ZIP com as 2 etapas recentes, o backup mensal (`AUT-11`) com o cartão da tela, a exportação da plataforma (`/api/plataforma/exportacoes/`), o pedido do titular (`AUD-06`, à mão até lá) e o prazo após o cancelamento (`AUD-08`), decisão do dono de 12 out 2026 (T-151). O orquestrador quebra em tarefas quando a fase 1 fechar.
 
 ### T-254 · E2E sem as anotações de D-02, D-03 e D-05
-- **Agente:** qa · **Depende de:** T-206, T-207 · **Regras:** VEI-01, FIN-09, USR-09 · **Estado:** em andamento (15 out 2026), branch `t-254-e2e-sem-anotacoes`.
+- **Agente:** qa · **Depende de:** T-206, T-207 · **Regras:** VEI-01, FIN-09, USR-09 · **Estado:** entregue em 16 out 2026 (branch `t-254-e2e-sem-anotacoes`, PR a abrir), handoff `tarefas/handoffs/T-254-qa.md`.
 - **O quê:** tirar do E2E as marcas de falha esperada e as notas de D-02 (mensagem do VEI-01 na saída), D-03 ("Abra o caixa do dia para receber") e D-05 (403 do vistoriador ao abrir o cliente); o E2E passa sem elas.
 - **Pronto quando:** `npm run e2e` com 3 passed, sem anotação de defeito.
 
