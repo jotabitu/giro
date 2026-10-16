@@ -8,6 +8,7 @@ import type {
   ListaVeiculos,
   LocacoesDoVeiculo,
   ManutencoesDoVeiculo,
+  EdicaoVeiculo,
   NovoVeiculo,
   TipoVeiculo,
   Veiculo,
@@ -32,6 +33,11 @@ export const veiculosApi = {
   async criar(v: NovoVeiculo): Promise<VeiculoDetalhe> {
     const criado = await http.post<Veiculo>("/api/veiculos/", v);
     return veiculosApi.obter(criado.id);
+  },
+
+  /** PATCH (VEI-01): administrador e gerente; a resposta é a ficha completa. */
+  atualizar(id: number, v: EdicaoVeiculo): Promise<VeiculoDetalhe> {
+    return http.patch<VeiculoDetalhe>(`/api/veiculos/${id}/`, v);
   },
 
   registrarKm(id: number, km: number): Promise<Veiculo> {
