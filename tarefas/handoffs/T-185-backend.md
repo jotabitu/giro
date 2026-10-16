@@ -45,3 +45,41 @@ Corte aprovado pelo orquestrador em 15 out 2026: a T-185 sai em dois PRs. Esta �
 - **Frontend (T-187):** pode ligar Mudar e Comparar planos, o cartão da `oferta`, o desfazer do downgrade e os dados fiscais. Forma de pagamento e faturas esperam a parte 2. A tela mostra só as `acoes` que vierem `true`.
 - **QA (T-204, T-215):** CA-ASS-01, 13, 14, 15 (sem os `abertos`), 16, 17, 18, 19 (mudar plano e dados fiscais), 20, 21, 27 (dados fiscais), 29 (sem a nota), 48, 56 e 58 têm teste aqui.
 - **Segurança:** os requisitos 1 a 3 da seção "Para a T-185" estão nesta parte; os 4 a 8, na parte 2.
+
+---
+
+# T-185 (parte 2) · Forma de pagamento e faturas · backend → orquestrador, frontend (T-187), qa (T-204, T-215), segurança, arquiteto, backend (T-186)
+
+Branch `t-185b-forma-faturas`, empilhada sobre a parte 1 (PR #289).
+
+**O que foi feito:**
+
+- **`PUT /api/assinatura/forma-pagamento/`** (`PLT-13`, ADR 0023), sem campo de cartão. Boleto: grava e vale. Pix automático: cria o pagador e a autorização recorrente na conta principal (frequência do ciclo, valor = preço contratado, a partir da próxima fatura) e devolve `proximo_passo` `autorizar_pix` com o copia e cola e `expira_em` (24 h, a validade do QR no parceiro). Cartão: grava a forma; com fatura atrasada, ou aberta já emitida, devolve `pagina_parceiro` com a página da fatura. A forma não muda o estado da empresa (CA-ASS-02). A troca cancela a autorização do Pix, esquece o token, a bandeira e o final do cartão na linha travada, e cancela no parceiro a cobrança viva de outra forma (se o parceiro diz que já foi paga, nada é cancelado). Parceiro fora: 503, nada gravado. Auditoria `assinatura.forma_pagamento` nos dois lugares, só com a forma antiga e a nova.
+- **`GET /api/assinatura/faturas/`**: 25 por página, da mais nova para a mais antiga, `?status=`; a linha do teste no fim da última página, sem filtro (`teste_ativo` ou `teste_concluido`); `situacao` na ordem do contrato e `acoes` (`pagar` pela tabela de estados e pela forma; o suporte lê com `pagar` desligado).
+- **`GET /api/assinatura/faturas/{codigo}/`**: a linha, mais `cobranca` (o que a tela precisa para pagar), `recibo_url` (gravado na baixa pelo webhook) e `nota_fiscal` (nula com a emissão desligada).
+- **`POST /api/assinatura/faturas/{codigo}/pagar/`**: sem `meio`, pela forma (cartão: página do parceiro; Pix automático: Pix avulso; boleto); com `meio`, por outro meio sem trocar a forma. Mesma cobrança viva no mesmo meio (não cria duas); em outro meio, cancela a antiga antes. 409 `fatura_nao_pagavel`, 422 `sem_forma_pagamento`, 404 de fatura de fora.
+- **Modelo:** na `FaturaAssinatura`, `cobranca_tipo`, `cobranca_pix_copia_e_cola`, `cobranca_linha_digitavel`, `cobranca_boleto_url`, `cobranca_url_pagina` e `recibo_url` (migração `plataforma.0010`), omitidos da auditoria. `SituacaoCobranca.recibo_url` na interface de pagamentos (Asaas: `transactionReceiptUrl`; falso: um link fixo).
+- **Requisitos 4 a 8 da segurança** (T-189), com teste: 4, a forma só com `bandeira` e `final` (serializer com campos listados); 5, trocar de forma apaga o token e um aviso atrasado não regrava o cartão; 6, `pagar/` com `meio` não grava a forma; 7, faturas sempre filtradas pela empresa da requisição, com duas empresas com a FAT-0001; 8, linha digitável, Pix e página do parceiro nunca na auditoria, nos dois schemas. A lista `escreve_na_suspensa` agora é exatamente `PATCH dados-fiscais/`, `PUT forma-pagamento/` e `POST faturas/{codigo}/pagar/`.
+- **T-290 (Produto):** o 409 `valor_mudou` diz "O valor da diferença mudou. Confira o novo valor antes de confirmar."; o cartão no anual já dizia "todo ano".
+
+**Onde:** `backend/apps/plataforma/{models,services,selectors}.py`, `migrations/0010_cobranca_da_fatura.py`, `api/{assinatura,urls}.py`, `backend/integracoes/pagamentos/{base,asaas,falso}.py`, `backend/config/settings/base.py` (nomes de enum). Testes: `backend/tests/aceitacao/test_t185b_forma_faturas.py` (21).
+
+**Contrato:** `docs/api/assinatura.md`; OpenAPI regenerado.
+
+**Regras cobertas:** PLT-02, PLT-07, PLT-13, PLT-14 (testes `test_plt_13_*`, `test_plt_14_*`, `test_plt_02_situacao_*`, `test_adr_0023_trocar_de_forma_apaga_o_token`, `test_plt_07_ca_ass_19_suporte_nao_paga_nem_troca_a_forma`).
+
+**O que ficou de fora:**
+
+- **Pix automático autorizado:** nenhum código ainda escuta o aviso de autorização da conta principal; a forma fica `aguardando_autorizacao` até isso existir. Vai junto da emissão pela autorização na T-186 (ou numa tarefa nova, se o Orquestrador preferir). `primeira_cobranca_centavos` vai 0: a confirmar no sandbox do Asaas.
+- **Diferença do upgrade no cartão guardado, na hora:** ninguém chama `cobrar_cartao_salvo` ainda, e decifrar o token tem de passar pela porta de `integracoes/pagamentos` (ADR 0023). Fica com a T-186, que cobra o cartão no vencimento pelo mesmo caminho; até lá a fatura da diferença nasce `aberta` e é emitida com as outras.
+- Cancelar e pausar (T-195), módulos (T-196), régua e virada (T-186), NFS-e (T-197).
+
+**Pontos para confirmar:**
+
+- **Arquiteto:** os campos novos da `FaturaAssinatura` não estão em `modelo-de-dados.md` (o contrato pede `cobranca` e `recibo_url` no detalhe, e não havia onde guardá-los). Peço que entrem no modelo.
+
+**Próximo passo para quem recebe:**
+
+- **Frontend (T-187):** forma de pagamento (QR do Pix pelo copia e cola, página do cartão com volta à tela, boleto), tabela de faturas com "Pagar" (Pix ou boleto depois da 2ª recusa, com `meio`) e o recibo.
+- **QA:** CA-ASS-02, 11, 12 (a situação), 19, 26, 27 e 28 têm teste aqui.
+- **Backend (T-186):** a emissão 5 dias antes deve gravar a cobrança pelos campos novos (`_emitir_cobranca` já faz para o "Pagar") e a baixa já grava o `recibo_url`.

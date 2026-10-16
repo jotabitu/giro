@@ -487,6 +487,7 @@ class Asaas:
             pago_em=_momento_do_pagamento(str(dia)) if dia else relogio.agora(),
             forma=forma,
             cartao=_cartao(dados) if forma == "cartao" else None,
+            recibo_url=str(dados.get("transactionReceiptUrl") or ""),
         )
 
     # --- Pix Automático (AUT-04) ---

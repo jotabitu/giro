@@ -58,6 +58,14 @@ Contrato: `docs/api/assinatura.md`. A parte 2 (forma de pagamento e faturas) vem
 - `tasks.py`: `plataforma_atualizar_pagador` (dados fiscais mudados, pagador na conta principal).
 - Em `comum`: `EmpresaOperando` aceita `escreve_na_suspensa` (lista explícita, conferida em teste) e `recusa_na_suspensa` (o 409 da regra no lugar do 403); `suporte_proibido` usa a `mensagem_suporte_proibido` da view; a classificação da auditoria ganhou `omitir_no_public` (dados que o apagamento limpa, `AUD-08`).
 
+## Implementado (T-185, parte 2: forma de pagamento e faturas)
+
+- `models.py`: na `FaturaAssinatura`, a cobrança viva (`cobranca_tipo`, Pix, linha digitável, boleto, página do cartão) e o `recibo_url` da baixa (migração `0010`); fora da auditoria.
+- `services.py`: `escolher_forma_pagamento` (Pix automático pela autorização recorrente, cartão pela página do parceiro, boleto; a troca cancela a autorização, esquece o token e cancela a cobrança viva de outra forma) e `pagar_fatura` (pela forma ou por outro `meio`, sem trocar a forma; uma cobrança viva por fatura).
+- `selectors.py`: `faturas_da_empresa` (sempre da empresa da requisição), `item_da_fatura`, `linha_do_teste`, `detalhe_da_fatura`.
+- `api/assinatura.py`: `PUT assinatura/forma-pagamento/`, `GET assinatura/faturas/`, `GET assinatura/faturas/{codigo}/`, `POST assinatura/faturas/{codigo}/pagar/`. Com as três rotas de pagar, a lista `escreve_na_suspensa` fica completa (CA-ASS-27).
+- Interface de pagamentos: `SituacaoCobranca.recibo_url` (Asaas: `transactionReceiptUrl`).
+
 ## Eventos publicados
 
 | Evento | Quando | Dados |
