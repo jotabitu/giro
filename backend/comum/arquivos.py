@@ -110,6 +110,12 @@ def sem_metadados(arquivo: Any, formato: Formato) -> Any:
     return ContentFile(saida.getvalue(), name=nome)
 
 
+def nota_limpa(nota: Any) -> Any:
+    """Nota de despesa (FIN-06): imagem ou PDF pelo conteúdo; a imagem sai sem EXIF nem GPS, como
+    as fotos (B-03 da T-315). Vale para toda nota gravada."""
+    return sem_metadados(nota, validar(nota, "nota"))
+
+
 def caminho_privado(instancia: models.Model, nome: str) -> str:
     """`<schema>/<app>/<model>/<id>/<uuid>.<ext>`. O nome original não vai para o caminho."""
     if instancia.pk is None:

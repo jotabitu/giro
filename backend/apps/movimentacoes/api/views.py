@@ -89,6 +89,11 @@ def _resposta(
     return Response(_para(request, dados), status=codigo)
 
 
+# O suporte só lê as movimentações, mesmo em "ver e editar": toda escrita dá 403 PLT-07 (MOV-02,
+# decisão do dono de 16 out 2026, T-319). Ele não leva nem recebe veículo.
+ESCRITA = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
 class QuadroView(APIView):
     suporte_somente_leitura = True
 
@@ -104,6 +109,7 @@ class QuadroView(APIView):
 
 class MovimentacoesView(APIView):
     suporte_somente_leitura = True
+    suporte_proibido = ESCRITA
 
     @extend_schema(
         responses=ListaSerializer,
@@ -139,6 +145,7 @@ class MovimentacoesView(APIView):
 
 class MovimentacaoView(APIView):
     # Sem "só ver" do suporte: traz as fotos da chegada com URL assinada (ADR 0013, item 2).
+    suporte_proibido = ESCRITA
 
     @extend_schema(responses=MovimentacaoSerializer, summary="Movimentação")
     def get(self, request: Request, pk: int) -> Response:
@@ -155,12 +162,16 @@ class MovimentacaoView(APIView):
 
 
 class IniciarView(APIView):
+    suporte_proibido = True
+
     @extend_schema(request=None, responses=MovimentacaoSerializer, summary="Iniciar (MOV-03)")
     def post(self, request: Request, pk: int) -> Response:
         return _resposta(services.iniciar(_existente(pk), request.user), request)
 
 
 class CancelarView(APIView):
+    suporte_proibido = True
+
     @extend_schema(
         request=CancelarSerializer, responses=MovimentacaoSerializer, summary="Cancelar a agendada"
     )
@@ -170,6 +181,8 @@ class CancelarView(APIView):
 
 
 class ChegadaNaParadaView(APIView):
+    suporte_proibido = True
+
     @extend_schema(
         request=None, responses=MovimentacaoSerializer, summary="Cheguei na parada (MOV-04)"
     )
@@ -179,6 +192,7 @@ class ChegadaNaParadaView(APIView):
 
 
 class SaidaDaParadaView(APIView):
+    suporte_proibido = True
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     @extend_schema(
@@ -195,6 +209,7 @@ class SaidaDaParadaView(APIView):
 
 
 class FotoDaChegadaView(APIView):
+    suporte_proibido = True
     parser_classes = [MultiPartParser, FormParser]
 
     @extend_schema(
@@ -211,6 +226,8 @@ class FotoDaChegadaView(APIView):
 
 
 class ChegadaView(APIView):
+    suporte_proibido = True
+
     @extend_schema(
         request=ChegadaEntradaSerializer,
         responses=MovimentacaoSerializer,
@@ -256,6 +273,7 @@ class RecebedoresView(APIView):
 class LocaisView(APIView):
     permission_classes = GESTAO
     suporte_somente_leitura = True
+    suporte_proibido = ESCRITA
 
     @extend_schema(
         responses=ListaDeLocaisSerializer,
@@ -292,6 +310,7 @@ def _local(pk: int) -> LocalApoio:
 
 
 class InativarLocalView(APIView):
+    suporte_proibido = True
     permission_classes = SO_ADMINISTRADOR
 
     @extend_schema(request=None, responses=LocalSerializer, summary="Inativar local de apoio")
@@ -301,6 +320,7 @@ class InativarLocalView(APIView):
 
 
 class ReativarLocalView(APIView):
+    suporte_proibido = True
     permission_classes = SO_ADMINISTRADOR
 
     @extend_schema(request=None, responses=LocalSerializer, summary="Reativar local de apoio")
