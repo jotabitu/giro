@@ -138,6 +138,21 @@ describe("lista de despesas (FIN-05, CA-017-19)", () => {
     expect(html).toContain('aria-required="true"');
   });
 
+  it("t_244_cabecalho_e_busca_como_a_referencia: o + é só do celular, Exportar fica à direita e a busca cabe no bloco da lista", async () => {
+    await entrar("financeiro@motorapida.com.br");
+    const html = await pagina();
+    // O `.wl-icon-btn` define `display` e vence o `md:hidden` do próprio link: quem some no desktop é o wrapper.
+    expect(html).toMatch(/<div class="ml-auto md:hidden"><a [^>]*aria-label="Nova despesa"/);
+    expect(html).not.toMatch(/<a [^>]*aria-label="Nova despesa"[^>]*md:hidden/);
+    expect(texto(html)).not.toContain("Avulso");
+    // Exportar à direita do cabeçalho, no desktop.
+    expect(html).toMatch(/<div class="ml-auto hidden md:block"><button[^>]*>(<svg.*?<\/svg>)?Exportar/);
+    // A busca (360px no padrão do design system) ocupa só os 220px do bloco, dentro do painel da lista.
+    const painel = html.slice(html.indexOf('aria-label="Despesas do mês"'));
+    expect(painel).toContain('w-[220px] [&amp;_.wl-search]:!w-full');
+    expect(painel.indexOf('aria-label="Buscar despesa"')).toBeGreaterThan(0);
+  });
+
   it("CA-DES-06 e CA-DES-06b: administrador e financeiro veem Exportar, pela flag de pode", async () => {
     for (const email of ["mariana@motorapida.com.br", "financeiro@motorapida.com.br"]) {
       await entrar(email);

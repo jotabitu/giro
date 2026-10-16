@@ -1172,6 +1172,19 @@ def test_vei_06_ca_013_29_ocupacao_com_fracao_de_dia(moto, frota, relogio):
     assert api.get(_url(cedo)).json()["ocupacao"] == {"pct": "50.00", "periodo_dias": 90}
 
 
+def test_vei_06_veiculo_recem_cadastrado_sem_500(moto, frota, relogio):
+    """T-240: a ficha lida meio segundo depois do cadastro tem menos de 1 s na frota; a
+    ocupação é 0,00%, sem 500."""
+    relogio.em("2026-10-07 10:00:00")
+    criado = moto.api("Mariana").post("/api/veiculos/", _cadastro(frota), format="json")
+    assert criado.status_code == 201, criado.json()
+    relogio.em("2026-10-07 10:00:00.500")
+    ficha = moto.api("Mariana").get(f"/api/veiculos/{criado.json()['id']}/")
+    assert ficha.status_code == 200, ficha.content
+    assert ficha.json()["ocupacao"] == {"pct": "0.00", "periodo_dias": 90}
+    assert selectors._pct(timedelta(0), timedelta(milliseconds=500)) == "0.00"
+
+
 # --- Plano e isolamento ---
 
 
