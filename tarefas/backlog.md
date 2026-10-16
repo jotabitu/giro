@@ -154,9 +154,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-267 · Ficha do veículo de referência pelas regras
 - **Agente:** design-system · **Depende de:** T-238, T-255 (e T-246, PR #248) · **Regras:** VEI-01, VEI-02, LOC-06, MAN-03, MOV-01, MOV-03 · **Telas:** Veiculo-Desktop, Veiculo-Mobile · **Pronto quando:** as duas fichas seguem o estado do QXA-4B21 em 07 out das regras (LOC-2841 de 23 set a 28 out, vistoria de saída e km de 23 set, chassi ...4401, troca de óleo aos 18.900 km) e o bloco Movimentações não mostra origem fora de filial, OS fora do seed nem veículo alugado em movimentação; as duas `[divergência]` da T-238 e da T-255 (ficha) marcadas como atendidas; handoff para o frontend copiar na T-242.
 
-### T-242 · Ficha do veículo igual à referência
-- **Agente:** frontend · **Depende de:** T-238, T-267 · **Regras:** VEI-01 a VEI-06 · **Telas:** Veiculo-Desktop (e Veiculo-Mobile) · **Pronto quando:** a ficha do veículo fica idêntica à referência `docs/telas/html/Veiculo-Desktop.dc.html` (pedido do dono: "design idêntico"), com os componentes do design system e os dados da API; o que a referência mostra e a API não manda vira pedido ao arquiteto, não número inventado na tela; revisão visual do design-system lado a lado.
-
 ### T-243 · Editar veículo
 - **Agente:** frontend (backend se não houver rota de edição) · **Depende de:** T-238, T-242 · **Regras:** VEI-01, VEI-04 · **Telas:** a referência da edição vem na T-238; se não houver, reaproveitar `Veiculo-Novo` com os dados preenchidos, conferido com o design-system · **Pronto quando:** "Editar" na ficha abre a edição do veículo; salvar grava pela API e volta à ficha; placa e chassi únicos (`VEI-01`) com a mensagem da API no campo; a filial não se troca aqui (só por transferência, `VEI-04`); km não diminui; testes do componente e, se a rota for nova, do backend, com auditoria.
 

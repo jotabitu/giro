@@ -1,9 +1,9 @@
 "use client";
 
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { Bike, Car, ChevronLeft, Ellipsis, Tag, Wrench } from "lucide-react";
+import { ArrowLeftRight, ChevronLeft, Ellipsis, Tag, Wrench } from "lucide-react";
 import Link from "next/link";
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Button, DataTable, Icone, KpiGrid, KpiTile, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
 import {
   veiculos,
@@ -15,7 +15,7 @@ import {
   type VeiculoDetalhe,
 } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
-import { dataCurta, dinheiro, dinheiroSemZeros, km, mesAno, percentual, placa } from "@/lib/formatos";
+import { dataCurta, dinheiro, dinheiroSemZeros, iniciais, km, mesAno, percentual, placa } from "@/lib/formatos";
 import { situacaoDoDocumento } from "@/lib/frota";
 import { temNoMenu } from "@/lib/menu";
 import { useSessao } from "@/lib/sessao";
@@ -96,12 +96,67 @@ function ListaDeDocumentos({ docs }: { docs: UseQueryResult<DocumentoVeiculo[]> 
   );
 }
 
-function Foto({ tipo, style, className }: { tipo: VeiculoDetalhe["tipo_veiculo"]; style?: CSSProperties; className: string }) {
-  const Desenho = tipo === "moto" ? Bike : Car;
+/** Próxima manutenção como a API manda (serviço e km). "Faltam X km", a barra e o "depois" ficam para quando a API devolver (pedido ao arquiteto, T-242). */
+function ProximaManutencao({ v }: { v: VeiculoDetalhe }) {
+  const proxima = v.manutencao?.proxima;
+  if (!proxima) return null;
   return (
-    <div className={`grid place-items-center text-ink-muted ${className}`} style={style} role="img" aria-label="Foto do veículo ainda não cadastrada">
-      <Desenho aria-hidden="true" style={{ width: 56, height: 56 }} strokeWidth={1.2} />
+    <div className="flex flex-col gap-1">
+      <span className="text-caption text-ink-muted">Próxima manutenção</span>
+      <span className="text-body font-medium">{proxima.servico}</span>
+      <span className="text-caption text-ink-muted">aos {km(proxima.km)}</span>
+      {v.manutencao?.alerta && <span className="text-caption text-ink-muted">{v.manutencao.alerta}</span>}
     </div>
+  );
+}
+
+/** "Agora" do desktop: a locação em curso e a próxima manutenção, só com o que a API manda. */
+function AgoraDesktop({ v }: { v: VeiculoDetalhe }) {
+  const atual = v.locacao_atual;
+  if (!atual && !v.manutencao?.proxima) return null;
+  return (
+    <Panel
+      titulo="Agora"
+      acao={
+        <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
+          {atual ? `${v.situacao.rotulo} desde ${dataCurta(atual.inicio)}` : v.situacao.rotulo}
+        </StatusBadge>
+      }
+    >
+      <div className="grid gap-6 md:grid-cols-2">
+        {atual && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <div aria-hidden="true" className="grid size-10 shrink-0 place-items-center rounded-full bg-brand text-[13px] font-semibold text-on-brand">
+                {iniciais(atual.cliente_nome)}
+              </div>
+              <div className="min-w-0">
+                <div className="text-body font-medium">{atual.cliente_nome}</div>
+                <div className="wl-mono text-caption text-ink-muted">{atual.codigo}</div>
+              </div>
+            </div>
+            <dl>
+              <Linha rotulo="Período">
+                {dataCurta(atual.inicio)} → {dataCurta(atual.fim_previsto)}
+              </Linha>
+              {atual.alerta && (
+                <Linha rotulo="Alerta">
+                  <StatusBadge tom="alerta" compacto>
+                    {atual.alerta}
+                  </StatusBadge>
+                </Linha>
+              )}
+            </dl>
+            <div>
+              <Link href={`/locacoes/${atual.id}`} className="wl-btn wl-btn--sm">
+                Ver locação
+              </Link>
+            </div>
+          </div>
+        )}
+        <ProximaManutencao v={v} />
+      </div>
+    </Panel>
   );
 }
 
@@ -137,6 +192,9 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
             <Button disabled title={EM_BREVE}>
               Editar
             </Button>
+            <Button disabled title={EM_BREVE} icone={<Icone de={ArrowLeftRight} />}>
+              Movimentar
+            </Button>
             <Button disabled title={EM_BREVE} icone={<Icone de={Wrench} />}>
               Mandar para oficina
             </Button>
@@ -156,15 +214,7 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
 
       <div className="flex flex-wrap items-start gap-6">
         <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-6">
-          <section className="wl-panel">
-            <div className="grid grid-cols-[2fr_1fr] gap-2">
-              <Foto tipo={v.tipo_veiculo} className="rounded-lg bg-surface-sunken" style={{ height: 220 }} />
-              <div className="grid gap-2" aria-hidden="true">
-                <div className="rounded-md bg-surface-sunken" />
-                <div className="rounded-md bg-surface-sunken" />
-              </div>
-            </div>
-          </section>
+          <AgoraDesktop v={v} />
 
           <Panel titulo="Locações" acao={locacoes.data ? <span className="text-[13px] text-ink-muted">{locacoes.data.total} no total</span> : undefined}>
             {locacoes.isError && <p role="alert">{mensagemDoErro(locacoes.error)}</p>}
@@ -199,7 +249,8 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
               )}
               {v.referencia_fipe_centavos != null && <Linha rotulo="Valor de venda (FIPE)">{dinheiroSemZeros(v.referencia_fipe_centavos)}</Linha>}
               {v.valor_venda_centavos != null && <Linha rotulo="À venda por">{dinheiroSemZeros(v.valor_venda_centavos)}</Linha>}
-              {v.preco_vigente && <Linha rotulo="Plano padrão">Semanal {dinheiro(v.preco_vigente.semanal_centavos)}</Linha>}
+              <Linha rotulo="Categoria">{v.categoria.nome}</Linha>
+              {v.preco_vigente && <Linha rotulo="Preço de hoje">Semanal {dinheiro(v.preco_vigente.semanal_centavos)}</Linha>}
             </dl>
           </section>
           <section className="wl-panel">
@@ -249,8 +300,6 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
         </button>
       </header>
 
-      <Foto tipo={v.tipo_veiculo} className="rounded-lg bg-surface" style={{ height: 180 }} />
-
       <div className={`grid grid-cols-2 gap-2 ${KPI_DO_CELULAR}`}>
         {fin && <KpiTile rotulo="Rendeu no ano" valor={dinheiroSemZeros(fin.rendeu_no_ano_centavos)} contexto="locações − custos" />}
         <KpiTile rotulo="Ocupação" valor={percentual(v.ocupacao.pct)} contexto={`${v.ocupacao.periodo_dias} dias`} />
@@ -271,7 +320,23 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
               <span className="wl-mono">{atual.codigo}</span>
             </Linha>
             <Linha rotulo="Devolve">{dataCurta(atual.fim_previsto)}</Linha>
+            {atual.alerta && (
+              <Linha rotulo="Alerta">
+                <StatusBadge tom="alerta" compacto>
+                  {atual.alerta}
+                </StatusBadge>
+              </Linha>
+            )}
           </dl>
+        </CartaoDoCelular>
+      )}
+
+      {v.manutencao?.proxima && (
+        <CartaoDoCelular titulo="Próxima manutenção">
+          <p className="mt-2 text-body">
+            {v.manutencao.proxima.servico} aos {km(v.manutencao.proxima.km)}
+          </p>
+          {v.manutencao.alerta && <p className="mt-1 text-caption text-ink-muted">{v.manutencao.alerta}</p>}
         </CartaoDoCelular>
       )}
 
