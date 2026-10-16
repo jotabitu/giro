@@ -183,11 +183,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-252 · Revisão do link do convite na tela
 - **Agente:** segurança · **Depende de:** T-250 · **Pronto quando:** a segurança revisa a rota e a tela do link copiável: só administrador, link mostrado uma vez e fora de log, limite por hora, evento de auditoria, invalidação do anterior, e o suporte Giro sem acesso à rota.
 
-### T-280 · CA-248-12 e o link antigo do convite
-- **Agente:** produto · **Depende de:** — · **Regras:** USR-01, P-06 · **Pronto quando:** o código do link antigo depois de copiar um novo está decidido pela regra, e o critério e o backend dizem o mesmo. · **Estado (16 out 2026):** feito, PR #274; handoff `tarefas/handoffs/T-280-produto.md`. **Decisão:** fica o 410 `convite_expirado` da T-250 (PR #272), como no reenvio (P-06): o link substituído é vencido, e a mensagem "Peça um novo ao administrador" orienta quem o abre. O CA-248-12 e o 13 passaram a pedir 410, e a `USR-01` diz o aviso. O backend não muda.
-
-Propostas pela segurança na T-024 (12 out 2026, `tarefas/handoffs/T-024-seguranca.md`), numeradas pelo orquestrador; nenhuma alta. A T-155 (M-01) entrou no PR #160 (ver `feito.md`).
-
 
 ### T-156 · (M-02) Custo e rendimento do veículo fora da ficha do vendedor (média)
 - **Backend feito (15 out 2026):** PR #246 (`tarefas/handoffs/T-156-backend.md`); OpenAPI sem diferença. **Falta o frontend:** os cartões só quando a API manda `indicadores_financeiros`.
