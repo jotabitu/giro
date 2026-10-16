@@ -99,7 +99,7 @@ function Fechar({ caixa, aoFechar, aoConcluir }: { caixa: Caixa; aoFechar: () =>
   const fechar = useMutation({
     mutationFn: () => financeiro.fecharCaixa(caixa.id, { contado_centavos: centavos ?? 0, motivo_diferenca: motivo.trim() || null }),
     onSuccess: async (r) => {
-      await cliente.invalidateQueries({ queryKey: ["caixa"] });
+      await Promise.all([cliente.invalidateQueries({ queryKey: ["caixa"] }), cliente.invalidateQueries({ queryKey: ["aprovacoes"] }), cliente.invalidateQueries({ queryKey: ["contadores"] })]);
       aoConcluir(r.status === "aguardando_aprovacao" ? "Fechamento enviado ao gerente. O caixa fecha quando ele aprovar a diferença." : "Caixa fechado.");
       aoFechar();
     },

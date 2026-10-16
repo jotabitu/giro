@@ -251,3 +251,4 @@ Formato: `T-0xx · título · agente · PR #n · handoff`.
 - T-280 · CA-248-12 e o link antigo do convite · produto · PR #274 (branch t-280-ca-248-12) · tarefas/handoffs/T-280-produto.md · o link substituído (por cópia ou reenvio) responde 410 `convite_expirado`, como a T-250 já faz (P-06; copiar segue o reenvio, `USR-01`); o 404 fica para o link que não existe ou já foi usado; CA-248-12 e 13 pedem 410, e a `USR-01` diz o aviso. O backend não muda.
 - T-270 · Sentry sem o token do webhook e sem variáveis locais (B-01 da T-189, M-03 da T-247) · devops · PR #277 (branch t-270-sentry-sem-segredos) · tarefas/handoffs/T-270-devops.md · comum/sentry.py, 5 testes com transporte de mentira
 - T-162 · Flag lancamento_avulso em pode (frontend) · frontend · PR #278 (branch t-162-botao-lancamento-avulso)
+- T-241 · Bug: contador de Aprovações no menu demora a mudar · frontend · PR #280 (branch t-241-contador-aprovacoes)
