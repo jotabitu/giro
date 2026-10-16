@@ -5,6 +5,7 @@ x-backend: &backend
   build:
     context: .
     dockerfile: infra/docker/backend.Dockerfile
+    target: dev
   env_file: .env
   restart: unless-stopped
   environment:

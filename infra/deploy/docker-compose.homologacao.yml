@@ -1,0 +1,88 @@
+# Homologação (T-264, ADR 0027): a imagem `producao` do backend (Gunicorn, sem root) atrás do
+# proxy de infra/proxy. Banco e Redis são gerenciados e vêm por variável de ambiente
+# (DATABASE_URL e companhia, em infra/deploy/homologacao.env.example); o frontend também é
+# externo (FRONTEND_UPSTREAM). Uso:
+#   docker compose -f infra/deploy/docker-compose.homologacao.yml --env-file <cofre>.env up -d --build
+# Variáveis do compose (além das do modelo): PORTA_HTTP e PORTA_HTTPS (80 e 443 por padrão), CERT_DIR_HOST (pasta com fullchain.pem e
+# privkey.pem do certificado curinga), FRONTEND_UPSTREAM (host:porta do Next).
+
+x-backend: &backend
+  build:
+    context: ../..
+    dockerfile: infra/docker/backend.Dockerfile
+    target: producao
+  image: giro-backend:producao
+  env_file: ${ENV_FILE:-homologacao.env}
+  restart: unless-stopped
+
+services:
+  # Copia os estáticos do Admin para o volume que o proxy serve, a cada subida (um volume
+  # nomeado só se preencheria na primeira vez e ficaria velho nas versões seguintes).
+  estaticos:
+    <<: *backend
+    restart: "no"
+    # Root só nesta cópia: o volume novo é do root e a imagem roda com o usuário giro.
+    user: "0"
+    entrypoint: ["sh", "-c", "cp -r /app/staticfiles/. /estaticos/"]
+    volumes:
+      - estaticos:/estaticos
+
+  # Migra os schemas com o papel giro_migracao (ADR 0016) e sai; só então o backend sobe. O
+  # backend, o worker e o beat usam giro_app, sem DDL (DATABASE_URL do cofre).
+  migrar:
+    <<: *backend
+    restart: "no"
+    environment:
+      RODAR_MIGRACOES: "1"
+      DATABASE_URL: ${DATABASE_URL_MIGRACAO}
+    command: ["true"]
+
+  backend:
+    <<: *backend
+    depends_on:
+      migrar:
+        condition: service_completed_successfully
+    expose:
+      - "8000"
+    # Sem `command`: vale o CMD da imagem, o Gunicorn com infra/docker/gunicorn.conf.py.
+    stop_grace_period: 40s
+
+  worker:
+    <<: *backend
+    depends_on:
+      migrar:
+        condition: service_completed_successfully
+    command: ["celery", "-A", "config", "worker", "--loglevel=INFO"]
+    stop_grace_period: 40s
+
+  beat:
+    <<: *backend
+    depends_on:
+      migrar:
+        condition: service_completed_successfully
+    command: ["celery", "-A", "config", "beat", "--loglevel=INFO", "--schedule=/tmp/celerybeat-schedule"]
+
+  proxy:
+    image: nginx:1.27
+    restart: unless-stopped
+    environment:
+      DOMINIO_BASE: ${DOMINIO_BASE}
+      BACKEND_UPSTREAM: backend:8000
+      FRONTEND_UPSTREAM: ${FRONTEND_UPSTREAM}
+      CERT_DIR: /etc/ssl/giro
+      ESTATICOS_DIR: /estaticos
+    volumes:
+      - ../proxy/giro.conf.template:/etc/nginx/templates/giro.conf.template:ro
+      - ${CERT_DIR_HOST}:/etc/ssl/giro:ro
+      - estaticos:/estaticos:ro
+    ports:
+      - "${PORTA_HTTP:-80}:80"
+      - "${PORTA_HTTPS:-443}:443"
+    depends_on:
+      estaticos:
+        condition: service_completed_successfully
+      backend:
+        condition: service_started
+
+volumes:
+  estaticos:
