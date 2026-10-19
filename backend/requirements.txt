@@ -27,3 +27,7 @@ defusedxml>=0.7.1,<0.8
 # Servidor WSGI de homologação e produção (ADR 0027, T-264); o desenvolvimento usa o runserver.
 # A 23 traz as correções de request smuggling das versões anteriores.
 gunicorn>=23,<24
+# Leitura do CRLV-e em PDF (VEI-08, ADR 0026, item 3): Python puro, só abertura e extração de
+# texto, no processo filho isolado. Mínimo pelo pip-audit (6.21.1 sem aviso em 19 out 2026); o
+# limite de baixo sobe a cada aviso novo.
+pypdf>=6.21.1,<7

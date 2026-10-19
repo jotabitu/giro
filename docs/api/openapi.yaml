@@ -3956,8 +3956,7 @@ paths:
   /api/marca/:
     get:
       operationId: marca_retrieve
-      description: 'Sem autenticação: com ou sem token (inclusive o do suporte), a
-        resposta é a mesma.'
+      description: GET público; PATCH do administrador, com login e o limite por usuário.
       summary: Marca da empresa do subdomínio (nome, logo e cores)
       tags:
       - marca
@@ -3972,6 +3971,29 @@ paths:
           description: ''
         '304':
           description: Sem mudança
+    patch:
+      operationId: marca_partial_update
+      description: GET público; PATCH do administrador, com login e o limite por usuário.
+      summary: 'Salvar a marca: nome, cor e logo (só o administrador; S-12, ADR 0022)'
+      tags:
+      - marca
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSalvarMarca'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSimularMarca'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Marca'
+          description: ''
   /api/marca/logo/:
     get:
       operationId: marca_logo_retrieve
@@ -4002,6 +4024,33 @@ paths:
           description: ''
         '404':
           description: Sem logo (`nao_encontrado`)
+  /api/marca/simular/:
+    post:
+      operationId: marca_simular_create
+      description: 'Prévia das cores (ADR 0005): a tela nunca calcula cor.'
+      summary: Prévia da marca sem gravar (nome, iniciais e cores)
+      tags:
+      - marca
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimularMarca'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SimularMarca'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SimularMarca'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarcaSimulada'
+          description: ''
   /api/movimentacoes/:
     get:
       operationId: movimentacoes_list
@@ -5615,7 +5664,7 @@ paths:
           description: ''
     post:
       operationId: veiculos_create
-      summary: Cadastrar veículo (VEI-01, PLT-03)
+      summary: Cadastrar veículo (VEI-01, PLT-03), com o CRLV lido em multipart (VEI-08)
       tags:
       - veiculos
       requestBody:
@@ -5623,12 +5672,9 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/VeiculoEntrada'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/VeiculoEntrada'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/VeiculoEntrada'
+              $ref: '#/components/schemas/VeiculoComCrlvEntrada'
         required: true
       security:
       - jwtAuth: []
@@ -6022,6 +6068,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Veiculo'
+          description: ''
+  /api/veiculos/leitura-crlv/:
+    post:
+      operationId: veiculos_leitura_crlv_create
+      description: |-
+        Preencher pelo CRLV-e (VEI-08, ADR 0026). Não grava nada. Administrador e gerente; o
+        suporte só em "ver e editar" (em "só ver", 403 `PLT-07`).
+      summary: Ler o CRLV-e em PDF, sem gravar (VEI-08)
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LeituraCrlvEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeituraCrlv'
+          description: ''
+  /api/veiculos/modelos/:
+    get:
+      operationId: veiculos_modelos_list
+      description: |-
+        O catálogo de marcas e modelos, local e igual para todas as empresas (VEI-08, ADR 0026,
+        item 7). Para quem vê veículos: todos os perfis (`pode.veiculos` nunca é `nao`).
+      summary: Catálogo de marcas e modelos (VEI-08)
+      parameters:
+      - in: query
+        name: busca
+        schema:
+          type: string
+      - in: query
+        name: marca
+        schema:
+          type: string
+      - in: query
+        name: tipo
+        schema:
+          type: string
+          enum:
+          - carro
+          - moto
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeModelosDoCatalogo'
           description: ''
   /api/vistorias/{id}/:
     get:
@@ -7226,6 +7330,48 @@ components:
       - recebido_centavos
       - saldo_dia_centavos
       - status
+    CamposDoCrlv:
+      type: object
+      properties:
+        placa:
+          type: string
+          nullable: true
+        chassi:
+          type: string
+          nullable: true
+        renavam:
+          type: string
+          nullable: true
+        marca:
+          type: string
+          nullable: true
+        modelo:
+          type: string
+          nullable: true
+        ano_fabricacao:
+          type: integer
+          nullable: true
+        ano_modelo:
+          type: integer
+          nullable: true
+        cor:
+          type: string
+          nullable: true
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+      required:
+      - ano_fabricacao
+      - ano_modelo
+      - chassi
+      - combustivel
+      - cor
+      - marca
+      - modelo
+      - placa
+      - renavam
     CancelamentoLocacao:
       type: object
       properties:
@@ -7506,7 +7652,7 @@ components:
         combustivel:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/CombustivelEnum'
+          - $ref: '#/components/schemas/NivelDoTanqueEnum'
           - $ref: '#/components/schemas/NullEnum'
         recebido_por:
           allOf:
@@ -7530,7 +7676,7 @@ components:
         combustivel:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/CombustivelEnum'
+          - $ref: '#/components/schemas/NivelDoTanqueEnum'
           - $ref: '#/components/schemas/NullEnum'
         recebido_por_id:
           type: integer
@@ -8086,20 +8232,22 @@ components:
       - faltou
       - litros_faltantes
       - saida
-    CombustivelEnum:
+    CombustivelVeiculoEnum:
       enum:
-      - reserva
-      - um_quarto
-      - meio
-      - tres_quartos
-      - cheio
+      - gasolina
+      - etanol
+      - flex
+      - diesel
+      - eletrico
+      - hibrido
       type: string
       description: |-
-        * `reserva` - Reserva
-        * `um_quarto` - 1/4
-        * `meio` - 1/2
-        * `tres_quartos` - 3/4
-        * `cheio` - Cheio
+        * `gasolina` - Gasolina
+        * `etanol` - Etanol
+        * `flex` - Flex
+        * `diesel` - Diesel
+        * `eletrico` - Elétrico
+        * `hibrido` - Híbrido
     Comparacao:
       type: object
       properties:
@@ -9163,6 +9311,14 @@ components:
       required:
       - linhas
       - subtitulo
+    DicasDaLeitura:
+      type: object
+      properties:
+        marca_modelo:
+          type: string
+          nullable: true
+      required:
+      - marca_modelo
     Documento:
       type: object
       properties:
@@ -9224,6 +9380,11 @@ components:
         validade:
           type: string
           format: date
+        exercicio:
+          type: integer
+          maximum: 2100
+          minimum: 1900
+          nullable: true
         arquivo:
           type: string
           format: uri
@@ -9242,6 +9403,11 @@ components:
       required:
       - arquivo
       - tipo
+    DocumentoEnum:
+      enum:
+      - crlv
+      type: string
+      description: '* `crlv` - crlv'
     DoisFatores:
       type: object
       properties:
@@ -11802,6 +11968,47 @@ components:
         * `multa` - Multa
         * `avaria` - Avaria
         * `outro` - Outro
+    LeituraCrlv:
+      type: object
+      properties:
+        documento:
+          $ref: '#/components/schemas/DocumentoEnum'
+        campos:
+          $ref: '#/components/schemas/CamposDoCrlv'
+        lidos:
+          type: array
+          items:
+            type: string
+        quantidade:
+          type: integer
+        rotulo:
+          type: string
+        exercicio:
+          type: integer
+          nullable: true
+        dicas:
+          $ref: '#/components/schemas/DicasDaLeitura'
+        leitura:
+          type: string
+      required:
+      - campos
+      - dicas
+      - documento
+      - exercicio
+      - leitura
+      - lidos
+      - quantidade
+      - rotulo
+    LeituraCrlvEntrada:
+      type: object
+      description: '`multipart/form-data`: o PDF do CRLV-e, até 2 MB (ADR 0026, item
+        6).'
+      properties:
+        arquivo:
+          type: string
+          format: uri
+      required:
+      - arquivo
     LeituraKm:
       type: object
       properties:
@@ -12315,6 +12522,15 @@ components:
             $ref: '#/components/schemas/ModeloResumo'
       required:
       - resultados
+    ListaDeModelosDoCatalogo:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModeloDoCatalogo'
+      required:
+      - resultados
     ListaDeModelosProntos:
       type: object
       properties:
@@ -12814,6 +13030,28 @@ components:
       - nome_exibicao
       - personalizada
       - versao
+    MarcaSimulada:
+      type: object
+      properties:
+        nome_exibicao:
+          type: string
+        iniciais:
+          type: string
+        cor:
+          type: string
+        cor_sobre:
+          type: string
+        cor_suave:
+          type: string
+        cor_suave_escuro:
+          type: string
+      required:
+      - cor
+      - cor_sobre
+      - cor_suave
+      - cor_suave_escuro
+      - iniciais
+      - nome_exibicao
     Marcador:
       type: object
       properties:
@@ -12925,6 +13163,27 @@ components:
       - texto
       - versao_publicada
       - versoes
+    ModeloDoCatalogo:
+      type: object
+      properties:
+        marca:
+          type: string
+        modelo:
+          type: string
+        tipo:
+          $ref: '#/components/schemas/ModeloDoCatalogoTipoEnum'
+      required:
+      - marca
+      - modelo
+      - tipo
+    ModeloDoCatalogoTipoEnum:
+      enum:
+      - moto
+      - carro
+      type: string
+      description: |-
+        * `moto` - moto
+        * `carro` - carro
     ModeloEntrada:
       type: object
       description: '`{ nome, finalidade, texto }` ou `{ nome?, a_partir_de }`.'
@@ -13330,6 +13589,20 @@ components:
         * `aprova` - aprova
         * `pede` - pede
         * `nao` - nao
+    NivelDoTanqueEnum:
+      enum:
+      - reserva
+      - um_quarto
+      - meio
+      - tres_quartos
+      - cheio
+      type: string
+      description: |-
+        * `reserva` - Reserva
+        * `um_quarto` - 1/4
+        * `meio` - 1/2
+        * `tres_quartos` - 3/4
+        * `cheio` - Cheio
     Nota:
       type: object
       properties:
@@ -13952,7 +14225,7 @@ components:
         combustivel:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/CombustivelEnum'
+          - $ref: '#/components/schemas/NivelDoTanqueEnum'
           - $ref: '#/components/schemas/NullEnum'
         itens:
           type: array
@@ -14100,6 +14373,30 @@ components:
         condicoes:
           type: string
           default: ''
+    PatchedSalvarMarca:
+      type: object
+      description: O formato é conferido no serviço, com as mensagens do contrato.
+      properties:
+        cor:
+          type: string
+        nome_exibicao:
+          type: string
+        logo:
+          type: string
+          format: uri
+          nullable: true
+          description: SVG ou PNG até 2 MB, pelo conteúdo (ADR 0022). Só em multipart.
+        remover_logo:
+          type: boolean
+          default: false
+    PatchedSimularMarca:
+      type: object
+      description: O formato é conferido no serviço, com as mensagens do contrato.
+      properties:
+        cor:
+          type: string
+        nome_exibicao:
+          type: string
     PatchedVeiculoEdicao:
       type: object
       properties:
@@ -14119,6 +14416,11 @@ components:
         cor:
           type: string
           maxLength: 30
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
         categoria_id:
           type: integer
         capacidade_tanque_litros:
@@ -15897,6 +16199,14 @@ components:
           type: string
           format: date
           nullable: true
+    SimularMarca:
+      type: object
+      description: O formato é conferido no serviço, com as mensagens do contrato.
+      properties:
+        cor:
+          type: string
+        nome_exibicao:
+          type: string
     SinaisLocacao:
       type: object
       properties:
@@ -16859,6 +17169,11 @@ components:
           type: integer
         cor:
           type: string
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
         tipo_veiculo:
           $ref: '#/components/schemas/TipoVeiculoEnum'
         categoria:
@@ -16922,6 +17237,7 @@ components:
       - capacidade_tanque_litros
       - categoria
       - chassi
+      - combustivel
       - cor
       - documentos_resumo
       - entrou_na_frota_em
@@ -16940,6 +17256,87 @@ components:
       - situacao
       - status
       - tipo_veiculo
+    VeiculoComCrlvEntrada:
+      type: object
+      description: '`multipart/form-data`: o cadastro e o CRLV lido pela leitura (VEI-08,
+        ADR 0026, item 8).'
+      properties:
+        placa:
+          type: string
+          maxLength: 10
+        chassi:
+          type: string
+          maxLength: 20
+        renavam:
+          type: string
+          nullable: true
+        marca:
+          type: string
+          maxLength: 40
+        modelo:
+          type: string
+          maxLength: 60
+        ano_fabricacao:
+          type: integer
+        ano_modelo:
+          type: integer
+        cor:
+          type: string
+          maxLength: 30
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        km_atual:
+          type: integer
+          minimum: 0
+        categoria_id:
+          type: integer
+        filial_id:
+          type: integer
+        capacidade_tanque_litros:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,1})?$
+          nullable: true
+        valor_compra_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+        data_compra:
+          type: string
+          format: date
+          nullable: true
+        entrou_na_frota_em:
+          type: string
+          format: date
+        crlv_arquivo:
+          type: string
+          format: uri
+          nullable: true
+        crlv_validade:
+          type: string
+          format: date
+          nullable: true
+        crlv_exercicio:
+          type: integer
+          maximum: 2100
+          minimum: 1900
+          nullable: true
+        leitura:
+          type: string
+          maxLength: 4000
+      required:
+      - ano_fabricacao
+      - ano_modelo
+      - categoria_id
+      - chassi
+      - cor
+      - filial_id
+      - marca
+      - modelo
+      - placa
     VeiculoDaLocacao:
       type: object
       properties:
@@ -17022,6 +17419,11 @@ components:
           type: integer
         cor:
           type: string
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
         tipo_veiculo:
           $ref: '#/components/schemas/TipoVeiculoEnum'
         categoria:
@@ -17099,6 +17501,7 @@ components:
       - capacidade_tanque_litros
       - categoria
       - chassi
+      - combustivel
       - cor
       - documentos_resumo
       - entrou_na_frota_em
@@ -17144,6 +17547,11 @@ components:
         cor:
           type: string
           maxLength: 30
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
         km_atual:
           type: integer
           minimum: 0
@@ -17245,7 +17653,7 @@ components:
         combustivel:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/CombustivelEnum'
+          - $ref: '#/components/schemas/NivelDoTanqueEnum'
           - $ref: '#/components/schemas/NullEnum'
         fotos:
           type: array

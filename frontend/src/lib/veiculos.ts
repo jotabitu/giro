@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { EdicaoVeiculo, NovoVeiculo, VeiculoDetalhe } from "@/lib/api";
+import type { EdicaoVeiculo, LeituraCrlv, NovoVeiculo, VeiculoDetalhe } from "@/lib/api";
 
 const texto = z.string().trim();
 
@@ -19,6 +19,7 @@ export const esquemaVeiculo = z.object({
   categoria_id: texto.min(1, "Escolha a categoria"),
   capacidade_tanque_litros: texto,
   data_compra: texto,
+  crlv_validade: texto,
   valor_compra: texto.refine((t) => t === "" || centavosDoTexto(t) !== null, "Informe um valor, como R$ 13.490,00"),
 });
 export type ValoresVeiculo = z.infer<typeof esquemaVeiculo>;
@@ -39,6 +40,7 @@ export const VALORES_INICIAIS_VEICULO: ValoresVeiculo = {
   capacidade_tanque_litros: "",
   data_compra: "",
   valor_compra: "",
+  crlv_validade: "",
 };
 
 /** "13.490,00" ou "R$ 13.490,00" em centavos (1349000). Texto que não é valor volta `null`; a API confere o resto. */
@@ -97,6 +99,7 @@ export function valoresDoVeiculo(v: VeiculoDetalhe): ValoresVeiculo {
     capacidade_tanque_litros: v.capacidade_tanque_litros ?? "",
     data_compra: v.data_compra ?? "",
     valor_compra: v.valor_compra_centavos != null ? textoDeCentavos(v.valor_compra_centavos) : "",
+    crlv_validade: "",
   };
 }
 
@@ -115,4 +118,21 @@ export function paraCorpoEdicao(v: ValoresVeiculo): EdicaoVeiculo {
     data_compra: v.data_compra || null,
     valor_compra_centavos: compra,
   };
+}
+
+/** Campos da leitura que têm campo próprio no formulário. `combustivel` vai no cadastro sem campo na tela. */
+const CAMPOS_DA_LEITURA = ["placa", "chassi", "renavam", "marca", "modelo", "ano_fabricacao", "ano_modelo", "cor"] as const;
+export type CampoLido = (typeof CAMPOS_DA_LEITURA)[number];
+
+/** O que a API leu → valores do formulário. Só entram os campos de `lidos`; o resto da tela não muda (VEI-08). */
+export function valoresDaLeitura(l: LeituraCrlv): { valores: Partial<Pick<ValoresVeiculo, CampoLido>>; lidos: CampoLido[] } {
+  const valores: Partial<Pick<ValoresVeiculo, CampoLido>> = {};
+  const lidos: CampoLido[] = [];
+  for (const campo of CAMPOS_DA_LEITURA) {
+    const valor = l.campos[campo];
+    if (!l.lidos.includes(campo) || valor === null || valor === undefined) continue;
+    valores[campo] = String(valor);
+    lidos.push(campo);
+  }
+  return { valores, lidos };
 }

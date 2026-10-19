@@ -137,6 +137,15 @@ TRANSICOES_VEICULO: dict[str, set[str]] = {
 }
 
 
+class Combustivel(models.TextChoices):
+    GASOLINA = "gasolina", "Gasolina"
+    ETANOL = "etanol", "Etanol"
+    FLEX = "flex", "Flex"
+    DIESEL = "diesel", "Diesel"
+    ELETRICO = "eletrico", "Elétrico"
+    HIBRIDO = "hibrido", "Híbrido"
+
+
 class Veiculo(MaquinaDeEstados, ModeloBase):
     placa = models.CharField(max_length=7, unique=True)
     chassi = models.CharField(max_length=17, unique=True)
@@ -146,6 +155,10 @@ class Veiculo(MaquinaDeEstados, ModeloBase):
     ano_fabricacao = models.PositiveSmallIntegerField()
     ano_modelo = models.PositiveSmallIntegerField()
     cor = models.CharField(max_length=30)
+    # VEI-08 (T-247): nulo nos veículos cadastrados antes, como o contrato publica (`null`).
+    combustivel = models.CharField(  # noqa: DJ001
+        max_length=10, choices=Combustivel.choices, null=True, blank=True
+    )
     km_atual = models.PositiveIntegerField(default=0)  # só sobe (VEI-01), por serviço
     km_atualizado_em = models.DateTimeField(null=True, blank=True)
     capacidade_tanque_litros = models.DecimalField(
@@ -292,6 +305,7 @@ class DocumentoVeiculo(ModeloBase, ModeloAtivavel):
     veiculo = models.ForeignKey(Veiculo, on_delete=models.PROTECT, related_name="documentos")
     tipo = models.CharField(max_length=12, choices=TipoDocumento.choices)
     validade = models.DateField()
+    exercicio = models.PositiveSmallIntegerField(null=True, blank=True)  # só no crlv (VEI-08)
     # Armazenamento privado com URL assinada de 15 minutos (AUD-05, ADR 0009).
     arquivo = models.FileField(
         storage=arquivos.armazenamento_privado,

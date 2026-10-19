@@ -59,8 +59,11 @@ class ConfiguracaoEmpresa(ModeloBase):
     # Trava de linha única: sempre 1.
     unica = models.PositiveSmallIntegerField(default=1, unique=True, editable=False)
 
-    # O nome de exibição é o da marca, público na tela de login: vai inteiro.
-    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["nome_exibicao"]}
+    # A marca é pública na tela de login: vai inteira. O logo entra pelo nome do arquivo, que é o
+    # resumo do conteúdo limpo (T-153), nunca pelo conteúdo.
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
+        "inteiro": ["nome_exibicao", "cor_marca", "logo"]
+    }
 
     class Meta:
         verbose_name = "configuração da empresa"

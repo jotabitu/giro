@@ -406,6 +406,7 @@ def representacao(
         "ano_fabricacao": veiculo.ano_fabricacao,
         "ano_modelo": veiculo.ano_modelo,
         "cor": veiculo.cor,
+        "combustivel": veiculo.combustivel,
         "tipo_veiculo": veiculo.categoria.tipo_veiculo,
         "categoria": {"id": veiculo.categoria_id, "nome": veiculo.categoria.nome},
         "filial": {"id": veiculo.filial_id, "nome": veiculo.filial.nome},
