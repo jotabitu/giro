@@ -68,9 +68,8 @@ def test_aut_13_ca_ass_10_lembrete_d3_por_email(
     mailoutbox.clear()
     assert _regua(relogio, "2026-10-18") == {}
     assert _regua(relogio, "2026-10-19") == {"D-3": 1}
-    assert len(mailoutbox) == 1
+    assert [m.to for m in mailoutbox] == [[COBRANCA], [MARIANA]]  # um por destinatário (T-306)
     lembrete = mailoutbox[0]
-    assert lembrete.to == [COBRANCA, MARIANA]
     assert lembrete.subject == "Giro: a fatura FAT-0001 vence em 22 out"
     fatura = moto.fatura("FAT-0001")
     assert fatura.cobranca_boleto_url in lembrete.body
@@ -78,7 +77,7 @@ def test_aut_13_ca_ass_10_lembrete_d3_por_email(
     assert "!" not in lembrete.body
     assert whatsapp.caixa_de_saida == []
     assert _regua(relogio, "2026-10-19") == {}
-    assert len(mailoutbox) == 1
+    assert len(mailoutbox) == 2
     evento = _eventos("fatura_assinatura.regua")[-1]
     assert (evento.depois["marco"], evento.regra, evento.ator_tipo) == ("D-3", "AUT-13", "sistema")
     assert _regua(relogio, "2026-10-20") == {}
@@ -119,11 +118,10 @@ def test_aut_13_d0_d3_d7_com_whatsapp_e_ligacao(
     assert len(whatsapp.caixa_de_saida) == 2
 
     assert _regua(relogio, "2026-10-29") == {"D+7": 1}
-    ligacao = next(m for m in mailoutbox[-2:] if m.to == [EQUIPE])
-    aviso = next(m for m in mailoutbox[-2:] if m is not ligacao)
-    assert aviso.subject == "Giro: o acesso da Moto Rápida será suspenso em 06 nov"
-    assert aviso.to == [COBRANCA, MARIANA]
-    assert ligacao.to == [EQUIPE]
+    ligacao = next(m for m in mailoutbox[-3:] if m.to == [EQUIPE])
+    avisos = [m for m in mailoutbox[-3:] if m is not ligacao]
+    assert {m.subject for m in avisos} == {"Giro: a empresa Moto Rápida fica suspensa em 06 nov"}
+    assert [m.to for m in avisos] == [[COBRANCA], [MARIANA]]
     assert CELULAR in ligacao.body and "FAT-0001" in ligacao.body
     assert len(whatsapp.caixa_de_saida) == 2  # o D+7 não vai por WhatsApp
     assert [e.regra for e in _eventos("fatura_assinatura.pedir_ligacao")] == ["PLT-02"]
@@ -196,7 +194,7 @@ def test_aut_13_regua_isolada_por_empresa(
     mailoutbox.clear()
     assert _regua(relogio, "2026-10-19") == {"D-3": 2}
     destinos = sorted(tuple(m.to) for m in mailoutbox)
-    assert destinos == [("ana@outra.com.br",), (COBRANCA, MARIANA)]
+    assert destinos == [("ana@outra.com.br",), (COBRANCA,), (MARIANA,)]
     para_outra = next(m for m in mailoutbox if m.to == ["ana@outra.com.br"])
     assert "Outra" in para_outra.body and "Moto Rápida" not in para_outra.body
     assert "Escolha a forma de pagamento" in para_outra.body
