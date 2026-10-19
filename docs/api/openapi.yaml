@@ -6687,6 +6687,9 @@ components:
           type: boolean
         cancelar:
           description: '"direto", "pedir" ou false'
+        gerar_contrato:
+          type: boolean
+          description: 'T-263: o POST .../contrato/ passaria'
         imprimir_contrato:
           type: boolean
         reenviar_contrato:
@@ -6701,6 +6704,7 @@ components:
       - confirmar
       - continuar_vistoria
       - editar
+      - gerar_contrato
       - imprimir_contrato
       - receber
       - reenviar_contrato

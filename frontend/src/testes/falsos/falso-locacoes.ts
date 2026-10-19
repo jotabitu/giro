@@ -172,6 +172,7 @@ function acoesDe(s: Semente, perfil: Perfil | null) {
     trocar_veiculo: cria && s.status === "ativa" && !emCurso && !s.trocaPendente,
     cancelar_troca: cria && ativa(s) && !!s.trocaPendente && !s.troca?.saidaConcluida,
     cancelar: s.status === "encerrada" || s.status === "cancelada" || emCurso || s.trocaPendente ? (false as const) : cancelar,
+    gerar_contrato: cria && s.status === "aguardando_retirada" && !emCurso && !s.corpo.contrato,
     imprimir_contrato: !!s.corpo.contrato && perfil !== "vistoriador",
     reenviar_contrato: !!s.corpo.contrato && perfil !== "vistoriador",
     continuar_vistoria: false,
