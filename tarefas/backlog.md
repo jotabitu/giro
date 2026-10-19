@@ -270,9 +270,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 - Leitura do arquiteto, **aceita pelo produto (T-290)** e registrada na `MOV-03`: o veículo `disponivel` com locação `aguardando_retirada` (início hoje) conta como "reservado" na `MOV-03` e não se movimenta (409 `MOV-03`), porque já tem dono para hoje.
 
 
-### T-320 · OpenAPI das Movimentações sem nomes repetidos
-- **Agente:** backend · **Depende de:** T-288 parte 1 (PR #324) · **Regras:** MOV-01 · **Pronto quando:** o OpenAPI gerado não repete nomes de componente: o `VeiculoRef` das movimentações não perde `modelo` e `status` para o outro `VeiculoRef`; `Quadro.itens` aponta para o item do quadro, não para a `Linha` da importação; o quadro declara os parâmetros `busca` e `levando`. Nomes únicos pelo `ref_name` dos serializers, OpenAPI regenerado, `api:gerar` e os tipos locais da T-289 trocados pelos gerados (o frontend confere). Achado do frontend na T-289 (handoff `tarefas/handoffs/T-289-frontend.md`).
-
 ### Textos da T-185 (parte 1) fora do contrato · respondidos na T-290
 - **Cartão no anual (produto, 16 out 2026): fica "todo ano".** "Cartão Visa final 4242 · cobrança automática todo ano" no ciclo anual, "todo mês" no mensal (`PLT-13`). O arquiteto acrescenta a linha do anual na tabela da forma em `assinatura.md`.
 - **409 `valor_mudou` (produto, 16 out 2026): troca o texto.** Fica "O valor da diferença mudou. Confira o novo valor antes de confirmar." (o texto do backend repetia "mudança mudou"). O `detalhes.diferenca_centavos` continua, para a tela mostrar o valor novo. O desfazer no dia da virada fica como está: "A mudança para o plano Essencial já vale desde 22 nov.". O arquiteto põe os dois no contrato, e o backend troca o texto do 409 na parte 2 ou num commit da parte 1.
