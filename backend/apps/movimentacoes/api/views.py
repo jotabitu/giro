@@ -99,11 +99,17 @@ class QuadroView(APIView):
 
     @extend_schema(
         responses=QuadroSerializer,
-        parameters=[OpenApiParameter("filial", int)],
+        parameters=[
+            OpenApiParameter("filial", int),
+            OpenApiParameter("levando", enum=["eu"]),
+            OpenApiParameter("busca", str, description="código ou placa"),
+        ],
         summary="Quadro das movimentações (MOV-01 a MOV-06)",
     )
     def get(self, request: Request) -> Response:
-        dados = selectors.quadro(request.user, request.query_params.get("filial"))
+        dados = selectors.quadro(
+            request.user, request.query_params.get("filial"), request.query_params
+        )
         return Response(_para(request, QuadroSerializer(dados).data))
 
 

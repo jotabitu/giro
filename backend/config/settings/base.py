@@ -226,6 +226,9 @@ SPECTACULAR_SETTINGS = {
         "MeioDePagarEnum": ["cartao", "pix", "boleto"],
         "TipoLinhaDaFaturaEnum": ["fatura", "teste"],
         "StatusVeiculoEnum": "apps.veiculos.models.StatusVeiculo",
+        "MovimentacaoStatusEnum": "apps.movimentacoes.models.StatusMovimentacao",  # T-320
+        "FotoPosicaoEnum": "apps.vistorias.models.PosicaoFoto",  # T-320: o nome que já saía
+        "PosicaoDaChegadaEnum": "apps.movimentacoes.models.PosicaoFoto",  # T-320
         "TipoDocumentoEnum": "apps.veiculos.models.TipoDocumento",
         "TipoDocumentoClienteEnum": "apps.clientes.models.TipoDocumentoCliente",
         "StatusClienteEnum": "apps.clientes.models.StatusCliente",

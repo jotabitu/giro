@@ -4212,7 +4212,7 @@ paths:
         content:
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/FotoEntrada'
+              $ref: '#/components/schemas/FotoEntradaDaMovimentacao'
         required: true
       security:
       - jwtAuth: []
@@ -4221,7 +4221,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Foto'
+                $ref: '#/components/schemas/FotoDaMovimentacao'
           description: ''
   /api/movimentacoes/{id}/iniciar/:
     post:
@@ -4449,9 +4449,20 @@ paths:
       summary: Quadro das movimentações (MOV-01 a MOV-06)
       parameters:
       - in: query
+        name: busca
+        schema:
+          type: string
+        description: código ou placa
+      - in: query
         name: filial
         schema:
           type: integer
+      - in: query
+        name: levando
+        schema:
+          type: string
+          enum:
+          - eu
       tags:
       - movimentacoes
       security:
@@ -6452,25 +6463,19 @@ components:
     Acoes:
       type: object
       properties:
-        editar:
+        entrar_como_suporte:
           type: boolean
-        iniciar:
+        estender_teste:
           type: boolean
-        cancelar:
+        mudar_plano:
           type: boolean
-        chegar_parada:
-          type: boolean
-        sair_parada:
-          type: boolean
-        registrar_chegada:
+        suspender:
           type: boolean
       required:
-      - cancelar
-      - chegar_parada
-      - editar
-      - iniciar
-      - registrar_chegada
-      - sair_parada
+      - entrar_como_suporte
+      - estender_teste
+      - mudar_plano
+      - suspender
     AcoesDaAssinatura:
       type: object
       properties:
@@ -6525,6 +6530,28 @@ components:
       - nota_fiscal
       - pagar
       - recibo
+    AcoesDaMovimentacao:
+      type: object
+      properties:
+        editar:
+          type: boolean
+        iniciar:
+          type: boolean
+        cancelar:
+          type: boolean
+        chegar_parada:
+          type: boolean
+        sair_parada:
+          type: boolean
+        registrar_chegada:
+          type: boolean
+      required:
+      - cancelar
+      - chegar_parada
+      - editar
+      - iniciar
+      - registrar_chegada
+      - sair_parada
     AcoesDoCaixa:
       type: object
       properties:
@@ -7383,12 +7410,12 @@ components:
           - $ref: '#/components/schemas/NullEnum'
         recebido_por:
           allOf:
-          - $ref: '#/components/schemas/Ref'
+          - $ref: '#/components/schemas/RefDaMovimentacao'
           nullable: true
         fotos:
           type: array
           items:
-            $ref: '#/components/schemas/Foto'
+            $ref: '#/components/schemas/FotoDaMovimentacao'
       required:
       - combustivel
       - fotos
@@ -7921,7 +7948,7 @@ components:
         itens:
           type: array
           items:
-            $ref: '#/components/schemas/Linha'
+            $ref: '#/components/schemas/LinhaDaMovimentacao'
       required:
       - itens
       - rotulo
@@ -10563,6 +10590,20 @@ components:
       - agora
       - posicao
       - saida
+    FotoDaMovimentacao:
+      type: object
+      properties:
+        posicao:
+          $ref: '#/components/schemas/PosicaoDaChegadaEnum'
+        url:
+          type: string
+        url_expira_em:
+          type: string
+          format: date-time
+      required:
+      - posicao
+      - url
+      - url_expira_em
     FotoDaVistoriaRecente:
       type: object
       properties:
@@ -10598,25 +10639,24 @@ components:
       type: object
       properties:
         posicao:
-          $ref: '#/components/schemas/FotoEntradaPosicaoEnum'
+          $ref: '#/components/schemas/FotoPosicaoEnum'
         arquivo:
           type: string
           format: uri
       required:
       - arquivo
       - posicao
-    FotoEntradaPosicaoEnum:
-      enum:
-      - frente
-      - traseira
-      - lado_esquerdo
-      - lado_direito
-      type: string
-      description: |-
-        * `frente` - Frente
-        * `traseira` - Traseira
-        * `lado_esquerdo` - Lado esquerdo
-        * `lado_direito` - Lado direito
+    FotoEntradaDaMovimentacao:
+      type: object
+      properties:
+        posicao:
+          $ref: '#/components/schemas/PosicaoDaChegadaEnum'
+        arquivo:
+          type: string
+          format: uri
+      required:
+      - arquivo
+      - posicao
     FotoPosicaoEnum:
       enum:
       - frente
@@ -11710,6 +11750,92 @@ components:
       - numero
       - objeto
       - status
+    LinhaDaMovimentacao:
+      type: object
+      properties:
+        id:
+          type: integer
+        codigo:
+          type: string
+        status:
+          $ref: '#/components/schemas/MovimentacaoStatusEnum'
+        veiculo:
+          $ref: '#/components/schemas/VeiculoDaMovimentacao'
+        filial_saida:
+          $ref: '#/components/schemas/RefDaMovimentacao'
+        destino:
+          $ref: '#/components/schemas/RefDaMovimentacao'
+        transferencia:
+          type: boolean
+        categoria_destino:
+          allOf:
+          - $ref: '#/components/schemas/RefDaMovimentacao'
+          nullable: true
+        rota:
+          type: string
+        levado_por:
+          $ref: '#/components/schemas/RefDaMovimentacao'
+        agendada_para:
+          type: string
+          format: date-time
+          nullable: true
+        iniciada_em:
+          type: string
+          format: date-time
+          nullable: true
+        concluida_em:
+          type: string
+          format: date-time
+          nullable: true
+        duracao_minutos:
+          type: integer
+          nullable: true
+        vistoria_rapida:
+          type: boolean
+        km_saida:
+          type: integer
+          nullable: true
+        cancelada_em:
+          type: string
+          format: date-time
+          nullable: true
+        motivo_cancelamento:
+          type: string
+          nullable: true
+        proxima_etapa:
+          type: string
+          nullable: true
+        custo_centavos:
+          type: integer
+        acoes:
+          $ref: '#/components/schemas/AcoesDaMovimentacao'
+        paradas_total:
+          type: integer
+        resumo:
+          type: string
+      required:
+      - acoes
+      - agendada_para
+      - cancelada_em
+      - categoria_destino
+      - codigo
+      - concluida_em
+      - destino
+      - duracao_minutos
+      - filial_saida
+      - id
+      - iniciada_em
+      - km_saida
+      - levado_por
+      - motivo_cancelamento
+      - paradas_total
+      - proxima_etapa
+      - resumo
+      - rota
+      - status
+      - transferencia
+      - veiculo
+      - vistoria_rapida
     LinhaDeDevolucao:
       type: object
       properties:
@@ -11769,7 +11895,7 @@ components:
         resultados:
           type: array
           items:
-            $ref: '#/components/schemas/Linha'
+            $ref: '#/components/schemas/LinhaDaMovimentacao'
         proximo:
           type: string
           nullable: true
@@ -12829,21 +12955,21 @@ components:
         status:
           $ref: '#/components/schemas/MovimentacaoStatusEnum'
         veiculo:
-          $ref: '#/components/schemas/VeiculoRef'
+          $ref: '#/components/schemas/VeiculoDaMovimentacao'
         filial_saida:
-          $ref: '#/components/schemas/Ref'
+          $ref: '#/components/schemas/RefDaMovimentacao'
         destino:
-          $ref: '#/components/schemas/Ref'
+          $ref: '#/components/schemas/RefDaMovimentacao'
         transferencia:
           type: boolean
         categoria_destino:
           allOf:
-          - $ref: '#/components/schemas/Ref'
+          - $ref: '#/components/schemas/RefDaMovimentacao'
           nullable: true
         rota:
           type: string
         levado_por:
-          $ref: '#/components/schemas/Ref'
+          $ref: '#/components/schemas/RefDaMovimentacao'
         agendada_para:
           type: string
           format: date-time
@@ -12877,7 +13003,7 @@ components:
         custo_centavos:
           type: integer
         acoes:
-          $ref: '#/components/schemas/Acoes'
+          $ref: '#/components/schemas/AcoesDaMovimentacao'
         paradas:
           type: array
           items:
@@ -12885,7 +13011,7 @@ components:
         fotos_chegada:
           type: array
           items:
-            $ref: '#/components/schemas/Foto'
+            $ref: '#/components/schemas/FotoDaMovimentacao'
         chegada:
           allOf:
           - $ref: '#/components/schemas/Chegada'
@@ -14723,6 +14849,18 @@ components:
       - cartao
       - dinheiro
       - pix
+    PosicaoDaChegadaEnum:
+      enum:
+      - frente
+      - traseira
+      - lado_esquerdo
+      - lado_direito
+      type: string
+      description: |-
+        * `frente` - Frente
+        * `traseira` - Traseira
+        * `lado_esquerdo` - Lado esquerdo
+        * `lado_direito` - Lado direito
     Preco:
       type: object
       properties:
@@ -15117,6 +15255,16 @@ components:
       required:
       - resultados
     Ref:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+      - id
+      - nome
+    RefDaMovimentacao:
       type: object
       properties:
         id:
@@ -16637,6 +16785,22 @@ components:
       - modelo
       - placa
       - tipo
+    VeiculoDaMovimentacao:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        modelo:
+          type: string
+        status:
+          type: string
+      required:
+      - id
+      - modelo
+      - placa
+      - status
     VeiculoDaTroca:
       type: object
       properties:
