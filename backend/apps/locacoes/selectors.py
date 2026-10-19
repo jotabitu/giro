@@ -403,6 +403,14 @@ def acoes(locacao: Locacao, usuario: Any, contrato: Contrato | None = None) -> d
         "cancelar_troca": cria and em_curso and troca is not None and _pode_cancelar_troca(troca),
         # LOC-12: com a troca pendente, o cancelamento responde 409 `troca_pendente`.
         "cancelar": _cancelar(usuario, locacao) if troca is None else False,
+        # T-263: as mesmas condições de `contrato.gerar` (o `POST .../contrato/`), menos o modelo
+        # publicado: sem ele o botão aparece e o 422 `IMP-04` mostra o atalho. `contrato` é o
+        # vigente: `None` também com o anterior cancelado.
+        "gerar_contrato": cria
+        and locacao.status == S.AGUARDANDO_RETIRADA
+        and locacao.desconto_status != StatusDesconto.PENDENTE
+        and not _cancelamento_em_curso(locacao)
+        and contrato is None,
         "imprimir_contrato": perfil != "vistoriador"
         and contrato is not None
         and bool(contrato.pdf_assinado or contrato.pdf),

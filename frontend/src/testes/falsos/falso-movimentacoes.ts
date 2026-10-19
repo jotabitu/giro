@@ -86,8 +86,8 @@ function semente(): { lista: Movimentacao[]; resumos: Record<number, string> } {
     proxima_etapa: "destino",
     chegada: null,
     fotos_chegada: [
-      { id: 1, tirada_em: "2026-10-07T13:30:00Z", posicao: "frente", url: "/exemplo/frente.jpg", url_expira_em: "2026-10-07T15:00:00Z" },
-      { id: 2, tirada_em: "2026-10-07T13:31:00Z", posicao: "lado_direito", url: "/exemplo/direita.jpg", url_expira_em: "2026-10-07T15:00:00Z" },
+      { posicao: "frente", url: "/exemplo/frente.jpg", url_expira_em: "2026-10-07T15:00:00Z" },
+      { posicao: "lado_direito", url: "/exemplo/direita.jpg", url_expira_em: "2026-10-07T15:00:00Z" },
     ],
     custo_centavos: 3500,
     acoes: { ...SEM_ACOES, registrar_chegada: true },
@@ -243,7 +243,7 @@ export const movimentacoesFalso = {
 
   async enviarFotoDaChegada(id: number, posicao: PosicaoDaFotoDaChegada, arquivo: File): Promise<FotoDaChegada> {
     const m = achar(id);
-    const foto: FotoDaChegada = { id: 100 + (m.fotos_chegada?.length ?? 0), tirada_em: new Date().toISOString(), posicao, url: `/exemplo/${posicao}-${arquivo.size}.jpg`, url_expira_em: "2026-10-07T15:00:00Z" };
+    const foto: FotoDaChegada = { posicao, url: `/exemplo/${posicao}-${arquivo.size}.jpg`, url_expira_em: "2026-10-07T15:00:00Z" };
     m.fotos_chegada = [...(m.fotos_chegada ?? []).filter((f) => f.posicao !== posicao), foto];
     return copia(foto);
   },

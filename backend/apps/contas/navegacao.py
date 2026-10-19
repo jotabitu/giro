@@ -13,12 +13,13 @@ from typing import Any
 from django.conf import settings
 
 from apps.plataforma.models import Recurso
+from comum import empresa as empresa_config
 from comum import leituras
 
 from .models import Perfil
 
 ALVO_USUARIO = "contas.Usuario"
-# `ConfiguracaoEmpresa.atividade` ainda não existe (entra com a tela Config); até lá, os dois.
+# Sem empresa (testes da navegação), os dois; na empresa, `ConfiguracaoEmpresa.atividade`.
 ATIVIDADE_PADRAO = "ambos"
 
 Pode = dict[str, Any]
@@ -444,5 +445,6 @@ def da_empresa(empresa: Any, perfil: str, pode: Pode, *, levando: int = 0) -> di
         pode=pode,
         recursos=list(getattr(plano, "recursos", None) or []),
         implantacao_concluida="primeira_locacao" in passos,
+        atividade=empresa_config.atividade(),  # PLT-12: o ramo guardado
         levando=levando,
     )

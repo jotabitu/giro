@@ -1,4 +1,4 @@
-"""Leituras da configuração da empresa e da marca (`docs/api/empresas.md`)."""
+"""Leituras da configuração da empresa, da marca e do ramo (`docs/api/empresas.md`)."""
 
 import hashlib
 from decimal import Decimal
@@ -6,11 +6,13 @@ from typing import Any
 
 from django.core.cache import cache
 
+from apps.plataforma import selectors as plataforma_selectors
+from apps.plataforma.models import Recurso
 from apps.plataforma.selectors import empresa_atual
 from comum.conexao import schema_atual
 
 from . import marca as cores_da_marca
-from .models import ConfiguracaoEmpresa
+from .models import Atividade, ConfiguracaoEmpresa, TrabalhaCom
 
 PRAZO_DA_MARCA = 60 * 60  # 1 hora; a escrita da marca (Admin-Marca) apaga a chave
 TIPOS_DO_LOGO = {"svg": "image/svg+xml", "png": "image/png"}
@@ -32,6 +34,67 @@ def meta_ocupacao_pct() -> Decimal:
     """Meta de ocupação do painel (`relatorios`). Sem a linha, o padrão 80,00."""
     valor = ConfiguracaoEmpresa.objects.values_list("meta_ocupacao_pct", flat=True).first()
     return valor if valor is not None else Decimal("80.00")
+
+
+# --- Ramo (PLT-12, ADR 0024, T-224) ---
+
+DESCRICOES_DAS_ATIVIDADES = {
+    "aluga": ("Locação", "Aluguel por dia, semana ou mês"),
+    "vende": ("Venda de veículos", "Novos, seminovos e consignados"),
+}
+TIPOS = (("motos", "Motos"), ("carros", "Carros"))
+# Não aparecem em "Módulos que vamos ligar": só catálogo (`suporte_prioritario`) ou saem do
+# enum na T-196 (`dominio_proprio`, `api_integracoes`, PLT-11).
+FORA_DOS_MODULOS = frozenset(
+    {Recurso.SUPORTE_PRIORITARIO, Recurso.DOMINIO_PROPRIO, Recurso.API_INTEGRACOES}
+)
+
+
+def atividade() -> str:
+    """Registrada em `comum.empresa` para `plataforma` e `contas` lerem o ramo (ADR 0024)."""
+    valor = ConfiguracaoEmpresa.objects.values_list("atividade", flat=True).first()
+    return str(valor or Atividade.AMBOS)
+
+
+def resumo_do_ramo() -> str:
+    """O cartão `ramo` de Configurações: "Locação e venda · motos" (`configuracoes.md`)."""
+    guardado = configuracao()
+    return f"{Atividade(guardado.atividade).label} · {TrabalhaCom(guardado.trabalha_com).label}"
+
+
+def nomes_dos_modulos(recursos: frozenset[str]) -> list[str]:
+    """Os `Recurso.label` ligados, na ordem do enum."""
+    return [r.label for r in Recurso if r.value in recursos and r not in FORA_DOS_MODULOS]
+
+
+def ramo() -> dict[str, Any]:
+    """`GET /api/ramo/`: o ramo guardado e as opções que o plano atual aceita. Sem cache."""
+    guardado = configuracao()
+    plano = empresa_atual().plano
+    aceitas = plataforma_selectors.atividades_aceitas(plano)
+    aviso_de_venda = None
+    if Recurso.VENDAS_COMISSOES not in (getattr(plano, "recursos", None) or []):
+        com_vendas = plataforma_selectors.primeiro_plano_com(Recurso.VENDAS_COMISSOES)
+        if com_vendas is not None:
+            aviso_de_venda = f"Vendas faz parte do plano {com_vendas.nome}."
+    return {
+        "atividade": guardado.atividade,
+        "trabalha_com": guardado.trabalha_com,
+        "atividades": [
+            {
+                "valor": valor,
+                "titulo": titulo,
+                "descricao": descricao,
+                "aviso": aviso_de_venda if valor == "vende" else None,
+            }
+            for valor, (titulo, descricao) in DESCRICOES_DAS_ATIVIDADES.items()
+        ],
+        "atividades_aceitas": list(aceitas),
+        "tipos": [{"valor": valor, "titulo": titulo} for valor, titulo in TIPOS],
+        "modulos": {
+            a: nomes_dos_modulos(plataforma_selectors.recursos_para(plano, a)) for a in aceitas
+        },
+    }
 
 
 # --- Marca (ADR 0004, `docs/api/empresas.md`) ---

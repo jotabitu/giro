@@ -98,15 +98,8 @@ CORPOS: dict[tuple[str, str], Any] = {
 }
 
 # Rotas que ainda dão 500 com o suporte em "ver e editar": cada uma vira tarefa de backend.
-QUEBRADAS: dict[tuple[str, str], str] = {
-    ("post", "/api/financeiro/caixas/"): "500: Caixa.aberto_por recebe o AtorSuporte",
-    ("post", "/api/financeiro/caixas/1/fechar/"): "500: Caixa.fechado_por recebe o AtorSuporte",
-    ("post", "/api/financeiro/despesas/"): "500: Despesa.lancada_por recebe o AtorSuporte",
-    (
-        "post",
-        "/api/financeiro/reembolsos/1/feito/",
-    ): "500: Reembolso.feito_por recebe o AtorSuporte",
-}
+# A T-324 (opção A do dono) fechou as quatro do financeiro com 403 PLT-07.
+QUEBRADAS: dict[tuple[str, str], str] = {}
 
 
 def _suporte(cenario: Cenario) -> APIClient:
@@ -193,3 +186,31 @@ def test_plt_07_suporte_ver_e_editar_nunca_derruba_a_rota(
     caminho = _com_estado_real(cenario, caminho)
     resposta = getattr(api, metodo)(caminho, corpo(), format=formato)
     assert resposta.status_code < 500, (metodo, caminho, resposta.status_code)
+
+
+# T-324, opção A do dono: no financeiro, o suporte só lê caixa, despesa e reembolso.
+SO_LEITURA_NO_FINANCEIRO = [
+    ("post", "/api/financeiro/caixas/"),
+    ("post", "/api/financeiro/caixas/1/fechar/"),
+    ("post", "/api/financeiro/despesas/"),
+    ("post", "/api/financeiro/reembolsos/1/feito/"),
+]
+
+
+@pytest.mark.parametrize(("metodo", "caminho"), SO_LEITURA_NO_FINANCEIRO)
+def test_plt_07_fin_05_fin_07_suporte_nao_escreve_no_financeiro(
+    cenario,
+    relogio_jwt,
+    metodo,
+    caminho,
+):
+    """403 PLT-07 antes de ler o arquivo e de validar: com um arquivo que não é imagem e campos
+    inválidos, a resposta é a mesma."""
+    api = _suporte(cenario)
+    caminho = _com_estado_real(cenario, caminho)
+    corpo = {
+        "troco_centavos": "x",
+        "nota": SimpleUploadedFile("nota.png", b"nao e imagem", content_type="image/png"),
+    }
+    resposta = getattr(api, metodo)(caminho, corpo, format="multipart")
+    assert (resposta.status_code, resposta.json()["codigo"]) == (403, "PLT-07")
