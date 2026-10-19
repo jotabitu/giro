@@ -32,15 +32,16 @@ async function tela(resumo?: Resumo): Promise<string> {
 }
 
 describe("Configurações", () => {
-  it("seed: 8 cartões na ordem da API, com título, resumo e link, e sem faixa de implantação", async () => {
+  it("seed: 9 cartões na ordem da API, com título, resumo e link, e sem faixa de implantação", async () => {
     await entrar("mariana@motorapida.com.br");
     const h = await tela();
-    expect(h.match(/<li/g)).toHaveLength(8);
-    const ordem = ["Empresa e marca", "Filiais", "Usuários e perfis", "Tabelas de preço", "Modelos de contrato", "Assinatura", "Auditoria", "Exportar dados"].map((t) => h.indexOf(t));
+    expect(h.match(/<li/g)).toHaveLength(9);
+    const ordem = ["Empresa e marca", "O que a empresa faz", "Filiais", "Usuários e perfis", "Tabelas de preço", "Modelos de contrato", "Assinatura", "Auditoria", "Exportar dados"].map((t) => h.indexOf(t));
     expect([...ordem].sort((a, b) => a - b)).toEqual(ordem);
     expect(h).toContain("5 de 10 usuários");
+    expect(h).toContain("Locação e venda · motos");
     expect(h).toContain("Profissional · teste até 21 out");
-    for (const href of ["/admin/marca", "/admin/filiais", "/admin/usuarios", "/admin/precos", "/admin/contratos", "/admin/assinatura", "/admin/auditoria", "/admin/exportar"]) expect(h).toContain(`href="${href}"`);
+    for (const href of ["/admin/marca", "/admin/ramo", "/admin/filiais", "/admin/usuarios", "/admin/precos", "/admin/contratos", "/admin/assinatura", "/admin/auditoria", "/admin/exportar"]) expect(h).toContain(`href="${href}"`);
     expect(h).not.toContain("Implantação concluída");
     expect(h).not.toContain("Integrações");
   });
@@ -49,7 +50,7 @@ describe("Configurações", () => {
     await entrar("mariana@motorapida.com.br");
     const base = await configuracoes.resumo();
     const h = await tela({ ...base, cartoes: base.cartoes.filter((c) => c.chave !== "auditoria" && c.chave !== "exportar") });
-    expect(h.match(/<li/g)).toHaveLength(6);
+    expect(h.match(/<li/g)).toHaveLength(7);
     expect(h).not.toContain("Quem fez o quê");
   });
 

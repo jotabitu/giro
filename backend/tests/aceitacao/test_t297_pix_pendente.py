@@ -51,15 +51,14 @@ def test_plt_13_pix_automatico_sem_autorizacao_sai_boleto(
     forma = _forma(moto)
     assert (forma.forma, forma.status) == (FormaAssinatura.PIX_AUTOMATICO, "pendente")
 
-    assert len(mailoutbox) == 1
-    assert mailoutbox[0].to == [COBRANCA, MARIANA]
+    assert [m.to for m in mailoutbox] == [[COBRANCA], [MARIANA]]  # um por destinatário (T-306)
     assert LINHA in mailoutbox[0].body
     assert "R$ 449,00" in mailoutbox[0].body and "22 out" in mailoutbox[0].body
 
     # Idempotente: rodar de novo não emite outro nem manda outro e-mail.
     assert _gerar(relogio, "2026-10-18", django_capture_on_commit_callbacks).emitidas == {}
     assert moto.fatura("FAT-0001").cobranca_externa_id == fatura.cobranca_externa_id
-    assert len(mailoutbox) == 1
+    assert len(mailoutbox) == 2
 
 
 def test_plt_13_boleto_comum_sem_a_linha(
@@ -70,7 +69,7 @@ def test_plt_13_boleto_comum_sem_a_linha(
 ):
     services.escolher_forma_pagamento(moto.recarregar(), "boleto")
     _gerar(relogio, "2026-10-17", django_capture_on_commit_callbacks)
-    assert len(mailoutbox) == 1
+    assert len(mailoutbox) == 2
     assert LINHA not in mailoutbox[0].body
 
 

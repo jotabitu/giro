@@ -2,8 +2,8 @@
 
 Uma linha só por schema, criada junto com a empresa (`plataforma.empresa_criada`). Por enquanto
 `exige_2fa_todos` (USR-02, T-011), as regras configuráveis que a locação usa (T-015) e a multa e
-os juros do contrato (FIN-03, T-090), a marca e a meta de ocupação (T-129, `docs/api/empresas.md`);
-o ramo entra com a tela Config. A cor sobre a marca e as cores suaves são calculadas na leitura
+os juros do contrato (FIN-03, T-090), a marca e a meta de ocupação (T-129, `docs/api/empresas.md`)
+e o ramo (PLT-12, ADR 0024, T-262). A cor sobre a marca e as cores suaves são calculadas na leitura
 (`marca.py`), nunca guardadas.
 """
 
@@ -15,6 +15,20 @@ from django.db import models
 from comum import arquivos
 from comum.campos import CentavosField, PercentualField
 from comum.models import ModeloBase
+
+
+class Atividade(models.TextChoices):
+    """O que a empresa faz (PLT-12, passo 7 da implantação)."""
+
+    ALUGA = "aluga", "Locação"
+    VENDE = "vende", "Venda"
+    AMBOS = "ambos", "Locação e venda"
+
+
+class TrabalhaCom(models.TextChoices):
+    MOTOS = "motos", "motos"
+    CARROS = "carros", "carros"
+    AMBOS = "ambos", "motos e carros"
 
 
 class ConfiguracaoEmpresa(ModeloBase):
@@ -37,6 +51,11 @@ class ConfiguracaoEmpresa(ModeloBase):
     logo_altura = models.PositiveIntegerField(null=True, blank=True)
     cor_marca = models.CharField(max_length=7, blank=True, default="")  # "#RRGGBB"
     meta_ocupacao_pct = PercentualField(default=Decimal("80.00"))  # painel (VEI-06)
+    # Ramo (PLT-12, ADR 0024, item 2): muda só por `services.mudar_ramo`.
+    atividade = models.CharField(max_length=5, choices=Atividade.choices, default=Atividade.AMBOS)
+    trabalha_com = models.CharField(
+        max_length=6, choices=TrabalhaCom.choices, default=TrabalhaCom.MOTOS
+    )
     # Trava de linha única: sempre 1.
     unica = models.PositiveSmallIntegerField(default=1, unique=True, editable=False)
 

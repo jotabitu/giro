@@ -48,6 +48,8 @@ subcontas: dict[str, str] = {}  # conta_externa_id -> status
 autorizacoes: dict[str, Autorizacao] = {}
 pagadores: dict[str, Pagador] = {}  # id do cliente na conta principal -> o que foi mandado
 tokens_recusados: set[str] = set()
+# FIN-04 (T-307): com `sem_pix_no_boleto()`, o boleto sai sem o Pix, como a conta sem chave Pix.
+_boleto_sem_pix: list[bool] = [False]
 _numeros = count(1)
 
 CARTAO_DE_TESTE = ("visa", "4242")
@@ -59,6 +61,12 @@ def limpar() -> None:
     autorizacoes.clear()
     pagadores.clear()
     tokens_recusados.clear()
+    _boleto_sem_pix[0] = False
+
+
+def sem_pix_no_boleto() -> None:
+    """Simula "Pix não disponível" no boleto (o 400 do `pixQrCode`) até o próximo `limpar()`."""
+    _boleto_sem_pix[0] = True
 
 
 def recusar_cartao(token: str) -> None:
@@ -130,7 +138,11 @@ class PagamentosFalso:
             tipo=pedido.tipo,
             valor_centavos=pedido.valor_centavos,
             vencimento=pedido.vencimento,
-            pix_copia_e_cola=f"00020126falso{cobranca_id}5204000053039865802BR" if pix else "",
+            pix_copia_e_cola=(
+                f"00020126falso{cobranca_id}5204000053039865802BR"
+                if pix or (boleto and not _boleto_sem_pix[0])
+                else ""
+            ),
             qr_code_url=f"https://pagamentos.falso/qr/{cobranca_id}.png" if pix else "",
             linha_digitavel=f"23790.00009 {numero:05d}.000000 00000.000000 1" if boleto else "",
             boleto_url=f"https://pagamentos.falso/boleto/{cobranca_id}.pdf" if boleto else "",

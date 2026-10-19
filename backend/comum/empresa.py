@@ -33,6 +33,23 @@ def exige_2fa_todos() -> bool:
     return _exige_2fa_todos() if _exige_2fa_todos is not None else False
 
 
+_atividade: Callable[[], str] | None = None
+
+
+def registrar_atividade(funcao: Callable[[], str]) -> None:
+    """Chamado pelo `ready()` do app `empresas`: lê `ConfiguracaoEmpresa.atividade`."""
+    global _atividade
+    _atividade = funcao
+
+
+def atividade() -> str:
+    """PLT-12: `aluga`, `vende` ou `ambos` (ADR 0024, item 2). Sem a função registrada, ou no
+    schema `public`, `ambos`."""
+    if _atividade is not None and conexao().schema_name != get_public_schema_name():
+        return _atividade()
+    return "ambos"
+
+
 # --- Marca da empresa (`docs/api/empresas.md`, T-129) ---
 
 _marca: Callable[[], dict[str, Any]] | None = None

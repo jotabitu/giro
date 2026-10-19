@@ -67,7 +67,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 26 e 27 de `docs/deci
 ## Quadro
 
 ### GET /api/movimentacoes/quadro/
-Tela `Movimentacoes`. Query `?filial=<id>` (padrão: o seletor do topo; administrador pode "Todas as filiais"). Quem leva recebe só as dele.
+Tela `Movimentacoes`. Query `?filial=<id>` (padrão: o seletor do topo; administrador pode "Todas as filiais"), `?levando=eu` e `?busca=` (código ou placa), como na lista (T-320). Quem leva recebe só as dele.
 ```json
 { "colunas": [
   { "status": "agendada", "rotulo": "Agendadas", "total": 1, "itens": [ "<linha>" ] },

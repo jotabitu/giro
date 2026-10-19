@@ -86,6 +86,24 @@ def test_fin_04_sandbox_boleto(parceiro, subconta):
     parceiro.cancelar_cobranca(subconta, cobranca.id)
 
 
+def test_fin_04_sandbox_boleto_com_o_pix(parceiro, subconta):
+    """T-307, pontos 1 e 2 da T-305: o boleto traz o Pix pelo `pixQrCode` quando a conta tem
+    chave Pix; sem chave, o parceiro recusa e o boleto sai sem ele, sem ser cancelado."""
+    vencimento = date.today() + timedelta(days=5)
+    pedido = PedidoCobranca("boleto", 138517, vencimento, _referencia(), RAFAEL)
+    cobranca = parceiro.criar_cobranca(subconta, pedido)
+    try:
+        assert cobranca.linha_digitavel
+        if not cobranca.pix_copia_e_cola:
+            pytest.skip("a conta do sandbox não tem chave Pix: o boleto saiu sem o Pix")
+        assert cobranca.pix_copia_e_cola.startswith("000201")
+        _, qr = parceiro._chamar("GET", f"/payments/{cobranca.id}/pixQrCode", conta=subconta)
+        # Com chave Pix, vale até depois do vencimento (não só até 23:59 do dia da emissão).
+        assert str(qr["expirationDate"])[:10] >= vencimento.isoformat()
+    finally:
+        parceiro.cancelar_cobranca(subconta, cobranca.id)
+
+
 @pytest.mark.skipif(
     os.environ.get("GIRO_ASAAS_SANDBOX_SUBCONTA") != "1", reason="cria uma conta no sandbox"
 )
