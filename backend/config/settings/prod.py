@@ -21,6 +21,9 @@ from config.settings.base import (
     GIRO_PROVEDOR_PAGAMENTOS,
     PEPPER_DE_EXEMPLO,
     REDIS_URL,
+    S3_BUCKET,
+    S3_CHAVE_DE_ACESSO,
+    S3_CHAVE_SECRETA,
     SECRET_KEY,
     SIMPLE_JWT,
     env,
@@ -74,6 +77,15 @@ if EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend" and not EMAIL_
     raise ImproperlyConfigured("Defina EMAIL_HOST para enviar e-mail por SMTP.")
 if GIRO_ARMAZENAMENTO != "s3":
     raise ImproperlyConfigured("Defina GIRO_ARMAZENAMENTO=s3: o armazenamento falso não sobe.")
+# Bucket e chaves em branco só apareceriam na primeira foto de vistoria (T-266, pedido do devops
+# na T-258). O endpoint e a região podem ficar vazios: a AWS usa os padrões do boto3.
+for _nome, _valor in (
+    ("S3_BUCKET", S3_BUCKET),
+    ("S3_CHAVE_DE_ACESSO", S3_CHAVE_DE_ACESSO),
+    ("S3_CHAVE_SECRETA", S3_CHAVE_SECRETA),
+):
+    if not _valor.strip():
+        raise ImproperlyConfigured(f"Defina {_nome}: vazia ou ausente não é aceita em produção.")
 if GIRO_PROVEDOR_PAGAMENTOS != "asaas":
     raise ImproperlyConfigured("Defina GIRO_PROVEDOR_PAGAMENTOS=asaas: o falso não sobe.")
 if not GIRO_ASAAS_CHAVE_API.strip():
