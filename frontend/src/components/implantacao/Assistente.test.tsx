@@ -56,7 +56,7 @@ describe("navegação entre passos (lib/implantacao)", () => {
   });
 
   it("só marca, ramo e importar têm tela; os outros ficam listados sem inventar rota", () => {
-    expect(["marca", "ramo", "importar", "filial", "precos", "contrato", "recebimentos", "equipe"].filter((p) => passoTemTela(p as never))).toEqual(["marca", "ramo", "importar"]);
+    expect(["marca", "ramo", "importar", "filial", "precos", "contrato", "recebimentos", "equipe"].filter((p) => passoTemTela(p))).toEqual(["marca", "ramo", "importar"]);
     expect(rotaDoPasso("ramo")).toBe("/implantacao/ramo");
   });
 });

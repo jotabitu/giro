@@ -1,8 +1,8 @@
 // DADOS FALSOS de docs/api/plataforma.md ("GET /api/implantacao/"): Profissional com 5 dos 8 passos, próximo "contrato".
-import type { AndamentoDoAssistente, ChaveDoPasso } from "@/lib/api/tipos-implantacao";
+import type { AndamentoDoAssistente } from "@/lib/api/tipos-implantacao";
 import { pausa } from "./falso";
 
-const ROTULOS: [ChaveDoPasso, string][] = [
+const ROTULOS: [string, string][] = [
   ["marca", "Empresa e marca"],
   ["filial", "Primeira filial"],
   ["ramo", "O que a empresa faz"],
@@ -14,7 +14,7 @@ const ROTULOS: [ChaveDoPasso, string][] = [
 ];
 
 /** Monta o andamento como a API: `feitos` são as chaves marcadas, `sem` tira passos do plano (Essencial sem `recebimentos`). */
-export function andamentoFalso(feitos: ChaveDoPasso[], sem: ChaveDoPasso[] = []): AndamentoDoAssistente {
+export function andamentoFalso(feitos: string[], sem: string[] = []): AndamentoDoAssistente {
   const lista = ROTULOS.filter(([c]) => !sem.includes(c));
   const passos = lista.map(([passo, rotulo], i) => ({ passo, numero: i + 1, rotulo, feito: feitos.includes(passo), feito_em: feitos.includes(passo) ? "2026-10-07" : null }));
   return { concluida: false, total: passos.length, feitos: passos.filter((p) => p.feito).length, proximo: passos.find((p) => !p.feito)?.passo ?? null, passos };

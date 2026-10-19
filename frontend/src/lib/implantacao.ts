@@ -1,12 +1,12 @@
-import type { AndamentoDoAssistente, ChaveDoPasso, PassoDoAssistente } from "@/lib/api";
+import type { AndamentoDoAssistente, PassoDoAssistente } from "@/lib/api";
 
 // Rotas do assistente (docs/telas/README.md, telas 5 a 12). A ordem, os números e os rótulos vêm de GET /api/implantacao/;
 // aqui só fica qual passo já tem tela. Contrato, recebimentos, tabela de preços, filial e equipe ainda não têm.
-const COM_TELA: ChaveDoPasso[] = ["marca", "ramo", "importar"];
+const COM_TELA: string[] = ["marca", "ramo", "importar"];
 
-export const rotaDoPasso = (passo: ChaveDoPasso): string => `/implantacao/${passo}`;
+export const rotaDoPasso = (passo: string): string => `/implantacao/${passo}`;
 
-export const passoTemTela = (passo: ChaveDoPasso): boolean => COM_TELA.includes(passo);
+export const passoTemTela = (passo: string): boolean => COM_TELA.includes(passo);
 
 export function passoDe(andamento: AndamentoDoAssistente, chave: string): PassoDoAssistente | null {
   return andamento.passos.find((p) => p.passo === chave) ?? null;
