@@ -3,6 +3,9 @@ import { http } from "./http";
 import type { ListaLocacoes } from "./tipos-locacoes";
 import type {
   CorrecaoDeIdentificacao,
+  CrlvDoCadastro,
+  LeituraCrlv,
+  ModeloDoCatalogo,
   CategoriaVeiculo,
   DocumentoVeiculo,
   FiltroVeiculos,
@@ -32,8 +35,28 @@ export const veiculosApi = {
   },
 
   /** O 201 já traz o veículo. Ler a ficha em seguida faria uma falha da leitura passar por falha do cadastro (T-240): quem abre a ficha é a página dela. */
-  criar(v: NovoVeiculo): Promise<Veiculo> {
-    return http.post<Veiculo>("/api/veiculos/", v);
+  criar(v: NovoVeiculo, crlv?: CrlvDoCadastro): Promise<Veiculo> {
+    if (!crlv) return http.post<Veiculo>("/api/veiculos/", v);
+    const corpo = new FormData();
+    for (const [campo, valor] of Object.entries(v)) if (valor !== undefined && valor !== null) corpo.set(campo, String(valor));
+    corpo.set("crlv_arquivo", crlv.arquivo);
+    corpo.set("crlv_validade", crlv.validade);
+    if (crlv.exercicio != null) corpo.set("crlv_exercicio", String(crlv.exercicio));
+    corpo.set("leitura", crlv.leitura);
+    return http.post<Veiculo>("/api/veiculos/", corpo);
+  },
+
+  /** VEI-08: lê o PDF do CRLV-e e devolve o que achou; não grava nada. 400, 422, 429 e 503 trazem a mensagem da API. */
+  lerCrlv(arquivo: File): Promise<LeituraCrlv> {
+    const corpo = new FormData();
+    corpo.set("arquivo", arquivo);
+    return http.post<LeituraCrlv>("/api/veiculos/leitura-crlv/", corpo);
+  },
+
+  /** O catálogo de marcas e modelos (até 50), para o campo Modelo. */
+  async modelos(filtro: { tipo?: TipoVeiculo; marca?: string; busca?: string } = {}): Promise<ModeloDoCatalogo[]> {
+    const r = await http.get<{ resultados: ModeloDoCatalogo[] }>("/api/veiculos/modelos/", { tipo: filtro.tipo, marca: filtro.marca || undefined, busca: filtro.busca || undefined });
+    return r.resultados;
   },
 
   /** PATCH (VEI-01): administrador e gerente; a resposta é a ficha completa. */
