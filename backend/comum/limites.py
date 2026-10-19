@@ -149,6 +149,7 @@ class LeituraDocumentoPorEmpresa(SimpleRateThrottle):
 
 LIMITES_DA_LEITURA_DE_DOCUMENTO = [LeituraDocumentoPorUsuario, LeituraDocumentoPorEmpresa]
 
+
 class MarcaSimularPorUsuario(_PorUsuario):
     """Prévia das cores da marca: chamada a cada cor escolhida ou digitada (`empresas.md`)."""
 
