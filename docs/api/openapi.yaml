@@ -6023,6 +6023,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/Veiculo'
           description: ''
+  /api/veiculos/modelos/:
+    get:
+      operationId: veiculos_modelos_list
+      description: |-
+        O catálogo de marcas e modelos, local e igual para todas as empresas (VEI-08, ADR 0026,
+        item 7). Para quem vê veículos: todos os perfis (`pode.veiculos` nunca é `nao`).
+      summary: Catálogo de marcas e modelos (VEI-08)
+      parameters:
+      - in: query
+        name: busca
+        schema:
+          type: string
+      - in: query
+        name: marca
+        schema:
+          type: string
+      - in: query
+        name: tipo
+        schema:
+          type: string
+          enum:
+          - carro
+          - moto
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeModelosDoCatalogo'
+          description: ''
   /api/vistorias/{id}/:
     get:
       operationId: vistorias_retrieve
@@ -12315,6 +12349,15 @@ components:
             $ref: '#/components/schemas/ModeloResumo'
       required:
       - resultados
+    ListaDeModelosDoCatalogo:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModeloDoCatalogo'
+      required:
+      - resultados
     ListaDeModelosProntos:
       type: object
       properties:
@@ -12925,6 +12968,27 @@ components:
       - texto
       - versao_publicada
       - versoes
+    ModeloDoCatalogo:
+      type: object
+      properties:
+        marca:
+          type: string
+        modelo:
+          type: string
+        tipo:
+          $ref: '#/components/schemas/ModeloDoCatalogoTipoEnum'
+      required:
+      - marca
+      - modelo
+      - tipo
+    ModeloDoCatalogoTipoEnum:
+      enum:
+      - moto
+      - carro
+      type: string
+      description: |-
+        * `moto` - moto
+        * `carro` - carro
     ModeloEntrada:
       type: object
       description: '`{ nome, finalidade, texto }` ou `{ nome?, a_partir_de }`.'

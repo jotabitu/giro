@@ -23,7 +23,7 @@ from comum import relogio
 from comum.paginacao import PaginacaoPorCursor
 from comum.permissoes import com_padrao, exige_perfil
 
-from .. import selectors, services
+from .. import catalogo, selectors, services
 from ..models import Categoria, Extra, PrecoCategoria, Veiculo
 from .serializers import (
     BaixarSerializer,
@@ -39,13 +39,16 @@ from .serializers import (
     DocumentoSerializer,
     ExtraEntradaSerializer,
     ExtraSerializer,
+    FiltroDeModelosSerializer,
     KmSerializer,
     ListaDeCategoriasSerializer,
     ListaDeDocumentosSerializer,
     ListaDeExtrasSerializer,
+    ListaDeModelosSerializer,
     ListaDeMudancasDePrecoSerializer,
     ListaDePrecosSerializer,
     ListaDeVeiculosSerializer,
+    ModeloSerializer,
     NovoPrecoSerializer,
     PedidoAprovacaoCriadoSerializer,
     PrecoCriadoSerializer,
@@ -70,6 +73,12 @@ VEEM_VALORES: list[type[BasePermission]] = com_padrao(
 
 def _entrada(classe: type[Serializer[Any]], request: Request) -> dict[str, Any]:
     entrada = classe(data=request.data)
+    entrada.is_valid(raise_exception=True)
+    return dict(entrada.validated_data)
+
+
+def _entrada_da_query(classe: type[Serializer[Any]], request: Request) -> dict[str, Any]:
+    entrada = classe(data=request.query_params)
     entrada.is_valid(raise_exception=True)
     return dict(entrada.validated_data)
 
@@ -161,6 +170,29 @@ class VeiculosView(APIView):
     def post(self, request: Request) -> Response:
         veiculo = services.cadastrar(_entrada(VeiculoEntradaSerializer, request))
         return _representacao(veiculo, request, status.HTTP_201_CREATED)
+
+
+class ModelosView(APIView):
+    """O catálogo de marcas e modelos, local e igual para todas as empresas (VEI-08, ADR 0026,
+    item 7). Para quem vê veículos: todos os perfis (`pode.veiculos` nunca é `nao`)."""
+
+    suporte_somente_leitura = True  # o suporte em "só ver" lê (PLT-07)
+
+    @extend_schema(
+        responses=ListaDeModelosSerializer,
+        operation_id="veiculos_modelos_list",
+        parameters=[
+            OpenApiParameter("tipo", enum=list(catalogo.TIPOS)),
+            OpenApiParameter("marca", str),
+            OpenApiParameter("busca", str),
+        ],
+        summary="Catálogo de marcas e modelos (VEI-08)",
+    )
+    def get(self, request: Request) -> Response:
+        filtro = _entrada_da_query(FiltroDeModelosSerializer, request)
+        modelos = catalogo.listar(**filtro)
+        dados = [{"marca": m.marca, "modelo": m.modelo, "tipo": m.tipo} for m in modelos]
+        return Response({"resultados": ModeloSerializer(dados, many=True).data})
 
 
 class VeiculoView(APIView):
