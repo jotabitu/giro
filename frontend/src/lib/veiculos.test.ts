@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { centavosDoTexto, esquemaVeiculo, paraCorpoVeiculo, VALORES_INICIAIS_VEICULO } from "./veiculos";
+import type { LeituraCrlv } from "@/lib/api";
+import { centavosDoTexto, esquemaVeiculo, paraCorpoVeiculo, valoresDaLeitura, VALORES_INICIAIS_VEICULO } from "./veiculos";
 
 describe("centavosDoTexto", () => {
   it.each([
@@ -37,5 +38,29 @@ describe("esquemaVeiculo", () => {
   it("valor de compra que não é valor é recusado no campo", () => {
     const r = esquemaVeiculo.safeParse({ ...VALORES_INICIAIS_VEICULO, valor_compra: "muito" });
     expect(!r.success && r.error.issues.some((i) => i.path[0] === "valor_compra")).toBe(true);
+  });
+});
+
+describe("valoresDaLeitura (VEI-08)", () => {
+  const leitura = (campos: Partial<LeituraCrlv["campos"]>, lidos: string[]): LeituraCrlv => ({
+    documento: "crlv",
+    campos: { placa: null, chassi: null, renavam: null, marca: null, modelo: null, ano_fabricacao: null, ano_modelo: null, cor: null, combustivel: null, ...campos },
+    lidos,
+    quantidade: lidos.length,
+    rotulo: "CRLV-e lido",
+    exercicio: 2026,
+    dicas: { marca_modelo: null },
+    leitura: "c",
+  });
+
+  it("copia só o que está em lidos, como texto, e deixa o resto da tela como está", () => {
+    const r = valoresDaLeitura(leitura({ placa: "TBC5H21", ano_fabricacao: 2025, ano_modelo: 2026, cor: "vermelha", combustivel: "gasolina" }, ["placa", "ano_fabricacao", "ano_modelo", "cor", "combustivel"]));
+    expect(r.valores).toEqual({ placa: "TBC5H21", ano_fabricacao: "2025", ano_modelo: "2026", cor: "vermelha" });
+    expect(r.lidos).toEqual(["placa", "ano_fabricacao", "ano_modelo", "cor"]);
+  });
+
+  it("marca e modelo fora de lidos não entram, mesmo com texto", () => {
+    const r = valoresDaLeitura(leitura({ placa: "TBC5H21", marca: "Honda", modelo: "Pop" }, ["placa"]));
+    expect(r.valores).toEqual({ placa: "TBC5H21" });
   });
 });
