@@ -8,6 +8,7 @@ from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
 
+from comum import relogio
 from comum.empresa import nome_da_empresa
 from comum.tarefas import tarefa_de_empresa
 from integracoes.whatsapp import enviar_whatsapp
@@ -24,7 +25,9 @@ def _marca_e_host(schema_name: str) -> tuple[str, str]:
 @tarefa_de_empresa
 def contas_enviar_convite(schema_name: str, convite_id: int) -> None:
     convite = Convite.objects.select_related("usuario").filter(pk=convite_id).first()
-    if convite is None or convite.aceito_em is not None:
+    # P-06: o convite que outro (o link copiado, um reenvio) já invalidou, ou que venceu, não sai:
+    # o link do e-mail estaria morto (B-01 da T-252).
+    if convite is None or convite.aceito_em is not None or convite.expira_em <= relogio.agora():
         return
     marca, host = _marca_e_host(schema_name)
     token = renovar_token(convite)

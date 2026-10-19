@@ -141,8 +141,6 @@ Concluída. As tarefas entregues estão em `tarefas/feito.md`.
 
 Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, depois telas, depois o que pede regra. As três dúvidas do fim contrariavam regras já escritas e foram decididas pelo dono no mesmo dia.
 
-### T-262 · Troca do ramo em Configurações (backend do cartão e tela)
-- **Agente:** backend, depois frontend · **Depende de:** T-259, T-253 · **Regras:** PLT-12 · **Contrato:** `docs/api/configuracoes.md` (cartão `ramo`, "O que a empresa faz") e `docs/api/empresas.md` (`GET` e `PUT /api/ramo/`) · **Telas:** Admin-Ramo-Desktop, Admin-Ramo-Mobile · **Pronto quando:** (backend) o cartão `ramo` em `GET /api/configuracoes/` depois de `marca`, com o resumo montado pela API ("Locação e venda · motos" no seed), ausente para o token de suporte, pela `empresas.selectors.configuracao()`; teste do cartão e da ausência para o suporte; (frontend) a rota `/admin/ramo` igual à referência, ligada a `GET` e `PUT /api/ramo/`, com as opções e o aviso que a API manda e a recusa 422 da `PLT-12` com o `abertos_texto`; testes do componente. Levantada pelo arquiteto na T-259.
 
 ### T-159 · (M-05) Login não revela e-mail com convite pendente (baixa)
 - **Agente:** backend · **Depende de:** — · **Regras:** USR-01, USR-06 · **Pronto quando:** em `POST /api/auth/entrar/`, quem tem convite pendente e ainda não tem senha recebe o mesmo 401 `credenciais_invalidas` (e o mesmo tempo) de um e-mail que não existe; hoje o 403 `convite_pendente` sai antes de conferir a senha e permite saber quem foi convidado; o 403 só depois da senha certa; teste `test_usr_06_convite_pendente_nao_revela_email`.
@@ -258,14 +256,8 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-265 · Código da leitura do CRLV-e (`VEI-08`, ADR 0026)
 - **Agente:** backend, depois frontend · **Depende de:** T-247 (revisão da segurança), T-257 · **Regras:** VEI-08, VEI-01, VEI-03 · **Contrato:** `docs/api/veiculos.md` (`POST /api/veiculos/leitura-crlv/`) · **Pronto quando:** o parser com pypdf no processo filho com os limites da ADR 0026, calibrado com CRLV-e reais; um semáforo de leituras simultâneas (pedido do devops na T-258); nada do conteúdo em log ou Sentry; CA-247-01 a 07; a tela de cadastro com "Preencher pelo CRLV-e". A CNH-e (`CLI-11`) fica para a fase 2 (decisão de 16 out).
 
-### T-266 · Produção recusa subir sem as variáveis do S3
-- **Agente:** backend · **Depende de:** — · **Pronto quando:** `prod.py` recusa subir com `S3_BUCKET` e as chaves do S3 ausentes ou vazias quando `GIRO_ARMAZENAMENTO=s3`, como a T-157 faz com o e-mail e os pagamentos; teste `test_t266_*`. Pedido do devops na T-258.
-
 ### T-281 · Seed em banco limpo com as configurações de teste
 - **Agente:** qa, com backend · **Depende de:** — · **Pronto quando:** o seed com `config.settings.test` num banco limpo para em `veiculos_veiculo does not exist` (também como superusuário; visto pela segurança na T-276). Achar a causa, corrigir e cobrir com um teste que roda o seed num banco novo.
-
-### T-282 · (B-01 da T-252) Envio do convite com o link já invalidado
-- **Agente:** backend · **Depende de:** T-250 · **Regras:** USR-01, P-06 · **Pronto quando:** a tarefa `contas_enviar_convite` não manda o link de um convite que o link copiado já invalidou (hoje manda; `xfail` estrito em `test_t252_seguranca_convite.py`); o teste passa a valer sem o `xfail`. Achado baixo da segurança na T-252.
 
 ### T-286 · Contrato das Movimentações
 - **Contrato feito (16 out 2026):** PR #288 (ADR 0028, `docs/api/movimentacoes.md`; handoff `tarefas/handoffs/T-286-arquiteto.md`). O código vai na T-288 (backend) e na T-289 (frontend), pelo Pronto quando abaixo.
@@ -278,10 +270,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 - Leitura do arquiteto, **aceita pelo produto (T-290)** e registrada na `MOV-03`: o veículo `disponivel` com locação `aguardando_retirada` (início hoje) conta como "reservado" na `MOV-03` e não se movimenta (409 `MOV-03`), porque já tem dono para hoje.
 
 
-### T-324 · Suporte nas escritas do financeiro
-- **Agente:** backend · **Depende de:** T-317, a decisão do dono (abaixo) · **Regras:** PLT-07, FIN-05, FIN-07 · **Pronto quando:** as quatro rotas que hoje dão 500 com o suporte em "ver e editar" (`POST caixas/`, `POST caixas/{id}/fechar/`, `POST despesas/`, `POST reembolsos/{id}/feito/`; a view repassa o `AtorSuporte` a um campo `contas.Usuario`) deixam de dar 500, conforme a decisão: (A) 403 `PLT-07` antes de ler arquivo e de validar, como a T-316; ou (B) a ação vale, com o suporte gravado como autor sem `contas.Usuario` e na auditoria. As quatro saem de `QUEBRADAS` em `test_t317_varredura_suporte.py`. Handoff `tarefas/handoffs/T-317-qa.md`.
-- [decisão] (para o dono, pelo orquestrador) **O suporte em "ver e editar" abre e fecha caixa, lança despesa e marca reembolso como feito?** Pela ADR 0013, ele age com o alcance do administrador, e nada na regra o barra no financeiro.
-
 ### T-320 · OpenAPI das Movimentações sem nomes repetidos
 - **Agente:** backend · **Depende de:** T-288 parte 1 (PR #324) · **Regras:** MOV-01 · **Pronto quando:** o OpenAPI gerado não repete nomes de componente: o `VeiculoRef` das movimentações não perde `modelo` e `status` para o outro `VeiculoRef`; `Quadro.itens` aponta para o item do quadro, não para a `Linha` da importação; o quadro declara os parâmetros `busca` e `levando`. Nomes únicos pelo `ref_name` dos serializers, OpenAPI regenerado, `api:gerar` e os tipos locais da T-289 trocados pelos gerados (o frontend confere). Achado do frontend na T-289 (handoff `tarefas/handoffs/T-289-frontend.md`).
 
@@ -293,18 +281,9 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 - **Decidida pelo dono em 16 out 2026: B** (T-296, recomendação do produto). Sem a autorização no dia da emissão (5 dias antes), a fatura sai em boleto com Pix por e-mail, como na forma boleto, com a linha "Seu Pix automático ainda não foi autorizado. Esta fatura vai por boleto com Pix.". A escolha do Pix automático continua e vale a partir da fatura seguinte, depois de autorizada; a fatura já emitida segue no boleto. Regras `PLT-13` e `PLT-02`, tabela "Decisões de 16 out 2026", critério CA-ASS-63. A tarefa do backend está no handoff `tarefas/handoffs/T-296-produto.md`, para o orquestrador numerar.
 - Antes (A, o que o PR #302 fazia): nada era emitido, e a empresa só pagava pelo "Pagar". C (a forma voltar para boleto) foi descartada.
 
-### T-307 · Pix do boleto no Asaas e no falso
-- **Agente:** backend · **Depende de:** T-305 · **Regras:** FIN-04, PLT-02, PLT-13 · **Pronto quando:** no boleto, o adaptador do Asaas busca o `pixQrCode` e põe o `payload` em `pix_copia_e_cola` (400 do parceiro: boleto sem Pix, com aviso no log e sem cancelar; parceiro fora: cancela e sobe, como hoje); o falso também dá o Pix do boleto, com um jeito de simular "Pix não disponível"; `CobrancaExterna` e `FaturaAssinatura` gravam o Pix do boleto, e os e-mails só escrevem a linha do Pix quando ele existe; gravações novas em `gravacoes/asaas.json` e o caso no `test_t029_asaas_sandbox.py` (só local, com a chave de sandbox); testes `test_fin_04_boleto_traz_o_pix`, `test_fin_04_boleto_sem_pix_disponivel_nao_cancela`, `test_plt_02_email_do_boleto_sem_linha_pix_vazia`, `test_plt_13_pagar_devolve_o_boleto_com_pix`. Conferências do sandbox e a chave Pix das contas (devops) no handoff `tarefas/handoffs/T-305-arquiteto.md`.
-
 ### ~~[decisão]~~ Marco da régua da assinatura perdido (PLT-02, AUT-13, levantada na T-299)
 - **Decidida pelo dono em 16 out 2026: B** (T-308, recomendação do produto). Só o D+7 sai depois, na próxima execução até o D+14, uma vez, com a ligação; o D-3, o D0 e o D+3 não são recuperados. Regras `PLT-02` e `AUT-13`, tabela "Decisões de 16 out 2026", critério CA-ASS-68. A T-303 já conta com B.
 - **Para:** dono do produto, pelo orquestrador · **Contexto:** se a tarefa das 09:00 não rodar no dia de um marco, a mensagem não sai depois (como na `AUT-03`); no D+7, perde-se o último aviso antes da suspensão e a tarefa de ligação. A) nenhum marco é recuperado; B) só o D+7 sai na próxima execução, até o D+14, uma vez. **Padrão: B.** Em "Pontos em aberto" das regras. Entra na tarefa de backend dos textos (handoff `tarefas/handoffs/T-299-produto.md`).
-
-### T-303 · Textos da régua da assinatura
-- **Agente:** backend · **Depende de:** T-186 parte 3 (PR #304), T-299, a `[decisão]` do marco perdido (acima) · **Regras:** AUT-13, PLT-02 · **Critérios:** CA-ASS-64 a 67 · **Pronto quando:** `mensagem_da_regua`, `_como_pagar` e `_pedir_ligacao` com os textos da seção "Textos da régua da assinatura (T-299)" de `docs/qa/criterios/assinatura.md` ("da empresa {nome}"; suspensão pela tabela de estados; D+7 com "Pagando, o acesso volta na hora." e a ligação só com `responsavel_telefone`; WhatsApp com "Giro: ", o caminho de pagar e o rodapé; "Não é preciso fazer nada." na cobrança automática sem recusa; "Assinatura: {endereço}" em todo e-mail; o e-mail da ligação com o novo assunto); o marco perdido conforme a decisão do dono; testes `test_aut_13_textos_da_regua_no_boleto`, `test_aut_13_automatica_nao_pede_nada`, `test_aut_13_whatsapp_com_marca_e_caminho`, `test_aut_13_d7_e_a_ligacao` e, se for a opção B, `test_aut_13_d7_perdido_sai_ate_d14`. Handoff de origem: `tarefas/handoffs/T-299-produto.md`.
-
-### T-306 · Um e-mail por destinatário e a régua que não para no primeiro erro
-- **Agente:** backend · **Depende de:** T-186 parte 3 (PR #304) · **Regras:** AUT-13, PLT-02, PLT-15, LGPD · **Severidade:** média (M-01 e M-02 de `docs/seguranca/2026-10-16-t304-destinatarios-regua.md`) · **Vai junto da T-303** (mesmas funções) · **Pronto quando:** `enviar_a_cada_um` manda um e-mail por endereço, só ele no "Para", usada na régua, no e-mail do boleto e no aviso do downgrade recusado (`test_aut_13_cada_destinatario_recebe_o_seu`, `test_plt_02_boleto_um_por_destinatario`); a régua isola cada fatura, e uma falha vai ao log sem o corpo (`test_aut_13_falha_numa_fatura_nao_para_as_outras`); e-mail e WhatsApp saem depois do commit, sem repetir o e-mail se o WhatsApp falhar; `nome_exibicao` recusa quebra de linha e caractere de controle (400 "Use um nome sem quebra de linha."). Detalhe no handoff `tarefas/handoffs/T-304-seguranca.md`.
 
 ### [decisão] Baixa de veículo com movimentação aberta (MOV-03, levantada na T-300, T-302)
 
@@ -357,13 +336,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 - ~~[decisão]~~ **Respondida na T-261 (produto, 16 out 2026): fica "Nenhuma filial ativa".** Só acontece antes do passo 6 da implantação, porque a última filial ativa não se desativa (`FIL-06`), e o texto vale nos dois casos. (T-181, Configurações) Empresa sem filial ativa: o contrato não diz o resumo do cartão Filiais; o backend usa "Nenhuma filial ativa" (como "Nenhuma categoria cadastrada" em Tabelas de preço). Produto: confirmar ou trocar o texto.
 
 - Resolvido na T-263 (arquiteto): `acoes.gerar_contrato` no detalhe da locação (`locacoes.md`); a tela deixa de deduzir. Tarefa abaixo.
-
-### T-263 · Ação gerar_contrato na locação
-- **Contrato feito (16 out 2026):** PR #261 (`tarefas/handoffs/T-263-arquiteto.md`). Falta o código: backend, depois frontend.
-- **Agente:** arquiteto (contrato), depois backend e frontend · **Depende de:** — · **Regras:** IMP-04, APR-01, LOC-12, fluxo da retirada (passo 3) · **Telas:** Locacao-Detalhe, Locacao (passo 3)
-- **Contrato:** `docs/api/locacoes.md` (`acoes.gerar_contrato`) e `docs/api/contratos.md` (recusas do `POST /api/locacoes/{id}/contrato/`). Branch `t-263-acao-gerar-contrato`.
-- **Pronto quando (backend):** `acoes()` em `apps/locacoes/selectors.py` devolve `gerar_contrato` = perfil que cria e `aguardando_retirada` e sem desconto pendente e sem cancelamento em curso e sem contrato vigente; `contrato.gerar` recusa com 409 `cancelamento_em_curso` (o que faltava para a ação e o `POST` concordarem); testes `test_loc_acoes_gerar_contrato` (verdadeiro para administrador, gerente e vendedor; falso para vistoriador e financeiro, fora de `aguardando_retirada`, com desconto pendente, com cancelamento pendente e com contrato `enviado`; verdadeiro de novo com o contrato `cancelado`) e `test_loc_gerar_contrato_com_cancelamento_em_curso`; OpenAPI regenerado e `npm run api:gerar` no frontend.
-- **Pronto quando (frontend, depois do backend):** o cartão Contrato de `DetalheDaLocacao` mostra "Enviar contrato" só por `l.acoes.gerar_contrato`; sai o `podeEnviarContrato` de `frontend/src/lib/locacoes.ts` e o teste dele, e entra o teste do componente com a ação `true` e `false`; o 422 `IMP-04` continua mostrando o atalho para publicar o modelo.
 
 ## Fase 2 em diante
 

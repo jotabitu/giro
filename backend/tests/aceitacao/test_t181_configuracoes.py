@@ -42,6 +42,7 @@ SEED = [
         "titulo": "Empresa e marca",
         "resumo": "Logo, cor, nome e endereço do sistema",
     },
+    {"chave": "ramo", "titulo": "O que a empresa faz", "resumo": "Locação e venda · motos"},
     {"chave": "filiais", "titulo": "Filiais", "resumo": "1 filial · Filial Centro, Fortaleza"},
     {"chave": "usuarios", "titulo": "Usuários e perfis", "resumo": "5 de 10 usuários"},
     {"chave": "precos", "titulo": "Tabelas de preço", "resumo": "4 categorias"},
@@ -94,6 +95,7 @@ def test_usr_05_configuracoes_so_cartoes_de_apps_ativos(moto_rapida, settings):
     settings.GIRO_MODULOS_ATIVOS = [m for m in TODOS_OS_MODULOS if m != "auditoria"]
     assert _chaves(_get(moto_rapida)) == [
         "marca",
+        "ramo",
         "filiais",
         "usuarios",
         "precos",
@@ -103,7 +105,7 @@ def test_usr_05_configuracoes_so_cartoes_de_apps_ativos(moto_rapida, settings):
     # Sem `empresas` (a tela Empresa e marca é da T-154): o cartão `marca` não vem, e o item
     # `config` do menu continua, pela chave própria `configuracoes`.
     settings.GIRO_MODULOS_ATIVOS = [m for m in TODOS_OS_MODULOS if m != "empresas"]
-    assert "marca" not in _chaves(_get(moto_rapida))
+    assert not {"marca", "ramo"} & set(_chaves(_get(moto_rapida)))
     eu = moto_rapida.moto.api("Mariana").get("/api/auth/eu/").json()
     administracao = next(
         [i["chave"] for i in g["itens"]]
@@ -180,10 +182,10 @@ def test_plt_07_configuracoes_suporte_sem_auditoria(moto_rapida, relogio_jwt):
     resposta = _suporte(moto_rapida.moto, "ver").get(URL)
     assert resposta.status_code == 200, resposta.json()
     corpo = resposta.json()
-    assert _chaves(corpo) == [
-        c["chave"] for c in SEED if c["chave"] not in ("auditoria", "exportar")
-    ]
-    assert corpo["cartoes"] == [c for c in SEED if c["chave"] not in ("auditoria", "exportar")]
+    # Nem `ramo` (T-259): a tela só serve para trocar, e o suporte não troca.
+    fora = ("ramo", "auditoria", "exportar")
+    assert _chaves(corpo) == [c["chave"] for c in SEED if c["chave"] not in fora]
+    assert corpo["cartoes"] == [c for c in SEED if c["chave"] not in fora]
 
 
 @pytest.mark.parametrize("quem", ["Rodrigo", "Bruna", "João", "Lúcia"])
@@ -229,10 +231,11 @@ def _consultas(usuario: Any) -> int:
     return sum(1 for q in feitas.captured_queries if not q["sql"].startswith("SET search_path"))
 
 
-def test_usr_05_configuracoes_no_maximo_10_queries(moto_rapida):
+def test_usr_05_configuracoes_no_maximo_11_queries(moto_rapida):
     mariana = moto_rapida.pessoas["Mariana"]
     antes = _consultas(mariana)
-    assert antes <= 10
+    # 10 da T-181 mais a linha de `ConfiguracaoEmpresa` do cartão `ramo` (T-259, T-262).
+    assert antes <= 11
     # Sem N+1 por filial nem por modelo.
     for nome, cidade in (("Filial Caucaia", "Caucaia"), ("Filial Maracanaú", "Maracanaú")):
         Filial.objects.create(**{**_campos_da_filial(moto_rapida), "nome": nome, "cidade": cidade})
