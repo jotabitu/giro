@@ -5073,6 +5073,55 @@ paths:
               schema:
                 $ref: '#/components/schemas/ConsultaDaAssinatura'
           description: ''
+  /api/ramo/:
+    get:
+      operationId: ramo_retrieve
+      description: |-
+        O que a empresa faz (PLT-12): passo 7 da implantação e `/admin/ramo` (T-224, T-262).
+        Sem cache: o plano pode ter mudado no pedido anterior.
+      summary: Ramo da empresa e as opções do plano
+      tags:
+      - ramo
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ramo'
+          description: ''
+    put:
+      operationId: ramo_update
+      description: |-
+        O que a empresa faz (PLT-12): passo 7 da implantação e `/admin/ramo` (T-224, T-262).
+        Sem cache: o plano pode ter mudado no pedido anterior.
+      summary: Trocar o ramo (PLT-12)
+      tags:
+      - ramo
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MudarRamo'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/MudarRamo'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MudarRamo'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ramo'
+          description: ''
+        '422':
+          description: '`PLT-12`: o plano não aceita, ou algo aberto'
   /api/suporte/:
     get:
       operationId: suporte_retrieve
@@ -6832,6 +6881,51 @@ components:
       required:
       - access
       - codigos_recuperacao
+    AtividadeDoRamo:
+      type: object
+      properties:
+        valor:
+          $ref: '#/components/schemas/AtividadeDoRamoValorEnum'
+        titulo:
+          type: string
+        descricao:
+          type: string
+        aviso:
+          type: string
+          nullable: true
+      required:
+      - aviso
+      - descricao
+      - titulo
+      - valor
+    AtividadeDoRamoValorEnum:
+      enum:
+      - aluga
+      - vende
+      type: string
+      description: |-
+        * `aluga` - aluga
+        * `vende` - vende
+    AtividadeEnum:
+      enum:
+      - aluga
+      - vende
+      - ambos
+      type: string
+      description: |-
+        * `aluga` - Locação
+        * `vende` - Venda
+        * `ambos` - Locação e venda
+    AtividadesAceitasEnum:
+      enum:
+      - aluga
+      - vende
+      - ambos
+      type: string
+      description: |-
+        * `aluga` - Locação
+        * `vende` - Venda
+        * `ambos` - Locação e venda
     Ator:
       type: object
       properties:
@@ -13058,6 +13152,16 @@ components:
       - categoria
       - depois_centavos
       - vigente_desde
+    MudarRamo:
+      type: object
+      properties:
+        atividade:
+          $ref: '#/components/schemas/AtividadeEnum'
+        trabalha_com:
+          $ref: '#/components/schemas/TrabalhaComEnum'
+      required:
+      - atividade
+      - trabalha_com
     Navegacao:
       type: object
       description: 'USR-05 e USR-08: o menu pronto; o frontend liga cada `chave` à
@@ -15005,6 +15109,39 @@ components:
             $ref: '#/components/schemas/Coluna'
       required:
       - colunas
+    Ramo:
+      type: object
+      properties:
+        atividade:
+          $ref: '#/components/schemas/AtividadeEnum'
+        trabalha_com:
+          $ref: '#/components/schemas/TrabalhaComEnum'
+        atividades:
+          type: array
+          items:
+            $ref: '#/components/schemas/AtividadeDoRamo'
+        atividades_aceitas:
+          type: array
+          items:
+            $ref: '#/components/schemas/AtividadesAceitasEnum'
+        tipos:
+          type: array
+          items:
+            $ref: '#/components/schemas/TipoDoRamo'
+        modulos:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          description: Por atividade aceita, os módulos que o plano liga (Recurso.label).
+      required:
+      - atividade
+      - atividades
+      - atividades_aceitas
+      - modulos
+      - tipos
+      - trabalha_com
     Receber:
       type: object
       properties:
@@ -16005,6 +16142,24 @@ components:
       description: |-
         * `pf` - Pessoa física
         * `pj` - Pessoa jurídica
+    TipoDoRamo:
+      type: object
+      properties:
+        valor:
+          $ref: '#/components/schemas/TipoDoRamoValorEnum'
+        titulo:
+          type: string
+      required:
+      - titulo
+      - valor
+    TipoDoRamoValorEnum:
+      enum:
+      - motos
+      - carros
+      type: string
+      description: |-
+        * `motos` - motos
+        * `carros` - carros
     TipoDocumentoClienteEnum:
       enum:
       - cnh_frente
@@ -16103,6 +16258,16 @@ components:
           maxLength: 100
       required:
       - token
+    TrabalhaComEnum:
+      enum:
+      - motos
+      - carros
+      - ambos
+      type: string
+      description: |-
+        * `motos` - motos
+        * `carros` - carros
+        * `ambos` - motos e carros
     TrechoLocacao:
       type: object
       properties:
