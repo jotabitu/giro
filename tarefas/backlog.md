@@ -256,6 +256,7 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 ### T-331 · Calibração da leitura com CRLV-e reais
 - **Agente:** qa, com backend · **Depende de:** T-265, T-329 · **Regras:** VEI-08 · **Pronto quando:** a leitura é conferida com CRLV-e reais de moto e de carro, emitidos em estados diferentes, só na máquina local e fora do git (dado pessoal; repositório público); o que o parser errar vira teste com um PDF fictício igual em formato. Os PDFs reais vêm do dono.
+- **Estado (19 out 2026, qa):** leitura conferida com 2 CRLV-e reais do Detran-CE (carro e moto): placa, Renavam e os dois anos lidos certo; chassi, marca e modelo, cor, combustível e exercício vieram vazios. 12 testes `xfail` estritos com PDFs fictícios no leiaute do Detran (`test_t331_calibracao_crlv.py`) e a correção candidata no handoff `tarefas/handoffs/T-331-qa.md`. Falta: a tarefa de backend (a numerar) e CRLV-e de outros estados.
 
 ### T-333 · WeasyPrint 70 (PYSEC-2026-3940 e PYSEC-2026-4311)
 - **Agente:** backend, com devops · **Depende de:** — · **Pronto quando:** `weasyprint` sobe de 69.0 para a 70.0 ou mais nova, que corrige os dois avisos do `pip-audit` levantados na T-328; os PDFs gerados (contrato, recibo) seguem iguais nos testes; `pip-audit` limpo; o devops reconstrói a imagem.
