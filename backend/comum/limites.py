@@ -130,6 +130,26 @@ class MarcaPorIP(_PorIP):
     scope = "marca_ip"
 
 
+class LeituraDocumentoPorUsuario(_PorUsuario):
+    """Leitura de documento em PDF: 30 por hora por usuário, somando CRLV-e e CNH-e (ADR 0026,
+    item 6). As recusas (400 e 422) também contam: a contagem vem antes do filho."""
+
+    scope = "leitura_documento_usuario"
+
+
+class LeituraDocumentoPorEmpresa(SimpleRateThrottle):
+    """Leitura de documento em PDF: 200 por hora por empresa (ADR 0026, item 6). A chave do cache
+    já leva o schema (`make_key`), então o identificador é fixo."""
+
+    scope = "leitura_documento_empresa"
+
+    def get_cache_key(self, request: Request, view: Any) -> str | None:
+        return self.cache_format % {"scope": self.scope, "ident": "empresa"}
+
+
+LIMITES_DA_LEITURA_DE_DOCUMENTO = [LeituraDocumentoPorUsuario, LeituraDocumentoPorEmpresa]
+
+
 class CepPorUsuario(_PorUsuario):
     """Busca de CEP: cada CEP novo é uma chamada ao ViaCEP (F-05 da T-064)."""
 

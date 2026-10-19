@@ -18,7 +18,7 @@ from apps.filiais import selectors as filiais_selectors
 from apps.filiais.models import Filial
 from apps.notificacoes.services import avisar
 from apps.plataforma.services import atualizar_uso, exigir_limite
-from comum import aprovacoes, arquivos, estados, leituras, relogio
+from comum import aprovacoes, arquivos, comprovante_leitura, estados, leituras, relogio
 from comum.auditoria import Categoria as CategoriaAuditoria
 from comum.auditoria import TipoAtor, ator_atual, auditar, registrar_evento, retrato
 from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, TransicaoInvalida
@@ -311,6 +311,8 @@ def _validar_dados(
     modelo = limpos.get("ano_modelo")
     if fabricacao and modelo and not fabricacao <= modelo <= fabricacao + 1:
         erros["ano_modelo"] = ["O ano do modelo é o de fabricação ou o seguinte."]
+    if "combustivel" in dados:
+        limpos["combustivel"] = dados["combustivel"] or None  # VEI-08; o enum vem do serializer
     if "categoria_id" in dados:
         limpos["categoria"] = _categoria_para(dados["categoria_id"], filial_id, erros)
     for campo in (
@@ -359,7 +361,12 @@ def _limpar_cadastro(dados: dict[str, Any]) -> dict[str, Any]:
     return limpos
 
 
-def _criar(limpos: dict[str, Any], status: str, origem: OrigemDaMudanca) -> Veiculo:
+def _criar(
+    limpos: dict[str, Any],
+    status: str,
+    origem: OrigemDaMudanca,
+    extras_do_evento: dict[str, Any] | None = None,
+) -> Veiculo:
     agora = relogio.agora()
     limpos.setdefault("entrou_na_frota_em", relogio.hoje())
     try:
@@ -378,7 +385,7 @@ def _criar(limpos: dict[str, Any], status: str, origem: OrigemDaMudanca) -> Veic
         "veiculo.cadastrar",
         CategoriaAuditoria.OPERACAO,
         objeto=veiculo,
-        depois=retrato(veiculo),
+        depois={**retrato(veiculo), **(extras_do_evento or {})},
         regra="VEI-01",
     )
     atualizar_uso("veiculos", 1)
@@ -395,6 +402,91 @@ def cadastrar(dados: dict[str, Any], *, origem: OrigemDaMudanca | None = None) -
         _conferir_unicos(limpos["placa"], limpos["chassi"])
         exigir_limite("veiculos")
         return _criar(limpos, S.DISPONIVEL, origem or OrigemDaMudanca(Origem.CADASTRO))
+
+
+MENSAGEM_CRLV_ARQUIVO = "Envie o PDF do CRLV-e, até 2 MB."
+CRLV_TAMANHO_MAXIMO = 2 * 1024 * 1024
+CRLV_NOME = "CRLV-e.pdf"  # o nome enviado pode trazer o nome da pessoa (ADR 0026, item 9)
+# Campo do cadastro → atributo gravado, para comparar com o que a leitura devolveu.
+CAMPOS_DO_CRLV = (
+    "placa",
+    "chassi",
+    "renavam",
+    "marca",
+    "modelo",
+    "ano_fabricacao",
+    "ano_modelo",
+    "cor",
+    "combustivel",
+)
+
+
+def _conteudo_do_crlv(arquivo: Any) -> bytes:
+    """De novo os primeiros bytes e os 2 MB, sem confiar na leitura (ADR 0026, item 8)."""
+    arquivo.seek(0)
+    conteudo: bytes = arquivo.read(CRLV_TAMANHO_MAXIMO + 1)
+    arquivo.seek(0)
+    if len(conteudo) > CRLV_TAMANHO_MAXIMO or not conteudo.startswith(b"%PDF-"):
+        raise ErroDeValidacao({"crlv_arquivo": [MENSAGEM_CRLV_ARQUIVO]})
+    return conteudo
+
+
+def cadastrar_com_crlv(
+    dados: dict[str, Any],
+    arquivo: Any,
+    validade: date,
+    exercicio: int | None,
+    leitura: str | None,
+    usuario: Any,
+) -> Veiculo:
+    """POST /api/veiculos/ em multipart com o CRLV lido (VEI-08, CA-247-03): o veículo e o
+    `DocumentoVeiculo` `crlv` numa transação só, com as validações de sempre (VEI-01, PLT-03).
+
+    Com o comprovante `leitura` válido para este arquivo, empresa e pessoa, o evento
+    `veiculo.cadastrar` leva `preenchido_pelo_documento` (campos lidos e os corrigidos, sem
+    valores). Sem ele, salva do mesmo jeito, sem a marca. Se a transação falhar depois de o
+    arquivo ir para o armazenamento, o arquivo é apagado."""
+    conteudo = _conteudo_do_crlv(arquivo)
+    limpos = _limpar_cadastro(dados)
+    resumos = comprovante_leitura.conferir("crlv", leitura, conteudo, usuario)
+    extras: dict[str, Any] = {}
+    if resumos is not None:
+        gravados = {campo: limpos.get(campo) for campo in CAMPOS_DO_CRLV}
+        lidos, corrigidos = comprovante_leitura.campos_do_documento(resumos, conteudo, gravados)
+        if lidos:
+            extras["preenchido_pelo_documento"] = {
+                "tipo": "crlv",
+                "campos": lidos,
+                "corrigidos": corrigidos,
+            }
+    gravado: tuple[Any, str] | None = None  # (armazenamento, nome) do arquivo já enviado
+    try:
+        with transaction.atomic():
+            _conferir_unicos(limpos["placa"], limpos["chassi"])
+            exigir_limite("veiculos")
+            veiculo = _criar(limpos, S.DISPONIVEL, OrigemDaMudanca(Origem.CADASTRO), extras)
+            documento = DocumentoVeiculo.objects.create(
+                veiculo=veiculo,
+                tipo=TipoDocumento.CRLV,
+                validade=validade,
+                exercicio=exercicio,
+                arquivo_nome=CRLV_NOME,
+                por_id=_quem(),
+            )
+            documento.arquivo.save(CRLV_NOME, arquivo, save=True)
+            gravado = (documento.arquivo.storage, documento.arquivo.name)
+            registrar_evento(
+                "documento_veiculo.enviar",
+                CategoriaAuditoria.OPERACAO,
+                objeto=documento,
+                depois=retrato(documento),
+                regra="VEI-08",
+            )
+    except Exception:
+        if gravado:
+            gravado[0].delete(gravado[1])
+        raise
+    return veiculo
 
 
 def validar_novo(dados: dict[str, Any]) -> list[dict[str, str]]:
@@ -429,6 +521,7 @@ CAMPOS_EDITAVEIS = (
     "ano_fabricacao",
     "ano_modelo",
     "cor",
+    "combustivel",
     "categoria_id",
     "capacidade_tanque_litros",
     "valor_compra_centavos",
@@ -770,7 +863,11 @@ def documentos_vencidos_que_bloqueiam(veiculo: Veiculo, hoje: date) -> list[str]
 
 
 def enviar_documento(
-    veiculo: Veiculo, tipo: str, validade: date, arquivo: Any | None = None
+    veiculo: Veiculo,
+    tipo: str,
+    validade: date,
+    arquivo: Any | None = None,
+    exercicio: int | None = None,
 ) -> DocumentoVeiculo:
     """Novo documento; o ativo do mesmo tipo fica inativo (renovação). Renovar não muda o
     status: o veículo `indisponivel` volta pela ação `desbloquear` (VEI-03)."""
@@ -788,6 +885,7 @@ def enviar_documento(
             veiculo=travado,
             tipo=tipo,
             validade=validade,
+            exercicio=exercicio if tipo == TipoDocumento.CRLV else None,
             arquivo_nome=(arquivo.name if arquivo is not None else "")[:120],
             por_id=_quem(),
         )
