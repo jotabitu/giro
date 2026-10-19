@@ -342,9 +342,17 @@ class ModeloSerializer(serializers.Serializer[Any]):
     modelo = serializers.CharField()
     tipo = serializers.ChoiceField(choices=["moto", "carro"])
 
+    class Meta:
+        # Nome próprio no OpenAPI: `contratos` já tem um `Modelo` (T-265).
+        ref_name = "ModeloDoCatalogo"
+
 
 class ListaDeModelosSerializer(serializers.Serializer[Any]):
     resultados = ModeloSerializer(many=True)
+
+    class Meta:
+        # Nome próprio no OpenAPI: `contratos` já tem um `ListaDeModelos` (T-265).
+        ref_name = "ListaDeModelosDoCatalogo"
 
 
 class FiltroDeModelosSerializer(serializers.Serializer[Any]):
