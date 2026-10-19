@@ -3189,6 +3189,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/Reembolso'
           description: ''
+  /api/implantacao/:
+    get:
+      operationId: implantacao_retrieve
+      description: |-
+        A moldura do assistente marca os passos pelo que a API manda (T-190, proposta 9).
+        Administrador e token de suporte (só leitura); os demais, 403.
+      summary: Andamento do assistente de implantação (IMP-05)
+      tags:
+      - implantacao
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AndamentoDoAssistente'
+          description: ''
   /api/importacoes/:
     get:
       operationId: importacoes_list
@@ -6879,6 +6897,30 @@ components:
             $ref: '#/components/schemas/ItemAnaliseCliente'
       required:
       - itens
+    AndamentoDoAssistente:
+      type: object
+      properties:
+        concluida:
+          type: boolean
+          description: 'IMP-01: passo `primeira_locacao` marcado.'
+        total:
+          type: integer
+          description: 8 passos; 7 sem `recebimentos` (PLT-12).
+        feitos:
+          type: integer
+        proximo:
+          type: string
+          nullable: true
+        passos:
+          type: array
+          items:
+            $ref: '#/components/schemas/PassoDoAssistente'
+      required:
+      - concluida
+      - feitos
+      - passos
+      - proximo
+      - total
     AnexarNota:
       type: object
       properties:
@@ -14078,6 +14120,27 @@ components:
           nullable: true
       required:
       - concluido_em
+      - passo
+      - rotulo
+    PassoDoAssistente:
+      type: object
+      properties:
+        passo:
+          type: string
+        numero:
+          type: integer
+        rotulo:
+          type: string
+        feito:
+          type: boolean
+        feito_em:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - feito
+      - feito_em
+      - numero
       - passo
       - rotulo
     PassoDoInicio:
