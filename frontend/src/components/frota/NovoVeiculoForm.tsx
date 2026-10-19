@@ -5,14 +5,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bike, Car, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type SelectHTMLAttributes } from "react";
+import { useDeferredValue, useEffect, useRef, useState, type SelectHTMLAttributes } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
 import { Icone, Panel, SegmentedControl, TextField } from "@/design-system";
 import { ErroApi, veiculos, type CategoriaVeiculo } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { dinheiro, km, placa as placaComHifen } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
-import { esquemaVeiculo, paraCorpoVeiculo, VALORES_INICIAIS_VEICULO, type ValoresVeiculo } from "@/lib/veiculos";
+import { esquemaVeiculo, paraCorpoVeiculo, valoresDaLeitura, VALORES_INICIAIS_VEICULO, type CampoLido, type ValoresVeiculo } from "@/lib/veiculos";
+import { PreencherPeloCrlv, type CrlvLido } from "./PreencherPeloCrlv";
 
 type Nome = FieldPath<ValoresVeiculo>;
 
@@ -58,6 +59,9 @@ export function NovoVeiculoForm() {
   const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [existente, setExistente] = useState<{ id: number } | null>(null);
   const [salvo, setSalvo] = useState<string | null>(null);
+  // O CRLV-e lido e o que ele preencheu: o arquivo e o comprovante seguem no salvar (VEI-08).
+  const [crlv, setCrlv] = useState<CrlvLido | null>(null);
+  const [lidos, setLidos] = useState<Partial<Record<CampoLido, string>>>({});
 
   const filiaisDaPessoa = eu.filiais;
   const valoresIniciais: ValoresVeiculo = { ...VALORES_INICIAIS_VEICULO, filial_id: filiaisDaPessoa.length === 1 ? String(filiaisDaPessoa[0]!.id) : "" };
@@ -68,9 +72,12 @@ export function NovoVeiculoForm() {
     setValue,
     setError,
     reset,
+    clearErrors,
     formState: { errors },
   } = useForm<ValoresVeiculo>({ resolver: zodResolver(esquemaVeiculo), defaultValues: valoresIniciais });
   const v = watch();
+  const marcaAdiada = useDeferredValue(v.marca);
+  const modeloAdiado = useDeferredValue(v.modelo);
 
   const categorias = useQuery({
     queryKey: ["categorias", { filial: v.filial_id, tipo: v.tipo }],
@@ -84,7 +91,35 @@ export function NovoVeiculoForm() {
     if (categorias.data && v.categoria_id && !categorias.data.some((c) => String(c.id) === v.categoria_id)) setValue("categoria_id", "");
   }, [categorias.data, v.categoria_id, setValue]);
 
-  const salvar = useMutation({ mutationFn: (valores: ValoresVeiculo) => veiculos.criar(paraCorpoVeiculo(valores)) });
+  const modelos = useQuery({
+    queryKey: ["modelos", { tipo: v.tipo, marca: marcaAdiada.trim(), busca: modeloAdiado.trim() }],
+    queryFn: () => veiculos.modelos({ tipo: v.tipo, marca: marcaAdiada.trim(), busca: modeloAdiado.trim() }),
+    placeholderData: (anterior) => anterior,
+  });
+  const daLista = (modelos.data ?? []).some((m) => m.modelo.toLowerCase() === v.modelo.trim().toLowerCase());
+
+  const salvar = useMutation({
+    mutationFn: (valores: ValoresVeiculo) => {
+      const combustivel = crlv?.leitura.lidos.includes("combustivel") ? (crlv.leitura.campos.combustivel ?? undefined) : undefined;
+      const corpo = { ...paraCorpoVeiculo(valores), ...(combustivel ? { combustivel } : {}) };
+      return veiculos.criar(corpo, crlv ? { arquivo: crlv.arquivo, validade: valores.crlv_validade, exercicio: crlv.leitura.exercicio, leitura: crlv.leitura.leitura } : undefined);
+    },
+  });
+
+  function preencherPelaLeitura(lido: CrlvLido) {
+    const { valores } = valoresDaLeitura(lido.leitura);
+    for (const [nome, valor] of Object.entries(valores) as [CampoLido, string][]) setValue(nome, valor, { shouldDirty: true });
+    clearErrors();
+    setLidos(valores);
+    setCrlv(lido);
+  }
+  function tirarCrlv() {
+    setCrlv(null);
+    setLidos({});
+  }
+  /** Dica do campo: "Lido do documento" enquanto o valor é o que veio do CRLV-e; se a pessoa mudar, volta a dica de sempre. */
+  const dicaDe = (nome: CampoLido, padrao?: string) => (lidos[nome] !== undefined && lidos[nome] === v[nome] ? "Lido do documento" : padrao);
+
 
   const erro = (nome: Nome) => errors[nome]?.message;
 
@@ -102,6 +137,7 @@ export function NovoVeiculoForm() {
       void cliente.invalidateQueries({ queryKey: ["veiculos"] });
       if (outro) {
         reset({ ...valoresIniciais, tipo: valores.tipo, filial_id: valores.filial_id });
+        tirarCrlv();
         setSalvo(`${criado.marca} ${criado.modelo}, placa ${placaComHifen(criado.placa)}, entrou na frota.`);
         window.scrollTo?.({ top: 0 });
       } else {
@@ -204,28 +240,29 @@ export function NovoVeiculoForm() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-6">
-          <section className="wl-panel flex flex-wrap items-center gap-4">
-            <div className="min-w-0 flex-1 basis-64">
-              <div className="text-body font-semibold">Preencher pelo documento</div>
-              <p className="text-body text-ink-muted">A leitura do CRLV-e ainda não está disponível. Preencha os dados abaixo.</p>
-            </div>
-            <button type="button" disabled className="wl-btn">
-              Enviar CRLV-e
-            </button>
-          </section>
+          <PreencherPeloCrlv lido={crlv} aoLer={preencherPelaLeitura} aoRemover={tirarCrlv} />
 
           <Panel titulo="Identificação">
             <div className="grid gap-4 md:grid-cols-2">
-              <TextField cheio mono rotulo="Placa" autoComplete="off" autoCapitalize="characters" maxLength={8} dica="Padrão antigo ou Mercosul" erro={erro("placa")} {...register("placa")} />
-              <TextField cheio rotulo="Marca" autoComplete="off" erro={erro("marca")} {...register("marca")} />
-              <TextField cheio rotulo="Modelo" autoComplete="off" erro={erro("modelo")} {...register("modelo")} />
-              <div className="grid grid-cols-2 gap-3">
-                <TextField cheio mono rotulo="Ano de fabricação" inputMode="numeric" maxLength={4} erro={erro("ano_fabricacao")} {...register("ano_fabricacao")} />
-                <TextField cheio mono rotulo="Ano do modelo" inputMode="numeric" maxLength={4} erro={erro("ano_modelo")} {...register("ano_modelo")} />
+              <TextField cheio mono rotulo="Placa" autoComplete="off" autoCapitalize="characters" maxLength={8} dica={dicaDe("placa", "Padrão antigo ou Mercosul")} erro={erro("placa")} {...register("placa")} />
+              <TextField cheio rotulo="Marca" autoComplete="off" dica={dicaDe("marca")} erro={erro("marca")} {...register("marca")} />
+              <div>
+                <TextField cheio rotulo="Modelo" autoComplete="off" list="modelos-do-catalogo" dica={dicaDe("modelo", daLista ? "Da lista FIPE" : "Escolha da lista ou digite")} erro={erro("modelo")} {...register("modelo")} />
+                <datalist id="modelos-do-catalogo">
+                  {(modelos.data ?? []).map((m) => (
+                    <option key={`${m.marca}|${m.modelo}`} value={m.modelo}>
+                      {m.marca}
+                    </option>
+                  ))}
+                </datalist>
               </div>
-              <TextField cheio mono rotulo="Chassi" autoComplete="off" autoCapitalize="characters" maxLength={17} dica="17 caracteres" erro={erro("chassi")} {...register("chassi")} />
-              <TextField cheio mono rotulo="Renavam" inputMode="numeric" erro={erro("renavam")} {...register("renavam")} />
-              <TextField cheio rotulo="Cor" erro={erro("cor")} {...register("cor")} />
+              <div className="grid grid-cols-2 gap-3">
+                <TextField cheio mono rotulo="Ano de fabricação" inputMode="numeric" maxLength={4} dica={dicaDe("ano_fabricacao")} erro={erro("ano_fabricacao")} {...register("ano_fabricacao")} />
+                <TextField cheio mono rotulo="Ano do modelo" inputMode="numeric" maxLength={4} dica={dicaDe("ano_modelo")} erro={erro("ano_modelo")} {...register("ano_modelo")} />
+              </div>
+              <TextField cheio mono rotulo="Chassi" autoComplete="off" autoCapitalize="characters" maxLength={17} dica={dicaDe("chassi", "17 caracteres")} erro={erro("chassi")} {...register("chassi")} />
+              <TextField cheio mono rotulo="Renavam" inputMode="numeric" dica={dicaDe("renavam")} erro={erro("renavam")} {...register("renavam")} />
+              <TextField cheio rotulo="Cor" dica={dicaDe("cor")} erro={erro("cor")} {...register("cor")} />
               <TextField cheio mono rotulo="Km atual" inputMode="numeric" dica="Nunca diminui depois de salvo" erro={erro("km_atual")} {...register("km_atual")} />
               <TextField cheio mono rotulo="Capacidade do tanque (litros)" inputMode="decimal" dica="Opcional. Sem ela, o combustível da devolução é informado à mão" erro={erro("capacidade_tanque_litros")} {...register("capacidade_tanque_litros")} />
             </div>
@@ -267,8 +304,13 @@ export function NovoVeiculoForm() {
           </Panel>
 
           <Panel titulo="Documentos e fotos">
+            {crlv && (
+              <div className="mb-4 grid gap-4 md:grid-cols-2">
+                <TextField cheio mono type="date" rotulo="Validade do CRLV" erro={erro("crlv_validade")} {...register("crlv_validade")} />
+              </div>
+            )}
             <p className="text-body text-ink-muted">
-              Depois de salvar, envie o CRLV-e, o seguro e as fotos na ficha do veículo. Veículo com CRLV ou seguro vencido não pode ser desbloqueado para locação.
+              {crlv ? "O CRLV-e enviado fica guardado com o veículo. Depois de salvar, envie o seguro e as fotos na ficha do veículo." : "Depois de salvar, envie o CRLV-e, o seguro e as fotos na ficha do veículo."} Veículo com CRLV ou seguro vencido não pode ser desbloqueado para locação.
             </p>
           </Panel>
         </div>
