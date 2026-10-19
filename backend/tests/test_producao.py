@@ -22,6 +22,9 @@ AMBIENTE_PROD = {
     "EMAIL_BACKEND": "django.core.mail.backends.smtp.EmailBackend",
     "EMAIL_HOST": "smtp.example.com",
     "GIRO_ARMAZENAMENTO": "s3",
+    "S3_BUCKET": "giro-teste",
+    "S3_CHAVE_DE_ACESSO": "chave-de-acesso-de-teste",
+    "S3_CHAVE_SECRETA": "chave-secreta-de-teste",
     "GIRO_PROVEDOR_PAGAMENTOS": "asaas",
     "GIRO_ASAAS_CHAVE_API": "chave-do-asaas-de-teste",
     "REDIS_URL": "redis://:senha-do-redis@redis:6379/0",
@@ -216,6 +219,23 @@ def test_t157_prod_recusa_smtp_sem_servidor(valor):
 @pytest.mark.parametrize("valor", ["falso", "", None])
 def test_t157_prod_recusa_armazenamento_que_nao_e_s3(valor):
     recusa("GIRO_ARMAZENAMENTO=s3", GIRO_ARMAZENAMENTO=valor)
+
+
+@pytest.mark.parametrize("nome", ["S3_BUCKET", "S3_CHAVE_DE_ACESSO", "S3_CHAVE_SECRETA"])
+@pytest.mark.parametrize("valor", ["", "   ", None])
+def test_t266_prod_recusa_s3_sem_bucket_ou_chave(nome, valor):
+    recusa(f"Defina {nome}", **{nome: valor})
+
+
+def test_t266_prod_sobe_sem_endpoint_nem_regiao():
+    resultado = rodar(
+        "import json; from django.conf import settings as s;"
+        "print(json.dumps([s.S3_BUCKET, s.S3_ENDPOINT_URL, s.S3_REGIAO]))",
+        S3_ENDPOINT_URL=None,
+        S3_REGIAO=None,
+    )
+    assert resultado.returncode == 0, resultado.stderr
+    assert json.loads(resultado.stdout) == ["giro-teste", "", ""]
 
 
 @pytest.mark.parametrize("valor", ["falso", "", None])
