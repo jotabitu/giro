@@ -23,6 +23,8 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 18, 19, 21 e 22 e apo
 
 Quem lançou ou pediu não aprova o próprio pedido, salvo o administrador (`APR-09`, T-249; `aprovacoes.md`, "Administrador decide o próprio pedido"). O vistoriador recebe 403 em todo o app.
 
+Suporte Giro em "ver e editar" (`PLT-07`, T-324, opção A do dono): abrir caixa (`POST caixas/`), fechar caixa (`POST caixas/{id}/fechar/`), lançar despesa (`POST despesas/`) e marcar reembolso como feito (`POST reembolsos/{id}/feito/`) dão 403 `PLT-07`, antes de ler arquivo e de validar o corpo. As listas e os detalhes continuam legíveis.
+
 ---
 
 ## Valor de uma conta no dia (FIN-03)
