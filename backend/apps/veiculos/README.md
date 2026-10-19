@@ -79,6 +79,11 @@ Contrato da API: `docs/api/veiculos.md` (escrito pelo arquiteto antes da impleme
 
 Assina `aprovacoes.pedido_decidido` em `eventos.py` (T-081): `APR-06` aprovado chama `services.aplicar_correcao_aprovada`, que corrige o km como o gerente faria, com a aprovação como origem da leitura. Se o km mudou depois do pedido, responde 409 `km_mudou` e a aprovação volta.
 
+## Catálogo de marcas e modelos (T-257)
+
+- `catalogo.py`: lê `dados/catalogo_modelos.csv` uma vez por processo (`modelos()`, com `cache`); `listar` para `GET /api/veiculos/modelos/` e `achar_modelo` para a leitura do CRLV-e (`VEI-08`, ADR 0026, item 7). Sem tabela nem migração.
+- `management/commands/atualizar_catalogo_modelos.py`: regrava o CSV a partir da tabela FIPE baixada pela equipe, sem duplicata e em ordem. Nada consulta a internet.
+
 ## Falta
 
 - O e-mail ao gerente da `AUT-06` entra com o contrato de notificações; hoje o aviso é só no sino.

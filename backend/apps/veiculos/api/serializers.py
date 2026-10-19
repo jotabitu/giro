@@ -337,6 +337,22 @@ class ListaDeExtrasSerializer(serializers.Serializer[Any]):
     resultados = ExtraSerializer(many=True)
 
 
+class ModeloSerializer(serializers.Serializer[Any]):
+    marca = serializers.CharField()
+    modelo = serializers.CharField()
+    tipo = serializers.ChoiceField(choices=["moto", "carro"])
+
+
+class ListaDeModelosSerializer(serializers.Serializer[Any]):
+    resultados = ModeloSerializer(many=True)
+
+
+class FiltroDeModelosSerializer(serializers.Serializer[Any]):
+    tipo = serializers.ChoiceField(choices=["moto", "carro"], required=False)
+    marca = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    busca = serializers.CharField(required=False, allow_blank=True, max_length=100)
+
+
 class PedidoRefSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     tipo = serializers.CharField()

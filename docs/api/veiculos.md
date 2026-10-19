@@ -359,8 +359,9 @@ O serviço faz tudo numa transação só: cria o veículo, com as validações d
 - Sem comprovante, ou com ele vencido, de outra empresa, de outro usuário ou de outro arquivo: o veículo e o documento são salvos do mesmo jeito, só sem a marca (ADR 0026, item 8).
 - O `crlv_arquivo` passa de novo pelos primeiros bytes (`%PDF-`) e pelos 2 MB, sem confiar na leitura, e é gravado com `Content-Type: application/pdf` fixado pelo backend.
 
-### GET /api/veiculos/modelos/ (catálogo; ainda sem tarefa)
-É a lista "Da lista FIPE" da tela, local e sem consulta externa. Query `?tipo=moto|carro`, `?marca=`, `?busca=` → `{ "resultados": [ { "marca": "Honda", "modelo": "Pop 110i ES", "tipo": "moto" } ] }`. De onde vem o arquivo e como ele se atualiza fica para a tarefa do catálogo (proposta no handoff da T-247). Enquanto ela não existe, a rota também não, e a leitura nunca preenche marca e modelo.
+### GET /api/veiculos/modelos/ (catálogo, T-257)
+É a lista "Da lista FIPE" da tela, local e sem consulta externa. Perfis: todos (quem vê veículos, `pode.veiculos` ≠ `nao`); o suporte em "só ver" também. Query `?tipo=moto|carro`, `?marca=` (igual, sem diferenciar maiúsculas e acento), `?busca=` (cada palavra em marca e modelo) → `{ "resultados": [ { "marca": "Honda", "modelo": "Pop 110i ES", "tipo": "moto" } ] }`, até 50, em ordem de marca e modelo. `tipo` fora da lista: 400 `validacao`.
+O catálogo é o arquivo versionado `backend/apps/veiculos/dados/catalogo_modelos.csv`, igual para todas as empresas, atualizado por PR com `python manage.py atualizar_catalogo_modelos <arquivo>` (a tabela FIPE baixada pela equipe, em CSV com `marca`, `modelo` e `tipo`). A leitura do CRLV-e usa `veiculos.catalogo.achar_modelo(texto)`: um modelo só quando o texto normalizado é igual a um `marca + modelo`, ou o começo de um só (ou um só é o começo dele); só a marca não basta.
 
 ### O que muda para as tarefas (T-247)
 - **Backend (sem número):**

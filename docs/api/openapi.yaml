@@ -5963,6 +5963,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/Veiculo'
           description: ''
+  /api/veiculos/modelos/:
+    get:
+      operationId: veiculos_modelos_list
+      description: |-
+        O catálogo de marcas e modelos, local e igual para todas as empresas (VEI-08, ADR 0026,
+        item 7). Para quem vê veículos: todos os perfis (`pode.veiculos` nunca é `nao`).
+      summary: Catálogo de marcas e modelos (VEI-08)
+      parameters:
+      - in: query
+        name: busca
+        schema:
+          type: string
+      - in: query
+        name: marca
+        schema:
+          type: string
+      - in: query
+        name: tipo
+        schema:
+          type: string
+          enum:
+          - carro
+          - moto
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeModelos'
+          description: ''
   /api/vistorias/{id}/:
     get:
       operationId: vistorias_retrieve
