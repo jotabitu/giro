@@ -1,4 +1,5 @@
 // Tipos do contrato docs/api/veiculos.md. TEMPORÁRIO: sai quando o cliente gerado do OpenAPI existir.
+import type { components } from "./schema";
 
 export type StatusVeiculo = "disponivel" | "alugado" | "reservado" | "em_manutencao" | "a_venda" | "indisponivel" | "vendido" | "baixado";
 export type TipoVeiculo = "moto" | "carro";
@@ -183,4 +184,16 @@ export type NovoVeiculo = {
   valor_compra_centavos?: number;
   data_compra?: string;
   entrou_na_frota_em?: string;
+  combustivel?: CombustivelDoVeiculo;
 };
+
+export type CombustivelDoVeiculo = NonNullable<components["schemas"]["CamposDoCrlv"]["combustivel"]>;
+
+/** Resposta de `POST /api/veiculos/leitura-crlv/` (VEI-08): a API só lê, quem grava é o cadastro. */
+export type LeituraCrlv = components["schemas"]["LeituraCrlv"];
+
+/** O CRLV-e que vai junto no cadastro (multipart): o arquivo lido, a validade que a pessoa informa e o comprovante da leitura. */
+export type CrlvDoCadastro = { arquivo: File; validade: string; exercicio: number | null; leitura: string };
+
+/** `GET /api/veiculos/modelos/`: o catálogo local. O gerador deu ao tipo o nome dos contratos, por isso ele é escrito aqui. */
+export type ModeloDoCatalogo = { marca: string; modelo: string; tipo: TipoVeiculo };

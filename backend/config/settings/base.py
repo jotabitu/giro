@@ -197,6 +197,9 @@ REST_FRAMEWORK = {
         # Copiar link do convite (USR-01, T-249).
         "link_convite_convidado": "5/hour",
         "link_convite_administrador": "20/hour",
+        # Leitura do CRLV-e e da CNH-e em PDF, somadas (ADR 0026, item 6).
+        "leitura_documento_usuario": "30/hour",
+        "leitura_documento_empresa": "200/hour",
     },
 }
 
@@ -213,6 +216,9 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     "ENUM_NAME_OVERRIDES": {
         "EtapaEnum": ["configurar_2fa"],  # nome que o login da plataforma já publicava
+        # VEI-08 (T-247): o combustível do veículo; o da vistoria é o nível do tanque (VIS-03).
+        "CombustivelVeiculoEnum": "apps.veiculos.models.Combustivel",
+        "NivelDoTanqueEnum": "apps.vistorias.models.Combustivel",
         "NivelDeAprovacaoEnum": "apps.contas.api.acesso.NIVEL_DE_APROVACAO",
         "TipoSessaoEnum": "apps.contas.models.TipoSessao",
         "PermissaoExtraEnum": "apps.contas.models.PermissaoExtra",

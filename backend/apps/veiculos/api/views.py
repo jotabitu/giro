@@ -11,7 +11,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -20,10 +20,12 @@ from rest_framework.views import APIView
 
 from apps.filiais.selectors import filtrar_por_filial
 from comum import relogio
+from comum.limites import LIMITES_DA_LEITURA_DE_DOCUMENTO
 from comum.paginacao import PaginacaoPorCursor
 from comum.permissoes import com_padrao, exige_perfil
+from integracoes.leitura_documentos import LeituraOcupada
 
-from .. import selectors, services
+from .. import catalogo, leitura, selectors, services
 from ..models import Categoria, Extra, PrecoCategoria, Veiculo
 from .serializers import (
     BaixarSerializer,
@@ -39,18 +41,24 @@ from .serializers import (
     DocumentoSerializer,
     ExtraEntradaSerializer,
     ExtraSerializer,
+    FiltroDeModelosSerializer,
     KmSerializer,
+    LeituraCrlvEntradaSerializer,
+    LeituraCrlvSerializer,
     ListaDeCategoriasSerializer,
     ListaDeDocumentosSerializer,
     ListaDeExtrasSerializer,
+    ListaDeModelosSerializer,
     ListaDeMudancasDePrecoSerializer,
     ListaDePrecosSerializer,
     ListaDeVeiculosSerializer,
+    ModeloSerializer,
     NovoPrecoSerializer,
     PedidoAprovacaoCriadoSerializer,
     PrecoCriadoSerializer,
     PrecoEntradaSerializer,
     PrecoHistoricoSerializer,
+    VeiculoComCrlvEntradaSerializer,
     VeiculoDetalheSerializer,
     VeiculoEdicaoSerializer,
     VeiculoEntradaSerializer,
@@ -70,6 +78,12 @@ VEEM_VALORES: list[type[BasePermission]] = com_padrao(
 
 def _entrada(classe: type[Serializer[Any]], request: Request) -> dict[str, Any]:
     entrada = classe(data=request.data)
+    entrada.is_valid(raise_exception=True)
+    return dict(entrada.validated_data)
+
+
+def _entrada_da_query(classe: type[Serializer[Any]], request: Request) -> dict[str, Any]:
+    entrada = classe(data=request.query_params)
     entrada.is_valid(raise_exception=True)
     return dict(entrada.validated_data)
 
@@ -100,6 +114,8 @@ def _para(request: Request, dados: Any) -> Any:
 
 class VeiculosView(APIView):
     suporte_somente_leitura = True  # o suporte em "só ver" lê (PLT-07)
+    # JSON; ou multipart com o CRLV lido (VEI-08, docs/api/veiculos.md).
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get_permissions(self) -> Any:
         if self.request.method == "POST":
@@ -154,13 +170,81 @@ class VeiculosView(APIView):
         )
 
     @extend_schema(
-        request=VeiculoEntradaSerializer,
+        request={
+            "application/json": VeiculoEntradaSerializer,
+            "multipart/form-data": VeiculoComCrlvEntradaSerializer,
+        },
         responses={201: VeiculoSerializer},
-        summary="Cadastrar veículo (VEI-01, PLT-03)",
+        summary="Cadastrar veículo (VEI-01, PLT-03), com o CRLV lido em multipart (VEI-08)",
     )
     def post(self, request: Request) -> Response:
-        veiculo = services.cadastrar(_entrada(VeiculoEntradaSerializer, request))
+        if request.content_type.startswith("multipart/"):
+            dados = _entrada(VeiculoComCrlvEntradaSerializer, request)
+            arquivo = dados.pop("crlv_arquivo", None)
+            validade = dados.pop("crlv_validade", None)
+            exercicio = dados.pop("crlv_exercicio", None)
+            comprovante = dados.pop("leitura", None)
+            if arquivo is not None:
+                veiculo = services.cadastrar_com_crlv(
+                    dados, arquivo, validade, exercicio, comprovante, request.user
+                )
+                return _representacao(veiculo, request, status.HTTP_201_CREATED)
+        else:
+            dados = _entrada(VeiculoEntradaSerializer, request)
+        veiculo = services.cadastrar(dados)
         return _representacao(veiculo, request, status.HTTP_201_CREATED)
+
+
+class LeituraCrlvView(APIView):
+    """Preencher pelo CRLV-e (VEI-08, ADR 0026). Não grava nada. Administrador e gerente; o
+    suporte só em "ver e editar" (em "só ver", 403 `PLT-07`)."""
+
+    permission_classes = GESTAO
+    parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = LIMITES_DA_LEITURA_DE_DOCUMENTO
+
+    @extend_schema(
+        request={"multipart/form-data": LeituraCrlvEntradaSerializer},
+        responses={200: LeituraCrlvSerializer},
+        operation_id="veiculos_leitura_crlv_create",
+        summary="Ler o CRLV-e em PDF, sem gravar (VEI-08)",
+    )
+    def post(self, request: Request) -> Response:
+        try:
+            corpo = leitura.ler_crlv(request.FILES.get("arquivo"), request.user)
+        except LeituraOcupada:
+            return Response(
+                {
+                    "codigo": "leitura_ocupada",
+                    "mensagem": "Muitas leituras ao mesmo tempo. Tente de novo em instantes.",
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                headers={"Retry-After": "5", "Cache-Control": "no-store"},
+            )
+        return Response(LeituraCrlvSerializer(corpo).data, headers={"Cache-Control": "no-store"})
+
+
+class ModelosView(APIView):
+    """O catálogo de marcas e modelos, local e igual para todas as empresas (VEI-08, ADR 0026,
+    item 7). Para quem vê veículos: todos os perfis (`pode.veiculos` nunca é `nao`)."""
+
+    suporte_somente_leitura = True  # o suporte em "só ver" lê (PLT-07)
+
+    @extend_schema(
+        responses=ListaDeModelosSerializer,
+        operation_id="veiculos_modelos_list",
+        parameters=[
+            OpenApiParameter("tipo", enum=list(catalogo.TIPOS)),
+            OpenApiParameter("marca", str),
+            OpenApiParameter("busca", str),
+        ],
+        summary="Catálogo de marcas e modelos (VEI-08)",
+    )
+    def get(self, request: Request) -> Response:
+        filtro = _entrada_da_query(FiltroDeModelosSerializer, request)
+        modelos = catalogo.listar(**filtro)
+        dados = [{"marca": m.marca, "modelo": m.modelo, "tipo": m.tipo} for m in modelos]
+        return Response({"resultados": ModeloSerializer(dados, many=True).data})
 
 
 class VeiculoView(APIView):
@@ -337,7 +421,11 @@ class DocumentosView(APIView):
     def post(self, request: Request, pk: int) -> Response:
         dados = _entrada(DocumentoEntradaSerializer, request)
         documento = services.enviar_documento(
-            _veiculo(request, pk), dados["tipo"], dados["validade"], dados.get("arquivo")
+            _veiculo(request, pk),
+            dados["tipo"],
+            dados["validade"],
+            dados.get("arquivo"),
+            dados.get("exercicio"),
         )
         corpo = selectors.representacao_documento(documento, relogio.hoje())
         return Response(DocumentoSerializer(corpo).data, status=status.HTTP_201_CREATED)

@@ -3,6 +3,8 @@
 import { pausa, perfilAtualFalso } from "./falso";
 import {
   type CategoriaVeiculo,
+  type LeituraCrlv,
+  type ModeloDoCatalogo,
   type DocumentoVeiculo,
   type FiltroVeiculos,
   type ListaVeiculos,
@@ -170,6 +172,13 @@ function normalizar(t: string): string {
 const PLACA = /^[A-Z]{3}\d{4}$|^[A-Z]{3}\d[A-Z]\d{2}$/;
 const CHASSI = /^[A-Z0-9]{17}$/;
 
+const CATALOGO: ModeloDoCatalogo[] = [
+  { marca: "Honda", modelo: "CG 160 Start", tipo: "moto" },
+  { marca: "Honda", modelo: "Pop 110i ES", tipo: "moto" },
+  { marca: "Yamaha", modelo: "Factor 150", tipo: "moto" },
+  { marca: "Fiat", modelo: "Mobi Like", tipo: "carro" },
+];
+
 export const veiculosFalso = {
   async categorias(filtro: { filial?: number; tipo_veiculo?: TipoVeiculo } = {}): Promise<CategoriaVeiculo[]> {
     await pausa(150);
@@ -233,6 +242,31 @@ export const veiculosFalso = {
     };
     SEMENTES.push(s);
     return veiculosFalso.obter(s.id);
+  },
+
+  /** POST /api/veiculos/leitura-crlv/ (VEI-08): lê só o que o PDF de exemplo traz; qualquer outro arquivo é a recusa 422 de sempre. */
+  async lerCrlv(arquivo: File): Promise<LeituraCrlv> {
+    await pausa(400);
+    if (!podeEditar()) throw new ErroApi(403, "permissao", "Você não tem permissão para cadastrar veículos");
+    if (!/.pdf$/i.test(arquivo.name)) throw new ErroApi(400, "validacao", "Confira o arquivo", undefined, { arquivo: "Envie o PDF do CRLV-e." });
+    if (!/crlv/i.test(arquivo.name)) throw new ErroApi(422, "VEI-08", "Não conseguimos ler este documento. Preencha os campos à mão.");
+    return {
+      documento: "crlv",
+      campos: { placa: "TBC5H21", chassi: "9C2JC7500TR012345", renavam: "01234567890", marca: "Honda", modelo: "Pop 110i ES", ano_fabricacao: 2026, ano_modelo: 2026, cor: "vermelha", combustivel: "gasolina" },
+      lidos: ["placa", "chassi", "renavam", "marca", "modelo", "ano_fabricacao", "ano_modelo", "cor", "combustivel"],
+      quantidade: 9,
+      rotulo: "CRLV-e lido · 9 campos preenchidos",
+      exercicio: 2026,
+      dicas: { marca_modelo: null },
+      leitura: "comprovante-de-exemplo",
+    };
+  },
+
+  /** GET /api/veiculos/modelos/: o catálogo local. */
+  async modelos(filtro: { tipo?: TipoVeiculo; marca?: string; busca?: string } = {}): Promise<ModeloDoCatalogo[]> {
+    await pausa(100);
+    const norma = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+    return CATALOGO.filter((m) => (!filtro.tipo || m.tipo === filtro.tipo) && (!filtro.marca || norma(m.marca) === norma(filtro.marca)) && (!filtro.busca || norma(filtro.busca).split(/s+/).every((p) => norma(`${m.marca} ${m.modelo}`).includes(p))));
   },
 
   /** POST /api/veiculos/{id}/corrigir-identificacao/ (VEI-01): só o administrador; placa e chassi únicos, chassi com 17 caracteres. */
