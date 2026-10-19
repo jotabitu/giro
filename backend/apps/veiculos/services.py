@@ -1106,6 +1106,16 @@ def _validar_preco(preco: dict[str, Any]) -> dict[str, int]:
 
 def _gravar_preco(categoria: Categoria, vigente_desde: date, preco: dict[str, Any]) -> Any:
     valores = _validar_preco(preco)
+    # T-201: `antes` é o preço que valia na véspera, só nos valores que mudam (sem ele, categoria
+    # nova); o texto pronto sai do formatador de `veiculos` (`textos.py`).
+    anterior = (
+        categoria.precos.filter(vigente_desde__lt=vigente_desde).order_by("-vigente_desde").first()
+    )
+    antes = (
+        {c: getattr(anterior, c) for c in CAMPOS_DO_PRECO if getattr(anterior, c) != valores[c]}
+        if anterior is not None
+        else {}
+    )
     novo = PrecoCategoria.objects.create(
         categoria=categoria, vigente_desde=vigente_desde, alterado_por_id=_quem(), **valores
     )
@@ -1113,6 +1123,7 @@ def _gravar_preco(categoria: Categoria, vigente_desde: date, preco: dict[str, An
         "categoria.definir_preco",
         CategoriaAuditoria.CONFIGURACOES,
         objeto=categoria,
+        antes=antes,
         depois={"vigente_desde": vigente_desde.isoformat(), **valores},
         regra="LOC-15",
     )

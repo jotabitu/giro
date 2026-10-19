@@ -322,3 +322,22 @@ def texto(evento: EventoAuditoria, apoio: dict[str, Any]) -> Texto:
         if pronto is not None:
             return pronto
     return generico(evento)
+
+
+# --- Tom da linha (T-201, `auditoria.md`) ---
+
+# Ações que pedem o selo de perigo. No MVP, só o login bloqueado (USR-06, PLT-08).
+ACOES_PERIGO = frozenset({"usuario.bloqueado"})
+CATEGORIAS_INFO = frozenset({"configuracoes", "seguranca"})
+
+
+def tom(evento: EventoAuditoria) -> str | None:
+    """`alerta` no que o suporte fez (AUD-03), `perigo` nas `ACOES_PERIGO`, `info` no resto de
+    configurações e segurança, `null` no resto. A tela não escolhe tom."""
+    if evento.acesso_suporte_id is not None or evento.ator_tipo == "suporte":
+        return "alerta"
+    if evento.acao in ACOES_PERIGO:
+        return "perigo"
+    if evento.categoria in CATEGORIAS_INFO:
+        return "info"
+    return None

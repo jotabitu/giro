@@ -13,6 +13,7 @@ from apps.plataforma.models import UsoEmpresa
 
 from .test_t014_clientes import _suporte
 from .test_t015_locacoes import cenario  # noqa: F401 - fixture
+from .test_t018_auditoria import aud, moto  # noqa: F401 - fixtures
 from .test_t181_configuracoes import _get, _resumo, moto_rapida  # noqa: F401 - fixture
 
 IMPLANTACAO = "/api/implantacao/"
@@ -151,3 +152,18 @@ def test_dev_01_preco_litro_pelo_administrador(moto_rapida):  # noqa: F811
     # O acerto lê o preço da filial na hora (`vistorias.services`): vale para o próximo.
     moto_rapida.frota.centro.refresh_from_db()
     assert moto_rapida.frota.centro.preco_litro_centavos == 590
+
+
+# --- Tom da linha da auditoria (T-201) ---
+
+
+def test_aud_02_tom_das_linhas(aud):
+    """CA-018-09 (cenário da T-018): suporte em alerta, login bloqueado em perigo, configurações
+    e segurança em info, o resto sem tom."""
+    api = aud.moto.api("Mariana")
+    linhas = api.get("/api/auditoria/eventos/", {"periodo": "7d"}).json()["resultados"]
+    tons = {(linha["acao"], linha["tom"]) for linha in linhas}
+    assert ("usuario.bloqueado", "perigo") in tons
+    assert ("usuario.convidar", "info") in tons
+    assert ("movimento_caixa.sangria", None) in tons
+    assert {linha["tom"] for linha in linhas if linha["suporte"]} == {"alerta"}
