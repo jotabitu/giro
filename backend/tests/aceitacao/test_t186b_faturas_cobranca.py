@@ -122,8 +122,7 @@ def test_plt_02_ca_ass_10_boleto_cinco_dias_antes(
     fatura = moto.fatura("FAT-0001")
     assert fatura.cobranca_tipo == "boleto"
     assert fatura.cobranca_boleto_url and fatura.cobranca_linha_digitavel
-    assert len(mailoutbox) == 1
-    assert mailoutbox[0].to == [COBRANCA, MARIANA]
+    assert [m.to for m in mailoutbox] == [[COBRANCA], [MARIANA]]  # um por destinatário (T-306)
     assert "FAT-0001" in mailoutbox[0].subject
     assert "R$ 449,00" in mailoutbox[0].body and "22 out" in mailoutbox[0].body
     evento = _eventos("fatura_assinatura.emitir_cobranca", "public")[-1]
@@ -131,7 +130,7 @@ def test_plt_02_ca_ass_10_boleto_cinco_dias_antes(
 
     assert _gerar(relogio, "2026-10-17", django_capture_on_commit_callbacks).emitidas == {}
     assert moto.fatura("FAT-0001").cobranca_externa_id == fatura.cobranca_externa_id
-    assert len(mailoutbox) == 1
+    assert len(mailoutbox) == 2
 
 
 def test_plt_02_ca_ass_11_cartao_sem_cartao_guardado_emite_a_pagina(
@@ -234,7 +233,7 @@ def test_plt_02_gera_a_fatura_do_periodo_seguinte_cinco_dias_antes(
     assert fatura.competencia == date(2026, 11, 1)
     assert fatura.plano.nome == "Profissional"
     assert _eventos("fatura_assinatura.criar", "public")[-1].regra == "PLT-02"
-    assert len(mailoutbox) == 1
+    assert len(mailoutbox) == 2
 
     de_novo = _gerar(relogio, "2026-11-18", django_capture_on_commit_callbacks)
     assert (de_novo.faturas, de_novo.emitidas) == (0, {})
@@ -322,9 +321,10 @@ def test_plt_04_downgrade_agendado_deixa_de_caber(
         assert evento.antes == {"plano_proximo": "Profissional"}
         assert evento.depois["detalhes"]["usuarios"] == {"usado": 11, "limite": 10}
 
-    assert len(mailoutbox) == 2  # o motivo e o boleto
-    aviso = next(m for m in mailoutbox if "não aconteceu" in m.subject)
-    assert aviso.to == [COBRANCA, MARIANA]
+    assert len(mailoutbox) == 4  # o motivo e o boleto, um para cada destinatário
+    avisos = [m for m in mailoutbox if "não aconteceu" in m.subject]
+    assert [m.to for m in avisos] == [[COBRANCA], [MARIANA]]
+    aviso = avisos[0]
     assert "11 de 10 usuários" in aviso.body
     assert "plano Completo" in aviso.body
 
@@ -480,4 +480,4 @@ def test_plt_04_diferenca_do_upgrade_no_boleto_sai_na_geracao(
         "boleto": 1
     }
     assert moto.fatura("FAT-0002").cobranca_tipo == "boleto"
-    assert len(mailoutbox) == 1
+    assert len(mailoutbox) == 2
