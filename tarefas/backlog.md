@@ -141,20 +141,6 @@ Concluída. As tarefas entregues estão em `tarefas/feito.md`.
 
 Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, depois telas, depois o que pede regra. As três dúvidas do fim contrariavam regras já escritas e foram decididas pelo dono no mesmo dia.
 
-### T-257 · Catálogo de marcas e modelos (backend)
-- **Agente:** backend · **Depende de:** ADR 0026 e `veiculos.md` do PR #250 (T-247), mesclado · **Regras:** VEI-08, VEI-01 · **Telas:** Veiculo-Novo (desktop e celular, "Modelo · Da lista FIPE")
-- **O que o contrato já diz** (`docs/api/veiculos.md`, "GET /api/veiculos/modelos/", e ADR 0026, item 7, no PR #250): a lista é local, nunca consultada na internet durante o uso; `GET /api/veiculos/modelos/?tipo=moto|carro&marca=&busca=` → `{ "resultados": [ { "marca", "modelo", "tipo" } ] }`; a leitura do CRLV-e normaliza o texto lido (sem acento, maiúsculas, sem pontuação) e só preenche marca e modelo com um modelo único; sem achar, ou com mais de um, manda `dicas.marca_modelo`.
-- **O que este quadro acrescenta** (arquiteto, T-259):
-  - o catálogo é um arquivo versionado no repositório, `backend/apps/veiculos/dados/catalogo_modelos.csv` (`marca`, `modelo`, `tipo`), lido uma vez por processo e guardado em memória. Não há tabela, migração nem schema `public`: é igual para todas as empresas e só muda por PR;
-  - o comando `python manage.py atualizar_catalogo_modelos <arquivo>` lê a tabela FIPE baixada pela equipe e regrava o CSV normalizado (sem duplicata, ordenado). A atualização é manual, por PR, sem chamada externa no código;
-  - o conteúdo inicial tem pelo menos os modelos do seed e dos arquivos de teste da T-247 (Pop 110i ES, CG 160 Fan, NMax 160 e os outros do seed). A carga completa da FIPE fica com quem tiver a tabela (equipe ou produto) e não trava a tarefa;
-  - a função `veiculos.catalogo.achar_modelo(texto) -> Modelo | None` é usada pela leitura (T-247): devolve um modelo só quando o texto normalizado bate com um único `marca + modelo` (igual, ou como começo único).
-- **Pronto quando:**
-  - `GET /api/veiculos/modelos/` com os filtros, até 50 resultados, em ordem de marca e modelo, para quem vê veículos (`pode.veiculos` ≠ `nao`);
-  - o CSV inicial e o comando;
-  - `achar_modelo`, usada pela leitura do CRLV-e quando ela existir;
-  - testes `test_vei_08_catalogo_acha_modelo_unico` (o "HONDA/POP 110I ES" do `crlv-tbc5h21.pdf` dá Honda Pop 110i ES), `test_vei_08_catalogo_ambiguo_nao_preenche` e `test_vei_08_lista_de_modelos_filtra`;
-  - OpenAPI regenerado e `api:gerar` no frontend.
 
 ### T-159 · (M-05) Login não revela e-mail com convite pendente (baixa)
 - **Agente:** backend · **Depende de:** — · **Regras:** USR-01, USR-06 · **Pronto quando:** em `POST /api/auth/entrar/`, quem tem convite pendente e ainda não tem senha recebe o mesmo 401 `credenciais_invalidas` (e o mesmo tempo) de um e-mail que não existe; hoje o 403 `convite_pendente` sai antes de conferir a senha e permite saber quem foi convidado; o 403 só depois da senha certa; teste `test_usr_06_convite_pendente_nao_revela_email`.
@@ -265,8 +251,18 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### Divergência que sobrou da T-275 (design-system)
 - [divergência] (T-275, para o design-system) `Veiculo-Desktop` mostra a foto "Pneu" entre as seis da vistoria, mas as posições fixas da `VIS-01` são frente, traseira, lados e painel; e mostra o lado da avaria em campo próprio, que a avaria não tem (o lado vai na descrição). O selo "Alugada" da referência fica "Alugado", que é o rótulo do caso "Estado do QXA-4B21 em 07 out" das regras: a tela muda, não a API.
 
+### T-329 · Leitura do CRLV-e: cor por lista, conferência do pai e arquivo órfão
+- **Agente:** backend · **Depende de:** T-265 (PR #352) · **Regras:** VEI-08, AUD-09, AUD-06 · **Severidade:** média (M-01, B-01, B-02 e B-03 de `docs/seguranca/2026-10-19-t328-leitura-crlv.md`) · **Pronto quando:** `crlv.cor` só aceita a lista de cores do Denatran, sem acento na comparação, e fora dela o campo fica vazio (M-01); `leitura_documentos.conferir` recusa ano fora de 1900 até o ano seguinte, caractere de controle, `combustivel` fora do enum e `marca_modelo` acima de 60 (B-01); em `cadastrar_com_crlv`, uma falha depois de gravar o PDF devolve o erro original e apaga o arquivo pelo provedor, ou grava só no `on_commit` (B-02); `FILE_UPLOAD_MAX_MEMORY_SIZE` acima do teto da borda, 3 MB (B-03); os 3 `xfail` estritos de `test_t328_seguranca_crlv.py` viram testes. Handoff `tarefas/handoffs/T-328-seguranca.md`.
+
+### T-331 · Calibração da leitura com CRLV-e reais
+- **Agente:** qa, com backend · **Depende de:** T-265, T-329 · **Regras:** VEI-08 · **Pronto quando:** a leitura é conferida com CRLV-e reais de moto e de carro, emitidos em estados diferentes, só na máquina local e fora do git (dado pessoal; repositório público); o que o parser errar vira teste com um PDF fictício igual em formato. Os PDFs reais vêm do dono.
+
+### T-333 · WeasyPrint 70 (PYSEC-2026-3940 e PYSEC-2026-4311)
+- **Agente:** backend, com devops · **Depende de:** — · **Pronto quando:** `weasyprint` sobe de 69.0 para a 70.0 ou mais nova, que corrige os dois avisos do `pip-audit` levantados na T-328; os PDFs gerados (contrato, recibo) seguem iguais nos testes; `pip-audit` limpo; o devops reconstrói a imagem.
+
 ### T-265 · Código da leitura do CRLV-e (`VEI-08`, ADR 0026)
 - **Agente:** backend, depois frontend · **Depende de:** T-247 (revisão da segurança), T-257 · **Regras:** VEI-08, VEI-01, VEI-03 · **Contrato:** `docs/api/veiculos.md` (`POST /api/veiculos/leitura-crlv/`) · **Pronto quando:** o parser com pypdf no processo filho com os limites da ADR 0026, calibrado com CRLV-e reais; um semáforo de leituras simultâneas (pedido do devops na T-258); nada do conteúdo em log ou Sentry; CA-247-01 a 07; a tela de cadastro com "Preencher pelo CRLV-e". A CNH-e (`CLI-11`) fica para a fase 2 (decisão de 16 out).
+- **Estado (19 out 2026, backend):** parte do backend pronta na branch `t-265-leitura-crlv` (empilhada sobre a T-257, PR #351), handoff `tarefas/handoffs/T-265-backend.md`. Falta: a tela com "Preencher pelo CRLV-e" (frontend) e a calibração com CRLV-e reais (equipe, sem o arquivo entrar no repositório).
 
 ### T-281 · Seed em banco limpo com as configurações de teste
 - **Agente:** qa, com backend · **Depende de:** — · **Pronto quando:** o seed com `config.settings.test` num banco limpo para em `veiculos_veiculo does not exist` (também como superusuário; visto pela segurança na T-276). Achar a causa, corrigir e cobrir com um teste que roda o seed num banco novo.
@@ -281,9 +277,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 - ~~[decisão]~~ **Respondida (T-290, produto, 16 out 2026): fica o padrão, só as concluídas hoje** (dia da filial de saída); as antigas na lista com o filtro de período. Registrado na seção Movimentações das regras. (T-286, para o produto) **Coluna Concluídas do quadro.** A tela mostra uma concluída "hoje 08:30". Padrão do contrato: só as concluídas hoje; as antigas ficam na lista com filtro. Produto: confirmar ou dar outra janela (últimos 7 dias, por exemplo).
 - Leitura do arquiteto, **aceita pelo produto (T-290)** e registrada na `MOV-03`: o veículo `disponivel` com locação `aguardando_retirada` (início hoje) conta como "reservado" na `MOV-03` e não se movimenta (409 `MOV-03`), porque já tem dono para hoje.
 
-
-### T-320 · OpenAPI das Movimentações sem nomes repetidos
-- **Agente:** backend · **Depende de:** T-288 parte 1 (PR #324) · **Regras:** MOV-01 · **Pronto quando:** o OpenAPI gerado não repete nomes de componente: o `VeiculoRef` das movimentações não perde `modelo` e `status` para o outro `VeiculoRef`; `Quadro.itens` aponta para o item do quadro, não para a `Linha` da importação; o quadro declara os parâmetros `busca` e `levando`. Nomes únicos pelo `ref_name` dos serializers, OpenAPI regenerado, `api:gerar` e os tipos locais da T-289 trocados pelos gerados (o frontend confere). Achado do frontend na T-289 (handoff `tarefas/handoffs/T-289-frontend.md`).
 
 ### Textos da T-185 (parte 1) fora do contrato · respondidos na T-290
 - **Cartão no anual (produto, 16 out 2026): fica "todo ano".** "Cartão Visa final 4242 · cobrança automática todo ano" no ciclo anual, "todo mês" no mensal (`PLT-13`). O arquiteto acrescenta a linha do anual na tabela da forma em `assinatura.md`.
