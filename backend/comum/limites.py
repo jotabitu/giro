@@ -150,6 +150,18 @@ class LeituraDocumentoPorEmpresa(SimpleRateThrottle):
 LIMITES_DA_LEITURA_DE_DOCUMENTO = [LeituraDocumentoPorUsuario, LeituraDocumentoPorEmpresa]
 
 
+class MarcaSimularPorUsuario(_PorUsuario):
+    """Prévia das cores da marca: chamada a cada cor escolhida ou digitada (`empresas.md`)."""
+
+    scope = "marca_simular_usuario"
+
+
+class MarcaSalvarPorUsuario(_PorUsuario):
+    """Salvar a marca, com upload do logo: 30 por hora por usuário (`empresas.md`)."""
+
+    scope = "marca_salvar_usuario"
+
+
 class CepPorUsuario(_PorUsuario):
     """Busca de CEP: cada CEP novo é uma chamada ao ViaCEP (F-05 da T-064)."""
 

@@ -185,8 +185,10 @@ REST_FRAMEWORK = {
         "entrar_email_hora": "50/hour",
         "acesso_ip": "30/min",
         "cep_usuario": "30/min",
-        # Marca e logo, públicas (docs/api/empresas.md).
+        # Marca e logo, públicas; prévia e escrita, por usuário (docs/api/empresas.md).
         "marca_ip": "120/min",
+        "marca_simular_usuario": "120/min",
+        "marca_salvar_usuario": "30/hour",
         # Link de assinatura de contrato (S-15).
         "assinatura_ip": "10/min",
         "assinatura_token": "20/min",
