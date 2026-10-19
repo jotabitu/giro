@@ -176,8 +176,13 @@ def plataforma_enviar_boleto(fatura_id: int, pix_pendente: bool = False) -> int:
             f"{formatar_reais(int(fatura.valor_centavos))}, vence em {vence}.\n"
             f"Boleto: {fatura.cobranca_boleto_url}\n"
             f"Linha digitável: {fatura.cobranca_linha_digitavel}\n"
-            f"Pix copia e cola: {fatura.cobranca_pix_copia_e_cola}\n"
-            "Você também paga pelo botão Pagar, em Assinatura."
+            # Sem o Pix do boleto (a conta sem chave Pix), sem a linha vazia (T-305).
+            + (
+                f"Pix copia e cola: {fatura.cobranca_pix_copia_e_cola}\n"
+                if fatura.cobranca_pix_copia_e_cola
+                else ""
+            )
+            + "Você também paga pelo botão Pagar, em Assinatura."
         ),
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=destinatarios,
