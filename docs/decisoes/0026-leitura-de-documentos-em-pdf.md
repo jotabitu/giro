@@ -1,6 +1,6 @@
 # Leitura do CRLV-e e da CNH-e por PDF
 
-**Status:** aceita · 16 out 2026 (proposta em 15 out 2026) · T-247 (regras `VEI-08` e `CLI-11` no PR #243) · revisada pela segurança em 16 out 2026 (`docs/seguranca/2026-10-16-t247-leitura-pdf.md`, PR #265, sem achado alto); achados M-01, M-02, M-04, B-01 e B-04 incorporados na T-273
+**Status:** aceita · 16 out 2026 (proposta em 15 out 2026) · T-247 (regras `VEI-08` e `CLI-11` no PR #243) · revisada pela segurança em 16 out 2026 (`docs/seguranca/2026-10-16-t247-leitura-pdf.md`, PR #265, sem achado alto); achados M-01, M-02, M-04, B-01 e B-04 incorporados na T-273; B-04 da revisão da T-328 (`docs/seguranca/2026-10-19-t328-leitura-crlv.md`) no item 6 pela T-332
 
 ## Contexto
 
@@ -65,7 +65,7 @@ Nada sai do servidor na leitura: nem Detran, nem Senatran, nem FIPE online, nem 
 | Tamanho do arquivo | **2 MB** | conferido na view, antes do filho (o `DATA_UPLOAD_MAX_MEMORY_SIZE` não vale para arquivo; a view lê no máximo 2 MB + 1 byte) |
 | Tipo | só PDF, pelos primeiros bytes (`%PDF-`), nunca pela extensão nem pelo `Content-Type` | view |
 | Páginas | até **3** (o CRLV-e tem 1; a CNH-e, 1 ou 2) | filho |
-| PDF com senha (`is_encrypted`) | falha, sem tentar senha vazia | filho |
+| PDF com senha (`is_encrypted`) | falha (`is_encrypted`); o `pypdf` tenta a senha vazia ao abrir, e o trabalhador recusa antes de ler o texto | filho |
 | Tempo | 5 s de CPU no filho e 8 s de relógio no pai | filho e pai |
 | Memória | 512 MB de espaço de endereço no filho | filho |
 | Texto extraído | até 200 mil caracteres; acima, falha (documento oficial tem poucos milhares) | filho |
