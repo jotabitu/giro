@@ -253,6 +253,19 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### Divergência que sobrou da T-275 (design-system)
 - [divergência] (T-275, para o design-system) `Veiculo-Desktop` mostra a foto "Pneu" entre as seis da vistoria, mas as posições fixas da `VIS-01` são frente, traseira, lados e painel; e mostra o lado da avaria em campo próprio, que a avaria não tem (o lado vai na descrição). O selo "Alugada" da referência fica "Alugado", que é o rótulo do caso "Estado do QXA-4B21 em 07 out" das regras: a tela muda, não a API.
 
+### T-329 · Leitura do CRLV-e: cor por lista, conferência do pai e arquivo órfão
+- **Agente:** backend · **Depende de:** T-265 (PR #352) · **Regras:** VEI-08, AUD-09, AUD-06 · **Severidade:** média (M-01, B-01, B-02 e B-03 de `docs/seguranca/2026-10-19-t328-leitura-crlv.md`) · **Pronto quando:** `crlv.cor` só aceita a lista de cores do Denatran, sem acento na comparação, e fora dela o campo fica vazio (M-01); `leitura_documentos.conferir` recusa ano fora de 1900 até o ano seguinte, caractere de controle, `combustivel` fora do enum e `marca_modelo` acima de 60 (B-01); em `cadastrar_com_crlv`, uma falha depois de gravar o PDF devolve o erro original e apaga o arquivo pelo provedor, ou grava só no `on_commit` (B-02); `FILE_UPLOAD_MAX_MEMORY_SIZE` acima do teto da borda, 3 MB (B-03); os 3 `xfail` estritos de `test_t328_seguranca_crlv.py` viram testes. Handoff `tarefas/handoffs/T-328-seguranca.md`.
+
+### T-331 · Calibração da leitura com CRLV-e reais
+- **Agente:** qa, com backend · **Depende de:** T-265, T-329 · **Regras:** VEI-08 · **Pronto quando:** a leitura é conferida com CRLV-e reais de moto e de carro, emitidos em estados diferentes, só na máquina local e fora do git (dado pessoal; repositório público); o que o parser errar vira teste com um PDF fictício igual em formato. Os PDFs reais vêm do dono.
+
+### T-333 · WeasyPrint 70 (PYSEC-2026-3940 e PYSEC-2026-4311)
+- **Agente:** backend, com devops · **Depende de:** — · **Pronto quando:** `weasyprint` sobe de 69.0 para a 70.0 ou mais nova, que corrige os dois avisos do `pip-audit` levantados na T-328; os PDFs gerados (contrato, recibo) seguem iguais nos testes; `pip-audit` limpo; o devops reconstrói a imagem.
+
+### T-265 · Código da leitura do CRLV-e (`VEI-08`, ADR 0026)
+- **Agente:** backend, depois frontend · **Depende de:** T-247 (revisão da segurança), T-257 · **Regras:** VEI-08, VEI-01, VEI-03 · **Contrato:** `docs/api/veiculos.md` (`POST /api/veiculos/leitura-crlv/`) · **Pronto quando:** o parser com pypdf no processo filho com os limites da ADR 0026, calibrado com CRLV-e reais; um semáforo de leituras simultâneas (pedido do devops na T-258); nada do conteúdo em log ou Sentry; CA-247-01 a 07; a tela de cadastro com "Preencher pelo CRLV-e". A CNH-e (`CLI-11`) fica para a fase 2 (decisão de 16 out).
+- **Estado (19 out 2026, backend):** parte do backend pronta na branch `t-265-leitura-crlv` (empilhada sobre a T-257, PR #351), handoff `tarefas/handoffs/T-265-backend.md`. Falta: a tela com "Preencher pelo CRLV-e" (frontend) e a calibração com CRLV-e reais (equipe, sem o arquivo entrar no repositório).
+
 ### T-281 · Seed em banco limpo com as configurações de teste
 - **Agente:** qa, com backend · **Depende de:** — · **Pronto quando:** o seed com `config.settings.test` num banco limpo para em `veiculos_veiculo does not exist` (também como superusuário; visto pela segurança na T-276). Achar a causa, corrigir e cobrir com um teste que roda o seed num banco novo.
 
