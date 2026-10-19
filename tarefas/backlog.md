@@ -256,14 +256,8 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-329 · Leitura do CRLV-e: cor por lista, conferência do pai e arquivo órfão
 - **Agente:** backend · **Depende de:** T-265 (PR #352) · **Regras:** VEI-08, AUD-09, AUD-06 · **Severidade:** média (M-01, B-01, B-02 e B-03 de `docs/seguranca/2026-10-19-t328-leitura-crlv.md`) · **Pronto quando:** `crlv.cor` só aceita a lista de cores do Denatran, sem acento na comparação, e fora dela o campo fica vazio (M-01); `leitura_documentos.conferir` recusa ano fora de 1900 até o ano seguinte, caractere de controle, `combustivel` fora do enum e `marca_modelo` acima de 60 (B-01); em `cadastrar_com_crlv`, uma falha depois de gravar o PDF devolve o erro original e apaga o arquivo pelo provedor, ou grava só no `on_commit` (B-02); `FILE_UPLOAD_MAX_MEMORY_SIZE` acima do teto da borda, 3 MB (B-03); os 3 `xfail` estritos de `test_t328_seguranca_crlv.py` viram testes. Handoff `tarefas/handoffs/T-328-seguranca.md`.
 
-### T-330 · Referência do celular do cadastro do veículo com "Enviar CRLV-e"
-- **Agente:** design-system · **Depende de:** T-265 · **Regras:** VEI-08 · **Pronto quando:** `Veiculo-Novo-Mobile` troca "Fotografar o CRLV" por "Enviar CRLV-e", porque o contrato só lê PDF (ADR 0026); a tela real já faz assim (handoff `tarefas/handoffs/T-265-frontend.md`).
-
 ### T-331 · Calibração da leitura com CRLV-e reais
 - **Agente:** qa, com backend · **Depende de:** T-265, T-329 · **Regras:** VEI-08 · **Pronto quando:** a leitura é conferida com CRLV-e reais de moto e de carro, emitidos em estados diferentes, só na máquina local e fora do git (dado pessoal; repositório público); o que o parser errar vira teste com um PDF fictício igual em formato. Os PDFs reais vêm do dono.
-
-### T-332 · ADR 0026: o pypdf tenta a senha vazia
-- **Agente:** arquiteto · **Depende de:** T-328 · **Pronto quando:** no item 6 da ADR 0026, "falha, sem tentar senha vazia" passa a "falha (`is_encrypted`); o `pypdf` tenta a senha vazia ao abrir, e o trabalhador recusa antes de ler o texto" (B-04 da T-328).
 
 ### T-333 · WeasyPrint 70 (PYSEC-2026-3940 e PYSEC-2026-4311)
 - **Agente:** backend, com devops · **Depende de:** — · **Pronto quando:** `weasyprint` sobe de 69.0 para a 70.0 ou mais nova, que corrige os dois avisos do `pip-audit` levantados na T-328; os PDFs gerados (contrato, recibo) seguem iguais nos testes; `pip-audit` limpo; o devops reconstrói a imagem.
