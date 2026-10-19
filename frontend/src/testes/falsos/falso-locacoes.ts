@@ -690,7 +690,9 @@ export const locacoesFalso = {
   async gerarContrato(id: number): Promise<{ contrato_id: number; status: "enviado" }> {
     await pausa(250);
     const s = achar(id);
-    if (!acoesDe(s, perfilAtualFalso()).cancelar) throw new ErroApi(403, "sem_permissao", "Você não tem permissão para gerar o contrato");
+    const perfil = perfilAtualFalso();
+    if (perfil !== "administrador" && perfil !== "gerente" && perfil !== "vendedor") throw new ErroApi(403, "sem_permissao", "Você não tem permissão para gerar o contrato");
+    if (s.cancelamento) throw new ErroApi(409, "cancelamento_em_curso", "A locação tem um cancelamento em andamento.");
     if (s.corpo.contrato) throw new ErroApi(409, "contrato_existente", "Esta locação já tem contrato. Use reenviar para mandar de novo.");
     s.corpo.contrato = { status: "enviado", modelo: "Locação semanal", assinadoEm: null };
     s.eventos.push([AGORA_DO_SEED, "Contrato enviado por WhatsApp", "aguardando assinatura"]);

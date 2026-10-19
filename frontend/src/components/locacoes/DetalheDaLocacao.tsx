@@ -10,7 +10,7 @@ import { ROTULO_PERIODICIDADE } from "@/lib/clientes";
 import { mensagemDoErro } from "@/lib/erros";
 import { useAgora } from "@/lib/ambiente";
 import { celular, dataCurta, dataHoraCurta, dinheiro, diaDe, horaCurta, km, placa } from "@/lib/formatos";
-import { dataEHora, podeEnviarContrato, rotuloDaParcela, rotuloDaVistoriaDaTroca, seloDaParcela, textoDoPeriodo, textoFaltam } from "@/lib/locacoes";
+import { dataEHora, rotuloDaParcela, rotuloDaVistoriaDaTroca, seloDaParcela, textoDoPeriodo, textoFaltam } from "@/lib/locacoes";
 import { tomDoStatus } from "@/lib/tom";
 import { AcoesDaLocacao } from "./AcoesDaLocacao";
 import { TelaDeErro } from "./Comuns";
@@ -139,7 +139,8 @@ function Contrato({ l, aoConcluir }: { l: LocacaoCompleta; aoConcluir: (m: strin
   const reenviar = useMutation({ mutationFn: () => locacoes.reenviarContrato(l.id), onSuccess: () => aoConcluir(c?.status === "assinado" ? "Contrato reenviado por WhatsApp." : "Link de assinatura reenviado por WhatsApp.") });
   const imprimir = useMutation({ mutationFn: () => locacoes.pdfDoContrato(l.id), onSuccess: (r) => window.open(r.url, "_blank", "noopener") });
   if (!c || c.status === "cancelado") {
-    if (!podeEnviarContrato(l)) return null;
+    // A API diz se cabe enviar (perfil, retirada, desconto, cancelamento e contrato vigente): a tela só obedece.
+    if (!l.acoes.gerar_contrato) return null;
     // IMP-04: sem modelo publicado a API recusa e manda o caminho para publicar um.
     const semModelo = enviar.error instanceof ErroApi && enviar.error.codigo === "IMP-04";
     return (

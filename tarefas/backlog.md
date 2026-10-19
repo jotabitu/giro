@@ -373,14 +373,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 - Resolvido na T-263 (arquiteto): `acoes.gerar_contrato` no detalhe da locação (`locacoes.md`); a tela deixa de deduzir. Tarefa abaixo.
 
-### T-263 · Ação gerar_contrato na locação
-- **Contrato feito (16 out 2026):** PR #261 (`tarefas/handoffs/T-263-arquiteto.md`). Falta o código: backend, depois frontend.
-- **Backend feito (19 out 2026):** branch `t-263-gerar-contrato` (`tarefas/handoffs/T-263-backend.md`). Falta o frontend.
-- **Agente:** arquiteto (contrato), depois backend e frontend · **Depende de:** — · **Regras:** IMP-04, APR-01, LOC-12, fluxo da retirada (passo 3) · **Telas:** Locacao-Detalhe, Locacao (passo 3)
-- **Contrato:** `docs/api/locacoes.md` (`acoes.gerar_contrato`) e `docs/api/contratos.md` (recusas do `POST /api/locacoes/{id}/contrato/`). Branch `t-263-acao-gerar-contrato`.
-- **Pronto quando (backend):** `acoes()` em `apps/locacoes/selectors.py` devolve `gerar_contrato` = perfil que cria e `aguardando_retirada` e sem desconto pendente e sem cancelamento em curso e sem contrato vigente; `contrato.gerar` recusa com 409 `cancelamento_em_curso` (o que faltava para a ação e o `POST` concordarem); testes `test_loc_acoes_gerar_contrato` (verdadeiro para administrador, gerente e vendedor; falso para vistoriador e financeiro, fora de `aguardando_retirada`, com desconto pendente, com cancelamento pendente e com contrato `enviado`; verdadeiro de novo com o contrato `cancelado`) e `test_loc_gerar_contrato_com_cancelamento_em_curso`; OpenAPI regenerado e `npm run api:gerar` no frontend.
-- **Pronto quando (frontend, depois do backend):** o cartão Contrato de `DetalheDaLocacao` mostra "Enviar contrato" só por `l.acoes.gerar_contrato`; sai o `podeEnviarContrato` de `frontend/src/lib/locacoes.ts` e o teste dele, e entra o teste do componente com a ação `true` e `false`; o 422 `IMP-04` continua mostrando o atalho para publicar o modelo.
-
 ## Fase 2 em diante
 
 Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a FIN-13), manutenção (MAN), automações (AUT), implantação self-service (IMP), relatórios e DRE, exportação (AUD-06, AUD-07). A cobrança da assinatura, cancelar e pausar e a `AUD-08` entraram no MVP em 14 out 2026 (T-183, T-190); continuam aqui a `Plat-Cobranca` e os adicionais. Da exportação (`AUD-07`), o MVP tem só a auditoria em CSV (T-018); a fase 2 traz os outros itens (clientes, veículos, locações e contratos, financeiro, vistorias e fotos), a planilha (.xlsx, dependência nova registrada no PR), o backup completo em ZIP com as 2 etapas recentes, o backup mensal (`AUT-11`) com o cartão da tela, a exportação da plataforma (`/api/plataforma/exportacoes/`), o pedido do titular (`AUD-06`, à mão até lá) e o prazo após o cancelamento (`AUD-08`), decisão do dono de 12 out 2026 (T-151). O orquestrador quebra em tarefas quando a fase 1 fechar.
