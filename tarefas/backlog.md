@@ -292,9 +292,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 - ~~[decisão]~~ **Respondida (T-290, produto, 16 out 2026): fica o padrão, só as concluídas hoje** (dia da filial de saída); as antigas na lista com o filtro de período. Registrado na seção Movimentações das regras. (T-286, para o produto) **Coluna Concluídas do quadro.** A tela mostra uma concluída "hoje 08:30". Padrão do contrato: só as concluídas hoje; as antigas ficam na lista com filtro. Produto: confirmar ou dar outra janela (últimos 7 dias, por exemplo).
 - Leitura do arquiteto, **aceita pelo produto (T-290)** e registrada na `MOV-03`: o veículo `disponivel` com locação `aguardando_retirada` (início hoje) conta como "reservado" na `MOV-03` e não se movimenta (409 `MOV-03`), porque já tem dono para hoje.
 
-### T-323 · Contadores do painel do financeiro com Veículos no menu
-- **Agente:** backend · **Depende de:** T-287 (PR #315) · **Regras:** FIN-05, FIN-07, USR-05 · **Pronto quando:** `test_fin_05_fin_07_caixas_e_despesas_no_painel_do_financeiro` (t017) volta a passar: hoje os contadores da Lúcia (financeiro) trazem `veiculos: 86`, porque o menu do financeiro ganhou Veículos na T-287. Decidir pelo contrato (`docs/api/contas.md`, contadores do menu): se o item Veículos do financeiro leva contador, o teste muda; se não, o contador sai para quem só tem `ver`. Rodar o arquivo t017 inteiro. Achado do backend na T-316; a falha está na `main` desde o #315.
-
 ### T-317 · Varredura do suporte nas rotas de escrita
 - **Agente:** qa · **Depende de:** T-316 · **Regras:** PLT-07 · **Pronto quando:** um teste percorre as rotas de escrita com token de suporte "ver e editar" e exige que nenhuma responda 500 (o mesmo `*_por=usuario` num campo que exige `contas.Usuario` aparece no financeiro: `lancada_por`, `aberto_por`, `fechado_por`, `feito_por`); o que falhar vira tarefa de backend. Sugestão da segurança na T-315.
 
