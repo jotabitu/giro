@@ -79,6 +79,17 @@ Contrato da API: `docs/api/veiculos.md` (escrito pelo arquiteto antes da impleme
 
 Assina `aprovacoes.pedido_decidido` em `eventos.py` (T-081): `APR-06` aprovado chama `services.aplicar_correcao_aprovada`, que corrige o km como o gerente faria, com a aprovação como origem da leitura. Se o km mudou depois do pedido, responde 409 `km_mudou` e a aprovação volta.
 
+## Catálogo de marcas e modelos (T-257)
+
+- `catalogo.py`: lê `dados/catalogo_modelos.csv` uma vez por processo (`modelos()`, com `cache`); `listar` para `GET /api/veiculos/modelos/` e `achar_modelo` para a leitura do CRLV-e (`VEI-08`, ADR 0026, item 7). Sem tabela nem migração.
+- `management/commands/atualizar_catalogo_modelos.py`: regrava o CSV a partir da tabela FIPE baixada pela equipe, sem duplicata e em ordem. Nada consulta a internet.
+
+## Leitura do CRLV-e (T-265, VEI-08, ADR 0026)
+
+- `leitura.py`: `POST /api/veiculos/leitura-crlv/`; confere o arquivo (400 para o que não é PDF nem pela extensão nem pelos bytes, 422 `VEI-08` para o resto), roda o filho de `integracoes.leitura_documentos`, acha marca e modelo no catálogo e devolve os 9 campos com o comprovante (`comum.comprovante_leitura`). Log só com tipo, resultado, motivo, quantidade, ms, schema e usuário.
+- `services.cadastrar_com_crlv`: o `POST /api/veiculos/` em multipart com `crlv_arquivo`, `crlv_validade`, `crlv_exercicio` e `leitura`; veículo e `DocumentoVeiculo` `crlv` numa transação, o arquivo apagado se ela falhar.
+- `Veiculo.combustivel` e `DocumentoVeiculo.exercicio` (migração 0006).
+
 ## Falta
 
 - O e-mail ao gerente da `AUT-06` entra com o contrato de notificações; hoje o aviso é só no sino.

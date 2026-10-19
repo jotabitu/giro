@@ -43,10 +43,14 @@ describe("tela Cadastrar veículo", () => {
     expect(h).toContain(">Filial Centro</option>");
   });
 
-  it("o que o contrato não tem fica desativado", () => {
+  it("a leitura do CRLV-e está ligada e a FIPE segue desativada (VEI-08)", () => {
     sessao.veiculos = "editar";
     const h = html(<NovoVeiculoForm />);
-    expect(h).toMatch(/<button[^>]*disabled[^>]*>Enviar CRLV-e/);
+    expect(h).toMatch(/<button(?![^>]*disabled)[^>]*>Enviar CRLV-e/);
+    expect(h).toContain('accept=".pdf,application/pdf"');
+    expect(h).toContain("Envie o PDF do CRLV-e e preenchemos placa");
+    expect(h).toContain('list="modelos-do-catalogo"');
+    expect(h).not.toContain("Validade do CRLV");
     expect(h).toContain("A consulta FIPE ainda não está disponível");
   });
 
