@@ -1128,9 +1128,12 @@ def test_fin_05_fin_07_caixas_e_despesas_no_painel_do_financeiro(
     )
     assert corpo["para_hoje"][-1]["texto"] == "Pagar conta de luz · R$ 412,30"
     assert corpo["para_hoje"][-1]["destino"]["chave"] == "contas_a_pagar"
+    # Veículos entrou no menu do financeiro na T-287 e leva contador como em
+    # qualquer perfil (painel.md: só a despesa de quem não aprova vem sem).
     assert cenario.moto.api("Lúcia").get(f"{PAINEL}contadores/").json()["contadores"] == {
         "contas_a_pagar": 1,
         "receber": 0,
+        "veiculos": 86,
     }
 
 
