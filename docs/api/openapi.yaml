@@ -6076,7 +6076,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ListaDeModelos'
+                $ref: '#/components/schemas/ListaDeModelosDoCatalogo'
           description: ''
   /api/vistorias/{id}/:
     get:
@@ -12473,6 +12473,15 @@ components:
             $ref: '#/components/schemas/ModeloResumo'
       required:
       - resultados
+    ListaDeModelosDoCatalogo:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModeloDoCatalogo'
+      required:
+      - resultados
     ListaDeModelosProntos:
       type: object
       properties:
@@ -13083,6 +13092,27 @@ components:
       - texto
       - versao_publicada
       - versoes
+    ModeloDoCatalogo:
+      type: object
+      properties:
+        marca:
+          type: string
+        modelo:
+          type: string
+        tipo:
+          $ref: '#/components/schemas/ModeloDoCatalogoTipoEnum'
+      required:
+      - marca
+      - modelo
+      - tipo
+    ModeloDoCatalogoTipoEnum:
+      enum:
+      - moto
+      - carro
+      type: string
+      description: |-
+        * `moto` - moto
+        * `carro` - carro
     ModeloEntrada:
       type: object
       description: '`{ nome, finalidade, texto }` ou `{ nome?, a_partir_de }`.'
