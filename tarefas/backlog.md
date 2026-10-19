@@ -255,6 +255,7 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 ### T-265 · Código da leitura do CRLV-e (`VEI-08`, ADR 0026)
 - **Agente:** backend, depois frontend · **Depende de:** T-247 (revisão da segurança), T-257 · **Regras:** VEI-08, VEI-01, VEI-03 · **Contrato:** `docs/api/veiculos.md` (`POST /api/veiculos/leitura-crlv/`) · **Pronto quando:** o parser com pypdf no processo filho com os limites da ADR 0026, calibrado com CRLV-e reais; um semáforo de leituras simultâneas (pedido do devops na T-258); nada do conteúdo em log ou Sentry; CA-247-01 a 07; a tela de cadastro com "Preencher pelo CRLV-e". A CNH-e (`CLI-11`) fica para a fase 2 (decisão de 16 out).
+- **Estado (19 out 2026, backend):** parte do backend pronta na branch `t-265-leitura-crlv` (empilhada sobre a T-257, PR #351), handoff `tarefas/handoffs/T-265-backend.md`. Falta: a tela com "Preencher pelo CRLV-e" (frontend) e a calibração com CRLV-e reais (equipe, sem o arquivo entrar no repositório).
 
 ### T-281 · Seed em banco limpo com as configurações de teste
 - **Agente:** qa, com backend · **Depende de:** — · **Pronto quando:** o seed com `config.settings.test` num banco limpo para em `veiculos_veiculo does not exist` (também como superusuário; visto pela segurança na T-276). Achar a causa, corrigir e cobrir com um teste que roda o seed num banco novo.
