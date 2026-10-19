@@ -35,7 +35,37 @@
     {"metodo": "POST", "caminho": "/payments",
      "resposta": {"status": 200, "corpo": {"object": "payment", "id": "pay_t029rafael0001", "customer": "cus_000000000790", "value": 1385.17, "billingType": "BOLETO", "status": "PENDING", "dueDate": "2026-10-10", "externalReference": "9002", "bankSlipUrl": "https://sandbox.asaas.com/b/pdf/t029rafael0001", "deleted": false}}},
     {"metodo": "GET", "caminho": "/payments/pay_t029rafael0001/identificationField",
-     "resposta": {"status": 200, "corpo": {"identificationField": "00190000090000000000000000000000100000000138517", "nossoNumero": "00000001", "barCode": "00191000000001385170000000000000000000000000"}}}
+     "resposta": {"status": 200, "corpo": {"identificationField": "00190000090000000000000000000000100000000138517", "nossoNumero": "00000001", "barCode": "00191000000001385170000000000000000000000000"}}},
+    {"metodo": "GET", "caminho": "/payments/pay_t029rafael0001/pixQrCode",
+     "resposta": {"status": 200, "corpo": {"encodedImage": "iVBORw0KGgo=", "payload": "00020101021226820014br.gov.bcb.pix2560pix.asaas.com/qr/t029rafael000152040000530398654061385.175802BR6009FORTALEZA62070503***6304ABCD", "expirationDate": "2027-10-10 23:59:59", "description": null}}}
+  ],
+
+  "boleto_sem_pix": [
+    {"metodo": "GET", "caminho": "/customers", "consulta": ["cpfCnpj"],
+     "resposta": {"status": 200, "corpo": {"object": "list", "data": [{"object": "customer", "id": "cus_000000000790", "name": "Rafael Sousa", "cpfCnpj": "32137710587", "deleted": false}]}}},
+    {"metodo": "GET", "caminho": "/payments", "consulta": ["externalReference", "status"],
+     "resposta": {"status": 200, "corpo": {"object": "list", "data": []}}},
+    {"metodo": "POST", "caminho": "/payments",
+     "resposta": {"status": 200, "corpo": {"object": "payment", "id": "pay_t307rafael0002", "customer": "cus_000000000790", "value": 1385.17, "billingType": "BOLETO", "status": "PENDING", "dueDate": "2026-10-10", "externalReference": "9002", "bankSlipUrl": "https://sandbox.asaas.com/b/pdf/t307rafael0002", "deleted": false}}},
+    {"metodo": "GET", "caminho": "/payments/pay_t307rafael0002/identificationField",
+     "resposta": {"status": 200, "corpo": {"identificationField": "00190000090000000000000000000000100000000138517", "nossoNumero": "00000001", "barCode": "00191000000001385170000000000000000000000000"}}},
+    {"metodo": "GET", "caminho": "/payments/pay_t307rafael0002/pixQrCode",
+     "resposta": {"status": 400, "corpo": {"errors": [{"code": "invalid_action", "description": "Não há chave Pix cadastrada para esta conta."}]}}}
+  ],
+
+  "boleto_pix_fora_do_ar": [
+    {"metodo": "GET", "caminho": "/customers", "consulta": ["cpfCnpj"],
+     "resposta": {"status": 200, "corpo": {"object": "list", "data": [{"object": "customer", "id": "cus_000000000790", "name": "Rafael Sousa", "cpfCnpj": "32137710587", "deleted": false}]}}},
+    {"metodo": "GET", "caminho": "/payments", "consulta": ["externalReference", "status"],
+     "resposta": {"status": 200, "corpo": {"object": "list", "data": []}}},
+    {"metodo": "POST", "caminho": "/payments",
+     "resposta": {"status": 200, "corpo": {"object": "payment", "id": "pay_t307rafael0003", "customer": "cus_000000000790", "value": 1385.17, "billingType": "BOLETO", "status": "PENDING", "dueDate": "2026-10-10", "externalReference": "9002", "bankSlipUrl": "https://sandbox.asaas.com/b/pdf/t307rafael0003", "deleted": false}}},
+    {"metodo": "GET", "caminho": "/payments/pay_t307rafael0003/identificationField",
+     "resposta": {"status": 200, "corpo": {"identificationField": "00190000090000000000000000000000100000000138517", "nossoNumero": "00000001", "barCode": "00191000000001385170000000000000000000000000"}}},
+    {"metodo": "GET", "caminho": "/payments/pay_t307rafael0003/pixQrCode",
+     "resposta": {"status": 503, "corpo": {}}},
+    {"metodo": "DELETE", "caminho": "/payments/pay_t307rafael0003",
+     "resposta": {"status": 200, "corpo": {"deleted": true, "id": "pay_t307rafael0003"}}}
   ],
 
   "pix_qr_falha": [
