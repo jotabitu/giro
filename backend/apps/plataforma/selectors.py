@@ -12,6 +12,7 @@ from django.db.models import Case, CharField, Count, F, Q, QuerySet, Value, When
 from django.utils import timezone
 from django_tenants.utils import get_public_schema_name
 
+from comum import empresa as comum_empresa
 from comum import relogio
 from comum.conexao import conexao
 
@@ -25,6 +26,7 @@ from .models import (
     FormaPagamentoAssinatura,
     Item,
     Plano,
+    Recurso,
     SituacaoNota,
     StatusFatura,
     StatusFormaPagamento,
@@ -759,3 +761,39 @@ def detalhe_da_fatura(fatura: FaturaAssinatura, contexto: ContextoDasFaturas) ->
         "recibo_url": (fatura.recibo_url or None) if fatura.status == StatusFatura.PAGA else None,
         "nota_fiscal": nota_fiscal_da_fatura(fatura),
     }
+
+
+# --- Módulos do plano e ramo (PLT-12, ADR 0024, itens 2 e 10) ---
+
+ATIVIDADES = ("aluga", "vende", "ambos")
+# O recurso de operação que cada lado do ramo liga.
+RECURSO_DA_ATIVIDADE = {"aluga": Recurso.LOCACOES_VISTORIA, "vende": Recurso.VENDAS_COMISSOES}
+
+
+def recursos_para(plano: Plano | None, atividade: str) -> frozenset[str]:
+    """`Plano.recursos` menos o módulo de operação que a atividade não usa. Função pura."""
+    recursos = set(plano.recursos if plano is not None else [])
+    for lado, recurso in RECURSO_DA_ATIVIDADE.items():
+        if atividade not in (lado, "ambos"):
+            recursos.discard(recurso)
+    return frozenset(recursos)
+
+
+def atividades_aceitas(plano: Plano | None) -> tuple[str, ...]:
+    """As atividades com pelo menos um módulo de operação no plano (Essencial: aluga e ambos)."""
+    operacao = set(RECURSO_DA_ATIVIDADE.values())
+    return tuple(a for a in ATIVIDADES if recursos_para(plano, a) & operacao)
+
+
+def recursos_da_empresa(empresa: Empresa | None = None) -> frozenset[str]:
+    """Os recursos ligados na empresa: os do plano atual com o ramo guardado. Nada é guardado."""
+    empresa = empresa or empresa_atual()
+    return recursos_para(empresa.plano, comum_empresa.atividade())
+
+
+def primeiro_plano_com(recurso: str) -> Plano | None:
+    """O plano ativo mais baixo do catálogo que liga `recurso` (o aviso de "vende")."""
+    for plano in Plano.objects.filter(ativo=True).order_by("ordem", "preco_mensal_centavos"):
+        if recurso in (plano.recursos or []):
+            return plano
+    return None

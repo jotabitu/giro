@@ -19,10 +19,10 @@ from rest_framework.views import APIView
 
 from comum.erros import NaoEncontrado
 from comum.limites import MarcaPorIP
-from comum.permissoes import EmpresaOperando, EscopoDeFilial
+from comum.permissoes import EmpresaOperando, EscopoDeFilial, com_padrao, exige_perfil
 
-from .. import selectors
-from .serializers import MarcaSerializer
+from .. import selectors, services
+from .serializers import MarcaSerializer, MudarRamoSerializer, RamoSerializer
 
 CACHE_DA_MARCA = "public, max-age=300"
 CACHE_DO_LOGO_ATUAL = "public, max-age=31536000, immutable"
@@ -84,3 +84,32 @@ class LogoView(Publica):
         resposta["Content-Security-Policy"] = CSP_DO_LOGO
         resposta["Content-Disposition"] = f'inline; filename="logo.{extensao}"'
         return resposta
+
+
+class RamoView(APIView):
+    """O que a empresa faz (PLT-12): passo 7 da implantação e `/admin/ramo` (T-224, T-262).
+    Sem cache: o plano pode ter mudado no pedido anterior."""
+
+    permission_classes = com_padrao(exige_perfil("administrador"))
+    suporte_somente_leitura = True  # o suporte lê o GET (PLT-07)
+    suporte_proibido = frozenset({"PUT"})  # e nunca troca o ramo
+
+    @extend_schema(responses=RamoSerializer, summary="Ramo da empresa e as opções do plano")
+    def get(self, request: Request) -> Response:
+        return Response(RamoSerializer(selectors.ramo()).data)
+
+    @extend_schema(
+        request=MudarRamoSerializer,
+        responses={
+            200: RamoSerializer,
+            422: OpenApiResponse(description="`PLT-12`: o plano não aceita, ou algo aberto"),
+        },
+        summary="Trocar o ramo (PLT-12)",
+    )
+    def put(self, request: Request) -> Response:
+        dados = MudarRamoSerializer(data=request.data)
+        dados.is_valid(raise_exception=True)
+        services.mudar_ramo(
+            dados.validated_data["atividade"], dados.validated_data["trabalha_com"], request.user
+        )
+        return Response(RamoSerializer(selectors.ramo()).data)

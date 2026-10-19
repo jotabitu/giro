@@ -142,6 +142,7 @@ Concluída. As tarefas entregues estão em `tarefas/feito.md`.
 Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, depois telas, depois o que pede regra. As três dúvidas do fim contrariavam regras já escritas e foram decididas pelo dono no mesmo dia.
 
 ### T-262 · Troca do ramo em Configurações (backend do cartão e tela)
+- **Backend feito (19 out 2026):** branch `t-262-cartao-ramo` (`tarefas/handoffs/T-262-backend.md`): cartão `ramo`, `GET` e `PUT /api/ramo/`, `ConfiguracaoEmpresa.atividade` e `trabalha_com`. Falta o frontend. A parte da T-196 (enum novo de `Recurso`, `ModuloDoPlano`, contagem do downgrade) segue com ela.
 - **Agente:** backend, depois frontend · **Depende de:** T-259, T-253 · **Regras:** PLT-12 · **Contrato:** `docs/api/configuracoes.md` (cartão `ramo`, "O que a empresa faz") e `docs/api/empresas.md` (`GET` e `PUT /api/ramo/`) · **Telas:** Admin-Ramo-Desktop, Admin-Ramo-Mobile · **Pronto quando:** (backend) o cartão `ramo` em `GET /api/configuracoes/` depois de `marca`, com o resumo montado pela API ("Locação e venda · motos" no seed), ausente para o token de suporte, pela `empresas.selectors.configuracao()`; teste do cartão e da ausência para o suporte; (frontend) a rota `/admin/ramo` igual à referência, ligada a `GET` e `PUT /api/ramo/`, com as opções e o aviso que a API manda e a recusa 422 da `PLT-12` com o `abertos_texto`; testes do componente. Levantada pelo arquiteto na T-259.
 
 ### T-257 · Catálogo de marcas e modelos (backend)
