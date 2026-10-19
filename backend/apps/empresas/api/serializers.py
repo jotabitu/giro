@@ -25,6 +25,30 @@ class MarcaSerializer(serializers.Serializer[Any]):
     versao = serializers.CharField()
 
 
+class SimularMarcaSerializer(serializers.Serializer[Any]):
+    """O formato é conferido no serviço, com as mensagens do contrato."""
+
+    cor = serializers.CharField(required=False, allow_blank=True, trim_whitespace=False)
+    nome_exibicao = serializers.CharField(required=False, allow_blank=True, trim_whitespace=False)
+
+
+class MarcaSimuladaSerializer(serializers.Serializer[Any]):
+    nome_exibicao = serializers.CharField()
+    iniciais = serializers.CharField()
+    cor = serializers.CharField()
+    cor_sobre = serializers.CharField()
+    cor_suave = serializers.CharField()
+    cor_suave_escuro = serializers.CharField()
+
+
+class SalvarMarcaSerializer(SimularMarcaSerializer):
+    logo = serializers.FileField(
+        required=False,
+        help_text="SVG ou PNG até 2 MB, pelo conteúdo (ADR 0022). Só em multipart.",
+    )
+    remover_logo = serializers.BooleanField(required=False, default=False)
+
+
 class AtividadeDoRamoSerializer(serializers.Serializer[Any]):
     valor = serializers.ChoiceField(choices=["aluga", "vende"])
     titulo = serializers.CharField()

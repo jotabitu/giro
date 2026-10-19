@@ -3956,8 +3956,7 @@ paths:
   /api/marca/:
     get:
       operationId: marca_retrieve
-      description: 'Sem autenticação: com ou sem token (inclusive o do suporte), a
-        resposta é a mesma.'
+      description: GET público; PATCH do administrador, com login e o limite por usuário.
       summary: Marca da empresa do subdomínio (nome, logo e cores)
       tags:
       - marca
@@ -3972,6 +3971,29 @@ paths:
           description: ''
         '304':
           description: Sem mudança
+    patch:
+      operationId: marca_partial_update
+      description: GET público; PATCH do administrador, com login e o limite por usuário.
+      summary: 'Salvar a marca: nome, cor e logo (só o administrador; S-12, ADR 0022)'
+      tags:
+      - marca
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSalvarMarca'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSimularMarca'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Marca'
+          description: ''
   /api/marca/logo/:
     get:
       operationId: marca_logo_retrieve
@@ -4002,6 +4024,33 @@ paths:
           description: ''
         '404':
           description: Sem logo (`nao_encontrado`)
+  /api/marca/simular/:
+    post:
+      operationId: marca_simular_create
+      description: 'Prévia das cores (ADR 0005): a tela nunca calcula cor.'
+      summary: Prévia da marca sem gravar (nome, iniciais e cores)
+      tags:
+      - marca
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimularMarca'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SimularMarca'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SimularMarca'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarcaSimulada'
+          description: ''
   /api/movimentacoes/:
     get:
       operationId: movimentacoes_list
@@ -12814,6 +12863,28 @@ components:
       - nome_exibicao
       - personalizada
       - versao
+    MarcaSimulada:
+      type: object
+      properties:
+        nome_exibicao:
+          type: string
+        iniciais:
+          type: string
+        cor:
+          type: string
+        cor_sobre:
+          type: string
+        cor_suave:
+          type: string
+        cor_suave_escuro:
+          type: string
+      required:
+      - cor
+      - cor_sobre
+      - cor_suave
+      - cor_suave_escuro
+      - iniciais
+      - nome_exibicao
     Marcador:
       type: object
       properties:
@@ -14100,6 +14171,30 @@ components:
         condicoes:
           type: string
           default: ''
+    PatchedSalvarMarca:
+      type: object
+      description: O formato é conferido no serviço, com as mensagens do contrato.
+      properties:
+        cor:
+          type: string
+        nome_exibicao:
+          type: string
+        logo:
+          type: string
+          format: uri
+          nullable: true
+          description: SVG ou PNG até 2 MB, pelo conteúdo (ADR 0022). Só em multipart.
+        remover_logo:
+          type: boolean
+          default: false
+    PatchedSimularMarca:
+      type: object
+      description: O formato é conferido no serviço, com as mensagens do contrato.
+      properties:
+        cor:
+          type: string
+        nome_exibicao:
+          type: string
     PatchedVeiculoEdicao:
       type: object
       properties:
@@ -15897,6 +15992,14 @@ components:
           type: string
           format: date
           nullable: true
+    SimularMarca:
+      type: object
+      description: O formato é conferido no serviço, com as mensagens do contrato.
+      properties:
+        cor:
+          type: string
+        nome_exibicao:
+          type: string
     SinaisLocacao:
       type: object
       properties:
