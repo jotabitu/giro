@@ -150,6 +150,9 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 - **Nota da T-012 (08/10):** a S-12 (SVG do logo sanitizado e exibido só por `<img>`) vale para `ConfiguracaoEmpresa.logo` (app `empresas`), e não para a filial. Entra na tarefa da marca da empresa (`Admin-Marca`), a criar.
 
+### T-335 · Casca do assistente de implantação
+- **Agente:** frontend · **Depende de:** T-154, T-262 · **Regras:** IMP-01 a IMP-05, PLT-12 · **Telas:** Onboarding-* · **Pronto quando:** o assistente de implantação tem a casca (rota, passos na ordem das referências `Onboarding-*`, avanço e volta, o passo atual pela API) e liga os passos já prontos: Marca (`PassoMarca` da T-154) e Ramo (T-262); os passos sem contrato ficam marcados no handoff, sem número inventado. Hoje só existem `implantacao/importar`. Achado do frontend na T-154 e na T-262.
+
 ### T-334 · Dois testes quebrados na main
 - **Agente:** backend · **Depende de:** — · **Regras:** USR-05, AUD · **Pronto quando:** voltam a passar `tests/aceitacao/test_t129_painel_e_marca.py::test_usr_05_contadores_seguem_o_menu` (os contadores da Lúcia trazem `veiculos: 86` desde o #315, como a T-323 corrigiu no t017) e `tests/test_campos_sensiveis.py` (`movimentacoes.LocalApoio`: `nome` e `nome_busca` sem classificação em `CAMPOS_AUDITORIA`, desde a T-288). Achados na conferência da T-153; os dois falham na `main` limpa.
 
