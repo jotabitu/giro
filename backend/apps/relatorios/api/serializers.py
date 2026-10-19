@@ -320,6 +320,7 @@ class CartaoDeConfiguracoesSerializer(serializers.Serializer[Any]):
     chave = serializers.ChoiceField(
         choices=[
             "marca",
+            "ramo",
             "filiais",
             "usuarios",
             "precos",

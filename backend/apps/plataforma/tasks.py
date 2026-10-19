@@ -155,7 +155,7 @@ def plataforma_enviar_boleto(fatura_id: int, pix_pendente: bool = False) -> int:
 
     from .calendario import descricao_da_fatura, dia_e_mes
     from .models import FaturaAssinatura
-    from .services import destinatarios_da_cobranca
+    from .services import destinatarios_da_cobranca, enviar_a_cada_um
 
     with schema_context(get_public_schema_name()):
         fatura = FaturaAssinatura.objects.select_related("empresa", "plano").get(pk=fatura_id)
@@ -168,21 +168,24 @@ def plataforma_enviar_boleto(fatura_id: int, pix_pendente: bool = False) -> int:
         fatura.tipo, fatura.plano.nome, fatura.ciclo, fatura.periodo_inicio, fatura.periodo_fim
     )
     vence = dia_e_mes(fatura.vencimento)
-    send_mail(
-        subject=f"Giro: boleto da fatura {fatura.codigo}, vence em {vence}",
-        message=(
+    return enviar_a_cada_um(
+        destinatarios,
+        f"Giro: boleto da fatura {fatura.codigo}, vence em {vence}",
+        (
             (f"{PIX_AUTOMATICO_PENDENTE}\n" if pix_pendente else "")
             + f"A fatura {fatura.codigo} da {fatura.empresa.nome_exibicao} ({descricao}), de "
             f"{formatar_reais(int(fatura.valor_centavos))}, vence em {vence}.\n"
             f"Boleto: {fatura.cobranca_boleto_url}\n"
             f"Linha digitável: {fatura.cobranca_linha_digitavel}\n"
-            f"Pix copia e cola: {fatura.cobranca_pix_copia_e_cola}\n"
-            "Você também paga pelo botão Pagar, em Assinatura."
+            # Sem o Pix do boleto (a conta sem chave Pix), sem a linha vazia (T-305).
+            + (
+                f"Pix copia e cola: {fatura.cobranca_pix_copia_e_cola}\n"
+                if fatura.cobranca_pix_copia_e_cola
+                else ""
+            )
+            + "Você também paga pelo botão Pagar, em Assinatura."
         ),
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=destinatarios,
     )
-    return len(destinatarios)
 
 
 @shared_task(name="plataforma_avisar_downgrade_recusado")
@@ -195,7 +198,7 @@ def plataforma_avisar_downgrade_recusado(
 
     from .calendario import dia_e_mes
     from .models import Plano
-    from .services import destinatarios_da_cobranca, texto_do_que_excede
+    from .services import destinatarios_da_cobranca, enviar_a_cada_um, texto_do_que_excede
 
     with schema_context(get_public_schema_name()):
         empresa = Empresa.objects.select_related("plano").get(pk=empresa_id)
@@ -204,18 +207,16 @@ def plataforma_avisar_downgrade_recusado(
     if not destinatarios or empresa.plano is None:
         return 0
     dia = dia_e_mes(date.fromisoformat(vencimento))
-    send_mail(
-        subject=f"Giro: a mudança para o plano {agendado.nome} não aconteceu",
-        message=(
+    return enviar_a_cada_um(
+        destinatarios,
+        f"Giro: a mudança para o plano {agendado.nome} não aconteceu",
+        (
             f"A {empresa.nome_exibicao} ia mudar para o plano {agendado.nome} em {dia}, mas o uso "
             f"de hoje não cabe nele: {texto_do_que_excede(excede)}.\n"
             f"Por isso, a fatura de {dia} saiu pelo plano {empresa.plano.nome}, e a empresa "
             "continua nele. Para mudar, ajuste o uso e escolha o plano de novo em Assinatura."
         ),
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=destinatarios,
     )
-    return len(destinatarios)
 
 
 @shared_task(name="aut_13_regua_assinatura")

@@ -15,6 +15,7 @@ CIDADES_NO_RESUMO = 3  # com 4 cidades ou mais, só a contagem
 # Ordem fixa da tela. `integracoes` e `notificacoes` não vêm no MVP (sem tela nem contrato).
 TITULOS = {
     "marca": "Empresa e marca",
+    "ramo": "O que a empresa faz",
     "filiais": "Filiais",
     "usuarios": "Usuários e perfis",
     "precos": "Tabelas de preço",
@@ -26,7 +27,8 @@ TITULOS = {
 # Cartão → app que precisa estar em `GIRO_MODULOS_ATIVOS` (USR-05). Os que também são item do
 # menu usam o app do item (`contas.navegacao.ITENS`), passado por quem chama.
 MODULO_PROPRIO = {"precos": "veiculos", "modelos_contrato": "contratos", "exportar": "auditoria"}
-SO_FORA_DO_SUPORTE = frozenset({"auditoria", "exportar"})  # PLT-07
+# PLT-07: o suporte não troca o ramo (a tela só serve para isso, T-259).
+SO_FORA_DO_SUPORTE = frozenset({"ramo", "auditoria", "exportar"})
 
 FIXOS = {
     "marca": "Logo, cor, nome e endereço do sistema",
@@ -144,6 +146,7 @@ def implantacao(passos: list[dict[str, Any]]) -> dict[str, Any] | None:
 class Fontes:
     """O que os selectors contaram. Um campo `None` é de cartão que não vem."""
 
+    ramo: str | None = None  # o resumo já montado por `empresas`
     filiais: dict[str, Any] | None = None
     usuarios: tuple[int, int | None, int] | None = None  # usado, limite, convites
     precos: tuple[int, int | None] | None = None  # categorias, planos especiais
@@ -154,6 +157,8 @@ class Fontes:
 def cartoes(visiveis: list[str], fontes: Fontes) -> list[dict[str, str]]:
     """Um cartão por chave de `visiveis` (já na ordem da tela e filtradas)."""
     resumos: dict[str, str] = dict(FIXOS)
+    if fontes.ramo is not None:
+        resumos["ramo"] = fontes.ramo
     if fontes.filiais is not None:
         resumos["filiais"] = resumo_filiais(**fontes.filiais)
     if fontes.usuarios is not None:
@@ -172,7 +177,7 @@ def cartoes(visiveis: list[str], fontes: Fontes) -> list[dict[str, str]]:
 
 
 def visiveis(modulo_do_cartao: dict[str, str], modulos: frozenset[str], suporte: bool) -> list[str]:
-    """USR-05: só cartão de app ativo; PLT-07: o suporte não vê auditoria nem exportar."""
+    """USR-05: só cartão de app ativo; PLT-07: o suporte não vê ramo, auditoria nem exportar."""
     return [
         chave
         for chave in TITULOS
