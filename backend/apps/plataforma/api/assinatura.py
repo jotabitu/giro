@@ -17,7 +17,7 @@ from rest_framework.views import APIView
 
 from comum.erros import ErroDeValidacao, NaoEncontrado, SemPermissao
 from comum.paginacao import PaginacaoPorCursor
-from comum.permissoes import com_padrao
+from comum.permissoes import com_padrao, exige_perfil
 
 from .. import selectors, services
 from ..models import (
@@ -29,6 +29,7 @@ from ..models import (
     StatusFatura,
 )
 from .serializers import (
+    AndamentoDoAssistenteSerializer,
     AssinaturaSerializer,
     DadosFiscaisSerializer,
     EnderecoDaNotaSerializer,
@@ -427,3 +428,23 @@ class PagarFaturaView(EscritaDaAssinatura):
         with services.no_publico():
             cobranca = selectors.cobranca_da_fatura(fatura)
         return Response(CobrancaDaFaturaSerializer(cobranca).data)
+
+
+# --- Andamento do assistente (`GET /api/implantacao/`, T-201, T-202) ---
+
+
+class ImplantacaoView(APIView):
+    """A moldura do assistente marca os passos pelo que a API manda (T-190, proposta 9).
+    Administrador e token de suporte (só leitura); os demais, 403."""
+
+    permission_classes = com_padrao(exige_perfil("administrador"))
+    suporte_somente_leitura = True
+
+    @extend_schema(
+        responses=AndamentoDoAssistenteSerializer,
+        summary="Andamento do assistente de implantação (IMP-05)",
+    )
+    def get(self, request: Request) -> Response:
+        with services.no_publico():
+            dados = selectors.andamento_do_assistente(_empresa(request))
+        return Response(AndamentoDoAssistenteSerializer(dados).data)
