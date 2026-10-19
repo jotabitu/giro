@@ -4,6 +4,7 @@ import { pausa } from "./falso";
 
 export const CARTOES_DO_SEED: Configuracoes["cartoes"] = [
   { chave: "marca", titulo: "Empresa e marca", resumo: "Logo, cor, nome e endereço do sistema" },
+  { chave: "ramo", titulo: "O que a empresa faz", resumo: "Locação e venda · motos" },
   { chave: "filiais", titulo: "Filiais", resumo: "1 filial · Filial Centro, Fortaleza" },
   { chave: "usuarios", titulo: "Usuários e perfis", resumo: "5 de 10 usuários" },
   { chave: "precos", titulo: "Tabelas de preço", resumo: "4 categorias" },
