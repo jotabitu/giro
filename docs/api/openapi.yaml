@@ -7308,6 +7308,7 @@ components:
     CartaoDeConfiguracoesChaveEnum:
       enum:
       - marca
+      - ramo
       - filiais
       - usuarios
       - precos
@@ -7320,6 +7321,7 @@ components:
       type: string
       description: |-
         * `marca` - marca
+        * `ramo` - ramo
         * `filiais` - filiais
         * `usuarios` - usuarios
         * `precos` - precos
