@@ -4,6 +4,7 @@ O catálogo é o `apps/veiculos/dados/catalogo_modelos.csv`, igual para todas as
 roda na `empresa_a` com as pessoas do seed.
 """
 
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -23,7 +24,7 @@ def moto(empresa_a, planos, relogio) -> MotoRapida:
 
 
 @pytest.fixture
-def catalogo_temporario(tmp_path, monkeypatch) -> Path:
+def catalogo_temporario(tmp_path, monkeypatch) -> Iterator[Path]:
     arquivo = tmp_path / "catalogo_modelos.csv"
     monkeypatch.setattr(catalogo, "ARQUIVO", arquivo)
     catalogo.modelos.cache_clear()
