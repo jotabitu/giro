@@ -179,7 +179,8 @@ def _dados(locacao: Locacao) -> contratos.DadosDoContrato:
 
 def gerar(locacao: Locacao) -> Contrato:
     """Locação `aguardando_retirada`, sem pedido de desconto pendente (o contrato sai com o
-    preço decidido). 422 `IMP-04` sem modelo publicado; 409 `contrato_existente`."""
+    preço decidido) e sem cancelamento em curso (`LOC-12`). 422 `IMP-04` sem modelo publicado;
+    409 `contrato_existente`. `selectors.acoes` diz antes se passa (`gerar_contrato`)."""
     if locacao.status != S.AGUARDANDO_RETIRADA:
         raise Conflito(
             "contrato_fora_de_hora",
@@ -191,6 +192,12 @@ def gerar(locacao: Locacao) -> Contrato:
             "desconto_pendente",
             "O contrato sai depois da decisão do pedido de desconto.",
             {"pedido_aprovacao_id": locacao.pedido_desconto_id},
+        )
+    if locacao.cancelamento_status in (StatusDesconto.PENDENTE, StatusDesconto.APROVADO):
+        raise Conflito(  # LOC-12, T-263
+            "cancelamento_em_curso",
+            "A locação tem um cancelamento em andamento.",
+            {"cancelamento": locacao.cancelamento_status},
         )
     return contratos.gerar(_dados(locacao))
 

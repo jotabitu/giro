@@ -376,6 +376,7 @@ class ReembolsosView(APIView):
 
 
 class ReembolsoFeitoView(APIView):
+    suporte_proibido = True  # 403 PLT-07 mesmo em "ver e editar" (T-324, opção A do dono)
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_permissions(self) -> Any:
@@ -493,6 +494,8 @@ class CaixaHojeView(APIView):
 
 
 class CaixasView(APIView):
+    suporte_proibido = True  # 403 PLT-07 mesmo em "ver e editar" (T-324, opção A do dono)
+
     def get_permissions(self) -> Any:
         return [p() for p in OPERAM]
 
@@ -582,6 +585,8 @@ class EstornarMovimentoView(APIView):
 
 
 class FecharCaixaView(APIView):
+    suporte_proibido = True  # 403 PLT-07 mesmo em "ver e editar" (T-324, opção A do dono)
+
     def get_permissions(self) -> Any:
         return [p() for p in OPERAM]
 
@@ -612,6 +617,9 @@ def _despesa(request: Request, pk: int) -> Despesa:
 
 
 class DespesasView(APIView):
+    suporte_proibido = frozenset(
+        {"POST"}
+    )  # 403 PLT-07 mesmo em "ver e editar" (T-324, opção A do dono)
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_permissions(self) -> Any:
