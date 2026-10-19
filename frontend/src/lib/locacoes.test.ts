@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { periodoDaLocacao, podeEnviarContrato, rotaDaAcaoLocacao, rotuloDaParcela, rotuloDoPagamento, seloDaParcela, textoDaEstimativa, textoDoPeriodo, textoFaltam } from "./locacoes";
+import { periodoDaLocacao, rotaDaAcaoLocacao, rotuloDaParcela, rotuloDoPagamento, seloDaParcela, textoDaEstimativa, textoDoPeriodo, textoFaltam } from "./locacoes";
 
 const sinais = { pagamento_atrasado: false, devolve_hoje: false, cancelamento_pendente: false };
 
@@ -64,17 +64,5 @@ describe("rotuloDoPagamento (D-22)", () => {
     expect(rotuloDoPagamento({ ...base, em_aberto_centavos: 134700, rotulo: "R$ 1.347,00 em aberto", tom: "perigo" })).toBe("R$ 1.347,00 em aberto");
     expect(rotuloDoPagamento({ ...base, rotulo: "Multa R$ 84,80", tom: "sucesso" })).toBe("Multa R$ 84,80");
     expect(rotuloDoPagamento({ ...base, rotulo: "R$ 329,00 pago", tom: "sucesso" })).toBe("R$ 329,00 pago");
-  });
-});
-
-describe("podeEnviarContrato (LOC-04)", () => {
-  const base = { status: "aguardando_retirada", contrato: null, desconto: null, acoes: { cancelar: "direto" } } as unknown as Parameters<typeof podeEnviarContrato>[0];
-  it("só aguardando retirada, sem contrato vigente, sem desconto pendente e para quem cria locação", () => {
-    expect(podeEnviarContrato(base)).toBe(true);
-    expect(podeEnviarContrato({ ...base, contrato: { status: "cancelado" } } as never)).toBe(true);
-    expect(podeEnviarContrato({ ...base, contrato: { status: "enviado" } } as never)).toBe(false);
-    expect(podeEnviarContrato({ ...base, desconto: { status: "pendente" } } as never)).toBe(false);
-    expect(podeEnviarContrato({ ...base, status: "ativa" } as never)).toBe(false);
-    expect(podeEnviarContrato({ ...base, acoes: { cancelar: false } } as never)).toBe(false);
   });
 });

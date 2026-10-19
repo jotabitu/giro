@@ -115,9 +115,36 @@ def test_fin_04_asaas_boleto_do_rafael(relogio):
     gravacao.conferir_fim()
     assert cobranca.linha_digitavel == "00190000090000000000000000000000100000000138517"
     assert cobranca.boleto_url.endswith("t029rafael0001")
-    assert cobranca.pix_copia_e_cola == ""
+    # T-307: o Pix do boleto, pelo mesmo `pixQrCode` da cobrança Pix (T-305).
+    assert cobranca.pix_copia_e_cola.startswith("00020101021226820014br.gov.bcb.pix")
+    assert gravacao.feitas[-1]["caminho"] == "/payments/pay_t029rafael0001/pixQrCode"
     assert gravacao.corpo("POST", "/payments")["billingType"] == "BOLETO"
     assert gravacao.corpo("POST", "/payments")["value"] == Decimal("1385.17")
+
+
+def test_fin_04_boleto_sem_pix_disponivel_nao_cancela(relogio, caplog):
+    """T-307: o `pixQrCode` do boleto recusado (400, a conta sem chave Pix) não cancela o
+    boleto: ele sai sem o Pix, com um aviso no log."""
+    parceiro, gravacao = asaas("boleto_sem_pix")
+    pedido = PedidoCobranca("boleto", 138517, date(2026, 10, 10), "9002", RAFAEL)
+    with caplog.at_level(logging.WARNING):
+        cobranca = parceiro.criar_cobranca(SUBCONTA, pedido)
+    gravacao.conferir_fim()
+    assert cobranca.linha_digitavel and cobranca.boleto_url
+    assert cobranca.pix_copia_e_cola == ""
+    assert "DELETE" not in [f["metodo"] for f in gravacao.feitas]
+    assert "pay_t307rafael0002 sem o Pix" in caplog.text
+
+
+def test_fin_04_boleto_com_o_pix_fora_do_ar_cancela(relogio):
+    """T-307: com o parceiro fora do ar no `pixQrCode`, o boleto é cancelado e o erro sobe, como
+    na cobrança Pix (CA-029-16)."""
+    parceiro, gravacao = asaas("boleto_pix_fora_do_ar")
+    pedido = PedidoCobranca("boleto", 138517, date(2026, 10, 10), "9002", RAFAEL)
+    with pytest.raises(ParceiroIndisponivel):
+        parceiro.criar_cobranca(SUBCONTA, pedido)
+    gravacao.conferir_fim()
+    assert gravacao.feitas[-1]["metodo"] == "DELETE"
 
 
 def test_fin_04_asaas_sem_pix_copia_e_cola_cancela_a_cobranca(relogio):

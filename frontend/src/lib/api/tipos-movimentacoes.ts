@@ -14,15 +14,14 @@ export type LocalDeApoio = Omit<S["Local"], "tipo"> & { tipo: TipoDoLocalDeApoio
 
 export type ParadaDaMovimentacao = Omit<S["Parada"], "local" | "categoria"> & { local: LocalDeApoio; categoria: CategoriaDaDespesa };
 
-export type FotoDaChegada = Omit<S["Foto"], "posicao"> & { posicao: PosicaoDaFotoDaChegada };
+export type FotoDaChegada = Omit<S["FotoDaMovimentacao"], "posicao"> & { posicao: PosicaoDaFotoDaChegada };
 
 export type ChegadaDaMovimentacao = Omit<S["Chegada"], "combustivel" | "fotos"> & { combustivel: Combustivel | null; fotos: FotoDaChegada[] };
 
 /** O que a tela mostra como botão: a API decide pelo perfil, pela filial, por quem leva, pelo status e pela próxima etapa. */
-export type AcoesDaMovimentacao = S["Acoes"];
+export type AcoesDaMovimentacao = S["AcoesDaMovimentacao"];
 
-/** O OpenAPI hoje mistura `VeiculoRef` desta tela com a de outro app (só `id` e `placa`); o contrato e a API trazem também modelo e status. */
-export type VeiculoDaMovimentacao = { id: number; placa: string; modelo: string; status: string };
+export type VeiculoDaMovimentacao = S["VeiculoDaMovimentacao"];
 
 export type Movimentacao = Omit<S["Movimentacao"], "veiculo" | "paradas" | "chegada" | "fotos_chegada"> & {
   veiculo: VeiculoDaMovimentacao;
@@ -32,11 +31,8 @@ export type Movimentacao = Omit<S["Movimentacao"], "veiculo" | "paradas" | "cheg
   fotos_chegada: FotoDaChegada[];
 };
 
-/**
- * Linha do quadro e da lista: a representação sem `paradas` e sem `chegada`, mais o total de paradas e o resumo pronto.
- * O OpenAPI hoje mistura esta linha com a da importação (`Linha`), então ela é derivada da representação (docs/api/movimentacoes.md, "Quadro").
- */
-export type LinhaDaMovimentacao = Omit<Movimentacao, "paradas" | "chegada" | "fotos_chegada"> & { paradas_total: number; resumo: string };
+/** Linha do quadro e da lista: a representação sem `paradas` e sem `chegada`, mais o total de paradas e o resumo pronto (docs/api/movimentacoes.md, "Quadro"). */
+export type LinhaDaMovimentacao = S["LinhaDaMovimentacao"];
 
 export type ColunaDoQuadro = { status: Exclude<StatusDaMovimentacao, "cancelada">; rotulo: string; total: number; itens: LinhaDaMovimentacao[] };
 export type QuadroDeMovimentacoes = { colunas: ColunaDoQuadro[] };
