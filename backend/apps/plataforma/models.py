@@ -5,10 +5,12 @@ Modelo em `docs/decisoes/modelo-de-dados.md` (itens 1 a 3 e apoio). Empresa nasc
 `plataforma.services.criar_empresa`; status muda só por `comum.estados.transicionar`.
 """
 
+import re
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django_tenants.models import DomainMixin, TenantMixin
@@ -85,6 +87,17 @@ class Plano(ModeloBase, ModeloAtivavel):
         return valor
 
 
+NOME_SEM_QUEBRA = "Use um nome sem quebra de linha."
+_CONTROLE = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def validar_nome_sem_quebra(valor: str) -> None:
+    """M-02 da T-304: o nome vai no assunto dos e-mails, e o Django recusa assunto com quebra de
+    linha. Nem quebra de linha nem caractere de controle, no cadastro, na compra e na edição."""
+    if _CONTROLE.search(valor):
+        raise ValidationError(NOME_SEM_QUEBRA, code="nome_com_quebra")
+
+
 class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django-manager-missing]
     class Status(models.TextChoices):
         EM_TESTE = "em_teste", "Em teste"
@@ -124,7 +137,7 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
     CATEGORIA_AUDITORIA = Categoria.CONFIGURACOES
 
     razao_social = models.CharField(max_length=150, blank=True, default="")
-    nome_exibicao = models.CharField(max_length=80)
+    nome_exibicao = models.CharField(max_length=80, validators=[validar_nome_sem_quebra])
     cidade = models.CharField(max_length=80, blank=True, default="")
     uf = models.CharField(max_length=2, blank=True, default="")
     responsavel_nome = models.CharField(max_length=150, blank=True, default="")
