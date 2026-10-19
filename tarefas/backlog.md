@@ -375,6 +375,7 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 ### T-263 · Ação gerar_contrato na locação
 - **Contrato feito (16 out 2026):** PR #261 (`tarefas/handoffs/T-263-arquiteto.md`). Falta o código: backend, depois frontend.
+- **Backend feito (19 out 2026):** branch `t-263-gerar-contrato` (`tarefas/handoffs/T-263-backend.md`). Falta o frontend.
 - **Agente:** arquiteto (contrato), depois backend e frontend · **Depende de:** — · **Regras:** IMP-04, APR-01, LOC-12, fluxo da retirada (passo 3) · **Telas:** Locacao-Detalhe, Locacao (passo 3)
 - **Contrato:** `docs/api/locacoes.md` (`acoes.gerar_contrato`) e `docs/api/contratos.md` (recusas do `POST /api/locacoes/{id}/contrato/`). Branch `t-263-acao-gerar-contrato`.
 - **Pronto quando (backend):** `acoes()` em `apps/locacoes/selectors.py` devolve `gerar_contrato` = perfil que cria e `aguardando_retirada` e sem desconto pendente e sem cancelamento em curso e sem contrato vigente; `contrato.gerar` recusa com 409 `cancelamento_em_curso` (o que faltava para a ação e o `POST` concordarem); testes `test_loc_acoes_gerar_contrato` (verdadeiro para administrador, gerente e vendedor; falso para vistoriador e financeiro, fora de `aguardando_retirada`, com desconto pendente, com cancelamento pendente e com contrato `enviado`; verdadeiro de novo com o contrato `cancelado`) e `test_loc_gerar_contrato_com_cancelamento_em_curso`; OpenAPI regenerado e `npm run api:gerar` no frontend.
