@@ -13,11 +13,17 @@ ABERTAS_DO_QUADRO = ["agendada", "em_transito", "no_local", "concluida"]
 
 
 class RefSerializer(serializers.Serializer[Any]):
+    class Meta:
+        ref_name = "RefDaMovimentacao"  # T-320: nome único no OpenAPI (há outro em outro app)
+
     id = serializers.IntegerField()
     nome = serializers.CharField()
 
 
 class VeiculoRefSerializer(serializers.Serializer[Any]):
+    class Meta:
+        ref_name = "VeiculoDaMovimentacao"  # T-320: nome único no OpenAPI (há outro em outro app)
+
     id = serializers.IntegerField()
     placa = serializers.CharField()
     modelo = serializers.CharField()
@@ -51,6 +57,9 @@ class ParadaSerializer(serializers.Serializer[Any]):
 
 
 class FotoSerializer(serializers.Serializer[Any]):
+    class Meta:
+        ref_name = "FotoDaMovimentacao"  # T-320: nome único no OpenAPI (há outro em outro app)
+
     posicao = serializers.ChoiceField(choices=PosicaoFoto.choices)
     url = serializers.CharField()
     url_expira_em = serializers.DateTimeField()
@@ -64,6 +73,9 @@ class ChegadaSerializer(serializers.Serializer[Any]):
 
 
 class AcoesSerializer(serializers.Serializer[Any]):
+    class Meta:
+        ref_name = "AcoesDaMovimentacao"  # T-320: nome único no OpenAPI (há outro em outro app)
+
     editar = serializers.BooleanField()
     iniciar = serializers.BooleanField()
     cancelar = serializers.BooleanField()
@@ -103,6 +115,9 @@ class MovimentacaoSerializer(_BaseSerializer):
 
 
 class LinhaSerializer(_BaseSerializer):
+    class Meta:
+        ref_name = "LinhaDaMovimentacao"  # T-320: nome único no OpenAPI (há outro em outro app)
+
     paradas_total = serializers.IntegerField()
     resumo = serializers.CharField()
 
@@ -157,6 +172,11 @@ class SaidaDaParadaSerializer(serializers.Serializer[Any]):
 
 
 class FotoEntradaSerializer(serializers.Serializer[Any]):
+    class Meta:
+        ref_name = (
+            "FotoEntradaDaMovimentacao"  # T-320: nome único no OpenAPI (há outro em outro app)
+        )
+
     posicao = serializers.ChoiceField(choices=PosicaoFoto.choices)
     arquivo = serializers.FileField()
 

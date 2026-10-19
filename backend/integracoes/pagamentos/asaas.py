@@ -440,7 +440,19 @@ class Asaas:
             vencimento,
             linha_digitavel=str(linha["identificationField"]),
             boleto_url=str(criada.get("bankSlipUrl") or ""),
+            pix_copia_e_cola=self._pix_do_boleto(conta, caminho, cobranca_id),
         )
+
+    def _pix_do_boleto(self, conta: ContaPagamentoRef, caminho: str, cobranca_id: str) -> str:
+        """FIN-04 (T-305): o boleto também se paga por Pix, pelo mesmo `pixQrCode`. Recusado
+        (400, a conta sem Pix disponível), o boleto sai sem ele e não é cancelado. Parceiro fora
+        do ar sobe, e a cobrança é cancelada como as outras."""
+        try:
+            _, pix = self._chamar("GET", f"{caminho}/pixQrCode", conta=conta)
+        except ParceiroRecusou:
+            logger.warning("Boleto %s sem o Pix: o parceiro recusou o QR Code", cobranca_id)
+            return ""
+        return str(pix.get("payload") or "")
 
     def _cancelar_abertas_da_referencia(self, conta: ContaPagamentoRef, referencia: str) -> None:
         _, achadas = self._chamar(

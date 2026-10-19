@@ -258,6 +258,7 @@ class AcoesLocacaoSerializer(serializers.Serializer[Any]):
     trocar_veiculo = serializers.BooleanField()
     cancelar_troca = serializers.BooleanField()
     cancelar = serializers.JSONField(help_text='"direto", "pedir" ou false')
+    gerar_contrato = serializers.BooleanField(help_text="T-263: o POST .../contrato/ passaria")
     imprimir_contrato = serializers.BooleanField()
     reenviar_contrato = serializers.BooleanField()
     continuar_vistoria = serializers.BooleanField()

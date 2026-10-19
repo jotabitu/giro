@@ -1,4 +1,4 @@
-import type { CodigoAcaoLocacao, LocacaoCompleta, LocacaoResumo, ParcelaDaLocacao, Periodicidade, StatusParcela } from "@/lib/api";
+import type { CodigoAcaoLocacao, LocacaoResumo, ParcelaDaLocacao, Periodicidade, StatusParcela } from "@/lib/api";
 import type { TomStatus } from "@/design-system";
 import { agoraDaTela } from "@/lib/ambiente";
 import { dataCurta, diaDe, horaCurta } from "@/lib/formatos";
@@ -89,12 +89,3 @@ export function textoDaEstimativa(data: string | null): string {
 
 const ROTULO_VISTORIA_DA_TROCA: Record<"rascunho" | "concluida" | "descartada", string> = { rascunho: "Em andamento", concluida: "Concluída", descartada: "Descartada" };
 export const rotuloDaVistoriaDaTroca = (status: keyof typeof ROTULO_VISTORIA_DA_TROCA) => ROTULO_VISTORIA_DA_TROCA[status];
-
-/**
- * "Enviar contrato" (LOC-04, docs/api/contratos.md): locação aguardando a retirada, sem contrato vigente e sem desconto à espera de decisão.
- * A API ainda não manda uma ação para isso; `acoes.cancelar` só vem para quem cria locação, então vale como o perfil. A API recusa o que não couber (403, 409, 422).
- */
-export function podeEnviarContrato(l: Pick<LocacaoCompleta, "status" | "contrato" | "desconto" | "acoes">): boolean {
-  const semVigente = !l.contrato || l.contrato.status === "cancelado";
-  return l.status === "aguardando_retirada" && semVigente && l.desconto?.status !== "pendente" && !!l.acoes.cancelar;
-}

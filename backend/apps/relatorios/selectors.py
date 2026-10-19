@@ -745,7 +745,8 @@ def _modulo_do_cartao() -> dict[str, str]:
         chave: str(navegacao.ITENS[chave].modulo)
         for chave in ("marca", "filiais", "usuarios", "assinatura", "auditoria")
     }
-    return {**do_menu, **textos_de_configuracoes.MODULO_PROPRIO}
+    # O ramo é do app `empresas`, como a marca (T-259).
+    return {**do_menu, "ramo": do_menu["marca"], **textos_de_configuracoes.MODULO_PROPRIO}
 
 
 def configuracoes(usuario: Any, suporte: bool) -> dict[str, Any]:
@@ -757,6 +758,7 @@ def configuracoes(usuario: Any, suporte: bool) -> dict[str, Any]:
     empresa = plataforma_selectors.empresa_atual()
     assinatura = plataforma_selectors.assinatura(empresa)
     fontes = textos_de_configuracoes.Fontes(
+        ramo=empresas_selectors.resumo_do_ramo() if "ramo" in visiveis else None,
         filiais=filiais_selectors.resumo_das_filiais_ativas() if "filiais" in visiveis else None,
         usuarios=(
             (

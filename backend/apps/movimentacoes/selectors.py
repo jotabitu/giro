@@ -264,9 +264,10 @@ def _inicio_do_dia_local(filial: Filial) -> datetime:
     return agora.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-def quadro(usuario: Any, filial: str | None) -> dict[str, Any]:
-    """Concluídas: só as de hoje, no dia local da filial de saída (CA-246-18)."""
-    qs = _da_filial(visiveis(usuario), filial)
+def quadro(usuario: Any, filial: str | None, parametros: Any = None) -> dict[str, Any]:
+    """Concluídas: só as de hoje, no dia local da filial de saída (CA-246-18). `levando` e
+    `busca` como na lista (T-320)."""
+    qs = _levando_e_busca(_da_filial(visiveis(usuario), filial), usuario, parametros or {})
     ordens = {
         S.AGENDADA: ("agendada_para", "id"),
         S.EM_TRANSITO: ("iniciada_em", "id"),
@@ -303,8 +304,6 @@ def filtrar(usuario: Any, parametros: Any) -> QuerySet[Movimentacao]:
     veiculo = parametros.get("veiculo") or ""
     if veiculo.isdigit():
         qs = qs.filter(veiculo_id=int(veiculo))
-    if parametros.get("levando") == "eu":
-        qs = qs.filter(levado_por_id=getattr(usuario, "pk", None))
     for nome, comparacao in (("periodo_inicio", "gte"), ("periodo_fim", "lte")):
         valor = parametros.get(nome)
         try:
@@ -316,6 +315,15 @@ def filtrar(usuario: Any, parametros: Any) -> QuerySet[Movimentacao]:
                 Q(**{f"iniciada_em__date__{comparacao}": dia})
                 | Q(iniciada_em__isnull=True, **{f"agendada_para__date__{comparacao}": dia})
             )
+    return _levando_e_busca(qs, usuario, parametros)
+
+
+def _levando_e_busca(
+    qs: QuerySet[Movimentacao], usuario: Any, parametros: Any
+) -> QuerySet[Movimentacao]:
+    """`?levando=eu` e `?busca=` (código ou placa), na lista e no quadro."""
+    if parametros.get("levando") == "eu":
+        qs = qs.filter(levado_por_id=getattr(usuario, "pk", None))
     busca = (parametros.get("busca") or "").strip().upper().replace("-", "")
     if busca:
         qs = qs.filter(
