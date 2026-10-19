@@ -276,9 +276,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-281 · Seed em banco limpo com as configurações de teste
 - **Agente:** qa, com backend · **Depende de:** — · **Pronto quando:** o seed com `config.settings.test` num banco limpo para em `veiculos_veiculo does not exist` (também como superusuário; visto pela segurança na T-276). Achar a causa, corrigir e cobrir com um teste que roda o seed num banco novo.
 
-### T-282 · (B-01 da T-252) Envio do convite com o link já invalidado
-- **Agente:** backend · **Depende de:** T-250 · **Regras:** USR-01, P-06 · **Pronto quando:** a tarefa `contas_enviar_convite` não manda o link de um convite que o link copiado já invalidou (hoje manda; `xfail` estrito em `test_t252_seguranca_convite.py`); o teste passa a valer sem o `xfail`. Achado baixo da segurança na T-252.
-
 ### T-286 · Contrato das Movimentações
 - **Contrato feito (16 out 2026):** PR #288 (ADR 0028, `docs/api/movimentacoes.md`; handoff `tarefas/handoffs/T-286-arquiteto.md`). O código vai na T-288 (backend) e na T-289 (frontend), pelo Pronto quando abaixo.
 - **Agente:** arquiteto · **Depende de:** T-283 · **Regras:** MOV-01 a MOV-06, VEI-04, FIN-05, APR-03 · **Telas:** Movimentacoes-*, Movimentacao-Nova-*, Movimentacao-Chegada-Mobile · **Pronto quando:** contrato e modelo de dados das Movimentações pelo handoff da T-283 (modelo, estados, paradas e despesa, chegada com km, combustível e fotos, permissões, "Transferir" da ficha e `acoes.movimentar`), com a ADR se houver decisão técnica nova. Depois, o orquestrador numera backend e frontend.
