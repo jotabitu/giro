@@ -101,7 +101,7 @@ Quando a fase 2 entregar as integrações e as notificações, cada uma acrescen
 
 ### Cache
 
-Nenhum. São contagens pequenas, e a tela é aberta pouco e logo depois de mudar alguma coisa (voltar de Filiais ou de Usuários tem que mostrar o número novo). Teste de quantidade de queries: no máximo 10 com todos os cartões (`django_assert_num_queries`), sem N+1 por filial ou por modelo.
+Nenhum. São contagens pequenas, e a tela é aberta pouco e logo depois de mudar alguma coisa (voltar de Filiais ou de Usuários tem que mostrar o número novo). Teste de quantidade de queries: no máximo 11 com todos os cartões (10 + a linha da `ConfiguracaoEmpresa` do cartão `ramo`, T-262) (`django_assert_num_queries`), sem N+1 por filial ou por modelo.
 
 ---
 
