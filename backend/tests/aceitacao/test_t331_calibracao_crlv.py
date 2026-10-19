@@ -2,11 +2,8 @@
 
 Dois CRLV-e reais do Detran-CE (um de carro, um de moto) foram lidos na máquina do qa, fora do
 repositório (dado pessoal). Os PDFs daqui são fictícios, com o leiaute dos reais e valores
-inventados (`documentos_pdf.CrlvDetran`). Cada campo errado pelo parser nos reais é um teste
-`xfail` estrito: quando o backend corrigir (tarefa descrita no handoff T-331-qa), o teste passa,
-o `xfail` estrito avisa e a marca sai.
-
-Os campos que o parser já lê certo nos reais ficam como teste comum, para a correção não os quebrar.
+inventados (`documentos_pdf.CrlvDetran`). Os cinco campos que o parser errava
+nos reais (vazios) eram `xfail` estritos até a correção da T-336; agora todos são testes comuns.
 """
 
 import io
@@ -44,17 +41,11 @@ ESPERADO = {
         "exercicio": 2026,
     },
 }
-# Campos que o parser errou (vieram vazios) nos dois CRLV-e reais. O valor lido certo não muda o
-# motivo: o rótulo é achado, e o valor não é pego (ver a causa no handoff).
+# Campos que o parser errou (vieram vazios) nos dois CRLV-e reais e que a T-336 corrigiu: o
+# valor fica até 3 linhas abaixo do rótulo, depois de linhas só com o bloco do seguro, ou fora da
+# coluna dele (o exercício).
 ERRADOS = ("chassi", "marca_modelo", "cor", "combustivel", "exercicio")
 CORRETOS = ("placa", "renavam", "ano_fabricacao", "ano_modelo")
-CAUSA = {
-    "chassi": "linha abaixo do rótulo só com texto do seguro (coluna da direita)",
-    "marca_modelo": "linha abaixo do rótulo só com texto do seguro (coluna da direita)",
-    "cor": "duas linhas abaixo do rótulo só com texto do seguro (coluna da direita)",
-    "combustivel": "duas linhas abaixo do rótulo só com texto do seguro (coluna da direita)",
-    "exercicio": "valor à esquerda do rótulo, fora da coluna dele",
-}
 
 
 def _texto(formato: str) -> str:
@@ -62,23 +53,20 @@ def _texto(formato: str) -> str:
     return PdfReader(io.BytesIO(conteudo)).pages[0].extract_text(extraction_mode="layout")
 
 
-def _casos(campos: tuple[str, ...], marcar: bool) -> list:  # type: ignore[type-arg]
-    casos = []
-    for formato in FORMATOS:
-        for campo in campos:
-            marcas = (
-                [pytest.mark.xfail(strict=True, reason=f"T-331: {CAUSA[campo]}")] if marcar else []
-            )
-            casos.append(pytest.param(formato, campo, id=f"{formato}-{campo}", marks=marcas))
-    return casos
+def _casos(campos: tuple[str, ...]) -> list:  # type: ignore[type-arg]
+    return [
+        pytest.param(formato, campo, id=f"{formato}-{campo}")
+        for formato in FORMATOS
+        for campo in campos
+    ]
 
 
-@pytest.mark.parametrize(("formato", "campo"), _casos(CORRETOS, marcar=False))
+@pytest.mark.parametrize(("formato", "campo"), _casos(CORRETOS))
 def test_vei_08_detran_campo_lido_certo(formato: str, campo: str) -> None:
     assert crlv.extrair(_texto(formato)).get(campo) == ESPERADO[formato][campo]
 
 
-@pytest.mark.parametrize(("formato", "campo"), _casos(ERRADOS, marcar=True))
+@pytest.mark.parametrize(("formato", "campo"), _casos(ERRADOS))
 def test_vei_08_detran_campo_errado_nos_reais(formato: str, campo: str) -> None:
     assert crlv.extrair(_texto(formato)).get(campo) == ESPERADO[formato][campo]
 
@@ -90,7 +78,6 @@ def test_vei_08_detran_nunca_le_o_proprietario(formato: str) -> None:
     assert pdfs.CPF_PROPRIETARIO not in str(campos)
 
 
-@pytest.mark.xfail(strict=True, reason="T-331: cinco campos de cada CRLV-e do Detran vêm vazios")
 @pytest.mark.parametrize("formato", list(FORMATOS))
 def test_vei_08_detran_pelo_processo_filho_traz_os_nove_campos(formato: str) -> None:
     resposta = leitura_documentos.executar("crlv", FORMATOS[formato].pdf())
