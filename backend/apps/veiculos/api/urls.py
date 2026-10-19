@@ -17,6 +17,7 @@ ACOES = {
 
 urlpatterns: list[URLPattern] = [
     path("veiculos/", views.VeiculosView.as_view(), name="veiculos"),
+    path("veiculos/leitura-crlv/", views.LeituraCrlvView.as_view(), name="veiculos-leitura-crlv"),
     path("veiculos/modelos/", views.ModelosView.as_view(), name="veiculos-modelos"),
     path("veiculos/<int:pk>/", views.VeiculoView.as_view(), name="veiculo"),
     *[

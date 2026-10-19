@@ -5615,7 +5615,7 @@ paths:
           description: ''
     post:
       operationId: veiculos_create
-      summary: Cadastrar veículo (VEI-01, PLT-03)
+      summary: Cadastrar veículo (VEI-01, PLT-03), com o CRLV lido em multipart (VEI-08)
       tags:
       - veiculos
       requestBody:
@@ -5623,12 +5623,9 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/VeiculoEntrada'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/VeiculoEntrada'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/VeiculoEntrada'
+              $ref: '#/components/schemas/VeiculoComCrlvEntrada'
         required: true
       security:
       - jwtAuth: []
@@ -6022,6 +6019,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Veiculo'
+          description: ''
+  /api/veiculos/leitura-crlv/:
+    post:
+      operationId: veiculos_leitura_crlv_create
+      description: |-
+        Preencher pelo CRLV-e (VEI-08, ADR 0026). Não grava nada. Administrador e gerente; o
+        suporte só em "ver e editar" (em "só ver", 403 `PLT-07`).
+      summary: Ler o CRLV-e em PDF, sem gravar (VEI-08)
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LeituraCrlvEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeituraCrlv'
           description: ''
   /api/veiculos/modelos/:
     get:
@@ -7260,6 +7281,48 @@ components:
       - recebido_centavos
       - saldo_dia_centavos
       - status
+    CamposDoCrlv:
+      type: object
+      properties:
+        placa:
+          type: string
+          nullable: true
+        chassi:
+          type: string
+          nullable: true
+        renavam:
+          type: string
+          nullable: true
+        marca:
+          type: string
+          nullable: true
+        modelo:
+          type: string
+          nullable: true
+        ano_fabricacao:
+          type: integer
+          nullable: true
+        ano_modelo:
+          type: integer
+          nullable: true
+        cor:
+          type: string
+          nullable: true
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+      required:
+      - ano_fabricacao
+      - ano_modelo
+      - chassi
+      - combustivel
+      - cor
+      - marca
+      - modelo
+      - placa
+      - renavam
     CancelamentoLocacao:
       type: object
       properties:
@@ -7540,7 +7603,7 @@ components:
         combustivel:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/CombustivelEnum'
+          - $ref: '#/components/schemas/NivelDoTanqueEnum'
           - $ref: '#/components/schemas/NullEnum'
         recebido_por:
           allOf:
@@ -7564,7 +7627,7 @@ components:
         combustivel:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/CombustivelEnum'
+          - $ref: '#/components/schemas/NivelDoTanqueEnum'
           - $ref: '#/components/schemas/NullEnum'
         recebido_por_id:
           type: integer
@@ -8120,20 +8183,22 @@ components:
       - faltou
       - litros_faltantes
       - saida
-    CombustivelEnum:
+    CombustivelVeiculoEnum:
       enum:
-      - reserva
-      - um_quarto
-      - meio
-      - tres_quartos
-      - cheio
+      - gasolina
+      - etanol
+      - flex
+      - diesel
+      - eletrico
+      - hibrido
       type: string
       description: |-
-        * `reserva` - Reserva
-        * `um_quarto` - 1/4
-        * `meio` - 1/2
-        * `tres_quartos` - 3/4
-        * `cheio` - Cheio
+        * `gasolina` - Gasolina
+        * `etanol` - Etanol
+        * `flex` - Flex
+        * `diesel` - Diesel
+        * `eletrico` - Elétrico
+        * `hibrido` - Híbrido
     Comparacao:
       type: object
       properties:
@@ -9197,6 +9262,14 @@ components:
       required:
       - linhas
       - subtitulo
+    DicasDaLeitura:
+      type: object
+      properties:
+        marca_modelo:
+          type: string
+          nullable: true
+      required:
+      - marca_modelo
     Documento:
       type: object
       properties:
@@ -9258,6 +9331,11 @@ components:
         validade:
           type: string
           format: date
+        exercicio:
+          type: integer
+          maximum: 2100
+          minimum: 1900
+          nullable: true
         arquivo:
           type: string
           format: uri
@@ -9276,6 +9354,11 @@ components:
       required:
       - arquivo
       - tipo
+    DocumentoEnum:
+      enum:
+      - crlv
+      type: string
+      description: '* `crlv` - crlv'
     DoisFatores:
       type: object
       properties:
@@ -11836,6 +11919,47 @@ components:
         * `multa` - Multa
         * `avaria` - Avaria
         * `outro` - Outro
+    LeituraCrlv:
+      type: object
+      properties:
+        documento:
+          $ref: '#/components/schemas/DocumentoEnum'
+        campos:
+          $ref: '#/components/schemas/CamposDoCrlv'
+        lidos:
+          type: array
+          items:
+            type: string
+        quantidade:
+          type: integer
+        rotulo:
+          type: string
+        exercicio:
+          type: integer
+          nullable: true
+        dicas:
+          $ref: '#/components/schemas/DicasDaLeitura'
+        leitura:
+          type: string
+      required:
+      - campos
+      - dicas
+      - documento
+      - exercicio
+      - leitura
+      - lidos
+      - quantidade
+      - rotulo
+    LeituraCrlvEntrada:
+      type: object
+      description: '`multipart/form-data`: o PDF do CRLV-e, até 2 MB (ADR 0026, item
+        6).'
+      properties:
+        arquivo:
+          type: string
+          format: uri
+      required:
+      - arquivo
     LeituraKm:
       type: object
       properties:
@@ -13394,6 +13518,20 @@ components:
         * `aprova` - aprova
         * `pede` - pede
         * `nao` - nao
+    NivelDoTanqueEnum:
+      enum:
+      - reserva
+      - um_quarto
+      - meio
+      - tres_quartos
+      - cheio
+      type: string
+      description: |-
+        * `reserva` - Reserva
+        * `um_quarto` - 1/4
+        * `meio` - 1/2
+        * `tres_quartos` - 3/4
+        * `cheio` - Cheio
     Nota:
       type: object
       properties:
@@ -14016,7 +14154,7 @@ components:
         combustivel:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/CombustivelEnum'
+          - $ref: '#/components/schemas/NivelDoTanqueEnum'
           - $ref: '#/components/schemas/NullEnum'
         itens:
           type: array
@@ -14183,6 +14321,11 @@ components:
         cor:
           type: string
           maxLength: 30
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
         categoria_id:
           type: integer
         capacidade_tanque_litros:
@@ -16923,6 +17066,11 @@ components:
           type: integer
         cor:
           type: string
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
         tipo_veiculo:
           $ref: '#/components/schemas/TipoVeiculoEnum'
         categoria:
@@ -16986,6 +17134,7 @@ components:
       - capacidade_tanque_litros
       - categoria
       - chassi
+      - combustivel
       - cor
       - documentos_resumo
       - entrou_na_frota_em
@@ -17004,6 +17153,87 @@ components:
       - situacao
       - status
       - tipo_veiculo
+    VeiculoComCrlvEntrada:
+      type: object
+      description: '`multipart/form-data`: o cadastro e o CRLV lido pela leitura (VEI-08,
+        ADR 0026, item 8).'
+      properties:
+        placa:
+          type: string
+          maxLength: 10
+        chassi:
+          type: string
+          maxLength: 20
+        renavam:
+          type: string
+          nullable: true
+        marca:
+          type: string
+          maxLength: 40
+        modelo:
+          type: string
+          maxLength: 60
+        ano_fabricacao:
+          type: integer
+        ano_modelo:
+          type: integer
+        cor:
+          type: string
+          maxLength: 30
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        km_atual:
+          type: integer
+          minimum: 0
+        categoria_id:
+          type: integer
+        filial_id:
+          type: integer
+        capacidade_tanque_litros:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,1})?$
+          nullable: true
+        valor_compra_centavos:
+          type: integer
+          minimum: 0
+          nullable: true
+        data_compra:
+          type: string
+          format: date
+          nullable: true
+        entrou_na_frota_em:
+          type: string
+          format: date
+        crlv_arquivo:
+          type: string
+          format: uri
+          nullable: true
+        crlv_validade:
+          type: string
+          format: date
+          nullable: true
+        crlv_exercicio:
+          type: integer
+          maximum: 2100
+          minimum: 1900
+          nullable: true
+        leitura:
+          type: string
+          maxLength: 4000
+      required:
+      - ano_fabricacao
+      - ano_modelo
+      - categoria_id
+      - chassi
+      - cor
+      - filial_id
+      - marca
+      - modelo
+      - placa
     VeiculoDaLocacao:
       type: object
       properties:
@@ -17086,6 +17316,11 @@ components:
           type: integer
         cor:
           type: string
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
         tipo_veiculo:
           $ref: '#/components/schemas/TipoVeiculoEnum'
         categoria:
@@ -17163,6 +17398,7 @@ components:
       - capacidade_tanque_litros
       - categoria
       - chassi
+      - combustivel
       - cor
       - documentos_resumo
       - entrou_na_frota_em
@@ -17208,6 +17444,11 @@ components:
         cor:
           type: string
           maxLength: 30
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
         km_atual:
           type: integer
           minimum: 0
@@ -17309,7 +17550,7 @@ components:
         combustivel:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/CombustivelEnum'
+          - $ref: '#/components/schemas/NivelDoTanqueEnum'
           - $ref: '#/components/schemas/NullEnum'
         fotos:
           type: array

@@ -8,7 +8,7 @@ from typing import Any
 
 from rest_framework import serializers
 
-from ..models import Extra, StatusVeiculo, TipoDocumento, TipoVeiculo
+from ..models import Combustivel, Extra, StatusVeiculo, TipoDocumento, TipoVeiculo
 from ..services import MOTIVOS_DE_BAIXA
 
 # --- Entrada ---
@@ -23,6 +23,9 @@ class VeiculoEntradaSerializer(serializers.Serializer[Any]):
     ano_fabricacao = serializers.IntegerField()
     ano_modelo = serializers.IntegerField()
     cor = serializers.CharField(max_length=30)
+    combustivel = serializers.ChoiceField(
+        choices=Combustivel.choices, required=False, allow_null=True
+    )
     km_atual = serializers.IntegerField(min_value=0, required=False)
     categoria_id = serializers.IntegerField()
     filial_id = serializers.IntegerField()
@@ -34,6 +37,55 @@ class VeiculoEntradaSerializer(serializers.Serializer[Any]):
     entrou_na_frota_em = serializers.DateField(required=False)
 
 
+class VeiculoComCrlvEntradaSerializer(VeiculoEntradaSerializer):
+    """`multipart/form-data`: o cadastro e o CRLV lido pela leitura (VEI-08, ADR 0026, item 8)."""
+
+    crlv_arquivo = serializers.FileField(required=False, allow_null=True)
+    crlv_validade = serializers.DateField(required=False, allow_null=True)
+    crlv_exercicio = serializers.IntegerField(
+        required=False, allow_null=True, min_value=1900, max_value=2100
+    )
+    leitura = serializers.CharField(required=False, allow_blank=True, max_length=4000)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        if attrs.get("crlv_arquivo") and not attrs.get("crlv_validade"):
+            raise serializers.ValidationError({"crlv_validade": "Informe a validade do CRLV."})
+        return attrs
+
+
+class LeituraCrlvEntradaSerializer(serializers.Serializer[Any]):
+    """`multipart/form-data`: o PDF do CRLV-e, até 2 MB (ADR 0026, item 6)."""
+
+    arquivo = serializers.FileField()
+
+
+class CamposDoCrlvSerializer(serializers.Serializer[Any]):
+    placa = serializers.CharField(allow_null=True)
+    chassi = serializers.CharField(allow_null=True)
+    renavam = serializers.CharField(allow_null=True)
+    marca = serializers.CharField(allow_null=True)
+    modelo = serializers.CharField(allow_null=True)
+    ano_fabricacao = serializers.IntegerField(allow_null=True)
+    ano_modelo = serializers.IntegerField(allow_null=True)
+    cor = serializers.CharField(allow_null=True)
+    combustivel = serializers.ChoiceField(choices=Combustivel.choices, allow_null=True)
+
+
+class DicasDaLeituraSerializer(serializers.Serializer[Any]):
+    marca_modelo = serializers.CharField(allow_null=True)
+
+
+class LeituraCrlvSerializer(serializers.Serializer[Any]):
+    documento = serializers.ChoiceField(choices=["crlv"])
+    campos = CamposDoCrlvSerializer()
+    lidos = serializers.ListField(child=serializers.CharField())
+    quantidade = serializers.IntegerField()
+    rotulo = serializers.CharField()
+    exercicio = serializers.IntegerField(allow_null=True)
+    dicas = DicasDaLeituraSerializer()
+    leitura = serializers.CharField()
+
+
 class VeiculoEdicaoSerializer(serializers.Serializer[Any]):
     renavam = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     marca = serializers.CharField(max_length=40, required=False)
@@ -41,6 +93,9 @@ class VeiculoEdicaoSerializer(serializers.Serializer[Any]):
     ano_fabricacao = serializers.IntegerField(required=False)
     ano_modelo = serializers.IntegerField(required=False)
     cor = serializers.CharField(max_length=30, required=False)
+    combustivel = serializers.ChoiceField(
+        choices=Combustivel.choices, required=False, allow_null=True
+    )
     categoria_id = serializers.IntegerField(required=False)
     capacidade_tanque_litros = serializers.DecimalField(
         max_digits=5, decimal_places=1, required=False, allow_null=True, min_value=0
@@ -172,6 +227,7 @@ class VeiculoSerializer(serializers.Serializer[Any]):
     ano_fabricacao = serializers.IntegerField()
     ano_modelo = serializers.IntegerField()
     cor = serializers.CharField()
+    combustivel = serializers.ChoiceField(choices=Combustivel.choices, allow_null=True)
     tipo_veiculo = serializers.ChoiceField(choices=TipoVeiculo.choices)
     categoria = IdNomeSerializer()
     filial = IdNomeSerializer()
@@ -380,6 +436,9 @@ class DocumentoEntradaSerializer(serializers.Serializer[Any]):
 
     tipo = serializers.ChoiceField(choices=TipoDocumento.choices)
     validade = serializers.DateField()
+    exercicio = serializers.IntegerField(
+        required=False, allow_null=True, min_value=1900, max_value=2100
+    )  # só no crlv: o ano do licenciamento (T-247)
     arquivo = serializers.FileField(required=False, allow_null=True)
 
 
