@@ -8,7 +8,6 @@ sanitizado, sem `img`, `style` nem `link`; o CSS é só o daqui.
 
 import hashlib
 import html
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -48,22 +47,31 @@ class Marca:
 Imagens = dict[str, tuple[bytes, str]]
 
 
-def buscador(marca: Marca, imagens: Imagens | None = None) -> Callable[[str], Any]:
+def buscador(marca: Marca, imagens: Imagens | None = None) -> Any:
     """O `url_fetcher` do WeasyPrint: só o logo da empresa, se ela tiver um, e as imagens
-    entregues por quem monta o PDF, pelos endereços internos delas."""
-    from weasyprint.urls import URLFetcherResponse  # type: ignore[import-untyped]
+    entregues por quem monta o PDF, pelos endereços internos delas.
 
-    def buscar(url: str, *args: Any, **kwargs: Any) -> Any:
-        if imagens and url in imagens:
-            conteudo, tipo = imagens[url]
-            return URLFetcherResponse(url, body=conteudo, headers={"Content-Type": tipo})
-        if url != URL_DO_LOGO or marca.logo_svg is None:
-            raise UrlRecusada(f"URL recusada no PDF do contrato: {url[:80]}")
-        return URLFetcherResponse(
-            url, body=marca.logo_svg, headers={"Content-Type": "image/svg+xml"}
-        )
+    A WeasyPrint 70 pede uma instância de `URLFetcher` (lê `_fail_on_errors` nela, T-333). O
+    `fetch` daqui nunca chama o da classe-mãe, que abriria a conexão: o que não é endereço
+    interno é recusado antes, e a recusa vira aviso, sem parar o PDF (`fail_on_errors=False`).
+    """
+    from weasyprint.urls import (  # type: ignore[import-untyped]
+        URLFetcher,
+        URLFetcherResponse,
+    )
 
-    return buscar
+    class Buscador(URLFetcher):
+        def fetch(self, url: str, headers: Any = None) -> Any:
+            if imagens and url in imagens:
+                conteudo, tipo = imagens[url]
+                return URLFetcherResponse(url, body=conteudo, headers={"Content-Type": tipo})
+            if url != URL_DO_LOGO or marca.logo_svg is None:
+                raise UrlRecusada(f"URL recusada no PDF do contrato: {url[:80]}")
+            return URLFetcherResponse(
+                url, body=marca.logo_svg, headers={"Content-Type": "image/svg+xml"}
+            )
+
+    return Buscador(fail_on_errors=False)
 
 
 def documento(corpo: str, marca: Marca, registro: list[tuple[str, str]] | None = None) -> str:
