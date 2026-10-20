@@ -162,9 +162,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-341 · Continuar implantação e placa com hífen nos textos
 - **Agente:** backend · **Depende de:** T-340, T-202 (PR #369) · **Regras:** IMP-05, PLT-12, FIN-16 · **Contrato:** `docs/api/configuracoes.md` e `docs/api/README.md` (T-340, handoff `tarefas/handoffs/T-340-arquiteto.md`) · **Pronto quando:** em `relatorios/configuracoes.py`, o `acao` pelo `proximo` (`test_imp_05_continuar_implantacao_pelo_proximo` e os casos novos de `configuracoes.md`, sem passar de 11 queries); `comum` com o formatador de placa (sai `financeiro.exportacao.placa_com_hifen`) e todo texto com placa passando por ele: `resumo` das aprovações (CA-APR-11 com `PMZ-3E17`), `detalhe` do `APR-06`, textos de `veiculos`, `vistorias`, `contratos/prontos.py`, `financeiro` e auditoria. O frontend não muda: a Configurações já leva `acao.destino` à rota, e a casca já tem `/implantacao/[passo]`.
 
-### T-334 · Dois testes quebrados na main
-- **Agente:** backend · **Depende de:** — · **Regras:** USR-05, AUD · **Pronto quando:** voltam a passar `tests/aceitacao/test_t129_painel_e_marca.py::test_usr_05_contadores_seguem_o_menu` (os contadores da Lúcia trazem `veiculos: 86` desde o #315, como a T-323 corrigiu no t017) e `tests/test_campos_sensiveis.py` (`movimentacoes.LocalApoio`: `nome` e `nome_busca` sem classificação em `CAMPOS_AUDITORIA`, desde a T-288). Achados na conferência da T-153; os dois falham na `main` limpa.
-
 ### T-165 · Fotos da vistoria em PNG com paleta perdem as cores (baixa)
 - **Agente:** backend · **Depende de:** — · **Regras:** VIS-02 · **Pronto quando:** `comum.arquivos.sem_metadados` mantém as cores de um PNG em modo `P` (com paleta e `tRNS`): hoje faz `Image.new(imagem.mode, ...)` + `paste`, e a imagem nova sai sem a paleta. Converter para `RGBA` (ou copiar a paleta) antes de gravar, sem voltar a gravar metadados; teste com PNG em paleta comparando os pixels. Não é falha de segurança. Levantada pela segurança na decisão do PNG da T-153 (12 out 2026, `C:/Users/Jota/Documents/giro-produto/decisao-t153-seguranca.md`, fora do git).
 
@@ -267,14 +264,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 ### T-339 · Carga do catálogo completo de modelos
 - **Agente:** backend · **Depende de:** T-338 e o contrato assinado pelo dono · **Regras:** VEI-08 · **Pronto quando:** o catálogo completo da FIPE licenciada é carregado com `atualizar_catalogo_modelos` (CSV `marca,modelo,tipo`, sem mudar a rota nem o comando); `Modelo.chave` é calculada uma vez na leitura do CSV, não a cada pedido, em `listar` e `achar_modelo`; o teste usa nomes no formato dos 2 CRLV-e reais da T-331 (PDF fictício) e o qa confere os reais na máquina do dono. Handoff `tarefas/handoffs/T-337-arquiteto.md`.
-
-### T-331 · Calibração da leitura com CRLV-e reais
-- **Agente:** qa, com backend · **Depende de:** T-265, T-329 · **Regras:** VEI-08 · **Pronto quando:** a leitura é conferida com CRLV-e reais de moto e de carro, emitidos em estados diferentes, só na máquina local e fora do git (dado pessoal; repositório público); o que o parser errar vira teste com um PDF fictício igual em formato. Os PDFs reais vêm do dono.
-- **Estado (19 out 2026, qa):** leitura conferida com 2 CRLV-e reais do Detran-CE (carro e moto): placa, Renavam e os dois anos lidos certo; chassi, marca e modelo, cor, combustível e exercício vieram vazios. 12 testes `xfail` estritos com PDFs fictícios no leiaute do Detran (`test_t331_calibracao_crlv.py`) e a correção candidata no handoff `tarefas/handoffs/T-331-qa.md`. A correção do parser virou a T-336 (PR #363).
-- **Decisão (19 out 2026, dono):** o CRLV-e tem o mesmo leiaute em todos os estados; só muda o cabeçalho com o nome e o logo do Detran estadual, que não afeta a leitura. Não é preciso conferir CRLV-e de outros estados. Falta só o qa rodar de novo os 2 CRLV-e reais com a T-336.
-
-### T-333 · WeasyPrint 70 (PYSEC-2026-3940 e PYSEC-2026-4311)
-- **Agente:** backend, com devops · **Depende de:** — · **Pronto quando:** `weasyprint` sobe de 69.0 para a 70.0 ou mais nova, que corrige os dois avisos do `pip-audit` levantados na T-328; os PDFs gerados (contrato, recibo) seguem iguais nos testes; `pip-audit` limpo; o devops reconstrói a imagem.
 
 ### T-265 · Código da leitura do CRLV-e (`VEI-08`, ADR 0026)
 - **Agente:** backend, depois frontend · **Depende de:** T-247 (revisão da segurança), T-257 · **Regras:** VEI-08, VEI-01, VEI-03 · **Contrato:** `docs/api/veiculos.md` (`POST /api/veiculos/leitura-crlv/`) · **Pronto quando:** o parser com pypdf no processo filho com os limites da ADR 0026, calibrado com CRLV-e reais; um semáforo de leituras simultâneas (pedido do devops na T-258); nada do conteúdo em log ou Sentry; CA-247-01 a 07; a tela de cadastro com "Preencher pelo CRLV-e". A CNH-e (`CLI-11`) fica para a fase 2 (decisão de 16 out).
