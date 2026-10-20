@@ -150,6 +150,11 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 - **Nota da T-012 (08/10):** a S-12 (SVG do logo sanitizado e exibido só por `<img>`) vale para `ConfiguracaoEmpresa.logo` (app `empresas`), e não para a filial. Entra na tarefa da marca da empresa (`Admin-Marca`), a criar.
 
+### T-340 · Contratos das perguntas da T-202 (`acao.passo` e placa com hífen)
+- **Agente:** arquiteto · **Depende de:** T-202 (PR #369), T-335 · **Regras:** IMP-05, PLT-12, FIN-16 · **Pronto quando:** decidido se o `acao` de Configurações aponta para o `proximo` do assistente e se a placa nos textos da API sai com hífen.
+- **Estado (20 out 2026, arquiteto):** feito na branch `t-340-contratos-t202`, handoff `tarefas/handoffs/T-340-arquiteto.md`. (1) `configuracoes.md`: `acao` com "Continuar implantação", `destino: "implantacao"` e `passo` = `proximo` de `GET /api/implantacao/`; `nova_locacao` só com os 8 passos feitos; rota `/implantacao/{passo}`. (2) `docs/api/README.md`: placa com hífen em todo texto montado pela API, com o campo `placa` sem hífen; um formatador em `comum`.
+- **Pronto quando (backend, a numerar):** em `relatorios/configuracoes.py`, o `acao` pelo `proximo` (`test_imp_05_continuar_implantacao_pelo_proximo` e os casos novos de `configuracoes.md`, sem passar de 11 queries); `comum` com o formatador de placa (sai `financeiro.exportacao.placa_com_hifen`) e todo texto com placa passando por ele: `resumo` das aprovações (CA-APR-11 com `PMZ-3E17`), `detalhe` do `APR-06`, textos de `veiculos`, `vistorias`, `contratos/prontos.py`, `financeiro` e auditoria. O frontend não muda: a Configurações já leva `acao.destino` à rota, e a casca já tem `/implantacao/[passo]`.
+
 ### T-335 · Casca do assistente de implantação
 - **Agente:** frontend · **Depende de:** T-154, T-262 · **Regras:** IMP-01 a IMP-05, PLT-12 · **Telas:** Onboarding-* · **Pronto quando:** o assistente de implantação tem a casca (rota, passos na ordem das referências `Onboarding-*`, avanço e volta, o passo atual pela API) e liga os passos já prontos: Marca (`PassoMarca` da T-154) e Ramo (T-262); os passos sem contrato ficam marcados no handoff, sem número inventado. Hoje só existem `implantacao/importar`. Achado do frontend na T-154 e na T-262.
 

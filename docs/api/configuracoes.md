@@ -62,7 +62,7 @@ Uma empresa ainda implantando (como na tela de referência):
     "concluidos": 6, "total": 10,
     "titulo": "Implantação concluída em 6 de 10 passos",
     "faltam": "Faltam contrato, recebimentos, importar dados e a 1ª locação.",
-    "acao": null
+    "acao": { "rotulo": "Continuar implantação", "destino": "implantacao", "passo": "contrato" }
   }
 }
 ```
@@ -92,7 +92,11 @@ Quando a fase 2 entregar as integrações e as notificações, cada uma acrescen
 - `implantacao` vem `null` quando a implantação está concluída (`IMP-01`: passo `primeira_locacao` marcado, por `plataforma.services.concluir_implantacao`). Depois disso a faixa some de vez.
 - Antes disso: `concluidos` e `total` são os de `plataforma.selectors.implantacao` (os 10 passos de `plataforma.md`, `IMP-05`; 9 sem `recebimento_parceiro`, como no Essencial, em que `recebimentos` não entra em `total` nem em `faltam`, `PLT-12`). `titulo` é "Implantação concluída em {concluidos} de {total} passos".
 - `faltam` lista os passos ainda abertos, na ordem dos passos, com estes nomes: `conta` "conta e acesso", `marca` "empresa e marca", `filial` "primeira filial", `ramo` "o que a empresa faz", `precos` "tabela de preços", `contrato` "contrato", `recebimentos` "recebimentos", `importar` "importar dados", `equipe` "equipe", `primeira_locacao` "a 1ª locação". Juntados com ", " e " e " antes do último, com "Faltam " no começo e ponto final ("Falta a 1ª locação." quando é um só).
-- `acao`: o botão "Continuar implantação" leva ao passo aberto do assistente, que ainda não tem contrato nem tela. Até ele existir, `acao` vem `null` e a faixa aparece sem botão, **exceto** quando o único passo aberto é `primeira_locacao`: aí `acao` é `{ "rotulo": "Fazer uma locação de teste", "destino": "nova_locacao" }`, o mesmo destino do início de implantação (`painel.md`). Quando o assistente for contratado, `acao` passa a `{ "rotulo": "Continuar implantação", "destino": "implantacao", "passo": "<primeiro passo aberto>" }`; o contrato do assistente acrescenta isso aqui.
+- `acao` (T-340, com a casca do assistente da T-335): o botão leva ao passo que o assistente manda fazer.
+  - Com o `proximo` de `GET /api/implantacao/` (`plataforma.md`) preenchido: `{ "rotulo": "Continuar implantação", "destino": "implantacao", "passo": "<proximo>" }`. É o mesmo `proximo` do assistente, que já respeita o plano (sem `recebimentos` no Essencial). Passo que ainda não tem tela também vale: a casca abre a rota dele com "Esta etapa ainda não está disponível aqui." e "Pular por agora".
+  - Com o `proximo` nulo (os 8 passos do assistente feitos) e `primeira_locacao` aberto: `{ "rotulo": "Fazer uma locação de teste", "destino": "nova_locacao" }`, o mesmo destino do início de implantação (`painel.md`).
+  - Nenhum dos dois (só `conta` aberto, o que não acontece depois da compra): `null`, e a faixa aparece sem botão.
+  - O `proximo` sai dos mesmos passos já lidos para `concluidos` e `faltam` (`plataforma.selectors.andamento_do_assistente`, sem ler o `public` de novo), e o teto de queries do item "Cache" continua 11.
 - Os passos são lidos do `public` pela interface de `plataforma` (`plataforma.selectors.passos_implantacao`), como no painel; nada de consulta direta ao `public` em `relatorios`.
 
 ### Erros
@@ -140,7 +144,7 @@ O frontend liga `chave` → rota (referência em `docs/telas/README.md`, "Rotas 
 | `auditoria` | `/admin/auditoria` |
 | `exportar` | `/admin/exportar` |
 
-`acao.destino`: `nova_locacao` → `/locacoes/nova`; `implantacao` → definido no contrato do assistente.
+`acao.destino`: `nova_locacao` → `/locacoes/nova`; `implantacao` → `/implantacao/{acao.passo}` (a rota da casca, T-335; `importar` é `/implantacao/importar`, que também cai nesse formato).
 
 O item `config` do menu depende de `configuracoes` em `GIRO_MODULOS_ATIVOS` (`contas.md`), uma chave própria que a T-181 acrescentou ao padrão do backend. `empresas` continua fora do padrão até a T-153 e a T-154 entregarem a tela Empresa e marca: ele liga o item `marca` do menu e o cartão `marca`. `GET /api/configuracoes/` responde sempre, como o painel, sem depender de `configuracoes` (decisão do arquiteto na T-181). Pela ADR 0024 (T-192), `configuracoes` é do núcleo: entra em todos os planos, como a administração, sem recurso.
 
@@ -157,8 +161,10 @@ O item `config` do menu depende de `configuracoes` em `GIRO_MODULOS_ATIVOS` (`co
 | Ramo trocado para só locação de motos e carros (`PUT /api/ramo/`) | `ramo`: "Locação · motos e carros" (sem cache, já no pedido seguinte) |
 | Essencial, aluga e vende, motos | `ramo`: "Locação e venda · motos" (o que está guardado; o plano não muda o texto) |
 | Gerente, vendedor, vistoriador, financeiro | 403 `permissao` |
-| Empresa nova, passos `conta`, `marca`, `filial`, `ramo`, `precos` e `equipe` marcados | `implantacao`: 6 de 10, "Faltam contrato, recebimentos, importar dados e a 1ª locação.", `acao: null` |
-| Empresa no Essencial com os mesmos 6 passos | `implantacao`: 6 de 9, "Faltam contrato, importar dados e a 1ª locação." (sem `recebimentos`) |
+| Empresa nova, passos `conta`, `marca`, `filial`, `ramo`, `precos` e `equipe` marcados | `implantacao`: 6 de 10, "Faltam contrato, recebimentos, importar dados e a 1ª locação.", `acao` "Continuar implantação" com `passo: "contrato"` (`test_imp_05_continuar_implantacao_pelo_proximo`) |
+| Empresa no Essencial com os mesmos 6 passos | `implantacao`: 6 de 9, "Faltam contrato, importar dados e a 1ª locação." (sem `recebimentos`), `acao` com `passo: "contrato"` |
+| Essencial com `contrato` também marcado | `acao` com `passo: "importar"` (pula `recebimentos`, fora do plano) |
+| Os 8 passos do assistente feitos, `primeira_locacao` aberto | `acao` com `nova_locacao` (igual ao caso abaixo) |
 | Só `primeira_locacao` aberto | "Implantação concluída em 9 de 10 passos", "Falta a 1ª locação.", `acao` com `nova_locacao` |
 | Sem modelo de locação publicado | `modelos_contrato`: "Nenhum modelo publicado" |
 
