@@ -45,7 +45,7 @@ export type Eu = {
   celular: string | null;
   perfil: Perfil;
   permissoes_extras: string[];
-  filiais: { id: number; nome: string }[];
+  filiais: { id: number; nome: string; nome_curto: string }[];
   dois_fatores: { ativo: boolean; obrigatorio: boolean; codigos_recuperacao_restantes: number };
   pode: Pode;
   navegacao: Navegacao;

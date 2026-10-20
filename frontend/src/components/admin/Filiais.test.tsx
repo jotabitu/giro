@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { contas, filiais, type Eu } from "@/lib/api";
-import { corpoDaFilial, filialCompleta, horarioDaApi, horarioDoFormulario, horarioPedeCuidado, mascaraTelefone, valoresDaFilial, VALORES_INICIAIS_DA_FILIAL } from "@/lib/filiais";
+import { corpoDaFilial, filialCompleta, horarioDaApi, horarioDoFormulario, horarioPedeCuidado, mascaraTelefone, resumoDaLinha, valoresDaFilial, VALORES_INICIAIS_DA_FILIAL } from "@/lib/filiais";
 import { reiniciarFiliaisAdminFalso } from "@/testes/falsos/falso-filiais-admin";
 
 const sessao = vi.hoisted(() => ({ eu: null as unknown }));
@@ -100,19 +100,30 @@ describe("nova filial (Filial)", () => {
     await entrar("mariana@motorapida.com.br");
     const html = await formulario();
     const t = texto(html);
-    for (const trecho of ["Nova filial", "Cancelar", "Salvar filial", "Identificação", "Nome da filial", "Tipo", "CNPJ", "Inscrição estadual", "Inscrição municipal", "Endereço", "CEP", "Rua", "Número", "Complemento", "Bairro", "Cidade", "UF", "Contato e funcionamento", "Telefone", "WhatsApp de atendimento", "E-mail", "Segunda a sexta", "Sábado", "Domingo", "Fechado", "Operação", "Gerente responsável", "Filiais da empresa", "Filial Centro", "Plano Profissional", "O que é de cada filial"]) {
+    for (const trecho of ["Nova filial", "Cancelar", "Salvar filial", "Identificação", "Nome da filial", "Nome curto no seletor", "Até 30 caracteres. Aparece no seletor do topo.", "Tipo", "CNPJ", "Inscrição estadual", "Inscrição municipal", "Endereço", "CEP", "Rua", "Número", "Complemento", "Bairro", "Cidade", "UF", "Contato e funcionamento", "Telefone", "WhatsApp de atendimento", "E-mail", "Segunda a sexta", "Sábado", "Domingo", "Fechado", "Cada dia aceita até 2 intervalos, para quem fecha no almoço.", "Operação", "Quem responde pela filial e o combustível da devolução. O recebimento é da empresa; o preço pode ser da empresa ou da filial.", "Gerente responsável", "Preço do litro do combustível", "Usado no acerto de combustível da devolução. Sem preço, o acerto pede o valor à mão. Só o administrador altera.", "Filiais da empresa", "Filial Centro", "Plano Profissional", "O que é de cada filial"]) {
       expect(t, trecho).toContain(trecho);
     }
     expect(t).toContain("Ao salvar, são 2 de 3 filiais.");
+    expect(t).not.toContain("filial adicional");
     expect(html).toContain("Nenhum gerente ligado ainda");
     expect(t).toContain("depois de salvar a filial");
   });
 
-  it("editar traz os dados, o tipo e os feriados confirmados", async () => {
+  it("aviso de última vaga do plano fala em mudar de plano, nunca em filial adicional (CA-FIL-06)", async () => {
+    await entrar("mariana@motorapida.com.br");
+    await filiais.criar({ ...CORPO, nome: "Filial Aldeota" });
+    const t = texto(await formulario());
+    expect(t).toContain("Ao salvar, são 3 de 3 filiais. Para abrir outra, mude de plano.");
+    expect(t).not.toContain("filial adicional");
+  });
+
+  it("editar traz os dados, nome curto, preço do litro, o tipo e os feriados confirmados", async () => {
     await entrar("mariana@motorapida.com.br");
     const html = await formulario(1);
     const t = texto(html);
     expect(t).toContain("Filial Centro");
+    expect(html).toContain('value="Centro"');
+    expect(html).toContain('value="5,50"');
     expect(html).toContain("Rodrigo Pinheiro");
     expect(t).toContain("12 out · Nossa Senhora Aparecida");
     expect(t).toContain("Adicionar feriado");
@@ -160,6 +171,16 @@ describe("regras na API falsa (filiais.md)", () => {
     expect((await filiais.feriados(1, 2026)).map((f) => f.nome)).toEqual(["Nossa Senhora Aparecida", "Finados"]);
   });
 
+  it("nome_curto vazio devolve o próprio nome, e preço do litro <= 0 ou 3 intervalos responde 400 (CA-FIL-02 a 05)", async () => {
+    const criada = await filiais.criar({ ...CORPO, nome: "Filial Aldeota", nome_curto: null, preco_litro_centavos: 579 });
+    expect(criada.nome_curto).toBe("Filial Aldeota");
+    expect(criada.preco_litro_centavos).toBe(579);
+    const limpa = await filiais.alterar(criada.id, { preco_litro_centavos: null });
+    expect(limpa.preco_litro_centavos).toBeNull();
+    await expect(filiais.alterar(1, { preco_litro_centavos: 0 })).rejects.toMatchObject({ status: 400 });
+    await expect(filiais.alterar(1, { horario: { ...CORPO.horario, seg: [{ abre: "08:00", fecha: "10:00" }, { abre: "11:00", fecha: "13:00" }, { abre: "14:00", fecha: "18:00" }] } })).rejects.toMatchObject({ status: 400 });
+  });
+
   it("CEP: preenche o endereço, e CEP desconhecido pede o preenchimento à mão", async () => {
     expect((await filiais.cep("60840280")).bairro).toBe("Messejana");
     await expect(filiais.cep("11111111")).rejects.toMatchObject({ codigo: "cep_nao_encontrado" });
@@ -168,8 +189,8 @@ describe("regras na API falsa (filiais.md)", () => {
 
 describe("apoio do formulário", () => {
   it("corpo: CEP e telefones só com dígitos, vazios viram null e os sete dias vão juntos", () => {
-    const corpo = corpoDaFilial({ ...VALORES_INICIAIS_DA_FILIAL, nome: " Filial Messejana ", cnpj: "12.345.678/0003-57", cep: "60840-280", logradouro: "Av. Frei Cirilo", numero: "3120", bairro: "Messejana", cidade: "Fortaleza", whatsapp: "(85) 98800-0000", email: "Messejana@MotoRapida.com.br" });
-    expect(corpo).toMatchObject({ nome: "Filial Messejana", cnpj: "12345678000357", inscricao_estadual: null, endereco: { cep: "60840280", complemento: null }, contato: { telefone: null, whatsapp: "85988000000", email: "messejana@motorapida.com.br" } });
+    const corpo = corpoDaFilial({ ...VALORES_INICIAIS_DA_FILIAL, nome: " Filial Messejana ", nomeCurto: " Messejana ", precoLitro: "5,50", cnpj: "12.345.678/0003-57", cep: "60840-280", logradouro: "Av. Frei Cirilo", numero: "3120", bairro: "Messejana", cidade: "Fortaleza", whatsapp: "(85) 98800-0000", email: "Messejana@MotoRapida.com.br" });
+    expect(corpo).toMatchObject({ nome: "Filial Messejana", nome_curto: "Messejana", preco_litro_centavos: 550, cnpj: "12345678000357", inscricao_estadual: null, endereco: { cep: "60840280", complemento: null }, contato: { telefone: null, whatsapp: "85988000000", email: "messejana@motorapida.com.br" } });
     expect(Object.keys(corpo.horario)).toEqual(["seg", "ter", "qua", "qui", "sex", "sab", "dom"]);
     expect(corpo.horario.dom).toEqual([]);
     expect(corpo.horario.qua).toEqual([{ abre: "08:00", fecha: "18:00" }]);
@@ -180,12 +201,17 @@ describe("apoio do formulário", () => {
     expect(filialCompleta({ ...VALORES_INICIAIS_DA_FILIAL, nome: "A", cep: "60840280", logradouro: "R", numero: "1", bairro: "B", cidade: "C" })).toBe(true);
   });
 
-  it("horário: dias úteis diferentes ou dois intervalos pedem cuidado ao editar", async () => {
+  it("horário: até 2 intervalos por dia no formulário e aviso quando dias úteis diferem (CA-FIL-05)", async () => {
     const f = await filiais.obter(1);
     expect(horarioPedeCuidado(f.horario)).toBe(false);
     expect(horarioPedeCuidado({ ...f.horario, qua: [{ abre: "09:00", fecha: "17:00" }] })).toBe(true);
     expect(horarioPedeCuidado({ ...f.horario, seg: [{ abre: "08:00", fecha: "12:00" }, { abre: "14:00", fecha: "18:00" }] })).toBe(true);
     expect(valoresDaFilial(f).horario.semana).toEqual({ fechado: false, abre: "08:00", fecha: "18:00" });
+    const almoco = [{ abre: "08:00", fecha: "12:00" }, { abre: "14:00", fecha: "18:00" }];
+    const comAlmoco = horarioDoFormulario({ seg: almoco, ter: almoco, qua: almoco, qui: almoco, sex: almoco, sab: [{ abre: "08:00", fecha: "12:00" }], dom: [] });
+    expect(comAlmoco.semana).toEqual({ fechado: false, abre: "08:00", fecha: "12:00", segundo: { abre: "14:00", fecha: "18:00" } });
+    expect(resumoDaLinha(comAlmoco.semana)).toBe("08:00 – 12:00 · 14:00 – 18:00");
+    expect(horarioDaApi(comAlmoco).seg).toEqual(almoco);
   });
 
   it("máscara de telefone fixo e celular", () => {

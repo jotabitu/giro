@@ -16,18 +16,13 @@ export const PERIODOS_DA_AUDITORIA: { valor: PeriodoDaAuditoria; rotulo: string 
   { valor: "90d", rotulo: "Últimos 90 dias" },
 ];
 
-/** Regras de bloqueio de login: o evento aparece em crítico (`USR-06`, `PLT-08`). */
-const REGRAS_DE_BLOQUEIO = new Set(["USR-06", "PLT-08"]);
-
 /**
- * Tom do selo do resumo: suporte em alerta (AUD-03, a linha também ganha destaque), bloqueio de login em crítico,
- * mudanças de configuração e de segurança em info. O resto é texto simples (`null`).
+ * O tom do selo do resumo vem pronto da API (`e.tom`: `"info" | "alerta" | "perigo" | null`, AUD-02/AUD-03);
+ * aqui só traduz `"perigo"` para o `"critico"` do `StatusBadge`, sem decidir por categoria ou regra no cliente.
  */
-export function tomDoEvento(e: Pick<EventoDeAuditoria, "categoria" | "suporte" | "regra">): TomStatus | null {
-  if (e.suporte || e.categoria === "suporte") return "alerta";
-  if (e.regra && REGRAS_DE_BLOQUEIO.has(e.regra)) return "critico";
-  if (e.categoria === "configuracoes" || e.categoria === "seguranca") return "info";
-  return null;
+export function tomDoEvento(e: Pick<EventoDeAuditoria, "tom">): TomStatus | null {
+  if (!e.tom) return null;
+  return e.tom === "perigo" ? "critico" : e.tom;
 }
 
 /** O filtro "Pessoa" vai na URL como `usuario:4`, `sistema` ou `suporte`. */

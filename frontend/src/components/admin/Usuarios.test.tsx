@@ -98,7 +98,7 @@ describe("painel da pessoa", () => {
     await entrar("mariana@motorapida.com.br");
     const html = await painel(2);
     const t = texto(html);
-    for (const trecho of ["Rodrigo Pinheiro", "Entrou em 07 out", "2FA ativa", "Perfil", "Filiais com acesso", "Permissões extras", "Aprovar descontos acima de 5%", "Padrão do perfil Gerente", "Cancelar contratos", "Fica registrado na auditoria", "Ver relatórios de todas as filiais", "Hoje vê só Filial Centro", "Salvar alterações", "Desativar acesso", "Ele sai do sistema na hora."]) {
+    for (const trecho of ["Rodrigo Pinheiro", "Entrou em 07 out", "2FA ativa", "Perfil", "Filiais com acesso", "Permissões extras", "Aprovar descontos acima de 5%", "Padrão do perfil Gerente", "Cancelar contratos", "Fica registrado na auditoria", "Ver relatórios de todas as filiais", "Hoje a pessoa vê só Filial Centro", "Salvar alterações", "Desativar acesso", "A pessoa sai do sistema na hora."]) {
       expect(t, trecho).toContain(trecho);
     }
     expect(html).toMatch(/disabled=""[^>]*checked|checked=""[^>]*disabled=""/);
@@ -203,7 +203,8 @@ describe("apoio da tela", () => {
   it("situação e filiais como nas telas", () => {
     expect(situacaoDoUsuario({ status: "ativo", dois_fatores_ativo: false }).rotulo).toBe("Ativo");
     expect(situacaoDoUsuario({ status: "convite_pendente", dois_fatores_ativo: false }).tom).toBe("info");
-    expect(filiaisDoUsuario({ filiais: [{ id: 1, nome: "Filial Centro", nome_curto: "Filial Centro" }], todas_filiais: false })).toBe("Centro");
+    expect(filiaisDoUsuario({ filiais: [{ id: 1, nome: "Filial Centro", nome_curto: "Centro" }], todas_filiais: false })).toBe("Centro");
+    expect(filiaisDoUsuario({ filiais: [{ id: 2, nome: "Filial Aldeota", nome_curto: "Filial Aldeota" }], todas_filiais: false })).toBe("Filial Aldeota");
     expect(filiaisDoUsuario({ filiais: [], todas_filiais: true })).toBe("Todas");
   });
 });

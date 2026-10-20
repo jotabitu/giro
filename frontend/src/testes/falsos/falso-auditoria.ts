@@ -18,16 +18,16 @@ function evento(id: number, ocorrido_em: string, ator: EventoDeAuditoria["ator"]
 const ACESSO = { atendente: "Diego Santos", motivo: "Chamado #1042", permissao: "ver", acesso_suporte_id: 31 };
 
 const EVENTOS: EventoDeAuditoria[] = [
-  evento(50219, "2026-10-07T16:52:00Z", SUPORTE, "suporte", "acesso_suporte.encerrar", "Diego Santos saiu do modo suporte", "Duração 12 min · só ver · nenhuma alteração", { suporte: ACESSO }),
-  evento(50218, "2026-10-07T16:40:00Z", SUPORTE, "suporte", "acesso_suporte.entrar", "Diego Santos entrou como suporte", "Chamado #1042 · você foi avisada por e-mail", { suporte: ACESSO }),
+  evento(50219, "2026-10-07T16:52:00Z", SUPORTE, "suporte", "acesso_suporte.encerrar", "Diego Santos saiu do modo suporte", "Duração 12 min · só ver · nenhuma alteração", { suporte: ACESSO, tom: "alerta" }),
+  evento(50218, "2026-10-07T16:40:00Z", SUPORTE, "suporte", "acesso_suporte.entrar", "Diego Santos entrou como suporte", "Chamado #1042 · você foi avisada por e-mail", { suporte: ACESSO, tom: "alerta" }),
   evento(50217, "2026-10-07T14:20:00Z", BRUNA, "financeiro", "despesa.criar", "Lançou despesa de R$ 48,00", "Óleo · QXA-4B21 · pago no caixa", { objeto: { tipo: "despesa", id: 802, codigo: null, filial: "Filial Centro" } }),
   evento(50216, "2026-10-07T13:30:00Z", BRUNA, "financeiro", "movimento_caixa.sangria", "Fez sangria de R$ 500,00", "Caixa da Filial Centro", { objeto: { tipo: "movimentocaixa", id: 412, codigo: null, filial: "Filial Centro" } }),
   evento(50215, "2026-10-07T12:15:00Z", BRUNA, "operacao", "locacao.criar", "Criou a locação LOC-2856", "Lucas Ferreira · Honda CG 160 Fan", { objeto: { tipo: "locacao", id: 2856, codigo: "LOC-2856", filial: "Filial Centro" } }),
   evento(50214, "2026-10-07T11:55:00Z", JOAO, "financeiro", "despesa.pedir_aprovacao", "Pediu despesa de R$ 1.200,00", "Pneus · PMZ-3E17 · aguardando gerente", { objeto: { tipo: "despesa", id: 801, codigo: null, filial: "Filial Centro" } }),
-  evento(50213, "2026-10-07T11:02:00Z", SISTEMA, "seguranca", "login.bloqueado", "Login bloqueado", "5 senhas erradas para rodrigo@motorapida.com.br", { regra: "USR-06" }),
+  evento(50213, "2026-10-07T11:02:00Z", SISTEMA, "seguranca", "login.bloqueado", "Login bloqueado", "5 senhas erradas para rodrigo@motorapida.com.br", { regra: "USR-06", tom: "perigo" }),
   evento(50212, "2026-10-07T10:55:00Z", BRUNA, "financeiro", "caixa.abrir", "Abriu o caixa", "Troco de R$ 200,00", { objeto: { tipo: "caixa", id: 240, codigo: null, filial: "Filial Centro" } }),
-  evento(50211, "2026-10-06T21:10:00Z", MARIANA, "seguranca", "usuario.convidar", "Convidou João Silva", "Perfil vistoriador · Filial Centro", { objeto: { tipo: "usuario", id: 5, codigo: null, filial: null } }),
-  evento(50200, "2026-10-01T20:42:00Z", MARIANA, "configuracoes", "preco.alterar", "Mudou a tabela de preço", "Street 150–160 · semanal R$ 299,40 → R$ 329,00"),
+  evento(50211, "2026-10-06T21:10:00Z", MARIANA, "seguranca", "usuario.convidar", "Convidou João Silva", "Perfil vistoriador · Filial Centro", { objeto: { tipo: "usuario", id: 5, codigo: null, filial: null }, tom: "info" }),
+  evento(50200, "2026-10-01T20:42:00Z", MARIANA, "configuracoes", "preco.alterar", "Mudou a tabela de preço", "Street 150–160 · semanal R$ 299,40 → R$ 329,00", { tom: "info" }),
 ];
 
 const PESSOAS: PessoaDaAuditoria[] = [

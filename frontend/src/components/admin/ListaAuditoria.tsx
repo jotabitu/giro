@@ -177,7 +177,7 @@ export function ListaAuditoria() {
                           setAberto(e.id);
                         }
                       }}
-                      className={e.suporte ? "[&>td]:!bg-warning-soft" : undefined}
+                      className={e.tom === "alerta" ? "[&>td]:!bg-warning-soft" : undefined}
                     >
                       <td>
                         <span className="wl-mono whitespace-nowrap">{dataHoraCurta(e.ocorrido_em)}</span>
@@ -199,7 +199,7 @@ export function ListaAuditoria() {
 
             <div className="rounded-lg bg-surface px-4 py-2 md:hidden">
               {eventos.map((e) => (
-                <button key={e.id} type="button" onClick={() => setAberto(e.id)} className={`flex min-h-[44px] w-full flex-col gap-1 border-b border-line py-[14px] text-left text-ink last:border-b-0 ${e.suporte ? "bg-warning-soft px-3" : ""}`}>
+                <button key={e.id} type="button" onClick={() => setAberto(e.id)} className={`flex min-h-[44px] w-full flex-col gap-1 border-b border-line py-[14px] text-left text-ink last:border-b-0 ${e.tom === "alerta" ? "bg-warning-soft px-3" : ""}`}>
                   <span>
                     <Resumo e={e} />
                   </span>
