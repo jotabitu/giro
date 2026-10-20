@@ -1,8 +1,7 @@
 """T-328 · Revisão de segurança da leitura do CRLV-e (T-265, ADR 0026).
 
-Relatório: `docs/seguranca/2026-10-19-t328-leitura-crlv.md`. Os `xfail` estritos são os achados
-que pedem código (tarefa de backend no handoff `tarefas/handoffs/T-328-seguranca.md`): quem
-corrigir tira o `xfail`.
+Relatório: `docs/seguranca/2026-10-19-t328-leitura-crlv.md`. Os achados que pediam código (M-01,
+B-01 e B-02) eram `xfail` estritos até a correção da T-329; agora são testes comuns.
 """
 
 from typing import Any
@@ -18,7 +17,6 @@ from . import documentos_pdf as pdfs
 from .test_t265_leitura_crlv import _ler, _pdf, frota, moto  # noqa: F401
 
 
-@pytest.mark.xfail(strict=True, reason="M-01 da T-328: a cor aceita qualquer palavra")
 def test_aud_09_cor_nao_aceita_o_nome_do_proprietario() -> None:
     """O valor da cor é o primeiro texto abaixo do rótulo; sem a cor ali, o nome de uma pessoa
     passa no validador. Com a lista fechada de cores do Denatran, não passa."""
@@ -26,7 +24,6 @@ def test_aud_09_cor_nao_aceita_o_nome_do_proprietario() -> None:
     assert crlv.cor("PROPRIETARIO") is None
 
 
-@pytest.mark.xfail(strict=True, reason="B-01 da T-328: o pai não confere a faixa dos anos")
 def test_vei_08_pai_confere_a_faixa_dos_anos() -> None:
     campos = leitura_documentos.conferir(
         "crlv", {"placa": "TBC5H21", "ano_fabricacao": 99999, "exercicio": -1}
@@ -34,7 +31,6 @@ def test_vei_08_pai_confere_a_faixa_dos_anos() -> None:
     assert campos == {"placa": "TBC5H21"}
 
 
-@pytest.mark.xfail(strict=True, reason="B-02 da T-328: o armazenamento privado não apaga")
 def test_vei_08_falha_depois_de_gravar_o_arquivo_devolve_o_erro_certo(
     moto,  # noqa: F811
     frota,  # noqa: F811
@@ -62,3 +58,32 @@ def test_vei_08_falha_depois_de_gravar_o_arquivo_devolve_o_erro_certo(
     }
     resposta = moto.api().post("/api/veiculos/", corpo, format="multipart")
     assert resposta.status_code == 422
+
+
+def test_vei_08_cor_da_lista_do_denatran() -> None:
+    """M-01 (T-329): a cor da lista, sem acento na comparação e com o acento da lista."""
+    assert crlv.cor("VERMELHA") == "vermelha"
+    assert crlv.cor("GRENA") == "grená"
+    assert crlv.cor("  Prata ") == "prata"
+    assert crlv.cor("AZUL CLARO") is None
+
+
+def test_vei_08_pai_confere_texto_combustivel_e_dica() -> None:
+    """B-01 (T-329): caractere de controle, combustível fora do enum e dica acima de 60."""
+    campos = leitura_documentos.conferir(
+        "crlv",
+        {
+            "placa": "TBC5H21",
+            "cor": "preta\x00",
+            "combustivel": "querosene",
+            "marca_modelo": "HONDA/" + "X" * 60,
+            "ano_modelo": 2027,
+            "exercicio": 1899,
+        },
+    )
+    assert campos == {"placa": "TBC5H21", "ano_modelo": 2027}
+
+
+def test_vei_08_upload_ate_3_mb_fica_na_memoria(settings) -> None:
+    """B-03 (T-329): o teto da borda é 3 MB; até ele, nada vai para o disco do contêiner."""
+    assert settings.FILE_UPLOAD_MAX_MEMORY_SIZE >= 3 * 1024 * 1024

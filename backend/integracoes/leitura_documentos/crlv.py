@@ -85,12 +85,18 @@ def ano(bruto: str) -> int | None:
     return valor if ANO_MINIMO <= valor <= date.today().year + 1 else None
 
 
+# Tabela de cores do Denatran (M-01 da T-328): fora dela o campo fica vazio, para o texto de
+# outro rótulo (o nome do proprietário) nunca virar cor. Comparada sem acento.
+CORES_DO_DENATRAN = (
+    "amarela", "azul", "bege", "branca", "cinza", "dourada", "grená", "laranja",
+    "marrom", "prata", "preta", "rosa", "roxa", "verde", "vermelha", "fantasia",
+)  # fmt: skip
+_CORES = {sem_acento(c): c for c in CORES_DO_DENATRAN}
+
+
 def cor(bruto: str) -> str | None:
-    valor = " ".join(sem_acento(bruto).split()).lower()
-    if not valor or len(valor) > 30 or not re.fullmatch(r"[a-z ]+", valor):
-        return None
-    # O texto do cadastro, com o acento da palavra quando houver ("vermelha", "prata").
-    return " ".join(bruto.split()).lower()
+    """A cor da lista, com o acento dela ("grená"); qualquer outro texto, nada."""
+    return _CORES.get(" ".join(sem_acento(bruto).split()).lower())
 
 
 def combustivel(bruto: str) -> str | None:
