@@ -45,6 +45,7 @@ from integracoes.pagamentos.base import (
     ParceiroRecusou,
     PedidoCobranca,
     StatusDesconhecido,
+    aviso_sem_cartao,
 )
 from integracoes.whatsapp import enviar_whatsapp
 
@@ -1165,7 +1166,7 @@ def registrar_webhook(evento: EventoWebhook, corpo: dict[str, Any]) -> WebhookRe
                         "cobranca_id": evento.cobranca_id,
                         "referencia_externa": evento.referencia_externa,
                     },
-                    "bruto": corpo,
+                    "bruto": aviso_sem_cartao(corpo),  # ADR 0023, M-01 da T-189
                 },
             )
     except IntegrityError:
