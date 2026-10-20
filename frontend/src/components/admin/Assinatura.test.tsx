@@ -83,7 +83,20 @@ describe("assinatura (Admin-Assinatura)", () => {
   it("T-187: sem acoes da API, não há botão de mudar, escolher forma, editar nem pagar", async () => {
     await entrar("mariana@motorapida.com.br");
     const seed = await assinatura.obter();
-    definirAssinaturaFalsa({ acoes: { mudar_plano: false, desfazer_mudanca_plano: false, escolher_forma_pagamento: false, editar_dados_fiscais: false }, oferta: null });
+    definirAssinaturaFalsa({
+      acoes: {
+        mudar_plano: false,
+        desfazer_mudanca_plano: false,
+        escolher_forma_pagamento: false,
+        editar_dados_fiscais: false,
+        cancelar: false,
+        desfazer_cancelamento: false,
+        pausar: false,
+        voltar_pausa: false,
+        desistir_pausa: false,
+      },
+      oferta: null,
+    });
     const t = texto(await pagina());
     for (const fora of ["Mudar de plano", "Escolher forma de pagamento", "Editar", "Comparar planos", "Pagar"]) expect(t, fora).not.toContain(fora);
     expect(t).toContain("Forma de pagamento");

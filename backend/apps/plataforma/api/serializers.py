@@ -7,7 +7,7 @@ from typing import Any
 
 from rest_framework import serializers
 
-from ..models import Plano
+from ..models import MotivoCancelamento, Plano
 
 
 class PlanoSerializer(serializers.ModelSerializer[Plano]):
@@ -226,6 +226,31 @@ class AcoesDaAssinaturaSerializer(serializers.Serializer[Any]):
     desfazer_mudanca_plano = serializers.BooleanField()
     escolher_forma_pagamento = serializers.BooleanField()
     editar_dados_fiscais = serializers.BooleanField()
+    cancelar = serializers.BooleanField()
+    desfazer_cancelamento = serializers.BooleanField()
+    pausar = serializers.BooleanField()
+    voltar_pausa = serializers.BooleanField()
+    desistir_pausa = serializers.BooleanField()
+
+
+class CancelamentoMarcadoSerializer(serializers.Serializer[Any]):
+    """Só com cancelamento marcado (`cancelamento.md`, PLT-06)."""
+
+    pedido_em = serializers.DateTimeField(allow_null=True)
+    motivo = serializers.ChoiceField(choices=MotivoCancelamento.choices, allow_null=True)
+    acesso_ate = serializers.DateField()
+    rotulo = serializers.CharField()
+
+
+class PausaMarcadaSerializer(serializers.Serializer[Any]):
+    """Só com pausa marcada: agendada (`ativa`) ou em andamento (`pausada`)."""
+
+    situacao = serializers.ChoiceField(choices=["agendada", "em_andamento"])
+    meses = serializers.IntegerField()
+    inicio = serializers.DateField()
+    ate = serializers.DateField()
+    volta_em = serializers.DateField()
+    rotulo = serializers.CharField()
 
 
 class AssinaturaSerializer(serializers.Serializer[Any]):
@@ -237,6 +262,8 @@ class AssinaturaSerializer(serializers.Serializer[Any]):
     faixa_aviso = serializers.CharField(allow_null=True)
     uso = UsoAssinaturaSerializer()
     somente_leitura = serializers.BooleanField()
+    cancelamento = CancelamentoMarcadoSerializer(allow_null=True)
+    pausa = PausaMarcadaSerializer(allow_null=True)
     # Só para o administrador (ausentes para os outros perfis).
     forma_pagamento = FormaDePagamentoSerializer(required=False)
     dados_fiscais = DadosFiscaisSerializer(required=False)

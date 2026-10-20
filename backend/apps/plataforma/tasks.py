@@ -1,8 +1,9 @@
 """Tarefas da plataforma: aviso de 90% do plano (PLT-03), correção noturna do uso, aviso de
 entrada do suporte e fim dos acessos vencidos (PLT-07, AUT-15), baixa das faturas da assinatura
 pelo webhook da conta principal (PLT-14), as notas que esperavam o endereço (PLT-15), a virada
-dos estados da assinatura (PLT-01, PLT-02, PLT-04), a geração, a emissão e a cobrança no cartão
-das faturas (PLT-02, PLT-04, PLT-13) e a régua da assinatura (AUT-13)."""
+dos estados da assinatura (PLT-01, PLT-02, PLT-04, PLT-06), a geração, a emissão e a cobrança no
+cartão das faturas (PLT-02, PLT-04, PLT-13), a régua da assinatura (AUT-13) e o aviso e o
+apagamento da empresa cancelada (AUD-08)."""
 
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -274,6 +275,40 @@ def plataforma_pedir_notas_pendentes(empresa_id: int) -> int:
         return FaturaAssinatura.objects.filter(
             empresa_id=empresa_id, status=StatusFatura.PAGA, nota_situacao=""
         ).count()
+
+
+@shared_task(
+    name="plataforma_encerrar_forma_pagamento",
+    autoretry_for=(ParceiroForaDoAr,),
+    retry_backoff=60,
+    retry_backoff_max=60 * 60,
+    max_retries=24,
+)
+def plataforma_encerrar_forma_pagamento(empresa_id: int) -> str:
+    """PLT-06, ADR 0023: a empresa virou `cancelada`; a autorização do Pix automático é cancelada
+    no parceiro, o token do cartão é esquecido e a forma fica nula. Parceiro fora do ar: tenta de
+    novo mais tarde."""
+    from .services import encerrar_forma_pagamento
+
+    return encerrar_forma_pagamento(empresa_id)
+
+
+@shared_task(name="aud_08_avisar_apagamento")
+def aud_08_avisar_apagamento(**_: Any) -> int:
+    """AUD-08, às 09:00, no public: o aviso aos administradores 7 dias antes do apagamento da
+    empresa `cancelada`, uma vez só."""
+    from .services import avisar_apagamentos
+
+    return avisar_apagamentos()
+
+
+@shared_task(name="aud_08_apagar_empresas")
+def aud_08_apagar_empresas(**_: Any) -> int:
+    """AUD-08, ADR 0025, às 03:30, no public: apaga de vez a empresa `cancelada` no 90º dia
+    (arquivos, schema e o que é dela no public), uma por vez. Precisa da DATABASE_URL_MIGRACAO."""
+    from .services import apagar_empresas
+
+    return apagar_empresas()
 
 
 @shared_task(

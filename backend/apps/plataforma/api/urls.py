@@ -64,6 +64,12 @@ urls_empresa: list[URLPattern] = [
         assinatura.DadosFiscaisView.as_view(),
         name="assinatura-dados-fiscais",
     ),
+    path(
+        "assinatura/cancelamento/",
+        assinatura.CancelamentoView.as_view(),
+        name="assinatura-cancelamento",
+    ),
+    path("assinatura/pausa/", assinatura.PausaView.as_view(), name="assinatura-pausa"),
     path("suporte/", suporte.SuporteView.as_view(), name="suporte"),
     path("suporte/bloquear/", suporte.BloquearSuporteView.as_view(), name="suporte-bloquear"),
     path("suporte/liberar/", suporte.LiberarSuporteView.as_view(), name="suporte-liberar"),

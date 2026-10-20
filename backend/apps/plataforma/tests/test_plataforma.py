@@ -1,6 +1,6 @@
 """Serviços e selectors da plataforma fora dos critérios de aceite (PLT-01, PLT-03, IMP-05)."""
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -95,8 +95,9 @@ def test_registrar_acesso_escreve_no_maximo_a_cada_5_minutos(empresa_a, relogio)
 @pytest.mark.parametrize(
     ("campos", "codigo", "rotulo", "tom"),
     [
+        # Cancelamento marcado (cancelamento.md, T-195): o rótulo é o dia em que vira cancelada.
         (
-            {"status": "cancelada", "acesso_ate": date(2026, 10, 30)},
+            {"status": "ativa", "acesso_ate": date(2026, 10, 29)},
             "cancelando",
             "Cancela em 30 out",
             "alerta",
@@ -105,6 +106,12 @@ def test_registrar_acesso_escreve_no_maximo_a_cada_5_minutos(empresa_a, relogio)
             {"status": "cancelada", "acesso_ate": date(2026, 10, 1)},
             "cancelada",
             "Cancelada",
+            "neutro",
+        ),
+        (
+            {"status": "cancelada", "apagada_em": datetime(2027, 1, 20, 6, 30, tzinfo=UTC)},
+            "cancelada",
+            "Dados apagados",
             "neutro",
         ),
         ({"status": "suspensa"}, "suspensa", "Suspensa", "perigo"),

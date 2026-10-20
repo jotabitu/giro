@@ -29,6 +29,7 @@ from integracoes.pagamentos.base import CartaoGuardado, EventoWebhook, ParceiroI
 
 from .test_t185_assinatura import (
     ASSINATURA,
+    CODIGO_SEM_OPERACAO,
     MotoRapida,
     _erro,
     _mudar,
@@ -368,16 +369,18 @@ def test_plt_13_pausada_e_cancelada_nao_pagam_pela_tela(moto, status):
     api = moto.api()
     for resposta in (api.put(FORMA, {"forma": "boleto"}, format="json"), _pagar(api, meio="pix")):
         assert resposta.status_code == 403
-        assert resposta.json()["codigo"] == "empresa_sem_operacao"
-    assert not api.get(FATURAS).json()["resultados"][0]["acoes"]["pagar"]
+        assert resposta.json()["codigo"] == CODIGO_SEM_OPERACAO[status]
+    if status == "pausada":
+        assert not api.get(FATURAS).json()["resultados"][0]["acoes"]["pagar"]
 
 
 def test_plt_13_excecao_da_suspensa_com_as_tres_rotas():
-    """Requisito 2: a lista é exatamente a do contrato."""
+    """Requisito 2: a lista é exatamente a do contrato, com a de cancelar (PLT-06, T-195)."""
     assert _rotas_que_escrevem_na_suspensa() == {
         ("api/assinatura/dados-fiscais/", "PATCH"),
         ("api/assinatura/forma-pagamento/", "PUT"),
         ("api/assinatura/faturas/<str:codigo>/pagar/", "POST"),
+        ("api/assinatura/cancelamento/", "POST"),
     }
 
 

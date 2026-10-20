@@ -1,9 +1,11 @@
 """Rotas da assinatura do lado da empresa (`docs/api/assinatura.md`; T-185).
 
-Só o administrador (tabela de perfis; PLT-04, PLT-13, PLT-15). O suporte Giro lê e nunca
-escreve, nem com "ver e editar" (PLT-07, CA-ASS-19). Com a empresa `suspensa`, só as rotas de
-pagar escrevem (`escreve_na_suspensa`, PLT-13, CA-ASS-27); mudar de plano responde o 409 da
-`PLT-04` (`recusa_na_suspensa`). `pausada` e `cancelada`: 403 `empresa_sem_operacao`.
+Só o administrador (tabela de perfis; PLT-04, PLT-06, PLT-13, PLT-15). O suporte Giro lê e
+nunca escreve, nem com "ver e editar" (PLT-07, CA-ASS-19). Com a empresa `suspensa`, só as rotas
+de pagar e a de cancelar escrevem (`escreve_na_suspensa`, PLT-13, CA-ASS-27, PLT-06); mudar de
+plano e pausar respondem o 409 da regra (`recusa_na_suspensa`). Com a `pausada`, só cancelar e
+voltar da pausa (`escreve_na_pausada`, `cancelamento.md`); o resto, 403 `empresa_sem_operacao`.
+A `cancelada` não entra no sistema (`EmpresaCanceladaMiddleware`, AUD-08).
 """
 
 from typing import Any
@@ -20,11 +22,13 @@ from comum.paginacao import PaginacaoPorCursor
 from comum.permissoes import com_padrao
 
 from .. import selectors, services
+from ..calendario import MESES_DE_PAUSA
 from ..models import (
     Empresa,
     FaturaAssinatura,
     FormaAssinatura,
     FormaPagaFatura,
+    MotivoCancelamento,
     SituacaoNota,
     StatusFatura,
 )
@@ -57,7 +61,7 @@ class EscritaDaAssinatura(APIView):
     """Nenhuma escrita da assinatura aceita o token de suporte (PLT-07, T-189)."""
 
     permission_classes = com_padrao(SoAdministrador)
-    suporte_proibido = True
+    suporte_proibido: bool | frozenset[str] = True
     mensagem_suporte_proibido = SUPORTE_NA_ASSINATURA
 
 
@@ -427,3 +431,174 @@ class PagarFaturaView(EscritaDaAssinatura):
         with services.no_publico():
             cobranca = selectors.cobranca_da_fatura(fatura)
         return Response(CobrancaDaFaturaSerializer(cobranca).data)
+
+
+# --- Cancelar e pausar (PLT-06, AUD-08; cancelamento.md, T-195) ---
+
+
+class EscolhaSerializer(serializers.Serializer[Any]):
+    codigo = serializers.CharField()
+    rotulo = serializers.CharField()
+
+
+class AlternativaPausarSerializer(serializers.Serializer[Any]):
+    meses = serializers.ListField(child=serializers.IntegerField())
+    inicio = serializers.DateField()
+    texto = serializers.CharField()
+
+
+class PlanoDaAlternativaSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    nome = serializers.CharField()
+    preco_mensal_centavos = serializers.IntegerField()
+
+
+class AlternativaEssencialSerializer(serializers.Serializer[Any]):
+    plano = PlanoDaAlternativaSerializer()
+    resumo = serializers.CharField()
+    cabe = serializers.BooleanField()
+    excede = ExcedeSerializer()
+
+
+class AlternativasSerializer(serializers.Serializer[Any]):
+    pausar = AlternativaPausarSerializer(allow_null=True)
+    mudar_para_essencial = AlternativaEssencialSerializer(allow_null=True)
+
+
+class LinhaDoQueAconteceSerializer(serializers.Serializer[Any]):
+    codigo = serializers.CharField()  # acesso, cobrancas, dados, apagamento, contratos
+    rotulo = serializers.CharField()
+    valor = serializers.CharField()
+
+
+class ConfirmacaoSerializer(serializers.Serializer[Any]):
+    nome = serializers.CharField()
+
+
+class ExportarSerializer(serializers.Serializer[Any]):
+    texto = serializers.CharField()
+
+
+class TelaDoCancelamentoSerializer(serializers.Serializer[Any]):
+    empresa = serializers.CharField()
+    plano_resumo = serializers.CharField()
+    motivos = EscolhaSerializer(many=True)
+    alternativas = AlternativasSerializer()
+    o_que_acontece = LinhaDoQueAconteceSerializer(many=True)
+    acesso_ate = serializers.DateField(allow_null=True)
+    cancelada_em = serializers.DateField()
+    apagar_em = serializers.DateField()
+    confirmacao = ConfirmacaoSerializer()
+    exportar = ExportarSerializer()
+
+
+ESCOLHA_O_MOTIVO = "Escolha o motivo."
+ESCOLHA_OS_MESES = "Escolha de 1 a 3 meses."
+
+
+class PedidoDeCancelamentoSerializer(serializers.Serializer[Any]):
+    motivo = serializers.ChoiceField(
+        choices=MotivoCancelamento.choices,
+        error_messages={
+            "required": ESCOLHA_O_MOTIVO,
+            "null": ESCOLHA_O_MOTIVO,
+            "invalid_choice": ESCOLHA_O_MOTIVO,
+        },
+    )
+    nome_confirmacao = serializers.CharField(allow_blank=True, trim_whitespace=False)
+
+
+class PedidoDePausaSerializer(serializers.Serializer[Any]):
+    meses = serializers.IntegerField(
+        error_messages={
+            "required": ESCOLHA_OS_MESES,
+            "null": ESCOLHA_OS_MESES,
+            "invalid": ESCOLHA_OS_MESES,
+        },
+    )
+
+    def validate_meses(self, valor: int) -> int:
+        if valor not in MESES_DE_PAUSA:  # CA-ASS-35: 4 meses é recusado
+            raise serializers.ValidationError(ESCOLHA_OS_MESES)
+        return valor
+
+
+class AcaoDoCancelamento(EscritaDaAssinatura):
+    """Só o administrador; o suporte lê e nunca escreve (PLT-07). Na lista explícita de exceções
+    da `suspensa` e da `pausada` (`cancelamento.md`, com teste): cancelar, para as duas."""
+
+    suporte_proibido = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+    suporte_somente_leitura = True
+    escreve_na_suspensa = frozenset({"POST"})  # a suspensa cancela (PLT-06)
+    escreve_na_pausada = frozenset({"POST"})  # a pausada cancela (PLT-06)
+
+
+class CancelamentoView(AcaoDoCancelamento):
+    @extend_schema(
+        responses=TelaDoCancelamentoSerializer,
+        summary="O que a tela de cancelar mostra hoje (PLT-06, AUD-08)",
+    )
+    def get(self, request: Request) -> Response:
+        with services.no_publico():
+            empresa = Empresa.objects.get(pk=_empresa(request).pk)
+            if services.cancelamento_marcado(empresa):
+                raise services.ja_cancelada(empresa)
+            tela = selectors.tela_do_cancelamento(empresa)
+        return Response(TelaDoCancelamentoSerializer(tela).data)
+
+    @extend_schema(
+        request=PedidoDeCancelamentoSerializer,
+        responses=AssinaturaSerializer,
+        summary="Cancelar a assinatura (PLT-06)",
+    )
+    def post(self, request: Request) -> Response:
+        pedido = PedidoDeCancelamentoSerializer(data=request.data)
+        pedido.is_valid(raise_exception=True)
+        services.cancelar_assinatura(
+            _empresa(request),
+            pedido.validated_data["motivo"],
+            nome_confirmacao=pedido.validated_data["nome_confirmacao"],
+        )
+        return Response(_assinatura(request))
+
+    @extend_schema(
+        request=None,
+        responses=AssinaturaSerializer,
+        summary="Desfazer o cancelamento até o último dia de acesso (PLT-06)",
+    )
+    def delete(self, request: Request) -> Response:
+        services.desfazer_cancelamento(_empresa(request))
+        return Response(_assinatura(request))
+
+
+class PausaView(AcaoDoCancelamento):
+    """Voltar da pausa e desistir da pausa agendada são a mesma rota (`DELETE`): a `pausada`
+    volta, a `ativa` com a pausa agendada desiste. Só o `DELETE` está na exceção da `pausada`."""
+
+    escreve_na_suspensa = frozenset()
+    escreve_na_pausada = frozenset({"DELETE"})
+    recusa_na_suspensa = {"POST": services.PAGUE_ANTES_DE_PAUSAR}
+
+    @extend_schema(
+        request=PedidoDePausaSerializer,
+        responses=AssinaturaSerializer,
+        summary="Pausar a assinatura de 1 a 3 meses (PLT-06)",
+    )
+    def post(self, request: Request) -> Response:
+        pedido = PedidoDePausaSerializer(data=request.data)
+        pedido.is_valid(raise_exception=True)
+        services.pausar_assinatura(_empresa(request), pedido.validated_data["meses"])
+        return Response(_assinatura(request))
+
+    @extend_schema(
+        request=None,
+        responses=AssinaturaSerializer,
+        summary="Voltar da pausa ou desistir da pausa agendada (PLT-06)",
+    )
+    def delete(self, request: Request) -> Response:
+        empresa = _empresa(request)
+        if empresa.status == Empresa.Status.PAUSADA:
+            services.voltar_da_pausa(empresa)
+        else:
+            services.desistir_da_pausa(empresa)
+        return Response(_assinatura(request))

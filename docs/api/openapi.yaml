@@ -166,6 +166,66 @@ paths:
               schema:
                 $ref: '#/components/schemas/Assinatura'
           description: ''
+  /api/assinatura/cancelamento/:
+    get:
+      operationId: assinatura_cancelamento_retrieve
+      description: |-
+        Só o administrador; o suporte lê e nunca escreve (PLT-07). Na lista explícita de exceções
+        da `suspensa` e da `pausada` (`cancelamento.md`, com teste): cancelar, para as duas.
+      summary: O que a tela de cancelar mostra hoje (PLT-06, AUD-08)
+      tags:
+      - assinatura
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelaDoCancelamento'
+          description: ''
+    post:
+      operationId: assinatura_cancelamento_create
+      description: |-
+        Só o administrador; o suporte lê e nunca escreve (PLT-07). Na lista explícita de exceções
+        da `suspensa` e da `pausada` (`cancelamento.md`, com teste): cancelar, para as duas.
+      summary: Cancelar a assinatura (PLT-06)
+      tags:
+      - assinatura
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoDeCancelamento'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PedidoDeCancelamento'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PedidoDeCancelamento'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assinatura'
+          description: ''
+    delete:
+      operationId: assinatura_cancelamento_destroy
+      description: |-
+        Só o administrador; o suporte lê e nunca escreve (PLT-07). Na lista explícita de exceções
+        da `suspensa` e da `pausada` (`cancelamento.md`, com teste): cancelar, para as duas.
+      summary: Desfazer o cancelamento até o último dia de acesso (PLT-06)
+      tags:
+      - assinatura
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/assinatura/dados-fiscais/:
     patch:
       operationId: assinatura_dados_fiscais_partial_update
@@ -373,6 +433,49 @@ paths:
               schema:
                 $ref: '#/components/schemas/Simulacao'
           description: ''
+  /api/assinatura/pausa/:
+    post:
+      operationId: assinatura_pausa_create
+      description: |-
+        Voltar da pausa e desistir da pausa agendada são a mesma rota (`DELETE`): a `pausada`
+        volta, a `ativa` com a pausa agendada desiste. Só o `DELETE` está na exceção da `pausada`.
+      summary: Pausar a assinatura de 1 a 3 meses (PLT-06)
+      tags:
+      - assinatura
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoDePausa'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PedidoDePausa'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PedidoDePausa'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assinatura'
+          description: ''
+    delete:
+      operationId: assinatura_pausa_destroy
+      description: |-
+        Voltar da pausa e desistir da pausa agendada são a mesma rota (`DELETE`): a `pausada`
+        volta, a `ativa` com a pausa agendada desiste. Só o `DELETE` está na exceção da `pausada`.
+      summary: Voltar da pausa ou desistir da pausa agendada (PLT-06)
+      tags:
+      - assinatura
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
   /api/assinatura/planos/:
     get:
       operationId: assinatura_planos_list
@@ -6640,11 +6743,26 @@ components:
           type: boolean
         editar_dados_fiscais:
           type: boolean
+        cancelar:
+          type: boolean
+        desfazer_cancelamento:
+          type: boolean
+        pausar:
+          type: boolean
+        voltar_pausa:
+          type: boolean
+        desistir_pausa:
+          type: boolean
       required:
+      - cancelar
+      - desfazer_cancelamento
       - desfazer_mudanca_plano
+      - desistir_pausa
       - editar_dados_fiscais
       - escolher_forma_pagamento
       - mudar_plano
+      - pausar
+      - voltar_pausa
     AcoesDaConta:
       type: object
       properties:
@@ -6835,6 +6953,52 @@ components:
       - proxima
       - resultados
       - resumo
+    AlternativaEssencial:
+      type: object
+      properties:
+        plano:
+          $ref: '#/components/schemas/PlanoDaAlternativa'
+        resumo:
+          type: string
+        cabe:
+          type: boolean
+        excede:
+          $ref: '#/components/schemas/Excede'
+      required:
+      - cabe
+      - excede
+      - plano
+      - resumo
+    AlternativaPausar:
+      type: object
+      properties:
+        meses:
+          type: array
+          items:
+            type: integer
+        inicio:
+          type: string
+          format: date
+        texto:
+          type: string
+      required:
+      - inicio
+      - meses
+      - texto
+    Alternativas:
+      type: object
+      properties:
+        pausar:
+          allOf:
+          - $ref: '#/components/schemas/AlternativaPausar'
+          nullable: true
+        mudar_para_essencial:
+          allOf:
+          - $ref: '#/components/schemas/AlternativaEssencial'
+          nullable: true
+      required:
+      - mudar_para_essencial
+      - pausar
     AlvoCliente:
       type: object
       properties:
@@ -6964,6 +7128,14 @@ components:
           $ref: '#/components/schemas/UsoAssinatura'
         somente_leitura:
           type: boolean
+        cancelamento:
+          allOf:
+          - $ref: '#/components/schemas/CancelamentoMarcado'
+          nullable: true
+        pausa:
+          allOf:
+          - $ref: '#/components/schemas/PausaMarcada'
+          nullable: true
         forma_pagamento:
           $ref: '#/components/schemas/FormaDePagamento'
         dados_fiscais:
@@ -6975,7 +7147,9 @@ components:
         acoes:
           $ref: '#/components/schemas/AcoesDaAssinatura'
       required:
+      - cancelamento
       - faixa_aviso
+      - pausa
       - plano
       - plano_proximo
       - proxima_fatura
@@ -7414,6 +7588,29 @@ components:
       description: |-
         * `pendente` - Pendente
         * `aprovado` - Aprovado
+    CancelamentoMarcado:
+      type: object
+      description: Só com cancelamento marcado (`cancelamento.md`, PLT-06).
+      properties:
+        pedido_em:
+          type: string
+          format: date-time
+          nullable: true
+        motivo:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/MotivoCancelamentoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        acesso_ate:
+          type: string
+          format: date
+        rotulo:
+          type: string
+      required:
+      - acesso_ate
+      - motivo
+      - pedido_em
+      - rotulo
     CancelamentoPedido:
       type: object
       properties:
@@ -8325,6 +8522,13 @@ components:
           type: string
       required:
       - otpauth_uri
+    Confirmacao:
+      type: object
+      properties:
+        nome:
+          type: string
+      required:
+      - nome
     ConfirmarLocacao:
       type: object
       properties:
@@ -9785,6 +9989,16 @@ components:
       - campo
       - codigo
       - mensagem
+    Escolha:
+      type: object
+      properties:
+        codigo:
+          type: string
+        rotulo:
+          type: string
+      required:
+      - codigo
+      - rotulo
     Etapa:
       type: object
       properties:
@@ -10173,6 +10387,13 @@ components:
       required:
       - formato
       - itens
+    Exportar:
+      type: object
+      properties:
+        texto:
+          type: string
+      required:
+      - texto
     Extra:
       type: object
       properties:
@@ -12169,6 +12390,19 @@ components:
       - placa
       - situacao
       - veiculo
+    LinhaDoQueAcontece:
+      type: object
+      properties:
+        codigo:
+          type: string
+        rotulo:
+          type: string
+        valor:
+          type: string
+      required:
+      - codigo
+      - rotulo
+      - valor
     LinhaSimulacao:
       type: object
       properties:
@@ -13257,6 +13491,20 @@ components:
           type: string
       required:
       - motivo
+    MotivoCancelamentoEnum:
+      enum:
+      - preco_alto
+      - faltou_funcao
+      - outro_sistema
+      - fechar_ou_pausar
+      - outro
+      type: string
+      description: |-
+        * `preco_alto` - Preço alto para o meu tamanho
+        * `faltou_funcao` - Faltou alguma função
+        * `outro_sistema` - Vou usar outro sistema
+        * `fechar_ou_pausar` - Vou fechar ou pausar a locadora
+        * `outro` - Outro motivo
     MotivoCliente:
       type: object
       properties:
@@ -14436,6 +14684,32 @@ components:
           type: string
           format: date
           nullable: true
+    PausaMarcada:
+      type: object
+      description: 'Só com pausa marcada: agendada (`ativa`) ou em andamento (`pausada`).'
+      properties:
+        situacao:
+          $ref: '#/components/schemas/SituacaoDaPausaEnum'
+        meses:
+          type: integer
+        inicio:
+          type: string
+          format: date
+        ate:
+          type: string
+          format: date
+        volta_em:
+          type: string
+          format: date
+        rotulo:
+          type: string
+      required:
+      - ate
+      - inicio
+      - meses
+      - rotulo
+      - situacao
+      - volta_em
     PecaDaTroca:
       type: object
       properties:
@@ -14552,6 +14826,16 @@ components:
       - id
       - status
       - tipo
+    PedidoDeCancelamento:
+      type: object
+      properties:
+        motivo:
+          $ref: '#/components/schemas/MotivoCancelamentoEnum'
+        nome_confirmacao:
+          type: string
+      required:
+      - motivo
+      - nome_confirmacao
     PedidoDeForma:
       type: object
       description: 'Sem campo de cartão: o cartão é digitado só na página do parceiro
@@ -14578,6 +14862,13 @@ components:
       properties:
         meio:
           $ref: '#/components/schemas/MeioDePagarEnum'
+    PedidoDePausa:
+      type: object
+      properties:
+        meses:
+          type: integer
+      required:
+      - meses
     PedidoRef:
       type: object
       properties:
@@ -14885,6 +15176,19 @@ components:
       - preco_anual_centavos
       - preco_mensal_centavos
       - recursos
+    PlanoDaAlternativa:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        preco_mensal_centavos:
+          type: integer
+      required:
+      - id
+      - nome
+      - preco_mensal_centavos
     PlanoDaAssinatura:
       type: object
       properties:
@@ -16270,6 +16574,14 @@ components:
       required:
       - rotulo
       - tom
+    SituacaoDaPausaEnum:
+      enum:
+      - agendada
+      - em_andamento
+      type: string
+      description: |-
+        * `agendada` - agendada
+        * `em_andamento` - em_andamento
     SituacaoDoVeiculo:
       type: object
       properties:
@@ -16520,6 +16832,48 @@ components:
       - atendente
       - motivo
       - permissao
+    TelaDoCancelamento:
+      type: object
+      properties:
+        empresa:
+          type: string
+        plano_resumo:
+          type: string
+        motivos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Escolha'
+        alternativas:
+          $ref: '#/components/schemas/Alternativas'
+        o_que_acontece:
+          type: array
+          items:
+            $ref: '#/components/schemas/LinhaDoQueAcontece'
+        acesso_ate:
+          type: string
+          format: date
+          nullable: true
+        cancelada_em:
+          type: string
+          format: date
+        apagar_em:
+          type: string
+          format: date
+        confirmacao:
+          $ref: '#/components/schemas/Confirmacao'
+        exportar:
+          $ref: '#/components/schemas/Exportar'
+      required:
+      - acesso_ate
+      - alternativas
+      - apagar_em
+      - cancelada_em
+      - confirmacao
+      - empresa
+      - exportar
+      - motivos
+      - o_que_acontece
+      - plano_resumo
     TendenciaEnum:
       enum:
       - sobe

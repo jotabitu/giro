@@ -1,17 +1,41 @@
-"""Preenche o ator da auditoria a partir da requisição (ADR 0010, item 5).
+"""Middlewares do Giro.
 
-O usuário é lido na hora em que o evento é gravado, porque a autenticação JWT do DRF só roda
-dentro da view (e o DRF repassa `user` e `auth` para o `HttpRequest`).
+- `EmpresaCanceladaMiddleware`: a empresa `cancelada` não entra no sistema (AUD-08).
+- `AtorDaRequisicaoMiddleware`: preenche o ator da auditoria a partir da requisição (ADR 0010,
+  item 5). O usuário é lido na hora em que o evento é gravado, porque a autenticação JWT do DRF
+  só roda dentro da view (e o DRF repassa `user` e `auth` para o `HttpRequest`).
 """
 
 from collections.abc import Callable
 
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 
 from comum.auditoria import ATOR_SISTEMA, Ator, TipoAtor, usar_ator
+from comum.empresa import STATUS_CANCELADA
 from comum.rede import ip_do_cliente
 
 TAMANHO_APARELHO = 200
+EMPRESA_CANCELADA = {
+    "codigo": "empresa_cancelada",
+    "mensagem": (
+        "Esta assinatura foi cancelada. Para pedir seus dados ou voltar, fale com a equipe Giro."
+    ),
+}
+
+
+class EmpresaCanceladaMiddleware:
+    """AUD-08 (`cancelamento.md`, "Empresa `cancelada`"): logo depois do `TenantMainMiddleware`,
+    que resolve a empresa pelo host, todo pedido de uma empresa `cancelada` recebe 403
+    `empresa_cancelada`, inclusive `entrar` e `renovar`; os tokens ainda válidos param na hora."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        empresa = getattr(request, "tenant", None)
+        if getattr(empresa, "status", None) == STATUS_CANCELADA:
+            return JsonResponse(EMPRESA_CANCELADA, status=403)
+        return self.get_response(request)
 
 
 def ator_da_requisicao(request: HttpRequest) -> Ator:

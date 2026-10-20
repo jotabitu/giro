@@ -47,6 +47,7 @@ cobrancas: dict[str, _Guardada] = {}
 subcontas: dict[str, str] = {}  # conta_externa_id -> status
 autorizacoes: dict[str, Autorizacao] = {}
 pagadores: dict[str, Pagador] = {}  # id do cliente na conta principal -> o que foi mandado
+anonimizados: list[str] = []  # clientes que perderam e-mail e telefone (AUD-08, B-01)
 tokens_recusados: set[str] = set()
 # FIN-04 (T-307): com `sem_pix_no_boleto()`, o boleto sai sem o Pix, como a conta sem chave Pix.
 _boleto_sem_pix: list[bool] = [False]
@@ -60,6 +61,7 @@ def limpar() -> None:
     subcontas.clear()
     autorizacoes.clear()
     pagadores.clear()
+    anonimizados.clear()
     tokens_recusados.clear()
     _boleto_sem_pix[0] = False
 
@@ -110,6 +112,11 @@ class PagamentosFalso:
         cliente_id = pagador.id_externo or f"cus_falso_{next(_numeros):06d}"
         pagadores[cliente_id] = pagador
         return cliente_id
+
+    def anonimizar_pagador(self, conta: ContaPagamentoRef, cliente_id: str) -> None:
+        if cliente_id in pagadores:
+            pagadores[cliente_id] = replace(pagadores[cliente_id], email="", celular="")
+        anonimizados.append(cliente_id)
 
     def cobrar_cartao_salvo(
         self, conta: ContaPagamentoRef, token: str, pedido: PedidoCobranca

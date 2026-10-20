@@ -98,6 +98,16 @@ def validar_nome_sem_quebra(valor: str) -> None:
         raise ValidationError(NOME_SEM_QUEBRA, code="nome_com_quebra")
 
 
+class MotivoCancelamento(models.TextChoices):
+    """Por que o administrador cancelou (PLT-06): não muda nada no cancelamento."""
+
+    PRECO_ALTO = "preco_alto", "Preço alto para o meu tamanho"
+    FALTOU_FUNCAO = "faltou_funcao", "Faltou alguma função"
+    OUTRO_SISTEMA = "outro_sistema", "Vou usar outro sistema"
+    FECHAR_OU_PAUSAR = "fechar_ou_pausar", "Vou fechar ou pausar a locadora"
+    OUTRO = "outro", "Outro motivo"
+
+
 class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django-manager-missing]
     class Status(models.TextChoices):
         EM_TESTE = "em_teste", "Em teste"
@@ -123,14 +133,15 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
         CONCLUIDA = "concluida", "Concluída"
 
     # Coluna "Saída" da tabela de estados ("Plataforma e assinatura") e as transições do
-    # contrato (`assinatura.md`; a em teste com forma e sem pagar vira inadimplente em D+1).
-    # Pausar e cancelar nascem de ação do administrador e entram com a T-195.
+    # contrato (`assinatura.md`; a em teste com forma e sem pagar vira inadimplente em D+1). Pausar
+    # e cancelar (`cancelamento.md`, T-195): a pausa começa na `ativa` (ou na `inadimplente` pela
+    # diferença do upgrade) e volta `inadimplente` se a diferença ainda estiver atrasada.
     TRANSICOES: ClassVar[dict[str, set[str]]] = {
-        "em_teste": {"ativa", "inadimplente", "suspensa"},
-        "ativa": {"inadimplente"},
-        "inadimplente": {"ativa", "suspensa"},
-        "suspensa": {"ativa"},
-        "pausada": {"ativa"},
+        "em_teste": {"ativa", "inadimplente", "suspensa", "cancelada"},
+        "ativa": {"inadimplente", "pausada", "cancelada"},
+        "inadimplente": {"ativa", "suspensa", "pausada", "cancelada"},
+        "suspensa": {"ativa", "cancelada"},
+        "pausada": {"ativa", "inadimplente", "cancelada"},
         "cancelada": set(),
     }
     REGRA_TRANSICAO = "transicao_empresa"
@@ -174,11 +185,20 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.EM_TESTE)
     teste_inicio = models.DateField(null=True, blank=True)
     teste_fim = models.DateField(null=True, blank=True)
+    # Pausa marcada (PLT-06): agendada enquanto `ativa`, em andamento quando `pausada`.
+    pausa_inicio = models.DateField(null=True, blank=True)
     pausada_ate = models.DateField(null=True, blank=True)
-    cancelada_em = models.DateTimeField(null=True, blank=True)
+    # Cancelamento (PLT-06, AUD-08; `cancelamento.md`). Marcado = `acesso_ate` preenchido e
+    # `status` diferente de `cancelada`.
+    cancelamento_pedido_em = models.DateTimeField(null=True, blank=True)
+    motivo_cancelamento = models.CharField(
+        max_length=20, choices=MotivoCancelamento.choices, blank=True, default=""
+    )
     acesso_ate = models.DateField(null=True, blank=True)
+    cancelada_em = models.DateTimeField(null=True, blank=True)
     apagar_em = models.DateField(null=True, blank=True)
-    motivo_cancelamento = models.TextField(blank=True, default="")
+    aviso_apagamento_enviado_em = models.DateTimeField(null=True, blank=True)
+    apagada_em = models.DateTimeField(null=True, blank=True)  # fim do apagamento (ADR 0025)
     suporte_bloqueado = models.BooleanField(default=False)  # PLT-07
     etapa_implantacao = models.CharField(
         max_length=20, choices=EtapaImplantacao.choices, default=EtapaImplantacao.CONTA
@@ -187,6 +207,13 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
 
     auto_create_schema = True
     auto_drop_schema = False
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        # O `TenantMixin` recria o schema que falta de uma empresa já existente. O da `cancelada`
+        # é apagado no 90º dia (AUD-08, ADR 0025) e não pode voltar no `save` seguinte.
+        if self.status == self.Status.CANCELADA:
+            self.auto_create_schema = False
+        super().save(*args, **kwargs)
 
     # O responsável é funcionário da locadora (o administrador): vai inteiro, como o
     # nome e o e-mail do `Usuario` (ADR 0014, item 3), no schema da empresa. No public, que fica
