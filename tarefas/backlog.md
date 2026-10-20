@@ -131,6 +131,14 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 
 - (T-017) As 3 dúvidas da T-017 foram decididas em 12 out 2026 pelo dono do produto, com as recomendações do produto, e viraram regra na T-147: (1) histórico da análise com o atraso pela `FIN-03` e o cliente novo `ok` "Cliente novo na empresa" (`CLI-04`, B); (2) semana de segunda a domingo e caução fora das abas e da lista geral (`FIN-15`, A); (3) bloqueio uma vez por conta e textos da régua reescritos, com e-mail (`AUT-03`, `CLI-05`, `AUT-05`, B). Código na T-148 (feita, PR a abrir).
 
+Levantada pelo arquiteto em T-337 (19 out 2026), para o dono (análise em `tarefas/handoffs/T-337-arquiteto.md`):
+
+- [decisão] (T-337) **De onde vem o catálogo completo de marcas e modelos** (`VEI-08`, ADR 0026, item 7). Hoje são 29 modelos em `backend/apps/veiculos/dados/catalogo_modelos.csv`, num repositório público. Opções:
+  - **A. Nomes da FIPE pelo site público** (veiculos.fipe.org.br), só marca, modelo e tipo, sem preço. Sem custo, com o tipo pronto (108 marcas de carro, 103 de moto, alguns milhares de modelos) e o nome que a tela promete ("Da lista FIPE"). Mas a FIPE não publica licença aberta, o site não tem API oficial e recusa coleta automática (429 no teste de 19 out). O dono aceita o risco de guardar a lista no repositório público, com "Fonte: FIPE".
+  - **B. FIPE licenciada** (contrato com a FIPE ou API paga de terceiro). Licença limpa, e serve também para a referência de preço da `VEN-01` mais tarde. Tem custo mensal, a cotar. Se o contrato proibir publicar a lista, o CSV sai do git e vem do armazenamento privado no deploy.
+  - **C. Renavam do Senatran** (dados.transportes.gov.br, domínio público, mensal). Livre para o repositório e com o mesmo texto do CRLV-e ("HONDA/POP 110I ES"), o que melhora a leitura. Mas não tem o tipo (moto ou carro), traz caminhões e reboques (38.082 nomes em jun 2025), siglas ("VW", "GM", "I/") e muda o texto da tela "Da lista FIPE" (produto e design).
+  - Recomendação do arquiteto: **B**, se o custo couber, porque a `VEN-01` vai precisar da FIPE de qualquer jeito; senão **A**. O contrato da rota não muda em nenhuma delas.
+
 ## Fase 0 · Fundação
 
 Concluída. As tarefas entregues estão em `tarefas/feito.md`.
