@@ -75,11 +75,6 @@ def test_adr_0023_aviso_guardado_sem_o_token_do_cartao(
     assert TOKEN_DO_CARTAO not in json.dumps(guardado.corpo)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="M-02 da T-189: subconta sem chave cai na chave da conta principal",
-    raises=AssertionError,
-)
 def test_adr_0007_subconta_sem_chave_nunca_usa_a_chave_principal():
     """Uma subconta cuja chave volta vazia não pode falar com o parceiro como a conta do Giro:
     a cobrança da locadora iria para a conta principal (e o dinheiro, para o Giro)."""
@@ -116,3 +111,21 @@ def test_adr_0023_nenhuma_rota_recebe_dado_do_cartao():
 def test_adr_0023_cartao_guardado_sem_token_no_repr():
     cartao = CartaoGuardado(TOKEN_DO_CARTAO, "visa", "4242")
     assert TOKEN_DO_CARTAO not in repr(cartao)
+
+
+def test_adr_0007_conta_principal_e_subconta_com_chave():
+    """T-269: a conta principal usa a chave do ambiente; a subconta, só a dela; sem chave, a
+    subconta recusa antes de chamar o parceiro."""
+    chaves: list[str] = []
+
+    def transporte(_metodo: str, _url: str, _dados: Any, cabecalhos: Any) -> tuple[int, bytes]:
+        chaves.append(cabecalhos["access_token"])
+        return 200, b'{"id": "pay_1", "status": "PENDING", "value": 10.0}'
+
+    asaas = Asaas(chave_principal="chave-da-conta-principal", transporte=transporte)
+    asaas.consultar_cobranca(conta_principal(), "pay_1")
+    asaas.consultar_cobranca(ContaPagamentoRef("acc_sub", lambda: "chave-da-subconta"), "pay_1")
+    assert chaves == ["chave-da-conta-principal", "chave-da-subconta"]
+    with pytest.raises(ParceiroIndisponivel):
+        asaas.consultar_cobranca(ContaPagamentoRef("acc_sub", lambda: ""), "pay_1")
+    assert len(chaves) == 2  # nada foi chamado
