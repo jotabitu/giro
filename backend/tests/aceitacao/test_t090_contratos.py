@@ -347,9 +347,14 @@ def test_s_09_pdf_nao_busca_url_externa():
     pedidas: list[str] = []
     buscar = pdf.buscador(pdf.Marca(nome="Moto Rápida"))
 
-    def espiao(url: str, *args: Any, **kwargs: Any) -> Any:
-        pedidas.append(url)
-        return buscar(url)
+    from weasyprint.urls import URLFetcher  # type: ignore[import-untyped]
+
+    class Espiao(URLFetcher):  # a WeasyPrint 70 só aceita `URLFetcher` (T-333)
+        def fetch(self, url: str, headers: Any = None) -> Any:
+            pedidas.append(url)
+            return buscar(url)
+
+    espiao = Espiao()
 
     for url in (
         "http://169.254.169.254/latest/meta-data/",
