@@ -140,6 +140,7 @@ def test_fil_01_ca_012_02_representacao(moto):
     assert set(corpo) == {
         "id",
         "nome",
+        "nome_curto",
         "matriz",
         "ativo",
         "cnpj",

@@ -271,3 +271,22 @@ class ListaDePlanosSerializer(serializers.Serializer[Any]):
     resultados = PlanoSerializer(many=True)
     proximo = serializers.CharField(allow_null=True)
     anterior = serializers.CharField(allow_null=True)
+
+
+# --- Andamento do assistente (T-201, T-202) ---
+
+
+class PassoDoAssistenteSerializer(serializers.Serializer[Any]):
+    passo = serializers.CharField()
+    numero = serializers.IntegerField()
+    rotulo = serializers.CharField()
+    feito = serializers.BooleanField()
+    feito_em = serializers.DateField(allow_null=True)
+
+
+class AndamentoDoAssistenteSerializer(serializers.Serializer[Any]):
+    concluida = serializers.BooleanField(help_text="IMP-01: passo `primeira_locacao` marcado.")
+    total = serializers.IntegerField(help_text="8 passos; 7 sem `recebimentos` (PLT-12).")
+    feitos = serializers.IntegerField()
+    proximo = serializers.CharField(allow_null=True)
+    passos = PassoDoAssistenteSerializer(many=True)

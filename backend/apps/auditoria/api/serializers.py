@@ -41,6 +41,11 @@ class EventoSerializer(serializers.Serializer[Any]):
     detalhe = serializers.CharField(allow_blank=True)
     objeto = ObjetoDoEventoSerializer(allow_null=True)
     regra = serializers.CharField(allow_null=True)
+    tom = serializers.ChoiceField(
+        choices=["info", "alerta", "perigo"],
+        allow_null=True,
+        help_text="Como a linha aparece (T-201); `null` é texto comum. A tela não escolhe tom.",
+    )
 
 
 class EventoDetalheSerializer(EventoSerializer):

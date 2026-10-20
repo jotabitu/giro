@@ -69,6 +69,9 @@ class PedidoAprovacao(MaquinaDeEstados, ModeloBase):
     pct = PercentualField(null=True, blank=True)
     # Chaves fixas por tipo, sem dado pessoal (contrato de aprovações, "dados por tipo").
     dados = models.JSONField(default=dict, blank=True)
+    # T-201: as células prontas do cartão, montadas pela origem no pedido e congeladas;
+    # `{}` nos pedidos de antes (a API manda `null`).
+    resumo = models.JSONField(default=dict, blank=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDENTE)
     motivo_recusa = models.CharField(max_length=300, blank=True, default="")
     decidido_em = models.DateTimeField(null=True, blank=True)
@@ -83,6 +86,8 @@ class PedidoAprovacao(MaquinaDeEstados, ModeloBase):
         indexes = [
             models.Index(fields=["origem_tipo", "origem_id"], name="pedido_origem"),
             models.Index(fields=["filial", "status"], name="pedido_filial_status"),
+            # Os números da APR-12 (aprovadas e recusadas do mês, por filial).
+            models.Index(fields=["filial", "status", "decidido_em"], name="pedido_filial_decisao"),
         ]
         constraints = [
             # APR-09: quem pediu não decide o próprio pedido, salvo o administrador, sempre com
