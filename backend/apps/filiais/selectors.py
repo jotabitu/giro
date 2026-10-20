@@ -48,15 +48,29 @@ def minhas_filiais(usuario: Any) -> QuerySet[Filial]:
     return Filial.ativos.filter(pk__in=filiais_do_usuario(usuario)).order_by("-matriz", "nome")
 
 
+def nome_a_mostrar(filial: Filial) -> str:
+    """FIL-01 (T-201): o nome curto, ou o nome quando a filial não tem. A tela não corta nada."""
+    return filial.nome_curto or filial.nome
+
+
 def resumo_das_filiais(usuario: Any) -> list[dict[str, Any]]:
-    """`[{id, nome}]` para o `eu` e a lista de usuários (contrato de contas)."""
-    return [{"id": f.pk, "nome": f.nome} for f in minhas_filiais(usuario)]
+    """`[{id, nome, nome_curto}]` para o `eu` e a lista de usuários (contrato de contas);
+    `nome_curto` já é o nome a mostrar."""
+    return [
+        {"id": f.pk, "nome": f.nome, "nome_curto": nome_a_mostrar(f)}
+        for f in minhas_filiais(usuario)
+    ]
 
 
 def resumo_das_filiais_ativas() -> dict[str, Any]:
     """O cartão Filiais de Configurações (`docs/api/configuracoes.md`): quantas ativas, as
     cidades (sem repetir, na ordem da lista) e, quando é uma só, o nome e a cidade dela."""
-    filiais = list(Filial.ativos.order_by("-matriz", "nome", "id").values("nome", "cidade"))
+    filiais = [
+        {"nome": nome_curto or nome, "cidade": cidade}
+        for nome, nome_curto, cidade in Filial.ativos.order_by("-matriz", "nome", "id").values_list(
+            "nome", "nome_curto", "cidade"
+        )
+    ]
     return {
         "ativas": len(filiais),
         "cidades": list(dict.fromkeys(filial["cidade"] for filial in filiais)),
@@ -173,6 +187,7 @@ def representacao(filial: Filial) -> dict[str, Any]:
     return {
         "id": filial.pk,
         "nome": filial.nome,
+        "nome_curto": filial.nome_curto or None,
         "matriz": filial.matriz,
         "ativo": filial.ativo,
         "cnpj": filial.cnpj or None,

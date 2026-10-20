@@ -62,7 +62,14 @@ class MinhasView(APIView):
             {
                 "pode_escolher_todas": pode_escolher_todas(request.user),
                 "resultados": [
-                    {"id": f.pk, "nome": f.nome, "matriz": f.matriz, "cidade": f.cidade, "uf": f.uf}
+                    {
+                        "id": f.pk,
+                        "nome": f.nome,
+                        "nome_curto": selectors.nome_a_mostrar(f),
+                        "matriz": f.matriz,
+                        "cidade": f.cidade,
+                        "uf": f.uf,
+                    }
                     for f in filiais
                 ],
             }

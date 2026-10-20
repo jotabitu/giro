@@ -279,7 +279,23 @@ def _decisao_do_pedido(evento: EventoAuditoria, _: dict[str, Any]) -> Texto | No
     )
 
 
+def _editar_filial(evento: EventoAuditoria, apoio: dict[str, Any]) -> Texto | None:
+    """DEV-01 (T-201): "Mudou o preço do litro", "Filial Centro · R$ 5,50 → R$ 5,90"."""
+    if "preco_litro_centavos" not in evento.depois:
+        return None
+    filiais = apoio.setdefault("filiais", {})
+    if evento.objeto_id is not None and evento.objeto_id not in filiais:
+        filiais.update(auditoria.consultar("filiais", {evento.objeto_id}))
+    nome = filiais.get(evento.objeto_id, "")
+    antes, depois = evento.antes.get("preco_litro_centavos"), evento.depois["preco_litro_centavos"]
+    valores = " → ".join(
+        formatar_reais(v) if isinstance(v, int) else "sem preço" for v in (antes, depois)
+    )
+    return Texto("Mudou o preço do litro", _juntar(str(nome), valores))
+
+
 DESTE_APP: dict[str, auditoria.Formatador] = {
+    "filial.editar": _editar_filial,
     "movimento_caixa.sangria": _sangria,
     "movimento_caixa.entrada": _movimento,
     "movimento_caixa.saida": _movimento,
@@ -307,3 +323,22 @@ def texto(evento: EventoAuditoria, apoio: dict[str, Any]) -> Texto:
         if pronto is not None:
             return pronto
     return generico(evento)
+
+
+# --- Tom da linha (T-201, `auditoria.md`) ---
+
+# Ações que pedem o selo de perigo. No MVP, só o login bloqueado (USR-06, PLT-08).
+ACOES_PERIGO = frozenset({"usuario.bloqueado"})
+CATEGORIAS_INFO = frozenset({"configuracoes", "seguranca"})
+
+
+def tom(evento: EventoAuditoria) -> str | None:
+    """`alerta` no que o suporte fez (AUD-03), `perigo` nas `ACOES_PERIGO`, `info` no resto de
+    configurações e segurança, `null` no resto. A tela não escolhe tom."""
+    if evento.acesso_suporte_id is not None or evento.ator_tipo == "suporte":
+        return "alerta"
+    if evento.acao in ACOES_PERIGO:
+        return "perigo"
+    if evento.categoria in CATEGORIAS_INFO:
+        return "info"
+    return None

@@ -12,3 +12,5 @@
 
 **Próximo passo para quem recebe:**
 - **qa:** rodar de novo com os dois CRLV-e reais do dono, fora do repositório, e mandar só o resultado por campo.
+
+**Resultado do qa com os CRLV-e reais (19 out 2026):** com a correção, o parser leu os 9 campos nos dois documentos (carro e moto, Detran-CE), sem campo vazio nem errado, e não leu o proprietário. Antes eram 4 de 9. Marca e modelo foram lidos certo, mas no catálogo local ainda caem em dica (T-337). Continua pendente um CRLV-e de outro estado.
