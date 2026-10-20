@@ -60,6 +60,7 @@ PESSOAS = {
 }
 CENTRO: dict[str, Any] = {
     "nome": "Filial Centro",
+    "nome_curto": "Centro",
     "matriz": False,
     "cnpj": CNPJ,
     "endereco": {

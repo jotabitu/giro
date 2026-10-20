@@ -151,6 +151,11 @@ def em_aberto_centavos(cliente_id: int) -> int:
     return selectors.em_aberto_do_cliente(cliente_id, relogio.hoje())
 
 
+def contas_vencidas(cliente_id: int) -> int:
+    """Quantas contas vencidas e não pagas, sem a caução (o `resumo` do APR-05, T-202)."""
+    return ContaReceber.objects.filter(_vencidas(relogio.hoje()), cliente_id=cliente_id).count()
+
+
 # --- veiculos.Veiculo ---
 
 
@@ -185,6 +190,7 @@ def registrar() -> None:
     leituras.registrar_contador(CLIENTE, "contas_atrasadas_15_dias", contas_atrasadas_15_dias)
     leituras.registrar_contador(CLIENTE, "dias_de_atraso", dias_de_atraso)
     leituras.registrar_contador(CLIENTE, "em_aberto_centavos", em_aberto_centavos)
+    leituras.registrar_contador(CLIENTE, "contas_vencidas", contas_vencidas)
     leituras.registrar_total(CLIENTE, "em_aberto_centavos", total_em_aberto)
     leituras.registrar_contador(FILIAL, "caixas", selectors.caixas_abertos_da_filial)
     leituras.registrar_anotacao(VEICULO, "indicadores_financeiros", anotar_veiculo, montar_veiculo)

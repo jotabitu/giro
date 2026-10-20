@@ -100,7 +100,7 @@ def test_apr_06_ca_013_16_gerente_aprova_e_o_km_e_corrigido(moto, frota, sak, de
 
     # Rodrigo vê o pedido no sino e na lista, e pode decidir.
     corpo = moto.api("Rodrigo").get(LISTA).json()
-    assert corpo["contagens"] == {"pendente": 1}
+    assert corpo["contagens"]["pendente"] == 1
     [item] = corpo["resultados"]
     assert item == {
         "id": pedido_id,
@@ -118,7 +118,16 @@ def test_apr_06_ca_013_16_gerente_aprova_e_o_km_e_corrigido(moto, frota, sak, de
         "decidido_por": None,
         "decidido_em": None,
         "motivo_recusa": None,
+        "resumo": {  # T-202: as células do cartão (APR-06)
+            "celulas": [
+                {"rotulo": "Km atual", "valor": "3.500 km"},
+                {"rotulo": "Km pedido", "valor": "3.400 km"},
+                {"rotulo": "Diferença", "valor": "−100 km"},
+            ],
+            "nota": None,
+        },
         "pode_decidir": True,
+        "pode_cancelar": False,
         "proprio_pedido": False,
     }
 
@@ -152,7 +161,7 @@ def test_apr_06_ca_013_16_gerente_aprova_e_o_km_e_corrigido(moto, frota, sak, de
     resposta = _decidir(moto, "Rodrigo", pedido_id, "recusar", {"motivo": "Não"})
     assert resposta.status_code == 409
     assert resposta.json()["codigo"] == "transicao_pedido"
-    assert moto.api("Rodrigo").get(LISTA).json()["contagens"] == {"pendente": 0}
+    assert moto.api("Rodrigo").get(LISTA).json()["contagens"]["pendente"] == 0
     assert _ids(moto.api("Rodrigo").get(LISTA, {"status": "aprovado"})) == [pedido_id]
 
 
@@ -211,7 +220,7 @@ def test_apr_09_quem_pediu_nao_decide_o_proprio_pedido(moto, frota):
 
     # Fora da lista dele, mesmo sendo gerente da filial.
     assert _ids(moto.api("Rodrigo").get(LISTA)) == []
-    assert moto.api("Rodrigo").get(LISTA).json()["contagens"] == {"pendente": 0}
+    assert moto.api("Rodrigo").get(LISTA).json()["contagens"]["pendente"] == 0
     meus = moto.api("Rodrigo").get(LISTA, {"minhas": "true"}).json()["resultados"]
     assert [(p["id"], p["pode_decidir"]) for p in meus] == [(pedido_id, False)]
 
@@ -284,7 +293,7 @@ def test_apr_01_a_apr_06_lista_mais_antigo_primeiro_e_filtros(moto, frota, relog
     assert _ids(api.get(LISTA)) == [primeiro, segundo, terceiro]
     assert _ids(api.get(LISTA, {"tipo": "APR-04"})) == [primeiro, terceiro]
     assert _ids(api.get(LISTA, {"status": "recusado"})) == []
-    assert api.get(LISTA, {"status": "recusado"}).json()["contagens"] == {"pendente": 3}
+    assert api.get(LISTA, {"status": "recusado"}).json()["contagens"]["pendente"] == 3
     [despesa] = [p for p in api.get(LISTA).json()["resultados"] if p["id"] == segundo]
     assert despesa["valor_centavos"] == 120000
 

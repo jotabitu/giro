@@ -45,6 +45,9 @@ class FilialEntradaSerializer(serializers.Serializer[Any]):
     """Forma do corpo. O horário vai como veio para o serviço validar (7 dias, intervalos)."""
 
     nome = serializers.CharField(max_length=80)
+    nome_curto = serializers.CharField(
+        allow_null=True, allow_blank=True, required=False, trim_whitespace=False
+    )
     matriz = serializers.BooleanField(required=False)
     cnpj = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     inscricao_estadual = serializers.CharField(
@@ -55,7 +58,7 @@ class FilialEntradaSerializer(serializers.Serializer[Any]):
     )
     endereco = EnderecoSerializer()
     contato = ContatoSerializer(required=False, allow_null=True)
-    preco_litro_centavos = serializers.IntegerField(allow_null=True, required=False, min_value=0)
+    preco_litro_centavos = serializers.IntegerField(allow_null=True, required=False)
     horario = serializers.JSONField()
 
 
@@ -89,6 +92,7 @@ class FeriadoProximoSerializer(serializers.Serializer[Any]):
 class FilialSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     nome = serializers.CharField()
+    nome_curto = serializers.CharField(allow_null=True, help_text="O guardado (FIL-01).")
     matriz = serializers.BooleanField()
     ativo = serializers.BooleanField()
     cnpj = serializers.CharField(allow_null=True)
@@ -135,6 +139,7 @@ class ListaDeFiliaisSerializer(serializers.Serializer[Any]):
 class MinhaFilialSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     nome = serializers.CharField()
+    nome_curto = serializers.CharField(help_text="O nome a mostrar: o curto, ou o nome.")
     matriz = serializers.BooleanField()
     cidade = serializers.CharField()
     uf = serializers.CharField()

@@ -16,6 +16,9 @@ from typing import Any
 
 ANO_MINIMO = 1900
 LINHAS_ABAIXO = 3  # até quantas linhas abaixo do rótulo o valor pode estar
+# Quantas colunas o valor pode ficar fora da coluna do rótulo: no leiaute do Detran-CE o
+# exercício fica 11 colunas à esquerda do rótulo (T-331, T-336).
+FOLGA_DA_COLUNA = 12
 
 COMBUSTIVEIS = {
     "GASOLINA": "gasolina",
@@ -82,12 +85,18 @@ def ano(bruto: str) -> int | None:
     return valor if ANO_MINIMO <= valor <= date.today().year + 1 else None
 
 
+# Tabela de cores do Denatran (M-01 da T-328): fora dela o campo fica vazio, para o texto de
+# outro rótulo (o nome do proprietário) nunca virar cor. Comparada sem acento.
+CORES_DO_DENATRAN = (
+    "amarela", "azul", "bege", "branca", "cinza", "dourada", "grená", "laranja",
+    "marrom", "prata", "preta", "rosa", "roxa", "verde", "vermelha", "fantasia",
+)  # fmt: skip
+_CORES = {sem_acento(c): c for c in CORES_DO_DENATRAN}
+
+
 def cor(bruto: str) -> str | None:
-    valor = " ".join(sem_acento(bruto).split()).lower()
-    if not valor or len(valor) > 30 or not re.fullmatch(r"[a-z ]+", valor):
-        return None
-    # O texto do cadastro, com o acento da palavra quando houver ("vermelha", "prata").
-    return " ".join(bruto.split()).lower()
+    """A cor da lista, com o acento dela ("grená"); qualquer outro texto, nada."""
+    return _CORES.get(" ".join(sem_acento(bruto).split()).lower())
 
 
 def combustivel(bruto: str) -> str | None:
@@ -146,15 +155,18 @@ def _candidatos(linhas: list[str], originais: list[str], rotulo: str) -> Iterato
             mesma_linha = re.match(r" {0,2}:? {0,2}(\S.*)", originais[i][fim:])
             if mesma_linha:
                 yield re.split(r" {3,}", mesma_linha.group(1).strip())[0]
-            # Abaixo, na coluna do rótulo: o pedaço que começa perto dela.
+            # Abaixo, perto da coluna do rótulo: a primeira linha com um pedaço a até
+            # `FOLGA_DA_COLUNA` colunas dela, o mais perto primeiro. Linha só com texto de outra
+            # coluna (o bloco do seguro DPVAT, no leiaute do Detran-CE) não encerra a busca.
             for j in range(i + 1, min(i + 1 + LINHAS_ABAIXO, len(linhas))):
-                abaixo = originais[j]
-                if not abaixo.strip():
-                    continue
-                for bloco in re.finditer(r"\S+(?: {1,2}\S+)*", abaixo):
-                    if bloco.start() <= fim and bloco.end() >= inicio:
-                        yield bloco.group(0)
-                break
+                perto = sorted(
+                    (max(0, bloco.start() - fim, inicio - bloco.end()), bloco.start(), bloco[0])
+                    for bloco in re.finditer(r"\S+(?: {1,2}\S+)*", originais[j])
+                    if max(0, bloco.start() - fim, inicio - bloco.end()) <= FOLGA_DA_COLUNA
+                )
+                if perto:
+                    yield from (texto for _, _, texto in perto)
+                    break
 
 
 def extrair(texto: str) -> dict[str, Any]:

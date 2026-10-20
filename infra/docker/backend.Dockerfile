@@ -11,7 +11,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Só o que roda: WeasyPrint (pango), fontes para PDF, cliente do Postgres para pg_isready.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         postgresql-client libpq5 \
-        libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b \
+        libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libharfbuzz-subset0 \
         shared-mime-info fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
