@@ -138,6 +138,7 @@ Levantada pelo arquiteto em T-337 (19 out 2026), para o dono (análise em `taref
   - **B. FIPE licenciada** (contrato com a FIPE ou API paga de terceiro). Licença limpa, e serve também para a referência de preço da `VEN-01` mais tarde. Tem custo mensal, a cotar. Se o contrato proibir publicar a lista, o CSV sai do git e vem do armazenamento privado no deploy.
   - **C. Renavam do Senatran** (dados.transportes.gov.br, domínio público, mensal). Livre para o repositório e com o mesmo texto do CRLV-e ("HONDA/POP 110I ES"), o que melhora a leitura. Mas não tem o tipo (moto ou carro), traz caminhões e reboques (38.082 nomes em jun 2025), siglas ("VW", "GM", "I/") e muda o texto da tela "Da lista FIPE" (produto e design).
   - Recomendação do arquiteto: **B**, se o custo couber, porque a `VEN-01` vai precisar da FIPE de qualquer jeito; senão **A**. O contrato da rota não muda em nenhuma delas.
+  - **Decidido (20 out 2026, dono): B.** Cotação na T-338 (arquiteto) e carga na T-339 (backend), depois do contrato.
 
 ## Fase 0 · Fundação
 
@@ -262,8 +263,11 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-329 · Leitura do CRLV-e: cor por lista, conferência do pai e arquivo órfão
 - **Agente:** backend · **Depende de:** T-265 (PR #352) · **Regras:** VEI-08, AUD-09, AUD-06 · **Severidade:** média (M-01, B-01, B-02 e B-03 de `docs/seguranca/2026-10-19-t328-leitura-crlv.md`) · **Pronto quando:** `crlv.cor` só aceita a lista de cores do Denatran, sem acento na comparação, e fora dela o campo fica vazio (M-01); `leitura_documentos.conferir` recusa ano fora de 1900 até o ano seguinte, caractere de controle, `combustivel` fora do enum e `marca_modelo` acima de 60 (B-01); em `cadastrar_com_crlv`, uma falha depois de gravar o PDF devolve o erro original e apaga o arquivo pelo provedor, ou grava só no `on_commit` (B-02); `FILE_UPLOAD_MAX_MEMORY_SIZE` acima do teto da borda, 3 MB (B-03); os 3 `xfail` estritos de `test_t328_seguranca_crlv.py` viram testes. Handoff `tarefas/handoffs/T-328-seguranca.md`.
 
-### T-337 · Catálogo de modelos completo
-- **Agente:** arquiteto, depois backend · **Depende de:** T-257 · **Regras:** VEI-08 · **Pronto quando:** o arquiteto diz de onde vem a lista completa de marcas e modelos de motos e carros (fonte, licença, tamanho, como atualizar com `atualizar_catalogo_modelos`, ADR 0026, item 7), e o backend carrega; hoje o catálogo tem 29 modelos, e os 2 dos CRLV-e reais da T-331 não estão nele (vão para dicas).
+### T-338 · Cotação da FIPE licenciada
+- **Agente:** arquiteto · **Depende de:** T-337 · **Regras:** VEI-08, VEN-01 · **Pronto quando:** há uma comparação de 2 a 4 fornecedores (a própria FIPE e APIs pagas de terceiros) com preço mensal, o que a licença deixa fazer com a lista (guardar no repositório público ou só em armazenamento privado), cobertura de motos e carros com o tipo, preço de referência para a `VEN-01`, frequência e formato da entrega, e uma recomendação para o dono assinar. Se a licença proibir publicar a lista, a ADR do CSV fora do git fica pronta para o backend. Escolha do dono em 20 out 2026: opção B da T-337.
+
+### T-339 · Carga do catálogo completo de modelos
+- **Agente:** backend · **Depende de:** T-338 e o contrato assinado pelo dono · **Regras:** VEI-08 · **Pronto quando:** o catálogo completo da FIPE licenciada é carregado com `atualizar_catalogo_modelos` (CSV `marca,modelo,tipo`, sem mudar a rota nem o comando); `Modelo.chave` é calculada uma vez na leitura do CSV, não a cada pedido, em `listar` e `achar_modelo`; o teste usa nomes no formato dos 2 CRLV-e reais da T-331 (PDF fictício) e o qa confere os reais na máquina do dono. Handoff `tarefas/handoffs/T-337-arquiteto.md`.
 
 ### T-331 · Calibração da leitura com CRLV-e reais
 - **Agente:** qa, com backend · **Depende de:** T-265, T-329 · **Regras:** VEI-08 · **Pronto quando:** a leitura é conferida com CRLV-e reais de moto e de carro, emitidos em estados diferentes, só na máquina local e fora do git (dado pessoal; repositório público); o que o parser errar vira teste com um PDF fictício igual em formato. Os PDFs reais vêm do dono.
