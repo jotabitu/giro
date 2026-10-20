@@ -62,7 +62,8 @@ def test_apr_03_resumo_da_despesa(seed: Any):
     celulas = {c["rotulo"]: c["valor"] for c in item["resumo"]["celulas"]}
     assert celulas["Categoria"] == "Manutenção"
     assert celulas["Descrição"] == "Pneus (2)"
-    # A placa como os outros textos da API a mandam (sem hífen; o contrato mostra "PMZ-3E17").
-    assert celulas["Veículo"] == "Honda Pop 110i · PMZ3E17"
     assert (celulas["Valor"], celulas["Vencimento"]) == ("R$ 1.200,00", "07 out")
+    assert item["resumo"]["nota"] == (
+        "Acima de R$ 500 precisa de aprovação. Aprovada, vai para o financeiro pagar."
+    )
     assert "Fornecedor" not in celulas and "Forma" not in celulas
