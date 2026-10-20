@@ -8,7 +8,7 @@
 
 **Regras cobertas:** VEI-08. `test_t331_calibracao_crlv.py` com 22 passando (os 9 campos nos dois formatos, o proprietário nunca lido, e a leitura inteira pelo processo filho). `test_t265_leitura_crlv.py` e `test_t328_seguranca_crlv.py` seguem passando, e os 3 `xfail` estritos da T-328 continuam lá, para a T-329. ruff, ruff format --check e mypy limpos no backend inteiro (imagem com WeasyPrint 70.0 e pypdf 6.21.1).
 
-**O que ficou de fora:** CRLV-e de outros estados (sem documentos) e o catálogo completo (T-337).
+**O que ficou de fora:** o catálogo completo (T-337). CRLV-e de outros estados não é preciso: o dono confirmou (19 out 2026) que o leiaute é o mesmo em todos os estados, só muda o cabeçalho do Detran.
 
 **Próximo passo para quem recebe:**
 - **qa:** rodar de novo com os dois CRLV-e reais do dono, fora do repositório, e mandar só o resultado por campo.
