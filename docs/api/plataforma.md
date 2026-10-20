@@ -334,7 +334,7 @@ Perfis: administrador e token de suporte (só leitura); os demais, 403 `{ "codig
 - `proximo`: o primeiro passo do assistente ainda não feito, na ordem; `null` quando todos estão feitos.
 - `concluida` = `IMP-01` (passo `primeira_locacao` marcado). Com `true`, a tela inicial deixa de ser a de implantação (`contas.md`, `inicio.variante`); o assistente continua abrindo para quem quiser terminar um passo.
 - Contagens diferentes de propósito: aqui conta o assistente (5 de 8); a faixa de `Configurações` e o painel da plataforma contam os 10 passos da implantação (6 de 10). A tela não mostra os dois lado a lado (T-200).
-- O botão "Continuar implantação" da `Configurações` (`configuracoes.md`, `acao`) continua como está até as telas dos passos existirem no frontend; quando existirem, `acao.passo` passa a ser o `proximo` daqui.
+- O botão "Continuar implantação" da `Configurações` (`configuracoes.md`, `acao`) leva ao `proximo` daqui desde a casca do assistente (T-335): `acao.passo` é o `proximo`, inclusive para passo ainda sem tela (T-340).
 - Teste (T-202): `test_imp_05_andamento_do_assistente` (o exemplo acima dá 5 de 8 com `proximo: "contrato"`; no Essencial, 7 passos sem `recebimentos`; pular não marca; vendedor 403; token de suporte 200).
 
 ---
