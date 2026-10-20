@@ -131,6 +131,15 @@ Levantadas pelo backend em T-017 (12 out 2026), para o produto:
 
 - (T-017) As 3 dúvidas da T-017 foram decididas em 12 out 2026 pelo dono do produto, com as recomendações do produto, e viraram regra na T-147: (1) histórico da análise com o atraso pela `FIN-03` e o cliente novo `ok` "Cliente novo na empresa" (`CLI-04`, B); (2) semana de segunda a domingo e caução fora das abas e da lista geral (`FIN-15`, A); (3) bloqueio uma vez por conta e textos da régua reescritos, com e-mail (`AUT-03`, `CLI-05`, `AUT-05`, B). Código na T-148 (feita, PR a abrir).
 
+Levantada pelo arquiteto em T-337 (19 out 2026), para o dono (análise em `tarefas/handoffs/T-337-arquiteto.md`):
+
+- [decisão] (T-337) **De onde vem o catálogo completo de marcas e modelos** (`VEI-08`, ADR 0026, item 7). Hoje são 29 modelos em `backend/apps/veiculos/dados/catalogo_modelos.csv`, num repositório público. Opções:
+  - **A. Nomes da FIPE pelo site público** (veiculos.fipe.org.br), só marca, modelo e tipo, sem preço. Sem custo, com o tipo pronto (108 marcas de carro, 103 de moto, alguns milhares de modelos) e o nome que a tela promete ("Da lista FIPE"). Mas a FIPE não publica licença aberta, o site não tem API oficial e recusa coleta automática (429 no teste de 19 out). O dono aceita o risco de guardar a lista no repositório público, com "Fonte: FIPE".
+  - **B. FIPE licenciada** (contrato com a FIPE ou API paga de terceiro). Licença limpa, e serve também para a referência de preço da `VEN-01` mais tarde. Tem custo mensal, a cotar. Se o contrato proibir publicar a lista, o CSV sai do git e vem do armazenamento privado no deploy.
+  - **C. Renavam do Senatran** (dados.transportes.gov.br, domínio público, mensal). Livre para o repositório e com o mesmo texto do CRLV-e ("HONDA/POP 110I ES"), o que melhora a leitura. Mas não tem o tipo (moto ou carro), traz caminhões e reboques (38.082 nomes em jun 2025), siglas ("VW", "GM", "I/") e muda o texto da tela "Da lista FIPE" (produto e design).
+  - Recomendação do arquiteto: **B**, se o custo couber, porque a `VEN-01` vai precisar da FIPE de qualquer jeito; senão **A**. O contrato da rota não muda em nenhuma delas.
+  - **Decidido (20 out 2026, dono): B.** Cotação na T-338 (arquiteto) e carga na T-339 (backend), depois do contrato.
+
 ## Fase 0 · Fundação
 
 Concluída. As tarefas entregues estão em `tarefas/feito.md`.
@@ -251,8 +260,13 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### Divergência que sobrou da T-275 (design-system)
 - [divergência] (T-275, para o design-system) `Veiculo-Desktop` mostra a foto "Pneu" entre as seis da vistoria, mas as posições fixas da `VIS-01` são frente, traseira, lados e painel; e mostra o lado da avaria em campo próprio, que a avaria não tem (o lado vai na descrição). O selo "Alugada" da referência fica "Alugado", que é o rótulo do caso "Estado do QXA-4B21 em 07 out" das regras: a tela muda, não a API.
 
-### T-337 · Catálogo de modelos completo
-- **Agente:** arquiteto, depois backend · **Depende de:** T-257 · **Regras:** VEI-08 · **Pronto quando:** o arquiteto diz de onde vem a lista completa de marcas e modelos de motos e carros (fonte, licença, tamanho, como atualizar com `atualizar_catalogo_modelos`, ADR 0026, item 7), e o backend carrega; hoje o catálogo tem 29 modelos, e os 2 dos CRLV-e reais da T-331 não estão nele (vão para dicas).
+### T-338 · Cotação da FIPE licenciada
+- **Agente:** arquiteto · **Depende de:** T-337 · **Regras:** VEI-08, VEN-01 · **Pronto quando:** há uma comparação de 2 a 4 fornecedores (a própria FIPE e APIs pagas de terceiros) com preço mensal, o que a licença deixa fazer com a lista (guardar no repositório público ou só em armazenamento privado), cobertura de motos e carros com o tipo, preço de referência para a `VEN-01`, frequência e formato da entrega, e uma recomendação para o dono assinar. Se a licença proibir publicar a lista, a ADR do CSV fora do git fica pronta para o backend. Escolha do dono em 20 out 2026: opção B da T-337.
+- **Estado (20 out 2026, arquiteto):** comparação no handoff `tarefas/handoffs/T-338-arquiteto.md` e ADR 0030 (proposta) pronta para o caso de o contrato proibir publicar. Só a própria FIPE licencia: o site diz "todos os direitos reservados", sem download nem API. As APIs pagas (fipe.api.br por R$ 59/mês, Tabela Fipe API por R$ 46,99/mês, fipeapi.site por R$ 50 a 100/mês) revendem dado coletado do site, sem termos de licença publicados, e não dão licença limpa. O preço da FIPE só sai por contato.
+- [decisão] (T-338, para o dono) **Pedir a proposta à FIPE** pelo formulário de contato do site oficial, com as 7 perguntas do handoff. Enquanto ela não responde, a T-339 espera. Se a FIPE não licenciar ou cobrar caro demais: voltar à T-337 e escolher entre A (site, o dono assume o risco), uma API paga (mesmo risco da A, com o CSV pronto por R$ 59/mês) ou C (Renavam).
+
+### T-339 · Carga do catálogo completo de modelos
+- **Agente:** backend · **Depende de:** T-338 e o contrato assinado pelo dono · **Regras:** VEI-08 · **Pronto quando:** o catálogo completo da FIPE licenciada é carregado com `atualizar_catalogo_modelos` (CSV `marca,modelo,tipo`, sem mudar a rota nem o comando); `Modelo.chave` é calculada uma vez na leitura do CSV, não a cada pedido, em `listar` e `achar_modelo`; o teste usa nomes no formato dos 2 CRLV-e reais da T-331 (PDF fictício) e o qa confere os reais na máquina do dono. Handoff `tarefas/handoffs/T-337-arquiteto.md`.
 
 ### T-331 · Calibração da leitura com CRLV-e reais
 - **Agente:** qa, com backend · **Depende de:** T-265, T-329 · **Regras:** VEI-08 · **Pronto quando:** a leitura é conferida com CRLV-e reais de moto e de carro, emitidos em estados diferentes, só na máquina local e fora do git (dado pessoal; repositório público); o que o parser errar vira teste com um PDF fictício igual em formato. Os PDFs reais vêm do dono.
