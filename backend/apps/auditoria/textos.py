@@ -279,7 +279,6 @@ def _decisao_do_pedido(evento: EventoAuditoria, _: dict[str, Any]) -> Texto | No
     )
 
 
-
 def _editar_filial(evento: EventoAuditoria, apoio: dict[str, Any]) -> Texto | None:
     """DEV-01 (T-201): "Mudou o preço do litro", "Filial Centro · R$ 5,50 → R$ 5,90"."""
     if "preco_litro_centavos" not in evento.depois:
@@ -289,7 +288,9 @@ def _editar_filial(evento: EventoAuditoria, apoio: dict[str, Any]) -> Texto | No
         filiais.update(auditoria.consultar("filiais", {evento.objeto_id}))
     nome = filiais.get(evento.objeto_id, "")
     antes, depois = evento.antes.get("preco_litro_centavos"), evento.depois["preco_litro_centavos"]
-    valores = " → ".join(formatar_reais(v) if isinstance(v, int) else "sem preço" for v in (antes, depois))
+    valores = " → ".join(
+        formatar_reais(v) if isinstance(v, int) else "sem preço" for v in (antes, depois)
+    )
     return Texto("Mudou o preço do litro", _juntar(str(nome), valores))
 
 

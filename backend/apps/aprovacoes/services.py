@@ -12,7 +12,7 @@ from typing import Any
 from django.db import IntegrityError, transaction
 
 from comum import estados, relogio
-from comum.aprovacoes import PedidoPendente, PedidoRef
+from comum.aprovacoes import PedidoPendente, PedidoRef, Resumo
 from comum.auditoria import Categoria, registrar_evento, retrato
 from comum.erros import SemPermissao, TransicaoInvalida
 from comum.eventos import publicar
@@ -47,6 +47,7 @@ def pedir(
     valor_centavos: int | None = None,
     pct: Decimal | None = None,
     dados: dict[str, Any] | None = None,
+    resumo: Resumo | None = None,
 ) -> PedidoRef:
     """Grava o pedido `pendente` e a auditoria (APR-10), na transação de quem chama.
 
@@ -71,6 +72,7 @@ def pedir(
                     valor_centavos=valor_centavos,
                     pct=pct,
                     dados=dados or {},
+                    resumo=resumo.como_dict() if resumo is not None else {},
                 )
         except IntegrityError as erro:  # o mesmo pedido numa corrida
             existente = _pendente_igual(tipo, origem_tipo, origem_id)

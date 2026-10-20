@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { dependeDaFilial, escolhaValida, nomeDaEscolha, TODAS } from "./filial";
 
-const CENTRO = { id: 1, nome: "Filial Centro", matriz: true, cidade: "Fortaleza", uf: "CE" };
-const ALDEOTA = { id: 2, nome: "Filial Aldeota", matriz: false, cidade: "Fortaleza", uf: "CE" };
+const CENTRO = { id: 1, nome: "Filial Centro", nome_curto: "Filial Centro", matriz: true, cidade: "Fortaleza", uf: "CE" };
+const ALDEOTA = { id: 2, nome: "Filial Aldeota", nome_curto: "Filial Aldeota", matriz: false, cidade: "Fortaleza", uf: "CE" };
 const admin = { pode_escolher_todas: true, resultados: [ALDEOTA, CENTRO] };
 const gerente = { pode_escolher_todas: false, resultados: [ALDEOTA] };
 

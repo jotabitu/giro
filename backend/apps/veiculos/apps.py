@@ -8,7 +8,6 @@ class VeiculosConfig(AppConfig):
     def ready(self) -> None:
         from apps.plataforma.services import registrar_contador
         from comum import leituras
-
         from comum.auditoria import registrar_formatador
 
         from . import eventos, selectors, textos  # noqa: F401 - eventos registra os assinantes

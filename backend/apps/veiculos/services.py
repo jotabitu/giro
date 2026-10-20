@@ -783,6 +783,13 @@ def pedir_correcao_km(veiculo: Veiculo, km: int, motivo: str, solicitante: Any) 
             ),
             motivo=texto,
             dados={"km_novo": km, "km_anterior": travado.km_atual},
+            resumo=aprovacoes.Resumo(  # T-201, "Resumo por tipo"
+                [
+                    ("Km atual", f"{formatar_km(travado.km_atual)} km"),
+                    ("Km pedido", f"{formatar_km(km)} km"),
+                    ("Diferença", f"−{formatar_km(travado.km_atual - km)} km"),
+                ]
+            ),
         )
 
 

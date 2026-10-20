@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('filiais', '0002_vinculo_ativo'),
+        ("filiais", "0002_vinculo_ativo"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='filial',
-            name='nome_curto',
-            field=models.CharField(blank=True, default='', max_length=30),
+            model_name="filial",
+            name="nome_curto",
+            field=models.CharField(blank=True, default="", max_length=30),
         ),
     ]

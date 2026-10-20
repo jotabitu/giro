@@ -55,21 +55,27 @@ class AprovacoesView(APIView):
     def get(self, request: Request) -> Response:
         parametros = request.query_params
         quem = selectors.decisor(request.user)
-        if parametros.get("minhas") == "true":
-            base = PedidoAprovacao.objects.filter(solicitante_id=quem.usuario_id)
-        else:
-            base = filtrar_por_filial(selectors.que_decide(quem), request)
-        qs = selectors.filtrar(base, status=parametros.get("status"), tipo=parametros.get("tipo"))
+        minhas = parametros.get("minhas") == "true"
+        decide = filtrar_por_filial(selectors.que_decide(quem), request)
+        meus = filtrar_por_filial(
+            PedidoAprovacao.objects.filter(solicitante_id=quem.usuario_id), request
+        )
+        qs = selectors.filtrar(
+            meus if minhas else decide,
+            status=parametros.get("status"),
+            tipo=parametros.get("tipo"),
+            minhas=minhas,
+        )
         paginacao = PaginacaoPorCursor()
-        # Mais antigo primeiro: quem espera há mais tempo.
-        paginacao.ordering = ("criado_em", "id")  # type: ignore[assignment]
+        paginacao.ordering = ("ordem_da_aba", "id")  # type: ignore[assignment]
         pagina = paginacao.paginate_queryset(
             qs.select_related("filial", "solicitante", "aprovador"), request, view=self
         )
         dados = [selectors.representacao(p, quem) for p in pagina or []]
+        indicadores, contagens = selectors.indicadores_e_contagens(decide, meus)
         return paginacao.get_paginated_response(
             PedidoSerializer(dados, many=True).data,
-            extras={"contagens": selectors.contagens(base)},
+            extras={"indicadores": indicadores, "contagens": contagens},
         )
 
 

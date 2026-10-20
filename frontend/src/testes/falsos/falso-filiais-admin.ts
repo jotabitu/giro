@@ -20,6 +20,7 @@ function montar(id: number, c: CorpoDaFilial, extra: Partial<FilialDaLista> = {}
   return {
     id,
     nome: c.nome,
+    nome_curto: c.nome_curto ?? null,
     matriz: c.matriz ?? false,
     ativo: true,
     cnpj: c.cnpj ?? null,

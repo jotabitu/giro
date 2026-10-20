@@ -203,7 +203,7 @@ describe("apoio da tela", () => {
   it("situação e filiais como nas telas", () => {
     expect(situacaoDoUsuario({ status: "ativo", dois_fatores_ativo: false }).rotulo).toBe("Ativo");
     expect(situacaoDoUsuario({ status: "convite_pendente", dois_fatores_ativo: false }).tom).toBe("info");
-    expect(filiaisDoUsuario({ filiais: [{ id: 1, nome: "Filial Centro" }], todas_filiais: false })).toBe("Centro");
+    expect(filiaisDoUsuario({ filiais: [{ id: 1, nome: "Filial Centro", nome_curto: "Filial Centro" }], todas_filiais: false })).toBe("Centro");
     expect(filiaisDoUsuario({ filiais: [], todas_filiais: true })).toBe("Todas");
   });
 });

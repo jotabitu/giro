@@ -24,7 +24,7 @@ MESES = ("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "
 
 
 def tabela_de_preco(evento: Any, _: dict[str, Any]) -> Texto:
-    """"Mudou a tabela de preço", "Street 150–160 · semanal R$ 299,40 → R$ 329,00"; sem preço
+    """ "Mudou a tabela de preço", "Street 150–160 · semanal R$ 299,40 → R$ 329,00"; sem preço
     anterior, "Definiu a tabela de preço" com os valores. Preço futuro: "a partir de 15 out"."""
     antes, depois = evento.antes or {}, evento.depois or {}
     nome = (

@@ -726,6 +726,14 @@ def fechar_caixa(
             motivo=motivo,
             valor_centavos=abs(diferenca),
             dados={"diferenca_centavos": diferenca},
+            resumo=aprovacoes.Resumo(  # T-201, "Resumo por tipo"
+                [
+                    ("Esperado", formatar_reais(esperado)),
+                    ("Contado", formatar_reais(contado_centavos)),
+                    ("Diferença", f"{sentido} de {formatar_reais(abs(diferenca))}"),
+                ],
+                "Aprovada, o caixa fecha com a diferença registrada.",
+            ),
         )
         travado.pedido_aprovacao_id = pedido.id
         estados.transicionar(
@@ -1601,6 +1609,7 @@ def lancar_despesa(
                 titulo=f"Despesa de {formatar_reais(valor_centavos)}",
                 detalhe=f"{descricao} · {CategoriaDespesa(categoria).label}"[:300],
                 valor_centavos=valor_centavos,
+                resumo=_resumo_da_despesa(despesa),
             )
             despesa.pedido_aprovacao_id = pedido.id
             despesa.save(update_fields=["pedido_aprovacao_id", "atualizado_em"])
@@ -1612,6 +1621,27 @@ def lancar_despesa(
                 chave=f"despesa-{despesa.pk}",
             )
     return despesa
+
+
+def _resumo_da_despesa(despesa: Despesa) -> aprovacoes.Resumo:
+    """O cartão do APR-03 (T-201, T-235 opção A): categoria, descrição, veículo, valor e
+    vencimento, sem fornecedor nem forma."""
+    veiculo = despesa.veiculo
+    return aprovacoes.Resumo(
+        [
+            ("Categoria", CategoriaDespesa(despesa.categoria).label),
+            ("Descrição", despesa.descricao),
+            (
+                "Veículo",
+                f"{veiculo.marca} {veiculo.modelo} · {veiculo.placa}"
+                if veiculo is not None
+                else "",
+            ),
+            ("Valor", formatar_reais(despesa.valor_centavos)),
+            ("Vencimento", aprovacoes.dia_curto(despesa.vencimento)),
+        ],
+        "Acima de R$ 500 precisa de aprovação. Aprovada, vai para o financeiro pagar.",
+    )
 
 
 def decidir_despesa(despesa_id: int, status_pedido: str, motivo: str) -> None:

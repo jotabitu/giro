@@ -11,6 +11,7 @@ da transação de quem chama. A volta é o evento `aprovacoes.pedido_decidido` (
 
 from collections.abc import Callable
 from dataclasses import asdict, dataclass
+from datetime import date
 from typing import Any
 
 from comum.erros import Conflito
@@ -24,6 +25,31 @@ class PedidoRef:
 
     def como_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True)
+class Resumo:
+    """As células prontas do cartão do pedido e a nota (T-201, `aprovacoes.md`, "Resumo por
+    tipo"). Montado pela origem, que já tem os números; `aprovacoes` só guarda e devolve."""
+
+    celulas: list[tuple[str, str]]
+    nota: str | None = None
+
+    def como_dict(self) -> dict[str, Any]:
+        return {
+            "celulas": [
+                {"rotulo": rotulo, "valor": valor} for rotulo, valor in self.celulas if valor
+            ],
+            "nota": self.nota,
+        }
+
+
+MESES_CURTOS = ("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez")
+
+
+def dia_curto(dia: date) -> str:
+    """A data curta das células do `resumo`: "07 out"."""
+    return f"{dia.day:02d} {MESES_CURTOS[dia.month - 1]}"
 
 
 class PedidoPendente(Conflito):
@@ -71,6 +97,7 @@ def pedir(
     valor_centavos: int | None = None,
     pct: Any = None,
     dados: dict[str, Any] | None = None,
+    resumo: Resumo | None = None,
 ) -> PedidoRef:
     """Abre o pedido (APR-10 na auditoria). Pedido igual pendente: `PedidoPendente` (409)."""
     if _pedir is None:
@@ -88,6 +115,7 @@ def pedir(
         valor_centavos=valor_centavos,
         pct=pct,
         dados=dados,
+        resumo=resumo,
     )
 
 
