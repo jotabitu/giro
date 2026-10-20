@@ -251,9 +251,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### Divergência que sobrou da T-275 (design-system)
 - [divergência] (T-275, para o design-system) `Veiculo-Desktop` mostra a foto "Pneu" entre as seis da vistoria, mas as posições fixas da `VIS-01` são frente, traseira, lados e painel; e mostra o lado da avaria em campo próprio, que a avaria não tem (o lado vai na descrição). O selo "Alugada" da referência fica "Alugado", que é o rótulo do caso "Estado do QXA-4B21 em 07 out" das regras: a tela muda, não a API.
 
-### T-329 · Leitura do CRLV-e: cor por lista, conferência do pai e arquivo órfão
-- **Agente:** backend · **Depende de:** T-265 (PR #352) · **Regras:** VEI-08, AUD-09, AUD-06 · **Severidade:** média (M-01, B-01, B-02 e B-03 de `docs/seguranca/2026-10-19-t328-leitura-crlv.md`) · **Pronto quando:** `crlv.cor` só aceita a lista de cores do Denatran, sem acento na comparação, e fora dela o campo fica vazio (M-01); `leitura_documentos.conferir` recusa ano fora de 1900 até o ano seguinte, caractere de controle, `combustivel` fora do enum e `marca_modelo` acima de 60 (B-01); em `cadastrar_com_crlv`, uma falha depois de gravar o PDF devolve o erro original e apaga o arquivo pelo provedor, ou grava só no `on_commit` (B-02); `FILE_UPLOAD_MAX_MEMORY_SIZE` acima do teto da borda, 3 MB (B-03); os 3 `xfail` estritos de `test_t328_seguranca_crlv.py` viram testes. Handoff `tarefas/handoffs/T-328-seguranca.md`.
-
 ### T-337 · Catálogo de modelos completo
 - **Agente:** arquiteto, depois backend · **Depende de:** T-257 · **Regras:** VEI-08 · **Pronto quando:** o arquiteto diz de onde vem a lista completa de marcas e modelos de motos e carros (fonte, licença, tamanho, como atualizar com `atualizar_catalogo_modelos`, ADR 0026, item 7), e o backend carrega; hoje o catálogo tem 29 modelos, e os 2 dos CRLV-e reais da T-331 não estão nele (vão para dicas).
 

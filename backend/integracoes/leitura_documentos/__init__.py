@@ -22,6 +22,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from comum import relogio
+
 TRABALHADOR = str(Path(__file__).resolve().parent / "trabalhador.py")
 AMBIENTE = {"PATH": "/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8"}
 TEMPO_DE_RELOGIO = 8  # segundos
@@ -45,7 +47,7 @@ CAMPOS_DO_TIPO: dict[str, dict[str, tuple[type, int | None]]] = {
         "placa": (str, 7),
         "chassi": (str, 17),
         "renavam": (str, 11),
-        "marca_modelo": (str, 80),
+        "marca_modelo": (str, 60),  # o limite da dica (B-01 da T-328)
         "ano_fabricacao": (int, None),
         "ano_modelo": (int, None),
         "cor": (str, 30),
@@ -162,17 +164,38 @@ def executar(tipo: str, conteudo: bytes) -> dict[str, Any]:
     return resposta if isinstance(resposta, dict) else {"ok": False, "motivo": "nao_reconhecido"}
 
 
+# Segunda barreira (B-01 da T-328): o filho já valida, o pai confere de novo o que vale.
+ANO_MINIMO = 1900
+COMBUSTIVEIS = frozenset({"gasolina", "etanol", "flex", "diesel", "eletrico", "hibrido"})
+CAMPOS_DE_ANO = frozenset({"ano_fabricacao", "ano_modelo", "exercicio"})
+
+
+def _imprimivel(texto: str) -> bool:
+    return not any(ord(c) < 0x20 or ord(c) == 0x7F for c in texto)
+
+
 def conferir(tipo: str, campos: Any) -> dict[str, Any]:
-    """Só as chaves do tipo, com o tipo e o tamanho certos; o resto é descartado (B-02, B-03)."""
+    """Só as chaves do tipo, com o tipo e o tamanho certos; o resto é descartado (B-02, B-03 da
+    T-247). Anos entre 1900 e o ano que vem, texto sem caractere de controle e o combustível do
+    enum (B-01 da T-328)."""
     if not isinstance(campos, dict):
         return {}
     permitidos = CAMPOS_DO_TIPO[tipo]
+    ano_maximo = relogio.hoje().year + 1
     conferidos: dict[str, Any] = {}
     for nome, (classe, tamanho) in permitidos.items():
         valor = campos.get(nome)
         if type(valor) is not classe:
             continue
-        if isinstance(valor, str) and (not valor or (tamanho and len(valor) > tamanho)):
+        if isinstance(valor, str) and (
+            not valor or (tamanho and len(valor) > tamanho) or not _imprimivel(valor)
+        ):
+            continue
+        if nome in CAMPOS_DE_ANO and not (
+            isinstance(valor, int) and ANO_MINIMO <= valor <= ano_maximo
+        ):
+            continue
+        if nome == "combustivel" and valor not in COMBUSTIVEIS:
             continue
         conferidos[nome] = valor
     return conferidos
