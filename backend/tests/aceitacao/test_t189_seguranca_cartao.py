@@ -1,8 +1,8 @@
 """T-189 · Revisão de segurança do cartão e da conta principal (ADR 0023, T-184).
 
 Relatório: `docs/seguranca/2026-10-15-t189-cartao-conta-principal.md`. Os testes `xfail` estritos
-são os achados ainda abertos (M-01 e M-02): passam a falhar como "XPASS" quando a correção entrar,
-e aí o `xfail` sai junto.
+são os achados ainda abertos: passam a falhar como "XPASS" quando a correção entrar, e aí o `xfail`
+sai junto. O M-01 foi corrigido na T-268.
 """
 
 import contextlib
@@ -43,11 +43,6 @@ def moto(criar_empresa):
     pagamentos.limpar()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="M-01 da T-189: o corpo bruto do aviso guarda o token do cartão",
-    raises=AssertionError,
-)
 def test_adr_0023_aviso_guardado_sem_o_token_do_cartao(
     moto, settings, django_capture_on_commit_callbacks
 ):
@@ -75,11 +70,6 @@ def test_adr_0023_aviso_guardado_sem_o_token_do_cartao(
     assert TOKEN_DO_CARTAO not in json.dumps(guardado.corpo)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="M-02 da T-189: subconta sem chave cai na chave da conta principal",
-    raises=AssertionError,
-)
 def test_adr_0007_subconta_sem_chave_nunca_usa_a_chave_principal():
     """Uma subconta cuja chave volta vazia não pode falar com o parceiro como a conta do Giro:
     a cobrança da locadora iria para a conta principal (e o dinheiro, para o Giro)."""
@@ -116,3 +106,51 @@ def test_adr_0023_nenhuma_rota_recebe_dado_do_cartao():
 def test_adr_0023_cartao_guardado_sem_token_no_repr():
     cartao = CartaoGuardado(TOKEN_DO_CARTAO, "visa", "4242")
     assert TOKEN_DO_CARTAO not in repr(cartao)
+
+
+def test_adr_0007_conta_principal_e_subconta_com_chave():
+    """T-269: a conta principal usa a chave do ambiente; a subconta, só a dela; sem chave, a
+    subconta recusa antes de chamar o parceiro."""
+    chaves: list[str] = []
+
+    def transporte(_metodo: str, _url: str, _dados: Any, cabecalhos: Any) -> tuple[int, bytes]:
+        chaves.append(cabecalhos["access_token"])
+        return 200, b'{"id": "pay_1", "status": "PENDING", "value": 10.0}'
+
+    asaas = Asaas(chave_principal="chave-da-conta-principal", transporte=transporte)
+    asaas.consultar_cobranca(conta_principal(), "pay_1")
+    asaas.consultar_cobranca(ContaPagamentoRef("acc_sub", lambda: "chave-da-subconta"), "pay_1")
+    assert chaves == ["chave-da-conta-principal", "chave-da-subconta"]
+    with pytest.raises(ParceiroIndisponivel):
+        asaas.consultar_cobranca(ContaPagamentoRef("acc_sub", lambda: ""), "pay_1")
+    assert len(chaves) == 2  # nada foi chamado
+
+
+def test_adr_0023_aviso_sem_cartao_e_a_limpeza_dos_ja_gravados(moto):
+    """T-268: a regra única (`aviso_sem_cartao`) e a migração que limpa os avisos já gravados,
+    no schema da empresa (as subcontas) como no `public`."""
+    from importlib import import_module
+
+    from django.apps import apps as registro
+
+    from integracoes.pagamentos.base import aviso_sem_cartao
+
+    bruto = {
+        "event": "PAYMENT_CONFIRMED",
+        "payment": {"id": "pay_1", "creditCard": {"creditCardToken": TOKEN_DO_CARTAO}},
+    }
+    assert aviso_sem_cartao(bruto) == {"event": "PAYMENT_CONFIRMED", "payment": {"id": "pay_1"}}
+    assert "creditCard" in bruto["payment"]  # o original não muda
+    assert aviso_sem_cartao({"event": "X"}) == {"event": "X"}
+
+    antigo = WebhookRecebido.objects.create(
+        provedor="asaas",
+        evento_id="evt_t268_antigo",
+        recebido_em="2026-10-07T10:00:00Z",
+        corpo={"evento": {"tipo": "pago"}, "bruto": bruto},
+    )
+    import_module("comum.migrations.0003_aviso_sem_cartao").limpar(registro, None)
+    antigo.refresh_from_db()
+    assert TOKEN_DO_CARTAO not in json.dumps(antigo.corpo)
+    assert antigo.corpo["bruto"]["payment"] == {"id": "pay_1"}
+    assert antigo.corpo["evento"] == {"tipo": "pago"}
