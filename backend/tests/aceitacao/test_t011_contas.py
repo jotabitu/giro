@@ -218,7 +218,9 @@ def test_usr_01_ca_011_01_contagens_do_seed(adm):
     assert set(pessoas) == set(PESSOAS)
     assert (pessoas["Mariana"]["eu"], pessoas["Mariana"]["todas_filiais"]) == (True, True)
     assert pessoas["Lúcia"]["todas_filiais"] is True
-    assert pessoas["Rodrigo"]["filiais"] == [{"id": adm.centro.pk, "nome": "Filial Centro"}]
+    assert pessoas["Rodrigo"]["filiais"] == [
+        {"id": adm.centro.pk, "nome": "Filial Centro", "nome_curto": "Filial Centro"}
+    ]
     assert pessoas["Rodrigo"]["dois_fatores_ativo"] is True
     assert pessoas["Bruna"]["dois_fatores_ativo"] is False
     assert pessoas["João"]["convite_expira_em"] == "2026-10-15T02:59:59Z"  # 14 out, 23:59:59
@@ -558,7 +560,9 @@ def test_usr_01_ca_011_14_convidar(adm, relogio, django_capture_on_commit_callba
     corpo = resposta.json()
     assert corpo["status"] == "convite_pendente"
     assert corpo["convite_expira_em"].startswith("2026-10-14")
-    assert corpo["filiais"] == [{"id": adm.centro.pk, "nome": "Filial Centro"}]
+    assert corpo["filiais"] == [
+        {"id": adm.centro.pk, "nome": "Filial Centro", "nome_curto": "Filial Centro"}
+    ]
     assert corpo["celular"] == "85996542210"
     assert _uso_de_usuarios(adm) == 6
     # Depois do commit, por e-mail e por WhatsApp, com a marca da locadora.
@@ -970,7 +974,9 @@ def test_usr_04_ca_011_23_sempre_um_administrador(adm):
     )
     connection.set_tenant(adm.empresa)
     assert rebaixada.status_code == 200
-    assert rebaixada.json()["filiais"] == [{"id": adm.centro.pk, "nome": "Filial Centro"}]
+    assert rebaixada.json()["filiais"] == [
+        {"id": adm.centro.pk, "nome": "Filial Centro", "nome_curto": "Filial Centro"}
+    ]
 
 
 def test_usr_02_ca_011_24_redefinir_duas_etapas(adm):
@@ -1060,7 +1066,9 @@ def test_usr_07_troca_de_filiais_da_pessoa_vai_para_a_auditoria(adm):
     trocou = api.patch(f"{USUARIOS}{bruna.pk}/", {"filiais": [norte.pk]}, format="json")
     connection.set_tenant(adm.empresa)
     assert trocou.status_code == 200
-    assert trocou.json()["filiais"] == [{"id": norte.pk, "nome": "Filial Norte"}]
+    assert trocou.json()["filiais"] == [
+        {"id": norte.pk, "nome": "Filial Norte", "nome_curto": "Filial Norte"}
+    ]
     # O vínculo com a Centro é desativado, não apagado.
     vinculo = UsuarioFilial.objects.get(usuario=bruna, filial=adm.centro)
     assert vinculo.ativo is False
@@ -1280,7 +1288,9 @@ def test_plt_07_ca_011_26_faixa_e_permissoes_do_suporte(
         "motivo": "Chamado #1042",
     }
     assert (corpo["perfil"], corpo["id"]) == ("administrador", None)
-    assert corpo["filiais"] == [{"id": adm.centro.pk, "nome": "Filial Centro"}]
+    assert corpo["filiais"] == [
+        {"id": adm.centro.pk, "nome": "Filial Centro", "nome_curto": "Filial Centro"}
+    ]
     assert corpo["pode"]["administracao"] is True
     assert corpo["pode"]["locacoes_criar"] is False  # "só ver": sem as chaves de escrita
 
@@ -1483,6 +1493,11 @@ def test_plt_07_lista_de_rotas_que_o_suporte_le():
         "api/painel/inicio/",
         # T-181: Configurações, só contagens e textos (sem auditoria e exportar para o suporte).
         "api/configuracoes/",
+        # T-262: o suporte lê o ramo e nunca troca (PUT proibido). T-257: catálogo de modelos.
+        "api/ramo/",
+        "api/veiculos/modelos/",
+        # T-202: o andamento do assistente, só os passos (plataforma.md).
+        "api/implantacao/",
         # T-288: quadro, lista, quem leva, quem recebe e locais, sem URL assinada (a
         # movimentação com as fotos da chegada fica fora).
         "api/movimentacoes/",

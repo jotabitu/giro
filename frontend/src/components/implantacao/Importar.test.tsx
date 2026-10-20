@@ -2,7 +2,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { contas, importacao, type Eu } from "@/lib/api";
+import { contas, implantacao, importacao, type Eu } from "@/lib/api";
 import { atualDoTipo, emAndamento, plural, resumoDoArquivo } from "@/lib/importacao";
 import { rotaPermitida } from "@/lib/menu";
 import { reiniciarImportacaoFalso } from "@/testes/falsos/falso-importacao";
@@ -29,6 +29,7 @@ async function entrar(email: string) {
 async function pagina(): Promise<string> {
   const cache = new QueryClient();
   const lista = await importacao.listar();
+  cache.setQueryData(["implantacao"], await implantacao.obter());
   cache.setQueryData(["importacao", "lista"], lista);
   for (const i of lista) cache.setQueryData(["importacao", "linhas", i.id, i.contagens.com_erro, i.contagens.prontas], await importacao.linhas(i.id, "com_erro"));
   return renderToStaticMarkup(

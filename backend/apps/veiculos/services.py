@@ -6,6 +6,7 @@ Interface para os outros apps (contrato de veículos, "Eventos e interface inter
 mudam o status do veículo só por `transicionar`.
 """
 
+import logging
 import re
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -44,6 +45,7 @@ from .models import (
 )
 
 S = StatusVeiculo
+logger = logging.getLogger(__name__)
 ALVO_CATEGORIA = "veiculos.Categoria"
 # Placa antiga (ABC1234) ou Mercosul (ABC1D23), sem hífen.
 PLACA = re.compile(r"^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$")
@@ -459,7 +461,7 @@ def cadastrar_com_crlv(
                 "campos": lidos,
                 "corrigidos": corrigidos,
             }
-    gravado: tuple[Any, str] | None = None  # (armazenamento, nome) do arquivo já enviado
+    gravado: str | None = None  # o nome do arquivo já enviado
     try:
         with transaction.atomic():
             _conferir_unicos(limpos["placa"], limpos["chassi"])
@@ -474,7 +476,7 @@ def cadastrar_com_crlv(
                 por_id=_quem(),
             )
             documento.arquivo.save(CRLV_NOME, arquivo, save=True)
-            gravado = (documento.arquivo.storage, documento.arquivo.name)
+            gravado = documento.arquivo.name
             registrar_evento(
                 "documento_veiculo.enviar",
                 CategoriaAuditoria.OPERACAO,
@@ -484,9 +486,19 @@ def cadastrar_com_crlv(
             )
     except Exception:
         if gravado:
-            gravado[0].delete(gravado[1])
+            _apagar_crlv_orfao(gravado)
         raise
     return veiculo
+
+
+def _apagar_crlv_orfao(nome: str) -> None:
+    """B-02 da T-328: o cadastro voltou atrás e o PDF ficou sem registro. Sai pelo provedor (o
+    armazenamento privado não apaga arquivo de negócio, ADR 0009), sem nunca trocar o erro
+    original, que é o que a pessoa precisa ver."""
+    try:
+        arquivos.provedor().apagar(nome)
+    except Exception:
+        logger.exception("CRLV órfão não apagado (VEI-08)")
 
 
 def validar_novo(dados: dict[str, Any]) -> list[dict[str, str]]:
@@ -783,6 +795,13 @@ def pedir_correcao_km(veiculo: Veiculo, km: int, motivo: str, solicitante: Any) 
             ),
             motivo=texto,
             dados={"km_novo": km, "km_anterior": travado.km_atual},
+            resumo=aprovacoes.Resumo(  # T-201, "Resumo por tipo"
+                [
+                    ("Km atual", f"{formatar_km(travado.km_atual)} km"),
+                    ("Km pedido", f"{formatar_km(km)} km"),
+                    ("Diferença", f"−{formatar_km(travado.km_atual - km)} km"),
+                ]
+            ),
         )
 
 
@@ -1106,6 +1125,16 @@ def _validar_preco(preco: dict[str, Any]) -> dict[str, int]:
 
 def _gravar_preco(categoria: Categoria, vigente_desde: date, preco: dict[str, Any]) -> Any:
     valores = _validar_preco(preco)
+    # T-201: `antes` é o preço que valia na véspera, só nos valores que mudam (sem ele, categoria
+    # nova); o texto pronto sai do formatador de `veiculos` (`textos.py`).
+    anterior = (
+        categoria.precos.filter(vigente_desde__lt=vigente_desde).order_by("-vigente_desde").first()
+    )
+    antes = (
+        {c: getattr(anterior, c) for c in CAMPOS_DO_PRECO if getattr(anterior, c) != valores[c]}
+        if anterior is not None
+        else {}
+    )
     novo = PrecoCategoria.objects.create(
         categoria=categoria, vigente_desde=vigente_desde, alterado_por_id=_quem(), **valores
     )
@@ -1113,6 +1142,7 @@ def _gravar_preco(categoria: Categoria, vigente_desde: date, preco: dict[str, An
         "categoria.definir_preco",
         CategoriaAuditoria.CONFIGURACOES,
         objeto=categoria,
+        antes=antes,
         depois={"vigente_desde": vigente_desde.isoformat(), **valores},
         regra="LOC-15",
     )

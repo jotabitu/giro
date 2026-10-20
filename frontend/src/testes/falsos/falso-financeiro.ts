@@ -242,6 +242,8 @@ const pedido = (p: Partial<PedidoSeed> & Pick<PedidoSeed, "id" | "tipo" | "titul
   status: "pendente",
   filial: CENTRO_REF,
   proprio_pedido: false,
+  pode_cancelar: false,
+  resumo: null,
   motivo_pedido: null,
   valor_centavos: null,
   pct: null,

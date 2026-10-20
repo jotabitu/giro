@@ -41,6 +41,9 @@ CAMPOS_SIMPLES = (
 )
 
 
+NOME_CURTO_MAXIMO = 30
+
+
 def _validar(dados: dict[str, Any]) -> dict[str, Any]:
     """Normaliza e confere os campos (400 `validacao` com todos os erros de uma vez)."""
     erros: dict[str, list[str]] = {}
@@ -57,8 +60,14 @@ def _validar(dados: dict[str, Any]) -> dict[str, Any]:
     for campo in ("inscricao_estadual", "inscricao_municipal"):
         if campo in dados:
             limpos[campo] = (dados[campo] or "").strip()
+    if "nome_curto" in dados:
+        limpos["nome_curto"] = (dados["nome_curto"] or "").strip()  # FIL-01
+        if len(limpos["nome_curto"]) > NOME_CURTO_MAXIMO:
+            erros["nome_curto"] = ["Use até 30 caracteres."]
     if "preco_litro_centavos" in dados:
         limpos["preco_litro_centavos"] = dados["preco_litro_centavos"]
+        if limpos["preco_litro_centavos"] is not None and limpos["preco_litro_centavos"] <= 0:
+            erros["preco_litro_centavos"] = ["Informe um preço maior que zero."]  # DEV-01
     if "endereco" in dados:
         endereco = dados["endereco"] or {}
         cep = so_digitos(endereco.get("cep") or "")

@@ -176,6 +176,7 @@ class EditarEuSerializer(serializers.Serializer[dict[str, str]]):
 class FilialResumoSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     nome = serializers.CharField()
+    nome_curto = serializers.CharField(help_text="O nome a mostrar (FIL-01).")
 
 
 class DoisFatoresSerializer(serializers.Serializer[Any]):

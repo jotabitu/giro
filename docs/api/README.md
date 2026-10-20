@@ -38,6 +38,7 @@ Valem para todos os contratos; cada contrato só descreve o que foge daqui.
 - Momento: ISO 8601 em UTC com `Z`, sem fração de segundo (`"2026-10-07T12:12:00Z"`); o frontend exibe em `America/Sao_Paulo` e compara por `Date`, nunca por texto. Na entrada, sempre com fuso (`Z` ou `-03:00`). Quem formata é só o renderizador JSON de `comum` (ADR 0020): serializer e view não escolhem fuso nem formato. Data sem hora (vencimento, competência): `"2026-10-21"`.
 - Status e enums: texto do enum das regras e do `docs/decisoes/modelo-de-dados.md`.
 - Documentos (CPF, CNPJ, CEP, placa) entram com ou sem máscara e saem só com dígitos (ou letras e dígitos, na placa); a máscara é do frontend. Em listas, CPF sai mascarado (`AUD-04`).
+- Placa dentro de texto pronto (T-340): quando a API monta uma frase ou célula com a placa (`resumo`, `detalhe`, `titulo`, `rotulo`, `mensagem`, texto da auditoria, PDF, CSV), a placa sai **com hífen** depois do 3º caractere, como nas telas: `PMZ3E17` vira `PMZ-3E17` ("Honda Pop 110i · PMZ-3E17"). Placa guardada fora de 7 caracteres sai como está. O campo `placa` sozinho continua sem hífen, e a tela formata. Um formatador só, em `comum` (hoje existe `financeiro.exportacao.placa_com_hifen`, pela decisão do dono de 13 out 2026 no CSV das despesas, `FIN-16`). Não é regra nova: aplica a todos os textos a decisão do dono de mostrar a placa "como nas telas".
 - Rótulos e textos prontos para o usuário vêm da API quando dependem de regra (ex.: `situacao` da empresa); o frontend não monta frase a partir de números.
 
 **Listas**

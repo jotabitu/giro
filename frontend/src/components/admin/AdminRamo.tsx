@@ -1,40 +1,17 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, Lock } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { Button, Icone } from "@/design-system";
+import { OpcaoDoRamo as Opcao } from "../ramo/OpcaoDoRamo";
 import { ramo as ramoApi, type Ramo } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { corpoDoRamo, marcasDoRamo, podeAlternar, ramoMudou, recusaDoRamo, type ChaveDaMarca, type MarcasDoRamo } from "@/lib/ramo";
 import { useSessao } from "@/lib/sessao";
 
 // Referência: docs/telas/html/Admin-Ramo-Desktop.dc.html e Admin-Ramo-Mobile.dc.html. As opções, os avisos, os módulos e as recusas vêm da API (PLT-12, docs/api/empresas.md).
-
-function Opcao({ titulo, descricao, aviso, marcado, travado, aoAlternar }: { titulo: string; descricao?: string; aviso?: string | null; marcado: boolean; travado: boolean; aoAlternar: () => void }) {
-  return (
-    <div>
-      <button
-        type="button"
-        aria-pressed={marcado}
-        aria-disabled={travado}
-        onClick={() => !travado && aoAlternar()}
-        className={`flex min-h-11 w-full items-start gap-3 rounded-lg border p-4 text-left text-ink ${marcado ? "border-ink bg-brand-soft" : "border-line bg-surface"} ${travado ? "opacity-70" : ""}`}
-      >
-        <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-sm border ${marcado ? "border-ink bg-ink text-surface" : "border-line"}`} aria-hidden="true">
-          {marcado && <Icone de={Check} />}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[16px] font-semibold">{titulo}</span>
-          {descricao && <span className="mt-0.5 block text-[14px] text-ink-muted">{descricao}</span>}
-        </span>
-        {travado && marcado && <Icone de={Lock} />}
-      </button>
-      {aviso && <p className="mt-1.5 mb-0 text-caption text-ink-muted">{aviso}</p>}
-    </div>
-  );
-}
 
 function Formulario({ guardado }: { guardado: Ramo }) {
   const cliente = useQueryClient();

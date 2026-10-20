@@ -33,7 +33,7 @@ from django.utils import timezone
 
 from comum import relogio
 
-from . import CABECALHO_DO_TOKEN
+from . import CABECALHO_DO_TOKEN, CONTA_PRINCIPAL
 from .base import (
     Autorizacao,
     CartaoGuardado,
@@ -202,8 +202,13 @@ class Asaas:
     # --- chamadas ---
 
     def _chave(self, conta: ContaPagamentoRef | None) -> str:
-        chave = conta.decifrar_chave() if conta is not None else ""
-        chave = chave or self._chave_principal
+        """A chave do ambiente só serve à conta principal (sem conta, ou `CONTA_PRINCIPAL`). A
+        subconta usa só a dela: sem chave, nada é chamado, para a cobrança da locadora nunca ir
+        para a conta do Giro (ADR 0007; M-02 da T-189, T-269)."""
+        if conta is None or conta.conta_externa_id == CONTA_PRINCIPAL:
+            chave = self._chave_principal
+        else:
+            chave = conta.decifrar_chave()
         if not chave:
             raise ParceiroIndisponivel("Sem a chave da API do parceiro de pagamento.")
         return chave

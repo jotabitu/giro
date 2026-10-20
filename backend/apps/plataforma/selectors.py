@@ -1008,3 +1008,61 @@ def primeiro_plano_com(recurso: str) -> Plano | None:
         if recurso in (plano.recursos or []):
             return plano
     return None
+
+
+# --- Andamento do assistente (`GET /api/implantacao/`, T-201, T-202) ---
+
+# Os 10 passos da implantação menos `conta` (feito na compra) e `primeira_locacao` (feita fora do
+# assistente), com os rótulos da tela.
+PASSOS_DO_ASSISTENTE: list[tuple[str, str]] = [
+    ("marca", "Empresa e marca"),
+    ("filial", "Primeira filial"),
+    ("ramo", "O que a empresa faz"),
+    ("precos", "Tabela de preços"),
+    ("contrato", "Modelo de contrato"),
+    ("recebimentos", "Recebimentos"),
+    ("importar", "Importar dados"),
+    ("equipe", "Convidar equipe"),
+]
+# PLT-12: sem este recurso (Essencial), `recebimentos` sai do assistente. Ele entra no enum
+# `Recurso` na T-196; até lá todo plano recebe pelo parceiro e o assistente tem os 8 passos.
+RECURSO_DE_RECEBIMENTOS = "recebimento_parceiro"
+
+
+def assistente_tem_recebimentos(plano: Plano | None) -> bool:
+    if RECURSO_DE_RECEBIMENTOS not in Recurso.values:
+        return True
+    return RECURSO_DE_RECEBIMENTOS in (getattr(plano, "recursos", None) or [])
+
+
+def andamento_do_assistente(empresa: Empresa | None = None) -> dict[str, Any]:
+    """`GET /api/implantacao/`: os passos do assistente com `numero`, `feito` e `proximo`, lidos
+    do `public`. Pular e "Salvar e sair" não marcam passo (não há rota de pular)."""
+    empresa = empresa or empresa_atual()
+    empresa = Empresa.objects.select_related("plano").get(pk=empresa.pk)
+    feitos = (
+        UsoEmpresa.objects.filter(empresa_id=empresa.pk)
+        .values_list("passos_implantacao", flat=True)
+        .first()
+        or {}
+    )
+    recebe = assistente_tem_recebimentos(empresa.plano)
+    passos = [
+        {
+            "passo": passo,
+            "numero": numero,
+            "rotulo": rotulo,
+            "feito": passo in feitos,
+            "feito_em": feitos.get(passo),
+        }
+        for numero, (passo, rotulo) in enumerate(
+            ((p, r) for p, r in PASSOS_DO_ASSISTENTE if recebe or p != "recebimentos"), start=1
+        )
+    ]
+    return {
+        "concluida": "primeira_locacao" in feitos,  # IMP-01
+        "total": len(passos),
+        "feitos": sum(1 for passo in passos if passo["feito"]),
+        "proximo": next((passo["passo"] for passo in passos if not passo["feito"]), None),
+        "passos": passos,
+    }

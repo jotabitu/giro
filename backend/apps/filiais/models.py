@@ -17,6 +17,8 @@ DIAS_DA_SEMANA = ("seg", "ter", "qua", "qui", "sex", "sab", "dom")
 
 class Filial(ModeloBase, ModeloAtivavel):
     nome = models.CharField(max_length=80)
+    # FIL-01 (T-201): no seletor, nas listas curtas e em Configurações; vazio vale o nome.
+    nome_curto = models.CharField(max_length=30, blank=True, default="")
     cnpj = models.CharField(max_length=14, blank=True, default="")
     inscricao_estadual = models.CharField(max_length=20, blank=True, default="")
     inscricao_municipal = models.CharField(max_length=20, blank=True, default="")
@@ -38,7 +40,7 @@ class Filial(ModeloBase, ModeloAtivavel):
 
     # Contato e endereço são da empresa, não de pessoa: vão inteiros (ADR 0014, item 3).
     CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
-        "inteiro": ["nome", "telefone", "whatsapp", "email", "logradouro"],
+        "inteiro": ["nome", "nome_curto", "telefone", "whatsapp", "email", "logradouro"],
     }
 
     class Meta:

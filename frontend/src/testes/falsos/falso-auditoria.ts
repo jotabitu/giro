@@ -12,7 +12,7 @@ const SISTEMA = { tipo: "sistema" as const, id: null, nome: "Sistema", iniciais:
 const SUPORTE = { tipo: "suporte" as const, id: null, nome: "Suporte Giro", iniciais: "SG" };
 
 function evento(id: number, ocorrido_em: string, ator: EventoDeAuditoria["ator"], categoria: EventoDeAuditoria["categoria"], acao: string, resumo: string, detalhe: string, extra: Partial<EventoDeAuditoria> = {}): EventoDeAuditoria {
-  return { id, ocorrido_em, ator, suporte: null, categoria, acao, resumo, detalhe, objeto: null, regra: null, ...extra };
+  return { id, ocorrido_em, ator, suporte: null, categoria, acao, resumo, detalhe, objeto: null, regra: null, tom: null, ...extra };
 }
 
 const ACESSO = { atendente: "Diego Santos", motivo: "Chamado #1042", permissao: "ver", acesso_suporte_id: 31 };

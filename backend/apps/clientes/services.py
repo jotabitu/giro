@@ -12,10 +12,11 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
 
-from comum import aprovacoes, arquivos, estados, relogio
+from comum import aprovacoes, arquivos, estados, leituras, relogio
 from comum.auditoria import Categoria as CategoriaAuditoria
 from comum.auditoria import TipoAtor, ator_atual, auditar, registrar_evento, retrato
 from comum.campos import buscar_por_hash
+from comum.dinheiro import formatar_reais
 from comum.documentos import cnpj_valido, cpf_valido, so_digitos
 from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao
 
@@ -428,7 +429,31 @@ def pedir_desbloqueio(
             titulo="Desbloqueio de cliente",
             detalhe=f"{travado.nome} · {texto}",
             motivo=texto,
+            resumo=_resumo_do_desbloqueio(travado),
         )
+
+
+def _resumo_do_desbloqueio(cliente: Cliente) -> aprovacoes.Resumo:
+    """O cartão do APR-05 (T-201): o bloqueio (automático, com os dias de atraso do pedido; ou
+    manual, com o motivo) e a situação das contas. Sem CPF nem contato."""
+    contagem = leituras.contar(
+        selectors.ALVO,
+        cliente.pk,
+        [selectors.CONTADOR_DIAS_DE_ATRASO, "contas_vencidas", "em_aberto_centavos"],
+    )
+    if cliente.bloqueio_motivo == MotivoBloqueio.ATRASO:
+        bloqueio = f"Automático · {contagem[selectors.CONTADOR_DIAS_DE_ATRASO]} dias de atraso"
+    else:
+        bloqueio = f"Manual · {cliente.bloqueio_descricao or cliente.get_bloqueio_motivo_display()}"
+    vencidas = contagem["contas_vencidas"]
+    contas = (
+        f"{vencidas} em atraso · {formatar_reais(contagem['em_aberto_centavos'])}"
+        if vencidas
+        else "Em dia"
+    )
+    return aprovacoes.Resumo(
+        [("Bloqueio", bloqueio), ("Contas", contas)], "Aprovado, o cadastro volta a ativo."
+    )
 
 
 def aplicar_desbloqueio_aprovado(cliente_id: int, motivo: str) -> Cliente | None:

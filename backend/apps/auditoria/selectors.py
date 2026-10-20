@@ -197,6 +197,7 @@ def representar(eventos: Iterable[EventoAuditoria]) -> list[dict[str, Any]]:
                 "detalhe": texto.detalhe,
                 "objeto": objeto,
                 "regra": evento.regra or None,
+                "tom": textos.tom(evento),
             }
         )
     return resultado

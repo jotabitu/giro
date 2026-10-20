@@ -549,8 +549,27 @@ def confirmar(locacao: Locacao, usuario: Any, primeiro_vencimento: date | None =
     return locacao
 
 
+def _pct(valor: Decimal) -> str:
+    """ "8%", "5%", "7,5%"."""
+    return f"{valor.normalize():f}".replace(".", ",") + "%"
+
+
 def _pedir_desconto(locacao: Locacao, usuario: Any, pct: Decimal) -> None:
-    calculo_com_desconto = calculo.calcular(_entrada_congelada(locacao, pct))
+    # T-201: o desconto de um período (tabela − com desconto), que a tela mostra e a APR-12
+    # soma; antes era o desconto de todos os períodos.
+    entrada = _entrada_congelada(locacao, pct)
+    tabela = calculo.preco_com_descontos(_entrada_congelada(locacao, Decimal("0")), 1)
+    com_desconto = calculo.preco_com_descontos(entrada, 1)
+    desconto = tabela - com_desconto
+    primeiro_nome = (getattr(usuario, "nome", "") or "").split(" ")[0]
+    resumo = aprovacoes.Resumo(
+        [
+            ("Preço de tabela", formatar_reais(tabela)),
+            ("Com desconto", formatar_reais(com_desconto)),
+            ("Desconto", f"{formatar_reais(desconto)} · {_pct(pct)}"),
+        ],
+        f"O limite de {primeiro_nome} é {_pct(limite_de_desconto())}." if primeiro_nome else None,
+    )
     ref = aprovacoes.pedir(
         tipo="APR-01",
         origem_tipo=ORIGEM,
@@ -561,8 +580,9 @@ def _pedir_desconto(locacao: Locacao, usuario: Any, pct: Decimal) -> None:
         titulo="Desconto acima do limite",
         detalhe=f"{locacao.codigo} · {locacao.cliente.nome} · desconto de {pct}%".replace(".", ","),
         pct=pct,
-        valor_centavos=calculo_com_desconto.desconto_centavos,
+        valor_centavos=desconto,
         dados={"desconto_pct": str(pct)},
+        resumo=resumo,
     )
     locacao.pedido_desconto_id = ref.id
     locacao.save(update_fields=["pedido_desconto_id", "atualizado_em"])
@@ -1462,6 +1482,61 @@ def cancelar(
     return ref
 
 
+NOTA_DA_ESTIMATIVA = (
+    "Valores estimados para {dia}; o acerto final é feito no dia da devolução. Ao aprovar, a "
+    "locação vai para a devolução: vistoria, acerto e devolução da caução."
+)
+
+
+def _resumo_do_cancelamento(
+    locacao: Locacao, dia: date, encerramento: fim.Encerramento
+) -> aprovacoes.Resumo:
+    """O cartão do APR-02 (T-201): antes da retirada, em diária ou depois da retirada."""
+    periodicidade = Periodicidade(locacao.periodicidade)
+    plano = (
+        f"{locacao.veiculo.modelo} · {periodicidade.label.lower()} "
+        f"{formatar_reais(locacao.valor_periodo_centavos)}"
+    )
+    if encerramento.antes_da_retirada:
+        return aprovacoes.Resumo(
+            [
+                ("Plano", plano),
+                ("Multa", "Sem multa, antes da retirada"),
+                ("A devolver", formatar_reais(encerramento.devolver_centavos)),
+            ],
+            "Ao aprovar, a locação é cancelada e o que foi pago volta.",
+        )
+    nota = NOTA_DA_ESTIMATIVA.format(dia=aprovacoes.dia_curto(dia))
+    periodo = encerramento.periodo_atual or {}
+    total = int(periodo.get("dias") or 0)
+    if periodicidade == Periodicidade.DIARIA:
+        return aprovacoes.Resumo(
+            [
+                ("Plano", plano),
+                ("Dias usados", f"{total - encerramento.dias_restantes} de {total}"),
+                ("Multa", "Sem multa, diária"),
+                ("A devolver", formatar_reais(encerramento.devolver_centavos)),
+            ],
+            nota,
+        )
+    fim_do_periodo = periodo.get("fim")
+    ate = f" · até {aprovacoes.dia_curto(fim_do_periodo)}" if fim_do_periodo else ""
+    saldo = (
+        ("A cobrar", formatar_reais(encerramento.cobrar_centavos))
+        if encerramento.cobrar_centavos
+        else ("A devolver", formatar_reais(encerramento.devolver_centavos))
+    )
+    return aprovacoes.Resumo(
+        [
+            ("Plano", plano),
+            ("Dias restantes", f"{encerramento.dias_restantes} de {total}{ate}"),
+            (f"Multa ({fim.MULTA_ENCERRAMENTO_PCT}%)", formatar_reais(encerramento.multa_centavos)),
+            saldo,
+        ],
+        nota,
+    )
+
+
 def _pedir_cancelamento(
     locacao: Locacao,
     usuario: Any,
@@ -1491,6 +1566,7 @@ def _pedir_cancelamento(
             "forma_devolucao": forma,
             "solicitante_id": getattr(usuario, "pk", None),
         },
+        resumo=_resumo_do_cancelamento(locacao, dia, encerramento),
     )
     with auditar(
         locacao, "locacao.pedir_cancelamento", Categoria.OPERACAO, motivo=motivo, regra="APR-02"

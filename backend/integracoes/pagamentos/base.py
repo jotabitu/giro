@@ -11,7 +11,7 @@ da implementação, no momento da chamada ao parceiro.
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Protocol
+from typing import Any, Protocol
 
 
 def _sem_chave() -> str:
@@ -93,6 +93,16 @@ class SituacaoCobranca:
     forma: str = ""  # pix | boleto | cartao
     cartao: CartaoGuardado | None = None  # paga no cartão (conta principal, ADR 0023)
     recibo_url: str = ""  # comprovante do parceiro, quando paga (PLT-14)
+
+
+def aviso_sem_cartao(corpo: Any) -> Any:
+    """O corpo do aviso como o Giro guarda: sem `payment.creditCard` (número final, bandeira e o
+    token do cartão). O token só existe cifrado na forma de pagamento (ADR 0023, item 2; M-01 da
+    T-189). Um ponto só para o aviso da conta principal e o das subcontas. Não muda o original."""
+    if not isinstance(corpo, dict) or not isinstance(corpo.get("payment"), dict):
+        return corpo
+    pagamento = {k: v for k, v in corpo["payment"].items() if k != "creditCard"}
+    return {**corpo, "payment": pagamento}
 
 
 @dataclass(frozen=True)

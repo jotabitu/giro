@@ -11,11 +11,13 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
+from apps.contas.models import Usuario
 from apps.filiais.models import Filial
 from apps.plataforma.services import recalcular_uso
 from apps.veiculos import services as veiculos_services
 from apps.veiculos.models import Categoria, Veiculo
 
+from .ator import como
 from .relogio import RelogioDoSeed
 
 # Tabela de preços da Filial Centro (T-013):
@@ -31,6 +33,9 @@ ORIGEM = veiculos_services.OrigemDaMudanca("seed", 0, "seed")
 VIGENTE_DESDE = date(2026, 10, 1)
 STREET_ANTES = date(2026, 9, 1)  # até 30 set, semanal 29940 (LOC-15, LOC-2841)
 STREET_SEMANAL_ANTES = 29940
+# A troca de preço da Street é o evento "Mudou a tabela de preço" da auditoria (T-201, CA-018-09).
+STREET_TROCA = "17:42"
+EMAIL_DA_ADMINISTRADORA = "mariana@motorapida.com.br"
 
 # categoria → (tipo, modelos [(marca, modelo)], {status: quantos}).
 DISTRIBUICAO: dict[str, tuple[str, list[tuple[str, str]], dict[str, int]]] = {
@@ -226,8 +231,9 @@ def criar_categorias(relogio: RelogioDoSeed) -> dict[str, Categoria]:
                 {"nome": nome, "tipo_veiculo": tipo},
                 {**preco, "semanal_centavos": STREET_SEMANAL_ANTES},
             )
-            relogio.em(f"{VIGENTE_DESDE} 09:00")
-            veiculos_services.criar_preco(categoria, preco)
+            relogio.em(f"{VIGENTE_DESDE} {STREET_TROCA}")
+            with como(Usuario.objects.get(email=EMAIL_DA_ADMINISTRADORA)):
+                veiculos_services.criar_preco(categoria, preco)
         else:
             relogio.em(f"{VIGENTE_DESDE} 09:00")
             categoria = veiculos_services.criar_categoria(

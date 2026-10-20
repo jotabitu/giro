@@ -28,6 +28,7 @@ urls_plataforma: list[URLPattern] = [
 
 urls_empresa: list[URLPattern] = [
     path("assinatura/", AssinaturaView.as_view(), name="assinatura"),
+    path("implantacao/", assinatura.ImplantacaoView.as_view(), name="implantacao"),
     path(
         "assinatura/planos/",
         assinatura.PlanosDaAssinaturaView.as_view(),

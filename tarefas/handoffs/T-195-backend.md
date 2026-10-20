@@ -46,7 +46,7 @@ Branch `t-195-cancelar-pausar`, criada da `origin/main`. Contrato `docs/api/canc
 - AUD-08: `test_aud_08_cancelada_nao_entra`, `test_aud_08_aviso_7_dias_antes`, `test_aud_08_apaga_no_90_dia`, `test_aud_08_nao_apaga_outra_empresa` (isolamento entre empresas), `test_aud_08_nao_apaga_reativada`, `test_aud_08_linha_apagada_so_com_cnpj` (CA-ASS-58) e `test_aud_08_fatura_atrasada_guarda_email` (CA-ASS-60);
 - datas: os `test_plt_06_*` e `test_aud_08_*` de `test_calendario.py`.
 
-**Testes rodados:** (preencher)
+**Testes rodados** (depois do merge da `origin/main`, num container avulso na rede `giro-backend-teste`): `ruff check`, `ruff format --check`, `mypy` (398 arquivos), `makemigrations --check` (sem mudança) e o OpenAPI regenerado com `--validate` (0 erros, só acréscimos). Pytest dos afetados: `test_t195_cancelar_pausar.py`, `test_t185_assinatura.py`, `test_t185b_forma_faturas.py`, `test_t186_estados.py`, `test_t186b_faturas_cobranca.py`, `test_t184_faturas.py`, `test_t010_plataforma.py`, `test_t303*`, `test_t307*`, `apps/plataforma`, `comum`, `tests/test_permissoes_das_rotas.py` e `tests/test_autenticacao.py`: 388 passaram, 1 xfail e 1 falha, de expectativa do próprio teste (na `pausada`, `acoes.cancelar` é verdadeiro pelo contrato). Corrigido e rodado de novo: passa. Frontend: `npm run api:gerar`, `npm run typecheck` e `Assinatura.test.tsx` (11 testes) passam.
 
 **O que ficou de fora:**
 

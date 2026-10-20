@@ -164,6 +164,10 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+# B-03 da T-328 (ADR 0026, item 8): o upload até o teto da borda (3 MB, T-258) fica na memória,
+# nunca num arquivo temporário do contêiner. Teto de memória: workers × threads × 3 MB.
+FILE_UPLOAD_MAX_MEMORY_SIZE = 3 * 1024 * 1024
+
 # --- API ---
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["comum.autenticacao.JWTDaEmpresa"],

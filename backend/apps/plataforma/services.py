@@ -78,6 +78,7 @@ from integracoes.pagamentos.base import (
     PedidoCobranca,
     PedidoRecorrencia,
     StatusDesconhecido,
+    aviso_sem_cartao,
 )
 
 from .calendario import (
@@ -1008,7 +1009,7 @@ def registrar_webhook_principal(evento: EventoWebhook, corpo: Any) -> WebhookRec
                             "autorizacao_id": evento.autorizacao_id,
                         },
                         "conta": "principal",
-                        "bruto": corpo,
+                        "bruto": aviso_sem_cartao(corpo),  # ADR 0023, M-01 da T-189
                     },
                 )
         except IntegrityError:

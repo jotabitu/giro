@@ -657,9 +657,9 @@ def test_plt_04_ca_ass_17_pausada_e_cancelada_sem_operacao(moto, status):
         assert resposta.status_code == 403
         assert resposta.json()["codigo"] == CODIGO_SEM_OPERACAO[status]
     if status == "pausada":
-        # Na pausada, só "Voltar da pausa" (PLT-06, T-195).
+        # Na pausada, só voltar da pausa ou cancelar na hora (PLT-06, T-195).
         acoes = api.get(ASSINATURA).json()["acoes"]
-        assert [nome for nome, pode in acoes.items() if pode] == ["voltar_pausa"]
+        assert [nome for nome, pode in acoes.items() if pode] == ["cancelar", "voltar_pausa"]
 
 
 def test_plt_06_mudar_de_plano_com_cancelamento_marcado(moto):

@@ -3292,6 +3292,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/Reembolso'
           description: ''
+  /api/implantacao/:
+    get:
+      operationId: implantacao_retrieve
+      description: |-
+        A moldura do assistente marca os passos pelo que a API manda (T-190, proposta 9).
+        Administrador e token de suporte (só leitura); os demais, 403.
+      summary: Andamento do assistente de implantação (IMP-05)
+      tags:
+      - implantacao
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AndamentoDoAssistente'
+          description: ''
   /api/importacoes/:
     get:
       operationId: importacoes_list
@@ -7043,6 +7061,30 @@ components:
             $ref: '#/components/schemas/ItemAnaliseCliente'
       required:
       - itens
+    AndamentoDoAssistente:
+      type: object
+      properties:
+        concluida:
+          type: boolean
+          description: 'IMP-01: passo `primeira_locacao` marcado.'
+        total:
+          type: integer
+          description: 8 passos; 7 sem `recebimentos` (PLT-12).
+        feitos:
+          type: integer
+        proximo:
+          type: string
+          nullable: true
+        passos:
+          type: array
+          items:
+            $ref: '#/components/schemas/PassoDoAssistente'
+      required:
+      - concluida
+      - feitos
+      - passos
+      - proximo
+      - total
     AnexarNota:
       type: object
       properties:
@@ -7067,6 +7109,24 @@ components:
       - itens
       - mais_antigo
       - total
+    Aprovadas:
+      type: object
+      properties:
+        titulo:
+          type: string
+        quantidade:
+          type: integer
+        tempo_medio_min:
+          type: integer
+          nullable: true
+        contexto:
+          type: string
+          nullable: true
+      required:
+      - contexto
+      - quantidade
+      - tempo_medio_min
+      - titulo
     Aprovar:
       type: object
       properties:
@@ -7822,6 +7882,16 @@ components:
       - conta_id
       - status
       - valor_centavos
+    CelulaDoResumo:
+      type: object
+      properties:
+        rotulo:
+          type: string
+        valor:
+          type: string
+      required:
+      - rotulo
+      - valor
     Cep:
       type: object
       properties:
@@ -8926,8 +8996,17 @@ components:
       properties:
         pendente:
           type: integer
+        aprovado:
+          type: integer
+        recusado:
+          type: integer
+        minhas_pendentes:
+          type: integer
       required:
+      - aprovado
+      - minhas_pendentes
       - pendente
+      - recusado
     ContagensDeUsuarios:
       type: object
       properties:
@@ -9288,6 +9367,22 @@ components:
       - pct
       - pedido_aprovacao_id
       - status
+    Descontos:
+      type: object
+      properties:
+        titulo:
+          type: string
+        valor_centavos:
+          type: integer
+        quantidade:
+          type: integer
+        contexto:
+          type: string
+      required:
+      - contexto
+      - quantidade
+      - titulo
+      - valor_centavos
     Despesa:
       type: object
       properties:
@@ -9999,6 +10094,22 @@ components:
       required:
       - codigo
       - rotulo
+    Esperando:
+      type: object
+      properties:
+        quantidade:
+          type: integer
+        mais_antigo_em:
+          type: string
+          format: date-time
+          nullable: true
+        contexto:
+          type: string
+          nullable: true
+      required:
+      - contexto
+      - mais_antigo_em
+      - quantidade
     Etapa:
       type: object
       properties:
@@ -10137,6 +10248,17 @@ components:
         regra:
           type: string
           nullable: true
+        tom:
+          nullable: true
+          description: |-
+            Como a linha aparece (T-201); `null` é texto comum. A tela não escolhe tom.
+
+            * `info` - info
+            * `alerta` - alerta
+            * `perigo` - perigo
+          oneOf:
+          - $ref: '#/components/schemas/TomEnum'
+          - $ref: '#/components/schemas/NullEnum'
       required:
       - acao
       - ator
@@ -10148,6 +10270,7 @@ components:
       - regra
       - resumo
       - suporte
+      - tom
     EventoDaPlataforma:
       type: object
       properties:
@@ -10177,6 +10300,17 @@ components:
         regra:
           type: string
           nullable: true
+        tom:
+          nullable: true
+          description: |-
+            Como a linha aparece (T-201); `null` é texto comum. A tela não escolhe tom.
+
+            * `info` - info
+            * `alerta` - alerta
+            * `perigo` - perigo
+          oneOf:
+          - $ref: '#/components/schemas/TomEnum'
+          - $ref: '#/components/schemas/NullEnum'
         empresa:
           allOf:
           - $ref: '#/components/schemas/EmpresaDoEvento'
@@ -10193,6 +10327,7 @@ components:
       - regra
       - resumo
       - suporte
+      - tom
     EventoDetalhe:
       type: object
       properties:
@@ -10222,6 +10357,17 @@ components:
         regra:
           type: string
           nullable: true
+        tom:
+          nullable: true
+          description: |-
+            Como a linha aparece (T-201); `null` é texto comum. A tela não escolhe tom.
+
+            * `info` - info
+            * `alerta` - alerta
+            * `perigo` - perigo
+          oneOf:
+          - $ref: '#/components/schemas/TomEnum'
+          - $ref: '#/components/schemas/NullEnum'
         antes:
           type: object
           additionalProperties: {}
@@ -10248,6 +10394,7 @@ components:
       - regra
       - resumo
       - suporte
+      - tom
     EventoDetalheDaPlataforma:
       type: object
       properties:
@@ -10277,6 +10424,17 @@ components:
         regra:
           type: string
           nullable: true
+        tom:
+          nullable: true
+          description: |-
+            Como a linha aparece (T-201); `null` é texto comum. A tela não escolhe tom.
+
+            * `info` - info
+            * `alerta` - alerta
+            * `perigo` - perigo
+          oneOf:
+          - $ref: '#/components/schemas/TomEnum'
+          - $ref: '#/components/schemas/NullEnum'
         antes:
           type: object
           additionalProperties: {}
@@ -10308,6 +10466,7 @@ components:
       - regra
       - resumo
       - suporte
+      - tom
     Excede:
       type: object
       properties:
@@ -10742,6 +10901,10 @@ components:
           type: integer
         nome:
           type: string
+        nome_curto:
+          type: string
+          nullable: true
+          description: O guardado (FIL-01).
         matriz:
           type: boolean
         ativo:
@@ -10798,6 +10961,7 @@ components:
       - inscricao_municipal
       - matriz
       - nome
+      - nome_curto
       - preco_litro_centavos
     FilialDaImportacao:
       type: object
@@ -10817,6 +10981,9 @@ components:
         nome:
           type: string
           maxLength: 80
+        nome_curto:
+          type: string
+          nullable: true
         matriz:
           type: boolean
         cnpj:
@@ -10838,7 +11005,6 @@ components:
           nullable: true
         preco_litro_centavos:
           type: integer
-          minimum: 0
           nullable: true
         horario: {}
       required:
@@ -10852,6 +11018,10 @@ components:
           type: integer
         nome:
           type: string
+        nome_curto:
+          type: string
+          nullable: true
+          description: O guardado (FIL-01).
         matriz:
           type: boolean
         ativo:
@@ -10911,6 +11081,7 @@ components:
       - inscricao_municipal
       - matriz
       - nome
+      - nome_curto
       - preco_litro_centavos
     FilialResumo:
       type: object
@@ -10919,9 +11090,13 @@ components:
           type: integer
         nome:
           type: string
+        nome_curto:
+          type: string
+          description: O nome a mostrar (FIL-01).
       required:
       - id
       - nome
+      - nome_curto
     FinalidadeEnum:
       enum:
       - locacao
@@ -11529,6 +11704,26 @@ components:
       - alugados_agora
       - clientes
       - frota_cadastrada
+    IndicadoresDePedidos:
+      type: object
+      description: 'APR-12 (T-201): da tela inteira, não dependem da aba nem do filtro.'
+      properties:
+        mes:
+          type: string
+        esperando:
+          $ref: '#/components/schemas/Esperando'
+        aprovadas:
+          $ref: '#/components/schemas/Aprovadas'
+        recusadas:
+          $ref: '#/components/schemas/Recusadas'
+        descontos:
+          $ref: '#/components/schemas/Descontos'
+      required:
+      - aprovadas
+      - descontos
+      - esperando
+      - mes
+      - recusadas
     IndicadoresDespesas:
       type: object
       properties:
@@ -12786,6 +12981,8 @@ components:
     ListaDePedidos:
       type: object
       properties:
+        indicadores:
+          $ref: '#/components/schemas/IndicadoresDePedidos'
         contagens:
           $ref: '#/components/schemas/ContagensDePedidos'
         resultados:
@@ -12801,6 +12998,7 @@ components:
       required:
       - anterior
       - contagens
+      - indicadores
       - proximo
       - resultados
     ListaDePessoas:
@@ -13323,6 +13521,9 @@ components:
           type: integer
         nome:
           type: string
+        nome_curto:
+          type: string
+          description: 'O nome a mostrar: o curto, ou o nome.'
         matriz:
           type: boolean
         cidade:
@@ -13334,6 +13535,7 @@ components:
       - id
       - matriz
       - nome
+      - nome_curto
       - uf
     MinhasFiliais:
       type: object
@@ -14328,6 +14530,27 @@ components:
       - concluido_em
       - passo
       - rotulo
+    PassoDoAssistente:
+      type: object
+      properties:
+        passo:
+          type: string
+        numero:
+          type: integer
+        rotulo:
+          type: string
+        feito:
+          type: boolean
+        feito_em:
+          type: string
+          format: date
+          nullable: true
+      required:
+      - feito
+      - feito_em
+      - numero
+      - passo
+      - rotulo
     PassoDoInicio:
       type: object
       properties:
@@ -14502,6 +14725,9 @@ components:
         nome:
           type: string
           maxLength: 80
+        nome_curto:
+          type: string
+          nullable: true
         matriz:
           type: boolean
         cnpj:
@@ -14523,7 +14749,6 @@ components:
           nullable: true
         preco_litro_centavos:
           type: integer
-          minimum: 0
           nullable: true
         horario: {}
     PatchedFormaDevolucao:
@@ -14764,7 +14989,14 @@ components:
         motivo_recusa:
           type: string
           nullable: true
+        resumo:
+          allOf:
+          - $ref: '#/components/schemas/ResumoDoPedido'
+          nullable: true
+          description: Células prontas do cartão (T-201); `null` antes dela.
         pode_decidir:
+          type: boolean
+        pode_cancelar:
           type: boolean
         proprio_pedido:
           type: boolean
@@ -14779,8 +15011,10 @@ components:
       - origem
       - pct
       - pedido_em
+      - pode_cancelar
       - pode_decidir
       - proprio_pedido
+      - resumo
       - solicitante
       - status
       - tipo
@@ -15924,6 +16158,19 @@ components:
       required:
       - url
       - url_expira_em
+    Recusadas:
+      type: object
+      properties:
+        titulo:
+          type: string
+        quantidade:
+          type: integer
+        contexto:
+          type: string
+      required:
+      - contexto
+      - quantidade
+      - titulo
     Recusar:
       type: object
       description: Recusar exige motivo (APR-07).
@@ -16220,6 +16467,19 @@ components:
       - gaveta
       - por_forma
       - recebimentos
+    ResumoDoPedido:
+      type: object
+      properties:
+        celulas:
+          type: array
+          items:
+            $ref: '#/components/schemas/CelulaDoResumo'
+        nota:
+          type: string
+          nullable: true
+      required:
+      - celulas
+      - nota
     ResumoIdNome:
       type: object
       properties:
@@ -17076,6 +17336,16 @@ components:
           maxLength: 100
       required:
       - token
+    TomEnum:
+      enum:
+      - info
+      - alerta
+      - perigo
+      type: string
+      description: |-
+        * `info` - info
+        * `alerta` - alerta
+        * `perigo` - perigo
     TrabalhaComEnum:
       enum:
       - motos
