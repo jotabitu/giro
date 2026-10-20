@@ -18,6 +18,7 @@ import {
   type Convite,
   type Eu,
   type MarcaEmpresa,
+  type MarcaSimulada,
   type Perfil,
   type Pode,
   type RespostaEntrar,
@@ -250,10 +251,49 @@ export const MARCA_FALSA: MarcaEmpresa = {
   versao: "00000000",
 };
 
+/** As seis cores do Onboarding-Marca com as contas que a API devolve (docs/api/empresas.md, "Dados"). */
+export const CORES_SIMULADAS: Record<string, Pick<MarcaSimulada, "cor_sobre" | "cor_suave" | "cor_suave_escuro">> = {
+  "#C8F04A": { cor_sobre: "#111114", cor_suave: "#EEF9CC", cor_suave_escuro: "#2B3510" },
+  "#FF7A45": { cor_sobre: "#111114", cor_suave: "#FFE7D6", cor_suave_escuro: "#47261A" },
+  "#2F6FED": { cor_sobre: "#FFFFFF", cor_suave: "#DBF3FF", cor_suave_escuro: "#1E3050" },
+  "#16B8A6": { cor_sobre: "#111114", cor_suave: "#D7FBF4", cor_suave_escuro: "#183732" },
+  "#E11D48": { cor_sobre: "#FFFFFF", cor_suave: "#FFE0E1", cor_suave_escuro: "#4D2023" },
+  "#7A5AF8": { cor_sobre: "#FFFFFF", cor_suave: "#EEECFF", cor_suave_escuro: "#2E2A51" },
+};
+
+function iniciaisDe(nome: string): string {
+  const palavras = nome.split(/\s+/).filter((p) => p && !["de", "da", "do", "das", "dos", "e"].includes(p.toLowerCase()));
+  const letras = palavras.length > 1 ? `${palavras[0]?.[0] ?? ""}${palavras[1]?.[0] ?? ""}` : (palavras[0] ?? "").slice(0, 2);
+  return letras.toUpperCase();
+}
+
+function simulada(corpo: { cor?: string; nome_exibicao?: string }): MarcaSimulada {
+  const nome = corpo.nome_exibicao === undefined ? MARCA_FALSA.nome_exibicao : corpo.nome_exibicao.trim() || "Moto Rápida";
+  if (corpo.nome_exibicao !== undefined && corpo.nome_exibicao.trim().length > 80) {
+    throw new ErroApi(400, "validacao", "Confira os campos", undefined, { nome_exibicao: "Use até 80 caracteres." });
+  }
+  const cor = corpo.cor === undefined || corpo.cor === "" ? MARCA_FALSA.cor : corpo.cor.toUpperCase();
+  if (!/^#[0-9A-F]{6}$/.test(cor)) throw new ErroApi(400, "validacao", "Confira os campos", undefined, { cor: "Use uma cor no formato #RRGGBB." });
+  const contas = CORES_SIMULADAS[cor] ?? { cor_sobre: "#111114", cor_suave: "#EEEEEE", cor_suave_escuro: "#222222" };
+  return { nome_exibicao: nome, iniciais: iniciaisDe(nome), cor, ...contas };
+}
+
 export const marcaFalsa = {
   async obter(): Promise<MarcaEmpresa | null> {
     await pausa();
     return MARCA_FALSA;
+  },
+
+  async simular(corpo: { cor?: string; nome_exibicao?: string }): Promise<MarcaSimulada> {
+    await pausa();
+    return simulada(corpo);
+  },
+
+  async salvar(corpo: { cor?: string; nome_exibicao?: string; logo?: File; remover_logo?: boolean }): Promise<MarcaEmpresa> {
+    await pausa();
+    if (corpo.logo && corpo.remover_logo) throw new ErroApi(400, "validacao", "Confira os campos", undefined, { logo: "Escolha trocar ou remover o logo." });
+    const s = simulada(corpo);
+    return { ...MARCA_FALSA, ...s, personalizada: true, versao: "11111111" };
   },
 };
 
