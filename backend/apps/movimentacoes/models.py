@@ -30,6 +30,9 @@ class LocalApoio(ModeloBase, ModeloAtivavel):
     nome_busca = models.CharField(max_length=80, unique=True)
     tipo = models.CharField(max_length=15, choices=TipoLocal.choices)
 
+    # Nome de estabelecimento (lava-jato, oficina), não dado pessoal: vai inteiro (T-334).
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["nome", "nome_busca"]}
+
     class Meta:
         verbose_name = "local de apoio"
         verbose_name_plural = "locais de apoio"

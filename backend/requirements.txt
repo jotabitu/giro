@@ -16,7 +16,8 @@ boto3>=1.35,<2
 # Reprocessar fotos de documento sem metadados (AUD-05, T-014); a WeasyPrint também usa.
 Pillow>=11.1,<13
 # PDF dos contratos (ADR 0011, S-09, T-090); a imagem já tem pango, harfbuzz e fontes.
-weasyprint>=66,<70
+# 70 ou mais nova: PYSEC-2026-3940 e PYSEC-2026-4311 (T-333).
+weasyprint>=70,<71
 # HTML do modelo de contrato com lista branca de tags (S-09, T-090).
 nh3>=0.2.18,<1
 # Planilha da importação (T-027, docs/api/importacao.md): leitura em streaming do .xlsx e o
