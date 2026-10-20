@@ -6,6 +6,6 @@
 
 **Regras cobertas:** ADR 0007. `test_adr_0007_subconta_sem_chave_nunca_usa_a_chave_principal` passa sem o `xfail`. O novo `test_adr_0007_conta_principal_e_subconta_com_chave` cobre a principal com a chave do ambiente, a subconta com a dela e a recusa sem chamada. Os testes de pagamentos (T-029, `tests/integracoes`, T-186b, T-185b) passam; ruff, ruff format --check e mypy estão limpos no backend inteiro.
 
-**Junto com a T-268:** as duas mexem no `test_t189_seguranca_cartao.py`. Cada uma tira só o próprio `xfail`, e a docstring do arquivo só muda na T-268. O merge deve sair sem conflito; se sair, os dois testes ficam sem `xfail`.
+**Junto com a T-268:** as duas mexem no `test_t189_seguranca_cartao.py`. Cada uma tira só o próprio `xfail`, e a docstring do arquivo só muda na T-268. Mas as duas acrescentam um teste no fim do arquivo (e uma linha no fim do `feito.md`), então o merge da segunda dá conflito ali. A resolução é manter os dois lados: os dois testes novos e as duas linhas.
 
 **O que ficou de fora:** nada.
