@@ -3,7 +3,7 @@
 import type { MinhasFiliais } from "@/lib/api/tipos";
 import { contasFalso, pausa } from "./falso";
 
-const CENTRO = { id: 1, nome: "Filial Centro", nome_curto: "Filial Centro", matriz: true, cidade: "Fortaleza", uf: "CE" };
+const CENTRO = { id: 1, nome: "Filial Centro", nome_curto: "Centro", matriz: true, cidade: "Fortaleza", uf: "CE" };
 const ALDEOTA = { id: 2, nome: "Filial Aldeota", nome_curto: "Filial Aldeota", matriz: false, cidade: "Fortaleza", uf: "CE" };
 
 export const filiaisFalso = {

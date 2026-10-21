@@ -99,7 +99,7 @@ export function CaixaDeImportacao({ tipo, atual, eu }: { tipo: TipoDeImportacao;
   const [corrigindo, setCorrigindo] = useState(false);
   const [recusa, setRecusa] = useState<string | null>(null);
 
-  const atualizar = () => cliente.invalidateQueries({ queryKey: ["importacao"] });
+  const atualizar = () => Promise.all([cliente.invalidateQueries({ queryKey: ["importacao"] }), cliente.invalidateQueries({ queryKey: ["implantacao"] })]);
   const enviar = useMutation({
     mutationFn: (arquivo: File) => {
       const escolhida = filial?.escolha && filial.escolha !== "todas" ? Number(filial.escolha) : (eu.filiais[0]?.id ?? undefined);
