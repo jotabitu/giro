@@ -12,5 +12,6 @@ def test_aud_02_tom_das_linhas(aud):  # noqa: F811
     tons = {(linha["acao"], linha["tom"]) for linha in linhas}
     assert ("usuario.bloqueado", "perigo") in tons
     assert ("usuario.convidar", "info") in tons
+    assert ("categoria.definir_preco", "info") in tons
     assert ("movimento_caixa.sangria", None) in tons
     assert {linha["tom"] for linha in linhas if linha["suporte"]} == {"alerta"}

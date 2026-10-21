@@ -34,6 +34,7 @@ from apps.veiculos.models import LeituraKm, Veiculo
 from apps.vistorias import acerto, recibo, services
 from apps.vistorias.models import Avaria, Devolucao, FotoVistoria, Vistoria
 from comum import arquivos, eventos
+from comum.documentos import placa_com_hifen
 from integracoes.whatsapp import falso as whatsapp
 
 from . import carteira
@@ -1855,7 +1856,8 @@ def test_loc_09_segunda_troca_com_caucao_menor_fica_para_o_acerto(cenario, julia
     combustivel = {i["descricao"]: i["valor_centavos"] for i in acerto["itens"]}
     # A NMax voltou com 1/2 tanque: 4 L × R$ 5,50 + R$ 10,00, com o nome do veículo trocado.
     descricao = (
-        f"Combustível da NMax 160 {nmax.placa} (faltou 1/2 tanque, 4 L × R$ 5,50 + R$ 10,00)"
+        f"Combustível da NMax 160 {placa_com_hifen(nmax.placa)} "
+        "(faltou 1/2 tanque, 4 L × R$ 5,50 + R$ 10,00)"
     )
     assert combustivel[descricao] == 3200
     # A caução paga (50000) inteira entra no acerto: a diferença volta ao cliente no fim.

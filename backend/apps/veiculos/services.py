@@ -22,6 +22,7 @@ from apps.plataforma.services import atualizar_uso, exigir_limite
 from comum import aprovacoes, arquivos, comprovante_leitura, estados, leituras, relogio
 from comum.auditoria import Categoria as CategoriaAuditoria
 from comum.auditoria import TipoAtor, ator_atual, auditar, registrar_evento, retrato
+from comum.documentos import placa_com_hifen
 from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, TransicaoInvalida
 from comum.eventos import publicar
 
@@ -790,7 +791,8 @@ def pedir_correcao_km(veiculo: Veiculo, km: int, motivo: str, solicitante: Any) 
             solicitante=solicitante,
             titulo="Correção de km para baixo",
             detalhe=(
-                f"{travado.placa} · {formatar_km(travado.km_atual)} → {formatar_km(km)} km"
+                f"{placa_com_hifen(travado.placa)} · {formatar_km(travado.km_atual)} → "
+                f"{formatar_km(km)} km"
                 f" · {texto}"
             ),
             motivo=texto,
@@ -952,7 +954,8 @@ def aplicar_vencimento_de_documentos(hoje: date) -> dict[str, int]:
                 _gerentes(veiculo),
                 tipo="documento_vencendo",
                 titulo=(
-                    f"{TipoDocumento(documento.tipo).label} da {veiculo.placa} vence em "
+                    f"{TipoDocumento(documento.tipo).label} da {placa_com_hifen(veiculo.placa)} "
+                    "vence em "
                     f"{documento.validade:%d/%m/%Y}"
                 ),
                 link=_link_do_veiculo(veiculo),
@@ -986,7 +989,7 @@ def aplicar_vencimento_de_documentos(hoje: date) -> dict[str, int]:
                 _gerentes(veiculo),
                 tipo=f"documento_vencido_{veiculo.status}",
                 titulo=(
-                    f"{rotulo} da {veiculo.placa} venceu com o veículo "
+                    f"{rotulo} da {placa_com_hifen(veiculo.placa)} venceu com o veículo "
                     f"{EM_USO_NO_VENCIMENTO[S(veiculo.status)]}. Regularize o documento."
                 ),
                 link=_link_do_veiculo(veiculo),

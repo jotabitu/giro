@@ -29,7 +29,7 @@ async function entrar(email: string) {
 async function pagina(aba: "pendente" | "meus" = "pendente"): Promise<string> {
   url.aba = aba === "meus" ? "meus" : "";
   const cache = new QueryClient();
-  const principal = aba === "meus" ? await aprovacoes.listar({ status: "pendente", minhas: true }) : await aprovacoes.listar({ status: "pendente" });
+  const principal = aba === "meus" ? await aprovacoes.listar({ minhas: true }) : await aprovacoes.listar({ status: "pendente" });
   cache.setQueryData(["aprovacoes", "lista", { aba, tipo: "" }], principal);
   cache.setQueryData(["aprovacoes", "esperando"], await aprovacoes.listar({ status: "pendente" }));
   cache.setQueryData(["aprovacoes", "decididas", "aprovado"], await aprovacoes.listar({ status: "aprovado" }));
@@ -49,15 +49,34 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("pedidos esperando o gerente (Aprovacoes)", () => {
-  it("cabeçalho, indicador e abas com a contagem da API", async () => {
+  it("cabeçalho, os 4 indicadores e abas com as contagens da API (CA-APR-01 a 03)", async () => {
     await entrar("rodrigo@motorapida.com.br");
     const t = texto(await pagina());
-    for (const trecho of ["Aprovações", "Filial Centro · pedidos que dependem de você", "Esperando você", "3", "mais antigo há 2 h", "Pendentes", "Aprovadas", "Recusadas", "Meus pedidos", "Todos os tipos"]) {
+    for (const trecho of [
+      "Aprovações",
+      "Filial Centro · pedidos que dependem de você",
+      "Esperando você",
+      "mais antigo há 2 h",
+      "Aprovadas em outubro",
+      "tempo médio de 1 h 30 min",
+      "Recusadas em outubro",
+      "sempre com motivo",
+      "Descontos aprovados",
+      "R$ 0,00",
+      "em 0 pedidos",
+      "Pendentes|3",
+      "Aprovadas|3",
+      "Recusadas|1",
+      "Meus pedidos",
+      "Todos os tipos",
+    ]) {
       expect(t, trecho).toContain(trecho);
     }
+    expect(t).toContain("Meus pedidos|Todos os tipos");
+    expect(t).not.toContain("4 horas");
   });
 
-  it("os três pedidos do seed, do mais antigo ao mais novo, com quem pediu, quando e o detalhe", async () => {
+  it("os três pedidos do seed, do mais antigo ao mais novo, com células e nota do resumo da API (CA-APR-10, CA-APR-11)", async () => {
     await entrar("rodrigo@motorapida.com.br");
     const t = texto(await pagina());
     const ordem = ["Desconto de 8% na venda para Diego Martins", "Encerrar antes do fim a LOC-2812 · Patrícia Gomes", "Despesa de R$ 1.200,00"];
@@ -67,13 +86,41 @@ describe("pedidos esperando o gerente (Aprovacoes)", () => {
       expect(i, o).toBeGreaterThan(pos);
       pos = i;
     }
-    for (const trecho of ["Bruna Alves", "há 2 h", "VEN-0177", "há 1 h", "a cliente pediu pelo WhatsApp", "João Silva", "há 40 min", "Pneus (2 unidades) · PMZ-3E17", "APR-01", "APR-02", "APR-03", "Mais antigo", "R$ 1.200,00", "8%", "R$ 84,80"]) {
+    for (const trecho of [
+      "Bruna Alves",
+      "há 2 h",
+      "VEN-0177",
+      "Preço de tabela|R$ 329,00",
+      "Com desconto|R$ 302,68",
+      "Desconto|R$ 26,32 · 8%",
+      "O limite de Bruna é 5%.",
+      "há 1 h",
+      "a cliente pediu pelo WhatsApp",
+      "Plano|Honda Biz 125 · mensal R$ 424,00",
+      "Dias restantes|8 de 30 · até 15 out",
+      "Multa (20%)|R$ 84,80",
+      "A devolver|R$ 286,20",
+      "João Silva",
+      "há 40 min",
+      "Pneus (2 unidades) · PMZ-3E17",
+      "Categoria|Manutenção",
+      "Descrição|Pneus (2)",
+      "Veículo|Honda Pop 110i · PMZ-3E17",
+      "Valor|R$ 1.200,00",
+      "Vencimento|07 out",
+      "APR-01",
+      "APR-02",
+      "APR-03",
+      "Mais antigo",
+    ]) {
       expect(t, trecho).toContain(trecho);
     }
+    expect(t).not.toContain("Fornecedor");
+    expect(t).not.toContain("Moto Peças CE");
     expect(t).toContain("Acima de R$ 500 precisa da sua aprovação. Aprovada, vai para o financeiro pagar.");
   });
 
-  it("cada pedido leva Ver ... para a origem, Recusar e Aprovar", async () => {
+  it("cada pedido leva Ver ... para a origem existente (sem Ver proposta), Recusar e Aprovar (CA-APR-10)", async () => {
     await entrar("rodrigo@motorapida.com.br");
     const html = await pagina();
     const t = texto(html);
@@ -81,6 +128,7 @@ describe("pedidos esperando o gerente (Aprovacoes)", () => {
     expect(t.match(/Recusar/g)?.length).toBeGreaterThanOrEqual(3);
     expect(t).toContain("Ver locação");
     expect(t).toContain("Ver despesa");
+    expect(t).not.toContain("Ver proposta");
     expect(html).toContain('href="/locacoes/2812"');
     expect(html).toContain('href="/financeiro/despesas/801"');
   });
@@ -97,12 +145,15 @@ describe("pedidos esperando o gerente (Aprovacoes)", () => {
     expect(t).toContain("Você não aprova pedidos feitos por você mesmo.");
   });
 
-  it("vendedora sem pedido para decidir vê a lista vazia, e os pedidos dela têm Cancelar pedido, sem Aprovar", async () => {
+  it("vendedora sem pedido para decidir vê a lista vazia, e em Meus pedidos vê pendentes (com Cancelar pedido) e decididos (com motivo da recusa, sem Cancelar)", async () => {
     await entrar("bruna@motorapida.com.br");
     expect(texto(await pagina())).toContain("Nenhum pedido esperando você.");
     const t = texto(await pagina("meus"));
     expect(t).toContain("Desconto de 8% na venda para Diego Martins");
+    expect(t).toContain("Desconto de 12% · Pop 110i");
+    expect(t).toContain("Motivo da recusa: abaixo do preço mínimo");
     expect(t).toContain("Cancelar pedido");
+    expect(t.match(/Cancelar pedido/g)?.length).toBe(2);
     expect(t).not.toContain("Aprovar");
     expect(t).not.toContain("Despesa de R$ 1.200,00");
   });

@@ -8,15 +8,15 @@ import { Button, Dialogo, Icone, KpiGrid, KpiTile, StatusBadge, TextField } from
 import { Confirmacao, ErroDoFinanceiro } from "@/components/financeiro/Comuns";
 import { aprovacoes, type PedidoDeAprovacao, type StatusDoPedido, type TipoDoPedido } from "@/lib/api";
 import { useAgora } from "@/lib/ambiente";
-import { atualizarAposDecisao, efeitoDoTipo, haQuanto, linhaDaDecisao, linkDaOrigem, rotuloDoTipo, TIPOS_DE_PEDIDO } from "@/lib/aprovacoes";
+import { atualizarAposDecisao, haQuanto, linhaDaDecisao, linkDaOrigem, rotuloDoTipo, TIPOS_DE_PEDIDO } from "@/lib/aprovacoes";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { useFiltrosNaUrl } from "@/lib/filtros-url";
 import { useFilial } from "@/lib/filial-escolhida";
-import { dinheiro, percentual } from "@/lib/formatos";
+import { dinheiro } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
 
 // Referência: docs/telas/html/Aprovacoes-Desktop.dc.html e Aprovacoes-Mobile.dc.html.
-// Título, detalhe, valor, percentual e quem pode decidir vêm da API (APR-01 a APR-10); a tela não calcula nada.
+// Título, detalhe, indicadores, contagens, resumo e quem pode decidir/cancelar vêm da API (APR-01 a APR-12); a tela não calcula nada.
 
 type Aba = "pendente" | "aprovado" | "recusado" | "meus";
 
@@ -36,18 +36,12 @@ function Celula({ rotulo, valor }: { rotulo: string; valor: string }) {
   );
 }
 
-/** O que a API sabe do pedido, em células: valor, percentual, filial e o motivo de quem pediu. */
+/** As células do pedido vêm prontas em `p.resumo.celulas` (APR-01 a APR-06); quando `resumo` é `null`, o cartão mostra só título e detalhe. */
 function Celulas({ p }: { p: PedidoDeAprovacao }) {
-  const valorRotulo = p.tipo === "APR-02" ? "Multa" : p.tipo === "APR-03" ? "Valor" : null;
-  const celulas = [
-    valorRotulo && p.valor_centavos !== null ? { rotulo: valorRotulo, valor: dinheiro(p.valor_centavos) } : null,
-    p.pct ? { rotulo: "Desconto", valor: percentual(p.pct) } : null,
-    { rotulo: "Filial", valor: p.filial.nome },
-    p.motivo_pedido ? { rotulo: "Motivo do pedido", valor: p.motivo_pedido } : null,
-  ].filter((c): c is { rotulo: string; valor: string } => c !== null);
+  if (!p.resumo || p.resumo.celulas.length === 0) return null;
   return (
     <div className="grid gap-2 md:grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
-      {celulas.map((c) => (
+      {p.resumo.celulas.map((c) => (
         <Celula key={c.rotulo} {...c} />
       ))}
     </div>
@@ -83,7 +77,7 @@ function CartaoDoPedido({ p, agora, maisAntigo, destaque, aoDecidir, aoRecusar, 
         </div>
       </div>
       <Celulas p={p} />
-      <p className="m-0 hidden text-caption text-ink-muted md:block">{efeitoDoTipo(p.tipo)}</p>
+      {p.resumo?.nota && <p className="m-0 hidden text-caption text-ink-muted md:block">{p.resumo.nota}</p>}
       {!pendente && p.status === "recusado" && p.motivo_recusa && <p className="m-0 text-caption">Motivo da recusa: {p.motivo_recusa}</p>}
       <div className="flex flex-wrap items-center gap-2">
         {ver && (
@@ -103,7 +97,7 @@ function CartaoDoPedido({ p, agora, maisAntigo, destaque, aoDecidir, aoRecusar, 
             </Button>
           </>
         )}
-        {pendente && !p.pode_decidir && (
+        {p.pode_cancelar && (
           <Button compacto variante="quieto" disabled={ocupado} onClick={() => aoCancelar(p)}>
             Cancelar pedido
           </Button>
@@ -126,7 +120,7 @@ export function ListaAprovacoes({ destaqueId }: { destaqueId?: number }) {
   const [motivo, setMotivo] = useState("");
   const [aviso, setAviso] = useState<string | null>(null);
 
-  const status: StatusDoPedido = aba === "meus" ? "pendente" : aba;
+  const status: StatusDoPedido | undefined = aba === "meus" ? undefined : aba;
   const lista = useQuery({ queryKey: ["aprovacoes", "lista", { aba, tipo }], queryFn: () => aprovacoes.listar({ status, tipo: tipo || undefined, minhas: aba === "meus" }), placeholderData: (a) => a });
   // Contagem do que espera e histórico: duas consultas fixas, independentes da aba escolhida.
   const esperando = useQuery({ queryKey: ["aprovacoes", "esperando"], queryFn: () => aprovacoes.listar({ status: "pendente" }) });
@@ -149,8 +143,11 @@ export function ListaAprovacoes({ destaqueId }: { destaqueId?: number }) {
   const ocupado = aprovar.isPending || recusar.isPending || cancelar.isPending;
 
   const pedidos = lista.data?.resultados ?? [];
-  const nEsperando = esperando.data?.contagens.pendente ?? lista.data?.contagens.pendente;
-  const maisAntigo = esperando.data?.resultados[0] ?? null;
+  const contagens = esperando.data?.contagens ?? lista.data?.contagens;
+  const ind = esperando.data?.indicadores ?? lista.data?.indicadores;
+  const nEsperando = ind?.esperando.quantidade ?? contagens?.pendente;
+  const maisAntigoEm = ind?.esperando.mais_antigo_em ?? esperando.data?.resultados[0]?.pedido_em ?? null;
+  const contextoEsperando = ind?.esperando.contexto ?? (maisAntigoEm ? `mais antigo ${haQuanto(maisAntigoEm, agora)}` : null);
   const recentes = [...(aprovadas.data?.resultados ?? []), ...(recusadas.data?.resultados ?? [])].sort((a, b) => (b.decidido_em ?? "").localeCompare(a.decidido_em ?? "")).slice(0, 4);
 
   return (
@@ -165,7 +162,7 @@ export function ListaAprovacoes({ destaqueId }: { destaqueId?: number }) {
             <span className="hidden md:inline">{filial ? `${filial} · ` : ""}pedidos que dependem de você</span>
             <span className="md:hidden">
               {nEsperando === undefined ? "" : `${nEsperando} esperando você`}
-              {maisAntigo ? ` · mais antigo ${haQuanto(maisAntigo.pedido_em, agora)}` : ""}
+              {contextoEsperando ? ` · ${contextoEsperando}` : ""}
             </span>
           </p>
         </div>
@@ -175,7 +172,10 @@ export function ListaAprovacoes({ destaqueId }: { destaqueId?: number }) {
 
       <div className="hidden md:block">
         <KpiGrid>
-          <KpiTile destaque rotulo="Esperando você" valor={String(nEsperando ?? 0)} contexto={maisAntigo ? `mais antigo ${haQuanto(maisAntigo.pedido_em, agora)}` : "nenhum pedido esperando"} />
+          <KpiTile destaque rotulo="Esperando você" valor={String(nEsperando ?? 0)} contexto={contextoEsperando ?? "nenhum pedido esperando"} />
+          <KpiTile rotulo={ind?.aprovadas.titulo ?? "Aprovadas"} valor={String(ind?.aprovadas.quantidade ?? 0)} contexto={ind?.aprovadas.contexto ?? undefined} />
+          <KpiTile rotulo={ind?.recusadas.titulo ?? "Recusadas"} valor={String(ind?.recusadas.quantidade ?? 0)} contexto={ind?.recusadas.contexto ?? "sempre com motivo"} />
+          <KpiTile rotulo={ind?.descontos.titulo ?? "Descontos aprovados"} valor={dinheiro(ind?.descontos.valor_centavos ?? 0)} contexto={ind?.descontos.contexto ?? "em 0 pedidos"} />
         </KpiGrid>
       </div>
 
@@ -183,18 +183,21 @@ export function ListaAprovacoes({ destaqueId }: { destaqueId?: number }) {
         <section className="md:wl-panel flex min-w-0 flex-col gap-4 md:flex-[999_1_560px]" aria-label="Pedidos">
           <div className="flex flex-wrap items-center gap-2">
             <div role="group" aria-label="Situação" className="flex flex-1 gap-2 overflow-x-auto pb-1">
-              {ABAS.map((a) => (
-                <button
-                  key={a.valor}
-                  type="button"
-                  aria-pressed={a.valor === aba}
-                  onClick={() => definir({ aba: a.valor === "pendente" ? null : a.valor })}
-                  className={`inline-flex h-[44px] shrink-0 items-center gap-2 rounded-pill px-4 text-body whitespace-nowrap md:h-10 ${a.valor === aba ? "bg-solid text-on-solid" : "bg-surface-sunken text-ink"}`}
-                >
-                  {a.rotulo}
-                  {a.valor === "pendente" && nEsperando !== undefined && <span className={`wl-count ${a.valor === aba ? "!bg-brand !text-on-brand" : "!bg-surface"}`}>{nEsperando}</span>}
-                </button>
-              ))}
+              {ABAS.map((a) => {
+                const n = a.valor === "meus" ? undefined : contagens?.[a.valor];
+                return (
+                  <button
+                    key={a.valor}
+                    type="button"
+                    aria-pressed={a.valor === aba}
+                    onClick={() => definir({ aba: a.valor === "pendente" ? null : a.valor })}
+                    className={`inline-flex h-[44px] shrink-0 items-center gap-2 rounded-pill px-4 text-body whitespace-nowrap md:h-10 ${a.valor === aba ? "bg-solid text-on-solid" : "bg-surface-sunken text-ink"}`}
+                  >
+                    {a.rotulo}
+                    {n !== undefined && <span className={`wl-count ${a.valor === aba ? "!bg-brand !text-on-brand" : "!bg-surface"}`}>{n}</span>}
+                  </button>
+                );
+              })}
             </div>
             <select aria-label="Tipo de pedido" value={tipo} onChange={(e) => definir({ tipo: e.target.value })} className="wl-input hidden w-auto md:block">
               <option value="">Todos os tipos</option>

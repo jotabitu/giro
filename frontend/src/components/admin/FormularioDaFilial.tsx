@@ -9,13 +9,12 @@ import { Button, Icone, ProgressBar, SegmentedControl, StatusBadge, TextField } 
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { filiais, type FilialDetalhada } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
-import { corpoDaFilial, filialCompleta, horarioPedeCuidado, mascaraTelefone, UFS, valoresDaFilial, VALORES_INICIAIS_DA_FILIAL, type LinhaDeHorario, type ValoresDaFilial } from "@/lib/filiais";
+import { corpoDaFilial, filialCompleta, horarioPedeCuidado, mascaraTelefone, resumoDaLinha, UFS, valoresDaFilial, VALORES_INICIAIS_DA_FILIAL, type LinhaDeHorario, type ValoresDaFilial } from "@/lib/filiais";
 import { mascaraCep, mascaraCnpj, soDigitos } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
 import { FeriadosDaFilial } from "./FeriadosDaFilial";
 
 // Referência: docs/telas/html/Filial-Desktop.dc.html e Filial-Mobile.dc.html (nova filial; a edição usa a mesma tela).
-// Nome curto no seletor não existe no contrato e ficou de fora (decisão no backlog).
 
 function Secao({ titulo, texto, children }: { titulo: string; texto?: string; children: ReactNode }) {
   return (
@@ -39,7 +38,11 @@ const DIAS = [
 
 function Horarios({ valores, aoMudar, aviso, erro }: { valores: ValoresDaFilial["horario"]; aoMudar: (h: ValoresDaFilial["horario"]) => void; aviso: boolean; erro?: string }) {
   const [editando, setEditando] = useState(false);
-  const mudar = (chave: (typeof DIAS)[number]["chave"], parte: Partial<LinhaDeHorario>) => aoMudar({ ...valores, [chave]: { ...valores[chave], ...parte } });
+  const mudar = (chave: (typeof DIAS)[number]["chave"], parte: Partial<LinhaDeHorario>) => {
+    const proximo = { ...valores[chave], ...parte };
+    if (!proximo.segundo) delete proximo.segundo;
+    aoMudar({ ...valores, [chave]: proximo });
+  };
   return (
     <div>
       <div className={editando ? "" : "hidden md:block"}>
@@ -52,14 +55,37 @@ function Horarios({ valores, aoMudar, aviso, erro }: { valores: ValoresDaFilial[
         {DIAS.map((d) => {
           const l = valores[d.chave];
           return (
-            <div key={d.chave} className="grid grid-cols-[1fr_1fr] items-center gap-3 border-b border-line py-2.5 last:border-b-0 md:grid-cols-[140px_1fr_1fr_auto]">
-              <span className="col-span-2 text-body md:col-span-1">{d.rotulo}</span>
-              <input aria-label={`${d.rotulo}: abre`} type="time" className="wl-input wl-mono" value={l.fechado ? "" : l.abre} disabled={l.fechado} onChange={(e) => mudar(d.chave, { abre: e.target.value })} />
-              <input aria-label={`${d.rotulo}: fecha`} type="time" className="wl-input wl-mono" value={l.fechado ? "" : l.fecha} disabled={l.fechado} onChange={(e) => mudar(d.chave, { fecha: e.target.value })} />
-              <label className="col-span-2 flex min-h-[44px] items-center gap-2 text-body md:col-span-1">
-                <input type="checkbox" checked={l.fechado} onChange={(e) => mudar(d.chave, { fechado: e.target.checked })} className="size-5 accent-[var(--solid)]" />
-                Fechado
-              </label>
+            <div key={d.chave}>
+              <div className="grid grid-cols-[1fr_1fr] items-center gap-3 border-b border-line py-2.5 md:grid-cols-[140px_1fr_1fr_auto]">
+                <span className="col-span-2 text-body md:col-span-1">{d.rotulo}</span>
+                <input aria-label={`${d.rotulo}: abre`} type="time" className="wl-input wl-mono" value={l.fechado ? "" : l.abre} disabled={l.fechado} onChange={(e) => mudar(d.chave, { abre: e.target.value })} />
+                <input aria-label={`${d.rotulo}: fecha`} type="time" className="wl-input wl-mono" value={l.fechado ? "" : l.fecha} disabled={l.fechado} onChange={(e) => mudar(d.chave, { fecha: e.target.value })} />
+                <div className="col-span-2 flex min-h-[44px] flex-wrap items-center gap-3 md:col-span-1">
+                  <label className="flex items-center gap-2 text-body">
+                    <input type="checkbox" checked={l.fechado} onChange={(e) => mudar(d.chave, { fechado: e.target.checked, segundo: undefined })} className="size-5 accent-[var(--solid)]" />
+                    Fechado
+                  </label>
+                  {!l.fechado && !l.segundo && (
+                    <button
+                      type="button"
+                      onClick={() => mudar(d.chave, { fecha: l.fecha === "18:00" ? "12:00" : l.fecha, segundo: { abre: "14:00", fecha: "18:00" } })}
+                      className="wl-btn wl-btn--quiet wl-btn--sm"
+                    >
+                      2º intervalo
+                    </button>
+                  )}
+                </div>
+              </div>
+              {!l.fechado && l.segundo && (
+                <div className="grid grid-cols-[1fr_1fr] items-center gap-3 border-b border-line py-2.5 md:grid-cols-[140px_1fr_1fr_auto]">
+                  <span className="col-span-2 text-caption text-ink-muted md:col-span-1">2º intervalo</span>
+                  <input aria-label={`${d.rotulo}: 2º intervalo abre`} type="time" className="wl-input wl-mono" value={l.segundo.abre} onChange={(e) => mudar(d.chave, { segundo: { ...l.segundo!, abre: e.target.value } })} />
+                  <input aria-label={`${d.rotulo}: 2º intervalo fecha`} type="time" className="wl-input wl-mono" value={l.segundo.fecha} onChange={(e) => mudar(d.chave, { segundo: { ...l.segundo!, fecha: e.target.value } })} />
+                  <button type="button" onClick={() => mudar(d.chave, { segundo: undefined })} className="wl-btn wl-btn--quiet wl-btn--sm col-span-2 justify-self-start md:col-span-1">
+                    Remover
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}
@@ -70,7 +96,7 @@ function Horarios({ valores, aoMudar, aviso, erro }: { valores: ValoresDaFilial[
           return (
             <div key={d.chave} className="flex min-h-12 items-center justify-between border-b border-line text-body last:border-b-0">
               <span>{d.rotulo}</span>
-              <span className={l.fechado ? "" : "wl-mono"}>{l.fechado ? "Fechado" : `${l.abre} – ${l.fecha}`}</span>
+              <span className={l.fechado ? "text-ink-muted" : "wl-mono"}>{resumoDaLinha(l)}</span>
             </div>
           );
         })}
@@ -80,7 +106,8 @@ function Horarios({ valores, aoMudar, aviso, erro }: { valores: ValoresDaFilial[
           </Button>
         </div>
       </div>
-      {aviso && <p className="mt-2 mb-0 text-caption text-ink-muted">Esta filial tem horários diferentes durante a semana ou fecha no almoço. Se você editar aqui, de segunda a sexta fica um horário só.</p>}
+      <p className="mt-2 mb-0 text-caption text-ink-muted">Cada dia aceita até 2 intervalos, para quem fecha no almoço.</p>
+      {aviso && <p className="mt-2 mb-0 text-caption text-ink-muted">Esta filial tem horários diferentes durante a semana. Se você editar aqui, de segunda a sexta fica igual.</p>}
       {erro && (
         <p role="alert" className="mt-2 mb-0 text-caption text-critical-ink">
           {erro}
@@ -132,7 +159,7 @@ function Formulario({ filial }: { filial?: FilialDetalhada }) {
     },
   });
   const erro = (campo: string) => campoDoErro(salvar.error, campo);
-  const camposComErro = ["nome", "cnpj", "inscricao_estadual", "inscricao_municipal", "endereco", "contato", "horario"];
+  const camposComErro = ["nome", "nome_curto", "cnpj", "inscricao_estadual", "inscricao_municipal", "endereco", "contato", "preco_litro_centavos", "horario"];
   const erroGeral = salvar.isError && !camposComErro.some((c) => erro(c));
   const bloqueadaPeloPlano = !filial && plano?.bloqueado === true;
   const pode = filialCompleta(v) && !salvar.isPending && !bloqueadaPeloPlano;
@@ -197,6 +224,16 @@ function Formulario({ filial }: { filial?: FilialDetalhada }) {
           <Secao titulo="Identificação" texto="Como a filial aparece no seletor, nos contratos e nos recibos.">
             <div className={GRADE}>
               <TextField cheio rotulo="Nome da filial" value={v.nome} onChange={(e) => definir("nome", e.target.value)} erro={erro("nome")} />
+              <TextField
+                cheio
+                rotulo="Nome curto no seletor"
+                placeholder="Ex.: Messejana"
+                maxLength={30}
+                value={v.nomeCurto}
+                onChange={(e) => definir("nomeCurto", e.target.value)}
+                erro={erro("nome_curto")}
+                dica="Até 30 caracteres. Aparece no seletor do topo."
+              />
               <div className="wl-field">
                 <span className="wl-field__label">Tipo</span>
                 {filial ? (
@@ -243,9 +280,7 @@ function Formulario({ filial }: { filial?: FilialDetalhada }) {
 
           <Secao titulo="Contato e funcionamento" texto="Usados nos lembretes ao cliente e para calcular atraso na devolução fora do horário.">
             <div className={GRADE}>
-              <div className="hidden md:block">
-                <TextField cheio rotulo="Telefone" inputMode="tel" value={mascaraTelefone(v.telefone)} onChange={(e) => definir("telefone", e.target.value)} />
-              </div>
+              <TextField cheio rotulo="Telefone" inputMode="tel" value={mascaraTelefone(v.telefone)} onChange={(e) => definir("telefone", e.target.value)} />
               <TextField cheio rotulo="WhatsApp de atendimento" inputMode="tel" value={mascaraTelefone(v.whatsapp)} onChange={(e) => definir("whatsapp", e.target.value)} />
               <TextField cheio rotulo="E-mail" type="email" inputMode="email" value={v.email} onChange={(e) => definir("email", e.target.value)} />
             </div>
@@ -270,7 +305,7 @@ function Formulario({ filial }: { filial?: FilialDetalhada }) {
             )}
           </Secao>
 
-          <Secao titulo="Operação" texto="Quem responde pela filial. O recebimento e o preço são da empresa.">
+          <Secao titulo="Operação" texto="Quem responde pela filial e o combustível da devolução. O recebimento é da empresa; o preço pode ser da empresa ou da filial.">
             <div className={GRADE}>
               <div className="wl-field wl-field--cheio">
                 <label className="wl-field__label" htmlFor="gerente-da-filial">
@@ -279,6 +314,19 @@ function Formulario({ filial }: { filial?: FilialDetalhada }) {
                 <input id="gerente-da-filial" className="wl-input" disabled value={filial?.gerentes.length ? filial.gerentes.map((g) => g.nome).join(", ") : "Nenhum gerente ligado ainda"} readOnly />
                 <span className="wl-field__hint">Quem gerencia é quem tem perfil gerente nesta filial, em Usuários.</span>
               </div>
+              {eu.pode.administracao && (
+                <TextField
+                  cheio
+                  mono
+                  rotulo="Preço do litro do combustível"
+                  placeholder="R$ 0,00"
+                  inputMode="decimal"
+                  value={v.precoLitro}
+                  onChange={(e) => definir("precoLitro", e.target.value)}
+                  erro={erro("preco_litro_centavos")}
+                  dica="Usado no acerto de combustível da devolução. Sem preço, o acerto pede o valor à mão. Só o administrador altera."
+                />
+              )}
             </div>
           </Secao>
 
@@ -338,7 +386,7 @@ function Formulario({ filial }: { filial?: FilialDetalhada }) {
               {!filial && plano.limite !== null && (
                 <p className="m-0 text-caption text-ink-muted">
                   Ao salvar, são {plano.usado + 1} de {plano.limite} filiais.
-                  {plano.usado + 1 >= plano.limite ? " Para abrir outra, contrate uma filial adicional." : ""}
+                  {plano.usado + 1 >= plano.limite ? " Para abrir outra, mude de plano." : ""}
                 </p>
               )}
             </section>

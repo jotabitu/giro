@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 from apps.contratos import pdf
 from apps.contratos import selectors as contratos_selectors
 from comum.dinheiro import formatar_reais
+from comum.documentos import placa_com_hifen
 
 from . import services
 from .models import Combustivel, Devolucao, FotoVistoria, NaturezaItem, PosicaoFoto
@@ -72,7 +73,8 @@ def corpo(devolucao: Devolucao) -> tuple[str, pdf.Imagens]:
     partes = [
         f"<h1>Recibo de devolução · {_e(locacao.codigo)}</h1>",
         f"<p>Cliente: {_e(locacao.cliente.nome)}<br>",
-        f"Veículo: {_e(veiculo.marca)} {_e(veiculo.modelo)} · {_e(veiculo.placa)}<br>",
+        f"Veículo: {_e(veiculo.marca)} {_e(veiculo.modelo)} · "
+        f"{_e(placa_com_hifen(veiculo.placa))}<br>",
         "Devolução em: "
         + (_e(quando.astimezone(fuso).strftime("%d/%m/%Y %H:%M")) if quando else "-")
         + "</p>",
