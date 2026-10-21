@@ -22,6 +22,7 @@ from apps.auditoria.models import EventoAuditoria, EventoImutavel, Exportacao
 from apps.contas.models import Usuario
 from apps.plataforma.models import AcessoSuporte, Empresa
 from apps.plataforma.services import abrir_acesso_suporte, sair_do_suporte
+from apps.veiculos import services as veiculos_services
 from comum import arquivos, relogio
 from comum.auditoria import (
     ATOR_SISTEMA,
@@ -59,8 +60,17 @@ class Auditoria:
         self.desde = EventoAuditoria.objects.order_by("-id").values_list("id", flat=True).first()
         self.moto = moto
         self.relogio = relogio_
-        relogio_.em("2026-06-01 09:00")  # a filial nasce fora dos 90 dias da consulta
+        relogio_.em("2026-06-01 09:00")  # a filial e a categoria nascem fora dos 90 dias
         self.centro = moto.centro()
+        self.street = veiculos_services.criar_categoria(
+            {"nome": "Street 150–160", "tipo_veiculo": "moto"},
+            {
+                "diaria_centavos": 5490,
+                "semanal_centavos": 29940,
+                "mensal_centavos": 119000,
+                "caucao_centavos": 30000,
+            },
+        )
         moto._tokens.clear()  # o token de junho já venceu em outubro
         p = moto.pessoas
         Usuario.objects.filter(pk=p["Bruna"].pk).update(nome="Bruna Alves")
@@ -91,6 +101,17 @@ class Auditoria:
         r.em("2026-09-29 10:00")
         with usar_ator(self.mariana):
             registrar_evento("usuario.editar", Categoria.SEGURANCA, objeto=p["Lúcia"])
+        r.em("2026-10-01 17:42")
+        with usar_ator(self.mariana):
+            veiculos_services.criar_preco(
+                self.street,
+                {
+                    "diaria_centavos": 5490,
+                    "semanal_centavos": 32900,
+                    "mensal_centavos": 119000,
+                    "caucao_centavos": 30000,
+                },
+            )
         r.em("2026-10-06 18:10")
         with usar_ator(self.mariana):
             joao = Usuario.objects.get(pk=p["João"].pk)
@@ -479,6 +500,7 @@ SEED = [
     ),
     ("2026-10-07T10:55:00Z", "Bruna Alves", "Abriu o caixa com troco de R$ 200,00", "financeiro"),
     ("2026-10-06T21:10:00Z", "Mariana Costa", "Convidou João Silva", "seguranca"),
+    ("2026-10-01T20:42:00Z", "Mariana Costa", "Mudou a tabela de preço", "configuracoes"),
 ]
 
 
@@ -493,6 +515,7 @@ def test_aud_02_ca_018_09_lista_do_seed(aud):
     assert detalhes[2] == "Óleo QXA-4B21 · pago no caixa"
     assert detalhes[5] == "Pneus PMZ-3E17 · aguardando gerente"
     assert detalhes[8] == "Vistoriador"
+    assert detalhes[9] == "Street 150–160 · semanal R$ 299,40 → R$ 329,00"
     assert lista[0]["suporte"]["atendente"] == "Diego Santos"
 
 
@@ -508,6 +531,7 @@ def test_aud_02_ca_018_10_filtros(aud):
         "Convidou João Silva",
         "Login bloqueado após 5 tentativas erradas de rodrigo@motorapida.com.br",
     ]
+    assert resumos("?categoria=configuracoes") == ["Mudou a tabela de preço"]
     bruna = aud.moto.pessoas["Bruna"].pk
     assert len(resumos(f"?ator={bruna}")) == 4
     assert len(resumos(f"?ator={bruna}&categoria=financeiro")) == 3  # os filtros combinam
@@ -561,7 +585,7 @@ def test_aud_02_ca_018_12_escopo_da_empresa(aud, empresa_b):
     acoes = {e["acao"] for e in eventos}
     assert "plano.editar" not in acoes and "usuario.editar" in acoes
     assert acoes >= {"suporte.entrar", "suporte.sair"}
-    assert len(eventos) == 10  # os 9 do seed e o de 29 set; nada da empresa B
+    assert len(eventos) == 11  # os 10 do seed e o de 29 set; nada da empresa B
 
 
 def test_aud_07_ca_018_13_exportar(aud, django_capture_on_commit_callbacks):
