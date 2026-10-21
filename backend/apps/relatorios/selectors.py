@@ -788,8 +788,12 @@ def configuracoes(usuario: Any, suporte: bool) -> dict[str, Any]:
             "pausada_ate": empresa.pausada_ate,
         },
     )
+    # O `proximo` do assistente sai dos passos já lidos, sem ler o `public` de novo (T-340).
     passos = plataforma_selectors.implantacao(empresa)["passos"]
+    recebe = plataforma_selectors.empresa_tem_recebimentos(empresa)
+    feitos = [p["passo"] for p in passos if p["concluido_em"]]
+    proximo = plataforma_selectors.proximo_do_assistente(feitos, recebe)
     return {
         "cartoes": textos_de_configuracoes.cartoes(visiveis, fontes),
-        "implantacao": textos_de_configuracoes.implantacao(passos),
+        "implantacao": textos_de_configuracoes.implantacao(passos, proximo, recebe),
     }

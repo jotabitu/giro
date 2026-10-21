@@ -10,8 +10,6 @@ aprovados às 12:20 (140 min); média (40 + 140) ÷ 2 = 90 min. Pendentes: pneus
 from datetime import timedelta
 from typing import Any
 
-import pytest
-
 from apps.aprovacoes.models import PedidoAprovacao
 from apps.clientes.models import Cliente
 from apps.financeiro.models import Caixa, Despesa
@@ -304,10 +302,6 @@ def test_apr_12_apr_04_ca_apr_05_diferenca_de_caixa_do_rodrigo_aprovada_pela_mar
     ]
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="T-341: placa no resumo da despesa sai PMZ3E17 sem hífen (financeiro/services.py:1637)",
-)
 def test_apr_03_ca_apr_11_resumo_dos_pneus_com_placa_pmz_3e17(seed: Any):
     pneus = _pedido_da_despesa("Pneus (2)")
     corpo = _api(seed, "Rodrigo").get(APROVACOES).json()

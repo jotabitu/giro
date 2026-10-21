@@ -270,7 +270,7 @@ def test_imp_02_ja_cadastrado_e_erro_nao_atualizacao(moto, django_capture_on_com
             {
                 "campo": "placa",
                 "codigo": "VEI-01",
-                "mensagem": "Placa GEN0001 já cadastrada",
+                "mensagem": "Placa GEN-0001 já cadastrada",
             }
         ],
         [

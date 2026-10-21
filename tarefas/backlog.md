@@ -159,9 +159,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 - **Nota da T-012 (08/10):** a S-12 (SVG do logo sanitizado e exibido só por `<img>`) vale para `ConfiguracaoEmpresa.logo` (app `empresas`), e não para a filial. Entra na tarefa da marca da empresa (`Admin-Marca`), a criar.
 
-### T-341 · Continuar implantação e placa com hífen nos textos
-- **Agente:** backend · **Depende de:** T-340, T-202 (PR #369) · **Regras:** IMP-05, PLT-12, FIN-16 · **Contrato:** `docs/api/configuracoes.md` e `docs/api/README.md` (T-340, handoff `tarefas/handoffs/T-340-arquiteto.md`) · **Pronto quando:** em `relatorios/configuracoes.py`, o `acao` pelo `proximo` (`test_imp_05_continuar_implantacao_pelo_proximo` e os casos novos de `configuracoes.md`, sem passar de 11 queries); `comum` com o formatador de placa (sai `financeiro.exportacao.placa_com_hifen`) e todo texto com placa passando por ele: `resumo` das aprovações (CA-APR-11 com `PMZ-3E17`), `detalhe` do `APR-06`, textos de `veiculos`, `vistorias`, `contratos/prontos.py`, `financeiro` e auditoria. O frontend não muda: a Configurações já leva `acao.destino` à rota, e a casca já tem `/implantacao/[passo]`.
-
 ### T-165 · Fotos da vistoria em PNG com paleta perdem as cores (baixa)
 - **Agente:** backend · **Depende de:** — · **Regras:** VIS-02 · **Pronto quando:** `comum.arquivos.sem_metadados` mantém as cores de um PNG em modo `P` (com paleta e `tRNS`): hoje faz `Image.new(imagem.mode, ...)` + `paste`, e a imagem nova sai sem a paleta. Converter para `RGBA` (ou copiar a paleta) antes de gravar, sem voltar a gravar metadados; teste com PNG em paleta comparando os pixels. Não é falha de segurança. Levantada pela segurança na decisão do PNG da T-153 (12 out 2026, `C:/Users/Jota/Documents/giro-produto/decisao-t153-seguranca.md`, fora do git).
 
