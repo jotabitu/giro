@@ -30,7 +30,7 @@ export function SidebarDaEmpresa() {
   // Só com mais de uma opção no escopo (USR-07); com uma filial e sem "Todas", o seletor nem aparece.
   const seletor = filial?.escolha ? (
     <SeletorDeFilial
-      filiais={filial.filiais.map((f) => ({ id: String(f.id), nome: f.nome, cidade: f.cidade }))}
+      filiais={filial.filiais.map((f) => ({ id: String(f.id), nome: f.nome_curto, cidade: f.cidade }))}
       valor={filial.escolha}
       aoMudar={filial.trocar}
       permiteTodas={filial.podeEscolherTodas}

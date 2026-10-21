@@ -20,7 +20,7 @@ from apps.filiais.models import Filial
 from apps.veiculos import services as veiculos
 from apps.veiculos.models import Categoria
 from comum.campos import buscar_por_hash
-from comum.documentos import so_digitos
+from comum.documentos import placa_com_hifen, so_digitos
 
 from .models import TipoImportacao
 from .planilha import COLUNAS, normalizar_nome
@@ -215,7 +215,7 @@ def _veiculo(valores: dict[str, str], contexto: Contexto) -> Resultado:
 def _mensagem_do_veiculo(e: Erro, valores: dict[str, str]) -> str:
     if e["campo"] in ("placa", "chassi"):  # o formato já foi conferido: é repetição na empresa
         if e["campo"] == "placa":
-            return f"Placa {valores['placa']} já cadastrada"
+            return f"Placa {placa_com_hifen(valores['placa'])} já cadastrada"
         return f"Chassi {valores['chassi']} já cadastrado"
     return e["mensagem"]
 

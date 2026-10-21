@@ -28,8 +28,8 @@ import { navegacaoFalsa } from "./falso-navegacao";
 
 const SENHA = "senhaforte123";
 const CODIGO = "123456";
-const FILIAL_CENTRO = { id: 1, nome: "Filial Centro" };
-const FILIAL_ALDEOTA = { id: 2, nome: "Filial Aldeota" };
+const FILIAL_CENTRO = { id: 1, nome: "Filial Centro", nome_curto: "Centro" };
+const FILIAL_ALDEOTA = { id: 2, nome: "Filial Aldeota", nome_curto: "Filial Aldeota" };
 
 const PODE: Record<Perfil, Pode> = {
   administrador: { painel: "todas_filiais", veiculos: "editar", movimentacoes: "gerir", clientes_cadastrar: true, locacoes_criar: true, vistorias_fazer: true, locacoes_cancelar: "sim", desconto_acima_limite: "sim", vendas_criar: true, caixa_receber: true, caixa_abrir_fechar: true, despesas_lancar: "todas", despesas_aprovar: true, despesas_exportar: true, financeiro_pagar: true, lancamento_avulso: true, os_abrir: true, administracao: true },

@@ -4,7 +4,7 @@ import { ErroApi } from "@/lib/api/tipos";
 import type { AlteracaoDeUsuario, ConviteNovo, FiltroUsuarios, LinkDoConvite, ListaUsuarios, PermissaoDoUsuario, SessaoDoUsuario, UsuarioDetalhado } from "@/lib/api/tipos-usuarios";
 import { pausa } from "./falso";
 
-const CENTRO = { id: 1, nome: "Filial Centro", nome_curto: "Filial Centro" };
+const CENTRO = { id: 1, nome: "Filial Centro", nome_curto: "Centro" };
 const ALDEOTA = { id: 2, nome: "Filial Aldeota", nome_curto: "Filial Aldeota" };
 
 const permissoes = (perfil: UsuarioDetalhado["perfil"], marcadas: PermissaoDoUsuario["chave"][] = []): PermissaoDoUsuario[] => {

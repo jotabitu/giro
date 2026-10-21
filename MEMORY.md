@@ -1,0 +1,117 @@
+# Memória do Giro
+
+Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no `CLAUDE.md`. Entradas mais recentes primeiro; nada aqui é apagado (ver "Manutenção da Memória" no `CLAUDE.md`).
+
+## Decisões de Design
+
+### [2026-10-21] Cancelar a ativa com o período pago já vencido: o acesso termina na hora
+- **Contexto:** a `PLT-06` dá acesso até o fim do período pago, mas não dizia o que fazer quando a `ativa` cancela no dia do vencimento da fatura seguinte, ainda sem pagá-la (T-195, PR #375).
+- **Decisão (dono, opção A, recomendação do Produto):** a empresa vira `cancelada` no mesmo dia, e a fatura do dia é cancelada no parceiro e não fica devida; a tela mostra "termina agora". Se o cartão já foi cobrado antes do cancelamento, vale o caso comum: acesso até o fim do período pago. Registro nas regras pela T-343.
+- **Alternativas descartadas:** B, acesso até o fim do período se a fatura for paga, que cobraria um mês de quem está saindo e contraria o "sem cobrança futura" da `PLT-06`.
+- **Consequências:** o caso segue a `inadimplente` e a pausa; na reativação, a fatura nova vence no dia da volta. Teste `test_plt_06_acesso_que_ja_acabou_termina_agora`.
+
+### [2026-10-20] Fonte provisória do catálogo de veículos: API aberta da Parallelum
+- **Contexto:** o cadastro de veículos precisa de um catálogo de marcas, modelos e versões (`VEI-08`). A fonte definitiva escolhida pelo dono, a FIPE licenciada (opção B), ainda não está contratada.
+- **Decisão:** usar provisoriamente a API aberta da Parallelum (projeto `parallelum/fipe-go`), com o risco aceito pelo dono. ADR 0031 (aceita, provisória); a ADR 0030 (FIPE licenciada) segue proposta. A carga é a T-339: script fora do servidor, sem dependência nova, carro e moto, 1 pedido por segundo, com a lista própria juntada na carga.
+- **Alternativas descartadas:** ficar sem catálogo até contratar a FIPE licenciada. As outras opções da T-337 além da B: [A CONFIRMAR].
+- **Consequências:** é fonte de terceiro, sem garantia; a troca pela FIPE licenciada deve ser uma nova ADR que substitua a 0031. Observe o limite de pedidos e mudanças na API aberta.
+
+### [2026-10-20] CRLV-e com um layout só para todos os estados
+- **Contexto:** dúvida se a leitura do CRLV-e precisaria de variações por estado.
+- **Decisão (dono):** o layout é o mesmo em todo o país. Só muda o cabeçalho com o nome e o logotipo do Detran do estado, que não interfere nos dados.
+- **Alternativas descartadas:** um modelo por UF, desnecessário pela resposta do dono.
+- **Consequências:** a leitura não precisa tratar variantes por estado. Tarefa de origem: [A CONFIRMAR].
+
+### [2026-10-20] Parte do time de agentes no Gemini (Antigravity)
+- **Contexto:** o limite semanal do Claude foi atingido em 20/10, e o dono quis dividir a carga entre provedores.
+- **Decisão:** QA, Frontend e Design System rodam no Gemini 4 Argon (High) pelo Antigravity CLI (`agy --effort high --add-dir <worktree>`), recrutados pelo Maestri. Orquestrador, Backend, Arquiteto, Segurança e Produto ficam no Opus; DevOps no Sonnet. No agy, `toolPermission: "always-proceed"` (escolha do dono).
+- **Alternativas descartadas:** trocar também o Backend (o dono quis manter no Opus).
+- **Consequências:** o Gemini não lê `.claude/agents/` sozinho; a primeira mensagem deve mandar ler `CLAUDE.md`, `.claude/agents/<funcao>.md`, `tarefas/README.md` e `docs/agentes/retomada.md`. As entregas desses agentes passam pela mesma conferência das outras.
+
+### [2026-10-14] Compra pública e painel da plataforma ficam para a fase 2
+- **Contexto:** a fase 1 priorizou o sistema da locadora, incluindo assinatura, cancelamento e pausa (`PLT-01` a `PLT-15`, decisão do dono na T-190).
+- **Decisão:** no MVP, a equipe Giro cria empresas pelo Django Admin, que chama o mesmo serviço `plataforma.services.criar_empresa` (`docs/api/plataforma.md`). As telas `Compra-*` e `Plat-*` não têm rota no frontend; `/plataforma` é um texto provisório.
+- **Alternativas descartadas:** compra self-service já na fase 1 (exige a rota pública, proteção contra abuso e revisão da Segurança).
+- **Consequências:** em 21/10 o backend já tinha login e 2 etapas da plataforma, planos (só lista), empresas (lista e detalhe), acessos de suporte e auditoria; faltam a rota pública de compra, cobrança, implantações, equipe interna e planos editáveis. Antecipar alguma parte é decisão pendente do dono.
+
+### [2026-10-12] Repositório público por enquanto
+- **Contexto:** a cota gratuita do GitHub Actions esgotou em 12/10 e só voltaria em 01/11. O CI já rodava só nas áreas alteradas (T-120).
+- **Decisão (dono, opção D):** tornar `jotabitu/giro` público, com Actions ilimitado.
+- **Alternativas descartadas:** orçamento pago e runner próprio (a máquina tem pouca memória).
+- **Consequências:** nunca commitar segredo, `.env` nem dado pessoal real. Perguntar ao dono, perto de 01/11, se o repositório volta a ser privado.
+
+### [2026-10-09] Sem branch develop
+- **Contexto:** o dono cogitou o fluxo `main` ← `develop` ← `t-xxx`, com CI nas duas etapas.
+- **Decisão:** "deixe como está por enquanto": a branch da tarefa sai da `origin/main` e o PR vai para a `main`.
+- **Alternativas descartadas:** `develop`, que dobraria PRs e avales.
+- **Consequências:** se voltar, criar a `develop`, o CI com push nela (DevOps), atualizar `tarefas/README.md` e `CLAUDE.md` e avisar os agentes.
+
+### [2026-10-08] Contexto dos agentes limpo a partir de 50%
+- **Contexto:** pedido do dono para controlar o custo e a qualidade dos agentes no Maestri.
+- **Decisão:** com 50% de contexto, `/clear` entre tarefas (com o resumo de retomada depois) e `/compact` no meio de uma tarefa.
+- **Alternativas descartadas:** compactar sempre, que é mais caro; limpar é seguro porque tudo fica no repositório (handoff, quadro, regras).
+- **Consequências:** conferir a barra de contexto a cada entrega e antes de mandar tarefa nova.
+
+## Log de Bugs Resolvidos
+
+### [2026-10-20] Contêineres de teste do backend que nunca saem
+- **Sintoma:** vários contêineres de pé em `docker ps`, presos em "Aguardando o Postgres em db...", sem sair mesmo com `--rm`.
+- **Causa raiz:** o entrypoint da imagem espera o host `db` do compose quando o contêiner avulso roda sem `-e POSTGRES_HOST`.
+- **Correção:** rodar com `-e POSTGRES_HOST=giro-backend-pg` na rede `giro-backend-teste`; para ruff e mypy, `--entrypoint sh`; conferir `docker ps` depois de cada rodada. Dois órfãos (um do orquestrador, um do QA) foram removidos.
+- **Pistas falsas:** parecia trabalho em andamento dos agentes.
+
+### [2026-10-20] Cópia principal com 135 telas "modificadas"
+- **Sintoma:** `docs/telas` aparecia com 135 arquivos alterados na cópia principal, sugerindo telas novas a commitar.
+- **Causa raiz:** a cópia estava parada no PR #54. Das 135, 42 eram iguais à `main`, 83 eram versões antigas e 10 nunca entraram na `main` (8 mais antigas e as 2 do Gerente com números antigos do seed).
+- **Correção:** nada foi commitado; stash, avanço da cópia para a `main` e descarte do stash com o aval do dono.
+- **Pistas falsas:** a tela do Gerente parecia uma versão nova, mas era praticamente a mesma da `main`.
+
+### [2026-10-20] Agentes no Gemini parando a cada comando
+- **Sintoma:** o agy pedia aprovação em cada comando; `--model gemini-4-argon-high` era ignorado com aviso.
+- **Causa raiz:** a permissão padrão do Antigravity pede aprovação; o modelo padrão já é o Gemini 4 Argon, e o nível sai do `--effort`.
+- **Correção:** `"toolPermission": "always-proceed"` em `~/.gemini/antigravity-cli/settings.json` e `--effort high` no comando.
+- **Pistas falsas:** o nome do modelo com `-high`.
+
+### [2026-10-20] Textos cortados pelo PowerShell
+- **Sintoma:** `gh pr create --body` e `maestri ask` chegavam com o texto cortado; `stash@{0}` dava erro.
+- **Causa raiz:** o PowerShell interpreta aspas duplas e chaves dentro do argumento.
+- **Correção:** `--body-file`, mensagens pelo Bash com `"$(cat arquivo)"` e `'stash@{0}'` entre aspas simples.
+- **Pistas falsas:** nenhuma registrada.
+
+### [2026-10-20] Comando do Maestri digitado e não enviado
+- **Sintoma:** depois de `/clear` ou `/compact`, o texto ficava na caixa do agente (às vezes como `[Pasted text #N]`), e o agente ficava parado por horas (16/10 e 20/10).
+- **Causa raiz:** o envio seguinte chega antes de o agente voltar a aceitar entrada. [A CONFIRMAR]
+- **Correção:** conferir com `maestri check` depois de cada `/clear`; se ficou colado, mandar `--raw "\r"`; se ficou digitado, limpar com Esc e `\x15` e mandar de novo numa linha só. Conferir se a barra de contexto caiu.
+- **Pistas falsas:** o `ask` volta sem erro, como se tivesse sido entregue.
+
+### [2026-10-19] NotNullViolation nos testes de uma branch sem migração nova
+- **Sintoma:** testes falhando com `NotNullViolation` numa coluna que a branch não conhece (coluna `atividade`, da T-262).
+- **Causa raiz:** o banco de teste é reaproveitado entre branches e ficou com a migração de outra branch.
+- **Correção:** rodar com `--create-db`.
+- **Pistas falsas:** parecia defeito no código da branch.
+
+### [2026-10-19] Script Python no Windows estragando arquivos
+- **Sintoma:** byte NUL de verdade num `.py`, `replace` com acento falhando em silêncio e arquivo inteiro convertido para CRLF.
+- **Causa raiz:** o Python do Windows lê o stdin e grava texto no código de página e no fim de linha do Windows, e o Bash mexe nos escapes do heredoc.
+- **Correção:** usar a ferramenta de edição; para script, escrever o `.py` em arquivo, gravar com `newline="\n"` e conferir `s.count(velho) == 1` antes de cada troca.
+- **Pistas falsas:** nenhuma registrada.
+
+## Contexto de Negócio
+
+### [2026-10-21] Django Admin do desenvolvimento sem usuário com acesso
+- O seed cria `dono@giro.example` com 2 etapas, mas com `is_staff` desligado, e por isso ninguém entra em `http://localhost:8000/admin/`. Hoje o acesso se libera à mão no banco de desenvolvimento; ajustar o seed é uma tarefa possível, ainda não pedida.
+
+### [2026-10-21] Assistente de implantação incompleto
+- A casca do assistente (T-335) está pronta, e 3 dos 8 passos funcionam: Marca, Ramo e Importar. Primeira filial, Tabela de preços, Modelo de contrato, Recebimentos e Convidar equipe mostram "Esta etapa ainda não está disponível aqui." e não têm contrato nem tarefa. Se entram no MVP é decisão pendente do dono.
+
+### [2026-10-20] Sem tarefas na tela de Veículos por enquanto
+- O dono pediu: "não quero nenhuma tarefa por agora de alterar ou corrigir a Veiculos-Desktop e mobile". Não abrir tarefa nessas telas até ele liberar.
+
+### [2026-10-20] Cancelar a assinatura ativa no dia do vencimento sem pagar (T-195) [SUBSTITUÍDA por 2026-10-21 "Cancelar a ativa com o período pago já vencido"]
+- Ponto em aberto, com recomendação pedida ao Produto: A, o acesso termina na hora (padrão); B, o acesso vai até o fim do período, se pago. [A CONFIRMAR] O PR da T-195 espera a revisão de Segurança T-199 antes do merge.
+
+### [2026-10-20] Máquina de desenvolvimento com pouca memória
+- O sistema chegou a matar jobs em segundo plano; só o `giro-frontend-1` usa cerca de 2,7 GB. Rodar conferências uma por vez.
+
+### [2026-10-20] Time de agentes
+- Oito agentes no Maestri, cada um no próprio worktree: backend, frontend, qa, design-system, arquiteto, produto, devops e seguranca, além do orquestrador na cópia principal. Fluxo de entrega: o agente entrega na branch, o orquestrador confere em ambiente próprio, abre o PR, acerta o quadro na branch e mescla com o aval do dono.

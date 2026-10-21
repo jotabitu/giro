@@ -194,8 +194,10 @@ describe("apoio e rotas", () => {
     expect(filtroDaPessoa("usuario:4")).toEqual({ ator: 4 });
     expect(filtroDaPessoa("suporte")).toEqual({ ator_tipo: "suporte" });
     expect(filtroDaPessoa(null)).toEqual({});
-    expect(tomDoEvento({ categoria: "seguranca", suporte: null, regra: "USR-06" })).toBe("critico");
-    expect(tomDoEvento({ categoria: "financeiro", suporte: null, regra: null })).toBeNull();
+    expect(tomDoEvento({ tom: "perigo" })).toBe("critico");
+    expect(tomDoEvento({ tom: "alerta" })).toBe("alerta");
+    expect(tomDoEvento({ tom: "info" })).toBe("info");
+    expect(tomDoEvento({ tom: null })).toBeNull();
   });
 
   it("tamanho do arquivo e período de 'Este ano'", () => {

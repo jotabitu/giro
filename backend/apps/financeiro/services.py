@@ -32,6 +32,7 @@ from apps.plataforma.models import ContaPagamento, StatusContaPagamento
 from comum import aprovacoes, arquivos, estados, relogio
 from comum.auditoria import Categoria, TipoAtor, ator_atual, auditar, registrar_evento
 from comum.dinheiro import formatar_reais
+from comum.documentos import placa_com_hifen
 from comum.empresa import nome_da_empresa
 from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, ParceiroForaDoAr
 from comum.eventos import publicar
@@ -1634,7 +1635,7 @@ def _resumo_da_despesa(despesa: Despesa) -> aprovacoes.Resumo:
             ("Descrição", despesa.descricao),
             (
                 "Veículo",
-                f"{veiculo.marca} {veiculo.modelo} · {veiculo.placa}"
+                f"{veiculo.marca} {veiculo.modelo} · {placa_com_hifen(veiculo.placa)}"
                 if veiculo is not None
                 else "",
             ),

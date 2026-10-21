@@ -19,6 +19,7 @@ from apps.empresas.selectors import configuracao
 from apps.financeiro import selectors as financeiro_selectors
 from comum import relogio
 from comum.dinheiro import aplicar_percentual, formatar_reais
+from comum.documentos import placa_com_hifen
 from comum.empresa import nome_da_empresa
 from comum.erros import Conflito
 
@@ -119,7 +120,7 @@ def valores(locacao: Locacao) -> dict[str, str]:
         "cliente.responsavel_cpf": _cpf_ou_cnpj(cliente.responsavel_cpf or ""),
         "veiculo.marca": veiculo.marca,
         "veiculo.modelo": veiculo.modelo,
-        "veiculo.placa": veiculo.placa,
+        "veiculo.placa": placa_com_hifen(veiculo.placa),
         "veiculo.chassi": veiculo.chassi,
         "veiculo.renavam": veiculo.renavam,
         "veiculo.ano": f"{veiculo.ano_fabricacao}/{veiculo.ano_modelo}",
