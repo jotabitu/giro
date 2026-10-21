@@ -90,6 +90,15 @@ Contrato: `docs/api/assinatura.md` ("Transições da empresa" e "Downgrade agend
 - `services.py`: `regua_da_assinatura` (`aut_13_regua_assinatura`, Beat 09:00, `PLT-02`): no dia exato de cada marco (`MARCOS_DA_REGUA`), `avisar_pela_regua` manda o D-3 por e-mail, o D0 e o D+3 por e-mail e WhatsApp (`responsavel_telefone`) e o D+7 por e-mail, com a tarefa de ligação (`_pedir_ligacao`: e-mail ao Dono e ao Financeiro da plataforma e o evento `fatura_assinatura.pedir_ligacao`, até a `Plat-Cobranca` da fase 2). Uma vez por marco: o evento `fatura_assinatura.regua` (`depois.marco`) é a marca. Fatura paga ou cancelada e empresa `cancelada` ficam fora (`PLT-06`).
 - `mensagem_da_regua`: os textos de cada marco, com o caminho de pagar da fatura (boleto, página do cartão, cartão guardado, Pix automático, cartão recusado como na tela).
 
+## Implementado (T-195: cancelar, pausar e apagar, `docs/api/cancelamento.md`)
+
+- `models.py`: `MotivoCancelamento` (enum do motivo); `Empresa.pausa_inicio`, `cancelamento_pedido_em`, `aviso_apagamento_enviado_em`, `apagada_em`; transições de `pausada` e `cancelada` em `TRANSICOES`. Migração `0012_cancelar_e_pausar`.
+- `calendario.py`: `datas_do_cancelamento` (acesso até o fim do teste ou do período pago; `inadimplente`, `suspensa` e `pausada` na hora; apagamento em +90 dias) e `periodo_da_pausa` (1 a 3 meses, regra do mês sem o dia), funções puras.
+- `services.py`: `cancelar_assinatura`, `desfazer_cancelamento`, `pausar_assinatura`, `desistir_da_pausa` e `voltar_da_pausa`, todos com a `Empresa` travada e auditoria nos dois lugares; a fatura cancelada pelo cancelamento ou pela pausa nasce de novo no desfazer e na desistência (`_renascer`, `substituida_por`). Na virada (`virar_estados`), antes das transições da assinatura: `virar_cancelada`, `iniciar_pausa` e a volta automática. `gerar_fatura_do_periodo` não gera o período da pausa. `encerrar_forma_pagamento` (ADR 0023) quando a empresa vira `cancelada`.
+- AUD-08 (ADR 0025): `avisar_apagamentos` (`aud_08_avisar_apagamento`, Beat 09:00) e `apagar_empresas` (`aud_08_apagar_empresas`, Beat 03:30), que chama `apagar_empresa`: arquivos do prefixo `<schema>/` (`comum.arquivos.apagar_arquivos_da_empresa`), o schema (`banco.apagar_schema`, o único `DROP SCHEMA`, pela `DATABASE_URL_MIGRACAO` quando existe) e o `public` (tomador nas faturas, e-mail na `atrasada`, `anonimizar_pagador` no parceiro, linhas de apoio, linha da `Empresa` só com o CNPJ). A baixa da fatura de empresa apagada só grava no `public`.
+- `api/assinatura.py`: `GET`, `POST` e `DELETE /api/assinatura/cancelamento/` e `POST` e `DELETE /api/assinatura/pausa/`; `GET /api/assinatura/` com `cancelamento`, `pausa` e as ações `cancelar`, `desfazer_cancelamento`, `pausar`, `voltar_pausa` e `desistir_pausa`. Exceções do somente leitura: `escreve_na_suspensa` (cancelar) e `escreve_na_pausada` (cancelar e voltar da pausa).
+- `comum.middleware.EmpresaCanceladaMiddleware`: a `cancelada` recebe 403 `empresa_cancelada` em todo pedido.
+
 ## Eventos publicados
 
 | Evento | Quando | Dados |

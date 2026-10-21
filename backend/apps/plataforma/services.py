@@ -81,9 +81,22 @@ from integracoes.pagamentos.base import (
     aviso_sem_cartao,
 )
 
-from .calendario import Periodo, descricao_da_fatura, dia_e_mes, proximo_periodo
+from .calendario import (
+    DIAS_ATE_APAGAR,
+    DIAS_DO_AVISO_DO_APAGAMENTO,
+    MESES_DE_PAUSA,
+    DatasDoCancelamento,
+    Periodo,
+    datas_do_cancelamento,
+    descricao_da_fatura,
+    dia_e_mes,
+    dia_mes_e_ano,
+    periodo_da_pausa,
+    proximo_periodo,
+)
 from .models import (
     CAMPOS_DO_ENDERECO,
+    DADOS_APAGADOS_DA_EMPRESA,
     DIAS_DE_TESTE,
     DURACOES_DO_SUPORTE,
     TENTATIVAS_DO_CARTAO,
@@ -96,6 +109,8 @@ from .models import (
     FormaPagaFatura,
     FormaPagamentoAssinatura,
     Item,
+    MotivoCancelamento,
+    MotivoCancelamentoFatura,
     PermissaoSuporte,
     Plano,
     StatusAcessoSuporte,
@@ -1053,14 +1068,25 @@ def _processar_fatura(webhook: WebhookRecebido) -> str:
     fatura.pago_em = situacao.pago_em or relogio.agora()
     fatura.forma = situacao.forma if situacao.forma in FormaPagaFatura.values else ""
     fatura.recibo_url = situacao.recibo_url[:500]
+    campos: tuple[str, ...] = ("pago_em", "forma", "recibo_url")
+    apagada = fatura.empresa.apagada_em is not None
+    if apagada and not nfse_ligada():
+        # AUD-08 (CA-ASS-60): o e-mail de cobrança sai da fatura na baixa. Com a nota ligada, sai
+        # depois de a nota ser pedida (T-197).
+        fatura.email_cobranca = ""
+        campos += ("email_cobranca",)
     with usar_ator(ATOR_SISTEMA):
         transicionar(
             fatura,
             StatusFatura.PAGA,
             acao="fatura_assinatura.pagar",
             regra="PLT-14",
-            mais_campos=("pago_em", "forma", "recibo_url"),
+            mais_campos=campos,
         )
+        if apagada:
+            # Empresa apagada: só a fatura e a auditoria do public, sem transição de estado, sem
+            # evento no schema (que não existe mais) e sem e-mail ao administrador (AUD-08).
+            return "baixada"
         if situacao.cartao is not None:
             _guardar_cartao(fatura.empresa, situacao.cartao)
         voltar_a_ativa_ao_pagar(_empresa_travada(fatura.empresa), relogio.hoje())
@@ -2059,8 +2085,9 @@ def marcar_faturas_atrasadas(hoje: date) -> int:
 
 def estado_do_dia(empresa: Empresa, hoje: date) -> str | None:
     """Para onde a empresa vai hoje pela tabela de transições (`assinatura.md`), ou `None`. Só
-    as do relógio: a volta a `ativa` ao pagar é da baixa (`voltar_a_ativa_ao_pagar`). Pausar,
-    cancelar e voltar da pausa entram antes destas com a T-195."""
+    as do relógio: a volta a `ativa` ao pagar é da baixa (`voltar_a_ativa_ao_pagar`). Cancelar,
+    pausar e voltar da pausa vêm antes destas (`_virar_cancelamentos_e_pausas`); a `pausada` não
+    passa por aqui (não vira `inadimplente` nem `suspensa` durante a pausa, CA-ASS-57)."""
     status = empresa.status
     if status == Empresa.Status.EM_TESTE:
         if empresa.teste_fim is None or hoje <= empresa.teste_fim:
@@ -2174,12 +2201,16 @@ class Virada:
 
 
 def virar_estados(hoje: date | None = None) -> Virada:
-    """A virada do dia (00:05): faturas vencidas em `atrasada`, os planos agendados que valem
-    hoje e os estados das empresas, cada empresa na sua transação. Idempotente: rodar de novo
-    no mesmo dia não muda nada, e o que falhou entra na rodada seguinte."""
+    """A virada do dia (00:05): faturas vencidas em `atrasada`; o cancelamento marcado que chegou
+    ao fim do acesso, o começo e a volta das pausas (PLT-06, `cancelamento.md`); os planos
+    agendados que valem hoje; e os estados das empresas, cada empresa na sua transação.
+    Idempotente: rodar de novo no mesmo dia não muda nada, e o que falhou entra na rodada
+    seguinte."""
     hoje = hoje or relogio.hoje()
     with schema_context(get_public_schema_name()):
         atrasadas = marcar_faturas_atrasadas(hoje)
+        estados: dict[str, int] = {}
+        _virar_cancelamentos_e_pausas(hoje, estados)
         agendadas = list(
             Empresa.objects.filter(plano_proximo__isnull=False).values_list("pk", flat=True)
         )
@@ -2193,7 +2224,6 @@ def virar_estados(hoje: date | None = None) -> Virada:
                 ]
             ).values_list("pk", flat=True)
         )
-        estados: dict[str, int] = {}
         for pk in vivas:
             novo = virar_estado_da_empresa(pk, hoje)
             if novo is not None:
@@ -2274,7 +2304,8 @@ def gerar_fatura_do_periodo(empresa_id: int, hoje: date) -> FaturaAssinatura | N
     virada (o plano agendado pelo preço de tabela, ou o de hoje pelo preço contratado). Antes,
     confere se o downgrade agendado ainda cabe (PLT-04, CA-ASS-40 e 41), com a `Empresa` e o
     `UsoEmpresa` travados. Não gera para a `pausada` nem a `cancelada`, nem o período que começa
-    depois do fim do acesso (cancelamento marcado). Idempotente: uma mensalidade por período."""
+    depois do fim do acesso (cancelamento marcado) ou em `pausa_inicio` e depois (pausa agendada,
+    PLT-06). Idempotente: uma mensalidade por período."""
     with schema_context(get_public_schema_name()), transaction.atomic():
         empresa = _empresa_travada(Empresa(pk=empresa_id))
         if empresa.status not in STATUS_QUE_GERAM_FATURA or not empresa.dia_vencimento:
@@ -2287,6 +2318,8 @@ def gerar_fatura_do_periodo(empresa_id: int, hoje: date) -> FaturaAssinatura | N
             return None
         if empresa.acesso_ate is not None and vencimento > empresa.acesso_ate:
             return None  # PLT-06: nada é cobrado depois do fim do acesso
+        if empresa.pausa_inicio is not None and vencimento >= empresa.pausa_inicio:
+            return None  # PLT-06: nada é cobrado no período da pausa
         agendado = empresa.plano_proximo
         if agendado is not None and agendado.pk != empresa.plano_id:
             uso = UsoEmpresa.objects.select_for_update().filter(empresa_id=empresa.pk).first()
@@ -2817,3 +2850,711 @@ def regua_da_assinatura(hoje: date | None = None) -> dict[str, int]:
                 continue
             _contar(avisos, marco)
     return avisos
+
+
+# --- Cancelar e pausar (PLT-06; T-195, cancelamento.md) ---
+
+JA_CANCELADA = "A assinatura já está cancelada. Você tem acesso até {}."
+SEM_CANCELAMENTO = ("transicao_empresa", "Não há cancelamento para desfazer.")
+NOME_NAO_CONFERE = ("nome_nao_confere", "O nome digitado não confere com o nome da empresa.")
+PAUSA_SO_NA_ATIVA = (
+    "transicao_empresa",
+    "A pausa só vale para a assinatura ativa. No teste, você pode cancelar ou mudar de plano.",
+)
+PAGUE_ANTES_DE_PAUSAR = ("transicao_empresa", "Pague a fatura em atraso antes de pausar.")
+DESFACA_ANTES_DE_PAUSAR = ("transicao_empresa", "Desfaça o cancelamento antes de pausar.")
+SEM_PAUSA = ("transicao_empresa", "Não há pausa para encerrar.")
+POR_SISTEMA = "sistema"  # a virada do dia
+STATUS_QUE_CANCELAM = frozenset(
+    {
+        Empresa.Status.EM_TESTE,
+        Empresa.Status.ATIVA,
+        Empresa.Status.INADIMPLENTE,
+        Empresa.Status.SUSPENSA,
+        Empresa.Status.PAUSADA,
+    }
+)
+# A pausa agendada vira `pausada` na `ativa` e na `inadimplente` pela diferença do upgrade.
+STATUS_QUE_COMECAM_A_PAUSA = frozenset({Empresa.Status.ATIVA, Empresa.Status.INADIMPLENTE})
+
+
+def pausa_marcada(empresa: Empresa) -> bool:
+    """Agendada enquanto `ativa`, em andamento quando `pausada` (`cancelamento.md`)."""
+    return empresa.pausa_inicio is not None
+
+
+def fim_do_periodo_pago(empresa: Empresa) -> date | None:
+    """O maior `periodo_fim` das mensalidades pagas (a véspera do próximo vencimento), ou nulo."""
+    fim: date | None = (
+        _mensalidades(empresa)
+        .filter(status=StatusFatura.PAGA)
+        .aggregate(fim=models.Max("periodo_fim"))["fim"]
+    )
+    return fim
+
+
+def datas_de_cancelar(empresa: Empresa, hoje: date) -> DatasDoCancelamento:
+    """As datas se a empresa cancelar hoje: a mesma conta da tela e do `POST` (PLT-06)."""
+    return datas_do_cancelamento(
+        hoje, empresa.status, empresa.teste_fim, fim_do_periodo_pago(empresa)
+    )
+
+
+def dia_do_acesso(empresa: Empresa, acesso_ate: date) -> str:
+    """ "21 nov"; no anual pago, com o ano ("21 out 2027", PLT-14). No fim do teste, sem ano."""
+    anual_pago = empresa.ciclo == Empresa.Ciclo.ANUAL and acesso_ate != empresa.teste_fim
+    return dia_mes_e_ano(acesso_ate) if anual_pago else dia_e_mes(acesso_ate)
+
+
+def ja_cancelada(empresa: Empresa) -> Conflito:
+    """409 do cancelamento marcado: "A assinatura já está cancelada. Você tem acesso até ..."."""
+    acesso = dia_do_acesso(empresa, empresa.acesso_ate) if empresa.acesso_ate else ""
+    return Conflito("transicao_empresa", JA_CANCELADA.format(acesso))
+
+
+def nome_confere(digitado: str, nome: str) -> bool:
+    """PLT-06, CA-ASS-31: sem espaços nas pontas nem repetidos, sem diferença de maiúsculas e
+    minúsculas; os acentos contam ("Moto Rapida" não confere com "Moto Rápida")."""
+
+    def normalizar(texto: str) -> str:
+        return " ".join(texto.split()).casefold()
+
+    return bool(normalizar(nome)) and normalizar(digitado) == normalizar(nome)
+
+
+def _cancelar_fatura(fatura: FaturaAssinatura, motivo: str, agora: Any) -> bool:
+    """A fatura em aberto vira `cancelada`, com a cobrança cancelada no parceiro. Se o parceiro diz
+    que ela já foi paga, fica como está (a baixa segue pelo webhook) e devolve `False`."""
+    if not _cancelar_cobranca_viva(fatura):
+        return False
+    fatura.motivo_cancelamento = motivo
+    fatura.cancelada_em = agora
+    transicionar(
+        fatura,
+        StatusFatura.CANCELADA,
+        acao="fatura_assinatura.cancelar",
+        regra="PLT-06",
+        mais_campos=("motivo_cancelamento", "cancelada_em"),
+    )
+    return True
+
+
+def _cancelar_mensalidades(
+    empresa: Empresa, motivo: str, agora: Any, desde: date | None = None
+) -> list[str]:
+    """As mensalidades `aberta` (cujo período começa em `desde` ou depois) viram `cancelada`.
+    As `atrasada` e as diferenças do upgrade continuam devidas (PLT-06). Devolve os códigos."""
+    abertas = _abertas_a_partir_de(empresa, desde or date.min)
+    return [f.codigo for f in abertas if _cancelar_fatura(f, motivo, agora)]
+
+
+def _renascer(fatura: FaturaAssinatura, hoje: date) -> FaturaAssinatura:
+    """A fatura cancelada pelo cancelamento ou pela pausa nasce de novo, igual, `aberta`, com o
+    próximo código; a cancelada aponta para ela. A cobrança sai como na emissão (PLT-02): com
+    vencimento em até 5 dias, na hora; mais longe, a `gerar_faturas` emite 5 dias antes."""
+    nova = criar_fatura(
+        fatura.empresa,
+        tipo=fatura.tipo,
+        vencimento=fatura.vencimento,
+        periodo=Periodo(fatura.periodo_inicio, fatura.periodo_fim),
+        plano=fatura.plano,
+        ciclo=fatura.ciclo,
+        valor_centavos=int(fatura.valor_centavos),
+        regra="PLT-06",
+    )
+    with auditar(fatura, "fatura_assinatura.substituir", Categoria.FINANCEIRO, regra="PLT-06"):
+        fatura.substituida_por = nova
+        fatura.save(update_fields=["substituida_por", "atualizado_em"])
+    if nova.vencimento <= hoje + timedelta(days=DIAS_DE_ANTECEDENCIA):
+        emitir_cobranca_da_fatura(nova.pk, hoje)
+    return nova
+
+
+def _renascer_canceladas(
+    empresa: Empresa, motivo: str, hoje: date, **filtros: Any
+) -> list[FaturaAssinatura]:
+    canceladas = (
+        FaturaAssinatura.objects.select_for_update(of=("self",))
+        .select_related("empresa", "plano")
+        .filter(
+            empresa_id=empresa.pk,
+            status=StatusFatura.CANCELADA,
+            motivo_cancelamento=motivo,
+            substituida_por__isnull=True,
+            **filtros,
+        )
+        .order_by("vencimento", "numero")
+    )
+    return [_renascer(fatura, hoje) for fatura in canceladas]
+
+
+def _tornar_cancelada(empresa: Empresa, agora: Any, hoje: date) -> list[str]:
+    """`status` → `cancelada` (AUD-08: apagamento em hoje + 90 dias). As mensalidades ainda
+    `aberta` viram `cancelada`; a pausa acaba. Depois do commit, a forma de pagamento sai do
+    parceiro (ADR 0023). A `Empresa` vem travada."""
+    canceladas = _cancelar_mensalidades(
+        empresa, MotivoCancelamentoFatura.CANCELAMENTO_ASSINATURA, agora
+    )
+    empresa.cancelada_em = agora
+    empresa.apagar_em = hoje + timedelta(days=DIAS_ATE_APAGAR)
+    empresa.pausa_inicio = None
+    empresa.pausada_ate = None
+    empresa.save(
+        update_fields=["cancelada_em", "apagar_em", "pausa_inicio", "pausada_ate", "atualizado_em"]
+    )
+    transicionar_empresa(empresa, Empresa.Status.CANCELADA, regra="PLT-06")
+    from .tasks import plataforma_encerrar_forma_pagamento
+
+    empresa_id = empresa.pk
+    transaction.on_commit(lambda: plataforma_encerrar_forma_pagamento.delay(empresa_id))
+    return canceladas
+
+
+def _iso(valor: date | None) -> str | None:
+    return valor.isoformat() if valor is not None else None
+
+
+def cancelar_assinatura(
+    empresa: Empresa,
+    motivo: str,
+    por: str = POR_ADMINISTRADOR,
+    *,
+    nome_confirmacao: str | None = None,
+) -> Empresa:
+    """PLT-06 (`cancelamento.md`, "O que acontece em cada estado"):
+
+    - `em_teste` e `ativa`: cancelamento marcado, com acesso até o fim do teste ou do período
+      pago; a mensalidade do período seguinte, se já gerada e não paga, vira `cancelada`. O
+      `status` não muda até a virada do dia seguinte a `acesso_ate` (`virar_cancelada`).
+    - `inadimplente`, `suspensa` e `pausada`: `cancelada` na hora; as `atrasada` continuam
+      devidas, as mensalidades `aberta` viram `cancelada` e a régua para.
+
+    A pausa marcada acaba. Os contratos com clientes finais não mudam (CA-ASS-39). Com a
+    `Empresa` travada; `nome_confirmacao` diferente do nome: 422, e nada muda."""
+    if motivo not in MotivoCancelamento.values:
+        raise ErroDeValidacao({"motivo": ["Escolha o motivo."]})
+    with no_publico(), transaction.atomic():
+        empresa = _empresa_travada(empresa)
+        if cancelamento_marcado(empresa):
+            raise ja_cancelada(empresa)
+        if empresa.status not in STATUS_QUE_CANCELAM:
+            raise Conflito("transicao_empresa", "Esta assinatura já foi cancelada.")
+        if nome_confirmacao is not None and not nome_confere(
+            nome_confirmacao, empresa.nome_exibicao
+        ):
+            raise ErroDeRegra(*NOME_NAO_CONFERE)
+        hoje, agora = relogio.hoje(), relogio.agora()
+        datas = datas_de_cancelar(empresa, hoje)
+        antes = {
+            "status": empresa.status,
+            "pausa_inicio": _iso(empresa.pausa_inicio),
+            "pausada_ate": _iso(empresa.pausada_ate),
+        }
+        empresa.cancelamento_pedido_em = agora
+        empresa.motivo_cancelamento = motivo
+        empresa.acesso_ate = datas.acesso_ate
+        empresa.apagar_em = datas.apagar_em
+        empresa.pausa_inicio = None
+        empresa.pausada_ate = None
+        empresa.save(
+            update_fields=[
+                "cancelamento_pedido_em",
+                "motivo_cancelamento",
+                "acesso_ate",
+                "apagar_em",
+                "pausa_inicio",
+                "pausada_ate",
+                "atualizado_em",
+            ]
+        )
+        if datas.acesso_ate is None:
+            canceladas = _tornar_cancelada(empresa, agora, hoje)
+        else:
+            canceladas = _cancelar_mensalidades(
+                empresa,
+                MotivoCancelamentoFatura.CANCELAMENTO_ASSINATURA,
+                agora,
+                desde=datas.acesso_ate + timedelta(days=1),
+            )
+        _registrar_nos_dois(
+            empresa,
+            "empresa.cancelar",
+            antes=antes,
+            depois={
+                "motivo": motivo,
+                "acesso_ate": _iso(datas.acesso_ate),
+                "apagar_em": _iso(datas.apagar_em),
+                "faturas_canceladas": canceladas,
+                "por": por,
+            },
+            categoria_publica=Categoria.FINANCEIRO,
+            regra="PLT-06",
+        )
+    return empresa
+
+
+def desfazer_cancelamento(empresa: Empresa, por: str = POR_ADMINISTRADOR) -> Empresa:
+    """PLT-06 (CA-ASS-43 a 45): só com cancelamento marcado e até o último dia de acesso. Limpa o
+    cancelamento; `status`, `dia_vencimento`, plano e forma não mudam. Cada fatura que este
+    cancelamento cancelou nasce de novo (`_renascer`); se não cancelou nada, a `gerar_faturas`
+    gera no dia certo."""
+    with no_publico(), transaction.atomic():
+        empresa = _empresa_travada(empresa)
+        hoje = relogio.hoje()
+        if (
+            not cancelamento_marcado(empresa)
+            or empresa.acesso_ate is None
+            or hoje > empresa.acesso_ate
+        ):
+            raise Conflito(*SEM_CANCELAMENTO)
+        pedido_em = empresa.cancelamento_pedido_em
+        antes = {
+            "motivo": empresa.motivo_cancelamento,
+            "acesso_ate": _iso(empresa.acesso_ate),
+            "apagar_em": _iso(empresa.apagar_em),
+        }
+        empresa.cancelamento_pedido_em = None
+        empresa.motivo_cancelamento = ""
+        empresa.acesso_ate = None
+        empresa.apagar_em = None
+        empresa.save(
+            update_fields=[
+                "cancelamento_pedido_em",
+                "motivo_cancelamento",
+                "acesso_ate",
+                "apagar_em",
+                "atualizado_em",
+            ]
+        )
+        filtros = {"cancelada_em__gte": pedido_em} if pedido_em else {}
+        novas = _renascer_canceladas(
+            empresa, MotivoCancelamentoFatura.CANCELAMENTO_ASSINATURA, hoje, **filtros
+        )
+        _registrar_nos_dois(
+            empresa,
+            "empresa.desfazer_cancelamento",
+            antes=antes,
+            depois={"faturas_novas": [f.codigo for f in novas], "por": por},
+            categoria_publica=Categoria.FINANCEIRO,
+            regra="PLT-06",
+        )
+    return empresa
+
+
+def _conferir_pausa(empresa: Empresa) -> None:
+    """Só a `ativa`, sem cancelamento nem pausa marcados (PLT-06, CA-ASS-37, CA-ASS-56)."""
+    if empresa.status == Empresa.Status.EM_TESTE:
+        raise Conflito(*PAUSA_SO_NA_ATIVA)
+    if empresa.status in (Empresa.Status.INADIMPLENTE, Empresa.Status.SUSPENSA):
+        raise Conflito(*PAGUE_ANTES_DE_PAUSAR)
+    if cancelamento_marcado(empresa):
+        raise Conflito(*DESFACA_ANTES_DE_PAUSAR)
+    if pausa_marcada(empresa):
+        ate = dia_e_mes(empresa.pausada_ate) if empresa.pausada_ate else ""
+        raise Conflito("transicao_empresa", f"Já existe uma pausa marcada até {ate}.")
+    if empresa.status != Empresa.Status.ATIVA:
+        raise Conflito(*PAUSA_SO_NA_ATIVA)
+
+
+def pausar_assinatura(empresa: Empresa, meses: int, por: str = POR_ADMINISTRADOR) -> Empresa:
+    """PLT-06 (CA-ASS-35, 37, 42): a pausa começa no fim do período pago (decisão de 14 out 2026)
+    e dura de 1 a 3 meses. Até `pausa_inicio`, a empresa segue `ativa`. A mensalidade do período
+    da pausa, se já gerada e não paga, vira `cancelada` (motivo `pausa`)."""
+    if meses not in MESES_DE_PAUSA:
+        raise ErroDeValidacao({"meses": ["Escolha de 1 a 3 meses."]})
+    with no_publico(), transaction.atomic():
+        empresa = _empresa_travada(empresa)
+        _conferir_pausa(empresa)
+        fim = fim_do_periodo_pago(empresa)
+        if fim is None:
+            raise Conflito(*PAUSA_SO_NA_ATIVA)
+        periodo = periodo_da_pausa(fim + timedelta(days=1), meses)
+        empresa.pausa_inicio = periodo.inicio
+        empresa.pausada_ate = periodo.fim
+        empresa.save(update_fields=["pausa_inicio", "pausada_ate", "atualizado_em"])
+        canceladas = _cancelar_mensalidades(
+            empresa, MotivoCancelamentoFatura.PAUSA, relogio.agora(), desde=periodo.inicio
+        )
+        _registrar_nos_dois(
+            empresa,
+            "empresa.pausar",
+            antes={"pausa_inicio": None, "pausada_ate": None},
+            depois={
+                "meses": meses,
+                "pausa_inicio": _iso(periodo.inicio),
+                "pausada_ate": _iso(periodo.fim),
+                "faturas_canceladas": canceladas,
+                "por": por,
+            },
+            categoria_publica=Categoria.FINANCEIRO,
+            regra="PLT-06",
+        )
+    return empresa
+
+
+def desistir_da_pausa(empresa: Empresa, por: str = POR_ADMINISTRADOR) -> Empresa:
+    """PLT-06 (CA-ASS-55): a pausa agendada é desfeita até o último dia do período pago (a véspera
+    de `pausa_inicio`). A fatura que a pausa cancelou nasce de novo, como no desfazer do
+    cancelamento. `status`, plano, `plano_proximo` e `dia_vencimento` não mudam."""
+    with no_publico(), transaction.atomic():
+        empresa = _empresa_travada(empresa)
+        hoje = relogio.hoje()
+        inicio = empresa.pausa_inicio
+        if empresa.status == Empresa.Status.PAUSADA or inicio is None or hoje >= inicio:
+            raise Conflito(*SEM_PAUSA)
+        antes = {"pausa_inicio": _iso(inicio), "pausada_ate": _iso(empresa.pausada_ate)}
+        empresa.pausa_inicio = None
+        empresa.pausada_ate = None
+        empresa.save(update_fields=["pausa_inicio", "pausada_ate", "atualizado_em"])
+        novas = _renascer_canceladas(
+            empresa, MotivoCancelamentoFatura.PAUSA, hoje, periodo_inicio__gte=inicio
+        )
+        _registrar_nos_dois(
+            empresa,
+            "empresa.desistir_pausa",
+            antes=antes,
+            depois={
+                "pausa_inicio": None,
+                "pausada_ate": None,
+                "faturas_novas": [f.codigo for f in novas],
+                "por": por,
+            },
+            categoria_publica=Categoria.FINANCEIRO,
+            regra="PLT-06",
+        )
+    return empresa
+
+
+def _fatura_da_volta(empresa: Empresa, hoje: date) -> FaturaAssinatura:
+    """A mensalidade da volta, vencendo hoje, pelo que vale na virada. Com o downgrade agendado,
+    é a "próxima fatura" dele: passa pela conferência e, cabendo, sai pelo plano menor (PLT-04)."""
+    agendado = empresa.plano_proximo
+    if agendado is not None and agendado.pk != empresa.plano_id:
+        uso = UsoEmpresa.objects.select_for_update().filter(empresa_id=empresa.pk).first()
+        excede = excede_no_plano(empresa, agendado, uso or UsoEmpresa(empresa=empresa))
+        if excede:
+            _recusar_downgrade_agendado(empresa, agendado, excede, hoje)
+    plano, ciclo, valor = _o_que_vale_na_virada(empresa)
+    return criar_fatura(
+        empresa,
+        tipo=TipoFatura.MENSALIDADE,
+        vencimento=hoje,
+        periodo=proximo_periodo(hoje.day, ciclo, hoje),
+        plano=plano,
+        ciclo=ciclo,
+        valor_centavos=valor,
+        regra="PLT-06",
+    )
+
+
+def voltar_da_pausa(empresa: Empresa, por: str = POR_ADMINISTRADOR) -> Empresa:
+    """PLT-06 (CA-ASS-36, CA-ASS-57): a `pausada` volta na hora (pelo administrador) ou no dia
+    seguinte a `pausada_ate` (pela virada, `por=POR_SISTEMA`). `ativa`, ou `inadimplente` se a
+    diferença do upgrade ainda estiver atrasada; a mensalidade nova vence hoje, e o dia de
+    vencimento passa a ser o de hoje (PLT-01). A cobrança sai na hora, pela forma cadastrada."""
+    with no_publico(), transaction.atomic():
+        empresa = _empresa_travada(empresa)
+        if empresa.status != Empresa.Status.PAUSADA:
+            raise Conflito(*SEM_PAUSA)
+        hoje = relogio.hoje()
+        antes = {
+            "pausa_inicio": _iso(empresa.pausa_inicio),
+            "pausada_ate": _iso(empresa.pausada_ate),
+            "dia_vencimento": empresa.dia_vencimento,
+        }
+        empresa.pausa_inicio = None
+        empresa.pausada_ate = None
+        empresa.dia_vencimento = hoje.day
+        empresa.save(
+            update_fields=["pausa_inicio", "pausada_ate", "dia_vencimento", "atualizado_em"]
+        )
+        atrasada = _atrasada_mais_antiga(empresa)
+        novo = Empresa.Status.INADIMPLENTE if atrasada else Empresa.Status.ATIVA
+        transicionar_empresa(empresa, novo, regra="PLT-06")
+        fatura = _fatura_da_volta(empresa, hoje)
+        _registrar_nos_dois(
+            empresa,
+            "empresa.voltar_pausa",
+            antes=antes,
+            depois={
+                "pausa_inicio": None,
+                "pausada_ate": None,
+                "dia_vencimento": hoje.day,
+                "fatura": fatura.codigo,
+                "por": por,
+            },
+            categoria_publica=Categoria.FINANCEIRO,
+            regra="PLT-06",
+        )
+        if empresa.plano_proximo_id is not None:
+            aplicar_mudanca_agendada(empresa.pk, hoje)  # o downgrade vale já na volta
+        if emitir_cobranca_da_fatura(fatura.pk, hoje) == "cartao_guardado":
+            from .tasks import plataforma_cobrar_cartao
+
+            fatura_id = fatura.pk
+            transaction.on_commit(lambda: plataforma_cobrar_cartao.delay(fatura_id))
+    return empresa
+
+
+def encerrar_forma_pagamento(empresa_id: int) -> str:
+    """ADR 0023 (`cancelamento.md`, `virar_cancelada`): o Giro não guarda meio de pagamento de quem
+    saiu. A autorização do Pix automático é cancelada no parceiro, o token do cartão é esquecido
+    e a `forma` fica nula. Parceiro fora do ar: `ParceiroForaDoAr`, e nada muda. Idempotente."""
+    with schema_context(get_public_schema_name()), transaction.atomic():
+        forma = (
+            FormaPagamentoAssinatura.objects.select_for_update()
+            .filter(empresa_id=empresa_id)
+            .first()
+        )
+        if forma is None or (
+            not forma.forma and not forma.autorizacao_externa_id and not forma.cartao_final
+        ):
+            return "sem_forma"
+        autorizacao = forma.autorizacao_externa_id
+        if autorizacao:
+            _no_parceiro(lambda: provedor().cancelar_autorizacao(conta_principal(), autorizacao))
+        with (
+            usar_ator(ATOR_SISTEMA),
+            auditar(forma, "assinatura.forma_encerrada", Categoria.FINANCEIRO, regra="PLT-06"),
+        ):
+            campos = ["forma", "autorizacao_externa_id", *_esquecer_cartao(forma)]
+            forma.forma = ""
+            forma.autorizacao_externa_id = ""
+            forma.save(update_fields=[*campos, "atualizado_em"])
+    return "encerrada"
+
+
+# Virada do dia (cancelamento.md, "Tarefas e estados")
+
+
+def virar_cancelada(empresa_id: int, hoje: date) -> bool:
+    """O cancelamento marcado vira `cancelada` no dia seguinte a `acesso_ate` (PLT-06; AUD-08:
+    apagamento em hoje + 90 dias). Idempotente."""
+    with schema_context(get_public_schema_name()), transaction.atomic():
+        empresa = _empresa_travada(Empresa(pk=empresa_id))
+        if not cancelamento_marcado(empresa) or empresa.acesso_ate is None:
+            return False
+        if hoje <= empresa.acesso_ate:
+            return False
+        with usar_ator(ATOR_SISTEMA):
+            canceladas = _tornar_cancelada(empresa, relogio.agora(), hoje)
+            _registrar_nos_dois(
+                empresa,
+                "empresa.virar_cancelada",
+                antes={"acesso_ate": _iso(empresa.acesso_ate)},
+                depois={
+                    "cancelada_em": hoje.isoformat(),
+                    "apagar_em": _iso(empresa.apagar_em),
+                    "faturas_canceladas": canceladas,
+                },
+                categoria_publica=Categoria.FINANCEIRO,
+                regra="PLT-06",
+            )
+    return True
+
+
+def iniciar_pausa(empresa_id: int, hoje: date) -> bool:
+    """A pausa agendada começa em `pausa_inicio`: a empresa fica `pausada` (somente leitura) até
+    `pausada_ate`. Uma mensalidade do período da pausa que ainda esteja `aberta` vira
+    `cancelada`. Idempotente."""
+    with schema_context(get_public_schema_name()), transaction.atomic():
+        empresa = _empresa_travada(Empresa(pk=empresa_id))
+        inicio = empresa.pausa_inicio
+        if empresa.status not in STATUS_QUE_COMECAM_A_PAUSA or inicio is None or hoje < inicio:
+            return False
+        with usar_ator(ATOR_SISTEMA):
+            _cancelar_mensalidades(empresa, MotivoCancelamentoFatura.PAUSA, relogio.agora(), inicio)
+            transicionar_empresa(empresa, Empresa.Status.PAUSADA, regra="PLT-06")
+    return True
+
+
+def _virar_cancelamentos_e_pausas(hoje: date, estados: dict[str, int]) -> None:
+    """Antes das transições de `assinatura.md`: o cancelamento primeiro, para a `em_teste`
+    cancelada não ir a `suspensa`; depois o começo e a volta das pausas."""
+    marcados = list(
+        Empresa.objects.filter(acesso_ate__lt=hoje)
+        .exclude(status=Empresa.Status.CANCELADA)
+        .order_by("pk")
+        .values_list("pk", flat=True)
+    )
+    for pk in marcados:
+        if _cada_uma(f"Cancelamento da empresa {pk}", partial(virar_cancelada, pk, hoje)):
+            _contar(estados, Empresa.Status.CANCELADA)
+    agendadas = list(
+        Empresa.objects.filter(pausa_inicio__lte=hoje, status__in=STATUS_QUE_COMECAM_A_PAUSA)
+        .order_by("pk")
+        .values_list("pk", flat=True)
+    )
+    for pk in agendadas:
+        if _cada_uma(f"Pausa da empresa {pk}", partial(iniciar_pausa, pk, hoje)):
+            _contar(estados, Empresa.Status.PAUSADA)
+    voltam = list(
+        Empresa.objects.filter(status=Empresa.Status.PAUSADA, pausada_ate__lt=hoje)
+        .order_by("pk")
+        .values_list("pk", flat=True)
+    )
+    for pk in voltam:
+        with usar_ator(ATOR_SISTEMA):
+            voltou = _cada_uma(
+                f"Volta da pausa da empresa {pk}",
+                partial(voltar_da_pausa, Empresa(pk=pk), POR_SISTEMA),
+            )
+        if voltou is not None:
+            _contar(estados, str(voltou.status))
+
+
+# --- Aviso e apagamento da empresa cancelada (AUD-08; ADR 0025, cancelamento.md) ---
+
+
+def _administradores_ativos(empresa: Empresa) -> list[str]:
+    from django.contrib.auth import get_user_model
+
+    with schema_context(empresa.schema_name):
+        return list(
+            get_user_model()
+            .objects.filter(perfil="administrador", status="ativo")
+            .order_by("pk")
+            .values_list("email", flat=True)
+        )
+
+
+def avisar_apagamento(empresa_id: int, hoje: date) -> bool:
+    """AUD-08: 7 dias antes de `apagar_em`, um e-mail aos administradores ativos da empresa
+    `cancelada`, uma vez só (`aviso_apagamento_enviado_em`). O e-mail sai depois do commit."""
+    with schema_context(get_public_schema_name()), transaction.atomic():
+        empresa = _empresa_travada(Empresa(pk=empresa_id))
+        if (
+            empresa.status != Empresa.Status.CANCELADA
+            or empresa.apagada_em is not None
+            or empresa.aviso_apagamento_enviado_em is not None
+            or empresa.apagar_em is None
+            or empresa.apagar_em - timedelta(days=DIAS_DO_AVISO_DO_APAGAMENTO) > hoje
+        ):
+            return False
+        empresa.aviso_apagamento_enviado_em = relogio.agora()
+        empresa.save(update_fields=["aviso_apagamento_enviado_em", "atualizado_em"])
+        with usar_ator(ATOR_SISTEMA):
+            registrar_evento(
+                "empresa.avisar_apagamento",
+                Categoria.SEGURANCA,
+                objeto=empresa,
+                depois={"apagar_em": empresa.apagar_em.isoformat()},
+                regra="AUD-08",
+            )
+        quando = dia_mes_e_ano(empresa.apagar_em)
+        aviso = Email(
+            _administradores_ativos(empresa),
+            f"Giro: os dados da {empresa.nome_exibicao} serão apagados em {quando}",
+            f"Os dados da {empresa.nome_exibicao} serão apagados em {quando}. Para pedir uma "
+            "cópia ou reativar a assinatura, fale com a equipe Giro.",
+        )
+    try:
+        enviar_a_cada_um(aviso.destinatarios, aviso.assunto, aviso.texto)
+    except Exception as erro:  # o aviso fica marcado; o log leva só a empresa e o tipo do erro
+        logger.warning(
+            "Aviso do apagamento da empresa %s: o e-mail falhou (%s)",
+            empresa_id,
+            type(erro).__name__,
+        )
+    return True
+
+
+def avisar_apagamentos(hoje: date | None = None) -> int:
+    """`aud_08_avisar_apagamento`, às 09:00. Idempotente."""
+    dia = hoje or relogio.hoje()
+    with schema_context(get_public_schema_name()):
+        empresas = list(
+            Empresa.objects.filter(
+                status=Empresa.Status.CANCELADA,
+                apagada_em__isnull=True,
+                aviso_apagamento_enviado_em__isnull=True,
+                apagar_em__lte=dia + timedelta(days=DIAS_DO_AVISO_DO_APAGAMENTO),
+            )
+            .order_by("pk")
+            .values_list("pk", flat=True)
+        )
+    return sum(avisar_apagamento(pk, dia) for pk in empresas)
+
+
+def _limpar_publico(empresa: Empresa) -> None:
+    """O passo (c) do apagamento (`cancelamento.md`, "O que fica no `public`"), nesta ordem, cada
+    parte podendo rodar de novo. A `Empresa` vem travada."""
+    # 1. Faturas: o tomador como a empresa ainda está; a `atrasada` guarda o e-mail de cobrança.
+    faturas = FaturaAssinatura.objects.filter(empresa_id=empresa.pk).exclude(
+        status=StatusFatura.CANCELADA
+    )
+    for fatura in faturas.filter(tomador_gravado_em__isnull=True):
+        gravar_tomador(fatura)
+    faturas.filter(status=StatusFatura.ATRASADA, email_cobranca="").update(
+        email_cobranca=empresa.email_cobranca, atualizado_em=relogio.agora()
+    )
+    # 2. O pagador na conta principal perde e-mail e telefone (B-01).
+    forma = FormaPagamentoAssinatura.objects.filter(empresa_id=empresa.pk).first()
+    if forma is not None and forma.cliente_externo_id:
+        cliente = forma.cliente_externo_id
+        _no_parceiro(lambda: provedor().anonimizar_pagador(conta_principal(), cliente))
+    # 3. Linhas de apoio (a forma depois do item 2, que lê o pagador dela).
+    Dominio.objects.filter(tenant_id=empresa.pk).delete()
+    UsoEmpresa.objects.filter(empresa_id=empresa.pk).delete()
+    ContaPagamento.objects.filter(empresa_id=empresa.pk).delete()
+    FormaPagamentoAssinatura.objects.filter(empresa_id=empresa.pk).delete()
+    # 4. A linha da `Empresa` fica só com o CNPJ, o plano, as datas, a cidade e a UF.
+    for campo in DADOS_APAGADOS_DA_EMPRESA:
+        setattr(empresa, campo, "")
+    empresa.save(update_fields=[*DADOS_APAGADOS_DA_EMPRESA, "atualizado_em"])
+
+
+def apagar_empresa(empresa_id: int) -> dict[str, Any]:
+    """AUD-08, ADR 0025: (a) os arquivos do prefixo `<schema>/`; (b) o schema, pela conexão de
+    migração (`banco.apagar_schema`, que confere de novo com a `Empresa` travada); (c) o `public`;
+    (d) `apagada_em` e o evento `empresa.apagar`, sem dado pessoal. Cada passo pode rodar de novo;
+    `apagada_em` só é gravado no fim. Recusada: `banco.ApagamentoRecusado`."""
+    from comum.arquivos import apagar_arquivos_da_empresa
+
+    from . import banco
+
+    with schema_context(get_public_schema_name()):
+        empresa = Empresa.objects.get(pk=empresa_id)
+        banco.conferir_para_apagar(empresa)
+        schema = str(empresa.schema_name)
+        arquivos = apagar_arquivos_da_empresa(schema)  # (a)
+        banco.apagar_schema(empresa_id)  # (b)
+        with transaction.atomic():
+            empresa = _empresa_travada(empresa)
+            banco.conferir_para_apagar(empresa)
+            _limpar_publico(empresa)  # (c)
+            hoje = relogio.hoje()
+            empresa.apagada_em = relogio.agora()  # (d)
+            empresa.save(update_fields=["apagada_em", "atualizado_em"])
+            with usar_ator(ATOR_SISTEMA):
+                registrar_evento(
+                    "empresa.apagar",
+                    Categoria.SEGURANCA,
+                    objeto=empresa,
+                    depois={"schema": schema, "arquivos": arquivos, "data": hoje.isoformat()},
+                    regra="AUD-08",
+                )
+    return {"schema": schema, "arquivos": arquivos}
+
+
+def apagar_empresas(hoje: date | None = None) -> int:
+    """`aud_08_apagar_empresas`, às 03:30: as `cancelada` com `apagar_em` ≤ hoje e `apagada_em`
+    nulo, uma por vez. A que falhar fica para o dia seguinte e vai ao Sentry (log de erro)."""
+    dia = hoje or relogio.hoje()
+    with schema_context(get_public_schema_name()):
+        empresas = list(
+            Empresa.objects.filter(
+                status=Empresa.Status.CANCELADA, apagar_em__lte=dia, apagada_em__isnull=True
+            )
+            .order_by("pk")
+            .values_list("pk", flat=True)
+        )
+    apagadas = 0
+    for pk in empresas:
+        try:
+            apagar_empresa(pk)
+        except Exception:  # uma empresa não para as outras; tenta de novo amanhã
+            logger.error("Apagamento da empresa %s: fica para amanhã", pk, exc_info=True)
+            continue
+        apagadas += 1
+    return apagadas

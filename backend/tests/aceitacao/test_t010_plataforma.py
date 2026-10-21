@@ -370,20 +370,19 @@ FAIXAS_REVISADAS = {
         "Sua empresa está suspensa. Você pode ver e exportar os dados, mas não criar locações, "
         "vendas nem cobranças. Ao pagar, o acesso volta na hora."
     ),
-    "pausada": (
-        "Sua empresa está pausada. Você pode ver os dados. "
-        "Para voltar a operar, retome a assinatura."
-    ),
-    "cancelada": None,
+    # Provisório da T-195 (`cancelamento.md`), com a data da volta.
+    "pausada": "Assinatura pausada até 21 jan. Você só consulta os dados.",
 }
 
 
-@pytest.mark.parametrize("status", ["suspensa", "pausada", "cancelada"])
+@pytest.mark.parametrize("status", ["suspensa", "pausada"])
 def test_plt_03_ca_010_11_empresa_sem_operacao_fica_so_leitura(empresa_a, planos, status):
     _usar_plano(empresa_a, planos["Profissional"], veiculos=86)
     token = str(emitir_tokens(_usuario_da_empresa()).access_token)
-    # Suspender, pausar e cancelar são ações da fase 2: o estado é montado direto.
-    Empresa._base_manager.filter(pk=empresa_a.pk).update(status=status)
+    # O estado é montado direto; a pausa vai até 21 jan (PLT-06).
+    Empresa._base_manager.filter(pk=empresa_a.pk).update(
+        status=status, pausada_ate=date(2027, 1, 21) if status == "pausada" else None
+    )
     api = cliente("empresa-a.localhost", token)
 
     leitura = api.get("/api/assinatura/")
@@ -393,6 +392,17 @@ def test_plt_03_ca_010_11_empresa_sem_operacao_fica_so_leitura(empresa_a, planos
     escrita = api.post("/api/assinatura/", {}, format="json")
     assert escrita.status_code == 403
     assert escrita.json()["codigo"] == "empresa_sem_operacao"
+
+
+def test_aud_08_ca_010_11_cancelada_nao_le_nem_escreve(empresa_a, planos):
+    """Desde a T-195, a `cancelada` não entra: 403 `empresa_cancelada` em tudo (AUD-08)."""
+    _usar_plano(empresa_a, planos["Profissional"], veiculos=86)
+    token = str(emitir_tokens(_usuario_da_empresa()).access_token)
+    Empresa._base_manager.filter(pk=empresa_a.pk).update(status="cancelada")
+    api = cliente("empresa-a.localhost", token)
+    for resposta in (api.get("/api/assinatura/"), api.post("/api/assinatura/", {}, format="json")):
+        assert resposta.status_code == 403
+        assert resposta.json()["codigo"] == "empresa_cancelada"
 
 
 # --- Equipe da plataforma ---

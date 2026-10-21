@@ -103,9 +103,13 @@ DATABASES = {"default": env.db("DATABASE_URL")}
 DATABASES["default"]["ENGINE"] = "django_tenants.postgresql_backend"
 DATABASE_ROUTERS = ["django_tenants.routers.TenantSyncRouter"]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+# ADR 0016 e 0025: o papel dono dos schemas (`giro_migracao`), para o `DROP SCHEMA` do apagamento
+# (AUD-08). Vazio no desenvolvimento e nos testes, com um papel só: usa a `DATABASE_URL`.
+DATABASE_URL_MIGRACAO = env.str("DATABASE_URL_MIGRACAO", default="")
 
 MIDDLEWARE = [
     "django_tenants.middleware.main.TenantMainMiddleware",
+    "comum.middleware.EmpresaCanceladaMiddleware",  # AUD-08: a cancelada não entra
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -253,6 +257,9 @@ SPECTACULAR_SETTINGS = {
         # Nomes que veículos já publicava, antes de clientes ter outro `motivo` e `situacao`.
         "MotivoEnum": ["perda_total", "roubo", "sucata", "outro"],
         "SituacaoEnum": ["em_dia", "vence_em_breve", "vencido"],
+        # Cancelar e pausar a assinatura (T-195, cancelamento.md).
+        "MotivoCancelamentoEnum": "apps.plataforma.models.MotivoCancelamento",
+        "SituacaoDaPausaEnum": ["agendada", "em_andamento"],
         # Painel (T-129).
         "TipoVeiculoEnum": "apps.veiculos.models.TipoVeiculo",
         "TipoValorEnum": ["numero", "centavos", "pct"],
@@ -332,6 +339,16 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
     "aut_13_regua_assinatura": {
         "task": "aut_13_regua_assinatura",
         "schedule": crontab(hour=9, minute=0),
+    },
+    # AUD-08 (ADR 0025): aviso 7 dias antes do apagamento, às 09:00, e o apagamento no 90º dia
+    # da empresa cancelada, às 03:30 (o worker precisa da DATABASE_URL_MIGRACAO).
+    "aud_08_avisar_apagamento": {
+        "task": "aud_08_avisar_apagamento",
+        "schedule": crontab(hour=9, minute=0),
+    },
+    "aud_08_apagar_empresas": {
+        "task": "aud_08_apagar_empresas",
+        "schedule": crontab(hour=3, minute=30),
     },
     # AUT-15: encerra os acessos de suporte vencidos (PLT-07).
     # AUT-06: vencimento de documentos de veículos (VEI-03), às 07:00.

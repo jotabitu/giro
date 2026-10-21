@@ -16,9 +16,10 @@ from django_tenants.utils import get_public_schema_name
 from comum import empresa as comum_empresa
 from comum import relogio
 from comum.conexao import conexao
+from comum.dinheiro import formatar_reais
 
 from . import catalogo
-from .calendario import dia_e_mes
+from .calendario import MESES_DE_PAUSA, dia_e_mes, dia_mes_e_ano, periodo_da_pausa
 from .models import (
     TENTATIVAS_DO_CARTAO,
     Empresa,
@@ -26,22 +27,29 @@ from .models import (
     FormaAssinatura,
     FormaPagamentoAssinatura,
     Item,
+    MotivoCancelamento,
     Plano,
     Recurso,
     SituacaoNota,
     StatusFatura,
     StatusFormaPagamento,
+    TipoFatura,
     UsoEmpresa,
 )
 from .services import (
     PASSOS_IMPLANTACAO,
+    STATUS_QUE_CANCELAM,
     STATUS_QUE_MUDAM_DE_PLANO,
     ProximaMensalidade,
     cancelamento_marcado,
     chegou_a_90,
+    datas_de_cancelar,
+    dia_do_acesso,
     endereco_de_acesso,
     etapa_do_funil,
     excede_no_plano,
+    fim_do_periodo_pago,
+    pausa_marcada,
     plano_acima,
     proxima_mensalidade,
 )
@@ -75,11 +83,9 @@ FAIXA_AVISO = {
         "Sua empresa está suspensa. Você pode ver e exportar os dados, mas não criar locações, "
         "vendas nem cobranças. Ao pagar, o acesso volta na hora."
     ),
-    "pausada": (
-        "Sua empresa está pausada. Você pode ver os dados. "
-        "Para voltar a operar, retome a assinatura."
-    ),
 }
+# Provisório até a tela existir (T-214 ou T-200): o frontend mostra o que vier.
+FAIXA_DA_PAUSADA = "Assinatura pausada até {}. Você só consulta os dados."
 STATUS_SOMENTE_LEITURA = frozenset({"suspensa", "pausada", "cancelada"})
 # Forma de pagamento, pagar e dados fiscais: a `suspensa` também, para voltar a `ativa` (PLT-13).
 STATUS_QUE_PAGAM = frozenset({"em_teste", "ativa", "inadimplente", "suspensa"})
@@ -110,7 +116,6 @@ def _perto_do_limite() -> Q:
 
 def com_situacao(queryset: QuerySet[Empresa] | None = None) -> QuerySet[Empresa]:
     """Anota `situacao_codigo` e `aba` na ordem da tabela do contrato (a primeira que vale)."""
-    hoje = relogio.hoje()
     parada_desde = relogio.agora() - timedelta(days=DIAS_PARA_IMPLANTACAO_PARADA)
     qs = queryset if queryset is not None else Empresa.objects.all()
     # 9 × limite − 10 × uso ≤ 0  ⇔  uso ≥ 90% do limite. Limite nulo dá nulo, que não passa.
@@ -119,7 +124,8 @@ def com_situacao(queryset: QuerySet[Empresa] | None = None) -> QuerySet[Empresa]
         for item in Item.values
     }
     codigo = Case(
-        When(status="cancelada", acesso_ate__gte=hoje, then=Value("cancelando")),
+        # Cancelamento marcado (`cancelamento.md`): acesso até `acesso_ate`, ainda não cancelada.
+        When(Q(acesso_ate__isnull=False) & ~Q(status="cancelada"), then=Value("cancelando")),
         When(status="suspensa", then=Value("suspensa")),
         When(status="inadimplente", then=Value("fatura_atrasada")),
         When(
@@ -200,7 +206,9 @@ def situacao(empresa: Empresa) -> dict[str, str]:
     """`{codigo, rotulo, tom}`. A empresa precisa vir de `com_situacao`."""
     codigo: str = empresa.situacao_codigo
     if codigo == "cancelando":
-        rotulo = f"Cancela em {_dia_mes(empresa.acesso_ate)}"
+        # O dia em que vira `cancelada`: o seguinte a `acesso_ate` (plataforma.md).
+        cancela = empresa.acesso_ate + timedelta(days=1) if empresa.acesso_ate else None
+        rotulo = f"Cancela em {_dia_mes(cancela)}"
     elif codigo == "suspensa":
         rotulo = "Suspensa"
     elif codigo == "fatura_atrasada":
@@ -220,7 +228,7 @@ def situacao(empresa: Empresa) -> dict[str, str]:
     elif codigo == "ativa":
         rotulo = "Ativa"
     else:
-        rotulo = "Cancelada"
+        rotulo = "Dados apagados" if empresa.apagada_em else "Cancelada"  # AUD-08
     return {"codigo": codigo, "rotulo": rotulo, "tom": TOM[codigo]}
 
 
@@ -320,9 +328,11 @@ def assinatura(empresa: Empresa | None = None, usuario: Any = None) -> dict[str,
         ),
         "proxima_fatura": _proxima_fatura(empresa, proxima),
         "plano_proximo": _plano_proximo(empresa, proxima),
-        "faixa_aviso": FAIXA_AVISO.get(empresa.status),
+        "faixa_aviso": _faixa_aviso(empresa),
         "uso": uso_do_plano(empresa),
         "somente_leitura": empresa.status in STATUS_SOMENTE_LEITURA,
+        "cancelamento": _cancelamento(empresa),
+        "pausa": _pausa(empresa),
     }
     if getattr(usuario, "perfil", None) != PERFIL_ADMINISTRADOR:
         return dados
@@ -335,11 +345,56 @@ def assinatura(empresa: Empresa | None = None, usuario: Any = None) -> dict[str,
     }
 
 
+def _faixa_aviso(empresa: Empresa) -> str | None:
+    """A faixa no topo (`plataforma.md`). O cancelamento marcado não tem faixa: o aviso fica na
+    `Admin-Assinatura` (`cancelamento.md`)."""
+    if empresa.status == Empresa.Status.PAUSADA and empresa.pausada_ate:
+        return FAIXA_DA_PAUSADA.format(dia_e_mes(empresa.pausada_ate))
+    return FAIXA_AVISO.get(empresa.status)
+
+
+def _cancelamento(empresa: Empresa) -> dict[str, Any] | None:
+    """Só com cancelamento marcado (PLT-06): o texto pronto do estado da `Admin-Assinatura`."""
+    if not cancelamento_marcado(empresa) or empresa.acesso_ate is None:
+        return None
+    acesso = dia_do_acesso(empresa, empresa.acesso_ate)
+    return {
+        "pedido_em": empresa.cancelamento_pedido_em,
+        "motivo": empresa.motivo_cancelamento or None,
+        "acesso_ate": empresa.acesso_ate,
+        "rotulo": f"Assinatura cancelada. Você tem acesso até {acesso}.",
+    }
+
+
+def _pausa(empresa: Empresa) -> dict[str, Any] | None:
+    """Só com pausa marcada (PLT-06): agendada enquanto `ativa`, em andamento na `pausada`.
+    Textos provisórios até a tela existir (T-214 ou T-200)."""
+    inicio, ate = empresa.pausa_inicio, empresa.pausada_ate
+    if inicio is None or ate is None:
+        return None
+    volta = ate + timedelta(days=1)
+    meses = (volta.year * 12 + volta.month) - (inicio.year * 12 + inicio.month)
+    if empresa.status == Empresa.Status.PAUSADA:
+        situacao = "em_andamento"
+        rotulo = f"Assinatura pausada até {dia_e_mes(ate)}. Volta sozinha em {dia_e_mes(volta)}."
+    else:
+        situacao = "agendada"
+        rotulo = f"Pausa marcada de {dia_e_mes(inicio)} a {dia_e_mes(ate)}. Até lá, tudo continua."
+    return {
+        "situacao": situacao,
+        "meses": meses,
+        "inicio": inicio,
+        "ate": ate,
+        "volta_em": volta,
+        "rotulo": rotulo,
+    }
+
+
 def _proxima_fatura(empresa: Empresa, proxima: ProximaMensalidade | None) -> dict[str, Any] | None:
     """O "R$ 449,00 por mês, a partir de 22 out" (PLT-01). Nula na `pausada` e na `cancelada`,
-    e com o cancelamento marcado (`cancelamento.md`)."""
+    e com o cancelamento ou a pausa marcados: nada vai ser cobrado (`cancelamento.md`)."""
     sem_proxima = empresa.status in (Empresa.Status.PAUSADA, Empresa.Status.CANCELADA)
-    if proxima is None or sem_proxima or cancelamento_marcado(empresa):
+    if proxima is None or sem_proxima or cancelamento_marcado(empresa) or pausa_marcada(empresa):
         return None
     return {
         "vencimento": proxima.vencimento,
@@ -465,17 +520,17 @@ def oferta(empresa: Empresa) -> dict[str, Any] | None:
 
 
 def acoes_da_assinatura(empresa: Empresa, usuario: Any) -> dict[str, bool]:
-    """Perfil, estado da empresa e a tabela do início de assinatura.md. O suporte lê, nunca
-    escreve (PLT-07, CA-ASS-19): tudo `false` para ele. Cancelar e pausar são da T-195."""
+    """Perfil, estado da empresa e as tabelas do início de assinatura.md e de cancelamento.md. O
+    suporte lê, nunca escreve (PLT-07, CA-ASS-19): tudo `false` para ele."""
     escreve = getattr(usuario, "perfil", None) == PERFIL_ADMINISTRADOR and not getattr(
         usuario, "e_suporte", False
     )
-    muda = (
-        escreve
-        and empresa.status in STATUS_QUE_MUDAM_DE_PLANO
-        and not cancelamento_marcado(empresa)
-    )
+    marcado = cancelamento_marcado(empresa)
+    muda = escreve and empresa.status in STATUS_QUE_MUDAM_DE_PLANO and not marcado
     paga = escreve and empresa.status in STATUS_QUE_PAGAM
+    hoje = relogio.hoje()
+    ativa = empresa.status == Empresa.Status.ATIVA
+    inicio = empresa.pausa_inicio
     return {
         "mudar_plano": muda,
         "desfazer_mudanca_plano": (
@@ -483,6 +538,162 @@ def acoes_da_assinatura(empresa: Empresa, usuario: Any) -> dict[str, bool]:
         ),
         "escolher_forma_pagamento": paga,
         "editar_dados_fiscais": paga,
+        "cancelar": escreve and not marcado and empresa.status in STATUS_QUE_CANCELAM,
+        "desfazer_cancelamento": (
+            escreve and marcado and empresa.acesso_ate is not None and hoje <= empresa.acesso_ate
+        ),
+        "pausar": escreve and ativa and not marcado and inicio is None,
+        "voltar_pausa": escreve and empresa.status == Empresa.Status.PAUSADA,
+        "desistir_pausa": escreve and ativa and inicio is not None and hoje < inicio,
+    }
+
+
+# --- Admin-Cancelar (PLT-06, AUD-08; cancelamento.md) ---
+
+TEXTO_DO_EXPORTAR = (
+    "Exportar baixa a auditoria em CSV. O resto dos seus dados você pede à equipe Giro."
+)
+PLANO_DA_ALTERNATIVA = "Essencial"
+ESTADOS_QUE_TERMINAM_COM_DIVIDA = frozenset({Empresa.Status.INADIMPLENTE, Empresa.Status.SUSPENSA})
+
+
+def _plano_resumo(empresa: Empresa, fim_pago: date | None) -> str:
+    """ "Plano Profissional · em teste até 21 out", "· mensal" ou "· anual até 21 out 2027"."""
+    nome = f"Plano {empresa.plano.nome}" if empresa.plano else "Plano"
+    if empresa.status == Empresa.Status.EM_TESTE and empresa.teste_fim:
+        return f"{nome} · em teste até {dia_e_mes(empresa.teste_fim)}"
+    if empresa.ciclo == Empresa.Ciclo.ANUAL:
+        return f"{nome} · anual até {dia_mes_e_ano(fim_pago)}" if fim_pago else f"{nome} · anual"
+    return f"{nome} · mensal"
+
+
+def _resumo_dos_limites(plano: Plano) -> str:
+    """ "Até 30 veículos, 1 filial e 3 usuários." (só os itens com limite)."""
+    partes = []
+    for item, singular in (("veiculos", "veículo"), ("filiais", "filial"), ("usuarios", "usuário")):
+        limite = plano.limite(item)
+        if limite is not None:
+            partes.append(f"{limite} {singular if limite == 1 else Item(item).label}")
+    if not partes:
+        return "Sem limite de veículos, filiais e usuários."
+    texto = partes[0] if len(partes) == 1 else f"{', '.join(partes[:-1])} e {partes[-1]}"
+    return f"Até {texto}."
+
+
+def _alternativa_essencial(empresa: Empresa) -> dict[str, Any] | None:
+    """Só quando a empresa pode mudar de plano (`em_teste` ou `ativa`, PLT-04) e não está no
+    Essencial. `cabe` e `excede` são os da linha do Essencial em `GET planos/`."""
+    if empresa.status not in STATUS_QUE_MUDAM_DE_PLANO or cancelamento_marcado(empresa):
+        return None
+    essencial = Plano.objects.filter(nome=PLANO_DA_ALTERNATIVA, ativo=True).first()
+    if essencial is None or essencial.pk == empresa.plano_id:
+        return None
+    uso = UsoEmpresa.objects.filter(empresa_id=empresa.pk).first() or UsoEmpresa()
+    excede = excede_no_plano(empresa, essencial, uso)
+    return {
+        "plano": {
+            "id": essencial.pk,
+            "nome": essencial.nome,
+            "preco_mensal_centavos": essencial.preco_mensal_centavos,
+        },
+        "resumo": _resumo_dos_limites(essencial),
+        "cabe": not excede,
+        "excede": excede,
+    }
+
+
+def _alternativa_pausar(empresa: Empresa, fim_pago: date | None) -> dict[str, Any] | None:
+    """Só quando `acoes.pausar` seria `true` (CA-ASS-37): `ativa`, sem cancelamento nem pausa."""
+    pode = (
+        empresa.status == Empresa.Status.ATIVA
+        and not cancelamento_marcado(empresa)
+        and not pausa_marcada(empresa)
+    )
+    if not pode or fim_pago is None:
+        return None
+    inicio = periodo_da_pausa(fim_pago + timedelta(days=1), MESES_DE_PAUSA[0]).inicio
+    return {
+        "meses": list(MESES_DE_PAUSA),
+        "inicio": inicio,
+        "texto": f"A pausa começa em {dia_e_mes(inicio)}, no fim do período pago.",
+    }
+
+
+def _cobrancas_futuras(empresa: Empresa, anual_pago: bool) -> str:
+    """A linha "Cobranças futuras" pelo estado (`cancelamento.md`, tabela do `o_que_acontece`)."""
+    if empresa.status in ESTADOS_QUE_TERMINAM_COM_DIVIDA:
+        return "nenhuma nova. A fatura em atraso continua devida."
+    if empresa.status == Empresa.Status.PAUSADA:
+        return "nenhuma"
+    diferencas = list(
+        FaturaAssinatura.objects.filter(
+            empresa_id=empresa.pk,
+            tipo=TipoFatura.DIFERENCA_PLANO,
+            status__in=[StatusFatura.ABERTA, StatusFatura.ATRASADA],
+        ).order_by("vencimento", "numero")
+    )
+    if len(diferencas) == 1:
+        fatura = diferencas[0]
+        valor = formatar_reais(int(fatura.valor_centavos))
+        return f"nenhuma nova. A fatura {fatura.codigo}, de {valor}, continua devida."
+    if diferencas:
+        codigos = [f.codigo for f in diferencas]
+        lista = f"{', '.join(codigos[:-1])} e {codigos[-1]}"
+        return f"nenhuma nova. As faturas {lista} continuam devidas."
+    if anual_pago:
+        return "nenhuma. Os meses que faltam não são devolvidos."
+    return "nenhuma"
+
+
+def tela_do_cancelamento(empresa: Empresa) -> dict[str, Any]:
+    """`GET /api/assinatura/cancelamento/`: o que a `Admin-Cancelar` mostra, montado para hoje
+    pela mesma conta do `POST` (`datas_de_cancelar`). Não grava nada. O cancelamento marcado é
+    recusado antes, na view (409)."""
+    empresa = Empresa.objects.select_related("plano").get(pk=empresa.pk)
+    hoje = relogio.hoje()
+    fim_pago = fim_do_periodo_pago(empresa)
+    datas = datas_de_cancelar(empresa, hoje)
+    anual_pago = (
+        empresa.ciclo == Empresa.Ciclo.ANUAL
+        and datas.acesso_ate is not None
+        and datas.acesso_ate == fim_pago
+    )
+    if datas.acesso_ate is None:
+        acesso = "termina agora"
+    elif anual_pago:
+        acesso = f"continua até {dia_mes_e_ano(datas.acesso_ate)}, sem devolução"
+    else:
+        acesso = f"continua até {dia_e_mes(datas.acesso_ate)}"
+    return {
+        "empresa": empresa.nome_exibicao,
+        "plano_resumo": _plano_resumo(empresa, fim_pago),
+        "motivos": [
+            {"codigo": codigo, "rotulo": rotulo} for codigo, rotulo in MotivoCancelamento.choices
+        ],
+        "alternativas": {
+            "pausar": _alternativa_pausar(empresa, fim_pago),
+            "mudar_para_essencial": _alternativa_essencial(empresa),
+        },
+        "o_que_acontece": [
+            {"codigo": "acesso", "rotulo": "Acesso", "valor": acesso},
+            {
+                "codigo": "cobrancas",
+                "rotulo": "Cobranças futuras",
+                "valor": _cobrancas_futuras(empresa, anual_pago),
+            },
+            {"codigo": "dados", "rotulo": "Seus dados", "valor": "guardados por 90 dias"},
+            {"codigo": "apagamento", "rotulo": "Depois de 90 dias", "valor": "apagados de vez"},
+            {
+                "codigo": "contratos",
+                "rotulo": "Contratos dos seus clientes",
+                "valor": "continuam válidos",
+            },
+        ],
+        "acesso_ate": datas.acesso_ate,
+        "cancelada_em": datas.cancelada_em,
+        "apagar_em": datas.apagar_em,
+        "confirmacao": {"nome": empresa.nome_exibicao},
+        "exportar": {"texto": TEXTO_DO_EXPORTAR},
     }
 
 

@@ -16,6 +16,10 @@ from comum.conexao import conexao
 STATUS_OPERANDO = frozenset({"em_teste", "ativa", "inadimplente"})
 # Só leitura e exportação.
 STATUS_SO_LEITURA = frozenset({"suspensa"})
+# Só leitura até a volta (PLT-06): escreve só nas rotas de cancelar e voltar da pausa.
+STATUS_PAUSADA = "pausada"
+# Não entra no sistema (AUD-08): o middleware recusa todo pedido.
+STATUS_CANCELADA = "cancelada"
 
 # --- Configuração da empresa lida por quem está acima de `empresas` (ADR 0011) ---
 

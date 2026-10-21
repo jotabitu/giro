@@ -21,7 +21,18 @@ import type {
 } from "@/lib/api/tipos-assinatura";
 import { pausa } from "./falso";
 
-const ACOES = { mudar_plano: true, desfazer_mudanca_plano: false, escolher_forma_pagamento: true, editar_dados_fiscais: true };
+// T-195: na `em_teste`, o administrador pode cancelar; pausar só na `ativa` (PLT-06).
+const ACOES = {
+  mudar_plano: true,
+  desfazer_mudanca_plano: false,
+  escolher_forma_pagamento: true,
+  editar_dados_fiscais: true,
+  cancelar: true,
+  desfazer_cancelamento: false,
+  pausar: false,
+  voltar_pausa: false,
+  desistir_pausa: false,
+};
 
 const SEED: Assinatura = {
   plano: { id: 2, nome: "Profissional", preco_contratado_centavos: 44900, ciclo: "mensal" },
@@ -29,6 +40,8 @@ const SEED: Assinatura = {
   teste: { inicio: "2026-10-07", fim: "2026-10-21", dias_restantes: 14 },
   proxima_fatura: { vencimento: "2026-10-22", valor_centavos: 44900, descricao: "Plano Profissional · 22 out a 21 nov" },
   plano_proximo: null,
+  cancelamento: null,
+  pausa: null,
   faixa_aviso: null,
   uso: {
     veiculos: { usado: 86, limite: 150, aviso: false, bloqueado: false },

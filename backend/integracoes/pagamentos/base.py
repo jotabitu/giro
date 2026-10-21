@@ -232,6 +232,11 @@ class ProvedorPagamentos(Protocol):
         desligadas e devolve o id dele."""
         ...
 
+    def anonimizar_pagador(self, conta: ContaPagamentoRef, cliente_id: str) -> None:
+        """AUD-08 (B-01, T-236): tira e-mail, telefone e celular do cliente e desliga as
+        notificações dele. Nome, CNPJ, cobranças e notas ficam no parceiro."""
+        ...
+
     def cobrar_cartao_salvo(
         self, conta: ContaPagamentoRef, token: str, pedido: PedidoCobranca
     ) -> Cobranca:

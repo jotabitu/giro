@@ -6,13 +6,13 @@ vem do app `filiais`, que registra `filiais_do_usuario` no `ready()`; `EscopoDeF
 cabeçalho `X-Filial` em toda requisição da empresa.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any, cast
 
 from django_tenants.utils import get_public_schema_name
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
-from comum.empresa import STATUS_OPERANDO, STATUS_SO_LEITURA
+from comum.empresa import STATUS_OPERANDO, STATUS_PAUSADA, STATUS_SO_LEITURA
 from comum.erros import Conflito, EmpresaSemOperacao, SemPermissao
 
 if TYPE_CHECKING:
@@ -27,11 +27,15 @@ def _vale_para_o_metodo(valor: bool | frozenset[str], metodo: str | None) -> boo
 class EmpresaOperando(BasePermission):
     """Recusa escrita quando a empresa está suspensa, pausada ou cancelada (403).
 
-    Só a `suspensa` tem saída, declarada na view (`PLT-13`, tabela de estados; T-189):
+    A `suspensa` e a `pausada` têm saída, declarada na view (`PLT-13`, `PLT-06`, tabela de
+    estados; T-189, T-195), numa lista explícita com teste:
     - `escreve_na_suspensa = frozenset({"PATCH"})` (ou `True`): a `suspensa` escreve, para pagar
-      e voltar a `ativa`. `pausada` e `cancelada` seguem recusadas.
-    - `recusa_na_suspensa = (codigo, mensagem)`: a `suspensa` segue recusada, com o 409 da regra
-      no lugar do 403 (`PLT-04`: "Pague a fatura em atraso antes de mudar de plano.").
+      e voltar a `ativa`, ou para cancelar.
+    - `escreve_na_pausada = frozenset({"DELETE"})`: a `pausada` escreve, para voltar da pausa ou
+      cancelar. A `cancelada` nem chega aqui (`EmpresaCanceladaMiddleware`).
+    - `recusa_na_suspensa = (codigo, mensagem)`, ou `{metodo: (codigo, mensagem)}`: a `suspensa`
+      segue recusada, com o 409 da regra no lugar do 403 (`PLT-04`: "Pague a fatura em atraso
+      antes de mudar de plano.").
     """
 
     def has_permission(self, request: "Request", view: "APIView") -> bool:
@@ -47,8 +51,14 @@ class EmpresaOperando(BasePermission):
             if _vale_para_o_metodo(getattr(view, "escreve_na_suspensa", False), request.method):
                 return True
             recusa = getattr(view, "recusa_na_suspensa", None)
+            if isinstance(recusa, Mapping):
+                recusa = recusa.get(request.method)
             if recusa is not None:
                 raise Conflito(*recusa)
+        if status == STATUS_PAUSADA and _vale_para_o_metodo(
+            getattr(view, "escreve_na_pausada", False), request.method
+        ):
+            return True
         raise EmpresaSemOperacao(str(status))
 
 

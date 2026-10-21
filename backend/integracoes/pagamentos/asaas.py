@@ -346,6 +346,14 @@ class Asaas:
             _, dados = self._chamar("POST", "/customers", conta=conta, corpo=corpo)
         return str(dados["id"])
 
+    def anonimizar_pagador(self, conta: ContaPagamentoRef, cliente_id: str) -> None:
+        """AUD-08 (B-01): o cliente da empresa apagada fica sem e-mail, telefone e celular, com
+        as notificações desligadas. A T-184 confere no sandbox se o Asaas aceita os vazios; se
+        não aceitar, o contrato muda para remover o cliente (`cancelamento.md`)."""
+        corpo = {"email": "", "phone": "", "mobilePhone": "", "notificationDisabled": True}
+        caminho = f"/customers/{quote(cliente_id, safe='')}"
+        self._chamar("POST", caminho, conta=conta, corpo=corpo)
+
     def cobrar_cartao_salvo(
         self, conta: ContaPagamentoRef, token: str, pedido: PedidoCobranca
     ) -> Cobranca:

@@ -74,6 +74,8 @@ PESSOAS = {
 }
 SUPORTE_NAO_MEXE = {"codigo": "PLT-07", "mensagem": "O suporte não mexe na assinatura da empresa"}
 SO_ADMINISTRADOR = {"codigo": "permissao", "mensagem": "Só o administrador mexe na assinatura"}
+# Desde a T-195, a `cancelada` não entra (AUD-08); a `pausada` só lê.
+CODIGO_SEM_OPERACAO = {"pausada": "empresa_sem_operacao", "cancelada": "empresa_cancelada"}
 PAGUE_ANTES = {
     "codigo": "transicao_empresa",
     "mensagem": "Pague a fatura em atraso antes de mudar de plano.",
@@ -239,7 +241,14 @@ def test_plt_01_ca_ass_01_assinatura_da_moto_rapida_em_07_out(moto):
         "desfazer_mudanca_plano": False,
         "escolher_forma_pagamento": True,
         "editar_dados_fiscais": True,
+        # Cancelar e pausar (T-195, cancelamento.md): no teste, cancela e não pausa.
+        "cancelar": True,
+        "desfazer_cancelamento": False,
+        "pausar": False,
+        "voltar_pausa": False,
+        "desistir_pausa": False,
     }
+    assert (corpo["cancelamento"], corpo["pausa"]) == (None, None)
 
 
 @pytest.mark.parametrize("nome", ["Rodrigo", "Lúcia"])
@@ -646,8 +655,11 @@ def test_plt_04_ca_ass_17_pausada_e_cancelada_sem_operacao(moto, status):
     api = moto.api()
     for resposta in (_simular(api, "Completo"), _mudar(api, "Completo"), api.delete(MUDANCA)):
         assert resposta.status_code == 403
-        assert resposta.json()["codigo"] == "empresa_sem_operacao"
-    assert not any(api.get(ASSINATURA).json()["acoes"].values())
+        assert resposta.json()["codigo"] == CODIGO_SEM_OPERACAO[status]
+    if status == "pausada":
+        # Na pausada, só voltar da pausa ou cancelar na hora (PLT-06, T-195).
+        acoes = api.get(ASSINATURA).json()["acoes"]
+        assert [nome for nome, pode in acoes.items() if pode] == ["cancelar", "voltar_pausa"]
 
 
 def test_plt_06_mudar_de_plano_com_cancelamento_marcado(moto):
@@ -863,7 +875,7 @@ def test_plt_04_ca_ass_19_so_o_administrador(moto, nome):
     assert moto.recarregar().plano.nome == "Profissional"
 
 
-def _rotas_que_escrevem_na_suspensa() -> set[tuple[str, str]]:
+def _rotas_que_escrevem_na_suspensa(atributo: str = "escreve_na_suspensa") -> set[tuple[str, str]]:
     from django.urls import URLPattern, URLResolver
 
     achadas: set[tuple[str, str]] = set()
@@ -874,7 +886,7 @@ def _rotas_que_escrevem_na_suspensa() -> set[tuple[str, str]]:
                 visitar(padrao.url_patterns, prefixo + str(padrao.pattern))
             elif isinstance(padrao, URLPattern):
                 classe = getattr(padrao.callback, "view_class", None)
-                valor = getattr(classe, "escreve_na_suspensa", False)
+                valor = getattr(classe, atributo, False)
                 metodos = ("POST", "PUT", "PATCH", "DELETE") if valor is True else valor or ()
                 for metodo in metodos:
                     if hasattr(classe, metodo.lower()):
@@ -900,7 +912,7 @@ def test_plt_13_pausada_e_cancelada_nao_entram_na_excecao(moto, status):
     moto.estado(status=status)
     resposta = moto.api().patch(DADOS_FISCAIS, {"email_cobranca": "x@motorapida.com.br"})
     assert resposta.status_code == 403
-    assert resposta.json()["codigo"] == "empresa_sem_operacao"
+    assert resposta.json()["codigo"] == CODIGO_SEM_OPERACAO[status]
     assert moto.recarregar().email_cobranca == "mariana@motorapida.com.br"
 
 

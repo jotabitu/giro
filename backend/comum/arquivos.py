@@ -139,6 +139,7 @@ class Provedor(Protocol):
     def tamanho(self, caminho: str) -> int: ...
     def url(self, caminho: str, expira_em: datetime) -> str: ...
     def apagar(self, caminho: str) -> None: ...
+    def apagar_prefixo(self, prefixo: str) -> int: ...
 
 
 # --- Falso: na memória, para desenvolvimento e testes ---
@@ -214,6 +215,19 @@ class ProvedorFalso:
         alvo.unlink(missing_ok=True)
         alvo.with_name(alvo.name + ".tipo").unlink(missing_ok=True)
 
+    def apagar_prefixo(self, prefixo: str) -> int:
+        pasta = _diretorio_falso()
+        if pasta is None:
+            caminhos = [caminho for caminho in guardados if caminho.startswith(prefixo)]
+            for caminho in caminhos:
+                del guardados[caminho]
+            return len(caminhos)
+        raiz = _arquivo_em_disco(pasta, prefixo)
+        arquivos = [a for a in raiz.rglob("*") if a.is_file() and not a.name.endswith(".tipo")]
+        for arquivo in arquivos:
+            self.apagar(arquivo.relative_to(pasta.resolve()).as_posix())
+        return len(arquivos)
+
     def url(self, caminho: str, expira_em: datetime) -> str:
         expira = str(int(expira_em.timestamp()))
         nonce = secrets.token_hex(8)
@@ -275,6 +289,27 @@ class ProvedorS3:
                     Bucket=self.bucket, Key=caminho, VersionId=item["VersionId"]
                 )
 
+    def apagar_prefixo(self, prefixo: str) -> int:
+        """Todos os objetos do prefixo, com as versões antigas e os marcadores de exclusão
+        (AUD-08, ADR 0025): nada fica recuperável pelo bucket. Devolve quantos arquivos saíram."""
+        apagados = 0
+        paginas = self.cliente.get_paginator("list_object_versions").paginate(
+            Bucket=self.bucket, Prefix=prefixo
+        )
+        for pagina in paginas:
+            versoes = [*pagina.get("Versions", []), *pagina.get("DeleteMarkers", [])]
+            apagados += sum(1 for item in pagina.get("Versions", []) if item.get("IsLatest"))
+            objetos = [
+                {"Key": item["Key"], "VersionId": item["VersionId"]}
+                for item in versoes
+                if item["Key"].startswith(prefixo)
+            ]
+            for inicio in range(0, len(objetos), 1000):  # o limite do DeleteObjects
+                self.cliente.delete_objects(
+                    Bucket=self.bucket, Delete={"Objects": objetos[inicio : inicio + 1000]}
+                )
+        return apagados
+
     def url(self, caminho: str, expira_em: datetime) -> str:
         segundos = max(1, int((expira_em - relogio.agora()).total_seconds()))
         return str(
@@ -305,6 +340,14 @@ def apagar_temporario(caminho: str) -> None:
     """Só para arquivo temporário (exportação vencida, AUD-07; planilha da importação). Arquivo
     de negócio não sai."""
     provedor().apagar(caminho)
+
+
+def apagar_arquivos_da_empresa(schema_name: str) -> int:
+    """AUD-08 (ADR 0025): todos os arquivos do prefixo `<schema>/` da empresa apagada no 90º dia.
+    Só pelo `plataforma.services.apagar_empresa`. Pode rodar de novo (prefixo vazio: 0)."""
+    if not schema_name or "/" in schema_name or schema_name in ("public", "."):
+        raise ValueError(f"Prefixo de empresa inválido: {schema_name!r}")
+    return provedor().apagar_prefixo(f"{schema_name}/")
 
 
 @deconstructible
