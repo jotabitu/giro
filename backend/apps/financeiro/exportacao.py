@@ -13,6 +13,7 @@ from django.utils import timezone
 from apps.auditoria.exportacao import registrar_item
 from apps.auditoria.models import Exportacao
 from apps.filiais.models import Filial
+from comum.documentos import placa_com_hifen
 from comum.erros import ErroDeValidacao
 
 from .models import CategoriaDespesa, Despesa, FormaDespesa, StatusDespesa
@@ -49,11 +50,6 @@ def validar(dados: dict[str, Any]) -> dict[str, Any]:
     if filial is None:
         raise ErroDeValidacao({"filial_id": ["Filial não encontrada."]})
     return {"mes": mes, "filial_id": filial.pk, "filial_nome": filial.nome}
-
-
-def placa_com_hifen(placa: str) -> str:
-    """Como nas telas: `PMZ3E17` → `PMZ-3E17`. Fora de 7 caracteres, sai como está."""
-    return f"{placa[:3]}-{placa[3:]}" if len(placa) == 7 else placa
 
 
 def _reais(centavos: int) -> str:

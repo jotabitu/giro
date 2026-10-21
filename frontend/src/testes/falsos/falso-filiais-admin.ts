@@ -17,10 +17,11 @@ function resumoDoHorario(h: CorpoDaFilial["horario"]): string {
 }
 
 function montar(id: number, c: CorpoDaFilial, extra: Partial<FilialDaLista> = {}): FilialDaLista {
+  const curto = (c.nome_curto ?? "").trim();
   return {
     id,
     nome: c.nome,
-    nome_curto: c.nome_curto ?? null,
+    nome_curto: curto || c.nome,
     matriz: c.matriz ?? false,
     ativo: true,
     cnpj: c.cnpj ?? null,
@@ -45,10 +46,12 @@ const CENTRO_SEED = montar(
   1,
   {
     nome: "Filial Centro",
+    nome_curto: "Centro",
     matriz: true,
     cnpj: "12345678000195",
     endereco: { cep: "60325000", logradouro: "Av. Bezerra de Menezes", numero: "1200", complemento: null, bairro: "São Gerardo", cidade: "Fortaleza", uf: "CE" },
     contato: { telefone: "8532123344", whatsapp: "85998124410", email: "centro@motorapida.com.br" },
+    preco_litro_centavos: 550,
     horario: HORARIO_PADRAO,
   },
   {
@@ -95,6 +98,19 @@ const NACIONAIS = [
   ["12-25", "Natal"],
 ] as const;
 
+function validarCorpo(corpo: Partial<CorpoDaFilial>) {
+  if (corpo.nome_curto && corpo.nome_curto.trim().length > 30) throw new ErroApi(400, "validacao", "Dados inválidos.", undefined, { nome_curto: "Use no máximo 30 caracteres." });
+  if (corpo.preco_litro_centavos !== undefined && corpo.preco_litro_centavos !== null && corpo.preco_litro_centavos <= 0) {
+    throw new ErroApi(400, "validacao", "Dados inválidos.", undefined, { preco_litro_centavos: "Informe um valor maior que zero ou deixe em branco." });
+  }
+  if (corpo.horario) {
+    const dias = Object.values(corpo.horario) as { abre: string; fecha: string }[][];
+    if (dias.some((d) => d.length > 2 || d.some((i) => i.abre >= i.fecha) || (d.length === 2 && d[0]!.fecha > d[1]!.abre))) {
+      throw new ErroApi(400, "validacao", "Dados inválidos.", undefined, { horario: "Cada dia aceita até 2 intervalos válidos." });
+    }
+  }
+}
+
 export const filiaisAdminFalso = {
   async listar(f: { ativo?: boolean; busca?: string } = {}): Promise<ListaFiliais> {
     await pausa(60);
@@ -116,6 +132,7 @@ export const filiaisAdminFalso = {
   async criar(corpo: CorpoDaFilial): Promise<FilialDetalhada> {
     await pausa(60);
     if (!corpo.nome.trim()) throw new ErroApi(400, "validacao", "Dados inválidos.", undefined, { nome: "Informe o nome da filial." });
+    validarCorpo(corpo);
     if (lista.some((x) => semAcento(x.nome) === semAcento(corpo.nome))) throw new ErroApi(409, "filial_nome_em_uso", "Já existe uma filial com esse nome");
     if (ativas() >= LIMITE_DE_FILIAIS) throw new ErroApi(422, "PLT-03", "O plano chegou ao limite de filiais.");
     const id = proximoId++;
@@ -130,8 +147,11 @@ export const filiaisAdminFalso = {
   async alterar(id: number, corpo: Partial<CorpoDaFilial>): Promise<FilialDetalhada> {
     await pausa(60);
     const atual = achar(id);
+    validarCorpo(corpo);
     if (corpo.nome && lista.some((x) => x.id !== id && semAcento(x.nome) === semAcento(corpo.nome ?? ""))) throw new ErroApi(409, "filial_nome_em_uso", "Já existe uma filial com esse nome");
-    const novo = montar(id, { ...atual, ...corpo, matriz: atual.matriz } as CorpoDaFilial, { gerentes: atual.gerentes, indicadores: atual.indicadores, feriados_proximos: atual.feriados_proximos });
+    const nome = corpo.nome ?? atual.nome;
+    const nome_curto = corpo.nome_curto !== undefined ? corpo.nome_curto : atual.nome_curto === atual.nome ? null : atual.nome_curto;
+    const novo = montar(id, { ...atual, ...corpo, nome, nome_curto, matriz: atual.matriz } as CorpoDaFilial, { gerentes: atual.gerentes, indicadores: atual.indicadores, feriados_proximos: atual.feriados_proximos });
     return trocar(id, { ...novo, ativo: atual.ativo });
   },
 

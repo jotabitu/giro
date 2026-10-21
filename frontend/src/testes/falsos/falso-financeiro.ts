@@ -16,6 +16,7 @@ import type {
   LancamentoAvulso,
   ListaContasReceber,
   ListaDespesas,
+  ListaPedidos,
   MovimentoDoCaixa,
   NovaDespesa,
   PagamentoDeDespesa,
@@ -254,9 +255,65 @@ const pedido = (p: Partial<PedidoSeed> & Pick<PedidoSeed, "id" | "tipo" | "titul
 });
 const RODRIGO = { id: 2, nome: "Rodrigo Pinheiro" };
 const SEED_PEDIDOS: PedidoSeed[] = [
-  pedido({ id: 88, tipo: "APR-01", titulo: "Desconto de 8% na venda para Diego Martins", detalhe: "VEN-0177", origem: { tipo: "venda", id: 177, codigo: "VEN-0177" }, solicitante: { id: 4, nome: "Bruna Alves" }, pedido_em: "2026-10-07T13:00:00Z", pct: "8.00", valor_centavos: 183200 }),
-  pedido({ id: 89, tipo: "APR-02", titulo: "Encerrar antes do fim a LOC-2812 · Patrícia Gomes", detalhe: "a cliente pediu pelo WhatsApp", origem: { tipo: "locacao", id: 2812, codigo: "LOC-2812" }, solicitante: { id: 4, nome: "Bruna Alves" }, pedido_em: "2026-10-07T14:00:00Z", valor_centavos: 8480 }),
-  pedido({ id: 91, tipo: "APR-03", titulo: "Despesa de R$ 1.200,00", detalhe: "Pneus (2 unidades) · PMZ-3E17", origem: { tipo: "despesa", id: 801, codigo: null }, solicitante: { id: 5, nome: "João Silva" }, pedido_em: "2026-10-07T14:20:00Z", valor_centavos: 120000 }),
+  pedido({
+    id: 88,
+    tipo: "APR-01",
+    titulo: "Desconto de 8% na venda para Diego Martins",
+    detalhe: "Honda Bros 160 · 2024 · RJD-9A02 · proposta VEN-0177",
+    origem: { tipo: "venda", id: 177, codigo: "VEN-0177" },
+    solicitante: { id: 4, nome: "Bruna Alves" },
+    pedido_em: "2026-10-07T13:00:00Z",
+    pct: "8.00",
+    valor_centavos: 2632,
+    motivo_pedido: "Cliente antigo, pagou 14 semanas em dia na locação e vai indicar dois colegas.",
+    resumo: {
+      celulas: [
+        { rotulo: "Preço de tabela", valor: "R$ 329,00" },
+        { rotulo: "Com desconto", valor: "R$ 302,68" },
+        { rotulo: "Desconto", valor: "R$ 26,32 · 8%" },
+      ],
+      nota: "O limite de Bruna é 5%.",
+    },
+  }),
+  pedido({
+    id: 89,
+    tipo: "APR-02",
+    titulo: "Encerrar antes do fim a LOC-2812 · Patrícia Gomes",
+    detalhe: "Honda Biz 125 · RNO-7C04 · a cliente pediu pelo WhatsApp",
+    origem: { tipo: "locacao", id: 2812, codigo: "LOC-2812" },
+    solicitante: { id: 4, nome: "Bruna Alves" },
+    pedido_em: "2026-10-07T14:00:00Z",
+    valor_centavos: 8480,
+    resumo: {
+      celulas: [
+        { rotulo: "Plano", valor: "Honda Biz 125 · mensal R$ 424,00" },
+        { rotulo: "Dias restantes", valor: "8 de 30 · até 15 out" },
+        { rotulo: "Multa (20%)", valor: "R$ 84,80" },
+        { rotulo: "A devolver", valor: "R$ 286,20" },
+      ],
+      nota: "Ao aprovar, a locação vai para a devolução: vistoria, acerto e devolução da caução.",
+    },
+  }),
+  pedido({
+    id: 91,
+    tipo: "APR-03",
+    titulo: "Despesa de R$ 1.200,00",
+    detalhe: "Pneus (2 unidades) · PMZ-3E17",
+    origem: { tipo: "despesa", id: 801, codigo: null },
+    solicitante: { id: 5, nome: "João Silva" },
+    pedido_em: "2026-10-07T14:20:00Z",
+    valor_centavos: 120000,
+    resumo: {
+      celulas: [
+        { rotulo: "Categoria", valor: "Manutenção" },
+        { rotulo: "Descrição", valor: "Pneus (2)" },
+        { rotulo: "Veículo", valor: "Honda Pop 110i · PMZ-3E17" },
+        { rotulo: "Valor", valor: "R$ 1.200,00" },
+        { rotulo: "Vencimento", valor: "07 out" },
+      ],
+      nota: "Acima de R$ 500 precisa da sua aprovação. Aprovada, vai para o financeiro pagar.",
+    },
+  }),
   pedido({ id: 80, tipo: "APR-04", status: "aprovado", titulo: "Diferença de caixa de R$ 3,50", detalhe: "caixa fechado com a diferença", origem: { tipo: "caixa", id: 238, codigo: null }, solicitante: { id: 4, nome: "Bruna Alves" }, pedido_em: "2026-10-06T21:00:00Z", decidido_por: RODRIGO, decidido_em: "2026-10-06T21:30:00Z" }),
   pedido({ id: 77, tipo: "APR-01", status: "recusado", titulo: "Desconto de 12% · Pop 110i", detalhe: "VEN-0170", origem: { tipo: "venda", id: 170, codigo: "VEN-0170" }, solicitante: { id: 4, nome: "Bruna Alves" }, pedido_em: "2026-10-05T14:00:00Z", pct: "12.00", decidido_por: RODRIGO, decidido_em: "2026-10-05T15:00:00Z", motivo_recusa: "abaixo do preço mínimo" }),
   pedido({ id: 74, tipo: "APR-06", status: "aprovado", titulo: "Correção de km · RJD-5B38", detalhe: "12.480 → 12.408 km, erro de digitação", origem: { tipo: "veiculo", id: 14, codigo: null }, solicitante: { id: 5, nome: "João Silva" }, pedido_em: "2026-10-04T12:00:00Z", decidido_por: RODRIGO, decidido_em: "2026-10-04T13:00:00Z" }),
@@ -266,7 +323,17 @@ const quemSou = (): number | null => {
   const perfil = perfilAtualFalso();
   return perfil === "vendedor" ? 4 : perfil === "vistoriador" ? 5 : perfil === "gerente" ? 2 : perfil === "administrador" ? 1 : null;
 };
-const comoApi = (p: PedidoSeed): PedidoDeAprovacao => ({ ...p, pode_decidir: p.status === "pendente" && ["gerente", "administrador"].includes(perfilAtualFalso() ?? "") && (p.solicitante.id !== quemSou() || perfilAtualFalso() === "administrador") });
+const comoApi = (p: PedidoSeed): PedidoDeAprovacao => {
+  const eu = quemSou();
+  const proprio = p.solicitante.id === eu;
+  const pendente = p.status === "pendente";
+  return {
+    ...p,
+    proprio_pedido: proprio,
+    pode_decidir: pendente && ["gerente", "administrador"].includes(perfilAtualFalso() ?? "") && (!proprio || perfilAtualFalso() === "administrador"),
+    pode_cancelar: pendente && proprio,
+  };
+};
 const achaPedido = (id: number) => {
   const p = todos().find((x) => x.id === id);
   if (!p) throw new ErroApi(404, "nao_encontrado", "Pedido não encontrado.");
@@ -286,16 +353,42 @@ const todos = (): PedidoSeed[] => {
 };
 
 export const aprovacoesFalso = {
-  async listar(f: { status?: PedidoDeAprovacao["status"]; tipo?: PedidoDeAprovacao["tipo"]; minhas?: boolean } = {}): Promise<{ contagens: { pendente: number }; resultados: PedidoDeAprovacao[] }> {
+  async listar(f: { status?: PedidoDeAprovacao["status"]; tipo?: PedidoDeAprovacao["tipo"]; minhas?: boolean } = {}): Promise<ListaPedidos> {
     await pausa(40);
     const perfil = perfilAtualFalso();
     const decide = perfil === "gerente" || perfil === "administrador";
     const eu = quemSou();
-    const base = f.minhas ? todos().filter((p) => p.solicitante.id === eu) : decide ? todos().filter((p) => p.solicitante.id !== eu || perfil === "administrador") : [];
+    const decidiveis = decide ? todos().filter((p) => p.solicitante.id !== eu || perfil === "administrador") : [];
+    const base = f.minhas ? todos().filter((p) => p.solicitante.id === eu) : decidiveis;
+    const statusFiltro = f.minhas ? f.status : (f.status ?? "pendente");
     const lista = base
-      .filter((p) => p.status === (f.status ?? "pendente") && (!f.tipo || p.tipo === f.tipo))
-      .sort((a, b) => (f.status && f.status !== "pendente" ? b.pedido_em.localeCompare(a.pedido_em) : a.pedido_em.localeCompare(b.pedido_em)));
-    return { contagens: { pendente: base.filter((p) => p.status === "pendente").length }, resultados: lista.map(comoApi) };
+      .filter((p) => (!statusFiltro || p.status === statusFiltro) && (!f.tipo || p.tipo === f.tipo))
+      .sort((a, b) => (f.minhas || (statusFiltro && statusFiltro !== "pendente") ? b.pedido_em.localeCompare(a.pedido_em) : a.pedido_em.localeCompare(b.pedido_em)));
+    const pendentes = decidiveis.filter((p) => p.status === "pendente").sort((a, b) => a.pedido_em.localeCompare(b.pedido_em));
+    const aprovados = decidiveis.filter((p) => p.status === "aprovado");
+    const recusados = decidiveis.filter((p) => p.status === "recusado");
+    const descontosAprovados = aprovados.filter((p) => p.tipo === "APR-01");
+    const somaDescontos = descontosAprovados.reduce((acc, p) => acc + (p.valor_centavos ?? 0), 0);
+    const minhasPendentes = todos().filter((p) => p.solicitante.id === eu && p.status === "pendente").length;
+    const nPendente = f.minhas ? base.filter((p) => p.status === "pendente").length : pendentes.length;
+    return {
+      indicadores: {
+        mes: "2026-10",
+        esperando: { quantidade: nPendente, mais_antigo_em: pendentes[0]?.pedido_em ?? null, contexto: pendentes[0] ? "mais antigo há 2 h" : null },
+        aprovadas: { titulo: "Aprovadas em outubro", quantidade: aprovados.length, tempo_medio_min: aprovados.length > 0 ? 90 : null, contexto: aprovados.length > 0 ? "tempo médio de 1 h 30 min" : null },
+        recusadas: { titulo: "Recusadas em outubro", quantidade: recusados.length, contexto: "sempre com motivo" },
+        descontos: { titulo: "Descontos aprovados", valor_centavos: somaDescontos, quantidade: descontosAprovados.length, contexto: descontosAprovados.length === 1 ? "em 1 pedido" : `em ${descontosAprovados.length} pedidos` },
+      },
+      contagens: {
+        pendente: nPendente,
+        aprovado: aprovados.length,
+        recusado: recusados.length,
+        minhas_pendentes: minhasPendentes,
+      },
+      resultados: lista.map(comoApi),
+      proximo: null,
+      anterior: null,
+    };
   },
   async aprovar(id: number): Promise<PedidoDeAprovacao> {
     await pausa(60);

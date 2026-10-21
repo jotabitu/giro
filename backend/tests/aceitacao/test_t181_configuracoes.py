@@ -203,7 +203,8 @@ def test_imp_05_configuracoes_faixa_da_implantacao(moto_rapida):
         "total": 10,
         "titulo": "Implantação concluída em 6 de 10 passos",
         "faltam": "Faltam contrato, recebimentos, importar dados e a 1ª locação.",
-        "acao": None,
+        # T-340/T-341: o botão leva ao passo que o assistente manda fazer.
+        "acao": {"rotulo": "Continuar implantação", "destino": "implantacao", "passo": "contrato"},
     }
     _passos(*[p for p in textos.NOMES_DOS_PASSOS if p != "primeira_locacao"])
     assert _get(moto_rapida)["implantacao"] == {

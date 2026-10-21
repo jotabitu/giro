@@ -26,7 +26,7 @@ export const ROTULO_DA_PERMISSAO: Record<PermissaoExtra, string> = {
 /** Texto de apoio de cada permissão: o padrão do perfil (travado) ou o que a marcação muda. */
 export function apoioDaPermissao(p: PermissaoDoUsuario, perfil: Perfil, marcada: boolean, filiais: string[]): string {
   if (p.padrao_do_perfil) return `Padrão do perfil ${ROTULO_DO_PERFIL[perfil]}`;
-  if (p.chave === "relatorios_todas_filiais") return marcada ? "Vê os relatórios de todas as filiais" : filiais.length ? `Hoje vê só ${filiais.join(", ")}` : "Escolha as filiais dele";
+  if (p.chave === "relatorios_todas_filiais") return marcada ? "Vê os relatórios de todas as filiais" : filiais.length ? `Hoje a pessoa vê só ${filiais.join(", ")}` : "Escolha as filiais da pessoa";
   return "Fica registrado na auditoria";
 }
 
@@ -51,8 +51,8 @@ export function ultimoAcesso(iso: string | null, agora: Date): string {
   return diaDe(iso) === ontem ? "ontem" : dataCurta(iso);
 }
 
-/** "Centro" no lugar de "Filial Centro", como nas telas; administrador e quem vê tudo: "Todas". */
+/** A API devolve `nome_curto` pronto (o apelido ou o próprio `nome`, FIL-01); administrador e quem vê tudo: "Todas". */
 export function filiaisDoUsuario(u: Pick<UsuarioDaLista, "filiais" | "todas_filiais">): string {
   if (u.todas_filiais) return "Todas";
-  return u.filiais.map((f) => f.nome.replace(/^Filial /, "")).join(", ") || "—";
+  return u.filiais.map((f) => f.nome_curto).join(", ") || "—";
 }

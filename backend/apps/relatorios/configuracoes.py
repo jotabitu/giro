@@ -51,6 +51,7 @@ NOMES_DOS_PASSOS = {
     "primeira_locacao": "a 1ª locação",
 }
 ACAO_DA_PRIMEIRA_LOCACAO = {"rotulo": "Fazer uma locação de teste", "destino": "nova_locacao"}
+ROTULO_CONTINUAR = "Continuar implantação"
 
 
 def _plural(n: int, um: str, varios: str) -> str:
@@ -122,13 +123,24 @@ def resumo_assinatura(
     return f"{plano} · {situacao}" if plano else situacao
 
 
-def implantacao(passos: list[dict[str, Any]]) -> dict[str, Any] | None:
-    """`passos` como em `plataforma.selectors.implantacao` (`passo`, `concluido_em`), na ordem.
-    `None` depois da 1ª locação (IMP-01): a faixa some de vez."""
+def implantacao(
+    passos: list[dict[str, Any]], proximo: str | None, recebe: bool = True
+) -> dict[str, Any] | None:
+    """`passos` como em `plataforma.selectors.implantacao` (`passo`, `concluido_em`), na ordem;
+    `proximo` o do assistente (`plataforma.selectors.proximo_do_assistente`). Sem `recebe`
+    (Essencial, PLT-12), `recebimentos` não entra em `total` nem em `faltam`. `None` depois da
+    1ª locação (IMP-01): a faixa some de vez."""
+    if not recebe:
+        passos = [p for p in passos if p["passo"] != "recebimentos"]
     feitos = {p["passo"] for p in passos if p["concluido_em"]}
     if "primeira_locacao" in feitos:
         return None
     abertos = [p["passo"] for p in passos if p["passo"] not in feitos]
+    acao: dict[str, str] | None = None
+    if proximo:  # T-340: o botão leva ao passo que o assistente manda fazer
+        acao = {"rotulo": ROTULO_CONTINUAR, "destino": "implantacao", "passo": proximo}
+    elif abertos == ["primeira_locacao"]:
+        acao = dict(ACAO_DA_PRIMEIRA_LOCACAO)
     concluidos, total = len(feitos), len(passos)
     nomes = [NOMES_DOS_PASSOS.get(passo, passo) for passo in abertos]
     faltam = f"{'Falta' if len(nomes) == 1 else 'Faltam'} {_juntar(nomes)}."
@@ -137,8 +149,7 @@ def implantacao(passos: list[dict[str, Any]]) -> dict[str, Any] | None:
         "total": total,
         "titulo": f"Implantação concluída em {concluidos} de {total} passos",
         "faltam": faltam,
-        # O assistente ainda não tem contrato: só a 1ª locação tem destino (painel.md).
-        "acao": dict(ACAO_DA_PRIMEIRA_LOCACAO) if abertos == ["primeira_locacao"] else None,
+        "acao": acao,
     }
 
 

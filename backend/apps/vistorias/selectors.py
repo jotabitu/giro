@@ -14,6 +14,7 @@ from apps.financeiro.models import StatusConta
 from apps.locacoes.models import Locacao, StatusLocacao
 from apps.veiculos.models import Veiculo
 from comum import arquivos, relogio
+from comum.documentos import placa_com_hifen
 
 from . import acerto, services
 from .models import (
@@ -535,7 +536,7 @@ def representacao_devolucao(devolucao: Devolucao) -> dict[str, Any]:
             "codigo": locacao.codigo,
             "status": locacao.status,
             "cliente": locacao.cliente.nome,
-            "veiculo": f"{veiculo.marca} {veiculo.modelo} · {veiculo.placa}",
+            "veiculo": f"{veiculo.marca} {veiculo.modelo} · {placa_com_hifen(veiculo.placa)}",
             "no_horario": atraso is None or atraso.valor_centavos == 0,
         },
         "vistoria": representacao(chegada) if chegada is not None else None,

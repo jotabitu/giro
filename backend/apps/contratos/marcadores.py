@@ -42,7 +42,7 @@ MARCADORES: tuple[Marcador, ...] = (
     Marcador("cliente.responsavel_cpf", "CPF do responsável", "987.654.321-00"),
     Marcador("veiculo.marca", "Marca do veículo", "Honda"),
     Marcador("veiculo.modelo", "Modelo do veículo", "CG 160 Start"),
-    Marcador("veiculo.placa", "Placa", "SAK1D39"),
+    Marcador("veiculo.placa", "Placa", "SAK-1D39"),
     Marcador("veiculo.chassi", "Chassi", "9C2KC2200RR012345"),
     Marcador("veiculo.renavam", "Renavam", "01234567890"),
     Marcador("veiculo.ano", "Ano", "2024/2024"),

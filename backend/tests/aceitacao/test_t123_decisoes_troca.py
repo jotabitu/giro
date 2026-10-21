@@ -23,6 +23,7 @@ from apps.locacoes.models import Locacao, TrocaVeiculo
 from apps.veiculos.models import PrecoCategoria, Veiculo
 from apps.vistorias.models import Devolucao, Vistoria
 from comum import relogio as relogio_do_giro
+from comum.documentos import placa_com_hifen
 
 from . import carteira
 from .frota import montar_frota
@@ -168,7 +169,7 @@ def test_loc_09_troca_de_veiculo_loc_2836(cenario, juliana, relogio):
     diferenca = _item(corpo, "diferenca_troca")
     assert diferenca["descricao"] == (
         "Diferença do período de 07/10 a 14/10 na troca pela Yamaha NMax 160 "
-        f"{nmax.placa} ((R$ 449,00 − R$ 329,00) ÷ 7 × 7 dias)"
+        f"{placa_com_hifen(nmax.placa)} ((R$ 449,00 − R$ 329,00) ÷ 7 × 7 dias)"
     )
     assert diferenca["modo"] == "calculado"
     assert acerto["creditos"] == []

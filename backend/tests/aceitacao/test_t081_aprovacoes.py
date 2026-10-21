@@ -107,7 +107,7 @@ def test_apr_06_ca_013_16_gerente_aprova_e_o_km_e_corrigido(moto, frota, sak, de
         "tipo": "APR-06",
         "status": "pendente",
         "titulo": "Correção de km para baixo",
-        "detalhe": "SAK1D39 · 3.500 → 3.400 km · Erro de digitação",
+        "detalhe": "SAK-1D39 · 3.500 → 3.400 km · Erro de digitação",
         "origem": {"tipo": "veiculo", "id": sak.pk, "codigo": "SAK1D39"},
         "filial": {"id": frota.centro.pk, "nome": "Filial Centro"},
         "solicitante": {"id": moto.pessoas["João"].pk, "nome": "João"},

@@ -39,6 +39,7 @@ describe("Configurações", () => {
     const ordem = ["Empresa e marca", "O que a empresa faz", "Filiais", "Usuários e perfis", "Tabelas de preço", "Modelos de contrato", "Assinatura", "Auditoria", "Exportar dados"].map((t) => h.indexOf(t));
     expect([...ordem].sort((a, b) => a - b)).toEqual(ordem);
     expect(h).toContain("5 de 10 usuários");
+    expect(h).toContain("1 filial · Centro, Fortaleza");
     expect(h).toContain("Locação e venda · motos");
     expect(h).toContain("Profissional · teste até 21 out");
     for (const href of ["/admin/marca", "/admin/ramo", "/admin/filiais", "/admin/usuarios", "/admin/precos", "/admin/contratos", "/admin/assinatura", "/admin/auditoria", "/admin/exportar"]) expect(h).toContain(`href="${href}"`);

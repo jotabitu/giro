@@ -217,7 +217,7 @@ function Edicao({ u, eu, aoConcluir }: { u: UsuarioDetalhado; eu: Eu; aoConcluir
           <button type="button" disabled={ocupado} onClick={() => setConfirmar("desativar")} className="wl-btn wl-btn--sm bg-critical-soft text-critical-ink">
             Desativar acesso
           </button>
-          <p className="mt-2 text-caption leading-[18px] text-ink-muted">Ele sai do sistema na hora. O histórico do que fez continua guardado.</p>
+          <p className="mt-2 text-caption leading-[18px] text-ink-muted">A pessoa sai do sistema na hora. O histórico do que fez continua guardado.</p>
         </div>
       )}
     </div>
