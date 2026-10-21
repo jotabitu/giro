@@ -115,6 +115,9 @@ Quando a Mariana digita outro nome, o botão "Cancelar assinatura" não confirma
 **CA-ASS-32 · Cancelar ativa**
 Dado a Moto Rápida `ativa`, FAT-0001 paga, quando cancela em 05 nov, então o acesso continua até 21 nov, nenhuma fatura vence em 22 nov, a empresa vira `cancelada` em 22 nov, e os dados são apagados em 20 fev 2027. Cancelando em 19 nov, depois de emitida a fatura de 22 nov, essa fatura vira `cancelada`.
 
+**CA-ASS-69 · Cancelar ativa com o período pago já acabado** (`PLT-06`, decisão do dono de 21 out 2026, T-343; casos (e) e (f) de "Cancelamento da Moto Rápida")
+Dado a Moto Rápida `ativa`, FAT-0001 paga (período até 21 nov) e a FAT-0002 de 22 nov emitida em boleto em 17 nov e não paga, quando a Mariana cancela em 22 nov às 10:00, então a tela mostra "termina agora" (`acesso_ate: null`), a empresa vira `cancelada` na hora, a FAT-0002 vira `cancelada` e não fica devida, o boleto é cancelado no parceiro, não há "Desfazer cancelamento", e os dados são apagados em 20 fev 2027, com o aviso em 13 fev 2027. Dado o mesmo, mas no cartão, com a FAT-0002 cobrada e paga em 22 nov às 08:00, quando ela cancela às 10:00, então o acesso continua até 21 dez, nenhuma fatura vence em 22 dez, a empresa vira `cancelada` em 22 dez, e os dados são apagados em 22 mar 2027. `test_plt_06_acesso_que_ja_acabou_termina_agora`.
+
 **CA-ASS-33 · Cancelar anual**
 Dado uma empresa no anual de 22 out 2026 a 21 out 2027, quando cancela em 05 nov 2026, então nada é devolvido e o acesso vai até 21 out 2027.
 
