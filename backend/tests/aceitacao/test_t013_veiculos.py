@@ -703,7 +703,7 @@ def test_apr_06_ca_013_16_correcao_para_baixo(moto, frota, leituras_publicadas):
     assert pedido.dados == {"km_novo": 3400, "km_anterior": 3500}
     assert (pedido.titulo, pedido.detalhe) == (
         "Correção de km para baixo",
-        "SAK1D39 · 3.500 → 3.400 km · Erro de digitação",
+        "SAK-1D39 · 3.500 → 3.400 km · Erro de digitação",
     )
     assert EventoAuditoria.objects.filter(
         acao="pedido_aprovacao.pedir", objeto_id=pedido.pk, regra="APR-10"
@@ -814,7 +814,7 @@ def test_vei_03_aut_06_ca_013_18_vencimento_tira_da_frota_disponivel(moto, frota
     aut_06_vencimento_de_documentos("empresa_a")  # de novo no mesmo dia: sem alerta duplicado
     assert len(_avisos(rodrigo)) == 4
     titulos = Notificacao.objects.filter(destinatario=rodrigo).values_list("titulo", flat=True)
-    assert "Seguro da SAK1D39 vence em 25/10/2026" in titulos
+    assert "Seguro da SAK-1D39 vence em 25/10/2026" in titulos
 
     # No dia, às 07:00.
     relogio.em("2026-10-25 07:00")
@@ -829,7 +829,7 @@ def test_vei_03_aut_06_ca_013_18_vencimento_tira_da_frota_disponivel(moto, frota
     assert list(urgentes.values_list("tipo", "titulo")) == [
         (
             "documento_vencido_alugado",
-            "CRLV da QXA4B21 venceu com o veículo alugado. Regularize o documento.",
+            "CRLV da QXA-4B21 venceu com o veículo alugado. Regularize o documento.",
         )
     ]
     pop.refresh_from_db()
@@ -864,11 +864,11 @@ def test_vei_03_aut_06_ca_013_28_reservado_ou_em_manutencao_no_vencimento(moto, 
     assert list(urgentes.values_list("tipo", "titulo")) == [
         (
             "documento_vencido_reservado",
-            "CRLV da RHT9F02 venceu com o veículo reservado. Regularize o documento.",
+            "CRLV da RHT-9F02 venceu com o veículo reservado. Regularize o documento.",
         ),
         (
             "documento_vencido_em_manutencao",
-            "Seguro da PMZ3E17 venceu com o veículo em manutenção. Regularize o documento.",
+            "Seguro da PMZ-3E17 venceu com o veículo em manutenção. Regularize o documento.",
         ),
     ]
     assert not Notificacao.objects.filter(destinatario=moto.pessoas["Mariana"]).exists()

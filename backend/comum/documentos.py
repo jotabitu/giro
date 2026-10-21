@@ -1,12 +1,21 @@
-"""Documentos brasileiros: normalização e dígitos verificadores de CPF e CNPJ (CLI-01)."""
+"""Documentos brasileiros: normalização e dígitos verificadores de CPF e CNPJ (CLI-01), e a placa
+dentro de texto pronto (`docs/api/README.md`, T-340)."""
 
 import re
 
 _NAO_DIGITO = re.compile(r"\D")
+_NAO_ALFANUMERICO = re.compile(r"[^A-Za-z0-9]")
 
 
 def so_digitos(valor: str) -> str:
     return _NAO_DIGITO.sub("", valor or "")
+
+
+def placa_com_hifen(placa: str) -> str:
+    """Placa num texto montado pela API, como nas telas: `PMZ3E17` vira `PMZ-3E17` (FIN-16,
+    T-340). Fora de 7 letras e dígitos, sai como está. O campo `placa` sozinho não passa aqui."""
+    limpa = _NAO_ALFANUMERICO.sub("", placa or "").upper()
+    return f"{limpa[:3]}-{limpa[3:]}" if len(limpa) == 7 else placa
 
 
 def _digito_cnpj(base: str) -> str:

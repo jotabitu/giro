@@ -26,6 +26,7 @@ from apps.veiculos.models import Origem, StatusVeiculo, Veiculo
 from comum import arquivos, estados, relogio
 from comum.auditoria import Categoria, auditar, registrar_evento, retrato
 from comum.dinheiro import formatar_reais
+from comum.documentos import placa_com_hifen
 from comum.erros import (
     Conflito,
     ErroDeRegra,
@@ -907,7 +908,7 @@ def _item_da_troca(troca: TrocaVeiculo) -> Calculado:
     fim = troca.periodo_fim.strftime("%d/%m") if troca.periodo_fim else ""
     descricao = (
         f"Diferença do período de {inicio} a {fim} na troca pela "
-        f"{novo.marca} {novo.modelo} {novo.placa} ({conta_texto})"
+        f"{novo.marca} {novo.modelo} {placa_com_hifen(novo.placa)} ({conta_texto})"
     )
     return Calculado(
         T.DIFERENCA_TROCA,
@@ -940,7 +941,7 @@ def _combustivel(locacao: Locacao, chegada: Vistoria, anterior: bool = False) ->
     descricao = combustivel.descricao
     if anterior:
         descricao = descricao.replace(
-            "Combustível", f"Combustível da {veiculo.modelo} {veiculo.placa}", 1
+            "Combustível", f"Combustível da {veiculo.modelo} {placa_com_hifen(veiculo.placa)}", 1
         )
     return Calculado(
         T.COMBUSTIVEL,

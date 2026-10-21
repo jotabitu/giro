@@ -4,6 +4,7 @@ A `situacao` sai de uma anotação SQL só (`com_situacao`), usada pela lista (f
 contagens) e pelo detalhe: a ordem da tabela do contrato fica num lugar.
 """
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, timedelta
 from typing import Any
@@ -824,6 +825,25 @@ def assistente_tem_recebimentos(plano: Plano | None) -> bool:
     return RECURSO_DE_RECEBIMENTOS in (getattr(plano, "recursos", None) or [])
 
 
+def empresa_tem_recebimentos(empresa: Empresa) -> bool:
+    """`assistente_tem_recebimentos` lendo o plano só quando o recurso existe no enum (T-196):
+    até lá, a Configurações não soma uma consulta (teto de 11, `configuracoes.md`)."""
+    plano = empresa.plano if RECURSO_DE_RECEBIMENTOS in Recurso.values else None
+    return assistente_tem_recebimentos(plano)
+
+
+def passos_do_assistente(recebe: bool) -> list[tuple[str, str]]:
+    """Os passos do assistente no plano: sem `recebimentos` quando não recebe (PLT-12)."""
+    return [(p, r) for p, r in PASSOS_DO_ASSISTENTE if recebe or p != "recebimentos"]
+
+
+def proximo_do_assistente(feitos: Iterable[str], recebe: bool) -> str | None:
+    """O 1º passo do assistente ainda aberto, ou `None` com os passos dele feitos. Função pura:
+    a Configurações passa os passos que já leu (`configuracoes.md`, T-340)."""
+    marcados = set(feitos)
+    return next((p for p, _ in passos_do_assistente(recebe) if p not in marcados), None)
+
+
 def andamento_do_assistente(empresa: Empresa | None = None) -> dict[str, Any]:
     """`GET /api/implantacao/`: os passos do assistente com `numero`, `feito` e `proximo`, lidos
     do `public`. Pular e "Salvar e sair" não marcam passo (não há rota de pular)."""
@@ -844,14 +864,12 @@ def andamento_do_assistente(empresa: Empresa | None = None) -> dict[str, Any]:
             "feito": passo in feitos,
             "feito_em": feitos.get(passo),
         }
-        for numero, (passo, rotulo) in enumerate(
-            ((p, r) for p, r in PASSOS_DO_ASSISTENTE if recebe or p != "recebimentos"), start=1
-        )
+        for numero, (passo, rotulo) in enumerate(passos_do_assistente(recebe), start=1)
     ]
     return {
         "concluida": "primeira_locacao" in feitos,  # IMP-01
         "total": len(passos),
         "feitos": sum(1 for passo in passos if passo["feito"]),
-        "proximo": next((passo["passo"] for passo in passos if not passo["feito"]), None),
+        "proximo": proximo_do_assistente(feitos, recebe),
         "passos": passos,
     }
