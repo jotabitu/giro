@@ -165,10 +165,11 @@ def test_apr_12_mes_pela_decisao(cenario, relogio):  # noqa: F811
     relogio.em("2026-09-29 10:00")
     aprovado_em_setembro = _despesa(cenario)
     pendente_de_setembro = _despesa(cenario)
-    relogio.em("2026-09-30 10:00")
+    # 23:30 de 30 set em São Paulo já é 01 out em UTC (02:30Z): continua em setembro (APR-12).
+    relogio.em("2026-09-30 23:30")
     aprovado_em_outubro = _despesa(cenario)
     aprovacoes_services.aprovar(aprovado_em_setembro, cenario.pessoas["Rodrigo"], "")
-    relogio.em("2026-10-01 10:00")
+    relogio.em("2026-10-01 23:30")
     aprovacoes_services.aprovar(aprovado_em_outubro, cenario.pessoas["Rodrigo"], "")
     relogio.em("2026-10-07 10:00")
     corpo = _lista(cenario)
