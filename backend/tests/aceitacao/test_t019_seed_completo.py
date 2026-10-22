@@ -148,6 +148,77 @@ def test_plt_01_seed_019_03_empresa(seed):
     assert resumo == "seg a sex 8h–18h · sáb 8h–12h"
 
 
+def test_plt_15_seed_019_ca_ass_47_48_dados_fiscais_e_filial_separados(seed):
+    """CA-ASS-47 e CA-ASS-48: o seed já nasce com o endereço da Filial Centro (CEP 60325-000) nos
+    dados fiscais; mudar o número da Filial Centro para 1250 ou tornar outra filial a matriz não
+    muda os dados fiscais; mudar o endereço da nota para a Av. Dom Luís não muda a Filial Centro."""
+    from seed.moto_rapida import CENTRO
+
+    bezerra = {
+        "cep": "60325000",
+        "logradouro": "Av. Bezerra de Menezes",
+        "numero": "1200",
+        "complemento": None,
+        "bairro": "São Gerardo",
+        "cidade": "Fortaleza",
+        "uf": "CE",
+    }
+    dom_luis = {
+        "cep": "60115170",
+        "logradouro": "Av. Dom Luís",
+        "numero": "500",
+        "complemento": "Sala 3",
+        "bairro": "Meireles",
+        "cidade": "Fortaleza",
+        "uf": "CE",
+    }
+    assinatura = _api(seed).get("/api/assinatura/").json()
+    assert assinatura["dados_fiscais"] == {
+        "razao_social": "Moto Rápida Locações Ltda",
+        "cnpj": "12345678000195",
+        "endereco": bezerra,
+        "email_cobranca": "mariana@motorapida.com.br",
+    }
+    centro = Filial.objects.get(nome="Filial Centro")
+    editar = _api(seed).patch(
+        f"/api/filiais/{centro.pk}/",
+        {"endereco": {**CENTRO["endereco"], "numero": "1250"}},
+        format="json",
+    )
+    assert editar.status_code == 200, editar.json()
+    assert _api(seed).get("/api/assinatura/").json()["dados_fiscais"]["endereco"] == bezerra
+
+    messejana = _api(seed).post(
+        "/api/filiais/",
+        {
+            **CENTRO,
+            "nome": "Filial Messejana",
+            "nome_curto": "Messejana",
+            "cnpj": "12.345.678/0003-57",
+            "endereco": {
+                **CENTRO["endereco"],
+                "cep": "60840-285",
+                "logradouro": "Av. Frei Cirilo",
+                "numero": "3840",
+                "bairro": "Messejana",
+            },
+        },
+        format="json",
+    )
+    assert messejana.status_code == 201, messejana.json()
+    tornar = _api(seed).post(f"/api/filiais/{messejana.json()['id']}/tornar-matriz/")
+    assert tornar.status_code == 200, tornar.json()
+    assert tornar.json()["matriz"] is True
+    assert _api(seed).get("/api/assinatura/").json()["dados_fiscais"]["endereco"] == bezerra
+
+    nota = _api(seed).patch("/api/assinatura/dados-fiscais/", {"endereco": dom_luis}, format="json")
+    assert nota.status_code == 200, nota.json()
+    assert nota.json()["dados_fiscais"]["endereco"] == dom_luis
+    detalhe_centro = _api(seed).get(f"/api/filiais/{centro.pk}/").json()
+    assert detalhe_centro["endereco"]["logradouro"] == "Av. Bezerra de Menezes"
+    assert detalhe_centro["endereco"]["numero"] == "1250"
+
+
 def test_usr_01_seed_019_04_as_5_pessoas_ativas(seed):
     pessoas = Usuario.objects.all()
     assert {(u.nome, u.perfil, u.status) for u in pessoas} == {

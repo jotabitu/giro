@@ -731,9 +731,35 @@ def test_plt_04_mudanca_de_plano_isolada_por_empresa(moto, criar_empresa, relogi
 
 
 def test_plt_15_dados_fiscais(moto):
-    """CA-ASS-29 e CA-ASS-48: razão social, endereço da nota e e-mail de cobrança; a filial não
-    muda."""
+    """CA-ASS-29, CA-ASS-47 e CA-ASS-48: antes do passo 6 o endereço é nulo; a Filial Centro
+    preenche os dados fiscais; mudar o número da Filial Centro para 1250 ou tornar outra filial a
+    matriz não muda os dados fiscais; razão social, endereço da nota e e-mail de cobrança mudam sem
+    mexer na filial."""
+    assert moto.api().get(ASSINATURA).json()["dados_fiscais"]["endereco"] is None
     centro = _criar_matriz(moto)
+    assert moto.api().get(ASSINATURA).json()["dados_fiscais"]["endereco"] == BEZERRA
+    with tenant_context(moto.empresa):
+        filiais.editar_filial(centro, {"endereco": {**CENTRO["endereco"], "numero": "1250"}})
+        outra = filiais.criar_filial(
+            {
+                **CENTRO,
+                "nome": "Filial Messejana",
+                "nome_curto": "Messejana",
+                "cnpj": "12.345.678/0003-57",
+                "endereco": {
+                    **CENTRO["endereco"],
+                    "cep": "60840-285",
+                    "logradouro": "Av. Frei Cirilo",
+                    "numero": "3840",
+                    "bairro": "Messejana",
+                },
+            },
+            moto.pessoas["Mariana"],
+        )
+        filiais.tornar_matriz(outra)
+    connection.set_schema_to_public()
+    assert moto.api().get(ASSINATURA).json()["dados_fiscais"]["endereco"] == BEZERRA
+
     resposta = moto.api().patch(
         DADOS_FISCAIS,
         {
@@ -753,7 +779,8 @@ def test_plt_15_dados_fiscais(moto):
         }
     }
     with tenant_context(moto.empresa):
-        assert Filial.objects.get(pk=centro.pk).logradouro == "Av. Bezerra de Menezes"
+        atualizada = Filial.objects.get(pk=centro.pk)
+        assert (atualizada.logradouro, atualizada.numero) == ("Av. Bezerra de Menezes", "1250")
     connection.set_schema_to_public()
     parcial = moto.api().patch(DADOS_FISCAIS, {"email_cobranca": "mariana@motorapida.com.br"})
     assert parcial.status_code == 200

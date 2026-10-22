@@ -304,6 +304,7 @@ def test_plt_04_downgrade_agendado_deixa_de_caber(
     Completo (R$ 899,00), o agendamento cai, o administrador e o e-mail de cobrança recebem o
     motivo, e a auditoria do sistema fica nos dois lugares. Em 22 nov o plano não muda."""
     _completo_com_profissional_agendado(moto, relogio)
+    relogio.em("2026-11-12 10:00")
     UsoEmpresa.objects.filter(empresa=moto.empresa).update(usuarios=11)
 
     assert _gerar(relogio, "2026-11-17", django_capture_on_commit_callbacks).faturas == 1
@@ -313,6 +314,11 @@ def test_plt_04_downgrade_agendado_deixa_de_caber(
     assert (empresa.plano.nome, empresa.plano_proximo) == ("Completo", None)
     assinatura = moto.api().get("/api/assinatura/").json()
     assert assinatura["plano_proximo"] is None
+    assert assinatura["proxima_fatura"] == {
+        "vencimento": "2026-11-22",
+        "valor_centavos": 89900,
+        "descricao": "Plano Completo · 22 nov a 21 dez",
+    }
     assert assinatura["acoes"]["desfazer_mudanca_plano"] is False
 
     for schema in ("public", moto.empresa.schema_name):
@@ -369,6 +375,13 @@ def test_plt_04_downgrade_cabia_na_geracao(moto, relogio, django_capture_on_comm
     empresa = moto.recarregar()
     assert (empresa.plano.nome, empresa.preco_contratado_centavos) == ("Profissional", 44900)
     assert UsoEmpresa.objects.get(empresa=moto.empresa).usuarios == 11  # ninguém sai
+    uso_usuarios = moto.api().get("/api/assinatura/").json()["uso"]["usuarios"]
+    assert uso_usuarios == {
+        "usado": 11,
+        "limite": 10,
+        "aviso": True,
+        "bloqueado": True,
+    }
     with pytest.raises(LimiteDoPlano), transaction.atomic():
         services.exigir_limite("usuarios", empresa)
 

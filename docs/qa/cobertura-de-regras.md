@@ -294,23 +294,34 @@ Testes em `backend/tests/aceitacao/test_t019_seed_completo.py` (`test_<regra>_se
 
 Os `xfail(strict)` avisam quando o código chegar.
 
-## Decisões de 14 out 2026: assinatura e aprovações (T-204, 15 out 2026)
+## Decisões de 14 a 21 out 2026: assinatura e aprovações (T-204, T-215)
 
-Critérios em `docs/qa/criterios/assinatura.md` (CA-ASS) e `aprovacoes.md` (CA-APR). Os testes de aceitação ficam em `backend/tests/aceitacao/` (assinatura em `test_t184_faturas.py` e `test_t127_seed.py`; seed das aprovações em `test_t204_decisoes_seed.py`) e os de cada app em `backend/apps/*/tests/`. **passa** = teste verde na `main`; **espera T-nnn** = o teste se escreve quando a tarefa de código fechar, com o nome do critério.
+Critérios em `docs/qa/criterios/assinatura.md` (CA-ASS) e `aprovacoes.md` (CA-APR). Os testes de aceitação ficam em `backend/tests/aceitacao/` (`test_t184_faturas.py`, `test_t185_assinatura.py`, `test_t185b_forma_faturas.py`, `test_t186_estados.py`, `test_t186b_faturas_cobranca.py`, `test_t195_cancelar_pausar.py`, `test_t127_seed.py`, `test_t019_seed_completo.py`, `test_t204_decisoes_seed.py`) e os de cada app em `backend/apps/*/tests/`. **passa** = teste verde na `main`; **espera T-nnn** = o teste se escreve quando a tarefa de código fechar, com o nome do critério.
 
 | Critério | Teste | Status |
 | --- | --- | --- |
-| CA-ASS-01 | `test_plt_01_primeira_fatura_dia_seguinte_ao_teste`, `test_plt_01_seed_184_fatura_e_dados_fiscais` | passa (T-184) |
+| CA-ASS-01 | `test_plt_01_primeira_fatura_dia_seguinte_ao_teste`, `test_plt_01_ca_ass_01_assinatura_da_moto_rapida_em_07_out`, `test_plt_01_seed_184_fatura_e_dados_fiscais` | passa (T-184, T-185) |
+| CA-ASS-02 a 06 | `test_plt_01_*`, `test_plt_02_*`, `test_aut_13_*` (`test_t186_estados.py`) | passa (T-186) |
 | CA-ASS-07, 08 | `apps/plataforma/tests/test_calendario.py` (08), `test_plt_14_codigo_da_fatura_por_empresa` (07) | passa (T-184) |
 | CA-ASS-09 | `test_plt_01_primeira_fatura_do_anual` | passa (T-184) |
-| CA-ASS-47, 48 | `test_plt_15_endereco_nasce_da_matriz`, `test_plt_15_endereco_da_nota_e_da_filial_separados`, `test_plt_01_seed_184_fatura_e_dados_fiscais` | passa (T-184) |
+| CA-ASS-10 a 12 | `test_plt_02_ca_ass_10_boleto_cinco_dias_antes`, `test_plt_02_ca_ass_11_cartao_sem_cartao_guardado_emite_a_pagina`, `test_plt_02_cartao_uma_tentativa_a_mais` (`test_t186b_faturas_cobranca.py`) | passa (T-186) |
+| CA-ASS-13 a 19 | `test_plt_04_*`, `test_plt_07_ca_ass_19_*` (`test_t185_assinatura.py`) | passa (T-185) |
+| CA-ASS-20 a 25, 50 a 53 | `test_plt_11_*`, `test_plt_12_*` | espera T-196 (módulos por plano; T-262 já cobre o ramo) |
+| CA-ASS-26 a 28 | `test_plt_13_*`, `test_plt_14_*` (`test_t185b_forma_faturas.py`) | passa (T-185) |
+| CA-ASS-29 | `test_plt_15_dados_fiscais`, `test_plt_15_cnpj_e_endereco_nulo_recusados` (`test_t185_assinatura.py`) | dados fiscais e CNPJ passam (T-185); NFS-e espera T-197 (bloqueada pelo contador) |
+| CA-ASS-30 a 39 | `test_plt_06_*`, `test_aud_08_*` (`test_t195_cancelar_pausar.py`) | passa (T-195) |
+| CA-ASS-40, 41 | `test_plt_04_downgrade_agendado_deixa_de_caber`, `test_plt_04_downgrade_cabia_na_geracao` (`test_t186b_faturas_cobranca.py`) | passa (T-186, T-215) |
+| CA-ASS-42 | `test_plt_06_pausa_comeca_no_fim_do_periodo_pago` (`test_t195_cancelar_pausar.py`) | passa (T-195, T-215) |
+| CA-ASS-43 a 45 | `test_plt_06_desfazer_cancelamento_no_teste`, `test_plt_06_desfazer_cancelamento_na_ativa`, `test_plt_06_desfazer_cancelamento_na_ativa_com_a_fatura_emitida`, `test_plt_06_quem_nao_desfaz` (`test_t195_cancelar_pausar.py`) | passa (T-195, T-215) |
+| CA-ASS-46 | `test_plt_06_reativar_so_com_atrasada_paga` (`test_t195_cancelar_pausar.py`) | esqueleto (`xfail` estrito, espera `reativar_empresa` no backend) |
+| CA-ASS-47, 48 | `test_plt_15_endereco_nasce_da_matriz`, `test_plt_15_endereco_da_nota_e_da_filial_separados`, `test_plt_15_dados_fiscais`, `test_plt_01_seed_184_fatura_e_dados_fiscais`, `test_plt_15_seed_019_ca_ass_47_48_dados_fiscais_e_filial_separados` | passa (T-184, T-185, T-215) |
+| CA-ASS-49 | `test_plt_06_reativar_no_periodo_pago` | espera `reativar_empresa` no backend |
+| CA-ASS-54 a 58, 60 | `test_plt_06_cancelar_no_teste_com_a_1a_paga`, `test_plt_06_desistir_da_pausa_agendada`, `test_plt_06_mudar_de_plano_com_cancelamento_marcado`, `test_plt_06_diferenca_em_aberto_na_pausa`, `test_aud_08_linha_apagada_so_com_cnpj`, `test_aud_08_dados_fiscais_sem_valor_na_auditoria_do_public`, `test_aud_08_fatura_atrasada_guarda_email` | passa (T-185, T-195) |
 | CA-ASS-59 | `test_plt_14_fatura_guarda_tomador`, `test_plt_14_fatura_guarda_tomador_ao_pedir_a_nota` | passa (T-184) |
-| CA-ASS-02 a 06, 10 a 12 | `test_plt_02_*`, `test_aut_13_*` | espera T-186 (régua e estados); a baixa pelo webhook (`test_plt_14_webhook_da_fatura_baixa_uma_vez`) já passa |
-| CA-ASS-13 a 19, 40, 41 | `test_plt_04_*` | espera T-185 (rotas e `mudar_plano`) |
-| CA-ASS-20 a 25, 50 a 53 | `test_plt_11_*`, `test_plt_12_*` | espera T-196 (módulos por plano) |
-| CA-ASS-30 a 39, 42 a 46, 49, 54 a 58, 60 a 62 | `test_plt_06_*`, `test_aud_08_*`, `test_plt_16_*` | espera T-195 (cancelar, pausar e apagamento) |
-| CA-ASS-26 a 29 | NFS-e (`PLT-15`) | espera T-197 (bloqueada pelo contador) |
+| CA-ASS-61, 62 | `test_plt_16_*` | espera `PLT-16` no backend |
+| CA-ASS-63 a 68 | `test_plt_13_pix_automatico_sem_autorizacao_sai_boleto`, `test_plt_13_autorizado_depois_vale_na_fatura_seguinte`, `test_aut_13_textos_da_regua_no_boleto`, `test_aut_13_automatica_nao_pede_nada`, `test_aut_13_whatsapp_com_marca_e_caminho`, `test_aut_13_d7_e_a_ligacao`, `test_aut_13_d7_perdido_sai_ate_d14` | passa (T-297, T-303) |
+| CA-ASS-69 | `test_plt_06_acesso_que_ja_acabou_termina_agora`, `test_plt_06_ca_ass_69_fatura_do_dia_paga_no_cartao_mantem_acesso` (`test_t195_cancelar_pausar.py`), `apps/plataforma/tests/test_calendario.py` | passa (T-195, T-215) |
 | CA-APR-01 (horas e números do seed) | `test_apr_12_seed_horas_dos_pedidos_aprovados`, `test_apr_12_seed_tempo_medio_de_90_minutos`, `test_apr_12_seed_pendentes_sao_pneus_e_loc_2812`, `test_apr_12_numeros_do_seed`, `test_apr_12_ca_apr_01_mariana_e_rodrigo_veem_os_mesmos_numeros_e_abas` | passa (T-202, T-204) |
 | CA-APR-02, 03, 04, 05, 06, 07, 08, 10 | `test_apr_12_*`, `test_apr_01_resumo_do_desconto` (`test_t202_aprovacoes.py`), `test_apr_12_apr_01_ca_apr_02_03_10_desconto_aprovado_e_pneus_recusados_no_seed`, `test_apr_12_ca_apr_04_cancelado_nao_muda_numeros_do_seed`, `test_apr_12_apr_04_ca_apr_05_diferenca_de_caixa_do_rodrigo_aprovada_pela_mariana` (`test_t204_decisoes_seed.py`) | passa (T-202, T-204) |
-| CA-APR-11 (`resumo` dos pneus) | `test_apr_03_resumo_da_despesa` (`test_t202_seed.py`), `test_apr_03_ca_apr_11_resumo_dos_pneus_com_placa_pmz_3e17` (`test_t204_decisoes_seed.py`) | células sem placa passam; placa `PMZ-3E17`: `xfail` estrito, espera T-341 (`apps/financeiro/services.py:1637` manda `PMZ3E17`) |
+| CA-APR-11 (`resumo` dos pneus) | `test_apr_03_resumo_da_despesa` (`test_t202_seed.py`), `test_apr_03_ca_apr_11_resumo_dos_pneus_com_placa_pmz_3e17` (`test_t204_decisoes_seed.py`) | passa (T-202, T-204, T-341) |
 | CA-018-09 (10 eventos) e CA-018-10 (configurações = 1) | `test_aud_02_ca_018_09_lista_do_seed`, `test_aud_02_ca_018_10_filtros` (`test_t018_auditoria.py`), `test_aud_02_evento_da_tabela_de_preco` (`test_t202_seed.py`), `test_aud_02_loc_15_seed_evento_de_01_out_17_42_por_mariana_na_lista` (`test_t204_decisoes_seed.py`) | passa (T-202, T-204) |
