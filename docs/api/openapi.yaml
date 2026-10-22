@@ -723,6 +723,35 @@ paths:
       responses:
         '204':
           description: No response body
+  /api/auth/2fa/reconfirmar/:
+    post:
+      operationId: auth_2fa_reconfirmar_create
+      description: |-
+        Reconfirmar as 2 etapas sem sair do sistema (USR-02, ADR 0032): para as ações que pedem 2
+        etapas recentes (403 `2fa_recente`). Bloqueio e contagem são os do login (USR-06).
+      summary: Reconfirmar as 2 etapas (USR-02, USR-06)
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Verificar2FA'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Verificar2FA'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Verificar2FA'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessDaEmpresa'
+          description: ''
   /api/auth/2fa/verificar/:
     post:
       operationId: auth_2fa_verificar_create

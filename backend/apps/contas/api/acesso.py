@@ -26,6 +26,7 @@ from comum.autenticacao import (
     JWTPre2FA,
     JWTPre2FAOuAcesso,
     apagar_cookie_refresh,
+    emitir_access_reconfirmado,
     emitir_pre_2fa,
     emitir_tokens,
     gravar_cookie_refresh,
@@ -520,6 +521,38 @@ class CodigosRecuperacaoView(Logada):
         return Response({"codigos_recuperacao": codigos})
 
 
+class Reconfirmar2FAView(Logada):
+    """Reconfirmar as 2 etapas sem sair do sistema (USR-02, ADR 0032): para as ações que pedem 2
+    etapas recentes (403 `2fa_recente`). Bloqueio e contagem são os do login (USR-06)."""
+
+    @extend_schema(
+        request=Verificar2FASerializer,
+        responses=AccessDaEmpresaSerializer,
+        summary="Reconfirmar as 2 etapas (USR-02, USR-06)",
+    )
+    def post(self, request: Request) -> Response:
+        usuario = _usuario(request)
+        dados = Verificar2FASerializer(data=request.data)
+        dados.is_valid(raise_exception=True)
+        if not dois_fatores.tem_2fa(usuario):
+            raise Conflito("2fa_inativo", "Ative a verificação em 2 etapas primeiro.")
+        recuperacao = dados.validated_data.get("codigo_recuperacao", "")
+        tentativa = dois_fatores.verificar_codigo(
+            usuario, codigo=dados.validated_data.get("codigo", ""), codigo_recuperacao=recuperacao
+        )
+        if tentativa.dispositivo is None:
+            motivo = "código de recuperação" if recuperacao else "código"
+            dois_fatores.auditar_2fa("usuario.reconfirmar_2fa_falhou", tentativa.usuario, motivo)
+            # 400 no campo, não 401: o cliente HTTP não tenta renovar a sessão.
+            campo = "codigo_recuperacao" if recuperacao else "codigo"
+            raise tentativa.bloqueio or ErroDeValidacao({campo: [CODIGO_INVALIDO[1]]})
+        if recuperacao:
+            dois_fatores.auditar_2fa("usuario.usar_codigo_recuperacao", tentativa.usuario)
+        dois_fatores.auditar_2fa("usuario.reconfirmar_2fa", tentativa.usuario)
+        access = emitir_access_reconfirmado(request.auth)  # type: ignore[arg-type]
+        return Response({"access": str(access)}, headers={"Cache-Control": "no-store"})
+
+
 # --- Renovar e sair (cookie + X-Requested-With) ---
 
 
@@ -707,6 +740,7 @@ VIEWS_DE_ACESSO: tuple[type[APIView], ...] = (
     Ativar2FAView,
     Desativar2FAView,
     CodigosRecuperacaoView,
+    Reconfirmar2FAView,
     RenovarView,
     SairView,
     EuView,
