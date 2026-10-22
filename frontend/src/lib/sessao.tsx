@@ -56,7 +56,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     [cliente, router],
   );
 
-  const semSessao = semEmpresa || consulta.error instanceof ErroApi && consulta.error.status === 401;
+  const semSessao = semEmpresa || (consulta.error instanceof ErroApi && consulta.error.status === 401);
   useEffect(() => {
     if (semSessao) router.replace("/entrar");
   }, [semSessao, router]);
@@ -64,10 +64,11 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const valor = useMemo(() => (consulta.data ? { eu: consulta.data, sair } : null), [consulta.data, sair]);
 
   if (consulta.isError && !semSessao) {
+    const cancelada = consulta.error instanceof ErroApi && consulta.error.codigo === "empresa_cancelada";
     return (
       <main className="grid min-h-screen place-items-center p-6">
         <p role="alert" className="text-body text-ink-muted">
-          Não foi possível carregar sua conta. Atualize a página.
+          {cancelada ? consulta.error.message : "Não foi possível carregar sua conta. Atualize a página."}
         </p>
       </main>
     );
