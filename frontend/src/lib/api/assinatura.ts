@@ -10,10 +10,13 @@ import type {
   FormaDaAssinatura,
   ListaDeFaturas,
   MeioDePagarFatura,
+  PedidoDeCancelamentoDaAssinatura,
   PedidoDeMudancaDePlano,
+  PedidoDePausa,
   PlanosParaMudar,
   RespostaDaForma,
   SimulacaoDeMudanca,
+  TelaDoCancelamento,
 } from "./tipos-assinatura";
 
 export const assinaturaApi = {
@@ -61,5 +64,30 @@ export const assinaturaApi = {
   /** O CNPJ não muda por aqui; o endereço vai inteiro. */
   editarDadosFiscais(corpo: CorrecaoDeDadosFiscais): Promise<{ dados_fiscais: DadosFiscais }> {
     return http.patch("/api/assinatura/dados-fiscais/", corpo);
+  },
+
+  /** O que a Admin-Cancelar mostra hoje: motivos, alternativas, o_que_acontece, datas e nome (PLT-06, AUD-08). */
+  telaCancelamento(): Promise<TelaDoCancelamento> {
+    return http.get("/api/assinatura/cancelamento/");
+  },
+
+  /** Cancela a assinatura (PLT-06); 422 `nome_nao_confere` se o nome digitado divergir. */
+  cancelar(corpo: PedidoDeCancelamentoDaAssinatura): Promise<Assinatura> {
+    return http.post("/api/assinatura/cancelamento/", corpo);
+  },
+
+  /** Desfaz o cancelamento até o último dia de acesso (`acesso_ate`, PLT-06). */
+  desfazerCancelamento(): Promise<Assinatura> {
+    return http.delete("/api/assinatura/cancelamento/");
+  },
+
+  /** Pausa de 1 a 3 meses no fim do período pago (só a `ativa`, PLT-06). */
+  pausar(corpo: PedidoDePausa): Promise<Assinatura> {
+    return http.post("/api/assinatura/pausa/", corpo);
+  },
+
+  /** Volta da pausa (`pausada`) ou desiste da pausa agendada (`ativa` antes de `pausa_inicio`, PLT-06). */
+  encerrarPausa(): Promise<Assinatura> {
+    return http.delete("/api/assinatura/pausa/");
   },
 };
