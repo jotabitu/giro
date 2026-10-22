@@ -110,11 +110,15 @@ def test_plt_01_seed_184_fatura_e_dados_fiscais(semeado):
     assert faturas.get().tomador_gravado_em is None
     assert empresa.email_cobranca == "mariana@motorapida.com.br"
     assert empresa.dia_vencimento == 22
-    assert (empresa.endereco_cep, empresa.endereco_logradouro, empresa.endereco_bairro) == (
-        "60325000",
-        "Av. Bezerra de Menezes",
-        "São Gerardo",
-    )
+    assert empresa.endereco == {
+        "cep": "60325000",
+        "logradouro": "Av. Bezerra de Menezes",
+        "numero": "1200",
+        "complemento": None,
+        "bairro": "São Gerardo",
+        "cidade": "Fortaleza",
+        "uf": "CE",
+    }
 
 
 def test_seed_127_02_roda_duas_vezes_sem_duplicar(semeado):

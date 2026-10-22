@@ -1,9 +1,9 @@
 """T-195 · Cancelar, pausar e apagar a assinatura da empresa (`docs/api/cancelamento.md`; PLT-06,
-AUD-08, ADR 0025; CA-ASS-30 a 39, 42 a 45, 54 a 58 e 60).
+AUD-08, ADR 0025; CA-ASS-30 a 39, 42 a 46, 54 a 58, 60 e 69).
 
 Relógio de referência (ADR 0021): Moto Rápida em teste de 07 a 21 out, FAT-0001 de R$ 449,00
 vencendo em 22 out (período de 22 out a 21 nov), e as seguintes todo dia 22. Dados de referência
-"Cancelamento da Moto Rápida" (a) a (d), "Pausa da Moto Rápida" e "Desfazer o cancelamento da
+"Cancelamento da Moto Rápida" (a) a (f), "Pausa da Moto Rápida" e "Desfazer o cancelamento da
 Moto Rápida".
 """
 
@@ -383,6 +383,119 @@ def test_plt_06_cancelar_ativa_com_a_fatura_seguinte_emitida(
     assert _eventos("empresa.cancelar", "public")[-1].depois["faturas_canceladas"] == ["FAT-0002"]
 
 
+def test_plt_06_acesso_que_ja_acabou_termina_agora(
+    moto, relogio, mailoutbox, django_capture_on_commit_callbacks
+):
+    """CA-ASS-69, caso (e): `ativa`, FAT-0001 paga (período até 21 nov) e FAT-0002 de 22 nov
+    emitida em boleto em 17 nov e não paga; cancela em 22 nov às 10:00: "termina agora"
+    (`acesso_ate: null`), `cancelada` na hora, FAT-0002 `cancelada` e não devida, boleto cancelado
+    no parceiro, nada a desfazer, aviso em 13 fev 2027 e apagamento em 20 fev 2027."""
+    _ativa_com_boleto(moto)
+    _gerar(relogio, "2026-11-17", django_capture_on_commit_callbacks)
+    cobranca = moto.fatura("FAT-0002").cobranca_externa_id
+    assert cobranca
+    _em(relogio, "2026-11-22", "10:00")
+    api = moto.api()
+    tela = api.get(CANCELAMENTO).json()
+    assert tela["o_que_acontece"][:2] == [
+        {"codigo": "acesso", "rotulo": "Acesso", "valor": "termina agora"},
+        {"codigo": "cobrancas", "rotulo": "Cobranças futuras", "valor": "nenhuma"},
+    ]
+    assert (tela["acesso_ate"], tela["cancelada_em"], tela["apagar_em"]) == (
+        None,
+        "2026-11-22",
+        "2027-02-20",
+    )
+    with django_capture_on_commit_callbacks(execute=True):
+        resposta = _cancelar(api)
+    assert resposta.status_code == 200, resposta.json()
+    corpo = resposta.json()
+    assert (corpo["status"], corpo["cancelamento"]) == ("cancelada", None)
+    assert corpo["acoes"]["desfazer_cancelamento"] is False
+    empresa = moto.recarregar()
+    assert (empresa.status, empresa.acesso_ate, empresa.apagar_em) == (
+        "cancelada",
+        None,
+        date(2027, 2, 20),
+    )
+    fatura = moto.fatura("FAT-0002")
+    assert (fatura.status, fatura.motivo_cancelamento) == ("cancelada", "cancelamento_assinatura")
+    assert fatura.cobranca_externa_id is None
+    assert pagamentos.cobrancas[cobranca].situacao.status == "cancelada"
+    assert _codigos(moto) == {"FAT-0001": "paga", "FAT-0002": "cancelada"}
+    assert _erro(api.delete(CANCELAMENTO)) == EMPRESA_CANCELADA
+    connection.set_schema_to_public()
+    with pytest.raises(services.Conflito) as erro:
+        services.desfazer_cancelamento(moto.recarregar())
+    assert erro.value.mensagem == "Não há cancelamento para desfazer."
+
+    mailoutbox.clear()
+    assert services.avisar_apagamentos(date(2027, 2, 12)) == 0
+    assert services.avisar_apagamentos(date(2027, 2, 13)) == 1
+    assert [m.to for m in mailoutbox] == [[MARIANA]]
+    assert "20 fev 2027" in mailoutbox[0].body
+    _em(relogio, "2027-02-19", "03:30")
+    assert services.apagar_empresas() == 0
+    _em(relogio, "2027-02-20", "03:30")
+    assert services.apagar_empresas() == 1
+    assert moto.recarregar().apagada_em is not None
+
+
+def test_plt_06_ca_ass_69_fatura_do_dia_paga_no_cartao_mantem_acesso(
+    moto, relogio, mailoutbox, django_capture_on_commit_callbacks
+):
+    """CA-ASS-69, caso (f): `ativa` no cartão, FAT-0002 cobrada e paga em 22 nov às 08:00; cancela
+    em 22 nov às 10:00: acesso continua até 21 dez, nenhuma fatura vence em 22 dez, `cancelada` em
+    22 dez e dados apagados em 22 mar 2027."""
+    _ativa_com_cartao(moto, relogio)
+    _gerar(relogio, "2026-11-17", django_capture_on_commit_callbacks)
+    _em(relogio, "2026-11-22", "08:00")
+    with django_capture_on_commit_callbacks(execute=True):
+        geracao = services.gerar_faturas()
+    connection.set_schema_to_public()
+    assert geracao.cartoes == {"cobrada": 1}
+    fatura = moto.fatura("FAT-0002")
+    assert _baixar(fatura.cobranca_externa_id, "evt-fat-0002-cartao") == "baixada"
+    assert moto.fatura("FAT-0002").status == "paga"
+
+    _em(relogio, "2026-11-22", "10:00")
+    api = moto.api()
+    tela = api.get(CANCELAMENTO).json()
+    assert tela["o_que_acontece"][:2] == [
+        {"codigo": "acesso", "rotulo": "Acesso", "valor": "continua até 21 dez"},
+        {"codigo": "cobrancas", "rotulo": "Cobranças futuras", "valor": "nenhuma"},
+    ]
+    assert (tela["acesso_ate"], tela["cancelada_em"], tela["apagar_em"]) == (
+        "2026-12-21",
+        "2026-12-22",
+        "2027-03-22",
+    )
+    resposta = _cancelar(api)
+    assert resposta.status_code == 200, resposta.json()
+    corpo = resposta.json()
+    assert corpo["status"] == "ativa"
+    assert corpo["cancelamento"]["acesso_ate"] == "2026-12-21"
+    assert corpo["cancelamento"]["rotulo"] == "Assinatura cancelada. Você tem acesso até 21 dez."
+    assert _codigos(moto) == {"FAT-0001": "paga", "FAT-0002": "paga"}
+
+    assert _gerar(relogio, "2026-12-17", django_capture_on_commit_callbacks).faturas == 0
+    _virar(relogio, "2026-12-21")
+    assert _status(moto) == "ativa"
+    assert _virar(relogio, "2026-12-22", django_capture_on_commit_callbacks).estados == {
+        "cancelada": 1
+    }
+    empresa = moto.recarregar()
+    assert (empresa.status, empresa.apagar_em) == ("cancelada", date(2027, 3, 22))
+    assert _codigos(moto) == {"FAT-0001": "paga", "FAT-0002": "paga"}
+
+    mailoutbox.clear()
+    assert services.avisar_apagamentos(date(2027, 3, 15)) == 1
+    assert "22 mar 2027" in mailoutbox[0].body
+    _em(relogio, "2027-03-22", "03:30")
+    assert services.apagar_empresas() == 1
+    assert moto.recarregar().apagada_em is not None
+
+
 def test_plt_06_cancelar_anual_sem_devolucao(moto, relogio):
     """CA-ASS-33: anual de 22 out 2026 a 21 out 2027, cancela em 05 nov 2026: nada é devolvido e
     o acesso vai até 21 out 2027."""
@@ -478,9 +591,13 @@ def test_plt_06_cancelar_inadimplente_para_a_regua(
     )
     assert moto.fatura("FAT-0001").status == "atrasada"
     assert FormaPagamentoAssinatura.objects.get(empresa=moto.empresa).forma == ""
-    # A próxima requisição já é recusada.
+    # A próxima requisição já é recusada, inclusive tentativa de desfazer (CA-ASS-45).
     assert _erro(moto.api().get(ASSINATURA)) == EMPRESA_CANCELADA
+    assert _erro(moto.api().delete(CANCELAMENTO)) == EMPRESA_CANCELADA
     connection.set_schema_to_public()
+    with pytest.raises(services.Conflito) as erro:
+        services.desfazer_cancelamento(moto.recarregar())
+    assert erro.value.mensagem == "Não há cancelamento para desfazer."
     enviados = len(mailoutbox)
     for dia in ("2026-10-29", "2026-11-06"):
         assert services.regua_da_assinatura(date.fromisoformat(dia)) == {}
@@ -593,8 +710,9 @@ def test_plt_06_desfazer_cancelamento_na_ativa_com_a_fatura_emitida(
 
 
 def test_plt_06_quem_nao_desfaz(moto, relogio):
-    """CA-ASS-45: depois do último dia de acesso a empresa já é `cancelada` e nem entra; o Rodrigo,
-    a Lúcia e o suporte não desfazem; sem cancelamento marcado, não há o que desfazer."""
+    """CA-ASS-45: depois do último dia de acesso a empresa já é `cancelada` e nem entra; na
+    `inadimplente` cancelada na hora (CA-ASS-34) não há o que desfazer; o Rodrigo, a Lúcia e o
+    suporte não desfazem; sem cancelamento marcado, não há o que desfazer."""
     _ativa_com_boleto(moto)
     _em(relogio, "2026-11-05")
     assert _erro(moto.api().delete(CANCELAMENTO)) == SEM_CANCELAMENTO
@@ -613,6 +731,43 @@ def test_plt_06_quem_nao_desfaz(moto, relogio):
     with pytest.raises(services.Conflito) as erro:
         services.desfazer_cancelamento(moto.recarregar())
     assert erro.value.mensagem == "Não há cancelamento para desfazer."
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="reativar_empresa (assinatura.md, CA-ASS-46) ainda não implementada no backend",
+)
+def test_plt_06_reativar_so_com_atrasada_paga(moto, relogio, django_capture_on_commit_callbacks):
+    """CA-ASS-46: `inadimplente` com a FAT-0001 `atrasada`, cancelada em 25 out; em 01 dez a equipe
+    tenta reativar e recebe 409 `fatura_em_atraso` ("Receba a fatura em atraso antes de reativar.");
+    paga a FAT-0001 pela 2ª via e reativada em 01 dez, vira `ativa`, com a FAT-0002 de R$ 449,00
+    vencendo em 01 dez ("Plano Profissional · 01 dez a 31 dez") e as seguintes todo dia 1."""
+    services.escolher_forma_pagamento(moto.recarregar(), "boleto")
+    _gerar(relogio, "2026-10-17", django_capture_on_commit_callbacks)
+    _virar(relogio, "2026-10-23")
+    _em(relogio, "2026-10-25")
+    assert _cancelar(moto.api()).json()["status"] == "cancelada"
+    _em(relogio, "2026-12-01")
+    reativar = services.reativar_empresa
+    with pytest.raises(services.Conflito) as recusa:
+        reativar(moto.recarregar(), por=services.POR_EQUIPE, motivo="Pedido no chamado #1090")
+    assert (recusa.value.codigo, recusa.value.mensagem) == (
+        "fatura_em_atraso",
+        "Receba a fatura em atraso antes de reativar.",
+    )
+    fatura = moto.fatura("FAT-0001")
+    pagamentos.simular_pagamento(fatura.cobranca_externa_id or "")
+    assert _baixar(fatura.cobranca_externa_id, "evt-fat-0001-2via") == "baixada"
+    reativar(moto.recarregar(), por=services.POR_EQUIPE, motivo="Pedido no chamado #1090")
+    empresa = moto.recarregar()
+    assert (empresa.status, empresa.dia_vencimento) == ("ativa", 1)
+    nova = moto.fatura("FAT-0002")
+    assert (nova.status, nova.valor_centavos, nova.vencimento) == (
+        "aberta",
+        44900,
+        date(2026, 12, 1),
+    )
+    assert nova.descricao == "Plano Profissional · 01 dez a 31 dez"
 
 
 # --- Pausar (CA-ASS-35 a 37, 42) ---
@@ -718,9 +873,13 @@ def test_plt_06_pausa_comeca_no_fim_do_periodo_pago(
     fatura = moto.fatura("FAT-0002")
     assert (fatura.status, fatura.motivo_cancelamento) == ("cancelada", "pausa")
     assert pagamentos.cobrancas[cobranca].situacao.status == "cancelada"
+    _virar(relogio, "2026-11-21")
+    assert _status(moto) == "ativa"
     _virar(relogio, "2026-11-22")
     assert _status(moto) == "pausada"
     assert _codigos(moto) == {"FAT-0001": "paga", "FAT-0002": "cancelada"}
+    _virar(relogio, "2027-01-21")
+    assert _status(moto) == "pausada"
 
 
 def test_plt_06_quem_nao_pausa(moto, relogio):
