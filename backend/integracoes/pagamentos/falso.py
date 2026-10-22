@@ -8,6 +8,9 @@ Conta principal (T-184): os pagadores ficam em `pagadores`; a cobrança `cartao_
 `simular_pagamento` devolve um cartão guardado (`CARTAO_DE_TESTE`), e `recusar_cartao(token)` faz
 o parceiro recusar as próximas cobranças naquele token. `autorizar_pix(autorizacao_id)` ativa a
 autorização do Pix Automático e devolve o corpo do aviso (PLT-13).
+
+`recusar_operacao(nome, mensagem)` faz o parceiro recusar (`ParceiroRecusou`) as próximas
+chamadas da operação, como `cancelar_autorizacao` e `anonimizar_pagador` (T-345).
 """
 
 import json
@@ -29,6 +32,7 @@ from .base import (
     DadosEmpresa,
     EventoWebhook,
     Pagador,
+    ParceiroRecusou,
     PedidoCobranca,
     PedidoRecorrencia,
     SituacaoCobranca,
@@ -49,6 +53,7 @@ autorizacoes: dict[str, Autorizacao] = {}
 pagadores: dict[str, Pagador] = {}  # id do cliente na conta principal -> o que foi mandado
 anonimizados: list[str] = []  # clientes que perderam e-mail e telefone (AUD-08, B-01)
 tokens_recusados: set[str] = set()
+operacoes_recusadas: dict[str, str] = {}  # nome da operação -> mensagem do parceiro
 # FIN-04 (T-307): com `sem_pix_no_boleto()`, o boleto sai sem o Pix, como a conta sem chave Pix.
 _boleto_sem_pix: list[bool] = [False]
 _numeros = count(1)
@@ -63,6 +68,7 @@ def limpar() -> None:
     pagadores.clear()
     anonimizados.clear()
     tokens_recusados.clear()
+    operacoes_recusadas.clear()
     _boleto_sem_pix[0] = False
 
 
@@ -73,6 +79,15 @@ def sem_pix_no_boleto() -> None:
 
 def recusar_cartao(token: str) -> None:
     tokens_recusados.add(token)
+
+
+def recusar_operacao(nome: str, mensagem: str = "Pedido recusado pelo parceiro.") -> None:
+    operacoes_recusadas[nome] = mensagem
+
+
+def _conferir_recusa(nome: str) -> None:
+    if nome in operacoes_recusadas:
+        raise ParceiroRecusou(operacoes_recusadas[nome])
 
 
 class PagamentosFalso:
@@ -102,6 +117,7 @@ class PagamentosFalso:
         return self.criar_cobranca(conta, pedido)
 
     def cancelar_autorizacao(self, conta: ContaPagamentoRef, autorizacao_id: str) -> None:
+        _conferir_recusa("cancelar_autorizacao")
         if autorizacao_id in autorizacoes:
             autorizacoes[autorizacao_id] = replace(autorizacoes[autorizacao_id], status="cancelada")
 
@@ -114,6 +130,7 @@ class PagamentosFalso:
         return cliente_id
 
     def anonimizar_pagador(self, conta: ContaPagamentoRef, cliente_id: str) -> None:
+        _conferir_recusa("anonimizar_pagador")
         if cliente_id in pagadores:
             pagadores[cliente_id] = replace(pagadores[cliente_id], email="", celular="")
         anonimizados.append(cliente_id)

@@ -1472,6 +1472,10 @@ def test_plt_07_lista_de_rotas_que_o_suporte_le():
         "api/assinatura/planos/",
         "api/assinatura/faturas/",
         "api/assinatura/faturas/<str:codigo>/",
+        # T-195: a tela de cancelar (sem dado pessoal) e a pausa, que não tem GET; toda escrita
+        # do suporte nelas recebe o 403 `PLT-07` (cancelamento.md).
+        "api/assinatura/cancelamento/",
+        "api/assinatura/pausa/",
         "api/filiais/minhas/",
         "api/filiais/",
         "api/filiais/<int:pk>/",

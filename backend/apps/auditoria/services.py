@@ -16,6 +16,7 @@ from django.db import transaction
 
 from comum import arquivos, auditoria, relogio
 from comum.auditoria import Categoria, registrar_evento, retrato
+from comum.autenticacao import dois_fatores_recente
 from comum.conexao import schema_atual
 from comum.erros import ErroDeRegra, ErroDeValidacao, Expirado, SemPermissao
 from comum.estados import transicionar
@@ -31,7 +32,7 @@ from .models import (
 )
 
 VALIDADE_DO_LINK = timedelta(days=7)  # AUD-07
-DOIS_FATORES_RECENTE = timedelta(minutes=15)  # S-15: backup completo
+# S-15: o backup completo pede 2 etapas recentes (`comum.autenticacao.dois_fatores_recente`).
 DOIS_FATORES_RECENTE_ERRO = (
     "2fa_recente",
     "Confirme o código do autenticador para gerar o backup completo",
@@ -47,16 +48,6 @@ DISPONIVEIS = {
     (ItemExportacao.AUDITORIA.value, FormatoExportacao.CSV.value),
     (ItemExportacao.DESPESAS.value, FormatoExportacao.CSV.value),
 }
-
-
-def dois_fatores_recente(payload: dict[str, Any]) -> bool:
-    """Token com `otp` no `amr` e `auth_time` de no máximo 15 minutos atrás."""
-    if "otp" not in (payload.get("amr") or []):
-        return False
-    momento = payload.get("auth_time")
-    if not isinstance(momento, int | float):
-        return False
-    return relogio.agora().timestamp() - momento <= DOIS_FATORES_RECENTE.total_seconds()
 
 
 def _periodo(periodo: dict[str, Any] | None) -> tuple[date | None, date | None]:

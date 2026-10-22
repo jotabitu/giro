@@ -45,13 +45,30 @@ CLAIM_AMR = "amr"
 CLAIM_SESSAO = "sid"
 CLAIM_APARELHO = "aparelho"
 # Quando as 2 etapas foram confirmadas (segundos UTC). Só no login completo, nunca na rotação:
-# ações sensíveis pedem a confirmação recente (backup completo, S-15).
+# ações sensíveis pedem a confirmação recente (backup completo, S-15; cancelar, T-199).
 CLAIM_AUTH_TIME = "auth_time"
 AMR_SENHA = ("pwd",)
 AMR_SENHA_E_CODIGO = ("pwd", "otp")
+DOIS_FATORES_RECENTE = timedelta(minutes=15)
 
 COOKIE_REFRESH = "__Host-giro_refresh"
 CABECALHO_DO_FRONTEND = ("HTTP_X_REQUESTED_WITH", "giro")
+
+
+def token_da_requisicao(request: Request) -> dict[str, Any]:
+    """As claims do token da requisição (vazio sem token)."""
+    return dict(getattr(request.auth, "payload", None) or {})
+
+
+def dois_fatores_recente(payload: dict[str, Any]) -> bool:
+    """Token com `otp` no `amr` e `auth_time` de no máximo 15 minutos atrás. Quem pede: o backup
+    completo (S-15) e o cancelamento da assinatura (T-199, M-01); sem ela, 403 `2fa_recente`."""
+    if "otp" not in (payload.get(CLAIM_AMR) or []):
+        return False
+    momento = payload.get(CLAIM_AUTH_TIME)
+    if not isinstance(momento, int | float):
+        return False
+    return relogio.agora().timestamp() - momento <= DOIS_FATORES_RECENTE.total_seconds()
 
 
 def _empresa_atual() -> tuple[str, int | None]:

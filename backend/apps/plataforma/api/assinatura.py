@@ -17,6 +17,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from comum.autenticacao import dois_fatores_recente, token_da_requisicao
 from comum.erros import ErroDeValidacao, NaoEncontrado, SemPermissao
 from comum.paginacao import PaginacaoPorCursor
 from comum.permissoes import com_padrao, exige_perfil
@@ -553,6 +554,10 @@ class CancelamentoView(AcaoDoCancelamento):
         summary="Cancelar a assinatura (PLT-06)",
     )
     def post(self, request: Request) -> Response:
+        # T-199, M-01: 2 etapas recentes antes de qualquer outra conferência (sem volta na
+        # `inadimplente`, na `suspensa` e na `pausada`).
+        if not dois_fatores_recente(token_da_requisicao(request)):
+            raise SemPermissao(*services.CANCELAR_PEDE_2_ETAPAS)
         pedido = PedidoDeCancelamentoSerializer(data=request.data)
         pedido.is_valid(raise_exception=True)
         services.cancelar_assinatura(
