@@ -160,17 +160,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 - **Nota da T-012 (08/10):** a S-12 (SVG do logo sanitizado e exibido só por `<img>`) vale para `ConfiguracaoEmpresa.logo` (app `empresas`), e não para a filial. Entra na tarefa da marca da empresa (`Admin-Marca`), a criar.
 
-### T-345 · Cancelamento: 2 etapas recentes, empresa apagada e recusa do parceiro
-- **Agente:** backend · **Depende de:** T-195 (PR #375) · **Regras:** PLT-06, PLT-07, AUD-08, USR-02 · **Severidade:** média · **Origem:** T-199 (segurança, PR #378), M-01 a M-03 e B-01 a B-03 de `docs/seguranca/2026-10-20-t199-cancelamento.md`
-- **Pronto quando** (antes de uma empresa chegar ao 90º dia em produção):
-  - `POST /api/assinatura/cancelamento/` responde 403 `2fa_recente` sem 2 etapas nos últimos 15 min, antes das outras conferências; linha em `cancelamento.md`; `test_plt_06_cancelar_pede_2_etapas_recentes` (M-01);
-  - `abrir_acesso_suporte` recusa a `cancelada` com 409; os `schema_context(empresa.schema_name)` de `plataforma/services.py` passam por uma entrada que recusa a empresa apagada; testes com a empresa apagada (M-02);
-  - a recusa do parceiro na anonimização não impede o resto do apagamento (registrada no evento e no log); `encerrar_forma_pagamento` esquece o cartão mesmo com recusa, e "autorização inexistente" conta como encerrada; testes com o falso recusando (M-03);
-  - log de erro claro quando a `aud_08_apagar_empresas` roda sem `DATABASE_URL_MIGRACAO` (B-01);
-  - `SecurityMiddleware` antes do `EmpresaCanceladaMiddleware` (B-03).
-- **Para o devops:** `DATABASE_URL_MIGRACAO` só no worker da `aud_08_apagar_empresas` (B-01).
-- **Para a reativação (quando entrar):** recusar a empresa com o apagamento começado (B-02).
-
 ### T-165 · Fotos da vistoria em PNG com paleta perdem as cores (baixa)
 - **Agente:** backend · **Depende de:** — · **Regras:** VIS-02 · **Pronto quando:** `comum.arquivos.sem_metadados` mantém as cores de um PNG em modo `P` (com paleta e `tRNS`): hoje faz `Image.new(imagem.mode, ...)` + `paste`, e a imagem nova sai sem a paleta. Converter para `RGBA` (ou copiar a paleta) antes de gravar, sem voltar a gravar metadados; teste com PNG em paleta comparando os pixels. Não é falha de segurança. Levantada pela segurança na decisão do PNG da T-153 (12 out 2026, `C:/Users/Jota/Documents/giro-produto/decisao-t153-seguranca.md`, fora do git).
 

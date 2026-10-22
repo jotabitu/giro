@@ -58,6 +58,7 @@ from comum.erros import (
 from comum.estados import transicionar
 from comum.eventos import publicar
 from comum.models import WebhookRecebido
+from comum.tarefas import EmpresaIndisponivel
 from integracoes.pagamentos import (
     cobrar_cartao_guardado,
     conta_principal,
@@ -297,7 +298,7 @@ def criar_empresa(
             regra="PLT-01",
         )
         criar_primeira_fatura(empresa)
-        with tenant_context(empresa):
+        with no_schema_da_empresa(empresa, com_tenant=True):
             publicar(
                 "plataforma.empresa_criada",
                 empresa_id=empresa.pk,
@@ -424,7 +425,7 @@ def registrar_contador(item: str, contar: Callable[[], int]) -> None:
 
 def recalcular_uso(empresa: Empresa) -> dict[str, int]:
     """Conta de verdade no schema da empresa e corrige o resumo. Item sem contador fica."""
-    with tenant_context(empresa):
+    with no_schema_da_empresa(empresa, com_tenant=True):
         valores = {item: contar() for item, contar in _contadores.items()}
     with schema_context(get_public_schema_name()), transaction.atomic():
         uso = _uso_travado(empresa)
@@ -503,10 +504,29 @@ def registrar_acesso(empresa: Empresa | None = None) -> None:
 # roda em `schema_context(public)`. Cada fato vai para as duas auditorias (PLT-07).
 
 SUPORTE_BLOQUEADO = ("PLT-07", "O administrador da empresa bloqueou o acesso do suporte")
+# T-199, M-02: o pedido de dados da cancelada é atendido pela equipe (AUD-08), sem o suporte.
+SUPORTE_NA_CANCELADA = (
+    "empresa_cancelada",
+    "Esta empresa cancelou a assinatura. O suporte não entra.",
+)
 
 
 def no_publico() -> Any:
     return schema_context(get_public_schema_name())
+
+
+class EmpresaApagada(EmpresaIndisponivel):
+    """O schema da empresa saiu no 90º dia (AUD-08): nada entra nele."""
+
+
+def no_schema_da_empresa(empresa: Empresa, *, com_tenant: bool = False) -> Any:
+    """Entrada única no schema da empresa (T-199, M-02). Depois do `DROP` do 90º dia, o
+    `search_path` "<schema>, public" cairia nas tabelas da plataforma sem erro (as de
+    `contas` e `auditoria` existem nos dois): a empresa apagada é recusada antes.
+    `com_tenant` entra com a empresa real, para quem precisa do id dela (a cifra)."""
+    if empresa.apagada_em is not None:
+        raise EmpresaApagada(f"Empresa {empresa.pk} foi apagada (AUD-08).")
+    return tenant_context(empresa) if com_tenant else schema_context(empresa.schema_name)
 
 
 def _ator_do_suporte(acesso: AcessoSuporte) -> Ator:
@@ -527,7 +547,7 @@ def _auditar_na_empresa(
     """O mesmo fato na auditoria da empresa (AUD-03: com destaque, pelo ator `suporte`)."""
     depois = {"status": acesso.status, "permissao": acesso.permissao, "fim": acesso.fim}
     ator = _ator_do_suporte(acesso) if pelo_suporte else ator_atual()
-    with schema_context(acesso.empresa.schema_name), usar_ator(ator):
+    with no_schema_da_empresa(acesso.empresa), usar_ator(ator):
         registrar_evento(
             acao, Categoria.SUPORTE, objeto=acesso, depois=depois, motivo=motivo, regra="PLT-07"
         )
@@ -551,6 +571,8 @@ def abrir_acesso_suporte(
         raise ErroDeValidacao(erros)
     with no_publico(), transaction.atomic():
         empresa = Empresa.objects.select_for_update().get(pk=empresa.pk)
+        if empresa.status == Empresa.Status.CANCELADA:
+            raise Conflito(*SUPORTE_NA_CANCELADA)
         if empresa.suporte_bloqueado:
             raise ErroDeRegra(*SUPORTE_BLOQUEADO)
         agora = relogio.agora()
@@ -691,8 +713,8 @@ def definir_bloqueio_do_suporte(empresa: Empresa, *, bloquear: bool, motivo: str
         if antes != bloquear:
             empresa.suporte_bloqueado = bloquear
             empresa.save(update_fields=["suporte_bloqueado", "atualizado_em"])
-            for schema in (get_public_schema_name(), empresa.schema_name):
-                with schema_context(schema):
+            for entrar in (no_publico, lambda: no_schema_da_empresa(empresa)):
+                with entrar():
                     registrar_evento(
                         acao,
                         Categoria.SUPORTE,
@@ -1463,11 +1485,11 @@ def _registrar_nos_dois(
 ) -> None:
     """O mesmo fato no public e no schema da empresa (ADR 0010). No public, os dados que o
     apagamento limpa vão como `{"alterado": true}` (AUD-08, `omitir_no_public`)."""
-    for schema, categoria in (
-        (get_public_schema_name(), categoria_publica),
-        (empresa.schema_name, categoria_empresa),
+    for entrar, categoria in (
+        (no_publico, categoria_publica),
+        (lambda: no_schema_da_empresa(empresa), categoria_empresa),
     ):
-        with schema_context(schema):
+        with entrar():
             registrar_evento(
                 acao,
                 categoria,
@@ -2007,8 +2029,8 @@ def escolher_forma_pagamento(empresa: Empresa, nova: str) -> dict[str, Any] | No
             }
         if antiga != nova:
             # Só a forma antiga e a nova: nunca token nem dado do cartão (T-189, item 5).
-            for schema in (get_public_schema_name(), empresa.schema_name):
-                with schema_context(schema):
+            for entrar in (no_publico, lambda: no_schema_da_empresa(empresa)):
+                with entrar():
                     registrar_evento(
                         "assinatura.forma_pagamento",
                         Categoria.FINANCEIRO,
@@ -2032,7 +2054,7 @@ def transicionar_empresa(empresa: Empresa, novo: str, *, regra: str, motivo: str
     antigo = empresa.status
     with schema_context(get_public_schema_name()):
         transicionar(empresa, novo, acao=f"empresa.{novo}", regra=regra, motivo=motivo)
-    with schema_context(empresa.schema_name):
+    with no_schema_da_empresa(empresa):
         registrar_evento(
             f"empresa.{novo}",
             Categoria.CONFIGURACOES,
@@ -2248,7 +2270,7 @@ def destinatarios_da_cobranca(empresa: Empresa) -> list[str]:
     """PLT-02, PLT-15: o e-mail de cobrança e os administradores ativos da empresa, sem repetir."""
     from django.contrib.auth import get_user_model
 
-    with schema_context(empresa.schema_name):
+    with no_schema_da_empresa(empresa):
         administradores = list(
             get_user_model()
             .objects.filter(perfil="administrador", status="ativo")
@@ -2857,6 +2879,11 @@ def regua_da_assinatura(hoje: date | None = None) -> dict[str, int]:
 JA_CANCELADA = "A assinatura já está cancelada. Você tem acesso até {}."
 SEM_CANCELAMENTO = ("transicao_empresa", "Não há cancelamento para desfazer.")
 NOME_NAO_CONFERE = ("nome_nao_confere", "O nome digitado não confere com o nome da empresa.")
+# T-199, M-01: o 403 de `auditoria.md`, com o texto do cancelamento.
+CANCELAR_PEDE_2_ETAPAS = (
+    "2fa_recente",
+    "Confirme o código do autenticador para cancelar a assinatura.",
+)
 PAUSA_SO_NA_ATIVA = (
     "transicao_empresa",
     "A pausa só vale para a assinatura ativa. No teste, você pode cancelar ou mudar de plano.",
@@ -3296,10 +3323,26 @@ def voltar_da_pausa(empresa: Empresa, por: str = POR_ADMINISTRADOR) -> Empresa:
     return empresa
 
 
+def _autorizacao_ja_encerrada(autorizacao: str) -> bool:
+    """Depois de uma recusa: a autorização inexistente ou já cancelada conta como encerrada
+    (T-199, M-03). O 404 a interface já devolve como `cancelada`."""
+    try:
+        consulta = provedor().consultar_autorizacao(conta_principal(), autorizacao)
+    except (ParceiroIndisponivel, ParceiroRecusou):
+        return False
+    return consulta.status == "cancelada"
+
+
 def encerrar_forma_pagamento(empresa_id: int) -> str:
     """ADR 0023 (`cancelamento.md`, `virar_cancelada`): o Giro não guarda meio de pagamento de quem
     saiu. A autorização do Pix automático é cancelada no parceiro, o token do cartão é esquecido
-    e a `forma` fica nula. Parceiro fora do ar: `ParceiroForaDoAr`, e nada muda. Idempotente."""
+    e a `forma` fica nula. Idempotente.
+
+    T-199, M-03: o cartão sai sempre, mesmo com o parceiro fora do ar ou recusando. A autorização
+    inexistente ou já cancelada conta como encerrada. Outra recusa fica no log de erro, com a
+    autorização guardada (`parceiro_recusou`). Fora do ar: grava o resto e levanta
+    `ParceiroForaDoAr` depois do commit, para a tarefa tentar de novo."""
+    fora_do_ar = False
     with schema_context(get_public_schema_name()), transaction.atomic():
         forma = (
             FormaPagamentoAssinatura.objects.select_for_update()
@@ -3311,17 +3354,32 @@ def encerrar_forma_pagamento(empresa_id: int) -> str:
         ):
             return "sem_forma"
         autorizacao = forma.autorizacao_externa_id
+        encerrou = True
         if autorizacao:
-            _no_parceiro(lambda: provedor().cancelar_autorizacao(conta_principal(), autorizacao))
+            try:
+                provedor().cancelar_autorizacao(conta_principal(), autorizacao)
+            except ParceiroIndisponivel:
+                fora_do_ar, encerrou = True, False
+            except ParceiroRecusou:
+                encerrou = _autorizacao_ja_encerrada(autorizacao)
+                if not encerrou:
+                    logger.error(
+                        "Fim da forma da empresa %s: o parceiro recusou cancelar a autorização",
+                        empresa_id,
+                    )
         with (
             usar_ator(ATOR_SISTEMA),
             auditar(forma, "assinatura.forma_encerrada", Categoria.FINANCEIRO, regra="PLT-06"),
         ):
-            campos = ["forma", "autorizacao_externa_id", *_esquecer_cartao(forma)]
+            campos = ["forma", *_esquecer_cartao(forma)]
             forma.forma = ""
-            forma.autorizacao_externa_id = ""
+            if encerrou:
+                forma.autorizacao_externa_id = ""
+                campos.append("autorizacao_externa_id")
             forma.save(update_fields=[*campos, "atualizado_em"])
-    return "encerrada"
+    if fora_do_ar:
+        raise ParceiroForaDoAr(*PARCEIRO_FORA_DO_AR)
+    return "encerrada" if encerrou else "parceiro_recusou"
 
 
 # Virada do dia (cancelamento.md, "Tarefas e estados")
@@ -3409,7 +3467,7 @@ def _virar_cancelamentos_e_pausas(hoje: date, estados: dict[str, int]) -> None:
 def _administradores_ativos(empresa: Empresa) -> list[str]:
     from django.contrib.auth import get_user_model
 
-    with schema_context(empresa.schema_name):
+    with no_schema_da_empresa(empresa):
         return list(
             get_user_model()
             .objects.filter(perfil="administrador", status="ativo")
@@ -3476,9 +3534,10 @@ def avisar_apagamentos(hoje: date | None = None) -> int:
     return sum(avisar_apagamento(pk, dia) for pk in empresas)
 
 
-def _limpar_publico(empresa: Empresa) -> None:
+def _limpar_publico(empresa: Empresa) -> bool | None:
     """O passo (c) do apagamento (`cancelamento.md`, "O que fica no `public`"), nesta ordem, cada
-    parte podendo rodar de novo. A `Empresa` vem travada."""
+    parte podendo rodar de novo. A `Empresa` vem travada. Devolve se o pagador foi anonimizado
+    no parceiro (`None` sem pagador)."""
     # 1. Faturas: o tomador como a empresa ainda está; a `atrasada` guarda o e-mail de cobrança.
     faturas = FaturaAssinatura.objects.filter(empresa_id=empresa.pk).exclude(
         status=StatusFatura.CANCELADA
@@ -3488,11 +3547,20 @@ def _limpar_publico(empresa: Empresa) -> None:
     faturas.filter(status=StatusFatura.ATRASADA, email_cobranca="").update(
         email_cobranca=empresa.email_cobranca, atualizado_em=relogio.agora()
     )
-    # 2. O pagador na conta principal perde e-mail e telefone (B-01).
+    # 2. O pagador na conta principal perde e-mail e telefone (B-01). A recusa do parceiro não
+    # segura o resto (T-199, M-03): fica no evento e no log. Fora do ar, tenta amanhã.
+    anonimizado: bool | None = None
     forma = FormaPagamentoAssinatura.objects.filter(empresa_id=empresa.pk).first()
     if forma is not None and forma.cliente_externo_id:
         cliente = forma.cliente_externo_id
-        _no_parceiro(lambda: provedor().anonimizar_pagador(conta_principal(), cliente))
+        try:
+            _no_parceiro(lambda: provedor().anonimizar_pagador(conta_principal(), cliente))
+            anonimizado = True
+        except ErroDeRegra:
+            logger.error(
+                "Apagamento da empresa %s: o parceiro recusou anonimizar o pagador", empresa.pk
+            )
+            anonimizado = False
     # 3. Linhas de apoio (a forma depois do item 2, que lê o pagador dela).
     Dominio.objects.filter(tenant_id=empresa.pk).delete()
     UsoEmpresa.objects.filter(empresa_id=empresa.pk).delete()
@@ -3502,6 +3570,7 @@ def _limpar_publico(empresa: Empresa) -> None:
     for campo in DADOS_APAGADOS_DA_EMPRESA:
         setattr(empresa, campo, "")
     empresa.save(update_fields=[*DADOS_APAGADOS_DA_EMPRESA, "atualizado_em"])
+    return anonimizado
 
 
 def apagar_empresa(empresa_id: int) -> dict[str, Any]:
@@ -3522,7 +3591,7 @@ def apagar_empresa(empresa_id: int) -> dict[str, Any]:
         with transaction.atomic():
             empresa = _empresa_travada(empresa)
             banco.conferir_para_apagar(empresa)
-            _limpar_publico(empresa)  # (c)
+            anonimizado = _limpar_publico(empresa)  # (c)
             hoje = relogio.hoje()
             empresa.apagada_em = relogio.agora()  # (d)
             empresa.save(update_fields=["apagada_em", "atualizado_em"])
@@ -3531,10 +3600,15 @@ def apagar_empresa(empresa_id: int) -> dict[str, Any]:
                     "empresa.apagar",
                     Categoria.SEGURANCA,
                     objeto=empresa,
-                    depois={"schema": schema, "arquivos": arquivos, "data": hoje.isoformat()},
+                    depois={
+                        "schema": schema,
+                        "arquivos": arquivos,
+                        "data": hoje.isoformat(),
+                        "pagador_anonimizado": anonimizado,
+                    },
                     regra="AUD-08",
                 )
-    return {"schema": schema, "arquivos": arquivos}
+    return {"schema": schema, "arquivos": arquivos, "pagador_anonimizado": anonimizado}
 
 
 def apagar_empresas(hoje: date | None = None) -> int:
@@ -3548,6 +3622,13 @@ def apagar_empresas(hoje: date | None = None) -> int:
             )
             .order_by("pk")
             .values_list("pk", flat=True)
+        )
+    if empresas and not getattr(settings, "DATABASE_URL_MIGRACAO", ""):
+        # T-199, B-01: sem ela, o DROP vai pela conexão da aplicação, que em produção não tem
+        # permissão de DDL (ADR 0016, 0025), e falha todo dia.
+        logger.error(
+            "aud_08_apagar_empresas sem DATABASE_URL_MIGRACAO: o DROP SCHEMA vai pela conexão da "
+            "aplicação (ADR 0025). Configure a variável só no worker desta tarefa."
         )
     apagadas = 0
     for pk in empresas:
