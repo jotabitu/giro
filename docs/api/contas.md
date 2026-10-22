@@ -1,6 +1,6 @@
 # Contas: acesso, usuários, sessões e suporte
 
-**Dono:** arquiteto · **Versão:** 16 out 2026 (T-287, `pode.veiculos = ver` para vendedor e financeiro e Veículos no menu dos dois); 15 out 2026 (T-249, copiar link do convite e `acoes` do usuário; T-201, nome curto da filial; T-036) · **App:** `contas` (schema da empresa; o mesmo app atende a plataforma, ver `plataforma.md`) · **Regras:** USR-01 a USR-07, PLT-03, PLT-07, AUD-01 · **ADRs:** 0008, 0013, 0014 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios (e "Esqueci a senha" e "Ativar verificação em 2 etapas", da T-026) · **Critérios:** `docs/qa/criterios/T-248.md` (CA-248-12 a 16)
+**Dono:** arquiteto · **Versão:** 21 out 2026 (T-346, reconfirmar as 2 etapas, ADR 0032); 16 out 2026 (T-287, `pode.veiculos = ver` para vendedor e financeiro e Veículos no menu dos dois); 15 out 2026 (T-249, copiar link do convite e `acoes` do usuário; T-201, nome curto da filial; T-036) · **App:** `contas` (schema da empresa; o mesmo app atende a plataforma, ver `plataforma.md`) · **Regras:** USR-01 a USR-07, PLT-03, PLT-06, PLT-07, AUD-01, S-15 · **ADRs:** 0008, 0013, 0014, 0032 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios (e "Esqueci a senha" e "Ativar verificação em 2 etapas", da T-026) · **Critérios:** `docs/qa/criterios/T-248.md` (CA-248-12 a 16)
 
 Convenções gerais em `docs/api/README.md`. Modelo: `contas.Usuario`, `Convite`, `Sessao`, `filiais.UsuarioFilial` em `docs/decisoes/modelo-de-dados.md`. Base: `<subdominio>.<dominio>/api/`.
 
@@ -82,6 +82,55 @@ Access com `otp`. Corpo: `{ senha }`. 204. 422 `{ "codigo": "USR-02", "mensagem"
 
 ### POST /api/auth/2fa/codigos-recuperacao/
 Access com `otp`. Corpo: `{ senha }`. 200: `{ "codigos_recuperacao": [8 novos] }`; os antigos deixam de valer.
+
+### POST /api/auth/2fa/reconfirmar/ (reconfirmar as 2 etapas, T-346)
+
+Para as ações que pedem 2 etapas recentes (403 `2fa_recente`): cancelar a assinatura (`cancelamento.md`, `PLT-06`) e, na fase 2, o backup completo (`auditoria.md`, `S-15`). Confirma o código sem sair do sistema e devolve um access com `auth_time` novo. ADR 0032.
+
+Access de qualquer usuário. Token de suporte: 403 `PLT-07`, como as outras rotas da própria conta. Corpo: `{ codigo }` (6 dígitos) **ou** `{ codigo_recuperacao }`, nunca os dois, como em `2fa/verificar/`.
+
+200, com `Cache-Control: no-store`:
+```json
+{ "access": "<jwt>" }
+```
+
+- **O token:** é só um access novo, com o mesmo `sid`, `schema`, `empresa_id` e `amr` do token que chamou (`["pwd", "otp"]` para quem tem autenticador) e `auth_time` = agora. A vida é a de qualquer access (5 min). **Não abre sessão, não emite refresh e não grava cookie:** a sessão e o refresh vigente continuam os mesmos, e um `renovar` de outra aba não é afetado.
+- **Quanto vale:** `dois_fatores_recente` aceita esse access por 15 minutos a partir do `auth_time`, enquanto ele não vencer. O `renovar` continua sem levar o `auth_time` (T-345), então o access renovado volta a responder `2fa_recente`. A tela repete o pedido logo depois de reconfirmar (abaixo) e não guarda o access para usar mais tarde.
+- **Bloqueio:** o mesmo do login, pela mesma função (`dois_fatores.verificar_codigo`, com a linha do usuário travada). Código errado conta como tentativa errada da `USR-06` (5 erros somando senhas e códigos bloqueiam por 15 minutos, gravam `usuario.bloqueado` e avisam os administradores). Durante o bloqueio, responde 429 `USR-06` antes de olhar o código, mesmo com o código certo. A contagem é a do login: o bloqueio também vale para o próximo `auth/entrar/`. O acerto zera a contagem. A sessão aberta continua nos dois casos.
+- **Código de recuperação:** aceito e gasto, como no login: o mesmo código não serve de novo, e `codigos_recuperacao_restantes` do `eu` cai 1.
+- **Sem autenticador:** 409 `{ "codigo": "2fa_inativo", "mensagem": "Ative a verificação em 2 etapas primeiro." }`, antes de contar tentativa. Essa pessoa continua recebendo `2fa_recente` nas ações sensíveis até ativar. Hoje ninguém chega a esse caso nas ações sensíveis: elas são do administrador, e a `USR-02` obriga o administrador a ter 2 etapas.
+- **Auditoria** (categoria `seguranca`, regra `USR-02`, objeto o próprio usuário, **sem o código**):
+  - `usuario.reconfirmar_2fa`, "Confirmou o código do autenticador";
+  - `usuario.reconfirmar_2fa_falhou`, "Errou o código do autenticador", com o motivo `código` ou `código de recuperação`;
+  - também, quando for o caso, os eventos que já existem: `usuario.usar_codigo_recuperacao` e `usuario.bloqueado`.
+- **Limite:** o das rotas de `auth/` (30 por minuto por IP), além do bloqueio.
+
+| Status | `codigo` | Quando |
+| --- | --- | --- |
+| 400 | `validacao` | sem código, com os dois campos, `codigo` fora de 6 dígitos, ou código errado. O erro vem no campo enviado: `{ "campos": { "codigo": ["Código incorreto. Confira o horário do celular e tente de novo."] } }`. Não é 401, para o cliente HTTP não tentar renovar a sessão |
+| 403 | `PLT-07` | token de suporte |
+| 409 | `2fa_inativo` | quem não tem autenticador |
+| 429 | `USR-06` | bloqueado, ou esta tentativa atingiu o limite; `detalhes.tentar_de_novo_em` |
+
+Testes: `test_usr_02_reconfirmar_devolve_access_na_mesma_sessao`, `test_usr_02_reconfirmar_libera_o_cancelamento`, `test_usr_06_reconfirmar_conta_tentativas_e_bloqueia`, `test_usr_02_reconfirmar_com_codigo_de_recuperacao`, `test_usr_02_reconfirmar_sem_autenticador`, `test_plt_07_reconfirmar_recusa_suporte` e `test_usr_02_reconfirmar_evento_sem_o_codigo` (ver "O que muda para as tarefas (T-346)").
+
+#### Como a tela trata o 403 `2fa_recente`
+
+1. A tela manda a ação normalmente. Ela não pergunta antes se as 2 etapas estão recentes, porque quem decide é a API.
+2. No 403 `2fa_recente`, abre um diálogo:
+   - o texto do diálogo é a `mensagem` do 403 ("Confirme o código do autenticador para cancelar a assinatura.");
+   - o campo de 6 dígitos usa as mesmas palavras da etapa do código no `Login`;
+   - o link "Usar um código de recuperação" troca o campo, como no login.
+   - O que a pessoa já preencheu na tela fica como está. Nada recarrega.
+3. "Confirmar" chama `POST /api/auth/2fa/reconfirmar/`. No 200, troca o access da sessão em memória (`definirAccess`) e **repete o mesmo pedido uma vez**, com o mesmo corpo.
+4. Se a repetição voltar 403 `2fa_recente` de novo, mostra a mensagem e não repete outra vez (sem laço).
+5. Os erros da reconfirmação:
+   - 400: mostra o erro no campo, e o diálogo fica aberto;
+   - 429: mostra a `mensagem` com o horário de `tentar_de_novo_em` e fecha o diálogo, sem a ação;
+   - 409 `2fa_inativo`: mostra a `mensagem`.
+6. "Cancelar" fecha o diálogo sem enviar nada.
+7. O código não fica no estado depois do envio, nem no cache do TanStack Query, nem em log.
+8. Um 401 na reconfirmação segue o caminho de sempre do cliente HTTP (renovar e, se falhar, ir para o login).
 
 ### POST /api/auth/renovar/
 Sem corpo; cookie + `X-Requested-With: giro`. 200: `{ "access": "..." }` e cookie novo (rotação). 401 `sessao_encerrada` ou `nao_autenticado`.
@@ -364,3 +413,8 @@ Implementados no app `plataforma`, servidos no host da empresa. Perfil: administ
 - **T-250 (backend):** `gerar_link_convite` em `contas.services`, usada pelo `reenviar-convite/` e pela rota nova `POST /api/usuarios/{id}/link-convite/`; os dois limites em `comum.limites`; o evento `usuario.copiar_link_convite` e o texto; `acoes` nos itens de `GET /api/usuarios/` e no detalhe. Testes `test_usr_01_copiar_link_*` acima (o backlog chama dois deles; os outros três cobrem o vencido, o limite e o evento). OpenAPI regenerado.
 - **T-251 (frontend):** "Copiar link do convite" por `acoes.copiar_link_convite`, com o `aviso` da resposta antes de copiar e o link copiado para a área de transferência; o link não fica guardado no estado da tela depois de copiado, nem em cache do TanStack Query (a mutação não grava o link em nenhuma consulta). CA-248-12 a 16.
 - **T-252 (segurança):** a rota, o limite, o evento sem token e a tela.
+
+## O que muda para as tarefas (T-346)
+
+- **Backend:** a rota `POST /api/auth/2fa/reconfirmar/` (view `Logada`, serializer do `2fa/verificar/`). Uma função em `comum.autenticacao` emite o access reconfirmado a partir das claims do token atual, com `auth_time`, sem refresh e sem sessão nova. A docstring de `CLAIM_AUTH_TIME` passa a citar o login e a reconfirmação. Os dois eventos e os textos em `auditoria.textos`. Os testes acima, mais um que confere que o `renovar` depois da reconfirmação continua sem `auth_time`. OpenAPI regenerado.
+- **Frontend:** o diálogo de "Como a tela trata o 403 `2fa_recente`", num ponto só, reaproveitável pelo backup completo da fase 2, usado na `Admin-Cancelar` (T-198) no "Cancelar assinatura".
