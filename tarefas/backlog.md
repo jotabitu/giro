@@ -160,6 +160,9 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 - **Nota da T-012 (08/10):** a S-12 (SVG do logo sanitizado e exibido só por `<img>`) vale para `ConfiguracaoEmpresa.logo` (app `empresas`), e não para a filial. Entra na tarefa da marca da empresa (`Admin-Marca`), a criar.
 
+### T-346 · Reconfirmar as 2 etapas nas ações sensíveis
+- **Agente:** arquiteto (contrato), depois backend e frontend · **Depende de:** T-345 (PR #381), T-198 (PR #380) · **Regras:** PLT-06, S-15, USR-02 · **Origem:** M-01 da T-199, feito na T-345 · **Pronto quando:** hoje o `auth_time` só nasce no login completo com código (`comum.autenticacao`), então cancelar a assinatura (e o backup completo, S-15) só funciona até 15 min depois do login, e a única saída para o 403 `2fa_recente` é sair e entrar de novo. O arquiteto define a reconfirmação (por exemplo, uma rota que recebe o código do autenticador e devolve o token com `auth_time` novo, com o mesmo bloqueio por tentativas do login) em `contas.md`; o backend implementa com teste; o frontend trata o 403 `2fa_recente` na `Admin-Cancelar` pedindo o código e repetindo o pedido, sem recarregar a página.
+
 ### T-165 · Fotos da vistoria em PNG com paleta perdem as cores (baixa)
 - **Agente:** backend · **Depende de:** — · **Regras:** VIS-02 · **Pronto quando:** `comum.arquivos.sem_metadados` mantém as cores de um PNG em modo `P` (com paleta e `tRNS`): hoje faz `Image.new(imagem.mode, ...)` + `paste`, e a imagem nova sai sem a paleta. Converter para `RGBA` (ou copiar a paleta) antes de gravar, sem voltar a gravar metadados; teste com PNG em paleta comparando os pixels. Não é falha de segurança. Levantada pela segurança na decisão do PNG da T-153 (12 out 2026, `C:/Users/Jota/Documents/giro-produto/decisao-t153-seguranca.md`, fora do git).
 
