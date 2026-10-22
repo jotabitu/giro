@@ -4,6 +4,7 @@ Relatório: docs/seguranca/2026-10-09-t058-t012.md. Cada teste reproduz o achado
 """
 
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -21,13 +22,8 @@ ENTRAR = "/api/plataforma/auth/entrar/"
 # --- F-01: empresa sem operação não administra filial ---
 
 
-@pytest.mark.parametrize("status", ["suspensa", "pausada", "cancelada"])
-def test_plt_03_empresa_suspensa_nao_cria_nem_edita_filial(moto, status):  # noqa: F811
-    centro = moto.centro()
-    Empresa._base_manager.filter(pk=moto.empresa.pk).update(status=status)
-    api = moto.api()
-
-    escritas = [
+def _escritas_de_filial(api: Any, centro: Any) -> list[Any]:
+    return [
         api.post("/api/filiais/", _filial("Filial Caucaia"), format="json"),
         api.patch(f"/api/filiais/{centro.pk}/", {"nome": "Outro nome"}, format="json"),
         api.post(f"/api/filiais/{centro.pk}/tornar-matriz/"),
@@ -39,12 +35,34 @@ def test_plt_03_empresa_suspensa_nao_cria_nem_edita_filial(moto, status):  # noq
             format="json",
         ),
     ]
-    for resposta in escritas:
+
+
+@pytest.mark.parametrize("status", ["suspensa", "pausada"])
+def test_plt_03_empresa_suspensa_nao_cria_nem_edita_filial(moto, status):  # noqa: F811
+    centro = moto.centro()
+    Empresa._base_manager.filter(pk=moto.empresa.pk).update(status=status)
+    api = moto.api()
+
+    for resposta in _escritas_de_filial(api, centro):
         assert resposta.status_code == 403, resposta.wsgi_request.path
         assert resposta.json()["codigo"] == "empresa_sem_operacao"
     assert Filial.objects.count() == 1
     assert Filial.objects.get(pk=centro.pk).nome == CENTRO["nome"]
     assert api.get("/api/filiais/").status_code == 200  # ler continua
+
+
+def test_aud_08_empresa_cancelada_nao_le_nem_administra_filial(moto):  # noqa: F811
+    """Desde a T-195, a `cancelada` não entra (AUD-08): 403 `empresa_cancelada` nas escritas e
+    também na leitura."""
+    centro = moto.centro()
+    Empresa._base_manager.filter(pk=moto.empresa.pk).update(status="cancelada")
+    api = moto.api()
+
+    for resposta in [*_escritas_de_filial(api, centro), api.get("/api/filiais/")]:
+        assert resposta.status_code == 403, resposta.wsgi_request.path
+        assert resposta.json()["codigo"] == "empresa_cancelada"
+    assert Filial.objects.count() == 1
+    assert Filial.objects.get(pk=centro.pk).nome == CENTRO["nome"]
 
 
 def test_usr_07_x_filial_fora_do_escopo_recusado_nas_rotas_de_administrar(moto):  # noqa: F811

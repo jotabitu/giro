@@ -39,3 +39,11 @@ export function avisoDeUso(u: Pick<UsoDoItemDaAssinatura, "aviso" | "bloqueado">
   if (u.aviso) return "Perto do limite.";
   return null;
 }
+
+const normalizarNome = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+
+/** Confere o nome digitado na confirmação do cancelamento (PLT-06, CA-ASS-31): ignora maiúsculas e espaços extras, mas exige acentos. */
+export function nomeConfere(digitado: string, esperado: string): boolean {
+  const n = normalizarNome(digitado);
+  return n !== "" && n === normalizarNome(esperado);
+}

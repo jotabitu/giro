@@ -1,4 +1,4 @@
-// Tipos de Administração › Assinatura, a partir do cliente gerado (docs/api/assinatura.md).
+// Tipos de Administração › Assinatura, a partir do cliente gerado (docs/api/assinatura.md e docs/api/cancelamento.md).
 import type { components } from "./schema";
 
 type S = components["schemas"];
@@ -24,3 +24,13 @@ export type ListaDeFaturas = S["ListaDeFaturas"];
 export type CobrancaDaFatura = S["CobrancaDaFatura"];
 export type MeioDePagarFatura = S["MeioDePagarEnum"];
 export type CorrecaoDeDadosFiscais = Partial<{ razao_social: string; endereco: EnderecoDaNota; email_cobranca: string }>;
+export type CancelamentoMarcado = S["CancelamentoMarcado"];
+export type PausaMarcada = S["PausaMarcada"];
+export type SituacaoDaPausa = S["SituacaoDaPausaEnum"];
+export type MotivoCancelamento = S["MotivoCancelamentoEnum"];
+export type TelaDoCancelamento = S["TelaDoCancelamento"];
+export type AlternativaPausar = S["AlternativaPausar"];
+export type AlternativaEssencial = S["AlternativaEssencial"];
+export type LinhaDoQueAcontece = S["LinhaDoQueAcontece"];
+export type PedidoDeCancelamentoDaAssinatura = S["PedidoDeCancelamento"];
+export type PedidoDePausa = S["PedidoDePausa"];

@@ -1125,7 +1125,13 @@ def test_aud_08_apaga_no_90_dia(moto, relogio):
     assert not Dominio.objects.filter(tenant_id=empresa.pk).exists()
     evento = _eventos("empresa.apagar", "public")[-1]
     assert (evento.regra, evento.categoria, evento.ator_tipo) == ("AUD-08", "seguranca", "sistema")
-    assert evento.depois == {"schema": schema, "arquivos": 1, "data": "2027-01-20"}
+    # Sem pagador no parceiro (nunca houve cobrança): `pagador_anonimizado` nulo (T-345).
+    assert evento.depois == {
+        "schema": schema,
+        "arquivos": 1,
+        "data": "2027-01-20",
+        "pagador_anonimizado": None,
+    }
     assert services.apagar_empresas() == 0  # já apagada
 
 

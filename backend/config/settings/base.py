@@ -109,15 +109,16 @@ DATABASE_URL_MIGRACAO = env.str("DATABASE_URL_MIGRACAO", default="")
 
 MIDDLEWARE = [
     "django_tenants.middleware.main.TenantMainMiddleware",
-    "comum.middleware.EmpresaCanceladaMiddleware",  # AUD-08: a cancelada não entra
+    # T-199, B-03: os cabeçalhos de segurança valem também para o 403 `empresa_cancelada`.
     "django.middleware.security.SecurityMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "comum.middleware.EmpresaCanceladaMiddleware",  # AUD-08: a cancelada não entra
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django_otp.middleware.OTPMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "comum.middleware.AtorDaRequisicaoMiddleware",
     "comum.ambiente.DataSimuladaMiddleware",  # só age com GIRO_DATA_REFERENCIA (ADR 0021)
 ]
