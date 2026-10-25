@@ -209,6 +209,50 @@ Dinheiro que sai para o cliente (caução da devolução, `DEV-02`; o que foi pa
 
 `GET /api/financeiro/reembolsos/?status=a_fazer` · `POST /api/financeiro/reembolsos/{id}/feito/` (`multipart`: `comprovante?`) · administrador, financeiro, gerente.
 
+### Tela `Reembolsos` (`/financeiro/reembolsos`, fase 1, T-358; tela da T-360)
+
+**`GET /api/financeiro/reembolsos/`:**
+- **Query:**
+  - `?status=a_fazer|feito|todos` (padrão `a_fazer`);
+  - `?periodo=hoje|semana|mes` (padrão `mes`), que vale para os `feitos` e para os indicadores do período;
+  - `?busca=` (nome do cliente ou código da origem).
+- **Escopo:** pela filial de origem (`X-Filial`). O gerente vê a filial dele; o administrador e o financeiro veem todas ou a escolhida (`USR-07`).
+- **Paginação:** por cursor, como as outras listas.
+
+200:
+```json
+{ "indicadores": {
+    "a_fazer":   { "valor_centavos": 18300,  "quantidade": 1, "texto": "1 cliente com devolução" },
+    "feitos":    { "valor_centavos": 110000, "quantidade": 3, "texto": "3 reembolsos feitos" } },
+  "contagens": { "a_fazer": 1, "feito": 3, "todos": 4 },
+  "resultados": [
+    { "id": 31, "criado_em": "2026-10-07T17:10:00Z",
+      "cliente": { "id": 1201, "nome": "Juliana Rocha" },
+      "origem": { "tipo": "devolucao", "codigo": "LOC-2836", "id": 2836, "veiculo": "QXA-4B21 · Honda CG 160 Fan" },
+      "origem_rotulo": "Devolução com caução", "motivo": "Caução de R$ 600,00 menos diárias e acerto",
+      "forma": "pix", "forma_rotulo": "Pix", "valor_centavos": 18300,
+      "status": "a_fazer", "status_rotulo": "A fazer", "feito_em": null, "feito_por": null,
+      "comprovante": null, "acoes": { "marcar_feito": true } } ],
+  "proximo": null, "anterior": null }
+```
+
+- **`indicadores.a_fazer`:** todos os `a_fazer` do escopo, sem depender do período. **`indicadores.feitos`:** os feitos dentro do período. Os textos vêm prontos, com singular e plural.
+- **`origem_rotulo`:**
+  - `devolucao` (`DEV-02`): "Devolução com caução";
+  - `cancelamento` (`LOC-12`): "Locação cancelada antes da retirada";
+  - `credito` (`LOC-13`): "Crédito de semanas".
+- **`motivo`:** o texto gravado no `Reembolso`. `origem.veiculo` traz a placa com hífen e o modelo (`README.md`).
+- **"Ver acerto"** abre o detalhe da locação pelo `origem.id`.
+- **`acoes.marcar_feito`:** `true` só em `a_fazer` e para quem pode. Com token de suporte, sempre `false`, porque o suporte não marca reembolso como feito (403 `PLT-07`).
+- **`comprovante`:** URL assinada de 15 minutos (`AUD-05`), ou `null`.
+- **O que a tela de referência mostra e não vem no MVP:**
+  - "Exportar": a exportação é só da auditoria e das despesas, `auditoria.md`;
+  - "Prazo médio de acerto" e "meta: até 3 dias úteis": nenhuma regra fala de prazo;
+  - o "Total do período" separado;
+  - a chave Pix do cliente: o `Reembolso` não guarda chave Pix. A tela mostra o celular do cliente pelo detalhe do cliente, se precisar.
+- **`POST .../{id}/feito/`** continua como está: 200 com o item. Em status diferente de `a_fazer`, 409 `transicao_reembolso`.
+- Testes: `test_dev_02_lista_de_reembolsos_indicadores_e_filtros` (no seed, Juliana com R$ 183,00 `a_fazer`) e `test_plt_07_reembolso_suporte_sem_marcar_feito`.
+
 Reembolsos `a_fazer` entram em "Para hoje" do início do financeiro (todas as filiais) e do gerente da filial de origem, e geram aviso no sino. Decidido pelo dono do produto em 07 out 2026 (item 21, opção A).
 
 ---
@@ -410,6 +454,49 @@ Servido no host `admin.<dominio>` (schema `public`), sem autenticação de usuá
 O mesmo fluxo vale para a `FaturaAssinatura` no `public` (`plataforma`).
 
 `GET /api/financeiro/pendencias-pagamento/` e `POST .../{id}/resolver/` `{ acao: "baixar" | "ignorar", motivo }` · administrador, financeiro. Pendências e avisos do webhook vão para todos os administradores e financeiros ativos.
+
+### Tela `Pendências do pagamento` (`/financeiro/pendencias-pagamento`, fase 1, T-358; tela da T-360)
+
+Só com `recebimento_parceiro` (`PLT-12`); sem ele, 403 `PLT-12`. Perfis: administrador e financeiro. Escopo: a empresa inteira, porque a pendência vem do webhook, não de uma filial.
+
+**`GET /api/financeiro/pendencias-pagamento/`:**
+- **Query:** `?status=aberta|resolvida|todas` (padrão `aberta`), `?periodo=mes` para os indicadores das resolvidas, e `?busca=` (id da cobrança no parceiro, nome do cliente ou código da origem).
+- **Paginação:** por cursor.
+
+200:
+```json
+{ "indicadores": {
+    "abertas":    { "quantidade": 2, "valor_centavos": 62840, "texto": "R$ 628,40 em análise" },
+    "resolvidas": { "quantidade": 3, "valor_centavos": 184700, "texto": "3 resolvidas no mês" } },
+  "contagens": { "aberta": 2, "resolvida": 3, "todas": 5 },
+  "resultados": [
+    { "id": 12, "criado_em": "2026-10-07T14:45:00Z",
+      "cobranca": { "id_no_parceiro": "pay_88192", "forma": "pix", "forma_rotulo": "Pix" },
+      "cliente": { "id": 1187, "nome": "Carlos Menezes" },
+      "origem": { "codigo": "LOC-2841", "conta_id": 9921, "parcela": "parcela 2 de 5" },
+      "motivo": "valor_diferente", "motivo_rotulo": "Valor pago diferente",
+      "detalhe": "Pagou R$ 299,40; a conta estava em R$ 306,09 (falta R$ 6,69).",
+      "valor_pago_centavos": 29940, "status": "aberta", "status_rotulo": "Aberta", "resolucao": null,
+      "acoes": { "resolver": true, "baixar": true } } ],
+  "proximo": null, "anterior": null }
+```
+
+- **`motivo_rotulo`:**
+  - `valor_diferente`: "Valor pago diferente";
+  - `estornada_no_parceiro`: "Estornada no parceiro";
+  - `sem_conta`: "A conta já não estava aberta".
+- **`detalhe`:** texto pronto da API, com o valor pago, o valor da conta no dia (com juros e multa, `FIN-03`, como a API já calcula) e a diferença. A tela não faz conta.
+- **`acoes`:**
+  - `resolver` é `true` só em `aberta`;
+  - `baixar` também exige que a conta ainda esteja aberta. No estorno e na conta que não está aberta, só "ignorar".
+  - Com token de suporte, os dois são `false`, porque a rota é escrita no dinheiro da empresa, como os reembolsos (`PLT-07`).
+- **`resolucao`:** depois de resolvida, `{ "texto": "Baixada: <motivo>" | "Ignorada: <motivo>", "em" }`, montado do que o serviço já grava (`resolucao` e o evento `pendencia_pagamento.baixar` ou `.ignorar`).
+- **O que a tela de referência mostra e não vem no MVP:** "Exportar" (pelo mesmo motivo dos reembolsos) e o selo "Integração Asaas · Online". A API não mede a saúde do parceiro; a situação dos recebimentos está em `GET /api/recebimentos/` (`plataforma.md`).
+- **`POST .../{id}/resolver/`:**
+  - continua como está: motivo obrigatório (400), e 409 `transicao_pendencia` se já resolvida;
+  - `baixar` sem a conta aberta responde 409 `transicao_conta`, que já existe (`conta_nao_esta_aberta`);
+  - a baixa segue o `resolver_pendencia` de hoje: baixa pelo devido do dia da cobrança, na forma dela.
+- Testes: `test_aut_05_lista_de_pendencias_indicadores_e_filtros`, `test_plt_12_pendencias_essencial_403` e `test_aut_05_acoes_da_pendencia_pela_conta`.
 
 ---
 

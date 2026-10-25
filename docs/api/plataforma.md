@@ -259,6 +259,22 @@ Função com `entrar_como_suporte`. Corpo: `{ motivo, chamado_id?, duracao_minut
 422 `{ "codigo": "PLT-07", "mensagem": "O administrador da empresa bloqueou o acesso do suporte" }`.
 Efeitos: e-mail ao administrador da empresa na hora; evento nas duas auditorias.
 
+### Abrir o acesso de suporte pelo Django Admin · fase 1 (`PLT-07`, T-358)
+
+No MVP, a equipe abre o acesso pelo Django Admin, sem a tela `Plat-Suporte-Acesso` (decisão do dono de 25 out 2026).
+
+- **Onde:** na lista de `Empresa` do Admin, a ação "Entrar como suporte" abre um formulário com:
+  - motivo, obrigatório, de preferência o número do chamado;
+  - duração: 15, 30 ou 60 minutos;
+  - permissão: "Só ver" ou "Ver e editar".
+- **O que chama:** `plataforma.services.abrir_acesso_suporte`, o mesmo serviço da rota acima. O operador é o usuário do Admin (`nome` do `AcessoSuporte`). Valem os mesmos efeitos: e-mail ao administrador, evento nas duas auditorias e a recusa `PLT-07` quando a empresa bloqueou o suporte. A recusa aparece como erro no formulário e não cria acesso.
+- **O link de entrada** (`url_de_entrada_do_suporte`, com o token no fragmento) aparece **uma vez**, na página de resposta da ação, com `Cache-Control: no-store`. Ali estão o botão "Abrir" (nova aba) e o fim do acesso.
+  - O link **não** vai para o framework de mensagens do Django, que pode guardar o texto em cookie ou na sessão.
+  - O link não vai para log nem para o histórico do Admin (`LogEntry` só com "Abriu acesso de suporte" e o id).
+  - Para ter outro link, abre-se outro acesso.
+- **Quem:** só o dono, que é quem entra no Admin (ADR 0029, lista de IPs e 2 etapas).
+- Teste: `test_plt_07_admin_abre_suporte_pelo_servico`. O teste confere que o acesso foi criado, que saiu o e-mail, que o link não está na sessão nem em `LogEntry` e que a recusa com a empresa bloqueada não cria acesso.
+
 ### Faturas de todas as empresas · Django Admin (fase 1)
 
 Até a `Plat-Cobranca` (fase 2), a equipe Giro vê as faturas de todas as empresas pelo Django Admin (`PLT-14`, U13 das decisões de 14 out 2026). Só leitura, no `public`:
@@ -336,6 +352,98 @@ Perfis: administrador e token de suporte (só leitura); os demais, 403 `{ "codig
 - Contagens diferentes de propósito: aqui conta o assistente (5 de 8); a faixa de `Configurações` e o painel da plataforma contam os 10 passos da implantação (6 de 10). A tela não mostra os dois lado a lado (T-200).
 - O botão "Continuar implantação" da `Configurações` (`configuracoes.md`, `acao`) leva ao `proximo` daqui desde a casca do assistente (T-335): `acao.passo` é o `proximo`, inclusive para passo ainda sem tela (T-340).
 - Teste (T-202): `test_imp_05_andamento_do_assistente` (o exemplo acima dá 5 de 8 com `proximo: "contrato"`; no Essencial, 7 passos sem `recebimentos`; pular não marca; vendedor 403; token de suporte 200).
+
+### Quando cada passo conta como feito (`IMP-07`, T-358)
+
+`registrar_passo_implantacao` é idempotente, e o passo feito continua feito: desfazer depois não desmarca. Por exemplo, inativar a categoria ou cancelar o convite (`IMP-07`). Vale tanto no assistente quanto na tela de Configurações que faz a mesma coisa.
+
+| Passo | O que marca | Onde marca | Situação no código |
+| --- | --- | --- | --- |
+| `marca` | "Continuar" do passo, que grava a marca | `PATCH /api/marca/` (`empresas.md`) | já existe |
+| `filial` | a criação da filial matriz | `POST /api/filiais/` (`filiais.md`). A primeira filial nasce sempre matriz | já marca na criação de qualquer filial. Ajustar para marcar só quando a filial nasce matriz. Na prática, dá no mesmo |
+| `ramo` | gravar o ramo | `PUT /api/ramo/` (`empresas.md`) | já existe |
+| `precos` | a primeira categoria ativa com preço vigente (diária, semanal ou mensal maior que zero), da empresa ou de uma filial (`LOC-01`, `FIL-04`) | `POST /api/categorias/` com `preco`, `POST /api/categorias/{id}/precos/` e `PUT .../precos/{vigente_desde}/` (`veiculos.md`): marca quando o preço gravado já vale hoje (`vigente_desde` ≤ hoje) | **novo**. Se a categoria só tem preço agendado para o futuro, o passo fica aberto até a data. Na data, a primeira leitura de `GET /api/implantacao/` ou de `GET /api/configuracoes/` confere (`veiculos.selectors.tem_preco_vigente()`) e marca. Não há tarefa agendada para isso |
+| `contrato` | o primeiro modelo de contrato de locação publicado (`IMP-04`) | `POST /api/contratos/modelos/{id}/publicar/` (`contratos.md`) | já existe |
+| `recebimentos` | a subconta **aprovada** pelo parceiro (`FIN-04`), só com `recebimento_parceiro` (`PLT-12`) | transição `pendente → aprovada` da `ContaPagamento` (abaixo, "Recebimentos da empresa") | **muda**: hoje `conectar_recebimentos` marca ao criar a subconta `pendente`. Passa a marcar na transição para `aprovada`, em `atualizar_recebimentos` |
+| `importar` | concluir uma importação | `importacao.md` | já existe. "Cadastrar um por um depois" é pular |
+| `equipe` | o primeiro convite enviado, mesmo sem aceite (`USR-01`) | `POST /api/usuarios/convites/` (`contas.md`) | **novo**. O convite do administrador da compra (`criar_empresa`) não conta: ele é o passo `conta` |
+
+Testes: `test_imp_07_precos_marca_com_preco_vigente`, `test_imp_07_precos_agendado_marca_na_data`, `test_imp_07_equipe_marca_no_primeiro_convite`, `test_imp_07_recebimentos_so_com_a_subconta_aprovada`, `test_imp_07_filial_marca_na_matriz` e `test_imp_07_desfazer_nao_desmarca`.
+
+### Rotas de cada passo do assistente (T-358)
+
+O assistente (`/implantacao/[passo]`) não tem rotas próprias além do `GET /api/implantacao/`. Cada passo usa as rotas de Configurações, e a tela acha o passo pela chave. Os botões são sempre os mesmos:
+- "Pular por agora" só navega para o `proximo`;
+- "Continuar" grava pela rota do passo e depois relê `GET /api/implantacao/`;
+- "Salvar e sair" grava, se houver o que gravar, e volta ao início.
+
+| Passo (tela) | Lê | Grava | Observação |
+| --- | --- | --- | --- |
+| Primeira filial (`Onboarding-Filial`) | `GET /api/filiais/` (se já há matriz, o passo já está feito e mostra a matriz) | `POST /api/filiais/` com `matriz: true` (campos da Nova filial, `filiais.md`) | O aviso do endereço da nota (`PLT-15`) já está em `filiais.md`. Limite do plano: 422 `PLT-03` |
+| Tabela de preços (`Onboarding-Precos`) | `GET /api/categorias/` | `POST /api/categorias/` com o primeiro `preco`; para mudar o preço, `POST /api/categorias/{id}/precos/` | São as mesmas rotas da tela `Precos` (`/admin/precos`). O passo mostra só categorias e preço; extras e planos especiais ficam na tela `Precos` |
+| Modelo de contrato (`Onboarding-Contrato`) | `GET /api/contratos/modelos-prontos/` e `GET /api/contratos/modelos/` | `POST /api/contratos/modelos/` `{ nome, a_partir_de }`, depois `POST /api/contratos/modelos/{id}/publicar/` | A prévia usa `POST .../previa/`. Editar o texto é na tela `Modelos de contrato` |
+| Recebimentos (`Onboarding-Recebimentos`) | `GET /api/recebimentos/` | `POST /api/recebimentos/` | Abaixo. Não aparece no Essencial |
+| Convidar equipe (`Onboarding-Equipe`) | `GET /api/usuarios/?situacao=convites` e `GET /api/filiais/` | `POST /api/usuarios/convites/`, um por pessoa | Limite do plano: 422 `PLT-03`; e-mail em uso: 409 |
+
+## Recebimentos da empresa (`FIN-04`, passo 10) · fase 1 (T-358)
+
+Servido no host da empresa e implementado em `plataforma/api/`. Usa `conectar_recebimentos` e `atualizar_recebimentos`, que já existem (T-029), e a `ContaPagamento` no `public` (ADR 0007). Liga o Pix e o boleto pelo parceiro: `POST .../cobranca/` de `financeiro.md` deixa de responder `recebimentos_desligados` quando a subconta fica `aprovada`.
+
+**Quem:**
+- Administrador. Outro perfil: 403 `permissao`.
+- Token de suporte: 403 `PLT-07` nos dois modos, porque os dados são cadastrais e financeiros da empresa no parceiro.
+- Plano sem `recebimento_parceiro` (Essencial): 403 `PLT-12` nas duas rotas, com a mensagem de `financeiro.md` ("Seu plano não inclui Pix e boleto automáticos. Para usar, mude de plano.").
+
+### GET /api/recebimentos/
+
+200:
+```json
+{ "situacao": "pendente",
+  "rotulo": "Em análise pelo parceiro",
+  "mensagem": "O parceiro está conferindo o cadastro. Enquanto isso, registre os pagamentos à mão em Contas a receber.",
+  "conectado_em": "2026-10-07T13:20:00Z",
+  "sugestao": null,
+  "acoes": { "conectar": false } }
+```
+
+**`situacao`, `rotulo` e `mensagem` (textos prontos):**
+
+| `situacao` | `rotulo` | `mensagem` |
+| --- | --- | --- |
+| `desconectado` | "Não conectado" | "Conecte para gerar Pix e boleto e dar baixa sozinho." |
+| `pendente` | "Em análise pelo parceiro" | o texto do exemplo acima |
+| `aprovada` | "Recebimentos ligados" | "Pix e boleto saem pelo parceiro, e a baixa é feita sozinha." |
+| `recusada` | "Cadastro recusado" | "O parceiro recusou o cadastro. Fale com a equipe Giro." |
+
+- **`acoes.conectar`:** `true` só em `desconectado`. Um novo pedido depois da recusa fica com a equipe Giro no MVP, e o produto decide se a tela ganha isso.
+- **`sugestao`:** só em `desconectado`, com os campos pré-preenchidos para o formulário: `{ nome, documento, email, celular, cep, logradouro, numero, complemento, bairro }`. Vêm da razão social e do CNPJ da empresa, do e-mail e do celular do administrador e do endereço da matriz. O administrador confere e corrige.
+- **Consulta ao parceiro:** em `pendente`, o `GET` chama `atualizar_recebimentos` no máximo uma vez por minuto por empresa, com cache no Redis. Se o parceiro está fora do ar, responde a situação gravada, sem erro. Na transição para `aprovada`, marca o passo `recebimentos` (`IMP-07`, acima) e grava `conta_pagamento.aprovada` na auditoria `configuracoes`, regra `FIN-04`. Na transição para `recusada`, grava `conta_pagamento.recusada`.
+
+### POST /api/recebimentos/
+
+Corpo:
+```json
+{ "nome": "Moto Rápida Locadora LTDA", "documento": "12345678000195", "email": "financeiro@motorapida.com.br",
+  "celular": "85998124410", "cep": "60110000", "logradouro": "Av. Santos Dumont", "numero": "1500",
+  "complemento": "", "bairro": "Aldeota", "faturamento_mensal_centavos": 5000000, "tipo_empresa": "LIMITED" }
+```
+
+`tipo_empresa` vem da lista do parceiro: `MEI`, `LIMITED`, `INDIVIDUAL`, `ASSOCIATION`.
+
+- **201:** o corpo do `GET`, com `situacao: "pendente"`. Chama `conectar_recebimentos` e grava `conta_pagamento.criar` (já existe). **Não marca o passo:** o passo só conta na aprovação.
+- **400 `validacao`:** CNPJ ou CPF com dígito errado, CEP fora de 8 dígitos, celular fora de 10 ou 11 dígitos, faturamento menor ou igual a zero.
+- **409 `recebimentos_conectados`:** já existe subconta, em qualquer situação.
+- **422 `parceiro_recusou`:** com a mensagem do parceiro. Nada é gravado (CA-029-02).
+- **503 `parceiro_indisponivel`:** nada é gravado.
+- **A chave da subconta e o token do webhook nunca saem na resposta** (S-05, S-14).
+
+**A tela de referência pede mais do que a API faz** (`Onboarding-Recebimentos`; o design-system ajusta a tela):
+- **Banco, agência, conta e chave Pix:** a transferência automática para a conta da locadora fica para depois (S-05, `financeiro.md`, "Devoluções ao cliente").
+- **Interruptores de Pix automático, boleto e cartão recorrente:** as formas vêm do plano e da cobrança, sem escolha por empresa no MVP. O boleto já vem com o Pix (T-305).
+- **"Lembretes no WhatsApp":** é a régua da `AUT-03`, fixa, sem configuração.
+- **O que o formulário tem:** os campos do corpo acima.
+
+Testes: `test_fin_04_conectar_recebimentos`, `test_fin_04_recebimentos_aprovada_liga_a_cobranca`, `test_plt_12_recebimentos_essencial_403`, `test_plt_07_recebimentos_recusa_suporte` e `test_imp_07_recebimentos_so_com_a_subconta_aprovada`.
 
 ---
 
