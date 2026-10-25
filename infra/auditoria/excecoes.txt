@@ -1,0 +1,10 @@
+# Exceções da auditoria de dependências (T-361, M-04 da T-355). Uma por linha, campos separados
+# por " | ":
+#   pip | <ID do aviso, ex. GHSA-xxxx ou PYSEC-AAAA-NNNN> | <validade AAAA-MM-DD> | <justificativa>
+#   npm | <GHSA do aviso, ex. GHSA-xxxx-xxxx-xxxx>        | <validade AAAA-MM-DD> | <justificativa>
+# Regras:
+#   - só entra aviso que não dá para corrigir agora e que não é alcançável no Giro; a
+#     justificativa diz por quê e quem acompanha a correção;
+#   - toda exceção tem validade (no máximo 90 dias); vencida, a auditoria volta a falhar;
+#   - o pull request que acrescenta a linha passa pela Segurança.
+# Lista vazia: nenhum aviso aceito.
