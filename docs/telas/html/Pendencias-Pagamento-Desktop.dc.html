@@ -38,7 +38,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <a class="wl-nav-item" href="Receber-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg>Contas a receber<span class="wl-count">2</span></a>
 <a class="wl-nav-item" href="Despesas-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"></path></svg>Despesas<span class="wl-count">1</span></a>
 <a class="wl-nav-item" href="Reembolsos-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3"></rect><path d="M12 10v4M10 11.5a1.5 1.5 0 0 1 1.5-1.5h1a1.5 1.5 0 0 1 0 3h-1a1.5 1.5 0 0 0 0 3h1a1.5 1.5 0 0 0 1.5-1.5"></path></svg>Reembolsos<span class="wl-count">1</span></a>
-<a class="wl-nav-item" href="Pendencias-Pagamento-Desktop.dc.html" aria-current="page"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"></path><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>Pendências de pgto<span class="wl-count">2</span></a>
+<a class="wl-nav-item" href="Pendencias-Pagamento-Desktop.dc.html" aria-current="page"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"></path><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>Pendências do pagamento<span class="wl-count">2</span></a>
 <a class="wl-nav-item" href="Comissoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M5 19 19 5"></path><circle cx="7" cy="7" r="2.5"></circle><circle cx="17" cy="17" r="2.5"></circle></svg>Comissões</a>
 <a class="wl-nav-item" href="Conciliacao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10 12 4l9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"></path></svg>Conciliação</a>
 <a class="wl-nav-item" href="Relatorios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><path d="M8 16v-4M12 16V8M16 16v-6"></path></svg>Relatórios</a>
@@ -55,9 +55,6 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 
 <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
 <div><div style="font-size: 14px; color: var(--ink-muted);">Financeiro</div><h1 style="margin: 4px 0 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Pendências do pagamento</h1><p style="margin: 6px 0 0; color: var(--ink-muted);">Avisos de webhooks com divergência ou sem cobrança ativa (AUT-05, FIN-04, S-14)</p></div>
-<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-left: auto;">
-<button class="wl-btn" style="height: 56px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>Exportar</button>
-</div>
 </header>
 
 <div style="display: flex; gap: 12px; align-items: flex-start; padding: 16px 20px; border-radius: 20px; background: var(--warning-soft); color: var(--warning-ink); font-size: 14px; line-height: 20px;">
@@ -66,11 +63,9 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 </div>
 
 <section class="wl-panel">
-<div class="wl-kpis" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-<div class="wl-kpi wl-kpi--solid"><div class="wl-kpi__label">Pendências abertas</div><div class="wl-kpi__value">2</div><div class="wl-kpi__meta">exigem conferência</div></div>
-<div class="wl-kpi"><div class="wl-kpi__label">Valor em análise</div><div class="wl-kpi__value">R$ 628,40</div><div class="wl-kpi__meta">recebido no parceiro</div></div>
-<div class="wl-kpi"><div class="wl-kpi__label">Resolvidas no mês</div><div class="wl-kpi__value">3</div><div class="wl-kpi__meta">R$ 1.847,00 conciliados</div></div>
-<div class="wl-kpi"><div class="wl-kpi__label">Integração Asaas</div><div class="wl-kpi__value">Online</div><div class="wl-kpi__meta">webhook 120 req/min</div></div>
+<div class="wl-kpis" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
+<div class="wl-kpi wl-kpi--solid"><div class="wl-kpi__label">Pendências abertas</div><div class="wl-kpi__value">2</div><div class="wl-kpi__meta">R$ 628,40 em análise</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Resolvidas no mês</div><div class="wl-kpi__value">3</div><div class="wl-kpi__meta">3 resolvidas no mês (R$ 1.847,00)</div></div>
 </div>
 </section>
 
@@ -79,7 +74,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <button class="chip" aria-pressed="true">Abertas<span class="wl-count">2</span></button>
 <button class="chip" aria-pressed="false">Resolvidas<span class="wl-count">3</span></button>
 <button class="chip" aria-pressed="false">Todas<span class="wl-count">5</span></button>
-<label class="wl-search" style="width: 320px; height: 44px; margin-left: auto; background: var(--surface-sunken);"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg><input type="search" placeholder="Cliente, ID da cobrança ou Pix" aria-label="Buscar pendências"></label>
+<label class="wl-search" style="width: 340px; height: 44px; margin-left: auto; background: var(--surface-sunken);"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg><input type="search" placeholder="Buscar por cliente, locação ou ID da cobrança" aria-label="Buscar pendências"></label>
 </div>
 
 <div style="overflow-x: auto;">
@@ -88,7 +83,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <tr>
 <th>Data e hora</th>
 <th>ID no parceiro</th>
-<th>Cliente / Pagador</th>
+<th>Cliente / Origem</th>
 <th>Motivo da pendência</th>
 <th style="text-align: right;">Valor no parceiro</th>
 <th>Situação</th>
@@ -97,15 +92,15 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 </thead>
 <tbody>
 <tr>
-<td class="wl-mono">07 out, 11:45</td>
-<td><span class="wl-cell-main wl-mono">pay_asaas_88192</span><span class="wl-cell-sub">Pix copia e cola</span></td>
+<td class="wl-mono">07 out, 14:45</td>
+<td><span class="wl-cell-main wl-mono">pay_88192</span><span class="wl-cell-sub">Pix</span></td>
 <td><span class="wl-cell-main">Carlos Menezes</span><span class="wl-cell-sub wl-mono">LOC-2841 · parcela 2 de 5</span></td>
 <td>
-<span class="wl-cell-main" style="color: var(--critical-ink);">Valor pago menor que o esperado (FIN-03)</span>
-<span class="wl-cell-sub">Cliente pagou R$ 299,40 · Esperado hoje com juros/multa era R$ 306,09 (falta R$ 6,69)</span>
+<span class="wl-cell-main" style="color: var(--critical-ink);">Valor pago diferente</span>
+<span class="wl-cell-sub">Pagou R$ 299,40; a conta estava em R$ 306,09 (falta R$ 6,69).</span>
 </td>
 <td class="money"><span style="font-size: 16px; font-weight: 600; color: var(--ink);">R$ 299,40</span></td>
-<td><span class="wl-badge wl-badge--sm wl-badge--critical">Valor divergente</span></td>
+<td><span class="wl-badge wl-badge--sm wl-badge--critical">Aberta</span></td>
 <td>
 <div class="row-action">
 <button class="wl-btn wl-btn--brand wl-btn--sm">Resolver</button>
@@ -115,14 +110,14 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 
 <tr>
 <td class="wl-mono">06 out, 16:30</td>
-<td><span class="wl-cell-main wl-mono">pay_asaas_77401</span><span class="wl-cell-sub">Pix QR code</span></td>
-<td><span class="wl-cell-main">Roberto Dias</span><span class="wl-cell-sub">CPF 812.***.***-45 · sem contrato ativo</span></td>
+<td><span class="wl-cell-main wl-mono">pay_77401</span><span class="wl-cell-sub">Pix</span></td>
+<td><span class="wl-cell-main">Roberto Dias</span><span class="wl-cell-sub">CPF 812.***.***-45</span></td>
 <td>
-<span class="wl-cell-main" style="color: var(--warning-ink);">Cobrança cancelada no sistema</span>
-<span class="wl-cell-sub">Proposta de locação foi cancelada antes da retirada, mas o Pix foi pago no banco</span>
+<span class="wl-cell-main" style="color: var(--warning-ink);">A conta já não estava aberta</span>
+<span class="wl-cell-sub">A conta já não estava aberta (proposta cancelada antes da retirada).</span>
 </td>
 <td class="money"><span style="font-size: 16px; font-weight: 600; color: var(--ink);">R$ 329,00</span></td>
-<td><span class="wl-badge wl-badge--sm wl-badge--warning">Conta cancelada</span></td>
+<td><span class="wl-badge wl-badge--sm wl-badge--warning">Aberta</span></td>
 <td>
 <div class="row-action">
 <button class="wl-btn wl-btn--brand wl-btn--sm">Resolver</button>
@@ -132,31 +127,31 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 
 <tr>
 <td class="wl-mono">05 out, 09:12</td>
-<td><span class="wl-cell-main wl-mono">pay_asaas_65219</span><span class="wl-cell-sub">Cartão de crédito</span></td>
+<td><span class="wl-cell-main wl-mono">pay_65219</span><span class="wl-cell-sub">Cartão</span></td>
 <td><span class="wl-cell-main">Rafael Sousa</span><span class="wl-cell-sub wl-mono">LOC-2790</span></td>
 <td>
-<span class="wl-cell-main">Estorno reportado pelo adquirente</span>
-<span class="wl-cell-sub">Operação cancelada a pedido do titular no banco emissor</span>
+<span class="wl-cell-main">Estornada no parceiro</span>
+<span class="wl-cell-sub">Operação cancelada a pedido do titular no parceiro.</span>
 </td>
 <td class="money">R$ 1.347,00</td>
 <td><span class="wl-badge wl-badge--sm wl-badge--success">Resolvida · 05 out</span></td>
 <td>
-<span class="wl-cell-sub">Baixada por Mariana Costa</span>
+<span class="wl-cell-sub">Baixada: estorno registrado</span>
 </td>
 </tr>
 
 <tr>
 <td class="wl-mono">03 out, 14:00</td>
-<td><span class="wl-cell-main wl-mono">pay_asaas_54091</span><span class="wl-cell-sub">Pix automático</span></td>
+<td><span class="wl-cell-main wl-mono">pay_54091</span><span class="wl-cell-sub">Pix</span></td>
 <td><span class="wl-cell-main">Diego Santos</span><span class="wl-cell-sub wl-mono">LOC-2820</span></td>
 <td>
-<span class="wl-cell-main">Pagamento recebido após baixa no caixa</span>
-<span class="wl-cell-sub">Cliente pagou no caixa em dinheiro e depois o Pix foi confirmado pelo banco</span>
+<span class="wl-cell-main">A conta já não estava aberta</span>
+<span class="wl-cell-sub">Cliente pagou no caixa em dinheiro e depois o Pix foi confirmado pelo banco.</span>
 </td>
 <td class="money">R$ 299,40</td>
 <td><span class="wl-badge wl-badge--sm wl-badge--success">Resolvida · 03 out</span></td>
 <td>
-<span class="wl-cell-sub">Ignorado (valor estornado ao cliente)</span>
+<span class="wl-cell-sub">Ignorada: recebido no caixa</span>
 </td>
 </tr>
 </tbody>
@@ -164,7 +159,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 </div>
 
 <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px;">
-<span style="color: var(--ink-muted); font-size: 14px;">Mostrando 2 pendências abertas de 5 registradas</span>
+<span style="color: var(--ink-muted); font-size: 14px;">Mostrando 2 pendências abertas de 5 no total</span>
 <span style="color: var(--ink-muted); font-size: 13px;">Resolução chama POST /api/financeiro/pendencias-pagamento/{id}/resolver/</span>
 </div>
 </section>
@@ -174,8 +169,8 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <div style="font-weight: 600; font-size: 16px;">Como resolver uma pendência (FIN-04, AUT-05)</div>
 <div style="font-size: 14px; color: var(--ink-muted); margin-top: 6px; line-height: 22px;">
 Ao clicar em <strong>Resolver</strong>, você escolhe entre duas ações obrigatórias com justificativa:
-<br>• <strong>Dar baixa:</strong> reconhece o valor pago, liquida a conta no sistema ou cria um lançamento avulso residual para cobrar a diferença.
-<br>• <strong>Ignorar:</strong> descarta o aviso sem mexer nas contas a receber (usado quando o valor foi estornado diretamente na conta bancária ou se tratava de teste).
+<br>• <strong>Dar baixa:</strong> reconhece o valor pago e liquida a conta no sistema (disponível quando a conta ainda estiver aberta).
+<br>• <strong>Ignorar:</strong> descarta o aviso sem alterar as contas a receber (ex.: valor já devolvido ao cliente ou recebido por outra via).
 </div>
 </div>
 </section>

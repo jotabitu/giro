@@ -38,6 +38,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <a class="wl-nav-item" href="Receber-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg>Contas a receber<span class="wl-count">2</span></a>
 <a class="wl-nav-item" href="Despesas-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"></path></svg>Despesas<span class="wl-count">1</span></a>
 <a class="wl-nav-item" href="Reembolsos-Desktop.dc.html" aria-current="page"><svg class="wl-i" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3"></rect><path d="M12 10v4M10 11.5a1.5 1.5 0 0 1 1.5-1.5h1a1.5 1.5 0 0 1 0 3h-1a1.5 1.5 0 0 0 0 3h1a1.5 1.5 0 0 0 1.5-1.5"></path></svg>Reembolsos<span class="wl-count">1</span></a>
+<a class="wl-nav-item" href="Pendencias-Pagamento-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"></path><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>Pendências do pagamento<span class="wl-count">2</span></a>
 <a class="wl-nav-item" href="Comissoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M5 19 19 5"></path><circle cx="7" cy="7" r="2.5"></circle><circle cx="17" cy="17" r="2.5"></circle></svg>Comissões</a>
 <a class="wl-nav-item" href="Conciliacao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10 12 4l9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"></path></svg>Conciliação</a>
 <a class="wl-nav-item" href="Relatorios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><path d="M8 16v-4M12 16V8M16 16v-6"></path></svg>Relatórios</a>
@@ -53,19 +54,16 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
 
 <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
-<div><div style="font-size: 14px; color: var(--ink-muted);">Financeiro</div><h1 style="margin: 4px 0 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Reembolsos ao cliente</h1><p style="margin: 6px 0 0; color: var(--ink-muted);">Devoluções de caução e acertos a transferir (DEV-02) · Filial Centro</p></div>
+<div><div style="font-size: 14px; color: var(--ink-muted);">Financeiro</div><h1 style="margin: 4px 0 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Reembolsos</h1><p style="margin: 6px 0 0; color: var(--ink-muted);">Devoluções de caução e acertos a transferir ao cliente (DEV-02) · Filial Centro</p></div>
 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-left: auto;">
 <div class="wl-seg" role="group" aria-label="Período" style="background: var(--surface);"><button aria-pressed="false">Hoje</button><button aria-pressed="false">Semana</button><button aria-pressed="true">Mês</button></div>
-<button class="wl-btn" style="height: 56px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>Exportar</button>
 </div>
 </header>
 
 <section class="wl-panel">
-<div class="wl-kpis" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
-<div class="wl-kpi wl-kpi--solid"><div class="wl-kpi__label">A reembolsar hoje</div><div class="wl-kpi__value">R$ 183,00</div><div class="wl-kpi__meta">1 cliente com devolução</div></div>
-<div class="wl-kpi"><div class="wl-kpi__label">Reembolsados no mês</div><div class="wl-kpi__value">R$ 1.100,00</div><div class="wl-kpi__meta">3 pagamentos feitos</div></div>
-<div class="wl-kpi"><div class="wl-kpi__label">Total do período</div><div class="wl-kpi__value">R$ 1.283,00</div><div class="wl-kpi__meta">4 devoluções com acerto</div></div>
-<div class="wl-kpi"><div class="wl-kpi__label">Prazo médio de acerto</div><div class="wl-kpi__value">1 dia</div><div class="wl-kpi__meta">meta: até 3 dias úteis</div></div>
+<div class="wl-kpis" style="grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));">
+<div class="wl-kpi wl-kpi--solid"><div class="wl-kpi__label">A reembolsar</div><div class="wl-kpi__value">R$ 183,00</div><div class="wl-kpi__meta">1 cliente com devolução</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Reembolsados no mês</div><div class="wl-kpi__value">R$ 1.100,00</div><div class="wl-kpi__meta">3 reembolsos feitos</div></div>
 </div>
 </section>
 
@@ -74,7 +72,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <button class="chip" aria-pressed="true">A fazer<span class="wl-count">1</span></button>
 <button class="chip" aria-pressed="false">Feitos<span class="wl-count">3</span></button>
 <button class="chip" aria-pressed="false">Todos<span class="wl-count">4</span></button>
-<label class="wl-search" style="width: 320px; height: 44px; margin-left: auto; background: var(--surface-sunken);"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg><input type="search" placeholder="Cliente, locação ou chave Pix" aria-label="Buscar reembolsos"></label>
+<label class="wl-search" style="width: 320px; height: 44px; margin-left: auto; background: var(--surface-sunken);"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg><input type="search" placeholder="Buscar por cliente ou locação" aria-label="Buscar reembolsos"></label>
 </div>
 
 <div style="overflow-x: auto;">
@@ -84,8 +82,8 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <th>Data da devolução</th>
 <th>Cliente e locação</th>
 <th>Origem do saldo</th>
-<th>Forma de pagamento</th>
-<th style="text-align: right;">Valor líquido</th>
+<th>Forma</th>
+<th style="text-align: right;">Valor</th>
 <th>Situação</th>
 <th></th>
 </tr>
@@ -93,9 +91,9 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <tbody>
 <tr>
 <td class="wl-mono">07 out, 14:10</td>
-<td><span class="wl-cell-main">Juliana Rocha</span><span class="wl-cell-sub wl-mono">LOC-2836 · QXA-4B21 (Honda CG 160 Fan)</span></td>
-<td><span class="wl-cell-main">Devolução com caução</span><span class="wl-cell-sub">DEV-02 · caução R$ 600 menos diárias e acerto</span></td>
-<td><span class="wl-cell-main">Pix (celular)</span><span class="wl-cell-sub wl-mono">85998765432</span></td>
+<td><span class="wl-cell-main">Juliana Rocha</span><span class="wl-cell-sub wl-mono">LOC-2836 · QXA-4B21 · Honda CG 160 Fan</span></td>
+<td><span class="wl-cell-main">Devolução com caução</span><span class="wl-cell-sub">Caução de R$ 600,00 menos diárias e acerto</span></td>
+<td><span class="wl-cell-main">Pix</span></td>
 <td class="money"><span style="font-size: 16px; font-weight: 600; color: var(--ink);">R$ 183,00</span></td>
 <td><span class="wl-badge wl-badge--sm wl-badge--warning">A fazer</span></td>
 <td>
@@ -108,9 +106,9 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 
 <tr>
 <td class="wl-mono">06 out, 16:45</td>
-<td><span class="wl-cell-main">Diego Santos</span><span class="wl-cell-sub wl-mono">LOC-2820 · PMZ-3E17 (Yamaha Factor 150)</span></td>
-<td><span class="wl-cell-main">Devolução com caução</span><span class="wl-cell-sub">DEV-02 · caução integral sem pendência</span></td>
-<td><span class="wl-cell-main">Estorno no cartão</span><span class="wl-cell-sub">Mastercard final 4019</span></td>
+<td><span class="wl-cell-main">Diego Santos</span><span class="wl-cell-sub wl-mono">LOC-2820 · PMZ-3E17 · Yamaha Factor 150</span></td>
+<td><span class="wl-cell-main">Devolução com caução</span><span class="wl-cell-sub">Caução integral sem pendência</span></td>
+<td><span class="wl-cell-main">Estorno no cartão</span></td>
 <td class="money">R$ 600,00</td>
 <td><span class="wl-badge wl-badge--sm wl-badge--success">Feito · 06 out</span></td>
 <td>
@@ -122,23 +120,23 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 
 <tr>
 <td class="wl-mono">05 out, 11:20</td>
-<td><span class="wl-cell-main">Letícia Barbosa</span><span class="wl-cell-sub wl-mono">LOC-2815 · POZ-8C14 (Honda NXR 160 Bros)</span></td>
-<td><span class="wl-cell-main">Cancelamento de locação</span><span class="wl-cell-sub">LOC-12 · desistência antes da retirada</span></td>
-<td><span class="wl-cell-main">Pix (e-mail)</span><span class="wl-cell-sub wl-mono">leticia.barbosa@email.com</span></td>
+<td><span class="wl-cell-main">Letícia Barbosa</span><span class="wl-cell-sub wl-mono">LOC-2815 · POZ-8C14 · Honda NXR 160 Bros</span></td>
+<td><span class="wl-cell-main">Locação cancelada antes da retirada</span><span class="wl-cell-sub">Desistência antes da retirada do veículo</span></td>
+<td><span class="wl-cell-main">Pix</span></td>
 <td class="money">R$ 350,00</td>
 <td><span class="wl-badge wl-badge--sm wl-badge--success">Feito · 05 out</span></td>
 <td>
 <div class="row-action">
-<button class="wl-btn wl-btn--quiet wl-btn--sm"><svg class="wl-i" viewBox="0 0 24 24" style="width: 14px; height: 14px;"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1zM8 7h8M8 11h8M8 15h4"></path></svg>Comprovante</button>
+<button class="wl-btn wl-btn--quiet wl-btn--sm"><svg class="wl-i" viewBox="0 0 24 24" style="width: 14px; height: 14px;"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1zM8 7h8M8 11h8M8 15h4"></path></svg>Comprovante</button>
 </div>
 </td>
 </tr>
 
 <tr>
 <td class="wl-mono">02 out, 17:30</td>
-<td><span class="wl-cell-main">Marcos Lima</span><span class="wl-cell-sub wl-mono">LOC-2804 · ROX-2A19 (Honda CG 160 Fan)</span></td>
-<td><span class="wl-cell-main">Devolução com caução</span><span class="wl-cell-sub">DEV-02 · saldo devolvido em dinheiro no caixa</span></td>
-<td><span class="wl-cell-main">Dinheiro</span><span class="wl-cell-sub">Caixa Filial Centro</span></td>
+<td><span class="wl-cell-main">Marcos Lima</span><span class="wl-cell-sub wl-mono">LOC-2804 · ROX-2A19 · Honda CG 160 Fan</span></td>
+<td><span class="wl-cell-main">Devolução com caução</span><span class="wl-cell-sub">Saldo devolvido em dinheiro no caixa</span></td>
+<td><span class="wl-cell-main">Dinheiro</span></td>
 <td class="money">R$ 150,00</td>
 <td><span class="wl-badge wl-badge--sm wl-badge--success">Feito · 02 out</span></td>
 <td>
@@ -163,7 +161,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 </div>
 <div style="flex: 1; min-width: 260px;">
 <div style="font-weight: 600; font-size: 15px;">Como funciona a baixa de reembolsos (DEV-02)</div>
-<div style="font-size: 14px; color: var(--ink-muted); margin-top: 2px;">Faça a transferência Pix pelo banco da locadora e clique em “Marcar como feito”, anexando o comprovante opcional. O cliente é notificado automaticamente.</div>
+<div style="font-size: 14px; color: var(--ink-muted); margin-top: 2px;">Faça a transferência pelo banco da locadora e clique em “Marcar como feito”, anexando o comprovante opcional. O cliente é notificado automaticamente.</div>
 </div>
 </section>
 
