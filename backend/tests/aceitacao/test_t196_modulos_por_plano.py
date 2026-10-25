@@ -21,7 +21,7 @@ from apps.financeiro import services as financeiro
 from apps.financeiro.models import Comissao, Despesa
 from apps.financeiro.services import Origem
 from apps.plataforma.models import Empresa, Plano, UsoEmpresa
-from apps.plataforma.selectors import recursos_da_empresa
+from apps.plataforma.selectors import implantacao, recursos_da_empresa
 from comum import leituras
 from comum.empresa import tem_recurso
 from integracoes.pagamentos import falso as pagamentos
@@ -135,6 +135,7 @@ def test_plt_12_essencial_sem_modulos_do_profissional(criar_moto):
     assert "relatorios" not in menu
     # Sem `recebimento_parceiro`, o passo 10 (Recebimentos) não existe: 9 passos.
     assert "recebimentos" not in json.dumps(_get(api, IMPLANTACAO).json())
+    assert implantacao(moto.recarregar())["total"] == 9  # `GET /api/plataforma/empresas/{id}/`
     with tenant_context(moto.empresa):
         assert recursos_da_empresa() == {"locacoes_vistoria", "contas_receber", "contrato_digital"}
         assert not tem_recurso("cobranca_whatsapp")

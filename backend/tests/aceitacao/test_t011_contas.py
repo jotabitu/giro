@@ -1767,14 +1767,15 @@ def test_usr_05_plano_atividade_e_modulos_escondem_itens(adm, settings, planos):
     ]
     assert mariana["barra_celular"] == ["inicio", "mais"]
 
-    # Plano Essencial: sem vendas, manutenção e despesas, comissões nem relatórios.
+    # Plano Essencial: sem vendas, manutenção e despesas, comissões, conciliação nem relatórios
+    # (CA-ASS-22; a conciliação tem recurso próprio desde a T-196).
     settings.GIRO_MODULOS_ATIVOS = TODOS_OS_MODULOS
     adm.empresa.plano = planos["Essencial"]
     adm.empresa.save(update_fields=["plano"])
     assert _chaves(_navegacao(adm, "Mariana")["menu_completo"]) == [
         (None, ["inicio", "aprovacoes", "veiculos"]),
         ("Operação", ["locacoes", "clientes"]),
-        ("Financeiro", ["caixa", "receber", "conciliacao"]),
+        ("Financeiro", ["caixa", "receber"]),
         ("Administração", ADMINISTRACAO),
     ]
 

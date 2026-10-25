@@ -302,12 +302,22 @@ def dias_restantes(empresa: Empresa) -> int | None:
     return max(0, (empresa.teste_fim - relogio.hoje()).days)
 
 
-def assinatura(empresa: Empresa | None = None, usuario: Any = None) -> dict[str, Any]:
+def empresa_carregada(empresa: Empresa | None = None) -> Empresa:
+    """A empresa relida do banco com o plano atual e o agendado, numa consulta só."""
+    empresa = empresa or empresa_atual()
+    carregada: Empresa = Empresa.objects.select_related("plano", "plano_proximo").get(pk=empresa.pk)
+    return carregada
+
+
+def assinatura(
+    empresa: Empresa | None = None, usuario: Any = None, *, carregada: bool = False
+) -> dict[str, Any]:
     """`GET /api/assinatura/` (PLT-01, PLT-03, PLT-11, PLT-13, PLT-15; assinatura.md). Os blocos
     `forma_pagamento`, `dados_fiscais`, `oferta` e `acoes` só para o administrador (e para o
-    suporte, que lê com as ações desligadas)."""
-    empresa = empresa or empresa_atual()
-    empresa = Empresa.objects.select_related("plano", "plano_proximo").get(pk=empresa.pk)
+    suporte, que lê com as ações desligadas). `carregada`: quem chama já leu a empresa por
+    `empresa_carregada` no mesmo pedido (Configurações), e ela não é lida de novo."""
+    if not carregada or empresa is None:
+        empresa = empresa_carregada(empresa)
     plano = empresa.plano
     proxima = proxima_mensalidade(empresa)
     dados: dict[str, Any] = {
@@ -738,14 +748,19 @@ def planos_da_assinatura(empresa: Empresa | None = None) -> dict[str, Any]:
 
 
 def implantacao(empresa: Empresa) -> dict[str, Any]:
+    """Os passos da empresa: sem `recebimento_parceiro` (Essencial), sem `recebimentos`, e
+    `concluidos` e `total` contam 9 (PLT-12, ADR 0024, item 5). O passo já marcado fica guardado
+    e volta a contar ao subir de plano."""
     passos = _uso(empresa).passos_implantacao
+    recebe = empresa_tem_recebimentos(empresa)
+    da_empresa = [(p, r) for p, r in PASSOS_IMPLANTACAO if recebe or p != "recebimentos"]
     return {
         "etapa_funil": etapa_do_funil(passos),
-        "concluidos": sum(1 for passo, _ in PASSOS_IMPLANTACAO if passo in passos),
-        "total": len(PASSOS_IMPLANTACAO),
+        "concluidos": sum(1 for passo, _ in da_empresa if passo in passos),
+        "total": len(da_empresa),
         "passos": [
             {"passo": passo, "rotulo": rotulo, "concluido_em": passos.get(passo)}
-            for passo, rotulo in PASSOS_IMPLANTACAO
+            for passo, rotulo in da_empresa
         ],
     }
 

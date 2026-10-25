@@ -56,7 +56,7 @@ def test_imp_05_andamento_do_assistente(moto_rapida):  # noqa: F811
 
 
 def test_imp_05_andamento_sem_recebimentos_tem_7_passos(moto_rapida, monkeypatch):  # noqa: F811
-    # O Essencial não tem `recebimento_parceiro` (PLT-12); o recurso entra no enum na T-196.
+    # O Essencial não tem `recebimento_parceiro` (PLT-12): simulado sem trocar o plano.
     monkeypatch.setattr(plataforma_selectors, "assistente_tem_recebimentos", lambda _plano: False)
     _passos(moto_rapida.moto, {**SEIS_PASSOS, "recebimentos": "2026-10-07"})
     corpo = moto_rapida.moto.api("Mariana").get(IMPLANTACAO).json()
