@@ -64,6 +64,15 @@ def limpar_ator() -> None:
     _ator.set(None)
 
 
+def guardar_ator() -> Ator | Callable[[], Ator] | None:
+    """O ator de agora, como está, para `restaurar_ator` (tarefa eager, S-11)."""
+    return _ator.get()
+
+
+def restaurar_ator(valor: Ator | Callable[[], Ator] | None) -> None:
+    _ator.set(valor)
+
+
 @contextmanager
 def usar_ator(ator: Ator | Callable[[], Ator]) -> Iterator[None]:
     token = _ator.set(ator)
