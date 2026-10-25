@@ -60,6 +60,11 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ## Log de Bugs Resolvidos
 
+### [2026-10-25] Seed em banco limpo com `config.settings.test` parava em `veiculos_veiculo does not exist` (T-281)
+- **Sintoma:** `seed_moto_rapida` num banco novo, com as configurações de teste, falhava na 1ª rodada (a 2ª passava).
+- **Causa raiz:** com `CELERY_TASK_ALWAYS_EAGER`, o convite agendado no commit roda na conexão do seed, e o sinal de limpeza de `comum/worker.py` (S-11, ADR 0012) devolvia a conexão ao public.
+- **Correção:** a tarefa eager guarda o schema e o ator de quem chamou e os devolve no fim; o worker real limpa como antes. Teste `tests/test_seed_banco_limpo.py`.
+
 ### [2026-10-20] Contêineres de teste do backend que nunca saem
 - **Sintoma:** vários contêineres de pé em `docker ps`, presos em "Aguardando o Postgres em db...", sem sair mesmo com `--rm`.
 - **Causa raiz:** o entrypoint da imagem espera o host `db` do compose quando o contêiner avulso roda sem `-e POSTGRES_HOST`.
