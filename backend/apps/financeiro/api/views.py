@@ -22,7 +22,7 @@ from rest_framework.views import APIView
 
 from apps.filiais.models import Filial
 from apps.filiais.selectors import filtrar_por_filial
-from apps.plataforma.models import ContaPagamento
+from apps.plataforma.models import ContaPagamento, Recurso
 from apps.plataforma.services import registrar_webhook_principal, token_da_conta_principal
 from comum import arquivos, leituras, relogio
 from comum.erros import ErroDeValidacao, NaoAutenticado, SemPermissao
@@ -236,6 +236,8 @@ class ReceberView(APIView):
 
 
 class CobrancaView(APIView):
+    recurso_do_plano = Recurso.RECEBIMENTO_PARCEIRO  # PLT-12: Pix e boleto pela subconta
+
     def get_permissions(self) -> Any:
         return [p() for p in OPERAM]
 
@@ -617,6 +619,7 @@ def _despesa(request: Request, pk: int) -> Despesa:
 
 
 class DespesasView(APIView):
+    recurso_do_plano = Recurso.MANUTENCAO_DESPESAS  # PLT-12
     suporte_proibido = frozenset(
         {"POST"}
     )  # 403 PLT-07 mesmo em "ver e editar" (T-324, opção A do dono)
@@ -701,6 +704,8 @@ def _veiculo_existente(veiculo_id: int | None) -> int | None:
 
 
 class DespesaView(APIView):
+    recurso_do_plano = Recurso.MANUTENCAO_DESPESAS  # PLT-12
+
     def get_permissions(self) -> Any:
         return [p() for p in OPERAM]
 
@@ -714,6 +719,8 @@ class DespesaView(APIView):
 class NotaDespesaView(APIView):
     """A nota que faltou na despesa da parada (MOV-04, CA-246-14): quem lança todas as
     categorias (`despesas_lancar = todas`)."""
+
+    recurso_do_plano = Recurso.MANUTENCAO_DESPESAS  # PLT-12
 
     parser_classes = [MultiPartParser, FormParser]
     permission_classes = OPERAM
@@ -732,6 +739,7 @@ class NotaDespesaView(APIView):
 
 
 class PagarDespesaView(APIView):
+    recurso_do_plano = Recurso.MANUTENCAO_DESPESAS  # PLT-12
     parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_permissions(self) -> Any:

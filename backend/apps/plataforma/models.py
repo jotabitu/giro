@@ -37,15 +37,27 @@ DADOS_APAGADOS_DA_EMPRESA = (
 
 
 class Recurso(models.TextChoices):
+    """Os módulos que o plano liga (PLT-12, ADR 0024, item 1). O núcleo não tem recurso."""
+
     LOCACOES_VISTORIA = "locacoes_vistoria", "Locação e vistoria"
     CONTAS_RECEBER = "contas_receber", "Contas a receber"
     CONTRATO_DIGITAL = "contrato_digital", "Contrato digital"
     VENDAS_COMISSOES = "vendas_comissoes", "Vendas e comissões"
     MANUTENCAO_DESPESAS = "manutencao_despesas", "Manutenção e despesas"
+    CONCILIACAO = "conciliacao", "Conciliação"
     RELATORIOS = "relatorios", "Relatórios"
-    DOMINIO_PROPRIO = "dominio_proprio", "Domínio próprio"
-    API_INTEGRACOES = "api_integracoes", "API e integrações"
+    RECEBIMENTO_PARCEIRO = "recebimento_parceiro", "Pix e boleto automáticos"
+    COBRANCA_WHATSAPP = "cobranca_whatsapp", "Cobrança pelo WhatsApp"
     SUPORTE_PRIORITARIO = "suporte_prioritario", "Suporte prioritário"
+
+
+RECURSO_FORA_DA_LISTA = "Use só os recursos da lista."
+
+
+def validar_recursos(valor: Any) -> None:
+    """`Plano.recursos` só com valores do enum (ADR 0024, item 1)."""
+    if not isinstance(valor, list) or any(item not in Recurso.values for item in valor):
+        raise ValidationError(RECURSO_FORA_DA_LISTA, code="recurso_fora_da_lista")
 
 
 class Item(models.TextChoices):
@@ -64,7 +76,7 @@ class Plano(ModeloBase, ModeloAtivavel):
     limite_veiculos = models.PositiveIntegerField(null=True, blank=True)
     limite_filiais = models.PositiveIntegerField(null=True, blank=True)
     limite_usuarios = models.PositiveIntegerField(null=True, blank=True)
-    recursos = models.JSONField(default=list, blank=True)
+    recursos = models.JSONField(default=list, blank=True, validators=[validar_recursos])
     ordem = models.PositiveSmallIntegerField(default=0)
 
     # Nome de coisa, não de pessoa (R-02 da T-050): vai inteiro para a auditoria.

@@ -17,6 +17,7 @@ from comum import empresa as comum_empresa
 from comum import relogio
 from comum.conexao import conexao
 from comum.dinheiro import formatar_reais
+from comum.erros import SemPermissao
 
 from . import catalogo
 from .calendario import MESES_DE_PAUSA, dia_e_mes, dia_mes_e_ano, periodo_da_pausa
@@ -1003,6 +1004,36 @@ def recursos_da_empresa(empresa: Empresa | None = None) -> frozenset[str]:
     return recursos_para(empresa.plano, comum_empresa.atividade())
 
 
+def recursos_ligados() -> frozenset[str] | None:
+    """Registrada em `comum.empresa` (`tem_recurso`): `None` quando a conexão não tem empresa."""
+    empresa = getattr(conexao(), "tenant", None)
+    if not isinstance(empresa, Empresa) or empresa.schema_name == get_public_schema_name():
+        return None
+    return recursos_da_empresa(empresa)
+
+
+DEIXAR_DE_LADO = {"aluga": "alugar", "vende": "vender"}
+
+
+def recusa_do_modulo(recurso: str) -> SemPermissao:
+    """403 `PLT-12` (`plataforma.md`, "Módulos por plano"): `motivo: "ramo"` quando o plano liga o
+    recurso e o ramo não pede; senão `motivo: "plano"`, com o nome do módulo."""
+    empresa = empresa_atual()
+    if recurso in (getattr(empresa.plano, "recursos", None) or []):
+        lado = next(a for a, r in RECURSO_DA_ATIVIDADE.items() if r == recurso)
+        return SemPermissao(
+            "PLT-12",
+            f"Sua empresa não está configurada para {DEIXAR_DE_LADO[lado]}. Mude em Configurações.",
+            {"recurso": recurso, "motivo": "ramo"},
+        )
+    nome = Recurso(recurso).label if recurso in Recurso.values else recurso
+    return SemPermissao(
+        "PLT-12",
+        f"Seu plano não inclui {nome}. Para usar, mude de plano.",
+        {"recurso": recurso, "motivo": "plano"},
+    )
+
+
 def primeiro_plano_com(recurso: str) -> Plano | None:
     """O plano ativo mais baixo do catálogo que liga `recurso` (o aviso de "vende")."""
     for plano in Plano.objects.filter(ativo=True).order_by("ordem", "preco_mensal_centavos"):
@@ -1025,22 +1056,17 @@ PASSOS_DO_ASSISTENTE: list[tuple[str, str]] = [
     ("importar", "Importar dados"),
     ("equipe", "Convidar equipe"),
 ]
-# PLT-12: sem este recurso (Essencial), `recebimentos` sai do assistente. Ele entra no enum
-# `Recurso` na T-196; até lá todo plano recebe pelo parceiro e o assistente tem os 8 passos.
-RECURSO_DE_RECEBIMENTOS = "recebimento_parceiro"
+# PLT-12: sem este recurso (Essencial), `recebimentos` sai do assistente (ADR 0024, item 5).
+RECURSO_DE_RECEBIMENTOS = Recurso.RECEBIMENTO_PARCEIRO
 
 
 def assistente_tem_recebimentos(plano: Plano | None) -> bool:
-    if RECURSO_DE_RECEBIMENTOS not in Recurso.values:
-        return True
     return RECURSO_DE_RECEBIMENTOS in (getattr(plano, "recursos", None) or [])
 
 
 def empresa_tem_recebimentos(empresa: Empresa) -> bool:
-    """`assistente_tem_recebimentos` lendo o plano só quando o recurso existe no enum (T-196):
-    até lá, a Configurações não soma uma consulta (teto de 11, `configuracoes.md`)."""
-    plano = empresa.plano if RECURSO_DE_RECEBIMENTOS in Recurso.values else None
-    return assistente_tem_recebimentos(plano)
+    """`assistente_tem_recebimentos` pelo plano da empresa."""
+    return assistente_tem_recebimentos(empresa.plano)
 
 
 def passos_do_assistente(recebe: bool) -> list[tuple[str, str]]:
