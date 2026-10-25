@@ -93,7 +93,7 @@ function semente(): Estado {
 
 /** Preço vigente hoje e o próximo agendado, como `GET /api/categorias/` devolve. */
 function montar(base: Omit<CategoriaDePreco, "preco_vigente" | "proximo_preco">, historico: PrecoDoHistorico[]): CategoriaDePreco {
-  const comData = ({ alterado_por: _p, alterado_em: _e, ...resto }: PrecoDoHistorico) => resto;
+  const comData = (p: PrecoDoHistorico) => ({ vigente_desde: p.vigente_desde, diaria_centavos: p.diaria_centavos, semanal_centavos: p.semanal_centavos, mensal_centavos: p.mensal_centavos, caucao_centavos: p.caucao_centavos });
   const vigente = historico.filter((p) => p.vigente_desde <= HOJE).sort((a, b) => b.vigente_desde.localeCompare(a.vigente_desde))[0];
   const proximo = historico.filter((p) => p.vigente_desde > HOJE).sort((a, b) => a.vigente_desde.localeCompare(b.vigente_desde))[0];
   return { ...base, preco_vigente: vigente ? comData(vigente) : null, proximo_preco: proximo ? comData(proximo) : null };
@@ -117,7 +117,9 @@ function achar(id: number): CategoriaDePreco {
 
 function recalcular(id: number) {
   const i = estado.categorias.findIndex((c) => c.id === id);
-  const { preco_vigente: _v, proximo_preco: _p, ...base } = estado.categorias[i]!;
+  const base = { ...estado.categorias[i]! };
+  delete base.preco_vigente;
+  delete base.proximo_preco;
   estado.categorias[i] = montar(base, estado.historicos[id] ?? []);
 }
 
@@ -130,9 +132,10 @@ function conferirPreco(p: CorpoDoPrecoComData) {
 function gravar(id: number, corpo: CorpoDoPrecoComData, trocando: boolean): PrecoGravado {
   conferirPreco(corpo);
   const desde = corpo.vigente_desde ?? HOJE;
-  if (desde < HOJE) throw campo("vigente_desde", "O passado não se reescreve. Escolha hoje ou uma data futura.");
   const lista = (estado.historicos[id] ??= []);
   const existente = lista.find((p) => p.vigente_desde === desde);
+  if (!trocando && existente) throw new ErroApi(409, "preco_ja_definido", "Já existe preço a partir desta data");
+  if (desde < HOJE && !trocando) throw campo("vigente_desde", "O passado não se reescreve. Escolha hoje ou uma data futura.");
   if (trocando) {
     if (!existente) throw new ErroApi(404, "nao_encontrado", "Não há preço agendado nesta data");
     if (desde <= HOJE) throw new ErroApi(409, "preco_ja_vigente", "Este preço já está valendo e não pode ser trocado");
@@ -306,7 +309,8 @@ export const precosFalso = {
     await pausa(40);
     const p = estado.planos.find((x) => x.id === id);
     if (!p) throw new ErroApi(404, "nao_encontrado", "Plano não encontrado");
-    const { categorias: _c, ...resto } = corpo;
+    const resto = { ...corpo };
+    delete resto.categorias;
     Object.assign(p, resto);
     return p;
   },
