@@ -1,6 +1,6 @@
 # Hospedagem e ambiente de produção
 
-**Status:** proposta · 25 out 2026 · T-357 (decisão D7 do dono; M-02 da T-355) · detalha a 0027 (servidor), a 0029 (Admin pelo proxy) e a 0016 (papéis de banco); aceita quando o dono escolher a opção
+**Status:** aceita · 25 out 2026 · T-357 (decisão D7 do dono; M-02 da T-355) · **o dono escolheu a opção B** (uma VPS com tudo em Docker Compose), com preferência por provedor no Brasil · detalha a 0027 (servidor), a 0029 (Admin pelo proxy) e a 0016 (papéis de banco)
 
 ## Contexto
 
@@ -152,6 +152,20 @@ Isso cobre o M-02 com menos peças para a equipe operar. A diferença de custo p
 
 ## Consequências
 
-- Com a escolha, esta ADR passa a aceita, e o devops faz a "Subida de produção" do M-02: rede, cofre, certificado, backup e o primeiro teste de restauração registrado, com o `teste-subida-producao.sh` adaptado ao provedor. O worker do apagamento (M-01) entra no mesmo compose.
+### O que a opção B, escolhida pelo dono, pede de nós
+
+- **Provedor:** a preferência é um provedor com região no Brasil, como a Magalu Cloud, com VPS e object storage compatível com S3. Assim os dados ficam no país. Se nenhum servir (preço, tamanho de VPS ou object storage), vale um provedor de fora, com o aviso de privacidade abaixo.
+- **Backup:** pgBackRest (ou WAL-G) cifrado para o banco e restic cifrado para os arquivos, os dois para um bucket de **outro provedor** (Backblaze B2 ou Cloudflare R2), com retenção de 30 dias. A chave fica no cofre e com o dono. A restauração é testada e registrada como manda o item 3 acima.
+- **Monitoramento, que fica conosco:** saúde do Postgres (conexões, replicação de WAL para o backup, tamanho e vacuum), disco da VPS e do volume do banco (alerta a partir de 80%), memória, falha do job de backup e validade do certificado. Os alertas vão por e-mail para o dono e para quem estiver de plantão.
+- **Atualização, também conosco:**
+  - patches de segurança do sistema da VPS (atualização automática dos de segurança, reinício planejado);
+  - versão menor do Postgres 16 e imagens do Redis e do nginx, uma vez por mês;
+  - registro do que foi atualizado.
+- **Aviso de privacidade:** se os dados ficarem fora do Brasil, o aviso de privacidade e os termos dizem que há transferência internacional (LGPD, art. 33). Isso fica a confirmar com o Produto antes do primeiro cliente.
+- **Cofre:** Bitwarden Secrets Manager ou Doppler, como descrito na opção B.
+
+### Para todas as opções
+
+- O devops faz a "Subida de produção" do M-02: rede, cofre, certificado, backup e o primeiro teste de restauração registrado, com o `teste-subida-producao.sh` adaptado ao provedor. O worker do apagamento (M-01) entra no mesmo compose.
 - `infra/README.md` troca "a definir em ADR" pela opção escolhida.
 - A integração real de WhatsApp e o e-mail transacional viram tarefas próprias; a de WhatsApp precisa de ADR.
