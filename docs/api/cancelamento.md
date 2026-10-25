@@ -18,7 +18,10 @@ Convenções gerais em `docs/api/README.md`. Modelo em `docs/decisoes/modelo-de-
 
 - Todas as rotas deste contrato são **só do administrador** (`PLT-06`). Outro perfil: 403 `{ "codigo": "permissao", "mensagem": "Só o administrador mexe na assinatura" }` (CA-ASS-45: o Rodrigo e a Lúcia).
 - Suporte Giro dentro da empresa (`PLT-07`): 403 `{ "codigo": "PLT-07", "mensagem": "O suporte não mexe na assinatura da empresa" }` em toda escrita, como em `assinatura.md`. O `GET` responde com `acoes` todas `false`.
-- **2 etapas recentes para cancelar** (decisão da T-199, M-01; feito na T-345): `POST cancelamento/` exige token com 2 etapas confirmadas há no máximo 15 minutos (`otp` no `amr` e `auth_time` recente, como o backup completo de `auditoria.md`). Sem elas, responde antes de qualquer outra conferência (motivo, nome, estado) o 403 `{ "codigo": "2fa_recente", "mensagem": "Confirme o código do autenticador para cancelar a assinatura." }`. A tela (T-198) pede o código, reconfirma por `POST /api/auth/2fa/reconfirmar/` e repete o envio, sem recarregar (`contas.md`, "Reconfirmar as 2 etapas", ADR 0032, T-346). `DELETE cancelamento/`, pausar e voltar não pedem: são reversíveis e não tiram ninguém do sistema. Teste `test_plt_06_cancelar_pede_2_etapas_recentes`.
+- **2 etapas recentes para cancelar** (decisão da T-199, M-01; feito na T-345): `POST cancelamento/` exige token com 2 etapas recentes (`otp` no `amr` e `auth_time` recente), como o backup completo de `auditoria.md`.
+  - **Quanto vale, na prática:** até o fim do primeiro access do login ou da reconfirmação, ou seja, 5 minutos. O `auth_time` não passa para o access novo na renovação do refresh (`renovar`). Os 15 minutos de `DOIS_FATORES_RECENTE` são só um teto (`contas.md`, "Reconfirmar as 2 etapas"; decisão do dono na T-349).
+  - **Sem elas:** responde antes de qualquer outra conferência (motivo, nome, estado) o 403 `{ "codigo": "2fa_recente", "mensagem": "Confirme o código do autenticador para cancelar a assinatura." }`.
+  - **Na tela:** o 403 abre a reconfirmação (ADR 0032), pelo diálogo `useReconfirmar2fa` da T-348. A tela pede o código, chama `POST /api/auth/2fa/reconfirmar/` e repete o envio uma vez, sem recarregar. `DELETE cancelamento/`, pausar e voltar não pedem: são reversíveis e não tiram ninguém do sistema. Teste `test_plt_06_cancelar_pede_2_etapas_recentes`.
 
 ### Estado da empresa e o que cada rota aceita
 
@@ -297,7 +300,7 @@ Para por inteiro na empresa `cancelada` (`PLT-06`), inclusive para as faturas `a
 | 400 | `validacao` | motivo ausente ou fora da lista; `meses` fora de 1 a 3 |
 | 403 | `permissao` | perfil que não é administrador |
 | 403 | `PLT-07` | escrita com token de suporte |
-| 403 | `2fa_recente` | `POST cancelamento/` sem 2 etapas nos últimos 15 minutos (antes das outras conferências) |
+| 403 | `2fa_recente` | `POST cancelamento/` sem 2 etapas recentes: na prática, depois do primeiro access do login ou da reconfirmação (5 min); teto de 15 min. Vem antes das outras conferências. A tela trata pelo `useReconfirmar2fa` (ADR 0032) |
 | 403 | `empresa_sem_operacao` | escrita fora das exceções na `suspensa` e na `pausada` |
 | 403 | `empresa_cancelada` | qualquer pedido de uma empresa `cancelada` |
 | 409 | `transicao_empresa` | cancelar já cancelada; desfazer sem cancelamento; pausar fora da `ativa` ou com pausa ou cancelamento marcados; voltar ou desistir sem pausa; mudar de plano com cancelamento marcado |
