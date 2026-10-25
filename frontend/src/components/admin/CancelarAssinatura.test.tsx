@@ -11,6 +11,7 @@ const sessao = vi.hoisted(() => ({ eu: null as unknown }));
 vi.mock("@/lib/sessao", () => ({ useSessao: () => ({ eu: sessao.eu as Eu, sair: async () => {} }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
 
+import { DialogoReconfirmar2fa } from "@/components/acesso/DialogoReconfirmar2fa";
 import { CancelarAssinatura } from "./CancelarAssinatura";
 import { DialogoPausarAssinatura } from "./DialogoPausarAssinatura";
 
@@ -238,5 +239,25 @@ describe("cliente HTTP real de cancelamento e pausa", () => {
     expect(chamada(2)).toMatchObject({ url: "/api/assinatura/cancelamento/", metodo: "DELETE" });
     expect(chamada(3)).toMatchObject({ url: "/api/assinatura/pausa/", metodo: "POST", corpo: { meses: 2 } });
     expect(chamada(4)).toMatchObject({ url: "/api/assinatura/pausa/", metodo: "DELETE" });
+  });
+});
+
+describe("Diálogo das 2 etapas recentes (T-348, USR-02, PLT-06)", () => {
+  it("usr_02_dialogo: mostra a mensagem do 403, o campo de 6 dígitos e o link do código de recuperação", () => {
+    const html = renderToStaticMarkup(
+      <DialogoReconfirmar2fa mensagem="Confirme o código do autenticador para cancelar a assinatura." aoConfirmar={async () => null} aoCancelar={() => {}} />,
+    );
+    const t = texto(html);
+    ordem(t, [
+      "Código de verificação",
+      "Confirme o código do autenticador para cancelar a assinatura.",
+      "Digite os 6 números que aparecem no aplicativo autenticador.",
+      "Código do aplicativo",
+      "Usar um código de recuperação",
+      "Cancelar",
+      "Confirmar",
+    ]);
+    expect(html.match(/inputmode="numeric"/gi)).toHaveLength(6);
+    expect(html).toMatch(/<button[^>]*disabled[^>]*>Confirmar<\/button>/);
   });
 });
