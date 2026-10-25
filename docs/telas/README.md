@@ -169,6 +169,8 @@ Cada `chave` da navegação de `GET /api/auth/eu/` (`docs/api/contas.md`) abre u
 | `caixa` | `/financeiro/caixa` | Caixa do dia | |
 | `receber` | `/financeiro/receber` | Contas a receber | |
 | `despesas` | `/financeiro/despesas` | Despesas | |
+| `reembolsos` | `/financeiro/reembolsos` | Reembolsos | |
+| `pendencias_pagamento` | `/financeiro/pendencias-pagamento` | Pendências do pagamento | |
 | `comissoes` | `/financeiro/comissoes` | Comissões | fase 2 |
 | `conciliacao` | `/financeiro/conciliacao` | Conciliação | fase 2 |
 | `relatorios` | `/relatorios` | Relatórios | |

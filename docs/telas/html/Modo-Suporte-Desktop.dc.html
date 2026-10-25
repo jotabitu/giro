@@ -27,19 +27,19 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
 <span class="wl-badge wl-badge--sm" style="background: var(--warning); color: var(--on-warning); font-weight: 700; gap: 6px;">
 <svg class="wl-i" viewBox="0 0 24 24" style="width: 14px; height: 14px; stroke-width: 2.2;"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"></path><circle cx="12" cy="12" r="2.8"></circle></svg>
-MODO SUPORTE ATIVO
+Modo suporte
 </span>
 <span style="font-size: 14px;">
-Conectado como <strong>Diego Santos (Equipe Giro)</strong> na empresa <strong>Moto Rápida</strong> · Motivo: <strong>Chamado #1042</strong>
+<strong>Diego Santos</strong> · Equipe Giro · Motivo: <strong>Chamado #1042</strong>
 </span>
 </div>
 
 <div style="display: flex; align-items: center; gap: 12px; margin-left: auto;">
-<span class="wl-badge wl-badge--sm" style="background: rgba(0,0,0,0.06); color: var(--warning-ink);">
-Permissão: <strong>Só ver</strong>
+<span class="wl-badge wl-badge--sm" style="background: rgba(0,0,0,0.06); color: var(--warning-ink); font-weight: 600;">
+Só ver
 </span>
 <span class="wl-mono" style="font-size: 13px; font-weight: 500;">
-Expira às 15:30 (restam 42 min)
+Expira às 15:30
 </span>
 <button class="wl-btn wl-btn--sm wl-btn--solid" style="height: 34px; padding: 0 16px; font-weight: 600;">
 <svg class="wl-i" viewBox="0 0 24 24" style="width: 14px; height: 14px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>
@@ -65,9 +65,9 @@ Sair do suporte
 <a class="wl-nav-item" href="Receber-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg>Contas a receber<span class="wl-count">2</span></a>
 <a class="wl-nav-item" href="Despesas-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"></path></svg>Despesas<span class="wl-count">1</span></a>
 <a class="wl-nav-item" href="Reembolsos-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3"></rect><path d="M12 10v4M10 11.5a1.5 1.5 0 0 1 1.5-1.5h1a1.5 1.5 0 0 1 0 3h-1a1.5 1.5 0 0 0 0 3h1a1.5 1.5 0 0 0 1.5-1.5"></path></svg>Reembolsos<span class="wl-count">1</span></a>
+<a class="wl-nav-item" href="Pendencias-Pagamento-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"></path><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>Pendências do pagamento<span class="wl-count">2</span></a>
 <div class="wl-nav-label">Administração</div>
 <a class="wl-nav-item" href="Config-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"></path></svg>Configurações</a>
-<a class="wl-nav-item" href="Admin-Auditoria-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h3"></path></svg>Auditoria</a>
 </nav>
 
 <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
@@ -81,10 +81,11 @@ Sair do suporte
 <div style="flex: 1;">
 <h2 style="margin: 0; font-size: 20px; font-weight: 600;">Regras da Faixa do Modo Suporte (PLT-07)</h2>
 <div style="font-size: 14px; color: var(--ink-muted); line-height: 22px; margin-top: 8px;">
-1. <strong>Exibição obrigatória:</strong> A faixa amarela no topo fica fixa em todas as telas enquanto o objeto <code>suporte</code> retornado por <code>GET /api/auth/eu/</code> for diferente de <code>null</code>.
-<br>2. <strong>Permissão Só Ver:</strong> O suporte técnico em modo de leitura não pode alterar dados. Tentativas de envio em formulários ou ações de escrita retornam erro 403 <em>"No modo só ver você não pode fazer isto"</em>.
-<br>3. <strong>Botão Sair:</strong> Dispara <code>POST /api/auth/suporte/sair/</code>, encerrando imediatamente a sessão do operador e registrando o término na auditoria.
-<br>4. <strong>Fim do tempo limite:</strong> Quando a hora estipulada em <code>fim</code> expira, todas as requisições passam a responder 401 <code>PLT-07</code> e a interface exibe o alerta: <em>"O acesso de suporte terminou"</em>.
+1. <strong>Exibição obrigatória:</strong> A faixa no topo fica fixa em todas as telas enquanto o objeto <code>suporte</code> retornado por <code>GET /api/auth/eu/</code> for diferente de <code>null</code>.
+<br>2. <strong>Rótulos prontos da API:</strong> A faixa exibe "Modo suporte", o nome do técnico, "Equipe Giro", o motivo do chamado, <code>permissao_rotulo</code> ("Só ver" ou "Ver e editar") e <code>fim_rotulo</code> ("Expira às 15:30").
+<br>3. <strong>Permissão Só Ver:</strong> O suporte técnico em modo de leitura não pode alterar dados. Tentativas de gravação retornam erro 403 <em>"No modo só ver você não pode fazer isto"</em>.
+<br>4. <strong>Botão Sair do suporte:</strong> Dispara <code>POST /api/auth/suporte/sair/</code>, limpando o token de memória e encerrando a sessão.
+<br>5. <strong>Fim do tempo limite:</strong> Quando a hora em <code>fim</code> expira, todas as requisições passam a responder 401 <code>PLT-07</code> e a interface exibe o alerta: <em>"O acesso de suporte terminou"</em>.
 </div>
 </div>
 </div>
@@ -102,7 +103,7 @@ Sair do suporte
 <div class="wl-kpi wl-kpi--solid"><div class="wl-kpi__label">Locações ativas</div><div class="wl-kpi__value">42</div><div class="wl-kpi__meta">86 veículos na frota</div></div>
 <div class="wl-kpi"><div class="wl-kpi__label">Recebido no mês</div><div class="wl-kpi__value">R$ 13,4 mil</div><div class="wl-kpi__meta">26% do previsto</div></div>
 <div class="wl-kpi"><div class="wl-kpi__label">Contas em atraso</div><div class="wl-kpi__value">2</div><div class="wl-kpi__meta">R$ 1.646,40 pendentes</div></div>
-<div class="wl-kpi"><div class="wl-kpi__label">Reembolsos pendentes</div><div class="wl-kpi__value">1</div><div class="wl-kpi__meta">R$ 183,00 a devolver</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Reembolsos a fazer</div><div class="wl-kpi__value">1</div><div class="wl-kpi__meta">R$ 183,00 a devolver</div></div>
 </div>
 
 </main>
