@@ -21,6 +21,12 @@ export const contasApi = {
     return guardar(await http.post<RespostaEntrar>("/api/auth/2fa/verificar/", corpo, { token: tokenPre }));
   },
 
+  /** Reconfirma as 2 etapas sem sair do sistema (USR-02, USR-06, ADR 0032) e troca o access em memória pelo que traz `auth_time` novo. */
+  async reconfirmar2fa(corpo: { codigo?: string; codigo_recuperacao?: string }): Promise<void> {
+    const { access } = await http.post<{ access: string }>("/api/auth/2fa/reconfirmar/", corpo);
+    definirAccess(access);
+  },
+
   async renovar(): Promise<{ access: string }> {
     return { access: await renovarAccess() };
   },

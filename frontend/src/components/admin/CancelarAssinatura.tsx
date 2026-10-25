@@ -5,10 +5,12 @@ import { ArrowLeft, Download } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useReconfirmar2fa } from "@/components/acesso/useReconfirmar2fa";
 import { Button, Icone } from "@/design-system";
 import { assinatura as api, type MotivoCancelamento, type TelaDoCancelamento } from "@/lib/api";
 import { nomeConfere } from "@/lib/assinatura";
 import { mensagemDoErro } from "@/lib/erros";
+import { ReconfirmacaoCancelada } from "@/lib/reconfirmar-2fa";
 import { useSessao } from "@/lib/sessao";
 import { DialogoPausarAssinatura } from "./DialogoPausarAssinatura";
 import { PlanosDaAssinatura } from "./PlanosDaAssinatura";
@@ -124,10 +126,13 @@ export function CancelarAssinatura() {
   const [verPlanos, setVerPlanos] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
 
+  // 403 `2fa_recente` (PLT-06, USR-02): o diálogo reconfirma o código e repete o cancelamento uma vez, com o mesmo corpo.
+  const { executar, dialogo } = useReconfirmar2fa();
   const cancelar = useMutation({
     mutationFn: () => {
       if (!motivo) throw new Error("Escolha um motivo.");
-      return api.cancelar({ motivo, nome_confirmacao: nomeDigitado });
+      const corpo = { motivo, nome_confirmacao: nomeDigitado };
+      return executar(() => api.cancelar(corpo));
     },
     onSuccess: async (res) => {
       cliente.setQueryData(["assinatura"], res);
@@ -235,7 +240,7 @@ export function CancelarAssinatura() {
                 </button>
               </div>
               <p className="m-0 mt-3 text-caption text-ink-muted">{t.exportar.texto}</p>
-              {cancelar.isError && (
+              {cancelar.isError && !(cancelar.error instanceof ReconfirmacaoCancelada) && (
                 <p role="alert" className="m-0 mt-3 rounded-md bg-critical-soft p-3 text-caption text-critical-ink">
                   {mensagemDoErro(cancelar.error)}
                 </p>
@@ -244,6 +249,8 @@ export function CancelarAssinatura() {
           </aside>
         </div>
       )}
+
+      {dialogo}
 
       {t?.alternativas.pausar && (
         <DialogoPausarAssinatura
