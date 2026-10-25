@@ -4,6 +4,12 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ## Decisões de Design
 
+### [2026-10-25] Janela das 2 etapas recentes fica em 5 minutos na prática
+- **Contexto:** cancelar a assinatura (`PLT-06`) e o backup completo (`S-15`) pedem as 2 etapas recentes (`DOIS_FATORES_RECENTE` = 15 min, T-345). Como o `renovar` não leva o `auth_time`, a janela dura só o primeiro access do login, que vive 5 minutos (achado do Arquiteto na T-346). Depois disso, a tela pede o código de novo pela reconfirmação (ADR 0032, T-347 e T-348).
+- **Decisão (Segurança na T-349, PR #386, mesclada com o aval do dono):** manter assim, sem ADR nova e sem mudança no backend. `DOIS_FATORES_RECENTE` = 15 min fica como teto, e a regra não passa a dizer 5 minutos (USR-02, PLT-06 e S-15 não fixam número).
+- **Alternativas descartadas:** levar o `auth_time` pela rotação do refresh até completar os 15 minutos. Quem roubasse o refresh nos 15 minutos depois do login ganharia as 2 etapas recentes sem o autenticador, e o reuso (P-07) só derruba a sessão até 5 minutos depois, tempo suficiente para pedir o backup completo.
+- **Consequências:** toda ação que pedir as 2 etapas recentes deve usar `useReconfirmar2fa` e `DialogoReconfirmar2fa` (T-348), inclusive o download do backup completo na fase 2. Os contratos dizem que a janela efetiva é de 5 minutos (T-351).
+
 ### [2026-10-21] Cancelar a ativa com o período pago já vencido: o acesso termina na hora
 - **Contexto:** a `PLT-06` dá acesso até o fim do período pago, mas não dizia o que fazer quando a `ativa` cancela no dia do vencimento da fatura seguinte, ainda sem pagá-la (T-195, PR #375).
 - **Decisão (dono, opção A, recomendação do Produto):** a empresa vira `cancelada` no mesmo dia, e a fatura do dia é cancelada no parceiro e não fica devida; a tela mostra "termina agora". Se o cartão já foi cobrado antes do cancelamento, vale o caso comum: acesso até o fim do período pago. Registro nas regras pela T-343.
