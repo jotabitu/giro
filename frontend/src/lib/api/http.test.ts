@@ -32,6 +32,30 @@ async function falha(p: Promise<unknown>): Promise<ErroApi> {
   throw new Error("esperava um ErroApi");
 }
 
+describe("reconfirmar as 2 etapas (USR-02, ADR 0032)", () => {
+  it("manda o código com o access da sessão e troca o access em memória, sem tocar no cookie", async () => {
+    definirAccess("antigo");
+    responder({ corpo: { access: "novo" } });
+    await contasApi.reconfirmar2fa({ codigo: "123456" });
+    const [url, init] = chamada(0);
+    expect(url).toBe("/api/auth/2fa/reconfirmar/");
+    expect(init.headers.Authorization).toBe("Bearer antigo");
+    expect(init.headers["X-Requested-With"]).toBeUndefined();
+    expect(JSON.parse(init.body as string)).toEqual({ codigo: "123456" });
+    expect(accessAtual()).toBe("novo");
+  });
+
+  it("código errado (400) mantém o access e devolve o erro no campo", async () => {
+    definirAccess("antigo");
+    responder({ status: 400, corpo: { codigo: "validacao", mensagem: "Confira os campos destacados", campos: { codigo: ["Código incorreto."] } } });
+    const e = await falha(contasApi.reconfirmar2fa({ codigo: "000000" }));
+    expect(e.status).toBe(400);
+    expect(e.campos).toEqual({ codigo: "Código incorreto." });
+    expect(accessAtual()).toBe("antigo");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("chamadas autenticadas", () => {
   it("manda o access em Authorization e a query sem valores vazios", async () => {
     definirAccess("abc");

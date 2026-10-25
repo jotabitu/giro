@@ -165,6 +165,19 @@ export const contasFalso = {
     return primeira && r.etapa === "pronto" ? { ...r, codigos_recuperacao: CODIGOS_RECUPERACAO } : r;
   },
 
+  async reconfirmar2fa(corpo: { codigo?: string; codigo_recuperacao?: string }): Promise<void> {
+    await pausa();
+    const valido = corpo.codigo === CODIGO || (corpo.codigo_recuperacao !== undefined && CODIGOS_RECUPERACAO.includes(corpo.codigo_recuperacao));
+    if (!valido) {
+      tentativas += 1;
+      if (tentativas >= 5) throw bloqueio();
+      throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, {
+        [corpo.codigo_recuperacao !== undefined ? "codigo_recuperacao" : "codigo"]: "Código incorreto. Confira o horário do celular e tente de novo.",
+      });
+    }
+    tentativas = 0;
+  },
+
   async renovar(): Promise<{ access: string }> {
     await pausa(80);
     let id: string | null = null;
