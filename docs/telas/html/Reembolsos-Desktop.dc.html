@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Reembolsos ao cliente · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.chip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 6px 0 16px;border:0;border-radius:999px;background:var(--surface-sunken);color:var(--ink);font:inherit;font-size:15px;cursor:pointer}
+.chip .wl-count{background:var(--surface)}
+.chip[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
+.chip[aria-pressed="true"] .wl-count{background:var(--brand);color:var(--on-brand)}
+.money{font-weight:500;text-align:right;white-space:nowrap}
+.row-action{display:inline-flex;align-items:center;gap:8px}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1200px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<nav class="wl-sidebar" aria-label="Menu principal" style="flex: 0 0 280px;">
+<div class="wl-brand-row"><div class="wl-logo-slot" aria-hidden="true">MR</div><div class="wl-brand-name">Moto Rápida</div></div>
+<div class="wl-switcher"><div class="wl-switcher__icon"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg></div><div class="wl-switcher__text"><span class="wl-switcher__name">Filial Centro</span><span class="wl-switcher__sub">Fortaleza, CE</span></div><svg class="wl-i" viewBox="0 0 24 24" style="color: var(--ink-muted);"><path d="m6 9 6 6 6-6"></path></svg></div>
+<a class="wl-nav-item" href="Main.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>Visão geral</a>
+<a class="wl-nav-item" href="Frota-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg>Veículos<span class="wl-count">86</span></a>
+<div class="wl-nav-label">Operação</div>
+<a class="wl-nav-item" href="Locacoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>Locações<span class="wl-count">42</span></a>
+<a class="wl-nav-item" href="Vendas-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="7.5" r="1"></circle></svg>Vendas</a>
+<a class="wl-nav-item" href="Clientes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.6-1.6-4.8-4-5.6"></path></svg>Clientes</a>
+<a class="wl-nav-item" href="Manutencao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M15 4a5 5 0 0 0-4.6 6.9L4 17.3V20h2.7l6.4-6.4A5 5 0 0 0 20 9l-3 1-2-2z"></path></svg>Manutenções</a>
+<div class="wl-nav-label">Financeiro</div>
+<a class="wl-nav-item" href="Caixa-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3"></rect><circle cx="12" cy="12" r="2.5"></circle></svg>Caixa do dia</a>
+<a class="wl-nav-item" href="Receber-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg>Contas a receber<span class="wl-count">2</span></a>
+<a class="wl-nav-item" href="Despesas-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"></path></svg>Despesas<span class="wl-count">1</span></a>
+<a class="wl-nav-item" href="Reembolsos-Desktop.dc.html" aria-current="page"><svg class="wl-i" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3"></rect><path d="M12 10v4M10 11.5a1.5 1.5 0 0 1 1.5-1.5h1a1.5 1.5 0 0 1 0 3h-1a1.5 1.5 0 0 0 0 3h1a1.5 1.5 0 0 0 1.5-1.5"></path></svg>Reembolsos<span class="wl-count">1</span></a>
+<a class="wl-nav-item" href="Comissoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M5 19 19 5"></path><circle cx="7" cy="7" r="2.5"></circle><circle cx="17" cy="17" r="2.5"></circle></svg>Comissões</a>
+<a class="wl-nav-item" href="Conciliacao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10 12 4l9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"></path></svg>Conciliação</a>
+<a class="wl-nav-item" href="Relatorios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><path d="M8 16v-4M12 16V8M16 16v-6"></path></svg>Relatórios</a>
+<div class="wl-nav-label">Administração<span style="display: inline-grid; place-items: center; margin-left: 6px; vertical-align: -2px;"><svg class="wl-i" viewBox="0 0 24 24" style="width: 13px; height: 13px;"><rect x="5" y="10" width="14" height="10" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg></span></div>
+<a class="wl-nav-item" href="Config-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"></path></svg>Configurações</a>
+<a class="wl-nav-item" href="Admin-Marca-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle></svg>Empresa e marca</a>
+<a class="wl-nav-item" href="Filiais-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg>Filiais</a>
+<a class="wl-nav-item" href="Admin-Usuarios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M17 8v6M14 11h6"></path></svg>Usuários<span class="wl-count">2</span></a>
+<a class="wl-nav-item" href="Admin-Assinatura-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9 5.5-.8z"></path></svg>Assinatura</a>
+<a class="wl-nav-item" href="Admin-Auditoria-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h3"></path></svg>Auditoria</a>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
+<div><div style="font-size: 14px; color: var(--ink-muted);">Financeiro</div><h1 style="margin: 4px 0 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Reembolsos ao cliente</h1><p style="margin: 6px 0 0; color: var(--ink-muted);">Devoluções de caução e acertos a transferir (DEV-02) · Filial Centro</p></div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-left: auto;">
+<div class="wl-seg" role="group" aria-label="Período" style="background: var(--surface);"><button aria-pressed="false">Hoje</button><button aria-pressed="false">Semana</button><button aria-pressed="true">Mês</button></div>
+<button class="wl-btn" style="height: 56px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>Exportar</button>
+</div>
+</header>
+
+<section class="wl-panel">
+<div class="wl-kpis" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+<div class="wl-kpi wl-kpi--solid"><div class="wl-kpi__label">A reembolsar hoje</div><div class="wl-kpi__value">R$ 183,00</div><div class="wl-kpi__meta">1 cliente com devolução</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Reembolsados no mês</div><div class="wl-kpi__value">R$ 1.100,00</div><div class="wl-kpi__meta">3 pagamentos feitos</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Total do período</div><div class="wl-kpi__value">R$ 1.283,00</div><div class="wl-kpi__meta">4 devoluções com acerto</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Prazo médio de acerto</div><div class="wl-kpi__value">1 dia</div><div class="wl-kpi__meta">meta: até 3 dias úteis</div></div>
+</div>
+</section>
+
+<section class="wl-panel">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 20px;" role="group" aria-label="Situação dos reembolsos">
+<button class="chip" aria-pressed="true">A fazer<span class="wl-count">1</span></button>
+<button class="chip" aria-pressed="false">Feitos<span class="wl-count">3</span></button>
+<button class="chip" aria-pressed="false">Todos<span class="wl-count">4</span></button>
+<label class="wl-search" style="width: 320px; height: 44px; margin-left: auto; background: var(--surface-sunken);"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg><input type="search" placeholder="Cliente, locação ou chave Pix" aria-label="Buscar reembolsos"></label>
+</div>
+
+<div style="overflow-x: auto;">
+<table class="wl-table" style="min-width: 960px;">
+<thead>
+<tr>
+<th>Data da devolução</th>
+<th>Cliente e locação</th>
+<th>Origem do saldo</th>
+<th>Forma de pagamento</th>
+<th style="text-align: right;">Valor líquido</th>
+<th>Situação</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td class="wl-mono">07 out, 14:10</td>
+<td><span class="wl-cell-main">Juliana Rocha</span><span class="wl-cell-sub wl-mono">LOC-2836 · QXA-4B21 (Honda CG 160 Fan)</span></td>
+<td><span class="wl-cell-main">Devolução com caução</span><span class="wl-cell-sub">DEV-02 · caução R$ 600 menos diárias e acerto</span></td>
+<td><span class="wl-cell-main">Pix (celular)</span><span class="wl-cell-sub wl-mono">85998765432</span></td>
+<td class="money"><span style="font-size: 16px; font-weight: 600; color: var(--ink);">R$ 183,00</span></td>
+<td><span class="wl-badge wl-badge--sm wl-badge--warning">A fazer</span></td>
+<td>
+<div class="row-action">
+<button class="wl-btn wl-btn--brand wl-btn--sm">Marcar como feito</button>
+<a href="Devolucao-Desktop.dc.html" class="wl-btn wl-btn--quiet wl-btn--sm" style="text-decoration: none;">Ver acerto</a>
+</div>
+</td>
+</tr>
+
+<tr>
+<td class="wl-mono">06 out, 16:45</td>
+<td><span class="wl-cell-main">Diego Santos</span><span class="wl-cell-sub wl-mono">LOC-2820 · PMZ-3E17 (Yamaha Factor 150)</span></td>
+<td><span class="wl-cell-main">Devolução com caução</span><span class="wl-cell-sub">DEV-02 · caução integral sem pendência</span></td>
+<td><span class="wl-cell-main">Estorno no cartão</span><span class="wl-cell-sub">Mastercard final 4019</span></td>
+<td class="money">R$ 600,00</td>
+<td><span class="wl-badge wl-badge--sm wl-badge--success">Feito · 06 out</span></td>
+<td>
+<div class="row-action">
+<button class="wl-btn wl-btn--quiet wl-btn--sm"><svg class="wl-i" viewBox="0 0 24 24" style="width: 14px; height: 14px;"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1zM8 7h8M8 11h8M8 15h4"></path></svg>Comprovante</button>
+</div>
+</td>
+</tr>
+
+<tr>
+<td class="wl-mono">05 out, 11:20</td>
+<td><span class="wl-cell-main">Letícia Barbosa</span><span class="wl-cell-sub wl-mono">LOC-2815 · POZ-8C14 (Honda NXR 160 Bros)</span></td>
+<td><span class="wl-cell-main">Cancelamento de locação</span><span class="wl-cell-sub">LOC-12 · desistência antes da retirada</span></td>
+<td><span class="wl-cell-main">Pix (e-mail)</span><span class="wl-cell-sub wl-mono">leticia.barbosa@email.com</span></td>
+<td class="money">R$ 350,00</td>
+<td><span class="wl-badge wl-badge--sm wl-badge--success">Feito · 05 out</span></td>
+<td>
+<div class="row-action">
+<button class="wl-btn wl-btn--quiet wl-btn--sm"><svg class="wl-i" viewBox="0 0 24 24" style="width: 14px; height: 14px;"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1zM8 7h8M8 11h8M8 15h4"></path></svg>Comprovante</button>
+</div>
+</td>
+</tr>
+
+<tr>
+<td class="wl-mono">02 out, 17:30</td>
+<td><span class="wl-cell-main">Marcos Lima</span><span class="wl-cell-sub wl-mono">LOC-2804 · ROX-2A19 (Honda CG 160 Fan)</span></td>
+<td><span class="wl-cell-main">Devolução com caução</span><span class="wl-cell-sub">DEV-02 · saldo devolvido em dinheiro no caixa</span></td>
+<td><span class="wl-cell-main">Dinheiro</span><span class="wl-cell-sub">Caixa Filial Centro</span></td>
+<td class="money">R$ 150,00</td>
+<td><span class="wl-badge wl-badge--sm wl-badge--success">Feito · 02 out</span></td>
+<td>
+<div class="row-action">
+<span class="wl-cell-sub wl-mono" style="font-size: 13px;">Movimento Caixa #192</span>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 20px;">
+<span style="color: var(--ink-muted); font-size: 14px;">Mostrando 1 reembolso a fazer de 4 no total</span>
+<div style="font-size: 13px; color: var(--ink-muted);">Reembolsos em dinheiro saem diretamente pelo caixa aberto e nascem concluídos. Reembolsos por Pix e estorno nascem a fazer (regra DEV-02).</div>
+</div>
+</section>
+
+<section class="wl-panel" style="background: var(--surface-sunken); display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
+<div style="width: 44px; height: 44px; border-radius: 14px; background: var(--surface); display: grid; place-items: center; flex: none;">
+<svg class="wl-i" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"></path><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>
+</div>
+<div style="flex: 1; min-width: 260px;">
+<div style="font-weight: 600; font-size: 15px;">Como funciona a baixa de reembolsos (DEV-02)</div>
+<div style="font-size: 14px; color: var(--ink-muted); margin-top: 2px;">Faça a transferência Pix pelo banco da locadora e clique em “Marcar como feito”, anexando o comprovante opcional. O cliente é notificado automaticamente.</div>
+</div>
+</section>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>
