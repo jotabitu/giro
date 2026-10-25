@@ -151,3 +151,5 @@ jobs:
       - uses: actions/checkout@v4
       - run: sh infra/scripts/check-env.sh
       - run: cp .env.example .env && docker compose config --quiet
+      # Compose de produção (T-373, ADR 0033): config válido e regras de rede, segredo e backup.
+      - run: sh infra/scripts/check-producao.sh
