@@ -4,7 +4,7 @@
 
 ## Contexto
 
-Hoje o código só tem o provedor falso (`backend/integracoes/whatsapp`, `GIRO_PROVEDOR_WHATSAPP=falso`): `enviar_whatsapp(celular, texto)` guarda a mensagem numa caixa de saída em memória. A fase 1 manda WhatsApp em nove pontos:
+Hoje o código só tem o provedor falso (`backend/integracoes/whatsapp`, `GIRO_PROVEDOR_WHATSAPP=falso`): `enviar_whatsapp(celular, texto)` guarda a mensagem numa caixa de saída em memória. A fase 1 manda WhatsApp em oito pontos (um deles, o lembrete de devolução, ainda por fazer):
 
 | # | Quando | Regra | Onde no código | Marca |
 | --- | --- | --- | --- | --- |
@@ -18,7 +18,7 @@ Hoje o código só tem o provedor falso (`backend/integracoes/whatsapp`, `GIRO_P
 | 8 | Régua da assinatura: D0 e D+3, ao responsável | `PLT-02`, `AUT-13` | `plataforma/services.py` (`avisar_pela_regua`) | Giro |
 | — | Aviso de implantação parada | `IMP-06`, `AUT-14` | fase 2 (D6) | Giro |
 
-**O que a Meta exige, e vale para qualquer opção.** Toda mensagem que a empresa inicia fora da janela de 24 horas depois de uma mensagem do cliente tem de ser um **modelo aprovado** (*template*). Os nove pontos são todos iniciados pela empresa. Os modelos são da categoria **utilidade** (aviso de conta, pagamento, documento), não de marketing.
+**O que a Meta exige, e vale para qualquer opção.** Toda mensagem que a empresa inicia fora da janela de 24 horas depois de uma mensagem do cliente tem de ser um **modelo aprovado** (*template*). Os oito pontos são todos iniciados pela empresa. Os modelos são da categoria **utilidade** (aviso de conta, pagamento, documento), não de marketing.
 
 Regras dos modelos que afetam os textos de hoje:
 - o texto **não pode começar nem terminar com uma variável**;
@@ -218,7 +218,7 @@ def avisar(aviso: Aviso, *, origem: object | None = None) -> None:
   - `prod.py` recusa `falso` e token vazio, como faz com o Asaas.
 - **Modelos na Meta:** `manage.py sincronizar_modelos_whatsapp` cria ou confere os modelos da tabela na WABA e mostra a situação de cada um (aprovado, pendente ou recusado). Nada sai com modelo não aprovado.
 - **Registro:** `EnvioWhatsApp` no `public` (roteamento do webhook) e `MensagemWhatsApp` no schema da empresa, com origem, modelo, status, erro, celular mascarado e datas. Sem o texto.
-- **Chamadores:** os nove pontos trocam `enviar_whatsapp(celular, texto)` por `avisar(Aviso(...))`. O texto de hoje continua sendo montado (para o e-mail e para o falso) pela mesma função que já existe, e os parâmetros saem das mesmas partes.
+- **Chamadores:** os oito pontos trocam `enviar_whatsapp(celular, texto)` por `avisar(Aviso(...))`. O texto de hoje continua sendo montado (para o e-mail e para o falso) pela mesma função que já existe, e os parâmetros saem das mesmas partes.
 
 ## Consequências
 
@@ -228,7 +228,7 @@ def avisar(aviso: Aviso, *, origem: object | None = None) -> None:
 ### Tarefas de backend que saem daqui (sem número)
 
 1. **Provedor e fila:** `Aviso`, `avisar`, a tarefa `whatsapp_enviar` com repetição, `MetaCloud` com `urllib`, o falso guardando o `Aviso`, as variáveis no `prod.py` e no `producao.env.example`, e `EnvioWhatsApp` e `MensagemWhatsApp` com migração. Testes com o falso e com respostas da Meta gravadas (`test_whatsapp_*`).
-2. **Os nove pontos:** trocar pelos modelos, com os parâmetros na ordem da tabela, e a queda para o e-mail onde houver. O teste de cada ponto confere o modelo e os parâmetros com o seed (Carlos, LOC-2841; Juliana, LOC-2836).
+2. **Os oito pontos:** trocar pelos modelos, com os parâmetros na ordem da tabela, e a queda para o e-mail onde houver. O teste de cada ponto confere o modelo e os parâmetros com o seed (Carlos, LOC-2841; Juliana, LOC-2836).
 3. **Webhook de status** em `urls_publico`: desafio, assinatura, roteamento pelo `wamid`, status, queda para o e-mail no `failed`, saída por "SAIR" e resposta automática. Testes `test_whatsapp_webhook_*`.
 4. **Opt-in** (depois da decisão do produto): `aceita_whatsapp` em `Cliente` e no convite, na importação e na API de clientes, e o bloqueio do envio sem opt-in. Testes `test_cli_*_opt_in_whatsapp`.
 5. **`sincronizar_modelos_whatsapp`** e o passo a passo no `infra/README.md` (devops) para cadastrar os modelos na WABA de produção.
