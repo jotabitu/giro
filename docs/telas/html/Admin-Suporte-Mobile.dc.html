@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Administração · Controle do suporte · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 6px 0 14px;border:0;border-radius:999px;background:var(--surface);color:var(--ink);font:inherit;font-size:14px;white-space:nowrap}
+.chip .wl-count{min-width:24px;height:24px;padding:0 7px}
+.chip[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
+.chip[aria-pressed="true"] .wl-count{background:var(--brand);color:var(--on-brand)}
+.item{display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:24px;background:var(--surface)}
+.top{display:flex;align-items:flex-start;gap:12px}
+.meta{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:12px;font-size:14px;color:var(--ink-muted)}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1400px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;">
+<a href="Config-Mobile.dc.html" aria-label="Voltar" class="wl-icon-btn wl-icon-btn--sm" style="width: 44px; height: 44px; flex: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a>
+<div style="flex: 1; min-width: 0;">
+<div style="font-size: 13px; color: var(--ink-muted);">Administração</div>
+<div style="font-size: 22px; line-height: 28px; font-weight: 600;">Controle do suporte</div>
+</div>
+</header>
+
+<!-- Cartão principal: Interruptor de bloqueio/liberação do suporte -->
+<section class="item" style="border: 2px solid var(--line);">
+<div style="display: flex; align-items: center; justify-content: space-between;">
+<span class="wl-badge wl-badge--success"><span class="wl-badge__dot"></span>Acesso liberado</span>
+<span style="font-size: 13px; color: var(--ink-muted);">PLT-07</span>
+</div>
+<div>
+<div style="font-weight: 600; font-size: 17px; line-height: 22px;">Acesso técnico Giro</div>
+<p style="margin: 6px 0 0; font-size: 14px; color: var(--ink-muted); line-height: 20px;">
+A equipe Giro só entra na sua empresa com chamado aberto e tempo limitado. Todo acesso gera aviso por e-mail e auditoria.
+</p>
+</div>
+<button class="wl-btn wl-btn--solid" style="background: var(--critical); color: var(--on-critical); justify-content: center; height: 44px;">
+<svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><rect x="5" y="10" width="14" height="10" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>Bloquear suporte Giro
+</button>
+<span style="font-size: 12px; color: var(--ink-muted); text-align: center;">Revoga conexões ativas na hora</span>
+</section>
+
+<div style="padding: 12px 16px; border-radius: 18px; background: var(--surface-sunken); font-size: 13px; line-height: 18px; color: var(--ink-muted); display: flex; gap: 10px; align-items: center;">
+<svg class="wl-i" viewBox="0 0 24 24" style="flex: none; color: var(--info);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+<span>O suporte nunca visualiza CPF completo ou fotos de documentos (AUD-09).</span>
+</div>
+
+<div style="display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px; padding: 0 16px;" role="group" aria-label="Filtro de acessos">
+<button class="chip" aria-pressed="true">Todos<span class="wl-count">3</span></button>
+<button class="chip" aria-pressed="false">Ativo<span class="wl-count">1</span></button>
+<button class="chip" aria-pressed="false">Encerrados<span class="wl-count">2</span></button>
+</div>
+
+<article class="item" style="box-shadow: inset 0 0 0 2px var(--warning-soft);">
+<div class="top">
+<div style="display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--warning); color: #fff; font-weight: 700; font-size: 13px; flex: none;">DS</div>
+<div style="flex: 1; min-width: 0;">
+<div style="font-weight: 600;">Diego Santos</div>
+<div class="wl-mono" style="font-size: 12px; color: var(--ink-muted);">Chamado #1042 · Só ver</div>
+</div>
+<span class="wl-badge wl-badge--sm wl-badge--warning">Ativo agora</span>
+</div>
+<div style="font-size: 13px; color: var(--ink-muted);">Dúvida sobre emissão de contrato na locação LOC-2856</div>
+<div class="meta">
+<span class="wl-mono" style="font-size: 12px;">Expira às 15:30 (42 min)</span>
+<button class="wl-btn wl-btn--sm" style="background: var(--critical); color: var(--on-critical); height: 32px; padding: 0 12px; font-size: 13px;">Revogar</button>
+</div>
+</article>
+
+<article class="item">
+<div class="top">
+<div style="display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--surface-sunken); font-weight: 600; font-size: 13px; flex: none;">CR</div>
+<div style="flex: 1; min-width: 0;">
+<div style="font-weight: 500;">Camila Rocha</div>
+<div class="wl-mono" style="font-size: 12px; color: var(--ink-muted);">Chamado #1018 · Ver e editar</div>
+</div>
+<span class="wl-badge wl-badge--sm wl-badge--success">Encerrado</span>
+</div>
+<div style="font-size: 13px; color: var(--ink-muted);">Ajuda no cadastro de tabela de preços</div>
+<div class="meta">
+<span>05 out, 10:15 (22 min)</span>
+<a href="Admin-Auditoria-Mobile.dc.html" style="font-size: 13px; text-decoration: none; color: var(--ink);">Auditoria</a>
+</div>
+</article>
+
+<article class="item">
+<div class="top">
+<div style="display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: var(--surface-sunken); font-weight: 600; font-size: 13px; flex: none;">DS</div>
+<div style="flex: 1; min-width: 0;">
+<div style="font-weight: 500;">Diego Santos</div>
+<div class="wl-mono" style="font-size: 12px; color: var(--ink-muted);">Chamado #0992 · Só ver</div>
+</div>
+<span class="wl-badge wl-badge--sm wl-badge--critical">Revogado</span>
+</div>
+<div style="font-size: 13px; color: var(--ink-muted);">Revogado por Mariana Costa</div>
+<div class="meta">
+<span>28 set, 16:00</span>
+<a href="Admin-Auditoria-Mobile.dc.html" style="font-size: 13px; text-decoration: none; color: var(--ink);">Auditoria</a>
+</div>
+</article>
+
+<nav aria-label="Navegação principal" style="position: absolute; left: 16px; right: 16px; bottom: 20px; display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow-pop);">
+<a href="Dashboard-Mobile.dc.html" aria-label="Início" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg></a>
+<a href="Frota-Mobile.dc.html" aria-label="Veículos" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg></a>
+<a href="Locacao-Mobile.dc.html" aria-label="Nova locação" style="display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--brand); color: var(--on-brand);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></a>
+<a href="Locacoes-Mobile.dc.html" aria-label="Locações" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg></a>
+<a href="Menu-Mobile.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 16px; border-radius: 999px; background: var(--solid); color: var(--on-solid); text-decoration: none; font-size: 14px; font-weight: 500;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>Mais</a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>
