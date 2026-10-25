@@ -195,6 +195,13 @@ def _bloqueio(evento: EventoAuditoria, apoio: dict[str, Any]) -> Texto:
     return Texto(f"Login bloqueado após {motivo}{de_quem}", _juntar(evento.regra, ip))
 
 
+def _reconfirmar_2fa(evento: EventoAuditoria, _: dict[str, Any]) -> Texto:
+    """USR-02 (ADR 0032): o evento não tem o código."""
+    if evento.acao.endswith("_falhou"):
+        return Texto("Errou o código do autenticador", evento.motivo)
+    return Texto("Confirmou o código do autenticador")
+
+
 def mascarar_ip_curto(ip: str) -> str:
     """`177.84.10.22` vira `177.84.x.x`, como a tela da plataforma mostra."""
     partes = ip.split(".")
@@ -307,6 +314,8 @@ DESTE_APP: dict[str, auditoria.Formatador] = {
     "pedido_aprovacao.aprovar": _decisao_do_pedido,
     "pedido_aprovacao.recusar": _decisao_do_pedido,
     "usuario.bloqueado": _bloqueio,
+    "usuario.reconfirmar_2fa": _reconfirmar_2fa,
+    "usuario.reconfirmar_2fa_falhou": _reconfirmar_2fa,
     "suporte.entrar": _entrar,
     "suporte.sair": _terminar("Saiu do modo suporte"),
     "suporte.encerrar": _terminar("O acesso de suporte terminou no prazo"),

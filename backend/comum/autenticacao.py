@@ -33,7 +33,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenBackendError, TokenError
 from rest_framework_simplejwt.settings import api_settings
 from rest_framework_simplejwt.state import token_backend
-from rest_framework_simplejwt.tokens import RefreshToken, Token
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken, Token
 
 from comum import relogio
 from comum.conexao import conexao
@@ -44,8 +44,9 @@ CLAIM_EMPRESA = "empresa_id"
 CLAIM_AMR = "amr"
 CLAIM_SESSAO = "sid"
 CLAIM_APARELHO = "aparelho"
-# Quando as 2 etapas foram confirmadas (segundos UTC). Só no login completo, nunca na rotação:
-# ações sensíveis pedem a confirmação recente (backup completo, S-15; cancelar, T-199).
+# Quando as 2 etapas foram confirmadas (segundos UTC). Nasce no login completo e na reconfirmação
+# (`2fa/reconfirmar/`, ADR 0032), nunca na rotação: ações sensíveis pedem a confirmação recente
+# (backup completo, S-15; cancelar, T-199).
 CLAIM_AUTH_TIME = "auth_time"
 AMR_SENHA = ("pwd",)
 AMR_SENHA_E_CODIGO = ("pwd", "otp")
@@ -140,6 +141,22 @@ def emitir_tokens(
     refresh[CLAIM_SESSAO] = sid
     sessoes().vincular(sid, str(refresh[api_settings.JTI_CLAIM]))
     return refresh
+
+
+def emitir_access_reconfirmado(atual: Token) -> AccessToken:
+    """Access novo depois de reconfirmar as 2 etapas (ADR 0032): as claims do token atual (`sid`,
+    `schema`, `empresa_id`, `amr`) e `auth_time` = agora.
+
+    Não passa por `emitir_tokens`: não abre sessão, não emite refresh nem vincula `jti`, e o
+    refresh vigente da sessão continua o mesmo (um `renovar` de outra aba não é afetado).
+    """
+    conferir_empresa(atual)
+    access = AccessToken()
+    access[api_settings.USER_ID_CLAIM] = atual[api_settings.USER_ID_CLAIM]
+    for claim in (CLAIM_SCHEMA, CLAIM_EMPRESA, CLAIM_AMR, CLAIM_SESSAO):
+        access[claim] = atual[claim]
+    access[CLAIM_AUTH_TIME] = int(relogio.agora().timestamp())
+    return access
 
 
 class TokenPre2FA(Token):

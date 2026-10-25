@@ -20,6 +20,7 @@ urls_empresa: list[URLPattern] = [
         acesso.CodigosRecuperacaoView.as_view(),
         name="2fa-codigos-recuperacao",
     ),
+    path("auth/2fa/reconfirmar/", acesso.Reconfirmar2FAView.as_view(), name="2fa-reconfirmar"),
     path("auth/renovar/", acesso.RenovarView.as_view(), name="renovar"),
     path("auth/sair/", acesso.SairView.as_view(), name="sair"),
     path("auth/eu/", acesso.EuView.as_view(), name="eu"),
