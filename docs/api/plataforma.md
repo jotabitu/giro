@@ -416,8 +416,8 @@ Servido no host da empresa e implementado em `plataforma/api/`. Usa `conectar_re
 | `recusada` | "Cadastro recusado" | "O parceiro recusou o cadastro. Fale com a equipe Giro." |
 
 - **`acoes.conectar`:** `true` só em `desconectado`. Um novo pedido depois da recusa fica com a equipe Giro no MVP, e o produto decide se a tela ganha isso.
-- **`sugestao`:** só em `desconectado`, com os campos pré-preenchidos para o formulário: `{ nome, documento, email, celular, cep, logradouro, numero, complemento, bairro }`. Vêm da razão social e do CNPJ da empresa, do e-mail e do celular do administrador e do endereço da matriz. O administrador confere e corrige.
-- **Consulta ao parceiro:** em `pendente`, o `GET` chama `atualizar_recebimentos` no máximo uma vez por minuto por empresa, com cache no Redis. Se o parceiro está fora do ar, responde a situação gravada, sem erro. Na transição para `aprovada`, marca o passo `recebimentos` (`IMP-07`, acima) e grava `conta_pagamento.aprovada` na auditoria `configuracoes`, regra `FIN-04`. Na transição para `recusada`, grava `conta_pagamento.recusada`.
+- **`sugestao`:** só em `desconectado`, com os campos pré-preenchidos para o formulário: `{ nome, documento, email, celular, cep, logradouro, numero, complemento, bairro }`. Vêm da razão social e do CNPJ da empresa, do e-mail e do celular do administrador que está logado e do endereço da matriz (B-03 da T-384). O administrador confere e corrige.
+- **Consulta ao parceiro:** em `pendente`, o `GET` chama `atualizar_recebimentos` no máximo uma vez por minuto por empresa, com trava atômica no Redis (`cache.add`) por empresa. Quem não pega a trava responde a situação gravada (B-01 da T-384). Se o parceiro está fora do ar, responde a situação gravada, sem erro. Na transição para `aprovada`, marca o passo `recebimentos` (`IMP-07`, acima) e grava `conta_pagamento.aprovada` na auditoria `configuracoes`, regra `FIN-04`. Na transição para `recusada`, grava `conta_pagamento.recusada`.
 
 ### POST /api/recebimentos/
 
@@ -436,6 +436,9 @@ Corpo:
 - **422 `parceiro_recusou`:** com a mensagem do parceiro. Nada é gravado (CA-029-02).
 - **503 `parceiro_indisponivel`:** nada é gravado.
 - **A chave da subconta e o token do webhook nunca saem na resposta** (S-05, S-14).
+- **Trava (M-01 da T-384):** trava a empresa antes de chamar o parceiro. Dois envios ao mesmo tempo criam uma subconta só, e o outro recebe 409 `recebimentos_conectados`.
+- **O corpo vai só ao parceiro (B-02 da T-384):** não é gravado no Giro, não entra no evento `conta_pagamento.criar` nem em log.
+- **Limite (B-02 da T-384):** 10 envios por hora por empresa; acima disso, 429 `muitas_requisicoes`.
 
 **A tela de referência pede mais do que a API faz** (`Onboarding-Recebimentos`; o design-system ajusta a tela):
 - **Banco, agência, conta e chave Pix:** a transferência automática para a conta da locadora fica para depois (S-05, `financeiro.md`, "Devoluções ao cliente").

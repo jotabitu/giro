@@ -244,7 +244,7 @@ Dinheiro que sai para o cliente (caução da devolução, `DEV-02`; o que foi pa
 - **`motivo`:** o texto gravado no `Reembolso`. `origem.veiculo` traz a placa com hífen e o modelo (`README.md`).
 - **"Ver acerto"** abre o detalhe da locação pelo `origem.id`.
 - **`acoes.marcar_feito`:** `true` só em `a_fazer` e para quem pode. Com token de suporte, sempre `false`, porque o suporte não marca reembolso como feito (403 `PLT-07`).
-- **`comprovante`:** URL assinada de 15 minutos (`AUD-05`), ou `null`.
+- **`comprovante`:** URL assinada de 15 minutos (`AUD-05`), ou `null`. Com token de suporte, sempre `null` (`AUD-09`), como os documentos do cliente (M-02 da T-384).
 - **O que a tela de referência mostra e não vem no MVP:**
   - "Exportar": a exportação é só da auditoria e das despesas, `auditoria.md`;
   - "Prazo médio de acerto" e "meta: até 3 dias úteis": nenhuma regra fala de prazo;
