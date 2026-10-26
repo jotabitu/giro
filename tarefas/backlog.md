@@ -147,6 +147,13 @@ Concluída. As tarefas entregues estão em `tarefas/feito.md`.
 
 ## Fase 1 · MVP
 
+### [decisão] Remetente do WhatsApp que o cliente da locadora vê (ADR 0034, levantada na T-385, T-387)
+- **Para:** dono do produto, pelo orquestrador · **Contexto:** na opção A da ADR (um número só, do Giro), a Meta exige o nome de exibição do negócio verificado, e o cliente vê "Giro Avisos". Isso contraria "Toda mensagem ao cliente final sai com a marca da locadora, nunca com o nome Giro" (Automações).
+  - **A:** exceção na fase 1. O remetente é "Giro Avisos", com a marca da locadora sempre no texto ("Moto Rápida informa: ...") e o perfil "Avisos das empresas que usam o sistema Giro. Este número não recebe mensagens."; número próprio na fase 2.
+  - **B:** um número por locadora já, que é trabalho de fase 2.
+  - **C:** sem WhatsApp ao cliente final na fase 1.
+
+  **Padrão: A** (produto e arquiteto). Está em "Pontos em aberto" das regras; handoff `tarefas/handoffs/T-387-produto.md`.
 ### Fechamento da fase 1 (decisões do dono de 25 out 2026)
 
 Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (segurança), e pelas decisões do dono em `MEMORY.md` ("Escopo de fechamento da fase 1").
