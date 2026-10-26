@@ -81,10 +81,10 @@ Todos os serviços do `docker-compose.yml` têm `restart: unless-stopped`: volta
 
 **Onde a `DATABASE_URL_MIGRACAO` entra (T-352, achado B-01 da T-199):** só no `worker` do Celery, nunca no `backend` (web) nem no `beat`.
 - **Por quê:** é credencial com DDL em todos os schemas. A única rotina de execução que a usa é a `plataforma.aud_08_apagar_empresas` (`DROP SCHEMA` da empresa cancelada, ADR 0025), que roda no worker. O web, que atende a internet, e o beat, que só agenda, não precisam dela; sem ela, um furo no web não ganha DDL. Sem a variável no worker, a tarefa só registra um log de erro e a empresa fica para o dia seguinte.
-- **Desenvolvimento:** vem do `.env` (modelo em `.env.example`). O `docker-compose.yml` a zera (`DATABASE_URL_MIGRACAO: ""`) no `backend` e no `beat`; o `worker` a lê do `env_file`.
-- **Homologação:** `infra/deploy/docker-compose.homologacao.yml` a passa ao `worker` (`DATABASE_URL_MIGRACAO: ${DATABASE_URL_MIGRACAO}`, do cofre) e a zera no `backend`, no `beat` e no `estaticos`. O `migrar` continua com ela para o `migrate_schemas`. Em produção vale o mesmo desenho; o cofre (`producao.env.example`) traz a variável com a do `giro_migracao`.
+- **Desenvolvimento:** vem do `.env` (modelo em `.env.example`). O `docker-compose.yml` a zera (`DATABASE_URL_MIGRACAO: ""`) no `backend` e no `beat`; o `worker` a lê do `env_file` e consome as filas `celery` e `apagamento` (T-382: o backend manda a `aud_08_apagar_empresas` para a fila `apagamento`, `CELERY_TASK_ROUTES`).
+- **Homologação:** `infra/deploy/docker-compose.homologacao.yml` a passa ao `worker-apagamento` (`DATABASE_URL_MIGRACAO: ${DATABASE_URL_MIGRACAO}`, do cofre, só a fila `apagamento`) e a zera no `worker` (só a fila `celery`), no `backend`, no `beat` e no `estaticos`. O `migrar` continua com ela para o `migrate_schemas`. Em produção vale o mesmo desenho; o cofre (`producao.env.example`) traz a variável com a do `giro_migracao`.
 - **Por que zerar e não omitir:** o arquivo de variáveis do cofre é o mesmo para todos os serviços (`env_file`), então a variável chegaria a todos. `environment:` vence o `env_file`.
-- **CI:** o job Infra roda `infra/scripts/check-migracao-so-no-worker.sh`, que falha se o `backend` ou o `beat` receber a variável, ou se o `worker` não a receber, nos dois compose.
+- **CI:** o job Infra roda `infra/scripts/check-migracao-so-no-worker.sh`, que falha se a variável chegar a outro serviço que não o worker que lê a fila `apagamento` (`worker` no dev, `worker-apagamento` na homologação), ou se outro serviço ler essa fila, nos dois compose.
 
 **Dev:** `DATABASE_URL` e `DATABASE_URL_MIGRACAO` apontam para o superusuário do container (ADR 0016, item 5); os valores com papéis separados estão comentados em `.env.example`.
 

@@ -54,16 +54,28 @@ services:
     # Sem `command`: vale o CMD da imagem, o Gunicorn com infra/docker/gunicorn.conf.py.
     stop_grace_period: 40s
 
+  # Fila padrão (`celery`). Não lê a fila `apagamento` e não recebe a credencial de migração.
   worker:
     <<: *backend
     depends_on:
       migrar:
         condition: service_completed_successfully
-    # Único serviço de execução com o giro_migracao: a aud_08_apagar_empresas apaga o schema da
-    # empresa cancelada com ele (T-352, ADR 0016 e 0025). Vem do cofre, como no `migrar`.
+    environment:
+      DATABASE_URL_MIGRACAO: ""
+    command: ["celery", "-A", "config", "worker", "--loglevel=INFO", "-Q", "celery", "-n", "geral@%h"]
+    stop_grace_period: 40s
+
+  # Worker próprio do apagamento (T-352, T-382; mesmo desenho da produção): lê só a fila
+  # `apagamento`, para onde o backend manda a aud_08_apagar_empresas (CELERY_TASK_ROUTES), e é o
+  # único serviço de execução com o giro_migracao (ADR 0016 e 0025), vindo do cofre como no `migrar`.
+  worker-apagamento:
+    <<: *backend
+    depends_on:
+      migrar:
+        condition: service_completed_successfully
     environment:
       DATABASE_URL_MIGRACAO: ${DATABASE_URL_MIGRACAO}
-    command: ["celery", "-A", "config", "worker", "--loglevel=INFO"]
+    command: ["celery", "-A", "config", "worker", "--loglevel=INFO", "-Q", "apagamento", "--concurrency=1", "-n", "apagamento@%h"]
     stop_grace_period: 40s
 
   beat:
