@@ -79,6 +79,13 @@ Todos os serviços do `docker-compose.yml` têm `restart: unless-stopped`: volta
 
 `infra/postgres/01-papeis.sh` cria os três, dá a `giro_migracao` o schema `public` e `CREATE` no banco, e deixa `giro_app` com `SELECT/INSERT/UPDATE/DELETE` por privilégio padrão no `public`. Roda só quando o volume do Postgres é criado (`make down V=1` para refazer). Testado num Postgres 16 limpo: `giro_app` não cria tabela nem schema e lê e escreve em tabela criada por `giro_migracao`.
 
+**Onde a `DATABASE_URL_MIGRACAO` entra (T-352, achado B-01 da T-199):** só no `worker` do Celery, nunca no `backend` (web) nem no `beat`.
+- **Por quê:** é credencial com DDL em todos os schemas. A única rotina de execução que a usa é a `plataforma.aud_08_apagar_empresas` (`DROP SCHEMA` da empresa cancelada, ADR 0025), que roda no worker. O web, que atende a internet, e o beat, que só agenda, não precisam dela; sem ela, um furo no web não ganha DDL. Sem a variável no worker, a tarefa só registra um log de erro e a empresa fica para o dia seguinte.
+- **Desenvolvimento:** vem do `.env` (modelo em `.env.example`). O `docker-compose.yml` a zera (`DATABASE_URL_MIGRACAO: ""`) no `backend` e no `beat`; o `worker` a lê do `env_file`.
+- **Homologação:** `infra/deploy/docker-compose.homologacao.yml` a passa ao `worker` (`DATABASE_URL_MIGRACAO: ${DATABASE_URL_MIGRACAO}`, do cofre) e a zera no `backend`, no `beat` e no `estaticos`. O `migrar` continua com ela para o `migrate_schemas`. Em produção vale o mesmo desenho; o cofre (`producao.env.example`) traz a variável com a do `giro_migracao`.
+- **Por que zerar e não omitir:** o arquivo de variáveis do cofre é o mesmo para todos os serviços (`env_file`), então a variável chegaria a todos. `environment:` vence o `env_file`.
+- **CI:** o job Infra roda `infra/scripts/check-migracao-so-no-worker.sh`, que falha se o `backend` ou o `beat` receber a variável, ou se o `worker` não a receber, nos dois compose.
+
 **Dev:** `DATABASE_URL` e `DATABASE_URL_MIGRACAO` apontam para o superusuário do container (ADR 0016, item 5); os valores com papéis separados estão comentados em `.env.example`.
 
 **O que o backend precisa fazer (ainda não feito):**
