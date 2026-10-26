@@ -1,14 +1,19 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { marca as marcaApi, ramo as ramoApi, type AndamentoDoAssistente } from "@/lib/api";
+import { useSessao } from "@/lib/sessao";
 import { mensagemDoErro } from "@/lib/erros";
 import { destinoAntesDe, destinoDepoisDe } from "@/lib/implantacao";
 import { useMarcaDaEmpresa } from "@/lib/marca-empresa";
 import { CascaDoAssistente } from "./CascaDoAssistente";
+import { PassoContrato } from "./PassoContrato";
+import { PassoEquipe } from "./PassoEquipe";
+import { PassoFilial } from "./PassoFilial";
 import { PassoMarca } from "./PassoMarca";
+import { PassoPrecos } from "./PassoPrecos";
 import { PassoRamo } from "./PassoRamo";
 
 function Carregando({ texto }: { texto: string }) {
@@ -47,7 +52,25 @@ function Ramo({ andamento }: { andamento: AndamentoDoAssistente }) {
   return <PassoRamo guardado={consulta.data} nomeDaEmpresa={marca.nome} voltarPara={destinoAntesDe(andamento, "ramo")} aoContinuar={() => router.push(destinoDepoisDe(andamento, "ramo"))} />;
 }
 
-/** Passo do assistente que ainda não tem tela (sem contrato ou sem página): a moldura segue, e os botões só navegam. */
+/** Os passos que gravam por telas próprias (filial, preços, contrato, equipe): "Continuar" relê o andamento e segue; "Pular" só navega (IMP-05). */
+function ComRodape({ andamento, passo }: { andamento: AndamentoDoAssistente; passo: "filial" | "precos" | "contrato" | "equipe" }) {
+  const router = useRouter();
+  const cliente = useQueryClient();
+  const { eu } = useSessao();
+  const feito = andamento.passos.find((p) => p.passo === passo)?.feito ?? false;
+  const antes = destinoAntesDe(andamento, passo);
+  const depois = destinoDepoisDe(andamento, passo);
+  const seguir = async () => {
+    await cliente.invalidateQueries({ queryKey: ["implantacao"] });
+    router.push(depois);
+  };
+  if (passo === "filial") return <PassoFilial voltarPara={antes} pularPara={depois} aoContinuar={() => void seguir()} />;
+  if (passo === "precos") return <PassoPrecos feito={feito} voltarPara={antes} pularPara={depois} aoContinuar={() => void seguir()} />;
+  if (passo === "contrato") return <PassoContrato feito={feito} voltarPara={antes} pularPara={depois} aoPublicar={() => void cliente.invalidateQueries({ queryKey: ["implantacao"] })} aoContinuar={() => void seguir()} />;
+  return <PassoEquipe eu={eu} feito={feito} voltarPara={antes} pularPara={depois} aoContinuar={() => void seguir()} />;
+}
+
+/** Passo do assistente que ainda não tem tela (hoje só os recebimentos, até a T-366): a moldura segue, e os botões só navegam. */
 export function SemTela({ andamento, passo }: { andamento: AndamentoDoAssistente; passo: string }) {
   const atual = andamento.passos.find((p) => p.passo === passo);
   return (
@@ -72,6 +95,7 @@ export function SemTela({ andamento, passo }: { andamento: AndamentoDoAssistente
 export function CorpoDoPasso({ andamento, passo }: { andamento: AndamentoDoAssistente; passo: string }) {
   if (passo === "marca") return <Marca andamento={andamento} />;
   if (passo === "ramo") return <Ramo andamento={andamento} />;
+  if (passo === "filial" || passo === "precos" || passo === "contrato" || passo === "equipe") return <ComRodape andamento={andamento} passo={passo} />;
   return <SemTela andamento={andamento} passo={passo} />;
 }
 

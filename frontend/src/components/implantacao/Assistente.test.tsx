@@ -55,8 +55,8 @@ describe("navegação entre passos (lib/implantacao)", () => {
     expect(vizinhos(ANDAMENTO_PROFISSIONAL, "xyz")).toEqual({ anterior: null, seguinte: null });
   });
 
-  it("só marca, ramo e importar têm tela; os outros ficam listados sem inventar rota", () => {
-    expect(["marca", "ramo", "importar", "filial", "precos", "contrato", "recebimentos", "equipe"].filter((p) => passoTemTela(p))).toEqual(["marca", "ramo", "importar"]);
+  it("todos os passos têm tela, menos recebimentos (T-366); a rota é a mesma da chave", () => {
+    expect(["marca", "ramo", "importar", "filial", "precos", "contrato", "recebimentos", "equipe"].filter((p) => !passoTemTela(p))).toEqual(["recebimentos"]);
     expect(rotaDoPasso("ramo")).toBe("/implantacao/ramo");
   });
 });
@@ -71,13 +71,15 @@ describe("CascaDoAssistente", () => {
     expect(h).toContain("Tabela de preços a seguir");
   });
 
-  it("só os passos com tela viram link; o atual e os sem tela não", async () => {
+  it("os passos com tela viram link; o atual e os recebimentos (sem tela) não", async () => {
     await entrar("mariana@motorapida.com.br");
     const h = comCache(<CascaDoAssistente passo="ramo">{() => null}</CascaDoAssistente>);
     expect(h).toContain('href="/implantacao/marca"');
     expect(h).toContain('href="/implantacao/importar"');
     expect(h).not.toContain('href="/implantacao/ramo"');
-    expect(h).not.toContain('href="/implantacao/contrato"');
+    expect(h).toContain('href="/implantacao/contrato"');
+    expect(h).toContain('href="/implantacao/equipe"');
+    expect(h).not.toContain('href="/implantacao/recebimentos"');
   });
 
   it("Essencial: o número vem da API (importar é o 6 de 7)", async () => {
@@ -136,12 +138,12 @@ describe("passos ligados na casca", () => {
     expect(h).toContain("3 módulos no seu plano");
   });
 
-  it("passo sem tela: mostra o rótulo da API e só navega (Voltar e Pular por agora)", async () => {
+  it("recebimentos, sem tela até a T-366: mostra o rótulo da API e só navega (Voltar e Pular por agora)", async () => {
     await entrar("mariana@motorapida.com.br");
-    const h = comCache(<CorpoDoPasso andamento={ANDAMENTO_PROFISSIONAL} passo="contrato" />);
-    expect(h).toContain("Modelo de contrato");
+    const h = comCache(<CorpoDoPasso andamento={ANDAMENTO_PROFISSIONAL} passo="recebimentos" />);
+    expect(h).toContain("Recebimentos");
     expect(h).toContain("Esta etapa ainda não está disponível aqui.");
-    expect(h).toContain('href="/implantacao/precos"');
-    expect(h).toContain('href="/implantacao/recebimentos"');
+    expect(h).toContain('href="/implantacao/contrato"');
+    expect(h).toContain('href="/implantacao/importar"');
   });
 });
