@@ -1,327 +1,224 @@
 # Cobertura de regras
 
-Tabela regra → teste → status. Gerada na T-040 a partir de `backend/tests/aceitacao/`. Fonte dos critérios: `docs/qa/criterios/`. Data: 07 out 2026.
+Tabela regra → teste → status, refeita na T-375 (parte 1) a partir dos testes da `origin/main` de 26 out 2026 (`943c1ca`), lendo os testes: nada foi rodado. Substitui a versão de 07 out (T-040), que era de esqueletos `xfail` e não vale mais. Fonte das regras: `docs/regras-de-negocio.md`; fases pelas marcas da T-356 (25 out 2026). Os critérios `CA-` estão em `docs/qa/criterios/`.
 
-Status: **esqueleto** = teste com o código da regra e os números esperados, marcado `xfail(strict)` até o backend da tarefa entregar; **passa** = teste verde; **T-019** = critério [integração], fica para o seed completo.
+## Como ler
 
-| Regra | Critério | Teste | Tarefa | Status |
+- **Regra:** código da regra (160 códigos achados no arquivo de regras; a contagem do Produto na T-353 foi 159, a diferença é uma regra nova ou a forma de contar).
+- **Fase:** 1 = MVP; 2 = marcada como fase 2 na regra, na seção ou pela T-356.
+- **Testes:** até 2 testes com o código no nome (`test_<regra>_...`), e a coluna seguinte tem quantos existem. `(xfail)` = teste que ainda não passa de propósito.
+- **Status:** `coberta` = pelo menos um teste verde com o código no nome; `outro nome` = a regra é testada, mas sem o código no nome; `xfail` = só há teste esperado-falhar; `fase 2` = fora do MVP e sem teste ainda; `FALTA TESTE` = é da fase 1 e nada a cobre.
+
+## Resumo
+
+| Status | Regras |
+| --- | --- |
+| coberta | 124 (3 delas são da fase 2 e já têm teste, ver abaixo) |
+| xfail | 3 |
+| outro nome | 2 |
+| fase 2 sem teste | 28 |
+| **FALTA TESTE (fase 1)** | **3**: `AUT-01`, `AUT-11`, `IMP-07` |
+
+Atenção: `FIN-09` (comissão da locação) tem testes verdes (`test_fin_09_ca_015_25_*`) e é da fase 2 desde a T-356. Quando o backend parar de lançar a comissão de locação (tarefa que decorre da T-356), esses testes têm de ser trocados por um que prove que **nenhuma** comissão nasce, na mesma entrega. Aviso a quem pegar essa tarefa. Os outros dois casos de fase 2 já com teste são `FIN-13` (linhas do relatório) e `AUT-04` (Pix Automático pelo Asaas, que o MVP não usa: a parcela segue a régua).
+
+## As regras sem teste com o código no nome
+
+O Produto contou 42 na T-353 (main `626d432`); hoje são 33, porque os testes das T-215, T-281 e das tarefas de assinatura e cancelamento entraram depois. Conferência de cada uma:
+
+| Regra | Resultado | Detalhe |
+| --- | --- | --- |
+| `PLT-10`, `PLT-16` | fase 2 | painel da plataforma e compra pública (`Plat-*`, `Compra-*`) sem rota no frontend (MEMORY, 14 out) |
+| `IMP-06`, `AUT-14` | fase 2 | marca "Fase 2" na regra (T-356) |
+| `IMP-07` | **falta teste** | regra nova da T-356 (o que marca cada passo do assistente); nenhum teste cobre. Pertence à tarefa que implementa os 5 passos da implantação |
+| `VEI-05` | outro nome | "Rendeu no ano" e custo de manutenção: o teste `test_usr_09_vendedor_sem_custo_do_veiculo` e o do contrato da ficha (`test_t013_veiculos.py`, chaves `rendeu_no_ano_centavos` e `custo_manutencao_ano_centavos`) conferem a presença e a ausência; **não há teste do valor** (receitas − custos do ano). Renomear com o código e somar um teste do cálculo |
+| `CLI-11` | fase 2 | preencher pela CNH-e (16 out) |
+| `VEN-01`, `VEN-03` a `VEN-10` | fase 2 | vendas inteiras; `apps/vendas` é só README |
+| `FIN-10`, `FIN-11`, `FIN-14`, `AUT-10`, `AUT-12` | fase 2 | comissões, conciliação e relatórios (T-356) |
+| `MAN-01`, `MAN-02`, `MAN-04` a `MAN-06`, `AUT-07` | fase 2 | manutenção e preventivas; `apps/manutencao` não existe |
+| `APR-08`, `AUT-09` | fase 2 | aviso da aprovação esquecida |
+| `AUT-16` | fase 2 | expurgo da auditoria (T-356) |
+| `AUT-01` | **falta teste** | lembrete de devolução às 08:00 por WhatsApp. É da fase 1 e a tarefa nem existe no código: backlog **T-367** |
+| `AUT-02` | outro nome | a tarefa `aut_02_marcar_devolucao_atrasada` é exercida em `test_loc_10_ca_015_19_tolerancia_e_diarias` (`test_t091_locacao_fim.py`) e nos de `test_t111_decisoes_t091.py`; falta um teste com `aut_02` no nome (renomear ou somar um) |
+| `AUT-11` | **falta teste** | backup mensal (e-mail com o link). A geração do arquivo existe (`apps/auditoria`, exportação completa com 2 etapas), mas a tarefa agendada do dia 1 às 09:00 não, e nem a regra nem o backlog marcam a fase. [decisão] para o Produto: fase 1 ou 2? |
+| `FIN-09` (já tem teste) | ver acima | comissão da locação ficou fase 2 |
+
+## xfail que ainda existem
+
+Sete testes (nenhum xfail dinâmico: `QUEBRADAS` da T-317 está vazia e a T-189 não tem mais `xfail`).
+
+| Teste | Arquivo | O que destrava |
+| --- | --- | --- |
+| `test_plt_06_reativar_so_com_atrasada_paga` | `test_t195_cancelar_pausar.py` | **T-365** (backend, `reativar_empresa`, depende da T-196). `strict` |
+| `test_plt_14_fatura_guarda_tomador_ao_pedir_a_nota` | `test_t184_faturas.py` | **T-197** (backend, NFS-e da assinatura, `[bloqueada]` até o contador confirmar). Não é `strict` |
+| `test_man_03_seed_019_10_proxima_troca_de_oleo_aos_19900` | `test_t019_seed_completo.py` | módulo de manutenção/OS (fase 2); sem tarefa no backlog |
+| `test_ven_02_seed_019_31_venda_ven_0177` | `test_t019_seed_completo.py` | módulo de vendas (fase 2); sem tarefa no backlog |
+| `test_fin_09_seed_019_31_comissao_da_venda_ven_0177` | `test_t019_seed_completo.py` | vendas e comissões (fase 2, `AUT-10`); sem tarefa no backlog |
+| `test_fin_12_seed_019_31_conciliacao_diferenca_de_137_10` | `test_t019_seed_completo.py` | módulo de conciliação (fase 2); sem tarefa no backlog |
+| `test_fin_13_seed_019_31_dre_de_setembro_34231_30` | `test_t019_seed_completo.py` | selector da DRE e relatórios (fase 2); sem tarefa no backlog |
+
+Os cinco da fase 2 são os casos da tabela de referência (VEN-0177, comissão, conciliação R$ 137,10, DRE de setembro R$ 34.231,30, troca de óleo aos 19.900 km) que só se provam quando os módulos existirem. Até lá, a "Pronto quando" do QA ("todos os casos da tabela de referência passam") não se fecha na fase 1: peço decisão do Orquestrador sobre registrar isso como exceção da fase.
+
+## Tabela por regra
+
+| Regra | Fase | Testes com o código no nome | Qtd | Status |
 | --- | --- | --- | --- | --- |
-| APR-06 | CA-013-16 | `test_apr_06_ca_013_16_correcao_para_baixo` | T-013 | esqueleto |
-| AUD-01 | CA-011-28 | `test_aud_01_ca_011_28_eventos_de_seguranca` | T-011 | esqueleto |
-| AUD-04 | CA-014-07 | `test_aud_04_ca_014_07_mascara_nas_listas` | T-014 | esqueleto |
-| AUD-04 | CA-014-08 | `test_aud_04_ca_014_08_detalhe_completo_so_para_quem_cadastra` | T-014 | esqueleto |
-| AUD-04 | CA-014-11 | `test_aud_04_ca_014_11_auditoria_sem_dado_pessoal_aberto` | T-014 | esqueleto |
-| AUD-05 | CA-013-20 | `test_aud_05_ca_013_20_arquivo_privado` | T-013 | esqueleto |
-| AUD-05 | CA-014-10 | `test_aud_05_ca_014_10_documentos_privados` | T-014 | esqueleto |
-| AUD-09 | CA-014-09 | `test_aud_09_ca_014_09_suporte_giro_sempre_mascarado` | T-014 | esqueleto |
-| CLI-01 | CA-014-01 | `test_cli_01_ca_014_01_cpf_validado_e_unico` | T-014 | esqueleto |
-| CLI-01 | CA-014-12 | `test_cli_01_ca_014_12_busca_por_cpf` | T-014 | esqueleto |
-| CLI-02 | CA-014-13 | `test_cli_02_ca_014_13_itens_da_analise` | T-014 | esqueleto |
-| CLI-02 | CA-014-14 | `test_cli_02_ca_014_14_impedimentos_para_retirada` | T-014 | esqueleto |
-| CLI-03 | CA-014-02 | `test_cli_03_ca_014_02_salvar_incompleto` | T-014 | esqueleto |
-| CLI-03 | CA-014-03 | `test_cli_03_ca_014_03_completar_leva_a_ativo` | T-014 | esqueleto |
-| CLI-03 | CA-014-04 | `test_cli_03_ca_014_04_consentimento` | T-014 | esqueleto |
-| CLI-05 | CA-014-17 | `test_cli_05_ca_014_17_bloqueio_e_desbloqueio_manuais` | T-014 | esqueleto |
-| CLI-06 | CA-014-18 | `test_cli_06_ca_014_18_inativar_e_reativar` | T-014 | esqueleto |
-| CLI-07 | CA-014-22 | `test_cli_07_ca_014_22_filtros` | T-014 | esqueleto |
-| CLI-08 | CA-014-05 | `test_cli_08_ca_014_05_salvar_e_iniciar_locacao` | T-014 | esqueleto |
-| CLI-08 | CA-014-06 | `test_cli_08_ca_014_06_quem_cadastra` | T-014 | esqueleto |
-| FIL-01 | CA-012-01 | `test_fil_01_ca_012_01_primeira_filial_e_matriz` | T-012 | esqueleto |
-| FIL-01 | CA-012-02 | `test_fil_01_ca_012_02_representacao` | T-012 | esqueleto |
-| FIL-01 | CA-012-05 | `test_fil_01_ca_012_05_nome_unico_sem_diferenca_de_maiusculas` | T-012 | esqueleto |
-| FIL-01 | CA-012-06 | `test_fil_01_ca_012_06_validacoes` | T-012 | esqueleto |
-| FIL-01 | CA-012-07 | `test_fil_01_ca_012_07_uma_matriz_so` | T-012 | esqueleto |
-| FIL-02 | CA-012-10 | `test_fil_02_ca_012_10_horario_normal` | T-012 | esqueleto |
-| FIL-02 | CA-012-17 | `test_fil_02_ca_012_17_busca_de_cep` | T-012 | esqueleto |
-| FIL-03 | CA-012-08 | `test_fil_03_ca_012_08_feriados_nacionais_sugeridos` | T-012 | esqueleto |
-| FIL-03 | CA-012-09 | `test_fil_03_ca_012_09_feriado_conta_como_fechado` | T-012 | esqueleto |
-| FIL-06 | CA-012-13 | `test_fil_06_ca_012_13_matriz_e_ultima_filial_nao_desativam` | T-012 | esqueleto |
-| FIL-06 | CA-012-14 | `test_fil_06_ca_012_14_filial_sem_operacao_desativa` | T-012 | esqueleto |
-| FIL-06 | CA-012-15 | `test_fil_06_ca_012_15_filial_com_operacao_nao_desativa` | T-012 | esqueleto |
-| FIL-06 | CA-012-16 | `test_fil_06_ca_012_16_contas_em_aberto_nao_impedem` | T-012 | esqueleto |
-| FIL-06 | CA-013-14 | `test_fil_06_ca_013_14_veto_a_desativacao_da_filial` | T-013 | esqueleto |
-| FIN-15 | carteira de outubro | `test_fin_15_carteira_tem_42_locacoes_e_csv_igual_ao_gerador` | T-056 | passa |
-| FIN-15 | carteira de outubro | `test_fin_15_previsto_recebido_vence_hoje_e_atraso_em_07_out` | T-056 | passa |
-| FIN-15 | carteira de outubro | `test_fin_15_abas_somam_a_aba_todas` | T-056 | passa |
-| FIN-15 | carteira de outubro | `test_fin_15_contador_do_menu_e_a_aba_em_atraso` | T-056 | passa |
-| FIN-15 | carteira de outubro | `test_fin_15_recebido_nunca_passa_do_previsto` | T-056 | passa |
-| IMP-05 | CA-010-16 | `test_imp_05_ca_010_16_moto_rapida_na_lista_e_no_detalhe` | T-010 | passa |
-| IMP-05 | CA-010-17 | `test_imp_05_ca_010_17_ordem_da_situacao` | T-010 | passa |
-| LOC-01 | CA-013-21 | `test_loc_01_ca_013_21_tabela_do_seed` | T-013 | esqueleto |
-| LOC-01 | CA-013-24 | `test_loc_01_ca_013_24_categoria` | T-013 | esqueleto |
-| LOC-02 | CA-013-25 | `test_loc_02_ca_013_25_extras` | T-013 | esqueleto |
-| LOC-15 | CA-013-22 | `test_loc_15_ca_013_22_preco_vigente_na_data` | T-013 | esqueleto |
-| LOC-15 | CA-013-23 | `test_loc_15_ca_013_23_preco_novo_nao_reescreve_o_passado` | T-013 | esqueleto |
-| PLT-01 | CA-010-02 | `test_plt_01_ca_010_02_moto_rapida_nasce_em_teste` | T-010 | passa |
-| PLT-01 | CA-010-03 | `test_plt_01_ca_010_03_vencimento_da_primeira_fatura` | T-010 | passa |
-| PLT-01 | CA-010-04 | `test_plt_01_ca_010_04_subdominio_e_cnpj_unicos` | T-010 | passa |
-| PLT-01 | CA-010-05 | `test_plt_01_ca_010_05_isolamento_entre_empresas` | T-010 | passa |
-| PLT-03 | CA-010-01 | `test_plt_03_ca_010_01_tres_planos_do_seed` | T-010 | passa |
-| PLT-03 | CA-010-06 | `test_plt_03_ca_010_06_uso_da_moto_rapida_sem_aviso` | T-010 | passa |
-| PLT-03 | CA-010-07 | `test_plt_03_ca_010_07_aviso_em_90_por_cento` | T-010 | passa |
-| PLT-03 | CA-010-08 | `test_plt_03_ca_010_08_bloqueio_em_100_por_cento_so_de_cadastro_novo` | T-010 | passa |
-| PLT-03 | CA-010-09 | `test_plt_03_ca_010_09_duas_criacoes_simultaneas_nao_furam_o_limite` | T-010 | passa |
-| PLT-03 | CA-010-10 | `test_plt_03_ca_010_10_plano_sem_limite` | T-010 | passa |
-| PLT-03 | CA-010-11 | `test_plt_03_ca_010_11_empresa_sem_operacao_fica_so_leitura` | T-010 | passa |
-| PLT-03 | CA-011-17 | `test_plt_03_ca_011_17_limite_do_plano_conta_convites` | T-011 | esqueleto |
-| PLT-03 | CA-012-03 | `test_plt_03_ca_012_03_uso_do_plano_na_lista` | T-012 | esqueleto |
-| PLT-03 | CA-012-04 | `test_plt_03_ca_012_04_segunda_e_terceira_filial_ate_o_limite` | T-012 | esqueleto |
-| PLT-03 | CA-013-08 | `test_plt_03_ca_013_08_limite_de_veiculos` | T-013 | esqueleto |
-| PLT-07 | CA-011-26 | `test_plt_07_ca_011_26_faixa_e_permissoes_do_suporte` | T-011 | esqueleto |
-| PLT-07 | CA-011-27 | `test_plt_07_ca_011_27_administrador_controla_o_suporte` | T-011 | esqueleto |
-| PLT-08 | CA-010-12 | `test_plt_08_ca_010_12_login_com_duas_etapas_obrigatorio` | T-010 | passa |
-| PLT-08 | CA-010-13 | `test_plt_08_ca_010_13_tres_codigos_errados_bloqueiam_por_15_minutos` | T-010 | passa |
-| PLT-08 | CA-010-15 | `test_plt_08_ca_010_15_convite_da_equipe_vence_em_7_dias` | T-010 | passa |
-| PLT-09 | CA-010-14 | `test_plt_09_ca_010_14_funcoes_da_equipe` | T-010 | passa |
-| USR-01 | CA-011-01 | `test_usr_01_ca_011_01_contagens_do_seed` | T-011 | esqueleto |
-| USR-01 | CA-011-02 | `test_usr_01_ca_011_02_so_o_administrador_administra_usuarios` | T-011 | esqueleto |
-| USR-01 | CA-011-14 | `test_usr_01_ca_011_14_convidar` | T-011 | esqueleto |
-| USR-01 | CA-011-15 | `test_usr_01_ca_011_15_convite_vence_em_7_dias` | T-011 | esqueleto |
-| USR-01 | CA-011-16 | `test_usr_01_ca_011_16_reenviar_e_cancelar` | T-011 | esqueleto |
-| USR-01 | CA-011-18 | `test_usr_01_ca_011_18_aceitar_o_convite` | T-011 | esqueleto |
-| USR-02 | CA-011-04 | `test_usr_02_ca_011_04_login_com_duas_etapas` | T-011 | esqueleto |
-| USR-02 | CA-011-10 | `test_usr_02_ca_011_10_quem_e_obrigado` | T-011 | esqueleto |
-| USR-02 | CA-011-11 | `test_usr_02_ca_011_11_exigir_para_todos` | T-011 | esqueleto |
-| USR-02 | CA-011-12 | `test_usr_02_ca_011_12_mudar_de_perfil` | T-011 | esqueleto |
-| USR-02 | CA-011-13 | `test_usr_02_ca_011_13_configurar_autenticador_com_a_marca_da_locadora` | T-011 | esqueleto |
-| USR-02 | CA-011-24 | `test_usr_02_ca_011_24_redefinir_duas_etapas` | T-011 | esqueleto |
-| USR-03 | CA-011-20 | `test_usr_03_ca_011_20_pode_por_perfil` | T-011 | esqueleto |
-| USR-04 | CA-011-07 | `test_usr_04_ca_011_07_quem_nao_pode_entrar` | T-011 | esqueleto |
-| USR-04 | CA-011-22 | `test_usr_04_ca_011_22_desativar_encerra_na_hora` | T-011 | esqueleto |
-| USR-04 | CA-011-23 | `test_usr_04_ca_011_23_sempre_um_administrador` | T-011 | esqueleto |
-| USR-05 | CA-011-21 | `test_usr_05_ca_011_21_permissoes_extras_so_somam` | T-011 | esqueleto |
-| USR-06 | CA-011-03 | `test_usr_06_ca_011_03_login_sem_duas_etapas` | T-011 | esqueleto |
-| USR-06 | CA-011-05 | `test_usr_06_ca_011_05_cinco_tentativas_erradas_bloqueiam_por_15_minutos` | T-011 | esqueleto |
-| USR-06 | CA-011-06 | `test_usr_06_ca_011_06_mensagem_de_erro_nao_revela_o_que_errou` | T-011 | esqueleto |
-| USR-06 | CA-011-08 | `test_usr_06_ca_011_08_duracao_da_sessao` | T-011 | esqueleto |
-| USR-06 | CA-011-09 | `test_usr_06_ca_011_09_sair_e_sessoes` | T-011 | esqueleto |
-| USR-06 | CA-011-19 | `test_usr_06_ca_011_19_senha` | T-011 | esqueleto |
-| USR-06 | CA-011-25 | `test_usr_06_ca_011_25_recuperacao_sem_revelar_contas` | T-011 | esqueleto |
-| USR-07 | CA-012-11 | `test_usr_07_ca_012_11_seletor_de_filial` | T-012 | esqueleto |
-| USR-07 | CA-012-12 | `test_usr_07_ca_012_12_so_o_administrador_administra_filiais` | T-012 | esqueleto |
-| VEI-01 | CA-013-02 | `test_vei_01_ca_013_02_busca` | T-013 | esqueleto |
-| VEI-01 | CA-013-03 | `test_vei_01_ca_013_03_valor_de_compra_so_para_gestao` | T-013 | esqueleto |
-| VEI-01 | CA-013-04 | `test_vei_01_ca_013_04_escopo_de_filial` | T-013 | esqueleto |
-| VEI-01 | CA-013-05 | `test_vei_01_ca_013_05_cadastrar` | T-013 | esqueleto |
-| VEI-01 | CA-013-06 | `test_vei_01_ca_013_06_placa_e_chassi_unicos_em_qualquer_estado` | T-013 | esqueleto |
-| VEI-01 | CA-013-07 | `test_vei_01_ca_013_07_formato` | T-013 | esqueleto |
-| VEI-01 | CA-013-09 | `test_vei_01_ca_013_09_corrigir_placa_ou_chassi` | T-013 | esqueleto |
-| VEI-01 | CA-013-15 | `test_vei_01_ca_013_15_km_nunca_diminui` | T-013 | esqueleto |
-| VEI-02 | CA-013-10 | `test_vei_02_ca_013_10_acoes_permitidas` | T-013 | esqueleto |
-| VEI-02 | CA-013-11 | `test_vei_02_ca_013_11_acoes_combina_perfil_e_estado` | T-013 | esqueleto |
-| VEI-03 | CA-013-17 | `test_vei_03_ca_013_17_situacao_do_documento` | T-013 | esqueleto |
-| VEI-03 | CA-013-18 | `test_vei_03_ca_013_18_vencimento_tira_da_frota_disponivel` | T-013 | esqueleto |
-| VEI-03 | CA-013-19 | `test_vei_03_ca_013_19_renovar_nao_libera_sozinho` | T-013 | esqueleto |
-| VEI-04 | CA-013-13 | `test_vei_04_ca_013_13_transferencia_so_disponivel` | T-013 | esqueleto |
-| VEI-06 | CA-013-01 | `test_vei_06_ca_013_01_contagens_do_seed` | T-013 | esqueleto |
-| VEI-06 | CA-013-26 | `test_vei_06_ca_013_26_ocupacao_de_90_dias` | T-013 | esqueleto |
-| VEI-07 | CA-013-12 | `test_vei_07_ca_013_12_servico_de_transicao` | T-013 | esqueleto |
-
-## Critérios [integração] da T-014 (ficam para a T-019)
-
-CA-014-15 (CLI-05, bloqueio automático com 15 dias), CA-014-16 (CLI-05, desbloqueio ao quitar), CA-014-19 (CLI-07, ação principal), CA-014-20 (situação na lista), CA-014-21 (CLI-06, FIN-01, contagens e indicadores) e a parte com locação e financeiro de CA-014-18 (`cliente_com_pendencia`).
-
-## Regras citadas nos critérios sem teste próprio (cobertas por outro código)
-
-- PLT-09 e PLT-08 em CA-010-12 a 15 usam os códigos PLT-08 e PLT-09 no nome; CA-010-15 leva PLT-08 por falta de código próprio para convite da equipe.
-- AUD-03, FIL-02 (tarefa urgente), AUT-06, APR-09 aparecem dentro dos critérios CA-011-27, CA-013-18 e CA-014-17, sem teste com o próprio código no nome.
-- Regras fora de T-010 a T-014 (LOC, DEV, FIN, VEN e demais) entram nas próximas tarefas de aceitação.
-
-## Inventário de todas as regras com código
-
-Uma linha por código de `docs/regras-de-negocio.md` (136 códigos). "Testes" conta os testes de esqueleto da tabela acima. Os códigos sem critério não têm teste porque a regra ainda não virou critério de aceite; quando o produto escrever o critério, o qa cria o teste.
-
-| Regra | Testes | Situação |
-| --- | --- | --- |
-| APR-01 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
-| APR-02 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
-| APR-03 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
-| APR-04 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
-| APR-05 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| APR-06 | 1 | esqueleto (T-010 a T-014) |
-| APR-07 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| APR-08 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| APR-09 | 0 | critério escrito em T-015, T-017; teste na tarefa de aceitação correspondente |
-| APR-10 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| AUD-01 | 1 | esqueleto (T-010 a T-014) |
-| AUD-02 | 0 | critério escrito em T-018; teste na tarefa de aceitação correspondente |
-| AUD-03 | 0 | critério escrito em T-018; teste na tarefa de aceitação correspondente |
-| AUD-04 | 3 | esqueleto (T-010 a T-014) |
-| AUD-05 | 2 | esqueleto (T-010 a T-014) |
-| AUD-06 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| AUD-07 | 0 | critério escrito em T-018; teste na tarefa de aceitação correspondente |
-| AUD-08 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| AUD-09 | 1 | esqueleto (T-010 a T-014) |
-| AUT-01 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| AUT-02 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| AUT-03 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| AUT-04 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| AUT-05 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
-| AUT-06 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| AUT-07 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| AUT-08 | 0 | critério escrito em T-017, T-018; teste na tarefa de aceitação correspondente |
-| AUT-09 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| AUT-10 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| AUT-11 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| AUT-12 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| AUT-13 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| AUT-14 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| AUT-15 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| CLI-01 | 2 | esqueleto (T-010 a T-014) |
-| CLI-02 | 2 | esqueleto (T-010 a T-014) |
-| CLI-03 | 3 | esqueleto (T-010 a T-014) |
-| CLI-04 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| CLI-05 | 1 | esqueleto (T-010 a T-014) |
-| CLI-06 | 1 | esqueleto (T-010 a T-014) |
-| CLI-07 | 1 | esqueleto (T-010 a T-014) |
-| CLI-08 | 2 | esqueleto (T-010 a T-014) |
-| CLI-09 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| DEV-01 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
-| DEV-02 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
-| DEV-03 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
-| DEV-04 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
-| DEV-05 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
-| DEV-06 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
-| FIL-01 | 5 | esqueleto (T-010 a T-014) |
-| FIL-02 | 2 | esqueleto (T-010 a T-014) |
-| FIL-03 | 2 | esqueleto (T-010 a T-014) |
-| FIL-04 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| FIL-05 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
-| FIL-06 | 5 | esqueleto (T-010 a T-014) |
-| FIN-01 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
-| FIN-02 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
-| FIN-03 | 0 | critério escrito em T-015, T-017; teste na tarefa de aceitação correspondente |
-| FIN-04 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
-| FIN-05 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
-| FIN-06 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
-| FIN-07 | 0 | critério escrito em T-016, T-017; teste na tarefa de aceitação correspondente |
-| FIN-08 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
-| FIN-09 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
-| FIN-10 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
-| FIN-11 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| FIN-12 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| FIN-13 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| FIN-14 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| FIN-15 | 5 | passa (T-056, sobre a carteira de outubro em `docs/qa/carteira-outubro/`); a conferência contra a API fica para a T-017 e a T-019 |
-| IMP-01 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| IMP-02 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| IMP-03 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| IMP-04 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
-| IMP-05 | 2 | passa (T-010) |
-| IMP-06 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| LOC-01 | 2 | esqueleto (T-010 a T-014) |
-| LOC-02 | 1 | esqueleto (T-010 a T-014) |
-| LOC-03 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
-| LOC-04 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
-| LOC-05 | 0 | critério escrito em T-015, T-017; teste na tarefa de aceitação correspondente |
-| LOC-06 | 0 | critério escrito em T-015, T-017; teste na tarefa de aceitação correspondente |
-| LOC-07 | 0 | critério escrito em T-017; teste na tarefa de aceitação correspondente |
-| LOC-08 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
-| LOC-09 | 0 | critério escrito em T-015, T-016; teste na tarefa de aceitação correspondente |
-| LOC-10 | 0 | critério escrito em T-015, T-016; teste na tarefa de aceitação correspondente |
-| LOC-11 | 0 | critério escrito em T-015, T-016; teste na tarefa de aceitação correspondente |
-| LOC-12 | 0 | critério escrito em T-015, T-016, T-017; teste na tarefa de aceitação correspondente |
-| LOC-13 | 0 | critério escrito em T-015, T-016; teste na tarefa de aceitação correspondente |
-| LOC-14 | 0 | critério escrito em T-015; teste na tarefa de aceitação correspondente |
-| LOC-15 | 2 | esqueleto (T-010 a T-014) |
-| MAN-01 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| MAN-02 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| MAN-03 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| MAN-04 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| MAN-05 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| MAN-06 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| PLT-01 | 4 | passa (T-010) |
-| PLT-02 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| PLT-03 | 11 | 7 passam (T-010); 4 esqueleto (T-011 a T-013) |
-| PLT-04 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| PLT-05 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| PLT-06 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| PLT-07 | 2 | esqueleto (T-010 a T-014) |
-| PLT-08 | 3 | passa (T-010) |
-| PLT-09 | 1 | passa (T-010) |
-| PLT-10 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| USR-01 | 6 | esqueleto (T-010 a T-014) |
-| USR-02 | 6 | esqueleto (T-010 a T-014) |
-| USR-03 | 1 | esqueleto (T-010 a T-014) |
-| USR-04 | 3 | esqueleto (T-010 a T-014) |
-| USR-05 | 1 | esqueleto (T-010 a T-014) |
-| USR-06 | 7 | esqueleto (T-010 a T-014) |
-| USR-07 | 2 | esqueleto (T-010 a T-014) |
-| VEI-01 | 8 | esqueleto (T-010 a T-014) |
-| VEI-02 | 2 | esqueleto (T-010 a T-014) |
-| VEI-03 | 3 | esqueleto (T-010 a T-014) |
-| VEI-04 | 1 | esqueleto (T-010 a T-014) |
-| VEI-05 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| VEI-06 | 2 | esqueleto (T-010 a T-014) |
-| VEI-07 | 1 | esqueleto (T-010 a T-014) |
-| VEN-01 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| VEN-02 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| VEN-03 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| VEN-04 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| VEN-05 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| VEN-06 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| VEN-07 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| VEN-08 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| VEN-09 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| VEN-10 | 0 | sem critério ainda; tarefa de critérios do produto pendente |
-| VIS-01 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
-| VIS-02 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
-| VIS-03 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
-| VIS-04 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
-| VIS-05 | 0 | critério escrito em T-016; teste na tarefa de aceitação correspondente |
-
-## T-019 · Seed completo: critérios CA-019-01 a 31
-
-Testes em `backend/tests/aceitacao/test_t019_seed_completo.py` (`test_<regra>_seed_019_NN_*`), sobre o banco que o `make seed` deixa, com o relógio em 07 out 2026 12:00 (os casos de outras datas movem o relógio no próprio teste). Data: 13 out 2026.
-
-| Critério | Caso | Status |
-| --- | --- | --- |
-| CA-019-01, 02 | Idempotência, sem dado real | passa (`test_seed_127_02`, `test_seed_127_07`, T-127) |
-| CA-019-03 a 07 | Empresa, 5 pessoas, uso do plano, implantação concluída, plataforma e equipe | passa |
-| CA-019-08, 09 | Tabela de preços e configuração; frota de 86 | passa |
-| CA-019-10 | QXA-4B21 (estado, km de 23 set) | passa; troca de óleo: xfail, sem módulo de manutenção |
-| CA-019-11 | Factor (16 L, 21.870 km, saída cheia) e NMax (8 L) | passa |
-| CA-019-12, 13, 15 | Clientes, bloqueio do Rafael, em aberto R$ 1.646,40 | passa |
-| CA-019-14 | Histórico da análise em 07 out | passa (T-148) |
-| CA-019-16 a 19 | 51 locações, as das telas, parcelas do CSV (sem D-21), reservas em novembro | passa |
-| CA-019-20, 21 | Contas a receber do mês e da semana | passa |
-| CA-019-22, 23 | Caixa de 07 out (gaveta R$ 281,00) e despesas de outubro (R$ 7.066,70) | passa |
-| CA-019-24 | Contadores, aprovações, Lúcia e João | passa (agenda do João com a devolução atrasada da LOC-2790; critério ajustado na T-166) |
-| CA-019-25 | Eventos nas horas e com o ator do caso | passa; sangria com a filial: xfail, T-150 |
-| CA-019-26 a 29 | Devolução da LOC-2836 (R$ 183,00), troca (R$ 263,00), LOC-2812, LOC-2841 em 07, 16, 28 e 30 out | passa |
-| CA-019-30 | Multa e juros no caixa (Carlos 30609, Rafael 138517) | passa; Rafael com os 4 documentos volta `ativo` (critério ajustado na T-166) |
-| CA-019-31 | Venda VEN-0177, comissões, conciliação, DRE | xfail: sem módulo |
-
-Os `xfail(strict)` avisam quando o código chegar.
-
-## Decisões de 14 a 21 out 2026: assinatura e aprovações (T-204, T-215)
-
-Critérios em `docs/qa/criterios/assinatura.md` (CA-ASS) e `aprovacoes.md` (CA-APR). Os testes de aceitação ficam em `backend/tests/aceitacao/` (`test_t184_faturas.py`, `test_t185_assinatura.py`, `test_t185b_forma_faturas.py`, `test_t186_estados.py`, `test_t186b_faturas_cobranca.py`, `test_t195_cancelar_pausar.py`, `test_t127_seed.py`, `test_t019_seed_completo.py`, `test_t204_decisoes_seed.py`) e os de cada app em `backend/apps/*/tests/`. **passa** = teste verde na `main`; **espera T-nnn** = o teste se escreve quando a tarefa de código fechar, com o nome do critério.
-
-| Critério | Teste | Status |
-| --- | --- | --- |
-| CA-ASS-01 | `test_plt_01_primeira_fatura_dia_seguinte_ao_teste`, `test_plt_01_ca_ass_01_assinatura_da_moto_rapida_em_07_out`, `test_plt_01_seed_184_fatura_e_dados_fiscais` | passa (T-184, T-185) |
-| CA-ASS-02 a 06 | `test_plt_01_*`, `test_plt_02_*`, `test_aut_13_*` (`test_t186_estados.py`) | passa (T-186) |
-| CA-ASS-07, 08 | `apps/plataforma/tests/test_calendario.py` (08), `test_plt_14_codigo_da_fatura_por_empresa` (07) | passa (T-184) |
-| CA-ASS-09 | `test_plt_01_primeira_fatura_do_anual` | passa (T-184) |
-| CA-ASS-10 a 12 | `test_plt_02_ca_ass_10_boleto_cinco_dias_antes`, `test_plt_02_ca_ass_11_cartao_sem_cartao_guardado_emite_a_pagina`, `test_plt_02_cartao_uma_tentativa_a_mais` (`test_t186b_faturas_cobranca.py`) | passa (T-186) |
-| CA-ASS-13 a 19 | `test_plt_04_*`, `test_plt_07_ca_ass_19_*` (`test_t185_assinatura.py`) | passa (T-185) |
-| CA-ASS-20 a 25, 50 a 53 | `test_plt_11_*`, `test_plt_12_*` | espera T-196 (módulos por plano; T-262 já cobre o ramo) |
-| CA-ASS-26 a 28 | `test_plt_13_*`, `test_plt_14_*` (`test_t185b_forma_faturas.py`) | passa (T-185) |
-| CA-ASS-29 | `test_plt_15_dados_fiscais`, `test_plt_15_cnpj_e_endereco_nulo_recusados` (`test_t185_assinatura.py`) | dados fiscais e CNPJ passam (T-185); NFS-e espera T-197 (bloqueada pelo contador) |
-| CA-ASS-30 a 39 | `test_plt_06_*`, `test_aud_08_*` (`test_t195_cancelar_pausar.py`) | passa (T-195) |
-| CA-ASS-40, 41 | `test_plt_04_downgrade_agendado_deixa_de_caber`, `test_plt_04_downgrade_cabia_na_geracao` (`test_t186b_faturas_cobranca.py`) | passa (T-186, T-215) |
-| CA-ASS-42 | `test_plt_06_pausa_comeca_no_fim_do_periodo_pago` (`test_t195_cancelar_pausar.py`) | passa (T-195, T-215) |
-| CA-ASS-43 a 45 | `test_plt_06_desfazer_cancelamento_no_teste`, `test_plt_06_desfazer_cancelamento_na_ativa`, `test_plt_06_desfazer_cancelamento_na_ativa_com_a_fatura_emitida`, `test_plt_06_quem_nao_desfaz` (`test_t195_cancelar_pausar.py`) | passa (T-195, T-215) |
-| CA-ASS-46 | `test_plt_06_reativar_so_com_atrasada_paga` (`test_t195_cancelar_pausar.py`) | esqueleto (`xfail` estrito, espera `reativar_empresa` no backend) |
-| CA-ASS-47, 48 | `test_plt_15_endereco_nasce_da_matriz`, `test_plt_15_endereco_da_nota_e_da_filial_separados`, `test_plt_15_dados_fiscais`, `test_plt_01_seed_184_fatura_e_dados_fiscais`, `test_plt_15_seed_019_ca_ass_47_48_dados_fiscais_e_filial_separados` | passa (T-184, T-185, T-215) |
-| CA-ASS-49 | `test_plt_06_reativar_no_periodo_pago` | espera `reativar_empresa` no backend |
-| CA-ASS-54 a 58, 60 | `test_plt_06_cancelar_no_teste_com_a_1a_paga`, `test_plt_06_desistir_da_pausa_agendada`, `test_plt_06_mudar_de_plano_com_cancelamento_marcado`, `test_plt_06_diferenca_em_aberto_na_pausa`, `test_aud_08_linha_apagada_so_com_cnpj`, `test_aud_08_dados_fiscais_sem_valor_na_auditoria_do_public`, `test_aud_08_fatura_atrasada_guarda_email` | passa (T-185, T-195) |
-| CA-ASS-59 | `test_plt_14_fatura_guarda_tomador`, `test_plt_14_fatura_guarda_tomador_ao_pedir_a_nota` | passa (T-184) |
-| CA-ASS-61, 62 | `test_plt_16_*` | espera `PLT-16` no backend |
-| CA-ASS-63 a 68 | `test_plt_13_pix_automatico_sem_autorizacao_sai_boleto`, `test_plt_13_autorizado_depois_vale_na_fatura_seguinte`, `test_aut_13_textos_da_regua_no_boleto`, `test_aut_13_automatica_nao_pede_nada`, `test_aut_13_whatsapp_com_marca_e_caminho`, `test_aut_13_d7_e_a_ligacao`, `test_aut_13_d7_perdido_sai_ate_d14` | passa (T-297, T-303) |
-| CA-ASS-69 | `test_plt_06_acesso_que_ja_acabou_termina_agora`, `test_plt_06_ca_ass_69_fatura_do_dia_paga_no_cartao_mantem_acesso` (`test_t195_cancelar_pausar.py`), `apps/plataforma/tests/test_calendario.py` | passa (T-195, T-215) |
-| CA-APR-01 (horas e números do seed) | `test_apr_12_seed_horas_dos_pedidos_aprovados`, `test_apr_12_seed_tempo_medio_de_90_minutos`, `test_apr_12_seed_pendentes_sao_pneus_e_loc_2812`, `test_apr_12_numeros_do_seed`, `test_apr_12_ca_apr_01_mariana_e_rodrigo_veem_os_mesmos_numeros_e_abas` | passa (T-202, T-204) |
-| CA-APR-02, 03, 04, 05, 06, 07, 08, 10 | `test_apr_12_*`, `test_apr_01_resumo_do_desconto` (`test_t202_aprovacoes.py`), `test_apr_12_apr_01_ca_apr_02_03_10_desconto_aprovado_e_pneus_recusados_no_seed`, `test_apr_12_ca_apr_04_cancelado_nao_muda_numeros_do_seed`, `test_apr_12_apr_04_ca_apr_05_diferenca_de_caixa_do_rodrigo_aprovada_pela_mariana` (`test_t204_decisoes_seed.py`) | passa (T-202, T-204) |
-| CA-APR-11 (`resumo` dos pneus) | `test_apr_03_resumo_da_despesa` (`test_t202_seed.py`), `test_apr_03_ca_apr_11_resumo_dos_pneus_com_placa_pmz_3e17` (`test_t204_decisoes_seed.py`) | passa (T-202, T-204, T-341) |
-| CA-018-09 (10 eventos) e CA-018-10 (configurações = 1) | `test_aud_02_ca_018_09_lista_do_seed`, `test_aud_02_ca_018_10_filtros` (`test_t018_auditoria.py`), `test_aud_02_evento_da_tabela_de_preco` (`test_t202_seed.py`), `test_aud_02_loc_15_seed_evento_de_01_out_17_42_por_mariana_na_lista` (`test_t204_decisoes_seed.py`) | passa (T-202, T-204) |
+| PLT-01 | 1 | `test_plt_01_periodo_da_primeira_fatura_da_moto_rapida`<br>`test_plt_01_mes_sem_o_dia_vence_no_ultimo_e_volta`<br>+23 testes | 25 | coberta |
+| PLT-02 | 1 | `test_plt_02_cartao_salvo_recusado_no_parceiro_falso`<br>`test_plt_02_situacao_do_cartao_recusado_e_da_atrasada`<br>+21 testes | 23 | coberta |
+| PLT-03 | 1 | `test_plt_03_preco_anual_e_10_mensalidades`<br>`test_plt_03_exigir_limite_fora_de_transacao_e_erro_de_programacao`<br>+19 testes | 21 | coberta |
+| PLT-04 | 1 | `test_plt_04_planos_para_comparar`<br>`test_plt_04_upgrade_em_teste`<br>+20 testes | 22 | coberta |
+| PLT-05 | 1 | `test_plt_05_plano_desativado_so_aparece_se_for_o_atual` | 1 | coberta |
+| PLT-06 | 1 | `test_plt_06_datas_do_cancelamento_da_moto_rapida`<br>`test_plt_06_cancelar_anual_sem_devolucao_vai_ate_o_fim_do_ano_pago`<br>+36 testes | 39 | coberta |
+| PLT-07 | 1 | `test_plt_07_ca_011_26_faixa_e_permissoes_do_suporte`<br>`test_plt_07_ca_011_27_administrador_controla_o_suporte`<br>+11 testes | 13 | coberta |
+| PLT-08 | 1 | `test_plt_08_ca_010_12_login_com_duas_etapas_obrigatorio`<br>`test_plt_08_ca_010_13_tres_codigos_errados_bloqueiam_por_15_minutos`<br>+18 testes | 20 | coberta |
+| PLT-09 | 1 | `test_plt_09_ca_010_14_funcoes_da_equipe`<br>`test_plt_09_ca_018_15_so_o_dono_ve` | 2 | coberta |
+| PLT-10 | 2 | — | 0 | fase 2 · Telas Plat-* e painel da plataforma são fase 2 (MEMORY, 14 out) |
+| PLT-11 | 1 | `test_plt_11_catalogo_confere_a_tabela_da_regra`<br>`test_plt_11_ca_ass_21_sem_oferta_no_completo` | 2 | coberta |
+| PLT-12 | 1 | `test_plt_12_ramo_get_seed`<br>`test_plt_12_configuracoes_cartao_ramo`<br>+11 testes | 13 | coberta |
+| PLT-13 | 1 | `test_plt_13_cartao_pago_na_pagina_fica_guardado`<br>`test_plt_13_cartao_com_outra_forma_nao_guarda_token`<br>+25 testes | 27 | coberta |
+| PLT-14 | 1 | `test_plt_14_descricao_da_fatura`<br>`test_plt_14_codigo_da_fatura_por_empresa`<br>+13 testes | 16 | coberta |
+| PLT-15 | 1 | `test_plt_15_seed_019_ca_ass_47_48_dados_fiscais_e_filial_separados`<br>`test_plt_15_endereco_nasce_da_matriz`<br>+9 testes | 11 | coberta |
+| PLT-16 | 2 | — | 0 | fase 2 · Compra pública (Compra-*) é fase 2 (MEMORY, 14 out) |
+| IMP-01 | 1 | `test_imp_01_seed_019_06_implantacao_concluida`<br>`test_usr_08_imp_01_implantacao`<br>+4 testes | 6 | coberta |
+| IMP-02 | 1 | `test_imp_02_83_prontos_3_com_erro_e_86_depois_de_corrigir`<br>`test_imp_02_correcao_que_ainda_tem_erro_continua_com_erro`<br>+7 testes | 9 | coberta |
+| IMP-03 | 1 | `test_imp_03_importa_ate_o_limite_e_avisa` | 1 | coberta |
+| IMP-04 | 1 | `test_imp_04_ca_015_09_sem_modelo_de_contrato_publicado`<br>`test_imp_04_publicar_o_primeiro_modelo_conclui_o_passo_contrato`<br>+2 testes | 4 | coberta |
+| IMP-05 | 1 | `test_imp_05_passo_da_implantacao_move_o_funil`<br>`test_imp_05_parada_mostra_o_primeiro_passo_aberto`<br>+17 testes | 19 | coberta |
+| IMP-06 | 2 | — | 0 | fase 2 · Marca "Fase 2" na regra (T-356) |
+| IMP-07 | 1 | — | 0 | FALTA TESTE |
+| USR-01 | 1 | `test_usr_01_ca_011_01_contagens_do_seed`<br>`test_usr_01_ca_011_02_so_o_administrador_administra_usuarios`<br>+17 testes | 19 | coberta |
+| USR-02 | 1 | `test_usr_02_ca_011_04_login_com_duas_etapas`<br>`test_usr_02_ca_011_10_quem_e_obrigado`<br>+13 testes | 15 | coberta |
+| USR-03 | 1 | `test_usr_03_ca_011_20_pode_por_perfil`<br>`test_usr_03_ca_011_21_detalhe_com_permissoes_extras`<br>+1 testes | 3 | coberta |
+| USR-04 | 1 | `test_usr_04_is_active_segue_o_status`<br>`test_usr_04_status_so_muda_pela_maquina`<br>+8 testes | 10 | coberta |
+| USR-05 | 1 | `test_usr_05_ca_011_21_permissoes_extras_so_somam`<br>`test_usr_05_usr_08_navegacao_por_perfil`<br>+11 testes | 13 | coberta |
+| USR-06 | 1 | `test_usr_06_ca_011_03_login_sem_duas_etapas`<br>`test_usr_06_ca_011_05_cinco_tentativas_erradas_bloqueiam_por_15_minutos`<br>+6 testes | 8 | coberta |
+| USR-07 | 1 | `test_usr_07_troca_de_filiais_da_pessoa_vai_para_a_auditoria`<br>`test_usr_07_financeiro_escolhe_todas_as_filiais`<br>+8 testes | 10 | coberta |
+| USR-08 | 1 | `test_usr_05_usr_08_navegacao_por_perfil`<br>`test_usr_08_administrador_ve_o_geral_depois_da_primeira_locacao`<br>+9 testes | 11 | coberta |
+| USR-09 | 1 | `test_usr_09_vistoriador_ve_veiculo_sem_valores`<br>`test_usr_09_vendedor_sem_custo_do_veiculo`<br>+8 testes | 10 | coberta |
+| FIL-01 | 1 | `test_fil_01_resumo_com_almoco_e_dias_soltos`<br>`test_fil_01_horario_valido`<br>+8 testes | 10 | coberta |
+| FIL-02 | 1 | `test_fil_02_ca_012_10_horario_normal`<br>`test_fil_02_ca_012_17_busca_de_cep` | 2 | coberta |
+| FIL-03 | 1 | `test_fil_03_pascoa`<br>`test_fil_03_nacionais_de_2026`<br>+3 testes | 5 | coberta |
+| FIL-04 | 1 | `test_vei_04_fil_04_ca_013_27_categoria_so_da_filial_na_transferencia` | 1 | coberta |
+| FIL-05 | 1 | `test_fil_05_ca_015_09_veiculo_de_outra_filial`<br>`test_fin_06_fil_05_filial_da_despesa_ligada_a_veiculo` | 2 | coberta |
+| FIL-06 | 1 | `test_fil_06_ca_012_13_matriz_e_ultima_filial_nao_desativam`<br>`test_fil_06_ca_012_14_filial_sem_operacao_desativa`<br>+4 testes | 6 | coberta |
+| VEI-01 | 1 | `test_vei_01_ca_013_02_busca`<br>`test_vei_01_ca_013_03_valor_de_compra_so_para_gestao`<br>+11 testes | 13 | coberta |
+| VEI-02 | 1 | `test_vei_02_ca_013_10_acoes_permitidas`<br>`test_vei_02_ca_013_11_acoes_combina_perfil_e_estado`<br>+2 testes | 4 | coberta |
+| VEI-03 | 1 | `test_vei_03_ca_013_17_situacao_do_documento`<br>`test_vei_03_aut_06_ca_013_18_vencimento_tira_da_frota_disponivel`<br>+4 testes | 6 | coberta |
+| VEI-04 | 1 | `test_vei_04_mov_06_rota_transferir_saiu`<br>`test_vei_04_ca_013_13_transferencia_so_disponivel`<br>+2 testes | 4 | coberta |
+| VEI-05 | 1 | `test_usr_09_vendedor_sem_custo_do_veiculo` (test_t013_veiculos.py) | 0 | outro nome |
+| VEI-06 | 1 | `test_vei_06_ca_013_01_contagens_do_seed`<br>`test_vei_06_ca_013_26_ocupacao_de_90_dias`<br>+4 testes | 6 | coberta |
+| VEI-07 | 1 | `test_vei_07_ca_013_12_servico_de_transicao` | 1 | coberta |
+| VEI-08 | 1 | `test_vei_08_catalogo_acha_modelo_unico`<br>`test_vei_08_catalogo_ambiguo_nao_preenche`<br>+27 testes | 29 | coberta |
+| MOV-01 | 1 | `test_mov_01_mov_03_ca_246_01_ida_ao_lava_jato`<br>`test_mov_01_ca_246_13_auditoria`<br>+5 testes | 7 | coberta |
+| MOV-02 | 1 | `test_mov_02_ca_246_11_quem_pode`<br>`test_mov_02_ca_246_17_quem_leva_acha_a_chegada`<br>+3 testes | 5 | coberta |
+| MOV-03 | 1 | `test_mov_03_acao_movimentar`<br>`test_mov_01_mov_03_ca_246_01_ida_ao_lava_jato`<br>+14 testes | 16 | coberta |
+| MOV-04 | 1 | `test_mov_04_fin_05_ca_246_02_parada_com_despesa`<br>`test_mov_04_ca_246_07_oficina_mantem_em_manutencao`<br>+3 testes | 5 | coberta |
+| MOV-05 | 1 | `test_mov_05_vei_01_ca_246_03_chegada_no_destino`<br>`test_mov_05_mov_06_vei_04_ca_246_09_transferencia_na_chegada`<br>+3 testes | 5 | coberta |
+| MOV-06 | 1 | `test_vei_04_mov_06_rota_transferir_saiu`<br>`test_mov_05_mov_06_vei_04_ca_246_09_transferencia_na_chegada` | 2 | coberta |
+| CLI-01 | 1 | `test_cli_01_cpf_unico_pelo_hash`<br>`test_cli_01_mesmo_cpf_em_outra_empresa_pode`<br>+8 testes | 10 | coberta |
+| CLI-02 | 1 | `test_cli_02_ca_014_13_itens_da_analise`<br>`test_cli_02_ca_014_14_impedimentos_para_retirada`<br>+2 testes | 4 | coberta |
+| CLI-03 | 1 | `test_cli_03_ca_014_02_salvar_incompleto`<br>`test_cli_03_ca_014_03_completar_leva_a_ativo`<br>+5 testes | 7 | coberta |
+| CLI-04 | 1 | `test_cli_04_seed_019_14_historico_da_analise_em_07_out`<br>`test_cli_04_historico_conta_que_nasce_vencida_nao_e_atraso`<br>+2 testes | 4 | coberta |
+| CLI-05 | 1 | `test_cli_05_ca_014_15_bloqueio_automatico_com_15_dias`<br>`test_cli_05_ca_014_16_desbloqueio_automatico_ao_quitar`<br>+8 testes | 10 | coberta |
+| CLI-06 | 1 | `test_cli_06_ca_014_20_situacao_na_lista`<br>`test_cli_06_ca_014_21_contagens_e_indicadores`<br>+1 testes | 3 | coberta |
+| CLI-07 | 1 | `test_cli_07_ca_014_19_acao_principal`<br>`test_cli_07_ca_014_19_acao_principal_com_os_blocos`<br>+1 testes | 3 | coberta |
+| CLI-08 | 1 | `test_cli_08_ca_014_05_salvar_e_iniciar_locacao`<br>`test_cli_08_ca_014_06_quem_cadastra` | 2 | coberta |
+| CLI-09 | 1 | `test_cli_09_ca_014_18_inativar_e_reativar`<br>`test_cli_09_ca_015_09_cliente_inativo` | 2 | coberta |
+| CLI-10 | 1 | `test_cli_10_lista_filtra_por_filial`<br>`test_cli_10_lista_ignora_o_seletor`<br>+1 testes | 3 | coberta |
+| CLI-11 | 2 | — | 0 | fase 2 · Marca "fase 2" na regra (16 out) |
+| LOC-01 | 1 | `test_loc_01_ca_013_21_tabela_do_seed`<br>`test_loc_01_ca_013_24_categoria`<br>+7 testes | 9 | coberta |
+| LOC-02 | 1 | `test_loc_02_ca_013_25_extras`<br>`test_loc_02_ca_015_04_extras_por_periodo` | 2 | coberta |
+| LOC-03 | 1 | `test_loc_03_ca_015_06_ate_5_por_cento_sem_aprovacao`<br>`test_loc_03_ca_015_06_gerente_da_8_por_cento_direto`<br>+4 testes | 6 | coberta |
+| LOC-04 | 1 | `test_loc_05_loc_04_ca_017_04_parcelas_antecipadas` | 1 | coberta |
+| LOC-05 | 1 | `test_loc_01_loc_05_loc_14_ca_015_02_diaria_semanal_e_mensal`<br>`test_loc_05_ca_015_07_rascunho_e_confirmacao`<br>+5 testes | 7 | coberta |
+| LOC-06 | 1 | `test_loc_06_ca_015_15_total_pago_loc_2836`<br>`test_loc_06_total_pago_pelo_fluxo` | 2 | coberta |
+| LOC-07 | 1 | `test_loc_07_loc_10_ca_015_16_sinais_e_lista`<br>`test_loc_07_cli_05_ca_017_11_atraso_alimenta_locacao_e_cliente` | 2 | coberta |
+| LOC-08 | 1 | `test_loc_08_aditivo_sem_assinatura_em_7_dias_avisa_os_gerentes`<br>`test_loc_08_aditivo_assinado_nao_conta_como_contrato`<br>+10 testes | 12 | coberta |
+| LOC-09 | 1 | `test_loc_09_ca_015_18_troca_de_veiculo`<br>`test_loc_09_ca_016_15_troca_de_veiculo_acerto_unico`<br>+15 testes | 17 | coberta |
+| LOC-10 | 1 | `test_loc_07_loc_10_ca_015_16_sinais_e_lista`<br>`test_loc_10_loc_11_fil_03_ca_016_12_atraso_no_acerto`<br>+2 testes | 4 | coberta |
+| LOC-11 | 1 | `test_loc_11_filial_sempre_fechada_nao_tem_proxima_abertura`<br>`test_loc_11_almoco_conta_como_fechado`<br>+2 testes | 4 | coberta |
+| LOC-12 | 1 | `test_dev_07_loc_12_ca_016_25_aprovacao_deixa_as_parcelas_4_e_5_em_aberto`<br>`test_loc_12_loc_13_ca_016_14_encerramento_antecipado_da_patricia`<br>+17 testes | 19 | coberta |
+| LOC-13 | 1 | `test_loc_12_loc_13_ca_016_14_encerramento_antecipado_da_patricia`<br>`test_loc_12_loc_13_ca_015_21_patricia_loc_2812`<br>+3 testes | 5 | coberta |
+| LOC-14 | 1 | `test_loc_01_loc_05_loc_14_ca_015_02_diaria_semanal_e_mensal`<br>`test_loc_14_ca_015_02_mensal_menor_que_um_mes` | 2 | coberta |
+| LOC-15 | 1 | `test_loc_15_ca_013_22_preco_vigente_na_data`<br>`test_loc_15_ca_013_23_preco_novo_nao_reescreve_o_passado`<br>+4 testes | 6 | coberta |
+| VIS-01 | 1 | `test_vis_01_saida_so_para_locacao_aguardando_retirada`<br>`test_vis_01_avaria_da_saida_e_preexistente_e_sem_valor`<br>+3 testes | 5 | coberta |
+| VIS-02 | 1 | `test_vis_02_ca_016_01_lista_pronta_ao_criar`<br>`test_vis_01_vis_02_vis_03_vei_01_ca_016_02_todas_as_pendencias` | 2 | coberta |
+| VIS-03 | 1 | `test_vis_01_vis_02_vis_03_vei_01_ca_016_02_todas_as_pendencias`<br>`test_dev_01_vis_03_ca_016_10_combustivel_com_outros_niveis` | 2 | coberta |
+| VIS-04 | 1 | `test_vis_04_ca_016_04_concluida_nao_se_edita_e_correcao` | 1 | coberta |
+| VIS-05 | 1 | `test_vis_05_ca_016_08_agenda`<br>`test_vis_05_agenda_com_todas_as_filiais_pede_uma` | 2 | coberta |
+| DEV-01 | 1 | `test_dev_01_vis_03_ca_016_10_combustivel_com_outros_niveis`<br>`test_dev_01_ca_016_10_sem_tanque_ou_sem_preco_vira_informado`<br>+6 testes | 8 | coberta |
+| DEV-02 | 1 | `test_dev_02_ca_016_11_saldo_negativo_vira_conta`<br>`test_dev_02_ca_016_22_parcela_que_nao_cabe_vai_para_renegociada`<br>+3 testes | 5 | coberta |
+| DEV-03 | 1 | `test_dev_03_ca_016_09_acerto_loc_2836` | 1 | coberta |
+| DEV-04 | 1 | `test_dev_04_dev_06_ca_016_17_encerrar`<br>`test_dev_04_vai_para_oficina_leva_a_em_manutencao` | 2 | coberta |
+| DEV-05 | 1 | `test_dev_05_ca_016_16_salvar_e_continuar_depois`<br>`test_dev_05_devolucao_so_de_locacao_ativa` | 2 | coberta |
+| DEV-06 | 1 | `test_dev_04_dev_06_ca_016_17_encerrar` | 1 | coberta |
+| DEV-07 | 1 | `test_dev_07_ca_016_23_antes_do_fim_sem_aprovacao_recusa`<br>`test_dev_07_ca_016_23_no_dia_do_fim_antes_da_hora_nao_e_antecipada`<br>+10 testes | 12 | coberta |
+| DEV-08 | 1 | `test_dev_08_seed_019_11_factor_e_nmax`<br>`test_dev_08_km_de_saida_igual_na_ficha_e_na_devolucao`<br>+1 testes | 3 | coberta |
+| VEN-01 | 2 | — | 0 | fase 2 · Vendas inteiras são fase 2 (regras, "Mudanças em 25 out 2026"; `apps/vendas` é só README) |
+| VEN-02 | 2 | `test_ven_02_seed_019_31_venda_ven_0177` (xfail) | 1 | xfail · Vendas inteiras são fase 2 (regras, "Mudanças em 25 out 2026"; `apps/vendas` é só README) |
+| VEN-03 | 2 | — | 0 | fase 2 · Vendas inteiras são fase 2 (regras, "Mudanças em 25 out 2026"; `apps/vendas` é só README) |
+| VEN-04 | 2 | — | 0 | fase 2 · Vendas inteiras são fase 2 (regras, "Mudanças em 25 out 2026"; `apps/vendas` é só README) |
+| VEN-05 | 2 | — | 0 | fase 2 · Vendas inteiras são fase 2 (regras, "Mudanças em 25 out 2026"; `apps/vendas` é só README) |
+| VEN-06 | 2 | — | 0 | fase 2 · Vendas inteiras são fase 2 (regras, "Mudanças em 25 out 2026"; `apps/vendas` é só README) |
+| VEN-07 | 2 | — | 0 | fase 2 · Vendas inteiras são fase 2 (regras, "Mudanças em 25 out 2026"; `apps/vendas` é só README) |
+| VEN-08 | 2 | — | 0 | fase 2 · Vendas inteiras são fase 2 (regras, "Mudanças em 25 out 2026"; `apps/vendas` é só README) |
+| VEN-09 | 2 | — | 0 | fase 2 · Vendas inteiras são fase 2 (regras, "Mudanças em 25 out 2026"; `apps/vendas` é só README) |
+| VEN-10 | 2 | — | 0 | fase 2 · Vendas inteiras são fase 2 (regras, "Mudanças em 25 out 2026"; `apps/vendas` é só README) |
+| FIN-01 | 1 | `test_fin_01_ca_017_01_estados_pela_data`<br>`test_fin_01_ca_017_03_em_aberto_dos_clientes`<br>+6 testes | 8 | coberta |
+| FIN-02 | 1 | `test_fin_02_ca_017_02_faixas_de_atraso` | 1 | coberta |
+| FIN-03 | 1 | `test_fin_03_juros_pro_rata_com_um_arredondamento_so`<br>`test_dev_01_fin_03_ca_016_13_parcela_com_multa_e_juros`<br>+6 testes | 8 | coberta |
+| FIN-04 | 1 | `test_fin_04_ca_017_05_baixa_no_caixa_em_dinheiro`<br>`test_fin_04_aut_05_ca_017_07_webhook_do_pix_baixa_sozinho`<br>+37 testes | 39 | coberta |
+| FIN-15 | 1 | `test_fin_07_fin_15_caixa_hoje_no_painel_do_administrador`<br>`test_fin_15_seed_019_20_contas_a_receber_de_outubro`<br>+12 testes | 14 | coberta |
+| FIN-05 | 1 | `test_fin_05_fin_06_ca_017_19_despesas_de_outubro`<br>`test_fin_05_apr_03_ca_017_20_limite_de_500`<br>+7 testes | 9 | coberta |
+| FIN-06 | 1 | `test_fin_05_fin_06_ca_017_19_despesas_de_outubro`<br>`test_fin_06_aud_05_ca_017_22_nota_e_veiculo`<br>+4 testes | 6 | coberta |
+| FIN-16 | 1 | `test_fin_16_despesa_por_veiculo_no_seed`<br>`test_fin_16_busca_descricao_e_placa`<br>+9 testes | 11 | coberta |
+| FIN-07 | 1 | `test_fin_07_ca_016_18_devolucao_em_dinheiro_exige_caixa`<br>`test_fin_07_ca_017_12_um_caixa_por_filial_por_dia`<br>+12 testes | 14 | coberta |
+| FIN-08 | 1 | `test_fin_08_aut_08_ca_017_16_fechamento_automatico` | 1 | coberta |
+| FIN-09 | 2 | `test_fin_09_ca_015_25_comissao_da_locacao_nova`<br>`test_fin_09_ca_015_25_estorno_e_renovacao_sem_comissao` | 3 | coberta (fase 2 já com teste) · Comissões, fase 2 (T-356) |
+| FIN-10 | 2 | — | 0 | fase 2 · Comissões, fase 2 (T-356) |
+| FIN-11 | 2 | — | 0 | fase 2 · Conciliação, fase 2 |
+| FIN-12 | 2 | `test_fin_12_seed_019_31_conciliacao_diferenca_de_137_10` (xfail) | 1 | xfail · Conciliação, fase 2 |
+| FIN-13 | 2 | `test_fin_13_linha_da_locacao_com_pago_sem_caucao_e_tipo_do_veiculo` | 2 | coberta (fase 2 já com teste) · Relatórios e DRE, fase 2 (T-356) |
+| FIN-14 | 2 | — | 0 | fase 2 · Relatórios e DRE, fase 2 (T-356) |
+| MAN-01 | 2 | — | 0 | fase 2 · Manutenção e OS são fase 2 (regras, planos por módulo) |
+| MAN-02 | 2 | — | 0 | fase 2 · Manutenção e OS são fase 2 (regras, planos por módulo) |
+| MAN-03 | 2 | `test_man_03_seed_019_10_proxima_troca_de_oleo_aos_19900` (xfail) | 1 | xfail · Manutenção e OS são fase 2 (regras, planos por módulo) |
+| MAN-04 | 2 | — | 0 | fase 2 · Manutenção e OS são fase 2 (regras, planos por módulo) |
+| MAN-05 | 2 | — | 0 | fase 2 · Manutenção e OS são fase 2 (regras, planos por módulo) |
+| MAN-06 | 2 | — | 0 | fase 2 · Manutenção e OS são fase 2 (regras, planos por módulo) |
+| APR-01 | 1 | `test_apr_01_ca_015_06_acima_do_limite_gerente_aprova`<br>`test_apr_01_ca_015_06_recusado_volta_a_zero_e_avisa`<br>+6 testes | 8 | coberta |
+| APR-02 | 1 | `test_apr_02_ca_015_16_loc_2812_cancelamento_pendente`<br>`test_apr_02_ca_015_21_gerente_cancela_direto`<br>+3 testes | 5 | coberta |
+| APR-03 | 1 | `test_fin_05_apr_03_ca_017_20_limite_de_500`<br>`test_apr_03_apr_09_contador_de_despesas`<br>+3 testes | 5 | coberta |
+| APR-04 | 1 | `test_fin_07_apr_04_ca_017_15_diferenca_vai_para_o_gerente`<br>`test_apr_12_ca_apr_04_cancelado_nao_muda_numeros_do_seed`<br>+1 testes | 3 | coberta |
+| APR-05 | 1 | `test_apr_12_apr_04_ca_apr_05_diferenca_de_caixa_do_rodrigo_aprovada_pela_mariana` | 1 | coberta |
+| APR-06 | 1 | `test_apr_06_pedido_repetido_e_pedido_pendente`<br>`test_apr_06_ca_013_16_correcao_para_baixo`<br>+5 testes | 7 | coberta |
+| APR-07 | 1 | `test_apr_07_recusar_exige_motivo_e_o_km_fica` | 1 | coberta |
+| APR-08 | 2 | — | 0 | fase 2 · Marca "Fase 2" na regra |
+| APR-09 | 1 | `test_apr_09_quem_pede_nao_aprova_no_banco`<br>`test_apr_09_ca_015_06_vendedora_com_a_extra_nao_aprova_o_proprio`<br>+9 testes | 11 | coberta |
+| APR-10 | 1 | `test_apr_10_pedir_grava_o_pedido_e_a_auditoria`<br>`test_apr_10_cancelar_pendentes_publica_a_decisao`<br>+3 testes | 5 | coberta |
+| APR-11 | 1 | `test_apr_03_ca_apr_11_resumo_dos_pneus_com_placa_pmz_3e17` | 1 | coberta |
+| APR-12 | 1 | `test_apr_12_desconto_aprovado`<br>`test_apr_12_recusado`<br>+13 testes | 15 | coberta |
+| AUT-01 | 1 | — | 0 | FALTA TESTE |
+| AUT-02 | 1 | `test_loc_10_ca_015_19_tolerancia_e_diarias` (test_t091_locacao_fim.py) | 0 | outro nome |
+| AUT-03 | 1 | `test_aut_03_bloqueio_recupera_dia_perdido`<br>`test_aut_03_texto_d_menos_1`<br>+7 testes | 9 | coberta |
+| AUT-04 | 2 | `test_aut_04_asaas_autorizacao_semanal_do_carlos`<br>`test_aut_04_asaas_cobra_a_parcela_pela_autorizacao`<br>+1 testes | 3 | coberta (fase 2 já com teste) · Pix Automático, fase 2 (T-283) |
+| AUT-05 | 1 | `test_fin_04_aut_05_ca_017_07_webhook_do_pix_baixa_sozinho`<br>`test_aut_05_t029_pix_pago_no_asaas_baixa_uma_vez`<br>+5 testes | 7 | coberta |
+| AUT-06 | 1 | `test_vei_03_aut_06_ca_013_18_vencimento_tira_da_frota_disponivel`<br>`test_vei_03_aut_06_ca_013_28_reservado_ou_em_manutencao_no_vencimento`<br>+1 testes | 3 | coberta |
+| AUT-07 | 2 | — | 0 | fase 2 · Preventivas (MAN-03), fase 2 |
+| AUT-08 | 1 | `test_fin_08_aut_08_ca_017_16_fechamento_automatico` | 1 | coberta |
+| AUT-09 | 2 | — | 0 | fase 2 · Aprovação esquecida (APR-08), fase 2 |
+| AUT-10 | 2 | — | 0 | fase 2 · Comissões do mês, fase 2 (T-356) |
+| AUT-11 | 1 | — | 0 | FALTA TESTE |
+| AUT-12 | 2 | — | 0 | fase 2 · Conciliação (FIN-11), fase 2 |
+| AUT-13 | 1 | `test_aut_13_ca_ass_10_lembrete_d3_por_email`<br>`test_aut_13_ca_ass_11_d3_com_o_link_da_pagina_do_cartao`<br>+14 testes | 16 | coberta |
+| AUT-14 | 2 | — | 0 | fase 2 · Implantação parada (IMP-06), fase 2 (T-356) |
+| AUT-15 | 1 | `test_aut_15_encerra_acessos_de_suporte_vencidos` | 1 | coberta |
+| AUT-16 | 2 | — | 0 | fase 2 · Expurgo da auditoria, fase 2 (T-356) |
+| AUD-01 | 1 | `test_aud_01_evento_guarda_ator_acao_objeto_antes_depois_ip_aparelho`<br>`test_aud_01_sem_requisicao_o_ator_e_o_sistema`<br>+28 testes | 30 | coberta |
+| AUD-02 | 1 | `test_aud_02_expurgo_so_apaga_eventos_com_mais_de_5_anos`<br>`test_aud_02_expurgo_recusa_limite_mais_recente_que_5_anos`<br>+8 testes | 10 | coberta |
+| AUD-03 | 1 | `test_aud_03_ca_018_11_suporte_em_destaque`<br>`test_aud_03_ca_018_14_auditoria_de_acessos`<br>+2 testes | 4 | coberta |
+| AUD-04 | 1 | `test_mascara_de_cpf_aud_04`<br>`test_aud_04_ca_014_07_mascara_nas_listas`<br>+2 testes | 4 | coberta |
+| AUD-05 | 1 | `test_aud_05_aceita_pdf_jpg_e_png_pelo_conteudo`<br>`test_aud_05_recusa_formato_ou_tamanho`<br>+11 testes | 13 | coberta |
+| AUD-06 | 1 | `test_aud_06_auditoria_de_pessoa_nao_guarda_nome_nem_documento_completos`<br>`test_aud_06_anonimizar_apaga_o_cifrado_e_troca_o_hash`<br>+1 testes | 3 | coberta |
+| AUD-07 | 1 | `test_aud_07_ca_018_13_exportar`<br>`test_aud_07_ca_018_13_backup_completo_pede_2_etapas_recentes`<br>+1 testes | 3 | coberta |
+| AUD-08 | 1 | `test_aud_08_aviso_7_dias_antes_e_apagamento_no_90_dia`<br>`test_aud_08_ca_010_11_cancelada_nao_le_nem_escreve`<br>+15 testes | 17 | coberta |
+| AUD-09 | 1 | `test_aud_09_ca_014_09_suporte_giro_sempre_mascarado`<br>`test_aud_09_ca_018_06_dados_pessoais_mascarados`<br>+2 testes | 4 | coberta |

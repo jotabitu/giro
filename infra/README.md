@@ -7,7 +7,7 @@ infra/
 ├── docker/        Dockerfiles de backend (também worker e beat) e frontend, entrypoint do backend
 ├── postgres/      SQL de inicialização do banco: papéis da ADR 0016 (01-papeis.sh)
 ├── scripts/       verificações de infra (check-env.sh)
-├── deploy/        homologação e produção (a definir em ADR: AWS, GCP ou VPS)
+├── deploy/        homologação e produção (uma VPS com tudo em Docker Compose, de preferência num provedor no Brasil: ADR 0033, opção B)
 └── backup/        scripts de backup diário e teste de restauração
 ```
 

@@ -18,14 +18,9 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 .two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .wl-field{width:100%}
 select.wl-input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-muted) 50%),linear-gradient(135deg,var(--ink-muted) 50%,transparent 50%);background-position:calc(100% - 22px) 21px,calc(100% - 16px) 21px;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
-.method{display:flex;align-items:center;gap:12px;padding:14px;border-radius:18px;background:var(--surface-sunken)}
-.method small{display:block;font-size:13px;line-height:18px;color:var(--ink-muted)}
-.chk{display:flex;align-items:center;gap:12px;min-height:46px;border-bottom:1px solid var(--line);font-size:15px}
-.chk:last-child{border-bottom:0}
-.chk input{width:22px;height:22px;margin:0;accent-color:var(--solid);flex:none}
 </style>
 </helmet>
-<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1700px; box-sizing: border-box; padding: 16px 16px 120px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1300px; box-sizing: border-box; padding: 16px 16px 120px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
 
 <header style="display: flex; align-items: center; gap: 10px; padding-top: 8px;">
 <div class="wl-logo-slot" style="width: 34px; height: 34px; border-radius: 10px; font-size: 13px;">MR</div>
@@ -48,41 +43,46 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 </div>
 
 <div style="padding: 4px 4px 0;">
-<h1 style="margin: 0; font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -0.02em;">Como você quer receber?</h1>
-<p style="margin: 8px 0 0; font-size: 15px; line-height: 22px; color: var(--ink-muted);">Parcelas geradas, enviadas e baixadas sozinhas.</p>
+<h1 style="margin: 0; font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -0.02em;">Conectar recebimentos</h1>
+<p style="margin: 8px 0 0; font-size: 15px; line-height: 22px; color: var(--ink-muted);">Abra a subconta da empresa no Asaas para emitir Pix e boleto com baixa automática (FIN-04).</p>
 </div>
 
+<section class="card" style="background: var(--surface-sunken); padding: 14px 16px; font-size: 13px; line-height: 19px; color: var(--ink-muted);">
+<span><strong>Análise Asaas:</strong> Os dados são enviados ao parceiro. O passo da implantação marca como concluído quando a subconta for aprovada (IMP-07).</span>
+</section>
+
 <section class="card">
-<h2 class="h2">Conta de recebimento</h2>
-<label class="wl-field"><span class="wl-field__label">Banco</span><select class="wl-input"><option>Banco do Brasil</option></select></label>
+<h2 class="h2">Dados da empresa</h2>
+<label class="wl-field"><span class="wl-field__label">Razão social</span><input class="wl-input" value="Moto Rápida Locadora LTDA"></label>
+<label class="wl-field"><span class="wl-field__label">CNPJ</span><input class="wl-input wl-mono" value="12.345.678/0001-95"></label>
+<label class="wl-field"><span class="wl-field__label">Tipo de empresa</span><select class="wl-input"><option value="LIMITED" selected>Sociedade Limitada (LTDA)</option><option value="MEI">MEI</option><option value="INDIVIDUAL">Individual</option><option value="ASSOCIATION">Associação</option></select></label>
+<label class="wl-field"><span class="wl-field__label">Faturamento mensal estimado</span><input class="wl-input wl-mono" value="R$ 50.000,00"></label>
+</section>
+
+<section class="card">
+<h2 class="h2">Contato</h2>
+<label class="wl-field"><span class="wl-field__label">E-mail</span><input type="email" class="wl-input" value="financeiro@motorapida.com.br"></label>
+<label class="wl-field"><span class="wl-field__label">Celular com DDD</span><input type="tel" class="wl-input wl-mono" value="(85) 99812-4410"></label>
+</section>
+
+<section class="card">
+<h2 class="h2">Endereço da matriz</h2>
+<label class="wl-field"><span class="wl-field__label">CEP</span><input class="wl-input wl-mono" value="60110-000"></label>
+<label class="wl-field"><span class="wl-field__label">Logradouro</span><input class="wl-input" value="Av. Santos Dumont"></label>
 <div class="two">
-<label class="wl-field"><span class="wl-field__label">Agência</span><input class="wl-input wl-mono" value="1234-5"></label>
-<label class="wl-field"><span class="wl-field__label">Conta</span><input class="wl-input wl-mono" value="12345-6"></label>
+<label class="wl-field"><span class="wl-field__label">Número</span><input class="wl-input wl-mono" value="1500"></label>
+<label class="wl-field"><span class="wl-field__label">Compl.</span><input class="wl-input" placeholder="Opcional"></label>
 </div>
-<label class="wl-field"><span class="wl-field__label">Chave Pix</span><input class="wl-input wl-mono" value="12.345.678/0001-95"></label>
-</section>
-
-<section class="card">
-<h2 class="h2">Formas de cobrança</h2>
-<div class="method"><div style="flex: 1;"><div style="font-weight: 500;">Pix automático</div><small>Autoriza uma vez, paga toda semana</small></div><button class="wl-btn wl-btn--solid wl-btn--sm">Ativar</button></div>
-<div class="method"><div style="flex: 1;"><div style="font-weight: 500;">Boleto</div><small>Banco ou lotérica</small></div><button class="wl-btn wl-btn--sm">Ativar</button></div>
-<div class="method"><div style="flex: 1;"><div style="font-weight: 500;">Cartão recorrente</div><small>Cobrança a cada vencimento</small></div><button class="wl-btn wl-btn--sm">Ativar</button></div>
-</section>
-
-<section class="card" style="gap: 0;">
-<h2 class="h2" style="margin-bottom: 4px;">Lembretes no WhatsApp</h2>
-<label class="chk"><input type="checkbox" checked>1 dia antes</label>
-<label class="chk"><input type="checkbox" checked>No dia, com link de pagamento</label>
-<label class="chk"><input type="checkbox" checked>1 dia depois, se não pagou</label>
+<label class="wl-field"><span class="wl-field__label">Bairro</span><input class="wl-input" value="Aldeota"></label>
 </section>
 
 <div style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 10px; padding: 14px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line);">
 <a class="wl-btn" href="Onboarding-Importar-Mobile.dc.html" style="height: 56px; text-decoration: none;">Depois</a>
-<a class="wl-btn wl-btn--solid" href="Onboarding-Importar-Mobile.dc.html" style="flex: 1; height: 56px; text-decoration: none;">Continuar</a>
+<a class="wl-btn wl-btn--solid" href="Onboarding-Importar-Mobile.dc.html" style="flex: 1; height: 56px; text-decoration: none;">Conectar recebimentos</a>
 </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1700}}'>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1300}}'>
 class Component extends DCLogic {
   renderVals() {
     var b = String(this.props.brand || '#c8f04a').replace('#', '');
