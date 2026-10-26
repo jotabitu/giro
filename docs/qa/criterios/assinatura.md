@@ -190,6 +190,28 @@ Dado uma empresa no Essencial no passo 7, então a tela oferece "aluga" e "aluga
 **CA-ASS-52 · Downgrade de quem só vende**
 Dado uma empresa no Profissional que só vende, sem nada aberto e dentro dos limites do Essencial, quando o administrador tenta o Essencial, então é recusado com "O plano Essencial não inclui vendas. Para mudar, sua empresa precisa alugar." Nada muda. `test_plt_12_downgrade_so_vende`.
 
+**CA-ASS-71 · E-mail do downgrade agendado que não aconteceu** (`PLT-04`, `PLT-12`, T-391)
+O e-mail do CA-ASS-40 diz o motivo com as palavras da recusa na tela. Ele é sempre igual na forma:
+- **Assunto:** "Giro: a mudança para o plano {plano agendado} não aconteceu".
+- **1ª linha:** começa com "A empresa {nome}" (com "empresa", como na régua, CA-ASS-64) e diz o motivo, conforme o caso.
+- **Resto:** "Por isso, a fatura de {dia} saiu pelo plano {plano atual}, e a empresa continua nele. Para mudar, resolva o que está acima e escolha o plano de novo em Assinatura.".
+
+A 1ª linha muda pelo motivo:
+
+| Motivo | 1ª linha |
+| --- | --- |
+| Limite ou algo aberto | "A empresa {nome} ia mudar para o plano {plano agendado} em {dia}, mas o uso de hoje não cabe nele: {o que excede}." |
+| Só a atividade | "A empresa {nome} ia mudar para o plano {plano agendado} em {dia}, mas o plano {plano agendado} não inclui vendas, e a empresa hoje só vende. Para mudar, ela precisa alugar." |
+| Os dois | a 1ª linha do limite, seguida de "Além disso, o plano {plano agendado} não inclui vendas, e a empresa hoje só vende. Para mudar, ela precisa alugar." |
+
+"{o que excede}" é a lista da recusa, sem a atividade: "11 de 10 usuários", "1 despesa a pagar", juntados com "e".
+
+Exemplos:
+- **Fixture, não o seed:** uma empresa no Profissional com o Essencial agendado para 22 nov, que passou a só vender, com 4 de 3 usuários. Quando a fatura de 22 nov é gerada em 17 nov, a 1ª linha é "A empresa Pedal Norte ia mudar para o plano Essencial em 22 nov, mas o uso de hoje não cabe nele: 4 de 3 usuários. Além disso, o plano Essencial não inclui vendas, e a empresa hoje só vende. Para mudar, ela precisa alugar.".
+- **Só a atividade, dentro dos limites:** "A empresa Pedal Norte ia mudar para o plano Essencial em 22 nov, mas o plano Essencial não inclui vendas, e a empresa hoje só vende. Para mudar, ela precisa alugar.".
+
+Nenhum texto diz "a empresa só vende" solto na lista, nem "A {nome}" sem "empresa". `test_plt_04_email_do_downgrade_recusado`.
+
 **CA-ASS-53 · Comissão de locação só depois do upgrade** (fase 2, com a `FIN-09`, decisão do dono de 25 out 2026; na fase 1, nenhuma comissão é lançada em plano nenhum)
 Dado uma empresa no Essencial `em_teste` que aluga e vende, quando a Bruna confirma uma locação em 10 out, então nenhuma comissão é lançada, nem quando a locação fica `ativa` em 16 out. Quando a empresa sobe para o Profissional em 15 out (no teste, vale na hora) e a Bruna confirma outra locação em 16 out, então nasce a comissão de R$ 16,00 `pendente` só para essa (`FIN-09`), `confirmada` quando ela fica `ativa`. A locação de 10 out continua sem comissão. `test_plt_12_comissao_so_depois_do_upgrade`.
 
