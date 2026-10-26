@@ -82,13 +82,13 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 | --- | --- | --- | --- | --- |
 | Frota | [desktop](html/Frota-Desktop.dc.html) · [celular](html/Frota-Mobile.dc.html) | `(empresa)/veiculos` | `veiculos` | VEI |
 | Cadastrar veículo | [desktop](html/Veiculo-Novo-Desktop.dc.html) · [celular](html/Veiculo-Novo-Mobile.dc.html) | `(empresa)/veiculos/novo` | `veiculos` | VEI |
-| Movimentações | [desktop](html/Movimentacoes-Desktop.dc.html) · [celular](html/Movimentacoes-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes` (proposta, T-246) | `veiculos` (proposta, T-246) | MOV-01 a MOV-06 (fase 2) |
-| Nova movimentação | [desktop](html/Movimentacao-Nova-Desktop.dc.html) · [celular](html/Movimentacao-Nova-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/nova` (proposta, T-246) | `veiculos` (proposta, T-246) | MOV-01 a MOV-06 (fase 2) |
-| Registrar chegada | [celular](html/Movimentacao-Chegada-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/[id]/chegada` (proposta, T-246) | `veiculos` (proposta, T-246) | MOV-04, MOV-05, MOV-06 (fase 2) |
-| Chegada na parada | [celular](html/Movimentacao-Parada-Chegada-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/[id]/parada` (proposta, T-301) | `movimentacoes` | MOV-02, MOV-03, MOV-04 |
-| Saída da parada | [desktop](html/Movimentacao-Parada-Desktop.dc.html) · [celular](html/Movimentacao-Parada-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/[id]/parada` (proposta, T-301) | `movimentacoes` | MOV-02, MOV-04 |
+| Movimentações | [desktop](html/Movimentacoes-Desktop.dc.html) · [celular](html/Movimentacoes-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes` | `movimentacoes` | MOV-01 a MOV-06 |
+| Nova movimentação | [desktop](html/Movimentacao-Nova-Desktop.dc.html) · [celular](html/Movimentacao-Nova-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/nova` | `movimentacoes` | MOV-01 a MOV-06 |
+| Registrar chegada | [celular](html/Movimentacao-Chegada-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/[id]/chegada` | `movimentacoes` | MOV-04, MOV-05, MOV-06 |
+| Chegada na parada | [celular](html/Movimentacao-Parada-Chegada-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/[id]/parada` | `movimentacoes` | MOV-02, MOV-03, MOV-04 |
+| Saída da parada | [desktop](html/Movimentacao-Parada-Desktop.dc.html) · [celular](html/Movimentacao-Parada-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/[id]/parada` | `movimentacoes` | MOV-02, MOV-04 |
 
-As telas de movimentação são da fase 2 (seção "Movimentações de veículos" das regras, `MOV-01` a `MOV-06`, critérios `docs/qa/criterios/T-246.md`) e usam só veículos e dados do seed de 07 out: SAK-1D39, PMZ-3E17 e a Filial Caucaia de exemplo. Rota e app são propostas até o contrato do arquiteto. A parada (T-301) tem duas telas: "Chegada na parada" (só o botão Cheguei, `POST .../paradas/{id}/chegada/`) e "Saída da parada" (valor pago "confira com o recibo" e nota opcional, `POST .../paradas/{id}/saida/`, que gera a despesa). No desktop, a saída abre numa gaveta sobre o quadro, pelo botão Registrar saída do cartão em "No local de apoio"; o celular é a tela de quem leva. Os botões vêm de `acoes.chegar_parada` e `acoes.sair_parada`. A parada de oficina não cita OS no MVP: tem serviço, valor previsto e categoria, e gera a despesa como as outras. A Nova movimentação não mostra o código antes de criar: ele só existe depois do `201`.
+As telas de movimentação estão no MVP desde 16 out (seção "Movimentações de veículos" das regras, `MOV-01` a `MOV-06`, critérios `docs/qa/criterios/T-246.md`) e usam veículos e dados do seed de 07 out: SAK-1D39, PMZ-3E17 e a Filial Caucaia de exemplo. A parada (T-301) tem duas telas: "Chegada na parada" (só o botão Cheguei, `POST .../paradas/{id}/chegada/`) e "Saída da parada" (valor pago "confira com o recibo" e nota opcional, `POST .../paradas/{id}/saida/`, que gera a despesa). No desktop, a saída abre numa gaveta sobre o quadro, pelo botão Registrar saída do cartão em "No local de apoio"; o celular é a tela de quem leva. Os botões vêm de `acoes.chegar_parada` e `acoes.sair_parada`. A parada de oficina não cita OS no MVP: tem serviço, valor previsto e categoria, e gera a despesa como as outras. A Nova movimentação não mostra o código antes de criar: ele só existe depois do `201`.
 
 ## Nova locação
 
@@ -125,6 +125,8 @@ As telas de movimentação são da fase 2 (seção "Movimentações de veículos
 | Tela | Arquivos | Rota no frontend | App no backend | Regras |
 | --- | --- | --- | --- | --- |
 | Contas a receber | [desktop](html/Receber-Desktop.dc.html) · [celular](html/Receber-Mobile.dc.html) | `(empresa)/financeiro` | `financeiro` | FIN |
+| Reembolsos | [desktop](html/Reembolsos-Desktop.dc.html) · [celular](html/Reembolsos-Mobile.dc.html) | `(empresa)/financeiro/reembolsos` | `financeiro` | DEV-02, LOC-12, LOC-13 |
+| Pendências do pagamento | [desktop](html/Pendencias-Pagamento-Desktop.dc.html) · [celular](html/Pendencias-Pagamento-Mobile.dc.html) | `(empresa)/financeiro/pendencias-pagamento` | `financeiro` | AUT-05, FIN-04, S-14 |
 
 ## Vistoria
 
@@ -146,6 +148,8 @@ As telas de movimentação são da fase 2 (seção "Movimentações de veículos
 | Auditoria da empresa | [desktop](html/Admin-Auditoria-Desktop.dc.html) · [celular](html/Admin-Auditoria-Mobile.dc.html) | `(empresa)/admin/auditoria` | `auditoria` | AUD |
 | Exportar dados | [desktop](html/Admin-Exportar-Desktop.dc.html) · [celular](html/Admin-Exportar-Mobile.dc.html) | `(empresa)/admin/auditoria` | `auditoria` | AUD |
 | Cancelar assinatura | [desktop](html/Admin-Cancelar-Desktop.dc.html) · [celular](html/Admin-Cancelar-Mobile.dc.html) | `(empresa)/admin/assinatura` | `plataforma` | PLT |
+| Controle do suporte | [desktop](html/Admin-Suporte-Desktop.dc.html) · [celular](html/Admin-Suporte-Mobile.dc.html) | `(empresa)/admin/suporte` | `plataforma, contas` | PLT-07 |
+| Faixa do modo suporte | [desktop](html/Modo-Suporte-Desktop.dc.html) · [celular](html/Modo-Suporte-Mobile.dc.html) | `(empresa)/*` | `contas, plataforma` | PLT-07 |
 | Comissões | [desktop](html/Comissoes-Desktop.dc.html) · [celular](html/Comissoes-Mobile.dc.html) | `(empresa)/financeiro` | `financeiro` | FIN |
 | Conciliação | [desktop](html/Conciliacao-Desktop.dc.html) · [celular](html/Conciliacao-Mobile.dc.html) | `(empresa)/financeiro` | `financeiro` | FIN |
 
@@ -165,6 +169,8 @@ Cada `chave` da navegação de `GET /api/auth/eu/` (`docs/api/contas.md`) abre u
 | `caixa` | `/financeiro/caixa` | Caixa do dia | |
 | `receber` | `/financeiro/receber` | Contas a receber | |
 | `despesas` | `/financeiro/despesas` | Despesas | |
+| `reembolsos` | `/financeiro/reembolsos` | Reembolsos | |
+| `pendencias_pagamento` | `/financeiro/pendencias-pagamento` | Pendências do pagamento | |
 | `comissoes` | `/financeiro/comissoes` | Comissões | fase 2 |
 | `conciliacao` | `/financeiro/conciliacao` | Conciliação | fase 2 |
 | `relatorios` | `/relatorios` | Relatórios | |
@@ -203,3 +209,4 @@ A tela `Configurações` (`/admin/configuracoes`) lista cartões de `GET /api/co
 | `assinatura` | `/admin/assinatura` | Administração › Assinatura |
 | `auditoria` | `/admin/auditoria` | Auditoria da empresa |
 | `exportar` | `/admin/exportar` | Exportar dados |
+| `suporte` | `/admin/suporte` | Controle do suporte (`Admin-Suporte`, T-360) |

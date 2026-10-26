@@ -154,6 +154,59 @@ Concluída. As tarefas entregues estão em `tarefas/feito.md`.
   - **C:** sem WhatsApp ao cliente final na fase 1.
 
   **Padrão: A** (produto e arquiteto). Está em "Pontos em aberto" das regras; handoff `tarefas/handoffs/T-387-produto.md`.
+### Fechamento da fase 1 (decisões do dono de 25 out 2026)
+
+Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (segurança), e pelas decisões do dono em `MEMORY.md` ("Escopo de fechamento da fase 1").
+
+- **Em andamento desde 25 out:**
+  - T-196, módulos por plano (backend);
+  - T-281, seed em banco limpo (qa);
+  - T-356, regras das decisões (produto);
+  - T-357, ADR de hospedagem e produção, seguida da T-358, contratos que faltam (arquiteto);
+  - T-359, Tabelas de preço em `/admin/precos` (frontend);
+  - T-360, telas de referência de Reembolsos, Pendências do pagamento, Controle do suporte e faixa do modo suporte (design-system);
+  - T-361, Pillow 13 e auditoria de dependências (devops).
+
+### T-363 · Modelos de contrato (`/admin/contratos`)
+- **Agente:** frontend · **Depende de:** T-359 · **Telas:** `Contratos-Modelos` · **Contrato:** `docs/api/contratos.md` · **Pronto quando:** lista, modelos prontos, edição com marcadores, prévia, publicar e arquivar; o cartão de Configurações abre a tela; o componente serve ao passo Modelo de contrato; testes vitest.
+
+### T-364 · Passos que faltam no assistente
+- **Agente:** frontend · **Depende de:** T-358, T-359, T-363, T-366 · **Regras:** IMP-05, PLT-12 · **Pronto quando:** Primeira filial, Tabela de preços, Modelo de contrato, Recebimentos e Convidar equipe funcionam dentro da `CascaDoAssistente`, com Continuar e Pular pela API; o Essencial não vê Recebimentos; nenhum passo mostra "Esta etapa ainda não está disponível aqui.".
+
+### T-365 · Reativar a empresa cancelada
+- **Agente:** backend · **Depende de:** T-196 · **Regras:** PLT-06, AUD-08 · **Pronto quando:** `reativar_empresa` no Django Admin da plataforma, com a recusa 409 `fatura_em_atraso` e a da empresa com o apagamento começado (B-02 da T-199 e da T-345); a fatura nova vence como na `PLT-06`; o xfail `test_plt_06_reativar_so_com_atrasada_paga` (CA-ASS-46) vira teste comum. Tem de existir antes do 90º dia do primeiro cancelamento real.
+
+### T-366 · Rota de recebimentos e marcação dos passos
+- **Agente:** backend · **Depende de:** T-358 · **Regras:** FIN-04, IMP-05, PLT-12 · **Pronto quando:** a rota de ligar e ler a subconta do parceiro pelo contrato da T-358, com o 403 `PLT-12` no Essencial e a auditoria; as ações que marcam os passos `precos` e `equipe`; `test_imp_05_*` e OpenAPI regenerado.
+
+### T-367 · Lembrete de devolução (`AUT-01`)
+- **Agente:** backend · **Depende de:** — · **Regras:** AUT-01 · **Pronto quando:** a tarefa das 08:00 manda WhatsApp a cada cliente com devolução no dia, com o horário e o endereço da filial, uma vez por locação; `test_aut_01_lembrete_de_devolucao` com a LOC-2836 (14 out).
+
+### T-368 · Antes de produção no backend
+- **Agente:** backend · **Depende de:** — · **Regras:** USR-06, S-17 · **Pronto quando:** a T-159 e a T-160 (abaixo) estão feitas no mesmo PR.
+
+### T-369 · Pedido do titular pela equipe (M-03 da T-355)
+- **Agente:** backend · **Depende de:** — · **Regras:** AUD-06 · **Pronto quando:** os comandos `exportar_titular` e `anonimizar_titular`, só para a equipe, com auditoria e teste, para atender o pedido do titular sem SQL direto até a tela da fase 2.
+
+### T-370 · Ações que faltam no caixa, no receber e no cliente
+- **Agente:** frontend · **Depende de:** — · **Regras:** FIN, CLI-03, CLI-05 · **Pronto quando:** estornar movimento no `/financeiro/caixa`, renegociar no `/financeiro/receber`, e bloquear, desbloquear, inativar e reativar no detalhe do cliente (com o 422 `cliente_com_pendencia`), pelos `acoes` da API; testes vitest.
+
+### T-371 · Reembolsos e pendências do pagamento
+- **Agente:** frontend · **Depende de:** T-360, T-358 · **Regras:** DEV-02, AUT-05 · **Pronto quando:** `/financeiro/reembolsos` (o início do financeiro deixa de dar 404) e a tela das pendências do pagamento, pelas telas da T-360 e o contrato da T-358; testes vitest.
+
+### T-372 · Modo suporte e controle do suporte
+- **Agente:** frontend · **Depende de:** T-360, T-358 · **Regras:** PLT-07 · **Pronto quando:** a página de entrada do suporte, a faixa com Sair (`auth/suporte/sair/`) e o cartão de Configurações onde o administrador bloqueia, libera e revoga o suporte; testes vitest.
+
+### T-373 · Ambiente de produção
+- **Agente:** devops · **Depende de:** T-357 (opção B, ADR 0033) · **Pronto quando:** homologação e produção no ar com o frontend, o banco, o backup cifrado com restauração testada, o Sentry, o domínio e o certificado, e as chaves de produção no cofre (M-02 da T-355).
+- **Estado (26 out 2026):** a parte que não depende da conta está no PR #399 (compose da VPS, backup, restauração, certificado e roteiro). **A subida fica para a fase 2**, por decisão do dono em 25 out 2026: as contratações (domínio, VPS, Asaas de produção, WhatsApp, e-mail transacional e Sentry) são da fase 2.
+
+### T-374 · Catálogo completo de modelos
+- **Agente:** backend · É a T-339 (abaixo), que entra depois da T-196.
+
+### T-375 · Fechamento da fase 1
+- **Agente:** qa · **Depende de:** todas as anteriores · **Pronto quando:** `docs/qa/cobertura-de-regras.md` refeita a partir dos testes de hoje; as 42 regras sem teste com o código no nome conferidas (fase 2, teste com outro nome ou falta); o E2E percorre os critérios de pronto do `plano.md` no ambiente de desenvolvimento (a homologação é da fase 2, com as contas de produção) com a Moto Rápida (implantação, locação, devolução, cobrança, caixa e 2 etapas).
+
 
 ### Notas do dono de 15 out 2026 (testes na mão)
 
