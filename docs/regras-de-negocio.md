@@ -745,7 +745,7 @@ As tarefas automáticas rodam no Celery, por empresa, no fuso `America/Sao_Paulo
 | `AUT-08` | Fechamento automático do caixa | 23:59 | aplica `FIN-08` | interno |
 | `AUT-09` | Aprovação esquecida | a cada hora | aplica `APR-08` | push + e-mail |
 | `AUT-10` | Comissões do mês | **fase 2** (com a `FIN-09`); dia 1, 06:00 | fecha o mês anterior e agenda pagamento para o dia 5 | interno |
-| `AUT-11` | Backup mensal | dia 1, 09:00 | gera o arquivo completo e envia o link | e-mail ao administrador |
+| `AUT-11` | Backup mensal | **fase 2** (com o backup completo e o cartão de `Admin-Exportar`, nota de 12 out 2026 na auditoria); dia 1, 09:00 | gera o arquivo completo e envia o link | e-mail ao administrador |
 | `AUT-12` | Importar extrato | 06:00 | busca o extrato e sugere pares (`FIN-11`) | interno |
 | `AUT-13` | Régua da assinatura | 09:00 | aplica `PLT-02`. Marco perdido: só o D+7 sai depois, na próxima execução até o D+14, uma vez, com a ligação (`PLT-02`, T-308). Textos em `docs/qa/criterios/assinatura.md` ("Textos da régua da assinatura", T-299) | e-mail + WhatsApp |
 | `AUT-14` | Implantação parada | **fase 2** (com a `IMP-06`); 10:00 | aplica `IMP-06` | e-mail + WhatsApp |
@@ -759,6 +759,8 @@ As tarefas automáticas rodam no Celery, por empresa, no fuso `America/Sao_Paulo
 *Mudanças em 16 out 2026 (T-283):* a `AUT-04` passou para a fase 2. No MVP, a parcela da locação é cobrada pela régua (`AUT-03`), com boleto e Pix comum (`FIN-04`), e a locação não tem autorização de Pix Automático nem cartão recorrente. Antes, a tarefa cobrava "no vencimento", o que o Pix Automático do parceiro não aceita (a cobrança tem de nascer de 2 a 10 dias úteis antes). Decisão do dono do produto em 16 out 2026 (ponto em aberto "Pix Automático nas parcelas da locação"). O Pix Automático da assinatura do Giro (`PLT-13`) não muda.
 
 *Mudanças em 25 out 2026 (T-356):* a `AUT-10` (comissões do mês), a `AUT-14` (implantação parada) e a `AUT-16` (expurgo da auditoria) passaram para a fase 2. A `AUT-10` vai com as comissões (`FIN-09`), e a `AUT-14` com a `IMP-06` e a compra pública. A `AUT-16` vai porque nenhum evento terá 5 anos antes de 2031: o prazo da `AUD-02` não muda, só a tarefa que o aplica. Decisões do dono do produto em 25 out 2026 (D2, D4 e D6 da T-353).
+
+*Mudanças em 26 out 2026 (T-392):* a tabela passou a marcar a `AUT-11` (backup mensal) como fase 2. A decisão já existia: o dono a tomou em 12 out 2026 (T-151), e ela está na nota da exportação no MVP, na seção de auditoria (`AUD-07`). Faltava a marca na linha da tabela, achado da T-375. Nada muda no comportamento: o backup mensal não roda na fase 1, e o cartão do backup automático não aparece na tela.
 
 *Mudanças em 14 out 2026 (T-190):* a `AUT-03` passou a sair só por e-mail no plano Essencial, que não tem a cobrança pelo WhatsApp nem o Pix do parceiro (`PLT-11`, `PLT-12`). Antes, valia igual para todas as empresas. Decisão do dono do produto em 14 out 2026 (U10 da análise das telas).
 
