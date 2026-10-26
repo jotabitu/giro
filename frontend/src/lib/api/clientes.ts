@@ -1,5 +1,5 @@
 // Clientes na API real (docs/api/clientes.md).
-import { http } from "./http";
+import { chamarComStatus, http } from "./http";
 import type {
   AnaliseCadastro,
   ClienteCompleto,
@@ -10,6 +10,7 @@ import type {
   LocacaoDoCliente,
   LocacoesDoCliente,
   NovoCliente,
+  RespostaDoDesbloqueio,
   TipoDocumentoCliente,
 } from "./tipos-clientes";
 import type { LocacaoCompleta, ListaLocacoes } from "./tipos-locacoes";
@@ -70,6 +71,27 @@ export const clientesApi = {
       com_atraso: lista.resultados.filter((l) => l.sinais.pagamento_atrasado || l.status === "devolucao_atrasada").length,
       resultados,
     };
+  },
+
+  /** CLI-05: bloqueio manual, com motivo. Administrador e gerente. 409 `transicao_cliente` se já está bloqueado. */
+  bloquear(id: number, motivo: string): Promise<ClienteCompleto> {
+    return http.post(`/api/clientes/${id}/bloquear/`, { motivo });
+  },
+
+  /** CLI-05, APR-05: 200 para administrador e gerente; 202 quando o vendedor só pede a aprovação. */
+  async desbloquear(id: number, motivo: string): Promise<RespostaDoDesbloqueio> {
+    const r = await chamarComStatus<ClienteCompleto | { pedido_aprovacao: { id: number; tipo: string; status: string } }>("POST", `/api/clientes/${id}/desbloquear/`, { corpo: { motivo } });
+    if (r.status === 202) return { status: 202, pedido: (r.dados as { pedido_aprovacao: { id: number; tipo: string; status: string } }).pedido_aprovacao };
+    return { status: 200, cliente: r.dados as ClienteCompleto };
+  },
+
+  /** CLI-09: 422 `cliente_com_pendencia` (`detalhes`) com locação aberta, valor em aberto ou venda aberta. */
+  inativar(id: number, motivo: string): Promise<ClienteCompleto> {
+    return http.post(`/api/clientes/${id}/inativar/`, { motivo });
+  },
+
+  reativar(id: number, motivo: string): Promise<ClienteCompleto> {
+    return http.post(`/api/clientes/${id}/reativar/`, { motivo });
   },
 
   enviarDocumento(id: number, tipo: TipoDocumentoCliente, arquivo: File): Promise<ClienteCompleto> {
