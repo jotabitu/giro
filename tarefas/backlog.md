@@ -205,6 +205,7 @@ Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (seguran
 - **Agente:** backend · É a T-339 (abaixo), que entra depois da T-196.
 
 ### T-375 · Fechamento da fase 1
+- **Parte 1 feita (26 out 2026, qa):** cobertura refeita e as 42 regras conferidas (`tarefas/handoffs/T-375-qa.md`). Falta a parte 2, o E2E, para o fim da fase.
 - **Agente:** qa · **Depende de:** todas as anteriores · **Pronto quando:** `docs/qa/cobertura-de-regras.md` refeita a partir dos testes de hoje; as 42 regras sem teste com o código no nome conferidas (fase 2, teste com outro nome ou falta); o E2E percorre os critérios de pronto do `plano.md` no ambiente de desenvolvimento (a homologação é da fase 2, com as contas de produção) com a Moto Rápida (implantação, locação, devolução, cobrança, caixa e 2 etapas).
 
 
