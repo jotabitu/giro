@@ -58,16 +58,23 @@ services:
     environment:
       GIRO_ARQUIVOS_FALSOS_DIRETORIO: /arquivos-dev
       RODAR_MIGRACOES: "1"
+      # Credencial com DDL só no worker (T-352): o web não a recebe, mesmo vindo do .env.
+      DATABASE_URL_MIGRACAO: ""
     ports:
       - "${PORTA_BACKEND}:8000"
     command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
 
+  # Único serviço com a DATABASE_URL_MIGRACAO (vem do .env): a aud_08_apagar_empresas roda aqui
+  # e apaga o schema da empresa cancelada com ela (T-352, ADR 0016 e 0025).
   worker:
     <<: *backend
     command: ["celery", "-A", "config", "worker", "--loglevel=INFO"]
 
   beat:
     <<: *backend
+    environment:
+      GIRO_ARQUIVOS_FALSOS_DIRETORIO: /arquivos-dev
+      DATABASE_URL_MIGRACAO: ""
     command: ["celery", "-A", "config", "beat", "--loglevel=INFO", "--schedule=/tmp/celerybeat-schedule"]
 
   frontend:

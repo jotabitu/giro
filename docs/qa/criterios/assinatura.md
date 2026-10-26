@@ -46,16 +46,21 @@ Dado a Moto Rápida `ativa` com cartão guardado, quando a cobrança de 22 nov �
 
 ## Mudar de plano (`PLT-04`, `PLT-05`)
 
-**CA-ASS-13 · Upgrade no teste**
+> **Completo fora da venda na fase 1** (`PLT-11`, decisão do dono de 25 out 2026, T-356). Os critérios que levam uma empresa para o Completo ou a partem dele valem quando o Completo voltar a ser vendido: CA-ASS-13, 14, 16, 28 (a diferença), 40, 41, 49 e a segunda parte do 56. Estão marcados "(fase 2: Completo)". O cálculo não muda, e os testes que já existem continuam, com o plano criado no próprio teste, porque provam a conta. Na fase 1, quem vale é o CA-ASS-70.
+
+**CA-ASS-70 · Completo fora da venda** (`PLT-11`, T-356)
+Dado a Moto Rápida no Profissional, quando a Mariana abre Mudar de plano e Comparar planos na `Admin-Assinatura`, então vê só o Essencial e o Profissional, e o cartão "Precisa de mais veículos ou filiais?" não aparece. Quando um pedido à API tenta mudar para o Completo, ele é recusado com "O plano Completo ainda não está à venda.", e nada muda: plano, faturas e limites ficam como estavam. Dado uma empresa no Essencial, o cartão "Precisa de mais veículos ou filiais?" lista os limites do Profissional (150 veículos, 3 filiais, 10 usuários), despesas, Pix e boleto automáticos e cobrança pelo WhatsApp, e nada de vendas, manutenção, comissões, conciliação nem relatórios. `test_plt_11_completo_fora_da_venda`.
+
+**CA-ASS-13 · Upgrade no teste** (fase 2: Completo)
 Dado a Moto Rápida `em_teste`, quando a Mariana muda para o Completo em 10 out, então o plano muda na hora, nada é cobrado, a FAT-0001 passa a R$ 899,00, o teste continua até 21 out, e os limites passam a sem limite.
 
-**CA-ASS-14 · Upgrade proporcional**
+**CA-ASS-14 · Upgrade proporcional** (fase 2: Completo)
 Dado a Moto Rápida `ativa`, FAT-0001 paga, quando a Mariana muda para o Completo em 01 nov, então o plano muda na hora e nasce uma fatura de diferença de R$ 304,84 (45000 × 21 ÷ 31 = 30483,87, arredondado uma vez), "Mudança para o plano Completo · 01 a 21 nov", vencendo em 04 nov; no cartão, cobrada na hora. O preço contratado passa a R$ 899,00, e a fatura de 22 nov vem com R$ 899,00. `test_plt_04_upgrade_proporcional`.
 
 **CA-ASS-15 · Downgrade que não cabe**
 Dado a Moto Rápida (`em_teste` ou `ativa`), quando a Mariana tenta o Essencial, então é recusado e a tela diz o que passa: 86 de 30 veículos e 5 de 3 usuários (1 filial cabe). Diz também o que está aberto nos módulos que saem (`PLT-12`): 1 despesa aguardando aprovação (os pneus, R$ 1.200,00) e 2 despesas a pagar (IPVA ROE2A88 e conta de luz). O óleo, o aluguel e os rastreadores já estão pagos e não contam. O seed de 07 out não tem OS, venda nem comissão aberta, e esses grupos não aparecem. Nada muda. `test_plt_04_downgrade_nao_cabe`.
 
-**CA-ASS-16 · Downgrade agendado e desfeito**
+**CA-ASS-16 · Downgrade agendado e desfeito** (fase 2: Completo)
 Dado uma empresa no Completo `ativa` com 86 veículos, 1 filial e 5 usuários, período de 22 out a 21 nov, quando o administrador muda para o Profissional em 01 nov, então nada é cobrado nem devolvido, a tela diz "O plano Profissional vale a partir de 22 nov. Até lá, você continua no Completo.", e a fatura de 22 nov vem com R$ 449,00. Quando ele desfaz em 10 nov, a fatura de 22 nov volta a R$ 899,00. Em 22 nov, sem desfazer, o plano vira Profissional.
 
 **CA-ASS-17 · Estados que não mudam de plano**
@@ -70,19 +75,19 @@ Dado o Rodrigo (gerente), a Lúcia (financeiro) ou o suporte Giro dentro da empr
 ## Catálogo e módulos (`PLT-11`, `PLT-12`, `PLT-03`, `AUT-03`)
 
 **CA-ASS-20 · Catálogo único**
-Quando `Compra-Planos`, Comparar planos (`Admin-Assinatura`) e `Plat-Planos` listam os planos, então os três mostram Essencial R$ 199,00 (anual R$ 1.990,00, 30/1/3), Profissional R$ 449,00 (R$ 4.490,00, 150/3/10) e Completo R$ 899,00 (R$ 8.990,00, sem limite), com os textos da `PLT-11`. Nenhum dos três cita NF-e, assinatura digital como extra do Completo, domínio próprio, portal do cliente nem API e integrações.
+Quando `Compra-Planos`, Comparar planos (`Admin-Assinatura`) e `Plat-Planos` listam os planos, então os três mostram Essencial R$ 199,00 (anual R$ 1.990,00, 30/1/3) e Profissional R$ 449,00 (R$ 4.490,00, 150/3/10), com os textos da `PLT-11`. O Profissional diz "Tudo do Essencial, mais despesas; Pix e boleto automáticos e cobrança pelo WhatsApp". O Completo não aparece na fase 1 (CA-ASS-70); na fase 2, volta com R$ 899,00 (R$ 8.990,00, sem limite). O preço e os limites do Profissional esperam o dono ("Pontos em aberto" das regras); até lá, valem estes. Na fase 1, só a `Admin-Assinatura` tem tela: `Compra-Planos` e `Plat-Planos` são da fase 2. Nenhum dos três cita NF-e, assinatura digital como extra do Completo, domínio próprio, portal do cliente nem API e integrações.
 
 **CA-ASS-21 · Cartão do plano acima**
-Dado a Moto Rápida no Profissional, então a `Admin-Assinatura` mostra o cartão "Precisa de mais veículos ou filiais?" com veículos, filiais e usuários sem limite, implantação acompanhada por chamada e suporte prioritário. Dado uma empresa no Completo, o cartão não aparece.
+Na fase 1, vale o CA-ASS-70: o cartão não aparece para o Profissional e, para o Essencial, mostra o Profissional. (Fase 2: Completo.) Dado a Moto Rápida no Profissional, então a `Admin-Assinatura` mostra o cartão "Precisa de mais veículos ou filiais?" com veículos, filiais e usuários sem limite, implantação acompanhada por chamada e suporte prioritário. Dado uma empresa no Completo, o cartão não aparece.
 
 **CA-ASS-22 · Essencial sem os módulos do Profissional**
-Dado uma empresa no Essencial que aluga e vende, então o menu do administrador não tem Vendas, Manutenções, Despesas, Comissões, Conciliação nem Relatórios, a API recusa as rotas desses módulos, e o passo 10 da implantação (Recebimentos) não aparece. A régua de cobrança do cliente (`AUT-03`) sai só por e-mail, sem WhatsApp e sem o Pix do parceiro.
+Dado uma empresa no Essencial que aluga e vende, então o menu do administrador não tem Despesas, e a API recusa as rotas de despesas. Vendas, Manutenções, Comissões, Conciliação e Relatórios não aparecem em nenhum plano na fase 1; na fase 2, o Essencial também fica sem eles, e a API recusa as rotas desses módulos. Em qualquer fase, e o passo 10 da implantação (Recebimentos) não aparece. A régua de cobrança do cliente (`AUT-03`) sai só por e-mail, sem WhatsApp e sem o Pix do parceiro.
 
 **CA-ASS-23 · Dados guardados ao descer e de volta ao subir**
 Dado uma empresa no Profissional com 20 veículos, 1 filial, 3 usuários, despesas todas `paga` ou `recusada`, nenhuma OS aberta, venda aberta nem comissão a pagar, quando muda para o Essencial (na virada do período), então Despesas e os outros módulos somem do menu, e as despesas continuam no banco. Quando volta ao Profissional, as despesas aparecem como estavam.
 
 **CA-ASS-24 · Downgrade recusado com módulo aberto**
-Dado a mesma empresa com 1 despesa `a_pagar` e 1 OS aberta, quando tenta o Essencial, então é recusado, e a recusa diz quanto falta: 1 despesa a pagar e 1 OS aberta.
+Dado a mesma empresa com 1 despesa `a_pagar`, quando tenta o Essencial, então é recusado, e a recusa diz quanto falta: 1 despesa a pagar. Na fase 2, com 1 OS aberta a mais, a recusa diz também "1 OS aberta" (manutenção é da fase 2, `PLT-12`).
 
 **CA-ASS-25 · Adicionais fora**
 Dado uma empresa no Profissional com 3 de 3 filiais, quando o administrador tenta uma 4ª filial, então é recusado pelo limite (`PLT-03`), e a tela diz para mudar de plano, sem oferecer filial adicional. Nenhuma tela oferece filial adicional, pacote de 10 veículos ou assinatura digital avulsa.
@@ -98,11 +103,11 @@ Dado a Moto Rápida `ativa` com boleto, quando a Mariana troca para Pix automát
 **CA-ASS-27 · Suspensa paga**
 Dado a Moto Rápida `suspensa` em 22 out (sem forma), quando a Mariana escolhe a forma e paga, então as duas ações são aceitas, embora a empresa esteja só leitura, e ela volta a `ativa` na hora.
 
-**CA-ASS-28 · Lista de faturas**
+**CA-ASS-28 · Lista de faturas** (a fatura de diferença: fase 2: Completo)
 Dado a Moto Rápida `ativa` em 05 nov, depois do upgrade de 01 nov, então a lista traz a fatura de diferença (R$ 304,84, vence 04 nov, conforme paga ou não) e a FAT-0001 (`paga`, "Paga em 22 out", com o recibo do parceiro); a aberta ou atrasada tem "Pagar".
 
 **CA-ASS-29 · Nota fiscal e CNPJ**
-Dado a FAT-0001 paga, então o Giro emite a NFS-e para Moto Rápida Locações Ltda, CNPJ 12.345.678/0001-95, Av. Bezerra de Menezes, 1200, São Gerardo, Fortaleza, CE, CEP 60325-000 (CA-ASS-47), enviada ao e-mail de cobrança (enquanto o cadastro municipal do Giro não estiver pronto, este critério fica `xfail` e o bloco só guarda os dados). Quando a Mariana troca o e-mail de cobrança para financeiro@motorapida.com.br, a próxima fatura, a régua e a nota vão para ele. Quando tenta trocar o CNPJ, é recusado com "O CNPJ não muda por aqui. Fale com o suporte."
+Dado a FAT-0001 paga, então o Giro emite a NFS-e para Moto Rápida Locações Ltda, CNPJ 12.345.678/0001-95, Av. Bezerra de Menezes, 1200, São Gerardo, Fortaleza, CE, CEP 60325-000 (CA-ASS-47), enviada ao e-mail de cobrança (enquanto o cadastro municipal do Giro não estiver pronto, este critério fica `xfail` e o bloco só guarda os dados). Até a T-197, a equipe Giro emite essa nota à mão, no portal da prefeitura, com os mesmos dados, e a cobrança da fatura não espera por ela (`PLT-15`, decisão do dono de 25 out 2026); o critério confere só que o bloco guarda e mostra os dados. Quando a Mariana troca o e-mail de cobrança para financeiro@motorapida.com.br, a próxima fatura, a régua e a nota vão para ele. Quando tenta trocar o CNPJ, é recusado com "O CNPJ não muda por aqui. Fale com o suporte."
 
 ## Cancelar e pausar (`PLT-06`, `AUD-08`)
 
@@ -141,10 +146,10 @@ Dado a Moto Rápida cancelada, então os contratos já assinados com clientes fi
 
 ## Pontos em aberto resolvidos (T-211)
 
-**CA-ASS-40 · Downgrade agendado que deixa de caber**
+**CA-ASS-40 · Downgrade agendado que deixa de caber** (fase 2: Completo)
 Dado uma empresa no Completo `ativa` com 86 veículos, 1 filial e 5 usuários, período de 22 out a 21 nov, com o Profissional agendado em 01 nov, quando o administrador convida mais 6 pessoas em 12 nov (11 usuários), então em 17 nov, na geração da fatura de 22 nov, o downgrade não acontece: a fatura de 22 nov sai com R$ 899,00, a tela deixa de dizer "O plano Profissional vale a partir de 22 nov", a empresa continua no Completo, e o administrador e o e-mail de cobrança recebem um e-mail com o motivo (11 de 10 usuários). Auditoria do downgrade recusado, pelo sistema. `test_plt_04_downgrade_agendado_deixa_de_caber`.
 
-**CA-ASS-41 · Downgrade que cabia na geração da fatura**
+**CA-ASS-41 · Downgrade que cabia na geração da fatura** (fase 2: Completo)
 Dado a mesma empresa sem convidar ninguém até 17 nov, quando a fatura de 22 nov sai com R$ 449,00 e o administrador convida as 6 pessoas em 19 nov, então os convites são aceitos (o limite ainda é o do Completo), e em 22 nov o plano vira Profissional com 11 de 10 usuários: ninguém sai, e um novo convite é recusado pelo limite (`PLT-03`) até sobrar vaga.
 
 **CA-ASS-42 · Pausa com a fatura do período seguinte já emitida**
@@ -170,22 +175,44 @@ Dado a Moto Rápida do seed, quando a Mariana muda o número da Filial Centro pa
 
 ## Reativação no período pago (T-216)
 
-**CA-ASS-49 · Reativar sem cobrar duas vezes o período pago**
+**CA-ASS-49 · Reativar sem cobrar duas vezes o período pago** (fase 2: Completo; a reativação em si é da fase 1, pelo CA-ASS-46)
 Dado a Moto Rápida `ativa` com a FAT-0001 (22 out a 21 nov) paga em 22 out, upgrade para o Completo em 01 nov com a diferença de R$ 304,84 vencendo em 04 nov e não paga (`inadimplente` em 05 nov), cancelada em 10 nov (`cancelada` na hora), quando a diferença é paga em 15 nov pela 2ª via e a equipe Giro reativa em 15 nov, então a empresa vira `ativa` em 15 nov, nenhuma fatura vence em 15 nov, a fatura nova de R$ 899,00 vence em 22 nov ("Plano Completo · 22 nov a 21 dez"), e as seguintes continuam todo dia 22. Na reativação depois de 21 nov (CA-ASS-46), a fatura nova vence no dia da volta. `test_plt_06_reativar_no_periodo_pago`.
 
 ## Ramo e comissão nos módulos por plano (T-223)
 
-**CA-ASS-50 · Troca de ramo com algo aberto**
+**CA-ASS-50 · Troca de ramo com algo aberto** (a parte da venda e da comissão: fase 2; na fase 1, vale o "deixar de alugar" do seed)
 Dado uma empresa no Profissional que aluga e vende, criada no teste (fixture, não o seed), com 1 locação `ativa` e 1 venda `aguardando_aprovacao` (comissão dela `pendente`), quando o administrador muda o ramo em Configurações para "só vende", então é recusado, e a recusa diz quanto falta: 1 locação aberta. Quando muda para "só aluga", então é recusado com "1 venda aberta e 1 comissão a pagar" (o texto da API; o grupo conta as comissões não pagas, `PLT-12`, `FIN-09`). Nada muda nas duas. Quando a locação é encerrada e ele muda para "só vende", então é aceito: Locações e Vistorias somem do menu no pedido seguinte, a API recusa as rotas delas (403 `PLT-12`, `motivo: "ramo"`), e a locação encerrada continua no banco. `test_plt_12_troca_de_ramo_com_algo_aberto`.
 No seed Moto Rápida de 07 out, "deixar de alugar" é recusado com "51 locações abertas": as 42 da carteira (`ativa` e `devolucao_atrasada`, com a LOC-2790) e as 9 reservas `aguardando_retirada` (T-019). *Ajustado em 16 out 2026 (T-256):* o texto da comissão passou ao da API, e o caso diz que é fixture (divergências da T-253).
 
-**CA-ASS-51 · Passo 7 do Essencial sem "só vende"**
+**CA-ASS-51 · Passo 7 do Essencial sem "só vende"** (Vendas e Comissões no menu depois do upgrade: fase 2)
 Dado uma empresa no Essencial no passo 7, então a tela oferece "aluga" e "aluga e vende", e "vende" aparece com o aviso "Vendas faz parte do plano Profissional."; "só vende" não pode ser escolhido, e a API recusa o pedido com "só vende" no Essencial. Quando ela escolhe "aluga e vende", então o menu tem Locações e não tem Vendas nem Comissões (CA-ASS-22). Quando ela sobe para o Profissional, então Vendas e Comissões aparecem no pedido seguinte, sem refazer o passo 7. `test_plt_12_essencial_sem_so_vende`.
 
 **CA-ASS-52 · Downgrade de quem só vende**
 Dado uma empresa no Profissional que só vende, sem nada aberto e dentro dos limites do Essencial, quando o administrador tenta o Essencial, então é recusado com "O plano Essencial não inclui vendas. Para mudar, sua empresa precisa alugar." Nada muda. `test_plt_12_downgrade_so_vende`.
 
-**CA-ASS-53 · Comissão de locação só depois do upgrade**
+**CA-ASS-71 · E-mail do downgrade agendado que não aconteceu** (`PLT-04`, `PLT-12`, T-391)
+O e-mail do CA-ASS-40 diz o motivo com as palavras da recusa na tela. Ele é sempre igual na forma:
+- **Assunto:** "Giro: a mudança para o plano {plano agendado} não aconteceu".
+- **1ª linha:** começa com "A empresa {nome}" (com "empresa", como na régua, CA-ASS-64) e diz o motivo, conforme o caso.
+- **Resto:** "Por isso, a fatura de {dia} saiu pelo plano {plano atual}, e a empresa continua nele. Para mudar, resolva o que está acima e escolha o plano de novo em Assinatura.".
+
+A 1ª linha muda pelo motivo:
+
+| Motivo | 1ª linha |
+| --- | --- |
+| Limite ou algo aberto | "A empresa {nome} ia mudar para o plano {plano agendado} em {dia}, mas o uso de hoje não cabe nele: {o que excede}." |
+| Só a atividade | "A empresa {nome} ia mudar para o plano {plano agendado} em {dia}, mas o plano {plano agendado} não inclui vendas, e a empresa hoje só vende. Para mudar, ela precisa alugar." |
+| Os dois | a 1ª linha do limite, seguida de "Além disso, o plano {plano agendado} não inclui vendas, e a empresa hoje só vende. Para mudar, ela precisa alugar." |
+
+"{o que excede}" é a lista da recusa, sem a atividade: "11 de 10 usuários", "1 despesa a pagar", juntados com "e".
+
+Exemplos:
+- **Fixture, não o seed:** uma empresa no Profissional com o Essencial agendado para 22 nov, que passou a só vender, com 4 de 3 usuários. Quando a fatura de 22 nov é gerada em 17 nov, a 1ª linha é "A empresa Pedal Norte ia mudar para o plano Essencial em 22 nov, mas o uso de hoje não cabe nele: 4 de 3 usuários. Além disso, o plano Essencial não inclui vendas, e a empresa hoje só vende. Para mudar, ela precisa alugar.".
+- **Só a atividade, dentro dos limites:** "A empresa Pedal Norte ia mudar para o plano Essencial em 22 nov, mas o plano Essencial não inclui vendas, e a empresa hoje só vende. Para mudar, ela precisa alugar.".
+
+Nenhum texto diz "a empresa só vende" solto na lista, nem "A {nome}" sem "empresa". `test_plt_04_email_do_downgrade_recusado`.
+
+**CA-ASS-53 · Comissão de locação só depois do upgrade** (fase 2, com a `FIN-09`, decisão do dono de 25 out 2026; na fase 1, nenhuma comissão é lançada em plano nenhum)
 Dado uma empresa no Essencial `em_teste` que aluga e vende, quando a Bruna confirma uma locação em 10 out, então nenhuma comissão é lançada, nem quando a locação fica `ativa` em 16 out. Quando a empresa sobe para o Profissional em 15 out (no teste, vale na hora) e a Bruna confirma outra locação em 16 out, então nasce a comissão de R$ 16,00 `pendente` só para essa (`FIN-09`), `confirmada` quando ela fica `ativa`. A locação de 10 out continua sem comissão. `test_plt_12_comissao_so_depois_do_upgrade`.
 
 ## Casos de cancelar e pausar que a regra não cobria (T-229)
@@ -197,7 +224,7 @@ Dado a Moto Rápida `em_teste` com a FAT-0001 (22 out a 21 nov) paga em 12 out, 
 Dado a Moto Rápida `ativa`, FAT-0001 paga, que pediu em 19 nov a pausa de 2 meses (FAT-0002 de 22 nov `cancelada`, CA-ASS-42), quando a Mariana desiste em 20 nov pela `Admin-Assinatura`, então nasce a FAT-0003 `aberta`, R$ 449,00, vencendo em 22 nov, "Plano Profissional · 22 nov a 21 dez", a FAT-0002 continua `cancelada`, a empresa segue `ativa` depois de 21 nov, e a desistência fica na auditoria. Em 22 nov, já `pausada`, a opção é "Voltar da pausa" (CA-ASS-36). O Rodrigo e o suporte Giro não desistem (403). `test_plt_06_desistir_da_pausa_agendada`.
 
 **CA-ASS-56 · Mudar de plano com o cancelamento marcado**
-Dado a Moto Rápida `ativa` cancelada em 05 nov (acesso até 21 nov), quando a Mariana tenta o Completo ou o Essencial, então é recusado com "Desfaça o cancelamento antes de mudar de plano.", e pausar é recusado com "Desfaça o cancelamento antes de pausar." Trocar a forma de pagamento e pagar fatura continuam. Dado a empresa do CA-ASS-16, no Completo com o Profissional agendado para 22 nov, quando o administrador cancela em 05 nov, então o agendamento continua; quando ele desfaz o cancelamento em 10 nov, o Profissional vale em 22 nov, se couber (`PLT-04`). `test_plt_06_mudar_de_plano_com_cancelamento_marcado`.
+Dado a Moto Rápida `ativa` cancelada em 05 nov (acesso até 21 nov), quando a Mariana tenta o Essencial, então é recusado com "Desfaça o cancelamento antes de mudar de plano.", e pausar é recusado com "Desfaça o cancelamento antes de pausar." Trocar a forma de pagamento e pagar fatura continuam. (Fase 2: Completo.) Dado a empresa do CA-ASS-16, no Completo com o Profissional agendado para 22 nov, quando o administrador cancela em 05 nov, então o agendamento continua; quando ele desfaz o cancelamento em 10 nov, o Profissional vale em 22 nov, se couber (`PLT-04`). `test_plt_06_mudar_de_plano_com_cancelamento_marcado`.
 
 **CA-ASS-57 · Diferença em aberto durante a pausa**
 Dado a Moto Rápida `ativa` com a pausa de 2 meses começando em 22 nov e uma fatura de diferença de upgrade aberta vencendo em 23 nov, quando a pausa começa, então a fatura continua `aberta` e devida, e a régua dela segue (D0 em 23 nov, D+3 em 26 nov). Em 24 nov, sem pagar, a empresa continua `pausada`, sem virar `inadimplente`. Quando a Mariana volta da pausa em 01 dez com a fatura ainda atrasada, então a empresa volta `inadimplente`, e vira `suspensa` em 08 dez (D+15 do vencimento de 23 nov) se não pagar. `test_plt_06_diferenca_em_aberto_na_pausa`.
