@@ -1,8 +1,8 @@
 import type { AndamentoDoAssistente, PassoDoAssistente } from "@/lib/api";
 
 // Rotas do assistente (docs/telas/README.md, telas 5 a 12). A ordem, os números e os rótulos vêm de GET /api/implantacao/;
-// aqui só fica qual passo já tem tela. Contrato, recebimentos, tabela de preços, filial e equipe ainda não têm.
-const COM_TELA: string[] = ["marca", "ramo", "importar"];
+// aqui só fica qual passo já tem tela. Só os recebimentos ainda não têm (T-366).
+const COM_TELA: string[] = ["marca", "filial", "ramo", "precos", "contrato", "importar", "equipe"];
 
 export const rotaDoPasso = (passo: string): string => `/implantacao/${passo}`;
 
