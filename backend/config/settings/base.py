@@ -322,6 +322,10 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 # S-11: o resultado guardaria o retorno em texto no Redis; quem precisar liga na tarefa.
 CELERY_TASK_IGNORE_RESULT = True
+# AUD-08 (ADR 0025, M-01 da T-355): o apagamento da empresa cancelada tem fila própria, lida só pelo
+# worker que recebe a DATABASE_URL_MIGRACAO (`-Q apagamento`). O worker comum lê só `celery`. No
+# desenvolvimento, o único worker lê as duas filas (`-Q celery,apagamento`).
+CELERY_TASK_ROUTES = {"aud_08_apagar_empresas": {"queue": "apagamento"}}
 CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
     # Corrige o resumo de uso do plano (PLT-03) contando em cada schema.
     "plataforma_recalcular_uso_de_todas": {
