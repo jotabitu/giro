@@ -19,6 +19,7 @@ from apps.contratos import selectors as contratos_selectors
 from apps.contratos.api.serializers import ContratoGeradoSerializer, UrlDoPdfSerializer
 from apps.filiais.models import Filial
 from apps.filiais.selectors import filtrar_por_filial
+from apps.plataforma.models import Recurso
 from comum.erros import ErroDeValidacao
 from comum.paginacao import PaginacaoPorCursor, envelope_sem_paginas
 from comum.permissoes import com_padrao, exige_perfil, filiais_permitidas, filial_pedida
@@ -52,6 +53,11 @@ LEEM_A_LISTA: list[type[BasePermission]] = com_padrao(
     exige_perfil("administrador", "gerente", "vendedor", "financeiro")
 )
 ADMINISTRADOR: list[type[BasePermission]] = com_padrao(exige_perfil("administrador"))
+
+
+class ViewDeLocacao(APIView):
+    # PLT-12: rota do módulo de locação e vistoria (ADR 0024, item 4).
+    recurso_do_plano = Recurso.LOCACOES_VISTORIA
 
 
 def _entrada(classe: type[Serializer[Any]], request: Request, **kwargs: Any) -> dict[str, Any]:
@@ -93,7 +99,7 @@ def _detalhe(request: Request, pk: int, codigo: int = status.HTTP_200_OK) -> Res
     return Response(LocacaoDetalheSerializer(dados).data, status=codigo)
 
 
-class LocacoesView(APIView):
+class LocacoesView(ViewDeLocacao):
     def get_permissions(self) -> Any:
         permissoes = CRIAM if self.request.method == "POST" else LEEM_A_LISTA
         return [permissao() for permissao in permissoes]
@@ -141,7 +147,7 @@ class LocacoesView(APIView):
         return _detalhe(request, locacao.pk, status.HTTP_201_CREATED)
 
 
-class SimularLocacaoView(APIView):
+class SimularLocacaoView(ViewDeLocacao):
     permission_classes = CRIAM
 
     @extend_schema(
@@ -158,7 +164,7 @@ class SimularLocacaoView(APIView):
         return Response(SimulacaoLocacaoSerializer(dados).data)
 
 
-class LocacaoView(APIView):
+class LocacaoView(ViewDeLocacao):
     def get_permissions(self) -> Any:
         if self.request.method == "PATCH":
             return [permissao() for permissao in CRIAM]
@@ -179,7 +185,7 @@ class LocacaoView(APIView):
         return _detalhe(request, pk)
 
 
-class ConfirmarLocacaoView(APIView):
+class ConfirmarLocacaoView(ViewDeLocacao):
     permission_classes = CRIAM
 
     @extend_schema(
@@ -193,7 +199,7 @@ class ConfirmarLocacaoView(APIView):
         return _detalhe(request, pk)
 
 
-class HistoricoLocacaoView(APIView):
+class HistoricoLocacaoView(ViewDeLocacao):
     @extend_schema(responses=HistoricoLocacaoSerializer, summary="Linha do tempo da locação")
     def get(self, request: Request, pk: int) -> Response:
         itens = selectors.historico(_locacao(request, pk), request.user)
@@ -203,7 +209,7 @@ class HistoricoLocacaoView(APIView):
 # --- Renovação e cancelamento (LOC-08, LOC-12, LOC-13, APR-02) ---
 
 
-class SimularRenovacaoView(APIView):
+class SimularRenovacaoView(ViewDeLocacao):
     permission_classes = CRIAM
 
     @extend_schema(
@@ -217,7 +223,7 @@ class SimularRenovacaoView(APIView):
         return Response(SimulacaoRenovacaoSerializer(simulacao).data)
 
 
-class RenovarLocacaoView(APIView):
+class RenovarLocacaoView(ViewDeLocacao):
     permission_classes = CRIAM
 
     @extend_schema(
@@ -231,7 +237,7 @@ class RenovarLocacaoView(APIView):
         return _detalhe(request, pk)
 
 
-class SimularCancelamentoView(APIView):
+class SimularCancelamentoView(ViewDeLocacao):
     permission_classes = CRIAM
 
     @extend_schema(
@@ -247,7 +253,7 @@ class SimularCancelamentoView(APIView):
         return Response(SimulacaoCancelamentoSerializer(simulacao).data)
 
 
-class CancelarLocacaoView(APIView):
+class CancelarLocacaoView(ViewDeLocacao):
     permission_classes = CRIAM
 
     @extend_schema(
@@ -275,7 +281,7 @@ class CancelarLocacaoView(APIView):
 # --- Contrato (fluxo da retirada, passo 3; docs/api/contratos.md) ---
 
 
-class ContratoLocacaoView(APIView):
+class ContratoLocacaoView(ViewDeLocacao):
     permission_classes = CRIAM
 
     @extend_schema(
@@ -290,7 +296,7 @@ class ContratoLocacaoView(APIView):
         )
 
 
-class ReenviarContratoView(APIView):
+class ReenviarContratoView(ViewDeLocacao):
     permission_classes = CRIAM
 
     @extend_schema(
@@ -306,7 +312,7 @@ class ReenviarContratoView(APIView):
         )
 
 
-class PdfDoContratoView(APIView):
+class PdfDoContratoView(ViewDeLocacao):
     permission_classes = VEEM_O_CONTRATO
 
     @extend_schema(responses=UrlDoPdfSerializer, summary="PDF do contrato (URL de 15 min, AUD-05)")
@@ -321,7 +327,7 @@ class PdfDoContratoView(APIView):
 # --- Planos especiais ---
 
 
-class PlanosEspeciaisView(APIView):
+class PlanosEspeciaisView(ViewDeLocacao):
     def get_permissions(self) -> Any:
         # USR-09 (T-155, M-01 da T-024): os preços dos planos são de quem lê locações; o
         # vistoriador recebe 403.
@@ -358,7 +364,7 @@ def _plano(pk: int) -> PlanoEspecial:
     return plano
 
 
-class PlanoEspecialView(APIView):
+class PlanoEspecialView(ViewDeLocacao):
     permission_classes = ADMINISTRADOR
 
     @extend_schema(
@@ -372,7 +378,7 @@ class PlanoEspecialView(APIView):
         return Response(PlanoEspecialSerializer(selectors.representacao_plano(plano)).data)
 
 
-class DesativarPlanoEspecialView(APIView):
+class DesativarPlanoEspecialView(ViewDeLocacao):
     permission_classes = ADMINISTRADOR
 
     @extend_schema(request=None, responses=PlanoEspecialSerializer, summary="Desativar plano")

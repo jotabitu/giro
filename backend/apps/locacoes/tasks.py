@@ -6,9 +6,12 @@ from celery import shared_task
 
 from comum.tarefas import para_cada_empresa, tarefa_de_empresa
 
+# PLT-12: a empresa sem o módulo (ramo que só vende) é pulada.
+MODULO = "locacoes_vistoria"
+
 
 @shared_task(name="aut_02_marcar_devolucao_atrasada")
-@tarefa_de_empresa
+@tarefa_de_empresa(recurso=MODULO)
 def aut_02_marcar_devolucao_atrasada(schema_name: str) -> int:
     """AUT-02, de hora em hora: aplica LOC-10 e LOC-11 (`devolucao_atrasada` no dia seguinte ao
     fim previsto). Idempotente."""
@@ -24,7 +27,7 @@ def aut_02_marcar_devolucao_atrasada_de_todas(**_: Any) -> int:
 
 
 @shared_task(name="locacoes_cancelar_rascunhos_sem_uso")
-@tarefa_de_empresa
+@tarefa_de_empresa(recurso=MODULO)
 def locacoes_cancelar_rascunhos_sem_uso(schema_name: str) -> int:
     """Rascunho com 24 h sem uso vai para `cancelada`. Idempotente."""
     from .services import cancelar_rascunhos_sem_uso

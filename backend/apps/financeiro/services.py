@@ -33,7 +33,7 @@ from comum import aprovacoes, arquivos, estados, relogio
 from comum.auditoria import Categoria, TipoAtor, ator_atual, auditar, registrar_evento
 from comum.dinheiro import formatar_reais
 from comum.documentos import placa_com_hifen
-from comum.empresa import nome_da_empresa
+from comum.empresa import nome_da_empresa, tem_recurso
 from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, ParceiroForaDoAr
 from comum.eventos import publicar
 from comum.models import WebhookRecebido
@@ -263,8 +263,12 @@ def _baixar(
 def lancar_comissao(
     origem: Origem, *, usuario_id: int, valor_centavos: int, regra: str = RegraComissao.FIXO_LOCACAO
 ) -> Comissao | None:
-    """Comissão `pendente` da origem. Uma por origem e pessoa (sem contar as estornadas)."""
-    if valor_centavos <= 0:
+    """Comissão `pendente` da origem. Uma por origem e pessoa (sem contar as estornadas).
+
+    Só nasce com `vendas_comissoes` ligado no momento do fato (PLT-12, ADR 0024, item 11): a
+    locação confirmada no Essencial nunca tem comissão, nem depois do upgrade. Confirmar, pagar e
+    estornar só mexem na comissão que já existe."""
+    if valor_centavos <= 0 or not tem_recurso("vendas_comissoes"):
         return None
     with transaction.atomic():
         existente: Comissao | None = (
@@ -1454,21 +1458,29 @@ def cobrar(conta: ContaReceber) -> bool:
     """A mensagem de cobrança do momento, com a marca da locadora (AUT-03): pelo WhatsApp
     quando o cliente tem celular e por e-mail quando tem e-mail, com o mesmo texto. No dia e em
     atraso, gera o Pix do valor do dia quando os recebimentos estão ligados. Uma vez por conta
-    por dia, contando os dois canais; devolve se cobrou (sem celular e sem e-mail, não)."""
+    por dia, contando os dois canais; devolve se cobrou (sem canal, não).
+
+    PLT-12 (ADR 0024, item 5): sem `cobranca_whatsapp` (Essencial), só e-mail; sem
+    `recebimento_parceiro`, sem Pix, com o texto "Pague na loja"."""
     cliente = conta.cliente
-    if conta.status != StatusConta.ABERTA or not (cliente.celular or cliente.email):
+    celular = cliente.celular if tem_recurso("cobranca_whatsapp") else ""
+    if conta.status != StatusConta.ABERTA or not (celular or cliente.email):
         return False
     if _ja_cobrada_hoje(conta):
         return False
     pix = None
-    if conta.vencimento <= relogio.hoje() and conta_de_pagamento() is not None:
+    if (
+        conta.vencimento <= relogio.hoje()
+        and tem_recurso("recebimento_parceiro")
+        and conta_de_pagamento() is not None
+    ):
         try:
             pix = gerar_cobranca(conta, tipo=TipoCobranca.PIX).pix_copia_e_cola
         except (ParceiroForaDoAr, ErroDeRegra):
             pix = None  # a mensagem sai sem o Pix; a régua não para por um cliente
     mensagem = mensagem_de_cobranca(conta, pix=pix)
-    if cliente.celular:
-        enviar_whatsapp(cliente.celular, mensagem.texto)
+    if celular:
+        enviar_whatsapp(celular, mensagem.texto)
     if cliente.email:
         send_mail(
             subject=mensagem.assunto,

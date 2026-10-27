@@ -330,20 +330,32 @@ def montar_ficha(veiculo: Any) -> dict[str, Any] | None:
     }
 
 
+# PLT-12: sem o módulo (ramo que só vende), os blocos não vêm e os contadores valem 0.
+MODULO = "locacoes_vistoria"
+
+
 def registrar() -> None:
-    leituras.registrar_anotacao(CONTA, "locacao", anotar_conta, montar_conta)
+    leituras.registrar_anotacao(CONTA, "locacao", anotar_conta, montar_conta, recurso=MODULO)
     leituras.registrar_anotacao(
-        VEICULO, "indicadores_financeiros", anotar_rendimento, montar_rendimento
+        VEICULO, "indicadores_financeiros", anotar_rendimento, montar_rendimento, recurso=MODULO
     )
-    leituras.registrar_anotacao(VEICULO, "locacao_atual", anotar_veiculo, montar_veiculo)
+    leituras.registrar_anotacao(
+        VEICULO, "locacao_atual", anotar_veiculo, montar_veiculo, recurso=MODULO
+    )
     # Só a ficha pede plano e pagamento: alvo próprio, para a Frota não consultá-los.
-    leituras.registrar_anotacao(FICHA, "locacao_atual", _sem_anotacao, montar_ficha)
-    leituras.registrar_anotacao(CLIENTE, "locacao_atual", anotar_cliente, montar_cliente_atual)
+    leituras.registrar_anotacao(FICHA, "locacao_atual", _sem_anotacao, montar_ficha, recurso=MODULO)
+    leituras.registrar_anotacao(
+        CLIENTE, "locacao_atual", anotar_cliente, montar_cliente_atual, recurso=MODULO
+    )
     # A anotação da locação atual já serve aos dois blocos do cliente.
-    leituras.registrar_anotacao(CLIENTE, "ultima_locacao", _sem_anotacao, montar_cliente_ultima)
+    leituras.registrar_anotacao(
+        CLIENTE, "ultima_locacao", _sem_anotacao, montar_cliente_ultima, recurso=MODULO
+    )
     leituras.registrar_filtro(CLIENTE, "com_locacao", com_locacao)
     leituras.registrar_filtro(CLIENTE, "filial", da_filial)
-    leituras.registrar_contador(CLIENTE, "locacao_aberta", locacao_aberta)
-    leituras.registrar_anotacao(FILIAL, "indicadores", anotar_filial, montar_filial)
-    leituras.registrar_contador(FILIAL, "locacoes", locacoes_da_filial)
-    leituras.registrar_contador(CATEGORIA, "locacoes_em_andamento", locacoes_da_categoria)
+    leituras.registrar_contador(CLIENTE, "locacao_aberta", locacao_aberta, recurso=MODULO)
+    leituras.registrar_anotacao(FILIAL, "indicadores", anotar_filial, montar_filial, recurso=MODULO)
+    leituras.registrar_contador(FILIAL, "locacoes", locacoes_da_filial, recurso=MODULO)
+    leituras.registrar_contador(
+        CATEGORIA, "locacoes_em_andamento", locacoes_da_categoria, recurso=MODULO
+    )

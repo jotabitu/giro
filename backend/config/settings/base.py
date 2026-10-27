@@ -113,6 +113,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "comum.middleware.EmpresaCanceladaMiddleware",  # AUD-08: a cancelada não entra
+    "comum.middleware.RecursosDoPedidoMiddleware",  # PLT-12: o plano lido uma vez por pedido
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -174,6 +175,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["comum.autenticacao.JWTDaEmpresa"],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
+        "comum.permissoes.ModuloDoPlano",  # PLT-12: antes de perfil e filial (ADR 0024)
         "comum.permissoes.EmpresaOperando",
         "comum.permissoes.EscopoDeFilial",
     ],
