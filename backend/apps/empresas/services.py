@@ -11,6 +11,7 @@ from django.db import transaction
 from apps.plataforma import selectors as plataforma_selectors
 from apps.plataforma import services as plataforma_services
 from comum import arquivos, modulos
+from comum import empresa as empresa_config
 from comum.auditoria import Categoria, auditar
 from comum.conexao import schema_atual
 from comum.erros import ErroDeRegra, ErroDeValidacao
@@ -75,8 +76,7 @@ def mudar_ramo(atividade: str, trabalha_com: str, por: object) -> ConfiguracaoEm
             )
         antes = plataforma_selectors.recursos_para(plano, configuracao.atividade)
         depois = plataforma_selectors.recursos_para(plano, atividade)
-        saem = sorted(antes - depois)
-        abertos = modulos.pendencias(saem)
+        abertos = plataforma_services.pendencias_dos_modulos(None, antes - depois)
         if abertos:
             recurso = modulos.RECURSO_DO_GRUPO[abertos[0]["grupo"]]
             texto = _juntar([grupo["texto"] for grupo in abertos])
@@ -105,6 +105,7 @@ def mudar_ramo(atividade: str, trabalha_com: str, por: object) -> ConfiguracaoEm
                 configuracao.atividade = atividade
                 configuracao.trabalha_com = trabalha_com
                 configuracao.save(update_fields=["atividade", "trabalha_com", "atualizado_em"])
+            empresa_config.esquecer_recursos()  # o módulo sai já no resto do pedido
         plataforma_services.registrar_passo_implantacao("ramo")
     return configuracao
 

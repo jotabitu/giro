@@ -31,7 +31,7 @@ from django_tenants.utils import (
 
 from comum.auditoria import Ator, TipoAtor, ator_atual, usar_ator
 from comum.conexao import schema_atual as schema_atual  # para quem agenda tarefa
-from comum.empresa import STATUS_OPERANDO, STATUS_SO_LEITURA
+from comum.empresa import STATUS_OPERANDO, STATUS_SO_LEITURA, tem_recurso
 
 _REGRA_DA_TAREFA = re.compile(r"^aut_(\d+)_")
 logger = logging.getLogger(__name__)
@@ -143,11 +143,16 @@ def na_empresa(
 
 
 def tarefa_de_empresa[**P, R](
-    funcao: Callable[P, R] | None = None, *, inclui_suspensas: bool = False
+    funcao: Callable[P, R] | None = None,
+    *,
+    inclui_suspensas: bool = False,
+    recurso: str | None = None,
 ) -> Any:
     """`@tarefa_de_empresa` ou `@tarefa_de_empresa(inclui_suspensas=True)` (leitura e cobrança).
 
-    Empresa indisponível não é erro da tarefa: ela registra um aviso e não faz nada.
+    Empresa indisponível não é erro da tarefa: ela registra um aviso e não faz nada. Com
+    `recurso=`, a empresa sem o módulo no plano ou no ramo é pulada sem erro (PLT-12, ADR 0024,
+    item 5): `para_cada_empresa` enfileira todas, e a conferência é feita aqui, no schema dela.
     Um argumento nomeado `ator` (de `ator_para_fila()`) é consumido aqui e não chega à função.
     """
 
@@ -169,6 +174,8 @@ def tarefa_de_empresa[**P, R](
                     )
                 except EmpresaIndisponivel as motivo:
                     logger.warning("%s ignorada: %s", alvo.__name__, motivo)
+                    return None
+                if recurso is not None and not tem_recurso(recurso):
                     return None
                 return alvo(*args, **kwargs)
 

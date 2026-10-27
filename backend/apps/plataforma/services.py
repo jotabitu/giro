@@ -10,7 +10,7 @@ import hmac
 import logging
 import re
 import secrets
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import asdict, dataclass, replace
 from datetime import date, timedelta
 from functools import partial
@@ -29,7 +29,8 @@ from django_tenants.utils import (
     tenant_context,
 )
 
-from comum import relogio
+from comum import empresa as comum_empresa
+from comum import modulos, relogio
 from comum.auditoria import (
     ATOR_SISTEMA,
     Ator,
@@ -1271,26 +1272,47 @@ def _juntar(textos: list[str], conector: str) -> str:
     return f"{', '.join(textos[:-1])} {conector} {textos[-1]}"
 
 
-def pendencias_dos_modulos(empresa: Empresa, plano: Plano) -> list[dict[str, Any]]:
-    """O que fica aberto nos módulos que saem ao descer para `plano` (PLT-12, ADR 0024, item 7):
-    `[{grupo, quantidade, texto}]`, só os grupos com quantidade, na ordem do contrato.
+def pendencias_dos_modulos(
+    empresa: Empresa | None, recursos_que_saem: Iterable[str]
+) -> list[dict[str, Any]]:
+    """O que está aberto nos módulos que saem (PLT-12, ADR 0024, itens 7 e 9):
+    `[{grupo, quantidade, texto}]`, só os grupos com quantidade, na ordem do contrato. Conta no
+    schema da empresa; com `empresa=None`, no schema corrente (a troca de ramo)."""
+    saem = sorted(set(recursos_que_saem))
+    if not saem:
+        return []
+    if empresa is None or conexao().schema_name == empresa.schema_name:
+        return modulos.pendencias(saem)
+    with no_schema_da_empresa(empresa):
+        return modulos.pendencias(saem)
 
-    A contagem por módulo é da T-196 (módulos por plano); até lá, nenhum grupo tem quantidade, e a
-    recusa do downgrade fica só nos limites (assinatura.md, "O que muda para as tarefas abertas").
-    """
-    return []
+
+def _atividade_da_empresa(empresa: Empresa) -> str:
+    """O ramo guardado da empresa (`comum.empresa.atividade`), lido no schema dela."""
+    if conexao().schema_name == empresa.schema_name:
+        return comum_empresa.atividade()
+    with no_schema_da_empresa(empresa):
+        return comum_empresa.atividade()
 
 
 def excede_no_plano(empresa: Empresa, plano: Plano, uso: UsoEmpresa) -> dict[str, Any]:
-    """O que não cabe em `plano` (PLT-03, PLT-04, PLT-12): os itens acima do limite (86 de 30) e
-    o que está aberto nos módulos que saem. Vazio = cabe."""
+    """O que não cabe em `plano` (PLT-03, PLT-04, PLT-12): a atividade que o plano não aceita, os
+    itens acima do limite (86 de 30) e o que está aberto nos módulos que saem (ADR 0024, itens 7
+    e 10). Vazio = cabe."""
+    from .selectors import atividades_aceitas, recursos_para
+
     excede: dict[str, Any] = {}
+    atividade = _atividade_da_empresa(empresa)
+    aceitas = atividades_aceitas(plano)
+    if atividade not in aceitas:
+        excede["atividade"] = {"atual": atividade, "aceitas": list(aceitas)}
     for item in Item.values:
         limite = plano.limite(item)
         usado = int(getattr(uso, item))
         if limite is not None and usado > limite:
             excede[item] = {"usado": usado, "limite": limite}
-    abertos = pendencias_dos_modulos(empresa, plano)
+    saem = recursos_para(empresa.plano, atividade) - recursos_para(plano, atividade)
+    abertos = pendencias_dos_modulos(empresa, saem)
     if abertos:
         excede["abertos"] = abertos
         excede["abertos_texto"] = _juntar([grupo["texto"] for grupo in abertos], "e")
@@ -1298,7 +1320,14 @@ def excede_no_plano(empresa: Empresa, plano: Plano, uso: UsoEmpresa) -> dict[str
 
 
 def _recusa_do_downgrade(plano: Plano, excede: dict[str, Any]) -> ErroDeRegra:
-    """422 `PLT-04` com tudo o que não cabe de uma vez, como a `FIL-06`."""
+    """422 `PLT-04` com tudo o que não cabe de uma vez, como a `FIL-06`. Com a atividade, a
+    mensagem é a dela: o ramo se resolve primeiro (`assinatura.md`, CA-ASS-52)."""
+    if "atividade" in excede:
+        return ErroDeRegra(
+            "PLT-04",
+            f"O plano {plano.nome} não inclui vendas. Para mudar, sua empresa precisa alugar.",
+            excede,
+        )
     itens = _juntar([Item(item).label for item in Item.values if item in excede], "ou")
     abertos = excede.get("abertos_texto", "")
     if itens and abertos:
@@ -2286,7 +2315,8 @@ def destinatarios_da_cobranca(empresa: Empresa) -> list[str]:
 
 def texto_do_que_excede(excede: Mapping[str, Any]) -> str:
     """O motivo do downgrade recusado, para o e-mail: "11 de 10 usuários e 1 OS aberta"."""
-    partes = [
+    partes = ["a empresa só vende"] if "atividade" in excede else []
+    partes += [
         f"{excede[item]['usado']} de {excede[item]['limite']} {Item(item).label}"
         for item in Item.values
         if item in excede

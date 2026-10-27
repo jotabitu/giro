@@ -74,3 +74,6 @@ export type ContagensAprovacoes = S["ContagensDePedidos"];
 export type ResumoDoPedido = S["ResumoDoPedido"];
 export type FiltroPedidos = { status?: StatusDoPedido; tipo?: TipoDoPedido; minhas?: boolean };
 export type ListaPedidos = S["ListaDePedidos"];
+
+/** Corpo de `POST /api/financeiro/contas-receber/renegociar/` (docs/api/financeiro.md). */
+export type CorpoDaRenegociacao = { contas: number[]; novas: { vencimento: string; valor_centavos: number }[]; motivo: string };
