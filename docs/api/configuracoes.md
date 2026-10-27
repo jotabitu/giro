@@ -84,6 +84,7 @@ Ordem fixa: `marca`, `ramo`, `filiais`, `usuarios`, `precos`, `modelos_contrato`
 | `assinatura` | Assinatura | `plataforma` | "{plano} · {situação}", com a situação pelo status da empresa: `em_teste` "teste até {21 out}"; `ativa` "mensal" ou "anual" (o `ciclo`); `inadimplente` "fatura em atraso"; `suspensa` "suspensa"; `pausada` "pausada até {30 nov}" (sem data, "pausada"); `cancelada` "cancelada". Data curta como em `plataforma.selectors._dia_mes`. |
 | `auditoria` | Auditoria | `auditoria`; não vem para o token de suporte | "Quem fez o quê no sistema" (fixo) |
 | `exportar` | Exportar dados | `auditoria`; não vem para o token de suporte | "Baixe a auditoria em CSV" (fixo; ver "Pendências") |
+| `suporte` | Controle do suporte | `plataforma`; **não vem para o token de suporte** (o suporte não controla o próprio acesso, `PLT-07`) | T-358, tela `Admin-Suporte` (T-360). Liberado: "Suporte liberado"; bloqueado: "Suporte bloqueado". Com acesso `ativo` agora, acrescenta " · 1 acesso ativo" ou " · {n} acessos ativos". O texto da tela de referência ("Acesso da equipe Giro e bloqueio") era de exemplo |
 
 Quando a fase 2 entregar as integrações e as notificações, cada uma acrescenta o resumo dela nesta tabela (a tela pede "Pagamentos, WhatsApp e rastreador ligados" e "Lembretes de pagamento e devolução"); o corpo da resposta não muda.
 
@@ -105,7 +106,7 @@ Quando a fase 2 entregar as integrações e as notificações, cada uma acrescen
 
 ### Cache
 
-Nenhum. São contagens pequenas, e a tela é aberta pouco e logo depois de mudar alguma coisa (voltar de Filiais ou de Usuários tem que mostrar o número novo). Teste de quantidade de queries: no máximo 11 com todos os cartões (10 + a linha da `ConfiguracaoEmpresa` do cartão `ramo`, T-262) (`django_assert_num_queries`), sem N+1 por filial ou por modelo.
+Nenhum. São contagens pequenas, e a tela é aberta pouco e logo depois de mudar alguma coisa (voltar de Filiais ou de Usuários tem que mostrar o número novo). Teste de quantidade de queries: no máximo 12 com todos os cartões (10 + a linha da `ConfiguracaoEmpresa` do cartão `ramo`, T-262, + a situação do suporte, T-358) (`django_assert_num_queries`), sem N+1 por filial ou por modelo.
 
 ---
 
@@ -122,6 +123,7 @@ Nenhum. São contagens pequenas, e a tela é aberta pouco e logo depois de mudar
 | `modelos_contrato` | `contratos.selectors.resumo_dos_modelos()` → `{ "modelos": int, "rascunhos": int, "tem_publicado_de_locacao": bool }` | nova (`modelo_publicado` já existe para o `IMP-04`) |
 | `assinatura` | `plataforma.selectors.assinatura()` (o corpo de `GET /api/assinatura/`) | existe |
 | `implantacao` | `plataforma.selectors.implantacao(empresa_atual())` | existe |
+| `suporte` | `plataforma.selectors.situacao_do_suporte()` → `{ "bloqueado": bool, "ativos": int }` | nova (lê o `public`, como `GET /api/suporte/`). O teto de queries sobe para 12 |
 | todos | `contas.navegacao` para a tabela de item e app de `GIRO_MODULOS_ATIVOS` (a mesma do menu) | existe |
 
 Os textos dos cartões ficam em `relatorios/configuracoes.py` (função pura, testada com os casos da tabela "Cartões").
@@ -138,6 +140,7 @@ O frontend liga `chave` → rota (referência em `docs/telas/README.md`, "Rotas 
 | `usuarios` | `/admin/usuarios` |
 | `precos` | `/admin/precos` |
 | `modelos_contrato` | `/admin/contratos` |
+| `suporte` | `/admin/suporte` (T-358, `Admin-Suporte`) |
 | `integracoes` | `/admin/integracoes` (fase 2) |
 | `notificacoes` | `/admin/notificacoes` (sem tela) |
 | `assinatura` | `/admin/assinatura` |

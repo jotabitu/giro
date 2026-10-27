@@ -6,7 +6,7 @@ COMPOSE := docker compose
 BACKEND_RUN := $(COMPOSE) run --rm backend
 FRONTEND_RUN := $(COMPOSE) run --rm --no-deps frontend
 
-.PHONY: help up down logs ps check infra-check backend-check frontend-check seed migrate shell api-schema api-client relogio
+.PHONY: help up down logs ps check infra-check backend-check frontend-check seed migrate shell api-schema api-client relogio auditoria-deps
 
 help:
 	@echo "make up              sobe tudo (Postgres, Redis, backend, worker, beat, frontend)"
@@ -17,6 +17,7 @@ help:
 	@echo "make migrate         migrate_schemas em todos os schemas"
 	@echo "make api-schema      gera docs/api/openapi.yaml"
 	@echo "make api-client      gera o cliente tipado do frontend"
+	@echo "make auditoria-deps  pip-audit e npm audit, com as exceções de infra/auditoria/excecoes.txt"
 	@echo "make logs / ps / shell"
 
 .env:
@@ -69,3 +70,7 @@ backend-check: .env
 
 frontend-check: .env
 	$(FRONTEND_RUN) sh -c "npm run lint && npm run typecheck && npm test -- --run && npm run build"
+
+# Precisa de pip-audit (pipx install pip-audit), node e npm no computador; não usa o Compose.
+auditoria-deps:
+	sh infra/scripts/auditoria-deps.sh

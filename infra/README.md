@@ -7,7 +7,7 @@ infra/
 ├── docker/        Dockerfiles de backend (também worker e beat) e frontend, entrypoint do backend
 ├── postgres/      SQL de inicialização do banco: papéis da ADR 0016 (01-papeis.sh)
 ├── scripts/       verificações de infra (check-env.sh)
-├── deploy/        homologação e produção (ADR 0033: uma VPS com Compose; ver "Produção" abaixo)
+├── deploy/        homologação e produção (uma VPS com tudo em Docker Compose, de preferência num provedor no Brasil: ADR 0033, opção B; ver "Produção" abaixo)
 └── backup/        scripts de backup diário e teste de restauração
 ```
 
@@ -78,6 +78,13 @@ Todos os serviços do `docker-compose.yml` têm `restart: unless-stopped`: volta
 | `giro_expurgo` | dono da função `auditoria_expurgar` (sem login) | nenhuma |
 
 `infra/postgres/01-papeis.sh` cria os três, dá a `giro_migracao` o schema `public` e `CREATE` no banco, e deixa `giro_app` com `SELECT/INSERT/UPDATE/DELETE` por privilégio padrão no `public`. Roda só quando o volume do Postgres é criado (`make down V=1` para refazer). Testado num Postgres 16 limpo: `giro_app` não cria tabela nem schema e lê e escreve em tabela criada por `giro_migracao`.
+
+**Onde a `DATABASE_URL_MIGRACAO` entra (T-352, achado B-01 da T-199):** só no `worker` do Celery, nunca no `backend` (web) nem no `beat`.
+- **Por quê:** é credencial com DDL em todos os schemas. A única rotina de execução que a usa é a `plataforma.aud_08_apagar_empresas` (`DROP SCHEMA` da empresa cancelada, ADR 0025), que roda no worker. O web, que atende a internet, e o beat, que só agenda, não precisam dela; sem ela, um furo no web não ganha DDL. Sem a variável no worker, a tarefa só registra um log de erro e a empresa fica para o dia seguinte.
+- **Desenvolvimento:** vem do `.env` (modelo em `.env.example`). O `docker-compose.yml` a zera (`DATABASE_URL_MIGRACAO: ""`) no `backend` e no `beat`; o `worker` a lê do `env_file` e consome as filas `celery` e `apagamento` (T-382: o backend manda a `aud_08_apagar_empresas` para a fila `apagamento`, `CELERY_TASK_ROUTES`).
+- **Homologação:** `infra/deploy/docker-compose.homologacao.yml` a passa ao `worker-apagamento` (`DATABASE_URL_MIGRACAO: ${DATABASE_URL_MIGRACAO}`, do cofre, só a fila `apagamento`) e a zera no `worker` (só a fila `celery`), no `backend`, no `beat` e no `estaticos`. O `migrar` continua com ela para o `migrate_schemas`. Em produção vale o mesmo desenho; o cofre (`producao.env.example`) traz a variável com a do `giro_migracao`.
+- **Por que zerar e não omitir:** o arquivo de variáveis do cofre é o mesmo para todos os serviços (`env_file`), então a variável chegaria a todos. `environment:` vence o `env_file`.
+- **CI:** o job Infra roda `infra/scripts/check-migracao-so-no-worker.sh`, que falha se a variável chegar a outro serviço que não o worker que lê a fila `apagamento` (`worker` no dev, `worker-apagamento` na homologação), ou se outro serviço ler essa fila, nos dois compose.
 
 **Dev:** `DATABASE_URL` e `DATABASE_URL_MIGRACAO` apontam para o superusuário do container (ADR 0016, item 5); os valores com papéis separados estão comentados em `.env.example`.
 
@@ -267,3 +274,11 @@ Frontend: `next.config.ts` envia `Referrer-Policy`, `X-Frame-Options`, `X-Conten
 **CSP, avaliação da T-052 (sem mudança de código):** (1) `img-src`: hoje nenhuma tela carrega imagem externa e o contrato de arquivos ainda não definiu o host do S3. O caminho recomendado é o frontend ler a origem de `S3_ENDPOINT_URL` (ou do host do bucket) no `middleware.ts`, em execução, e acrescentá-la a `img-src` (e `frame-src` se houver PDF embutido) quando a T-012/T-014 trouxerem logo, foto e prévia; a alternativa é o Django servir o arquivo pela mesma origem. (2) `connect-src 'self'`: certo, porque `NEXT_PUBLIC_API_URL` fica vazia em todos os ambientes (cookie `__Host-`, ADR 0013); o Sentry do frontend vai precisar do host do DSN. (3) `force-dynamic` na raiz: aceito; os arquivos de `_next/static` continuam com cache longo, só o HTML deixa de ser estático, e o app é autenticado. Registrar no PR.
 
 **Fica para o deploy (regra de rede):** o Django só alcançável pelo proxy reverso, que deve também sobrescrever `X-Forwarded-For` e `X-Forwarded-Proto` e repassar `Host`. Sem isso `GIRO_REDES_PROXY` não protege.
+
+## Auditoria de dependências (T-361, M-04 da T-355)
+
+`make auditoria-deps` (ou `sh infra/scripts/auditoria-deps.sh [pip|npm]`) roda o `pip-audit -r backend/requirements.txt` e o `npm audit --omit=dev` do frontend. Precisa de `pip-audit` (`pipx install pip-audit`), node e npm no computador.
+
+- **Quando falha:** qualquer aviso do `pip-audit` (ele não separa por gravidade) e aviso **alto ou crítico** do `npm audit`, salvo as exceções abaixo.
+- **Quando roda no CI:** `.github/workflows/auditoria.yml`, em todo PR que mude `requirements*.txt`, `package.json`, `package-lock.json` ou a lista de exceções, no push para a `main` nesses arquivos e toda segunda-feira (aviso novo aparece sem o código mudar). O deploy não tem script no repositório ainda (hoje só o `teste-subida-producao.sh`); quando o do desenho de produção (M-02) existir, ele chama `sh infra/scripts/auditoria-deps.sh` antes de subir.
+- **Como registrar uma exceção:** uma linha em `infra/auditoria/excecoes.txt`, `pip | <ID> | <validade AAAA-MM-DD> | <justificativa>` (ou `npm | <GHSA> | ...`). Só para aviso que não dá para corrigir agora e que o Giro não alcança; a justificativa diz por quê e quem acompanha. Validade de no máximo 90 dias: vencida, a auditoria volta a falhar. O PR que acrescenta a linha passa pela Segurança. A lista começa vazia.
