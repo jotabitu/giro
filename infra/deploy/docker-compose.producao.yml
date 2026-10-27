@@ -1,0 +1,315 @@
+# Produção do Giro (T-373, ADR 0033, opção B): uma VPS com tudo em Docker Compose. Sobe `db`
+# (PostgreSQL 16 com pgBackRest), `redis`, `estaticos`, `migrar`, `backend`, `worker`,
+# `worker-apagamento`, `beat`, `frontend` e o `proxy` (nginx). Perfis à parte: `certificado`
+# (certbot, DNS-01 na Cloudflare) e `backup` (rclone e restic). Roteiro completo: infra/README.md,
+# seção "Produção (ADR 0033)".
+#
+# Uso (dois arquivos de segredos, gerados do cofre; nunca no repositório):
+#   docker compose -f infra/deploy/docker-compose.producao.yml \
+#     --env-file producao.env --env-file producao-infra.env up -d --build
+# producao.env é o da aplicação (modelo producao.env.example); producao-infra.env é o da infra
+# (modelo producao-infra.env.example): a aplicação não recebe a credencial de backup nem a do DNS.
+# Variáveis só do compose: PORTA_HTTP e PORTA_HTTPS (80 e 443), ADMIN_IPS_ARQUIVO (arquivo do
+# cofre com os IPs do Django Admin, ADR 0029; vazio = Admin fechado), CLOUDFLARE_INI_ARQUIVO
+# (arquivo com o token da Cloudflare, perfil `certificado`) e SUBDOMINIO_PLATAFORMA (admin).
+#
+# Rede: só o `proxy` publica porta (80 e 443). Postgres, Redis, backend e Next ficam na rede
+# interna do compose, sem `ports:`. O firewall do provedor também abre só 80 e 443.
+
+x-registro: &registro
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-backend: &backend
+  build:
+    context: ../..
+    dockerfile: infra/docker/backend.Dockerfile
+    target: producao
+  image: giro-backend:producao
+  env_file: ${ENV_FILE:-producao.env}
+  restart: unless-stopped
+  logging: *registro
+
+services:
+  db:
+    build:
+      context: ../..
+      dockerfile: infra/docker/postgres.Dockerfile
+    image: giro-postgres:producao
+    restart: unless-stopped
+    logging: *registro
+    # `init: true` é obrigatório: com o arquivamento assíncrono, o pgBackRest deixa um processo
+    # órfão que o Postgres, sendo o processo 1, trata como queda do servidor e reinicia tudo.
+    init: true
+    shm_size: 256mb
+    mem_limit: 2g
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB em producao-infra.env}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER em producao-infra.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD em producao-infra.env}
+      POSTGRES_PASSWORD_MIGRACAO: ${POSTGRES_PASSWORD_MIGRACAO:?em producao-infra.env}
+      POSTGRES_PASSWORD_APP: ${POSTGRES_PASSWORD_APP:?em producao-infra.env}
+      # pgBackRest (ADR 0033): repositório num bucket de outro provedor, cifrado, 30 dias.
+      PGBACKREST_STANZA: giro
+      PGBACKREST_PG1_PATH: /var/lib/postgresql/data
+      # O superusuário não se chama postgres; sem estes dois o pgBackRest não acha o banco.
+      PGBACKREST_PG1_USER: ${POSTGRES_USER}
+      PGBACKREST_PG1_DATABASE: ${POSTGRES_DB}
+      PGBACKREST_REPO1_TYPE: s3
+      PGBACKREST_REPO1_S3_URI_STYLE: path
+      PGBACKREST_REPO1_PATH: /giro
+      PGBACKREST_REPO1_S3_BUCKET: ${PGBACKREST_REPO1_S3_BUCKET:?em producao-infra.env}
+      PGBACKREST_REPO1_S3_ENDPOINT: ${PGBACKREST_REPO1_S3_ENDPOINT:?em producao-infra.env}
+      PGBACKREST_REPO1_S3_REGION: ${PGBACKREST_REPO1_S3_REGION:?em producao-infra.env}
+      PGBACKREST_REPO1_S3_KEY: ${PGBACKREST_REPO1_S3_KEY:?em producao-infra.env}
+      PGBACKREST_REPO1_S3_KEY_SECRET: ${PGBACKREST_REPO1_S3_KEY_SECRET:?em producao-infra.env}
+      PGBACKREST_REPO1_CIPHER_TYPE: aes-256-cbc
+      PGBACKREST_REPO1_CIPHER_PASS: ${PGBACKREST_REPO1_CIPHER_PASS:?em producao-infra.env}
+      # 30 dias, contados de cada backup completo; os diferenciais e o WAL seguem o mesmo prazo.
+      PGBACKREST_REPO1_RETENTION_FULL_TYPE: time
+      PGBACKREST_REPO1_RETENTION_FULL: "30"
+      PGBACKREST_REPO1_RETENTION_DIFF: "30"
+      PGBACKREST_ARCHIVE_ASYNC: "y"
+      PGBACKREST_SPOOL_PATH: /var/spool/pgbackrest
+    command:
+      - postgres
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=pgbackrest --stanza=giro archive-push %p
+      - -c
+      - wal_level=replica
+      - -c
+      - max_wal_senders=3
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - effective_cache_size=1536MB
+      - -c
+      - max_connections=100
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    logging: *registro
+    mem_limit: 384m
+    environment:
+      REDIS_SENHA: ${REDIS_SENHA:?REDIS_SENHA em producao-infra.env}
+      REDISCLI_AUTH: ${REDIS_SENHA}
+    # A senha entra pela variável, não pela linha de comando (aparece em `ps` e `inspect`).
+    command:
+      - sh
+      - -c
+      - exec redis-server --requirepass "$$REDIS_SENHA" --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  # Copia os estáticos do Admin para o volume que o proxy serve, a cada subida.
+  estaticos:
+    <<: *backend
+    restart: "no"
+    user: "0"
+    entrypoint: ["sh", "-c", "cp -r /app/staticfiles/. /estaticos/"]
+    environment:
+      DATABASE_URL_MIGRACAO: ""
+    volumes:
+      - estaticos:/estaticos
+
+  # Migra os schemas com o papel giro_migracao (ADR 0016) e sai; só então o backend sobe.
+  migrar:
+    <<: *backend
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      RODAR_MIGRACOES: "1"
+      DATABASE_URL: ${DATABASE_URL_MIGRACAO:?DATABASE_URL_MIGRACAO em producao.env}
+      DATABASE_URL_MIGRACAO: ${DATABASE_URL_MIGRACAO}
+    command: ["true"]
+
+  backend:
+    <<: *backend
+    mem_limit: 3g
+    depends_on:
+      migrar:
+        condition: service_completed_successfully
+    # A credencial com DDL só vai ao `migrar` e ao `worker-apagamento` (T-352, ADR 0016 e 0025).
+    environment:
+      DATABASE_URL_MIGRACAO: ""
+    expose:
+      - "8000"
+    stop_grace_period: 40s
+
+  # Fila padrão. Não recebe a credencial de migração.
+  worker:
+    <<: *backend
+    mem_limit: 768m
+    depends_on:
+      migrar:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL_MIGRACAO: ""
+    command: ["celery", "-A", "config", "worker", "--loglevel=INFO", "-Q", "celery", "--concurrency=2", "-n", "geral@%h"]
+    stop_grace_period: 40s
+
+  # Worker próprio do apagamento (AUD-08, M-01 da T-355): só a fila `apagamento`, e é o único
+  # serviço de execução com o giro_migracao. EXIGE que o backend roteie a tarefa
+  # `aud_08_apagar_empresas` para a fila `apagamento` (CELERY_TASK_ROUTES): sem isso a tarefa cai na
+  # fila `celery`, que este worker não lê. Ver o handoff da T-373.
+  worker-apagamento:
+    <<: *backend
+    mem_limit: 512m
+    depends_on:
+      migrar:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL_MIGRACAO: ${DATABASE_URL_MIGRACAO:?DATABASE_URL_MIGRACAO em producao.env}
+    command: ["celery", "-A", "config", "worker", "--loglevel=INFO", "-Q", "apagamento", "--concurrency=1", "-n", "apagamento@%h"]
+    stop_grace_period: 40s
+
+  beat:
+    <<: *backend
+    mem_limit: 256m
+    depends_on:
+      migrar:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL_MIGRACAO: ""
+    command: ["celery", "-A", "config", "beat", "--loglevel=INFO", "--schedule=/tmp/celerybeat-schedule"]
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: infra/docker/frontend.producao.Dockerfile
+    image: giro-frontend:producao
+    restart: unless-stopped
+    logging: *registro
+    mem_limit: 512m
+    expose:
+      - "3000"
+
+  proxy:
+    image: nginx:1.27
+    restart: unless-stopped
+    logging: *registro
+    mem_limit: 128m
+    environment:
+      DOMINIO_BASE: ${DOMINIO_BASE:?DOMINIO_BASE em producao.env}
+      SUBDOMINIO_PLATAFORMA: ${SUBDOMINIO_PLATAFORMA:-admin}
+      BACKEND_UPSTREAM: backend:8000
+      FRONTEND_UPSTREAM: frontend:3000
+      # O certbot grava o certificado curinga em /etc/letsencrypt/live/<DOMINIO_BASE>/.
+      CERT_DIR: /etc/letsencrypt/live/${DOMINIO_BASE}
+      ESTATICOS_DIR: /estaticos
+    volumes:
+      - ../proxy/giro.conf.template:/etc/nginx/templates/giro.conf.template:ro
+      - ../proxy/snippets:/etc/nginx/templates/snippets:ro
+      - ${ADMIN_IPS_ARQUIVO:?ADMIN_IPS_ARQUIVO (arquivo do cofre; vazio = Admin fechado)}:/etc/nginx/admin-ips.conf:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - estaticos:/estaticos:ro
+    ports:
+      - "${PORTA_HTTP:-80}:80"
+      - "${PORTA_HTTPS:-443}:443"
+    depends_on:
+      estaticos:
+        condition: service_completed_successfully
+      backend:
+        condition: service_started
+      frontend:
+        condition: service_started
+
+  # --- Perfil `certificado`: docker compose --profile certificado run --rm certificado ---
+  # Emite o certificado curinga (DOMINIO_BASE e *.DOMINIO_BASE) por DNS-01 na Cloudflare. O token
+  # só tem permissão de DNS. A renovação é `certificado-renovar` (timer semanal, infra/backup/systemd).
+  certificado:
+    image: certbot/dns-cloudflare:v3.0.1
+    profiles: ["certificado"]
+    restart: "no"
+    environment:
+      DOMINIO_BASE: ${DOMINIO_BASE}
+      CERTBOT_EMAIL: ${CERTBOT_EMAIL:?CERTBOT_EMAIL em producao-infra.env}
+    entrypoint: ["sh", "-c"]
+    command:
+      - certbot certonly --dns-cloudflare --dns-cloudflare-credentials /run/cloudflare.ini --dns-cloudflare-propagation-seconds 60 -d "$$DOMINIO_BASE" -d "*.$$DOMINIO_BASE" --cert-name "$$DOMINIO_BASE" --agree-tos -m "$$CERTBOT_EMAIL" --non-interactive --keep-until-expiring
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - ${CLOUDFLARE_INI_ARQUIVO:?CLOUDFLARE_INI_ARQUIVO (dns_cloudflare_api_token = ...)}:/run/cloudflare.ini:ro
+
+  certificado-renovar:
+    image: certbot/dns-cloudflare:v3.0.1
+    profiles: ["certificado"]
+    restart: "no"
+    command: ["renew", "--non-interactive", "--quiet"]
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - ${CLOUDFLARE_INI_ARQUIVO:?CLOUDFLARE_INI_ARQUIVO}:/run/cloudflare.ini:ro
+
+  # --- Perfil `backup`: arquivos (infra/backup/backup-arquivos.sh) ---
+  # O rclone espelha o bucket de arquivos da aplicação (só leitura) num volume; o restic guarda
+  # o espelho cifrado no bucket de backup de outro provedor, com retenção de 30 dias.
+  rclone-arquivos:
+    image: rclone/rclone:1.68.2
+    profiles: ["backup"]
+    restart: "no"
+    mem_limit: 512m
+    environment:
+      RCLONE_CONFIG_ORIGEM_TYPE: s3
+      RCLONE_CONFIG_ORIGEM_PROVIDER: Other
+      RCLONE_CONFIG_ORIGEM_ENDPOINT: ${ARQUIVOS_S3_ENDPOINT:?em producao-infra.env}
+      RCLONE_CONFIG_ORIGEM_REGION: ${ARQUIVOS_S3_REGIAO:-}
+      RCLONE_CONFIG_ORIGEM_ACCESS_KEY_ID: ${ARQUIVOS_S3_CHAVE_LEITURA:?em producao-infra.env}
+      RCLONE_CONFIG_ORIGEM_SECRET_ACCESS_KEY: ${ARQUIVOS_S3_SEGREDO_LEITURA:?em producao-infra.env}
+      ARQUIVOS_S3_BUCKET: ${ARQUIVOS_S3_BUCKET:?em producao-infra.env}
+    entrypoint: ["sh", "-c"]
+    command: ["rclone sync \"origem:$$ARQUIVOS_S3_BUCKET\" /espelho --fast-list --transfers 4 --checkers 8"]
+    volumes:
+      - espelho:/espelho
+
+  restic:
+    image: restic/restic:0.17.3
+    profiles: ["backup"]
+    restart: "no"
+    mem_limit: 768m
+    environment:
+      RESTIC_REPOSITORY: ${RESTIC_REPOSITORY:?em producao-infra.env}
+      RESTIC_PASSWORD: ${RESTIC_PASSWORD:?em producao-infra.env}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?em producao-infra.env}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?em producao-infra.env}
+      RESTIC_CACHE_DIR: /cache
+    volumes:
+      - espelho:/espelho:ro
+      - resticcache:/cache
+
+# Sub-rede fixa: é o valor de GIRO_REDES_PROXY (de onde o proxy chega ao Django; prod.py recusa
+# rede vazia ou aberta). Não conflita com a rede padrão do Docker (172.17.0.0/16).
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  pgdata:
+  redisdata:
+  estaticos:
+  letsencrypt:
+  espelho:
+  resticcache:
