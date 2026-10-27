@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any, cast
 from django_tenants.utils import get_public_schema_name
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
+from comum import empresa as empresa_config
 from comum.empresa import STATUS_OPERANDO, STATUS_PAUSADA, STATUS_SO_LEITURA
 from comum.erros import Conflito, EmpresaSemOperacao, SemPermissao
 
@@ -22,6 +23,29 @@ if TYPE_CHECKING:
 
 def _vale_para_o_metodo(valor: bool | frozenset[str], metodo: str | None) -> bool:
     return valor is True or (isinstance(valor, frozenset) and metodo in valor)
+
+
+def recurso_da_view(view: "APIView", request: "Request") -> str | None:
+    """O recurso do plano que a view pede (ADR 0024, item 4): `recurso_por_acao[acao ou método]`,
+    senão `recurso_do_plano`. Sem nenhum dos dois, é do núcleo."""
+    por_acao = getattr(view, "recurso_por_acao", None) or {}
+    acao = getattr(view, "action", None) or request.method
+    if acao in por_acao:
+        return str(por_acao[acao]) if por_acao[acao] else None
+    recurso = getattr(view, "recurso_do_plano", None)
+    return str(recurso) if recurso else None
+
+
+class ModuloDoPlano(BasePermission):
+    """403 `PLT-12` na rota do módulo que o plano ou o ramo não ligam, em leitura e escrita, para
+    qualquer perfil e para o suporte (`plataforma.md`, "Módulos por plano"). Vem antes de perfil e
+    filial; o `public` não passa por ela."""
+
+    def has_permission(self, request: "Request", view: "APIView") -> bool:
+        recurso = recurso_da_view(view, request)
+        if recurso is None or empresa_config.tem_recurso(recurso):
+            return True
+        raise empresa_config.recusa_do_recurso(recurso)
 
 
 class EmpresaOperando(BasePermission):

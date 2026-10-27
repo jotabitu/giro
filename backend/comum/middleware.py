@@ -4,6 +4,7 @@
 - `AtorDaRequisicaoMiddleware`: preenche o ator da auditoria a partir da requisição (ADR 0010,
   item 5). O usuário é lido na hora em que o evento é gravado, porque a autenticação JWT do DRF
   só roda dentro da view (e o DRF repassa `user` e `auth` para o `HttpRequest`).
+- `RecursosDoPedidoMiddleware`: os módulos do plano (PLT-12) são contados uma vez por pedido.
 """
 
 from collections.abc import Callable
@@ -11,7 +12,7 @@ from collections.abc import Callable
 from django.http import HttpRequest, HttpResponse, JsonResponse
 
 from comum.auditoria import ATOR_SISTEMA, Ator, TipoAtor, usar_ator
-from comum.empresa import STATUS_CANCELADA
+from comum.empresa import STATUS_CANCELADA, recursos_do_pedido
 from comum.rede import ip_do_cliente
 
 TAMANHO_APARELHO = 200
@@ -68,4 +69,15 @@ class AtorDaRequisicaoMiddleware:
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
         with usar_ator(lambda: ator_da_requisicao(request)):
+            return self.get_response(request)
+
+
+class RecursosDoPedidoMiddleware:
+    """ADR 0024: "o plano é lido uma vez e guardado no próprio pedido"; nada fica entre pedidos."""
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        with recursos_do_pedido():
             return self.get_response(request)

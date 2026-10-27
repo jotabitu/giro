@@ -105,7 +105,13 @@ def montar_ficha(veiculo: Any) -> dict[str, Any] | None:
     }
 
 
+# PLT-12: sem o módulo (ramo que só vende), os blocos não vêm.
+MODULO = "locacoes_vistoria"
+
+
 def registrar() -> None:
-    leituras.registrar_anotacao(TROCA, "vistorias", _sem_anotacao, montar_troca)
-    leituras.registrar_anotacao(LOCACAO, "devolucao", _sem_anotacao, montar_locacao)
-    leituras.registrar_anotacao(FICHA, "vistoria_recente", _sem_anotacao, montar_ficha)
+    leituras.registrar_anotacao(TROCA, "vistorias", _sem_anotacao, montar_troca, recurso=MODULO)
+    leituras.registrar_anotacao(LOCACAO, "devolucao", _sem_anotacao, montar_locacao, recurso=MODULO)
+    leituras.registrar_anotacao(
+        FICHA, "vistoria_recente", _sem_anotacao, montar_ficha, recurso=MODULO
+    )
