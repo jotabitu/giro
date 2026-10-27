@@ -4,6 +4,15 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ## Decisões de Design
 
+### [2026-10-25] Contas de produção ficam para a fase 2
+- **Contexto:** a ADR 0033 (opção B, uma VPS) e a ADR 0034 (WhatsApp real, proposta) listam o que o dono precisa contratar: domínio, VPS, bucket de backup, Asaas de produção, WhatsApp pela Meta, e-mail transacional e Sentry.
+- **Decisão (dono):** as contratações e a subida de homologação e produção ficam para a fase 2. A fase 1 fecha com o código pronto e testado no ambiente de desenvolvimento.
+- **Consequências:**
+  - a T-373 entra só com o que não depende da conta (PR #399);
+  - o E2E do fechamento (T-375) roda no ambiente de desenvolvimento;
+  - a ADR 0034 continua proposta, e a escolha da opção e do remetente (T-387) espera a conta da Meta;
+  - o provedor real do WhatsApp entra na fase 2, e na fase 1 os avisos usam o provedor falso e o e-mail.
+
 ### [2026-10-25] Escopo de fechamento da fase 1
 - **Contexto:** os levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (segurança), sobre a `main` em 626d432, mostraram que o núcleo da fase 1 funciona. Pôr uma locadora real em uso ainda esbarra em quatro coisas: a implantação não fecha pela tela, os módulos por plano estão pela metade, o catálogo dos planos promete módulos da fase 2 e não há produção.
 - **Decisão (dono, pelas recomendações do produto e do orquestrador):**
@@ -71,6 +80,11 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 - **Consequências:** conferir a barra de contexto a cada entrega e antes de mandar tarefa nova.
 
 ## Log de Bugs Resolvidos
+
+### [2026-10-25] Seed em banco limpo com `config.settings.test` parava em `veiculos_veiculo does not exist` (T-281)
+- **Sintoma:** `seed_moto_rapida` num banco novo, com as configurações de teste, falhava na 1ª rodada (a 2ª passava).
+- **Causa raiz:** com `CELERY_TASK_ALWAYS_EAGER`, o convite agendado no commit roda na conexão do seed, e o sinal de limpeza de `comum/worker.py` (S-11, ADR 0012) devolvia a conexão ao public.
+- **Correção:** a tarefa eager guarda o schema e o ator de quem chamou e os devolve no fim; o worker real limpa como antes. Teste `tests/test_seed_banco_limpo.py`.
 
 ### [2026-10-20] Contêineres de teste do backend que nunca saem
 - **Sintoma:** vários contêineres de pé em `docker ps`, presos em "Aguardando o Postgres em db...", sem sair mesmo com `--rm`.

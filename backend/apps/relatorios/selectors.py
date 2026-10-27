@@ -755,8 +755,9 @@ def configuracoes(usuario: Any, suporte: bool) -> dict[str, Any]:
     quando o cartão dele vem."""
     modulos = navegacao.modulos_ativos()
     visiveis = textos_de_configuracoes.visiveis(_modulo_do_cartao(), modulos, suporte)
-    empresa = plataforma_selectors.empresa_atual()
-    assinatura = plataforma_selectors.assinatura(empresa)
+    # Uma leitura da empresa com o plano serve à assinatura e aos passos (PLT-12).
+    empresa = plataforma_selectors.empresa_carregada()
+    assinatura = plataforma_selectors.assinatura(empresa, carregada=True)
     fontes = textos_de_configuracoes.Fontes(
         ramo=empresas_selectors.resumo_do_ramo() if "ramo" in visiveis else None,
         filiais=filiais_selectors.resumo_das_filiais_ativas() if "filiais" in visiveis else None,

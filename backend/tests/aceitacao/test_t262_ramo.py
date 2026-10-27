@@ -2,8 +2,7 @@
 `docs/api/configuracoes.md`, cartão `ramo`; PLT-12, ADR 0024, itens 9 e 10).
 
 Roda na Moto Rápida da T-181 (Profissional, em teste, 07 out 2026). Os nomes de `modulos` são
-os do enum `Recurso` de hoje; os três que a T-196 acrescenta (conciliação, Pix e boleto,
-WhatsApp) entram com ela.
+os do enum `Recurso` (`Recurso.label`, ADR 0024, item 1).
 """
 
 from typing import Any
@@ -27,7 +26,10 @@ PROFISSIONAL = [
     "Contrato digital",
     "Vendas e comissões",
     "Manutenção e despesas",
+    "Conciliação",
     "Relatórios",
+    "Pix e boleto automáticos",
+    "Cobrança pelo WhatsApp",
 ]
 
 

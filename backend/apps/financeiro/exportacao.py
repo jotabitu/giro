@@ -14,6 +14,7 @@ from apps.auditoria.exportacao import registrar_item
 from apps.auditoria.models import Exportacao
 from apps.filiais.models import Filial
 from comum.documentos import placa_com_hifen
+from comum.empresa import recusa_do_recurso, tem_recurso
 from comum.erros import ErroDeValidacao
 
 from .models import CategoriaDespesa, Despesa, FormaDespesa, StatusDespesa
@@ -37,7 +38,10 @@ MES = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 def validar(dados: dict[str, Any]) -> dict[str, Any]:
     """`mes` obrigatório (`AAAA-MM`), sem `periodo`; `filial_id` da empresa (desativada vale,
-    FIL-06) ou `null` para todas. O nome da filial é copiado no pedido."""
+    FIL-06) ou `null` para todas. O nome da filial é copiado no pedido. Sem `manutencao_despesas`
+    no plano, 403 `PLT-12`, como as rotas de despesas (`plataforma.md`, "Rotas por recurso")."""
+    if not tem_recurso("manutencao_despesas"):
+        raise recusa_do_recurso("manutencao_despesas")
     if dados.get("periodo"):
         raise ErroDeValidacao({"periodo": ["Para as despesas, use o mês."]})
     mes = str(dados.get("mes") or "")

@@ -147,6 +147,13 @@ Concluída. As tarefas entregues estão em `tarefas/feito.md`.
 
 ## Fase 1 · MVP
 
+### [decisão] Remetente do WhatsApp que o cliente da locadora vê (ADR 0034, levantada na T-385, T-387)
+- **Para:** dono do produto, pelo orquestrador · **Contexto:** na opção A da ADR (um número só, do Giro), a Meta exige o nome de exibição do negócio verificado, e o cliente vê "Giro Avisos". Isso contraria "Toda mensagem ao cliente final sai com a marca da locadora, nunca com o nome Giro" (Automações).
+  - **A:** exceção na fase 1. O remetente é "Giro Avisos", com a marca da locadora sempre no texto ("Moto Rápida informa: ...") e o perfil "Avisos das empresas que usam o sistema Giro. Este número não recebe mensagens."; número próprio na fase 2.
+  - **B:** um número por locadora já, que é trabalho de fase 2.
+  - **C:** sem WhatsApp ao cliente final na fase 1.
+
+  **Padrão: A** (produto e arquiteto). Está em "Pontos em aberto" das regras; handoff `tarefas/handoffs/T-387-produto.md`.
 ### Fechamento da fase 1 (decisões do dono de 25 out 2026)
 
 Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (segurança), e pelas decisões do dono em `MEMORY.md` ("Escopo de fechamento da fase 1").
@@ -191,13 +198,15 @@ Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (seguran
 - **Agente:** frontend · **Depende de:** T-360, T-358 · **Regras:** PLT-07 · **Pronto quando:** a página de entrada do suporte, a faixa com Sair (`auth/suporte/sair/`) e o cartão de Configurações onde o administrador bloqueia, libera e revoga o suporte; testes vitest.
 
 ### T-373 · Ambiente de produção
-- **Agente:** devops · **Depende de:** T-357 (escolha do dono) · **Pronto quando:** homologação e produção no ar com o frontend, o banco gerenciado, o backup cifrado com restauração testada, o Sentry, o domínio e o certificado, e as chaves de produção no cofre (M-02 da T-355).
+- **Agente:** devops · **Depende de:** T-357 (opção B, ADR 0033) · **Pronto quando:** homologação e produção no ar com o frontend, o banco, o backup cifrado com restauração testada, o Sentry, o domínio e o certificado, e as chaves de produção no cofre (M-02 da T-355).
+- **Estado (26 out 2026):** a parte que não depende da conta está no PR #399 (compose da VPS, backup, restauração, certificado e roteiro). **A subida fica para a fase 2**, por decisão do dono em 25 out 2026: as contratações (domínio, VPS, Asaas de produção, WhatsApp, e-mail transacional e Sentry) são da fase 2.
 
 ### T-374 · Catálogo completo de modelos
 - **Agente:** backend · É a T-339 (abaixo), que entra depois da T-196.
 
 ### T-375 · Fechamento da fase 1
-- **Agente:** qa · **Depende de:** todas as anteriores · **Pronto quando:** `docs/qa/cobertura-de-regras.md` refeita a partir dos testes de hoje; as 42 regras sem teste com o código no nome conferidas (fase 2, teste com outro nome ou falta); o E2E percorre os critérios de pronto do `plano.md` na homologação com a Moto Rápida (implantação, locação, devolução, cobrança, caixa e 2 etapas).
+- **Parte 1 feita (26 out 2026, qa):** cobertura refeita e as 42 regras conferidas (`tarefas/handoffs/T-375-qa.md`). Falta a parte 2, o E2E, para o fim da fase.
+- **Agente:** qa · **Depende de:** todas as anteriores · **Pronto quando:** `docs/qa/cobertura-de-regras.md` refeita a partir dos testes de hoje; as 42 regras sem teste com o código no nome conferidas (fase 2, teste com outro nome ou falta); o E2E percorre os critérios de pronto do `plano.md` no ambiente de desenvolvimento (a homologação é da fase 2, com as contas de produção) com a Moto Rápida (implantação, locação, devolução, cobrança, caixa e 2 etapas).
 
 
 ### Notas do dono de 15 out 2026 (testes na mão)
@@ -238,7 +247,7 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
   2. **T-193 · arquiteto · Contrato da assinatura pelas decisões.** `assinatura.md` sem as marcas [D-n]: a forma não ativa a empresa e `forma_pagamento.prazo` (U1), uma tentativa só do cartão (U8), NFS-e pelo parceiro depois de paga e o e-mail de cobrança (U9, `PLT-15`), `oferta` com o título "Precisa de mais veículos ou filiais?" e os textos da `PLT-11` (U11), mudança no teste com a 1ª fatura já paga (`PLT-04`), ciclo e reativação da cancelada pela equipe; `plataforma.md`: faturas de todas as empresas pelo Django Admin até a `Plat-Cobranca` (U13). Avisar T-184 a T-189 do que mudar. CA-ASS-01 a 21 e 26 a 29. **Estado (14 out 2026):** contrato ajustado, PR a abrir (`assinatura.md` com "O que muda para as tarefas abertas", `plataforma.md` "Faturas de todas as empresas", modelo de dados); handoff `tarefas/handoffs/T-193-arquiteto.md`.
   3. **T-194 · arquiteto · Contrato de cancelar e pausar (`PLT-06`, `AUD-08`).** Rotas (cancelar com motivo e nome digitado, pausar por 1 a 3 meses, voltar da pausa), `acoes.cancelar` e `acoes.pausar` e as datas de acesso e de pausa no `GET /api/assinatura/`, faturas canceladas, régua parada, os três pontos em aberto pelo padrão, a tarefa que apaga no 90º dia e o aviso de 7 dias. CA-ASS-30 a 39. **Estado (15 out 2026):** contrato `docs/api/cancelamento.md` e ADR 0025 escritos, com o acréscimo da T-211, PR a abrir (branch empilhada sobre a T-217); handoff `tarefas/handoffs/T-194-arquiteto.md`; 5 casos fora da regra em `[decisão]`, com padrão.
   4. **T-195 · backend · Cancelar, pausar e apagamento** (depois da T-194). `test_plt_06_*`, `test_aud_08_*`, CA-ASS-30 a 39. O apagamento tem de existir antes do 90º dia do primeiro cancelamento real.
-  5. **T-196 · backend · Módulos por plano** (depois da T-192). `test_plt_12_*`, CA-ASS-22 a 25.
+  5. **T-196 · backend · Módulos por plano** (depois da T-192). `test_plt_12_*`, CA-ASS-22 a 25. **Estado (25 out 2026):** feita, PR a abrir (branch `t-196-modulos-por-plano`); handoff `tarefas/handoffs/T-196-backend.md`.
   6. **T-197 · backend · NFS-e da assinatura (`PLT-15`).** Emissão pelo parceiro depois da baixa; `[bloqueada]` até o contador confirmar e o cadastro municipal do Giro existir. CA-ASS-29.
   7. **T-198 · frontend · Cancelar assinatura e pausa** (depois da T-195). `Admin-Cancelar` (motivo, oferta de pausar só na `ativa` e de mudar para o Essencial, "O que acontece" pela API, nome digitado) e pausa e volta na `Admin-Assinatura`. CA-ASS-30, 31, 35 a 38. **Estado (21 out 2026):** feita na branch `t-198-cancelar-pausar-tela`; handoff `tarefas/handoffs/T-198-frontend.md`.
   8. **T-199 · segurança · Revisão do cancelamento, da pausa e do apagamento.** Quem pode, 2 etapas recentes para cancelar e trocar a forma de pagamento, apagamento sem cruzar empresas e com evento na plataforma. Junto com a T-189, se ainda aberta. **Estado (21 out 2026):** feita no PR #378 (sobre o #375); sem achado alto, os médios e baixos viram a T-345.
@@ -330,9 +339,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-265 · Código da leitura do CRLV-e (`VEI-08`, ADR 0026)
 - **Agente:** backend, depois frontend · **Depende de:** T-247 (revisão da segurança), T-257 · **Regras:** VEI-08, VEI-01, VEI-03 · **Contrato:** `docs/api/veiculos.md` (`POST /api/veiculos/leitura-crlv/`) · **Pronto quando:** o parser com pypdf no processo filho com os limites da ADR 0026, calibrado com CRLV-e reais; um semáforo de leituras simultâneas (pedido do devops na T-258); nada do conteúdo em log ou Sentry; CA-247-01 a 07; a tela de cadastro com "Preencher pelo CRLV-e". A CNH-e (`CLI-11`) fica para a fase 2 (decisão de 16 out).
 - **Estado (19 out 2026, backend):** parte do backend pronta na branch `t-265-leitura-crlv` (empilhada sobre a T-257, PR #351), handoff `tarefas/handoffs/T-265-backend.md`. Falta: a tela com "Preencher pelo CRLV-e" (frontend) e a calibração com CRLV-e reais (equipe, sem o arquivo entrar no repositório).
-
-### T-281 · Seed em banco limpo com as configurações de teste
-- **Agente:** qa, com backend · **Depende de:** — · **Pronto quando:** o seed com `config.settings.test` num banco limpo para em `veiculos_veiculo does not exist` (também como superusuário; visto pela segurança na T-276). Achar a causa, corrigir e cobrir com um teste que roda o seed num banco novo.
 
 ### T-286 · Contrato das Movimentações
 - **Contrato feito (16 out 2026):** PR #288 (ADR 0028, `docs/api/movimentacoes.md`; handoff `tarefas/handoffs/T-286-arquiteto.md`). O código vai na T-288 (backend) e na T-289 (frontend), pelo Pronto quando abaixo.
