@@ -10,6 +10,7 @@ import {
   type ListaClientes,
   type LocacoesDoCliente,
   type NovoCliente,
+  type RespostaDoDesbloqueio,
   type StatusCliente,
   type TipoDocumentoCliente,
 } from "@/lib/api/tipos-clientes";
@@ -70,6 +71,31 @@ const REGISTROS: Registro[] = [
   { id: 1209, tipo: "pj", nome: "Veloz Entregas Ltda", documento: "11222333000181", celular: "85984410077", status: "ativo", desde: "2026-04-15", criadoEm: 1, locacao: { id: 2860, codigo: "LOC-2860", veiculo: "Biz 125", detalhe: "mensal" }, pago: 540000, aberto: 0, pendencias: [], anexos: ["cnh_frente", "cnh_verso", "selfie_documento", "comprovante_residencia"] },
   { id: 1210, tipo: "pf", nome: "Bruno Teixeira", documento: "48370915005", celular: "85983302211", status: "inativo", desde: "2024-12-02", criadoEm: 0, pago: 98000, aberto: 0, pendencias: [], anexos: ["cnh_frente", "cnh_verso", "selfie_documento", "comprovante_residencia"] },
 ];
+
+const SITUACAO_ORIGINAL = REGISTROS.map((x) => ({ id: x.id, status: x.status, motivoBloqueio: x.motivoBloqueio }));
+
+/** Volta a situação dos clientes ao seed (bloquear, desbloquear, inativar e reativar mudam o registro). */
+export function reiniciarClientesFalsos() {
+  for (const o of SITUACAO_ORIGINAL) {
+    const x = REGISTROS.find((y) => y.id === o.id);
+    if (x) Object.assign(x, { status: o.status, motivoBloqueio: o.motivoBloqueio });
+  }
+}
+
+function exigirGestor() {
+  const p = perfilAtualFalso();
+  if (p !== "administrador" && p !== "gerente") throw new ErroApi(403, "permissao", "Seu perfil não tem acesso a esta ação.");
+}
+
+function exigirMotivo(motivo: string) {
+  if (!motivo.trim()) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, { motivo: "Informe o motivo." });
+}
+
+function acharRegistro(id: number): Registro {
+  const r = REGISTROS.find((x) => x.id === id);
+  if (!r) throw new ErroApi(404, "nao_encontrado", "Cliente não encontrado");
+  return r;
+}
 
 /** LOC-2836 (LOC-05, LOC-06): 2 semanas de 30 set 18:00 a 14 out 18:00, ativa em 07 out, sem "devolve hoje". */
 const LOCACOES: Record<number, LocacoesDoCliente> = {
@@ -318,6 +344,54 @@ export const clientesFalso = {
   async locacoes(id: number): Promise<LocacoesDoCliente> {
     await pausa(150);
     return LOCACOES[id] ?? { total: 0, com_atraso: 0, resultados: [] };
+  },
+
+  async bloquear(id: number, motivo: string): Promise<ClienteCompleto> {
+    await pausa(60);
+    exigirGestor();
+    exigirMotivo(motivo);
+    const reg = acharRegistro(id);
+    if (reg.status === "bloqueado") throw new ErroApi(409, "transicao_cliente", "O cliente já está bloqueado.");
+    reg.status = "bloqueado";
+    reg.motivoBloqueio = "manual";
+    return completo(reg);
+  },
+
+  async desbloquear(id: number, motivo: string): Promise<RespostaDoDesbloqueio> {
+    await pausa(60);
+    exigirMotivo(motivo);
+    const reg = acharRegistro(id);
+    if (reg.status !== "bloqueado") throw new ErroApi(409, "transicao_cliente", "O cliente não está bloqueado.");
+    if (perfilAtualFalso() === "vendedor") return { status: 202, pedido: { id: 88, tipo: "APR-05", status: "pendente" } };
+    exigirGestor();
+    reg.status = reg.pendencias.length > 0 ? "incompleto" : "ativo";
+    reg.motivoBloqueio = undefined;
+    return { status: 200, cliente: completo(reg) };
+  },
+
+  async inativar(id: number, motivo: string): Promise<ClienteCompleto> {
+    await pausa(60);
+    exigirGestor();
+    exigirMotivo(motivo);
+    const reg = acharRegistro(id);
+    if (reg.status === "inativo") throw new ErroApi(409, "transicao_cliente", "O cliente já está inativo.");
+    const detalhes = { locacao_aberta: Boolean(reg.locacao), em_aberto_centavos: reg.aberto, venda_aberta: Boolean(reg.venda) };
+    if (detalhes.locacao_aberta || detalhes.em_aberto_centavos > 0 || detalhes.venda_aberta) {
+      throw new ErroApi(422, "cliente_com_pendencia", "O cliente tem pendências e não pode ser inativado.", detalhes);
+    }
+    reg.status = "inativo";
+    reg.motivoBloqueio = undefined;
+    return completo(reg);
+  },
+
+  async reativar(id: number, motivo: string): Promise<ClienteCompleto> {
+    await pausa(60);
+    exigirGestor();
+    exigirMotivo(motivo);
+    const reg = acharRegistro(id);
+    if (reg.status !== "inativo") throw new ErroApi(409, "transicao_cliente", "O cliente não está inativo.");
+    reg.status = reg.pendencias.length > 0 ? "incompleto" : "ativo";
+    return completo(reg);
   },
 
   async enviarDocumento(id: number, tipo: TipoDocumentoCliente, arquivo: File): Promise<ClienteCompleto> {

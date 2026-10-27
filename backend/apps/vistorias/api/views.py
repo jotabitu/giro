@@ -21,6 +21,7 @@ from apps.filiais.models import Filial
 from apps.filiais.selectors import filtrar_por_filial
 from apps.locacoes import selectors as locacoes_selectors
 from apps.locacoes.models import Locacao
+from apps.plataforma.models import Recurso
 from comum.erros import ErroDeValidacao
 from comum.permissoes import com_padrao, exige_perfil, filiais_permitidas, filial_pedida
 
@@ -53,6 +54,13 @@ FAZEM: list[type[BasePermission]] = com_padrao(
 )
 CORRIGEM: list[type[BasePermission]] = com_padrao(exige_perfil("administrador", "gerente"))
 CRIAM: list[type[BasePermission]] = com_padrao(exige_perfil("administrador", "gerente", "vendedor"))
+
+
+class ViewDeVistoria(APIView):
+    # PLT-12: rota do módulo de locação e vistoria (ADR 0024, item 4).
+    recurso_do_plano = Recurso.LOCACOES_VISTORIA
+
+
 DIAS = ("hoje", "amanha", "semana")
 
 
@@ -90,7 +98,7 @@ def _resposta(request: Request, vistoria: Vistoria, codigo: int = status.HTTP_20
     return Response(_para(request, VistoriaSerializer(dados).data), status=codigo)
 
 
-class VistoriasDaLocacaoView(APIView):
+class VistoriasDaLocacaoView(ViewDeVistoria):
     permission_classes = FAZEM
 
     @extend_schema(
@@ -105,7 +113,7 @@ class VistoriasDaLocacaoView(APIView):
         return _resposta(request, vistoria, codigo)
 
 
-class VistoriaView(APIView):
+class VistoriaView(ViewDeVistoria):
     permission_classes = FAZEM
 
     @extend_schema(responses=VistoriaSerializer, summary="Vistoria (fotos com URL de 15 min)")
@@ -123,7 +131,7 @@ class VistoriaView(APIView):
         return _resposta(request, vistoria)
 
 
-class FotosDaVistoriaView(APIView):
+class FotosDaVistoriaView(ViewDeVistoria):
     permission_classes = FAZEM
     parser_classes = [MultiPartParser, FormParser]
 
@@ -142,7 +150,7 @@ class FotosDaVistoriaView(APIView):
         )
 
 
-class AvariasDaVistoriaView(APIView):
+class AvariasDaVistoriaView(ViewDeVistoria):
     permission_classes = FAZEM
 
     @extend_schema(
@@ -157,7 +165,7 @@ class AvariasDaVistoriaView(APIView):
         return Response(_para(request, dados), status=status.HTTP_201_CREATED)
 
 
-class AvariaDaVistoriaView(APIView):
+class AvariaDaVistoriaView(ViewDeVistoria):
     permission_classes = FAZEM
 
     @extend_schema(responses={204: None}, summary="Remover avaria nova do rascunho")
@@ -166,7 +174,7 @@ class AvariaDaVistoriaView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class ConcluirVistoriaView(APIView):
+class ConcluirVistoriaView(ViewDeVistoria):
     permission_classes = FAZEM
 
     @extend_schema(
@@ -179,7 +187,7 @@ class ConcluirVistoriaView(APIView):
         return _resposta(request, vistoria)
 
 
-class CorrigirVistoriaView(APIView):
+class CorrigirVistoriaView(ViewDeVistoria):
     permission_classes = CORRIGEM
 
     @extend_schema(
@@ -195,7 +203,7 @@ class CorrigirVistoriaView(APIView):
 
 
 # A rota é da locação, mas fica aqui porque abre as duas vistorias (ADR 0011).
-class TrocarVeiculoView(APIView):
+class TrocarVeiculoView(ViewDeVistoria):
     permission_classes = CRIAM
 
     @extend_schema(
@@ -217,7 +225,7 @@ class TrocarVeiculoView(APIView):
         return Response(TrocaPedidaSerializer(corpo).data, status=status.HTTP_202_ACCEPTED)
 
 
-class CancelarTrocaView(APIView):
+class CancelarTrocaView(ViewDeVistoria):
     permission_classes = CRIAM
 
     @extend_schema(
@@ -231,7 +239,7 @@ class CancelarTrocaView(APIView):
         return Response(TrocaCanceladaRespostaSerializer({"troca": troca}).data)
 
 
-class AvariasAbertasView(APIView):
+class AvariasAbertasView(ViewDeVistoria):
     permission_classes = FAZEM
 
     @extend_schema(
@@ -267,7 +275,7 @@ def _filial_da_agenda(request: Request) -> Filial:
     return Filial.objects.get(pk=pedida)
 
 
-class AgendaView(APIView):
+class AgendaView(ViewDeVistoria):
     permission_classes = FAZEM
 
     @extend_schema(
@@ -313,7 +321,7 @@ def _resposta_devolucao(
     return Response(_para(request, dados), status=codigo)
 
 
-class DevolucaoDaLocacaoView(APIView):
+class DevolucaoDaLocacaoView(ViewDeVistoria):
     permission_classes = FAZEM
 
     @extend_schema(
@@ -327,7 +335,7 @@ class DevolucaoDaLocacaoView(APIView):
         return _resposta_devolucao(request, devolucao, codigo)
 
 
-class DevolucaoView(APIView):
+class DevolucaoView(ViewDeVistoria):
     permission_classes = FAZEM
 
     @extend_schema(
@@ -338,7 +346,7 @@ class DevolucaoView(APIView):
         return _resposta_devolucao(request, _devolucao(request, pk))
 
 
-class AcertoView(APIView):
+class AcertoView(ViewDeVistoria):
     permission_classes = FECHAM
 
     @extend_schema(
@@ -352,7 +360,7 @@ class AcertoView(APIView):
         return _resposta_devolucao(request, devolucao)
 
 
-class ItensDoAcertoView(APIView):
+class ItensDoAcertoView(ViewDeVistoria):
     permission_classes = FECHAM
 
     @extend_schema(
@@ -367,7 +375,7 @@ class ItensDoAcertoView(APIView):
         return _resposta_devolucao(request, devolucao)
 
 
-class ItemDoAcertoView(APIView):
+class ItemDoAcertoView(ViewDeVistoria):
     permission_classes = FECHAM
 
     @extend_schema(
@@ -390,7 +398,7 @@ class ItemDoAcertoView(APIView):
         return _resposta_devolucao(request, devolucao)
 
 
-class EncerrarDevolucaoView(APIView):
+class EncerrarDevolucaoView(ViewDeVistoria):
     permission_classes = FECHAM
 
     @extend_schema(
@@ -403,7 +411,7 @@ class EncerrarDevolucaoView(APIView):
         return _resposta_devolucao(request, devolucao)
 
 
-class ReciboDaDevolucaoView(APIView):
+class ReciboDaDevolucaoView(ViewDeVistoria):
     permission_classes = FECHAM
 
     @extend_schema(responses=ReciboSerializer, summary="Recibo em PDF, URL de 15 min (AUD-05)")
@@ -414,7 +422,7 @@ class ReciboDaDevolucaoView(APIView):
         )
 
 
-class ReenviarReciboView(APIView):
+class ReenviarReciboView(ViewDeVistoria):
     permission_classes = FECHAM
 
     @extend_schema(request=None, responses={202: None}, summary="Reenviar o recibo por WhatsApp")

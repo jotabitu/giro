@@ -11,6 +11,8 @@ import { dinheiro, horaCurta } from "@/lib/formatos";
 import { diaDaSemanaEData, ROTULO_STATUS_DO_CAIXA, rotuloDaForma, TOM_STATUS_DO_CAIXA } from "@/lib/financeiro";
 import { centavosDoTexto } from "@/lib/veiculos";
 import { Confirmacao, ErroDoFinanceiro, LinhasDeValor } from "./Comuns";
+import { useSessao } from "@/lib/sessao";
+import { DialogoEstornarMovimento } from "./DialogoEstornarMovimento";
 import { ReceberNoCaixa } from "./ReceberNoCaixa";
 
 // Referência: docs/telas/html/Caixa-Desktop.dc.html e Caixa-Mobile.dc.html.
@@ -134,13 +136,18 @@ function Fechar({ caixa, aoFechar, aoConcluir }: { caixa: Caixa; aoFechar: () =>
   );
 }
 
-function Movimentos({ caixaId }: { caixaId: number }) {
+function Movimentos({ caixaId, podeEstornar, aoAvisar }: { caixaId: number; podeEstornar: boolean; aoAvisar: (aviso: string) => void }) {
+  const [estornando, setEstornando] = useState<MovimentoDoCaixa | null>(null);
   const [filtro, setFiltro] = useState<Filtro>("todos");
   const consulta = useQuery({ queryKey: ["caixa", "movimentos", caixaId], queryFn: () => financeiro.movimentos(caixaId) });
   const todos = consulta.data?.resultados ?? [];
   // Entradas e saídas (inclui sangria) só separam o que a API já classificou por `tipo`.
   const linhas = todos.filter((m) => (filtro === "entradas" ? m.tipo === "entrada" : filtro === "saidas" ? m.tipo !== "entrada" : true));
   const sinal = (m: MovimentoDoCaixa) => (m.tipo === "entrada" ? "" : "− ");
+  // Um estorno não se estorna, e o movimento que já foi estornado também não (CA-017-17).
+  const jaEstornados = new Set(todos.flatMap((m) => (m.estorno_de === null ? [] : [m.estorno_de])));
+  const estornavel = (m: MovimentoDoCaixa) => podeEstornar && m.estorno_de === null && !jaEstornados.has(m.id);
+  const marca = (m: MovimentoDoCaixa) => (m.estorno_de !== null ? "Estorno" : jaEstornados.has(m.id) ? "Estornado" : null);
 
   return (
     <Panel
@@ -167,6 +174,7 @@ function Movimentos({ caixaId }: { caixaId: number }) {
                   <th>Forma</th>
                   <th>Descrição</th>
                   <th style={{ textAlign: "right" }}>Valor</th>
+                  {podeEstornar && <th />}
                 </tr>
               </thead>
               <tbody>
@@ -180,11 +188,30 @@ function Movimentos({ caixaId }: { caixaId: number }) {
                         {rotuloDaForma(m.forma)}
                       </StatusBadge>
                     </td>
-                    <td>{m.tipo === "sangria" ? `Sangria · ${m.descricao}` : m.descricao}</td>
+                    <td>
+                      {m.tipo === "sangria" ? `Sangria · ${m.descricao}` : m.descricao}
+                      {marca(m) && (
+                        <>
+                          {" "}
+                          <StatusBadge tom="alerta" compacto>
+                            {marca(m)}
+                          </StatusBadge>
+                        </>
+                      )}
+                    </td>
                     <td style={{ textAlign: "right", fontWeight: 500 }}>
                       {sinal(m)}
                       {dinheiro(m.valor_centavos)}
                     </td>
+                    {podeEstornar && (
+                      <td style={{ textAlign: "right" }}>
+                        {estornavel(m) && (
+                          <Button compacto variante="quieto" aria-label={`Estornar ${m.descricao}`} onClick={() => setEstornando(m)}>
+                            Estornar
+                          </Button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -195,6 +222,12 @@ function Movimentos({ caixaId }: { caixaId: number }) {
               <li key={m.id} className="flex justify-between gap-3 border-b border-line py-3 text-body last:border-b-0">
                 <span className="min-w-0">
                   <span className="wl-mono">{horaCurta(m.hora)}</span> · {m.tipo === "sangria" ? `Sangria · ${m.descricao}` : m.descricao}
+                  {marca(m) && <span className="text-caption text-ink-muted"> · {marca(m)}</span>}
+                  {estornavel(m) && (
+                    <button type="button" className="ml-2 inline-flex min-h-11 items-center text-caption underline" aria-label={`Estornar ${m.descricao}`} onClick={() => setEstornando(m)}>
+                      Estornar
+                    </button>
+                  )}
                 </span>
                 <span className={`shrink-0 font-medium ${m.tipo === "entrada" ? "" : "text-critical-ink"}`}>
                   {sinal(m)}
@@ -204,6 +237,17 @@ function Movimentos({ caixaId }: { caixaId: number }) {
             ))}
           </ul>
         </>
+      )}
+      {estornando && (
+        <DialogoEstornarMovimento
+          caixaId={caixaId}
+          movimento={estornando}
+          aoFechar={() => setEstornando(null)}
+          aoConcluir={(aviso) => {
+            setEstornando(null);
+            aoAvisar(aviso);
+          }}
+        />
       )}
     </Panel>
   );
@@ -247,6 +291,7 @@ function SituacaoDoFechamento({ caixa }: { caixa: Caixa }) {
 /** Caixa do dia da filial: resumo, movimentos, gaveta, recebimento e fechamento. */
 export function CaixaDoDia() {
   const cliente = useQueryClient();
+  const { eu } = useSessao();
   // O caixa é de uma filial só: com "Todas as filiais" a API não soma caixas, então a tela pede a escolha (CA-023-16).
   const todas = useFilial()?.todas ?? false;
   const consulta = useQuery({ queryKey: ["caixa", "hoje"], queryFn: () => financeiro.caixaDeHoje(), enabled: !todas });
@@ -345,7 +390,7 @@ export function CaixaDoDia() {
 
       <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start">
         <div className="order-2 xl:order-none xl:col-start-1 xl:row-span-2 xl:row-start-1">
-          <Movimentos caixaId={caixa.id} />
+          <Movimentos caixaId={caixa.id} podeEstornar={caixa.status === "aberto" && eu.pode.lancamento_avulso} aoAvisar={setAviso} />
         </div>
         <div className="order-1 xl:order-none xl:col-start-2 xl:row-start-1">{caixa.acoes.receber ? <ReceberNoCaixa /> : null}</div>
         <div className="order-3 xl:order-none xl:col-start-2 xl:row-start-2">

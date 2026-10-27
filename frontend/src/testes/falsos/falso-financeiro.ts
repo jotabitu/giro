@@ -5,6 +5,7 @@ import { ErroApi } from "@/lib/api/tipos";
 import type {
   Caixa,
   CaixaDeHoje,
+  CorpoDaRenegociacao,
   CobrancaDaConta,
   ContaReceber,
   ContaReceberDetalhe,
@@ -144,6 +145,7 @@ let contas: ContaReceber[] = [];
 let caixa: Caixa | null = null;
 let movimentos: MovimentoDoCaixa[] = [];
 let proximoMovimento = 500;
+let proximaConta = 9500;
 let cobradasHoje = new Set<number>();
 let despesas: Despesa[] = [];
 export const pedidosDeExportacao: PedidoDeExportacaoDeDespesas[] = [];
@@ -519,6 +521,20 @@ export const financeiroFalso = {
     return { ...c, estornada_em: `${HOJE}T15:40:00Z`, acoes: { ...c.acoes, estornar: false } };
   },
 
+  async renegociar(corpo: CorpoDaRenegociacao): Promise<ContaReceber[]> {
+    await pausa(60);
+    if (!corpo.motivo.trim()) throw new ErroApi(400, "validacao", "Dados inválidos.", undefined, { motivo: "Informe o motivo." });
+    if (corpo.novas.length === 0) throw new ErroApi(400, "validacao", "Dados inválidos.", undefined, { novas: "Informe ao menos uma conta nova." });
+    const originais = corpo.contas.map((id) => contas.find((x) => x.id === id) ?? (() => { throw naoEncontrada(); })());
+    if (originais.some((o) => o.status === "paga" || o.status === "cancelada" || o.status === "renegociada")) throw new ErroApi(409, "transicao_conta", "Só conta em aberto pode ser renegociada.");
+    const devido = originais.reduce((t, o) => t + o.valor_hoje.total_centavos, 0);
+    if (corpo.novas.reduce((t, n) => t + n.valor_centavos, 0) !== devido) throw new ErroApi(422, "FIN-01", "A soma das contas novas tem que ser igual ao valor devido hoje.");
+    const base = originais[0]!;
+    const novas = corpo.novas.map((n) => conta({ ...base, id: proximaConta++, vencimento: n.vencimento, valor_centavos: n.valor_centavos, status: "aberta", dias_atraso: 0, faixa_atraso: null, valor_hoje: { ...base.valor_hoje, dias_atraso: 0, principal_centavos: n.valor_centavos, multa_centavos: 0, juros_centavos: 0, total_centavos: n.valor_centavos } }));
+    contas = contas.map((x): ContaReceber => (corpo.contas.includes(x.id) ? { ...x, status: "renegociada", acoes: { ...SEM_ACOES } } : x)).concat(novas);
+    return novas;
+  },
+
   async caixaDeHoje(): Promise<CaixaDeHoje> {
     await pausa(60);
     return caixa ? { ...caixa } : { caixa: null, pode_abrir: true };
@@ -542,6 +558,23 @@ export const financeiroFalso = {
   async movimentos(_caixaId: number, tipo?: "entrada" | "saida" | "sangria"): Promise<{ resultados: MovimentoDoCaixa[] }> {
     await pausa(60);
     return { resultados: movimentos.filter((m) => !tipo || m.tipo === tipo) };
+  },
+
+  async estornarMovimento(_caixaId: number, movimentoId: number, motivo: string): Promise<MovimentoDoCaixa> {
+    await pausa(60);
+    if (!motivo.trim()) throw new ErroApi(400, "validacao", "Dados inválidos.", undefined, { motivo: "Informe o motivo." });
+    if (!caixa || caixa.status !== "aberto") throw new ErroApi(409, "FIN-07", "Este caixa já foi fechado");
+    const original = movimentos.find((m) => m.id === movimentoId);
+    if (!original) throw naoEncontrada();
+    if (original.estorno_de !== null || movimentos.some((m) => m.estorno_de === movimentoId)) throw new ErroApi(409, "movimento_ja_estornado", "Este movimento já foi estornado.");
+    const m: MovimentoDoCaixa = { ...movimento("15:50", original.tipo, original.forma, `Estorno · ${original.descricao}`, original.valor_centavos), estorno_de: original.id };
+    movimentos = [...movimentos, m];
+    if (original.forma === "dinheiro") {
+      const g = caixa.resumo.gaveta;
+      const sinal = original.tipo === "entrada" ? -1 : 1;
+      caixa = { ...caixa, resumo: { ...caixa.resumo, gaveta: { ...g, esperado_centavos: g.esperado_centavos + sinal * original.valor_centavos } } };
+    }
+    return m;
   },
 
   async sangria(_caixaId: number, corpo: { valor_centavos: number; descricao: string }): Promise<MovimentoDoCaixa> {

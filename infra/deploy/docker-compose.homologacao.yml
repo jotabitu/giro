@@ -26,6 +26,8 @@ services:
     # Root só nesta cópia: o volume novo é do root e a imagem roda com o usuário giro.
     user: "0"
     entrypoint: ["sh", "-c", "cp -r /app/staticfiles/. /estaticos/"]
+    environment:
+      DATABASE_URL_MIGRACAO: ""
     volumes:
       - estaticos:/estaticos
 
@@ -44,17 +46,36 @@ services:
     depends_on:
       migrar:
         condition: service_completed_successfully
+    # O web não recebe a credencial com DDL, mesmo que ela esteja no arquivo de variáveis (T-352).
+    environment:
+      DATABASE_URL_MIGRACAO: ""
     expose:
       - "8000"
     # Sem `command`: vale o CMD da imagem, o Gunicorn com infra/docker/gunicorn.conf.py.
     stop_grace_period: 40s
 
+  # Fila padrão (`celery`). Não lê a fila `apagamento` e não recebe a credencial de migração.
   worker:
     <<: *backend
     depends_on:
       migrar:
         condition: service_completed_successfully
-    command: ["celery", "-A", "config", "worker", "--loglevel=INFO"]
+    environment:
+      DATABASE_URL_MIGRACAO: ""
+    command: ["celery", "-A", "config", "worker", "--loglevel=INFO", "-Q", "celery", "-n", "geral@%h"]
+    stop_grace_period: 40s
+
+  # Worker próprio do apagamento (T-352, T-382; mesmo desenho da produção): lê só a fila
+  # `apagamento`, para onde o backend manda a aud_08_apagar_empresas (CELERY_TASK_ROUTES), e é o
+  # único serviço de execução com o giro_migracao (ADR 0016 e 0025), vindo do cofre como no `migrar`.
+  worker-apagamento:
+    <<: *backend
+    depends_on:
+      migrar:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL_MIGRACAO: ${DATABASE_URL_MIGRACAO}
+    command: ["celery", "-A", "config", "worker", "--loglevel=INFO", "-Q", "apagamento", "--concurrency=1", "-n", "apagamento@%h"]
     stop_grace_period: 40s
 
   beat:
@@ -62,6 +83,8 @@ services:
     depends_on:
       migrar:
         condition: service_completed_successfully
+    environment:
+      DATABASE_URL_MIGRACAO: ""
     command: ["celery", "-A", "config", "beat", "--loglevel=INFO", "--schedule=/tmp/celerybeat-schedule"]
 
   proxy:
