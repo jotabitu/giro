@@ -18,6 +18,7 @@ import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { celular, dataCompleta, dataCurta, dinheiro, dinheiroSemZeros, dinheiroSemZerosOuTraco, horaCurta, iniciais, mascaraCnpj, mascaraCpf, mesAno, placa, soDigitos } from "@/lib/formatos";
 import { tomDoStatus } from "@/lib/tom";
 import { useSessao } from "@/lib/sessao";
+import { AcoesDoCliente } from "./AcoesDoCliente";
 import { AnaliseDoCadastro } from "./AnaliseDoCadastro";
 import { ROTULO_DOCUMENTO } from "./BotaoDocumento";
 import { FichaDoFinanceiro } from "./FichaDoFinanceiro";
@@ -256,6 +257,7 @@ function DesktopCompleto({ c, locacoes, docs, podeLocar, administrador }: Dados 
           <span>{textoDePendencias(c.pendencias)}</span>
         </p>
       )}
+      <AcoesDoCliente c={c} />
 
       <div className="flex flex-wrap items-start gap-6">
         <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-6">
@@ -476,6 +478,7 @@ function CelularCompleto({ c, locacoes, docs, podeLocar }: Dados & { c: ClienteC
           <span>{textoDePendencias(c.pendencias)}</span>
         </p>
       )}
+      <AcoesDoCliente c={c} />
 
       {c.locacao_atual && (
         <Link href={`/locacoes/${c.locacao_atual.id}`} className="flex flex-col gap-[10px] rounded-lg bg-surface p-4 text-ink no-underline">

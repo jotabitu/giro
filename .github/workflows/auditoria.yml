@@ -1,0 +1,39 @@
+name: Auditoria de dependências
+
+# T-361 (M-04 da T-355): pip-audit no backend e npm audit no frontend. Roda quando uma dependência
+# ou a lista de exceções muda, e toda segunda-feira, porque aviso novo aparece sem o código mudar.
+# Exceções justificadas, com validade: infra/auditoria/excecoes.txt.
+on:
+  pull_request:
+    paths:
+      - backend/requirements*.txt
+      - frontend/package.json
+      - frontend/package-lock.json
+      - infra/auditoria/**
+      - infra/scripts/auditoria-*
+      - .github/workflows/auditoria.yml
+  push:
+    branches: [main]
+    paths:
+      - backend/requirements*.txt
+      - frontend/package.json
+      - frontend/package-lock.json
+      - infra/auditoria/**
+  schedule:
+    - cron: "0 11 * * 1"
+  workflow_dispatch:
+
+jobs:
+  auditoria:
+    name: Auditoria (pip-audit e npm audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pip install pip-audit
+      - run: sh infra/scripts/auditoria-deps.sh

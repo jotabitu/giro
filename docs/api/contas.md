@@ -199,6 +199,8 @@ Itens do `menu_completo`, na ordem:
 | Financeiro | `caixa` | Caixa do dia | `caixa_receber` ou `caixa_abrir_fechar` | `contas_receber` | — |
 | Financeiro | `receber` | Contas a receber | `caixa_receber` | `contas_receber` | — |
 | Financeiro | `despesas` | Despesas | `despesas_lancar` ≠ `nao` | `manutencao_despesas` | — |
+| Financeiro | `reembolsos` | Reembolsos | administrador, gerente e financeiro, os perfis de `reembolsos/` em `financeiro.md` (T-358) | `locacoes_vistoria` | aluga |
+| Financeiro | `pendencias_pagamento` | Pendências do pagamento | `financeiro_pagar` (administrador e financeiro, T-358) | `recebimento_parceiro` | — |
 | Financeiro | `comissoes` | Comissões | `financeiro_pagar` | `vendas_comissoes` | — |
 | Financeiro | `conciliacao` | Conciliação | `financeiro_pagar` | `conciliacao` | — |
 | Financeiro | `relatorios` | Relatórios | `painel` é `todas_filiais` ou `filial` | `relatorios` | — |
@@ -385,6 +387,38 @@ A plataforma abre o acesso (`plataforma.md`) e manda o navegador para `https://<
 - Com `permissao = "ver"`, rota não liberada para leitura do suporte responde 403 `{ "codigo": "PLT-07", "mensagem": "No modo só ver você não pode fazer isto" }`.
 - Token de suporte em `auth/entrar`, `renovar`, `sessoes`, `usuarios` (escrita, inclusive `link-convite/`, T-249) ou `convites` → 403 `PLT-07`.
 
+#### Página de entrada e faixa no frontend (fase 1, T-358; telas `Modo-Suporte`, T-360)
+
+No MVP, o link vem do Django Admin (`plataforma.md`, "Abrir o acesso de suporte pelo Django Admin").
+
+1. **Página `/suporte/entrar`** (rota pública, fora da casca da empresa). Ela:
+   - lê o token do fragmento e apaga o fragmento com `history.replaceState` antes de qualquer chamada;
+   - guarda o token só em memória, como o access: nunca em `localStorage`, `sessionStorage`, cookie nem estado persistido do TanStack Query;
+   - chama `GET /api/auth/eu/` com ele;
+   - com 200 e `suporte` preenchido, entra no início (`navegacao.inicio.rota`);
+   - sem fragmento, com 401 `PLT-07` ou com 401 de outra empresa, mostra "O acesso de suporte terminou" e nenhum botão de login: o suporte não tem login na empresa.
+   O mesmo navegador pode ter a sessão de uma pessoa da empresa em outra aba. O token de suporte vale só na aba que abriu o link e não toca no cookie de refresh.
+2. **Cliente HTTP com o token de suporte:** um 401 **não** tenta `auth/renovar/`, porque não há refresh. Qualquer 401 `PLT-07` leva à mesma mensagem e apaga o token da memória. O 403 `PLT-07` mostra a `mensagem` da API no lugar da ação, sem sair do modo suporte.
+3. **Faixa** no topo de todas as telas da casca enquanto `eu.suporte` não for `null`. Ela é fixa, não fecha e usa a cor de aviso do design system. O conteúdo vem de `eu.suporte`, com os textos prontos que este contrato acrescenta:
+   ```json
+   "suporte": { "acesso_suporte_id": 31, "nome": "Diego Santos", "permissao": "ver", "fim": "2026-10-07T15:30:00Z",
+                "motivo": "Chamado #1042", "permissao_rotulo": "Só ver", "fim_rotulo": "Expira às 15:30" }
+   ```
+   - `permissao_rotulo` é "Só ver" ou "Ver e editar".
+   - `fim_rotulo` traz a hora em `America/Sao_Paulo`.
+   - A tela mostra "Modo suporte", o nome, "Equipe Giro", o motivo, `permissao_rotulo`, `fim_rotulo` e o botão "Sair do suporte".
+   - O "restam 42 min" da tela de referência não entra no MVP: a tela não calcula tempo, e o fim vale pelo 401.
+4. **"Sair do suporte"** chama `POST /api/auth/suporte/sair/` (204), apaga o token e mostra "Você saiu do modo suporte". Se a resposta for 401, mostra a mesma mensagem.
+5. **Menu e telas:** com o token de suporte, o frontend esconde do menu e das Configurações o que a API já não manda. Por exemplo, os cartões `auditoria`, `exportar`, `ramo` e `suporte` não vêm. A tela não decide nada pelo modo suporte além da faixa e do 401.
+
+Testes do frontend (vitest):
+- o fragmento é apagado antes da chamada, e o token não vai para nenhum armazenamento;
+- o 401 `PLT-07` não chama `renovar`;
+- a faixa aparece com os rótulos;
+- "Sair do suporte" chama a rota e limpa a memória.
+
+Teste do backend: `test_plt_07_eu_traz_rotulos_do_suporte`.
+
 ### POST /api/auth/suporte/sair/
 Token de suporte. 204. O `AcessoSuporte` vai para `encerrado`; evento nas duas auditorias.
 
@@ -395,6 +429,29 @@ Implementados no app `plataforma`, servidos no host da empresa. Perfil: administ
 **GET /api/suporte/** → `{ "bloqueado": false, "acessos": [ { "id": 31, "nome": "Diego Santos", "motivo": "...", "permissao": "ver", "inicio": "...", "fim": "...", "status": "ativo" } ] }` (últimos 90 dias).
 **POST /api/suporte/bloquear/** e **POST /api/suporte/liberar/** · `{ motivo? }` → 200 `{ "bloqueado": true|false }`. Bloquear revoga na hora os acessos `ativo` (status `revogado`).
 **POST /api/suporte/acessos/{id}/revogar/** → 200; status `revogado`.
+
+#### Tela `Admin-Suporte` (`/admin/suporte`, fase 1, T-358; tela da T-360)
+
+O `GET /api/suporte/` ganha o que a tela mostra, sem mudar o que já existe:
+```json
+{ "bloqueado": false,
+  "situacao_rotulo": "Acesso do suporte liberado",
+  "contagens": { "todos": 3, "ativos": 1, "encerrados": 2 },
+  "acessos": [ { "id": 31, "nome": "Diego Santos", "motivo": "Chamado #1042", "permissao": "ver",
+                 "permissao_rotulo": "Só ver", "inicio": "2026-10-07T14:30:00Z", "fim": "2026-10-07T15:30:00Z",
+                 "status": "ativo", "status_rotulo": "Ativo agora", "acoes": { "revogar": true } } ] }
+```
+
+- **Filtros:** `?situacao=todos|ativos|encerrados` (padrão `todos`). `encerrados` junta `encerrado` e `revogado`. As contagens não dependem do filtro.
+- **Rótulos:**
+  - `status_rotulo`: "Ativo agora", "Encerrado" ou "Revogado".
+  - `situacao_rotulo`: "Acesso do suporte liberado" ou "Acesso do suporte bloqueado".
+- **`acoes.revogar`:** `true` só no `ativo`.
+- **E-mail do operador:** a tela de referência mostra, mas **não vem**. O e-mail da equipe Giro não é dado da empresa, e o nome basta.
+- **Botões:** "Bloquear suporte Giro" (com `bloqueado: false`) e "Liberar suporte Giro" (com `true`) chamam `bloquear/` e `liberar/`, com motivo opcional. A tela avisa antes de bloquear: "Revoga na hora qualquer acesso ativo".
+- **Os três blocos de explicação** da tela (dados protegidos, tempo limitado, auditoria) são texto fixo da tela. A tela troca "Cada clique, tela vista" por "Cada alteração": a auditoria registra as ações, não as telas vistas (`AUD-01`).
+- **Quem:** administrador. Token de suporte, 403 `PLT-07`. Auditoria: `suporte.bloquear`, `suporte.liberar` e `suporte.revogar` (já existem).
+- Testes: `test_plt_07_controle_do_suporte_contagens_e_filtro` e `test_plt_07_controle_do_suporte_sem_email_do_operador`.
 
 ---
 

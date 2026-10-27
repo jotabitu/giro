@@ -3,6 +3,7 @@ import { http } from "./http";
 import type {
   Caixa,
   CaixaDeHoje,
+  CorpoDaRenegociacao,
   CobrancaDaConta,
   ContaReceber,
   ContaReceberDetalhe,
@@ -58,6 +59,11 @@ export const financeiroApi = {
     return http.post(`/api/financeiro/contas-receber/${id}/estornar/`, { motivo });
   },
 
+  /** Várias contas em abertas viram novas contas com outros vencimentos e valores; a API confere a soma (FIN-01). */
+  renegociar(corpo: CorpoDaRenegociacao): Promise<ContaReceber[]> {
+    return http.post("/api/financeiro/contas-receber/renegociar/", corpo);
+  },
+
   caixaDeHoje(): Promise<CaixaDeHoje> {
     return http.get("/api/financeiro/caixas/hoje/");
   },
@@ -68,6 +74,11 @@ export const financeiroApi = {
 
   movimentos(caixaId: number, tipo?: "entrada" | "saida" | "sangria"): Promise<{ resultados: MovimentoDoCaixa[] }> {
     return http.get(`/api/financeiro/caixas/${caixaId}/movimentos/`, { tipo });
+  },
+
+  /** Estorno de um movimento no caixa aberto de hoje; o original não muda (CA-017-17). */
+  estornarMovimento(caixaId: number, movimentoId: number, motivo: string): Promise<MovimentoDoCaixa> {
+    return http.post(`/api/financeiro/caixas/${caixaId}/movimentos/${movimentoId}/estornar/`, { motivo });
   },
 
   sangria(caixaId: number, corpo: { valor_centavos: number; descricao: string }): Promise<MovimentoDoCaixa> {

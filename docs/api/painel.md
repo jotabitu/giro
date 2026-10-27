@@ -77,6 +77,8 @@ Só vêm as chaves dos itens que a pessoa vê; `null` = módulo ainda não exist
 | `usuarios` | convites pendentes | empresa |
 | `agenda` | vistorias do dia não concluídas (`VIS-05`) | filial |
 | `avarias` | avarias abertas | filial |
+| `reembolsos` | reembolsos `a_fazer` (T-358) | filial de origem; administrador e financeiro, todas |
+| `pendencias_pagamento` | pendências do pagamento abertas (T-358) | empresa |
 | `manutencoes`, `conciliacao`, `propostas` | fase 2 | — |
 
 ---

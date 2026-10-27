@@ -76,3 +76,42 @@ def test_outros_apps_filtram_filial_so_por_filtrar_por_filial():
         and "filial_da_requisicao" in arquivo.read_text(encoding="utf-8")
     ]
     assert usam == []
+
+
+# PLT-12, ADR 0024, item 4: as rotas por recurso de `docs/api/plataforma.md`.
+RECURSO_DAS_ROTAS = {
+    "api/locacoes/": "locacoes_vistoria",
+    "api/planos-especiais/": "locacoes_vistoria",
+    "api/vistorias/": "locacoes_vistoria",
+    "api/devolucoes/": "locacoes_vistoria",
+    "api/financeiro/despesas/": "manutencao_despesas",
+    "api/financeiro/conciliacao/": "conciliacao",
+    "api/relatorios/": "relatorios",
+    "api/vendas/": "vendas_comissoes",
+    "api/financeiro/comissoes/": "vendas_comissoes",
+    "api/manutencao/": "manutencao_despesas",
+}
+APPS_DE_MODULO = ("apps.locacoes.", "apps.vistorias.", "apps.vendas.", "apps.manutencao.")
+
+
+def test_plt_12_rotas_por_recurso():
+    erradas = []
+    for rota, classe in _views(urls.urlpatterns):
+        esperado = next((r for p, r in RECURSO_DAS_ROTAS.items() if rota.startswith(p)), None)
+        if rota.endswith("/cobranca/") and rota.startswith("api/financeiro/contas-receber/"):
+            esperado = "recebimento_parceiro"
+        declarado = getattr(classe, "recurso_do_plano", None)
+        if classe.__module__.startswith(APPS_DE_MODULO) and declarado is None:
+            erradas.append(f"{rota}: view de módulo sem recurso")
+        elif esperado is not None and declarado != esperado:
+            erradas.append(f"{rota}: {declarado} em vez de {esperado}")
+        elif esperado is None and declarado is not None:
+            erradas.append(f"{rota}: {declarado} fora da tabela")
+    assert erradas == []
+    assert "comum.permissoes.ModuloDoPlano" in str(_padrao())
+
+
+def _padrao() -> list[Any]:
+    from rest_framework.settings import api_settings
+
+    return list(api_settings.DEFAULT_PERMISSION_CLASSES)

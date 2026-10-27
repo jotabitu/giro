@@ -9,6 +9,7 @@ import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { dataCompleta, dataHoraCurta, dinheiro } from "@/lib/formatos";
 import { composicaoDoValor, linhaDaConta, origemDaConta, rotuloDaForma, situacaoDaConta, textoDoEvento } from "@/lib/financeiro";
 import { ErroDoFinanceiro, LinhasDeValor } from "./Comuns";
+import { DialogoRenegociarConta } from "./DialogoRenegociarConta";
 
 type Motivo = "cancelar" | "estornar" | null;
 
@@ -50,6 +51,7 @@ export function DetalheDaConta({ id, aoFechar, aoDarBaixa, aoConcluir }: { id: n
   const [motivoPara, setMotivoPara] = useState<Motivo>(null);
   const [motivo, setMotivo] = useState("");
   const [gerada, setGerada] = useState<CobrancaDaConta | null>(null);
+  const [renegociando, setRenegociando] = useState(false);
   const c = consulta.data;
 
   const depois = async (mensagem?: string) => {
@@ -162,8 +164,13 @@ export function DetalheDaConta({ id, aoFechar, aoDarBaixa, aoConcluir }: { id: n
                 {confirmar.isError && !campoDoErro(confirmar.error, "motivo") && <ErroDoFinanceiro erro={confirmar.error} />}
               </div>
             ) : (
-              (c.acoes.cancelar || c.acoes.estornar) && (
+              (c.acoes.cancelar || c.acoes.estornar || c.acoes.renegociar) && (
                 <div className="flex flex-wrap gap-2">
+                  {c.acoes.renegociar && (
+                    <Button compacto variante="quieto" onClick={() => setRenegociando(true)}>
+                      Renegociar conta
+                    </Button>
+                  )}
                   {c.acoes.cancelar && (
                     <Button compacto variante="quieto" onClick={() => setMotivoPara("cancelar")}>
                       Cancelar conta
@@ -197,6 +204,16 @@ export function DetalheDaConta({ id, aoFechar, aoDarBaixa, aoConcluir }: { id: n
           </>
         )}
       </div>
+      {renegociando && c && (
+        <DialogoRenegociarConta
+          conta={c}
+          aoFechar={() => setRenegociando(false)}
+          aoConcluir={(aviso) => {
+            setRenegociando(false);
+            void depois(aviso);
+          }}
+        />
+      )}
     </Dialogo>
   );
 }

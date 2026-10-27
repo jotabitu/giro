@@ -4,6 +4,27 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ## Decisões de Design
 
+### [2026-10-25] Contas de produção ficam para a fase 2
+- **Contexto:** a ADR 0033 (opção B, uma VPS) e a ADR 0034 (WhatsApp real, proposta) listam o que o dono precisa contratar: domínio, VPS, bucket de backup, Asaas de produção, WhatsApp pela Meta, e-mail transacional e Sentry.
+- **Decisão (dono):** as contratações e a subida de homologação e produção ficam para a fase 2. A fase 1 fecha com o código pronto e testado no ambiente de desenvolvimento.
+- **Consequências:**
+  - a T-373 entra só com o que não depende da conta (PR #399);
+  - o E2E do fechamento (T-375) roda no ambiente de desenvolvimento;
+  - a ADR 0034 continua proposta, e a escolha da opção e do remetente (T-387) espera a conta da Meta;
+  - o provedor real do WhatsApp entra na fase 2, e na fase 1 os avisos usam o provedor falso e o e-mail.
+
+### [2026-10-25] Escopo de fechamento da fase 1
+- **Contexto:** os levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (segurança), sobre a `main` em 626d432, mostraram que o núcleo da fase 1 funciona. Pôr uma locadora real em uso ainda esbarra em quatro coisas: a implantação não fecha pela tela, os módulos por plano estão pela metade, o catálogo dos planos promete módulos da fase 2 e não há produção.
+- **Decisão (dono, pelas recomendações do produto e do orquestrador):**
+  - **D1:** na fase 1 se vendem só o Essencial e o Profissional. O texto do Profissional lista só o que existe, e o Completo não é vendido até ter o que o diferencia. O preço do Profissional fica com o dono.
+  - **Para a fase 2:** a comissão de locação (`FIN-09`, `FIN-10`, `AUT-10`, D2), a tela Minha conta (D3), o expurgo de 5 anos (`AUT-16`, D4), o aviso de implantação parada (`AUT-14`, `IMP-06`, D6) e os Relatórios.
+  - **D5:** a NFS-e da assinatura é emitida à mão no portal da prefeitura até a T-197 destravar.
+  - **D7:** a hospedagem e as contas de produção se decidem já, pela ADR da T-357.
+  - **Implantação:** os 5 passos do assistente que faltam (Primeira filial, Tabela de preços, Modelo de contrato, Recebimentos, Convidar equipe) entram na fase 1.
+  - **Suporte Giro no MVP:** a equipe abre o acesso pelo Django Admin, que chama o mesmo serviço. O administrador bloqueia o suporte num cartão em Configurações, e a página de entrada e a faixa do modo suporte entram na fase 1.
+- **Alternativas descartadas:** em D1, vender os três planos com o texto atual (contraria a `PLT-11`) ou trazer vendas para a fase 1. Para o suporte, adiá-lo inteiro para a fase 2.
+- **Consequências:** as tarefas T-356 a T-375 (backlog, seção "Fechamento da fase 1"). As regras ganham as marcas de fase na T-356. `docs/qa/cobertura-de-regras.md` (de 07 out) está desatualizada e é refeita no fechamento, pelo QA.
+
 ### [2026-10-25] Janela das 2 etapas recentes fica em 5 minutos na prática
 - **Contexto:** cancelar a assinatura (`PLT-06`) e o backup completo (`S-15`) pedem as 2 etapas recentes (`DOIS_FATORES_RECENTE` = 15 min, T-345). Como o `renovar` não leva o `auth_time`, a janela dura só o primeiro access do login, que vive 5 minutos (achado do Arquiteto na T-346). Depois disso, a tela pede o código de novo pela reconfirmação (ADR 0032, T-347 e T-348).
 - **Decisão (Segurança na T-349, PR #386, mesclada com o aval do dono):** manter assim, sem ADR nova e sem mudança no backend. `DOIS_FATORES_RECENTE` = 15 min fica como teto, e a regra não passa a dizer 5 minutos (USR-02, PLT-06 e S-15 não fixam número).
@@ -59,6 +80,11 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 - **Consequências:** conferir a barra de contexto a cada entrega e antes de mandar tarefa nova.
 
 ## Log de Bugs Resolvidos
+
+### [2026-10-25] Seed em banco limpo com `config.settings.test` parava em `veiculos_veiculo does not exist` (T-281)
+- **Sintoma:** `seed_moto_rapida` num banco novo, com as configurações de teste, falhava na 1ª rodada (a 2ª passava).
+- **Causa raiz:** com `CELERY_TASK_ALWAYS_EAGER`, o convite agendado no commit roda na conexão do seed, e o sinal de limpeza de `comum/worker.py` (S-11, ADR 0012) devolvia a conexão ao public.
+- **Correção:** a tarefa eager guarda o schema e o ator de quem chamou e os devolve no fim; o worker real limpa como antes. Teste `tests/test_seed_banco_limpo.py`.
 
 ### [2026-10-20] Contêineres de teste do backend que nunca saem
 - **Sintoma:** vários contêineres de pé em `docker ps`, presos em "Aguardando o Postgres em db...", sem sair mesmo com `--rm`.

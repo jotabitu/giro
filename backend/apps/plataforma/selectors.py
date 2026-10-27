@@ -17,6 +17,7 @@ from comum import empresa as comum_empresa
 from comum import relogio
 from comum.conexao import conexao
 from comum.dinheiro import formatar_reais
+from comum.erros import SemPermissao
 
 from . import catalogo
 from .calendario import MESES_DE_PAUSA, dia_e_mes, dia_mes_e_ano, periodo_da_pausa
@@ -301,12 +302,22 @@ def dias_restantes(empresa: Empresa) -> int | None:
     return max(0, (empresa.teste_fim - relogio.hoje()).days)
 
 
-def assinatura(empresa: Empresa | None = None, usuario: Any = None) -> dict[str, Any]:
+def empresa_carregada(empresa: Empresa | None = None) -> Empresa:
+    """A empresa relida do banco com o plano atual e o agendado, numa consulta só."""
+    empresa = empresa or empresa_atual()
+    carregada: Empresa = Empresa.objects.select_related("plano", "plano_proximo").get(pk=empresa.pk)
+    return carregada
+
+
+def assinatura(
+    empresa: Empresa | None = None, usuario: Any = None, *, carregada: bool = False
+) -> dict[str, Any]:
     """`GET /api/assinatura/` (PLT-01, PLT-03, PLT-11, PLT-13, PLT-15; assinatura.md). Os blocos
     `forma_pagamento`, `dados_fiscais`, `oferta` e `acoes` só para o administrador (e para o
-    suporte, que lê com as ações desligadas)."""
-    empresa = empresa or empresa_atual()
-    empresa = Empresa.objects.select_related("plano", "plano_proximo").get(pk=empresa.pk)
+    suporte, que lê com as ações desligadas). `carregada`: quem chama já leu a empresa por
+    `empresa_carregada` no mesmo pedido (Configurações), e ela não é lida de novo."""
+    if not carregada or empresa is None:
+        empresa = empresa_carregada(empresa)
     plano = empresa.plano
     proxima = proxima_mensalidade(empresa)
     dados: dict[str, Any] = {
@@ -737,14 +748,19 @@ def planos_da_assinatura(empresa: Empresa | None = None) -> dict[str, Any]:
 
 
 def implantacao(empresa: Empresa) -> dict[str, Any]:
+    """Os passos da empresa: sem `recebimento_parceiro` (Essencial), sem `recebimentos`, e
+    `concluidos` e `total` contam 9 (PLT-12, ADR 0024, item 5). O passo já marcado fica guardado
+    e volta a contar ao subir de plano."""
     passos = _uso(empresa).passos_implantacao
+    recebe = empresa_tem_recebimentos(empresa)
+    da_empresa = [(p, r) for p, r in PASSOS_IMPLANTACAO if recebe or p != "recebimentos"]
     return {
         "etapa_funil": etapa_do_funil(passos),
-        "concluidos": sum(1 for passo, _ in PASSOS_IMPLANTACAO if passo in passos),
-        "total": len(PASSOS_IMPLANTACAO),
+        "concluidos": sum(1 for passo, _ in da_empresa if passo in passos),
+        "total": len(da_empresa),
         "passos": [
             {"passo": passo, "rotulo": rotulo, "concluido_em": passos.get(passo)}
-            for passo, rotulo in PASSOS_IMPLANTACAO
+            for passo, rotulo in da_empresa
         ],
     }
 
@@ -1003,6 +1019,36 @@ def recursos_da_empresa(empresa: Empresa | None = None) -> frozenset[str]:
     return recursos_para(empresa.plano, comum_empresa.atividade())
 
 
+def recursos_ligados() -> frozenset[str] | None:
+    """Registrada em `comum.empresa` (`tem_recurso`): `None` quando a conexão não tem empresa."""
+    empresa = getattr(conexao(), "tenant", None)
+    if not isinstance(empresa, Empresa) or empresa.schema_name == get_public_schema_name():
+        return None
+    return recursos_da_empresa(empresa)
+
+
+DEIXAR_DE_LADO = {"aluga": "alugar", "vende": "vender"}
+
+
+def recusa_do_modulo(recurso: str) -> SemPermissao:
+    """403 `PLT-12` (`plataforma.md`, "Módulos por plano"): `motivo: "ramo"` quando o plano liga o
+    recurso e o ramo não pede; senão `motivo: "plano"`, com o nome do módulo."""
+    empresa = empresa_atual()
+    if recurso in (getattr(empresa.plano, "recursos", None) or []):
+        lado = next(a for a, r in RECURSO_DA_ATIVIDADE.items() if r == recurso)
+        return SemPermissao(
+            "PLT-12",
+            f"Sua empresa não está configurada para {DEIXAR_DE_LADO[lado]}. Mude em Configurações.",
+            {"recurso": recurso, "motivo": "ramo"},
+        )
+    nome = Recurso(recurso).label if recurso in Recurso.values else recurso
+    return SemPermissao(
+        "PLT-12",
+        f"Seu plano não inclui {nome}. Para usar, mude de plano.",
+        {"recurso": recurso, "motivo": "plano"},
+    )
+
+
 def primeiro_plano_com(recurso: str) -> Plano | None:
     """O plano ativo mais baixo do catálogo que liga `recurso` (o aviso de "vende")."""
     for plano in Plano.objects.filter(ativo=True).order_by("ordem", "preco_mensal_centavos"):
@@ -1025,22 +1071,17 @@ PASSOS_DO_ASSISTENTE: list[tuple[str, str]] = [
     ("importar", "Importar dados"),
     ("equipe", "Convidar equipe"),
 ]
-# PLT-12: sem este recurso (Essencial), `recebimentos` sai do assistente. Ele entra no enum
-# `Recurso` na T-196; até lá todo plano recebe pelo parceiro e o assistente tem os 8 passos.
-RECURSO_DE_RECEBIMENTOS = "recebimento_parceiro"
+# PLT-12: sem este recurso (Essencial), `recebimentos` sai do assistente (ADR 0024, item 5).
+RECURSO_DE_RECEBIMENTOS = Recurso.RECEBIMENTO_PARCEIRO
 
 
 def assistente_tem_recebimentos(plano: Plano | None) -> bool:
-    if RECURSO_DE_RECEBIMENTOS not in Recurso.values:
-        return True
     return RECURSO_DE_RECEBIMENTOS in (getattr(plano, "recursos", None) or [])
 
 
 def empresa_tem_recebimentos(empresa: Empresa) -> bool:
-    """`assistente_tem_recebimentos` lendo o plano só quando o recurso existe no enum (T-196):
-    até lá, a Configurações não soma uma consulta (teto de 11, `configuracoes.md`)."""
-    plano = empresa.plano if RECURSO_DE_RECEBIMENTOS in Recurso.values else None
-    return assistente_tem_recebimentos(plano)
+    """`assistente_tem_recebimentos` pelo plano da empresa."""
+    return assistente_tem_recebimentos(empresa.plano)
 
 
 def passos_do_assistente(recebe: bool) -> list[tuple[str, str]]:

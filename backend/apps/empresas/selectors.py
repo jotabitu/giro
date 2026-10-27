@@ -43,11 +43,8 @@ DESCRICOES_DAS_ATIVIDADES = {
     "vende": ("Venda de veículos", "Novos, seminovos e consignados"),
 }
 TIPOS = (("motos", "Motos"), ("carros", "Carros"))
-# Não aparecem em "Módulos que vamos ligar": só catálogo (`suporte_prioritario`) ou saem do
-# enum na T-196 (`dominio_proprio`, `api_integracoes`, PLT-11).
-FORA_DOS_MODULOS = frozenset(
-    {Recurso.SUPORTE_PRIORITARIO, Recurso.DOMINIO_PROPRIO, Recurso.API_INTEGRACOES}
-)
+# Não aparece em "Módulos que vamos ligar": só catálogo e fila do suporte (ADR 0024, item 1).
+FORA_DOS_MODULOS = frozenset({Recurso.SUPORTE_PRIORITARIO})
 
 
 def atividade() -> str:
