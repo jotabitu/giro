@@ -189,9 +189,12 @@ def arquivar_modelo(modelo: ModeloContrato) -> ModeloContrato:
 
 
 def previa(modelo: ModeloContrato, valores: dict[str, str] | None = None) -> str:
-    """ "Ver com dados reais": o HTML montado, sem PDF e sem gravar. Sem valores, os exemplos."""
+    """ "Ver com dados reais": o HTML montado, sem PDF e sem gravar. Sem valores, os exemplos.
+
+    A tela põe o HTML na página (S-09): limpa de novo depois de preencher, sem depender de todo
+    texto gravado ter passado por `_texto_limpo` (B-01 da T-388)."""
     ultima = ultima_versao(modelo)
-    return marcadores.substituir(ultima.texto, valores or marcadores.EXEMPLOS)
+    return sanitizacao.limpar(marcadores.substituir(ultima.texto, valores or marcadores.EXEMPLOS))
 
 
 # --- Contrato de uma origem ---
