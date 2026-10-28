@@ -142,6 +142,24 @@ ITENS: dict[str, Item] = {
             modulo="financeiro",
         ),
         Item(
+            "reembolsos",
+            "Reembolsos",
+            "reembolsos",
+            # Administrador, gerente e financeiro: os perfis de `reembolsos/` (T-358, DEV-02).
+            lambda p: bool(p["lancamento_avulso"]),
+            Recurso.LOCACOES_VISTORIA,
+            "aluga",
+            "financeiro",
+        ),
+        Item(
+            "pendencias_pagamento",
+            "Pendências do pagamento",
+            "pendencias_pagamento",
+            lambda p: bool(p["financeiro_pagar"]),  # administrador e financeiro (T-358, AUT-05)
+            Recurso.RECEBIMENTO_PARCEIRO,  # PLT-12
+            modulo="financeiro",
+        ),
+        Item(
             "comissoes",
             "Comissões",
             None,
@@ -269,7 +287,19 @@ Grupos = list[tuple[str | None, list[str | tuple[str, str]]]]
 MENU_COMPLETO: Grupos = [
     (None, ["inicio", "aprovacoes", "veiculos"]),
     ("Operação", ["locacoes", "vendas", "clientes", "manutencoes", "movimentacoes"]),
-    ("Financeiro", ["caixa", "receber", "despesas", "comissoes", "conciliacao", "relatorios"]),
+    (
+        "Financeiro",
+        [
+            "caixa",
+            "receber",
+            "despesas",
+            "reembolsos",
+            "pendencias_pagamento",
+            "comissoes",
+            "conciliacao",
+            "relatorios",
+        ],
+    ),
     ("Administração", ["config", "marca", "filiais", "usuarios", "assinatura", "auditoria"]),
 ]
 
