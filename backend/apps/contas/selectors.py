@@ -8,7 +8,9 @@ import unicodedata
 from typing import Any
 
 from django.db.models import Count, Exists, Max, OuterRef, Q, Subquery
+from django.utils import timezone
 
+from apps.plataforma.models import PermissaoSuporte
 from comum import permissoes
 from comum.empresa import STATUS_OPERANDO, nome_da_empresa
 
@@ -270,6 +272,9 @@ def dados_do_eu_suporte(ator: Any, empresa: Any) -> dict[str, Any]:
             "permissao": ator.permissao,
             "fim": ator.fim,
             "motivo": ator.motivo,
+            # Textos prontos da faixa (contrato de contas, T-358): a tela não formata a hora.
+            "permissao_rotulo": PermissaoSuporte(ator.permissao).label,
+            "fim_rotulo": f"Expira às {timezone.localtime(ator.fim):%H:%M}",
         },
         "empresa": {
             "nome_exibicao": nome_da_empresa(),  # o mesmo de GET /api/marca/

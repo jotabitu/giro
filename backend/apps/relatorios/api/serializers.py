@@ -330,6 +330,7 @@ class CartaoDeConfiguracoesSerializer(serializers.Serializer[Any]):
             "assinatura",
             "auditoria",
             "exportar",
+            "suporte",
         ]
     )
     titulo = serializers.CharField()

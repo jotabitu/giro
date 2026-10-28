@@ -223,6 +223,8 @@ class SuporteDoEuSerializer(serializers.Serializer[Any]):
     permissao = serializers.ChoiceField(choices=["ver", "ver_editar"])
     fim = serializers.DateTimeField()
     motivo = serializers.CharField()
+    permissao_rotulo = serializers.CharField()
+    fim_rotulo = serializers.CharField()
 
 
 class ItemNavegacaoSerializer(serializers.Serializer[Any]):
