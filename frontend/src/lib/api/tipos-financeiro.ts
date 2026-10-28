@@ -77,3 +77,16 @@ export type ListaPedidos = S["ListaDePedidos"];
 
 /** Corpo de `POST /api/financeiro/contas-receber/renegociar/` (docs/api/financeiro.md). */
 export type CorpoDaRenegociacao = { contas: number[]; novas: { vencimento: string; valor_centavos: number }[]; motivo: string };
+
+/** Reembolsos ao cliente (`DEV-02`, docs/api/financeiro.md). Os textos, os indicadores e as ações vêm prontos da API. */
+export type Reembolso = S["Reembolso"];
+export type StatusDoReembolso = S["ReembolsoStatusEnum"];
+export type ListaReembolsos = S["ListaDeReembolsos"];
+export type FiltroReembolsos = { status?: StatusDoReembolso | "todos"; periodo?: "hoje" | "semana" | "mes"; busca?: string; cursor?: string };
+
+/** Pendências do pagamento (`AUT-05`, `PLT-12`). */
+export type PendenciaPagamento = S["PendenciaPagamento"];
+export type StatusDaPendencia = S["PendenciaPagamentoStatusEnum"];
+export type AcaoDaPendencia = S["AcaoEnum"];
+export type ListaPendencias = S["ListaDePendenciasPagamento"];
+export type FiltroPendencias = { status?: StatusDaPendencia | "todas"; periodo?: "mes"; busca?: string; cursor?: string };

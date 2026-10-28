@@ -25,6 +25,7 @@ import type {
   PedidoDeAprovacao,
 } from "@/lib/api/tipos-financeiro";
 import { pausa, perfilAtualFalso } from "./falso";
+import { reembolsosFalso, reiniciarReembolsosFalso } from "./falso-reembolsos";
 
 const HOJE = "2026-10-07";
 const CENTRO = { id: 1, nome: "Filial Centro" };
@@ -209,6 +210,7 @@ export function reiniciarFinanceiroFalso(dia: DiaDoCaixaFalso = "aberto") {
   despesas = DESPESAS.map((d) => ({ ...d }));
   pedidos = null;
   pedidosDeExportacao.length = 0;
+  reiniciarReembolsosFalso();
   proximaDespesa = 810;
   proximoMovimento = 500;
   movimentos = dia === "sem_caixa" ? [] : movimentosDoSeed();
@@ -417,6 +419,7 @@ const naoEncontrada = () => new ErroApi(404, "nao_encontrado", "Conta não encon
 const semCaixa = () => new ErroApi(422, "FIN-07", "Abra o caixa do dia para receber");
 
 export const financeiroFalso = {
+  ...reembolsosFalso,
   async listarContas(f: FiltroReceber = {}): Promise<ListaContasReceber> {
     await pausa(60);
     const busca = f.busca ? semAcento(f.busca) : "";
