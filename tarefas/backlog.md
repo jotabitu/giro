@@ -27,6 +27,7 @@ Levantadas pelo arquiteto em T-030 (07 out 2026):
 
 - [decisão] (qa, T-019) Troca de óleo da QXA-4B21 (CA-019-10: última aos 18.900 km, próxima aos 19.900) não tem onde morar: `apps/manutencao` é só README (`MAN-03`). `xfail` em `test_man_03_seed_019_10_proxima_troca_de_oleo_aos_19900`; o seed ganha o dado quando o módulo existir.
 - [decisão] (qa, T-019) Sem módulo no backend, os casos da fase 2 (CA-019-31) seguem `xfail`: venda VEN-0177, comissões, conciliação e DRE de setembro. Orquestrador: criar as tarefas de backend desses módulos; o seed ganha os dados com cada um.
+- [decisão] (seguranca, T-369; para o produto) **Contrato do cliente anonimizado (`AUD-06`).** A regra diz que contratos e registros financeiros "ficam guardados pelo prazo legal, anonimizados". O `anonimizar_titular` anonimiza o cadastro, e o contrato e o financeiro continuam ligados a ele. Mas o texto final do contrato (`versao_texto_html`) e os PDFs, o gerado e o assinado, ainda têm o nome, o CPF e o endereço do cliente. Padrão no código: ficam como estão, porque o PDF assinado (com o hash) é a prova do contrato no prazo legal. Alternativa: trocar o texto e gerar um PDF novo, anonimizados, guardando só o hash do assinado. A validar com o jurídico.
 - Resolvido na T-211 (dono, 14 out 2026): **Reativar a empresa `cancelada` com fatura em atraso** (arquiteto, T-193): opção A, a equipe só reativa depois de receber a atrasada, como o contrato já recusa (`PLT-06`, CA-ASS-46).
 - Resolvido na T-211 (dono, 14 out 2026): **Endereço da empresa para a NFS-e da assinatura** (arquiteto, T-193): opção B, a compra não pede; o endereço nasce do endereço da filial matriz do passo 6, copiado uma vez, e se edita nos dados fiscais; o seed leva o da Filial Centro, CEP 60325-000 (`PLT-15`, CA-ASS-47 e 48).
 - Resolvido na T-229 (dono, 15 out 2026): opção A nos 5 casos abaixo, o padrão do contrato (`PLT-06`, `AUD-08`, CA-ASS-54 a 58). A desistência da pausa vai até o último dia do período pago; mudar de plano e pausar com o cancelamento marcado são recusados; um downgrade já agendado continua e só vale se o cancelamento for desfeito. O prazo de guarda das faturas fica com o dono e o contador ("Pontos em aberto" das regras), e o MEI e o empresário individual, com a segurança (T-230).
@@ -184,9 +185,6 @@ Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (seguran
 
 ### T-368 · Antes de produção no backend
 - **Agente:** backend · **Depende de:** — · **Regras:** USR-06, S-17 · **Pronto quando:** a T-159 e a T-160 (abaixo) estão feitas no mesmo PR.
-
-### T-369 · Pedido do titular pela equipe (M-03 da T-355)
-- **Agente:** backend · **Depende de:** — · **Regras:** AUD-06 · **Pronto quando:** os comandos `exportar_titular` e `anonimizar_titular`, só para a equipe, com auditoria e teste, para atender o pedido do titular sem SQL direto até a tela da fase 2.
 
 ### T-370 · Ações que faltam no caixa, no receber e no cliente
 - **Agente:** frontend · **Depende de:** — · **Regras:** FIN, CLI-03, CLI-05 · **Pronto quando:** estornar movimento no `/financeiro/caixa`, renegociar no `/financeiro/receber`, e bloquear, desbloquear, inativar e reativar no detalhe do cliente (com o 422 `cliente_com_pendencia`), pelos `acoes` da API; testes vitest.
