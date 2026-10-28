@@ -1448,7 +1448,7 @@ def mensagem_de_cobranca(conta: ContaReceber, *, pix: str | None) -> MensagemDeC
     )
 
 
-def _remetente() -> str:
+def remetente() -> str:
     """O endereço de `DEFAULT_FROM_EMAIL` com o nome da locadora (AUT-03)."""
     _, endereco = parseaddr(settings.DEFAULT_FROM_EMAIL)
     return str(Address(display_name=nome_da_empresa(), addr_spec=endereco))
@@ -1485,7 +1485,7 @@ def cobrar(conta: ContaReceber) -> bool:
         send_mail(
             subject=mensagem.assunto,
             message=mensagem.texto,
-            from_email=_remetente(),
+            from_email=remetente(),
             recipient_list=[cliente.email],
         )
     registrar_evento("conta_receber.cobrar", Categoria.FINANCEIRO, objeto=conta, regra="AUT-03")

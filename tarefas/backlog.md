@@ -180,9 +180,6 @@ Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (seguran
 ### T-366 · Rota de recebimentos e marcação dos passos
 - **Agente:** backend · **Depende de:** T-358 · **Regras:** FIN-04, IMP-05, PLT-12 · **Pronto quando:** a rota de ligar e ler a subconta do parceiro pelo contrato da T-358, com o 403 `PLT-12` no Essencial e a auditoria; as ações que marcam os passos `precos` e `equipe`; `test_imp_05_*` e OpenAPI regenerado.
 
-### T-367 · Lembrete de devolução (`AUT-01`)
-- **Agente:** backend · **Depende de:** — · **Regras:** AUT-01 · **Pronto quando:** a tarefa das 08:00 manda WhatsApp a cada cliente com devolução no dia, com o horário e o endereço da filial, uma vez por locação; `test_aut_01_lembrete_de_devolucao` com a LOC-2836 (14 out).
-
 ### T-370 · Ações que faltam no caixa, no receber e no cliente
 - **Agente:** frontend · **Depende de:** — · **Regras:** FIN, CLI-03, CLI-05 · **Pronto quando:** estornar movimento no `/financeiro/caixa`, renegociar no `/financeiro/receber`, e bloquear, desbloquear, inativar e reativar no detalhe do cliente (com o 422 `cliente_com_pendencia`), pelos `acoes` da API; testes vitest.
 
