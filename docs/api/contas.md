@@ -61,10 +61,10 @@ Público.
 Corpo: `{ email, senha, aparelho: "desktop" | "celular" }`. Não existe "manter conectado" (`USR-06`).
 200, quando não precisa de 2 etapas: `{ "etapa": "pronto", "access": "<jwt>", "usuario": { ...igual a eu... } }` e o cookie do refresh.
 200, quando precisa: `{ "etapa": "verificar_2fa", "token_pre_2fa": "<jwt>" }` (tem autenticador) ou `{ "etapa": "configurar_2fa", "token_pre_2fa": "<jwt>" }` (precisa de 2 etapas e ainda não tem).
-401 `{ "codigo": "credenciais_invalidas", "mensagem": "E-mail ou senha incorretos" }`.
+401 `{ "codigo": "credenciais_invalidas", "mensagem": "E-mail ou senha incorretos" }`. Quem ainda não criou a senha pelo convite recebe este mesmo 401, no mesmo tempo de um e-mail que não existe: o login não revela quem foi convidado (T-159).
 429 `{ "codigo": "USR-06", "mensagem": "Acesso bloqueado por 15 minutos depois de 5 tentativas erradas", "detalhes": { "tentar_de_novo_em": "..." } }`. A 5ª tentativa errada (senha ou código, somados) bloqueia, grava evento `seguranca` e avisa os administradores.
 429 `muitas_requisicoes` (formato em `README.md`): mesmos limites do `entrar` da plataforma, 10 por minuto e 50 por hora por IP e por e-mail, com `comum.limites` (T-058). Os demais endpoints de `auth/` têm 30 por minuto por IP.
-403 `{ "codigo": "usuario_inativo", "mensagem": "Seu acesso foi desativado. Fale com o administrador." }`; `convite_pendente` recebe `{ "codigo": "convite_pendente", "mensagem": "Use o link do convite para criar seu acesso" }`.
+403 `{ "codigo": "usuario_inativo", "mensagem": "Seu acesso foi desativado. Fale com o administrador." }`; `convite_pendente` com senha e convite ainda não aceito recebe, só depois da senha certa, `{ "codigo": "convite_pendente", "mensagem": "Use o link do convite para criar seu acesso" }`.
 Regras: USR-02, USR-06.
 
 ### POST /api/auth/2fa/verificar/
