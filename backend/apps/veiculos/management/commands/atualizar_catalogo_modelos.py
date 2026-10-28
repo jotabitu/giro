@@ -5,7 +5,8 @@
 A carga completa (ADR 0031) junta a saída de `scripts/baixar_catalogo_parallelum.py` com a lista
 própria, que vai por último:
 
-    python manage.py atualizar_catalogo_modelos <saida_parallelum.csv>         apps/veiculos/dados/catalogo_modelos_proprios.csv
+    python manage.py atualizar_catalogo_modelos <saida_parallelum.csv>
+        apps/veiculos/dados/catalogo_modelos_proprios.csv  (na mesma linha)
 
 Cada arquivo é um CSV em UTF-8 com as colunas `marca`, `modelo` e `tipo` (`moto` ou `carro`, no
 singular ou no plural; outro tipo fica de fora). O arquivo que vem depois vence: na duplicata
@@ -55,9 +56,7 @@ def juntar(listas: list[list[catalogo.Modelo]]) -> list[catalogo.Modelo]:
     grafias: dict[str, str] = {}
     for modelo in em_ordem:
         grafias.setdefault(modelo.marca_normalizada, modelo.marca)
-    return [
-        catalogo.Modelo(grafias[m.marca_normalizada], m.modelo, m.tipo) for m in em_ordem
-    ]
+    return [catalogo.Modelo(grafias[m.marca_normalizada], m.modelo, m.tipo) for m in em_ordem]
 
 
 class Command(BaseCommand):

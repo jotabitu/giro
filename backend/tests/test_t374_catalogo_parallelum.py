@@ -141,4 +141,9 @@ def test_vei_08_parallelum_fora_do_django() -> None:
             assert modulo in sys.stdlib_module_names, linha
     raiz = CAMINHO.parents[1]
     for arquivo in (raiz / "apps").rglob("*.py"):
-        assert "baixar_catalogo_parallelum" not in arquivo.read_text(encoding="utf-8"), arquivo
+        importacoes = [
+            linha
+            for linha in arquivo.read_text(encoding="utf-8").splitlines()
+            if linha.lstrip().startswith(("import ", "from "))
+        ]
+        assert not any("baixar_catalogo_parallelum" in linha for linha in importacoes), arquivo

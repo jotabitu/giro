@@ -35,10 +35,13 @@ class LimiteAtingido(Exception):
 
 def buscar(url: str, esperar: Callable[[float], None] = time.sleep) -> Any:
     """Uma resposta da API. Falha passageira de rede tenta de novo (até `TENTATIVAS`); o 429 não."""
-    pedido = urllib.request.Request(url, headers={"User-Agent": "giro-catalogo"})
+    if not url.startswith(f"{BASE}/"):
+        raise ValueError(f"Fora da API da Parallelum: {url}")
+    # A URL é sempre a `BASE` em https, conferida acima.
+    pedido = urllib.request.Request(url, headers={"User-Agent": "giro-catalogo"})  # noqa: S310
     for tentativa in range(1, TENTATIVAS + 1):
         try:
-            with urllib.request.urlopen(pedido, timeout=30) as resposta:
+            with urllib.request.urlopen(pedido, timeout=30) as resposta:  # noqa: S310
                 return json.load(resposta)
         except urllib.error.HTTPError as erro:
             if erro.code == 429:
