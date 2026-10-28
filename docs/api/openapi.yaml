@@ -16288,7 +16288,7 @@ components:
           nullable: true
         sugestao:
           allOf:
-          - $ref: '#/components/schemas/Sugestao'
+          - $ref: '#/components/schemas/SugestaoDosRecebimentos'
           nullable: true
         acoes:
           $ref: '#/components/schemas/AcoesDosRecebimentos'
@@ -17200,6 +17200,37 @@ components:
       - data
       - ja_cadastrado
       - nome
+    SugestaoDosRecebimentos:
+      type: object
+      properties:
+        nome:
+          type: string
+        documento:
+          type: string
+        email:
+          type: string
+        celular:
+          type: string
+        cep:
+          type: string
+        logradouro:
+          type: string
+        numero:
+          type: string
+        complemento:
+          type: string
+        bairro:
+          type: string
+      required:
+      - bairro
+      - celular
+      - cep
+      - complemento
+      - documento
+      - email
+      - logradouro
+      - nome
+      - numero
     SuporteDaEmpresa:
       type: object
       properties:
