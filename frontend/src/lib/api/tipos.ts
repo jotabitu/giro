@@ -49,7 +49,16 @@ export type Eu = {
   dois_fatores: { ativo: boolean; obrigatorio: boolean; codigos_recuperacao_restantes: number };
   pode: Pode;
   navegacao: Navegacao;
-  suporte: { acesso_suporte_id: number; nome: string; permissao: "ver" | "ver_editar"; fim: string; motivo: string } | null;
+  /** Só com o token de suporte (PLT-07). Os rótulos vêm prontos da API; a tela não calcula tempo. */
+  suporte: {
+    acesso_suporte_id: number;
+    nome: string;
+    permissao: "ver" | "ver_editar";
+    fim: string;
+    motivo: string;
+    permissao_rotulo?: string;
+    fim_rotulo?: string;
+  } | null;
   empresa: { nome_exibicao: string; status: string; somente_leitura: boolean };
 };
 

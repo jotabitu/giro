@@ -183,6 +183,7 @@ Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (seguran
 
 ### T-372 · Modo suporte e controle do suporte
 - **Agente:** frontend · **Depende de:** T-360, T-358 · **Regras:** PLT-07 · **Pronto quando:** a página de entrada do suporte, a faixa com Sair (`auth/suporte/sair/`) e o cartão de Configurações onde o administrador bloqueia, libera e revoga o suporte; testes vitest.
+- **Estado (28 out 2026):** feita na branch `t-372-modo-suporte`, à espera do PR (`tarefas/handoffs/T-372-frontend.md`).
 
 ### T-373 · Ambiente de produção
 - **Agente:** devops · **Depende de:** T-357 (opção B, ADR 0033) · **Pronto quando:** homologação e produção no ar com o frontend, o banco, o backup cifrado com restauração testada, o Sentry, o domínio e o certificado, e as chaves de produção no cofre (M-02 da T-355).

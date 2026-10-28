@@ -4,7 +4,7 @@ import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-quer
 import { useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useMemo, type ReactNode } from "react";
 import { contas, ErroApi, type Eu } from "@/lib/api";
-import { accessAtual, aoPerderSessao } from "@/lib/api/http";
+import { accessAtual, aoPerderSessao, aoTerminarSuporte } from "@/lib/api/http";
 import { useEnderecoSemEmpresa } from "@/lib/endereco";
 import { useMarcaDaEmpresa } from "@/lib/marca-empresa";
 
@@ -56,10 +56,21 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     [cliente, router],
   );
 
+  // O token de suporte não tem refresh: ao vencer, o 401 leva à página de entrada do suporte, que explica (PLT-07).
+  useEffect(
+    () =>
+      aoTerminarSuporte(() => {
+        cliente.clear();
+        router.replace("/suporte/entrar");
+      }),
+    [cliente, router],
+  );
+
+  const suporteTerminou = consulta.error instanceof ErroApi && consulta.error.status === 401 && consulta.error.codigo === "PLT-07";
   const semSessao = semEmpresa || (consulta.error instanceof ErroApi && consulta.error.status === 401);
   useEffect(() => {
-    if (semSessao) router.replace("/entrar");
-  }, [semSessao, router]);
+    if (semSessao) router.replace(suporteTerminou ? "/suporte/entrar" : "/entrar");
+  }, [semSessao, suporteTerminou, router]);
 
   const valor = useMemo(() => (consulta.data ? { eu: consulta.data, sair } : null), [consulta.data, sair]);
 

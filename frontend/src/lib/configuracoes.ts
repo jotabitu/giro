@@ -1,4 +1,4 @@
-import { Bell, LayoutGrid, Building2, Download, FileText, Palette, Plug, ShieldCheck, Star, Tag, UserCog, type LucideIcon } from "lucide-react";
+import { Bell, LayoutGrid, Building2, Download, LifeBuoy, FileText, Palette, Plug, ShieldCheck, Star, Tag, UserCog, type LucideIcon } from "lucide-react";
 import type { ChaveDoCartao, ImplantacaoDeConfiguracoes } from "@/lib/api";
 
 /** Rota e ícone de cada cartão de Configurações (docs/api/configuracoes.md, "Rotas dos cartões"). Título e resumo vêm da API. */
@@ -14,6 +14,7 @@ export const CARTOES: Record<ChaveDoCartao, { href: string; icone: LucideIcon }>
   assinatura: { href: "/admin/assinatura", icone: Star },
   auditoria: { href: "/admin/auditoria", icone: ShieldCheck },
   exportar: { href: "/admin/exportar", icone: Download },
+  suporte: { href: "/admin/suporte", icone: LifeBuoy },
 };
 
 /** Destino do botão da faixa da implantação; o assistente ainda não tem contrato por passo, então abre o assistente. */
