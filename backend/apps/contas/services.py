@@ -151,10 +151,12 @@ def convidar(
     celular: str = "",
     permissoes_extras: list[str] | None = None,
     por: Usuario | None = None,
+    marca_equipe: bool = True,
 ) -> Usuario:
     """Pessoa `convite_pendente` e convite de 7 dias, enviado depois do commit por e-mail e, com
-    celular, por WhatsApp (USR-01). Conta no limite do plano (PLT-03)."""
-    from apps.plataforma.services import atualizar_uso, exigir_limite
+    celular, por WhatsApp (USR-01). Conta no limite do plano (PLT-03). O primeiro convite marca o
+    passo `equipe` da implantação, mesmo sem aceite (IMP-07)."""
+    from apps.plataforma.services import atualizar_uso, exigir_limite, registrar_passo_implantacao
 
     email = email.strip().lower()
     filiais = sorted(set(filiais or []))
@@ -194,14 +196,19 @@ def convidar(
             _definir_filiais(usuario, filiais)
         convite, _ = criar_convite(usuario, enviado_por=por)
         atualizar_uso("usuarios", 1)  # convite pendente conta no limite (USR-01)
+        if marca_equipe:
+            registrar_passo_implantacao("equipe")
         _enviar_depois_do_commit(convite)
     return usuario
 
 
 def convidar_administrador(nome: str, email: str, celular: str = "") -> Convite:
     """Administrador da compra (PLT-01), no schema da empresa nova: o mesmo convite, sem quem
-    convidou. Ao ficar `ativo`, marca o passo `conta` da implantação."""
-    usuario = convidar(email=email, nome=nome, celular=celular, perfil=Perfil.ADMINISTRADOR)
+    convidou. Ao ficar `ativo`, marca o passo `conta` da implantação; o passo `equipe` não conta
+    este convite (IMP-07)."""
+    usuario = convidar(
+        email=email, nome=nome, celular=celular, perfil=Perfil.ADMINISTRADOR, marca_equipe=False
+    )
     return Convite.objects.filter(usuario=usuario).latest("criado_em")
 
 

@@ -151,8 +151,8 @@ def criar_filial(dados: dict[str, Any], criada_por: Any) -> Filial:
             regra="FIL-01",
         )
         atualizar_uso("filiais", 1)
-        registrar_passo_implantacao("filial")
         if matriz:
+            registrar_passo_implantacao("filial")  # IMP-07: a matriz é a "Primeira filial"
             # PLT-15 (T-213): o endereço da nota da assinatura nasce da 1ª matriz, uma vez só.
             copiar_endereco_da_matriz(
                 {campo: getattr(filial, campo) for campo in CAMPOS_ENDERECO}, filial.pk

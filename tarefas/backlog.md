@@ -175,9 +175,6 @@ Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (seguran
 ### T-364 · Passos que faltam no assistente
 - **Agente:** frontend · **Depende de:** T-358, T-359, T-363, T-366 · **Regras:** IMP-05, PLT-12 · **Pronto quando:** Primeira filial, Tabela de preços, Modelo de contrato, Recebimentos e Convidar equipe funcionam dentro da `CascaDoAssistente`, com Continuar e Pular pela API; o Essencial não vê Recebimentos; nenhum passo mostra "Esta etapa ainda não está disponível aqui.".
 
-### T-366 · Rota de recebimentos e marcação dos passos
-- **Agente:** backend · **Depende de:** T-358 · **Regras:** FIN-04, IMP-05, PLT-12 · **Pronto quando:** a rota de ligar e ler a subconta do parceiro pelo contrato da T-358, com o 403 `PLT-12` no Essencial e a auditoria; as ações que marcam os passos `precos` e `equipe`; `test_imp_05_*` e OpenAPI regenerado.
-
 ### T-370 · Ações que faltam no caixa, no receber e no cliente
 - **Agente:** frontend · **Depende de:** — · **Regras:** FIN, CLI-03, CLI-05 · **Pronto quando:** estornar movimento no `/financeiro/caixa`, renegociar no `/financeiro/receber`, e bloquear, desbloquear, inativar e reativar no detalhe do cliente (com o 422 `cliente_com_pendencia`), pelos `acoes` da API; testes vitest.
 
