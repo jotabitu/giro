@@ -1,19 +1,27 @@
 """Catálogo de marcas e modelos, "Da lista FIPE" da tela Veiculo-Novo (VEI-08, ADR 0026, item 7).
 
+Marcas e modelos da Tabela FIPE, obtidos pela API aberta da Parallelum (provisório, ADR 0031),
+mais a lista própria da equipe (`dados/catalogo_modelos_proprios.csv`, nomes genéricos como
+"CG 160 Fan", que o seed usa). A carga é feita fora do servidor
+(`scripts/baixar_catalogo_parallelum.py`) e entra pelo comando `atualizar_catalogo_modelos`, por
+PR, a cada trimestre.
+
 A lista é local: o arquivo versionado `dados/catalogo_modelos.csv` (`marca`, `modelo`, `tipo`),
-lido uma vez por processo e guardado em memória. É igual para todas as empresas e só muda por PR,
-com o comando `atualizar_catalogo_modelos`. Nada aqui consulta a internet.
+lido uma vez por processo e guardado em memória, com a chave já normalizada. É igual para todas
+as empresas. Nada aqui consulta a internet.
 """
 
 import csv
 import re
 import unicodedata
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
 
-ARQUIVO = Path(__file__).resolve().parent / "dados" / "catalogo_modelos.csv"
+DADOS = Path(__file__).resolve().parent / "dados"
+ARQUIVO = DADOS / "catalogo_modelos.csv"
+ARQUIVO_PROPRIO = DADOS / "catalogo_modelos_proprios.csv"
 CABECALHO = ("marca", "modelo", "tipo")
 TIPOS = ("moto", "carro")
 LIMITE_DA_LISTA = 50
@@ -24,10 +32,13 @@ class Modelo:
     marca: str
     modelo: str
     tipo: str
+    # Calculadas uma vez, na criação (na leitura do CSV), e não a cada pedido.
+    chave: str = field(init=False, compare=False, repr=False)
+    marca_normalizada: str = field(init=False, compare=False, repr=False)
 
-    @property
-    def chave(self) -> str:
-        return normalizar(f"{self.marca} {self.modelo}")
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "chave", normalizar(f"{self.marca} {self.modelo}"))
+        object.__setattr__(self, "marca_normalizada", normalizar(self.marca))
 
 
 def normalizar(texto: str) -> str:
@@ -37,7 +48,7 @@ def normalizar(texto: str) -> str:
 
 
 def _ordem(modelo: Modelo) -> tuple[str, str]:
-    return normalizar(modelo.marca), normalizar(modelo.modelo)
+    return modelo.marca_normalizada, normalizar(modelo.modelo)
 
 
 def organizar(modelos: Iterable[Modelo]) -> list[Modelo]:
@@ -82,7 +93,7 @@ def listar(
         m
         for m in modelos()
         if (not tipo or m.tipo == tipo)
-        and (not marca_normalizada or normalizar(m.marca) == marca_normalizada)
+        and (not marca_normalizada or m.marca_normalizada == marca_normalizada)
         and all(termo in m.chave for termo in termos)
     ]
     return achados[:LIMITE_DA_LISTA]
@@ -107,5 +118,5 @@ def achar_modelo(texto: str) -> Modelo | None:
         candidatos = [m for m in modelos() if _comeca_com(m.chave, lido)]
     if not candidatos:
         candidatos = [m for m in modelos() if _comeca_com(lido, m.chave)]
-    candidatos = [m for m in candidatos if lido != normalizar(m.marca)]
+    candidatos = [m for m in candidatos if lido != m.marca_normalizada]
     return candidatos[0] if len(candidatos) == 1 else None

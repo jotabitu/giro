@@ -7,23 +7,28 @@ pessoas e a frota da Moto Rápida, com o relógio em 07 out 2026.
 import inspect
 import io
 import logging
+import subprocess
 import sys
 import threading
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+import sentry_sdk
 from django.core.files.uploadedfile import SimpleUploadedFile
 from pypdf import PdfReader
 
 from apps.auditoria.models import EventoAuditoria
 from apps.veiculos.models import DocumentoVeiculo, Veiculo
 from comum import comprovante_leitura, cripto
+from comum.sentry import opcoes_do_sentry
 from integracoes import leitura_documentos
 from integracoes.leitura_documentos import crlv, trabalhador
 
 from . import documentos_pdf as pdfs
 from .frota import Frota, montar_frota
 from .test_t012_filiais import MotoRapida
+from .test_t270_sentry import TransporteDeMentira
 
 LEITURA = "/api/veiculos/leitura-crlv/"
 FALHA = {
@@ -123,6 +128,35 @@ def test_adr_0026_filho_so_com_path_e_lang_e_os_limites() -> None:
         }
 
 
+@pytest.fixture
+def sentry_ligado() -> Iterator[None]:
+    """O Sentry com as opções do Giro e um transporte de mentira (sem rede), como na T-270, mas
+    sem `traces_sample_rate`: com `0.0` o SDK 2.73 não propaga o rastro ao filho; sem a opção,
+    como no `sentry_sdk.init()` que a T-270 deixa no fim, propaga."""
+    opcoes = opcoes_do_sentry("http://chave@localhost/1", "teste")
+    del opcoes["traces_sample_rate"]
+    sentry_sdk.init(**{**opcoes, "transport": TransporteDeMentira([])})
+    yield
+    sentry_sdk.init()  # sem DSN: volta a desligado
+
+
+def test_t399_adr_0026_filho_so_com_path_e_lang_com_o_sentry_ligado(sentry_ligado: None) -> None:
+    # O Sentry ligado põe o rastro no ambiente de quem nasce só pelo `env=` (o que a T-399 viu).
+    lista = "import os, sys; sys.stdout.write(' '.join(sorted(os.environ)))"
+    herdado = subprocess.run(  # noqa: S603
+        [sys.executable, "-I", "-c", lista],
+        env=leitura_documentos.AMBIENTE,
+        capture_output=True,
+        check=True,
+        text=True,
+    ).stdout.split()
+    assert "SUBPROCESS_SENTRY_TRACE" in herdado
+    # O filho da leitura nasce pelo `env -i`: só PATH e LANG mesmo assim (M-01).
+    resposta = leitura_documentos.executar("_diagnostico", b"")
+    assert resposta["ok"] is True
+    assert resposta["ambiente"] == ["LANG", "PATH"]
+
+
 def test_adr_0026_pai_chama_isolado_sem_preexec_fn(monkeypatch) -> None:
     chamadas = []
     original = leitura_documentos.subprocess.Popen
@@ -134,8 +168,17 @@ def test_adr_0026_pai_chama_isolado_sem_preexec_fn(monkeypatch) -> None:
     monkeypatch.setattr(leitura_documentos.subprocess, "Popen", espiao)
     leitura_documentos.executar("_diagnostico", b"")
     ((args, kwargs),) = chamadas
-    assert args[0] == [sys.executable, "-I", trabalhador.__file__, "_diagnostico"]
-    assert Path(args[0][2]).is_absolute()
+    assert args[0] == [
+        "/usr/bin/env",
+        "-i",
+        "PATH=/usr/local/bin:/usr/bin:/bin",
+        "LANG=C.UTF-8",
+        sys.executable,
+        "-I",
+        trabalhador.__file__,
+        "_diagnostico",
+    ]
+    assert Path(args[0][0]).is_absolute() and Path(args[0][6]).is_absolute()
     assert kwargs["env"] == {"PATH": "/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8"}
     assert kwargs["start_new_session"] is True and kwargs["close_fds"] is True
     assert "preexec_fn" not in kwargs
