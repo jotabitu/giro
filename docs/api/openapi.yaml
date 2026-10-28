@@ -3226,8 +3226,28 @@ paths:
           description: ''
   /api/financeiro/pendencias-pagamento/:
     get:
-      operationId: financeiro_pendencias_pagamento_retrieve
-      summary: Pagamentos para conferir (S-14)
+      operationId: financeiro_pendencias_pagamento_list
+      summary: Pagamentos para conferir, com indicadores e contagens (S-14, AUT-05)
+      parameters:
+      - in: query
+        name: busca
+        schema:
+          type: string
+        description: id da cobrança no parceiro, cliente ou código da origem
+      - in: query
+        name: periodo
+        schema:
+          type: string
+          enum:
+          - mes
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - aberta
+          - resolvida
+          - todas
       tags:
       - financeiro
       security:
@@ -3237,7 +3257,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PendenciasPagamento'
+                $ref: '#/components/schemas/ListaDePendenciasPagamento'
           description: ''
   /api/financeiro/pendencias-pagamento/{id}/resolver/:
     post:
@@ -3274,9 +3294,22 @@ paths:
           description: ''
   /api/financeiro/reembolsos/:
     get:
-      operationId: financeiro_reembolsos_retrieve
-      summary: Devoluções ao cliente (DEV-02)
+      operationId: financeiro_reembolsos_list
+      summary: Devoluções ao cliente, com indicadores e contagens (DEV-02)
       parameters:
+      - in: query
+        name: busca
+        schema:
+          type: string
+        description: nome do cliente ou código da origem
+      - in: query
+        name: periodo
+        schema:
+          type: string
+          enum:
+          - hoje
+          - mes
+          - semana
       - in: query
         name: status
         schema:
@@ -3284,6 +3317,7 @@ paths:
           enum:
           - a_fazer
           - feito
+          - todos
       tags:
       - financeiro
       security:
@@ -3293,7 +3327,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Reembolsos'
+                $ref: '#/components/schemas/ListaDeReembolsos'
           description: ''
   /api/financeiro/reembolsos/{id}/feito/:
     post:
@@ -6933,6 +6967,16 @@ components:
       - iniciar
       - registrar_chegada
       - sair_parada
+    AcoesDaPendencia:
+      type: object
+      properties:
+        resolver:
+          type: boolean
+        baixar:
+          type: boolean
+      required:
+      - baixar
+      - resolver
     AcoesDoAcesso:
       type: object
       properties:
@@ -6953,6 +6997,13 @@ components:
       - fechar
       - receber
       - sangria
+    AcoesDoReembolso:
+      type: object
+      properties:
+        marcar_feito:
+          type: boolean
+      required:
+      - marcar_feito
     AcoesDoUsuario:
       type: object
       description: Os botões do convite no painel da pessoa (T-249).
@@ -8464,6 +8515,19 @@ components:
       - url_boleto
       - url_pagina
       - vencimento
+    CobrancaDaPendencia:
+      type: object
+      properties:
+        id_no_parceiro:
+          type: string
+        forma:
+          type: string
+        forma_rotulo:
+          type: string
+      required:
+      - forma
+      - forma_rotulo
+      - id_no_parceiro
     CobrancaEntrada:
       type: object
       properties:
@@ -9227,6 +9291,19 @@ components:
       - encerradas
       - precisam_acao
       - rascunhos
+    ContagensPendencias:
+      type: object
+      properties:
+        aberta:
+          type: integer
+        resolvida:
+          type: integer
+        todas:
+          type: integer
+      required:
+      - aberta
+      - resolvida
+      - todas
     ContagensReceber:
       type: object
       properties:
@@ -9246,6 +9323,19 @@ components:
       - pagas
       - todas
       - vencem_hoje
+    ContagensReembolsos:
+      type: object
+      properties:
+        a_fazer:
+          type: integer
+        feito:
+          type: integer
+        todos:
+          type: integer
+      required:
+      - a_fazer
+      - feito
+      - todos
     Contas:
       type: object
       properties:
@@ -11803,6 +11893,32 @@ components:
       - plano
       - status
       - tipo
+    IndicadorDePendencias:
+      type: object
+      properties:
+        quantidade:
+          type: integer
+        valor_centavos:
+          type: integer
+        texto:
+          type: string
+      required:
+      - quantidade
+      - texto
+      - valor_centavos
+    IndicadorDeReembolsos:
+      type: object
+      properties:
+        valor_centavos:
+          type: integer
+        quantidade:
+          type: integer
+        texto:
+          type: string
+      required:
+      - quantidade
+      - texto
+      - valor_centavos
     Indicadores:
       type: object
       properties:
@@ -11943,6 +12059,16 @@ components:
       - frota_alugada_pct
       - pagamentos_atrasados
       - pagamentos_atrasados_centavos
+    IndicadoresPendencias:
+      type: object
+      properties:
+        abertas:
+          $ref: '#/components/schemas/IndicadorDePendencias'
+        resolvidas:
+          $ref: '#/components/schemas/IndicadorDePendencias'
+      required:
+      - abertas
+      - resolvidas
     IndicadoresReceber:
       type: object
       properties:
@@ -11978,6 +12104,16 @@ components:
       - recebido_pct
       - vence_hoje_centavos
       - vence_hoje_parcelas
+    IndicadoresReembolsos:
+      type: object
+      properties:
+        a_fazer:
+          $ref: '#/components/schemas/IndicadorDeReembolsos'
+        feitos:
+          $ref: '#/components/schemas/IndicadorDeReembolsos'
+      required:
+      - a_fazer
+      - feitos
     InicioDoPainel:
       oneOf:
       - $ref: '#/components/schemas/InicioGeral'
@@ -13167,6 +13303,29 @@ components:
       - indicadores
       - proximo
       - resultados
+    ListaDePendenciasPagamento:
+      type: object
+      properties:
+        indicadores:
+          $ref: '#/components/schemas/IndicadoresPendencias'
+        contagens:
+          $ref: '#/components/schemas/ContagensPendencias'
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendenciaPagamento'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - contagens
+      - indicadores
+      - proximo
+      - resultados
     ListaDePessoas:
       type: object
       properties:
@@ -13226,6 +13385,29 @@ components:
           items:
             $ref: '#/components/schemas/PrecoHistorico'
       required:
+      - resultados
+    ListaDeReembolsos:
+      type: object
+      properties:
+        indicadores:
+          $ref: '#/components/schemas/IndicadoresReembolsos'
+        contagens:
+          $ref: '#/components/schemas/ContagensReembolsos'
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reembolso'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - contagens
+      - indicadores
+      - proximo
       - resultados
     ListaDeSugestoes:
       type: object
@@ -14448,6 +14630,52 @@ components:
       - codigo
       - id
       - tipo
+    OrigemDaPendencia:
+      type: object
+      properties:
+        codigo:
+          type: string
+          nullable: true
+        conta_id:
+          type: integer
+        parcela:
+          type: string
+          description: parcela 2 de 5
+      required:
+      - codigo
+      - conta_id
+      - parcela
+    OrigemDoReembolso:
+      type: object
+      properties:
+        tipo:
+          $ref: '#/components/schemas/OrigemDoReembolsoTipoEnum'
+        codigo:
+          type: string
+          nullable: true
+        id:
+          type: integer
+          nullable: true
+          description: a locação, para o Ver acerto
+        veiculo:
+          type: string
+          nullable: true
+          description: QXA-4B21 · Honda CG 160 Fan
+      required:
+      - codigo
+      - id
+      - tipo
+      - veiculo
+    OrigemDoReembolsoTipoEnum:
+      enum:
+      - devolucao
+      - cancelamento
+      - credito
+      type: string
+      description: |-
+        * `devolucao` - devolucao
+        * `cancelamento` - cancelamento
+        * `credito` - credito
     OrigemEntrada:
       type: object
       properties:
@@ -15315,35 +15543,66 @@ components:
       properties:
         id:
           type: integer
-        motivo:
+        criado_em:
           type: string
-        status:
+          format: date-time
+        cobranca:
+          $ref: '#/components/schemas/CobrancaDaPendencia'
+        cliente:
+          $ref: '#/components/schemas/Ref'
+        origem:
+          $ref: '#/components/schemas/OrigemDaPendencia'
+        motivo:
+          $ref: '#/components/schemas/PendenciaPagamentoMotivoEnum'
+        motivo_rotulo:
+          type: string
+        detalhe:
           type: string
         valor_pago_centavos:
           type: integer
           nullable: true
-        cobranca:
-          $ref: '#/components/schemas/Cobranca'
-        conta_id:
-          type: integer
-        cliente:
-          $ref: '#/components/schemas/Ref'
+        status:
+          $ref: '#/components/schemas/PendenciaPagamentoStatusEnum'
+        status_rotulo:
+          type: string
         resolucao:
-          type: string
+          allOf:
+          - $ref: '#/components/schemas/ResolucaoDaPendencia'
           nullable: true
-        criada_em:
-          type: string
-          format: date-time
+        acoes:
+          $ref: '#/components/schemas/AcoesDaPendencia'
       required:
+      - acoes
       - cliente
       - cobranca
-      - conta_id
-      - criada_em
+      - criado_em
+      - detalhe
       - id
       - motivo
+      - motivo_rotulo
+      - origem
       - resolucao
       - status
+      - status_rotulo
       - valor_pago_centavos
+    PendenciaPagamentoMotivoEnum:
+      enum:
+      - valor_diferente
+      - estornada_no_parceiro
+      - sem_conta
+      type: string
+      description: |-
+        * `valor_diferente` - valor_diferente
+        * `estornada_no_parceiro` - estornada_no_parceiro
+        * `sem_conta` - sem_conta
+    PendenciaPagamentoStatusEnum:
+      enum:
+      - aberta
+      - resolvida
+      type: string
+      description: |-
+        * `aberta` - aberta
+        * `resolvida` - resolvida
     Pendencias:
       type: object
       properties:
@@ -15356,15 +15615,6 @@ components:
       required:
       - itens
       - titulo
-    PendenciasPagamento:
-      type: object
-      properties:
-        resultados:
-          type: array
-          items:
-            $ref: '#/components/schemas/PendenciaPagamento'
-      required:
-      - resultados
     PerfilEnum:
       enum:
       - administrador
@@ -16400,32 +16650,56 @@ components:
       properties:
         id:
           type: integer
+        criado_em:
+          type: string
+          format: date-time
         cliente:
           $ref: '#/components/schemas/Ref'
         origem:
-          $ref: '#/components/schemas/OrigemDaConta'
-        valor_centavos:
-          type: integer
+          $ref: '#/components/schemas/OrigemDoReembolso'
+        origem_rotulo:
+          type: string
+        motivo:
+          type: string
         forma:
           $ref: '#/components/schemas/ReembolsoFormaEnum'
+        forma_rotulo:
+          type: string
+        valor_centavos:
+          type: integer
         status:
           $ref: '#/components/schemas/ReembolsoStatusEnum'
+        status_rotulo:
+          type: string
         feito_em:
           type: string
           format: date-time
+          nullable: true
+        feito_por:
+          allOf:
+          - $ref: '#/components/schemas/Ref'
           nullable: true
         comprovante:
           allOf:
           - $ref: '#/components/schemas/Nota'
           nullable: true
+        acoes:
+          $ref: '#/components/schemas/AcoesDoReembolso'
       required:
+      - acoes
       - cliente
       - comprovante
+      - criado_em
       - feito_em
+      - feito_por
       - forma
+      - forma_rotulo
       - id
+      - motivo
       - origem
+      - origem_rotulo
       - status
+      - status_rotulo
       - valor_centavos
     ReembolsoFormaEnum:
       enum:
@@ -16445,15 +16719,6 @@ components:
       description: |-
         * `a_fazer` - a_fazer
         * `feito` - feito
-    Reembolsos:
-      type: object
-      properties:
-        resultados:
-          type: array
-          items:
-            $ref: '#/components/schemas/Reembolso'
-      required:
-      - resultados
     Ref:
       type: object
       properties:
@@ -16541,6 +16806,17 @@ components:
           type: string
           format: date-time
           nullable: true
+    ResolucaoDaPendencia:
+      type: object
+      properties:
+        texto:
+          type: string
+        em:
+          type: string
+          format: date-time
+      required:
+      - em
+      - texto
     ResolverPendencia:
       type: object
       properties:

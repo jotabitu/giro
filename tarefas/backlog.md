@@ -199,9 +199,8 @@ Situação depois dos merges de 26 a 28 out e da decisão do dono de 28 out em `
 
 - **Em andamento:**
   - T-377, textos do downgrade recusado (backend 2);
-  - T-379, backend do controle do suporte (segurança);
-  - T-380, API de reembolsos e pendências do pagamento (backend).
-- **Em revisão:** T-366 (PR #424) e T-383 (PR #425).
+  - T-379, backend do controle do suporte (segurança).
+- **Em revisão:** T-380 (branch `t-380-reembolsos-pendencias`).
 - **Depois:** T-374 e T-165 (backend 2), T-397 (frontend, depois da T-366), T-371 (frontend, depois da T-380), T-372 (frontend, depois da T-379) e a parte 2 da T-375 (qa), por último.
 
 ### T-377 · Textos do downgrade recusado (T-391)
@@ -209,9 +208,6 @@ Situação depois dos merges de 26 a 28 out e da decisão do dono de 28 out em `
 
 ### T-379 · Backend do controle do suporte
 - **Agente:** segurança · **Depende de:** T-358 · **Regras:** PLT-07 · **Contrato:** `docs/api/contas.md` ("GET /api/suporte/" em diante) e o cartão `suporte` de `docs/api/configuracoes.md` · **Telas:** `Admin-Suporte` (T-360) · **Pronto quando:** `GET /api/suporte/` com o que a tela mostra, bloquear, liberar e revogar com auditoria, o cartão em Configurações (sem vir para o token de suporte) e o OpenAPI regenerado.
-
-### T-380 · API de reembolsos e pendências do pagamento
-- **Agente:** backend · **Depende de:** T-358 · **Regras:** DEV-02, AUT-05 · **Contrato:** `docs/api/financeiro.md` (T-358) e a revisão da T-384 · **Pronto quando:** as rotas que a T-371 usa, com teste e OpenAPI regenerado.
 
 ### T-397 · Passo Recebimentos do assistente
 - **Agente:** frontend · **Depende de:** T-366 · **Regras:** FIN-04, IMP-05, IMP-07, PLT-12 · **Contrato:** `docs/api/plataforma.md` ("Recebimentos da empresa") · **Pronto quando:** o passo `/implantacao/recebimentos` dentro da `CascaDoAssistente`, com a sugestão da API, o envio, as situações (não conectado, em análise, ligados, recusado) e Pular; o Essencial não vê o passo; testes vitest.

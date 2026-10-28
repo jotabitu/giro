@@ -394,32 +394,120 @@ class ListaDeDespesasSerializer(serializers.Serializer[Any]):
     anterior = serializers.CharField(allow_null=True)
 
 
+class OrigemDoReembolsoSerializer(serializers.Serializer[Any]):
+    tipo = serializers.ChoiceField(choices=["devolucao", "cancelamento", "credito"])
+    codigo = serializers.CharField(allow_null=True)
+    id = serializers.IntegerField(allow_null=True, help_text="a locação, para o Ver acerto")
+    veiculo = serializers.CharField(allow_null=True, help_text="QXA-4B21 · Honda CG 160 Fan")
+
+
+class AcoesDoReembolsoSerializer(serializers.Serializer[Any]):
+    marcar_feito = serializers.BooleanField()
+
+
 class ReembolsoSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
+    criado_em = serializers.DateTimeField()
     cliente = RefSerializer()
-    origem = OrigemDaContaSerializer()
-    valor_centavos = serializers.IntegerField()
+    origem = OrigemDoReembolsoSerializer()
+    origem_rotulo = serializers.CharField()
+    motivo = serializers.CharField()
     forma = serializers.ChoiceField(choices=["pix", "dinheiro", "estorno_cartao"])
+    forma_rotulo = serializers.CharField()
+    valor_centavos = serializers.IntegerField()
     status = serializers.ChoiceField(choices=["a_fazer", "feito"])
+    status_rotulo = serializers.CharField()
     feito_em = serializers.DateTimeField(allow_null=True)
+    feito_por = RefSerializer(allow_null=True)
     comprovante = NotaSerializer(allow_null=True)
+    acoes = AcoesDoReembolsoSerializer()
 
 
-class ReembolsosSerializer(serializers.Serializer[Any]):
+class IndicadorDeReembolsosSerializer(serializers.Serializer[Any]):
+    valor_centavos = serializers.IntegerField()
+    quantidade = serializers.IntegerField()
+    texto = serializers.CharField()
+
+
+class IndicadoresReembolsosSerializer(serializers.Serializer[Any]):
+    a_fazer = IndicadorDeReembolsosSerializer()
+    feitos = IndicadorDeReembolsosSerializer()
+
+
+class ContagensReembolsosSerializer(serializers.Serializer[Any]):
+    a_fazer = serializers.IntegerField()
+    feito = serializers.IntegerField()
+    todos = serializers.IntegerField()
+
+
+class ListaDeReembolsosSerializer(serializers.Serializer[Any]):
+    indicadores = IndicadoresReembolsosSerializer()
+    contagens = ContagensReembolsosSerializer()
     resultados = ReembolsoSerializer(many=True)
+    proximo = serializers.CharField(allow_null=True)
+    anterior = serializers.CharField(allow_null=True)
+
+
+class CobrancaDaPendenciaSerializer(serializers.Serializer[Any]):
+    id_no_parceiro = serializers.CharField()
+    forma = serializers.CharField()
+    forma_rotulo = serializers.CharField()
+
+
+class OrigemDaPendenciaSerializer(serializers.Serializer[Any]):
+    codigo = serializers.CharField(allow_null=True)
+    conta_id = serializers.IntegerField()
+    parcela = serializers.CharField(help_text="parcela 2 de 5")
+
+
+class ResolucaoDaPendenciaSerializer(serializers.Serializer[Any]):
+    texto = serializers.CharField()
+    em = serializers.DateTimeField()
+
+
+class AcoesDaPendenciaSerializer(serializers.Serializer[Any]):
+    resolver = serializers.BooleanField()
+    baixar = serializers.BooleanField()
 
 
 class PendenciaPagamentoSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
-    motivo = serializers.CharField()
-    status = serializers.CharField()
-    valor_pago_centavos = serializers.IntegerField(allow_null=True)
-    cobranca = CobrancaSerializer()
-    conta_id = serializers.IntegerField()
+    criado_em = serializers.DateTimeField()
+    cobranca = CobrancaDaPendenciaSerializer()
     cliente = RefSerializer()
-    resolucao = serializers.CharField(allow_null=True)
-    criada_em = serializers.DateTimeField()
+    origem = OrigemDaPendenciaSerializer()
+    motivo = serializers.ChoiceField(
+        choices=["valor_diferente", "estornada_no_parceiro", "sem_conta"]
+    )
+    motivo_rotulo = serializers.CharField()
+    detalhe = serializers.CharField()
+    valor_pago_centavos = serializers.IntegerField(allow_null=True)
+    status = serializers.ChoiceField(choices=["aberta", "resolvida"])
+    status_rotulo = serializers.CharField()
+    resolucao = ResolucaoDaPendenciaSerializer(allow_null=True)
+    acoes = AcoesDaPendenciaSerializer()
 
 
-class PendenciasPagamentoSerializer(serializers.Serializer[Any]):
+class IndicadorDePendenciasSerializer(serializers.Serializer[Any]):
+    quantidade = serializers.IntegerField()
+    valor_centavos = serializers.IntegerField()
+    texto = serializers.CharField()
+
+
+class IndicadoresPendenciasSerializer(serializers.Serializer[Any]):
+    abertas = IndicadorDePendenciasSerializer()
+    resolvidas = IndicadorDePendenciasSerializer()
+
+
+class ContagensPendenciasSerializer(serializers.Serializer[Any]):
+    aberta = serializers.IntegerField()
+    resolvida = serializers.IntegerField()
+    todas = serializers.IntegerField()
+
+
+class ListaDePendenciasPagamentoSerializer(serializers.Serializer[Any]):
+    indicadores = IndicadoresPendenciasSerializer()
+    contagens = ContagensPendenciasSerializer()
     resultados = PendenciaPagamentoSerializer(many=True)
+    proximo = serializers.CharField(allow_null=True)
+    anterior = serializers.CharField(allow_null=True)
