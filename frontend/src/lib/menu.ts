@@ -113,6 +113,8 @@ export function rotaPermitida(eu: Pick<Eu, "pode" | "navegacao">, rota: string):
   if (rota === "/admin/exportar") return noMenu("auditoria");
   // O ramo abre pelo cartão de Configurações e é só do administrador (PLT-12).
   if (rota === "/admin/ramo") return pode.administracao;
+  // O controle do suporte abre pelo cartão de Configurações e é só do administrador.
+  if (rota === "/admin/suporte") return pode.administracao;
   // Empresa e marca: simular e salvar são só do administrador (docs/api/empresas.md, "Escrita da marca").
   if (rota === "/admin/marca") return pode.administracao;
   // Passos do assistente de implantação: Administração, só do administrador (CA-027-16).

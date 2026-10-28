@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { Button, Icone } from "@/design-system";
@@ -14,6 +15,7 @@ import { RodapeDoPasso } from "./RodapeDoPasso";
 export function PassoPrecos({ feito, voltarPara, pularPara, aoContinuar }: { feito: boolean; voltarPara: string; pularPara: string; aoContinuar: () => void }) {
   const [criando, setCriando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  const cliente = useQueryClient();
 
   return (
     <section className="flex min-w-0 flex-1 flex-col gap-6 md:wl-panel" aria-labelledby="passo-precos-titulo">
@@ -36,7 +38,11 @@ export function PassoPrecos({ feito, voltarPara, pularPara, aoContinuar }: { fei
       )}
       {!feito && <p className="m-0 text-caption text-ink-muted">Para continuar, crie ao menos uma categoria com preço.</p>}
 
-      <CategoriasDePreco criando={criando} aoFecharCriacao={() => setCriando(false)} aoAvisar={setAviso} />
+      <CategoriasDePreco criando={criando} aoFecharCriacao={() => setCriando(false)} aoAvisar={(texto) => {
+          setAviso(texto);
+          // A API marca o passo quando a categoria ganha preço vigente (IMP-07): reler o andamento libera o Continuar sem recarregar.
+          void cliente.invalidateQueries({ queryKey: ["implantacao"] });
+        }} />
 
       <p className="m-0 text-caption text-ink-muted">Depois você cria tabelas por filial, extras e planos especiais em Configurações › Tabelas de preço.</p>
 

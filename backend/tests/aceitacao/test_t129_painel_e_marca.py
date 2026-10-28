@@ -253,9 +253,12 @@ def test_usr_05_contadores_seguem_o_menu(cenario, com_carteira):  # noqa: F811
     }
     # Com `financeiro` em GIRO_MODULOS_ATIVOS (T-017), o financeiro vê os itens dele, e Veículos
     # entrou no menu dele na T-287, com contador como em qualquer perfil (como no t017, T-323).
+    # Reembolsos e pendências do pagamento vieram com o menu na T-404 (painel.md).
     assert cenario.moto.api("Lúcia").get(CONTADORES).json()["contadores"] == {
         "contas_a_pagar": 0,
+        "pendencias_pagamento": 0,
         "receber": 2,
+        "reembolsos": 0,
         "veiculos": 86,
     }
 
