@@ -189,8 +189,11 @@ def _rafael(com_carteira) -> ContaReceber:  # noqa: F811
     return ContaReceber.objects.get(origem_tipo="locacao", origem_id=com_carteira["LOC-2790"].pk)
 
 
-def _pendencia(conta: ContaReceber, externo_id: str, motivo: str, pago: int | None):
+def _pendencia(
+    conta: ContaReceber, externo_id: str, motivo: str, pago: int | None, status: str = "aguardando"
+):
     cobranca = CobrancaExterna.objects.create(
+        status=status,
         conta_receber=conta,
         tipo="pix",
         externo_id=externo_id,
@@ -279,7 +282,7 @@ def test_aut_05_acoes_da_pendencia_pela_conta(cenario, relogio_jwt, com_carteira
 
     # A conta deixou de estar aberta: só ignorar.
     estados.transicionar(rafael, "cancelada", motivo="Teste", acao="conta_receber.cancelar")
-    sem_conta = _pendencia(rafael, "pay_88300", "sem_conta", 134700)
+    sem_conta = _pendencia(rafael, "pay_88300", "sem_conta", 134700, "divergente")
     item = next(p for p in api.get(PENDENCIAS).json()["resultados"] if p["id"] == sem_conta.pk)
     assert item["motivo_rotulo"] == "A conta já não estava aberta"
     assert item["detalhe"] == "Pagou R$ 1.347,00, mas a conta já estava cancelada."
