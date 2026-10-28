@@ -372,10 +372,47 @@ def test_usr_04_ca_011_07_quem_nao_pode_entrar(moto):
     assert felipe.status_code == 403
     assert felipe.json()["codigo"] == "usuario_inativo"
     assert felipe.json()["mensagem"] == "Seu acesso foi desativado. Fale com o administrador."
+    # João ainda não criou a senha: a mesma resposta de um e-mail que não existe (T-159).
     joao = moto.entrar("João")
-    assert joao.status_code == 403
-    assert joao.json()["codigo"] == "convite_pendente"
-    assert joao.json()["mensagem"] == "Use o link do convite para criar seu acesso"
+    assert joao.status_code == 401
+    assert joao.json()["codigo"] == "credenciais_invalidas"
+
+
+def test_usr_06_convite_pendente_nao_revela_email(moto, monkeypatch):
+    """T-159: o login não diz quem foi convidado. Sem senha, o mesmo 401 de um e-mail que não
+    existe, com o mesmo cálculo de hash; o 403 `convite_pendente` só depois da senha certa."""
+    from django.contrib.auth import base_user
+
+    hashes: list[str] = []
+    original = base_user.make_password
+
+    def contar_hash(senha: str) -> str:
+        hashes.append(senha)
+        return original(senha)
+
+    monkeypatch.setattr(base_user, "make_password", contar_hash)
+    inexistente = moto.cliente().post(
+        ENTRAR, {"email": "ninguem@motorapida.com.br", "senha": SENHA}, format="json"
+    )
+    connection.set_tenant(moto.empresa)
+    convidado = moto.entrar("João")
+    assert hashes == [SENHA, SENHA]
+    for resposta in (inexistente, convidado):
+        assert resposta.status_code == 401
+        assert resposta.json() == inexistente.json()
+        assert resposta.json()["codigo"] == "credenciais_invalidas"
+    assert moto.eventos("usuario.entrar_falhou").filter(motivo="sem senha").count() == 1
+
+    # Com senha e o convite ainda não aceito: senha errada é 401 como a de qualquer um, e o 403
+    # só sai com a senha certa.
+    joao = moto.pessoas["João"]
+    joao.set_password(SENHA)
+    joao.save(update_fields=["password"])
+    errada = moto.entrar("João", "senha-errada-1")
+    assert (errada.status_code, errada.json()["codigo"]) == (401, "credenciais_invalidas")
+    certa = moto.entrar("João")
+    assert (certa.status_code, certa.json()["codigo"]) == (403, "convite_pendente")
+    assert certa.json()["mensagem"] == "Use o link do convite para criar seu acesso"
 
 
 def test_usr_06_ca_011_08_duracao_da_sessao(moto, relogio):
@@ -928,7 +965,7 @@ def test_usr_04_ca_011_22_reativar_depende_de_ja_ter_sido_ativo(
     # O link antigo não vale; a senha anterior também não: o link novo cria a senha.
     assert _post(publica, CONSULTAR, adm.empresa, {"token": antigo}).status_code in (404, 410)
     senha_velha = adm.entrar("Lúcia")
-    assert (senha_velha.status_code, senha_velha.json()["codigo"]) == (403, "convite_pendente")
+    assert (senha_velha.status_code, senha_velha.json()["codigo"]) == (401, "credenciais_invalidas")
     novo = _token_do_convite(mail.outbox[-1])
     etapa = _post(publica, ACEITAR, adm.empresa, {"token": novo, "senha": SENHA}).json()
     assert etapa["etapa"] == "configurar_2fa"
