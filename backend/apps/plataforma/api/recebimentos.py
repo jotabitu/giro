@@ -55,7 +55,7 @@ TIPOS_EMPRESA = {
 }
 
 
-class SugestaoSerializer(serializers.Serializer[Any]):
+class SugestaoDosRecebimentosSerializer(serializers.Serializer[Any]):
     nome = serializers.CharField()
     documento = serializers.CharField()
     email = serializers.CharField()
@@ -76,7 +76,7 @@ class RecebimentosSerializer(serializers.Serializer[Any]):
     rotulo = serializers.CharField()
     mensagem = serializers.CharField()
     conectado_em = serializers.DateTimeField(allow_null=True)
-    sugestao = SugestaoSerializer(allow_null=True)
+    sugestao = SugestaoDosRecebimentosSerializer(allow_null=True)
     acoes = AcoesDosRecebimentosSerializer()
 
 

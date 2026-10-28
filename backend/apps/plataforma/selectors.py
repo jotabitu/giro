@@ -23,15 +23,18 @@ from . import catalogo
 from .calendario import MESES_DE_PAUSA, dia_e_mes, dia_mes_e_ano, periodo_da_pausa
 from .models import (
     TENTATIVAS_DO_CARTAO,
+    AcessoSuporte,
     Empresa,
     FaturaAssinatura,
     FormaAssinatura,
     FormaPagamentoAssinatura,
     Item,
     MotivoCancelamento,
+    PermissaoSuporte,
     Plano,
     Recurso,
     SituacaoNota,
+    StatusAcessoSuporte,
     StatusFatura,
     StatusFormaPagamento,
     TipoFatura,
@@ -50,6 +53,7 @@ from .services import (
     etapa_do_funil,
     excede_no_plano,
     fim_do_periodo_pago,
+    no_publico,
     pausa_marcada,
     plano_acima,
     proxima_mensalidade,
@@ -835,6 +839,84 @@ def item_da_lista(empresa: Empresa) -> dict[str, Any]:
 def passos_implantacao(empresa: Empresa) -> dict[str, Any]:
     """`{passo: concluído em}` da implantação (IMP-05), lido do `public` (painel da empresa)."""
     return dict(_uso(empresa).passos_implantacao or {})
+
+
+# --- Controle do suporte pelo administrador (PLT-07; T-358, T-379) ---
+
+JANELA_DOS_ACESSOS = timedelta(days=90)
+ROTULOS_DO_ACESSO = {
+    StatusAcessoSuporte.ATIVO: "Ativo agora",
+    StatusAcessoSuporte.ENCERRADO: "Encerrado",
+    StatusAcessoSuporte.REVOGADO: "Revogado",
+}
+
+
+def _ativo_agora(agora: Any, prefixo: str = "") -> Q:
+    """O `ativo` com o `fim` passado já não conta (AUT-15 o encerra na rodada seguinte)."""
+    return Q(**{f"{prefixo}status": StatusAcessoSuporte.ATIVO, f"{prefixo}fim__gt": agora})
+
+
+def situacao_do_suporte(empresa: Empresa | None = None) -> dict[str, Any]:
+    """O cartão `suporte` de Configurações: o bloqueio e os acessos ativos agora, numa consulta
+    só ao `public`."""
+    empresa = empresa or empresa_atual()
+    ativos = Count("acessos_suporte", filter=_ativo_agora(relogio.agora(), "acessos_suporte__"))
+    with no_publico():
+        linha = (
+            Empresa.objects.filter(pk=empresa.pk)
+            .annotate(ativos=ativos)
+            .values("suporte_bloqueado", "ativos")
+            .get()
+        )
+    return {"bloqueado": linha["suporte_bloqueado"], "ativos": linha["ativos"]}
+
+
+def item_do_acesso(acesso: AcessoSuporte, agora: Any) -> dict[str, Any]:
+    """Um acesso na tela `Admin-Suporte`. Sem o e-mail do operador: não é dado da empresa."""
+    situacao = StatusAcessoSuporte(acesso.status)
+    if situacao == StatusAcessoSuporte.ATIVO and acesso.fim <= agora:
+        situacao = StatusAcessoSuporte.ENCERRADO
+    return {
+        "id": acesso.pk,
+        "nome": acesso.usuario.nome,
+        "motivo": acesso.motivo,
+        "permissao": acesso.permissao,
+        "permissao_rotulo": PermissaoSuporte(acesso.permissao).label,
+        "inicio": acesso.inicio,
+        "fim": acesso.fim,
+        "status": situacao.value,
+        "status_rotulo": ROTULOS_DO_ACESSO[situacao],
+        "acoes": {"revogar": situacao == StatusAcessoSuporte.ATIVO},
+    }
+
+
+def controle_do_suporte(empresa: Empresa, situacao: str | None = None) -> dict[str, Any]:
+    """`GET /api/suporte/`: os acessos dos últimos 90 dias, filtrados por `situacao` (`ativos`
+    ou `encerrados`; outro valor é `todos`). As contagens não dependem do filtro."""
+    agora = relogio.agora()
+    with no_publico():
+        empresa.refresh_from_db(fields=["suporte_bloqueado"])
+        da_janela = AcessoSuporte.objects.filter(
+            empresa=empresa, inicio__gte=agora - JANELA_DOS_ACESSOS
+        )
+        contagens = da_janela.aggregate(
+            todos=Count("pk"), ativos=Count("pk", filter=_ativo_agora(agora))
+        )
+        acessos = da_janela.select_related("usuario").order_by("-inicio")
+        if situacao == "ativos":
+            acessos = acessos.filter(_ativo_agora(agora))
+        elif situacao == "encerrados":
+            acessos = acessos.exclude(_ativo_agora(agora))
+        itens = [item_do_acesso(a, agora) for a in acessos]
+    bloqueado = empresa.suporte_bloqueado
+    return {
+        "bloqueado": bloqueado,
+        "situacao_rotulo": (
+            "Acesso do suporte bloqueado" if bloqueado else "Acesso do suporte liberado"
+        ),
+        "contagens": {**contagens, "encerrados": contagens["todos"] - contagens["ativos"]},
+        "acessos": itens,
+    }
 
 
 # --- Faturas da assinatura (PLT-14; T-185 parte 2) ---

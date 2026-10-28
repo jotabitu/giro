@@ -50,6 +50,7 @@ SEED = [
     {"chave": "assinatura", "titulo": "Assinatura", "resumo": "Profissional · teste até 21 out"},
     {"chave": "auditoria", "titulo": "Auditoria", "resumo": "Quem fez o quê no sistema"},
     {"chave": "exportar", "titulo": "Exportar dados", "resumo": "Baixe a auditoria em CSV"},
+    {"chave": "suporte", "titulo": "Controle do suporte", "resumo": "Suporte liberado"},
 ]
 
 
@@ -101,6 +102,7 @@ def test_usr_05_configuracoes_so_cartoes_de_apps_ativos(moto_rapida, settings):
         "precos",
         "modelos_contrato",
         "assinatura",
+        "suporte",
     ]
     # Sem `empresas` (a tela Empresa e marca é da T-154): o cartão `marca` não vem, e o item
     # `config` do menu continua, pela chave própria `configuracoes`.
@@ -133,6 +135,7 @@ def test_usr_05_configuracoes_so_cartoes_de_apps_ativos(moto_rapida, settings):
         "precos",
         "modelos_contrato",
         "assinatura",
+        "suporte",
     ]
     # Sem `locacoes`, o plano especial sai do texto (o cartão é de `veiculos`).
     settings.GIRO_MODULOS_ATIVOS = [m for m in TODOS_OS_MODULOS if m != "locacoes"]
@@ -182,8 +185,9 @@ def test_plt_07_configuracoes_suporte_sem_auditoria(moto_rapida, relogio_jwt):
     resposta = _suporte(moto_rapida.moto, "ver").get(URL)
     assert resposta.status_code == 200, resposta.json()
     corpo = resposta.json()
-    # Nem `ramo` (T-259): a tela só serve para trocar, e o suporte não troca.
-    fora = ("ramo", "auditoria", "exportar")
+    # Nem `ramo` (T-259): a tela só serve para trocar, e o suporte não troca. Nem `suporte`
+    # (T-358): o suporte não controla o próprio acesso.
+    fora = ("ramo", "auditoria", "exportar", "suporte")
     assert _chaves(corpo) == [c["chave"] for c in SEED if c["chave"] not in fora]
     assert corpo["cartoes"] == [c for c in SEED if c["chave"] not in fora]
 
@@ -232,11 +236,12 @@ def _consultas(usuario: Any) -> int:
     return sum(1 for q in feitas.captured_queries if not q["sql"].startswith("SET search_path"))
 
 
-def test_usr_05_configuracoes_no_maximo_11_queries(moto_rapida):
+def test_usr_05_configuracoes_no_maximo_12_queries(moto_rapida):
     mariana = moto_rapida.pessoas["Mariana"]
     antes = _consultas(mariana)
-    # 10 da T-181 mais a linha de `ConfiguracaoEmpresa` do cartão `ramo` (T-259, T-262).
-    assert antes <= 11
+    # 10 da T-181, a linha de `ConfiguracaoEmpresa` do cartão `ramo` (T-259, T-262) e a
+    # situação do suporte (T-358, T-379).
+    assert antes <= 12
     # Sem N+1 por filial nem por modelo.
     for nome, cidade in (("Filial Caucaia", "Caucaia"), ("Filial Maracanaú", "Maracanaú")):
         Filial.objects.create(**{**_campos_da_filial(moto_rapida), "nome": nome, "cidade": cidade})
@@ -279,3 +284,10 @@ def test_usr_05_configuracoes_textos_dos_cartoes():
     assert assinatura("pausada") == "Essencial · pausada"
     assert assinatura("pausada", date(2026, 11, 30)) == "Essencial · pausada até 30 nov"
     assert assinatura("cancelada") == "Essencial · cancelada"
+
+
+def test_plt_07_configuracoes_textos_do_cartao_suporte():
+    assert textos.resumo_suporte(False, 0) == "Suporte liberado"
+    assert textos.resumo_suporte(True, 0) == "Suporte bloqueado"
+    assert textos.resumo_suporte(False, 1) == "Suporte liberado · 1 acesso ativo"
+    assert textos.resumo_suporte(False, 2) == "Suporte liberado · 2 acessos ativos"
