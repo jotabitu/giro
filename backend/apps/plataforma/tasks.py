@@ -199,7 +199,11 @@ def plataforma_avisar_downgrade_recusado(
 
     from .calendario import dia_e_mes
     from .models import Plano
-    from .services import destinatarios_da_cobranca, enviar_a_cada_um, texto_do_que_excede
+    from .services import (
+        destinatarios_da_cobranca,
+        enviar_a_cada_um,
+        motivo_do_downgrade_recusado,
+    )
 
     with schema_context(get_public_schema_name()):
         empresa = Empresa.objects.select_related("plano").get(pk=empresa_id)
@@ -212,10 +216,11 @@ def plataforma_avisar_downgrade_recusado(
         destinatarios,
         f"Giro: a mudança para o plano {agendado.nome} não aconteceu",
         (
-            f"A {empresa.nome_exibicao} ia mudar para o plano {agendado.nome} em {dia}, mas o uso "
-            f"de hoje não cabe nele: {texto_do_que_excede(excede)}.\n"
+            f"A empresa {empresa.nome_exibicao} ia mudar para o plano {agendado.nome} em {dia}, "
+            f"{motivo_do_downgrade_recusado(excede, agendado.nome)}\n"
             f"Por isso, a fatura de {dia} saiu pelo plano {empresa.plano.nome}, e a empresa "
-            "continua nele. Para mudar, ajuste o uso e escolha o plano de novo em Assinatura."
+            "continua nele. Para mudar, resolva o que está acima e escolha o plano de novo em "
+            "Assinatura."
         ),
     )
 

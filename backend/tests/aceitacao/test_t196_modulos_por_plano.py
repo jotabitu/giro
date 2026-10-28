@@ -273,6 +273,27 @@ def test_plt_04_downgrade_nao_cabe_com_os_abertos_do_seed(criar_moto):
     )
 
 
+def test_plt_12_fase_1_downgrade_nao_confere_comissao(criar_moto):
+    """PLT-12, fase 1 (T-356): a recusa do downgrade confere só as despesas. A comissão de
+    locação a pagar não segura a mudança para o Essencial."""
+    moto = criar_moto("Profissional")
+    _uso_que_cabe_no_essencial(moto)
+    with tenant_context(moto.empresa):
+        Comissao.objects.create(
+            usuario=moto.pessoas["Rodrigo"],
+            base_centavos=1600,
+            regra="fixo_locacao",
+            valor_centavos=1600,
+            origem_tipo="locacao",
+            origem_id=1,
+            origem_codigo="LOC-2856",
+        )
+    connection.set_schema_to_public()
+    resposta = _simular(moto.api(), "Essencial")
+    connection.set_schema_to_public()
+    assert resposta.status_code == 200, resposta.json()
+
+
 def test_plt_12_downgrade_so_vende(criar_moto):
     """CA-ASS-52: quem só vende não vai para o Essencial, mesmo cabendo. Nada muda."""
     moto = criar_moto("Profissional")

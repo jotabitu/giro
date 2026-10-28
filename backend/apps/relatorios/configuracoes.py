@@ -23,12 +23,19 @@ TITULOS = {
     "assinatura": "Assinatura",
     "auditoria": "Auditoria",
     "exportar": "Exportar dados",
+    "suporte": "Controle do suporte",
 }
 # Cartão → app que precisa estar em `GIRO_MODULOS_ATIVOS` (USR-05). Os que também são item do
 # menu usam o app do item (`contas.navegacao.ITENS`), passado por quem chama.
-MODULO_PROPRIO = {"precos": "veiculos", "modelos_contrato": "contratos", "exportar": "auditoria"}
-# PLT-07: o suporte não troca o ramo (a tela só serve para isso, T-259).
-SO_FORA_DO_SUPORTE = frozenset({"ramo", "auditoria", "exportar"})
+MODULO_PROPRIO = {
+    "precos": "veiculos",
+    "modelos_contrato": "contratos",
+    "exportar": "auditoria",
+    "suporte": "plataforma",
+}
+# PLT-07: o suporte não troca o ramo (a tela só serve para isso, T-259) nem controla o próprio
+# acesso (T-358).
+SO_FORA_DO_SUPORTE = frozenset({"ramo", "auditoria", "exportar", "suporte"})
 
 FIXOS = {
     "marca": "Logo, cor, nome e endereço do sistema",
@@ -123,6 +130,14 @@ def resumo_assinatura(
     return f"{plano} · {situacao}" if plano else situacao
 
 
+def resumo_suporte(bloqueado: bool, ativos: int) -> str:
+    """PLT-07: o bloqueio e os acessos ativos agora (`plataforma.selectors.situacao_do_suporte`)."""
+    texto = "Suporte bloqueado" if bloqueado else "Suporte liberado"
+    if ativos:
+        texto += f" · {_plural(ativos, 'acesso ativo', 'acessos ativos')}"
+    return texto
+
+
 def implantacao(
     passos: list[dict[str, Any]], proximo: str | None, recebe: bool = True
 ) -> dict[str, Any] | None:
@@ -163,6 +178,7 @@ class Fontes:
     precos: tuple[int, int | None] | None = None  # categorias, planos especiais
     modelos: dict[str, Any] | None = None
     assinatura: dict[str, Any] | None = None
+    suporte: dict[str, Any] | None = None  # bloqueado, ativos
 
 
 def cartoes(visiveis: list[str], fontes: Fontes) -> list[dict[str, str]]:
@@ -180,6 +196,8 @@ def cartoes(visiveis: list[str], fontes: Fontes) -> list[dict[str, str]]:
         resumos["modelos_contrato"] = resumo_modelos(**fontes.modelos)
     if fontes.assinatura is not None:
         resumos["assinatura"] = resumo_assinatura(**fontes.assinatura)
+    if fontes.suporte is not None:
+        resumos["suporte"] = resumo_suporte(**fontes.suporte)
     return [
         {"chave": chave, "titulo": TITULOS[chave], "resumo": resumos[chave]}
         for chave in visiveis
@@ -188,7 +206,8 @@ def cartoes(visiveis: list[str], fontes: Fontes) -> list[dict[str, str]]:
 
 
 def visiveis(modulo_do_cartao: dict[str, str], modulos: frozenset[str], suporte: bool) -> list[str]:
-    """USR-05: só cartão de app ativo; PLT-07: o suporte não vê ramo, auditoria nem exportar."""
+    """USR-05: só cartão de app ativo; PLT-07: o suporte não vê ramo, auditoria, exportar nem o
+    controle do suporte."""
     return [
         chave
         for chave in TITULOS
