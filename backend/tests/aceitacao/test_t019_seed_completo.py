@@ -29,7 +29,7 @@ from apps.contratos.models import ModeloContrato
 from apps.empresas.models import ConfiguracaoEmpresa
 from apps.filiais.models import Filial
 from apps.financeiro import leituras as financeiro_leituras
-from apps.financeiro.models import Caixa, ContaReceber, Despesa, Reembolso
+from apps.financeiro.models import Caixa, ContaReceber, Despesa, PendenciaPagamento, Reembolso
 from apps.locacoes.models import Locacao, PlanoEspecial
 from apps.plataforma.models import Empresa, UsoEmpresa
 from apps.veiculos.models import Categoria, PrecoCategoria, Veiculo
@@ -780,7 +780,10 @@ def test_fin_15_seed_019_24_inicio_e_contadores_em_07_out(seed):
     assert kpis["entra_hoje"]["valor"] == {"tipo": "centavos", "valor": 262580}
     assert kpis["sai_hoje"]["valor"] == {"tipo": "centavos", "valor": 0}
     assert lucia["caixas_do_dia"][0]["esperado_gaveta_centavos"] == 28100
-    assert lucia["para_hoje"] == []
+    # T-375: o reembolso a fazer do seed (Patrícia, LOC-13) é o único item; antes a lista era vazia.
+    assert [(i["tipo"], i["texto"]) for i in lucia["para_hoje"]] == [
+        ("reembolso", "Devolver R$ 286,20 a Patrícia Gomes por Pix")
+    ]
     agenda = _api(seed, "João").get("/api/vistorias/agenda/").json()["resultados"]
     # Nada marcado para 07 out; só a devolução atrasada do Rafael (12 set), que a agenda mantém.
     assert [a["horario"][:10] for a in agenda] == ["2026-09-12"]
@@ -1051,3 +1054,54 @@ def test_fin_12_seed_019_31_conciliacao_diferenca_de_137_10():
 @pytest.mark.xfail(strict=True, raises=ImportError, reason="sem selector da DRE (FIN-13)")
 def test_fin_13_seed_019_31_dre_de_setembro_34231_30():
     from apps.relatorios.selectors import dre  # noqa: F401
+
+
+def test_dev_02_seed_reembolso_a_fazer_da_patricia(seed):
+    """T-375: reembolso a fazer no seed (LOC-13: 371,00 − 84,80); a locação não muda."""
+    reembolso = Reembolso.objects.get(origem_codigo="LOC-2812")
+    assert (reembolso.status, reembolso.forma, reembolso.valor_centavos) == (
+        "a_fazer",
+        "pix",
+        28620,
+    )
+    assert Reembolso.objects.count() == 1
+    assert _loc("LOC-2812").status == "ativa"  # o encerramento segue pendente (APR-02)
+    resposta = _api(seed).get("/api/financeiro/reembolsos/")
+    assert resposta.status_code == 200, resposta.json()
+    corpo = resposta.json()
+    assert corpo["contagens"]["a_fazer"] == 1
+    assert [i["status"] for i in corpo["resultados"]] == ["a_fazer"]
+
+
+def test_aut_05_seed_pendencia_aberta_do_carlos(seed):
+    """T-375: o Pix de R$ 306,09 (FIN-03) pago como R$ 299,40; o "em aberto" do Carlos não muda."""
+    pendencia = PendenciaPagamento.objects.get()
+    assert (pendencia.status, pendencia.motivo, pendencia.valor_pago_centavos) == (
+        "aberta",
+        "valor_diferente",
+        29940,
+    )
+    assert pendencia.cobranca.valor_centavos == 30609
+    conta = pendencia.cobranca.conta_receber
+    assert (conta.status, conta.valor_centavos, conta.origem_codigo) == (
+        "aberta",
+        29940,
+        "LOC-2841",
+    )
+    resposta = _api(seed).get("/api/financeiro/pendencias-pagamento/")
+    assert resposta.status_code == 200, resposta.json()
+    assert resposta.json()["contagens"]["aberta"] == 1
+
+
+def test_dev_02_seed_reembolso_e_pendencia_idempotentes(seed):
+    from io import StringIO
+
+    from django.core.management import call_command
+    from django.db import connection
+
+    saida = StringIO()
+    call_command("seed_moto_rapida", stdout=saida)
+    connection.set_schema_to_public()
+    with tenant_context(Empresa.objects.get(subdominio="motorapida")):
+        assert Reembolso.objects.count() == 1
+        assert PendenciaPagamento.objects.count() == 1

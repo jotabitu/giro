@@ -17,8 +17,16 @@ from apps.aprovacoes.models import PedidoAprovacao
 from apps.contas.models import Usuario
 from apps.filiais import services as filiais_services
 from apps.filiais.models import Filial
+from apps.financeiro import selectors as financeiro_selectors
 from apps.financeiro import services as financeiro
-from apps.financeiro.models import Caixa, ContaReceber, Despesa
+from apps.financeiro.models import (
+    Caixa,
+    CobrancaExterna,
+    ContaReceber,
+    Despesa,
+    PendenciaPagamento,
+    Reembolso,
+)
 from apps.locacoes import services as locacoes_services
 from apps.locacoes.models import Locacao
 from apps.veiculos.models import Veiculo
@@ -223,3 +231,51 @@ def carregar(centro: Filial, pessoas: dict[str, Usuario], relogio: RelogioDoSeed
     _caixa_de_07_out(centro, pessoas["Bruna Alves"], relogio)
     _pedido_de_encerramento_da_loc_2812(pessoas, relogio)
     relogio.em("2026-10-07 12:00")
+
+
+def garantir_reembolso_e_pendencia(centro: Filial, relogio: RelogioDoSeed) -> bool:
+    """Um reembolso a fazer e uma pendência do pagamento aberta, para as telas `Reembolsos` e
+    `Pendências do pagamento` (T-375), sem mexer nos casos de referência.
+
+    - Reembolso: Patrícia (LOC-2812), Pix de R$ 286,20 = 1 semana inteira R$ 371,00 menos a multa
+      R$ 84,80 (`LOC-13`, `DEV-02`). Fica `a_fazer`; o pedido de encerramento da locação segue
+      pendente para o Rodrigo (`APR-02`), então o estado da locação não muda.
+    - Pendência: Carlos (LOC-2841), parcela 2 de 30 set. O Pix gerado em 07 out era de R$ 306,09
+      (299,40 + multa 5,99 + juros 0,70, `FIN-03`) e o parceiro avisou R$ 299,40: `valor_diferente`
+      (`AUT-05`). A conta segue aberta e atrasada: o "em aberto" de Carlos continua R$ 299,40.
+
+    Gravados direto, como as cobranças de teste da T-380: o caminho pelos serviços avisaria o
+    financeiro no sino e moveria os contadores que o seed já fixa."""
+    relogio.em("2026-10-07 11:00")
+    patricia = Locacao.objects.select_related("cliente").get(codigo="LOC-2812")
+    _, reembolso_novo = Reembolso.objects.get_or_create(
+        origem_tipo="locacao",
+        origem_id=patricia.pk,
+        origem_codigo=patricia.codigo,
+        defaults={
+            "filial": centro,
+            "cliente": patricia.cliente,
+            "valor_centavos": 28620,
+            "forma": "pix",
+            "motivo": "Cancelamento: 1 semana inteira R$ 371,00 menos multa R$ 84,80",
+        },
+    )
+    conta = _conta("LOC-2841", "2026-09-30")
+    hoje = relogio_do_giro.hoje()
+    devido = financeiro_selectors.valor_hoje(conta, hoje)["total_centavos"]
+    cobranca, _ = CobrancaExterna.objects.get_or_create(
+        externo_id="pay_88192",
+        defaults={
+            "conta_receber": conta,
+            "tipo": "pix",
+            "valor_centavos": devido,
+            "vence_em": date(2026, 10, 8),
+            "gerada_no_dia": hoje,
+            "status": "divergente",
+        },
+    )
+    _, pendencia_nova = PendenciaPagamento.objects.get_or_create(
+        cobranca=cobranca,
+        defaults={"motivo": "valor_diferente", "valor_pago_centavos": conta.valor_centavos},
+    )
+    return reembolso_novo or pendencia_nova
