@@ -150,6 +150,16 @@ class LeituraDocumentoPorEmpresa(SimpleRateThrottle):
 LIMITES_DA_LEITURA_DE_DOCUMENTO = [LeituraDocumentoPorUsuario, LeituraDocumentoPorEmpresa]
 
 
+class RecebimentosPorEmpresa(SimpleRateThrottle):
+    """Conectar os recebimentos: 10 envios por hora por empresa, porque cada recusa chama o
+    parceiro de novo (B-02 da T-384). A chave já leva o schema (`make_key`)."""
+
+    scope = "recebimentos_empresa"
+
+    def get_cache_key(self, request: Request, view: Any) -> str | None:
+        return self.cache_format % {"scope": self.scope, "ident": "empresa"}
+
+
 class MarcaSimularPorUsuario(_PorUsuario):
     """Prévia das cores da marca: chamada a cada cor escolhida ou digitada (`empresas.md`)."""
 

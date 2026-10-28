@@ -77,6 +77,16 @@ def preco_vigente(categoria: Categoria | int, data: date) -> PrecoCategoria | No
     )
 
 
+def tem_preco_vigente() -> bool:
+    """IMP-07: alguma categoria ativa, da empresa ou de filial, com preço que já vale hoje e
+    diária, semanal ou mensal maior que zero (o passo `precos` da implantação)."""
+    return PrecoCategoria.objects.filter(
+        Q(diaria_centavos__gt=0) | Q(semanal_centavos__gt=0) | Q(mensal_centavos__gt=0),
+        categoria__ativo=True,
+        vigente_desde__lte=relogio.hoje(),
+    ).exists()
+
+
 def proximo_preco(categoria: Categoria, data: date) -> PrecoCategoria | None:
     return categoria.precos.filter(vigente_desde__gt=data).order_by("vigente_desde").first()
 

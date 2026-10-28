@@ -17,6 +17,7 @@ from functools import partial
 from typing import Any
 
 from django.conf import settings
+from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, ProgrammingError, models, transaction
@@ -423,6 +424,51 @@ def registrar_contador(item: str, contar: Callable[[], int]) -> None:
     _contadores[item] = contar
 
 
+# IMP-07: passo que pode passar a valer sem ação nenhuma (o preço agendado chega na data). Cada app
+# registra a conferência no `ready()`; a leitura do andamento confere os passos ainda abertos.
+_conferencias_de_passo: dict[str, Callable[[], bool]] = {}
+
+
+def registrar_conferencia_de_passo(passo: str, conferir: Callable[[], bool]) -> None:
+    if passo not in dict(PASSOS_IMPLANTACAO):
+        raise ValueError(f"Passo desconhecido: {passo}")
+    _conferencias_de_passo[passo] = conferir
+
+
+def conferir_passos_na_leitura(empresa: Empresa | None = None) -> list[str]:
+    """`GET /api/implantacao/` e `GET /api/configuracoes/`: marca o passo aberto cuja conferência
+    já vale no schema da empresa (IMP-07, `precos` agendado). Sem tarefa agendada para isso."""
+    if not _conferencias_de_passo:
+        return []
+    empresa = _empresa(empresa)
+    with schema_context(get_public_schema_name()):
+        feitos = (
+            UsoEmpresa.objects.filter(empresa_id=empresa.pk)
+            .values_list("passos_implantacao", flat=True)
+            .first()
+            or {}
+        )
+    marcados = []
+    for passo, conferir in _conferencias_de_passo.items():
+        if passo not in feitos and conferir() and registrar_passo_implantacao(passo, empresa):
+            marcados.append(passo)
+    return marcados
+
+
+# `sugestao` do formulário de recebimentos (`plataforma.md`): o endereço da matriz vem do app
+# `filiais`, que fica acima (ADR 0011) e registra a leitura no `ready()`.
+_endereco_da_matriz: Callable[[], dict[str, Any] | None] | None = None
+
+
+def registrar_endereco_da_matriz(ler: Callable[[], dict[str, Any] | None]) -> None:
+    global _endereco_da_matriz
+    _endereco_da_matriz = ler
+
+
+def endereco_da_matriz() -> dict[str, Any] | None:
+    return _endereco_da_matriz() if _endereco_da_matriz is not None else None
+
+
 def recalcular_uso(empresa: Empresa) -> dict[str, int]:
     """Conta de verdade no schema da empresa e corrige o resumo. Item sem contador fica."""
     with no_schema_da_empresa(empresa, com_tenant=True):
@@ -739,6 +785,7 @@ PARCEIRO_FORA_DO_AR = (
     "parceiro_indisponivel",
     "Não conseguimos falar com o parceiro de pagamento. Tente de novo em alguns minutos.",
 )
+RECEBIMENTOS_CONECTADOS = ("recebimentos_conectados", "Os recebimentos já estão conectados.")
 
 
 def url_do_webhook_de_pagamentos() -> str:
@@ -766,59 +813,107 @@ def conectar_recebimentos(
 ) -> ContaPagamento:
     """CA-029-01: abre a subconta da empresa da conexão no parceiro e guarda a chave cifrada
     (S-05) e o hash do token do webhook (S-14). A subconta nasce `pendente` até o parceiro
-    aprovar; o passo `recebimentos` da implantação fica feito. Recusa do parceiro: nada é
-    gravado, e o motivo vai para a tela (CA-029-02)."""
+    aprovar, e o passo `recebimentos` só conta na aprovação (IMP-07). Recusa do parceiro: nada é
+    gravado, e o motivo vai para a tela (CA-029-02).
+
+    M-01 da T-384: a empresa fica travada do `exists()` ao `save`, com o parceiro no meio. Dois
+    envios ao mesmo tempo criam uma subconta só, e o outro espera e recebe o 409. Os dados vão só
+    ao parceiro: nada deles é gravado nem logado (B-02)."""
     empresa = _empresa(None)
-    if ContaPagamento.objects.filter(empresa=empresa).exists():
-        raise Conflito("recebimentos_conectados", "Os recebimentos já estão conectados.")
-    token = secrets.token_urlsafe(32)
-    try:
-        subconta = provedor().criar_subconta(
-            DadosEmpresa(
-                nome=nome,
-                documento=so_digitos(documento),
-                email=email,
-                celular=so_digitos(celular),
-                logradouro=logradouro,
-                numero=numero,
-                bairro=bairro,
-                cep=so_digitos(cep),
-                faturamento_mensal_centavos=faturamento_mensal_centavos,
-                webhook_url=url_do_webhook_de_pagamentos(),
-                webhook_token=token,
-                complemento=complemento,
-                tipo_empresa=tipo_empresa,
-            )
-        )
-    except ParceiroRecusou as erro:
-        raise ErroDeRegra("parceiro_recusou", erro.mensagem) from erro
-    except ParceiroIndisponivel as erro:
-        raise ParceiroForaDoAr(*PARCEIRO_FORA_DO_AR) from erro
-    conta = ContaPagamento(
-        empresa=empresa,
-        provedor=getattr(settings, "GIRO_PROVEDOR_PAGAMENTOS", "asaas"),
-        conta_externa_id=subconta.conta_externa_id,
-        carteira_id=subconta.carteira_id,
-        webhook_token_hash=hash_do_token(token),
-    )
-    conta.definir_chave_api_cifrada(subconta.chave_api)
     with transaction.atomic():
-        with auditar(conta, "conta_pagamento.criar", Categoria.CONFIGURACOES, regra="FIN-04"):
-            conta.save()
-        registrar_passo_implantacao("recebimentos", empresa)
+        Empresa.objects.select_for_update().only("pk").get(pk=empresa.pk)
+        if ContaPagamento.objects.filter(empresa=empresa).exists():
+            raise Conflito(*RECEBIMENTOS_CONECTADOS)
+        token = secrets.token_urlsafe(32)
+        try:
+            subconta = provedor().criar_subconta(
+                DadosEmpresa(
+                    nome=nome,
+                    documento=so_digitos(documento),
+                    email=email,
+                    celular=so_digitos(celular),
+                    logradouro=logradouro,
+                    numero=numero,
+                    bairro=bairro,
+                    cep=so_digitos(cep),
+                    faturamento_mensal_centavos=faturamento_mensal_centavos,
+                    webhook_url=url_do_webhook_de_pagamentos(),
+                    webhook_token=token,
+                    complemento=complemento,
+                    tipo_empresa=tipo_empresa,
+                )
+            )
+        except ParceiroRecusou as erro:
+            raise ErroDeRegra("parceiro_recusou", erro.mensagem) from erro
+        except ParceiroIndisponivel as erro:
+            raise ParceiroForaDoAr(*PARCEIRO_FORA_DO_AR) from erro
+        conta = ContaPagamento(
+            empresa=empresa,
+            provedor=getattr(settings, "GIRO_PROVEDOR_PAGAMENTOS", "asaas"),
+            conta_externa_id=subconta.conta_externa_id,
+            carteira_id=subconta.carteira_id,
+            webhook_token_hash=hash_do_token(token),
+        )
+        conta.definir_chave_api_cifrada(subconta.chave_api)
+        try:
+            with (
+                transaction.atomic(),
+                auditar(conta, "conta_pagamento.criar", Categoria.CONFIGURACOES, regra="FIN-04"),
+            ):
+                conta.save()
+        except Exception:
+            # A subconta já existe no parceiro: a equipe fecha à mão. Só o id, nunca a chave.
+            logger.error(
+                "Subconta criada no parceiro e não gravada no Giro (empresa %s, conta %s)",
+                empresa.pk,
+                subconta.conta_externa_id,
+            )
+            raise
     return conta
 
 
 def atualizar_recebimentos() -> ContaPagamento | None:
     """Consulta no parceiro se a subconta `pendente` da empresa da conexão foi aprovada ou
-    recusada. Só com a aprovação o Pix e o boleto ficam ligados (CA-029-02)."""
-    conta: ContaPagamento | None = ContaPagamento.objects.filter(empresa=_empresa(None)).first()
+    recusada. Só com a aprovação o Pix e o boleto ficam ligados (CA-029-02), e o passo
+    `recebimentos` da implantação fica feito (IMP-07).
+
+    B-01 da T-384: se outra consulta já fez a transição, relê e devolve a situação nova, sem 409."""
+    empresa = _empresa(None)
+    conta: ContaPagamento | None = ContaPagamento.objects.filter(empresa=empresa).first()
     if conta is None or conta.status != StatusContaPagamento.PENDENTE:
         return conta
     situacao = provedor().consultar_subconta(referencia(conta))
-    if situacao in (StatusContaPagamento.APROVADA, StatusContaPagamento.RECUSADA):
+    if situacao not in (StatusContaPagamento.APROVADA, StatusContaPagamento.RECUSADA):
+        return conta
+    with transaction.atomic():
+        conta = ContaPagamento.objects.select_for_update().get(pk=conta.pk)
+        if conta.status != StatusContaPagamento.PENDENTE:
+            return conta
         transicionar(conta, situacao, acao=f"conta_pagamento.{situacao}", regra="FIN-04")
+        if situacao == StatusContaPagamento.APROVADA:
+            registrar_passo_implantacao("recebimentos", empresa)
     return conta
+
+
+CONSULTA_DOS_RECEBIMENTOS = timedelta(minutes=1)
+
+
+def consultar_recebimentos() -> ContaPagamento | None:
+    """`GET /api/recebimentos/`: a subconta da empresa, consultando o parceiro em `pendente` no
+    máximo uma vez por minuto. A trava é o `cache.add`, atômico no Redis (B-01 da T-384): quem não
+    a pega, e quem acha o parceiro fora do ar, fica com a situação gravada."""
+    empresa = _empresa(None)
+    conta: ContaPagamento | None = ContaPagamento.objects.filter(empresa=empresa).first()
+    if conta is None or conta.status != StatusContaPagamento.PENDENTE:
+        return conta
+    chave = f"recebimentos:consulta:{empresa.pk}"
+    if not cache.add(chave, 1, int(CONSULTA_DOS_RECEBIMENTOS.total_seconds())):
+        return conta
+    try:
+        return atualizar_recebimentos()
+    except ParceiroIndisponivel:
+        logger.warning("Parceiro fora do ar na consulta da subconta (empresa %s)", empresa.pk)
+        return conta
 
 
 # --- Faturas da assinatura e conta principal (PLT-01, PLT-13, PLT-14, PLT-15; T-184, ADR 0023) ---

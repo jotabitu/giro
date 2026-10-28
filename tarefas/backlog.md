@@ -169,9 +169,6 @@ Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (seguran
 ### T-365 · Reativar a empresa cancelada
 - **Agente:** backend · **Depende de:** T-196 · **Regras:** PLT-06, AUD-08 · **Pronto quando:** `reativar_empresa` no Django Admin da plataforma, com a recusa 409 `fatura_em_atraso` e a da empresa com o apagamento começado (B-02 da T-199 e da T-345); a fatura nova vence como na `PLT-06`; o xfail `test_plt_06_reativar_so_com_atrasada_paga` (CA-ASS-46) vira teste comum. Tem de existir antes do 90º dia do primeiro cancelamento real.
 
-### T-366 · Rota de recebimentos e marcação dos passos
-- **Agente:** backend · **Depende de:** T-358 · **Regras:** FIN-04, IMP-05, PLT-12 · **Pronto quando:** a rota de ligar e ler a subconta do parceiro pelo contrato da T-358, com o 403 `PLT-12` no Essencial e a auditoria; as ações que marcam os passos `precos` e `equipe`; `test_imp_05_*` e OpenAPI regenerado.
-
 ### T-367 · Lembrete de devolução (`AUT-01`)
 - **Agente:** backend · **Depende de:** — · **Regras:** AUT-01 · **Pronto quando:** a tarefa das 08:00 manda WhatsApp a cada cliente com devolução no dia, com o horário e o endereço da filial, uma vez por locação; `test_aut_01_lembrete_de_devolucao` com a LOC-2836 (14 out).
 

@@ -258,11 +258,11 @@ def test_fin_04_t029_conectar_recebimentos_guarda_a_chave_cifrada(cenario, com_a
     texto = f"{evento.antes}{evento.depois}"
     assert chave not in texto and token not in texto and salva.webhook_token_hash not in texto
     assert salva.chave_api_cifrada not in texto
-    # O passo "Recebimentos" da implantação fica feito.
+    # O passo "Recebimentos" só conta com a subconta aprovada (IMP-07, T-366).
     from apps.plataforma.models import UsoEmpresa
 
     uso = UsoEmpresa.objects.get(empresa=cenario.moto.empresa)
-    assert "recebimentos" in uso.passos_implantacao
+    assert "recebimentos" not in uso.passos_implantacao
 
 
 def test_fin_04_t029_subconta_em_analise_nao_gera_pix(cenario, com_carteira, com_asaas):  # noqa: F811
