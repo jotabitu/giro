@@ -26,10 +26,12 @@ def test_plt_03_preco_anual_e_10_mensalidades(profissional):
 
 
 def test_plt_03_exigir_limite_fora_de_transacao_e_erro_de_programacao(empresa_a, monkeypatch):
-    from django.db import connection
+    from django.db import connections
 
+    # Troca na conexão de verdade, não no proxy `connection`: o pytest 9.2 desfaz com delattr
+    # o que não está no __dict__ do alvo e apagaria `in_atomic_block` da conexão.
     with monkeypatch.context() as trocar, pytest.raises(RuntimeError):
-        trocar.setattr(connection, "in_atomic_block", False)
+        trocar.setattr(connections["default"], "in_atomic_block", False)
         services.exigir_limite("veiculos")
 
 

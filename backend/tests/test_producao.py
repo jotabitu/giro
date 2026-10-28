@@ -280,3 +280,17 @@ def test_t274_prod_aceita_redis_com_senha_e_tls():
     )
     assert resultado.returncode == 0, resultado.stderr
     assert resultado.stdout.strip() == "rediss://usuario:senha@redis.interno:6380/0"
+
+
+def test_t160_prod_sem_a_api_navegavel_do_drf():
+    resultado = rodar(
+        "import json; from rest_framework.settings import api_settings as a;"
+        "print(json.dumps([f'{c.__module__}.{c.__name__}' for c in a.DEFAULT_RENDERER_CLASSES]))"
+    )
+    assert resultado.returncode == 0, resultado.stderr
+    assert json.loads(resultado.stdout) == ["comum.renderizacao.JSONRenderer"]
+    # O resto do REST_FRAMEWORK de base.py continua valendo.
+    resultado = rodar(
+        "from django.conf import settings as s; print(s.REST_FRAMEWORK['DATETIME_FORMAT'])"
+    )
+    assert resultado.stdout.strip() == "None"
