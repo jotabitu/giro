@@ -103,20 +103,60 @@ def _comeca_com(texto: str, inicio: str) -> bool:
     return texto == inicio or texto.startswith(f"{inicio} ")
 
 
+# A marca como o Detran escreve no CRLV-e (antes da "/", normalizada) → as marcas do catálogo
+# (normalizadas) em que ela também vale (T-406). A FIPE escreve "GM - Chevrolet" e
+# "VW - VolksWagen", e a lista própria "Chevrolet" e "Volkswagen": as duas valem.
+APELIDOS_DO_DETRAN: dict[str, tuple[str, ...]] = {
+    "RE": ("ROYAL ENFIELD",),
+    "CHEVROLET": ("GM CHEVROLET",),
+    "GM": ("GM CHEVROLET", "CHEVROLET"),
+    "VW": ("VW VOLKSWAGEN", "VOLKSWAGEN"),
+    "VOLKSWAGEN": ("VW VOLKSWAGEN",),
+    "M BENZ": ("MERCEDES BENZ",),
+    "MBENZ": ("MERCEDES BENZ",),
+    "MMC": ("MITSUBISHI",),
+    "KIA": ("KIA MOTORS",),
+    "H DAVIDSON": ("HARLEY DAVIDSON",),
+    "CHERY": ("CAOA CHERY", "CAOA CHERY CHERY"),
+}
+IMPORTADO = "I"  # "I/TOYOTA COROLLA": o "I/" do Detran marca o importado
+
+
+def _lidos(texto: str) -> list[str]:
+    """O texto normalizado e, com marca conhecida do Detran, a mesma leitura com cada marca do
+    catálogo em que ela vale ("RE/CLASSIC 350" → "ROYAL ENFIELD CLASSIC 350")."""
+    partes = [parte for parte in texto.split("/") if parte.strip()]
+    if len(partes) > 1 and normalizar(partes[0]) == IMPORTADO:
+        partes = partes[1:]
+    lidos = [normalizar(" ".join(partes))]
+    if len(partes) > 1:
+        modelo = normalizar(" ".join(partes[1:]))
+        lidos += [
+            f"{marca} {modelo}" for marca in APELIDOS_DO_DETRAN.get(normalizar(partes[0]), ())
+        ]
+    return [lido for lido in dict.fromkeys(lidos) if lido]
+
+
 def achar_modelo(texto: str) -> Modelo | None:
     """O modelo do catálogo para o texto lido do CRLV-e ("HONDA/POP 110I ES"), só se for único.
 
     Vale o `marca + modelo` igual ao texto normalizado; sem igual, o texto como começo de um só
-    modelo, ou um só modelo como começo do texto. Mais de um, ou nenhum: `None`, e a leitura
+    modelo, ou um só modelo como começo do texto. A marca do Detran vale também pelos apelidos
+    (`APELIDOS_DO_DETRAN`), e o "I/" do importado sai. Mais de um, ou nenhum: `None`, e a leitura
     manda a dica em vez de preencher (ADR 0026, item 7). Só a marca não basta.
     """
-    lido = normalizar(texto)
-    if not lido:
+    lidos = _lidos(texto)
+    if not lidos:
         return None
-    candidatos = [m for m in modelos() if m.chave == lido]
-    if not candidatos:
-        candidatos = [m for m in modelos() if _comeca_com(m.chave, lido)]
-    if not candidatos:
-        candidatos = [m for m in modelos() if _comeca_com(lido, m.chave)]
-    candidatos = [m for m in candidatos if lido != m.marca_normalizada]
+    passos = (
+        lambda m, lido: m.chave == lido,
+        lambda m, lido: _comeca_com(m.chave, lido),
+        lambda m, lido: _comeca_com(lido, m.chave),
+    )
+    candidatos: list[Modelo] = []
+    for passo in passos:
+        candidatos = list(dict.fromkeys(m for lido in lidos for m in modelos() if passo(m, lido)))
+        if candidatos:
+            break
+    candidatos = [m for m in candidatos if m.marca_normalizada not in lidos]
     return candidatos[0] if len(candidatos) == 1 else None
