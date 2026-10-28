@@ -1,4 +1,5 @@
 import {
+  AlertCircle,
   AlertTriangle,
   ArrowLeftRight,
   BarChart3,
@@ -19,6 +20,7 @@ import {
   ShieldCheck,
   Tag,
   Truck,
+  Undo2,
   UserCog,
   Users,
   Wallet,
@@ -40,6 +42,8 @@ const DESTINOS: Record<string, { href: string; icone: LucideIcon }> = {
   caixa: { href: "/financeiro/caixa", icone: Wallet },
   receber: { href: "/financeiro/receber", icone: Receipt },
   despesas: { href: "/financeiro/despesas", icone: CreditCard },
+  reembolsos: { href: "/financeiro/reembolsos", icone: Undo2 },
+  pendencias_pagamento: { href: "/financeiro/pendencias-pagamento", icone: AlertCircle },
   comissoes: { href: "/financeiro/comissoes", icone: Percent },
   conciliacao: { href: "/financeiro/conciliacao", icone: ArrowLeftRight },
   relatorios: { href: "/relatorios", icone: BarChart3 },
@@ -162,9 +166,11 @@ export function destinosDaBarra(chaves: string[]): DestinoDaBarra[] {
 
 /** Rota de um `destino` do painel (`{ chave, filtro?, id? }`) ou de um destino de ação ("nova_locacao"). Sem rota conhecida, `undefined`. */
 export function hrefDoDestino(chave: string, filtro?: string, id?: number): string | undefined {
-  const base = HREF_BARRA[chave] ?? DESTINOS[chave]?.href ?? (chave === "reembolsos" ? "/financeiro/reembolsos" : undefined);
+  const base = HREF_BARRA[chave] ?? DESTINOS[chave]?.href;
   if (!base) return undefined;
   const [caminho, queryDaRota] = base.split("?");
   const query = [queryDaRota, filtro].filter(Boolean).join("&");
-  return `${caminho}${id !== undefined ? `/${id}` : ""}${query ? `?${query}` : ""}`;
+  // Reembolso e pendência não têm página de detalhe: o "Para hoje" leva à lista, onde a ação está.
+  const semDetalhe = chave === "reembolsos" || chave === "pendencias_pagamento";
+  return `${caminho}${id !== undefined && !semDetalhe ? `/${id}` : ""}${query ? `?${query}` : ""}`;
 }

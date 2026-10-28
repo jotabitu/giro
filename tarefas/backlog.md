@@ -180,6 +180,7 @@ Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (seguran
 
 ### T-371 · Reembolsos e pendências do pagamento
 - **Agente:** frontend · **Depende de:** T-360, T-358 · **Regras:** DEV-02, AUT-05 · **Pronto quando:** `/financeiro/reembolsos` (o início do financeiro deixa de dar 404) e a tela das pendências do pagamento, pelas telas da T-360 e o contrato da T-358; testes vitest.
+- **Estado (28 out 2026):** feita na branch `t-371-reembolsos-pendencias`, à espera do PR (`tarefas/handoffs/T-371-frontend.md`).
 
 ### T-372 · Modo suporte e controle do suporte
 - **Agente:** frontend · **Depende de:** T-360, T-358 · **Regras:** PLT-07 · **Pronto quando:** a página de entrada do suporte, a faixa com Sair (`auth/suporte/sair/`) e o cartão de Configurações onde o administrador bloqueia, libera e revoga o suporte; testes vitest.
@@ -201,7 +202,7 @@ Situação depois dos merges de 26 a 28 out e da decisão do dono de 28 out em `
   - T-377, textos do downgrade recusado (backend 2);
   - T-379, backend do controle do suporte (segurança).
 - **Em revisão:** T-380 (branch `t-380-reembolsos-pendencias`).
-- **Depois:** T-374 e T-165 (backend 2), T-397 (frontend, depois da T-366), T-371 (frontend, depois da T-380), T-372 (frontend, depois da T-379) e a parte 2 da T-375 (qa), por último.
+- **Depois:** T-374 e T-165 (backend 2), T-397 (frontend, depois da T-366), T-371 (frontend, feita, à espera do PR), T-372 (frontend, depois da T-379) e a parte 2 da T-375 (qa), por último.
 
 ### T-377 · Textos do downgrade recusado (T-391)
 - **Agente:** backend · **Depende de:** T-196 · **Regras:** PLT-04, PLT-12 · **Pronto quando:** os itens 1 a 5 de `tarefas/handoffs/T-391-produto.md` (`texto_do_que_excede` sem a atividade, o e-mail pelo CA-ASS-71, "A empresa {nome}", a última frase e `test_plt_04_email_do_downgrade_recusado` nos três casos). A comissão de locação que já existe fica como está (decisão do dono de 28 out); o downgrade da fase 1 não é recusado por ela.

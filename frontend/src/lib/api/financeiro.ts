@@ -7,10 +7,17 @@ import type {
   CobrancaDaConta,
   ContaReceber,
   ContaReceberDetalhe,
+  AcaoDaPendencia,
   Despesa,
   ExportacaoCriada,
   FiltroDespesas,
+  FiltroPendencias,
   FiltroReceber,
+  FiltroReembolsos,
+  ListaPendencias,
+  ListaReembolsos,
+  PendenciaPagamento,
+  Reembolso,
   FormaDeRecebimento,
   LancamentoAvulso,
   ListaContasReceber,
@@ -114,6 +121,25 @@ export const financeiroApi = {
 
   pagarDespesa(id: number, corpo: PagamentoDeDespesa): Promise<Despesa> {
     return http.post(`/api/financeiro/despesas/${id}/pagar/`, formulario(corpo));
+  },
+
+  listarReembolsos(f: FiltroReembolsos = {}): Promise<ListaReembolsos> {
+    return http.get("/api/financeiro/reembolsos/", { status: f.status, periodo: f.periodo, busca: f.busca, cursor: f.cursor });
+  },
+
+  /** Multipart com o comprovante opcional (`DEV-02`). Fora de `a_fazer`, 409 `transicao_reembolso`; com token de suporte, 403 `PLT-07`. */
+  marcarReembolsoFeito(id: number, comprovante?: File | null): Promise<Reembolso> {
+    return http.post(`/api/financeiro/reembolsos/${id}/feito/`, formulario({ comprovante }));
+  },
+
+  /** Só com `recebimento_parceiro`: no plano Essencial a API responde 403 `PLT-12`. */
+  listarPendencias(f: FiltroPendencias = {}): Promise<ListaPendencias> {
+    return http.get("/api/financeiro/pendencias-pagamento/", { status: f.status, periodo: f.periodo, busca: f.busca, cursor: f.cursor });
+  },
+
+  /** `baixar` ou `ignorar`, sempre com motivo (`AUT-05`). Já resolvida, 409 `transicao_pendencia`; conta não aberta, 409 `transicao_conta`. */
+  resolverPendencia(id: number, corpo: { acao: AcaoDaPendencia; motivo: string }): Promise<PendenciaPagamento> {
+    return http.post(`/api/financeiro/pendencias-pagamento/${id}/resolver/`, corpo);
   },
 };
 
