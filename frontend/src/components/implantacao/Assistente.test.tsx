@@ -14,7 +14,7 @@ vi.mock("@/lib/sessao", () => ({ useSessao: () => ({ eu: sessao.eu as Eu, sair: 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => {}, replace: () => {} }) }));
 
 import { CascaDoAssistente } from "./CascaDoAssistente";
-import { CorpoDoPasso } from "./PassoDoAssistente";
+import { CorpoDoPasso, SemTela } from "./PassoDoAssistente";
 import { PassoRamo } from "./PassoRamo";
 
 async function entrar(email: string) {
@@ -55,8 +55,8 @@ describe("navegação entre passos (lib/implantacao)", () => {
     expect(vizinhos(ANDAMENTO_PROFISSIONAL, "xyz")).toEqual({ anterior: null, seguinte: null });
   });
 
-  it("todos os passos têm tela, menos recebimentos (T-366); a rota é a mesma da chave", () => {
-    expect(["marca", "ramo", "importar", "filial", "precos", "contrato", "recebimentos", "equipe"].filter((p) => !passoTemTela(p))).toEqual(["recebimentos"]);
+  it("todos os passos têm tela (recebimentos entrou na T-397); a rota é a mesma da chave", () => {
+    expect(["marca", "ramo", "importar", "filial", "precos", "contrato", "recebimentos", "equipe"].filter((p) => !passoTemTela(p))).toEqual([]);
     expect(rotaDoPasso("ramo")).toBe("/implantacao/ramo");
   });
 });
@@ -71,7 +71,7 @@ describe("CascaDoAssistente", () => {
     expect(h).toContain("Tabela de preços a seguir");
   });
 
-  it("os passos com tela viram link; o atual e os recebimentos (sem tela) não", async () => {
+  it("os passos com tela viram link; só o atual não", async () => {
     await entrar("mariana@motorapida.com.br");
     const h = comCache(<CascaDoAssistente passo="ramo">{() => null}</CascaDoAssistente>);
     expect(h).toContain('href="/implantacao/marca"');
@@ -79,7 +79,7 @@ describe("CascaDoAssistente", () => {
     expect(h).not.toContain('href="/implantacao/ramo"');
     expect(h).toContain('href="/implantacao/contrato"');
     expect(h).toContain('href="/implantacao/equipe"');
-    expect(h).not.toContain('href="/implantacao/recebimentos"');
+    expect(h).toContain('href="/implantacao/recebimentos"');
   });
 
   it("Essencial: o número vem da API (importar é o 6 de 7)", async () => {
@@ -138,9 +138,9 @@ describe("passos ligados na casca", () => {
     expect(h).toContain("3 módulos no seu plano");
   });
 
-  it("recebimentos, sem tela até a T-366: mostra o rótulo da API e só navega (Voltar e Pular por agora)", async () => {
+  it("passo sem tela: mostra o rótulo da API, avisa e só navega (Voltar e Pular por agora)", async () => {
     await entrar("mariana@motorapida.com.br");
-    const h = comCache(<CorpoDoPasso andamento={ANDAMENTO_PROFISSIONAL} passo="recebimentos" />);
+    const h = comCache(<SemTela andamento={ANDAMENTO_PROFISSIONAL} passo="recebimentos" />);
     expect(h).toContain("Recebimentos");
     expect(h).toContain("Esta etapa ainda não está disponível aqui.");
     expect(h).toContain('href="/implantacao/contrato"');

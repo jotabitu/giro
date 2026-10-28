@@ -60,11 +60,10 @@ beforeEach(async () => {
 });
 
 describe("nenhum passo com tela mostra o aviso de etapa indisponível", () => {
-  it("imp_05_sem_aviso: filial, preços, contrato, equipe, marca, ramo; só os recebimentos (T-366) mantêm o aviso", async () => {
-    for (const chave of ["filial", "precos", "contrato", "equipe"]) {
+  it("imp_05_sem_aviso: filial, preços, contrato, equipe, marca, ramo; recebimentos também (T-397)", async () => {
+    for (const chave of ["filial", "precos", "contrato", "recebimentos", "equipe"]) {
       expect(await passo(chave, ANDAMENTO_PROFISSIONAL), chave).not.toContain(SEM_TELA);
     }
-    expect(await passo("recebimentos", ANDAMENTO_PROFISSIONAL)).toContain(SEM_TELA);
   });
 });
 
@@ -127,7 +126,7 @@ describe("Modelo de contrato (Onboarding-Contrato)", () => {
     ordem(texto(h), ["Seu contrato de locação", "Novo modelo", "Para continuar, publique ao menos um modelo de locação.", "Locação semanal", "Publicado · v3", "Ver com dados reais", "Editar texto", "Arquivar", "Campos automáticos", "Peça ao seu advogado", "Voltar", "Pular por agora", "Continuar"]);
     expect(botaoDesligado(h, "Continuar")).toBe(true);
     expect(h).toContain('href="/implantacao/precos"');
-    // No Profissional o passo seguinte é o dos recebimentos; ele continua sem tela até a T-366.
+    // No Profissional o passo seguinte é o dos recebimentos.
     expect(h).toContain('href="/implantacao/recebimentos"');
   });
 

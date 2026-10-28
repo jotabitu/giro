@@ -1,9 +1,10 @@
 """Leitura de documentos em PDF num processo filho isolado (VEI-08, ADR 0026, itens 4 e 6).
 
 `ler(tipo, conteudo)` roda `trabalhador.py` num processo novo, com o ambiente mínimo (só `PATH` e
-`LANG`, M-01), sem `preexec_fn` (o filho aplica os próprios limites, M-02), no modo isolado e pelo
-caminho absoluto (B-01). O pai espera 8 s de relógio, mata o grupo do filho se passar, lê no máximo
-64 KB da saída e confere de novo cada campo (só as chaves do tipo, tipos e tamanhos).
+`LANG`, M-01, montado pelo `env -i`: ver `comando`), sem `preexec_fn` (o filho aplica os próprios
+limites, M-02), no modo isolado e pelo caminho absoluto (B-01). O pai espera 8 s de relógio, mata o
+grupo do filho se passar, lê no máximo 64 KB da saída e confere de novo cada campo (só as chaves do
+tipo, tipos e tamanhos).
 
 Nada do conteúdo, do texto ou dos valores sai daqui para log ou exceção: a falha é um código
 fechado (`MOTIVOS`). A saída de erro do filho é descartada.
@@ -26,6 +27,7 @@ from comum import relogio
 
 TRABALHADOR = str(Path(__file__).resolve().parent / "trabalhador.py")
 AMBIENTE = {"PATH": "/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8"}
+ENV = "/usr/bin/env"
 TEMPO_DE_RELOGIO = 8  # segundos
 MAXIMO_DA_SAIDA = 64 * 1024
 LEITURAS_SIMULTANEAS = 2  # por processo (pedido do devops na T-258, B-02)
@@ -134,11 +136,22 @@ def _conversar(processo: subprocess.Popen[bytes], conteudo: bytes) -> bytes | No
     return saida[0] if saida else b""
 
 
+def comando(tipo: str) -> list[str]:
+    """`env -i` com `PATH` e `LANG` na linha de comando, e então o intérprete no modo isolado.
+
+    O `env=` do `Popen` não basta (T-399): com o Sentry ligado, a `StdlibIntegration` troca o
+    `Popen.__init__` e acrescenta `SUBPROCESS_SENTRY_TRACE` e `SUBPROCESS_BAGGAGE` a uma cópia do
+    `env`. O `env -i` descarta o que vier e dá `exec` no intérprete (mesmo PID, mesmo grupo, o
+    mesmo código de saída), que nasce só com `PATH` e `LANG`."""
+    ambiente = [f"{nome}={valor}" for nome, valor in AMBIENTE.items()]
+    return [ENV, "-i", *ambiente, sys.executable, "-I", TRABALHADOR, tipo]
+
+
 def executar(tipo: str, conteudo: bytes) -> dict[str, Any]:
     """Roda o filho e devolve o JSON dele, ou `{"ok": False, "motivo": ...}`."""
-    # O comando é fixo: o intérprete, o arquivo do trabalhador e um tipo da lista fechada.
+    # O comando é fixo: o env, o intérprete, o arquivo do trabalhador e um tipo da lista fechada.
     processo = subprocess.Popen(  # noqa: S603
-        [sys.executable, "-I", TRABALHADOR, tipo],
+        comando(tipo),
         env=AMBIENTE,
         close_fds=True,
         stdin=subprocess.PIPE,

@@ -95,6 +95,11 @@ def sem_metadados(arquivo: Any, formato: Formato) -> Any:
             original.load()
             # A orientação do EXIF vai para os pixels antes de o EXIF sair.
             imagem = ImageOps.exif_transpose(original)
+            # A imagem nova não leva a paleta nem o `tRNS` (T-165): as cores vão para os pixels
+            # antes, e a transparência para o canal alfa.
+            if imagem.mode in ("P", "PA") or "transparency" in imagem.info:
+                tem_alfa = imagem.mode == "PA" or "transparency" in imagem.info
+                imagem = imagem.convert("RGBA" if tem_alfa else "RGB")
             limpa = Image.new(imagem.mode, imagem.size)
             limpa.paste(imagem)
     except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as erro:
