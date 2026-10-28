@@ -182,9 +182,6 @@ Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (seguran
 ### T-367 · Lembrete de devolução (`AUT-01`)
 - **Agente:** backend · **Depende de:** — · **Regras:** AUT-01 · **Pronto quando:** a tarefa das 08:00 manda WhatsApp a cada cliente com devolução no dia, com o horário e o endereço da filial, uma vez por locação; `test_aut_01_lembrete_de_devolucao` com a LOC-2836 (14 out).
 
-### T-368 · Antes de produção no backend
-- **Agente:** backend · **Depende de:** — · **Regras:** USR-06, S-17 · **Pronto quando:** a T-159 e a T-160 (abaixo) estão feitas no mesmo PR.
-
 ### T-369 · Pedido do titular pela equipe (M-03 da T-355)
 - **Agente:** backend · **Depende de:** — · **Regras:** AUD-06 · **Pronto quando:** os comandos `exportar_titular` e `anonimizar_titular`, só para a equipe, com auditoria e teste, para atender o pedido do titular sem SQL direto até a tela da fase 2.
 
@@ -213,12 +210,6 @@ Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (seguran
 
 Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, depois telas, depois o que pede regra. As três dúvidas do fim contrariavam regras já escritas e foram decididas pelo dono no mesmo dia.
 
-
-### T-159 · (M-05) Login não revela e-mail com convite pendente (baixa)
-- **Agente:** backend · **Depende de:** — · **Regras:** USR-01, USR-06 · **Pronto quando:** em `POST /api/auth/entrar/`, quem tem convite pendente e ainda não tem senha recebe o mesmo 401 `credenciais_invalidas` (e o mesmo tempo) de um e-mail que não existe; hoje o 403 `convite_pendente` sai antes de conferir a senha e permite saber quem foi convidado; o 403 só depois da senha certa; teste `test_usr_06_convite_pendente_nao_revela_email`.
-
-### T-160 · (M-06) API navegável do DRF desligada em produção (baixa)
-- **Agente:** backend · **Depende de:** — · **Pronto quando:** `prod.py` deixa em `DEFAULT_RENDERER_CLASSES` só o `comum.renderizacao.JSONRenderer` (hoje o `BrowsableAPIRenderer` de `base.py` mostra formulários e descrições das views no navegador, o que o S-17 fechou para o OpenAPI); teste que confere a lista em produção.
 
 - **Nota da T-012 (08/10):** a S-12 (SVG do logo sanitizado e exibido só por `<img>`) vale para `ConfiguracaoEmpresa.logo` (app `empresas`), e não para a filial. Entra na tarefa da marca da empresa (`Admin-Marca`), a criar.
 
