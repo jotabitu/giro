@@ -18,7 +18,7 @@ from django.db.models.functions import Lower
 from apps.filiais import selectors as filiais_selectors
 from apps.filiais.models import Filial
 from apps.notificacoes.services import avisar
-from apps.plataforma.services import atualizar_uso, exigir_limite
+from apps.plataforma.services import atualizar_uso, exigir_limite, registrar_passo_implantacao
 from comum import aprovacoes, arquivos, comprovante_leitura, estados, leituras, relogio
 from comum.auditoria import Categoria as CategoriaAuditoria
 from comum.auditoria import TipoAtor, ator_atual, auditar, registrar_evento, retrato
@@ -1049,6 +1049,7 @@ def _validar_categoria(dados: dict[str, Any]) -> dict[str, Any]:
 
 
 CAMPOS_DO_PRECO = ("diaria_centavos", "semanal_centavos", "mensal_centavos", "caucao_centavos")
+CAMPOS_DO_PLANO = ("diaria_centavos", "semanal_centavos", "mensal_centavos")  # sem a caução
 
 
 def criar_categoria(dados: dict[str, Any], preco: dict[str, Any]) -> Categoria:
@@ -1149,6 +1150,13 @@ def _gravar_preco(categoria: Categoria, vigente_desde: date, preco: dict[str, An
         depois={"vigente_desde": vigente_desde.isoformat(), **valores},
         regra="LOC-15",
     )
+    # IMP-07: o preço que já vale hoje marca o passo `precos`; o agendado, na leitura da data.
+    if (
+        categoria.ativo
+        and vigente_desde <= relogio.hoje()
+        and any(valores[c] > 0 for c in CAMPOS_DO_PLANO)
+    ):
+        registrar_passo_implantacao("precos")
     return novo
 
 

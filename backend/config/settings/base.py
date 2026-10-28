@@ -213,6 +213,8 @@ REST_FRAMEWORK = {
         # Leitura do CRLV-e e da CNH-e em PDF, somadas (ADR 0026, item 6).
         "leitura_documento_usuario": "30/hour",
         "leitura_documento_empresa": "200/hour",
+        # Conectar os recebimentos pelo parceiro (B-02 da T-384).
+        "recebimentos_empresa": "10/hour",
     },
 }
 
@@ -362,6 +364,11 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
     "aut_06_vencimento_de_documentos": {
         "task": "aut_06_vencimento_de_documentos_de_todas",
         "schedule": crontab(hour=7, minute=0),
+    },
+    # AUT-01: lembrete de devolução ao cliente, às 08:00.
+    "aut_01_lembrete_de_devolucao": {
+        "task": "aut_01_lembrete_de_devolucao_de_todas",
+        "schedule": crontab(hour=8, minute=0),
     },
     # AUT-02: marca a devolução atrasada (LOC-10, LOC-11), de hora em hora.
     "aut_02_marcar_devolucao_atrasada": {

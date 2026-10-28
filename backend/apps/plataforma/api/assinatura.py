@@ -625,6 +625,8 @@ class ImplantacaoView(APIView):
         summary="Andamento do assistente de implantação (IMP-05)",
     )
     def get(self, request: Request) -> Response:
+        # IMP-07: o preço agendado que chegou à data marca o passo na primeira leitura.
+        services.conferir_passos_na_leitura(_empresa(request))
         with services.no_publico():
             dados = selectors.andamento_do_assistente(_empresa(request))
         return Response(AndamentoDoAssistenteSerializer(dados).data)

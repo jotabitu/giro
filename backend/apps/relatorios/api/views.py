@@ -19,6 +19,7 @@ from rest_framework.views import APIView
 from apps.contas import selectors as contas_selectors
 from apps.filiais.models import Filial
 from apps.filiais.selectors import filtrar_por_filial
+from apps.plataforma import services as plataforma_services
 from comum import relogio
 from comum.conexao import schema_atual
 from comum.erros import ErroDeValidacao
@@ -141,5 +142,7 @@ class ConfiguracoesView(APIView):
     )
     def get(self, request: Request) -> Response:
         suporte = bool(getattr(request.user, "e_suporte", False))
+        # IMP-07: o preço agendado que chegou à data marca o passo na primeira leitura.
+        plataforma_services.conferir_passos_na_leitura()
         dados = selectors.configuracoes(request.user, suporte)
         return Response(ConfiguracoesSerializer(dados).data)

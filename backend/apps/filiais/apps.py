@@ -6,7 +6,7 @@ class FiliaisConfig(AppConfig):
     label = "filiais"
 
     def ready(self) -> None:
-        from apps.plataforma.services import registrar_contador
+        from apps.plataforma.services import registrar_contador, registrar_endereco_da_matriz
         from comum import leituras
         from comum.auditoria import registrar_consulta
         from comum.permissoes import registrar_escopo_de_filial, registrar_resumo_de_filiais
@@ -17,6 +17,7 @@ class FiliaisConfig(AppConfig):
         registrar_resumo_de_filiais(selectors.resumo_das_filiais)
         registrar_consulta("filiais", selectors.nomes_das_filiais)  # auditoria (T-018)
         registrar_contador("filiais", eventos.contar_filiais_ativas)  # PLT-03
+        registrar_endereco_da_matriz(selectors.endereco_da_matriz)  # sugestao dos recebimentos
         leituras.registrar_anotacao(
             selectors.ALVO, "indicadores", selectors.anotar_usuarios, selectors.montar_usuarios
         )

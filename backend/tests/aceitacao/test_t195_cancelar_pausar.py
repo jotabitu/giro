@@ -733,15 +733,13 @@ def test_plt_06_quem_nao_desfaz(moto, relogio):
     assert erro.value.mensagem == "Não há cancelamento para desfazer."
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="reativar_empresa (assinatura.md, CA-ASS-46) ainda não implementada no backend",
-)
 def test_plt_06_reativar_so_com_atrasada_paga(moto, relogio, django_capture_on_commit_callbacks):
     """CA-ASS-46: `inadimplente` com a FAT-0001 `atrasada`, cancelada em 25 out; em 01 dez a equipe
     tenta reativar e recebe 409 `fatura_em_atraso` ("Receba a fatura em atraso antes de reativar.");
     paga a FAT-0001 pela 2ª via e reativada em 01 dez, vira `ativa`, com a FAT-0002 de R$ 449,00
-    vencendo em 01 dez ("Plano Profissional · 01 dez a 31 dez") e as seguintes todo dia 1."""
+    vencendo em 01 dez e as seguintes todo dia 1. A descrição segue a PLT-14 no mesmo mês
+    ("Plano Profissional · 01 a 31 dez"); o CA-ASS-46 escreve "01 dez a 31 dez" ([decisão] no
+    backlog)."""
     services.escolher_forma_pagamento(moto.recarregar(), "boleto")
     _gerar(relogio, "2026-10-17", django_capture_on_commit_callbacks)
     _virar(relogio, "2026-10-23")
@@ -767,7 +765,7 @@ def test_plt_06_reativar_so_com_atrasada_paga(moto, relogio, django_capture_on_c
         44900,
         date(2026, 12, 1),
     )
-    assert nova.descricao == "Plano Profissional · 01 dez a 31 dez"
+    assert nova.descricao == "Plano Profissional · 01 a 31 dez"
 
 
 # --- Pausar (CA-ASS-35 a 37, 42) ---
@@ -1164,9 +1162,10 @@ def test_aud_08_nao_apaga_outra_empresa(moto, criar_empresa, relogio):
 
 
 def test_aud_08_nao_apaga_reativada(moto, relogio):
-    """A empresa reativada pela equipe dentro dos 90 dias não é apagada."""
+    """A empresa reativada pela equipe dentro dos 90 dias (até 19 jan 2027) não é apagada."""
     _cancelada_em_22_out(moto, relogio)
-    moto.estado(status="ativa")  # a reativação pela equipe (assinatura.md) não é desta tarefa
+    _em(relogio, "2027-01-19")
+    services.reativar_empresa(moto.recarregar(), motivo="Pedido no chamado #1090")
     _em(relogio, "2027-01-20", "03:30")
     assert services.apagar_empresas() == 0
     with pytest.raises(banco.ApagamentoRecusado):
