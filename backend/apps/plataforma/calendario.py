@@ -102,6 +102,20 @@ def periodo_da_pausa(inicio: date, meses: int) -> Periodo:
     return Periodo(inicio, volta - timedelta(days=1))
 
 
+def vencimento_da_reativacao(
+    hoje: date, ultimo_periodo_pago_fim: date | None, dia_vencimento: int
+) -> tuple[date, int]:
+    """A reativação da `cancelada` pela equipe (PLT-06, decisão de 14 out 2026, T-216): o
+    vencimento da fatura nova e o `dia_vencimento` dali em diante.
+
+    - Período pago ainda correndo: vence no dia seguinte ao fim dele, e o dia não muda (CA-ASS-49).
+    - Já acabou, ou nenhum pago: vence hoje, e o dia passa a ser o de hoje, como na volta da pausa
+      (CA-ASS-46)."""
+    if ultimo_periodo_pago_fim is not None and ultimo_periodo_pago_fim >= hoje:
+        return ultimo_periodo_pago_fim + timedelta(days=1), dia_vencimento
+    return hoje, hoje.day
+
+
 def intervalo(inicio: date, fim: date) -> str:
     """ "22 out a 21 nov"; no mesmo mês, "01 a 21 nov". Sem o ano (PLT-14)."""
     if (inicio.year, inicio.month) == (fim.year, fim.month):

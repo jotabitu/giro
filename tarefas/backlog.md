@@ -27,6 +27,7 @@ Levantadas pelo arquiteto em T-030 (07 out 2026):
 
 - [decisão] (qa, T-019) Troca de óleo da QXA-4B21 (CA-019-10: última aos 18.900 km, próxima aos 19.900) não tem onde morar: `apps/manutencao` é só README (`MAN-03`). `xfail` em `test_man_03_seed_019_10_proxima_troca_de_oleo_aos_19900`; o seed ganha o dado quando o módulo existir.
 - [decisão] (qa, T-019) Sem módulo no backend, os casos da fase 2 (CA-019-31) seguem `xfail`: venda VEN-0177, comissões, conciliação e DRE de setembro. Orquestrador: criar as tarefas de backend desses módulos; o seed ganha os dados com cada um.
+- [decisão] (backend, T-365; para o produto) **Descrição da fatura no mesmo mês no CA-ASS-46.** O CA-ASS-46 escreve "Plano Profissional · 01 dez a 31 dez", e a `PLT-14` diz que no mesmo mês é "01 a 21 nov". Padrão no código: a forma da `PLT-14` ("Plano Profissional · 01 a 31 dez"), a mesma de todas as faturas; `test_plt_06_reativar_so_com_atrasada_paga` espera essa. Pede só acertar o texto do CA-ASS-46.
 - [decisão] (seguranca, T-369; para o produto) **Contrato do cliente anonimizado (`AUD-06`).** A regra diz que contratos e registros financeiros "ficam guardados pelo prazo legal, anonimizados". O `anonimizar_titular` anonimiza o cadastro, e o contrato e o financeiro continuam ligados a ele. Mas o texto final do contrato (`versao_texto_html`) e os PDFs, o gerado e o assinado, ainda têm o nome, o CPF e o endereço do cliente. Padrão no código: ficam como estão, porque o PDF assinado (com o hash) é a prova do contrato no prazo legal. Alternativa: trocar o texto e gerar um PDF novo, anonimizados, guardando só o hash do assinado. A validar com o jurídico.
 - Resolvido na T-211 (dono, 14 out 2026): **Reativar a empresa `cancelada` com fatura em atraso** (arquiteto, T-193): opção A, a equipe só reativa depois de receber a atrasada, como o contrato já recusa (`PLT-06`, CA-ASS-46).
 - Resolvido na T-211 (dono, 14 out 2026): **Endereço da empresa para a NFS-e da assinatura** (arquiteto, T-193): opção B, a compra não pede; o endereço nasce do endereço da filial matriz do passo 6, copiado uma vez, e se edita nos dados fiscais; o seed leva o da Filial Centro, CEP 60325-000 (`PLT-15`, CA-ASS-47 e 48).
@@ -173,9 +174,6 @@ Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (seguran
 
 ### T-364 · Passos que faltam no assistente
 - **Agente:** frontend · **Depende de:** T-358, T-359, T-363, T-366 · **Regras:** IMP-05, PLT-12 · **Pronto quando:** Primeira filial, Tabela de preços, Modelo de contrato, Recebimentos e Convidar equipe funcionam dentro da `CascaDoAssistente`, com Continuar e Pular pela API; o Essencial não vê Recebimentos; nenhum passo mostra "Esta etapa ainda não está disponível aqui.".
-
-### T-365 · Reativar a empresa cancelada
-- **Agente:** backend · **Depende de:** T-196 · **Regras:** PLT-06, AUD-08 · **Pronto quando:** `reativar_empresa` no Django Admin da plataforma, com a recusa 409 `fatura_em_atraso` e a da empresa com o apagamento começado (B-02 da T-199 e da T-345); a fatura nova vence como na `PLT-06`; o xfail `test_plt_06_reativar_so_com_atrasada_paga` (CA-ASS-46) vira teste comum. Tem de existir antes do 90º dia do primeiro cancelamento real.
 
 ### T-366 · Rota de recebimentos e marcação dos passos
 - **Agente:** backend · **Depende de:** T-358 · **Regras:** FIN-04, IMP-05, PLT-12 · **Pronto quando:** a rota de ligar e ler a subconta do parceiro pelo contrato da T-358, com o 403 `PLT-12` no Essencial e a auditoria; as ações que marcam os passos `precos` e `equipe`; `test_imp_05_*` e OpenAPI regenerado.

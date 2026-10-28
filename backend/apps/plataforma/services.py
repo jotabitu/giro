@@ -95,6 +95,7 @@ from .calendario import (
     dia_mes_e_ano,
     periodo_da_pausa,
     proximo_periodo,
+    vencimento_da_reativacao,
 )
 from .models import (
     CAMPOS_DO_ENDERECO,
@@ -3353,6 +3354,99 @@ def voltar_da_pausa(empresa: Empresa, por: str = POR_ADMINISTRADOR) -> Empresa:
     return empresa
 
 
+# --- Reativar a cancelada (PLT-06, AUD-08; assinatura.md, "Mudança de ciclo e reativação") ---
+
+SO_A_CANCELADA = ("transicao_empresa", "Só a empresa cancelada pode ser reativada.")
+APAGAMENTO_COMECOU = (
+    "transicao_empresa",
+    "O apagamento dos dados desta empresa já começou. Não dá para reativar.",
+)
+DADOS_JA_APAGADOS = ("transicao_empresa", "Os dados desta empresa já foram apagados.")
+RECEBA_A_ATRASADA = ("fatura_em_atraso", "Receba a fatura em atraso antes de reativar.")
+
+
+def reativar_empresa(empresa: Empresa, por: str = POR_EQUIPE, motivo: str = "") -> Empresa:
+    """PLT-06 (CA-ASS-46, CA-ASS-49): a equipe Giro reativa a `cancelada` nos 90 dias, e ela
+    volta a `ativa` na hora, sem o cancelamento, o apagamento marcado e o aviso dele.
+
+    - Recusada: sem motivo (400); fora da `cancelada`; no dia do apagamento ou depois, já que a
+      `aud_08_apagar_empresas` pode ter começado (T-199, B-02, `apagar_empresa` trava a
+      `Empresa` antes dos arquivos); com fatura `atrasada` de antes do cancelamento (409
+      `fatura_em_atraso`, opção A de 14 out 2026). Nada muda.
+    - A mensalidade nova, pelo plano, ciclo e preço contratado atuais, vence no dia seguinte ao
+      fim do período pago, se ele ainda corre (o dia de vencimento não muda), ou hoje (o dia
+      passa a ser o de hoje): `vencimento_da_reativacao`. A forma de pagamento saiu com o
+      cancelamento, então a fatura nasce sem forma, e o administrador escolhe ao entrar (PLT-13).
+    - Auditoria `empresa.reativar` nos dois lugares, com o motivo e quem fez."""
+    motivo = motivo.strip()
+    if not motivo:
+        raise ErroDeValidacao({"motivo": ["Informe o motivo."]})
+    with no_publico(), transaction.atomic():
+        empresa = _empresa_travada(empresa)
+        hoje = relogio.hoje()
+        if empresa.status != Empresa.Status.CANCELADA:
+            raise Conflito(*SO_A_CANCELADA)
+        if empresa.apagada_em is not None:
+            raise Conflito(*DADOS_JA_APAGADOS)
+        if empresa.apagar_em is None or empresa.apagar_em <= hoje:
+            raise Conflito(*APAGAMENTO_COMECOU)
+        if _atrasada_mais_antiga(empresa) is not None:
+            raise Conflito(*RECEBA_A_ATRASADA)
+        if empresa.plano is None:
+            raise ValueError("Empresa sem plano.")
+        vencimento, dia = vencimento_da_reativacao(
+            hoje, fim_do_periodo_pago(empresa), empresa.dia_vencimento or hoje.day
+        )
+        antes = {
+            "status": empresa.status,
+            "cancelada_em": _iso(empresa.cancelada_em.date() if empresa.cancelada_em else None),
+            "apagar_em": _iso(empresa.apagar_em),
+            "dia_vencimento": empresa.dia_vencimento,
+        }
+        empresa.cancelamento_pedido_em = None
+        empresa.motivo_cancelamento = ""
+        empresa.acesso_ate = None
+        empresa.cancelada_em = None
+        empresa.apagar_em = None
+        empresa.aviso_apagamento_enviado_em = None
+        empresa.dia_vencimento = dia
+        empresa.save(
+            update_fields=[
+                "cancelamento_pedido_em",
+                "motivo_cancelamento",
+                "acesso_ate",
+                "cancelada_em",
+                "apagar_em",
+                "aviso_apagamento_enviado_em",
+                "dia_vencimento",
+                "atualizado_em",
+            ]
+        )
+        transicionar_empresa(empresa, Empresa.Status.ATIVA, regra="PLT-06", motivo=motivo)
+        fatura = criar_fatura(
+            empresa,
+            tipo=TipoFatura.MENSALIDADE,
+            vencimento=vencimento,
+            periodo=proximo_periodo(dia, empresa.ciclo, vencimento),
+            plano=empresa.plano,
+            ciclo=empresa.ciclo,
+            valor_centavos=int(empresa.preco_contratado_centavos),
+            regra="PLT-06",
+        )
+        _registrar_nos_dois(
+            empresa,
+            "empresa.reativar",
+            antes=antes,
+            depois={"dia_vencimento": dia, "fatura": fatura.codigo, "por": por},
+            categoria_publica=Categoria.FINANCEIRO,
+            motivo=motivo,
+            regra="PLT-06",
+        )
+        if vencimento <= hoje + timedelta(days=DIAS_DE_ANTECEDENCIA):
+            emitir_cobranca_da_fatura(fatura.pk, hoje)  # sem forma, fica para o "Pagar"
+    return empresa
+
+
 def _autorizacao_ja_encerrada(autorizacao: str) -> bool:
     """Depois de uma recusa: a autorização inexistente ou já cancelada conta como encerrada
     (T-199, M-03). O 404 a interface já devolve como `cancelada`."""
@@ -3371,9 +3465,13 @@ def encerrar_forma_pagamento(empresa_id: int) -> str:
     T-199, M-03: o cartão sai sempre, mesmo com o parceiro fora do ar ou recusando. A autorização
     inexistente ou já cancelada conta como encerrada. Outra recusa fica no log de erro, com a
     autorização guardada (`parceiro_recusou`). Fora do ar: grava o resto e levanta
-    `ParceiroForaDoAr` depois do commit, para a tarefa tentar de novo."""
+    `ParceiroForaDoAr` depois do commit, para a tarefa tentar de novo. A empresa reativada antes
+    de a tarefa terminar fica com a forma que tiver (T-365)."""
     fora_do_ar = False
     with schema_context(get_public_schema_name()), transaction.atomic():
+        empresa = _empresa_travada(Empresa(pk=empresa_id))
+        if empresa.status != Empresa.Status.CANCELADA:
+            return "reativada"
         forma = (
             FormaPagamentoAssinatura.objects.select_for_update()
             .filter(empresa_id=empresa_id)
@@ -3613,10 +3711,13 @@ def apagar_empresa(empresa_id: int) -> dict[str, Any]:
     from . import banco
 
     with schema_context(get_public_schema_name()):
-        empresa = Empresa.objects.get(pk=empresa_id)
-        banco.conferir_para_apagar(empresa)
-        schema = str(empresa.schema_name)
-        arquivos = apagar_arquivos_da_empresa(schema)  # (a)
+        # T-199, B-02: os arquivos saem com a `Empresa` travada e conferida. A reativação, que
+        # trava a mesma linha, espera, e depois recusa: `apagar_em` já chegou.
+        with transaction.atomic():
+            empresa = _empresa_travada(Empresa(pk=empresa_id))
+            banco.conferir_para_apagar(empresa)
+            schema = str(empresa.schema_name)
+            arquivos = apagar_arquivos_da_empresa(schema)  # (a)
         banco.apagar_schema(empresa_id)  # (b)
         with transaction.atomic():
             empresa = _empresa_travada(empresa)

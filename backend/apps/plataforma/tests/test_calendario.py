@@ -12,6 +12,7 @@ from apps.plataforma.calendario import (
     descricao_da_fatura,
     periodo_da_pausa,
     proximo_periodo,
+    vencimento_da_reativacao,
     vencimento_seguinte,
 )
 
@@ -162,3 +163,20 @@ def test_plt_06_periodo_da_pausa(inicio, meses, ate):
 def test_plt_06_pausar_por_ate_3_meses(meses):
     with pytest.raises(ValueError):
         periodo_da_pausa(date(2026, 11, 22), meses)
+
+
+@pytest.mark.parametrize(
+    ("hoje", "fim_pago", "dia", "esperado"),
+    [
+        # CA-ASS-49: período pago até 21 nov, reativada em 15 nov: vence em 22 nov, dia 22.
+        (date(2026, 11, 15), date(2026, 11, 21), 22, (date(2026, 11, 22), 22)),
+        # No último dia do período pago ainda corre.
+        (date(2026, 11, 21), date(2026, 11, 21), 22, (date(2026, 11, 22), 22)),
+        # CA-ASS-46: o período pago acabou em 21 nov, reativada em 01 dez: vence hoje, dia 1.
+        (date(2026, 12, 1), date(2026, 11, 21), 22, (date(2026, 12, 1), 1)),
+        # Nenhuma fatura do período paga (cancelada no teste): vence hoje.
+        (date(2027, 1, 19), None, 22, (date(2027, 1, 19), 19)),
+    ],
+)
+def test_plt_06_vencimento_da_reativacao(hoje, fim_pago, dia, esperado):
+    assert vencimento_da_reativacao(hoje, fim_pago, dia) == esperado
