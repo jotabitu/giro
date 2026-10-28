@@ -147,14 +147,15 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
     # Coluna "Saída" da tabela de estados ("Plataforma e assinatura") e as transições do
     # contrato (`assinatura.md`; a em teste com forma e sem pagar vira inadimplente em D+1). Pausar
     # e cancelar (`cancelamento.md`, T-195): a pausa começa na `ativa` (ou na `inadimplente` pela
-    # diferença do upgrade) e volta `inadimplente` se a diferença ainda estiver atrasada.
+    # diferença do upgrade) e volta `inadimplente` se a diferença ainda estiver atrasada. A
+    # `cancelada` volta a `ativa` só pela equipe, nos 90 dias (`reativar_empresa`, T-365).
     TRANSICOES: ClassVar[dict[str, set[str]]] = {
         "em_teste": {"ativa", "inadimplente", "suspensa", "cancelada"},
         "ativa": {"inadimplente", "pausada", "cancelada"},
         "inadimplente": {"ativa", "suspensa", "pausada", "cancelada"},
         "suspensa": {"ativa", "cancelada"},
         "pausada": {"ativa", "inadimplente", "cancelada"},
-        "cancelada": set(),
+        "cancelada": {"ativa"},
     }
     REGRA_TRANSICAO = "transicao_empresa"
     CATEGORIA_AUDITORIA = Categoria.CONFIGURACOES
