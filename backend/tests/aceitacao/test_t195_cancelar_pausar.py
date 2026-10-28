@@ -733,10 +733,6 @@ def test_plt_06_quem_nao_desfaz(moto, relogio):
     assert erro.value.mensagem == "Não há cancelamento para desfazer."
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="reativar_empresa (assinatura.md, CA-ASS-46) ainda não implementada no backend",
-)
 def test_plt_06_reativar_so_com_atrasada_paga(moto, relogio, django_capture_on_commit_callbacks):
     """CA-ASS-46: `inadimplente` com a FAT-0001 `atrasada`, cancelada em 25 out; em 01 dez a equipe
     tenta reativar e recebe 409 `fatura_em_atraso` ("Receba a fatura em atraso antes de reativar.");
@@ -1164,9 +1160,10 @@ def test_aud_08_nao_apaga_outra_empresa(moto, criar_empresa, relogio):
 
 
 def test_aud_08_nao_apaga_reativada(moto, relogio):
-    """A empresa reativada pela equipe dentro dos 90 dias não é apagada."""
+    """A empresa reativada pela equipe dentro dos 90 dias (até 19 jan 2027) não é apagada."""
     _cancelada_em_22_out(moto, relogio)
-    moto.estado(status="ativa")  # a reativação pela equipe (assinatura.md) não é desta tarefa
+    _em(relogio, "2027-01-19")
+    services.reativar_empresa(moto.recarregar(), motivo="Pedido no chamado #1090")
     _em(relogio, "2027-01-20", "03:30")
     assert services.apagar_empresas() == 0
     with pytest.raises(banco.ApagamentoRecusado):

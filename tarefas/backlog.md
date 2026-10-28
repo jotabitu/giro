@@ -173,9 +173,6 @@ Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (seguran
 ### T-364 · Passos que faltam no assistente
 - **Agente:** frontend · **Depende de:** T-358, T-359, T-363, T-366 · **Regras:** IMP-05, PLT-12 · **Pronto quando:** Primeira filial, Tabela de preços, Modelo de contrato, Recebimentos e Convidar equipe funcionam dentro da `CascaDoAssistente`, com Continuar e Pular pela API; o Essencial não vê Recebimentos; nenhum passo mostra "Esta etapa ainda não está disponível aqui.".
 
-### T-365 · Reativar a empresa cancelada
-- **Agente:** backend · **Depende de:** T-196 · **Regras:** PLT-06, AUD-08 · **Pronto quando:** `reativar_empresa` no Django Admin da plataforma, com a recusa 409 `fatura_em_atraso` e a da empresa com o apagamento começado (B-02 da T-199 e da T-345); a fatura nova vence como na `PLT-06`; o xfail `test_plt_06_reativar_so_com_atrasada_paga` (CA-ASS-46) vira teste comum. Tem de existir antes do 90º dia do primeiro cancelamento real.
-
 ### T-366 · Rota de recebimentos e marcação dos passos
 - **Agente:** backend · **Depende de:** T-358 · **Regras:** FIN-04, IMP-05, PLT-12 · **Pronto quando:** a rota de ligar e ler a subconta do parceiro pelo contrato da T-358, com o 403 `PLT-12` no Essencial e a auditoria; as ações que marcam os passos `precos` e `equipe`; `test_imp_05_*` e OpenAPI regenerado.
 
