@@ -4,6 +4,21 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ## Decisões de Design
 
+### [2026-10-28] O que já existe e é da fase 2 fica como está
+- **Contexto:** a decisão D2 de 25 out ("Escopo de fechamento da fase 1") jogou a comissão de locação para a fase 2, e a T-377 começou a desligar a comissão que já existia no código. A T-378 tiraria o Completo da venda, com um campo novo no plano.
+- **Decisão (dono):** funcionalidade que já está pronta e foi marcada como fase 2 fica como está, e na fase 2 só se continua dela. Desligar custa trabalho agora e de novo na volta. Como a fase 1 fecha no ambiente de desenvolvimento e ninguém compra plano antes da produção, a T-378 e o preço do Profissional também vão para a fase 2.
+- **Alternativas descartadas:** desligar a comissão na fase 1 (a parte (a) da T-377) e tirar o Completo da venda já na fase 1.
+- **Consequências:**
+  - a comissão de locação continua sendo lançada; o downgrade da fase 1 continua recusado só por despesas abertas (`PLT-12`);
+  - a T-377 fica só com os textos da T-391;
+  - a T-378 está na seção "Fase 2 em diante" do backlog, junto com a resposta sobre o preço e os limites do Profissional;
+  - nas próximas decisões de escopo, o que já existe é escondido da tela quando preciso, não removido do backend.
+
+### [2026-10-28] CI e imagem local com versões diferentes do pytest
+- **Contexto:** o CI do backend instala as dependências do zero a cada rodada e passou a pegar o pytest 9.2.0; a imagem local `giro-backend:latest` tinha o 9.1.1. O `monkeypatch.setattr(connection, "in_atomic_block", False)` de um teste da T-196 trocava o atributo no proxy `django.db.connection`. No 9.2, desfazer a troca apaga o atributo da conexão, e todos os testes seguintes do mesmo processo do xdist erraram (460 erros no CI do #418), com a conferência local verde.
+- **Decisão:** o teste troca o atributo em `connections["default"]`, a conexão de verdade (T-395, PR #421).
+- **Consequências:** quando o CI do backend falhar e a conferência local passar, compare as versões do "Successfully installed" no log do CI com o `pip list` da imagem, e reproduza com `pip install pytest==<versão do CI>` dentro do `docker run`. O `requirements-dev.txt` não fixa o teto do `pytest`.
+
 ### [2026-10-25] Contas de produção ficam para a fase 2
 - **Contexto:** a ADR 0033 (opção B, uma VPS) e a ADR 0034 (WhatsApp real, proposta) listam o que o dono precisa contratar: domínio, VPS, bucket de backup, Asaas de produção, WhatsApp pela Meta, e-mail transacional e Sentry.
 - **Decisão (dono):** as contratações e a subida de homologação e produção ficam para a fase 2. A fase 1 fecha com o código pronto e testado no ambiente de desenvolvimento.
