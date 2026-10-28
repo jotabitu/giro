@@ -175,9 +175,6 @@ Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (seguran
 ### T-364 · Passos que faltam no assistente
 - **Agente:** frontend · **Depende de:** T-358, T-359, T-363, T-366 · **Regras:** IMP-05, PLT-12 · **Pronto quando:** Primeira filial, Tabela de preços, Modelo de contrato, Recebimentos e Convidar equipe funcionam dentro da `CascaDoAssistente`, com Continuar e Pular pela API; o Essencial não vê Recebimentos; nenhum passo mostra "Esta etapa ainda não está disponível aqui.".
 
-### T-366 · Rota de recebimentos e marcação dos passos
-- **Agente:** backend · **Depende de:** T-358 · **Regras:** FIN-04, IMP-05, PLT-12 · **Pronto quando:** a rota de ligar e ler a subconta do parceiro pelo contrato da T-358, com o 403 `PLT-12` no Essencial e a auditoria; as ações que marcam os passos `precos` e `equipe`; `test_imp_05_*` e OpenAPI regenerado.
-
 ### T-370 · Ações que faltam no caixa, no receber e no cliente
 - **Agente:** frontend · **Depende de:** — · **Regras:** FIN, CLI-03, CLI-05 · **Pronto quando:** estornar movimento no `/financeiro/caixa`, renegociar no `/financeiro/receber`, e bloquear, desbloquear, inativar e reativar no detalhe do cliente (com o 422 `cliente_com_pendencia`), pelos `acoes` da API; testes vitest.
 
@@ -197,6 +194,29 @@ Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (seguran
 ### T-375 · Fechamento da fase 1
 - **Parte 1 feita (26 out 2026, qa):** cobertura refeita e as 42 regras conferidas (`tarefas/handoffs/T-375-qa.md`). Falta a parte 2, o E2E, para o fim da fase.
 - **Agente:** qa · **Depende de:** todas as anteriores · **Pronto quando:** `docs/qa/cobertura-de-regras.md` refeita a partir dos testes de hoje; as 42 regras sem teste com o código no nome conferidas (fase 2, teste com outro nome ou falta); o E2E percorre os critérios de pronto do `plano.md` no ambiente de desenvolvimento (a homologação é da fase 2, com as contas de produção) com a Moto Rápida (implantação, locação, devolução, cobrança, caixa e 2 etapas).
+
+### O que falta para fechar a fase 1 (28 out 2026)
+
+Situação depois dos merges de 26 a 28 out e da decisão do dono de 28 out em `MEMORY.md` ("O que já existe e é da fase 2 fica como está"). A T-363, a T-364 (#416), a T-370 (#411) e a T-376 à T-395 feitas estão no `feito.md`. O passo Recebimentos ficou fora da T-364, à espera da rota da T-366, e virou a T-397.
+
+- **Em andamento:**
+  - T-377, textos do downgrade recusado (backend 2);
+  - T-379, backend do controle do suporte (segurança);
+  - T-380, API de reembolsos e pendências do pagamento (backend).
+- **Em revisão:** T-366 (PR #424) e T-383 (PR #425).
+- **Depois:** T-374 e T-165 (backend 2), T-397 (frontend, depois da T-366), T-371 (frontend, depois da T-380), T-372 (frontend, depois da T-379) e a parte 2 da T-375 (qa), por último.
+
+### T-377 · Textos do downgrade recusado (T-391)
+- **Agente:** backend · **Depende de:** T-196 · **Regras:** PLT-04, PLT-12 · **Pronto quando:** os itens 1 a 5 de `tarefas/handoffs/T-391-produto.md` (`texto_do_que_excede` sem a atividade, o e-mail pelo CA-ASS-71, "A empresa {nome}", a última frase e `test_plt_04_email_do_downgrade_recusado` nos três casos). A comissão de locação que já existe fica como está (decisão do dono de 28 out); o downgrade da fase 1 não é recusado por ela.
+
+### T-379 · Backend do controle do suporte
+- **Agente:** segurança · **Depende de:** T-358 · **Regras:** PLT-07 · **Contrato:** `docs/api/contas.md` ("GET /api/suporte/" em diante) e o cartão `suporte` de `docs/api/configuracoes.md` · **Telas:** `Admin-Suporte` (T-360) · **Pronto quando:** `GET /api/suporte/` com o que a tela mostra, bloquear, liberar e revogar com auditoria, o cartão em Configurações (sem vir para o token de suporte) e o OpenAPI regenerado.
+
+### T-380 · API de reembolsos e pendências do pagamento
+- **Agente:** backend · **Depende de:** T-358 · **Regras:** DEV-02, AUT-05 · **Contrato:** `docs/api/financeiro.md` (T-358) e a revisão da T-384 · **Pronto quando:** as rotas que a T-371 usa, com teste e OpenAPI regenerado.
+
+### T-397 · Passo Recebimentos do assistente
+- **Agente:** frontend · **Depende de:** T-366 · **Regras:** FIN-04, IMP-05, IMP-07, PLT-12 · **Contrato:** `docs/api/plataforma.md` ("Recebimentos da empresa") · **Pronto quando:** o passo `/implantacao/recebimentos` dentro da `CascaDoAssistente`, com a sugestão da API, o envio, as situações (não conectado, em análise, ligados, recusado) e Pular; o Essencial não vê o passo; testes vitest.
 
 
 ### Notas do dono de 15 out 2026 (testes na mão)
@@ -402,4 +422,7 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ## Fase 2 em diante
 
 Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a FIN-13), manutenção (MAN), automações (AUT), implantação self-service (IMP), relatórios e DRE, exportação (AUD-06, AUD-07). A cobrança da assinatura, cancelar e pausar e a `AUD-08` entraram no MVP em 14 out 2026 (T-183, T-190); continuam aqui a `Plat-Cobranca` e os adicionais. Da exportação (`AUD-07`), o MVP tem só a auditoria em CSV (T-018); a fase 2 traz os outros itens (clientes, veículos, locações e contratos, financeiro, vistorias e fotos), a planilha (.xlsx, dependência nova registrada no PR), o backup completo em ZIP com as 2 etapas recentes, o backup mensal (`AUT-11`) com o cartão da tela, a exportação da plataforma (`/api/plataforma/exportacoes/`), o pedido do titular (`AUD-06`, à mão até lá) e o prazo após o cancelamento (`AUD-08`), decisão do dono de 12 out 2026 (T-151). O orquestrador quebra em tarefas quando a fase 1 fechar.
+
+### T-378 · Completo fora da venda (`PLT-11`)
+- **Agente:** backend · **Fase:** 2, com a produção (decisão do dono de 28 out 2026: na fase 1 ninguém compra plano) · **Pronto quando:** o plano ganha o campo próprio "à venda" (migração), e o Completo nasce fora; Mudar de plano e Comparar planos não o listam; a API recusa a mudança para ele com "O plano Completo ainda não está à venda."; teste com o código da regra no nome. Junto, a resposta do dono sobre o preço e os limites do Profissional ("Pontos em aberto" das regras).
 

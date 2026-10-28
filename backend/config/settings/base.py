@@ -213,6 +213,8 @@ REST_FRAMEWORK = {
         # Leitura do CRLV-e e da CNH-e em PDF, somadas (ADR 0026, item 6).
         "leitura_documento_usuario": "30/hour",
         "leitura_documento_empresa": "200/hour",
+        # Conectar os recebimentos pelo parceiro (B-02 da T-384).
+        "recebimentos_empresa": "10/hour",
     },
 }
 
