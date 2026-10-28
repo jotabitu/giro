@@ -367,18 +367,21 @@ class EntrarView(Publica):
         senha = dados.validated_data["senha"]
         aparelho = dados.validated_data["aparelho"]
         usuario = Usuario.objects.filter(email=email).first()
-        if usuario is None:
-            Usuario().set_password(senha)  # mesmo tempo de resposta de quem existe
-            _falhou_entrada(request, None, "e-mail")
+        if usuario is None or not usuario.has_usable_password():
+            # Quem não existe e quem ainda não criou a senha (convite pendente) recebem a mesma
+            # resposta no mesmo tempo: o login não revela quem foi convidado (USR-06, T-159).
+            Usuario().set_password(senha)
+            _falhou_entrada(request, usuario, "e-mail" if usuario is None else "sem senha")
             raise NaoAutenticado(*CREDENCIAIS_INVALIDAS)
-        if usuario.status == StatusUsuario.CONVITE_PENDENTE and (
-            not services.convite_aceito(usuario) or not usuario.has_usable_password()
-        ):
-            _falhou_entrada(request, usuario, "convite pendente")
-            raise SemPermissao("convite_pendente", "Use o link do convite para criar seu acesso")
         tentativa = dois_fatores.tentar_senha(usuario, senha)
         if tentativa.falha is not None:
             raise _erro_da_tentativa(request, tentativa, CREDENCIAIS_INVALIDAS)
+        if tentativa.usuario.status == StatusUsuario.CONVITE_PENDENTE and not (
+            services.convite_aceito(tentativa.usuario)
+        ):
+            # Só depois da senha certa (T-159).
+            _falhou_entrada(request, tentativa.usuario, "convite pendente")
+            raise SemPermissao("convite_pendente", "Use o link do convite para criar seu acesso")
         usuario = tentativa.usuario
         if usuario.status == StatusUsuario.DESATIVADO:
             _falhou_entrada(request, usuario, "desativado")

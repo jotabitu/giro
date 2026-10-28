@@ -436,6 +436,18 @@ def test_modelos_api_lista_marcadores_prontos_e_previa(moto, django_capture_on_c
     )
 
 
+def test_s_09_previa_limpa_texto_gravado_sem_sanitizar(moto):
+    """B-01 da T-388: um texto que entrou no banco sem passar pelo salvar (migração, script) sai
+    limpo na prévia, porque a tela o põe na página."""
+    ModeloContrato.objects.filter(grupo=moto.modelo.grupo).update(
+        texto="<p>{{cliente.nome}}</p><img src=x onerror=alert(1)>"
+    )
+    previa = moto.moto.api("Mariana").post(f"{MODELOS}{moto.modelo.pk}/previa/", {}, format="json")
+    assert previa.status_code == 200
+    assert "<img" not in previa.json()["html"] and "onerror" not in previa.json()["html"]
+    assert previa.json()["html"] == "<p>Lucas Ferreira</p>"
+
+
 def test_imp_04_publicar_o_primeiro_modelo_conclui_o_passo_contrato(moto):
     api = moto.moto.api("Mariana")
     novo = api.post(MODELOS, {"a_partir_de": "locacao_mensal_carro"}, format="json").json()

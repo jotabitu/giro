@@ -7,7 +7,7 @@ infra/
 ├── docker/        Dockerfiles de backend (também worker e beat) e frontend, entrypoint do backend
 ├── postgres/      SQL de inicialização do banco: papéis da ADR 0016 (01-papeis.sh)
 ├── scripts/       verificações de infra (check-env.sh)
-├── deploy/        homologação e produção (uma VPS com tudo em Docker Compose, de preferência num provedor no Brasil: ADR 0033, opção B)
+├── deploy/        homologação e produção (uma VPS com tudo em Docker Compose, de preferência num provedor no Brasil: ADR 0033, opção B; ver "Produção" abaixo)
 └── backup/        scripts de backup diário e teste de restauração
 ```
 
@@ -79,6 +79,13 @@ Todos os serviços do `docker-compose.yml` têm `restart: unless-stopped`: volta
 
 `infra/postgres/01-papeis.sh` cria os três, dá a `giro_migracao` o schema `public` e `CREATE` no banco, e deixa `giro_app` com `SELECT/INSERT/UPDATE/DELETE` por privilégio padrão no `public`. Roda só quando o volume do Postgres é criado (`make down V=1` para refazer). Testado num Postgres 16 limpo: `giro_app` não cria tabela nem schema e lê e escreve em tabela criada por `giro_migracao`.
 
+**Onde a `DATABASE_URL_MIGRACAO` entra (T-352, achado B-01 da T-199):** só no `worker` do Celery, nunca no `backend` (web) nem no `beat`.
+- **Por quê:** é credencial com DDL em todos os schemas. A única rotina de execução que a usa é a `plataforma.aud_08_apagar_empresas` (`DROP SCHEMA` da empresa cancelada, ADR 0025), que roda no worker. O web, que atende a internet, e o beat, que só agenda, não precisam dela; sem ela, um furo no web não ganha DDL. Sem a variável no worker, a tarefa só registra um log de erro e a empresa fica para o dia seguinte.
+- **Desenvolvimento:** vem do `.env` (modelo em `.env.example`). O `docker-compose.yml` a zera (`DATABASE_URL_MIGRACAO: ""`) no `backend` e no `beat`; o `worker` a lê do `env_file` e consome as filas `celery` e `apagamento` (T-382: o backend manda a `aud_08_apagar_empresas` para a fila `apagamento`, `CELERY_TASK_ROUTES`).
+- **Homologação:** `infra/deploy/docker-compose.homologacao.yml` a passa ao `worker-apagamento` (`DATABASE_URL_MIGRACAO: ${DATABASE_URL_MIGRACAO}`, do cofre, só a fila `apagamento`) e a zera no `worker` (só a fila `celery`), no `backend`, no `beat` e no `estaticos`. O `migrar` continua com ela para o `migrate_schemas`. Em produção vale o mesmo desenho; o cofre (`producao.env.example`) traz a variável com a do `giro_migracao`.
+- **Por que zerar e não omitir:** o arquivo de variáveis do cofre é o mesmo para todos os serviços (`env_file`), então a variável chegaria a todos. `environment:` vence o `env_file`.
+- **CI:** o job Infra roda `infra/scripts/check-migracao-so-no-worker.sh`, que falha se a variável chegar a outro serviço que não o worker que lê a fila `apagamento` (`worker` no dev, `worker-apagamento` na homologação), ou se outro serviço ler essa fila, nos dois compose.
+
 **Dev:** `DATABASE_URL` e `DATABASE_URL_MIGRACAO` apontam para o superusuário do container (ADR 0016, item 5); os valores com papéis separados estão comentados em `.env.example`.
 
 **O que o backend precisa fazer (ainda não feito):**
@@ -91,6 +98,69 @@ Todos os serviços do `docker-compose.yml` têm `restart: unless-stopped`: volta
 `giro_migracao` é membro de `giro_expurgo` (`GRANT giro_expurgo TO giro_migracao`, T-052): o `post_migrate` do backend roda como `giro_migracao` e faz `ALTER FUNCTION auditoria_expurgar ... OWNER TO giro_expurgo`, que exige ser membro do papel novo dono. Em banco gerenciado, aplicar o mesmo `GRANT`; o volume de dev já criado precisa de `make down V=1` ou do `GRANT` à mão.
 
 **CI:** continua com um papel só. Passa a usar os papéis separados no mesmo PR em que o backend ler `DATABASE_URL_MIGRACAO` (job `backend` ganha o `01-papeis.sh` no service Postgres).
+
+## Produção (ADR 0033, opção B: uma VPS com tudo em Compose)
+
+Preparado na T-373, **sem conta de provedor**: nada abaixo foi subido num servidor real. O que foi testado e o que só dá para fazer depois da conta está no handoff `tarefas/handoffs/T-373-devops.md`.
+
+**O que sobe** (`infra/deploy/docker-compose.producao.yml`):
+
+| Serviço | O que é | Observação |
+| --- | --- | --- |
+| `proxy` | nginx (`infra/proxy`), certificado curinga | **Único** que publica porta: 80 e 443 |
+| `frontend` | Next standalone (`infra/docker/frontend.producao.Dockerfile`) | sem root, sem segredo |
+| `backend`, `worker`, `beat` | imagem `producao` (ADR 0027) | usam `giro_app`; **sem** `DATABASE_URL_MIGRACAO` |
+| `worker-apagamento` | mesma imagem, só a fila `apagamento` | **único** com `giro_migracao` além do `migrar` (M-01 da T-355) |
+| `migrar`, `estaticos` | rodam e saem | `migrate_schemas` com `giro_migracao` |
+| `db` | PostgreSQL 16 + pgBackRest (`infra/docker/postgres.Dockerfile`) | sem porta; arquiva WAL; `init: true` obrigatório |
+| `redis` | Redis 7 com senha e AOF | sem porta |
+| perfil `certificado` | certbot, DNS-01 na Cloudflare | emissão e renovação |
+| perfil `backup` | rclone e restic | backup dos arquivos |
+
+`infra/scripts/check-producao.sh` (job Infra do CI) valida o compose e falha se alguém publicar outra porta, der a `DATABASE_URL_MIGRACAO` a outro serviço, der segredo de backup à aplicação, tirar a cifra ou os 30 dias do pgBackRest, ou tirar a senha do Redis.
+
+### O que o dono precisa contratar
+
+| Item | Para quê | Observação |
+| --- | --- | --- |
+| VPS de 4 vCPU e 8 GB (Magalu Cloud, de preferência) | roda tudo | Ubuntu 24.04 LTS, disco de 160 GB ou mais. Firewall do provedor com **só 80 e 443** abertos para o mundo e 22 só para os IPs da equipe (ou Tailscale). Snapshot do disco do provedor não conta como backup |
+| Object storage compatível com S3 do mesmo provedor | arquivos (fotos, documentos, logos) | Bucket privado. Duas chaves: uma de leitura e escrita para a aplicação e uma **só de leitura** para o backup |
+| Bucket de backup em **outro provedor** (Backblaze B2 ou Cloudflare R2) | destino cifrado de pgBackRest e restic | Dois buckets ou dois prefixos (`giro` para o banco e `arquivos` para o restic), com Object Lock quando o provedor oferecer; credencial própria, que a aplicação não tem |
+| Domínio `girolocadoras.com.br` e DNS na Cloudflare | endereços e certificado curinga | Zona na Cloudflare (plano gratuito) e um token de API só com Zone > DNS > Edit |
+| E-mail transacional (SMTP) | convites, senhas, faturas | SPF, DKIM e DMARC no domínio. Outra conta SMTP, ou a mesma com outra credencial, para os alertas |
+| Asaas de produção, Sentry | pagamentos e erros | Chaves só no cofre |
+| Cofre: Doppler ou Bitwarden Secrets Manager | segredos | Plano gratuito. Dois projetos ou configs: `prd` (aplicação) e `prd_infra` (infraestrutura). Token de leitura para a VPS |
+| Healthchecks.io (opcional) | avisa se a VPS morrer | Plano gratuito; a URL vai em `BATIMENTO_URL` |
+
+**Segredos do cofre.** Aplicação (`prd`, modelo `infra/deploy/producao.env.example`): `DJANGO_SECRET_KEY`, `JWT_SIGNING_KEY`, `GIRO_CHAVE_DADOS_PESSOAIS`, `GIRO_CHAVE_SEGREDOS`, `GIRO_PEPPER_HMAC`, `DATABASE_URL` (`giro_app`), `DATABASE_URL_MIGRACAO` (`giro_migracao`), `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `EMAIL_*`, `S3_*`, `GIRO_ASAAS_CHAVE_API`, `SENTRY_DSN_BACKEND`. Infraestrutura (`prd_infra`, modelo `infra/deploy/producao-infra.env.example`): senhas do Postgres e do Redis, `PGBACKREST_*`, `RESTIC_*`, `AWS_*` (credencial do bucket de backup), `ARQUIVOS_S3_*` (leitura do bucket de arquivos), `CLOUDFLARE_API_TOKEN`, `CERTBOT_EMAIL`, `ALERTA_*`, `BATIMENTO_URL`, `ADMIN_IPS`. A chave de cifra do backup (`PGBACKREST_REPO1_CIPHER_PASS` e `RESTIC_PASSWORD`) também fica **com o dono, fora do provedor e do cofre**: sem ela o backup não abre.
+
+### Roteiro de subida
+
+1. **VPS:** crie com chave SSH (sem senha), `timedatectl set-timezone America/Sao_Paulo`, atualizações automáticas de segurança (`unattended-upgrades`), Docker e Compose v2, um usuário `giro` no grupo `docker`. Firewall do provedor: 80 e 443 abertos, 22 só para a equipe. O repositório vai em `/opt/giro` (`git clone`, tag de produção).
+2. **DNS:** na Cloudflare, registros `A` de `girolocadoras.com.br` e `*.girolocadoras.com.br` para o IP da VPS, **sem proxy** (nuvem cinza: o nginx precisa ver o IP real para a lista do Admin e os limites).
+3. **Cofre e segredos:** preencha `prd` e `prd_infra`. Na VPS: `sudo mkdir /etc/giro && sudo chown giro /etc/giro`, depois `COFRE=doppler sh infra/deploy/baixar-segredos.sh` (ou `COFRE=bws`, com as variáveis do cabeçalho do script). Ele grava `producao.env`, `producao-infra.env`, `admin-ips.conf` e `cloudflare.ini` em `/etc/giro`, permissão 600. `GIRO_REDES_PROXY=172.30.0.0/24`.
+4. **Certificado:** `sh infra/deploy/certificado.sh emitir` (curinga por DNS-01, cerca de 2 minutos). Confira que o arquivo existe no volume (`docker run --rm -v giro_letsencrypt:/l alpine ls /l/live`).
+5. **Banco, Redis e primeiro stanza:**
+   ```
+   docker compose -f infra/deploy/docker-compose.producao.yml --env-file /etc/giro/producao.env --env-file /etc/giro/producao-infra.env up -d --build db redis
+   sh infra/backup/iniciar-pgbackrest.sh
+   ```
+   Até o stanza existir o arquivamento de WAL falha e o WAL se acumula: faça os dois comandos seguidos.
+6. **Aplicação:** o mesmo `up -d --build` sem nomes de serviço (o `migrar` roda, o resto sobe). O `ENV_FILE`, o `ADMIN_IPS_ARQUIVO` e o `CLOUDFLARE_INI_ARQUIVO` já vêm de `infra/backup/comum.sh`; fora dos scripts, exporte-os: `export ENV_FILE=/etc/giro/producao.env ADMIN_IPS_ARQUIVO=/etc/giro/admin-ips.conf CLOUDFLARE_INI_ARQUIVO=/etc/giro/cloudflare.ini`.
+7. **Primeiro backup:** `sh infra/backup/backup-banco.sh full` e `sh infra/backup/backup-arquivos.sh`.
+8. **Timers:** `sudo GIRO_RAIZ=/opt/giro GIRO_USUARIO=giro sh infra/backup/systemd/instalar.sh` (backups, renovação do certificado e monitoramento).
+9. **Restauração testada, antes do primeiro cliente:** `sh infra/backup/restaurar-teste.sh`, o passo manual da foto pela URL assinada e a linha em `infra/backup/registro-restauracoes.md`. Sem isso não há backup (ADR 0033, item 3).
+10. **Teste de fora:** só 80 e 443 respondem (`nmap` de outra rede), `https://admin.girolocadoras.com.br` abre com o certificado válido, `/admin/` responde 404 com a lista de IPs vazia, e um alerta de teste chega (pare o `worker` por um minuto e espere o monitoramento rápido avisar).
+11. **Primeiro dono da plataforma:** o `seed_moto_rapida` não roda em produção (`prod.py`), e não confirmei um comando que crie o primeiro dono real do painel da plataforma. Isso é pendência do backend, registrada no handoff da T-373; a primeira empresa nasce pelo painel.
+
+### Operação
+
+- **Backup do banco:** completo no domingo, diferencial nos outros dias, WAL contínuo; cifra AES-256 do pgBackRest; **30 dias** de retenção (ADR 0033, item 1). `pgbackrest info` mostra o que existe: `docker compose ... exec -u postgres db pgbackrest info`.
+- **Backup dos arquivos:** diário, restic cifrado, 30 dias. O espelho do bucket fica num volume do Docker (`espelho`): reserve disco igual ao tamanho do bucket.
+- **Restauração:** `restaurar-teste.sh` uma vez por mês, com registro; até o minuto (`"AAAA-MM-DD HH:MM:SS-03"`) uma vez por trimestre. Restauração real: o mesmo `pgbackrest restore`, com o `db` parado e o volume do banco vazio.
+- **Monitoramento** (`infra/monitoramento/verificar.sh`, e-mail com aviso a cada 6 horas por problema): serviços parados, Postgres (`pg_isready`, conexões a partir de 80%, falha do arquivamento de WAL, idade de transação, tamanho), disco a partir de 80% (crítico a partir de 90%) em `/` e `/var/lib/docker`, memória abaixo de 10%, certificado a menos de 21 dias, backup do banco e dos arquivos com mais de 26 horas. O batimento externo cobre a VPS inteira fora do ar.
+- **Atualização, uma vez por mês:** patches do sistema (reinício planejado), versão menor do Postgres 16 (`docker compose build --pull db` e `up -d db`, depois `pgbackrest check`), imagens do Redis e do nginx, e o registro do que mudou. A cada deploy: `git pull` da tag, `up -d --build`, `sh infra/scripts/auditoria-deps.sh` antes.
+- **Chave da cifra, acesso ao Admin e rotação de segredos:** a lista de IPs do Admin é o segredo `ADMIN_IPS` (vazio = fechado); mudar é regravar os segredos e `docker compose ... exec proxy nginx -s reload`.
 
 ## IP do ator e proxies (ADR 0018, item 4, T-045)
 
@@ -204,3 +274,11 @@ Frontend: `next.config.ts` envia `Referrer-Policy`, `X-Frame-Options`, `X-Conten
 **CSP, avaliação da T-052 (sem mudança de código):** (1) `img-src`: hoje nenhuma tela carrega imagem externa e o contrato de arquivos ainda não definiu o host do S3. O caminho recomendado é o frontend ler a origem de `S3_ENDPOINT_URL` (ou do host do bucket) no `middleware.ts`, em execução, e acrescentá-la a `img-src` (e `frame-src` se houver PDF embutido) quando a T-012/T-014 trouxerem logo, foto e prévia; a alternativa é o Django servir o arquivo pela mesma origem. (2) `connect-src 'self'`: certo, porque `NEXT_PUBLIC_API_URL` fica vazia em todos os ambientes (cookie `__Host-`, ADR 0013); o Sentry do frontend vai precisar do host do DSN. (3) `force-dynamic` na raiz: aceito; os arquivos de `_next/static` continuam com cache longo, só o HTML deixa de ser estático, e o app é autenticado. Registrar no PR.
 
 **Fica para o deploy (regra de rede):** o Django só alcançável pelo proxy reverso, que deve também sobrescrever `X-Forwarded-For` e `X-Forwarded-Proto` e repassar `Host`. Sem isso `GIRO_REDES_PROXY` não protege.
+
+## Auditoria de dependências (T-361, M-04 da T-355)
+
+`make auditoria-deps` (ou `sh infra/scripts/auditoria-deps.sh [pip|npm]`) roda o `pip-audit -r backend/requirements.txt` e o `npm audit --omit=dev` do frontend. Precisa de `pip-audit` (`pipx install pip-audit`), node e npm no computador.
+
+- **Quando falha:** qualquer aviso do `pip-audit` (ele não separa por gravidade) e aviso **alto ou crítico** do `npm audit`, salvo as exceções abaixo.
+- **Quando roda no CI:** `.github/workflows/auditoria.yml`, em todo PR que mude `requirements*.txt`, `package.json`, `package-lock.json` ou a lista de exceções, no push para a `main` nesses arquivos e toda segunda-feira (aviso novo aparece sem o código mudar). O deploy não tem script no repositório ainda (hoje só o `teste-subida-producao.sh`); quando o do desenho de produção (M-02) existir, ele chama `sh infra/scripts/auditoria-deps.sh` antes de subir.
+- **Como registrar uma exceção:** uma linha em `infra/auditoria/excecoes.txt`, `pip | <ID> | <validade AAAA-MM-DD> | <justificativa>` (ou `npm | <GHSA> | ...`). Só para aviso que não dá para corrigir agora e que o Giro não alcança; a justificativa diz por quê e quem acompanha. Validade de no máximo 90 dias: vencida, a auditoria volta a falhar. O PR que acrescenta a linha passa pela Segurança. A lista começa vazia.

@@ -23,7 +23,7 @@ def _continuar(passo: str) -> dict[str, str]:
 
 @pytest.fixture
 def essencial(monkeypatch):
-    # O Essencial não tem `recebimento_parceiro` (PLT-12); o recurso entra no enum na T-196.
+    # O Essencial não tem `recebimento_parceiro` (PLT-12): simulado sem trocar o plano.
     monkeypatch.setattr(plataforma_selectors, "assistente_tem_recebimentos", lambda _plano: False)
 
 

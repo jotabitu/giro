@@ -154,7 +154,7 @@ ITENS: dict[str, Item] = {
             "Conciliação",
             "conciliacao",
             lambda p: bool(p["financeiro_pagar"]),
-            Recurso.CONTAS_RECEBER,
+            Recurso.CONCILIACAO,
             modulo="conciliacao",  # fase 2 (FIN-11, FIN-12): fica fora com o financeiro ligado
         ),
         Item("relatorios", "Relatórios", None, _ve_painel, Recurso.RELATORIOS, None, "relatorios"),
@@ -433,8 +433,10 @@ def levando(usuario: Any) -> int:
 def da_empresa(empresa: Any, perfil: str, pode: Pode, *, levando: int = 0) -> dict[str, Any]:
     """A navegação de quem está na empresa: recursos do plano e a implantação (IMP-01)."""
     from apps.plataforma.models import UsoEmpresa
+    from apps.plataforma.selectors import recursos_para
 
     plano = getattr(empresa, "plano", None)
+    atividade = empresa_config.atividade()  # PLT-12: o ramo guardado
     passos = (
         UsoEmpresa.objects.filter(empresa=empresa)
         .values_list("passos_implantacao", flat=True)
@@ -443,8 +445,8 @@ def da_empresa(empresa: Any, perfil: str, pode: Pode, *, levando: int = 0) -> di
     return montar(
         perfil=perfil,
         pode=pode,
-        recursos=list(getattr(plano, "recursos", None) or []),
+        recursos=recursos_para(plano, atividade),  # `recursos_da_empresa` (ADR 0024, item 3)
         implantacao_concluida="primeira_locacao" in passos,
-        atividade=empresa_config.atividade(),  # PLT-12: o ramo guardado
+        atividade=atividade,
         levando=levando,
     )

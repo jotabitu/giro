@@ -68,6 +68,12 @@ export type CnhDoCliente = { numero: string; categoria: string; validade: string
 
 export type BloqueioDoCliente = { motivo: "atraso" | "manual"; desde: string; descricao: string; desbloqueia_sozinho: boolean };
 
+/** Resposta de desbloquear: 200 com o cliente, ou 202 quando o vendedor só pede (APR-05). */
+export type RespostaDoDesbloqueio = { status: 200; cliente: ClienteCompleto } | { status: 202; pedido: { id: number; tipo: string; status: string } };
+
+/** `detalhes` do 422 `cliente_com_pendencia` de inativar (CLI-09). */
+export type PendenciaDoCliente = { locacao_aberta: boolean; em_aberto_centavos: number; venda_aberta: boolean };
+
 /** Representação completa de GET /api/clientes/{id}/ (docs/api/clientes.md). Sem dado informado, o campo vem `null`. */
 export type ClienteCompleto = ClienteResumo & {
   documento: string;

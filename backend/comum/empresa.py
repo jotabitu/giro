@@ -5,7 +5,9 @@ Os valores de status são os do enum `plataforma.Empresa.Status`; um teste garan
 divergem. A configuração vem de uma função que o app `empresas` registra.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Any
 
 from django_tenants.utils import get_public_schema_name
@@ -52,6 +54,70 @@ def atividade() -> str:
     if _atividade is not None and conexao().schema_name != get_public_schema_name():
         return _atividade()
     return "ambos"
+
+
+# --- Módulos do plano (PLT-12, ADR 0024, item 2) ---
+
+_recursos: Callable[[], frozenset[str] | None] | None = None
+_recusa: Callable[[str], Exception] | None = None
+# A conta é feita uma vez por pedido (plano e ramo); fora de um pedido, a cada chamada.
+_do_pedido: ContextVar[dict[str, frozenset[str]] | None] = ContextVar(
+    "recursos_do_pedido", default=None
+)
+
+
+def registrar_recursos(
+    recursos: Callable[[], frozenset[str] | None], recusa: Callable[[str], Exception]
+) -> None:
+    """Chamado pelo `ready()` do app `plataforma`: os recursos ligados na empresa do schema atual
+    (`None` sem empresa) e o 403 `PLT-12` de um recurso desligado."""
+    global _recursos, _recusa
+    _recursos, _recusa = recursos, recusa
+
+
+def recursos() -> frozenset[str] | None:
+    """Os recursos ligados na empresa do schema atual; `None` no `public`, sem empresa ou sem a
+    função registrada (tudo ligado)."""
+    schema = conexao().schema_name
+    if _recursos is None or schema == get_public_schema_name():
+        return None
+    guardados = _do_pedido.get()
+    if guardados is not None and schema in guardados:
+        return guardados[schema]
+    ligados = _recursos()
+    if guardados is not None and ligados is not None:
+        guardados[schema] = ligados
+    return ligados
+
+
+def tem_recurso(recurso: str) -> bool:
+    """A porta dos apps de cima para a PLT-12, sem importar `plataforma`. No `public`, `True`."""
+    ligados = recursos()
+    return ligados is None or recurso in ligados
+
+
+def recusa_do_recurso(recurso: str) -> Exception:
+    """O 403 `PLT-12` do recurso desligado (`plataforma.md`, "Módulos por plano")."""
+    if _recusa is None:
+        raise RuntimeError("O app plataforma não registrou os recursos.")
+    return _recusa(recurso)
+
+
+def esquecer_recursos() -> None:
+    """O ramo ou o plano mudaram no meio do pedido: a próxima leitura conta de novo."""
+    guardados = _do_pedido.get()
+    if guardados is not None:
+        guardados.clear()
+
+
+@contextmanager
+def recursos_do_pedido() -> Iterator[None]:
+    """Guarda a conta dos recursos durante um pedido (`RecursosDoPedidoMiddleware`)."""
+    marca = _do_pedido.set({})
+    try:
+        yield
+    finally:
+        _do_pedido.reset(marca)
 
 
 # --- Marca da empresa (`docs/api/empresas.md`, T-129) ---

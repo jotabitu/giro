@@ -21,6 +21,7 @@ from config.settings.base import (
     GIRO_PROVEDOR_PAGAMENTOS,
     PEPPER_DE_EXEMPLO,
     REDIS_URL,
+    REST_FRAMEWORK,
     S3_BUCKET,
     S3_CHAVE_DE_ACESSO,
     S3_CHAVE_SECRETA,
@@ -55,6 +56,11 @@ SHOW_PUBLIC_IF_NO_TENANT_FOUND = False
 
 # Documentação da API fechada, salvo se o ambiente pedir (S-17).
 EXPOR_DOCUMENTACAO_DA_API = env.bool("GIRO_EXPOR_DOCUMENTACAO_DA_API", default=False)
+# Sem a API navegável do DRF: ela mostraria formulários e a descrição das views (S-17, T-160).
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,
+    "DEFAULT_RENDERER_CLASSES": ["comum.renderizacao.JSONRenderer"],
+}
 
 # Data simulada só no desenvolvimento (ADR 0021): um .env de desenvolvimento copiado para o
 # servidor não sobe.
