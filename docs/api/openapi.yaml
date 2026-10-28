@@ -7858,6 +7858,7 @@ components:
       - assinatura
       - auditoria
       - exportar
+      - suporte
       type: string
       description: |-
         * `marca` - marca
@@ -7871,6 +7872,7 @@ components:
         * `assinatura` - assinatura
         * `auditoria` - auditoria
         * `exportar` - exportar
+        * `suporte` - suporte
     Categoria:
       type: object
       properties:
@@ -17301,12 +17303,18 @@ components:
           format: date-time
         motivo:
           type: string
+        permissao_rotulo:
+          type: string
+        fim_rotulo:
+          type: string
       required:
       - acesso_suporte_id
       - fim
+      - fim_rotulo
       - motivo
       - nome
       - permissao
+      - permissao_rotulo
     SuporteDoEuPermissaoEnum:
       enum:
       - ver
