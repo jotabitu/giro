@@ -7,6 +7,8 @@
 - `veiculos.Categoria`: contador `locacoes_em_andamento` (LOC-15, aviso do preço novo).
 - `financeiro.ContaReceber`: bloco `locacao` (`veiculo_placa` e `forma_prevista`) da conta cuja
   origem é uma locação (contrato de financeiro, "Representação").
+- `financeiro.Reembolso`: bloco `locacao` (`id` e `veiculo`, "placa · marca modelo") pelo código
+  da origem, para o "Ver acerto" da tela `Reembolsos` (DEV-02, LOC-12).
 - `veiculos.Veiculo`: `rendeu_no_ano_centavos` no bloco `indicadores_financeiros` (VEI-05), as
   contas pagas das locações do veículo no ano, sem caução.
 - `veiculos.Veiculo:ficha`: `plano` e `pagamento` da locação atual, só na ficha (T-275).
@@ -22,6 +24,7 @@ from django.utils import timezone
 from apps.financeiro import selectors as financeiro_selectors
 from apps.financeiro.models import ContaReceber, StatusConta, TipoConta
 from comum import leituras, relogio
+from comum.documentos import placa_com_hifen
 
 from .models import ABERTAS, Locacao, Periodicidade, StatusLocacao
 
@@ -32,6 +35,7 @@ CLIENTE = "clientes.Cliente"
 FILIAL = "filiais.Filial"
 CATEGORIA = "veiculos.Categoria"
 CONTA = "financeiro.ContaReceber"
+REEMBOLSO = "financeiro.Reembolso"
 ORIGEM = "locacao"
 CAMPOS = {
     "id": "pk",
@@ -226,6 +230,46 @@ def montar_conta(conta: Any) -> dict[str, Any] | None:
     return {"veiculo_placa": linha["veiculo__placa"], "forma_prevista": linha["forma_pagamento"]}
 
 
+# --- financeiro.Reembolso ---
+
+CAMPOS_DO_REEMBOLSO = {
+    "id": "pk",
+    "placa": "veiculo__placa",
+    "marca": "veiculo__marca",
+    "modelo": "veiculo__modelo",
+}
+
+
+def anotar_reembolso(queryset: QuerySet[Any]) -> QuerySet[Any]:
+    """A locação pelo código da origem: na devolução (DEV-02) a origem é a devolução, que guarda
+    o código da locação; no cancelamento (LOC-12), a própria locação."""
+    da_origem = Locacao.objects.filter(codigo=OuterRef("origem_codigo"))
+    return queryset.annotate(  # type: ignore[no-any-return]
+        **{
+            f"loc_reembolso_{campo}": Subquery(da_origem.values(origem)[:1])
+            for campo, origem in CAMPOS_DO_REEMBOLSO.items()
+        }
+    )
+
+
+def montar_reembolso(reembolso: Any) -> dict[str, Any] | None:
+    if not reembolso.origem_codigo:
+        return None
+    if hasattr(reembolso, "loc_reembolso_id"):
+        linha = {c: getattr(reembolso, f"loc_reembolso_{c}") for c in CAMPOS_DO_REEMBOLSO}
+    else:
+        achada = (
+            Locacao.objects.filter(codigo=reembolso.origem_codigo)
+            .values(*CAMPOS_DO_REEMBOLSO.values())
+            .first()
+        )
+        linha = {c: achada[o] for c, o in CAMPOS_DO_REEMBOLSO.items()} if achada else {"id": None}
+    if linha["id"] is None:
+        return None
+    veiculo = f"{placa_com_hifen(linha['placa'])} · {linha['marca']} {linha['modelo']}"
+    return {"id": linha["id"], "veiculo": veiculo}
+
+
 # --- veiculos.Veiculo: o que rendeu (VEI-05) ---
 
 
@@ -336,6 +380,9 @@ MODULO = "locacoes_vistoria"
 
 def registrar() -> None:
     leituras.registrar_anotacao(CONTA, "locacao", anotar_conta, montar_conta, recurso=MODULO)
+    leituras.registrar_anotacao(
+        REEMBOLSO, "locacao", anotar_reembolso, montar_reembolso, recurso=MODULO
+    )
     leituras.registrar_anotacao(
         VEICULO, "indicadores_financeiros", anotar_rendimento, montar_rendimento, recurso=MODULO
     )

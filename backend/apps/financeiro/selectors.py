@@ -24,7 +24,7 @@ from apps.empresas.selectors import configuracao
 from apps.veiculos.selectors import frota_ativa_em
 from apps.veiculos.services import normalizar_placa
 from comum import arquivos, leituras
-from comum.dinheiro import aplicar_percentual, juros_pro_rata
+from comum.dinheiro import aplicar_percentual, formatar_reais, juros_pro_rata
 from comum.erros import ErroDeValidacao
 
 from .models import (
@@ -35,6 +35,8 @@ from .models import (
     Despesa,
     FormaMovimento,
     FormaPagamento,
+    FormaReembolso,
+    MotivoPendencia,
     MovimentoCaixa,
     OrigemTipo,
     PendenciaPagamento,
@@ -44,6 +46,9 @@ from .models import (
     StatusComissao,
     StatusConta,
     StatusDespesa,
+    StatusPendencia,
+    StatusReembolso,
+    TipoCobranca,
     TipoConta,
     TipoMovimento,
     texto_de_busca,
@@ -937,39 +942,283 @@ def despesas_a_pagar_ate(filiais: Iterable[int], dia: date) -> Soma:
 # --- Reembolsos e pendências ---
 
 
-def representacao_reembolso(reembolso: Reembolso) -> dict[str, Any]:
-    comprovante = None
-    if reembolso.comprovante:
-        assinada = arquivos.url_assinada(reembolso.comprovante.name)
-        comprovante = {"url": assinada.url, "url_expira_em": assinada.expira_em}
-    return {
-        "id": reembolso.pk,
-        "cliente": {"id": reembolso.cliente_id, "nome": reembolso.cliente.nome},
-        "origem": {
-            "tipo": reembolso.origem_tipo,
-            "id": reembolso.origem_id,
-            "codigo": reembolso.origem_codigo or None,
+REEMBOLSO = "financeiro.Reembolso"  # alvo das leituras compostas: `locacoes` dá locação e veículo
+# A origem guardada (ADR 0011) e o tipo e o rótulo da tela (`financeiro.md`, "Tela Reembolsos").
+ORIGENS_DO_REEMBOLSO: dict[str, tuple[str, str]] = {
+    OrigemTipo.DEVOLUCAO: ("devolucao", "Devolução com caução"),  # DEV-02
+    OrigemTipo.LOCACAO: ("cancelamento", "Locação cancelada antes da retirada"),  # LOC-12
+    "credito": ("credito", "Crédito de semanas"),  # LOC-13
+}
+STATUS_DOS_REEMBOLSOS = ("a_fazer", "feito", "todos")
+
+
+def _plural(quantidade: int, singular: str, plural: str) -> str:
+    return f"{quantidade} {singular if quantidade == 1 else plural}"
+
+
+def _entre_dias(campo: str, de: date, ate: date) -> Q:
+    """`campo` (data e hora em UTC) entre o começo de `de` e o fim de `ate`, no fuso da empresa."""
+    fuso = timezone.get_current_timezone()
+    inicio = datetime.combine(de, datetime.min.time(), tzinfo=fuso)
+    fim = datetime.combine(ate + timedelta(days=1), datetime.min.time(), tzinfo=fuso)
+    return Q(**{f"{campo}__gte": inicio, f"{campo}__lt": fim})
+
+
+def base_dos_reembolsos() -> QuerySet[Reembolso]:
+    return leituras.aplicar(REEMBOLSO, Reembolso.objects.select_related("cliente", "feito_por"))
+
+
+def _buscar_reembolsos(qs: QuerySet[Reembolso], termo: str) -> QuerySet[Reembolso]:
+    if not termo:
+        return qs
+    return qs.filter(Q(cliente__nome__icontains=termo) | Q(origem_codigo__icontains=termo))
+
+
+def lista_de_reembolsos(
+    escopo: QuerySet[Reembolso], params: Any, hoje: date
+) -> tuple[QuerySet[Reembolso], dict[str, Any]]:
+    """DEV-02, tela `Reembolsos`: as linhas pedidas e os extras (`indicadores`, `contagens`).
+
+    Os `a_fazer` não dependem do período; os `feito` contam pelo `feito_em` dentro dele. Os
+    indicadores ignoram a busca, e as contagens das abas a respeitam (como as despesas)."""
+    de, ate = periodo(params.get("periodo"), hoje)
+    a_fazer = Q(status="a_fazer")
+    feitos = Q(status="feito") & _entre_dias("feito_em", de, ate)
+    buscados = _buscar_reembolsos(escopo, termo_de_busca(params))
+    status = params.get("status")
+    filtro = {"feito": feitos, "todos": a_fazer | feitos}.get(str(status), a_fazer)
+    soma_a_fazer = escopo.filter(a_fazer).aggregate(
+        centavos=Coalesce(Sum("valor_centavos"), 0),
+        quantidade=Count("id"),
+        clientes=Count("cliente_id", distinct=True),
+    )
+    soma_feitos = escopo.filter(feitos).aggregate(
+        centavos=Coalesce(Sum("valor_centavos"), 0), quantidade=Count("id")
+    )
+    contagens = {
+        "a_fazer": buscados.filter(a_fazer).count(),
+        "feito": buscados.filter(feitos).count(),
+    }
+    contagens["todos"] = contagens["a_fazer"] + contagens["feito"]
+    return buscados.filter(filtro), {
+        "indicadores": {
+            "a_fazer": {
+                "valor_centavos": int(soma_a_fazer["centavos"]),
+                "quantidade": int(soma_a_fazer["quantidade"]),
+                "texto": _plural(
+                    int(soma_a_fazer["clientes"]),
+                    "cliente com devolução",
+                    "clientes com devolução",
+                ),
+            },
+            "feitos": {
+                "valor_centavos": int(soma_feitos["centavos"]),
+                "quantidade": int(soma_feitos["quantidade"]),
+                "texto": _plural(
+                    int(soma_feitos["quantidade"]), "reembolso feito", "reembolsos feitos"
+                ),
+            },
         },
-        "valor_centavos": reembolso.valor_centavos,
-        "forma": reembolso.forma,
-        "status": reembolso.status,
-        "feito_em": reembolso.feito_em,
-        "comprovante": comprovante,
+        "contagens": contagens,
     }
 
 
-def representacao_pendencia(pendencia: PendenciaPagamento) -> dict[str, Any]:
-    conta = pendencia.cobranca.conta_receber
+def representacao_reembolso(
+    reembolso: Reembolso, *, suporte: bool = False, pode_marcar: bool = False
+) -> dict[str, Any]:
+    """Um item da tela `Reembolsos`. Com o token de suporte, sem comprovante (AUD-09, M-02 da
+    T-384) e sem marcar feito (PLT-07). `origem.id` é a locação, para o "Ver acerto"; o bloco
+    `locacao` vem de `locacoes` (ADR 0015) e falta sem o módulo (PLT-12)."""
+    comprovante = None
+    if reembolso.comprovante and not suporte:
+        assinada = arquivos.url_assinada(reembolso.comprovante.name)
+        comprovante = {"url": assinada.url, "url_expira_em": assinada.expira_em}
+    tipo, rotulo = ORIGENS_DO_REEMBOLSO.get(
+        reembolso.origem_tipo, (reembolso.origem_tipo, OrigemTipo(reembolso.origem_tipo).label)
+    )
+    locacao = leituras.bloco(REEMBOLSO, "locacao", reembolso) or {}
+    status = StatusReembolso(reembolso.status)
+    feito_por = reembolso.feito_por
+    return {
+        "id": reembolso.pk,
+        "criado_em": reembolso.criado_em,
+        "cliente": {"id": reembolso.cliente_id, "nome": reembolso.cliente.nome},
+        "origem": {
+            "tipo": tipo,
+            "codigo": reembolso.origem_codigo or None,
+            "id": locacao.get("id"),
+            "veiculo": locacao.get("veiculo"),
+        },
+        "origem_rotulo": rotulo,
+        "motivo": reembolso.motivo,
+        "forma": reembolso.forma,
+        "forma_rotulo": FormaReembolso(reembolso.forma).label,
+        "valor_centavos": reembolso.valor_centavos,
+        "status": status.value,
+        "status_rotulo": status.label,
+        "feito_em": reembolso.feito_em,
+        "feito_por": {"id": feito_por.pk, "nome": feito_por.nome} if feito_por else None,
+        "comprovante": comprovante,
+        "acoes": {
+            "marcar_feito": status == StatusReembolso.A_FAZER and pode_marcar and not suporte
+        },
+    }
+
+
+MOTIVOS_DA_PENDENCIA = {
+    MotivoPendencia.VALOR_DIFERENTE: "Valor pago diferente",
+    MotivoPendencia.ESTORNADA_NO_PARCEIRO: "Estornada no parceiro",
+    MotivoPendencia.SEM_CONTA: "A conta já não estava aberta",
+}
+RESOLUCOES = {"baixar": "Baixada", "ignorar": "Ignorada"}
+STATUS_DAS_PENDENCIAS = ("aberta", "resolvida", "todas")
+
+
+def base_das_pendencias() -> QuerySet[PendenciaPagamento]:
+    """Com `resolvida_em`, a hora do evento `pendencia_pagamento.baixar` ou `.ignorar`."""
+    resolvida_em = (
+        EventoAuditoria.objects.filter(
+            objeto_tipo="pendenciapagamento",
+            objeto_id=OuterRef("pk"),
+            acao__in=[f"pendencia_pagamento.{acao}" for acao in RESOLUCOES],
+        )
+        .order_by("-ocorrido_em")
+        .values("ocorrido_em")[:1]
+    )
+    base = PendenciaPagamento.objects.select_related("cobranca__conta_receber__cliente")
+    return base.annotate(resolvida_em=Subquery(resolvida_em))  # type: ignore[no-any-return]
+
+
+def lista_de_pendencias(
+    todas: QuerySet[PendenciaPagamento], params: Any, hoje: date
+) -> tuple[QuerySet[PendenciaPagamento], dict[str, Any]]:
+    """AUT-05, tela `Pendências do pagamento`. As resolvidas do mês contam pela hora do evento
+    da resolução (`base_das_pendencias`). Indicadores sem a busca; contagens com."""
+    de, ate = periodo("mes", hoje)
+    termo = termo_de_busca(params)
+    buscadas = todas
+    if termo:
+        buscadas = todas.filter(
+            Q(cobranca__externo_id__icontains=termo)
+            | Q(cobranca__conta_receber__cliente__nome__icontains=termo)
+            | Q(cobranca__conta_receber__origem_codigo__icontains=termo)
+        )
+    abertas = todas.filter(status=StatusPendencia.ABERTA).aggregate(
+        centavos=Coalesce(Sum("valor_pago_centavos"), 0), quantidade=Count("id")
+    )
+    resolvidas = (
+        todas.filter(status=StatusPendencia.RESOLVIDA)
+        .filter(_entre_dias("resolvida_em", de, ate))
+        .aggregate(centavos=Coalesce(Sum("valor_pago_centavos"), 0), quantidade=Count("id"))
+    )
+    contagens = {s: buscadas.filter(status=s).count() for s in StatusPendencia.values}
+    contagens["todas"] = sum(contagens.values())
+    status = params.get("status")
+    if status != "todas":
+        buscadas = buscadas.filter(
+            status=status if status in StatusPendencia.values else StatusPendencia.ABERTA
+        )
+    return buscadas, {
+        "indicadores": {
+            "abertas": {
+                "quantidade": int(abertas["quantidade"]),
+                "valor_centavos": int(abertas["centavos"]),
+                "texto": f"{formatar_reais(int(abertas['centavos']))} em análise",
+            },
+            "resolvidas": {
+                "quantidade": int(resolvidas["quantidade"]),
+                "valor_centavos": int(resolvidas["centavos"]),
+                "texto": _plural(
+                    int(resolvidas["quantidade"]), "resolvida no mês", "resolvidas no mês"
+                ),
+            },
+        },
+        "contagens": contagens,
+    }
+
+
+def _parcela(conta: ContaReceber) -> str:
+    if conta.tipo == TipoConta.PARCELA and conta.numero_parcela and conta.total_parcelas:
+        return f"parcela {conta.numero_parcela} de {conta.total_parcelas}"
+    return TipoConta(conta.tipo).label.lower()
+
+
+def _detalhe_da_pendencia(pendencia: PendenciaPagamento, taxas: ConfiguracaoEmpresa) -> str:
+    """Texto pronto (a tela não faz conta). O valor da conta é o devido no dia da cobrança
+    (FIN-03), o mesmo pelo qual a baixa da pendência paga a conta."""
+    cobranca = pendencia.cobranca
+    conta = cobranca.conta_receber
+    pago = pendencia.valor_pago_centavos
+    if pendencia.motivo == MotivoPendencia.ESTORNADA_NO_PARCEIRO:
+        return (
+            f"O parceiro estornou o pagamento de "
+            f"{formatar_reais(pago if pago is not None else cobranca.valor_centavos)}."
+        )
+    pagou = f"Pagou {formatar_reais(pago or 0)}"
+    if pendencia.motivo == MotivoPendencia.SEM_CONTA:
+        return f"{pagou}, mas a conta já estava {StatusConta(conta.status).label.lower()}."
+    devido = devido_ate(conta, cobranca.dia_da_geracao(), taxas=taxas).total_centavos
+    diferenca = devido - (pago or 0)
+    texto = f"{pagou}; a conta estava em {formatar_reais(devido)}"
+    if diferenca > 0:
+        return f"{texto} (falta {formatar_reais(diferenca)})."
+    if diferenca < 0:
+        return f"{texto} ({formatar_reais(-diferenca)} a mais)."
+    return f"{texto}."
+
+
+def _resolucao(pendencia: PendenciaPagamento) -> dict[str, Any] | None:
+    """`resolucao` guarda "baixar: <motivo>" ou "ignorar: <motivo>" (`resolver_pendencia`)."""
+    if pendencia.status != StatusPendencia.RESOLVIDA or not pendencia.resolucao:
+        return None
+    acao, _, motivo = pendencia.resolucao.partition(": ")
+    rotulo = RESOLUCOES.get(acao)
+    texto = f"{rotulo}: {motivo}" if rotulo else pendencia.resolucao
+    em = getattr(pendencia, "resolvida_em", None) or pendencia.atualizado_em
+    return {"texto": texto, "em": em}
+
+
+def representacao_pendencia(
+    pendencia: PendenciaPagamento,
+    *,
+    suporte: bool = False,
+    taxas: ConfiguracaoEmpresa | None = None,
+) -> dict[str, Any]:
+    """Um item da tela `Pendências do pagamento`. Com o token de suporte, as ações são `false`
+    (PLT-07). No estorno e na conta que já não está aberta, só ignorar."""
+    cobranca = pendencia.cobranca
+    conta = cobranca.conta_receber
+    status = StatusPendencia(pendencia.status)
+    resolver = status == StatusPendencia.ABERTA and not suporte
     return {
         "id": pendencia.pk,
-        "motivo": pendencia.motivo,
-        "status": pendencia.status,
-        "valor_pago_centavos": pendencia.valor_pago_centavos,
-        "cobranca": representacao_cobranca(pendencia.cobranca),
-        "conta_id": conta.pk,
+        "criado_em": pendencia.criado_em,
+        "cobranca": {
+            "id_no_parceiro": cobranca.externo_id,
+            "forma": cobranca.tipo,
+            "forma_rotulo": TipoCobranca(cobranca.tipo).label,
+        },
         "cliente": {"id": conta.cliente_id, "nome": conta.cliente.nome},
-        "resolucao": pendencia.resolucao or None,
-        "criada_em": pendencia.criado_em,
+        "origem": {
+            "codigo": conta.origem_codigo or None,
+            "conta_id": conta.pk,
+            "parcela": _parcela(conta),
+        },
+        "motivo": pendencia.motivo,
+        "motivo_rotulo": MOTIVOS_DA_PENDENCIA.get(
+            MotivoPendencia(pendencia.motivo), pendencia.motivo
+        ),
+        "detalhe": _detalhe_da_pendencia(pendencia, taxas or configuracao()),
+        "valor_pago_centavos": pendencia.valor_pago_centavos,
+        "status": status.value,
+        "status_rotulo": status.label,
+        "resolucao": _resolucao(pendencia),
+        "acoes": {
+            "resolver": resolver,
+            "baixar": resolver
+            and pendencia.motivo != MotivoPendencia.ESTORNADA_NO_PARCEIRO
+            and conta.status == StatusConta.ABERTA,
+        },
     }
 
 

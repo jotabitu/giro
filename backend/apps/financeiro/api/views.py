@@ -20,6 +20,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 
+from apps.empresas.selectors import configuracao
 from apps.filiais.models import Filial
 from apps.filiais.selectors import filtrar_por_filial
 from apps.plataforma.models import ContaPagamento, Recurso
@@ -58,6 +59,8 @@ from .serializers import (
     LancamentoSerializer,
     ListaDeContasSerializer,
     ListaDeDespesasSerializer,
+    ListaDePendenciasPagamentoSerializer,
+    ListaDeReembolsosSerializer,
     LoteAceitoSerializer,
     LoteSerializer,
     MotivoFinanceiroSerializer,
@@ -65,10 +68,8 @@ from .serializers import (
     MovimentosSerializer,
     PagarDespesaSerializer,
     PendenciaPagamentoSerializer,
-    PendenciasPagamentoSerializer,
     ReceberSerializer,
     ReembolsoSerializer,
-    ReembolsosSerializer,
     RenegociarSerializer,
     ResolverPendenciaSerializer,
     SangriaSerializer,
@@ -357,23 +358,38 @@ class EstornarContaView(APIView):
 # --- Reembolsos ---
 
 
+def _suporte(request: Request) -> bool:
+    return bool(getattr(request.user, "e_suporte", False))
+
+
+def _reembolso_resposta(reembolso: Reembolso, request: Request) -> dict[str, Any]:
+    return selectors.representacao_reembolso(
+        reembolso, suporte=_suporte(request), pode_marcar=_perfil(request) in selectors.GERENCIAM
+    )
+
+
 class ReembolsosView(APIView):
     def get_permissions(self) -> Any:
         return [p() for p in GERENCIAM]
 
     @extend_schema(
-        responses=ReembolsosSerializer,
-        parameters=[OpenApiParameter("status", enum=["a_fazer", "feito"])],
-        summary="Devoluções ao cliente (DEV-02)",
+        responses=ListaDeReembolsosSerializer,
+        operation_id="financeiro_reembolsos_list",
+        parameters=[
+            OpenApiParameter("status", enum=list(selectors.STATUS_DOS_REEMBOLSOS)),
+            OpenApiParameter("periodo", enum=list(selectors.PERIODOS)),
+            OpenApiParameter("busca", str, description="nome do cliente ou código da origem"),
+        ],
+        summary="Devoluções ao cliente, com indicadores e contagens (DEV-02)",
     )
     def get(self, request: Request) -> Response:
-        qs = filtrar_por_filial(Reembolso.objects.select_related("cliente"), request)
-        if request.query_params.get("status") in ("a_fazer", "feito"):
-            qs = qs.filter(status=request.query_params["status"])
-        return envelope_sem_paginas(
-            ReembolsosSerializer(
-                {"resultados": [selectors.representacao_reembolso(r) for r in qs[:200]]}
-            ).data["resultados"]
+        escopo = filtrar_por_filial(selectors.base_dos_reembolsos(), request)
+        qs, extras = selectors.lista_de_reembolsos(escopo, request.query_params, relogio.hoje())
+        paginacao = PaginacaoPorCursor()
+        pagina = paginacao.paginate_queryset(qs, request, view=self) or []
+        return paginacao.get_paginated_response(
+            ReembolsoSerializer([_reembolso_resposta(r, request) for r in pagina], many=True).data,
+            extras=extras,
         )
 
 
@@ -399,30 +415,8 @@ class ReembolsoFeitoView(APIView):
         feito = services.marcar_reembolso_feito(
             reembolso, usuario=request.user, comprovante=comprovante
         )
-        return Response(ReembolsoSerializer(selectors.representacao_reembolso(feito)).data)
-
-
-# --- Pendências do webhook (S-14) ---
-
-
-class PendenciasView(APIView):
-    def get_permissions(self) -> Any:
-        return [p() for p in PAGAM]
-
-    @extend_schema(
-        responses=PendenciasPagamentoSerializer, summary="Pagamentos para conferir (S-14)"
-    )
-    def get(self, request: Request) -> Response:
-        qs = PendenciaPagamento.objects.select_related("cobranca__conta_receber__cliente").filter(
-            cobranca__conta_receber__filial_id__in=_filiais_do_escopo(request)
-        )
-        if request.query_params.get("status") in ("aberta", "resolvida"):
-            qs = qs.filter(status=request.query_params["status"])
-        return envelope_sem_paginas(
-            PendenciasPagamentoSerializer(
-                {"resultados": [selectors.representacao_pendencia(p) for p in qs[:200]]}
-            ).data["resultados"]
-        )
+        feito = selectors.base_dos_reembolsos().get(pk=feito.pk)
+        return Response(ReembolsoSerializer(_reembolso_resposta(feito, request)).data)
 
 
 def _filiais_do_escopo(request: Request) -> list[int]:
@@ -431,7 +425,50 @@ def _filiais_do_escopo(request: Request) -> list[int]:
     )
 
 
+# --- Pendências do webhook (S-14, AUT-05) ---
+# A empresa inteira, sem o `X-Filial`: a pendência vem do webhook, não de uma filial.
+
+
+def _pendencia_resposta(pendencia: PendenciaPagamento, request: Request, **extra: Any) -> Any:
+    return selectors.representacao_pendencia(pendencia, suporte=_suporte(request), **extra)
+
+
+class PendenciasView(APIView):
+    recurso_do_plano = Recurso.RECEBIMENTO_PARCEIRO  # PLT-12
+
+    def get_permissions(self) -> Any:
+        return [p() for p in PAGAM]
+
+    @extend_schema(
+        responses=ListaDePendenciasPagamentoSerializer,
+        operation_id="financeiro_pendencias_pagamento_list",
+        parameters=[
+            OpenApiParameter("status", enum=list(selectors.STATUS_DAS_PENDENCIAS)),
+            OpenApiParameter("periodo", enum=["mes"]),
+            OpenApiParameter(
+                "busca", str, description="id da cobrança no parceiro, cliente ou código da origem"
+            ),
+        ],
+        summary="Pagamentos para conferir, com indicadores e contagens (S-14, AUT-05)",
+    )
+    def get(self, request: Request) -> Response:
+        qs, extras = selectors.lista_de_pendencias(
+            selectors.base_das_pendencias(), request.query_params, relogio.hoje()
+        )
+        paginacao = PaginacaoPorCursor()
+        pagina = paginacao.paginate_queryset(qs, request, view=self) or []
+        taxas = configuracao()
+        return paginacao.get_paginated_response(
+            PendenciaPagamentoSerializer(
+                [_pendencia_resposta(p, request, taxas=taxas) for p in pagina], many=True
+            ).data,
+            extras=extras,
+        )
+
+
 class ResolverPendenciaView(APIView):
+    recurso_do_plano = Recurso.RECEBIMENTO_PARCEIRO  # PLT-12
+
     def get_permissions(self) -> Any:
         return [p() for p in PAGAM]
 
@@ -442,20 +479,14 @@ class ResolverPendenciaView(APIView):
     )
     def post(self, request: Request, pk: int) -> Response:
         dados = _entrada(ResolverPendenciaSerializer, request)
-        pendencia = PendenciaPagamento.objects.filter(
-            pk=pk, cobranca__conta_receber__filial_id__in=_filiais_do_escopo(request)
-        ).first()
+        pendencia = PendenciaPagamento.objects.filter(pk=pk).first()
         if pendencia is None:
             raise Http404
         resolvida = services.resolver_pendencia(
             pendencia, acao=dados["acao"], motivo=dados["motivo"]
         )
-        resolvida = PendenciaPagamento.objects.select_related(
-            "cobranca__conta_receber__cliente"
-        ).get(pk=resolvida.pk)
-        return Response(
-            PendenciaPagamentoSerializer(selectors.representacao_pendencia(resolvida)).data
-        )
+        resolvida = selectors.base_das_pendencias().get(pk=resolvida.pk)
+        return Response(PendenciaPagamentoSerializer(_pendencia_resposta(resolvida, request)).data)
 
 
 # --- Caixa do dia ---
