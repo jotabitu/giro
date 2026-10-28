@@ -90,6 +90,7 @@ RECURSO_DAS_ROTAS = {
     "api/vendas/": "vendas_comissoes",
     "api/financeiro/comissoes/": "vendas_comissoes",
     "api/manutencao/": "manutencao_despesas",
+    "api/recebimentos/": "recebimento_parceiro",
 }
 APPS_DE_MODULO = ("apps.locacoes.", "apps.vistorias.", "apps.vendas.", "apps.manutencao.")
 

@@ -6,11 +6,10 @@
   O próprio suporte nunca usa estas rotas (`suporte_proibido`).
 """
 
-from datetime import timedelta
 from typing import Any
 
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers, status
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.request import Request
@@ -20,12 +19,11 @@ from rest_framework.views import APIView
 from comum import relogio
 from comum.permissoes import com_padrao, exige_perfil
 
-from .. import services
+from .. import selectors, services
 from ..models import AcessoSuporte, Empresa, PermissaoSuporte, StatusAcessoSuporte
 from ..permissoes import exige_permissao
 
 SO_ADMINISTRADOR: list[type[BasePermission]] = com_padrao(exige_perfil("administrador"))
-JANELA_DA_LISTA = timedelta(days=90)
 
 
 class AbrirAcessoSerializer(serializers.Serializer[Any]):
@@ -41,18 +39,33 @@ class AcessoAbertoSerializer(serializers.Serializer[Any]):
     url_entrada = serializers.CharField()
 
 
+class AcoesDoAcessoSerializer(serializers.Serializer[Any]):
+    revogar = serializers.BooleanField()
+
+
 class AcessoDaListaSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     nome = serializers.CharField()
     motivo = serializers.CharField()
     permissao = serializers.ChoiceField(choices=PermissaoSuporte.choices)
+    permissao_rotulo = serializers.CharField()
     inicio = serializers.DateTimeField()
     fim = serializers.DateTimeField()
     status = serializers.ChoiceField(choices=StatusAcessoSuporte.choices)
+    status_rotulo = serializers.CharField()
+    acoes = AcoesDoAcessoSerializer()
+
+
+class ContagensDoSuporteSerializer(serializers.Serializer[Any]):
+    todos = serializers.IntegerField()
+    ativos = serializers.IntegerField()
+    encerrados = serializers.IntegerField()
 
 
 class SuporteDaEmpresaSerializer(serializers.Serializer[Any]):
     bloqueado = serializers.BooleanField()
+    situacao_rotulo = serializers.CharField()
+    contagens = ContagensDoSuporteSerializer()
     acessos = AcessoDaListaSerializer(many=True)
 
 
@@ -104,32 +117,6 @@ def _empresa(request: Request) -> Empresa:
     return empresa
 
 
-def _item(acesso: AcessoSuporte) -> dict[str, Any]:
-    return {
-        "id": acesso.pk,
-        "nome": acesso.usuario.nome,
-        "motivo": acesso.motivo,
-        "permissao": acesso.permissao,
-        "inicio": acesso.inicio,
-        "fim": acesso.fim,
-        "status": acesso.status,
-    }
-
-
-def _representacao(empresa: Empresa) -> dict[str, Any]:
-    with services.no_publico():
-        empresa.refresh_from_db(fields=["suporte_bloqueado"])
-        acessos = (
-            AcessoSuporte.objects.select_related("usuario")
-            .filter(empresa=empresa, inicio__gte=relogio.agora() - JANELA_DA_LISTA)
-            .order_by("-inicio")
-        )
-        return {
-            "bloqueado": empresa.suporte_bloqueado,
-            "acessos": [_item(a) for a in acessos],
-        }
-
-
 class ControleDoSuporte(APIView):
     permission_classes = SO_ADMINISTRADOR
     suporte_proibido = True  # o suporte não se libera nem se esconde
@@ -137,10 +124,15 @@ class ControleDoSuporte(APIView):
 
 class SuporteView(ControleDoSuporte):
     @extend_schema(
-        responses=SuporteDaEmpresaSerializer, summary="Acessos do suporte (últimos 90 dias)"
+        parameters=[
+            OpenApiParameter("situacao", str, enum=["todos", "ativos", "encerrados"]),
+        ],
+        responses=SuporteDaEmpresaSerializer,
+        summary="Acessos do suporte (últimos 90 dias), com contagens e rótulos (PLT-07)",
     )
     def get(self, request: Request) -> Response:
-        return Response(_representacao(_empresa(request)))
+        situacao = request.query_params.get("situacao")
+        return Response(selectors.controle_do_suporte(_empresa(request), situacao))
 
 
 class BloquearSuporteView(ControleDoSuporte):
@@ -185,4 +177,4 @@ class RevogarAcessoSuporteView(ControleDoSuporte):
             acesso = get_object_or_404(AcessoSuporte, pk=pk, empresa_id=_empresa(request).pk)
         acesso = services.revogar_acesso_suporte(acesso, dados.validated_data.get("motivo", ""))
         with services.no_publico():
-            return Response(_item(acesso))
+            return Response(selectors.item_do_acesso(acesso, relogio.agora()))

@@ -442,7 +442,9 @@ O `GET /api/suporte/` ganha o que a tela mostra, sem mudar o que já existe:
                  "status": "ativo", "status_rotulo": "Ativo agora", "acoes": { "revogar": true } } ] }
 ```
 
-- **Filtros:** `?situacao=todos|ativos|encerrados` (padrão `todos`). `encerrados` junta `encerrado` e `revogado`. As contagens não dependem do filtro.
+- **Filtros:** `?situacao=todos|ativos|encerrados` (padrão `todos`; valor desconhecido também vale `todos`). `encerrados` junta `encerrado` e `revogado`. As contagens não dependem do filtro. A lista vem do mais novo para o mais antigo.
+- **Acesso vencido (T-379):** o `ativo` com o `fim` já passado, antes de a `AUT-15` encerrá-lo, já vem como `encerrado` ("Encerrado", sem `revogar`) e conta em `encerrados`. O cartão de Configurações conta do mesmo jeito.
+- **Revogar** devolve o item no mesmo formato da lista.
 - **Rótulos:**
   - `status_rotulo`: "Ativo agora", "Encerrado" ou "Revogado".
   - `situacao_rotulo`: "Acesso do suporte liberado" ou "Acesso do suporte bloqueado".
@@ -451,7 +453,7 @@ O `GET /api/suporte/` ganha o que a tela mostra, sem mudar o que já existe:
 - **Botões:** "Bloquear suporte Giro" (com `bloqueado: false`) e "Liberar suporte Giro" (com `true`) chamam `bloquear/` e `liberar/`, com motivo opcional. A tela avisa antes de bloquear: "Revoga na hora qualquer acesso ativo".
 - **Os três blocos de explicação** da tela (dados protegidos, tempo limitado, auditoria) são texto fixo da tela. A tela troca "Cada clique, tela vista" por "Cada alteração": a auditoria registra as ações, não as telas vistas (`AUD-01`).
 - **Quem:** administrador. Token de suporte, 403 `PLT-07`. Auditoria: `suporte.bloquear`, `suporte.liberar` e `suporte.revogar` (já existem).
-- Testes: `test_plt_07_controle_do_suporte_contagens_e_filtro` e `test_plt_07_controle_do_suporte_sem_email_do_operador`.
+- Testes: `test_plt_07_controle_do_suporte_contagens_e_filtro`, `test_plt_07_controle_do_suporte_vencido_conta_como_encerrado` e `test_plt_07_controle_do_suporte_sem_email_do_operador` (T-379).
 
 ---
 

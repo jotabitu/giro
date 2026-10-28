@@ -5332,10 +5332,64 @@ paths:
           description: ''
         '422':
           description: '`PLT-12`: o plano não aceita, ou algo aberto'
+  /api/recebimentos/:
+    get:
+      operationId: recebimentos_retrieve
+      description: GET e POST /api/recebimentos/ (`plataforma.md`, "Recebimentos da
+        empresa").
+      summary: Situação dos recebimentos pelo parceiro (FIN-04)
+      tags:
+      - recebimentos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recebimentos'
+          description: ''
+    post:
+      operationId: recebimentos_create
+      description: GET e POST /api/recebimentos/ (`plataforma.md`, "Recebimentos da
+        empresa").
+      summary: Conectar os recebimentos pelo parceiro (FIN-04)
+      tags:
+      - recebimentos
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConectarRecebimentos'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ConectarRecebimentos'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ConectarRecebimentos'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recebimentos'
+          description: ''
   /api/suporte/:
     get:
       operationId: suporte_retrieve
-      summary: Acessos do suporte (últimos 90 dias)
+      summary: Acessos do suporte (últimos 90 dias), com contagens e rótulos (PLT-07)
+      parameters:
+      - in: query
+        name: situacao
+        schema:
+          type: string
+          enum:
+          - ativos
+          - encerrados
+          - todos
       tags:
       - suporte
       security:
@@ -6737,6 +6791,8 @@ components:
           type: string
         permissao:
           $ref: '#/components/schemas/PermissaoSuporteEnum'
+        permissao_rotulo:
+          type: string
         inicio:
           type: string
           format: date-time
@@ -6745,14 +6801,21 @@ components:
           format: date-time
         status:
           $ref: '#/components/schemas/AcessoDaListaStatusEnum'
+        status_rotulo:
+          type: string
+        acoes:
+          $ref: '#/components/schemas/AcoesDoAcesso'
       required:
+      - acoes
       - fim
       - id
       - inicio
       - motivo
       - nome
       - permissao
+      - permissao_rotulo
       - status
+      - status_rotulo
     AcessoDaListaStatusEnum:
       enum:
       - ativo
@@ -6870,6 +6933,13 @@ components:
       - iniciar
       - registrar_chegada
       - sair_parada
+    AcoesDoAcesso:
+      type: object
+      properties:
+        revogar:
+          type: boolean
+      required:
+      - revogar
     AcoesDoCaixa:
       type: object
       properties:
@@ -6939,6 +7009,13 @@ components:
       - registrar_km
       - transferir
       - voltar_para_frota
+    AcoesDosRecebimentos:
+      type: object
+      properties:
+        conectar:
+          type: boolean
+      required:
+      - conectar
     AcoesLocacao:
       type: object
       properties:
@@ -8590,6 +8667,51 @@ components:
       - contrato_assinado_em
       - primeiro_pagamento_em
       - vistoria_saida_ok_em
+    ConectarRecebimentos:
+      type: object
+      properties:
+        nome:
+          type: string
+          maxLength: 150
+        documento:
+          type: string
+          maxLength: 18
+        email:
+          type: string
+          format: email
+        celular:
+          type: string
+          maxLength: 20
+        cep:
+          type: string
+          maxLength: 9
+        logradouro:
+          type: string
+          maxLength: 150
+        numero:
+          type: string
+          maxLength: 20
+        complemento:
+          type: string
+          maxLength: 80
+        bairro:
+          type: string
+          maxLength: 80
+        faturamento_mensal_centavos:
+          type: integer
+        tipo_empresa:
+          $ref: '#/components/schemas/TipoEmpresaEnum'
+      required:
+      - bairro
+      - celular
+      - cep
+      - documento
+      - email
+      - faturamento_mensal_centavos
+      - logradouro
+      - nome
+      - numero
+      - tipo_empresa
     Configuracoes:
       type: object
       properties:
@@ -9068,6 +9190,19 @@ components:
       - aguardando_aprovacao
       - paga
       - recusada
+    ContagensDoSuporte:
+      type: object
+      properties:
+        todos:
+          type: integer
+        ativos:
+          type: integer
+        encerrados:
+          type: integer
+      required:
+      - ativos
+      - encerrados
+      - todos
     ContagensLocacoes:
       type: object
       properties:
@@ -16176,6 +16311,44 @@ components:
         * `dinheiro` - Dinheiro
         * `cartao_debito` - Débito
         * `cartao_credito` - Crédito
+    Recebimentos:
+      type: object
+      properties:
+        situacao:
+          $ref: '#/components/schemas/RecebimentosSituacaoEnum'
+        rotulo:
+          type: string
+        mensagem:
+          type: string
+        conectado_em:
+          type: string
+          format: date-time
+          nullable: true
+        sugestao:
+          allOf:
+          - $ref: '#/components/schemas/SugestaoDosRecebimentos'
+          nullable: true
+        acoes:
+          $ref: '#/components/schemas/AcoesDosRecebimentos'
+      required:
+      - acoes
+      - conectado_em
+      - mensagem
+      - rotulo
+      - situacao
+      - sugestao
+    RecebimentosSituacaoEnum:
+      enum:
+      - desconectado
+      - pendente
+      - aprovada
+      - recusada
+      type: string
+      description: |-
+        * `desconectado` - desconectado
+        * `pendente` - pendente
+        * `aprovada` - aprovada
+        * `recusada` - recusada
     Recibo:
       type: object
       properties:
@@ -17065,11 +17238,46 @@ components:
       - data
       - ja_cadastrado
       - nome
+    SugestaoDosRecebimentos:
+      type: object
+      properties:
+        nome:
+          type: string
+        documento:
+          type: string
+        email:
+          type: string
+        celular:
+          type: string
+        cep:
+          type: string
+        logradouro:
+          type: string
+        numero:
+          type: string
+        complemento:
+          type: string
+        bairro:
+          type: string
+      required:
+      - bairro
+      - celular
+      - cep
+      - complemento
+      - documento
+      - email
+      - logradouro
+      - nome
+      - numero
     SuporteDaEmpresa:
       type: object
       properties:
         bloqueado:
           type: boolean
+        situacao_rotulo:
+          type: string
+        contagens:
+          $ref: '#/components/schemas/ContagensDoSuporte'
         acessos:
           type: array
           items:
@@ -17077,6 +17285,8 @@ components:
       required:
       - acessos
       - bloqueado
+      - contagens
+      - situacao_rotulo
     SuporteDoEu:
       type: object
       properties:
@@ -17291,6 +17501,18 @@ components:
         * `ipva` - IPVA
         * `seguro` - Seguro
         * `rastreador` - Rastreador
+    TipoEmpresaEnum:
+      enum:
+      - MEI
+      - LIMITED
+      - INDIVIDUAL
+      - ASSOCIATION
+      type: string
+      description: |-
+        * `MEI` - MEI
+        * `LIMITED` - LIMITED
+        * `INDIVIDUAL` - INDIVIDUAL
+        * `ASSOCIATION` - ASSOCIATION
     TipoImportacaoEnum:
       enum:
       - veiculos

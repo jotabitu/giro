@@ -183,6 +183,16 @@ def endereco_resumo(filial: Filial) -> str:
     return f"{filial.logradouro}, {filial.numero} · {filial.cidade}, {filial.uf}"
 
 
+def endereco_da_matriz() -> dict[str, Any] | None:
+    """O endereço da matriz para a `sugestao` dos recebimentos (`plataforma.md`); `None` sem ela."""
+    matriz = (
+        Filial.objects.filter(matriz=True)
+        .values("cep", "logradouro", "numero", "complemento", "bairro")
+        .first()
+    )
+    return dict(matriz) if matriz is not None else None
+
+
 def representacao(filial: Filial) -> dict[str, Any]:
     return {
         "id": filial.pk,

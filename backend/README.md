@@ -77,7 +77,7 @@ Exemplo de model de domínio: `tests/app_exemplo/models.py` (instalado só nos t
 ```
 docker compose up -d backend worker beat
 docker compose run --rm --no-deps backend sh -c "ruff check . && ruff format --check . && mypy . && pytest -q"
-docker compose exec backend python manage.py createsuperuser   # no public: dono da plataforma
+docker compose exec backend python manage.py criar_dono_da_plataforma dono@exemplo.com --nome "Nome"   # 1º Dono: senha e código no terminal (T-383)
 docker compose exec backend python manage.py convidar_equipe_plataforma larissa@girolocadoras.com.br suporte --nome "Larissa Melo"
 docker compose exec backend python manage.py spectacular --urlconf config.urls_openapi --file /tmp/openapi.yaml --validate
 ```
