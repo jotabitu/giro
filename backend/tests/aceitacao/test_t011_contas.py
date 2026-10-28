@@ -1324,6 +1324,8 @@ def test_plt_07_ca_011_26_faixa_e_permissoes_do_suporte(
         "permissao": "ver",
         "fim": "2026-10-07T18:30:00Z",
         "motivo": "Chamado #1042",
+        "permissao_rotulo": "Só ver",
+        "fim_rotulo": "Expira às 15:30",
     }
     assert (corpo["perfil"], corpo["id"]) == ("administrador", None)
     assert corpo["filiais"] == [
@@ -1343,6 +1345,7 @@ def test_plt_07_ca_011_26_faixa_e_permissoes_do_suporte(
 
     # Rotas que o suporte nunca usa, em qualquer modo.
     editar, _ = _abrir_suporte(adm, equipe, permissao="ver_editar")
+    assert _get(editar, EU, adm.empresa).json()["suporte"]["permissao_rotulo"] == "Ver e editar"
     bruna = adm.pessoas["Bruna"].pk
     for api in (diego, editar):
         proibidas = [
