@@ -1,7 +1,9 @@
 """T-257 · Catálogo de marcas e modelos (VEI-08, ADR 0026, item 7).
 
 O catálogo é o `apps/veiculos/dados/catalogo_modelos.csv`, igual para todas as empresas. A rota
-roda na `empresa_a` com as pessoas do seed.
+roda na `empresa_a` com as pessoas do seed. Com a carga completa da T-374, os testes que contam
+modelos (ambíguos, a lista do Pop) rodam sobre a lista própria (`lista_propria`), que tem os nomes
+genéricos; o catálogo completo tem os testes dele em `test_t374_catalogo_completo.py`.
 """
 
 from collections.abc import Iterator
@@ -32,7 +34,15 @@ def catalogo_temporario(tmp_path, monkeypatch) -> Iterator[Path]:
     catalogo.modelos.cache_clear()
 
 
-def test_vei_08_catalogo_acha_modelo_unico() -> None:
+@pytest.fixture
+def lista_propria(monkeypatch) -> Iterator[None]:
+    monkeypatch.setattr(catalogo, "ARQUIVO", catalogo.ARQUIVO_PROPRIO)
+    catalogo.modelos.cache_clear()
+    yield
+    catalogo.modelos.cache_clear()
+
+
+def test_vei_08_catalogo_acha_modelo_unico(lista_propria) -> None:
     # O "HONDA/POP 110I ES" do crlv-tbc5h21.pdf (docs/qa/criterios/T-247.md).
     assert catalogo.achar_modelo("HONDA/POP 110I ES") == POP_ES
     assert catalogo.achar_modelo("honda / pop 110i es") == POP_ES
@@ -45,7 +55,7 @@ def test_vei_08_catalogo_acha_modelo_unico() -> None:
     assert catalogo.achar_modelo("RENAULT/KWID ZEN 1.0") == Modelo("Renault", "Kwid", "carro")
 
 
-def test_vei_08_catalogo_ambiguo_nao_preenche() -> None:
+def test_vei_08_catalogo_ambiguo_nao_preenche(lista_propria) -> None:
     assert catalogo.achar_modelo("HONDA/POP") is None  # Pop 110i e Pop 110i ES
     assert catalogo.achar_modelo("HONDA/CG 160") is None  # Cargo, Fan, Start e Titan
     assert catalogo.achar_modelo("RENAULT") is None  # só a marca não basta
@@ -71,7 +81,7 @@ def test_vei_08_catalogo_tem_os_modelos_do_seed_sem_duplicata() -> None:
     assert {m.tipo for m in no_arquivo} <= set(catalogo.TIPOS)
 
 
-def test_vei_08_lista_de_modelos_filtra(moto) -> None:
+def test_vei_08_lista_de_modelos_filtra(moto, lista_propria) -> None:
     for nome in ("Mariana", "Bruna", "João", "Lúcia"):  # todos veem veículos
         assert moto.api(nome).get("/api/veiculos/modelos/").status_code == 200, nome
     api = moto.api("Bruna")
