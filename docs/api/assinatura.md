@@ -186,7 +186,9 @@ Erros:
       "abertos_texto": "1 despesa aguardando aprovação e 2 despesas a pagar" } }
   ```
   A filial (1 de 1) cabe e não vem. Os pneus são a despesa aguardando aprovação; o IPVA ROE2A88 e a conta de luz, as a pagar; o óleo, o aluguel e os rastreadores já estão pagos (CA-ASS-15, T-223).
-- 422 `PLT-04` também quando um módulo que sai tem algo aberto (`PLT-12`, ADR 0024), com todos os impedimentos de uma vez, como a `FIL-06`:
+- 422 `PLT-04` também quando um módulo que sai tem algo aberto (`PLT-12`, ADR 0024), com todos os impedimentos de uma vez, como a `FIL-06`.
+  - **Fase 1** (decisão do dono de 25 out 2026, T-356 e T-377; T-400): a recusa confere só `despesas_aguardando_aprovacao` e `despesas_a_pagar`. Na fase 1, Manutenções, Vendas e Comissões não têm telas, então não há OS, venda nem comissão aberta para conferir. A recusa da fase 1 é a do exemplo da Moto Rápida acima (CA-ASS-15), sem OS.
+  - **Fase 2:** os grupos `ordens_servico`, `vendas` e `comissoes` entram na conferência junto com os módulos deles. O exemplo abaixo, com OS, vale a partir daí (CA-ASS-24):
   ```json
   { "codigo": "PLT-04",
     "mensagem": "Seu uso não cabe no plano Essencial. Resolva o que está aberto antes de mudar: 1 despesa a pagar e 1 OS aberta.",
@@ -197,7 +199,7 @@ Erros:
       ],
       "abertos_texto": "1 despesa a pagar e 1 OS aberta" } }
   ```
-  (CA-ASS-24). Grupos, na ordem: `despesas_aguardando_aprovacao` ("1 despesa aguardando aprovação", "{n} despesas aguardando aprovação"), `despesas_a_pagar` ("1 despesa a pagar", "{n} despesas a pagar"), `ordens_servico` ("1 OS aberta", "{n} OS abertas": OS fora de `concluida` e `cancelada`), `vendas` ("1 venda aberta", "{n} vendas abertas", `VEN-10`), `comissoes` ("1 comissão a pagar", "{n} comissões a pagar": ainda não `paga` nem `estornada`, `FIN-09`). Só vêm os grupos com quantidade maior que zero e dos módulos que saem (de Profissional ou Completo para Essencial: `manutencao_despesas` e `vendas_comissoes`; entre Profissional e Completo nenhum módulo sai). `abertos_texto` junta os `texto` com ", " e " e " antes do último. Com limite e módulo ao mesmo tempo, `detalhes` traz os dois (`veiculos`, `usuarios`, `filiais` e `abertos`) e a mensagem é "Seu uso não cabe no plano Essencial. Desative veículos ou usuários e resolva o que está aberto antes de mudar: {abertos_texto}." Quem conta é `plataforma.services.pendencias_dos_modulos` (ADR 0024, item 7). O grupo `locacoes` nunca vem aqui: nenhum plano tira `locacoes_vistoria` (ele é da troca de ramo, `empresas.md`).
+  (CA-ASS-24). Grupos, na ordem: `despesas_aguardando_aprovacao` ("1 despesa aguardando aprovação", "{n} despesas aguardando aprovação"), `despesas_a_pagar` ("1 despesa a pagar", "{n} despesas a pagar"); só a partir da fase 2: `ordens_servico` ("1 OS aberta", "{n} OS abertas": OS fora de `concluida` e `cancelada`), `vendas` ("1 venda aberta", "{n} vendas abertas", `VEN-10`), `comissoes` ("1 comissão a pagar", "{n} comissões a pagar": ainda não `paga` nem `estornada`, `FIN-09`). Só vêm os grupos com quantidade maior que zero e dos módulos que saem (de Profissional ou Completo para Essencial: `manutencao_despesas` e `vendas_comissoes`; entre Profissional e Completo nenhum módulo sai). `abertos_texto` junta os `texto` com ", " e " e " antes do último. Com limite e módulo ao mesmo tempo, `detalhes` traz os dois (`veiculos`, `usuarios`, `filiais` e `abertos`) e a mensagem é "Seu uso não cabe no plano Essencial. Desative veículos ou usuários e resolva o que está aberto antes de mudar: {abertos_texto}." Quem conta é `plataforma.services.pendencias_dos_modulos` (ADR 0024, item 7). O grupo `locacoes` nunca vem aqui: nenhum plano tira `locacoes_vistoria` (ele é da troca de ramo, `empresas.md`).
 - 422 `PLT-04` quando a atividade de hoje não é aceita no plano novo (`PLT-12`, ADR 0024, item 10, CA-ASS-52): empresa que só vende indo para o Essencial.
   ```json
   { "codigo": "PLT-04",
