@@ -14,8 +14,10 @@ from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
 
+from apps.auditoria.models import EventoAuditoria
 from apps.clientes import selectors as clientes_selectors
 from apps.clientes.models import Cliente
 from apps.contratos import selectors as contratos_selectors
@@ -30,11 +32,13 @@ from apps.veiculos import services as veiculos
 from apps.veiculos.models import Categoria as CategoriaVeiculo
 from apps.veiculos.models import Extra, StatusVeiculo, Veiculo
 from comum import aprovacoes, estados, relogio
-from comum.auditoria import Categoria, auditar
+from comum.auditoria import Categoria, auditar, registrar_evento
 from comum.dinheiro import dividir_em_parcelas, formatar_reais, proporcional
+from comum.empresa import nome_da_empresa
 from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, SemPermissao, TransicaoInvalida
 from comum.eventos import publicar
 from comum.permissoes import pode
+from integracoes.whatsapp import enviar_whatsapp
 
 from . import calculo, contrato, fim
 from .models import (
@@ -812,6 +816,81 @@ def marcar_devolucoes_atrasadas(agora: datetime | None = None) -> int:
             )
             marcadas += 1
     return marcadas
+
+
+# --- AUT-01: lembrete de devolução ---
+
+LEMBRETE_DE_DEVOLUCAO = "locacao.lembrar_devolucao"
+
+
+def endereco_da_devolucao(filial: Filial) -> str:
+    """O endereço do modelo 11 do WhatsApp: "Av. Bezerra de Menezes, 1200, São Gerardo,
+    Fortaleza"."""
+    partes = [filial.logradouro, filial.numero, filial.complemento, filial.bairro, filial.cidade]
+    return ", ".join(p for p in partes if p)
+
+
+def texto_do_lembrete(locacao: Locacao) -> str:
+    """Modelo `lembrete_devolucao` (`docs/qa/criterios/whatsapp.md`, modelo 11), com o horário
+    do fim previsto no fuso da filial."""
+    horario = locacao.fim_previsto.astimezone(ZoneInfo(fuso(locacao.filial)))
+    return (
+        f"Olá, {locacao.cliente.nome.split()[0]}. {nome_da_empresa()} informa: hoje é o dia da "
+        f"devolução da {locacao.codigo}, às {horario:%H:%M}, no endereço "
+        f"{endereco_da_devolucao(locacao.filial)}. Para mudar o horário, ligue para a loja."
+    )
+
+
+def _ja_lembrada(locacao: Locacao) -> bool:
+    return EventoAuditoria.objects.filter(
+        objeto_tipo="locacao", objeto_id=locacao.pk, acao=LEMBRETE_DE_DEVOLUCAO
+    ).exists()
+
+
+def lembrar_devolucoes(agora: datetime | None = None) -> int:
+    """AUT-01 (08:00): o lembrete à locação `ativa` com o fim previsto hoje, no fuso da filial.
+    Pelo WhatsApp quando o cliente tem celular; sem celular, pelo e-mail, com o mesmo texto
+    ("Mensagens pelo WhatsApp", queda para o e-mail). Sem os dois, nada sai, e o evento guarda o
+    canal vazio. Uma vez por locação: o evento `locacao.lembrar_devolucao` marca a lembrada, e a
+    renovação que muda o fim não lembra de novo. Devolve quantas foram lembradas."""
+    agora = agora or relogio.agora()
+    lembradas = 0
+    candidatas = Locacao.objects.filter(
+        status=S.ATIVA,
+        fim_previsto__gte=agora - timedelta(days=1),
+        fim_previsto__lt=agora + timedelta(days=2),
+    ).values_list("pk", flat=True)
+    for pk in candidatas:
+        with transaction.atomic():
+            travada = _travar(pk)
+            filial = travada.filial
+            if travada.status != S.ATIVA or _ja_lembrada(travada):
+                continue
+            if data_local(travada.fim_previsto, filial) != data_local(agora, filial):
+                continue
+            cliente = travada.cliente
+            texto = texto_do_lembrete(travada)
+            canal = ""
+            if cliente.celular:
+                enviar_whatsapp(cliente.celular, texto)
+                canal = "whatsapp"
+            elif cliente.email:
+                send_mail(
+                    subject=f"{nome_da_empresa()}: lembrete de devolução",
+                    message=texto,
+                    from_email=financeiro.remetente(),
+                    recipient_list=[cliente.email],
+                )
+                canal = "email"
+            registrar_evento(
+                LEMBRETE_DE_DEVOLUCAO,
+                Categoria.OPERACAO,
+                objeto=travada,
+                depois={"canal": canal},
+                regra="AUT-01",
+            )
+            lembradas += 1
+    return lembradas
 
 
 # --- Renovação (LOC-08, LOC-15) ---
