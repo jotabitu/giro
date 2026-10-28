@@ -251,9 +251,14 @@ def registrar_suporte(funcao: ConferenciaDeSuporte) -> None:
 def emitir_token_suporte(
     *, acesso_suporte_id: int, permissao: str, fim: datetime, schema: str, empresa_id: int
 ) -> TokenSuporte:
-    """Emitido no `public` para a empresa do acesso: o token vence no `fim`."""
+    """Emitido no `public` para a empresa do acesso: o token vence no `fim`.
+
+    O `fim` está no relógio do Giro e o `exp`, no do simplejwt (o real), como nos tokens do login.
+    Com a data simulada (ADR 0021) os dois diferem: o `exp` leva só o tempo que falta até o `fim`
+    (T-405), e o `fim` continua conferido a cada requisição pelo relógio do Giro.
+    """
     token = TokenSuporte()
-    token.set_exp(lifetime=fim - token.current_time)
+    token.set_exp(lifetime=fim - relogio.agora())
     token[CLAIM_SCHEMA] = schema
     token[CLAIM_EMPRESA] = empresa_id
     token[CLAIM_ACESSO_SUPORTE] = acesso_suporte_id
