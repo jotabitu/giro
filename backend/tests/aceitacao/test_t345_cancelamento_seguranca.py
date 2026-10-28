@@ -188,8 +188,10 @@ def _forma(moto: Any) -> FormaPagamentoAssinatura:  # noqa: F811
 
 
 def _cartao_com_autorizacao(moto: Any, relogio: Any) -> str:  # noqa: F811
-    """O cartão guardado e uma autorização do Pix ainda ativa no parceiro (a forma trocada)."""
+    """O cartão guardado e uma autorização do Pix ainda ativa no parceiro (a forma trocada), na
+    empresa já `cancelada`, como fica quando a tarefa roda (a reativada fica com a forma, T-365)."""
     _ativa_com_cartao(moto, relogio)
+    moto.estado(status="cancelada")
     autorizacao = "aut_falso_t345"
     pagamentos.autorizacoes[autorizacao] = Autorizacao(autorizacao, "ativa")
     FormaPagamentoAssinatura.objects.filter(empresa=moto.empresa).update(

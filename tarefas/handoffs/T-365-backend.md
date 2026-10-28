@@ -22,8 +22,8 @@
 **Contrato:** sem rota nova; `assinatura.md`, "Mudança de ciclo e reativação pela equipe", e `plataforma.md`, "Faturas de todas as empresas". O OpenAPI não muda.
 
 **Regras cobertas:** PLT-06, AUD-08. Testes:
-- `test_plt_06_reativar_so_com_atrasada_paga` (CA-ASS-46): era `xfail` e agora é teste comum;
-- `test_plt_06_reativar_no_periodo_pago` (CA-ASS-49);
+- `test_plt_06_reativar_so_com_atrasada_paga` (CA-ASS-46): era `xfail` e agora é teste comum. A descrição esperada mudou para a forma da `PLT-14` no mesmo mês ("Plano Profissional · 01 a 31 dez"); o CA-ASS-46 escreve "01 dez a 31 dez", e a divergência ficou como `[decisão]` no backlog para o produto;
+- `test_plt_06_reativar_no_periodo_pago` (CA-ASS-49): sem forma depois do cancelamento, a 2ª via da diferença sai pelo "Pagar" com `meio`;
 - `test_plt_06_reativar_audita_nos_dois_lugares`, `test_plt_06_reativar_recusas`;
 - `test_aud_08_reativar_recusa_o_apagamento_comecado`, `test_aud_08_reativada_perde_o_aviso_do_apagamento`;
 - `test_plt_06_reativada_antes_do_fim_da_forma_fica_com_ela`;

@@ -737,7 +737,9 @@ def test_plt_06_reativar_so_com_atrasada_paga(moto, relogio, django_capture_on_c
     """CA-ASS-46: `inadimplente` com a FAT-0001 `atrasada`, cancelada em 25 out; em 01 dez a equipe
     tenta reativar e recebe 409 `fatura_em_atraso` ("Receba a fatura em atraso antes de reativar.");
     paga a FAT-0001 pela 2ª via e reativada em 01 dez, vira `ativa`, com a FAT-0002 de R$ 449,00
-    vencendo em 01 dez ("Plano Profissional · 01 dez a 31 dez") e as seguintes todo dia 1."""
+    vencendo em 01 dez e as seguintes todo dia 1. A descrição segue a PLT-14 no mesmo mês
+    ("Plano Profissional · 01 a 31 dez"); o CA-ASS-46 escreve "01 dez a 31 dez" ([decisão] no
+    backlog)."""
     services.escolher_forma_pagamento(moto.recarregar(), "boleto")
     _gerar(relogio, "2026-10-17", django_capture_on_commit_callbacks)
     _virar(relogio, "2026-10-23")
@@ -763,7 +765,7 @@ def test_plt_06_reativar_so_com_atrasada_paga(moto, relogio, django_capture_on_c
         44900,
         date(2026, 12, 1),
     )
-    assert nova.descricao == "Plano Profissional · 01 dez a 31 dez"
+    assert nova.descricao == "Plano Profissional · 01 a 31 dez"
 
 
 # --- Pausar (CA-ASS-35 a 37, 42) ---

@@ -75,8 +75,10 @@ def test_plt_06_reativar_no_periodo_pago(moto, relogio, django_capture_on_commit
     _em(relogio, "2026-11-15")
     assert _recusa(moto) == ("fatura_em_atraso", "Receba a fatura em atraso antes de reativar.")
     assert _status(moto) == "cancelada"
-    pagamentos.simular_pagamento(diferenca.cobranca_externa_id or "")
-    assert _baixar(diferenca.cobranca_externa_id, "evt-fat-0002-2via") == "baixada"
+    # Sem forma depois do cancelamento, a 2ª via sai pelo "Pagar" com o meio (CA-ASS-27).
+    segunda_via = services.pagar_fatura(moto.recarregar(), "FAT-0002", "boleto")
+    pagamentos.simular_pagamento(segunda_via.cobranca_externa_id or "")
+    assert _baixar(segunda_via.cobranca_externa_id, "evt-fat-0002-2via") == "baixada"
     services.reativar_empresa(moto.recarregar(), motivo=MOTIVO)
 
     empresa = moto.recarregar()
@@ -247,6 +249,8 @@ def test_plt_06_so_o_dono_reativa_no_admin(moto, relogio, equipe):
     resposta = navegador.get(EMPRESAS_NO_ADMIN)
     connection.set_schema_to_public()
     assert resposta.status_code == 200
-    assert "reativar" not in dict(resposta.context["action_form"].fields["action"].choices)
+    # Sem nenhuma ação permitida, o Admin nem mostra o seletor.
+    seletor = resposta.context["action_form"]
+    assert seletor is None or "reativar" not in dict(seletor.fields["action"].choices)
     _acao(navegador, moto.empresa.pk, MOTIVO)
     assert _status(moto) == "cancelada"
