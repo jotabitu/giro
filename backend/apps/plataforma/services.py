@@ -1391,6 +1391,11 @@ def _atividade_da_empresa(empresa: Empresa) -> str:
         return comum_empresa.atividade()
 
 
+# Na fase 1 (PLT-12, T-356), a recusa do downgrade confere só as despesas; os outros grupos
+# (OS, vendas e comissões) entram quando os módulos existirem. A troca de ramo não muda.
+GRUPOS_DO_DOWNGRADE = frozenset({"despesas_aguardando_aprovacao", "despesas_a_pagar"})
+
+
 def excede_no_plano(empresa: Empresa, plano: Plano, uso: UsoEmpresa) -> dict[str, Any]:
     """O que não cabe em `plano` (PLT-03, PLT-04, PLT-12): a atividade que o plano não aceita, os
     itens acima do limite (86 de 30) e o que está aberto nos módulos que saem (ADR 0024, itens 7
@@ -1408,7 +1413,11 @@ def excede_no_plano(empresa: Empresa, plano: Plano, uso: UsoEmpresa) -> dict[str
         if limite is not None and usado > limite:
             excede[item] = {"usado": usado, "limite": limite}
     saem = recursos_para(empresa.plano, atividade) - recursos_para(plano, atividade)
-    abertos = pendencias_dos_modulos(empresa, saem)
+    abertos = [
+        grupo
+        for grupo in pendencias_dos_modulos(empresa, saem)
+        if grupo["grupo"] in GRUPOS_DO_DOWNGRADE
+    ]
     if abertos:
         excede["abertos"] = abertos
         excede["abertos_texto"] = _juntar([grupo["texto"] for grupo in abertos], "e")
@@ -2410,9 +2419,9 @@ def destinatarios_da_cobranca(empresa: Empresa) -> list[str]:
 
 
 def texto_do_que_excede(excede: Mapping[str, Any]) -> str:
-    """O motivo do downgrade recusado, para o e-mail: "11 de 10 usuários e 1 OS aberta"."""
-    partes = ["a empresa só vende"] if "atividade" in excede else []
-    partes += [
+    """Os limites e os abertos do downgrade recusado, sem a atividade (CA-ASS-71): "11 de 10
+    usuários e 1 OS aberta"."""
+    partes = [
         f"{excede[item]['usado']} de {excede[item]['limite']} {Item(item).label}"
         for item in Item.values
         if item in excede
@@ -2420,6 +2429,21 @@ def texto_do_que_excede(excede: Mapping[str, Any]) -> str:
     if excede.get("abertos_texto"):
         partes.append(str(excede["abertos_texto"]))
     return _juntar(partes, "e")
+
+
+def motivo_do_downgrade_recusado(excede: Mapping[str, Any], plano: str) -> str:
+    """O motivo da 1ª linha do e-mail (CA-ASS-71): a lista, a atividade ou os dois."""
+    atividade = (
+        f"o plano {plano} não inclui vendas, e a empresa hoje só vende. "
+        "Para mudar, ela precisa alugar."
+    )
+    lista = texto_do_que_excede(excede)
+    if not lista and "atividade" in excede:
+        return f"mas {atividade}"
+    motivo = f"mas o uso de hoje não cabe nele: {lista}."
+    if "atividade" in excede:
+        motivo += f" Além disso, {atividade}"
+    return motivo
 
 
 def _recusar_downgrade_agendado(
