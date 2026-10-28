@@ -788,6 +788,9 @@ def configuracoes(usuario: Any, suporte: bool) -> dict[str, Any]:
             "teste_fim": (assinatura["teste"] or {}).get("fim"),
             "pausada_ate": empresa.pausada_ate,
         },
+        suporte=(
+            plataforma_selectors.situacao_do_suporte(empresa) if "suporte" in visiveis else None
+        ),
     )
     # O `proximo` do assistente sai dos passos já lidos, sem ler o `public` de novo (T-340).
     passos = plataforma_selectors.implantacao(empresa)["passos"]
