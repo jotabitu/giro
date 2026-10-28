@@ -1763,6 +1763,17 @@ TODOS_OS_MODULOS = [
     "vistorias",
 ]
 ADMINISTRACAO = ["config", "marca", "filiais", "usuarios", "assinatura", "auditoria"]
+# Administrador e financeiro no Profissional (com `recebimento_parceiro`, PLT-12; T-404).
+FINANCEIRO_DE_QUEM_PAGA = [
+    "caixa",
+    "receber",
+    "despesas",
+    "reembolsos",
+    "pendencias_pagamento",
+    "comissoes",
+    "conciliacao",
+    "relatorios",
+]
 
 
 def _chaves(menu: list[dict[str, Any]]) -> list[tuple[str | None, list[str]]]:
@@ -1785,7 +1796,7 @@ def test_usr_05_usr_08_navegacao_por_perfil(adm, settings):
     assert _chaves(mariana["menu_completo"]) == [
         (None, ["inicio", "aprovacoes", "veiculos"]),
         ("Operação", ["locacoes", "vendas", "clientes", "manutencoes"]),
-        ("Financeiro", ["caixa", "receber", "despesas", "comissoes", "conciliacao", "relatorios"]),
+        ("Financeiro", FINANCEIRO_DE_QUEM_PAGA),
         ("Administração", ADMINISTRACAO),
     ]
     assert mariana["menu_inicio"] == mariana["menu_completo"]
@@ -1809,7 +1820,7 @@ def test_usr_05_usr_08_navegacao_por_perfil(adm, settings):
     assert _chaves(rodrigo["menu_completo"]) == [
         (None, ["inicio", "aprovacoes", "veiculos"]),
         ("Operação", ["locacoes", "vendas", "clientes", "manutencoes"]),
-        ("Financeiro", ["caixa", "receber", "despesas", "relatorios"]),
+        ("Financeiro", ["caixa", "receber", "despesas", "reembolsos", "relatorios"]),
     ]
     assert rodrigo["menu_completo"][2]["itens"][2]["contador"] == "despesas"  # aprova despesas
     assert rodrigo["menu_completo"][0]["itens"][0]["rotulo"] == "Visão da filial"
@@ -1849,7 +1860,7 @@ def test_usr_05_usr_08_navegacao_por_perfil(adm, settings):
     assert _chaves(lucia["menu_completo"]) == [
         (None, ["inicio", "veiculos"]),
         ("Operação", ["clientes"]),
-        ("Financeiro", ["caixa", "receber", "despesas", "comissoes", "conciliacao", "relatorios"]),
+        ("Financeiro", FINANCEIRO_DE_QUEM_PAGA),
     ]
     assert lucia["menu_completo"][0]["itens"][0]["rotulo"] == "Início"
     assert lucia["barra_celular"] == ["inicio", "veiculos", "mais"]
@@ -1909,14 +1920,15 @@ def test_usr_05_plano_atividade_e_modulos_escondem_itens(adm, settings, planos):
     assert mariana["barra_celular"] == ["inicio", "mais"]
 
     # Plano Essencial: sem vendas, manutenção e despesas, comissões, conciliação nem relatórios
-    # (CA-ASS-22; a conciliação tem recurso próprio desde a T-196).
+    # (CA-ASS-22; a conciliação tem recurso próprio desde a T-196). Reembolsos ficam (locação e
+    # vistoria); as pendências do pagamento, não (sem `recebimento_parceiro`, T-404).
     settings.GIRO_MODULOS_ATIVOS = TODOS_OS_MODULOS
     adm.empresa.plano = planos["Essencial"]
     adm.empresa.save(update_fields=["plano"])
     assert _chaves(_navegacao(adm, "Mariana")["menu_completo"]) == [
         (None, ["inicio", "aprovacoes", "veiculos"]),
         ("Operação", ["locacoes", "clientes"]),
-        ("Financeiro", ["caixa", "receber"]),
+        ("Financeiro", ["caixa", "receber", "reembolsos"]),
         ("Administração", ADMINISTRACAO),
     ]
 
