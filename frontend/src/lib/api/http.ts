@@ -26,10 +26,39 @@ const MSG_GENERICA = "Não foi possível concluir agora. Tente de novo.";
 let access: string | null = null;
 let filial: string | null = null;
 let renovando: Promise<string> | null = null;
+let suporte = false;
 const ouvintes = new Set<() => void>();
+const ouvintesDoSuporte = new Set<() => void>();
 
 export function definirAccess(token: string | null) {
   access = token;
+  suporte = false;
+}
+
+/**
+ * Guarda o token de suporte (PLT-07, ADR 0013) só em memória. Ele não tem refresh: um 401 não tenta `auth/renovar/`,
+ * apaga o token e avisa quem escuta em `aoTerminarSuporte`.
+ */
+export function definirAccessDeSuporte(token: string) {
+  access = token;
+  suporte = true;
+}
+
+export function emModoSuporte(): boolean {
+  return suporte && access !== null;
+}
+
+/** Avisa quando o acesso de suporte acabou no meio do uso (401 do token de suporte). */
+export function aoTerminarSuporte(ouvinte: () => void): () => void {
+  ouvintesDoSuporte.add(ouvinte);
+  return () => ouvintesDoSuporte.delete(ouvinte);
+}
+
+function terminouSuporte() {
+  access = null;
+  filial = null;
+  suporte = false;
+  ouvintesDoSuporte.forEach((o) => o());
 }
 
 /** Filial escolhida no seletor (`"todas"` ou o id), enviada em `X-Filial` (docs/api/filiais.md). `null` = sem cabeçalho. */
@@ -131,6 +160,13 @@ export function renovarAccess(): Promise<string> {
 export async function chamarComStatus<T>(metodo: string, caminho: string, o: OpcoesDaChamada = {}): Promise<{ status: number; dados: T }> {
   const token = o.semSessao ? null : (o.token ?? access);
   let r = await enviar(metodo, caminho, o, token);
+
+  // Token de suporte não tem refresh: qualquer 401 encerra o modo suporte, sem renovar (PLT-07).
+  if (r.status === 401 && suporte && !o.semSessao && !o.token && !o.comCookie && token === access) {
+    const erro = await lerErro(r);
+    terminouSuporte();
+    throw erro;
+  }
 
   // Access vencido (5 min): renova uma vez e repete. Token passado à mão (pré-2 etapas) não renova.
   if (r.status === 401 && !o.semSessao && !o.token && !o.comCookie) {

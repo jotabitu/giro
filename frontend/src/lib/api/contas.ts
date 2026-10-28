@@ -1,6 +1,6 @@
 // Contas na API real (docs/api/contas.md, T-011 e T-072): login, 2 etapas, renovação, sair, convite e senha.
-import { chamar, definirAccess, definirFilial, http, renovarAccess } from "./http";
-import type { Aparelho, Configurar2fa, Convite, Eu, RespostaEntrar } from "./tipos";
+import { chamar, definirAccess, definirAccessDeSuporte, definirFilial, http, renovarAccess } from "./http";
+import { ErroApi, type Aparelho, type Configurar2fa, type Convite, type Eu, type RespostaEntrar } from "./tipos";
 
 /** Guarda o access de quem terminou o login (o refresh já foi para o cookie). */
 function guardar(r: RespostaEntrar): RespostaEntrar {
@@ -42,6 +42,27 @@ export const contasApi = {
       definirAccess(null);
       definirFilial(null);
     }
+  },
+
+  /** Guarda o token do link de suporte só em memória (sem refresh) e lê quem é (`eu.suporte`). Se falhar, o token não fica. */
+  async entrarComoSuporte(token: string): Promise<Eu> {
+    definirAccessDeSuporte(token);
+    try {
+      const eu = await chamar<Eu>("GET", "/api/auth/eu/", { semFilial: true });
+      // Token de outra natureza (ex.: o link trouxe um access comum): não é modo suporte, e não fica na memória.
+      if (!eu.suporte) throw new ErroApi(401, "PLT-07", "O acesso de suporte terminou");
+      return eu;
+    } catch (e) {
+      definirAccess(null);
+      throw e;
+    }
+  },
+
+  /** Encerra o próprio acesso de suporte (204) e apaga o token da memória. Um 401 já apagou o token no cliente HTTP. */
+  async sairDoSuporte(): Promise<void> {
+    await http.post<void>("/api/auth/suporte/sair/");
+    definirAccess(null);
+    definirFilial(null);
   },
 
   consultarConvite(corpo: { token: string }): Promise<Convite> {
