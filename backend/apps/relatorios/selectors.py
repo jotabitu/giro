@@ -214,6 +214,9 @@ CONTADORES: dict[str, Callable[[Any, Escopo], int | None]] = {
     "avarias": lambda u, e: (
         vistorias_selectors.avarias_abertas().filter(veiculo__filial_id__in=e.filiais).count()
     ),
+    # T-358: os reembolsos pela filial de origem; as pendências do pagamento, da empresa toda.
+    "reembolsos": lambda u, e: financeiro_selectors.reembolsos_a_fazer(e.filiais).count(),
+    "pendencias_pagamento": lambda u, e: financeiro_selectors.pendencias_abertas().count(),
 }
 
 

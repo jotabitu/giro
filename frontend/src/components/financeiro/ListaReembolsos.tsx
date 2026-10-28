@@ -146,8 +146,8 @@ export function ListaReembolsos() {
 
       <section className="wl-panel" aria-label="Reembolsos">
         <div className="mb-5 flex flex-wrap items-center gap-3">
-          <SegmentedControl rotulo="Situação" opcoes={abas} valor={aba} aoMudar={(v) => definir({ aba: v === "a_fazer" ? null : v })} />
-          <div className="ml-auto w-full md:w-[240px] [&_.wl-search]:!w-full">
+          <div className="max-w-full [&_.wl-seg]:max-w-full [&_.wl-seg_button]:whitespace-nowrap [&_.wl-seg_button]:px-3 md:[&_.wl-seg_button]:px-[18px]"><SegmentedControl rotulo="Situação" opcoes={abas} valor={aba} aoMudar={(v) => definir({ aba: v === "a_fazer" ? null : v })} /></div>
+          <div className="ml-auto w-full md:w-[300px] [&_.wl-search]:!w-full">
             <SearchField placeholder="Buscar cliente ou locação" aria-label="Buscar reembolso" value={busca} onChange={(e) => setBusca(e.target.value)} />
           </div>
         </div>

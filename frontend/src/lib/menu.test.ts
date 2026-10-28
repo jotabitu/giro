@@ -197,3 +197,12 @@ describe("guarda de rota: o que o menu do perfil não mostra (D-26, USR-09)", ()
     }
   });
 });
+
+describe("controle do suporte em Configurações", () => {
+  it("plt_suporte_rota: /admin/suporte abre para o administrador e não para os outros perfis", async () => {
+    expect(rotaPermitida(await euDe("mariana@motorapida.com.br"), "/admin/suporte")).toBe(true);
+    for (const email of ["rodrigo@motorapida.com.br", "financeiro@motorapida.com.br"]) {
+      expect(rotaPermitida(await euDe(email), "/admin/suporte"), email).toBe(false);
+    }
+  });
+});
