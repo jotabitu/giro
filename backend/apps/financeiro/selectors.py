@@ -313,6 +313,11 @@ def reembolsos_a_fazer(filiais: Iterable[int]) -> QuerySet[Reembolso]:
     )
 
 
+def pendencias_abertas() -> QuerySet[PendenciaPagamento]:
+    """O contador `pendencias_pagamento` do menu (S-14): da empresa, sem filial."""
+    return PendenciaPagamento.objects.filter(status=StatusPendencia.ABERTA)
+
+
 # --- Contas a receber da tela `Receber` (FIN-01, FIN-02, FIN-03, FIN-15) ---
 
 CONTA = "financeiro.ContaReceber"  # alvo das leituras compostas (ADR 0015): `locacoes` dá a placa

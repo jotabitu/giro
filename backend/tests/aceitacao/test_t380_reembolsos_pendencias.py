@@ -359,3 +359,76 @@ def test_dev_02_aut_05_isolamento_entre_empresas(cenario, reembolsos, pendencias
         selectors.base_das_pendencias(), {"status": "todas"}, date(2026, 10, 7)
     )
     assert extras["contagens"]["todas"] == 0
+
+
+# --- Menu e contadores (T-404, contrato de contas, "Menu e início") ---
+
+
+def _financeiro_do_menu(perfil: str, recursos: list[str], **extra) -> list[str]:
+    from apps.contas import navegacao
+    from apps.contas import selectors as contas
+
+    nav = navegacao.montar(
+        perfil=perfil,
+        pode=contas.pode_do_perfil(perfil),
+        recursos=recursos,
+        implantacao_concluida=True,
+        **extra,
+    )
+    return [
+        item["chave"]
+        for grupo in nav["menu_completo"]
+        if grupo["grupo"] == "Financeiro"
+        for item in grupo["itens"]
+        if item["chave"] in ("reembolsos", "pendencias_pagamento")
+    ]
+
+
+def test_plt_12_menu_reembolsos_e_pendencias_por_perfil_e_plano():
+    from apps.plataforma.models import Recurso
+
+    todos = list(Recurso.values)
+    sem_parceiro = [r for r in todos if r != Recurso.RECEBIMENTO_PARCEIRO]
+    ambos = ["reembolsos", "pendencias_pagamento"]
+    # Perfis: reembolsos para administrador, gerente e financeiro; pendências para quem paga.
+    assert _financeiro_do_menu("administrador", todos) == ambos
+    assert _financeiro_do_menu("financeiro", todos) == ambos
+    assert _financeiro_do_menu("gerente", todos) == ["reembolsos"]
+    assert _financeiro_do_menu("vendedor", todos) == []
+    assert _financeiro_do_menu("vistoriador", todos) == []
+    # PLT-12: sem `recebimento_parceiro` (Essencial), sem pendências; reembolsos pedem locação.
+    assert _financeiro_do_menu("administrador", sem_parceiro) == ["reembolsos"]
+    sem_locacao = [r for r in todos if r != Recurso.LOCACOES_VISTORIA]
+    assert _financeiro_do_menu("administrador", sem_locacao) == ["pendencias_pagamento"]
+    # Atividade: quem só vende não tem reembolsos de locação.
+    assert _financeiro_do_menu("financeiro", todos, atividade="vende") == ["pendencias_pagamento"]
+    # Sem o módulo financeiro, nenhum dos dois.
+    assert _financeiro_do_menu("administrador", todos, modulos=["contas"]) == []
+
+
+def test_plt_12_contadores_de_reembolsos_e_pendencias(cenario, planos, reembolsos, pendencias):  # noqa: F811
+    lucia = cenario.moto.api("Lúcia")
+    menu = lucia.get("/api/auth/eu/").json()["navegacao"]["menu_completo"]
+    financeiro_ = next(g for g in menu if g["grupo"] == "Financeiro")["itens"]
+    por_chave = {item["chave"]: item for item in financeiro_}
+    assert por_chave["reembolsos"] == {
+        "chave": "reembolsos",
+        "rotulo": "Reembolsos",
+        "contador": "reembolsos",
+    }
+    assert por_chave["pendencias_pagamento"] == {
+        "chave": "pendencias_pagamento",
+        "rotulo": "Pendências do pagamento",
+        "contador": "pendencias_pagamento",
+    }
+    # Juliana a fazer (os feitos não contam) e as duas pendências abertas.
+    contadores = lucia.get("/api/painel/contadores/").json()["contadores"]
+    assert (contadores["reembolsos"], contadores["pendencias_pagamento"]) == (1, 2)
+    # Vendedor não tem nenhum dos dois.
+    bruna = cenario.moto.api("Bruna").get("/api/painel/contadores/").json()["contadores"]
+    assert "reembolsos" not in bruna and "pendencias_pagamento" not in bruna
+    # Essencial: a Mariana segue com reembolsos e perde as pendências (PLT-12).
+    Empresa._base_manager.filter(pk=cenario.moto.empresa.pk).update(plano=planos["Essencial"])
+    mariana = cenario.moto.api("Mariana").get("/api/painel/contadores/").json()["contadores"]
+    assert mariana["reembolsos"] == 1
+    assert "pendencias_pagamento" not in mariana
