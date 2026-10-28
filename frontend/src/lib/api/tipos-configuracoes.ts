@@ -3,8 +3,8 @@ import type { components } from "./schema";
 
 type S = components["schemas"];
 
-// O enum do OpenAPI ainda não traz `ramo` (o cartão existe na API desde a T-262); sai daqui quando o backend regenerar o enum.
-export type ChaveDoCartao = S["CartaoDeConfiguracoesChaveEnum"] | "ramo";
+// O enum do OpenAPI ainda não traz `ramo` nem `suporte` (os cartões existem na API desde a T-262 e a T-379); sai daqui quando o backend regenerar o enum.
+export type ChaveDoCartao = S["CartaoDeConfiguracoesChaveEnum"] | "ramo" | "suporte";
 export type CartaoDeConfiguracoes = Omit<S["CartaoDeConfiguracoes"], "chave"> & { chave: ChaveDoCartao };
 export type ImplantacaoDeConfiguracoes = S["ImplantacaoDeConfiguracoes"];
 export type Configuracoes = Omit<S["Configuracoes"], "cartoes"> & { cartoes: CartaoDeConfiguracoes[] };

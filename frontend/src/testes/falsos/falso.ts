@@ -50,6 +50,16 @@ const CONTAS: Conta[] = [
   { id: 6, nome: "Mariana Costa", email: "novo@motorapida.com.br", perfil: "administrador", filiais: [FILIAL_CENTRO], autenticador: true, variante: "implantacao" },
 ];
 
+const SUPORTE_DO_EU: NonNullable<Eu["suporte"]> = {
+  acesso_suporte_id: 31,
+  nome: "Diego Santos",
+  permissao: "ver",
+  fim: "2026-10-07T15:30:00Z",
+  motivo: "Chamado #1042",
+  permissao_rotulo: "Só ver",
+  fim_rotulo: "Expira às 15:30",
+};
+
 const exige2fa = (p: Perfil) => p === "administrador" || p === "financeiro";
 
 function montarEu(c: Conta): Eu {
@@ -78,10 +88,12 @@ export function perfilAtualFalso(): Perfil | null {
 export const pausa = (ms = 250) => new Promise((r) => setTimeout(r, ms));
 const CHAVE_SESSAO = "giro_falso_sessao"; // faz o papel do cookie de refresh
 let access: string | null = null;
+let comSuporte = false;
 let tentativas = 0;
 const pre2fa = new Map<string, Conta>();
 
 function guardar(c: Conta): RespostaEntrar {
+  comSuporte = false;
   access = `falso.${c.id}.${Date.now()}`;
   try {
     sessionStorage.setItem(CHAVE_SESSAO, String(c.id));
@@ -197,12 +209,28 @@ export const contasFalso = {
     const id = access?.split(".")[1];
     const c = CONTAS.find((x) => String(x.id) === id);
     if (!c) throw new ErroApi(401, "nao_autenticado", "Entre para continuar");
-    return montarEu(c);
+    return comSuporte ? { ...montarEu(c), suporte: SUPORTE_DO_EU } : montarEu(c);
+  },
+
+  /** Link de suporte (T-358): "suporte-valido" entra como a administradora; qualquer outro token responde 401 `PLT-07`. */
+  async entrarComoSuporte(token: string): Promise<Eu> {
+    await pausa(80);
+    if (token !== "suporte-valido") throw new ErroApi(401, "PLT-07", "O acesso de suporte terminou");
+    access = "falso.1.suporte";
+    comSuporte = true;
+    return { ...montarEu(CONTAS[0]!), suporte: SUPORTE_DO_EU };
+  },
+
+  async sairDoSuporte(): Promise<void> {
+    await pausa(80);
+    access = null;
+    comSuporte = false;
   },
 
   async sair(): Promise<void> {
     await pausa(80);
     access = null;
+    comSuporte = false;
     try {
       sessionStorage.removeItem(CHAVE_SESSAO);
     } catch {

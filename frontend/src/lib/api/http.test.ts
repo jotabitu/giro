@@ -1,7 +1,7 @@
 // Cliente HTTP (T-126): JWT, renovação, erros 401/403/409/422 no formato da API e cursores das listas.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ErroApi } from "./tipos";
-import { accessAtual, aoPerderSessao, chamar, chamarComStatus, cursoresDaLista, definirAccess, definirFilial, http, renovarAccess } from "./http";
+import { accessAtual, aoPerderSessao, aoTerminarSuporte, chamar, chamarComStatus, cursoresDaLista, definirAccess, definirFilial, emModoSuporte, http, renovarAccess } from "./http";
 import { contasApi } from "./contas";
 import { locacoesApi } from "./locacoes";
 
@@ -322,5 +322,93 @@ describe("401 atrasado da sessão que acabou (T-161)", () => {
     expect(perdeu).not.toHaveBeenCalled();
     expect(accessAtual()).toBe("novo");
     fora();
+  });
+});
+
+describe("modo suporte (PLT-07, ADR 0013)", () => {
+  const euComSuporte = { id: 1, suporte: { acesso_suporte_id: 31, nome: "Diego Santos", permissao: "ver", fim: "2026-10-07T15:30:00Z", motivo: "Chamado #1042" } };
+
+  it("entra com o token do link, manda como Bearer e não usa o cookie de refresh", async () => {
+    responder({ corpo: euComSuporte });
+    const eu = await contasApi.entrarComoSuporte("tok-suporte");
+    const [url, init] = chamada(0);
+    expect(url).toBe("/api/auth/eu/");
+    expect(init.headers.Authorization).toBe("Bearer tok-suporte");
+    expect(init.headers["X-Requested-With"]).toBeUndefined();
+    expect(eu.suporte?.nome).toBe("Diego Santos");
+    expect(emModoSuporte()).toBe(true);
+  });
+
+  it("401 PLT-07 não chama renovar: apaga o token, sai do modo suporte e avisa", async () => {
+    responder({ corpo: euComSuporte });
+    await contasApi.entrarComoSuporte("tok-suporte");
+    const aviso = vi.fn();
+    const perdeu = vi.fn();
+    const sairSuporte = aoTerminarSuporte(aviso);
+    const sairSessao = aoPerderSessao(perdeu);
+    responder({ status: 401, corpo: { codigo: "PLT-07", mensagem: "O acesso de suporte terminou" } });
+    const erro = await falha(http.get("/api/clientes/"));
+    sairSuporte();
+    sairSessao();
+    expect(erro.codigo).toBe("PLT-07");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.some((c) => c[0] === "/api/auth/renovar/")).toBe(false);
+    expect(accessAtual()).toBeNull();
+    expect(emModoSuporte()).toBe(false);
+    expect(aviso).toHaveBeenCalledOnce();
+    expect(perdeu).not.toHaveBeenCalled();
+  });
+
+  it("401 de outra empresa na entrada: apaga o token e devolve o erro", async () => {
+    responder({ status: 401, corpo: { codigo: "nao_autenticado", mensagem: "Entre para continuar" } });
+    await falha(contasApi.entrarComoSuporte("tok-de-outra-empresa"));
+    expect(accessAtual()).toBeNull();
+    expect(emModoSuporte()).toBe(false);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("resposta sem `suporte` não é modo suporte: o token não fica na memória", async () => {
+    responder({ corpo: { id: 1, suporte: null } });
+    const erro = await falha(contasApi.entrarComoSuporte("access-comum"));
+    expect(erro.codigo).toBe("PLT-07");
+    expect(accessAtual()).toBeNull();
+  });
+
+  it("403 PLT-07 mostra a mensagem da API e continua no modo suporte", async () => {
+    responder({ corpo: euComSuporte });
+    await contasApi.entrarComoSuporte("tok-suporte");
+    responder({ status: 403, corpo: { codigo: "PLT-07", mensagem: "No modo só ver você não pode fazer isto" } });
+    const erro = await falha(http.post("/api/clientes/", {}));
+    expect(erro.status).toBe(403);
+    expect(erro.message).toBe("No modo só ver você não pode fazer isto");
+    expect(emModoSuporte()).toBe(true);
+    expect(accessAtual()).toBe("tok-suporte");
+  });
+
+  it("sair do suporte chama a rota e limpa a memória", async () => {
+    responder({ corpo: euComSuporte }, { status: 204 });
+    await contasApi.entrarComoSuporte("tok-suporte");
+    await contasApi.sairDoSuporte();
+    const [url, init] = chamada(1);
+    expect(url).toBe("/api/auth/suporte/sair/");
+    expect(init.method).toBe("POST");
+    expect(init.headers.Authorization).toBe("Bearer tok-suporte");
+    expect(accessAtual()).toBeNull();
+    expect(emModoSuporte()).toBe(false);
+  });
+
+  it("sair com 401 (acesso já encerrado) também deixa a memória limpa", async () => {
+    responder({ corpo: euComSuporte }, { status: 401, corpo: { codigo: "PLT-07", mensagem: "O acesso de suporte terminou" } });
+    await contasApi.entrarComoSuporte("tok-suporte");
+    const erro = await falha(contasApi.sairDoSuporte());
+    expect(erro.status).toBe(401);
+    expect(accessAtual()).toBeNull();
+  });
+
+  it("login comum depois do suporte volta ao ciclo de renovação", async () => {
+    responder({ corpo: euComSuporte });
+    await contasApi.entrarComoSuporte("tok-suporte");
+    definirAccess("access-comum");
+    expect(emModoSuporte()).toBe(false);
   });
 });
