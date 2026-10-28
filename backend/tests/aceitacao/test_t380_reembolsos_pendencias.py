@@ -311,6 +311,26 @@ def test_aut_05_acoes_da_pendencia_pela_conta(cenario, relogio_jwt, com_carteira
     assert lista and all(p["acoes"] == {"resolver": False, "baixar": False} for p in lista)
 
 
+def test_plt_07_pendencia_suporte_resolver_403(cenario, relogio_jwt, com_carteira, pendencias):  # noqa: F811
+    """Parecer da Segurança: o suporte em "ver e editar" não resolve pendência (T-324)."""
+    carlos = _carlos(com_carteira)
+    antes = (carlos.status, carlos.pago_em, carlos.forma)
+    suporte = _suporte(cenario)
+    for pendencia, corpo in (
+        (pendencias["carlos"], {"acao": "baixar", "motivo": "Diferença de juros perdoada"}),
+        (pendencias["rafael"], {"acao": "ignorar", "motivo": "Cliente pagou no caixa"}),
+        (pendencias["carlos"], {}),  # o 403 vem antes de validar o corpo
+    ):
+        recusa = suporte.post(f"{PENDENCIAS}{pendencia.pk}/resolver/", corpo, format="json")
+        assert (recusa.status_code, recusa.json()["codigo"]) == (403, "PLT-07")
+
+    carlos.refresh_from_db()
+    assert (carlos.status, carlos.pago_em, carlos.forma) == antes
+    for pendencia in pendencias.values():
+        pendencia.refresh_from_db()
+        assert (pendencia.status, pendencia.resolucao) == ("aberta", "")
+
+
 def test_plt_12_pendencias_essencial_403(cenario, planos, pendencias):  # noqa: F811
     Empresa._base_manager.filter(pk=cenario.moto.empresa.pk).update(plano=planos["Essencial"])
     api = cenario.moto.api("Lúcia")

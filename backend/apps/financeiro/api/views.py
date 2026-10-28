@@ -468,6 +468,7 @@ class PendenciasView(APIView):
 
 class ResolverPendenciaView(APIView):
     recurso_do_plano = Recurso.RECEBIMENTO_PARCEIRO  # PLT-12
+    suporte_proibido = True  # 403 PLT-07 mesmo em "ver e editar" (T-324, opção A do dono)
 
     def get_permissions(self) -> Any:
         return [p() for p in PAGAM]

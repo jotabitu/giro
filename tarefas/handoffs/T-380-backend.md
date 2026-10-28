@@ -16,12 +16,12 @@
 
 **Onde:** `backend/apps/financeiro/selectors.py` (fim do arquivo), `api/views.py`, `api/serializers.py` e `backend/apps/locacoes/leituras.py` (bloco `locacao` do `financeiro.Reembolso`, ADR 0015, pelo código da origem).
 **Contrato:** `docs/api/financeiro.md`; OpenAPI regenerado em `docs/api/openapi.yaml`. Serializers novos com nomes próprios (`ListaDeReembolsosSerializer`, `ListaDePendenciasPagamentoSerializer` e os blocos), sem colisão no `spectacular --validate`.
-**Regras cobertas:** DEV-02, AUT-05, PLT-07, PLT-12, AUD-09. Testes em `backend/tests/aceitacao/test_t380_reembolsos_pendencias.py`: `test_dev_02_lista_de_reembolsos_indicadores_e_filtros`, `test_dev_02_marcar_feito_devolve_o_item_da_lista`, `test_plt_07_reembolso_suporte_sem_marcar_feito`, `test_aut_05_lista_de_pendencias_indicadores_e_filtros`, `test_aut_05_acoes_da_pendencia_pela_conta`, `test_plt_12_pendencias_essencial_403` e `test_dev_02_aut_05_isolamento_entre_empresas`.
+**Regras cobertas:** DEV-02, AUT-05, PLT-07, PLT-12, AUD-09. Testes em `backend/tests/aceitacao/test_t380_reembolsos_pendencias.py`: `test_dev_02_lista_de_reembolsos_indicadores_e_filtros`, `test_dev_02_marcar_feito_devolve_o_item_da_lista`, `test_plt_07_reembolso_suporte_sem_marcar_feito`, `test_plt_07_pendencia_suporte_resolver_403`, `test_aut_05_lista_de_pendencias_indicadores_e_filtros`, `test_aut_05_acoes_da_pendencia_pela_conta`, `test_plt_12_pendencias_essencial_403` e `test_dev_02_aut_05_isolamento_entre_empresas`.
 
 **O que ficou de fora e pontos para conferir:**
 - O formato das duas listas mudou (antes, só `resultados` com menos campos). Nenhuma tela usava; a T-371 é a primeira.
-- Os textos do `detalhe` do estorno ("O parceiro estornou o pagamento de R$ 1.347,00.") e da conta que não está aberta ("Pagou R$ 1.347,00, mas a conta já estava cancelada.") não estão no contrato: o **produto** confere.
-- O `POST .../resolver/` segue aberto para o suporte em "ver e editar": o contrato só desliga as `acoes`. A **segurança** decide se a rota também dá 403 `PLT-07`, como o `feito/` dos reembolsos.
+- Os textos do `detalhe` do estorno ("O parceiro estornou o pagamento de R$ 1.347,00.") e da conta que não está aberta ("Pagou R$ 1.347,00, mas a conta já estava cancelada.") foram aceitos pelo **produto** e entraram como exemplo no `financeiro.md`.
+- Pelo parecer da **segurança**, o `POST .../resolver/` dá 403 `PLT-07` ao suporte, também em "ver e editar", antes de validar o corpo, como o `feito/` dos reembolsos (`test_plt_07_pendencia_suporte_resolver_403`; frase da T-324 no `financeiro.md`).
 - `indicadores.a_fazer.texto` conta clientes ("1 cliente com devolução"); `quantidade` conta reembolsos.
 - O crédito de semanas (`LOC-13`) tem rótulo, mas hoje nenhum serviço cria reembolso com essa origem.
 

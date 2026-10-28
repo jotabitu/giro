@@ -23,7 +23,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 18, 19, 21 e 22 e apo
 
 Quem lançou ou pediu não aprova o próprio pedido, salvo o administrador (`APR-09`, T-249; `aprovacoes.md`, "Administrador decide o próprio pedido"). O vistoriador recebe 403 em todo o app.
 
-Suporte Giro em "ver e editar" (`PLT-07`, T-324, opção A do dono): abrir caixa (`POST caixas/`), fechar caixa (`POST caixas/{id}/fechar/`), lançar despesa (`POST despesas/`) e marcar reembolso como feito (`POST reembolsos/{id}/feito/`) dão 403 `PLT-07`, antes de ler arquivo e de validar o corpo. As listas e os detalhes continuam legíveis.
+Suporte Giro em "ver e editar" (`PLT-07`, T-324, opção A do dono): abrir caixa (`POST caixas/`), fechar caixa (`POST caixas/{id}/fechar/`), lançar despesa (`POST despesas/`) marcar reembolso como feito (`POST reembolsos/{id}/feito/`) e resolver pendência do pagamento (`POST pendencias-pagamento/{id}/resolver/`, T-380) dão 403 `PLT-07`, antes de ler arquivo e de validar o corpo. As listas e os detalhes continuam legíveis.
 
 ---
 
@@ -485,7 +485,10 @@ Só com `recebimento_parceiro` (`PLT-12`); sem ele, 403 `PLT-12`. Perfis: admini
   - `valor_diferente`: "Valor pago diferente";
   - `estornada_no_parceiro`: "Estornada no parceiro";
   - `sem_conta`: "A conta já não estava aberta".
-- **`detalhe`:** texto pronto da API, com o valor pago, o valor da conta no dia (com juros e multa, `FIN-03`, como a API já calcula) e a diferença. A tela não faz conta.
+- **`detalhe`:** texto pronto da API, com o valor pago, o valor da conta no dia (com juros e multa, `FIN-03`, como a API já calcula) e a diferença. A tela não faz conta. Exemplos:
+  - `valor_diferente`: "Pagou R$ 299,40; a conta estava em R$ 306,09 (falta R$ 6,69).";
+  - `estornada_no_parceiro`: "O parceiro estornou o pagamento de R$ 1.347,00.", com o valor da cobrança quando o parceiro não manda o valor pago;
+  - `sem_conta`: "Pagou R$ 1.347,00, mas a conta já estava {status}.", com o status em minúscula (`paga`, `cancelada` ou `renegociada`).
 - **`acoes`:**
   - `resolver` é `true` só em `aberta`;
   - `baixar` também exige que a conta ainda esteja aberta. No estorno e na conta que não está aberta, só "ignorar".
