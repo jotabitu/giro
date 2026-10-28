@@ -1,22 +1,25 @@
-"""Django Admin da plataforma (ADR 0013, item 4): leitura, e "Criar empresa" pelo serviço.
+"""Django Admin da plataforma (ADR 0013, item 4): leitura, "Criar empresa" e "Reativar" pelo
+serviço.
 
 No MVP a empresa piloto nasce aqui, e a equipe vê as faturas de todas as empresas até a
 `Plat-Cobranca` (`plataforma.md`, "Faturas de todas as empresas"; PLT-14), só leitura. O
 formulário chama `services.criar_empresa`, que valida, cria o schema, convida o administrador e
-audita; nada é gravado direto pelo Admin.
+audita; a ação "Reativar" chama `services.reativar_empresa` (PLT-06, T-365), com o motivo. Nada é
+gravado direto pelo Admin.
 """
 
 from typing import Any
 
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.contrib.admin.helpers import ActionForm
 from django.db.models import Q
 from django.http import HttpRequest
 
 from comum.erros import ErroDeNegocio, ErroDeValidacao
 
 from .models import Empresa, FaturaAssinatura, Plano, StatusFatura, UsoEmpresa
-from .services import Administrador, criar_empresa, validar_criacao
+from .services import POR_EQUIPE, Administrador, criar_empresa, reativar_empresa, validar_criacao
 
 
 class CriarEmpresaForm(forms.ModelForm):  # type: ignore[type-arg]
@@ -73,12 +76,22 @@ class PlanoAdmin(SoLeitura):
         return False
 
 
+class AcaoComMotivo(ActionForm):
+    motivo = forms.CharField(label="Motivo", required=False, max_length=300)
+
+
+def _so_o_dono(request: HttpRequest) -> bool:
+    return bool(getattr(request.user, "funcao_plataforma", "") == "dono")
+
+
 @admin.register(Empresa)
 class EmpresaAdmin(SoLeitura):
-    list_display = ["nome_exibicao", "subdominio", "plano", "status", "teste_fim"]
+    list_display = ["nome_exibicao", "subdominio", "plano", "status", "teste_fim", "apagar_em"]
     list_filter = ["status", "plano"]
     search_fields = ["nome_exibicao", "subdominio", "cnpj"]
     add_form = CriarEmpresaForm
+    action_form = AcaoComMotivo
+    actions = ["reativar"]
 
     def get_form(
         self, request: HttpRequest, obj: Any = None, change: bool = False, **kwargs: Any
@@ -88,7 +101,26 @@ class EmpresaAdmin(SoLeitura):
         return super().get_form(request, obj, change, **kwargs)
 
     def has_add_permission(self, request: HttpRequest) -> bool:
-        return bool(getattr(request.user, "funcao_plataforma", "") == "dono")
+        return _so_o_dono(request)
+
+    def has_reativar_permission(self, request: HttpRequest) -> bool:
+        return _so_o_dono(request)
+
+    @admin.action(description="Reativar a empresa cancelada", permissions=["reativar"])
+    def reativar(self, request: HttpRequest, queryset: Any) -> None:
+        """PLT-06: cada empresa pelo serviço, que trava, confere e audita com o usuário da
+        equipe. A recusa (fatura em atraso, apagamento começado) aparece na mensagem."""
+        motivo = str(request.POST.get("motivo", "")).strip()
+        if not motivo:
+            self.message_user(request, "Informe o motivo para reativar.", messages.ERROR)
+            return
+        for empresa in queryset.order_by("pk"):
+            try:
+                reativar_empresa(empresa, POR_EQUIPE, motivo)
+            except ErroDeNegocio as erro:
+                self.message_user(request, f"{empresa}: {erro.mensagem}", messages.ERROR)
+            else:
+                self.message_user(request, f"{empresa} reativada.", messages.SUCCESS)
 
     def save_model(self, request: HttpRequest, obj: Empresa, form: Any, change: bool) -> None:
         dados = form.cleaned_data
