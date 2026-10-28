@@ -5380,7 +5380,16 @@ paths:
   /api/suporte/:
     get:
       operationId: suporte_retrieve
-      summary: Acessos do suporte (últimos 90 dias)
+      summary: Acessos do suporte (últimos 90 dias), com contagens e rótulos (PLT-07)
+      parameters:
+      - in: query
+        name: situacao
+        schema:
+          type: string
+          enum:
+          - ativos
+          - encerrados
+          - todos
       tags:
       - suporte
       security:
@@ -6782,6 +6791,8 @@ components:
           type: string
         permissao:
           $ref: '#/components/schemas/PermissaoSuporteEnum'
+        permissao_rotulo:
+          type: string
         inicio:
           type: string
           format: date-time
@@ -6790,14 +6801,21 @@ components:
           format: date-time
         status:
           $ref: '#/components/schemas/AcessoDaListaStatusEnum'
+        status_rotulo:
+          type: string
+        acoes:
+          $ref: '#/components/schemas/AcoesDoAcesso'
       required:
+      - acoes
       - fim
       - id
       - inicio
       - motivo
       - nome
       - permissao
+      - permissao_rotulo
       - status
+      - status_rotulo
     AcessoDaListaStatusEnum:
       enum:
       - ativo
@@ -6915,6 +6933,13 @@ components:
       - iniciar
       - registrar_chegada
       - sair_parada
+    AcoesDoAcesso:
+      type: object
+      properties:
+        revogar:
+          type: boolean
+      required:
+      - revogar
     AcoesDoCaixa:
       type: object
       properties:
@@ -9165,6 +9190,19 @@ components:
       - aguardando_aprovacao
       - paga
       - recusada
+    ContagensDoSuporte:
+      type: object
+      properties:
+        todos:
+          type: integer
+        ativos:
+          type: integer
+        encerrados:
+          type: integer
+      required:
+      - ativos
+      - encerrados
+      - todos
     ContagensLocacoes:
       type: object
       properties:
@@ -16288,7 +16326,7 @@ components:
           nullable: true
         sugestao:
           allOf:
-          - $ref: '#/components/schemas/Sugestao'
+          - $ref: '#/components/schemas/SugestaoDosRecebimentos'
           nullable: true
         acoes:
           $ref: '#/components/schemas/AcoesDosRecebimentos'
@@ -17200,11 +17238,46 @@ components:
       - data
       - ja_cadastrado
       - nome
+    SugestaoDosRecebimentos:
+      type: object
+      properties:
+        nome:
+          type: string
+        documento:
+          type: string
+        email:
+          type: string
+        celular:
+          type: string
+        cep:
+          type: string
+        logradouro:
+          type: string
+        numero:
+          type: string
+        complemento:
+          type: string
+        bairro:
+          type: string
+      required:
+      - bairro
+      - celular
+      - cep
+      - complemento
+      - documento
+      - email
+      - logradouro
+      - nome
+      - numero
     SuporteDaEmpresa:
       type: object
       properties:
         bloqueado:
           type: boolean
+        situacao_rotulo:
+          type: string
+        contagens:
+          $ref: '#/components/schemas/ContagensDoSuporte'
         acessos:
           type: array
           items:
@@ -17212,6 +17285,8 @@ components:
       required:
       - acessos
       - bloqueado
+      - contagens
+      - situacao_rotulo
     SuporteDoEu:
       type: object
       properties:

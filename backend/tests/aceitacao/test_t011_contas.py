@@ -16,6 +16,7 @@ import pytest
 from django.core import mail
 from django.core.cache import cache
 from django.db import connection
+from django.db.models import F
 from django_tenants.utils import schema_context
 from rest_framework.test import APIClient
 
@@ -1457,6 +1458,106 @@ def test_plt_07_ca_011_27_administrador_controla_o_suporte(equipe, adm, relogio)
     with schema_context("public"):
         acoes = set(EventoAuditoria.objects.values_list("acao", flat=True))
     assert {"suporte.entrar", "suporte.sair", "suporte.revogar", "suporte.bloquear"} <= acoes
+
+
+def _cartao_suporte(api: APIClient, empresa: Any) -> str:
+    cartoes = _get(api, "/api/configuracoes/", empresa).json()["cartoes"]
+    return str(next(c["resumo"] for c in cartoes if c["chave"] == "suporte"))
+
+
+def test_plt_07_controle_do_suporte_contagens_e_filtro(equipe, adm, relogio):
+    """T-358/T-379: a tela `Admin-Suporte` e o cartão de Configurações."""
+    relogio.em("2026-10-07 15:00")
+    _, ativo = _abrir_suporte(adm, equipe, duracao=60)
+    saindo, saiu = _abrir_suporte(adm, equipe, motivo="Chamado #1044")
+    _post(saindo, "/api/auth/suporte/sair/", adm.empresa)
+    _, revogado = _abrir_suporte(adm, equipe, permissao="ver_editar", motivo="Chamado #1045")
+    mariana = adm.logar("Mariana")
+    _post(mariana, f"/api/suporte/acessos/{revogado['acesso_suporte_id']}/revogar/", adm.empresa)
+    # Inícios distintos para a ordem da lista (o token do Diego não aguenta o relógio andar).
+    with schema_context("public"):
+        for minutos, aberto in ((2, ativo), (1, saiu)):
+            AcessoSuporte.objects.filter(pk=aberto["acesso_suporte_id"]).update(
+                inicio=F("inicio") - timedelta(minutes=minutos)
+            )
+
+    corpo = _get(mariana, "/api/suporte/", adm.empresa).json()
+    assert (corpo["bloqueado"], corpo["situacao_rotulo"]) == (False, "Acesso do suporte liberado")
+    assert corpo["contagens"] == {"todos": 3, "ativos": 1, "encerrados": 2}
+    # Mais novo primeiro.
+    assert [(a["status_rotulo"], a["permissao_rotulo"], a["acoes"]) for a in corpo["acessos"]] == [
+        ("Revogado", "Ver e editar", {"revogar": False}),
+        ("Encerrado", "Só ver", {"revogar": False}),
+        ("Ativo agora", "Só ver", {"revogar": True}),
+    ]
+    item = corpo["acessos"][-1]
+    assert item["fim"] == ativo["fim"]
+    assert {k: v for k, v in item.items() if k not in ("inicio", "fim")} == {
+        "id": ativo["acesso_suporte_id"],
+        "nome": "Diego Santos",
+        "motivo": "Chamado #1042",
+        "permissao": "ver",
+        "permissao_rotulo": "Só ver",
+        "status": "ativo",
+        "status_rotulo": "Ativo agora",
+        "acoes": {"revogar": True},
+    }
+
+    def ids(situacao: str) -> tuple[list[int], dict[str, int]]:
+        filtrado = _get(mariana, f"/api/suporte/?situacao={situacao}", adm.empresa).json()
+        return [a["id"] for a in filtrado["acessos"]], filtrado["contagens"]
+
+    # As contagens não dependem do filtro; valor desconhecido é `todos`.
+    encerrados = [revogado["acesso_suporte_id"], saiu["acesso_suporte_id"]]
+    assert ids("ativos") == ([ativo["acesso_suporte_id"]], corpo["contagens"])
+    assert ids("encerrados") == (encerrados, corpo["contagens"])
+    assert ids("todos")[0] == ids("qualquer")[0] == [*encerrados, ativo["acesso_suporte_id"]]
+
+    # O cartão de Configurações conta o ativo; bloquear revoga, e o cartão muda.
+    assert _cartao_suporte(mariana, adm.empresa) == "Suporte liberado · 1 acesso ativo"
+    _post(mariana, "/api/suporte/bloquear/", adm.empresa)
+    bloqueado = _get(mariana, "/api/suporte/", adm.empresa).json()
+    assert (bloqueado["bloqueado"], bloqueado["situacao_rotulo"]) == (
+        True,
+        "Acesso do suporte bloqueado",
+    )
+    assert bloqueado["contagens"] == {"todos": 3, "ativos": 0, "encerrados": 3}
+    assert _cartao_suporte(mariana, adm.empresa) == "Suporte bloqueado"
+
+    # O suporte não vê o controle nem o cartão.
+    _post(mariana, "/api/suporte/liberar/", adm.empresa)
+    diego, _ = _abrir_suporte(adm, equipe)
+    proprio = _get(diego, "/api/suporte/", adm.empresa)
+    assert (proprio.status_code, proprio.json()["codigo"]) == (403, "PLT-07")
+    cartoes = _get(diego, "/api/configuracoes/", adm.empresa).json()["cartoes"]
+    assert "suporte" not in [c["chave"] for c in cartoes]
+
+
+def test_plt_07_controle_do_suporte_vencido_conta_como_encerrado(equipe, adm, relogio):
+    """O `ativo` com o `fim` passado, antes da rodada da AUT-15, já não é "Ativo agora"."""
+    relogio.em("2026-10-07 15:00")
+    _abrir_suporte(adm, equipe, duracao=15)
+    relogio.em("2026-10-07 15:16")
+    mariana = adm.logar("Mariana")
+    corpo = _get(mariana, "/api/suporte/", adm.empresa).json()
+    assert corpo["contagens"] == {"todos": 1, "ativos": 0, "encerrados": 1}
+    item = corpo["acessos"][0]
+    assert (item["status"], item["status_rotulo"], item["acoes"]) == (
+        "encerrado",
+        "Encerrado",
+        {"revogar": False},
+    )
+    assert _cartao_suporte(mariana, adm.empresa) == "Suporte liberado"
+
+
+def test_plt_07_controle_do_suporte_sem_email_do_operador(equipe, adm, relogio):
+    """O e-mail da equipe Giro não é dado da empresa (T-358): a tela mostra só o nome."""
+    relogio.em("2026-10-07 15:00")
+    _abrir_suporte(adm, equipe)
+    resposta = _get(adm.logar("Mariana"), "/api/suporte/", adm.empresa)
+    assert resposta.json()["acessos"][0]["nome"] == "Diego Santos"
+    assert "email" not in resposta.json()["acessos"][0]
+    assert equipe["Diego Santos"][0].email not in resposta.content.decode()
 
 
 def test_aut_15_encerra_acessos_de_suporte_vencidos(equipe, adm, relogio):

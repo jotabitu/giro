@@ -16,11 +16,12 @@ from django_tenants.utils import schema_context, tenant_context
 
 from apps.auditoria.models import EventoAuditoria
 from apps.contas.models import Usuario
-from apps.plataforma import selectors, services
+from apps.plataforma import selectors, services, tasks
 from apps.plataforma.models import (
     Empresa,
     FaturaAssinatura,
     FormaPagamentoAssinatura,
+    Plano,
     StatusFatura,
     StatusFormaPagamento,
     TipoFatura,
@@ -336,6 +337,47 @@ def test_plt_04_downgrade_agendado_deixa_de_caber(
 
     _virar(relogio, "2026-11-22")
     assert moto.recarregar().plano.nome == "Completo"
+
+
+@pytest.mark.parametrize(
+    ("excede", "primeira_linha"),
+    [
+        (
+            {"usuarios": {"usado": 4, "limite": 3}, "atividade": {"atual": "vende"}},
+            "A empresa Pedal Norte ia mudar para o plano Essencial em 22 nov, mas o uso de hoje "
+            "não cabe nele: 4 de 3 usuários. Além disso, o plano Essencial não inclui vendas, e a "
+            "empresa hoje só vende. Para mudar, ela precisa alugar.",
+        ),
+        (
+            {"atividade": {"atual": "vende"}},
+            "A empresa Pedal Norte ia mudar para o plano Essencial em 22 nov, mas o plano "
+            "Essencial não inclui vendas, e a empresa hoje só vende. Para mudar, ela precisa "
+            "alugar.",
+        ),
+        (
+            {"usuarios": {"usado": 11, "limite": 10}, "abertos_texto": "1 despesa a pagar"},
+            "A empresa Pedal Norte ia mudar para o plano Essencial em 22 nov, mas o uso de hoje "
+            "não cabe nele: 11 de 10 usuários e 1 despesa a pagar.",
+        ),
+    ],
+    ids=["os_dois", "so_a_atividade", "limite_e_aberto"],
+)
+def test_plt_04_email_do_downgrade_recusado(moto, mailoutbox, excede, primeira_linha):
+    """CA-ASS-71: a 1ª linha muda pelo motivo, começa com "A empresa {nome}", e a atividade nunca
+    entra solta na lista. O resto é igual nos três casos."""
+    moto.estado(nome_exibicao="Pedal Norte", plano=Plano.objects.get(nome="Profissional"))
+    essencial = Plano.objects.get(nome="Essencial")
+    enviados = tasks.plataforma_avisar_downgrade_recusado(
+        moto.empresa.pk, essencial.pk, "2026-11-22", excede
+    )
+    assert enviados == 2
+    aviso = mailoutbox[0]
+    assert aviso.subject == "Giro: a mudança para o plano Essencial não aconteceu"
+    assert aviso.body.split("\n")[:2] == [
+        primeira_linha,
+        "Por isso, a fatura de 22 nov saiu pelo plano Profissional, e a empresa continua nele. "
+        "Para mudar, resolva o que está acima e escolha o plano de novo em Assinatura.",
+    ]
 
 
 def test_plt_04_downgrade_cabia_na_geracao(moto, relogio, django_capture_on_commit_callbacks):
