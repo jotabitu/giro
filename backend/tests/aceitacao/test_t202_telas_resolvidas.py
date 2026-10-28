@@ -74,12 +74,16 @@ def test_imp_05_andamento_concluido_e_proximo_nulo(moto_rapida):  # noqa: F811
 
 
 def test_imp_05_pular_nao_marca_passo(moto_rapida):  # noqa: F811
-    # Não há rota de pular: ler o andamento não muda nada.
+    # Não há rota de pular. A leitura só marca o que já está feito de verdade: `precos`, com o
+    # preço vigente do seed (IMP-07, T-366); `marca` continua por fazer.
     _passos(moto_rapida.moto, {"conta": "2026-10-07"})
     api = moto_rapida.moto.api("Mariana")
-    assert api.get(IMPLANTACAO).json()["proximo"] == "marca"
+    antes = api.get(IMPLANTACAO).json()
+    assert antes["proximo"] == "marca"
     assert api.post(f"{IMPLANTACAO}pular/").status_code == 404
-    assert api.get(IMPLANTACAO).json()["feitos"] == 0
+    depois = api.get(IMPLANTACAO).json()
+    assert depois["proximo"] == "marca"
+    assert depois["feitos"] == antes["feitos"] == 1
 
 
 @pytest.mark.parametrize("quem", ["Rodrigo", "Bruna", "João", "Lúcia"])

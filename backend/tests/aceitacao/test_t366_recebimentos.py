@@ -17,9 +17,8 @@ from django.db import connection, connections
 
 from apps.auditoria.models import EventoAuditoria
 from apps.contas.models import Usuario
-from apps.plataforma import selectors as plataforma_selectors
 from apps.plataforma import services as plataforma
-from apps.plataforma.models import ContaPagamento, Empresa, UsoEmpresa
+from apps.plataforma.models import ContaPagamento, Empresa, Plano, UsoEmpresa
 from apps.veiculos.models import Categoria, PrecoCategoria
 from integracoes.pagamentos import falso
 from integracoes.pagamentos.base import ParceiroIndisponivel, ParceiroRecusou
@@ -71,9 +70,11 @@ def _conta(moto) -> ContaPagamento:
 
 
 @pytest.fixture
-def essencial(moto_rapida, monkeypatch):  # noqa: F811
-    """O Essencial: sem `recebimento_parceiro` (o recurso entra no enum na T-196)."""
-    monkeypatch.setattr(plataforma_selectors, "assistente_tem_recebimentos", lambda _plano: False)
+def essencial(moto_rapida):  # noqa: F811
+    """A Moto Rápida no Essencial, sem `recebimento_parceiro` (PLT-12, ADR 0024)."""
+    Empresa._base_manager.filter(pk=moto_rapida.moto.empresa.pk).update(
+        plano=Plano.objects.get(nome="Essencial")
+    )
     return moto_rapida
 
 

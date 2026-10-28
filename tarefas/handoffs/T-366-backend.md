@@ -10,7 +10,7 @@
 - Recusas:
   - outros perfis: 403 `permissao`;
   - suporte nos dois modos: 403 `PLT-07`, pelo `suporte_proibido`;
-  - Essencial: 403 `PLT-12`, com `detalhes: { recurso: "recebimento_parceiro", motivo: "plano" }`, antes da conferência de perfil.
+  - Essencial: 403 `PLT-12`, com `detalhes: { recurso: "recebimento_parceiro", motivo: "plano" }`, antes da conferência de perfil, pelo `ModuloDoPlano` da T-196.
 - `tipo_empresa` entra com a lista do parceiro (`MEI`, `LIMITED`, `INDIVIDUAL`, `ASSOCIATION`), e a view traduz para as chaves internas do serviço.
 - Marcação dos passos (`IMP-07`):
   - **`precos`:** `_gravar_preco` marca quando o preço já vale hoje, a categoria está ativa e diária, semanal ou mensal é maior que zero; só a caução não conta. O preço agendado marca na primeira leitura de `GET /api/implantacao/` ou de `GET /api/configuracoes/` na data, por `plataforma.services.conferir_passos_na_leitura`, com a conferência `veiculos.selectors.tem_preco_vigente` registrada no `ready()`. Não há tarefa agendada.
@@ -34,8 +34,22 @@
 
 O `test_fin_04_t029_conectar_recebimentos_guarda_a_chave_cifrada` passou a conferir que o passo **não** fica marcado ao conectar.
 
+Outros testes ajustados:
+- `test_imp_05_pular_nao_marca_passo` (t202): a leitura de `GET /api/implantacao/` marca `precos` com o preço vigente do seed (`IMP-07`). O teste agora confere que pular não muda nada entre as duas leituras: `marca` continua o próximo e `feitos` fica em 1.
+- `test_plt_12_rotas_por_recurso`: `api/recebimentos/` entrou no mapa como `recebimento_parceiro`.
+
+**Verificação** (depois do merge da `origin/main` em c0bef6e):
+- ruff check, ruff format --check e mypy limpos;
+- `makemigrations --check` sem mudanças; OpenAPI validado, só com a rota nova;
+- regressão por partes:
+  - `apps`: 97 passaram;
+  - `comum` e testes da raiz: 339 passaram;
+  - aceitação, 1ª metade: 742 passaram;
+  - aceitação, 2ª metade: 498 passaram e 1 falhou, no t265 (CRLV, processo filho), que é instável na rodada longa e passa sozinho;
+  - as duas falhas da rodada foram corrigidas e retestadas sozinhas.
+
 **O que ficou de fora:**
-- **Dependência da T-196:** na `main`, `recebimento_parceiro` ainda não está no enum `Recurso`, e `empresa_tem_recebimentos` devolve `True` para todo plano. Por isso o 403 `PLT-12` só vale de verdade depois da T-196, e o teste do Essencial troca `assistente_tem_recebimentos`, como o `test_imp_05_andamento_sem_recebimentos_tem_7_passos` já faz. A view já declara `recurso_do_plano = "recebimento_parceiro"`: com a T-196 na `main`, o `ModuloDoPlano` dela recusa antes, e a permissão `ComRecebimentoPeloParceiro` desta tarefa fica redundante, mas sem conflito. Quem mesclar a segunda das duas pode tirá-la.
+- **Depois do merge da T-196:** o 403 `PLT-12` vem do `ModuloDoPlano` (a view declara `recurso_do_plano = "recebimento_parceiro"`), com o mesmo texto do contrato; a permissão própria `ComRecebimentoPeloParceiro` saiu. O teste do Essencial põe a Moto Rápida no plano Essencial de verdade, sem trocar `assistente_tem_recebimentos`.
 - **Suporte no Essencial:** recebe `PLT-07`, e não `PLT-12`, porque a recusa do suporte acontece na autenticação, antes das permissões. As duas são 403.
 - **Novo pedido depois da recusa:** fica com a equipe Giro (contrato).
 

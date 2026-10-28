@@ -2,22 +2,21 @@
 
 Só o administrador. O suporte é recusado nos dois modos (PLT-07), porque os dados são cadastrais
 e financeiros da empresa no parceiro. Sem `recebimento_parceiro` no plano (Essencial), 403 PLT-12
-antes do perfil. A chave da subconta e o token do webhook nunca saem (S-05, S-14), e o corpo do
-`POST` vai só ao parceiro: não é gravado, auditado nem logado (B-02 da T-384).
+pelo `ModuloDoPlano` (T-196), antes do perfil. A chave da subconta e o token do webhook nunca
+saem (S-05, S-14), e o corpo do `POST` vai só ao parceiro: não é gravado, auditado nem logado
+(B-02 da T-384).
 """
 
 from typing import Any
 
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
-from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.throttling import BaseThrottle
 from rest_framework.views import APIView
 
 from comum.documentos import cnpj_valido, cpf_valido, so_digitos
-from comum.erros import SemPermissao
 from comum.limites import RecebimentosPorEmpresa
 from comum.permissoes import com_padrao
 
@@ -25,12 +24,6 @@ from .. import selectors, services
 from ..models import ContaPagamento, Empresa, StatusContaPagamento
 from .assinatura import SoAdministrador
 
-RECURSO = selectors.RECURSO_DE_RECEBIMENTOS
-SEM_RECEBIMENTOS_NO_PLANO = (
-    "PLT-12",
-    "Seu plano não inclui Pix e boleto automáticos. Para usar, mude de plano.",
-    {"recurso": RECURSO, "motivo": "plano"},
-)
 SUPORTE_NOS_RECEBIMENTOS = ("PLT-07", "O suporte não mexe nos recebimentos da empresa")
 
 DESCONECTADO = "desconectado"
@@ -60,16 +53,6 @@ TIPOS_EMPRESA = {
     "INDIVIDUAL": "individual",
     "ASSOCIATION": "associacao",
 }
-
-
-class ComRecebimentoPeloParceiro(BasePermission):
-    """PLT-12: o Essencial não tem `recebimento_parceiro`, em leitura e escrita."""
-
-    def has_permission(self, request: Request, view: APIView) -> bool:
-        empresa: Empresa = request.tenant  # type: ignore[attr-defined]
-        if not selectors.empresa_tem_recebimentos(empresa):
-            raise SemPermissao(*SEM_RECEBIMENTOS_NO_PLANO)
-        return True
 
 
 class SugestaoSerializer(serializers.Serializer[Any]):
@@ -168,8 +151,8 @@ def representar(conta: ContaPagamento | None, empresa: Empresa, usuario: Any) ->
 class RecebimentosView(APIView):
     """GET e POST /api/recebimentos/ (`plataforma.md`, "Recebimentos da empresa")."""
 
-    permission_classes = com_padrao(ComRecebimentoPeloParceiro, SoAdministrador)
-    recurso_do_plano = RECURSO  # ADR 0024, item 4: lido pelo `ModuloDoPlano` da T-196
+    permission_classes = com_padrao(SoAdministrador)
+    recurso_do_plano = selectors.RECURSO_DE_RECEBIMENTOS  # ADR 0024, item 4 (`ModuloDoPlano`)
     suporte_proibido = True
     mensagem_suporte_proibido = SUPORTE_NOS_RECEBIMENTOS
 
