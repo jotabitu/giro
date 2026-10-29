@@ -156,63 +156,20 @@ Concluída. As tarefas entregues estão em `tarefas/feito.md`.
   - **C:** sem WhatsApp ao cliente final na fase 1.
 
   **Padrão: A** (produto e arquiteto). Está em "Pontos em aberto" das regras; handoff `tarefas/handoffs/T-387-produto.md`.
-### Fechamento da fase 1 (decisões do dono de 25 out 2026)
+### Fechamento da fase 1 · fechada em 28 out 2026
 
-Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (segurança), e pelas decisões do dono em `MEMORY.md` ("Escopo de fechamento da fase 1").
+A fase 1 fechou no ambiente de desenvolvimento, pelas decisões do dono em `MEMORY.md` ("Escopo de fechamento da fase 1", de 25 out, e "O que já existe e é da fase 2 fica como está", de 28 out). As tarefas T-356 a T-407 estão no `feito.md`. A última é a parte 2 da T-375 (PR #445), o E2E dos critérios de pronto do `plano.md`, com o resultado em `tarefas/handoffs/T-375-qa-e2e.md`.
 
-- **Em andamento desde 25 out:**
-  - T-196, módulos por plano (backend);
-  - T-281, seed em banco limpo (qa);
-  - T-356, regras das decisões (produto);
-  - T-357, ADR de hospedagem e produção, seguida da T-358, contratos que faltam (arquiteto);
-  - T-359, Tabelas de preço em `/admin/precos` (frontend);
-  - T-360, telas de referência de Reembolsos, Pendências do pagamento, Controle do suporte e faixa do modo suporte (design-system);
-  - T-361, Pillow 13 e auditoria de dependências (devops).
-
-### T-363 · Modelos de contrato (`/admin/contratos`)
-- **Agente:** frontend · **Depende de:** T-359 · **Telas:** `Contratos-Modelos` · **Contrato:** `docs/api/contratos.md` · **Pronto quando:** lista, modelos prontos, edição com marcadores, prévia, publicar e arquivar; o cartão de Configurações abre a tela; o componente serve ao passo Modelo de contrato; testes vitest.
-
-### T-364 · Passos que faltam no assistente
-- **Agente:** frontend · **Depende de:** T-358, T-359, T-363, T-366 · **Regras:** IMP-05, PLT-12 · **Pronto quando:** Primeira filial, Tabela de preços, Modelo de contrato, Recebimentos e Convidar equipe funcionam dentro da `CascaDoAssistente`, com Continuar e Pular pela API; o Essencial não vê Recebimentos; nenhum passo mostra "Esta etapa ainda não está disponível aqui.".
-
-### T-370 · Ações que faltam no caixa, no receber e no cliente
-- **Agente:** frontend · **Depende de:** — · **Regras:** FIN, CLI-03, CLI-05 · **Pronto quando:** estornar movimento no `/financeiro/caixa`, renegociar no `/financeiro/receber`, e bloquear, desbloquear, inativar e reativar no detalhe do cliente (com o 422 `cliente_com_pendencia`), pelos `acoes` da API; testes vitest.
-
-### T-371 · Reembolsos e pendências do pagamento
-- **Agente:** frontend · **Depende de:** T-360, T-358 · **Regras:** DEV-02, AUT-05 · **Pronto quando:** `/financeiro/reembolsos` (o início do financeiro deixa de dar 404) e a tela das pendências do pagamento, pelas telas da T-360 e o contrato da T-358; testes vitest.
-- **Estado (28 out 2026):** feita na branch `t-371-reembolsos-pendencias`, à espera do PR (`tarefas/handoffs/T-371-frontend.md`).
-
-### T-372 · Modo suporte e controle do suporte
-- **Agente:** frontend · **Depende de:** T-360, T-358 · **Regras:** PLT-07 · **Pronto quando:** a página de entrada do suporte, a faixa com Sair (`auth/suporte/sair/`) e o cartão de Configurações onde o administrador bloqueia, libera e revoga o suporte; testes vitest.
-- **Estado (28 out 2026):** feita na branch `t-372-modo-suporte`, à espera do PR (`tarefas/handoffs/T-372-frontend.md`).
+- **Ficam para a fase 2:**
+  - a subida de homologação e produção (T-373, abaixo) e as contas de produção (domínio, VPS, Asaas, WhatsApp pela Meta, e-mail transacional e Sentry);
+  - a T-378 (Completo fora da venda) e o preço do Profissional, na seção "Fase 2 em diante";
+  - a NFS-e da assinatura (T-197), à mão até o contador; a cotação da FIPE licenciada (T-338), com a fonte provisória da ADR 0031 valendo; o remetente do WhatsApp (`[decisão]` acima);
+  - os botões da ficha do veículo, parados por decisão do dono;
+  - o placeholder da busca que ainda corta a 1440 px por causa do chip Ctrl K (visual, do E2E da T-375).
 
 ### T-373 · Ambiente de produção
 - **Agente:** devops · **Depende de:** T-357 (opção B, ADR 0033) · **Pronto quando:** homologação e produção no ar com o frontend, o banco, o backup cifrado com restauração testada, o Sentry, o domínio e o certificado, e as chaves de produção no cofre (M-02 da T-355).
 - **Estado (26 out 2026):** a parte que não depende da conta está no PR #399 (compose da VPS, backup, restauração, certificado e roteiro). **A subida fica para a fase 2**, por decisão do dono em 25 out 2026: as contratações (domínio, VPS, Asaas de produção, WhatsApp, e-mail transacional e Sentry) são da fase 2.
-
-### T-375 · Fechamento da fase 1
-- **Parte 1 feita (26 out 2026, qa):** cobertura refeita e as 42 regras conferidas (`tarefas/handoffs/T-375-qa.md`).
-- **Parte 2 feita (28 out 2026, qa):** E2E do fechamento verde em stack isolada, com as correções da T-403 a T-406 e o seed com reembolso e pendência (`tarefas/handoffs/T-375-qa-e2e.md`). Falta só o PR da branch `t-375-e2e-fechamento`.
-- **Agente:** qa · **Depende de:** todas as anteriores · **Pronto quando:** `docs/qa/cobertura-de-regras.md` refeita a partir dos testes de hoje; as 42 regras sem teste com o código no nome conferidas (fase 2, teste com outro nome ou falta); o E2E percorre os critérios de pronto do `plano.md` no ambiente de desenvolvimento (a homologação é da fase 2, com as contas de produção) com a Moto Rápida (implantação, locação, devolução, cobrança, caixa e 2 etapas).
-
-### O que falta para fechar a fase 1 (28 out 2026)
-
-Situação depois dos merges de 26 a 28 out e da decisão do dono de 28 out em `MEMORY.md` ("O que já existe e é da fase 2 fica como está"). A T-363, a T-364 (#416), a T-370 (#411) e a T-376 à T-395 feitas estão no `feito.md`. O passo Recebimentos ficou fora da T-364, à espera da rota da T-366, e virou a T-397.
-
-- **Em andamento:**
-  - T-377, textos do downgrade recusado (backend 2);
-  - T-379, backend do controle do suporte (segurança).
-- **Em revisão:** T-380 (branch `t-380-reembolsos-pendencias`).
-- **Depois:** T-374 e T-165 (backend 2), T-397 (frontend, depois da T-366), T-371 (frontend, feita, à espera do PR), T-372 (frontend, depois da T-379) e a parte 2 da T-375 (qa), por último.
-
-### T-377 · Textos do downgrade recusado (T-391)
-- **Agente:** backend · **Depende de:** T-196 · **Regras:** PLT-04, PLT-12 · **Pronto quando:** os itens 1 a 5 de `tarefas/handoffs/T-391-produto.md` (`texto_do_que_excede` sem a atividade, o e-mail pelo CA-ASS-71, "A empresa {nome}", a última frase e `test_plt_04_email_do_downgrade_recusado` nos três casos). A comissão de locação que já existe fica como está (decisão do dono de 28 out); o downgrade da fase 1 não é recusado por ela.
-
-### T-379 · Backend do controle do suporte
-- **Agente:** segurança · **Depende de:** T-358 · **Regras:** PLT-07 · **Contrato:** `docs/api/contas.md` ("GET /api/suporte/" em diante) e o cartão `suporte` de `docs/api/configuracoes.md` · **Telas:** `Admin-Suporte` (T-360) · **Pronto quando:** `GET /api/suporte/` com o que a tela mostra, bloquear, liberar e revogar com auditoria, o cartão em Configurações (sem vir para o token de suporte) e o OpenAPI regenerado.
-
-### T-397 · Passo Recebimentos do assistente
-- **Agente:** frontend · **Depende de:** T-366 · **Regras:** FIN-04, IMP-05, IMP-07, PLT-12 · **Contrato:** `docs/api/plataforma.md` ("Recebimentos da empresa") · **Pronto quando:** o passo `/implantacao/recebimentos` dentro da `CascaDoAssistente`, com a sugestão da API, o envio, as situações (não conectado, em análise, ligados, recusado) e Pular; o Essencial não vê o passo; testes vitest.
 
 
 ### Notas do dono de 15 out 2026 (testes na mão)

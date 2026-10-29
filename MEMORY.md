@@ -4,6 +4,16 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ## Decisões de Design
 
+### [2026-10-28] Fase 1 fechada no ambiente de desenvolvimento
+- **Contexto:** o fechamento começou em 25 out ("Escopo de fechamento da fase 1") e seguiu com as decisões de 28 out ("O que já existe e é da fase 2 fica como está"). Entre 25 e 28 out entraram as tarefas T-356 a T-407, até o PR #445, com dois agentes de backend e a Segurança pegando tarefas de backend de segurança.
+- **Decisão (dono):** a fase 1 está fechada com o código pronto e testado no ambiente de desenvolvimento. O E2E da T-375, parte 2 (`tarefas/handoffs/T-375-qa-e2e.md`), passou nos critérios de pronto do `plano.md`: implantação do zero com os cinco passos, locação, devolução, cobrança, caixa, 2 etapas, aceite do convite, modo suporte, controle do suporte, Reembolsos e Pendências do pagamento com dados, celular e os CRLV-e reais. Os agentes param até o dono abrir a fase 2.
+- **O que fica para a fase 2:** a seção "Fechamento da fase 1" do backlog lista tudo. Em resumo: subida e contas de produção (T-373), Completo fora da venda e preço do Profissional (T-378), NFS-e (T-197), FIPE licenciada (T-338), remetente do WhatsApp, os botões da ficha do veículo e um ajuste visual da busca.
+- **Lições do fechamento:**
+  - o CI instala as dependências do zero (pytest 9.2, T-395);
+  - a ordem dos merges importa quando um PR de backend muda uma enum que o frontend exige (o #437 só passou depois do #436);
+  - o harness do `npm run e2e` apaga o banco `giro`, então o E2E roda numa stack isolada;
+  - depois de um merge com pasta nova, o frontend do Compose precisa de `docker compose restart frontend`.
+
 ### [2026-10-28] O que já existe e é da fase 2 fica como está
 - **Contexto:** a decisão D2 de 25 out ("Escopo de fechamento da fase 1") jogou a comissão de locação para a fase 2, e a T-377 começou a desligar a comissão que já existia no código. A T-378 tiraria o Completo da venda, com um campo novo no plano.
 - **Decisão (dono):** funcionalidade que já está pronta e foi marcada como fase 2 fica como está, e na fase 2 só se continua dela. Desligar custa trabalho agora e de novo na volta. Como a fase 1 fecha no ambiente de desenvolvimento e ninguém compra plano antes da produção, a T-378 e o preço do Profissional também vão para a fase 2.
