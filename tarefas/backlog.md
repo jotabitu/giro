@@ -453,6 +453,18 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Pronto quando:** regra com os campos, os rótulos do CRLV-e e quais são opcionais; migração; a leitura preenche os campos novos (testes com os CRLV-e reais da T-406); formulário, editar e ficha mostram os campos, a 1440 e a 390; teste com o código da regra no nome.
 - **Para o produto decidir:** se o número do motor e as observações do CRLV-e são dados de todos os perfis ou só de administrador e gerente; se o rastreador fica no veículo ou na integração de rastreador (`Integracoes`).
 
+#### T-422 · Referência de preço FIPE pela Parallelum, com rotina mensal
+- **Agentes:** arquiteto (ADR e contrato), segurança (revisão), backend, frontend · **Regras:** `VEN-01` (referência FIPE ao lado do preço), `VEI-08` · **Depende de:** ADR nova que complementa a 0031 · **Origem:** decisão do dono no chat em 29 out 2026.
+- **Decisão do dono (29 out):** usar a API aberta da Parallelum (`https://fipe.parallelum.com.br/api/v2`) no plano gratuito, **sem token** (500 pedidos por dia), com uma rotina mensal que atualiza o preço dos veículos. Mesmo risco de licença aceito na ADR 0031 (dados da Tabela FIPE sem licença), agora com preço e com o servidor chamando a API. Provisório até o contrato com a FIPE (T-338).
+- **Hoje:** o campo `referencia_fipe_centavos` existe no veículo e a ficha mostra "Valor de venda (FIPE)" quando há valor; no cadastro, o campo "Referência FIPE" está desligado ("A consulta FIPE ainda não está disponível"); o catálogo não guarda o código FIPE.
+- **Pronto quando:**
+  - ADR com a chamada externa: tarefa do Celery Beat uma vez por mês, depois da virada da tabela, um pedido por segundo, parada no 429 e retomada no dia seguinte, sem dependência nova; o que acontece se a API sair do ar (o último valor fica, com o mês de referência);
+  - o veículo guarda o código FIPE, o ano usado e o mês de referência do preço; o cadastro e o editar deixam escolher a versão FIPE (junto com a T-415) ou o código;
+  - o preço é guardado em centavos, com o mês de referência, e a ficha mostra "Referência FIPE · <mês>";
+  - a conta cabe no limite: com várias empresas, a rotina reparte os pedidos entre os dias e consulta uma vez cada código e ano repetido;
+  - teste com a API simulada (sem chamada real no CI), com o código da regra no nome.
+- **Para o arquiteto decidir:** quais veículos entram (todos ou só os ativos e à venda); como achar o código FIPE dos veículos já cadastrados (casamento pelo catálogo ou à mão); se a consulta por placa da Parallelum vale a pena no cadastro.
+
 #### Também liberado
 - O botão "Mandar para oficina" da ficha depende do módulo de manutenção (`MAN`, `backend/apps/manutencao/` vazio) e entra quando ele for quebrado em tarefas.
 

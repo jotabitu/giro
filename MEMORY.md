@@ -4,6 +4,11 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ## Decisões de Design
 
+### [2026-10-29] Preço FIPE pela Parallelum gratuita, sem token, com rotina mensal
+- **Contexto:** o catálogo de modelos já vem da Parallelum (ADR 0031), mas sem preço; o campo `referencia_fipe_centavos` existe e nada o preenche. A FIPE licenciada (T-338) segue sem pedido de cotação. A Parallelum tem preço por marca, modelo e ano e por código FIPE: 500 pedidos por dia sem cadastro, 1.000 com token gratuito, e o plano Pro (R$ 59/mês para novos assinantes) sem limite.
+- **Decisão (dono):** usar a Parallelum no gratuito, sem token, com uma rotina mensal no servidor. O risco de licença é o mesmo aceito na ADR 0031 e vale enquanto não houver contrato com a FIPE. Tarefa T-422, que pede ADR nova (o servidor passa a chamar a API, o que a 0031 evitava).
+- **Quando rever:** se o volume passar dos 500 pedidos por dia (token gratuito ou Pro) ou quando sair o contrato com a FIPE.
+
 ### [2026-10-29] Fase 2 aberta sem atividade iniciada
 - **Contexto:** o dono escreveu 11 notas na aba Notas do painel "Progresso do Giro" (documentos `notas/*` do banco do artifact FqWd6) e pediu que virassem tarefas.
 - **Decisão (dono):** a fase 2 está aberta, mas nenhuma tarefa começa até ele liberar. As notas viraram as tarefas T-410 a T-420 no backlog ("Notas do dono de 29 out 2026"), com as respostas dele: locação confirmada reserva o veículo e as parcelas só vencem depois da retirada; copiar link em contrato, cobrança, recibo da devolução e fatura; faixa fixa da suspensa em todas as telas, sem pop-up; galeria própria de fotos do veículo e fotos da vistoria para ver e baixar; escolher a versão no CRLV-e; categorias próprias de despesa do veículo; catálogo interno e depois vitrine pública; loca-compra com prazo fixo e transferência ao quitar.
