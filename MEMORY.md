@@ -7,6 +7,7 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 ### [2026-10-29] Preço FIPE pela Parallelum gratuita, sem token, com rotina mensal
 - **Contexto:** o catálogo de modelos já vem da Parallelum (ADR 0031), mas sem preço; o campo `referencia_fipe_centavos` existe e nada o preenche. A FIPE licenciada (T-338) segue sem pedido de cotação. A Parallelum tem preço por marca, modelo e ano e por código FIPE: 500 pedidos por dia sem cadastro, 1.000 com token gratuito, e o plano Pro (R$ 59/mês para novos assinantes) sem limite.
 - **Decisão (dono):** usar a Parallelum no gratuito, sem token, com uma rotina mensal no servidor. O risco de licença é o mesmo aceito na ADR 0031 e vale enquanto não houver contrato com a FIPE. Tarefa T-422, que pede ADR nova (o servidor passa a chamar a API, o que a 0031 evitava).
+- **Detalhes decididos no mesmo dia:** a rotina atualiza todos os veículos ativos; o código FIPE dos já cadastrados vem pelo casamento automático, e a ficha pede para escolher a versão quando houver mais de uma; a consulta por placa (Alpha, 15 por mês sem token) entra como recurso em teste, desligado por padrão, pronto para o plano Pro.
 - **Quando rever:** se o volume passar dos 500 pedidos por dia (token gratuito ou Pro) ou quando sair o contrato com a FIPE.
 
 ### [2026-10-29] Fase 2 aberta sem atividade iniciada

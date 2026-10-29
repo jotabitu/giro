@@ -463,7 +463,10 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
   - o preço é guardado em centavos, com o mês de referência, e a ficha mostra "Referência FIPE · <mês>";
   - a conta cabe no limite: com várias empresas, a rotina reparte os pedidos entre os dias e consulta uma vez cada código e ano repetido;
   - teste com a API simulada (sem chamada real no CI), com o código da regra no nome.
-- **Para o arquiteto decidir:** quais veículos entram (todos ou só os ativos e à venda); como achar o código FIPE dos veículos já cadastrados (casamento pelo catálogo ou à mão); se a consulta por placa da Parallelum vale a pena no cadastro.
+- **Decisões do dono (29 out, no chat):**
+  - **Quais veículos:** todos os ativos (fora os vendidos e baixados), com um pedido só por código FIPE e ano repetido.
+  - **Veículos já cadastrados:** a rotina casa marca, modelo e ano com a FIPE; se achar uma versão só, grava; se achar várias (como o Cruze), a ficha pede para escolher a versão, e o veículo fica sem referência até alguém escolher.
+  - **Consulta por placa** (`GET /api/v2/plates/{placa}`, em Alpha, que traz marca, modelo, ano e os preços com o código FIPE): entra como recurso em teste, desligado por padrão e ligado por configuração, para estar pronto quando o dono passar para o plano Pro. Sem token, a cota é de 15 consultas por mês somando todas as empresas (30 com token gratuito), lida dos cabeçalhos `X-Plate-Quota-*`. Com a cota esgotada ou a rota fora do ar, o cadastro segue pelo CRLV-e e pela escolha da versão, sem erro para a pessoa. O token do Pro, quando houver, fica no cofre de segredos, nunca no repositório.
 
 #### Também liberado
 - O botão "Mandar para oficina" da ficha depende do módulo de manutenção (`MAN`, `backend/apps/manutencao/` vazio) e entra quando ele for quebrado em tarefas.
