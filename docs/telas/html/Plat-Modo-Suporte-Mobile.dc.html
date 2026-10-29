@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Modo suporte · Moto Rápida · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.card{padding:16px;border-radius:24px;background:var(--surface)}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.bar{height:8px;border-radius:999px;background:var(--surface-sunken);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:999px;background:var(--solid)}
+.leg{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-muted)}
+.leg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.res{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.res:last-child{border-bottom:0}
+.res.tot{font-weight:600;font-size:17px}
+.sec{font-size:13px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--ink-muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.two .wl-field,.wl-field.full{width:auto;min-width:0}
+.two .wl-input{width:100%;box-sizing:border-box;min-width:0}
+[style*="width: 390px"] > *{flex-shrink:0}
+.tabs{align-self:flex-start}
+.tabs a{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 18px;border-radius:999px;color:var(--ink);text-decoration:none;font-size:15px}
+.tabs a[aria-current="page"]{background:var(--solid);color:var(--on-solid)}
+.tabs .tc{font-size:13px;opacity:.7}
+.tabs--m{display:grid;grid-template-columns:1fr 1fr 1fr;align-self:stretch}
+.tabs--m a{justify-content:center;padding:0 10px}
+.kpv{font-size:32px!important;white-space:nowrap}
+.tg{position:relative;width:44px;height:26px;flex:none;border-radius:999px;background:var(--solid)}
+.tg::after{content:"";position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:var(--on-solid)}
+.tg.off{background:var(--line)}
+.tg.off::after{right:auto;left:3px;background:var(--surface)}
+.swrow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:var(--surface-sunken)}
+.drop{display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;border:1.5px dashed var(--line);color:var(--ink-muted);font-size:14px}
+.scrim{position:absolute;inset:0;background:rgba(17,17,20,0.38)}
+.drawer{position:absolute;top:16px;right:16px;bottom:16px;width:520px;display:flex;flex-direction:column;border-radius:32px;background:var(--surface);box-shadow:var(--shadow-pop);overflow:hidden}
+.ch{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--line)}
+.ch.on{box-shadow:inset 0 0 0 2px var(--ink)}
+.ch .r{width:18px;height:18px;flex:none;margin-top:2px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink-muted)}
+.ch.on .r{box-shadow:inset 0 0 0 5px var(--ink)}
+.ch.dis{opacity:.55}
+.ch b{display:block;font-weight:600}
+.chk{display:flex;gap:10px;align-items:flex-start;padding:6px 0;font-size:15px}
+.chk i{width:20px;height:20px;flex:none;border-radius:6px;box-shadow:inset 0 0 0 1.5px var(--ink-muted);display:grid;place-items:center}
+.chk.on i{background:var(--solid);box-shadow:none}
+.chk.on i::after{content:"";width:9px;height:5px;margin-top:-2px;border-left:2px solid var(--on-solid);border-bottom:2px solid var(--on-solid);transform:rotate(-45deg)}
+.chk small{display:block;color:var(--ink-muted);font-size:13px}
+.note{padding:12px 14px;border-radius:16px;background:var(--surface-sunken);font-size:14px;line-height:20px}
+.note.warn{background:var(--warning-soft);color:var(--warning-ink)}
+.note.crit{background:var(--critical-soft);color:var(--critical-ink)}
+.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.three .wl-field{width:auto;min-width:0}.three .wl-input{width:100%;box-sizing:border-box}
+.wl-field.full .wl-input{width:100%;box-sizing:border-box}
+textarea.wl-input{height:auto;min-height:96px;padding-top:12px;line-height:22px;resize:none;font:inherit}
+.modal{position:absolute;left:50%;top:72px;transform:translateX(-50%);width:580px;display:flex;flex-direction:column;border-radius:32px;background:var(--surface);box-shadow:var(--shadow-pop);overflow:hidden}
+.sheet{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:14px;padding:12px 16px 28px;border-radius:28px 28px 0 0;background:var(--surface);box-shadow:var(--shadow-pop)}
+.sheet .grab{width:40px;height:5px;border-radius:999px;background:var(--line);align-self:center}
+.btn-crit{background:var(--critical)!important;color:var(--on-critical)!important}
+.msel{position:relative;gap:8px}
+.msel select{border:0;background:transparent;font:inherit;color:inherit;appearance:none;-webkit-appearance:none;padding:0 2px;cursor:pointer;outline:none}
+.msel::after{content:"";width:6px;height:6px;margin-left:2px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translateY(-2px)}
+.doc{padding:18px;border-radius:18px;box-shadow:inset 0 0 0 1px var(--line);display:flex;flex-direction:column;gap:10px;font-size:14px}
+.doc .dh{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:10px}
+.tl{display:flex;gap:12px;padding:8px 0;font-size:14px}
+.tl .d{width:64px;flex:none;color:var(--ink-muted);font-family:var(--font-mono);font-size:13px}
+.lrow{display:flex;align-items:center;gap:12px;padding:15px 0;border-bottom:1px solid var(--line);text-decoration:none;color:var(--ink);font-weight:500}
+.lrow:last-child{border-bottom:0}
+.supbar{flex:1 0 100%;display:flex;align-items:center;gap:12px;padding:12px 18px;border-radius:18px;background:var(--warning);color:var(--on-warning);font-size:14px;box-sizing:border-box}
+.supbar a{margin-left:auto;color:inherit;font-weight:600}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1720px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 16px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<div class="supbar" style="flex: none; width: 100%;" role="status"><b>Modo suporte</b><span>Moto Rápida · só ver · até 14:12</span><a href="Plat-Suporte-Mobile.dc.html">Sair</a></div>
+
+
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;">
+<div class="wl-logo-slot" aria-hidden="true">MR</div>
+<div style="display: flex; flex-direction: column; flex: 1; min-width: 0;"><span style="font-weight: 600; font-size: 17px;">Moto Rápida</span><span style="font-size: 13px; line-height: 18px; color: var(--ink-muted);">Filial Centro · Fortaleza</span></div>
+<button disabled title="Indisponível no modo só ver" class="wl-icon-btn wl-icon-btn--sm" aria-label="Buscar" style="width: 44px; height: 44px;"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg></button>
+<button disabled title="Indisponível no modo só ver" class="wl-icon-btn wl-icon-btn--sm" aria-label="Notificações" style="width: 44px; height: 44px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20.5a2.2 2.2 0 0 0 4 0"></path></svg><span class="wl-notify" style="top: 9px; right: 10px;"></span></button>
+</header>
+
+<div style="display: flex; flex-direction: column; gap: 10px; padding: 4px 4px 0;">
+<h1 style="margin: 0; font-size: 30px; line-height: 34px; font-weight: 600; letter-spacing: -0.02em;">Bom dia, Mariana</h1>
+<span class="wl-badge wl-badge--brand" style="align-self: flex-start;"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg>7 contratos pedem atenção</span>
+</div>
+
+<section class="wl-panel" style="padding: 16px; border-radius: 28px;">
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+<h2 style="margin: 0; font-size: 20px; line-height: 26px; font-weight: 600;">Frota</h2>
+<div class="wl-seg" role="group" aria-label="Período" style="padding: 3px;"><button aria-pressed="false" style="height: 34px; padding: 0 12px; font-size: 14px;">Hoje</button><button aria-pressed="true" style="height: 34px; padding: 0 12px; font-size: 14px;">7 dias</button></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+<div class="wl-kpi wl-kpi--solid" style="padding: 14px 16px;"><div class="wl-kpi__label">Frota ativa</div><div class="wl-kpi__value" style="font-size: 34px; line-height: 36px;">86</div><div class="wl-kpi__meta" style="font-size: 13px;">52 motos · 34 carros</div></div>
+<div class="wl-kpi" style="padding: 14px 16px;"><div class="wl-kpi__label">Alugados</div><div class="wl-kpi__value" style="font-size: 34px; line-height: 36px;">42</div><div class="wl-kpi__meta" style="font-size: 13px;"><span class="wl-kpi__up">↗ 6</span> na semana</div></div>
+<div class="wl-kpi" style="padding: 14px 16px;"><div class="wl-kpi__label">Ocupação</div><div class="wl-kpi__value" style="font-size: 34px; line-height: 36px;">71%</div><div class="wl-kpi__meta" style="font-size: 13px;">meta de 80%</div></div>
+<div class="wl-kpi" style="padding: 14px 16px;"><div class="wl-kpi__label">Em atraso</div><div class="wl-kpi__value" style="font-size: 34px; line-height: 36px;">7</div><div class="wl-kpi__meta" style="font-size: 13px;">R$ 4.380</div></div>
+</div>
+<div style="margin-top: 16px;">
+<div style="display: flex; justify-content: space-between; font-size: 14px;"><span style="font-weight: 500;">Frota por status</span><span style="color: var(--ink-muted);">86 veículos</span></div>
+<div style="display: flex; gap: 4px; height: 14px; margin-top: 10px;">
+<div style="flex: 16; border-radius: 999px; background: var(--line);"></div>
+<div style="flex: 42; border-radius: 999px; background: var(--brand);"></div>
+<div style="flex: 9; border-radius: 999px; background: var(--line);"></div>
+<div style="flex: 7; border-radius: 999px; background: var(--line);"></div>
+<div style="flex: 12; border-radius: 999px; background: var(--solid);"></div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; margin-top: 12px; font-size: 14px;">
+<div style="display: flex; justify-content: space-between;"><span style="color: var(--ink-muted);">Disponível</span><span style="font-weight: 500;">16</span></div>
+<div style="display: flex; justify-content: space-between;"><span style="color: var(--ink-muted);">Alugado</span><span style="font-weight: 500;">42</span></div>
+<div style="display: flex; justify-content: space-between;"><span style="color: var(--ink-muted);">Reservado</span><span style="font-weight: 500;">9</span></div>
+<div style="display: flex; justify-content: space-between;"><span style="color: var(--ink-muted);">Manutenção</span><span style="font-weight: 500;">7</span></div>
+<div style="display: flex; justify-content: space-between;"><span style="color: var(--ink-muted);">À venda</span><span style="font-weight: 500;">12</span></div>
+</div>
+</div>
+</section>
+
+<section class="wl-alert-card" style="padding: 20px; border-radius: 28px;">
+<div class="wl-alert-card__head"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg>Pendências do dia<span class="wl-alert-card__time">há 6 min</span></div>
+<h3 class="wl-alert-card__title" style="font-size: 22px; line-height: 28px;">7 contratos precisam de ação hoje</h3>
+<ul>
+<li class="is-critical">3 devoluções atrasadas</li>
+<li class="is-warning">2 motos com revisão vencida</li>
+<li>2 parcelas vencem até amanhã</li>
+</ul>
+<button disabled title="Indisponível no modo só ver" class="wl-btn wl-btn--brand" style="width: 100%;">Ver pendências</button>
+</section>
+
+<section class="wl-panel" style="padding: 16px; border-radius: 28px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px;">
+<h2 style="margin: 0; font-size: 20px; line-height: 26px; font-weight: 600;">Devoluções</h2>
+<a href="Locacoes-Mobile.dc.html" style="font-size: 14px; font-weight: 500; text-decoration: none;">Ver todas</a>
+</div>
+<div style="display: flex; flex-direction: column;">
+<a href="Vistoria-Mobile.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); text-decoration: none; color: var(--ink);">
+<div style="flex: 1; min-width: 0;"><div style="display: flex; gap: 8px; align-items: baseline;"><span class="wl-mono" style="font-weight: 500;">QXA-4B21</span><span style="color: var(--ink-muted); font-size: 14px;">06 out</span></div><div style="font-size: 14px; color: var(--ink-muted);">Honda CG 160 · Carlos Menezes</div></div>
+<span class="wl-badge wl-badge--sm wl-badge--critical">Atrasado</span>
+</a>
+<a href="Vistoria-Mobile.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); text-decoration: none; color: var(--ink);">
+<div style="flex: 1; min-width: 0;"><div style="display: flex; gap: 8px; align-items: baseline;"><span class="wl-mono" style="font-weight: 500;">PNB-7C04</span><span style="color: var(--ink-muted); font-size: 14px;">07 out</span></div><div style="font-size: 14px; color: var(--ink-muted);">Yamaha Factor 150 · Juliana Rocha</div></div>
+<span class="wl-badge wl-badge--sm wl-badge--attention">Hoje</span>
+</a>
+<a href="Vistoria-Mobile.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--line); text-decoration: none; color: var(--ink);">
+<div style="flex: 1; min-width: 0;"><div style="display: flex; gap: 8px; align-items: baseline;"><span class="wl-mono" style="font-weight: 500;">ROE-2A88</span><span style="color: var(--ink-muted); font-size: 14px;">08 out</span></div><div style="font-size: 14px; color: var(--ink-muted);">Fiat Mobi Like · Pedro Alencar</div></div>
+<span class="wl-badge wl-badge--sm wl-badge--solid">Alugado</span>
+</a>
+<a href="Vistoria-Mobile.dc.html" style="display: flex; align-items: center; gap: 12px; padding: 14px 0; text-decoration: none; color: var(--ink);">
+<div style="flex: 1; min-width: 0;"><div style="display: flex; gap: 8px; align-items: baseline;"><span class="wl-mono" style="font-weight: 500;">SAK-1D39</span><span style="color: var(--ink-muted); font-size: 14px;">09 out</span></div><div style="font-size: 14px; color: var(--ink-muted);">Honda CG 160 Fan · Aline Duarte</div></div>
+<span class="wl-badge wl-badge--sm wl-badge--info">Renovação</span>
+</a>
+</div>
+</section>
+
+<section class="wl-panel" style="padding: 16px; border-radius: 28px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between;">
+<h2 style="margin: 0; font-size: 20px; line-height: 26px; font-weight: 600;">Caixa de hoje</h2>
+<span style="font-size: 14px; color: var(--ink-muted);">07 out</span>
+</div>
+<div style="margin-top: 10px; font-size: 34px; line-height: 36px; font-weight: 600; letter-spacing: -0.03em;">R$ 2.620,00</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 14px; border: 1px solid var(--line); border-radius: 14px;">
+<div style="padding: 10px 12px;"><div style="font-size: 13px; color: var(--ink-muted);">Recebido</div><div style="font-weight: 500; font-size: 14px;">R$ 3.240</div></div>
+<div style="padding: 10px 12px; border-left: 1px solid var(--line);"><div style="font-size: 13px; color: var(--ink-muted);">A receber</div><div style="font-weight: 500; font-size: 14px;">R$ 1.890</div></div>
+<div style="padding: 10px 12px; border-left: 1px solid var(--line);"><div style="font-size: 13px; color: var(--ink-muted);">Despesas</div><div style="font-weight: 500; font-size: 14px;">R$ 620</div></div>
+</div>
+</section>
+
+<nav aria-label="Navegação principal" style="position: absolute; left: 16px; right: 16px; bottom: 20px; display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow-pop);">
+<a href="Dashboard-Mobile.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 16px; border-radius: 999px; background: var(--solid); color: var(--on-solid); text-decoration: none; font-size: 14px; font-weight: 500;"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>Início</a>
+<a href="Frota-Mobile.dc.html" aria-label="Veículos" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg></a>
+<a href="Locacao-Mobile.dc.html" aria-label="Nova locação" style="display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--brand); color: var(--on-brand);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></a>
+<a href="Locacoes-Mobile.dc.html" aria-label="Locações" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg></a>
+<a href="Menu-Mobile.dc.html" aria-label="Mais" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1720}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

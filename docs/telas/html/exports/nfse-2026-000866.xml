@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CompNfse>
+  <Nfse>
+    <Numero>2026/000866</Numero>
+    <DataEmissao>2026-10-00</DataEmissao>
+    <Prestador><RazaoSocial>Giro Tecnologia Ltda</RazaoSocial><Cnpj>11222333000181</Cnpj><Municipio>Fortaleza</Municipio></Prestador>
+    <Tomador><RazaoSocial>Ponta Verde Locações</RazaoSocial><Cnpj>12345678000438</Cnpj></Tomador>
+    <Servico><ItemListaServico>1.05</ItemListaServico><Discriminacao>Assinatura Giro - outubro de 2026</Discriminacao><ValorServicos>199.00</ValorServicos><Aliquota>0.02</Aliquota><IssRetido>2</IssRetido></Servico>
+  </Nfse>
+</CompNfse>

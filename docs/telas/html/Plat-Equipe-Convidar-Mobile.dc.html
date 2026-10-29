@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Convidar pessoa · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.co{display:flex;align-items:center;gap:12px}
+.co .lg{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:10px;font-size:12px;font-weight:700;color:#ffffff}
+.mini{height:6px;width:90px;border-radius:999px;background:var(--surface-sunken);overflow:hidden}
+.mini i{display:block;height:100%;border-radius:999px;background:var(--solid)}
+.row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row small,.muted{color:var(--ink-muted)}
+.row small{display:block;font-size:13px;line-height:18px}
+.card{padding:16px;border-radius:24px;background:var(--surface)}
+.h2{margin:0;font-size:20px;font-weight:600}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.bar{height:8px;border-radius:999px;background:var(--surface-sunken);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:999px;background:var(--solid)}
+.leg{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-muted)}
+.leg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.res{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.res:last-child{border-bottom:0}
+.res.tot{font-weight:600;font-size:17px}
+.sec{font-size:13px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--ink-muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.two .wl-field,.wl-field.full{width:auto;min-width:0}
+.two .wl-input{width:100%;box-sizing:border-box;min-width:0}
+[style*="width: 390px"] > *{flex-shrink:0}
+.tabs{align-self:flex-start}
+.tabs a{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 18px;border-radius:999px;color:var(--ink);text-decoration:none;font-size:15px}
+.tabs a[aria-current="page"]{background:var(--solid);color:var(--on-solid)}
+.tabs .tc{font-size:13px;opacity:.7}
+.tabs--m{display:grid;grid-template-columns:1fr 1fr 1fr;align-self:stretch}
+.tabs--m a{justify-content:center;padding:0 10px}
+.kpv{font-size:32px!important;white-space:nowrap}
+.tg{position:relative;width:44px;height:26px;flex:none;border-radius:999px;background:var(--solid)}
+.tg::after{content:"";position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:var(--on-solid)}
+.tg.off{background:var(--line)}
+.tg.off::after{right:auto;left:3px;background:var(--surface)}
+.swrow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:var(--surface-sunken)}
+.drop{display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;border:1.5px dashed var(--line);color:var(--ink-muted);font-size:14px}
+.scrim{position:absolute;inset:0;background:rgba(17,17,20,0.38)}
+.drawer{position:absolute;top:16px;right:16px;bottom:16px;width:520px;display:flex;flex-direction:column;border-radius:32px;background:var(--surface);box-shadow:var(--shadow-pop);overflow:hidden}
+
+.ch{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--line)}
+.ch.on{box-shadow:inset 0 0 0 2px var(--ink)}
+.ch .r{width:18px;height:18px;flex:none;margin-top:2px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink-muted)}
+.ch.on .r{box-shadow:inset 0 0 0 5px var(--ink)}
+.ch.dis{opacity:.55}
+.ch b{display:block;font-weight:600}
+.chk{display:flex;gap:10px;align-items:flex-start;padding:6px 0;font-size:15px}
+.chk i{width:20px;height:20px;flex:none;border-radius:6px;box-shadow:inset 0 0 0 1.5px var(--ink-muted);display:grid;place-items:center}
+.chk.on i{background:var(--solid);box-shadow:none}
+.chk.on i::after{content:"";width:9px;height:5px;margin-top:-2px;border-left:2px solid var(--on-solid);border-bottom:2px solid var(--on-solid);transform:rotate(-45deg)}
+.chk small{display:block;color:var(--ink-muted);font-size:13px}
+.note{padding:12px 14px;border-radius:16px;background:var(--surface-sunken);font-size:14px;line-height:20px}
+.note.warn{background:var(--warning-soft);color:var(--warning-ink)}
+.note.crit{background:var(--critical-soft);color:var(--critical-ink)}
+.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.three .wl-field{width:auto;min-width:0}.three .wl-input{width:100%;box-sizing:border-box}
+.wl-field.full .wl-input{width:100%;box-sizing:border-box}
+textarea.wl-input{height:auto;min-height:96px;padding-top:12px;line-height:22px;resize:none;font:inherit}
+.modal{position:absolute;left:50%;top:72px;transform:translateX(-50%);width:580px;display:flex;flex-direction:column;border-radius:32px;background:var(--surface);box-shadow:var(--shadow-pop);overflow:hidden}
+.sheet{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:14px;padding:12px 16px 28px;border-radius:28px 28px 0 0;background:var(--surface);box-shadow:var(--shadow-pop)}
+.sheet .grab{width:40px;height:5px;border-radius:999px;background:var(--line);align-self:center}
+.btn-crit{background:var(--critical)!important;color:var(--on-critical)!important}
+.msel{position:relative;gap:8px}
+.msel select{border:0;background:transparent;font:inherit;color:inherit;appearance:none;-webkit-appearance:none;padding:0 2px;cursor:pointer;outline:none}
+.msel::after{content:"";width:6px;height:6px;margin-left:2px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translateY(-2px)}
+.doc{padding:18px;border-radius:18px;box-shadow:inset 0 0 0 1px var(--line);display:flex;flex-direction:column;gap:10px;font-size:14px}
+.doc .dh{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:10px}
+.tl{display:flex;gap:12px;padding:8px 0;font-size:14px}
+.tl .d{width:64px;flex:none;color:var(--ink-muted);font-family:var(--font-mono);font-size:13px}
+.lrow{display:flex;align-items:center;gap:12px;padding:15px 0;border-bottom:1px solid var(--line);text-decoration:none;color:var(--ink);font-weight:500}
+.lrow:last-child{border-bottom:0}
+.supbar{flex:1 0 100%;display:flex;align-items:center;gap:12px;padding:12px 18px;border-radius:18px;background:var(--warning);color:var(--on-warning);font-size:14px;box-sizing:border-box}
+.supbar a{margin-left:auto;color:inherit;font-weight:600}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1100px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;"><a href="Plat-Equipe-Mobile.dc.html" aria-label="Fechar" class="wl-icon-btn wl-icon-btn--sm" style="width: 44px; height: 44px; flex: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"></path></svg></a><div style="flex: 1; min-width: 0;"><div style="font-size: 22px; line-height: 26px; font-weight: 600;">Convidar pessoa</div><div class="lbl">Equipe interna do Giro</div></div></header>
+<section style="display: flex; flex-direction: column; gap: 14px; padding: 16px; border-radius: 24px; background: var(--surface);">
+<div><label class="wl-field full"><span class="wl-field__label">Nome</span><input class="wl-input" value="Bruno Teixeira"></label><label class="wl-field full"><span class="wl-field__label">E-mail</span><input class="wl-input" value="bruno@girolocadoras.com.br"></label></div><div class="sec" style="margin-top: 4px;">Função</div><div class="ch on" role="radio" aria-checked="true"><span class="r"></span><div><b>Suporte</b><span class="lbl">Chamados e entrar como suporte</span></div></div><div class="ch" role="radio" aria-checked="false"><span class="r"></span><div><b>Financeiro</b><span class="lbl">Cobrança, faturas, notas fiscais e despesas</span></div></div><div class="ch" role="radio" aria-checked="false"><span class="r"></span><div><b>Sucesso do cliente</b><span class="lbl">Empresas, implantações, estender teste e mudar plano</span></div></div><div class="note">Só existe um Dono. A verificação em 2 etapas é pedida no primeiro acesso. O convite vale 7 dias.</div>
+</section>
+<div style="position: absolute; left: 16px; right: 16px; bottom: 24px; display: flex; gap: 8px;"><a class="wl-btn" href="Plat-Equipe-Mobile.dc.html" style="justify-content: center; height: 52px; text-decoration: none; flex: 1;">Cancelar</a><a class="wl-btn wl-btn--solid" href="Plat-Equipe-Mobile.dc.html" style="justify-content: center; height: 52px; text-decoration: none; flex: 2;">Enviar convite</a></div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

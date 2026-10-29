@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Lote mes="2026-10" notas="108">
+  <Nota numero="2026/000874" tomador="Rio Motos" valor="449.00"/>
+  <Nota numero="2026/000871" tomador="Garupa Motos" valor="449.00"/>
+  <Nota numero="2026/000866" tomador="Ponta Verde Locações" valor="199.00"/>
+  <!-- exemplo: as demais 105 notas do mês -->
+</Lote>

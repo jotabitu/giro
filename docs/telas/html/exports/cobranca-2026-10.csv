@@ -1,0 +1,7 @@
+﻿Empresa;Plano;Fatura;Vencimento;Valor;Forma;Situação
+Rota Sul Locadora;Completo;FAT-2209;25/09/2026;899,00;Boleto;12 dias atrasada
+Garagem Teresina;Profissional;FAT-2214;25/09/2026;449,00;Cartão recusado;12 dias atrasada
+Motovia;Essencial;FAT-2231;30/09/2026;199,00;Pix;7 dias atrasada
+Loc Motos Natal;Essencial;FAT-2240;10/10/2026;199,00;Cartão;Em aberto
+Vai de Moto;Profissional;FAT-2196;05/10/2026;449,00;Pix;Paga em 05/10/2026
+Trilha Rent;Completo;FAT-2188;01/10/2026;899,00;Cartão;Paga em 01/10/2026
