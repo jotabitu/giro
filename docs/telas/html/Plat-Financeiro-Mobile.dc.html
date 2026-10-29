@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Financeiro da plataforma · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.co{display:flex;align-items:center;gap:12px}
+.co .lg{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:10px;font-size:12px;font-weight:700;color:#ffffff}
+.mini{height:6px;width:90px;border-radius:999px;background:var(--surface-sunken);overflow:hidden}
+.mini i{display:block;height:100%;border-radius:999px;background:var(--solid)}
+.row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row small,.muted{color:var(--ink-muted)}
+.row small{display:block;font-size:13px;line-height:18px}
+.card{padding:16px;border-radius:24px;background:var(--surface)}
+.h2{margin:0;font-size:20px;font-weight:600}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.bar{height:8px;border-radius:999px;background:var(--surface-sunken);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:999px;background:var(--solid)}
+.leg{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-muted)}
+.leg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.res{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.res:last-child{border-bottom:0}
+.res.tot{font-weight:600;font-size:17px}
+.sec{font-size:13px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--ink-muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.two .wl-field,.wl-field.full{width:auto;min-width:0}
+.two .wl-input{width:100%;box-sizing:border-box;min-width:0}
+[style*="width: 390px"] > *{flex-shrink:0}
+.tabs{align-self:flex-start}
+.tabs a{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 18px;border-radius:999px;color:var(--ink);text-decoration:none;font-size:15px}
+.tabs a[aria-current="page"]{background:var(--solid);color:var(--on-solid)}
+.tabs .tc{font-size:13px;opacity:.7}
+.tabs--m{display:grid;grid-template-columns:1fr 1fr 1fr;align-self:stretch}
+.tabs--m a{justify-content:center;padding:0 10px}
+.kpv{font-size:32px!important;white-space:nowrap}
+.tg{position:relative;width:44px;height:26px;flex:none;border-radius:999px;background:var(--solid)}
+.tg::after{content:"";position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:var(--on-solid)}
+.tg.off{background:var(--line)}
+.tg.off::after{right:auto;left:3px;background:var(--surface)}
+.swrow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:var(--surface-sunken)}
+.drop{display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;border:1.5px dashed var(--line);color:var(--ink-muted);font-size:14px}
+.scrim{position:absolute;inset:0;background:rgba(17,17,20,0.38)}
+.drawer{position:absolute;top:16px;right:16px;bottom:16px;width:520px;display:flex;flex-direction:column;border-radius:32px;background:var(--surface);box-shadow:var(--shadow-pop);overflow:hidden}
+
+.ch{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--line)}
+.ch.on{box-shadow:inset 0 0 0 2px var(--ink)}
+.ch .r{width:18px;height:18px;flex:none;margin-top:2px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink-muted)}
+.ch.on .r{box-shadow:inset 0 0 0 5px var(--ink)}
+.ch.dis{opacity:.55}
+.ch b{display:block;font-weight:600}
+.chk{display:flex;gap:10px;align-items:flex-start;padding:6px 0;font-size:15px}
+.chk i{width:20px;height:20px;flex:none;border-radius:6px;box-shadow:inset 0 0 0 1.5px var(--ink-muted);display:grid;place-items:center}
+.chk.on i{background:var(--solid);box-shadow:none}
+.chk.on i::after{content:"";width:9px;height:5px;margin-top:-2px;border-left:2px solid var(--on-solid);border-bottom:2px solid var(--on-solid);transform:rotate(-45deg)}
+.chk small{display:block;color:var(--ink-muted);font-size:13px}
+.note{padding:12px 14px;border-radius:16px;background:var(--surface-sunken);font-size:14px;line-height:20px}
+.note.warn{background:var(--warning-soft);color:var(--warning-ink)}
+.note.crit{background:var(--critical-soft);color:var(--critical-ink)}
+.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.three .wl-field{width:auto;min-width:0}.three .wl-input{width:100%;box-sizing:border-box}
+.wl-field.full .wl-input{width:100%;box-sizing:border-box}
+textarea.wl-input{height:auto;min-height:96px;padding-top:12px;line-height:22px;resize:none;font:inherit}
+.modal{position:absolute;left:50%;top:72px;transform:translateX(-50%);width:580px;display:flex;flex-direction:column;border-radius:32px;background:var(--surface);box-shadow:var(--shadow-pop);overflow:hidden}
+.sheet{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:14px;padding:12px 16px 28px;border-radius:28px 28px 0 0;background:var(--surface);box-shadow:var(--shadow-pop)}
+.sheet .grab{width:40px;height:5px;border-radius:999px;background:var(--line);align-self:center}
+.btn-crit{background:var(--critical)!important;color:var(--on-critical)!important}
+.msel{position:relative;gap:8px}
+.msel select{border:0;background:transparent;font:inherit;color:inherit;appearance:none;-webkit-appearance:none;padding:0 2px;cursor:pointer;outline:none}
+.msel::after{content:"";width:6px;height:6px;margin-left:2px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translateY(-2px)}
+.doc{padding:18px;border-radius:18px;box-shadow:inset 0 0 0 1px var(--line);display:flex;flex-direction:column;gap:10px;font-size:14px}
+.doc .dh{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:10px}
+.tl{display:flex;gap:12px;padding:8px 0;font-size:14px}
+.tl .d{width:64px;flex:none;color:var(--ink-muted);font-family:var(--font-mono);font-size:13px}
+.lrow{display:flex;align-items:center;gap:12px;padding:15px 0;border-bottom:1px solid var(--line);text-decoration:none;color:var(--ink);font-weight:500}
+.lrow:last-child{border-bottom:0}
+.supbar{flex:1 0 100%;display:flex;align-items:center;gap:12px;padding:12px 18px;border-radius:18px;background:var(--warning);color:var(--on-warning);font-size:14px;box-sizing:border-box}
+.supbar a{margin-left:auto;color:inherit;font-weight:600}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1620px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;"><div class="wl-logo-slot" style="background: #111114; color: #ECEBF0;" aria-label="Giro"><svg viewBox="6 74 242 147" width="30" height="18" aria-hidden="true"><path fill="#ECEBF0" fill-rule="evenodd" d="M168 168 A36 36 0 1 1 240 168 A36 36 0 1 1 168 168 Z M184 168 A20 20 0 1 0 224 168 A20 20 0 1 0 184 168 Z"/><path fill="#ECEBF0" d="M186 92 H198 L217.83 166 L206.63 169 Z M168 82 H196 Q202 82 202 88 Q202 94 196 94 H174 Z M206 100 H213 Q221 100 221 108 V110 Q221 118 213 118 H206 Z M100 124 Q110 104 142 102 H180 L188 118 L164 138 H112 Q100 138 100 128 Z M116 138 H158 V151 H116 Z"/><path fill="#C8F04A" d="M14 165 A42 42 0 0 1 98 165 H77 A21 21 0 0 0 35 165 Z M110 171 A42 42 0 0 1 26 171 H47 A21 21 0 0 0 89 171 Z M98 159 H150 L159 168 L150 177 H98 Z M120 177 H132 V193 H120 Z M140 177 H150 V189 H140 Z"/></svg></div><div style="display: flex; flex-direction: column; flex: 1; min-width: 0;"><span style="font-weight: 600; font-size: 20px; letter-spacing: -0.01em;">Financeiro</span><span style="font-size: 13px; line-height: 18px; color: var(--ink-muted);">Outubro de 2026 · até hoje</span></div><label class="wl-btn wl-btn--sm msel" style=""><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="3"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg><select aria-label="Escolher mês"><option selected>Out</option><option>Set</option><option>Ago</option><option>Jul</option></select></label></header>
+<nav class="wl-seg tabs tabs--m" aria-label="Financeiro da plataforma"><a href="Plat-Financeiro-Mobile.dc.html" aria-current="page">Resumo</a><a href="Plat-Despesas-Mobile.dc.html">Despesas <span class="tc">4</span></a><a href="Plat-Notas-Mobile.dc.html">Notas <span class="tc">2</span></a></nav>
+<section style="padding: 20px; border-radius: 28px; background: var(--solid); color: var(--on-solid); display: flex; flex-direction: column; gap: 6px;">
+<span style="font-size: 14px; color: var(--on-solid-muted);">Resultado do mês</span>
+<div style="font-size: 34px; line-height: 38px; font-weight: 600; letter-spacing: -0.03em;">R$ 16.041,70</div>
+<span style="font-size: 14px; color: var(--on-solid-muted);">margem de 32,7% · receita menos despesas pagas</span>
+</section>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;"><div class="card"><div class="lbl">Receita</div><div style="font-size: 22px; font-weight: 600; margin-top: 4px;">R$ 49,0 mil</div><div class="lbl">112 faturas</div></div><div class="card"><div class="lbl">Despesas pagas</div><div style="font-size: 22px; font-weight: 600; margin-top: 4px;">R$ 32,9 mil</div><div class="lbl">+ R$ 5,9 mil a pagar</div></div></div>
+<section class="card"><div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;"><span style="font-weight: 600; font-size: 18px;">Receita × despesas</span><span style="display: flex; gap: 10px;"><span class="leg"><i style="background: var(--solid);"></i>Rec.</span><span class="leg"><i style="background: var(--ink-muted); opacity: .45;"></i>Desp.</span></span></div><svg viewBox="0 0 358 180" width="100%" role="img" aria-label="Receita e despesas dos últimos 12 meses, em mil reais. A receita passa as despesas a partir de abril." style="display: block;"><line x1="34" x2="358" y1="154.0" y2="154.0" stroke="var(--line)" stroke-width="1"></line><text x="26" y="158.0" font-size="11" fill="var(--ink-muted)" text-anchor="end" font-family="var(--font-mono)">0</text><line x1="34" x2="358" y1="106.0" y2="106.0" stroke="var(--line)" stroke-width="1"></line><text x="26" y="110.0" font-size="11" fill="var(--ink-muted)" text-anchor="end" font-family="var(--font-mono)">20</text><line x1="34" x2="358" y1="58.0" y2="58.0" stroke="var(--line)" stroke-width="1"></line><text x="26" y="62.0" font-size="11" fill="var(--ink-muted)" text-anchor="end" font-family="var(--font-mono)">40</text><line x1="34" x2="358" y1="10.0" y2="10.0" stroke="var(--line)" stroke-width="1"></line><text x="26" y="14.0" font-size="11" fill="var(--ink-muted)" text-anchor="end" font-family="var(--font-mono)">60</text><rect x="37.9" y="101.0" width="8.6" height="53.0" rx="3" fill="var(--solid)"><title>nov: receita R$ 22.1 mil</title></rect><rect x="48.5" y="81.5" width="8.6" height="72.5" rx="3" fill="var(--ink-muted)" opacity="0.45"><title>nov: despesas R$ 30.2 mil</title></rect><rect x="64.9" y="96.4" width="8.6" height="57.6" rx="3" fill="var(--solid)"><title>dez: receita R$ 24.0 mil</title></rect><rect x="75.5" y="80.1" width="8.6" height="73.9" rx="3" fill="var(--ink-muted)" opacity="0.45"><title>dez: despesas R$ 30.8 mil</title></rect><text x="74.5" y="174" font-size="11" fill="var(--ink-muted)" text-anchor="middle">dez</text><rect x="91.9" y="92.1" width="8.6" height="61.9" rx="3" fill="var(--solid)"><title>jan: receita R$ 25.8 mil</title></rect><rect x="102.5" y="78.4" width="8.6" height="75.6" rx="3" fill="var(--ink-muted)" opacity="0.45"><title>jan: despesas R$ 31.5 mil</title></rect><rect x="118.9" y="86.1" width="8.6" height="67.9" rx="3" fill="var(--solid)"><title>fev: receita R$ 28.3 mil</title></rect><rect x="129.5" y="76.2" width="8.6" height="77.8" rx="3" fill="var(--ink-muted)" opacity="0.45"><title>fev: despesas R$ 32.4 mil</title></rect><text x="128.5" y="174" font-size="11" fill="var(--ink-muted)" text-anchor="middle">fev</text><rect x="145.9" y="79.8" width="8.6" height="74.2" rx="3" fill="var(--solid)"><title>mar: receita R$ 30.9 mil</title></rect><rect x="156.5" y="74.8" width="8.6" height="79.2" rx="3" fill="var(--ink-muted)" opacity="0.45"><title>mar: despesas R$ 33.0 mil</title></rect><rect x="172.9" y="74.3" width="8.6" height="79.7" rx="3" fill="var(--solid)"><title>abr: receita R$ 33.2 mil</title></rect><rect x="183.5" y="72.6" width="8.6" height="81.4" rx="3" fill="var(--ink-muted)" opacity="0.45"><title>abr: despesas R$ 33.9 mil</title></rect><text x="182.5" y="174" font-size="11" fill="var(--ink-muted)" text-anchor="middle">abr</text><rect x="199.9" y="67.6" width="8.6" height="86.4" rx="3" fill="var(--solid)"><title>mai: receita R$ 36.0 mil</title></rect><rect x="210.5" y="71.0" width="8.6" height="83.0" rx="3" fill="var(--ink-muted)" opacity="0.45"><title>mai: despesas R$ 34.6 mil</title></rect><rect x="226.9" y="61.8" width="8.6" height="92.2" rx="3" fill="var(--solid)"><title>jun: receita R$ 38.4 mil</title></rect><rect x="237.5" y="69.5" width="8.6" height="84.5" rx="3" fill="var(--ink-muted)" opacity="0.45"><title>jun: despesas R$ 35.2 mil</title></rect><text x="236.5" y="174" font-size="11" fill="var(--ink-muted)" text-anchor="middle">jun</text><rect x="253.9" y="55.4" width="8.6" height="98.6" rx="3" fill="var(--solid)"><title>jul: receita R$ 41.1 mil</title></rect><rect x="264.5" y="67.4" width="8.6" height="86.6" rx="3" fill="var(--ink-muted)" opacity="0.45"><title>jul: despesas R$ 36.1 mil</title></rect><rect x="280.9" y="48.4" width="8.6" height="105.6" rx="3" fill="var(--solid)"><title>ago: receita R$ 44.0 mil</title></rect><rect x="291.5" y="65.7" width="8.6" height="88.3" rx="3" fill="var(--ink-muted)" opacity="0.45"><title>ago: despesas R$ 36.8 mil</title></rect><text x="290.5" y="174" font-size="11" fill="var(--ink-muted)" text-anchor="middle">ago</text><rect x="307.9" y="40.7" width="8.6" height="113.3" rx="3" fill="var(--solid)"><title>set: receita R$ 47.2 mil</title></rect><rect x="318.5" y="63.0" width="8.6" height="91.0" rx="3" fill="var(--ink-muted)" opacity="0.45"><title>set: despesas R$ 37.9 mil</title></rect><rect x="334.9" y="36.4" width="8.6" height="117.6" rx="3" fill="var(--solid)"><title>out: receita R$ 49.0 mil</title></rect><rect x="345.5" y="60.9" width="8.6" height="93.1" rx="3" fill="var(--ink-muted)" opacity="0.45"><title>out: despesas R$ 38.8 mil</title></rect><text x="344.5" y="174" font-size="11" fill="var(--ink-muted)" text-anchor="middle">out</text></svg><div class="lbl" style="margin-top: 6px;">Em mil reais. Acima das despesas desde abril.</div></section>
+<section class="card"><div style="font-weight: 600; font-size: 18px; margin-bottom: 4px;">Receita por plano</div><div class="res"><span>Completo<br><span class="lbl">21 faturas × R$ 899,00</span></span><b style="font-weight: 600;">R$ 18.879,00</b></div><div class="res"><span>Profissional<br><span class="lbl">48 faturas × R$ 449,00</span></span><b style="font-weight: 600;">R$ 21.552,00</b></div><div class="res"><span>Essencial<br><span class="lbl">43 faturas × R$ 199,00</span></span><b style="font-weight: 600;">R$ 8.557,00</b></div></section>
+<section class="card"><div style="display: flex; align-items: center; justify-content: space-between;"><span style="font-weight: 600; font-size: 18px;">Despesas por categoria</span><a href="Plat-Despesas-Mobile.dc.html" style="font-size: 14px;">Ver todas</a></div><div style="display: flex; flex-direction: column; gap: 6px; padding: 8px 0;"><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Equipe</span><span><b style="font-weight: 600;">R$ 24.400,00</b> <span class="lbl">62,8%</span></span></div><div class="bar"><i style="width: 100%;"></i></div></div><div style="display: flex; flex-direction: column; gap: 6px; padding: 8px 0;"><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Infraestrutura</span><span><b style="font-weight: 600;">R$ 4.100,00</b> <span class="lbl">10,6%</span></span></div><div class="bar"><i style="width: 17%;"></i></div></div><div style="display: flex; flex-direction: column; gap: 6px; padding: 8px 0;"><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Marketing</span><span><b style="font-weight: 600;">R$ 3.200,00</b> <span class="lbl">8,2%</span></span></div><div class="bar"><i style="width: 13%;"></i></div></div><div style="display: flex; flex-direction: column; gap: 6px; padding: 8px 0;"><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Impostos</span><span><b style="font-weight: 600;">R$ 2.939,28</b> <span class="lbl">7,6%</span></span></div><div class="bar"><i style="width: 12%;"></i></div></div><div style="display: flex; flex-direction: column; gap: 6px; padding: 8px 0;"><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Ferramentas e serviços</span><span><b style="font-weight: 600;">R$ 2.440,00</b> <span class="lbl">6,3%</span></span></div><div class="bar"><i style="width: 10%;"></i></div></div><div style="display: flex; flex-direction: column; gap: 6px; padding: 8px 0;"><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Outros</span><span><b style="font-weight: 600;">R$ 900,00</b> <span class="lbl">2,3%</span></span></div><div class="bar"><i style="width: 4%;"></i></div></div><div style="display: flex; flex-direction: column; gap: 6px; padding: 8px 0;"><div style="display: flex; justify-content: space-between; font-size: 14px;"><span>Taxas de pagamento</span><span><b style="font-weight: 600;">R$ 846,30</b> <span class="lbl">2,2%</span></span></div><div class="bar"><i style="width: 3%;"></i></div></div></section>
+<div class="card" style="display: flex; justify-content: space-between; align-items: center;"><div><div class="lbl">Custo por empresa ativa</div><div style="font-size: 20px; font-weight: 600;">R$ 44,19</div></div><span class="lbl" style="text-align: right;">infraestrutura e<br>ferramentas · 148</span></div>
+<nav aria-label="Navegação da plataforma" style="position: absolute; left: 16px; right: 16px; bottom: 20px; display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow-pop);">
+<a href="Plataforma-Mobile.dc.html" aria-label="Visão" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg></a>
+<a href="Plat-Empresas-Mobile.dc.html" aria-label="Empresas" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 21V8l9-5 9 5v13M9 21v-6h6v6"></path></svg></a>
+<a href="Plat-Cobranca-Mobile.dc.html" aria-label="Cobrança" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg></a>
+<a href="Plat-Financeiro-Mobile.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 16px; border-radius: 999px; background: var(--solid); color: var(--on-solid); text-decoration: none; font-size: 14px; font-weight: 500;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 20h16M7 16v-4M12 16V7M17 16v-7"></path></svg>Financeiro</a>
+<a href="Plat-Suporte-Mobile.dc.html" aria-label="Suporte" style="display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; color: var(--ink);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"></path></svg></a>
+</nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1620}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

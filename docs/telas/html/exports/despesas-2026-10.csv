@@ -1,0 +1,13 @@
+﻿Despesa;Fornecedor;Categoria;Vencimento;Valor;Situação;Recorrente
+Salários da equipe;Folha de outubro;Equipe;05 out;18.400,00;Paga;Sim
+Pró-labore;Sócios;Equipe;05 out;6.000,00;Paga;Sim
+Servidores e banco de dados;Provedor de nuvem;Infraestrutura;05 out;3.480,00;Paga;Sim
+Anúncios online;"Campanha ""Teste grátis""";Marketing;01 out;3.200,00;Paga;Não
+Taxas das faturas pagas;Asaas · 112 faturas;Taxas de pagamento;no pagamento;846,30;Paga (automática);Não
+Armazenamento de fotos;Provedor de nuvem;Infraestrutura;05 out;620,00;Paga;Sim
+E-mail transacional;Serviço de e-mail;Ferramentas e serviços;03 out;240,00;Paga;Sim
+Monitoramento de erros;Serviço de monitoramento;Ferramentas e serviços;02 out;160,00;Paga;Sim
+API do WhatsApp;Provedor de mensagens;Ferramentas e serviços;10 out;1.150,00;A pagar;Sim
+Contabilidade;Escritório contábil;Outros;10 out;900,00;A pagar;Sim
+Assinatura eletrônica;Provedor de assinatura;Ferramentas e serviços;15 out;890,00;A pagar;Sim
+Simples Nacional (DAS);Receita Federal;Impostos;20 out;2.939,28;A pagar;Não

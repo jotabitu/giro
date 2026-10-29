@@ -367,3 +367,10 @@ Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a
 ### T-378 · Completo fora da venda (`PLT-11`)
 - **Agente:** backend · **Fase:** 2, com a produção (decisão do dono de 28 out 2026: na fase 1 ninguém compra plano) · **Pronto quando:** o plano ganha o campo próprio "à venda" (migração), e o Completo nasce fora; Mudar de plano e Comparar planos não o listam; a API recusa a mudança para ele com "O plano Completo ainda não está à venda."; teste com o código da regra no nome. Junto, a resposta do dono sobre o preço e os limites do Profissional ("Pontos em aberto" das regras).
 
+### Telas novas do painel da plataforma (T-409)
+- **Origem:** 48 telas `Plat-*` vindas do canvas em 28 out 2026, listadas em `docs/telas/README.md`, "Painel da plataforma: telas da fase 2". Sem contrato nem tarefa.
+- **[decisão]** Financeiro, Despesas e Configurações da plataforma não têm regra em `docs/regras-de-negocio.md`. O produto escreve as regras, ou o dono tira as telas da fase 2.
+- **[decisão]** Novo adicional e Editar adicional dependem da `PLT-03` (adicionais fora do MVP) e não têm entrada na `Plat-Planos`, que ficou sem o bloco de adicionais na T-200.
+- **Para o design-system, quando a fase 2 abrir:** as telas `Plat-*` e `Plataforma` que já estavam no repositório têm o menu lateral antigo e não levam às telas novas. Passar o grupo "Finanças" e Configurações para elas, mantendo os ajustes já feitos (CNPJ do seed, 14 dias de teste, catálogo da `PLT-11`).
+- **Notas fiscais:** dependem da T-197 (NFS-e da assinatura, `PLT-15`).
+

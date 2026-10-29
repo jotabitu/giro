@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Modo suporte · Moto Rápida · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.card{padding:16px;border-radius:24px;background:var(--surface)}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.bar{height:8px;border-radius:999px;background:var(--surface-sunken);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:999px;background:var(--solid)}
+.leg{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-muted)}
+.leg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.res{display:flex;justify-content:space-between;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.res:last-child{border-bottom:0}
+.res.tot{font-weight:600;font-size:17px}
+.sec{font-size:13px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--ink-muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.two .wl-field,.wl-field.full{width:auto;min-width:0}
+.two .wl-input{width:100%;box-sizing:border-box;min-width:0}
+[style*="width: 390px"] > *{flex-shrink:0}
+.tabs{align-self:flex-start}
+.tabs a{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 18px;border-radius:999px;color:var(--ink);text-decoration:none;font-size:15px}
+.tabs a[aria-current="page"]{background:var(--solid);color:var(--on-solid)}
+.tabs .tc{font-size:13px;opacity:.7}
+.tabs--m{display:grid;grid-template-columns:1fr 1fr 1fr;align-self:stretch}
+.tabs--m a{justify-content:center;padding:0 10px}
+.kpv{font-size:32px!important;white-space:nowrap}
+.tg{position:relative;width:44px;height:26px;flex:none;border-radius:999px;background:var(--solid)}
+.tg::after{content:"";position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:var(--on-solid)}
+.tg.off{background:var(--line)}
+.tg.off::after{right:auto;left:3px;background:var(--surface)}
+.swrow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:var(--surface-sunken)}
+.drop{display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;border:1.5px dashed var(--line);color:var(--ink-muted);font-size:14px}
+.scrim{position:absolute;inset:0;background:rgba(17,17,20,0.38)}
+.drawer{position:absolute;top:16px;right:16px;bottom:16px;width:520px;display:flex;flex-direction:column;border-radius:32px;background:var(--surface);box-shadow:var(--shadow-pop);overflow:hidden}
+.ch{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:16px;box-shadow:inset 0 0 0 1px var(--line)}
+.ch.on{box-shadow:inset 0 0 0 2px var(--ink)}
+.ch .r{width:18px;height:18px;flex:none;margin-top:2px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--ink-muted)}
+.ch.on .r{box-shadow:inset 0 0 0 5px var(--ink)}
+.ch.dis{opacity:.55}
+.ch b{display:block;font-weight:600}
+.chk{display:flex;gap:10px;align-items:flex-start;padding:6px 0;font-size:15px}
+.chk i{width:20px;height:20px;flex:none;border-radius:6px;box-shadow:inset 0 0 0 1.5px var(--ink-muted);display:grid;place-items:center}
+.chk.on i{background:var(--solid);box-shadow:none}
+.chk.on i::after{content:"";width:9px;height:5px;margin-top:-2px;border-left:2px solid var(--on-solid);border-bottom:2px solid var(--on-solid);transform:rotate(-45deg)}
+.chk small{display:block;color:var(--ink-muted);font-size:13px}
+.note{padding:12px 14px;border-radius:16px;background:var(--surface-sunken);font-size:14px;line-height:20px}
+.note.warn{background:var(--warning-soft);color:var(--warning-ink)}
+.note.crit{background:var(--critical-soft);color:var(--critical-ink)}
+.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.three .wl-field{width:auto;min-width:0}.three .wl-input{width:100%;box-sizing:border-box}
+.wl-field.full .wl-input{width:100%;box-sizing:border-box}
+textarea.wl-input{height:auto;min-height:96px;padding-top:12px;line-height:22px;resize:none;font:inherit}
+.modal{position:absolute;left:50%;top:72px;transform:translateX(-50%);width:580px;display:flex;flex-direction:column;border-radius:32px;background:var(--surface);box-shadow:var(--shadow-pop);overflow:hidden}
+.sheet{position:absolute;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:14px;padding:12px 16px 28px;border-radius:28px 28px 0 0;background:var(--surface);box-shadow:var(--shadow-pop)}
+.sheet .grab{width:40px;height:5px;border-radius:999px;background:var(--line);align-self:center}
+.btn-crit{background:var(--critical)!important;color:var(--on-critical)!important}
+.msel{position:relative;gap:8px}
+.msel select{border:0;background:transparent;font:inherit;color:inherit;appearance:none;-webkit-appearance:none;padding:0 2px;cursor:pointer;outline:none}
+.msel::after{content:"";width:6px;height:6px;margin-left:2px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg) translateY(-2px)}
+.doc{padding:18px;border-radius:18px;box-shadow:inset 0 0 0 1px var(--line);display:flex;flex-direction:column;gap:10px;font-size:14px}
+.doc .dh{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:10px}
+.tl{display:flex;gap:12px;padding:8px 0;font-size:14px}
+.tl .d{width:64px;flex:none;color:var(--ink-muted);font-family:var(--font-mono);font-size:13px}
+.lrow{display:flex;align-items:center;gap:12px;padding:15px 0;border-bottom:1px solid var(--line);text-decoration:none;color:var(--ink);font-weight:500}
+.lrow:last-child{border-bottom:0}
+.supbar{flex:1 0 100%;display:flex;align-items:center;gap:12px;padding:12px 18px;border-radius:18px;background:var(--warning);color:var(--on-warning);font-size:14px;box-sizing:border-box}
+.supbar a{margin-left:auto;color:inherit;font-weight:600}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1200px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<div class="supbar" role="status"><b>Modo suporte</b><span>Você está na conta da Moto Rápida · só ver · até 14:12 · chamado #1042</span><a href="Plat-Suporte-Desktop.dc.html">Sair</a></div>
+
+
+<nav class="wl-sidebar" aria-label="Menu principal" style="flex: 0 0 280px;">
+<div class="wl-brand-row"><div class="wl-logo-slot" aria-hidden="true">MR</div><div class="wl-brand-name">Moto Rápida</div></div>
+<div class="wl-switcher"><div class="wl-switcher__icon"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg></div><div class="wl-switcher__text"><span class="wl-switcher__name">Filial Centro</span><span class="wl-switcher__sub">Fortaleza, CE</span></div><svg class="wl-i" viewBox="0 0 24 24" style="color: var(--ink-muted);"><path d="m6 9 6 6 6-6"></path></svg></div>
+<a class="wl-nav-item" href="Main.dc.html" aria-current="page"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>Visão geral</a>
+<a class="wl-nav-item" href="Frota-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg>Veículos<span class="wl-count">86</span></a>
+<div class="wl-nav-label">Operação</div>
+<a class="wl-nav-item" href="Locacoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>Locações<span class="wl-count">42</span></a>
+<a class="wl-nav-item" href="Vendas-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="7.5" r="1"></circle></svg>Vendas</a>
+<a class="wl-nav-item" href="Clientes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.6-1.6-4.8-4-5.6"></path></svg>Clientes</a>
+<a class="wl-nav-item" href="Manutencao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M15 4a5 5 0 0 0-4.6 6.9L4 17.3V20h2.7l6.4-6.4A5 5 0 0 0 20 9l-3 1-2-2z"></path></svg>Manutenções<span class="wl-count">5</span></a>
+<div class="wl-nav-label">Financeiro</div>
+<a class="wl-nav-item" href="Caixa-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3"></rect><circle cx="12" cy="12" r="2.5"></circle></svg>Caixa do dia</a>
+<a class="wl-nav-item" href="Receber-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg>Contas a receber<span class="wl-count">7</span></a>
+<a class="wl-nav-item" href="Despesas-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"></path></svg>Despesas<span class="wl-count">3</span></a>
+<a class="wl-nav-item" href="Comissoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M5 19 19 5"></path><circle cx="7" cy="7" r="2.5"></circle><circle cx="17" cy="17" r="2.5"></circle></svg>Comissões</a>
+<a class="wl-nav-item" href="Conciliacao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10 12 4l9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"></path></svg>Conciliação<span class="wl-count">6</span></a>
+<a class="wl-nav-item" href="Relatorios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><path d="M8 16v-4M12 16V8M16 16v-6"></path></svg>Relatórios</a>
+<div class="wl-nav-label">Administração<span style="display: inline-grid; place-items: center; margin-left: 6px; vertical-align: -2px;"><svg class="wl-i" viewBox="0 0 24 24" style="width: 13px; height: 13px;"><rect x="5" y="10" width="14" height="10" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg></span></div>
+<a class="wl-nav-item" href="Config-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"></path></svg>Configurações</a>
+<a class="wl-nav-item" href="Admin-Marca-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3"></circle></svg>Empresa e marca</a>
+<a class="wl-nav-item" href="Filiais-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg>Filiais</a>
+<a class="wl-nav-item" href="Admin-Usuarios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M17 8v6M14 11h6"></path></svg>Usuários<span class="wl-count">2</span></a>
+<a class="wl-nav-item" href="Admin-Assinatura-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2l.9-5.5-4-3.9 5.5-.8z"></path></svg>Assinatura</a>
+<a class="wl-nav-item" href="Admin-Auditoria-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v4h4M10 12h5M10 16h3"></path></svg>Auditoria</a>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
+<h1 style="margin: 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Bom dia, Mariana</h1>
+<span class="wl-badge wl-badge--brand" style="height: 40px; padding: 0 16px;"><svg class="wl-i" viewBox="0 0 24 24" style="width: 18px; height: 18px;"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg>7 contratos pedem atenção</span>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-left: auto;">
+<label class="wl-search" style="width: 320px;"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4.5 4.5"></path></svg><input type="search" placeholder="Buscar placa, cliente ou contrato" aria-label="Buscar"><span class="wl-kbd">⌘K</span></label>
+<button disabled title="Indisponível no modo só ver" class="wl-icon-btn" aria-label="Notificações" style="width: 56px; height: 56px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"></path><path d="M10 20.5a2.2 2.2 0 0 0 4 0"></path></svg><span class="wl-notify" style="top: 15px; right: 16px;"></span></button>
+<a class="wl-btn wl-btn--solid" href="Vistoria-Desktop.dc.html" style="height: 56px; padding: 0 28px; text-decoration: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>Nova locação</a>
+</div>
+</header>
+
+<section class="wl-panel">
+<div class="wl-panel__head">
+<h2 class="wl-panel__title">Frota</h2>
+<div class="wl-seg" role="group" aria-label="Período"><button aria-pressed="false">Hoje</button><button aria-pressed="true">7 dias</button><button aria-pressed="false">30 dias</button></div>
+</div>
+<div class="wl-kpis" style="grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));">
+<div class="wl-kpi wl-kpi--solid"><div class="wl-kpi__label">Frota ativa</div><div class="wl-kpi__value">86</div><div class="wl-kpi__meta">52 motos · 34 carros</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Alugados agora</div><div class="wl-kpi__value">42</div><div class="wl-kpi__meta"><span class="wl-kpi__up">↗ 6</span> esta semana</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Receita de locação</div><div class="wl-kpi__value">R$ 18,4 mil</div><div class="wl-kpi__meta">últimos 7 dias</div></div>
+<div class="wl-kpi"><div class="wl-kpi__label">Em atraso</div><div class="wl-kpi__value">7</div><div class="wl-kpi__meta">R$ 4.380 a receber</div></div>
+</div>
+<div class="wl-pipe" style="margin-top: 12px;">
+<div class="wl-pipe__head"><span class="wl-pipe__title">Frota por status</span><span class="wl-pipe__note">ocupação de 71% · meta de 80%</span></div>
+<div class="wl-pipe__row">
+<div class="wl-pipe__col" style="flex: 16;"><div class="wl-pipe__bar"></div><div class="wl-pipe__num">16</div><div class="wl-pipe__label">Disponível</div></div>
+<div class="wl-pipe__col wl-pipe__col--brand" style="flex: 42;"><div class="wl-pipe__bar"></div><div class="wl-pipe__num">42</div><div class="wl-pipe__label">Alugado</div></div>
+<div class="wl-pipe__col" style="flex: 9;"><div class="wl-pipe__bar"></div><div class="wl-pipe__num">9</div><div class="wl-pipe__label">Reservado</div></div>
+<div class="wl-pipe__col" style="flex: 7;"><div class="wl-pipe__bar"></div><div class="wl-pipe__num">7</div><div class="wl-pipe__label">Manutenção</div></div>
+<div class="wl-pipe__col wl-pipe__col--solid" style="flex: 12;"><div class="wl-pipe__bar"></div><div class="wl-pipe__num">12</div><div class="wl-pipe__label">À venda</div></div>
+</div>
+</div>
+</section>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 24px; align-items: start;">
+
+<section class="wl-panel" style="grid-column: span 1;">
+<div class="wl-panel__head">
+<div><h2 class="wl-panel__title">Devoluções da semana</h2><p class="wl-panel__sub">6 contratos · atualizado há 6 min</p></div>
+<button disabled title="Indisponível no modo só ver" class="wl-icon-btn wl-icon-btn--sunken wl-icon-btn--sm" aria-label="Filtros"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 8h10M18 8h2M4 16h2M10 16h10"></path><circle cx="16" cy="8" r="2"></circle><circle cx="8" cy="16" r="2"></circle></svg></button>
+</div>
+<div style="overflow-x: auto;">
+<table class="wl-table">
+<thead><tr><th>Placa</th><th>Veículo e cliente</th><th>Devolução</th><th>Situação</th></tr></thead>
+<tbody>
+<tr><td class="wl-mono">QXA-4B21</td><td><span class="wl-cell-main">Honda CG 160 Fan</span><span class="wl-cell-sub">Carlos Menezes</span></td><td class="wl-mono">06 out</td><td><span class="wl-badge wl-badge--sm wl-badge--critical">Atrasado</span></td></tr>
+<tr><td class="wl-mono">PNB-7C04</td><td><span class="wl-cell-main">Yamaha Factor 150</span><span class="wl-cell-sub">Juliana Rocha</span></td><td class="wl-mono">07 out</td><td><span class="wl-badge wl-badge--sm wl-badge--attention">Hoje</span></td></tr>
+<tr><td class="wl-mono">ROE-2A88</td><td><span class="wl-cell-main">Fiat Mobi Like</span><span class="wl-cell-sub">Pedro Alencar</span></td><td class="wl-mono">08 out</td><td><span class="wl-badge wl-badge--sm wl-badge--solid">Alugado</span></td></tr>
+<tr><td class="wl-mono">SAK-1D39</td><td><span class="wl-cell-main">Honda CG 160 Fan</span><span class="wl-cell-sub">Aline Duarte</span></td><td class="wl-mono">09 out</td><td><span class="wl-badge wl-badge--sm wl-badge--info">Renovação</span></td></tr>
+<tr><td class="wl-mono">PMZ-3E17</td><td><span class="wl-cell-main">Honda Pop 110i</span><span class="wl-cell-sub">Rafael Sousa</span></td><td class="wl-mono">10 out</td><td><span class="wl-badge wl-badge--sm wl-badge--solid">Alugado</span></td></tr>
+<tr><td class="wl-mono">RHT-9F02</td><td><span class="wl-cell-main">Renault Kwid Zen</span><span class="wl-cell-sub">Beatriz Lima</span></td><td class="wl-mono">11 out</td><td><span class="wl-badge wl-badge--sm wl-badge--solid">Alugado</span></td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<div style="display: flex; flex-direction: column; gap: 24px; min-width: 0;">
+<section class="wl-alert-card">
+<div class="wl-alert-card__head"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg>Pendências do dia<span class="wl-alert-card__time">há 6 min</span></div>
+<h3 class="wl-alert-card__title">7 contratos precisam de ação hoje</h3>
+<ul>
+<li class="is-critical">3 devoluções estão atrasadas</li>
+<li class="is-warning">2 motos passaram da revisão de 5.000 km</li>
+<li>2 parcelas vencem até amanhã</li>
+</ul>
+<button disabled title="Indisponível no modo só ver" class="wl-btn wl-btn--brand">Ver pendências</button>
+</section>
+
+<section class="wl-panel">
+<div class="wl-panel__head">
+<div><h2 class="wl-panel__title">Caixa de hoje</h2><p class="wl-panel__sub">07 out · Filial Centro</p></div>
+<button disabled title="Indisponível no modo só ver" class="wl-icon-btn wl-icon-btn--sunken wl-icon-btn--sm" aria-label="Abrir financeiro"><svg class="wl-i" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"></path></svg></button>
+</div>
+<div style="font-size: 44px; line-height: 44px; font-weight: 600; letter-spacing: -0.03em;">R$ 2.620,00</div>
+<div style="margin-top: 6px; color: var(--ink-muted); font-size: 14px;">saldo do dia</div>
+<div style="display: flex; flex-direction: column; margin-top: 18px; border-top: 1px solid var(--line);">
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line);"><span style="display: flex; align-items: center; gap: 10px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--success);"></span>Recebido</span><span style="font-weight: 500;">R$ 3.240,00</span></div>
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line);"><span style="display: flex; align-items: center; gap: 10px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--info);"></span>A receber hoje</span><span style="font-weight: 500;">R$ 1.890,00</span></div>
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 0;"><span style="display: flex; align-items: center; gap: 10px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--critical);"></span>Despesas</span><span style="font-weight: 500;">R$ 620,00</span></div>
+</div>
+</section>
+</div>
+
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

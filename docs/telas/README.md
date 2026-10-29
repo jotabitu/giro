@@ -120,6 +120,42 @@ As telas de movimentação estão no MVP desde 16 out (seção "Movimentações 
 | Suporte | [desktop](html/Plat-Suporte-Desktop.dc.html) · [celular](html/Plat-Suporte-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT |
 | Painel da plataforma | [desktop](html/Plataforma-Desktop.dc.html) · [celular](html/Plataforma-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT |
 
+### Painel da plataforma: telas da fase 2
+
+Vindas do canvas em 28 out 2026 (T-409). São referência para a fase 2 e ainda não têm contrato nem tarefa. O menu lateral delas tem o grupo "Finanças" (Financeiro, Despesas, Notas fiscais, Cancelamentos) e Configurações; as telas da tabela acima ainda têm o menu antigo e não levam a elas. Ao trazer do canvas, os CNPJs viraram fictícios (o da Moto Rápida é o do seed), o teste da Moto Rápida ficou com 14 dias e a FAT-0001 em 22 out, como no `Plat-Empresa-Detalhe`, e saíram o domínio próprio, a API e a assinatura digital avulsa (`PLT-11`) e o bloco de adicionais atrás de Novo plano e Editar plano (T-200). Os exemplos de arquivo que as telas baixam ficam em `html/exports/`.
+
+| Tela | Arquivos | Rota no frontend | App no backend | Regras |
+| --- | --- | --- | --- | --- |
+| Criar empresa | [desktop](html/Plat-Empresa-Nova-Desktop.dc.html) · [celular](html/Plat-Empresa-Nova-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT, IMP |
+| Ações da empresa | [celular](html/Plat-Empresa-Acoes-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT |
+| Estender teste | [desktop](html/Plat-Estender-Teste-Desktop.dc.html) · [celular](html/Plat-Estender-Teste-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT-04 |
+| Mudar plano | [desktop](html/Plat-Mudar-Plano-Desktop.dc.html) · [celular](html/Plat-Mudar-Plano-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT-04, PLT-11 |
+| Suspender empresa | [desktop](html/Plat-Suspender-Desktop.dc.html) · [celular](html/Plat-Suspender-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT |
+| Modo suporte | [desktop](html/Plat-Modo-Suporte-Desktop.dc.html) · [celular](html/Plat-Modo-Suporte-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT |
+| Resolver chamado | [desktop](html/Plat-Chamado-Resolver-Desktop.dc.html) | `(plataforma)` | `plataforma` | PLT |
+| Mandar ajuda | [desktop](html/Plat-Mandar-Ajuda-Desktop.dc.html) | `(plataforma)` | `plataforma` | PLT |
+| Fatura | [desktop](html/Plat-Fatura-Desktop.dc.html) | `(plataforma)` | `plataforma` | PLT-14 |
+| Cobrar fatura | [desktop](html/Plat-Cobrar-Desktop.dc.html) · [celular](html/Plat-Cobrar-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT-02 |
+| Cobrar faturas atrasadas | [desktop](html/Plat-Cobrar-Lote-Desktop.dc.html) | `(plataforma)` | `plataforma` | PLT-02 |
+| Cancelamentos | [desktop](html/Plat-Cancelamentos-Desktop.dc.html) · [celular](html/Plat-Cancelamentos-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT-06 |
+| Financeiro da plataforma | [desktop](html/Plat-Financeiro-Desktop.dc.html) · [celular](html/Plat-Financeiro-Mobile.dc.html) | `(plataforma)` | `plataforma` | sem regra |
+| Despesas da plataforma | [desktop](html/Plat-Despesas-Desktop.dc.html) · [celular](html/Plat-Despesas-Mobile.dc.html) | `(plataforma)` | `plataforma` | sem regra |
+| Lançar despesa | [desktop](html/Plat-Despesa-Nova-Desktop.dc.html) · [celular](html/Plat-Despesa-Nova-Mobile.dc.html) | `(plataforma)` | `plataforma` | sem regra |
+| Despesa | [desktop](html/Plat-Despesa-Detalhe-Desktop.dc.html) | `(plataforma)` | `plataforma` | sem regra |
+| Marcar despesa como paga | [desktop](html/Plat-Despesa-Pagar-Desktop.dc.html) · [celular](html/Plat-Despesa-Pagar-Mobile.dc.html) | `(plataforma)` | `plataforma` | sem regra |
+| Notas fiscais | [desktop](html/Plat-Notas-Desktop.dc.html) · [celular](html/Plat-Notas-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT-15 |
+| Nota fiscal | [desktop](html/Plat-Nota-Desktop.dc.html) · [celular](html/Plat-Nota-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT-15 |
+| Corrigir nota fiscal | [desktop](html/Plat-Nota-Corrigir-Desktop.dc.html) · [celular](html/Plat-Nota-Corrigir-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT-15 |
+| Novo plano | [desktop](html/Plat-Plano-Novo-Desktop.dc.html) · [celular](html/Plat-Plano-Novo-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT-11, PLT-12 |
+| Editar plano | [desktop](html/Plat-Plano-Editar-Desktop.dc.html) · [celular](html/Plat-Plano-Editar-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT-11, PLT-12 |
+| Novo adicional | [desktop](html/Plat-Adicional-Novo-Desktop.dc.html) | `(plataforma)` | `plataforma` | PLT-03 (adicionais fora do MVP) |
+| Editar adicional | [desktop](html/Plat-Adicional-Desktop.dc.html) | `(plataforma)` | `plataforma` | PLT-03 (adicionais fora do MVP) |
+| Convidar pessoa da equipe | [desktop](html/Plat-Equipe-Convidar-Desktop.dc.html) · [celular](html/Plat-Equipe-Convidar-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT |
+| Editar pessoa da equipe | [desktop](html/Plat-Equipe-Editar-Desktop.dc.html) | `(plataforma)` | `plataforma` | PLT |
+| Filtrar auditoria | [celular](html/Plat-Auditoria-Filtros-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT |
+| Recuperar acesso | [desktop](html/Plat-Login-Recuperar-Desktop.dc.html) · [celular](html/Plat-Login-Recuperar-Mobile.dc.html) | `(plataforma)` | `plataforma` | PLT |
+| Configurações da plataforma | [desktop](html/Plat-Configuracoes-Desktop.dc.html) · [celular](html/Plat-Configuracoes-Mobile.dc.html) | `(plataforma)` | `plataforma` | sem regra |
+
 ## Contas a receber
 
 | Tela | Arquivos | Rota no frontend | App no backend | Regras |
