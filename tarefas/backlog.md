@@ -441,6 +441,18 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **[decisão] Para o produto levar ao dono:** o que acontece se o cliente atrasar ou devolver antes do fim (perde o que pagou ou parte vira crédito); quem paga IPVA, seguro e manutenção no período; se a caução existe nesse tipo; como fica a transferência (a venda nasce no módulo de vendas ao quitar); se o veículo pode ser trocado no meio.
 - **Pronto quando:** regras escritas e aprovadas, modelo de contrato próprio, tipo de locação novo no fluxo, venda gerada ao quitar, teste com o código da regra no nome.
 
+#### T-421 · Mais campos no cadastro e na ficha do veículo, vindos do CRLV-e
+- **Agentes:** produto (regra), arquiteto (modelo e contrato), backend, frontend · **Regras:** `VEI-01`, `VEI-08` · **Depende de:** T-413 e T-415 tocam o mesmo formulário e a mesma leitura; combinar a ordem · **Origem:** pedido do dono no chat em 29 out 2026.
+- **Hoje:** o veículo guarda placa, chassi, renavam, marca, modelo, anos, cor, combustível, tanque, km, categoria e compra. A leitura do CRLV-e (`integracoes/leitura_documentos/crlv.py`, lista `CAMPOS`) já lê o combustível, mas o formulário não o mostra (vai escondido no corpo) e a ficha também não.
+- **Decisões do dono (29 out):**
+  - campos novos, lidos do CRLV-e e editáveis: potência e cilindrada; espécie e tipo, carroceria, lotação, peso bruto e número do motor; observações do veículo como vêm no documento;
+  - combustível visível e editável no cadastro, no editar e na ficha;
+  - além das observações do CRLV-e, uma anotação livre da locadora (por exemplo, "risco no tanque");
+  - alienação fiduciária ou restrição nas observações é só informação na ficha, sem bloquear nada;
+  - campo do rastreador (número ou IMEI e a empresa), fora do CRLV-e.
+- **Pronto quando:** regra com os campos, os rótulos do CRLV-e e quais são opcionais; migração; a leitura preenche os campos novos (testes com os CRLV-e reais da T-406); formulário, editar e ficha mostram os campos, a 1440 e a 390; teste com o código da regra no nome.
+- **Para o produto decidir:** se o número do motor e as observações do CRLV-e são dados de todos os perfis ou só de administrador e gerente; se o rastreador fica no veículo ou na integração de rastreador (`Integracoes`).
+
 #### Também liberado
 - O botão "Mandar para oficina" da ficha depende do módulo de manutenção (`MAN`, `backend/apps/manutencao/` vazio) e entra quando ele for quebrado em tarefas.
 
