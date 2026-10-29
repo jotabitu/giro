@@ -4,3 +4,6 @@ Makefile text eol=lf
 Dockerfile* text eol=lf
 *.Dockerfile text eol=lf
 docs/api/openapi.yaml text eol=lf
+
+# PDFs de exemplo das telas: sem conversão de fim de linha, que quebra os deslocamentos do arquivo.
+*.pdf binary
