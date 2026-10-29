@@ -1,6 +1,7 @@
 // T-375 parte 2 · E2E do fechamento da fase 1: 2 etapas, modo suporte e controle do suporte (PLT-07, AUD-09, USR-02).
 import { expect, test, type Page } from "@playwright/test";
-import { definirData, executarNoBackend, restaurarSeed } from "./suporte/ambiente";
+import { createHmac } from "node:crypto";
+import { executarNoBackend, restaurarSeed } from "./suporte/ambiente";
 import { novaSessao, SENHA, visivel } from "./suporte/tela";
 
 
@@ -13,11 +14,20 @@ print("CODIGO=" + codigo_de_2fa("${email}"))
   return saida.CODIGO as string;
 }
 
-/** O JWT do suporte vence pelo relógio real, e `fim` sai do relógio simulado: com 07 out o token nasce vencido (achado da T-375). Por isso o dia vira o de hoje. */
-async function relogioNoDiaReal() {
-  const hoje = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo" }).format(new Date());
-  await definirData(hoje);
+/** TOTP (RFC 6238, SHA-1, 6 dígitos, 30 s) a partir da chave em base32 que a tela mostra. */
+function totp(chave: string): string {
+  const alfabeto = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = "";
+  for (const c of chave.replace(/=+$/, "")) bits += alfabeto.indexOf(c).toString(2).padStart(5, "0");
+  const bytes = Buffer.from((bits.match(/.{8}/g) ?? []).map((b) => parseInt(b, 2)));
+  const contador = Buffer.alloc(8);
+  contador.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 1000 / 30)));
+  const h = createHmac("sha1", bytes).update(contador).digest();
+  const o = (h[h.length - 1] as number) & 0xf;
+  const n = (((h[o] as number) & 0x7f) << 24) | (((h[o + 1] as number) & 0xff) << 16) | (((h[o + 2] as number) & 0xff) << 8) | ((h[o + 3] as number) & 0xff);
+  return String(n % 1_000_000).padStart(6, "0");
 }
+
 
 function abrirSuporte(permissao: "ver" | "ver_editar"): string {
   const saida = executarNoBackend(`
@@ -77,7 +87,6 @@ async function entrarComo2fa(page: Page, email: string) {
 
 test("modo suporte: entrada pelo link, faixa e Sair do suporte (PLT-07)", async ({ browser }, info) => {
   await restaurarSeed();
-  await relogioNoDiaReal();
   const token = abrirSuporte("ver");
   const suporte = await novaSessao(browser, info);
   const p = suporte.page;
@@ -89,15 +98,14 @@ test("modo suporte: entrada pelo link, faixa e Sair do suporte (PLT-07)", async 
   await expect(p.getByRole("button", { name: "Sair do suporte" })).toBeVisible();
   await p.getByRole("button", { name: "Sair do suporte" }).click();
   // Contrato (docs/api/contas.md): depois de Sair o suporte vê "Você saiu do modo suporte", não a tela de login da empresa.
-  await expect.soft(p).toHaveURL(/\/suporte\/entrar/);
-  await expect.soft(p.getByText("Você saiu do modo suporte")).toBeVisible();
+  await expect(p).toHaveURL(/\/suporte\/entrar/);
+  await expect(p.getByText("Você saiu do modo suporte")).toBeVisible();
   await p.goto("/inicio");
   await expect(p.getByRole("button", { name: "Sair do suporte" })).toHaveCount(0);
 });
 
 test("controle do suporte em Configurações: abrir, ver o acesso, bloquear e liberar (PLT-07)", async ({ browser }, info) => {
   await restaurarSeed();
-  await relogioNoDiaReal();
   const { page } = await novaSessao(browser, info);
   await entrarComo2fa(page, "mariana@motorapida.com.br");
   await page.goto("/admin/configuracoes");
@@ -174,10 +182,7 @@ test("implantação do zero (Pedalada, Essencial): marca, filial, ramo, preços,
     await d.getByLabel("Caução").fill("300");
     await d.getByRole("button", { name: "Salvar" }).click();
     await expect(page.getByText("Urbana 110").first()).toBeVisible();
-    // Achado: depois de salvar, o aviso e o "Continuar" desabilitado não se atualizam sem recarregar.
-    await expect.soft(page.getByText("Para continuar, crie ao menos uma categoria com preço."), "sem recarregar").toHaveCount(0, { timeout: 5000 });
-    await page.reload();
-    await expect(page.getByText("Para continuar, crie ao menos uma categoria com preço."), "depois de recarregar").toHaveCount(0);
+    await expect(page.getByText("Para continuar, crie ao menos uma categoria com preço.")).toHaveCount(0);
     await page.getByRole("button", { name: "Continuar" }).click();
   });
   await test.step("Modelo de contrato", async () => {
@@ -192,24 +197,94 @@ test("implantação do zero (Pedalada, Essencial): marca, filial, ramo, preços,
     await page.screenshot({ path: "test-results/impl-contrato2.png" });
     await page.getByRole("button", { name: /Publicar versão/ }).click();
     await expect(page.getByText(/Publicado/).first()).toBeVisible();
-    await page.reload();
     await page.getByRole("button", { name: "Continuar" }).click();
     await expect(page).toHaveURL(/\/implantacao\/importar/);
     await page.goto(`${B}/implantacao/equipe`);
     await expect(page).toHaveURL(/\/implantacao\/equipe/);
     await page.getByRole("button", { name: /Convidar/ }).first().click();
     const convite = page.getByRole("dialog");
-    await convite.getByLabel("E-mail").fill("vendas@pedalada.example");
-    await convite.getByLabel("Nome (opcional)").fill("Vendas Pedalada");
+    await convite.getByLabel("E-mail").fill("financeiro@pedalada.example");
+    await convite.getByLabel("Nome (opcional)").fill("Financeiro Pedalada");
+    await convite.getByLabel("Perfil").selectOption({ label: "Financeiro" });
     await convite.getByRole("button", { name: "Enviar convite" }).click();
-    await expect(page.getByText("vendas@pedalada.example").first()).toBeVisible();
+    await expect(page.getByText("financeiro@pedalada.example").first()).toBeVisible();
     await page.getByRole("button", { name: "Concluir" }).click();
     await expect(page).toHaveURL(/\/inicio/);
   });
   await test.step("Em Usuários o convite aparece pendente (IMP-07: passo feito)", async () => {
     await page.goto(`${B}/admin/usuarios`);
-    await expect(page.getByText("vendas@pedalada.example").first()).toBeVisible();
+    await expect(page.getByText("financeiro@pedalada.example").first()).toBeVisible();
     await page.screenshot({ path: "test-results/impl-fim.png" });
+  await test.step("A pessoa convidada aceita o convite, cria a senha e ativa as 2 etapas pela tela (USR-01, USR-02)", async () => {
+    const saida = executarNoBackend(`
+from django_tenants.utils import tenant_context
+from apps.plataforma.models import Empresa
+from apps.contas.models import Usuario
+from apps.contas import services
+from django.db import transaction
+e = Empresa.objects.get(subdominio="pedalada")
+with tenant_context(e):
+    convidada = Usuario.objects.get(email="financeiro@pedalada.example")
+    admin = Usuario.objects.get(email="admin@pedalada.example")
+    with transaction.atomic():
+        resultado = services.gerar_link_convite(convidada, admin)
+    print("TOKEN=" + str(resultado[2]))
+`);
+    const token = saida.TOKEN ?? "";
+    expect(token).toBeTruthy();
+    const nova = await novaSessao(browser, info);
+    const p = nova.page;
+    await p.goto(`${B}/convite#${token}`);
+    await expect(p.getByText("Financeiro").first()).toBeVisible();
+    await p.getByLabel("Seu nome").fill("Financeiro Pedalada");
+    await p.getByLabel("Senha").first().fill("Giro-dev-2026-nova!");
+    await p.getByRole("button", { name: "Criar acesso e entrar" }).click();
+    await expect(p.getByText("Seu perfil exige a verificação em 2 etapas")).toBeVisible();
+    const chave = (await p.locator("span.wl-mono").first().innerText()).replace(/\s/g, "");
+    expect(chave).toMatch(/^[A-Z2-7]{16,}$/);
+    await p.getByLabel("Dígito 1 de 6").click();
+    await p.keyboard.type(totp(chave));
+    await p.getByRole("button", { name: "Ativar verificação" }).click();
+    await expect(p.getByText("Guarde os códigos de recuperação")).toBeVisible();
+    await p.getByRole("checkbox").check();
+    await p.getByRole("button", { name: /Concluir|Continuar|Entrar/ }).last().click();
+    await expect(p).toHaveURL(/\/inicio/);
+  });
+  });
+  vigia.verificar();
+});
+
+test("Reembolsos e Pendências do pagamento com dados do seed: Marcar como feito e Baixar a conta (DEV-02, AUT-05)", async ({ browser }, info) => {
+  await restaurarSeed();
+  const { page, vigia } = await novaSessao(browser, info);
+  await entrarComo2fa(page, "mariana@motorapida.com.br");
+
+  await test.step("Reembolso da Patrícia: R$ 286,20 a fazer, marca como feito", async () => {
+    await page.goto("/financeiro/reembolsos");
+    await expect(page.getByText("Patrícia Gomes").first()).toBeVisible();
+    await expect(page.getByText("R$ 286,20").first()).toBeVisible();
+    await page.getByRole("button", { name: "Marcar como feito" }).first().click();
+    await page.screenshot({ path: "test-results/reembolso-dialogo.png" });
+    const d = page.getByRole("dialog");
+    await d.getByRole("button", { name: /Marcar como feito|Confirmar/ }).click();
+    await expect(page.getByText("Nenhum reembolso a fazer.")).toBeVisible();
+    await page.getByRole("tab", { name: /Feitos/ }).click().catch(async () => page.getByText(/^Feitos/).first().click());
+    await expect(page.getByText("Patrícia Gomes").first()).toBeVisible();
+  });
+
+  await test.step("Pendência do Carlos: R$ 299,40 aberta, baixa a conta", async () => {
+    await page.goto("/financeiro/pendencias-pagamento");
+    await expect(page.getByText("Carlos Menezes").first()).toBeVisible();
+    await page.getByRole("button", { name: /Resolver/ }).first().click();
+    await page.screenshot({ path: "test-results/pendencia-dialogo.png" });
+    const d = page.getByRole("dialog");
+    await expect(d.getByText("Resolver pendência")).toBeVisible();
+    await d.getByText("Baixar a conta", { exact: true }).click();
+    await d.getByLabel("Motivo").fill("Cliente pagou R$ 299,40 e a diferença foi dispensada");
+    await page.screenshot({ path: "test-results/pendencia-dialogo1b.png" });
+    await d.getByRole("button").filter({ hasText: /Resolver|Confirmar|Salvar|Baixar/ }).last().click();
+    await expect(page.getByText("Nenhuma pendência aberta.")).toBeVisible();
+    await page.screenshot({ path: "test-results/pendencia-dialogo2.png" });
   });
   vigia.verificar();
 });

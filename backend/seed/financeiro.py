@@ -248,7 +248,7 @@ def garantir_reembolso_e_pendencia(centro: Filial, relogio: RelogioDoSeed) -> bo
     financeiro no sino e moveria os contadores que o seed já fixa."""
     relogio.em("2026-10-07 11:00")
     patricia = Locacao.objects.select_related("cliente").get(codigo="LOC-2812")
-    _, reembolso_novo = Reembolso.objects.get_or_create(
+    reembolso, reembolso_novo = Reembolso.objects.get_or_create(
         origem_tipo="locacao",
         origem_id=patricia.pk,
         origem_codigo=patricia.codigo,
@@ -263,7 +263,7 @@ def garantir_reembolso_e_pendencia(centro: Filial, relogio: RelogioDoSeed) -> bo
     conta = _conta("LOC-2841", "2026-09-30")
     hoje = relogio_do_giro.hoje()
     devido = financeiro_selectors.valor_hoje(conta, hoje)["total_centavos"]
-    cobranca, _ = CobrancaExterna.objects.get_or_create(
+    cobranca, cobranca_nova = CobrancaExterna.objects.get_or_create(
         externo_id="pay_88192",
         defaults={
             "conta_receber": conta,
@@ -274,8 +274,16 @@ def garantir_reembolso_e_pendencia(centro: Filial, relogio: RelogioDoSeed) -> bo
             "status": "divergente",
         },
     )
-    _, pendencia_nova = PendenciaPagamento.objects.get_or_create(
+    pendencia, pendencia_nova = PendenciaPagamento.objects.get_or_create(
         cobranca=cobranca,
         defaults={"motivo": "valor_diferente", "valor_pago_centavos": conta.valor_centavos},
     )
+    # `criado_em` é automático (relógio real): aqui vai para o dia do seed, 07 out às 11:00.
+    quando = datetime(2026, 10, 7, 11, 0, tzinfo=FUSO)
+    if reembolso_novo:
+        Reembolso.objects.filter(pk=reembolso.pk).update(criado_em=quando)
+    if cobranca_nova:
+        CobrancaExterna.objects.filter(pk=cobranca.pk).update(criado_em=quando)
+    if pendencia_nova:
+        PendenciaPagamento.objects.filter(pk=pendencia.pk).update(criado_em=quando)
     return reembolso_novo or pendencia_nova
