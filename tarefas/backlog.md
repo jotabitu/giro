@@ -191,7 +191,8 @@ Pelos levantamentos da T-353 (produto), da T-354 (arquiteto) e da T-355 (seguran
 - **Estado (26 out 2026):** a parte que não depende da conta está no PR #399 (compose da VPS, backup, restauração, certificado e roteiro). **A subida fica para a fase 2**, por decisão do dono em 25 out 2026: as contratações (domínio, VPS, Asaas de produção, WhatsApp, e-mail transacional e Sentry) são da fase 2.
 
 ### T-375 · Fechamento da fase 1
-- **Parte 1 feita (26 out 2026, qa):** cobertura refeita e as 42 regras conferidas (`tarefas/handoffs/T-375-qa.md`). Falta a parte 2, o E2E, para o fim da fase.
+- **Parte 1 feita (26 out 2026, qa):** cobertura refeita e as 42 regras conferidas (`tarefas/handoffs/T-375-qa.md`).
+- **Parte 2 feita (28 out 2026, qa):** E2E do fechamento verde em stack isolada, com as correções da T-403 a T-406 e o seed com reembolso e pendência (`tarefas/handoffs/T-375-qa-e2e.md`). Falta só o PR da branch `t-375-e2e-fechamento`.
 - **Agente:** qa · **Depende de:** todas as anteriores · **Pronto quando:** `docs/qa/cobertura-de-regras.md` refeita a partir dos testes de hoje; as 42 regras sem teste com o código no nome conferidas (fase 2, teste com outro nome ou falta); o E2E percorre os critérios de pronto do `plano.md` no ambiente de desenvolvimento (a homologação é da fase 2, com as contas de produção) com a Moto Rápida (implantação, locação, devolução, cobrança, caixa e 2 etapas).
 
 ### O que falta para fechar a fase 1 (28 out 2026)

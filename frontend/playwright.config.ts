@@ -32,12 +32,12 @@ export default defineConfig({
   projects: [
     {
       name: "desktop",
-      testMatch: ["**/desktop.spec.ts", "**/falhas.spec.ts"],
+      testMatch: ["**/desktop.spec.ts", "**/falhas.spec.ts", "**/fechamento.spec.ts", "**/fechamento-visual.spec.ts"],
       use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
     },
     {
       name: "celular",
-      testMatch: ["**/celular.spec.ts"],
+      testMatch: ["**/celular.spec.ts", "**/fechamento-visual.spec.ts"],
       use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 },
     },
   ],

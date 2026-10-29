@@ -281,6 +281,9 @@ def semear() -> Resultado:
                 with transaction.atomic():
                     financeiro_do_seed.carregar(centro, pessoas, relogio)
                     criado.append("financeiro")
+            with transaction.atomic():
+                if financeiro_do_seed.garantir_reembolso_e_pendencia(centro, relogio):
+                    criado.append("reembolso e pendência do pagamento")
     with RelogioDoSeed(INICIO) as relogio:
         _dono_da_plataforma(criado)
         _equipe_da_plataforma(criado)
