@@ -374,3 +374,73 @@ Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a
 - **Para o design-system, quando a fase 2 abrir:** as telas `Plat-*` e `Plataforma` que já estavam no repositório têm o menu lateral antigo e não levam às telas novas. Passar o grupo "Finanças" e Configurações para elas, mantendo os ajustes já feitos (CNPJ do seed, 14 dias de teste, catálogo da `PLT-11`).
 - **Notas fiscais:** dependem da T-197 (NFS-e da assinatura, `PLT-15`).
 
+### Notas do dono de 29 out 2026 (abertura da fase 2)
+
+A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhuma tarefa abaixo começa até o dono liberar. As 11 notas vêm da aba Notas do painel "Progresso do Giro" (criadas em 29 out) e foram detalhadas com as respostas do dono no mesmo dia. A tela de Veículos (ficha e editar) está liberada para a fase 2, inclusive os botões parados da ficha (decisão de 20 out revista). Ordem sugerida: bugs, depois o que só pede tela, depois o que pede regra nova.
+
+#### T-410 · Locação confirmada reserva o veículo e só cobra depois da retirada (Bug #1)
+- **Agentes:** produto (regra), depois backend e frontend · **Regras:** `LOC-12`, `MOV-03`, tabela de estados do veículo, `FIN` das parcelas · **Origem:** nota "Bug #1 - veiculo disponivel sem estar".
+- **O caso:** a Honda Biz 125 CDL-0B10 aparece "disponível", mas a movimentação recusa por estar na LOC-2866 (criada na mão, fora do seed). A locação nunca foi retirada (falta o 1º pagamento) e as parcelas já contam como atrasadas, com a devolução para 05 nov. Hoje o veículo só vira `reservado` com início futuro (`locacoes/services.py:540-547`); com início hoje ou passado, fica `disponivel` até a ativação.
+- **Decisões do dono (29 out):** a moto não saiu da loja. Locação confirmada **reserva o veículo** na hora, mesmo com início hoje ou passado, e ele sai do "disponível". As parcelas **só começam a vencer na retirada**; antes dela, nada fica atrasado.
+- **Pronto quando:** o produto ajusta a tabela de estados e a regra das parcelas (com nota de mudança); o backend reserva na confirmação para qualquer data de início e gera o calendário de parcelas a partir da ativação, com teste com o código da regra no nome; lista e ficha mostram "Reservado na LOC-x"; o seed ou um comando acerta locações já abertas nesse estado no ambiente de desenvolvimento.
+- **Para o produto decidir:** o que acontece com a reserva de uma locação que nunca é retirada (fica até cancelarem à mão, como hoje pela `LOC-12`).
+
+#### T-411 · Copiar o link nas ações que enviam ao cliente
+- **Agentes:** arquiteto (contrato) e segurança (revisão), depois backend e frontend · **Regras:** `USR-01` (modelo do "Copiar link do convite"), contratos, `AUT-03`, `DEV`, `PLT-13`, `PLT-14`, `S-15` · **Origem:** nota "Função de copiar links".
+- **Decisão do dono (29 out):** além de enviar, a tela mostra o link para copiar e mandar à mão em quatro ações: contrato para assinar, cobrança da parcela, recibo da devolução e fatura da assinatura.
+- **Ponto técnico:** o link de assinatura do contrato guarda só o hash do token (`S-15`), então o link só pode ser mostrado na hora em que é gerado ou reenviado, como o `POST /api/usuarios/{id}/link-convite/` (resposta única, `no-store`). A cobrança já devolve `pix_copia_e_cola`, `linha_digitavel` e `boleto_url`.
+- **Pronto quando:** contratos atualizados nas quatro rotas, revisão da Segurança sem achado alto, campo ou pop-up "Copiar link" nas quatro telas, com teste.
+
+#### T-412 · Faixa de assinatura suspensa em todas as telas
+- **Agente:** frontend (design-system se faltar o componente) · **Regras:** `PLT-02`, `PLT-06`, tabela de estados da assinatura · **Origem:** nota "Pop-up de aviso de assinatura".
+- **Decisão do dono (29 out):** faixa fixa no topo de todas as telas enquanto a empresa estiver `suspensa` (e `pausada`, que é só leitura como a suspensa), com o caminho para pagar a fatura. Sem pop-up.
+- **Ponto técnico:** o `/api/eu` já devolve `empresa.somente_leitura`, que hoje só a `Admin-Assinatura` usa; a API responde 403 `empresa_sem_operacao` nas ações barradas.
+- **Pronto quando:** a casca mostra a faixa em todas as telas da empresa, a 1440 e a 390, com texto da API ou do contrato, e teste.
+
+#### T-413 · Documentos do veículo: substituir no editar e abrir na ficha
+- **Agentes:** frontend (backend só se faltar algo) · **Regras:** `VEI-03`, `AUD-05` · **Origem:** notas "Reformular o editar veiculo" (documentos) e "Melhorar interação aos documentos".
+- **Hoje:** a API já tem `GET/POST /api/veiculos/{id}/documentos/` e o histórico (renovar cria um novo e o anterior fica `ativo=False`), com URL assinada de 15 min; o frontend só lê, e a ficha mostra rótulo e situação sem abrir.
+- **Pronto quando:** o editar veículo sobe e substitui CRLV, IPVA, seguro e rastreador (administrador e gerente); a ficha abre cada documento (PDF ou imagem) e mostra o histórico; teste.
+
+#### T-414 · Fotos do veículo: galeria própria e fotos da vistoria para ver e baixar
+- **Agentes:** produto (regra), arquiteto (modelo e contrato), design-system (tela), backend, frontend · **Regras:** `VEI` (nova), `AUD-05` · **Origem:** notas "Reformular o editar veiculo" (fotos) e "Melhorar interação as fotos".
+- **Decisão do dono (29 out):** as duas coisas. Uma galeria própria do veículo (fotos de cadastro, para catálogo e anúncio), que se sobe, troca, apaga e com foto de capa; e, na ficha, as fotos da última vistoria para ampliar e baixar. Hoje não existe modelo de foto do veículo, só as da vistoria.
+- **Pronto quando:** regra escrita (limite de fotos, tamanho, quem pode), contrato e modelo novos, galeria no editar veículo, visualizador com ampliar e baixar na ficha para as duas origens, teste.
+- **Base para:** T-418 (catálogo).
+
+#### T-415 · CRLV-e: escolher a versão quando várias batem
+- **Agentes:** backend, frontend · **Regras:** `VEI-08`, ADR 0031 · **Origem:** nota "Ajustar o preenchimento do CRLV-e".
+- **O caso:** o CRLV-e do Chevrolet Cruze traz "CHEVROLET/CRUZE LT NB". A leitura vira "GM CHEVROLET CRUZE LT NB"; o catálogo só tem versões como "CRUZE LT 1.4 16V Turbo" e "CRUZE LT 1.8", sem "NB", e "CRUZE LT" bate com 3 versões, então nada é preenchido (comportamento da T-406, CA-247-05). Além disso, quem digita "Chevrolet" na marca não vê o Cruze, porque a lista não usa os apelidos do Detran.
+- **Decisão do dono (29 out):** preencher a marca e mostrar as versões que batem para a pessoa escolher uma.
+- **Pronto quando:** a leitura devolve os candidatos (ignorando sufixos que não existem na FIPE, como o "NB"), a tela mostra a escolha, a lista de modelos aceita os apelidos da marca, e teste com o CRLV-e do Cruze.
+
+#### T-416 · Ver o comprovante da despesa paga
+- **Agentes:** backend, frontend · **Regras:** `FIN-05`, `AUD-05` · **Origem:** nota "Visualizar comprovante de nota paga".
+- **Hoje:** o pagamento já aceita o comprovante, mas `representacao_despesa` devolve só a nota, e a tela só tem o botão da nota. O reembolso já devolve o comprovante.
+- **Pronto quando:** a API devolve o comprovante com URL assinada, a despesa paga mostra "Ver comprovante", teste.
+
+#### T-417 · Despesas do veículo na ficha, com categorias próprias
+- **Agentes:** produto (regra das categorias), backend, frontend · **Regras:** `FIN-05`, `FIN-06`, `FIN-16`, `VEI-05` · **Origem:** nota "Adicionar despesas do veiculos".
+- **Hoje:** a despesa já pode ser ligada ao veículo e entra no custo do ano, mas a ficha não lista as despesas dele.
+- **Decisão do dono (29 out):** na ficha, a lista das despesas do veículo e um botão "Lançar despesa" já com ele preenchido, e categorias próprias de despesa do veículo (IPVA, seguro, multa, peça, combustível).
+- **Pronto quando:** categorias na regra, lista e botão na ficha, filtro por veículo, teste. Manutenção (`MAN-05`, OS que lança despesa) segue no módulo de manutenção.
+
+#### T-418 · Catálogo de vendas interno
+- **Agentes:** produto (regra), arquiteto, design-system (tela), backend, frontend · **Regras:** `VEN-01` a `VEN-10`, `PLT-11`, `PLT-12` · **Depende de:** T-414 (fotos), módulo de vendas (`backend/apps/vendas/` está vazio) · **Origem:** nota "Catalogo de vendas dos veiculos".
+- **Decisão do dono (29 out):** os dois, catálogo interno primeiro. Lista dos veículos à venda com fotos e preço para o vendedor mostrar ou mandar por link ou PDF. Entra junto o botão "Colocar à venda" da ficha, hoje parado.
+- **Pronto quando:** regra e contrato escritos, tela de referência, catálogo com link e PDF, teste.
+
+#### T-419 · Vitrine pública de vendas
+- **Agentes:** produto, arquiteto, segurança, design-system, backend, frontend · **Depende de:** T-418 · **Regras:** `VEN`, `PLT-11` (só aparece no plano que tiver a função, quando ela existir) · **Origem:** mesma nota.
+- **O que é:** a página pública da locadora com os veículos à venda, a página do veículo e o pedido de proposta (`docs/plano.md`, "Site de vendas").
+- **[decisão]** Em que plano entra, já que o Completo está fora da venda (T-378); subdomínio ou domínio da página.
+
+#### T-420 · Locação com intenção de compra
+- **Agentes:** produto (regras), arquiteto (modelo e contrato), backend, frontend, design-system · **Regras:** novas em `LOC` e `VEN` · **Origem:** nota "Novo tipo de Contrato de locação". Já citado em `docs/plano.md` ("Locação com opção de compra") e no toggle "Oferecer opção de compra no fim do contrato" da `Onboarding-Contrato`.
+- **Decisão do dono (29 out):** prazo e parcelas fixos (por exemplo, 24 meses); ao quitar a última parcela, a moto é transferida ao cliente, sem valor extra.
+- **[decisão] Para o produto levar ao dono:** o que acontece se o cliente atrasar ou devolver antes do fim (perde o que pagou ou parte vira crédito); quem paga IPVA, seguro e manutenção no período; se a caução existe nesse tipo; como fica a transferência (a venda nasce no módulo de vendas ao quitar); se o veículo pode ser trocado no meio.
+- **Pronto quando:** regras escritas e aprovadas, modelo de contrato próprio, tipo de locação novo no fluxo, venda gerada ao quitar, teste com o código da regra no nome.
+
+#### Também liberado
+- O botão "Mandar para oficina" da ficha depende do módulo de manutenção (`MAN`, `backend/apps/manutencao/` vazio) e entra quando ele for quebrado em tarefas.
+

@@ -4,6 +4,12 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ## Decisões de Design
 
+### [2026-10-29] Fase 2 aberta sem atividade iniciada
+- **Contexto:** o dono escreveu 11 notas na aba Notas do painel "Progresso do Giro" (documentos `notas/*` do banco do artifact FqWd6) e pediu que virassem tarefas.
+- **Decisão (dono):** a fase 2 está aberta, mas nenhuma tarefa começa até ele liberar. As notas viraram as tarefas T-410 a T-420 no backlog ("Notas do dono de 29 out 2026"), com as respostas dele: locação confirmada reserva o veículo e as parcelas só vencem depois da retirada; copiar link em contrato, cobrança, recibo da devolução e fatura; faixa fixa da suspensa em todas as telas, sem pop-up; galeria própria de fotos do veículo e fotos da vistoria para ver e baixar; escolher a versão no CRLV-e; categorias próprias de despesa do veículo; catálogo interno e depois vitrine pública; loca-compra com prazo fixo e transferência ao quitar.
+- **Revisão de decisão:** a tela de Veículos (ficha e editar) está liberada para a fase 2, inclusive os botões parados da ficha. Revê a entrada de 20 out "Sem tarefas na tela de Veículos por enquanto".
+- **Fonte das notas:** o painel guarda as notas na coleção `notas` (leitura e escrita só de quem edita o artifact); ler com `ArtifactData list` antes de abrir novas tarefas a partir delas.
+
 ### [2026-10-28] Fase 1 fechada no ambiente de desenvolvimento
 - **Contexto:** o fechamento começou em 25 out ("Escopo de fechamento da fase 1") e seguiu com as decisões de 28 out ("O que já existe e é da fase 2 fica como está"). Entre 25 e 28 out entraram as tarefas T-356 a T-407, até o PR #445, com dois agentes de backend e a Segurança pegando tarefas de backend de segurança.
 - **Decisão (dono):** a fase 1 está fechada com o código pronto e testado no ambiente de desenvolvimento. O E2E da T-375, parte 2 (`tarefas/handoffs/T-375-qa-e2e.md`), passou nos critérios de pronto do `plano.md`: implantação do zero com os cinco passos, locação, devolução, cobrança, caixa, 2 etapas, aceite do convite, modo suporte, controle do suporte, Reembolsos e Pendências do pagamento com dados, celular e os CRLV-e reais. Os agentes param até o dono abrir a fase 2.
@@ -161,7 +167,7 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 ### [2026-10-21] Assistente de implantação incompleto
 - A casca do assistente (T-335) está pronta, e 3 dos 8 passos funcionam: Marca, Ramo e Importar. Primeira filial, Tabela de preços, Modelo de contrato, Recebimentos e Convidar equipe mostram "Esta etapa ainda não está disponível aqui." e não têm contrato nem tarefa. Se entram no MVP é decisão pendente do dono.
 
-### [2026-10-20] Sem tarefas na tela de Veículos por enquanto
+### [2026-10-20] Sem tarefas na tela de Veículos por enquanto [SUBSTITUÍDA por 2026-10-29 "Fase 2 aberta sem atividade iniciada"]
 - O dono pediu: "não quero nenhuma tarefa por agora de alterar ou corrigir a Veiculos-Desktop e mobile". Não abrir tarefa nessas telas até ele liberar.
 
 ### [2026-10-20] Cancelar a assinatura ativa no dia do vencimento sem pagar (T-195) [SUBSTITUÍDA por 2026-10-21 "Cancelar a ativa com o período pago já vencido"]
