@@ -23,20 +23,34 @@ O quadro é feito de arquivos para que qualquer agente, em qualquer terminal (Cl
 ## Ciclo
 
 1. O agente pega a primeira tarefa do `backlog.md` com o nome dele e sem dependência pendente, e a move para `em-andamento.md` com a data.
-2. Cria a branch `t-<numero>-<slug>`.
+2. Cria a branch `t-<numero>-<slug>` a partir da `origin/develop`.
 3. Trabalha. Se travar numa dúvida de regra, escreve `[decisão]` no backlog, avisa o **produto** e passa para outra tarefa.
 4. Ao terminar: testes passando, `make check` limpo, PR aberto.
 5. Escreve o handoff em `handoffs/`, move a tarefa para `feito.md` e avisa quem depende dela.
 
+## Fluxo de branches
+
+Desde 29 out 2026 (`MEMORY.md`, "Fluxo com a branch develop"):
+
+| Caso | Branch sai de | PR para | Depois do merge |
+| --- | --- | --- | --- |
+| Tarefa | `origin/develop` | `develop` | nada |
+| Promoção de um lote | `develop` | `main` | nada |
+| Correção urgente do que já está na `main` | `origin/main` (`t-<numero>-hotfix-<slug>`) | `main` | a `main` entra na `develop` |
+
+- Todo merge é com o aval do dono, um PR por vez, com merge commit e `gh pr checks` verde.
+- A promoção acontece quando um lote de tarefas fecha e o **qa** conferiu na `develop` (testes completos e, quando o lote mexe em fluxo de tela, o E2E). O PR da promoção lista as tarefas do lote.
+- A `main` só aceita PR com CI verde (proteção no GitHub). Nada vai para a `main` por push direto.
+
 ## Antes do push
 
-O CI roda uma vez por PR, como última conferência, e só nas áreas que o PR toca (backend, frontend, infra). Ele não substitui o teste local. Antes do push, e depois de `git merge origin/main`:
+O CI roda uma vez por PR, como última conferência, e só nas áreas que o PR toca (backend, frontend, infra). Ele não substitui o teste local. Antes do push, e depois de `git merge origin/develop` (`origin/main` numa correção urgente):
 
 - **Backend:** `ruff check .`, `ruff format --check .`, `mypy .` e os testes afetados. Um processo por vez: a máquina tem pouca memória.
 - **Frontend:** `npm run lint`, `npm run typecheck` e os testes afetados.
-- **Mudou o OpenAPI** (`docs/api/openapi.yaml`): quem mudou roda também, no frontend, `npm run api:gerar`, `npm run typecheck` e os testes afetados, e corrige no mesmo PR o que deixar de compilar. O CI roda o frontend nesse caso, e uma tela já na `main` pode quebrar com o contrato novo (aconteceu no PR #131).
+- **Mudou o OpenAPI** (`docs/api/openapi.yaml`): quem mudou roda também, no frontend, `npm run api:gerar`, `npm run typecheck` e os testes afetados, e corrige no mesmo PR o que deixar de compilar. O CI roda o frontend nesse caso, e uma tela já na `develop` pode quebrar com o contrato novo (aconteceu no PR #131).
 
-Não há CI no push da `main`: toda branch recebe a `origin/main` antes do PR.
+Não há CI no push da `develop` nem da `main`: toda branch recebe a base dela antes do PR, e o PR da promoção roda o CI sobre o lote inteiro.
 
 ## Modelo de handoff
 

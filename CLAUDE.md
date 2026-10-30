@@ -54,7 +54,7 @@ Giro é um SaaS white label para locadoras e revendas de motos e carros: locaç�
 
 - Código, nomes de tabelas, campos e variáveis em português sem acento quando forem conceitos do negócio (`locacao`, `valor_centavos`, `devolver_caucao`); termos técnicos em inglês quando forem do framework (`serializer`, `viewset`, `hook`).
 - Commits no formato `tipo(modulo): descrição [REGRA-NN]`, por exemplo `feat(locacoes): calcula diária de atraso [LOC-10]`.
-- Uma tarefa = uma branch `t-<numero>-<slug>` a partir da `origin/main` = um pull request para a `main`. Não existe `develop`.
+- Uma tarefa = uma branch `t-<numero>-<slug>` a partir da `origin/develop` = um pull request para a `develop`. A `develop` vai para a `main` por lote, num PR `develop` → `main` com o aval do dono. Correção urgente do que já está na `main`: branch `t-<numero>-hotfix-<slug>` a partir da `origin/main`, PR para a `main` e, depois do merge, a `main` entra na `develop`. A `main` só recebe PR (fluxo em `tarefas/README.md`).
 - Teste junto com o código. Regra com código precisa de pelo menos um teste com o código no nome (`test_loc_10_diaria_de_atraso`).
 - Não adicione dependência nova sem registrar o motivo no PR. Dependência de infraestrutura nova pede ADR.
 - Cada PR leva a atualização do quadro (`tarefas/feito.md` e `tarefas/backlog.md`) na própria branch da tarefa.
