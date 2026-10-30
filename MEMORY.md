@@ -4,6 +4,12 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ## Decisões de Design
 
+### [2026-10-29] Fluxo com a branch develop
+- **Contexto:** com a fase 1 fechada e a fase 2 por começar, o dono quis uma camada de integração antes da `main`. O CI só roda em pull request e só nas áreas tocadas, então o conjunto da `main` nunca passava inteiro pelo CI, e o E2E não roda no CI.
+- **Decisão (dono):** a branch da tarefa sai da `origin/develop` e o PR vai para a `develop`. A `develop` vai para a `main` por lote, num PR com o aval do dono, depois de o QA conferir o lote na `develop`. Correção urgente do que já está na `main`: `t-<numero>-hotfix-<slug>` a partir da `main`, PR para a `main` e, depois, a `main` entra na `develop`. A `main` fica protegida no GitHub: só PR, com CI verde. A `develop` nasceu da `origin/main` em 7822c922 (PR #448).
+- **Alternativas descartadas:** promover só no fim da fase (a `main` ficaria parada por semanas); promover toda semana (lote sem conferência); hotfix sempre pela `develop` (lento para o que já está no ar).
+- **Consequências:** `CLAUDE.md`, `tarefas/README.md` ("Fluxo de branches") e `docs/agentes/retomada.md` atualizados na T-423; os rodapés dos papéis no Maestri e os worktrees dos agentes precisam passar para a `develop` antes da primeira tarefa da fase 2. Substitui "Sem branch develop" de 09 out.
+
 ### [2026-10-29] Preço FIPE pela Parallelum gratuita, sem token, com rotina mensal
 - **Contexto:** o catálogo de modelos já vem da Parallelum (ADR 0031), mas sem preço; o campo `referencia_fipe_centavos` existe e nada o preenche. A FIPE licenciada (T-338) segue sem pedido de cotação. A Parallelum tem preço por marca, modelo e ano e por código FIPE: 500 pedidos por dia sem cadastro, 1.000 com token gratuito, e o plano Pro (R$ 59/mês para novos assinantes) sem limite.
 - **Decisão (dono):** usar a Parallelum no gratuito, sem token, com uma rotina mensal no servidor. O risco de licença é o mesmo aceito na ADR 0031 e vale enquanto não houver contrato com a FIPE. Tarefa T-422, que pede ADR nova (o servidor passa a chamar a API, o que a 0031 evitava).
@@ -104,7 +110,7 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 - **Alternativas descartadas:** orçamento pago e runner próprio (a máquina tem pouca memória).
 - **Consequências:** nunca commitar segredo, `.env` nem dado pessoal real. Perguntar ao dono, perto de 01/11, se o repositório volta a ser privado.
 
-### [2026-10-09] Sem branch develop
+### [2026-10-09] Sem branch develop [SUBSTITUÍDA por 2026-10-29 "Fluxo com a branch develop"]
 - **Contexto:** o dono cogitou o fluxo `main` ← `develop` ← `t-xxx`, com CI nas duas etapas.
 - **Decisão:** "deixe como está por enquanto": a branch da tarefa sai da `origin/main` e o PR vai para a `main`.
 - **Alternativas descartadas:** `develop`, que dobraria PRs e avales.

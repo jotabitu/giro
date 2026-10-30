@@ -35,18 +35,18 @@ O código de 2 etapas de agora sai de `docker compose exec backend python manage
 
 ## 2. Um worktree por agente
 
-A cópia principal (`giro/`) é do orquestrador. Cada agente trabalha num worktree irmão, numa branch por tarefa. Crie as pastas a partir da `main` e deixe cada agente criar a branch da tarefa dele:
+A cópia principal (`giro/`) é do orquestrador. Cada agente trabalha num worktree irmão, numa branch por tarefa. Crie as pastas a partir da `develop` e deixe cada agente criar a branch da tarefa dele (fluxo em `tarefas/README.md`, "Fluxo de branches"):
 
 ```
-git worktree add ../giro-backend   -b espera-backend   origin/main
-git worktree add ../giro-frontend  -b espera-frontend  origin/main
-git worktree add ../giro-design    -b espera-design    origin/main
-git worktree add ../giro-arquiteto -b espera-arquiteto origin/main
-git worktree add ../giro-produto   -b espera-produto   origin/main
-git worktree add ../giro-qa        -b espera-qa        origin/main
-git worktree add ../giro-devops    -b espera-devops    origin/main
-git worktree add ../giro-seguranca -b espera-seguranca origin/main
-git worktree add ../giro-integracao -b espera-integracao origin/main   # do orquestrador, para juntar branches
+git worktree add ../giro-backend   -b espera-backend   origin/develop
+git worktree add ../giro-frontend  -b espera-frontend  origin/develop
+git worktree add ../giro-design    -b espera-design    origin/develop
+git worktree add ../giro-arquiteto -b espera-arquiteto origin/develop
+git worktree add ../giro-produto   -b espera-produto   origin/develop
+git worktree add ../giro-qa        -b espera-qa        origin/develop
+git worktree add ../giro-devops    -b espera-devops    origin/develop
+git worktree add ../giro-seguranca -b espera-seguranca origin/develop
+git worktree add ../giro-integracao -b espera-integracao origin/develop   # do orquestrador, para juntar branches
 ```
 
 Para retomar uma tarefa que já tem branch no remoto: `git -C ../giro-backend checkout -B t-034-auditoria-celery origin/t-034-auditoria-celery`.
@@ -81,7 +81,7 @@ Ao iniciar: leia CLAUDE.md, .claude/agents/<funcao>.md, tarefas/README.md, taref
 Rode `maestri list` para ver os colegas. Fale com eles por `maestri ask "Nome" "[T-NNN] <funcao> → destino ..."`.
 Dúvida de regra vai para Produto; técnica entre apps, para Arquiteto; prioridade ou bloqueio, para Orquestrador.
 Só pegue tarefa que está no quadro. Pedido direto de outro agente que vire trabalho novo: avise o Orquestrador antes.
-Antes de continuar uma branch, faça git fetch e git merge origin/main.
+A branch da tarefa sai da origin/develop. Antes de continuar uma branch, faça git fetch e git merge origin/develop (origin/main só numa correção urgente, t-<numero>-hotfix-<slug>).
 Ao terminar: commit no formato do CLAUDE.md, handoff em tarefas/handoffs/, push (confira a saída do git push) e avise o Orquestrador. PR quem abre é o Orquestrador.
 ```
 
