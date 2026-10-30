@@ -27,7 +27,7 @@ Levantadas pelo arquiteto em T-030 (07 out 2026):
 
 - [decisão] (qa, T-019) Troca de óleo da QXA-4B21 (CA-019-10: última aos 18.900 km, próxima aos 19.900) não tem onde morar: `apps/manutencao` é só README (`MAN-03`). `xfail` em `test_man_03_seed_019_10_proxima_troca_de_oleo_aos_19900`; o seed ganha o dado quando o módulo existir.
 - [decisão] (qa, T-019) Sem módulo no backend, os casos da fase 2 (CA-019-31) seguem `xfail`: venda VEN-0177, comissões, conciliação e DRE de setembro. Orquestrador: criar as tarefas de backend desses módulos; o seed ganha os dados com cada um.
-- [decisão] (backend, T-365; para o produto) **Descrição da fatura no mesmo mês no CA-ASS-46.** O CA-ASS-46 escreve "Plano Profissional · 01 dez a 31 dez", e a `PLT-14` diz que no mesmo mês é "01 a 21 nov". Padrão no código: a forma da `PLT-14` ("Plano Profissional · 01 a 31 dez"), a mesma de todas as faturas; `test_plt_06_reativar_so_com_atrasada_paga` espera essa. Pede só acertar o texto do CA-ASS-46.
+- ~~[decisão]~~ (backend, T-365; para o produto) **Descrição da fatura no mesmo mês no CA-ASS-46.** **Decidido pelo dono em 30 out 2026:** vale a forma da `PLT-14`, como o código já faz; o produto acerta só o texto do CA-ASS-46. O CA-ASS-46 escreve "Plano Profissional · 01 dez a 31 dez", e a `PLT-14` diz que no mesmo mês é "01 a 21 nov". Padrão no código: a forma da `PLT-14` ("Plano Profissional · 01 a 31 dez"), a mesma de todas as faturas; `test_plt_06_reativar_so_com_atrasada_paga` espera essa. Pede só acertar o texto do CA-ASS-46.
 - [decisão] (seguranca, T-369; para o produto) **Contrato do cliente anonimizado (`AUD-06`).** A regra diz que contratos e registros financeiros "ficam guardados pelo prazo legal, anonimizados". O `anonimizar_titular` anonimiza o cadastro, e o contrato e o financeiro continuam ligados a ele. Mas o texto final do contrato (`versao_texto_html`) e os PDFs, o gerado e o assinado, ainda têm o nome, o CPF e o endereço do cliente. Padrão no código: ficam como estão, porque o PDF assinado (com o hash) é a prova do contrato no prazo legal. Alternativa: trocar o texto e gerar um PDF novo, anonimizados, guardando só o hash do assinado. A validar com o jurídico.
 - Resolvido na T-211 (dono, 14 out 2026): **Reativar a empresa `cancelada` com fatura em atraso** (arquiteto, T-193): opção A, a equipe só reativa depois de receber a atrasada, como o contrato já recusa (`PLT-06`, CA-ASS-46).
 - Resolvido na T-211 (dono, 14 out 2026): **Endereço da empresa para a NFS-e da assinatura** (arquiteto, T-193): opção B, a compra não pede; o endereço nasce do endereço da filial matriz do passo 6, copiado uma vez, e se edita nos dados fiscais; o seed leva o da Filial Centro, CEP 60325-000 (`PLT-15`, CA-ASS-47 e 48).
@@ -149,7 +149,8 @@ Concluída. As tarefas entregues estão em `tarefas/feito.md`.
 
 ## Fase 1 · MVP
 
-### [decisão] Remetente do WhatsApp que o cliente da locadora vê (ADR 0034, levantada na T-385, T-387)
+### ~~[decisão]~~ Remetente do WhatsApp que o cliente da locadora vê (ADR 0034, levantada na T-385, T-387)
+- **Decidido pelo dono em 30 out 2026: A**, o padrão abaixo. O produto tira o item dos "Pontos em aberto" das regras.
 - **Para:** dono do produto, pelo orquestrador · **Contexto:** na opção A da ADR (um número só, do Giro), a Meta exige o nome de exibição do negócio verificado, e o cliente vê "Giro Avisos". Isso contraria "Toda mensagem ao cliente final sai com a marca da locadora, nunca com o nome Giro" (Automações).
   - **A:** exceção na fase 1. O remetente é "Giro Avisos", com a marca da locadora sempre no texto ("Moto Rápida informa: ...") e o perfil "Avisos das empresas que usam o sistema Giro. Este número não recebe mensagens."; número próprio na fase 2.
   - **B:** um número por locadora já, que é trabalho de fase 2.
@@ -369,8 +370,8 @@ Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a
 
 ### Telas novas do painel da plataforma (T-409)
 - **Origem:** 48 telas `Plat-*` vindas do canvas em 28 out 2026, listadas em `docs/telas/README.md`, "Painel da plataforma: telas da fase 2". Sem contrato nem tarefa.
-- **[decisão]** Financeiro, Despesas e Configurações da plataforma não têm regra em `docs/regras-de-negocio.md`. O produto escreve as regras, ou o dono tira as telas da fase 2.
-- **[decisão]** Novo adicional e Editar adicional dependem da `PLT-03` (adicionais fora do MVP) e não têm entrada na `Plat-Planos`, que ficou sem o bloco de adicionais na T-200.
+- **Decidido pelo dono em 30 out 2026:** Financeiro, Despesas e Configurações da plataforma não têm regra em `docs/regras-de-negocio.md`, mas ficam na fase 2. O produto escreve as regras a partir das telas e leva as dúvidas ao dono.
+- **Decidido pelo dono em 30 out 2026:** Novo adicional e Editar adicional dependem da `PLT-03` (adicionais fora do MVP) e ficam parados até o dono definir os adicionais e os preços. A `Plat-Planos` ganha o bloco de adicionais junto.
 - **Para o design-system, quando a fase 2 abrir:** as telas `Plat-*` e `Plataforma` que já estavam no repositório têm o menu lateral antigo e não levam às telas novas. Passar o grupo "Finanças" e Configurações para elas, mantendo os ajustes já feitos (CNPJ do seed, 14 dias de teste, catálogo da `PLT-11`).
 - **Notas fiscais:** dependem da T-197 (NFS-e da assinatura, `PLT-15`).
 
@@ -387,7 +388,7 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **O caso:** a Honda Biz 125 CDL-0B10 aparece "disponível", mas a movimentação recusa por estar na LOC-2866 (criada na mão, fora do seed). A locação nunca foi retirada (falta o 1º pagamento) e as parcelas já contam como atrasadas, com a devolução para 05 nov. Hoje o veículo só vira `reservado` com início futuro (`locacoes/services.py:540-547`); com início hoje ou passado, fica `disponivel` até a ativação.
 - **Decisões do dono (29 out):** a moto não saiu da loja. Locação confirmada **reserva o veículo** na hora, mesmo com início hoje ou passado, e ele sai do "disponível". As parcelas **só começam a vencer na retirada**; antes dela, nada fica atrasado.
 - **Pronto quando:** o produto ajusta a tabela de estados e a regra das parcelas (com nota de mudança); o backend reserva na confirmação para qualquer data de início e gera o calendário de parcelas a partir da ativação, com teste com o código da regra no nome; lista e ficha mostram "Reservado na LOC-x"; o seed ou um comando acerta locações já abertas nesse estado no ambiente de desenvolvimento.
-- **Para o produto decidir:** o que acontece com a reserva de uma locação que nunca é retirada (fica até cancelarem à mão, como hoje pela `LOC-12`).
+- **Decidido pelo dono em 30 out 2026:** a locação confirmada que não é retirada em 3 dias, contados da data de início, é cancelada sozinha, e o veículo volta a `disponivel`. O gerente recebe aviso no dia anterior ao cancelamento. O produto registra na `LOC-12`.
 
 #### T-411 · Copiar o link nas ações que enviam ao cliente
 - **Agentes:** arquiteto (contrato) e segurança (revisão), depois backend e frontend · **Regras:** `USR-01` (modelo do "Copiar link do convite"), contratos, `AUT-03`, `DEV`, `PLT-13`, `PLT-14`, `S-15` · **Origem:** nota "Função de copiar links".
@@ -437,12 +438,17 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 #### T-419 · Vitrine pública de vendas
 - **Agentes:** produto, arquiteto, segurança, design-system, backend, frontend · **Depende de:** T-418 · **Regras:** `VEN`, `PLT-11` (só aparece no plano que tiver a função, quando ela existir) · **Origem:** mesma nota.
 - **O que é:** a página pública da locadora com os veículos à venda, a página do veículo e o pedido de proposta (`docs/plano.md`, "Site de vendas").
-- **[decisão]** Em que plano entra, já que o Completo está fora da venda (T-378); subdomínio ou domínio da página.
+- **Decidido pelo dono em 30 out 2026:** a vitrine entra só no plano Completo; fica pronta e liga quando o Completo for à venda (T-378). Começa no subdomínio da locadora no Giro (`/vendas`), e a locadora pode apontar um domínio próprio depois.
 
 #### T-420 · Locação com intenção de compra
 - **Agentes:** produto (regras), arquiteto (modelo e contrato), backend, frontend, design-system · **Regras:** novas em `LOC` e `VEN` · **Origem:** nota "Novo tipo de Contrato de locação". Já citado em `docs/plano.md` ("Locação com opção de compra") e no toggle "Oferecer opção de compra no fim do contrato" da `Onboarding-Contrato`.
 - **Decisão do dono (29 out):** prazo e parcelas fixos (por exemplo, 24 meses); ao quitar a última parcela, a moto é transferida ao cliente, sem valor extra.
-- **[decisão] Para o produto levar ao dono:** o que acontece se o cliente atrasar ou devolver antes do fim (perde o que pagou ou parte vira crédito); quem paga IPVA, seguro e manutenção no período; se a caução existe nesse tipo; como fica a transferência (a venda nasce no módulo de vendas ao quitar); se o veículo pode ser trocado no meio.
+- **Decidido pelo dono em 30 out 2026:**
+  - atraso ou devolução antes do fim: o que foi pago fica como aluguel do período usado, sem crédito nem devolução; o atraso segue a régua normal (`CLI-05`, 15 dias) e pode encerrar o contrato;
+  - IPVA, seguro e manutenção ficam com a locadora no período, como na locação comum; o veículo só passa ao cliente na quitação;
+  - tem caução, como na locação comum, abatida na última parcela;
+  - o veículo não se troca no meio; para trocar, encerra-se o contrato e abre-se outro;
+  - ao quitar, nasce sozinha uma venda de R$ 0 no módulo de vendas, ligada à locação; o veículo vira vendido e o gerente recebe a tarefa de fazer a transferência no Detran.
 - **Pronto quando:** regras escritas e aprovadas, modelo de contrato próprio, tipo de locação novo no fluxo, venda gerada ao quitar, teste com o código da regra no nome.
 
 #### T-421 · Mais campos no cadastro e na ficha do veículo, vindos do CRLV-e
@@ -455,7 +461,7 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
   - alienação fiduciária ou restrição nas observações é só informação na ficha, sem bloquear nada;
   - campo do rastreador (número ou IMEI e a empresa), fora do CRLV-e.
 - **Pronto quando:** regra com os campos, os rótulos do CRLV-e e quais são opcionais; migração; a leitura preenche os campos novos (testes com os CRLV-e reais da T-406); formulário, editar e ficha mostram os campos, a 1440 e a 390; teste com o código da regra no nome.
-- **Para o produto decidir:** se o número do motor e as observações do CRLV-e são dados de todos os perfis ou só de administrador e gerente; se o rastreador fica no veículo ou na integração de rastreador (`Integracoes`).
+- **Decidido pelo dono em 30 out 2026:** o número do motor e as observações do CRLV-e só aparecem para administrador e gerente. O rastreador fica no veículo, em campos simples, e a integração de rastreador lê dali quando existir.
 
 #### T-422 · Referência de preço FIPE pela Parallelum, com rotina mensal
 - **Agentes:** arquiteto (ADR e contrato), segurança (revisão), backend, frontend · **Regras:** `VEN-01` (referência FIPE ao lado do preço), `VEI-08` · **Depende de:** ADR nova que complementa a 0031 · **Origem:** decisão do dono no chat em 29 out 2026.
