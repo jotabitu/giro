@@ -8,6 +8,10 @@ Cada tela tem versão `-Desktop` e `-Mobile` (exceto `Main`, que é a visão ger
 
 Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 
+**Do canvas para cá:** vale a tela deste repositório. Tela nova ou ajustada no canvas só vale depois da tarefa de importação, que carimba a origem no topo do HTML. O fluxo e o quanto a página do app precisa seguir a tela estão em [`docs/agentes/telas-do-canvas.md`](../agentes/telas-do-canvas.md).
+
+**Última importação do canvas:** 28/10/2026, T-409 (só as telas `Plat-*`; as telas da locadora do canvas eram mais antigas que as daqui). Telas sem carimbo são anteriores ao fluxo.
+
 ## Implantação
 
 | Tela | Arquivos | Rota no frontend | App no backend | Regras |

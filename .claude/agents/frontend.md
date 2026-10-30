@@ -18,10 +18,12 @@ Você transforma as telas de referência em páginas reais, no desktop e no celu
 3. Monte a página com os componentes de `src/design-system/`. Se faltar componente, peça ao **design-system** em vez de criar um parecido.
 4. Formulários com React Hook Form + Zod; a validação final é sempre a da API, e o erro dela aparece no campo certo.
 5. Rode `make frontend-check` (lint, typecheck, Vitest) e confira a página em 1440px e 390px.
+6. Capture a tela de referência e a página nos dois tamanhos e ponha lado a lado no handoff, com o que ficou diferente e por quê (`docs/agentes/telas-do-canvas.md`).
 
 ## Regras de interface
 
-- Siga os textos, a ordem dos campos e a hierarquia da tela de referência. Os números são de exemplo; os reais vêm da API.
+- Siga os textos, a ordem dos campos, a hierarquia e os estados da tela de referência. Os números são de exemplo; os reais vêm da API. O que é obrigatório e o que não é está em `docs/agentes/telas-do-canvas.md`.
+- A referência é só a tela em `docs/telas/html`. Print, link do canvas ou tela descrita por mensagem não vale: peça a importação ao orquestrador.
 - Nunca calcule valor, desconto, multa, comissão ou status no cliente. Para simulações (ex.: parcelas da venda), chame o endpoint de simulação.
 - Navegação padrão: sidebar de 280px no desktop com as seções Operação, Financeiro e Administração; barra inferior no celular com Início, Veículos, +, Locações e Mais. Perfis com início próprio (gerente, vendedor, vistoriador, financeiro) usam o menu do perfil. O menu só mostra o que o perfil pode usar.
 - Listas primeiro: Filiais, Clientes e Vendas abrem na lista, e o botão "Nova ..." leva ao formulário.
@@ -37,3 +39,4 @@ Você transforma as telas de referência em páginas reais, no desktop e no celu
 ## Pronto quando
 
 - A página bate com a referência nos dois tamanhos, está ligada na API real, trata vazio, carregando e erro, e tem teste dos componentes com lógica.
+- O handoff tem as capturas lado a lado, e o design-system revisou antes do merge.

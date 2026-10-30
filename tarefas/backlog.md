@@ -374,6 +374,10 @@ Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a
 - **Para o design-system, quando a fase 2 abrir:** as telas `Plat-*` e `Plataforma` que já estavam no repositório têm o menu lateral antigo e não levam às telas novas. Passar o grupo "Finanças" e Configurações para elas, mantendo os ajustes já feitos (CNPJ do seed, 14 dias de teste, catálogo da `PLT-11`).
 - **Notas fiscais:** dependem da T-197 (NFS-e da assinatura, `PLT-15`).
 
+### T-425 · Conferência automática da página com a tela de referência
+- **Agentes:** qa, com o design-system · **Origem:** T-424 (`docs/agentes/telas-do-canvas.md`, "Conferência lado a lado"). Não começa até o dono liberar.
+- **Pronto quando:** um teste do Playwright abre a tela de `docs/telas/html` e a página do app com o seed, a 1440 e 390 px, e grava as duas capturas lado a lado numa pasta do handoff; roda por rota (`make` ou script do `frontend/package.json`); serve para o frontend anexar no handoff e para a revisão do design-system. Sem comparação por pixel, porque os números e os componentes mudam de propósito.
+
 ### Notas do dono de 29 out 2026 (abertura da fase 2)
 
 A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhuma tarefa abaixo começa até o dono liberar. As 11 notas vêm da aba Notas do painel "Progresso do Giro" (criadas em 29 out) e foram detalhadas com as respostas do dono no mesmo dia. A tela de Veículos (ficha e editar) está liberada para a fase 2, inclusive os botões parados da ficha (decisão de 20 out revista). Ordem sugerida: bugs, depois o que só pede tela, depois o que pede regra nova.

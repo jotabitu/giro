@@ -4,6 +4,12 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ## Decisões de Design
 
+### [2026-10-29] Telas do canvas entram por importação
+- **Contexto:** as telas são desenhadas no canvas do Claude Design e copiadas à mão para `docs/telas/html`. Os dois lados foram editados em separado: na T-409 as telas da locadora no canvas já eram mais antigas que as do repositório. Os agentes só leem o repositório, e nada conferia a página do app contra a tela.
+- **Decisão (dono, T-424):** vale a tela do repositório na `develop`. Mudança no canvas entra por tarefa de importação, com carimbo `<!-- origem: canvas, <data>, T-NNN -->`; ajuste feito no repositório ganha `<!-- ajustada no repositório: <data>, T-NNN -->`, e tela do canvas mais antiga não o sobrescreve. A página segue textos, ordem, hierarquia, estados e componentes, não o pixel nem os números de exemplo. O frontend põe capturas lado a lado no handoff, e o design-system revisa antes do merge.
+- **Alternativas descartadas:** o canvas como fonte da verdade (os ajustes por regra feitos no repositório se perderiam); comparação automática por pixel (números e componentes mudam de propósito).
+- **Consequências:** `docs/agentes/telas-do-canvas.md`, `frontend.md`, `design-system.md` e `docs/telas/README.md`; conferência automática com o Playwright na T-425. O Claude Design avulso fecha em 14 dez 2026: importar o canvas inteiro antes disso.
+
 ### [2026-10-29] Fluxo com a branch develop
 - **Contexto:** com a fase 1 fechada e a fase 2 por começar, o dono quis uma camada de integração antes da `main`. O CI só roda em pull request e só nas áreas tocadas, então o conjunto da `main` nunca passava inteiro pelo CI, e o E2E não roda no CI.
 - **Decisão (dono):** a branch da tarefa sai da `origin/develop` e o PR vai para a `develop`. A `develop` vai para a `main` por lote, num PR com o aval do dono, depois de o QA conferir o lote na `develop`. Correção urgente do que já está na `main`: `t-<numero>-hotfix-<slug>` a partir da `main`, PR para a `main` e, depois, a `main` entra na `develop`. A `main` fica protegida no GitHub: só PR, com CI verde. A `develop` nasceu da `origin/main` em 7822c922 (PR #448).

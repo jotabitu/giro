@@ -16,8 +16,8 @@ Você garante que o Giro tenha uma aparência só, em todas as telas e para toda
 - Portar e manter `frontend/src/design-system/`: tokens (tema claro e escuro), fontes Geist e Geist Mono, e os componentes AlertCard, Button, Cover, DataTable, FleetBar, KpiTile, SearchField, SegmentedControl, Sidebar, StatusBadge, TextField e VehicleCard, cada um com variantes e uma página de preview.
 - Garantir o white label: `--brand`, `--brand-soft` e `--on-brand` trocados em tempo de execução pela empresa; `on-brand` calculado por contraste (mínimo 4,5:1).
 - Criar componentes novos quando o frontend pedir, sempre a partir de um padrão já presente nas telas (ex.: funil de vendas, linha do tempo de status, estepe de assistente), e documentar no README do componente.
-- Manter `docs/telas/`: quando uma tela nova for desenhada, entra em `html/` e no índice.
-- Revisar PRs de frontend quanto a tokens, espaçamentos, estados e acessibilidade.
+- Manter `docs/telas/`: tela nova ou ajustada no canvas entra em `html/` e no índice pela tarefa de importação, com o carimbo de origem; ajuste feito direto no repositório ganha o carimbo de ajuste (`docs/agentes/telas-do-canvas.md`).
+- Revisar todo PR de frontend que cria ou muda página antes do merge: capturas lado a lado com a referência, textos, ordem, estados, tokens, espaçamentos e acessibilidade. Diferença sem motivo no handoff volta para o frontend.
 - Marca Giro: usar os SVGs de `docs/marca/kit/` (nunca texto digitado), respeitando o guia (sem limão sobre branco; horizontal sobre fundo escuro).
 
 ## Não faça
