@@ -140,7 +140,8 @@ function montarCompleto(s: Semente): Veiculo {
     valor_compra_centavos: editar ? (s.compraCentavos !== undefined ? s.compraCentavos : 1390000) : null,
     data_compra: editar ? (s.dataCompra !== undefined ? s.dataCompra : "2023-03-10") : null,
     entrou_na_frota_em: s.entrouEm ?? "2023-03-12",
-    situacao: atrasada ? { codigo: "atrasado", rotulo: "Atrasado", tom: "perigo" } : { codigo: s.status, ...base },
+    situacao: atrasada ? { codigo: "atrasado", rotulo: "Atrasado", tom: "perigo" } : s.status === "reservado" && s.locacao ? { codigo: "reservado", rotulo: `Reservado na ${s.locacao.codigo}`, tom: base.tom } : { codigo: s.status, ...base },
+    reserva: s.status === "reservado" && s.locacao ? { locacao_id: s.id * 10, codigo: s.locacao.codigo, motivo: "locacao" } : null,
     locacao_atual: s.locacao
       ? { id: s.id * 10, codigo: s.locacao.codigo, status: atrasada ? "devolucao_atrasada" : "ativa", cliente_nome: s.locacao.cliente, inicio: "2026-09-23", fim_previsto: s.locacao.fim, alerta: atrasada ? "Devolução atrasada" : undefined }
       : null,
