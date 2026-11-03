@@ -1,6 +1,6 @@
 # Modelo de dados
 
-**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183), fatura e forma de pagamento da assinatura em 16 out 2026 (T-294, pela T-185) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
+**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183), fatura e forma de pagamento da assinatura em 16 out 2026 (T-294, pela T-185), foto do veículo em 03 nov 2026 (T-414, ADR 0036) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
 
 Este documento diz, para cada uma das 25 entidades das regras, o app dono, o schema, os campos, os índices e as restrições. As entidades de apoio (que não estão na lista das regras mas são necessárias) vêm no fim de cada app. Mudança aqui passa pelo arquiteto; o backend implementa a partir daqui e do contrato do módulo em `docs/api/`.
 
@@ -281,6 +281,27 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 - Apoio `HistoricoStatusVeiculo`: `veiculo` FK, `de`, `para`, `em` momento, `origem` genérica, `por` FK nulo. Base de `VEI-06` (ocupação). Índice `(veiculo, em)`.
 - Apoio `LeituraKm`: `veiculo`, `km`, `lido_em`, `origem` genérica (vistoria, OS, correção), `motivo` (correção para baixo, `APR-06`).
 - Apoio `TransferenciaVeiculo`: `veiculo`, `filial_origem`, `filial_destino`, `em`, `por` (`VEI-04`), origem genérica nula (`movimentacao` na transferência pela chegada, `MOV-06`, T-286).
+
+### 9a. Foto do veículo · `veiculos.FotoVeiculo` · ativável
+
+T-414, `VEI-10`, ADR 0036. A galeria do veículo (fotos de cadastro, para a ficha e o catálogo). Não se mistura com `vistorias.FotoVistoria`.
+
+| Campo | Tipo | Observação |
+| --- | --- | --- |
+| `veiculo` | FK → `Veiculo`, `related_name="fotos"` | |
+| `arquivo` | arquivo, `max_length=200` | JPG ou PNG reprocessado sem metadados (`comum.arquivos.sem_metadados`); grave a linha antes do arquivo (o caminho leva o id) |
+| `formato` | enum `jpg`, `png` | do conteúdo, para a extensão do nome baixado |
+| `ordem` | smallint ≥ 1 | ordem de envio, sequencial por veículo (maior `ordem` entre ativas e inativas + 1); a troca herda a da antiga |
+| `capa` | bool, padrão `false` | uma por veículo entre as ativas |
+| `enviada_por` | FK → `Usuario`, nulo | nulo só em dado sem pessoa |
+| `enviada_em` | momento | `relogio.agora()` no envio |
+| `substituida_por` | FK → `FotoVeiculo`, nulo, `related_name="+"` | na foto antiga de uma troca |
+| `apagada_por` | FK → `Usuario`, nulo | quem apagou (o quando é o `atualizado_em`; o evento de auditoria guarda os dois) |
+
+- Restrições: único parcial `(veiculo)` com `ativo AND capa` (`foto_veiculo_uma_capa`); único parcial `(veiculo, ordem)` com `ativo` (`foto_veiculo_ordem_ativa`). O limite de 20 ativas é do serviço, com `select_for_update` no veículo.
+- Índice `(veiculo, ativo, ordem)`. Exibição: `ORDER BY capa DESC, ordem`.
+- `ativo = False` em dois casos: apagada (`apagada_por` preenchido) e substituída (`substituida_por` preenchido). O arquivo nunca sai (`ArmazenamentoPrivado.delete` recusa), salvo no apagamento da empresa pelo prefixo (`AUD-08`).
+- Só `veiculos.services` escreve (enviar, trocar, apagar, usar como capa). Outros apps leem por `veiculos.selectors.galeria(veiculo)` (catálogo, T-418).
 
 ### 10. Documento do veículo · `veiculos.DocumentoVeiculo` · ativável
 
