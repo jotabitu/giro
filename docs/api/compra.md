@@ -6,7 +6,7 @@ Convenções gerais em `docs/api/README.md`. O serviço que cria a empresa é `p
 
 **Por que um arquivo próprio, e não uma seção do `plataforma.md`.** O `plataforma.md` é o contrato da equipe Giro (login da plataforma, 2 etapas, função dono) e do lado da empresa já logada. Estas rotas são as únicas do Giro abertas a qualquer pessoa na internet, sem sessão, e criam schema. Elas têm autenticação, limites e revisão de segurança próprios (T-431) e um modelo próprio (`PedidoCompra`). Num arquivo só delas, a revisão de segurança lê tudo o que é anônimo num lugar, e o `plataforma.md` continua sendo o dono do serviço `criar_empresa`, que as duas portas (Django Admin e compra) chamam.
 
-Itens marcados `[decisão]` estão no `tarefas/backlog.md` (T-430) com a opção padrão que este contrato segue até a resposta do dono.
+As decisões D-430 foram respondidas pelo dono em 03 nov 2026 ("Aprovo os padrões"), menos a D-430-05 (Termos de uso e Acordo de tratamento de dados), que continua `[decisão]` aberta: ela não bloqueia a T-432 nem a T-433, mas **a compra não entra no ar sem esses textos**. Os ajustes das telas são da T-434 (design-system).
 
 ---
 
@@ -24,7 +24,7 @@ Compra-Planos ──► Compra-Checkout ──► código no e-mail ──► Co
 4. Ela digita o código na própria tela. Só então o backend chama `criar_empresa`, numa tarefa do Celery (o schema leva segundos).
 5. A `Compra-Pronto` acompanha a criação passo a passo e, no fim, leva ao convite do administrador.
 
-**Confirmar o e-mail antes de criar** é a principal proteção: sem o código, nenhum schema nasce, e ninguém cria empresa com o e-mail de outra pessoa. `[decisão]` D-430-01 (padrão: confirmar antes de criar).
+**Confirmar o e-mail antes de criar** é a principal proteção: sem o código, nenhum schema nasce, e ninguém cria empresa com o e-mail de outra pessoa. D-430-01, decidido pelo dono em 03 nov 2026: confirmar antes de criar.
 
 ---
 
@@ -112,8 +112,8 @@ Corpo: `{ "cnpj": "12.345.678/0001-90" }` (aceita com ou sem pontuação; o back
 | `em_uso` | `{ "pode_comprar": false, "codigo": "cnpj_em_uso", "mensagem": "Este CNPJ já tem uma assinatura no Giro. Para voltar, fale com a equipe Giro." }` | a mensagem no campo e "Criar minha conta" desligado |
 | `fatura_em_atraso` | `{ "pode_comprar": false, "codigo": "fatura_anterior_em_atraso", "mensagem": "Há uma fatura em aberto da assinatura anterior. Fale com a equipe Giro para pagar antes de assinar de novo." }` | idem |
 
-- A resposta não traz razão social, cidade, situação na Receita nem nada da empresa existente. A frase da tela "Moto Rápida Locações Ltda · Fortaleza, CE · CNPJ ativo" depende de consulta à Receita, que é serviço externo: `[decisão]` D-430-03 (padrão: sem consulta; a pessoa digita razão social, cidade e UF, e a frase sai da tela).
-- **Enumeração:** essa rota diz a qualquer pessoa se um CNPJ é ou foi cliente do Giro. O que um CNPJ é (razão social, endereço) já é público, mas ser cliente do Giro é dado comercial do cliente. A proteção é o limite por IP (abaixo) e a auditoria das recusas. `[decisão]` D-430-04 (padrão: a checagem responde como na tabela, com o limite; a alternativa é mostrar as recusas e o aviso só depois do código do e-mail).
+- A resposta não traz razão social, cidade, situação na Receita nem nada da empresa existente. A frase da tela "Moto Rápida Locações Ltda · Fortaleza, CE · CNPJ ativo" depende de consulta à Receita, que é serviço externo: D-430-03, decidido pelo dono em 03 nov 2026: sem consulta; a pessoa digita razão social, cidade e UF, e a frase sai da tela).
+- **Enumeração:** essa rota diz a qualquer pessoa se um CNPJ é ou foi cliente do Giro. O que um CNPJ é (razão social, endereço) já é público, mas ser cliente do Giro é dado comercial do cliente. A proteção é o limite por IP (abaixo) e a auditoria das recusas. D-430-04, decidido pelo dono em 03 nov 2026: a checagem responde como na tabela, com o limite.
 - A mesma checagem roda de novo na confirmação, que é o que vale (o CNPJ pode mudar de situação entre as duas).
 
 ### POST /api/publico/compra/subdominio/
@@ -125,7 +125,7 @@ Checagem do endereço de acesso. Corpo: `{ "subdominio": "motorapida" }`, ou `{ 
 - Regras do `plataforma.md`: só `a-z`, `0-9` e `-`, de 3 a 30 caracteres, nem reservado (`admin`, `www`, `api`, `app`, `suporte`, `status`). Fora disso, 400 `validacao` com "Use de 3 a 30 letras sem acento, números ou hífen.", e para os reservados "Este endereço não pode ser usado. Escolha outro.".
 - "Em uso" inclui o subdomínio de empresa apagada, que continua reservado (`PLT-16`, `AUD-08`). A resposta não diz por que está em uso.
 - A sugestão tira acentos, espaços e pontuação do nome e acrescenta número até achar um livre.
-- O checkout não tem o campo do endereço; a `Compra-Pronto` mostra um. `[decisão]` D-430-02 (padrão: o checkout ganha o campo "Endereço de acesso", pré-preenchido com a sugestão a partir do nome da empresa e editável; o design-system ajusta a tela).
+- O checkout não tem o campo do endereço; a `Compra-Pronto` mostra um. D-430-02, decidido pelo dono em 03 nov 2026: o checkout ganha o campo "Endereço de acesso", pré-preenchido com a sugestão a partir do nome da empresa e editável; o design-system ajusta a tela na T-434.
 
 ### POST /api/publico/compra/pedidos/
 
@@ -150,7 +150,7 @@ Corpo:
 
 - `forma_pagamento` é opcional ("Opcional durante o teste"). Só grava a forma, como na `Admin-Assinatura` (`PLT-13`): escolher não ativa a empresa nem cobra. **Nenhum campo de cartão** é aceito (ADR 0023): corpo com `numero_cartao`, `validade`, `cvv` ou parecido é 400 `{ "codigo": "cartao_nao_aceito" }`, e o campo é descartado antes de qualquer log.
 - `plano` fora do catálogo à venda: 400 `{ "codigo": "plano_fora_da_venda", "mensagem": "O plano Completo ainda não está à venda." }` para o Completo (`PLT-11`), "Escolha um dos planos da lista." para os outros.
-- `aceite_termos` diferente de `true`: 400 `validacao`, "Para continuar, aceite os Termos de uso e o Acordo de tratamento de dados.". A versão aceita é gravada no pedido e passa para a empresa. Os textos ainda não existem: `[decisão]` D-430-05.
+- `aceite_termos` diferente de `true`: 400 `validacao`, "Para continuar, aceite os Termos de uso e o Acordo de tratamento de dados.". A versão aceita é gravada no pedido e passa para a empresa. Os textos ainda não existem: `[decisão]` D-430-05, aberta. Não bloqueia a T-432 nem a T-433, mas a compra não entra no ar sem eles.
 - E-mail inválido: "Confira o e-mail."; celular: "Confira o celular com DDD."; nome vazio: "Informe seu nome completo.".
 - O CNPJ e o subdomínio são checados de novo aqui (as mesmas respostas das rotas acima, como 409 `cnpj_em_uso`, `fatura_anterior_em_atraso`, `subdominio_em_uso`). Essa checagem não reserva nada: o subdomínio só fica reservado quando a empresa nasce.
 - Pedido novo com o mesmo e-mail e CNPJ de um pedido ainda `aguardando_confirmacao` substitui o anterior (que vira `expirado`), sem contar como pedido novo no limite por CNPJ.
@@ -197,8 +197,8 @@ Andamento para a `Compra-Pronto` (a tela consulta a cada 2 s enquanto `status` =
 
 **O que a `Compra-Pronto` mostra e para onde leva.** "Tudo pronto, {nome}", o endereço, os 4 passos com o horário (em `America/Sao_Paulo`), "Acessar meu sistema" e "ou use o link do e-mail em qualquer aparelho".
 
-- "Acessar meu sistema" abre `acessar.url`: o link do convite do administrador (`USR-01`), que leva a criar a senha e ativar as 2 etapas e, depois, ao assistente de implantação (`Pos-Dashboard` até a `IMP-01`, `USR-08`). A pessoa já provou que lê o e-mail (o código), então o mesmo navegador recebe o link, como no "Copiar link do convite": `acessar` sai **uma vez só**, na primeira leitura depois do `pronto`, e nas seguintes vem `null` (a tela troca o botão por "Abra o link que enviamos para {email}."). `[decisão]` D-430-06 (padrão: assim; a alternativa é o botão só mandar abrir o e-mail).
-- O e-mail de boas-vindas da tela é o convite da `USR-01`. O link vale **7 dias** (`USR-01`), e não 48 horas como diz a tela: `[divergência]` D-430-07, o design-system corrige o texto para "O link vale por 7 dias.".
+- "Acessar meu sistema" abre `acessar.url`: o link do convite do administrador (`USR-01`), que leva a criar a senha e ativar as 2 etapas e, depois, ao assistente de implantação (`Pos-Dashboard` até a `IMP-01`, `USR-08`). A pessoa já provou que lê o e-mail (o código), então o mesmo navegador recebe o link, como no "Copiar link do convite": `acessar` sai **uma vez só**, na primeira leitura depois do `pronto`, e nas seguintes vem `null` (a tela troca o botão por "Abra o link que enviamos para {email}."). D-430-06, decidido pelo dono em 03 nov 2026: assim.
+- O e-mail de boas-vindas da tela é o convite da `USR-01`. O link vale **7 dias** (`USR-01`), e não 48 horas como diz a tela: `[divergência]` D-430-07, vale a regra: o design-system corrige na T-434 o texto para "O link vale por 7 dias.".
 - Nada na `Compra-Pronto` mostra a marca da locadora: a compra é tela do Giro (white label, `CLAUDE.md`).
 
 ---
@@ -234,17 +234,17 @@ Tudo com o que já existe: throttles do DRF no cache do Redis (como o `AcessoPor
 
 - 429 sempre com `{ "codigo": "limite", "mensagem": "Muitas tentativas. Tente de novo mais tarde." }` e `Retry-After`. A mensagem não diz qual limite estourou.
 - O IP vem do cabeçalho que o proxy de produção garante (ADR 0033); o backend não confia em `X-Forwarded-For` de fora.
-- **Teto diário de empresas criadas pela compra** (padrão 50 por dia, em `settings`). Acima dele, a confirmação deixa o pedido `confirmado` sem criar, e a equipe Giro recebe e-mail para liberar pelo Django Admin; a tela mostra "Recebemos o seu pedido. A equipe Giro libera o seu sistema e avisa você por e-mail.". Protege contra criação em massa de schemas mesmo com e-mails válidos. `[decisão]` D-430-08 (o número e se existe o teto).
-- **Captcha** não entra agora: pede serviço externo (ADR nova). Com o código no e-mail, o teto diário e os limites, o risco que fica é o gasto de e-mails de código. `[decisão]` D-430-09 (padrão: sem captcha; rever com os números da produção).
+- **Teto diário de empresas criadas pela compra** (padrão 50 por dia, em `settings`). Acima dele, a confirmação deixa o pedido `confirmado` sem criar, e a equipe Giro recebe e-mail para liberar pelo Django Admin; a tela mostra "Recebemos o seu pedido. A equipe Giro libera o seu sistema e avisa você por e-mail.". Protege contra criação em massa de schemas mesmo com e-mails válidos. D-430-08, decidido pelo dono em 03 nov 2026: teto de 50 por dia.
+- **Captcha** não entra agora: pede serviço externo (ADR nova). Com o código no e-mail, o teto diário e os limites, o risco que fica é o gasto de e-mails de código. D-430-09, decidido pelo dono em 03 nov 2026: sem captcha; rever com os números da produção.
 - O código e a chave do pedido nunca vão para log nem para o Sentry (`before_send` já filtra campos com `codigo`; a T-432 confere).
 - Respostas de 404 do pedido são iguais para chave inexistente e expirada.
 
 ---
 
-## Divergências e pontos para o design-system (telas)
+## Ajustes das telas (T-434, design-system)
 
-- `Compra-Planos`: mostra o Completo e o texto antigo do Profissional ("vendas, manutenção... comissão de vendedores e relatórios"). Vale a `PLT-11` da fase 1: o card do Completo sai, e o texto vem da API. O link "Entrar" do topo não tem para onde levar no domínio principal (o login é no endereço de cada locadora): `[decisão]` D-430-10 (padrão: sai da tela).
-- `Compra-Checkout`: falta o campo do endereço de acesso (D-430-02) e os campos de razão social, cidade e UF sem a consulta à Receita (D-430-03); entra o passo do código de 6 dígitos ("Digite o código que enviamos para m•••••@motorapida.com.br", com "Reenviar código"). O campo "Tamanho da frota hoje" não tem regra nem vai para nenhum lugar: `[decisão]` D-430-11 (padrão: sai da tela). O quadro "Como funciona o teste" usa `teste` da API.
+- `Compra-Planos`: mostra o Completo e o texto antigo do Profissional ("vendas, manutenção... comissão de vendedores e relatórios"). Vale a `PLT-11` da fase 1: o card do Completo sai, e o texto vem da API. O link "Entrar" do topo não tem para onde levar no domínio principal (o login é no endereço de cada locadora): D-430-10, decidido pelo dono em 03 nov 2026: sai da tela.
+- `Compra-Checkout`: falta o campo do endereço de acesso (D-430-02) e os campos de razão social, cidade e UF sem a consulta à Receita (D-430-03); entra o passo do código de 6 dígitos ("Digite o código que enviamos para m•••••@motorapida.com.br", com "Reenviar código"). O campo "Tamanho da frota hoje" não tem regra nem vai para nenhum lugar: D-430-11, decidido pelo dono em 03 nov 2026: sai da tela. O quadro "Como funciona o teste" usa `teste` da API.
 - `Compra-Pronto`: "48 horas" vira "7 dias" (D-430-07).
 
 ---
