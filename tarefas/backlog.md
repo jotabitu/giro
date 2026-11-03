@@ -423,6 +423,7 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Hoje:** a despesa já pode ser ligada ao veículo e entra no custo do ano, mas a ficha não lista as despesas dele.
 - **Decisão do dono (29 out):** na ficha, a lista das despesas do veículo e um botão "Lançar despesa" já com ele preenchido, e categorias próprias de despesa do veículo (IPVA, seguro, multa, peça, combustível).
 - **Pronto quando:** categorias na regra, lista e botão na ficha, filtro por veículo, teste. Manutenção (`MAN-05`, OS que lança despesa) segue no módulo de manutenção.
+- **Parte do produto feita em 03 nov 2026** (`tarefas/handoffs/T-417-produto.md`): `FIN-06` com as categorias do veículo (IPVA e licenciamento, seguro, multa de trânsito, peças, combustível) em dois grupos, nenhuma exige veículo, vistoriador com peças; `FIN-16` com o filtro por veículo; `FIN-17` nova (lista na ficha para administrador, gerente e financeiro, total do ano, "Lançar despesa" com o veículo); `VEI-05` com o custo de manutenção só de manutenção e peças; critérios CA-417-01 a 13. **Próximo:** arquiteto (chaves e rota, curto), backend, frontend.
 
 #### T-418 · Catálogo de vendas interno
 - **Agentes:** produto (regra), arquiteto, design-system (tela), backend, frontend · **Regras:** `VEN-01` a `VEN-10`, `PLT-11`, `PLT-12` · **Depende de:** T-414 (fotos), módulo de vendas (`backend/apps/vendas/` está vazio) · **Origem:** nota "Catalogo de vendas dos veiculos".
