@@ -45,9 +45,14 @@ def _papeis_de_banco(schemas: list[str]) -> None:
 
     with connection.cursor() as cursor:
         for papel in ("giro_app", "giro_expurgo"):
-            cursor.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", [papel])
-            if cursor.fetchone() is None:
-                cursor.execute(f"CREATE ROLE {papel} NOLOGIN")
+            # Papel é global do cluster e cada worker do xdist tem o próprio banco: dois workers
+            # podem criar o mesmo papel ao mesmo tempo (T-429). Um SELECT antes não fecha a janela,
+            # então o CREATE tolera "já existe" (duplicate_object ou, na corrida, unique_violation).
+            # Qualquer outro erro continua subindo.
+            cursor.execute(
+                f"DO $$ BEGIN CREATE ROLE {papel} NOLOGIN; "
+                "EXCEPTION WHEN duplicate_object OR unique_violation THEN NULL; END $$"
+            )
         for schema in schemas:
             aplicar_permissoes(cursor, schema)
 
