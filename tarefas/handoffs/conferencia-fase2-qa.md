@@ -30,3 +30,18 @@
 ## Próximo
 
 Frontend: D1 a D4 (e D5 se o design-system concordar). Produto: D6. T-425 (conferência automática da página com a tela de referência) segue em andamento, com o design-system.
+
+## Reconferência do PR #469 (T-428) · 03 nov 2026
+
+Branch `t-428-correcoes-conferencia` com a T-425 por cima, na stack isolada, 1440 e 390 px, capturas em `tarefas/handoffs/anexos/reconferencia-pr469/`.
+
+| Item | Antes | Depois |
+| --- | --- | --- |
+| D1 faixa suspensa, vendedora, 390 px | 520 px (61 % da tela) | 105 px |
+| D1 faixa suspensa, administrador, 390 px | 235 px | 129 px |
+| D1 a 1440 px | 47 e 73 px | 47 e 61 px, sem mudança de leitura |
+| D2 histórico duplicado, ficha 1440 px | 2 botões | 1 botão |
+| D3 histórico na ficha, 390 px | 0 botões | 1 botão ("Abrir" também aparece) |
+| D4 editar 390 px, validade e "Substituir" | passavam da borda do cartão | alinhados ao cartão, sem rolagem lateral |
+
+`npm run conferencia` com `TELA=Inicio-vendedor,Veiculo`: 4 imagens, sem achado automático (`resumo.md` na pasta). D1 a D4 resolvidos. D5 não reconferido na tela (só o código usa `wl-btn--quiet`).
