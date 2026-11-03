@@ -456,6 +456,7 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
   - campo do rastreador (número ou IMEI e a empresa), fora do CRLV-e.
 - **Pronto quando:** regra com os campos, os rótulos do CRLV-e e quais são opcionais; migração; a leitura preenche os campos novos (testes com os CRLV-e reais da T-406); formulário, editar e ficha mostram os campos, a 1440 e a 390; teste com o código da regra no nome.
 - **Decidido pelo dono em 30 out 2026:** o número do motor e as observações do CRLV-e só aparecem para administrador e gerente. O rastreador fica no veículo, em campos simples, e a integração de rastreador lê dali quando existir.
+- **Parte do arquiteto feita em 03 nov 2026** (`tarefas/handoffs/T-421-arquiteto.md`, regras do PR #459): contrato em `docs/api/veiculos.md` (blocos `documento`, `rastreador` e `anotacoes`; motor e observações ausentes para vendedor, vistoriador e financeiro; formatos; leitura com os 9 campos da `VEI-09`; `POST /api/veiculos/{id}/leitura-crlv/` no editar, padrão A, com 422 `crlv_outro_veiculo`) e 12 colunas no modelo de dados. Combinado com o Backend: a T-415 entra antes. **Próximo:** backend depois do merge da T-415, depois frontend e QA.
 
 #### T-422 · Referência de preço FIPE pela Parallelum, com rotina mensal
 - **Agentes:** arquiteto (ADR e contrato), segurança (revisão), backend, frontend · **Regras:** `VEN-01` (referência FIPE ao lado do preço), `VEI-08` · **Depende de:** ADR nova que complementa a 0031 · **Origem:** decisão do dono no chat em 29 out 2026.
