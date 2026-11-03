@@ -269,6 +269,25 @@ export const veiculosFalso = {
     if (!podeEditar()) throw new ErroApi(403, "permissao", "Você não tem permissão para cadastrar veículos");
     if (!/.pdf$/i.test(arquivo.name)) throw new ErroApi(400, "validacao", "Confira o arquivo", undefined, { arquivo: "Envie o PDF do CRLV-e." });
     if (!/crlv/i.test(arquivo.name)) throw new ErroApi(422, "VEI-08", "Não conseguimos ler este documento. Preencha os campos à mão.");
+    // T-415 (VEI-08): "CHEVROLET/CRUZE LT NB" não traz o modelo, só a marca e as 3 versões que batem no catálogo.
+    if (/cruze/i.test(arquivo.name))
+      return {
+        documento: "crlv",
+        campos: { placa: "RAB1C23", chassi: "9BGKS48B0PG123456", renavam: "01234567891", marca: "GM - Chevrolet", modelo: null, ano_fabricacao: 2023, ano_modelo: 2023, cor: "prata", combustivel: "flex" },
+        lidos: ["placa", "chassi", "renavam", "marca", "ano_fabricacao", "ano_modelo", "cor", "combustivel"],
+        quantidade: 8,
+        rotulo: "CRLV-e lido · 8 campos preenchidos",
+        exercicio: 2026,
+        dicas: {
+          marca_modelo: "CHEVROLET/CRUZE LT NB",
+          candidatos: [
+            { marca: "GM - Chevrolet", modelo: "CRUZE LT 1.4 16V Turbo Flex 4p Aut.", tipo: "carro" },
+            { marca: "GM - Chevrolet", modelo: "CRUZE LT 1.8 16V FlexPower 4p Aut.", tipo: "carro" },
+            { marca: "GM - Chevrolet", modelo: "CRUZE LT 1.8 16V FlexPower 4p Mec.", tipo: "carro" },
+          ],
+        },
+        leitura: "comprovante-do-cruze",
+      };
     return {
       documento: "crlv",
       campos: { placa: "TBC5H21", chassi: "9C2JC7500TR012345", renavam: "01234567890", marca: "Honda", modelo: "Pop 110i ES", ano_fabricacao: 2026, ano_modelo: 2026, cor: "vermelha", combustivel: "gasolina" },
@@ -276,7 +295,7 @@ export const veiculosFalso = {
       quantidade: 9,
       rotulo: "CRLV-e lido · 9 campos preenchidos",
       exercicio: 2026,
-      dicas: { marca_modelo: null },
+      dicas: { marca_modelo: null, candidatos: [] },
       leitura: "comprovante-de-exemplo",
     };
   },

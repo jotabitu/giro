@@ -137,7 +137,11 @@ jobs:
       run:
         working-directory: frontend
     steps:
+      # T-429: o Vitest roda `git diff HEAD^1...HEAD`; com o checkout raso padrão (depth 1) o HEAD^1
+      # não existe e o passo quebra. Profundidade 2 traz o commit de merge e a ponta da base.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
       - uses: actions/setup-node@v4
         with:
           node-version: 22

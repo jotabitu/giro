@@ -40,6 +40,18 @@ describe("Faixa de assinatura suspensa ou pausada", () => {
     expect(h).not.toContain("Pagar a fatura");
   });
 
+  it("D1: a faixa é compacta no celular (coluna, texto pequeno, botão do tamanho da linha) e só vira linha no desktop", () => {
+    const h = faixa(eu("suspensa", true, true), "Assinatura suspensa por falta de pagamento. Pague a fatura para voltar a operar.");
+    expect(h).toContain("flex-col");
+    expect(h).toContain("md:flex-row");
+    expect(h).toContain("py-2");
+    expect(h).toContain("text-caption font-medium md:text-body");
+    expect(h).toContain("w-full");
+    const sem = faixa(eu("suspensa", true, false));
+    expect(sem).toContain("flex-col");
+    expect(sem).toContain("Fale com o administrador da empresa.");
+  });
+
   it("quem não administra vê a faixa sem link e é mandado ao administrador", () => {
     const h = faixa(eu("suspensa", true, false));
     expect(h).toContain("Fale com o administrador da empresa.");

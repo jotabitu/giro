@@ -35,6 +35,13 @@ describe("comprovante da despesa paga", () => {
     expect(h).toContain("Ver a nota");
   });
 
+  it("D5: o comprovante e a nota têm cara de botão (wl-btn--quiet), não de texto solto", async () => {
+    const d = await financeiro.obterDespesa(804);
+    const h = html({ ...d, nota: { url: "/notas/804.jpg", url_expira_em: "2026-10-05T12:15:00Z" } });
+    expect(h).toMatch(/<a [^>]*wl-btn wl-btn--quiet[^>]*>Ver comprovante<\/a>/);
+    expect(h).toMatch(/<a [^>]*wl-btn wl-btn--quiet[^>]*>Ver a nota<\/a>/);
+  });
+
   it("FIN-05: paga sem comprovante, ou ainda a pagar, não tem o botão", async () => {
     expect(html(await financeiro.obterDespesa(802))).not.toContain("Ver comprovante");
     expect(html(await financeiro.obterDespesa(803))).not.toContain("Ver comprovante");

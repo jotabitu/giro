@@ -33,14 +33,15 @@ export function FaixaDaAssinatura() {
 
 export function FaixaPreenchida({ status, faixaAviso, administra }: { status: string; faixaAviso?: string | null; administra: boolean }) {
   const suspensa = status === "suspensa";
+  // Celular: faixa baixa. Texto numa linha própria, o aviso e o botão embaixo; a partir do desktop, tudo na mesma linha.
   return (
-    <div role="status" data-faixa-assinatura={status} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-warning bg-warning-soft px-4 py-3 text-warning-ink md:px-6">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+    <div role="status" data-faixa-assinatura={status} className="flex flex-col gap-2 border-b border-warning bg-warning-soft px-4 py-2 text-warning-ink md:flex-row md:flex-wrap md:items-center md:justify-between md:gap-x-4 md:px-6 md:py-3">
+      <div className="flex min-w-0 items-start gap-2 md:flex-1 md:items-center md:gap-3">
         <Icone de={Lock} />
-        <p className="m-0 min-w-0 font-medium">{textoDaFaixa(status, faixaAviso)}</p>
+        <p className="m-0 min-w-0 text-caption font-medium md:text-body">{textoDaFaixa(status, faixaAviso)}</p>
       </div>
       {administra ? (
-        <Link href="/admin/assinatura" className="wl-btn inline-flex min-h-[44px] items-center no-underline">
+        <Link href="/admin/assinatura" className="wl-btn wl-btn--sm w-full no-underline md:w-auto">
           {suspensa ? "Pagar a fatura" : "Ver a assinatura"}
         </Link>
       ) : (

@@ -71,8 +71,20 @@ class CamposDoCrlvSerializer(serializers.Serializer[Any]):
     combustivel = serializers.ChoiceField(choices=Combustivel.choices, allow_null=True)
 
 
+class ModeloSerializer(serializers.Serializer[Any]):
+    marca = serializers.CharField()
+    modelo = serializers.CharField()
+    tipo = serializers.ChoiceField(choices=["moto", "carro"])
+
+    class Meta:
+        # Nome próprio no OpenAPI: `contratos` já tem um `Modelo` (T-265).
+        ref_name = "ModeloDoCatalogo"
+
+
 class DicasDaLeituraSerializer(serializers.Serializer[Any]):
     marca_modelo = serializers.CharField(allow_null=True)
+    # T-415: as versões do catálogo que batem com o texto, para a pessoa escolher uma.
+    candidatos = ModeloSerializer(many=True)
 
 
 class LeituraCrlvSerializer(serializers.Serializer[Any]):
@@ -400,16 +412,6 @@ class ExtraSerializer(serializers.Serializer[Any]):
 
 class ListaDeExtrasSerializer(serializers.Serializer[Any]):
     resultados = ExtraSerializer(many=True)
-
-
-class ModeloSerializer(serializers.Serializer[Any]):
-    marca = serializers.CharField()
-    modelo = serializers.CharField()
-    tipo = serializers.ChoiceField(choices=["moto", "carro"])
-
-    class Meta:
-        # Nome próprio no OpenAPI: `contratos` já tem um `Modelo` (T-265).
-        ref_name = "ModeloDoCatalogo"
 
 
 class ListaDeModelosSerializer(serializers.Serializer[Any]):

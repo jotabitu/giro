@@ -274,7 +274,6 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
           <section className="wl-panel">
             <h2 className="mb-1 text-[20px] font-semibold leading-[26px]">Documentos</h2>
             <ListaDeDocumentos docs={docs} />
-        <HistoricoDeDocumentos id={v.id} />
             <HistoricoDeDocumentos id={v.id} />
           </section>
         </aside>
@@ -376,6 +375,7 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
 
       <CartaoDoCelular titulo="Documentos">
         <ListaDeDocumentos docs={docs} />
+        <HistoricoDeDocumentos id={v.id} />
       </CartaoDoCelular>
 
       {manutencoes && (
