@@ -1,6 +1,6 @@
 # Vistorias, devolução e acerto
 
-**Dono:** arquiteto · **Versão:** 09 out 2026 (T-111, T-114), troca de veículo em 10 out 2026 (T-122) · **App:** `vistorias` (schema da empresa) · **Regras:** VIS-01 a VIS-05, DEV-01 a DEV-07, LOC-09 a LOC-13, VEI-01, VEI-02, CLI-02, CLI-03, CLI-05, FIL-03, FIL-05, AUD-05 · **ADRs:** 0011, 0015 · **Telas:** Vistoria, Devolucao, Vistoriador
+**Dono:** arquiteto · **Versão:** 09 out 2026 (T-111, T-114), troca de veículo em 10 out 2026 (T-122), copiar link do recibo e página pública do recibo em 03 nov 2026 (T-411, `copiar-link.md`) · **App:** `vistorias` (schema da empresa) · **Regras:** VIS-01 a VIS-05, DEV-01 a DEV-07, LOC-09 a LOC-13, VEI-01, VEI-02, CLI-02, CLI-03, CLI-05, FIL-03, FIL-05, AUD-05 · **ADRs:** 0011, 0015 · **Telas:** Vistoria, Devolucao, Vistoriador
 
 Convenções gerais em `docs/api/README.md`. Modelo: item 14 e apoio (`FotoVistoria`, `Avaria`, `Devolucao`, `ItemAcerto`) em `docs/decisoes/modelo-de-dados.md`. A locação está em `locacoes.md`.
 
@@ -224,6 +224,46 @@ Regras: DEV-01 a DEV-07, LOC-10 a LOC-13, FIN-03.
 
 ### GET /api/devolucoes/{id}/recibo/
 200: `{ "url", "url_expira_em" }` (PDF, URL assinada de 15 min). `POST /api/devolucoes/{id}/recibo/reenviar/` reenvia por WhatsApp.
+
+### POST /api/devolucoes/{id}/recibo/link/ (copiar link do recibo, T-411)
+
+Regras comuns das rotas de copiar link em `copiar-link.md`. Sem corpo. Gera um link do recibo que vale 7 dias e o devolve **uma vez**, para a tela copiar e a pessoa mandar à mão. Não envia nada. A URL do storage (15 min, `AUD-05`) não serve para isso: venceria antes de o cliente abrir.
+
+200, com `Cache-Control: no-store`:
+```json
+{ "link": "https://motorapida.girolocadoras.com.br/recibo#<token>",
+  "expira_em": "2026-11-10T14:00:00Z",
+  "aviso": "O link anterior deixa de valer.",
+  "devolucao": { "id": 512, "status": "concluida", "recibo_enviado_em": "..." } }
+```
+
+- **O que faz** (`vistorias.services.gerar_link_recibo(devolucao, por)`): numa transação, com a devolução travada, grava o PDF do recibo se ainda não existe (`gravar_recibo`, como a `url_do_recibo`), cria um token de 32 bytes (`secrets.token_urlsafe(32)`) e grava só o hash (`token_recibo_hash`, SHA-256) e `token_recibo_expira_em` = agora + 7 dias. O token anterior deixa de valer. O token em claro só existe nesta resposta.
+- **Quando passa:** devolução `concluida`. Em `rascunho`: 409 `devolucao_em_rascunho` ("O recibo sai quando a devolução é encerrada."), como o `GET .../recibo/`. Titular anonimizado: 409 `titular_anonimizado`.
+- **Quem:** quem vê o acerto (`FECHAM`: administrador, gerente, vendedor); outro perfil, 403 `permissao`; token de suporte, 403 `PLT-07`, com qualquer permissão de acesso (o recibo tem o nome, as fotos e os valores do cliente, `AUD-09`).
+- **Limite:** 5 por hora por devolução e 20 por hora por pessoa (`comum.limites`, escopos `link_recibo_devolucao` e `link_recibo_usuario`), conferido antes da transação; acima, 429 `muitas_requisicoes`.
+- **Auditoria:** evento `devolucao.copiar_link_recibo`, categoria `seguranca`, objeto a devolução, com `token_recibo_expira_em`; `CAMPOS_AUDITORIA` da `Devolucao` omite `token_recibo_hash`. Texto pronto no histórico da locação: "Copiou o link do recibo".
+- **Envio sem mudança:** o recibo do encerramento e o `recibo/reenviar/` continuam com a URL de 15 minutos no WhatsApp (modelo 10) e o PDF anexo no e-mail, e não mexem no token. Passar o envio para este link é tarefa do produto (`copiar-link.md`, "Fica para depois").
+- **`acoes.copiar_link_recibo`**: a representação da devolução (`GET /api/devolucoes/{id}/` e as respostas que a devolvem) ganha o bloco `acoes`, por enquanto só com esta chave: `true` com a devolução `concluida`, perfil de `FECHAM`, sem token de suporte e titular não anonimizado.
+- Testes com o código: `test_dev_02_copiar_link_recibo_abre_o_pdf` (o link abre pela rota pública e devolve a URL do PDF), `test_dev_02_copiar_link_recibo_invalida_o_anterior`, `test_dev_02_copiar_link_recibo_rascunho_e_perfis` (rascunho, perfis e suporte), `test_dev_02_copiar_link_recibo_limite_por_hora` e `test_dev_02_copiar_link_recibo_evento_sem_token`.
+
+### POST /api/publico/recibos/consultar/ (página `/recibo`)
+
+Público, sem login, no host da empresa. Corpo: `{ token }`. 200, com `Cache-Control: no-store`:
+```json
+{ "empresa": { "nome_exibicao": "Moto Rápida", "logo_url": "...", "cor_marca": "#0E7C66" },
+  "recibo": { "codigo": "LOC-2836", "cliente_primeiro_nome": "Juliana", "concluida_em": "...",
+              "pdf_url": "...", "pdf_url_expira_em": "..." } }
+```
+
+- Acha a devolução pelo hash do token (`token_recibo_hash`, único). Mostra só o recibo daquele token. `pdf_url` é a URL assinada de 15 minutos do PDF (`AUD-05`); a página pede de novo a cada clique em "Baixar recibo", e o link de 7 dias continua valendo.
+- Não é de uso único: o cliente abre quantas vezes quiser até vencer.
+- 404 para token desconhecido ou anulado (anonimização, `AUD-06`), sem dizer qual; 410 `{ "codigo": "link_expirado", "mensagem": "Este link venceu. Peça um novo à locadora." }` depois de `token_recibo_expira_em`.
+- Limite com os números da assinatura pública (`contratos.md`), 10 requisições por minuto por IP e 20 por token, em **escopos próprios** (`recibo_publico_ip`, `recibo_publico_token`), para um não gastar o limite do outro. A chave leva o schema.
+- **Isolamento:** o token é procurado só no schema do host. O token da Moto Rápida no host de outra empresa dá 404.
+- **Abertura na auditoria:** cada abertura grava `devolucao.recibo_aberto` (ator sistema, IP mascarado /24 e aparelho), no máximo um por token por dia. Prova à locadora que o cliente recebeu o recibo e ajuda a ver um link vazado.
+- A página `/recibo` (rota pública do frontend, fora da casca da empresa, como `/assinar`) lê o fragmento, apaga-o da barra com `history.replaceState`, chama esta rota e mostra a marca da locadora (`docs/design-system`, white label), "Recibo da devolução da LOC-2836", o primeiro nome e o botão "Baixar recibo". Rodapé "Tecnologia Giro". Com 404 ou 410: "Este link venceu ou não existe. Peça um novo à locadora."
+- A página `/recibo` responde com `Cache-Control: no-store` e `X-Robots-Tag: noindex` (ou a meta `robots` `noindex`), como `/assinar` e `/convite` devem fazer também. A `Referrer-Policy: same-origin` já vale (`next.config.ts`, `prod.py`).
+- Testes: `test_dev_02_recibo_publico_vencido_e_desconhecido` (410 depois de 7 dias, 404 para token desconhecido e anulado), `test_dev_02_recibo_publico_nao_cruza_empresas` e `test_dev_02_recibo_aberto_um_por_dia`.
 
 ---
 

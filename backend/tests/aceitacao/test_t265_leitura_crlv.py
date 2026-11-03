@@ -265,7 +265,7 @@ def test_vei_08_le_os_9_campos(moto, frota, caplog) -> None:
     assert corpo["lidos"] == NOVE and corpo["quantidade"] == 9
     assert corpo["rotulo"] == "CRLV-e lido · 9 campos preenchidos"
     assert corpo["exercicio"] == 2026
-    assert corpo["dicas"] == {"marca_modelo": None}
+    assert corpo["dicas"] == {"marca_modelo": None, "candidatos": []}
     assert corpo["documento"] == "crlv" and corpo["leitura"]
     assert Veiculo.objects.count() == antes  # nada gravado
     # CA-247-02: nem na resposta nem no log; nem placa, nem o nome do arquivo.
@@ -407,7 +407,7 @@ def test_vei_08_modelo_fora_da_lista(moto) -> None:
     assert corpo["campos"]["marca"] is None and corpo["campos"]["modelo"] is None
     assert corpo["quantidade"] == 7
     assert corpo["rotulo"] == "CRLV-e lido · 7 campos preenchidos"
-    assert corpo["dicas"] == {"marca_modelo": "SUZUKI/YES 125"}
+    assert corpo["dicas"] == {"marca_modelo": "SUZUKI/YES 125", "candidatos": []}
 
 
 def test_vei_08_um_campo_no_singular() -> None:
