@@ -236,8 +236,8 @@ def test_mov_03_ca_246_06_depois_de_sair_nao_cancela(cenario):
 
 
 def test_mov_03_ca_246_19_veiculo_com_retirada_hoje(cenario):
-    locacao = cenario.confirmada()  # começa hoje: o SAK1D39 segue disponível
-    assert _veiculo(cenario, "SAK1D39").status == "disponivel"
+    locacao = cenario.confirmada()  # começa hoje: desde a T-410, o SAK1D39 fica reservado
+    assert _veiculo(cenario, "SAK1D39").status == "reservado"
     resposta = _criar(cenario)
     assert resposta.status_code == 409
     assert resposta.json()["mensagem"] == f"O veículo está reservado na {locacao['codigo']}."
@@ -754,8 +754,8 @@ def test_mov_03_confirmar_a_locacao_enquanto_a_movimentacao_espera_a_trava(cenar
         movimentacoes_services.iniciar(mov, cenario.pessoas["Rodrigo"])
     assert feitas == ["aguardando_retirada"]
     assert erro.value.codigo == "MOV-03"
-    # A reserva de início futuro leva o veículo a `reservado` (LOC-15).
-    assert erro.value.mensagem == "Veículo reservado não se movimenta."
+    # A reserva leva o veículo a `reservado` (LOC-15); desde a T-410, a mensagem cita a locação.
+    assert erro.value.mensagem == f"O veículo está reservado na {locacao.codigo}."
 
 
 def test_mov_03_iniciar_a_movimentacao_enquanto_a_locacao_espera_a_trava(cenario, monkeypatch):

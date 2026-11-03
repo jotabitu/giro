@@ -22,6 +22,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.db import IntegrityError, connection, transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.auditoria.models import EventoAuditoria
@@ -107,9 +108,15 @@ class NovaConta:
 
 
 def criar_contas(
-    origem: Origem, *, filial_id: int, cliente_id: int, contas: list[NovaConta]
+    origem: Origem,
+    *,
+    filial_id: int,
+    cliente_id: int,
+    contas: list[NovaConta],
+    aguarda_retirada: bool = False,
 ) -> list[ContaReceber]:
-    """Contas `aberta` da origem, na transação de quem chama. Conta de valor zero não nasce."""
+    """Contas `aberta` da origem, na transação de quem chama. Conta de valor zero não nasce.
+    `aguarda_retirada`: a locação confirmada e não retirada (LOC-05, ADR 0035)."""
     criadas = []
     with transaction.atomic():
         for nova in contas:
@@ -125,12 +132,34 @@ def criar_contas(
                 valor_centavos=nova.valor_centavos,
                 observacao=nova.observacao,
                 nasceu_de_id=nova.nasceu_de_id,
+                aguarda_retirada=aguarda_retirada,
                 **origem.campos(),
             )
             with auditar(conta, "conta_receber.criar", Categoria.FINANCEIRO):
                 conta.save()
             criadas.append(conta)
     return criadas
+
+
+def liberar_contas_da_retirada(origem: Origem, dia: date) -> int:
+    """LOC-05, FIN-03 (ADR 0035): na retirada, as contas da origem que esperavam passam a seguir
+    o calendário, com o atraso contado também do dia seguinte a `dia`. Todas as que esperavam,
+    em qualquer status. Idempotente: na segunda vez, nenhuma espera. Devolve quantas liberou."""
+    return ContaReceber.objects.filter(
+        aguarda_retirada=True, origem_tipo=origem.tipo, origem_id=origem.id
+    ).update(aguarda_retirada=False, liberada_em=dia)
+
+
+def esperar_retirada(origem: Origem) -> int:
+    """Acerto do ambiente que já existia (T-410, CA-410-23): as contas em aberto da locação ainda
+    não retirada passam a esperar a retirada. Idempotente. Devolve quantas mudaram."""
+    return ContaReceber.objects.filter(
+        origem_tipo=origem.tipo,
+        origem_id=origem.id,
+        status=StatusConta.ABERTA,
+        aguarda_retirada=False,
+        liberada_em__isnull=True,
+    ).update(aguarda_retirada=True)
 
 
 def _travar(conta: ContaReceber) -> ContaReceber:
@@ -1426,7 +1455,8 @@ def mensagem_de_cobranca(conta: ContaReceber, *, pix: str | None) -> MensagemDeC
         pague = f" Pague pelo Pix copia e cola: {pix}"
     else:
         pague = " Pague na loja ou fale com a gente por aqui."
-    if conta.vencimento > hoje:
+    # À espera da retirada, nada vence (LOC-05): o lembrete sem Pix, como na conta a vencer.
+    if conta.vencimento > hoje or conta.aguarda_retirada:
         if conta.vencimento == hoje + timedelta(days=1):
             quando = f"amanhã, {conta.vencimento:%d/%m}"
         else:
@@ -1471,6 +1501,7 @@ def cobrar(conta: ContaReceber) -> bool:
     pix = None
     if (
         conta.vencimento <= relogio.hoje()
+        and not conta.aguarda_retirada
         and tem_recurso("recebimento_parceiro")
         and conta_de_pagamento() is not None
     ):
@@ -1527,12 +1558,18 @@ def regua_de_cobranca() -> int:
     """AUT-03, às 09:00: cobra em D-1, D0, D+3 e D+7 (WhatsApp e e-mail) e publica
     `financeiro.parcela_atrasou` para cada conta que completou 1, 3 ou 7 dias de atraso. Com 15
     dias ou mais, pede o bloqueio do CLI-05 uma vez por conta: se a tarefa não rodou no 15º dia,
-    o pedido sai na próxima vez. A caução não entra. Devolve quantos eventos publicou."""
+    o pedido sai na próxima vez. A caução não entra, nem a conta à espera da retirada (LOC-05,
+    T-410): ela entra no calendário dela depois da retirada. Devolve quantos eventos publicou."""
     hoje = relogio.hoje()
     publicados = 0
+    amanha = hoje + timedelta(days=1)
     contas = (
         ContaReceber.objects.select_related("cliente")
-        .filter(status=StatusConta.ABERTA, vencimento__lte=hoje + timedelta(days=1))
+        .filter(
+            selectors.q_atrasada(hoje)
+            | selectors.q_vence_hoje(hoje)
+            | Q(status=StatusConta.ABERTA, aguarda_retirada=False, vencimento=amanha)
+        )
         .exclude(tipo=TipoConta.CAUCAO)
     )
     for conta in contas:
