@@ -396,11 +396,18 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Ponto técnico:** o link de assinatura do contrato guarda só o hash do token (`S-15`), então o link só pode ser mostrado na hora em que é gerado ou reenviado, como o `POST /api/usuarios/{id}/link-convite/` (resposta única, `no-store`). A cobrança já devolve `pix_copia_e_cola`, `linha_digitavel` e `boleto_url`.
 - **Pronto quando:** contratos atualizados nas quatro rotas, revisão da Segurança sem achado alto, campo ou pop-up "Copiar link" nas quatro telas, com teste.
 
+<<<<<<< HEAD
 #### T-412 · Faixa de assinatura suspensa em todas as telas
 - **Agente:** frontend (design-system se faltar o componente) · **Regras:** `PLT-02`, `PLT-06`, tabela de estados da assinatura · **Origem:** nota "Pop-up de aviso de assinatura".
 - **Decisão do dono (29 out):** faixa fixa no topo de todas as telas enquanto a empresa estiver `suspensa` (e `pausada`, que é só leitura como a suspensa), com o caminho para pagar a fatura. Sem pop-up.
 - **Ponto técnico:** o `/api/eu` já devolve `empresa.somente_leitura`, que hoje só a `Admin-Assinatura` usa; a API responde 403 `empresa_sem_operacao` nas ações barradas.
 - **Pronto quando:** a casca mostra a faixa em todas as telas da empresa, a 1440 e a 390, com texto da API ou do contrato, e teste.
+=======
+#### T-413 · Documentos do veículo: substituir no editar e abrir na ficha
+- **Agentes:** frontend (backend só se faltar algo) · **Regras:** `VEI-03`, `AUD-05` · **Origem:** notas "Reformular o editar veiculo" (documentos) e "Melhorar interação aos documentos".
+- **Hoje:** a API já tem `GET/POST /api/veiculos/{id}/documentos/` e o histórico (renovar cria um novo e o anterior fica `ativo=False`), com URL assinada de 15 min; o frontend só lê, e a ficha mostra rótulo e situação sem abrir.
+- **Pronto quando:** o editar veículo sobe e substitui CRLV, IPVA, seguro e rastreador (administrador e gerente); a ficha abre cada documento (PDF ou imagem) e mostra o histórico; teste.
+>>>>>>> origin/develop
 
 #### T-414 · Fotos do veículo: galeria própria e fotos da vistoria para ver e baixar
 - **Agentes:** produto (regra), arquiteto (modelo e contrato), design-system (tela), backend, frontend · **Regras:** `VEI` (nova), `AUD-05` · **Origem:** notas "Reformular o editar veiculo" (fotos) e "Melhorar interação as fotos".
