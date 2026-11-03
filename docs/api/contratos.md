@@ -28,6 +28,7 @@ O texto do modelo só aceita marcadores desta lista, escritos como `{{grupo.camp
 | `veiculo` | `marca`, `modelo`, `placa`, `chassi`, `renavam`, `ano`, `cor`, `km_saida` |
 | `locacao` | `codigo`, `inicio`, `fim_previsto`, `periodicidade`, `plano`, `valor` (por período), `caucao`, `diaria_atraso`, `extras`, `forma_pagamento`, `parcelas` (tabela pronta de vencimentos), `tolerancia_atraso` |
 | `cobranca` | `multa_atraso_pct`, `juros_mes_pct` |
+| `compra` | `plano`, `parcelas` (número), `valor_parcela`, `ultima_parcela` (já com a caução abatida), `prazo` ("24 meses", "104 semanas"). Só no modelo de `finalidade = locacao_compra` (`LOC-16`, T-420); em outro modelo, 400 `marcador_invalido` |
 | `contrato` | `data`, `cidade_assinatura` |
 
 - Valores em dinheiro saem formatados ("R$ 329,00"); datas, no fuso da filial ("07/10/2026").
@@ -52,6 +53,7 @@ Modelos prontos para o passo 9 da implantação (`Onboarding-Contrato`) e para "
 
 ### POST /api/contratos/modelos/
 Corpo: `{ nome, finalidade: "locacao", texto }` ou `{ nome, a_partir_de }`. 201: rascunho, versão 1.
+`finalidade`: `locacao`, `locacao_compra` (locação com intenção de compra, `LOC-16`, T-420, ADR 0037) ou `venda`. O modelo pronto do Giro "Locação com intenção de compra" traz o prazo, as parcelas, a caução e o abatimento, a transferência na quitação sem valor extra, a perda do que foi pago no encerramento antes do fim e os custos com a locadora. `contratos.selectors.modelo_publicado(finalidade)` serve às duas finalidades de locação; a locação pede a do seu `tipo`.
 400 `{ "codigo": "marcador_invalido", "mensagem": "Campo desconhecido: {{cliente.salario}}", "campos": { "texto": [...] } }` (`S-09`).
 
 ### PATCH /api/contratos/modelos/{id}/

@@ -38,7 +38,7 @@ Se o dono escolher o padrão B (tabela da categoria com o prazo escolhido), o `P
 
 ### 3. Contrato: uma finalidade a mais
 
-`contratos.Finalidade` ganha `locacao_compra` ("Locação com intenção de compra"), com um modelo pronto do Giro em `contratos.prontos`. `locacoes` pede o modelo publicado pela finalidade do tipo; sem ele, a confirmação é recusada (409 `LOC-16`, com o atalho para publicar, como a `IMP-04`). `contratos` continua sem conhecer a locação (origem genérica).
+`contratos.Finalidade` ganha `locacao_compra` ("Locação com intenção de compra"), com um modelo pronto do Giro em `contratos.prontos`. `locacoes` pede o modelo publicado pela finalidade do tipo; sem ele, a confirmação é recusada (422 `LOC-16`, com o atalho para publicar, como a `IMP-04`). `contratos` continua sem conhecer a locação (origem genérica).
 
 ### 4. A quitação é de `locacoes`, a venda é de `vendas`, por evento
 
@@ -76,7 +76,7 @@ O backend cria agora a tabela do item 17 do modelo de dados inteira (para não m
 
 - `CHECK`: `origem = 'quitacao_locacao'` exige `locacao` e `preco_final_centavos = 0`. `forma` passa a nula (a quitação não tem forma).
 - Nesta tarefa, `vendas.services` só tem `criar_venda_da_quitacao` e `registrar_transferencia`. O cancelamento (`VEN-07`) da venda de quitação responde 409 `VEN-11` desde já. Funil, conversão, meta e comissão (`VEN-08`, `VEN-09`, `FIN-09`) filtram `origem = 'balcao'` quando existirem.
-- Leitura mínima agora: `GET /api/vendas/` e `GET /api/vendas/{id}/` só com as vendas que existem (as da quitação), para o histórico do veículo e a tela `Vendas` quando ela vier. O resto do módulo é da T-418 e seguintes.
+- Leitura mínima agora: `GET /api/vendas/` e `GET /api/vendas/{id}/` (com o recurso `vendas_comissoes`) só com as vendas que existem (as da quitação), para a tela `Vendas` quando ela vier. Sem o recurso, a venda aparece no detalhe da locação e no histórico do veículo. O resto do módulo é da T-418 e seguintes.
 
 ### 6. A tarefa da transferência é a própria venda
 
@@ -84,7 +84,7 @@ Não há entidade genérica de tarefa. A pendência é a venda de quitação com
 
 - ao nascer, os gerentes da filial da locação (`FIL-02`) recebem o aviso no sino e por e-mail, pelo `notificacoes`, com o texto da `LOC-16`;
 - o painel do gerente lista as pendentes (`vendas.selectors.transferencias_pendentes(filiais)`, lido por `relatorios`, ADR 0015);
-- "Transferência feita" é `POST /api/vendas/{id}/transferencia/` `{ "feita_em": "2028-11-12" }`, só gerente e administrador da filial, com auditoria; a pendência sai e a linha fica no histórico do veículo (CA-420-16).
+- "Transferência feita" é `POST /api/locacoes/{id}/transferencia/` `{ "feita_em": "2028-11-12" }`, só gerente e administrador da filial, com auditoria; a pendência sai e a linha fica no histórico do veículo (CA-420-16). A rota fica sob a locação, implementada em `apps/vendas/api` (como a troca de veículo em `vistorias`), porque `/api/vendas/...` só abre com o recurso `vendas_comissoes` (`PLT-12`), e a locação com intenção de compra existe em qualquer plano que aluga.
 
 ## Consequências
 
