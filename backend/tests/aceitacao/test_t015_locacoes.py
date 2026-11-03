@@ -458,9 +458,10 @@ def test_loc_03_ca_015_08_reserva_com_retirada_futura(cenario):
     ultima = sak.historico.last()
     assert ultima is not None and ultima.origem_codigo == futura["codigo"]
 
+    # T-410 (CA-410-01): o início hoje também reserva; antes, ficava `disponivel`.
     street = cenario.veiculo("Street 150–160", exceto=("SAK1D39",))
     cenario.confirmada(cliente="Juliana", veiculo=street)
-    assert Veiculo.objects.get(pk=street.pk).status == "disponivel"
+    assert Veiculo.objects.get(pk=street.pk).status == "reservado"
 
 
 # --- Impedimentos ---
@@ -582,7 +583,8 @@ def test_loc_ca_015_14_tres_condicoes_em_qualquer_ordem(cenario, ordem):
     for passo in ordem[:-1]:
         passos[passo]()
         assert Locacao.objects.get(pk=criada["id"]).status == "aguardando_retirada"
-        assert Veiculo.objects.get(pk=cenario.sak.pk).status == "disponivel"
+        # T-410: reservado desde a confirmação, com o início hoje (CA-410-01).
+        assert Veiculo.objects.get(pk=cenario.sak.pk).status == "reservado"
     passos[ordem[-1]]()
     assert Locacao.objects.get(pk=criada["id"]).status == "ativa"
     assert Veiculo.objects.get(pk=cenario.sak.pk).status == "alugado"

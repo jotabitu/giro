@@ -217,6 +217,14 @@ class MovimentacaoAbertaSerializer(serializers.Serializer[Any]):
     tom = serializers.CharField()
 
 
+class ReservaDoVeiculoSerializer(serializers.Serializer[Any]):
+    """Quem reservou o veículo `reservado` (T-410): a locação ou a troca pendente."""
+
+    locacao_id = serializers.IntegerField()
+    codigo = serializers.CharField()
+    motivo = serializers.ChoiceField(choices=["locacao", "troca"])
+
+
 class VeiculoSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     placa = serializers.CharField()
@@ -247,6 +255,7 @@ class VeiculoSerializer(serializers.Serializer[Any]):
     entrou_na_frota_em = serializers.DateField()
     situacao = SituacaoDoVeiculoSerializer()
     locacao_atual = serializers.JSONField(allow_null=True)
+    reserva = ReservaDoVeiculoSerializer(allow_null=True)  # T-410
     manutencao = serializers.JSONField(allow_null=True)
     documentos_resumo = serializers.JSONField(allow_null=True)
     movimentacao_aberta = MovimentacaoAbertaSerializer(allow_null=True)  # MOV-03

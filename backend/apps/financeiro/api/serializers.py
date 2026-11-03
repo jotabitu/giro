@@ -178,6 +178,9 @@ class ContaSerializer(serializers.Serializer[Any]):
     status = serializers.ChoiceField(
         choices=["aberta", "vence_hoje", "atrasada", "paga", "cancelada", "renegociada"]
     )
+    aguarda_retirada = serializers.BooleanField(
+        help_text="locação confirmada e não retirada: nada vence (LOC-05, T-410)"
+    )
     dias_atraso = serializers.IntegerField()
     faixa_atraso = serializers.ChoiceField(choices=["1_7", "8_30", "mais_30"], allow_null=True)
     forma_prevista = serializers.CharField(allow_null=True)

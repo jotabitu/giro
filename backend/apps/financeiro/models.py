@@ -124,6 +124,10 @@ class ContaReceber(MaquinaDeEstados, ModeloBase, ComOrigem):
     # Dia em que a régua pediu o bloqueio do cliente por esta conta: uma vez por conta (AUT-03,
     # CLI-05), para o desbloqueio manual valer até outra conta completar 15 dias.
     bloqueio_pedido_em = models.DateField(null=True, blank=True)
+    # Conta da locação `aguardando_retirada`: nunca `vence_hoje` nem `atrasada`, sem multa nem
+    # juros (LOC-05, FIN-03, ADR 0035). `liberada_em` é o dia local da retirada.
+    aguarda_retirada = models.BooleanField(default=False)
+    liberada_em = models.DateField(null=True, blank=True)
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = {
         "aberta": {"paga", "cancelada", "renegociada"},
