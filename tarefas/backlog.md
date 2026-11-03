@@ -398,6 +398,7 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Decisão do dono (29 out):** além de enviar, a tela mostra o link para copiar e mandar à mão em quatro ações: contrato para assinar, cobrança da parcela, recibo da devolução e fatura da assinatura.
 - **Ponto técnico:** o link de assinatura do contrato guarda só o hash do token (`S-15`), então o link só pode ser mostrado na hora em que é gerado ou reenviado, como o `POST /api/usuarios/{id}/link-convite/` (resposta única, `no-store`). A cobrança já devolve `pix_copia_e_cola`, `linha_digitavel` e `boleto_url`.
 - **Pronto quando:** contratos atualizados nas quatro rotas, revisão da Segurança sem achado alto, campo ou pop-up "Copiar link" nas quatro telas, com teste.
+- **Parte do arquiteto feita em 03 nov 2026** (`tarefas/handoffs/T-411-arquiteto.md`): visão geral em `docs/api/copiar-link.md`. Contrato e recibo ganham rota que gera o link na hora e o devolve uma vez (`POST /api/locacoes/{id}/contrato/link/`, `POST /api/devolucoes/{id}/recibo/link/`, mais a página pública `/recibo` com `POST /api/publico/recibos/consultar/` e o token do recibo na `Devolucao`); cobrança e fatura copiam o que a API já devolve (`acoes.copiar_cobranca`; o `cobranca` do "Pagar" da fatura). **Próximo:** Segurança revisa (pontos no handoff); depois backend e frontend.
 
 
 #### T-414 · Fotos do veículo: galeria própria e fotos da vistoria para ver e baixar

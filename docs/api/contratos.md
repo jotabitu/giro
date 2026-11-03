@@ -1,6 +1,6 @@
 # Contratos: modelos, geração e assinatura
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-038) · **App:** `contratos` (schema da empresa, ADR 0011) · **Regras:** IMP-04, LOC-08, LOC-15, FIN-03, AUD-05, fluxo da retirada (passo 3) · **Segurança:** S-09, S-15 (`docs/seguranca/2026-10-07-fundacao.md`) · **Telas:** Contratos-Modelos, Onboarding-Contrato, Locacao (passo 3)
+**Dono:** arquiteto · **Versão:** 03 nov 2026 (T-411, copiar o link para assinar); 07 out 2026 (T-038) · **App:** `contratos` (schema da empresa, ADR 0011) · **Regras:** IMP-04, LOC-08, LOC-15, FIN-03, AUD-05, fluxo da retirada (passo 3) · **Segurança:** S-09, S-15 (`docs/seguranca/2026-10-07-fundacao.md`) · **Telas:** Contratos-Modelos, Onboarding-Contrato, Locacao (passo 3)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 15 e 16 em `docs/decisoes/modelo-de-dados.md`. O app não conhece a origem do contrato: usa origem genérica (`locacao`; `venda` na fase 2).
 
@@ -85,6 +85,8 @@ Perfis: quem cria locação. Locação `aguardando_retirada`, sem pedido de desc
 - Vale **7 dias** (`token_assinatura_expira_em`) e é de **uso único**: depois de assinado, ou ao reenviar, o token anterior deixa de valer.
 - O link é `https://<subdominio>.<dominio>/assinar#<token>`: o token vai no fragmento, que não chega a logs de servidor nem a cabeçalho `Referer`. A página lê o fragmento, apaga da barra e chama a API com o token no corpo.
 - Rate limit dos endpoints públicos: 10 requisições por minuto por IP e 20 por token.
+- **Copiar o link** (T-411, `copiar-link.md`): `POST /api/locacoes/{id}/contrato/link/` (`locacoes.md`) chama `contratos.services.gerar_link(contrato, por)`, que gera um token novo na hora, sem enviar, e devolve o link uma vez. É o único caminho em que o token sai do serviço fora da tarefa de envio. Vale a mesma validade, o mesmo uso único e a mesma página `/assinar`. Copiar e reenviar invalidam um ao outro, porque o banco guarda um hash só.
+- **Titular anonimizado** (`AUD-06`): a anonimização anula `token_assinatura_hash` e `token_assinatura_expira_em` dos contratos do titular ainda não assinados (o link deixa de abrir, 404).
 
 ### POST /api/publico/assinaturas/consultar/
 Público. Corpo: `{ token }`.
@@ -112,5 +114,6 @@ Público. Corpo: `{ token, aceite: true, nome_completo }`. `nome_completo` preci
 | --- | --- |
 | `contratos.selectors.modelo_publicado(finalidade)` | `IMP-04` (locações recusam confirmar sem modelo). |
 | `contratos.services.gerar(origem, dados)` / `gerar_aditivo(...)` / `cancelar(contrato, motivo)` | chamados por `locacoes` (e `vendas` na fase 2). |
+| `contratos.services.gerar_link(contrato, por)` | copiar o link para assinar (T-411); devolve `(link, expira_em)`. |
 | evento `contratos.contrato_assinado` | assinado por `locacoes` (e `vendas`). |
 | `CAMPOS_AUDITORIA` | `token_assinatura_hash` omitido; `assinado_ip` mascarado (/24). |
