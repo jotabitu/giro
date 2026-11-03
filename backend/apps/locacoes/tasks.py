@@ -55,3 +55,35 @@ def locacoes_cancelar_rascunhos_sem_uso(schema_name: str) -> int:
 def locacoes_cancelar_rascunhos_sem_uso_de_todas(**_: Any) -> int:
     """Chamada pelo Beat, de hora em hora: uma tarefa por empresa que opera."""
     return para_cada_empresa(locacoes_cancelar_rascunhos_sem_uso)
+
+
+@shared_task(name="aut_17_cancelar_nao_retiradas")
+@tarefa_de_empresa(recurso=MODULO)
+def aut_17_cancelar_nao_retiradas(schema_name: str) -> int:
+    """AUT-17, às 00:10: cancela a locação não retirada até o último dia (LOC-12). Idempotente:
+    a cancelada sai da seleção, e a execução perdida se recupera na próxima."""
+    from .services import cancelar_nao_retiradas
+
+    return cancelar_nao_retiradas()
+
+
+@shared_task(name="aut_17_cancelar_nao_retiradas_de_todas")
+def aut_17_cancelar_nao_retiradas_de_todas(**_: Any) -> int:
+    """Chamada pelo Beat, às 00:10: uma tarefa por empresa que opera."""
+    return para_cada_empresa(aut_17_cancelar_nao_retiradas)
+
+
+@shared_task(name="aut_17_avisar_nao_retiradas")
+@tarefa_de_empresa(recurso=MODULO)
+def aut_17_avisar_nao_retiradas(schema_name: str) -> int:
+    """AUT-17, às 08:00: avisa os gerentes da filial das locações no último dia para retirar.
+    Idempotente: uma vez por gerente e por locação."""
+    from .services import avisar_nao_retiradas
+
+    return avisar_nao_retiradas()
+
+
+@shared_task(name="aut_17_avisar_nao_retiradas_de_todas")
+def aut_17_avisar_nao_retiradas_de_todas(**_: Any) -> int:
+    """Chamada pelo Beat, às 08:00: uma tarefa por empresa que opera."""
+    return para_cada_empresa(aut_17_avisar_nao_retiradas)
