@@ -123,9 +123,17 @@ export type ListaVeiculos = {
 
 export type FiltroVeiculos = { status?: string; tipo_veiculo?: TipoVeiculo; busca?: string; cursor?: string };
 
+/** `url` é assinada e vale 15 minutos (AUD-05): cada leitura da API traz outra. */
+export type ArquivoDoDocumento = { nome: string; url: string; url_expira_em?: string };
+
+export type NovoDocumentoVeiculo = { tipo: string; validade: string; exercicio?: string; arquivo?: File };
+
 export type DocumentoVeiculo = {
   id: number;
   tipo: string;
+  arquivo?: ArquivoDoDocumento | null;
+  /** Só o histórico traz os inativos (renovados). */
+  ativo?: boolean;
   rotulo: string;
   validade: string | null;
   situacao: "em_dia" | "vence_em_breve" | "vencido";
