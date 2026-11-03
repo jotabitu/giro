@@ -11,6 +11,7 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 **Do canvas para cá:** vale a tela deste repositório. Tela nova ou ajustada no canvas só vale depois da tarefa de importação, que carimba a origem no topo do HTML. O fluxo e o quanto a página do app precisa seguir a tela estão em [`docs/agentes/telas-do-canvas.md`](../agentes/telas-do-canvas.md).
 
 **Última importação do canvas:** 28/10/2026, T-409 (só as telas `Plat-*`; as telas da locadora do canvas eram mais antigas que as daqui). Telas sem carimbo são anteriores ao fluxo.
+**Último ajuste no repositório:** 03/11/2026, T-414 (galeria de fotos no editar, visualizador com ampliar e baixar na ficha, desktop e celular [VEI-10]).
 
 ## Implantação
 
@@ -53,7 +54,7 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 | Detalhe da locação | [desktop](html/Locacao-Detalhe-Desktop.dc.html) · [celular](html/Locacao-Detalhe-Mobile.dc.html) | `(empresa)/locacoes` | `locacoes` | LOC |
 | Locações | [desktop](html/Locacoes-Desktop.dc.html) · [celular](html/Locacoes-Mobile.dc.html) | `(empresa)/locacoes` | `locacoes` | LOC |
 | Manutenções | [desktop](html/Manutencao-Desktop.dc.html) · [celular](html/Manutencao-Mobile.dc.html) | `(empresa)/manutencoes` | `manutencao` | MAN |
-| Ficha do veículo | [desktop](html/Veiculo-Desktop.dc.html) · [celular](html/Veiculo-Mobile.dc.html) | `(empresa)/veiculos` | `veiculos` | VEI |
+| Ficha do veículo | [desktop](html/Veiculo-Desktop.dc.html) · [celular](html/Veiculo-Mobile.dc.html) | `(empresa)/veiculos/[id]` | `veiculos` | VEI, VEI-10, VIS-01 |
 | Nova venda | [desktop](html/Venda-Desktop.dc.html) · [celular](html/Venda-Mobile.dc.html) | `(empresa)/vendas` | `vendas` | VEN, APR |
 | Menu Mais | [celular](html/Menu-Mobile.dc.html) | `(empresa)/inicio` | `relatorios (agregados)` | USR, AUT |
 | Vendas | [desktop](html/Vendas-Desktop.dc.html) · [celular](html/Vendas-Mobile.dc.html) | `(empresa)/vendas` | `vendas` | VEN, APR |
@@ -86,11 +87,16 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 | --- | --- | --- | --- | --- |
 | Frota | [desktop](html/Frota-Desktop.dc.html) · [celular](html/Frota-Mobile.dc.html) | `(empresa)/veiculos` | `veiculos` | VEI |
 | Cadastrar veículo | [desktop](html/Veiculo-Novo-Desktop.dc.html) · [celular](html/Veiculo-Novo-Mobile.dc.html) | `(empresa)/veiculos/novo` | `veiculos` | VEI |
+| Editar veículo | [desktop](html/Veiculo-Editar-Desktop.dc.html) · [celular](html/Veiculo-Editar-Mobile.dc.html) | `(empresa)/veiculos/[id]/editar` | `veiculos` | VEI-01, VEI-10 |
+| Ficha do veículo | [desktop](html/Veiculo-Desktop.dc.html) · [celular](html/Veiculo-Mobile.dc.html) | `(empresa)/veiculos/[id]` | `veiculos` | VEI, VEI-10, VIS-01 |
+| Visualizador de fotos | [desktop](html/Veiculo-Visualizador-Desktop.dc.html) · [celular](html/Veiculo-Visualizador-Mobile.dc.html) | `(empresa)/veiculos/[id]` (modal) | `veiculos`, `vistorias` | VEI-10, AUD-05 |
 | Movimentações | [desktop](html/Movimentacoes-Desktop.dc.html) · [celular](html/Movimentacoes-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes` | `movimentacoes` | MOV-01 a MOV-06 |
 | Nova movimentação | [desktop](html/Movimentacao-Nova-Desktop.dc.html) · [celular](html/Movimentacao-Nova-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/nova` | `movimentacoes` | MOV-01 a MOV-06 |
 | Registrar chegada | [celular](html/Movimentacao-Chegada-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/[id]/chegada` | `movimentacoes` | MOV-04, MOV-05, MOV-06 |
 | Chegada na parada | [celular](html/Movimentacao-Parada-Chegada-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/[id]/parada` | `movimentacoes` | MOV-02, MOV-03, MOV-04 |
 | Saída da parada | [desktop](html/Movimentacao-Parada-Desktop.dc.html) · [celular](html/Movimentacao-Parada-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/[id]/parada` | `movimentacoes` | MOV-02, MOV-04 |
+
+As telas de veículo foram ajustadas em 03 nov 2026 (T-414, `VEI-10`, critérios `docs/qa/criterios/T-414.md`): o Editar veículo traz a Galeria de fotos do veículo (até 20 fotos, envio JPG/PNG até 10 MB sem localização, foto de capa, trocar e apagar para administrador e gerente); a Ficha do veículo separa a galeria de cadastro das fotos da última vistoria (`VIS-01`), e ambas abrem o Visualizador de fotos com ampliar, anterior/próxima dentro da mesma origem e botão Baixar com nome padronizado (`QXA-4B21-galeria-1.jpg` e `QXA-4B21-vistoria-saida-frente.jpg`).
 
 As telas de movimentação estão no MVP desde 16 out (seção "Movimentações de veículos" das regras, `MOV-01` a `MOV-06`, critérios `docs/qa/criterios/T-246.md`) e usam veículos e dados do seed de 07 out: SAK-1D39, PMZ-3E17 e a Filial Caucaia de exemplo. A parada (T-301) tem duas telas: "Chegada na parada" (só o botão Cheguei, `POST .../paradas/{id}/chegada/`) e "Saída da parada" (valor pago "confira com o recibo" e nota opcional, `POST .../paradas/{id}/saida/`, que gera a despesa). No desktop, a saída abre numa gaveta sobre o quadro, pelo botão Registrar saída do cartão em "No local de apoio"; o celular é a tela de quem leva. Os botões vêm de `acoes.chegar_parada` e `acoes.sair_parada`. A parada de oficina não cita OS no MVP: tem serviço, valor previsto e categoria, e gera a despesa como as outras. A Nova movimentação não mostra o código antes de criar: ele só existe depois do `201`.
 
