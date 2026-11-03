@@ -786,11 +786,18 @@ def rotulo_da_despesa(despesa: Despesa) -> str:
     }[StatusDespesa(despesa.status)]
 
 
-def representacao_despesa(despesa: Despesa) -> dict[str, Any]:
-    nota = None
-    if despesa.nota:
-        assinada = arquivos.url_assinada(despesa.nota.name)
-        nota = {"url": assinada.url, "url_expira_em": assinada.expira_em}
+def _arquivo_assinado(arquivo: Any) -> dict[str, Any] | None:
+    if not arquivo:
+        return None
+    assinada = arquivos.url_assinada(arquivo.name)
+    return {"url": assinada.url, "url_expira_em": assinada.expira_em}
+
+
+def representacao_despesa(despesa: Despesa, *, suporte: bool = False) -> dict[str, Any]:
+    """Nota e comprovante com URL de 15 minutos (AUD-05). O comprovante do pagamento (T-416)
+    vem `null` para o token de suporte, como o do reembolso (AUD-09, M-02 da T-384)."""
+    nota = _arquivo_assinado(despesa.nota)
+    comprovante = None if suporte else _arquivo_assinado(despesa.comprovante)
     return {
         "id": despesa.pk,
         "data": despesa.data,
@@ -809,6 +816,7 @@ def representacao_despesa(despesa: Despesa) -> dict[str, Any]:
         "forma": despesa.forma or None,
         "lancada_por": _pessoa(despesa.lancada_por),
         "nota": nota,
+        "comprovante": comprovante,
         # A despesa da parada pode nascer sem a nota, que se anexa depois (MOV-04).
         "sem_nota": not despesa.nota,
         "origem": (
