@@ -684,7 +684,10 @@ class DespesasView(APIView):
         paginacao.ordering = ("-data", "-id")  # type: ignore[assignment]
         pagina = paginacao.paginate_queryset(qs, request, view=self) or []
         return paginacao.get_paginated_response(
-            DespesaSerializer([selectors.representacao_despesa(d) for d in pagina], many=True).data,
+            DespesaSerializer(
+                [selectors.representacao_despesa(d, suporte=_suporte(request)) for d in pagina],
+                many=True,
+            ).data,
             extras=selectors.indicadores_das_despesas(
                 todas, request.query_params, hoje, _filiais_do_escopo(request)
             ),
@@ -720,7 +723,9 @@ class DespesasView(APIView):
         )
         despesa = selectors.base_das_despesas().get(pk=despesa.pk)
         return Response(
-            DespesaSerializer(selectors.representacao_despesa(despesa)).data,
+            DespesaSerializer(
+                selectors.representacao_despesa(despesa, suporte=_suporte(request))
+            ).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -744,7 +749,9 @@ class DespesaView(APIView):
     @extend_schema(responses=DespesaSerializer, summary="Despesa (nota com link de 15 minutos)")
     def get(self, request: Request, pk: int) -> Response:
         return Response(
-            DespesaSerializer(selectors.representacao_despesa(_despesa(request, pk))).data
+            DespesaSerializer(
+                selectors.representacao_despesa(_despesa(request, pk), suporte=_suporte(request))
+            ).data
         )
 
 
@@ -767,7 +774,11 @@ class NotaDespesaView(APIView):
         arquivos.validar(dados["nota"], "nota")
         despesa = services.anexar_nota(_despesa(request, pk), dados["nota"])
         despesa = selectors.base_das_despesas().get(pk=despesa.pk)
-        return Response(DespesaSerializer(selectors.representacao_despesa(despesa)).data)
+        return Response(
+            DespesaSerializer(
+                selectors.representacao_despesa(despesa, suporte=_suporte(request))
+            ).data
+        )
 
 
 class PagarDespesaView(APIView):
@@ -794,7 +805,11 @@ class PagarDespesaView(APIView):
             comprovante=dados.get("comprovante"),
         )
         despesa = selectors.base_das_despesas().get(pk=despesa.pk)
-        return Response(DespesaSerializer(selectors.representacao_despesa(despesa)).data)
+        return Response(
+            DespesaSerializer(
+                selectors.representacao_despesa(despesa, suporte=_suporte(request))
+            ).data
+        )
 
 
 # --- Webhook do parceiro (host da plataforma, schema public; S-14) ---

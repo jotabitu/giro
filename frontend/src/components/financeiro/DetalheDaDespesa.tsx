@@ -166,6 +166,11 @@ export function DetalheDaDespesa({ id, inicial, eu, aoFechar, aoConcluir }: { id
                 ]}
               />
             </div>
+            {d.comprovante && (
+              <a href={d.comprovante.url} target="_blank" rel="noopener noreferrer" className="wl-btn wl-btn--sm min-h-[44px] self-start md:min-h-0">
+                Ver comprovante
+              </a>
+            )}
             {d.nota ? (
               <a href={d.nota.url} target="_blank" rel="noreferrer" className="wl-btn wl-btn--sm self-start">
                 Ver a nota

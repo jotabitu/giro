@@ -9689,6 +9689,12 @@ components:
           allOf:
           - $ref: '#/components/schemas/Nota'
           nullable: true
+        comprovante:
+          allOf:
+          - $ref: '#/components/schemas/Nota'
+          nullable: true
+          description: comprovante do pagamento, URL de 15 minutos (AUD-05); null
+            sem ele ou para o suporte (AUD-09)
         sem_nota:
           type: boolean
         origem:
@@ -9702,6 +9708,7 @@ components:
           type: string
       required:
       - categoria
+      - comprovante
       - data
       - descricao
       - filial

@@ -358,6 +358,11 @@ class DespesaSerializer(serializers.Serializer[Any]):
     forma = serializers.CharField(allow_null=True)
     lancada_por = RefSerializer()
     nota = NotaSerializer(allow_null=True)
+    comprovante = NotaSerializer(
+        allow_null=True,
+        help_text="comprovante do pagamento, URL de 15 minutos (AUD-05); null sem ele ou para o"
+        " suporte (AUD-09)",
+    )
     sem_nota = serializers.BooleanField()
     origem = OrigemDaDespesaSerializer(allow_null=True)
     pedido_aprovacao_id = serializers.IntegerField(allow_null=True)

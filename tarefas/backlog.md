@@ -418,6 +418,7 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Agentes:** backend, frontend · **Regras:** `FIN-05`, `AUD-05` · **Origem:** nota "Visualizar comprovante de nota paga".
 - **Hoje:** o pagamento já aceita o comprovante, mas `representacao_despesa` devolve só a nota, e a tela só tem o botão da nota. O reembolso já devolve o comprovante.
 - **Pronto quando:** a API devolve o comprovante com URL assinada, a despesa paga mostra "Ver comprovante", teste.
+- **Parte do backend feita em 03 nov 2026** (branch `t-416-comprovante-despesa`, handoff `tarefas/handoffs/T-416-backend.md`): a despesa devolve `comprovante` com URL de 15 minutos na lista, no detalhe e no pagamento; `null` para o suporte (`AUD-09`). Frontend feito em 04 nov 2026 na mesma branch (PR #456): botão "Ver comprovante" (handoff `tarefas/handoffs/T-416-frontend.md`).
 
 #### T-417 · Despesas do veículo na ficha, com categorias próprias
 - **Agentes:** produto (regra das categorias), backend, frontend · **Regras:** `FIN-05`, `FIN-06`, `FIN-16`, `VEI-05` · **Origem:** nota "Adicionar despesas do veiculos".
