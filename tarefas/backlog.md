@@ -475,6 +475,11 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
   - **Veículos já cadastrados:** a rotina casa marca, modelo e ano com a FIPE; se achar uma versão só, grava; se achar várias (como o Cruze), a ficha pede para escolher a versão, e o veículo fica sem referência até alguém escolher.
   - **Consulta por placa** (`GET /api/v2/plates/{placa}`, em Alpha, que traz marca, modelo, ano e os preços com o código FIPE): entra como recurso em teste, desligado por padrão e ligado por configuração, para estar pronto quando o dono passar para o plano Pro. Sem token, a cota é de 15 consultas por mês somando todas as empresas (30 com token gratuito), lida dos cabeçalhos `X-Plate-Quota-*`. Com a cota esgotada ou a rota fora do ar, o cadastro segue pelo CRLV-e e pela escolha da versão, sem erro para a pessoa. O token do Pro, quando houver, fica no cofre de segredos, nunca no repositório.
 
+#### T-428 · Correções da conferência da fase 2 a 1440 e 390 px
+- **Agente:** frontend · **Regras:** `PLT-02`, `PLT-06`, `VEI-03`, `AUD-05`, `FIN-05` · **Origem:** `tarefas/handoffs/conferencia-fase2-qa.md` (D1 a D5).
+- **Pronto quando:** D1 faixa de assinatura compacta a 390 px; D2 e D3 um botão de histórico por tamanho na ficha do veículo; D4 campo, arquivo e botão do editar cabem no cartão; D5 "Ver comprovante" e "Ver a nota" com aparência de botão; testes do que mudou.
+- **Feito em 04 nov 2026** (handoff `tarefas/handoffs/T-428-frontend.md`).
+
 #### Também liberado
 - O botão "Mandar para oficina" da ficha depende do módulo de manutenção (`MAN`, `backend/apps/manutencao/` vazio) e entra quando ele for quebrado em tarefas.
 

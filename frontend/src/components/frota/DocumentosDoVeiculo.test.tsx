@@ -11,7 +11,7 @@ const sessao = vi.hoisted(() => ({ eu: null as unknown }));
 vi.mock("@/lib/sessao", () => ({ useSessao: () => ({ eu: sessao.eu as Eu, sair: async () => {} }) }));
 
 import { DocumentosDoVeiculo } from "./DocumentosDoVeiculo";
-import { AbrirDocumento } from "./FichaVeiculo";
+import { AbrirDocumento, FichaVeiculo } from "./FichaVeiculo";
 
 async function entrarComo(email: string) {
   const r = await contas.entrar({ email, senha: "senhaforte123", aparelho: "desktop" });
@@ -93,5 +93,39 @@ describe("documentos do veículo, rotas da API real", () => {
   it("o histórico lê a rota própria", async () => {
     await veiculosApi.historicoDeDocumentos(501);
     expect((fetchMock.mock.calls[0] as [string])[0]).toBe("/api/veiculos/501/documentos/historico/");
+  });
+});
+
+describe("correções da conferência (T-428)", () => {
+  beforeAll(() => entrarComo("rodrigo@motorapida.com.br"));
+
+  it("D2 e D3: a ficha tem um botão de histórico no desktop e um no celular, nunca dois no mesmo", async () => {
+    const id = 501;
+    const cliente = new QueryClient();
+    cliente.setQueryData(["veiculo", id], await veiculos.obter(id));
+    cliente.setQueryData(["veiculo", id, "documentos"], await veiculos.documentos(id));
+    cliente.setQueryData(["veiculo", id, "locacoes"], await veiculos.locacoes(id));
+    cliente.setQueryData(["veiculo", id, "manutencoes"], await veiculos.manutencoes(id));
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={cliente}>
+        <FichaVeiculo id={id} />
+      </QueryClientProvider>,
+    );
+    const [, desktop = "", celular = ""] = html.match(/^<div class="hidden md:block">(.*)<\/div><div class="md:hidden">(.*)<\/div>$/s) ?? [];
+    expect(desktop.match(/Ver o histórico/g)).toHaveLength(1);
+    expect(celular.match(/Ver o histórico/g)).toHaveLength(1);
+  });
+
+  it("D4: o campo, o arquivo e o botão do editar cabem no cartão (min-w-0, botão de largura cheia no celular)", async () => {
+    const cliente = new QueryClient();
+    cliente.setQueryData(["veiculo", 501, "documentos"], await veiculos.documentos(501));
+    const h = renderToStaticMarkup(
+      <QueryClientProvider client={cliente}>
+        <DocumentosDoVeiculo id={501} />
+      </QueryClientProvider>,
+    );
+    expect(h).toContain("]:min-w-0");
+    expect(h).toContain("w-full min-w-0 max-w-full");
+    expect(h).toContain("w-full md:w-auto");
   });
 });
