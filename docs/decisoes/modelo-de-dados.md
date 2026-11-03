@@ -360,6 +360,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 - Índices: `(filial, status)`, `(status, fim_previsto)` para `AUT-01`/`AUT-02`, `(cliente, filial)` (o filtro de filial da lista de Clientes, `CLI-10`, T-249; também atende a busca só por `cliente`), `veiculo`.
 - Sinais `pagamento_atrasado`, `devolve_hoje`, `cancelamento_pendente` são calculados no selector (anotação), não guardados.
 - `rascunho` com mais de 24 h sem uso é cancelado pela tarefa diária (sem auditoria de negócio além do evento de cancelamento).
+- `aguardando_retirada` (T-410, ADR 0035): o veículo fica `reservado` desde a confirmação, com qualquer início. `ultimo_dia_retirada` (data local do `inicio` + 3) é calculado por `locacoes.selectors.ultimo_dia_retirada`, não guardado; passado esse dia, a `AUT-17` cancela a locação (`LOC-12`). O índice `(status, fim_previsto)` atende a seleção da tarefa pelo status; nenhum índice novo.
 - Apoio `TrechoLocacao` (`LOC-09`): `locacao`, `veiculo`, `inicio`, `fim` nulo, `valor_periodo_centavos`, `diaria_centavos`. Único `(locacao)` com `fim IS NULL`.
 - Apoio `ExtraLocacao`: `locacao`, `extra`, `quantidade`, `valor_centavos` congelado.
 - Apoio `TrocaVeiculo` (`LOC-09`; `docs/api/locacoes.md`): `locacao`, `veiculo_antigo`, `veiculo_novo`, `motivo`, `status` enum `pendente`, `concluida`, `cancelada` (máquina, `transicao_troca`), `pedida_por` FK nulo. Único `(locacao)` com `status = pendente`.
@@ -476,8 +477,10 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `nasceu_de` | FK → `Renegociacao`, nulo, PROTECT (`novas`) | na conta nova que a substitui (T-114) |
 | `estorno_de` | FK → `ContaReceber`, nulo | conta reaberta por estorno aponta para a original |
 | `estornada_em` | momento, nulo | na original estornada (continua `paga`) |
+| `aguarda_retirada` | bool, padrão `false` | T-410, ADR 0035: conta da locação `aguardando_retirada`; nunca fica `vence_hoje` nem `atrasada`, e multa e juros são 0 (`LOC-05`, `FIN-03`). Ligado e desligado só por `locacoes`, pelos serviços do `financeiro` |
+| `liberada_em` | data, nula | T-410: dia local da retirada; o atraso conta do dia seguinte ao mais tarde entre o vencimento, o dia em que a conta nasceu e este dia (`FIN-03`) |
 
-- **Nota sobre status:** `vence_hoje` e `atrasada` dependem só da data. Para não precisar de uma tarefa que reescreve status à meia-noite, o banco guarda `aberta` e o selector devolve `vence_hoje` (`vencimento = hoje`) ou `atrasada` (`vencimento < hoje`) no campo `status` da API. Os seis valores de `FIN-01` aparecem iguais para quem consome a API. Filtros usam a mesma expressão.
+- **Nota sobre status:** `vence_hoje` e `atrasada` dependem só da data. Para não precisar de uma tarefa que reescreve status à meia-noite, o banco guarda `aberta` e o selector devolve `vence_hoje` (`vencimento = hoje`) ou `atrasada` (`vencimento < hoje`) no campo `status` da API. Os seis valores de `FIN-01` aparecem iguais para quem consome a API. Filtros usam a mesma expressão. Desde a T-410, a expressão também exige `aguarda_retirada = false` e mora em `financeiro.selectors.q_vence_hoje` e `q_atrasada`, as únicas (ADR 0035).
 - Paga não se edita: correção é estorno (`estorno_de`, `docs/api/financeiro.md`).
 - Apoio `CobrancaExterna`: `conta_receber` FK, `tipo` enum `pix`, `boleto`, `cartao_link`, `recorrente`, `externo_id` texto(60) **único**, `valor_centavos` (valor esperado do dia, comparado na baixa, S-14), `vence_em` data, `pix_copia_e_cola`, `linha_digitavel`, `url`, `caixa` FK nulo (gerada no caixa), `status` enum `aguardando`, `paga`, `cancelada`, `vencida`, `divergente`. Uma `aguardando` por conta.
 - Apoio `AutorizacaoRecorrente` (`AUT-04`): `locacao` (origem genérica), `tipo` enum `pix_automatico`, `cartao`, `externo_id` único, `status` enum `pendente`, `ativa`, `cancelada`.
