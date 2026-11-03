@@ -8,6 +8,7 @@ import type {
   ModeloDoCatalogo,
   CategoriaVeiculo,
   DocumentoVeiculo,
+  NovoDocumentoVeiculo,
   FiltroVeiculos,
   ListaVeiculos,
   LocacoesDoVeiculo,
@@ -21,7 +22,7 @@ import type {
 
 const ROTULO_DOCUMENTO: Record<string, string> = { crlv: "CRLV", seguro: "Seguro", ipva: "IPVA", rastreador: "Rastreador" };
 
-type DocumentoDaApi = { id: number; tipo: string; validade: string | null; situacao: DocumentoVeiculo["situacao"]; dias_para_vencer: number | null };
+type DocumentoDaApi = { id: number; tipo: string; ativo?: boolean; arquivo?: DocumentoVeiculo["arquivo"]; validade: string | null; situacao: DocumentoVeiculo["situacao"]; dias_para_vencer: number | null };
 
 export const veiculosApi = {
   async categorias(filtro: { filial?: number; tipo_veiculo?: TipoVeiculo } = {}): Promise<CategoriaVeiculo[]> {
@@ -84,6 +85,23 @@ export const veiculosApi = {
   async documentos(id: number): Promise<DocumentoVeiculo[]> {
     const r = await http.get<{ resultados: DocumentoDaApi[] }>(`/api/veiculos/${id}/documentos/`);
     return r.resultados.map((d) => ({ ...d, rotulo: ROTULO_DOCUMENTO[d.tipo] ?? d.tipo }));
+  },
+
+  /** `GET .../documentos/historico/`: todos os documentos, inclusive os renovados (inativos). */
+  async historicoDeDocumentos(id: number): Promise<DocumentoVeiculo[]> {
+    const r = await http.get<{ resultados: DocumentoDaApi[] }>(`/api/veiculos/${id}/documentos/historico/`);
+    return r.resultados.map((d) => ({ ...d, rotulo: ROTULO_DOCUMENTO[d.tipo] ?? d.tipo }));
+  },
+
+  /** `POST .../documentos/` (VEI-03): se já havia um ativo do mesmo tipo, a API o deixa inativo. Administrador e gerente. */
+  async enviarDocumento(id: number, d: NovoDocumentoVeiculo): Promise<DocumentoVeiculo> {
+    const corpo = new FormData();
+    corpo.set("tipo", d.tipo);
+    corpo.set("validade", d.validade);
+    if (d.exercicio) corpo.set("exercicio", d.exercicio);
+    if (d.arquivo) corpo.set("arquivo", d.arquivo);
+    const r = await http.post<DocumentoDaApi>(`/api/veiculos/${id}/documentos/`, corpo);
+    return { ...r, rotulo: ROTULO_DOCUMENTO[r.tipo] ?? r.tipo };
   },
 
   /** `GET /api/locacoes/?veiculo=`: o contrato não traz o total, então ele é o tamanho da lista (até 100). */

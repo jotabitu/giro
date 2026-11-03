@@ -14,6 +14,7 @@ import { km, placa as placaComHifen } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
 import { esquemaVeiculo, paraCorpoEdicao, valoresDoVeiculo, type ValoresVeiculo } from "@/lib/veiculos";
 import { CorrigirIdentificacao } from "./CorrigirIdentificacao";
+import { DocumentosDoVeiculo } from "./DocumentosDoVeiculo";
 import { Preco, Selecao } from "./NovoVeiculoForm";
 
 // Referência: Veiculo-Novo-Desktop|Mobile com os dados preenchidos (T-243; a edição não tem tela própria).
@@ -88,7 +89,7 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
   const ocupado = salvar.isPending;
 
   return (
-    <>
+    <div className="flex flex-col gap-6">
     <form onSubmit={enviar} noValidate className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end gap-x-6 gap-y-3">
         <Link href={`/veiculos/${ficha.id}`} aria-label="Voltar para a ficha" className="wl-icon-btn md:hidden">
@@ -195,9 +196,10 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
         </aside>
       </div>
     </form>
+    <DocumentosDoVeiculo id={ficha.id} />
     {/* Fora do form: Enter nos campos do diálogo não pode salvar a edição. */}
     {corrigindo && <CorrigirIdentificacao ficha={ficha} aoFechar={() => setCorrigindo(false)} aoConcluir={setAviso} />}
-    </>
+    </div>
   );
 }
 

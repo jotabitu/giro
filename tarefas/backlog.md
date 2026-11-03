@@ -402,11 +402,6 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Ponto técnico:** o `/api/eu` já devolve `empresa.somente_leitura`, que hoje só a `Admin-Assinatura` usa; a API responde 403 `empresa_sem_operacao` nas ações barradas.
 - **Pronto quando:** a casca mostra a faixa em todas as telas da empresa, a 1440 e a 390, com texto da API ou do contrato, e teste.
 
-#### T-413 · Documentos do veículo: substituir no editar e abrir na ficha
-- **Agentes:** frontend (backend só se faltar algo) · **Regras:** `VEI-03`, `AUD-05` · **Origem:** notas "Reformular o editar veiculo" (documentos) e "Melhorar interação aos documentos".
-- **Hoje:** a API já tem `GET/POST /api/veiculos/{id}/documentos/` e o histórico (renovar cria um novo e o anterior fica `ativo=False`), com URL assinada de 15 min; o frontend só lê, e a ficha mostra rótulo e situação sem abrir.
-- **Pronto quando:** o editar veículo sobe e substitui CRLV, IPVA, seguro e rastreador (administrador e gerente); a ficha abre cada documento (PDF ou imagem) e mostra o histórico; teste.
-
 #### T-414 · Fotos do veículo: galeria própria e fotos da vistoria para ver e baixar
 - **Agentes:** produto (regra), arquiteto (modelo e contrato), design-system (tela), backend, frontend · **Regras:** `VEI` (nova), `AUD-05` · **Origem:** notas "Reformular o editar veiculo" (fotos) e "Melhorar interação as fotos".
 - **Decisão do dono (29 out):** as duas coisas. Uma galeria própria do veículo (fotos de cadastro, para catálogo e anúncio), que se sobe, troca, apaga e com foto de capa; e, na ficha, as fotos da última vistoria para ampliar e baixar. Hoje não existe modelo de foto do veículo, só as da vistoria.
