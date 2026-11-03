@@ -463,6 +463,7 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
   - campo do rastreador (número ou IMEI e a empresa), fora do CRLV-e.
 - **Pronto quando:** regra com os campos, os rótulos do CRLV-e e quais são opcionais; migração; a leitura preenche os campos novos (testes com os CRLV-e reais da T-406); formulário, editar e ficha mostram os campos, a 1440 e a 390; teste com o código da regra no nome.
 - **Decidido pelo dono em 30 out 2026:** o número do motor e as observações do CRLV-e só aparecem para administrador e gerente. O rastreador fica no veículo, em campos simples, e a integração de rastreador lê dali quando existir.
+- **Parte do produto feita em 03 nov 2026** (`tarefas/handoffs/T-421-produto.md`): `VEI-09` nova (13 campos com o rótulo do CRLV-e, formato, faixa e quem vê; todos opcionais), `VEI-01` com os obrigatórios do cadastro, `VEI-08` lendo até 18 campos, caso do seed "Dados do CRLV-e do QXA-4B21"; critérios em `docs/qa/criterios/T-421.md` (CA-421-01 a 14). Um ponto em aberto, valendo o padrão A: ler o CRLV-e também no editar. **Próximo:** arquiteto (contrato e modelo, combinando a ordem com a T-415), depois backend e frontend.
 
 #### T-422 · Referência de preço FIPE pela Parallelum, com rotina mensal
 - **Agentes:** arquiteto (ADR e contrato), segurança (revisão), backend, frontend · **Regras:** `VEN-01` (referência FIPE ao lado do preço), `VEI-08` · **Depende de:** ADR nova que complementa a 0031 · **Origem:** decisão do dono no chat em 29 out 2026.
