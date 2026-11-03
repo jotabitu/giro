@@ -544,10 +544,14 @@ def _cancelamento(locacao: Locacao) -> dict[str, Any] | None:
         *services.ANTES_DA_RETIRADA,
         S.CANCELADA,
     )
+    automatico = EventoAuditoria.objects.filter(
+        objeto_tipo="locacao", objeto_id=locacao.pk, acao="locacao.cancelar_nao_retirada"
+    ).exists()
     return {
         "status": locacao.cancelamento_status,
         "pedido_aprovacao_id": locacao.pedido_cancelamento_id,
         "antes_da_retirada": antes,
+        "automatico": automatico,
         "data": locacao.cancelamento_data,
         "multa_centavos": multa,
         "credito_centavos": credito,
@@ -615,9 +619,23 @@ def detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
             for t in locacao.trechos.select_related("veiculo")
         ],
         "cancelamento": _cancelamento(locacao),
+        "prazo_retirada": prazo_retirada(locacao),
         "troca": _troca(locacao),
         "acoes": acoes(locacao, usuario, contrato),
     }
+
+
+# LOC-12 (T-410): a função única do prazo mora em `services`; este é o nome do contrato.
+ultimo_dia_retirada = services.ultimo_dia_retirada
+
+
+def prazo_retirada(locacao: Locacao) -> dict[str, date] | None:
+    """LOC-12, AUT-17: o último dia para retirar e o dia em que a tarefa cancela, só na locação
+    `aguardando_retirada`."""
+    if locacao.status != S.AGUARDANDO_RETIRADA:
+        return None
+    ultimo = ultimo_dia_retirada(locacao)
+    return {"ultimo_dia": ultimo, "cancela_em": ultimo + timedelta(days=1)}
 
 
 def sem_valores(dados: Any) -> Any:
@@ -654,6 +672,7 @@ ROTULOS_DO_HISTORICO = {
     "locacao.recusar_cancelamento": ("Cancelamento recusado", "status"),
     "locacao.cancelar_pedido_cancelamento": ("Pedido de cancelamento cancelado", "status"),
     "locacao.cancelar": ("Locação cancelada", "status"),
+    "locacao.cancelar_nao_retirada": ("Cancelada: não retirada em 3 dias", "status"),
     "locacao.aprovar_encerramento": ("Encerramento antecipado aprovado", "status"),
     "locacao.encerrar": ("Locação encerrada", "status"),
 }

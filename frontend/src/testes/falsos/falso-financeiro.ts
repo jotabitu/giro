@@ -36,6 +36,7 @@ function conta(p: Partial<ContaReceber> & Pick<ContaReceber, "id" | "cliente" | 
   const paga = p.status === "paga";
   return {
     tipo: "parcela",
+    aguarda_retirada: false,
     numero: 1,
     total_parcelas: 4,
     origem: { tipo: "locacao", id: 1, codigo: "LOC-2790" },

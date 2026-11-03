@@ -228,6 +228,8 @@ function detalhe(s: Semente): LocacaoCompleta {
     cliente: { ...s.cliente, celular: null, cnh_categoria: null, ficha_liberada: !vistoriador },
     filial: FILIAL,
     vendedor: VENDEDOR,
+    // O falso imita o campo da API (LOC-12): início + 3 dias; a tela não mostra nem calcula.
+    prazo_retirada: s.status === "aguardando_retirada" ? { ultimo_dia: dia(Date.parse(s.inicio) + 3 * DIA), cancela_em: dia(Date.parse(s.inicio) + 4 * DIA) } : null,
     periodos,
     precos: {
       valor_periodo_centavos: s.corpo.periodoCentavos,
@@ -265,6 +267,7 @@ function detalhe(s: Semente): LocacaoCompleta {
           status: s.cancelamento.status,
           pedido_aprovacao_id: 88,
           antes_da_retirada: false,
+          automatico: false,
           data: s.cancelamento.data,
           multa_centavos: s.cancelamento.multa,
           credito_centavos: s.cancelamento.credito,
@@ -448,7 +451,10 @@ async function simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
   const avisos: AvisoLocacao[] = [];
   if (cliente.status === "bloqueado") impedimentos.push({ codigo: "CLI-05", mensagem: "Cliente bloqueado por atraso. Quite o que deve antes de alugar." });
   if (cliente.status === "inativo") impedimentos.push({ codigo: "cliente_inativo", mensagem: "Cliente inativo. Reative o cadastro para alugar." });
-  if (veiculo.status !== "disponivel" && veiculo.status !== "reservado") impedimentos.push({ codigo: "LOC-03", mensagem: "Veículo indisponível no período" });
+  // T-410: o reservado também não passa; a confirmação reserva o veículo com qualquer início.
+  if (veiculo.status !== "disponivel") impedimentos.push({ codigo: "LOC-03", mensagem: "Veículo indisponível no período" });
+  // LOC-12: início com mais de 3 dias já passou do prazo de retirada (a API decide; o falso só imita).
+  if (Date.parse(e.inicio) + 4 * DIA <= Date.parse(AGORA_DO_SEED)) impedimentos.push({ codigo: "inicio_vencido", mensagem: "O início já passou do prazo de retirada. Escolha uma data de início a partir de hoje." });
   if (cliente.status === "incompleto") avisos.push({ codigo: "CLI-03", mensagem: "Cadastro incompleto. Envie os documentos antes da retirada." });
   return {
     fim_previsto: somarPeriodos(e.inicio, e.periodicidade, periodos),
@@ -536,6 +542,7 @@ export const locacoesFalso = {
     const antigo = achar(id);
     if (antigo.status !== "rascunho" || !antigo.entrada) throw new ErroApi(409, "transicao_locacao", "Só é possível confirmar uma locação em rascunho");
     const bloqueio = (await simular(antigo.entrada)).impedimentos[0];
+    if (bloqueio?.codigo === "inicio_vencido") throw new ErroApi(409, "inicio_vencido", bloqueio.mensagem, { inicio: dia(Date.parse(antigo.entrada.inicio)), ultimo_dia_retirada: dia(Date.parse(antigo.entrada.inicio) + 3 * DIA) });
     if (bloqueio) throw new ErroApi(bloqueio.codigo === "LOC-03" ? 409 : 422, bloqueio.codigo, bloqueio.mensagem);
     const novo = await semente(id, antigo.entrada, "aguardando_retirada", antigo);
     const primeira = novo.parcelas.find((p) => p[0] === "parcela");

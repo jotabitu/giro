@@ -172,6 +172,11 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
             <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
               {v.situacao.rotulo}
             </StatusBadge>
+            {v.reserva && (
+              <Link href={`/locacoes/${v.reserva.locacao_id}`} className="text-body text-ink underline">
+                Ver {v.reserva.codigo}
+              </Link>
+            )}
             <span className="wl-mono text-[13px] text-ink-muted">{placa(v.placa)}</span>
             <span className="text-[13px] text-ink-muted">
               · {v.ano_modelo} · {v.cor} · {v.filial.nome}
@@ -307,8 +312,13 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
             {v.marca} {v.modelo}
           </h1>
           <span className="text-[13px] leading-[18px] text-ink-muted">
-            {placa(v.placa)} · {v.ano_modelo} · {v.situacao.rotulo.toLowerCase()}
+            {placa(v.placa)} · {v.ano_modelo} · {v.reserva ? v.situacao.rotulo : v.situacao.rotulo.toLowerCase()}
           </span>
+          {v.reserva && (
+            <Link href={`/locacoes/${v.reserva.locacao_id}`} className="inline-flex min-h-[44px] items-center text-body text-ink underline">
+              Ver {v.reserva.codigo}
+            </Link>
+          )}
         </div>
         <button type="button" className="wl-icon-btn wl-icon-btn--sm" aria-label="Mais ações" disabled title={EM_BREVE} style={{ width: 44, height: 44 }}>
           <Icone de={Ellipsis} />
