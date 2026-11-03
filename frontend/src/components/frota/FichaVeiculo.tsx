@@ -3,7 +3,7 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { ArrowLeftRight, ChevronLeft, Ellipsis, Tag, Truck, Wrench } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Button, DataTable, Icone, KpiGrid, KpiTile, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
 import {
   ErroApi,
@@ -91,10 +91,58 @@ function ListaDeDocumentos({ docs }: { docs: UseQueryResult<DocumentoVeiculo[]> 
     <dl>
       {docs.data.map((d) => (
         <Linha key={d.id} rotulo={d.rotulo}>
-          <SituacaoDocumento d={d} />
+          <span className="inline-flex flex-wrap items-center justify-end gap-3">
+            <SituacaoDocumento d={d} />
+            <AbrirDocumento d={d} />
+          </span>
         </Linha>
       ))}
     </dl>
+  );
+}
+
+/** Abre o PDF ou a imagem numa aba nova pela URL assinada da API (vale 15 min, AUD-05). Sem arquivo, diz isso em texto. */
+export function AbrirDocumento({ d }: { d: Pick<DocumentoVeiculo, "rotulo" | "arquivo"> }) {
+  if (!d.arquivo) return <span className="text-caption text-ink-muted">Sem arquivo</span>;
+  return (
+    <a href={d.arquivo.url} target="_blank" rel="noopener noreferrer" aria-label={`Abrir ${d.rotulo}: ${d.arquivo.nome}`} className="inline-flex min-h-[44px] items-center text-body text-ink underline md:min-h-0">
+      Abrir
+    </a>
+  );
+}
+
+/** Histórico do veículo: todos os documentos, os renovados ficam como "Substituído". Carrega só quando a pessoa abre. */
+function HistoricoDeDocumentos({ id }: { id: number }) {
+  const [aberto, setAberto] = useState(false);
+  const historico = useQuery({ queryKey: ["veiculo", id, "documentos", "historico"], queryFn: () => veiculos.historicoDeDocumentos(id), enabled: aberto });
+  return (
+    <div className="mt-3">
+      <button type="button" aria-expanded={aberto} onClick={() => setAberto((a) => !a)} className="wl-btn wl-btn--quiet wl-btn--sm">
+        {aberto ? "Esconder o histórico" : "Ver o histórico"}
+      </button>
+      {aberto && historico.isPending && <p className="mt-2 text-body text-ink-muted">Carregando o histórico…</p>}
+      {aberto && historico.isError && (
+        <p role="alert" className="mt-2 text-body">
+          {mensagemDoErro(historico.error)}
+        </p>
+      )}
+      {aberto && historico.data && (
+        <ul className="m-0 mt-2 list-none p-0" aria-label="Histórico de documentos">
+          {historico.data.map((d) => (
+            <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-2 text-body">
+              <span>
+                {d.rotulo}
+                {d.validade ? ` · até ${dataCurta(d.validade)}` : ""}
+              </span>
+              <span className="inline-flex items-center gap-3">
+                <span className="text-caption text-ink-muted">{d.ativo === false ? "Substituído" : "Em uso"}</span>
+                <AbrirDocumento d={d} />
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -221,6 +269,8 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
           <section className="wl-panel">
             <h2 className="mb-1 text-[20px] font-semibold leading-[26px]">Documentos</h2>
             <ListaDeDocumentos docs={docs} />
+        <HistoricoDeDocumentos id={v.id} />
+            <HistoricoDeDocumentos id={v.id} />
           </section>
         </aside>
       </div>
