@@ -66,15 +66,20 @@ def _ler(moto: MotoRapida, conteudo: bytes) -> dict:  # type: ignore[type-arg]
 def test_vei_08_catalogo_crlv_detran_moto_acha_um_modelo(moto) -> None:
     corpo = _ler(moto, pdfs.CRLV_DETRAN_MOTO.pdf())
     assert (corpo["campos"]["marca"], corpo["campos"]["modelo"]) == ("Honda", "Pop 110i ES")
-    assert corpo["dicas"] == {"marca_modelo": None}
+    assert corpo["dicas"] == {"marca_modelo": None, "candidatos": []}
 
 
 def test_vei_08_catalogo_crlv_detran_carro_com_versoes_vai_para_a_dica(moto) -> None:
     """CA-247-05: "FIAT/MOBI LIKE" começa mais de uma versão da FIPE e não preenche."""
     assert catalogo.achar_modelo("FIAT/MOBI LIKE") is None
     corpo = _ler(moto, pdfs.CRLV_DETRAN_CARRO.pdf())
-    assert (corpo["campos"]["marca"], corpo["campos"]["modelo"]) == (None, None)
-    assert corpo["dicas"] == {"marca_modelo": "FIAT/MOBI LIKE"}
+    # T-415: a marca, que é a mesma nas versões, é preenchida; as versões vão para a escolha.
+    assert (corpo["campos"]["marca"], corpo["campos"]["modelo"]) == ("Fiat", None)
+    assert corpo["dicas"]["marca_modelo"] == "FIAT/MOBI LIKE"
+    assert [c["modelo"] for c in corpo["dicas"]["candidatos"]] == [
+        "MOBI LIKE 1.0 Fire Flex 5p.",
+        "MOBI LIKE ON 1.0 Fire Flex 5p.",
+    ]
 
 
 def test_vei_08_catalogo_comando_junta_arquivos(catalogo_temporario, tmp_path) -> None:

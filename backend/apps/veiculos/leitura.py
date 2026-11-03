@@ -32,6 +32,7 @@ CAMPOS = (
     "cor",
     "combustivel",
 )
+LIMITE_DE_CANDIDATOS = 20  # T-415: acima disso, a pessoa busca na lista
 MENSAGEM_FALHA = "Não conseguimos ler este documento. Preencha os campos à mão."
 MENSAGEM_NAO_PDF = "Envie o PDF do CRLV-e."
 
@@ -69,17 +70,31 @@ def rotulo(quantidade: int) -> str:
     return f"CRLV-e lido · {quantidade} {plural}"
 
 
-def _resposta(lidos_do_filho: dict[str, Any]) -> tuple[dict[str, Any], str | None]:
-    """Os 9 campos da VEI-08 e a dica de marca e modelo."""
+def _resposta(lidos_do_filho: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Os 9 campos da VEI-08 e as dicas de marca e modelo.
+
+    Um candidato só: marca e modelo preenchidos, sem dica. Mais de um (o Cruze da T-415): a marca
+    é preenchida quando todos são da mesma, e as versões vão em `dicas.candidatos` para a pessoa
+    escolher, até `LIMITE_DE_CANDIDATOS`; acima disso, a lista vem vazia e a pessoa busca."""
     campos: dict[str, Any] = dict.fromkeys(CAMPOS)
     for nome in ("placa", "chassi", "renavam", "ano_fabricacao", "ano_modelo", "cor"):
         campos[nome] = lidos_do_filho.get(nome)
     campos["combustivel"] = lidos_do_filho.get("combustivel")
     texto = lidos_do_filho.get("marca_modelo")
-    modelo = catalogo.achar_modelo(texto) if texto else None
-    if modelo is not None:
-        campos["marca"], campos["modelo"] = modelo.marca, modelo.modelo
-    return campos, (texto if texto and modelo is None else None)
+    achados = catalogo.candidatos(texto) if texto else []
+    dicas: dict[str, Any] = {"marca_modelo": None, "candidatos": []}
+    if len(achados) == 1:
+        campos["marca"], campos["modelo"] = achados[0].marca, achados[0].modelo
+        return campos, dicas
+    dicas["marca_modelo"] = texto or None
+    marcas = {m.marca for m in achados}
+    if len(marcas) == 1:
+        campos["marca"] = marcas.pop()
+    if len(achados) <= LIMITE_DE_CANDIDATOS:
+        dicas["candidatos"] = [
+            {"marca": m.marca, "modelo": m.modelo, "tipo": m.tipo} for m in achados
+        ]
+    return campos, dicas
 
 
 def _registrar(
@@ -106,7 +121,7 @@ def ler_crlv(arquivo: Any, usuario: Any) -> dict[str, Any]:
             leitura = leitura_documentos.ler(TIPO, conteudo)
         if leitura.motivo is not None:
             raise FalhaDeLeitura(leitura.motivo)
-        campos, dica = _resposta(leitura.campos)
+        campos, dicas = _resposta(leitura.campos)
         lidos = [nome for nome in CAMPOS if campos[nome] is not None]
         if not lidos:
             raise FalhaDeLeitura("nao_reconhecido")
@@ -126,7 +141,7 @@ def ler_crlv(arquivo: Any, usuario: Any) -> dict[str, Any]:
         "quantidade": len(lidos),
         "rotulo": rotulo(len(lidos)),
         "exercicio": leitura.campos.get("exercicio"),
-        "dicas": {"marca_modelo": dica},
+        "dicas": dicas,
         "leitura": comprovante_leitura.emitir(
             TIPO, conteudo, usuario, {nome: campos[nome] for nome in lidos}
         ),
