@@ -375,6 +375,10 @@ Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a
 - **Para o design-system, quando a fase 2 abrir:** as telas `Plat-*` e `Plataforma` que já estavam no repositório têm o menu lateral antigo e não levam às telas novas. Passar o grupo "Finanças" e Configurações para elas, mantendo os ajustes já feitos (CNPJ do seed, 14 dias de teste, catálogo da `PLT-11`).
 - **Notas fiscais:** dependem da T-197 (NFS-e da assinatura, `PLT-15`).
 
+### T-427 · CI: testar só o que mudou no PR (feita, aguardando merge)
+- **Agente:** devops · **Origem:** pedido do dono em 03 nov 2026 (menos minuto de Actions por PR). Handoff: `tarefas/handoffs/T-427-devops.md`.
+- **Pronto quando:** PR para a `develop` roda pytest só nos apps tocados e Vitest só nos testes afetados; push na `develop` e PR para a `main` rodam a suíte inteira; o risco está em `infra/README.md`, "CI: o que cada gatilho roda".
+
 ### T-425 · Conferência automática da página com a tela de referência
 - **Agentes:** qa, com o design-system · **Origem:** T-424 (`docs/agentes/telas-do-canvas.md`, "Conferência lado a lado"). Não começa até o dono liberar.
 - **Pronto quando:** um teste do Playwright abre a tela de `docs/telas/html` e a página do app com o seed, a 1440 e 390 px, e grava as duas capturas lado a lado numa pasta do handoff; roda por rota (`make` ou script do `frontend/package.json`); serve para o frontend anexar no handoff e para a revisão do design-system. Sem comparação por pixel, porque os números e os componentes mudam de propósito.
@@ -401,6 +405,8 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Decisão do dono (29 out):** além de enviar, a tela mostra o link para copiar e mandar à mão em quatro ações: contrato para assinar, cobrança da parcela, recibo da devolução e fatura da assinatura.
 - **Ponto técnico:** o link de assinatura do contrato guarda só o hash do token (`S-15`), então o link só pode ser mostrado na hora em que é gerado ou reenviado, como o `POST /api/usuarios/{id}/link-convite/` (resposta única, `no-store`). A cobrança já devolve `pix_copia_e_cola`, `linha_digitavel` e `boleto_url`.
 - **Pronto quando:** contratos atualizados nas quatro rotas, revisão da Segurança sem achado alto, campo ou pop-up "Copiar link" nas quatro telas, com teste.
+- **Revisão da Segurança do contrato feita em 03 nov 2026** (`tarefas/handoffs/T-411-seguranca.md`): nenhum achado alto. Antes do backend, o arquiteto acrescenta ao contrato M-01 (suporte sem `boleto_url` nem `copiar_cobranca`, e sem os links do boleto e da página da fatura; `AUD-09`) e M-02 (a assinatura pelo link copiado registra o canal e quem gerou; `LOC-15`). Baixos: B-01 (aviso ao administrador quando o cartão guardado muda), B-02 (o retry do envio não mata o link copiado) e B-03 (`/recibo` com `noindex`, `no-store`, escopos próprios e teste entre empresas).
+- **Parte do arquiteto feita em 03 nov 2026** (`tarefas/handoffs/T-411-arquiteto.md`): visão geral em `docs/api/copiar-link.md`. Contrato e recibo ganham rota que gera o link na hora e o devolve uma vez (`POST /api/locacoes/{id}/contrato/link/`, `POST /api/devolucoes/{id}/recibo/link/`, mais a página pública `/recibo` com `POST /api/publico/recibos/consultar/` e o token do recibo na `Devolucao`); cobrança e fatura copiam o que a API já devolve (`acoes.copiar_cobranca`; o `cobranca` do "Pagar" da fatura). **Próximo:** Segurança revisa (pontos no handoff); depois backend e frontend.
 
 
 #### T-414 · Fotos do veículo: galeria própria e fotos da vistoria para ver e baixar
@@ -408,6 +414,7 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Decisão do dono (29 out):** as duas coisas. Uma galeria própria do veículo (fotos de cadastro, para catálogo e anúncio), que se sobe, troca, apaga e com foto de capa; e, na ficha, as fotos da última vistoria para ampliar e baixar. Hoje não existe modelo de foto do veículo, só as da vistoria.
 - **Pronto quando:** regra escrita (limite de fotos, tamanho, quem pode), contrato e modelo novos, galeria no editar veículo, visualizador com ampliar e baixar na ficha para as duas origens, teste.
 - **Base para:** T-418 (catálogo).
+- **Parte do produto feita em 03 nov 2026** (`tarefas/handoffs/T-414-produto.md`): `VEI-10` nova (galeria até 20 fotos JPG ou PNG de até 10 MB, sem localização; capa; enviar, trocar, apagar e capa para administrador e gerente, travada em vendido e baixado; ficha com galeria para todos e a última vistoria para quem faz vistoria; ampliar e baixar pelo link de 15 min); seed com 3 fotos no QXA-4B21; critérios CA-414-01 a 14. O código é `VEI-10` porque a `VEI-09` é da T-421. **Próximo:** arquiteto (modelo e contrato) e design-system (tela), depois backend e frontend.
 
 #### T-415 · CRLV-e: escolher a versão quando várias batem
 - **Agentes:** backend, frontend · **Regras:** `VEI-08`, ADR 0031 · **Origem:** nota "Ajustar o preenchimento do CRLV-e".
@@ -427,6 +434,7 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Hoje:** a despesa já pode ser ligada ao veículo e entra no custo do ano, mas a ficha não lista as despesas dele.
 - **Decisão do dono (29 out):** na ficha, a lista das despesas do veículo e um botão "Lançar despesa" já com ele preenchido, e categorias próprias de despesa do veículo (IPVA, seguro, multa, peça, combustível).
 - **Pronto quando:** categorias na regra, lista e botão na ficha, filtro por veículo, teste. Manutenção (`MAN-05`, OS que lança despesa) segue no módulo de manutenção.
+- **Parte do produto feita em 03 nov 2026** (`tarefas/handoffs/T-417-produto.md`): `FIN-06` com as categorias do veículo (IPVA e licenciamento, seguro, multa de trânsito, peças, combustível) em dois grupos, nenhuma exige veículo, vistoriador com peças; `FIN-16` com o filtro por veículo; `FIN-17` nova (lista na ficha para administrador, gerente e financeiro, total do ano, "Lançar despesa" com o veículo); `VEI-05` com o custo de manutenção só de manutenção e peças; critérios CA-417-01 a 13. **Próximo:** arquiteto (chaves e rota, curto), backend, frontend.
 
 #### T-418 · Catálogo de vendas interno
 - **Agentes:** produto (regra), arquiteto, design-system (tela), backend, frontend · **Regras:** `VEN-01` a `VEN-10`, `PLT-11`, `PLT-12` · **Depende de:** T-414 (fotos), módulo de vendas (`backend/apps/vendas/` está vazio) · **Origem:** nota "Catalogo de vendas dos veiculos".
@@ -448,6 +456,8 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
   - o veículo não se troca no meio; para trocar, encerra-se o contrato e abre-se outro;
   - ao quitar, nasce sozinha uma venda de R$ 0 no módulo de vendas, ligada à locação; o veículo vira vendido e o gerente recebe a tarefa de fazer a transferência no Detran.
 - **Pronto quando:** regras escritas e aprovadas, modelo de contrato próprio, tipo de locação novo no fluxo, venda gerada ao quitar, teste com o código da regra no nome.
+- **Parte do produto feita em 03 nov 2026** (`tarefas/handoffs/T-420-produto.md`): `LOC-16` nova (plano de compra, contrato próprio, caução abatida na última parcela, sem renovação nem troca, fim previsto sem devolução, encerramento sem crédito, quitação), `VEN-11` nova (venda de R$ 0,00 da quitação), transição `alugado` → `vendido`; critérios CA-420-01 a 17. Dois pontos em aberto, valendo o padrão A: plano de compra em `Precos` e encerramento sem multa. **Próximo:** arquiteto (ADR e contrato; o app `vendas` está vazio) e design-system, depois backend e frontend.
+- [divergência] O toggle "Oferecer opção de compra no fim do contrato · Parte das parcelas pagas vira entrada na compra da moto" da `Onboarding-Contrato` (desktop e celular) não bate com a `LOC-16`: na decisão do dono, nada vira entrada; ao quitar a última parcela, o veículo passa ao cliente sem valor extra. Até o design-system revisar, o toggle quer dizer "publicar também o modelo de locação com intenção de compra" (T-420).
 
 #### T-421 · Mais campos no cadastro e na ficha do veículo, vindos do CRLV-e
 - **Agentes:** produto (regra), arquiteto (modelo e contrato), backend, frontend · **Regras:** `VEI-01`, `VEI-08` · **Depende de:** T-413 e T-415 tocam o mesmo formulário e a mesma leitura; combinar a ordem · **Origem:** pedido do dono no chat em 29 out 2026.
@@ -460,6 +470,8 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
   - campo do rastreador (número ou IMEI e a empresa), fora do CRLV-e.
 - **Pronto quando:** regra com os campos, os rótulos do CRLV-e e quais são opcionais; migração; a leitura preenche os campos novos (testes com os CRLV-e reais da T-406); formulário, editar e ficha mostram os campos, a 1440 e a 390; teste com o código da regra no nome.
 - **Decidido pelo dono em 30 out 2026:** o número do motor e as observações do CRLV-e só aparecem para administrador e gerente. O rastreador fica no veículo, em campos simples, e a integração de rastreador lê dali quando existir.
+- **Parte do arquiteto feita em 03 nov 2026** (`tarefas/handoffs/T-421-arquiteto.md`, regras do PR #459): contrato em `docs/api/veiculos.md` (blocos `documento`, `rastreador` e `anotacoes`; motor e observações ausentes para vendedor, vistoriador e financeiro; formatos; leitura com os 9 campos da `VEI-09`; `POST /api/veiculos/{id}/leitura-crlv/` no editar, padrão A, com 422 `crlv_outro_veiculo`) e 12 colunas no modelo de dados. Combinado com o Backend: a T-415 entra antes. **Próximo:** backend depois do merge da T-415, depois frontend e QA.
+- **Parte do produto feita em 03 nov 2026** (`tarefas/handoffs/T-421-produto.md`): `VEI-09` nova (13 campos com o rótulo do CRLV-e, formato, faixa e quem vê; todos opcionais), `VEI-01` com os obrigatórios do cadastro, `VEI-08` lendo até 18 campos, caso do seed "Dados do CRLV-e do QXA-4B21"; critérios em `docs/qa/criterios/T-421.md` (CA-421-01 a 14). Um ponto em aberto, valendo o padrão A: ler o CRLV-e também no editar. **Próximo:** arquiteto (contrato e modelo, combinando a ordem com a T-415), depois backend e frontend.
 
 #### T-422 · Referência de preço FIPE pela Parallelum, com rotina mensal
 - **Agentes:** arquiteto (ADR e contrato), segurança (revisão), backend, frontend · **Regras:** `VEN-01` (referência FIPE ao lado do preço), `VEI-08` · **Depende de:** ADR nova que complementa a 0031 · **Origem:** decisão do dono no chat em 29 out 2026.

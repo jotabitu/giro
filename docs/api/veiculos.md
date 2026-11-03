@@ -1,6 +1,6 @@
 # Veículos, categorias e preços
 
-**Dono:** arquiteto · **Versão:** 03 nov 2026 (T-410, "Reservado na LOC-x" e bloco `reserva`); 16 out 2026 (T-293, valor do dia na linha Pagamentos; T-286, movimentações; T-275, blocos da ficha); 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-08, MAN-03, VIS-01, FIN-01, MOV-01 a MOV-06, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07)
+**Dono:** arquiteto · **Versão:** 03 nov 2026 (T-421, dados do CRLV-e, rastreador e anotações, `VEI-09`, e leitura do CRLV-e no editar; T-410, "Reservado na LOC-x" e bloco `reserva`); 16 out 2026 (T-293, valor do dia na linha Pagamentos; T-286, movimentações; T-275, blocos da ficha); 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-09, MAN-03, VIS-01, FIN-01, MOV-01 a MOV-06, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07), `docs/qa/criterios/T-421.md` (CA-421-01 a 14)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 8 a 10 e apoio (`PrecoCategoria`, `Extra`, `HistoricoStatusVeiculo`, `LeituraKm`, `TransferenciaVeiculo`) em `docs/decisoes/modelo-de-dados.md`.
 
@@ -62,7 +62,8 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
   ```
   `reserva.motivo`: `locacao` (locação `aguardando_retirada` do veículo; a mesma do `locacao_atual`) ou `troca` (o veículo novo de uma troca pendente, `LOC-09`; aí o `codigo` é o da locação da troca, e o `locacao_atual` do veículo novo continua `null`, porque a locação ainda é do veículo antigo). O link "LOC-2856" abre `/locacoes/{locacao_id}`. Fora do `reservado`, `reserva` vem `null`.
 - `valor_compra_centavos` e `data_compra` vêm `null` para quem não é administrador ou gerente.
-- `combustivel` (T-247, `VEI-08`): `gasolina`, `etanol`, `flex`, `diesel`, `eletrico`, `hibrido` ou `null` (veículo cadastrado antes). A tela `Veiculo-Novo` já tem o campo.
+- `combustivel` (T-247, `VEI-08`): `gasolina`, `etanol`, `flex`, `diesel`, `eletrico`, `hibrido` ou `null` (veículo cadastrado antes). Desde a T-421 (`VEI-09`), visível e editável no cadastro, no editar e na ficha.
+- Os campos da `VEI-09` (bloco `documento`, rastreador e anotações) estão em "Dados do documento, rastreador e anotações", abaixo. Vêm no detalhe e nas respostas do `POST` e do `PATCH`; a lista da Frota não os traz.
 
 ### Veículo em movimentação (`MOV-03`, T-286, T-300)
 
@@ -196,7 +197,7 @@ O que a ficha de referência mostra e a representação não trazia. Tudo só no
 
 ### POST /api/veiculos/
 Perfis: administrador, gerente.
-Corpo: `{ placa, chassi, renavam?, marca, modelo, ano_fabricacao, ano_modelo, cor, combustivel?, km_atual, categoria_id, filial_id, capacidade_tanque_litros?, valor_compra_centavos?, data_compra?, entrou_na_frota_em? }`. Com o CRLV lido (`VEI-08`), o mesmo corpo vai em `multipart/form-data`, com o bloco do documento ("Preencher pelo CRLV-e", abaixo). Sem `capacidade_tanque_litros`, o combustível do acerto é informado à mão (`DEV-01`).
+Corpo: `{ placa, chassi, renavam?, marca, modelo, ano_fabricacao, ano_modelo, cor, combustivel?, km_atual, categoria_id, filial_id, capacidade_tanque_litros?, valor_compra_centavos?, data_compra?, entrou_na_frota_em?, documento?, rastreador?, anotacoes? }` (os três últimos da `VEI-09`, formato abaixo; todos opcionais, `VEI-01`). Com o CRLV lido (`VEI-08`), o mesmo corpo vai em `multipart/form-data`, com o bloco do documento ("Preencher pelo CRLV-e", abaixo). Sem `capacidade_tanque_litros`, o combustível do acerto é informado à mão (`DEV-01`).
 201: representação (status `disponivel`).
 400 `validacao`: placa ou chassi fora do formato, categoria de outra filial, ano inválido.
 409 `{ "codigo": "VEI-01", "mensagem": "Já existe um veículo com esta placa", "detalhes": { "campo": "placa", "veiculo_id": 77 } }`; o mesmo para `chassi`. Vale para veículo em qualquer estado, inclusive `vendido` e `baixado`.
@@ -206,12 +207,73 @@ Recompra numa troca (`VEN-05`, `VEI-07`) não passa por aqui: a venda chama `vei
 Regras: VEI-01, PLT-03.
 
 ### PATCH /api/veiculos/{id}/
-Perfis: administrador, gerente. Corpo: `renavam`, `marca`, `modelo`, `ano_fabricacao`, `ano_modelo`, `cor`, `combustivel`, `categoria_id`, `capacidade_tanque_litros`, `valor_compra_centavos`, `data_compra`.
+Perfis: administrador, gerente. Corpo: `renavam`, `marca`, `modelo`, `ano_fabricacao`, `ano_modelo`, `cor`, `combustivel`, `categoria_id`, `capacidade_tanque_litros`, `valor_compra_centavos`, `data_compra`, `documento`, `rastreador`, `anotacoes` (`VEI-09`), e `leitura?`, o comprovante da leitura no editar (abaixo).
 Não mudam por aqui: `placa` e `chassi` (corrigir é ação do administrador, abaixo), `status`, `km_atual`, `filial`.
 Mudar a categoria vale para locações novas; locação em andamento mantém o preço congelado (`LOC-15`).
 
 ### POST /api/veiculos/{id}/corrigir-identificacao/
 Perfil: administrador. Corpo: `{ placa?, chassi?, motivo }`. Para erro de digitação. 409 `VEI-01` se colidir. Auditoria `operacao`, com antes e depois.
+
+## Dados do documento, rastreador e anotações (`VEI-09`, T-421)
+
+Decisões do dono de 29 e 30 out 2026; regra e formatos na `VEI-09` (PR #459 do produto); critérios CA-421-01 a 14. Modelo: campos novos do item 9 em `modelo-de-dados.md`. Todos opcionais (`VEI-01`); nenhum muda o status nem bloqueia ação nenhuma, nem a alienação nas observações (CA-421-13).
+
+### Na representação
+
+No detalhe (`GET /api/veiculos/{id}/`) e nas respostas do `POST` e do `PATCH`; a lista da Frota não traz. Caso do QXA-4B21 do seed, para o gerente:
+
+```json
+"combustivel": "flex",
+"documento": { "potencia_cv": 15, "cilindrada_cc": 162, "especie": "passageiro", "tipo": "Motocicleta",
+               "carroceria": null, "lotacao": 2, "peso_bruto_kg": 290,
+               "numero_motor": "KC22E1P004401", "observacoes": "ALIENACAO FIDUCIARIA" },
+"rastreador": { "numero": "356938035643809", "empresa": "Rastreia Fácil" },
+"anotacoes": "Risco no tanque, lado esquerdo"
+```
+
+- Campo vazio vem `null` (nunca `""`), e a ficha mostra "—" (CA-421-06, CA-421-14). Veículo sem nada: `documento` com todas as chaves `null`, `rastreador` `{ "numero": null, "empresa": null }`, `anotacoes` `null`. Os blocos sempre vêm.
+- **`documento.numero_motor` e `documento.observacoes` só para administrador e gerente.** Para vendedor, vistoriador e financeiro, as duas chaves vêm **ausentes**, não `null` (CA-421-12, como `indicadores_financeiros`, `USR-09`). O serializer tira as chaves pelo perfil; a tela não esconde nada por conta própria. O token de suporte recebe como o perfil que ele assume (administrador): o número do motor e as observações não são dado pessoal (`AUD-09` cobre CPF, CNH e documentos de pessoa).
+- `especie`: enum `passageiro`, `carga`, `misto`, `competicao`, `tracao`, `especial`, `colecao`. Rótulos da tela: "Passageiro", "Carga", "Misto", "Competição", "Tração", "Especial", "Coleção". A ficha mostra "Passageiro · Motocicleta" (`especie` e `tipo`), ou só o que houver.
+- Números sem unidade: a tela põe "15 cv", "162 cc", "2 pessoas" ("1 pessoa"), "290 kg" (com separador de milhar: "1.400 kg"). `combustivel` com os rótulos de sempre ("Flex", "Gasolina", "Etanol", "Diesel", "Elétrico", "Híbrido").
+
+### No cadastro e no editar
+
+`POST /api/veiculos/` e `PATCH /api/veiculos/{id}/` aceitam os mesmos blocos, todos opcionais:
+
+```json
+{ "combustivel": "flex",
+  "documento": { "potencia_cv": 15, "cilindrada_cc": 162, "especie": "passageiro", "tipo": "Motocicleta",
+                 "carroceria": null, "lotacao": 2, "peso_bruto_kg": 290,
+                 "numero_motor": "KC22E1P004401", "observacoes": "ALIENACAO FIDUCIARIA" },
+  "rastreador": { "numero": "356938035643809", "empresa": "Rastreia Fácil" },
+  "anotacoes": "Risco no tanque, lado esquerdo" }
+```
+
+- No `PATCH`, cada chave enviada substitui o valor; chave ausente não muda; `null` ou `""` apaga. Vale dentro de `documento` e `rastreador` (mandar `{ "documento": { "lotacao": 1 } }` só muda a lotação).
+- No `POST` em `multipart/form-data` (com o CRLV lido), os blocos vão achatados: `documento.potencia_cv`, `rastreador.numero`, `anotacoes` etc., como os outros campos do formulário.
+- Texto: espaços das pontas tirados; texto só com espaços vira `null`. `numero_motor` e `rastreador.numero` em maiúsculas, sem espaços. `observacoes` e `anotacoes` guardam as quebras de linha.
+- Quem edita: administrador e gerente (`pode.veiculos = editar`); os outros, 403 `permissao` (CA-421-09), como o resto do `PATCH`. O gerente edita também o motor e as observações, que ele vê.
+- **Formato** (400 `validacao`, mensagem no campo, nada gravado; CA-421-07):
+
+  | Campo | Aceita | Mensagem |
+  | --- | --- | --- |
+  | `documento.potencia_cv` | inteiro 1 a 999 | "Informe a potência em cv, de 1 a 999." |
+  | `documento.cilindrada_cc` | inteiro 1 a 9999 | "Informe a cilindrada em cc, de 1 a 9999." |
+  | `documento.especie` | um do enum | "Escolha a espécie da lista." |
+  | `documento.tipo` | até 30 caracteres | "Use até 30 caracteres." |
+  | `documento.carroceria` | até 30 caracteres | "Use até 30 caracteres." |
+  | `documento.lotacao` | inteiro 1 a 99 | "Informe a lotação em pessoas, de 1 a 99." |
+  | `documento.peso_bruto_kg` | inteiro 1 a 99999 | "Informe o peso bruto em kg." |
+  | `documento.numero_motor` | letras e números, até 21 | "Use só letras e números, até 21." |
+  | `documento.observacoes` | até 500 caracteres | "Use até 500 caracteres." |
+  | `rastreador.numero` | letras e números, até 20 | "Use só letras e números, até 20." |
+  | `rastreador.empresa` | até 60 caracteres | "Use até 60 caracteres." |
+  | `anotacoes` | até 500 caracteres | "Use até 500 caracteres." |
+
+  O erro vem com a chave pontuada: `{ "codigo": "validacao", "campos": { "documento.potencia_cv": ["Informe a potência em cv, de 1 a 999."] } }`. O vendedor, o vistoriador e o financeiro não editam, então não há caso de "editar o que não vê".
+- **Auditoria** (`AUD-01`, CA-421-08): o `veiculo.editar` de sempre, com antes e depois de cada campo mudado, com as chaves pontuadas (`documento.lotacao`, `rastreador.numero`, `anotacoes`). A auditoria da empresa só é lida pelo administrador (`auditoria.md`), então o motor e as observações entram inteiros.
+- O seed preenche só o QXA-4B21, com os valores da linha "Dados do CRLV-e do QXA-4B21" das regras (fictícios).
+- Testes com o código: `test_vei_09_campos_opcionais` (CA-421-06), `test_vei_09_formatos` (CA-421-07), `test_vei_09_combustivel_e_auditoria` (CA-421-08), `test_vei_09_quem_edita` (CA-421-09), `test_vei_09_motor_e_observacoes_por_perfil` (CA-421-11 e 12, chave ausente), `test_vei_09_alienacao_nao_bloqueia` (CA-421-13) e `test_vei_09_veiculo_antigo` (CA-421-14).
 
 ## Ações de status
 
@@ -348,8 +410,26 @@ Perfis: administrador e gerente (quem cadastra veículo, `pode.veiculos = editar
 - `campos` traz só os 9 da `VEI-08`. Campo não lido vem `null` e fica fora de `lidos`. `quantidade` é o tamanho de `lidos`, e a tela usa o `rotulo` como vem ("1 campo preenchido", no singular). Nunca vêm o nome, o CPF ou o CNPJ do proprietário, nem campo fora da lista (CA-247-02).
 - `marca` e `modelo` só vêm juntos quando o texto acha um modelo único no catálogo do cadastro (ADR 0026, item 7). Senão, `modelo` vem `null` e fica fora de `lidos`, e `dicas.marca_modelo` traz o texto lido ("HONDA/POP 110I ES") para a tela mostrar como dica (CA-247-05: 7 campos).
 - **Várias versões batem (T-415, decisão do dono em 29 out 2026):** `dicas.candidatos` traz as versões do catálogo que batem com o texto, no formato da lista de modelos (`{ "marca", "modelo", "tipo" }`, em ordem de marca e modelo), para a pessoa escolher uma. Quando todas são da mesma marca, `campos.marca` vem preenchida e entra em `lidos` (o Cruze: 8 campos). Palavras do documento que não existem em nenhuma versão do catálogo são ignoradas: "CHEVROLET/CRUZE LT NB" (CRLV-e real do Detran-CE) traz a marca "GM - Chevrolet" e as 3 versões "CRUZE LT 1.4 16V Turbo Flex 4p Aut.", "CRUZE LT 1.8 16V FlexPower 4p Aut." e "CRUZE LT 1.8 16V FlexPower 4p Mec.". Acima de 20 versões, `candidatos` vem `[]`, e a pessoa busca na lista com a marca já escolhida. Nenhuma versão (CA-247-05, "SUZUKI/YES 125"): `candidatos` vem `[]` e a marca não vem. Um modelo só: `marca` e `modelo` preenchidos, `dicas` com `marca_modelo` `null` e `candidatos` `[]`.
+- `campos` traz só os campos da `VEI-08` (os 9 abaixo e, desde a T-421, os 9 da `VEI-09`, mais abaixo). Campo não lido vem `null` e fica fora de `lidos`. `quantidade` é o tamanho de `lidos`, e a tela usa o `rotulo` como vem ("1 campo preenchido", no singular). Nunca vêm o nome, o CPF ou o CNPJ do proprietário, nem campo fora da lista (CA-247-02).
+- `marca` e `modelo` só vêm quando o texto acha um modelo único no catálogo do cadastro (ADR 0026, item 7). Senão, os dois vêm `null`, ficam fora de `lidos`, e `dicas.marca_modelo` traz o texto lido ("HONDA/POP 110I ES") para a tela mostrar como dica (CA-247-05: 7 campos).
 - `cor` vem no texto do cadastro, em minúsculas ("vermelha"). `combustivel` vem no enum: `ALCOOL/GASOLINA` vira `flex`, e um valor fora do enum fica fora de `lidos`.
 - `exercicio`: o ano do licenciamento, para o documento CRLV; não conta nos 9. A validade do CRLV não vem (`VEI-08`): a pessoa informa.
+- **Campos da `VEI-09`** (T-421; a `VEI-08` passa a ler até 18): `campos` ganha as chaves pontuadas `documento.potencia_cv`, `documento.cilindrada_cc`, `documento.especie`, `documento.tipo`, `documento.carroceria`, `documento.lotacao`, `documento.peso_bruto_kg`, `documento.numero_motor` e `documento.observacoes`, no formato do corpo do cadastro, e elas entram em `lidos` e na `quantidade` como as outras. Com o `crlv-tbc5h21.pdf` (CA-421-01): os 9 de antes mais potência 8, cilindrada 109, `passageiro`, "Motocicleta", lotação 2, peso 240 e motor `JC75E1S123456`, `quantidade` 16, `rotulo` "CRLV-e lido · 16 campos preenchidos"; carroceria e observações `null`, fora de `lidos`. A leitura nunca traz `rastreador` nem `anotacoes`, e a tela não mexe neles (CA-421-04). As chaves de `dicas` da T-415 (`dicas.candidatos`) não mudam.
+- **Do texto do CRLV-e ao campo** (`integracoes/leitura_documentos/crlv.py`, um validador por campo na lista `CAMPOS`, como os de hoje; o que não passa fica `null` e fora da conta, `VEI-09`):
+
+  | Rótulo no CRLV-e | Campo | Conversão |
+  | --- | --- | --- |
+  | POTÊNCIA/CILINDRADA | `potencia_cv` e `cilindrada_cc` | "15CV/0162" → 15 e 162. Potência 0 → `null`. Cilindrada 0 (elétrico) → `null`. Fora da faixa → `null` |
+  | ESPÉCIE / TIPO | `especie` e `tipo` | 1ª palavra no enum, sem acento ("PASSAGEIRO" → `passageiro`, "COMPETICAO" → `competicao`); o resto vira o `tipo`, pela tabela dos tipos do CTB com acento e só a 1ª maiúscula ("MOTOCICLETA" → "Motocicleta", "AUTOMOVEL" → "Automóvel", "CAMINHONETE" → "Caminhonete", "MICRO-ONIBUS" → "Micro-ônibus", "UTILITARIO" → "Utilitário"); tipo fora da tabela, só a 1ª maiúscula. Espécie fora do enum: os dois `null` |
+  | CARROCERIA | `carroceria` | "NÃO APLICAVEL", "NAO APLICAVEL" ou só asteriscos → `null`; senão o texto como vem, até 30 |
+  | LOTAÇÃO | `lotacao` | "02P" → 2; fora de 1 a 99 → `null` |
+  | PESO BRUTO TOTAL | `peso_bruto_kg` | toneladas com vírgula ou ponto: "0,29" → 290, "1,40" → 1400 (× 1000, arredondado); zero → `null` |
+  | MOTOR | `numero_motor` | maiúsculas, sem espaços nem asteriscos, até 21 letras e números |
+  | OBSERVAÇÕES DO VEÍCULO | `observacoes` | as linhas do bloco até o próximo rótulo, com as quebras, até 500; só asteriscos ou vazio → `null` |
+
+  Não são lidos (`VEI-08`): categoria do documento, capacidade, CMT, eixos, CRV, código de segurança, DPVAT, proprietário (CA-421-04). O parser não tem rótulo para eles, e o teste confere que nenhuma chave fora da lista aparece.
+- O comprovante `leitura` passa a listar também os campos da `VEI-09` lidos, e o `preenchido_pelo_documento` do evento usa as chaves pontuadas (`"campos": [..., "documento.lotacao"], "corrigidos": ["documento.lotacao"]`, CA-421-05).
+- Testes com o código: `test_vei_08_le_os_campos_da_vei_09` (CA-421-01 a 03, com os três PDFs), `test_vei_08_nao_le_o_que_nao_e_da_lista` (CA-421-04) e `test_vei_08_corrigidos_com_campos_novos` (CA-421-05). O `test_vei_08_le_os_9_campos` (T-265, CA-247-01) passa a esperar 16 com o mesmo arquivo.
 - `leitura`: comprovante assinado, válido por 30 minutos, sem os valores (ADR 0026, item 8). A tela o guarda junto com o arquivo e manda os dois ao salvar.
 - A tela troca os campos lidos pelo que veio e os marca "lido do documento"; os outros campos não mudam.
 
@@ -368,6 +448,17 @@ O serviço faz tudo numa transação só: cria o veículo, com as validações d
 - Com o `leitura` válido e o SHA-256 do arquivo igual ao do comprovante, o evento `veiculo.cadastrar` leva `preenchido_pelo_documento: { "tipo": "crlv", "campos": [...], "corrigidos": ["cor"] }`, sem valores. A tela da auditoria mostra "Campos preenchidos pelo CRLV-e" (CA-247-03). `campos` são todos os lidos do documento, e `corrigidos`, os que a pessoa mudou antes de salvar. O documento CRLV grava `arquivo_nome` "CRLV-e.pdf", nunca o nome enviado (ADR 0026, item 9).
 - Sem comprovante, ou com ele vencido, de outra empresa, de outro usuário ou de outro arquivo: o veículo e o documento são salvos do mesmo jeito, só sem a marca (ADR 0026, item 8).
 - O `crlv_arquivo` passa de novo pelos primeiros bytes (`%PDF-`) e pelos 2 MB, sem confiar na leitura, e é gravado com `Content-Type: application/pdf` fixado pelo backend.
+
+### POST /api/veiculos/{id}/leitura-crlv/ (ler o CRLV-e no editar, T-421)
+
+Padrão A do ponto em aberto "Ler o CRLV-e no editar do veículo" (regras, T-421), valendo até a resposta do dono. Para a frota já cadastrada ganhar os campos da `VEI-09` sem digitar (CA-421-10).
+
+- Mesma leitura, mesmos perfis, mesmo arquivo, mesmos limites (os 30 por hora e 200 por empresa somam com a do cadastro e a da CNH-e), as mesmas 400, 422 `VEI-08`, 429 e 503 de `POST /api/veiculos/leitura-crlv/`. O veículo tem de estar nas filiais da pessoa (404 fora delas, como o `GET`).
+- **Confere que o documento é deste veículo:** a placa e o chassi lidos são comparados com os do cadastro (sem hífen, maiúsculas). Precisa ter lido pelo menos um dos dois, e todo o que foi lido tem de ser igual. Diferente: 422 `{ "codigo": "crlv_outro_veiculo", "mensagem": "Este CRLV-e é de outro veículo." }`, sem nenhum campo na resposta (CA-421-10). Sem placa e sem chassi lidos: a 422 `VEI-08` de sempre ("Não conseguimos ler este documento..."), porque não dá para conferir.
+- **200** no formato da leitura do cadastro, com duas diferenças: `placa` e `chassi` não vêm em `campos` nem em `lidos` e não contam na `quantidade` (no editar eles não mudam; corrigir é `corrigir-identificacao/`); e o comprovante `leitura` leva o `id` do veículo. `marca`, `modelo` e os outros vêm como no cadastro, inclusive as `dicas` da T-415. Com o `crlv-pnb7c04.pdf` no PNB-7C04: renavam, marca, modelo, anos, cor, combustível e os campos da `VEI-09` que o documento traz.
+- **Nada é gravado na leitura.** A tela troca os campos lidos e os marca "lido do documento"; só o `PATCH` grava. O `PATCH` continua JSON e **não recebe o PDF**: o documento CRLV do veículo não é substituído pela leitura (substituir é a seção Documentos, `POST .../documentos/`, T-413).
+- **Comprovante no `PATCH`:** `leitura?` no corpo. Válido (assinatura, até 30 minutos, mesma empresa, mesmo usuário e o mesmo veículo do `id` da rota), o `veiculo.editar` leva `preenchido_pelo_documento: { "tipo": "crlv", "campos": [...], "corrigidos": [...] }`, como no cadastro. No editar não há o SHA-256 do arquivo para conferir, porque o arquivo não vem; o comprovante amarra o veículo e a pessoa. Inválido ou ausente: salva do mesmo jeito, sem a marca (ADR 0026, item 8).
+- Testes com o código: `test_vei_08_leitura_no_editar` (CA-421-10, o PNB-7C04 com o próprio CRLV-e, placa e chassi fora da resposta, nada gravado), `test_vei_08_leitura_no_editar_outro_veiculo` (CA-421-10, `crlv-tbc5h21.pdf` → 422 `crlv_outro_veiculo`) e `test_vei_08_editar_com_comprovante` (o evento com `preenchido_pelo_documento`; comprovante de outro veículo, sem a marca).
 
 ### GET /api/veiculos/modelos/ (catálogo, T-257)
 É a lista "Da lista FIPE" da tela, local e sem consulta externa. Perfis: todos (quem vê veículos, `pode.veiculos` ≠ `nao`); o suporte em "só ver" também. Query `?tipo=moto|carro`, `?marca=` (igual, sem diferenciar maiúsculas e acento), `?busca=` (cada palavra em marca e modelo) → `{ "resultados": [ { "marca": "Honda", "modelo": "Pop 110i ES", "tipo": "moto" } ] }`, até 50, em ordem de marca e modelo. `tipo` fora da lista: 400 `validacao`. A `marca` e cada palavra da `busca` valem também pelos apelidos do Detran (`catalogo.APELIDOS_DO_DETRAN`, T-415): `?marca=Chevrolet` traz "Chevrolet" e "GM - Chevrolet", `?marca=VW` traz "VW - VolksWagen" e "Volkswagen", e `?busca=chevrolet cruze` acha as versões de "GM - Chevrolet".

@@ -1,6 +1,6 @@
 # Financeiro: contas a receber, caixa do dia, despesas e pagamentos
 
-**Dono:** arquiteto · **Versão:** 03 nov 2026 (T-410, conta à espera da retirada, ADR 0035); 07 out 2026 (T-043), emendas de 09 out 2026 (T-088) 12 out 2026 (T-144, diferenças da T-017) e 13 out 2026 (T-177, despesas: busca, exportar, despesa por veículo, nota obrigatória) · **App:** `financeiro` (schema da empresa) · **Regras:** FIN-01 a FIN-08, FIN-16, AUD-07, APR-03, APR-04, APR-09, LOC-04, LOC-05, LOC-07, CLI-05, DEV-02, FIL-06, AUT-03, AUT-04, AUT-05, AUT-08 · **ADRs:** 0007, 0011, 0012, 0014 · **Segurança:** S-05, S-14 · **Critérios:** `docs/qa/criterios/T-017.md`, `docs/qa/criterios/despesas.md` · **Telas:** Receber, Caixa, Despesas, Financeiro
+**Dono:** arquiteto · **Versão:** 03 nov 2026 (T-411, `acoes.copiar_cobranca`; T-410, conta à espera da retirada, ADR 0035); 07 out 2026 (T-043), emendas de 09 out 2026 (T-088) 12 out 2026 (T-144, diferenças da T-017) e 13 out 2026 (T-177, despesas: busca, exportar, despesa por veículo, nota obrigatória) · **App:** `financeiro` (schema da empresa) · **Regras:** FIN-01 a FIN-08, FIN-16, AUD-07, APR-03, APR-04, APR-09, LOC-04, LOC-05, LOC-07, CLI-05, DEV-02, FIL-06, AUT-03, AUT-04, AUT-05, AUT-08 · **ADRs:** 0007, 0011, 0012, 0014 · **Segurança:** S-05, S-14 · **Critérios:** `docs/qa/criterios/T-017.md`, `docs/qa/criterios/despesas.md` · **Telas:** Receber, Caixa, Despesas, Financeiro
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 18, 19, 21 e 22 e apoio em `docs/decisoes/modelo-de-dados.md`. Base: `/api/financeiro/`.
 
@@ -65,7 +65,7 @@ Toda conta devolve o valor a pagar **hoje**, calculado pela API:
   "estorno_de": null, "estornada_em": null,
   "cobranca_aberta": { "id": 55, "tipo": "pix", "vence_em": "...", "pix_copia_e_cola": "...", "qr_code_url": "..." },
   "acoes": { "receber": true, "gerar_pix": true, "gerar_boleto": true, "cobrar": true,
-             "cancelar": true, "renegociar": true, "estornar": false }
+             "cancelar": true, "renegociar": true, "estornar": false, "copiar_cobranca": false }
 }
 ```
 
@@ -74,6 +74,13 @@ Toda conta devolve o valor a pagar **hoje**, calculado pela API:
   - **T-410 (`LOC-05`, ADR 0035):** a conta com `aguarda_retirada = true` (locação confirmada e não retirada) fica `aberta`, nunca `vence_hoje` nem `atrasada`, mesmo com o vencimento gravado passado; `faixa_atraso` `null`, `dias_atraso` 0. No Receber, ela entra na aba `a_vencer` pelo vencimento gravado (pelo `?periodo=`, como as outras), fora de `vencem_hoje` e `atrasadas`, dos indicadores `vence_hoje_*` e `em_atraso_*`, das `faixas` e do contador `receber` do menu (CA-410-07, CA-410-08). A régua não a pega; o "Cobrar" manual dela é o lembrete sem Pix da conta a vencer, como hoje.
   - A expressão fica em `financeiro.selectors.q_atrasada(hoje)` e `q_vence_hoje(hoje)` (`status = aberta`, `aguarda_retirada = false` e a data). Toda lista, contagem, indicador, filtro `?situacao=` e `?faixa=`, painel, régua (`AUT-03`), evento `financeiro.parcela_atrasou` (`CLI-05`) e anotação para outros apps (`locacoes`, `clientes`, `veiculos`, `vistorias`, `plataforma`) usa as duas.
   - A representação ganha `aguarda_retirada` (bool), para o QA. A tela não precisa mostrar nada a mais: o `status` já vem certo.
+- `cobranca_aberta`: a `CobrancaExterna` `aguardando` da conta, no formato do 201 de `POST .../cobranca/` (com `linha_digitavel` e `boleto_url` no boleto), ou `null`.
+- **Suporte e o boleto** (`AUD-09`, M-01 da revisão de segurança da T-411): o `boleto_url` é a página do boleto no parceiro, com o nome e o CPF completos do pagador. Com o token de suporte, em qualquer modo, `boleto_url` vem `null` em `cobranca_aberta` e em toda resposta que traz a cobrança (o 201 de `POST .../cobranca/`, a lista, o detalhe e as leituras de outros apps). `linha_digitavel` e `pix_copia_e_cola` não têm dado pessoal e continuam. Um lugar só: `financeiro.selectors.representacao_cobranca(cobranca, suporte=...)`. Teste: `test_aud_09_suporte_nao_recebe_boleto_url`.
+- **`acoes.copiar_cobranca`** (T-411, `copiar-link.md`): `true` quando a tela pode mostrar "Copiar Pix" e "Copiar boleto" para a pessoa mandar à mão: conta `aberta`, `cobranca_aberta` não nula e `cobranca_aberta.vence_em` igual ou depois de hoje (`America/Sao_Paulo`). Não depende do perfil, menos o suporte Giro: quem vê a conta pode copiar o que já está na tela; com o token de suporte, vem `false` (`AUD-09`, M-01 da T-411). Com a cobrança de um dia que já passou (o Pix vence no fim do dia em que foi gerado, e o valor de hoje pode ter multa e juros novos, `FIN-03`), vem `false`, e a tela oferece "Gerar Pix" (`acoes.gerar_pix`), cuja resposta já traz o que copiar. Nenhuma rota nova: o que se copia é o que a API já devolve.
+  - Pix: `pix_copia_e_cola`. Boleto: `linha_digitavel`, `boleto_url` e, quando vem, o `pix_copia_e_cola` do boleto (T-305). Campo vazio não ganha botão.
+  - A tela mostra, junto, o valor e o vencimento da cobrança ("R$ 306,09 · vence hoje"), lidos da própria `cobranca_aberta`.
+  - Copiar não gera evento: nada é criado, e o envio pela régua continua uma vez por conta por dia (`AUT-03`).
+  - Teste: `test_aut_03_copiar_cobranca_so_com_a_cobranca_do_dia` (`true` com o Pix de hoje; `false` com o de ontem, com a conta paga e sem cobrança).
 - `faixa_atraso` (`FIN-02`): `1_7`, `8_30`, `mais_30`, ou `null` (não atrasada).
 - `dias_atraso` (T-144): o mesmo `valor_hoje.dias_atraso`, repetido no topo para a coluna da lista; 0 quando não está atrasada.
 - `observacao` (T-144): texto curto (até 150) que o serviço de origem grava na conta; `null` quando vazio. Só leitura.
