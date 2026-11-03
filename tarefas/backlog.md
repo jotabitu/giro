@@ -375,6 +375,10 @@ Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a
 - **Para o design-system, quando a fase 2 abrir:** as telas `Plat-*` e `Plataforma` que já estavam no repositório têm o menu lateral antigo e não levam às telas novas. Passar o grupo "Finanças" e Configurações para elas, mantendo os ajustes já feitos (CNPJ do seed, 14 dias de teste, catálogo da `PLT-11`).
 - **Notas fiscais:** dependem da T-197 (NFS-e da assinatura, `PLT-15`).
 
+### T-427 · CI: testar só o que mudou no PR (feita, aguardando merge)
+- **Agente:** devops · **Origem:** pedido do dono em 03 nov 2026 (menos minuto de Actions por PR). Handoff: `tarefas/handoffs/T-427-devops.md`.
+- **Pronto quando:** PR para a `develop` roda pytest só nos apps tocados e Vitest só nos testes afetados; push na `develop` e PR para a `main` rodam a suíte inteira; o risco está em `infra/README.md`, "CI: o que cada gatilho roda".
+
 ### T-425 · Conferência automática da página com a tela de referência
 - **Agentes:** qa, com o design-system · **Origem:** T-424 (`docs/agentes/telas-do-canvas.md`, "Conferência lado a lado"). Não começa até o dono liberar.
 - **Pronto quando:** um teste do Playwright abre a tela de `docs/telas/html` e a página do app com o seed, a 1440 e 390 px, e grava as duas capturas lado a lado numa pasta do handoff; roda por rota (`make` ou script do `frontend/package.json`); serve para o frontend anexar no handoff e para a revisão do design-system. Sem comparação por pixel, porque os números e os componentes mudam de propósito.
