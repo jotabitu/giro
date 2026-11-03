@@ -7773,6 +7773,9 @@ components:
           nullable: true
         antes_da_retirada:
           type: boolean
+        automatico:
+          type: boolean
+          description: cancelada pela AUT-17, não retirada em 3 dias (LOC-12, T-410)
         data:
           type: string
           format: date
@@ -7789,6 +7792,7 @@ components:
           type: string
       required:
       - antes_da_retirada
+      - automatico
       - cobrar_centavos
       - credito_centavos
       - data
@@ -8883,6 +8887,9 @@ components:
           type: integer
         status:
           $ref: '#/components/schemas/StatusContaReceberEnum'
+        aguarda_retirada:
+          type: boolean
+          description: 'locação confirmada e não retirada: nada vence (LOC-05, T-410)'
         dias_atraso:
           type: integer
         faixa_atraso:
@@ -8924,6 +8931,7 @@ components:
           $ref: '#/components/schemas/AcoesDaConta'
       required:
       - acoes
+      - aguarda_retirada
       - cliente
       - cobranca_aberta
       - dias_atraso
@@ -8976,6 +8984,9 @@ components:
           type: integer
         status:
           $ref: '#/components/schemas/StatusContaReceberEnum'
+        aguarda_retirada:
+          type: boolean
+          description: 'locação confirmada e não retirada: nada vence (LOC-05, T-410)'
         dias_atraso:
           type: integer
         faixa_atraso:
@@ -9021,6 +9032,7 @@ components:
             $ref: '#/components/schemas/HistoricoDaConta'
       required:
       - acoes
+      - aguarda_retirada
       - cliente
       - cobranca_aberta
       - dias_atraso
@@ -13644,6 +13656,10 @@ components:
           allOf:
           - $ref: '#/components/schemas/CancelamentoLocacao'
           nullable: true
+        prazo_retirada:
+          allOf:
+          - $ref: '#/components/schemas/PrazoRetirada'
+          nullable: true
         troca:
           allOf:
           - $ref: '#/components/schemas/TrocaPendente'
@@ -13670,6 +13686,7 @@ components:
       - periodicidade
       - periodos
       - plano_especial
+      - prazo_retirada
       - primeiro_vencimento
       - sinais
       - situacao
@@ -16239,6 +16256,19 @@ components:
         * `traseira` - Traseira
         * `lado_esquerdo` - Lado esquerdo
         * `lado_direito` - Lado direito
+    PrazoRetirada:
+      type: object
+      description: 'LOC-12, AUT-17 (T-410): só na locação `aguardando_retirada`.'
+      properties:
+        ultimo_dia:
+          type: string
+          format: date
+        cancela_em:
+          type: string
+          format: date
+      required:
+      - cancela_em
+      - ultimo_dia
     Preco:
       type: object
       properties:
@@ -16818,6 +16848,29 @@ components:
           type: string
           format: date-time
           nullable: true
+    ReservaDoVeiculo:
+      type: object
+      description: 'Quem reservou o veículo `reservado` (T-410): a locação ou a troca
+        pendente.'
+      properties:
+        locacao_id:
+          type: integer
+        codigo:
+          type: string
+        motivo:
+          $ref: '#/components/schemas/ReservaDoVeiculoMotivoEnum'
+      required:
+      - codigo
+      - locacao_id
+      - motivo
+    ReservaDoVeiculoMotivoEnum:
+      enum:
+      - locacao
+      - troca
+      type: string
+      description: |-
+        * `locacao` - locacao
+        * `troca` - troca
     ResolucaoDaPendencia:
       type: object
       properties:
@@ -18391,6 +18444,10 @@ components:
           $ref: '#/components/schemas/SituacaoDoVeiculo'
         locacao_atual:
           nullable: true
+        reserva:
+          allOf:
+          - $ref: '#/components/schemas/ReservaDoVeiculo'
+          nullable: true
         manutencao:
           nullable: true
         documentos_resumo:
@@ -18424,6 +18481,7 @@ components:
       - movimentacao_aberta
       - placa
       - renavam
+      - reserva
       - situacao
       - status
       - tipo_veiculo
@@ -18641,6 +18699,10 @@ components:
           $ref: '#/components/schemas/SituacaoDoVeiculo'
         locacao_atual:
           nullable: true
+        reserva:
+          allOf:
+          - $ref: '#/components/schemas/ReservaDoVeiculo'
+          nullable: true
         manutencao:
           nullable: true
         documentos_resumo:
@@ -18690,6 +18752,7 @@ components:
       - ocupacao
       - placa
       - renavam
+      - reserva
       - situacao
       - status
       - tipo_veiculo

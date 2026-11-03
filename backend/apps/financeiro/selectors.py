@@ -55,9 +55,21 @@ from .models import (
 )
 
 
-def status_exibido(status: str, vencimento: date, hoje: date) -> str:
-    """FIN-01: `aberta` aparece como `vence_hoje` ou `atrasada` pela data (modelo de dados)."""
-    if status != StatusConta.ABERTA:
+def q_atrasada(hoje: date) -> Q:
+    """FIN-01, a única expressão de `atrasada` (ADR 0035): aberta, vencida e fora da espera da
+    retirada (LOC-05). Nenhum app escreve `vencimento__lt` em conta a receber à mão."""
+    return Q(status=StatusConta.ABERTA, aguarda_retirada=False, vencimento__lt=hoje)
+
+
+def q_vence_hoje(hoje: date) -> Q:
+    """FIN-01, a única expressão de `vence_hoje` (ADR 0035), com a mesma exceção da retirada."""
+    return Q(status=StatusConta.ABERTA, aguarda_retirada=False, vencimento=hoje)
+
+
+def status_exibido(status: str, vencimento: date, hoje: date, *, aguarda_retirada: bool) -> str:
+    """FIN-01: `aberta` aparece como `vence_hoje` ou `atrasada` pela data (modelo de dados), a
+    mesma regra de `q_atrasada` e `q_vence_hoje`. À espera da retirada, fica `aberta` (LOC-05)."""
+    if status != StatusConta.ABERTA or aguarda_retirada:
         return status
     if vencimento < hoje:
         return "atrasada"
@@ -94,8 +106,17 @@ def devido_ate(
     contrato da origem, não cobra nenhum dos dois. Ex.: 29940 vencida em 30 set, paga em 07 out,
     2% + 1% ao mês → 29940 + 599 + 70 = 30609.
 
+    Conta da locação (T-410, ADR 0035): à espera da retirada, nem multa nem juros; liberada, o
+    atraso conta também do dia seguinte à retirada (`liberada_em`), o que for mais tarde.
+
     `cobra_juros` e `taxas` já lidos poupam uma consulta por conta numa lista."""
-    inicio = max(conta.vencimento, timezone.localdate(conta.criado_em))
+    if conta.aguarda_retirada:
+        return Devido(conta.valor_centavos, 0, 0, 0)
+    inicio = max(
+        conta.vencimento,
+        timezone.localdate(conta.criado_em),
+        conta.liberada_em or conta.vencimento,
+    )
     dias = (dia - inicio).days
     if dias <= 0:
         return Devido(conta.valor_centavos, 0, 0, 0)
@@ -129,7 +150,9 @@ def representacao_conta(conta: ContaReceber, hoje: date) -> dict[str, Any]:
         "total_parcelas": conta.total_parcelas,
         "vencimento": conta.vencimento,
         "valor_centavos": conta.valor_centavos,
-        "status": status_exibido(conta.status, conta.vencimento, hoje),
+        "status": status_exibido(
+            conta.status, conta.vencimento, hoje, aguarda_retirada=conta.aguarda_retirada
+        ),
         "forma": conta.forma or None,
         "pago_em": conta.pago_em,
         "observacao": conta.observacao or None,
@@ -189,7 +212,7 @@ def anotar_resumo_da_origem(qs: QuerySet[Any], origem_tipo: str, hoje: date) -> 
     """Para listas da origem, sem N+1: `fin_atrasado_centavos` (vencidas e não pagas),
     `fin_parcela_atrasada` (a mais antiga), `fin_pago_centavos` (com caução),
     `fin_pago_sem_caucao_centavos` (FIN-13, a linha da lista de locações) e `fin_abertas`."""
-    atrasada = Q(status=StatusConta.ABERTA, vencimento__lt=hoje)
+    atrasada = q_atrasada(hoje)
     primeira_atrasada = Subquery(
         ContaReceber.objects.filter(
             atrasada, tipo=TipoConta.PARCELA, origem_tipo=origem_tipo, origem_id=OuterRef("pk")
@@ -260,7 +283,7 @@ def _somar(qs: QuerySet[ContaReceber]) -> Soma:
 def atrasadas(filiais: Iterable[int], hoje: date, origens: Iterable[int] | None = None) -> Soma:
     """FIN-01 e FIN-15: contas `atrasada` (abertas e vencidas), de qualquer mês. Com `origens`,
     só as dessas locações (as do vendedor)."""
-    qs = contas_do_painel(filiais).filter(status=StatusConta.ABERTA, vencimento__lt=hoje)
+    qs = contas_do_painel(filiais).filter(q_atrasada(hoje))
     if origens is not None:
         qs = qs.filter(origem_tipo="locacao", origem_id__in=list(origens))
     return _somar(qs)
@@ -270,10 +293,7 @@ def atrasadas_das_origens(origens: Iterable[int], hoje: date) -> QuerySet[ContaR
     """Parcelas atrasadas das locações do vendedor, da mais antiga para a mais nova."""
     return (
         ContaReceber.objects.filter(
-            origem_tipo="locacao",
-            origem_id__in=list(origens),
-            status=StatusConta.ABERTA,
-            vencimento__lt=hoje,
+            q_atrasada(hoje), origem_tipo="locacao", origem_id__in=list(origens)
         )
         .exclude(tipo=TipoConta.CAUCAO)
         .select_related("cliente")
@@ -283,10 +303,13 @@ def atrasadas_das_origens(origens: Iterable[int], hoje: date) -> QuerySet[ContaR
 
 def vencem_entre(filiais: Iterable[int], de: date, ate: date) -> Soma:
     """Contas ainda não pagas com vencimento entre `de` e `ate` (o "vence hoje" da FIN-15 com
-    `de == ate == hoje`)."""
+    `de == ate == hoje`). A conta à espera da retirada não vence (LOC-05, ADR 0035)."""
     return _somar(
         contas_do_painel(filiais).filter(
-            status=StatusConta.ABERTA, vencimento__gte=de, vencimento__lte=ate
+            status=StatusConta.ABERTA,
+            aguarda_retirada=False,
+            vencimento__gte=de,
+            vencimento__lte=ate,
         )
     )
 
@@ -346,12 +369,13 @@ def faixa_de_atraso(dias: int) -> str | None:
 
 
 def _faixa_q(faixa: str, hoje: date) -> Q:
-    """A faixa pela data do vencimento, a mesma regra de `faixa_de_atraso`."""
+    """A faixa pela data do vencimento, a mesma regra de `faixa_de_atraso`, só nas atrasadas
+    (`q_atrasada`)."""
     if faixa == "1_7":
-        return Q(vencimento__gte=hoje - timedelta(days=7), vencimento__lt=hoje)
+        return q_atrasada(hoje) & Q(vencimento__gte=hoje - timedelta(days=7))
     if faixa == "8_30":
-        return Q(vencimento__gte=hoje - timedelta(days=30), vencimento__lt=hoje - timedelta(days=7))
-    return Q(vencimento__lt=hoje - timedelta(days=30))
+        return q_atrasada(hoje - timedelta(days=7)) & Q(vencimento__gte=hoje - timedelta(days=30))
+    return q_atrasada(hoje - timedelta(days=30))
 
 
 def periodo(nome: str | None, hoje: date) -> tuple[date, date]:
@@ -374,9 +398,10 @@ def _q_situacao(situacao: str, hoje: date, de: date, ate: date) -> Q:
     aberta = Q(status=StatusConta.ABERTA)
     no_periodo = Q(vencimento__gte=de, vencimento__lte=ate)
     return {
-        "atrasadas": aberta & Q(vencimento__lt=hoje),
-        "vencem_hoje": aberta & Q(vencimento=hoje) & no_periodo,
-        "a_vencer": aberta & Q(vencimento__gt=hoje) & no_periodo,
+        "atrasadas": q_atrasada(hoje),
+        "vencem_hoje": q_vence_hoje(hoje) & no_periodo,
+        # À espera da retirada, fica em "A vencer" pelo vencimento gravado (LOC-05, T-410).
+        "a_vencer": aberta & (Q(vencimento__gt=hoje) | Q(aguarda_retirada=True)) & no_periodo,
         "pagas": Q(status=StatusConta.PAGA) & no_periodo,
         "canceladas": Q(status=StatusConta.CANCELADA) & no_periodo,
     }[situacao]
@@ -571,7 +596,8 @@ def representacao_completa(
     conta: ContaReceber, hoje: date, perfil: str, juros: JurosDaPagina | None = None
 ) -> dict[str, Any]:
     """A conta da tela `Receber` (contrato de financeiro, "Representação")."""
-    dias = dias_de_atraso(conta.vencimento, hoje) if conta.status == StatusConta.ABERTA else 0
+    em_atraso = conta.status == StatusConta.ABERTA and not conta.aguarda_retirada
+    dias = dias_de_atraso(conta.vencimento, hoje) if em_atraso else 0
     locacao = leituras.blocos(CONTA, conta).get("locacao") or {}
     return {
         "id": conta.pk,
@@ -588,7 +614,10 @@ def representacao_completa(
         "veiculo_placa": locacao.get("veiculo_placa"),
         "vencimento": conta.vencimento,
         "valor_centavos": conta.valor_centavos,
-        "status": status_exibido(conta.status, conta.vencimento, hoje),
+        "status": status_exibido(
+            conta.status, conta.vencimento, hoje, aguarda_retirada=conta.aguarda_retirada
+        ),
+        "aguarda_retirada": conta.aguarda_retirada,
         "dias_atraso": dias,
         "faixa_atraso": faixa_de_atraso(dias),
         "forma_prevista": locacao.get("forma_prevista"),
@@ -634,9 +663,7 @@ def historico_da_conta(conta: ContaReceber) -> list[dict[str, Any]]:
 def em_aberto_do_cliente(cliente_id: int, hoje: date) -> int:
     """CA-017-03: vencidas e não pagas, sem caução. `vence_hoje` não entra."""
     total = (
-        ContaReceber.objects.filter(
-            cliente_id=cliente_id, status=StatusConta.ABERTA, vencimento__lt=hoje
-        )
+        ContaReceber.objects.filter(q_atrasada(hoje), cliente_id=cliente_id)
         .exclude(tipo=TipoConta.CAUCAO)
         .aggregate(total=Sum("valor_centavos"))["total"]
     )

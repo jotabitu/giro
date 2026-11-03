@@ -6,6 +6,9 @@ class VistoriasConfig(AppConfig):
     label = "vistorias"
 
     def ready(self) -> None:
-        from . import leituras
+        from . import (
+            eventos,  # noqa: F401 - registra os assinantes
+            leituras,
+        )
 
         leituras.registrar()
