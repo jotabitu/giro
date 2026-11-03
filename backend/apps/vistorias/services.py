@@ -504,7 +504,7 @@ def _concluir_troca_se_pronta(troca: TrocaVeiculo, locacao: Locacao, momento: da
         recalcular(devolucao)
 
 
-def _descartar(vistoria: Vistoria, motivo: str) -> None:
+def _descartar(vistoria: Vistoria, motivo: str, regra: str = "LOC-09") -> None:
     """O rascunho da troca cancelada fica guardado, com fotos e respostas (LOC-09)."""
     vistoria.descartada_em = relogio.agora()
     vistoria.motivo_descarte = motivo
@@ -513,9 +513,21 @@ def _descartar(vistoria: Vistoria, motivo: str) -> None:
         S.DESCARTADA,
         motivo=motivo,
         acao="vistoria.descartar",
-        regra="LOC-09",
+        regra=regra,
         mais_campos=("descartada_em", "motivo_descarte"),
     )
+
+
+def descartar_saidas_em_rascunho(locacao_id: int, motivo: str) -> int:
+    """LOC-12 (T-410, ADR 0035): a saída em rascunho da locação cancelada antes da retirada vai
+    para `descartada`, guardada com fotos e respostas. Idempotente. Devolve quantas descartou."""
+    with transaction.atomic():
+        rascunhos = Vistoria.objects.select_for_update().filter(
+            locacao_id=locacao_id, tipo=TipoVistoria.SAIDA, status=S.RASCUNHO
+        )
+        for vistoria in rascunhos:
+            _descartar(vistoria, f"Locação cancelada: {motivo}"[:200], regra="LOC-12")
+        return len(rascunhos)
 
 
 def cancelar_troca(locacao: Locacao, motivo: str, usuario: Any) -> dict[str, Any]:
@@ -820,7 +832,10 @@ def parcelas_do_acerto(locacao: Locacao, dia: date) -> list[ContaReceber]:
     mais antiga para a mais nova (a ordem da DEV-02). As que vencem depois não entram."""
     return list(
         financeiro_selectors.contas_da_origem(locacoes.ORIGEM, locacao.pk)
-        .filter(tipo=TipoConta.PARCELA, status=StatusConta.ABERTA, vencimento__lte=dia)
+        .filter(
+            financeiro_selectors.q_atrasada(dia) | financeiro_selectors.q_vence_hoje(dia),
+            tipo=TipoConta.PARCELA,
+        )
         .order_by("vencimento", "id")
     )
 

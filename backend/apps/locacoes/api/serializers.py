@@ -269,12 +269,22 @@ class CancelamentoLocacaoSerializer(serializers.Serializer[Any]):
     status = serializers.ChoiceField(choices=[("pendente", "Pendente"), ("aprovado", "Aprovado")])
     pedido_aprovacao_id = serializers.IntegerField(allow_null=True)
     antes_da_retirada = serializers.BooleanField()
+    automatico = serializers.BooleanField(
+        help_text="cancelada pela AUT-17, não retirada em 3 dias (LOC-12, T-410)"
+    )
     data = serializers.DateField(allow_null=True)  # type: ignore[assignment]
     multa_centavos = serializers.IntegerField()
     credito_centavos = serializers.IntegerField()
     devolver_centavos = serializers.IntegerField()
     cobrar_centavos = serializers.IntegerField()
     motivo = serializers.CharField()
+
+
+class PrazoRetiradaSerializer(serializers.Serializer[Any]):
+    """LOC-12, AUT-17 (T-410): só na locação `aguardando_retirada`."""
+
+    ultimo_dia = serializers.DateField()
+    cancela_em = serializers.DateField()
 
 
 class VeiculoDaTrocaSerializer(serializers.Serializer[Any]):
@@ -350,6 +360,7 @@ class LocacaoDetalheSerializer(LocacaoSerializer):
     devolucao = DevolucaoPrevistaSerializer()
     trechos = TrechoLocacaoSerializer(many=True)
     cancelamento = CancelamentoLocacaoSerializer(allow_null=True)
+    prazo_retirada = PrazoRetiradaSerializer(allow_null=True)
     troca = TrocaPendenteSerializer(allow_null=True)
     acoes = AcoesLocacaoSerializer()
 
