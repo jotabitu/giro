@@ -408,6 +408,7 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Decisão do dono (29 out):** as duas coisas. Uma galeria própria do veículo (fotos de cadastro, para catálogo e anúncio), que se sobe, troca, apaga e com foto de capa; e, na ficha, as fotos da última vistoria para ampliar e baixar. Hoje não existe modelo de foto do veículo, só as da vistoria.
 - **Pronto quando:** regra escrita (limite de fotos, tamanho, quem pode), contrato e modelo novos, galeria no editar veículo, visualizador com ampliar e baixar na ficha para as duas origens, teste.
 - **Base para:** T-418 (catálogo).
+- **Parte do produto feita em 03 nov 2026** (`tarefas/handoffs/T-414-produto.md`): `VEI-10` nova (galeria até 20 fotos JPG ou PNG de até 10 MB, sem localização; capa; enviar, trocar, apagar e capa para administrador e gerente, travada em vendido e baixado; ficha com galeria para todos e a última vistoria para quem faz vistoria; ampliar e baixar pelo link de 15 min); seed com 3 fotos no QXA-4B21; critérios CA-414-01 a 14. O código é `VEI-10` porque a `VEI-09` é da T-421. **Próximo:** arquiteto (modelo e contrato) e design-system (tela), depois backend e frontend.
 
 #### T-415 · CRLV-e: escolher a versão quando várias batem
 - **Agentes:** backend, frontend · **Regras:** `VEI-08`, ADR 0031 · **Origem:** nota "Ajustar o preenchimento do CRLV-e".
