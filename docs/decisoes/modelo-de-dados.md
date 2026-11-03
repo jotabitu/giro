@@ -262,8 +262,21 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `referencia_fipe_centavos` | centavos, nulo | só exibição |
 | `entrou_na_frota_em` | data | base de `VEI-06` |
 | `km_ultima_manutencao`, `data_ultima_manutencao` | int, data, nulo | `MAN-05` |
+| `potencia_cv` | smallint, nulo, `CHECK 1..999` | `VEI-09` (T-421); 0 do documento fica nulo |
+| `cilindrada_cc` | smallint, nulo, `CHECK 1..9999` | `VEI-09` |
+| `especie` | enum `passageiro`, `carga`, `misto`, `competicao`, `tracao`, `especial`, `colecao`, nulo | `VEI-09` (CTB, art. 96) |
+| `tipo_documento` | texto(30), vazio | `VEI-09`, o "tipo" do CRLV-e ("Motocicleta"); o nome evita colidir com `tipo_veiculo` (moto ou carro, da categoria) |
+| `carroceria` | texto(30), vazio | `VEI-09`; "NÃO APLICAVEL" fica vazio |
+| `lotacao` | smallint, nulo, `CHECK 1..99` | `VEI-09`, pessoas com o motorista |
+| `peso_bruto_kg` | int, nulo, `CHECK > 0` | `VEI-09`; o documento traz toneladas |
+| `numero_motor` | texto(21), vazio | `VEI-09`; só administrador e gerente veem |
+| `observacoes_crlv` | texto(500), vazio | `VEI-09`; só administrador e gerente veem; alienação é só informação |
+| `rastreador_numero` | texto(20), vazio | `VEI-09`, fora do documento |
+| `rastreador_empresa` | texto(60), vazio | `VEI-09` |
+| `anotacoes` | texto(500), vazio | `VEI-09`, da locadora; a leitura nunca preenche nem apaga |
 
 - Índices: `(filial, status)`, `categoria`.
+- Campos da `VEI-09` (T-421): todos opcionais, uma migração só, sem dado novo nos veículos antigos (texto vazio ou nulo); só o QXA-4B21 do seed os preenche. Nenhum entra em índice nem muda status. `CAMPOS_AUDITORIA`: `inteiro` para todos, inclusive `numero_motor` e `observacoes_crlv` (a auditoria da empresa é lida só por administrador, `AUD-01`).
 - Transições extras de T-031: `vendido` → `a_venda` (venda cancelada, `VEN-07`) e `vendido` → `indisponivel` (recompra numa troca: o serviço acha o veículo pelo chassi e reaproveita o cadastro, `VEI-07`).
 - Apoio `HistoricoStatusVeiculo`: `veiculo` FK, `de`, `para`, `em` momento, `origem` genérica, `por` FK nulo. Base de `VEI-06` (ocupação). Índice `(veiculo, em)`.
 - Apoio `LeituraKm`: `veiculo`, `km`, `lido_em`, `origem` genérica (vistoria, OS, correção), `motivo` (correção para baixo, `APR-06`).
