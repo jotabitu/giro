@@ -317,11 +317,12 @@ Caso CA-017-15: contado 27100 com motivo "Troco errado" → `aguardando_aprovaca
   "veiculo": { "id": 88, "placa": "PMZ3E17" }, "filial": { "id": 1, "nome": "Filial Centro" },
   "valor_centavos": 120000, "vencimento": "2026-10-07", "status": "aguardando_aprovacao",
   "pago_em": null, "forma": null, "lancada_por": { "id": 4, "nome": "João Silva" },
-  "nota": { "url": "...", "url_expira_em": "..." }, "pedido_aprovacao_id": 91,
+  "nota": { "url": "...", "url_expira_em": "..." }, "comprovante": null, "pedido_aprovacao_id": 91,
   "rotulo_situacao": "Aguardando gerente" }
 ```
 `filial` traz `id` e `nome`, como em contas e caixa, também na despesa ligada a veículo (T-245): a tela mostra o nome que vem da API, não deduz a filial pelo veículo.
 `nota` vem `null` só nas despesas lançadas antes da nota obrigatória (T-177) e na que nascer da OS (`MAN-05`, fase 2).
+`comprovante` (T-416): o comprovante enviado no pagamento (`POST .../pagar/`), com URL assinada de 15 minutos (`AUD-05`), nova a cada leitura, em `{ "url", "url_expira_em" }`, na lista, no detalhe e na resposta do pagamento. Vem `null` quando a despesa não está paga ou foi paga sem comprovante, e sempre `null` com o token de suporte (`AUD-09`), como o comprovante do reembolso (M-02 da T-384). A tela mostra "Ver comprovante" na despesa paga quando ele vem preenchido.
 
 ### GET /api/financeiro/despesas/
 Query: `?mes=2026-10` (padrão: o mês de hoje), `?status=`, `?categoria=`, `?veiculo=<id>`, `?busca=`. Filial pelo `X-Filial` (`todas` para administrador e financeiro).
@@ -380,7 +381,7 @@ Anexar a nota depois (T-286, `MOV-04`, CA-246-14). Perfis: quem lança despesa (
 - **Origem `movimentacao` e `sem_nota` (T-286, ADR 0028, item 5).** A despesa da parada de uma movimentação nasce por `lancar_despesa(..., origem=...)`, com `origem_tipo = movimentacao` e o código `MOV-0001`, sem passar pela rota de lançamento; por isso pode nascer sem nota. A representação da despesa (lista e detalhe) ganha `sem_nota` (`true` quando não há nota) e `origem` (`{ "tipo": "movimentacao", "id", "codigo": "MOV-0001" }` ou `null`). A tela `Despesas` mostra a marca "sem nota" e o link para a movimentação. A rota `POST /api/financeiro/despesas/` continua exigindo a nota (`FIN-06`).
 
 ### POST /api/financeiro/despesas/{id}/pagar/
-Perfis: administrador, financeiro. Corpo: `{ forma: "pix" | "boleto" | "cartao" | "transferencia" | "dinheiro", pago_em, comprovante? }`. Só `a_pagar`. `dinheiro` sai do caixa aberto. 200 `paga`.
+Perfis: administrador, financeiro. Corpo: `{ forma: "pix" | "boleto" | "cartao" | "transferencia" | "dinheiro", pago_em, comprovante? }`. Só `a_pagar`. `dinheiro` sai do caixa aberto. 200 `paga`, com o `comprovante` assinado quando enviado (T-416).
 
 A aprovação e a recusa (`aguardando_aprovacao` → `a_pagar` ou `recusada`) passam pelo pedido em `aprovacoes.md`.
 
