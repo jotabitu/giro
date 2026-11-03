@@ -14,6 +14,7 @@
     "test": "vitest",
     "api:gerar": "node scripts/gerar-api.mjs",
     "e2e": "playwright test",
+    "conferencia": "playwright test -c playwright.conferencia.config.ts",
     "e2e:tipos": "tsc --noEmit -p e2e/tsconfig.json"
   },
   "dependencies": {
