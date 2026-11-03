@@ -1,0 +1,169 @@
+<!doctype html>
+<!-- ajustada no repositório: 03/11/2026, T-414 -->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Visualizador de fotos · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.co{display:flex;align-items:center;gap:12px}
+.co .lg{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:10px;font-size:12px;font-weight:700;color:#ffffff}
+.row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row small,.muted{color:var(--ink-muted)}
+.row small{display:block;font-size:13px;line-height:18px}
+.h2{margin:0;font-size:20px;font-weight:600}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px}
+.kv:last-child{border-bottom:0}
+.kv span:first-child{color:var(--ink-muted)}
+.kv span:last-child{font-weight:500;text-align:right}
+.scrim{position:fixed;inset:0;background:rgba(10,10,14,0.75);backdrop-filter:blur(6px);z-index:90}
+.lightbox{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(1100px,calc(100vw - 48px));height:min(820px,calc(100vh - 48px));border-radius:28px;background:var(--surface);box-shadow:var(--shadow-pop);z-index:100;display:flex;flex-direction:column;overflow:hidden}
+.lightbox__head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 24px;border-bottom:1px solid var(--line);background:var(--surface)}
+.lightbox__stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:var(--surface-sunken)}
+.lightbox__main-img{flex:1;height:100%;display:grid;place-items:center;padding:16px}
+.lightbox__foot{padding:16px 24px;border-top:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;gap:12px}
+.thumb-strip{display:flex;gap:12px;align-items:center}
+.thumb-btn{width:72px;height:52px;border-radius:12px;border:2px solid transparent;background:var(--surface-sunken);cursor:pointer;padding:0;overflow:hidden;position:relative;display:grid;place-items:center}
+.thumb-btn.is-active{border-color:var(--solid);box-shadow:0 0 0 1px var(--solid)}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1300px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<!-- Menu lateral da ficha de fundo -->
+<nav class="wl-sidebar" aria-label="Menu principal" style="flex: 0 0 280px; opacity: .45;">
+<div class="wl-brand-row"><div class="wl-logo-slot" aria-hidden="true">MR</div><div class="wl-brand-name">Moto Rápida</div></div>
+<div class="wl-switcher"><div class="wl-switcher__icon"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg></div><div class="wl-switcher__text"><span class="wl-switcher__name">Filial Centro</span></div></div>
+<a class="wl-nav-item" href="Frota-Desktop.dc.html" aria-current="page"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg>Veículos</a>
+</nav>
+
+<!-- Conteúdo da ficha ao fundo -->
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px; opacity: .45;">
+<header style="display: flex; justify-content: space-between; align-items: center;">
+<div><h1 style="margin: 0; font-size: 40px; font-weight: 600;">Honda CG 160 Fan</h1><div class="lbl wl-mono">QXA-4B21 · 2023 · Alugado</div></div>
+</header>
+<section class="wl-panel"><h2 class="wl-panel__title">Galeria de fotos</h2></section>
+</main>
+
+<!-- Scrim overlay -->
+<div class="scrim" aria-hidden="true"></div>
+
+<!-- Modal do Visualizador (CA-414-10, CA-414-11, CA-414-12, VEI-10) -->
+<aside class="lightbox" role="dialog" aria-label="Visualizador de fotos do veículo">
+<header class="lightbox__head">
+<div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+<span class="wl-badge wl-badge--sm wl-badge--brand">Galeria do veículo</span>
+<span class="wl-badge wl-badge--sm wl-badge--solid">Capa</span>
+<div>
+<div style="font-weight: 600; font-size: 16px;">Foto 1 de 3 · Frente</div>
+<div class="lbl" style="font-size: 13px;">QXA-4B21 · Honda CG 160 Fan</div>
+</div>
+</div>
+
+<div style="display: flex; align-items: center; gap: 14px;">
+<!-- Botão Baixar com nome oficial (CA-414-12: QXA-4B21-galeria-1.jpg) -->
+<a href="#" download="QXA-4B21-galeria-1.jpg" class="wl-btn wl-btn--sm wl-btn--solid" style="text-decoration: none; gap: 8px;" title="Salvar arquivo no computador">
+<svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>
+Baixar (QXA-4B21-galeria-1.jpg)
+</a>
+<span class="lbl" style="font-size: 12px;" title="AUD-05: URL assinada de 15 minutos">Link válido por 15 min</span>
+<a href="Veiculo-Desktop.dc.html" class="wl-icon-btn wl-icon-btn--sm" aria-label="Fechar visualizador" style="text-decoration: none;">
+<svg class="wl-i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+</a>
+</div>
+</header>
+
+<div class="lightbox__stage">
+<!-- Botão Anterior (desativado na primeira foto da galeria) -->
+<button type="button" class="wl-icon-btn" disabled style="opacity: .35; cursor: not-allowed;" aria-label="Foto anterior">
+<svg class="wl-i" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></svg>
+</button>
+
+<!-- Imagem ampliada -->
+<div class="lightbox__main-img">
+<svg viewBox="0 0 600 380" style="max-width: 100%; max-height: 100%; filter: drop-shadow(0 12px 24px rgba(0,0,0,.15));" role="img" aria-label="Vista frontal ampliada da Honda CG 160 Fan vermelha">
+<!-- Farol e guidão -->
+<path d="M180 80 L420 80" stroke="var(--ink)" stroke-width="8" stroke-linecap="round"></path>
+<circle cx="170" cy="80" r="14" fill="var(--ink)"></circle>
+<circle cx="430" cy="80" r="14" fill="var(--ink)"></circle>
+<!-- Espelhos -->
+<path d="M190 75 L150 35" stroke="var(--ink)" stroke-width="5" stroke-linecap="round"></path>
+<rect x="120" y="20" width="35" height="22" rx="6" fill="var(--ink)"></rect>
+<path d="M410 75 L450 35" stroke="var(--ink)" stroke-width="5" stroke-linecap="round"></path>
+<rect x="445" y="20" width="35" height="22" rx="6" fill="var(--ink)"></rect>
+<!-- Carenagem frontal e farol -->
+<path d="M220 90 L380 90 L350 200 L250 200 Z" fill="#dc2626" stroke="var(--ink)" stroke-width="4"></path>
+<circle cx="300" cy="140" r="38" fill="var(--surface)" stroke="var(--ink)" stroke-width="4"></circle>
+<circle cx="300" cy="140" r="16" fill="var(--warning)" opacity=".8"></circle>
+<!-- Paralama e roda frontal -->
+<path d="M260 210 Q300 185 340 210 L330 250 L270 250 Z" fill="#dc2626" stroke="var(--ink)" stroke-width="3"></path>
+<rect x="270" y="250" width="60" height="110" rx="30" fill="var(--surface-sunken)" stroke="var(--ink)" stroke-width="6"></rect>
+<line x1="300" y1="260" x2="300" y2="350" stroke="var(--ink-muted)" stroke-width="4" stroke-dasharray="6 6"></line>
+<!-- Bengalas de suspensão -->
+<line x1="255" y1="180" x2="255" y2="300" stroke="var(--ink)" stroke-width="6"></line>
+<line x1="345" y1="180" x2="345" y2="300" stroke="var(--ink)" stroke-width="6"></line>
+<!-- Placa Mercosul estilizada -->
+<rect x="255" y="310" width="90" height="34" rx="4" fill="#ffffff" stroke="var(--ink)" stroke-width="2.5"></rect>
+<rect x="255" y="310" width="90" height="10" rx="2" fill="#1d4ed8"></rect>
+<text x="300" y="337" font-family="var(--font-mono)" font-size="16" font-weight="700" fill="#111114" text-anchor="middle">QXA-4B21</text>
+</svg>
+</div>
+
+<!-- Botão Próxima (leva para Foto 2: Traseira) -->
+<a href="#" class="wl-icon-btn" aria-label="Próxima foto" style="text-decoration: none;">
+<svg class="wl-i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></svg>
+</a>
+</div>
+
+<footer class="lightbox__foot">
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<div class="thumb-strip">
+<button type="button" class="thumb-btn is-active" title="Foto 1: Frente (Capa)">
+<span style="font-size: 11px; font-weight: 700; color: var(--ink);">Frente</span>
+</button>
+<button type="button" class="thumb-btn" title="Foto 2: Traseira">
+<span style="font-size: 11px; font-weight: 500; color: var(--ink-muted);">Traseira</span>
+</button>
+<button type="button" class="thumb-btn" title="Foto 3: Painel">
+<span style="font-size: 11px; font-weight: 500; color: var(--ink-muted);">Painel</span>
+</button>
+</div>
+
+<div class="lbl" style="font-size: 13px;">
+Origem ativa: <b>Galeria do veículo</b> (3 fotos) · Navegação restrita à mesma origem
+</div>
+</div>
+
+<div class="lbl" style="font-size: 12px; line-height: 18px; border-top: 1px solid var(--line); padding-top: 10px;">
+<b>Regras de visualização (VEI-10 / CA-414-10 a 14):</b> A galeria do veículo e as fotos da vistoria nunca se misturam. Ao avançar ou retroceder pelas setas, o visualizador passa somente pelas fotos da mesma origem. Para fotos da vistoria ("Vistoria de saída · LOC-2841 · 23 set"), o visualizador exibe as 12 fotos da vistoria e o botão de download gera o nome <code>QXA-4B21-vistoria-saida-[posicao].jpg</code>. O download usa URL assinada válida por 15 minutos (AUD-05).
+</div>
+</footer>
+</aside>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 # Locações
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-038), troca de veículo em 10 out 2026 (T-122), `acoes.gerar_contrato` em 15 out 2026 (T-263), reserva na confirmação, nada vence antes da retirada e cancelamento automático em 03 nov 2026 (T-410) · **App:** `locacoes` (schema da empresa) · **Regras:** LOC-01 a LOC-15, CLI-02, CLI-03, CLI-05, IMP-04, APR-01, APR-02, FIL-03, FIL-05, FIN-03, FIN-09, AUT-17 · **ADRs:** 0005, 0011, 0015, 0035 · **Telas:** Locacoes, Locacao, Locacao-Detalhe · **Critérios:** `docs/qa/criterios/T-410.md` (CA-410-01 a 23)
+**Dono:** arquiteto · **Versão:** 07 out 2026 (T-038), troca de veículo em 10 out 2026 (T-122), `acoes.gerar_contrato` em 15 out 2026 (T-263), reserva na confirmação, nada vence antes da retirada e cancelamento automático em 03 nov 2026 (T-410), copiar link para assinar em 03 nov 2026 (T-411, `copiar-link.md`) · **App:** `locacoes` (schema da empresa) · **Regras:** LOC-01 a LOC-15, CLI-02, CLI-03, CLI-05, IMP-04, APR-01, APR-02, FIL-03, FIL-05, FIN-03, FIN-09, AUT-17 · **ADRs:** 0005, 0011, 0015, 0035 · **Telas:** Locacoes, Locacao, Locacao-Detalhe · **Critérios:** `docs/qa/criterios/T-410.md` (CA-410-01 a 23)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 12 e 13 (`PlanoEspecial`, `Locacao`, `TrechoLocacao`, `ExtraLocacao`) em `docs/decisoes/modelo-de-dados.md`. Vistoria, devolução e acerto estão em `vistorias.md`; modelo de contrato, PDF e assinatura, em `contratos.md`; receber parcela no caixa ou por Pix, em `financeiro.md` (T-017).
 
@@ -90,7 +90,7 @@ A linha mais:
   "troca": null,
   "acoes": { "renovar": true, "registrar_devolucao": true, "trocar_veiculo": true, "cancelar_troca": false,
              "cancelar": "direto", "gerar_contrato": false, "imprimir_contrato": true, "reenviar_contrato": true,
-             "continuar_vistoria": false, "receber": false }
+             "copiar_link_contrato": false, "continuar_vistoria": false, "receber": false }
 }
 ```
 
@@ -227,6 +227,38 @@ Perfis: quem vê o detalhe, menos vistoriador. 200: `{ "url": "...", "url_expira
 
 ### POST /api/locacoes/{id}/contrato/reenviar/
 Gera novo link de assinatura (o anterior deixa de valer, `contratos.md`) e reenvia por WhatsApp. Só com contrato não assinado; depois de assinado, reenvia o PDF assinado.
+
+### POST /api/locacoes/{id}/contrato/link/ (copiar link para assinar, T-411)
+
+Regras comuns das rotas de copiar link em `copiar-link.md`. Sem corpo. Gera um link novo de assinatura do contrato vigente e o devolve **uma vez**, para a tela copiar e a pessoa mandar por outro canal. Não envia nada.
+
+200, com `Cache-Control: no-store`:
+```json
+{ "link": "https://motorapida.girolocadoras.com.br/assinar#<token>",
+  "expira_em": "2026-11-10T14:00:00Z",
+  "aviso": "O link anterior deixa de valer.",
+  "contrato": { "id": 77, "status": "enviado", "modelo": "Locação semanal", "versao": 3, "assinado_em": null, "pdf_disponivel": true } }
+```
+
+- **O que faz** (`contratos.services.gerar_link(contrato, por)`, chamado por `locacoes.contrato.copiar_link(locacao, por)`): numa transação, com o contrato travado (`select_for_update`, o mesmo lock da tarefa `contratos_preparar_e_enviar`), confere o estado e chama `novo_token(contrato)`, que troca o hash e o `token_assinatura_expira_em` (7 dias a partir de agora). O link é `link_de_assinatura(host, token)`, o mesmo do WhatsApp. O token em claro só existe nesta resposta.
+- **Não muda o status.** O contrato `gerado` com o PDF pronto continua `gerado` (nada foi enviado); `enviado` continua `enviado`, e `enviado_em` não muda. A assinatura pelo link copiado é a mesma de sempre (`POST /api/publico/assinaturas/assinar/`).
+- **Invalida o anterior:** o link do WhatsApp, o do e-mail e um copiado antes deixam de valer. Reenviar depois invalida o copiado.
+- **Registra de onde veio o link** (`LOC-15`, M-02 da revisão de segurança da T-411): quem copia tem o token na mão e poderia assinar pelo cliente. A rota não bloqueia isso (no balcão, o cliente assina no celular, na rede da loja), mas a prova da assinatura passa a dizer como o link chegou. `novo_token` grava no contrato `token_assinatura_canal` (`copiado`; a tarefa de envio grava `whatsapp_email`), `token_assinatura_gerado_por` (quem copiou) e `token_assinatura_gerado_ip` (o IP da cópia). Na assinatura, ver `contratos.md`.
+- **A tarefa de envio não mata o link copiado** (B-02 da mesma revisão): `contratos_preparar_e_enviar` e `contratos_reenviar` travam o contrato e não geram token quando `token_assinatura_expira_em` existe e é mais novo que o momento em que a tarefa entrou na fila (um link foi copiado ou enviado depois). Nesse caso a tarefa termina sem enviar e sem erro. Teste: `test_s_15_reenvio_em_fila_nao_mata_link_copiado`.
+- **Na tela**, junto do link: "Mande o link ao cliente. Só ele pode assinar." (texto a confirmar com o produto).
+- **Quando passa:**
+  - sem contrato vigente: 409 `{ "codigo": "sem_contrato", "mensagem": "Esta locação ainda não tem contrato. Gere o contrato." }`;
+  - `gerado` sem o PDF (a tarefa ainda não rodou): 409 `{ "codigo": "contrato_em_preparo", "mensagem": "O contrato ainda está sendo gerado. Tente de novo em alguns segundos." }`. Sem o PDF não há o que assinar, e o token gerado agora seria trocado pela tarefa logo depois;
+  - `assinado`: 409 `{ "codigo": "contrato_assinado", "mensagem": "Este contrato já foi assinado. Para mandar o PDF assinado, use Reenviar." }`;
+  - `cancelado`: 409 `contrato_cancelado`, como no reenviar;
+  - titular anonimizado: 409 `titular_anonimizado` (`copiar-link.md`).
+  O contrato vigente não assinado só existe antes da retirada, e o cancelamento da locação cancela o contrato (`LOC-12`); a rota não olha o status da locação.
+- **Quem:** quem gera e reenvia o contrato (administrador, gerente, vendedor; `CRIAM`); financeiro e vistoriador, 403 `permissao`; token de suporte, 403 `PLT-07`, com qualquer permissão de acesso.
+- **Limite:** 5 por hora por contrato e 20 por hora por pessoa (`comum.limites`, escopos `link_contrato_contrato` e `link_contrato_usuario`), conferido antes da transação; acima, 429 `muitas_requisicoes`.
+- **Auditoria:** evento `contrato.copiar_link`, categoria `seguranca`, objeto o contrato, com `token_assinatura_expira_em` novo; sem o link nem o token (`CAMPOS_AUDITORIA` já omite `token_assinatura_hash`). Texto pronto no histórico da locação: "Copiou o link para assinar o contrato".
+- **`acoes.copiar_link_contrato`** no detalhe da locação: `true` quando esta rota passaria pelo perfil e pelo estado: perfil que cria locação, sem token de suporte, contrato vigente `enviado`, ou `gerado` com `pdf_disponivel`, e titular não anonimizado. Não olha o limite por hora. Na LOC-2836 (assinado) é `false`; numa locação recém-confirmada com o contrato `enviado`, `true`.
+- Testes com o código: `test_s_15_copiar_link_contrato_invalida_o_anterior` (o token do WhatsApp deixa de abrir; o copiado abre e assina), `test_s_15_copiar_link_contrato_estados` (sem contrato, em preparo, assinado, cancelado, anonimizado), `test_s_15_copiar_link_contrato_perfis_e_suporte`, `test_s_15_copiar_link_contrato_limite_por_hora`, `test_s_15_copiar_link_contrato_evento_sem_token` e `test_loc_15_assinatura_por_link_copiado_registra_canal`.
+- **Ordem na view** (a mesma do `link-convite`, T-252): permissão e 403 `PLT-07` primeiro, depois o limite, depois o serviço. Um 403 não gasta o limite, e um 429 não gera link nem invalida o anterior.
 
 ---
 

@@ -58,7 +58,7 @@ function Linha({ id, tipo, rotulo, atual }: { id: number; tipo: string; rotulo: 
   }
 
   return (
-    <li className="flex flex-col gap-3 border-b border-line py-4 last:border-b-0">
+    <li className="flex min-w-0 flex-col gap-3 border-b border-line py-4 last:border-b-0">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <div className="font-semibold">{rotulo}</div>
@@ -66,13 +66,13 @@ function Linha({ id, tipo, rotulo, atual }: { id: number; tipo: string; rotulo: 
         </div>
         {atual && <AbrirDocumento d={atual} />}
       </div>
-      <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)_auto] md:items-end">
+      <div className="grid min-w-0 gap-3 md:grid-cols-[180px_minmax(0,1fr)_auto] md:items-end [&>*]:min-w-0">
         <TextField cheio mono type="date" rotulo="Nova validade" value={validade} onChange={(e) => setValidade(e.target.value)} erro={erroValidade} />
-        <label className="flex flex-col gap-1 text-body">
+        <label className="flex min-w-0 flex-col gap-1 text-body">
           <span className="text-caption text-ink-muted">Arquivo (PDF, JPG ou PNG, até {LIMITE_MB} MB)</span>
-          <input ref={arquivo} type="file" accept={ACEITOS} className="min-h-[44px] text-body" />
+          <input ref={arquivo} type="file" accept={ACEITOS} className="min-h-[44px] w-full min-w-0 max-w-full text-body" />
         </label>
-        <button type="button" disabled={enviar.isPending} onClick={substituir} className="wl-btn wl-btn--solid min-h-[44px]">
+        <button type="button" disabled={enviar.isPending} onClick={substituir} className="wl-btn wl-btn--solid min-h-[44px] w-full md:w-auto">
           {enviar.isPending ? "Enviando…" : atual ? "Substituir" : "Enviar"}
         </button>
       </div>
