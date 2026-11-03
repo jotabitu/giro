@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useDeferredValue, useEffect, useRef, useState, type SelectHTMLAttributes } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
 import { Icone, Panel, SegmentedControl, TextField } from "@/design-system";
-import { ErroApi, veiculos, type CategoriaVeiculo } from "@/lib/api";
+import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { dinheiro, km, placa as placaComHifen } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
@@ -112,6 +112,12 @@ export function NovoVeiculoForm() {
     clearErrors();
     setLidos(valores);
     setCrlv(lido);
+  }
+  /** Versão escolhida entre as que a API achou: preenche marca e modelo como a escolha da lista (VEI-08). */
+  function escolherVersao(m: ModeloDoCatalogo) {
+    setValue("marca", m.marca, { shouldDirty: true });
+    setValue("modelo", m.modelo, { shouldDirty: true, shouldValidate: true });
+    clearErrors(["marca", "modelo"]);
   }
   function tirarCrlv() {
     setCrlv(null);
@@ -240,7 +246,7 @@ export function NovoVeiculoForm() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-6">
-          <PreencherPeloCrlv lido={crlv} aoLer={preencherPelaLeitura} aoRemover={tirarCrlv} />
+          <PreencherPeloCrlv lido={crlv} aoLer={preencherPelaLeitura} aoRemover={tirarCrlv} aoEscolherVersao={escolherVersao} />
 
           <Panel titulo="Identificação">
             <div className="grid gap-4 md:grid-cols-2">
