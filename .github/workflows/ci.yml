@@ -1,19 +1,26 @@
 name: CI
 
+# T-427: PR para a develop testa só o que mudou; a suíte inteira roda no push na develop e no PR
+# da develop para a main. O que cada gatilho roda está em infra/README.md ("CI").
 on:
   pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
 
+# PR: uma rodada nova cancela a anterior. Push na develop: cada commit tem a sua rodada, para
+# uma falha não sumir debaixo da seguinte.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
 jobs:
-  # Decide quais áreas o PR toca, para não gastar minuto de Actions à toa.
+  # Decide quais áreas o PR toca e quanto testar, para não gastar minuto de Actions à toa.
   # Sem action de terceiros: o checkout de pull_request é o commit de merge,
-  # e o primeiro pai dele é a ponta da base.
+  # e o primeiro pai dele é a ponta da base. A lógica está em infra/scripts/selecionar-testes.sh.
   areas:
     name: Áreas alteradas
     runs-on: ubuntu-latest
@@ -21,29 +28,25 @@ jobs:
       backend: ${{ steps.detectar.outputs.backend }}
       frontend: ${{ steps.detectar.outputs.frontend }}
       infra: ${{ steps.detectar.outputs.infra }}
+      backend_testes: ${{ steps.detectar.outputs.backend_testes }}
+      backend_alvos: ${{ steps.detectar.outputs.backend_alvos }}
+      frontend_testes: ${{ steps.detectar.outputs.frontend_testes }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
       - id: detectar
+        env:
+          EVENTO: ${{ github.event_name }}
+          BASE: ${{ github.base_ref }}
         run: |
-          backend=false; frontend=false; infra=false
-          arquivos=$(git diff --name-only HEAD^1 HEAD)
-          echo "$arquivos"
-          for f in $arquivos; do
-            case "$f" in
-              .github/workflows/*) backend=true; frontend=true; infra=true ;;
-              backend/*) backend=true ;;
-              frontend/*) frontend=true ;;
-              docs/api/openapi.yaml) backend=true; frontend=true ;;
-              infra/*|docker-compose*.yml|.env.example|Makefile) infra=true ;;
-            esac
-          done
-          {
-            echo "backend=$backend"
-            echo "frontend=$frontend"
-            echo "infra=$infra"
-          } | tee -a "$GITHUB_OUTPUT"
+          if [ "$EVENTO" = "pull_request" ]; then
+            git diff --name-only HEAD^1 HEAD > "$RUNNER_TEMP/alterados.txt"
+            cat "$RUNNER_TEMP/alterados.txt"
+          else
+            : > "$RUNNER_TEMP/alterados.txt"
+          fi
+          sh infra/scripts/selecionar-testes.sh < "$RUNNER_TEMP/alterados.txt" | tee -a "$GITHUB_OUTPUT"
 
   # Lint e tipos em paralelo com os testes: saem do caminho crítico (T-149).
   # Não carrega o app nem o banco, então dispensa Postgres, Redis e bibliotecas do WeasyPrint.
@@ -111,7 +114,12 @@ jobs:
       - run: pip install -r requirements-dev.txt
       # xdist com um banco por worker (test_giro_gw0...). loadfile mantém cada módulo num worker só,
       # para a fixture de módulo do seed rodar uma vez. --create-db anula o --reuse-db do addopts.
-      - run: pytest -q -n auto --dist loadfile --create-db --durations=15
+      # T-427: em PR para a develop, só os testes selecionados (lista) ou nenhum; o resto roda inteiro.
+      - name: Testes (${{ needs.areas.outputs.backend_testes }})
+        if: needs.areas.outputs.backend_testes != 'nenhum'
+        env:
+          ALVOS: ${{ needs.areas.outputs.backend_alvos }}
+        run: pytest -q -n auto --dist loadfile --create-db --durations=15 $ALVOS
       - name: OpenAPI gerado igual a docs/api/openapi.yaml
         run: |
           python manage.py spectacular --urlconf config.urls_openapi --file "$RUNNER_TEMP/openapi.yaml" --validate
@@ -139,7 +147,16 @@ jobs:
       - run: npm run api:gerar
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test -- --run
+      # T-427: em PR para a develop, só os testes afetados pelo diff (grafo de imports do Vitest).
+      - name: Testes (${{ needs.areas.outputs.frontend_testes }})
+        env:
+          MODO: ${{ needs.areas.outputs.frontend_testes }}
+        run: |
+          if [ "$MODO" = "tudo" ]; then
+            npm test -- --run
+          else
+            npm test -- --run --changed HEAD^1 --passWithNoTests
+          fi
       - run: npm run build
 
   infra:
@@ -150,6 +167,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: sh infra/scripts/check-env.sh
+      - run: sh infra/scripts/check-selecao-testes.sh
       - run: cp .env.example .env && docker compose config --quiet
       - run: sh infra/scripts/check-migracao-so-no-worker.sh
       # Compose de produção (T-373, ADR 0033): config válido e regras de rede, segredo e backup.
