@@ -25,6 +25,22 @@
 - O `boleto_url` da cobrança (PDF do parceiro com nome e CPF do pagador) já sai para o token de suporte na representação da conta; não mudei, mas vale conferir contra a `AUD-09`.
 - O aviso do cartão na fatura: quem abre o link de pagamento e digita o cartão o deixa guardado como forma da empresa (ADR 0023).
 
+## Revisão da Segurança (PR #462) incorporada em 03 nov 2026
+
+Nenhum achado alto. Aceitei os cinco; nenhuma discordância.
+
+| Achado | O que entrou no contrato |
+| --- | --- |
+| M-01 (`AUD-09`) | Suporte recebe `boleto_url` `null` na cobrança (`financeiro.selectors.representacao_cobranca`, um lugar só) e `acoes.copiar_cobranca` `false`; na fatura, `url_boleto` e `url_pagina` sempre `null` para o suporte, de qualquer empresa (a recomendação da Segurança, sem olhar se é MEI). |
+| M-02 (`LOC-15`) | Contrato ganha `token_assinatura_canal` (`whatsapp_email` ou `copiado`), `token_assinatura_gerado_por` e `token_assinatura_gerado_ip`, mantidos depois de assinar; a página de registro do PDF e o evento `contratos.contrato_assinado` dizem como o link chegou; `mesmo_ip_de_quem_copiou` só no evento. Aviso na tela "Mande o link ao cliente. Só ele pode assinar." (texto com o produto). |
+| B-01 | E-mail aos administradores quando o cartão guardado muda pelo pagamento na página do parceiro (o primeiro cartão não avisa); evento com bandeira, final e titular. Texto com o produto. |
+| B-02 | As tarefas de envio não geram token se já há um mais novo que a entrada delas na fila. |
+| B-03 | `/recibo` com `no-store` e `noindex`; escopos próprios `recibo_publico_ip` e `recibo_publico_token`; teste entre empresas; e adotei o opcional: `devolucao.recibo_aberto`, no máximo um por token por dia. |
+
+Também entraram: ordem da view (permissão, limite, serviço) e a cópia por `copiarQuandoChegar` no frontend.
+
+Uma diferença pequena em relação à sugestão: o canal tem `whatsapp_email` num valor só, e não `whatsapp` e `email` separados, porque a tarefa de envio manda pelos dois canais de uma vez com o mesmo token.
+
 **Fica para depois** (em `copiar-link.md`): o aditivo da renovação; trocar a URL de 15 minutos do WhatsApp do recibo (modelo 10, texto aprovado pela Meta) pelo link novo, que é do produto; uma página de pagamento do cliente final com a marca da locadora.
 
 ## Backend (depois da revisão da Segurança)
@@ -33,7 +49,10 @@
 - `Devolucao.token_recibo_hash` (único, nulo) e `token_recibo_expira_em` (migração); `vistorias.services.gerar_link_recibo`; views `recibo/link/` e `publico/recibos/consultar/`; bloco `acoes` na devolução com `copiar_link_recibo`.
 - Escopos novos em `comum.limites` (`link_contrato_*`, `link_recibo_*`, e o público do recibo).
 - `clientes/titular.py`: anular os tokens vivos do contrato e do recibo.
-- `financeiro.selectors.acoes_da_conta`: `copiar_cobranca`.
+- `financeiro.selectors.acoes_da_conta`: `copiar_cobranca`; `representacao_cobranca` sem `boleto_url` para o suporte; `url_boleto` e `url_pagina` da fatura `null` para o suporte.
+- Contrato: os três campos do canal (migração), a página de registro e o evento da assinatura, o retry das tarefas de envio sem matar o link copiado.
+- Plataforma: e-mail de cartão guardado trocado.
+- Recibo público: escopos próprios, `no-store`/`noindex`, `devolucao.recibo_aberto`.
 - Testes com o código no nome listados em cada contrato (`test_s_15_copiar_link_contrato_*`, `test_dev_02_copiar_link_recibo_*`, `test_dev_02_recibo_publico_*`, `test_aut_03_copiar_cobranca_*`). OpenAPI e `api:gerar`.
 
 ## Frontend (depois do backend)
