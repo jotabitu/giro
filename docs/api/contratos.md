@@ -101,7 +101,8 @@ Mostra só o contrato daquele token. `pdf_url` assinada de 15 minutos.
 
 ### POST /api/publico/assinaturas/assinar/
 Público. Corpo: `{ token, aceite: true, nome_completo }`. `nome_completo` precisa conferir com o nome do cliente (sem diferenciar maiúsculas e acentos).
-200: `{ "status": "assinado", "assinado_em": "..." }`. Grava `assinado_em`, `assinado_ip`, `assinatura_aparelho` e o hash do PDF assinado; o PDF final ganha uma página de registro (data, hora, IP mascarado /24, aparelho, hash). Publica `contratos.contrato_assinado`, que grava `contrato_assinado_em` na locação e pode ativá-la.
+200: `{ "status": "assinado", "assinado_em": "..." }`. Grava `assinado_em`, `assinado_ip`, `assinatura_aparelho` e o hash do PDF assinado; o PDF final ganha uma página de registro (data, hora, IP mascarado /24, aparelho, hash).
+- **Como o link chegou** (`LOC-15`, T-411, M-02 da revisão de segurança): a página de registro e o evento `contratos.contrato_assinado` levam o canal do token usado (`token_assinatura_canal`): "Link enviado por WhatsApp ou e-mail ao cliente" ou "Link entregue por cópia, gerado por Carla Mendes em 03/11/2026, 10:12". Com `copiado` e o IP da assinatura igual a `token_assinatura_gerado_ip`, o evento marca `mesmo_ip_de_quem_copiou: true` (o PDF não mostra; serve à auditoria e a uma disputa). Nada é bloqueado. Os três campos do canal não são anulados ao assinar, para a prova ficar; `token_assinatura_gerado_ip` fica fora da auditoria. Teste: `test_loc_15_assinatura_por_link_copiado_registra_canal`. Publica `contratos.contrato_assinado`, que grava `contrato_assinado_em` na locação e pode ativá-la.
 400 `{ "codigo": "nome_nao_confere", "mensagem": "Digite seu nome completo como está no cadastro" }`; 410 como acima.
 
 ### Aditivo de renovação (LOC-08)

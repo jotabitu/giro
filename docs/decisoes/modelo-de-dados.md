@@ -408,6 +408,9 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `assinatura_aparelho` | texto, nulo | |
 | `token_assinatura_hash` | texto(64), único, nulo | link enviado ao cliente final (S-15) |
 | `token_assinatura_expira_em` | momento, nulo | 7 dias; uso único: anulado ao assinar ou reenviar (S-15) |
+| `token_assinatura_canal` | enum `whatsapp_email`, `copiado`, nulo | como o token vivo chegou ao cliente (T-411, `LOC-15`); não é anulado ao assinar, vai para a prova |
+| `token_assinatura_gerado_por` | FK → usuário, nulo | quem copiou o link (`copiado`) |
+| `token_assinatura_gerado_ip` | IP, nulo | IP de quem copiou, para marcar `mesmo_ip_de_quem_copiou` na assinatura; `CAMPOS_AUDITORIA` omite |
 | `versao_texto_html` | texto | HTML final com os marcadores trocados, guardado para auditoria |
 | `clausula_juros` | bool | `FIN-03`: verdadeiro quando o modelo usa `{{cobranca.multa_atraso_pct}}` e `{{cobranca.juros_mes_pct}}` |
 

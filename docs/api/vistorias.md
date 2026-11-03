@@ -258,9 +258,12 @@ Público, sem login, no host da empresa. Corpo: `{ token }`. 200, com `Cache-Con
 - Acha a devolução pelo hash do token (`token_recibo_hash`, único). Mostra só o recibo daquele token. `pdf_url` é a URL assinada de 15 minutos do PDF (`AUD-05`); a página pede de novo a cada clique em "Baixar recibo", e o link de 7 dias continua valendo.
 - Não é de uso único: o cliente abre quantas vezes quiser até vencer.
 - 404 para token desconhecido ou anulado (anonimização, `AUD-06`), sem dizer qual; 410 `{ "codigo": "link_expirado", "mensagem": "Este link venceu. Peça um novo à locadora." }` depois de `token_recibo_expira_em`.
-- Limite como o da assinatura pública (`contratos.md`): 10 requisições por minuto por IP e 20 por token.
+- Limite com os números da assinatura pública (`contratos.md`), 10 requisições por minuto por IP e 20 por token, em **escopos próprios** (`recibo_publico_ip`, `recibo_publico_token`), para um não gastar o limite do outro. A chave leva o schema.
+- **Isolamento:** o token é procurado só no schema do host. O token da Moto Rápida no host de outra empresa dá 404.
+- **Abertura na auditoria:** cada abertura grava `devolucao.recibo_aberto` (ator sistema, IP mascarado /24 e aparelho), no máximo um por token por dia. Prova à locadora que o cliente recebeu o recibo e ajuda a ver um link vazado.
 - A página `/recibo` (rota pública do frontend, fora da casca da empresa, como `/assinar`) lê o fragmento, apaga-o da barra com `history.replaceState`, chama esta rota e mostra a marca da locadora (`docs/design-system`, white label), "Recibo da devolução da LOC-2836", o primeiro nome e o botão "Baixar recibo". Rodapé "Tecnologia Giro". Com 404 ou 410: "Este link venceu ou não existe. Peça um novo à locadora."
-- Teste: `test_dev_02_recibo_publico_vencido_e_desconhecido` (410 depois de 7 dias, 404 para token desconhecido e anulado).
+- A página `/recibo` responde com `Cache-Control: no-store` e `X-Robots-Tag: noindex` (ou a meta `robots` `noindex`), como `/assinar` e `/convite` devem fazer também. A `Referrer-Policy: same-origin` já vale (`next.config.ts`, `prod.py`).
+- Testes: `test_dev_02_recibo_publico_vencido_e_desconhecido` (410 depois de 7 dias, 404 para token desconhecido e anulado), `test_dev_02_recibo_publico_nao_cruza_empresas` e `test_dev_02_recibo_aberto_um_por_dia`.
 
 ---
 

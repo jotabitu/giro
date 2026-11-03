@@ -1,6 +1,6 @@
 # Copiar o link nas ações que enviam ao cliente
 
-**Dono:** arquiteto · **Versão:** 03 nov 2026 (T-411) · **Apps:** `locacoes` e `contratos` (contrato), `financeiro` (cobrança), `vistorias` (recibo), `plataforma` (fatura) · **Regras:** `USR-01` (modelo do "Copiar link do convite"), `LOC-15`, `AUT-03`, `AUT-05`, `DEV-02`, `PLT-13`, `PLT-14`, `AUD-05`, `AUD-06`, `AUD-09`, `PLT-07`, `CLI-12` · **Segurança:** `S-15`, `S-17` · **Telas:** Locacao-Detalhe, Receber, Caixa, Devolucao (recibo), Admin-Assinatura
+**Dono:** arquiteto · **Versão:** 03 nov 2026 (T-411) · **Apps:** `locacoes` e `contratos` (contrato), `financeiro` (cobrança), `vistorias` (recibo), `plataforma` (fatura) · **Regras:** `USR-01` (modelo do "Copiar link do convite"), `LOC-15`, `AUT-03`, `AUT-05`, `DEV-02`, `PLT-13`, `PLT-14`, `AUD-05`, `AUD-06`, `AUD-09`, `PLT-07`, `CLI-12` · **Segurança:** `S-15`, `S-17` · **Telas:** Locacao-Detalhe, Receber, Caixa, Devolucao (recibo), Admin-Assinatura · **Revisão de segurança:** `tarefas/handoffs/T-411-seguranca.md` (PR #462; M-01, M-02, B-01 a B-03 incorporados em 03 nov 2026)
 
 Decisão do dono de 29 out 2026 (nota "Função de copiar links", T-411): além de enviar, a tela mostra o link para a pessoa copiar e mandar à mão em quatro ações: contrato para assinar, cobrança da parcela, recibo da devolução e fatura da assinatura. Este documento junta o que vale para as quatro; o detalhe de cada rota está no contrato do módulo, citado em cada linha.
 
@@ -36,12 +36,16 @@ Igual ao copiar link do convite (`contas.md`, T-249), com as diferenças de cada
 - **Suporte Giro:** 403 `PLT-07` ("No modo suporte você não gera link para o cliente."), com qualquer permissão de acesso. O link abre o documento completo, com CPF e endereço, e o suporte só vê dado pessoal mascarado (`AUD-09`).
 - **Limite** (`comum.limites`, números do arquiteto): **5 por hora por objeto** (contrato ou devolução) e **20 por hora por pessoa**, o que vier primeiro. Acima, 429 `muitas_requisicoes` (`README.md`), e nenhum link é gerado nem o anterior invalidado: o limite é conferido antes da transação. Os mesmos números do convite: 5 cobre quem erra o canal algumas vezes; mais que isso é sinal de link vazando. Os 20 por pessoa cobrem um balcão cheio.
 - **Auditoria.** Um evento por link gerado, categoria `seguranca`, com o ator, o objeto e o `expira_em` novo, **sem o link nem o token**. O link também não vai para log: a view não registra o corpo da resposta, e o Sentry roda com `send_default_pii=False` e não manda corpo de resposta.
+- **Ordem na view** (a do `link-convite`, T-252): permissão e 403 `PLT-07`, depois o limite, depois o serviço.
+- **Prova da assinatura** (só o contrato, `LOC-15`): o contrato guarda o canal do token vivo (`whatsapp_email` ou `copiado`), quem copiou e o IP da cópia, e a página de registro do PDF assinado diz como o link chegou ("Link entregue por cópia, gerado por Carla Mendes em 03/11/2026, 10:12"). A tarefa de envio não troca um token mais novo que ela (um link copiado depois de ela entrar na fila). Detalhe em `locacoes.md` e `contratos.md`.
+- **Suporte e dados do parceiro** (`AUD-09`): o suporte não recebe `boleto_url` da conta nem `url_boleto` e `url_pagina` da fatura (o boleto mostra o CPF completo do pagador), e `acoes.copiar_cobranca` vem `false` para ele.
 - **Titular anonimizado** (`AUD-06`, `clientes/titular.py`): a anonimização anula os tokens vivos do titular (o de assinatura dos contratos não assinados e o do recibo das devoluções), e o link copiado antes deixa de abrir (404). Copiar de novo depois disso responde 409 `titular_anonimizado` ("Os dados deste cliente foram anonimizados.").
 
 ## Na tela
 
-- O componente é o mesmo do copiar link do convite (`frontend/src/components/admin/PainelDoUsuario.tsx`): o campo só leitura com o link, o botão "Copiar" (`navigator.clipboard.writeText`), a validade ("Vale até 10/11, 11:00") e o `aviso`. Sem `navigator.clipboard` (navegador antigo ou página sem HTTPS), o campo fica selecionado para a pessoa copiar com o teclado.
-- O link fica só no estado do componente: some ao fechar o pop-up e nunca vai para `localStorage`, `sessionStorage`, URL nem cache persistido do TanStack Query.
+- O componente é o mesmo do copiar link do convite (`frontend/src/components/admin/PainelDoUsuario.tsx`): o campo só leitura com o link, o botão "Copiar", a validade ("Vale até 10/11, 11:00") e o `aviso`. A cópia é sempre por `copiarQuandoChegar` (`frontend/src/lib/area-de-transferencia.ts`), obrigatória nas duas rotas novas: sem ela, o Safari recusa a cópia, e cada tentativa gera um link, invalida o anterior e gasta o limite (B-02 da T-252). Se a cópia falhar, o campo fica selecionado para a pessoa copiar com o teclado.
+- O link fica só no resultado da mutação: some ao fechar o pop-up, sem `setQueryData`, e nunca vai para `localStorage`, `sessionStorage`, URL, `console` nem cache persistido do TanStack Query.
+- No contrato, junto do link: "Mande o link ao cliente. Só ele pode assinar." (texto a confirmar com o produto).
 - Botão por `acoes` da API, nunca por conta da tela (`acoes.copiar_link_contrato`, `acoes.copiar_link_recibo`, `acoes.copiar_cobranca`; na fatura, `acoes.pagar`).
 - Nomes dos botões: "Copiar link para assinar" (contrato), "Copiar Pix" e "Copiar boleto" (cobrança), "Copiar link do recibo" (recibo), "Copiar link de pagamento" (fatura).
 
