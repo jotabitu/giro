@@ -6,6 +6,7 @@ import {
   type LeituraCrlv,
   type ModeloDoCatalogo,
   type DocumentoVeiculo,
+  type NovoDocumentoVeiculo,
   type FiltroVeiculos,
   type ListaVeiculos,
   type LocacoesDoVeiculo,
@@ -178,6 +179,23 @@ const CATALOGO: ModeloDoCatalogo[] = [
   { marca: "Yamaha", modelo: "Factor 150", tipo: "moto" },
   { marca: "Fiat", modelo: "Mobi Like", tipo: "carro" },
 ];
+
+const ROTULO_DOC: Record<string, string> = { crlv: "CRLV", seguro: "Seguro", ipva: "IPVA", rastreador: "Rastreador" };
+const substituidos = new Map<number, DocumentoVeiculo[]>();
+const renovados = new Map<string, DocumentoVeiculo>();
+
+function documentosAtivos(id: number): DocumentoVeiculo[] {
+  const seguroVence = id === 501;
+  const arquivo = (nome: string) => ({ nome, url: `https://arquivos.falso/${id}/${nome}`, url_expira_em: "2026-10-07T12:15:00Z" });
+  const base: DocumentoVeiculo[] = [
+    { id: id * 10 + 1, tipo: "crlv", rotulo: "CRLV 2026", validade: "2026-12-31", situacao: "em_dia", dias_para_vencer: 85, arquivo: arquivo("crlv-2026.pdf") },
+    // IPVA e rastreador ainda não são tipos do contrato (VEI-03: CRLV e seguro). O texto da situação é do falso.
+    { id: id * 10 + 3, tipo: "ipva", rotulo: "IPVA 2026", validade: null, situacao: "em_dia", dias_para_vencer: null, situacao_rotulo: "Pago", arquivo: arquivo("ipva-2026.pdf") },
+    { id: id * 10 + 2, tipo: "seguro", rotulo: "Seguro", validade: seguroVence ? "2026-10-25" : "2027-03-10", situacao: seguroVence ? "vence_em_breve" : "em_dia", dias_para_vencer: seguroVence ? 18 : 154, arquivo: arquivo("apolice.pdf") },
+    { id: id * 10 + 4, tipo: "rastreador", rotulo: "Rastreador", validade: null, situacao: "em_dia", dias_para_vencer: null, situacao_rotulo: "Online", arquivo: null },
+  ];
+  return base.map((d) => renovados.get(`${id}:${d.tipo}`) ?? d);
+}
 
 export const veiculosFalso = {
   async categorias(filtro: { filial?: number; tipo_veiculo?: TipoVeiculo } = {}): Promise<CategoriaVeiculo[]> {
@@ -389,14 +407,35 @@ export const veiculosFalso = {
   async documentos(id: number): Promise<DocumentoVeiculo[]> {
     await pausa(120);
     if (!SEMENTES.some((x) => x.id === id)) throw new ErroApi(404, "nao_encontrado", "Veículo não encontrado");
-    const seguroVence = id === 501;
-    return [
-      { id: id * 10 + 1, tipo: "crlv", rotulo: "CRLV 2026", validade: "2026-12-31", situacao: "em_dia", dias_para_vencer: 85 },
-      // IPVA e rastreador ainda não são tipos do contrato (VEI-03: CRLV e seguro). O texto da situação é do falso.
-      { id: id * 10 + 3, tipo: "ipva", rotulo: "IPVA 2026", validade: null, situacao: "em_dia", dias_para_vencer: null, situacao_rotulo: "Pago" },
-      { id: id * 10 + 2, tipo: "seguro", rotulo: "Seguro", validade: seguroVence ? "2026-10-25" : "2027-03-10", situacao: seguroVence ? "vence_em_breve" : "em_dia", dias_para_vencer: seguroVence ? 18 : 154 },
-      { id: id * 10 + 4, tipo: "rastreador", rotulo: "Rastreador", validade: null, situacao: "em_dia", dias_para_vencer: null, situacao_rotulo: "Online" },
-    ];
+    return documentosAtivos(id);
+  },
+
+  /** `GET .../documentos/historico/`: ativos e renovados. */
+  async historicoDeDocumentos(id: number): Promise<DocumentoVeiculo[]> {
+    await pausa(120);
+    if (!SEMENTES.some((x) => x.id === id)) throw new ErroApi(404, "nao_encontrado", "Veículo não encontrado");
+    return [...documentosAtivos(id).map((d) => ({ ...d, ativo: true })), ...(substituidos.get(id) ?? [])];
+  },
+
+  /** `POST .../documentos/` (VEI-03): o ativo do mesmo tipo vira inativo. Só administrador e gerente. */
+  async enviarDocumento(id: number, d: NovoDocumentoVeiculo): Promise<DocumentoVeiculo> {
+    await pausa(200);
+    if (!podeEditar()) throw new ErroApi(403, "sem_permissao", "Você não tem permissão para editar veículos");
+    if (!SEMENTES.some((x) => x.id === id)) throw new ErroApi(404, "nao_encontrado", "Veículo não encontrado");
+    if (!d.validade) throw new ErroApi(400, "validacao", "Informe a validade", undefined, { validade: "Informe a validade" });
+    const anterior = documentosAtivos(id).find((x) => x.tipo === d.tipo);
+    if (anterior) substituidos.set(id, [{ ...anterior, ativo: false }, ...(substituidos.get(id) ?? [])]);
+    const novo: DocumentoVeiculo = {
+      id: id * 10 + 50 + (substituidos.get(id)?.length ?? 0),
+      tipo: d.tipo,
+      rotulo: ROTULO_DOC[d.tipo] ?? d.tipo,
+      validade: d.validade,
+      situacao: "em_dia",
+      dias_para_vencer: null,
+      arquivo: d.arquivo ? { nome: d.arquivo.name, url: `https://arquivos.falso/${id}/${d.arquivo.name}` } : null,
+    };
+    renovados.set(`${id}:${d.tipo}`, novo);
+    return novo;
   },
 
   // Vêm dos contratos de locações e manutenção (`GET /api/locacoes/?veiculo=`, `/api/manutencao/ordens/?veiculo=`).
