@@ -375,6 +375,10 @@ Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a
 - **Para o design-system, quando a fase 2 abrir:** as telas `Plat-*` e `Plataforma` que já estavam no repositório têm o menu lateral antigo e não levam às telas novas. Passar o grupo "Finanças" e Configurações para elas, mantendo os ajustes já feitos (CNPJ do seed, 14 dias de teste, catálogo da `PLT-11`).
 - **Notas fiscais:** dependem da T-197 (NFS-e da assinatura, `PLT-15`).
 
+### T-427 · CI: testar só o que mudou no PR (feita, aguardando merge)
+- **Agente:** devops · **Origem:** pedido do dono em 03 nov 2026 (menos minuto de Actions por PR). Handoff: `tarefas/handoffs/T-427-devops.md`.
+- **Pronto quando:** PR para a `develop` roda pytest só nos apps tocados e Vitest só nos testes afetados; push na `develop` e PR para a `main` rodam a suíte inteira; o risco está em `infra/README.md`, "CI: o que cada gatilho roda".
+
 ### T-425 · Conferência automática da página com a tela de referência
 - **Agentes:** qa, com o design-system · **Origem:** T-424 (`docs/agentes/telas-do-canvas.md`, "Conferência lado a lado"). Não começa até o dono liberar.
 - **Pronto quando:** um teste do Playwright abre a tela de `docs/telas/html` e a página do app com o seed, a 1440 e 390 px, e grava as duas capturas lado a lado numa pasta do handoff; roda por rota (`make` ou script do `frontend/package.json`); serve para o frontend anexar no handoff e para a revisão do design-system. Sem comparação por pixel, porque os números e os componentes mudam de propósito.
@@ -408,6 +412,7 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Decisão do dono (29 out):** as duas coisas. Uma galeria própria do veículo (fotos de cadastro, para catálogo e anúncio), que se sobe, troca, apaga e com foto de capa; e, na ficha, as fotos da última vistoria para ampliar e baixar. Hoje não existe modelo de foto do veículo, só as da vistoria.
 - **Pronto quando:** regra escrita (limite de fotos, tamanho, quem pode), contrato e modelo novos, galeria no editar veículo, visualizador com ampliar e baixar na ficha para as duas origens, teste.
 - **Base para:** T-418 (catálogo).
+- **Parte do produto feita em 03 nov 2026** (`tarefas/handoffs/T-414-produto.md`): `VEI-10` nova (galeria até 20 fotos JPG ou PNG de até 10 MB, sem localização; capa; enviar, trocar, apagar e capa para administrador e gerente, travada em vendido e baixado; ficha com galeria para todos e a última vistoria para quem faz vistoria; ampliar e baixar pelo link de 15 min); seed com 3 fotos no QXA-4B21; critérios CA-414-01 a 14. O código é `VEI-10` porque a `VEI-09` é da T-421. **Próximo:** arquiteto (modelo e contrato) e design-system (tela), depois backend e frontend.
 
 #### T-415 · CRLV-e: escolher a versão quando várias batem
 - **Agentes:** backend, frontend · **Regras:** `VEI-08`, ADR 0031 · **Origem:** nota "Ajustar o preenchimento do CRLV-e".
@@ -426,6 +431,7 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Hoje:** a despesa já pode ser ligada ao veículo e entra no custo do ano, mas a ficha não lista as despesas dele.
 - **Decisão do dono (29 out):** na ficha, a lista das despesas do veículo e um botão "Lançar despesa" já com ele preenchido, e categorias próprias de despesa do veículo (IPVA, seguro, multa, peça, combustível).
 - **Pronto quando:** categorias na regra, lista e botão na ficha, filtro por veículo, teste. Manutenção (`MAN-05`, OS que lança despesa) segue no módulo de manutenção.
+- **Parte do produto feita em 03 nov 2026** (`tarefas/handoffs/T-417-produto.md`): `FIN-06` com as categorias do veículo (IPVA e licenciamento, seguro, multa de trânsito, peças, combustível) em dois grupos, nenhuma exige veículo, vistoriador com peças; `FIN-16` com o filtro por veículo; `FIN-17` nova (lista na ficha para administrador, gerente e financeiro, total do ano, "Lançar despesa" com o veículo); `VEI-05` com o custo de manutenção só de manutenção e peças; critérios CA-417-01 a 13. **Próximo:** arquiteto (chaves e rota, curto), backend, frontend.
 
 #### T-418 · Catálogo de vendas interno
 - **Agentes:** produto (regra), arquiteto, design-system (tela), backend, frontend · **Regras:** `VEN-01` a `VEN-10`, `PLT-11`, `PLT-12` · **Depende de:** T-414 (fotos), módulo de vendas (`backend/apps/vendas/` está vazio) · **Origem:** nota "Catalogo de vendas dos veiculos".
@@ -461,6 +467,7 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
   - campo do rastreador (número ou IMEI e a empresa), fora do CRLV-e.
 - **Pronto quando:** regra com os campos, os rótulos do CRLV-e e quais são opcionais; migração; a leitura preenche os campos novos (testes com os CRLV-e reais da T-406); formulário, editar e ficha mostram os campos, a 1440 e a 390; teste com o código da regra no nome.
 - **Decidido pelo dono em 30 out 2026:** o número do motor e as observações do CRLV-e só aparecem para administrador e gerente. O rastreador fica no veículo, em campos simples, e a integração de rastreador lê dali quando existir.
+- **Parte do produto feita em 03 nov 2026** (`tarefas/handoffs/T-421-produto.md`): `VEI-09` nova (13 campos com o rótulo do CRLV-e, formato, faixa e quem vê; todos opcionais), `VEI-01` com os obrigatórios do cadastro, `VEI-08` lendo até 18 campos, caso do seed "Dados do CRLV-e do QXA-4B21"; critérios em `docs/qa/criterios/T-421.md` (CA-421-01 a 14). Um ponto em aberto, valendo o padrão A: ler o CRLV-e também no editar. **Próximo:** arquiteto (contrato e modelo, combinando a ordem com a T-415), depois backend e frontend.
 
 #### T-422 · Referência de preço FIPE pela Parallelum, com rotina mensal
 - **Agentes:** arquiteto (ADR e contrato), segurança (revisão), backend, frontend · **Regras:** `VEN-01` (referência FIPE ao lado do preço), `VEI-08` · **Depende de:** ADR nova que complementa a 0031 · **Origem:** decisão do dono no chat em 29 out 2026.

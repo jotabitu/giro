@@ -99,6 +99,24 @@ Todos os serviços do `docker-compose.yml` têm `restart: unless-stopped`: volta
 
 **CI:** continua com um papel só. Passa a usar os papéis separados no mesmo PR em que o backend ler `DATABASE_URL_MIGRACAO` (job `backend` ganha o `01-papeis.sh` no service Postgres).
 
+## CI: o que cada gatilho roda (T-427)
+
+`.github/workflows/ci.yml`. A decisão de quanto testar fica em `infra/scripts/selecionar-testes.sh`, que lê a lista de arquivos do PR; `infra/scripts/check-selecao-testes.sh` confere a seleção com PRs de exemplo e roda no job de infra.
+
+| Gatilho | Backend | Frontend |
+| --- | --- | --- |
+| PR para a `develop` | lint, tipos e OpenAPI sempre; pytest só nos apps tocados (ver abaixo) | lint, tipos e build sempre; Vitest só nos testes afetados (`--changed` contra a base) |
+| Push na `develop` (merge de PR) | suíte inteira | suíte inteira |
+| PR da `develop` para a `main` (e qualquer PR para a `main`) | suíte inteira | suíte inteira |
+
+**Backend em PR para a `develop`.** Para cada app alterado em `backend/apps/<app>/`, o pytest roda `apps/<app>/tests` (quando existe), os testes de `tests/`, `comum/tests` e `integracoes` que citam o app pelo nome (import, URL ou texto) e os apps que importam o alterado, direta ou indiretamente, com os testes deles. Arquivo `test_*.py` alterado entra na lista. Rodam a suíte inteira: `backend/config`, `backend/comum`, `backend/integracoes`, `backend/seed`, `conftest.py` e apoio dos testes, `requirements*.txt`, `pyproject.toml`, migrações de app, `docs/api/openapi.yaml` e `.github/workflows`. Só texto (`*.md`) em `backend/` não roda pytest.
+
+**Frontend em PR para a `develop`.** `vitest --changed HEAD^1` roda os testes que importam, direta ou indiretamente, um arquivo alterado. Rodam tudo: `package.json`, `package-lock.json`, `vitest.config.*`, `tsconfig.json`, `schema.d.ts`, `src/testes/` (as fixtures), `docs/api/openapi.yaml` e `.github/workflows`.
+
+**Como ver a falha na `develop`.** Cada push na `develop` tem a sua rodada (sem cancelar a anterior). Se a suíte inteira falhar, o job "Backend (testes, OpenAPI)" ou "Frontend (lint, tipos, testes, build)" fica vermelho: aparece com o X vermelho ao lado do commit na `develop`, na aba Actions (workflow CI, branch `develop`) e no e-mail de falha do GitHub para quem fez o merge.
+
+**Risco aceito.** O PR testa o que mudou, não o que depende do que mudou: um app que usa o alterado sem importá-lo nem citá-lo pelo nome, ou um teste do frontend que quebra por efeito indireto (tipos do OpenAPI, fixtures), passa no PR e só aparece depois do merge, no vermelho da `develop` (foi o caso dos PRs #437 e #436). A porta de segurança é a suíte inteira no push da `develop` e no PR da `develop` para a `main`: o lote só chega à `main` testado por inteiro. Corrija um vermelho na `develop` antes de abrir o PR de promoção.
+
 ## Produção (ADR 0033, opção B: uma VPS com tudo em Compose)
 
 Preparado na T-373, **sem conta de provedor**: nada abaixo foi subido num servidor real. O que foi testado e o que só dá para fazer depois da conta está no handoff `tarefas/handoffs/T-373-devops.md`.
