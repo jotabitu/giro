@@ -1,0 +1,25 @@
+# T-410 · Reserva na confirmação, nada vence antes da retirada e cancelamento automático · backend → frontend, qa
+
+**O que foi feito** (ADR 0035, tudo numa branch):
+
+1. **Conta à espera da retirada** (`financeiro`, migração `0009_conta_aguarda_retirada`): `ContaReceber.aguarda_retirada` (bool) e `liberada_em` (data). `criar_contas(..., aguarda_retirada=True)` na confirmação; `liberar_contas_da_retirada(origem, dia)` na ativação, na mesma transação. `q_atrasada(hoje)` e `q_vence_hoje(hoje)` são as únicas expressões do atraso: Receber (abas, indicadores, faixas, contagens), painel, régua (`AUT-03`, que não pega mais a conta à espera), bloqueio (`CLI-05`), análise do cliente (`CLI-04`), lista de locações (`pagamento_atrasado`), ficha do veículo (`locacao_atual.pagamento`) e o acerto da devolução. `status_exibido` exige `aguarda_retirada`. `devido_ate`: multa e juros 0 à espera; liberada, o atraso conta também do dia seguinte à retirada. No Receber, a conta à espera entra em "A vencer" pelo vencimento gravado; a representação ganha `aguarda_retirada`. O "Cobrar" manual dela é o lembrete sem Pix.
+2. **Reserva na confirmação** (`locacoes`): o veículo vai para `reservado` com qualquer início, motivo "Reserva da LOC-x"; o `reservado` deixou de passar na Nova locação (`LOC-03`). 409 `inicio_vencido` (com `detalhes.inicio` e `detalhes.ultimo_dia_retirada`) logo depois do `transicao_locacao`, e o mesmo impedimento na simulação.
+3. **Prazo e `AUT-17`**: `selectors.ultimo_dia_retirada(locacao)` (data local do início + 3); `prazo_retirada` no detalhe; `cancelar_nao_retirada` (Sistema, auditoria `locacao.cancelar_nao_retirada`, reembolso `a_fazer` em `pix` ou `estorno_cartao`, pelo mesmo núcleo do cancelamento antes da retirada); `avisar_nao_retirada` aos gerentes da filial, no sino e por e-mail (`notificacoes.avisar(..., por_email=True)`), chave `aut17-aviso-{id}`. Tarefas `aut_17_cancelar_nao_retiradas` (00:10) e `aut_17_avisar_nao_retiradas` (08:00), com as `_de_todas` no Beat. Confirmada no último dia depois das 08:00, o aviso sai na confirmação. `cancelamento.automatico` no detalhe.
+4. **Evento `locacoes.locacao_cancelada`** depois do commit de todo cancelamento antes da retirada; `vistorias` assina e descarta a saída em rascunho (o cancelamento pedido também passa a descartar).
+5. **Veículo**: bloco `reserva` (`locacao_id`, `codigo`, `motivo`: `locacao` ou `troca`), anotado na lista; `situacao.rotulo` "Reservado na LOC-x".
+6. **Acerto do ambiente** (CA-410-23): `python manage.py acertar_reservas_t410 [<schema>]`, idempotente. Em homologação, rodar uma vez depois da migração (devops).
+
+**Onde:** `backend/apps/financeiro/{models,selectors,services,leituras}.py`, `financeiro/api/serializers.py`, `backend/apps/locacoes/{services,selectors,leituras,tasks}.py`, `locacoes/api/serializers.py`, `locacoes/management/commands/acertar_reservas_t410.py`, `backend/apps/veiculos/selectors.py`, `veiculos/api/serializers.py`, `backend/apps/vistorias/{eventos,services,apps}.py`, `backend/apps/notificacoes/services.py`, `backend/config/settings/base.py`.
+
+**Contrato:** `docs/api/locacoes.md`, `veiculos.md` e `financeiro.md` (T-410); `docs/api/openapi.yaml` com `prazo_retirada`, `cancelamento.automatico`, `reserva` e `aguarda_retirada`.
+
+**Regras cobertas:** `LOC-05`, `LOC-12`, `FIN-03`, `AUT-17`, `MOV-03`, tabela de transições do veículo. Testes em `backend/tests/aceitacao/test_t410_reserva_e_retirada.py`: `test_vei_reserva_na_confirmacao`, `test_vei_reserva_com_inicio_passado_ou_futuro`, `test_loc_05_nada_vence_antes_da_retirada`, `test_fin_03_retirada_sem_multa`, `test_loc_12_inicio_vencido`, `test_loc_12_cancelamento_automatico`, `test_loc_12_retirada_no_ultimo_dia_nao_cai`, `test_aut_17_execucao_perdida`, `test_aut_17_aviso_uma_vez`, `test_loc_12_cancelamento_pedido_descarta_a_saida`, `test_loc_05_acerto_das_reservas_antigas`, `test_aut_17_tarefas_no_beat`. Dois testes da T-015 que fixavam o veículo `disponivel` com início hoje passaram a esperar `reservado` (CA-410-01).
+
+**O que ficou de fora:**
+- **Push** do aviso: não existe o canal (já anotado no backlog). Sai sino e e-mail.
+- **Seed de conferência da LOC-2856** (CA-410-06): ficou como estava, `ativa` com o SAK-1D39 `alugado`, porque mudar altera "Alugados 42" e "Reserv. 9" do `painel.md`. `[decisão]` no backlog da T-410. Nos testes de aceitação, a LOC-2856 nasce pelos serviços e o SAK-1D39 fica `reservado`.
+- **CA-410-22** (aviso e queda da LOC-2856 em 10 e 11 out) depende dessa decisão; o mesmo caminho está coberto com a locação de novembro.
+
+**Próximo passo para quem recebe:**
+- frontend: `npm ci` não muda; rode `npm run api:gerar`. Mostre `situacao.rotulo` como vem ("Reservado na LOC-2856"), com link por `reserva.locacao_id` se quiser; o impedimento `inicio_vencido` aparece como os outros, e o 409 de mesmo código no confirmar mostra a `mensagem`. Nada de conta de data na tela.
+- qa: CA-410-01 a 21 e 23 com o cenário de novembro. Para conferir no ambiente: `make migrate`, depois `docker compose exec backend python manage.py acertar_reservas_t410`.

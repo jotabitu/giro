@@ -29,7 +29,7 @@ NOVO = {"situacao": "ok", "rotulo": "Cliente novo na empresa"}  # CLI-04
 
 
 def _vencidas(hoje: Any) -> Q:
-    return Q(status=StatusConta.ABERTA, vencimento__lt=hoje) & ~Q(tipo=TipoConta.CAUCAO)
+    return selectors.q_atrasada(hoje) & ~Q(tipo=TipoConta.CAUCAO)
 
 
 def _soma_do_cliente(filtro: Q, modelo: Any = ContaReceber) -> Subquery:
@@ -76,22 +76,32 @@ def montar_cliente(cliente: Any) -> dict[str, Any]:
 
 def montar_historico(cliente: Any | None) -> dict[str, str]:
     """Item `historico` da análise do cadastro (CLI-04): atrasos na empresa, sem a caução, com o
-    atraso contado como na FIN-03 (do dia seguinte ao mais tarde entre o vencimento e o dia em
-    que a conta nasceu, em `America/Sao_Paulo`). Vale a primeira situação que servir. Sem conta
-    nenhuma, ou na análise antes do cadastro (`None`), o cliente é novo na empresa."""
+    atraso contado como na FIN-03 (do dia seguinte ao mais tarde entre o vencimento, o dia em
+    que a conta nasceu e o da retirada, em `America/Sao_Paulo`). A conta à espera da retirada
+    não atrasa (LOC-05, T-410). Vale a primeira situação que servir. Sem conta nenhuma, ou na
+    análise antes do cadastro (`None`), o cliente é novo na empresa."""
     if cliente is None:
         return dict(NOVO)
     contas = (
         ContaReceber.objects.filter(cliente_id=cliente.pk)
         .exclude(tipo=TipoConta.CAUCAO)
-        .annotate(inicio_atraso=Greatest(F("vencimento"), TruncDate("criado_em")))
+        .annotate(
+            inicio_atraso=Greatest(
+                F("vencimento"),
+                TruncDate("criado_em"),
+                Coalesce(F("liberada_em"), F("vencimento")),
+            )
+        )
     )
     if not contas.exists():
         return dict(NOVO)
-    if contas.filter(status=StatusConta.ABERTA, inicio_atraso__lt=relogio.hoje()).exists():
+    em_atraso = contas.filter(
+        status=StatusConta.ABERTA, aguarda_retirada=False, inicio_atraso__lt=relogio.hoje()
+    )
+    if em_atraso.exists():
         return {"situacao": "problema", "rotulo": "Conta em atraso na empresa"}
     pagou_atrasado = (
-        contas.filter(status=StatusConta.PAGA)
+        contas.filter(status=StatusConta.PAGA, aguarda_retirada=False)
         .annotate(dia_pago=TruncDate("pago_em"))
         .filter(dia_pago__gt=F("inicio_atraso"))
         .exists()
@@ -127,7 +137,7 @@ def contas_atrasadas_15_dias(cliente_id: int) -> int:
     limite = relogio.hoje() - timedelta(days=DIAS_PARA_BLOQUEIO)
     return int(
         ContaReceber.objects.filter(
-            cliente_id=cliente_id, status=StatusConta.ABERTA, vencimento__lte=limite
+            selectors.q_atrasada(limite + timedelta(days=1)), cliente_id=cliente_id
         )
         .exclude(tipo=TipoConta.CAUCAO)
         .count()

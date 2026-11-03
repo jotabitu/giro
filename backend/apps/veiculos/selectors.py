@@ -326,6 +326,9 @@ def motivo_de_nao_movimentar(veiculo: Veiculo, blocos: dict[str, dict[str, Any]]
         return "Veículo alugado não se movimenta."
     if status == S.DISPONIVEL and locacao.get("status") == "aguardando_retirada":
         return f"O veículo está reservado na {locacao['codigo']}."
+    reserva = blocos.get("reserva")
+    if status == S.RESERVADO and reserva:  # T-410: a locação que reservou, como na Frota
+        return f"O veículo está reservado na {reserva['codigo']}."
     if status not in MOVIMENTAVEIS:
         return f"Veículo {S(status).label.lower()} não se movimenta."
     return None
@@ -377,6 +380,9 @@ def _situacao(veiculo: Veiculo, blocos: dict[str, dict[str, Any]]) -> dict[str, 
         "rotulo": S(veiculo.status).label,
         "tom": TOM[S(veiculo.status)],
     }
+    reserva = blocos.get("reserva")
+    if veiculo.status == S.RESERVADO and reserva:
+        situacao["rotulo"] = f"Reservado na {reserva['codigo']}"  # T-410, CA-410-01
     alertas = [
         bloco["alerta"]
         for bloco in blocos.values()
@@ -434,6 +440,7 @@ def representacao(
         "entrou_na_frota_em": veiculo.entrou_na_frota_em,
         "situacao": _situacao(veiculo, blocos),
         "locacao_atual": blocos.get("locacao_atual"),
+        "reserva": blocos.get("reserva"),
         "manutencao": blocos.get("manutencao"),
         "documentos_resumo": documentos.get(veiculo.pk),
         "movimentacao_aberta": blocos.get("movimentacao_aberta"),

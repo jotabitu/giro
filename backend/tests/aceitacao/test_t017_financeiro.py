@@ -533,9 +533,9 @@ def test_fin_03_ca_017_23_conta_que_nasce_vencida(cenario, com_carteira):  # noq
             total,
         )
     # O estado e as faixas seguem o vencimento: em 02 out, atrasada há 2 dias.
-    assert financeiro_selectors.status_exibido("aberta", aberta.vencimento, date(2026, 10, 2)) == (
-        "atrasada"
-    )
+    assert financeiro_selectors.status_exibido(
+        "aberta", aberta.vencimento, date(2026, 10, 2), aguarda_retirada=aberta.aguarda_retirada
+    ) == ("atrasada")
     detalhe = cenario.moto.api("Rodrigo").get(f"/api/locacoes/{juliana.pk}/").json()
     assert detalhe["total_pago_centavos"] == 95800
     # Carlos continua com 599 + 70 (nasceu antes do vencimento).

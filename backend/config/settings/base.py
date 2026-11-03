@@ -380,6 +380,15 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
         "task": "locacoes_cancelar_rascunhos_sem_uso_de_todas",
         "schedule": crontab(minute=15),
     },
+    # AUT-17: locação não retirada até o 3º dia da data de início (LOC-12, ADR 0035).
+    "aut_17_cancelar_nao_retiradas": {
+        "task": "aut_17_cancelar_nao_retiradas_de_todas",
+        "schedule": crontab(hour=0, minute=10),
+    },
+    "aut_17_avisar_nao_retiradas": {
+        "task": "aut_17_avisar_nao_retiradas_de_todas",
+        "schedule": crontab(hour=8, minute=0),
+    },
     # LOC-08: aditivo sem assinatura em 7 dias vira tarefa para os gerentes da filial.
     "contratos_avisar_aditivos_sem_assinatura": {
         "task": "contratos_avisar_aditivos_sem_assinatura_de_todas",
