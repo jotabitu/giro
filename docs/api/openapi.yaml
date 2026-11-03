@@ -9891,7 +9891,12 @@ components:
         marca_modelo:
           type: string
           nullable: true
+        candidatos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModeloDoCatalogo'
       required:
+      - candidatos
       - marca_modelo
     Documento:
       type: object

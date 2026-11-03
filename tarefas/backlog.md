@@ -421,6 +421,7 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **O caso:** o CRLV-e do Chevrolet Cruze traz "CHEVROLET/CRUZE LT NB". A leitura vira "GM CHEVROLET CRUZE LT NB"; o catálogo só tem versões como "CRUZE LT 1.4 16V Turbo" e "CRUZE LT 1.8", sem "NB", e "CRUZE LT" bate com 3 versões, então nada é preenchido (comportamento da T-406, CA-247-05). Além disso, quem digita "Chevrolet" na marca não vê o Cruze, porque a lista não usa os apelidos do Detran.
 - **Decisão do dono (29 out):** preencher a marca e mostrar as versões que batem para a pessoa escolher uma.
 - **Pronto quando:** a leitura devolve os candidatos (ignorando sufixos que não existem na FIPE, como o "NB"), a tela mostra a escolha, a lista de modelos aceita os apelidos da marca, e teste com o CRLV-e do Cruze.
+- **Backend feito em 03 nov 2026** (branch `t-415-crlv-versoes`, `tarefas/handoffs/T-415-backend.md`): falta a escolha na tela (frontend).
 
 #### T-416 · Ver o comprovante da despesa paga
 - **Agentes:** backend, frontend · **Regras:** `FIN-05`, `AUD-05` · **Origem:** nota "Visualizar comprovante de nota paga".
