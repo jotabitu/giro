@@ -1,8 +1,10 @@
 # T-420 (parte do arquiteto) · Locação com intenção de compra · arquiteto → orquestrador, backend, frontend, design-system, produto, qa
 
 **O que foi feito:**
-1. ADR 0037 (PR #475), com as decisões caras de desfazer.
-2. Contrato e modelo de dados (este PR), a partir da ADR.
+1. ADR 0037, com as decisões caras de desfazer.
+2. Contrato e modelo de dados, a partir da ADR.
+
+Tudo no PR #476 (o #475, só com a ADR, foi fechado).
 
 **Onde:**
 - `docs/decisoes/0037-locacao-com-intencao-de-compra.md` (ajustada aqui: o modelo não publicado é 422, como o `IMP-04`; a transferência fica em `POST /api/locacoes/{id}/transferencia/`).
@@ -30,14 +32,13 @@
 
 **Regras cobertas:** `LOC-16`, `VEN-11` (no contrato; os testes `test_loc_16_*` e `test_ven_11_*` são do backend).
 
-## O que fazer com o CA-420-12 (a venda "aparece em Vendas")
+## CA-420-12 (a venda "aparece em Vendas"): decidido
 
-A tela `Vendas` (`docs/telas/html/Vendas-*.dc.html`, rota `/vendas`) não existe no frontend, e o módulo de vendas é da T-418 e seguintes. Recomendo (opção A):
+**Decisão do dono em 03 nov 2026: opção A.** A tela `Vendas` (`docs/telas/html/Vendas-*.dc.html`, rota `/vendas`) não existe no frontend, e a T-420 não a faz.
 
-- **A (recomendada):** a T-420 entrega e o QA confere o CA-420-12 **sem a tela `Vendas`**: pela API (`GET /api/vendas/` traz a venda com `origem_rotulo` "Quitação de locação", R$ 0,00, sem contas, sem comissão; `cancelar` 409 `VEN-11`), pelo detalhe da locação quitada (`compra.venda` com o código e "Transferência feita") e pelo histórico do veículo. Funil, conversão e meta ainda não existem, então "não mudam" se confere quando existirem, pelo filtro `origem = "balcao"` já no contrato. A parte "aparece em `Vendas` com o rótulo" vira critério da tarefa que fizer a tela `Vendas` (o orquestrador registra no backlog, junto da T-418).
-- **B:** a T-420 inclui uma lista mínima em `/vendas` só com as vendas que existem (código, cliente, veículo, rótulo, data), atrás do recurso `vendas_comissoes`. Custa uma tela que a T-418 vai refazer, e pede tela de referência do design-system para o estado sem funil.
-
-Com A, nada no contrato muda; com B, o frontend usa o mesmo `GET /api/vendas/`.
+- **Na T-420, o QA confere pela API:** o detalhe da locação quitada traz `compra.venda` (código, transferência, `acoes.registrar_transferencia`), e o histórico do veículo traz a venda; com o recurso `vendas_comissoes`, `GET /api/vendas/` devolve a venda com `origem_rotulo` "Quitação de locação", R$ 0,00, sem contas nem comissão; `cancelar` responde 409 `VEN-11`. Critério ajustado em `docs/qa/criterios/T-420.md`.
+- **Passa para a tarefa da tela `Vendas`** (registrado na T-418 do backlog): a venda aparece na lista com o rótulo, e o funil, a conversão e a meta não a contam, pelo filtro `origem = "balcao"` que já está no contrato.
+- O frontend da T-420 não faz nada em `/vendas`. O contrato não muda.
 
 ## Para o produto confirmar
 
@@ -45,7 +46,7 @@ Textos que a regra não dá e que o contrato propõe (`locacoes.md` e `vendas.md
 
 ## Próximo passo
 
-- **Orquestrador:** escolher A ou B do CA-420-12; avisar o design-system (tipo na Nova locação, planos de compra em `Precos`, bloco de compra e "Transferência feita" no detalhe, toggle da `Onboarding-Contrato`) e o produto (textos acima).
+- **Orquestrador:** avisar o design-system (tipo na Nova locação, planos de compra em `Precos`, bloco de compra e "Transferência feita" no detalhe, toggle da `Onboarding-Contrato`) e o produto (textos acima).
 - **Backend (quando o dono liberar):** migrações de `PlanoCompra`, `Locacao` e `Venda` (o app `vendas` ganha `models`, `services`, `selectors`, `eventos`, `api`); o modelo pronto do contrato; os `if` do tipo em `locacoes.services` (confirmar, renovar, trocar, `AUT-02`, encerramento); `quitar_se_pago` no assinante; a rota da transferência em `apps/vendas/api`; OpenAPI e `npm run api:gerar`. Testes com os números do CA-420-01 (24 × R$ 1.190,00, última R$ 890,00, fim 10 nov 2028) e do CA-420-14 (sobra de R$ 101,00).
 - **Frontend (quando o dono liberar):** tipo e plano na Nova locação sem desconto e extras; `compra.andamento` e `falta_para_quitar` no detalhe, sem contar parcelas; "Encerrar por atraso" e "Transferência feita" pelas `acoes`; planos de compra em `Precos`.
 - **QA:** CA-420-01 a 17 com valores de teste (nenhum número do seed muda).
