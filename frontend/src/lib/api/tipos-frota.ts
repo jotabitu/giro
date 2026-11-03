@@ -85,6 +85,8 @@ export type Veiculo = {
   data_compra?: string | null;
   entrou_na_frota_em: string;
   situacao: { codigo: string; rotulo: string; tom: TomApi };
+  /** T-410: só no veículo `reservado`. O texto "Reservado na LOC-x" já vem em `situacao.rotulo`; aqui só o que serve de link. */
+  reserva?: { locacao_id: number; codigo: string; motivo: "locacao" | "troca" } | null;
   locacao_atual: LocacaoAtualDoVeiculo | null;
   manutencao: { proxima: ProximaManutencao | null; os_aberta: { id: number; codigo: string; status: string } | null; alerta?: string } | null;
   documentos_resumo: { pior_situacao: "em_dia" | "vence_em_breve" | "vencido" };
