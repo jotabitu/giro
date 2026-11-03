@@ -57,7 +57,7 @@ Se a tela pede algo que nenhum componente faz, o frontend pede ao design-system 
 
 - O frontend entrega, no handoff de toda tarefa que cria ou muda página, as capturas da tela de referência e da página a 1440 e 390 px, lado a lado, com o que ficou diferente.
 - O design-system revisa essas capturas antes do merge. O orquestrador não mescla PR de página sem essa revisão.
-- Uma conferência automática (captura da referência e da página pelo Playwright) está no backlog para a fase 2.
+- **Conferência automática (T-425):** `npm run conferencia`, na pasta `frontend`, com a stack no ar e o seed de 07 out. Para cada tela de `frontend/e2e/conferencia/telas.ts`, abre a tela de `docs/telas/html` e a página do app, a 1440 e a 390 px, grava uma imagem com as duas lado a lado (referência à esquerda) e um `resumo.md` com o que se mede sem olho (respostas de erro da API, erro de console, rolagem lateral, rota que caiu em outra). `TELA=Frota,Caixa` roda só essas telas; `CONFERENCIA_PASTA=../tarefas/handoffs/anexos/T-410` escolhe a pasta (padrão: `tarefas/handoffs/anexos/conferencia`). Tela nova entra com uma linha em `telas.ts`. Não compara pixel, porque os números e os componentes mudam de propósito: a diferença visual quem aponta é a revisão do design-system. Rode numa stack isolada (`E2E_PORTA_FRONTEND=3100 E2E_PORTA_BACKEND=8100 npm run conferencia`), nunca o `npm run e2e` no banco `giro`; a conferência não mexe no banco. As telas do painel da plataforma ainda não estão na lista.
 
 ## Claude Design
 

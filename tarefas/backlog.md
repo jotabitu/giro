@@ -378,6 +378,7 @@ Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a
 ### T-425 · Conferência automática da página com a tela de referência
 - **Agentes:** qa, com o design-system · **Origem:** T-424 (`docs/agentes/telas-do-canvas.md`, "Conferência lado a lado"). Não começa até o dono liberar.
 - **Pronto quando:** um teste do Playwright abre a tela de `docs/telas/html` e a página do app com o seed, a 1440 e 390 px, e grava as duas capturas lado a lado numa pasta do handoff; roda por rota (`make` ou script do `frontend/package.json`); serve para o frontend anexar no handoff e para a revisão do design-system. Sem comparação por pixel, porque os números e os componentes mudam de propósito.
+- **Feita em 03 nov 2026** (branch `t-425-conferencia-lado-a-lado`, handoff `tarefas/handoffs/T-425-qa.md`): `npm run conferencia` com 23 telas a 1440 e 390 px, imagem lado a lado e `resumo.md`; uso em `docs/agentes/telas-do-canvas.md`. **Próximo:** design-system revisa a lista; frontend anexa a pasta no handoff das tarefas de página.
 
 ### Notas do dono de 29 out 2026 (abertura da fase 2)
 
