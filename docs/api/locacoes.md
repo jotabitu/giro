@@ -1,6 +1,6 @@
 # Locações
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-038), troca de veículo em 10 out 2026 (T-122), `acoes.gerar_contrato` em 15 out 2026 (T-263) · **App:** `locacoes` (schema da empresa) · **Regras:** LOC-01 a LOC-15, CLI-02, CLI-03, CLI-05, IMP-04, APR-01, APR-02, FIL-03, FIL-05, FIN-09 · **ADRs:** 0005, 0011, 0015 · **Telas:** Locacoes, Locacao, Locacao-Detalhe
+**Dono:** arquiteto · **Versão:** 07 out 2026 (T-038), troca de veículo em 10 out 2026 (T-122), `acoes.gerar_contrato` em 15 out 2026 (T-263), reserva na confirmação, nada vence antes da retirada e cancelamento automático em 03 nov 2026 (T-410) · **App:** `locacoes` (schema da empresa) · **Regras:** LOC-01 a LOC-15, CLI-02, CLI-03, CLI-05, IMP-04, APR-01, APR-02, FIL-03, FIL-05, FIN-03, FIN-09, AUT-17 · **ADRs:** 0005, 0011, 0015, 0035 · **Telas:** Locacoes, Locacao, Locacao-Detalhe · **Critérios:** `docs/qa/criterios/T-410.md` (CA-410-01 a 23)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 12 e 13 (`PlanoEspecial`, `Locacao`, `TrechoLocacao`, `ExtraLocacao`) em `docs/decisoes/modelo-de-dados.md`. Vistoria, devolução e acerto estão em `vistorias.md`; modelo de contrato, PDF e assinatura, em `contratos.md`; receber parcela no caixa ou por Pix, em `financeiro.md` (T-017).
 
@@ -24,13 +24,14 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 12 e 13 (`PlanoEspeci
 ```
 rascunho ──confirmar──► aguardando_retirada ──(vistoria de saída + contrato assinado + 1º pagamento)──► ativa
    │ 24 h sem uso                │                                                                     │
-   ▼                             ├──cancelar (sem multa)──► cancelada                                    ├──AUT-02──► devolucao_atrasada
+   ▼                             ├──cancelar (sem multa) ou AUT-17──► cancelada                          ├──AUT-02──► devolucao_atrasada
 cancelada                        │                                                                     │                   │
                                  │                                          encerramento antecipado ──┴─► (devolução) ──► cancelada
                                                                                        devolução ─────────────────────────► encerrada
 ```
 
-- `ativa` acontece sozinha quando as 3 condições estão cumpridas, em qualquer ordem: `vistoria_saida_ok_em`, `contrato_assinado_em`, `primeiro_pagamento_em` (1ª parcela **e** caução pagas). O veículo vira `alugado` na mesma transação.
+- `aguardando_retirada` (T-410, ADR 0035): o veículo fica `reservado` desde a confirmação, com qualquer data de início, e as contas da locação esperam a retirada (`aguarda_retirada`), sem `vence_hoje` nem `atrasada` (`LOC-05`). A locação não retirada até o `ultimo_dia_retirada` (data de início + 3 dias corridos, `America/Sao_Paulo`) é cancelada pela `AUT-17` no começo do dia seguinte ("Cancelamento automático", abaixo).
+- `ativa` acontece sozinha quando as 3 condições estão cumpridas, em qualquer ordem: `vistoria_saida_ok_em`, `contrato_assinado_em`, `primeiro_pagamento_em` (1ª parcela **e** caução pagas). O veículo vira `alugado` na mesma transação, e as contas da locação são liberadas com o dia da retirada (`financeiro.services.liberar_contas_da_retirada`, `FIN-03`). O vencimento gravado e o `fim_previsto` não mudam (`LOC-05`, padrão A do produto).
 - `devolucao_atrasada`: a tarefa `aut_02_marcar_devolucao_atrasada` (de hora em hora) aplica `LOC-10` e `LOC-11`: passou do fim previsto + tolerância, a locação vira `devolucao_atrasada` no dia seguinte. Feriado da filial conta como fechado (`FIL-03`).
 - Sinais calculados (não são status): `pagamento_atrasado`, `devolve_hoje`, `cancelamento_pendente`.
 
@@ -54,6 +55,7 @@ cancelada                        │                                            
 
 `veiculo.tipo` (`moto` ou `carro`, da categoria) e `pagamento.pago_centavos` (contas pagas da locação, **sem** caução, como o `total_pago_centavos` do cliente) entram na T-128 para a ficha do cliente (`GET /api/locacoes/?cliente=`) não precisar abrir o detalhe de cada locação. Na LOC-2836 do exemplo: duas parcelas de R$ 329,00 pagas = 65800; a caução de R$ 300,00 fica de fora.
 
+`sinais.pagamento_atrasado` (`LOC-07`) usa a `financeiro.selectors.q_atrasada`: na locação `aguardando_retirada`, nunca acende (`LOC-05`, T-410), mesmo com o vencimento gravado já passado. O mesmo vale para `indicadores.pagamentos_atrasados*` e para a aba `precisam_acao`.
 `situacao` (a primeira que valer): `devolucao_atrasada` ("Devolução atrasada 25 dias"), `cancelamento_pendente` ("Pedido de cancelamento"), `pagamento_atrasado` ("Parcela 2 atrasada"), `aguardando_assinatura` / `aguardando_vistoria` / `aguardando_pagamento` (o que falta em `aguardando_retirada`, nessa ordem), `devolve_hoje`, `ativa`, `encerrada`, `cancelada`.
 `pagamento.rotulo`: "R$ 1.347,00 em aberto", "Pago", "Pix automático", "R$ 329,00 pago" (antes da retirada), "Multa R$ 84,80" (com cancelamento pendente), forma de pagamento quando em dia.
 `acao_principal`: `cobrar` (há valor em aberto), `receber_devolucao` (`devolve_hoje` ou `devolucao_atrasada`), `abrir`.
@@ -111,6 +113,13 @@ A linha mais:
   ```
   `preco` é o guardado no pedido (`LOC-09`); `caucao` é a conta da diferença de caução, ou `null` sem diferença a cobrar. O vistoriador recebe a troca sem `preco` e sem `caucao`.
 - `cancelamento`: quando há pedido ou encerramento antecipado aprovado: `{ "status": "pendente" | "aprovado", "pedido_aprovacao_id", "antes_da_retirada": false, "data": "2026-10-07", "multa_centavos": 8480, "devolver_centavos": 28620, "motivo" }`. Depois da retirada, `multa_centavos` e `devolver_centavos` são a estimativa para `data`; o valor final sai no acerto da devolução (T-116).
+- `prazo_retirada` (T-410, `LOC-12`): só na locação `aguardando_retirada`; nos outros status, `null`.
+  ```json
+  "prazo_retirada": { "ultimo_dia": "2026-11-08", "cancela_em": "2026-11-09" }
+  ```
+  `ultimo_dia` = data local do `inicio` + 3 dias corridos (`locacoes.selectors.ultimo_dia_retirada`), feriado da filial contando; `cancela_em` = o dia seguinte, quando a `AUT-17` cancela às 00:10. Datas sem hora. A tela de referência não mostra o prazo; o campo existe para a tela que vier a mostrar e para o QA, e a tela não calcula a data por conta própria.
+- `parcelas` da locação `aguardando_retirada`: status `aberta`, mesmo com o vencimento já passado (`LOC-05`), e `valor_hoje` sem multa nem juros (`FIN-03`, `financeiro.md`).
+- `cancelamento` da locação cancelada pela `AUT-17`: `{ "status": "aprovado", "pedido_aprovacao_id": null, "antes_da_retirada": true, "automatico": true, "data": "2026-11-09", "multa_centavos": 0, "devolver_centavos": 62900, "motivo": "Não retirada em 3 dias da data de início" }`. `automatico` é `false` nos outros cancelamentos.
 
 ### GET /api/locacoes/{id}/historico/
 Linha do tempo de `Locacao-Detalhe`: `{ "resultados": [ { "em": "...", "rotulo": "Vistoria de saída · 12 fotos", "detalhe": "João Silva · 18.402 km · tanque cheio", "tipo": "vistoria" } ] }`. Montada a partir dos eventos de auditoria da locação (criação, contrato, mudanças de status), dos pagamentos (`financeiro.selectors`) e das vistorias (anotação de `vistorias`, ADR 0015). O vistoriador não vê os itens de pagamento.
@@ -176,7 +185,9 @@ Corpo:
 - `LOC-02`: extras somam por período, pelo valor do cadastro.
 - `LOC-04`: caução da categoria, cobrada uma vez na retirada.
 - `LOC-05`: diária = tudo na retirada; semanal = 1ª na retirada e depois a cada 7 dias; mensal = 1ª na retirada e depois a cada mês.
-- `impedimentos`: `[{ "codigo", "mensagem" }]` de `clientes.selectors.impedimentos_para_nova_locacao` (`CLI-05` bloqueado, `cliente_inativo`) e do veículo (`LOC-03` não está `disponivel` nem `reservado`; `CLI-02` CNH sem a categoria). Com impedimento, `confirmar` recusa.
+- `impedimentos`: `[{ "codigo", "mensagem" }]` de `clientes.selectors.impedimentos_para_nova_locacao` (`CLI-05` bloqueado, `cliente_inativo`), do veículo (`LOC-03` não está `disponivel`; `CLI-02` CNH sem a categoria) e do início (`inicio_vencido`, abaixo). Com impedimento, `confirmar` recusa.
+  - **T-410:** o veículo `reservado` deixou de servir para a Nova locação. Todo `reservado` é de uma locação `aguardando_retirada` ou de uma troca pendente (`LOC-09`), e nenhum dos dois vai para outro cliente (CA-410-01, CA-410-05). Antes, o `reservado` passava na simulação e só a restrição de uma locação aberta por veículo recusava.
+  - `{ "codigo": "inicio_vencido", "mensagem": "O início passou de 3 dias. Mude a data de início para confirmar." }` quando o `ultimo_dia_retirada` do `inicio` informado já passou (hoje > início + 3, `LOC-12`, padrão A do produto). Ex.: hoje 09 nov, início 05 nov. Com início 06 nov, passa. O rascunho pode ser criado e editado com esse início; só a confirmação recusa. A tela mostra o impedimento como os outros, sem fazer a conta.
 - `avisos`: o que não impede criar, mas impede a retirada: `CLI-03` (cadastro incompleto), CNH vencida há mais de 30 dias (`CLI-02`), `IMP-04` (sem modelo de contrato publicado, com link para `Contratos-Modelos`).
 - Caso do seed: Lucas, CG 160 Fan, semanal Street → `valor_periodo_centavos` 32900, caução 30000, `hoje_na_retirada_centavos` **62900**.
 
@@ -191,23 +202,25 @@ Só em `rascunho`. Mesmo corpo. 200: detalhe. 409 `transicao_locacao` fora de `r
 Botões "Continuar para vistoria" e "Salvar como reserva". Corpo: `{ "primeiro_vencimento": "2026-10-07" }` (opcional; padrão = data do início).
 200: detalhe com `status = "aguardando_retirada"`. Na mesma transação:
 - Congela preços (`valor_periodo_centavos`, `diaria_centavos`, `caucao_centavos`, extras) pela data de hoje (`LOC-15`).
-- Cria as contas a receber em `financeiro`: as parcelas até o `fim_previsto` e a caução (`tipo = caucao`), todas com origem nesta locação.
-- Se o `inicio` é futuro (data posterior a hoje na filial), o veículo vai para `reservado`; senão fica `disponivel` até a ativação.
-- Desconto acima do limite: cria o pedido `APR-01` e devolve `"desconto": { "status": "pendente", "pedido_aprovacao_id": 88 }`. As parcelas nascem com o preço sem desconto e o contrato não é gerado até a decisão; aprovado, as parcelas abertas são refeitas com o desconto; recusado, o desconto volta a 0 e o vendedor é avisado com o motivo.
+- Cria as contas a receber em `financeiro`: as parcelas até o `fim_previsto` e a caução (`tipo = caucao`), todas com origem nesta locação e com `aguarda_retirada = true` (ADR 0035, `LOC-05`). Os vencimentos seguem o calendário a partir da data de início, como antes.
+- **O veículo vai para `reservado`, com qualquer data de início** (T-410; tabela de transições do veículo): futuro, hoje ou passado. O serviço trava o veículo e exige `disponivel`; com outro status, 409 `LOC-03`. A transição é de `veiculos.services.transicionar`, com a origem na locação e o motivo "Reserva da LOC-2856" (evento de auditoria do veículo, CA-410-01). Antes, só o início futuro reservava, e o veículo da locação com início hoje ou passado ficava `disponivel` até a ativação.
+- Confirmada no próprio `ultimo_dia_retirada` depois das 08:00, a locação manda na hora o aviso da `AUT-17` aos gerentes (depois do commit, mesma chave; CA-410-17).
+- Desconto acima do limite: cria o pedido `APR-01` e devolve `"desconto": { "status": "pendente", "pedido_aprovacao_id": 88 }`. As parcelas nascem com o preço sem desconto e o contrato não é gerado até a decisão; aprovado, as parcelas abertas são refeitas com o desconto, ainda com `aguarda_retirada = true`; recusado, o desconto volta a 0 e o vendedor é avisado com o motivo. A reserva do veículo não espera a decisão.
 - Comissão de locação nova (`FIN-09`, R$ 16,00) é lançada como `pendente` para o vendedor, vira `confirmada` na ativação, `paga` no dia 5 do mês seguinte (`FIN-09`) e `estornada` só se a locação for cancelada antes da retirada; o encerramento antecipado não estorna. Só é lançada se a empresa tem `vendas_comissoes` no momento da confirmação (`PLT-12`; no Essencial, nunca); a ativação, o pagamento e o estorno só mexem em comissão que existe, então a locação confirmada antes do upgrade nunca ganha comissão (ADR 0024, item 11, CA-ASS-53, `test_plt_12_comissao_so_depois_do_upgrade`).
 Erros:
-409 `{ "codigo": "LOC-03", "mensagem": "Veículo indisponível no período" }` (inclusive pela restrição de uma locação aberta por veículo).
+409 `{ "codigo": "inicio_vencido", "mensagem": "O início passou de 3 dias. Mude a data de início para confirmar.", "detalhes": { "inicio": "2026-11-05", "ultimo_dia_retirada": "2026-11-08" } }` (T-410, `LOC-12`, CA-410-18): o `ultimo_dia_retirada` já passou. Conferido logo depois do 409 `transicao_locacao` (fora de `rascunho`) e antes de tudo o mais: a locação continua `rascunho`, nenhuma conta nasce, o veículo não muda e nada é auditado. Datas em `detalhes` sem hora, no fuso da filial.
+409 `{ "codigo": "LOC-03", "mensagem": "Veículo indisponível no período" }` (inclusive pela restrição de uma locação aberta por veículo, e o veículo `reservado` por outra locação ou troca).
 422 `CLI-05`, `cliente_inativo`, `CLI-02` (impedimentos da simulação).
 422 `{ "codigo": "IMP-04", "mensagem": "Publique um modelo de contrato antes de concluir a locação", "detalhes": { "link": "/admin/contratos" } }`.
 422 `{ "codigo": "FIL-05", "mensagem": "O veículo é de outra filial. Transfira antes de alugar." }` quando a filial do veículo difere da filial da locação.
-Regras: LOC-01 a LOC-05, LOC-14, LOC-15, IMP-04, APR-01, FIL-05.
+Regras: LOC-01 a LOC-05, LOC-12, LOC-14, LOC-15, IMP-04, APR-01, FIL-05, tabela de transições do veículo.
 
 ### Depois de confirmar
 
 - **Vistoria de saída:** `POST /api/locacoes/{id}/vistorias/` (ver `vistorias.md`).
 - **Contrato:** `POST /api/locacoes/{id}/contrato/` gera o PDF do modelo publicado e envia o link de assinatura por WhatsApp (ver `contratos.md`). 202 `{ "contrato_id", "status": "gerado" }`; o envio e o PDF saem em segundo plano.
-- **1º pagamento:** pelo caixa ou Pix, nas contas a receber da locação (`financeiro.md`). O assinante de `financeiro.parcela_paga` grava `primeiro_pagamento_em` quando a 1ª parcela e a caução estão pagas.
-- Cada uma das três chama `locacoes.services.verificar_ativacao`, que leva a `ativa` quando as três estão cumpridas.
+- **1º pagamento:** pelo caixa ou Pix, nas contas a receber da locação (`financeiro.md`). O assinante de `financeiro.parcela_paga` grava `primeiro_pagamento_em` quando a 1ª parcela e a caução estão pagas. Pagas antes ou no dia da retirada, as duas nunca têm multa nem juros, mesmo com o vencimento gravado antes (`FIN-03`, CA-410-09: R$ 629,00 em 07 nov, com vencimento em 05 nov).
+- Cada uma das três chama `locacoes.services.verificar_ativacao`, que leva a `ativa` quando as três estão cumpridas e, na mesma transação, libera as contas (`liberar_contas_da_retirada(origem, dia)`, com o dia local da ativação). Dali em diante, as contas seguem o calendário de sempre (CA-410-10: parcela 2 vence em 12 nov e atrasa em 13 nov).
 
 ### GET /api/locacoes/{id}/contrato/pdf/
 Perfis: quem vê o detalhe, menos vistoriador. 200: `{ "url": "...", "url_expira_em": "..." }` (URL assinada de 15 min, `AUD-05`). Botão "Imprimir".
@@ -318,10 +331,49 @@ Recusas:
 - Administrador, gerente ou quem tem `cancelar_contrato`: 200, efeito na hora.
 - Vendedor: 202 `{ "pedido_aprovacao": { "id", "tipo": "APR-02", "status": "pendente" } }`; o sinal `cancelamento_pendente` acende.
 Efeito ao valer:
-- Antes da retirada (`rascunho`, `aguardando_retirada`): `cancelada` na hora; contas abertas canceladas, pagas estornadas (devolução ao cliente pelo `financeiro`), veículo `reservado` volta a `disponivel`, comissão `estornada`.
+- Antes da retirada (`rascunho`, `aguardando_retirada`): `cancelada` na hora; contas abertas canceladas, pagas estornadas (devolução ao cliente pelo `financeiro`), veículo `reservado` volta a `disponivel`, comissão `estornada`. Depois do commit, publica `locacoes.locacao_cancelada`, e `vistorias` descarta a vistoria de saída em `rascunho` (T-410, ADR 0035; antes ela ficava aberta).
 - Depois da retirada: a locação fica marcada com o encerramento antecipado aprovado (`cancelamento.status = "aprovado"`) e segue para a devolução (`vistorias.md`). A aprovação não cancela parcelas: até a devolução, elas vencem, atrasam e podem ser pagas como qualquer outra. `cancelamento.multa_centavos` e `devolver_centavos` são a estimativa para `cancelamento.data`. O acerto da devolução recalcula a multa e o crédito pelo dia da devolução, com o mesmo cálculo de `cancelamento/simular`, e o encerramento da devolução cancela as parcelas que vencem depois desse dia (`DEV-07`, T-116; CA-016-25: Carlos aprovado para 07 out com estimativa de 5988 e devolvido em 16 out → multa 5490, cobrar 67377). Ao encerrar a devolução, o status final é `cancelada`. Se a devolução é no dia do fim previsto ou depois, ela é comum: sem multa nem crédito, com o atraso da `LOC-10`, `forma_devolucao` escolhida no acerto e a locação `encerrada`; o pedido aprovado fica registrado, sem efeito (`DEV-07`, T-118; Carlos devolvido em 28 out → cobrar 92855).
 Recusado pelo gerente: o sinal apaga e o vendedor é avisado com o motivo.
 409 `transicao_locacao` em `encerrada` ou `cancelada`.
+
+### Cancelamento automático da locação não retirada (LOC-12, AUT-17, T-410)
+
+Sem endpoint: só a tarefa automática cancela (ADR 0035, itens 3 e 4). A tela vê o resultado no detalhe (`status = "cancelada"`, `cancelamento.automatico = true`) e no histórico.
+
+**Prazo.** `ultimo_dia_retirada` = data local do `inicio` + 3 dias corridos, em `America/Sao_Paulo`; o feriado da filial conta (`FIL-03` não vale aqui). Início 05 nov → último dia 08 nov, cancelamento em 09 nov 00:10 (CA-410-14). Início futuro: o prazo só corre do início (confirmada em 01 nov com início em 10 nov → cai em 14 nov 00:10, CA-410-16).
+
+**Às 00:10** (`aut_17_cancelar_nao_retiradas`): toda locação `aguardando_retirada` com `ultimo_dia_retirada < hoje`, uma transação por locação, com a locação travada e o status conferido de novo. Na mesma transação, pelo núcleo do cancelamento antes da retirada (acima):
+
+| Peça | Depois |
+| --- | --- |
+| Locação | `cancelada`, `cancelada_em`, motivo "Não retirada em 3 dias da data de início"; auditoria `locacao.cancelar_nao_retirada`, ator Sistema, regra `LOC-12` |
+| Contas abertas (parcelas e caução) | `cancelada` (`conta_receber.cancelar`, `LOC-12`) |
+| Contas pagas | um `Reembolso` `a_fazer` do total pago (CA-410-22: R$ 629,00), forma `estorno_cartao` se o 1º pagamento foi no cartão, senão `pix`. Nunca `dinheiro`: à meia-noite não há caixa aberto |
+| Pedidos abertos (`APR-01`, `APR-02`) | fechados por `aprovacoes.cancelar_pendentes`, com o motivo da locação |
+| Contrato | não assinado vai para `cancelado` (`contratos`), e o link de assinatura deixa de valer |
+| Comissão (`FIN-09`), se existir | `estornada` |
+| Veículo | `reservado` → `disponivel` (`veiculos.services.transicionar`, origem a locação) |
+| Vistoria de saída | `rascunho` vira `descartada` por `vistorias`, pelo evento `locacoes.locacao_cancelada`; a `concluida` fica no histórico |
+
+Nenhuma multa (`multa_centavos = 0`). A locação cancelada não volta: o cliente faz outra. A locação `ativa`, `devolucao_atrasada`, `encerrada` ou `cancelada` nunca é selecionada (CA-410-20). A retirada concluída até 23:59 do último dia leva a `ativa`, e a tarefa não a pega (CA-410-15).
+
+**Execução perdida** (CA-410-19): a seleção é "passou do último dia", então a próxima execução cancela o que ficou para trás, uma vez por locação (a cancelada sai da seleção).
+
+**Às 08:00** (`aut_17_avisar_nao_retiradas`): toda locação `aguardando_retirada` com `ultimo_dia_retirada == hoje`. Os gerentes ativos ligados à filial da locação (`filiais.selectors.gerentes`, `FIL-02`) recebem, no sino e por e-mail (`notificacoes.services.avisar(..., por_email=True)`):
+
+```
+tipo: "locacao_nao_retirada"
+titulo: "A LOC-2866 será cancelada amanhã se não for retirada hoje. Honda Biz 125 CDL-0B10, cliente {nome}."
+link: "/locacoes/2866"
+urgente: true
+chave: "aut17-aviso-{locacao_id}"
+```
+
+- Modelo e placa como no texto da regra: `{marca} {modelo} {placa com hífen}` (`docs/api/README.md`, placa em texto montado). Seed: "A LOC-2856 será cancelada amanhã se não for retirada hoje. Honda CG 160 Fan SAK-1D39, cliente Lucas Ferreira." (CA-410-22).
+- Uma vez por gerente e por locação (a `chave`); e-mail só para quem recebeu o aviso agora. Vendedor, administrador e o cliente não recebem (CA-410-13; aviso ao cliente é o ponto em aberto 3 do produto, padrão A).
+- O aviso de um dia perdido não sai depois: no dia seguinte, a locação está na seleção do cancelamento e fora desta.
+- Confirmada no último dia depois das 08:00: o aviso sai na confirmação, com a mesma `chave` (CA-410-17).
+- **Push:** a regra pede sino, push e e-mail. O push não existe no código nem tem contrato de notificações (`PreferenciaNotificacao` está só no modelo de dados). A `AUT-17` sai com sino e e-mail, e o push entra quando o canal existir, sem mudar a tarefa (ADR 0035, item 6; registrado no backlog).
 
 ---
 
@@ -343,6 +395,8 @@ Recusado pelo gerente: o sinal apaga e o vendedor é avisado com o motivo.
 | `locacoes.selectors.calcular_atraso(locacao, momento) -> { dias, valor_centavos }` | `LOC-10`, `LOC-11`, `FIL-03`; usado no acerto. |
 | `locacoes.selectors.calcular_encerramento_antecipado(locacao, data)` | `LOC-12`, `LOC-13`; o mesmo cálculo de `cancelamento/simular`. |
 | assinantes | `financeiro.parcela_paga` (1º pagamento), `contratos.contrato_assinado`, `aprovacoes.pedido_decidido` (`APR-01`, `APR-02`). |
-| evento publicado | `locacoes.locacao_encerrada` (preventivas, `MAN-03`). |
+| evento publicado | `locacoes.locacao_encerrada` (preventivas, `MAN-03`). `locacoes.locacao_cancelada` (T-410): `locacao_id`, `codigo`, `antes_da_retirada`, `automatico`, `motivo`, depois do commit de todo cancelamento antes da retirada, pedido ou automático; `vistorias` assina e descarta a saída em `rascunho`. |
+| `locacoes.selectors.ultimo_dia_retirada(locacao) -> date` | `LOC-12` (T-410): data local do `inicio` + 3. Uma função só para a confirmação (`inicio_vencido`), a simulação, o `prazo_retirada` do detalhe e a `AUT-17`. |
+| `locacoes.services.cancelar_nao_retirada(locacao_id)` e `avisar_nao_retirada(locacao)` | `AUT-17` (T-410): o cancelamento automático e o aviso aos gerentes, acima. |
 | anotações fornecidas (ADR 0015) | `locacao_atual` para `veiculos` e `clientes`; `locacoes_ativas` e contador de operação para `filiais`; filtro `com_locacao` e contador `locacao_aberta` (inativar, `cliente_com_pendencia`) para `clientes`. |
-| tarefas | `aut_01_lembrete_de_devolucao` (08:00), `aut_02_marcar_devolucao_atrasada` (de hora em hora), limpeza de rascunhos com 24 h. |
+| tarefas | `aut_01_lembrete_de_devolucao` (08:00), `aut_02_marcar_devolucao_atrasada` (de hora em hora), limpeza de rascunhos com 24 h, `aut_17_cancelar_nao_retiradas` (00:10) e `aut_17_avisar_nao_retiradas` (08:00), com as versões `_de_todas` no Beat e o módulo `locacoes_vistoria` (`PLT-12`). |
