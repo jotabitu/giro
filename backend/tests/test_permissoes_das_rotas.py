@@ -88,6 +88,7 @@ RECURSO_DAS_ROTAS = {
     "api/planos-especiais/": "locacoes_vistoria",
     "api/vistorias/": "locacoes_vistoria",
     "api/devolucoes/": "locacoes_vistoria",
+    "api/publico/recibos/": "locacoes_vistoria",  # T-411: a página pública do recibo
     "api/financeiro/despesas/": "manutencao_despesas",
     "api/financeiro/conciliacao/": "conciliacao",
     "api/relatorios/": "relatorios",

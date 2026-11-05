@@ -291,9 +291,6 @@ class FechamentoSerializer(serializers.Serializer[Any]):
 class AcoesDoCaixaSerializer(serializers.Serializer[Any]):
     sangria = serializers.BooleanField()
     fechar = serializers.BooleanField()
-    copiar_cobranca = serializers.BooleanField(
-        help_text="T-411: Copiar Pix e Copiar boleto da cobrança do dia; nunca o suporte"
-    )
     receber = serializers.BooleanField()
 
 

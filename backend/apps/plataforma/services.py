@@ -1207,7 +1207,7 @@ def _processar_fatura(webhook: WebhookRecebido) -> str:
             # evento no schema (que não existe mais) e sem e-mail ao administrador (AUD-08).
             return "baixada"
         if situacao.cartao is not None:
-            _guardar_cartao(fatura.empresa, situacao.cartao)
+            _guardar_cartao(fatura.empresa, situacao.cartao, fatura)
         voltar_a_ativa_ao_pagar(_empresa_travada(fatura.empresa), relogio.hoje())
     return "baixada"
 
@@ -1239,7 +1239,9 @@ def _processar_autorizacao(autorizacao_id: str) -> str:
     return "autorizada"
 
 
-def _guardar_cartao(empresa: Empresa, cartao: CartaoGuardado) -> None:
+def _guardar_cartao(
+    empresa: Empresa, cartao: CartaoGuardado, fatura: FaturaAssinatura | None = None
+) -> None:
     """ADR 0023: o cartão digitado na página do parceiro fica para as próximas faturas, só se a
     forma escolhida é o cartão. Pagar por cartão com outra forma (`meio` no "Pagar") não troca a
     forma nem guarda token."""
@@ -1283,23 +1285,39 @@ def _guardar_cartao(empresa: Empresa, cartao: CartaoGuardado) -> None:
             forma, StatusFormaPagamento.ATIVA, acao="assinatura.forma_ativa", regra="PLT-13"
         )
     if anterior and anterior != cartao.token:
-        _avisar_cartao_trocado(empresa, forma.cartao_bandeira, forma.cartao_final)
+        _avisar_cartao_trocado(empresa, cartao, fatura)
 
 
 # Texto a confirmar com o produto (B-01 da T-411, `assinatura.md`).
-ASSUNTO_CARTAO_TROCADO = "Giro: o cartão das próximas faturas mudou"
-TEXTO_CARTAO_TROCADO = (
-    "Giro: o cartão das próximas faturas mudou para {bandeira} final {final}. Se não foi você, "
-    "troque a forma de pagamento em Assinatura."
-)
+# Textos fixados pelo produto (PLT-13, `assinatura.md`, handoff T-411-T-420-produto-textos).
+ASSUNTO_CARTAO_TROCADO = "O cartão da assinatura mudou"
 
 
-def _avisar_cartao_trocado(empresa: Empresa, bandeira: str, final: str) -> None:
+def texto_do_cartao_trocado(
+    empresa: Empresa, cartao: CartaoGuardado, fatura: FaturaAssinatura | None
+) -> str:
+    """Sem o titular devolvido pelo parceiro, a frase sai sem "no nome de …"."""
+    bandeira = (cartao.bandeira or "cartão").capitalize()
+    titular = f", no nome de {cartao.titular}" if cartao.titular else ""
+    pagamento = ""
+    if fatura is not None:
+        pago = timezone.localdate(fatura.pago_em) if fatura.pago_em else relogio.hoje()
+        pagamento = f", no pagamento da {fatura.codigo} em {dia_mes_e_ano(pago)}"
+    return (
+        f"O cartão das próximas faturas da empresa {empresa.nome_exibicao} mudou para {bandeira} "
+        f"final {cartao.final[-4:]}{titular}{pagamento}. Se ninguém da empresa fez essa troca, "
+        f"troque a forma de pagamento em Assinatura: {endereco_da_assinatura(empresa)}."
+    )
+
+
+def _avisar_cartao_trocado(
+    empresa: Empresa, cartao: CartaoGuardado, fatura: FaturaAssinatura | None
+) -> None:
     """B-01 da T-411: o cartão guardado mudou pelo pagamento na página do parceiro (um link de
     pagamento que vazou deixaria um terceiro pôr outro cartão sem ninguém saber). O primeiro
     cartão não avisa. O e-mail vai aos administradores ativos depois do commit, com o remetente
     Giro; se falhar, o cartão continua guardado e o log leva só a empresa."""
-    texto = TEXTO_CARTAO_TROCADO.format(bandeira=(bandeira or "cartão").capitalize(), final=final)
+    texto = texto_do_cartao_trocado(empresa, cartao, fatura)
 
     def _enviar() -> None:
         try:

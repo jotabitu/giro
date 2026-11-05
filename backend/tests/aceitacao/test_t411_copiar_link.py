@@ -1,3 +1,4 @@
+# ruff: noqa: F811 - as fixtures importadas voltam como parâmetro dos testes
 """T-411 · Copiar o link nas ações que enviam ao cliente (`docs/api/copiar-link.md`).
 
 Contrato para assinar (`POST /api/locacoes/{id}/contrato/link/`), recibo da devolução
@@ -9,7 +10,7 @@ Cenários: o da T-090 (LOC-2856 do Lucas, 07 out 2026 10:00) para o contrato; o 
 devolução; a carteira da T-017 para a cobrança; a empresa criada pelo serviço para a fatura.
 """
 
-from datetime import date, timedelta
+from datetime import date
 from types import SimpleNamespace
 from typing import Any
 
@@ -23,7 +24,7 @@ from apps.clientes.models import Cliente
 from apps.clientes.titular import _anular_links
 from apps.contas.models import Usuario
 from apps.contratos import services as contratos
-from apps.contratos.models import Contrato
+from apps.contratos.models import CanalDoToken, Contrato
 from apps.contratos.tasks import contratos_preparar_e_enviar
 from apps.financeiro import services as financeiro
 from apps.financeiro.models import CobrancaExterna, ContaReceber
@@ -31,8 +32,12 @@ from apps.locacoes import selectors as locacoes_selectors
 from apps.locacoes.models import Locacao
 from apps.plataforma import selectors as plataforma_selectors
 from apps.plataforma import services as plataforma
-from apps.plataforma.models import Empresa, FaturaAssinatura, FormaAssinatura
-from apps.plataforma.models import FormaPagamentoAssinatura
+from apps.plataforma.models import (
+    Empresa,
+    FaturaAssinatura,
+    FormaAssinatura,
+    FormaPagamentoAssinatura,
+)
 from apps.plataforma.services import abrir_acesso_suporte
 from apps.vistorias.models import Devolucao
 from comum import relogio as relogio_do_giro
@@ -331,7 +336,7 @@ def test_s_15_reenvio_em_fila_nao_mata_link_copiado(
 # --- Recibo da devolução (DEV-02, S-15, B-03) ---
 
 
-def _concluida(cenario: Any, capturar: Any) -> dict[str, Any]:  # noqa: F811
+def _concluida(cenario: Any, capturar: Any) -> dict[str, Any]:
     criada = _lucas_ativo(cenario)
     devolucao = _abrir_devolucao(cenario, criada["id"])
     _chegada(cenario, devolucao, 3200, "tres_quartos")
@@ -344,7 +349,7 @@ def _concluida(cenario: Any, capturar: Any) -> dict[str, Any]:  # noqa: F811
     return devolucao
 
 
-def _copiar_recibo(cenario: Any, devolucao_id: int, quem: str = "Bruna") -> Any:  # noqa: F811
+def _copiar_recibo(cenario: Any, devolucao_id: int, quem: str = "Bruna") -> Any:
     return cenario.moto.api(quem).post(f"{DEVOLUCOES}{devolucao_id}/recibo/link/")
 
 
@@ -352,7 +357,7 @@ def _abrir_recibo(token: str, host: str = HOST, ip: str = IP_DO_BALCAO) -> Any:
     return _publica(host, ip).post(RECIBO_PUBLICO, {"token": token}, format="json")
 
 
-def test_dev_02_copiar_link_recibo_abre_o_pdf(cenario, lucas, django_capture_on_commit_callbacks):  # noqa: F811
+def test_dev_02_copiar_link_recibo_abre_o_pdf(cenario, lucas, django_capture_on_commit_callbacks):
     devolucao = _concluida(cenario, django_capture_on_commit_callbacks)
     mensagens = len(caixa_de_saida)
     resposta = _copiar_recibo(cenario, devolucao["id"])
@@ -381,8 +386,8 @@ def test_dev_02_copiar_link_recibo_abre_o_pdf(cenario, lucas, django_capture_on_
 
 
 def test_dev_02_copiar_link_recibo_invalida_o_anterior(
-    cenario,  # noqa: F811
-    lucas,  # noqa: F811
+    cenario,
+    lucas,
     django_capture_on_commit_callbacks,
 ):
     devolucao = _concluida(cenario, django_capture_on_commit_callbacks)
@@ -393,8 +398,8 @@ def test_dev_02_copiar_link_recibo_invalida_o_anterior(
 
 
 def test_dev_02_copiar_link_recibo_rascunho_e_perfis(
-    cenario,  # noqa: F811
-    lucas,  # noqa: F811
+    cenario,
+    lucas,
     django_capture_on_commit_callbacks,
 ):
     criada = _lucas_ativo(cenario)
@@ -431,8 +436,8 @@ def test_dev_02_copiar_link_recibo_rascunho_e_perfis(
 
 
 def test_dev_02_copiar_link_recibo_limite_por_hora(
-    cenario,  # noqa: F811
-    lucas,  # noqa: F811
+    cenario,
+    lucas,
     django_capture_on_commit_callbacks,
 ):
     devolucao = _concluida(cenario, django_capture_on_commit_callbacks)
@@ -442,15 +447,14 @@ def test_dev_02_copiar_link_recibo_limite_por_hora(
     estourou = _copiar_recibo(cenario, devolucao["id"], "Rodrigo")
     assert (estourou.status_code, estourou.json()["codigo"]) == (429, "muitas_requisicoes")
     assert Devolucao.objects.get(pk=devolucao["id"]).token_recibo_hash == hash_antes
-    chave = LinkReciboPorDevolucao().get_cache_key(
-        SimpleNamespace(), SimpleNamespace(kwargs={"pk": 9})
-    )
+    requisicao: Any = SimpleNamespace()
+    chave = LinkReciboPorDevolucao().get_cache_key(requisicao, SimpleNamespace(kwargs={"pk": 9}))
     assert chave == "throttle_link_recibo_devolucao_9"
 
 
 def test_dev_02_copiar_link_recibo_evento_sem_token(
-    cenario,  # noqa: F811
-    lucas,  # noqa: F811
+    cenario,
+    lucas,
     django_capture_on_commit_callbacks,
 ):
     devolucao = _concluida(cenario, django_capture_on_commit_callbacks)
@@ -467,8 +471,8 @@ def test_dev_02_copiar_link_recibo_evento_sem_token(
 
 
 def test_dev_02_recibo_publico_vencido_e_desconhecido(
-    cenario,  # noqa: F811
-    lucas,  # noqa: F811
+    cenario,
+    lucas,
     relogio,
     django_capture_on_commit_callbacks,
 ):
@@ -477,7 +481,9 @@ def test_dev_02_recibo_publico_vencido_e_desconhecido(
     assert _abrir_recibo("nao-existe").status_code == 404
 
     salvo = Devolucao.objects.get(pk=devolucao["id"])
-    relogio.em((salvo.token_recibo_expira_em + timedelta(minutes=1)).strftime("%Y-%m-%d %H:%M"))
+    assert salvo.token_recibo_expira_em is not None
+    relogio.em("2026-10-14 13:01")  # depois dos 7 dias da cópia (S-15)
+    assert relogio_do_giro.agora() > salvo.token_recibo_expira_em
     vencido = _abrir_recibo(token)
     assert (vencido.status_code, vencido.json()["codigo"]) == (410, "link_expirado")
     assert vencido.json()["mensagem"] == "Este link venceu. Peça um novo à locadora."
@@ -495,8 +501,8 @@ def test_dev_02_recibo_publico_vencido_e_desconhecido(
 
 
 def test_dev_02_recibo_publico_nao_cruza_empresas(
-    cenario,  # noqa: F811
-    lucas,  # noqa: F811
+    cenario,
+    lucas,
     django_capture_on_commit_callbacks,
 ):
     devolucao = _concluida(cenario, django_capture_on_commit_callbacks)
@@ -505,7 +511,7 @@ def test_dev_02_recibo_publico_nao_cruza_empresas(
     assert _abrir_recibo(token).status_code == 200
 
 
-def test_dev_02_recibo_publico_limites_proprios(cenario):  # noqa: F811
+def test_dev_02_recibo_publico_limites_proprios(cenario):
     """Escopos próprios: esgotar o recibo não gasta o limite da assinatura (B-03)."""
     for i in range(10):
         assert _abrir_recibo(f"t{i}", ip="200.150.10.99").status_code == 404
@@ -516,8 +522,8 @@ def test_dev_02_recibo_publico_limites_proprios(cenario):  # noqa: F811
 
 
 def test_dev_02_recibo_aberto_um_por_dia(
-    cenario,  # noqa: F811
-    lucas,  # noqa: F811
+    cenario,
+    lucas,
     relogio,
     django_capture_on_commit_callbacks,
 ):
@@ -553,13 +559,13 @@ def _cobranca(conta: ContaReceber, tipo: str, vence_em: date, **campos: Any) -> 
     )
 
 
-def _conta(cenario: Any, conta: ContaReceber, api: Any = None) -> dict[str, Any]:  # noqa: F811
+def _conta(cenario: Any, conta: ContaReceber, api: Any = None) -> dict[str, Any]:
     resposta = (api or cenario.moto.api("Lúcia")).get(f"{CONTAS}{conta.pk}/")
     assert resposta.status_code == 200, resposta.json()
     return dict(resposta.json())
 
 
-def test_aut_03_copiar_cobranca_so_com_a_cobranca_do_dia(cenario, com_carteira):  # noqa: F811
+def test_aut_03_copiar_cobranca_so_com_a_cobranca_do_dia(cenario, com_carteira):
     carlos = _carlos(com_carteira)
     assert _conta(cenario, carlos)["acoes"]["copiar_cobranca"] is False  # sem cobrança
 
@@ -578,7 +584,7 @@ def test_aut_03_copiar_cobranca_so_com_a_cobranca_do_dia(cenario, com_carteira):
     assert _conta(cenario, carlos)["acoes"]["copiar_cobranca"] is False
 
 
-def test_aud_09_suporte_nao_recebe_boleto_url(cenario, com_carteira):  # noqa: F811
+def test_aud_09_suporte_nao_recebe_boleto_url(cenario, com_carteira):
     carlos = _carlos(com_carteira)
     _cobranca(
         carlos,
@@ -658,25 +664,37 @@ def test_plt_13_cartao_novo_avisa_o_administrador(
         plataforma._guardar_cartao(empresa_criada, CartaoGuardado("tok_um", "visa", "4242"))
     assert mail.outbox == []
 
+    fatura = FaturaAssinatura.objects.get(empresa=empresa_criada, codigo="FAT-0001")
     with django_capture_on_commit_callbacks(execute=True):
         plataforma._guardar_cartao(
             empresa_criada,
             CartaoGuardado("tok_dois", "mastercard", "5454", titular="ANA SOUZA"),
+            fatura,
         )
     assert [m.to for m in mail.outbox] == [[e] for e in administradores]
+    assert mail.outbox[0].subject == "O cartão da assinatura mudou"
+    endereco = plataforma.endereco_da_assinatura(empresa_criada)
     assert mail.outbox[0].body == (
-        "Giro: o cartão das próximas faturas mudou para Mastercard final 5454. Se não foi você, "
-        "troque a forma de pagamento em Assinatura."
+        "O cartão das próximas faturas da empresa Moto Rápida mudou para Mastercard final 5454, "
+        "no nome de ANA SOUZA, no pagamento da FAT-0001 em 07 out 2026. Se ninguém da empresa "
+        f"fez essa troca, troque a forma de pagamento em Assinatura: {endereco}."
     )
-    evento = EventoAuditoria.objects.filter(acao="assinatura.cartao_guardado").latest("id")
+    assert endereco.endswith("/admin/assinatura")
+    # Sem o titular devolvido pelo parceiro, a frase sai sem "no nome de".
+    mail.outbox.clear()
+    with django_capture_on_commit_callbacks(execute=True):
+        plataforma._guardar_cartao(empresa_criada, CartaoGuardado("tok_tres", "elo", "1111"))
+    assert mail.outbox[0].body.startswith(
+        "O cartão das próximas faturas da empresa Moto Rápida mudou para Elo final 1111. Se ninguém"
+    )
+    eventos = EventoAuditoria.objects.filter(acao="assinatura.cartao_guardado").order_by("id")
+    evento = list(eventos)[-2]
     assert evento.depois["cartao_bandeira"] == "mastercard"
     assert evento.depois["cartao_final"] == "5454"
     assert evento.depois["cartao_titular"] == "ANA SOUZA"
-    assert "tok_dois" not in str(evento.depois)
+    assert all("tok_" not in str(e.antes) + str(e.depois) for e in eventos)
 
 
 def test_contrato_do_modelo_guarda_o_canal():
-    assert {c for c, _ in Contrato._meta.get_field("token_assinatura_canal").choices} == {
-        "whatsapp_email",
-        "copiado",
-    }
+    assert set(CanalDoToken.values) == {"whatsapp_email", "copiado"}
+    assert Contrato._meta.get_field("token_assinatura_canal").max_length == 15

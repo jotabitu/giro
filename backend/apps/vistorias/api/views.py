@@ -480,6 +480,7 @@ class ConsultarReciboView(APIView):
     authentication_classes: list[Any] = []
     permission_classes = [AllowAny]
     throttle_classes = LIMITES_DO_RECIBO_PUBLICO
+    recurso_do_plano = Recurso.LOCACOES_VISTORIA  # PLT-12: o recibo é do módulo de locação
 
     @extend_schema(
         request=TokenDoReciboSerializer,
