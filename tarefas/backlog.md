@@ -569,6 +569,7 @@ Vindas da aba Notas do painel de progresso, como as de 29 out. Nada começa sem 
 #### T-440 · Importação de veículos sem filial e sem categoria na planilha
 - **Agentes:** produto (regra), backend, frontend · **Regras:** `IMP-02`, `IMP-03`, `VEI` · **Origem:** nota "Ajustar importação de veiculos".
 - **Pedido do dono:** a planilha modelo não pode pedir filial nem categoria; as duas colunas saem do modelo e da importação.
-- **Hoje:** a importação lê `categoria` e `filial` de cada linha (`importacao/linhas.py`). **[decisão]** O produto diz de onde vêm a filial e a categoria de cada veículo importado (escolhidas uma vez na tela antes de enviar, ou preenchidas depois) e atualiza a regra.
+- **Hoje:** a importação lê `categoria` e `filial` de cada linha (`importacao/linhas.py`).
+- **Decidido pelo dono em 05 nov 2026:** a filial e a categoria vêm do que já foi cadastrado nos passos anteriores do assistente: a filial no passo 6 (`Onboarding-Filial`) e as categorias nos preços do passo 8 (`Onboarding-Precos`). A importação (passo 11) não pede essas colunas. O produto escreve a regra para quando houver mais de uma filial ou categoria (por exemplo, a escolha na própria tela de importação, entre as já cadastradas) e leva ao dono só se a resposta não for óbvia.
 - **Pronto quando:** modelo da planilha sem as duas colunas, importação usando a resposta do produto, teste e a tela de importação de acordo.
 
