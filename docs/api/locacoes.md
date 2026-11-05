@@ -247,7 +247,7 @@ Regras comuns das rotas de copiar link em `copiar-link.md`. Sem corpo. Gera um l
 - **Invalida o anterior:** o link do WhatsApp, o do e-mail e um copiado antes deixam de valer. Reenviar depois invalida o copiado.
 - **Registra de onde veio o link** (`LOC-15`, M-02 da revisão de segurança da T-411): quem copia tem o token na mão e poderia assinar pelo cliente. A rota não bloqueia isso (no balcão, o cliente assina no celular, na rede da loja), mas a prova da assinatura passa a dizer como o link chegou. `novo_token` grava no contrato `token_assinatura_canal` (`copiado`; a tarefa de envio grava `whatsapp_email`), `token_assinatura_gerado_por` (quem copiou) e `token_assinatura_gerado_ip` (o IP da cópia). Na assinatura, ver `contratos.md`.
 - **A tarefa de envio não mata o link copiado** (B-02 da mesma revisão): `contratos_preparar_e_enviar` e `contratos_reenviar` travam o contrato e não geram token quando `token_assinatura_expira_em` existe e é mais novo que o momento em que a tarefa entrou na fila (um link foi copiado ou enviado depois). Nesse caso a tarefa termina sem enviar e sem erro. Teste: `test_s_15_reenvio_em_fila_nao_mata_link_copiado`.
-- **Na tela**, junto do link: "Mande o link ao cliente. Só ele pode assinar." (texto a confirmar com o produto).
+- **Na tela**, junto do link: "Mande o link só ao cliente. Só ele pode assinar, e o contrato registra que você copiou o link." (texto fixado pelo produto em 05 nov 2026, passo 3 do fluxo da locação nas regras).
 - **Quando passa:**
   - sem contrato vigente: 409 `{ "codigo": "sem_contrato", "mensagem": "Esta locação ainda não tem contrato. Gere o contrato." }`;
   - `gerado` sem o PDF (a tarefa ainda não rodou): 409 `{ "codigo": "contrato_em_preparo", "mensagem": "O contrato ainda está sendo gerado. Tente de novo em alguns segundos." }`. Sem o PDF não há o que assinar, e o token gerado agora seria trocado pela tarefa logo depois;
@@ -453,7 +453,11 @@ A linha da lista e o detalhe ganham `tipo` (`comum` ou `intencao_compra`) e `tip
 
 - `plano`, `parcelas_total` e `valor_parcela_centavos` são os congelados na confirmação (`LOC-15`); no rascunho, os do plano escolhido.
 - `parcelas_pagas`: parcelas (`tipo = parcela`) pagas da locação. `ultima_parcela_centavos`: o valor da última, já com a caução abatida. `sobra_caucao_centavos`: o que volta ao cliente na quitação quando a caução é maior que a parcela (CA-420-14: R$ 101,00).
-- `andamento` (montado pela API, CA-420-05): "Parcela {pagas} de {total} · faltam {total − pagas} para a transferência". Com todas as parcelas pagas e outra conta da locação aberta: "24 de 24 parcelas pagas · falta pagar o que está abaixo para a transferência". Quitada: "Quitada · veículo do cliente". Antes da 1ª parcela paga (`rascunho`, `aguardando_retirada`): `null`. Os dois últimos textos são proposta do arquiteto; o produto confirma no handoff.
+- `andamento` (montado pela API, CA-420-05; textos fixados pelo produto em 05 nov 2026, `LOC-16` "Na tela"):
+  - parcela a pagar: "Parcela {pagas} de {total} · faltam {total − pagas} para a transferência"; com uma só a pagar, no singular: "Parcela 23 de 24 · falta 1 para a transferência";
+  - todas as parcelas pagas e outra conta da locação aberta: "24 de 24 parcelas pagas · faltam as contas abaixo para a transferência" (as de `falta_para_quitar`);
+  - quitada, com `venda.transferencia.pendente`: "Quitada em 10/10/2028 · falta a transferência no Detran"; com a transferência registrada: "Quitada em 10/10/2028 · transferência feita em 15/10/2028" (datas no fuso da filial);
+  - antes da 1ª parcela paga (`rascunho`, `aguardando_retirada`): `null`.
 - `falta_para_quitar` (CA-420-13): as outras contas da locação abertas, de `financeiro.selectors`: `[ { "conta_id": 9120, "rotulo": "Avaria · Retrovisor direito", "valor_centavos": 12000 } ]`, com o valor do dia (`FIN-03`). Vazia enquanto ainda há parcela a pagar (as parcelas não entram na lista).
 - `quitada_em` e `venda` depois da quitação: `{ "id": 18, "codigo": "VEN-0178", "transferencia": { "feita_em": null, "registrada_por": null, "pendente": true }, "acoes": { "registrar_transferencia": true } }`, a venda da `VEN-11`, fornecida por `vendas` (`vendas.md`). "Transferência feita" chama `POST /api/locacoes/{id}/transferencia/` (`vendas.md`).
 - O vistoriador recebe `compra` sem os campos `_centavos` (`USR-09`).
@@ -509,7 +513,7 @@ Perfis: administrador e gerente da filial. Só no tipo `intencao_compra`, `ativa
 - 200: detalhe, com `cancelamento = { "status": "aprovado", "pedido_aprovacao_id": null, "antes_da_retirada": false, "por_atraso": true, "data", "multa_centavos": 0, "devolver_centavos": 0, "motivo" }` e `acoes.registrar_devolucao = true`. Sem `APR-02` (CA-420-08).
 - Segue pelo mesmo caminho do encerramento antecipado aprovado: a devolução e o acerto de sempre, e o status final `cancelada`.
 - `acoes.encerrar_por_atraso`: `true` nessas condições, para esses perfis.
-- 409 `{ "codigo": "LOC-16", "mensagem": "Só se encerra por atraso com uma parcela atrasada." }`; 409 `transicao_locacao` fora de `ativa`; 409 `cancelamento_em_andamento` com pedido ou encerramento já em curso; 403 para os outros perfis. Auditoria `locacao.encerrar_por_atraso`.
+- 409 `{ "codigo": "LOC-16", "mensagem": "Esta locação não tem parcela atrasada. Para encerrar a pedido do cliente, use Cancelar locação." }` (texto fixado pelo produto em 05 nov 2026; a exigência da parcela atrasada está na `LOC-16`); 409 `transicao_locacao` fora de `ativa`; 409 `cancelamento_em_andamento` com pedido ou encerramento já em curso; 403 para os outros perfis. Auditoria `locacao.encerrar_por_atraso`.
 
 ### Encerramento antes do fim (`cancelamento/simular`, `cancelar`, acerto)
 
