@@ -556,7 +556,8 @@ Vindas da aba Notas do painel de progresso, como as de 29 out. Nada começa sem 
 #### T-438 · Tipo do veículo (carro ou moto) à vista no cadastro e no editar
 - **Agentes:** produto (regra), frontend, backend se precisar · **Regras:** `VEI` · **Origem:** nota "Adicionar campo de tipo de Veiculo".
 - **Pedido do dono:** um campo de tipo do veículo, carro ou moto.
-- **Hoje:** o campo `tipo_veiculo` já existe no modelo e no cadastro, ligado à categoria. No editar ele só aparece como ícone, sem poder trocar. **[decisão]** O produto confirma com o dono o que falta: deixar o tipo como campo próprio e visível no cadastro, poder trocar no editar (o que mexe na categoria e no preço), ou as duas coisas.
+- **Hoje:** o campo `tipo_veiculo` já existe no modelo e no cadastro, ligado à categoria. No editar ele só aparece como ícone, sem poder trocar.
+- **Decidido pelo dono em 05 nov 2026:** o tipo é o mesmo campo `tipo_veiculo` que já filtra a lista de veículos; ele aparece como campo no cadastro e pode ser trocado no editar. O produto escreve a regra do que acontece com a categoria ao trocar o tipo (a categoria precisa ser do tipo novo, então a pessoa escolhe outra na mesma tela) e se a troca é recusada com locação aberta.
 - **Pronto quando:** regra escrita com a resposta do dono e a tela fazendo o que ela diz, com teste.
 
 #### T-439 · Implantação logo depois da compra
