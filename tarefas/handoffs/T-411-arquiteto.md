@@ -63,3 +63,13 @@ Uma diferença pequena em relação à sugestão: o canal tem `whatsapp_email` n
 - Devolução concluída: "Copiar link do recibo" por `acoes.copiar_link_recibo`; página pública `/recibo` como a `/assinar`.
 - Admin-Assinatura: "Copiar link de pagamento" por `acoes.pagar`, com os campos do `cobranca` e o aviso do cartão.
 - Teste de cada botão (aparece pela ação, copia o que veio, não guarda o link).
+
+## Transições do contrato (05 nov 2026, depois do #482)
+
+O backend passou a aceitar a assinatura de um contrato `gerado` com PDF (link copiado antes do envio). Conferido: cabe nas regras (o estado do Contrato só enumera os valores; copiar vale "além do envio") e no contrato (copiar não muda o status). Sem mudança de regra, sem chamar o Produto. Documentado, só texto:
+
+- `docs/api/contratos.md`, seção nova "Estados e transições do contrato": `gerado` → `enviado` | `assinado` | `cancelado`; `enviado` → `assinado` | `cancelado`; finais `assinado` e `cancelado`. O `gerado` sem PDF não abre nem copia. Com um link copiado mais novo que a fila, a tarefa de envio termina sem WhatsApp e o contrato fica `gerado`; "Reenviar" leva a `enviado` e invalida o copiado.
+- Consultar: abre `enviado` ou `gerado` com PDF, e o `status` pode vir `gerado` (a página mostra os dois do mesmo jeito). Assinar: aceita os mesmos.
+- `docs/decisoes/modelo-de-dados.md`, item 15: as transições e o remendo no campo `status`.
+
+**Próximo:** nada para backend nem frontend; o código do #482 já faz isso, e a página `/assinar` (`frontend/src/lib/api/assinar.ts`) não olha o `status`, então o `gerado` abre igual.
