@@ -35,7 +35,7 @@ Convenções gerais em `docs/api/README.md`. A estrutura do menu e a variante do
 | `meta_ocupacao_pct` | sim | `empresas.selectors.meta_ocupacao_pct()` (campo novo, padrão 80,00; `empresas.md`) |
 | `receita_locacao`, `em_atraso` | sim | `financeiro.selectors` sobre `ContaReceber` (pagas no período sem caução, `FIN-13`; atrasadas, `FIN-01`) |
 | `devolucoes_semana` | sim | `locacoes.selectors` (`situacao` como na lista) |
-| `pendencias.itens` | devoluções atrasadas e parcelas que vencem até amanhã; preventivas, só com `manutencao` | `locacoes`, `financeiro` |
+| `pendencias.itens` | devoluções atrasadas e parcelas que vencem até amanhã; preventivas, só com `manutencao`; transferências no Detran das locações quitadas, para gerente e administrador (T-420, `vendas.md`) | `locacoes`, `financeiro`, `vendas` |
 | `caixa_hoje` | sim (T-017) | `financeiro.selectors.caixa_hoje_do_painel` |
 | **`implantacao`** inteira | sim | `plataforma` (teste e `UsoEmpresa.passos_implantacao`, lidos do `public` pela interface de `plataforma.md`), `contas` (convites), `veiculos`, `clientes`, `locacoes`; `a_receber_centavos` de `financeiro` |
 | **`gerente`** `aprovacoes`, `ocupacao`, `receita_semana`, `devolucoes_atrasadas`, `equipe_hoje`, `frota_filial` | sim | como acima; `equipe_hoje` com `contas.Sessao.ultimo_uso` e o resumo do dia de `vistorias` e `locacoes` |
@@ -131,7 +131,7 @@ A resposta tem sempre `variante` (a mesma de `eu.navegacao.inicio.variante`), `s
 - Tendência de `alugados_agora`: diferença para a mesma hora de 7 dias atrás. Sobe: "6 a mais esta semana", `tendencia: "sobe"`; cai: "3 a menos esta semana", `tendencia: "desce"`; igual: `contexto` e `tendencia` `null`.
 - `em_atraso`: clientes com conta `atrasada`, e o total em atraso no contexto (seed: 2 clientes, R$ 1.646,40).
 - `devolucoes_semana`: locações com fim previsto de hoje até 6 dias à frente, mais as `devolucao_atrasada`, em ordem de data; `situacao` como na lista de locações.
-- `pendencias.itens`: devoluções atrasadas, parcelas que vencem até amanhã e, quando o app `manutencao` existir, preventivas vencidas. Cada item leva `destino` (chave do menu e filtro) para "Ver pendências".
+- `pendencias.itens`: devoluções atrasadas, parcelas que vencem até amanhã e, quando o app `manutencao` existir, preventivas vencidas. Desde a T-420, também as transferências no Detran pendentes das locações quitadas (`vendas.selectors.transferencias_pendentes`), só para gerente e administrador, com `destino` no detalhe da locação (`vendas.md`). Cada item leva `destino` (chave do menu e filtro) para "Ver pendências".
 - `caixa_hoje` (revisto na T-144): o caixa de hoje da filial **em qualquer status** (`aberto`, `aguardando_aprovacao`, `fechado`, `fechado_sem_conferencia`, como em `financeiro.md`), com o `status` para a tela mostrar a situação; `null` só com `X-Filial: todas` ou quando a filial não abriu caixa hoje. `recebido_centavos` é o `resumo.entrou_hoje_centavos` do caixa; `despesas_centavos` são as saídas de despesa pagas no caixa, sem sangria; `saldo_dia_centavos` = recebido − despesas pagas no caixa. `a_receber_hoje_centavos` é o "vence hoje" da `FIN-15` (contas não pagas com vencimento hoje), o mesmo `vence_hoje_centavos` de `financeiro.md`. Seed em 07 out (`FIN-15`, carteira de outubro): R$ 2.625,80 em 6 parcelas. Caixa da Filial Centro: recebido 111190 (`FIN-07`), saldo 111190 − 4800 = 106390.
 
 ### Variante `implantacao` (administrador antes da 1ª locação ou venda, tela `Pos-Dashboard`)

@@ -1,6 +1,6 @@
 # Locações
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-038), troca de veículo em 10 out 2026 (T-122), `acoes.gerar_contrato` em 15 out 2026 (T-263), reserva na confirmação, nada vence antes da retirada e cancelamento automático em 03 nov 2026 (T-410), copiar link para assinar em 03 nov 2026 (T-411, `copiar-link.md`) · **App:** `locacoes` (schema da empresa) · **Regras:** LOC-01 a LOC-15, CLI-02, CLI-03, CLI-05, IMP-04, APR-01, APR-02, FIL-03, FIL-05, FIN-03, FIN-09, AUT-17 · **ADRs:** 0005, 0011, 0015, 0035 · **Telas:** Locacoes, Locacao, Locacao-Detalhe · **Critérios:** `docs/qa/criterios/T-410.md` (CA-410-01 a 23)
+**Dono:** arquiteto · **Versão:** 07 out 2026 (T-038), troca de veículo em 10 out 2026 (T-122), `acoes.gerar_contrato` em 15 out 2026 (T-263), reserva na confirmação, nada vence antes da retirada e cancelamento automático em 03 nov 2026 (T-410), copiar link para assinar em 03 nov 2026 (T-411, `copiar-link.md`), locação com intenção de compra em 03 nov 2026 (T-420, ADR 0037) · **App:** `locacoes` (schema da empresa) · **Regras:** LOC-01 a LOC-16, VEN-11, CLI-02, CLI-03, CLI-05, IMP-04, APR-01, APR-02, FIL-03, FIL-05, FIN-03, FIN-09, AUT-17 · **ADRs:** 0005, 0011, 0015, 0035, 0037 · **Telas:** Locacoes, Locacao, Locacao-Detalhe · **Critérios:** `docs/qa/criterios/T-410.md` (CA-410-01 a 23), `docs/qa/criterios/T-420.md` (CA-420-01 a 17)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 12 e 13 (`PlanoEspecial`, `Locacao`, `TrechoLocacao`, `ExtraLocacao`) em `docs/decisoes/modelo-de-dados.md`. Vistoria, devolução e acerto estão em `vistorias.md`; modelo de contrato, PDF e assinatura, em `contratos.md`; receber parcela no caixa ou por Pix, em `financeiro.md` (T-017).
 
@@ -14,6 +14,8 @@ Convenções gerais em `docs/api/README.md`. Modelo: itens 12 e 13 (`PlanoEspeci
 | Desconto acima do limite | sim | sim (direto) e aprova os pedidos | pede (`APR-01`) | — | — |
 | Cancelar | sim | sim (direto) | pede (`APR-02`) | — | — |
 | Planos especiais | sim | — | — | — | — |
+| Planos de compra (`LOC-16`) | sim | — | — | — | — |
+| Encerrar por atraso a locação com intenção de compra (`LOC-16`) | sim | sim | — | — | — |
 
 - Permissão extra `aprovar_desconto` dá ao vendedor o direito de aprovar pedidos de outros (`USR-03`); quem pediu não aprova o próprio, e a permissão extra não abre a exceção, que é só do administrador (`APR-09`, T-249, `aprovacoes.md`).
 - Gerente cancela e dá desconto acima do limite direto, como no desbloqueio de cliente (decidido em 07 out 2026, T-041). Só o vendedor pede.
@@ -245,7 +247,7 @@ Regras comuns das rotas de copiar link em `copiar-link.md`. Sem corpo. Gera um l
 - **Invalida o anterior:** o link do WhatsApp, o do e-mail e um copiado antes deixam de valer. Reenviar depois invalida o copiado.
 - **Registra de onde veio o link** (`LOC-15`, M-02 da revisão de segurança da T-411): quem copia tem o token na mão e poderia assinar pelo cliente. A rota não bloqueia isso (no balcão, o cliente assina no celular, na rede da loja), mas a prova da assinatura passa a dizer como o link chegou. `novo_token` grava no contrato `token_assinatura_canal` (`copiado`; a tarefa de envio grava `whatsapp_email`), `token_assinatura_gerado_por` (quem copiou) e `token_assinatura_gerado_ip` (o IP da cópia). Na assinatura, ver `contratos.md`.
 - **A tarefa de envio não mata o link copiado** (B-02 da mesma revisão): `contratos_preparar_e_enviar` e `contratos_reenviar` travam o contrato e não geram token quando `token_assinatura_expira_em` existe e é mais novo que o momento em que a tarefa entrou na fila (um link foi copiado ou enviado depois). Nesse caso a tarefa termina sem enviar e sem erro. Teste: `test_s_15_reenvio_em_fila_nao_mata_link_copiado`.
-- **Na tela**, junto do link: "Mande o link ao cliente. Só ele pode assinar." (texto a confirmar com o produto).
+- **Na tela**, junto do link: "Mande o link só ao cliente. Só ele pode assinar, e o contrato registra que você copiou o link." (texto fixado pelo produto em 05 nov 2026, passo 3 do fluxo da locação nas regras).
 - **Quando passa:**
   - sem contrato vigente: 409 `{ "codigo": "sem_contrato", "mensagem": "Esta locação ainda não tem contrato. Gere o contrato." }`;
   - `gerado` sem o PDF (a tarefa ainda não rodou): 409 `{ "codigo": "contrato_em_preparo", "mensagem": "O contrato ainda está sendo gerado. Tente de novo em alguns segundos." }`. Sem o PDF não há o que assinar, e o token gerado agora seria trocado pela tarefa logo depois;
@@ -414,6 +416,133 @@ chave: "aut17-aviso-{locacao_id}"
 `GET /api/planos-especiais/` (todos) → `{ "resultados": [ { "id", "nome": "Entregador", "periodicidade": "semanal", "regra": "preco_fixo", "preco_centavos": 27900, "desconto_pct": null, "a_partir_do_periodo": null, "categorias": [], "condicoes": "Semanal com km livre e troca de óleo inclusa", "locacoes_ativas": 18, "ativo": true } ] }`.
 `POST`, `PATCH /api/planos-especiais/{id}/`, `POST .../desativar/` · administrador. Mudança vale para locações novas (`LOC-15`); quem já assinou mantém.
 
+## Planos de compra (tela Precos, `LOC-16`, T-420)
+
+`GET /api/planos-compra/` (todos os perfis que criam locação; `?ativo=true` para a Nova locação, `?categoria=<id>`) →
+```json
+{ "resultados": [ { "id": 3, "nome": "Compra Street 24 meses", "categoria": { "id": 2, "nome": "Street 150–160" },
+  "periodicidade": "mensal", "parcelas": 24, "valor_parcela_centavos": 119000, "condicoes": "",
+  "caucao_centavos": 30000, "ultima_parcela_centavos": 89000, "locacoes_ativas": 0, "ativo": true } ] }
+```
+- `caucao_centavos` é a caução vigente da categoria; `ultima_parcela_centavos` = `max(0, valor_parcela_centavos − caucao_centavos)`, para a tela mostrar sem conta. Os dois são de hoje e podem mudar até a confirmação.
+- `POST /api/planos-compra/`, `PATCH /api/planos-compra/{id}/`, `POST /api/planos-compra/{id}/desativar/` · administrador. Corpo: `{ nome, categoria_id, periodicidade: "semanal" | "mensal", parcelas, valor_parcela_centavos, condicoes? }`. 400 `validacao`: nome repetido, `parcelas` fora de 2 a 260, valor 0. Mudar ou desativar vale só para locações novas (`LOC-15`); auditoria `plano_compra.criar`, `editar`, `desativar`.
+- Valem com o padrão A do ponto em aberto 1 da `LOC-16` (ADR 0037, item 2).
+
+---
+
+## Locação com intenção de compra (`LOC-16`, T-420, ADR 0037)
+
+Tudo o que esta seção não muda segue a locação comum: estados, retirada (vistoria, contrato e 1º pagamento), contas que esperam a retirada (`LOC-05`, ADR 0035), régua e bloqueio (`LOC-07`, `CLI-05`), cancelamento antes da retirada e `AUT-17` (`LOC-12`), devolução e acerto (`vistorias.md`). Critérios: `docs/qa/criterios/T-420.md` (CA-420-01 a 17).
+
+### Na representação
+
+A linha da lista e o detalhe ganham `tipo` (`comum` ou `intencao_compra`) e `tipo_rotulo` ("Com intenção de compra"; `null` na comum). `GET /api/locacoes/?tipo=intencao_compra` filtra. No detalhe do tipo `intencao_compra`, o bloco `compra` (na comum, `null`):
+
+```json
+"tipo": "intencao_compra", "tipo_rotulo": "Com intenção de compra",
+"compra": {
+  "plano": { "id": 3, "nome": "Compra Street 24 meses" },
+  "parcelas_total": 24, "parcelas_pagas": 1,
+  "valor_parcela_centavos": 119000, "ultima_parcela_centavos": 89000, "sobra_caucao_centavos": 0,
+  "andamento": "Parcela 1 de 24 · faltam 23 para a transferência",
+  "falta_para_quitar": [],
+  "quitada_em": null,
+  "venda": null
+}
+```
+
+- `plano`, `parcelas_total` e `valor_parcela_centavos` são os congelados na confirmação (`LOC-15`); no rascunho, os do plano escolhido.
+- `parcelas_pagas`: parcelas (`tipo = parcela`) pagas da locação. `ultima_parcela_centavos`: o valor da última, já com a caução abatida. `sobra_caucao_centavos`: o que volta ao cliente na quitação quando a caução é maior que a parcela (CA-420-14: R$ 101,00).
+- `andamento` (montado pela API, CA-420-05; textos fixados pelo produto em 05 nov 2026, `LOC-16` "Na tela"):
+  - parcela a pagar: "Parcela {pagas} de {total} · faltam {total − pagas} para a transferência"; com uma só a pagar, no singular: "Parcela 23 de 24 · falta 1 para a transferência";
+  - todas as parcelas pagas e outra conta da locação aberta: "24 de 24 parcelas pagas · faltam as contas abaixo para a transferência" (as de `falta_para_quitar`);
+  - quitada, com `venda.transferencia.pendente`: "Quitada em 10/10/2028 · falta a transferência no Detran"; com a transferência registrada: "Quitada em 10/10/2028 · transferência feita em 15/10/2028" (datas no fuso da filial);
+  - antes da 1ª parcela paga (`rascunho`, `aguardando_retirada`): `null`.
+- `falta_para_quitar` (CA-420-13): as outras contas da locação abertas, de `financeiro.selectors`: `[ { "conta_id": 9120, "rotulo": "Avaria · Retrovisor direito", "valor_centavos": 12000 } ]`, com o valor do dia (`FIN-03`). Vazia enquanto ainda há parcela a pagar (as parcelas não entram na lista).
+- `quitada_em` e `venda` depois da quitação: `{ "id": 18, "codigo": "VEN-0178", "transferencia": { "feita_em": null, "registrada_por": null, "pendente": true }, "acoes": { "registrar_transferencia": true } }`, a venda da `VEN-11`, fornecida por `vendas` (`vendas.md`). "Transferência feita" chama `POST /api/locacoes/{id}/transferencia/` (`vendas.md`).
+- O vistoriador recebe `compra` sem os campos `_centavos` (`USR-09`).
+- `situacao` e `sinais`: `devolve_hoje` nunca acende neste tipo, e a locação não chega a `devolucao_atrasada` pela data (`LOC-10` não vale, CA-420-10). Encerrada pela quitação, `situacao` é `{ "codigo": "quitada", "rotulo": "Quitada", "tom": "sucesso" }`.
+- `devolucao`: `prevista_para` e `aviso_atraso` vêm `null` (não há devolução no fim previsto), a não ser com o encerramento aprovado: aí `prevista_para` é a `cancelamento.data`.
+- `acoes`: `renovar` e `trocar_veiculo` sempre `false` (CA-420-06); `encerrar_por_atraso` (abaixo); `cancelar` como na comum (o encerramento pedido pelo cliente passa pela `APR-02` do vendedor ou direto pelo gerente, CA-420-09); `registrar_devolucao` só com o encerramento aprovado.
+
+### POST /api/locacoes/simular/ e POST /api/locacoes/ com o tipo
+
+Corpo: `{ "tipo": "intencao_compra", "plano_compra_id": 3, "cliente_id", "veiculo_id", "inicio", "forma_pagamento" }`. Sem `tipo`, é `comum`, como hoje.
+- `periodicidade` e `periodos` vêm do plano; mandados, são ignorados se iguais e recusados se diferentes. `plano_especial_id`, `fim_previsto`, `extras` com item, `desconto_pct` diferente de 0 e `parcelamento_mensal` recusam com 400 `validacao` no campo: "A locação com intenção de compra usa o valor do plano." (CA-420-02).
+- O veículo tem de ser da categoria do plano: 400 `validacao` em `veiculo_id`, "O veículo não é da categoria do plano.". Plano inativo: 400 em `plano_compra_id`.
+- `tipo` só muda no rascunho.
+
+Simulação do CA-420-01 (início 10 nov 2026 10:00):
+```json
+{
+  "fim_previsto": "2028-11-10T13:00:00Z",
+  "linhas": [
+    { "rotulo": "24 parcelas mensais × R$ 1.190,00", "valor_centavos": 2856000 },
+    { "rotulo": "Caução (abatida na última parcela)", "valor_centavos": 30000 },
+    { "rotulo": "Última parcela", "valor_centavos": 89000 }
+  ],
+  "valor_periodo_centavos": 119000,
+  "hoje_na_retirada_centavos": 149000,
+  "texto_retirada": "Na retirada: primeira parcela mais caução.",
+  "parcelas_previstas": [ { "numero": 1, "vencimento": "2026-11-10", "valor_centavos": 119000 },
+                          "...",
+                          { "numero": 24, "vencimento": "2028-10-10", "valor_centavos": 89000 } ],
+  "caucao_centavos": 30000,
+  "compra": { "parcelas_total": 24, "valor_parcela_centavos": 119000, "ultima_parcela_centavos": 89000, "sobra_caucao_centavos": 0 },
+  "precisa_aprovacao_desconto": false, "impedimentos": [], "avisos": []
+}
+```
+- `fim_previsto` = início + o prazo do plano (24 meses ou o número de semanas, `LOC-05`). As parcelas seguem o calendário da `LOC-05` a partir do início; a última nasce com `ultima_parcela_centavos`.
+- `avisos` traz `{ "codigo": "LOC-16", "mensagem": "Publique o modelo de contrato da locação com intenção de compra antes de confirmar.", "detalhes": { "link": "/admin/contratos" } }` sem o modelo publicado.
+
+### POST /api/locacoes/{id}/confirmar/ com o tipo
+
+Como na comum (reserva, contas com `aguarda_retirada`, comissão de locação da `FIN-09`), mais:
+- congela `plano_compra`, `compra_parcelas` e `compra_valor_parcela_centavos` (CA-420-04);
+- cria as `compra_parcelas` parcelas de uma vez, a última com a caução abatida (no mínimo R$ 0,00; a de R$ 0,00 nasce `paga`, sem movimento de caixa), e a caução;
+- sem modelo publicado de `finalidade = locacao_compra`: 422 `{ "codigo": "LOC-16", "mensagem": "Publique o modelo de contrato da locação com intenção de compra antes de confirmar.", "detalhes": { "link": "/admin/contratos" } }`, conferido antes de tudo o mais depois do `inicio_vencido` (CA-420-03). Na comum, nada muda (o `IMP-04` continua na geração do contrato).
+- O contrato gerado depois (`POST /api/locacoes/{id}/contrato/`) usa o modelo dessa finalidade (`contratos.md`).
+
+### Renovar e trocar
+
+`POST .../renovar/simular/`, `.../renovar/` e `.../trocar-veiculo/`: 409 `{ "codigo": "LOC-16", "mensagem": "A locação com intenção de compra não se renova." }` e `{ "codigo": "LOC-16", "mensagem": "A locação com intenção de compra não troca de veículo. Encerre esta e abra outra." }` (CA-420-06).
+
+### POST /api/locacoes/{id}/encerrar-por-atraso/
+
+Perfis: administrador e gerente da filial. Só no tipo `intencao_compra`, `ativa`, com parcela atrasada (`sinais.pagamento_atrasado`). Corpo: `{ "motivo": "Parcela 2 com 16 dias de atraso", "data": "2026-12-26" }` (`data` padrão hoje, não antes de hoje).
+- 200: detalhe, com `cancelamento = { "status": "aprovado", "pedido_aprovacao_id": null, "antes_da_retirada": false, "por_atraso": true, "data", "multa_centavos": 0, "devolver_centavos": 0, "motivo" }` e `acoes.registrar_devolucao = true`. Sem `APR-02` (CA-420-08).
+- Segue pelo mesmo caminho do encerramento antecipado aprovado: a devolução e o acerto de sempre, e o status final `cancelada`.
+- `acoes.encerrar_por_atraso`: `true` nessas condições, para esses perfis.
+- 409 `{ "codigo": "LOC-16", "mensagem": "Esta locação não tem parcela atrasada. Para encerrar a pedido do cliente, use Cancelar locação." }` (texto fixado pelo produto em 05 nov 2026; a exigência da parcela atrasada está na `LOC-16`); 409 `transicao_locacao` fora de `ativa`; 409 `cancelamento_em_andamento` com pedido ou encerramento já em curso; 403 para os outros perfis. Auditoria `locacao.encerrar_por_atraso`.
+
+### Encerramento antes do fim (`cancelamento/simular`, `cancelar`, acerto)
+
+No tipo `intencao_compra`, o cálculo da `LOC-12` e da `LOC-13` não vale (padrão A do ponto em aberto 2):
+- `cancelamento/simular` devolve `multa_centavos: 0`, `credito_semanas` e `credito_dias` com 0, `devolver_centavos: 0`, `cobrar_centavos: 0` e `parcelas_canceladas_centavos` com as parcelas abertas que vencem depois da `data`; `avisos: [ { "codigo": "LOC-16", "mensagem": "O que foi pago fica como aluguel do período usado." } ]`.
+- No acerto da devolução (`vistorias.md`), entram as parcelas vencidas até o dia e não pagas, com multa e juros (`DEV-07`, `FIN-03`); as que vencem depois são canceladas; sem multa de encerramento nem crédito; a caução cobre o acerto e a sobra volta, como na comum (CA-420-08, 09). Depois do dia do encerramento sem o veículo voltar, corre o atraso da `LOC-10` daquela data.
+
+### Quitação
+
+Sem endpoint: acontece no pagamento (ADR 0037, item 4).
+- `locacoes.services.quitar_se_pago(locacao)` roda no assinante de `financeiro.parcela_paga` para toda conta da locação. Quita quando a locação é `intencao_compra`, está `ativa`, sem encerramento aprovado, todas as parcelas estão pagas e não há outra conta da locação aberta. Idempotente pelo `quitada_em`.
+- Na mesma transação:
+
+| Peça | Depois |
+| --- | --- |
+| Locação | `encerrada`, `quitada_em`, `encerrada_em`; sem vistoria de devolução e sem acerto; auditoria `locacao.quitar`, ator Sistema, regra `LOC-16` |
+| Caução | continua `paga`, usada no abatimento; não volta |
+| Sobra da caução (caução maior que a parcela) | `Reembolso` `a_fazer` de `sobra_caucao_centavos` pelo `financeiro`, forma `pix`, motivo "Sobra da caução na quitação da LOC-x" (CA-420-14) |
+| Venda, veículo e aviso | evento `locacoes.locacao_quitada` (abaixo): `vendas` cria a venda de R$ 0,00 (`VEN-11`), passa o veículo de `alugado` a `vendido` e avisa os gerentes (`vendas.md`) |
+| Comissão de locação (`FIN-09`) | como estava (a quitação não estorna) |
+
+- O veículo **não** volta a `disponivel`: o `encerrar(locacao, devolucao)` de sempre não é chamado.
+- Estorno de parcela depois da quitação: a conta estornada vira conta a receber do cliente (`financeiro`), e a quitação não se desfaz.
+- `AUT-06` e preventivas param sozinhas porque o veículo `vendido` sai da seleção delas (CA-420-17).
+
+### Evento `locacoes.locacao_quitada`
+
+Publicado dentro da transação da quitação (não depois do commit): `locacao_id`, `codigo`, `filial_id`, `cliente_id`, `veiculo_id`, `vendedor_id` (o vendedor da locação), `quitada_em`. Assinante: `vendas.eventos` (`vendas.md`). Se o assinante falha, a quitação volta inteira, e o pagamento também (ADR 0011).
+
 ---
 
 ## Interface interna
@@ -428,6 +557,7 @@ chave: "aut17-aviso-{locacao_id}"
 | `locacoes.selectors.calcular_encerramento_antecipado(locacao, data)` | `LOC-12`, `LOC-13`; o mesmo cálculo de `cancelamento/simular`. |
 | assinantes | `financeiro.parcela_paga` (1º pagamento), `contratos.contrato_assinado`, `aprovacoes.pedido_decidido` (`APR-01`, `APR-02`). |
 | evento publicado | `locacoes.locacao_encerrada` (preventivas, `MAN-03`). `locacoes.locacao_cancelada` (T-410): `locacao_id`, `codigo`, `antes_da_retirada`, `automatico`, `motivo`, depois do commit de todo cancelamento antes da retirada, pedido ou automático; `vistorias` assina e descarta a saída em `rascunho`. |
+| `locacoes.services.quitar_se_pago(locacao)` | `LOC-16` (T-420): a quitação, chamada pelo assinante de `financeiro.parcela_paga`; publica `locacoes.locacao_quitada` (`locacao_id`, `codigo`, `filial_id`, `cliente_id`, `veiculo_id`, `vendedor_id`, `quitada_em`) dentro da transação; `vendas` assina (ADR 0037). |
 | `locacoes.selectors.ultimo_dia_retirada(locacao) -> date` | `LOC-12` (T-410): data local do `inicio` + 3. Uma função só para a confirmação (`inicio_vencido`), a simulação, o `prazo_retirada` do detalhe e a `AUT-17`. |
 | `locacoes.services.cancelar_nao_retirada(locacao_id)` e `avisar_nao_retirada(locacao)` | `AUT-17` (T-410): o cancelamento automático e o aviso aos gerentes, acima. |
 | anotações fornecidas (ADR 0015) | `locacao_atual` para `veiculos` e `clientes`; `locacoes_ativas` e contador de operação para `filiais`; filtro `com_locacao` e contador `locacao_aberta` (inativar, `cliente_com_pendencia`) para `clientes`. |
