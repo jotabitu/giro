@@ -500,6 +500,10 @@ GIRO_URL_WEBHOOK_PAGAMENTOS = env("GIRO_URL_WEBHOOK_PAGAMENTOS", default="")
 GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH = env("GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH", default="")
 # NFS-e da assinatura (PLT-15): desligada até o cadastro municipal do Giro (T-197).
 GIRO_NFSE_ASSINATURA_ATIVA = env.bool("GIRO_NFSE_ASSINATURA_ATIVA", default=False)
+# Link do recibo (T-411): desligado até a página pública `/recibo` existir no frontend (T-436).
+# Desligado, `acoes.copiar_link_recibo` vem false, copiar responde 409 `recibo_publico_desligado`
+# e a consulta pública responde 404.
+GIRO_RECIBO_PUBLICO = env.bool("GIRO_RECIBO_PUBLICO", default=False)
 
 # --- E-mail ---
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")

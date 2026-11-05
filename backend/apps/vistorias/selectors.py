@@ -525,7 +525,8 @@ def acoes_da_devolucao(devolucao: Devolucao, locacao: Locacao, usuario: Any) -> 
     """T-411: `copiar_link_recibo` com a devolução `concluida`, perfil que fecha o acerto, sem o
     token de suporte (`AUD-09`) e o titular não anonimizado."""
     return {
-        "copiar_link_recibo": devolucao.status == StatusDevolucao.CONCLUIDA
+        "copiar_link_recibo": services.recibo_publico_ligado()
+        and devolucao.status == StatusDevolucao.CONCLUIDA
         and getattr(usuario, "perfil", "") in PERFIS_QUE_FECHAM
         and not getattr(usuario, "e_suporte", False)
         and locacao.cliente.anonimizado_em is None,

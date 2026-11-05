@@ -79,6 +79,13 @@ RECIBO_PUBLICO = "/api/publico/recibos/consultar/"
 IP_DO_BALCAO = "200.150.10.77"
 
 
+@pytest.fixture(autouse=True)
+def _recibo_publico_ligado(settings):
+    """Os casos do recibo valem com a página `/recibo` no ar (`GIRO_RECIBO_PUBLICO`, T-436). O
+    padrão desligado tem o teste dele."""
+    settings.GIRO_RECIBO_PUBLICO = True
+
+
 def _suporte(empresa: Any, permissao: str = "ver_editar") -> Any:
     with schema_context("public"):
         diego = Usuario.objects.filter(email="diego@girolocadoras.com.br").first()
@@ -519,6 +526,45 @@ def test_dev_02_recibo_publico_limites_proprios(cenario):
     assert (estourou.status_code, estourou.json()["codigo"]) == (429, "muitas_requisicoes")
     assinatura = _publica(ip="200.150.10.99").post(CONSULTAR, {"token": "t"}, format="json")
     assert assinatura.status_code == 404
+
+
+def test_dev_02_recibo_publico_desligado_por_padrao(
+    cenario,
+    lucas,
+    settings,
+    django_capture_on_commit_callbacks,
+):
+    """Decisão do dono (T-411): até a página `/recibo` existir (T-436), o link do recibo fica
+    desligado. A ação vem false, copiar responde 409 sem gerar token e a consulta pública fecha.
+    Ligado de novo, tudo volta a funcionar."""
+    devolucao = _concluida(cenario, django_capture_on_commit_callbacks)
+    ligado = _do_link(_copiar_recibo(cenario, devolucao["id"]).json()["link"], "recibo")
+    hash_ligado = Devolucao.objects.get(pk=devolucao["id"]).token_recibo_hash
+
+    settings.GIRO_RECIBO_PUBLICO = False
+    ver = cenario.moto.api("Bruna").get(f"{DEVOLUCOES}{devolucao['id']}/").json()
+    assert ver["acoes"] == {"copiar_link_recibo": False}
+    resposta = _copiar_recibo(cenario, devolucao["id"])
+    assert (resposta.status_code, resposta.json()["codigo"]) == (409, "recibo_publico_desligado")
+    assert "link" not in resposta.json()
+    assert Devolucao.objects.get(pk=devolucao["id"]).token_recibo_hash == hash_ligado
+    assert _abrir_recibo(ligado).status_code == 404
+    assert not EventoAuditoria.objects.filter(acao="devolucao.recibo_aberto").exists()
+    # O recibo de sempre (PDF de 15 minutos) continua.
+    pdf = cenario.moto.api("Bruna").get(f"{DEVOLUCOES}{devolucao['id']}/recibo/")
+    assert pdf.status_code == 200
+
+    settings.GIRO_RECIBO_PUBLICO = True
+    ver = cenario.moto.api("Bruna").get(f"{DEVOLUCOES}{devolucao['id']}/").json()
+    assert ver["acoes"] == {"copiar_link_recibo": True}
+    assert _abrir_recibo(ligado).status_code == 200
+    assert _copiar_recibo(cenario, devolucao["id"]).status_code == 200
+
+
+def test_dev_02_recibo_publico_desligado_no_ambiente():
+    from config.settings import base
+
+    assert base.GIRO_RECIBO_PUBLICO is False  # padrão sem a variável no ambiente
 
 
 def test_dev_02_recibo_aberto_um_por_dia(

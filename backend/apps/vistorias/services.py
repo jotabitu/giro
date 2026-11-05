@@ -15,6 +15,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
 from django.http import Http404
@@ -1434,10 +1435,25 @@ def _titular_anonimizado(devolucao: Devolucao) -> bool:
     ).exists()
 
 
+def recibo_publico_ligado() -> bool:
+    """`GIRO_RECIBO_PUBLICO` (T-411, decisão do dono): fica desligado até a página `/recibo`."""
+    return bool(getattr(settings, "GIRO_RECIBO_PUBLICO", False))
+
+
+def recibo_publico_desligado() -> Conflito:
+    return Conflito(
+        "recibo_publico_desligado",
+        "O link do recibo ainda não está disponível. Use Reenviar para mandar o recibo.",
+    )
+
+
 def gerar_link_recibo(devolucao: Devolucao, por: Any) -> tuple[str, Devolucao]:
     """Copiar link do recibo (T-411, `vistorias.md`): grava o PDF se ainda não existe, cria um
     token de 32 bytes e guarda só o hash, por 7 dias; o anterior deixa de valer. Não envia nada
-    e não muda o envio do recibo. Devolve o token em claro uma vez e a devolução."""
+    e não muda o envio do recibo. Devolve o token em claro uma vez e a devolução. Com
+    `GIRO_RECIBO_PUBLICO` desligado, 409 `recibo_publico_desligado`, sem gerar nada."""
+    if not recibo_publico_ligado():
+        raise recibo_publico_desligado()
     if devolucao.status != D.CONCLUIDA:
         raise recibo_em_rascunho()
     with transaction.atomic():
@@ -1475,7 +1491,7 @@ def consultar_recibo(token: str, ip: str | None, aparelho: str) -> Devolucao:
     (B-03 da T-411)."""
     from apps.contratos.services import link_expirado
 
-    if not token:
+    if not token or not recibo_publico_ligado():  # desligado: a página não existe (T-436)
         raise Http404
     devolucao: Devolucao | None = (
         Devolucao.objects.select_related("locacao", "locacao__cliente")
