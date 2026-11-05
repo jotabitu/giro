@@ -1,6 +1,6 @@
 # Veículos, categorias e preços
 
-**Dono:** arquiteto · **Versão:** 03 nov 2026 (T-421, dados do CRLV-e, rastreador e anotações, `VEI-09`, e leitura do CRLV-e no editar; T-410, "Reservado na LOC-x" e bloco `reserva`); 16 out 2026 (T-293, valor do dia na linha Pagamentos; T-286, movimentações; T-275, blocos da ficha); 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-09, MAN-03, VIS-01, FIN-01, MOV-01 a MOV-06, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07), `docs/qa/criterios/T-421.md` (CA-421-01 a 14)
+**Dono:** arquiteto · **Versão:** 03 nov 2026 (T-414, fotos do veículo, `VEI-10`, ADR 0036; T-421, dados do CRLV-e, rastreador e anotações, `VEI-09`, e leitura do CRLV-e no editar; T-410, "Reservado na LOC-x" e bloco `reserva`); 16 out 2026 (T-293, valor do dia na linha Pagamentos; T-286, movimentações; T-275, blocos da ficha); 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-10, MAN-03, VIS-01, FIN-01, MOV-01 a MOV-06, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026, 0036 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07), `docs/qa/criterios/T-421.md` (CA-421-01 a 14)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 8 a 10 e apoio (`PrecoCategoria`, `Extra`, `HistoricoStatusVeiculo`, `LeituraKm`, `TransferenciaVeiculo`) em `docs/decisoes/modelo-de-dados.md`.
 
@@ -184,7 +184,7 @@ O que a ficha de referência mostra e a representação não trazia. Tudo só no
 
 **`vistoria_recente`** (`VIS-01`; fornecedor `vistorias`): a última vistoria concluída do veículo (saída ou chegada; `descartada` nunca), que no veículo alugado é a saída da locação atual. `null` se o veículo nunca teve vistoria.
 - `tipo`: `saida` ou `devolucao` (a chegada), os mesmos valores de `vistorias.md`. `vistoriador`: o responsável pela vistoria, ou `null` se ela não tem um.
-- `fotos`: só as posições fixas (`frente`, `traseira`, `lado_esquerdo`, `lado_direito`, `painel`), na ordem; `total_fotos` conta todas, com as de avaria. URL assinada de 15 minutos (`AUD-05`), gerada a cada `GET`. "Ver as 12 fotos" abre `GET /api/vistorias/{id}/`.
+- `fotos`: desde a T-414 (`VEI-10`), **todas** as fotos ativas da vistoria, as fixas e as de avaria, com `url_download` e `nome_arquivo`; formato em "Fotos do veículo", abaixo. `total_fotos` = quantas vêm em `fotos`. URL assinada de 15 minutos (`AUD-05`), gerada a cada `GET`. As 12 já estão no bloco, e o visualizador passa por elas; o link "Ver as 12 fotos e as vistorias anteriores" da tela continua abrindo `GET /api/vistorias/{id}/`.
 - `avarias`: as avarias abertas do veículo (as de `GET /api/vistorias/avarias/?veiculo=<id>&abertas=true`), da mais antiga para a mais nova. `preexistente: true` é o "já existia, não cobrar"; `locacao_codigo` é a locação em que foi registrada ("registrado na saída da LOC-2841"). Não há campo de lado: o lado faz parte da `descricao`, como na vistoria. Sem valor em dinheiro.
 - Perfis: os que fazem vistoria (administrador, gerente, vendedor, vistoriador). O financeiro recebe a chave ausente.
 - "As vistorias anteriores" do link não têm lista por veículo neste contrato; a tela abre a vistoria recente. Uma lista `GET /api/vistorias/?veiculo=` fica para quando a tela pedir.
@@ -327,6 +327,106 @@ Perfis: administrador, gerente. `multipart/form-data`: `tipo`, `validade`, `exer
 
 ### GET /api/veiculos/{id}/documentos/historico/
 Todos os documentos, inclusive inativos.
+
+---
+
+## Fotos do veículo (`VEI-10`, T-414, ADR 0036)
+
+Duas origens que nunca se misturam: a **galeria** (`veiculos.FotoVeiculo`, modelo de dados, item 9a), que se muda no editar, e as **fotos da última vistoria** (bloco `vistoria_recente`, de `vistorias`), só para ver e baixar. Critérios: `docs/qa/criterios/T-414.md` (CA-414-01 a 14). Telas: `Veiculo-Editar-*` (galeria), `Veiculo-*` (ficha) e `Veiculo-Visualizador-*`.
+
+### Quem pode
+
+| Ação | Administrador | Gerente | Vendedor | Vistoriador | Financeiro | Suporte Giro |
+| --- | --- | --- | --- | --- | --- | --- |
+| Ver a galeria (ficha, editar, `GET .../fotos/`) | sim | sim | sim | sim | sim | sim |
+| Enviar, trocar, apagar, usar como capa | sim | sim | 403 | 403 | 403 | 403 `PLT-07`, mesmo em "ver e editar" |
+| Ver as fotos da última vistoria na ficha | sim | sim | sim | sim | chave ausente | como o perfil do acesso |
+
+Escopo de filial como no resto do veículo (`USR-07`): veículo de filial fora do escopo responde 404. As mudanças valem em qualquer `status`, menos `vendido` e `baixado`: 409 `{ "codigo": "VEI-10", "mensagem": "A galeria de veículo vendido fica só para ver." }` (ou "... de veículo baixado ..."). A conferência do status vem antes da do arquivo.
+
+### A foto, nas duas origens
+
+```json
+{
+  "id": 7001,
+  "numero": 1,
+  "rotulo": "Frente",
+  "capa": true,
+  "url": "https://...assinada...",
+  "url_download": "https://...assinada...&response-content-disposition=attachment...",
+  "url_expira_em": "2026-10-07T13:15:00Z",
+  "nome_arquivo": "QXA-4B21-galeria-1.jpg",
+  "enviada_em": "2025-03-12T13:02:00Z",
+  "enviada_por": { "id": 1, "nome": "Mariana Costa" }
+}
+```
+
+- `url` abre a foto (inline); `url_download` baixa com o `nome_arquivo` (`Content-Disposition: attachment`, ADR 0036, item 4). Os dois valem 15 minutos e são novos a cada `GET` (`AUD-05`). A tela usa `url_download` no "Baixar" e não monta nome nem link. Depois de `url_expira_em`, ela recarrega a ficha (ou a galeria) para ter links novos antes de abrir ou baixar (CA-414-12).
+- `numero`: a posição na exibição, de 1 a `total`, capa primeiro. É o que vai no nome: "QXA-4B21-galeria-1.jpg", "QXA-4B21-galeria-2.png" (a extensão é a do formato guardado). Muda quando a capa muda.
+- `rotulo`: na galeria, `null`: a foto da galeria não tem posição nem legenda (`VEI-10`), e a tela mostra "Foto 1 de 3". As legendas "Frente", "Traseira" e "Painel" das fotos da galeria na tela de referência são ilustração; a ficha não as mostra. Na vistoria, o rótulo da posição: "Frente", "Traseira", "Lado esquerdo", "Lado direito", "Painel", e "Avaria 1", "Avaria 2" nas de avaria, na ordem em que foram tiradas.
+- `capa`, `enviada_em` e `enviada_por` só na galeria. Na vistoria, a foto traz `posicao` (`frente`, `traseira`, `lado_esquerdo`, `lado_direito`, `painel`, `avaria`), `tirada_em` e `avaria_id` (a avaria ligada à foto, ou `null`).
+- Nome na vistoria: `<placa com hífen>-vistoria-<saida|chegada>-<posição>.<ext>`, com a posição em minúsculas e hífen: "QXA-4B21-vistoria-saida-frente.jpg", "QXA-4B21-vistoria-saida-lado-esquerdo.jpg", "QXA-4B21-vistoria-saida-avaria-1.jpg". `chegada` é a vistoria `tipo = devolucao`.
+- `nome_arquivo` só leva `A-Z`, `a-z`, `0-9`, `-` e `.` (ADR 0036).
+
+### Na ficha: `GET /api/veiculos/{id}/`
+
+Dois blocos novos e uma ação nova, só no detalhe (a lista da Frota não muda; a capa no catálogo é da T-418):
+
+```json
+"galeria": {
+  "total": 3, "limite": 20,
+  "fotos": [ { "id": 7002, "numero": 1, "capa": true, "...": "..." },
+             { "id": 7001, "numero": 2, "capa": false, "...": "..." },
+             { "id": 7003, "numero": 3, "capa": false, "...": "..." } ]
+},
+"vistoria_recente": { "id": 3120, "tipo": "saida", "rotulo_tipo": "Vistoria de saída", "concluida_em": "2026-09-23T12:10:00Z",
+  "locacao_codigo": "LOC-2841", "total_fotos": 12,
+  "fotos": [ { "id": 901, "numero": 1, "posicao": "frente", "rotulo": "Frente", "tirada_em": "...", "avaria_id": null,
+               "url": "...", "url_download": "...", "url_expira_em": "...", "nome_arquivo": "QXA-4B21-vistoria-saida-frente.jpg" } ],
+  "...": "o resto do bloco como em Blocos da ficha" },
+"acoes": { "...": "...", "editar_fotos": true }
+```
+
+- `galeria`: todas as fotos ativas, capa primeiro e depois pela ordem de envio, para todos os perfis. Sem foto: `{ "total": 0, "limite": 20, "fotos": [] }`; a tela mostra "Nenhuma foto do veículo." e, com `acoes.editar_fotos`, "Adicionar fotos", que abre o editar (CA-414-13).
+- `vistoria_recente.fotos` passa a trazer **todas** as fotos ativas da vistoria (antes, só as 5 fixas): as fixas na ordem das posições e depois as de avaria pela hora, com `numero` de 1 a `total_fotos`. `rotulo_tipo`: "Vistoria de saída" ou "Vistoria de chegada". A tela monta "Vistoria de saída · LOC-2841 · 23 set" com `rotulo_tipo`, `locacao_codigo` e a data de `concluida_em`. Para o financeiro a chave continua ausente; sem vistoria concluída, `null`, e a seção não aparece (CA-414-11, 13).
+- `acoes.editar_fotos`: `true` para administrador e gerente com o veículo fora de `vendido` e `baixado`; `false` para os outros perfis e para o suporte Giro. A tela mostra "Gerenciar fotos", "Adicionar fotos" e os botões do editar só com `true` (CA-414-08, 09).
+- O visualizador passa só pelas fotos da origem aberta: a ordem é a de `fotos` de cada bloco (CA-414-10, 14).
+
+### GET /api/veiculos/{id}/fotos/
+Perfis: todos (escopo de filial). A galeria para o editar, no mesmo formato do bloco `galeria`, com `editar` e `motivo`:
+```json
+{ "total": 3, "limite": 20, "editar": true, "motivo": null, "fotos": [ ... ] }
+```
+- `editar`: o mesmo `acoes.editar_fotos`. `motivo`: com o perfil que edita e o veículo `vendido` ou `baixado`, a mensagem do 409, para a tela mostrar a galeria só para ver; `null` nos outros casos.
+
+### POST /api/veiculos/{id}/fotos/
+Perfis: administrador, gerente. `multipart/form-data`: `arquivo` (um só; ADR 0036, item 3). 201: a galeria inteira, no formato do `GET`, com `foto_id` da nova.
+- Uma foto por requisição. A tela envia as fotos escolhidas **uma depois da outra**, na ordem da escolha, e mostra a recusa de cada uma no item dela; as outras seguem (CA-414-02, 03).
+- A primeira foto ativa do veículo vira capa (CA-414-05). A nova entra no fim da ordem.
+- 400 `validacao`, `campos.arquivo`:
+  - fora de JPG ou PNG pelo conteúdo, acima de 10 MB, PDF, HEIC ou imagem que não abre: `["Envie uma foto JPG ou PNG de até 10 MB."]`;
+  - com 20 ativas: `["O veículo já tem 20 fotos. Apague uma para enviar outra."]`.
+- Arquivo acima de 12 MB volta 413 do proxy, antes do Django: a tela mostra a mesma "Envie uma foto JPG ou PNG de até 10 MB.". A tela pode recusar antes de enviar o que passa de 10 MB ou não é `.jpg`, `.jpeg` ou `.png`, mas a palavra final é a da API.
+- Auditoria `veiculo.foto_enviar` (objeto: o veículo; `detalhes`: `foto_id`, `numero`, `capa`), sem a imagem (`AUD-01`).
+
+### POST /api/veiculos/{id}/fotos/{foto_id}/trocar/
+Perfis: administrador, gerente. `multipart/form-data`: `arquivo`. 200: a galeria, com `foto_id` da nova.
+- A antiga fica inativa (`substituida_por`); a nova fica na mesma posição e com a mesma `capa` (CA-414-06). O total não muda, e o limite de 20 não se aplica.
+- 400 como no envio. 404 `nao_encontrado` se a foto não é ativa deste veículo.
+- Auditoria `veiculo.foto_trocar` (`detalhes`: `foto_id_antiga`, `foto_id_nova`).
+
+### POST /api/veiculos/{id}/fotos/{foto_id}/capa/
+Perfis: administrador, gerente. Sem corpo. 200: a galeria. A escolhida vira capa e passa a `numero` 1; a anterior perde a marca. Já capa: 200 sem mudança e sem evento.
+- Auditoria `veiculo.foto_capa` (`detalhes`: `foto_id`, `capa_anterior_id`).
+
+### POST /api/veiculos/{id}/fotos/{foto_id}/apagar/
+Perfis: administrador, gerente. Sem corpo. 200: a galeria.
+- A foto fica inativa (`ativo = False`, `apagada_por`), com o arquivo guardado; não volta pela tela nem pela API (CA-414-07). Apagada a capa, a ativa mais antiga vira capa (CA-414-05).
+- A tela pede confirmação antes ("Apagar esta foto? Ela sai da galeria e da ficha.").
+- Auditoria `veiculo.foto_apagar` (`detalhes`: `foto_id`, `era_capa`, `nova_capa_id`), com quem e quando.
+
+### Para o catálogo (T-418)
+`veiculos.selectors.galeria(veiculo)` devolve as fotos ativas na ordem de exibição, e `veiculos.selectors.capa(veiculo)` a capa ou `None`, para o app `vendas` ler sem tocar no model (ADR 0011).
 
 ---
 
