@@ -1,6 +1,6 @@
 # Modelo de dados
 
-**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183), fatura e forma de pagamento da assinatura em 16 out 2026 (T-294, pela T-185), locação com intenção de compra e venda da quitação em 03 nov 2026 (T-420, ADR 0037) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
+**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183), fatura e forma de pagamento da assinatura em 16 out 2026 (T-294, pela T-185), locação com intenção de compra e venda da quitação em 03 nov 2026 (T-420, ADR 0037), referência FIPE em 05 nov 2026 (T-422, ADR 0038) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
 **Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183), fatura e forma de pagamento da assinatura em 16 out 2026 (T-294, pela T-185), foto do veículo em 03 nov 2026 (T-414, ADR 0036) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
 
 Este documento diz, para cada uma das 25 entidades das regras, o app dono, o schema, os campos, os índices e as restrições. As entidades de apoio (que não estão na lista das regras mas são necessárias) vêm no fim de cada app. Mudança aqui passa pelo arquiteto; o backend implementa a partir daqui e do contrato do módulo em `docs/api/`.
@@ -178,6 +178,9 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | --- | --- | --- |
 | `ContaPagamento` | plataforma | `empresa` (1:1), `provedor` enum `asaas`, `conta_externa_id` único, `id_cifra` (UUID, ADR 0014), `chave_api_cifrada` (`CampoCifrado` com `GIRO_CHAVE_SEGREDOS`, decifrada só em `integracoes/pagamentos/`, ADR 0014), `webhook_token_hash` único, `status` enum `pendente`, `aprovada`, `recusada`. O webhook chega no `public`, acha a empresa pelo token e só então entra no schema dela (ADR 0007). |
 | `FormaPagamentoAssinatura` | plataforma | `empresa` (1:1), `forma` enum `cartao`, `pix_automatico`, `boleto`, nulo; `status` enum `pendente`, `ativa`, `recusada`; `cliente_externo_id` (pagador na conta principal), `autorizacao_externa_id` (Pix automático), `id_cifra` (UUID), `cartao_token_cifrado` (`CampoCifrado`, ADR 0014 e 0023, nunca sai na API nem na auditoria), `cartao_bandeira`, `cartao_final` (4 dígitos). Trocar de forma cancela a autorização do Pix, apaga o token, a bandeira e o final na linha travada e cancela no parceiro a cobrança viva de outra forma (T-183, T-185). Transições do `status` (`PLT-13`): `pendente` → `ativa` ou `recusada`; `ativa` → `pendente` ou `recusada`; `recusada` → `pendente` ou `ativa`. Auditoria omite `cartao_token_cifrado`, `cliente_externo_id` e `autorizacao_externa_id`; o evento `assinatura.forma_pagamento` leva só a forma antiga e a nova. |
+| `PrecoFipe` | plataforma | T-422, ADR 0038: `tipo` enum `moto`, `carro`; `codigo_fipe` texto(10); `ano_codigo` texto(10); `referencia_codigo` texto(6) ("339"); `referencia_mes` data (dia 1); `valor_centavos` centavos; `modelo_nome` texto(120); `ano_nome` texto(30); `consultado_em`. Único `(tipo, codigo_fipe, ano_codigo, referencia_codigo)`. Dado público da FIPE, sem nada de empresa; só `plataforma.services` escreve. |
+| `AnosFipe` | plataforma | T-422: `tipo`; `chave` texto(30) (o código FIPE ou `marca_id/modelo_id`); `anos` json `[{code, name}]`; `consultado_em`. Único `(tipo, chave)`; renovado a cada 6 meses. |
+| `RodadaFipe` | plataforma | T-422: `referencia_codigo` texto(6) único; `referencia_mes` data; `aberta_em`, `concluida_em` nulo; `pedidos` int; `parada_ate` momento nulo (o 429); `ultimo_erro` texto(200), sem placa nem dado de empresa. |
 | `Chamado` | plataforma | `numero` (#1042), `empresa` FK, `assunto`, `status`, `responsavel` FK usuário. Fase 2. |
 | `Convite` | contas | ver item 7 (serve aos dois schemas). |
 
@@ -275,8 +278,17 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `rastreador_numero` | texto(20), vazio | `VEI-09`, fora do documento |
 | `rastreador_empresa` | texto(60), vazio | `VEI-09` |
 | `anotacoes` | texto(500), vazio | `VEI-09`, da locadora; a leitura nunca preenche nem apaga |
+| `fipe_codigo` | texto(10), vazio | T-422, ADR 0038: "811134-0" |
+| `fipe_ano_codigo` | texto(10), vazio | "2017-5", resolvido pelo ano do modelo e o combustível |
+| `fipe_marca_id`, `fipe_modelo_id` | int, nulo | ids da Parallelum, da linha do catálogo escolhida ou casada |
+| `fipe_versao` | texto(120), vazio | nome da versão na FIPE |
+| `fipe_situacao` | enum `sem_versao`, `escolher_versao`, `aguardando`, `ok`, `nao_encontrado`, padrão `sem_versao` | |
+| `fipe_versoes` | json, `[]` | até 5 candidatas `{marca_id, modelo_id, versao}` |
+| `referencia_fipe_mes` | data, nula | dia 1 do mês do preço |
+| `referencia_fipe_origem` | enum `fipe`, `manual`, nulo | dono do `referencia_fipe_centavos` |
 
 - Índices: `(filial, status)`, `categoria`.
+- Campos FIPE (T-422, ADR 0038): uma migração, todos opcionais; os veículos antigos nascem `sem_versao`. Só `veiculos.services` escreve (cadastro, editar, `POST .../fipe/` e `aplicar_referencias_fipe`). Índice parcial `(fipe_situacao)` com `fipe_situacao <> 'ok'` (filtro da Frota e pendências da rotina). `CHECK (fipe_codigo = '' OR fipe_codigo ~ '^[0-9]{6}-[0-9]$')`. `CAMPOS_AUDITORIA`: os campos FIPE entram como `inteiro`, menos os que a rotina grava (valor, mês, origem e situação vindos dela não geram evento).
 - Campos da `VEI-09` (T-421): todos opcionais, uma migração só, sem dado novo nos veículos antigos (texto vazio ou nulo); só o QXA-4B21 do seed os preenche. Nenhum entra em índice nem muda status. `CAMPOS_AUDITORIA`: `inteiro` para todos, inclusive `numero_motor` e `observacoes_crlv` (a auditoria da empresa é lida só por administrador, `AUD-01`).
 - Transições extras de T-031: `vendido` → `a_venda` (venda cancelada, `VEN-07`) e `vendido` → `indisponivel` (recompra numa troca: o serviço acha o veículo pelo chassi e reaproveita o cadastro, `VEI-07`).
 - Apoio `HistoricoStatusVeiculo`: `veiculo` FK, `de`, `para`, `em` momento, `origem` genérica, `por` FK nulo. Base de `VEI-06` (ocupação). Índice `(veiculo, em)`.
