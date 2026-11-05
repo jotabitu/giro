@@ -125,11 +125,21 @@ def detalhe_do_modelo(modelo: ModeloContrato) -> dict[str, Any]:
 def contrato_vigente(origem_tipo: str, origem_id: int) -> Contrato | None:
     """O contrato (não aditivo) que não foi cancelado. No máximo um, pela restrição do banco."""
     return (
-        Contrato.objects.select_related("modelo")
+        Contrato.objects.select_related("modelo", "cliente")
         .filter(origem_tipo=origem_tipo, origem_id=origem_id, tipo=TipoContrato.CONTRATO)
         .exclude(status=StatusContrato.CANCELADO)
         .first()
     )
+
+
+def pode_copiar_link(contrato: Contrato | None) -> bool:
+    """O estado de `services.gerar_link`, sem o perfil: `acoes.copiar_link_contrato` (T-411).
+    `enviado`, ou `gerado` com o PDF pronto, e o titular não anonimizado."""
+    if contrato is None or contrato.cliente.anonimizado_em is not None:
+        return False
+    if contrato.status == StatusContrato.ENVIADO:
+        return True
+    return contrato.status == StatusContrato.GERADO and bool(contrato.pdf)
 
 
 def resumo(contrato: Contrato | None) -> dict[str, Any] | None:

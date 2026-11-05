@@ -210,6 +210,13 @@ REST_FRAMEWORK = {
         # Copiar link do convite (USR-01, T-249).
         "link_convite_convidado": "5/hour",
         "link_convite_administrador": "20/hour",
+        # Copiar link para assinar e link do recibo; página pública do recibo (T-411).
+        "link_contrato_contrato": "5/hour",
+        "link_contrato_usuario": "20/hour",
+        "link_recibo_devolucao": "5/hour",
+        "link_recibo_usuario": "20/hour",
+        "recibo_publico_ip": "10/min",
+        "recibo_publico_token": "20/min",
         # Leitura do CRLV-e e da CNH-e em PDF, somadas (ADR 0026, item 6).
         "leitura_documento_usuario": "30/hour",
         "leitura_documento_empresa": "200/hour",
@@ -516,6 +523,10 @@ GIRO_URL_WEBHOOK_PAGAMENTOS = env("GIRO_URL_WEBHOOK_PAGAMENTOS", default="")
 GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH = env("GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH", default="")
 # NFS-e da assinatura (PLT-15): desligada até o cadastro municipal do Giro (T-197).
 GIRO_NFSE_ASSINATURA_ATIVA = env.bool("GIRO_NFSE_ASSINATURA_ATIVA", default=False)
+# Link do recibo (T-411): desligado até a página pública `/recibo` existir no frontend (T-436).
+# Desligado, `acoes.copiar_link_recibo` vem false, copiar responde 409 `recibo_publico_desligado`
+# e a consulta pública responde 404.
+GIRO_RECIBO_PUBLICO = env.bool("GIRO_RECIBO_PUBLICO", default=False)
 
 # --- E-mail ---
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")

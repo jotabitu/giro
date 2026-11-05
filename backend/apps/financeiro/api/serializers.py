@@ -155,6 +155,9 @@ class CobrancaSerializer(serializers.Serializer[Any]):
 
 
 class AcoesDaContaSerializer(serializers.Serializer[Any]):
+    copiar_cobranca = serializers.BooleanField(
+        help_text="T-411: Copiar Pix e Copiar boleto da cobrança do dia; nunca o suporte"
+    )
     receber = serializers.BooleanField()
     gerar_pix = serializers.BooleanField()
     gerar_boleto = serializers.BooleanField()

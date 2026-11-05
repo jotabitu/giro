@@ -967,6 +967,7 @@ class ContextoDasFaturas:
     sem_forma: bool
     escreve: bool
     hoje: date
+    suporte: bool = False  # AUD-09: sem os links do boleto e da página (M-01 da T-411)
 
 
 def contexto_das_faturas(empresa: Empresa, usuario: Any) -> ContextoDasFaturas:
@@ -976,7 +977,13 @@ def contexto_das_faturas(empresa: Empresa, usuario: Any) -> ContextoDasFaturas:
         and not getattr(usuario, "e_suporte", False)
         and empresa.status in STATUS_QUE_PAGAM
     )
-    return ContextoDasFaturas(empresa, not (forma and forma.forma), escreve, relogio.hoje())
+    return ContextoDasFaturas(
+        empresa,
+        not (forma and forma.forma),
+        escreve,
+        relogio.hoje(),
+        suporte=bool(getattr(usuario, "e_suporte", False)),
+    )
 
 
 def _pode_pagar(fatura: FaturaAssinatura, contexto: ContextoDasFaturas) -> bool:
@@ -1035,7 +1042,7 @@ def linha_do_teste(empresa: Empresa) -> dict[str, Any] | None:
     }
 
 
-def cobranca_da_fatura(fatura: FaturaAssinatura) -> dict[str, Any] | None:
+def cobranca_da_fatura(fatura: FaturaAssinatura, suporte: bool = False) -> dict[str, Any] | None:
     """A cobrança viva no parceiro, para pagar. Só na resposta ao administrador; nunca na
     auditoria (T-189, item 8)."""
     if not fatura.cobranca_externa_id:
@@ -1050,9 +1057,9 @@ def cobranca_da_fatura(fatura: FaturaAssinatura) -> dict[str, Any] | None:
     return {
         "forma": forma,
         "linha_digitavel": fatura.cobranca_linha_digitavel or None,
-        "url_boleto": fatura.cobranca_boleto_url or None,
+        "url_boleto": None if suporte else (fatura.cobranca_boleto_url or None),
         "pix_copia_e_cola": fatura.cobranca_pix_copia_e_cola or None,
-        "url_pagina": fatura.cobranca_url_pagina or None,
+        "url_pagina": None if suporte else (fatura.cobranca_url_pagina or None),
         "vencimento": fatura.vencimento,
     }
 
@@ -1072,7 +1079,7 @@ def nota_fiscal_da_fatura(fatura: FaturaAssinatura) -> dict[str, Any] | None:
 def detalhe_da_fatura(fatura: FaturaAssinatura, contexto: ContextoDasFaturas) -> dict[str, Any]:
     return {
         **item_da_fatura(fatura, contexto),
-        "cobranca": cobranca_da_fatura(fatura),
+        "cobranca": cobranca_da_fatura(fatura, suporte=contexto.suporte),
         "recibo_url": (fatura.recibo_url or None) if fatura.status == StatusFatura.PAGA else None,
         "nota_fiscal": nota_fiscal_da_fatura(fatura),
     }

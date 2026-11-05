@@ -518,7 +518,22 @@ def representacao_acerto(devolucao: Devolucao, locacao: Locacao | None = None) -
     }
 
 
-def representacao_devolucao(devolucao: Devolucao) -> dict[str, Any]:
+PERFIS_QUE_FECHAM = frozenset({"administrador", "gerente", "vendedor"})
+
+
+def acoes_da_devolucao(devolucao: Devolucao, locacao: Locacao, usuario: Any) -> dict[str, bool]:
+    """T-411: `copiar_link_recibo` com a devolução `concluida`, perfil que fecha o acerto, sem o
+    token de suporte (`AUD-09`) e o titular não anonimizado."""
+    return {
+        "copiar_link_recibo": services.recibo_publico_ligado()
+        and devolucao.status == StatusDevolucao.CONCLUIDA
+        and getattr(usuario, "perfil", "") in PERFIS_QUE_FECHAM
+        and not getattr(usuario, "e_suporte", False)
+        and locacao.cliente.anonimizado_em is None,
+    }
+
+
+def representacao_devolucao(devolucao: Devolucao, usuario: Any = None) -> dict[str, Any]:
     locacao = Locacao.objects.select_related("cliente", "filial", "veiculo").get(
         pk=devolucao.locacao_id
     )
@@ -545,4 +560,5 @@ def representacao_devolucao(devolucao: Devolucao) -> dict[str, Any]:
         "devolvida_em": devolucao.devolvida_em,
         "concluida_em": devolucao.concluida_em,
         "recibo_enviado_em": devolucao.recibo_enviado_em,
+        "acoes": acoes_da_devolucao(devolucao, locacao, usuario),
     }

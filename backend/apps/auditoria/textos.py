@@ -184,6 +184,11 @@ def _copiar_link_convite(evento: EventoAuditoria, _: dict[str, Any]) -> Texto:
     return Texto("Copiou o link do convite")
 
 
+def _fixo(resumo: str) -> auditoria.Formatador:
+    """Texto sem detalhe: os eventos de link (T-411) não têm o link nem o token."""
+    return lambda _evento, _apoio: Texto(resumo)
+
+
 def _bloqueio(evento: EventoAuditoria, apoio: dict[str, Any]) -> Texto:
     motivo = evento.motivo or "tentativas erradas"
     emails = apoio.setdefault("emails", {})
@@ -311,6 +316,9 @@ DESTE_APP: dict[str, auditoria.Formatador] = {
     "despesa.lancar": _despesa,
     "usuario.convidar": _convidar,
     "usuario.copiar_link_convite": _copiar_link_convite,
+    "contrato.copiar_link": _fixo("Copiou o link para assinar o contrato"),
+    "devolucao.copiar_link_recibo": _fixo("Copiou o link do recibo"),
+    "devolucao.recibo_aberto": _fixo("O cliente abriu o recibo pelo link"),
     "pedido_aprovacao.aprovar": _decisao_do_pedido,
     "pedido_aprovacao.recusar": _decisao_do_pedido,
     "usuario.bloqueado": _bloqueio,
