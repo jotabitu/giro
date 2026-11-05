@@ -11,7 +11,7 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 **Do canvas para cá:** vale a tela deste repositório. Tela nova ou ajustada no canvas só vale depois da tarefa de importação, que carimba a origem no topo do HTML. O fluxo e o quanto a página do app precisa seguir a tela estão em [`docs/agentes/telas-do-canvas.md`](../agentes/telas-do-canvas.md).
 
 **Última importação do canvas:** 28/10/2026, T-409 (só as telas `Plat-*`; as telas da locadora do canvas eram mais antigas que as daqui). Telas sem carimbo são anteriores ao fluxo.
-**Último ajuste no repositório:** 05/11/2026, T-431 (página pública do recibo da devolução /recibo#<token>, dados do veículo, data, valores da caução e fotos com ampliar, estados de link vencido e inválido, desktop e celular [DEV-01, DEV-02, DEV-03, AUD-05, S-15]).
+**Último ajuste no repositório:** 05/11/2026, T-436 (página pública do recibo da devolução /recibo#<token>, dados do veículo, data, valores da caução e fotos com ampliar, estados de link vencido e inválido, desktop e celular [DEV-01, DEV-02, DEV-03, AUD-05, S-15]).
 
 ## Implantação
 

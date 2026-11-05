@@ -1,4 +1,4 @@
-# T-431 (parte da tela) · Página pública do recibo da devolução · design-system → arquiteto, backend, frontend, qa
+# T-436 (parte da tela) · Página pública do recibo da devolução · design-system → arquiteto, backend, frontend, qa
 
 **O que foi feito:** desenhadas e entregues as telas de referência em `docs/telas/html/` (desktop a 1440 px e celular a 390 px) para a nova página pública do recibo da devolução (`/recibo#<token>`), aberta pelo cliente quando a locadora copia e envia o link (`POST /api/devolucoes/{id}/recibo/link/`, `docs/api/copiar-link.md`, `docs/api/vistorias.md`, regras `DEV-01` a `DEV-08`, `S-15`, `AUD-05`).
 
@@ -51,7 +51,7 @@
 
 4. **Índice de telas atualizado (`docs/telas/README.md`):**
    - Tabela de "Operação essencial" atualizada incluindo a tela `Recibo da devolução` (`Recibo-Desktop.dc.html` e `Recibo-Mobile.dc.html`), associada à rota `(publico)/recibo`, app `vistorias` e regras `DEV-01 a DEV-08, AUD-05, S-15`;
-   - Registro de último ajuste datado em 05/11/2026 (T-431).
+   - Registro de último ajuste datado em 05/11/2026 (T-436).
 
 ---
 
