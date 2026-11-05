@@ -562,7 +562,8 @@ Vindas da aba Notas do painel de progresso, como as de 29 out. Nada começa sem 
 #### T-439 · Implantação logo depois da compra
 - **Agentes:** produto (regra), arquiteto, frontend · **Regras:** `IMP-01`, `USR-01`, compra pública (`compra.md`) · **Origem:** nota "Ajustar Implantação".
 - **Pedido do dono:** a implantação deve começar assim que a pessoa termina o cadastro e escolhe o plano, e não só depois.
-- **Hoje:** o caminho é `Compra-Pronto` → convite → criar senha e 2 etapas (`USR-06`) → assistente. **[decisão]** O produto leva ao dono se a senha e as 2 etapas continuam antes do assistente (como manda a `USR-06`) e só o caminho fica direto, ou se algo muda na ordem.
+- **Hoje:** o caminho é `Compra-Pronto` → convite → criar senha e 2 etapas (`USR-06`) → assistente.
+- **Decidido pelo dono em 05 nov 2026:** a senha e as 2 etapas continuam antes do assistente (`USR-06` não muda). O que muda é só o caminho: depois delas, a pessoa cai direto no primeiro passo da implantação, sem passar por outra tela.
 - **Pronto quando:** regra e contrato ajustados com a resposta do dono, o "Acessar meu sistema" leva direto ao primeiro passo da implantação, com teste e E2E.
 
 #### T-440 · Importação de veículos sem filial e sem categoria na planilha
