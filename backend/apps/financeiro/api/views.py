@@ -134,7 +134,9 @@ def _conta_para_receber(request: Request, pk: int) -> ContaReceber:
 
 def _conta_resposta(conta: ContaReceber, request: Request, codigo: int = 200) -> Response:
     conta = selectors.base_das_contas().get(pk=conta.pk)
-    dados = selectors.representacao_completa(conta, relogio.hoje(), _perfil(request))
+    dados = selectors.representacao_completa(
+        conta, relogio.hoje(), _perfil(request), suporte=_suporte(request)
+    )
     return Response(ContaSerializer(dados).data, status=codigo)
 
 
@@ -176,7 +178,12 @@ class ContasReceberView(APIView):
         perfil = _perfil(request)
         return paginacao.get_paginated_response(
             ContaSerializer(
-                [selectors.representacao_completa(c, hoje, perfil, juros) for c in pagina],
+                [
+                    selectors.representacao_completa(
+                        c, hoje, perfil, juros, suporte=_suporte(request)
+                    )
+                    for c in pagina
+                ],
                 many=True,
             ).data,
             extras=selectors.indicadores_e_contagens(filiais, params, hoje),
@@ -210,7 +217,9 @@ class ContaReceberView(APIView):
     @extend_schema(responses=ContaDetalheSerializer, summary="Conta a receber com o histórico")
     def get(self, request: Request, pk: int) -> Response:
         conta = _conta(request, pk)
-        dados = selectors.representacao_completa(conta, relogio.hoje(), _perfil(request))
+        dados = selectors.representacao_completa(
+            conta, relogio.hoje(), _perfil(request), suporte=_suporte(request)
+        )
         dados["historico"] = selectors.historico_da_conta(conta)
         return Response(ContaDetalheSerializer(dados).data)
 
@@ -256,7 +265,9 @@ class CobrancaView(APIView):
             caixa_filial_id=_filial_do_caixa(request) if dados.get("no_caixa") else None,
         )
         return Response(
-            CobrancaSerializer(selectors.representacao_cobranca(cobranca)).data,
+            CobrancaSerializer(
+                selectors.representacao_cobranca(cobranca, suporte=_suporte(request))
+            ).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -330,7 +341,7 @@ class RenegociarView(APIView):
         )
         hoje, perfil = relogio.hoje(), _perfil(request)
         resultado = [
-            selectors.representacao_completa(c, hoje, perfil)
+            selectors.representacao_completa(c, hoje, perfil, suporte=_suporte(request))
             for c in selectors.base_das_contas().filter(pk__in=[n.pk for n in novas])
         ]
         return Response(

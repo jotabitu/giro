@@ -65,3 +65,6 @@ export type EntradaDaLocacao = Omit<S["LocacaoEntrada"], "periodicidade" | "form
   forma_pagamento: FormaPagamento;
   parcelamento_mensal?: ParcelamentoMensal | null;
 };
+
+/** Copiar link do contrato (T-411): o link só vem nesta resposta. */
+export type LinkDoContrato = S["LinkDoContrato"];

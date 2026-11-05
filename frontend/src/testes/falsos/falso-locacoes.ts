@@ -6,6 +6,7 @@ import { ErroApi } from "@/lib/api/tipos";
 import { veiculosFalso } from "./falso-frota";
 import { clientesFalso } from "./falso-clientes";
 import type {
+  LinkDoContrato,
   AbaLocacoes,
   AvisoLocacao,
   EntradaDaLocacao,
@@ -175,6 +176,7 @@ function acoesDe(s: Semente, perfil: Perfil | null) {
     gerar_contrato: cria && s.status === "aguardando_retirada" && !emCurso && !s.corpo.contrato,
     imprimir_contrato: !!s.corpo.contrato && perfil !== "vistoriador",
     reenviar_contrato: !!s.corpo.contrato && perfil !== "vistoriador",
+    copiar_link_contrato: !!s.corpo.contrato && s.corpo.contrato.status !== "assinado" && (perfil === "administrador" || perfil === "gerente" || perfil === "vendedor"),
     continuar_vistoria: false,
     receber: false,
   };
@@ -388,6 +390,7 @@ const PLANOS: PlanoEspecial[] = [
 ];
 
 let proximoId = 2860;
+let contagemDeLinks = 0;
 
 /** Soma `n` períodos a um instante, mantendo a hora (America/Sao_Paulo não tem horário de verão desde 2019). */
 function somarPeriodos(inicio: string, p: Periodicidade, n: number): string {
@@ -704,6 +707,17 @@ export const locacoesFalso = {
     s.corpo.contrato = { status: "enviado", modelo: "Locação semanal", assinadoEm: null };
     s.eventos.push([AGORA_DO_SEED, "Contrato enviado por WhatsApp", "aguardando assinatura"]);
     return { contrato_id: s.id + 100, status: "enviado" };
+  },
+
+  async copiarLinkDoContrato(id: number): Promise<LinkDoContrato> {
+    await pausa(250);
+    const perfil = perfilAtualFalso();
+    if (perfil !== "administrador" && perfil !== "gerente" && perfil !== "vendedor") throw new ErroApi(403, "sem_permissao", "Você não tem permissão para gerar o link do contrato");
+    const s = achar(id);
+    if (!s.corpo.contrato) throw new ErroApi(409, "sem_contrato", "Esta locação ainda não tem contrato");
+    if (s.corpo.contrato.status === "assinado") throw new ErroApi(409, "contrato_assinado", "O contrato já foi assinado");
+    s.eventos.push([AGORA_DO_SEED, "Copiou o link para assinar o contrato", "cópia"]);
+    return { link: `https://motorapida.girolocadoras.com.br/assinar#fake-${id}-${++contagemDeLinks}`, expira_em: "2026-10-14T14:00:00Z", aviso: "O link anterior deixa de valer.", contrato: { id: s.id + 100, status: s.corpo.contrato.status } as unknown as LinkDoContrato["contrato"] };
   },
 
   async reenviarContrato(id: number): Promise<void> {

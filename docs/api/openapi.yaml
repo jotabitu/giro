@@ -2035,6 +2035,30 @@ paths:
               schema:
                 $ref: '#/components/schemas/Recibo'
           description: ''
+  /api/devolucoes/{id}/recibo/link/:
+    post:
+      operationId: devolucoes_recibo_link_create
+      description: |-
+        Copiar link do recibo (T-411, `vistorias.md`). Ordem da T-252: permissão e 403 `PLT-07`
+        (na autenticação), depois o limite, depois o serviço. O link sai só nesta resposta.
+      summary: Copiar link do recibo (DEV-02)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - devolucoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkDoRecibo'
+          description: ''
   /api/devolucoes/{id}/recibo/reenviar/:
     post:
       operationId: devolucoes_recibo_reenviar_create
@@ -3849,6 +3873,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/ContratoGerado'
           description: ''
+  /api/locacoes/{id}/contrato/link/:
+    post:
+      operationId: locacoes_contrato_link_create
+      description: |-
+        Copiar link para assinar (T-411, `locacoes.md`). Ordem da T-252: permissão e 403 `PLT-07`
+        (na autenticação), depois o limite, depois o serviço. O link sai só nesta resposta, sem
+        cache, e não vai para log.
+      summary: Copiar link para assinar (S-15, LOC-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkDoContrato'
+          description: ''
   /api/locacoes/{id}/contrato/pdf/:
     get:
       operationId: locacoes_contrato_pdf_retrieve
@@ -5316,6 +5365,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConsultaDaAssinatura'
+          description: ''
+  /api/publico/recibos/consultar/:
+    post:
+      operationId: publico_recibos_consultar_create
+      description: |-
+        Página pública `/recibo` (T-411): sem login, no host da empresa, com limites próprios por
+        IP e por token (B-03). Ler o recibo não é operação: vale também com a empresa suspensa.
+      summary: Ler o recibo do link (DEV-02, S-15)
+      tags:
+      - publico
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenDoRecibo'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenDoRecibo'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenDoRecibo'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsultaDoRecibo'
           description: ''
   /api/ramo/:
     get:
@@ -6910,6 +6989,10 @@ components:
     AcoesDaConta:
       type: object
       properties:
+        copiar_cobranca:
+          type: boolean
+          description: 'T-411: Copiar Pix e Copiar boleto da cobrança do dia; nunca
+            o suporte'
         receber:
           type: boolean
         gerar_pix:
@@ -6927,11 +7010,21 @@ components:
       required:
       - cancelar
       - cobrar
+      - copiar_cobranca
       - estornar
       - gerar_boleto
       - gerar_pix
       - receber
       - renegociar
+    AcoesDaDevolucao:
+      type: object
+      properties:
+        copiar_link_recibo:
+          type: boolean
+          description: 'T-411: o POST .../recibo/link/ passaria pelo perfil e pelo
+            estado'
+      required:
+      - copiar_link_recibo
     AcoesDaFatura:
       type: object
       properties:
@@ -7091,6 +7184,10 @@ components:
           type: boolean
         reenviar_contrato:
           type: boolean
+        copiar_link_contrato:
+          type: boolean
+          description: 'T-411: o POST .../contrato/link/ passaria pelo perfil e pelo
+            estado'
         continuar_vistoria:
           type: boolean
         receber:
@@ -7100,6 +7197,7 @@ components:
       - cancelar_troca
       - confirmar
       - continuar_vistoria
+      - copiar_link_contrato
       - editar
       - gerar_contrato
       - imprimir_contrato
@@ -8858,6 +8956,16 @@ components:
       required:
       - contrato
       - empresa
+    ConsultaDoRecibo:
+      type: object
+      properties:
+        empresa:
+          $ref: '#/components/schemas/EmpresaDoRecibo'
+        recibo:
+          $ref: '#/components/schemas/ReciboPublico'
+      required:
+      - empresa
+      - recibo
     Conta:
       type: object
       properties:
@@ -9844,7 +9952,10 @@ components:
           type: string
           format: date-time
           nullable: true
+        acoes:
+          $ref: '#/components/schemas/AcoesDaDevolucao'
       required:
+      - acoes
       - comparacao
       - concluida_em
       - devolvida_em
@@ -9853,6 +9964,22 @@ components:
       - recibo_enviado_em
       - status
       - vistoria
+    DevolucaoDoLink:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+          description: concluida
+        recibo_enviado_em:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - id
+      - recibo_enviado_em
+      - status
     DevolucaoPrevista:
       type: object
       properties:
@@ -10136,6 +10263,21 @@ components:
           type: string
       required:
       - id
+      - nome_exibicao
+    EmpresaDoRecibo:
+      type: object
+      properties:
+        nome_exibicao:
+          type: string
+        logo_url:
+          type: string
+          nullable: true
+        cor_marca:
+          type: string
+          nullable: true
+      required:
+      - cor_marca
+      - logo_url
       - nome_exibicao
     EmpresaLista:
       type: object
@@ -12934,6 +13076,25 @@ components:
       required:
       - rotulo
       - valor_centavos
+    LinkDoContrato:
+      type: object
+      description: 'Copiar link para assinar (T-411): o link sai só nesta resposta,
+        com `no-store`.'
+      properties:
+        link:
+          type: string
+        expira_em:
+          type: string
+          format: date-time
+        aviso:
+          type: string
+        contrato:
+          $ref: '#/components/schemas/ContratoResumo'
+      required:
+      - aviso
+      - contrato
+      - expira_em
+      - link
     LinkDoConvite:
       type: object
       properties:
@@ -12951,6 +13112,25 @@ components:
       - expira_em
       - link
       - usuario
+    LinkDoRecibo:
+      type: object
+      description: 'Copiar link do recibo (T-411): o link sai só nesta resposta, com
+        `no-store`.'
+      properties:
+        link:
+          type: string
+        expira_em:
+          type: string
+          format: date-time
+        aviso:
+          type: string
+        devolucao:
+          $ref: '#/components/schemas/DevolucaoDoLink'
+      required:
+      - aviso
+      - devolucao
+      - expira_em
+      - link
     Lista:
       type: object
       properties:
@@ -16654,6 +16834,28 @@ components:
       required:
       - url
       - url_expira_em
+    ReciboPublico:
+      type: object
+      properties:
+        codigo:
+          type: string
+        cliente_primeiro_nome:
+          type: string
+        concluida_em:
+          type: string
+          format: date-time
+          nullable: true
+        pdf_url:
+          type: string
+        pdf_url_expira_em:
+          type: string
+          format: date-time
+      required:
+      - cliente_primeiro_nome
+      - codigo
+      - concluida_em
+      - pdf_url
+      - pdf_url_expira_em
     Recusadas:
       type: object
       properties:
@@ -17929,6 +18131,14 @@ components:
       required:
       - token
     TokenDoConviteDaEquipe:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 100
+      required:
+      - token
+    TokenDoRecibo:
       type: object
       properties:
         token:

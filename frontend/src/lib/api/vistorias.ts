@@ -8,6 +8,7 @@ import type {
   EdicaoDaVistoria,
   FormaDevolucaoAcerto,
   FotoDaVistoria,
+  LinkDoRecibo,
   NovaAvaria,
   NovoItemDoAcerto,
   PosicaoFoto,
@@ -96,6 +97,11 @@ export const vistoriasApi = {
 
   recibo(id: number): Promise<{ url: string; url_expira_em: string }> {
     return http.get(`/api/devolucoes/${id}/recibo/`);
+  },
+
+  /** Gera o link do recibo na hora, sem enviar nada (DEV-02, S-15). Só vem nesta resposta; o anterior deixa de valer. Não guardar. */
+  copiarLinkDoRecibo(id: number): Promise<LinkDoRecibo> {
+    return http.post(`/api/devolucoes/${id}/recibo/link/`, {});
   },
 
   async reenviarRecibo(id: number): Promise<void> {

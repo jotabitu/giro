@@ -30,7 +30,7 @@ import { reembolsosFalso, reiniciarReembolsosFalso } from "./falso-reembolsos";
 const HOJE = "2026-10-07";
 const CENTRO = { id: 1, nome: "Filial Centro" };
 
-const SEM_ACOES = { receber: false, gerar_pix: false, gerar_boleto: false, cobrar: false, cancelar: false, renegociar: false, estornar: false };
+const SEM_ACOES = { copiar_cobranca: false, receber: false, gerar_pix: false, gerar_boleto: false, cobrar: false, cancelar: false, renegociar: false, estornar: false };
 
 function conta(p: Partial<ContaReceber> & Pick<ContaReceber, "id" | "cliente" | "valor_centavos" | "vencimento" | "status">): ContaReceber {
   const paga = p.status === "paga";
@@ -54,7 +54,7 @@ function conta(p: Partial<ContaReceber> & Pick<ContaReceber, "id" | "cliente" | 
     estorno_de: null,
     estornada_em: null,
     cobranca_aberta: null,
-    acoes: paga ? { ...SEM_ACOES, estornar: true } : { receber: true, gerar_pix: true, gerar_boleto: true, cobrar: true, cancelar: true, renegociar: true, estornar: false },
+    acoes: paga ? { ...SEM_ACOES, estornar: true } : { ...SEM_ACOES, receber: true, gerar_pix: true, gerar_boleto: true, cobrar: true, cancelar: true, renegociar: true },
     ...p,
   };
 }
@@ -489,7 +489,7 @@ export const financeiroFalso = {
       boleto_url: null,
       status: "aguardando",
     };
-    contas = contas.map((x) => (x.id === id ? { ...x, cobranca_aberta: cobranca } : x));
+    contas = contas.map((x) => (x.id === id ? { ...x, cobranca_aberta: cobranca, acoes: { ...x.acoes, copiar_cobranca: true } } : x));
     return cobranca;
   },
 
