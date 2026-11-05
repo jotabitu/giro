@@ -23,7 +23,7 @@ from apps.plataforma.models import (
     StatusFatura,
     StatusPedidoCompra,
 )
-from apps.plataforma.services import PlanoForaDaVenda, mudar_plano, plano_para_mudar
+from apps.plataforma.services import PlanoForaDaVenda, plano_para_mudar
 from comum.estados import transicionar
 from integracoes import cnpj as integracao_cnpj
 from integracoes.cnpj import DadosDoCnpj
@@ -71,7 +71,7 @@ def _corpo(**mudar: Any) -> dict[str, Any]:
 
 
 def _codigo_do_email() -> str:
-    achado = re.search(r"Seu código é (\d{6})", mail.outbox[-1].body)
+    achado = re.search(r"Seu código é (\d{6})", str(mail.outbox[-1].body))
     assert achado, mail.outbox[-1].body
     return achado.group(1)
 
@@ -136,7 +136,6 @@ def test_plt_11_completo_fora_da_mudanca_de_plano(criar_empresa, planos):
     ):
         plano_para_mudar(planos["Completo"].pk, empresa)
     assert plano_para_mudar(planos["Essencial"].pk, empresa) == planos["Essencial"]
-    assert mudar_plano  # a mudança passa sempre por `plano_para_mudar` na API
 
 
 # --- CNPJ (PLT-16) e consulta pública (ADR 0039) ---
