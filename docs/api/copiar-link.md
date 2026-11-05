@@ -45,7 +45,7 @@ Igual ao copiar link do convite (`contas.md`, T-249), com as diferenças de cada
 
 - O componente é o mesmo do copiar link do convite (`frontend/src/components/admin/PainelDoUsuario.tsx`): o campo só leitura com o link, o botão "Copiar", a validade ("Vale até 10/11, 11:00") e o `aviso`. A cópia é sempre por `copiarQuandoChegar` (`frontend/src/lib/area-de-transferencia.ts`), obrigatória nas duas rotas novas: sem ela, o Safari recusa a cópia, e cada tentativa gera um link, invalida o anterior e gasta o limite (B-02 da T-252). Se a cópia falhar, o campo fica selecionado para a pessoa copiar com o teclado.
 - O link fica só no resultado da mutação: some ao fechar o pop-up, sem `setQueryData`, e nunca vai para `localStorage`, `sessionStorage`, URL, `console` nem cache persistido do TanStack Query.
-- No contrato, junto do link: "Mande o link ao cliente. Só ele pode assinar." (texto a confirmar com o produto).
+- No contrato, junto do link: "Mande o link só ao cliente. Só ele pode assinar, e o contrato registra que você copiou o link." (texto fixado pelo produto em 05 nov 2026, passo 3 do fluxo da locação nas regras).
 - Botão por `acoes` da API, nunca por conta da tela (`acoes.copiar_link_contrato`, `acoes.copiar_link_recibo`, `acoes.copiar_cobranca`; na fatura, `acoes.pagar`).
 - Nomes dos botões: "Copiar link para assinar" (contrato), "Copiar Pix" e "Copiar boleto" (cobrança), "Copiar link do recibo" (recibo), "Copiar link de pagamento" (fatura).
 
