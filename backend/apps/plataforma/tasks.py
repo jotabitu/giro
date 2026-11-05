@@ -331,3 +331,23 @@ def plataforma_atualizar_pagador(empresa_id: int) -> str:
     with schema_context(get_public_schema_name()):
         empresa = Empresa.objects.get(pk=empresa_id)
         return atualizar_pagador(empresa)
+
+
+# --- Compra pública (`compra.md`, T-435) ---
+
+
+@shared_task(name="plataforma_executar_pedido_compra")
+def plataforma_executar_pedido_compra(pedido_id: int) -> str:
+    """Cria a empresa do pedido confirmado (o schema leva segundos). Sem nova tentativa
+    automática: para não criar duas vezes, a falha vira `falhou` e avisa a equipe."""
+    from .compra import executar_pedido_compra
+
+    return executar_pedido_compra(pedido_id)
+
+
+@shared_task(name="plataforma_expirar_pedidos_compra")
+def plataforma_expirar_pedidos_compra() -> dict[str, int]:
+    """Diária: pedidos vencidos e, 7 dias depois, os dados pessoais deles."""
+    from .compra import expirar_pedidos_compra
+
+    return expirar_pedidos_compra()

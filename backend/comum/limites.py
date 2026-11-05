@@ -198,3 +198,32 @@ class WebhookPorIP(_PorIP):
     """Webhook do parceiro de pagamentos, sem login (S-14, contrato de financeiro)."""
 
     scope = "webhook_ip"
+
+
+# --- Compra pública, sem login (docs/api/compra.md, "Proteção da rota pública") ---
+# Por e-mail e por CNPJ, o limite conta no banco (`plataforma.compra`), porque o pedido que
+# substitui outro do mesmo e-mail e CNPJ não conta de novo.
+
+
+class CompraCnpjPorIP(_PorIP):
+    scope = "compra_cnpj_ip"
+
+
+class CompraSubdominioPorIP(_PorIP):
+    scope = "compra_subdominio_ip"
+
+
+class CompraPedidoPorIPHora(_PorIP):
+    scope = "compra_pedido_ip_hora"
+
+
+class CompraPedidoPorIPDia(_PorIP):
+    scope = "compra_pedido_ip_dia"
+
+
+class CompraConfirmarPorIP(_PorIP):
+    scope = "compra_confirmar_ip"
+
+
+class CompraReenviarPorIP(_PorIP):
+    scope = "compra_reenviar_ip"

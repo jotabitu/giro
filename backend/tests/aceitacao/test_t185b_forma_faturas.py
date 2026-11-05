@@ -36,6 +36,17 @@ from .test_t185_assinatura import (
     _rotas_que_escrevem_na_suspensa,
 )
 
+
+@pytest.fixture(autouse=True)
+def _completo_a_venda(db):
+    """Os números dos CA-ASS (upgrade, diferença, downgrade) usam o Completo, que a T-378 tirou
+    da venda (PLT-11). A mecânica da PLT-04 é a mesma; aqui ele volta à venda só no teste. A
+    recusa do Completo fora da venda está em `test_t435_compra_publica.py`."""
+    from apps.plataforma.models import Plano
+
+    Plano.objects.filter(nome="Completo").update(a_venda=True)
+
+
 FORMA = "/api/assinatura/forma-pagamento/"
 FATURAS = "/api/assinatura/faturas/"
 FUSO = ZoneInfo("America/Sao_Paulo")
