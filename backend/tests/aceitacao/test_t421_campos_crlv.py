@@ -101,22 +101,29 @@ def _texto(documento: pdfs.Crlv) -> str:
 # --- Parser (VEI-08, "Do texto do CRLV-e ao campo") ---
 
 
+def _lido(resultado: dict[str, Any] | None) -> dict[str, Any]:
+    assert resultado is not None
+    return resultado
+
+
 def test_vei_09_parser_converte_o_texto_do_documento() -> None:
     assert crlv.potencia_cilindrada("15CV/0162") == {"potencia_cv": 15, "cilindrada_cc": 162}
     assert crlv.potencia_cilindrada("0CV/0109") == {"potencia_cv": None, "cilindrada_cc": 109}
     assert crlv.potencia_cilindrada("80CV/0000") == {"potencia_cv": 80, "cilindrada_cc": None}
-    assert crlv.potencia_cilindrada("1500CV/0162")["potencia_cv"] is None  # fora da faixa
+    # fora da faixa
+    assert _lido(crlv.potencia_cilindrada("1500CV/0162"))["potencia_cv"] is None
     assert crlv.potencia_cilindrada("PARTICULAR") is None
     assert crlv.especie_tipo("PASSAGEIRO MOTOCICLETA") == {
         "especie": "passageiro",
         "tipo": "Motocicleta",
     }
-    assert crlv.especie_tipo("PASSAGEIRO AUTOMOVEL")["tipo"] == "Automóvel"
-    assert crlv.especie_tipo("PASSAGEIRO MICRO-ONIBUS")["tipo"] == "Micro-ônibus"
+    assert _lido(crlv.especie_tipo("PASSAGEIRO AUTOMOVEL"))["tipo"] == "Automóvel"
+    assert _lido(crlv.especie_tipo("PASSAGEIRO MICRO-ONIBUS"))["tipo"] == "Micro-ônibus"
     assert crlv.especie_tipo("CARGA CAMINHONETE") == {"especie": "carga", "tipo": "Caminhonete"}
-    assert crlv.especie_tipo("MISTO UTILITARIO")["tipo"] == "Utilitário"
-    assert crlv.especie_tipo("COMPETICAO MOTOCICLETA")["especie"] == "competicao"
-    assert crlv.especie_tipo("PASSAGEIRO TRICICLO ELETRICO")["tipo"] == "Triciclo eletrico"
+    assert _lido(crlv.especie_tipo("MISTO UTILITARIO"))["tipo"] == "Utilitário"
+    assert _lido(crlv.especie_tipo("COMPETICAO MOTOCICLETA"))["especie"] == "competicao"
+    tipo = _lido(crlv.especie_tipo("PASSAGEIRO TRICICLO ELETRICO"))["tipo"]
+    assert tipo == "Triciclo eletrico"
     assert crlv.especie_tipo("PARTICULAR MOTOCICLETA") is None  # espécie fora do CTB
     assert crlv.carroceria("NÃO APLICAVEL") == crlv.VAZIO
     assert crlv.carroceria("NAO APLICAVEL") == crlv.VAZIO
