@@ -16,6 +16,14 @@ const config: NextConfig = {
   // HSTS só vale sobre HTTPS; o Django cobre /api/ e o proxy reverso pode repeti-lo.
   async headers() {
     return [
+      // Página pública do recibo (T-436, S-15): nunca em cache de navegador ou proxy e fora dos buscadores.
+      {
+        source: "/recibo",
+        headers: [
+          { key: "Cache-Control", value: "no-store" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+        ],
+      },
       {
         source: "/:path*",
         headers: [
