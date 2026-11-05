@@ -12,7 +12,7 @@ import re
 import secrets
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import asdict, dataclass, replace
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from functools import partial
 from typing import Any
 
@@ -50,6 +50,7 @@ from comum.dinheiro import formatar_reais, proporcional
 from comum.documentos import UFS, cnpj_valido, so_digitos
 from comum.erros import (
     Conflito,
+    ErroDeNegocio,
     ErroDeRegra,
     ErroDeValidacao,
     LimiteDoPlano,
@@ -115,8 +116,10 @@ from .models import (
     Item,
     MotivoCancelamento,
     MotivoCancelamentoFatura,
+    Origem,
     PermissaoSuporte,
     Plano,
+    SituacaoCnpj,
     StatusAcessoSuporte,
     StatusContaPagamento,
     StatusFatura,
@@ -125,6 +128,7 @@ from .models import (
     UsoEmpresa,
     validar_nome_sem_quebra,
 )
+from .situacao_cnpj import MENSAGEM_FATURA_EM_ATRASO, Situacao, situacao_do_cnpj
 
 logger = logging.getLogger(__name__)
 
@@ -204,8 +208,10 @@ def _validar(subdominio: str, cnpj: str, administrador: Administrador) -> dict[s
     return erros
 
 
-def validar_criacao(subdominio: str, cnpj: str, administrador: Administrador) -> None:
-    """400 `validacao` para formato; 409 `subdominio_em_uso` ou `cnpj_em_uso` (PLT-01).
+def validar_criacao(subdominio: str, cnpj: str, administrador: Administrador) -> Situacao:
+    """400 `validacao` para formato; 409 `subdominio_em_uso`, `cnpj_em_uso` ou
+    `fatura_anterior_em_atraso` (PLT-01, PLT-16). Devolve a situação do CNPJ: `nova` ou
+    `ja_foi_cliente` (empresa sem teste).
 
     Subdomínio cujo schema já existe no Postgres sem ser de empresa (`information_schema`, de
     extensão, de ferramenta) é recusado como reservado (P-04 da T-057).
@@ -222,8 +228,12 @@ def validar_criacao(subdominio: str, cnpj: str, administrador: Administrador) ->
             raise Conflito("subdominio_em_uso", "Este endereço já está em uso. Escolha outro.")
         if schema_exists(schema):
             raise ErroDeValidacao({"subdominio": [RESERVADO]})
-        if Empresa.objects.filter(cnpj=so_digitos(cnpj)).exists():
+        situacao = situacao_do_cnpj(so_digitos(cnpj))
+        if situacao.situacao == SituacaoCnpj.EM_USO:
             raise Conflito("cnpj_em_uso", "Já existe uma empresa com este CNPJ.")
+        if situacao.situacao == SituacaoCnpj.FATURA_EM_ATRASO:
+            raise Conflito("fatura_anterior_em_atraso", MENSAGEM_FATURA_EM_ATRASO)
+    return situacao
 
 
 def criar_empresa(
@@ -237,22 +247,34 @@ def criar_empresa(
     ciclo: str = Empresa.Ciclo.MENSAL,
     cidade: str = "",
     uf: str = "",
+    origem: str = Origem.ADMIN,
+    aceite_termos_versao: str = "",
+    aceite_termos_em: datetime | None = None,
+    andamento: dict[str, str] | None = None,
 ) -> Empresa:
     """Empresa em teste, domínio, schema, uso, a 1ª fatura (PLT-01) e administrador
-    convidado, numa transação.
+    convidado, numa transação. As duas portas chamam aqui: o Django Admin e a compra pública
+    (`compra.md`, `origem`).
+
+    CNPJ de empresa já apagada sem fatura atrasada (`PLT-16`): a empresa nasce `ativa`, sem
+    teste, com a 1ª fatura vencendo hoje, que passa a ser o dia de vencimento, e guarda a
+    empresa anterior.
 
     O administrador nasce `convite_pendente` no schema da empresa (`contas`, pelo evento
     `plataforma.empresa_criada`); o e-mail do convite sai só depois do commit. Se algo falha,
-    o schema volta junto (DDL do PostgreSQL é transacional).
+    o schema volta junto (DDL do PostgreSQL é transacional). `andamento`, quando vem, recebe o
+    horário de cada passo (a `Compra-Pronto`).
     """
     subdominio = subdominio.strip()
     cnpj = so_digitos(cnpj)
+    passos = andamento if andamento is not None else {}
     try:
         validar_nome_sem_quebra(nome_exibicao.strip())
     except DjangoValidationError as erro:
         raise ErroDeValidacao({"nome_exibicao": list(erro.messages)}) from erro
     with schema_context(get_public_schema_name()), transaction.atomic():
-        validar_criacao(subdominio, cnpj, administrador)
+        situacao = validar_criacao(subdominio, cnpj, administrador)
+        sem_teste = situacao.situacao == SituacaoCnpj.JA_FOI_CLIENTE
         hoje = relogio.hoje()
         empresa = Empresa(
             schema_name=schema_do_subdominio(subdominio),
@@ -269,13 +291,18 @@ def criar_empresa(
             plano=plano,
             ciclo=ciclo,
             preco_contratado_centavos=preco_no_ciclo(plano, ciclo),
-            status=Empresa.Status.EM_TESTE,
-            teste_inicio=hoje,
-            teste_fim=hoje + timedelta(days=DIAS_DE_TESTE),
-            # PLT-01: o dia da 1ª fatura (dia seguinte ao fim do teste).
-            dia_vencimento=(hoje + timedelta(days=DIAS_DE_TESTE + 1)).day,
+            status=Empresa.Status.ATIVA if sem_teste else Empresa.Status.EM_TESTE,
+            teste_inicio=None if sem_teste else hoje,
+            teste_fim=None if sem_teste else hoje + timedelta(days=DIAS_DE_TESTE),
+            # PLT-01: o dia da 1ª fatura (dia seguinte ao fim do teste); sem teste, o dia da
+            # compra (PLT-16).
+            dia_vencimento=(hoje if sem_teste else hoje + timedelta(days=DIAS_DE_TESTE + 1)).day,
             etapa_implantacao=Empresa.EtapaImplantacao.CONTA,
             etapa_implantacao_desde=relogio.agora(),
+            origem=origem,
+            empresa_anterior=situacao.empresa_anterior if sem_teste else None,
+            aceite_termos_versao=aceite_termos_versao,
+            aceite_termos_em=aceite_termos_em,
         )
         # O schema é criado aqui, sem `check_if_exists`: um schema que já existe dá erro e desfaz
         # tudo, em vez de ser reaproveitado sem tabelas (P-04 da T-057).
@@ -288,9 +315,11 @@ def criar_empresa(
             raise Conflito("subdominio_em_uso", "Este endereço já está em uso.") from erro
         except ProgrammingError as erro:  # o schema já existe no Postgres
             raise ErroDeValidacao({"subdominio": [RESERVADO]}) from erro
+        passos["banco"] = relogio.agora().isoformat()
         Dominio.objects.create(
             domain=endereco_de_acesso(subdominio), tenant=empresa, is_primary=True
         )
+        passos["endereco"] = relogio.agora().isoformat()
         UsoEmpresa.objects.create(empresa=empresa)
         FormaPagamentoAssinatura.objects.create(empresa=empresa)
         registrar_evento(
@@ -298,15 +327,17 @@ def criar_empresa(
             Categoria.CONFIGURACOES,
             objeto=empresa,
             depois=retrato(empresa),
-            regra="PLT-01",
+            regra="PLT-16" if sem_teste else "PLT-01",
         )
         criar_primeira_fatura(empresa)
+        passos["assinatura"] = relogio.agora().isoformat()
         with no_schema_da_empresa(empresa, com_tenant=True):
             publicar(
                 "plataforma.empresa_criada",
                 empresa_id=empresa.pk,
                 administrador=asdict(administrador),
             )
+        passos["administrador"] = relogio.agora().isoformat()
     return empresa
 
 
@@ -960,9 +991,12 @@ def criar_fatura(
 def criar_primeira_fatura(empresa: Empresa) -> FaturaAssinatura:
     """PLT-01: a 1ª fatura nasce com a empresa, `aberta`, vencendo no dia seguinte ao fim do
     teste, pelo plano e pelo preço contratados (Moto Rápida: FAT-0001, 22 out, 44900)."""
-    if empresa.plano is None or empresa.primeira_cobranca is None or not empresa.dia_vencimento:
+    # Sem teste (PLT-16): a empresa nasce `ativa` e a 1ª fatura vence no dia da compra.
+    vencimento = empresa.primeira_cobranca or (
+        relogio.hoje() if empresa.status == Empresa.Status.ATIVA else None
+    )
+    if empresa.plano is None or vencimento is None or not empresa.dia_vencimento:
         raise ValueError("Empresa sem plano, teste ou dia de vencimento.")
-    vencimento = empresa.primeira_cobranca
     return criar_fatura(
         empresa,
         tipo=TipoFatura.MENSALIDADE,
@@ -1658,7 +1692,23 @@ def plano_para_mudar(plano_id: int, empresa: Empresa) -> Plano:
         plano = Plano.objects.filter(pk=plano_id).first()
     if plano is None or (not plano.ativo and plano.pk != empresa.plano_id):
         raise NaoEncontrado("nao_encontrado", "Plano não encontrado.")
+    if not plano.a_venda and plano.pk != empresa.plano_id:
+        raise PlanoForaDaVenda(fora_da_venda(plano))
     return plano
+
+
+class PlanoForaDaVenda(ErroDeNegocio):
+    """400 `plano_fora_da_venda` (PLT-11): na mudança de plano e na compra pública."""
+
+    status_http = 400
+
+    def __init__(self, mensagem: str) -> None:
+        super().__init__("plano_fora_da_venda", mensagem)
+
+
+def fora_da_venda(plano: Plano) -> str:
+    """PLT-11, catálogo da fase 1 (T-378)."""
+    return f"O plano {plano.nome} ainda não está à venda."
 
 
 def _uso_sem_trava(empresa: Empresa) -> UsoEmpresa:

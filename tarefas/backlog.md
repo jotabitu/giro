@@ -365,8 +365,8 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a FIN-13), manutenção (MAN), automações (AUT), implantação self-service (IMP), relatórios e DRE, exportação (AUD-06, AUD-07). A cobrança da assinatura, cancelar e pausar e a `AUD-08` entraram no MVP em 14 out 2026 (T-183, T-190); continuam aqui a `Plat-Cobranca` e os adicionais. Da exportação (`AUD-07`), o MVP tem só a auditoria em CSV (T-018); a fase 2 traz os outros itens (clientes, veículos, locações e contratos, financeiro, vistorias e fotos), a planilha (.xlsx, dependência nova registrada no PR), o backup completo em ZIP com as 2 etapas recentes, o backup mensal (`AUT-11`) com o cartão da tela, a exportação da plataforma (`/api/plataforma/exportacoes/`), o pedido do titular (`AUD-06`, à mão até lá) e o prazo após o cancelamento (`AUD-08`), decisão do dono de 12 out 2026 (T-151). O orquestrador quebra em tarefas quando a fase 1 fechar.
 
-### T-378 · Completo fora da venda (`PLT-11`)
-- **Agente:** backend · **Fase:** 2, com a produção (decisão do dono de 28 out 2026: na fase 1 ninguém compra plano) · **Pronto quando:** o plano ganha o campo próprio "à venda" (migração), e o Completo nasce fora; Mudar de plano e Comparar planos não o listam; a API recusa a mudança para ele com "O plano Completo ainda não está à venda."; teste com o código da regra no nome. Junto, a resposta do dono sobre o preço e os limites do Profissional ("Pontos em aberto" das regras).
+### ~~T-378 · Completo fora da venda (`PLT-11`)~~
+- **Feita na T-435** (05 nov 2026): `Plano.a_venda`, o Completo nasce fora (migração `plataforma.0014`), sai de Mudar de plano, de Comparar planos e do cartão do plano acima, e a API recusa a mudança para ele. O texto do Profissional passou ao da fase 1. Falta a resposta do dono sobre o preço e os limites do Profissional ("Pontos em aberto").
 
 ### T-430 · Contrato da compra pública (feita, aguardando merge)
 - **Agente:** arquiteto · **Regras:** PLT-01, PLT-11, PLT-13, PLT-16, USR-01, IMP-06 · **Contrato:** `docs/api/compra.md` · Handoff: `tarefas/handoffs/T-430-arquiteto.md`. Liberada pelo dono em 03 nov 2026.
@@ -374,21 +374,21 @@ Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a
 - **[decisão] aberta** D-430-05: textos dos Termos de uso e do Acordo de tratamento de dados. Não bloqueia a T-432 nem a T-433, mas a compra não entra no ar sem eles.
 - **[divergência]** D-430-07: a `Compra-Pronto` diz 48 horas; vale a `USR-01` (7 dias). O design-system corrige na T-434.
 
-### T-431 · Revisão da segurança do contrato da compra pública
+### T-431 · Revisão da segurança da compra pública
+- **Mudou em 05 nov 2026:** o código já existe (T-435). A revisão lê o contrato e o código: `apps/plataforma/compra.py`, `apps/plataforma/api/compra.py`, `integracoes/cnpj` (ADR 0039).
 - **Agente:** seguranca · **Depende de:** T-430 · **Regras:** PLT-16, USR-01, AUD (auditoria no `public`) · **Contrato:** `docs/api/compra.md`
 - **Pronto quando:** relatório em `docs/seguranca/` sobre as rotas anônimas: limites por IP, e-mail e CNPJ, código do e-mail (tamanho, prazo, tentativas, comparação), enumeração de CNPJ e de subdomínio (D-430-04), link do convite na `Compra-Pronto` (D-430-06), teto diário (D-430-08), IP atrás do proxy (ADR 0033), dados pessoais do pedido não confirmado e o que vai para log e Sentry; achados com gravidade e o arquiteto ajusta o contrato antes da T-432.
 
-### T-432 · Backend da compra pública
-- **Agente:** backend · **Depende de:** T-431, T-378 (ou o filtro provisório do Completo descrito no contrato), decisões do dono de 03 nov 2026 (D-430) · **Regras:** PLT-01, PLT-11, PLT-13, PLT-16, USR-01, IMP-06 · **Contrato:** `docs/api/compra.md`
-- **Pronto quando:** `PedidoCompra` com migração no `public`; as 7 rotas em `/api/publico/compra/` só no domínio principal; serviços com auditoria; `executar_pedido_compra` no Celery chamando `criar_empresa` (com `origem` e o andamento); `expirar_pedidos_compra` diária; limites e teto da tabela; os testes listados no contrato, com o código da regra no nome; OpenAPI gerado e `npm run api:gerar` sem quebrar o frontend.
+### ~~T-432 · Backend da compra pública~~
+- **Feita na T-435** (05 nov 2026), antes da T-431, por pedido do dono. A revisão da segurança continua valendo sobre o código pronto.
 
 ### T-434 · Ajuste das telas da compra pública
+- **Mudou em 05 nov 2026 (T-435, ADR 0039):** o checkout volta a mostrar a frase "Moto Rápida Locações Ltda · Fortaleza, CE · CNPJ ativo" com os dados da BrasilAPI, e razão social, nome, cidade e UF viram campos editáveis preenchidos pela consulta. O frontend já faz assim.
 - **Agente:** design-system · **Depende de:** T-430 · **Regras:** PLT-11, PLT-16, USR-01 · **Telas:** Compra-Planos, Compra-Checkout, Compra-Pronto (desktop e celular) · **Contrato:** `docs/api/compra.md`, "Ajustes das telas"
 - **Pronto quando:** `Compra-Planos` sem o Completo, com o texto da fase 1 do Profissional e sem o "Entrar" (D-430-10); `Compra-Checkout` com o campo "Endereço de acesso" (D-430-02), razão social, cidade e UF digitados no lugar da frase "CNPJ ativo" (D-430-03), sem "Tamanho da frota hoje" (D-430-11) e com o passo do código de 6 dígitos e "Reenviar código"; `Compra-Pronto` com "O link vale por 7 dias." (D-430-07); nota de mudança no `docs/telas/README.md`.
 
-### T-433 · Frontend da compra pública
-- **Agente:** frontend · **Depende de:** T-432 e T-434 · **Regras:** PLT-01, PLT-11, PLT-16, USR-01 · **Telas:** Compra-Planos, Compra-Checkout, Compra-Pronto (desktop e celular)
-- **Pronto quando:** rota `(publico)/compra` com as 3 telas a 1440 e 390 px pelo cliente tipado; mensal e anual, checagem do CNPJ e do endereço enquanto digita, passo do código com reenviar, andamento da `Compra-Pronto` consultando a cada 2 s; textos e valores só da API; a chave do pedido nunca na URL; sem campo de cartão (ADR 0023); conferência lado a lado (`npm run conferencia`) anexada ao handoff; E2E do caminho feliz com o seed.
+### ~~T-433 · Frontend da compra pública~~
+- **Feita na T-435** (05 nov 2026), sem esperar a T-434: as telas seguem o contrato. Falta a conferência lado a lado (`npm run conferencia`) e o E2E, que dependem das telas ajustadas na T-434.
 
 ### Telas novas do painel da plataforma (T-409)
 - **Origem:** 48 telas `Plat-*` vindas do canvas em 28 out 2026, listadas em `docs/telas/README.md`, "Painel da plataforma: telas da fase 2". Sem contrato nem tarefa.

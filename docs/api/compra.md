@@ -1,10 +1,12 @@
 # Compra pública (self-service)
 
-**Dono:** arquiteto · **Versão:** 03 nov 2026 (T-430) · **Fase:** 2 · **App:** `plataforma` (schema `public`, sem login) · **Regras:** PLT-01, PLT-11, PLT-13, PLT-16, USR-01, IMP-01, IMP-06 · **ADRs:** 0023 (cartão só na página do parceiro), 0008 (`public`) · **Telas:** Compra-Planos, Compra-Checkout, Compra-Pronto (desktop e celular, linhas 15 a 17 de `docs/telas/README.md`) · **Rota no frontend:** `(publico)/compra`
+**Dono:** arquiteto · **Versão:** 05 nov 2026 (T-435; criado na T-430) · **Fase:** 2 · **App:** `plataforma` (schema `public`, sem login) · **Regras:** PLT-01, PLT-11, PLT-13, PLT-16, USR-01, IMP-01, IMP-06 · **ADRs:** 0023 (cartão só na página do parceiro), 0008 (`public`) · **Telas:** Compra-Planos, Compra-Checkout, Compra-Pronto (desktop e celular, linhas 15 a 17 de `docs/telas/README.md`) · **Rota no frontend:** `(publico)/compra`
 
 Convenções gerais em `docs/api/README.md`. O serviço que cria a empresa é `plataforma.services.criar_empresa`, descrito em `plataforma.md` ("POST /api/plataforma/empresas/"), com a checagem do CNPJ (`plataforma.selectors.situacao_do_cnpj`, `PLT-16`).
 
 **Por que um arquivo próprio, e não uma seção do `plataforma.md`.** O `plataforma.md` é o contrato da equipe Giro (login da plataforma, 2 etapas, função dono) e do lado da empresa já logada. Estas rotas são as únicas do Giro abertas a qualquer pessoa na internet, sem sessão, e criam schema. Elas têm autenticação, limites e revisão de segurança próprios (T-431) e um modelo próprio (`PedidoCompra`). Num arquivo só delas, a revisão de segurança lê tudo o que é anônimo num lugar, e o `plataforma.md` continua sendo o dono do serviço `criar_empresa`, que as duas portas (Django Admin e compra) chamam.
+
+**Mudança de 05 nov 2026 (T-435):** o dono trocou a D-430-03. A compra consulta o CNPJ na BrasilAPI e preenche razão social, nome, cidade e UF, que a pessoa confere e edita (ADR 0039, campo `dados` da checagem do CNPJ). O resto das decisões D-430 continua igual.
 
 As decisões D-430 foram respondidas pelo dono em 03 nov 2026 ("Aprovo os padrões"), menos a D-430-05 (Termos de uso e Acordo de tratamento de dados), que continua `[decisão]` aberta: ela não bloqueia a T-432 nem a T-433, mas **a compra não entra no ar sem esses textos**. Os ajustes das telas são da T-434 (design-system).
 
@@ -107,12 +109,12 @@ Corpo: `{ "cnpj": "12.345.678/0001-90" }` (aceita com ou sem pontuação; o back
 
 | `situacao_do_cnpj` | 200 | Na tela |
 | --- | --- | --- |
-| `nova` | `{ "pode_comprar": true, "teste_gratis": true, "aviso": null }` | nada |
+| `nova` | `{ "pode_comprar": true, "teste_gratis": true, "aviso": null, "dados": {...} }` | preenche os campos com `dados` |
 | `ja_foi_cliente` | `{ "pode_comprar": true, "teste_gratis": false, "aviso": "Este CNPJ já usou o teste grátis. A 1ª fatura vence hoje.", "primeira_fatura": "2027-03-01" }` | o aviso, e o quadro do teste troca para "1ª fatura hoje" com o valor do plano |
 | `em_uso` | `{ "pode_comprar": false, "codigo": "cnpj_em_uso", "mensagem": "Este CNPJ já tem uma assinatura no Giro. Para voltar, fale com a equipe Giro." }` | a mensagem no campo e "Criar minha conta" desligado |
 | `fatura_em_atraso` | `{ "pode_comprar": false, "codigo": "fatura_anterior_em_atraso", "mensagem": "Há uma fatura em aberto da assinatura anterior. Fale com a equipe Giro para pagar antes de assinar de novo." }` | idem |
 
-- A resposta não traz razão social, cidade, situação na Receita nem nada da empresa existente. A frase da tela "Moto Rápida Locações Ltda · Fortaleza, CE · CNPJ ativo" depende de consulta à Receita, que é serviço externo: D-430-03, decidido pelo dono em 03 nov 2026: sem consulta; a pessoa digita razão social, cidade e UF, e a frase sai da tela).
+- Quando pode comprar, `dados` traz o que a BrasilAPI devolveu (ADR 0039): `{ "razao_social": "Moto Rápida Locações Ltda", "nome_fantasia": "Moto Rápida", "cidade": "Fortaleza", "uf": "CE", "ativo": true }`, ou `null` se o provedor caiu ou não achou o CNPJ. A tela preenche razão social, nome, cidade e UF, e a pessoa edita. A frase "Moto Rápida Locações Ltda · Fortaleza, CE · CNPJ ativo" sai desses dados. `ativo` só informa e não recusa. Nada da empresa já cliente do Giro sai na resposta. *Antes (D-430-03, 03 nov 2026): sem consulta. Trocada pelo dono em 05 nov 2026.*
 - **Enumeração:** essa rota diz a qualquer pessoa se um CNPJ é ou foi cliente do Giro. O que um CNPJ é (razão social, endereço) já é público, mas ser cliente do Giro é dado comercial do cliente. A proteção é o limite por IP (abaixo) e a auditoria das recusas. D-430-04, decidido pelo dono em 03 nov 2026: a checagem responde como na tabela, com o limite.
 - A mesma checagem roda de novo na confirmação, que é o que vale (o CNPJ pode mudar de situação entre as duas).
 
@@ -161,6 +163,7 @@ Corpo:
 Corpo: `{ "codigo": "482913" }`.
 
 - Código certo e no prazo: o pedido vira `confirmado`, roda `situacao_do_cnpj` de novo (grava `situacao_cnpj`), vira `criando` e agenda `executar_pedido_compra` no Celery. 202 com o corpo de `GET /pedidos/{chave}/`.
+- Erros do código vêm com `codigo` e `mensagem` no primeiro nível (e `tentativas_restantes` no `codigo_invalido`), sem `detalhes`.
 - Código errado: 400 `{ "codigo": "codigo_invalido", "mensagem": "Código incorreto. Você tem mais 4 tentativas.", "tentativas_restantes": 4 }`. Na 5ª errada, o código morre: 400 `{ "codigo": "codigo_bloqueado", "mensagem": "Muitas tentativas. Peça um código novo." }`.
 - Código vencido: 400 `{ "codigo": "codigo_expirado", "mensagem": "O código venceu. Peça um código novo." }`.
 - Pedido `expirado` ou chave desconhecida: 404 `{ "codigo": "pedido_nao_encontrado", "mensagem": "Este pedido não vale mais. Comece de novo pela escolha do plano." }`. A mesma resposta para os dois casos.
@@ -216,7 +219,10 @@ Chama `criar_empresa` com os dados do pedido, sem duplicar a regra:
 - `Empresa.origem` = `compra` (o Django Admin grava `admin`), para o funil da `Plat-Implantacoes` (`IMP-05`) e a auditoria.
 - Grava os horários de cada passo em `andamento`.
 
-Única mudança na `criar_empresa`: a função passa a receber o `pedido` opcional para gravar o andamento; o Django Admin continua chamando sem ele.
+Mudanças na `criar_empresa` (T-435): recebe `origem`, a versão aceita dos Termos e um `andamento` opcional (dicionário que ela preenche com o horário de cada passo). A situação do CNPJ é conferida lá dentro para as duas portas: com `ja_foi_cliente`, a empresa nasce `ativa`, sem teste, com `empresa_anterior` e a 1ª fatura hoje. O Django Admin continua chamando sem os parâmetros novos.
+
+- `aceita_whatsapp` fica só no pedido: a empresa ainda não tem campo para o aceite do responsável (ADR 0034 proposta). Entra quando o WhatsApp real entrar.
+- O link de "Acessar meu sistema" é um convite a mais do administrador, criado na primeira leitura depois do `pronto`, com o mesmo vencimento do convite do e-mail e sem invalidá-lo. O token em claro nunca é gravado.
 
 ---
 
@@ -228,7 +234,7 @@ Tudo com o que já existe: throttles do DRF no cache do Redis (como o `AcessoPor
 | --- | --- | --- | --- | --- |
 | `cnpj/` | 20 por hora | | | 429 |
 | `subdominio/` | 60 por hora | | | 429 |
-| `pedidos/` | 5 por hora, 20 por dia | 3 por dia | 3 por dia | 429 |
+| `pedidos/` | 5 por hora, 20 por dia | 3 por dia | 3 e-mails diferentes por dia | 429 |
 | `confirmar/` | 30 por hora | 5 tentativas por código | | 400 / 429 |
 | `reenviar-codigo/` | 10 por hora | 3 por pedido, 60 s entre eles | | 429 |
 
@@ -244,7 +250,7 @@ Tudo com o que já existe: throttles do DRF no cache do Redis (como o `AcessoPor
 ## Ajustes das telas (T-434, design-system)
 
 - `Compra-Planos`: mostra o Completo e o texto antigo do Profissional ("vendas, manutenção... comissão de vendedores e relatórios"). Vale a `PLT-11` da fase 1: o card do Completo sai, e o texto vem da API. O link "Entrar" do topo não tem para onde levar no domínio principal (o login é no endereço de cada locadora): D-430-10, decidido pelo dono em 03 nov 2026: sai da tela.
-- `Compra-Checkout`: falta o campo do endereço de acesso (D-430-02) e os campos de razão social, cidade e UF sem a consulta à Receita (D-430-03); entra o passo do código de 6 dígitos ("Digite o código que enviamos para m•••••@motorapida.com.br", com "Reenviar código"). O campo "Tamanho da frota hoje" não tem regra nem vai para nenhum lugar: D-430-11, decidido pelo dono em 03 nov 2026: sai da tela. O quadro "Como funciona o teste" usa `teste` da API.
+- `Compra-Checkout`: falta o campo do endereço de acesso (D-430-02); razão social, nome, cidade e UF viram campos editáveis, preenchidos pela consulta do CNPJ (ADR 0039), e a frase "CNPJ ativo" sai de `dados`; entra o passo do código de 6 dígitos ("Digite o código que enviamos para m•••••@motorapida.com.br", com "Reenviar código"). O campo "Tamanho da frota hoje" não tem regra nem vai para nenhum lugar: D-430-11, decidido pelo dono em 03 nov 2026: sai da tela. O quadro "Como funciona o teste" usa `teste` da API.
 - `Compra-Pronto`: "48 horas" vira "7 dias" (D-430-07).
 
 ---

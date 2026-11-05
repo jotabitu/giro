@@ -222,6 +222,15 @@ REST_FRAMEWORK = {
         "leitura_documento_empresa": "200/hour",
         # Conectar os recebimentos pelo parceiro (B-02 da T-384).
         "recebimentos_empresa": "10/hour",
+        # Compra pública, sem login (docs/api/compra.md, "Proteção da rota pública").
+        "compra_cnpj_ip": "20/hour",
+        "compra_subdominio_ip": "60/hour",
+        "compra_pedido_ip_hora": "5/hour",
+        "compra_pedido_ip_dia": "20/day",
+        "compra_pedido_email_dia": "3/day",
+        "compra_pedido_cnpj_dia": "3/day",
+        "compra_confirmar_ip": "30/hour",
+        "compra_reenviar_ip": "10/hour",
     },
 }
 
@@ -336,6 +345,11 @@ CELERY_TASK_IGNORE_RESULT = True
 # desenvolvimento, o único worker lê as duas filas (`-Q celery,apagamento`).
 CELERY_TASK_ROUTES = {"aud_08_apagar_empresas": {"queue": "apagamento"}}
 CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
+    # Pedidos da compra pública vencidos e os dados pessoais deles, 7 dias depois (compra.md).
+    "plataforma_expirar_pedidos_compra": {
+        "task": "plataforma_expirar_pedidos_compra",
+        "schedule": crontab(hour=4, minute=10),
+    },
     # Corrige o resumo de uso do plano (PLT-03) contando em cada schema.
     "plataforma_recalcular_uso_de_todas": {
         "task": "plataforma_recalcular_uso_de_todas",
@@ -473,6 +487,15 @@ GIRO_MODULOS_ATIVOS = env.list(
     ],
 )
 GIRO_PROVEDOR_CEP = env("GIRO_PROVEDOR_CEP", default="falso")
+# Consulta de CNPJ da compra pública (ADR 0039): "falso" em dev e testes, "brasilapi" fora.
+GIRO_PROVEDOR_CNPJ = env("GIRO_PROVEDOR_CNPJ", default="falso")
+# Teto diário de empresas criadas pela compra pública (D-430-08). Acima, a equipe libera.
+GIRO_COMPRA_TETO_DIARIO = env.int("GIRO_COMPRA_TETO_DIARIO", default=50)
+# Versão dos Termos de uso e do Acordo de tratamento de dados aceita na compra. Os textos ainda
+# não existem (D-430-05, aberta): a compra não entra no ar sem eles.
+GIRO_TERMOS_VERSAO = env("GIRO_TERMOS_VERSAO", default="rascunho")
+# Para onde vão os avisos da compra pública à equipe Giro (teto do dia e falha).
+GIRO_EMAIL_EQUIPE = env("GIRO_EMAIL_EQUIPE", default="equipe@girolocadoras.com.br")
 # Arquivos privados (ADR 0009, AUD-05): "falso" (na memória) em dev e testes; "s3" com um bucket
 # privado compatível com S3 em homologação e produção.
 GIRO_ARMAZENAMENTO = env("GIRO_ARMAZENAMENTO", default="falso")

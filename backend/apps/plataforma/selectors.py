@@ -58,6 +58,7 @@ from .services import (
     plano_acima,
     proxima_mensalidade,
 )
+from .situacao_cnpj import situacao_do_cnpj  # noqa: F401  (contrato compra.md)
 
 DIAS_PARA_IMPLANTACAO_PARADA = 3  # IMP-05
 MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
@@ -519,7 +520,8 @@ def oferta(empresa: Empresa) -> dict[str, Any] | None:
     plano = empresa.plano
     if plano is None:
         return None
-    ativos = Plano.objects.filter(ativo=True).order_by("ordem", "id")
+    # Só planos à venda (PLT-11, catálogo da fase 1): o Profissional não tem cartão.
+    ativos = Plano.objects.filter(ativo=True, a_venda=True).order_by("ordem", "id")
     acima = next((p for p in ativos if plano_acima(p, plano)), None)
     if acima is None:
         return None
@@ -719,7 +721,10 @@ def planos_da_assinatura(empresa: Empresa | None = None) -> dict[str, Any]:
     empresa = Empresa.objects.select_related("plano").get(pk=empresa.pk)
     atual = empresa.plano
     uso = UsoEmpresa.objects.filter(empresa_id=empresa.pk).first() or UsoEmpresa()
-    planos = Plano.objects.filter(Q(ativo=True) | Q(pk=empresa.plano_id)).order_by("ordem", "id")
+    # Fora da venda não aparece, menos o plano atual (PLT-11, T-378).
+    planos = Plano.objects.filter(Q(ativo=True, a_venda=True) | Q(pk=empresa.plano_id)).order_by(
+        "ordem", "id"
+    )
     resultados = []
     for plano in planos:
         e_atual = atual is not None and plano.pk == atual.pk

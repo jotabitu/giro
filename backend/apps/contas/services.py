@@ -212,6 +212,30 @@ def convidar_administrador(nome: str, email: str, celular: str = "") -> Convite:
     return Convite.objects.filter(usuario=usuario).latest("criado_em")
 
 
+def link_do_convite_da_compra(email: str) -> str | None:
+    """ "Acessar meu sistema" da `Compra-Pronto` (D-430-06, `compra.md`), no schema da empresa
+    nova: um convite a mais, com o mesmo vencimento do convite do e-mail e sem invalidá-lo (a
+    pessoa pode abrir o link do e-mail em outro aparelho). Sai uma vez só; quem chama garante.
+    `None` se o administrador já não está com convite pendente."""
+    usuario = Usuario.objects.filter(
+        email=email.strip().lower(), status=StatusUsuario.CONVITE_PENDENTE
+    ).first()
+    if usuario is None:
+        return None
+    vigente = (
+        Convite.objects.filter(
+            usuario=usuario, aceito_em__isnull=True, expira_em__gt=relogio.agora()
+        )
+        .order_by("-criado_em")
+        .first()
+    )
+    if vigente is None:
+        return None
+    token, token_hash = _novo_token()
+    Convite.objects.create(usuario=usuario, token_hash=token_hash, expira_em=vigente.expira_em)
+    return link_do_convite(host_da_empresa(schema_atual()), token)
+
+
 def _enviar_depois_do_commit(convite: Convite) -> None:
     from .tasks import contas_enviar_convite
 

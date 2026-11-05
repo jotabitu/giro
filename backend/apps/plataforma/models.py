@@ -6,6 +6,7 @@ Modelo em `docs/decisoes/modelo-de-dados.md` (itens 1 a 3 e apoio). Empresa nasc
 """
 
 import re
+import uuid
 from datetime import date, timedelta
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -78,6 +79,9 @@ class Plano(ModeloBase, ModeloAtivavel):
     limite_usuarios = models.PositiveIntegerField(null=True, blank=True)
     recursos = models.JSONField(default=list, blank=True, validators=[validar_recursos])
     ordem = models.PositiveSmallIntegerField(default=0)
+    # PLT-11, catálogo da fase 1 (T-378): fora da venda, o plano não aparece na compra, em Mudar
+    # de plano nem em Comparar planos, e a API recusa a mudança para ele. Quem já está nele fica.
+    a_venda = models.BooleanField(default=True)
 
     # Nome de coisa, não de pessoa (R-02 da T-050): vai inteiro para a auditoria.
     CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["nome"]}
@@ -118,6 +122,11 @@ class MotivoCancelamento(models.TextChoices):
     OUTRO_SISTEMA = "outro_sistema", "Vou usar outro sistema"
     FECHAR_OU_PAUSAR = "fechar_ou_pausar", "Vou fechar ou pausar a locadora"
     OUTRO = "outro", "Outro motivo"
+
+
+class Origem(models.TextChoices):
+    ADMIN = "admin", "Django Admin"
+    COMPRA = "compra", "Compra pública"
 
 
 class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django-manager-missing]
@@ -178,8 +187,9 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
     endereco_bairro = models.CharField(max_length=80, blank=True, default="")
     endereco_cidade = models.CharField(max_length=80, blank=True, default="")
     endereco_uf = models.CharField(max_length=2, blank=True, default="")
-    # Só dígitos. Nulo só na linha do public e nas empresas de teste da fundação.
-    cnpj = models.CharField(max_length=14, unique=True, null=True, blank=True)
+    # Só dígitos. Nulo só na linha do public e nas empresas de teste da fundação. Único só entre
+    # as empresas não apagadas (B-02 da T-230, `PLT-16`): quem foi apagado pode comprar de novo.
+    cnpj = models.CharField(max_length=14, null=True, blank=True)  # noqa: DJ001 (nulo = sem CNPJ)
     subdominio = models.CharField(max_length=63, unique=True, null=True, blank=True)
     plano = models.ForeignKey(
         Plano, on_delete=models.PROTECT, null=True, blank=True, related_name="empresas"
@@ -217,6 +227,15 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
         max_length=20, choices=EtapaImplantacao.choices, default=EtapaImplantacao.CONTA
     )
     etapa_implantacao_desde = models.DateTimeField(null=True, blank=True)
+    # Por onde a empresa nasceu (`compra.md`): o Django Admin grava `admin`, a compra `compra`.
+    origem = models.CharField(max_length=10, choices=Origem.choices, default=Origem.ADMIN)
+    # A empresa apagada com o mesmo CNPJ, na compra de quem já foi cliente (`PLT-16`).
+    empresa_anterior = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    # Versão dos Termos de uso e do Acordo de tratamento de dados aceita na compra (`compra.md`).
+    aceite_termos_versao = models.CharField(max_length=20, blank=True, default="")
+    aceite_termos_em = models.DateTimeField(null=True, blank=True)
 
     auto_create_schema = True
     auto_drop_schema = False
@@ -250,6 +269,15 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
             models.Index(fields=["status"], name="empresa_status_idx"),
             models.Index(
                 fields=["etapa_implantacao", "etapa_implantacao_desde"], name="empresa_etapa_idx"
+            ),
+            # Para achar as apagadas com o mesmo CNPJ (`PLT-16`).
+            models.Index(fields=["cnpj"], name="empresa_cnpj_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["cnpj"],
+                condition=models.Q(apagada_em__isnull=True),
+                name="empresa_cnpj_unico_nao_apagada",
             ),
         ]
 
@@ -661,3 +689,127 @@ class FormaPagamentoAssinatura(MaquinaDeEstados, ModeloComCifra, ModeloBase):
 
     def __str__(self) -> str:
         return f"Forma de pagamento da empresa {self.empresa_id}"
+
+
+# --- Compra pública (`docs/api/compra.md`, T-435) ---
+
+
+class StatusPedidoCompra(models.TextChoices):
+    AGUARDANDO_CONFIRMACAO = "aguardando_confirmacao", "Aguardando confirmação"
+    CONFIRMADO = "confirmado", "Confirmado"
+    CRIANDO = "criando", "Criando"
+    PRONTO = "pronto", "Pronto"
+    FALHOU = "falhou", "Falhou"
+    EXPIRADO = "expirado", "Expirado"
+
+
+class SituacaoCnpj(models.TextChoices):
+    """`situacao_do_cnpj` (PLT-16): as quatro respostas da checagem."""
+
+    NOVA = "nova", "Nova"
+    JA_FOI_CLIENTE = "ja_foi_cliente", "Já foi cliente"
+    EM_USO = "em_uso", "Em uso"
+    FATURA_EM_ATRASO = "fatura_em_atraso", "Fatura em atraso"
+
+
+# Dados pessoais do pedido não confirmado: apagados 7 dias depois de `expirado` (`compra.md`).
+DADOS_PESSOAIS_DO_PEDIDO = (
+    "administrador_nome",
+    "administrador_email",
+    "administrador_celular",
+    "cnpj",
+    "razao_social",
+    "nome_exibicao",
+    "cidade",
+    "uf",
+    "subdominio",
+)
+
+
+class PedidoCompra(MaquinaDeEstados, ModeloBase):
+    """O pedido da compra pública, no public (`compra.md`). A empresa só nasce depois do código
+    de 6 dígitos (D-430-01), por `plataforma.compra.executar_pedido_compra`. O código nunca é
+    gravado (só o hash Argon2), nem o IP em claro (HMAC)."""
+
+    chave = models.UUIDField(unique=True, default=uuid.uuid4, editable=False)
+    status = models.CharField(
+        max_length=25,
+        choices=StatusPedidoCompra.choices,
+        default=StatusPedidoCompra.AGUARDANDO_CONFIRMACAO,
+    )
+    plano = models.ForeignKey(Plano, on_delete=models.PROTECT, related_name="+")
+    ciclo = models.CharField(max_length=10, choices=Empresa.Ciclo.choices)
+    forma_pagamento = models.CharField(
+        max_length=20, choices=FormaAssinatura.choices, blank=True, default=""
+    )
+    administrador_nome = models.CharField(max_length=150, blank=True, default="")
+    administrador_email = models.EmailField(blank=True, default="")
+    administrador_celular = models.CharField(max_length=13, blank=True, default="")
+    aceita_whatsapp = models.BooleanField(default=False)
+    cnpj = models.CharField(max_length=14, blank=True, default="")
+    razao_social = models.CharField(max_length=150, blank=True, default="")
+    nome_exibicao = models.CharField(max_length=80, blank=True, default="")
+    cidade = models.CharField(max_length=80, blank=True, default="")
+    uf = models.CharField(max_length=2, blank=True, default="")
+    subdominio = models.CharField(max_length=63, blank=True, default="")
+    situacao_cnpj = models.CharField(
+        max_length=20, choices=SituacaoCnpj.choices, blank=True, default=""
+    )
+    codigo_hash = models.CharField(max_length=200, blank=True, default="")
+    codigo_expira_em = models.DateTimeField(null=True, blank=True)
+    codigo_enviado_em = models.DateTimeField(null=True, blank=True)
+    tentativas_codigo = models.PositiveSmallIntegerField(default=0)
+    reenvios = models.PositiveSmallIntegerField(default=0)
+    aceite_termos_versao = models.CharField(max_length=20, blank=True, default="")
+    aceite_termos_em = models.DateTimeField(null=True, blank=True)
+    ip_hash = models.CharField(max_length=64, blank=True, default="")
+    empresa = models.ForeignKey(
+        Empresa, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    andamento = models.JSONField(default=dict, blank=True)
+    mensagem_falha = models.CharField(max_length=200, blank=True, default="")
+    pronto_em = models.DateTimeField(null=True, blank=True)
+    # D-430-06: o link do convite sai uma vez só, na primeira leitura depois do `pronto`.
+    acesso_entregue_em = models.DateTimeField(null=True, blank=True)
+    expira_em = models.DateTimeField()
+    dados_apagados_em = models.DateTimeField(null=True, blank=True)
+
+    TRANSICOES: ClassVar[dict[str, set[str]]] = {
+        StatusPedidoCompra.AGUARDANDO_CONFIRMACAO: {
+            StatusPedidoCompra.CONFIRMADO,
+            StatusPedidoCompra.EXPIRADO,
+        },
+        # `confirmado` parado = acima do teto diário, à espera da equipe (D-430-08).
+        StatusPedidoCompra.CONFIRMADO: {StatusPedidoCompra.CRIANDO, StatusPedidoCompra.FALHOU},
+        StatusPedidoCompra.CRIANDO: {StatusPedidoCompra.PRONTO, StatusPedidoCompra.FALHOU},
+        StatusPedidoCompra.PRONTO: set(),
+        StatusPedidoCompra.FALHOU: set(),
+        StatusPedidoCompra.EXPIRADO: set(),
+    }
+    REGRA_TRANSICAO = "PLT-16"
+    CATEGORIA_AUDITORIA = Categoria.CONFIGURACOES
+    # Sem dados pessoais nem segredos na auditoria (`compra.md`): só chave, plano, ciclo,
+    # situação e a empresa.
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
+        # A chave identifica o pedido no evento (`compra.md`); não abre nada sem o código.
+        "inteiro": ["chave"],
+        "omitir": [
+            *DADOS_PESSOAIS_DO_PEDIDO,
+            "codigo_hash",
+            "ip_hash",
+            "aceita_whatsapp",
+            "andamento",
+            "mensagem_falha",
+        ],
+    }
+
+    class Meta:
+        verbose_name = "pedido de compra"
+        verbose_name_plural = "pedidos de compra"
+        indexes = [
+            models.Index(fields=["status", "expira_em"], name="pedido_compra_status_idx"),
+            models.Index(fields=["administrador_email", "cnpj"], name="pedido_compra_email_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"Pedido de compra {self.chave}"

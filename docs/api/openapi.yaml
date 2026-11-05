@@ -5366,6 +5366,196 @@ paths:
               schema:
                 $ref: '#/components/schemas/ConsultaDaAssinatura'
           description: ''
+  /api/publico/compra/cnpj/:
+    post:
+      operationId: compra_cnpj
+      description: 'Base: sem login, sem sessão, sem cache; 429 no formato da compra
+        (`compra.md`).'
+      summary: Checagem do CNPJ (PLT-16) e dados públicos da Receita (ADR 0039)
+      tags:
+      - publico
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CnpjEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CnpjEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CnpjEntrada'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SituacaoDoCnpj'
+          description: ''
+  /api/publico/compra/pedidos/:
+    post:
+      operationId: compra_pedido_criar
+      description: 'Base: sem login, sem sessão, sem cache; 429 no formato da compra
+        (`compra.md`).'
+      summary: 'Criar minha conta: grava o pedido e manda o código (D-430-01)'
+      tags:
+      - publico
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PedidoEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PedidoEntrada'
+        required: true
+      security:
+      - {}
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PedidoCriado'
+          description: ''
+  /api/publico/compra/pedidos/{chave}/:
+    get:
+      operationId: compra_pedido_andamento
+      description: 'Base: sem login, sem sessão, sem cache; 429 no formato da compra
+        (`compra.md`).'
+      summary: Andamento da criação para a Compra-Pronto
+      parameters:
+      - in: path
+        name: chave
+        schema:
+          type: string
+        required: true
+      tags:
+      - publico
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AndamentoDoPedido'
+          description: ''
+  /api/publico/compra/pedidos/{chave}/confirmar/:
+    post:
+      operationId: compra_pedido_confirmar
+      description: 'Base: sem login, sem sessão, sem cache; 429 no formato da compra
+        (`compra.md`).'
+      summary: Confirma o código e cria a empresa
+      parameters:
+      - in: path
+        name: chave
+        schema:
+          type: string
+        required: true
+      tags:
+      - publico
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodigoEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CodigoEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CodigoEntrada'
+        required: true
+      security:
+      - {}
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AndamentoDoPedido'
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AndamentoDoPedido'
+          description: ''
+  /api/publico/compra/pedidos/{chave}/reenviar-codigo/:
+    post:
+      operationId: compra_pedido_reenviar_codigo
+      description: 'Base: sem login, sem sessão, sem cache; 429 no formato da compra
+        (`compra.md`).'
+      summary: Código novo (até 3, 60 s entre eles)
+      parameters:
+      - in: path
+        name: chave
+        schema:
+          type: string
+        required: true
+      tags:
+      - publico
+      security:
+      - {}
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodigoReenviado'
+          description: ''
+  /api/publico/compra/planos/:
+    get:
+      operationId: compra_planos
+      description: 'Base: sem login, sem sessão, sem cache; 429 no formato da compra
+        (`compra.md`).'
+      summary: Planos à venda e as datas do teste (PLT-11, PLT-01)
+      tags:
+      - publico
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogoDaCompra'
+          description: ''
+  /api/publico/compra/subdominio/:
+    post:
+      operationId: compra_subdominio
+      description: 'Base: sem login, sem sessão, sem cache; 429 no formato da compra
+        (`compra.md`).'
+      summary: 'Endereço de acesso: disponível ou sugestão (D-430-02)'
+      tags:
+      - publico
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubdominioEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SubdominioEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SubdominioEntrada'
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subdominio'
+          description: ''
   /api/publico/recibos/consultar/:
     post:
       operationId: publico_recibos_consultar_create
@@ -6879,6 +7069,16 @@ components:
       - status
       - total_cobrancas_centavos
       - total_creditos_centavos
+    Acessar:
+      type: object
+      properties:
+        url:
+          type: string
+        uma_vez:
+          type: boolean
+      required:
+      - uma_vez
+      - url
     AcessoAberto:
       type: object
       properties:
@@ -7206,6 +7406,31 @@ components:
       - registrar_devolucao
       - renovar
       - trocar_veiculo
+    AdministradorDaCompra:
+      type: object
+      properties:
+        nome:
+          type: string
+        email:
+          type: string
+        celular:
+          type: string
+        aceita_whatsapp:
+          type: boolean
+      required:
+      - celular
+      - email
+      - nome
+    AdministradorDoPedido:
+      type: object
+      properties:
+        nome:
+          type: string
+        email:
+          type: string
+      required:
+      - email
+      - nome
     Agenda:
       type: object
       properties:
@@ -7340,6 +7565,41 @@ components:
       - passos
       - proximo
       - total
+    AndamentoDoPedido:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/AndamentoDoPedidoStatusEnum'
+        mensagem:
+          type: string
+        administrador:
+          $ref: '#/components/schemas/AdministradorDoPedido'
+        empresa:
+          $ref: '#/components/schemas/EmpresaDoPedido'
+        passos:
+          type: array
+          items:
+            $ref: '#/components/schemas/PassoDaCriacao'
+        acessar:
+          allOf:
+          - $ref: '#/components/schemas/Acessar'
+          nullable: true
+      required:
+      - status
+    AndamentoDoPedidoStatusEnum:
+      enum:
+      - aguardando_confirmacao
+      - confirmado
+      - criando
+      - pronto
+      - falhou
+      type: string
+      description: |-
+        * `aguardando_confirmacao` - aguardando_confirmacao
+        * `confirmado` - confirmado
+        * `criando` - criando
+        * `pronto` - pronto
+        * `falhou` - falhou
     AnexarNota:
       type: object
       properties:
@@ -8026,6 +8286,18 @@ components:
         * `auditoria` - auditoria
         * `exportar` - exportar
         * `suporte` - suporte
+    CatalogoDaCompra:
+      type: object
+      properties:
+        planos:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanoAVenda'
+        teste:
+          $ref: '#/components/schemas/DatasDoTeste'
+      required:
+      - planos
+      - teste
     Categoria:
       type: object
       properties:
@@ -8551,6 +8823,13 @@ components:
           type: string
           format: date
           nullable: true
+    CnpjEntrada:
+      type: object
+      properties:
+        cnpj:
+          type: string
+      required:
+      - cnpj
     Cobranca:
       type: object
       properties:
@@ -8676,6 +8955,13 @@ components:
           pattern: ^\d{6}$
       required:
       - codigo
+    CodigoEntrada:
+      type: object
+      properties:
+        codigo:
+          type: string
+      required:
+      - codigo
     CodigoEnum:
       enum:
       - cobrar
@@ -8701,6 +8987,17 @@ components:
           type: string
       required:
       - codigo
+      - mensagem
+    CodigoReenviado:
+      type: object
+      properties:
+        codigo_expira_em:
+          type: string
+          format: date-time
+        mensagem:
+          type: string
+      required:
+      - codigo_expira_em
       - mensagem
     Codigos:
       type: object
@@ -9702,6 +9999,25 @@ components:
       - saida
       type: string
       description: '* `saida` - Saída'
+    DadosDoCnpj:
+      type: object
+      properties:
+        razao_social:
+          type: string
+        nome_fantasia:
+          type: string
+        cidade:
+          type: string
+        uf:
+          type: string
+        ativo:
+          type: boolean
+      required:
+      - ativo
+      - cidade
+      - nome_fantasia
+      - razao_social
+      - uf
     DadosFiscais:
       type: object
       properties:
@@ -9721,6 +10037,29 @@ components:
       - email_cobranca
       - endereco
       - razao_social
+    DatasDoTeste:
+      type: object
+      properties:
+        dias:
+          type: integer
+        inicio:
+          type: string
+          format: date
+        fim:
+          type: string
+          format: date
+        lembrete:
+          type: string
+          format: date
+        primeira_fatura:
+          type: string
+          format: date
+      required:
+      - dias
+      - fim
+      - inicio
+      - lembrete
+      - primeira_fatura
     DesbloquearVeiculo:
       type: object
       properties:
@@ -10160,6 +10499,28 @@ components:
       - cor_marca
       - logo_url
       - nome_exibicao
+    EmpresaDaCompra:
+      type: object
+      properties:
+        cnpj:
+          type: string
+        razao_social:
+          type: string
+        nome_exibicao:
+          type: string
+        cidade:
+          type: string
+        uf:
+          type: string
+        subdominio:
+          type: string
+      required:
+      - cidade
+      - cnpj
+      - nome_exibicao
+      - razao_social
+      - subdominio
+      - uf
     EmpresaDetalhe:
       type: object
       properties:
@@ -10263,6 +10624,16 @@ components:
           type: string
       required:
       - id
+      - nome_exibicao
+    EmpresaDoPedido:
+      type: object
+      properties:
+        nome_exibicao:
+          type: string
+        endereco:
+          type: string
+      required:
+      - endereco
       - nome_exibicao
     EmpresaDoRecibo:
       type: object
@@ -12914,6 +13285,22 @@ components:
       required:
       - limite
       - usado
+    LimitesDoPlano:
+      type: object
+      properties:
+        veiculos:
+          type: integer
+          nullable: true
+        filiais:
+          type: integer
+          nullable: true
+        usuarios:
+          type: integer
+          nullable: true
+      required:
+      - filiais
+      - usuarios
+      - veiculos
     Linha:
       type: object
       properties:
@@ -15133,6 +15520,21 @@ components:
       - concluido_em
       - passo
       - rotulo
+    PassoDaCriacao:
+      type: object
+      properties:
+        passo:
+          $ref: '#/components/schemas/PassoEnum'
+        texto:
+          type: string
+        feito_em:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - feito_em
+      - passo
+      - texto
     PassoDoAssistente:
       type: object
       properties:
@@ -15172,6 +15574,18 @@ components:
       - concluido
       - detalhe
       - rotulo
+    PassoEnum:
+      enum:
+      - administrador
+      - banco
+      - endereco
+      - assinatura
+      type: string
+      description: |-
+        * `administrador` - administrador
+        * `banco` - banco
+        * `endereco` - endereco
+        * `assinatura` - assinatura
     PatchedAlterarUsuario:
       type: object
       properties:
@@ -15663,6 +16077,27 @@ components:
       - id
       - status
       - tipo
+    PedidoCriado:
+      type: object
+      properties:
+        chave:
+          type: string
+          format: uuid
+        status:
+          type: string
+        email:
+          type: string
+        codigo_expira_em:
+          type: string
+          format: date-time
+        mensagem:
+          type: string
+      required:
+      - chave
+      - codigo_expira_em
+      - email
+      - mensagem
+      - status
     PedidoDeCancelamento:
       type: object
       properties:
@@ -15706,6 +16141,37 @@ components:
           type: integer
       required:
       - meses
+    PedidoEntrada:
+      type: object
+      properties:
+        plano:
+          type: string
+        ciclo:
+          $ref: '#/components/schemas/PedidoEntradaCicloEnum'
+        forma_pagamento:
+          type: string
+          nullable: true
+          description: cartao, pix_automatico ou boleto (PLT-13)
+        administrador:
+          $ref: '#/components/schemas/AdministradorDaCompra'
+        empresa:
+          $ref: '#/components/schemas/EmpresaDaCompra'
+        aceite_termos:
+          type: boolean
+      required:
+      - aceite_termos
+      - administrador
+      - ciclo
+      - empresa
+      - plano
+    PedidoEntradaCicloEnum:
+      enum:
+      - mensal
+      - anual
+      type: string
+      description: |-
+        * `mensal` - mensal
+        * `anual` - anual
     PedidoRef:
       type: object
       properties:
@@ -16035,6 +16501,36 @@ components:
       - preco_anual_centavos
       - preco_mensal_centavos
       - recursos
+    PlanoAVenda:
+      type: object
+      properties:
+        codigo:
+          type: string
+        nome:
+          type: string
+        descricao:
+          type: string
+        mensal_centavos:
+          type: integer
+        anual_centavos:
+          type: integer
+        limites:
+          $ref: '#/components/schemas/LimitesDoPlano'
+        inclui:
+          type: array
+          items:
+            type: string
+        destaque:
+          type: boolean
+      required:
+      - anual_centavos
+      - codigo
+      - descricao
+      - destaque
+      - inclui
+      - limites
+      - mensal_centavos
+      - nome
     PlanoDaAlternativa:
       type: object
       properties:
@@ -17589,6 +18085,29 @@ components:
       description: |-
         * `agendada` - agendada
         * `em_andamento` - em_andamento
+    SituacaoDoCnpj:
+      type: object
+      properties:
+        pode_comprar:
+          type: boolean
+        teste_gratis:
+          type: boolean
+        aviso:
+          type: string
+          nullable: true
+        primeira_fatura:
+          type: string
+          format: date
+        dados:
+          allOf:
+          - $ref: '#/components/schemas/DadosDoCnpj'
+          nullable: true
+        codigo:
+          type: string
+        mensagem:
+          type: string
+      required:
+      - pode_comprar
     SituacaoDoVeiculo:
       type: object
       properties:
@@ -17769,6 +18288,30 @@ components:
         * `vendido` - Vendido
         * `baixado` - Baixado
         * `em_movimentacao` - Em movimentação
+    Subdominio:
+      type: object
+      properties:
+        subdominio:
+          type: string
+        disponivel:
+          type: boolean
+        endereco:
+          type: string
+        sugestao:
+          type: string
+          nullable: true
+        mensagem:
+          type: string
+      required:
+      - disponivel
+      - subdominio
+    SubdominioEntrada:
+      type: object
+      properties:
+        subdominio:
+          type: string
+        nome:
+          type: string
     Sugestao:
       type: object
       properties:
