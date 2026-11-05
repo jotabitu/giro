@@ -1,0 +1,527 @@
+<!doctype html>
+<!-- criada no repositório: 05/11/2026, T-431 -->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Recibo da devolução · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.fact{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:15px}
+.fact:last-child{border-bottom:0}
+.fact span:first-child{color:var(--ink-muted)}
+.fact span:last-child{font-weight:500;text-align:right}
+.kv{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.kv:last-child{border-bottom:0}
+.kv span:first-child{color:var(--ink-muted)}
+.kv span:last-child{font-weight:500;text-align:right}
+
+/* Switcher de estados para demonstração de design */
+.preview-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:var(--surface-sunken);border-radius:14px;margin-bottom:20px;font-size:13px}
+.preview-tabs{display:inline-flex;gap:6px}
+.preview-btn{border:none;background:var(--surface);color:var(--ink);padding:6px 14px;border-radius:999px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit}
+.preview-btn.active{background:var(--solid);color:var(--on-solid)}
+
+/* Galeria de fotos da vistoria */
+.photo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.photo-card{position:relative;border-radius:18px;overflow:hidden;background:var(--surface-sunken);border:1px solid var(--line);display:flex;flex-direction:column;cursor:pointer;transition:transform .15s ease,box-shadow .15s ease}
+.photo-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-pop)}
+.photo-card__thumb{height:160px;position:relative;background:var(--surface-sunken);display:grid;place-items:center;overflow:hidden}
+.photo-card__badge{position:absolute;top:10px;left:10px;z-index:2}
+.photo-card__zoom-btn{position:absolute;bottom:10px;right:10px;z-index:2;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:rgba(17,17,20,0.7);color:#ffffff;border:none;backdrop-filter:blur(4px);cursor:pointer}
+.photo-card__info{padding:12px 14px;background:var(--surface);border-top:1px solid var(--line)}
+
+/* Lightbox modal para zoom da foto */
+.scrim{position:fixed;inset:0;background:rgba(10,10,14,0.78);backdrop-filter:blur(6px);z-index:90;display:none}
+.scrim.is-open{display:block}
+.lightbox{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(1080px,calc(100vw - 48px));height:min(780px,calc(100vh - 48px));border-radius:24px;background:var(--surface);box-shadow:var(--shadow-pop);z-index:100;display:none;flex-direction:column;overflow:hidden}
+.lightbox.is-open{display:flex}
+.lightbox__head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 24px;border-bottom:1px solid var(--line);background:var(--surface)}
+.lightbox__stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:var(--surface-sunken)}
+.lightbox__main-img{flex:1;height:100%;display:grid;place-items:center;padding:12px}
+.lightbox__foot{padding:14px 24px;border-top:1px solid var(--line);background:var(--surface);display:flex;align-items:center;justify-content:space-between;gap:16px}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1200px; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+  <!-- Barra de controle de visualização de estados para documentação -->
+  <div class="preview-bar" style="max-width: 860px; width: 100%; margin: 0 auto;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span style="font-weight: 600; color: var(--ink);">T-431 · Página pública:</span>
+      <span class="wl-mono text-caption text-ink-muted">/recibo#&lt;token&gt;</span>
+    </div>
+    <div class="preview-tabs" role="tablist" aria-label="Estados da página pública">
+      <button type="button" class="preview-btn active" id="btn-estado-sucesso" onclick="mostrarEstado('sucesso')">Recibo completo</button>
+      <button type="button" class="preview-btn" id="btn-estado-vencido" onclick="mostrarEstado('vencido')">Link vencido (410)</button>
+      <button type="button" class="preview-btn" id="btn-estado-invalido" onclick="mostrarEstado('invalido')">Link inválido (404)</button>
+    </div>
+  </div>
+
+  <!-- Cabeçalho público com a marca da locadora (White Label, sem menu de sistema) -->
+  <header style="max-width: 860px; width: 100%; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; padding-bottom: 8px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div class="wl-logo-slot" style="background: var(--brand); color: var(--on-brand); font-weight: 700;">MR</div>
+      <div>
+        <div style="font-size: 19px; font-weight: 600; line-height: 22px;">Moto Rápida</div>
+        <div class="lbl" style="font-size: 13px;">Locadora de motos e veículos</div>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-muted);">
+      <span class="wl-mono">motorapida.girolocadoras.com.br</span>
+    </div>
+  </header>
+
+  <!-- ============================================================== -->
+  <!-- ESTADO 1: RECIBO COMPLETO E VÁLIDO (SUCESSO)                   -->
+  <!-- ============================================================== -->
+  <main id="estado-sucesso" style="max-width: 860px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Cabeçalho do Recibo com Ação de Download -->
+    <div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px;">
+      <div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+          <span class="wl-badge wl-badge--sm wl-badge--success">Devolução concluída</span>
+          <span class="wl-mono lbl">LOC-2836</span>
+        </div>
+        <h1 style="margin: 0; font-size: 34px; line-height: 40px; font-weight: 700; letter-spacing: -0.02em;">Recibo da devolução</h1>
+        <p style="margin: 6px 0 0; font-size: 15px; color: var(--ink-muted);">
+          Olá, <strong style="color: var(--ink); font-weight: 600;">Juliana</strong>. Aqui estão os dados da devolução concluída em 14 de outubro de 2026, às 17:35.
+        </p>
+      </div>
+
+      <!-- Botão Baixar recibo (PDF) com link assinado de 15 min -->
+      <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+        <a href="#" download="recibo-devolucao-LOC-2836.pdf" class="wl-btn wl-btn--solid" style="height: 46px; padding: 0 20px; font-weight: 600; text-decoration: none; gap: 8px;">
+          <svg class="wl-i" viewBox="0 0 24 24" style="width: 17px; height: 17px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>
+          Baixar recibo (PDF)
+        </a>
+        <span class="lbl" style="font-size: 12px;">Documento oficial autenticado</span>
+      </div>
+    </div>
+
+    <!-- Bloco 1: Veículo e dados da devolução -->
+    <section class="wl-panel" style="padding: 24px; border-radius: 24px; background: var(--surface);">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid var(--line); padding-bottom: 12px;">
+        <h2 style="margin: 0; font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 10px;">
+          <svg class="wl-i" viewBox="0 0 24 24" style="color: var(--ink-muted);"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg>
+          Veículo e devolução
+        </h2>
+        <span class="wl-badge wl-badge--sm wl-badge--brand">Street</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px;">
+        <!-- Coluna da esquerda: Veículo e Filial -->
+        <div>
+          <div class="fact">
+            <span>Veículo</span>
+            <span style="font-weight: 600;">Yamaha Factor 150 ED</span>
+          </div>
+          <div class="fact">
+            <span>Placa</span>
+            <span class="wl-mono" style="font-weight: 600;">PNB-7C04</span>
+          </div>
+          <div class="fact">
+            <span>Ano / Cor</span>
+            <span>2023 · Vermelha</span>
+          </div>
+          <div class="fact">
+            <span>Filial de devolução</span>
+            <span>Filial Centro (Fortaleza, CE)</span>
+          </div>
+        </div>
+
+        <!-- Coluna da direita: Quilometragem e Combustível -->
+        <div>
+          <div class="fact">
+            <span>Período da locação</span>
+            <span>30/09/2026 a 14/10/2026 (14 diárias)</span>
+          </div>
+          <div class="fact">
+            <span>Quilometragem</span>
+            <span>
+              19.630 km <span class="lbl">(rodou 1.228 km · livre)</span>
+            </span>
+          </div>
+          <div class="fact">
+            <span>Km na saída → retorno</span>
+            <span class="wl-mono">18.402 km → 19.630 km</span>
+          </div>
+          <div class="fact">
+            <span>Nível de combustível</span>
+            <span>
+              3/4 do tanque <span class="lbl">(saiu com tanque cheio)</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bloco 2: Acerto financeiro e Devolução da caução (DEV-01, DEV-02, DEV-03) -->
+    <section class="wl-panel" style="padding: 24px; border-radius: 24px; background: var(--surface);">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid var(--line); padding-bottom: 12px;">
+        <h2 style="margin: 0; font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 10px;">
+          <svg class="wl-i" viewBox="0 0 24 24" style="color: var(--ink-muted);"><rect x="2.5" y="6" width="19" height="12" rx="3"></rect><circle cx="12" cy="12" r="2.5"></circle></svg>
+          Acerto de valores e caução
+        </h2>
+        <span class="lbl">Conforme vistoria e contrato</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <div class="kv">
+          <span>Caução depositada na retirada</span>
+          <span style="font-weight: 600; color: var(--ink);">R$ 300,00</span>
+        </div>
+        <div class="kv">
+          <span>Combustível faltante (1/4 do tanque: 4 L × R$ 5,50 + R$ 10,00 taxa)</span>
+          <span style="color: var(--critical-ink);">− R$ 32,00</span>
+        </div>
+        <div class="kv">
+          <span>Avaria identificada (retrovisor esquerdo riscado)</span>
+          <span style="color: var(--critical-ink);">− R$ 85,00</span>
+        </div>
+        <div class="kv">
+          <span>Diárias extras / Atraso na devolução</span>
+          <span style="color: var(--ink-muted);">R$ 0,00 (no horário)</span>
+        </div>
+        <div class="kv" style="border-bottom: 2px solid var(--line); padding-bottom: 12px;">
+          <span>Subtotal de retenções e cobranças</span>
+          <span style="font-weight: 600; color: var(--critical-ink);">− R$ 117,00</span>
+        </div>
+      </div>
+
+      <!-- Saldo final e informativo de Pix (DEV-02) -->
+      <div style="margin-top: 20px; padding: 20px; border-radius: 18px; background: var(--surface-sunken); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;">
+        <div>
+          <div style="font-size: 14px; font-weight: 600; color: var(--success-ink); display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+            <svg class="wl-i" viewBox="0 0 24 24" style="width: 18px; height: 18px;"><path d="m5 12 5 5 9-10"></path></svg>
+            Saldo a devolver à cliente (restituição de caução)
+          </div>
+          <div style="font-size: 14px; color: var(--ink-muted);">
+            Devolução de <strong style="color: var(--ink);">R$ 183,00</strong> por Pix em até 1 dia útil na sua chave cadastrada.
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div class="lbl" style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;">Valor a receber</div>
+          <div style="font-size: 32px; font-weight: 700; color: var(--success-ink); letter-spacing: -0.02em;">R$ 183,00</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Bloco 3: Fotos da vistoria de devolução (com funcionalidade de ampliar) -->
+    <section class="wl-panel" style="padding: 24px; border-radius: 24px; background: var(--surface);">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+        <div>
+          <h2 style="margin: 0; font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 10px;">
+            <svg class="wl-i" viewBox="0 0 24 24" style="color: var(--ink-muted);"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>
+            Fotos da vistoria de devolução
+          </h2>
+          <p class="lbl" style="margin: 4px 0 0;">6 fotos registradas na conferência de chegada. Clique em qualquer foto para ampliar.</p>
+        </div>
+        <span class="wl-badge wl-badge--sm wl-badge--solid">6 fotos</span>
+      </div>
+
+      <div class="photo-grid">
+        <!-- Foto 1: Frente -->
+        <div class="photo-card" onclick="abrirLightbox(0)">
+          <div class="photo-card__thumb">
+            <span class="wl-badge wl-badge--sm wl-badge--solid photo-card__badge">Frente</span>
+            <svg class="wl-i" viewBox="0 0 24 24" style="width: 48px; height: 48px; color: var(--ink-muted); opacity: .4;"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg>
+            <button type="button" class="photo-card__zoom-btn" title="Ampliar foto" aria-label="Ampliar frente">
+              <svg class="wl-i" viewBox="0 0 24 24" style="width: 17px; height: 17px;"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5M11 8v6M8 11h6"></path></svg>
+            </button>
+          </div>
+          <div class="photo-card__info">
+            <div style="font-weight: 500; font-size: 14px;">1 · Vista frontal</div>
+            <div class="lbl" style="font-size: 12px;">Farol, guidão e retrovisores</div>
+          </div>
+        </div>
+
+        <!-- Foto 2: Lado direito -->
+        <div class="photo-card" onclick="abrirLightbox(1)">
+          <div class="photo-card__thumb">
+            <span class="wl-badge wl-badge--sm wl-badge--solid photo-card__badge">Lado direito</span>
+            <svg class="wl-i" viewBox="0 0 24 24" style="width: 48px; height: 48px; color: var(--ink-muted); opacity: .4;"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg>
+            <button type="button" class="photo-card__zoom-btn" title="Ampliar foto" aria-label="Ampliar lateral direita">
+              <svg class="wl-i" viewBox="0 0 24 24" style="width: 17px; height: 17px;"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5M11 8v6M8 11h6"></path></svg>
+            </button>
+          </div>
+          <div class="photo-card__info">
+            <div style="font-weight: 500; font-size: 14px;">2 · Lateral direita</div>
+            <div class="lbl" style="font-size: 12px;">Carenagem e escapamento em ordem</div>
+          </div>
+        </div>
+
+        <!-- Foto 3: Traseira -->
+        <div class="photo-card" onclick="abrirLightbox(2)">
+          <div class="photo-card__thumb">
+            <span class="wl-badge wl-badge--sm wl-badge--solid photo-card__badge">Traseira</span>
+            <svg class="wl-i" viewBox="0 0 24 24" style="width: 48px; height: 48px; color: var(--ink-muted); opacity: .4;"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg>
+            <button type="button" class="photo-card__zoom-btn" title="Ampliar foto" aria-label="Ampliar traseira">
+              <svg class="wl-i" viewBox="0 0 24 24" style="width: 17px; height: 17px;"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5M11 8v6M8 11h6"></path></svg>
+            </button>
+          </div>
+          <div class="photo-card__info">
+            <div style="font-weight: 500; font-size: 14px;">3 · Vista traseira</div>
+            <div class="lbl" style="font-size: 12px;">Lanterna, placa PNB-7C04 e pneu</div>
+          </div>
+        </div>
+
+        <!-- Foto 4: Lado esquerdo com avaria identificada -->
+        <div class="photo-card" onclick="abrirLightbox(3)" style="border-color: var(--critical-border, #fca5a5);">
+          <div class="photo-card__thumb" style="background: var(--critical-soft);">
+            <span class="wl-badge wl-badge--sm wl-badge--critical photo-card__badge">Avaria apontada</span>
+            <svg class="wl-i" viewBox="0 0 24 24" style="width: 48px; height: 48px; color: var(--critical-ink); opacity: .6;"><path d="M12 9v4M12 17h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"></path></svg>
+            <button type="button" class="photo-card__zoom-btn" title="Ampliar foto" aria-label="Ampliar lateral esquerda">
+              <svg class="wl-i" viewBox="0 0 24 24" style="width: 17px; height: 17px;"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5M11 8v6M8 11h6"></path></svg>
+            </button>
+          </div>
+          <div class="photo-card__info">
+            <div style="font-weight: 500; font-size: 14px; color: var(--critical-ink);">4 · Lateral esquerda</div>
+            <div class="lbl" style="font-size: 12px;">Retrovisor com avaria nova</div>
+          </div>
+        </div>
+
+        <!-- Foto 5: Painel com Km e Combustível -->
+        <div class="photo-card" onclick="abrirLightbox(4)">
+          <div class="photo-card__thumb">
+            <span class="wl-badge wl-badge--sm wl-badge--solid photo-card__badge">Painel</span>
+            <svg class="wl-i" viewBox="0 0 24 24" style="width: 48px; height: 48px; color: var(--ink-muted); opacity: .4;"><circle cx="12" cy="12" r="9"></circle><path d="M12 12 16 9M8 16h8"></path></svg>
+            <button type="button" class="photo-card__zoom-btn" title="Ampliar foto" aria-label="Ampliar painel">
+              <svg class="wl-i" viewBox="0 0 24 24" style="width: 17px; height: 17px;"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5M11 8v6M8 11h6"></path></svg>
+            </button>
+          </div>
+          <div class="photo-card__info">
+            <div style="font-weight: 500; font-size: 14px;">5 · Odômetro e tanque</div>
+            <div class="lbl" style="font-size: 12px;">19.630 km · 3/4 combustível</div>
+          </div>
+        </div>
+
+        <!-- Foto 6: Detalhe do retrovisor riscado -->
+        <div class="photo-card" onclick="abrirLightbox(5)" style="border-color: var(--critical-border, #fca5a5);">
+          <div class="photo-card__thumb" style="background: var(--critical-soft);">
+            <span class="wl-badge wl-badge--sm wl-badge--critical photo-card__badge">Detalhe avaria</span>
+            <svg class="wl-i" viewBox="0 0 24 24" style="width: 48px; height: 48px; color: var(--critical-ink); opacity: .6;"><path d="M15 4a5 5 0 0 0-4.6 6.9L4 17.3V20h2.7l6.4-6.4A5 5 0 0 0 20 9l-3 1-2-2z"></path></svg>
+            <button type="button" class="photo-card__zoom-btn" title="Ampliar foto" aria-label="Ampliar detalhe da avaria">
+              <svg class="wl-i" viewBox="0 0 24 24" style="width: 17px; height: 17px;"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5M11 8v6M8 11h6"></path></svg>
+            </button>
+          </div>
+          <div class="photo-card__info">
+            <div style="font-weight: 500; font-size: 14px; color: var(--critical-ink);">6 · Retrovisor esquerdo</div>
+            <div class="lbl" style="font-size: 12px;">Risco carcaça (R$ 85,00)</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============================================================== -->
+  <!-- ESTADO 2: LINK VENCIDO (HTTP 410)                              -->
+  <!-- ============================================================== -->
+  <main id="estado-vencido" style="display: none; max-width: 620px; width: 100%; margin: 40px auto; flex-direction: column; gap: 24px;">
+    <section class="wl-panel" style="padding: 36px 32px; border-radius: 28px; background: var(--surface); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+      <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--warning-soft); color: var(--warning-ink); display: grid; place-items: center;">
+        <svg class="wl-i" viewBox="0 0 24 24" style="width: 28px; height: 28px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 3"></path></svg>
+      </div>
+      <div>
+        <h1 style="margin: 0; font-size: 28px; line-height: 34px; font-weight: 700; letter-spacing: -0.02em;">Link vencido</h1>
+        <p style="margin: 10px 0 0; font-size: 15px; line-height: 22px; color: var(--ink-muted);">
+          Este link venceu após 7 dias da sua emissão por razões de segurança e proteção dos seus dados (S-15).
+        </p>
+      </div>
+
+      <div style="padding: 14px 18px; border-radius: 16px; background: var(--surface-sunken); font-size: 14px; line-height: 20px; color: var(--ink); text-align: left; width: 100%; box-sizing: border-box;">
+        <strong>Como obter o recibo?</strong><br>
+        Entre em contato com a equipe da <strong style="color: var(--brand);">Moto Rápida</strong> pelo WhatsApp ou balcão e solicite o reenvio do link do recibo da sua locação.
+      </div>
+
+      <div style="display: flex; gap: 12px; margin-top: 8px; width: 100%; justify-content: center;">
+        <a href="https://wa.me/5585996542210" target="_blank" rel="noopener noreferrer" class="wl-btn wl-btn--brand" style="text-decoration: none; padding: 0 24px; height: 46px; font-weight: 600;">
+          Falar com a Moto Rápida no WhatsApp
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============================================================== -->
+  <!-- ESTADO 3: LINK NÃO ENCONTRADO / INVÁLIDO (HTTP 404)            -->
+  <!-- ============================================================== -->
+  <main id="estado-invalido" style="display: none; max-width: 620px; width: 100%; margin: 40px auto; flex-direction: column; gap: 24px;">
+    <section class="wl-panel" style="padding: 36px 32px; border-radius: 28px; background: var(--surface); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+      <div style="width: 56px; height: 56px; border-radius: 50%; background: var(--critical-soft); color: var(--critical-ink); display: grid; place-items: center;">
+        <svg class="wl-i" viewBox="0 0 24 24" style="width: 28px; height: 28px;"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16v.5"></path></svg>
+      </div>
+      <div>
+        <h1 style="margin: 0; font-size: 28px; line-height: 34px; font-weight: 700; letter-spacing: -0.02em;">Link não encontrado</h1>
+        <p style="margin: 10px 0 0; font-size: 15px; line-height: 22px; color: var(--ink-muted);">
+          Este link não tem o recibo ou não existe mais. Ele pode estar incompleto ou ter sido substituído por um link mais recente.
+        </p>
+      </div>
+
+      <div style="padding: 14px 18px; border-radius: 16px; background: var(--surface-sunken); font-size: 14px; line-height: 20px; color: var(--ink); text-align: left; width: 100%; box-sizing: border-box;">
+        Verifique se o endereço completo foi copiado, incluindo o caractere <span class="wl-mono font-medium">#</span> e o código de acesso, ou solicite à locadora que envie o link novamente.
+      </div>
+
+      <div style="display: flex; gap: 12px; margin-top: 8px; width: 100%; justify-content: center;">
+        <a href="https://wa.me/5585996542210" target="_blank" rel="noopener noreferrer" class="wl-btn wl-btn--solid" style="text-decoration: none; padding: 0 24px; height: 46px; font-weight: 600;">
+          Solicitar novo link à locadora
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Rodapé padrão das páginas públicas: Tecnologia Giro -->
+  <footer style="max-width: 860px; width: 100%; margin: auto auto 0; padding-top: 24px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; font-size: 13px; color: var(--ink-muted);">
+    <span>Tecnologia Giro</span>
+    <span>Termos de uso · Privacidade</span>
+  </footer>
+
+</div>
+
+<!-- ============================================================== -->
+<!-- LIGHTBOX MODAL DE AMPLIAR FOTO (VISUALIZADOR)                  -->
+<!-- ============================================================== -->
+<div id="scrim" class="scrim" onclick="fecharLightbox()" aria-hidden="true"></div>
+
+<aside id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Foto ampliada da vistoria">
+  <header class="lightbox__head">
+    <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
+      <span class="wl-badge wl-badge--sm wl-badge--brand">Vistoria de devolução</span>
+      <span id="lb-badge-tipo" class="wl-badge wl-badge--sm wl-badge--solid">Frente</span>
+      <div>
+        <div id="lb-titulo" style="font-weight: 600; font-size: 16px;">Foto 1 de 6 · Vista frontal</div>
+        <div class="lbl" style="font-size: 12px;">LOC-2836 · PNB-7C04 · Yamaha Factor 150</div>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <a id="lb-btn-download" href="#" download="recibo-vistoria-foto-1.jpg" class="wl-btn wl-btn--sm wl-btn--solid" style="text-decoration: none; gap: 8px;">
+        <svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>
+        Baixar foto
+      </a>
+      <button type="button" class="wl-icon-btn wl-icon-btn--sm" onclick="fecharLightbox()" aria-label="Fechar visualizador" style="cursor: pointer;">
+        <svg class="wl-i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="lightbox__stage">
+    <!-- Botão Foto anterior -->
+    <button type="button" class="wl-icon-btn" onclick="fotoAnterior()" aria-label="Foto anterior" style="z-index: 5; cursor: pointer; width: 44px; height: 44px; border-radius: 50%; background: var(--surface);">
+      <svg class="wl-i" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></svg>
+    </button>
+
+    <!-- Área da foto principal -->
+    <div class="lightbox__main-img">
+      <div id="lb-mock-container" style="width: 100%; height: 100%; border-radius: 16px; background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; box-sizing: border-box;">
+        <div id="lb-icone-container">
+          <svg class="wl-i" viewBox="0 0 24 24" style="width: 120px; height: 120px; color: var(--ink-muted); opacity: .4;"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg>
+        </div>
+        <div id="lb-legenda-detalhe" style="font-size: 15px; font-weight: 500; color: var(--ink); text-align: center; max-width: 520px;">
+          Vista frontal do veículo conferida na devolução. Farol, carenagem dianteira e guidão sem avarias.
+        </div>
+      </div>
+    </div>
+
+    <!-- Botão Próxima foto -->
+    <button type="button" class="wl-icon-btn" onclick="proximaFoto()" aria-label="Próxima foto" style="z-index: 5; cursor: pointer; width: 44px; height: 44px; border-radius: 50%; background: var(--surface);">
+      <svg class="wl-i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></svg>
+    </button>
+  </div>
+
+  <footer class="lightbox__foot">
+    <div id="lb-contador" class="lbl" style="font-weight: 500;">Foto 1 de 6</div>
+    <div class="lbl" style="font-size: 12px;">Link seguro de visualização · Válido por 15 minutos (AUD-05)</div>
+    <button type="button" class="wl-btn wl-btn--sm" onclick="fecharLightbox()">Fechar (Esc)</button>
+  </footer>
+</aside>
+
+</x-dc>
+
+<script>
+// Lista de fotos mockadas para o visualizador
+const fotosVistoria = [
+  { tipo: "Frente", titulo: "Foto 1 de 6 · Vista frontal", legenda: "Vista frontal do veículo conferida na devolução. Farol, carenagem dianteira e guidão sem avarias.", badgeClass: "wl-badge--solid", isAvaria: false },
+  { tipo: "Lado direito", titulo: "Foto 2 de 6 · Lateral direita", legenda: "Lateral direita conferida. Escapamento original, pedaleira e tampa lateral em perfeito estado.", badgeClass: "wl-badge--solid", isAvaria: false },
+  { tipo: "Traseira", titulo: "Foto 3 de 6 · Vista traseira", legenda: "Vista traseira. Lanterna traseira em funcionamento, placa PNB-7C04 fixada e pneu com profundidade regular.", badgeClass: "wl-badge--solid", isAvaria: false },
+  { tipo: "Lado esquerdo", titulo: "Foto 4 de 6 · Lateral esquerda", legenda: "Lateral esquerda. Registrada avaria nova na carcaça do retrovisor esquerdo.", badgeClass: "wl-badge--critical", isAvaria: true },
+  { tipo: "Painel", titulo: "Foto 5 de 6 · Painel e instrumentos", legenda: "Quilometragem final registrada: 19.630 km (1.228 km rodados). Nível do combustível: 3/4 do tanque.", badgeClass: "wl-badge--solid", isAvaria: false },
+  { tipo: "Detalhe avaria", titulo: "Foto 6 de 6 · Retrovisor esquerdo (avaria)", legenda: "Risco superficial de aproximadamente 4 cm na carcaça plástica do retrovisor esquerdo. Cobrança de R$ 85,00 lançada no acerto.", badgeClass: "wl-badge--critical", isAvaria: true }
+];
+
+let fotoAtualIdx = 0;
+
+function abrirLightbox(idx) {
+  fotoAtualIdx = idx;
+  atualizarLightbox();
+  document.getElementById("scrim").classList.add("is-open");
+  document.getElementById("lightbox").classList.add("is-open");
+}
+
+function fecharLightbox() {
+  document.getElementById("scrim").classList.remove("is-open");
+  document.getElementById("lightbox").classList.remove("is-open");
+}
+
+function fotoAnterior() {
+  fotoAtualIdx = (fotoAtualIdx - 1 + fotosVistoria.length) % fotosVistoria.length;
+  atualizarLightbox();
+}
+
+function proximaFoto() {
+  fotoAtualIdx = (fotoAtualIdx + 1) % fotosVistoria.length;
+  atualizarLightbox();
+}
+
+function atualizarLightbox() {
+  const f = fotosVistoria[fotoAtualIdx];
+  document.getElementById("lb-titulo").textContent = f.titulo;
+  document.getElementById("lb-contador").textContent = "Foto " + (fotoAtualIdx + 1) + " de " + fotosVistoria.length;
+  document.getElementById("lb-legenda-detalhe").textContent = f.legenda;
+  const badge = document.getElementById("lb-badge-tipo");
+  badge.textContent = f.tipo;
+  badge.className = "wl-badge wl-badge--sm " + f.badgeClass;
+  document.getElementById("lb-btn-download").download = "PNB-7C04-vistoria-foto-" + (fotoAtualIdx + 1) + ".jpg";
+}
+
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape") fecharLightbox();
+  if (e.key === "ArrowLeft") fotoAnterior();
+  if (e.key === "ArrowRight") proximaFoto();
+});
+
+function mostrarEstado(estado) {
+  document.getElementById("estado-sucesso").style.display = estado === "sucesso" ? "flex" : "none";
+  document.getElementById("estado-vencido").style.display = estado === "vencido" ? "flex" : "none";
+  document.getElementById("estado-invalido").style.display = estado === "invalido" ? "flex" : "none";
+
+  document.getElementById("btn-estado-sucesso").className = "preview-btn" + (estado === "sucesso" ? " active" : "");
+  document.getElementById("btn-estado-vencido").className = "preview-btn" + (estado === "vencido" ? " active" : "");
+  document.getElementById("btn-estado-invalido").className = "preview-btn" + (estado === "invalido" ? " active" : "");
+}
+</script>
+
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#0E7C66","options":["#0E7C66","#c8f04a","#ff7a45","#2f6fed"],"section":"White label"},"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#0E7C66').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

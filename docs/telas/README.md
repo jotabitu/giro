@@ -11,7 +11,7 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 **Do canvas para cá:** vale a tela deste repositório. Tela nova ou ajustada no canvas só vale depois da tarefa de importação, que carimba a origem no topo do HTML. O fluxo e o quanto a página do app precisa seguir a tela estão em [`docs/agentes/telas-do-canvas.md`](../agentes/telas-do-canvas.md).
 
 **Última importação do canvas:** 28/10/2026, T-409 (só as telas `Plat-*`; as telas da locadora do canvas eram mais antigas que as daqui). Telas sem carimbo são anteriores ao fluxo.
-**Último ajuste no repositório:** 03/11/2026, T-414 (galeria de fotos no editar, visualizador com ampliar e baixar na ficha, desktop e celular [VEI-10]).
+**Último ajuste no repositório:** 05/11/2026, T-431 (página pública do recibo da devolução /recibo#<token>, dados do veículo, data, valores da caução e fotos com ampliar, estados de link vencido e inválido, desktop e celular [DEV-01, DEV-02, DEV-03, AUD-05, S-15]).
 
 ## Implantação
 
@@ -51,6 +51,7 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 | Caixa do dia | [desktop](html/Caixa-Desktop.dc.html) · [celular](html/Caixa-Mobile.dc.html) | `(empresa)/financeiro` | `financeiro` | FIN |
 | Despesas | [desktop](html/Despesas-Desktop.dc.html) · [celular](html/Despesas-Mobile.dc.html) | `(empresa)/financeiro` | `financeiro` | FIN |
 | Devolução | [desktop](html/Devolucao-Desktop.dc.html) · [celular](html/Devolucao-Mobile.dc.html) | `(empresa)/locacoes/[id]/vistoria|devolucao` | `vistorias` | VIS, DEV |
+| Recibo da devolução | [desktop](html/Recibo-Desktop.dc.html) · [celular](html/Recibo-Mobile.dc.html) | `(publico)/recibo` | `vistorias` | DEV-01 a DEV-08, AUD-05, S-15 |
 | Detalhe da locação | [desktop](html/Locacao-Detalhe-Desktop.dc.html) · [celular](html/Locacao-Detalhe-Mobile.dc.html) | `(empresa)/locacoes` | `locacoes` | LOC |
 | Locações | [desktop](html/Locacoes-Desktop.dc.html) · [celular](html/Locacoes-Mobile.dc.html) | `(empresa)/locacoes` | `locacoes` | LOC |
 | Manutenções | [desktop](html/Manutencao-Desktop.dc.html) · [celular](html/Manutencao-Mobile.dc.html) | `(empresa)/manutencoes` | `manutencao` | MAN |
