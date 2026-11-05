@@ -81,6 +81,23 @@ Perfis: quem cria locação. Locação `aguardando_retirada`, sem pedido de desc
 4. Envia o link por WhatsApp (e e-mail, se houver) com a marca da locadora; `status = enviado`.
 422 `IMP-04` sem modelo publicado; 409 `{ "codigo": "contrato_existente" }` se já há contrato vigente não cancelado (use reenviar); 409 `contrato_fora_de_hora` fora de `aguardando_retirada`; 409 `desconto_pendente` com o pedido de desconto aguardando decisão; 409 `{ "codigo": "cancelamento_em_curso", "mensagem": "A locação tem um cancelamento em andamento." }` com pedido de cancelamento pendente ou aprovado (T-263). O detalhe da locação diz antes se o `POST` passa: `acoes.gerar_contrato` (`locacoes.md`).
 
+### Estados e transições do contrato
+
+`contratos.Contrato.TRANSICOES` (T-411). A troca de status é sempre por `contratos.services`, com evento de auditoria:
+
+| De | Para | Quando |
+| --- | --- | --- |
+| `gerado` | `enviado` | a tarefa de envio manda o link por WhatsApp ou e-mail (`marcar_enviado`) |
+| `gerado` | `assinado` | o cliente assina por um link copiado (`POST .../contrato/link/`) de um contrato com o PDF pronto e nada enviado |
+| `gerado` | `cancelado` | `cancelar(contrato, motivo)`, por exemplo no cancelamento da locação (`LOC-12`); o link deixa de valer na hora |
+| `enviado` | `assinado` | o cliente assina pelo link enviado ou por um copiado depois |
+| `enviado` | `cancelado` | `cancelar(contrato, motivo)` |
+| `assinado`, `cancelado` | nenhum | estados finais |
+
+- Copiar o link **não muda o status** (`copiar-link.md`, `locacoes.md`): o `gerado` com o PDF continua `gerado`, e por isso a assinatura também pode sair de `gerado`.
+- O `gerado` sem PDF não abre o link (404 no consultar e no assinar) e não deixa copiar (409 `contrato_em_preparo`).
+- O contrato pode ficar `gerado`, com o PDF e um link copiado vivo, sem WhatsApp: a tarefa de envio (`contratos_preparar_e_enviar`) não troca um token mais novo que o momento em que entrou na fila (B-02 da T-411) e termina sem enviar. "Reenviar" (`POST /api/locacoes/{id}/contrato/reenviar/`) manda o link de novo, leva o contrato a `enviado` e invalida o link copiado.
+
 ### Link de assinatura (S-15)
 
 - Token aleatório de 32 bytes; o banco guarda só o hash (`token_assinatura_hash`).
@@ -98,11 +115,11 @@ Público. Corpo: `{ token }`.
   "contrato": { "codigo": "LOC-2856", "titulo": "Contrato de locação semanal", "cliente_nome": "Lucas Ferreira",
                 "pdf_url": "...", "pdf_url_expira_em": "...", "status": "enviado" } }
 ```
-Mostra só o contrato daquele token. `pdf_url` assinada de 15 minutos.
+Mostra só o contrato daquele token. `pdf_url` assinada de 15 minutos. Abre o contrato `enviado` ou o `gerado` com o PDF (link copiado antes de qualquer envio, T-411). O `status` vem `enviado` ou `gerado`, e a página mostra os dois do mesmo jeito. O `gerado` sem PDF e o `cancelado` respondem 404.
 410 `{ "codigo": "link_expirado", "mensagem": "Este link venceu. Peça um novo à locadora." }`; 410 `{ "codigo": "contrato_ja_assinado" }`; 404 para token desconhecido.
 
 ### POST /api/publico/assinaturas/assinar/
-Público. Corpo: `{ token, aceite: true, nome_completo }`. `nome_completo` precisa conferir com o nome do cliente (sem diferenciar maiúsculas e acentos).
+Público. Corpo: `{ token, aceite: true, nome_completo }`. Aceita o mesmo contrato que o consultar (`enviado`, ou `gerado` com o PDF) e o leva a `assinado` pelas transições acima. `nome_completo` precisa conferir com o nome do cliente (sem diferenciar maiúsculas e acentos).
 200: `{ "status": "assinado", "assinado_em": "..." }`. Grava `assinado_em`, `assinado_ip`, `assinatura_aparelho` e o hash do PDF assinado; o PDF final ganha uma página de registro (data, hora, IP mascarado /24, aparelho, hash).
 - **Como o link chegou** (`LOC-15`, T-411, M-02 da revisão de segurança): a página de registro e o evento `contratos.contrato_assinado` levam o canal do token usado (`token_assinatura_canal`): "Link enviado por WhatsApp ou e-mail ao cliente" ou "Link entregue por cópia, gerado por Carla Mendes em 03/11/2026, 10:12". Com `copiado` e o IP da assinatura igual a `token_assinatura_gerado_ip`, o evento marca `mesmo_ip_de_quem_copiou: true` (o PDF não mostra; serve à auditoria e a uma disputa). Nada é bloqueado. Os três campos do canal não são anulados ao assinar, para a prova ficar; `token_assinatura_gerado_ip` fica fora da auditoria. Teste: `test_loc_15_assinatura_por_link_copiado_registra_canal`. Publica `contratos.contrato_assinado`, que grava `contrato_assinado_em` na locação e pode ativá-la.
 400 `{ "codigo": "nome_nao_confere", "mensagem": "Digite seu nome completo como está no cadastro" }`; 410 como acima.

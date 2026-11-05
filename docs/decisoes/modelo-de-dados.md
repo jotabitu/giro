@@ -472,7 +472,7 @@ T-420, `LOC-16`, ADR 0037 (padrão A do ponto em aberto 1). Cadastro do administ
 | `tipo` | enum `contrato`, `aditivo` | aditivo da renovação (`LOC-08`) |
 | `pdf` | arquivo, nulo | WeasyPrint, com a marca da locadora |
 | `hash_pdf` | texto(64) | SHA-256 do PDF assinado |
-| `status` | enum `gerado`, `enviado`, `assinado`, `cancelado` | fluxo da retirada, passo 3 |
+| `status` | enum `gerado`, `enviado`, `assinado`, `cancelado` | fluxo da retirada, passo 3; transições abaixo |
 | `assinado_em` | momento, nulo | |
 | `assinado_ip` | IP, nulo | |
 | `assinatura_aparelho` | texto, nulo | |
@@ -485,6 +485,7 @@ T-420, `LOC-16`, ADR 0037 (padrão A do ponto em aberto 1). Cadastro do administ
 | `clausula_juros` | bool | `FIN-03`: verdadeiro quando o modelo usa `{{cobranca.multa_atraso_pct}}` e `{{cobranca.juros_mes_pct}}` |
 
 - Índice origem genérica; `status`.
+- Transições (`TRANSICOES`, T-411): `gerado` → `enviado`, `assinado` ou `cancelado`; `enviado` → `assinado` ou `cancelado`; `assinado` e `cancelado` são finais. `gerado` → `assinado` é a assinatura por um link copiado, com o PDF pronto e nada enviado, porque copiar não muda o status. O link só abre no `enviado` ou no `gerado` com `pdf`. "Reenviar" leva o `gerado` a `enviado` e invalida o link copiado (o banco guarda um hash só). Detalhes em `docs/api/contratos.md`, "Estados e transições do contrato".
 
 ### 16. Modelo de contrato · `contratos.ModeloContrato`
 
