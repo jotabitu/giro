@@ -1,5 +1,6 @@
 # Modelo de dados
 
+**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183), fatura e forma de pagamento da assinatura em 16 out 2026 (T-294, pela T-185), locação com intenção de compra e venda da quitação em 03 nov 2026 (T-420, ADR 0037) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
 **Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183), fatura e forma de pagamento da assinatura em 16 out 2026 (T-294, pela T-185), foto do veículo em 03 nov 2026 (T-414, ADR 0036) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
 
 Este documento diz, para cada uma das 25 entidades das regras, o app dono, o schema, os campos, os índices e as restrições. As entidades de apoio (que não estão na lista das regras mas são necessárias) vêm no fim de cada app. Mudança aqui passa pelo arquiteto; o backend implementa a partir daqui e do contrato do módulo em `docs/api/`.
@@ -359,6 +360,21 @@ T-414, `VEI-10`, ADR 0036. A galeria do veículo (fotos de cadastro, para a fich
 
 - `CHECK` de que só o campo da `regra` escolhida está preenchido.
 
+### 12a. Plano de compra · `locacoes.PlanoCompra` · ativável
+
+T-420, `LOC-16`, ADR 0037 (padrão A do ponto em aberto 1). Cadastro do administrador na tela `Precos`.
+
+| Campo | Tipo | Observação |
+| --- | --- | --- |
+| `nome` | texto(60), único | Compra Street 24 meses |
+| `categoria` | FK → `veiculos.Categoria` | uma só |
+| `periodicidade` | enum `semanal`, `mensal` | |
+| `parcelas` | smallint, `CHECK 2..260` | 24 |
+| `valor_parcela_centavos` | centavos, `CHECK > 0` | 119000 |
+| `condicoes` | texto, vazio | |
+
+- Mudar ou desativar não muda locação confirmada (campos congelados na `Locacao`, item 13).
+
 ### 13. Locação · `locacoes.Locacao` · código `LOC` · máquina
 
 | Campo | Tipo | Observação |
@@ -388,9 +404,17 @@ T-414, `VEI-10`, ADR 0036. A galeria do veículo (fotos de cadastro, para a fich
 | `multa_encerramento_centavos` | centavos, nulo | `LOC-12`, congelada na aprovação |
 | `credito_encerramento_centavos` | centavos±, nulo | `LOC-12`, `LOC-13`: crédito das semanas (ou diárias) não usadas, congelado na aprovação junto com a multa; no mensal em 4 semanais, menos as parcelas que o encerramento cancela, e pode ser negativo (saldo, ADR 0009; T-111) |
 | `atraso_anterior_dias`, `atraso_anterior_centavos` | int, centavos | `LOC-08`: o atraso até uma renovação feita depois do prazo, cobrado no acerto (T-111) |
+| `tipo` | enum `comum`, `intencao_compra`, padrão `comum` | `LOC-16` (T-420, ADR 0037); muda só no rascunho |
+| `plano_compra` | FK → `PlanoCompra`, nulo | só no `intencao_compra` |
+| `compra_parcelas` | smallint, nulo | congelado na confirmação (`LOC-15`); igual a `periodos` |
+| `compra_valor_parcela_centavos` | centavos, nulo | congelado na confirmação |
+| `quitada_em` | momento, nulo | a quitação (`LOC-16`); com ela, `status = encerrada` |
+| `encerrada_por_atraso` | bool, padrão `false` | `LOC-16`: encerramento pela locadora por atraso, sem `APR-02` |
 
 - **Uma locação ativa por veículo:** `UniqueConstraint(fields=["veiculo"], condition=Q(status__in=["aguardando_retirada", "ativa", "devolucao_atrasada"]), name="uma_locacao_aberta_por_veiculo")`. Violação vira `Conflito` com código `LOC-03`.
 - `CHECK (fim_previsto > inicio)`.
+- `CHECK` do tipo (`locacao_tipo_campos`): `tipo = 'comum'` com `plano_compra`, `compra_parcelas`, `compra_valor_parcela_centavos` e `quitada_em` nulos e `encerrada_por_atraso = false`; `tipo = 'intencao_compra'` com `plano_compra` preenchido e `desconto_pct = 0`, e, fora do `rascunho`, `compra_parcelas` e `compra_valor_parcela_centavos` preenchidos. `plano_especial`, extras e `parcelamento_mensal` são recusados no serviço. `quitada_em` só com `status = encerrada`.
+- Nenhum índice novo: a `AUT-02` tira o tipo `intencao_compra` na própria consulta, atendida pelo `(status, fim_previsto)`.
 - Índices: `(filial, status)`, `(status, fim_previsto)` para `AUT-01`/`AUT-02`, `(cliente, filial)` (o filtro de filial da lista de Clientes, `CLI-10`, T-249; também atende a busca só por `cliente`), `veiculo`.
 - Sinais `pagamento_atrasado`, `devolve_hoje`, `cancelamento_pendente` são calculados no selector (anotação), não guardados.
 - `rascunho` com mais de 24 h sem uso é cancelado pela tarefa diária (sem auditoria de negócio além do evento de cancelamento).
@@ -473,7 +497,7 @@ T-414, `VEI-10`, ADR 0036. A galeria do veículo (fotos de cadastro, para a fich
 | --- | --- | --- |
 | `filial` | FK → `Filial` | |
 | `cliente` | FK → `Cliente` | |
-| `veiculo` | FK → `Veiculo` | só `a_venda` |
+| `veiculo` | FK → `Veiculo` | só `a_venda`; na quitação (`VEN-11`), o `alugado` da locação |
 | `vendedor` | FK → `contas.Usuario` | |
 | `preco_tabela_centavos` | centavos | `VEN-01` |
 | `desconto_pct` | pct | |
@@ -488,7 +512,13 @@ T-414, `VEI-10`, ADR 0036. A galeria do veículo (fotos de cadastro, para a fich
 | `cancelada_em`, `motivo_cancelamento`, `cancelada_por` | momento, texto, FK; nulos | `VEN-07` |
 | `motivo_perda` | texto, nulo | ex.: "veículo vendido" (`VEN-10`) |
 | `proposta_enviada_em`, `vendida_em` | momento, nulo | `perdida` com 7 dias sem resposta |
+| `origem` | enum `balcao`, `quitacao_locacao`, padrão `balcao` | `VEN-11` (T-420, ADR 0037) |
+| `locacao` | FK → `locacoes.Locacao`, nulo, único | só na quitação |
+| `descricao` | texto(120), vazio | "Quitação da LOC-x" |
+| `transferencia_feita_em` | data, nula | tarefa da transferência no Detran (`LOC-16`) |
+| `transferencia_registrada_por` | FK → `contas.Usuario`, nulo | |
 
+- **T-420 (ADR 0037):** a tabela nasce inteira agora, com o `numero`/`codigo` `VEN` (`ModeloComCodigo`). Para caber a venda da quitação, `forma`, `preco_tabela_centavos`, `desconto_pct`, `entrada_centavos`, `num_parcelas` e `juros_pct` ficam nulos ou com padrão 0; `CHECK (origem <> 'quitacao_locacao' OR (locacao_id IS NOT NULL AND preco_final_centavos = 0 AND status = 'vendida'))` e `CHECK (origem <> 'balcao' OR locacao_id IS NULL)`. Índice parcial `(filial)` com `origem = 'quitacao_locacao' AND transferencia_feita_em IS NULL` (pendências do painel). Funil, meta e comissão filtram `origem = 'balcao'`.
 - **Uma venda aberta por veículo (`VEN-10`):** `UniqueConstraint(fields=["veiculo"], condition=Q(status__in=["proposta", "negociacao", "aguardando_aprovacao"]), name="uma_venda_aberta_por_veiculo")`. Vários `interessado` podem existir para o mesmo veículo; quando ele vira `vendido`, o serviço passa os outros `interessado` dele para `perdida` com `motivo_perda` "veículo vendido".
 - `VEN-07`: o cancelamento cancela as parcelas em aberto, estorna as pagas, estorna a comissão e devolve o veículo para `a_venda`, tudo na mesma transação.
 - Apoio `MetaVenda`: `vendedor`, `mes` (data dia 1), `valor_centavos`; único `(vendedor, mes)` (`VEN-09`). Fase 2.
@@ -699,6 +729,8 @@ Campos, índices e imutabilidade na ADR 0010. Existe nos dois schemas. Apoio `Ex
 | CPF/CNPJ único por empresa | `Cliente.documento_hash` único no schema | `CLI-01` |
 | Uma locação aberta por veículo | índice único parcial em `Locacao.veiculo` | regras, "Entidades" |
 | Uma venda aberta por veículo | índice único parcial em `Venda.veiculo` | `VEN-10` |
+| Uma venda por locação quitada | `Venda.locacao` único | `VEN-11` |
+| Campos do tipo da locação coerentes | `CHECK locacao_tipo_campos` | `LOC-16` |
 | Uma movimentação aberta por veículo | índice único parcial em `Movimentacao.veiculo` | `MOV-03` |
 | Local de apoio com nome único na empresa | `LocalApoio.nome_busca` único | `MOV-01` |
 | Um caixa por filial por dia | único `(filial, data)` | `FIN-07` |
