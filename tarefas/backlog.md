@@ -543,3 +543,31 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 #### Também liberado
 - O botão "Mandar para oficina" da ficha depende do módulo de manutenção (`MAN`, `backend/apps/manutencao/` vazio) e entra quando ele for quebrado em tarefas.
 
+### Notas do dono de 05 nov 2026
+
+Vindas da aba Notas do painel de progresso, como as de 29 out. Nada começa sem o dono liberar.
+
+#### T-437 · Fotos do veículo também no cadastro
+- **Agentes:** produto (regra), design-system (tela), frontend, backend se precisar · **Regras:** `VEI-10` · **Depende de:** T-414 · **Origem:** nota "Adicionar fotos aos veiculos".
+- **Pedido do dono:** subir fotos do veículo fora da vistoria, já no cadastro do veículo novo e também no editar.
+- **Hoje:** a T-414 cobre a galeria no editar (`VEI-10`, ADR 0036), mas não o cadastro. O produto diz se o cadastro sobe as fotos junto com o veículo ou logo depois de salvar, e o design-system acrescenta o bloco em `Veiculo-Novo`.
+- **Pronto quando:** `VEI-10` cobre o cadastro, a tela de referência tem o bloco, e a galeria funciona no cadastro e no editar, com teste.
+
+#### T-438 · Tipo do veículo (carro ou moto) à vista no cadastro e no editar
+- **Agentes:** produto (regra), frontend, backend se precisar · **Regras:** `VEI` · **Origem:** nota "Adicionar campo de tipo de Veiculo".
+- **Pedido do dono:** um campo de tipo do veículo, carro ou moto.
+- **Hoje:** o campo `tipo_veiculo` já existe no modelo e no cadastro, ligado à categoria. No editar ele só aparece como ícone, sem poder trocar. **[decisão]** O produto confirma com o dono o que falta: deixar o tipo como campo próprio e visível no cadastro, poder trocar no editar (o que mexe na categoria e no preço), ou as duas coisas.
+- **Pronto quando:** regra escrita com a resposta do dono e a tela fazendo o que ela diz, com teste.
+
+#### T-439 · Implantação logo depois da compra
+- **Agentes:** produto (regra), arquiteto, frontend · **Regras:** `IMP-01`, `USR-01`, compra pública (`compra.md`) · **Origem:** nota "Ajustar Implantação".
+- **Pedido do dono:** a implantação deve começar assim que a pessoa termina o cadastro e escolhe o plano, e não só depois.
+- **Hoje:** o caminho é `Compra-Pronto` → convite → criar senha e 2 etapas (`USR-06`) → assistente. **[decisão]** O produto leva ao dono se a senha e as 2 etapas continuam antes do assistente (como manda a `USR-06`) e só o caminho fica direto, ou se algo muda na ordem.
+- **Pronto quando:** regra e contrato ajustados com a resposta do dono, o "Acessar meu sistema" leva direto ao primeiro passo da implantação, com teste e E2E.
+
+#### T-440 · Importação de veículos sem filial e sem categoria na planilha
+- **Agentes:** produto (regra), backend, frontend · **Regras:** `IMP-02`, `IMP-03`, `VEI` · **Origem:** nota "Ajustar importação de veiculos".
+- **Pedido do dono:** a planilha modelo não pode pedir filial nem categoria; as duas colunas saem do modelo e da importação.
+- **Hoje:** a importação lê `categoria` e `filial` de cada linha (`importacao/linhas.py`). **[decisão]** O produto diz de onde vêm a filial e a categoria de cada veículo importado (escolhidas uma vez na tela antes de enviar, ou preenchidas depois) e atualiza a regra.
+- **Pronto quando:** modelo da planilha sem as duas colunas, importação usando a resposta do produto, teste e a tela de importação de acordo.
+
