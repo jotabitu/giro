@@ -107,6 +107,11 @@ export type Veiculo = {
 };
 
 export type VeiculoDetalhe = Veiculo & {
+  /** VEI-09 (T-421): os blocos sempre vêm. `documento.numero_motor` e `documento.observacoes` vêm ausentes para vendedor, vistoriador e financeiro. */
+  combustivel: CombustivelDoVeiculo | null;
+  documento: DocumentoDoVeiculo;
+  rastreador: RastreadorDoVeiculo;
+  anotacoes: string | null;
   /** Ausente para o vistoriador. */
   indicadores_financeiros?: { rendeu_no_ano_centavos: number; custo_manutencao_ano_centavos: number } | null;
   ocupacao: { pct: string; periodo_dias: number };
@@ -176,6 +181,13 @@ export type EdicaoVeiculo = {
   capacidade_tanque_litros?: string | null;
   valor_compra_centavos?: number | null;
   data_compra?: string | null;
+  /** VEI-09: chave enviada substitui, ausente não muda, `null` apaga. */
+  combustivel?: CombustivelDoVeiculo | null;
+  documento?: DocumentoDoVeiculoEntrada;
+  rastreador?: RastreadorEntrada;
+  anotacoes?: string | null;
+  /** Comprovante da leitura do CRLV-e no editar (VEI-08). */
+  leitura?: string;
 };
 
 export type NovoVeiculo = {
@@ -195,12 +207,24 @@ export type NovoVeiculo = {
   data_compra?: string;
   entrou_na_frota_em?: string;
   combustivel?: CombustivelDoVeiculo;
+  documento?: DocumentoDoVeiculoEntrada;
+  rastreador?: RastreadorEntrada;
+  anotacoes?: string;
 };
+
+export type DocumentoDoVeiculo = components["schemas"]["DocumentoDoVeiculo"];
+export type DocumentoDoVeiculoEntrada = components["schemas"]["DocumentoDoVeiculoEntrada"];
+export type RastreadorDoVeiculo = components["schemas"]["Rastreador"];
+export type RastreadorEntrada = components["schemas"]["RastreadorEntrada"];
+export type EspecieDoVeiculo = components["schemas"]["EspecieVeiculoEnum"];
 
 export type CombustivelDoVeiculo = NonNullable<components["schemas"]["CamposDoCrlv"]["combustivel"]>;
 
 /** Resposta de `POST /api/veiculos/leitura-crlv/` (VEI-08): a API só lê, quem grava é o cadastro. */
 export type LeituraCrlv = components["schemas"]["LeituraCrlv"];
+
+/** Resposta de `POST /api/veiculos/{id}/leitura-crlv/` (T-421): como a leitura do cadastro, sem placa e chassi. */
+export type LeituraCrlvNoEditar = components["schemas"]["LeituraCrlvNoEditar"];
 
 /** O CRLV-e que vai junto no cadastro (multipart): o arquivo lido, a validade que a pessoa informa e o comprovante da leitura. */
 export type CrlvDoCadastro = { arquivo: File; validade: string; exercicio: number | null; leitura: string };

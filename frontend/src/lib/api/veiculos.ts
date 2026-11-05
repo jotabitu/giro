@@ -5,6 +5,7 @@ import type {
   CorrecaoDeIdentificacao,
   CrlvDoCadastro,
   LeituraCrlv,
+  LeituraCrlvNoEditar,
   ModeloDoCatalogo,
   CategoriaVeiculo,
   DocumentoVeiculo,
@@ -39,7 +40,15 @@ export const veiculosApi = {
   criar(v: NovoVeiculo, crlv?: CrlvDoCadastro): Promise<Veiculo> {
     if (!crlv) return http.post<Veiculo>("/api/veiculos/", v);
     const corpo = new FormData();
-    for (const [campo, valor] of Object.entries(v)) if (valor !== undefined && valor !== null) corpo.set(campo, String(valor));
+    // VEI-09: em multipart os blocos vão achatados, com a chave pontuada (`documento.lotacao`, `rastreador.numero`).
+    for (const [campo, valor] of Object.entries(v)) {
+      if (valor === undefined || valor === null) continue;
+      if (typeof valor === "object") {
+        for (const [sub, subvalor] of Object.entries(valor)) if (subvalor !== undefined && subvalor !== null) corpo.set(`${campo}.${sub}`, String(subvalor));
+      } else {
+        corpo.set(campo, String(valor));
+      }
+    }
     corpo.set("crlv_arquivo", crlv.arquivo);
     corpo.set("crlv_validade", crlv.validade);
     if (crlv.exercicio != null) corpo.set("crlv_exercicio", String(crlv.exercicio));
@@ -52,6 +61,16 @@ export const veiculosApi = {
     const corpo = new FormData();
     corpo.set("arquivo", arquivo);
     return http.post<LeituraCrlv>("/api/veiculos/leitura-crlv/", corpo);
+  },
+
+  /**
+   * VEI-08 no editar (T-421, padrão A): `POST /api/veiculos/{id}/leitura-crlv/`. Sem placa e chassi na resposta; não grava nada e não guarda o PDF.
+   * A 422 `crlv_outro_veiculo` traz a mensagem pronta ("Este CRLV-e é de outro veículo.").
+   */
+  lerCrlvDoVeiculo(id: number, arquivo: File): Promise<LeituraCrlvNoEditar> {
+    const corpo = new FormData();
+    corpo.set("arquivo", arquivo);
+    return http.post<LeituraCrlvNoEditar>(`/api/veiculos/${id}/leitura-crlv/`, corpo);
   },
 
   /** O catálogo de marcas e modelos (até 50), para o campo Modelo. */

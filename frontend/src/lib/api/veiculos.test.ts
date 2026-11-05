@@ -90,3 +90,43 @@ describe("veiculosApi.lerCrlv e modelos (VEI-08, T-257)", () => {
     expect(url.searchParams.has("marca")).toBe(false);
   });
 });
+
+describe("veiculosApi com os campos da VEI-09 (T-421)", () => {
+  const resposta = (corpo: unknown, status = 200) => new Response(JSON.stringify(corpo), { status, headers: { "content-type": "application/json" } });
+
+  it("test_vei_08_cadastro_em_multipart_manda_os_blocos_achatados (CA-421-05)", async () => {
+    fetchMock.mockResolvedValue(resposta({ id: 93 }, 201));
+    const novo: NovoVeiculo = { ...NOVO, combustivel: "gasolina", documento: { lotacao: 1, potencia_cv: 8 }, rastreador: { numero: "356938035643810", empresa: "Rastreia Fácil" }, anotacoes: "Retrovisor trocado" };
+    await veiculosApi.criar(novo, { arquivo: new File(["%PDF-"], "crlv.pdf"), validade: "2027-10-31", exercicio: 2026, leitura: "assinado" });
+    const corpo = (fetchMock.mock.calls[0]?.[1] as RequestInit).body as FormData;
+    expect(corpo.get("documento.lotacao")).toBe("1");
+    expect(corpo.get("documento.potencia_cv")).toBe("8");
+    expect(corpo.get("rastreador.numero")).toBe("356938035643810");
+    expect(corpo.get("rastreador.empresa")).toBe("Rastreia Fácil");
+    expect(corpo.get("anotacoes")).toBe("Retrovisor trocado");
+    expect(corpo.has("documento")).toBe(false);
+    expect(corpo.has("rastreador")).toBe(false);
+  });
+
+  it("sem o CRLV-e os blocos vão como objetos no JSON", async () => {
+    fetchMock.mockResolvedValue(resposta({ id: 94 }, 201));
+    await veiculosApi.criar({ ...NOVO, documento: { lotacao: 2 }, rastreador: { numero: "ABC" } });
+    expect(JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string)).toMatchObject({ documento: { lotacao: 2 }, rastreador: { numero: "ABC" } });
+  });
+
+  it("test_vei_09_erro_400_na_chave_pontuada_chega_no_campo (CA-421-07)", async () => {
+    fetchMock.mockResolvedValue(resposta({ codigo: "validacao", mensagem: "Confira os campos destacados", campos: { "documento.potencia_cv": ["Informe a potência em cv, de 1 a 999."] } }, 400));
+    await expect(veiculosApi.criar({ ...NOVO, documento: { potencia_cv: 1500 } })).rejects.toMatchObject({ status: 400, campos: { "documento.potencia_cv": "Informe a potência em cv, de 1 a 999." } });
+  });
+
+  it("test_vei_08_leitura_no_editar_vai_pela_rota_do_veiculo_e_a_422_sobe_como_vem (CA-421-10)", async () => {
+    fetchMock.mockResolvedValueOnce(resposta({ documento: "crlv", lidos: [], quantidade: 0, rotulo: "x", leitura: "c" }));
+    await veiculosApi.lerCrlvDoVeiculo(502, new File(["%PDF-"], "crlv.pdf"));
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/api/veiculos/502/leitura-crlv/");
+    expect(init.method).toBe("POST");
+    expect(((init.body as FormData).get("arquivo") as File).name).toBe("crlv.pdf");
+    fetchMock.mockResolvedValueOnce(resposta({ codigo: "crlv_outro_veiculo", mensagem: "Este CRLV-e é de outro veículo." }, 422));
+    await expect(veiculosApi.lerCrlvDoVeiculo(502, new File(["%PDF-"], "outro.pdf"))).rejects.toMatchObject({ status: 422, codigo: "crlv_outro_veiculo", message: "Este CRLV-e é de outro veículo." });
+  });
+});

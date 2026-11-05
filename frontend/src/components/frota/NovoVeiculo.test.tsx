@@ -43,6 +43,15 @@ describe("tela Cadastrar veículo", () => {
     expect(h).toContain(">Filial Centro</option>");
   });
 
+  it("test_vei_09_cadastro_mostra_combustivel_dados_do_documento_rastreador_e_anotacoes_todos_opcionais (CA-421-06, CA-421-08)", () => {
+    sessao.veiculos = "editar";
+    const h = html(<NovoVeiculoForm />);
+    for (const t of ["Combustível", "Espécie", "Tipo", "Carroceria", "Potência (cv)", "Cilindrada (cc)", "Lotação (pessoas)", "Peso bruto total (kg)", "Número do motor", "Observações do CRLV-e", "Rastreador · número ou IMEI", "Rastreador · empresa", "Anotações"]) expect(h).toContain(t);
+    // Opcionais: nenhum campo da VEI-09 é obrigatório na tela.
+    expect(h).not.toMatch(/(Combustível|Potência|Lotação|Anotações)[^<]*<[^>]*required/);
+    for (const flex of ['<option value="flex">Flex</option>', '<option value="gasolina">Gasolina</option>']) expect(h).toContain(flex);
+  });
+
   it("a leitura do CRLV-e está ligada e a FIPE segue desativada (VEI-08)", () => {
     sessao.veiculos = "editar";
     const h = html(<NovoVeiculoForm />);

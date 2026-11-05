@@ -12,13 +12,11 @@ import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo } from 
 import { mensagemDoErro } from "@/lib/erros";
 import { dinheiro, km, placa as placaComHifen } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
-import { esquemaVeiculo, paraCorpoVeiculo, valoresDaLeitura, VALORES_INICIAIS_VEICULO, type CampoLido, type ValoresVeiculo } from "@/lib/veiculos";
+import { esquemaVeiculo, NOME_DO_CAMPO_DA_API, paraCorpoVeiculo, valoresDaLeitura, VALORES_INICIAIS_VEICULO, type CampoLido, type ValoresVeiculo } from "@/lib/veiculos";
+import { CamposDoDocumento } from "./CamposDoDocumento";
 import { PreencherPeloCrlv, type CrlvLido } from "./PreencherPeloCrlv";
 
 type Nome = FieldPath<ValoresVeiculo>;
-
-/** Campo da API que não tem campo próprio na tela vira o campo mais próximo. */
-const CAMPO_DA_API: Record<string, Nome> = { valor_compra_centavos: "valor_compra" };
 
 type SelecaoProps = SelectHTMLAttributes<HTMLSelectElement> & { rotulo: string; erro?: string; dica?: string; opcoes: { valor: string; rotulo: string }[]; vazio: string };
 
@@ -100,9 +98,8 @@ export function NovoVeiculoForm() {
 
   const salvar = useMutation({
     mutationFn: (valores: ValoresVeiculo) => {
-      const combustivel = crlv?.leitura.lidos.includes("combustivel") ? (crlv.leitura.campos.combustivel ?? undefined) : undefined;
-      const corpo = { ...paraCorpoVeiculo(valores), ...(combustivel ? { combustivel } : {}) };
-      return veiculos.criar(corpo, crlv ? { arquivo: crlv.arquivo, validade: valores.crlv_validade, exercicio: crlv.leitura.exercicio, leitura: crlv.leitura.leitura } : undefined);
+      // O combustível e os campos da VEI-09 são campos da tela (lidos do documento ou digitados): o corpo sai deles.
+      return veiculos.criar(paraCorpoVeiculo(valores), crlv ? { arquivo: crlv.arquivo, validade: valores.crlv_validade, exercicio: crlv.leitura.exercicio, leitura: crlv.leitura.leitura } : undefined);
     },
   });
 
@@ -124,7 +121,7 @@ export function NovoVeiculoForm() {
     setLidos({});
   }
   /** Dica do campo: "Lido do documento" enquanto o valor é o que veio do CRLV-e; se a pessoa mudar, volta a dica de sempre. */
-  const dicaDe = (nome: CampoLido, padrao?: string) => (lidos[nome] !== undefined && lidos[nome] === v[nome] ? "Lido do documento" : padrao);
+  const dicaDe = (nome: Nome, padrao?: string) => (lidos[nome as CampoLido] !== undefined && lidos[nome as CampoLido] === v[nome] ? "Lido do documento" : padrao);
 
 
   const erro = (nome: Nome) => errors[nome]?.message;
@@ -158,7 +155,7 @@ export function NovoVeiculoForm() {
       } else if (e instanceof ErroApi && e.campos) {
         const sobra: string[] = [];
         for (const [campo, mensagem] of Object.entries(e.campos)) {
-          const nome = CAMPO_DA_API[campo] ?? campo;
+          const nome = NOME_DO_CAMPO_DA_API[campo] ?? campo;
           if (nome in VALORES_INICIAIS_VEICULO) setError(nome as Nome, { message: mensagem });
           else sobra.push(mensagem);
         }
@@ -273,6 +270,8 @@ export function NovoVeiculoForm() {
               <TextField cheio mono rotulo="Capacidade do tanque (litros)" inputMode="decimal" dica="Opcional. Sem ela, o combustível da devolução é informado à mão" erro={erro("capacidade_tanque_litros")} {...register("capacidade_tanque_litros")} />
             </div>
           </Panel>
+
+          <CamposDoDocumento register={register} erro={erro} dica={dicaDe} comMotorEObservacoes />
 
           <Panel titulo="Uso na frota">
             <div className="grid gap-4 md:grid-cols-2">
