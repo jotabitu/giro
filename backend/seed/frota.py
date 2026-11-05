@@ -89,6 +89,21 @@ NOMEADOS: dict[str, dict[str, Any]] = {
         "ano_modelo": 2023,
         "cor": "vermelha",
         "km_atual": 18950,
+        # "Dados do CRLV-e do QXA-4B21" (VEI-09, T-421), fictícios. Os outros 85 ficam sem.
+        "combustivel": "flex",
+        "documento": {
+            "potencia_cv": 15,
+            "cilindrada_cc": 162,
+            "especie": "passageiro",
+            "tipo": "Motocicleta",
+            "carroceria": None,
+            "lotacao": 2,
+            "peso_bruto_kg": 290,
+            "numero_motor": "KC22E1P004401",
+            "observacoes": "ALIENACAO FIDUCIARIA",
+        },
+        "rastreador": {"numero": "356938035643809", "empresa": "Rastreia Fácil"},
+        "anotacoes": "Risco no tanque, lado esquerdo",
     },
     "PNB7C04": {
         "categoria": "Street 150–160",
@@ -266,6 +281,21 @@ def cadastrar_veiculo(
     if status != "disponivel":
         veiculos_services.transicionar(veiculo, status, origem=ORIGEM, motivo="Importação do seed")
     return veiculo
+
+
+CAMPOS_DO_CRLV_DO_SEED = ("combustivel", "documento", "rastreador", "anotacoes")
+
+
+def garantir_dados_do_crlv() -> bool:
+    """O banco que já tinha a frota antes da T-421 ganha os dados do CRLV-e do QXA-4B21 (VEI-09),
+    pelo editar, como a Mariana faria. Já preenchido (ou sem o QXA-4B21): nada muda."""
+    qxa = Veiculo.objects.filter(placa="QXA4B21").first()
+    if qxa is None or qxa.numero_motor or qxa.potencia_cv is not None:
+        return False
+    dados = {campo: NOMEADOS["QXA4B21"][campo] for campo in CAMPOS_DO_CRLV_DO_SEED}
+    with como(Usuario.objects.get(email=EMAIL_DA_ADMINISTRADORA)):
+        veiculos_services.editar(qxa, dados)
+    return True
 
 
 def montar_frota(centro: Filial, empresa: Any, relogio: RelogioDoSeed) -> Frota:

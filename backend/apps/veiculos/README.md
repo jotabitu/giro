@@ -86,9 +86,16 @@ Assina `aprovacoes.pedido_decidido` em `eventos.py` (T-081): `APR-06` aprovado c
 
 ## Leitura do CRLV-e (T-265, VEI-08, ADR 0026)
 
-- `leitura.py`: `POST /api/veiculos/leitura-crlv/`; confere o arquivo (400 para o que não é PDF nem pela extensão nem pelos bytes, 422 `VEI-08` para o resto), roda o filho de `integracoes.leitura_documentos`, acha marca e modelo no catálogo e devolve os 9 campos com o comprovante (`comum.comprovante_leitura`). Log só com tipo, resultado, motivo, quantidade, ms, schema e usuário.
+- `leitura.py`: `POST /api/veiculos/leitura-crlv/`; confere o arquivo (400 para o que não é PDF nem pela extensão nem pelos bytes, 422 `VEI-08` para o resto), roda o filho de `integracoes.leitura_documentos`, acha marca e modelo no catálogo e devolve até 18 campos (9 desde a T-265, mais os 9 do documento da T-421) com o comprovante (`comum.comprovante_leitura`). Log só com tipo, resultado, motivo, quantidade, ms, schema e usuário.
 - `services.cadastrar_com_crlv`: o `POST /api/veiculos/` em multipart com `crlv_arquivo`, `crlv_validade`, `crlv_exercicio` e `leitura`; veículo e `DocumentoVeiculo` `crlv` numa transação, o arquivo apagado se ela falhar.
 - `Veiculo.combustivel` e `DocumentoVeiculo.exercicio` (migração 0006).
+
+## Dados do documento, rastreador e anotações (T-421, VEI-09)
+
+- 12 colunas opcionais no `Veiculo` (migração 0007, com os `CHECK` de faixa); `models.CAMPOS_DA_VEI_09` liga a chave da API (`documento.lotacao`, `rastreador.numero`, `anotacoes`) ao campo do model (`tipo_documento` é o "tipo" do CRLV-e; `observacoes_crlv`, as observações). Texto vazio é `""` no banco e `null` na API.
+- `services._validar_vei_09`: formato e mensagens da tabela do contrato, erro com a chave pontuada; no `editar`, cada chave enviada substitui, ausente não muda. O `veiculo.editar` é gravado à mão (não pelo `auditar`) para levar as chaves pontuadas e o `preenchido_pelo_documento` da leitura no editar.
+- `selectors.dados_do_documento`: os blocos no detalhe e nas respostas do `POST` e do `PATCH`; `numero_motor` e `observacoes` ausentes para vendedor, vistoriador e financeiro.
+- A leitura lê os 9 campos do documento (`crlv.py`: `potencia_cilindrada`, `especie_tipo`, `carroceria`, `lotacao`, `peso_bruto_kg`, `numero_motor` e o bloco das observações em várias linhas; `crlv.VAZIO` para o campo que o documento traz vazio). `POST /api/veiculos/{id}/leitura-crlv/` é a leitura no editar: confere placa e chassi (422 `crlv_outro_veiculo`), tira os dois da resposta e emite o comprovante com o `id` do veículo (`comprovante_leitura.conferir_do_veiculo`).
 
 ## Falta
 

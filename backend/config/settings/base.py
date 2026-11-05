@@ -249,6 +249,7 @@ SPECTACULAR_SETTINGS = {
         "EtapaEnum": ["configurar_2fa"],  # nome que o login da plataforma já publicava
         # VEI-08 (T-247): o combustível do veículo; o da vistoria é o nível do tanque (VIS-03).
         "CombustivelVeiculoEnum": "apps.veiculos.models.Combustivel",
+        "EspecieVeiculoEnum": "apps.veiculos.models.Especie",  # VEI-09 (T-421)
         "NivelDoTanqueEnum": "apps.vistorias.models.Combustivel",
         "NivelDeAprovacaoEnum": "apps.contas.api.acesso.NIVEL_DE_APROVACAO",
         "TipoSessaoEnum": "apps.contas.models.TipoSessao",

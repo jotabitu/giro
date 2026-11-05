@@ -1,7 +1,9 @@
 """Preencher pelo CRLV-e (VEI-08, ADR 0026, docs/api/veiculos.md).
 
 A leitura não grava nada: lê o PDF no processo filho (`integracoes.leitura_documentos`), acha a
-marca e o modelo no catálogo (item 7) e devolve os 9 campos com o comprovante `leitura`. Nada do
+marca e o modelo no catálogo (item 7) e devolve até 18 campos (os 9 da VEI-08 e os 9 do documento
+da VEI-09, T-421) com o comprovante `leitura`. No editar (T-421), confere que o documento é do
+veículo e não devolve placa nem chassi. Nada do
 conteúdo, do nome do arquivo ou dos valores lidos vai para log: só a linha do item 9.
 """
 
@@ -21,9 +23,21 @@ logger = logging.getLogger(__name__)
 TIPO = "crlv"
 TAMANHO_MAXIMO = 2 * 1024 * 1024
 ASSINATURA_PDF = b"%PDF-"
+IDENTIFICACAO = ("placa", "chassi")
+# VEI-09 (T-421): o campo do processo filho → a chave pontuada da API.
+DO_DOCUMENTO = {
+    "potencia_cv": "documento.potencia_cv",
+    "cilindrada_cc": "documento.cilindrada_cc",
+    "especie": "documento.especie",
+    "tipo": "documento.tipo",
+    "carroceria": "documento.carroceria",
+    "lotacao": "documento.lotacao",
+    "peso_bruto_kg": "documento.peso_bruto_kg",
+    "numero_motor": "documento.numero_motor",
+    "observacoes": "documento.observacoes",
+}
 CAMPOS = (
-    "placa",
-    "chassi",
+    *IDENTIFICACAO,
     "renavam",
     "marca",
     "modelo",
@@ -31,10 +45,12 @@ CAMPOS = (
     "ano_modelo",
     "cor",
     "combustivel",
+    *DO_DOCUMENTO.values(),
 )
 LIMITE_DE_CANDIDATOS = 20  # T-415: acima disso, a pessoa busca na lista
 MENSAGEM_FALHA = "Não conseguimos ler este documento. Preencha os campos à mão."
 MENSAGEM_NAO_PDF = "Envie o PDF do CRLV-e."
+MENSAGEM_OUTRO_VEICULO = "Este CRLV-e é de outro veículo."
 
 
 class FalhaDeLeitura(ErroDeRegra):
@@ -43,6 +59,13 @@ class FalhaDeLeitura(ErroDeRegra):
     def __init__(self, motivo: str) -> None:
         super().__init__("VEI-08", MENSAGEM_FALHA)
         self.motivo = motivo
+
+
+class CrlvDeOutroVeiculo(ErroDeRegra):
+    """422 `crlv_outro_veiculo` (CA-421-10): a placa ou o chassi lidos não são os do veículo."""
+
+    def __init__(self) -> None:
+        super().__init__("crlv_outro_veiculo", MENSAGEM_OUTRO_VEICULO)
 
 
 def conteudo_do_arquivo(arquivo: Any) -> bytes:
@@ -71,7 +94,7 @@ def rotulo(quantidade: int) -> str:
 
 
 def _resposta(lidos_do_filho: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Os 9 campos da VEI-08 e as dicas de marca e modelo.
+    """Os campos da VEI-08 (com os da VEI-09) e as dicas de marca e modelo.
 
     Um candidato só: marca e modelo preenchidos, sem dica. Mais de um (o Cruze da T-415): a marca
     é preenchida quando todos são da mesma, e as versões vão em `dicas.candidatos` para a pessoa
@@ -80,6 +103,8 @@ def _resposta(lidos_do_filho: dict[str, Any]) -> tuple[dict[str, Any], dict[str,
     for nome in ("placa", "chassi", "renavam", "ano_fabricacao", "ano_modelo", "cor"):
         campos[nome] = lidos_do_filho.get(nome)
     campos["combustivel"] = lidos_do_filho.get("combustivel")
+    for nome, chave in DO_DOCUMENTO.items():
+        campos[chave] = lidos_do_filho.get(nome)
     texto = lidos_do_filho.get("marca_modelo")
     achados = catalogo.candidatos(texto) if texto else []
     dicas: dict[str, Any] = {"marca_modelo": None, "candidatos": []}
@@ -112,8 +137,22 @@ def _registrar(
     )
 
 
-def ler_crlv(arquivo: Any, usuario: Any) -> dict[str, Any]:
-    """POST /api/veiculos/leitura-crlv/. Ocupado: `leitura_documentos.LeituraOcupada` (503)."""
+def _do_veiculo(campos: dict[str, Any], veiculo: Any) -> None:
+    """No editar (T-421): a placa e o chassi lidos, sem hífen e em maiúsculas, têm de ser os do
+    veículo. Precisa ter lido pelo menos um dos dois; sem nenhum, não dá para conferir (422
+    `VEI-08`). Depois da conferência, os dois saem da resposta: no editar eles não mudam."""
+    lidos = {nome: campos[nome] for nome in IDENTIFICACAO if campos[nome] is not None}
+    if not lidos:
+        raise FalhaDeLeitura("sem_identificacao")
+    if any(str(valor).upper() != getattr(veiculo, nome) for nome, valor in lidos.items()):
+        raise CrlvDeOutroVeiculo
+    for nome in IDENTIFICACAO:
+        campos.pop(nome)
+
+
+def ler_crlv(arquivo: Any, usuario: Any, veiculo: Any = None) -> dict[str, Any]:
+    """POST /api/veiculos/leitura-crlv/ e, com o `veiculo`, POST /api/veiculos/{id}/leitura-crlv/
+    (o editar, T-421). Ocupado: `leitura_documentos.LeituraOcupada` (503)."""
     inicio = time.monotonic()
     try:
         conteudo = conteudo_do_arquivo(arquivo)
@@ -122,17 +161,22 @@ def ler_crlv(arquivo: Any, usuario: Any) -> dict[str, Any]:
         if leitura.motivo is not None:
             raise FalhaDeLeitura(leitura.motivo)
         campos, dicas = _resposta(leitura.campos)
-        lidos = [nome for nome in CAMPOS if campos[nome] is not None]
+        if veiculo is not None:
+            _do_veiculo(campos, veiculo)
+        lidos = [nome for nome in campos if campos[nome] is not None]
         if not lidos:
             raise FalhaDeLeitura("nao_reconhecido")
     except FalhaDeLeitura as falha:
         _registrar("falhou", falha.motivo, 0, inicio, usuario)
         raise
+    except CrlvDeOutroVeiculo:
+        _registrar("falhou", "outro_veiculo", 0, inicio, usuario)
+        raise
     except ErroDeValidacao:
         _registrar("falhou", "nao_pdf", 0, inicio, usuario)
         raise
     _registrar(
-        "lido" if len(lidos) == len(CAMPOS) else "parcial", None, len(lidos), inicio, usuario
+        "lido" if len(lidos) == len(campos) else "parcial", None, len(lidos), inicio, usuario
     )
     return {
         "documento": TIPO,
@@ -143,6 +187,10 @@ def ler_crlv(arquivo: Any, usuario: Any) -> dict[str, Any]:
         "exercicio": leitura.campos.get("exercicio"),
         "dicas": dicas,
         "leitura": comprovante_leitura.emitir(
-            TIPO, conteudo, usuario, {nome: campos[nome] for nome in lidos}
+            TIPO,
+            conteudo,
+            usuario,
+            {nome: campos[nome] for nome in lidos},
+            veiculo_id=veiculo.pk if veiculo is not None else None,
         ),
     }

@@ -10,6 +10,7 @@ from typing import Any
 from apps.filiais.models import Filial
 from apps.plataforma.services import recalcular_uso
 from apps.veiculos.models import Categoria, PrecoCategoria, Veiculo
+from apps.veiculos.services import dados_da_vei_09
 from seed.frota import (
     DISTRIBUICAO,
     NOMEADOS,
@@ -36,6 +37,10 @@ def criar_veiculo(
         "km_atual": 1000 + numero,
         "entrou_na_frota_em": date(2025, 1, 10),
     }
+    # Os blocos da VEI-09 do QXA-4B21 (T-421) viram os campos do model.
+    dados |= dados_da_vei_09(dados)
+    for bloco in ("documento", "rastreador"):
+        dados.pop(bloco, None)
     return Veiculo.objects.create(
         **{**padrao, **dados}, categoria=categoria, filial=filial, status=status
     )

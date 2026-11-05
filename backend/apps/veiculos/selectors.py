@@ -34,6 +34,7 @@ from .services import (
     normalizar_chassi,
     normalizar_placa,
     situacao_do_documento,
+    valores_pontuados,
 )
 
 S = StatusVeiculo
@@ -398,6 +399,29 @@ def _situacao(veiculo: Veiculo, blocos: dict[str, dict[str, Any]]) -> dict[str, 
     return situacao
 
 
+def dados_do_documento(veiculo: Veiculo, gestao: bool) -> dict[str, Any]:
+    """Os blocos da VEI-09 (T-421). Vazio vem `null`. O número do motor e as observações do
+    CRLV-e só para administrador e gerente; para os outros, as chaves ficam ausentes (CA-421-12).
+    O token de suporte assume o administrador."""
+    valores = valores_pontuados(veiculo)
+    documento = {
+        chave.removeprefix("documento."): valor
+        for chave, valor in valores.items()
+        if chave.startswith("documento.")
+    }
+    if not gestao:
+        documento.pop("numero_motor")
+        documento.pop("observacoes")
+    return {
+        "documento": documento,
+        "rastreador": {
+            "numero": valores["rastreador.numero"],
+            "empresa": valores["rastreador.empresa"],
+        },
+        "anotacoes": valores["anotacoes"],
+    }
+
+
 def representacao(
     veiculo: Veiculo,
     usuario: Any,
@@ -405,7 +429,10 @@ def representacao(
     precos: dict[int, PrecoCategoria] | None = None,
     documentos: dict[int, dict[str, Any] | None] | None = None,
     detalhe: bool = False,
+    com_dados_do_documento: bool = False,
 ) -> dict[str, Any]:
+    """`com_dados_do_documento`: os blocos da VEI-09 nas respostas do `POST` e do `PATCH`; a
+    ficha (`detalhe`) sempre os traz, e a Frota nunca."""
     if precos is None:
         precos = precos_vigentes({veiculo.categoria_id}, relogio.hoje())
     if documentos is None:
@@ -446,6 +473,8 @@ def representacao(
         "movimentacao_aberta": blocos.get("movimentacao_aberta"),
         "acoes": acoes(veiculo, usuario, blocos),
     }
+    if detalhe or com_dados_do_documento:
+        dados.update(dados_do_documento(veiculo, gestao))
     if detalhe:
         perfil = getattr(usuario, "perfil", "")
         if dados["locacao_atual"]:

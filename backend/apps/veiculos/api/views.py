@@ -44,6 +44,7 @@ from .serializers import (
     FiltroDeModelosSerializer,
     KmSerializer,
     LeituraCrlvEntradaSerializer,
+    LeituraCrlvNoEditarSerializer,
     LeituraCrlvSerializer,
     ListaDeCategoriasSerializer,
     ListaDeDocumentosSerializer,
@@ -59,6 +60,7 @@ from .serializers import (
     PrecoEntradaSerializer,
     PrecoHistoricoSerializer,
     VeiculoComCrlvEntradaSerializer,
+    VeiculoComDadosDoDocumentoSerializer,
     VeiculoDetalheSerializer,
     VeiculoEdicaoSerializer,
     VeiculoEntradaSerializer,
@@ -98,9 +100,13 @@ def _veiculo(request: Request, pk: int) -> Veiculo:
 def _representacao(
     veiculo: Veiculo, request: Request, codigo: int = status.HTTP_200_OK, detalhe: bool = False
 ) -> Response:
+    """A ficha (`detalhe`) ou a resposta do `POST` e do `PATCH`, as duas com os blocos da
+    VEI-09 (T-421)."""
     veiculo = Veiculo.objects.select_related("categoria", "filial").get(pk=veiculo.pk)
-    dados = selectors.representacao(veiculo, request.user, detalhe=detalhe)
-    classe = VeiculoDetalheSerializer if detalhe else VeiculoSerializer
+    dados = selectors.representacao(
+        veiculo, request.user, detalhe=detalhe, com_dados_do_documento=True
+    )
+    classe = VeiculoDetalheSerializer if detalhe else VeiculoComDadosDoDocumentoSerializer
     return Response(_para(request, classe(dados).data), status=codigo)
 
 
@@ -174,7 +180,7 @@ class VeiculosView(APIView):
             "application/json": VeiculoEntradaSerializer,
             "multipart/form-data": VeiculoComCrlvEntradaSerializer,
         },
-        responses={201: VeiculoSerializer},
+        responses={201: VeiculoComDadosDoDocumentoSerializer},
         summary="Cadastrar veículo (VEI-01, PLT-03), com o CRLV lido em multipart (VEI-08)",
     )
     def post(self, request: Request) -> Response:
@@ -210,18 +216,43 @@ class LeituraCrlvView(APIView):
         summary="Ler o CRLV-e em PDF, sem gravar (VEI-08)",
     )
     def post(self, request: Request) -> Response:
-        try:
-            corpo = leitura.ler_crlv(request.FILES.get("arquivo"), request.user)
-        except LeituraOcupada:
-            return Response(
-                {
-                    "codigo": "leitura_ocupada",
-                    "mensagem": "Muitas leituras ao mesmo tempo. Tente de novo em instantes.",
-                },
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
-                headers={"Retry-After": "5", "Cache-Control": "no-store"},
-            )
-        return Response(LeituraCrlvSerializer(corpo).data, headers={"Cache-Control": "no-store"})
+        return _ler_crlv(request, LeituraCrlvSerializer)
+
+
+def _ler_crlv(
+    request: Request, classe: type[Serializer[Any]], veiculo: Veiculo | None = None
+) -> Response:
+    try:
+        corpo = leitura.ler_crlv(request.FILES.get("arquivo"), request.user, veiculo)
+    except LeituraOcupada:
+        return Response(
+            {
+                "codigo": "leitura_ocupada",
+                "mensagem": "Muitas leituras ao mesmo tempo. Tente de novo em instantes.",
+            },
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            headers={"Retry-After": "5", "Cache-Control": "no-store"},
+        )
+    return Response(classe(corpo).data, headers={"Cache-Control": "no-store"})
+
+
+class LeituraCrlvDoVeiculoView(APIView):
+    """Ler o CRLV-e no editar (T-421, padrão A do ponto em aberto): a mesma leitura, perfis e
+    limites do cadastro, no veículo das filiais da pessoa (404 fora delas). Confere a placa e o
+    chassi (422 `crlv_outro_veiculo`) e não grava nada, nem substitui o documento CRLV."""
+
+    permission_classes = GESTAO
+    parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = LIMITES_DA_LEITURA_DE_DOCUMENTO
+
+    @extend_schema(
+        request={"multipart/form-data": LeituraCrlvEntradaSerializer},
+        responses={200: LeituraCrlvNoEditarSerializer},
+        operation_id="veiculos_leitura_crlv_do_veiculo_create",
+        summary="Ler o CRLV-e em PDF no editar do veículo, sem gravar (VEI-08, VEI-09)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        return _ler_crlv(request, LeituraCrlvNoEditarSerializer, _veiculo(request, pk))
 
 
 class ModelosView(APIView):
@@ -260,12 +291,18 @@ class VeiculoView(APIView):
         return _representacao(_veiculo(request, pk), request, detalhe=True)
 
     @extend_schema(
-        request=VeiculoEdicaoSerializer, responses=VeiculoSerializer, summary="Editar veículo"
+        request=VeiculoEdicaoSerializer,
+        responses=VeiculoComDadosDoDocumentoSerializer,
+        summary="Editar veículo (VEI-09), com o comprovante da leitura no editar (VEI-08)",
     )
     def patch(self, request: Request, pk: int) -> Response:
         entrada = VeiculoEdicaoSerializer(data=request.data, partial=True)
         entrada.is_valid(raise_exception=True)
-        veiculo = services.editar(_veiculo(request, pk), dict(entrada.validated_data))
+        dados = dict(entrada.validated_data)
+        comprovante = dados.pop("leitura", None)
+        veiculo = services.editar(
+            _veiculo(request, pk), dados, leitura=comprovante, usuario=request.user
+        )
         return _representacao(veiculo, request)
 
 

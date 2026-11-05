@@ -360,3 +360,40 @@ def test_adr_0021_painel_do_seed_com_a_data_de_referencia(db, planos, _seed_do_m
     assert kpis["em_atraso"]["valor"] == {"tipo": "centavos", "valor": 164640}
     assert kpis["em_atraso"]["contexto"] == "2 clientes"
     assert kpis["entra_hoje"]["valor"] == {"tipo": "centavos", "valor": 262580}
+
+
+def test_vei_09_seed_dados_do_crlv_do_qxa4b21(semeado):
+    """T-421: a linha "Dados do CRLV-e do QXA-4B21"; os outros 85 veículos ficam sem."""
+    with tenant_context(Empresa.objects.get(subdominio="motorapida")):
+        qxa = Veiculo.objects.get(placa="QXA4B21")
+        assert (qxa.combustivel, qxa.potencia_cv, qxa.cilindrada_cc) == ("flex", 15, 162)
+        assert (qxa.especie, qxa.tipo_documento, qxa.carroceria) == (
+            "passageiro",
+            "Motocicleta",
+            "",
+        )
+        assert (qxa.lotacao, qxa.peso_bruto_kg, qxa.numero_motor) == (2, 290, "KC22E1P004401")
+        assert qxa.observacoes_crlv == "ALIENACAO FIDUCIARIA"
+        assert (qxa.rastreador_numero, qxa.rastreador_empresa) == (
+            "356938035643809",
+            "Rastreia Fácil",
+        )
+        assert qxa.anotacoes == "Risco no tanque, lado esquerdo"
+        assert (
+            Veiculo.objects.exclude(placa="QXA4B21").filter(potencia_cv__isnull=False).count() == 0
+        )
+        assert Veiculo.objects.exclude(placa="QXA4B21").exclude(anotacoes="").count() == 0
+
+
+def test_vei_09_seed_preenche_o_qxa4b21_do_banco_antigo(semeado):
+    """O banco com a frota de antes da T-421 ganha os dados na rodada seguinte, uma vez só."""
+    with tenant_context(Empresa.objects.get(subdominio="motorapida")):
+        Veiculo.objects.filter(placa="QXA4B21").update(
+            combustivel=None, potencia_cv=None, numero_motor="", anotacoes=""
+        )
+    assert "dados do CRLV-e do QXA-4B21" in _semear()
+    with tenant_context(Empresa.objects.get(subdominio="motorapida")):
+        qxa = Veiculo.objects.get(placa="QXA4B21")
+        assert (qxa.combustivel, qxa.potencia_cv, qxa.numero_motor) == ("flex", 15, "KC22E1P004401")
+        assert EventoAuditoria.objects.filter(acao="veiculo.editar", objeto_id=qxa.pk).exists()
+    assert "dados do CRLV-e" not in _semear()
