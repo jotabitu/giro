@@ -1,6 +1,6 @@
-# T-422 (ADR do arquiteto) · Referência FIPE pela Parallelum, com rotina mensal · arquiteto → orquestrador, segurança
+# T-422 (parte do arquiteto) · Referência FIPE pela Parallelum, com rotina mensal · arquiteto → orquestrador, segurança, backend, frontend
 
-**O que foi feito:** a ADR 0038, que complementa a 0031 com o preço e a chamada pelo servidor, a partir das decisões do dono de 29 out 2026. As rotas foram conferidas na API real em 05 nov 2026, com poucos pedidos e sem token.
+**O que foi feito:** (1) a ADR 0038 (PR #477) e (2) o contrato e o modelo de dados (PR empilhado no #477, que leva a ADR junto). A ADR 0038, que complementa a 0031 com o preço e a chamada pelo servidor, a partir das decisões do dono de 29 out 2026. As rotas foram conferidas na API real em 05 nov 2026, com poucos pedidos e sem token.
 
 **Onde:** `docs/decisoes/0038-referencia-fipe-pela-parallelum.md`; o índice em `docs/decisoes/README.md` (a ordem da 0036 e da 0037 também foi acertada).
 
@@ -18,9 +18,19 @@
 
 **Regras cobertas:** `VEN-01`, `VEI-08` (no desenho).
 
-**O que ficou de fora:** o contrato (`docs/api/veiculos.md`: o bloco da referência na ficha, escolher a versão ou digitar o código, a consulta por placa) e o modelo de dados (item 9 e as tabelas do `public`). Ficam para a próxima parte do arquiteto.
+**Contrato (parte 2, `docs/api/veiculos.md`, seção "Referência FIPE"):**
+- Bloco `referencia_fipe` na lista e no detalhe (`valor_centavos`, `mes`, `rotulo` "Referência FIPE · outubro de 2026", `origem`, `situacao`, `aviso`, `versao`, `codigo_fipe`, `ano`, `versoes`); `referencia_fipe_centavos` continua. Vistoriador sem o valor. `acoes.escolher_versao_fipe`. Frota com `?fipe_situacao=`.
+- Bloco `fipe` no `POST` e no `PATCH` do veículo (`{marca_id, modelo_id}`, `{codigo_fipe}` ou `null`) e o atalho `POST /api/veiculos/{id}/fipe/`. Nenhuma chamada externa: a escolha fica `aguardando` até a próxima rodada.
+- `GET /api/veiculos/modelos/` com `marca_id` e `modelo_id`.
+- "Colocar à venda": com referência da rotina, o valor mandado é ignorado.
+- `GET` e `POST /api/veiculos/consulta-placa/`: `{ativa}` e `{disponivel: false}` em toda falha, sem erro para a pessoa.
+- Interface interna, tarefas e configurações; seed sem código FIPE (o provedor falso precifica os modelos do seed com números fictícios).
+
+**Modelo de dados:** item 9 (campos `fipe_*`, `referencia_fipe_mes`, `referencia_fipe_origem`, `CHECK` do código, índice parcial da situação) e "Apoio do public" (`PrecoFipe`, `AnosFipe`, `RodadaFipe`).
+
+**Para o produto confirmar:** os textos propostos para o `aviso` ("A referência FIPE chega na próxima atualização.", "Escolha a versão FIPE para ver a referência.", "Versão FIPE não encontrada. Escolha a versão ou digite o código."), "Referência FIPE · informada à mão" e as mensagens de validação do bloco `fipe`.
 
 **Próximo passo:**
-- **Orquestrador:** liberar a parte do contrato e do modelo de dados.
-- **Segurança:** revisar a chamada externa (tempo limite, resposta fora do formato, token só no cofre) e a consulta por placa antes de alguém ligá-la.
-- **Backend e frontend:** só depois do contrato.
+- **Segurança:** revisar a ADR 0038 e o contrato: a chamada externa (tempo limite, resposta fora do formato, token só no cofre), a passagem por todas as empresas só com chaves e a consulta por placa antes de alguém ligá-la. Ajustes entram no mesmo PR.
+- **Backend (quando o dono liberar):** `integracoes/fipe` (falso e Parallelum), as três tabelas do `public`, os campos do veículo, o script e o CSV com os ids (0031, item 2), `casar_fipe`, a rotina e a tarefa por empresa, o bloco na representação, o bloco `fipe` no cadastro, a consulta por placa desligada. OpenAPI e `npm run api:gerar`. Testes com respostas gravadas, nunca com a API real.
+- **Frontend (quando o dono liberar):** o campo "Referência FIPE" do cadastro vira a escolha da versão (lista com os ids, junto com a T-415) ou o código; a ficha mostra `rotulo`, valor e `aviso` como vêm, com "Escolher versão" pelas `acoes`; "Buscar pela placa" só com `ativa`.
