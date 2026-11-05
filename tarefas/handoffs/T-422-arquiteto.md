@@ -28,9 +28,25 @@
 
 **Modelo de dados:** item 9 (campos `fipe_*`, `referencia_fipe_mes`, `referencia_fipe_origem`, `CHECK` do código, índice parcial da situação) e "Apoio do public" (`PrecoFipe`, `AnosFipe`, `RodadaFipe`).
 
-**Para o produto confirmar:** os textos propostos para o `aviso` ("A referência FIPE chega na próxima atualização.", "Escolha a versão FIPE para ver a referência.", "Versão FIPE não encontrada. Escolha a versão ou digite o código."), "Referência FIPE · informada à mão" e as mensagens de validação do bloco `fipe`.
+**Textos fechados pelo produto** (PR #481, `tarefas/handoffs/T-422-produto-textos.md`), já no contrato: os dois rótulos; o `aviso` de `aguardando` e `sem_versao` ("... feita de madrugada."); a variante de `escolher_versao` e `nao_encontrado` para quem não escolhe a versão (pela `acoes.escolher_versao_fipe`); o aviso de valor antigo só com dois ou mais meses de atraso; "Digite o código FIPE no formato 811134-0."; "Escolha uma versão da lista FIPE.". Na placa indisponível, preferi mandar o texto na resposta (`{ "disponivel": false, "mensagem": "A busca pela placa não está disponível agora. ..." }`), para o texto ficar num lugar só, como a opção que o produto deixou aberta.
+
+**Revisão da segurança** (PR #480, `tarefas/handoffs/T-422-seguranca.md`). Nenhum achado alto. Entraram na ADR 0038 (item 9) e no contrato:
+- **M-01:** formato fechado do código FIPE, do ano, da referência, dos ids, da placa e do tipo, validado no serializer e de novo no cliente antes da URL, com `quote(parte, safe="")`; a escolha só entre as versões guardadas ou do catálogo.
+- **M-02:** resposta de até 256 KB, só JSON, preço pelo formato e com teto de R$ 20 milhões, código e mês iguais ao pedido, textos e listas limitados, sem guardar o JSON cru.
+- **M-04:** trava da rotina e marca de cota esgotada da placa sempre no `public` (o `make_key` do django-tenants põe o schema na chave); o limite de 3 por dia continua por empresa.
+- **B-04** (estava como do contrato no parecer): campos FIPE só de leitura; escolhi **um evento de auditoria de lote por empresa** a cada aplicação da rotina (`veiculo.referencia_fipe_rotina`), em vez de um por veículo, para não encher a auditoria todo mês; o B-04 deixava a escolha para o arquiteto.
+- Também a ordem da consulta por placa do B-05 (perfil, formato, limite, chamada) e o descarte dos campos que a rota de placa trouxer além dos usados.
+
+Não discordo de nenhum achado.
 
 **Próximo passo:**
 - **Segurança:** revisar a ADR 0038 e o contrato: a chamada externa (tempo limite, resposta fora do formato, token só no cofre), a passagem por todas as empresas só com chaves e a consulta por placa antes de alguém ligá-la. Ajustes entram no mesmo PR.
-- **Backend (quando o dono liberar):** `integracoes/fipe` (falso e Parallelum), as três tabelas do `public`, os campos do veículo, o script e o CSV com os ids (0031, item 2), `casar_fipe`, a rotina e a tarefa por empresa, o bloco na representação, o bloco `fipe` no cadastro, a consulta por placa desligada. OpenAPI e `npm run api:gerar`. Testes com respostas gravadas, nunca com a API real.
+- **Backend (quando o dono liberar):** `integracoes/fipe` (falso e Parallelum), as três tabelas do `public`, os campos do veículo, o script e o CSV com os ids (0031, item 2), `casar_fipe`, a rotina e a tarefa por empresa, o bloco na representação, o bloco `fipe` no cadastro, a consulta por placa desligada. OpenAPI e `npm run api:gerar`. Testes com respostas gravadas, nunca com a API real. Além do contrato, os achados da segurança que são da implementação (detalhes e testes no parecer):
+  - **M-03:** `before_breadcrumb` em `comum/sentry.py` que tira o caminho das chamadas `httplib` à Parallelum (fica host e status; teste `test_sentry_breadcrumb_sem_placa`); `x-subscription-token` em `CABECALHOS_SECRETOS` e `CHAVES_SECRETAS`; o cliente loga só o tipo do erro e o status, nunca a URL nem o corpo; `RodadaFipe.ultimo_erro` só com "HTTPError 503", "TimeoutError" ou "formato: price"; o aviso do dia 15 leva só o mês e o número de pendências.
+  - **B-01:** `build_opener` com um `HTTPRedirectHandler` que recusa todo redirecionamento; base conferida no arranque (`https://` e o host configurado).
+  - **B-02:** prazo total por pedido (20 s, no laço de leitura); `soft_time_limit` de 60 min e `time_limit` de 65 min na tarefa; trava de 70 min solta num `finally`; o orçamento do dia contado por data num lugar que sobrevive a duas execuções, no `public`.
+  - **B-03:** `x-ratelimit-reset` com `int()` em `try`, fora de `0..86400` vale 24 h no 429; `remaining` inválido vale "não sei" e fica só o orçamento.
+  - **B-05:** a lista fechada de campos da resposta da placa e a ordem perfil → formato → limite → chamada já estão no contrato; declarar a Parallelum como terceiro na política de privacidade é **decisão do dono antes de ligar** a placa e não segura o resto.
+  - **B-06:** variação acima de 50% contra o mês anterior do mesmo código e ano não é aplicada: o preço fica guardado, o veículo com o valor antigo, e vai um aviso ao Sentry só com código, ano e mês.
+  - Fora da T-422: o mesmo bloqueio de redirecionamento e o limite de tamanho no `viacep.py` (tarefa pequena à parte).
 - **Frontend (quando o dono liberar):** o campo "Referência FIPE" do cadastro vira a escolha da versão (lista com os ids, junto com a T-415) ou o código; a ficha mostra `rotulo`, valor e `aviso` como vêm, com "Escolher versão" pelas `acoes`; "Buscar pela placa" só com `ativa`.

@@ -465,13 +465,23 @@ O suporte Giro segue o modo do acesso ("só ver" recebe 403 `PLT-07` nas escrita
 
 - `situacao` (o `fipe_situacao` do veículo):
   - `ok`: a versão é conhecida e a rotina já trouxe o preço. `origem` `fipe`.
-  - `aguardando`: a versão foi escolhida ou casada, e o preço chega na próxima rodada. `aviso`: "A referência FIPE chega na próxima atualização.". `valor_centavos` e `mes` ficam com o último valor, se havia.
-  - `escolher_versao`: mais de uma versão serve. `versoes` traz até 5 candidatas `[ { "marca_id": 22, "modelo_id": 5585, "versao": "CRUZE LT 1.4 16V Turbo Flex Aut." } ]`, e `aviso`: "Escolha a versão FIPE para ver a referência.".
-  - `nao_encontrado`: nenhuma versão do catálogo bate. `aviso`: "Versão FIPE não encontrada. Escolha a versão ou digite o código.".
-  - `sem_versao`: veículo que ainda não passou pelo casamento (antes da primeira rodada). `aviso` `null`.
+  - `aguardando`: a versão foi escolhida ou casada, e o preço chega na próxima rodada. `valor_centavos` e `mes` ficam com o último valor, se havia.
+  - `escolher_versao`: mais de uma versão serve. `versoes` traz até 5 candidatas `[ { "marca_id": 22, "modelo_id": 5585, "versao": "CRUZE LT 1.4 16V Turbo Flex Aut." } ]`.
+  - `nao_encontrado`: nenhuma versão do catálogo bate.
+  - `sem_versao`: veículo que ainda não passou pelo casamento (antes da primeira rodada).
+- `aviso`, montado pela API (textos do produto, PR #481, `VEN-01`); a tela mostra como vem:
+
+  | Situação | Com `acoes.escolher_versao_fipe` | Sem |
+  | --- | --- | --- |
+  | `aguardando` e `sem_versao` | "A referência FIPE chega na próxima atualização, feita de madrugada." | o mesmo |
+  | `escolher_versao` | "Escolha a versão FIPE para ver a referência." | "Falta escolher a versão FIPE. O gerente ou o administrador escolhe." |
+  | `nao_encontrado` | "Versão FIPE não encontrada. Escolha a versão ou digite o código." | "Versão FIPE não encontrada. O gerente ou o administrador escolhe a versão ou digita o código." |
+  | `ok` com o `mes` dois ou mais meses antes do mês corrente (`America/Sao_Paulo`) | "Esta referência é de agosto de 2026 e não foi atualizada." | o mesmo |
+  | `ok` com até um mês de atraso, e a origem `manual` | `null` | `null` |
+
 - `origem`: `fipe` (rotina), `manual` (informado em "Colocar à venda", sem versão) ou `null` (sem valor).
 - `mes`: `"AAAA-MM"` do preço; `null` sem valor ou na origem `manual`. `rotulo`, montado pela API: "Referência FIPE · outubro de 2026" na origem `fipe`, "Referência FIPE · informada à mão" na `manual`, `null` sem valor. A ficha e o "Valor de venda (FIPE)" mostram o `rotulo` e o valor como vêm (`VEN-01`).
-- **Valor antigo** (a API saiu do ar ou a FIPE tirou a versão): o bloco fica com o último `valor_centavos` e o `mes` dele, `situacao` `ok`. O mês no rótulo é o que mostra que o valor é antigo; não há erro nem aviso a mais (ADR 0038, item 7).
+- **Valor antigo** (a API saiu do ar ou a FIPE tirou a versão): o bloco fica com o último `valor_centavos` e o `mes` dele, `situacao` `ok`, sem erro (ADR 0038, item 7). Com um mês de atraso, é o normal da virada da tabela, e não há aviso; com dois ou mais, vem o aviso de valor antigo da tabela acima. A conta é da API, não da tela.
 - O vistoriador recebe o bloco sem `valor_centavos` (e sem `referencia_fipe_centavos`), como os outros valores (`USR-09`).
 - `acoes.escolher_versao_fipe`: `true` para administrador e gerente com o veículo fora de `vendido` e `baixado`. A tela mostra "Escolher versão" (com `escolher_versao` ou `nao_encontrado`) e "Trocar versão" (nos outros) só com `true`.
 - Frota: `?fipe_situacao=escolher_versao` (ou outro valor) filtra, para a lista "veículos sem referência FIPE".
@@ -487,12 +497,14 @@ O suporte Giro segue o modo do acesso ("só ver" recebe 403 `PLT-07` nas escrita
 ```
 
 - `marca_id` e `modelo_id` vêm de `GET /api/veiculos/modelos/` (abaixo), da linha escolhida na lista "Da lista FIPE" (a mesma escolha da T-415). Têm de existir no catálogo e ser do mesmo `tipo` do veículo: senão, 400 `validacao` em `fipe`: "Escolha uma versão da lista FIPE.".
-- `codigo_fipe`: seis dígitos, hífen e um dígito (`^\d{6}-\d$`); fora disso, 400 em `fipe.codigo_fipe`: "Digite o código FIPE como 811134-0.". O código não é conferido na hora (não há chamada externa); se a rotina não o achar, o veículo fica `nao_encontrado`.
+- `codigo_fipe`: seis dígitos, hífen e um dígito (`^\d{6}-\d$`); fora disso, 400 em `fipe.codigo_fipe`: "Digite o código FIPE no formato 811134-0.". O código não é conferido na hora (não há chamada externa); se a rotina não o achar, o veículo fica `nao_encontrado`.
 - Com `marca_id` e `modelo_id` ou `codigo_fipe`: grava os campos, limpa `fipe_versoes` e põe `situacao` `aguardando`. O valor e o mês antigos ficam até a rotina trazer o novo.
 - `fipe: null`: limpa a versão, o código, o valor e o mês, e o veículo volta ao casamento na próxima rodada (`sem_versao`).
 - Sem a chave `fipe` no corpo, nada muda. Mudar `marca`, `modelo`, `ano_modelo` ou `combustivel` no `PATCH` sem mandar `fipe` limpa a versão como em `fipe: null` (ADR 0038, item 3).
 - No `vendido` e no `baixado`, o `PATCH` com `fipe` responde 409 `transicao_veiculo`, como as outras edições.
-- Auditoria: o evento de edição do veículo com os campos FIPE de antes e de depois (`AUD-01`); o valor trazido pela rotina não gera evento por veículo (é dado público da FIPE; a rodada fica em `RodadaFipe`).
+- **Formatos fechados** (ADR 0038, item 9.1, M-01 da segurança), conferidos no serializer e de novo no cliente antes de montar a URL: `codigo_fipe` `^\d{6}-\d$`; `marca_id` e `modelo_id` inteiros positivos; o ano FIPE (`fipe_ano_codigo`, `^\d{4,5}-\d$`) e a referência (`^\d{1,4}$`) nunca vêm do cliente, só da rotina. Com `escolher_versao`, `marca_id` e `modelo_id` têm de ser de uma das `versoes` guardadas no veículo ou de uma linha do catálogo do mesmo tipo; senão, 400 "Escolha uma versão da lista FIPE.".
+- **Só de leitura** (item 9.4, B-04): `fipe_situacao`, `referencia_fipe_origem`, `referencia_fipe_mes`, `fipe_versao`, `fipe_ano_codigo` e, com `situacao` `ok`, `referencia_fipe_centavos`. Mandados no corpo, são ignorados (não dão 400), e a resposta traz os valores que valem.
+- Auditoria: a escolha da pessoa gera o evento de edição do veículo com os campos FIPE de antes e de depois (`AUD-01`). O que a rotina muda gera um evento de lote por empresa a cada aplicação, `veiculo.referencia_fipe_rotina`, ator Sistema, com a lista dos veículos e a situação, o valor e o mês de antes e de depois (ADR 0038, item 9.4).
 
 Atalho na ficha, sem abrir o editar: `POST /api/veiculos/{id}/fipe/` com o mesmo bloco (`{ "marca_id", "modelo_id" }`, `{ "codigo_fipe" }` ou `{ "limpar": true }`). 200: a representação. Perfis e erros como acima.
 
@@ -508,13 +520,14 @@ A tela guarda os dois ids com a escolha e manda no bloco `fipe`. Linha com ids `
 
 ### Colocar à venda
 
-`colocar-a-venda` continua com `{ valor_venda_centavos, referencia_fipe_centavos? }`. Com `referencia_fipe.situacao` `ok`, `referencia_fipe_centavos` mandado é ignorado (sem erro): vale o da rotina. Nos outros casos, grava com `origem` `manual`, como hoje.
+`colocar-a-venda` continua com `{ valor_venda_centavos, referencia_fipe_centavos? }`. Com `referencia_fipe.situacao` `ok`, `referencia_fipe_centavos` mandado é ignorado (sem erro): vale o da rotina, e o 200 traz o valor que vale, para a tela não mostrar o digitado. Nos outros casos, grava com `origem` `manual`, como hoje.
 
 ### Consulta por placa (desligada por padrão)
 
 `GET /api/veiculos/consulta-placa/` → `{ "ativa": false }`. Com `GIRO_FIPE_PLACA_ATIVA=true`: `{ "ativa": true, "restantes_hoje": 3 }` (o limite da empresa, `comum.limites`). A tela do cadastro mostra "Buscar pela placa" só com `ativa` `true`.
 
-`POST /api/veiculos/consulta-placa/` · administrador e gerente · corpo `{ "placa": "QXA4B21" }` (o formato da `VEI-01`; fora dele, 400 `validacao`). Não grava nada.
+`POST /api/veiculos/consulta-placa/` · administrador e gerente · corpo `{ "placa": "QXA4B21" }`. Sem hífen e em maiúsculas, tem de casar `^[A-Z]{3}\d[A-Z0-9]\d{2}$` (ADR 0038, item 9.1); fora dele, 400 `validacao`. Não grava nada.
+- Ordem (B-05 da segurança): perfil primeiro (403 para os outros perfis e para o suporte Giro, que não gasta a cota), depois o formato, depois o limite de 3 por dia da empresa, e só então a chamada. Um 403 ou um 400 não gastam o limite.
 - 200 com resultado:
   ```json
   { "disponivel": true, "marca": "HONDA", "modelo": "CG 160 FAN", "ano_modelo": 2023, "combustivel": "flex",
@@ -522,14 +535,16 @@ A tela guarda os dois ids com a escolha e manda no bloco `fipe`. Linha com ids `
                    "valor_centavos": 1450000, "mes": "2026-11" } ] }
   ```
   A tela preenche marca, modelo, ano e combustível marcados como "lido pela placa", editáveis, como a leitura do CRLV-e (`VEI-08`), e a pessoa escolhe a versão, que vai no bloco `fipe` como `codigo_fipe`. O valor só aparece para conferência; quem grava a referência é a rotina.
-- 200 `{ "disponivel": false }` em todos os outros casos: recurso desligado, cota global esgotada (`X-Plate-Quota-*`), limite da empresa no dia, placa não achada, API fora do ar ou resposta fora do formato. A tela não mostra erro e segue pelo CRLV-e e pela escolha da versão (decisão do dono de 29 out 2026).
+- 200 `{ "disponivel": false, "mensagem": "A busca pela placa não está disponível agora. Preencha pelo CRLV-e ou escolha a versão na lista FIPE." }` em todos os outros casos: recurso desligado, cota global esgotada (`X-Plate-Quota-Remaining`, marcada no cache do `public`, igual para todas as empresas, item 9.3), limite da empresa no dia, placa não achada, API fora do ar ou resposta fora do formato. A resposta é a mesma em todos e não diz o motivo (texto do produto, PR #481). A tela mostra a `mensagem` em tom de informação, sem erro, e segue pelo CRLV-e e pela escolha da versão (decisão do dono de 29 out 2026).
+- Da resposta da Parallelum, só marca, modelo, ano, combustível e as versões com código FIPE, ano, valor e mês chegam à tela; qualquer outro campo (chassi, município, cor) é descartado.
 - A placa vai para a Parallelum e não fica guardada em lugar nenhum do Giro além do veículo que a pessoa salvar; o log e o Sentry não levam a placa.
 
 ### Interface interna e tarefas
 
 | Item | Uso |
 | --- | --- |
-| `integracoes.fipe.provedor()` | `falso` ou `parallelum` (`GIRO_PROVEDOR_FIPE`); `referencias`, `anos_do_modelo`, `anos_do_codigo`, `preco`, `placa`. Só a rotina e a consulta por placa chamam. |
+| `integracoes.fipe.provedor()` | `falso` ou `parallelum` (`GIRO_PROVEDOR_FIPE`); `referencias`, `anos_do_modelo`, `anos_do_codigo`, `preco`, `placa`. Só a rotina e a consulta por placa chamam. Valida os formatos antes da URL e a resposta (até 256 KB, só JSON, preço pelo formato e com teto, código e mês iguais ao pedido, textos e listas limitados; ADR 0038, itens 9.1 e 9.2). |
+| `integracoes.fipe.cache_publico` | a trava da rotina e a marca de cota esgotada da placa, sempre no `public` (item 9.3). |
 | `veiculos.services.casar_fipe(veiculo)` | casamento local pelo catálogo (ADR 0038, item 5); chamado pela rotina nos `sem_versao`. |
 | `veiculos.selectors.pendencias_fipe(referencia_mes)` | só chaves: `(tipo, codigo_fipe, ano_codigo)` a precificar e `(tipo, marca_id, modelo_id)` ou `(tipo, codigo_fipe)` a buscar anos; nenhum dado da empresa. |
 | `veiculos.services.aplicar_referencias_fipe(referencia_mes)` | grava, do `PrecoFipe`, valor, mês, versão e código; resolve o ano pelo `AnosFipe` (ano do modelo e combustível); passa a `ok`, `escolher_versao` ou `nao_encontrado`. Sem pedido à API. |
