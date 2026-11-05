@@ -12,6 +12,7 @@ import { useAgora } from "@/lib/ambiente";
 import { celular, dataCurta, dataHoraCurta, dinheiro, diaDe, horaCurta, km, placa } from "@/lib/formatos";
 import { dataEHora, rotuloDaParcela, rotuloDaVistoriaDaTroca, seloDaParcela, textoDoPeriodo, textoFaltam } from "@/lib/locacoes";
 import { tomDoStatus } from "@/lib/tom";
+import { LinkCopiado, useCopiarLink } from "@/components/comum/LinkParaCopiar";
 import { AcoesDaLocacao } from "./AcoesDaLocacao";
 import { TelaDeErro } from "./Comuns";
 
@@ -137,6 +138,7 @@ function Contrato({ l, aoConcluir }: { l: LocacaoCompleta; aoConcluir: (m: strin
     },
   });
   const reenviar = useMutation({ mutationFn: () => locacoes.reenviarContrato(l.id), onSuccess: () => aoConcluir(c?.status === "assinado" ? "Contrato reenviado por WhatsApp." : "Link de assinatura reenviado por WhatsApp.") });
+  const link = useCopiarLink(() => locacoes.copiarLinkDoContrato(l.id));
   const imprimir = useMutation({ mutationFn: () => locacoes.pdfDoContrato(l.id), onSuccess: (r) => window.open(r.url, "_blank", "noopener") });
   if (!c || c.status === "cancelado") {
     // A API diz se cabe enviar (perfil, retirada, desconto, cancelamento e contrato vigente): a tela só obedece.
@@ -192,6 +194,11 @@ function Contrato({ l, aoConcluir }: { l: LocacaoCompleta; aoConcluir: (m: strin
               {reenviar.isPending ? "Enviando…" : "Reenviar por WhatsApp"}
             </Button>
           )}
+          {l.acoes.copiar_link_contrato && (
+            <Button compacto disabled={link.pendente} onClick={link.copiar}>
+              {link.pendente ? "Copiando…" : "Copiar link para assinar"}
+            </Button>
+          )}
         </div>
       }
     >
@@ -205,9 +212,14 @@ function Contrato({ l, aoConcluir }: { l: LocacaoCompleta; aoConcluir: (m: strin
           {assinado ? "Assinado" : "Aguardando assinatura"}
         </StatusBadge>
       </div>
-      {(reenviar.isError || imprimir.isError) && (
+      {link.resultado && (
+        <div className="mt-3">
+          <LinkCopiado resultado={link.resultado} copiado={!link.falhouACopia} aviso="Mande o link só ao cliente. Só ele pode assinar, e o contrato registra que você copiou o link." aoFechar={link.limpar} />
+        </div>
+      )}
+      {(reenviar.isError || imprimir.isError || link.erro) && (
         <p role="alert" className="mt-3 text-caption text-critical">
-          {mensagemDoErro(reenviar.error ?? imprimir.error)}
+          {link.erro ?? mensagemDoErro(reenviar.error ?? imprimir.error)}
         </p>
       )}
     </Panel>

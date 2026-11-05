@@ -215,6 +215,12 @@ class Devolucao(MaquinaDeEstados, ModeloBase):
         blank=True,
     )
     recibo_enviado_em = models.DateTimeField(null=True, blank=True)
+    # Link do recibo copiado (T-411, S-15): o banco guarda só o hash; 7 dias, não é de uso único.
+    token_recibo_hash = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    token_recibo_expira_em = models.DateTimeField(null=True, blank=True)
+
+    # `token_recibo_hash` sai sozinho (termina em `_hash`).
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["token_recibo_expira_em"]}
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = {
         StatusDevolucao.RASCUNHO: {StatusDevolucao.CONCLUIDA},

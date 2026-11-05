@@ -119,6 +119,15 @@ class UrlDoPdfSerializer(serializers.Serializer[Any]):
     url_expira_em = serializers.DateTimeField()
 
 
+class LinkDoContratoSerializer(serializers.Serializer[Any]):
+    """Copiar link para assinar (T-411): o link sai só nesta resposta, com `no-store`."""
+
+    link = serializers.CharField()
+    expira_em = serializers.DateTimeField()
+    aviso = serializers.CharField()
+    contrato = ContratoResumoSerializer()
+
+
 # --- Link público de assinatura (S-15) ---
 
 

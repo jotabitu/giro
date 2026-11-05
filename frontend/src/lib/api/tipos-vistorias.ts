@@ -60,3 +60,6 @@ export type ItemDaAgenda = {
 export type DiaDaAgenda = "hoje" | "amanha" | "semana";
 export type AgendaDoDia = { resumo: string; proxima: { item_id: string; em_minutos: number } | null; avarias_abertas: number; resultados: ItemDaAgenda[] };
 export type AvariaAberta = Omit<S["AvariaAberta"], "foto"> & { foto: S["Foto"] | null };
+
+/** Copiar link do recibo (T-411): o link só vem nesta resposta. */
+export type LinkDoRecibo = S["LinkDoRecibo"];

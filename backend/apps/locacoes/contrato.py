@@ -226,8 +226,24 @@ def cancelar_nao_assinados(locacao: Locacao, motivo: str) -> int:
     return cancelados
 
 
+def _sem_contrato() -> Conflito:
+    return Conflito("sem_contrato", "Esta locação ainda não tem contrato. Gere o contrato.")
+
+
 def reenviar(locacao: Locacao) -> Contrato:
     contrato = vigente(locacao)
     if contrato is None:
-        raise Conflito("sem_contrato", "Esta locação ainda não tem contrato. Gere o contrato.")
+        raise _sem_contrato()
     return contratos.reenviar(contrato)
+
+
+def copiar_link(locacao: Locacao, por: Any, ip: str | None = None) -> tuple[str, Contrato]:
+    """Copiar link para assinar (T-411, `locacoes.md`): o link do contrato vigente, gerado agora.
+    Não olha o status da locação: o contrato não assinado só existe antes da retirada, e o
+    cancelamento da locação o cancela (`LOC-12`). Devolve o link e o contrato."""
+    contrato = vigente(locacao)
+    if contrato is None:
+        raise _sem_contrato()
+    token, contrato = contratos.gerar_link(contrato, por, ip)
+    host = contratos_selectors.marca_e_host()[1]
+    return contratos.link_de_assinatura(host, token), contrato

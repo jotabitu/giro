@@ -261,6 +261,9 @@ class AcoesLocacaoSerializer(serializers.Serializer[Any]):
     gerar_contrato = serializers.BooleanField(help_text="T-263: o POST .../contrato/ passaria")
     imprimir_contrato = serializers.BooleanField()
     reenviar_contrato = serializers.BooleanField()
+    copiar_link_contrato = serializers.BooleanField(
+        help_text="T-411: o POST .../contrato/link/ passaria pelo perfil e pelo estado"
+    )
     continuar_vistoria = serializers.BooleanField()
     receber = serializers.BooleanField()
 

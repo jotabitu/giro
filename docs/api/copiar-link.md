@@ -41,6 +41,19 @@ Igual ao copiar link do convite (`contas.md`, T-249), com as diferenças de cada
 - **Suporte e dados do parceiro** (`AUD-09`): o suporte não recebe `boleto_url` da conta nem `url_boleto` e `url_pagina` da fatura (o boleto mostra o CPF completo do pagador), e `acoes.copiar_cobranca` vem `false` para ele.
 - **Titular anonimizado** (`AUD-06`, `clientes/titular.py`): a anonimização anula os tokens vivos do titular (o de assinatura dos contratos não assinados e o do recibo das devoluções), e o link copiado antes deixa de abrir (404). Copiar de novo depois disso responde 409 `titular_anonimizado` ("Os dados deste cliente foram anonimizados.").
 
+## Link do recibo desligado até a página `/recibo` (decisão do dono, 05 nov 2026)
+
+A página pública `/recibo` ainda não existe no frontend (T-436). Até ela ficar pronta, o link do recibo fica desligado pela configuração `GIRO_RECIBO_PUBLICO` (variável de ambiente, booleana, **desligada por padrão**):
+
+- `acoes.copiar_link_recibo` vem `false` em qualquer perfil, e a tela não mostra "Copiar link do recibo".
+- `POST /api/devolucoes/{id}/recibo/link/` responde 409 `{ "codigo": "recibo_publico_desligado", "mensagem": "O link do recibo ainda não está disponível. Use Reenviar para mandar o recibo." }`, sem gerar token, sem invalidar o anterior e sem evento. O 403 `PLT-07` do suporte e o 403 de perfil continuam antes do 409. O texto é provisório, do backend, e passa pelo produto.
+- `POST /api/publico/recibos/consultar/` responde 404 para qualquer token, sem gravar `devolucao.recibo_aberto`.
+- O recibo de sempre não muda: `GET .../recibo/` (PDF de 15 minutos) e `recibo/reenviar/`.
+
+Quando a T-436 entregar a página, o devops liga `GIRO_RECIBO_PUBLICO=1` em cada ambiente. Os tokens que já existirem voltam a abrir, se ainda estiverem no prazo. Testes: `test_dev_02_recibo_publico_desligado_por_padrao` e `test_dev_02_recibo_publico_desligado_no_ambiente`.
+
+O contrato, a cobrança e a fatura não dependem dessa configuração.
+
 ## Na tela
 
 - O componente é o mesmo do copiar link do convite (`frontend/src/components/admin/PainelDoUsuario.tsx`): o campo só leitura com o link, o botão "Copiar", a validade ("Vale até 10/11, 11:00") e o `aviso`. A cópia é sempre por `copiarQuandoChegar` (`frontend/src/lib/area-de-transferencia.ts`), obrigatória nas duas rotas novas: sem ela, o Safari recusa a cópia, e cada tentativa gera um link, invalida o anterior e gasta o limite (B-02 da T-252). Se a cópia falhar, o campo fica selecionado para a pessoa copiar com o teclado.

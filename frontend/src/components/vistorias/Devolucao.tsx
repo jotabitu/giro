@@ -13,6 +13,7 @@ import { dataCurta, dataHoraCurta, placa } from "@/lib/formatos";
 import { linkDaPendencia, pendenciasDoErro, rotuloDaPosicao, textoDaPendencia, textoDoNivelNaSaida } from "@/lib/vistorias";
 import { AvisosDoAcerto, EtapaDoAcerto, ResumoDoAcerto } from "./AcertoDaDevolucao";
 import { GradeDeFotos } from "./Campos";
+import { LinkCopiado, useCopiarLink } from "@/components/comum/LinkParaCopiar";
 import { PainelDeItens, PainelDeKmECombustivel } from "./PartesDaVistoria";
 import { useVistoriaEmEdicao } from "./useVistoriaEmEdicao";
 
@@ -101,6 +102,7 @@ function EtapaDoRecibo({ d, aoMudar }: { d: DevolucaoCompleta; aoMudar: () => vo
       aoMudar();
     },
   });
+  const link = useCopiarLink(() => vistorias.copiarLinkDoRecibo(d.id));
   const concluida = d.status === "concluida";
   return (
     <Panel titulo="Recibo" subtitulo={concluida ? `Devolução encerrada${d.concluida_em ? ` em ${dataHoraCurta(d.concluida_em)}` : ""}` : "O recibo sai quando a devolução for encerrada"}>
@@ -116,13 +118,19 @@ function EtapaDoRecibo({ d, aoMudar }: { d: DevolucaoCompleta; aoMudar: () => vo
             <Button disabled={reenviar.isPending} onClick={() => reenviar.mutate()}>
               {reenviar.isPending ? "Reenviando…" : "Reenviar por WhatsApp"}
             </Button>
+            {d.acoes.copiar_link_recibo && (
+              <Button disabled={link.pendente} onClick={link.copiar}>
+                {link.pendente ? "Copiando…" : "Copiar link do recibo"}
+              </Button>
+            )}
             <Link href={`/locacoes/${d.locacao.id}`} className="wl-btn wl-btn--quiet">
               Ver a locação
             </Link>
           </div>
-          {(baixar.isError || reenviar.isError) && (
+          {link.resultado && <LinkCopiado resultado={link.resultado} copiado={!link.falhouACopia} aviso="Mande o link só ao cliente. Quem tiver o link vê o recibo com as fotos e os valores." aoFechar={link.limpar} />}
+          {(baixar.isError || reenviar.isError || link.erro) && (
             <p role="alert" className="text-body text-critical">
-              {mensagemDoErro(baixar.error ?? reenviar.error)}
+              {link.erro ?? mensagemDoErro(baixar.error ?? reenviar.error)}
             </p>
           )}
         </div>

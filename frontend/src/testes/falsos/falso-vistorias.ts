@@ -6,6 +6,7 @@ import { pausa, perfilAtualFalso } from "./falso";
 import { aplicarDevolucaoEncerrada, aplicarSaidaConcluida, dadosDaLocacaoParaVistoria, AGORA_DO_SEED, type DadosDaLocacaoParaVistoria } from "./falso-locacoes";
 import { ErroApi } from "@/lib/api/tipos";
 import type {
+  LinkDoRecibo,
   AcertoDaDevolucao,
   AgendaDoDia,
   AvariaAberta,
@@ -51,6 +52,7 @@ function imagem(rotulo: string): string {
 }
 
 let proximaFoto = 900;
+let contagemDeLinks = 0;
 const foto = (posicao: PosicaoFoto, em: string): FotoDaVistoria => ({ id: proximaFoto++, posicao, tirada_em: em, url: imagem(ROTULO_POSICAO[posicao]), url_expira_em: new Date(Date.parse(AGORA_DO_SEED) + 15 * 60_000).toISOString() });
 
 type Registro = {
@@ -308,6 +310,7 @@ function montarDevolucao(dev: Devolucao): DevolucaoCompleta {
     devolvida_em: dev.devolvidaEm,
     concluida_em: dev.concluidaEm,
     recibo_enviado_em: dev.reciboEm,
+    acoes: { copiar_link_recibo: dev.status === "concluida" && (perfilAtualFalso() === "administrador" || perfilAtualFalso() === "gerente" || perfilAtualFalso() === "vendedor") },
   };
   if (!vistoriador) return base;
   const sem = { ...base } as Partial<DevolucaoCompleta>;
@@ -587,6 +590,14 @@ export const vistoriasFalso = {
     const dev = acharDevolucao(id);
     if (dev.status !== "concluida") throw new ErroApi(409, "devolucao_em_rascunho", "O recibo sai depois que a devolução é encerrada");
     return { url: `/recibos/DEV-${dev.id}.pdf`, url_expira_em: new Date(Date.parse(AGORA_DO_SEED) + 15 * 60_000).toISOString() };
+  },
+
+  async copiarLinkDoRecibo(id: number): Promise<LinkDoRecibo> {
+    await pausa(250);
+    exigirAcerto();
+    const dev = acharDevolucao(id);
+    if (dev.status !== "concluida") throw new ErroApi(409, "devolucao_em_rascunho", "O recibo sai depois que a devolução é encerrada");
+    return { link: `https://motorapida.girolocadoras.com.br/recibo#fake-${id}-${++contagemDeLinks}`, expira_em: "2026-10-14T14:00:00Z", aviso: "O link anterior deixa de valer.", devolucao: { id: dev.id, status: "concluida", recibo_enviado_em: dev.reciboEm } };
   },
 
   async reenviarRecibo(id: number): Promise<void> {

@@ -12,6 +12,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
@@ -28,6 +29,7 @@ from comum.tarefas import ator_para_fila, schema_atual
 
 from . import marcadores, pdf, prontos, sanitizacao, selectors
 from .models import (
+    CanalDoToken,
     Contrato,
     Finalidade,
     ModeloContrato,
@@ -221,7 +223,12 @@ def _agendar_preparo(contrato: Contrato) -> None:
 
     schema = schema_atual()
     ator = ator_para_fila()
-    transaction.on_commit(lambda: contratos_preparar_e_enviar.delay(schema, contrato.pk, ator=ator))
+    na_fila = relogio.agora().isoformat()  # B-02 da T-411
+    transaction.on_commit(
+        lambda: contratos_preparar_e_enviar.delay(
+            schema, contrato.pk, enfileirado_em=na_fila, ator=ator
+        )
+    )
 
 
 def _criar(dados: DadosDoContrato, **campos: Any) -> Contrato:
@@ -309,15 +316,88 @@ def link_de_assinatura(host: str, token: str) -> str:
     return f"https://{host}/assinar#{token}"
 
 
-def novo_token(contrato: Contrato) -> str:
-    """Token de 32 bytes, 7 dias. O anterior deixa de valer. Devolve o token em claro uma vez."""
+def novo_token(
+    contrato: Contrato,
+    canal: str = CanalDoToken.WHATSAPP_EMAIL,
+    por: Any = None,
+    ip: str | None = None,
+) -> str:
+    """Token de 32 bytes, 7 dias. O anterior deixa de valer. Devolve o token em claro uma vez.
+    Grava como o link chega ao cliente (`LOC-15`, M-02 da T-411): `copiado`, com quem copiou e
+    o IP da cópia, ou `whatsapp_email`, sem os dois."""
+    copiado = canal == CanalDoToken.COPIADO
     token = secrets.token_urlsafe(32)
     contrato.token_assinatura_hash = hash_do_token(token)
     contrato.token_assinatura_expira_em = relogio.agora() + VALIDADE_DO_LINK
+    contrato.token_assinatura_canal = canal
+    contrato.token_assinatura_gerado_por = por if copiado else None
+    contrato.token_assinatura_gerado_ip = ip if copiado else None
     contrato.save(
-        update_fields=["token_assinatura_hash", "token_assinatura_expira_em", "atualizado_em"]
+        update_fields=[
+            "token_assinatura_hash",
+            "token_assinatura_expira_em",
+            "token_assinatura_canal",
+            "token_assinatura_gerado_por",
+            "token_assinatura_gerado_ip",
+            "atualizado_em",
+        ]
     )
     return token
+
+
+def gerado_em(contrato: Contrato) -> datetime | None:
+    """Quando o token vivo foi gerado: a validade é sempre de 7 dias a partir dali."""
+    expira = contrato.token_assinatura_expira_em
+    return expira - VALIDADE_DO_LINK if expira is not None else None
+
+
+def token_mais_novo_que(contrato: Contrato, momento: datetime | None) -> bool:
+    """B-02 da T-411: a tarefa de envio que entrou na fila em `momento` não troca um token
+    gerado depois (um link copiado, ou outro envio). Sem `momento` (tarefa antiga), não barra."""
+    gerado = gerado_em(contrato)
+    if momento is None or gerado is None:
+        return False
+    return gerado > momento
+
+
+def titular_anonimizado() -> Conflito:
+    return Conflito("titular_anonimizado", "Os dados deste cliente foram anonimizados.")
+
+
+def gerar_link(contrato: Contrato, por: Any, ip: str | None = None) -> tuple[str, Contrato]:
+    """Copiar o link para assinar (T-411, `copiar-link.md`): token novo na hora, sem enviar nada;
+    o link anterior (WhatsApp, e-mail ou outro copiado) deixa de valer. O status e o `enviado_em`
+    não mudam. Devolve o token em claro uma vez e o contrato relido. Trava o contrato com o mesmo
+    lock da tarefa de envio. O evento leva o vencimento novo, nunca o link nem o token."""
+    with transaction.atomic():
+        travado = (
+            Contrato.objects.select_for_update(of=("self",))
+            .select_related("cliente", "modelo")
+            .get(pk=contrato.pk)
+        )
+        if travado.status == S.CANCELADO:
+            raise Conflito("contrato_cancelado", "Este contrato foi cancelado.")
+        if travado.status == S.ASSINADO:
+            raise Conflito(
+                "contrato_assinado",
+                "Este contrato já foi assinado. Para mandar o PDF assinado, use Reenviar.",
+            )
+        if travado.cliente.anonimizado_em is not None:
+            raise titular_anonimizado()
+        if travado.status == S.GERADO and not travado.pdf:
+            raise Conflito(
+                "contrato_em_preparo",
+                "O contrato ainda está sendo gerado. Tente de novo em alguns segundos.",
+            )
+        token = novo_token(travado, CanalDoToken.COPIADO, por=por, ip=ip)
+        registrar_evento(
+            "contrato.copiar_link",
+            Categoria.SEGURANCA,
+            objeto=travado,
+            depois={"token_assinatura_expira_em": travado.token_assinatura_expira_em.isoformat()},
+            regra="S-15",
+        )
+    return token, travado
 
 
 def gravar_pdf(contrato: Contrato, marca: pdf.Marca) -> None:
@@ -337,7 +417,7 @@ def marcar_enviado(contrato: Contrato) -> None:
 
 def reenviar(contrato: Contrato) -> Contrato:
     """Novo link (o anterior deixa de valer agora) e novo envio. Assinado: reenvia o PDF
-    assinado. Cancelado: 409."""
+    assinado. Cancelado: 409. A tarefa leva o momento em que entrou na fila (B-02 da T-411)."""
     from .tasks import contratos_preparar_e_enviar, contratos_reenviar
 
     if contrato.status == S.CANCELADO:
@@ -359,7 +439,10 @@ def reenviar(contrato: Contrato) -> Contrato:
         else:
             registrar_evento("contrato.reenviar", Categoria.OPERACAO, objeto=contrato)
         tarefa = contratos_preparar_e_enviar if contrato.status == S.GERADO else contratos_reenviar
-        transaction.on_commit(lambda: tarefa.delay(schema, contrato.pk, ator=ator))
+        na_fila = relogio.agora().isoformat()
+        transaction.on_commit(
+            lambda: tarefa.delay(schema, contrato.pk, enfileirado_em=na_fila, ator=ator)
+        )
     return contrato
 
 
@@ -376,7 +459,12 @@ def _pelo_token(token: str, travar: bool = False) -> Contrato:
     if travar:
         consulta = consulta.select_for_update(of=("self",))
     contrato: Contrato | None = consulta.first()
-    if contrato is None or contrato.status in (S.CANCELADO, S.GERADO):
+    # `gerado` só abre com o PDF pronto: o link copiado antes de qualquer envio (T-411).
+    if (
+        contrato is None
+        or contrato.status == S.CANCELADO
+        or (contrato.status == S.GERADO and not contrato.pdf)
+    ):
         raise Http404
     if contrato.status == S.ASSINADO:
         raise ja_assinado()
@@ -396,6 +484,40 @@ def _normalizar_nome(nome: str) -> str:
     return " ".join(letras.casefold().split())
 
 
+def _registrar_canal_da_assinatura(contrato: Contrato, ip: str | None) -> None:
+    """`LOC-15`, M-02 da T-411: o evento `contratos.contrato_assinado` da auditoria diz como o
+    link chegou; com o link copiado e o IP da assinatura igual ao de quem copiou, marca
+    `mesmo_ip_de_quem_copiou`. Nada é bloqueado: serve à auditoria e a uma disputa."""
+    depois: dict[str, Any] = {"token_assinatura_canal": contrato.token_assinatura_canal}
+    if contrato.token_assinatura_canal == CanalDoToken.COPIADO:
+        depois["token_assinatura_gerado_por"] = contrato.token_assinatura_gerado_por_id
+        depois["mesmo_ip_de_quem_copiou"] = bool(
+            ip and contrato.token_assinatura_gerado_ip and ip == contrato.token_assinatura_gerado_ip
+        )
+    registrar_evento(
+        "contratos.contrato_assinado",
+        Categoria.SEGURANCA,
+        objeto=contrato,
+        depois=depois,
+        regra="LOC-15",
+    )
+
+
+def texto_do_canal(contrato: Contrato, fuso: str) -> str:
+    """A linha "Como o link chegou" da página de registro do PDF assinado (`LOC-15`, T-411)."""
+    if contrato.token_assinatura_canal == CanalDoToken.COPIADO:
+        por = contrato.token_assinatura_gerado_por
+        nome = getattr(por, "nome", "") or "alguém da locadora"
+        gerado = gerado_em(contrato)
+        quando = (
+            " em " + gerado.astimezone(ZoneInfo(fuso)).strftime("%d/%m/%Y, %H:%M") if gerado else ""
+        )
+        return f"Link entregue por cópia, gerado por {nome}{quando}"
+    if contrato.token_assinatura_canal == CanalDoToken.WHATSAPP_EMAIL:
+        return "Link enviado por WhatsApp ou e-mail ao cliente"
+    return "não informado"
+
+
 def assinar(token: str, nome_completo: str, ip: str | None, aparelho: str) -> Contrato:
     """O nome tem que conferir com o cadastro, sem diferenciar maiúsculas e acentos. Grava o
     momento, o IP, o aparelho e publica `contratos.contrato_assinado`."""
@@ -411,6 +533,7 @@ def assinar(token: str, nome_completo: str, ip: str | None, aparelho: str) -> Co
             S.ASSINADO,
             mais_campos=("assinado_em", "assinado_ip", "assinatura_aparelho"),
         )
+        _registrar_canal_da_assinatura(contrato, ip)
         publicar(
             "contratos.contrato_assinado",
             contrato_id=contrato.pk,
@@ -437,6 +560,7 @@ def gravar_pdf_assinado(contrato: Contrato, marca: pdf.Marca, quando: str) -> No
         ("Data e hora", quando),
         ("IP", mascarar_ip(contrato.assinado_ip) if contrato.assinado_ip else "não informado"),
         ("Aparelho", contrato.assinatura_aparelho or "não informado"),
+        ("Como o link chegou", texto_do_canal(contrato, contrato.filial.fuso)),
         ("Hash do PDF assinado (SHA-256)", contrato.hash_pdf),
     ]
     conteudo = pdf.gerar(contrato.versao_texto_html, marca, registro)
