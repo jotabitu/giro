@@ -11756,16 +11756,6 @@ components:
       description: |-
         * `locacao` - Locação
         * `venda` - Venda
-    Forma484Enum:
-      enum:
-      - cartao
-      - pix_automatico
-      - boleto
-      type: string
-      description: |-
-        * `cartao` - cartao
-        * `pix_automatico` - pix_automatico
-        * `boleto` - boleto
     FormaAssinaturaEnum:
       enum:
       - cartao
@@ -11782,7 +11772,7 @@ components:
         forma:
           nullable: true
           oneOf:
-          - $ref: '#/components/schemas/Forma484Enum'
+          - $ref: '#/components/schemas/FormaDePagamentoFormaEnum'
           - $ref: '#/components/schemas/NullEnum'
         situacao:
           $ref: '#/components/schemas/Situacao'
@@ -11799,6 +11789,16 @@ components:
       - forma
       - prazo
       - situacao
+    FormaDePagamentoFormaEnum:
+      enum:
+      - cartao
+      - pix_automatico
+      - boleto
+      type: string
+      description: |-
+        * `cartao` - cartao
+        * `pix_automatico` - pix_automatico
+        * `boleto` - boleto
     FormaDespesaEnum:
       enum:
       - pix
@@ -11841,16 +11841,20 @@ components:
         * `pix` - Pix
         * `boleto` - Boleto
         * `cartao` - Cartão
-    FormaPagamento484Enum:
+    FormaPagamentoEnum:
       enum:
-      - cartao
+      - pix
       - pix_automatico
+      - cartao
       - boleto
+      - dinheiro
       type: string
       description: |-
-        * `cartao` - cartao
-        * `pix_automatico` - pix_automatico
-        * `boleto` - boleto
+        * `pix` - Pix
+        * `pix_automatico` - Pix automático
+        * `cartao` - Cartão
+        * `boleto` - Boleto
+        * `dinheiro` - Dinheiro
     FormatoExportacaoEnum:
       enum:
       - planilha
@@ -14111,7 +14115,7 @@ components:
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
           default: '0.00'
         forma_pagamento:
-          $ref: '#/components/schemas/LocacaoEntradaFormaPagamentoEnum'
+          $ref: '#/components/schemas/FormaPagamentoEnum'
         parcelamento_mensal:
           nullable: true
           oneOf:
@@ -14123,20 +14127,6 @@ components:
       - inicio
       - periodicidade
       - veiculo_id
-    LocacaoEntradaFormaPagamentoEnum:
-      enum:
-      - pix
-      - pix_automatico
-      - cartao
-      - boleto
-      - dinheiro
-      type: string
-      description: |-
-        * `pix` - Pix
-        * `pix_automatico` - Pix automático
-        * `cartao` - Cartão
-        * `boleto` - Boleto
-        * `dinheiro` - Dinheiro
     LocacaoQuePrecisaDeAcao:
       type: object
       properties:
@@ -15636,7 +15626,7 @@ components:
           pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
           default: '0.00'
         forma_pagamento:
-          $ref: '#/components/schemas/LocacaoEntradaFormaPagamentoEnum'
+          $ref: '#/components/schemas/FormaPagamentoEnum'
         parcelamento_mensal:
           nullable: true
           oneOf:
@@ -15979,10 +15969,9 @@ components:
         ciclo:
           $ref: '#/components/schemas/PedidoEntradaCicloEnum'
         forma_pagamento:
+          type: string
           nullable: true
-          oneOf:
-          - $ref: '#/components/schemas/FormaPagamento484Enum'
-          - $ref: '#/components/schemas/NullEnum'
+          description: cartao, pix_automatico ou boleto (PLT-13)
         administrador:
           $ref: '#/components/schemas/AdministradorDaCompra'
         empresa:

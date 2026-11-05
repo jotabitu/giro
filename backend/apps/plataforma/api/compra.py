@@ -111,8 +111,8 @@ class EmpresaDaCompraSerializer(serializers.Serializer[Any]):
 class PedidoEntradaSerializer(serializers.Serializer[Any]):
     plano = serializers.CharField()
     ciclo = serializers.ChoiceField(choices=["mensal", "anual"])
-    forma_pagamento = serializers.ChoiceField(
-        choices=["cartao", "pix_automatico", "boleto"], allow_null=True, required=False
+    forma_pagamento = serializers.CharField(
+        allow_null=True, required=False, help_text="cartao, pix_automatico ou boleto (PLT-13)"
     )
     administrador = AdministradorDaCompraSerializer()
     empresa = EmpresaDaCompraSerializer()
