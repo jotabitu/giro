@@ -64,8 +64,8 @@ def test_vei_08_crlv_do_cruze_preenche_a_marca_e_traz_as_versoes(moto) -> None:
     corpo = _ler(moto, "CHEVROLET/CRUZE LT NB")
     assert (corpo["campos"]["marca"], corpo["campos"]["modelo"]) == (CHEVROLET, None)
     assert "marca" in corpo["lidos"] and "modelo" not in corpo["lidos"]
-    assert corpo["quantidade"] == 8
-    assert corpo["rotulo"] == "CRLV-e lido · 8 campos preenchidos"
+    assert corpo["quantidade"] == 15  # mais os 7 do documento (VEI-09, T-421)
+    assert corpo["rotulo"] == "CRLV-e lido · 15 campos preenchidos"
     assert corpo["dicas"] == {
         "marca_modelo": "CHEVROLET/CRUZE LT NB",
         "candidatos": [{"marca": m.marca, "modelo": m.modelo, "tipo": m.tipo} for m in CRUZE_LT],

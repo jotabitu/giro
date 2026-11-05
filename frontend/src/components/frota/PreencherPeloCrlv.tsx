@@ -4,10 +4,10 @@ import { useMutation } from "@tanstack/react-query";
 import { FileText } from "lucide-react";
 import { useRef, useState } from "react";
 import { Icone } from "@/design-system";
-import { ErroApi, veiculos, type LeituraCrlv, type ModeloDoCatalogo } from "@/lib/api";
+import { ErroApi, veiculos, type LeituraCrlv, type LeituraCrlvNoEditar, type ModeloDoCatalogo } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 
-export type CrlvLido = { arquivo: File; leitura: LeituraCrlv };
+export type CrlvLido = { arquivo: File; leitura: LeituraCrlv | LeituraCrlvNoEditar };
 
 /** A recusa 400 diz o problema no campo `arquivo`; 422, 429 e 503 trazem a mensagem pronta (VEI-08). */
 export function mensagemDaLeitura(e: unknown): string {
@@ -24,16 +24,19 @@ export function PreencherPeloCrlv({
   aoLer,
   aoRemover,
   aoEscolherVersao,
+  veiculoId,
 }: {
   lido: CrlvLido | null;
   aoLer: (l: CrlvLido) => void;
   aoRemover: () => void;
   /** T-415: a pessoa escolheu uma das versões que a API achou no catálogo; quem usa preenche marca e modelo. */
   aoEscolherVersao?: (versao: ModeloDoCatalogo) => void;
+  /** T-421 (padrão A): no editar, lê pelo veículo. A placa e o chassi são conferidos e não mudam; a 422 `crlv_outro_veiculo` sobe como vem. */
+  veiculoId?: number;
 }) {
   const entrada = useRef<HTMLInputElement>(null);
   const [versao, setVersao] = useState<string | null>(null);
-  const ler = useMutation({ mutationFn: (arquivo: File) => veiculos.lerCrlv(arquivo).then((leitura) => ({ arquivo, leitura })) });
+  const ler = useMutation({ mutationFn: (arquivo: File) => (veiculoId != null ? veiculos.lerCrlvDoVeiculo(veiculoId, arquivo) : veiculos.lerCrlv(arquivo)).then((leitura) => ({ arquivo, leitura })) });
 
   function escolher(arquivo: File | undefined) {
     if (!arquivo || ler.isPending) return;
@@ -48,7 +51,11 @@ export function PreencherPeloCrlv({
       </div>
       <div className="min-w-0 flex-1 basis-64">
         <div className="text-body font-semibold">Preencher pelo documento</div>
-        <p className="text-body text-ink-muted">Envie o PDF do CRLV-e e preenchemos placa, chassi, renavam, ano, cor e modelo. Confira antes de salvar.</p>
+        <p className="text-body text-ink-muted">
+          {veiculoId != null
+            ? "Envie o PDF do CRLV-e e preenchemos renavam, ano, cor, modelo e os dados do documento. Placa e chassi não mudam. Confira antes de salvar."
+            : "Envie o PDF do CRLV-e e preenchemos placa, chassi, renavam, ano, cor, modelo e os dados do documento. Confira antes de salvar."}
+        </p>
         {lido?.leitura.dicas.marca_modelo && (
           <p className="mt-1 text-body text-ink-muted">
             No documento: <span className="wl-mono">{lido.leitura.dicas.marca_modelo}</span>.{" "}

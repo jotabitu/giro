@@ -6190,7 +6190,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Veiculo'
+                $ref: '#/components/schemas/VeiculoComDadosDoDocumento'
           description: ''
   /api/veiculos/{id}/:
     get:
@@ -6215,7 +6215,7 @@ paths:
           description: ''
     patch:
       operationId: veiculos_partial_update
-      summary: Editar veículo
+      summary: Editar veículo (VEI-09), com o comprovante da leitura no editar (VEI-08)
       parameters:
       - in: path
         name: id
@@ -6242,7 +6242,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Veiculo'
+                $ref: '#/components/schemas/VeiculoComDadosDoDocumento'
           description: ''
   /api/veiculos/{id}/baixar/:
     post:
@@ -6554,6 +6554,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Veiculo'
+          description: ''
+  /api/veiculos/{id}/leitura-crlv/:
+    post:
+      operationId: veiculos_leitura_crlv_do_veiculo_create
+      description: |-
+        Ler o CRLV-e no editar (T-421, padrão A do ponto em aberto): a mesma leitura, perfis e
+        limites do cadastro, no veículo das filiais da pessoa (404 fora delas). Confere a placa e o
+        chassi (422 `crlv_outro_veiculo`) e não grava nada, nem substitui o documento CRLV.
+      summary: Ler o CRLV-e em PDF no editar do veículo, sem gravar (VEI-08, VEI-09)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LeituraCrlvEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeituraCrlvNoEditar'
           description: ''
   /api/veiculos/{id}/voltar-para-frota/:
     post:
@@ -8081,13 +8112,10 @@ components:
       - status
     CamposDoCrlv:
       type: object
+      description: |-
+        Os campos lidos no cadastro: os 9 da VEI-08 e, com a chave pontuada
+        (`documento.potencia_cv`), os 9 do documento da VEI-09 (T-421).
       properties:
-        placa:
-          type: string
-          nullable: true
-        chassi:
-          type: string
-          nullable: true
         renavam:
           type: string
           nullable: true
@@ -8111,15 +8139,134 @@ components:
           oneOf:
           - $ref: '#/components/schemas/CombustivelVeiculoEnum'
           - $ref: '#/components/schemas/NullEnum'
+        placa:
+          type: string
+          nullable: true
+        chassi:
+          type: string
+          nullable: true
+        documento.potencia_cv:
+          type: integer
+          nullable: true
+        documento.cilindrada_cc:
+          type: integer
+          nullable: true
+        documento.especie:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/EspecieVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        documento.tipo:
+          type: string
+          nullable: true
+        documento.carroceria:
+          type: string
+          nullable: true
+        documento.lotacao:
+          type: integer
+          nullable: true
+        documento.peso_bruto_kg:
+          type: integer
+          nullable: true
+        documento.numero_motor:
+          type: string
+          nullable: true
+        documento.observacoes:
+          type: string
+          nullable: true
       required:
       - ano_fabricacao
       - ano_modelo
       - chassi
       - combustivel
       - cor
+      - documento.carroceria
+      - documento.cilindrada_cc
+      - documento.especie
+      - documento.lotacao
+      - documento.numero_motor
+      - documento.observacoes
+      - documento.peso_bruto_kg
+      - documento.potencia_cv
+      - documento.tipo
       - marca
       - modelo
       - placa
+      - renavam
+    CamposDoCrlvNoEditar:
+      type: object
+      description: |-
+        Os campos lidos no editar (T-421): sem placa e chassi, que no editar não mudam. Os da
+        VEI-09 têm a chave pontuada (`documento.potencia_cv`), no formato do corpo do cadastro.
+      properties:
+        renavam:
+          type: string
+          nullable: true
+        marca:
+          type: string
+          nullable: true
+        modelo:
+          type: string
+          nullable: true
+        ano_fabricacao:
+          type: integer
+          nullable: true
+        ano_modelo:
+          type: integer
+          nullable: true
+        cor:
+          type: string
+          nullable: true
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        documento.potencia_cv:
+          type: integer
+          nullable: true
+        documento.cilindrada_cc:
+          type: integer
+          nullable: true
+        documento.especie:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/EspecieVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        documento.tipo:
+          type: string
+          nullable: true
+        documento.carroceria:
+          type: string
+          nullable: true
+        documento.lotacao:
+          type: integer
+          nullable: true
+        documento.peso_bruto_kg:
+          type: integer
+          nullable: true
+        documento.numero_motor:
+          type: string
+          nullable: true
+        documento.observacoes:
+          type: string
+          nullable: true
+      required:
+      - ano_fabricacao
+      - ano_modelo
+      - combustivel
+      - cor
+      - documento.carroceria
+      - documento.cilindrada_cc
+      - documento.especie
+      - documento.lotacao
+      - documento.numero_motor
+      - documento.observacoes
+      - documento.peso_bruto_kg
+      - documento.potencia_cv
+      - documento.tipo
+      - marca
+      - modelo
       - renavam
     CancelamentoLocacao:
       type: object
@@ -10414,6 +10561,94 @@ components:
       - tipo
       - url
       - url_expira_em
+    DocumentoDoVeiculo:
+      type: object
+      description: |-
+        VEI-09 (T-421). `numero_motor` e `observacoes` só para administrador e gerente: para os
+        outros perfis as chaves vêm ausentes, não `null` (CA-421-12, USR-09).
+      properties:
+        potencia_cv:
+          type: integer
+          nullable: true
+        cilindrada_cc:
+          type: integer
+          nullable: true
+        especie:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/EspecieVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        tipo:
+          type: string
+          nullable: true
+        carroceria:
+          type: string
+          nullable: true
+        lotacao:
+          type: integer
+          nullable: true
+        peso_bruto_kg:
+          type: integer
+          nullable: true
+        numero_motor:
+          type: string
+          nullable: true
+        observacoes:
+          type: string
+          nullable: true
+      required:
+      - carroceria
+      - cilindrada_cc
+      - especie
+      - lotacao
+      - peso_bruto_kg
+      - potencia_cv
+      - tipo
+    DocumentoDoVeiculoEntrada:
+      type: object
+      description: Bloco `documento` da VEI-09 (T-421). Formato e mensagens em docs/api/veiculos.md.
+      properties:
+        potencia_cv:
+          type: integer
+          maximum: 999
+          minimum: 1
+          nullable: true
+        cilindrada_cc:
+          type: integer
+          maximum: 9999
+          minimum: 1
+          nullable: true
+        especie:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/EspecieVeiculoEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        tipo:
+          type: string
+          nullable: true
+          maxLength: 30
+        carroceria:
+          type: string
+          nullable: true
+          maxLength: 30
+        lotacao:
+          type: integer
+          maximum: 99
+          minimum: 1
+          nullable: true
+        peso_bruto_kg:
+          type: integer
+          maximum: 99999
+          minimum: 1
+          nullable: true
+        numero_motor:
+          type: string
+          nullable: true
+        observacoes:
+          type: string
+          nullable: true
+          maxLength: 500
     DocumentoEntrada:
       type: object
       description: |-
@@ -10887,6 +11122,24 @@ components:
       required:
       - codigo
       - rotulo
+    EspecieVeiculoEnum:
+      enum:
+      - passageiro
+      - carga
+      - misto
+      - competicao
+      - tracao
+      - especial
+      - colecao
+      type: string
+      description: |-
+        * `passageiro` - Passageiro
+        * `carga` - Carga
+        * `misto` - Misto
+        * `competicao` - Competição
+        * `tracao` - Tração
+        * `especial` - Especial
+        * `colecao` - Coleção
     Esperando:
       type: object
       properties:
@@ -13264,6 +13517,39 @@ components:
           format: uri
       required:
       - arquivo
+    LeituraCrlvNoEditar:
+      type: object
+      description: 'POST /api/veiculos/{id}/leitura-crlv/ (T-421): placa e chassi
+        fora de `campos`.'
+      properties:
+        documento:
+          $ref: '#/components/schemas/DocumentoEnum'
+        campos:
+          $ref: '#/components/schemas/CamposDoCrlvNoEditar'
+        lidos:
+          type: array
+          items:
+            type: string
+        quantidade:
+          type: integer
+        rotulo:
+          type: string
+        exercicio:
+          type: integer
+          nullable: true
+        dicas:
+          $ref: '#/components/schemas/DicasDaLeitura'
+        leitura:
+          type: string
+      required:
+      - campos
+      - dicas
+      - documento
+      - exercicio
+      - leitura
+      - lidos
+      - quantidade
+      - rotulo
     LeituraKm:
       type: object
       properties:
@@ -15889,6 +16175,9 @@ components:
           type: string
     PatchedVeiculoEdicao:
       type: object
+      description: |-
+        Os blocos `documento` e `rastreador` e as `anotacoes` (VEI-09), todos opcionais. Em
+        `multipart/form-data` os blocos vão achatados (`documento.potencia_cv`), e o DRF os monta.
       properties:
         renavam:
           type: string
@@ -15926,6 +16215,18 @@ components:
           type: string
           format: date
           nullable: true
+        documento:
+          $ref: '#/components/schemas/DocumentoDoVeiculoEntrada'
+        rastreador:
+          $ref: '#/components/schemas/RastreadorEntrada'
+        anotacoes:
+          type: string
+          nullable: true
+          maxLength: 500
+        leitura:
+          type: string
+          nullable: true
+          maxLength: 4000
     PausaMarcada:
       type: object
       description: 'Só com pausa marcada: agendada (`ativa`) ou em andamento (`pausada`).'
@@ -17260,6 +17561,28 @@ components:
       - modulos
       - tipos
       - trabalha_com
+    Rastreador:
+      type: object
+      properties:
+        numero:
+          type: string
+          nullable: true
+        empresa:
+          type: string
+          nullable: true
+      required:
+      - empresa
+      - numero
+    RastreadorEntrada:
+      type: object
+      properties:
+        numero:
+          type: string
+          nullable: true
+        empresa:
+          type: string
+          nullable: true
+          maxLength: 60
     Receber:
       type: object
       properties:
@@ -19293,6 +19616,14 @@ components:
         entrou_na_frota_em:
           type: string
           format: date
+        documento:
+          $ref: '#/components/schemas/DocumentoDoVeiculoEntrada'
+        rastreador:
+          $ref: '#/components/schemas/RastreadorEntrada'
+        anotacoes:
+          type: string
+          nullable: true
+          maxLength: 500
         crlv_arquivo:
           type: string
           format: uri
@@ -19319,68 +19650,10 @@ components:
       - marca
       - modelo
       - placa
-    VeiculoDaLocacao:
+    VeiculoComDadosDoDocumento:
       type: object
-      properties:
-        id:
-          type: integer
-        modelo:
-          type: string
-        placa:
-          type: string
-        tipo:
-          $ref: '#/components/schemas/TipoVeiculoEnum'
-      required:
-      - id
-      - modelo
-      - placa
-      - tipo
-    VeiculoDaMovimentacao:
-      type: object
-      properties:
-        id:
-          type: integer
-        placa:
-          type: string
-        modelo:
-          type: string
-        status:
-          type: string
-      required:
-      - id
-      - modelo
-      - placa
-      - status
-    VeiculoDaTroca:
-      type: object
-      properties:
-        id:
-          type: integer
-        placa:
-          type: string
-        modelo:
-          type: string
-      required:
-      - id
-      - modelo
-      - placa
-    VeiculoDaVistoria:
-      type: object
-      properties:
-        id:
-          type: integer
-        placa:
-          type: string
-        modelo:
-          type: string
-        ano:
-          type: integer
-      required:
-      - id
-      - modelo
-      - placa
-    VeiculoDetalhe:
-      type: object
+      description: A ficha e as respostas do `POST` e do `PATCH` (VEI-09); a lista
+        da Frota não os traz.
       properties:
         id:
           type: integer
@@ -19466,6 +19739,199 @@ components:
           nullable: true
         acoes:
           $ref: '#/components/schemas/AcoesDoVeiculo'
+        documento:
+          $ref: '#/components/schemas/DocumentoDoVeiculo'
+        rastreador:
+          $ref: '#/components/schemas/Rastreador'
+        anotacoes:
+          type: string
+          nullable: true
+      required:
+      - acoes
+      - ano_fabricacao
+      - ano_modelo
+      - anotacoes
+      - capacidade_tanque_litros
+      - categoria
+      - chassi
+      - combustivel
+      - cor
+      - documento
+      - documentos_resumo
+      - entrou_na_frota_em
+      - filial
+      - id
+      - km_atual
+      - km_atualizado_em
+      - locacao_atual
+      - manutencao
+      - marca
+      - modelo
+      - motivo_status
+      - movimentacao_aberta
+      - placa
+      - rastreador
+      - renavam
+      - reserva
+      - situacao
+      - status
+      - tipo_veiculo
+    VeiculoDaLocacao:
+      type: object
+      properties:
+        id:
+          type: integer
+        modelo:
+          type: string
+        placa:
+          type: string
+        tipo:
+          $ref: '#/components/schemas/TipoVeiculoEnum'
+      required:
+      - id
+      - modelo
+      - placa
+      - tipo
+    VeiculoDaMovimentacao:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        modelo:
+          type: string
+        status:
+          type: string
+      required:
+      - id
+      - modelo
+      - placa
+      - status
+    VeiculoDaTroca:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        modelo:
+          type: string
+      required:
+      - id
+      - modelo
+      - placa
+    VeiculoDaVistoria:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        modelo:
+          type: string
+        ano:
+          type: integer
+      required:
+      - id
+      - modelo
+      - placa
+    VeiculoDetalhe:
+      type: object
+      description: A ficha e as respostas do `POST` e do `PATCH` (VEI-09); a lista
+        da Frota não os traz.
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        chassi:
+          type: string
+        renavam:
+          type: string
+          nullable: true
+        marca:
+          type: string
+        modelo:
+          type: string
+        ano_fabricacao:
+          type: integer
+        ano_modelo:
+          type: integer
+        cor:
+          type: string
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        tipo_veiculo:
+          $ref: '#/components/schemas/TipoVeiculoEnum'
+        categoria:
+          $ref: '#/components/schemas/IdNome'
+        filial:
+          $ref: '#/components/schemas/IdNome'
+        status:
+          $ref: '#/components/schemas/StatusVeiculoEnum'
+        motivo_status:
+          type: string
+          nullable: true
+        km_atual:
+          type: integer
+        km_atualizado_em:
+          type: string
+          format: date-time
+          nullable: true
+        capacidade_tanque_litros:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,1})?$
+          nullable: true
+        preco_vigente:
+          allOf:
+          - $ref: '#/components/schemas/Preco'
+          nullable: true
+        valor_venda_centavos:
+          type: integer
+          nullable: true
+        referencia_fipe_centavos:
+          type: integer
+          nullable: true
+        valor_compra_centavos:
+          type: integer
+          nullable: true
+        data_compra:
+          type: string
+          format: date
+          nullable: true
+        entrou_na_frota_em:
+          type: string
+          format: date
+        situacao:
+          $ref: '#/components/schemas/SituacaoDoVeiculo'
+        locacao_atual:
+          nullable: true
+        reserva:
+          allOf:
+          - $ref: '#/components/schemas/ReservaDoVeiculo'
+          nullable: true
+        manutencao:
+          nullable: true
+        documentos_resumo:
+          nullable: true
+        movimentacao_aberta:
+          allOf:
+          - $ref: '#/components/schemas/MovimentacaoAberta'
+          nullable: true
+        acoes:
+          $ref: '#/components/schemas/AcoesDoVeiculo'
+        documento:
+          $ref: '#/components/schemas/DocumentoDoVeiculo'
+        rastreador:
+          $ref: '#/components/schemas/Rastreador'
+        anotacoes:
+          type: string
+          nullable: true
         indicadores_financeiros:
           nullable: true
         movimentacoes:
@@ -19484,11 +19950,13 @@ components:
       - acoes
       - ano_fabricacao
       - ano_modelo
+      - anotacoes
       - capacidade_tanque_litros
       - categoria
       - chassi
       - combustivel
       - cor
+      - documento
       - documentos_resumo
       - entrou_na_frota_em
       - filial
@@ -19504,6 +19972,7 @@ components:
       - movimentacao_aberta
       - ocupacao
       - placa
+      - rastreador
       - renavam
       - reserva
       - situacao
@@ -19511,6 +19980,9 @@ components:
       - tipo_veiculo
     VeiculoEntrada:
       type: object
+      description: |-
+        Os blocos `documento` e `rastreador` e as `anotacoes` (VEI-09), todos opcionais. Em
+        `multipart/form-data` os blocos vão achatados (`documento.potencia_cv`), e o DRF os monta.
       properties:
         placa:
           type: string
@@ -19562,6 +20034,14 @@ components:
         entrou_na_frota_em:
           type: string
           format: date
+        documento:
+          $ref: '#/components/schemas/DocumentoDoVeiculoEntrada'
+        rastreador:
+          $ref: '#/components/schemas/RastreadorEntrada'
+        anotacoes:
+          type: string
+          nullable: true
+          maxLength: 500
       required:
       - ano_fabricacao
       - ano_modelo

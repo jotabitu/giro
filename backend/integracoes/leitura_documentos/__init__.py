@@ -12,6 +12,7 @@ fechado (`MOTIVOS`). A saída de erro do filho é descartada.
 
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -55,6 +56,16 @@ CAMPOS_DO_TIPO: dict[str, dict[str, tuple[type, int | None]]] = {
         "cor": (str, 30),
         "combustivel": (str, 10),
         "exercicio": (int, None),
+        # VEI-09 (T-421)
+        "potencia_cv": (int, None),
+        "cilindrada_cc": (int, None),
+        "especie": (str, 12),
+        "tipo": (str, 30),
+        "carroceria": (str, 30),
+        "lotacao": (int, None),
+        "peso_bruto_kg": (int, None),
+        "numero_motor": (str, 21),
+        "observacoes": (str, 500),
     },
 }
 
@@ -181,10 +192,22 @@ def executar(tipo: str, conteudo: bytes) -> dict[str, Any]:
 ANO_MINIMO = 1900
 COMBUSTIVEIS = frozenset({"gasolina", "etanol", "flex", "diesel", "eletrico", "hibrido"})
 CAMPOS_DE_ANO = frozenset({"ano_fabricacao", "ano_modelo", "exercicio"})
+# VEI-09: a faixa de cada número e a lista fechada da espécie.
+FAIXAS = {
+    "potencia_cv": (1, 999),
+    "cilindrada_cc": (1, 9999),
+    "lotacao": (1, 99),
+    "peso_bruto_kg": (1, 99999),
+}
+ESPECIES = frozenset(
+    {"passageiro", "carga", "misto", "competicao", "tracao", "especial", "colecao"}
+)
+COM_QUEBRA_DE_LINHA = frozenset({"observacoes"})
+MOTOR = re.compile(r"^[A-Z0-9]{1,21}$")
 
 
-def _imprimivel(texto: str) -> bool:
-    return not any(ord(c) < 0x20 or ord(c) == 0x7F for c in texto)
+def _imprimivel(texto: str, quebra: bool = False) -> bool:
+    return not any((ord(c) < 0x20 and not (quebra and c == "\n")) or ord(c) == 0x7F for c in texto)
 
 
 def conferir(tipo: str, campos: Any) -> dict[str, Any]:
@@ -201,14 +224,24 @@ def conferir(tipo: str, campos: Any) -> dict[str, Any]:
         if type(valor) is not classe:
             continue
         if isinstance(valor, str) and (
-            not valor or (tamanho and len(valor) > tamanho) or not _imprimivel(valor)
+            not valor
+            or (tamanho and len(valor) > tamanho)
+            or not _imprimivel(valor, nome in COM_QUEBRA_DE_LINHA)
         ):
             continue
         if nome in CAMPOS_DE_ANO and not (
             isinstance(valor, int) and ANO_MINIMO <= valor <= ano_maximo
         ):
             continue
+        if nome in FAIXAS and not (
+            isinstance(valor, int) and FAIXAS[nome][0] <= valor <= FAIXAS[nome][1]
+        ):
+            continue
         if nome == "combustivel" and valor not in COMBUSTIVEIS:
+            continue
+        if nome == "especie" and valor not in ESPECIES:
+            continue
+        if nome == "numero_motor" and not MOTOR.match(str(valor)):
             continue
         conferidos[nome] = valor
     return conferidos

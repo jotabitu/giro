@@ -22,6 +22,7 @@ import { temNoMenu } from "@/lib/menu";
 import { AgoraDesktop, FotosEAvarias, FotosEAvariasCelular, MovimentacoesCelular, MovimentacoesDoVeiculo } from "./FichaBlocos";
 import { useSessao } from "@/lib/sessao";
 import { tomDoStatus } from "@/lib/tom";
+import { rotuloDaEspecie, rotuloDoCombustivel } from "@/lib/veiculos";
 
 // Referência: docs/telas/html/Veiculo-Desktop.dc.html e Veiculo-Mobile.dc.html.
 // As duas versões são árvores separadas, escolhidas por um <div> com hidden / md:hidden. A classe wl- define `display`
@@ -35,6 +36,44 @@ function Linha({ rotulo, children }: { rotulo: string; children: ReactNode }) {
       <dt className="text-ink-muted">{rotulo}</dt>
       <dd className="text-right font-medium">{children}</dd>
     </div>
+  );
+}
+
+const VAZIO = "—";
+const numeroBr = (n: number) => new Intl.NumberFormat("pt-BR").format(n);
+
+/**
+ * Combustível, dados do CRLV-e, rastreador e anotações (VEI-09). Campo vazio é "—". O número do motor e as observações só têm linha quando a API os
+ * mandou (administrador e gerente); para os outros perfis a ficha não deixa espaço (CA-421-12). A API decide, a tela mostra.
+ */
+function LinhasDoDocumento({ v }: { v: VeiculoDetalhe }) {
+  const d = v.documento;
+  const especieETipo = [rotuloDaEspecie(d.especie), d.tipo].filter(Boolean).join(" · ");
+  const { numero, empresa } = v.rastreador;
+  return (
+    <dl>
+      <Linha rotulo="Combustível">{rotuloDoCombustivel(v.combustivel) ?? VAZIO}</Linha>
+      <Linha rotulo="Potência">{d.potencia_cv != null ? `${numeroBr(d.potencia_cv)} cv` : VAZIO}</Linha>
+      <Linha rotulo="Cilindrada">{d.cilindrada_cc != null ? `${numeroBr(d.cilindrada_cc)} cc` : VAZIO}</Linha>
+      <Linha rotulo="Espécie e tipo">{especieETipo || VAZIO}</Linha>
+      <Linha rotulo="Carroceria">{d.carroceria ?? VAZIO}</Linha>
+      <Linha rotulo="Lotação">{d.lotacao != null ? (d.lotacao === 1 ? "1 pessoa" : `${d.lotacao} pessoas`) : VAZIO}</Linha>
+      <Linha rotulo="Peso bruto total">{d.peso_bruto_kg != null ? `${numeroBr(d.peso_bruto_kg)} kg` : VAZIO}</Linha>
+      {"numero_motor" in d && <Linha rotulo="Número do motor">{d.numero_motor ? <span className="wl-mono">{d.numero_motor}</span> : VAZIO}</Linha>}
+      {"observacoes" in d && <Linha rotulo="Observações do CRLV-e">{d.observacoes ? <span className="whitespace-pre-line">{d.observacoes}</span> : VAZIO}</Linha>}
+      <Linha rotulo="Rastreador">
+        {numero || empresa ? (
+          <>
+            {numero && <span className="wl-mono">{numero}</span>}
+            {numero && empresa ? " · " : ""}
+            {empresa}
+          </>
+        ) : (
+          VAZIO
+        )}
+      </Linha>
+      <Linha rotulo="Anotações">{v.anotacoes ? <span className="whitespace-pre-line">{v.anotacoes}</span> : VAZIO}</Linha>
+    </dl>
   );
 }
 
@@ -272,6 +311,10 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
             </dl>
           </section>
           <section className="wl-panel">
+            <h2 className="mb-1 text-[20px] font-semibold leading-[26px]">Dados do documento</h2>
+            <LinhasDoDocumento v={v} />
+          </section>
+          <section className="wl-panel">
             <h2 className="mb-1 text-[20px] font-semibold leading-[26px]">Documentos</h2>
             <ListaDeDocumentos docs={docs} />
             <HistoricoDeDocumentos id={v.id} />
@@ -372,6 +415,10 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
           {v.manutencao.alerta && <p className="mt-1 text-caption text-ink-muted">{v.manutencao.alerta}</p>}
         </CartaoDoCelular>
       )}
+
+      <CartaoDoCelular titulo="Dados do documento">
+        <LinhasDoDocumento v={v} />
+      </CartaoDoCelular>
 
       <CartaoDoCelular titulo="Documentos">
         <ListaDeDocumentos docs={docs} />

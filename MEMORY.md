@@ -196,3 +196,8 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ### [2026-10-20] Time de agentes
 - Oito agentes no Maestri, cada um no próprio worktree: backend, frontend, qa, design-system, arquiteto, produto, devops e seguranca, além do orquestrador na cópia principal. Fluxo de entrega: o agente entrega na branch, o orquestrador confere em ambiente próprio, abre o PR, acerta o quadro na branch e mescla com o aval do dono.
+
+### [2026-11-05] Blocos aninhados com chave pontuada no DRF (T-421)
+- Em `multipart/form-data`, o serializer aninhado do DRF já monta `documento.potencia_cv` sozinho (`html.parse_html_dict` pelo prefixo); não precisa converter o corpo. O erro do bloco vem aninhado (`{"documento": {"potencia_cv": [...]}}`): `ComBlocosDaVei09` em `apps/veiculos/api/serializers.py` achata para a chave pontuada do contrato.
+- Para a leitura devolver chaves pontuadas, o serializer de saída declara os campos em `get_fields` e sobrescreve `to_representation`: com `field_name` pontuado, o DRF trataria o nome como caminho no dicionário.
+- `django.utils.functional._StrPromise` só existe nos stubs (django-stubs): importar em tempo de execução quebra. Para `error_messages`, anote com `dict[str, Any]`.

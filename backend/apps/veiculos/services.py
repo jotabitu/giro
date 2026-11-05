@@ -21,18 +21,27 @@ from apps.notificacoes.services import avisar
 from apps.plataforma.services import atualizar_uso, exigir_limite, registrar_passo_implantacao
 from comum import aprovacoes, arquivos, comprovante_leitura, estados, leituras, relogio
 from comum.auditoria import Categoria as CategoriaAuditoria
-from comum.auditoria import TipoAtor, ator_atual, auditar, registrar_evento, retrato
+from comum.auditoria import (
+    TipoAtor,
+    ator_atual,
+    auditar,
+    diferenca,
+    registrar_evento,
+    retrato,
+)
 from comum.documentos import placa_com_hifen
 from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, TransicaoInvalida
 from comum.eventos import publicar
 
 from .models import (
+    CAMPOS_DA_VEI_09,
     DOCUMENTOS_QUE_BLOQUEIAM,
     FORA_DA_FROTA,
     MOVIMENTAVEIS,
     TRANSICOES_VEICULO,
     Categoria,
     DocumentoVeiculo,
+    Especie,
     Extra,
     HistoricoStatusVeiculo,
     LeituraKm,
@@ -326,6 +335,99 @@ def _validar_dados(
     ):
         if campo in dados:
             limpos[campo] = dados[campo]
+    _validar_vei_09(dados, erros, limpos)
+
+
+# --- Dados do documento, rastreador e anotações (VEI-09, T-421) ---
+
+MENSAGENS_DA_VEI_09 = {
+    "documento.potencia_cv": "Informe a potência em cv, de 1 a 999.",
+    "documento.cilindrada_cc": "Informe a cilindrada em cc, de 1 a 9999.",
+    "documento.especie": "Escolha a espécie da lista.",
+    "documento.tipo": "Use até 30 caracteres.",
+    "documento.carroceria": "Use até 30 caracteres.",
+    "documento.lotacao": "Informe a lotação em pessoas, de 1 a 99.",
+    "documento.peso_bruto_kg": "Informe o peso bruto em kg.",
+    "documento.numero_motor": "Use só letras e números, até 21.",
+    "documento.observacoes": "Use até 500 caracteres.",
+    "rastreador.numero": "Use só letras e números, até 20.",
+    "rastreador.empresa": "Use até 60 caracteres.",
+    "anotacoes": "Use até 500 caracteres.",
+}
+FAIXAS_DA_VEI_09 = {
+    "documento.potencia_cv": (1, 999),
+    "documento.cilindrada_cc": (1, 9999),
+    "documento.lotacao": (1, 99),
+    "documento.peso_bruto_kg": (1, 99999),
+}
+TEXTOS_DA_VEI_09 = {
+    "documento.tipo": 30,
+    "documento.carroceria": 30,
+    "documento.observacoes": 500,
+    "rastreador.empresa": 60,
+    "anotacoes": 500,
+}
+# Letras e números, em maiúsculas e sem espaços.
+CODIGOS_DA_VEI_09 = {"documento.numero_motor": 21, "rastreador.numero": 20}
+BLOCOS_DA_VEI_09 = ("documento", "rastreador")
+
+
+def campos_pontuados(dados: dict[str, Any]) -> dict[str, Any]:
+    """Os blocos `documento` e `rastreador` e as `anotacoes` do corpo, nas chaves pontuadas
+    (`documento.lotacao`). Só as chaves enviadas: no editar, chave ausente não muda."""
+    pontuados: dict[str, Any] = {}
+    for bloco in BLOCOS_DA_VEI_09:
+        for chave, valor in (dados.get(bloco) or {}).items():
+            pontuados[f"{bloco}.{chave}"] = valor
+    if "anotacoes" in dados:
+        pontuados["anotacoes"] = dados["anotacoes"]
+    return {chave: v for chave, v in pontuados.items() if chave in CAMPOS_DA_VEI_09}
+
+
+def _valor_da_vei_09(chave: str, valor: Any) -> tuple[Any, bool]:
+    """O valor limpo e se ele vale. Vazio, `null` ou só espaços apagam (texto vira "")."""
+    texto = valor.strip() if isinstance(valor, str) else valor
+    if texto is None or texto == "":
+        return ("" if chave in TEXTOS_DA_VEI_09 or chave in CODIGOS_DA_VEI_09 else None), True
+    if chave in FAIXAS_DA_VEI_09:
+        minimo, maximo = FAIXAS_DA_VEI_09[chave]
+        if isinstance(texto, bool) or not re.fullmatch(r"\d{1,6}", str(texto)):
+            return None, False
+        return int(texto), minimo <= int(texto) <= maximo
+    if chave == "documento.especie":
+        return texto, texto in Especie.values
+    if chave in CODIGOS_DA_VEI_09:
+        codigo = re.sub(r"\s", "", str(texto)).upper()
+        return codigo, bool(re.fullmatch(rf"[A-Z0-9]{{1,{CODIGOS_DA_VEI_09[chave]}}}", codigo))
+    return str(texto), len(str(texto)) <= TEXTOS_DA_VEI_09[chave]
+
+
+def _validar_vei_09(
+    dados: dict[str, Any], erros: dict[str, list[str]], limpos: dict[str, Any]
+) -> None:
+    """Todos opcionais (VEI-01); fora do formato, 400 com a chave pontuada (CA-421-07)."""
+    for chave, valor in campos_pontuados(dados).items():
+        limpo, vale = _valor_da_vei_09(chave, valor)
+        if not vale:
+            erros[chave] = [MENSAGENS_DA_VEI_09[chave]]
+            continue
+        limpos[CAMPOS_DA_VEI_09[chave]] = limpo
+
+
+def dados_da_vei_09(dados: dict[str, Any]) -> dict[str, Any]:
+    """Os campos do model a partir dos blocos (`documento`, `rastreador`, `anotacoes`), para quem
+    grava sem passar pelo cadastro (o seed dos testes). Fora do formato: 400."""
+    erros: dict[str, list[str]] = {}
+    limpos: dict[str, Any] = {}
+    _validar_vei_09(dados, erros, limpos)
+    if erros:
+        raise ErroDeValidacao(erros)
+    return limpos
+
+
+def valores_pontuados(veiculo: Veiculo) -> dict[str, Any]:
+    """Os campos da VEI-09 gravados, nas chaves da API (texto vazio vira `None`)."""
+    return {chave: getattr(veiculo, campo) or None for chave, campo in CAMPOS_DA_VEI_09.items()}
 
 
 OBRIGATORIOS_DO_CADASTRO = (
@@ -455,13 +557,9 @@ def cadastrar_com_crlv(
     extras: dict[str, Any] = {}
     if resumos is not None:
         gravados = {campo: limpos.get(campo) for campo in CAMPOS_DO_CRLV}
+        gravados |= {chave: limpos.get(campo) for chave, campo in CAMPOS_DA_VEI_09.items()}
         lidos, corrigidos = comprovante_leitura.campos_do_documento(resumos, conteudo, gravados)
-        if lidos:
-            extras["preenchido_pelo_documento"] = {
-                "tipo": "crlv",
-                "campos": lidos,
-                "corrigidos": corrigidos,
-            }
+        extras = _preenchido_pelo_documento(lidos, corrigidos)
     gravado: str | None = None  # o nome do arquivo já enviado
     try:
         with transaction.atomic():
@@ -490,6 +588,15 @@ def cadastrar_com_crlv(
             _apagar_crlv_orfao(gravado)
         raise
     return veiculo
+
+
+def _preenchido_pelo_documento(lidos: list[str], corrigidos: list[str]) -> dict[str, Any]:
+    """A marca do evento (CA-247-03, CA-421-05): os campos lidos e os corrigidos, sem valores."""
+    if not lidos:
+        return {}
+    return {
+        "preenchido_pelo_documento": {"tipo": "crlv", "campos": lidos, "corrigidos": corrigidos}
+    }
 
 
 def _apagar_crlv_orfao(nome: str) -> None:
@@ -539,12 +646,41 @@ CAMPOS_EDITAVEIS = (
     "capacidade_tanque_litros",
     "valor_compra_centavos",
     "data_compra",
+    "documento",
+    "rastreador",
+    "anotacoes",
 )
+# Campo do model → chave da API no evento `veiculo.editar` (VEI-09: `documento.lotacao`).
+CHAVE_NO_EVENTO = {campo: chave for chave, campo in CAMPOS_DA_VEI_09.items()}
 
 
-def editar(veiculo: Veiculo, dados: dict[str, Any]) -> Veiculo:
+def _lidos_no_editar(
+    veiculo: Veiculo, leitura: str | None, usuario: Any
+) -> tuple[list[str], list[str]]:
+    """Com o comprovante da leitura no editar (T-421) deste veículo e desta pessoa, os campos
+    lidos e os corrigidos, comparados com o que ficou gravado. Sem ele, nada (ADR 0026, item 8)."""
+    conferido = comprovante_leitura.conferir_do_veiculo("crlv", leitura, usuario, veiculo.pk)
+    if conferido is None:
+        return [], []
+    hash_do_arquivo, resumos = conferido
+    gravados = {campo: getattr(veiculo, campo) for campo in CAMPOS_DO_CRLV}
+    gravados |= {chave: getattr(veiculo, campo) for chave, campo in CAMPOS_DA_VEI_09.items()}
+    return comprovante_leitura.campos_pelo_hash(resumos, hash_do_arquivo, gravados)
+
+
+def editar(
+    veiculo: Veiculo,
+    dados: dict[str, Any],
+    *,
+    leitura: str | None = None,
+    usuario: Any = None,
+) -> Veiculo:
     """PATCH: placa, chassi, status, km e filial não mudam por aqui. A categoria nova vale para
-    locações novas; a locação em andamento mantém o preço congelado (LOC-15)."""
+    locações novas; a locação em andamento mantém o preço congelado (LOC-15).
+
+    Os blocos da VEI-09 mudam por chave (`{"documento": {"lotacao": 1}}` só muda a lotação), e
+    o evento leva as chaves pontuadas. Com o comprovante `leitura` da leitura no editar, o evento
+    leva `preenchido_pelo_documento`, como no cadastro (T-421)."""
     entrada = {campo: dados[campo] for campo in CAMPOS_EDITAVEIS if campo in dados}
     erros: dict[str, list[str]] = {}
     limpos: dict[str, Any] = {}
@@ -556,10 +692,23 @@ def editar(veiculo: Veiculo, dados: dict[str, Any]) -> Veiculo:
             erros["ano_modelo"] = ["O ano do modelo é o de fabricação ou o seguinte."]
     if erros:
         raise ErroDeValidacao(erros)
-    with transaction.atomic(), auditar(veiculo, "veiculo.editar", CategoriaAuditoria.OPERACAO):
+    with transaction.atomic():
+        antes = retrato(Veiculo._base_manager.get(pk=veiculo.pk))
         for campo, valor in limpos.items():
             setattr(veiculo, campo, valor)
         veiculo.save()
+        mudou_antes, mudou_depois = diferenca(antes, retrato(veiculo))
+        lidos, corrigidos = _lidos_no_editar(veiculo, leitura, usuario)
+        registrar_evento(
+            "veiculo.editar",
+            CategoriaAuditoria.OPERACAO,
+            objeto=veiculo,
+            antes={CHAVE_NO_EVENTO.get(c, c): v for c, v in mudou_antes.items()},
+            depois={
+                **{CHAVE_NO_EVENTO.get(c, c): v for c, v in mudou_depois.items()},
+                **_preenchido_pelo_documento(lidos, corrigidos),
+            },
+        )
     return veiculo
 
 

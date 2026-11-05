@@ -8,21 +8,22 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
 import { Icone, Panel, TextField } from "@/design-system";
-import { ErroApi, veiculos, type CategoriaVeiculo, type VeiculoDetalhe } from "@/lib/api";
+import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo, type VeiculoDetalhe } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { km, placa as placaComHifen } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
-import { esquemaVeiculo, paraCorpoEdicao, valoresDoVeiculo, type ValoresVeiculo } from "@/lib/veiculos";
+import { CAMPOS_VEI_09, esquemaVeiculo, NOME_DO_CAMPO_DA_API, paraCorpoEdicao, temMotorEObservacoes, valoresDaLeitura, valoresDoVeiculo, type CampoLido, type ValoresVeiculo } from "@/lib/veiculos";
+import { CamposDoDocumento } from "./CamposDoDocumento";
 import { CorrigirIdentificacao } from "./CorrigirIdentificacao";
 import { DocumentosDoVeiculo } from "./DocumentosDoVeiculo";
 import { Preco, Selecao } from "./NovoVeiculoForm";
+import { PreencherPeloCrlv, type CrlvLido } from "./PreencherPeloCrlv";
 
 // Referência: Veiculo-Novo-Desktop|Mobile com os dados preenchidos (T-243; a edição não tem tela própria).
 // PATCH /api/veiculos/{id}/ (VEI-01): placa, chassi, km e filial aparecem só para leitura; a API valida e o erro volta no campo.
 
 type Nome = FieldPath<ValoresVeiculo>;
-const CAMPO_DA_API: Record<string, Nome> = { valor_compra_centavos: "valor_compra" };
-const CAMPOS_EDITAVEIS: Nome[] = ["marca", "modelo", "ano_fabricacao", "ano_modelo", "renavam", "cor", "capacidade_tanque_litros", "categoria_id", "data_compra", "valor_compra"];
+const CAMPOS_EDITAVEIS: Nome[] = ["marca", "modelo", "ano_fabricacao", "ano_modelo", "renavam", "cor", "capacidade_tanque_litros", "categoria_id", "data_compra", "valor_compra", "combustivel", ...CAMPOS_VEI_09.map((c) => c.nome)];
 
 function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
   const router = useRouter();
@@ -34,11 +35,18 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
   const podeCorrigir = eu.pode.administracao;
   const [corrigindo, setCorrigindo] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  // O CRLV-e lido no editar (padrão A): preenche a tela, não grava nada e o PDF não é guardado. O comprovante segue no PATCH (VEI-08).
+  const [crlv, setCrlv] = useState<CrlvLido | null>(null);
+  const [lidos, setLidos] = useState<Partial<Record<CampoLido, string>>>({});
+  // Motor e observações só aparecem (e só vão no PATCH) quando a API os mandou: administrador e gerente (CA-421-12).
+  const comMotorEObservacoes = temMotorEObservacoes(ficha.documento);
 
   const {
     register,
     handleSubmit,
     watch,
+    setValue,
+    clearErrors,
     setError,
     formState: { errors },
   } = useForm<ValoresVeiculo>({ resolver: zodResolver(esquemaVeiculo), defaultValues: valoresDoVeiculo(ficha) });
@@ -54,8 +62,28 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
   if (!opcoes.some((o) => o.valor === String(ficha.categoria.id))) opcoes.unshift({ valor: String(ficha.categoria.id), rotulo: ficha.categoria.nome });
   const categoria = lista.find((c) => String(c.id) === v.categoria_id);
 
-  const salvar = useMutation({ mutationFn: (valores: ValoresVeiculo) => veiculos.atualizar(ficha.id, paraCorpoEdicao(valores)) });
+  const salvar = useMutation({ mutationFn: (valores: ValoresVeiculo) => veiculos.atualizar(ficha.id, paraCorpoEdicao(valores, { comMotorEObservacoes, leitura: crlv?.leitura.leitura })) });
   const erro = (nome: Nome) => errors[nome]?.message;
+  /** Dica do campo: "Lido do documento" enquanto o valor é o que veio do CRLV-e; se a pessoa mudar, volta a dica de sempre. */
+  const dicaDe = (nome: Nome, padrao?: string) => (lidos[nome as CampoLido] !== undefined && lidos[nome as CampoLido] === v[nome] ? "Lido do documento" : padrao);
+
+  function preencherPelaLeitura(lido: CrlvLido) {
+    const { valores } = valoresDaLeitura(lido.leitura);
+    for (const [nome, valor] of Object.entries(valores) as [CampoLido, string][]) setValue(nome, valor, { shouldDirty: true });
+    clearErrors();
+    setLidos(valores);
+    setCrlv(lido);
+  }
+  /** Versão escolhida entre as que a API achou no catálogo (T-415): preenche marca e modelo. */
+  function escolherVersao(m: ModeloDoCatalogo) {
+    setValue("marca", m.marca, { shouldDirty: true });
+    setValue("modelo", m.modelo, { shouldDirty: true, shouldValidate: true });
+    clearErrors(["marca", "modelo"]);
+  }
+  function tirarCrlv() {
+    setCrlv(null);
+    setLidos({});
+  }
 
   // Dois cliques antes do primeiro render não mandam duas edições.
   const enviar = handleSubmit(async (valores) => {
@@ -71,7 +99,7 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
       if (e instanceof ErroApi && e.campos) {
         const sobra: string[] = [];
         for (const [campo, mensagem] of Object.entries(e.campos)) {
-          const nome = CAMPO_DA_API[campo] ?? (campo as Nome);
+          const nome = NOME_DO_CAMPO_DA_API[campo] ?? (campo as Nome);
           if (CAMPOS_EDITAVEIS.includes(nome)) setError(nome, { message: mensagem });
           else sobra.push(mensagem);
         }
@@ -123,18 +151,20 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-6">
+          <PreencherPeloCrlv veiculoId={ficha.id} lido={crlv} aoLer={preencherPelaLeitura} aoRemover={tirarCrlv} aoEscolherVersao={escolherVersao} />
+
           <Panel titulo="Identificação">
             <div className="grid gap-4 md:grid-cols-2">
               <TextField cheio mono rotulo="Placa" value={placaComHifen(ficha.placa)} readOnly dica={podeCorrigir ? "Placa e chassi não mudam aqui. Para erro de digitação, use Corrigir placa ou chassi." : "Placa e chassi não mudam aqui. Para corrigir um erro de digitação, fale com o administrador."} />
-              <TextField cheio rotulo="Marca" autoComplete="off" erro={erro("marca")} {...register("marca")} />
-              <TextField cheio rotulo="Modelo" autoComplete="off" erro={erro("modelo")} {...register("modelo")} />
+              <TextField cheio rotulo="Marca" autoComplete="off" dica={dicaDe("marca")} erro={erro("marca")} {...register("marca")} />
+              <TextField cheio rotulo="Modelo" autoComplete="off" dica={dicaDe("modelo")} erro={erro("modelo")} {...register("modelo")} />
               <div className="grid grid-cols-2 gap-3">
-                <TextField cheio mono rotulo="Ano de fabricação" inputMode="numeric" maxLength={4} erro={erro("ano_fabricacao")} {...register("ano_fabricacao")} />
-                <TextField cheio mono rotulo="Ano do modelo" inputMode="numeric" maxLength={4} erro={erro("ano_modelo")} {...register("ano_modelo")} />
+                <TextField cheio mono rotulo="Ano de fabricação" inputMode="numeric" maxLength={4} dica={dicaDe("ano_fabricacao")} erro={erro("ano_fabricacao")} {...register("ano_fabricacao")} />
+                <TextField cheio mono rotulo="Ano do modelo" inputMode="numeric" maxLength={4} dica={dicaDe("ano_modelo")} erro={erro("ano_modelo")} {...register("ano_modelo")} />
               </div>
               <TextField cheio mono rotulo="Chassi" value={ficha.chassi} readOnly />
-              <TextField cheio mono rotulo="Renavam" inputMode="numeric" erro={erro("renavam")} {...register("renavam")} />
-              <TextField cheio rotulo="Cor" erro={erro("cor")} {...register("cor")} />
+              <TextField cheio mono rotulo="Renavam" inputMode="numeric" dica={dicaDe("renavam")} erro={erro("renavam")} {...register("renavam")} />
+              <TextField cheio rotulo="Cor" dica={dicaDe("cor")} erro={erro("cor")} {...register("cor")} />
               <TextField cheio mono rotulo="Km atual" value={km(ficha.km_atual)} readOnly dica="O km sobe pela leitura ou pela vistoria e nunca diminui" />
               <TextField cheio mono rotulo="Capacidade do tanque (litros)" inputMode="decimal" dica="Opcional. Sem ela, o combustível da devolução é informado à mão" erro={erro("capacidade_tanque_litros")} {...register("capacidade_tanque_litros")} />
             </div>
@@ -146,6 +176,8 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
               </div>
             )}
           </Panel>
+
+          <CamposDoDocumento register={register} erro={erro} dica={dicaDe} comMotorEObservacoes={comMotorEObservacoes} />
 
           <Panel titulo="Uso na frota">
             <div className="grid gap-4 md:grid-cols-2">

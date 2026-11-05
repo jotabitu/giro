@@ -276,6 +276,9 @@ def semear() -> Resultado:
                         criado.append("locações")
             else:
                 existente.append("frota")
+                with transaction.atomic():
+                    if frota.garantir_dados_do_crlv():
+                        criado.append("dados do CRLV-e do QXA-4B21")
             _configuracao(criado)
             if not Caixa.objects.exists():
                 with transaction.atomic():

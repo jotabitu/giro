@@ -3,6 +3,10 @@
 import { pausa, perfilAtualFalso } from "./falso";
 import {
   type CategoriaVeiculo,
+  type CombustivelDoVeiculo,
+  type DocumentoDoVeiculo,
+  type LeituraCrlvNoEditar,
+  type RastreadorDoVeiculo,
   type LeituraCrlv,
   type ModeloDoCatalogo,
   type DocumentoVeiculo,
@@ -70,10 +74,22 @@ type Semente = {
   compraCentavos?: number | null;
   dataCompra?: string | null;
   entrouEm?: string;
+  // VEI-09: o documento guarda tudo; `blocosDoDocumento` tira o motor e as observações de quem não os vê.
+  combustivel?: CombustivelDoVeiculo | null;
+  documento?: DocumentoDoVeiculo;
+  rastreador?: RastreadorDoVeiculo;
+  anotacoes?: string | null;
 };
 
+const DOCUMENTO_VAZIO: DocumentoDoVeiculo = { potencia_cv: null, cilindrada_cc: null, especie: null, tipo: null, carroceria: null, lotacao: null, peso_bruto_kg: null, numero_motor: null, observacoes: null };
+
 const SEMENTES: Semente[] = [
-  { id: 501, placa: "QXA4B21", marca: "Honda", modelo: "CG 160 Fan", ano: 2023, cor: "vermelha", tipo: "moto", categoria: "Street 150–160", status: "alugado", km: 18950, diaria: 5490, semanal: 32900, proximaKm: 19900, servico: "Troca de óleo", locacao: { codigo: "LOC-2841", cliente: "Carlos Menezes", fim: "2026-10-28", atrasada: false }, chassi: "9C2KC2210PR004401" },
+  { id: 501, placa: "QXA4B21", marca: "Honda", modelo: "CG 160 Fan", ano: 2023, cor: "vermelha", tipo: "moto", categoria: "Street 150–160", status: "alugado", km: 18950, diaria: 5490, semanal: 32900, proximaKm: 19900, servico: "Troca de óleo", locacao: { codigo: "LOC-2841", cliente: "Carlos Menezes", fim: "2026-10-28", atrasada: false }, chassi: "9C2KC2210PR004401",
+    // Caso "Dados do CRLV-e do QXA-4B21" das regras (VEI-09).
+    combustivel: "flex",
+    documento: { potencia_cv: 15, cilindrada_cc: 162, especie: "passageiro", tipo: "Motocicleta", carroceria: null, lotacao: 2, peso_bruto_kg: 290, numero_motor: "KC22E1P004401", observacoes: "ALIENACAO FIDUCIARIA" },
+    rastreador: { numero: "356938035643809", empresa: "Rastreia Fácil" },
+    anotacoes: "Risco no tanque, lado esquerdo" },
   { id: 502, placa: "PNB7C04", marca: "Yamaha", modelo: "Factor 150", ano: 2023, cor: "preta", tipo: "moto", categoria: "Street 150–160", status: "alugado", km: 21870, diaria: 5490, semanal: 32900, proximaKm: 25000, locacao: { codigo: "LOC-2843", cliente: "Juliana Rocha", fim: "2026-10-07" }, chassi: "9C6RG3110PR003302" },
   { id: 503, placa: "ROE2A88", marca: "Fiat", modelo: "Mobi Like", ano: 2023, cor: "branco", tipo: "carro", categoria: "Compacto", status: "alugado", km: 38405, diaria: 11900, semanal: 69900, proximaKm: 40000, locacao: { codigo: "LOC-2846", cliente: "Pedro Alencar", fim: "2026-10-08" }, chassi: "9BD341A5JPY887120" },
   { id: 504, placa: "SAK1D39", marca: "Honda", modelo: "CG 160 Fan", ano: 2025, cor: "vermelha", tipo: "moto", categoria: "Street 150–160", status: "disponivel", km: 3120, diaria: 5490, semanal: 32900, proximaKm: 5000, chassi: "9C2KC2210RR004417" },
@@ -110,6 +126,17 @@ function semValores<T extends Veiculo>(v: T): T {
 
 function montar(s: Semente): Veiculo {
   return semValores(montarCompleto(s));
+}
+
+/** VEI-09: `numero_motor` e `observacoes` só para administrador e gerente; para os outros as chaves vêm ausentes (CA-421-12). */
+function blocosDoDocumento(s: Semente): Pick<VeiculoDetalhe, "combustivel" | "documento" | "rastreador" | "anotacoes"> {
+  const { numero_motor, observacoes, ...aberto } = { ...DOCUMENTO_VAZIO, ...s.documento };
+  return {
+    combustivel: s.combustivel ?? null,
+    documento: podeEditar() ? { ...aberto, numero_motor, observacoes } : aberto,
+    rastreador: s.rastreador ?? { numero: null, empresa: null },
+    anotacoes: s.anotacoes ?? null,
+  };
 }
 
 function montarCompleto(s: Semente): Veiculo {
@@ -171,6 +198,63 @@ function normalizar(t: string): string {
   return t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
+type CorpoVei09 = { combustivel?: CombustivelDoVeiculo | null; documento?: Partial<Record<keyof DocumentoDoVeiculo, unknown>>; rastreador?: { numero?: unknown; empresa?: unknown }; anotacoes?: string | null };
+
+/** VEI-09: formatos e mensagens do contrato (docs/api/veiculos.md), com a chave pontuada no erro 400. */
+function validarVei09(v: CorpoVei09): Record<string, string> {
+  const erros: Record<string, string> = {};
+  const inteiro = (chave: string, valor: unknown, min: number, max: number, mensagem: string) => {
+    if (valor === undefined || valor === null || valor === "") return;
+    if (typeof valor !== "number" || !Number.isInteger(valor) || valor < min || valor > max) erros[chave] = mensagem;
+  };
+  const texto = (chave: string, valor: unknown, max: number, mensagem = `Use até ${max} caracteres.`, so?: RegExp) => {
+    if (valor === undefined || valor === null) return;
+    const t = String(valor).trim();
+    if (t.length > max || (so && t && !so.test(t))) erros[chave] = mensagem;
+  };
+  const d = v.documento ?? {};
+  inteiro("documento.potencia_cv", d.potencia_cv, 1, 999, "Informe a potência em cv, de 1 a 999.");
+  inteiro("documento.cilindrada_cc", d.cilindrada_cc, 1, 9999, "Informe a cilindrada em cc, de 1 a 9999.");
+  inteiro("documento.lotacao", d.lotacao, 1, 99, "Informe a lotação em pessoas, de 1 a 99.");
+  inteiro("documento.peso_bruto_kg", d.peso_bruto_kg, 1, 99999, "Informe o peso bruto em kg.");
+  if (d.especie && !["passageiro", "carga", "misto", "competicao", "tracao", "especial", "colecao"].includes(String(d.especie))) erros["documento.especie"] = "Escolha a espécie da lista.";
+  texto("documento.tipo", d.tipo, 30);
+  texto("documento.carroceria", d.carroceria, 30);
+  texto("documento.numero_motor", d.numero_motor, 21, "Use só letras e números, até 21.", /^[A-Za-z0-9]+$/);
+  texto("documento.observacoes", d.observacoes, 500);
+  texto("rastreador.numero", v.rastreador?.numero, 20, "Use só letras e números, até 20.", /^[A-Za-z0-9]+$/);
+  texto("rastreador.empresa", v.rastreador?.empresa, 60);
+  texto("anotacoes", v.anotacoes, 500);
+  return erros;
+}
+
+const vazioParaNulo = <T>(valor: T): T | null => (valor === "" || valor === undefined ? null : valor);
+
+/** Chave enviada substitui, ausente não muda, `null` e `""` apagam (VEI-09). */
+function gravarVei09(s: Semente, v: CorpoVei09): void {
+  if (v.combustivel !== undefined) s.combustivel = v.combustivel || null;
+  if (v.documento) {
+    const atual = { ...DOCUMENTO_VAZIO, ...s.documento };
+    for (const [chave, valor] of Object.entries(v.documento)) {
+      const texto = typeof valor === "string" ? valor.trim() : valor;
+      (atual as Record<string, unknown>)[chave] = chave === "numero_motor" && typeof texto === "string" ? vazioParaNulo(texto.toUpperCase()) : vazioParaNulo(texto);
+    }
+    s.documento = atual;
+  }
+  if (v.rastreador) {
+    const atual = { numero: null, empresa: null, ...s.rastreador };
+    if (v.rastreador.numero !== undefined) atual.numero = vazioParaNulo(String(v.rastreador.numero ?? "").trim().toUpperCase()) as string | null;
+    if (v.rastreador.empresa !== undefined) atual.empresa = vazioParaNulo(String(v.rastreador.empresa ?? "").trim()) as string | null;
+    s.rastreador = atual;
+  }
+  if (v.anotacoes !== undefined) s.anotacoes = vazioParaNulo(v.anotacoes?.trim() ?? null);
+}
+
+/** Campos que o CRLV-e de exemplo (crlv-tbc5h21.pdf) traz além dos 9 de antes: 16 no total (CA-421-01). */
+const CAMPOS_DO_TBC5H21 = { "documento.potencia_cv": 8, "documento.cilindrada_cc": 109, "documento.especie": "passageiro", "documento.tipo": "Motocicleta", "documento.carroceria": null, "documento.lotacao": 2, "documento.peso_bruto_kg": 240, "documento.numero_motor": "JC75E1S123456", "documento.observacoes": null } as const;
+const CAMPOS_DA_VEI_09_VAZIOS = { "documento.potencia_cv": null, "documento.cilindrada_cc": null, "documento.especie": null, "documento.tipo": null, "documento.carroceria": null, "documento.lotacao": null, "documento.peso_bruto_kg": null, "documento.numero_motor": null, "documento.observacoes": null } as const;
+const lidosDe = (campos: Record<string, unknown>) => Object.keys(campos).filter((k) => campos[k] !== null);
+
 const PLACA = /^[A-Z]{3}\d{4}$|^[A-Z]{3}\d[A-Z]\d{2}$/;
 const CHASSI = /^[A-Z0-9]{17}$/;
 
@@ -228,6 +312,7 @@ export const veiculosFalso = {
     if (!categoria) campos.categoria_id = "Escolha a categoria";
     else if (categoria.filial && categoria.filial.id !== v.filial_id) campos.categoria_id = "Esta categoria é de outra filial";
     if (v.renavam && !/^\d{9,11}$/.test(v.renavam)) campos.renavam = "Renavam deve ter de 9 a 11 números";
+    Object.assign(campos, validarVei09(v));
     if (Object.keys(campos).length > 0 || !categoria) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, campos);
     // Qualquer estado conta, inclusive vendido e baixado (VEI-01); o seed não tem esses dois.
     const mesma = SEMENTES.find((s) => s.placa === placa);
@@ -259,6 +344,7 @@ export const veiculosFalso = {
       dataCompra: v.data_compra ?? null,
       entrouEm: v.entrou_na_frota_em ?? new Date().toISOString().slice(0, 10),
     };
+    gravarVei09(s, v);
     SEMENTES.push(s);
     return veiculosFalso.obter(s.id);
   },
@@ -273,7 +359,7 @@ export const veiculosFalso = {
     if (/cruze/i.test(arquivo.name))
       return {
         documento: "crlv",
-        campos: { placa: "RAB1C23", chassi: "9BGKS48B0PG123456", renavam: "01234567891", marca: "GM - Chevrolet", modelo: null, ano_fabricacao: 2023, ano_modelo: 2023, cor: "prata", combustivel: "flex" },
+        campos: { placa: "RAB1C23", chassi: "9BGKS48B0PG123456", renavam: "01234567891", marca: "GM - Chevrolet", modelo: null, ano_fabricacao: 2023, ano_modelo: 2023, cor: "prata", combustivel: "flex", ...CAMPOS_DA_VEI_09_VAZIOS },
         lidos: ["placa", "chassi", "renavam", "marca", "ano_fabricacao", "ano_modelo", "cor", "combustivel"],
         quantidade: 8,
         rotulo: "CRLV-e lido · 8 campos preenchidos",
@@ -288,16 +374,28 @@ export const veiculosFalso = {
         },
         leitura: "comprovante-do-cruze",
       };
-    return {
-      documento: "crlv",
-      campos: { placa: "TBC5H21", chassi: "9C2JC7500TR012345", renavam: "01234567890", marca: "Honda", modelo: "Pop 110i ES", ano_fabricacao: 2026, ano_modelo: 2026, cor: "vermelha", combustivel: "gasolina" },
-      lidos: ["placa", "chassi", "renavam", "marca", "modelo", "ano_fabricacao", "ano_modelo", "cor", "combustivel"],
-      quantidade: 9,
-      rotulo: "CRLV-e lido · 9 campos preenchidos",
-      exercicio: 2026,
-      dicas: { marca_modelo: null, candidatos: [] },
-      leitura: "comprovante-de-exemplo",
-    };
+    // CA-421-01: os 9 de antes e os 7 da VEI-09 que o documento traz; carroceria e observações vazias ficam fora da conta.
+    const campos = { placa: "TBC5H21", chassi: "9C2JC7500TR012345", renavam: "01234567890", marca: "Honda", modelo: "Pop 110i ES", ano_fabricacao: 2026, ano_modelo: 2026, cor: "vermelha", combustivel: "gasolina", ...CAMPOS_DO_TBC5H21 } as LeituraCrlv["campos"];
+    const lidos = lidosDe(campos);
+    return { documento: "crlv", campos, lidos, quantidade: lidos.length, rotulo: `CRLV-e lido · ${lidos.length} campos preenchidos`, exercicio: 2026, dicas: { marca_modelo: null, candidatos: [] }, leitura: "comprovante-de-exemplo" };
+  },
+
+  /**
+   * POST /api/veiculos/{id}/leitura-crlv/ (VEI-08, T-421): lê como o cadastro, sem placa e chassi, e confere que o documento é deste veículo.
+   * O arquivo `crlv-<placa>.pdf` diz de quem é o documento; o falso lê o de exemplo do PNB-7C04 e recusa o de outra placa.
+   */
+  async lerCrlvDoVeiculo(id: number, arquivo: File): Promise<LeituraCrlvNoEditar> {
+    await pausa(400);
+    if (!podeEditar()) throw new ErroApi(403, "permissao", "Você não tem permissão para editar veículos");
+    const s = SEMENTES.find((x) => x.id === id);
+    if (!s) throw new ErroApi(404, "nao_encontrado", "Veículo não encontrado");
+    if (!/.pdf$/i.test(arquivo.name)) throw new ErroApi(400, "validacao", "Confira o arquivo", undefined, { arquivo: "Envie o PDF do CRLV-e." });
+    const dono = /crlv-([a-z]{3}\d[a-z0-9]\d{2})/i.exec(arquivo.name)?.[1]?.toUpperCase();
+    if (!dono) throw new ErroApi(422, "VEI-08", "Não conseguimos ler este documento. Preencha os campos à mão.");
+    if (dono !== s.placa) throw new ErroApi(422, "crlv_outro_veiculo", "Este CRLV-e é de outro veículo.");
+    const campos = { renavam: "01289934410", marca: s.marca, modelo: s.modelo, ano_fabricacao: s.anoFabricacao ?? s.ano, ano_modelo: s.ano, cor: s.cor, combustivel: "flex", ...CAMPOS_DA_VEI_09_VAZIOS, "documento.potencia_cv": 12, "documento.cilindrada_cc": 149, "documento.especie": "passageiro", "documento.tipo": "Motocicleta", "documento.lotacao": 2, "documento.peso_bruto_kg": 270 } as LeituraCrlvNoEditar["campos"];
+    const lidos = lidosDe(campos);
+    return { documento: "crlv", campos, lidos, quantidade: lidos.length, rotulo: `CRLV-e lido · ${lidos.length} campos preenchidos`, exercicio: 2026, dicas: { marca_modelo: null, candidatos: [] }, leitura: `comprovante-do-veiculo-${id}` };
   },
 
   /** GET /api/veiculos/modelos/: o catálogo local. */
@@ -352,7 +450,9 @@ export const veiculosFalso = {
       else if (categoria.tipo_veiculo !== s.tipo) campos.categoria_id = "Esta categoria é de outro tipo de veículo";
       else if (categoria.filial && categoria.filial.id !== (s.filialId ?? 1)) campos.categoria_id = "Esta categoria é de outra filial";
     }
+    Object.assign(campos, validarVei09(v));
     if (Object.keys(campos).length > 0) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, campos);
+    gravarVei09(s, v);
     if (v.marca !== undefined) s.marca = v.marca.trim();
     if (v.modelo !== undefined) s.modelo = v.modelo.trim();
     if (v.ano_fabricacao !== undefined) s.anoFabricacao = v.ano_fabricacao;
@@ -416,6 +516,7 @@ export const veiculosFalso = {
     const financeiro = perfilAtualFalso() !== "vendedor" && perfilAtualFalso() !== "vistoriador";
     const detalhe: VeiculoDetalhe = {
       ...v,
+      ...blocosDoDocumento(s),
       // T-156, USR-09: vendedor e vistoriador recebem a ficha sem a chave (ausente, não `null`).
       ...(financeiro ? { indicadores_financeiros: { rendeu_no_ano_centavos: 987000, custo_manutencao_ano_centavos: 35300 } } : {}),
       ocupacao: { pct: "86.00", periodo_dias: 90 },

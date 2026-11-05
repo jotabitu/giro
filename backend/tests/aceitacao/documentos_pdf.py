@@ -88,6 +88,17 @@ class Crlv:
     cor: str = "VERMELHA"
     combustivel: str = "GASOLINA"
     exercicio: str = "2026"
+    # T-421 (VEI-09): o `crlv-tbc5h21.pdf` de docs/qa/criterios/T-421.md.
+    potencia_cilindrada: str = "8CV/0109"
+    especie_tipo: str = "PASSAGEIRO MOTOCICLETA"
+    carroceria: str = "NÃO APLICAVEL"
+    lotacao: str = "02P"
+    peso_bruto: str = "0,24"
+    motor: str = "JC75E1S123456"
+    observacoes: str = ""  # uma linha por "\n"; vazio sai como asteriscos
+
+    def linhas_das_observacoes(self) -> list[str]:
+        return self.observacoes.split("\n") if self.observacoes else ["*****"]
 
     def textos(self) -> list[tuple[float, float, str]]:
         # Três colunas (x = 40, 220 e 400), rótulo e valor 12 pontos abaixo.
@@ -99,19 +110,32 @@ class Crlv:
             (220, 740, "ANO MODELO", self.ano_modelo),
             (400, 740, "NÚMERO DO CRV", "123456789012"),
             (40, 700, "MARCA / MODELO / VERSÃO", self.marca_modelo),
-            (40, 660, "ESPÉCIE / TIPO", "PASSAGEIRO MOTOCICLETA"),
+            (400, 700, "CATEGORIA", "PARTICULAR"),
+            (40, 660, "ESPÉCIE / TIPO", self.especie_tipo),
             (220, 660, "PLACA ANTERIOR / UF", "*******/CE"),
+            (400, 660, "CAPACIDADE", "*.*"),
             (40, 620, "CHASSI", self.chassi),
+            (400, 620, "CMT", "0.1"),
             (40, 580, "COR PREDOMINANTE", self.cor),
             (220, 580, "COMBUSTÍVEL", self.combustivel),
+            (400, 580, "EIXOS", "2"),
             (40, 540, "NOME", PROPRIETARIO),
             (40, 500, "CPF / CNPJ", CPF_PROPRIETARIO),
             (40, 460, "LOCAL", "FORTALEZA CE"),
             (220, 460, "DATA", "07/10/2026"),
+            (40, 420, "POTÊNCIA/CILINDRADA", self.potencia_cilindrada),
+            (220, 420, "PESO BRUTO TOTAL", self.peso_bruto),
+            (400, 420, "LOTAÇÃO", self.lotacao),
+            (40, 380, "MOTOR", self.motor),
+            (220, 380, "CARROCERIA", self.carroceria),
         ]
         textos = [(40.0, 815.0, "REPÚBLICA FEDERATIVA DO BRASIL · CRLV DIGITAL")]
         for x, y, rotulo, valor in blocos:
             textos += [(float(x), float(y), rotulo), (float(x), float(y - 12), valor)]
+        textos.append((40.0, 340.0, "OBSERVAÇÕES DO VEÍCULO"))
+        for i, linha in enumerate(self.linhas_das_observacoes()):
+            textos.append((40.0, 328.0 - 12 * i, linha))
+        textos.append((40.0, 240.0, "MENSAGENS SENATRAN"))
         return textos
 
     def pdf(self) -> bytes:
@@ -150,8 +174,8 @@ class CrlvDetran(Crlv):
             valor(31.1, 733.0, self.renavam),
             rotulo(316.7, 734.4, "POTÊNCIA/CILINDRADA"),
             rotulo(510.3, 734.4, "PESO BRUTO TOTAL"),
-            valor(316.2, 720.7, "110CC/0110"),
-            valor(509.7, 720.7, "0.1"),
+            valor(316.2, 720.7, self.potencia_cilindrada),
+            valor(509.7, 720.7, self.peso_bruto),
             rotulo(31.0, 720.4, "PLACA"),
             rotulo(144.6, 720.4, "EXERCÍCIO"),
             valor(31.1, 706.8, self.placa),
@@ -161,16 +185,16 @@ class CrlvDetran(Crlv):
             rotulo(490.0, 708.2, "EIXOS"),
             rotulo(528.0, 708.2, "LOTAÇÃO"),
             rotulo(202.9, 698.6, "QRCode"),
-            valor(316.2, 694.4, "HA12E1234567"),
+            valor(316.2, 694.4, self.motor),
             valor(453.5, 694.4, "0.1"),
             valor(504.4, 694.4, "*"),
-            valor(538.4, 694.4, "02P"),
+            valor(538.4, 694.4, self.lotacao),
             rotulo(31.0, 694.2, "ANO FABRICAÇÃO"),
             rotulo(102.7, 694.2, "ANO MODELO"),
             rotulo(316.7, 681.9, "CARROCERIA"),
             valor(31.1, 680.5, self.ano_fabricacao),
             valor(102.6, 680.5, self.ano_modelo),
-            valor(316.2, 668.2, "NÃO APLICAVEL"),
+            valor(316.2, 668.2, self.carroceria),
             rotulo(31.0, 668.0, "NÚMERO DO CRV"),
             rotulo(316.7, 655.7, "NOME"),
             valor(31.1, 654.2, "***"),
@@ -198,7 +222,7 @@ class CrlvDetran(Crlv):
             rotulo(530.0, 519.2, "PARCELADO"),
             valor(316.2, 512.7, "*"),
             valor(389.0, 512.7, "*"),
-            valor(31.1, 506.2, "PASSAGEIRO MOTOCICLETA"),
+            valor(31.1, 506.2, self.especie_tipo),
             rotulo(316.7, 498.8, "REPASSE OBRIGATÓRIO AO"),
             rotulo(422.8, 498.8, "CUSTO DO"),
             rotulo(495.8, 498.8, "CUSTO EFETIVO"),
@@ -234,7 +258,10 @@ class CrlvDetran(Crlv):
             ),
             (315.2, 410.0, "INFORMAÇÕES DO SEGURO DPVAT", 1, 6.5),
             (27.6, 409.9, "OBSERVAÇÕES DO VEÍCULO", 1, 6.5),
-            valor(28.1, 391.6, "ALIENADO FIDUCIARIAMENTE"),
+            *(
+                valor(28.1, 391.6 - 11.0 * i, linha)
+                for i, linha in enumerate(self.linhas_das_observacoes())
+            ),
             (27.6, 157.0, "MENSAGENS SENATRAN", 1, 6.5),
             rotulo(32.2, 136.2, "Você Sabia?"),
             rotulo(
@@ -257,6 +284,11 @@ CRLV_DETRAN_CARRO = CrlvDetran(
     ano_modelo="2019",
     cor="BRANCA",
     combustivel="ALCOOL/GASOLINA",
+    potencia_cilindrada="75CV/0999",
+    especie_tipo="PASSAGEIRO AUTOMOVEL",
+    lotacao="05P",
+    peso_bruto="1,40",
+    motor="552440012345",
 )
 
 
@@ -270,6 +302,44 @@ CRLV_QXA4B21 = Crlv(
     ano_modelo="2023",
     cor="PRETA",
     combustivel="ALCOOL/GASOLINA",
+    # A linha "Dados do CRLV-e do QXA-4B21" das regras (VEI-09).
+    potencia_cilindrada="15CV/0162",
+    lotacao="02P",
+    peso_bruto="0,29",
+    motor="KC22E1P004401",
+    observacoes="ALIENACAO FIDUCIARIA",
+)
+# Os PDFs de docs/qa/criterios/T-421.md (VEI-09), no leiaute simples.
+CRLV_ALIENADO = replace(
+    CRLV_TBC5H21, observacoes="ALIENACAO FIDUCIARIA", potencia_cilindrada="0CV/0109"
+)
+CRLV_PNB7C04 = Crlv(
+    placa="PNB7C04",
+    chassi="9C6RG3110PR003302",
+    renavam="00987654330",
+    marca_modelo="YAMAHA/FACTOR 150",
+    ano_fabricacao="2023",
+    ano_modelo="2023",
+    cor="PRETA",
+    combustivel="GASOLINA",
+    potencia_cilindrada="12CV/0149",
+    peso_bruto="0,27",
+    motor="E3V1E0012345",
+)
+CRLV_CARRO = Crlv(
+    placa="XYZ1234",
+    chassi="9BD341A5XKY123456",
+    renavam="00123456789",
+    marca_modelo="FIAT/MOBI LIKE",
+    ano_fabricacao="2019",
+    ano_modelo="2019",
+    cor="BRANCA",
+    combustivel="ALCOOL/GASOLINA",
+    potencia_cilindrada="75CV/0999",
+    especie_tipo="PASSAGEIRO AUTOMOVEL",
+    lotacao="05P",
+    peso_bruto="1,40",
+    motor="552440012345",
 )
 CRLV_FORA_DA_LISTA = replace(CRLV_TBC5H21, marca_modelo="SUZUKI/YES 125")
 

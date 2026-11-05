@@ -141,7 +141,8 @@ describe("ficha do veículo, perfis sem financeiro nem edição", () => {
     expect(celular.match(/class="wl-kpi[ "]/g)).toHaveLength(1);
     expect(celular).toContain("grid-cols-1");
     expect(celular).not.toContain("grid-cols-2 gap-2 [&_.wl-kpi]");
-    for (const h of [desktop, celular]) expect(texto(h)).not.toMatch(/Rendeu no ano|Custo de manutenção|—/);
+    // O "—" da VEI-09 (campo vazio no bloco "Dados do documento") é legítimo; o que não existe é cartão de indicador vazio.
+    for (const h of [desktop, celular]) expect(texto(h)).not.toMatch(/Rendeu no ano|Custo de manutenção/);
   });
 
   it("t_156_gerente_com_a_chave_mostra_os_quatro_cartoes_no_desktop_e_dois_no_celular", async () => {
@@ -151,6 +152,45 @@ describe("ficha do veículo, perfis sem financeiro nem edição", () => {
     expect(desktop.match(/class="wl-kpi[ "]/g)).toHaveLength(4);
     expect(desktop).not.toContain("style=\"grid-template-columns");
     expect(celular.match(/class="wl-kpi[ "]/g)).toHaveLength(2);
+  });
+});
+
+describe("ficha do veículo, dados do documento, rastreador e anotações (VEI-09, T-421)", () => {
+  it("test_vei_09_ficha_do_qxa4b21_para_o_gerente_nos_dois_tamanhos (CA-421-11)", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    const { desktop, celular } = await pagina(501);
+    for (const h of [desktop, celular]) {
+      const t = texto(h);
+      ordem(t, ["Dados do documento", "Combustível|Flex", "Potência|15 cv", "Cilindrada|162 cc", "Espécie e tipo|Passageiro · Motocicleta", "Carroceria|—", "Lotação|2 pessoas", "Peso bruto total|290 kg", "Número do motor|KC22E1P004401", "Observações do CRLV-e|ALIENACAO FIDUCIARIA", "Rastreador|356938035643809| · Rastreia Fácil", "Anotações|Risco no tanque, lado esquerdo"]);
+    }
+  });
+
+  it("test_vei_09_motor_e_observacoes_so_para_administrador_e_gerente_sem_espaco (CA-421-12)", async () => {
+    for (const email of ["bruna@motorapida.com.br", "financeiro@motorapida.com.br"]) {
+      await entrarComo(email);
+      const ficha = await veiculos.obter(501);
+      expect("numero_motor" in ficha.documento).toBe(false);
+      expect("observacoes" in ficha.documento).toBe(false);
+      const { desktop, celular } = await pagina(501);
+      for (const h of [desktop, celular]) {
+        const t = texto(h);
+        expect(t).not.toContain("Número do motor");
+        expect(t).not.toContain("KC22E1P004401");
+        expect(t).not.toContain("Observações do CRLV-e");
+        expect(t).not.toContain("ALIENACAO");
+        // O resto do CA-421-11 segue na ficha, sem linha vazia no lugar das duas.
+        ordem(t, ["Peso bruto total|290 kg", "Rastreador|356938035643809", "Anotações|Risco no tanque"]);
+      }
+    }
+  });
+
+  it("test_vei_09_veiculo_antigo_mostra_traco_sem_erro (CA-421-14)", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    const { desktop, celular } = await pagina(502);
+    for (const h of [desktop, celular]) {
+      const t = texto(h);
+      for (const rotulo of ["Combustível", "Potência", "Cilindrada", "Espécie e tipo", "Carroceria", "Lotação", "Peso bruto total", "Número do motor", "Observações do CRLV-e", "Rastreador", "Anotações"]) expect(t, rotulo).toContain(`${rotulo}|—`);
+    }
   });
 });
 
