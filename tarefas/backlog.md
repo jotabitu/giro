@@ -368,6 +368,28 @@ Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a
 ### T-378 · Completo fora da venda (`PLT-11`)
 - **Agente:** backend · **Fase:** 2, com a produção (decisão do dono de 28 out 2026: na fase 1 ninguém compra plano) · **Pronto quando:** o plano ganha o campo próprio "à venda" (migração), e o Completo nasce fora; Mudar de plano e Comparar planos não o listam; a API recusa a mudança para ele com "O plano Completo ainda não está à venda."; teste com o código da regra no nome. Junto, a resposta do dono sobre o preço e os limites do Profissional ("Pontos em aberto" das regras).
 
+### T-430 · Contrato da compra pública (feita, aguardando merge)
+- **Agente:** arquiteto · **Regras:** PLT-01, PLT-11, PLT-13, PLT-16, USR-01, IMP-06 · **Contrato:** `docs/api/compra.md` · Handoff: `tarefas/handoffs/T-430-arquiteto.md`. Liberada pelo dono em 03 nov 2026.
+- **Decidido pelo dono em 03 nov 2026** ("Aprovo os padrões"): D-430-01 código no e-mail antes de criar; D-430-02 campo "Endereço de acesso" no checkout, sugerido e editável; D-430-03 sem consulta à Receita, a pessoa digita razão social, cidade e UF; D-430-04 a checagem do CNPJ responde, com 20 por hora por IP; D-430-06 o link do convite abre uma vez na `Compra-Pronto`; D-430-08 teto de 50 empresas por dia; D-430-09 sem captcha por agora; D-430-10 "Entrar" sai da `Compra-Planos`; D-430-11 "Tamanho da frota" sai do checkout.
+- **[decisão] aberta** D-430-05: textos dos Termos de uso e do Acordo de tratamento de dados. Não bloqueia a T-432 nem a T-433, mas a compra não entra no ar sem eles.
+- **[divergência]** D-430-07: a `Compra-Pronto` diz 48 horas; vale a `USR-01` (7 dias). O design-system corrige na T-434.
+
+### T-431 · Revisão da segurança do contrato da compra pública
+- **Agente:** seguranca · **Depende de:** T-430 · **Regras:** PLT-16, USR-01, AUD (auditoria no `public`) · **Contrato:** `docs/api/compra.md`
+- **Pronto quando:** relatório em `docs/seguranca/` sobre as rotas anônimas: limites por IP, e-mail e CNPJ, código do e-mail (tamanho, prazo, tentativas, comparação), enumeração de CNPJ e de subdomínio (D-430-04), link do convite na `Compra-Pronto` (D-430-06), teto diário (D-430-08), IP atrás do proxy (ADR 0033), dados pessoais do pedido não confirmado e o que vai para log e Sentry; achados com gravidade e o arquiteto ajusta o contrato antes da T-432.
+
+### T-432 · Backend da compra pública
+- **Agente:** backend · **Depende de:** T-431, T-378 (ou o filtro provisório do Completo descrito no contrato), decisões do dono de 03 nov 2026 (D-430) · **Regras:** PLT-01, PLT-11, PLT-13, PLT-16, USR-01, IMP-06 · **Contrato:** `docs/api/compra.md`
+- **Pronto quando:** `PedidoCompra` com migração no `public`; as 7 rotas em `/api/publico/compra/` só no domínio principal; serviços com auditoria; `executar_pedido_compra` no Celery chamando `criar_empresa` (com `origem` e o andamento); `expirar_pedidos_compra` diária; limites e teto da tabela; os testes listados no contrato, com o código da regra no nome; OpenAPI gerado e `npm run api:gerar` sem quebrar o frontend.
+
+### T-434 · Ajuste das telas da compra pública
+- **Agente:** design-system · **Depende de:** T-430 · **Regras:** PLT-11, PLT-16, USR-01 · **Telas:** Compra-Planos, Compra-Checkout, Compra-Pronto (desktop e celular) · **Contrato:** `docs/api/compra.md`, "Ajustes das telas"
+- **Pronto quando:** `Compra-Planos` sem o Completo, com o texto da fase 1 do Profissional e sem o "Entrar" (D-430-10); `Compra-Checkout` com o campo "Endereço de acesso" (D-430-02), razão social, cidade e UF digitados no lugar da frase "CNPJ ativo" (D-430-03), sem "Tamanho da frota hoje" (D-430-11) e com o passo do código de 6 dígitos e "Reenviar código"; `Compra-Pronto` com "O link vale por 7 dias." (D-430-07); nota de mudança no `docs/telas/README.md`.
+
+### T-433 · Frontend da compra pública
+- **Agente:** frontend · **Depende de:** T-432 e T-434 · **Regras:** PLT-01, PLT-11, PLT-16, USR-01 · **Telas:** Compra-Planos, Compra-Checkout, Compra-Pronto (desktop e celular)
+- **Pronto quando:** rota `(publico)/compra` com as 3 telas a 1440 e 390 px pelo cliente tipado; mensal e anual, checagem do CNPJ e do endereço enquanto digita, passo do código com reenviar, andamento da `Compra-Pronto` consultando a cada 2 s; textos e valores só da API; a chave do pedido nunca na URL; sem campo de cartão (ADR 0023); conferência lado a lado (`npm run conferencia`) anexada ao handoff; E2E do caminho feliz com o seed.
+
 ### Telas novas do painel da plataforma (T-409)
 - **Origem:** 48 telas `Plat-*` vindas do canvas em 28 out 2026, listadas em `docs/telas/README.md`, "Painel da plataforma: telas da fase 2". Sem contrato nem tarefa.
 - **Decidido pelo dono em 30 out 2026:** Financeiro, Despesas e Configurações da plataforma não têm regra em `docs/regras-de-negocio.md`, mas ficam na fase 2. O produto escreve as regras a partir das telas e leva as dúvidas ao dono.
