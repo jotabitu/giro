@@ -210,6 +210,13 @@ REST_FRAMEWORK = {
         # Copiar link do convite (USR-01, T-249).
         "link_convite_convidado": "5/hour",
         "link_convite_administrador": "20/hour",
+        # Copiar link para assinar e link do recibo; página pública do recibo (T-411).
+        "link_contrato_contrato": "5/hour",
+        "link_contrato_usuario": "20/hour",
+        "link_recibo_devolucao": "5/hour",
+        "link_recibo_usuario": "20/hour",
+        "recibo_publico_ip": "10/min",
+        "recibo_publico_token": "20/min",
         # Leitura do CRLV-e e da CNH-e em PDF, somadas (ADR 0026, item 6).
         "leitura_documento_usuario": "30/hour",
         "leitura_documento_empresa": "200/hour",

@@ -83,6 +83,9 @@ class CartaoGuardado:
     token: str = field(repr=False)
     bandeira: str  # visa | mastercard | elo | amex | hipercard | ... (minúsculas)
     final: str
+    # Nome impresso no cartão, quando o parceiro devolve (B-01 da T-411). O Asaas não manda na
+    # cobrança paga: fica vazio e o evento sai sem ele.
+    titular: str = field(default="", repr=False)
 
 
 @dataclass(frozen=True)

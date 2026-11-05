@@ -5,6 +5,7 @@ Recebem só ids. O token é criado aqui, na hora do envio, e nunca passa pela fi
 tempo limite de 60 s (S-09); a memória do worker é limitada na infraestrutura.
 """
 
+from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -51,13 +52,22 @@ def _travar(contrato_id: int) -> Contrato | None:
     )
 
 
+def _momento(enfileirado_em: str | None) -> datetime | None:
+    return datetime.fromisoformat(enfileirado_em) if enfileirado_em else None
+
+
 @shared_task(name="contratos_preparar_e_enviar", soft_time_limit=60, time_limit=70)
 @tarefa_de_empresa
-def contratos_preparar_e_enviar(schema_name: str, contrato_id: int) -> None:
-    """Idempotente: só age em contrato `gerado`."""
+def contratos_preparar_e_enviar(
+    schema_name: str, contrato_id: int, enfileirado_em: str | None = None
+) -> None:
+    """Idempotente: só age em contrato `gerado`. Não troca um token gerado depois de entrar na
+    fila (um link copiado; B-02 da T-411): termina sem enviar e sem erro."""
     with transaction.atomic():
         contrato = _travar(contrato_id)
         if contrato is None or contrato.status != StatusContrato.GERADO:
+            return
+        if services.token_mais_novo_que(contrato, _momento(enfileirado_em)):
             return
         marca, host = _marca_e_host()
         if not contrato.pdf:
@@ -67,14 +77,19 @@ def contratos_preparar_e_enviar(schema_name: str, contrato_id: int) -> None:
 
 @shared_task(name="contratos_reenviar")
 @tarefa_de_empresa
-def contratos_reenviar(schema_name: str, contrato_id: int) -> None:
-    """Novo link para quem não assinou; o PDF assinado para quem já assinou."""
+def contratos_reenviar(
+    schema_name: str, contrato_id: int, enfileirado_em: str | None = None
+) -> None:
+    """Novo link para quem não assinou; o PDF assinado para quem já assinou. O link copiado
+    depois de a tarefa entrar na fila continua valendo (B-02 da T-411)."""
     with transaction.atomic():
         contrato = _travar(contrato_id)
         if contrato is None or contrato.status == StatusContrato.CANCELADO:
             return
         marca, host = _marca_e_host()
         if contrato.status != StatusContrato.ASSINADO:
+            if services.token_mais_novo_que(contrato, _momento(enfileirado_em)):
+                return
             _enviar_link(contrato, marca, host)
             return
         url = selectors.url_do_pdf(contrato)

@@ -417,6 +417,10 @@ def acoes(locacao: Locacao, usuario: Any, contrato: Contrato | None = None) -> d
         "reenviar_contrato": cria
         and contrato is not None
         and contrato.status in (StatusContrato.ENVIADO, StatusContrato.ASSINADO),
+        # T-411: as condições de `contrato.copiar_link`, sem o limite por hora; nunca o suporte.
+        "copiar_link_contrato": cria
+        and not getattr(usuario, "e_suporte", False)
+        and contratos_selectors.pode_copiar_link(contrato),
         "continuar_vistoria": perfil in VISTORIAM
         and locacao.status == S.AGUARDANDO_RETIRADA
         and locacao.vistoria_saida_ok_em is None,

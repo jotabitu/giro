@@ -15,6 +15,7 @@ from rest_framework.views import APIView
 from apps.contas.api.acesso import VIEWS_DE_ACESSO
 from apps.contas.api.usuarios import VIEWS_DE_CONVITE
 from apps.contratos.api.views import VIEWS_DE_ASSINATURA
+from apps.vistorias.api.views import VIEWS_DO_RECIBO_PUBLICO
 from comum.permissoes import EmpresaOperando, EscopoDeFilial
 from config import urls
 
@@ -23,12 +24,15 @@ from config import urls
 # suspensa as pessoas entram para ler e exportar, e cuidar da própria conta não é operação. O
 # convite (consultar e aceitar, T-069) também: é criar o próprio acesso. O link de assinatura
 # de contrato (S-15, T-090) é do cliente final, sem login nem filial; mantém `EmpresaOperando`.
+# A página pública do recibo (T-411) também é do cliente final e só lê: vale com a empresa
+# suspensa.
 EXCECOES: set[type[APIView]] = {
     SpectacularAPIView,
     SpectacularSwaggerView,
     *VIEWS_DE_ACESSO,
     *VIEWS_DE_CONVITE,
     *VIEWS_DE_ASSINATURA,
+    *VIEWS_DO_RECIBO_PUBLICO,
 }
 METODOS = ("get", "post", "put", "patch", "delete")
 

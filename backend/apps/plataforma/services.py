@@ -1246,7 +1246,27 @@ def _guardar_cartao(empresa: Empresa, cartao: CartaoGuardado) -> None:
     forma = FormaPagamentoAssinatura.objects.select_for_update().filter(empresa=empresa).first()
     if forma is None or forma.forma != FormaAssinatura.CARTAO:
         return
-    with auditar(forma, "assinatura.cartao_guardado", Categoria.FINANCEIRO, regra="PLT-13"):
+    anterior = forma.cartao_token_cifrado_claro() if forma.cartao_token_cifrado else ""
+    # O evento leva sempre a bandeira, o final e, quando o parceiro devolve, o titular (B-01 da
+    # T-411): aparece no histórico da assinatura.
+    titular: dict[str, str] = {}
+
+    def _cartao() -> dict[str, Any]:
+        return {
+            "cartao_bandeira": forma.cartao_bandeira,
+            "cartao_final": forma.cartao_final,
+            **titular,
+        }
+
+    with auditar(
+        forma,
+        "assinatura.cartao_guardado",
+        Categoria.FINANCEIRO,
+        regra="PLT-13",
+        extras=_cartao,
+    ):
+        if cartao.titular:
+            titular["cartao_titular"] = cartao.titular[:120]
         forma.definir_cartao_token_cifrado(cartao.token)
         forma.cartao_bandeira = cartao.bandeira[:20]
         forma.cartao_final = cartao.final[-4:]
@@ -1262,6 +1282,36 @@ def _guardar_cartao(empresa: Empresa, cartao: CartaoGuardado) -> None:
         transicionar(
             forma, StatusFormaPagamento.ATIVA, acao="assinatura.forma_ativa", regra="PLT-13"
         )
+    if anterior and anterior != cartao.token:
+        _avisar_cartao_trocado(empresa, forma.cartao_bandeira, forma.cartao_final)
+
+
+# Texto a confirmar com o produto (B-01 da T-411, `assinatura.md`).
+ASSUNTO_CARTAO_TROCADO = "Giro: o cartão das próximas faturas mudou"
+TEXTO_CARTAO_TROCADO = (
+    "Giro: o cartão das próximas faturas mudou para {bandeira} final {final}. Se não foi você, "
+    "troque a forma de pagamento em Assinatura."
+)
+
+
+def _avisar_cartao_trocado(empresa: Empresa, bandeira: str, final: str) -> None:
+    """B-01 da T-411: o cartão guardado mudou pelo pagamento na página do parceiro (um link de
+    pagamento que vazou deixaria um terceiro pôr outro cartão sem ninguém saber). O primeiro
+    cartão não avisa. O e-mail vai aos administradores ativos depois do commit, com o remetente
+    Giro; se falhar, o cartão continua guardado e o log leva só a empresa."""
+    texto = TEXTO_CARTAO_TROCADO.format(bandeira=(bandeira or "cartão").capitalize(), final=final)
+
+    def _enviar() -> None:
+        try:
+            enviar_a_cada_um(_administradores_ativos(empresa), ASSUNTO_CARTAO_TROCADO, texto)
+        except Exception as erro:
+            logger.warning(
+                "Aviso de cartão trocado da empresa %s: o e-mail falhou (%s)",
+                empresa.pk,
+                type(erro).__name__,
+            )
+
+    transaction.on_commit(_enviar)
 
 
 # --- Mudança de plano e dados fiscais (PLT-04, PLT-05, PLT-15; T-185, assinatura.md) ---

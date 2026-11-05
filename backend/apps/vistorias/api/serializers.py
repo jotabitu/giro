@@ -353,6 +353,12 @@ class AcertoSerializer(serializers.Serializer[Any]):
     forma_devolucao = serializers.CharField(allow_null=True)
 
 
+class AcoesDaDevolucaoSerializer(serializers.Serializer[Any]):
+    copiar_link_recibo = serializers.BooleanField(
+        help_text="T-411: o POST .../recibo/link/ passaria pelo perfil e pelo estado"
+    )
+
+
 class DevolucaoSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     status = serializers.CharField(help_text="rascunho, concluida")
@@ -363,8 +369,47 @@ class DevolucaoSerializer(serializers.Serializer[Any]):
     devolvida_em = serializers.DateTimeField(allow_null=True)
     concluida_em = serializers.DateTimeField(allow_null=True)
     recibo_enviado_em = serializers.DateTimeField(allow_null=True)
+    acoes = AcoesDaDevolucaoSerializer()
 
 
 class ReciboSerializer(serializers.Serializer[Any]):
     url = serializers.CharField()
     url_expira_em = serializers.DateTimeField()
+
+
+class DevolucaoDoLinkSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    status = serializers.CharField(help_text="concluida")
+    recibo_enviado_em = serializers.DateTimeField(allow_null=True)
+
+
+class LinkDoReciboSerializer(serializers.Serializer[Any]):
+    """Copiar link do recibo (T-411): o link sai só nesta resposta, com `no-store`."""
+
+    link = serializers.CharField()
+    expira_em = serializers.DateTimeField()
+    aviso = serializers.CharField()
+    devolucao = DevolucaoDoLinkSerializer()
+
+
+class TokenDoReciboSerializer(serializers.Serializer[Any]):
+    token = serializers.CharField(max_length=100)
+
+
+class EmpresaDoReciboSerializer(serializers.Serializer[Any]):
+    nome_exibicao = serializers.CharField()
+    logo_url = serializers.CharField(allow_null=True)
+    cor_marca = serializers.CharField(allow_null=True)
+
+
+class ReciboPublicoSerializer(serializers.Serializer[Any]):
+    codigo = serializers.CharField()
+    cliente_primeiro_nome = serializers.CharField()
+    concluida_em = serializers.DateTimeField(allow_null=True)
+    pdf_url = serializers.CharField()
+    pdf_url_expira_em = serializers.DateTimeField()
+
+
+class ConsultaDoReciboSerializer(serializers.Serializer[Any]):
+    empresa = EmpresaDoReciboSerializer()
+    recibo = ReciboPublicoSerializer()

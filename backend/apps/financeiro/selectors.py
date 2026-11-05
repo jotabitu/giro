@@ -23,7 +23,7 @@ from apps.empresas.models import ConfiguracaoEmpresa
 from apps.empresas.selectors import configuracao
 from apps.veiculos.selectors import frota_ativa_em
 from apps.veiculos.services import normalizar_placa
-from comum import arquivos, leituras
+from comum import arquivos, leituras, relogio
 from comum.dinheiro import aplicar_percentual, formatar_reais, juros_pro_rata
 from comum.erros import ErroDeValidacao
 
@@ -552,14 +552,22 @@ def valor_hoje(
     }
 
 
-def cobranca_aberta(conta: ContaReceber) -> dict[str, Any] | None:
-    for cobranca in conta.cobrancas.all():
-        if cobranca.status == StatusCobranca.AGUARDANDO:
-            return representacao_cobranca(cobranca)
-    return None
+def _cobranca_viva(conta: ContaReceber) -> CobrancaExterna | None:
+    viva: CobrancaExterna | None = next(
+        (c for c in conta.cobrancas.all() if c.status == StatusCobranca.AGUARDANDO), None
+    )
+    return viva
 
 
-def representacao_cobranca(cobranca: CobrancaExterna) -> dict[str, Any]:
+def cobranca_aberta(conta: ContaReceber, suporte: bool = False) -> dict[str, Any] | None:
+    cobranca = _cobranca_viva(conta)
+    return representacao_cobranca(cobranca, suporte=suporte) if cobranca is not None else None
+
+
+def representacao_cobranca(cobranca: CobrancaExterna, suporte: bool = False) -> dict[str, Any]:
+    """Com o token de suporte, `boleto_url` vem `null`: a página do boleto no parceiro mostra o
+    nome e o CPF completos do pagador (`AUD-09`, M-01 da T-411). A linha digitável e o Pix copia
+    e cola não têm dado pessoal e continuam."""
     pix = cobranca.tipo == "pix"
     return {
         "id": cobranca.pk,
@@ -569,16 +577,22 @@ def representacao_cobranca(cobranca: CobrancaExterna) -> dict[str, Any]:
         "pix_copia_e_cola": cobranca.pix_copia_e_cola or None,
         "qr_code_url": cobranca.url if pix else None,
         "linha_digitavel": cobranca.linha_digitavel or None,
-        "boleto_url": None if pix else (cobranca.url or None),
+        "boleto_url": None if pix or suporte else (cobranca.url or None),
         "status": cobranca.status,
     }
 
 
-def acoes_da_conta(conta: ContaReceber, perfil: str) -> dict[str, bool]:
+def acoes_da_conta(
+    conta: ContaReceber, perfil: str, suporte: bool = False, hoje: date | None = None
+) -> dict[str, bool]:
     aberta = conta.status == StatusConta.ABERTA
     recebe = aberta and perfil in RECEBEM
     gerencia = perfil in GERENCIAM
+    viva = _cobranca_viva(conta) if aberta and not suporte else None
     return {
+        # T-411: copiar o que a cobrança do dia já traz; não depende do perfil, menos o suporte
+        # (AUD-09). A de um dia que já passou pede outro Pix (FIN-03).
+        "copiar_cobranca": viva is not None and viva.vence_em >= (hoje or relogio.hoje()),
         "receber": recebe,
         "gerar_pix": recebe,
         "gerar_boleto": recebe,
@@ -593,7 +607,11 @@ def acoes_da_conta(conta: ContaReceber, perfil: str) -> dict[str, bool]:
 
 
 def representacao_completa(
-    conta: ContaReceber, hoje: date, perfil: str, juros: JurosDaPagina | None = None
+    conta: ContaReceber,
+    hoje: date,
+    perfil: str,
+    juros: JurosDaPagina | None = None,
+    suporte: bool = False,
 ) -> dict[str, Any]:
     """A conta da tela `Receber` (contrato de financeiro, "Representação")."""
     em_atraso = conta.status == StatusConta.ABERTA and not conta.aguarda_retirada
@@ -629,8 +647,8 @@ def representacao_completa(
         "juros_centavos": conta.juros_centavos,
         "estorno_de": conta.estorno_de_id,
         "estornada_em": conta.estornada_em,
-        "cobranca_aberta": cobranca_aberta(conta),
-        "acoes": acoes_da_conta(conta, perfil),
+        "cobranca_aberta": cobranca_aberta(conta, suporte=suporte),
+        "acoes": acoes_da_conta(conta, perfil, suporte=suporte, hoje=hoje),
     }
 
 

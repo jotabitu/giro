@@ -202,6 +202,20 @@ def exportar(empresa: Any, cliente_id: int, pedido: Pedido) -> bytes:
 # --- Anonimizar ---
 
 
+def _anular_links(cliente: Cliente) -> None:
+    """T-411 (`copiar-link.md`): os links vivos do titular deixam de abrir (404): o de assinatura
+    dos contratos não assinados e o do recibo das devoluções. Pelo registro do app, sem importar
+    os apps de cima (ADR 0011)."""
+    contrato = apps.get_model("contratos", "Contrato")
+    contrato.objects.filter(cliente=cliente, token_assinatura_hash__isnull=False).exclude(
+        status="assinado"
+    ).update(token_assinatura_hash=None, token_assinatura_expira_em=None)
+    devolucao = apps.get_model("vistorias", "Devolucao")
+    devolucao.objects.filter(locacao__cliente=cliente, token_recibo_hash__isnull=False).update(
+        token_recibo_hash=None, token_recibo_expira_em=None
+    )
+
+
 def anonimizar(empresa: Any, cliente_id: int, pedido: Pedido, confirmacao: str) -> int:
     """Apaga os cifrados (hash aleatório), troca nome, contato, endereço e referência e grava
     `anonimizado_em`; os documentos ficam inativos e sem arquivo. Recusa com pendência (422
@@ -251,6 +265,7 @@ def anonimizar(empresa: Any, cliente_id: int, pedido: Pedido, confirmacao: str) 
                     documento.save(update_fields=["arquivo", "ativo", "atualizado_em"])
             # Sem documento e sem CPF, o cadastro volta a `incompleto` (CLI-03).
             services.acertar_cadastro(cliente)
+            _anular_links(cliente)
     _registrar_na_plataforma(empresa, "empresa.anonimizar_titular", pedido, cliente_id)
     # Depois do commit: se algo antes falhar, nenhum arquivo some sem o registro mudar.
     for caminho in caminhos:
