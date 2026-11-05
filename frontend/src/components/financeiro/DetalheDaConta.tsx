@@ -13,7 +13,7 @@ import { DialogoRenegociarConta } from "./DialogoRenegociarConta";
 
 type Motivo = "cancelar" | "estornar" | null;
 
-export function PixGerado({ cobranca }: { cobranca: CobrancaDaConta }) {
+export function PixGerado({ cobranca, rotuloDoCopiar }: { cobranca: CobrancaDaConta; rotuloDoCopiar?: string }) {
   const [copiado, setCopiado] = useState(false);
   const codigo = cobranca.pix_copia_e_cola ?? cobranca.linha_digitavel;
   if (!codigo) return null;
@@ -31,7 +31,7 @@ export function PixGerado({ cobranca }: { cobranca: CobrancaDaConta }) {
             void navigator.clipboard?.writeText(codigo).then(() => setCopiado(true));
           }}
         >
-          Copiar
+          {rotuloDoCopiar ?? "Copiar"}
         </Button>
         {copiado && <span role="status" className="text-caption text-ink-muted">Copiado.</span>}
         {cobranca.boleto_url && (
@@ -134,7 +134,9 @@ export function DetalheDaConta({ id, aoFechar, aoDarBaixa, aoConcluir }: { id: n
               />
             </div>
 
-            {aberta && <PixGerado cobranca={aberta} />}
+            {aberta && c.acoes.copiar_cobranca && (
+              <PixGerado cobranca={aberta} rotuloDoCopiar={aberta.tipo === "boleto" ? "Copiar boleto" : "Copiar Pix"} />
+            )}
             {!paga && (c.acoes.gerar_pix || c.acoes.gerar_boleto) && (
               <div className="flex flex-wrap gap-2">
                 {c.acoes.gerar_pix && (

@@ -7,7 +7,7 @@ import { assinatura as api, type CobrancaDaFatura, type FaturaDaAssinatura, type
 import { mensagemDoErro } from "@/lib/erros";
 import { dataCompleta, dataCurta, dinheiro } from "@/lib/formatos";
 import { tomDoStatus } from "@/lib/tom";
-import { CodigoDePagamento } from "./ComunsDaAssinatura";
+import { CodigoDePagamento, LinkDePagamento } from "./ComunsDaAssinatura";
 
 // Referência: "Faturas" das telas Admin-Assinatura. Situação, descrição, valor e as ações (Pagar, Recibo) vêm da API (PLT-14).
 
@@ -73,13 +73,14 @@ function PagarFatura({ fatura, forma, aoFechar }: { fatura: FaturaDaAssinatura; 
             </div>
           </div>
         )}
-        {cobranca?.pix_copia_e_cola && <CodigoDePagamento rotulo={`Pix copia e cola · vence ${dataCompleta(cobranca.vencimento)}`} codigo={cobranca.pix_copia_e_cola} comQr={cobranca.forma !== "boleto"} />}
-        {cobranca?.linha_digitavel && <CodigoDePagamento rotulo="Linha digitável do boleto" codigo={cobranca.linha_digitavel} />}
+        {cobranca?.pix_copia_e_cola && <CodigoDePagamento rotulo={`Pix copia e cola · vence ${dataCompleta(cobranca.vencimento)}`} codigo={cobranca.pix_copia_e_cola} comQr={cobranca.forma !== "boleto"} botao="Copiar Pix" />}
+        {cobranca?.linha_digitavel && <CodigoDePagamento rotulo="Linha digitável do boleto" codigo={cobranca.linha_digitavel} botao="Copiar boleto" />}
         {cobranca?.url_boleto && (
           <a href={cobranca.url_boleto} target="_blank" rel="noreferrer" className="wl-btn wl-btn--sm self-start">
             Abrir boleto
           </a>
         )}
+        {(cobranca?.url_boleto ?? cobranca?.url_pagina) && <LinkDePagamento rotulo="Copiar link de pagamento" link={(cobranca.url_boleto ?? cobranca.url_pagina) as string} />}
         {cobranca?.url_pagina && (
           <div className="flex flex-col gap-2">
             <p className="text-body">Você digita o cartão na página do parceiro de pagamento. Ao terminar, volte para esta tela.</p>
