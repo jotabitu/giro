@@ -665,6 +665,14 @@ A venda tem 7 estados (o funil da tela mostra os 4 principais) e só vende veíc
 **Regras**
 
 - `VEN-01` Preço de tabela = valor de venda definido ao colocar o veículo à venda (referência FIPE exibida ao lado).
+  - **Textos da referência FIPE** (T-422, fase 2; montados pela API, a tela mostra como vêm):
+    - **Rótulo:** "Referência FIPE · outubro de 2026", com o mês do preço; informada em "Colocar à venda", sem versão: "Referência FIPE · informada à mão".
+    - **Valor antigo** (a API fora do ar ou a versão fora da tabela): o último valor fica, com o mês dele no rótulo. Atraso de um mês é normal, porque a tabela vira no começo do mês e a rotina leva alguns dias. Com o mês do preço dois ou mais meses antes do mês corrente, aparece o aviso "Esta referência é de agosto de 2026 e não foi atualizada.".
+    - **Versão escolhida, preço ainda não trazido** (e o veículo que ainda não passou pela rotina): "A referência FIPE chega na próxima atualização, feita de madrugada.".
+    - **Sem versão escolhida** (mais de uma serve): para quem escolhe (administrador e gerente), "Escolha a versão FIPE para ver a referência."; para os outros, "Falta escolher a versão FIPE. O gerente ou o administrador escolhe.".
+    - **Versão não encontrada:** para quem escolhe, "Versão FIPE não encontrada. Escolha a versão ou digite o código."; para os outros, "Versão FIPE não encontrada. O gerente ou o administrador escolhe a versão ou digita o código.".
+    - **Validação do cadastro:** "Escolha uma versão da lista FIPE." e "Digite o código FIPE no formato 811134-0.".
+    - **Consulta por placa indisponível** (desligada, cota esgotada, limite do dia, placa não achada ou API fora do ar): sem erro, como decidiu o dono; depois de "Buscar pela placa", a tela mostra, em tom de informação, "A busca pela placa não está disponível agora. Preencha pelo CRLV-e ou escolha a versão na lista FIPE.". O motivo não aparece para a pessoa.
 - `VEN-02` Desconto até 5% o vendedor dá sozinho; acima de 5% a venda vai para `aguardando_aprovacao` e o gerente aprova ou recusa pelo celular (`APR-01`). Ex.: VEN-0177, CB 300F, R$ 22.900 com 8% = R$ 21.068.
 - `VEN-03` Formas: à vista (Pix ou TED), entrada + parcelas (boleto ou Pix mensal, gera contas a receber), financiamento pelo banco parceiro (venda fica em `negociacao` até o banco aprovar).
 - `VEN-04` Parcelas: saldo ÷ número de parcelas, sem juros por padrão; juros configuráveis por empresa. Ex.: R$ 21.068 − R$ 5.000 = R$ 16.068 em 12 × R$ 1.339.
@@ -678,6 +686,8 @@ A venda tem 7 estados (o funil da tela mostra os 4 principais) e só vende veíc
 
 *Mudanças em 07 out 2026 (T-031):* criado o estado `cancelada` e reescrita a `VEN-07` (quem cancela e o que acontece); `VEN-05` ganhou o reaproveitamento do cadastro; criada a `VEN-10`.
 *Mudanças em 03 nov 2026 (T-420):* criada a `VEN-11`, a venda de R$ 0,00 que nasce na quitação da locação com intenção de compra (`LOC-16`). Decisão do dono do produto em 30 out 2026; ficar fora do funil, da meta e da comissão, e não ser cancelada pela tela, são leitura do produto.
+
+*Mudanças em 05 nov 2026 (T-422):* a `VEN-01` ganhou os textos da referência FIPE (rótulo com o mês, valor antigo, versão a escolher ou não encontrada, validação e consulta por placa indisponível), a partir dos propostos pelo arquiteto no contrato da T-422 (PR #479). Mudam três coisas: o aviso para quem não pode escolher a versão, o aviso do valor parado há dois meses ou mais (antes, só o mês no rótulo mostrava) e o texto depois de "Buscar pela placa" sem resultado (antes, nada aparecia). Leitura do produto pela decisão do dono de 29 out 2026 ("sem erro para a pessoa").
 
 ## Financeiro
 
