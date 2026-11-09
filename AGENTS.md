@@ -9,7 +9,7 @@ Cada função tem um arquivo com missão, leituras obrigatórias, responsabilida
 | Agente | Arquivo | Cuida de | Pasta onde escreve |
 | --- | --- | --- | --- |
 | orquestrador | `.claude/agents/orquestrador.md` | prioridades, distribuição e revisão de entregas | `tarefas/` |
-| produto | `.claude/agents/produto.md` | regras de negócio, critérios de aceite, dúvidas | `docs/regras-de-negocio.md`, `docs/plano.md` |
+| produto | `.claude/agents/produto.md` | regras de negócio, critérios de aceite, dúvidas | `docs/regras-de-negocio.md`, `docs/regras/`, `docs/plano.md` |
 | arquiteto | `.claude/agents/arquiteto.md` | modelo de dados, contratos da API, ADRs | `docs/decisoes/`, `docs/api/` |
 | backend | `.claude/agents/backend.md` | Django, DRF, Celery, testes de regra | `backend/` |
 | frontend | `.claude/agents/frontend.md` | Next.js, páginas, integração com a API | `frontend/` (exceto `src/design-system/`) |
@@ -28,4 +28,4 @@ Leia CLAUDE.md e .claude/agents/<nome>.md, depois tarefas/backlog.md.
 Pegue a primeira tarefa com o seu nome que não tenha dependência pendente.
 ```
 
-O fluxo de tarefas e o modelo de handoff estão em `tarefas/README.md`. A forma como os agentes conversam está em `docs/agentes/protocolo.md`.
+O fluxo de tarefas está em `tarefas/README.md`; o handoff é a descrição do PR (`.github/pull_request_template.md`). A forma como os agentes conversam está em `docs/agentes/protocolo.md`.

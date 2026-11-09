@@ -1,5 +1,7 @@
 # Feito
 
+> **Congelado em 09 nov 2026 (T-441).** Não edite. Daqui para frente, o feito é a lista de PRs mesclados (`gh pr list --state merged`), e a descrição de cada PR é o handoff.
+
 Formato: `T-0xx · título · agente · PR #n · handoff`.
 
 - T-003 · Ambiente de desenvolvimento · devops · PR #1 · tarefas/handoffs/T-003-devops.md · db e redis sobem saudáveis; backend e frontend validados quando T-001 e T-002 entregarem
