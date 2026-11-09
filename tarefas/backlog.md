@@ -417,6 +417,7 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Hoje:** a despesa já pode ser ligada ao veículo e entra no custo do ano, mas a ficha não lista as despesas dele.
 - **Decisão do dono (29 out):** na ficha, a lista das despesas do veículo e um botão "Lançar despesa" já com ele preenchido, e categorias próprias de despesa do veículo (IPVA, seguro, multa, peça, combustível).
 - **Pronto quando:** categorias na regra, lista e botão na ficha, filtro por veículo, teste. Manutenção (`MAN-05`, OS que lança despesa) segue no módulo de manutenção.
+- **Agente: fullstack** (T-443, 09 nov 2026). A parte do produto está feita. O resto vai num PR só, sem a passada do arquiteto: chaves das categorias e filtro por veículo no `docs/api/financeiro.md`, categorias novas no `CategoriaDespesa` (só `choices`, sem migração de dados), filtro `veiculo` na lista de despesas, lista com o total do ano e "Lançar despesa" com o veículo na ficha (`FIN-17`). Se a lista ou o total pedir modelo novo, o fullstack para e a tarefa volta ao protocolo completo.
 - **Parte do produto feita em 03 nov 2026** (`tarefas/handoffs/T-417-produto.md`): `FIN-06` com as categorias do veículo (IPVA e licenciamento, seguro, multa de trânsito, peças, combustível) em dois grupos, nenhuma exige veículo, vistoriador com peças; `FIN-16` com o filtro por veículo; `FIN-17` nova (lista na ficha para administrador, gerente e financeiro, total do ano, "Lançar despesa" com o veículo); `VEI-05` com o custo de manutenção só de manutenção e peças; critérios CA-417-01 a 13. **Próximo:** arquiteto (chaves e rota, curto), backend, frontend.
 
 #### T-418 · Catálogo de vendas interno
@@ -505,6 +506,7 @@ Vindas da aba Notas do painel de progresso, como as de 29 out. Nada começa sem 
 - **Hoje:** o campo `tipo_veiculo` já existe no modelo e no cadastro, ligado à categoria. No editar ele só aparece como ícone, sem poder trocar.
 - **Decidido pelo dono em 05 nov 2026:** o tipo é o mesmo campo `tipo_veiculo` que já filtra a lista de veículos; ele aparece como campo no cadastro e pode ser trocado no editar. O produto escreve a regra do que acontece com a categoria ao trocar o tipo (a categoria precisa ser do tipo novo, então a pessoa escolhe outra na mesma tela) e se a troca é recusada com locação aberta.
 - **Pronto quando:** regra escrita com a resposta do dono e a tela fazendo o que ela diz, com teste.
+- **Agente: fullstack** (T-443, 09 nov 2026), depois da regra do produto: o campo no cadastro e no editar, a troca da categoria e a recusa com locação aberta, num PR só. O campo já existe; não há modelo novo.
 
 #### T-439 · Implantação logo depois da compra
 - **Agentes:** produto (regra), arquiteto, frontend · **Regras:** `IMP-01`, `USR-01`, compra pública (`compra.md`) · **Origem:** nota "Ajustar Implantação".
@@ -519,4 +521,5 @@ Vindas da aba Notas do painel de progresso, como as de 29 out. Nada começa sem 
 - **Hoje:** a importação lê `categoria` e `filial` de cada linha (`importacao/linhas.py`).
 - **Decidido pelo dono em 05 nov 2026:** a filial e a categoria vêm do que já foi cadastrado nos passos anteriores do assistente: a filial no passo 6 (`Onboarding-Filial`) e as categorias nos preços do passo 8 (`Onboarding-Precos`). A importação (passo 11) não pede essas colunas. O produto escreve a regra para quando houver mais de uma filial ou categoria (por exemplo, a escolha na própria tela de importação, entre as já cadastradas) e leva ao dono só se a resposta não for óbvia.
 - **Pronto quando:** modelo da planilha sem as duas colunas, importação usando a resposta do produto, teste e a tela de importação de acordo.
+- **Agente: fullstack** (T-443, 09 nov 2026), depois da regra do produto: modelo da planilha, `importacao/linhas.py` e a tela do passo 11, num PR só. Se a escolha entre várias filiais ou categorias pedir componente novo, o design-system entra antes.
 
