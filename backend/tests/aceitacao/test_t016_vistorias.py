@@ -642,9 +642,49 @@ def test_vis_05_ca_016_08_agenda(cenario, relogio):
     assert dia_14["devolucao-2836"]["cliente"] == {"nome": "Juliana Rocha"}
 
 
-def test_vis_05_agenda_com_todas_as_filiais_pede_uma(cenario):
-    resposta = cenario.moto.api("Mariana", HTTP_X_FILIAL="todas").get(AGENDA)
-    assert resposta.status_code == 400
+def test_vis_05_usr_05_agenda_do_administrador_com_todas_as_filiais(cenario, relogio):
+    """T-442: com `X-Filial: todas`, a administradora vê a agenda das filiais juntas, em ordem
+    de horário, com o nome da filial em cada item. O vistoriador continua com uma filial."""
+    relogio.em("2026-10-07 08:00")
+    carteira.carregar(cenario.frota, cenario.pessoas["Bruna"], relogio)
+    caucaia = _caucaia(cenario.moto, "João")
+    outra = Veiculo.objects.filter(status="disponivel").exclude(pk=cenario.sak.pk).first()
+    assert outra is not None
+    em_caucaia = Locacao.objects.create(
+        numero=2899,
+        codigo="LOC-2899",
+        filial=caucaia,
+        cliente=cenario.cliente("Carlos"),
+        veiculo=outra,
+        vendedor=cenario.pessoas["Bruna"],
+        periodicidade="semanal",
+        inicio=carteira.momento("2026-10-07 11:00"),
+        fim_previsto=carteira.momento("2026-10-14 11:00"),
+        forma_pagamento="pix",
+        status="aguardando_retirada",
+    )
+
+    relogio.em("2026-10-07 09:00")
+    mariana = cenario.moto.api("Mariana", HTTP_X_FILIAL="todas")
+    resposta = mariana.get(AGENDA)
+    assert resposta.status_code == 200, resposta.json()
+    agenda = resposta.json()
+    so_centro = cenario.moto.api("João", HTTP_X_FILIAL=str(cenario.frota.centro.pk))
+    do_centro = so_centro.get(AGENDA).json()["resultados"]
+    ids = [i["id"] for i in agenda["resultados"]]
+    horarios = [i["horario"] for i in agenda["resultados"]]
+    assert horarios == sorted(horarios)
+    assert f"saida-{em_caucaia.numero}" in ids
+    assert len(ids) == len(do_centro) + 1
+    filiais = {i["filial"]["nome"] for i in agenda["resultados"]}
+    assert filiais == {cenario.frota.centro.nome, caucaia.nome}
+    saidas = sum(1 for i in agenda["resultados"] if i["tipo"] == "saida")
+    assert agenda["resumo"].startswith("Quarta, 07 out · ")
+    assert f"{saidas} saída" in agenda["resumo"]
+    # A filial vai em cada item, também na agenda de uma filial só.
+    assert {i["filial"]["nome"] for i in do_centro} == {cenario.frota.centro.nome}
+    # O vistoriador não escolhe "todas" (USR-07).
+    assert cenario.moto.api("João", HTTP_X_FILIAL="todas").get(AGENDA).status_code == 403
 
 
 # --- Avarias abertas (tela Vistoriador) ---

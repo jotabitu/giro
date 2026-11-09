@@ -20,7 +20,7 @@ O vistoriador nunca recebe valores: nas respostas para ele, todo campo `_centavo
 ## Agenda do vistoriador (VIS-05)
 
 ### GET /api/vistorias/agenda/
-Query: `?dia=hoje|amanha|semana` (padrão `hoje`). Filial pelo `X-Filial`.
+Query: `?dia=hoje|amanha|semana` (padrão `hoje`). Filial pelo `X-Filial`. Com `X-Filial: todas` (administrador e financeiro podem pedir; o financeiro não faz vistoria e recebe 403), a agenda junta as filiais da pessoa em ordem de horário: `resumo` conta as duas listas, `proxima` é a mais cedo e `avarias_abertas` soma as filiais (T-442). Cada item traz `filial: {id, nome}`.
 200:
 ```json
 {
@@ -31,6 +31,7 @@ Query: `?dia=hoje|amanha|semana` (padrão `hoje`). Filial pelo `X-Filial`.
     { "id": "devolucao-2841", "tipo": "devolucao", "horario": "2026-10-06T21:00:00Z",
       "veiculo": { "id": 77, "placa": "QXA4B21", "modelo": "Honda CG 160" },
       "cliente": { "nome": "Carlos Menezes" }, "locacao": { "id": 2841, "codigo": "LOC-2841" },
+      "filial": { "id": 1, "nome": "Filial Centro" },
       "situacao": { "codigo": "atrasada", "rotulo": "Atrasada", "tom": "perigo" },
       "vistoria_id": null, "acao": { "codigo": "abrir", "rotulo": "Abrir" } }
   ]

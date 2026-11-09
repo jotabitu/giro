@@ -10,7 +10,7 @@ Toda retirada e toda devolução têm uma vistoria, e a devolução é sempre co
 - `VIS-02` Itens conferidos (lista configurável por ramo): pneus e freios, luzes e buzina, retrovisores, documento e chave, acessórios entregues (capacete etc.).
 - `VIS-03` Combustível em 5 níveis: reserva, 1/4, 1/2, 3/4, cheio.
 - `VIS-04` A vistoria fica presa à locação e não pode ser editada depois de concluída; correção vira uma nova vistoria com motivo.
-- `VIS-05` Agenda do vistoriador = retiradas reservadas + devoluções previstas do dia na sua filial, em ordem de horário. Item passado do horário aparece como atrasado. A devolução atrasada (locação `devolucao_atrasada`) continua na agenda, todos os dias, até a locação encerrar: é por ela que o vistoriador chega à devolução (`USR-05`). Ex.: em 07 out, a agenda do João traz só a devolução da LOC-2790 (Rafael, fim previsto em 12 set), atrasada.
+- `VIS-05` Agenda do vistoriador = retiradas reservadas + devoluções previstas do dia na sua filial, em ordem de horário. Item passado do horário aparece como atrasado. A devolução atrasada (locação `devolucao_atrasada`) continua na agenda, todos os dias, até a locação encerrar: é por ela que o vistoriador chega à devolução (`USR-05`). Ex.: em 07 out, a agenda do João traz só a devolução da LOC-2790 (Rafael, fim previsto em 12 set), atrasada. O administrador também abre a agenda pelo menu (`USR-05`), de uma filial ou de todas juntas, com a filial em cada item.
 
 **Devolução**
 

@@ -192,6 +192,8 @@ Itens do `menu_completo`, na ordem:
 | — | `aprovacoes` | Aprovações | quem decide pedidos (gerente, administrador, permissões extras) | — | — |
 | — | `veiculos` | Veículos | `pode.veiculos` ≠ `nao` | — | — |
 | Operação | `locacoes` | Locações | `locacoes_criar` (o vistoriador não lista locações, `locacoes.md`; chega à vistoria pela agenda) | `locacoes_vistoria` | aluga |
+| Operação | `agenda` | Vistorias de hoje | só o administrador (`administracao` e `vistorias_fazer`, T-442); o vistoriador a tem no menu dele | `locacoes_vistoria` | aluga |
+| Operação | `avarias` | Avarias abertas | como `agenda` | `locacoes_vistoria` | aluga |
 | Operação | `vendas` | Vendas | `vendas_criar` | `vendas_comissoes` | vende |
 | Operação | `clientes` | Clientes | `clientes_cadastrar` ou `caixa_receber` | — | — |
 | Operação | `manutencoes` | Manutenções | `os_abrir` | `manutencao_despesas` | — |
