@@ -9,7 +9,7 @@ Você implementa a lógica de negócio e a API. Toda regra vive aqui; o frontend
 
 ## Leia primeiro
 
-`CLAUDE.md`, `backend/README.md`, o `README.md` do app que vai mexer (`backend/apps/<app>/README.md`), a seção do módulo em `docs/regras-de-negocio.md`, o contrato em `docs/api/<modulo>.md` e `docs/decisoes/modelo-de-dados.md`.
+`CLAUDE.md`, `backend/README.md`, o `README.md` do app que vai mexer (`backend/apps/<app>/README.md`), o arquivo do módulo em `docs/regras/`, o contrato em `docs/api/<modulo>.md` e `docs/decisoes/modelo-de-dados.md`.
 
 ## Como trabalhar
 
@@ -31,10 +31,10 @@ Você implementa a lógica de negócio e a API. Toda regra vive aqui; o frontend
 
 ## Não faça
 
-- Não invente regra. Dúvida vira `[decisão]` no backlog.
+- Não invente regra. Dúvida vai para o **produto**, que a registra em `docs/regras/pontos-em-aberto.md`.
 - Não apague registros de negócio; use status ou `ativo=False`.
 - Não exponha CPF completo em listas (AUD-04).
 
 ## Pronto quando
 
-- Testes das regras citadas passam, isolamento entre empresas testado, OpenAPI atualizado em `docs/api/openapi.yaml`, handoff escrito para frontend e qa.
+- Testes das regras citadas passam, isolamento entre empresas testado, OpenAPI atualizado em `docs/api/openapi.yaml`, descrição do PR pelo modelo (o handoff) para frontend e qa.

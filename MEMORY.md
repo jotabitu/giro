@@ -4,6 +4,11 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ## Decisões de Design
 
+### [2026-11-09] Menos burocracia no fluxo dos agentes (T-441)
+- **Contexto:** cerca de 30% dos commits eram do quadro e do "número do PR"; 366 merges de sincronização vinham em boa parte de conflito no `feito.md`; as regras tinham 309 KB (38% de histórico) e eram leitura obrigatória de toda tarefa.
+- **Decisão:** regras divididas por módulo em `docs/regras/` (índice em `docs/regras-de-negocio.md`), com o histórico em `docs/regras/historico.md` e as decisões por data em `docs/regras/decisoes.md`; PR de tarefa não toca em `tarefas/`; o handoff é a descrição do PR (`.github/pull_request_template.md`); `feito.md`, `em-andamento.md` e `handoffs/` congelados (em andamento = PR rascunho); só o orquestrador edita o backlog; dúvidas de regra em `docs/regras/pontos-em-aberto.md`; tarefa pequena feita por um agente só, o **fullstack** (`.claude/agents/fullstack.md`); o `MEMORY.md` guarda só o que vale, e o substituído vai para `docs/memoria-arquivo.md`.
+- **Consequências:** os rodapés dos papéis no Maestri precisam ser copiados de novo de `docs/agentes/retomada.md`.
+
 ### [2026-10-29] Telas do canvas entram por importação
 - **Contexto:** as telas são desenhadas no canvas do Claude Design e copiadas à mão para `docs/telas/html`. Os dois lados foram editados em separado: na T-409 as telas da locadora no canvas já eram mais antigas que as do repositório. Os agentes só leem o repositório, e nada conferia a página do app contra a tela.
 - **Decisão (dono, T-424):** vale a tela do repositório na `develop`. Mudança no canvas entra por tarefa de importação, com carimbo `<!-- origem: canvas, <data>, T-NNN -->`; ajuste feito no repositório ganha `<!-- ajustada no repositório: <data>, T-NNN -->`, e tela do canvas mais antiga não o sobrescreve. A página segue textos, ordem, hierarquia, estados e componentes, não o pixel nem os números de exemplo. O frontend põe capturas lado a lado no handoff, e o design-system revisa antes do merge.
@@ -116,12 +121,6 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 - **Alternativas descartadas:** orçamento pago e runner próprio (a máquina tem pouca memória).
 - **Consequências:** nunca commitar segredo, `.env` nem dado pessoal real. Perguntar ao dono, perto de 01/11, se o repositório volta a ser privado.
 
-### [2026-10-09] Sem branch develop [SUBSTITUÍDA por 2026-10-29 "Fluxo com a branch develop"]
-- **Contexto:** o dono cogitou o fluxo `main` ← `develop` ← `t-xxx`, com CI nas duas etapas.
-- **Decisão:** "deixe como está por enquanto": a branch da tarefa sai da `origin/main` e o PR vai para a `main`.
-- **Alternativas descartadas:** `develop`, que dobraria PRs e avales.
-- **Consequências:** se voltar, criar a `develop`, o CI com push nela (DevOps), atualizar `tarefas/README.md` e `CLAUDE.md` e avisar os agentes.
-
 ### [2026-10-08] Contexto dos agentes limpo a partir de 50%
 - **Contexto:** pedido do dono para controlar o custo e a qualidade dos agentes no Maestri.
 - **Decisão:** com 50% de contexto, `/clear` entre tarefas (com o resumo de retomada depois) e `/compact` no meio de uma tarefa.
@@ -184,12 +183,6 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ### [2026-10-21] Assistente de implantação incompleto
 - A casca do assistente (T-335) está pronta, e 3 dos 8 passos funcionam: Marca, Ramo e Importar. Primeira filial, Tabela de preços, Modelo de contrato, Recebimentos e Convidar equipe mostram "Esta etapa ainda não está disponível aqui." e não têm contrato nem tarefa. Se entram no MVP é decisão pendente do dono.
-
-### [2026-10-20] Sem tarefas na tela de Veículos por enquanto [SUBSTITUÍDA por 2026-10-29 "Fase 2 aberta sem atividade iniciada"]
-- O dono pediu: "não quero nenhuma tarefa por agora de alterar ou corrigir a Veiculos-Desktop e mobile". Não abrir tarefa nessas telas até ele liberar.
-
-### [2026-10-20] Cancelar a assinatura ativa no dia do vencimento sem pagar (T-195) [SUBSTITUÍDA por 2026-10-21 "Cancelar a ativa com o período pago já vencido"]
-- Ponto em aberto, com recomendação pedida ao Produto: A, o acesso termina na hora (padrão); B, o acesso vai até o fim do período, se pago. [A CONFIRMAR] O PR da T-195 espera a revisão de Segurança T-199 antes do merge.
 
 ### [2026-10-20] Máquina de desenvolvimento com pouca memória
 - O sistema chegou a matar jobs em segundo plano; só o `giro-frontend-1` usa cerca de 2,7 GB. Rodar conferências uma por vez.

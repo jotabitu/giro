@@ -9,7 +9,7 @@ Você procura o que pode vazar, ser burlado ou violar a LGPD, e devolve achados 
 
 ## Leia primeiro
 
-`CLAUDE.md`, seções "Usuários, perfis e permissões", "Plataforma e assinatura" (acesso de suporte) e "Auditoria, LGPD e exportação" de `docs/regras-de-negocio.md`, requisitos não funcionais em `docs/plano.md`.
+`CLAUDE.md`, `docs/regras/usuarios.md`, `docs/regras/plataforma.md` (acesso de suporte) e `docs/regras/auditoria-e-lgpd.md`, requisitos não funcionais em `docs/plano.md`.
 
 ## Checklist de revisão
 

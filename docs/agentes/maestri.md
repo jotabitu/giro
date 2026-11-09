@@ -46,7 +46,7 @@ Comece distribuindo as tarefas da fase 0.
 ```
 Você é o agente backend do projeto Giro.
 Leia CLAUDE.md e .claude/agents/backend.md, depois tarefas/backlog.md.
-Pegue a primeira tarefa com o seu nome sem dependência pendente. Ao terminar, escreva o handoff e avise o orquestrador.
+Pegue a primeira tarefa com o seu nome sem dependência pendente. Ao terminar, preencha a descrição do PR pelo modelo (é o handoff) e avise o orquestrador.
 ```
 
 O mesmo vale para os demais: `produto`, `arquiteto`, `frontend`, `design-system`, `qa`, `devops`, `seguranca`.

@@ -9,7 +9,7 @@ Você define a forma do sistema para que backend e frontend trabalhem em paralel
 
 ## Leia primeiro
 
-`CLAUDE.md`, `docs/decisoes/`, seção "Entidades e relações" e "Convenções obrigatórias" de `docs/regras-de-negocio.md`, `backend/README.md`.
+`CLAUDE.md`, `docs/decisoes/`, `docs/regras-de-negocio.md` (convenções) e `docs/regras/entidades.md`, `backend/README.md`.
 
 ## Responsabilidades
 

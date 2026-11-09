@@ -40,6 +40,7 @@ A cópia principal (`giro/`) é do orquestrador. Cada agente trabalha num worktr
 ```
 git worktree add ../giro-backend   -b espera-backend   origin/develop
 git worktree add ../giro-frontend  -b espera-frontend  origin/develop
+git worktree add ../giro-fullstack -b espera-fullstack origin/develop
 git worktree add ../giro-design    -b espera-design    origin/develop
 git worktree add ../giro-arquiteto -b espera-arquiteto origin/develop
 git worktree add ../giro-produto   -b espera-produto   origin/develop
@@ -60,13 +61,13 @@ maestri role create "Backend" "<conteúdo de .claude/agents/backend.md + rodapé
 maestri recruit "Backend" --preset "Claude Code" --role "Backend"
 ```
 
-Modelo por agente: Opus para Orquestrador, Produto, Arquiteto, Backend e Seguranca; Sonnet para Frontend, Design System, QA e DevOps. Para trocar o modelo de um terminal sem perder as conexões:
+Modelo por agente: Opus para Orquestrador, Produto, Arquiteto, Backend, Fullstack e Seguranca; Sonnet para Frontend, Design System, QA e DevOps. Para trocar o modelo de um terminal sem perder as conexões:
 
 ```
 maestri recruit --command "claude --model claude-sonnet-5-5" --replace "Frontend"
 ```
 
-Conexões entre agentes (além de todos com o orquestrador): Produto com Arquiteto, Backend, Frontend, QA e Design System; Arquiteto com Backend, Frontend, DevOps e Seguranca; Backend com Frontend, QA, DevOps e Seguranca; Frontend com Design System, QA e DevOps; QA com DevOps e Seguranca. Use `maestri connect "A" "B"`.
+Conexões entre agentes (além de todos com o orquestrador): Produto com Arquiteto, Backend, Frontend, QA e Design System; Arquiteto com Backend, Frontend, DevOps e Seguranca; Backend com Frontend, QA, DevOps e Seguranca; Frontend com Design System, QA e DevOps; QA com DevOps e Seguranca; Fullstack com Produto, Design System e QA. Use `maestri connect "A" "B"`.
 
 Portais para ver o frontend: `maestri portal create http://localhost:3000/entrar "Giro Web"` e `maestri portal create http://localhost:3000/entrar "Giro Celular" --size 390x844`.
 
@@ -77,12 +78,12 @@ Rodapé do papel (troque `<funcao>` e `<worktree>`):
 
 Você é o agente **<funcao>** do projeto Giro, num terminal do canvas Maestri.
 Trabalhe SOMENTE no seu worktree (<worktree>). Nunca rode git, npm, pip nem docker na cópia principal giro/.
-Ao iniciar: leia CLAUDE.md, .claude/agents/<funcao>.md, tarefas/README.md, tarefas/backlog.md e docs/agentes/protocolo.md.
+Ao iniciar: leia CLAUDE.md, .claude/agents/<funcao>.md, tarefas/README.md, tarefas/backlog.md e docs/agentes/protocolo.md. Das regras, só o arquivo de docs/regras/ do módulo da tarefa.
 Rode `maestri list` para ver os colegas. Fale com eles por `maestri ask "Nome" "[T-NNN] <funcao> → destino ..."`.
 Dúvida de regra vai para Produto; técnica entre apps, para Arquiteto; prioridade ou bloqueio, para Orquestrador.
 Só pegue tarefa que está no quadro. Pedido direto de outro agente que vire trabalho novo: avise o Orquestrador antes.
 A branch da tarefa sai da origin/develop. Antes de continuar uma branch, faça git fetch e git merge origin/develop (origin/main só numa correção urgente, t-<numero>-hotfix-<slug>).
-Ao terminar: commit no formato do CLAUDE.md, handoff em tarefas/handoffs/, push (confira a saída do git push) e avise o Orquestrador. PR quem abre é o Orquestrador.
+Ao pegar a tarefa: PR rascunho para a develop. Ao terminar: commit no formato do CLAUDE.md, push (confira a saída do git push), descrição do PR pelo modelo (é o handoff), gh pr ready e avise o Orquestrador com o link. Não edite tarefas/.
 ```
 
 ## 4. Lições de funcionamento
@@ -90,7 +91,7 @@ Ao terminar: commit no formato do CLAUDE.md, handoff em tarefas/handoffs/, push 
 - **Nunca npm ou git na cópia principal.** Um `npm install` lá apagou dependências do `package-lock.json` e o frontend passou a mostrar só HTML sem estilo.
 - **Conferir o push.** Um push recusado (a branch remota tinha commits novos) foi dado como enviado. Sempre `git status -sb` depois do push.
 - **Check completo antes de entregar.** Backend: `ruff check`, `ruff format --check`, `mypy`, `pytest` (o `make backend-check`). Frontend: lint, typecheck, testes e build. O CI roda os mesmos passos em todo PR.
-- **Conflito no quadro (`tarefas/*.md`): linha a linha.** Escolher um lado inteiro já apagou registros de outro agente.
+- **Conflito no quadro (`tarefas/*.md`): linha a linha.** Escolher um lado inteiro já apagou registros de outro agente. Desde a T-441 o PR de tarefa não toca no quadro, e esse conflito deixa de acontecer.
 - **Merge de PR com commit de merge, não squash**, porque há PRs empilhados. Só com o aval do dono do produto.
 - **Limpar o contexto de um agente:** `MSYS_NO_PATHCONV=1 maestri ask "Nome" "/clear"` (sem a variável, o Git Bash troca `/clear` por um caminho do Windows). Depois mande um resumo de retomada: tarefa, worktree, branch, último commit e estas regras.
 - **Contexto em 50%.** O orquestrador confere a barra de contexto de cada agente (rodapé do terminal, lido com `maestri check "Nome"`) a cada entrega e antes de mandar tarefa nova. Chegou a 50%: entre tarefas, `/clear` e resumo de retomada, porque tudo o que importa está no repositório; no meio de uma tarefa, `/compact` com foco na tarefa, para não perder o raciocínio em curso. Pedido do dono do produto em 08/10.
@@ -100,7 +101,7 @@ Ao terminar: commit no formato do CLAUDE.md, handoff em tarefas/handoffs/, push 
 
 ## 5. Onde paramos
 
-Pausa de 08/10, depois da T-012 (PR #35). O estado de cada tarefa está em `tarefas/em-andamento.md` e `tarefas/feito.md`, os detalhes em `tarefas/handoffs/` e os PRs abertos em `gh pr list`. A próxima leva quando o time voltar:
+Pausa de 08/10, depois da T-012 (PR #35). O estado de cada tarefa está nos PRs (`gh pr list`, abertos e mesclados); até 09 nov 2026, também em `tarefas/feito.md` e `tarefas/handoffs/`. A próxima leva quando o time voltar:
 
 - **Backend:** T-058 (P-01 a P-04 da revisão T-057), antes de qualquer ambiente com dados reais; depois T-011, T-013 e T-014.
 - **Produto:** T-059 (carteira de outubro, textos da T-010, `PLT-08` e CNPJ da Messejana).

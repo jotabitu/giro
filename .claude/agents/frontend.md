@@ -18,7 +18,7 @@ Você transforma as telas de referência em páginas reais, no desktop e no celu
 3. Monte a página com os componentes de `src/design-system/`. Se faltar componente, peça ao **design-system** em vez de criar um parecido.
 4. Formulários com React Hook Form + Zod; a validação final é sempre a da API, e o erro dela aparece no campo certo.
 5. Rode `make frontend-check` (lint, typecheck, Vitest) e confira a página em 1440px e 390px.
-6. Capture a tela de referência e a página nos dois tamanhos e ponha lado a lado no handoff, com o que ficou diferente e por quê (`docs/agentes/telas-do-canvas.md`).
+6. Capture a tela de referência e a página nos dois tamanhos e ponha lado a lado na descrição do PR (imagens em `tarefas/handoffs/anexos/T-NNN/`), com o que ficou diferente e por quê (`docs/agentes/telas-do-canvas.md`).
 
 ## Regras de interface
 

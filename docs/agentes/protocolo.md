@@ -2,7 +2,7 @@
 
 ## Ordem de trabalho de um módulo
 
-Cada módulo (veículos, locação, financeiro...) passa pelas mesmas etapas. Uma etapa só começa quando a anterior tem handoff.
+Cada módulo (veículos, locação, financeiro...) passa pelas mesmas etapas. Uma etapa só começa quando a anterior tem PR com a descrição pelo modelo (o handoff). **Tarefa pequena** (`tarefas/README.md`) pula as etapas: o agente **fullstack** faz tudo num PR.
 
 ```
 produto ─► arquiteto ─► backend ─┬─► frontend ─► qa ─► orquestrador fecha
@@ -16,7 +16,7 @@ seguranca revisa módulos com dados pessoais, dinheiro ou acesso
 2. **arquiteto** escreve `docs/api/<modulo>.md` e atualiza o modelo de dados. A partir daqui, backend e frontend podem andar em paralelo.
 3. **backend** implementa e publica o OpenAPI. **frontend** pode começar com dados falsos gerados do contrato e trocar pela API real quando o backend entregar.
 4. **qa** valida com o seed e os testes ponta a ponta.
-5. **orquestrador** lê os handoffs, fecha a tarefa e libera a próxima.
+5. **orquestrador** lê a descrição dos PRs, pede o merge ao dono e libera a próxima.
 
 ## Mensagens entre agentes
 
@@ -24,7 +24,7 @@ No Maestri os agentes podem mandar mensagem direto uns aos outros. Use sempre es
 
 ```
 [T-015] backend → frontend
-Entreguei a API de locações. Contrato: docs/api/locacoes.md. Handoff: tarefas/handoffs/T-015-backend.md.
+Entreguei a API de locações. Contrato: docs/api/locacoes.md. PR: #123.
 Pode começar T-022.
 ```
 
@@ -35,12 +35,12 @@ DEV-01 não diz o preço do litro quando a filial não cadastrou. Opções: A) b
 
 Regras:
 
-- Toda mensagem cita a tarefa. O que importa fica escrito em arquivo (handoff, backlog, regra); a mensagem só avisa.
+- Toda mensagem cita a tarefa. O que importa fica escrito (descrição do PR, backlog, regra); a mensagem só avisa.
 - Pergunta de regra vai para o **produto**; técnica entre apps, para o **arquiteto**; prioridade ou bloqueio, para o **orquestrador**.
 - Não espere parado: depois de perguntar, pegue outra tarefa.
 
 ## Conflitos de arquivo
 
 - Cada agente escreve só na sua pasta (tabela em `AGENTS.md`).
-- Arquivos compartilhados (`tarefas/*.md`) recebem edições pequenas e pontuais; releia antes de escrever.
+- `tarefas/` só o orquestrador edita, em PR próprio. PR de tarefa não toca no quadro.
 - Cada tarefa tem a própria branch. Se o Maestri estiver com vários agentes na mesma cópia do repositório, prefira um `git worktree` por agente (`git worktree add ../giro-backend t-015-locacoes`).

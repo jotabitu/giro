@@ -11,7 +11,8 @@ giro/
 ├── .claude/agents/        uma função por arquivo (orquestrador, produto, arquiteto,
 │                          backend, frontend, design-system, qa, devops, seguranca)
 ├── docs/
-│   ├── regras-de-negocio.md   fonte única da lógica de negócio, com códigos de regra
+│   ├── regras-de-negocio.md   índice e convenções das regras de negócio
+│   ├── regras/                regras por módulo, com códigos de regra (fonte única)
 │   ├── plano.md               visão, módulos, arquitetura e roadmap
 │   ├── design-system/         tokens, componentes, wl-theme.css
 │   ├── telas/                 123 telas de referência (html/) e o índice por módulo
