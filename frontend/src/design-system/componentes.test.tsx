@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CATALOGO } from "@/app/design-system/catalogo";
 import { ExemploDe } from "@/app/design-system/exemplos";
-import { Button, Dialogo, Gaveta, IconButton, KpiTile, LinhaDeLista, ListaDeLinhas, ProgressBar, StatusBadge, TextField, VehicleCard } from "./components";
+import { Button, Dialogo, Gaveta, IconButton, KpiTile, LinhaDeLista, ListaDeLinhas, ProgressBar, SelectField, StatusBadge, TextField, VehicleCard } from "./components";
 
 const dir = new URL("./", import.meta.url);
 
@@ -144,5 +144,27 @@ describe("T-054: alvo de toque, barra de frota, ProgressBar e LinhaDeLista", () 
     const simples = renderToStaticMarkup(<LinhaDeLista titulo="Só título" />);
     expect(simples).not.toContain("wl-linha__apoio");
     expect(simples).not.toContain("wl-linha__acao");
+  });
+});
+
+describe("T-440: SelectField", () => {
+  const opcoes = [{ valor: "a", rotulo: "Urbana 110–125" }, { valor: "b", rotulo: "Street 150–160" }];
+
+  it("liga o rótulo ao campo, mostra a opção em branco e as opções", () => {
+    const html = renderToStaticMarkup(<SelectField rotulo="Categoria" vazio="Escolha a categoria" opcoes={opcoes} />);
+    expect(html).toContain("Categoria");
+    expect(html).toContain("Escolha a categoria");
+    expect(html).toContain("Street 150–160");
+    expect(html).not.toContain("aria-invalid");
+  });
+
+  it("erro pinta o campo e troca a dica; rotuloOculto mantém o rótulo para o leitor de tela", () => {
+    const html = renderToStaticMarkup(<SelectField rotulo="Categoria de CG" rotuloOculto dica="Dica" erro="Escolha a categoria." opcoes={opcoes} />);
+    expect(html).toContain("wl-field--error");
+    expect(html).toContain("aria-invalid");
+    expect(html).toContain("Escolha a categoria.");
+    expect(html).not.toContain("Dica");
+    expect(html).toContain("wl-sr-only");
+    expect(html).toContain("Categoria de CG");
   });
 });
