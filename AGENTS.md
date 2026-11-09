@@ -15,6 +15,7 @@ Cada função tem um arquivo com missão, leituras obrigatórias, responsabilida
 | frontend | `.claude/agents/frontend.md` | Next.js, páginas, integração com a API | `frontend/` (exceto `src/design-system/`) |
 | design-system | `.claude/agents/design-system.md` | tokens, componentes, marca, telas de referência | `frontend/src/design-system/`, `docs/design-system/`, `docs/telas/`, `docs/marca/` |
 | qa | `.claude/agents/qa.md` | seed, testes de aceitação e ponta a ponta | `backend/tests/aceitacao/`, `backend/seed/`, `frontend/e2e/`, `docs/qa/` |
+| fullstack | `.claude/agents/fullstack.md` | tarefa pequena de ponta a ponta (contrato, backend, frontend) | `backend/`, `frontend/` (exceto `src/design-system/`) e o `docs/api/<modulo>.md` da tarefa |
 | devops | `.claude/agents/devops.md` | Docker, CI/CD, ambientes, backups | `infra/`, `.github/`, `docker-compose.yml`, `Makefile` |
 | seguranca | `.claude/agents/seguranca.md` | autenticação, permissões, LGPD, auditoria | `docs/seguranca/` (e tarefas no backlog) |
 

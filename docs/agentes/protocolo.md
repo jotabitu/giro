@@ -2,7 +2,7 @@
 
 ## Ordem de trabalho de um módulo
 
-Cada módulo (veículos, locação, financeiro...) passa pelas mesmas etapas. Uma etapa só começa quando a anterior tem PR com a descrição pelo modelo (o handoff). **Tarefa pequena** (`tarefas/README.md`) pula as etapas: um agente faz tudo num PR.
+Cada módulo (veículos, locação, financeiro...) passa pelas mesmas etapas. Uma etapa só começa quando a anterior tem PR com a descrição pelo modelo (o handoff). **Tarefa pequena** (`tarefas/README.md`) pula as etapas: o agente **fullstack** faz tudo num PR.
 
 ```
 produto ─► arquiteto ─► backend ─┬─► frontend ─► qa ─► orquestrador fecha

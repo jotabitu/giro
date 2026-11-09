@@ -40,6 +40,7 @@ A cópia principal (`giro/`) é do orquestrador. Cada agente trabalha num worktr
 ```
 git worktree add ../giro-backend   -b espera-backend   origin/develop
 git worktree add ../giro-frontend  -b espera-frontend  origin/develop
+git worktree add ../giro-fullstack -b espera-fullstack origin/develop
 git worktree add ../giro-design    -b espera-design    origin/develop
 git worktree add ../giro-arquiteto -b espera-arquiteto origin/develop
 git worktree add ../giro-produto   -b espera-produto   origin/develop
@@ -60,13 +61,13 @@ maestri role create "Backend" "<conteúdo de .claude/agents/backend.md + rodapé
 maestri recruit "Backend" --preset "Claude Code" --role "Backend"
 ```
 
-Modelo por agente: Opus para Orquestrador, Produto, Arquiteto, Backend e Seguranca; Sonnet para Frontend, Design System, QA e DevOps. Para trocar o modelo de um terminal sem perder as conexões:
+Modelo por agente: Opus para Orquestrador, Produto, Arquiteto, Backend, Fullstack e Seguranca; Sonnet para Frontend, Design System, QA e DevOps. Para trocar o modelo de um terminal sem perder as conexões:
 
 ```
 maestri recruit --command "claude --model claude-sonnet-5-5" --replace "Frontend"
 ```
 
-Conexões entre agentes (além de todos com o orquestrador): Produto com Arquiteto, Backend, Frontend, QA e Design System; Arquiteto com Backend, Frontend, DevOps e Seguranca; Backend com Frontend, QA, DevOps e Seguranca; Frontend com Design System, QA e DevOps; QA com DevOps e Seguranca. Use `maestri connect "A" "B"`.
+Conexões entre agentes (além de todos com o orquestrador): Produto com Arquiteto, Backend, Frontend, QA e Design System; Arquiteto com Backend, Frontend, DevOps e Seguranca; Backend com Frontend, QA, DevOps e Seguranca; Frontend com Design System, QA e DevOps; QA com DevOps e Seguranca; Fullstack com Produto, Design System e QA. Use `maestri connect "A" "B"`.
 
 Portais para ver o frontend: `maestri portal create http://localhost:3000/entrar "Giro Web"` e `maestri portal create http://localhost:3000/entrar "Giro Celular" --size 390x844`.
 

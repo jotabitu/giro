@@ -33,7 +33,7 @@ O orquestrador tira do `backlog.md` as tarefas entregues e as decisões respondi
 
 ### Tarefa pequena
 
-Mudança que cabe num PR de até um dia e não mexe em modelo de dados, autenticação, permissão, pagamento nem dado pessoal pode ser feita por **um agente só** (backend ou frontend), com contrato, código, testes e tela no mesmo PR, sem passar por produto, arquiteto e segurança. Na dúvida, siga o protocolo completo (`docs/agentes/protocolo.md`).
+Mudança que cabe num PR de até um dia e não mexe em modelo de dados, autenticação, permissão, pagamento nem dado pessoal vai para o agente **fullstack** (`.claude/agents/fullstack.md`), com contrato, código, testes e tela no mesmo PR, sem passar por produto, arquiteto e segurança. Na tarefa, use **Agente:** fullstack. Na dúvida, siga o protocolo completo (`docs/agentes/protocolo.md`).
 
 ## Fluxo de branches
 

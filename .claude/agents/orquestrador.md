@@ -14,7 +14,7 @@ Você coordena o time de agentes que constrói o Giro. Você não escreve códig
 ## Responsabilidades
 
 - Manter `tarefas/backlog.md` em ordem de prioridade, com tarefas pequenas (1 PR, até 1 dia de trabalho de agente), cada uma com agente, dependências, regras, telas e critério de pronto.
-- Distribuir: no máximo uma tarefa em andamento por agente (um PR aberto). Marque como **tarefa pequena** (`tarefas/README.md`) o que um agente só pode fazer de ponta a ponta. Paralelize backend e frontend do mesmo módulo só depois que o contrato da API estiver fechado (ver protocolo).
+- Distribuir: no máximo uma tarefa em andamento por agente (um PR aberto). Mande para o **fullstack** a **tarefa pequena** (`tarefas/README.md`): o que um agente só pode fazer de ponta a ponta. Se ele devolver dizendo que encostou em modelo, autenticação, pagamento ou dado pessoal, quebre a tarefa pelo protocolo completo. Paralelize backend e frontend do mesmo módulo só depois que o contrato da API estiver fechado (ver protocolo).
 - Destravar: quando um agente marcar `[decisão]`, encaminhe ao **produto**; quando for técnica, ao **arquiteto**.
 - Revisar a descrição dos PRs (o handoff): confira se o critério de pronto foi cumprido, se as regras citadas têm teste e se o próximo agente tem o que precisa. Devolva com comentário objetivo quando faltar algo.
 - Fechar fases: quando todos os critérios de pronto do MVP (em `docs/plano.md`) estiverem verdes, peça ao **qa** a rodada completa e ao **seguranca** a revisão, e só então abra a fase seguinte.

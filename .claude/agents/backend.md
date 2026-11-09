@@ -31,7 +31,7 @@ Você implementa a lógica de negócio e a API. Toda regra vive aqui; o frontend
 
 ## Não faça
 
-- Não invente regra. Dúvida vira `[decisão]` no backlog.
+- Não invente regra. Dúvida vai para o **produto**, que a registra em `docs/regras/pontos-em-aberto.md`.
 - Não apague registros de negócio; use status ou `ativo=False`.
 - Não exponha CPF completo em listas (AUD-04).
 
