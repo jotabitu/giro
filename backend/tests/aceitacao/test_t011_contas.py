@@ -1795,7 +1795,7 @@ def test_usr_05_usr_08_navegacao_por_perfil(adm, settings):
     assert mariana["inicio"] == {"rota": "/inicio", "variante": "implantacao"}
     assert _chaves(mariana["menu_completo"]) == [
         (None, ["inicio", "aprovacoes", "veiculos"]),
-        ("Operação", ["locacoes", "vendas", "clientes", "manutencoes"]),
+        ("Operação", ["locacoes", "agenda", "avarias", "vendas", "clientes", "manutencoes"]),
         ("Financeiro", FINANCEIRO_DE_QUEM_PAGA),
         ("Administração", ADMINISTRACAO),
     ]
@@ -1927,7 +1927,7 @@ def test_usr_05_plano_atividade_e_modulos_escondem_itens(adm, settings, planos):
     adm.empresa.save(update_fields=["plano"])
     assert _chaves(_navegacao(adm, "Mariana")["menu_completo"]) == [
         (None, ["inicio", "aprovacoes", "veiculos"]),
-        ("Operação", ["locacoes", "clientes"]),
+        ("Operação", ["locacoes", "agenda", "avarias", "clientes"]),
         ("Financeiro", ["caixa", "receber", "reembolsos"]),
         ("Administração", ADMINISTRACAO),
     ]

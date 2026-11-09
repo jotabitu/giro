@@ -53,6 +53,8 @@ export type ItemDaAgenda = {
   veiculo: { id: number; placa: string; modelo: string };
   cliente: { nome: string };
   locacao: { id: number; codigo: string };
+  /** A filial da locação: aparece quando a agenda junta filiais (administrador com todas, T-442). */
+  filial: { id: number; nome: string };
   situacao: { codigo: string; rotulo: string; tom: TomApi };
   vistoria_id: number | null;
   acao: { codigo: "iniciar" | "continuar" | "abrir"; rotulo: string };

@@ -12009,6 +12009,16 @@ components:
       - nome
       - nome_curto
       - preco_litro_centavos
+    FilialDaAgenda:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+      - id
+      - nome
     FilialDaImportacao:
       type: object
       properties:
@@ -13224,6 +13234,8 @@ components:
           $ref: '#/components/schemas/ClienteDaAgenda'
         locacao:
           $ref: '#/components/schemas/LocacaoDaVistoria'
+        filial:
+          $ref: '#/components/schemas/FilialDaAgenda'
         situacao:
           $ref: '#/components/schemas/SituacaoAgenda'
         vistoria_id:
@@ -13234,6 +13246,7 @@ components:
       required:
       - acao
       - cliente
+      - filial
       - horario
       - id
       - locacao

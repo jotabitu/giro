@@ -226,6 +226,11 @@ class ClienteDaAgendaSerializer(serializers.Serializer[Any]):
     nome = serializers.CharField()
 
 
+class FilialDaAgendaSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    nome = serializers.CharField()
+
+
 class ItemAgendaSerializer(serializers.Serializer[Any]):
     id = serializers.CharField()
     tipo = serializers.CharField(help_text="saida, devolucao")
@@ -233,6 +238,7 @@ class ItemAgendaSerializer(serializers.Serializer[Any]):
     veiculo = VeiculoDaVistoriaSerializer()
     cliente = ClienteDaAgendaSerializer()
     locacao = LocacaoDaVistoriaSerializer()
+    filial = FilialDaAgendaSerializer()
     situacao = SituacaoAgendaSerializer()
     vistoria_id = serializers.IntegerField(allow_null=True)
     acao = AcaoAgendaSerializer()

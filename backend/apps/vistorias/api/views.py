@@ -28,6 +28,7 @@ from comum.empresa import nome_da_empresa
 from comum.erros import ErroDeValidacao
 from comum.limites import LIMITES_DO_LINK_RECIBO, LIMITES_DO_RECIBO_PUBLICO
 from comum.permissoes import (
+    TODAS_AS_FILIAIS,
     com_padrao,
     exige_perfil,
     filiais_permitidas,
@@ -278,15 +279,18 @@ class AvariasAbertasView(ViewDeVistoria):
         return Response(_para(request, ListaDeAvariasSerializer({"resultados": resultados}).data))
 
 
-def _filial_da_agenda(request: Request) -> Filial:
-    """A agenda é de uma filial: a do `X-Filial`, ou a única da pessoa (VIS-05)."""
+def _filiais_da_agenda(request: Request) -> list[Filial]:
+    """A agenda é de uma filial: a do `X-Filial`, ou a única da pessoa (VIS-05). Com
+    `X-Filial: todas` (administrador, USR-05, T-442), as filiais da pessoa, juntas."""
     pedida = filial_pedida(request)
+    if pedida == TODAS_AS_FILIAIS:
+        return list(Filial.objects.filter(pk__in=filiais_permitidas(request.user)).order_by("id"))
     if not isinstance(pedida, int):
         filiais = filiais_permitidas(request.user)
         if pedida is not None or len(filiais) != 1:
             raise ErroDeValidacao({"filial": ["Escolha a filial no cabeçalho X-Filial."]})
         pedida = next(iter(filiais))
-    return Filial.objects.get(pk=pedida)
+    return [Filial.objects.get(pk=pedida)]
 
 
 class AgendaView(ViewDeVistoria):
@@ -301,9 +305,8 @@ class AgendaView(ViewDeVistoria):
         dia = request.query_params.get("dia", "hoje")
         if dia not in DIAS:
             raise ErroDeValidacao({"dia": ["Use hoje, amanha ou semana."]})
-        return Response(
-            _para(request, AgendaSerializer(selectors.agenda(_filial_da_agenda(request), dia)).data)
-        )
+        agenda = selectors.agenda_das_filiais(_filiais_da_agenda(request), dia)
+        return Response(_para(request, AgendaSerializer(agenda).data))
 
 
 # --- Devolução e acerto (DEV-01 a DEV-06) ---

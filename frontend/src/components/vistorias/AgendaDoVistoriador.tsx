@@ -22,11 +22,12 @@ const ordenado = (i: ItemDaAgenda[]) => [...i].sort((a, b) => a.horario.localeCo
 /** Para onde a ação do item leva: a vistoria de saída ou a devolução da locação. */
 export const rotaDoItemDaAgenda = (i: Pick<ItemDaAgenda, "tipo" | "locacao">) => `/locacoes/${i.locacao.id}/${i.tipo === "saida" ? "vistoria" : "devolucao"}`;
 
-const COLUNAS: ColunaTabela<ItemDaAgenda>[] = [
+/** Com mais de uma filial na agenda (administrador com todas as filiais, T-442), a filial aparece em cada item. */
+const colunas = (comFilial: boolean): ColunaTabela<ItemDaAgenda>[] => [
   { chave: "horario", titulo: "Horário", mono: true, celula: (i) => <span className="whitespace-nowrap">{horarioDaAgenda(i.horario)}</span> },
   { chave: "tipo", titulo: "Tipo", celula: (i) => TIPO[i.tipo] },
   { chave: "veiculo", titulo: "Veículo", celula: (i) => <CelulaDupla principal={<span className="wl-mono whitespace-nowrap">{placa(i.veiculo.placa)}</span>} secundaria={i.veiculo.modelo} /> },
-  { chave: "cliente", titulo: "Cliente", celula: (i) => i.cliente.nome },
+  { chave: "cliente", titulo: "Cliente", celula: (i) => (comFilial ? <CelulaDupla principal={i.cliente.nome} secundaria={i.filial.nome} /> : i.cliente.nome) },
   {
     chave: "situacao",
     titulo: "Situação",
@@ -47,7 +48,7 @@ const COLUNAS: ColunaTabela<ItemDaAgenda>[] = [
   },
 ];
 
-function Linha({ i }: { i: ItemDaAgenda }) {
+function Linha({ i, comFilial }: { i: ItemDaAgenda; comFilial: boolean }) {
   return (
     <Link href={rotaDoItemDaAgenda(i)} className="flex min-h-[56px] items-center gap-3 rounded-lg bg-surface px-4 py-3 text-ink no-underline">
       <span className="wl-mono w-[60px] shrink-0 text-caption text-ink-muted">{horarioDaAgenda(i.horario)}</span>
@@ -55,7 +56,10 @@ function Linha({ i }: { i: ItemDaAgenda }) {
         <span className="block truncate text-body font-medium">
           {placa(i.veiculo.placa)} · {i.veiculo.modelo}
         </span>
-        <small className="block text-caption text-ink-muted">{i.cliente.nome}</small>
+        <small className="block text-caption text-ink-muted">
+          {i.cliente.nome}
+          {comFilial && ` · ${i.filial.nome}`}
+        </small>
       </span>
       <StatusBadge tom={tomDoStatus(i.situacao.tom)} compacto>
         {i.situacao.rotulo}
@@ -65,7 +69,7 @@ function Linha({ i }: { i: ItemDaAgenda }) {
   );
 }
 
-function Grupo({ um, varios, itens }: { um: string; varios: string; itens: ItemDaAgenda[] }) {
+function Grupo({ um, varios, itens, comFilial }: { um: string; varios: string; itens: ItemDaAgenda[]; comFilial: boolean }) {
   if (itens.length === 0) return null;
   const titulo = varios.charAt(0).toUpperCase() + varios.slice(1);
   return (
@@ -77,7 +81,7 @@ function Grupo({ um, varios, itens }: { um: string; varios: string; itens: ItemD
         </span>
       </div>
       {itens.map((i) => (
-        <Linha key={i.id} i={i} />
+        <Linha key={i.id} i={i} comFilial={comFilial} />
       ))}
     </section>
   );
@@ -92,6 +96,7 @@ export function AgendaDoVistoriador() {
   const outros = useQuery({ queryKey: ["agenda", dia === "hoje" ? "amanha" : "hoje"], queryFn: () => vistorias.agenda(dia === "hoje" ? "amanha" : "hoje") });
   const d = consulta.data;
   const itens = ordenado(d?.resultados ?? []);
+  const comFilial = new Set(itens.map((i) => i.filial.id)).size > 1;
   const proxima = d?.proxima ? itens.find((i) => i.id === d.proxima?.item_id) : undefined;
   const contagem = (alvo: DiaDaAgenda) => (alvo === dia ? d?.resultados.length : outros.data && (alvo === "hoje" || alvo === "amanha") ? outros.data.resultados.length : undefined);
   const abas = (["hoje", "amanha", "semana"] as DiaDaAgenda[]).map((a) => ({ valor: a, rotulo: NOME_DA_ABA[a] }));
@@ -138,13 +143,13 @@ export function AgendaDoVistoriador() {
                 <div className="hidden md:block">
                   <Panel>
                     <div className="overflow-x-auto">
-                      <DataTable colunas={COLUNAS} linhas={itens} chaveDaLinha={(i) => i.id} legenda="Vistorias" />
+                      <DataTable colunas={colunas(comFilial)} linhas={itens} chaveDaLinha={(i) => i.id} legenda="Vistorias" />
                     </div>
                   </Panel>
                 </div>
                 <div className="flex flex-col gap-5 md:hidden">
-                  <Grupo um="saída" varios="saídas" itens={itens.filter((i) => i.tipo === "saida")} />
-                  <Grupo um="devolução" varios="devoluções" itens={itens.filter((i) => i.tipo === "devolucao")} />
+                  <Grupo um="saída" varios="saídas" itens={itens.filter((i) => i.tipo === "saida")} comFilial={comFilial} />
+                  <Grupo um="devolução" varios="devoluções" itens={itens.filter((i) => i.tipo === "devolucao")} comFilial={comFilial} />
                 </div>
               </>
             )}
