@@ -42,15 +42,19 @@ COLUNAS_VEICULO = [
     "ano_modelo",
     "cor",
     "km",
-    "categoria",
 ]
-# Quantos de cada categoria (a frota da Moto Rápida: 42 + 32 + 6 + 6 = 86).
-CATEGORIAS = [
-    ("Urbana 110–125", 42),
-    ("Street 150–160", 32),
-    ("Scooter premium", 6),
-    ("Carro compacto", 6),
+# T-440 (IMP-08): sem a coluna categoria. Os 7 modelos da frota da Moto Rápida, na ordem da
+# planilha, e a categoria de cada um (42 + 32 + 6 + 6 = 86).
+MODELOS = [
+    ("Honda", "Pop 110i", 21, "Urbana 110–125"),
+    ("Honda", "Biz 125", 21, "Urbana 110–125"),
+    ("Honda", "CG 160 Fan", 16, "Street 150–160"),
+    ("Yamaha", "Factor 150", 16, "Street 150–160"),
+    ("Yamaha", "NMax 160", 6, "Scooter premium"),
+    ("Renault", "Kwid", 3, "Carro compacto"),
+    ("Fiat", "Mobi", 3, "Carro compacto"),
 ]
+CATEGORIA_DO_MODELO = {modelo: categoria for _, modelo, _, categoria in MODELOS}
 COLUNAS_CLIENTE = ["nome", "documento", "celular", "email", "nascimento", "cnh_numero"]
 JULIANA = ["Juliana Alves", "052.218.330-18", "(85) 99812-3344", "", "14/03/1998", "04512345678"]
 MARCOS = ["Marcos Lima", "529.982.247-25", "(85) 98877-1122", "", "", ""]
@@ -77,18 +81,16 @@ def _xlsx(cabecalho: list[str], linhas: list[list[Any]]) -> bytes:
 
 def _frota(quantos: int = 86) -> list[list[Any]]:
     """A planilha da Moto Rápida. Linha i da lista = linha i + 2 da planilha."""
-    categorias = [nome for nome, n in CATEGORIAS for _ in range(n)]
+    modelos = [(marca, modelo) for marca, modelo, n, _ in MODELOS for _ in range(n)]
     return [
         [
             f"QAA{i:04d}",
             f"9C2KC2210PR{i:06d}",
-            "Honda",
-            "CG 160 Fan",
+            *modelos[i],
             2024,
             2024,
             "Preta",
             1000 + i,
-            categorias[i],
         ]
         for i in range(quantos)
     ]
@@ -123,7 +125,29 @@ def _linhas(api, importacao_id: int, status: str = "") -> list[dict[str, Any]]:
     return list(resposta.json()["resultados"])
 
 
+def escolher_categorias(api, importacao_id: int, moto: Any = None) -> None:
+    """IMP-08: a categoria de cada modelo ainda sem categoria, pela tabela de `MODELOS` (modelo
+    fora da tabela vai para a Street 150–160)."""
+    corpo = api.get(f"{URL}{importacao_id}/").json()
+    categorias = corpo.get("categorias") or {}
+    ids = {c["nome"]: c["id"] for c in categorias.get("opcoes", [])}
+    faltam = [m for m in categorias.get("modelos", []) if m["categoria_id"] is None]
+    if not categorias.get("pergunta") or not faltam:
+        return
+    modelos = [
+        {
+            "marca": m["marca"],
+            "modelo": m["modelo"],
+            "categoria_id": ids[CATEGORIA_DO_MODELO.get(m["modelo"], "Street 150–160")],
+        }
+        for m in faltam
+    ]
+    resposta = api.post(f"{URL}{importacao_id}/categorias/", {"modelos": modelos}, format="json")
+    assert resposta.status_code == 200, resposta.json()
+
+
 def _importar(api, capturar, importacao_id: int):
+    escolher_categorias(api, importacao_id)
     return _rodando(capturar, api.post, f"{URL}{importacao_id}/importar/", {}, format="json")
 
 
@@ -287,8 +311,9 @@ def test_imp_02_ja_cadastrado_e_erro_nao_atualizacao(moto, django_capture_on_com
     assert Veiculo.objects.count() == 2
 
 
-def test_imp_02_categoria_filial_e_numeros(moto, django_capture_on_commit_callbacks):
-    cabecalho = [*COLUNAS_VEICULO, "filial", "valor_compra", "data_compra"]
+def test_imp_02_numeros_e_colunas_antigas_ignoradas(moto, django_capture_on_commit_callbacks):
+    """IMP-02 e IMP-08: as colunas categoria e filial da planilha antiga não dão erro."""
+    cabecalho = [*COLUNAS_VEICULO, "categoria", "filial", "valor_compra", "data_compra"]
     linhas = [
         [
             "QAA0001",
@@ -342,12 +367,9 @@ def test_imp_02_categoria_filial_e_numeros(moto, django_capture_on_commit_callba
     assert [e["mensagem"] for e in todas[1]["erros"]] == [
         "Ano de fabricação precisa ser um número",
         "Km precisa ser um número",
-        "Categoria Inexistente não existe ou está inativa",
         "Data de compra inválida",
     ]
-    assert [e["mensagem"] for e in todas[2]["erros"]] == [
-        "Filial Filial Norte não existe ou está inativa"
-    ]
+    assert todas[2]["status"] == "pronta", todas[2]
     _importar(api, django_capture_on_commit_callbacks, imp)
     gravado = Veiculo.objects.get(placa="QAA0001")
     assert (gravado.km_atual, gravado.valor_compra_centavos) == (1200, 1390000)
@@ -604,9 +626,8 @@ def test_importacao_conteudo_extensao_tamanho_e_cabecalho(moto):
         "ano_modelo",
         "cor",  # T-164: obrigatória
         "km",
-        "categoria",
     ]
-    linhas = [[f"QAA{i:04d}", "", "", "", "", "", "", "", ""] for i in range(5001)]
+    linhas = [[f"QAA{i:04d}", "", "", "", "", "", "", ""] for i in range(5001)]
     grande = _enviar(api, _xlsx(COLUNAS_VEICULO, linhas))
     assert grande.json()["campos"] == {"arquivo": ["A planilha passa de 5.000 linhas."]}
 

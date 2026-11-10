@@ -7,6 +7,7 @@ from . import views
 urlpatterns: list[URLPattern] = [
     path("importacoes/", views.ImportacoesView.as_view(), name="importacoes"),
     path("importacoes/modelo/", views.ModeloView.as_view(), name="importacoes-modelo"),
+    path("importacoes/preparo/", views.PreparoView.as_view(), name="importacoes-preparo"),
     path("importacoes/<int:pk>/", views.ImportacaoView.as_view(), name="importacao"),
     path("importacoes/<int:pk>/linhas/", views.LinhasView.as_view(), name="importacao-linhas"),
     path(
@@ -18,6 +19,11 @@ urlpatterns: list[URLPattern] = [
         "importacoes/<int:pk>/linhas/<int:numero>/ignorar/",
         views.IgnorarLinhaView.as_view(),
         name="importacao-linha-ignorar",
+    ),
+    path(
+        "importacoes/<int:pk>/categorias/",
+        views.CategoriasView.as_view(),
+        name="importacao-categorias",
     ),
     path(
         "importacoes/<int:pk>/importar/", views.ImportarView.as_view(), name="importacao-importar"

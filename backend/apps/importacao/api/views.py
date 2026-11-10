@@ -28,10 +28,12 @@ from ..models import Importacao, TipoImportacao
 from .serializers import (
     CorrecaoSerializer,
     EnvioSerializer,
+    EscolhaDeCategoriasSerializer,
     ImportacaoSerializer,
     LinhaSerializer,
     ListaDeImportacoesSerializer,
     ListaDeLinhasSerializer,
+    PreparoSerializer,
 )
 
 ADMINISTRADOR: list[type[BasePermission]] = com_padrao(exige_perfil("administrador"))
@@ -143,8 +145,38 @@ class LinhaView(Administrador):
     def patch(self, request: Request, pk: int, numero: int) -> Response:
         dados = _entrada(CorrecaoSerializer, request)
         importacao = _importacao(pk)
-        linha = services.corrigir(importacao, numero, dados["dados"])
+        linha = services.corrigir(
+            importacao,
+            numero,
+            dados.get("dados") or {},
+            dados.get("categoria_id"),
+            mudar_categoria="categoria_id" in dados,
+        )
         return _linha(request, importacao, linha)
+
+
+class CategoriasView(Administrador):
+    @extend_schema(
+        request=EscolhaDeCategoriasSerializer,
+        responses=ImportacaoSerializer,
+        summary="Categoria de cada modelo (IMP-08)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        dados = _entrada(EscolhaDeCategoriasSerializer, request)
+        importacao = services.escolher_categorias(_importacao(pk), dados["modelos"])
+        return _representacao(importacao)
+
+
+class PreparoView(Leitura):
+    @extend_schema(
+        parameters=[OpenApiParameter("filial_id", int)],
+        responses=PreparoSerializer,
+        summary="Antes de enviar veículos: a filial e se dá para importar (IMP-08)",
+    )
+    def get(self, request: Request) -> Response:
+        texto = request.query_params.get("filial_id", "")
+        filial_id = int(texto) if texto.isdigit() else None
+        return Response(PreparoSerializer(selectors.preparo(filial_id)).data)
 
 
 class IgnorarLinhaView(Administrador):
