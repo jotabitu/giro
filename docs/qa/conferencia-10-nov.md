@@ -44,3 +44,16 @@ Observações sem dono ainda:
 1. Rodar de novo na stack isolada com o seed de 07 out os critérios que gravam (lista acima), depois que o D1 e o D2 forem corrigidos.
 2. Produto: resposta do D6.
 3. Design-system: tela `Veiculo-Editar` com o tipo e a galeria (D4) e o tamanho do visualizador.
+
+## Reconferência de D2 e D3 (10 nov 2026, depois do push 9d004579 do #505)
+
+**Não foi possível confirmar: o giro-integracao serve o build antigo.** O arquivo `GaleriaNaFicha.tsx` dentro do contêiner `giro-frontend-1` já tem o código novo (`tituloDaGaleria`, modificado às 14:30), mas o `.next` compilado não contém `tituloDaGaleria` e o log do dev server não mostra recompilação da ficha. O arquivo veio de um `git` no Windows e o contêiner não viu a mudança (sem evento de arquivo no volume). Resultado do teste contra esse build, a 1440 e a 390 px, repetido depois de 20 s:
+
+| Verificação | Resultado |
+| --- | --- |
+| Título | "Galeria do veículo · QXA4B21" (ainda sem hífen) |
+| Seta direita, direita, esquerda logo ao abrir, sem clicar | continua "Foto 1 de 3 · capa" |
+| Tab (foco vai ao "Fechar") e depois as setas | continua "Foto 1 de 3 · capa" |
+| Esc | fecha |
+
+Isso é o comportamento de antes do fix; não prova que o fix falha. Falta reiniciar o contêiner do frontend do giro-integracao (`docker restart giro-frontend-1`, ação do Orquestrador) e repetir o mesmo teste.
