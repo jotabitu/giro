@@ -92,7 +92,7 @@ describe("peças da galeria (reaproveitadas pelo cadastro, T-437)", () => {
   it("cartão de foto: selo de posição, selo Capa sólido, ações no slot e linha no celular (size-16) com cartão a partir de md", () => {
     const h = html(<CartaoDeFoto url="/f.jpg" alt="Foto 1 de 3" posicao={1} capa legenda="Foto 1 de 3" acoes={<button>Minha ação</button>} />);
     expect(h).toContain("wl-badge--solid");
-    expect(h).toContain("size-[64px]");
+    expect(h).toContain("size-16");
     expect(h).toContain("md:h-[140px]");
     expect(texto(h)).toContain("Minha ação");
     expect(html(<CartaoDeFoto url="/f.jpg" alt="x" posicao={2} capa={false} legenda="Foto 2 de 3" />)).not.toContain("wl-badge--solid");
