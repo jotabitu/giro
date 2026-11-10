@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { CombustivelDoVeiculo, DocumentoDoVeiculo, DocumentoDoVeiculoEntrada, EdicaoVeiculo, EspecieDoVeiculo, NovoVeiculo, RastreadorEntrada, VeiculoDetalhe } from "@/lib/api";
+import type { CombustivelDoVeiculo, DocumentoDoVeiculo, DocumentoDoVeiculoEntrada, EdicaoVeiculo, EspecieDoVeiculo, NovoVeiculo, RastreadorEntrada, TipoVeiculo, VeiculoDetalhe } from "@/lib/api";
 
 const texto = z.string().trim();
 
@@ -16,7 +16,7 @@ export const esquemaVeiculo = z.object({
   cor: texto.min(1, "Informe a cor"),
   km_atual: texto.min(1, "Informe o km"),
   filial_id: texto.min(1, "Escolha a filial"),
-  categoria_id: texto.min(1, "Escolha a categoria"),
+  categoria_id: texto.min(1, "Escolha a categoria de preço."), // VEI-11
   capacidade_tanque_litros: texto,
   data_compra: texto,
   crlv_validade: texto,
@@ -269,4 +269,25 @@ export function valoresDaLeitura(l: { campos: object; lidos: string[] }): { valo
     lidos.push(nome as CampoLido);
   }
   return { valores, lidos };
+}
+
+// --- VEI-11: tipo do veículo (moto ou carro) no cadastro e no editar (T-438) ---
+
+export const OPCOES_DE_TIPO: { valor: TipoVeiculo; rotulo: string }[] = [
+  { valor: "moto", rotulo: "Moto" },
+  { valor: "carro", rotulo: "Carro" },
+];
+
+/** Categoria guardada por tipo, para voltar ao tipo anterior antes de salvar devolver a categoria que estava. */
+export type CategoriasPorTipo = Partial<Record<TipoVeiculo, string>>;
+
+/** Trocar o tipo esvazia a categoria (ou devolve a que estava nesse tipo) e guarda a do tipo de antes. A API é quem diz se a troca vale. */
+export function categoriaAoTrocarTipo(guardadas: CategoriasPorTipo, de: TipoVeiculo, categoria: string, para: TipoVeiculo): { categoria: string; guardadas: CategoriasPorTipo } {
+  if (de === para) return { categoria, guardadas };
+  return { categoria: guardadas[para] ?? "", guardadas: { ...guardadas, [de]: categoria } };
+}
+
+/** A lista de categorias do tipo veio vazia: a frase da VEI-11. */
+export function semCategoriaDoTipo(tipo: TipoVeiculo): string {
+  return `Nenhuma categoria de ${tipo} nesta filial. Cadastre uma em Preços.`;
 }

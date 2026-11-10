@@ -7,12 +7,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useEffect, useRef, useState, type SelectHTMLAttributes } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
-import { Icone, Panel, SegmentedControl, TextField } from "@/design-system";
-import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo } from "@/lib/api";
+import { Icone, Panel, SelectField, TextField } from "@/design-system";
+import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo, type TipoVeiculo } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { dinheiro, km, placa as placaComHifen } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
-import { esquemaVeiculo, NOME_DO_CAMPO_DA_API, paraCorpoVeiculo, valoresDaLeitura, VALORES_INICIAIS_VEICULO, type CampoLido, type ValoresVeiculo } from "@/lib/veiculos";
+import { categoriaAoTrocarTipo, esquemaVeiculo, NOME_DO_CAMPO_DA_API, OPCOES_DE_TIPO, paraCorpoVeiculo, semCategoriaDoTipo, valoresDaLeitura, VALORES_INICIAIS_VEICULO, type CampoLido, type CategoriasPorTipo, type ValoresVeiculo } from "@/lib/veiculos";
 import { CamposDoDocumento } from "./CamposDoDocumento";
 import { PreencherPeloCrlv, type CrlvLido } from "./PreencherPeloCrlv";
 
@@ -83,11 +83,22 @@ export function NovoVeiculoForm() {
   });
   const lista: CategoriaVeiculo[] = categorias.data ?? [];
   const categoria = lista.find((c) => String(c.id) === v.categoria_id);
+  const semCategoria = categorias.data?.length === 0 ? semCategoriaDoTipo(v.tipo) : undefined;
 
-  // Trocar tipo ou filial pode tirar a categoria escolhida da lista.
+  // Trocar a filial pode tirar a categoria escolhida da lista.
   useEffect(() => {
     if (categorias.data && v.categoria_id && !categorias.data.some((c) => String(c.id) === v.categoria_id)) setValue("categoria_id", "");
   }, [categorias.data, v.categoria_id, setValue]);
+
+  // VEI-11: trocar o tipo esvazia a categoria; voltar ao tipo anterior devolve a que estava.
+  const guardadas = useRef<CategoriasPorTipo>({});
+  function trocarTipo(para: TipoVeiculo) {
+    const troca = categoriaAoTrocarTipo(guardadas.current, v.tipo, v.categoria_id, para);
+    guardadas.current = troca.guardadas;
+    setValue("tipo", para, { shouldDirty: true });
+    setValue("categoria_id", troca.categoria, { shouldDirty: true });
+    clearErrors("categoria_id");
+  }
 
   const modelos = useQuery({
     queryKey: ["modelos", { tipo: v.tipo, marca: marcaAdiada.trim(), busca: modeloAdiado.trim() }],
@@ -140,6 +151,7 @@ export function NovoVeiculoForm() {
       void cliente.invalidateQueries({ queryKey: ["veiculos"] });
       if (outro) {
         reset({ ...valoresIniciais, tipo: valores.tipo, filial_id: valores.filial_id });
+        guardadas.current = {};
         tirarCrlv();
         setSalvo(`${criado.marca} ${criado.modelo}, placa ${placaComHifen(criado.placa)}, entrou na frota.`);
         window.scrollTo?.({ top: 0 });
@@ -210,15 +222,6 @@ export function NovoVeiculoForm() {
           <button type="button" disabled title="Em breve" className="wl-btn hidden md:inline-flex">
             Importar planilha
           </button>
-          <SegmentedControl
-            rotulo="Tipo de veículo"
-            valor={v.tipo}
-            aoMudar={(t) => setValue("tipo", t, { shouldDirty: true })}
-            opcoes={[
-              { valor: "moto", rotulo: "Moto" },
-              { valor: "carro", rotulo: "Carro" },
-            ]}
-          />
         </div>
       </header>
 
@@ -276,13 +279,16 @@ export function NovoVeiculoForm() {
           <Panel titulo="Uso na frota">
             <div className="grid gap-4 md:grid-cols-2">
               <Selecao id="filial" rotulo="Filial" vazio="Escolha" opcoes={filiais} erro={erro("filial_id")} {...register("filial_id")} />
+              <SelectField cheio rotulo="Tipo de veículo" opcoes={OPCOES_DE_TIPO} value={v.tipo} onChange={(e) => trocarTipo(e.target.value as TipoVeiculo)} />
               <Selecao
                 id="categoria"
                 rotulo="Categoria de preço"
                 vazio={categorias.isPending ? "Carregando…" : "Escolha"}
                 opcoes={lista.map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
+                dica={semCategoria}
                 erro={erro("categoria_id")}
                 {...register("categoria_id")}
+                value={v.categoria_id}
               />
             </div>
             {categoria && (

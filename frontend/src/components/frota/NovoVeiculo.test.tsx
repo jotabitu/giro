@@ -52,6 +52,18 @@ describe("tela Cadastrar veículo", () => {
     for (const flex of ['<option value="flex">Flex</option>', '<option value="gasolina">Gasolina</option>']) expect(h).toContain(flex);
   });
 
+  it("test_vei_11_tipo_antes_da_categoria_com_moto_marcado (CA-438-01)", () => {
+    sessao.veiculos = "editar";
+    const h = html(<NovoVeiculoForm />);
+    const tipo = h.indexOf(">Tipo de veículo</label>");
+    expect(tipo).toBeGreaterThan(h.indexOf(">Filial</label>"));
+    expect(tipo).toBeLessThan(h.indexOf(">Categoria de preço</label>"));
+    expect(h).toMatch(/<option value="moto" selected="">Moto<\/option>/);
+    expect(h).toContain('<option value="carro">Carro</option>');
+    // O controle de tipo saiu do cabeçalho: um só campo de tipo na tela.
+    expect(h.match(/Tipo de veículo/g)).toHaveLength(1);
+  });
+
   it("a leitura do CRLV-e está ligada e a FIPE segue desativada (VEI-08)", () => {
     sessao.veiculos = "editar";
     const h = html(<NovoVeiculoForm />);

@@ -190,8 +190,15 @@ function montarCompleto(s: Semente): Veiculo {
       corrigir_km: editar,
       // T-275 (MOV-03): só o veículo disponível se movimenta; o alugado diz por quê.
       ...(editar ? { movimentar: s.status === "disponivel", motivo_movimentar: s.status === "alugado" && s.locacao ? `Veículo alugado não se movimenta. O botão volta quando a ${s.locacao.codigo} for devolvida.` : null } : {}),
+      motivo_trocar_tipo: editar ? motivoDeNaoTrocarTipo(s) : null,
     },
   };
+}
+
+/** VEI-11: reservado ou alugado, o tipo não muda (a frase do 409 `tipo_com_locacao_aberta`). */
+function motivoDeNaoTrocarTipo(s: Semente): string | null {
+  if (s.status !== "alugado" && s.status !== "reservado") return null;
+  return s.locacao ? `Este veículo está na ${s.locacao.codigo}. Troque o tipo depois da devolução.` : "Este veículo está numa locação aberta. Troque o tipo depois da devolução.";
 }
 
 function normalizar(t: string): string {
@@ -447,11 +454,13 @@ export const veiculosFalso = {
     const categoria = v.categoria_id !== undefined ? CATEGORIAS.find((c) => c.id === v.categoria_id) : undefined;
     if (v.categoria_id !== undefined) {
       if (!categoria) campos.categoria_id = "Escolha a categoria";
-      else if (categoria.tipo_veiculo !== s.tipo) campos.categoria_id = "Esta categoria é de outro tipo de veículo";
       else if (categoria.filial && categoria.filial.id !== (s.filialId ?? 1)) campos.categoria_id = "Esta categoria é de outra filial";
     }
     Object.assign(campos, validarVei09(v));
     if (Object.keys(campos).length > 0) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, campos);
+    // VEI-11: o tipo vem da categoria; com locação aberta, a troca de tipo é recusada.
+    const travado = motivoDeNaoTrocarTipo(s);
+    if (categoria && categoria.tipo_veiculo !== s.tipo && travado) throw new ErroApi(409, "tipo_com_locacao_aberta", travado);
     gravarVei09(s, v);
     if (v.marca !== undefined) s.marca = v.marca.trim();
     if (v.modelo !== undefined) s.modelo = v.modelo.trim();
@@ -461,6 +470,7 @@ export const veiculosFalso = {
     if (categoria) {
       s.categoriaId = categoria.id;
       s.categoria = categoria.nome;
+      s.tipo = categoria.tipo_veiculo;
     }
     if (v.renavam !== undefined) s.renavam = v.renavam ?? undefined;
     if (v.capacidade_tanque_litros !== undefined) s.tanque = v.capacidade_tanque_litros;

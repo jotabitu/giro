@@ -7,12 +7,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
-import { Icone, Panel, TextField } from "@/design-system";
-import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo, type VeiculoDetalhe } from "@/lib/api";
+import { Icone, Panel, SelectField, TextField } from "@/design-system";
+import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo, type TipoVeiculo, type VeiculoDetalhe } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { km, placa as placaComHifen } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
-import { CAMPOS_VEI_09, esquemaVeiculo, NOME_DO_CAMPO_DA_API, paraCorpoEdicao, temMotorEObservacoes, valoresDaLeitura, valoresDoVeiculo, type CampoLido, type ValoresVeiculo } from "@/lib/veiculos";
+import { CAMPOS_VEI_09, categoriaAoTrocarTipo, esquemaVeiculo, NOME_DO_CAMPO_DA_API, OPCOES_DE_TIPO, paraCorpoEdicao, semCategoriaDoTipo, temMotorEObservacoes, valoresDaLeitura, valoresDoVeiculo, type CampoLido, type CategoriasPorTipo, type ValoresVeiculo } from "@/lib/veiculos";
 import { CamposDoDocumento } from "./CamposDoDocumento";
 import { CorrigirIdentificacao } from "./CorrigirIdentificacao";
 import { DocumentosDoVeiculo } from "./DocumentosDoVeiculo";
@@ -52,15 +52,28 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
   } = useForm<ValoresVeiculo>({ resolver: zodResolver(esquemaVeiculo), defaultValues: valoresDoVeiculo(ficha) });
   const v = watch();
 
+  // VEI-11: o tipo é o da categoria. Com locação aberta, a API manda a frase que trava o campo.
+  const tipoTravado = ficha.acoes.motivo_trocar_tipo ?? null;
   const categorias = useQuery({
-    queryKey: ["categorias", { filial: String(ficha.filial.id), tipo: ficha.tipo_veiculo }],
-    queryFn: () => veiculos.categorias({ filial: ficha.filial.id, tipo_veiculo: ficha.tipo_veiculo }),
+    queryKey: ["categorias", { filial: String(ficha.filial.id), tipo: v.tipo }],
+    queryFn: () => veiculos.categorias({ filial: ficha.filial.id, tipo_veiculo: v.tipo }),
   });
-  // A categoria de hoje fica na lista mesmo que a consulta não a traga (sem preço vigente, por exemplo).
+  // A categoria de hoje fica na lista do tipo dela mesmo que a consulta não a traga (sem preço vigente, por exemplo).
   const lista: CategoriaVeiculo[] = categorias.data ?? [];
   const opcoes = lista.map((c) => ({ valor: String(c.id), rotulo: c.nome }));
-  if (!opcoes.some((o) => o.valor === String(ficha.categoria.id))) opcoes.unshift({ valor: String(ficha.categoria.id), rotulo: ficha.categoria.nome });
+  if (v.tipo === ficha.tipo_veiculo && !opcoes.some((o) => o.valor === String(ficha.categoria.id))) opcoes.unshift({ valor: String(ficha.categoria.id), rotulo: ficha.categoria.nome });
   const categoria = lista.find((c) => String(c.id) === v.categoria_id);
+  const semCategoria = categorias.data && opcoes.length === 0 ? semCategoriaDoTipo(v.tipo) : undefined;
+
+  // Trocar o tipo esvazia a categoria; voltar ao tipo de antes devolve a que estava. Tipo e categoria vão juntos no Salvar.
+  const guardadas = useRef<CategoriasPorTipo>({});
+  function trocarTipo(para: TipoVeiculo) {
+    const troca = categoriaAoTrocarTipo(guardadas.current, v.tipo, v.categoria_id, para);
+    guardadas.current = troca.guardadas;
+    setValue("tipo", para, { shouldDirty: true });
+    setValue("categoria_id", troca.categoria, { shouldDirty: true });
+    clearErrors("categoria_id");
+  }
 
   const salvar = useMutation({ mutationFn: (valores: ValoresVeiculo) => veiculos.atualizar(ficha.id, paraCorpoEdicao(valores, { comMotorEObservacoes, leitura: crlv?.leitura.leitura })) });
   const erro = (nome: Nome) => errors[nome]?.message;
@@ -96,7 +109,10 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
       void cliente.invalidateQueries({ queryKey: ["veiculos"] });
       router.push(`/veiculos/${ficha.id}`);
     } catch (e) {
-      if (e instanceof ErroApi && e.campos) {
+      if (e instanceof ErroApi && e.status === 409 && e.codigo === "tipo_com_locacao_aberta") {
+        setError("tipo", { message: e.message });
+        setErroGeral(e.message);
+      } else if (e instanceof ErroApi && e.campos) {
         const sobra: string[] = [];
         for (const [campo, mensagem] of Object.entries(e.campos)) {
           const nome = NOME_DO_CAMPO_DA_API[campo] ?? (campo as Nome);
@@ -182,7 +198,12 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
           <Panel titulo="Uso na frota">
             <div className="grid gap-4 md:grid-cols-2">
               <TextField cheio rotulo="Filial" value={ficha.filial.nome} readOnly dica="A filial só muda por transferência" />
-              <Selecao id="categoria" rotulo="Categoria de preço" vazio="Escolha" opcoes={opcoes} dica="Vale para as locações novas; as em andamento mantêm o preço" erro={erro("categoria_id")} {...register("categoria_id")} />
+              {tipoTravado ? (
+                <SelectField cheio rotulo="Tipo de veículo" opcoes={OPCOES_DE_TIPO} defaultValue={ficha.tipo_veiculo} disabled dica={tipoTravado} />
+              ) : (
+                <SelectField cheio rotulo="Tipo de veículo" opcoes={OPCOES_DE_TIPO} value={v.tipo} onChange={(e) => trocarTipo(e.target.value as TipoVeiculo)} erro={erro("tipo")} />
+              )}
+              <Selecao id="categoria" rotulo="Categoria de preço" vazio={categorias.isPending ? "Carregando…" : "Escolha"} opcoes={opcoes} dica={semCategoria ?? "Vale para as locações novas; as em andamento mantêm o preço"} erro={erro("categoria_id")} {...register("categoria_id")} value={v.categoria_id} />
             </div>
             {categoria && (
               <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -205,7 +226,7 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
         <aside className="flex flex-col gap-6">
           <section className="wl-panel overflow-hidden !p-0">
             <div className="grid h-[140px] place-items-center bg-surface-sunken text-ink-muted">
-              <Icone de={ficha.tipo_veiculo === "moto" ? Bike : Car} />
+              <Icone de={v.tipo === "moto" ? Bike : Car} />
             </div>
             <div className="p-5">
               <div className="text-heading font-semibold">{titulo}</div>

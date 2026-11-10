@@ -353,6 +353,7 @@ class AcoesDoVeiculoSerializer(serializers.Serializer[Any]):
     motivo_movimentar = serializers.CharField(allow_null=True)
     aviso_baixar = serializers.CharField(allow_null=True)  # MOV-03 (T-311)
     lancar_despesa = serializers.BooleanField()  # FIN-17 (T-417)
+    motivo_trocar_tipo = serializers.CharField(allow_null=True)  # VEI-11 (T-438)
 
 
 class MovimentacaoAbertaSerializer(serializers.Serializer[Any]):

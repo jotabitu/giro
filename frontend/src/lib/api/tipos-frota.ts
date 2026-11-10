@@ -107,6 +107,8 @@ export type Veiculo = {
     motivo_movimentar?: string | null;
     /** FIN-17 (T-417): "Lançar despesa" na ficha, para quem lança despesa. */
     lancar_despesa?: boolean;
+    /** VEI-11 (T-438): com locação aberta, a frase que trava o Tipo no editar; `null` quando troca livre. */
+    motivo_trocar_tipo?: string | null;
   };
 };
 
