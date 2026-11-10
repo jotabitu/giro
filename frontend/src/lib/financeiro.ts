@@ -109,14 +109,23 @@ export const textoDoEvento = (acao: string): string => ACOES[acao] ?? acao;
 
 // Despesas (FIN-05, FIN-06). O estado e o texto da situação ("Aguardando gerente", "Vence 10 out", "Pago · caixa") vêm da API.
 
-export const CATEGORIAS_DA_DESPESA: { valor: CategoriaDaDespesa; rotulo: string }[] = [
-  { valor: "fixas", rotulo: "Fixas" },
-  { valor: "manutencao", rotulo: "Manutenção" },
-  { valor: "rastreamento", rotulo: "Rastreamento" },
-  { valor: "impostos", rotulo: "Impostos" },
-  { valor: "pessoal", rotulo: "Pessoal" },
-  { valor: "outros", rotulo: "Outros" },
+/** FIN-06: dois grupos, nesta ordem. O grupo só organiza a escolha; nenhuma categoria exige veículo. */
+export const CATEGORIAS_DA_DESPESA: { valor: CategoriaDaDespesa; rotulo: string; grupo: "Do veículo" | "Da empresa" }[] = [
+  { valor: "ipva", rotulo: "IPVA e licenciamento", grupo: "Do veículo" },
+  { valor: "seguro", rotulo: "Seguro", grupo: "Do veículo" },
+  { valor: "multa_transito", rotulo: "Multa de trânsito", grupo: "Do veículo" },
+  { valor: "pecas", rotulo: "Peças", grupo: "Do veículo" },
+  { valor: "combustivel", rotulo: "Combustível", grupo: "Do veículo" },
+  { valor: "manutencao", rotulo: "Manutenção", grupo: "Do veículo" },
+  { valor: "rastreamento", rotulo: "Rastreamento", grupo: "Do veículo" },
+  { valor: "fixas", rotulo: "Fixas", grupo: "Da empresa" },
+  { valor: "impostos", rotulo: "Impostos", grupo: "Da empresa" },
+  { valor: "pessoal", rotulo: "Pessoal", grupo: "Da empresa" },
+  { valor: "outros", rotulo: "Outros", grupo: "Da empresa" },
 ];
+
+/** FIN-06: o que o vistoriador lança (`despesas_lancar = manutencao`). */
+export const CATEGORIAS_DE_MANUTENCAO: CategoriaDaDespesa[] = ["manutencao", "pecas"];
 
 export const rotuloDaCategoria = (c: CategoriaDaDespesa): string => CATEGORIAS_DA_DESPESA.find((x) => x.valor === c)?.rotulo ?? c;
 

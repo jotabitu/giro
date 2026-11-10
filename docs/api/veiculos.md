@@ -77,7 +77,7 @@ Veículo `disponivel` depois de iniciar a MOV-0002:
 "acoes": { "editar": true, "colocar_a_venda": false, "voltar_para_frota": false, "bloquear": false, "desbloquear": false,
            "transferir": false, "baixar": true, "registrar_km": false, "corrigir_km": true,
            "movimentar": false, "motivo_movimentar": "O veículo já está na MOV-0002.",
-           "aviso_baixar": "A MOV-0002 será cancelada." }
+           "aviso_baixar": "A MOV-0002 será cancelada.", "lancar_despesa": true }
 ```
 
 Veículo `indisponivel` (CRLV vencido) com a ida ao despachante agendada:
@@ -105,7 +105,15 @@ Veículo `indisponivel` (CRLV vencido) com a ida ao despachante agendada:
 | `movimentacoes` (só no detalhe, T-275) | `movimentacoes` (ADR 0028) | ver "Blocos da ficha" | `null` |
 | `reserva` (lista e detalhe, T-410) | `locacoes` | `{ "locacao_id", "codigo": "LOC-2856", "motivo": "locacao" \| "troca" }` do veículo `reservado`: a locação `aguardando_retirada` dele ou a troca pendente em que ele é o veículo novo; ver "Veículo reservado", acima. Uma anotação na lista, sem N+1 | `null` |
 | `movimentacao_aberta` (lista e detalhe, T-286; formato fechado na T-300) | `movimentacoes` | `{ "id", "codigo": "MOV-0001", "status", "rotulo", "tom" }` da movimentação `agendada`, `em_transito` ou `no_local` do veículo; ver "Veículo em movimentação", acima | `null` |
-| `indicadores_financeiros` (só no detalhe) | `financeiro` | `{ "rendeu_no_ano_centavos", "custo_manutencao_ano_centavos" }` (`VEI-05`) | `null` |
+| `indicadores_financeiros` (só no detalhe) | `financeiro` | `{ "rendeu_no_ano_centavos", "custo_manutencao_ano_centavos", "despesas_ano_centavos" }` (`VEI-05`, `FIN-17`) | `null` |
+
+**`indicadores_financeiros`** (`VEI-05`, `FIN-17`, T-417), sem as despesas `recusada` e no ano de hoje:
+- `custo_manutencao_ano_centavos` ("Custo de manutenção"): só as despesas do veículo nas categorias `manutencao` e `pecas`.
+- `despesas_ano_centavos` ("Despesas no ano" da seção "Despesas do veículo"): todas as despesas ligadas ao veículo, de qualquer categoria e filial. É o `total_ano_centavos` de `GET /api/financeiro/despesas/veiculo/{id}/` no ano de hoje.
+- `rendeu_no_ano_centavos` ("Rendeu no ano"): receitas de locação recebidas do veículo no ano (de `locacoes`) − `despesas_ano_centavos`. Pode ser negativo. A conta é do `veiculos.selectors`, que junta os dois fornecedores; a tela mostra o número como vem.
+- Ex. (CA-417-10): o QXA-4B21 com o óleo de R$ 48,00 tem custo 4800 e despesas 4800; lançado o "IPVA 2026" de R$ 210,00, despesas 25800, custo 4800, e o rendeu cai 21000.
+
+**`acoes.lancar_despesa`** (`FIN-17`, T-417): `true` para quem lança despesa (administrador, gerente, vendedor, financeiro e vistoriador), mesmo sem ver a lista, com o recurso `manutencao_despesas` no plano (`PLT-12`). Em qualquer status do veículo. Abre o lançamento com o veículo travado, que vai para `POST /api/financeiro/despesas/veiculo/{id}/` (`financeiro.md`). A lista da seção vem de `GET /api/financeiro/despesas/veiculo/{id}/`, que a ficha só chama quando recebe `indicadores_financeiros` (administrador, gerente e financeiro).
 
 ---
 

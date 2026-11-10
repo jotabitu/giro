@@ -14,6 +14,7 @@ from django.db.models import Count, Q, QuerySet
 from django.utils import timezone
 
 from comum import arquivos, leituras, relogio
+from comum.empresa import tem_recurso
 from comum.permissoes import filiais_permitidas
 
 from .models import (
@@ -50,6 +51,8 @@ VEEM_CUSTO = GESTAO | {"financeiro"}
 LEEM_KM = frozenset({"administrador", "gerente", "vistoriador"})
 # Quem aperta o "Cobrar" da ficha (financeiro.md, Cobrar); o vistoriador nem recebe o pagamento.
 COBRAM = GESTAO | {"vendedor", "financeiro"}
+# Quem lança despesa (FIN-05, tabela de perfis): o "Lançar despesa" da ficha (FIN-17).
+LANCAM_DESPESA = COBRAM | {"vistoriador"}
 TOM = {
     S.DISPONIVEL: "sucesso",
     S.RESERVADO: "info",
@@ -363,6 +366,8 @@ def acoes(
         "corrigir_km": perfil in LEEM_KM and na_frota,
         "movimentar": gestao and motivo is None,
         "motivo_movimentar": motivo if gestao else None,
+        # FIN-17: para quem lança, mesmo sem ver a lista; some sem o recurso do plano (PLT-12).
+        "lancar_despesa": perfil in LANCAM_DESPESA and tem_recurso("manutencao_despesas"),
         # O diálogo da baixa avisa que a movimentação aberta será cancelada (T-311).
         "aviso_baixar": (
             f"A {blocos['movimentacao_aberta']['codigo']} será cancelada."
@@ -486,13 +491,22 @@ def representacao(
             )
         # Para vendedor e vistoriador a chave fica ausente, não nula (T-156).
         if perfil in VEEM_CUSTO:
-            dados["indicadores_financeiros"] = blocos.get("indicadores_financeiros")
+            dados["indicadores_financeiros"] = _indicadores(blocos.get("indicadores_financeiros"))
         # As movimentações do veículo; ausente para vistoriador e financeiro (T-275).
         if perfil not in ("vistoriador", "financeiro"):
             dados["movimentacoes"] = leituras.bloco(ALVO_FICHA, "movimentacoes", veiculo)
         dados["ocupacao"] = ocupacao(veiculo)
         dados["historico_status"] = historico_status(veiculo)
     return dados
+
+
+def _indicadores(bloco: dict[str, Any] | None) -> dict[str, Any] | None:
+    """VEI-05: o que rendeu no ano = receitas de locação recebidas (de `locacoes`) − todas as
+    despesas do veículo no ano (de `financeiro`, o "Despesas no ano" da FIN-17)."""
+    if not bloco or "rendeu_no_ano_centavos" not in bloco:
+        return bloco
+    despesas = int(bloco.get("despesas_ano_centavos") or 0)
+    return {**bloco, "rendeu_no_ano_centavos": int(bloco["rendeu_no_ano_centavos"]) - despesas}
 
 
 def _da_locacao(veiculo: Veiculo, perfil: str) -> dict[str, Any]:

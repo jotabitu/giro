@@ -59,6 +59,8 @@ export type Despesa = S["Despesa"];
 export type IndicadoresDespesas = S["IndicadoresDespesas"];
 export type ContagensDespesas = S["ContagensDespesas"];
 export type ListaDespesas = S["ListaDeDespesas"];
+/** FIN-17 (T-417): as despesas do veículo no ano, de qualquer filial, com as recusadas; `total_ano_centavos` sem elas. */
+export type DespesasDoVeiculo = S["DespesasDoVeiculo"];
 export type FiltroDespesas = { mes?: string; status?: StatusDaDespesa; categoria?: CategoriaDaDespesa; veiculo?: number; busca?: string; cursor?: string };
 /** Pedido da exportação das despesas (`FIN-16`, `AUD-07`): o mês e a filial da tela; `filial_id` nulo vale todas. */
 export type PedidoDeExportacaoDeDespesas = { mes: string; filial_id: number | null };

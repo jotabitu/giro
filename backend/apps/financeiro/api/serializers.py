@@ -405,6 +405,18 @@ class ListaDeDespesasSerializer(serializers.Serializer[Any]):
     anterior = serializers.CharField(allow_null=True)
 
 
+class DespesasDoVeiculoSerializer(serializers.Serializer[Any]):
+    """FIN-17: as despesas do veículo no ano, 20 por página, da mais nova para a mais antiga."""
+
+    ano = serializers.IntegerField()
+    total_ano_centavos = serializers.IntegerField(
+        help_text="Despesas no ano: pagas ou não, sem as recusadas (FIN-17, VEI-05)"
+    )
+    resultados = DespesaSerializer(many=True)
+    proximo = serializers.CharField(allow_null=True)
+    anterior = serializers.CharField(allow_null=True)
+
+
 class OrigemDoReembolsoSerializer(serializers.Serializer[Any]):
     tipo = serializers.ChoiceField(choices=["devolucao", "cancelamento", "credito"])
     codigo = serializers.CharField(allow_null=True)

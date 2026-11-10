@@ -685,6 +685,19 @@ export const financeiroFalso = {
     return { ...nova };
   },
 
+  /** FIN-17: a lista do ano, com as recusadas; o total sem elas (quem soma, de verdade, é a API). */
+  async despesasDoVeiculo(veiculoId: number, f: { ano?: number; cursor?: string } = {}) {
+    await pausa(40);
+    const ano = f.ano ?? 2026;
+    const lista = despesas.filter((d) => d.veiculo?.id === veiculoId && d.data.startsWith(String(ano)));
+    const total = lista.filter((d) => d.status !== "recusada").reduce((soma, d) => soma + d.valor_centavos, 0);
+    return { ano, total_ano_centavos: total, resultados: lista.map((d) => ({ ...d })), proximo: null, anterior: null };
+  },
+
+  async lancarDespesaDoVeiculo(veiculoId: number, corpo: NovaDespesa): Promise<Despesa> {
+    return financeiroFalso.lancarDespesa({ ...corpo, veiculo_id: veiculoId });
+  },
+
   async anexarNota(id: number, nota: File): Promise<Despesa> {
     await pausa(60);
     const atual = despesas.find((x) => x.id === id);
