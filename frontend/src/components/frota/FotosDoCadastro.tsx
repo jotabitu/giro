@@ -156,7 +156,7 @@ export function FotosEscolhidas({ fotos, capa, recusas, passouDoLimite, aoEscolh
       {cheia ? (
         <p className="m-0 rounded-lg border-2 border-dashed border-line p-4 text-center text-body font-medium text-ink-muted">Tire uma foto da lista para escolher outra</p>
       ) : (
-        <ZonaDeEnvio limite={LIMITE_NO_CADASTRO} aoEscolher={aoEscolher} />
+        <ZonaDeEnvio limite={LIMITE_NO_CADASTRO} rotulo="Escolher fotos" aoEscolher={aoEscolher} />
       )}
       {passouDoLimite && (
         <p role="status" className="m-0 flex items-center gap-2 rounded-md bg-warning-soft p-3 text-body text-warning-ink">

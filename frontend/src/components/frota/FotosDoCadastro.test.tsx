@@ -63,6 +63,12 @@ describe("antes de salvar (escolha)", () => {
     expect(t.match(/Tirar/g)).toHaveLength(3);
   });
 
+  it("test_vei_10_cadastro_botao_escolher_fotos: o cadastro diz Escolher fotos, como a referência, e não Selecionar fotos", () => {
+    const t = texto(html(<FotosEscolhidas fotos={[]} capa={null} recusas={[]} passouDoLimite={false} aoEscolher={() => {}} aoTirar={() => {}} aoUsarComoCapa={() => {}} aoDispensarRecusas={() => {}} />));
+    expect(t).toContain("|Escolher fotos|");
+    expect(t).not.toContain("Selecionar fotos");
+  });
+
   it("test_vei_10_cadastro_tirar_e_escolher_a_capa (CA-437-02): tira moto-2.jpg, marca moto.png, e moto.png sobe primeiro", () => {
     const { lista } = escolherFotos([], [arquivo("moto-1.jpg"), arquivo("moto-2.jpg"), arquivo("moto.png")]);
     const semMoto2 = lista.filter((f) => f.arquivo.name !== "moto-2.jpg");
