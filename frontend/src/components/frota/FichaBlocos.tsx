@@ -138,7 +138,7 @@ export function AgoraDesktop({ v }: { v: VeiculoDetalhe }) {
       titulo="Agora"
       acao={
         <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
-          {atual ? `${v.situacao.rotulo} desde ${dataCurta(atual.inicio)}` : v.situacao.rotulo}
+          {v.situacao.desde ? `${v.situacao.rotulo} desde ${dataCurta(v.situacao.desde)}` : v.situacao.rotulo}
         </StatusBadge>
       }
     >

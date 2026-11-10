@@ -75,6 +75,10 @@ def _atual(objeto: Any, campo: str) -> dict[str, Any] | None:
     return {nome: linha[origem] for nome, origem in CAMPOS.items()} if linha else None
 
 
+def _data_local(momento: Any) -> date | None:
+    return timezone.localdate(momento) if momento else None
+
+
 def _dias(fim: Any) -> int:
     return max(0, (relogio.hoje() - timezone.localdate(fim)).days)
 
@@ -97,6 +101,11 @@ def montar_veiculo(veiculo: Any) -> dict[str, Any] | None:
         "cliente_nome": atual["cliente_nome"],
         "inicio": atual["inicio"],
         "fim_previsto": atual["fim"],
+        # LOC-10 (T-449): o "desde" da situação. Na devolução atrasada, a data do fim previsto;
+        # nos outros casos, a do início. Data em America/Sao_Paulo; a tela não calcula.
+        "desde": _data_local(
+            atual["fim"] if atual["status"] == S.DEVOLUCAO_ATRASADA else atual["inicio"]
+        ),
     }
     if atual["status"] == S.DEVOLUCAO_ATRASADA:
         bloco["alerta"] = {"codigo": "atrasado", "rotulo": "Atrasado", "tom": "perigo"}

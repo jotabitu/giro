@@ -37,7 +37,7 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
   "valor_venda_centavos": null, "referencia_fipe_centavos": null,
   "valor_compra_centavos": 1390000, "data_compra": "2025-03-10",
   "entrou_na_frota_em": "2025-03-12",
-  "situacao": { "codigo": "disponivel", "rotulo": "Disponível", "tom": "sucesso" },
+  "situacao": { "codigo": "disponivel", "rotulo": "Disponível", "tom": "sucesso", "desde": null },
   "locacao_atual": null,
   "manutencao": { "proxima": { "servico": "Troca de óleo", "km": 5000 }, "os_aberta": null },
   "documentos_resumo": { "pior_situacao": "em_dia" },
@@ -51,14 +51,15 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
 - `placa` sai sem hífen no campo, e a tela põe o hífen; dentro de um texto montado pela API, sai com hífen (`docs/api/README.md`, Convenções, T-340). Aceita padrão antigo (`ABC1234`) e Mercosul (`ABC1D23`). `chassi` com 17 letras e números.
 - `preco_vigente`: preço da categoria vigente hoje (`LOC-15`). A coluna "Diária" da Frota usa `diaria_centavos`; veículo `a_venda` mostra `valor_venda_centavos`.
 - `situacao`: a API decide. Base no `status` do veículo; um bloco com `alerta` (ADR 0015) sobrepõe, ex.: "Atrasado" (`perigo`) quando a locação atual está `devolucao_atrasada`.
+- `situacao.desde` (T-449, `LOC-10`, "Data e dias do atraso na tela"): data (`"2026-10-14"`, em `America/Sao_Paulo`) do "desde" do card "Agora" da ficha, copiada de `locacao_atual.desde`. Na devolução atrasada, é a data do fim previsto ("Atrasado desde 14 out"); com a locação `ativa` ou `aguardando_retirada`, a do início ("Alugado desde 30 set", "Reservado na LOC-2856 desde 05 nov"). Sem locação aberta, `null`, e a tela mostra só o `rotulo`. A tela não usa `inicio` nem `fim_previsto` para montar esse texto.
 - `acoes`: combina perfil, `status` e a tabela de transições; o frontend mostra só o que vier `true`. `corrigir_km` vem `true` também para o vistoriador, que pede a correção (`APR-06`).
 - `situacao.tom` pelo `status`: `sucesso` (`disponivel`), `info` (`reservado` e `em_movimentacao`, rótulo "Em movimentação"), `solido` (`alugado`), `alerta` (`em_manutencao`) e `neutro` (`indisponivel`, `a_venda`, `vendido`, `baixado`).
 - **Veículo reservado** (T-410, tabela de transições do veículo, CA-410-01, CA-410-06): `situacao.rotulo` é "Reservado na LOC-2856", com o código da locação que reservou, montado pela API a partir do bloco `reserva` (abaixo); tom `info`. Sem bloco (dado antigo, antes do acerto), o rótulo fica "Reservado". A Frota e a ficha mostram o `rotulo` como vem.
   ```json
   "status": "reservado",
-  "situacao": { "codigo": "reservado", "rotulo": "Reservado na LOC-2856", "tom": "info" },
+  "situacao": { "codigo": "reservado", "rotulo": "Reservado na LOC-2856", "tom": "info", "desde": "2026-10-07" },
   "reserva": { "locacao_id": 2856, "codigo": "LOC-2856", "motivo": "locacao" },
-  "locacao_atual": { "id": 2856, "codigo": "LOC-2856", "status": "aguardando_retirada", "cliente_nome": "Lucas Ferreira", "inicio": "2026-10-07T12:00:00Z", "fim_previsto": "2026-10-21T12:00:00Z" }
+  "locacao_atual": { "id": 2856, "codigo": "LOC-2856", "status": "aguardando_retirada", "cliente_nome": "Lucas Ferreira", "inicio": "2026-10-07T12:00:00Z", "fim_previsto": "2026-10-21T12:00:00Z", "desde": "2026-10-07" }
   ```
   `reserva.motivo`: `locacao` (locação `aguardando_retirada` do veículo; a mesma do `locacao_atual`) ou `troca` (o veículo novo de uma troca pendente, `LOC-09`; aí o `codigo` é o da locação da troca, e o `locacao_atual` do veículo novo continua `null`, porque a locação ainda é do veículo antigo). O link "LOC-2856" abre `/locacoes/{locacao_id}`. Fora do `reservado`, `reserva` vem `null`.
 - `valor_compra_centavos` e `data_compra` vêm `null` para quem não é administrador ou gerente.
@@ -97,7 +98,7 @@ Veículo `indisponivel` (CRLV vencido) com a ida ao despachante agendada:
 
 | Bloco | Fornecedor | Conteúdo | Antes do fornecedor existir |
 | --- | --- | --- | --- |
-| `locacao_atual` | `locacoes` | `{ "id", "codigo": "LOC-2841", "status", "cliente_nome": "Carlos Menezes", "inicio", "fim_previsto", "alerta"? }` para locação `aguardando_retirada`, `ativa` ou `devolucao_atrasada` do veículo | `null` |
+| `locacao_atual` | `locacoes` | `{ "id", "codigo": "LOC-2841", "status", "cliente_nome": "Carlos Menezes", "inicio", "fim_previsto", "desde": "2026-10-14", "alerta"? }` (`desde`: ver `situacao.desde`) para locação `aguardando_retirada`, `ativa` ou `devolucao_atrasada` do veículo | `null` |
 | `manutencao` | `manutencao` | `{ "proxima": { "servico", "km" } \| null, "os_aberta": { "id", "codigo": "OS-118", "status" } \| null, "alerta"? }` | `null` |
 | `locacao_atual.plano` e `locacao_atual.pagamento` (só no detalhe, T-275) | `locacoes` (com `financeiro.selectors`) | ver "Blocos da ficha" | ausentes |
 | `manutencao.proxima`, campos novos (só no detalhe, T-275) | `manutencao` | ver "Blocos da ficha" | `null`, como o bloco |

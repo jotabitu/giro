@@ -188,3 +188,29 @@ describe("Blocos da ficha no celular", () => {
     expect(texto(html(<MovimentacoesCelular v={v} />))).toContain("Nenhuma movimentação. Veículo alugado não se movimenta.");
   });
 });
+
+describe("card Agora: o desde vem da API (T-449, LOC-10)", () => {
+  const comLocacao = (situacao: VeiculoDetalhe["situacao"], inicio: string): VeiculoDetalhe => ({
+    ...base,
+    situacao,
+    locacao_atual: { ...(base.locacao_atual as NonNullable<VeiculoDetalhe["locacao_atual"]>), inicio, fim_previsto: "2026-10-14T21:00:00Z", desde: situacao.desde },
+  });
+
+  it("test_loc_10_agora_atrasado_desde_o_que_a_api_manda (CA-449-01, 04): mostra Atrasado desde 14 out, qualquer que seja o início", () => {
+    const t = texto(html(<AgoraDesktop v={comLocacao({ codigo: "atrasado", rotulo: "Atrasado", tom: "perigo", desde: "2026-10-14" }, "2026-09-30T21:00:00Z")} />));
+    expect(t).toContain("Atrasado desde 14 out");
+    expect(t).not.toContain("desde 30 set");
+  });
+
+  it("test_loc_10_agora_alugado_desde_o_inicio (CA-449-03): sem atraso, a API manda o início, e a tela mostra Alugado desde 30 set", () => {
+    const t = texto(html(<AgoraDesktop v={comLocacao({ codigo: "alugado", rotulo: "Alugado", tom: "solido", desde: "2026-09-30" }, "2026-01-01T12:00:00Z")} />));
+    expect(t).toContain("Alugado desde 30 set");
+    expect(t).not.toMatch(/atrasad/i);
+  });
+
+  it("test_loc_10_agora_sem_desde_mostra_so_o_rotulo: com desde nulo, nada de 'desde'", () => {
+    const t = texto(html(<AgoraDesktop v={comLocacao({ codigo: "alugado", rotulo: "Alugado", tom: "solido", desde: null }, "2026-09-30T21:00:00Z")} />));
+    expect(t).toContain("|Alugado|");
+    expect(t).not.toContain("desde");
+  });
+});
