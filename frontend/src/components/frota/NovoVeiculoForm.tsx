@@ -14,9 +14,13 @@ import { dinheiro, km, placa as placaComHifen } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
 import { categoriaAoTrocarTipo, esquemaVeiculo, NOME_DO_CAMPO_DA_API, OPCOES_DE_TIPO, paraCorpoVeiculo, semCategoriaDoTipo, valoresDaLeitura, VALORES_INICIAIS_VEICULO, type CampoLido, type CategoriasPorTipo, type ValoresVeiculo } from "@/lib/veiculos";
 import { CamposDoDocumento } from "./CamposDoDocumento";
+import { capaDaLista, EnvioDasFotos, cadastrarComFotos, envioTerminouBem, enviarEmSequencia, escolherFotos, FotosEscolhidas, itensDoEnvio, soltarMiniatura, type FotoEscolhida, type ItemDoEnvio } from "./FotosDoCadastro";
+import type { RecusaDeFoto } from "./PecasDaGaleria";
 import { PreencherPeloCrlv, type CrlvLido } from "./PreencherPeloCrlv";
 
 type Nome = FieldPath<ValoresVeiculo>;
+/** O veículo já gravado e as fotos dele subindo (ou paradas por recusa ou conexão). */
+type Envio = { veiculoId: number; placa: string; outro: boolean; descricao: string; itens: ItemDoEnvio[] };
 
 type SelecaoProps = SelectHTMLAttributes<HTMLSelectElement> & { rotulo: string; erro?: string; dica?: string; opcoes: { valor: string; rotulo: string }[]; vazio: string };
 
@@ -60,6 +64,15 @@ export function NovoVeiculoForm() {
   // O CRLV-e lido e o que ele preencheu: o arquivo e o comprovante seguem no salvar (VEI-08).
   const [crlv, setCrlv] = useState<CrlvLido | null>(null);
   const [lidos, setLidos] = useState<Partial<Record<CampoLido, string>>>({});
+  // VEI-10 (T-437): as fotos escolhidas antes de salvar e, depois do 201, o envio delas uma a uma.
+  const [fotos, setFotos] = useState<FotoEscolhida[]>([]);
+  const [capa, setCapa] = useState<string | null>(null);
+  const [recusasDaEscolha, setRecusasDaEscolha] = useState<RecusaDeFoto[]>([]);
+  const [passouDoLimite, setPassouDoLimite] = useState(false);
+  const [envio, setEnvio] = useState<Envio | null>(null);
+  const fotosAtuais = useRef<FotoEscolhida[]>([]);
+  fotosAtuais.current = fotos;
+  useEffect(() => () => fotosAtuais.current.forEach(soltarMiniatura), []);
 
   const filiaisDaPessoa = eu.filiais;
   const valoresIniciais: ValoresVeiculo = { ...VALORES_INICIAIS_VEICULO, filial_id: filiaisDaPessoa.length === 1 ? String(filiaisDaPessoa[0]!.id) : "" };
@@ -137,8 +150,56 @@ export function NovoVeiculoForm() {
 
   const erro = (nome: Nome) => errors[nome]?.message;
 
+  function escolher(arquivos: File[]) {
+    const r = escolherFotos(fotos, arquivos);
+    setFotos(r.lista);
+    setRecusasDaEscolha(r.recusas);
+    setPassouDoLimite(r.passouDoLimite);
+  }
+  function tirarFoto(f: FotoEscolhida) {
+    soltarMiniatura(f);
+    setFotos((l) => l.filter((x) => x.chave !== f.chave));
+    setPassouDoLimite(false);
+  }
+  function limparFotos() {
+    fotos.forEach(soltarMiniatura);
+    setFotos([]);
+    setCapa(null);
+    setRecusasDaEscolha([]);
+    setPassouDoLimite(false);
+  }
+
+  /** Depois do cadastro gravado: tudo subiu, segue como antes (ficha ou próximo cadastro); senão a tela para com "Ir para o veículo". */
+  function seguirDepoisDoCadastro(veiculoId: number, outro: boolean, descricao: string) {
+    if (outro) {
+      setSalvo(descricao);
+      window.scrollTo?.({ top: 0 });
+    } else {
+      router.push(`/veiculos/${veiculoId}`);
+    }
+  }
   // Dois cliques seguidos entram antes de `salvar.isPending` virar verdadeiro: sem isto o segundo tentaria criar de novo ("placa já cadastrada").
   const enviando = useRef(false);
+
+  /** "Tentar de novo" (CA-437-10): retoma da que caiu, sem repetir as que subiram. */
+  async function tentarDeNovo(e: Envio) {
+    if (enviando.current) return;
+    enviando.current = true;
+    try {
+      concluirEnvio(e, await enviarEmSequencia(e.itens, (arquivo) => veiculos.enviarFoto(e.veiculoId, arquivo), (itens) => setEnvio({ ...e, itens })));
+    } finally {
+      enviando.current = false;
+    }
+  }
+  function concluirEnvio(e: Envio, fim: ItemDoEnvio[]) {
+    void cliente.invalidateQueries({ queryKey: ["veiculo", e.veiculoId] });
+    if (!envioTerminouBem(fim)) return;
+    setEnvio(null);
+    // Na ida para a ficha, as miniaturas se soltam quando a tela desmonta.
+    if (e.outro) limparFotos();
+    seguirDepoisDoCadastro(e.veiculoId, e.outro, e.descricao);
+  }
+
 
   async function enviar(valores: ValoresVeiculo, outro: boolean) {
     if (enviando.current) return;
@@ -147,17 +208,25 @@ export function NovoVeiculoForm() {
     setExistente(null);
     setSalvo(null);
     try {
-      const criado = await salvar.mutateAsync(valores);
-      void cliente.invalidateQueries({ queryKey: ["veiculos"] });
-      if (outro) {
-        reset({ ...valoresIniciais, tipo: valores.tipo, filial_id: valores.filial_id });
-        guardadas.current = {};
-        tirarCrlv();
-        setSalvo(`${criado.marca} ${criado.modelo}, placa ${placaComHifen(criado.placa)}, entrou na frota.`);
-        window.scrollTo?.({ top: 0 });
-      } else {
-        router.push(`/veiculos/${criado.id}`);
-      }
+      // CA-437-05: só depois do 201 as fotos sobem; se o cadastro falha, o catch abaixo deixa as escolhidas na tela (CA-437-07, 08).
+      const passo: { e: Envio | null } = { e: null };
+      const { itens } = await cadastrarComFotos(
+        () => salvar.mutateAsync(valores),
+        podeEnviarFotos ? itensDoEnvio(fotos, capa) : [],
+        (veiculoId, arquivo) => veiculos.enviarFoto(veiculoId, arquivo),
+        (criado) => {
+          void cliente.invalidateQueries({ queryKey: ["veiculos"] });
+          if (outro) {
+            reset({ ...valoresIniciais, tipo: valores.tipo, filial_id: valores.filial_id });
+            guardadas.current = {};
+            tirarCrlv();
+          }
+          const descricao = `${criado.marca} ${criado.modelo}, placa ${placaComHifen(criado.placa)}, entrou na frota.`;
+          passo.e = { veiculoId: criado.id, placa: placaComHifen(criado.placa), outro, descricao, itens: [] };
+        },
+        (agora) => passo.e && setEnvio({ ...passo.e, itens: agora }),
+      );
+      if (passo.e) concluirEnvio({ ...passo.e, itens }, itens);
     } catch (e) {
       if (e instanceof ErroApi && e.status === 409 && e.codigo === "VEI-01") {
         const campo = e.detalhes?.campo === "chassi" ? "chassi" : "placa";
@@ -182,7 +251,10 @@ export function NovoVeiculoForm() {
 
   const salvarEFicha = handleSubmit((valores) => enviar(valores, false));
   const salvarEOutro = handleSubmit((valores) => enviar(valores, true));
-  const ocupado = salvar.isPending;
+  // Com o veículo gravado e as fotos subindo (ou paradas), salvar de novo criaria outro veículo.
+  const ocupado = salvar.isPending || envio !== null;
+  // CA-437-12: o suporte Giro não envia foto (403 PLT-07), então o bloco nem aparece para ele.
+  const podeEnviarFotos = eu.suporte == null;
 
   if (eu.pode.veiculos !== "editar") {
     return (
@@ -314,16 +386,32 @@ export function NovoVeiculoForm() {
             </div>
           </Panel>
 
-          <Panel titulo="Documentos e fotos">
+          <Panel titulo="Documentos">
             {crlv && (
               <div className="mb-4 grid gap-4 md:grid-cols-2">
                 <TextField cheio mono type="date" rotulo="Validade do CRLV" erro={erro("crlv_validade")} {...register("crlv_validade")} />
               </div>
             )}
             <p className="text-body text-ink-muted">
-              {crlv ? "O CRLV-e enviado fica guardado com o veículo. Depois de salvar, envie o seguro e as fotos na ficha do veículo." : "Depois de salvar, envie o CRLV-e, o seguro e as fotos na ficha do veículo."} Veículo com CRLV ou seguro vencido não pode ser desbloqueado para locação.
+              {crlv ? "O CRLV-e enviado fica guardado com o veículo. Depois de salvar, envie o seguro na ficha do veículo." : "Depois de salvar, envie o CRLV-e e o seguro na ficha do veículo."} Veículo com CRLV ou seguro vencido não pode ser desbloqueado para locação.
             </p>
           </Panel>
+
+          {podeEnviarFotos &&
+            (envio ? (
+              <EnvioDasFotos itens={envio.itens} placa={envio.placa} veiculoId={envio.veiculoId} aoTentarDeNovo={() => void tentarDeNovo(envio)} />
+            ) : (
+              <FotosEscolhidas
+                fotos={fotos}
+                capa={capaDaLista(fotos, capa)}
+                recusas={recusasDaEscolha}
+                passouDoLimite={passouDoLimite}
+                aoEscolher={escolher}
+                aoTirar={tirarFoto}
+                aoUsarComoCapa={(f) => setCapa(f.chave)}
+                aoDispensarRecusas={() => setRecusasDaEscolha([])}
+              />
+            ))}
         </div>
 
         <aside className="flex flex-col gap-6">
