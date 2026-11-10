@@ -2,10 +2,11 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { Panel, TextField } from "@/design-system";
+import { Panel, StatusBadge, TextField } from "@/design-system";
 import { ErroApi, veiculos, type DocumentoVeiculo } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { dataCurta } from "@/lib/formatos";
+import { situacaoDoDocumento } from "@/lib/frota";
 import { AbrirDocumento } from "./FichaVeiculo";
 
 // VEI-03, AUD-05. Contrato: docs/api/veiculos.md, "Documentos". Renovar cria um documento novo e o anterior fica no histórico.
@@ -18,6 +19,15 @@ const TIPOS: { tipo: string; rotulo: string }[] = [
 ];
 const LIMITE_MB = 10;
 const ACEITOS = "application/pdf,image/jpeg,image/png";
+
+function SituacaoDoDocumento({ d }: { d: DocumentoVeiculo }) {
+  const s = situacaoDoDocumento(d.situacao, d.dias_para_vencer, d.situacao_rotulo);
+  return (
+    <StatusBadge tom={s.tom} compacto>
+      {s.rotulo}
+    </StatusBadge>
+  );
+}
 
 function Linha({ id, tipo, rotulo, atual }: { id: number; tipo: string; rotulo: string; atual?: DocumentoVeiculo }) {
   const cliente = useQueryClient();
@@ -58,13 +68,16 @@ function Linha({ id, tipo, rotulo, atual }: { id: number; tipo: string; rotulo: 
   }
 
   return (
-    <li className="flex min-w-0 flex-col gap-3 border-b border-line py-4 last:border-b-0">
+    <li className="flex min-w-0 flex-col gap-3 rounded-lg border border-line p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <div className="font-semibold">{rotulo}</div>
           <div className="text-caption text-ink-muted">{atual ? (atual.validade ? `Vale até ${dataCurta(atual.validade)}` : "Em uso, sem validade") : "Nenhum cadastrado"}</div>
         </div>
-        {atual && <AbrirDocumento d={atual} />}
+        <div className="flex flex-wrap items-center gap-2">
+          {atual && <SituacaoDoDocumento d={atual} />}
+          {atual && <AbrirDocumento d={atual} />}
+        </div>
       </div>
       <div className="grid min-w-0 gap-3 md:grid-cols-[180px_minmax(0,1fr)_auto] md:items-end [&>*]:min-w-0">
         <TextField cheio mono type="date" rotulo="Nova validade" value={validade} onChange={(e) => setValidade(e.target.value)} erro={erroValidade} />
@@ -103,7 +116,7 @@ export function DocumentosDoVeiculo({ id }: { id: number }) {
       )}
       {docs.isPending && <p className="text-body text-ink-muted">Carregando os documentos…</p>}
       {docs.data && (
-        <ul className="m-0 list-none p-0">
+        <ul className="m-0 grid list-none gap-4 p-0 md:grid-cols-2">
           {TIPOS.map((t) => (
             <Linha key={t.tipo} id={id} tipo={t.tipo} rotulo={t.rotulo} atual={docs.data.find((d) => d.tipo === t.tipo)} />
           ))}
