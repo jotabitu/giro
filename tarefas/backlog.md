@@ -485,6 +485,32 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Causa:** `frontend/tailwind.config.ts` troca a escala de espaços do Tailwind pela de `src/design-system/tokens.ts` (`espacamento`: 1, 2, 3, 4, 5, 6, 8 e 10). Classe fora dela (`mt-1.5`, `gap-2.5`, `gap-1.5`, `gap-3.5`, `py-2.5`, `gap-0.5`, `px-3.5` e outras) não gera CSS, e o espaço fica zero sem erro. São cerca de 85 usos em dezenas de componentes (`admin/`, `contratos/`, `aprovacoes/` e outros).
 - **Pronto quando:** o design-system decide entre acrescentar os meios-passos ao token ou trocar cada classe pelo passo mais próximo, e registra no guia; a troca aplicada em todo o `frontend/src`; uma checagem no lint (ou teste) recusa classe de espaço fora da escala; telas mais afetadas conferidas a 1440 e 390 px.
 
+#### T-446 · Dialogo amplo e passo de 64 px na escala
+- **Agente:** design-system · **Origem:** revisão do #505 (T-414) e T-445.
+- **O caso:** o `Dialogo` só tem os tamanhos pequeno e médio (560 px), e o visualizador de fotos da ficha ficou pequeno (560 × 722 a 1440 px); a tela `Veiculo-Visualizador` pede até 1100 × 820 px. A escala de espaços não tem o passo 16 (64 px), e a miniatura da galeria usa `size-[64px]`.
+- **Pronto quando:** `Dialogo` com tamanho amplo (no celular, tela cheia), com preview e teste; passo 16 na escala (`tokens.ts`, `tokens.json`, `wl-theme.css`, guia); o visualizador e a miniatura passam a usar os dois; conferido a 1440 e 390 px.
+
+#### T-447 · Rotas de contratos e preços bloqueadas e 403 do vistoriador na ficha (bugs)
+- **Agente: fullstack** · **Origem:** conferência do QA de 10 nov 2026 (`docs/qa/conferencia-10-nov.md`, D1 e D5).
+- **D1:** os cartões "Modelos de contrato" e "Tabelas de preço" de Configurações levam a `/admin/contratos` e `/admin/precos`, e a administradora vê "Seu perfil não tem acesso a esta página.": `rotaPermitida` em `frontend/src/lib/menu.ts` não tem a exceção dessas rotas, como já tem para `/admin/ramo` e `/admin/suporte`.
+- **D5:** a ficha do veículo, aberta pelo vistoriador, chama `GET /api/locacoes/?veiculo=` e recebe 403 (erro no console). A ficha só pede as locações para quem as lê (`pode` da API).
+- **Pronto quando:** as duas rotas abrem para quem tem a permissão, sem abrir para outros perfis; a ficha do vistoriador sem chamada recusada; teste dos dois casos.
+
+#### T-448 · Editar do veículo mais perto da tela de referência
+- **Agentes:** design-system (tela), depois frontend · **Origem:** conferência do QA de 10 nov 2026 (D4).
+- **O caso:** a referência `Veiculo-Editar` tem a galeria no topo com o cartão de Permissões ao lado, Identificação com placa e chassi travados, "Uso na frota" com Finalidade e Plano de manutenção, Documentos em cartões com "Substituir" e "Renovar", e as ações no cabeçalho. A página é uma coluna só, com a galeria depois de "Compra e valores", sem Finalidade e Plano de manutenção, e Documentos como formulários. O rótulo "Tipo" do CRLV e o "Tipo de veículo" (T-438) se confundem; a referência ainda não tem o tipo do veículo nem a trava.
+- **Pronto quando:** o design-system atualiza `Veiculo-Editar` (desktop e celular) com o tipo do veículo, a trava, a galeria da T-414 e o nome que separa os dois "Tipo"; diz o que não tem regra (Finalidade e Plano de manutenção, se ainda não existirem no backend); o frontend leva a página à tela, com capturas lado a lado.
+
+#### T-449 · Data do atraso diferente na ficha e na lista
+- **Agentes:** produto (regra), depois frontend se precisar · **Regras:** `LOC-10`, `VEI-03` · **Origem:** conferência do QA de 10 nov 2026 (D6).
+- **O caso:** na ficha do PNB-7C04 (`/veiculos/45`), o card "Agora" diz "Atrasado desde 30 set" (início do período) e a tabela Locações diz "Devolução atrasada 27 dias" (contados de 14 out, a devolução prevista).
+- **Pronto quando:** o produto diz qual data vale para "atrasado desde" e para a contagem de dias, na regra; o texto da API e da tela segue a resposta, com teste.
+
+#### T-450 · Foto acima de 10 MB termina em erro genérico (bug)
+- **Agente: fullstack** · **Regras:** `VEI-10` · **Origem:** conferência do QA de 10 nov 2026 (D7).
+- **Causa:** no desenvolvimento, o Next repassa `/api/` ao Django e corta o corpo em 10 MB, derrubando a conexão (500, `ECONNRESET`), e a foto de 11 MB fica 25 s em "Enviando" e termina em "Não foi possível concluir agora". Em homologação e produção, o proxy aceita até 12 MB e responde 413 acima (`infra/proxy`), e a tela não trata o 413.
+- **Pronto quando:** limite do Next no desenvolvimento em 12 MB, como o proxy; a tela recusa na escolha a foto acima de 10 MB e mostra "Envie uma foto JPG ou PNG de até 10 MB." também no 413 e na queda de conexão do envio, no editar e no cadastro; teste.
+
 #### Também liberado
 - O botão "Mandar para oficina" da ficha depende do módulo de manutenção (`MAN`, `backend/apps/manutencao/` vazio) e entra quando ele for quebrado em tarefas.
 
