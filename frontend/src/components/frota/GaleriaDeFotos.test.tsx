@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { contas, ErroApi, veiculos, type Eu, type FotoDaGaleria, type FotoDaVistoriaRecente, type VeiculoDetalhe } from "@/lib/api";
 import { GaleriaDeFotos } from "./GaleriaDeFotos";
-import { GaleriaNaFicha, GaleriaNaFichaCelular } from "./GaleriaNaFicha";
+import { GaleriaNaFicha, GaleriaNaFichaCelular, tituloDaGaleria } from "./GaleriaNaFicha";
 import { BotaoApagar, CartaoDeFoto, ListaDeRecusas, ZonaDeEnvio } from "./PecasDaGaleria";
 import { indiceAposTecla, VisualizadorDeFotos } from "./VisualizadorDeFotos";
 
@@ -80,6 +80,13 @@ describe("peças da galeria (reaproveitadas pelo cadastro, T-437)", () => {
     expect(h).toContain("<svg");
     expect(texto(h)).toContain("Clique para enviar fotos ou arraste arquivos aqui");
     expect(texto(h)).toContain("Selecionar fotos");
+    expect(texto(html(<ZonaDeEnvio limite={20} rotulo="Escolher fotos" aoEscolher={() => {}} />))).toContain("Escolher fotos");
+    expect(texto(html(<ZonaDeEnvio limite={20} rotulo="Escolher fotos" aoEscolher={() => {}} />))).not.toContain("Selecionar fotos");
+  });
+
+  it("D3: o título do visualizador na ficha leva a placa com hífen", async () => {
+    const v = await veiculos.obter(501);
+    expect(tituloDaGaleria(v.placa)).toBe("Galeria do veículo · QXA-4B21");
   });
 
   it("cartão de foto: selo de posição, selo Capa sólido, ações no slot e linha no celular (size-16) com cartão a partir de md", () => {

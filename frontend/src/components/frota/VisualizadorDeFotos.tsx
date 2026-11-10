@@ -61,8 +61,9 @@ export function VisualizadorDeFotos({ aberto, aoFechar, origem, legenda, fotos, 
   useEffect(() => {
     if (!aberto) return;
     const aoTeclar = (e: KeyboardEvent) => setIndice((i) => indiceAposTecla(e.key, i, total));
-    document.addEventListener("keydown", aoTeclar);
-    return () => document.removeEventListener("keydown", aoTeclar);
+    // Na captura da janela: chega antes de qualquer elemento do diálogo e não depende de onde está o foco.
+    window.addEventListener("keydown", aoTeclar, true);
+    return () => window.removeEventListener("keydown", aoTeclar, true);
   }, [aberto, total]);
 
   const foto = fotos[Math.min(indice, total - 1)];
@@ -74,7 +75,8 @@ export function VisualizadorDeFotos({ aberto, aoFechar, origem, legenda, fotos, 
   // O Dialogo só tem os tamanhos pequeno e medio: usa o maior (medio). Um tamanho amplo é ajuste do componente.
   return (
     <Dialogo aberto={aberto} aoFechar={aoFechar} titulo={origem} descricao={legenda(foto, i, total)} tamanho="medio">
-      <div className="flex flex-col gap-3">
+      {/* data-autofocus: o Dialogo põe o foco aqui ao abrir, dentro do conteúdo do visualizador. */}
+      <div data-autofocus tabIndex={-1} className="flex flex-col gap-3 outline-none">
         <div className="relative grid min-h-[240px] place-items-center overflow-hidden rounded-md bg-surface-sunken">
           {semLink ? (
             <p className="p-6 text-center text-body text-ink-muted">Sem link para esta foto neste acesso.</p>
