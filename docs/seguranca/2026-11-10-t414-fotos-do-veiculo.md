@@ -120,6 +120,19 @@ A mesma porta serve as fotos de vistoria (vistoriador), da chegada da movimenta�
 
 B-02 pode entrar neste PR ou depois.
 
+## Conferência das correções · 10 nov 2026
+
+Conferi o commit `779170b7` do PR #499, com o CI verde. **Os quatro achados estão fechados.**
+
+| Achado | Correção | Teste |
+| --- | --- | --- |
+| M-01 | `FotosView` sem `suporte_somente_leitura`: no "só ver", `GET .../fotos/` volta 403 `PLT-07` sem link no corpo. Na ficha, `galeria` não gera links (`com_links=False`), e `vistoria_recente` passa por `arquivos.sem_links`; os três campos de link vêm nulos. `comum.autenticacao.suporte_so_ver` decide pelo `e_suporte` e pelo `permissao == "ver"`. A tabela "Quem pode" de `docs/api/veiculos.md` separa os dois modos | `test_plt_07_suporte_so_ver_nao_recebe_link_de_foto` (só ver: 3 + 12 fotos sem link e 403; ver e editar: links presentes e 200) |
+| M-02 | `PIXELS_MAXIMOS = 50_000_000`, conferido pelo cabeçalho (`original.size`) antes do `load()`, com lado zero também recusado. `DecompressionBombWarning` vira erro dentro de `warnings.catch_warnings()`, sem mexer no limite global | `test_aud_05_foto_gigante_em_pixels_recusada` (60 MP e 120 MP, a faixa em que o Pillow só avisava); `test_aud_05_teto_em_pixels_vale_para_toda_foto` (acima de 50 MP nada é decodificado) |
+| B-01 | `SyntaxError` e `EOFError` no `except`, com a recusa de formato (400) | `test_aud_05_png_quebrado_volta_400_e_nao_500` |
+| B-02 | teste pela rota: a administradora da empresa B, no host dela, recebe 404 em ler, trocar, usar como capa e apagar com os ids da A; nada é gravado na B, e a foto da A continua ativa e capa; o arquivo da A fica em `empresa_a/veiculos/fotoveiculo/` | `test_vei_10_isolamento_entre_empresas_pela_rota` |
+
+**Observação, sem achado:** no "só ver", o bloco `vistoria_recente` ainda assina os links dentro de `vistorias.leituras`, e a ficha os descarta antes de responder. Nenhum link chega ao suporte, e assinar um link no S3 é só uma conta local, sem chamada externa. Se um dia esse bloco servir outra rota, vale passar o `com_links` também para `montar_ficha`, como na galeria.
+
 ## Como conferi
 
 - Leitura do diff completo do PR #499 contra a `develop`: `veiculos` (models, migração, services, selectors, api), `vistorias/leituras.py`, `comum/arquivos.py`, `comum/arquivos_dev.py`, `seed/fotos.py` e os testes da T-414.
