@@ -28,6 +28,7 @@ from comum.dinheiro import aplicar_percentual, formatar_reais, juros_pro_rata
 from comum.erros import ErroDeValidacao
 
 from .models import (
+    CATEGORIAS_DE_MANUTENCAO,
     Caixa,
     CobrancaExterna,
     Comissao,
@@ -979,14 +980,38 @@ def indicadores_das_despesas(
     }
 
 
-def custo_do_veiculo_no_ano(veiculo_id: int, hoje: date) -> int:
-    """VEI-05: despesas do veículo no ano (sem as recusadas), o `custo_manutencao_ano`."""
+def despesas_do_veiculo(veiculo_id: int, ano: int) -> QuerySet[Despesa]:
+    """FIN-17: as despesas ligadas ao veículo com data no ano, de qualquer filial (o veículo pode
+    ter sido transferido, VEI-04), inclusive as recusadas."""
+    return base_das_despesas().filter(veiculo_id=veiculo_id, data__year=ano)
+
+
+def ano_pedido(texto: str | None, hoje: date) -> int:
+    """`?ano=2026`; sem ele (ou inválido), o ano de hoje (FIN-17)."""
+    texto = str(texto or "").strip()
+    if texto.isdigit() and 2000 <= int(texto) <= 2100:
+        return int(texto)
+    return hoje.year
+
+
+def custos_do_veiculo_no_ano(veiculo_id: int, ano: int) -> dict[str, int]:
+    """VEI-05 e FIN-17, sem as recusadas: `despesas_ano_centavos` soma todas as despesas do
+    veículo no ano (o "Despesas no ano", que o "Rendeu no ano" desconta);
+    `custo_manutencao_ano_centavos`, só manutenção e peças."""
     total = (
-        Despesa.objects.filter(veiculo_id=veiculo_id, data__year=hoje.year)
+        Despesa.objects.filter(veiculo_id=veiculo_id, data__year=ano)
         .exclude(status=StatusDespesa.RECUSADA)
-        .aggregate(total=Sum("valor_centavos"))["total"]
+        .aggregate(
+            todas=Coalesce(Sum("valor_centavos"), 0),
+            manutencao=Coalesce(
+                Sum("valor_centavos", filter=Q(categoria__in=CATEGORIAS_DE_MANUTENCAO)), 0
+            ),
+        )
     )
-    return int(total or 0)
+    return {
+        "custo_manutencao_ano_centavos": int(total["manutencao"]),
+        "despesas_ano_centavos": int(total["todas"]),
+    }
 
 
 def despesas_a_pagar_ate(filiais: Iterable[int], dia: date) -> Soma:

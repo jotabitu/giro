@@ -1,8 +1,8 @@
 """Views finas do financeiro (docs/api/financeiro.md).
 
 Contas, caixa e despesas seguem o `X-Filial` (USR-07); fora do escopo, 404. O vistoriador recebe
-403 em todo o app, menos ao lançar despesa de manutenção (FIN-06). Receber usa o caixa aberto da
-filial da requisição, que pode ser outra que a da conta (FIL-06).
+403 em todo o app, menos ao lançar despesa de manutenção e peças (FIN-06). Receber usa o caixa
+aberto da filial da requisição, que pode ser outra que a da conta (FIL-06).
 """
 
 import hmac
@@ -35,6 +35,7 @@ from integracoes.pagamentos import provedor as provedor_de_pagamentos
 
 from .. import selectors, services
 from ..models import (
+    CATEGORIAS_DE_MANUTENCAO,
     Caixa,
     CategoriaDespesa,
     ContaReceber,
@@ -54,6 +55,7 @@ from .serializers import (
     ContaSerializer,
     ContasSerializer,
     DespesaEntradaSerializer,
+    DespesasDoVeiculoSerializer,
     DespesaSerializer,
     FecharCaixaSerializer,
     LancamentoSerializer,
@@ -710,35 +712,44 @@ class DespesasView(APIView):
         summary="Lançar despesa: acima de R$ 500 vai para o gerente (FIN-05, FIN-06, APR-03)",
     )
     def post(self, request: Request) -> Response:
-        # As recusas de perfil vêm antes da validação dos campos (docs/api/financeiro.md).
-        if _perfil(request) == "vistoriador":
-            if request.data.get("categoria") != "manutencao":
-                raise SemPermissao("FIN-06", "Seu perfil lança só despesas de manutenção.")
-            pago_no_caixa = str(request.data.get("pago_no_caixa", "")).lower()
-            if pago_no_caixa in serializers.BooleanField.TRUE_VALUES:
-                raise SemPermissao("FIN-05", "Seu perfil não paga despesa pelo caixa.")
+        _recusas_do_perfil(request)
         dados = _entrada(DespesaEntradaSerializer, request)
         arquivos.validar(dados["nota"], "nota")
-        veiculo_id = dados.get("veiculo_id")
-        despesa = services.lancar_despesa(
-            filial=Filial.objects.get(pk=_filial_do_caixa(request)),
-            usuario=request.user,
-            descricao=dados["descricao"],
-            valor_centavos=dados["valor_centavos"],
-            data=dados["data"],
-            vencimento=dados["vencimento"],
-            categoria=dados["categoria"],
-            veiculo_id=_veiculo_existente(veiculo_id),
-            nota=dados["nota"],
-            pago_no_caixa=dados.get("pago_no_caixa", False),
-        )
-        despesa = selectors.base_das_despesas().get(pk=despesa.pk)
-        return Response(
-            DespesaSerializer(
-                selectors.representacao_despesa(despesa, suporte=_suporte(request))
-            ).data,
-            status=status.HTTP_201_CREATED,
-        )
+        filial = Filial.objects.get(pk=_filial_do_caixa(request))
+        return _lancar(request, dados, filial, _veiculo_existente(dados.get("veiculo_id")))
+
+
+def _recusas_do_perfil(request: Request) -> None:
+    """As recusas de perfil vêm antes da validação dos campos (docs/api/financeiro.md)."""
+    if _perfil(request) != "vistoriador":
+        return
+    if request.data.get("categoria") not in CATEGORIAS_DE_MANUTENCAO:
+        raise SemPermissao("FIN-06", "Seu perfil lança só despesas de manutenção e peças.")
+    pago_no_caixa = str(request.data.get("pago_no_caixa", "")).lower()
+    if pago_no_caixa in serializers.BooleanField.TRUE_VALUES:
+        raise SemPermissao("FIN-05", "Seu perfil não paga despesa pelo caixa.")
+
+
+def _lancar(
+    request: Request, dados: dict[str, Any], filial: Filial, veiculo_id: int | None
+) -> Response:
+    despesa = services.lancar_despesa(
+        filial=filial,
+        usuario=request.user,
+        descricao=dados["descricao"],
+        valor_centavos=dados["valor_centavos"],
+        data=dados["data"],
+        vencimento=dados["vencimento"],
+        categoria=dados["categoria"],
+        veiculo_id=veiculo_id,
+        nota=dados["nota"],
+        pago_no_caixa=dados.get("pago_no_caixa", False),
+    )
+    despesa = selectors.base_das_despesas().get(pk=despesa.pk)
+    return Response(
+        DespesaSerializer(selectors.representacao_despesa(despesa, suporte=_suporte(request))).data,
+        status=status.HTTP_201_CREATED,
+    )
 
 
 def _veiculo_existente(veiculo_id: int | None) -> int | None:
@@ -749,6 +760,67 @@ def _veiculo_existente(veiculo_id: int | None) -> int | None:
     if not Veiculo.objects.filter(pk=veiculo_id).exists():
         raise ErroDeValidacao({"veiculo_id": ["Veículo não encontrado."]})
     return veiculo_id
+
+
+def _veiculo_no_escopo(request: Request, veiculo_id: int) -> Any:
+    """O veículo das filiais da pessoa (USR-07, como a ficha); fora delas, 404."""
+    from apps.veiculos.models import Veiculo
+
+    veiculo = (
+        Veiculo.objects.filter(pk=veiculo_id, filial_id__in=filiais_permitidas(request.user))
+        .select_related("filial")
+        .first()
+    )
+    if veiculo is None:
+        raise Http404
+    return veiculo
+
+
+class DespesasDoVeiculoView(APIView):
+    """FIN-17: a seção "Despesas do veículo" da ficha. A lista é de quem vê o custo do veículo
+    (VEI-05, USR-09); o lançamento, de quem lança despesa, com o veículo travado e a filial do
+    veículo, que pode não ser a do `X-Filial`."""
+
+    recurso_do_plano = Recurso.MANUTENCAO_DESPESAS  # PLT-12
+    suporte_proibido = frozenset({"POST"})  # 403 PLT-07, como a FIN-05
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_permissions(self) -> Any:
+        return [p() for p in (LANCAM_DESPESA if self.request.method == "POST" else GERENCIAM)]
+
+    @extend_schema(
+        responses=DespesasDoVeiculoSerializer,
+        parameters=[OpenApiParameter("ano", int, description="2026; sem ele, o ano de hoje")],
+        summary="Despesas do veículo no ano, de qualquer filial, com o total (FIN-17, VEI-05)",
+    )
+    def get(self, request: Request, veiculo_id: int) -> Response:
+        veiculo = _veiculo_no_escopo(request, veiculo_id)
+        ano = selectors.ano_pedido(request.query_params.get("ano"), relogio.hoje())
+        qs = selectors.despesas_do_veiculo(veiculo.pk, ano)
+        paginacao = PaginacaoPorCursor()
+        paginacao.page_size = 20  # FIN-17
+        paginacao.ordering = ("-data", "-id")  # type: ignore[assignment]
+        pagina = paginacao.paginate_queryset(qs, request, view=self) or []
+        total = selectors.custos_do_veiculo_no_ano(veiculo.pk, ano)["despesas_ano_centavos"]
+        return paginacao.get_paginated_response(
+            DespesaSerializer(
+                [selectors.representacao_despesa(d, suporte=_suporte(request)) for d in pagina],
+                many=True,
+            ).data,
+            extras={"ano": ano, "total_ano_centavos": total},
+        )
+
+    @extend_schema(
+        request={"multipart/form-data": DespesaEntradaSerializer},
+        responses={201: DespesaSerializer},
+        summary="Lançar despesa pela ficha: o veículo da rota e a filial dele (FIN-17, FIN-05)",
+    )
+    def post(self, request: Request, veiculo_id: int) -> Response:
+        _recusas_do_perfil(request)
+        veiculo = _veiculo_no_escopo(request, veiculo_id)
+        dados = _entrada(DespesaEntradaSerializer, request)
+        arquivos.validar(dados["nota"], "nota")
+        return _lancar(request, dados, veiculo.filial, veiculo.pk)
 
 
 class DespesaView(APIView):
