@@ -1,6 +1,6 @@
 // Importação por planilha na API real (docs/api/importacao.md). Só o administrador (e o suporte com "ver e editar").
 import { chamar, http } from "./http";
-import type { Importacao, LinhaDaImportacao, NovaImportacao, StatusDaLinha, TipoDeImportacao } from "./tipos-importacao";
+import type { Importacao, LinhaDaImportacao, ModeloEscolhido, NovaImportacao, PreparoDaImportacao, StatusDaLinha, TipoDeImportacao } from "./tipos-importacao";
 
 export const importacaoApi = {
   /** Importações dos últimos 30 dias. */
@@ -25,9 +25,19 @@ export const importacaoApi = {
     return (await http.get<{ resultados: LinhaDaImportacao[] }>(`/api/importacoes/${id}/linhas/`, { status })).resultados;
   },
 
-  /** "Corrigir aqui": só os campos corrigidos; a linha volta revalidada. */
-  corrigir(id: number, numero: number, dados: Record<string, string>): Promise<LinhaDaImportacao> {
-    return http.patch(`/api/importacoes/${id}/linhas/${numero}/`, { dados });
+  /** "Corrigir aqui": só os campos corrigidos; a linha volta revalidada. Em veículos, `categoria_id` põe a linha numa categoria só dela, e `null` a faz seguir o modelo de novo (IMP-08). */
+  corrigir(id: number, numero: number, dados: Record<string, string>, categoria?: { categoria_id: number | null }): Promise<LinhaDaImportacao> {
+    return http.patch(`/api/importacoes/${id}/linhas/${numero}/`, { dados, ...categoria });
+  },
+
+  /** IMP-08: a categoria de cada modelo; volta a importação com o bloco `categorias` atualizado. */
+  escolherCategorias(id: number, modelos: ModeloEscolhido[]): Promise<Importacao> {
+    return http.post(`/api/importacoes/${id}/categorias/`, { modelos });
+  },
+
+  /** IMP-08: antes de enviar veículos, a filial (a única ativa ou a escolhida) e se dá para importar. */
+  preparo(filial_id?: number): Promise<PreparoDaImportacao> {
+    return http.get("/api/importacoes/preparo/", { filial_id });
   },
 
   ignorar(id: number, numero: number): Promise<LinhaDaImportacao> {

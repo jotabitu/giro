@@ -3541,6 +3541,39 @@ paths:
               schema:
                 $ref: '#/components/schemas/Importacao'
           description: ''
+  /api/importacoes/{id}/categorias/:
+    post:
+      operationId: importacoes_categorias_create
+      summary: Categoria de cada modelo (IMP-08)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - importacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EscolhaDeCategorias'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EscolhaDeCategorias'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EscolhaDeCategorias'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Importacao'
+          description: ''
   /api/importacoes/{id}/importar/:
     post:
       operationId: importacoes_importar_create
@@ -3679,6 +3712,26 @@ paths:
               schema:
                 type: string
                 format: binary
+          description: ''
+  /api/importacoes/preparo/:
+    get:
+      operationId: importacoes_preparo_retrieve
+      summary: 'Antes de enviar veículos: a filial e se dá para importar (IMP-08)'
+      parameters:
+      - in: query
+        name: filial_id
+        schema:
+          type: integer
+      tags:
+      - importacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preparo'
           description: ''
   /api/locacoes/:
     get:
@@ -8828,6 +8881,29 @@ components:
         * `AC` - AC
         * `AD` - AD
         * `AE` - AE
+    CategoriasDaImportacao:
+      type: object
+      properties:
+        pergunta:
+          type: boolean
+          description: 'Mais de uma categoria oferecida: a tela mostra a escolha por
+            modelo.'
+        opcoes:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpcaoDeCategoria'
+        modelos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModeloDaImportacao'
+        falta_escolher:
+          type: boolean
+          description: 'Alguma linha a gravar sem categoria: "Importar" fica travado.'
+      required:
+      - falta_escolher
+      - modelos
+      - opcoes
+      - pergunta
     CaucaoDaTroca:
       type: object
       properties:
@@ -11427,6 +11503,15 @@ components:
       required:
       - codigo
       - rotulo
+    EscolhaDeCategorias:
+      type: object
+      properties:
+        modelos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModeloEscolhido'
+      required:
+      - modelos
     EspecieVeiculoEnum:
       enum:
       - passageiro
@@ -13118,6 +13203,11 @@ components:
           - $ref: '#/components/schemas/PlanoDaImportacao'
           nullable: true
           description: Só em veículos (IMP-03); clientes não têm limite.
+        categorias:
+          allOf:
+          - $ref: '#/components/schemas/CategoriasDaImportacao'
+          nullable: true
+          description: Só em veículos (IMP-08).
         aviso:
           allOf:
           - $ref: '#/components/schemas/Aviso'
@@ -13138,6 +13228,7 @@ components:
       - apagar_em
       - arquivo
       - aviso
+      - categorias
       - concluida_em
       - contagens
       - enviada_em
@@ -14075,6 +14166,13 @@ components:
           allOf:
           - $ref: '#/components/schemas/ObjetoDaLinha'
           nullable: true
+        categoria_id:
+          type: integer
+          nullable: true
+          description: Só em veículos (IMP-08).
+        categoria_propria:
+          type: boolean
+          description: A linha é exceção do modelo (IMP-08). Só em veículos.
       required:
       - dados
       - erros
@@ -15246,6 +15344,23 @@ components:
       required:
       - pode_escolher_todas
       - resultados
+    ModeloDaImportacao:
+      type: object
+      properties:
+        marca:
+          type: string
+        modelo:
+          type: string
+        veiculos:
+          type: integer
+        categoria_id:
+          type: integer
+          nullable: true
+      required:
+      - categoria_id
+      - marca
+      - modelo
+      - veiculos
     ModeloDetalhe:
       type: object
       properties:
@@ -15333,6 +15448,19 @@ components:
         a_partir_de:
           type: string
           maxLength: 40
+    ModeloEscolhido:
+      type: object
+      properties:
+        marca:
+          type: string
+        modelo:
+          type: string
+        categoria_id:
+          type: integer
+      required:
+      - categoria_id
+      - marca
+      - modelo
     ModeloPronto:
       type: object
       properties:
@@ -15935,6 +16063,19 @@ components:
       - itens
       - plano
       - titulo
+    OpcaoDeCategoria:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        tipo_veiculo:
+          $ref: '#/components/schemas/TipoVeiculoEnum'
+      required:
+      - id
+      - nome
+      - tipo_veiculo
     Origem:
       type: object
       properties:
@@ -16417,6 +16558,11 @@ components:
             type: string
             nullable: true
           description: Só os campos corrigidos, com os nomes das colunas da planilha.
+        categoria_id:
+          type: integer
+          nullable: true
+          description: 'Veículos (IMP-08): a categoria só desta linha, exceção do
+            modelo; `null` volta a seguir o modelo. Ausente, não muda.'
     PatchedEdicao:
       type: object
       properties:
@@ -17879,6 +18025,30 @@ components:
       - desconto_pct
       - diaria_centavos
       - valor_periodo_centavos
+    Preparo:
+      type: object
+      properties:
+        filiais:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilialDaImportacao'
+        pede_filial:
+          type: boolean
+        filial:
+          allOf:
+          - $ref: '#/components/schemas/FilialDaImportacao'
+          nullable: true
+        pode_importar:
+          type: boolean
+        motivo:
+          type: string
+          nullable: true
+      required:
+      - filiais
+      - filial
+      - motivo
+      - pede_filial
+      - pode_importar
     Previa:
       type: object
       properties:

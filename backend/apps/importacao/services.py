@@ -43,7 +43,7 @@ from .models import (
     StatusLinha,
     TipoImportacao,
 )
-from .selectors import valores
+from .selectors import SEM_CATEGORIA, faltam_categorias, valores
 
 S = StatusImportacao
 L = StatusLinha
@@ -107,23 +107,30 @@ def _apagar_arquivo(importacao: Importacao) -> None:
 # --- Envio ---
 
 
-def _filial_padrao(tipo: str, filial_id: int | None, tem_coluna: bool) -> Filial | None:
-    """A filial da coluna vazia. Obrigatória com mais de uma filial e sem a coluna."""
+def sem_categoria() -> ErroDeRegra:
+    """IMP-08: sem categoria ativa para a filial, a importação de veículos não começa."""
+    return ErroDeRegra("sem_categoria", SEM_CATEGORIA)
+
+
+def _filial_padrao(tipo: str, filial_id: int | None) -> Filial | None:
+    """IMP-08: uma filial por planilha. Com uma filial ativa só, ela, sem pergunta; com mais de
+    uma, a escolhida no envio. Clientes não têm filial."""
     if tipo != TipoImportacao.VEICULOS:
         return None
     if filial_id is not None:
         escolhida: Filial | None = Filial.ativos.filter(pk=filial_id).first()
         if escolhida is None:
             raise ErroDeValidacao({"filial_id": ["Escolha uma filial ativa."]})
-        return escolhida
-    ativas: list[Filial] = list(Filial.ativos.order_by("id")[:2])
-    if len(ativas) == 1:
-        return ativas[0]
-    if tem_coluna:
-        return None
-    if not ativas:
-        raise ErroDeValidacao({"filial_id": ["Cadastre a filial antes de importar veículos."]})
-    raise ErroDeValidacao({"filial_id": ["Escolha a filial dos veículos."]})
+    else:
+        ativas: list[Filial] = list(Filial.ativos.order_by("id")[:2])
+        if not ativas:
+            raise ErroDeValidacao({"filial_id": ["Cadastre a filial antes de importar veículos."]})
+        if len(ativas) > 1:
+            raise ErroDeValidacao({"filial_id": ["Escolha a filial dos veículos."]})
+        escolhida = ativas[0]
+    if not linhas.categorias_da_filial(escolhida.pk):
+        raise sem_categoria()
+    return escolhida
 
 
 def em_andamento(tipo: str) -> Conflito:
@@ -138,8 +145,8 @@ def enviar(tipo: str, arquivo: Any, filial_id: int | None = None) -> Importacao:
     validação de cada linha. Nada é gravado nos cadastros."""
     nome = os.path.basename(str(arquivo.name or "planilha"))[:255]
     conteudo = arquivo.read(planilha.MAX_BYTES + 1)
-    leitura = planilha.ler(nome, conteudo, tipo)
-    filial = _filial_padrao(tipo, filial_id, "filial" in leitura.colunas)
+    planilha.ler(nome, conteudo, tipo)  # cabeçalho e limites conferidos na hora (400)
+    filial = _filial_padrao(tipo, filial_id)
     ator = ator_atual()
     agora = relogio.agora()
     with transaction.atomic():
@@ -275,8 +282,98 @@ def _repetida_no_banco(linha: LinhaImportacao) -> linhas.Repetida:
     return repetida
 
 
-def corrigir(importacao: Importacao, numero: int, dados: dict[str, Any]) -> LinhaImportacao:
-    """ "Corrigir aqui": junta os campos corrigidos e revalida a linha na hora."""
+# --- Categoria de cada modelo (IMP-08) ---
+
+
+def _segue_o_modelo(dados: dict[str, Any]) -> bool:
+    return dados.get(linhas.CATEGORIA_PROPRIA) != "1"
+
+
+def _chave(dados: dict[str, Any]) -> str:
+    return linhas.chave_do_modelo(str(dados.get("marca", "")), str(dados.get("modelo", "")))
+
+
+def categoria_do_modelo(importacao: Importacao, chave: str, exceto: int) -> str:
+    """A categoria escolhida para o modelo: a das linhas dele que seguem o modelo, inclusive as
+    já importadas. Vazia quando o modelo ainda não tem categoria."""
+    for item in importacao.itens.exclude(status=L.IGNORADA).exclude(pk=exceto).order_by("numero"):
+        if _segue_o_modelo(item.dados) and _chave(item.dados) == chave:
+            escolhida = str(item.dados.get(linhas.CATEGORIA, ""))
+            if escolhida:
+                return escolhida
+    return ""
+
+
+def _oferecida(importacao: Importacao, categoria_id: Any) -> str:
+    oferecidas = {str(c.pk) for c in linhas.categorias_da_filial(importacao.filial_padrao_id)}
+    if str(categoria_id) not in oferecidas:
+        raise ErroDeValidacao({"categoria_id": ["Escolha uma categoria da lista."]})
+    return str(categoria_id)
+
+
+def escolher_categorias(importacao: Importacao, modelos: list[dict[str, Any]]) -> Importacao:
+    """POST .../categorias/: a categoria de cada modelo vale para as linhas dele que seguem o
+    modelo (as exceções de "Corrigir aqui" ficam como estão). Só as categorias que a filial da
+    importação oferece (FIL-04)."""
+    if importacao.tipo != TipoImportacao.VEICULOS:
+        raise ErroDeRegra("so_veiculos", "Só a importação de veículos tem categoria.")
+    with transaction.atomic():
+        travada = _travar(importacao)
+        if travada.status not in ABERTAS:
+            raise Conflito(
+                "importacao_fechada",
+                "Esta importação não aceita mudanças agora.",
+                {"status": travada.status},
+            )
+        escolhas = {
+            linhas.chave_do_modelo(m["marca"], m["modelo"]): _oferecida(travada, m["categoria_id"])
+            for m in modelos
+        }
+        mudadas = []
+        for item in travada.itens.filter(status__in=(*A_GRAVAR, L.COM_ERRO)):
+            categoria = escolhas.get(_chave(item.dados))
+            if categoria and _segue_o_modelo(item.dados):
+                item.dados = {**item.dados, linhas.CATEGORIA: categoria}
+                mudadas.append(item)
+        LinhaImportacao.objects.bulk_update(mudadas, ["dados"], batch_size=500)
+    importacao.refresh_from_db()
+    return importacao
+
+
+def _categoria_na_correcao(
+    importacao: Importacao,
+    linha: LinhaImportacao,
+    atuais: dict[str, str],
+    categoria_id: int | None,
+    mudar_categoria: bool,
+) -> dict[str, str]:
+    """A exceção da linha (`categoria_id`) ou a categoria do modelo dela, que pode ter mudado
+    com a correção da marca ou do modelo."""
+    campos = {c: t for c, t in atuais.items() if c not in linhas.INTERNAS}
+    propria = categoria_id is not None if mudar_categoria else not _segue_o_modelo(linha.dados)
+    if propria:
+        escolhida = categoria_id if mudar_categoria else linha.dados.get(linhas.CATEGORIA)
+        campos[linhas.CATEGORIA] = _oferecida(importacao, escolhida)
+        campos[linhas.CATEGORIA_PROPRIA] = "1"
+        return campos
+    do_modelo = categoria_do_modelo(importacao, _chave(campos), exceto=linha.pk)
+    if do_modelo:
+        campos[linhas.CATEGORIA] = do_modelo
+    return campos
+
+
+def corrigir(
+    importacao: Importacao,
+    numero: int,
+    dados: dict[str, Any],
+    categoria_id: int | None = None,
+    *,
+    mudar_categoria: bool = False,
+) -> LinhaImportacao:
+    """ "Corrigir aqui": junta os campos corrigidos e revalida a linha na hora. Em veículos,
+    com `mudar_categoria`, `categoria_id` põe a linha numa categoria só dela (exceção do
+    modelo) e `None` a faz voltar a seguir o modelo. A linha que segue o modelo fica com a
+    categoria que o modelo tem; o modelo novo, só na correção, espera a escolha (IMP-08)."""
     conhecidas = {coluna.nome for coluna in planilha.COLUNAS[importacao.tipo]}
     with transaction.atomic():
         travada = _travar(importacao)
@@ -292,6 +389,8 @@ def corrigir(importacao: Importacao, numero: int, dados: dict[str, Any]) -> Linh
                 texto = texto[: planilha.MAX_CELULA]
             atuais[coluna] = texto
         atuais = {coluna: texto for coluna, texto in atuais.items() if texto}
+        if travada.tipo == TipoImportacao.VEICULOS:
+            atuais = _categoria_na_correcao(travada, linha, atuais, categoria_id, mudar_categoria)
         contexto = linhas.Contexto.carregar(travada.filial_padrao_id)
         resultado = linhas.validar(
             travada.tipo, atuais, contexto, _repetida_no_banco(linha), longas=longas
@@ -335,6 +434,8 @@ def importar(importacao: Importacao) -> Importacao:
         travada = _travar(importacao)
         if travada.status in ABERTAS and not travada.itens.filter(status__in=A_GRAVAR).exists():
             raise nada_para_importar()
+        if travada.status in ABERTAS and faltam_categorias(travada):
+            raise ErroDeRegra("categoria_do_modelo", "Escolha a categoria de cada modelo.")
         estados.transicionar(travada, S.IMPORTANDO, acao="importacao.importar", regra="IMP-03")
         _agendar("importacao_importar", travada)
     importacao.refresh_from_db()
@@ -382,8 +483,14 @@ def gravar(importacao_id: int) -> None:
             convertida = linhas.converter(tipo, texto, contexto)
             if vagas is not None and vagas.cabem is not None and gravadas >= vagas.cabem:
                 linha.status, linha.erros = L.ACIMA_DO_LIMITE, []
-            elif convertida.erros:  # categoria desativada no meio do caminho, por exemplo
+            elif convertida.erros:
                 linha.status, linha.erros = L.COM_ERRO, convertida.erros
+            elif tipo == TipoImportacao.VEICULOS and "categoria_id" not in convertida.dados:
+                # A categoria escolhida foi desativada no meio do caminho (IMP-08).
+                linha.status = L.COM_ERRO
+                linha.erros = [
+                    linhas.erro("categoria", "A categoria escolhida está inativa. Escolha outra")
+                ]
             else:
                 try:
                     with transaction.atomic():

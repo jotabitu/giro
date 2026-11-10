@@ -48,8 +48,6 @@ COLUNAS: dict[str, tuple[Coluna, ...]] = {
         Coluna("ano_modelo", "Ano do modelo", True, "2023"),
         Coluna("cor", "Cor", True, "Preta"),  # T-164: obrigatória, como no cadastro
         Coluna("km", "Km", True, "18250"),
-        Coluna("categoria", "Categoria", True, "Street 150–160"),
-        Coluna("filial", "Filial", exemplo="Filial Centro"),
         Coluna("capacidade_tanque_litros", "Capacidade do tanque", exemplo="14"),
         Coluna("valor_compra", "Valor de compra", exemplo="13.900,00"),
         Coluna("data_compra", "Data de compra", exemplo="10/01/2025"),
@@ -86,10 +84,10 @@ INSTRUCOES = {
     "veiculos": (
         "Uma linha por veículo. Não mude os nomes das colunas.",
         "Obrigatórias (em negrito): placa, chassi, marca, modelo, ano_fabricacao, ano_modelo, "
-        "km e categoria.",
+        "cor e km.",
         "Placa no padrão antigo (ABC1234) ou Mercosul (ABC1D23). Chassi com 17 letras e números.",
-        "Categoria: o nome, como na tabela de preços. Filial: o nome; vazia usa a filial "
-        "escolhida no envio.",
+        "Filial e categoria não vão na planilha: a filial é escolhida no envio, e a categoria "
+        "de cada modelo, na tela, depois da conferência.",
         "Valores em reais: 13900, 13.900,00 ou 13900.00. Datas: dd/mm/aaaa ou aaaa-mm-dd.",
         "Veículo já cadastrado (mesma placa ou chassi) não é importado de novo.",
         "Até 5.000 linhas e 5 MB.",

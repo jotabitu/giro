@@ -50,7 +50,7 @@ export function ImportarDados() {
           {consulta.data && (
             <div className="grid gap-4 md:grid-cols-[repeat(auto-fit,minmax(300px,1fr))]">
               {TIPOS_DE_IMPORTACAO.map((t) => (
-                <CaixaDeImportacao key={t.tipo} tipo={t.tipo} atual={atualDoTipo(lista, t.tipo)} eu={eu} />
+                <CaixaDeImportacao key={t.tipo} tipo={t.tipo} atual={atualDoTipo(lista, t.tipo)} />
               ))}
             </div>
           )}

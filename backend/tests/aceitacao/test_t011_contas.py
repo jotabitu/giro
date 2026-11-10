@@ -1604,6 +1604,7 @@ def test_plt_07_lista_de_rotas_que_o_suporte_le():
         # T-027: a importação, com linha de cliente resumida para o suporte (AUD-09).
         "api/importacoes/",
         "api/importacoes/modelo/",
+        "api/importacoes/preparo/",  # T-440 (IMP-08): filiais e se dá para importar
         "api/importacoes/<int:pk>/",
         "api/importacoes/<int:pk>/linhas/",
         "api/usuarios/",
