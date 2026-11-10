@@ -32,6 +32,22 @@ urlpatterns: list[URLPattern] = [
     path(
         "veiculos/<int:pk>/documentos/", views.DocumentosView.as_view(), name="veiculo-documentos"
     ),
+    path("veiculos/<int:pk>/fotos/", views.FotosView.as_view(), name="veiculo-fotos"),
+    path(
+        "veiculos/<int:pk>/fotos/<int:foto_id>/trocar/",
+        views.TrocarFotoView.as_view(),
+        name="veiculo-foto-trocar",
+    ),
+    path(
+        "veiculos/<int:pk>/fotos/<int:foto_id>/capa/",
+        views.CapaDaFotoView.as_view(),
+        name="veiculo-foto-capa",
+    ),
+    path(
+        "veiculos/<int:pk>/fotos/<int:foto_id>/apagar/",
+        views.ApagarFotoView.as_view(),
+        name="veiculo-foto-apagar",
+    ),
     path(
         "veiculos/<int:pk>/documentos/historico/",
         views.HistoricoDeDocumentosView.as_view(),

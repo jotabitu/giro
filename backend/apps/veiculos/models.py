@@ -408,3 +408,67 @@ class DocumentoVeiculo(ModeloBase, ModeloAtivavel):
 
     def __str__(self) -> str:
         return f"{self.veiculo_id}: {self.tipo} até {self.validade}"
+
+
+class FormatoFoto(models.TextChoices):
+    JPG = "jpg", "JPG"
+    PNG = "png", "PNG"
+
+
+# VEI-10: até 20 fotos ativas na galeria (conferido no serviço, com o veículo travado).
+LIMITE_DA_GALERIA = 20
+
+
+class FotoVeiculo(ModeloBase, ModeloAtivavel):
+    """Galeria do veículo (VEI-10, ADR 0036, modelo de dados item 9a): fotos de cadastro para a
+    ficha e o catálogo, nunca as da vistoria. Arquivo privado, reprocessado sem metadados, com URL
+    de 15 minutos (AUD-05). Apagada ou substituída, fica `ativo=False`, com o arquivo guardado."""
+
+    veiculo = models.ForeignKey(Veiculo, on_delete=models.PROTECT, related_name="fotos")
+    arquivo = models.FileField(
+        storage=arquivos.armazenamento_privado,
+        upload_to=arquivos.caminho_privado,
+        max_length=200,
+        null=True,
+        blank=True,
+    )
+    formato = models.CharField(max_length=3, choices=FormatoFoto.choices)
+    # Ordem de envio, sequencial por veículo entre ativas e inativas; a troca herda a da antiga.
+    ordem = models.PositiveSmallIntegerField()
+    capa = models.BooleanField(default=False)
+    enviada_por = models.ForeignKey(
+        "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    enviada_em = models.DateTimeField()
+    substituida_por = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    apagada_por = models.ForeignKey(
+        "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+
+    class Meta:
+        verbose_name = "foto do veículo"
+        verbose_name_plural = "fotos do veículo"
+        ordering = ["-capa", "ordem", "id"]
+        indexes = [
+            models.Index(fields=["veiculo", "ativo", "ordem"], name="foto_veiculo_galeria"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["veiculo"],
+                condition=models.Q(ativo=True, capa=True),
+                name="foto_veiculo_uma_capa",
+            ),
+            models.UniqueConstraint(
+                fields=["veiculo", "ordem"],
+                condition=models.Q(ativo=True),
+                name="foto_veiculo_ordem_ativa",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(ordem__gte=1), name="foto_veiculo_ordem_positiva"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.veiculo_id}: foto {self.ordem}"

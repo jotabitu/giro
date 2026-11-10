@@ -21,6 +21,7 @@ import hashlib
 import hmac
 import io
 import os
+import re
 import secrets
 import uuid
 from dataclasses import dataclass
@@ -142,7 +143,7 @@ class Provedor(Protocol):
     def ler(self, caminho: str) -> bytes: ...
     def existe(self, caminho: str) -> bool: ...
     def tamanho(self, caminho: str) -> int: ...
-    def url(self, caminho: str, expira_em: datetime) -> str: ...
+    def url(self, caminho: str, expira_em: datetime, baixar_como: str | None = None) -> str: ...
     def apagar(self, caminho: str) -> None: ...
     def apagar_prefixo(self, prefixo: str) -> int: ...
 
@@ -152,10 +153,11 @@ class Provedor(Protocol):
 guardados: dict[str, tuple[bytes, str]] = {}
 
 
-def assinar(caminho: str, expira: str, nonce: str) -> str:
-    return hmac.new(
-        settings.SECRET_KEY.encode(), f"{caminho}|{expira}|{nonce}".encode(), hashlib.sha256
-    ).hexdigest()
+def assinar(caminho: str, expira: str, nonce: str, baixar: str = "") -> str:
+    """Sem `baixar`, a mensagem assinada é a de antes da T-414: os links atuais continuam
+    valendo. Com ele, o nome do arquivo baixado entra na assinatura (ADR 0036, item 4)."""
+    mensagem = f"{caminho}|{expira}|{nonce}" + (f"|{baixar}" if baixar else "")
+    return hmac.new(settings.SECRET_KEY.encode(), mensagem.encode(), hashlib.sha256).hexdigest()
 
 
 def _diretorio_falso() -> Path | None:
@@ -233,11 +235,14 @@ class ProvedorFalso:
             self.apagar(arquivo.relative_to(pasta.resolve()).as_posix())
         return len(arquivos)
 
-    def url(self, caminho: str, expira_em: datetime) -> str:
+    def url(self, caminho: str, expira_em: datetime, baixar_como: str | None = None) -> str:
         expira = str(int(expira_em.timestamp()))
         nonce = secrets.token_hex(8)
-        assinatura = assinar(caminho, expira, nonce)
-        consulta = urlencode({"expira": expira, "nonce": nonce, "assinatura": assinatura})
+        assinatura = assinar(caminho, expira, nonce, baixar_como or "")
+        parametros = {"expira": expira, "nonce": nonce, "assinatura": assinatura}
+        if baixar_como:
+            parametros["baixar"] = baixar_como
+        consulta = urlencode(parametros)
         base = settings.GIRO_ARQUIVOS_FALSOS_BASE
         return f"{base}/{quote(caminho)}?{consulta}"
 
@@ -315,14 +320,14 @@ class ProvedorS3:
                 )
         return apagados
 
-    def url(self, caminho: str, expira_em: datetime) -> str:
+    def url(self, caminho: str, expira_em: datetime, baixar_como: str | None = None) -> str:
         segundos = max(1, int((expira_em - relogio.agora()).total_seconds()))
+        parametros = {"Bucket": self.bucket, "Key": caminho}
+        if baixar_como:
+            # Entra na assinatura: o S3 devolve o arquivo com este cabeçalho (ADR 0036, item 4).
+            parametros["ResponseContentDisposition"] = disposicao_de_download(baixar_como)
         return str(
-            self.cliente.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": self.bucket, "Key": caminho},
-                ExpiresIn=segundos,
-            )
+            self.cliente.generate_presigned_url("get_object", Params=parametros, ExpiresIn=segundos)
         )
 
 
@@ -335,10 +340,24 @@ def provedor() -> Provedor:
     raise ValueError(f"Armazenamento desconhecido: {nome}")
 
 
-def url_assinada(caminho: str) -> UrlAssinada:
-    """Nova a cada chamada; vale 15 minutos (AUD-05)."""
+# Nome do arquivo baixado: só letras sem acento, dígitos, hífen e ponto (ADR 0036, item 4), para
+# não abrir espaço a injeção no cabeçalho `Content-Disposition`.
+_NOME_DE_DOWNLOAD = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,149}")
+
+
+def disposicao_de_download(nome: str) -> str:
+    if not _NOME_DE_DOWNLOAD.fullmatch(nome):
+        raise ValueError(f"Nome de download fora de [A-Za-z0-9.-]: {nome!r}")
+    return f'attachment; filename="{nome}"'
+
+
+def url_assinada(caminho: str, baixar_como: str | None = None) -> UrlAssinada:
+    """Nova a cada chamada; vale 15 minutos (AUD-05). Com `baixar_como`, o link baixa o arquivo
+    com esse nome (`Content-Disposition: attachment`, ADR 0036, item 4)."""
+    if baixar_como is not None:
+        disposicao_de_download(baixar_como)  # recusa o nome fora do formato antes de assinar
     expira_em = relogio.agora() + VALIDADE_DA_URL
-    return UrlAssinada(provedor().url(caminho, expira_em), expira_em)
+    return UrlAssinada(provedor().url(caminho, expira_em, baixar_como), expira_em)
 
 
 def apagar_temporario(caminho: str) -> None:

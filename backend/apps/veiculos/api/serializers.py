@@ -421,13 +421,65 @@ class HistoricoStatusSerializer(serializers.Serializer[Any]):
     motivo = serializers.CharField(allow_null=True)
 
 
-class FotoDaVistoriaRecenteSerializer(serializers.Serializer[Any]):
+class LinksDaFotoSerializer(serializers.Serializer[Any]):
+    """VEI-10, ADR 0036, item 4: `url` abre e `url_download` baixa com `nome_arquivo`; os dois
+    valem 15 minutos e são novos a cada leitura (AUD-05)."""
+
     id = serializers.IntegerField()
-    posicao = serializers.ChoiceField(
-        choices=["frente", "traseira", "lado_esquerdo", "lado_direito", "painel"]
-    )
+    numero = serializers.IntegerField()
     url = serializers.CharField()
+    url_download = serializers.CharField()
     url_expira_em = serializers.DateTimeField()
+    nome_arquivo = serializers.CharField()
+
+
+class FotoDaVistoriaRecenteSerializer(LinksDaFotoSerializer):
+    """Todas as fotos ativas da vistoria: as fixas e as de avaria (VEI-10, T-414)."""
+
+    posicao = serializers.ChoiceField(
+        choices=["frente", "traseira", "lado_esquerdo", "lado_direito", "painel", "avaria"]
+    )
+    rotulo = serializers.CharField()
+    tirada_em = serializers.DateTimeField()
+    avaria_id = serializers.IntegerField(allow_null=True)
+
+
+class FotoDaGaleriaSerializer(LinksDaFotoSerializer):
+    """A galeria não tem legenda: `rotulo` é sempre `null` (VEI-10)."""
+
+    rotulo = serializers.CharField(allow_null=True)
+    capa = serializers.BooleanField()
+    enviada_em = serializers.DateTimeField()
+    enviada_por = IdNomeSerializer(allow_null=True)
+
+
+class GaleriaSerializer(serializers.Serializer[Any]):
+    """Bloco `galeria` da ficha: as ativas, capa primeiro, para todos os perfis (VEI-10)."""
+
+    total = serializers.IntegerField()
+    limite = serializers.IntegerField()
+    fotos = FotoDaGaleriaSerializer(many=True)
+
+
+class GaleriaDoEditarSerializer(GaleriaSerializer):
+    """`GET .../fotos/`. `motivo`: com o perfil que edita e o veículo vendido ou baixado, a
+    mensagem do 409; `null` nos outros casos."""
+
+    editar = serializers.BooleanField()
+    motivo = serializers.CharField(allow_null=True)
+
+
+class GaleriaAlteradaSerializer(GaleriaDoEditarSerializer):
+    """Resposta do envio e da troca: a galeria inteira e o id da foto nova."""
+
+    foto_id = serializers.IntegerField()
+
+
+class FotoEntradaSerializer(serializers.Serializer[Any]):
+    """Uma foto por requisição (ADR 0036, item 3). A recusa (formato, tamanho, falta) vem do
+    serviço, com a mensagem da VEI-10."""
+
+    arquivo = serializers.FileField(required=False, allow_null=True, allow_empty_file=True)
 
 
 class AvariaDaVistoriaRecenteSerializer(serializers.Serializer[Any]):
@@ -440,10 +492,12 @@ class AvariaDaVistoriaRecenteSerializer(serializers.Serializer[Any]):
 
 
 class VistoriaRecenteSerializer(serializers.Serializer[Any]):
-    """VIS-01, T-275: a última vistoria concluída, com as fotos fixas e as avarias abertas."""
+    """VIS-01, T-275: a última vistoria concluída, com todas as fotos (VEI-10) e as avarias
+    abertas."""
 
     id = serializers.IntegerField()
     tipo = serializers.ChoiceField(choices=["saida", "devolucao"])
+    rotulo_tipo = serializers.CharField()  # "Vistoria de saída", "Vistoria de chegada"
     concluida_em = serializers.DateTimeField()
     vistoriador = IdNomeSerializer(allow_null=True)
     locacao_codigo = serializers.CharField(allow_null=True)
@@ -487,7 +541,14 @@ class VeiculoComDadosDoDocumentoSerializer(VeiculoSerializer):
     anotacoes = serializers.CharField(allow_null=True)
 
 
+class AcoesDaFichaSerializer(AcoesDoVeiculoSerializer):
+    # Administrador e gerente, fora de vendido e baixado; nunca o suporte (VEI-10, PLT-07).
+    editar_fotos = serializers.BooleanField()
+
+
 class VeiculoDetalheSerializer(VeiculoComDadosDoDocumentoSerializer):
+    acoes = AcoesDaFichaSerializer()
+    galeria = GaleriaSerializer()  # VEI-10, para todos os perfis
     # Só para administrador, gerente e financeiro; ausente para os demais (USR-09, T-156).
     indicadores_financeiros = serializers.JSONField(allow_null=True, required=False)
     # Ausente para vistoriador e financeiro (T-275).

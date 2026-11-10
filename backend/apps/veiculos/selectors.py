@@ -14,15 +14,18 @@ from django.db.models import Count, Q, QuerySet
 from django.utils import timezone
 
 from comum import arquivos, leituras, relogio
+from comum.documentos import placa_com_hifen
 from comum.permissoes import filiais_permitidas
 
 from .models import (
     FORA_DA_FROTA,
+    LIMITE_DA_GALERIA,
     MOVIMENTAVEIS,
     TRANSICOES_VEICULO,
     Categoria,
     DocumentoVeiculo,
     Extra,
+    FotoVeiculo,
     HistoricoStatusVeiculo,
     PrecoCategoria,
     StatusVeiculo,
@@ -31,6 +34,7 @@ from .models import (
 )
 from .services import (
     SituacaoDocumento,
+    motivo_da_galeria_so_para_ver,
     normalizar_chassi,
     normalizar_placa,
     situacao_do_documento,
@@ -492,7 +496,84 @@ def representacao(
             dados["movimentacoes"] = leituras.bloco(ALVO_FICHA, "movimentacoes", veiculo)
         dados["ocupacao"] = ocupacao(veiculo)
         dados["historico_status"] = historico_status(veiculo)
+        # A galeria é de todos os perfis; mexer nela, de quem edita veículo (VEI-10, T-414).
+        dados["galeria"] = bloco_galeria(veiculo)
+        dados["acoes"]["editar_fotos"] = pode_editar_fotos(veiculo, usuario)
     return dados
+
+
+# --- Galeria do veículo (VEI-10, ADR 0036) ---
+
+
+def galeria(veiculo: Veiculo) -> list[FotoVeiculo]:
+    """As fotos ativas na ordem de exibição: capa primeiro, depois a ordem de envio. Para o
+    catálogo (T-418) ler sem tocar no model (ADR 0011)."""
+    return list(
+        FotoVeiculo.ativos.filter(veiculo_id=veiculo.pk)
+        .select_related("enviada_por")
+        .order_by("-capa", "ordem", "id")
+    )
+
+
+def capa(veiculo: Veiculo) -> FotoVeiculo | None:
+    foto: FotoVeiculo | None = FotoVeiculo.ativos.filter(veiculo_id=veiculo.pk, capa=True).first()
+    return foto
+
+
+def nome_da_placa(placa: str) -> str:
+    """A placa no nome do arquivo baixado, com hífen e só `A-Z`, `a-z`, `0-9` e `-`."""
+    return "".join(c for c in placa_com_hifen(placa) if c.isascii() and (c.isalnum() or c == "-"))
+
+
+def representacao_foto_da_galeria(foto: FotoVeiculo, numero: int, placa: str) -> dict[str, Any]:
+    """Dois links novos a cada leitura, de 15 minutos (AUD-05): `url` abre, `url_download` baixa
+    com `nome_arquivo` (ADR 0036, item 4). A foto da galeria não tem rótulo."""
+    nome = f"{nome_da_placa(placa)}-galeria-{numero}.{foto.formato}"
+    ver = arquivos.url_assinada(foto.arquivo.name)
+    baixar = arquivos.url_assinada(foto.arquivo.name, baixar_como=nome)
+    quem = foto.enviada_por
+    return {
+        "id": foto.pk,
+        "numero": numero,
+        "rotulo": None,
+        "capa": foto.capa,
+        "url": ver.url,
+        "url_download": baixar.url,
+        "url_expira_em": ver.expira_em,
+        "nome_arquivo": nome,
+        "enviada_em": foto.enviada_em,
+        "enviada_por": {"id": quem.pk, "nome": quem.nome} if quem else None,
+    }
+
+
+def bloco_galeria(veiculo: Veiculo) -> dict[str, Any]:
+    fotos = galeria(veiculo)
+    return {
+        "total": len(fotos),
+        "limite": LIMITE_DA_GALERIA,
+        "fotos": [
+            representacao_foto_da_galeria(foto, numero, veiculo.placa)
+            for numero, foto in enumerate(fotos, start=1)
+        ],
+    }
+
+
+def pode_editar_fotos(veiculo: Veiculo, usuario: Any) -> bool:
+    """Administrador e gerente, fora de `vendido` e `baixado`. O suporte só vê (PLT-07)."""
+    if getattr(usuario, "e_suporte", False) or getattr(usuario, "perfil", "") not in GESTAO:
+        return False
+    return motivo_da_galeria_so_para_ver(veiculo) is None
+
+
+def galeria_do_editar(veiculo: Veiculo, usuario: Any) -> dict[str, Any]:
+    """`GET .../fotos/`: o bloco da ficha com `editar` e, para quem edita e o veículo vendido ou
+    baixado, o `motivo` da galeria só para ver."""
+    edita = getattr(usuario, "perfil", "") in GESTAO and not getattr(usuario, "e_suporte", False)
+    return {
+        **bloco_galeria(veiculo),
+        "editar": pode_editar_fotos(veiculo, usuario),
+        "motivo": motivo_da_galeria_so_para_ver(veiculo) if edita else None,
+    }
 
 
 def _da_locacao(veiculo: Veiculo, perfil: str) -> dict[str, Any]:

@@ -13,6 +13,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from django.db import IntegrityError, transaction
+from django.db.models import Max
 from django.db.models.functions import Lower
 
 from apps.filiais import selectors as filiais_selectors
@@ -30,19 +31,27 @@ from comum.auditoria import (
     retrato,
 )
 from comum.documentos import placa_com_hifen
-from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, TransicaoInvalida
+from comum.erros import (
+    Conflito,
+    ErroDeRegra,
+    ErroDeValidacao,
+    NaoEncontrado,
+    TransicaoInvalida,
+)
 from comum.eventos import publicar
 
 from .models import (
     CAMPOS_DA_VEI_09,
     DOCUMENTOS_QUE_BLOQUEIAM,
     FORA_DA_FROTA,
+    LIMITE_DA_GALERIA,
     MOVIMENTAVEIS,
     TRANSICOES_VEICULO,
     Categoria,
     DocumentoVeiculo,
     Especie,
     Extra,
+    FotoVeiculo,
     HistoricoStatusVeiculo,
     LeituraKm,
     Origem,
@@ -1410,3 +1419,184 @@ def desativar_extra(extra: Extra) -> Extra:
         extra.ativo = False
         extra.save(update_fields=["ativo", "atualizado_em"])
     return extra
+
+
+# --- Galeria do veículo (VEI-10, ADR 0036) ---
+
+MENSAGEM_DA_FOTO = "Envie uma foto JPG ou PNG de até 10 MB."
+MENSAGEM_DO_LIMITE = "O veículo já tem 20 fotos. Apague uma para enviar outra."
+GALERIA_SO_PARA_VER = {
+    S.VENDIDO: "A galeria de veículo vendido fica só para ver.",
+    S.BAIXADO: "A galeria de veículo baixado fica só para ver.",
+}
+
+
+def motivo_da_galeria_so_para_ver(veiculo: Veiculo) -> str | None:
+    """Vendido e baixado: a galeria só se vê (VEI-10). `None` nos outros estados."""
+    return GALERIA_SO_PARA_VER.get(S(veiculo.status))
+
+
+def _exigir_galeria_editavel(veiculo: Veiculo) -> None:
+    motivo = motivo_da_galeria_so_para_ver(veiculo)
+    if motivo:
+        raise Conflito("VEI-10", motivo)
+
+
+def _foto_limpa(arquivo: Any) -> tuple[Any, str]:
+    """JPG ou PNG pelo conteúdo, até 10 MB, reprocessada sem EXIF nem GPS (AUD-05). Toda recusa
+    sai com a mensagem da VEI-10, e não com as de `comum.arquivos` (ADR 0036, item 2)."""
+    if arquivo is None:
+        raise ErroDeValidacao({"arquivo": [MENSAGEM_DA_FOTO]})
+    try:
+        formato = arquivos.validar(arquivo)
+        if formato.extensao == "pdf":
+            raise ErroDeValidacao({"arquivo": [MENSAGEM_DA_FOTO]})
+        limpo = arquivos.sem_metadados(arquivo, formato)
+    except ErroDeValidacao:
+        raise ErroDeValidacao({"arquivo": [MENSAGEM_DA_FOTO]}) from None
+    return limpo, formato.extensao
+
+
+def _numero(veiculo: Veiculo, foto: FotoVeiculo) -> int:
+    """A posição na exibição (capa primeiro, depois a ordem de envio), de 1 em diante."""
+    ids = list(
+        FotoVeiculo.ativos.filter(veiculo=veiculo)
+        .order_by("-capa", "ordem", "id")
+        .values_list("pk", flat=True)
+    )
+    return ids.index(foto.pk) + 1
+
+
+def _foto_ativa(veiculo: Veiculo, foto_id: int, travar_foto: bool = False) -> FotoVeiculo:
+    fotos = FotoVeiculo.ativos.filter(veiculo=veiculo, pk=foto_id)
+    if travar_foto:
+        fotos = fotos.select_for_update()
+    foto: FotoVeiculo | None = fotos.first()
+    if foto is None:
+        raise NaoEncontrado("nao_encontrado", "Foto não encontrada.")
+    return foto
+
+
+def _nova_foto(veiculo: Veiculo, limpo: Any, formato: str, ordem: int, capa: bool) -> FotoVeiculo:
+    foto = FotoVeiculo.objects.create(
+        veiculo=veiculo,
+        formato=formato,
+        ordem=ordem,
+        capa=capa,
+        enviada_por_id=_quem(),
+        enviada_em=relogio.agora(),
+    )
+    # A linha antes do arquivo: o caminho leva o id (ADR 0009).
+    foto.arquivo.save(limpo.name, limpo, save=True)
+    return foto
+
+
+def _evento_da_galeria(acao: str, veiculo: Veiculo, detalhes: dict[str, Any]) -> None:
+    """Evento do veículo, sem a imagem (AUD-01)."""
+    registrar_evento(
+        acao, CategoriaAuditoria.OPERACAO, objeto=veiculo, depois=detalhes, regra="VEI-10"
+    )
+
+
+def enviar_foto(veiculo: Veiculo, arquivo: Any) -> FotoVeiculo:
+    """Uma foto por chamada (ADR 0036, item 3). O status vem antes do arquivo; o limite de 20,
+    com o veículo travado. A primeira ativa vira capa; a nova entra no fim da ordem."""
+    _exigir_galeria_editavel(veiculo)
+    limpo, formato = _foto_limpa(arquivo)
+    with transaction.atomic():
+        travado = travar(veiculo)
+        _exigir_galeria_editavel(travado)
+        ativas = FotoVeiculo.ativos.filter(veiculo=travado)
+        if ativas.count() >= LIMITE_DA_GALERIA:
+            raise ErroDeValidacao({"arquivo": [MENSAGEM_DO_LIMITE]})
+        maior = FotoVeiculo.objects.filter(veiculo=travado).aggregate(maior=Max("ordem"))["maior"]
+        capa = not ativas.filter(capa=True).exists()
+        foto = _nova_foto(travado, limpo, formato, (maior or 0) + 1, capa)
+        _evento_da_galeria(
+            "veiculo.foto_enviar",
+            travado,
+            {"foto_id": foto.pk, "numero": _numero(travado, foto), "capa": capa},
+        )
+    return foto
+
+
+def trocar_foto(veiculo: Veiculo, foto_id: int, arquivo: Any) -> FotoVeiculo:
+    """A nova fica na posição e com a capa da antiga, que fica inativa e guardada, ligada à nova
+    (`substituida_por`). O total não muda, e o limite não se aplica."""
+    _exigir_galeria_editavel(veiculo)
+    _foto_ativa(veiculo, foto_id)
+    limpo, formato = _foto_limpa(arquivo)
+    with transaction.atomic():
+        travado = travar(veiculo)
+        _exigir_galeria_editavel(travado)
+        antiga = _foto_ativa(travado, foto_id, travar_foto=True)
+        # A antiga sai antes de a nova entrar: os únicos parciais de capa e de ordem valem já.
+        antiga.ativo = False
+        antiga.save(update_fields=["ativo", "atualizado_em"])
+        nova = _nova_foto(travado, limpo, formato, antiga.ordem, antiga.capa)
+        antiga.substituida_por = nova
+        antiga.save(update_fields=["substituida_por", "atualizado_em"])
+        _evento_da_galeria(
+            "veiculo.foto_trocar", travado, {"foto_id_antiga": antiga.pk, "foto_id_nova": nova.pk}
+        )
+    return nova
+
+
+def usar_como_capa(veiculo: Veiculo, foto_id: int) -> FotoVeiculo:
+    """A escolhida vira capa e a anterior perde a marca, na mesma transação. Já capa: nada muda
+    e não há evento."""
+    _exigir_galeria_editavel(veiculo)
+    with transaction.atomic():
+        travado = travar(veiculo)
+        _exigir_galeria_editavel(travado)
+        foto = _foto_ativa(travado, foto_id, travar_foto=True)
+        if foto.capa:
+            return foto
+        anterior = FotoVeiculo.ativos.select_for_update().filter(veiculo=travado, capa=True).first()
+        if anterior is not None:
+            anterior.capa = False
+            anterior.save(update_fields=["capa", "atualizado_em"])
+        foto.capa = True
+        foto.save(update_fields=["capa", "atualizado_em"])
+        _evento_da_galeria(
+            "veiculo.foto_capa",
+            travado,
+            {"foto_id": foto.pk, "capa_anterior_id": anterior.pk if anterior else None},
+        )
+    return foto
+
+
+def apagar_foto(veiculo: Veiculo, foto_id: int) -> FotoVeiculo:
+    """Sai da galeria e da ficha e não volta: `ativo=False`, com o arquivo guardado e quem
+    apagou. Apagada a capa, a ativa mais antiga (menor `ordem`) vira capa."""
+    _exigir_galeria_editavel(veiculo)
+    with transaction.atomic():
+        travado = travar(veiculo)
+        _exigir_galeria_editavel(travado)
+        foto = _foto_ativa(travado, foto_id, travar_foto=True)
+        era_capa = foto.capa
+        foto.ativo = False
+        foto.capa = False
+        foto.apagada_por_id = _quem()
+        foto.save(update_fields=["ativo", "capa", "apagada_por", "atualizado_em"])
+        nova_capa = None
+        if era_capa:
+            nova_capa = (
+                FotoVeiculo.ativos.select_for_update()
+                .filter(veiculo=travado)
+                .order_by("ordem", "id")
+                .first()
+            )
+            if nova_capa is not None:
+                nova_capa.capa = True
+                nova_capa.save(update_fields=["capa", "atualizado_em"])
+        _evento_da_galeria(
+            "veiculo.foto_apagar",
+            travado,
+            {
+                "foto_id": foto.pk,
+                "era_capa": era_capa,
+                "nova_capa_id": nova_capa.pk if nova_capa else None,
+            },
+        )
+    return foto
