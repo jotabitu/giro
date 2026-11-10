@@ -7440,6 +7440,9 @@ components:
           nullable: true
         lancar_despesa:
           type: boolean
+        motivo_trocar_tipo:
+          type: string
+          nullable: true
       required:
       - aviso_baixar
       - baixar
@@ -7450,6 +7453,7 @@ components:
       - editar
       - lancar_despesa
       - motivo_movimentar
+      - motivo_trocar_tipo
       - movimentar
       - registrar_km
       - transferir

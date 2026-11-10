@@ -668,6 +668,24 @@ def _lidos_no_editar(
     return comprovante_leitura.campos_pelo_hash(resumos, hash_do_arquivo, gravados)
 
 
+def motivo_de_nao_trocar_tipo(
+    veiculo: Veiculo, blocos: dict[str, dict[str, Any]] | None = None
+) -> str | None:
+    """VEI-11: com locação aberta (o veículo `reservado` ou `alugado`, ou à espera da retirada,
+    ou o novo de uma troca pedida, LOC-09), o tipo não muda; `None` quando muda. A frase vai na
+    dica do campo travado e no 409 `tipo_com_locacao_aberta`."""
+    if blocos is None:
+        blocos = leituras.blocos("veiculos.Veiculo", veiculo)
+    codigo = (blocos.get("reserva") or {}).get("codigo") or (blocos.get("locacao_atual") or {}).get(
+        "codigo"
+    )
+    if codigo:
+        return f"Este veículo está na {codigo}. Troque o tipo depois da devolução."
+    if veiculo.status in (S.RESERVADO, S.ALUGADO):  # dado antigo, sem a locação que o prendeu
+        return "Este veículo está numa locação aberta. Troque o tipo depois da devolução."
+    return None
+
+
 def editar(
     veiculo: Veiculo,
     dados: dict[str, Any],
@@ -692,12 +710,24 @@ def editar(
             erros["ano_modelo"] = ["O ano do modelo é o de fabricação ou o seguinte."]
     if erros:
         raise ErroDeValidacao(erros)
+    categoria_antes = veiculo.categoria
+    nova = limpos.get("categoria")
+    if nova is not None and nova.tipo_veiculo != categoria_antes.tipo_veiculo:
+        motivo = motivo_de_nao_trocar_tipo(veiculo)
+        if motivo:
+            raise Conflito("tipo_com_locacao_aberta", motivo)
     with transaction.atomic():
         antes = retrato(Veiculo._base_manager.get(pk=veiculo.pk))
         for campo, valor in limpos.items():
             setattr(veiculo, campo, valor)
         veiculo.save()
         mudou_antes, mudou_depois = diferenca(antes, retrato(veiculo))
+        if "categoria_id" in mudou_depois:  # VEI-11: o nome e o tipo, para a auditoria se ler
+            mudou_antes["categoria_nome"] = categoria_antes.nome
+            mudou_depois["categoria_nome"] = veiculo.categoria.nome
+            if veiculo.categoria.tipo_veiculo != categoria_antes.tipo_veiculo:
+                mudou_antes["tipo_veiculo"] = categoria_antes.tipo_veiculo
+                mudou_depois["tipo_veiculo"] = veiculo.categoria.tipo_veiculo
         lidos, corrigidos = _lidos_no_editar(veiculo, leitura, usuario)
         registrar_evento(
             "veiculo.editar",
