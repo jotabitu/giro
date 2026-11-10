@@ -32,6 +32,7 @@ from .models import (
 )
 from .services import (
     SituacaoDocumento,
+    motivo_de_nao_trocar_tipo,
     normalizar_chassi,
     normalizar_placa,
     situacao_do_documento,
@@ -368,6 +369,10 @@ def acoes(
         "motivo_movimentar": motivo if gestao else None,
         # FIN-17: para quem lança, mesmo sem ver a lista; some sem o recurso do plano (PLT-12).
         "lancar_despesa": perfil in LANCAM_DESPESA and tem_recurso("manutencao_despesas"),
+        # VEI-11: o editar mostra o tipo travado com esta frase; `null` quando troca livre.
+        "motivo_trocar_tipo": (
+            motivo_de_nao_trocar_tipo(veiculo, blocos) if gestao and na_frota else None
+        ),
         # O diálogo da baixa avisa que a movimentação aberta será cancelada (T-311).
         "aviso_baixar": (
             f"A {blocos['movimentacao_aberta']['codigo']} será cancelada."
