@@ -23,6 +23,7 @@ import {
   type FotoEscolhida,
   type ItemDoEnvio,
 } from "./FotosDoCadastro";
+import { CartaoDeFoto, ZonaDeEnvio } from "./PecasDaGaleria";
 
 const sessao = vi.hoisted(() => ({ eu: null as unknown }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => {}, replace: () => {} }), usePathname: () => "/veiculos/novo", useSearchParams: () => new URLSearchParams() }));
@@ -66,7 +67,23 @@ describe("antes de salvar (escolha)", () => {
   it("test_vei_10_cadastro_botao_escolher_fotos: o cadastro diz Escolher fotos, como a referência, e não Selecionar fotos", () => {
     const t = texto(html(<FotosEscolhidas fotos={[]} capa={null} recusas={[]} passouDoLimite={false} aoEscolher={() => {}} aoTirar={() => {}} aoUsarComoCapa={() => {}} aoDispensarRecusas={() => {}} />));
     expect(t).toContain("|Escolher fotos|");
+    expect(t).toContain("Clique para escolher fotos ou arraste arquivos aqui");
     expect(t).not.toContain("Selecionar fotos");
+    expect(t).not.toContain("Clique para enviar fotos");
+  });
+
+  it("test_vei_10_zona_de_envio_verbo: sem verbo, o editar segue com enviar e Selecionar fotos", () => {
+    const t = texto(html(<ZonaDeEnvio limite={20} aoEscolher={() => {}} />));
+    expect(t).toContain("Clique para enviar fotos ou arraste arquivos aqui");
+    expect(t).toContain("|Selecionar fotos|");
+  });
+
+  it("test_vei_10_cartao_de_foto_alinhado_ao_topo_no_celular: abaixo de md a miniatura alinha ao topo; no desktop o cartão estica", () => {
+    const h = html(<ul><CartaoDeFoto url={null} alt="Foto 1 de 1" posicao={1} capa legenda="moto-1.jpg · 2 KB" /></ul>);
+    const li = /<li class="([^"]+)"/.exec(h)?.[1] ?? "";
+    expect(li.split(" ")).toContain("items-start");
+    expect(li.split(" ")).not.toContain("items-center");
+    expect(li.split(" ")).toContain("md:items-stretch");
   });
 
   it("test_vei_10_cadastro_tirar_e_escolher_a_capa (CA-437-02): tira moto-2.jpg, marca moto.png, e moto.png sobe primeiro", () => {

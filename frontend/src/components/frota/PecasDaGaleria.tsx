@@ -10,7 +10,23 @@ import { Button, Icone, StatusBadge } from "@/design-system";
 export const FORMATOS_ACEITOS = "image/jpeg,image/png";
 
 /** Zona tracejada: clicar em "Selecionar fotos" ou soltar arquivos aqui. A validação é da API; esta peça só entrega os arquivos. */
-export function ZonaDeEnvio({ limite, ocupado = false, progresso, rotulo = "Selecionar fotos", aoEscolher }: { limite: number; ocupado?: boolean; progresso?: string | null; /** Texto do botão: o editar usa "Selecionar fotos"; o cadastro, "Escolher fotos". */ rotulo?: string; aoEscolher: (arquivos: File[]) => void }) {
+export function ZonaDeEnvio({
+  limite,
+  ocupado = false,
+  progresso,
+  rotulo = "Selecionar fotos",
+  verbo = "enviar",
+  aoEscolher,
+}: {
+  limite: number;
+  ocupado?: boolean;
+  progresso?: string | null;
+  /** Texto do botão: o editar usa "Selecionar fotos"; o cadastro, "Escolher fotos". */
+  rotulo?: string;
+  /** Verbo do título: o editar envia na hora ("enviar"); o cadastro só escolhe, e envia depois de salvar ("escolher", T-437). */
+  verbo?: "enviar" | "escolher";
+  aoEscolher: (arquivos: File[]) => void;
+}) {
   const escolher = useRef<HTMLInputElement>(null);
   const [sobre, setSobre] = useState(false);
   const soltar = (e: DragEvent<HTMLDivElement>) => {
@@ -31,7 +47,7 @@ export function ZonaDeEnvio({ limite, ocupado = false, progresso, rotulo = "Sele
       className={`flex flex-col items-center gap-2 rounded-lg border-2 border-dashed p-6 text-center ${sobre ? "border-solid bg-surface-sunken" : "border-line"}`}
     >
       <Icone de={Upload} className="size-6 text-ink-muted" />
-      <p className="m-0 text-body font-medium">Clique para enviar fotos ou arraste arquivos aqui</p>
+      <p className="m-0 text-body font-medium">Clique para {verbo} fotos ou arraste arquivos aqui</p>
       <Button variante="solido" compacto disabled={ocupado} onClick={() => escolher.current?.click()}>
         {ocupado ? "Enviando…" : rotulo}
       </Button>
@@ -64,7 +80,7 @@ export function ZonaDeEnvio({ limite, ocupado = false, progresso, rotulo = "Sele
  */
 export function CartaoDeFoto({ url, alt, posicao, capa, legenda, acoes }: { url: string | null; alt: string; posicao: number; capa: boolean; legenda: string; acoes?: ReactNode }) {
   return (
-    <li className="flex min-w-0 items-center gap-3 border-b border-line py-3 last:border-b-0 md:flex-col md:items-stretch md:border-b-0 md:py-0">
+    <li className="flex min-w-0 items-start gap-3 border-b border-line py-3 last:border-b-0 md:flex-col md:items-stretch md:border-b-0 md:py-0">
       <div className="relative size-[64px] shrink-0 overflow-hidden rounded-md bg-surface-sunken md:size-auto md:h-[140px] md:w-full">
         {url ? (
           // A URL é assinada e vale 15 minutos (AUD-05).

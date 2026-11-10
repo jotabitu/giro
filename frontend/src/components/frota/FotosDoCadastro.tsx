@@ -117,17 +117,18 @@ export function andamentoDoEnvio(itens: ItemDoEnvio[]): string {
 }
 
 function CabecalhoDoBloco({ total, children }: { total: number; children: React.ReactNode }) {
+  const contador = (
+    <StatusBadge compacto tom={total >= LIMITE_NO_CADASTRO ? "alerta" : "neutro"}>
+      {total} de {LIMITE_NO_CADASTRO} fotos
+    </StatusBadge>
+  );
+  // Abaixo de 721 px o contador desce para baixo do título, e o subtítulo usa a largura toda.
   return (
-    <Panel
-      titulo="Fotos do veículo"
-      subtitulo="Escolha agora. As fotos são enviadas logo depois de Salvar veículo, a capa primeiro."
-      acao={
-        <StatusBadge compacto tom={total >= LIMITE_NO_CADASTRO ? "alerta" : "neutro"}>
-          {total} de {LIMITE_NO_CADASTRO} fotos
-        </StatusBadge>
-      }
-    >
-      <div className="flex flex-col gap-4">{children}</div>
+    <Panel titulo="Fotos do veículo" subtitulo="Escolha agora. As fotos são enviadas logo depois de Salvar veículo, a capa primeiro." acao={<span className="hidden md:inline-flex">{contador}</span>}>
+      <div className="flex flex-col gap-4">
+        <span className="md:hidden">{contador}</span>
+        {children}
+      </div>
     </Panel>
   );
 }
@@ -156,7 +157,7 @@ export function FotosEscolhidas({ fotos, capa, recusas, passouDoLimite, aoEscolh
       {cheia ? (
         <p className="m-0 rounded-lg border-2 border-dashed border-line p-4 text-center text-body font-medium text-ink-muted">Tire uma foto da lista para escolher outra</p>
       ) : (
-        <ZonaDeEnvio limite={LIMITE_NO_CADASTRO} rotulo="Escolher fotos" aoEscolher={aoEscolher} />
+        <ZonaDeEnvio limite={LIMITE_NO_CADASTRO} rotulo="Escolher fotos" verbo="escolher" aoEscolher={aoEscolher} />
       )}
       {passouDoLimite && (
         <p role="status" className="m-0 flex items-center gap-2 rounded-md bg-warning-soft p-3 text-body text-warning-ink">
@@ -166,7 +167,7 @@ export function FotosEscolhidas({ fotos, capa, recusas, passouDoLimite, aoEscolh
       )}
       <ListaDeRecusas recusas={recusas} aoDispensar={aoDispensarRecusas} />
       {fotos.length > 0 && (
-        <ul className="m-0 grid list-none grid-cols-1 gap-0 p-0 md:grid-cols-4 md:gap-3">
+        <ul className="m-0 grid list-none grid-cols-1 gap-0 p-0 md:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] md:gap-3">
           {fotos.map((f, i) => (
             <CartaoDeFoto
               key={f.chave}
