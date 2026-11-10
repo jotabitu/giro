@@ -22,16 +22,24 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 .doc small{font-size:12px;color:var(--ink-muted)}
 .doc .ok{position:absolute;top:10px;right:10px;display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--success);color:#ffffff}
 .doc--todo{background:var(--surface);border:1.5px dashed var(--line);align-items:center;justify-content:center;text-align:center}
+.photo-row{display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:var(--surface-sunken);border:1px solid var(--line)}
+.photo-row.is-cover{border-color:var(--solid)}
+.photo-row.is-erro{background:var(--critical-soft);border-color:transparent}
+.photo-mini{position:relative;width:64px;height:64px;border-radius:12px;overflow:hidden;flex:none;background:linear-gradient(160deg,var(--surface-sunken),color-mix(in srgb,var(--surface-sunken) 70%,var(--ink) 8%));display:grid;place-items:center}
+.alert{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:14px;font-size:13px;line-height:18px}
+.alert--critical{background:var(--critical-soft);color:var(--critical-ink)}
+.alert--warning{background:var(--warning-soft);color:var(--warning-ink)}
+.tag{font-size:12px;line-height:16px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-muted)}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-muted);flex:none}
+.st__ok{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--success);color:#ffffff}
 </style>
 </helmet>
-<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 2020px; box-sizing: border-box; padding: 16px 16px 150px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 3900px; box-sizing: border-box; padding: 16px 16px 150px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
 
 <header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;">
 <a href="Frota-Mobile.dc.html" aria-label="Voltar" class="wl-icon-btn" style="width: 44px; height: 44px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a>
 <div style="flex: 1; font-size: 22px; line-height: 26px; font-weight: 600;">Cadastrar veículo</div>
 </header>
-
-<div class="wl-seg" role="group" aria-label="Tipo de veículo" style="display: grid; grid-template-columns: 1fr 1fr; background: var(--surface);"><button aria-pressed="true">Moto</button><button aria-pressed="false">Carro</button></div>
 
 <button class="doc" style="height: auto; flex-direction: row; align-items: center; gap: 12px; padding: 14px 16px; background: var(--surface);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5M9 13h6M9 17h6"></path></svg><span style="flex: 1;">Enviar CRLV-e para preencher<small style="display: block;">CRLV-e lido · 9 campos preenchidos</small></span><span class="ok" style="position: static;"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span></button>
 
@@ -56,6 +64,7 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 <label class="wl-field"><span class="wl-field__label">Filial</span><select class="wl-input"><option>Centro</option></select></label>
 <label class="wl-field"><span class="wl-field__label">Finalidade</span><select class="wl-input"><option>Locação</option></select></label>
 </div>
+<label class="wl-field"><span class="wl-field__label">Tipo de veículo</span><select class="wl-input"><option>Moto</option><option>Carro</option></select><span class="wl-field__hint">Trocar o tipo esvazia a categoria</span></label>
 <label class="wl-field"><span class="wl-field__label">Categoria de preço</span><select class="wl-input"><option>Urbana 110–125</option></select></label>
 <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; font-size: 14px;">
 <div style="padding: 10px 12px; border-radius: 14px; background: var(--surface-sunken);"><span style="color: var(--ink-muted);">Diária</span><br><b>R$ 44,90</b></div>
@@ -78,7 +87,7 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 </section>
 
 <section class="card">
-<h2 class="h2">Documentos e fotos</h2>
+<h2 class="h2">Documentos</h2>
 <div class="two">
 <label class="wl-field"><span class="wl-field__label">CRLV até</span><input class="wl-input wl-mono" value="31/10/2027" style="font-size: 13px; padding: 0 12px;"></label>
 <label class="wl-field"><span class="wl-field__label">Seguro até</span><input class="wl-input" value="" style="font-size: 13px; padding: 0 12px;"></label>
@@ -86,19 +95,92 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 <div class="two">
 <button class="doc"><span class="ok"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>CRLV-e<small>enviado</small></button>
 <button class="doc"><span class="ok"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Nota fiscal<small>enviada</small></button>
-<button class="doc"><span class="ok"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>4 fotos<small>frente, traseira, lados</small></button>
-<button class="doc doc--todo"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>Foto do painel</button>
-<button class="doc doc--todo" style="grid-column: span 2;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"></path><circle cx="12" cy="13" r="3.5"></circle></svg>Apólice do seguro</button>
+<button class="doc doc--todo" style="grid-column: span 2;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M12 16V5M7 10l5-5 5 5M5 19h14"></path></svg>Apólice do seguro</button>
 </div>
 </section>
 
+<section class="card">
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<h2 class="h2">Fotos do veículo</h2>
+<span class="wl-badge wl-badge--sm">3 de 20 fotos</span>
+</div>
+<p style="margin: 0; font-size: 13px; color: var(--ink-muted); line-height: 18px;">Escolha agora. As fotos são enviadas logo depois de Salvar veículo, a capa primeiro. JPG ou PNG de até 10 MB.</p>
+<label for="fotos-cadastro-m" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; border-radius: 16px; border: 1.5px dashed var(--line); background: var(--surface-sunken); cursor: pointer; text-align: center;">
+<input type="file" id="fotos-cadastro-m" multiple accept=".jpg,.jpeg,.png" style="display: none;">
+<svg class="wl-i" viewBox="0 0 24 24" style="width: 18px; height: 18px;"><path d="M12 16V5M7 10l5-5 5 5M5 19h14"></path></svg>
+<span style="font-weight: 500; font-size: 14px;">Escolher fotos</span>
+</label>
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<div class="photo-row is-cover">
+<div class="photo-mini"><svg viewBox="0 0 160 100" style="width: 80%; height: 80%; opacity: .7;" role="img" aria-label="Miniatura de moto-1.jpg"><path d="M40 75 Q80 20 120 75 Z" fill="none" stroke="var(--ink)" stroke-width="3"></path><circle cx="80" cy="45" r="18" fill="none" stroke="var(--ink)" stroke-width="2.5"></circle><path d="M50 30 L110 30" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"></path></svg></div>
+<div style="flex: 1; min-width: 0;">
+<div style="display: flex; align-items: center; gap: 6px;"><span class="wl-mono" style="font-weight: 600; font-size: 14px;">1 · moto-1.jpg</span><span class="wl-badge wl-badge--sm wl-badge--solid" style="height: 20px; padding: 0 6px; font-size: 11px;">Capa</span></div>
+<div style="display: flex; gap: 6px; margin-top: 6px;">
+<button type="button" class="wl-btn wl-btn--sm wl-btn--quiet" style="height: 30px; padding: 0 10px; font-size: 12px; color: var(--critical-ink);">Tirar</button>
+</div>
+</div>
+</div>
+<div class="photo-row">
+<div class="photo-mini"><svg viewBox="0 0 160 100" style="width: 80%; height: 80%; opacity: .7;" role="img" aria-label="Miniatura de moto-2.jpg"><circle cx="80" cy="65" r="22" fill="none" stroke="var(--ink)" stroke-width="3"></circle><rect x="68" y="25" width="24" height="18" rx="4" fill="none" stroke="var(--ink)" stroke-width="2.5"></rect></svg></div>
+<div style="flex: 1; min-width: 0;">
+<div style="display: flex; align-items: center; gap: 6px;"><span class="wl-mono" style="font-weight: 600; font-size: 14px;">2 · moto-2.jpg</span></div>
+<div style="display: flex; gap: 6px; margin-top: 6px;">
+<button type="button" class="wl-btn wl-btn--sm wl-btn--quiet" style="height: 30px; padding: 0 10px; font-size: 12px;">Usar como capa</button><button type="button" class="wl-btn wl-btn--sm wl-btn--quiet" style="height: 30px; padding: 0 10px; font-size: 12px; color: var(--critical-ink);">Tirar</button>
+</div>
+</div>
+</div>
+<div class="photo-row">
+<div class="photo-mini"><svg viewBox="0 0 160 100" style="width: 80%; height: 80%; opacity: .7;" role="img" aria-label="Miniatura de moto.png"><rect x="35" y="25" width="90" height="50" rx="10" fill="none" stroke="var(--ink)" stroke-width="2.5"></rect><line x1="80" y1="50" x2="105" y2="40" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round"></line></svg></div>
+<div style="flex: 1; min-width: 0;">
+<div style="display: flex; align-items: center; gap: 6px;"><span class="wl-mono" style="font-weight: 600; font-size: 14px;">3 · moto.png</span></div>
+<div style="display: flex; gap: 6px; margin-top: 6px;">
+<button type="button" class="wl-btn wl-btn--sm wl-btn--quiet" style="height: 30px; padding: 0 10px; font-size: 12px;">Usar como capa</button><button type="button" class="wl-btn wl-btn--sm wl-btn--quiet" style="height: 30px; padding: 0 10px; font-size: 12px; color: var(--critical-ink);">Tirar</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<section class="card">
+<h2 class="h2">Estados das fotos</h2>
+<p style="margin: 0; font-size: 13px; color: var(--ink-muted); line-height: 18px;">Referência dos casos do cadastro. Na tela real, aparece um de cada vez.</p>
+
+<div class="tag" style="margin-top: 4px;">Limite de 20</div>
+<div style="display: flex; align-items: center; justify-content: space-between;"><span style="font-size: 14px; font-weight: 500;">Fotos escolhidas</span><span class="wl-badge wl-badge--sm wl-badge--warning">20 de 20 fotos</span></div>
+<div class="alert alert--warning" role="status"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px; flex: none;"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg><span>O veículo pode ter até 20 fotos.</span></div>
+
+<div class="tag" style="margin-top: 8px;">Arquivo recusado na escolha</div>
+<div class="alert alert--critical" role="alert"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px; flex: none;"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4M12 16h.01"></path></svg><span>Envie uma foto JPG ou PNG de até 10 MB.</span></div>
+<div class="lbl wl-mono" style="font-size: 12px;">grande.jpg · moto.heic · documento.pdf ficaram de fora. As outras seguem na lista.</div>
+
+<div class="tag" style="margin-top: 8px;">Enviando depois de salvar</div>
+<div class="wl-progress" style="margin: 0; font-size: 14px;"><span>Enviando fotos · 2 de 5</span><div class="wl-progress__track"><div class="wl-progress__fill" style="width: 40%;"></div></div></div>
+<div class="photo-row is-cover" style="padding: 10px;"><div class="photo-mini" style="width: 48px; height: 48px;"><svg viewBox="0 0 160 100" style="width: 80%; height: 80%; opacity: .7;" role="img" aria-label="Miniatura de moto.png"><rect x="35" y="25" width="90" height="50" rx="10" fill="none" stroke="var(--ink)" stroke-width="2.5"></rect><line x1="80" y1="50" x2="105" y2="40" stroke="var(--ink)" stroke-width="2.5" stroke-linecap="round"></line></svg></div><div style="flex: 1; min-width: 0;"><div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;"><span class="wl-mono" style="font-weight: 500; font-size: 13px;">moto.png</span> <span class="wl-badge wl-badge--sm wl-badge--solid" style="height: 20px; padding: 0 6px; font-size: 11px;">Capa</span></div></div><span class="st"><span class="st__ok"><svg class="wl-i" viewBox="0 0 24 24" style="width: 12px; height: 12px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Enviada</span></div>
+<div class="photo-row" style="padding: 10px;"><div class="photo-mini" style="width: 48px; height: 48px;"><svg viewBox="0 0 160 100" style="width: 80%; height: 80%; opacity: .7;" role="img" aria-label="Miniatura de moto-1.jpg"><path d="M40 75 Q80 20 120 75 Z" fill="none" stroke="var(--ink)" stroke-width="3"></path><circle cx="80" cy="45" r="18" fill="none" stroke="var(--ink)" stroke-width="2.5"></circle><path d="M50 30 L110 30" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"></path></svg></div><div style="flex: 1; min-width: 0;"><div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;"><span class="wl-mono" style="font-weight: 500; font-size: 13px;">moto-1.jpg</span></div></div><span class="st"><span class="st__ok"><svg class="wl-i" viewBox="0 0 24 24" style="width: 12px; height: 12px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span>Enviada</span></div>
+<div class="photo-row" style="padding: 10px;"><div class="photo-mini" style="width: 48px; height: 48px;"><svg viewBox="0 0 160 100" style="width: 80%; height: 80%; opacity: .7;" role="img" aria-label="Miniatura de moto-2.jpg"><circle cx="80" cy="65" r="22" fill="none" stroke="var(--ink)" stroke-width="3"></circle><rect x="68" y="25" width="24" height="18" rx="4" fill="none" stroke="var(--ink)" stroke-width="2.5"></rect></svg></div><div style="flex: 1; min-width: 0;"><div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;"><span class="wl-mono" style="font-weight: 500; font-size: 13px;">moto-2.jpg</span></div></div><span class="st" style="color: var(--ink); font-weight: 500;">Enviando</span></div>
+<div class="photo-row" style="padding: 10px;"><div class="photo-mini" style="width: 48px; height: 48px;"><svg viewBox="0 0 160 100" style="width: 80%; height: 80%; opacity: .7;" role="img" aria-label="Miniatura de moto-3.jpg"><path d="M40 75 Q80 20 120 75 Z" fill="none" stroke="var(--ink)" stroke-width="3"></path><circle cx="80" cy="45" r="18" fill="none" stroke="var(--ink)" stroke-width="2.5"></circle><path d="M50 30 L110 30" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"></path></svg></div><div style="flex: 1; min-width: 0;"><div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;"><span class="wl-mono" style="font-weight: 500; font-size: 13px;">moto-3.jpg</span></div></div><span class="st">Na fila</span></div>
+<div class="lbl" style="font-size: 12px; line-height: 16px;">O veículo TBC-5H21 já está gravado. Se você sair agora, ele fica com as fotos que já subiram.</div>
+
+<div class="tag" style="margin-top: 8px;">Foto recusada no envio</div>
+<div class="wl-progress" style="margin: 0; font-size: 14px;"><span>Parou na 3 de 5</span><div class="wl-progress__track"><div class="wl-progress__fill" style="width: 40%;"></div></div></div>
+<div class="photo-row is-erro" style="padding: 10px;"><div class="photo-mini" style="width: 48px; height: 48px;"><svg viewBox="0 0 160 100" style="width: 80%; height: 80%; opacity: .7;" role="img" aria-label="Miniatura de moto-2.jpg"><circle cx="80" cy="65" r="22" fill="none" stroke="var(--ink)" stroke-width="3"></circle><rect x="68" y="25" width="24" height="18" rx="4" fill="none" stroke="var(--ink)" stroke-width="2.5"></rect></svg></div><div style="flex: 1; min-width: 0;"><div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;"><span class="wl-mono" style="font-weight: 500; font-size: 13px;">moto-2.jpg</span></div><div style="font-size: 12px; line-height: 16px; color: var(--critical-ink); margin-top: 2px;">Envie uma foto JPG ou PNG de até 10 MB.</div></div></div>
+<div class="lbl" style="font-size: 12px; line-height: 16px;">O veículo está gravado com as fotos que subiram. A que ficou de fora se envia pelo editar.</div>
+<a class="wl-btn wl-btn--solid" href="Veiculo-Mobile.dc.html" style="height: 48px; text-decoration: none;">Ir para o veículo</a>
+
+<div class="tag" style="margin-top: 8px;">Falha de conexão</div>
+<div class="wl-progress" style="margin: 0; font-size: 14px;"><span>Parou na 2 de 5</span><div class="wl-progress__track"><div class="wl-progress__fill" style="width: 20%;"></div></div></div>
+<div class="photo-row is-erro" style="padding: 10px;"><div class="photo-mini" style="width: 48px; height: 48px;"><svg viewBox="0 0 160 100" style="width: 80%; height: 80%; opacity: .7;" role="img" aria-label="Miniatura de moto-1.jpg"><path d="M40 75 Q80 20 120 75 Z" fill="none" stroke="var(--ink)" stroke-width="3"></path><circle cx="80" cy="45" r="18" fill="none" stroke="var(--ink)" stroke-width="2.5"></circle><path d="M50 30 L110 30" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"></path></svg></div><div style="flex: 1; min-width: 0;"><div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;"><span class="wl-mono" style="font-weight: 500; font-size: 13px;">moto-1.jpg</span></div><div style="font-size: 12px; line-height: 16px; color: var(--critical-ink); margin-top: 2px;">Sem conexão. A foto não subiu.</div><div style="margin-top: 6px;"><button type="button" class="wl-btn wl-btn--sm wl-btn--quiet" style="height: 30px; padding: 0 10px; font-size: 12px;">Tentar de novo</button></div></div></div>
+<div class="lbl" style="font-size: 12px; line-height: 16px;">Tentar de novo envia só as que faltam, sem repetir as que já subiram.</div>
+<a class="wl-btn wl-btn--solid" href="Veiculo-Mobile.dc.html" style="height: 48px; text-decoration: none;">Ir para o veículo</a>
+</section>
+
 <div style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line);">
-<div style="display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 18px; color: var(--warning-ink);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg><span>Sem seguro e foto do painel, entra como Indisponível.</span></div>
+<div style="display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 18px; color: var(--warning-ink);"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg><span>Sem o seguro, entra como Indisponível.</span></div>
 <a class="wl-btn wl-btn--solid" href="Veiculo-Mobile.dc.html" style="height: 56px; text-decoration: none;">Salvar veículo</a>
 </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":2020}}'>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":3900}}'>
 class Component extends DCLogic {
   renderVals() {
     var b = String(this.props.brand || '#c8f04a').replace('#', '');
