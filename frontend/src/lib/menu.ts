@@ -115,6 +115,9 @@ export function rotaPermitida(eu: Pick<Eu, "pode" | "navegacao">, rota: string):
   if (rota === "/admin/ramo") return pode.administracao;
   // O controle do suporte abre pelo cartão de Configurações e é só do administrador.
   if (rota === "/admin/suporte") return pode.administracao;
+  // Tabelas de preço e modelos de contrato abrem pelos cartões de Configurações; o menu da API não tem item para elas.
+  // São da Administração, só do administrador (USR-09, contratos.md "Quem pode"; T-447, D1 da conferência de 10 nov).
+  if (rota === "/admin/precos" || rota === "/admin/contratos") return pode.administracao;
   // Empresa e marca: simular e salvar são só do administrador (docs/api/empresas.md, "Escrita da marca").
   if (rota === "/admin/marca") return pode.administracao;
   // Passos do assistente de implantação: Administração, só do administrador (CA-027-16).
@@ -126,6 +129,15 @@ export function rotaPermitida(eu: Pick<Eu, "pode" | "navegacao">, rota: string):
   // Movimentações (MOV-02, USR-05): o quadro, a Nova movimentação e a chegada valem para quem tem o item no menu; ficam fora do "Veículos".
   if (rota === "/veiculos/movimentacoes" || rota.startsWith("/veiculos/movimentacoes/")) return noMenu("movimentacoes");
   return abreRota(nav.menu_completo, rota) || abreRota(nav.menu_inicio, rota);
+}
+
+/**
+ * A pessoa lê a lista de locações? `GET /api/locacoes/` responde a todos os perfis menos o vistoriador (locacoes.md), que chega
+ * à vistoria pela agenda. O `pode` não tem uma chave de leitura (o financeiro lê sem `locacoes_criar` nem o item no menu), então
+ * a tela segue o contrato pelo perfil. Sem isto a ficha do veículo pedia a lista e recebia 403 (T-447, D5).
+ */
+export function leLocacoes(eu: Pick<Eu, "perfil">): boolean {
+  return eu.perfil !== "vistoriador";
 }
 
 /** Liga o menu pronto da API às rotas e aos ícones, com a rota ativa e os contadores. Chave desconhecida fica de fora. */
