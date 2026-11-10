@@ -531,3 +531,36 @@ Vindas da aba Notas do painel de progresso, como as de 29 out. Nada começa sem 
 - **Hoje:** o caminho é `Compra-Pronto` → convite → criar senha e 2 etapas (`USR-06`) → assistente.
 - **Decidido pelo dono em 05 nov 2026:** a senha e as 2 etapas continuam antes do assistente (`USR-06` não muda). O que muda é só o caminho: depois delas, a pessoa cai direto no primeiro passo da implantação, sem passar por outra tela.
 - **Pronto quando:** regra e contrato ajustados com a resposta do dono, o "Acessar meu sistema" leva direto ao primeiro passo da implantação, com teste e E2E.
+
+### Notas do dono de 10 nov 2026
+
+Vindas do teste do dono no fluxo de locação da Moto Rápida (LOC-0001 e LOC-0002). Os itens 4 e 6 travam a operação e vêm primeiro. Nada começa sem o dono liberar.
+
+#### T-451 · Retirada da locação sem caminho na tela (bug, trava a operação)
+- **Agentes:** produto (confirma a regra), depois fullstack · **Regras:** `LOC` (estados da locação e retirada), `VIS` (vistoria de saída) · **Origem:** nota 6 do dono.
+- **O caso:** LOC-0001 e LOC-0002 ficam em "aguardando retirada" e não há na tela nenhuma ação para registrar a retirada do cliente; a lista de clientes mostra "LOC-0001 · CB 500F · aguardando retirada" sem saída.
+- **Pronto quando:** o produto diz o que a retirada exige (vistoria de saída, caução paga, contrato assinado); a ficha da locação tem a ação "Registrar retirada" para quem tem a permissão, que muda o status pelo serviço de domínio com auditoria; o que falta para retirar aparece como motivo; teste com o código da regra.
+
+#### T-452 · Caução sem onde pagar nem dar baixa (bug, trava a operação)
+- **Agentes:** produto (regra), depois fullstack · **Regras:** `FIN` (caução e contas a receber), `LOC` · **Origem:** nota 4 do dono.
+- **O caso:** a caução da locação não aparece em lugar nenhum para receber nem para dar baixa, e a retirada depende dela.
+- **Pronto quando:** a caução existe como recebível da locação (em contas a receber e na seção de pagamentos da locação), com "Registrar pagamento" e baixa como as parcelas; teste com o código da regra.
+
+#### T-453 · Registrar movimentação abre outra rota em vez do diálogo
+- **Agente:** frontend · **Regras:** `FIN` (movimentações) · **Origem:** nota 1 do dono.
+- **O caso:** "Registrar movimentação" navega para outra rota e a tela inteira recarrega.
+- **Pronto quando:** o formulário abre num `Dialogo` sobre a tela de movimentações, sem trocar de rota nem recarregar a lista; ao salvar, só a lista se atualiza (invalidação do TanStack Query); a 390 px o diálogo ocupa a tela; teste.
+
+#### T-454 · Registro de contas a receber sem dizer a que se refere
+- **Agentes:** produto (texto), depois fullstack · **Regras:** `FIN` (contas a receber), `LOC` (parcelas) · **Origem:** nota 2 do dono.
+- **O caso:** ao abrir um registro em contas a receber não se sabe se é caução, parcela ou outra cobrança, nem qual parcela é.
+- **Pronto quando:** a API devolve o tipo do recebível e, na parcela, o número e o total sem contar a caução; o detalhe mostra o tipo e, na parcela, "1 de 128 parcelas" (exemplo de 128 semanais); a tela só exibe o que a API manda; teste.
+
+#### T-455 · Da seção de pagamentos da locação para o registro em contas a receber
+- **Agente:** frontend (backend se faltar o id) · **Regras:** `FIN`, `LOC` · **Depende de:** T-454 · **Origem:** nota 3 do dono.
+- **Pronto quando:** cada linha da seção de pagamentos da locação leva a contas a receber já com aquele registro aberto (link com o id na URL, que abre o detalhe); voltar retorna à locação; teste.
+
+#### T-456 · Situação do pagamento errada nas locações do cliente
+- **Agente:** fullstack · **Regras:** `FIN`, `LOC`, `CLI` · **Origem:** nota 5 do dono.
+- **O caso:** na seção Locações do cliente, a situação continua a mesma depois de paga a primeira parcela, e a caução não aparece.
+- **Pronto quando:** a situação vem da API e muda com o pagamento; a seção mostra também a caução (valor e se foi paga); teste com a primeira parcela paga.
