@@ -132,7 +132,9 @@ function CabecalhoDoBloco({ total, children }: { total: number; children: React.
   );
 }
 
-const tamanho = (bytes: number) => `${(bytes / (1024 * 1024)).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MB`;
+/** Tamanho do arquivo escolhido, só para a pessoa reconhecer a foto: "1,8 MB", ou "240 KB" abaixo de 1 MB. */
+export const tamanho = (bytes: number) =>
+  bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MB`;
 
 export type FotosEscolhidasProps = {
   fotos: FotoEscolhida[];
