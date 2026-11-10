@@ -676,9 +676,9 @@ def motivo_de_nao_trocar_tipo(
     dica do campo travado e no 409 `tipo_com_locacao_aberta`."""
     if blocos is None:
         blocos = leituras.blocos("veiculos.Veiculo", veiculo)
-    codigo = (blocos.get("reserva") or {}).get("codigo") or (
-        blocos.get("locacao_atual") or {}
-    ).get("codigo")
+    codigo = (blocos.get("reserva") or {}).get("codigo") or (blocos.get("locacao_atual") or {}).get(
+        "codigo"
+    )
     if codigo:
         return f"Este veículo está na {codigo}. Troque o tipo depois da devolução."
     if veiculo.status in (S.RESERVADO, S.ALUGADO):  # dado antigo, sem a locação que o prendeu

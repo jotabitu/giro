@@ -115,6 +115,8 @@ Veículo `indisponivel` (CRLV vencido) com a ida ao despachante agendada:
 
 **`acoes.lancar_despesa`** (`FIN-17`, T-417): `true` para quem lança despesa (administrador, gerente, vendedor, financeiro e vistoriador), mesmo sem ver a lista, com o recurso `manutencao_despesas` no plano (`PLT-12`). Em qualquer status do veículo. Abre o lançamento com o veículo travado, que vai para `POST /api/financeiro/despesas/veiculo/{id}/` (`financeiro.md`). A lista da seção vem de `GET /api/financeiro/despesas/veiculo/{id}/`, que a ficha só chama quando recebe `indicadores_financeiros` (administrador, gerente e financeiro).
 
+**`acoes.motivo_trocar_tipo`** (`VEI-11`, T-438): para administrador e gerente, a frase que trava o campo Tipo no editar quando o veículo tem locação aberta (`reservado` ou `alugado`, à espera da retirada, ou o novo de uma troca pedida, `LOC-09`): "Este veículo está na LOC-2841. Troque o tipo depois da devolução." Sem o código da locação (dado antigo), "Este veículo está numa locação aberta. Troque o tipo depois da devolução.". `null` quando o tipo troca livre, e sempre `null` para os perfis que não editam. É a mesma frase do 409 `tipo_com_locacao_aberta` do `PATCH`.
+
 ---
 
 ## Frota
@@ -218,6 +220,12 @@ Regras: VEI-01, PLT-03.
 Perfis: administrador, gerente. Corpo: `renavam`, `marca`, `modelo`, `ano_fabricacao`, `ano_modelo`, `cor`, `combustivel`, `categoria_id`, `capacidade_tanque_litros`, `valor_compra_centavos`, `data_compra`, `documento`, `rastreador`, `anotacoes` (`VEI-09`), e `leitura?`, o comprovante da leitura no editar (abaixo).
 Não mudam por aqui: `placa` e `chassi` (corrigir é ação do administrador, abaixo), `status`, `km_atual`, `filial`.
 Mudar a categoria vale para locações novas; locação em andamento mantém o preço congelado (`LOC-15`).
+
+**Tipo do veículo** (`VEI-11`, T-438): o tipo é o `tipo_veiculo` da categoria; não há campo de tipo no veículo. Para trocar de moto para carro (ou o contrário), o `PATCH` manda só o `categoria_id` de uma categoria do tipo novo, e a resposta traz o `tipo_veiculo` dela. Um `tipo_veiculo` no corpo é ignorado.
+- **409 `tipo_com_locacao_aberta`**: a categoria nova é de outro tipo e o veículo tem locação aberta (`reservado` ou `alugado`, locação `aguardando_retirada`, `ativa` ou `devolucao_atrasada`, ou troca de veículo pedida, `LOC-09`). Nada é gravado. `{ "codigo": "tipo_com_locacao_aberta", "mensagem": "Este veículo está na LOC-2841. Troque o tipo depois da devolução.", "detalhes": null }`. A mesma frase vem antes em `acoes.motivo_trocar_tipo`.
+- Trocar de categoria **sem** mudar o tipo continua livre em qualquer estado em que o veículo se edita.
+- **Auditoria** (`AUD-01`): no `veiculo.editar`, a troca de categoria leva `categoria_id` e `categoria_nome` de antes e depois; com troca de tipo, também `tipo_veiculo` (`"moto"` → `"carro"`).
+- Testes: `test_vei_11_*` em `tests/aceitacao/test_t438_tipo_do_veiculo.py` (CA-438-04, 07 a 11, 13 e 14).
 
 ### POST /api/veiculos/{id}/corrigir-identificacao/
 Perfil: administrador. Corpo: `{ placa?, chassi?, motivo }`. Para erro de digitação. 409 `VEI-01` se colidir. Auditoria `operacao`, com antes e depois.

@@ -171,8 +171,9 @@ def test_vei_11_alugado_sem_a_locacao_tambem_recusa(moto, frota) -> None:
 def test_vei_11_quem_troca(moto, frota) -> None:
     """CA-438-13: vendedor, vistoriador e financeiro não editam (403), e não recebem o motivo."""
     sak = frota.veiculos["SAK1D39"]
+    carro = frota.categorias["Carro compacto"]
     for pessoa in SEM_EDITAR:
-        resposta = _patch(moto, sak, {"categoria_id": frota.categorias["Carro compacto"].pk}, pessoa)
+        resposta = _patch(moto, sak, {"categoria_id": carro.pk}, pessoa)
         assert resposta.status_code == 403, pessoa
         assert resposta.json()["codigo"] == "permissao"
     qxa = frota.veiculos["QXA4B21"]
