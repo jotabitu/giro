@@ -12,6 +12,9 @@ const config: NextConfig = {
   output: "standalone",
   // A API do Django termina em barra; sem isto o Next redireciona /api/x/ para /api/x em laço.
   skipTrailingSlashRedirect: true,
+  // O corpo repassado a /api/ é cortado em 10 MB por padrão e derruba a conexão (500, ECONNRESET). 12 MB é o limite do proxy de
+  // homologação e produção (infra/proxy), que responde 413 acima; a foto de até 10 MB passa e a API decide o resto (T-450).
+  experimental: { middlewareClientMaxBodySize: "12mb" },
   // Cabeçalhos fixos de segurança (S-18). A CSP, que depende de nonce, sai de src/middleware.ts.
   // HSTS só vale sobre HTTPS; o Django cobre /api/ e o proxy reverso pode repeti-lo.
   async headers() {
