@@ -21,8 +21,10 @@ import hashlib
 import hmac
 import io
 import os
+import re
 import secrets
 import uuid
+import warnings
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -91,18 +93,19 @@ def sem_metadados(arquivo: Any, formato: Formato) -> Any:
 
     arquivo.seek(0)
     try:
-        with Image.open(arquivo) as original:
-            original.load()
-            # A orientação do EXIF vai para os pixels antes de o EXIF sair.
-            imagem = ImageOps.exif_transpose(original)
-            # A imagem nova não leva a paleta nem o `tRNS` (T-165): as cores vão para os pixels
-            # antes, e a transparência para o canal alfa.
-            if imagem.mode in ("P", "PA") or "transparency" in imagem.info:
-                tem_alfa = imagem.mode == "PA" or "transparency" in imagem.info
-                imagem = imagem.convert("RGBA" if tem_alfa else "RGB")
-            limpa = Image.new(imagem.mode, imagem.size)
-            limpa.paste(imagem)
-    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as erro:
+        # O aviso de bomba do Pillow (de 89 a 179 MP) vira erro, sem mexer no limite global.
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            limpa = _pixels_limpos(Image, ImageOps, arquivo)
+    except (
+        UnidentifiedImageError,
+        OSError,
+        ValueError,
+        SyntaxError,  # PNG quebrado ("broken PNG file"), B-01 da revisão de 10 nov 2026
+        EOFError,
+        Image.DecompressionBombError,
+        Image.DecompressionBombWarning,
+    ) as erro:
         raise ErroDeValidacao({"arquivo": [MENSAGEM_FORMATO]}) from erro
     saida = io.BytesIO()
     if formato.extensao == "jpg":
@@ -113,6 +116,34 @@ def sem_metadados(arquivo: Any, formato: Formato) -> Any:
         limpa.save(saida, format="PNG")
     nome = f"{os.path.splitext(arquivo.name or 'arquivo')[0]}.{formato.extensao}"
     return ContentFile(saida.getvalue(), name=nome)
+
+
+# Teto em pixels antes de decodificar (M-02 da revisão de 10 nov 2026): as fotos da vistoria
+# chegam a 48 MP, e uma imagem lisa de 169 MP cabe em 518 KB e pede cerca de 2 GB para abrir.
+PIXELS_MAXIMOS = 50_000_000
+
+
+def _pixels_limpos(Image: Any, ImageOps: Any, arquivo: Any) -> Any:
+    with Image.open(arquivo) as original:
+        largura, altura = original.size
+        if largura < 1 or altura < 1 or largura * altura > PIXELS_MAXIMOS:
+            raise ValueError("Imagem fora do tamanho em pixels aceito.")
+        original.load()
+        # A orientação do EXIF vai para os pixels antes de o EXIF sair.
+        imagem = ImageOps.exif_transpose(original)
+        # A imagem nova não leva a paleta nem o `tRNS` (T-165): as cores vão para os pixels
+        # antes, e a transparência para o canal alfa.
+        if imagem.mode in ("P", "PA") or "transparency" in imagem.info:
+            tem_alfa = imagem.mode == "PA" or "transparency" in imagem.info
+            imagem = imagem.convert("RGBA" if tem_alfa else "RGB")
+        limpa = Image.new(imagem.mode, imagem.size)
+        limpa.paste(imagem)
+    return limpa
+
+
+def sem_links(foto: dict[str, Any]) -> dict[str, Any]:
+    """A foto sem os links assinados, para o suporte em "só ver" (ADR 0013, item 2)."""
+    return {**foto, "url": None, "url_download": None, "url_expira_em": None}
 
 
 def nota_limpa(nota: Any) -> Any:
@@ -142,7 +173,7 @@ class Provedor(Protocol):
     def ler(self, caminho: str) -> bytes: ...
     def existe(self, caminho: str) -> bool: ...
     def tamanho(self, caminho: str) -> int: ...
-    def url(self, caminho: str, expira_em: datetime) -> str: ...
+    def url(self, caminho: str, expira_em: datetime, baixar_como: str | None = None) -> str: ...
     def apagar(self, caminho: str) -> None: ...
     def apagar_prefixo(self, prefixo: str) -> int: ...
 
@@ -152,10 +183,11 @@ class Provedor(Protocol):
 guardados: dict[str, tuple[bytes, str]] = {}
 
 
-def assinar(caminho: str, expira: str, nonce: str) -> str:
-    return hmac.new(
-        settings.SECRET_KEY.encode(), f"{caminho}|{expira}|{nonce}".encode(), hashlib.sha256
-    ).hexdigest()
+def assinar(caminho: str, expira: str, nonce: str, baixar: str = "") -> str:
+    """Sem `baixar`, a mensagem assinada é a de antes da T-414: os links atuais continuam
+    valendo. Com ele, o nome do arquivo baixado entra na assinatura (ADR 0036, item 4)."""
+    mensagem = f"{caminho}|{expira}|{nonce}" + (f"|{baixar}" if baixar else "")
+    return hmac.new(settings.SECRET_KEY.encode(), mensagem.encode(), hashlib.sha256).hexdigest()
 
 
 def _diretorio_falso() -> Path | None:
@@ -233,11 +265,14 @@ class ProvedorFalso:
             self.apagar(arquivo.relative_to(pasta.resolve()).as_posix())
         return len(arquivos)
 
-    def url(self, caminho: str, expira_em: datetime) -> str:
+    def url(self, caminho: str, expira_em: datetime, baixar_como: str | None = None) -> str:
         expira = str(int(expira_em.timestamp()))
         nonce = secrets.token_hex(8)
-        assinatura = assinar(caminho, expira, nonce)
-        consulta = urlencode({"expira": expira, "nonce": nonce, "assinatura": assinatura})
+        assinatura = assinar(caminho, expira, nonce, baixar_como or "")
+        parametros = {"expira": expira, "nonce": nonce, "assinatura": assinatura}
+        if baixar_como:
+            parametros["baixar"] = baixar_como
+        consulta = urlencode(parametros)
         base = settings.GIRO_ARQUIVOS_FALSOS_BASE
         return f"{base}/{quote(caminho)}?{consulta}"
 
@@ -315,14 +350,15 @@ class ProvedorS3:
                 )
         return apagados
 
-    def url(self, caminho: str, expira_em: datetime) -> str:
-        segundos = max(1, int((expira_em - relogio.agora()).total_seconds()))
+    def url(self, caminho: str, expira_em: datetime, baixar_como: str | None = None) -> str:
+        # `round`, e não `int`: os microssegundos desde o cálculo de `expira_em` não tiram 1 s.
+        segundos = max(1, round((expira_em - relogio.agora()).total_seconds()))
+        parametros = {"Bucket": self.bucket, "Key": caminho}
+        if baixar_como:
+            # Entra na assinatura: o S3 devolve o arquivo com este cabeçalho (ADR 0036, item 4).
+            parametros["ResponseContentDisposition"] = disposicao_de_download(baixar_como)
         return str(
-            self.cliente.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": self.bucket, "Key": caminho},
-                ExpiresIn=segundos,
-            )
+            self.cliente.generate_presigned_url("get_object", Params=parametros, ExpiresIn=segundos)
         )
 
 
@@ -335,10 +371,24 @@ def provedor() -> Provedor:
     raise ValueError(f"Armazenamento desconhecido: {nome}")
 
 
-def url_assinada(caminho: str) -> UrlAssinada:
-    """Nova a cada chamada; vale 15 minutos (AUD-05)."""
+# Nome do arquivo baixado: só letras sem acento, dígitos, hífen e ponto (ADR 0036, item 4), para
+# não abrir espaço a injeção no cabeçalho `Content-Disposition`.
+_NOME_DE_DOWNLOAD = re.compile(r"[A-Za-z0-9][A-Za-z0-9.-]{0,149}")
+
+
+def disposicao_de_download(nome: str) -> str:
+    if not _NOME_DE_DOWNLOAD.fullmatch(nome):
+        raise ValueError(f"Nome de download fora de [A-Za-z0-9.-]: {nome!r}")
+    return f'attachment; filename="{nome}"'
+
+
+def url_assinada(caminho: str, baixar_como: str | None = None) -> UrlAssinada:
+    """Nova a cada chamada; vale 15 minutos (AUD-05). Com `baixar_como`, o link baixa o arquivo
+    com esse nome (`Content-Disposition: attachment`, ADR 0036, item 4)."""
+    if baixar_como is not None:
+        disposicao_de_download(baixar_como)  # recusa o nome fora do formato antes de assinar
     expira_em = relogio.agora() + VALIDADE_DA_URL
-    return UrlAssinada(provedor().url(caminho, expira_em), expira_em)
+    return UrlAssinada(provedor().url(caminho, expira_em, baixar_como), expira_em)
 
 
 def apagar_temporario(caminho: str) -> None:

@@ -458,6 +458,7 @@ def test_vei_02_ca_013_11_acoes_combina_perfil_e_estado(moto, frota):
         "motivo_movimentar": None,
         "aviso_baixar": None,
         "lancar_despesa": True,  # FIN-17 (T-417)
+        "editar_fotos": True,  # VEI-10 (T-414)
         "motivo_trocar_tipo": None,  # VEI-11 (T-438)
     }
     assert moto.api("Mariana").get(_url(sak)).json()["acoes"]["baixar"] is True

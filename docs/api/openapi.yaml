@@ -6589,6 +6589,149 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListaDeDocumentos'
           description: ''
+  /api/veiculos/{id}/fotos/:
+    get:
+      operationId: veiculos_fotos_list
+      description: |-
+        Ver a galeria é de todos no escopo de filiais; enviar, de administrador e gerente. O
+        suporte em "ver e editar" só vê; em "só ver", 403 `PLT-07` até no GET, porque a resposta
+        traz links assinados das fotos (ADR 0013, item 2).
+      summary: Galeria do veículo, com links de 15 minutos (VEI-10, AUD-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GaleriaDoEditar'
+          description: ''
+    post:
+      operationId: veiculos_fotos_create
+      description: |-
+        Ver a galeria é de todos no escopo de filiais; enviar, de administrador e gerente. O
+        suporte em "ver e editar" só vê; em "só ver", 403 `PLT-07` até no GET, porque a resposta
+        traz links assinados das fotos (ADR 0013, item 2).
+      summary: Enviar uma foto para a galeria (VEI-10)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FotoDaGaleriaEntrada'
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GaleriaAlterada'
+          description: ''
+  /api/veiculos/{id}/fotos/{foto_id}/apagar/:
+    post:
+      operationId: veiculos_fotos_apagar_create
+      description: 'Trocar, usar como capa e apagar: administrador e gerente; o suporte
+        nunca (PLT-07).'
+      summary: Apagar a foto da galeria; o arquivo fica guardado (VEI-10)
+      parameters:
+      - in: path
+        name: foto_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GaleriaDoEditar'
+          description: ''
+  /api/veiculos/{id}/fotos/{foto_id}/capa/:
+    post:
+      operationId: veiculos_fotos_capa_create
+      description: 'Trocar, usar como capa e apagar: administrador e gerente; o suporte
+        nunca (PLT-07).'
+      summary: Usar a foto como capa da galeria (VEI-10)
+      parameters:
+      - in: path
+        name: foto_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GaleriaDoEditar'
+          description: ''
+  /api/veiculos/{id}/fotos/{foto_id}/trocar/:
+    post:
+      operationId: veiculos_fotos_trocar_create
+      description: 'Trocar, usar como capa e apagar: administrador e gerente; o suporte
+        nunca (PLT-07).'
+      summary: Trocar uma foto da galeria, na mesma posição (VEI-10)
+      parameters:
+      - in: path
+        name: foto_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FotoDaGaleriaEntrada'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GaleriaAlterada'
+          description: ''
   /api/veiculos/{id}/km/:
     post:
       operationId: veiculos_km_create
@@ -7336,6 +7479,58 @@ components:
       - nota_fiscal
       - pagar
       - recibo
+    AcoesDaFicha:
+      type: object
+      properties:
+        editar:
+          type: boolean
+        colocar_a_venda:
+          type: boolean
+        voltar_para_frota:
+          type: boolean
+        bloquear:
+          type: boolean
+        desbloquear:
+          type: boolean
+        transferir:
+          type: boolean
+        baixar:
+          type: boolean
+        registrar_km:
+          type: boolean
+        corrigir_km:
+          type: boolean
+        movimentar:
+          type: boolean
+        motivo_movimentar:
+          type: string
+          nullable: true
+        aviso_baixar:
+          type: string
+          nullable: true
+        lancar_despesa:
+          type: boolean
+        motivo_trocar_tipo:
+          type: string
+          nullable: true
+        editar_fotos:
+          type: boolean
+      required:
+      - aviso_baixar
+      - baixar
+      - bloquear
+      - colocar_a_venda
+      - corrigir_km
+      - desbloquear
+      - editar
+      - editar_fotos
+      - lancar_despesa
+      - motivo_movimentar
+      - motivo_trocar_tipo
+      - movimentar
+      - registrar_km
+      - transferir
+      - voltar_para_frota
     AcoesDaMovimentacao:
       type: object
       properties:
@@ -12418,6 +12613,59 @@ components:
       - agora
       - posicao
       - saida
+    FotoDaGaleria:
+      type: object
+      description: 'A galeria não tem legenda: `rotulo` é sempre `null` (VEI-10).'
+      properties:
+        id:
+          type: integer
+        numero:
+          type: integer
+        url:
+          type: string
+          nullable: true
+        url_download:
+          type: string
+          nullable: true
+        url_expira_em:
+          type: string
+          format: date-time
+          nullable: true
+        nome_arquivo:
+          type: string
+        rotulo:
+          type: string
+          nullable: true
+        capa:
+          type: boolean
+        enviada_em:
+          type: string
+          format: date-time
+        enviada_por:
+          allOf:
+          - $ref: '#/components/schemas/IdNome'
+          nullable: true
+      required:
+      - capa
+      - enviada_em
+      - enviada_por
+      - id
+      - nome_arquivo
+      - numero
+      - rotulo
+      - url
+      - url_download
+      - url_expira_em
+    FotoDaGaleriaEntrada:
+      type: object
+      description: |-
+        Uma foto por requisição (ADR 0036, item 3). A recusa (formato, tamanho, falta) vem do
+        serviço, com a mensagem da VEI-10.
+      properties:
+        arquivo:
+          type: string
+          format: uri
+          nullable: true
     FotoDaMovimentacao:
       type: object
       properties:
@@ -12434,20 +12682,45 @@ components:
       - url_expira_em
     FotoDaVistoriaRecente:
       type: object
+      description: 'Todas as fotos ativas da vistoria: as fixas e as de avaria (VEI-10,
+        T-414).'
       properties:
         id:
           type: integer
-        posicao:
-          $ref: '#/components/schemas/FotoDaVistoriaRecentePosicaoEnum'
+        numero:
+          type: integer
         url:
           type: string
+          nullable: true
+        url_download:
+          type: string
+          nullable: true
         url_expira_em:
           type: string
           format: date-time
+          nullable: true
+        nome_arquivo:
+          type: string
+        posicao:
+          $ref: '#/components/schemas/FotoDaVistoriaRecentePosicaoEnum'
+        rotulo:
+          type: string
+        tirada_em:
+          type: string
+          format: date-time
+        avaria_id:
+          type: integer
+          nullable: true
       required:
+      - avaria_id
       - id
+      - nome_arquivo
+      - numero
       - posicao
+      - rotulo
+      - tirada_em
       - url
+      - url_download
       - url_expira_em
     FotoDaVistoriaRecentePosicaoEnum:
       enum:
@@ -12456,6 +12729,7 @@ components:
       - lado_esquerdo
       - lado_direito
       - painel
+      - avaria
       type: string
       description: |-
         * `frente` - frente
@@ -12463,6 +12737,7 @@ components:
         * `lado_esquerdo` - lado_esquerdo
         * `lado_direito` - lado_direito
         * `painel` - painel
+        * `avaria` - avaria
     FotoEntrada:
       type: object
       properties:
@@ -12550,6 +12825,75 @@ components:
       - nota
       - ocupacao_pct
       - segmentos
+    Galeria:
+      type: object
+      description: 'Bloco `galeria` da ficha: as ativas, capa primeiro, para todos
+        os perfis (VEI-10).'
+      properties:
+        total:
+          type: integer
+        limite:
+          type: integer
+        fotos:
+          type: array
+          items:
+            $ref: '#/components/schemas/FotoDaGaleria'
+      required:
+      - fotos
+      - limite
+      - total
+    GaleriaAlterada:
+      type: object
+      description: 'Resposta do envio e da troca: a galeria inteira e o id da foto
+        nova.'
+      properties:
+        total:
+          type: integer
+        limite:
+          type: integer
+        fotos:
+          type: array
+          items:
+            $ref: '#/components/schemas/FotoDaGaleria'
+        editar:
+          type: boolean
+        motivo:
+          type: string
+          nullable: true
+        foto_id:
+          type: integer
+      required:
+      - editar
+      - foto_id
+      - fotos
+      - limite
+      - motivo
+      - total
+    GaleriaDoEditar:
+      type: object
+      description: |-
+        `GET .../fotos/`. `motivo`: com o perfil que edita e o veículo vendido ou baixado, a
+        mensagem do 409; `null` nos outros casos.
+      properties:
+        total:
+          type: integer
+        limite:
+          type: integer
+        fotos:
+          type: array
+          items:
+            $ref: '#/components/schemas/FotoDaGaleria'
+        editar:
+          type: boolean
+        motivo:
+          type: string
+          nullable: true
+      required:
+      - editar
+      - fotos
+      - limite
+      - motivo
+      - total
     Gaveta:
       type: object
       properties:
@@ -20057,7 +20401,7 @@ components:
           - $ref: '#/components/schemas/MovimentacaoAberta'
           nullable: true
         acoes:
-          $ref: '#/components/schemas/AcoesDoVeiculo'
+          $ref: '#/components/schemas/AcoesDaFicha'
         documento:
           $ref: '#/components/schemas/DocumentoDoVeiculo'
         rastreador:
@@ -20065,6 +20409,8 @@ components:
         anotacoes:
           type: string
           nullable: true
+        galeria:
+          $ref: '#/components/schemas/Galeria'
         indicadores_financeiros:
           nullable: true
         movimentacoes:
@@ -20093,6 +20439,7 @@ components:
       - documentos_resumo
       - entrou_na_frota_em
       - filial
+      - galeria
       - historico_status
       - id
       - km_atual
@@ -20341,13 +20688,16 @@ components:
         * `descartada` - Descartada
     VistoriaRecente:
       type: object
-      description: 'VIS-01, T-275: a última vistoria concluída, com as fotos fixas
-        e as avarias abertas.'
+      description: |-
+        VIS-01, T-275: a última vistoria concluída, com todas as fotos (VEI-10) e as avarias
+        abertas.
       properties:
         id:
           type: integer
         tipo:
           $ref: '#/components/schemas/VistoriaRecenteTipoEnum'
+        rotulo_tipo:
+          type: string
         concluida_em:
           type: string
           format: date-time
@@ -20374,6 +20724,7 @@ components:
       - fotos
       - id
       - locacao_codigo
+      - rotulo_tipo
       - tipo
       - total_fotos
       - vistoriador

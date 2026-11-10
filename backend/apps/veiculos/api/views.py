@@ -42,6 +42,9 @@ from .serializers import (
     ExtraEntradaSerializer,
     ExtraSerializer,
     FiltroDeModelosSerializer,
+    FotoDaGaleriaEntradaSerializer,
+    GaleriaAlteradaSerializer,
+    GaleriaDoEditarSerializer,
     KmSerializer,
     LeituraCrlvEntradaSerializer,
     LeituraCrlvNoEditarSerializer,
@@ -466,6 +469,101 @@ class DocumentosView(APIView):
         )
         corpo = selectors.representacao_documento(documento, relogio.hoje())
         return Response(DocumentoSerializer(corpo).data, status=status.HTTP_201_CREATED)
+
+
+# --- Galeria do veículo (VEI-10, ADR 0036) ---
+
+
+def _galeria(
+    veiculo: Veiculo, request: Request, foto_id: int | None = None, codigo: int = 200
+) -> Response:
+    """A galeria inteira, no formato do `GET .../fotos/`; no envio e na troca, com `foto_id`."""
+    veiculo = Veiculo.objects.get(pk=veiculo.pk)
+    dados = selectors.galeria_do_editar(veiculo, request.user)
+    if foto_id is None:
+        return Response(GaleriaDoEditarSerializer(dados).data, status=codigo)
+    corpo = GaleriaAlteradaSerializer({**dados, "foto_id": foto_id}).data
+    return Response(corpo, status=codigo)
+
+
+class FotosView(APIView):
+    """Ver a galeria é de todos no escopo de filiais; enviar, de administrador e gerente. O
+    suporte em "ver e editar" só vê; em "só ver", 403 `PLT-07` até no GET, porque a resposta
+    traz links assinados das fotos (ADR 0013, item 2)."""
+
+    parser_classes = [MultiPartParser, FormParser]
+    # Sem `suporte_somente_leitura`: o "só ver" não lê esta rota (M-01 da revisão de 10 nov).
+    suporte_proibido = frozenset({"POST"})
+
+    def get_permissions(self) -> Any:
+        if self.request.method == "POST":
+            return [permissao() for permissao in GESTAO]
+        return super().get_permissions()
+
+    @extend_schema(
+        responses=GaleriaDoEditarSerializer,
+        operation_id="veiculos_fotos_list",
+        summary="Galeria do veículo, com links de 15 minutos (VEI-10, AUD-05)",
+    )
+    def get(self, request: Request, pk: int) -> Response:
+        return _galeria(_veiculo(request, pk), request)
+
+    @extend_schema(
+        request={"multipart/form-data": FotoDaGaleriaEntradaSerializer},
+        responses={201: GaleriaAlteradaSerializer},
+        summary="Enviar uma foto para a galeria (VEI-10)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        dados = _entrada(FotoDaGaleriaEntradaSerializer, request)
+        veiculo = _veiculo(request, pk)
+        foto = services.enviar_foto(veiculo, dados.get("arquivo"))
+        return _galeria(veiculo, request, foto.pk, status.HTTP_201_CREATED)
+
+
+class _AcaoNaFotoView(APIView):
+    """Trocar, usar como capa e apagar: administrador e gerente; o suporte nunca (PLT-07)."""
+
+    permission_classes = GESTAO
+    suporte_proibido = True
+
+
+class TrocarFotoView(_AcaoNaFotoView):
+    parser_classes = [MultiPartParser, FormParser]
+
+    @extend_schema(
+        request={"multipart/form-data": FotoDaGaleriaEntradaSerializer},
+        responses=GaleriaAlteradaSerializer,
+        summary="Trocar uma foto da galeria, na mesma posição (VEI-10)",
+    )
+    def post(self, request: Request, pk: int, foto_id: int) -> Response:
+        dados = _entrada(FotoDaGaleriaEntradaSerializer, request)
+        veiculo = _veiculo(request, pk)
+        nova = services.trocar_foto(veiculo, foto_id, dados.get("arquivo"))
+        return _galeria(veiculo, request, nova.pk)
+
+
+class CapaDaFotoView(_AcaoNaFotoView):
+    @extend_schema(
+        request=None,
+        responses=GaleriaDoEditarSerializer,
+        summary="Usar a foto como capa da galeria (VEI-10)",
+    )
+    def post(self, request: Request, pk: int, foto_id: int) -> Response:
+        veiculo = _veiculo(request, pk)
+        services.usar_como_capa(veiculo, foto_id)
+        return _galeria(veiculo, request)
+
+
+class ApagarFotoView(_AcaoNaFotoView):
+    @extend_schema(
+        request=None,
+        responses=GaleriaDoEditarSerializer,
+        summary="Apagar a foto da galeria; o arquivo fica guardado (VEI-10)",
+    )
+    def post(self, request: Request, pk: int, foto_id: int) -> Response:
+        veiculo = _veiculo(request, pk)
+        services.apagar_foto(veiculo, foto_id)
+        return _galeria(veiculo, request)
 
 
 class HistoricoDeDocumentosView(APIView):

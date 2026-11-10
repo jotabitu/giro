@@ -354,9 +354,12 @@ Duas origens que nunca se misturam: a **galeria** (`veiculos.FotoVeiculo`, model
 
 | Ação | Administrador | Gerente | Vendedor | Vistoriador | Financeiro | Suporte Giro |
 | --- | --- | --- | --- | --- | --- | --- |
-| Ver a galeria (ficha, editar, `GET .../fotos/`) | sim | sim | sim | sim | sim | sim |
+| Ver a galeria na ficha | sim | sim | sim | sim | sim | "ver e editar": sim; "só ver": sem os links |
+| `GET .../fotos/` (galeria do editar) | sim | sim | sim | sim | sim | "ver e editar": sim; "só ver": 403 `PLT-07` |
 | Enviar, trocar, apagar, usar como capa | sim | sim | 403 | 403 | 403 | 403 `PLT-07`, mesmo em "ver e editar" |
-| Ver as fotos da última vistoria na ficha | sim | sim | sim | sim | chave ausente | como o perfil do acesso |
+| Ver as fotos da última vistoria na ficha | sim | sim | sim | sim | chave ausente | "ver e editar": sim; "só ver": sem os links |
+
+**Suporte Giro em "só ver"** (ADR 0013, item 2: no "só ver" não se gera URL assinada de documento nem de foto, mesmo em leitura; revisão de segurança de 10 nov 2026, M-01): na ficha, `galeria` e `vistoria_recente` vêm completos (`total`, `numero`, `rotulo`, `nome_arquivo`, datas), mas cada foto traz `url`, `url_download` e `url_expira_em` nulos. `GET .../fotos/` responde 403 `PLT-07`. Em "ver e editar", o suporte recebe os links como o administrador.
 
 Escopo de filial como no resto do veículo (`USR-07`): veículo de filial fora do escopo responde 404. As mudanças valem em qualquer `status`, menos `vendido` e `baixado`: 409 `{ "codigo": "VEI-10", "mensagem": "A galeria de veículo vendido fica só para ver." }` (ou "... de veículo baixado ..."). A conferência do status vem antes da do arquivo.
 
