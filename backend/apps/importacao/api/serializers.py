@@ -5,6 +5,8 @@ from typing import Any
 
 from rest_framework import serializers
 
+from apps.veiculos.models import TipoVeiculo
+
 from ..models import StatusImportacao, StatusLinha, TipoImportacao
 
 # --- Entrada ---
@@ -77,7 +79,7 @@ class AvisoSerializer(serializers.Serializer[Any]):
 class OpcaoDeCategoriaSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     nome = serializers.CharField()
-    tipo_veiculo = serializers.ChoiceField(choices=["moto", "carro"])
+    tipo_veiculo = serializers.ChoiceField(choices=TipoVeiculo.choices)
 
 
 class ModeloDaImportacaoSerializer(serializers.Serializer[Any]):
