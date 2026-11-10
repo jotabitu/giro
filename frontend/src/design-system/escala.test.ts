@@ -32,6 +32,11 @@ function arquivos(dir: string): string[] {
 }
 
 describe("escala de espaços", () => {
+  it("a escala tem o passo 16 (64 px), das miniaturas", () => {
+    expect(espacamento["16"]).toBe("64px");
+    expect(classesForaDaEscala("size-16 md:h-16")).toEqual([]);
+  });
+
   it("o verificador reconhece classe fora da escala", () => {
     expect(classesForaDaEscala('className="mt-1.5 gap-13 md:p-7 w-1/2 mt-[18px] -mt-13 z-10"')).toEqual([
       "gap-13",

@@ -217,6 +217,11 @@ button.wl-pipe__col[aria-pressed="true"] .wl-pipe__bar { outline: 2px solid var(
 
 .wl-dialogo { width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); border-radius: var(--radius-xl); }
 .wl-dialogo--pequeno { width: min(400px, calc(100vw - 32px)); }
+.wl-dialogo--amplo { width: min(1100px, calc(100vw - 48px)); height: min(820px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); }
+.wl-dialogo--amplo .wl-modal__conteudo { display: flex; flex-direction: column; overflow: hidden; }
+@media (max-width: 720px) {
+  .wl-dialogo--amplo { width: 100vw; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+}
 
 .wl-gaveta { background: var(--surface); }
 .wl-gaveta--esquerda, .wl-gaveta--direita { width: min(340px, 88vw); height: 100dvh; max-height: 100dvh; }

@@ -81,7 +81,7 @@ export function ZonaDeEnvio({
 export function CartaoDeFoto({ url, alt, posicao, capa, legenda, acoes }: { url: string | null; alt: string; posicao: number; capa: boolean; legenda: string; acoes?: ReactNode }) {
   return (
     <li className="flex min-w-0 items-start gap-3 border-b border-line py-3 last:border-b-0 md:flex-col md:items-stretch md:border-b-0 md:py-0">
-      <div className="relative size-[64px] shrink-0 overflow-hidden rounded-md bg-surface-sunken md:size-auto md:h-[140px] md:w-full">
+      <div className="relative size-16 shrink-0 overflow-hidden rounded-md bg-surface-sunken md:size-auto md:h-[140px] md:w-full">
         {url ? (
           // A URL é assinada e vale 15 minutos (AUD-05).
           // eslint-disable-next-line @next/next/no-img-element

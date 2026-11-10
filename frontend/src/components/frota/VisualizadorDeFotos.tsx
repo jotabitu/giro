@@ -72,12 +72,12 @@ export function VisualizadorDeFotos({ aberto, aoFechar, origem, legenda, fotos, 
   const venceu = foto.url_expira_em !== null && Date.parse(foto.url_expira_em) <= agora;
   const semLink = foto.url === null;
 
-  // O Dialogo só tem os tamanhos pequeno e medio: usa o maior (medio). Um tamanho amplo é ajuste do componente.
+  // Tamanho amplo do Dialogo (T-446): até 1100 × 820 px e tela cheia no celular, como a Veiculo-Visualizador.
   return (
-    <Dialogo aberto={aberto} aoFechar={aoFechar} titulo={origem} descricao={legenda(foto, i, total)} tamanho="medio">
+    <Dialogo aberto={aberto} aoFechar={aoFechar} titulo={origem} descricao={legenda(foto, i, total)} tamanho="amplo">
       {/* data-autofocus: o Dialogo põe o foco aqui ao abrir, dentro do conteúdo do visualizador. */}
-      <div data-autofocus tabIndex={-1} className="flex flex-col gap-3 outline-none">
-        <div className="relative grid min-h-[240px] place-items-center overflow-hidden rounded-md bg-surface-sunken">
+      <div data-autofocus tabIndex={-1} className="flex h-full min-h-0 flex-1 flex-col gap-3 outline-none">
+        <div className="relative grid min-h-[240px] min-w-0 flex-1 place-items-center overflow-hidden rounded-md bg-surface-sunken">
           {semLink ? (
             <p className="p-6 text-center text-body text-ink-muted">Sem link para esta foto neste acesso.</p>
           ) : venceu ? (
@@ -91,7 +91,7 @@ export function VisualizadorDeFotos({ aberto, aoFechar, origem, legenda, fotos, 
             </div>
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={foto.url ?? undefined} alt={legenda(foto, i, total)} className="max-h-[60vh] w-full object-contain" />
+            <img src={foto.url ?? undefined} alt={legenda(foto, i, total)} className="size-full object-contain" />
           )}
           {total > 1 && (
             <>

@@ -330,6 +330,7 @@ function ExemploSeletorDeFilial() {
 function ExemploDialogo() {
   const [formulario, setFormulario] = useState(false);
   const [confirma, setConfirma] = useState(false);
+  const [amplo, setAmplo] = useState(false);
   const [feito, setFeito] = useState("");
   return (
     <div className="flex flex-col gap-4">
@@ -338,6 +339,7 @@ function ExemploDialogo() {
           Abrir formulário
         </Button>
         <Button onClick={() => setConfirma(true)}>Abrir confirmação</Button>
+        <Button onClick={() => setAmplo(true)}>Abrir amplo</Button>
       </Linha>
       <p className="text-caption text-ink-muted">Último resultado: {feito || "nenhum"}.</p>
       <Dialogo
@@ -364,6 +366,15 @@ function ExemploDialogo() {
         }
       >
         <TextField cheio data-autofocus rotulo="Motivo" placeholder="Ex.: cliente devolveu a moto antes do prazo" />
+      </Dialogo>
+      <Dialogo
+        aberto={amplo}
+        aoFechar={() => setAmplo(false)}
+        tamanho="amplo"
+        titulo="Galeria do veículo · QXA-4B21"
+        descricao="Foto 1 de 3 · capa"
+      >
+        <div className="grid min-h-0 flex-1 place-items-center rounded-md bg-surface-sunken text-ink-muted">Área do conteúdo: ocupa o espaço entre o cabeçalho e as ações.</div>
       </Dialogo>
       <Dialogo
         aberto={confirma}

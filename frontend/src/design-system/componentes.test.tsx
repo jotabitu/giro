@@ -90,6 +90,13 @@ describe("Dialogo e Gaveta (T-046)", () => {
     expect(aberto).not.toContain("aria-describedby");
   });
 
+  it("Dialogo amplo leva a classe do tamanho e o CSS dá 1100 x 820 e tela cheia no celular", () => {
+    expect(renderToStaticMarkup(<Dialogo aberto aoFechar={sem} titulo="Foto" tamanho="amplo" />)).toContain("wl-dialogo--amplo");
+    const css = readFileSync(new URL("componentes.css", dir), "utf8");
+    expect(css).toMatch(/\.wl-dialogo--amplo \{[^}]*1100px[^}]*820px/);
+    expect(css).toMatch(/max-width: 720px\) \{\s*\.wl-dialogo--amplo \{[^}]*100vw[^}]*100dvh/);
+  });
+
   it("Gaveta aplica o lado pedido e abre da esquerda por padrão", () => {
     expect(renderToStaticMarkup(<Gaveta aberto aoFechar={sem} titulo="Menu" />)).toContain("wl-gaveta--esquerda");
     expect(renderToStaticMarkup(<Gaveta aberto aoFechar={sem} titulo="Filtros" lado="baixo" />)).toContain("wl-gaveta--baixo");
