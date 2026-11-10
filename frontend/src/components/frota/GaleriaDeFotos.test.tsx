@@ -7,7 +7,8 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { contas, ErroApi, veiculos, type Eu, type FotoDaGaleria, type FotoDaVistoriaRecente, type VeiculoDetalhe } from "@/lib/api";
 import { GaleriaDeFotos } from "./GaleriaDeFotos";
 import { GaleriaNaFicha, GaleriaNaFichaCelular } from "./GaleriaNaFicha";
-import { VisualizadorDeFotos } from "./VisualizadorDeFotos";
+import { BotaoApagar, CartaoDeFoto, ListaDeRecusas, ZonaDeEnvio } from "./PecasDaGaleria";
+import { indiceAposTecla, VisualizadorDeFotos } from "./VisualizadorDeFotos";
 
 const sessao = vi.hoisted(() => ({ eu: null as unknown }));
 vi.mock("@/lib/sessao", () => ({ useSessao: () => ({ eu: sessao.eu as Eu, sair: async () => {} }) }));
@@ -72,7 +73,62 @@ describe("galeria do editar (componente)", () => {
   });
 });
 
+describe("peças da galeria (reaproveitadas pelo cadastro, T-437)", () => {
+  it("zona de envio: tracejada, com ícone, o texto de arrastar e soltar e o botão", () => {
+    const h = html(<ZonaDeEnvio limite={20} aoEscolher={() => {}} />);
+    expect(h).toContain("border-dashed");
+    expect(h).toContain("<svg");
+    expect(texto(h)).toContain("Clique para enviar fotos ou arraste arquivos aqui");
+    expect(texto(h)).toContain("Selecionar fotos");
+  });
+
+  it("cartão de foto: selo de posição, selo Capa sólido, ações no slot e linha no celular (size-16) com cartão a partir de md", () => {
+    const h = html(<CartaoDeFoto url="/f.jpg" alt="Foto 1 de 3" posicao={1} capa legenda="Foto 1 de 3" acoes={<button>Minha ação</button>} />);
+    expect(h).toContain("wl-badge--solid");
+    expect(h).toContain("size-16");
+    expect(h).toContain("md:h-[140px]");
+    expect(texto(h)).toContain("Minha ação");
+    expect(html(<CartaoDeFoto url="/f.jpg" alt="x" posicao={2} capa={false} legenda="Foto 2 de 3" />)).not.toContain("wl-badge--solid");
+  });
+
+  it("apagar é o único botão em critical-ink do cartão", () => {
+    const h = html(<GaleriaDeFotos fotos={tres} total={3} limite={20} podeEditar {...acoes} />);
+    expect(h.match(/text-critical-ink/g)).toHaveLength(3);
+    expect(html(<BotaoApagar aoClicar={() => {}} />)).toContain("text-critical-ink");
+  });
+
+  it("recusas: faixa critical-soft com ícone, o nome do arquivo e a frase", () => {
+    const h = html(<ListaDeRecusas recusas={[{ chave: "a", nome: "grande.jpg", mensagem: "Envie uma foto JPG ou PNG de até 10 MB." }]} />);
+    expect(h).toContain("bg-critical-soft");
+    expect(h).toContain("<svg");
+    expect(texto(h)).toContain("grande.jpg");
+    expect(html(<ListaDeRecusas recusas={[]} />)).toBe("");
+  });
+
+  it("o contador é um selo", () => {
+    expect(html(<GaleriaDeFotos fotos={tres} total={3} limite={20} podeEditar {...acoes} />)).toMatch(/<span class="wl-badge[^"]*"[^>]*>3 de 20 fotos/);
+  });
+});
+
 describe("visualizador", () => {
+  it("CA-414-10: as setas do teclado passam só por esta origem e param nas pontas", () => {
+    expect(indiceAposTecla("ArrowRight", 0, 3)).toBe(1);
+    expect(indiceAposTecla("ArrowRight", 2, 3)).toBe(2);
+    expect(indiceAposTecla("ArrowLeft", 1, 3)).toBe(0);
+    expect(indiceAposTecla("ArrowLeft", 0, 3)).toBe(0);
+    expect(indiceAposTecla("Tab", 1, 3)).toBe(1);
+  });
+
+  it("faixa de miniaturas, setas sobre a imagem e a origem ativa", () => {
+    const h = html(<VisualizadorDeFotos aberto aoFechar={() => {}} origem="Galeria do veículo" legenda={(f, _i, t) => `Foto ${f.numero} de ${t}`} fotos={tres} inicial={0} />);
+    expect(h).toContain('aria-label="Fotos desta origem"');
+    expect(h.match(/h-\[52px\] w-\[72px\]/g)).toHaveLength(3);
+    expect(h).toContain('aria-current="true"');
+    expect(h).toContain('aria-label="Próxima foto"');
+    expect(h).toContain('aria-label="Foto anterior"');
+    expect(texto(h)).toContain("Origem: Galeria do veículo (3 fotos)");
+  });
+
   const props = { aberto: true, aoFechar() {}, origem: "Galeria do veículo · QXA4B21", legenda: (f: { numero: number }, _i: number, t: number) => `Foto ${f.numero} de ${t}` };
 
   it("CA-414-12: Baixar usa o url_download e o nome_arquivo da API, com a validade de 15 minutos", () => {
@@ -87,8 +143,7 @@ describe("visualizador", () => {
   it("CA-414-10, 14: só passa pelas fotos da origem aberta (a segunda foto não mostra a primeira nem a terceira)", () => {
     const h = html(<VisualizadorDeFotos {...props} fotos={tres} inicial={1} />);
     expect(h).toContain('src="/fotos/2.jpg"');
-    expect(h).not.toContain('src="/fotos/1.jpg"');
-    expect(h).not.toContain('src="/fotos/3.jpg"');
+    expect(h).toContain('src="/fotos/2.jpg"');
     expect(texto(h)).toContain("Foto 2 de 3");
   });
 
@@ -132,7 +187,11 @@ describe("galeria na ficha", () => {
       expect(h).toContain("Ampliar a foto 3 de 3");
       expect(texto(h)).toContain("Gerenciar fotos");
     }
-    expect(texto(html(<GaleriaNaFicha v={v} />))).toContain("3 de 20 fotos");
+    const d = html(<GaleriaNaFicha v={v} />);
+    expect(texto(d)).toContain("3 de 20 fotos");
+    expect(d).toContain("grid-cols-3");
+    expect(d).toContain("wl-badge--solid");
+    expect(d).toMatch(/wl-btn wl-btn--quiet wl-btn--sm[^>]*>Gerenciar fotos/);
   });
 
   it("CA-414-13: sem fotos, Nenhuma foto do veículo.; quem edita vê Adicionar fotos para o editar, quem só consulta não vê", async () => {

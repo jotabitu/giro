@@ -1,15 +1,15 @@
 "use client";
 
-import { Camera } from "lucide-react";
 import { useRef, useState } from "react";
-import { Button, Dialogo, Icone, Panel } from "@/design-system";
+import { Button, Dialogo, Panel, StatusBadge } from "@/design-system";
 import type { FotoDaGaleria } from "@/lib/api";
+import { BotaoApagar, CartaoDeFoto, FORMATOS_ACEITOS, ListaDeRecusas, ZonaDeEnvio, type RecusaDeFoto } from "./PecasDaGaleria";
 
 // VEI-10, CA-414-01 a 09. Referência: Veiculo-Editar-Desktop|Mobile, "Galeria de fotos".
-// Componente de apresentação: não chama a API. O editar do veículo liga as ações (GaleriaDoEditar) e o cadastro
-// de veículo novo (T-437) pode ligar as próprias. Limite, formato e permissões são da API: aqui só se mostra o que ela devolve.
+// Galeria do veículo já cadastrado: monta as peças de PecasDaGaleria com as ações do servidor (capa, trocar, apagar).
+// O cadastro novo (T-437) monta as mesmas peças com as próprias ações. Limite, formato e permissões são da API.
 
-export type RecusaDeFoto = { chave: string; nome: string; mensagem: string };
+export type { RecusaDeFoto };
 
 export type GaleriaDeFotosProps = {
   fotos: FotoDaGaleria[];
@@ -30,111 +30,65 @@ export type GaleriaDeFotosProps = {
   aoDispensarRecusas?: () => void;
 };
 
-const ACEITOS = "image/jpeg,image/png";
-
-function Cartao({ foto, total, podeEditar, ocupado, aoTrocar, aoUsarComoCapa, aoPedirApagar }: { foto: FotoDaGaleria; total: number; podeEditar: boolean; ocupado: boolean; aoTrocar: (f: File) => void; aoUsarComoCapa: () => void; aoPedirApagar: () => void }) {
+function Acoes({ foto, ocupado, aoTrocar, aoUsarComoCapa, aoPedirApagar }: { foto: FotoDaGaleria; ocupado: boolean; aoTrocar: (f: File) => void; aoUsarComoCapa: () => void; aoPedirApagar: () => void }) {
   const troca = useRef<HTMLInputElement>(null);
   return (
-    <li className="flex min-w-0 flex-col gap-2">
-      <div className="relative h-[120px] overflow-hidden rounded-md bg-surface-sunken">
-        {foto.url ? (
-          // A URL é assinada e vale 15 minutos (AUD-05).
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={foto.url} alt={`Foto ${foto.numero} de ${total}`} className="size-full object-cover" />
-        ) : (
-          <span aria-hidden="true" className="absolute inset-0 grid place-items-center text-ink-muted opacity-[.55]">
-            <Icone de={Camera} className="size-[18px]" />
-          </span>
-        )}
-        {foto.capa && <span className="absolute left-2 top-2 rounded-pill bg-surface px-2 py-[2px] text-[12px] font-medium">Capa</span>}
-      </div>
-      <div className="text-caption text-ink-muted">
-        Foto {foto.numero} de {total}
-      </div>
-      {podeEditar && (
-        <div className="flex flex-wrap gap-2">
-          {!foto.capa && (
-            <Button compacto variante="quieto" disabled={ocupado} onClick={aoUsarComoCapa}>
-              Usar como capa
-            </Button>
-          )}
-          <Button compacto variante="quieto" disabled={ocupado} onClick={() => troca.current?.click()}>
-            Trocar
-          </Button>
-          <Button compacto variante="quieto" disabled={ocupado} onClick={aoPedirApagar}>
-            Apagar
-          </Button>
-          <input
-            ref={troca}
-            type="file"
-            accept={ACEITOS}
-            className="hidden"
-            aria-label={`Escolher a foto que troca a foto ${foto.numero}`}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
-              if (f) aoTrocar(f);
-            }}
-          />
-        </div>
+    <>
+      {!foto.capa && (
+        <Button compacto variante="quieto" disabled={ocupado} onClick={aoUsarComoCapa}>
+          Usar como capa
+        </Button>
       )}
-    </li>
+      <Button compacto variante="quieto" disabled={ocupado} onClick={() => troca.current?.click()}>
+        Trocar
+      </Button>
+      <BotaoApagar disabled={ocupado} aoClicar={aoPedirApagar} />
+      <input
+        ref={troca}
+        type="file"
+        accept={FORMATOS_ACEITOS}
+        className="hidden"
+        aria-label={`Escolher a foto que troca a foto ${foto.numero}`}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) aoTrocar(f);
+        }}
+      />
+    </>
   );
 }
 
 export function GaleriaDeFotos({ fotos, total, limite, podeEditar, motivo, ocupado = false, progresso, recusas = [], aoEnviar, aoTrocar, aoUsarComoCapa, aoApagar, aoDispensarRecusas }: GaleriaDeFotosProps) {
-  const escolher = useRef<HTMLInputElement>(null);
   const [apagando, setApagando] = useState<FotoDaGaleria | null>(null);
   return (
-    <Panel titulo="Galeria de fotos" subtitulo="Fotos próprias do veículo para o catálogo de vendas, o anúncio e a ficha." acao={<span className="text-caption text-ink-muted">{total} de {limite} fotos</span>}>
+    <Panel
+      titulo="Galeria de fotos"
+      subtitulo="Fotos próprias do veículo para o catálogo de vendas, o anúncio e a ficha."
+      acao={
+        <StatusBadge compacto>
+          {total} de {limite} fotos
+        </StatusBadge>
+      }
+    >
       <div className="flex flex-col gap-4">
-        {podeEditar && (
-          <div className="flex flex-col items-start gap-2 rounded-md border border-dashed border-line p-4">
-            <Button variante="solido" compacto disabled={ocupado} onClick={() => escolher.current?.click()}>
-              {ocupado ? "Enviando…" : "Selecionar fotos"}
-            </Button>
-            <input
-              ref={escolher}
-              type="file"
-              multiple
-              accept={ACEITOS}
-              className="hidden"
-              aria-label="Escolher as fotos para enviar"
-              onChange={(e) => {
-                const arquivos = Array.from(e.target.files ?? []);
-                e.target.value = "";
-                if (arquivos.length > 0) aoEnviar(arquivos);
-              }}
-            />
-            <span className="text-caption text-ink-muted">JPG ou PNG de até 10 MB · até {limite} fotos no total · a localização (GPS) é removida</span>
-            {progresso && (
-              <span role="status" className="text-caption">
-                {progresso}
-              </span>
-            )}
-          </div>
-        )}
+        {podeEditar && <ZonaDeEnvio limite={limite} ocupado={ocupado} progresso={progresso} aoEscolher={aoEnviar} />}
         {!podeEditar && motivo && <p className="text-body text-ink-muted">{motivo}</p>}
-        {recusas.length > 0 && (
-          <div role="alert" className="flex flex-col gap-1 rounded-md bg-surface-sunken p-3">
-            {recusas.map((r) => (
-              <p key={r.chave} className="m-0 text-body text-critical-ink">
-                <span className="wl-mono">{r.nome}</span>: {r.mensagem}
-              </p>
-            ))}
-            {aoDispensarRecusas && (
-              <Button compacto variante="quieto" onClick={aoDispensarRecusas}>
-                Fechar o aviso
-              </Button>
-            )}
-          </div>
-        )}
+        <ListaDeRecusas recusas={recusas} aoDispensar={aoDispensarRecusas} />
         {fotos.length === 0 ? (
           <p className="text-body text-ink-muted">Nenhuma foto do veículo.</p>
         ) : (
-          <ul className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <ul className="m-0 grid list-none grid-cols-1 gap-0 p-0 md:grid-cols-4 md:gap-3">
             {fotos.map((f) => (
-              <Cartao key={f.id} foto={f} total={total} podeEditar={podeEditar} ocupado={ocupado} aoTrocar={(a) => aoTrocar(f, a)} aoUsarComoCapa={() => aoUsarComoCapa(f)} aoPedirApagar={() => setApagando(f)} />
+              <CartaoDeFoto
+                key={f.id}
+                url={f.url}
+                alt={`Foto ${f.numero} de ${total}`}
+                posicao={f.numero}
+                capa={f.capa}
+                legenda={`Foto ${f.numero} de ${total}`}
+                acoes={podeEditar ? <Acoes foto={f} ocupado={ocupado} aoTrocar={(a) => aoTrocar(f, a)} aoUsarComoCapa={() => aoUsarComoCapa(f)} aoPedirApagar={() => setApagando(f)} /> : undefined}
+              />
             ))}
           </ul>
         )}

@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import { Icone, Panel } from "@/design-system";
+import { Icone, Panel, StatusBadge } from "@/design-system";
 import type { VeiculoDetalhe } from "@/lib/api";
 import { VisualizadorDeFotos } from "./VisualizadorDeFotos";
 
@@ -17,14 +17,14 @@ function Grade({ v }: { v: VeiculoDetalhe }) {
   const { fotos, total } = v.galeria;
   return (
     <>
-      <ul className="grid grid-cols-3 gap-2 md:grid-cols-4">
+      <ul className="m-0 grid list-none grid-cols-3 gap-[6px] p-0 md:gap-3">
         {fotos.map((f, i) => (
           <li key={f.id}>
             <button
               type="button"
               onClick={() => setAberta(i)}
               aria-label={`Ampliar a foto ${f.numero} de ${total}${f.capa ? ", capa" : ""}`}
-              className="relative block h-[96px] w-full overflow-hidden rounded-md bg-surface-sunken"
+              className="relative block h-[96px] w-full overflow-hidden rounded-md bg-surface-sunken md:h-[140px]"
             >
               {f.url ? (
                 // A URL é assinada e vale 15 minutos (AUD-05): só enquanto a ficha está aberta.
@@ -35,7 +35,18 @@ function Grade({ v }: { v: VeiculoDetalhe }) {
                   <Icone de={Camera} className="size-[18px]" />
                 </span>
               )}
-              {f.capa && <span className="absolute left-2 top-2 rounded-pill bg-surface px-2 py-[2px] text-[12px] font-medium">Capa</span>}
+              {f.capa && (
+                <span className="absolute left-1 top-1 md:left-2 md:top-2">
+                  <StatusBadge tom="solido" compacto>
+                    Capa
+                  </StatusBadge>
+                </span>
+              )}
+              <span className="absolute bottom-1 left-1 md:bottom-2 md:left-2">
+                <StatusBadge tom="superficie" compacto>
+                  Foto {f.numero}
+                </StatusBadge>
+              </span>
             </button>
           </li>
         ))}
@@ -73,7 +84,7 @@ function Conteudo({ v }: { v: VeiculoDetalhe }) {
 function Gerenciar({ v }: { v: VeiculoDetalhe }) {
   if (!v.acoes.editar_fotos || v.galeria.fotos.length === 0) return null;
   return (
-    <Link href={`/veiculos/${v.id}/editar`} className="wl-btn wl-btn--sm no-underline">
+    <Link href={`/veiculos/${v.id}/editar`} className="wl-btn wl-btn--quiet wl-btn--sm no-underline">
       Gerenciar fotos
     </Link>
   );
@@ -82,7 +93,17 @@ function Gerenciar({ v }: { v: VeiculoDetalhe }) {
 /** Desktop: painel "Galeria de fotos" com a contagem. */
 export function GaleriaNaFicha({ v }: { v: VeiculoDetalhe }) {
   return (
-    <Panel titulo="Galeria de fotos" subtitulo={`${v.galeria.total} de ${v.galeria.limite} fotos`} acao={<Gerenciar v={v} />}>
+    <Panel
+      titulo="Galeria de fotos"
+      acao={
+        <span className="flex items-center gap-2">
+          <StatusBadge compacto>
+            {v.galeria.total} de {v.galeria.limite} fotos
+          </StatusBadge>
+          <Gerenciar v={v} />
+        </span>
+      }
+    >
       <Conteudo v={v} />
     </Panel>
   );
@@ -94,9 +115,9 @@ export function GaleriaNaFichaCelular({ v }: { v: VeiculoDetalhe }) {
     <section className="rounded-lg bg-surface p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-heading">Galeria de fotos</h2>
-        <span className="text-[13px] text-ink-muted">
+        <StatusBadge compacto>
           {v.galeria.total} de {v.galeria.limite}
-        </span>
+        </StatusBadge>
       </div>
       <Conteudo v={v} />
       <div className="mt-3">
