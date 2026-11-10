@@ -111,7 +111,7 @@ describe("correções da conferência (T-428)", () => {
         <FichaVeiculo id={id} />
       </QueryClientProvider>,
     );
-    const [, desktop = "", celular = ""] = html.match(/^<div class="hidden md:block">(.*)<\/div><div class="md:hidden">(.*)<\/div>$/s) ?? [];
+    const [, desktop = "", celular = ""] = html.replace(/^(<link[^>]*>)+/, "").match(/^<div class="hidden md:block">(.*)<\/div><div class="md:hidden">(.*)<\/div>$/s) ?? [];
     expect(desktop.match(/Ver o histórico/g)).toHaveLength(1);
     expect(celular.match(/Ver o histórico/g)).toHaveLength(1);
   });

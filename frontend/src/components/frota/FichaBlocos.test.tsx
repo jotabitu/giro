@@ -100,11 +100,12 @@ describe("Agora (desktop)", () => {
 const vistoria: VistoriaRecente = {
   id: 3120,
   tipo: "saida",
+  rotulo_tipo: "Vistoria de saída",
   concluida_em: "2026-09-23T12:10:00Z",
   vistoriador: { id: 4, nome: "João Silva" },
   locacao_codigo: "LOC-2841",
   total_fotos: 12,
-  fotos: (["frente", "traseira", "lado_esquerdo", "lado_direito", "painel"] as const).map((posicao, i) => ({ id: 901 + i, posicao, url: "", url_expira_em: "" })),
+  fotos: (["frente", "traseira", "lado_esquerdo", "lado_direito", "painel"] as const).map((posicao, i) => ({ id: 901 + i, numero: i + 1, posicao, rotulo: ["Frente", "Traseira", "Lado esquerdo", "Lado direito", "Painel"][i]!, tirada_em: "2026-09-23T12:00:00Z", avaria_id: null, url: "", url_download: "", url_expira_em: "", nome_arquivo: `QXA-4B21-vistoria-saida-${posicao}.jpg` })),
   avarias: [
     { id: 51, descricao: "Risco no tanque, lado esquerdo", registrada_em: "2026-07-12T14:00:00Z", preexistente: true, locacao_codigo: null, foto_id: 903 },
     { id: 77, descricao: "Retrovisor direito trincado", registrada_em: "2026-09-23T12:05:00Z", preexistente: false, locacao_codigo: "LOC-2841", foto_id: 905 },
@@ -114,8 +115,8 @@ const vistoria: VistoriaRecente = {
 describe("Fotos e avarias (desktop)", () => {
   it("fotos nas cinco posições, avarias numeradas com a origem e o aviso de que a da saída não é cobrada", () => {
     const t = texto(html(<FotosEAvarias vistoria={vistoria} />));
-    expect(t).toContain("vistoria de saída · 23 set · João Silva");
-    for (const p of ["Frente", "Traseira", "Esquerda", "Direita", "Painel"]) expect(t).toContain(p);
+    expect(t).toContain("Vistoria de saída · LOC-2841 · 23 set · João Silva");
+    for (const p of ["Frente", "Traseira", "Lado esquerdo", "Lado direito", "Painel"]) expect(t).toContain(p);
     expect(t).toContain("Ver as 12 fotos da vistoria");
     expect(t).toContain("2 avarias registradas");
     expect(t).toContain("Risco no tanque, lado esquerdo");
@@ -170,14 +171,14 @@ describe("Blocos da ficha no celular", () => {
   it("fotos e avarias: tipo, data e avarias numeradas; some sem vistoria", () => {
     expect(html(<FotosEAvariasCelular vistoria={null} />)).toBe("");
     const t = texto(html(<FotosEAvariasCelular vistoria={vistoria} />));
-    expect(t).toContain("saída · 23 set");
+    expect(t).toContain("Vistoria de saída · LOC-2841 · 23 set");
     expect(t).toContain("Retrovisor direito trincado");
     expect(t).toContain("23 set · registrado na saída da LOC-2841");
   });
 
   it("fotos e avarias sem avaria diz que não há", () => {
-    const t = texto(html(<FotosEAvariasCelular vistoria={{ ...vistoria, tipo: "devolucao", fotos: [], total_fotos: 0, avarias: [] }} />));
-    expect(t).toContain("devolução · 23 set");
+    const t = texto(html(<FotosEAvariasCelular vistoria={{ ...vistoria, tipo: "devolucao", rotulo_tipo: "Vistoria de chegada", fotos: [], total_fotos: 0, avarias: [] }} />));
+    expect(t).toContain("Vistoria de chegada · LOC-2841 · 23 set");
     expect(t).toContain("Nenhuma avaria registrada.");
   });
 

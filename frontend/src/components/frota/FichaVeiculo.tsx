@@ -21,6 +21,7 @@ import { situacaoDoDocumento } from "@/lib/frota";
 import { temNoMenu } from "@/lib/menu";
 import { DespesasDoVeiculo } from "./DespesasDoVeiculo";
 import { AgoraDesktop, FotosEAvarias, FotosEAvariasCelular, MovimentacoesCelular, MovimentacoesDoVeiculo } from "./FichaBlocos";
+import { GaleriaNaFicha, GaleriaNaFichaCelular } from "./GaleriaNaFicha";
 import { useSessao } from "@/lib/sessao";
 import { tomDoStatus } from "@/lib/tom";
 import { rotuloDaEspecie, rotuloDoCombustivel } from "@/lib/veiculos";
@@ -268,6 +269,8 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
         <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-6">
           <AgoraDesktop v={v} />
 
+          <GaleriaNaFicha v={v} />
+
           <FotosEAvarias vistoria={v.vistoria_recente} />
 
           {!semAcesso(locacoes) && (
@@ -369,6 +372,8 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
           <Icone de={Ellipsis} />
         </button>
       </header>
+
+      <GaleriaNaFichaCelular v={v} />
 
       <FotosEAvariasCelular vistoria={v.vistoria_recente} />
 
