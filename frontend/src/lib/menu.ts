@@ -131,15 +131,6 @@ export function rotaPermitida(eu: Pick<Eu, "pode" | "navegacao">, rota: string):
   return abreRota(nav.menu_completo, rota) || abreRota(nav.menu_inicio, rota);
 }
 
-/**
- * A pessoa lê a lista de locações? `GET /api/locacoes/` responde a todos os perfis menos o vistoriador (locacoes.md), que chega
- * à vistoria pela agenda. O `pode` não tem uma chave de leitura (o financeiro lê sem `locacoes_criar` nem o item no menu), então
- * a tela segue o contrato pelo perfil. Sem isto a ficha do veículo pedia a lista e recebia 403 (T-447, D5).
- */
-export function leLocacoes(eu: Pick<Eu, "perfil">): boolean {
-  return eu.perfil !== "vistoriador";
-}
-
 /** Liga o menu pronto da API às rotas e aos ícones, com a rota ativa e os contadores. Chave desconhecida fica de fora. */
 export function montarMenu(grupos: GrupoNavegacao[], rotaAtual: string, contadores: Record<string, number | null> = {}): GrupoMontado[] {
   // Itens diferentes podem dividir o caminho (ex.: Frota e Veículos à venda) ou um conter o outro (Veículos e Movimentações):
