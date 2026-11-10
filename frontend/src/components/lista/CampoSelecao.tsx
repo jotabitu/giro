@@ -4,7 +4,8 @@ type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, "className" | "id"> &
   rotulo: string;
   erro?: string;
   dica?: string;
-  opcoes: { valor: string; rotulo: string }[];
+  /** Com `grupo`, as opções saem em `<optgroup>`, na ordem em que os grupos aparecem. */
+  opcoes: { valor: string; rotulo: string; grupo?: string }[];
   /** Texto da opção vazia; sem ele, o campo não tem opção em branco. */
   vazio?: string;
 };
@@ -20,11 +21,23 @@ export function CampoSelecao({ rotulo, erro, dica, opcoes, vazio, ...resto }: Pr
       </label>
       <select id={id} className="wl-input" aria-invalid={erro ? true : undefined} {...resto}>
         {vazio !== undefined && <option value="">{vazio}</option>}
-        {opcoes.map((o) => (
-          <option key={o.valor} value={o.valor}>
-            {o.rotulo}
-          </option>
-        ))}
+        {opcoes.some((o) => o.grupo)
+          ? [...new Set(opcoes.map((o) => o.grupo ?? ""))].map((grupo) => (
+              <optgroup key={grupo} label={grupo}>
+                {opcoes
+                  .filter((o) => (o.grupo ?? "") === grupo)
+                  .map((o) => (
+                    <option key={o.valor} value={o.valor}>
+                      {o.rotulo}
+                    </option>
+                  ))}
+              </optgroup>
+            ))
+          : opcoes.map((o) => (
+              <option key={o.valor} value={o.valor}>
+                {o.rotulo}
+              </option>
+            ))}
       </select>
       {apoio && <span className="wl-field__hint">{apoio}</span>}
     </div>

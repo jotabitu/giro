@@ -9,6 +9,7 @@ import type {
   ContaReceberDetalhe,
   AcaoDaPendencia,
   Despesa,
+  DespesasDoVeiculo,
   ExportacaoCriada,
   FiltroDespesas,
   FiltroPendencias,
@@ -107,6 +108,16 @@ export const financeiroApi = {
   /** Multipart (nota em foto ou PDF). A API decide o estado: até R$ 500 `a_pagar`, acima `aguardando_aprovacao` (FIN-05, APR-03). */
   lancarDespesa(corpo: NovaDespesa): Promise<Despesa> {
     return http.post("/api/financeiro/despesas/", formulario(corpo));
+  },
+
+  /** FIN-17: a seção "Despesas do veículo" da ficha (administrador, gerente e financeiro). Não usa o `X-Filial`. */
+  despesasDoVeiculo(veiculoId: number, f: { ano?: number; cursor?: string } = {}): Promise<DespesasDoVeiculo> {
+    return http.get(`/api/financeiro/despesas/veiculo/${veiculoId}/`, { ano: f.ano, cursor: f.cursor });
+  },
+
+  /** FIN-17: o "Lançar despesa" da ficha. O veículo é o da rota e a filial é a dele; o resto é a FIN-05. */
+  lancarDespesaDoVeiculo(veiculoId: number, corpo: NovaDespesa): Promise<Despesa> {
+    return http.post(`/api/financeiro/despesas/veiculo/${veiculoId}/`, formulario({ ...corpo, veiculo_id: null }));
   },
 
   /** Cria a exportação das despesas do mês e da filial da tela; o link chega por e-mail (`AUD-07`). A busca e a aba não vão no pedido. */

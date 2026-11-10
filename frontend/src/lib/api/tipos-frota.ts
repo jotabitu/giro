@@ -103,6 +103,8 @@ export type Veiculo = {
     /** T-275: `movimentar` e o motivo quando for `false`; ausentes até a API mandar. */
     movimentar?: boolean;
     motivo_movimentar?: string | null;
+    /** FIN-17 (T-417): "Lançar despesa" na ficha, para quem lança despesa. */
+    lancar_despesa?: boolean;
   };
 };
 
@@ -113,7 +115,8 @@ export type VeiculoDetalhe = Veiculo & {
   rastreador: RastreadorDoVeiculo;
   anotacoes: string | null;
   /** Ausente para o vistoriador. */
-  indicadores_financeiros?: { rendeu_no_ano_centavos: number; custo_manutencao_ano_centavos: number } | null;
+  /** VEI-05, FIN-17: o rendeu já vem com as despesas descontadas; o custo é só manutenção e peças. */
+  indicadores_financeiros?: { rendeu_no_ano_centavos: number; custo_manutencao_ano_centavos: number; despesas_ano_centavos?: number } | null;
   ocupacao: { pct: string; periodo_dias: number };
   /** Ausente para o financeiro e quando o veículo nunca teve vistoria. */
   vistoria_recente?: VistoriaRecente | null;

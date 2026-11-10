@@ -19,6 +19,7 @@ import { mensagemDoErro } from "@/lib/erros";
 import { dataCurta, dinheiro, dinheiroSemZeros, km, mesAno, percentual, placa } from "@/lib/formatos";
 import { situacaoDoDocumento } from "@/lib/frota";
 import { temNoMenu } from "@/lib/menu";
+import { DespesasDoVeiculo } from "./DespesasDoVeiculo";
 import { AgoraDesktop, FotosEAvarias, FotosEAvariasCelular, MovimentacoesCelular, MovimentacoesDoVeiculo } from "./FichaBlocos";
 import { useSessao } from "@/lib/sessao";
 import { tomDoStatus } from "@/lib/tom";
@@ -290,6 +291,8 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
           )}
 
           <MovimentacoesDoVeiculo v={v} />
+
+          <DespesasDoVeiculo v={v} />
         </div>
 
         <aside className="flex min-w-0 flex-[1_1_340px] flex-col gap-6">
@@ -442,6 +445,8 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
       )}
 
       <MovimentacoesCelular v={v} />
+
+      <DespesasDoVeiculo v={v} celular />
 
       {v.acoes.editar && (
         <div className="grid grid-cols-2 gap-2">
