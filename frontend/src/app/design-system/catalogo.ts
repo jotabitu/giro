@@ -14,6 +14,7 @@ export const CATALOGO = [
   { slug: "search-field", nome: "SearchField", resumo: "Busca global com atalho Ctrl K" },
   { slug: "segmented-control", nome: "SegmentedControl", resumo: "Período e filtros de visão" },
   { slug: "seletor-de-filial", nome: "SeletorDeFilial", resumo: "Troca de filial no topo do menu, com Todas as filiais para o administrador" },
+  { slug: "select-field", nome: "SelectField", resumo: "Campo de escolha com rótulo, dica e erro; dentro de linha de lista escolhe por item" },
   { slug: "sidebar", nome: "Sidebar", resumo: "Logo da empresa, seletor de filial e menu por módulo" },
   { slug: "status-badge", nome: "StatusBadge", resumo: "Status do veículo, prioridade e contadores" },
   { slug: "text-field", nome: "TextField", resumo: "Campo com rótulo, dica e erro" },

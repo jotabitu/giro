@@ -13,6 +13,7 @@ export { ProgressBar } from "./ProgressBar/ProgressBar";
 export { SeletorDeFilial, type SeletorDeFilialProps } from "./SeletorDeFilial/SeletorDeFilial";
 export { TODAS, type OpcaoFilial } from "./SeletorDeFilial/logica";
 export { SearchField, type SearchFieldProps } from "./SearchField/SearchField";
+export { SelectField, type OpcaoSelect, type SelectFieldProps } from "./SelectField/SelectField";
 export { SegmentedControl, type OpcaoSegmento } from "./SegmentedControl/SegmentedControl";
 export { Sidebar, type FilialAtiva, type GrupoMenu, type ItemMenu, type MarcaDaSidebar } from "./Sidebar/Sidebar";
 export { Contador, StatusBadge, type TomStatus } from "./StatusBadge/StatusBadge";

@@ -26,6 +26,7 @@ import {
   ProgressBar,
   SearchField,
   SegmentedControl,
+  SelectField,
   Sidebar,
   StatusBadge,
   TextField,
@@ -245,6 +246,29 @@ function ExemploTextField() {
       <TextField rotulo="Quilometragem na saída" placeholder="Ex.: 12.430" dica="Leia no painel do veículo" />
       <TextField rotulo="CNH" defaultValue="Vencida em 03/09/2026" erro="CNH vencida: renove antes de alugar" />
     </Linha>
+  );
+}
+
+function ExemploSelectField() {
+  const categorias = [
+    { valor: "urbana", rotulo: "Urbana 110–125" },
+    { valor: "street", rotulo: "Street 150–160" },
+    { valor: "scooter", rotulo: "Scooter premium" },
+    { valor: "carro", rotulo: "Carro compacto" },
+  ];
+  return (
+    <div className="flex flex-col gap-6">
+      <Linha>
+        <SelectField rotulo="Filial dos veículos" vazio="Escolha a filial" opcoes={[{ valor: "centro", rotulo: "Filial Centro" }, { valor: "messejana", rotulo: "Filial Messejana" }]} />
+        <SelectField rotulo="Categoria" vazio="Escolha a categoria" opcoes={categorias} erro="Escolha a categoria de cada modelo." />
+      </Linha>
+      <Panel titulo="Categoria de cada modelo" subtitulo="7 modelos · 83 veículos prontos">
+        <ListaDeLinhas rotulo="Categoria de cada modelo">
+          <LinhaDeLista titulo="Honda Pop 110i" apoio="21 veículos" acao={<SelectField rotulo="Categoria de Honda Pop 110i" rotuloOculto vazio="Escolha a categoria" opcoes={categorias} defaultValue="urbana" />} />
+          <LinhaDeLista titulo="Yamaha NMax 160" apoio="6 veículos" acao={<SelectField rotulo="Categoria de Yamaha NMax 160" rotuloOculto vazio="Escolha a categoria" opcoes={categorias} />} />
+        </ListaDeLinhas>
+      </Panel>
+    </div>
   );
 }
 
@@ -519,6 +543,7 @@ const EXEMPLOS: Record<SlugExemplo, () => ReactNode> = {
   "progress-bar": ExemploProgressBar,
   "search-field": ExemploSearchField,
   "segmented-control": ExemploSegmentedControl,
+  "select-field": ExemploSelectField,
   "sidebar": ExemploSidebar,
   "status-badge": ExemploStatusBadge,
   "text-field": ExemploTextField,
