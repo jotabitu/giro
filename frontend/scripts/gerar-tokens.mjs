@@ -21,6 +21,9 @@ export const cores = {
 
 export type NomeCor = keyof typeof cores.light;
 
+// Grade de 4 px com meios-passos de 2 px (0.5, 1.5, 2.5, 3.5): o número é o tamanho em px dividido por 4.
+// Os passos 40, 60 e 64 são só de largura e altura de bloco, nunca de espaço entre elementos.
+// O Tailwind usa esta escala no lugar da dele: classe fora dela não gera CSS (docs/design-system/README.md).
 export const espacamento = ${fmt(espacos)} as const;
 
 export const raio = ${fmt(raios)} as const;
@@ -43,7 +46,7 @@ export function variaveisCss(tema: "light" | "dark"): string {
 }
 
 export const variaveisBase: string = [
-  ...Object.entries(espacamento).map(([k, v]) => \`--space-\${k}: \${v};\`),
+  ...Object.entries(espacamento).map(([k, v]) => \`--space-\${k.replace(".", "-")}: \${v};\`),
   ...Object.entries(raio).map(([k, v]) => \`--radius-\${k}: \${v};\`),
   \`--font-sans: var(--font-geist-sans), \${fontes.sans};\`,
   \`--font-mono: var(--font-geist-mono), \${fontes.mono};\`,
