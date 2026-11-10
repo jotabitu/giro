@@ -424,13 +424,14 @@ class HistoricoStatusSerializer(serializers.Serializer[Any]):
 
 class LinksDaFotoSerializer(serializers.Serializer[Any]):
     """VEI-10, ADR 0036, item 4: `url` abre e `url_download` baixa com `nome_arquivo`; os dois
-    valem 15 minutos e são novos a cada leitura (AUD-05)."""
+    valem 15 minutos e são novos a cada leitura (AUD-05). Para o suporte Giro em "só ver", os três
+    campos de link vêm nulos (ADR 0013, item 2)."""
 
     id = serializers.IntegerField()
     numero = serializers.IntegerField()
-    url = serializers.CharField()
-    url_download = serializers.CharField()
-    url_expira_em = serializers.DateTimeField()
+    url = serializers.CharField(allow_null=True)
+    url_download = serializers.CharField(allow_null=True)
+    url_expira_em = serializers.DateTimeField(allow_null=True)
     nome_arquivo = serializers.CharField()
 
 

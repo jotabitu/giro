@@ -7,6 +7,8 @@ frente (capa) e painel, enviadas pela Mariana em 12 mar 2025.
 """
 
 import io
+import struct
+import zlib
 from datetime import timedelta
 from types import SimpleNamespace
 from typing import Any, cast
@@ -16,11 +18,14 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from django.test import RequestFactory
+from django_tenants.utils import schema_context
 from PIL import Image
 
 from apps.auditoria.models import EventoAuditoria
+from apps.contas.models import Usuario
 from apps.locacoes.models import Locacao
 from apps.plataforma.models import Empresa
+from apps.plataforma.services import abrir_acesso_suporte
 from apps.veiculos import selectors as veiculos_selectors
 from apps.veiculos import services as veiculos_services
 from apps.veiculos.models import TRANSICOES_VEICULO, FotoVeiculo, Veiculo
@@ -28,11 +33,14 @@ from apps.vistorias import leituras as vistorias_leituras
 from apps.vistorias.models import Avaria, Vistoria
 from comum import arquivos
 from comum.arquivos_dev import servir
+from comum.autenticacao import AMR_SENHA_E_CODIGO, emitir_tokens
+from comum.erros import ErroDeValidacao
 from seed import fotos as fotos_do_seed
 
 from . import carteira
+from .conftest import cliente as cliente_http
 from .frota import Frota, montar_frota
-from .test_t012_filiais import MotoRapida
+from .test_t012_filiais import HOST, MotoRapida
 from .test_t015_locacoes import Cenario
 from .test_t016_vistorias import (  # noqa: F401 - fixtures
     _carlos_na_devolucao,
@@ -596,3 +604,154 @@ def test_vei_10_link_s3_leva_o_content_disposition(monkeypatch) -> None:
     }
     assert chamadas[1]["params"] == {"Bucket": "giro", "Key": "a/b.jpg"}
     assert chamadas[0]["expira"] == int(timedelta(minutes=15).total_seconds())
+
+
+# --- Revisão da segurança de 10 nov 2026 (docs/seguranca/2026-11-10-t414-fotos-do-veiculo.md) ---
+
+
+def _suporte_no_modo(moto: MotoRapida, centro: Any, permissao: str) -> Any:
+    """O suporte Giro na Moto Rápida, em "ver" (só ver) ou "ver_editar"."""
+    with schema_context("public"):
+        diego = Usuario.objects.filter(email="diego@girolocadoras.com.br").first()
+        if diego is None:
+            diego = Usuario.objects.create_user(
+                "diego@girolocadoras.com.br",
+                "senha-forte-123",
+                nome="Diego Santos",
+                funcao_plataforma="suporte",
+            )
+    _, token = abrir_acesso_suporte(
+        Empresa.objects.get(pk=moto.empresa.pk),
+        diego,
+        motivo="Chamado #1042",
+        duracao_minutos=30,
+        permissao=permissao,
+    )
+    connection.set_tenant(moto.empresa)
+    api = cliente_http(HOST, str(token))
+    api.credentials(HTTP_AUTHORIZATION=f"Bearer {token}", HTTP_X_FILIAL=str(centro.pk))
+    return api
+
+
+LINKS = ("url", "url_download", "url_expira_em")
+
+
+def test_plt_07_suporte_so_ver_nao_recebe_link_de_foto(
+    relogio_jwt,
+    cenario: Cenario,  # noqa: F811
+    carlos,
+) -> None:
+    """M-01 · ADR 0013, item 2: no "só ver", nada de URL assinada de foto, nem em leitura. A ficha
+    traz a galeria e a vistoria com número, rótulo e nome, e os links nulos; `GET .../fotos/`
+    responde 403 `PLT-07`. Em "ver e editar", os links vêm."""
+    qxa = Veiculo.objects.get(pk=carlos.veiculo_id)
+    so_ver = _suporte_no_modo(cenario.moto, cenario.frota.centro, "ver")
+    ficha = so_ver.get(f"{VEICULOS}{qxa.pk}/")
+    assert ficha.status_code == 200
+    galeria = ficha.json()["galeria"]
+    recente = ficha.json()["vistoria_recente"]
+    assert (galeria["total"], len(galeria["fotos"])) == (3, 3)
+    assert (recente["total_fotos"], len(recente["fotos"])) == (12, 12)
+    for foto in [*galeria["fotos"], *recente["fotos"]]:
+        assert [foto[campo] for campo in LINKS] == [None, None, None]
+        assert foto["numero"] and foto["nome_arquivo"]
+    assert recente["fotos"][0]["rotulo"] == "Frente"
+    galeria_do_editar = so_ver.get(_fotos(qxa))
+    assert galeria_do_editar.status_code == 403
+    assert galeria_do_editar.json()["codigo"] == "PLT-07"
+    assert "url" not in galeria_do_editar.content.decode()
+
+    ver_editar = _suporte_no_modo(cenario.moto, cenario.frota.centro, "ver_editar")
+    completa = ver_editar.get(f"{VEICULOS}{qxa.pk}/").json()
+    for foto in [*completa["galeria"]["fotos"], *completa["vistoria_recente"]["fotos"]]:
+        assert all(foto[campo] for campo in LINKS)
+    assert ver_editar.get(_fotos(qxa)).status_code == 200
+
+
+def _png_com_tamanho(largura: int, altura: int, nome: str = "gigante.png") -> SimpleUploadedFile:
+    """PNG de poucos bytes que declara `largura × altura` no cabeçalho: o teto em pixels tem que
+    recusar antes de decodificar."""
+    saida = io.BytesIO()
+    Image.new("L", (1, 1)).save(saida, format="PNG")
+    conteudo = bytearray(saida.getvalue())
+    # IHDR logo depois da assinatura: 4 de tamanho, 4 do tipo, 13 de dados e 4 do CRC.
+    dados = struct.pack(">II", largura, altura) + bytes(conteudo[24:29])
+    conteudo[16:29] = dados
+    conteudo[29:33] = struct.pack(">I", zlib.crc32(b"IHDR" + dados))
+    return SimpleUploadedFile(nome, bytes(conteudo), content_type="image/png")
+
+
+@pytest.mark.parametrize(("largura", "altura"), [(10000, 6000), (12000, 10000)])
+def test_aud_05_foto_gigante_em_pixels_recusada(moto, frota, largura, altura) -> None:
+    """M-02: 60 MP (acima do teto de 50 MP) e 120 MP (em que o Pillow só avisa) voltam 400 com a
+    mensagem da galeria, e nada é gravado."""
+    pnb = frota.veiculo("PNB7C04")
+    resposta = _enviar(moto, pnb, _png_com_tamanho(largura, altura))
+    assert resposta.status_code == 400
+    assert resposta.json()["campos"] == {"arquivo": FOTO_INVALIDA}
+    assert not FotoVeiculo.objects.filter(veiculo=pnb).exists()
+
+
+def test_aud_05_teto_em_pixels_vale_para_toda_foto(monkeypatch) -> None:
+    """O teto fica em `comum.arquivos.sem_metadados`, que serve a vistoria, os documentos e as
+    notas: acima de 50 MP, a imagem nem chega a ser decodificada."""
+    from PIL import ImageFile
+
+    decodificadas: list[Any] = []
+    carregar = ImageFile.ImageFile.load
+
+    def load(imagem: Any) -> Any:
+        decodificadas.append(imagem.size)
+        return carregar(imagem)
+
+    monkeypatch.setattr(ImageFile.ImageFile, "load", load)
+    formato = arquivos.Formato("png", "image/png")
+    with pytest.raises(ErroDeValidacao):
+        arquivos.sem_metadados(_png_com_tamanho(7072, 7072), formato)  # 50,01 MP
+    assert decodificadas == []
+    assert arquivos.sem_metadados(_png("ok.png"), formato).size > 0
+
+
+@pytest.mark.parametrize("erro", [SyntaxError("broken PNG file"), EOFError()])
+def test_aud_05_png_quebrado_volta_400_e_nao_500(moto, frota, monkeypatch, erro) -> None:
+    """B-01: o `SyntaxError` ("broken PNG file") e o `EOFError` do Pillow viram a recusa da
+    galeria, e não 500."""
+    import PIL.Image
+
+    def abrir(*_: Any, **__: Any) -> Any:
+        raise erro
+
+    monkeypatch.setattr(PIL.Image, "open", abrir)
+    pnb = frota.veiculo("PNB7C04")
+    resposta = _enviar(moto, pnb, _png())
+    assert resposta.status_code == 400
+    assert resposta.json()["campos"] == {"arquivo": FOTO_INVALIDA}
+
+
+def test_vei_10_isolamento_entre_empresas_pela_rota(moto, frota, planos) -> None:
+    """B-02: a administradora da empresa B, no host dela, não lê nem muda a galeria da A pelos
+    ids: 404, e a foto da A continua ativa. O arquivo da A mora no prefixo do schema dela."""
+    qxa = frota.veiculo("QXA4B21")
+    frente = FotoVeiculo.objects.get(pk=_do_seed(qxa)["Frente"])
+    assert frente.arquivo.name.startswith("empresa_a/veiculos/fotoveiculo/")
+
+    empresa_b = Empresa.objects.get(schema_name="empresa_b")
+    connection.set_tenant(empresa_b)
+    outra = MotoRapida(empresa_b, planos["Profissional"])
+    token = str(emitir_tokens(outra.pessoas["Mariana"], AMR_SENHA_E_CODIGO).access_token)
+    api_b = cliente_http("empresa-b.localhost", token)
+    caminho = f"{VEICULOS}{qxa.pk}/fotos/"
+    respostas = [
+        api_b.get(caminho),
+        api_b.get(f"{VEICULOS}{qxa.pk}/"),
+        api_b.post(f"{caminho}{frente.pk}/trocar/", {"arquivo": _jpg()}, format="multipart"),
+        api_b.post(f"{caminho}{frente.pk}/capa/"),
+        api_b.post(f"{caminho}{frente.pk}/apagar/"),
+    ]
+    assert [r.status_code for r in respostas] == [404] * 5
+    assert not FotoVeiculo.objects.exists()
+
+    connection.set_tenant(moto.empresa)
+    frente.refresh_from_db()
+    assert (frente.ativo, frente.capa) == (True, True)
+    assert FotoVeiculo.ativos.filter(veiculo=qxa).count() == 3

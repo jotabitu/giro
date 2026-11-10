@@ -14,6 +14,7 @@ from django.db.models import Count, Q, QuerySet
 from django.utils import timezone
 
 from comum import arquivos, leituras, relogio
+from comum.autenticacao import suporte_so_ver
 from comum.documentos import placa_com_hifen
 from comum.empresa import tem_recurso
 from comum.permissoes import filiais_permitidas
@@ -493,6 +494,11 @@ def representacao(
             dados["vistoria_recente"] = (
                 leituras.bloco(ALVO_FICHA, "vistoria_recente", veiculo) or None
             )
+            if dados["vistoria_recente"] and suporte_so_ver(usuario):
+                # ADR 0013, item 2: o suporte em "só ver" vê as fotos sem os links (M-01).
+                recente = dados["vistoria_recente"]
+                fotos = [arquivos.sem_links(foto) for foto in recente.get("fotos", [])]
+                dados["vistoria_recente"] = {**recente, "fotos": fotos}
         # Para vendedor e vistoriador a chave fica ausente, não nula (T-156).
         if perfil in VEEM_CUSTO:
             dados["indicadores_financeiros"] = _indicadores(blocos.get("indicadores_financeiros"))
@@ -502,7 +508,8 @@ def representacao(
         dados["ocupacao"] = ocupacao(veiculo)
         dados["historico_status"] = historico_status(veiculo)
         # A galeria é de todos os perfis; mexer nela, de quem edita veículo (VEI-10, T-414).
-        dados["galeria"] = bloco_galeria(veiculo)
+        # O suporte em "só ver" recebe a galeria sem os links (ADR 0013, item 2).
+        dados["galeria"] = bloco_galeria(veiculo, com_links=not suporte_so_ver(usuario))
         dados["acoes"]["editar_fotos"] = pode_editar_fotos(veiculo, usuario)
     return dados
 
@@ -530,34 +537,40 @@ def nome_da_placa(placa: str) -> str:
     return "".join(c for c in placa_com_hifen(placa) if c.isascii() and (c.isalnum() or c == "-"))
 
 
-def representacao_foto_da_galeria(foto: FotoVeiculo, numero: int, placa: str) -> dict[str, Any]:
+def representacao_foto_da_galeria(
+    foto: FotoVeiculo, numero: int, placa: str, com_links: bool = True
+) -> dict[str, Any]:
     """Dois links novos a cada leitura, de 15 minutos (AUD-05): `url` abre, `url_download` baixa
-    com `nome_arquivo` (ADR 0036, item 4). A foto da galeria não tem rótulo."""
+    com `nome_arquivo` (ADR 0036, item 4). A foto da galeria não tem rótulo. Sem `com_links`
+    (suporte em "só ver", ADR 0013, item 2), nenhum link é gerado e os três campos vêm nulos."""
     nome = f"{nome_da_placa(placa)}-galeria-{numero}.{foto.formato}"
-    ver = arquivos.url_assinada(foto.arquivo.name)
-    baixar = arquivos.url_assinada(foto.arquivo.name, baixar_como=nome)
     quem = foto.enviada_por
-    return {
+    dados: dict[str, Any] = {
         "id": foto.pk,
         "numero": numero,
         "rotulo": None,
         "capa": foto.capa,
-        "url": ver.url,
-        "url_download": baixar.url,
-        "url_expira_em": ver.expira_em,
+        "url": None,
+        "url_download": None,
+        "url_expira_em": None,
         "nome_arquivo": nome,
         "enviada_em": foto.enviada_em,
         "enviada_por": {"id": quem.pk, "nome": quem.nome} if quem else None,
     }
+    if com_links:
+        ver = arquivos.url_assinada(foto.arquivo.name)
+        baixar = arquivos.url_assinada(foto.arquivo.name, baixar_como=nome)
+        dados.update(url=ver.url, url_download=baixar.url, url_expira_em=ver.expira_em)
+    return dados
 
 
-def bloco_galeria(veiculo: Veiculo) -> dict[str, Any]:
+def bloco_galeria(veiculo: Veiculo, com_links: bool = True) -> dict[str, Any]:
     fotos = galeria(veiculo)
     return {
         "total": len(fotos),
         "limite": LIMITE_DA_GALERIA,
         "fotos": [
-            representacao_foto_da_galeria(foto, numero, veiculo.placa)
+            representacao_foto_da_galeria(foto, numero, veiculo.placa, com_links)
             for numero, foto in enumerate(fotos, start=1)
         ],
     }

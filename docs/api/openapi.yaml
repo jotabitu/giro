@@ -6594,7 +6594,8 @@ paths:
       operationId: veiculos_fotos_list
       description: |-
         Ver a galeria é de todos no escopo de filiais; enviar, de administrador e gerente. O
-        suporte só vê, mesmo em "ver e editar" (PLT-07).
+        suporte em "ver e editar" só vê; em "só ver", 403 `PLT-07` até no GET, porque a resposta
+        traz links assinados das fotos (ADR 0013, item 2).
       summary: Galeria do veículo, com links de 15 minutos (VEI-10, AUD-05)
       parameters:
       - in: path
@@ -6617,7 +6618,8 @@ paths:
       operationId: veiculos_fotos_create
       description: |-
         Ver a galeria é de todos no escopo de filiais; enviar, de administrador e gerente. O
-        suporte só vê, mesmo em "ver e editar" (PLT-07).
+        suporte em "ver e editar" só vê; em "só ver", 403 `PLT-07` até no GET, porque a resposta
+        traz links assinados das fotos (ADR 0013, item 2).
       summary: Enviar uma foto para a galeria (VEI-10)
       parameters:
       - in: path
@@ -12613,11 +12615,14 @@ components:
           type: integer
         url:
           type: string
+          nullable: true
         url_download:
           type: string
+          nullable: true
         url_expira_em:
           type: string
           format: date-time
+          nullable: true
         nome_arquivo:
           type: string
         rotulo:
@@ -12678,11 +12683,14 @@ components:
           type: integer
         url:
           type: string
+          nullable: true
         url_download:
           type: string
+          nullable: true
         url_expira_em:
           type: string
           format: date-time
+          nullable: true
         nome_arquivo:
           type: string
         posicao:

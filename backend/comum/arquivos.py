@@ -24,6 +24,7 @@ import os
 import re
 import secrets
 import uuid
+import warnings
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -92,18 +93,19 @@ def sem_metadados(arquivo: Any, formato: Formato) -> Any:
 
     arquivo.seek(0)
     try:
-        with Image.open(arquivo) as original:
-            original.load()
-            # A orientação do EXIF vai para os pixels antes de o EXIF sair.
-            imagem = ImageOps.exif_transpose(original)
-            # A imagem nova não leva a paleta nem o `tRNS` (T-165): as cores vão para os pixels
-            # antes, e a transparência para o canal alfa.
-            if imagem.mode in ("P", "PA") or "transparency" in imagem.info:
-                tem_alfa = imagem.mode == "PA" or "transparency" in imagem.info
-                imagem = imagem.convert("RGBA" if tem_alfa else "RGB")
-            limpa = Image.new(imagem.mode, imagem.size)
-            limpa.paste(imagem)
-    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as erro:
+        # O aviso de bomba do Pillow (de 89 a 179 MP) vira erro, sem mexer no limite global.
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            limpa = _pixels_limpos(Image, ImageOps, arquivo)
+    except (
+        UnidentifiedImageError,
+        OSError,
+        ValueError,
+        SyntaxError,  # PNG quebrado ("broken PNG file"), B-01 da revisão de 10 nov 2026
+        EOFError,
+        Image.DecompressionBombError,
+        Image.DecompressionBombWarning,
+    ) as erro:
         raise ErroDeValidacao({"arquivo": [MENSAGEM_FORMATO]}) from erro
     saida = io.BytesIO()
     if formato.extensao == "jpg":
@@ -114,6 +116,34 @@ def sem_metadados(arquivo: Any, formato: Formato) -> Any:
         limpa.save(saida, format="PNG")
     nome = f"{os.path.splitext(arquivo.name or 'arquivo')[0]}.{formato.extensao}"
     return ContentFile(saida.getvalue(), name=nome)
+
+
+# Teto em pixels antes de decodificar (M-02 da revisão de 10 nov 2026): as fotos da vistoria
+# chegam a 48 MP, e uma imagem lisa de 169 MP cabe em 518 KB e pede cerca de 2 GB para abrir.
+PIXELS_MAXIMOS = 50_000_000
+
+
+def _pixels_limpos(Image: Any, ImageOps: Any, arquivo: Any) -> Any:
+    with Image.open(arquivo) as original:
+        largura, altura = original.size
+        if largura < 1 or altura < 1 or largura * altura > PIXELS_MAXIMOS:
+            raise ValueError("Imagem fora do tamanho em pixels aceito.")
+        original.load()
+        # A orientação do EXIF vai para os pixels antes de o EXIF sair.
+        imagem = ImageOps.exif_transpose(original)
+        # A imagem nova não leva a paleta nem o `tRNS` (T-165): as cores vão para os pixels
+        # antes, e a transparência para o canal alfa.
+        if imagem.mode in ("P", "PA") or "transparency" in imagem.info:
+            tem_alfa = imagem.mode == "PA" or "transparency" in imagem.info
+            imagem = imagem.convert("RGBA" if tem_alfa else "RGB")
+        limpa = Image.new(imagem.mode, imagem.size)
+        limpa.paste(imagem)
+    return limpa
+
+
+def sem_links(foto: dict[str, Any]) -> dict[str, Any]:
+    """A foto sem os links assinados, para o suporte em "só ver" (ADR 0013, item 2)."""
+    return {**foto, "url": None, "url_download": None, "url_expira_em": None}
 
 
 def nota_limpa(nota: Any) -> Any:

@@ -488,10 +488,11 @@ def _galeria(
 
 class FotosView(APIView):
     """Ver a galeria é de todos no escopo de filiais; enviar, de administrador e gerente. O
-    suporte só vê, mesmo em "ver e editar" (PLT-07)."""
+    suporte em "ver e editar" só vê; em "só ver", 403 `PLT-07` até no GET, porque a resposta
+    traz links assinados das fotos (ADR 0013, item 2)."""
 
     parser_classes = [MultiPartParser, FormParser]
-    suporte_somente_leitura = True  # o suporte em "só ver" lê (PLT-07)
+    # Sem `suporte_somente_leitura`: o "só ver" não lê esta rota (M-01 da revisão de 10 nov).
     suporte_proibido = frozenset({"POST"})
 
     def get_permissions(self) -> Any:
