@@ -487,6 +487,11 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Pronto quando:** D1 faixa de assinatura compacta a 390 px; D2 e D3 um botão de histórico por tamanho na ficha do veículo; D4 campo, arquivo e botão do editar cabem no cartão; D5 "Ver comprovante" e "Ver a nota" com aparência de botão; testes do que mudou.
 - **Feito em 04 nov 2026** (handoff `tarefas/handoffs/T-428-frontend.md`).
 
+#### T-444 · Ficha do veículo quebra com a devolução atrasada (bug)
+- **Agente:** frontend · **Regras:** `VEI-03`, ADR 0015 · **Contrato:** `docs/api/veiculos.md` (`locacao_atual.alerta`) · **Origem:** teste do dono em 09 nov 2026, `/veiculos/45`: "Objects are not valid as a React child (found: object with keys {codigo, rotulo, tom})".
+- **Causa:** a API manda `locacao_atual.alerta` como `{codigo, rotulo, tom}` (`apps/locacoes/leituras.py`), e o frontend o tipa como texto (`lib/api/tipos-frota.ts`) e o põe direto no `StatusBadge` (`FichaBlocos.tsx`, desktop, e `FichaVeiculo.tsx`, celular). Os falsos (`falso-frota.ts`) usam texto, por isso os testes passavam. Está também na `main`, sem produção no ar: vai pela `develop`.
+- **Pronto quando:** o tipo segue o contrato; a ficha mostra o `rotulo` com o `tom` da API, a 1440 e 390 px; os falsos mandam o objeto; teste com locação `devolucao_atrasada`. O `manutencao.alerta` acompanha o contrato, se ele também for objeto.
+
 #### Também liberado
 - O botão "Mandar para oficina" da ficha depende do módulo de manutenção (`MAN`, `backend/apps/manutencao/` vazio) e entra quando ele for quebrado em tarefas.
 
