@@ -48,4 +48,7 @@ export const TELAS: TelaDeConferencia[] = [
   { nome: "Admin-Auditoria", referencia: "Admin-Auditoria", rota: "/admin/auditoria", perfil: "mariana" },
   { nome: "Admin-Suporte", referencia: "Admin-Suporte", rota: "/admin/suporte", perfil: "mariana" },
   { nome: "Filiais", referencia: "Filiais", rota: "/admin/filiais", perfil: "mariana" },
+  { nome: "Veiculo-Editar", referencia: "Veiculo-Editar", rota: "/veiculos/1/editar", perfil: "rodrigo" },
+  { nome: "Onboarding-Importar", referencia: "Onboarding-Importar", rota: "/implantacao/importar", perfil: "mariana" },
+  { nome: "Contratos-Modelos", referencia: "Contratos-Modelos", rota: "/admin/contratos", perfil: "mariana" },
 ];
