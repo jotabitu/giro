@@ -398,8 +398,8 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
             )}
             {atual.alerta && (
               <Linha rotulo="Alerta">
-                <StatusBadge tom="alerta" compacto>
-                  {atual.alerta}
+                <StatusBadge tom={tomDoStatus(atual.alerta.tom)} compacto>
+                  {atual.alerta.rotulo}
                 </StatusBadge>
               </Linha>
             )}
@@ -412,7 +412,7 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
           <p className="mt-2 text-body">
             {v.manutencao.proxima.servico} aos {km(v.manutencao.proxima.km)}
           </p>
-          {v.manutencao.alerta && <p className="mt-1 text-caption text-ink-muted">{v.manutencao.alerta}</p>}
+          {v.manutencao.alerta && <p className="mt-1 text-caption text-ink-muted">{v.manutencao.alerta.rotulo}</p>}
         </CartaoDoCelular>
       )}
 

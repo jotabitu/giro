@@ -5,6 +5,8 @@ export type StatusVeiculo = "disponivel" | "alugado" | "reservado" | "em_manuten
 export type TipoVeiculo = "moto" | "carro";
 
 /** Tom decidido pela API para o rótulo de situação. */
+/** Alerta de um bloco da ficha (ADR 0015): a API manda o rótulo e o tom. */
+export type AlertaDoBloco = { codigo?: string; rotulo: string; tom: TomApi };
 export type TomApi = "sucesso" | "info" | "alerta" | "atencao" | "perigo" | "neutro" | "solido";
 
 export type PrecoVigente = { diaria_centavos: number; semanal_centavos: number; mensal_centavos: number; caucao_centavos: number };
@@ -27,7 +29,7 @@ export type LocacaoAtualDoVeiculo = {
   cliente_nome: string;
   inicio: string;
   fim_previsto: string;
-  alerta?: string;
+  alerta?: AlertaDoBloco;
   plano?: { periodicidade: "diaria" | "semanal" | "mensal"; plano_especial: string | null; valor_periodo_centavos?: number };
   pagamento?: PagamentoDaLocacao;
 };
@@ -88,7 +90,7 @@ export type Veiculo = {
   /** T-410: só no veículo `reservado`. O texto "Reservado na LOC-x" já vem em `situacao.rotulo`; aqui só o que serve de link. */
   reserva?: { locacao_id: number; codigo: string; motivo: "locacao" | "troca" } | null;
   locacao_atual: LocacaoAtualDoVeiculo | null;
-  manutencao: { proxima: ProximaManutencao | null; os_aberta: { id: number; codigo: string; status: string } | null; alerta?: string } | null;
+  manutencao: { proxima: ProximaManutencao | null; os_aberta: { id: number; codigo: string; status: string } | null; alerta?: AlertaDoBloco } | null;
   documentos_resumo: { pior_situacao: "em_dia" | "vence_em_breve" | "vencido" };
   acoes: {
     editar: boolean;
