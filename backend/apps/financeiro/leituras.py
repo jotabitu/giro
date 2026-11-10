@@ -6,8 +6,9 @@
   contadores `contas_atrasadas_15_dias` e `dias_de_atraso` (CLI-05) e `em_aberto_centavos`
   (CLI-09) e o total `em_aberto_centavos` da lista (CA-017-03).
 - `filiais.Filial`: contador `caixas`, os caixas `aberto` ou `aguardando_aprovacao` (FIL-06).
-- `veiculos.Veiculo`: `custo_manutencao_ano_centavos` no bloco `indicadores_financeiros`
-  (VEI-05, FIN-06); o `rendeu_no_ano_centavos` vem de `locacoes`, que sabe o veículo da locação.
+- `veiculos.Veiculo`: `custo_manutencao_ano_centavos` (manutenção e peças) e
+  `despesas_ano_centavos` (todas) no bloco `indicadores_financeiros` (VEI-05, FIN-17); o
+  `rendeu_no_ano_centavos` vem de `locacoes`, que sabe o veículo da locação.
 """
 
 from datetime import timedelta
@@ -19,7 +20,15 @@ from django.db.models.functions import Coalesce, Greatest, TruncDate
 from comum import leituras, relogio
 
 from . import selectors
-from .models import ContaReceber, Despesa, Reembolso, StatusConta, StatusDespesa, TipoConta
+from .models import (
+    CATEGORIAS_DE_MANUTENCAO,
+    ContaReceber,
+    Despesa,
+    Reembolso,
+    StatusConta,
+    StatusDespesa,
+    TipoConta,
+)
 
 CLIENTE = "clientes.Cliente"
 FILIAL = "filiais.Filial"
@@ -169,28 +178,38 @@ def contas_vencidas(cliente_id: int) -> int:
 # --- veiculos.Veiculo ---
 
 
-def anotar_veiculo(queryset: QuerySet[Any]) -> QuerySet[Any]:
-    ano = relogio.hoje().year
-    custo = Subquery(
-        Despesa.objects.filter(veiculo_id=OuterRef("pk"), data__year=ano)
-        .exclude(status=StatusDespesa.RECUSADA)
-        .order_by()
+def _soma_do_veiculo(ano: int, *, so_manutencao: bool) -> Subquery:
+    despesas = Despesa.objects.filter(veiculo_id=OuterRef("pk"), data__year=ano).exclude(
+        status=StatusDespesa.RECUSADA
+    )
+    if so_manutencao:
+        despesas = despesas.filter(categoria__in=CATEGORIAS_DE_MANUTENCAO)
+    return Subquery(
+        despesas.order_by()
         .values("veiculo_id")
         .annotate(total=Sum("valor_centavos"))
         .values("total"),
         output_field=IntegerField(),
     )
-    return queryset.annotate(fin_custo_ano=Coalesce(custo, 0))  # type: ignore[no-any-return]
+
+
+def anotar_veiculo(queryset: QuerySet[Any]) -> QuerySet[Any]:
+    ano = relogio.hoje().year
+    return queryset.annotate(  # type: ignore[no-any-return]
+        fin_custo_ano=Coalesce(_soma_do_veiculo(ano, so_manutencao=True), 0),
+        fin_despesas_ano=Coalesce(_soma_do_veiculo(ano, so_manutencao=False), 0),
+    )
 
 
 def montar_veiculo(veiculo: Any) -> dict[str, Any]:
+    """VEI-05: o custo de manutenção só com manutenção e peças; `despesas_ano_centavos` com todas
+    as despesas do veículo, que a ficha desconta do que rendeu (FIN-17)."""
     if hasattr(veiculo, "fin_custo_ano"):
-        return {"custo_manutencao_ano_centavos": int(veiculo.fin_custo_ano)}
-    return {
-        "custo_manutencao_ano_centavos": selectors.custo_do_veiculo_no_ano(
-            veiculo.pk, relogio.hoje()
-        )
-    }
+        return {
+            "custo_manutencao_ano_centavos": int(veiculo.fin_custo_ano),
+            "despesas_ano_centavos": int(veiculo.fin_despesas_ano),
+        }
+    return selectors.custos_do_veiculo_no_ano(veiculo.pk, relogio.hoje().year)
 
 
 def registrar() -> None:

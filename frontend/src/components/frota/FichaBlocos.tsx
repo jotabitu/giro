@@ -61,8 +61,8 @@ function CartaoDaLocacao({ v }: { v: VeiculoDetalhe }) {
         )}
         {atual.alerta && (
           <Par rotulo="Alerta">
-            <StatusBadge tom="alerta" compacto>
-              {atual.alerta}
+            <StatusBadge tom={tomDoStatus(atual.alerta.tom)} compacto>
+              {atual.alerta.rotulo}
             </StatusBadge>
           </Par>
         )}
@@ -124,7 +124,7 @@ function CartaoDaManutencao({ v }: { v: VeiculoDetalhe }) {
           {p.nota}
         </div>
       )}
-      {v.manutencao?.alerta && <div className="text-[13px] text-ink-muted">{v.manutencao.alerta}</div>}
+      {v.manutencao?.alerta && <div className="text-[13px] text-ink-muted">{v.manutencao.alerta.rotulo}</div>}
     </div>
   );
 }

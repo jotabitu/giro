@@ -320,7 +320,26 @@ Caso CA-017-15: contado 27100 com motivo "Troco errado" → `aguardando_aprovaca
 
 ---
 
-## Despesas (FIN-05, FIN-06, FIN-16, APR-03)
+## Despesas (FIN-05, FIN-06, FIN-16, FIN-17, APR-03)
+
+### Categorias (`FIN-06`, T-417)
+`categoria` é uma destas chaves, na ordem da tela, em dois grupos. O grupo só organiza a escolha: qualquer categoria pode ir com ou sem veículo.
+
+| Grupo | Chave | Rótulo |
+| --- | --- | --- |
+| Do veículo | `ipva` | IPVA e licenciamento |
+| | `seguro` | Seguro |
+| | `multa_transito` | Multa de trânsito |
+| | `pecas` | Peças |
+| | `combustivel` | Combustível |
+| | `manutencao` | Manutenção |
+| | `rastreamento` | Rastreamento |
+| Da empresa | `fixas` | Fixas |
+| | `impostos` | Impostos |
+| | `pessoal` | Pessoal |
+| | `outros` | Outros |
+
+As cinco primeiras chegaram na T-417 (só `choices`, sem migração de dados: as despesas já lançadas não mudam de categoria). O vistoriador lança só `manutencao` e `pecas`. `multa_transito` não cria conta a receber. O `por_categoria` dos indicadores usa as mesmas chaves.
 
 ### Representação
 ```json
@@ -367,13 +386,13 @@ Números da `FIN-16` (base: despesas da filial do `X-Filial`, ou de todas, com `
 - Casos (CA-DES-04, CA-DES-05): "pneu" → só os pneus, contagens `aguardando_aprovacao` 1, `a_pagar` 0, `paga` 0, `recusada` 0, indicadores iguais aos sem busca; "pmz-3e17" → só os pneus; "ROE" → só "IPVA ROE-2A88"; "oleo" → só o óleo.
 
 ### POST /api/financeiro/despesas/
-`multipart/form-data`: `descricao`, `valor_centavos`, `data`, `vencimento`, `categoria` (`fixas`, `manutencao`, `rastreamento`, `impostos`, `pessoal`, `outros`), `veiculo_id?`, `nota` (imagem ou PDF até 10 MB, **obrigatória**, `FIN-06`), `pago_no_caixa?` (bool). A filial é a do `X-Filial`, como hoje. Não há `forma` no lançamento: com `pago_no_caixa`, a forma é sempre dinheiro.
+`multipart/form-data`: `descricao`, `valor_centavos`, `data`, `vencimento`, `categoria` (uma das chaves de "Categorias"), `veiculo_id?`, `nota` (imagem ou PDF até 10 MB, **obrigatória**, `FIN-06`), `pago_no_caixa?` (bool). A filial é a do `X-Filial`, como hoje. Não há `forma` no lançamento: com `pago_no_caixa`, a forma é sempre dinheiro.
 - Até 50000 (R$ 500,00) → `a_pagar`; com `pago_no_caixa`, nasce `paga`, forma `dinheiro`, com um movimento de saída em dinheiro no caixa aberto de hoje da filial (CA-DES-11).
 - Acima de 50000 → `aguardando_aprovacao` e pedido `APR-03`.
 - `data` e `vencimento` são obrigatórios. A tela começa com o vencimento igual à data (CA-DES-10); a API não copia um no outro.
 
 Erros, nesta ordem. Em nenhum deles algo é gravado: nem a despesa, nem a nota no storage, nem o movimento no caixa.
-1. 403 `{ "codigo": "FIN-06", "mensagem": "Seu perfil lança só despesas de manutenção." }`: vistoriador com outra categoria (como hoje).
+1. 403 `{ "codigo": "FIN-06", "mensagem": "Seu perfil lança só despesas de manutenção e peças." }`: vistoriador com categoria fora de `manutencao` e `pecas` (T-417).
 2. 403 `{ "codigo": "FIN-05", "mensagem": "Seu perfil não paga despesa pelo caixa." }`: `pago_no_caixa: true` de quem não abre e fecha caixa (tabela "Quem pode": o vistoriador), CA-DES-14.
 3. 400 `validacao` por campo: sem `nota`, `{ "nota": ["Envie a foto da nota."] }` (CA-DES-15); arquivo fora de imagem ou PDF, ou acima de 10 MB, com as mensagens de `comum.arquivos`; os outros campos como hoje.
 4. 422 `{ "codigo": "APR-03", "mensagem": "Despesa acima de R$ 500,00 precisa da aprovação do gerente antes de ser paga." }`: `pago_no_caixa` acima de 50000, com ou sem caixa aberto (CA-DES-13).
@@ -385,6 +404,30 @@ A nota obrigatória vale para o lançamento por esta rota. A despesa que nascer 
 
 ### GET /api/financeiro/despesas/{id}/
 200: a representação (T-144). Mesmos perfis e o mesmo `X-Filial` da lista; fora do escopo, 404.
+
+### GET /api/financeiro/despesas/veiculo/{veiculo_id}/ (`FIN-17`, T-417)
+A seção "Despesas do veículo" da ficha. Perfis: administrador, gerente e financeiro, os que veem o custo do veículo (`VEI-05`, `USR-09`); vendedor e vistoriador, 403 (a ficha não chama a rota). O veículo tem de estar nas filiais da pessoa, como a ficha (`USR-07`); fora delas, 404. Não usa o `X-Filial`: entram as despesas do veículo de **qualquer filial** (o veículo pode ter sido transferido, `VEI-04`).
+
+Query: `?ano=2026` (padrão: o ano de hoje). Entram as despesas ligadas ao veículo com `data` no ano, **inclusive as `recusada`**, da mais nova para a mais antiga (`-data`, `-id`), 20 por página, pelo cursor (`proximo`, `anterior`).
+
+200 (seed, QXA-4B21 em 07 out 2026, CA-417-07):
+```json
+{
+  "ano": 2026,
+  "total_ano_centavos": 4800,
+  "resultados": [ { "id": 806, "data": "2026-10-07", "descricao": "Óleo 1 litro", "categoria": "manutencao", "status": "paga", "...": "representação" } ],
+  "proximo": null, "anterior": null
+}
+```
+- `total_ano_centavos` ("Despesas no ano"): soma do valor das despesas do ano, pagas ou não, **sem as `recusada`**. É o mesmo `despesas_ano_centavos` da ficha (`veiculos.md`), que o "Rendeu no ano" desconta. Não muda com a página.
+- Cada linha é a representação da despesa, com a `nota` e o `comprovante` assinados: a ficha abre o detalhe com ela, sem outra leitura (a despesa pode ser de outra filial que a do `X-Filial`, e o `GET /despesas/{id}/` daria 404).
+
+### POST /api/financeiro/despesas/veiculo/{veiculo_id}/ (`FIN-17`, T-417)
+O "Lançar despesa" da ficha. Perfis: quem lança despesa (os mesmos do `POST /api/financeiro/despesas/`); o suporte recebe 403 `PLT-07`, como na `FIN-05`. O corpo é o mesmo do `POST /api/financeiro/despesas/`, com duas diferenças:
+- **O veículo é o da rota.** Um `veiculo_id` no corpo é ignorado.
+- **A filial é a do veículo**, não a do `X-Filial`; o `pago_no_caixa` usa o caixa aberto hoje dessa filial.
+
+Erros, na ordem: 1 e 2 do lançamento (perfil); 404 do veículo fora das filiais da pessoa; 3 a 5 do lançamento. 201: a representação. Regras: FIN-17, FIN-05, FIN-06, FIN-07, APR-03.
 
 ### POST /api/financeiro/despesas/{id}/nota/
 Anexar a nota depois (T-286, `MOV-04`, CA-246-14). Perfis: quem lança despesa (`despesas_lancar` = `todas`). `multipart/form-data`: `nota` (imagem ou PDF até 10 MB, `comum.arquivos`). Só na despesa sem nota; com nota, 409 `{ "codigo": "nota_existente" }`. Vale em qualquer status, inclusive `paga`. 200: a despesa, com `sem_nota: false`. Evento `despesa.anexar_nota`.

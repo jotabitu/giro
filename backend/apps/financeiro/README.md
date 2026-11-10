@@ -48,3 +48,10 @@ Contrato da API: `docs/api/financeiro.md` (escrito pelo arquiteto antes da imple
 - **Leituras para os outros apps** (`leituras.py`, ADR 0015): blocos `financeiro` e `historico`, filtro `em_aberto`, contadores `contas_atrasadas_15_dias` e `em_aberto_centavos` e o total `em_aberto_centavos` de `clientes`; contador `caixas` de `filiais` (`FIL-06`); `custo_manutencao_ano_centavos` de `veiculos`. `locacoes` fornece à conta a placa e a forma prevista (bloco `locacao`) e ao veículo o `rendeu_no_ano_centavos`.
 - **API** (`api/`): contas a receber, caixas, despesas, reembolsos e pendências em `/api/financeiro/`; o webhook do parceiro em `/api/webhooks/pagamentos/asaas/`, no host da plataforma.
 - Testes: `tests/aceitacao/test_t017_financeiro.py` (CA-017-01 a 23) e o CA-016-18 em `test_t016_vistorias.py`.
+
+## Com a T-417 (despesas do veículo na ficha)
+
+- **Categorias** (`FIN-06`, migração `0010`, só `choices`): `ipva`, `seguro`, `multa_transito`, `pecas` e `combustivel` antes de `manutencao` e `rastreamento` (do veículo), depois as da empresa. `models.CATEGORIAS_DE_MANUTENCAO` (manutenção e peças): o que o vistoriador lança e o que entra no "Custo de manutenção".
+- **Ficha** (`FIN-17`, `VEI-05`): `GET` e `POST /api/financeiro/despesas/veiculo/{id}/` (`DespesasDoVeiculoView`): a lista do ano, de qualquer filial, com as recusadas e o total sem elas; o lançamento com o veículo da rota e a filial dele. Selectors `despesas_do_veiculo`, `ano_pedido` e `custos_do_veiculo_no_ano`.
+- **Leitura de `veiculos`**: o bloco `indicadores_financeiros` traz `custo_manutencao_ano_centavos` (manutenção e peças) e `despesas_ano_centavos` (todas); `veiculos.selectors` desconta as despesas do `rendeu_no_ano_centavos` de `locacoes`.
+- Testes: `tests/aceitacao/test_t417_despesas_do_veiculo.py` (CA-417-01 a 13).

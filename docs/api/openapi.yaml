@@ -3114,12 +3114,17 @@ paths:
         schema:
           type: string
           enum:
+          - combustivel
           - fixas
           - impostos
+          - ipva
           - manutencao
+          - multa_transito
           - outros
+          - pecas
           - pessoal
           - rastreamento
+          - seguro
       - in: query
         name: mes
         schema:
@@ -3243,6 +3248,68 @@ paths:
       - jwtAuth: []
       responses:
         '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Despesa'
+          description: ''
+  /api/financeiro/despesas/veiculo/{veiculo_id}/:
+    get:
+      operationId: financeiro_despesas_veiculo_retrieve
+      description: |-
+        FIN-17: a seção "Despesas do veículo" da ficha. A lista é de quem vê o custo do veículo
+        (VEI-05, USR-09); o lançamento, de quem lança despesa, com o veículo travado e a filial do
+        veículo, que pode não ser a do `X-Filial`.
+      summary: Despesas do veículo no ano, de qualquer filial, com o total (FIN-17,
+        VEI-05)
+      parameters:
+      - in: query
+        name: ano
+        schema:
+          type: integer
+        description: 2026; sem ele, o ano de hoje
+      - in: path
+        name: veiculo_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DespesasDoVeiculo'
+          description: ''
+    post:
+      operationId: financeiro_despesas_veiculo_create
+      description: |-
+        FIN-17: a seção "Despesas do veículo" da ficha. A lista é de quem vê o custo do veículo
+        (VEI-05, USR-09); o lançamento, de quem lança despesa, com o veículo travado e a filial do
+        veículo, que pode não ser a do `X-Filial`.
+      summary: 'Lançar despesa pela ficha: o veículo da rota e a filial dele (FIN-17,
+        FIN-05)'
+      parameters:
+      - in: path
+        name: veiculo_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DespesaEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
           content:
             application/json:
               schema:
@@ -7371,6 +7438,8 @@ components:
         aviso_baixar:
           type: string
           nullable: true
+        lancar_despesa:
+          type: boolean
       required:
       - aviso_baixar
       - baixar
@@ -7379,6 +7448,7 @@ components:
       - corrigir_km
       - desbloquear
       - editar
+      - lancar_despesa
       - motivo_movimentar
       - movimentar
       - registrar_km
@@ -8496,17 +8566,27 @@ components:
         * `suporte` - Suporte
     CategoriaDespesaEnum:
       enum:
-      - fixas
+      - ipva
+      - seguro
+      - multa_transito
+      - pecas
+      - combustivel
       - manutencao
       - rastreamento
+      - fixas
       - impostos
       - pessoal
       - outros
       type: string
       description: |-
-        * `fixas` - Fixas
+        * `ipva` - IPVA e licenciamento
+        * `seguro` - Seguro
+        * `multa_transito` - Multa de trânsito
+        * `pecas` - Peças
+        * `combustivel` - Combustível
         * `manutencao` - Manutenção
         * `rastreamento` - Rastreamento
+        * `fixas` - Fixas
         * `impostos` - Impostos
         * `pessoal` - Pessoal
         * `outros` - Outros
@@ -10377,6 +10457,32 @@ components:
         * `a_pagar` - a_pagar
         * `paga` - paga
         * `recusada` - recusada
+    DespesasDoVeiculo:
+      type: object
+      description: 'FIN-17: as despesas do veículo no ano, 20 por página, da mais
+        nova para a mais antiga.'
+      properties:
+        ano:
+          type: integer
+        total_ano_centavos:
+          type: integer
+          description: 'Despesas no ano: pagas ou não, sem as recusadas (FIN-17, VEI-05)'
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Despesa'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - ano
+      - anterior
+      - proximo
+      - resultados
+      - total_ano_centavos
     DespesasLancarEnum:
       enum:
       - todas
@@ -17197,11 +17303,21 @@ components:
     PorCategoria:
       type: object
       properties:
-        fixas:
+        ipva:
+          type: integer
+        seguro:
+          type: integer
+        multa_transito:
+          type: integer
+        pecas:
+          type: integer
+        combustivel:
           type: integer
         manutencao:
           type: integer
         rastreamento:
+          type: integer
+        fixas:
           type: integer
         impostos:
           type: integer

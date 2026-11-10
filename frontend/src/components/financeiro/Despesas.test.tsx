@@ -185,17 +185,20 @@ describe("lista de despesas (FIN-05, CA-017-19)", () => {
     expect(pedidosDeExportacao).toEqual([{ mes: "2026-10", filial_id: null }]);
   });
 
-  it("vistoriador não vê a lista e só lança manutenção (tabela de perfis)", async () => {
+  it("test_fin_06_vistoriador_nao_ve_a_lista_e_so_lanca_manutencao_e_pecas (CA-417-04)", async () => {
     await entrar("joao@motorapida.com.br");
     const html = await pagina();
     const t = texto(html);
     expect(t).not.toContain("Pneus (2 unidades)");
     expect(t).not.toContain("Gasto em outubro");
     expect(t).toContain("Lançar despesa");
-    expect(t).toContain("Seu perfil lança só despesas de manutenção.");
+    expect(t).toContain("Seu perfil lança só despesas de manutenção e peças.");
     expect(html).not.toContain('value="fixas"');
-    expect(html).toContain('value="manutencao"');
+    expect(html).not.toContain('value="combustivel"');
+    expect(html).not.toContain('value="ipva"');
+    expect(html).toMatch(/value="pecas"[^>]*>Peças<\/option><option[^>]*value="manutencao"/);
   });
+
 });
 
 describe("detalhe e decisão (APR-03, APR-09)", () => {
