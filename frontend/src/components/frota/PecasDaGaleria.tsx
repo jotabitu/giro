@@ -10,7 +10,7 @@ import { Button, Icone, StatusBadge } from "@/design-system";
 export const FORMATOS_ACEITOS = "image/jpeg,image/png";
 
 /** Zona tracejada: clicar em "Selecionar fotos" ou soltar arquivos aqui. A validação é da API; esta peça só entrega os arquivos. */
-export function ZonaDeEnvio({ limite, ocupado = false, progresso, aoEscolher }: { limite: number; ocupado?: boolean; progresso?: string | null; aoEscolher: (arquivos: File[]) => void }) {
+export function ZonaDeEnvio({ limite, ocupado = false, progresso, rotulo = "Selecionar fotos", aoEscolher }: { limite: number; ocupado?: boolean; progresso?: string | null; /** Texto do botão: o editar usa "Selecionar fotos"; o cadastro, "Escolher fotos". */ rotulo?: string; aoEscolher: (arquivos: File[]) => void }) {
   const escolher = useRef<HTMLInputElement>(null);
   const [sobre, setSobre] = useState(false);
   const soltar = (e: DragEvent<HTMLDivElement>) => {
@@ -33,7 +33,7 @@ export function ZonaDeEnvio({ limite, ocupado = false, progresso, aoEscolher }: 
       <Icone de={Upload} className="size-6 text-ink-muted" />
       <p className="m-0 text-body font-medium">Clique para enviar fotos ou arraste arquivos aqui</p>
       <Button variante="solido" compacto disabled={ocupado} onClick={() => escolher.current?.click()}>
-        {ocupado ? "Enviando…" : "Selecionar fotos"}
+        {ocupado ? "Enviando…" : rotulo}
       </Button>
       <input
         ref={escolher}

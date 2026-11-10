@@ -6,10 +6,16 @@ import Link from "next/link";
 import { useState } from "react";
 import { Icone, Panel, StatusBadge } from "@/design-system";
 import type { VeiculoDetalhe } from "@/lib/api";
+import { placa } from "@/lib/formatos";
 import { VisualizadorDeFotos } from "./VisualizadorDeFotos";
 
 // VEI-10, CA-414-10, 13. Referência: Veiculo-Desktop|Mobile, "Galeria de fotos". A galeria do cadastro e as fotos da
 // vistoria são origens separadas: aqui só a galeria (`galeria`), na ordem da API (capa primeiro).
+
+/** Título do visualizador: a placa no formato do resto do app (QXA-4B21). */
+export function tituloDaGaleria(placaDoVeiculo: string): string {
+  return `Galeria do veículo · ${placa(placaDoVeiculo)}`;
+}
 
 function Grade({ v }: { v: VeiculoDetalhe }) {
   const cliente = useQueryClient();
@@ -54,7 +60,7 @@ function Grade({ v }: { v: VeiculoDetalhe }) {
       <VisualizadorDeFotos
         aberto={aberta !== null}
         aoFechar={() => setAberta(null)}
-        origem={`Galeria do veículo · ${v.placa}`}
+        origem={tituloDaGaleria(v.placa)}
         legenda={(f, _i, t) => `Foto ${f.numero} de ${t}${"capa" in f && f.capa ? " · capa" : ""}`}
         fotos={fotos}
         inicial={aberta ?? 0}
