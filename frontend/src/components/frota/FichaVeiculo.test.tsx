@@ -20,7 +20,7 @@ async function pagina(id: number): Promise<{ desktop: string; celular: string }>
       <FichaVeiculo id={id} />
     </QueryClientProvider>,
   );
-  const [, desktop = "", celular = ""] = html.match(/^<div class="hidden md:block">(.*)<\/div><div class="md:hidden">(.*)<\/div>$/s) ?? [];
+  const [, desktop = "", celular = ""] = html.replace(/^(<link[^>]*>)+/, "").match(/^<div class="hidden md:block">(.*)<\/div><div class="md:hidden">(.*)<\/div>$/s) ?? [];
   return { desktop, celular };
 }
 

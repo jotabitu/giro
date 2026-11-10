@@ -2,6 +2,8 @@
 // Só ./index.ts importa este arquivo. A "API" decide situação, ações e o que cada perfil enxerga.
 import { pausa, perfilAtualFalso } from "./falso";
 import {
+  type GaleriaDoEditar,
+  type GaleriaDoVeiculo,
   type CategoriaVeiculo,
   type CombustivelDoVeiculo,
   type DocumentoDoVeiculo,
@@ -110,6 +112,57 @@ const ROTULO: Record<string, { rotulo: string; tom: TomApi }> = {
   indisponivel: { rotulo: "Indisponível", tom: "neutro" },
 };
 
+// VEI-10 (T-414): a galeria de cada veículo na memória. O QXA-4B21 tem 3 fotos; os outros nascem sem foto.
+type FotoGuardada = { id: number; capa: boolean; nome: string };
+const GALERIAS = new Map<number, FotoGuardada[]>([[501, [{ id: 7002, capa: true, nome: "moto-1.jpg" }, { id: 7001, capa: false, nome: "moto-2.jpg" }, { id: 7003, capa: false, nome: "moto-3.jpg" }]]]);
+let proximaFotoDaGaleria = 7100;
+const LIMITE_DE_FOTOS = 20;
+const MSG_FOTO = "Envie uma foto JPG ou PNG de até 10 MB.";
+
+function fotosDe(id: number): FotoGuardada[] {
+  const l = GALERIAS.get(id) ?? [];
+  GALERIAS.set(id, l);
+  return l;
+}
+
+/** Os links só vêm para quem a API manda; aqui o falso manda sempre, menos nulos de propósito nos testes. */
+function galeriaDoFalso(id: number, motivo: string | null = null): GaleriaDoVeiculo & { editar: boolean; motivo: string | null } {
+  const s = SEMENTES.find((x) => x.id === id);
+  const placa = s ? `${s.placa.slice(0, 3)}-${s.placa.slice(3)}` : "";
+  const ordem = [...fotosDe(id)].sort((a, b) => Number(b.capa) - Number(a.capa));
+  const editar = podeEditar() && s?.status !== "vendido" && s?.status !== "baixado";
+  return {
+    total: ordem.length,
+    limite: LIMITE_DE_FOTOS,
+    editar,
+    motivo,
+    fotos: ordem.map((f, i) => ({
+      id: f.id,
+      numero: i + 1,
+      rotulo: null,
+      capa: f.capa,
+      url: `/fotos/${f.id}.jpg`,
+      url_download: `/fotos/${f.id}.jpg?download=1`,
+      url_expira_em: "2099-01-01T00:00:00Z",
+      nome_arquivo: `${placa}-galeria-${i + 1}.${f.nome.toLowerCase().endsWith(".png") ? "png" : "jpg"}`,
+      enviada_em: "2026-10-07T13:02:00Z",
+      enviada_por: { id: 1, nome: "Mariana Costa" },
+    })),
+  };
+}
+
+function exigirEdicaoDeFotos(id: number) {
+  const s = SEMENTES.find((x) => x.id === id);
+  if (!s) throw new ErroApi(404, "nao_encontrado", "Veículo não encontrado");
+  if (!podeEditar()) throw new ErroApi(403, "sem_permissao", "Você não tem permissão para mudar as fotos.");
+  if (s.status === "vendido" || s.status === "baixado") throw new ErroApi(409, "VEI-10", `A galeria de veículo ${s.status} fica só para ver.`);
+}
+
+function exigirFotoValida(arquivo: File) {
+  const ok = /\.(jpe?g|png)$/i.test(arquivo.name) && arquivo.size <= 10 * 1024 * 1024;
+  if (!ok) throw new ErroApi(400, "validacao", "Dados inválidos.", undefined, { arquivo: MSG_FOTO });
+}
+
 function podeEditar(): boolean {
   const p = perfilAtualFalso();
   return p === "administrador" || p === "gerente";
@@ -191,6 +244,7 @@ function montarCompleto(s: Semente): Veiculo {
       // T-275 (MOV-03): só o veículo disponível se movimenta; o alugado diz por quê.
       ...(editar ? { movimentar: s.status === "disponivel", motivo_movimentar: s.status === "alugado" && s.locacao ? `Veículo alugado não se movimenta. O botão volta quando a ${s.locacao.codigo} for devolvida.` : null } : {}),
       motivo_trocar_tipo: editar ? motivoDeNaoTrocarTipo(s) : null,
+      editar_fotos: editar && s.status !== "vendido" && s.status !== "baixado",
     },
   };
 }
@@ -529,6 +583,7 @@ export const veiculosFalso = {
       ...blocosDoDocumento(s),
       // T-156, USR-09: vendedor e vistoriador recebem a ficha sem a chave (ausente, não `null`).
       ...(financeiro ? { indicadores_financeiros: { rendeu_no_ano_centavos: 987000, custo_manutencao_ano_centavos: 35300 } } : {}),
+      galeria: (({ total, limite, fotos }) => ({ total, limite, fotos }))(galeriaDoFalso(id)),
       ocupacao: { pct: "86.00", periodo_dias: 90 },
       historico_status: [{ de: "disponivel", para: "alugado", em: "2026-09-23T12:00:00Z", origem_codigo: "LOC-2841" }],
     };
@@ -546,6 +601,56 @@ export const veiculosFalso = {
     await pausa(120);
     if (!SEMENTES.some((x) => x.id === id)) throw new ErroApi(404, "nao_encontrado", "Veículo não encontrado");
     return [...documentosAtivos(id).map((d) => ({ ...d, ativo: true })), ...(substituidos.get(id) ?? [])];
+  },
+
+  async fotos(id: number): Promise<GaleriaDoEditar> {
+    await pausa(120);
+    if (!SEMENTES.some((x) => x.id === id)) throw new ErroApi(404, "nao_encontrado", "Veículo não encontrado");
+    return galeriaDoFalso(id);
+  },
+
+  async enviarFoto(id: number, arquivo: File): Promise<GaleriaDoEditar> {
+    await pausa(120);
+    exigirEdicaoDeFotos(id);
+    exigirFotoValida(arquivo);
+    const l = fotosDe(id);
+    if (l.length >= LIMITE_DE_FOTOS) throw new ErroApi(400, "validacao", "Dados inválidos.", undefined, { arquivo: "O veículo já tem 20 fotos. Apague uma para enviar outra." });
+    const nova = { id: proximaFotoDaGaleria++, capa: l.length === 0, nome: arquivo.name };
+    l.push(nova);
+    return { ...galeriaDoFalso(id), foto_id: nova.id };
+  },
+
+  async trocarFoto(id: number, fotoId: number, arquivo: File): Promise<GaleriaDoEditar> {
+    await pausa(120);
+    exigirEdicaoDeFotos(id);
+    exigirFotoValida(arquivo);
+    const l = fotosDe(id);
+    const i = l.findIndex((f) => f.id === fotoId);
+    if (i < 0) throw new ErroApi(404, "nao_encontrado", "Foto não encontrada");
+    const nova = { id: proximaFotoDaGaleria++, capa: l[i]!.capa, nome: arquivo.name };
+    l[i] = nova;
+    return { ...galeriaDoFalso(id), foto_id: nova.id };
+  },
+
+  async usarComoCapa(id: number, fotoId: number): Promise<GaleriaDoEditar> {
+    await pausa(120);
+    exigirEdicaoDeFotos(id);
+    const l = fotosDe(id);
+    if (!l.some((f) => f.id === fotoId)) throw new ErroApi(404, "nao_encontrado", "Foto não encontrada");
+    for (const f of l) f.capa = f.id === fotoId;
+    return galeriaDoFalso(id);
+  },
+
+  async apagarFoto(id: number, fotoId: number): Promise<GaleriaDoEditar> {
+    await pausa(120);
+    exigirEdicaoDeFotos(id);
+    const l = fotosDe(id);
+    const i = l.findIndex((f) => f.id === fotoId);
+    if (i < 0) throw new ErroApi(404, "nao_encontrado", "Foto não encontrada");
+    const eraCapa = l[i]!.capa;
+    l.splice(i, 1);
+    if (eraCapa && l[0]) l[0].capa = true;
+    return galeriaDoFalso(id);
   },
 
   /** `POST .../documentos/` (VEI-03): o ativo do mesmo tipo vira inativo. Só administrador e gerente. */

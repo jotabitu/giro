@@ -15,6 +15,7 @@ import type {
   LocacoesDoVeiculo,
   ManutencoesDoVeiculo,
   EdicaoVeiculo,
+  GaleriaDoEditar,
   NovoVeiculo,
   TipoVeiculo,
   Veiculo,
@@ -113,6 +114,33 @@ export const veiculosApi = {
   },
 
   /** `POST .../documentos/` (VEI-03): se já havia um ativo do mesmo tipo, a API o deixa inativo. Administrador e gerente. */
+  /** VEI-10: a galeria do editar. 403 PLT-07 para o suporte em só ver. */
+  fotos(id: number): Promise<GaleriaDoEditar> {
+    return http.get<GaleriaDoEditar>(`/api/veiculos/${id}/fotos/`);
+  },
+
+  /** Uma foto por requisição (ADR 0036): quem envia várias chama uma depois da outra. */
+  enviarFoto(id: number, arquivo: File): Promise<GaleriaDoEditar> {
+    const corpo = new FormData();
+    corpo.set("arquivo", arquivo);
+    return http.post<GaleriaDoEditar>(`/api/veiculos/${id}/fotos/`, corpo);
+  },
+
+  trocarFoto(id: number, fotoId: number, arquivo: File): Promise<GaleriaDoEditar> {
+    const corpo = new FormData();
+    corpo.set("arquivo", arquivo);
+    return http.post<GaleriaDoEditar>(`/api/veiculos/${id}/fotos/${fotoId}/trocar/`, corpo);
+  },
+
+  usarComoCapa(id: number, fotoId: number): Promise<GaleriaDoEditar> {
+    return http.post<GaleriaDoEditar>(`/api/veiculos/${id}/fotos/${fotoId}/capa/`, {});
+  },
+
+  /** A foto fica inativa; não volta pela tela. */
+  apagarFoto(id: number, fotoId: number): Promise<GaleriaDoEditar> {
+    return http.post<GaleriaDoEditar>(`/api/veiculos/${id}/fotos/${fotoId}/apagar/`, {});
+  },
+
   async enviarDocumento(id: number, d: NovoDocumentoVeiculo): Promise<DocumentoVeiculo> {
     const corpo = new FormData();
     corpo.set("tipo", d.tipo);

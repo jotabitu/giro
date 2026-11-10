@@ -45,14 +45,31 @@ export type ProximaManutencao = {
   nota?: string | null;
 };
 export type PosicaoDaFoto = "frente" | "traseira" | "lado_esquerdo" | "lado_direito" | "painel";
+/** VEI-10 (T-414): as duas origens de foto têm o mesmo formato de link. Os links vêm nulos para o suporte em "só ver". `url` e `url_download` valem 15 minutos (AUD-05). */
+export type FotoDoVeiculo = {
+  id: number;
+  numero: number;
+  url: string | null;
+  url_download: string | null;
+  url_expira_em: string | null;
+  nome_arquivo: string;
+  rotulo: string | null;
+};
+export type FotoDaGaleria = FotoDoVeiculo & { capa: boolean; enviada_em: string; enviada_por: { id: number; nome: string } | null };
+export type FotoDaVistoriaRecente = FotoDoVeiculo & { rotulo: string; posicao: PosicaoDaFoto | "avaria"; tirada_em: string; avaria_id: number | null };
+export type GaleriaDoVeiculo = { total: number; limite: number; fotos: FotoDaGaleria[] };
+/** `GET /api/veiculos/{id}/fotos/` e a resposta de enviar, trocar, capa e apagar (`foto_id` só no envio e na troca). */
+export type GaleriaDoEditar = GaleriaDoVeiculo & { editar: boolean; motivo: string | null; foto_id?: number };
+
 export type VistoriaRecente = {
   id: number;
   tipo: "saida" | "devolucao";
+  rotulo_tipo: string;
   concluida_em: string;
   vistoriador: { id: number; nome: string } | null;
   locacao_codigo: string | null;
   total_fotos: number;
-  fotos: { id: number; posicao: PosicaoDaFoto; url: string; url_expira_em: string }[];
+  fotos: FotoDaVistoriaRecente[];
   avarias: { id: number; descricao: string; registrada_em: string; preexistente: boolean; locacao_codigo: string | null; foto_id: number | null }[];
 };
 export type MovimentacoesDoVeiculo = {
@@ -109,6 +126,8 @@ export type Veiculo = {
     lancar_despesa?: boolean;
     /** VEI-11 (T-438): com locação aberta, a frase que trava o Tipo no editar; `null` quando troca livre. */
     motivo_trocar_tipo?: string | null;
+    /** VEI-10 (T-414): administrador e gerente, com o veículo fora de vendido e baixado. */
+    editar_fotos: boolean;
   };
 };
 
@@ -118,6 +137,8 @@ export type VeiculoDetalhe = Veiculo & {
   documento: DocumentoDoVeiculo;
   rastreador: RastreadorDoVeiculo;
   anotacoes: string | null;
+  /** VEI-10: sempre vem; `fotos` pode ter os links nulos (suporte em só ver). */
+  galeria: GaleriaDoVeiculo;
   /** Ausente para o vistoriador. */
   /** VEI-05, FIN-17: o rendeu já vem com as despesas descontadas; o custo é só manutenção e peças. */
   indicadores_financeiros?: { rendeu_no_ano_centavos: number; custo_manutencao_ano_centavos: number; despesas_ano_centavos?: number } | null;
