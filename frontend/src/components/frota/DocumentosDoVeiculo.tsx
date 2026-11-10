@@ -31,7 +31,9 @@ function SituacaoDoDocumento({ d }: { d: DocumentoVeiculo }) {
 
 function Linha({ id, tipo, rotulo, atual }: { id: number; tipo: string; rotulo: string; atual?: DocumentoVeiculo }) {
   const cliente = useQueryClient();
-  const arquivo = useRef<HTMLInputElement>(null);
+  const seletor = useRef<HTMLInputElement>(null);
+  // O seletor nativo do navegador fica escondido atrás do botão (o texto dele sai no idioma do navegador).
+  const [arquivo, setArquivo] = useState<File | null>(null);
   const [validade, setValidade] = useState("");
   const [exercicio, setExercicio] = useState("");
   const [erro, setErro] = useState<string | null>(null);
@@ -39,26 +41,38 @@ function Linha({ id, tipo, rotulo, atual }: { id: number; tipo: string; rotulo: 
   const [feito, setFeito] = useState(false);
 
   const enviar = useMutation({
-    mutationFn: () => {
-      const f = arquivo.current?.files?.[0];
-      return veiculos.enviarDocumento(id, { tipo, validade, exercicio: tipo === "crlv" ? exercicio : undefined, arquivo: f });
-    },
+    mutationFn: () => veiculos.enviarDocumento(id, { tipo, validade, exercicio: tipo === "crlv" ? exercicio : undefined, arquivo: arquivo ?? undefined }),
     onSuccess: async () => {
       setFeito(true);
-      setValidade("");
-      setExercicio("");
-      if (arquivo.current) arquivo.current.value = "";
+      limpar();
       await Promise.all([cliente.invalidateQueries({ queryKey: ["veiculo", id, "documentos"] }), cliente.invalidateQueries({ queryKey: ["veiculo", id] }), cliente.invalidateQueries({ queryKey: ["veiculos"] })]);
     },
   });
 
-  function substituir() {
+  function limpar() {
+    setArquivo(null);
+    setValidade("");
+    setExercicio("");
     setErro(null);
     setErroValidade(undefined);
+    if (seletor.current) seletor.current.value = "";
+  }
+
+  function escolheu(f: File | undefined) {
     setFeito(false);
-    const f = arquivo.current?.files?.[0];
+    setErro(null);
+    if (!f) return;
+    if (f.size > LIMITE_MB * 1024 * 1024) {
+      if (seletor.current) seletor.current.value = "";
+      return setErro(`O arquivo passa de ${LIMITE_MB} MB.`);
+    }
+    setArquivo(f);
+  }
+
+  function confirmar() {
+    setErro(null);
+    setErroValidade(undefined);
     if (!validade) return setErroValidade("Informe a validade");
-    if (f && f.size > LIMITE_MB * 1024 * 1024) return setErro(`O arquivo passa de ${LIMITE_MB} MB.`);
     enviar.mutate(undefined, {
       onError: (e) => {
         if (e instanceof ErroApi && e.campos?.validade) setErroValidade(e.campos.validade);
@@ -79,17 +93,29 @@ function Linha({ id, tipo, rotulo, atual }: { id: number; tipo: string; rotulo: 
           {atual && <AbrirDocumento d={atual} />}
         </div>
       </div>
-      <div className="grid min-w-0 gap-3 md:grid-cols-[180px_minmax(0,1fr)_auto] md:items-end [&>*]:min-w-0">
-        <TextField cheio mono type="date" rotulo="Nova validade" value={validade} onChange={(e) => setValidade(e.target.value)} erro={erroValidade} />
-        <label className="flex min-w-0 flex-col gap-1 text-body">
-          <span className="text-caption text-ink-muted">Arquivo (PDF, JPG ou PNG, até {LIMITE_MB} MB)</span>
-          <input ref={arquivo} type="file" accept={ACEITOS} className="min-h-[44px] w-full min-w-0 max-w-full text-body" />
-        </label>
-        <button type="button" disabled={enviar.isPending} onClick={substituir} className="wl-btn wl-btn--solid min-h-[44px] w-full md:w-auto">
-          {enviar.isPending ? "Enviando…" : atual ? "Substituir" : "Enviar"}
-        </button>
-      </div>
-      {tipo === "crlv" && <TextField mono rotulo="Ano do licenciamento" inputMode="numeric" maxLength={4} dica="Opcional" value={exercicio} onChange={(e) => setExercicio(e.target.value)} />}
+      <input ref={seletor} type="file" accept={ACEITOS} className="hidden" aria-label={`Escolher o arquivo de ${rotulo}`} onChange={(e) => escolheu(e.target.files?.[0])} />
+      {!arquivo ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" onClick={() => seletor.current?.click()} className="wl-btn wl-btn--quiet wl-btn--sm">
+            {atual ? "Substituir" : "Enviar"}
+          </button>
+          <span className="text-caption text-ink-muted">PDF, JPG ou PNG, até {LIMITE_MB} MB</span>
+        </div>
+      ) : (
+        <div className="flex min-w-0 flex-col gap-3">
+          <span className="wl-mono min-w-0 break-all text-caption">{arquivo.name}</span>
+          <TextField cheio mono type="date" rotulo="Nova validade" value={validade} onChange={(e) => setValidade(e.target.value)} erro={erroValidade} />
+          {tipo === "crlv" && <TextField cheio mono rotulo="Ano do licenciamento" inputMode="numeric" maxLength={4} dica="Opcional" value={exercicio} onChange={(e) => setExercicio(e.target.value)} />}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={enviar.isPending} onClick={confirmar} className="wl-btn wl-btn--solid wl-btn--sm">
+              {enviar.isPending ? "Enviando…" : atual ? "Substituir documento" : "Enviar documento"}
+            </button>
+            <button type="button" disabled={enviar.isPending} onClick={limpar} className="wl-btn wl-btn--quiet wl-btn--sm">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
       {erro && (
         <p role="alert" className="m-0 text-body text-critical-ink">
           {erro}
@@ -108,7 +134,7 @@ function Linha({ id, tipo, rotulo, atual }: { id: number; tipo: string; rotulo: 
 export function DocumentosDoVeiculo({ id }: { id: number }) {
   const docs = useQuery({ queryKey: ["veiculo", id, "documentos"], queryFn: () => veiculos.documentos(id) });
   return (
-    <Panel titulo="Documentos">
+    <Panel titulo="Documentos" subtitulo="Substitua arquivos ou atualize validades.">
       {docs.isError && (
         <p role="alert" className="text-body">
           {mensagemDoErro(docs.error)}

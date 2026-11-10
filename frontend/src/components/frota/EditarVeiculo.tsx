@@ -7,11 +7,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
-import { Icone, Panel, SelectField, TextField } from "@/design-system";
+import { Icone, Panel, SelectField, StatusBadge, TextField } from "@/design-system";
 import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo, type TipoVeiculo, type VeiculoDetalhe } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { km, placa as placaComHifen } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
+import { tomDoStatus } from "@/lib/tom";
 import { CAMPOS_VEI_09, categoriaAoTrocarTipo, esquemaVeiculo, NOME_DO_CAMPO_DA_API, OPCOES_DE_TIPO, paraCorpoEdicao, semCategoriaDoTipo, temMotorEObservacoes, valoresDaLeitura, valoresDoVeiculo, type CampoLido, type CategoriasPorTipo, type ValoresVeiculo } from "@/lib/veiculos";
 import { CamposDoDocumento } from "./CamposDoDocumento";
 import { CorrigirIdentificacao } from "./CorrigirIdentificacao";
@@ -151,7 +152,13 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
             / Editar
           </nav>
           <h1 className="text-title md:mt-1 md:text-display">Editar veículo</h1>
-          <p className="m-0 text-body text-ink-muted">{resumo} · {ficha.filial.nome}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-body text-ink-muted">
+            <StatusBadge tom={tomDoStatus(ficha.situacao.tom)} compacto>
+              {ficha.situacao.rotulo}
+            </StatusBadge>
+            <span className="wl-mono">{placaComHifen(ficha.placa)}</span>
+            <span>· {[v.marca, v.modelo].filter(Boolean).join(" ")} · {v.ano_modelo} · {ficha.filial.nome}</span>
+          </div>
         </div>
         <div className="flex gap-2">
           <Link href={`/veiculos/${ficha.id}`} className="wl-btn wl-btn--quiet">
@@ -252,6 +259,16 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
       </form>
 
       <DocumentosDoVeiculo id={ficha.id} />
+
+      {/* A página é longa: Salvar também no pé, fixo ao rolar (no celular fica acima da barra de navegação). */}
+      <div className="sticky bottom-[88px] z-20 flex justify-end gap-2 rounded-lg bg-surface p-3 shadow-pop md:bottom-4">
+        <Link href={`/veiculos/${ficha.id}`} className="wl-btn wl-btn--quiet">
+          Cancelar
+        </Link>
+        <button type="submit" form="editar-veiculo" disabled={ocupado} className="wl-btn wl-btn--solid">
+          {ocupado ? "Salvando…" : "Salvar alterações"}
+        </button>
+      </div>
       {/* Fora do form: Enter nos campos do diálogo não pode salvar a edição. */}
       {corrigindo && <CorrigirIdentificacao ficha={ficha} aoFechar={() => setCorrigindo(false)} aoConcluir={setAviso} />}
     </div>

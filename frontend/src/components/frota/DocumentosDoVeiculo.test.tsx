@@ -33,7 +33,9 @@ describe("documentos do veículo, administrador e gerente", () => {
     for (const t of ["CRLV", "IPVA", "Seguro", "Rastreador"]) expect(h).toContain(t);
     expect(h).toContain("Substituir");
     expect(h).toContain('type="file"');
-    expect(h).toContain("Arquivo (PDF, JPG ou PNG, até 10 MB)");
+    expect(h).toContain("PDF, JPG ou PNG, até 10 MB");
+    expect(h).toContain("hidden");
+    expect(h).not.toContain("Nova validade");
     expect(h).toContain("Abrir CRLV");
     expect(h).toContain("Sem arquivo");
   });
@@ -116,7 +118,7 @@ describe("correções da conferência (T-428)", () => {
     expect(celular.match(/Ver o histórico/g)).toHaveLength(1);
   });
 
-  it("D4: o campo, o arquivo e o botão do editar cabem no cartão (min-w-0, botão de largura cheia no celular)", async () => {
+  it("T-448: o seletor nativo fica escondido atrás de Substituir/Enviar e o cartão traz o subtítulo e o selo da situação", async () => {
     const cliente = new QueryClient();
     cliente.setQueryData(["veiculo", 501, "documentos"], await veiculos.documentos(501));
     const h = renderToStaticMarkup(
@@ -124,8 +126,9 @@ describe("correções da conferência (T-428)", () => {
         <DocumentosDoVeiculo id={501} />
       </QueryClientProvider>,
     );
-    expect(h).toContain("]:min-w-0");
-    expect(h).toContain("w-full min-w-0 max-w-full");
-    expect(h).toContain("w-full md:w-auto");
+    expect(h).toMatch(/<input[^>]*type="file"[^>]*class="hidden"|<input[^>]*class="hidden"[^>]*type="file"/);
+    expect(h).toContain("Substitua arquivos ou atualize validades.");
+    expect(h).toMatch(/Em dia|Vence em|Vencido/);
+    expect(h).not.toContain("Choose File");
   });
 });

@@ -67,4 +67,14 @@ describe("editar veículo na referência (T-448)", () => {
     expect(t).toContain("Tipo no CRLV-e");
     expect(t).toContain("Não é o tipo do veículo, que fica em Uso na frota.");
   });
+
+  it("test_vei_01_editar_selo_da_situacao_no_cabecalho_e_salvar_tambem_no_pe", async () => {
+    const ficha = await veiculos.obter(501);
+    const html = await pagina(501);
+    expect(texto(html)).toContain(ficha.situacao.rotulo);
+    ordem(texto(html), ["Editar veículo", ficha.situacao.rotulo, "QXA-4B21"]);
+    // Dois botões de salvar ligados ao mesmo formulário: cabeçalho e pé fixo.
+    expect(html.match(/form="editar-veiculo"[^>]*>(?:<!-- -->)?Salvar alterações/g)).toHaveLength(2);
+    expect(html).toContain("sticky bottom-");
+  });
 });
