@@ -16,6 +16,7 @@ import { CAMPOS_VEI_09, categoriaAoTrocarTipo, esquemaVeiculo, NOME_DO_CAMPO_DA_
 import { CamposDoDocumento } from "./CamposDoDocumento";
 import { CorrigirIdentificacao } from "./CorrigirIdentificacao";
 import { DocumentosDoVeiculo } from "./DocumentosDoVeiculo";
+import { GaleriaDoEditar } from "./GaleriaDoEditar";
 import { Preco, Selecao } from "./NovoVeiculoForm";
 import { PreencherPeloCrlv, type CrlvLido } from "./PreencherPeloCrlv";
 
@@ -249,6 +250,7 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
         </aside>
       </div>
     </form>
+    <GaleriaDoEditar id={ficha.id} />
     <DocumentosDoVeiculo id={ficha.id} />
     {/* Fora do form: Enter nos campos do diálogo não pode salvar a edição. */}
     {corrigindo && <CorrigirIdentificacao ficha={ficha} aoFechar={() => setCorrigindo(false)} aoConcluir={setAviso} />}
