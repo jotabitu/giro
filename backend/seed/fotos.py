@@ -33,7 +33,7 @@ AVARIAS_NA_VISTORIA = 7
 TIRADAS_EM = datetime(2026, 9, 23, 9, 2, tzinfo=FUSO)
 
 
-def imagem_ficticia(rotulo: str, nome: str) -> ContentFile[bytes]:
+def imagem_ficticia(rotulo: str, nome: str) -> "ContentFile[bytes]":  # genérico só no stub
     """JPG 1600×1200, fundo neutro, com "QXA-4B21 · <rótulo> · foto fictícia"."""
     imagem = Image.new("RGB", (1600, 1200), (214, 217, 222))
     desenho = ImageDraw.Draw(imagem)
@@ -55,13 +55,17 @@ def _galeria(qxa: Veiculo, relogio: RelogioDoSeed) -> bool:
         return False
     mariana = Usuario.objects.get(email=EMAIL_DA_ADMINISTRADORA)
     enviadas = {}
-    with como(mariana):
-        for minuto, rotulo in enumerate(GALERIA):
-            relogio.em(f"2025-03-12 10:0{minuto}")
-            arquivo = imagem_ficticia(rotulo, f"{rotulo.lower()}.jpg")
-            enviadas[rotulo] = veiculos_services.enviar_foto(qxa, arquivo)
-        relogio.em("2025-03-12 10:05")
-        veiculos_services.usar_como_capa(qxa, enviadas[CAPA].pk)
+    antes = relogio.agora  # o relógio volta ao ponto em que estava
+    try:
+        with como(mariana):
+            for minuto, rotulo in enumerate(GALERIA):
+                relogio.em(f"2025-03-12 10:0{minuto}")
+                arquivo = imagem_ficticia(rotulo, f"{rotulo.lower()}.jpg")
+                enviadas[rotulo] = veiculos_services.enviar_foto(qxa, arquivo)
+            relogio.em("2025-03-12 10:05")
+            veiculos_services.usar_como_capa(qxa, enviadas[CAPA].pk)
+    finally:
+        relogio.em(antes.astimezone(FUSO).replace(tzinfo=None).isoformat(sep=" "))
     return True
 
 
@@ -99,10 +103,6 @@ def garantir_fotos_do_qxa(relogio: RelogioDoSeed) -> bool:
     qxa = Veiculo.objects.filter(placa=PLACA).first()
     if qxa is None:
         return False
-    antes = relogio.agora
-    try:
-        galeria = _galeria(qxa, relogio)
-    finally:
-        relogio.em(antes.astimezone(FUSO).replace(tzinfo=None).isoformat(sep=" "))
+    galeria = _galeria(qxa, relogio)
     vistoria = _vistoria(qxa)
     return galeria or vistoria

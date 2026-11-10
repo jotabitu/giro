@@ -9,7 +9,7 @@ frente (capa) e painel, enviadas pela Mariana em 12 mar 2025.
 import io
 from datetime import timedelta
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 from urllib.parse import parse_qsl, urlsplit
 
 import pytest
@@ -22,7 +22,8 @@ from apps.auditoria.models import EventoAuditoria
 from apps.locacoes.models import Locacao
 from apps.plataforma.models import Empresa
 from apps.veiculos import selectors as veiculos_selectors
-from apps.veiculos.models import FotoVeiculo, Veiculo
+from apps.veiculos import services as veiculos_services
+from apps.veiculos.models import TRANSICOES_VEICULO, FotoVeiculo, Veiculo
 from apps.vistorias import leituras as vistorias_leituras
 from apps.vistorias.models import Avaria, Vistoria
 from comum import arquivos
@@ -117,6 +118,21 @@ def _ficha(moto: MotoRapida, veiculo: Veiculo, pessoa: str = "Rodrigo") -> dict[
     return dict(resposta.json())
 
 
+def _levar(veiculo: Veiculo, destino: str) -> None:
+    """Leva o veículo ao `destino` pelo serviço (a máquina de estados recusa `update()`), pelo
+    caminho mais curto da tabela de transições."""
+    caminhos: dict[str, list[str]] = {veiculo.status: []}
+    fila = [veiculo.status]
+    while fila and destino not in caminhos:
+        atual = fila.pop(0)
+        for proximo in TRANSICOES_VEICULO[atual]:
+            if proximo not in caminhos:
+                caminhos[proximo] = [*caminhos[atual], proximo]
+                fila.append(proximo)
+    for status in caminhos[destino]:
+        veiculo = veiculos_services.transicionar(veiculo, status, origem=veiculos_services.MANUAL)
+
+
 def _ids(galeria: dict[str, Any]) -> list[int]:
     return [foto["id"] for foto in galeria["fotos"]]
 
@@ -124,7 +140,9 @@ def _ids(galeria: dict[str, Any]) -> list[int]:
 def _do_seed(veiculo: Veiculo) -> dict[str, int]:
     """Lateral, frente e painel do QXA-4B21, pela ordem de envio."""
     ordem = FotoVeiculo.ativos.filter(veiculo=veiculo).order_by("ordem")
-    return dict(zip(("Lateral", "Frente", "Painel"), ordem.values_list("pk", flat=True)))
+    return dict(
+        zip(("Lateral", "Frente", "Painel"), ordem.values_list("pk", flat=True), strict=True)
+    )
 
 
 def _baixar(url: str) -> Any:
@@ -158,7 +176,7 @@ def test_vei_10_seed_galeria_do_qxa(moto, frota) -> None:
     mariana = moto.pessoas["Mariana"]
     assert galeria["fotos"][0]["enviada_por"] == {"id": mariana.pk, "nome": mariana.nome}
     assert galeria["fotos"][0]["enviada_em"].startswith("2025-03-12")
-    assert not fotos_do_seed.garantir_fotos_do_qxa(SimpleNamespace(agora=None, em=None))
+    assert not fotos_do_seed.garantir_fotos_do_qxa(cast(Any, SimpleNamespace(agora=None, em=None)))
     assert FotoVeiculo.objects.filter(veiculo=qxa).count() == 3
 
 
@@ -309,7 +327,9 @@ def test_vei_10_ca_414_07_apagar(moto, frota) -> None:
     assert _trocar(moto, qxa, seed["Painel"], _jpg()).status_code == 404
 
 
-def test_vei_10_ca_414_08_quem_mexe(moto, frota, relogio_jwt) -> None:
+def test_vei_10_ca_414_08_quem_mexe(relogio_jwt, moto, frota) -> None:
+    # `relogio_jwt` antes da frota: o token da Mariana sai no `montar_frota`, já no relógio
+    # congelado.
     """Vendedor, vistoriador e financeiro veem e recebem 403 nas mudanças; o suporte em "ver e
     editar" vê e recebe 403 `PLT-07`."""
     qxa = frota.veiculo("QXA4B21")
@@ -324,7 +344,7 @@ def test_vei_10_ca_414_08_quem_mexe(moto, frota, relogio_jwt) -> None:
             assert _acao(moto, qxa, frente, acao, pessoa).status_code == 403
     assert _ficha(moto, qxa, "Mariana")["acoes"]["editar_fotos"] is True
 
-    suporte = _suporte(SimpleNamespace(moto=moto, frota=frota))
+    suporte = _suporte(cast(Any, SimpleNamespace(moto=moto, frota=frota)))
     vista = suporte.get(_fotos(qxa))
     assert vista.status_code == 200
     assert (vista.json()["total"], vista.json()["editar"], vista.json()["motivo"]) == (
@@ -347,7 +367,7 @@ def test_vei_10_ca_414_08_quem_mexe(moto, frota, relogio_jwt) -> None:
 def test_vei_10_ca_414_09_vendido_e_baixado_so_para_ver(moto, frota, status) -> None:
     qxa = frota.veiculo("QXA4B21")
     frente = _do_seed(qxa)["Frente"]
-    Veiculo.objects.filter(pk=qxa.pk).update(status=status)
+    _levar(qxa, status)
     mensagem = (
         "A galeria de veículo baixado fica só para ver."
         if status == "baixado"
@@ -366,14 +386,14 @@ def test_vei_10_ca_414_09_vendido_e_baixado_so_para_ver(moto, frota, status) -> 
         _acao(moto, qxa, frente, "apagar"),
     ]
     assert [(r.status_code, r.json()) for r in respostas] == [
-        (409, {"codigo": "VEI-10", "mensagem": mensagem})
+        (409, {"codigo": "VEI-10", "mensagem": mensagem, "detalhes": None})
     ] * 4
 
 
 @pytest.mark.parametrize("status", ["a_venda", "alugado", "em_manutencao"])
 def test_vei_10_ca_414_09_outros_estados_mudam(moto, frota, status) -> None:
     pnb = frota.veiculo("PNB7C04")
-    Veiculo.objects.filter(pk=pnb.pk).update(status=status)
+    _levar(pnb, status)
     assert _galeria(moto, pnb)["editar"] is True
     assert _enviar(moto, pnb, _jpg(), "Rodrigo").status_code == 201
 
@@ -470,7 +490,11 @@ def test_vei_10_ca_414_11_fotos_da_vistoria(cenario: Cenario, carlos) -> None:  
     da_frente = saida.fotos.get(posicao="frente")
     de_avaria = saida.fotos.filter(posicao="avaria").order_by("tirada_em")[1]
     avaria = Avaria.objects.create(
-        vistoria=saida, veiculo=qxa, descricao="Retrovisor riscado", preexistente=True, foto=de_avaria
+        vistoria=saida,
+        veiculo=qxa,
+        descricao="Retrovisor riscado",
+        preexistente=True,
+        foto=de_avaria,
     )
     for pessoa in ("Rodrigo", "Bruna", "João"):
         recente = _ficha(cenario.moto, qxa, pessoa)["vistoria_recente"]
@@ -553,7 +577,9 @@ def test_vei_10_link_s3_leva_o_content_disposition(monkeypatch) -> None:
     chamadas: list[dict[str, Any]] = []
 
     class Cliente:
-        def generate_presigned_url(self, operacao: str, Params: dict, ExpiresIn: int) -> str:  # noqa: N803
+        def generate_presigned_url(
+            self, operacao: str, Params: dict[str, Any], ExpiresIn: int
+        ) -> str:
             chamadas.append({"operacao": operacao, "params": Params, "expira": ExpiresIn})
             return "https://s3.invalid/assinada"
 

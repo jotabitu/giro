@@ -321,7 +321,8 @@ class ProvedorS3:
         return apagados
 
     def url(self, caminho: str, expira_em: datetime, baixar_como: str | None = None) -> str:
-        segundos = max(1, int((expira_em - relogio.agora()).total_seconds()))
+        # `round`, e não `int`: os microssegundos desde o cálculo de `expira_em` não tiram 1 s.
+        segundos = max(1, round((expira_em - relogio.agora()).total_seconds()))
         parametros = {"Bucket": self.bucket, "Key": caminho}
         if baixar_como:
             # Entra na assinatura: o S3 devolve o arquivo com este cabeçalho (ADR 0036, item 4).

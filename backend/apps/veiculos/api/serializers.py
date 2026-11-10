@@ -476,7 +476,7 @@ class GaleriaAlteradaSerializer(GaleriaDoEditarSerializer):
     foto_id = serializers.IntegerField()
 
 
-class FotoEntradaSerializer(serializers.Serializer[Any]):
+class FotoDaGaleriaEntradaSerializer(serializers.Serializer[Any]):
     """Uma foto por requisição (ADR 0036, item 3). A recusa (formato, tamanho, falta) vem do
     serviço, com a mensagem da VEI-10."""
 

@@ -42,7 +42,7 @@ from .serializers import (
     ExtraEntradaSerializer,
     ExtraSerializer,
     FiltroDeModelosSerializer,
-    FotoEntradaSerializer,
+    FotoDaGaleriaEntradaSerializer,
     GaleriaAlteradaSerializer,
     GaleriaDoEditarSerializer,
     KmSerializer,
@@ -508,12 +508,12 @@ class FotosView(APIView):
         return _galeria(_veiculo(request, pk), request)
 
     @extend_schema(
-        request={"multipart/form-data": FotoEntradaSerializer},
+        request={"multipart/form-data": FotoDaGaleriaEntradaSerializer},
         responses={201: GaleriaAlteradaSerializer},
         summary="Enviar uma foto para a galeria (VEI-10)",
     )
     def post(self, request: Request, pk: int) -> Response:
-        dados = _entrada(FotoEntradaSerializer, request)
+        dados = _entrada(FotoDaGaleriaEntradaSerializer, request)
         veiculo = _veiculo(request, pk)
         foto = services.enviar_foto(veiculo, dados.get("arquivo"))
         return _galeria(veiculo, request, foto.pk, status.HTTP_201_CREATED)
@@ -530,12 +530,12 @@ class TrocarFotoView(_AcaoNaFotoView):
     parser_classes = [MultiPartParser, FormParser]
 
     @extend_schema(
-        request={"multipart/form-data": FotoEntradaSerializer},
+        request={"multipart/form-data": FotoDaGaleriaEntradaSerializer},
         responses=GaleriaAlteradaSerializer,
         summary="Trocar uma foto da galeria, na mesma posição (VEI-10)",
     )
     def post(self, request: Request, pk: int, foto_id: int) -> Response:
-        dados = _entrada(FotoEntradaSerializer, request)
+        dados = _entrada(FotoDaGaleriaEntradaSerializer, request)
         veiculo = _veiculo(request, pk)
         nova = services.trocar_foto(veiculo, foto_id, dados.get("arquivo"))
         return _galeria(veiculo, request, nova.pk)
