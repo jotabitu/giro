@@ -20,7 +20,7 @@
   --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.5);
 }
 :root {
-  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+  --space-0-5: 2px; --space-1: 4px; --space-1-5: 6px; --space-2: 8px; --space-2-5: 10px; --space-3: 12px; --space-3-5: 14px; --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-7: 28px; --space-8: 32px; --space-9: 36px; --space-10: 40px; --space-11: 44px; --space-12: 48px; --space-40: 160px; --space-60: 240px; --space-64: 256px;
   --radius-sm: 10px; --radius-md: 14px; --radius-lg: 24px; --radius-xl: 32px; --radius-pill: 999px;
   --font-sans: Geist, "Helvetica Neue", Arial, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, Menlo, monospace;
