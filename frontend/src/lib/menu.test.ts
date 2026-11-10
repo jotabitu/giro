@@ -206,3 +206,14 @@ describe("controle do suporte em Configurações", () => {
     }
   });
 });
+
+describe("tabelas de preço e modelos de contrato em Configurações (T-447, D1)", () => {
+  it("test_usr_09_admin_precos_e_contratos_abrem_so_para_o_administrador", async () => {
+    const mariana = await euDe("mariana@motorapida.com.br");
+    for (const rota of ["/admin/precos", "/admin/contratos"]) expect(rotaPermitida(mariana, rota), rota).toBe(true);
+    for (const email of ["rodrigo@motorapida.com.br", "bruna@motorapida.com.br", "joao@motorapida.com.br", "financeiro@motorapida.com.br"]) {
+      const eu = await euDe(email);
+      for (const rota of ["/admin/precos", "/admin/contratos"]) expect(rotaPermitida(eu, rota), `${email} ${rota}`).toBe(false);
+    }
+  });
+});
