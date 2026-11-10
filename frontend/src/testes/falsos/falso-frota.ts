@@ -170,12 +170,12 @@ function montarCompleto(s: Semente): Veiculo {
     situacao: atrasada ? { codigo: "atrasado", rotulo: "Atrasado", tom: "perigo" } : s.status === "reservado" && s.locacao ? { codigo: "reservado", rotulo: `Reservado na ${s.locacao.codigo}`, tom: base.tom } : { codigo: s.status, ...base },
     reserva: s.status === "reservado" && s.locacao ? { locacao_id: s.id * 10, codigo: s.locacao.codigo, motivo: "locacao" } : null,
     locacao_atual: s.locacao
-      ? { id: s.id * 10, codigo: s.locacao.codigo, status: atrasada ? "devolucao_atrasada" : "ativa", cliente_nome: s.locacao.cliente, inicio: "2026-09-23", fim_previsto: s.locacao.fim, alerta: atrasada ? "Devolução atrasada" : undefined }
+      ? { id: s.id * 10, codigo: s.locacao.codigo, status: atrasada ? "devolucao_atrasada" : "ativa", cliente_nome: s.locacao.cliente, inicio: "2026-09-23", fim_previsto: s.locacao.fim, alerta: atrasada ? { codigo: "atrasado", rotulo: "Atrasado", tom: "perigo" } : undefined }
       : null,
     manutencao: {
       proxima: { servico: s.servico ?? "Revisão", km: s.proximaKm },
       os_aberta: s.os ? { id: 193, codigo: s.os, status: "aberta" } : null,
-      alerta: s.proximaKm - s.km <= 1000 ? "Revisão próxima" : undefined,
+      alerta: s.proximaKm - s.km <= 1000 ? { codigo: "revisao_proxima", rotulo: "Revisão próxima", tom: "alerta" } : undefined,
     },
     documentos_resumo: { pior_situacao: s.id === 501 ? "vence_em_breve" : "em_dia" },
     acoes: {
