@@ -24,6 +24,24 @@ Sinais (não são estados, são calculados): `pagamento_atrasado` (alguma parcel
 4. **Pagamento**: 1ª parcela e caução recebidas (caixa, Pix ou cartão).
 5. Com os 3 concluídos (vistoria, assinatura, 1º pagamento), a locação vira `ativa` e o veículo vira `alugado`. A ordem 2–4 pode variar.
 
+- `LOC-17` **Retirada.** É o que tira a locação de `aguardando_retirada`.
+  - **O que exige.** Os três passos acima, em qualquer ordem:
+    - **Vistoria de saída concluída** (`VIS-01` a `VIS-04`, `DEV-08`). Ela só se conclui sem impedimento do cliente (`CLI-02` CNH, `CLI-03` cadastro, `CLI-05` bloqueio) e com o CRLV e o seguro do veículo em dia (`VEI-03`).
+    - **Contrato assinado pelo cliente** (passo 3, `IMP-04`).
+    - **1º pagamento:** a 1ª parcela (na diária, o total) **e** a caução pagas (`LOC-04`, `LOC-05`), sem multa nem juros (`FIN-03`). Pagar só uma das duas não conta.
+  - **A retirada acontece sozinha** (padrão do produto, "Pontos em aberto"). Não há botão "Registrar retirada". Quando o último dos três passos se cumpre, numa só operação:
+    - a locação vira `ativa`;
+    - o veículo vira `alugado`;
+    - as contas são liberadas com o dia da retirada (`LOC-05`);
+    - grava-se o evento de auditoria "Retirada", com quem concluiu o último passo.
+  - **"Para retirar", na ficha da locação** (`Locacao-Detalhe`). Enquanto a locação está `aguardando_retirada`, a ficha mostra os três passos. Cada um diz se está feito ou o que falta, e a ação de cada um aparece ao lado só para quem pode fazê-la. Os textos vêm da API, e a tela não decide o que falta.
+    - **Vistoria de saída:** feita, "Feita em 07 out, 09:20". Falta: "Falta a vistoria de saída", com "Fazer vistoria de saída" para quem vistoria. Com um impedimento, aparece a frase dele, como "Complete o cadastro do cliente antes da retirada." (`CLI-03`).
+    - **Contrato:** assinado, "Assinado em 07 out, 10:05". Enviado: "Falta a assinatura do cliente", com "Reenviar" e "Copiar link para assinar". Ainda sem contrato: "Falta enviar o contrato", com "Enviar contrato".
+    - **1º pagamento:** pago, "Pago em 07 out · R$ 629,00". Falta: "Falta receber R$ 629,00: 1ª semana R$ 329,00 e caução R$ 300,00", e cada conta tem "Registrar pagamento" na seção Pagamentos (`FIN-18`). O valor é o de hoje da conta.
+    - **Prazo** (`LOC-12`): "Retire até 10 out. Sem retirada, a locação é cancelada em 11 out.".
+  - **Outras telas:** na lista de locações e na ficha do cliente, a locação `aguardando_retirada` abre a ficha da locação, que é onde está o "Para retirar". O texto da linha diz o primeiro passo que falta, na ordem vistoria, assinatura, pagamento ("Aguardando assinatura").
+  - **Ex.: LOC-2856** (Lucas, SAK-1D39, semanal Street, em 07 out). A vistoria de saída está feita, o 1º pagamento também ("Pago em 07 out · R$ 629,00"), e falta a assinatura do cliente. Quando o Lucas assina, a locação vira `ativa` na hora, e o SAK-1D39 vira `alugado`, sem outro clique.
+
 **Cálculos**
 
 - `LOC-01` Valor do período vem da categoria do veículo (`Precos`): diária × dias, semanal por semana, mensal por mês. Plano especial substitui ou desconta (ex.: Entregador R$ 279,00/semana; Mensal fidelidade −10% a partir do 3º mês).
