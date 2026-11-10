@@ -397,6 +397,7 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Pronto quando:** regra escrita (limite de fotos, tamanho, quem pode), contrato e modelo novos, galeria no editar veículo, visualizador com ampliar e baixar na ficha para as duas origens, teste.
 - **Base para:** T-418 (catálogo).
 - **Parte do produto feita em 03 nov 2026** (`tarefas/handoffs/T-414-produto.md`): `VEI-10` nova (galeria até 20 fotos JPG ou PNG de até 10 MB, sem localização; capa; enviar, trocar, apagar e capa para administrador e gerente, travada em vendido e baixado; ficha com galeria para todos e a última vistoria para quem faz vistoria; ampliar e baixar pelo link de 15 min); seed com 3 fotos no QXA-4B21; critérios CA-414-01 a 14. O código é `VEI-10` porque a `VEI-09` é da T-421. **Próximo:** arquiteto (modelo e contrato) e design-system (tela), depois backend e frontend.
+- **Backend entregue em 10 nov 2026** (PR #499), revisado pela segurança (PR #502, achados M-01, M-02, B-01 e B-02 fechados). **Falta:** frontend (galeria no editar e visualizador na ficha), depois QA.
 - **Parte do arquiteto feita em 03 nov 2026** (`tarefas/handoffs/T-414-arquiteto.md`, ADR 0036): `veiculos.FotoVeiculo` (item 9a do modelo de dados); rotas `GET` e `POST /api/veiculos/{id}/fotos/` (uma foto por requisição) e `trocar`, `capa` e `apagar`; blocos `galeria` e `vistoria_recente.fotos` (as 12) e `acoes.editar_fotos` na ficha; `url_download` com o nome pela placa (`Content-Disposition`); seed descrito para o backend. **Próximo:** backend (com o seed), depois frontend.
 
 #### T-415 · CRLV-e: escolher a versão quando várias batem
@@ -411,14 +412,6 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Hoje:** o pagamento já aceita o comprovante, mas `representacao_despesa` devolve só a nota, e a tela só tem o botão da nota. O reembolso já devolve o comprovante.
 - **Pronto quando:** a API devolve o comprovante com URL assinada, a despesa paga mostra "Ver comprovante", teste.
 - **Parte do backend feita em 03 nov 2026** (branch `t-416-comprovante-despesa`, handoff `tarefas/handoffs/T-416-backend.md`): a despesa devolve `comprovante` com URL de 15 minutos na lista, no detalhe e no pagamento; `null` para o suporte (`AUD-09`). Frontend feito em 04 nov 2026 na mesma branch (PR #456): botão "Ver comprovante" (handoff `tarefas/handoffs/T-416-frontend.md`).
-
-#### T-417 · Despesas do veículo na ficha, com categorias próprias
-- **Agentes:** produto (regra das categorias), backend, frontend · **Regras:** `FIN-05`, `FIN-06`, `FIN-16`, `VEI-05` · **Origem:** nota "Adicionar despesas do veiculos".
-- **Hoje:** a despesa já pode ser ligada ao veículo e entra no custo do ano, mas a ficha não lista as despesas dele.
-- **Decisão do dono (29 out):** na ficha, a lista das despesas do veículo e um botão "Lançar despesa" já com ele preenchido, e categorias próprias de despesa do veículo (IPVA, seguro, multa, peça, combustível).
-- **Pronto quando:** categorias na regra, lista e botão na ficha, filtro por veículo, teste. Manutenção (`MAN-05`, OS que lança despesa) segue no módulo de manutenção.
-- **Agente: fullstack** (T-443, 09 nov 2026). A parte do produto está feita. O resto vai num PR só, sem a passada do arquiteto: chaves das categorias e filtro por veículo no `docs/api/financeiro.md`, categorias novas no `CategoriaDespesa` (só `choices`, sem migração de dados), filtro `veiculo` na lista de despesas, lista com o total do ano e "Lançar despesa" com o veículo na ficha (`FIN-17`). Se a lista ou o total pedir modelo novo, o fullstack para e a tarefa volta ao protocolo completo.
-- **Parte do produto feita em 03 nov 2026** (`tarefas/handoffs/T-417-produto.md`): `FIN-06` com as categorias do veículo (IPVA e licenciamento, seguro, multa de trânsito, peças, combustível) em dois grupos, nenhuma exige veículo, vistoriador com peças; `FIN-16` com o filtro por veículo; `FIN-17` nova (lista na ficha para administrador, gerente e financeiro, total do ano, "Lançar despesa" com o veículo); `VEI-05` com o custo de manutenção só de manutenção e peças; critérios CA-417-01 a 13. **Próximo:** arquiteto (chaves e rota, curto), backend, frontend.
 
 #### T-418 · Catálogo de vendas interno
 - **Agentes:** produto (regra), arquiteto, design-system (tela), backend, frontend · **Regras:** `VEN-01` a `VEN-10`, `PLT-11`, `PLT-12` · **Depende de:** T-414 (fotos), módulo de vendas (`backend/apps/vendas/` está vazio) · **Origem:** nota "Catalogo de vendas dos veiculos".
@@ -487,10 +480,10 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **Pronto quando:** D1 faixa de assinatura compacta a 390 px; D2 e D3 um botão de histórico por tamanho na ficha do veículo; D4 campo, arquivo e botão do editar cabem no cartão; D5 "Ver comprovante" e "Ver a nota" com aparência de botão; testes do que mudou.
 - **Feito em 04 nov 2026** (handoff `tarefas/handoffs/T-428-frontend.md`).
 
-#### T-444 · Ficha do veículo quebra com a devolução atrasada (bug)
-- **Agente:** frontend · **Regras:** `VEI-03`, ADR 0015 · **Contrato:** `docs/api/veiculos.md` (`locacao_atual.alerta`) · **Origem:** teste do dono em 09 nov 2026, `/veiculos/45`: "Objects are not valid as a React child (found: object with keys {codigo, rotulo, tom})".
-- **Causa:** a API manda `locacao_atual.alerta` como `{codigo, rotulo, tom}` (`apps/locacoes/leituras.py`), e o frontend o tipa como texto (`lib/api/tipos-frota.ts`) e o põe direto no `StatusBadge` (`FichaBlocos.tsx`, desktop, e `FichaVeiculo.tsx`, celular). Os falsos (`falso-frota.ts`) usam texto, por isso os testes passavam. Está também na `main`, sem produção no ar: vai pela `develop`.
-- **Pronto quando:** o tipo segue o contrato; a ficha mostra o `rotulo` com o `tom` da API, a 1440 e 390 px; os falsos mandam o objeto; teste com locação `devolucao_atrasada`. O `manutencao.alerta` acompanha o contrato, se ele também for objeto.
+#### T-445 · Classes de espaço fora da escala viram zero (bug)
+- **Agentes:** design-system (decide a escala), depois frontend ou fullstack (aplica) · **Origem:** T-440 (PR #503), achado do Fullstack em 10 nov 2026.
+- **Causa:** `frontend/tailwind.config.ts` troca a escala de espaços do Tailwind pela de `src/design-system/tokens.ts` (`espacamento`: 1, 2, 3, 4, 5, 6, 8 e 10). Classe fora dela (`mt-1.5`, `gap-2.5`, `gap-1.5`, `gap-3.5`, `py-2.5`, `gap-0.5`, `px-3.5` e outras) não gera CSS, e o espaço fica zero sem erro. São cerca de 85 usos em dezenas de componentes (`admin/`, `contratos/`, `aprovacoes/` e outros).
+- **Pronto quando:** o design-system decide entre acrescentar os meios-passos ao token ou trocar cada classe pelo passo mais próximo, e registra no guia; a troca aplicada em todo o `frontend/src`; uma checagem no lint (ou teste) recusa classe de espaço fora da escala; telas mais afetadas conferidas a 1440 e 390 px.
 
 #### Também liberado
 - O botão "Mandar para oficina" da ficha depende do módulo de manutenção (`MAN`, `backend/apps/manutencao/` vazio) e entra quando ele for quebrado em tarefas.
@@ -504,14 +497,7 @@ Vindas da aba Notas do painel de progresso, como as de 29 out. Nada começa sem 
 - **Pedido do dono:** subir fotos do veículo fora da vistoria, já no cadastro do veículo novo e também no editar.
 - **Hoje:** a T-414 cobre a galeria no editar (`VEI-10`, ADR 0036), mas não o cadastro. O produto diz se o cadastro sobe as fotos junto com o veículo ou logo depois de salvar, e o design-system acrescenta o bloco em `Veiculo-Novo`.
 - **Pronto quando:** `VEI-10` cobre o cadastro, a tela de referência tem o bloco, e a galeria funciona no cadastro e no editar, com teste.
-
-#### T-438 · Tipo do veículo (carro ou moto) à vista no cadastro e no editar
-- **Agentes:** produto (regra), frontend, backend se precisar · **Regras:** `VEI` · **Origem:** nota "Adicionar campo de tipo de Veiculo".
-- **Pedido do dono:** um campo de tipo do veículo, carro ou moto.
-- **Hoje:** o campo `tipo_veiculo` já existe no modelo e no cadastro, ligado à categoria. No editar ele só aparece como ícone, sem poder trocar.
-- **Decidido pelo dono em 05 nov 2026:** o tipo é o mesmo campo `tipo_veiculo` que já filtra a lista de veículos; ele aparece como campo no cadastro e pode ser trocado no editar. O produto escreve a regra do que acontece com a categoria ao trocar o tipo (a categoria precisa ser do tipo novo, então a pessoa escolhe outra na mesma tela) e se a troca é recusada com locação aberta.
-- **Pronto quando:** regra escrita com a resposta do dono e a tela fazendo o que ela diz, com teste.
-- **Agente: fullstack** (T-443, 09 nov 2026), depois da regra do produto: o campo no cadastro e no editar, a troca da categoria e a recusa com locação aberta, num PR só. O campo já existe; não há modelo novo.
+- **Regra e tela entregues em 10 nov 2026** (PR #498, `VEI-10` "Galeria no cadastro", CA-437-01 a 13; PR #500, bloco em `Veiculo-Novo`, que também passou o campo Tipo para "Uso na frota", T-438). **Falta:** o código, depois do frontend da T-414, que faz o mesmo componente.
 
 #### T-439 · Implantação logo depois da compra
 - **Agentes:** produto (regra), arquiteto, frontend · **Regras:** `IMP-01`, `USR-01`, compra pública (`compra.md`) · **Origem:** nota "Ajustar Implantação".
@@ -519,12 +505,3 @@ Vindas da aba Notas do painel de progresso, como as de 29 out. Nada começa sem 
 - **Hoje:** o caminho é `Compra-Pronto` → convite → criar senha e 2 etapas (`USR-06`) → assistente.
 - **Decidido pelo dono em 05 nov 2026:** a senha e as 2 etapas continuam antes do assistente (`USR-06` não muda). O que muda é só o caminho: depois delas, a pessoa cai direto no primeiro passo da implantação, sem passar por outra tela.
 - **Pronto quando:** regra e contrato ajustados com a resposta do dono, o "Acessar meu sistema" leva direto ao primeiro passo da implantação, com teste e E2E.
-
-#### T-440 · Importação de veículos sem filial e sem categoria na planilha
-- **Agentes:** produto (regra), backend, frontend · **Regras:** `IMP-02`, `IMP-03`, `VEI` · **Origem:** nota "Ajustar importação de veiculos".
-- **Pedido do dono:** a planilha modelo não pode pedir filial nem categoria; as duas colunas saem do modelo e da importação.
-- **Hoje:** a importação lê `categoria` e `filial` de cada linha (`importacao/linhas.py`).
-- **Decidido pelo dono em 05 nov 2026:** a filial e a categoria vêm do que já foi cadastrado nos passos anteriores do assistente: a filial no passo 6 (`Onboarding-Filial`) e as categorias nos preços do passo 8 (`Onboarding-Precos`). A importação (passo 11) não pede essas colunas. O produto escreve a regra para quando houver mais de uma filial ou categoria (por exemplo, a escolha na própria tela de importação, entre as já cadastradas) e leva ao dono só se a resposta não for óbvia.
-- **Pronto quando:** modelo da planilha sem as duas colunas, importação usando a resposta do produto, teste e a tela de importação de acordo.
-- **Agente: fullstack** (T-443, 09 nov 2026), depois da regra do produto: modelo da planilha, `importacao/linhas.py` e a tela do passo 11, num PR só. Se a escolha entre várias filiais ou categorias pedir componente novo, o design-system entra antes.
-
