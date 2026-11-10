@@ -95,7 +95,8 @@ export function DespesasDoVeiculo({ v, celular = false }: { v: VeiculoDetalhe; c
   if (!veLista && !podeLancar) return null;
 
   const botao = podeLancar && (
-    <Button compacto={!celular} onClick={() => setLancando(true)} icone={<Icone de={Plus} />}>
+    // "quieto" (wl-btn--quiet, fundo sunken): o mesmo das ações em cartão branco da ficha, como "Ver o histórico".
+    <Button variante="quieto" compacto={!celular} onClick={() => setLancando(true)} icone={<Icone de={Plus} />}>
       Lançar despesa
     </Button>
   );
