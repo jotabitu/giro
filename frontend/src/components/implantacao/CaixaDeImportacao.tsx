@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileSpreadsheet, Info } from "lucide-react";
+import { FileSpreadsheet, Info, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { Button, Icone, LinhaDeLista, ListaDeLinhas, SelectField, StatusBadge, TextField } from "@/design-system";
@@ -73,7 +73,7 @@ function LinhaComErro({ imp, linha, corrigindo }: { imp: Importacao; linha: Linh
   const ocupado = salvar.isPending || ignorar.isPending;
   return (
     <li className="flex flex-col gap-2 border-b border-line py-2 text-caption last:border-b-0">
-      <div className="flex gap-2.5">
+      <div className="flex gap-2">
         <span className="wl-mono shrink-0">
           <span className="hidden md:inline">linha </span>
           <span className="md:hidden">L</span>
@@ -131,23 +131,29 @@ function CategoriaDeCadaModelo({ imp }: { imp: Importacao }) {
   const prontos = categorias.modelos.reduce((soma, m) => soma + m.veiculos, 0);
   const comCategoria = modelosComCategoria(categorias);
   return (
-    <section aria-label="Categoria de cada modelo" className="rounded-[18px] bg-surface px-3.5 pt-3.5 pb-1">
+    <section aria-label="Categoria de cada modelo" className="rounded-[18px] bg-surface px-3 pt-3 pb-1">
       <div className="flex flex-wrap items-baseline gap-2">
         <span className="font-semibold">Categoria de cada modelo</span>
         <span className="text-caption text-ink-muted">
           {plural(total, "modelo", "modelos")} · {plural(prontos, "veículo pronto", "veículos prontos")}
         </span>
       </div>
-      <p className="m-0 mt-0.5 text-caption text-ink-muted">Todos os veículos do mesmo modelo entram na categoria que você escolher.</p>
+      <p className="m-0 mt-1 text-caption text-ink-muted">Todos os veículos do mesmo modelo entram na categoria que você escolher.</p>
       <ListaDeLinhas rotulo="Modelos da planilha">
         {categorias.modelos.map((m) => {
           const nome = nomeDoModelo(m);
           return (
             <LinhaDeLista
               key={nome}
-              titulo={nome}
-              apoio={plural(m.veiculos, "veículo", "veículos")}
+              titulo={
+                <span className="flex justify-between gap-2 md:text-caption md:font-medium">
+                  <span className="md:whitespace-nowrap">{nome}</span>
+                  <span className="font-normal text-ink-muted md:hidden">{plural(m.veiculos, "veículo", "veículos")}</span>
+                </span>
+              }
+              apoio={<span className="hidden md:inline">{plural(m.veiculos, "veículo", "veículos")}</span>}
               acao={
+                <div className="w-full md:w-[200px] md:[&_.wl-field]:!w-[200px] md:[&_.wl-input]:!h-10 md:[&_.wl-input]:!text-[14px]">
                 <SelectField
                   rotulo={`Categoria de ${nome}`}
                   rotuloOculto
@@ -157,12 +163,13 @@ function CategoriaDeCadaModelo({ imp }: { imp: Importacao }) {
                   disabled={escolher.isPending}
                   onChange={(e) => e.target.value && escolher.mutate({ marca: m.marca, modelo: m.modelo, categoria_id: Number(e.target.value) })}
                 />
+                </div>
               }
             />
           );
         })}
       </ListaDeLinhas>
-      <div className="py-2.5">
+      <div className="py-2">
         <StatusBadge tom={comCategoria === total ? "sucesso" : "alerta"}>{`${comCategoria} de ${plural(total, "modelo", "modelos")} com categoria`}</StatusBadge>
       </div>
       {escolher.isError && <Falha erro={escolher.error} />}
@@ -179,7 +186,7 @@ function PreparoDeVeiculos({ filialId, aoEscolher, erroDaFilial }: { filialId: s
     return (
       <>
         <p role="alert" className="m-0 flex items-start gap-3 rounded-md bg-warning-soft p-3 text-caption text-warning-ink">
-          <Icone de={Info} />
+          <Icone de={TriangleAlert} />
           <span>{p.motivo}</span>
         </p>
         <div>
@@ -261,7 +268,7 @@ export function CaixaDeImportacao({ tipo, atual }: { tipo: TipoDeImportacao; atu
   const enviando = !atual || atual.status === "falhou";
 
   return (
-    <section className="flex flex-col gap-3.5 rounded-lg bg-surface p-4 md:bg-surface-sunken md:p-5" aria-label={meta.titulo}>
+    <section className="flex flex-col gap-3 rounded-lg bg-surface p-4 md:bg-surface-sunken md:p-5" aria-label={meta.titulo}>
       <div className="flex items-center gap-3">
         <span className="grid size-[42px] shrink-0 place-items-center rounded-md bg-surface-sunken md:size-11 md:bg-surface" aria-hidden="true">
           <Icone de={FileSpreadsheet} />
@@ -341,7 +348,7 @@ export function CaixaDeImportacao({ tipo, atual }: { tipo: TipoDeImportacao; atu
 
       {enviando && !semPrecos && (
         <div
-          className={`flex h-[140px] flex-col items-center justify-center gap-1.5 rounded-[20px] border-[1.5px] border-dashed text-center text-caption text-ink-muted md:bg-surface ${arrastando ? "border-ink" : "border-line"}`}
+          className={`flex h-[140px] flex-col items-center justify-center gap-2 rounded-[20px] border-[1.5px] border-dashed text-center text-caption text-ink-muted md:bg-surface ${arrastando ? "border-ink" : "border-line"}`}
           onDragOver={(e) => {
             e.preventDefault();
             setArrastando(true);
