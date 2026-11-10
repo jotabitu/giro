@@ -4,7 +4,7 @@ import { Camera, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { Button, Icone, Panel, ProgressBar, StatusBadge } from "@/design-system";
 import { ErroApi } from "@/lib/api";
-import { mensagemDaRecusa } from "./GaleriaDoEditar";
+import { FOTO_INVALIDA, mensagemDaRecusa } from "./GaleriaDoEditar";
 import { BotaoApagar, CartaoDeFoto, ListaDeRecusas, ZonaDeEnvio, type RecusaDeFoto } from "./PecasDaGaleria";
 
 // VEI-10, "Galeria no cadastro" (T-437, CA-437-01 a 11). Referência: Veiculo-Novo-Desktop|Mobile, "Fotos do veículo".
@@ -13,7 +13,7 @@ import { BotaoApagar, CartaoDeFoto, ListaDeRecusas, ZonaDeEnvio, type RecusaDeFo
 // Formato, tamanho e limite também são conferidos na API; a recusa da escolha só adianta a mesma frase.
 
 export const LIMITE_NO_CADASTRO = 20;
-export const FOTO_INVALIDA = "Envie uma foto JPG ou PNG de até 10 MB.";
+export { FOTO_INVALIDA };
 export const PASSOU_DO_LIMITE = "O veículo pode ter até 20 fotos.";
 export const SEM_CONEXAO = "Sem conexão. A foto não subiu.";
 const DEZ_MB = 10 * 1024 * 1024;
@@ -77,11 +77,11 @@ export async function enviarEmSequencia(itens: ItemDoEnvio[], enviar: (arquivo: 
       await enviar(atual[i]!.arquivo);
       trocar(i, { estado: "enviada" });
     } catch (e) {
-      if (e instanceof ErroApi && e.status === 0) {
+      if (e instanceof ErroApi && e.status === 0 && fotoAceita(atual[i]!.arquivo)) {
         trocar(i, { estado: "sem_conexao", mensagem: SEM_CONEXAO });
         break;
       }
-      trocar(i, { estado: "recusada", mensagem: mensagemDaRecusa(e) });
+      trocar(i, { estado: "recusada", mensagem: mensagemDaRecusa(e, atual[i]!.arquivo) });
     }
   }
   return atual;
