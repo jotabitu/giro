@@ -41,8 +41,6 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 <div style="flex: 1; font-size: 22px; line-height: 26px; font-weight: 600;">Cadastrar veículo</div>
 </header>
 
-<div class="wl-seg" role="group" aria-label="Tipo de veículo" style="display: grid; grid-template-columns: 1fr 1fr; background: var(--surface);"><button aria-pressed="true">Moto</button><button aria-pressed="false">Carro</button></div>
-
 <button class="doc" style="height: auto; flex-direction: row; align-items: center; gap: 12px; padding: 14px 16px; background: var(--surface);"><svg class="wl-i" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><path d="M14 3v5h5M9 13h6M9 17h6"></path></svg><span style="flex: 1;">Enviar CRLV-e para preencher<small style="display: block;">CRLV-e lido · 9 campos preenchidos</small></span><span class="ok" style="position: static;"><svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; stroke-width: 2.5;"><path d="m5 12 5 5 9-10"></path></svg></span></button>
 
 <section class="card">
@@ -66,6 +64,7 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 <label class="wl-field"><span class="wl-field__label">Filial</span><select class="wl-input"><option>Centro</option></select></label>
 <label class="wl-field"><span class="wl-field__label">Finalidade</span><select class="wl-input"><option>Locação</option></select></label>
 </div>
+<label class="wl-field"><span class="wl-field__label">Tipo de veículo</span><select class="wl-input"><option>Moto</option><option>Carro</option></select><span class="wl-field__hint">Trocar o tipo esvazia a categoria</span></label>
 <label class="wl-field"><span class="wl-field__label">Categoria de preço</span><select class="wl-input"><option>Urbana 110–125</option></select></label>
 <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; font-size: 14px;">
 <div style="padding: 10px 12px; border-radius: 14px; background: var(--surface-sunken);"><span style="color: var(--ink-muted);">Diária</span><br><b>R$ 44,90</b></div>
