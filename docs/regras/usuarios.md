@@ -15,6 +15,7 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
 | Fazer vistoria (saída e devolução) | sim | sim | sim | sim | — |
 | Cancelar locação | sim | sim, e aprova os pedidos | pede | — | — |
 | Desconto acima de 5% | sim | sim, e aprova os pedidos | pede | — | — |
+| Registrar retirada à mão, antes da assinatura ou do pagamento (`LOC-17`) | sim | sim (sua filial) | — | — | — |
 | Criar venda / proposta | sim | sim | sim | — | — |
 | Receber pagamento no caixa | sim | sim | sim | — | sim |
 | Abrir e fechar caixa, sangria | sim | sim | sim (sua filial) | — | sim |
@@ -29,7 +30,7 @@ Cada usuário tem 1 perfil e uma lista de filiais. O perfil define o menu e as a
 
 **Regras**
 
-- `USR-01` Convite por e-mail, e também por WhatsApp quando a pessoa tem celular e o administrador marca "A pessoa aceita receber o convite pelo WhatsApp" (desmarcada no começo; exigência da Meta, ADR 0034), com link válido por 7 dias. O e-mail é obrigatório em todo usuário, porque é o login (`USR-06`); o celular é opcional. A pessoa cria a senha e entra já com perfil e filiais definidos. Convite pendente conta no limite de usuários do plano.
+- `USR-01` Convite por e-mail, com link válido por 7 dias. Na fase 1, o convite não vai pelo WhatsApp (decisão do dono de 11 nov 2026, ADR 0034: o WhatsApp fica só na régua da assinatura); a caixa "A pessoa aceita receber o convite pelo WhatsApp" continua como está e não muda o envio (seção Automações). O e-mail é obrigatório em todo usuário, porque é o login (`USR-06`); o celular é opcional. A pessoa cria a senha e entra já com perfil e filiais definidos. Convite pendente conta no limite de usuários do plano.
   - **Sem convite não há acesso.** O administrador não cria usuário com senha: o acesso sempre nasce por convite, e a senha só a própria pessoa cria.
   - **Copiar link do convite.** No painel da pessoa com convite pendente (`convite_pendente`, vencido ou não), o administrador tem "Copiar link do convite", para mandar o link por outro canal. Copiar gera um link novo de 7 dias e invalida o anterior, como o reenvio, porque o sistema guarda só o hash do link e não tem como mostrar o antigo. Quem abre um link substituído vê o mesmo aviso do convite vencido: "Este convite venceu. Peça um novo ao administrador.". O link novo aparece uma vez, para copiar, e não sai por e-mail nem por WhatsApp; a tela avisa "O link anterior deixa de valer.". Cada cópia grava evento de auditoria (`seguranca`, sem o link). Só o administrador copia; o suporte Giro não (`PLT-07`). Copiar não muda o status nem a contagem do plano.
 - `USR-02` Verificação em 2 etapas obrigatória para administrador e financeiro; opcional para os demais (o administrador pode tornar obrigatória para todos).
