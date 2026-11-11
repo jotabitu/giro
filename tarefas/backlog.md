@@ -596,3 +596,13 @@ Vindas do teste do dono no fluxo de locação da Moto Rápida (LOC-0001 e LOC-00
 - **Lote develop → main:** abrir agora, depois da suíte inteira verde na develop.
 - **Regras com o padrão A:** período da locação retirada depois do início, contagem dos 3 dias, aviso só ao gerente, valor da intenção de compra pelos planos em Preços, sem multa no encerramento antecipado, CRLV-e no editar, preço do Profissional mantido e guarda de faturas por 5 anos.
 - **Com o dono, fora do sistema:** registrar o domínio (pensa em "giroloc"), buscar a marca no INPI e abrir a conta no Asaas.
+- **Mais três, no mesmo dia (pontos abertos pelo produto no PR #535):** o botão "Registrar retirada" é só do administrador e do gerente da filial; o texto do Profissional perde "e cobrança pelo WhatsApp" (a tela da compra, PR #522, acompanha); o convite de usuário vai só por e-mail.
+
+#### T-463 · Avisos ao cliente final por e-mail na fase 1
+- **Agente:** backend · **Regras:** `AUT-01`, `AUT-03`, `AUT-05`, `DEV-02`, `CLI-12`, `USR-01`, ADR 0034 · **Origem:** achado do arquiteto no PR #536 e decisão do dono de 11 nov 2026 (A: abrir agora).
+- **O caso:** com a opção C da ADR 0034 (nada pelo WhatsApp ao cliente final na fase 1), o recibo do pagamento (`AUT-05`), o recibo da devolução (`DEV-02`), o reenvio do contrato assinado e o lembrete da devolução (`AUT-01`, quando há celular) só mandam WhatsApp, e o cliente fica sem aviso. O convite e a régua de cobrança mandam WhatsApp sem olhar o aceite.
+- **Pronto quando:** esses avisos vão por e-mail, como as regras de 11 nov dizem; uma configuração (`GIRO_WHATSAPP_CLIENTE_FINAL`, desligada) impede qualquer WhatsApp ao cliente final, e só os modelos 12 e 13 da assinatura saem pelo WhatsApp; `docs/api/financeiro.md` sem WhatsApp ao cliente; testes no seed com o código das regras. Os pontos 1 a 7 da ADR 0034 são o roteiro.
+
+#### T-464 · Placa nos eventos de cadastrar e editar o veículo na auditoria
+- **Agente:** fullstack · **Regras:** `AUD`, `VEI-01` · **Origem:** sugestão do fullstack no PR #531 (T-460) e decisão do dono de 11 nov 2026 (A).
+- **Pronto quando:** os eventos de cadastrar e editar o veículo trazem a placa como código, como os de foto da T-460, com resumo em português; teste.
