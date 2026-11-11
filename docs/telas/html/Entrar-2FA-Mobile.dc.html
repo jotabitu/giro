@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Entrar com o código · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.h2{margin:0;font-size:20px;line-height:26px;font-weight:600}
+.tag{margin:2px 0 0;font-size:13px;line-height:18px;color:var(--ink-muted)}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.rule{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--success-ink)}
+.otp{width:48px;height:58px;box-sizing:border-box;border:1px solid var(--line);border-radius:14px;background:var(--surface);text-align:center;font-family:var(--font-mono);font-size:22px;color:var(--ink)}
+.otp--erro{border-color:var(--critical)}
+.aviso{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:16px;background:var(--surface-sunken);font-size:14px;line-height:20px;color:var(--ink-muted)}
+.erro{display:flex;gap:10px;align-items:flex-start;padding:14px 16px;border-radius:16px;background:var(--critical-soft);font-size:14px;line-height:20px;color:var(--critical-ink)}
+.card{padding:16px;border-radius:24px;background:var(--surface)}
+.kv{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px}
+.kv:last-child{border-bottom:0}
+.kv span:first-child{color:var(--ink-muted)}
+.kv span:last-child{font-weight:500;text-align:right}
+.chip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border:0;border-radius:999px;background:var(--surface-sunken);color:var(--ink);font:inherit;font-size:15px;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
+.chip .wl-count{background:var(--surface)}
+.chip[aria-pressed="true"] .wl-count{background:var(--brand);color:var(--on-brand)}
+.sw{position:relative;flex:none;width:44px;height:26px;border:0;border-radius:999px;background:var(--line);padding:0;cursor:pointer}
+.sw:after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--surface);transition:left .15s}
+.sw[aria-checked="true"]{background:var(--solid)}
+.sw[aria-checked="true"]:after{left:21px;background:var(--on-solid)}
+.sw:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.ntf{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line)}
+.ntf:last-child{border-bottom:0}
+.ntf__ic{display:grid;place-items:center;width:40px;height:40px;flex:none;border-radius:50%;background:var(--surface-sunken);color:var(--ink)}
+.ntf__t{font-size:15px;line-height:20px;font-weight:500}
+.ntf__d{margin-top:2px;font-size:14px;line-height:20px;color:var(--ink-muted)}
+.ntf__h{flex:none;font-size:13px;color:var(--ink-muted);white-space:nowrap}
+.ntf--nova .ntf__t:after{content:"";display:inline-block;width:8px;height:8px;margin-left:8px;border-radius:50%;background:var(--ink);vertical-align:1px}
+.pref{display:grid;grid-template-columns:minmax(0,1fr) 56px 56px 56px;align-items:center;gap:8px;padding:12px 0;border-bottom:1px solid var(--line);font-size:15px}
+.pref--h{padding-top:0;font-size:13px;color:var(--ink-muted)}
+.pref>:not(:first-child){justify-self:center}
+.pref:last-child{border-bottom:0}
+.nao{color:var(--ink-muted)}
+.codes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.codes li{padding:12px 14px;border-radius:14px;background:var(--surface-sunken);font-family:var(--font-mono);font-size:15px;text-align:center}
+
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; width: 390px; height: 1760px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 16px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;"><div class="wl-logo-slot" aria-hidden="true">MR</div><span style="font-size: 18px; font-weight: 600;">Moto Rápida</span></header>
+
+<section class="card" style="display: flex; flex-direction: column; gap: 16px; padding: 24px 20px; border-radius: 28px;">
+<div><h1 style="margin: 0; font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -0.02em;">Digite o código</h1><p style="margin: 8px 0 0; color: var(--ink-muted);">Abra o aplicativo autenticador e digite os 6 números da conta Moto Rápida.</p></div>
+<div><div class="wl-field__label" style="margin-bottom: 8px;">Código do aplicativo</div><div style="display: flex; gap: 8px;"><input class="otp" value="4" aria-label="Dígito 1" inputmode="numeric" maxlength="1"><input class="otp" value="8" aria-label="Dígito 2" inputmode="numeric" maxlength="1"><input class="otp" value="1" aria-label="Dígito 3" inputmode="numeric" maxlength="1"><input class="otp" value="0" aria-label="Dígito 4" inputmode="numeric" maxlength="1"><input class="otp" value="" aria-label="Dígito 5" inputmode="numeric" maxlength="1"><input class="otp" value="" aria-label="Dígito 6" inputmode="numeric" maxlength="1"></div></div>
+<div class="erro"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none;"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg><span>Código incorreto. Confira o horário do celular e tente de novo.</span></div>
+<p class="tag">Estado 1. Os erros de senha e de código somam: 5 seguidos bloqueiam o acesso por 15 minutos.</p>
+<a class="wl-btn wl-btn--solid" href="Dashboard-Mobile.dc.html" style="width: 100%; box-sizing: border-box; height: 52px; text-decoration: none;">Entrar</a>
+<a href="#" style="align-self: center; font-size: 14px; font-weight: 500;">Usar um código de recuperação</a>
+</section>
+
+<section class="card" style="display: flex; flex-direction: column; gap: 16px; padding: 24px 20px; border-radius: 28px;">
+<div><h2 class="h2">Código de recuperação</h2><p class="tag">Estado 2 · sem o celular</p></div>
+<p style="margin: 0; line-height: 22px; color: var(--ink-muted);">Digite um dos códigos que você guardou ao ativar a verificação. Cada código vale para um acesso.</p>
+<label class="wl-field" style="width: 100%;"><span class="wl-field__label">Código de recuperação</span><input class="wl-input wl-mono" placeholder="XXXX-XXXX" value="K7Q2-9XMD"></label>
+<div class="aviso"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none; color: var(--ink);"><rect x="5" y="10" width="14" height="10" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg><span>Depois de usar, o código deixa de valer. Ative a verificação de novo no celular novo em Meu perfil.</span></div>
+<a class="wl-btn wl-btn--solid" href="Dashboard-Mobile.dc.html" style="width: 100%; box-sizing: border-box; height: 52px; text-decoration: none;">Entrar</a>
+<a href="#" style="align-self: center; font-size: 14px; font-weight: 500;">Voltar para o código do aplicativo</a>
+</section>
+
+<section class="card" style="display: flex; flex-direction: column; gap: 16px; padding: 24px 20px; border-radius: 28px;">
+<div><h2 class="h2">Acesso bloqueado</h2><p class="tag">Estado 3 · depois de 5 erros seguidos</p></div>
+<div class="erro"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none;"><path d="M12 4l9 16H3z"></path><path d="M12 10v4M12 17v.5"></path></svg><span>Muitas tentativas. Seu acesso fica bloqueado por 15 minutos. O administrador foi avisado.</span></div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 16px; background: var(--surface-sunken);"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none; color: var(--ink);"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l3 2"></path></svg><div><div style="font-weight: 500;">Tente de novo às 14:32</div><div class="lbl">Faltam 14 minutos</div></div></div>
+<a class="wl-btn" href="Login-Mobile.dc.html" style="width: 100%; box-sizing: border-box; height: 52px; text-decoration: none;">Voltar para o início</a>
+<span style="text-align: center; font-size: 13px; color: var(--ink-muted);">Tecnologia Giro</span>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>
