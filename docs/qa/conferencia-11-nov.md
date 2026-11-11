@@ -21,7 +21,7 @@ Nenhuma divergência nova. Uma observação de aparência no fim.
 | 437-02 | Passa | "Tirar" na 2ª e "Usar como capa" em `moto.png`: ficam duas, `moto.png` com "Capa". |
 | 437-03 | Passa | 21 arquivos: 20 na lista ("20 de 20 fotos") e o aviso "O veículo pode ter até 20 fotos." |
 | 437-04 | Passa | `grande.jpg`, `moto.heic` e `documento.pdf` recusados na escolha, na hora, com "Envie uma foto JPG ou PNG de até 10 MB."; `moto-1.jpg` entra; nenhuma requisição saiu. |
-| 437-05 | Passa | TBC-5H22 (usei esta placa para guardar a TBC-5H21 ao 437-07): `POST /api/veiculos/` 201 e três `POST .../fotos/`; a tela mostrou "Enviando fotos · 1 de 3", "2 de 3" e "3 de 3" e abriu a ficha, com 3 fotos e a primeira é `moto.png` (capa), depois as duas `.jpg`. |
+| 437-05 | Passa | TBC-5H22 (a TBC-5H21 ficou para o 437-07): `POST /api/veiculos/` 201 e três `POST .../fotos/`; a tela mostrou "Enviando fotos · 1 de 3", "2 de 3" e "3 de 3" e abriu a ficha, com 3 fotos e a primeira é `moto.png` (capa), depois as duas `.jpg`. |
 | 437-06 | Não exercitado | Cadastro sem fotos: cada cadastro cria um veículo que não dá para apagar; poupei. |
 | 437-07 | Passa | Placa SAK-1D39: 409, mensagem "Já existe um veículo com esta placa", nenhum `POST .../fotos/` e as 2 fotos continuam na tela. Trocada para TBC-5H21 e salva: 201 e dois `POST .../fotos/` (veículo 92), sem escolher de novo. |
 | 437-08 | Não exercitado | Precisa da empresa com 150 veículos. |
