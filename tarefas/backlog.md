@@ -569,3 +569,7 @@ Vindas do teste do dono no fluxo de locação da Moto Rápida (LOC-0001 e LOC-00
 - **Agentes:** backend (contrato e `pode`), depois fullstack (a ficha usa a chave) · **Regras:** `USR-05`, `USR-09` · **Origem:** D5 da conferência do QA de 10 nov 2026 (`docs/qa/conferencia-10-nov.md`); ficou de fora da T-447 (PR #512).
 - **O caso:** a ficha do veículo, aberta pelo vistoriador, chama `GET /api/locacoes/?veiculo=` e recebe 403 (erro no console; a ficha esconde Locações e não quebra). O `pode` de `/api/contas/eu/` não tem chave de leitura de locações, e a tela não deve decidir pelo perfil (escolha da T-278).
 - **Pronto quando:** `pode.locacoes_ver` no `/api/contas/eu/`, calculado pelo servidor como a permissão de `GET /api/locacoes/` ("todos menos vistoriador", `docs/api/locacoes.md`), no contrato de contas, com teste por perfil; depois a ficha só pede as locações com a chave.
+#### T-459 · Placa quebrada no hífen no título do visualizador de fotos
+- **Agente:** frontend · **Regras:** `VEI-10` · **Origem:** conferência do QA de 11 nov 2026 (PR #524), aval do dono em 11 nov.
+- **O caso:** a 390 px, o título do visualizador de fotos (`components/frota/VisualizadorDeFotos.tsx`) quebra a linha no hífen da placa: "QXA-" numa linha e "4B21" na outra.
+- **Pronto quando:** a placa nunca se parte no hífen, em nenhum texto do visualizador (título, legenda e miniaturas), a 1440 e a 390 px; o texto em volta continua quebrando normalmente; teste.
