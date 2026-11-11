@@ -4,8 +4,15 @@
 
 As tarefas automáticas rodam no Celery, por empresa, no fuso `America/Sao_Paulo`. Toda mensagem ao cliente final sai com a marca da locadora (nome, logo, cor), nunca com o nome Giro.
 
-**Mensagens pelo WhatsApp** (ADR 0034, T-387). Valem para todo aviso que a empresa manda pelo WhatsApp.
-- **Modelos aprovados.** Cada aviso usa um modelo aprovado pela Meta. Os 13 textos da fase 1 estão em `docs/qa/criterios/whatsapp.md`. Mudar um texto é tarefa do produto e pede nova aprovação da Meta.
+**Na fase 1, o WhatsApp fica só na régua da assinatura** (decisão do dono de 11 nov 2026, opção C da ADR 0034). Pelo número do Giro, o remetente que o cliente vê seria "Giro Avisos", contra a marca da locadora; por isso:
+- **Ao cliente final, tudo vai por e-mail**, com a marca da locadora: contrato para assinar e assinado, cobrança (`AUT-03`), recibo do pagamento (`AUT-05`), recibo da devolução (`DEV-02`, com o PDF anexo) e lembrete de devolução (`AUT-01`). O aceite do cliente (`CLI-12`) não muda o canal.
+- **À pessoa convidada, o convite vai por e-mail** (`USR-01`).
+- **O WhatsApp sai só ao responsável pela assinatura**, com o aceite dele, na régua da assinatura (`AUT-13`, `PLT-02`), que é do Giro e leva a marca Giro. Dos 13 modelos de `docs/qa/criterios/whatsapp.md`, só os da assinatura (12 e 13) entram em uso; os outros ficam guardados.
+- **O que já está feito fica como está**, sem entrar em uso: o envio pelo WhatsApp ao cliente e ao convidado, as caixas de aceite, a resposta automática e o "SAIR". A volta do WhatsApp ao cliente final é decisão do dono, com a escolha do remetente (ADR 0034).
+- **Cliente sem e-mail** não recebe aviso automático: a falha fica no registro do envio, e quem atende manda o link por outro canal ("Copiar link", T-411). A conta é devida igual, e a régua continua contando os dias (`CLI-05`).
+
+**Mensagens pelo WhatsApp** (ADR 0034, T-387). Valem para todo aviso que sai pelo WhatsApp; na fase 1, só a régua da assinatura (acima).
+- **Modelos aprovados.** Cada aviso usa um modelo aprovado pela Meta. Os 13 textos estão em `docs/qa/criterios/whatsapp.md`; na fase 1, só os da assinatura são usados. Mudar um texto é tarefa do produto e pede nova aprovação da Meta.
 - **Começo e fim fixos.** O texto começa com uma abertura fixa ("Olá, {nome}." ao cliente e à pessoa convidada; "Giro:" ao responsável pela assinatura) e termina com uma frase fixa. A marca da locadora vai no meio, sem artigo ("Moto Rápida informa:"), para não errar o gênero.
 - **Sem pedir resposta.** Nenhum texto pede ao cliente que responda pelo WhatsApp, porque a resposta não chega à locadora. Onde o texto antigo dizia "Pague na loja ou fale com a gente por aqui", fica "Pague na loja.".
 - **Resposta automática.** Quem responde recebe, uma vez por dia: "Este número só envia avisos. Para falar com {marca}, ligue para a loja: {telefone da filial}.". "SAIR", "PARAR" e "CANCELAR" desmarcam o aceite (`CLI-12`).
@@ -18,11 +25,11 @@ As tarefas automáticas rodam no Celery, por empresa, no fuso `America/Sao_Paulo
 
 | Código | Tarefa | Quando roda | O que faz | Canal |
 | --- | --- | --- | --- | --- |
-| `AUT-01` | Lembrete de devolução | 08:00 no dia da devolução | avisa o cliente o horário e o endereço | WhatsApp, ou e-mail sem o aceite (`CLI-12`) |
+| `AUT-01` | Lembrete de devolução | 08:00 no dia da devolução | avisa o cliente o horário e o endereço | e-mail (na fase 1, sem WhatsApp ao cliente) |
 | `AUT-02` | Marcar devolução atrasada | a cada hora | aplica `LOC-10` | interno |
-| `AUT-03` | Régua de cobrança do cliente | 09:00 | D-1 lembrete; D0 cobrança com Pix; D+3 e D+7 nova cobrança com o valor do dia (`FIN-03`); D+15 bloqueio (`CLI-05`), uma vez por conta: se a tarefa não rodar no 15º dia, o bloqueio sai na próxima vez que ela rodar. Textos em `docs/api/financeiro.md` (régua de cobrança). No plano Essencial, só e-mail e sem o Pix do parceiro (`PLT-12`) | WhatsApp + e-mail |
+| `AUT-03` | Régua de cobrança do cliente | 09:00 | D-1 lembrete; D0 cobrança com Pix; D+3 e D+7 nova cobrança com o valor do dia (`FIN-03`); D+15 bloqueio (`CLI-05`), uma vez por conta: se a tarefa não rodar no 15º dia, o bloqueio sai na próxima vez que ela rodar. Textos em `docs/api/financeiro.md` (régua de cobrança). Na fase 1, em todos os planos, os marcos, os dias e os textos são os mesmos, só por e-mail; o Profissional manda o Pix e o boleto do parceiro, e o Essencial, não (`PLT-12`): "Pague na loja." | e-mail (na fase 1, sem WhatsApp ao cliente) |
 | `AUT-04` | Cobrança recorrente | **fase 2** | dispara o Pix Automático (ou o cartão) das parcelas da locação. No MVP, a parcela segue boleto e Pix comum pela régua (`AUT-03`) | parceiro de pagamento |
-| `AUT-05` | Baixa de pagamentos | ao receber webhook | baixa a conta e envia recibo com o valor, a forma e o dia do pagamento | WhatsApp, ou e-mail sem o aceite (`CLI-12`) |
+| `AUT-05` | Baixa de pagamentos | ao receber webhook | baixa a conta e envia recibo com o valor, a forma e o dia do pagamento | e-mail (na fase 1, sem WhatsApp ao cliente) |
 | `AUT-06` | Vencimento de documentos | 07:00 | alerta 30 dias antes; no dia, aplica `VEI-03`: `disponivel` vai para `indisponivel`; `alugado`, `reservado` e `em_manutencao` geram tarefa urgente aos gerentes | interno + e-mail ao gerente |
 | `AUT-07` | Preventivas | após cada vistoria e 07:00 | aplica `MAN-03` | interno |
 | `AUT-08` | Fechamento automático do caixa | 23:59 | aplica `FIN-08` | interno |

@@ -16,7 +16,7 @@ Toda retirada e toda devolução têm uma vistoria, e a devolução é sempre co
 
 1. **Vistoria de chegada:** km atual, combustível, mesmas fotos e itens da saída. A tela mostra lado a lado "Saída" e "Agora". Avaria nova é marcada com foto, descrição e valor.
 2. **Acerto:** o sistema monta a conta (abaixo) e mostra quanto devolver ou cobrar.
-3. **Recibo:** encerra a locação e envia recibo com fotos por WhatsApp.
+3. **Recibo:** encerra a locação e envia recibo com fotos por e-mail, com o PDF anexo (na fase 1, nada vai ao cliente pelo WhatsApp, seção Automações).
 
 **Acerto da caução**
 
