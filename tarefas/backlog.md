@@ -578,3 +578,21 @@ Vindas do teste do dono no fluxo de locação da Moto Rápida (LOC-0001 e LOC-00
 - **Agente:** fullstack (backend; frontend só se a tela não mostrar o que a API passar a devolver) · **Regras:** `VEI-10`, `AUD` · **Origem:** conferência do QA de 11 nov 2026 (PR #526, CA-437-13), aval do dono em 11 nov.
 - **O caso:** o evento `veiculo.foto_enviar` é gravado, um por foto, mas na API de auditoria vem com `objeto.codigo` nulo (só o id; a linha não diz TBC-5H22), `detalhe` vazio (não dá para ver qual foto virou capa) e resumo cru "Veículo: foto enviar", enquanto os outros eventos têm texto em português. Conferir também os outros eventos de foto da `VEI-10` (trocar, capa, apagar). O evento nasce em `backend/apps/veiculos/services.py`.
 - **Pronto quando:** os eventos de foto trazem a placa do veículo como código, o detalhe com o que mudou (arquivo, capa sim ou não) e um resumo em português como os demais; a tela de Auditoria mostra isso; teste com o código da regra no nome.
+- **Feita em 11 nov 2026** (PR #531). Ficou de fora: os eventos de cadastrar e editar o veículo também saem sem código.
+
+#### T-461 · Telas de conta: esqueci a senha, 2 etapas, meu perfil e notificações
+- **Agente:** design-system (telas), depois frontend · **Regras:** `USR` · **Origem:** decisão do dono de 11 nov 2026 (artefato de decisões, "Telas que faltam desenhar": A).
+- **Pronto quando:** as quatro telas desenhadas em desktop e celular em `docs/telas/`, com o índice, pelas regras de usuários; dúvidas de regra listadas para o produto. Depois, o frontend recria o que ainda não existe.
+
+#### T-462 · Aviso ao sair da tela com fotos ainda enviando
+- **Agentes:** produto (regra), depois frontend · **Regras:** `VEI-10` · **Origem:** conferência do QA de 11 nov 2026 (PR #526, CA-437-11), decisão do dono de 11 nov 2026 (A: avisar).
+- **O caso:** quem sai da tela no meio do envio das fotos perde as que faltavam sem aviso; o veículo fica com as que subiram.
+- **Pronto quando:** a regra diz o aviso; o navegador pergunta antes de sair enquanto há fotos enviando e a tela mostra quantas faltam; teste.
+
+#### Decisões do dono de 11 nov 2026 (artefato de decisões)
+- **T-451 (retirada):** a retirada acontece das duas formas, sozinha quando vistoria de saída, assinatura e 1º pagamento estão feitos, e por um botão "Registrar retirada". O produto escreve a regra e avisa o backend, que está com o PR #516.
+- **WhatsApp ao cliente final:** opção C da ADR 0034, sem WhatsApp ao cliente final na fase 1; os avisos vão por e-mail. O produto ajusta as regras e o arquiteto registra na ADR.
+- **Recibo público (T-436):** ligado em desenvolvimento e homologação; produção liga com o lote para a main. O recibo continua só com o essencial (código, primeiro nome, data e PDF).
+- **Lote develop → main:** abrir agora, depois da suíte inteira verde na develop.
+- **Regras com o padrão A:** período da locação retirada depois do início, contagem dos 3 dias, aviso só ao gerente, valor da intenção de compra pelos planos em Preços, sem multa no encerramento antecipado, CRLV-e no editar, preço do Profissional mantido e guarda de faturas por 5 anos.
+- **Com o dono, fora do sistema:** registrar o domínio (pensa em "giroloc"), buscar a marca no INPI e abrir a conta no Asaas.
