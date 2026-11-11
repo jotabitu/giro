@@ -195,6 +195,7 @@ class PodeDaEmpresaSerializer(serializers.Serializer[Any]):
     veiculos = serializers.ChoiceField(choices=["editar", "km_e_avarias", "ver", "nao"])
     clientes_cadastrar = serializers.BooleanField()
     locacoes_criar = serializers.BooleanField()
+    locacoes_ver = serializers.BooleanField()  # T-458
     vistorias_fazer = serializers.BooleanField()
     locacoes_cancelar = serializers.ChoiceField(choices=NIVEL_DE_APROVACAO)
     desconto_acima_limite = serializers.ChoiceField(choices=NIVEL_DE_APROVACAO)

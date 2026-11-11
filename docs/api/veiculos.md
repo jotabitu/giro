@@ -427,23 +427,33 @@ Perfis: administrador, gerente. `multipart/form-data`: `arquivo` (um só; ADR 00
   - fora de JPG ou PNG pelo conteúdo, acima de 10 MB, PDF, HEIC ou imagem que não abre: `["Envie uma foto JPG ou PNG de até 10 MB."]`;
   - com 20 ativas: `["O veículo já tem 20 fotos. Apague uma para enviar outra."]`.
 - Arquivo acima de 12 MB volta 413 do proxy, antes do Django: a tela mostra a mesma "Envie uma foto JPG ou PNG de até 10 MB.". A tela pode recusar antes de enviar o que passa de 10 MB ou não é `.jpg`, `.jpeg` ou `.png`, mas a palavra final é a da API.
-- Auditoria `veiculo.foto_enviar` (objeto: o veículo; `detalhes`: `foto_id`, `numero`, `capa`), sem a imagem (`AUD-01`).
+- Auditoria `veiculo.foto_enviar` (objeto: o veículo; `detalhes`: `foto_id`, `numero`, `capa`, `arquivo`), sem a imagem (`AUD-01`). `arquivo` é só o nome do arquivo como veio do aparelho, sem pasta (`moto.png`).
+- **Na lista da auditoria (T-460)**, os quatro eventos da galeria vêm com a placa com hífen em `objeto.codigo` (`TBC-5H22`) e com `resumo` e `detalhe` prontos, só com nome do arquivo, número da foto e capa:
+
+| `acao` | `resumo` | `detalhe` |
+| --- | --- | --- |
+| `veiculo.foto_enviar` | Enviou uma foto do veículo TBC-5H22 | `moto.png · foto 1 · virou a capa` ou `lateral.jpg · foto 2 · não é a capa` |
+| `veiculo.foto_trocar` | Trocou uma foto do veículo TBC-5H22 | `lateral-nova.png · foto 2 · não é a capa` (ou `é a capa`) |
+| `veiculo.foto_capa` | Mudou a capa do veículo TBC-5H22 | `a foto 3 virou a capa` (o número de antes da troca) |
+| `veiculo.foto_apagar` | Apagou uma foto do veículo TBC-5H22 | `foto 1 · era a capa; a mais antiga virou a capa`, `foto 1 · era a capa` ou `foto 2 · não era a capa` |
+
+  Nos eventos gravados antes da T-460, sem código nem `arquivo`, o `resumo` leva a placa atual do veículo e o `detalhe`, só o que o evento tem; `objeto.codigo` continua `null` neles.
 
 ### POST /api/veiculos/{id}/fotos/{foto_id}/trocar/
 Perfis: administrador, gerente. `multipart/form-data`: `arquivo`. 200: a galeria, com `foto_id` da nova.
 - A antiga fica inativa (`substituida_por`); a nova fica na mesma posição e com a mesma `capa` (CA-414-06). O total não muda, e o limite de 20 não se aplica.
 - 400 como no envio. 404 `nao_encontrado` se a foto não é ativa deste veículo.
-- Auditoria `veiculo.foto_trocar` (`detalhes`: `foto_id_antiga`, `foto_id_nova`).
+- Auditoria `veiculo.foto_trocar` (`detalhes`: `foto_id_antiga`, `foto_id_nova`, `numero`, `capa`, `arquivo` da nova).
 
 ### POST /api/veiculos/{id}/fotos/{foto_id}/capa/
 Perfis: administrador, gerente. Sem corpo. 200: a galeria. A escolhida vira capa e passa a `numero` 1; a anterior perde a marca. Já capa: 200 sem mudança e sem evento.
-- Auditoria `veiculo.foto_capa` (`detalhes`: `foto_id`, `capa_anterior_id`).
+- Auditoria `veiculo.foto_capa` (`detalhes`: `foto_id`, `capa_anterior_id`, `numero` de antes de virar capa).
 
 ### POST /api/veiculos/{id}/fotos/{foto_id}/apagar/
 Perfis: administrador, gerente. Sem corpo. 200: a galeria.
 - A foto fica inativa (`ativo = False`, `apagada_por`), com o arquivo guardado; não volta pela tela nem pela API (CA-414-07). Apagada a capa, a ativa mais antiga vira capa (CA-414-05).
 - A tela pede confirmação antes ("Apagar esta foto? Ela sai da galeria e da ficha.").
-- Auditoria `veiculo.foto_apagar` (`detalhes`: `foto_id`, `era_capa`, `nova_capa_id`), com quem e quando.
+- Auditoria `veiculo.foto_apagar` (`detalhes`: `foto_id`, `numero` de antes de apagar, `era_capa`, `nova_capa_id`), com quem e quando.
 
 ### Para o catálogo (T-418)
 `veiculos.selectors.galeria(veiculo)` devolve as fotos ativas na ordem de exibição, e `veiculos.selectors.capa(veiculo)` a capa ou `None`, para o app `vendas` ler sem tocar no model (ADR 0011).

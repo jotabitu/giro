@@ -126,6 +126,14 @@ describe("visualizador", () => {
     expect(indiceAposTecla("Tab", 1, 3)).toBe(1);
   });
 
+  it("T-459: a placa não parte no hífen no título, na legenda e no rodapé do visualizador", () => {
+    const h = html(<VisualizadorDeFotos aberto aoFechar={() => {}} origem="Galeria do veículo · QXA-4B21" legenda={(f, _i, t) => `Foto ${f.numero} de ${t} · QXA-4B21`} fotos={tres} inicial={0} />);
+    expect(h).toContain("QXA‑4B21");
+    // Texto visível (fora dos atributos aria-label e alt, lidos por leitor de tela) nunca leva a placa com hífen comum.
+    expect(h.replace(/="[^"]*"/g, "")).not.toContain("QXA-4B21");
+    expect(h).toContain("Galeria do veículo");
+  });
+
   it("faixa de miniaturas, setas sobre a imagem e a origem ativa", () => {
     const h = html(<VisualizadorDeFotos aberto aoFechar={() => {}} origem="Galeria do veículo" legenda={(f, _i, t) => `Foto ${f.numero} de ${t}`} fotos={tres} inicial={0} />);
     expect(h).toContain('aria-label="Fotos desta origem"');
@@ -142,7 +150,7 @@ describe("visualizador", () => {
     const h = html(<VisualizadorDeFotos {...props} fotos={tres} inicial={0} />);
     expect(h).toContain('href="/fotos/1.jpg?download=1"');
     expect(h).toContain('download="QXA-4B21-galeria-1.jpg"');
-    expect(texto(h)).toContain("Baixar (QXA-4B21-galeria-1.jpg)");
+    expect(texto(h)).toContain("Baixar (QXA‑4B21-galeria-1.jpg)");
     expect(texto(h)).toContain("Link válido por 15 minutos.");
     expect(h).toContain('src="/fotos/1.jpg"');
   });
@@ -179,7 +187,7 @@ describe("visualizador", () => {
     ];
     const h = html(<VisualizadorDeFotos aberto aoFechar={() => {}} origem="Vistoria de saída · LOC-2841 · 23 set" legenda={(f, i, t) => `${f.rotulo} · ${i + 1} de ${t}`} fotos={vistoria} inicial={1} />);
     expect(texto(h)).toContain("Avaria 1 · 2 de 2");
-    expect(texto(h)).toContain("Baixar (QXA-4B21-vistoria-saida-avaria-1.jpg)");
+    expect(texto(h)).toContain("Baixar (QXA‑4B21-vistoria-saida-avaria-1.jpg)");
   });
 });
 

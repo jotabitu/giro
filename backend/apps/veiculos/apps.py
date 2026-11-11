@@ -15,6 +15,7 @@ class VeiculosConfig(AppConfig):
         registrar_formatador(
             ("categoria.definir_preco", "categoria.trocar_preco_agendado"), textos.tabela_de_preco
         )
+        registrar_formatador(tuple(textos.RESUMOS_DA_GALERIA), textos.foto_da_galeria)  # T-460
 
         registrar_contador("veiculos", selectors.contar_veiculos_do_plano)  # PLT-03
         # IMP-07: o preço agendado marca o passo `precos` na leitura do andamento, na data.

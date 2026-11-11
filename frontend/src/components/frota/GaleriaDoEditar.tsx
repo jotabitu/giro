@@ -9,11 +9,18 @@ import { GaleriaDeFotos, type RecusaDeFoto } from "./GaleriaDeFotos";
 // VEI-10. Contrato: docs/api/veiculos.md, "Fotos do veículo". Uma foto por requisição, na ordem da escolha;
 // a recusa de cada uma aparece com o nome do arquivo e as outras seguem (CA-414-02, 03).
 
-const FOTO_INVALIDA = "Envie uma foto JPG ou PNG de até 10 MB.";
+export const FOTO_INVALIDA = "Envie uma foto JPG ou PNG de até 10 MB.";
 
-export function mensagemDaRecusa(e: unknown): string {
+export const DEZ_MB = 10 * 1024 * 1024;
+
+/** Formato e tamanho que a escolha já recusa; a API confere de novo. */
+export const fotoCabe = (a: File) => a.size <= DEZ_MB;
+
+export function mensagemDaRecusa(e: unknown, arquivo?: File): string {
   // Acima de 12 MB o proxy responde 413 antes do Django: a mensagem é a mesma do formato.
   if (e instanceof ErroApi && e.status === 413) return FOTO_INVALIDA;
+  // No desenvolvimento, o corpo grande derruba a conexão (500 ou sem resposta): foto acima de 10 MB.
+  if (e instanceof ErroApi && (e.status === 0 || e.status === 500) && arquivo && !fotoCabe(arquivo)) return FOTO_INVALIDA;
   return campoDoErro(e, "arquivo") ?? mensagemDoErro(e);
 }
 
@@ -28,17 +35,22 @@ export function GaleriaDoEditar({ id }: { id: number }) {
     cliente.setQueryData(chave, g);
     void cliente.invalidateQueries({ queryKey: ["veiculo", id], exact: true });
   };
-  const recusar = (nome: string, e: unknown) => setRecusas((r) => [...r, { chave: `${nome}-${r.length}`, nome, mensagem: mensagemDaRecusa(e) }]);
+  const recusar = (arquivo: File, e: unknown) => setRecusas((r) => [...r, { chave: `${arquivo.name}-${r.length}`, nome: arquivo.name, mensagem: mensagemDaRecusa(e, arquivo) }]);
 
   const enviar = useMutation({
     mutationFn: async (arquivos: File[]) => {
       setRecusas([]);
       for (const [i, a] of arquivos.entries()) {
+        if (!fotoCabe(a)) {
+          // Já na escolha: acima de 10 MB nem sobe.
+          recusar(a, new ErroApi(413, "arquivo_grande", FOTO_INVALIDA));
+          continue;
+        }
         setProgresso(arquivos.length > 1 ? `Enviando ${i + 1} de ${arquivos.length}…` : "Enviando…");
         try {
           guardar(await veiculos.enviarFoto(id, a));
         } catch (e) {
-          recusar(a.name, e);
+          recusar(a, e);
         }
       }
       setProgresso(null);
@@ -47,10 +59,11 @@ export function GaleriaDoEditar({ id }: { id: number }) {
   const trocar = useMutation({
     mutationFn: async ({ fotoId, arquivo }: { fotoId: number; arquivo: File }) => {
       setRecusas([]);
+      if (!fotoCabe(arquivo)) return recusar(arquivo, new ErroApi(413, "arquivo_grande", FOTO_INVALIDA));
       try {
         guardar(await veiculos.trocarFoto(id, fotoId, arquivo));
       } catch (e) {
-        recusar(arquivo.name, e);
+        recusar(arquivo, e);
       }
     },
   });

@@ -32,11 +32,11 @@ const FILIAL_CENTRO = { id: 1, nome: "Filial Centro", nome_curto: "Centro" };
 const FILIAL_ALDEOTA = { id: 2, nome: "Filial Aldeota", nome_curto: "Filial Aldeota" };
 
 const PODE: Record<Perfil, Pode> = {
-  administrador: { painel: "todas_filiais", veiculos: "editar", movimentacoes: "gerir", clientes_cadastrar: true, locacoes_criar: true, vistorias_fazer: true, locacoes_cancelar: "sim", desconto_acima_limite: "sim", vendas_criar: true, caixa_receber: true, caixa_abrir_fechar: true, despesas_lancar: "todas", despesas_aprovar: true, despesas_exportar: true, financeiro_pagar: true, lancamento_avulso: true, os_abrir: true, administracao: true },
-  gerente: { painel: "filial", veiculos: "editar", movimentacoes: "gerir", clientes_cadastrar: true, locacoes_criar: true, vistorias_fazer: true, locacoes_cancelar: "aprova", desconto_acima_limite: "aprova", vendas_criar: true, caixa_receber: true, caixa_abrir_fechar: true, despesas_lancar: "todas", despesas_aprovar: true, despesas_exportar: false, financeiro_pagar: false, lancamento_avulso: true, os_abrir: true, administracao: false },
-  vendedor: { painel: "proprios", veiculos: "ver", movimentacoes: "levar", clientes_cadastrar: true, locacoes_criar: true, vistorias_fazer: true, locacoes_cancelar: "pede", desconto_acima_limite: "pede", vendas_criar: true, caixa_receber: true, caixa_abrir_fechar: true, despesas_lancar: "todas", despesas_aprovar: false, despesas_exportar: false, financeiro_pagar: false, lancamento_avulso: false, os_abrir: false, administracao: false },
-  vistoriador: { painel: "nao", veiculos: "km_e_avarias", movimentacoes: "levar", clientes_cadastrar: false, locacoes_criar: false, vistorias_fazer: true, locacoes_cancelar: "nao", desconto_acima_limite: "nao", vendas_criar: false, caixa_receber: false, caixa_abrir_fechar: false, despesas_lancar: "manutencao", despesas_aprovar: false, despesas_exportar: false, financeiro_pagar: false, lancamento_avulso: false, os_abrir: true, administracao: false },
-  financeiro: { painel: "todas_filiais", veiculos: "ver", movimentacoes: "nao", clientes_cadastrar: false, locacoes_criar: false, vistorias_fazer: false, locacoes_cancelar: "nao", desconto_acima_limite: "nao", vendas_criar: false, caixa_receber: true, caixa_abrir_fechar: true, despesas_lancar: "todas", despesas_aprovar: false, despesas_exportar: true, financeiro_pagar: true, lancamento_avulso: true, os_abrir: false, administracao: false },
+  administrador: { painel: "todas_filiais", veiculos: "editar", movimentacoes: "gerir", clientes_cadastrar: true, locacoes_criar: true, locacoes_ver: true, vistorias_fazer: true, locacoes_cancelar: "sim", desconto_acima_limite: "sim", vendas_criar: true, caixa_receber: true, caixa_abrir_fechar: true, despesas_lancar: "todas", despesas_aprovar: true, despesas_exportar: true, financeiro_pagar: true, lancamento_avulso: true, os_abrir: true, administracao: true },
+  gerente: { painel: "filial", veiculos: "editar", movimentacoes: "gerir", clientes_cadastrar: true, locacoes_criar: true, locacoes_ver: true, vistorias_fazer: true, locacoes_cancelar: "aprova", desconto_acima_limite: "aprova", vendas_criar: true, caixa_receber: true, caixa_abrir_fechar: true, despesas_lancar: "todas", despesas_aprovar: true, despesas_exportar: false, financeiro_pagar: false, lancamento_avulso: true, os_abrir: true, administracao: false },
+  vendedor: { painel: "proprios", veiculos: "ver", movimentacoes: "levar", clientes_cadastrar: true, locacoes_criar: true, locacoes_ver: true, vistorias_fazer: true, locacoes_cancelar: "pede", desconto_acima_limite: "pede", vendas_criar: true, caixa_receber: true, caixa_abrir_fechar: true, despesas_lancar: "todas", despesas_aprovar: false, despesas_exportar: false, financeiro_pagar: false, lancamento_avulso: false, os_abrir: false, administracao: false },
+  vistoriador: { painel: "nao", veiculos: "km_e_avarias", movimentacoes: "levar", clientes_cadastrar: false, locacoes_criar: false, locacoes_ver: false, vistorias_fazer: true, locacoes_cancelar: "nao", desconto_acima_limite: "nao", vendas_criar: false, caixa_receber: false, caixa_abrir_fechar: false, despesas_lancar: "manutencao", despesas_aprovar: false, despesas_exportar: false, financeiro_pagar: false, lancamento_avulso: false, os_abrir: true, administracao: false },
+  financeiro: { painel: "todas_filiais", veiculos: "ver", movimentacoes: "nao", clientes_cadastrar: false, locacoes_criar: false, locacoes_ver: true, vistorias_fazer: false, locacoes_cancelar: "nao", desconto_acima_limite: "nao", vendas_criar: false, caixa_receber: true, caixa_abrir_fechar: true, despesas_lancar: "todas", despesas_aprovar: false, despesas_exportar: true, financeiro_pagar: true, lancamento_avulso: true, os_abrir: false, administracao: false },
 };
 
 type Conta = { id: number; nome: string; email: string; perfil: Perfil; filiais: Eu["filiais"]; autenticador: boolean; variante: VarianteInicio };
@@ -59,6 +59,9 @@ const SUPORTE_DO_EU: NonNullable<Eu["suporte"]> = {
   permissao_rotulo: "Só ver",
   fim_rotulo: "Expira às 15:30",
 };
+
+/** Modo suporte "só ver": como a API, a lista de locações vem desligada (docs/api/contas.md, T-458). */
+const comoSuporte = (eu: Eu): Eu => ({ ...eu, pode: { ...eu.pode, locacoes_ver: false }, suporte: SUPORTE_DO_EU });
 
 const exige2fa = (p: Perfil) => p === "administrador" || p === "financeiro";
 
@@ -209,7 +212,7 @@ export const contasFalso = {
     const id = access?.split(".")[1];
     const c = CONTAS.find((x) => String(x.id) === id);
     if (!c) throw new ErroApi(401, "nao_autenticado", "Entre para continuar");
-    return comSuporte ? { ...montarEu(c), suporte: SUPORTE_DO_EU } : montarEu(c);
+    return comSuporte ? comoSuporte(montarEu(c)) : montarEu(c);
   },
 
   /** Link de suporte (T-358): "suporte-valido" entra como a administradora; qualquer outro token responde 401 `PLT-07`. */
@@ -218,7 +221,7 @@ export const contasFalso = {
     if (token !== "suporte-valido") throw new ErroApi(401, "PLT-07", "O acesso de suporte terminou");
     access = "falso.1.suporte";
     comSuporte = true;
-    return { ...montarEu(CONTAS[0]!), suporte: SUPORTE_DO_EU };
+    return comoSuporte(montarEu(CONTAS[0]!));
   },
 
   async sairDoSuporte(): Promise<void> {

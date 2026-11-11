@@ -12,7 +12,7 @@ Todo dinheiro que entra ou sai passa por uma conta a receber, uma despesa ou um 
   - **Conta que nasce vencida:** quando a conta nasce depois do próprio vencimento (ex.: locação confirmada depois do início, com as contas nascendo na confirmação), o atraso para multa e juros conta a partir do dia seguinte ao dia em que ela nasceu, e não do dia seguinte ao vencimento. Dias de atraso = dia do pagamento − o mais tarde entre o vencimento e o dia em que a conta nasceu, em datas de `America/Sao_Paulo`. Paga no dia em que nasceu, não tem multa nem juros. Só a cobrança muda: o vencimento gravado, o estado e as faixas seguem a `FIN-01` e a `FIN-02`. Ex.: parcela 1 da LOC-2836 (R$ 329,00, vence 30 set, nasce na confirmação em 01 out): paga em 01 out, multa 0 e juros 0 (total pago R$ 958,00, `LOC-06`); paga em 02 out, 1 dia: multa R$ 6,58 e juros R$ 0,11.
   - **Conta da locação antes da retirada** (T-410): nada vence antes da retirada (`LOC-05`). Na conta da locação, o dia da retirada entra na mesma conta: dias de atraso = dia do pagamento − o mais tarde entre o vencimento, o dia em que a conta nasceu e o dia da retirada. Como a 1ª parcela e a caução são o 1º pagamento, pagas até a retirada, elas nunca têm multa nem juros. Na LOC-2836, o "paga em 02 out" do exemplo acima não acontece mais, porque a parcela 1 é paga na retirada, em 01 out; os números ficam só como exemplo da fórmula.
 - `FIN-04` Pagamento por Pix ou boleto do parceiro baixa a conta sozinho (webhook). Dinheiro e cartão na maquininha são baixados no caixa.
-- `FIN-15` Números de contas a receber (tela `Receber`, contador do menu e início `Financeiro`). Entram as contas da filial escolhida, sem caução (`LOC-04`) e sem as `cancelada` e `renegociada` (a renegociação gera contas novas, que entram no lugar). Valores sem multa e juros (`FIN-03`). A receita do painel (`receita_locacao` do administrador e `receita_semana` do gerente, `docs/api/painel.md`) segue a mesma base: soma o valor das contas de locação pagas no período (parcelas e cobranças do acerto, como avaria e multa de encerramento), sem caução e sem a multa e os juros por atraso. Multa e juros pagos entram só na DRE, na linha de multas (`FIN-13`). O período da tela é hoje, semana ou mês: a semana vai de segunda a domingo da semana de hoje, e sem período escolhido vale o mês. A caução não entra nas abas nem na lista geral; ela aparece quando a lista é de um cliente ou de uma origem, para ser recebida no `Caixa`.
+- `FIN-15` Números de contas a receber (tela `Receber`, contador do menu e início `Financeiro`). Entram as contas da filial escolhida, sem caução (`LOC-04`) e sem as `cancelada` e `renegociada` (a renegociação gera contas novas, que entram no lugar). Valores sem multa e juros (`FIN-03`). A receita do painel (`receita_locacao` do administrador e `receita_semana` do gerente, `docs/api/painel.md`) segue a mesma base: soma o valor das contas de locação pagas no período (parcelas e cobranças do acerto, como avaria e multa de encerramento), sem caução e sem a multa e os juros por atraso. Multa e juros pagos entram só na DRE, na linha de multas (`FIN-13`). O período da tela é hoje, semana ou mês: a semana vai de segunda a domingo da semana de hoje, e sem período escolhido vale o mês. A caução não entra nos números: contagens das abas, indicadores e contador do menu. Na lista, ela aparece como as outras contas, na aba da situação dela, com o tipo "Caução" e "Registrar pagamento" (`FIN-18`).
   - **Previsto no mês:** soma e quantidade das contas com vencimento no mês corrente, pagas ou não.
   - **Recebido:** das contas do previsto, as `paga`. O percentual é recebido ÷ previsto, em valor, com 2 casas.
   - **Vence hoje** (no `Financeiro`, "Entra hoje"): contas ainda não pagas com vencimento hoje.
@@ -45,6 +45,38 @@ Todo dinheiro que entra ou sai passa por uma conta a receber, uma despesa ou um 
   - **Total:** "Despesas no ano" soma o valor das despesas da lista, pagas ou não, sem as `recusada`. É o mesmo valor que o "Rendeu no ano" desconta (`VEI-05`). Ex.: QXA-4B21 em 07 out 2026, R$ 48,00 (o óleo).
   - **"Lançar despesa":** aparece para quem lança despesa (tabela de perfis), mesmo sem ver a lista. Abre o lançamento da `FIN-05` com o veículo preenchido e travado, as categorias do veículo primeiro (as do vistoriador, só manutenção e peças) e a filial do veículo, que pode não ser a da tela. Todo o resto da `FIN-05` e da `FIN-06` vale: nota obrigatória, aprovação acima de R$ 500 (`APR-03`), pago no caixa só até R$ 500 e com o caixa da filial do veículo aberto.
   - A despesa que nasce da OS concluída (`MAN-05`) e a da parada de movimentação (`MOV-04`) entram na lista como as outras, porque já nascem ligadas ao veículo.
+- `FIN-18` **Caução: onde se recebe e como se dá baixa** (`LOC-04`, `LOC-17`).
+  - **É uma conta a receber da locação**, do tipo caução. Nasce na confirmação, junto com as parcelas, pelo valor da categoria, com o vencimento da 1ª parcela. Antes da retirada, nunca atrasa (`LOC-05`).
+  - **Onde aparece para receber** (sempre com o rótulo "Caução" e, com ela em aberto, "Registrar pagamento" para quem recebe no caixa, pela tabela de perfis):
+    - na seção Pagamentos da ficha da locação, como uma linha ao lado das parcelas ("Caução · R$ 300,00 · Em aberto");
+    - na tela `Receber`, na lista, como as parcelas, mas fora dos números (`FIN-15`);
+    - na busca do `Caixa` por cliente ou locação.
+  - **Como se dá baixa:** como uma parcela.
+    - Em dinheiro ou cartão na maquininha, pelo "Registrar pagamento", que lança a entrada no caixa aberto (`FIN-04`, `FIN-07`).
+    - Por Pix ou boleto do parceiro, o webhook baixa sozinho.
+    - Paga-se inteira, sem pagamento parcial (`FIN-01`), e sem multa nem juros antes da retirada (`FIN-03`).
+    - A baixa vale para o 1º pagamento da `LOC-17`, junto com a 1ª parcela.
+  - **Não é receita.** A caução paga entra no caixa do dia ("entrou hoje"), mas não na receita, na DRE nem nos números de contas a receber (`FIN-13`, `FIN-15`). Fica como valor a devolver até o acerto da devolução, que a usa (`DEV-02`).
+  - **Ex.: LOC-2856** (Lucas, 07 out): "Caução · R$ 300,00 · Paga em 07 out", recebida em dinheiro no caixa de 07 out junto com a 1ª semana (R$ 629,00, caso "Caixa de 07 out").
+  - **Seção Pagamentos da ficha da locação** (`LOC-17`): lista as parcelas e a caução, cada uma com o rótulo ("Parcela 1", "Caução"), o vencimento, o valor de hoje e a situação. Cada conta em aberto tem "Registrar pagamento" para quem recebe no caixa. Ele abre a mesma baixa de `Receber` sem sair da locação, e depois só a ficha se atualiza. Cada linha também abre o registro da conta em `Receber`, com o detalhe dela já aberto, e voltar leva à ficha da locação (T-455).
+- `FIN-19` **A que se refere cada conta a receber** (T-454). Toda conta diz o tipo e, na parcela, qual é. A API manda os dois textos prontos, e a tela só os mostra, no detalhe da conta, na lista de `Receber`, na seção Pagamentos da locação, na busca do `Caixa` e no recibo.
+  - **Tipo e rótulo de cada conta:**
+
+    | Tipo | Rótulo do tipo | Rótulo da conta (lista e título do detalhe) |
+    | --- | --- | --- |
+    | parcela | "Parcela" | "Parcela 2 de 5"; com uma parcela só (diária, mensal à vista), "Parcela única" |
+    | caução | "Caução" | "Caução" |
+    | multa | "Multa" | "Multa · {descrição}" (ex.: "Multa · Encerramento antecipado", "Multa · Infração de trânsito em 12/10") |
+    | avaria | "Avaria" | "Avaria · {descrição}" (ex.: "Avaria · Retrovisor direito") |
+    | acerto | "Acerto da devolução" | "Acerto da devolução · {descrição}" (ex.: "Acerto da devolução · 3 diárias de atraso"); sem descrição, só "Acerto da devolução" |
+    | outra | "Outra cobrança" | "Outra cobrança · {descrição}" |
+    | renegociação (conta nascida de um acordo) | o tipo da conta original, e "Renegociação" ao lado | "Renegociação · 1 de 3", contando as contas do acordo |
+
+  - **Número e total da parcela.** O detalhe da conta mostra o número da parcela e o total, por extenso: "1 de 128 parcelas", ex.: semanal de 128 semanas. O total é o de parcelas da locação até o fim previsto em vigor, sem a caução e sem as outras cobranças (multa, avaria, acerto). A renovação (`LOC-08`) aumenta o total das parcelas da locação, e o rótulo passa a "Parcela 2 de 7". O encerramento antes do fim não diminui o total: as parcelas canceladas continuam contadas.
+  - **Junto do tipo,** o detalhe mostra a origem (código da locação, venda ou OS, e a placa), como já mostra.
+  - **Ex.: LOC-2841** (Carlos, semanal de 23 set a 28 out, 5 parcelas, em 07 out):
+    - a conta de R$ 299,40 que venceu em 30 set é "Parcela 2 de 5", tipo "Parcela", com "2 de 5 parcelas" no detalhe e a origem "LOC-2841 · QXA-4B21";
+    - a caução da LOC-2856 (Lucas) é "Caução", tipo "Caução".
 
 **Caixa do dia**
 

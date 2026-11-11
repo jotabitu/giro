@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button, Dialogo, Icone } from "@/design-system";
 import type { FotoDoVeiculo } from "@/lib/api";
+import { placaSemQuebra } from "@/lib/formatos";
 
 // VEI-10, AUD-05, CA-414-10 a 14. Referência: Veiculo-Visualizador-Desktop|Mobile.
 // O visualizador passa só pelas fotos da origem que abriu (galeria ou vistoria). Os links são da API:
@@ -74,7 +75,7 @@ export function VisualizadorDeFotos({ aberto, aoFechar, origem, legenda, fotos, 
 
   // Tamanho amplo do Dialogo (T-446): até 1100 × 820 px e tela cheia no celular, como a Veiculo-Visualizador.
   return (
-    <Dialogo aberto={aberto} aoFechar={aoFechar} titulo={origem} descricao={legenda(foto, i, total)} tamanho="amplo">
+    <Dialogo aberto={aberto} aoFechar={aoFechar} titulo={placaSemQuebra(origem)} descricao={placaSemQuebra(legenda(foto, i, total))} tamanho="amplo">
       {/* data-autofocus: o Dialogo põe o foco aqui ao abrir, dentro do conteúdo do visualizador. */}
       <div data-autofocus tabIndex={-1} className="flex h-full min-h-0 flex-1 flex-col gap-3 outline-none">
         <div className="relative grid min-h-[240px] min-w-0 flex-1 place-items-center overflow-hidden rounded-md bg-surface-sunken">
@@ -101,7 +102,7 @@ export function VisualizadorDeFotos({ aberto, aoFechar, origem, legenda, fotos, 
           )}
         </div>
         <p role="status" className="m-0 text-caption text-ink-muted">
-          {legenda(foto, i, total)} · Origem: {origem} ({total} {total === 1 ? "foto" : "fotos"}). As setas passam só por esta origem.
+          {placaSemQuebra(`${legenda(foto, i, total)} · Origem: ${origem}`)} ({total} {total === 1 ? "foto" : "fotos"}). As setas passam só por esta origem.
         </p>
         {total > 1 && (
           <ul className="m-0 flex list-none gap-2 overflow-x-auto p-0 pb-1" aria-label="Fotos desta origem">
@@ -125,7 +126,7 @@ export function VisualizadorDeFotos({ aberto, aoFechar, origem, legenda, fotos, 
           <div className="flex flex-col gap-1">
             <a href={foto.url_download} download={foto.nome_arquivo} rel="noopener" className="wl-btn wl-btn--solid inline-flex min-h-[44px] items-center justify-center gap-2 no-underline">
               <Icone de={Download} />
-              Baixar ({foto.nome_arquivo})
+              Baixar ({placaSemQuebra(foto.nome_arquivo)})
             </a>
             <span className="text-caption text-ink-muted">Link válido por 15 minutos.</span>
           </div>
