@@ -1,6 +1,6 @@
 # Contas: acesso, usuários, sessões e suporte
 
-**Dono:** arquiteto · **Versão:** 21 out 2026 (T-346, reconfirmar as 2 etapas, ADR 0032); 16 out 2026 (T-287, `pode.veiculos = ver` para vendedor e financeiro e Veículos no menu dos dois); 15 out 2026 (T-249, copiar link do convite e `acoes` do usuário; T-201, nome curto da filial; T-036) · **App:** `contas` (schema da empresa; o mesmo app atende a plataforma, ver `plataforma.md`) · **Regras:** USR-01 a USR-07, PLT-03, PLT-06, PLT-07, AUD-01, S-15 · **ADRs:** 0008, 0013, 0014, 0032 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios (e "Esqueci a senha" e "Ativar verificação em 2 etapas", da T-026) · **Critérios:** `docs/qa/criterios/T-248.md` (CA-248-12 a 16)
+**Dono:** arquiteto · **Versão:** 10 nov 2026 (T-458, `pode.locacoes_ver`); 21 out 2026 (T-346, reconfirmar as 2 etapas, ADR 0032); 16 out 2026 (T-287, `pode.veiculos = ver` para vendedor e financeiro e Veículos no menu dos dois); 15 out 2026 (T-249, copiar link do convite e `acoes` do usuário; T-201, nome curto da filial; T-036) · **App:** `contas` (schema da empresa; o mesmo app atende a plataforma, ver `plataforma.md`) · **Regras:** USR-01 a USR-07, PLT-03, PLT-06, PLT-07, AUD-01, S-15 · **ADRs:** 0008, 0013, 0014, 0032 · **Telas:** Login, Acesso-Senha, Convite, Admin-Usuarios (e "Esqueci a senha" e "Ativar verificação em 2 etapas", da T-026) · **Critérios:** `docs/qa/criterios/T-248.md` (CA-248-12 a 16)
 
 Convenções gerais em `docs/api/README.md`. Modelo: `contas.Usuario`, `Convite`, `Sessao`, `filiais.UsuarioFilial` em `docs/decisoes/modelo-de-dados.md`. Base: `<subdominio>.<dominio>/api/`.
 
@@ -31,6 +31,7 @@ Convenções gerais em `docs/api/README.md`. Modelo: `contas.Usuario`, `Convite`
 | `veiculos` | `editar`, `km_e_avarias`, `ver`, `nao` | `editar` | `editar` | `ver` | `km_e_avarias` | `ver` |
 | `clientes_cadastrar` | bool | sim | sim | sim | — | — |
 | `locacoes_criar` | bool | sim | sim | sim | — | — |
+| `locacoes_ver` | bool | sim | sim | sim | — | sim |
 | `vistorias_fazer` | bool | sim | sim | sim | sim | — |
 | `locacoes_cancelar` | `sim`, `aprova`, `pede`, `nao` | `sim` | `aprova` | `pede` | `nao` | `nao` |
 | `desconto_acima_limite` | `sim`, `aprova`, `pede`, `nao` | `sim` | `aprova` | `pede` | `nao` | `nao` |
@@ -47,6 +48,8 @@ Convenções gerais em `docs/api/README.md`. Modelo: `contas.Usuario`, `Convite`
 | `administracao` | bool | sim | — | — | — | — |
 
 `movimentacoes` (T-286, `MOV-02`): `gerir` cria, agenda, inicia, cancela e cria local de apoio (administrador e gerente, pelo escopo de filial); `levar` só registra as chegadas das movimentações que a pessoa leva; `nao`, nada. Detalhes em `movimentacoes.md`.
+
+`locacoes_ver` (T-458) é a permissão de `GET /api/locacoes/` ("todos menos vistoriador", `locacoes.md`): a ficha do veículo só pede as locações (`?veiculo=`) com a chave. Não muda o detalhe da locação, que o vistoriador abre sem valores. No modo suporte "só ver" ela vem desligada, como a lista, que não é rota de leitura do suporte.
 
 `lancamento_avulso` (T-162) é a linha "Lançamento avulso em contas a receber (multa, avaria, outro), cancelar, renegociar, estornar" da tabela de perfis (T-232) e de `financeiro.md` ("Quem pode"): o botão "Novo lançamento" de contas a receber e o `POST /api/financeiro/contas-receber/` seguem a mesma lista. A permissão extra `cancelar_contrato` não muda essa chave.
 
