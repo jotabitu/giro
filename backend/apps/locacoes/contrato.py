@@ -178,11 +178,23 @@ def _dados(locacao: Locacao) -> contratos.DadosDoContrato:
 # --- Ações ---
 
 
+def contrato_na_hora(locacao: Locacao) -> bool:
+    """Antes da retirada, ou depois da retirada à mão com a assinatura pendente (LOC-17)."""
+    if locacao.status == S.AGUARDANDO_RETIRADA:
+        return True
+    return (
+        locacao.retirada_a_mao
+        and locacao.contrato_assinado_em is None
+        and locacao.status in (S.ATIVA, S.DEVOLUCAO_ATRASADA)
+    )
+
+
 def gerar(locacao: Locacao) -> Contrato:
     """Locação `aguardando_retirada`, sem pedido de desconto pendente (o contrato sai com o
     preço decidido) e sem cancelamento em curso (`LOC-12`). 422 `IMP-04` sem modelo publicado;
-    409 `contrato_existente`. `selectors.acoes` diz antes se passa (`gerar_contrato`)."""
-    if locacao.status != S.AGUARDANDO_RETIRADA:
+    409 `contrato_existente`. `selectors.acoes` diz antes se passa (`gerar_contrato`). Também
+    na locação retirada à mão sem contrato assinado (pendência da LOC-17)."""
+    if not contrato_na_hora(locacao):
         raise Conflito(
             "contrato_fora_de_hora",
             "O contrato sai quando a locação está aguardando retirada.",

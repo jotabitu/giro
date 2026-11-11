@@ -29,6 +29,7 @@ from comum.dinheiro import aplicar_percentual, formatar_reais
 from comum.permissoes import pode
 
 from . import services
+from .contrato import contrato_na_hora
 from .models import (
     ABERTAS,
     FormaPagamento,
@@ -50,6 +51,7 @@ ABAS = ("abertas", "precisam_acao", "devolvem_hoje", "encerradas", "canceladas",
 ORDENS = {"fim_previsto": "fim_previsto", "-inicio": "-inicio"}
 CRIAM = frozenset({"administrador", "gerente", "vendedor"})
 VISTORIAM = frozenset({"administrador", "gerente", "vendedor", "vistoriador"})
+REGISTRAM_RETIRADA = frozenset({"administrador", "gerente"})  # LOC-17, retirada à mão
 
 
 def _fuso() -> ZoneInfo:
@@ -109,13 +111,30 @@ def _devolvem_hoje(qs: QuerySet[Any]) -> QuerySet[Any]:
     return qs.filter(status=S.ATIVA, fim_previsto__gte=comeco, fim_previsto__lt=fim)
 
 
+def q_pendencia_da_retirada() -> Q:
+    """LOC-17: retirada à mão com a assinatura ou o 1º pagamento ainda faltando."""
+    return Q(retirada_a_mao=True, status__in=(S.ATIVA, S.DEVOLUCAO_ATRASADA)) & (
+        Q(contrato_assinado_em__isnull=True) | Q(primeiro_pagamento_em__isnull=True)
+    )
+
+
 def _precisam_acao(qs: QuerySet[Any]) -> QuerySet[Any]:
-    """Devolução atrasada, parcela atrasada, aguardando assinatura ou cancelamento pendente."""
+    """Devolução atrasada, parcela atrasada, aguardando assinatura, cancelamento pendente ou
+    pendência da retirada à mão (LOC-17)."""
     return qs.filter(status__in=ABERTAS).filter(
         Q(status=S.DEVOLUCAO_ATRASADA)
         | Q(fin_atrasado_centavos__gt=0)
         | Q(status=S.AGUARDANDO_RETIRADA, contrato_assinado_em__isnull=True)
         | Q(cancelamento_status=StatusDesconto.PENDENTE)
+        | q_pendencia_da_retirada()
+    )
+
+
+def tem_pendencia_da_retirada(locacao: Locacao) -> bool:
+    return (
+        locacao.retirada_a_mao
+        and locacao.status in (S.ATIVA, S.DEVOLUCAO_ATRASADA)
+        and (locacao.contrato_assinado_em is None or locacao.primeiro_pagamento_em is None)
     )
 
 
@@ -242,6 +261,8 @@ def situacao(locacao: Locacao, sinal: dict[str, bool]) -> dict[str, str]:
             "rotulo": "Aguardando pagamento",
             "tom": "alerta",
         }
+    if tem_pendencia_da_retirada(locacao):  # LOC-17: retirada à mão com o que faltava
+        return {"codigo": "pendencia_retirada", "rotulo": "Pendência da retirada", "tom": "alerta"}
     if sinal["devolve_hoje"]:
         return {"codigo": "devolve_hoje", "rotulo": "Devolve hoje", "tom": "info"}
     tons = {S.ATIVA: "sucesso", S.ENCERRADA: "neutro", S.CANCELADA: "neutro", S.RASCUNHO: "neutro"}
@@ -412,7 +433,7 @@ def acoes(locacao: Locacao, usuario: Any, contrato: Contrato | None = None) -> d
         # publicado: sem ele o botão aparece e o 422 `IMP-04` mostra o atalho. `contrato` é o
         # vigente: `None` também com o anterior cancelado.
         "gerar_contrato": cria
-        and locacao.status == S.AGUARDANDO_RETIRADA
+        and contrato_na_hora(locacao)
         and locacao.desconto_status != StatusDesconto.PENDENTE
         and not _cancelamento_em_curso(locacao)
         and contrato is None,
@@ -431,6 +452,9 @@ def acoes(locacao: Locacao, usuario: Any, contrato: Contrato | None = None) -> d
         and locacao.vistoria_saida_ok_em is None,
         "receber": bool(pode(usuario, "caixa_receber"))
         and int(getattr(locacao, "fin_abertas", 0) or 0) > 0,
+        # LOC-17: o botão aparece mesmo sem a vistoria (com o aviso); a API recusa com 409.
+        "registrar_retirada": perfil in REGISTRAM_RETIRADA
+        and locacao.status == S.AGUARDANDO_RETIRADA,
     }
 
 
@@ -736,17 +760,57 @@ def para_retirar(
     ultimo = ultimo_dia_retirada(locacao)
     cancela = ultimo + timedelta(days=1)
     ve_valores = getattr(usuario, "perfil", "") != "vistoriador"
+    passos = [
+        _passo_da_vistoria(locacao, acoes_da_locacao),
+        _passo_do_contrato(locacao, contrato, acoes_da_locacao),
+        _passo_do_pagamento(locacao, contas, relogio.hoje(), ve_valores),
+    ]
     return {
-        "passos": [
-            _passo_da_vistoria(locacao, acoes_da_locacao),
-            _passo_do_contrato(locacao, contrato, acoes_da_locacao),
-            _passo_do_pagamento(locacao, contas, relogio.hoje(), ve_valores),
-        ],
+        "passos": passos,
         "prazo": (
             f"Retire até {dia_curto(ultimo)}. "
             f"Sem retirada, a locação é cancelada em {dia_curto(cancela)}."
         ),
+        "registrar_retirada": _registrar_retirada(locacao, passos, acoes_da_locacao),
     }
+
+
+def _registrar_retirada(
+    locacao: Locacao, passos: list[dict[str, Any]], acoes_da_locacao: dict[str, Any]
+) -> dict[str, Any] | None:
+    """O botão "Registrar retirada" (LOC-17), só para quem pode (`acoes.registrar_retirada`).
+    Sem a vistoria de saída, `disponivel` é false e `aviso` diz por quê (a API recusa com 409).
+    `faltas` são os textos dos passos que faltam, para a confirmação."""
+    if not acoes_da_locacao["registrar_retirada"]:
+        return None
+    disponivel = locacao.vistoria_saida_ok_em is not None
+    return {
+        "rotulo": "Registrar retirada",
+        "disponivel": disponivel,
+        "aviso": None if disponivel else "Faça a vistoria de saída antes da retirada.",
+        "titulo": "Registrar retirada?",
+        "faltas": [p["texto"] for p in passos if not p["feito"]],
+        "motivo_obrigatorio": "Informe o motivo.",
+    }
+
+
+def pendencias_da_retirada(
+    locacao: Locacao,
+    usuario: Any,
+    contrato: Contrato | None,
+    contas: list[Any],
+    acoes_da_locacao: dict[str, Any],
+) -> dict[str, Any] | None:
+    """LOC-17: depois da retirada à mão, o que faltava, com a mesma ação de cada passo. Some
+    quando tudo está feito, e não existe na retirada sozinha."""
+    if not tem_pendencia_da_retirada(locacao):
+        return None
+    ve_valores = getattr(usuario, "perfil", "") != "vistoriador"
+    passos = [
+        _passo_do_contrato(locacao, contrato, acoes_da_locacao),
+        _passo_do_pagamento(locacao, contas, relogio.hoje(), ve_valores),
+    ]
+    return {"passos": [p for p in passos if not p["feito"]]}
 
 
 def detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
@@ -795,6 +859,9 @@ def detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
         "cancelamento": _cancelamento(locacao),
         "prazo_retirada": prazo_retirada(locacao),
         "para_retirar": para_retirar(locacao, usuario, contrato, contas, acoes_da_locacao),
+        "pendencias_retirada": pendencias_da_retirada(
+            locacao, usuario, contrato, contas, acoes_da_locacao
+        ),
         "troca": _troca(locacao),
         "acoes": acoes_da_locacao,
     }

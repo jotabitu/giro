@@ -298,13 +298,215 @@ def test_loc_17_ca_451_03_ativa_sozinha_com_o_pagamento_por_ultimo(
     assert (evento.ator_nome, evento.motivo) == ("Bruna", "Retirada. Último passo: 1º pagamento")
 
 
-def test_loc_17_ca_451_04_sem_rota_de_registrar_retirada(cenario, locacao) -> None:  # noqa: F811
-    """Padrão A do ponto em aberto: nenhuma rota nem ação de "Registrar retirada"."""
-    for caminho in ("retirada/", "registrar-retirada/", "retirar/"):
-        resposta = cenario.moto.api("Bruna").post(f"{LISTA}{locacao.pk}/{caminho}")
-        assert resposta.status_code in (404, 405), caminho
-    acoes = cenario.detalhe(locacao.pk)["acoes"]
-    assert not any("retirada" in chave for chave in acoes)
+MOTIVO = "Cliente paga amanhã, combinado com a gerência"
+
+
+def _registrar(cenario: Cenario, locacao: Locacao, quem: str = "Rodrigo", motivo: str = MOTIVO):  # noqa: F811
+    return cenario.moto.api(quem).post(
+        f"{LISTA}{locacao.pk}/retirada/", {"motivo": motivo}, format="json"
+    )
+
+
+def _no_dia(cenario: Cenario, relogio: Any, quando: str) -> None:  # noqa: F811
+    relogio.em(quando)
+    cenario.moto._tokens.clear()  # o token do dia anterior venceu
+
+
+def test_loc_17_ca_451_04_registrar_retirada_quem_e_quando(cenario, locacao) -> None:  # noqa: F811
+    """Decisão do dono de 11 nov: o botão é do administrador e do gerente da filial, só com a
+    locação `aguardando_retirada`, e exige a vistoria de saída (409 `vistoria_saida_pendente`)."""
+    for quem in ("Bruna", "João", "Lúcia"):
+        assert cenario.detalhe(locacao.pk, quem)["acoes"]["registrar_retirada"] is False
+        assert _bloco(cenario, locacao, quem)["registrar_retirada"] is None
+        assert _registrar(cenario, locacao, quem).status_code == 403
+    for quem in ("Mariana", "Rodrigo"):
+        assert cenario.detalhe(locacao.pk, quem)["acoes"]["registrar_retirada"] is True
+    botao = _bloco(cenario, locacao, "Rodrigo")["registrar_retirada"]
+    assert botao == {
+        "rotulo": "Registrar retirada",
+        "disponivel": False,
+        "aviso": "Faça a vistoria de saída antes da retirada.",
+        "titulo": "Registrar retirada?",
+        "faltas": [
+            "Falta a vistoria de saída",
+            "Falta enviar o contrato",
+            "Falta receber R$ 629,00: 1ª semana R$ 329,00 e caução R$ 300,00",
+        ],
+        "motivo_obrigatorio": "Informe o motivo.",
+    }
+    sem_vistoria = _registrar(cenario, locacao)
+    assert (sem_vistoria.status_code, sem_vistoria.json()["codigo"]) == (
+        409,
+        "vistoria_saida_pendente",
+    )
+    assert sem_vistoria.json()["mensagem"] == "Faça a vistoria de saída antes da retirada."
+
+    _vistoriar(locacao.pk)
+    botao = _bloco(cenario, locacao, "Rodrigo")["registrar_retirada"]
+    assert (botao["disponivel"], botao["aviso"]) == (True, None)
+    assert botao["faltas"] == [
+        "Falta enviar o contrato",
+        "Falta receber R$ 629,00: 1ª semana R$ 329,00 e caução R$ 300,00",
+    ]
+    sem_motivo = _registrar(cenario, locacao, motivo="  ")
+    assert sem_motivo.status_code == 400
+    assert sem_motivo.json()["campos"]["motivo"] == ["Informe o motivo."]
+    assert _status(locacao) == "aguardando_retirada"
+
+    assert _registrar(cenario, locacao).status_code == 200
+    de_novo = _registrar(cenario, locacao)
+    assert (de_novo.status_code, de_novo.json()["codigo"]) == (409, "transicao_locacao")
+
+
+def test_loc_17_ca_451_07_retirada_a_mao_exemplo_da_regra(
+    cenario,  # noqa: F811
+    relogio,
+    relogio_jwt,
+) -> None:
+    """O exemplo da LOC-17: semanal Street de 05 nov 10:00, vistoria feita, sem assinatura nem
+    pagamento, retirada pelo gerente em 07 nov. A parcela 1 e a caução vencem em 07 nov
+    (`vence_hoje`), atrasam em 08 nov com o atraso contado de 08 nov; a parcela 2 continua em
+    12 nov e o fim previsto em 19 nov 10:00."""
+    _completar(cenario.clientes["Lucas"])
+    _no_dia(cenario, relogio, "2026-11-05 09:00")
+    criada = cenario.confirmada(inicio="2026-11-05T13:00:00Z", periodos=2)
+    locacao = Locacao.objects.get(pk=criada["id"])
+    _vistoriar(locacao.pk)
+    _no_dia(cenario, relogio, "2026-11-07 09:00")
+
+    resposta = _registrar(cenario, locacao)
+    assert resposta.status_code == 200, resposta.json()
+    detalhe = resposta.json()
+    assert detalhe["status"] == "ativa"
+    assert detalhe["para_retirar"] is None
+    assert Veiculo.objects.get(pk=locacao.veiculo_id).status == "alugado"
+    evento = _retirada(locacao)
+    assert evento.ator_nome == "Rodrigo"
+    assert evento.motivo == (
+        f"Retirada registrada à mão. Motivo: {MOTIVO}. "
+        "Faltava: assinatura do contrato e 1º pagamento"
+    )
+    assert evento.depois["retirada_a_mao"] is True
+
+    contas = {p["rotulo"]: p for p in detalhe["parcelas"]}
+    assert (contas["Parcela 1"]["vencimento"], contas["Parcela 1"]["status"]) == (
+        "2026-11-07",
+        "vence_hoje",
+    )
+    assert (contas["Caução"]["vencimento"], contas["Caução"]["status"]) == (
+        "2026-11-07",
+        "vence_hoje",
+    )
+    assert contas["Parcela 2"]["vencimento"] == "2026-11-12"
+    assert (
+        Locacao.objects.get(pk=locacao.pk).fim_previsto.isoformat() == "2026-11-19T13:00:00+00:00"
+    )
+
+    assert detalhe["situacao"]["codigo"] == "pendencia_retirada"
+    assert _passos(detalhe["pendencias_retirada"]) == [
+        ("contrato", False, "Falta enviar o contrato", ["Enviar contrato"]),
+        (
+            "pagamento",
+            False,
+            "Falta receber R$ 629,00: 1ª semana R$ 329,00 e caução R$ 300,00",
+            [],
+        ),
+    ]
+    precisam = cenario.moto.api("Rodrigo").get(LISTA, {"aba": "precisam_acao"}).json()
+    assert locacao.pk in [linha["id"] for linha in precisam["resultados"]]
+
+    _no_dia(cenario, relogio, "2026-11-08 09:00")
+    no_receber = cenario.moto.api("Rodrigo").get(f"{CONTAS}{contas['Parcela 1']['id']}/").json()
+    assert (no_receber["status"], no_receber["dias_atraso"]) == ("atrasada", 1)  # não de 05 nov
+    linha = cenario.detalhe(locacao.pk, "Rodrigo")
+    assert {p["rotulo"]: p["status"] for p in linha["parcelas"]}["Parcela 1"] == "atrasada"
+
+
+def test_loc_17_ca_451_08_pago_e_assinado_depois_so_tira_a_pendencia(
+    cenario,  # noqa: F811
+    locacao,
+    django_capture_on_commit_callbacks,
+) -> None:
+    """Depois do botão, a retirada sozinha não roda de novo: pagar e assinar só tiram a
+    pendência, sem outra "Retirada" e sem mexer nas contas."""
+    _vistoriar(locacao.pk)
+    assert _registrar(cenario, locacao).status_code == 200
+    assert _abrir(cenario).status_code == 201
+    assert _receber(cenario, _conta(locacao), 32900).status_code == 200
+    assert _receber(cenario, _conta(locacao, "caucao"), 30000).status_code == 200
+    detalhe = cenario.detalhe(locacao.pk, "Rodrigo")
+    assert [p["codigo"] for p in detalhe["pendencias_retirada"]["passos"]] == ["contrato"]
+    assert Locacao.objects.get(pk=locacao.pk).primeiro_pagamento_em is not None
+
+    # "Enviar contrato" continua na locação ativa, e o cliente assina como antes.
+    assert _gerar(cenario, django_capture_on_commit_callbacks, locacao.pk).status_code == 202
+    assinatura = _assinar(_token(), capturar=django_capture_on_commit_callbacks)
+    assert assinatura.status_code == 200, assinatura.json()
+    detalhe = cenario.detalhe(locacao.pk, "Rodrigo")
+    assert detalhe["pendencias_retirada"] is None
+    assert detalhe["situacao"]["codigo"] != "pendencia_retirada"
+    assert detalhe["status"] == "ativa"
+    assert (
+        EventoAuditoria.objects.filter(
+            objeto_tipo="locacao", objeto_id=locacao.pk, acao="locacao.retirada"
+        ).count()
+        == 1
+    )
+
+
+def test_loc_17_retirada_sozinha_nao_tem_pendencia(
+    cenario,  # noqa: F811
+    locacao,
+    django_capture_on_commit_callbacks,
+) -> None:
+    _vistoriar(locacao.pk)
+    assert _abrir(cenario).status_code == 201
+    assert _receber(cenario, _conta(locacao), 32900).status_code == 200
+    assert _receber(cenario, _conta(locacao, "caucao"), 30000).status_code == 200
+    assert _gerar(cenario, django_capture_on_commit_callbacks, locacao.pk).status_code == 202
+    assert _assinar(_token(), capturar=django_capture_on_commit_callbacks).status_code == 200
+    salva = Locacao.objects.get(pk=locacao.pk)
+    assert (salva.status, salva.retirada_a_mao) == ("ativa", False)
+    assert salva.retirada_em is not None
+    assert cenario.detalhe(locacao.pk)["pendencias_retirada"] is None
+
+
+def test_loc_17_contrato_sem_assinatura_7_dias_depois_avisa_os_gerentes(
+    cenario,  # noqa: F811
+    locacao,
+    relogio,
+) -> None:
+    from apps.locacoes import services as locacoes_services
+    from apps.notificacoes.models import Notificacao
+
+    _vistoriar(locacao.pk)
+    assert _registrar(cenario, locacao).status_code == 200  # 07 out, 10:00
+    relogio.em("2026-10-14 09:59")
+    assert locacoes_services.avisar_assinaturas_pendentes_da_retirada() == 0
+    relogio.em("2026-10-14 10:00")
+    assert locacoes_services.avisar_assinaturas_pendentes_da_retirada() == 1
+    assert locacoes_services.avisar_assinaturas_pendentes_da_retirada() == 0  # idempotente
+    aviso = Notificacao.objects.get(tipo="retirada_sem_assinatura")
+    assert aviso.destinatario_id == cenario.pessoas["Rodrigo"].pk
+    assert aviso.titulo == "Contrato da LOC-2856 sem assinatura 7 dias depois da retirada"
+    assert aviso.link == f"/locacoes/{locacao.pk}"
+
+
+def test_loc_17_aut_17_nao_cancela_a_retirada_a_mao(cenario, locacao, relogio) -> None:  # noqa: F811
+    from apps.locacoes import services as locacoes_services
+
+    _vistoriar(locacao.pk)
+    assert _registrar(cenario, locacao).status_code == 200
+    relogio.em("2026-10-12 00:10")
+    assert locacoes_services.cancelar_nao_retiradas() == 0
+    assert _status(locacao) == "ativa"
+
+
+def test_loc_17_beat_tem_o_aviso_da_assinatura() -> None:
+    from django.conf import settings
+
+    tarefa = settings.CELERY_BEAT_SCHEDULE["loc_17_avisar_assinaturas_pendentes"]
+    assert tarefa["task"] == "loc_17_avisar_assinaturas_pendentes_de_todas"
 
 
 def test_loc_17_ca_451_05_impedimento_aparece_como_motivo(cenario) -> None:  # noqa: F811

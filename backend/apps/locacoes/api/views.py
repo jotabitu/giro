@@ -44,6 +44,7 @@ from .serializers import (
     LocacaoSerializer,
     PlanoEspecialEntradaSerializer,
     PlanoEspecialSerializer,
+    RegistrarRetiradaEntradaSerializer,
     RenovarLocacaoSerializer,
     SimulacaoCancelamentoSerializer,
     SimulacaoLocacaoSerializer,
@@ -59,6 +60,9 @@ LEEM_A_LISTA: list[type[BasePermission]] = com_padrao(
     exige_perfil("administrador", "gerente", "vendedor", "financeiro")
 )
 ADMINISTRADOR: list[type[BasePermission]] = com_padrao(exige_perfil("administrador"))
+REGISTRAM_RETIRADA: list[type[BasePermission]] = com_padrao(
+    exige_perfil("administrador", "gerente")
+)
 
 
 class ViewDeLocacao(APIView):
@@ -281,6 +285,24 @@ class CancelarLocacaoView(ViewDeLocacao):
                 CancelamentoPedidoSerializer({"pedido_aprovacao": pedido.como_dict()}).data,
                 status=status.HTTP_202_ACCEPTED,
             )
+        return _detalhe(request, pk)
+
+
+class RegistrarRetiradaView(ViewDeLocacao):
+    """ "Registrar retirada" (LOC-17, decisão do dono de 11 nov 2026): administrador e gerente da
+    filial da locação (fora do escopo, 404). 409 `vistoria_saida_pendente` sem a vistoria de
+    saída; 409 `transicao_locacao` fora de `aguardando_retirada`; 400 sem motivo."""
+
+    permission_classes = REGISTRAM_RETIRADA
+
+    @extend_schema(
+        request=RegistrarRetiradaEntradaSerializer,
+        responses=LocacaoDetalheSerializer,
+        summary="Registrar retirada à mão (LOC-17)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        dados = _entrada(RegistrarRetiradaEntradaSerializer, request)
+        services.registrar_retirada(_locacao(request, pk), dados["motivo"])
         return _detalhe(request, pk)
 
 

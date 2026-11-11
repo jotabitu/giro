@@ -687,7 +687,8 @@ def test_fin_15_seed_019_21_semana(seed):
     a_vencer = api.get(CONTAS, {"periodo": "semana", "situacao": "a_vencer", "tamanho": 100}).json()
     pagas = api.get(CONTAS, {"periodo": "semana", "situacao": "pagas", "tamanho": 100}).json()
     assert sum(c["valor_centavos"] for c in a_vencer["resultados"]) == 573920
-    assert sum(c["valor_centavos"] for c in pagas["resultados"]) == 588250
+    # FIN-18 (T-452): a lista traz as cauções pagas da semana (R$ 300,00), fora das contagens.
+    assert sum(c["valor_centavos"] for c in pagas["resultados"]) == 618250
     # A caução do Lucas só aparece com ?cliente= (ou a origem).
     lucas = Cliente.objects.get(nome="Lucas Ferreira")
     geral = api.get(CONTAS, {"periodo": "semana", "tamanho": 100}).json()["resultados"]

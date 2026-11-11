@@ -593,7 +593,8 @@ def test_loc_ca_015_14_tres_condicoes_em_qualquer_ordem(cenario, ordem):
 
 def test_loc_ca_015_14_so_a_parcela_paga_nao_ativa(cenario):
     criada = cenario.confirmada()
-    assert cenario.detalhe(criada["id"])["situacao"]["rotulo"] == "Aguardando assinatura"
+    # LOC-17 (T-451): o primeiro passo que falta, na ordem vistoria, assinatura, pagamento.
+    assert cenario.detalhe(criada["id"])["situacao"]["rotulo"] == "Aguardando vistoria"
     _vistoriar(criada["id"])
     _assinar(criada["id"])
     _pagar(criada["id"], caucao=False)

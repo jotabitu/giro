@@ -741,35 +741,96 @@ def verificar_ativacao(locacao: Locacao | int, passo: str | None = None) -> bool
             else max(momentos, key=lambda campo: momentos[campo])
         )
         ultimo = PASSOS_DA_RETIRADA[campo_do_ultimo]
-        estados.transicionar(
-            travada,
-            S.ATIVA,
-            motivo=f"Retirada. Último passo: {ultimo}",
-            acao="locacao.retirada",
-        )
-        veiculos.transicionar(
-            travada.veiculo,
-            StatusVeiculo.ALUGADO,
-            origem=veiculos.OrigemDaMudanca(ORIGEM, travada.pk, travada.codigo),
-            motivo=f"Retirada da {travada.codigo}",
-        )
-        financeiro.confirmar_comissao(_origem(travada))
-        financeiro.liberar_contas_da_retirada(
-            _origem(travada), data_local(relogio.agora(), travada.filial)
-        )
+        _retirar(travada, f"Retirada. Último passo: {ultimo}")
     if isinstance(locacao, Locacao):
         _recarregar(locacao)
     return True
 
 
+def _retirar(travada: Locacao, motivo: str, *, a_mao: bool = False, por_motivo: str = "") -> None:
+    """A operação da retirada (LOC-17), a mesma nas duas formas: locação `ativa` com o evento
+    "Retirada" (`locacao.retirada`), veículo `alugado`, comissão confirmada (FIN-09) e as contas
+    liberadas com o dia da retirada (LOC-05). Na à mão, a 1ª parcela e a caução em aberto antes
+    passam a vencer nesse dia. Chamar com a locação travada, numa transação."""
+    agora = relogio.agora()
+    dia = data_local(agora, travada.filial)
+    travada.retirada_em = agora
+    travada.retirada_a_mao = a_mao
+    travada.retirada_motivo = por_motivo[:200]
+    estados.transicionar(
+        travada,
+        S.ATIVA,
+        motivo=motivo,
+        acao="locacao.retirada",
+        regra="LOC-17",
+        mais_campos=("retirada_em", "retirada_a_mao", "retirada_motivo"),
+    )
+    veiculos.transicionar(
+        travada.veiculo,
+        StatusVeiculo.ALUGADO,
+        origem=veiculos.OrigemDaMudanca(ORIGEM, travada.pk, travada.codigo),
+        motivo=f"Retirada da {travada.codigo}",
+    )
+    financeiro.confirmar_comissao(_origem(travada))
+    if a_mao:
+        financeiro.vencer_na_retirada(_origem(travada), dia)
+    financeiro.liberar_contas_da_retirada(_origem(travada), dia)
+
+
+def vistoria_saida_pendente() -> Conflito:
+    return Conflito("vistoria_saida_pendente", "Faça a vistoria de saída antes da retirada.")
+
+
+def passos_que_faltam(locacao: Locacao) -> list[str]:
+    """Os passos da retirada ainda não cumpridos, pelo nome ("assinatura do contrato")."""
+    return [nome for campo, nome in PASSOS_DA_RETIRADA.items() if getattr(locacao, campo) is None]
+
+
+def registrar_retirada(locacao: Locacao, motivo: str) -> Locacao:
+    """ "Registrar retirada" (LOC-17, decisão do dono de 11 nov 2026): a retirada à mão, antes da
+    assinatura ou do 1º pagamento. Só `aguardando_retirada` (409 `transicao_locacao`), sempre com
+    a vistoria de saída concluída (409 `vistoria_saida_pendente`) e com motivo (400). O perfil
+    (administrador e gerente da filial) é conferido na view. O que faltava fica como pendência
+    da locação `ativa`, e a retirada sozinha não roda de novo."""
+    motivo = (motivo or "").strip()
+    if not motivo:
+        raise ErroDeValidacao({"motivo": ["Informe o motivo."]})
+    with transaction.atomic():
+        travada = _travar(locacao)
+        if travada.status != S.AGUARDANDO_RETIRADA:
+            raise transicao_invalida(travada.status, S.ATIVA)
+        if travada.vistoria_saida_ok_em is None:
+            raise vistoria_saida_pendente()
+        faltam = passos_que_faltam(travada)
+        if not faltam:  # os três feitos: a retirada sozinha já devia ter acontecido
+            verificar_ativacao(travada.pk)
+        else:
+            _retirar(
+                travada,
+                f"Retirada registrada à mão. Motivo: {motivo}. Faltava: {' e '.join(faltam)}",
+                a_mao=True,
+                por_motivo=motivo,
+            )
+    _recarregar(locacao)
+    return locacao
+
+
 def _registrar_condicao(locacao_id: int, campo: str, momento: datetime, acao: str) -> bool:
+    """Grava o passo e, em `aguardando_retirada`, tenta a retirada sozinha. Depois da retirada à
+    mão (LOC-17), o passo que faltava ainda se grava, só para sair das pendências: a retirada
+    não acontece de novo."""
     with transaction.atomic():
         travada = _travar(locacao_id)
-        if travada.status != S.AGUARDANDO_RETIRADA or getattr(travada, campo) is not None:
+        if getattr(travada, campo) is not None:
+            return False
+        pendente = travada.retirada_a_mao and travada.status in ABERTAS
+        if travada.status != S.AGUARDANDO_RETIRADA and not pendente:
             return False
         with auditar(travada, acao, Categoria.OPERACAO):
             setattr(travada, campo, momento)
             travada.save(update_fields=[campo, "atualizado_em"])
+        if pendente:
+            return False
         return verificar_ativacao(travada.pk, passo=campo)
 
 
@@ -1985,6 +2046,37 @@ def avisar_nao_retiradas() -> int:
     """AUT-17, às 08:00: as que vencem o prazo hoje. O aviso de um dia perdido não sai depois."""
     hoje = relogio.hoje()
     return sum(avisar_nao_retirada(loc) for loc in _aguardando_com_prazo(lambda dia: dia == hoje))
+
+
+DIAS_PARA_ASSINAR_DEPOIS_DA_RETIRADA = 7  # LOC-17, como o aditivo (LOC-08)
+
+
+def avisar_assinaturas_pendentes_da_retirada(agora: datetime | None = None) -> int:
+    """LOC-17: a locação retirada à mão com o contrato ainda não assinado 7 dias depois vira
+    tarefa para os gerentes da filial, como o aditivo (LOC-08). Idempotente: cada locação avisa
+    uma vez (`aviso_assinatura_retirada_em` e a chave). Devolve quantas locações avisou."""
+    agora = agora or relogio.agora()
+    pendentes = Locacao.objects.select_related("filial").filter(
+        retirada_a_mao=True,
+        status__in=(S.ATIVA, S.DEVOLUCAO_ATRASADA),
+        contrato_assinado_em__isnull=True,
+        retirada_em__lte=agora - timedelta(days=DIAS_PARA_ASSINAR_DEPOIS_DA_RETIRADA),
+        aviso_assinatura_retirada_em__isnull=True,
+    )
+    avisadas = 0
+    for locacao in pendentes.order_by("pk"):
+        with transaction.atomic():
+            avisar(
+                [g["id"] for g in filiais_selectors.gerentes(locacao.filial)],
+                tipo="retirada_sem_assinatura",
+                titulo=(f"Contrato da {locacao.codigo} sem assinatura 7 dias depois da retirada"),
+                link=f"/locacoes/{locacao.pk}",
+                chave=f"loc17-assinatura-{locacao.pk}",
+            )
+            locacao.aviso_assinatura_retirada_em = agora
+            locacao.save(update_fields=["aviso_assinatura_retirada_em", "atualizado_em"])
+        avisadas += 1
+    return avisadas
 
 
 def acertar_reservas_t410() -> tuple[int, int]:

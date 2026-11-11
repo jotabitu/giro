@@ -278,6 +278,9 @@ class AcoesLocacaoSerializer(serializers.Serializer[Any]):
     )
     continuar_vistoria = serializers.BooleanField()
     receber = serializers.BooleanField()
+    registrar_retirada = serializers.BooleanField(
+        help_text="LOC-17: administrador e gerente, locação aguardando retirada"
+    )
 
 
 class CancelamentoLocacaoSerializer(serializers.Serializer[Any]):
@@ -322,12 +325,42 @@ class PassoDaRetiradaSerializer(serializers.Serializer[Any]):
     acoes = AcaoDoPassoSerializer(many=True, help_text="só as que o perfil pode fazer")
 
 
+class RegistrarRetiradaSerializer(serializers.Serializer[Any]):
+    """O botão "Registrar retirada" (LOC-17) e a confirmação, com textos prontos."""
+
+    rotulo = serializers.CharField()
+    disponivel = serializers.BooleanField(help_text="false sem a vistoria de saída concluída")
+    aviso = serializers.CharField(
+        allow_null=True, help_text='"Faça a vistoria de saída antes da retirada."'
+    )
+    titulo = serializers.CharField(help_text='"Registrar retirada?"')
+    faltas = serializers.ListField(
+        child=serializers.CharField(), help_text="os textos dos passos que faltam"
+    )
+    motivo_obrigatorio = serializers.CharField(help_text='"Informe o motivo."')
+
+
 class ParaRetirarSerializer(serializers.Serializer[Any]):
     """LOC-17 (T-451): os três passos, na ordem vistoria, contrato, pagamento, e o prazo da
     LOC-12. Só na `aguardando_retirada`; textos prontos da API."""
 
     passos = PassoDaRetiradaSerializer(many=True)
     prazo = serializers.CharField()
+    registrar_retirada = RegistrarRetiradaSerializer(
+        allow_null=True, help_text="o botão, só para administrador e gerente (LOC-17)"
+    )
+
+
+class PendenciasDaRetiradaSerializer(serializers.Serializer[Any]):
+    """LOC-17: na locação retirada à mão, só os passos que ainda faltam. Nulo sem pendência."""
+
+    passos = PassoDaRetiradaSerializer(many=True)
+
+
+class RegistrarRetiradaEntradaSerializer(serializers.Serializer[Any]):
+    motivo = serializers.CharField(
+        max_length=200, allow_blank=True, error_messages={"blank": "Informe o motivo."}
+    )
 
 
 class VeiculoDaTrocaSerializer(serializers.Serializer[Any]):
@@ -405,6 +438,9 @@ class LocacaoDetalheSerializer(LocacaoSerializer):
     cancelamento = CancelamentoLocacaoSerializer(allow_null=True)
     prazo_retirada = PrazoRetiradaSerializer(allow_null=True)
     para_retirar = ParaRetirarSerializer(allow_null=True)
+    pendencias_retirada = PendenciasDaRetiradaSerializer(
+        allow_null=True, help_text="LOC-17: o que faltava na retirada à mão"
+    )
     troca = TrocaPendenteSerializer(allow_null=True)
     acoes = AcoesLocacaoSerializer()
 
