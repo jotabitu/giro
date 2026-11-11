@@ -51,7 +51,12 @@ Sinais (não são estados, são calculados): `pagamento_atrasado` (alguma parcel
     - **Contrato:** assinado, "Assinado em 07 out, 10:05". Enviado: "Falta a assinatura do cliente", com "Reenviar" e "Copiar link para assinar". Ainda sem contrato: "Falta enviar o contrato", com "Enviar contrato".
     - **1º pagamento:** pago, "Pago em 07 out · R$ 629,00". Falta: "Falta receber R$ 629,00: 1ª semana R$ 329,00 e caução R$ 300,00", e cada conta tem "Registrar pagamento" na seção Pagamentos (`FIN-18`). O valor é o de hoje da conta.
     - **Prazo** (`LOC-12`): "Retire até 10 out. Sem retirada, a locação é cancelada em 11 out.".
-  - **Outras telas:** na lista de locações e na ficha do cliente, a locação `aguardando_retirada` abre a ficha da locação, que é onde está o "Para retirar". O texto da linha diz o primeiro passo que falta, na ordem vistoria, assinatura, pagamento ("Aguardando assinatura").
+  - **Outras telas:** na lista de locações e na seção Locações da ficha do cliente, a locação `aguardando_retirada` abre a ficha da locação, que é onde está o "Para retirar". A situação da linha diz o primeiro passo que falta, na ordem assinatura, vistoria, pagamento: "Aguardando assinatura", "Aguardando vistoria", "Aguardando pagamento".
+  - **Pagamento e caução na linha da locação** (lista de locações e seção Locações do cliente, T-456). Os textos vêm da API e mudam a cada pagamento.
+    - **Antes da retirada,** o pagamento diz o que falta do 1º pagamento: "Falta R$ 629,00 · 1ª semana e caução", "Falta R$ 300,00 · caução", "Falta R$ 329,00 · 1ª semana". Com os dois pagos: "1º pagamento feito · R$ 629,00". O nome da 1ª parcela segue o plano: "1ª semana", "1º mês" ou, na diária, "as 5 diárias".
+    - **Da retirada em diante,** o pagamento segue como antes ("R$ 1.347,00 em aberto", "Parcela 2 atrasada", "Pago").
+    - **A caução aparece na linha,** com o valor e a situação: "Caução R$ 300,00 · paga" ou "Caução R$ 300,00 · em aberto". Depois do acerto da devolução, que usa a caução (`DEV-02`), ela sai da linha.
+    - **Ex.:** numa locação Street semanal recém-confirmada, a vendedora recebe só a 1ª semana. A linha passa de "Falta R$ 629,00 · 1ª semana e caução" para "Falta R$ 300,00 · caução", com "Caução R$ 300,00 · em aberto". A situação continua "Aguardando assinatura" enquanto o contrato não for assinado: é o primeiro passo que falta, e não o pagamento.
   - **Ex.: LOC-2856** (Lucas, SAK-1D39, semanal Street, em 07 out). A vistoria de saída está feita, o 1º pagamento também ("Pago em 07 out · R$ 629,00"), e falta a assinatura do cliente. Quando o Lucas assina, a locação vira `ativa` na hora, e o SAK-1D39 vira `alugado`, sem outro clique.
 
 **Cálculos**
