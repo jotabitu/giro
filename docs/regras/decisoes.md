@@ -231,6 +231,8 @@ As respostas do dono do produto aos pontos em aberto, pelo artefato Decisões do
 | Período da retirada depois do início; contagem dos 3 dias; aviso da não retirada (T-410) | **A** nos três: o período conta da data de início; o último dia é o 3º depois do início; só o gerente é avisado (`LOC-05`, `LOC-12`). | O contrato já traz as datas, a contagem é a do Código Civil, e o gerente fala com o cliente. |
 | Valor e multa da intenção de compra (T-420) | **A** nos dois: planos de compra em Preços; sem multa no encerramento antes do fim (`LOC-16`). | A locadora tem um valor próprio para a compra, e o cliente já perde o que pagou. |
 | CRLV-e no editar (T-421) | **A:** confirma o que já está feito (`VEI-08`). | A frota já cadastrada ganha os campos sem digitar. |
-| Preço do Profissional (`PLT-11`) | **A:** R$ 449,00 e R$ 4.490,00, 150/3/10 e o texto. | O texto sem o WhatsApp ficou em "Pontos em aberto", pela decisão C. |
+| Preço do Profissional (`PLT-11`) | **A:** R$ 449,00 e R$ 4.490,00, 150/3/10. O texto perde "e cobrança pelo WhatsApp": "Tudo do Essencial, mais despesas; Pix e boleto automáticos". | O texto lista só o que existe, e a decisão C tirou o WhatsApp do cliente na fase 1. |
+| Quem registra a retirada à mão (`LOC-17`) | **A:** só o administrador e o gerente da filial. | Soltar o veículo sem contrato assinado ou sem caução é exceção com risco de dinheiro, como o desconto acima de 5% (`APR-01`). |
+| Convite pelo WhatsApp (`USR-01`) | **A:** o convite vai só por e-mail na fase 1. | O WhatsApp fica só na régua da assinatura, e o e-mail já é obrigatório em todo usuário (`USR-06`). |
 | Guarda das faturas de empresa apagada (`AUD-08`, `PLT-14`) | **A:** 5 anos. | Prazo fiscal. |
 | Telas de conta | Esqueci a senha, 2 etapas, meu perfil e notificações vão para o Design System. | Faltam desenhar. |

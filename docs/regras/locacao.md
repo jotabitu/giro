@@ -36,7 +36,7 @@ Sinais (não são estados, são calculados): `pagamento_atrasado` (alguma parcel
     - as contas são liberadas com o dia da retirada (`LOC-05`);
     - grava-se o evento de auditoria "Retirada", com quem concluiu o último passo.
   - **Botão "Registrar retirada".** Serve para entregar o veículo antes de o cliente assinar ou pagar, quando quem atende decide que ele pode sair assim.
-    - **Quem aperta:** administrador e gerente da filial da locação (tabela de perfis). O vendedor, o vistoriador e o financeiro não veem o botão: veem o "Para retirar" com o que falta (padrão do produto, "Pontos em aberto").
+    - **Quem aperta:** administrador e gerente da filial da locação (tabela de perfis). O vendedor, o vistoriador e o financeiro não veem o botão: veem o "Para retirar" com o que falta (decisão do dono de 11 nov 2026).
     - **Onde e quando:** no "Para retirar" da ficha (`Locacao-Detalhe`), só enquanto a locação está `aguardando_retirada`. Com os três passos feitos, a retirada já aconteceu sozinha, e o botão não existe.
     - **O que exige:** a vistoria de saída concluída, sempre. Ela não se pula, porque é o que prova o estado do veículo e confere a CNH, o cadastro, o bloqueio do cliente e o CRLV e o seguro do veículo (`VIS-01` a `VIS-04`, `CLI-02`, `CLI-03`, `CLI-05`, `VEI-03`). Sem ela, o botão aparece com "Faça a vistoria de saída antes da retirada.", e a API recusa com 409 `vistoria_saida_pendente`. A assinatura e o 1º pagamento podem faltar, um ou os dois.
     - **Confirmação:** a tela abre "Registrar retirada?" com o que falta, nos textos do "Para retirar" ("Falta a assinatura do cliente", "Falta receber R$ 629,00: 1ª semana R$ 329,00 e caução R$ 300,00"), e o campo "Motivo", obrigatório ("Informe o motivo."). Os textos vêm da API.
