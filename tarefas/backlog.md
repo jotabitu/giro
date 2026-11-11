@@ -573,3 +573,8 @@ Vindas do teste do dono no fluxo de locação da Moto Rápida (LOC-0001 e LOC-00
 - **Agente:** frontend · **Regras:** `VEI-10` · **Origem:** conferência do QA de 11 nov 2026 (PR #524), aval do dono em 11 nov.
 - **O caso:** a 390 px, o título do visualizador de fotos (`components/frota/VisualizadorDeFotos.tsx`) quebra a linha no hífen da placa: "QXA-" numa linha e "4B21" na outra.
 - **Pronto quando:** a placa nunca se parte no hífen, em nenhum texto do visualizador (título, legenda e miniaturas), a 1440 e a 390 px; o texto em volta continua quebrando normalmente; teste.
+
+#### T-460 · Eventos de foto do veículo sem código, sem detalhe e com resumo cru na auditoria
+- **Agente:** fullstack (backend; frontend só se a tela não mostrar o que a API passar a devolver) · **Regras:** `VEI-10`, `AUD` · **Origem:** conferência do QA de 11 nov 2026 (PR #526, CA-437-13), aval do dono em 11 nov.
+- **O caso:** o evento `veiculo.foto_enviar` é gravado, um por foto, mas na API de auditoria vem com `objeto.codigo` nulo (só o id; a linha não diz TBC-5H22), `detalhe` vazio (não dá para ver qual foto virou capa) e resumo cru "Veículo: foto enviar", enquanto os outros eventos têm texto em português. Conferir também os outros eventos de foto da `VEI-10` (trocar, capa, apagar). O evento nasce em `backend/apps/veiculos/services.py`.
+- **Pronto quando:** os eventos de foto trazem a placa do veículo como código, o detalhe com o que mudou (arquivo, capa sim ou não) e um resumo em português como os demais; a tela de Auditoria mostra isso; teste com o código da regra no nome.
