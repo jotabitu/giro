@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { Button, DataTable, Icone, KpiGrid, KpiTile, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
 import {
-  ErroApi,
   veiculos,
   type DocumentoVeiculo,
   type LocacaoDoVeiculo,
@@ -103,7 +102,8 @@ const COLUNAS_MANUTENCOES: ColunaTabela<ManutencaoDoVeiculo>[] = [
 
 type Consultas = {
   docs: UseQueryResult<DocumentoVeiculo[]>;
-  locacoes: UseQueryResult<LocacoesDoVeiculo>;
+  /** `null` sem `pode.locacoes_ver` (T-458): a seção não aparece e a ficha nem pede as locações. */
+  locacoes: UseQueryResult<LocacoesDoVeiculo> | null;
   /** `null` enquanto o módulo de manutenção não está no menu: a seção não aparece (lista vazia diria "nenhuma manutenção"). */
   manutencoes: UseQueryResult<ManutencoesDoVeiculo> | null;
 };
@@ -188,10 +188,6 @@ function HistoricoDeDocumentos({ id }: { id: number }) {
 }
 
 /** A API recusa (403) a lista de locações a quem não tem acesso; o painel some em vez de mostrar o aviso (T-278). */
-export function semAcesso(consulta: Pick<UseQueryResult, "isError" | "error">): boolean {
-  return consulta.isError && consulta.error instanceof ErroApi && consulta.error.status === 403;
-}
-
 function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } & Consultas) {
   const fin = v.indicadores_financeiros;
   const podeAgir = v.acoes.editar;
@@ -273,7 +269,7 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
 
           <FotosEAvarias vistoria={v.vistoria_recente} />
 
-          {!semAcesso(locacoes) && (
+          {locacoes && (
           <Panel titulo="Locações" acao={locacoes.data ? <span className="text-[13px] text-ink-muted">{locacoes.data.total} no total</span> : undefined}>
             {locacoes.isError && <p role="alert">{mensagemDoErro(locacoes.error)}</p>}
             {locacoes.data?.resultados.length === 0 && <p className="text-body text-ink-muted">Este veículo ainda não foi alugado.</p>}
@@ -471,8 +467,11 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
 export function FichaVeiculo({ id }: { id: number }) {
   const ficha = useQuery({ queryKey: ["veiculo", id], queryFn: () => veiculos.obter(id) });
   const docs = useQuery({ queryKey: ["veiculo", id, "documentos"], queryFn: () => veiculos.documentos(id) });
-  const locacoes = useQuery({ queryKey: ["veiculo", id, "locacoes"], queryFn: () => veiculos.locacoes(id), retry: (n, e) => !(e instanceof ErroApi && e.status === 403) && n < 2 });
   const { eu } = useSessao();
+  // USR-05/USR-09 (T-458): só pede as locações com a chave da API; sem ela nenhuma chamada sai e o painel não aparece.
+  const comLocacoes = eu.pode.locacoes_ver;
+  const consultaLocacoes = useQuery({ queryKey: ["veiculo", id, "locacoes"], queryFn: () => veiculos.locacoes(id), enabled: comLocacoes });
+  const locacoes = comLocacoes ? consultaLocacoes : null;
   const comManutencoes = temNoMenu(eu.navegacao, "manutencoes");
   const consultaManutencoes = useQuery({ queryKey: ["veiculo", id, "manutencoes"], queryFn: () => veiculos.manutencoes(id), enabled: comManutencoes });
   const manutencoes = comManutencoes ? consultaManutencoes : null;
