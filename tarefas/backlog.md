@@ -564,3 +564,8 @@ Vindas do teste do dono no fluxo de locação da Moto Rápida (LOC-0001 e LOC-00
 - **Agente:** fullstack · **Regras:** `FIN`, `LOC`, `CLI` · **Origem:** nota 5 do dono.
 - **O caso:** na seção Locações do cliente, a situação continua a mesma depois de paga a primeira parcela, e a caução não aparece.
 - **Pronto quando:** a situação vem da API e muda com o pagamento; a seção mostra também a caução (valor e se foi paga); teste com a primeira parcela paga.
+
+#### T-459 · Placa quebrada no hífen no título do visualizador de fotos
+- **Agente:** frontend · **Regras:** `VEI-10` · **Origem:** conferência do QA de 11 nov 2026 (PR #524), aval do dono em 11 nov.
+- **O caso:** a 390 px, o título do visualizador de fotos (`components/frota/VisualizadorDeFotos.tsx`) quebra a linha no hífen da placa: "QXA-" numa linha e "4B21" na outra.
+- **Pronto quando:** a placa nunca se parte no hífen, em nenhum texto do visualizador (título, legenda e miniaturas), a 1440 e a 390 px; o texto em volta continua quebrando normalmente; teste.
