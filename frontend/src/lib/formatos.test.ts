@@ -24,7 +24,7 @@ describe("formatos", () => {
   });
 });
 
-import { celular, km, mascaraCnpj, mascaraCpf, mascaraCelular, mesAno, percentual, placa } from "./formatos";
+import { celular, km, mascaraCnpj, mascaraCpf, mascaraCelular, mesAno, percentual, placa, placaSemQuebra } from "./formatos";
 
 describe("formatos de lista", () => {
   it("km, placa e mês", () => {
@@ -32,6 +32,12 @@ describe("formatos de lista", () => {
     expect(placa("SAK1D39")).toBe("SAK-1D39");
     expect(mesAno("2026-03-04")).toBe("mar 2026");
     expect(percentual("86.00")).toBe("86%");
+  });
+
+  it("T-459: placaSemQuebra troca só o hífen da placa (e de código no mesmo formato, como LOC-2841) e deixa o resto quebrar", () => {
+    expect(placaSemQuebra("Galeria do veículo · QXA-4B21")).toBe("Galeria do veículo · QXA‑4B21");
+    expect(placaSemQuebra("SAK-1234 e SAK-1D39")).toBe("SAK‑1234 e SAK‑1D39");
+    expect(placaSemQuebra("Avaria 1 · 2 de 2 · fim-de-semana")).toBe("Avaria 1 · 2 de 2 · fim-de-semana");
   });
 
   it("máscaras de documento e celular", () => {

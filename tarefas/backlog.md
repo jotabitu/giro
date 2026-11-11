@@ -564,3 +564,35 @@ Vindas do teste do dono no fluxo de locação da Moto Rápida (LOC-0001 e LOC-00
 - **Agente:** fullstack · **Regras:** `FIN`, `LOC`, `CLI` · **Origem:** nota 5 do dono.
 - **O caso:** na seção Locações do cliente, a situação continua a mesma depois de paga a primeira parcela, e a caução não aparece.
 - **Pronto quando:** a situação vem da API e muda com o pagamento; a seção mostra também a caução (valor e se foi paga); teste com a primeira parcela paga.
+
+#### T-458 · Permissão de ler locações para a ficha do vistoriador
+- **Agentes:** backend (contrato e `pode`), depois fullstack (a ficha usa a chave) · **Regras:** `USR-05`, `USR-09` · **Origem:** D5 da conferência do QA de 10 nov 2026 (`docs/qa/conferencia-10-nov.md`); ficou de fora da T-447 (PR #512).
+- **O caso:** a ficha do veículo, aberta pelo vistoriador, chama `GET /api/locacoes/?veiculo=` e recebe 403 (erro no console; a ficha esconde Locações e não quebra). O `pode` de `/api/contas/eu/` não tem chave de leitura de locações, e a tela não deve decidir pelo perfil (escolha da T-278).
+- **Pronto quando:** `pode.locacoes_ver` no `/api/contas/eu/`, calculado pelo servidor como a permissão de `GET /api/locacoes/` ("todos menos vistoriador", `docs/api/locacoes.md`), no contrato de contas, com teste por perfil; depois a ficha só pede as locações com a chave.
+#### T-459 · Placa quebrada no hífen no título do visualizador de fotos
+- **Agente:** frontend · **Regras:** `VEI-10` · **Origem:** conferência do QA de 11 nov 2026 (PR #524), aval do dono em 11 nov.
+- **O caso:** a 390 px, o título do visualizador de fotos (`components/frota/VisualizadorDeFotos.tsx`) quebra a linha no hífen da placa: "QXA-" numa linha e "4B21" na outra.
+- **Pronto quando:** a placa nunca se parte no hífen, em nenhum texto do visualizador (título, legenda e miniaturas), a 1440 e a 390 px; o texto em volta continua quebrando normalmente; teste.
+
+#### T-460 · Eventos de foto do veículo sem código, sem detalhe e com resumo cru na auditoria
+- **Agente:** fullstack (backend; frontend só se a tela não mostrar o que a API passar a devolver) · **Regras:** `VEI-10`, `AUD` · **Origem:** conferência do QA de 11 nov 2026 (PR #526, CA-437-13), aval do dono em 11 nov.
+- **O caso:** o evento `veiculo.foto_enviar` é gravado, um por foto, mas na API de auditoria vem com `objeto.codigo` nulo (só o id; a linha não diz TBC-5H22), `detalhe` vazio (não dá para ver qual foto virou capa) e resumo cru "Veículo: foto enviar", enquanto os outros eventos têm texto em português. Conferir também os outros eventos de foto da `VEI-10` (trocar, capa, apagar). O evento nasce em `backend/apps/veiculos/services.py`.
+- **Pronto quando:** os eventos de foto trazem a placa do veículo como código, o detalhe com o que mudou (arquivo, capa sim ou não) e um resumo em português como os demais; a tela de Auditoria mostra isso; teste com o código da regra no nome.
+- **Feita em 11 nov 2026** (PR #531). Ficou de fora: os eventos de cadastrar e editar o veículo também saem sem código.
+
+#### T-461 · Telas de conta: esqueci a senha, 2 etapas, meu perfil e notificações
+- **Agente:** design-system (telas), depois frontend · **Regras:** `USR` · **Origem:** decisão do dono de 11 nov 2026 (artefato de decisões, "Telas que faltam desenhar": A).
+- **Pronto quando:** as quatro telas desenhadas em desktop e celular em `docs/telas/`, com o índice, pelas regras de usuários; dúvidas de regra listadas para o produto. Depois, o frontend recria o que ainda não existe.
+
+#### T-462 · Aviso ao sair da tela com fotos ainda enviando
+- **Agentes:** produto (regra), depois frontend · **Regras:** `VEI-10` · **Origem:** conferência do QA de 11 nov 2026 (PR #526, CA-437-11), decisão do dono de 11 nov 2026 (A: avisar).
+- **O caso:** quem sai da tela no meio do envio das fotos perde as que faltavam sem aviso; o veículo fica com as que subiram.
+- **Pronto quando:** a regra diz o aviso; o navegador pergunta antes de sair enquanto há fotos enviando e a tela mostra quantas faltam; teste.
+
+#### Decisões do dono de 11 nov 2026 (artefato de decisões)
+- **T-451 (retirada):** a retirada acontece das duas formas, sozinha quando vistoria de saída, assinatura e 1º pagamento estão feitos, e por um botão "Registrar retirada". O produto escreve a regra e avisa o backend, que está com o PR #516.
+- **WhatsApp ao cliente final:** opção C da ADR 0034, sem WhatsApp ao cliente final na fase 1; os avisos vão por e-mail. O produto ajusta as regras e o arquiteto registra na ADR.
+- **Recibo público (T-436):** ligado em desenvolvimento e homologação; produção liga com o lote para a main. O recibo continua só com o essencial (código, primeiro nome, data e PDF).
+- **Lote develop → main:** abrir agora, depois da suíte inteira verde na develop.
+- **Regras com o padrão A:** período da locação retirada depois do início, contagem dos 3 dias, aviso só ao gerente, valor da intenção de compra pelos planos em Preços, sem multa no encerramento antecipado, CRLV-e no editar, preço do Profissional mantido e guarda de faturas por 5 anos.
+- **Com o dono, fora do sistema:** registrar o domínio (pensa em "giroloc"), buscar a marca no INPI e abrir a conta no Asaas.

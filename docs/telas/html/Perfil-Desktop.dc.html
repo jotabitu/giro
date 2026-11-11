@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Meu perfil · desktop</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.h2{margin:0;font-size:20px;line-height:26px;font-weight:600}
+.tag{margin:2px 0 0;font-size:13px;line-height:18px;color:var(--ink-muted)}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.rule{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--success-ink)}
+.otp{width:48px;height:58px;box-sizing:border-box;border:1px solid var(--line);border-radius:14px;background:var(--surface);text-align:center;font-family:var(--font-mono);font-size:22px;color:var(--ink)}
+.otp--erro{border-color:var(--critical)}
+.aviso{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:16px;background:var(--surface-sunken);font-size:14px;line-height:20px;color:var(--ink-muted)}
+.erro{display:flex;gap:10px;align-items:flex-start;padding:14px 16px;border-radius:16px;background:var(--critical-soft);font-size:14px;line-height:20px;color:var(--critical-ink)}
+.card{padding:16px;border-radius:24px;background:var(--surface)}
+.kv{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px}
+.kv:last-child{border-bottom:0}
+.kv span:first-child{color:var(--ink-muted)}
+.kv span:last-child{font-weight:500;text-align:right}
+.chip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border:0;border-radius:999px;background:var(--surface-sunken);color:var(--ink);font:inherit;font-size:15px;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
+.chip .wl-count{background:var(--surface)}
+.chip[aria-pressed="true"] .wl-count{background:var(--brand);color:var(--on-brand)}
+.sw{position:relative;flex:none;width:44px;height:26px;border:0;border-radius:999px;background:var(--line);padding:0;cursor:pointer}
+.sw:after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--surface);transition:left .15s}
+.sw[aria-checked="true"]{background:var(--solid)}
+.sw[aria-checked="true"]:after{left:21px;background:var(--on-solid)}
+.sw:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.ntf{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line)}
+.ntf:last-child{border-bottom:0}
+.ntf__ic{display:grid;place-items:center;width:40px;height:40px;flex:none;border-radius:50%;background:var(--surface-sunken);color:var(--ink)}
+.ntf__t{font-size:15px;line-height:20px;font-weight:500}
+.ntf__d{margin-top:2px;font-size:14px;line-height:20px;color:var(--ink-muted)}
+.ntf__h{flex:none;font-size:13px;color:var(--ink-muted);white-space:nowrap}
+.ntf--nova .ntf__t:after{content:"";display:inline-block;width:8px;height:8px;margin-left:8px;border-radius:50%;background:var(--ink);vertical-align:1px}
+.pref{display:grid;grid-template-columns:minmax(0,1fr) 56px 56px 56px;align-items:center;gap:8px;padding:12px 0;border-bottom:1px solid var(--line);font-size:15px}
+.pref--h{padding-top:0;font-size:13px;color:var(--ink-muted)}
+.pref>:not(:first-child){justify-self:center}
+.pref:last-child{border-bottom:0}
+.nao{color:var(--ink-muted)}
+.codes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.codes li{padding:12px 14px;border-radius:14px;background:var(--surface-sunken);font-family:var(--font-mono);font-size:15px;text-align:center}
+
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1480px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<nav class="wl-sidebar" aria-label="Menu principal" style="flex: 0 0 280px;">
+<div class="wl-brand-row"><div class="wl-logo-slot" aria-hidden="true">MR</div><div class="wl-brand-name">Moto Rápida</div></div>
+<div class="wl-switcher">
+<div class="wl-switcher__icon"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg></div>
+<div class="wl-switcher__text"><span class="wl-switcher__name">Filial Centro</span><span class="wl-switcher__sub">Rodrigo · Gerente</span></div>
+</div>
+<a class="wl-nav-item" href="Gerente-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>Visão da filial</a>
+<a class="wl-nav-item" href="#"><svg class="wl-i" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"></path></svg>Aprovações<span class="wl-count">3</span></a>
+<a class="wl-nav-item" href="Frota-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 13l2-6h14l2 6v4H3z"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle></svg>Veículos<span class="wl-count">86</span></a>
+<div class="wl-nav-label">Operação</div>
+<a class="wl-nav-item" href="Locacoes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"></circle><path d="M11 12l9-9M17 6l3 3M15 8l2 2"></path></svg>Locações</a>
+<a class="wl-nav-item" href="Venda-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"></path><circle cx="7.5" cy="7.5" r="1"></circle></svg>Vendas</a>
+<a class="wl-nav-item" href="Clientes-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"></circle><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.6-1.6-4.8-4-5.6"></path></svg>Clientes</a>
+<a class="wl-nav-item" href="Manutencao-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><path d="M15 4a5 5 0 0 0-4.6 6.9L4 17.3V20h2.7l6.4-6.4A5 5 0 0 0 20 9l-3 1-2-2z"></path></svg>Manutenções</a>
+<div class="wl-nav-label">Filial</div>
+<a class="wl-nav-item" href="Caixa-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"></rect><path d="M3 10h18M16 14.5h2"></path></svg>Caixa da filial</a>
+<a class="wl-nav-item" href="Relatorios-Desktop.dc.html"><svg class="wl-i" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4"></rect><path d="M8 16v-4M12 16V8M16 16v-6"></path></svg>Relatórios</a>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+<div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px;">
+<a href="Notificacoes-Desktop.dc.html" class="wl-icon-btn" aria-label="Notificações, 3 não lidas" style="position: relative; text-decoration: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15zM10 21h4"></path></svg><span class="wl-count" style="position: absolute; top: -4px; right: -4px; background: var(--brand); color: var(--on-brand);">3</span></a>
+<a href="Perfil-Desktop.dc.html" aria-label="Meu perfil" style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 14px 0 6px; border-radius: 999px; background: var(--surface); text-decoration: none; box-shadow: inset 0 0 0 2px var(--ink);"><span style="display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--surface-sunken); font-size: 13px; font-weight: 600;">RO</span><span style="font-size: 15px; font-weight: 500;">Rodrigo</span></a>
+</div>
+<header><h1 style="margin: 0; font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -0.02em;">Meu perfil</h1><p style="margin: 6px 0 0; color: var(--ink-muted);">Seus dados de acesso e a segurança da sua conta</p></header>
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+<div style="flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+<section class="wl-panel" style="display: flex; flex-direction: column; gap: 18px;">
+<h2 class="h2">Seus dados</h2>
+<div style="display: flex; align-items: center; gap: 16px;"><span style="display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--surface-sunken); font-size: 22px; font-weight: 600;">RO</span><div><div style="font-weight: 600; font-size: 18px;">Rodrigo Oliveira</div><span class="wl-badge wl-badge--sm">Gerente</span></div></div>
+<label class="wl-field"><span class="wl-field__label">Nome</span><input class="wl-input" value="Rodrigo Oliveira"></label>
+<label class="wl-field"><span class="wl-field__label">E-mail de acesso</span><input class="wl-input" value="rodrigo@motorapida.com.br" disabled><span class="wl-field__hint">O e-mail é o seu login. Para trocar, peça ao administrador.</span></label>
+<label class="wl-field"><span class="wl-field__label">Celular</span><input class="wl-input" value="(85) 99812-3344"></label>
+<div style="display: flex; justify-content: flex-end;"><button class="wl-btn wl-btn--solid">Salvar dados</button></div>
+</section>
+<section class="wl-panel">
+<h2 class="h2" style="margin-bottom: 8px;">Seu acesso</h2>
+<div class="kv"><span>Perfil</span><span>Gerente</span></div>
+<div class="kv"><span>Filiais</span><span>Filial Centro</span></div>
+<div class="kv"><span>Permissões extras</span><span>Cancelar contratos</span></div>
+<p class="tag" style="margin-top: 10px;">Perfil, filiais e permissões são definidos pelo administrador. Aqui você só consulta.</p>
+</section>
+</div>
+<div style="flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+<section class="wl-panel" style="display: flex; flex-direction: column; gap: 18px;">
+<h2 class="h2">Trocar a senha</h2>
+<label class="wl-field"><span class="wl-field__label">Senha atual</span><input class="wl-input" type="password" value="senhaantiga123"></label>
+<label class="wl-field"><span class="wl-field__label">Nova senha</span><input class="wl-input" type="password" value="senhaforte123"></label>
+<div><div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;"><div style="height: 6px; border-radius: 999px; background: var(--success);"></div><div style="height: 6px; border-radius: 999px; background: var(--success);"></div><div style="height: 6px; border-radius: 999px; background: var(--success);"></div><div style="height: 6px; border-radius: 999px; background: var(--line);"></div></div><div style="margin-top: 6px; font-size: 14px; color: var(--ink-muted);">Senha boa</div></div>
+<div style="display: flex; flex-direction: column; gap: 8px;"><span class="rule"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="m5 12 5 5 9-10"></path></svg>12 caracteres ou mais</span><span class="rule"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="m5 12 5 5 9-10"></path></svg>Letras e números</span><span class="rule"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="m5 12 5 5 9-10"></path></svg>Diferente do e-mail e do nome da empresa</span><span class="rule"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="m5 12 5 5 9-10"></path></svg>Fora da lista de senhas comuns</span></div>
+<label class="wl-field"><span class="wl-field__label">Repita a nova senha</span><input class="wl-input" type="password" value="senhaforte123"></label>
+<div class="aviso"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none; color: var(--ink);"><rect x="5" y="10" width="14" height="10" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg><span>Ao salvar, sua conta sai dos outros aparelhos. Neste, você continua conectado.</span></div>
+<div style="display: flex; justify-content: flex-end;"><button class="wl-btn wl-btn--solid">Salvar nova senha</button></div>
+</section>
+<section class="wl-panel" style="display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: center; gap: 12px;"><h2 class="h2">Verificação em 2 etapas</h2><span class="wl-badge wl-badge--sm wl-badge--success" style="margin-left: auto;">Ativada</span></div>
+<p style="margin: 0; line-height: 22px; color: var(--ink-muted);">Além da senha, você digita um código de 6 números do aplicativo autenticador no celular.</p>
+<div class="kv"><span>Aplicativo</span><span>Configurado em 03 nov 2026</span></div>
+<div class="kv"><span>Códigos de recuperação</span><span>6 de 8 sem uso</span></div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;"><button class="wl-btn wl-btn--sm"><svg class="wl-i" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="3"></rect><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"></path></svg>Gerar novos códigos</button><button class="wl-btn wl-btn--quiet wl-btn--sm">Trocar de celular</button><button class="wl-btn wl-btn--quiet wl-btn--sm" style="color: var(--critical-ink);">Desativar</button></div>
+<p class="tag">Gerar novos códigos cancela os antigos. Administrador e financeiro têm a verificação obrigatória e não veem "Desativar". Quem ainda não ativou vê "Ativar verificação", que abre o passo a passo da ativação.</p>
+</section>
+<section class="wl-panel" style="display: flex; align-items: center; gap: 14px;"><span class="ntf__ic"><svg class="wl-i" viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15zM10 21h4"></path></svg></span><div style="flex: 1;"><div style="font-weight: 600;">Notificações</div><div class="lbl">Escolha o que chega pelo sino, pelo celular e por e-mail.</div></div><a class="wl-btn wl-btn--sm" href="Notificacoes-Desktop.dc.html" style="text-decoration: none;">Abrir</a></section>
+</div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1480}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

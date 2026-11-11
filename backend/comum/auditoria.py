@@ -123,8 +123,12 @@ def registrar_evento(
     motivo: str = "",
     regra: str = "",
     filial_id: int | None = None,
+    codigo: str = "",
 ) -> Any:
     """Grava um evento. Para ações sem objeto (login, exportação), omita `objeto`.
+
+    `codigo` é o código legível do objeto quando o model não tem `codigo` (a placa do veículo,
+    T-460); sem ele, vale o `codigo` do objeto.
 
     Com `objeto`, `antes` e `depois` passam pela classificação do model (ADR 0014, item 3):
     passe os valores reais, nunca já mascarados. A filial do evento é `filial_id`, quando vier
@@ -152,7 +156,7 @@ def registrar_evento(
         categoria=categoria,
         objeto_tipo=objeto._meta.model_name if objeto is not None else "",
         objeto_id=objeto.pk if objeto is not None else None,
-        objeto_codigo=getattr(objeto, "codigo", "") or "",
+        objeto_codigo=codigo or getattr(objeto, "codigo", "") or "",
         filial_id=filial_id if filial_id is not None else getattr(objeto, "filial_id", None),
         antes=antes or {},
         depois=depois or {},
