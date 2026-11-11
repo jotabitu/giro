@@ -206,7 +206,12 @@ def test_vei_10_ca_414_01_enviar(moto, frota) -> None:
     evento = EventoAuditoria.objects.filter(acao="veiculo.foto_enviar", objeto_id=qxa.pk).latest(
         "id"
     )
-    assert evento.depois == {"foto_id": corpo["foto_id"], "numero": 5, "capa": False}
+    assert evento.depois == {
+        "foto_id": corpo["foto_id"],
+        "numero": 5,
+        "capa": False,
+        "arquivo": "moto.png",
+    }
     assert evento.ator_nome == moto.pessoas["Mariana"].nome
     assert evento.regra == "VEI-10"
 
@@ -274,7 +279,7 @@ def test_vei_10_ca_414_05_capa(moto, frota) -> None:
     assert [f["numero"] for f in capa.json()["fotos"]] == [1, 2]
     assert _ids(_ficha(moto, pnb)["galeria"]) == [dois, um]
     evento = EventoAuditoria.objects.filter(acao="veiculo.foto_capa", objeto_id=pnb.pk).get()
-    assert evento.depois == {"foto_id": dois, "capa_anterior_id": um}
+    assert evento.depois == {"foto_id": dois, "capa_anterior_id": um, "numero": 2}
     # Já capa: nada muda e não há evento.
     assert _acao(moto, pnb, dois, "capa").status_code == 200
     assert EventoAuditoria.objects.filter(acao="veiculo.foto_capa", objeto_id=pnb.pk).count() == 1
@@ -284,7 +289,7 @@ def test_vei_10_ca_414_05_capa(moto, frota) -> None:
     assert _ids(apagada.json()) == [um]
     assert apagada.json()["fotos"][0]["capa"]
     evento = EventoAuditoria.objects.filter(acao="veiculo.foto_apagar", objeto_id=pnb.pk).get()
-    assert evento.depois == {"foto_id": dois, "era_capa": True, "nova_capa_id": um}
+    assert evento.depois == {"foto_id": dois, "numero": 1, "era_capa": True, "nova_capa_id": um}
 
 
 def test_vei_10_ca_414_06_trocar(moto, frota) -> None:
@@ -303,7 +308,13 @@ def test_vei_10_ca_414_06_trocar(moto, frota) -> None:
     assert (antiga.ativo, antiga.substituida_por_id, antiga.capa) == (False, nova, True)
     assert FotoVeiculo.objects.get(pk=nova).ordem == antiga.ordem
     evento = EventoAuditoria.objects.filter(acao="veiculo.foto_trocar", objeto_id=qxa.pk).get()
-    assert evento.depois == {"foto_id_antiga": seed["Frente"], "foto_id_nova": nova}
+    assert evento.depois == {
+        "foto_id_antiga": seed["Frente"],
+        "foto_id_nova": nova,
+        "numero": 1,
+        "capa": True,
+        "arquivo": "moto-1.png",
+    }
     # A antiga não se troca de novo; arquivo inválido não mexe na galeria.
     assert _trocar(moto, qxa, seed["Frente"], _jpg()).status_code == 404
     invalida = _trocar(moto, qxa, nova, _pdf())
@@ -327,7 +338,12 @@ def test_vei_10_ca_414_07_apagar(moto, frota) -> None:
     assert arquivos.provedor().existe(painel.arquivo.name)
     evento = EventoAuditoria.objects.filter(acao="veiculo.foto_apagar", objeto_id=qxa.pk).get()
     assert (evento.ator_id, evento.ator_nome) == (rodrigo.pk, rodrigo.nome)
-    assert evento.depois == {"foto_id": seed["Painel"], "era_capa": False, "nova_capa_id": None}
+    assert evento.depois == {
+        "foto_id": seed["Painel"],
+        "numero": 3,
+        "era_capa": False,
+        "nova_capa_id": None,
+    }
     assert "url" not in str(evento.depois) and "arquivo" not in evento.depois
     # Não volta: apagar, trocar e capa da apagada respondem 404.
     for acao in ("apagar", "capa"):
