@@ -114,6 +114,9 @@ As telas de movimentação estão no MVP desde 16 out (seção "Movimentações 
 | Login | [desktop](html/Login-Desktop.dc.html) · [celular](html/Login-Mobile.dc.html) | `(publico)/entrar` | `contas` | USR |
 | Esqueci a senha (pedir o link, e-mail enviado, nova senha, link vencido) | [desktop](html/Esqueci-Senha-Desktop.dc.html) · [celular](html/Esqueci-Senha-Mobile.dc.html) | `(publico)/entrar/esqueci, (publico)/entrar/redefinir` | `contas` | USR |
 | Ativar verificação em 2 etapas (QR, código, códigos de recuperação) | [desktop](html/Ativar-2FA-Desktop.dc.html) · [celular](html/Ativar-2FA-Mobile.dc.html) | `(publico)/entrar/2fa, (empresa)/perfil/seguranca` | `contas` | USR-02, USR-06 |
+| Entrar com o código da 2ª etapa (código do aplicativo, código de recuperação, acesso bloqueado). Desenhada na T-461 | [desktop](html/Entrar-2FA-Desktop.dc.html) · [celular](html/Entrar-2FA-Mobile.dc.html) | `(publico)/entrar/2fa` | `contas` | USR-02, USR-06 |
+| Meu perfil (dados, senha, 2 etapas e códigos de recuperação). Desenhada na T-461; a tela é da fase 2 (`USR-02`) | [desktop](html/Perfil-Desktop.dc.html) · [celular](html/Perfil-Mobile.dc.html) | `(empresa)/perfil` | `contas` | USR-02, USR-06 |
+| Notificações (lista do sino e canais por aviso). Desenhada na T-461 | [desktop](html/Notificacoes-Desktop.dc.html) · [celular](html/Notificacoes-Mobile.dc.html) | `(empresa)/notificacoes` | `automacoes, contas` | AUT, USR |
 
 ## Painel da plataforma
 
