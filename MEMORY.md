@@ -194,3 +194,8 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 - Em `multipart/form-data`, o serializer aninhado do DRF já monta `documento.potencia_cv` sozinho (`html.parse_html_dict` pelo prefixo); não precisa converter o corpo. O erro do bloco vem aninhado (`{"documento": {"potencia_cv": [...]}}`): `ComBlocosDaVei09` em `apps/veiculos/api/serializers.py` achata para a chave pontuada do contrato.
 - Para a leitura devolver chaves pontuadas, o serializer de saída declara os campos em `get_fields` e sobrescreve `to_representation`: com `field_name` pontuado, o DRF trataria o nome como caminho no dicionário.
 - `django.utils.functional._StrPromise` só existe nos stubs (django-stubs): importar em tempo de execução quebra. Para `error_messages`, anote com `dict[str, Any]`.
+
+### [2026-11-11] WhatsApp na fase 1 só na régua da assinatura (ADR 0034)
+- Decisão do dono: nada vai ao cliente final pelo WhatsApp na fase 1; os pontos 1 a 7 da ADR 0034 saem por e-mail, com ou sem o aceite (`CLI-12`), e o convite também (`USR-01`). Só a régua da assinatura (Giro) usa o WhatsApp, pelo número do Giro.
+- O "C" da decisão é o do ponto em aberto das regras (sem WhatsApp ao cliente), não a opção C (parceiro BSP) da ADR.
+- O código de WhatsApp ao cliente fica, desligado pela chave `GIRO_WHATSAPP_CLIENTE_FINAL` (falsa). Recibo do pagamento, recibo da devolução, reenvio do contrato assinado e lembrete da devolução hoje só mandam WhatsApp e precisam ganhar o e-mail (tarefa de backend).
