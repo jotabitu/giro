@@ -224,6 +224,12 @@ class CondicoesLocacaoSerializer(serializers.Serializer[Any]):
     primeiro_pagamento_em = _momento()
 
 
+class AcoesDaParcelaSerializer(serializers.Serializer[Any]):
+    receber = serializers.BooleanField(
+        help_text='"Registrar pagamento": a conta aberta e o perfil recebe no caixa (FIN-18)'
+    )
+
+
 class ParcelaLocacaoSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     tipo = serializers.CharField()
@@ -235,6 +241,12 @@ class ParcelaLocacaoSerializer(serializers.Serializer[Any]):
     forma = serializers.CharField(allow_null=True)
     pago_em = _momento()
     observacao = serializers.CharField(allow_null=True)
+    # Seção Pagamentos (FIN-18, LOC-17, T-451): a conta de `Receber`, o rótulo ("Parcela 1",
+    # "Caução"), o valor de hoje (FIN-03) e se o perfil recebe no caixa.
+    conta_id = serializers.IntegerField(help_text="o `id` da conta em /api/financeiro/contas/")
+    rotulo = serializers.CharField()
+    valor_hoje_centavos = serializers.IntegerField()
+    acoes = AcoesDaParcelaSerializer()
 
 
 class DevolucaoPrevistaSerializer(serializers.Serializer[Any]):
@@ -288,6 +300,34 @@ class PrazoRetiradaSerializer(serializers.Serializer[Any]):
 
     ultimo_dia = serializers.DateField()
     cancela_em = serializers.DateField()
+
+
+class AcaoDoPassoSerializer(serializers.Serializer[Any]):
+    codigo = serializers.ChoiceField(
+        choices=[
+            "continuar_vistoria",
+            "gerar_contrato",
+            "reenviar_contrato",
+            "copiar_link_contrato",
+        ],
+        help_text="a mesma chave de `acoes`, que a tela já sabe executar",
+    )
+    rotulo = serializers.CharField()
+
+
+class PassoDaRetiradaSerializer(serializers.Serializer[Any]):
+    codigo = serializers.ChoiceField(choices=["vistoria_saida", "contrato", "pagamento"])
+    feito = serializers.BooleanField()
+    texto = serializers.CharField(help_text='"Feita em 07 out, 09:20", "Falta a vistoria de saída"')
+    acoes = AcaoDoPassoSerializer(many=True, help_text="só as que o perfil pode fazer")
+
+
+class ParaRetirarSerializer(serializers.Serializer[Any]):
+    """LOC-17 (T-451): os três passos, na ordem vistoria, contrato, pagamento, e o prazo da
+    LOC-12. Só na `aguardando_retirada`; textos prontos da API."""
+
+    passos = PassoDaRetiradaSerializer(many=True)
+    prazo = serializers.CharField()
 
 
 class VeiculoDaTrocaSerializer(serializers.Serializer[Any]):
@@ -364,6 +404,7 @@ class LocacaoDetalheSerializer(LocacaoSerializer):
     trechos = TrechoLocacaoSerializer(many=True)
     cancelamento = CancelamentoLocacaoSerializer(allow_null=True)
     prazo_retirada = PrazoRetiradaSerializer(allow_null=True)
+    para_retirar = ParaRetirarSerializer(allow_null=True)
     troca = TrocaPendenteSerializer(allow_null=True)
     acoes = AcoesLocacaoSerializer()
 

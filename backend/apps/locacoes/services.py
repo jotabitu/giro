@@ -714,26 +714,38 @@ def aplicar_decisao_desconto(locacao_id: int, status: str, motivo: str) -> None:
 # --- Ativação: vistoria de saída + contrato assinado + 1º pagamento, em qualquer ordem ---
 
 
-def verificar_ativacao(locacao: Locacao | int) -> bool:
-    """Com as três condições, `aguardando_retirada` → `ativa`; na mesma transação o veículo vira
-    `alugado`, a comissão fica `confirmada` (FIN-09) e as contas passam a seguir o calendário,
-    com o dia da retirada (LOC-05, FIN-03, ADR 0035)."""
+PASSOS_DA_RETIRADA = {
+    "vistoria_saida_ok_em": "vistoria de saída",
+    "contrato_assinado_em": "assinatura do contrato",
+    "primeiro_pagamento_em": "1º pagamento",
+}
+
+
+def verificar_ativacao(locacao: Locacao | int, passo: str | None = None) -> bool:
+    """LOC-17: com os três passos, em qualquer ordem, `aguardando_retirada` → `ativa`, sem botão.
+    Na mesma transação o veículo vira `alugado`, a comissão fica `confirmada` (FIN-09), as
+    contas passam a seguir o calendário com o dia da retirada (LOC-05, FIN-03, ADR 0035) e fica
+    o evento "Retirada" (`locacao.retirada`), com quem concluiu o último passo (o ator da
+    requisição; o Sistema na assinatura e no webhook). `passo` é o campo que acabou de se
+    cumprir; sem ele, vale o mais recente dos três."""
     with transaction.atomic():
         travada = _travar(locacao)
         if travada.status != S.AGUARDANDO_RETIRADA:
             return False
-        condicoes = (
-            travada.vistoria_saida_ok_em,
-            travada.contrato_assinado_em,
-            travada.primeiro_pagamento_em,
-        )
-        if any(c is None for c in condicoes):
+        momentos = {campo: getattr(travada, campo) for campo in PASSOS_DA_RETIRADA}
+        if any(momento is None for momento in momentos.values()):
             return False
+        campo_do_ultimo = (
+            passo
+            if passo is not None and passo in PASSOS_DA_RETIRADA
+            else max(momentos, key=lambda campo: momentos[campo])
+        )
+        ultimo = PASSOS_DA_RETIRADA[campo_do_ultimo]
         estados.transicionar(
             travada,
             S.ATIVA,
-            motivo="Vistoria de saída, contrato assinado e 1º pagamento",
-            acao="locacao.ativar",
+            motivo=f"Retirada. Último passo: {ultimo}",
+            acao="locacao.retirada",
         )
         veiculos.transicionar(
             travada.veiculo,
@@ -758,7 +770,7 @@ def _registrar_condicao(locacao_id: int, campo: str, momento: datetime, acao: st
         with auditar(travada, acao, Categoria.OPERACAO):
             setattr(travada, campo, momento)
             travada.save(update_fields=[campo, "atualizado_em"])
-        return verificar_ativacao(travada.pk)
+        return verificar_ativacao(travada.pk, passo=campo)
 
 
 def registrar_vistoria_saida(

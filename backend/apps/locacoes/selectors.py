@@ -22,7 +22,9 @@ from apps.contratos.models import Contrato, StatusContrato
 from apps.filiais.models import Filial
 from apps.financeiro import selectors as financeiro_selectors
 from apps.veiculos import selectors as veiculos_selectors
+from apps.veiculos import services as veiculos_services
 from comum import leituras, relogio
+from comum.aprovacoes import dia_curto
 from comum.dinheiro import aplicar_percentual, formatar_reais
 from comum.permissoes import pode
 
@@ -31,6 +33,8 @@ from .models import (
     ABERTAS,
     FormaPagamento,
     Locacao,
+    ParcelamentoMensal,
+    Periodicidade,
     PlanoEspecial,
     StatusDesconto,
     StatusLocacao,
@@ -220,16 +224,17 @@ def situacao(locacao: Locacao, sinal: dict[str, bool]) -> dict[str, str]:
         rotulo = f"Parcela {numero} atrasada" if numero else "Pagamento atrasado"
         return {"codigo": "pagamento_atrasado", "rotulo": rotulo, "tom": "perigo"}
     if status == S.AGUARDANDO_RETIRADA:
-        if locacao.contrato_assinado_em is None:
-            return {
-                "codigo": "aguardando_assinatura",
-                "rotulo": "Aguardando assinatura",
-                "tom": "alerta",
-            }
+        # LOC-17: o primeiro passo que falta, na ordem vistoria, assinatura, pagamento.
         if locacao.vistoria_saida_ok_em is None:
             return {
                 "codigo": "aguardando_vistoria",
                 "rotulo": "Aguardando vistoria",
+                "tom": "alerta",
+            }
+        if locacao.contrato_assinado_em is None:
+            return {
+                "codigo": "aguardando_assinatura",
+                "rotulo": "Aguardando assinatura",
                 "tom": "alerta",
             }
         return {
@@ -578,13 +583,178 @@ def _cliente_do_detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
     }
 
 
+def _rotulo_da_conta(conta: Any) -> str:
+    return "Caução" if conta.tipo == "caucao" else f"Parcela {conta.numero_parcela}"
+
+
+def _parcelas(contas: list[Any], hoje: date, usuario: Any) -> list[dict[str, Any]]:
+    """Seção Pagamentos (FIN-18, LOC-17): cada conta com o rótulo, o valor de hoje e
+    `acoes.receber`, que abre a mesma baixa de `Receber` (`conta_id`)."""
+    perfil = getattr(usuario, "perfil", "")
+    suporte = bool(getattr(usuario, "e_suporte", False))
+    juros = financeiro_selectors.JurosDaPagina()
+    linhas = []
+    ordem = {"parcela": 0, "caucao": 1}  # as parcelas pelo número, a caução e depois o acerto
+    contas = sorted(
+        contas, key=lambda c: (ordem.get(c.tipo, 2), c.numero_parcela or 0, c.vencimento, c.pk)
+    )
+    for conta in contas:
+        acoes_da_conta = financeiro_selectors.acoes_da_conta(conta, perfil, suporte, hoje)
+        linhas.append(
+            {
+                **financeiro_selectors.representacao_conta(conta, hoje),
+                "conta_id": conta.pk,
+                "rotulo": _rotulo_da_conta(conta),
+                "valor_hoje_centavos": financeiro_selectors.valor_hoje(conta, hoje, juros)[
+                    "total_centavos"
+                ],
+                "acoes": {"receber": acoes_da_conta["receber"]},
+            }
+        )
+    return linhas
+
+
+# --- Para retirar (LOC-17) ---
+
+
+def _quando(momento: datetime) -> str:
+    """ "07 out, 09:20", no fuso da empresa."""
+    local = _local(momento)
+    return f"{dia_curto(local.date())}, {local:%H:%M}"
+
+
+def _acao(codigo: str, rotulo: str) -> dict[str, str]:
+    return {"codigo": codigo, "rotulo": rotulo}
+
+
+def _impedimentos_da_retirada(locacao: Locacao) -> list[str]:
+    """As frases que impedem concluir a vistoria de saída: o cliente (CLI-02, CLI-03, CLI-05) e
+    o CRLV e o seguro do veículo (VEI-03). As mesmas de `vistorias.services.concluir`."""
+    hoje = services.data_local(relogio.agora(), locacao.filial)
+    veiculo = locacao.veiculo
+    frases = [
+        i["mensagem"]
+        for i in clientes_selectors.impedimentos_para_retirada(
+            locacao.cliente, veiculo.categoria.tipo_veiculo, hoje
+        )
+    ]
+    vencidos = veiculos_services.documentos_vencidos_que_bloqueiam(veiculo, hoje)
+    if vencidos:
+        frases.append(veiculos_services.documento_vencido(vencidos, antes="da retirada").mensagem)
+    return frases
+
+
+def _passo_da_vistoria(locacao: Locacao, acoes_da_locacao: dict[str, Any]) -> dict[str, Any]:
+    if locacao.vistoria_saida_ok_em is not None:
+        texto = f"Feita em {_quando(locacao.vistoria_saida_ok_em)}"
+        return {"codigo": "vistoria_saida", "feito": True, "texto": texto, "acoes": []}
+    impedimentos = _impedimentos_da_retirada(locacao)
+    acoes_do_passo = []
+    if acoes_da_locacao["continuar_vistoria"]:
+        acoes_do_passo.append(_acao("continuar_vistoria", "Fazer vistoria de saída"))
+    return {
+        "codigo": "vistoria_saida",
+        "feito": False,
+        "texto": impedimentos[0] if impedimentos else "Falta a vistoria de saída",
+        "acoes": acoes_do_passo,
+    }
+
+
+def _passo_do_contrato(
+    locacao: Locacao, contrato: Contrato | None, acoes_da_locacao: dict[str, Any]
+) -> dict[str, Any]:
+    if locacao.contrato_assinado_em is not None:
+        texto = f"Assinado em {_quando(locacao.contrato_assinado_em)}"
+        return {"codigo": "contrato", "feito": True, "texto": texto, "acoes": []}
+    acoes_do_passo = []
+    if contrato is not None and contrato.status == StatusContrato.ENVIADO:
+        if acoes_da_locacao["reenviar_contrato"]:
+            acoes_do_passo.append(_acao("reenviar_contrato", "Reenviar"))
+        if acoes_da_locacao["copiar_link_contrato"]:
+            acoes_do_passo.append(_acao("copiar_link_contrato", "Copiar link para assinar"))
+        texto = "Falta a assinatura do cliente"
+        return {"codigo": "contrato", "feito": False, "texto": texto, "acoes": acoes_do_passo}
+    if acoes_da_locacao["gerar_contrato"]:
+        acoes_do_passo.append(_acao("gerar_contrato", "Enviar contrato"))
+    texto = "Falta enviar o contrato"
+    return {"codigo": "contrato", "feito": False, "texto": texto, "acoes": acoes_do_passo}
+
+
+def _nome_da_primeira(locacao: Locacao) -> str:
+    """Como o 1º pagamento chama a 1ª parcela ("1ª semana R$ 329,00")."""
+    if locacao.periodicidade == Periodicidade.DIARIA:
+        return "diárias"
+    if locacao.periodicidade == Periodicidade.MENSAL:
+        if locacao.parcelamento_mensal == ParcelamentoMensal.QUATRO_SEMANAIS:
+            return "1ª parcela"
+        return "1º mês"
+    return "1ª semana"
+
+
+def _passo_do_pagamento(
+    locacao: Locacao, contas: list[Any], hoje: date, ve_valores: bool
+) -> dict[str, Any]:
+    """1ª parcela **e** caução (LOC-17, FIN-18), pelo valor de hoje de cada uma (sem multa nem
+    juros antes da retirada, FIN-03). Cada conta se recebe na seção Pagamentos."""
+    primeiras = [
+        c for c in contas if c.tipo == "caucao" or (c.tipo == "parcela" and c.numero_parcela == 1)
+    ]
+    primeiras.sort(key=lambda c: c.tipo == "caucao")  # a parcela antes da caução
+    if locacao.primeiro_pagamento_em is not None:
+        quando = dia_curto(_local(locacao.primeiro_pagamento_em).date())
+        pago = sum(c.valor_centavos for c in primeiras if c.status == "paga")
+        texto = f"Pago em {quando} · {formatar_reais(pago)}" if ve_valores else f"Pago em {quando}"
+        return {"codigo": "pagamento", "feito": True, "texto": texto, "acoes": []}
+    if not ve_valores:  # o vistoriador não vê valores (`sem_valores`)
+        return {"codigo": "pagamento", "feito": False, "texto": "Falta o 1º pagamento", "acoes": []}
+    juros = financeiro_selectors.JurosDaPagina()
+    faltam = [
+        (c, financeiro_selectors.valor_hoje(c, hoje, juros)["total_centavos"])
+        for c in primeiras
+        if c.status == "aberta"
+    ]
+    nomes = [
+        f"{'caução' if c.tipo == 'caucao' else _nome_da_primeira(locacao)} {formatar_reais(v)}"
+        for c, v in faltam
+    ]
+    total = sum(v for _, v in faltam)
+    texto = f"Falta receber {formatar_reais(total)}: {' e '.join(nomes)}"
+    return {"codigo": "pagamento", "feito": False, "texto": texto, "acoes": []}
+
+
+def para_retirar(
+    locacao: Locacao,
+    usuario: Any,
+    contrato: Contrato | None,
+    contas: list[Any],
+    acoes_da_locacao: dict[str, Any],
+) -> dict[str, Any] | None:
+    """LOC-17: os três passos da retirada, cada um feito ou o que falta, com as ações de quem
+    pode fazê-las, e o prazo da LOC-12. Só na `aguardando_retirada`; a tela não decide nada."""
+    if locacao.status != S.AGUARDANDO_RETIRADA:
+        return None
+    ultimo = ultimo_dia_retirada(locacao)
+    cancela = ultimo + timedelta(days=1)
+    ve_valores = getattr(usuario, "perfil", "") != "vistoriador"
+    return {
+        "passos": [
+            _passo_da_vistoria(locacao, acoes_da_locacao),
+            _passo_do_contrato(locacao, contrato, acoes_da_locacao),
+            _passo_do_pagamento(locacao, contas, relogio.hoje(), ve_valores),
+        ],
+        "prazo": (
+            f"Retire até {dia_curto(ultimo)}. "
+            f"Sem retirada, a locação é cancelada em {dia_curto(cancela)}."
+        ),
+    }
+
+
 def detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
     hoje = relogio.hoje()
     contrato = contratos_selectors.contrato_vigente(ORIGEM, locacao.pk)
-    parcelas = [
-        financeiro_selectors.representacao_conta(c, hoje)
-        for c in financeiro_selectors.contas_da_origem(ORIGEM, locacao.pk)
-    ]
+    contas = list(financeiro_selectors.contas_da_origem(ORIGEM, locacao.pk))
+    parcelas = _parcelas(contas, hoje, usuario)
+    acoes_da_locacao = acoes(locacao, usuario, contrato)
     efetivo = locacao.valor_periodo_centavos - aplicar_percentual(
         locacao.valor_periodo_centavos, locacao.desconto_pct
     )
@@ -624,8 +794,9 @@ def detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
         ],
         "cancelamento": _cancelamento(locacao),
         "prazo_retirada": prazo_retirada(locacao),
+        "para_retirar": para_retirar(locacao, usuario, contrato, contas, acoes_da_locacao),
         "troca": _troca(locacao),
-        "acoes": acoes(locacao, usuario, contrato),
+        "acoes": acoes_da_locacao,
     }
 
 
@@ -666,7 +837,8 @@ ROTULOS_DO_HISTORICO = {
     "locacao.vistoria_saida": ("Vistoria de saída", "vistoria"),
     "locacao.contrato_assinado": ("Contrato assinado", "contrato"),
     "locacao.primeiro_pagamento": ("1º pagamento recebido", "pagamento"),
-    "locacao.ativar": ("Locação ativa", "status"),
+    "locacao.ativar": ("Retirada", "status"),  # eventos de antes da T-451
+    "locacao.retirada": ("Retirada", "status"),  # LOC-17
     "locacao.aprovar_desconto": ("Desconto aprovado", "status"),
     "locacao.recusar_desconto": ("Desconto recusado", "status"),
     "locacao.cancelar_rascunho": ("Rascunho cancelado", "status"),

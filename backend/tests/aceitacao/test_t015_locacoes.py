@@ -886,10 +886,10 @@ def test_loc_ca_015_24_mudancas_de_status_gravam_auditoria(cenario):
             "acao", flat=True
         )
     )
-    assert {"locacao.criar", "locacao.confirmar", "locacao.ativar"} <= acoes
+    assert {"locacao.criar", "locacao.confirmar", "locacao.retirada"} <= acoes
     historico = cenario.moto.api("Bruna").get(f"{LISTA}{criada['id']}/historico/").json()
     rotulos = [item["rotulo"] for item in historico["resultados"]]
-    assert "Locação ativa" in rotulos and "Caução paga · R$ 300,00" in rotulos
+    assert "Retirada" in rotulos and "Caução paga · R$ 300,00" in rotulos
     do_joao = cenario.moto.api("João").get(f"{LISTA}{criada['id']}/historico/").json()
     assert not [i for i in do_joao["resultados"] if i["tipo"] == "pagamento"]
 

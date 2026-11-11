@@ -553,6 +553,25 @@ def test_loc_05_seed_019_17_as_locacoes_das_telas(seed):
     assert _loc("LOC-2857").status == "aguardando_retirada"
 
 
+def test_fin_18_seed_loc_2856_caucao_paga_e_na_busca_do_caixa(seed):
+    """CA-452-06: a ficha da LOC-2856 mostra "Caução · R$ 300,00 · Paga em 07 out" na seção
+    Pagamentos, e a busca do Caixa por "Lucas" traz a parcela e a caução. (O CA-451-07 pede a
+    LOC-2856 `aguardando_retirada`; no seed ela já está `ativa`, divergência registrada no PR.)"""
+    detalhe = seed.detalhe(_loc("LOC-2856").pk)
+    caucao = next(p for p in detalhe["parcelas"] if p["rotulo"] == "Caução")
+    assert (caucao["valor_centavos"], caucao["status"], caucao["acoes"]) == (
+        30000,
+        "paga",
+        {"receber": False},
+    )
+    assert _sp(caucao["pago_em"] and datetime.fromisoformat(caucao["pago_em"]))[:10] == (
+        "2026-10-07"
+    )
+    achadas = _api(seed, "Bruna").get(CONTAS, {"busca": "Lucas"}).json()["resultados"]
+    da_2856 = {(c["tipo"], c["numero"]) for c in achadas if c["origem"]["codigo"] == "LOC-2856"}
+    assert {("parcela", 1), ("caucao", None)} <= da_2856
+
+
 def test_loc_05_seed_019_18_parcelas_de_outubro_iguais_ao_csv(seed):
     """As 35 geradas (e as demais) têm exatamente as parcelas do CSV, com a mesma situação; as
     que começam em 07 out ou depois começaram um período antes, com essa parcela paga."""
