@@ -82,3 +82,33 @@ Não capturado, ver A4.
 ## O que ficou no ambiente
 
 Dados de teste, que não se apagam: LOC-2870 (ativa, paga) e LOC-2871 (ativa, paga); caixa do dia aberto pela Bruna com R$ 100,00 e entradas de R$ 629,00 (LOC-2870) e R$ 629,00 (LOC-2871); veículos TBC-5H31 (id 98, 3 fotos do cadastro mais as dos testes do editar), TBC-5H32 (id 99, 3 fotos) e TBC-5H33 (id 100, criado na repetição do A3, 2 fotos). `make seed` devolve o seed.
+
+## Repetição de A1 e A3 · develop em 1dde984b (#549, #550)
+
+Pedido do Orquestrador, a 1440 e 390 px, com as contas do seed (Rodrigo, Bruna, João). Capturas em `tarefas/handoffs/anexos/T-466/` (A1 e A3 desta rodada, arquivos `A1-...` e `A3-...`).
+
+| Item | Resultado |
+| --- | --- |
+| A1 · coluna "Pagamento" (T-466, `LOC-17`, `FIN-01`) | Corrigido |
+| A3 · ficha depois de "Ficar" (T-462, `VEI-10`) | Corrigido |
+| A2 · caução paga | Fechado: "Devolver na entrega" (decisão do dono, #548) |
+| Voltar depois da ficha | Cai em `/veiculos/novo` (achado A6) |
+
+**A1.** Como a LOC-2871 já estava paga, usei a LOC-2864 (Tales Gondim, do seed): vistoria de saída pelo João e retirada à mão pelo Rodrigo, com motivo, sem nada pago.
+- Sem pagamento (total pago R$ 0,00): em "Precisam de ação" a coluna diz "Aguardando pagamento", com a situação "Faltam assinatura e pagamento". 1440 e 390. Capturas `A1-lista-loc-2864-sem-pagamento-rodrigo-*`.
+- Com só a caução paga em dinheiro pela Bruna (a ficha mostra "Devolver na entrega"): a coluna diz "R$ 300,00 pago". 1440 e 390. Capturas `A1-lista-loc-2864-caucao-paga-rodrigo-*`. Observação: o valor pago que a lista mostra é a caução, e as duas parcelas seguem abertas. Pelo critério do pedido ("R$ X pago se parte foi paga") está certo; se a caução não deveria entrar nesse número (`FIN-15`), é pergunta para o Produto.
+- A LOC-2871 continua "Pago" porque está paga de verdade.
+
+**A3.** Roteiro: `/veiculos/novo` com o mínimo e 2 fotos, `POST .../fotos/` atrasado 8 s, Salvar veículo; durante o envio ("Enviando fotos · 1 de 2", "Faltam 2 fotos. Não feche esta tela."), sair pelo link "Veículos" ou por `history.back()`, diálogo "Sair desta tela?", "Ficar".
+
+| Caminho | 1440 | 390 |
+| --- | --- | --- |
+| Link "Veículos" e "Ficar" | Ficha abre (`/veiculos/102`), com 2 fotos na galeria | Ficha abre (`/veiculos/105`) |
+| Voltar do navegador e "Ficar" | Ficha abre (`/veiculos/104`) | Ficha abre (`/veiculos/106`) |
+| Sem sair da tela (controle) | Ficha abre (`/veiculos/103`) | Ficha abre |
+
+Capturas: `A3-cadastro-enviando-*`, `A3-dialogo-sair-ou-ficar-*`, `A3-depois-de-ficar-*`.
+
+- **A6 · Voltar depois da ficha cai no formulário de novo cadastro.** Nos seis casos acima, inclusive no controle sem "Ficar", `history.back()` na ficha leva a `/veiculos/novo` (formulário vazio, "Cadastrar veículo"). Não é regressão do #549 (acontece também sem o diálogo), mas é o que o pedido mandou conferir: o Voltar cai no formulário. Quem salva e aperta Voltar pode cadastrar de novo e levar 409 de placa repetida. Capturas `A3-voltar-depois-da-ficha-*`. Dono: frontend (trocar o `push` da ficha por `replace` depois do salvar, se for essa a intenção).
+
+**O que ficou no ambiente.** LOC-2864 retirada à mão (ativa, sem assinatura, caução paga, parcelas 1 e 2 em aberto) e veículos TBC-6A01 a TBC-6A06 (ids 102 a 107, 2 fotos cada). `make seed` devolve o seed.
