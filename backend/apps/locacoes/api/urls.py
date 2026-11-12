@@ -12,6 +12,7 @@ urlpatterns = [
     path("locacoes/<int:pk>/renovar/", views.RenovarLocacaoView.as_view()),
     path("locacoes/<int:pk>/cancelamento/simular/", views.SimularCancelamentoView.as_view()),
     path("locacoes/<int:pk>/cancelar/", views.CancelarLocacaoView.as_view()),
+    path("locacoes/<int:pk>/retirada/", views.RegistrarRetiradaView.as_view()),
     path("locacoes/<int:pk>/contrato/", views.ContratoLocacaoView.as_view()),
     path("locacoes/<int:pk>/contrato/pdf/", views.PdfDoContratoView.as_view()),
     path("locacoes/<int:pk>/contrato/reenviar/", views.ReenviarContratoView.as_view()),

@@ -4,6 +4,7 @@ import { Camera, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { Button, Icone, Panel, ProgressBar, StatusBadge } from "@/design-system";
 import { ErroApi } from "@/lib/api";
+import { FaltamFotos } from "./AvisoDeSaida";
 import { FOTO_INVALIDA, mensagemDaRecusa } from "./GaleriaDoEditar";
 import { BotaoApagar, CartaoDeFoto, ListaDeRecusas, ZonaDeEnvio, type RecusaDeFoto } from "./PecasDaGaleria";
 
@@ -106,6 +107,9 @@ export async function cadastrarComFotos<T extends { id: number }>(
 
 export const envioTerminouBem =(itens: ItemDoEnvio[]) => itens.every((it) => it.estado === "enviada");
 const parouPorConexao = (itens: ItemDoEnvio[]) => itens.some((it) => it.estado === "sem_conexao");
+
+/** VEI-10, T-462: as que ainda não subiram e vão subir (na fila, enviando ou paradas por conexão). A recusada não conta: não será enviada. */
+export const fotosQueFaltam = (itens: ItemDoEnvio[]): number => itens.filter((it) => it.estado === "fila" || it.estado === "enviando" || it.estado === "sem_conexao").length;
 const enviando = (itens: ItemDoEnvio[]) => itens.some((it) => it.estado === "enviando");
 
 /** "Enviando fotos · 2 de 5" enquanto sobe; "parou na 2 de 5" quando a conexão cai; no fim com recusa, quantas subiram. */
@@ -222,6 +226,7 @@ export function EnvioDasFotos({ itens, placa, veiculoId, aoTentarDeNovo }: Envio
         <span role="status" className="text-body font-medium">
           {andamentoDoEnvio(itens)}
         </span>
+        <FaltamFotos faltam={fotosQueFaltam(itens)} />
         <ProgressBar valor={(subiram / itens.length) * 100} rotulo="Envio das fotos" />
       </div>
       <ul className="m-0 list-none overflow-hidden rounded-md border border-line p-0">

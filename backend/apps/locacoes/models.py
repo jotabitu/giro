@@ -150,6 +150,13 @@ class Locacao(ModeloComCodigo, MaquinaDeEstados, ModeloBase):
     vistoria_saida_ok_em = models.DateTimeField(null=True, blank=True)
     contrato_assinado_em = models.DateTimeField(null=True, blank=True)
     primeiro_pagamento_em = models.DateTimeField(null=True, blank=True)
+    # LOC-17: a retirada, sozinha (os três passos) ou à mão ("Registrar retirada", com motivo).
+    # Na à mão, o que faltava fica como pendência da locação até se cumprir.
+    retirada_em = models.DateTimeField(null=True, blank=True)
+    retirada_a_mao = models.BooleanField(default=False)
+    retirada_motivo = models.CharField(max_length=200, blank=True, default="")
+    # Contrato não assinado 7 dias depois da retirada à mão: uma tarefa aos gerentes, uma vez.
+    aviso_assinatura_retirada_em = models.DateTimeField(null=True, blank=True)
     renovacoes = models.PositiveSmallIntegerField(default=0)  # LOC-08
     cancelada_em = models.DateTimeField(null=True, blank=True)
     motivo_cancelamento = models.TextField(blank=True, default="")

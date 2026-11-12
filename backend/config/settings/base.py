@@ -411,6 +411,11 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
         "task": "aut_17_avisar_nao_retiradas_de_todas",
         "schedule": crontab(hour=8, minute=0),
     },
+    # LOC-17: contrato não assinado 7 dias depois da retirada à mão, tarefa para os gerentes.
+    "loc_17_avisar_assinaturas_pendentes": {
+        "task": "loc_17_avisar_assinaturas_pendentes_de_todas",
+        "schedule": crontab(hour=8, minute=0),
+    },
     # LOC-08: aditivo sem assinatura em 7 dias vira tarefa para os gerentes da filial.
     "contratos_avisar_aditivos_sem_assinatura": {
         "task": "contratos_avisar_aditivos_sem_assinatura_de_todas",
