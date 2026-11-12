@@ -4,6 +4,9 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ## Decisões de Design
 
+### [2026-11-12] Favicon do Giro em todas as abas (T-465)
+Favicon: o ícone do Giro aparece em todas as abas do navegador, inclusive no sistema da locadora; é a única exceção ao white label (decisão do dono, 12 nov 2026, T-465).
+
 ### [2026-11-09] Menos burocracia no fluxo dos agentes (T-441)
 - **Contexto:** cerca de 30% dos commits eram do quadro e do "número do PR"; 366 merges de sincronização vinham em boa parte de conflito no `feito.md`; as regras tinham 309 KB (38% de histórico) e eram leitura obrigatória de toda tarefa.
 - **Decisão:** regras divididas por módulo em `docs/regras/` (índice em `docs/regras-de-negocio.md`), com o histórico em `docs/regras/historico.md` e as decisões por data em `docs/regras/decisoes.md`; PR de tarefa não toca em `tarefas/`; o handoff é a descrição do PR (`.github/pull_request_template.md`); `feito.md`, `em-andamento.md` e `handoffs/` congelados (em andamento = PR rascunho); só o orquestrador edita o backlog; dúvidas de regra em `docs/regras/pontos-em-aberto.md`; tarefa pequena feita por um agente só, o **fullstack** (`.claude/agents/fullstack.md`); o `MEMORY.md` guarda só o que vale, e o substituído vai para `docs/memoria-arquivo.md`.
