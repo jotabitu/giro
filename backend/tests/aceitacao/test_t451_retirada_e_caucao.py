@@ -312,7 +312,7 @@ def _no_dia(cenario: Cenario, relogio: Any, quando: str) -> None:  # noqa: F811
     cenario.moto._tokens.clear()  # o token do dia anterior venceu
 
 
-def test_loc_17_ca_451_04_registrar_retirada_quem_e_quando(cenario, locacao) -> None:  # noqa: F811
+def test_loc_17_ca_451_04_09_10_registrar_retirada_quem_e_quando(cenario, locacao) -> None:  # noqa: F811
     """Decisão do dono de 11 nov: o botão é do administrador e do gerente da filial, só com a
     locação `aguardando_retirada`, e exige a vistoria de saída (409 `vistoria_saida_pendente`)."""
     for quem in ("Bruna", "João", "Lúcia"):
@@ -358,7 +358,7 @@ def test_loc_17_ca_451_04_registrar_retirada_quem_e_quando(cenario, locacao) -> 
     assert (de_novo.status_code, de_novo.json()["codigo"]) == (409, "transicao_locacao")
 
 
-def test_loc_17_ca_451_07_retirada_a_mao_exemplo_da_regra(
+def test_loc_17_ca_451_11_12_13_retirada_a_mao_exemplo_da_regra(
     cenario,  # noqa: F811
     relogio,
     relogio_jwt,
@@ -403,6 +403,7 @@ def test_loc_17_ca_451_07_retirada_a_mao_exemplo_da_regra(
     )
 
     assert detalhe["situacao"]["codigo"] == "pendencia_retirada"
+    assert detalhe["situacao"]["rotulo"] == "Faltam assinatura e pagamento"
     assert _passos(detalhe["pendencias_retirada"]) == [
         ("contrato", False, "Falta enviar o contrato", ["Enviar contrato"]),
         (
@@ -422,7 +423,7 @@ def test_loc_17_ca_451_07_retirada_a_mao_exemplo_da_regra(
     assert {p["rotulo"]: p["status"] for p in linha["parcelas"]}["Parcela 1"] == "atrasada"
 
 
-def test_loc_17_ca_451_08_pago_e_assinado_depois_so_tira_a_pendencia(
+def test_loc_17_ca_451_14_pago_e_assinado_depois_so_tira_a_pendencia(
     cenario,  # noqa: F811
     locacao,
     django_capture_on_commit_callbacks,
@@ -436,6 +437,7 @@ def test_loc_17_ca_451_08_pago_e_assinado_depois_so_tira_a_pendencia(
     assert _receber(cenario, _conta(locacao, "caucao"), 30000).status_code == 200
     detalhe = cenario.detalhe(locacao.pk, "Rodrigo")
     assert [p["codigo"] for p in detalhe["pendencias_retirada"]["passos"]] == ["contrato"]
+    assert detalhe["situacao"]["rotulo"] == "Falta a assinatura"
     assert Locacao.objects.get(pk=locacao.pk).primeiro_pagamento_em is not None
 
     # "Enviar contrato" continua na locação ativa, e o cliente assina como antes.
@@ -452,6 +454,23 @@ def test_loc_17_ca_451_08_pago_e_assinado_depois_so_tira_a_pendencia(
         ).count()
         == 1
     )
+
+
+def test_loc_17_situacao_falta_o_1o_pagamento_depois_da_retirada_a_mao(
+    cenario,  # noqa: F811
+    locacao,
+    django_capture_on_commit_callbacks,
+) -> None:
+    """PR #541: com o contrato assinado antes do botão e o pagamento faltando, a situação diz
+    "Falta o 1º pagamento" (o código continua `pendencia_retirada`)."""
+    _vistoriar(locacao.pk)
+    assert _gerar(cenario, django_capture_on_commit_callbacks, locacao.pk).status_code == 202
+    assinatura = _assinar(_token(), capturar=django_capture_on_commit_callbacks)
+    assert assinatura.status_code == 200, assinatura.json()
+    assert _registrar(cenario, locacao).status_code == 200
+    situacao = cenario.detalhe(locacao.pk, "Rodrigo")["situacao"]
+    assert situacao["codigo"] == "pendencia_retirada"
+    assert situacao["rotulo"] == "Falta o 1º pagamento"
 
 
 def test_loc_17_retirada_sozinha_nao_tem_pendencia(

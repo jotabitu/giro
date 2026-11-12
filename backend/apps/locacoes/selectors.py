@@ -138,6 +138,15 @@ def tem_pendencia_da_retirada(locacao: Locacao) -> bool:
     )
 
 
+def rotulo_da_pendencia_da_retirada(locacao: Locacao) -> str:
+    """LOC-17 (PR #541): a situação diz o que falta, e não só que há pendência."""
+    sem_assinatura = locacao.contrato_assinado_em is None
+    sem_pagamento = locacao.primeiro_pagamento_em is None
+    if sem_assinatura and sem_pagamento:
+        return "Faltam assinatura e pagamento"
+    return "Falta a assinatura" if sem_assinatura else "Falta o 1º pagamento"
+
+
 def por_aba(qs: QuerySet[Any], aba: str | None) -> QuerySet[Any]:
     if aba == "precisam_acao":
         return _precisam_acao(qs)
@@ -262,7 +271,11 @@ def situacao(locacao: Locacao, sinal: dict[str, bool]) -> dict[str, str]:
             "tom": "alerta",
         }
     if tem_pendencia_da_retirada(locacao):  # LOC-17: retirada à mão com o que faltava
-        return {"codigo": "pendencia_retirada", "rotulo": "Pendência da retirada", "tom": "alerta"}
+        return {
+            "codigo": "pendencia_retirada",
+            "rotulo": rotulo_da_pendencia_da_retirada(locacao),
+            "tom": "alerta",
+        }
     if sinal["devolve_hoje"]:
         return {"codigo": "devolve_hoje", "rotulo": "Devolve hoje", "tom": "info"}
     tons = {S.ATIVA: "sucesso", S.ENCERRADA: "neutro", S.CANCELADA: "neutro", S.RASCUNHO: "neutro"}

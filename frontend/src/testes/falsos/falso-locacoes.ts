@@ -788,7 +788,11 @@ export const locacoesFalso = {
     if (s.corpo.kmSaida === null) throw new ErroApi(409, "vistoria_saida_pendente", "Faça a vistoria de saída antes da retirada.");
     s.status = "ativa";
     s.retiradaAMao = true;
-    s.situacao = { codigo: "pendencia_retirada", rotulo: "Pendência da retirada", tom: "atencao" };
+    // LOC-17 (PR #541): a situação diz o que falta; o código continua `pendencia_retirada`.
+    const semAssinatura = s.corpo.contrato?.status !== "assinado";
+    const semPagamento = s.parcelas.some((p) => (p[0] === "caucao" || p === s.parcelas.find((x) => x[0] === "parcela")) && p[3] !== "paga");
+    const rotulo = semAssinatura && semPagamento ? "Faltam assinatura e pagamento" : semAssinatura ? "Falta a assinatura" : "Falta o 1º pagamento";
+    s.situacao = { codigo: "pendencia_retirada", rotulo, tom: "alerta" };
     s.eventos.push([AGORA_DO_SEED, "Retirada", `Retirada registrada à mão. Motivo: ${corpo.motivo.trim()}`]);
     return detalhe(s);
   },
