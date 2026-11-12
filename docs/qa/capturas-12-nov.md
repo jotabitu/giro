@@ -82,3 +82,71 @@ Não capturado, ver A4.
 ## O que ficou no ambiente
 
 Dados de teste, que não se apagam: LOC-2870 (ativa, paga) e LOC-2871 (ativa, paga); caixa do dia aberto pela Bruna com R$ 100,00 e entradas de R$ 629,00 (LOC-2870) e R$ 629,00 (LOC-2871); veículos TBC-5H31 (id 98, 3 fotos do cadastro mais as dos testes do editar), TBC-5H32 (id 99, 3 fotos) e TBC-5H33 (id 100, criado na repetição do A3, 2 fotos). `make seed` devolve o seed.
+
+## Repetição de A1 e A3 · develop em 1dde984b (#549, #550)
+
+Pedido do Orquestrador, a 1440 e 390 px, com as contas do seed (Rodrigo, Bruna, João). Capturas em `tarefas/handoffs/anexos/T-466/` (A1 e A3 desta rodada, arquivos `A1-...` e `A3-...`).
+
+| Item | Resultado |
+| --- | --- |
+| A1 · coluna "Pagamento" (T-466, `LOC-17`, `FIN-01`) | Corrigido |
+| A3 · ficha depois de "Ficar" (T-462, `VEI-10`) | Corrigido |
+| A2 · caução paga | Fechado: "Devolver na entrega" (decisão do dono, #548) |
+| Voltar depois da ficha | Cai em `/veiculos/novo` (achado A6) |
+
+**A1.** Como a LOC-2871 já estava paga, usei a LOC-2864 (Tales Gondim, do seed): vistoria de saída pelo João e retirada à mão pelo Rodrigo, com motivo, sem nada pago.
+- Sem pagamento (total pago R$ 0,00): em "Precisam de ação" a coluna diz "Aguardando pagamento", com a situação "Faltam assinatura e pagamento". 1440 e 390. Capturas `A1-lista-loc-2864-sem-pagamento-rodrigo-*`.
+- Com só a caução paga em dinheiro pela Bruna (a ficha mostra "Devolver na entrega"): a coluna diz "R$ 300,00 pago". 1440 e 390. Capturas `A1-lista-loc-2864-caucao-paga-rodrigo-*`. Observação: o valor pago que a lista mostra é a caução, e as duas parcelas seguem abertas. Pelo critério do pedido ("R$ X pago se parte foi paga") está certo; se a caução não deveria entrar nesse número (`FIN-15`), é pergunta para o Produto.
+- A LOC-2871 continua "Pago" porque está paga de verdade.
+
+**A3.** Roteiro: `/veiculos/novo` com o mínimo e 2 fotos, `POST .../fotos/` atrasado 8 s, Salvar veículo; durante o envio ("Enviando fotos · 1 de 2", "Faltam 2 fotos. Não feche esta tela."), sair pelo link "Veículos" ou por `history.back()`, diálogo "Sair desta tela?", "Ficar".
+
+| Caminho | 1440 | 390 |
+| --- | --- | --- |
+| Link "Veículos" e "Ficar" | Ficha abre (`/veiculos/102`), com 2 fotos na galeria | Ficha abre (`/veiculos/105`) |
+| Voltar do navegador e "Ficar" | Ficha abre (`/veiculos/104`) | Ficha abre (`/veiculos/106`) |
+| Sem sair da tela (controle) | Ficha abre (`/veiculos/103`) | Ficha abre |
+
+Capturas: `A3-cadastro-enviando-*`, `A3-dialogo-sair-ou-ficar-*`, `A3-depois-de-ficar-*`.
+
+- **A6 · Voltar depois da ficha cai no formulário de novo cadastro.** Nos seis casos acima, inclusive no controle sem "Ficar", `history.back()` na ficha leva a `/veiculos/novo` (formulário vazio, "Cadastrar veículo"). Não é regressão do #549 (acontece também sem o diálogo), mas é o que o pedido mandou conferir: o Voltar cai no formulário. Quem salva e aperta Voltar pode cadastrar de novo e levar 409 de placa repetida. Capturas `A3-voltar-depois-da-ficha-*`. Dono: frontend (trocar o `push` da ficha por `replace` depois do salvar, se for essa a intenção).
+
+**O que ficou no ambiente.** LOC-2864 retirada à mão (ativa, sem assinatura, caução paga, parcelas 1 e 2 em aberto) e veículos TBC-6A01 a TBC-6A06 (ids 102 a 107, 2 fotos cada). `make seed` devolve o seed.
+
+## T-436 · página pública `/recibo` (`DEV-02`, `S-15`, `AUD-05`)
+
+Com `GIRO_RECIBO_PUBLICO` ligado pelo dono. Conferido na develop, `http://motorapida.localhost:3000`, a 1440 e 390 px, em contexto sem login. O recibo é o da devolução da LOC-2812 (Patrícia Gomes, a única encerrada do seed). O link veio de "Copiar link do recibo" na tela `/locacoes/2/devolucao`, pelo Rodrigo. Capturas em `tarefas/handoffs/anexos/T-436/`. A repetição do A6 (#555) não entra: o PR ainda está aberto.
+
+| Item | Resultado |
+| --- | --- |
+| "Copiar link do recibo" | Passa: aparece na devolução encerrada e gera o link; o pop-up diz "Vale até 19 nov" e "Mande o link só ao cliente". No navegador sem permissão de área de transferência (o do teste) caiu em "Não deu para copiar sozinho. Selecione o link abaixo e copie.", como previsto. Captura `devolucao-copiar-link-rodrigo-1440.png` |
+| Página com link válido, 1440 e 390 | Passa: marca Moto Rápida, "Recibo da devolução da LOC-2812", "Olá, Patrícia. Aqui está o recibo da devolução, concluída em 14/10/2026 19:43.", bloco "Recibo · LOC-2812 · devolução concluída", "Baixar recibo", rodapé "Tecnologia Giro". Só o essencial: sem valores, fotos nem CPF. Capturas `recibo-publico-1440.png` e `-390.png` |
+| Token fora da barra | Passa: `/recibo#<token>` vira `/recibo` depois de carregar; o token só vai no corpo do `POST /api/publico/recibos/consultar/` |
+| Cabeçalhos | Passa: `Cache-Control: no-store` (o `must-revalidate` vem do modo de desenvolvimento) e `X-Robots-Tag: noindex, nofollow` |
+| "Baixar recibo" | Passa: nova consulta a cada clique e abre uma aba; a resposta do PDF veio 200 `application/pdf`. No Chromium sem interface a aba fica em `about:blank`, então o PDF aberto não foi capturado |
+| Link inválido e `/recibo` sem token | Passa: "Link não encontrado. Este link venceu ou não existe. Peça um novo à locadora.", a 1440 e 390. Capturas `recibo-link-invalido-*` |
+| Reabrir o mesmo link em outra aba | Passa: abre de novo enquanto vale |
+| Link vencido (410) | Não exercitado: o relógio fica no dia real e o link vale 7 dias |
+
+Observações, sem falha de critério:
+- O link gerado vem como `https://motorapida.localhost/recibo#...`, sem `http` nem a porta 3000 do compose. Só abre trocando para `http://motorapida.localhost:3000`. Vem de `DOMINIO_BASE` no desenvolvimento; confirmar que homologação e produção montam o endereço certo.
+- A 390 px o título quebra no hífen ("LOC-" e "2812" em linhas separadas).
+- O selo do Next (modo de desenvolvimento) cobre "Tecnologia Giro" no canto da captura de 390 px; não existe em produção.
+- Não exercitados: o link anterior deixar de valer ao copiar outro (5 por hora) e o 404 depois de anonimizar o titular.
+
+**No ambiente:** cada "Copiar link do recibo" gerou um link novo para a devolução 1 (LOC-2812); só o último vale.
+
+## Repetição de A6 · develop em 711a4bf6 (#555)
+
+Mesmo roteiro do A3 (`POST .../fotos/` atrasado 8 s, 2 fotos), a 1440 e 390 px. Capturas em `tarefas/handoffs/anexos/T-462/`, arquivos `A6-...` e `A6b-...`.
+
+| Caminho | Ficha abre | Voltar na ficha |
+| --- | --- | --- |
+| 1440 · link "Veículos" e "Ficar" | Sim (`/veiculos/108`) | `/inicio`, de onde o teste entrou |
+| 1440 · sem sair da tela | Sim (`/veiculos/109`) | `/inicio` |
+| 390 · Voltar do navegador e "Ficar" | Sim (`/veiculos/110`) | `/inicio` |
+| 1440 · pelo caminho real: lista de veículos, "Cadastrar veículo", salvar (`A6b-...`) | Sim (`/veiculos/111`) | `/veiculos`, a lista |
+
+**A6: corrigido.** O Voltar depois da ficha não cai mais em `/veiculos/novo`: volta à tela de antes do cadastro. O 390 px foi exercitado só no caminho com Voltar e "Ficar".
+
+**No ambiente:** veículos TBC-6B01 a TBC-6B04 (ids 108 a 111, 2 fotos cada). `make seed` devolve o seed.

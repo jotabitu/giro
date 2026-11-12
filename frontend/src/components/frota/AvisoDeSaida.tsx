@@ -109,6 +109,27 @@ export function guardarVoltar(
   };
 }
 
+/**
+ * Abre a página no fim do cadastro no lugar dele no histórico, para o Voltar da ficha cair onde a pessoa estava
+ * antes (a lista) e não no formulário vazio (VEI-10, T-462, A6). Sem entrada de guarda, basta trocar (replace).
+ * Com ela no topo (o histórico tem cadastro e cadastro), volta uma entrada e só então troca o cadastro.
+ */
+export function abrirNoLugarDoCadastro(
+  janela: Pick<Window, "addEventListener" | "history">,
+  router: { replace: (url: string) => void },
+  url: string,
+  tinhaGuarda: boolean,
+) {
+  if (!tinhaGuarda) {
+    router.replace(url);
+    return;
+  }
+  janela.addEventListener("popstate", () => router.replace(url), {
+    once: true,
+  });
+  janela.history.back();
+}
+
 type Pedido = { link: string } | "voltar" | null;
 
 /**
@@ -162,8 +183,7 @@ export function useAvisoDeSaida(faltam: number): {
   const ir = useCallback(
     (url: string) => {
       const tinhaGuarda = guardaAtual.current?.entregar() ?? false;
-      if (tinhaGuarda) router.replace(url);
-      else router.push(url);
+      abrirNoLugarDoCadastro(window, router, url, tinhaGuarda);
     },
     [router],
   );

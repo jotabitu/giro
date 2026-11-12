@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- ajustada no repositório: 12/11/2026, T-420 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -44,7 +45,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 
 </style>
 </helmet>
-<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1400px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1550px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
 <nav class="wl-sidebar" aria-label="Menu principal" style="flex: 0 0 280px;">
 <div class="wl-brand-row"><div class="wl-logo-slot" aria-hidden="true">MR</div><div class="wl-brand-name">Moto Rápida</div></div>
 <div class="wl-switcher"><div class="wl-switcher__icon"><svg class="wl-i" viewBox="0 0 24 24"><path d="M3 10l2-6h14l2 6zM4 10v10h16V10M9 20v-5h6v5"></path></svg></div><div class="wl-switcher__text"><span class="wl-switcher__name">Filial Centro</span><span class="wl-switcher__sub">Fortaleza, CE</span></div><svg class="wl-i" viewBox="0 0 24 24" style="color: var(--ink-muted);"><path d="m6 9 6 6 6-6"></path></svg></div>
@@ -86,6 +87,8 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 <div class="wl-pipe__col wl-pipe__col--solid" style="flex: 4;"><div class="wl-pipe__bar"></div><div class="wl-pipe__num">4</div><div class="wl-pipe__label">Vendido</div></div>
 </div>
 </div></section>
+<section class="wl-panel"><div class="wl-panel__head"><h2 class="wl-panel__title">Transferências pendentes</h2><span class="lbl">1 no Detran</span></div>
+<div style="overflow-x: auto;"><table class="wl-table" style="min-width: 760px;"><thead><tr><th>Cliente</th><th>Veículo</th><th>Origem</th><th>Situação</th><th></th></tr></thead><tbody><tr><td><span class="wl-cell-main">Lucas Ferreira</span><span class="wl-cell-sub wl-mono">VEN-0178 · LOC-2901</span></td><td><span class="wl-cell-main">Honda CG 160 Fan</span><span class="wl-cell-sub wl-mono">RTA-2C55</span></td><td>Quitação de locação</td><td><span class="wl-badge wl-badge--sm wl-badge--warning">Falta a transferência no Detran</span></td><td><a href="Locacao-Detalhe-Compra-Quitada-Desktop.dc.html" class="wl-btn wl-btn--sm" style="text-decoration: none; white-space: nowrap;">Abrir locação</a></td></tr></tbody></table></div></section>
 <section class="wl-panel"><div class="wl-panel__head" style="flex-wrap: wrap; gap: 12px;"><h2 class="wl-panel__title">Propostas abertas</h2><div class="wl-seg" role="group" aria-label="Filtro"><button aria-pressed="true">Todas</button><button aria-pressed="false">Minhas</button><button aria-pressed="false">Aguardando gerente</button></div></div>
 <div style="overflow-x: auto;"><table class="wl-table" style="min-width: 980px;"><thead><tr><th>Cliente</th><th>Veículo</th><th>Valor</th><th>Situação</th><th>Último contato</th><th></th></tr></thead><tbody><tr><td><span class="wl-cell-main">Diego Martins</span><span class="wl-cell-sub wl-mono">VEN-0177 · Bruna</span></td><td>Honda CB 300F Twister 2024</td><td><span class="wl-cell-main">R$ 21.068,00</span><span class="wl-cell-sub">entrada + 12× · desconto de 8%</span></td><td><span class="wl-badge wl-badge--sm wl-badge--warning">Aguardando gerente</span></td><td><span class="wl-cell-sub">há 1 h</span></td><td><a href="Venda-Desktop.dc.html" class="wl-btn wl-btn--quiet wl-btn--sm" style="text-decoration: none; white-space: nowrap;">Ver proposta</a></td></tr><tr><td><span class="wl-cell-main">Larissa Costa</span><span class="wl-cell-sub wl-mono">VEN-0176 · Bruna</span></td><td>Yamaha Fazer 250 2023</td><td><span class="wl-cell-main">R$ 19.500,00</span><span class="wl-cell-sub">financiamento</span></td><td><span class="wl-badge wl-badge--sm wl-badge--info">Banco analisando</span></td><td><span class="wl-cell-sub">há 2 dias</span></td><td><a href="Venda-Desktop.dc.html" class="wl-btn wl-btn--quiet wl-btn--sm" style="text-decoration: none; white-space: nowrap;">Ver proposta</a></td></tr><tr><td><span class="wl-cell-main">Thiago Ramos</span><span class="wl-cell-sub wl-mono">VEN-0175 · Bruna</span></td><td>Honda Biz 125 2024</td><td><span class="wl-cell-main">R$ 13.200,00</span><span class="wl-cell-sub">à vista</span></td><td><span class="wl-badge wl-badge--sm">Proposta enviada</span></td><td><span class="wl-cell-sub">ontem</span></td><td><a href="Venda-Desktop.dc.html" class="wl-btn wl-btn--quiet wl-btn--sm" style="text-decoration: none; white-space: nowrap;">Ver proposta</a></td></tr><tr><td><span class="wl-cell-main">Fernanda Lopes</span><span class="wl-cell-sub wl-mono">VEN-0174 · Bruna</span></td><td>Yamaha NMax 160 2023</td><td><span class="wl-cell-main">R$ 21.800,00</span><span class="wl-cell-sub">entrada + 24×</span></td><td><span class="wl-badge wl-badge--sm">Proposta enviada</span></td><td><span class="wl-cell-sub">hoje</span></td><td><a href="Venda-Desktop.dc.html" class="wl-btn wl-btn--quiet wl-btn--sm" style="text-decoration: none; white-space: nowrap;">Ver proposta</a></td></tr></tbody></table></div></section>
 <section class="wl-panel"><div class="wl-panel__head"><h2 class="wl-panel__title">Vendidas em outubro</h2><span class="lbl">R$ 31.200,00 · comissão R$ 936,00</span></div>
@@ -93,7 +96,7 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 </main>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1400}}'>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1550}}'>
 class Component extends DCLogic {
   renderVals() {
     var b = String(this.props.brand || '#c8f04a').replace('#', '');

@@ -118,12 +118,39 @@ describe("registrar chegada (Movimentacao-Chegada-Mobile)", () => {
 describe("nova movimentação (Movimentacao-Nova)", () => {
   it("as três seções, o destino e as opções de quando", async () => {
     await entrarComo("rodrigo@motorapida.com.br", "gerir");
-    const t = texto(comCache(new QueryClient(), <NovaMovimentacao />));
+    const t = texto(comCache(new QueryClient(), <NovaMovimentacao aberto aoFechar={() => {}} />));
     for (const trecho of ["Nova movimentação", "1 · Veículo", "2 · Para onde vai", "Saída", "Adicionar parada", "Destino", "Filial de destino", "O destino é sempre uma filial.", "3 · Quando e quem leva", "Sair agora", "Agendar", "Quem leva", "Vistoria rápida na chegada", "Cancelar"]) {
       expect(t, trecho).toContain(trecho);
     }
     // MOV-04 e CA-246-07: no MVP a parada não tem ordem de serviço.
     expect(t).not.toContain("Ordem de serviço");
+  });
+
+  it("T-453: abre num Dialogo amplo (tela cheia no celular), sem rota própria, e fechado não monta o formulário", async () => {
+    await entrarComo("rodrigo@motorapida.com.br", "gerir");
+    const aberto = comCache(new QueryClient(), <NovaMovimentacao aberto aoFechar={() => {}} />);
+    expect(aberto).toContain("<dialog");
+    expect(aberto).toContain("wl-dialogo--amplo");
+    expect(aberto).toContain('aria-label="Nova movimentação"');
+    expect(aberto).not.toContain('href="/veiculos/movimentacoes/nova"');
+    const fechado = comCache(new QueryClient(), <NovaMovimentacao aberto={false} aoFechar={() => {}} />);
+    expect(fechado).not.toContain("1 · Veículo");
+  });
+
+  it("T-453: o quadro tem os botões Nova movimentação e Nova como botões do diálogo, não como links para outra rota", async () => {
+    await entrarComo("rodrigo@motorapida.com.br", "gerir");
+    const h = await quadro();
+    expect(h).not.toContain("/veiculos/movimentacoes/nova");
+    expect(h).toMatch(/<button[^>]*aria-label="Nova movimentação"/);
+  });
+
+  it("T-453: a rota antiga abre o quadro com o diálogo já aberto", async () => {
+    await entrarComo("rodrigo@motorapida.com.br", "gerir");
+    const cache = new QueryClient();
+    cache.setQueryData(["movimentacoes", "quadro"], await movimentacoes.quadro());
+    const h = comCache(cache, <QuadroDeMovimentacoes comNovaAberta />);
+    expect(texto(h)).toContain("Agendadas");
+    expect(texto(h)).toContain("1 · Veículo");
   });
 });
 
