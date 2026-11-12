@@ -7,11 +7,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
-import { Icone, Panel, SelectField, TextField } from "@/design-system";
+import { Icone, Panel, SelectField, StatusBadge, TextField } from "@/design-system";
 import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo, type TipoVeiculo, type VeiculoDetalhe } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { km, placa as placaComHifen } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
+import { tomDoStatus } from "@/lib/tom";
 import { CAMPOS_VEI_09, categoriaAoTrocarTipo, esquemaVeiculo, NOME_DO_CAMPO_DA_API, OPCOES_DE_TIPO, paraCorpoEdicao, semCategoriaDoTipo, temMotorEObservacoes, valoresDaLeitura, valoresDoVeiculo, type CampoLido, type CategoriasPorTipo, type ValoresVeiculo } from "@/lib/veiculos";
 import { CamposDoDocumento } from "./CamposDoDocumento";
 import { CorrigirIdentificacao } from "./CorrigirIdentificacao";
@@ -135,7 +136,6 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
 
   return (
     <div className="flex flex-col gap-6">
-    <form onSubmit={enviar} noValidate className="flex flex-col gap-6">
       <header className="flex flex-wrap items-end gap-x-6 gap-y-3">
         <Link href={`/veiculos/${ficha.id}`} aria-label="Voltar para a ficha" className="wl-icon-btn md:hidden">
           <Icone de={ChevronLeft} />
@@ -152,6 +152,22 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
             / Editar
           </nav>
           <h1 className="text-title md:mt-1 md:text-display">Editar veículo</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-body text-ink-muted">
+            <StatusBadge tom={tomDoStatus(ficha.situacao.tom)} compacto>
+              {ficha.situacao.rotulo}
+            </StatusBadge>
+            <span className="wl-mono">{placaComHifen(ficha.placa)}</span>
+            <span>· {[v.marca, v.modelo].filter(Boolean).join(" ")} · {v.ano_modelo} · {ficha.filial.nome}</span>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Link href={`/veiculos/${ficha.id}`} className="wl-btn wl-btn--quiet">
+            Cancelar
+          </Link>
+          {/* O botão fica no cabeçalho e o formulário mais abaixo: o atributo form liga os dois. */}
+          <button type="submit" form="editar-veiculo" disabled={ocupado} className="wl-btn wl-btn--solid">
+            {ocupado ? "Salvando…" : "Salvar alterações"}
+          </button>
         </div>
       </header>
 
@@ -166,20 +182,37 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
         </p>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="flex min-w-0 flex-col gap-6">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <GaleriaDoEditar id={ficha.id} />
+          <section className="wl-panel overflow-hidden !p-0">
+            <div className="grid h-[140px] place-items-center bg-surface-sunken text-ink-muted">
+              <Icone de={v.tipo === "moto" ? Bike : Car} />
+            </div>
+            <div className="p-5">
+              <div className="text-heading font-semibold">{titulo}</div>
+              <div className="wl-mono text-ink-muted">{resumo}</div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="wl-badge wl-badge--sm">{opcoes.find((o) => o.valor === v.categoria_id)?.rotulo ?? ficha.categoria.nome}</span>
+                <span className="wl-badge wl-badge--sm">{ficha.filial.nome}</span>
+              </div>
+            </div>
+          </section>
+      </div>
+
+      <form id="editar-veiculo" onSubmit={enviar} noValidate className="flex min-w-0 flex-col gap-6">
+        <div className="contents">
           <PreencherPeloCrlv veiculoId={ficha.id} lido={crlv} aoLer={preencherPelaLeitura} aoRemover={tirarCrlv} aoEscolherVersao={escolherVersao} />
 
           <Panel titulo="Identificação">
             <div className="grid gap-4 md:grid-cols-2">
-              <TextField cheio mono rotulo="Placa" value={placaComHifen(ficha.placa)} readOnly dica={podeCorrigir ? "Placa e chassi não mudam aqui. Para erro de digitação, use Corrigir placa ou chassi." : "Placa e chassi não mudam aqui. Para corrigir um erro de digitação, fale com o administrador."} />
+              <TextField cheio mono rotulo="Placa" value={placaComHifen(ficha.placa)} readOnly dica={podeCorrigir ? "Fixo no cadastro. Placa e chassi não mudam aqui. Para erro de digitação, use Corrigir placa ou chassi." : "Fixo no cadastro. Placa e chassi não mudam aqui. Para corrigir um erro de digitação, fale com o administrador."} />
               <TextField cheio rotulo="Marca" autoComplete="off" dica={dicaDe("marca")} erro={erro("marca")} {...register("marca")} />
               <TextField cheio rotulo="Modelo" autoComplete="off" dica={dicaDe("modelo")} erro={erro("modelo")} {...register("modelo")} />
               <div className="grid grid-cols-2 gap-3">
                 <TextField cheio mono rotulo="Ano de fabricação" inputMode="numeric" maxLength={4} dica={dicaDe("ano_fabricacao")} erro={erro("ano_fabricacao")} {...register("ano_fabricacao")} />
                 <TextField cheio mono rotulo="Ano do modelo" inputMode="numeric" maxLength={4} dica={dicaDe("ano_modelo")} erro={erro("ano_modelo")} {...register("ano_modelo")} />
               </div>
-              <TextField cheio mono rotulo="Chassi" value={ficha.chassi} readOnly />
+              <TextField cheio mono rotulo="Chassi" value={ficha.chassi} readOnly dica="17 caracteres · Fixo no cadastro" />
               <TextField cheio mono rotulo="Renavam" inputMode="numeric" dica={dicaDe("renavam")} erro={erro("renavam")} {...register("renavam")} />
               <TextField cheio rotulo="Cor" dica={dicaDe("cor")} erro={erro("cor")} {...register("cor")} />
               <TextField cheio mono rotulo="Km atual" value={km(ficha.km_atual)} readOnly dica="O km sobe pela leitura ou pela vistoria e nunca diminui" />
@@ -223,37 +256,21 @@ function Formulario({ ficha }: { ficha: VeiculoDetalhe }) {
             </div>
           </Panel>
         </div>
+      </form>
 
-        <aside className="flex flex-col gap-6">
-          <section className="wl-panel overflow-hidden !p-0">
-            <div className="grid h-[140px] place-items-center bg-surface-sunken text-ink-muted">
-              <Icone de={v.tipo === "moto" ? Bike : Car} />
-            </div>
-            <div className="p-5">
-              <div className="text-heading font-semibold">{titulo}</div>
-              <div className="wl-mono text-ink-muted">{resumo}</div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span className="wl-badge wl-badge--sm">{opcoes.find((o) => o.valor === v.categoria_id)?.rotulo ?? ficha.categoria.nome}</span>
-                <span className="wl-badge wl-badge--sm">{ficha.filial.nome}</span>
-              </div>
-            </div>
-          </section>
+      <DocumentosDoVeiculo id={ficha.id} />
 
-          <section className="wl-panel flex flex-col gap-3">
-            <button type="submit" disabled={ocupado} className="wl-btn wl-btn--solid">
-              {ocupado ? "Salvando…" : "Salvar alterações"}
-            </button>
-            <Link href={`/veiculos/${ficha.id}`} className="wl-btn wl-btn--quiet">
-              Cancelar
-            </Link>
-          </section>
-        </aside>
+      {/* A página é longa: Salvar também no pé, fixo ao rolar (no celular fica acima da barra de navegação). */}
+      <div className="sticky bottom-[88px] z-20 flex justify-end gap-2 rounded-lg bg-surface p-3 shadow-pop md:bottom-4">
+        <Link href={`/veiculos/${ficha.id}`} className="wl-btn wl-btn--quiet">
+          Cancelar
+        </Link>
+        <button type="submit" form="editar-veiculo" disabled={ocupado} className="wl-btn wl-btn--solid">
+          {ocupado ? "Salvando…" : "Salvar alterações"}
+        </button>
       </div>
-    </form>
-    <GaleriaDoEditar id={ficha.id} />
-    <DocumentosDoVeiculo id={ficha.id} />
-    {/* Fora do form: Enter nos campos do diálogo não pode salvar a edição. */}
-    {corrigindo && <CorrigirIdentificacao ficha={ficha} aoFechar={() => setCorrigindo(false)} aoConcluir={setAviso} />}
+      {/* Fora do form: Enter nos campos do diálogo não pode salvar a edição. */}
+      {corrigindo && <CorrigirIdentificacao ficha={ficha} aoFechar={() => setCorrigindo(false)} aoConcluir={setAviso} />}
     </div>
   );
 }

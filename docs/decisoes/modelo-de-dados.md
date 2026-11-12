@@ -406,7 +406,11 @@ T-420, `LOC-16`, ADR 0037 (padrão A do ponto em aberto 1). Cadastro do administ
 | `forma_pagamento` | enum `pix`, `pix_automatico`, `cartao`, `boleto`, `dinheiro` | |
 | `parcelamento_mensal` | enum `a_vista`, `quatro_semanais`, nulo | `LOC-14` |
 | `status` | enum `rascunho`, `aguardando_retirada`, `ativa`, `devolucao_atrasada`, `encerrada`, `cancelada` | |
-| `vistoria_saida_ok_em`, `contrato_assinado_em`, `primeiro_pagamento_em` | momento, nulo | as 3 condições para `ativa`, em qualquer ordem |
+| `vistoria_saida_ok_em`, `contrato_assinado_em`, `primeiro_pagamento_em` | momento, nulo | as 3 condições para `ativa`, em qualquer ordem; depois da retirada à mão, a assinatura e o pagamento ainda se gravam e tiram a pendência (`LOC-17`) |
+| `retirada_em` | momento, nulo | quando a locação virou `ativa`, nas duas formas (`LOC-17`, T-451) |
+| `retirada_a_mao` | bool | retirada pelo "Registrar retirada", antes da assinatura ou do 1º pagamento |
+| `retirada_motivo` | texto(200) | o motivo informado na retirada à mão |
+| `aviso_assinatura_retirada_em` | momento, nulo | a tarefa aos gerentes do contrato não assinado 7 dias depois da retirada à mão, uma vez |
 | `vendedor` | FK → `contas.Usuario` | comissão `FIN-09` |
 | `renovacoes` | int | `LOC-08` |
 | `cancelada_em`, `motivo_cancelamento` | momento nulo, texto nulo | |

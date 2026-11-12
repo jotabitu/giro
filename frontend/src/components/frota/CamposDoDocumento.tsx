@@ -44,7 +44,7 @@ export function CamposDoDocumento({
         <div className="grid gap-4 md:grid-cols-2">
           <CampoSelecao rotulo="Combustível" vazio="Não informado" opcoes={COMBUSTIVEIS.map((c) => ({ valor: c.valor, rotulo: c.rotulo }))} dica={dica("combustivel")} erro={erro("combustivel")} {...register("combustivel")} />
           <CampoSelecao rotulo="Espécie" vazio="Não informada" opcoes={ESPECIES.map((e) => ({ valor: e.valor, rotulo: e.rotulo }))} dica={dica("especie")} erro={erro("especie")} {...register("especie")} />
-          <TextField cheio rotulo="Tipo" autoComplete="off" maxLength={30} dica={dica("tipo_documento", "Como no documento: Motocicleta, Automóvel")} erro={erro("tipo_documento")} {...register("tipo_documento")} />
+          <TextField cheio rotulo="Tipo no CRLV-e" autoComplete="off" maxLength={30} dica={dica("tipo_documento", "Como no documento: Motocicleta, Automóvel. Não é o tipo do veículo, que fica em Uso na frota.")} erro={erro("tipo_documento")} {...register("tipo_documento")} />
           <TextField cheio rotulo="Carroceria" autoComplete="off" maxLength={30} dica={dica("carroceria")} erro={erro("carroceria")} {...register("carroceria")} />
           <TextField cheio mono rotulo="Potência (cv)" inputMode="numeric" dica={dica("potencia_cv")} erro={erro("potencia_cv")} {...register("potencia_cv")} />
           <TextField cheio mono rotulo="Cilindrada (cc)" inputMode="numeric" dica={dica("cilindrada_cc")} erro={erro("cilindrada_cc")} {...register("cilindrada_cc")} />

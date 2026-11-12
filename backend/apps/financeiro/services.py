@@ -150,6 +150,30 @@ def liberar_contas_da_retirada(origem: Origem, dia: date) -> int:
     ).update(aguarda_retirada=False, liberada_em=dia)
 
 
+def vencer_na_retirada(origem: Origem, dia: date) -> int:
+    """LOC-17, retirada à mão: a 1ª parcela e a caução ainda abertas passam a vencer no dia da
+    retirada, se o vencimento gravado era antes dele. Ficam `vence_hoje` nesse dia, `atrasada`
+    no seguinte, e entram na régua (AUT-03) e no bloqueio (CLI-05) a partir dali; a multa e os
+    juros contam do dia seguinte (FIN-03). As outras parcelas seguem o calendário do início.
+    Chamar antes de `liberar_contas_da_retirada`, na mesma transação. Devolve quantas mudaram."""
+    contas = ContaReceber.objects.select_for_update().filter(
+        Q(tipo=TipoConta.CAUCAO) | Q(tipo=TipoConta.PARCELA, numero_parcela=1),
+        origem_tipo=origem.tipo,
+        origem_id=origem.id,
+        status=StatusConta.ABERTA,
+        aguarda_retirada=True,
+        vencimento__lt=dia,
+    )
+    mudadas = 0
+    for conta in contas:
+        acao = "conta_receber.vencer_na_retirada"
+        with auditar(conta, acao, Categoria.FINANCEIRO, regra="LOC-17"):
+            conta.vencimento = dia
+            conta.save(update_fields=["vencimento", "atualizado_em"])
+        mudadas += 1
+    return mudadas
+
+
 def esperar_retirada(origem: Origem) -> int:
     """Acerto do ambiente que já existia (T-410, CA-410-23): as contas em aberto da locação ainda
     não retirada passam a esperar a retirada. Idempotente. Devolve quantas mudaram."""
