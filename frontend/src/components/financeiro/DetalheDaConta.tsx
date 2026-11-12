@@ -116,6 +116,24 @@ export function DetalheDaConta({ id, aoFechar, aoDarBaixa, aoConcluir }: { id: n
                 {paga ? `Paga em ${dataCompleta(c.pago_em ?? c.vencimento)} · ${rotuloDaForma(c.forma)}` : `Forma prevista: ${rotuloDaForma(c.forma_prevista)}`}
               </span>
             </div>
+            {/* FIN-19: o tipo e "1 de 128 parcelas" vêm prontos da API. */}
+            <section aria-label="A que se refere">
+              <LinhasDeValor
+                linhas={[
+                  {
+                    rotulo: "Tipo",
+                    valor: (
+                      <span className="inline-flex flex-wrap items-center justify-end gap-2">
+                        {c.tipo_rotulo}
+                        {c.renegociacao && <StatusBadge compacto>Renegociação</StatusBadge>}
+                      </span>
+                    ),
+                  },
+                  ...(c.parcela_de ? [{ rotulo: "Parcela", valor: c.parcela_de }] : []),
+                  ...(origemDaConta(c) ? [{ rotulo: "Origem", valor: <span className="wl-mono">{origemDaConta(c)}</span> }] : []),
+                ]}
+              />
+            </section>
             {c.observacao && <p className="text-body text-ink-muted">{c.observacao}</p>}
             <div className="rounded-md bg-surface-sunken px-4 py-1">
               <LinhasDeValor
