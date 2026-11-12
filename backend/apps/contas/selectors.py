@@ -43,6 +43,8 @@ TABELA_DO_PODE: dict[str, dict[str, Any]] = {
     "veiculos": {ADM: "editar", GER: "editar", VEN: "ver", VIS: "km_e_avarias", FIN: "ver"},
     "clientes_cadastrar": _so(ADM, GER, VEN),
     "locacoes_criar": _so(ADM, GER, VEN),
+    # Quem lê `GET /api/locacoes/` (`LEEM_A_LISTA` de `locacoes`): todos menos vistoriador (T-458).
+    "locacoes_ver": _so(ADM, GER, VEN, FIN),
     "vistorias_fazer": _so(ADM, GER, VEN, VIS),
     "locacoes_cancelar": {ADM: "sim", GER: "aprova", VEN: "pede", VIS: "nao", FIN: "nao"},
     "desconto_acima_limite": {ADM: "sim", GER: "aprova", VEN: "pede", VIS: "nao", FIN: "nao"},

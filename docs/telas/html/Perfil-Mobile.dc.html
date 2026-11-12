@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Meu perfil · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.h2{margin:0;font-size:20px;line-height:26px;font-weight:600}
+.tag{margin:2px 0 0;font-size:13px;line-height:18px;color:var(--ink-muted)}
+.lbl{font-size:13px;color:var(--ink-muted)}
+.rule{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--success-ink)}
+.otp{width:48px;height:58px;box-sizing:border-box;border:1px solid var(--line);border-radius:14px;background:var(--surface);text-align:center;font-family:var(--font-mono);font-size:22px;color:var(--ink)}
+.otp--erro{border-color:var(--critical)}
+.aviso{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:16px;background:var(--surface-sunken);font-size:14px;line-height:20px;color:var(--ink-muted)}
+.erro{display:flex;gap:10px;align-items:flex-start;padding:14px 16px;border-radius:16px;background:var(--critical-soft);font-size:14px;line-height:20px;color:var(--critical-ink)}
+.card{padding:16px;border-radius:24px;background:var(--surface)}
+.kv{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line);font-size:15px}
+.kv:last-child{border-bottom:0}
+.kv span:first-child{color:var(--ink-muted)}
+.kv span:last-child{font-weight:500;text-align:right}
+.chip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border:0;border-radius:999px;background:var(--surface-sunken);color:var(--ink);font:inherit;font-size:15px;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--solid);color:var(--on-solid)}
+.chip .wl-count{background:var(--surface)}
+.chip[aria-pressed="true"] .wl-count{background:var(--brand);color:var(--on-brand)}
+.sw{position:relative;flex:none;width:44px;height:26px;border:0;border-radius:999px;background:var(--line);padding:0;cursor:pointer}
+.sw:after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--surface);transition:left .15s}
+.sw[aria-checked="true"]{background:var(--solid)}
+.sw[aria-checked="true"]:after{left:21px;background:var(--on-solid)}
+.sw:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.ntf{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line)}
+.ntf:last-child{border-bottom:0}
+.ntf__ic{display:grid;place-items:center;width:40px;height:40px;flex:none;border-radius:50%;background:var(--surface-sunken);color:var(--ink)}
+.ntf__t{font-size:15px;line-height:20px;font-weight:500}
+.ntf__d{margin-top:2px;font-size:14px;line-height:20px;color:var(--ink-muted)}
+.ntf__h{flex:none;font-size:13px;color:var(--ink-muted);white-space:nowrap}
+.ntf--nova .ntf__t:after{content:"";display:inline-block;width:8px;height:8px;margin-left:8px;border-radius:50%;background:var(--ink);vertical-align:1px}
+.pref{display:grid;grid-template-columns:minmax(0,1fr) 56px 56px 56px;align-items:center;gap:8px;padding:12px 0;border-bottom:1px solid var(--line);font-size:15px}
+.pref--h{padding-top:0;font-size:13px;color:var(--ink-muted)}
+.pref>:not(:first-child){justify-self:center}
+.pref:last-child{border-bottom:0}
+.nao{color:var(--ink-muted)}
+.codes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none}
+.codes li{padding:12px 14px;border-radius:14px;background:var(--surface-sunken);font-family:var(--font-mono);font-size:15px;text-align:center}
+
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 2300px; box-sizing: border-box; padding: 16px 16px 112px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;"><a href="Gerente-Mobile.dc.html" aria-label="Voltar" class="wl-icon-btn wl-icon-btn--sm" style="width: 44px; height: 44px; flex: none;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a><div style="flex: 1; min-width: 0; font-size: 22px; line-height: 28px; font-weight: 600;">Meu perfil</div></header>
+<section class="card"><div style="display: flex; align-items: center; gap: 14px; margin-bottom: 16px;"><span style="display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--surface-sunken); font-size: 20px; font-weight: 600;">RO</span><div><div style="font-weight: 600; font-size: 18px;">Rodrigo Oliveira</div><span class="wl-badge wl-badge--sm">Gerente</span></div></div>
+<div style="display: flex; flex-direction: column; gap: 16px;">
+<label class="wl-field"><span class="wl-field__label">Nome</span><input class="wl-input" value="Rodrigo Oliveira"></label>
+<label class="wl-field"><span class="wl-field__label">E-mail de acesso</span><input class="wl-input" value="rodrigo@motorapida.com.br" disabled><span class="wl-field__hint">O e-mail é o seu login. Para trocar, peça ao administrador.</span></label>
+<label class="wl-field"><span class="wl-field__label">Celular</span><input class="wl-input" value="(85) 99812-3344"></label>
+<button class="wl-btn wl-btn--solid" style="width: 100%; justify-content: center;">Salvar dados</button>
+</div></section>
+<section class="card"><div style="font-weight: 600; font-size: 18px; margin-bottom: 8px;">Seu acesso</div>
+<div class="kv"><span>Perfil</span><span>Gerente</span></div>
+<div class="kv"><span>Filiais</span><span>Filial Centro</span></div>
+<div class="kv"><span>Permissões extras</span><span>Cancelar contratos</span></div>
+<p class="tag" style="margin-top: 10px;">Definidos pelo administrador. Aqui você só consulta.</p></section>
+<section class="card" style="display: flex; flex-direction: column; gap: 16px;"><div style="font-weight: 600; font-size: 18px;">Trocar a senha</div>
+<label class="wl-field"><span class="wl-field__label">Senha atual</span><input class="wl-input" type="password" value="senhaantiga123"></label>
+<label class="wl-field"><span class="wl-field__label">Nova senha</span><input class="wl-input" type="password" value="senhaforte123"></label>
+<div><div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;"><div style="height: 6px; border-radius: 999px; background: var(--success);"></div><div style="height: 6px; border-radius: 999px; background: var(--success);"></div><div style="height: 6px; border-radius: 999px; background: var(--success);"></div><div style="height: 6px; border-radius: 999px; background: var(--line);"></div></div><div style="margin-top: 6px; font-size: 14px; color: var(--ink-muted);">Senha boa</div></div>
+<div style="display: flex; flex-direction: column; gap: 8px;"><span class="rule"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="m5 12 5 5 9-10"></path></svg>12 caracteres ou mais</span><span class="rule"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="m5 12 5 5 9-10"></path></svg>Letras e números</span><span class="rule"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="m5 12 5 5 9-10"></path></svg>Diferente do e-mail e do nome da empresa</span><span class="rule"><svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="m5 12 5 5 9-10"></path></svg>Fora da lista de senhas comuns</span></div>
+<label class="wl-field"><span class="wl-field__label">Repita a nova senha</span><input class="wl-input" type="password" value="senhaforte123"></label>
+<div class="aviso"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none; color: var(--ink);"><rect x="5" y="10" width="14" height="10" rx="3"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg><span>Ao salvar, sua conta sai dos outros aparelhos. Neste, você continua conectado.</span></div>
+<button class="wl-btn wl-btn--solid" style="width: 100%; justify-content: center;">Salvar nova senha</button></section>
+<section class="card" style="display: flex; flex-direction: column; gap: 12px;"><div style="display: flex; align-items: center; gap: 12px;"><div style="font-weight: 600; font-size: 18px;">Verificação em 2 etapas</div><span class="wl-badge wl-badge--sm wl-badge--success" style="margin-left: auto;">Ativada</span></div>
+<p style="margin: 0; line-height: 22px; color: var(--ink-muted);">Além da senha, você digita um código de 6 números do aplicativo autenticador.</p>
+<div><div class="kv"><span>Aplicativo</span><span>Desde 03 nov 2026</span></div><div class="kv"><span>Códigos de recuperação</span><span>6 de 8 sem uso</span></div></div>
+<button class="wl-btn" style="width: 100%; justify-content: center;">Gerar novos códigos</button>
+<button class="wl-btn wl-btn--quiet" style="width: 100%; justify-content: center;">Trocar de celular</button>
+<button class="wl-btn wl-btn--quiet" style="width: 100%; justify-content: center; color: var(--critical-ink);">Desativar</button>
+<p class="tag">Gerar novos códigos cancela os antigos. Quem tem a verificação obrigatória não vê "Desativar".</p></section>
+<a href="Notificacoes-Mobile.dc.html" class="card" style="display: flex; align-items: center; gap: 14px; text-decoration: none;"><span class="ntf__ic"><svg class="wl-i" viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15zM10 21h4"></path></svg></span><div style="flex: 1;"><div style="font-weight: 600;">Notificações</div><div class="lbl">Sino, celular e e-mail</div></div><svg class="wl-i" viewBox="0 0 24 24" style="color: var(--ink-muted);"><path d="m9 6 6 6-6 6"></path></svg></a>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line);"><button class="wl-btn" style="width: 100%; justify-content: center; color: var(--critical-ink);">Sair</button></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":2300}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

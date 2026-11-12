@@ -58,7 +58,25 @@ Todo dinheiro que entra ou sai passa por uma conta a receber, uma despesa ou um 
     - A baixa vale para o 1º pagamento da `LOC-17`, junto com a 1ª parcela.
   - **Não é receita.** A caução paga entra no caixa do dia ("entrou hoje"), mas não na receita, na DRE nem nos números de contas a receber (`FIN-13`, `FIN-15`). Fica como valor a devolver até o acerto da devolução, que a usa (`DEV-02`).
   - **Ex.: LOC-2856** (Lucas, 07 out): "Caução · R$ 300,00 · Paga em 07 out", recebida em dinheiro no caixa de 07 out junto com a 1ª semana (R$ 629,00, caso "Caixa de 07 out").
-  - **Seção Pagamentos da ficha da locação** (`LOC-17`): lista as parcelas e a caução, cada uma com o rótulo ("Parcela 1", "Caução"), o vencimento, o valor de hoje e a situação. Cada conta em aberto tem "Registrar pagamento" para quem recebe no caixa. Ele abre a mesma baixa de `Receber` sem sair da locação, e depois só a ficha se atualiza.
+  - **Seção Pagamentos da ficha da locação** (`LOC-17`): lista as parcelas e a caução, cada uma com o rótulo ("Parcela 1", "Caução"), o vencimento, o valor de hoje e a situação. Cada conta em aberto tem "Registrar pagamento" para quem recebe no caixa. Ele abre a mesma baixa de `Receber` sem sair da locação, e depois só a ficha se atualiza. Cada linha também abre o registro da conta em `Receber`, com o detalhe dela já aberto, e voltar leva à ficha da locação (T-455).
+- `FIN-19` **A que se refere cada conta a receber** (T-454). Toda conta diz o tipo e, na parcela, qual é. A API manda os dois textos prontos, e a tela só os mostra, no detalhe da conta, na lista de `Receber`, na seção Pagamentos da locação, na busca do `Caixa` e no recibo.
+  - **Tipo e rótulo de cada conta:**
+
+    | Tipo | Rótulo do tipo | Rótulo da conta (lista e título do detalhe) |
+    | --- | --- | --- |
+    | parcela | "Parcela" | "Parcela 2 de 5"; com uma parcela só (diária, mensal à vista), "Parcela única" |
+    | caução | "Caução" | "Caução" |
+    | multa | "Multa" | "Multa · {descrição}" (ex.: "Multa · Encerramento antecipado", "Multa · Infração de trânsito em 12/10") |
+    | avaria | "Avaria" | "Avaria · {descrição}" (ex.: "Avaria · Retrovisor direito") |
+    | acerto | "Acerto da devolução" | "Acerto da devolução · {descrição}" (ex.: "Acerto da devolução · 3 diárias de atraso"); sem descrição, só "Acerto da devolução" |
+    | outra | "Outra cobrança" | "Outra cobrança · {descrição}" |
+    | renegociação (conta nascida de um acordo) | o tipo da conta original, e "Renegociação" ao lado | "Renegociação · 1 de 3", contando as contas do acordo |
+
+  - **Número e total da parcela.** O detalhe da conta mostra o número da parcela e o total, por extenso: "1 de 128 parcelas", ex.: semanal de 128 semanas. O total é o de parcelas da locação até o fim previsto em vigor, sem a caução e sem as outras cobranças (multa, avaria, acerto). A renovação (`LOC-08`) aumenta o total das parcelas da locação, e o rótulo passa a "Parcela 2 de 7". O encerramento antes do fim não diminui o total: as parcelas canceladas continuam contadas.
+  - **Junto do tipo,** o detalhe mostra a origem (código da locação, venda ou OS, e a placa), como já mostra.
+  - **Ex.: LOC-2841** (Carlos, semanal de 23 set a 28 out, 5 parcelas, em 07 out):
+    - a conta de R$ 299,40 que venceu em 30 set é "Parcela 2 de 5", tipo "Parcela", com "2 de 5 parcelas" no detalhe e a origem "LOC-2841 · QXA-4B21";
+    - a caução da LOC-2856 (Lucas) é "Caução", tipo "Caução".
 
 **Caixa do dia**
 

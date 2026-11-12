@@ -53,6 +53,15 @@ export function placa(p: string): string {
   return p.length === 7 ? `${p.slice(0, 3)}-${p.slice(3)}` : p;
 }
 
+/**
+ * Troca o hífen de toda placa no texto (SAK-1D39, antiga ou Mercosul) pelo hífen sem quebra (U+2011), para a linha
+ * nunca partir "QXA-" / "4B21". O resto do texto continua quebrando normal. Só para texto exibido: não use em valor
+ * que vai para a API, busca ou área de transferência.
+ */
+export function placaSemQuebra(texto: string): string {
+  return texto.replace(/\b([A-Z]{3})-(\d[A-Z0-9]\d{2})\b/g, "$1‑$2");
+}
+
 /** "mar 2026" para "cliente desde" e datas de compra. */
 export function mesAno(iso: string): string {
   const d = paraData(iso);

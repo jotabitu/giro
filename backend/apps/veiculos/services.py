@@ -1522,16 +1522,30 @@ def _nova_foto(veiculo: Veiculo, limpo: Any, formato: str, ordem: int, capa: boo
 
 
 def _evento_da_galeria(acao: str, veiculo: Veiculo, detalhes: dict[str, Any]) -> None:
-    """Evento do veículo, sem a imagem (AUD-01)."""
+    """Evento do veículo, sem a imagem (AUD-01), com a placa como código (T-460). O texto da
+    tela sai de `textos.foto_da_galeria`."""
     registrar_evento(
-        acao, CategoriaAuditoria.OPERACAO, objeto=veiculo, depois=detalhes, regra="VEI-10"
+        acao,
+        CategoriaAuditoria.OPERACAO,
+        objeto=veiculo,
+        depois=detalhes,
+        regra="VEI-10",
+        codigo=placa_com_hifen(veiculo.placa),
     )
+
+
+def _nome_enviado(arquivo: Any) -> str:
+    """Só o nome do arquivo como veio do aparelho (`moto.png`), sem pasta, para o detalhe do
+    evento (T-460). Nunca a imagem nem o caminho no armazenamento."""
+    nome = str(getattr(arquivo, "name", "") or "")
+    return nome.replace("\\", "/").rsplit("/", 1)[-1][:100]
 
 
 def enviar_foto(veiculo: Veiculo, arquivo: Any) -> FotoVeiculo:
     """Uma foto por chamada (ADR 0036, item 3). O status vem antes do arquivo; o limite de 20,
     com o veículo travado. A primeira ativa vira capa; a nova entra no fim da ordem."""
     _exigir_galeria_editavel(veiculo)
+    nome = _nome_enviado(arquivo)
     limpo, formato = _foto_limpa(arquivo)
     with transaction.atomic():
         travado = travar(veiculo)
@@ -1545,7 +1559,7 @@ def enviar_foto(veiculo: Veiculo, arquivo: Any) -> FotoVeiculo:
         _evento_da_galeria(
             "veiculo.foto_enviar",
             travado,
-            {"foto_id": foto.pk, "numero": _numero(travado, foto), "capa": capa},
+            {"foto_id": foto.pk, "numero": _numero(travado, foto), "capa": capa, "arquivo": nome},
         )
     return foto
 
@@ -1555,6 +1569,7 @@ def trocar_foto(veiculo: Veiculo, foto_id: int, arquivo: Any) -> FotoVeiculo:
     (`substituida_por`). O total não muda, e o limite não se aplica."""
     _exigir_galeria_editavel(veiculo)
     _foto_ativa(veiculo, foto_id)
+    nome = _nome_enviado(arquivo)
     limpo, formato = _foto_limpa(arquivo)
     with transaction.atomic():
         travado = travar(veiculo)
@@ -1567,7 +1582,15 @@ def trocar_foto(veiculo: Veiculo, foto_id: int, arquivo: Any) -> FotoVeiculo:
         antiga.substituida_por = nova
         antiga.save(update_fields=["substituida_por", "atualizado_em"])
         _evento_da_galeria(
-            "veiculo.foto_trocar", travado, {"foto_id_antiga": antiga.pk, "foto_id_nova": nova.pk}
+            "veiculo.foto_trocar",
+            travado,
+            {
+                "foto_id_antiga": antiga.pk,
+                "foto_id_nova": nova.pk,
+                "numero": _numero(travado, nova),
+                "capa": nova.capa,
+                "arquivo": nome,
+            },
         )
     return nova
 
@@ -1582,6 +1605,7 @@ def usar_como_capa(veiculo: Veiculo, foto_id: int) -> FotoVeiculo:
         foto = _foto_ativa(travado, foto_id, travar_foto=True)
         if foto.capa:
             return foto
+        numero = _numero(travado, foto)  # a posição antes de virar capa ("a foto 3 virou a capa")
         anterior = FotoVeiculo.ativos.select_for_update().filter(veiculo=travado, capa=True).first()
         if anterior is not None:
             anterior.capa = False
@@ -1591,7 +1615,11 @@ def usar_como_capa(veiculo: Veiculo, foto_id: int) -> FotoVeiculo:
         _evento_da_galeria(
             "veiculo.foto_capa",
             travado,
-            {"foto_id": foto.pk, "capa_anterior_id": anterior.pk if anterior else None},
+            {
+                "foto_id": foto.pk,
+                "capa_anterior_id": anterior.pk if anterior else None,
+                "numero": numero,
+            },
         )
     return foto
 
@@ -1605,6 +1633,7 @@ def apagar_foto(veiculo: Veiculo, foto_id: int) -> FotoVeiculo:
         _exigir_galeria_editavel(travado)
         foto = _foto_ativa(travado, foto_id, travar_foto=True)
         era_capa = foto.capa
+        numero = _numero(travado, foto)  # a posição antes de sair da galeria
         foto.ativo = False
         foto.capa = False
         foto.apagada_por_id = _quem()
@@ -1625,6 +1654,7 @@ def apagar_foto(veiculo: Veiculo, foto_id: int) -> FotoVeiculo:
             travado,
             {
                 "foto_id": foto.pk,
+                "numero": numero,
                 "era_capa": era_capa,
                 "nova_capa_id": nova_capa.pk if nova_capa else None,
             },

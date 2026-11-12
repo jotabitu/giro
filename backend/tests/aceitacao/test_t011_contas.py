@@ -856,6 +856,16 @@ def test_usr_03_ca_011_20_pode_por_perfil(moto):
     assert mariana["suporte"] is None
 
 
+def test_usr_05_usr_09_locacoes_ver_segue_a_lista_de_locacoes(adm):
+    """T-458: `pode.locacoes_ver` é a permissão de `GET /api/locacoes/`, perfil a perfil."""
+    esperado = {"Mariana": True, "Rodrigo": True, "Bruna": True, "João": False, "Lúcia": True}
+    for nome, ve in esperado.items():
+        api = _api_de(adm, nome) if nome in ("João", "Lúcia") else adm.logar(nome)
+        assert _get(api, EU, adm.empresa).json()["pode"]["locacoes_ver"] is ve, nome
+        lista = _get(api, "/api/locacoes/?veiculo=1", adm.empresa)
+        assert lista.status_code == (200 if ve else 403), (nome, lista.json())
+
+
 def test_usr_05_ca_011_21_permissoes_extras_so_somam(moto):
     bruna = moto.pessoas["Bruna"]
     bruna.permissoes_extras = [PermissaoExtra.APROVAR_DESCONTO]

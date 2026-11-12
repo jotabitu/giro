@@ -37,7 +37,7 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
   "valor_venda_centavos": null, "referencia_fipe_centavos": null,
   "valor_compra_centavos": 1390000, "data_compra": "2025-03-10",
   "entrou_na_frota_em": "2025-03-12",
-  "situacao": { "codigo": "disponivel", "rotulo": "Disponível", "tom": "sucesso" },
+  "situacao": { "codigo": "disponivel", "rotulo": "Disponível", "tom": "sucesso", "desde": null },
   "locacao_atual": null,
   "manutencao": { "proxima": { "servico": "Troca de óleo", "km": 5000 }, "os_aberta": null },
   "documentos_resumo": { "pior_situacao": "em_dia" },
@@ -51,14 +51,15 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
 - `placa` sai sem hífen no campo, e a tela põe o hífen; dentro de um texto montado pela API, sai com hífen (`docs/api/README.md`, Convenções, T-340). Aceita padrão antigo (`ABC1234`) e Mercosul (`ABC1D23`). `chassi` com 17 letras e números.
 - `preco_vigente`: preço da categoria vigente hoje (`LOC-15`). A coluna "Diária" da Frota usa `diaria_centavos`; veículo `a_venda` mostra `valor_venda_centavos`.
 - `situacao`: a API decide. Base no `status` do veículo; um bloco com `alerta` (ADR 0015) sobrepõe, ex.: "Atrasado" (`perigo`) quando a locação atual está `devolucao_atrasada`.
+- `situacao.desde` (T-449, `LOC-10`, "Data e dias do atraso na tela"): data (`"2026-10-14"`, em `America/Sao_Paulo`) do "desde" do card "Agora" da ficha, copiada de `locacao_atual.desde`. Na devolução atrasada, é a data do fim previsto ("Atrasado desde 14 out"); com a locação `ativa` ou `aguardando_retirada`, a do início ("Alugado desde 30 set", "Reservado na LOC-2856 desde 05 nov"). Sem locação aberta, `null`, e a tela mostra só o `rotulo`. A tela não usa `inicio` nem `fim_previsto` para montar esse texto.
 - `acoes`: combina perfil, `status` e a tabela de transições; o frontend mostra só o que vier `true`. `corrigir_km` vem `true` também para o vistoriador, que pede a correção (`APR-06`).
 - `situacao.tom` pelo `status`: `sucesso` (`disponivel`), `info` (`reservado` e `em_movimentacao`, rótulo "Em movimentação"), `solido` (`alugado`), `alerta` (`em_manutencao`) e `neutro` (`indisponivel`, `a_venda`, `vendido`, `baixado`).
 - **Veículo reservado** (T-410, tabela de transições do veículo, CA-410-01, CA-410-06): `situacao.rotulo` é "Reservado na LOC-2856", com o código da locação que reservou, montado pela API a partir do bloco `reserva` (abaixo); tom `info`. Sem bloco (dado antigo, antes do acerto), o rótulo fica "Reservado". A Frota e a ficha mostram o `rotulo` como vem.
   ```json
   "status": "reservado",
-  "situacao": { "codigo": "reservado", "rotulo": "Reservado na LOC-2856", "tom": "info" },
+  "situacao": { "codigo": "reservado", "rotulo": "Reservado na LOC-2856", "tom": "info", "desde": "2026-10-07" },
   "reserva": { "locacao_id": 2856, "codigo": "LOC-2856", "motivo": "locacao" },
-  "locacao_atual": { "id": 2856, "codigo": "LOC-2856", "status": "aguardando_retirada", "cliente_nome": "Lucas Ferreira", "inicio": "2026-10-07T12:00:00Z", "fim_previsto": "2026-10-21T12:00:00Z" }
+  "locacao_atual": { "id": 2856, "codigo": "LOC-2856", "status": "aguardando_retirada", "cliente_nome": "Lucas Ferreira", "inicio": "2026-10-07T12:00:00Z", "fim_previsto": "2026-10-21T12:00:00Z", "desde": "2026-10-07" }
   ```
   `reserva.motivo`: `locacao` (locação `aguardando_retirada` do veículo; a mesma do `locacao_atual`) ou `troca` (o veículo novo de uma troca pendente, `LOC-09`; aí o `codigo` é o da locação da troca, e o `locacao_atual` do veículo novo continua `null`, porque a locação ainda é do veículo antigo). O link "LOC-2856" abre `/locacoes/{locacao_id}`. Fora do `reservado`, `reserva` vem `null`.
 - `valor_compra_centavos` e `data_compra` vêm `null` para quem não é administrador ou gerente.
@@ -97,7 +98,7 @@ Veículo `indisponivel` (CRLV vencido) com a ida ao despachante agendada:
 
 | Bloco | Fornecedor | Conteúdo | Antes do fornecedor existir |
 | --- | --- | --- | --- |
-| `locacao_atual` | `locacoes` | `{ "id", "codigo": "LOC-2841", "status", "cliente_nome": "Carlos Menezes", "inicio", "fim_previsto", "alerta"? }` para locação `aguardando_retirada`, `ativa` ou `devolucao_atrasada` do veículo | `null` |
+| `locacao_atual` | `locacoes` | `{ "id", "codigo": "LOC-2841", "status", "cliente_nome": "Carlos Menezes", "inicio", "fim_previsto", "desde": "2026-10-14", "alerta"? }` (`desde`: ver `situacao.desde`) para locação `aguardando_retirada`, `ativa` ou `devolucao_atrasada` do veículo | `null` |
 | `manutencao` | `manutencao` | `{ "proxima": { "servico", "km" } \| null, "os_aberta": { "id", "codigo": "OS-118", "status" } \| null, "alerta"? }` | `null` |
 | `locacao_atual.plano` e `locacao_atual.pagamento` (só no detalhe, T-275) | `locacoes` (com `financeiro.selectors`) | ver "Blocos da ficha" | ausentes |
 | `manutencao.proxima`, campos novos (só no detalhe, T-275) | `manutencao` | ver "Blocos da ficha" | `null`, como o bloco |
@@ -426,23 +427,33 @@ Perfis: administrador, gerente. `multipart/form-data`: `arquivo` (um só; ADR 00
   - fora de JPG ou PNG pelo conteúdo, acima de 10 MB, PDF, HEIC ou imagem que não abre: `["Envie uma foto JPG ou PNG de até 10 MB."]`;
   - com 20 ativas: `["O veículo já tem 20 fotos. Apague uma para enviar outra."]`.
 - Arquivo acima de 12 MB volta 413 do proxy, antes do Django: a tela mostra a mesma "Envie uma foto JPG ou PNG de até 10 MB.". A tela pode recusar antes de enviar o que passa de 10 MB ou não é `.jpg`, `.jpeg` ou `.png`, mas a palavra final é a da API.
-- Auditoria `veiculo.foto_enviar` (objeto: o veículo; `detalhes`: `foto_id`, `numero`, `capa`), sem a imagem (`AUD-01`).
+- Auditoria `veiculo.foto_enviar` (objeto: o veículo; `detalhes`: `foto_id`, `numero`, `capa`, `arquivo`), sem a imagem (`AUD-01`). `arquivo` é só o nome do arquivo como veio do aparelho, sem pasta (`moto.png`).
+- **Na lista da auditoria (T-460)**, os quatro eventos da galeria vêm com a placa com hífen em `objeto.codigo` (`TBC-5H22`) e com `resumo` e `detalhe` prontos, só com nome do arquivo, número da foto e capa:
+
+| `acao` | `resumo` | `detalhe` |
+| --- | --- | --- |
+| `veiculo.foto_enviar` | Enviou uma foto do veículo TBC-5H22 | `moto.png · foto 1 · virou a capa` ou `lateral.jpg · foto 2 · não é a capa` |
+| `veiculo.foto_trocar` | Trocou uma foto do veículo TBC-5H22 | `lateral-nova.png · foto 2 · não é a capa` (ou `é a capa`) |
+| `veiculo.foto_capa` | Mudou a capa do veículo TBC-5H22 | `a foto 3 virou a capa` (o número de antes da troca) |
+| `veiculo.foto_apagar` | Apagou uma foto do veículo TBC-5H22 | `foto 1 · era a capa; a mais antiga virou a capa`, `foto 1 · era a capa` ou `foto 2 · não era a capa` |
+
+  Nos eventos gravados antes da T-460, sem código nem `arquivo`, o `resumo` leva a placa atual do veículo e o `detalhe`, só o que o evento tem; `objeto.codigo` continua `null` neles.
 
 ### POST /api/veiculos/{id}/fotos/{foto_id}/trocar/
 Perfis: administrador, gerente. `multipart/form-data`: `arquivo`. 200: a galeria, com `foto_id` da nova.
 - A antiga fica inativa (`substituida_por`); a nova fica na mesma posição e com a mesma `capa` (CA-414-06). O total não muda, e o limite de 20 não se aplica.
 - 400 como no envio. 404 `nao_encontrado` se a foto não é ativa deste veículo.
-- Auditoria `veiculo.foto_trocar` (`detalhes`: `foto_id_antiga`, `foto_id_nova`).
+- Auditoria `veiculo.foto_trocar` (`detalhes`: `foto_id_antiga`, `foto_id_nova`, `numero`, `capa`, `arquivo` da nova).
 
 ### POST /api/veiculos/{id}/fotos/{foto_id}/capa/
 Perfis: administrador, gerente. Sem corpo. 200: a galeria. A escolhida vira capa e passa a `numero` 1; a anterior perde a marca. Já capa: 200 sem mudança e sem evento.
-- Auditoria `veiculo.foto_capa` (`detalhes`: `foto_id`, `capa_anterior_id`).
+- Auditoria `veiculo.foto_capa` (`detalhes`: `foto_id`, `capa_anterior_id`, `numero` de antes de virar capa).
 
 ### POST /api/veiculos/{id}/fotos/{foto_id}/apagar/
 Perfis: administrador, gerente. Sem corpo. 200: a galeria.
 - A foto fica inativa (`ativo = False`, `apagada_por`), com o arquivo guardado; não volta pela tela nem pela API (CA-414-07). Apagada a capa, a ativa mais antiga vira capa (CA-414-05).
 - A tela pede confirmação antes ("Apagar esta foto? Ela sai da galeria e da ficha.").
-- Auditoria `veiculo.foto_apagar` (`detalhes`: `foto_id`, `era_capa`, `nova_capa_id`), com quem e quando.
+- Auditoria `veiculo.foto_apagar` (`detalhes`: `foto_id`, `numero` de antes de apagar, `era_capa`, `nova_capa_id`), com quem e quando.
 
 ### Para o catálogo (T-418)
 `veiculos.selectors.galeria(veiculo)` devolve as fotos ativas na ordem de exibição, e `veiculos.selectors.capa(veiculo)` a capa ou `None`, para o app `vendas` ler sem tocar no model (ADR 0011).

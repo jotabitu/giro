@@ -11,6 +11,8 @@ export type Pode = {
   movimentacoes: "gerir" | "levar" | "nao";
   clientes_cadastrar: boolean;
   locacoes_criar: boolean;
+  /** T-458: lista de locações (`GET /api/locacoes/`); falsa para o vistoriador e no modo suporte "só ver". */
+  locacoes_ver: boolean;
   vistorias_fazer: boolean;
   locacoes_cancelar: "sim" | "aprova" | "pede" | "nao";
   desconto_acima_limite: "sim" | "aprova" | "pede" | "nao";

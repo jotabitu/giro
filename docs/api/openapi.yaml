@@ -17747,6 +17747,8 @@ components:
           type: boolean
         locacoes_criar:
           type: boolean
+        locacoes_ver:
+          type: boolean
         vistorias_fazer:
           type: boolean
         locacoes_cancelar:
@@ -17788,6 +17790,7 @@ components:
       - lancamento_avulso
       - locacoes_cancelar
       - locacoes_criar
+      - locacoes_ver
       - movimentacoes
       - os_abrir
       - painel
@@ -19087,8 +19090,13 @@ components:
           type: string
         tom:
           type: string
+        desde:
+          type: string
+          format: date
+          nullable: true
       required:
       - codigo
+      - desde
       - rotulo
       - tom
     SituacaoEnum:

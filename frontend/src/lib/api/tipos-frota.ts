@@ -29,6 +29,8 @@ export type LocacaoAtualDoVeiculo = {
   cliente_nome: string;
   inicio: string;
   fim_previsto: string;
+  /** LOC-10 (T-449): data do "desde" (fim previsto no atraso, início no resto). A tela usa `situacao.desde`. */
+  desde: string | null;
   alerta?: AlertaDoBloco;
   plano?: { periodicidade: "diaria" | "semanal" | "mensal"; plano_especial: string | null; valor_periodo_centavos?: number };
   pagamento?: PagamentoDaLocacao;
@@ -103,7 +105,8 @@ export type Veiculo = {
   valor_compra_centavos?: number | null;
   data_compra?: string | null;
   entrou_na_frota_em: string;
-  situacao: { codigo: string; rotulo: string; tom: TomApi };
+  /** `desde` (LOC-10, T-449): data pronta do "desde" do card "Agora"; `null` sem locação aberta. A tela não usa `inicio` nem `fim_previsto` para isso. */
+  situacao: { codigo: string; rotulo: string; tom: TomApi; desde: string | null };
   /** T-410: só no veículo `reservado`. O texto "Reservado na LOC-x" já vem em `situacao.rotulo`; aqui só o que serve de link. */
   reserva?: { locacao_id: number; codigo: string; motivo: "locacao" | "troca" } | null;
   locacao_atual: LocacaoAtualDoVeiculo | null;
