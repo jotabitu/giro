@@ -2,6 +2,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
+  abrirNoLugarDoCadastro,
   destinoInterno,
   FaltamFotos,
   guardarVoltar,
@@ -237,5 +238,41 @@ describe("VEI-10 · Voltar do navegador (T-462)", () => {
     expect(voltas).toBe(0);
     expect(perguntas).toBe(0);
     expect(ouvintes.popstate).toBeUndefined();
+  });
+
+  it("test_vei_10_voltar_depois_de_salvar_sem_guarda_troca_o_cadastro_pela_ficha", () => {
+    const chamadas: string[] = [];
+    const janela = {
+      addEventListener: () => chamadas.push("ouvir"),
+      history: { back: () => chamadas.push("back") },
+    } as unknown as Parameters<typeof abrirNoLugarDoCadastro>[0];
+    abrirNoLugarDoCadastro(
+      janela,
+      { replace: (u) => chamadas.push(`replace ${u}`) },
+      "/veiculos/7",
+      false,
+    );
+    expect(chamadas).toEqual(["replace /veiculos/7"]);
+  });
+
+  it("test_vei_10_voltar_depois_de_salvar_com_guarda_volta_uma_e_troca_o_cadastro", () => {
+    const chamadas: string[] = [];
+    let aoVoltar: () => void = () => {};
+    const janela = {
+      addEventListener: (_n: string, f: () => void) => (aoVoltar = f),
+      history: {
+        back: () => {
+          chamadas.push("back");
+          aoVoltar();
+        },
+      },
+    } as unknown as Parameters<typeof abrirNoLugarDoCadastro>[0];
+    abrirNoLugarDoCadastro(
+      janela,
+      { replace: (u) => chamadas.push(`replace ${u}`) },
+      "/veiculos/7",
+      true,
+    );
+    expect(chamadas).toEqual(["back", "replace /veiculos/7"]);
   });
 });
