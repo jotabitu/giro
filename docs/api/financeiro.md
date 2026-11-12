@@ -52,7 +52,8 @@ Toda conta devolve o valor a pagar **hoje**, calculado pela API:
 
 ```json
 {
-  "id": 9010, "tipo": "parcela", "numero": 2, "total_parcelas": 5,
+  "id": 9010, "tipo": "parcela", "tipo_rotulo": "Parcela", "rotulo": "Parcela 2 de 5",
+  "renegociacao": false, "numero": 2, "total_parcelas": 5, "parcela_de": "2 de 5 parcelas",
   "origem": { "tipo": "locacao", "id": 2841, "codigo": "LOC-2841" },
   "cliente": { "id": 1188, "nome": "Carlos Menezes" },
   "filial": { "id": 1, "nome": "Filial Centro" },
@@ -70,6 +71,13 @@ Toda conta devolve o valor a pagar **hoje**, calculado pela API:
 ```
 
 - `tipo`: `parcela`, `caucao`, `multa`, `avaria`, `acerto`, `outro`. Caução não é receita (`LOC-04`): não entra em "previsto", "recebido" nem "em aberto".
+- **A que se refere a conta** (`FIN-19`, T-454): a API manda os textos prontos, e a tela só os mostra (lista, título e detalhe). Um lugar só: `financeiro.selectors.a_que_se_refere`. Teste: `tests/aceitacao/test_t454_tipo_do_recebivel.py`.
+  - `tipo_rotulo`: "Parcela", "Caução", "Multa", "Avaria", "Acerto da devolução" ou "Outra cobrança". Na conta nascida de um acordo, o tipo da conta original.
+  - `rotulo`: "Parcela 2 de 5"; "Parcela única" quando a origem tem uma parcela só (ou a parcela não tem número); "Caução"; "Multa · {descrição}", "Avaria · {descrição}", "Acerto da devolução · {descrição}" e "Outra cobrança · {descrição}", com a `observacao` da conta como descrição (sem ela, só o rótulo do tipo); na conta de um acordo, "Renegociação · 1 de 3", contando as contas do acordo ("1 de 1" quando o acordo tem uma conta só).
+  - `renegociacao`: `true` na conta nascida de um acordo (`nasceu_de`); a tela mostra "Renegociação" ao lado do tipo.
+  - `numero` e `total_parcelas`: na parcela, o número e o total de parcelas da origem até o fim previsto em vigor, sem a caução e sem as outras cobranças. O total é o maior número de parcela da origem (sem as contas de acordo), e não o gravado na conta: a renovação (`LOC-08`) aumenta o total das parcelas antigas ("Parcela 2 de 7"), e as canceladas pelo encerramento continuam contadas. Na conta de um acordo, o número e o total das contas do acordo (`null` com uma conta só). Nos outros tipos, `null`.
+  - `parcela_de`: "1 de 128 parcelas", para o detalhe; `null` na parcela única, na conta de um acordo e nos outros tipos.
+  - Ex. do seed em 07 out: a conta de R$ 299,40 da LOC-2841 que venceu em 30 set → `tipo_rotulo` "Parcela", `rotulo` "Parcela 2 de 5", `parcela_de` "2 de 5 parcelas"; a caução da LOC-2856 → "Caução" e "Caução".
 - **Caução** (`FIN-18`, T-452): é uma conta a receber da locação e se dá baixa como uma parcela, pelas mesmas rotas e com as mesmas `acoes` (`receber` para quem recebe no caixa; `gerar_pix` e `gerar_boleto`, que o webhook baixa sozinho, `FIN-04`). Paga-se inteira (`FIN-01`), sem multa nem juros antes da retirada (`FIN-03`). A caução paga entra no caixa do dia (`resumo.entrou_hoje_centavos`), mas não na receita do painel, na DRE nem nos números da `FIN-15`. A baixa conta para o 1º pagamento da `LOC-17`, junto com a 1ª parcela.
 - `status` como na `FIN-01`: o banco guarda `aberta`, `paga`, `cancelada`, `renegociada`; a API devolve `vence_hoje` (vencimento hoje) e `atrasada` (vencimento antes de hoje) para contas `aberta`, sem tarefa à meia-noite.
   - **T-410 (`LOC-05`, ADR 0035):** a conta com `aguarda_retirada = true` (locação confirmada e não retirada) fica `aberta`, nunca `vence_hoje` nem `atrasada`, mesmo com o vencimento gravado passado; `faixa_atraso` `null`, `dias_atraso` 0. No Receber, ela entra na aba `a_vencer` pelo vencimento gravado (pelo `?periodo=`, como as outras), fora de `vencem_hoje` e `atrasadas`, dos indicadores `vence_hoje_*` e `em_atraso_*`, das `faixas` e do contador `receber` do menu (CA-410-07, CA-410-08). A régua não a pega; o "Cobrar" manual dela é o lembrete sem Pix da conta a vencer, como hoje.

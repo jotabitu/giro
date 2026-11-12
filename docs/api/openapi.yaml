@@ -9852,12 +9852,32 @@ components:
           type: integer
         tipo:
           type: string
+        tipo_rotulo:
+          type: string
+          description: 'FIN-19: "Parcela", "Caução", "Multa", "Avaria", "Acerto da
+            devolução", "Outra cobrança"; na conta de um acordo, o tipo da conta original'
+        rotulo:
+          type: string
+          description: 'FIN-19: "Parcela 2 de 5", "Parcela única", "Caução", "Multa
+            · {descrição}", "Renegociação · 1 de 3"; na lista e no título do detalhe'
+        renegociacao:
+          type: boolean
+          description: 'FIN-19: conta nascida de um acordo; a tela mostra "Renegociação"
+            ao lado do tipo'
         numero:
           type: integer
           nullable: true
         total_parcelas:
           type: integer
           nullable: true
+          description: 'FIN-19: na parcela, o total da origem em vigor (com renovação
+            e canceladas), sem caução nem outras cobranças; na conta de um acordo,
+            as contas do acordo'
+        parcela_de:
+          type: string
+          nullable: true
+          description: 'FIN-19: "1 de 128 parcelas", só na parcela que não é única
+            nem de acordo'
         origem:
           $ref: '#/components/schemas/OrigemDaConta'
         cliente:
@@ -9935,8 +9955,12 @@ components:
       - observacao
       - origem
       - pago_em
+      - parcela_de
+      - renegociacao
+      - rotulo
       - status
       - tipo
+      - tipo_rotulo
       - total_parcelas
       - valor_centavos
       - valor_hoje
@@ -9949,12 +9973,32 @@ components:
           type: integer
         tipo:
           type: string
+        tipo_rotulo:
+          type: string
+          description: 'FIN-19: "Parcela", "Caução", "Multa", "Avaria", "Acerto da
+            devolução", "Outra cobrança"; na conta de um acordo, o tipo da conta original'
+        rotulo:
+          type: string
+          description: 'FIN-19: "Parcela 2 de 5", "Parcela única", "Caução", "Multa
+            · {descrição}", "Renegociação · 1 de 3"; na lista e no título do detalhe'
+        renegociacao:
+          type: boolean
+          description: 'FIN-19: conta nascida de um acordo; a tela mostra "Renegociação"
+            ao lado do tipo'
         numero:
           type: integer
           nullable: true
         total_parcelas:
           type: integer
           nullable: true
+          description: 'FIN-19: na parcela, o total da origem em vigor (com renovação
+            e canceladas), sem caução nem outras cobranças; na conta de um acordo,
+            as contas do acordo'
+        parcela_de:
+          type: string
+          nullable: true
+          description: 'FIN-19: "1 de 128 parcelas", só na parcela que não é única
+            nem de acordo'
         origem:
           $ref: '#/components/schemas/OrigemDaConta'
         cliente:
@@ -10037,8 +10081,12 @@ components:
       - observacao
       - origem
       - pago_em
+      - parcela_de
+      - renegociacao
+      - rotulo
       - status
       - tipo
+      - tipo_rotulo
       - total_parcelas
       - valor_centavos
       - valor_hoje

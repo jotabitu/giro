@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-from django.db.models import Count, IntegerField, Min, OuterRef, Q, QuerySet, Subquery, Sum
+from django.db.models import Count, IntegerField, Max, Min, OuterRef, Q, QuerySet, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
@@ -501,6 +501,13 @@ class JurosDaPagina:
     def __init__(self) -> None:
         self._taxas: ConfiguracaoEmpresa | None = None
         self._cobra: dict[tuple[str, int], bool] = {}
+        self._parcelas: dict[tuple[str, int], int] = {}
+
+    def total_de_parcelas(self, conta: ContaReceber) -> int:
+        chave = (conta.origem_tipo, conta.origem_id)
+        if chave not in self._parcelas:
+            self._parcelas[chave] = total_de_parcelas(conta)
+        return self._parcelas[chave]
 
     def devido(self, conta: ContaReceber, dia: date) -> Devido:
         if self._taxas is None:
@@ -605,6 +612,69 @@ def acoes_da_conta(
     }
 
 
+# --- A que se refere cada conta (FIN-19) ---
+
+ROTULOS_DO_TIPO: dict[str, str] = {
+    TipoConta.PARCELA: "Parcela",
+    TipoConta.CAUCAO: "Caução",
+    TipoConta.MULTA: "Multa",
+    TipoConta.AVARIA: "Avaria",
+    TipoConta.ACERTO: "Acerto da devolução",
+    TipoConta.OUTRO: "Outra cobrança",
+}
+
+
+def total_de_parcelas(conta: ContaReceber) -> int:
+    """FIN-19: as parcelas da origem até o fim previsto em vigor, sem a caução e sem as outras
+    cobranças. A renovação (LOC-08) cria parcelas com número seguido, e as canceladas pelo
+    encerramento continuam contadas; por isso vale o maior número, e não o total gravado na
+    conta, que fica o da época em que ela nasceu. As contas de um acordo ficam de fora."""
+    maior = ContaReceber.objects.filter(
+        origem_tipo=conta.origem_tipo,
+        origem_id=conta.origem_id,
+        tipo=TipoConta.PARCELA,
+        nasceu_de__isnull=True,
+    ).aggregate(maior=Max("numero_parcela"))["maior"]
+    return int(maior or conta.total_parcelas or 0)
+
+
+def a_que_se_refere(conta: ContaReceber, total: int | None) -> dict[str, Any]:
+    """FIN-19: o tipo, o rótulo da conta e, na parcela, "2 de 5 parcelas", prontos para a tela.
+    `total` é o de `total_de_parcelas`, só lido na parcela que não nasceu de acordo."""
+    tipo_rotulo = ROTULOS_DO_TIPO.get(conta.tipo, TipoConta(conta.tipo).label)
+    descricao = (conta.observacao or "").strip()
+    if conta.nasceu_de_id is not None:
+        do_acordo = f"{conta.numero_parcela or 1} de {conta.total_parcelas or 1}"
+        return {
+            "tipo_rotulo": tipo_rotulo,
+            "rotulo": f"Renegociação · {do_acordo}",
+            "renegociacao": True,
+            "numero": conta.numero_parcela,
+            "total_parcelas": conta.total_parcelas,
+            "parcela_de": None,
+        }
+    numero, parcela_de, total_parcelas = conta.numero_parcela, None, conta.total_parcelas
+    if conta.tipo == TipoConta.PARCELA:
+        total_parcelas = total or None
+        if numero and total_parcelas and total_parcelas > 1:
+            rotulo = f"Parcela {numero} de {total_parcelas}"
+            parcela_de = f"{numero} de {total_parcelas} parcelas"
+        else:
+            rotulo = "Parcela única"
+    elif conta.tipo == TipoConta.CAUCAO or not descricao:
+        rotulo = tipo_rotulo
+    else:
+        rotulo = f"{tipo_rotulo} · {descricao}"
+    return {
+        "tipo_rotulo": tipo_rotulo,
+        "rotulo": rotulo,
+        "renegociacao": False,
+        "numero": numero,
+        "total_parcelas": total_parcelas,
+        "parcela_de": parcela_de,
+    }
+
+
 def representacao_completa(
     conta: ContaReceber,
     hoje: date,
@@ -616,11 +686,13 @@ def representacao_completa(
     em_atraso = conta.status == StatusConta.ABERTA and not conta.aguarda_retirada
     dias = dias_de_atraso(conta.vencimento, hoje) if em_atraso else 0
     locacao = leituras.blocos(CONTA, conta).get("locacao") or {}
+    total = None
+    if conta.tipo == TipoConta.PARCELA and conta.nasceu_de_id is None:
+        total = juros.total_de_parcelas(conta) if juros else total_de_parcelas(conta)
     return {
         "id": conta.pk,
         "tipo": conta.tipo,
-        "numero": conta.numero_parcela,
-        "total_parcelas": conta.total_parcelas,
+        **a_que_se_refere(conta, total),
         "origem": {
             "tipo": conta.origem_tipo,
             "id": conta.origem_id,
