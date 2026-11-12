@@ -218,3 +218,21 @@ As decisões do dono do produto na abertura da fase 2: a nota "Bug #1 - veiculo 
 | Locação que nunca é retirada (30 out) | **Cancelada sozinha** se não for retirada em 3 dias contados da data de início, com o veículo de volta a `disponivel`; o gerente recebe aviso no dia anterior (`LOC-12`, `AUT-17`). | A reserva não prende o veículo para sempre, e o gerente tem um dia para chamar o cliente. |
 | Mais campos do CRLV-e no veículo (29 out, T-421) | Potência e cilindrada, espécie e tipo, carroceria, lotação, peso bruto e número do motor, e as observações do veículo como vêm no documento, lidos do CRLV-e e editáveis; combustível visível no cadastro, no editar e na ficha; anotação livre da locadora; alienação ou restrição nas observações é só informação; rastreador (número ou IMEI e empresa) fora do CRLV-e (`VEI-09`). | O documento já traz os dados, e a locadora os digitava à parte ou não tinha onde guardar. |
 | Quem vê o motor e as observações (30 out, T-421) | **Só administrador e gerente**; o rastreador fica no veículo, em campos simples, e a integração lê dali quando existir (`VEI-09`). | O número do motor e as restrições do documento não servem ao balcão nem à vistoria. |
+
+## Decisões de 11 nov 2026
+
+As respostas do dono do produto aos pontos em aberto, pelo artefato Decisões do Giro.
+
+| Pendência | Decisão | Por quê |
+| --- | --- | --- |
+| Botão "Registrar retirada" (T-451) | **As duas formas:** a retirada acontece sozinha com a vistoria de saída, a assinatura e o 1º pagamento feitos, e o botão deixa o administrador ou o gerente retirar à mão, com a vistoria feita e o motivo, antes da assinatura ou do pagamento (`LOC-17`). | O balcão precisa entregar o veículo quando o cliente assina ou paga depois, e o automático continua para o caso comum. |
+| Remetente do WhatsApp (ADR 0034) | **C:** sem WhatsApp ao cliente final na fase 1; os avisos vão por e-mail, e o WhatsApp fica só na régua da assinatura (seção Automações, `CLI-12`). O que já está feito fica, sem entrar em uso. | O número do Giro mostraria "Giro Avisos" ao cliente da locadora, contra o white label. |
+| Aviso ao sair com fotos enviando (T-437) | **A:** o navegador pergunta antes de sair, a tela mostra quantas fotos faltam, e as que subiram ficam (`VEI-10`). | A pessoa não perde fotos sem saber. |
+| Período da retirada depois do início; contagem dos 3 dias; aviso da não retirada (T-410) | **A** nos três: o período conta da data de início; o último dia é o 3º depois do início; só o gerente é avisado (`LOC-05`, `LOC-12`). | O contrato já traz as datas, a contagem é a do Código Civil, e o gerente fala com o cliente. |
+| Valor e multa da intenção de compra (T-420) | **A** nos dois: planos de compra em Preços; sem multa no encerramento antes do fim (`LOC-16`). | A locadora tem um valor próprio para a compra, e o cliente já perde o que pagou. |
+| CRLV-e no editar (T-421) | **A:** confirma o que já está feito (`VEI-08`). | A frota já cadastrada ganha os campos sem digitar. |
+| Preço do Profissional (`PLT-11`) | **A:** R$ 449,00 e R$ 4.490,00, 150/3/10. O texto perde "e cobrança pelo WhatsApp": "Tudo do Essencial, mais despesas; Pix e boleto automáticos". | O texto lista só o que existe, e a decisão C tirou o WhatsApp do cliente na fase 1. |
+| Quem registra a retirada à mão (`LOC-17`) | **A:** só o administrador e o gerente da filial. | Soltar o veículo sem contrato assinado ou sem caução é exceção com risco de dinheiro, como o desconto acima de 5% (`APR-01`). |
+| Convite pelo WhatsApp (`USR-01`) | **A:** o convite vai só por e-mail na fase 1. | O WhatsApp fica só na régua da assinatura, e o e-mail já é obrigatório em todo usuário (`USR-06`). |
+| Guarda das faturas de empresa apagada (`AUD-08`, `PLT-14`) | **A:** 5 anos. | Prazo fiscal. |
+| Telas de conta | Esqueci a senha, 2 etapas, meu perfil e notificações vão para o Design System. | Faltam desenhar. |
