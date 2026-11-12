@@ -59,7 +59,7 @@ cancelada                        │                                            
 
 `sinais.pagamento_atrasado` (`LOC-07`) usa a `financeiro.selectors.q_atrasada`: na locação `aguardando_retirada`, nunca acende (`LOC-05`, T-410), mesmo com o vencimento gravado já passado. O mesmo vale para `indicadores.pagamentos_atrasados*` e para a aba `precisam_acao`.
 `situacao` (a primeira que valer): `devolucao_atrasada` ("Devolução atrasada 25 dias"), `cancelamento_pendente` ("Pedido de cancelamento"), `pagamento_atrasado` ("Parcela 2 atrasada"), `aguardando_vistoria` / `aguardando_assinatura` / `aguardando_pagamento` (o primeiro passo que falta em `aguardando_retirada`, nessa ordem, `LOC-17`, T-451), `pendencia_retirada` (na locação retirada à mão com a assinatura ou o 1º pagamento faltando, `LOC-17`; o rótulo diz o que falta: "Falta a assinatura", "Falta o 1º pagamento" ou "Faltam assinatura e pagamento"), `devolve_hoje`, `ativa`, `encerrada`, `cancelada`.
-`pagamento.rotulo`: "R$ 1.347,00 em aberto", "Pago", "Pix automático", "R$ 329,00 pago" (antes da retirada), "Multa R$ 84,80" (com cancelamento pendente), forma de pagamento quando em dia.
+`pagamento.rotulo`: "R$ 1.347,00 em aberto", "Pago", "Pix automático", "R$ 329,00 pago" ou "Aguardando pagamento" (antes da retirada e, `LOC-17`, T-466, na retirada à mão com o 1º pagamento faltando), "Multa R$ 84,80" (com cancelamento pendente), forma de pagamento quando em dia.
 `acao_principal`: `cobrar` (há valor em aberto), `receber_devolucao` (`devolve_hoje` ou `devolucao_atrasada`), `abrir`.
 
 ### Detalhe
