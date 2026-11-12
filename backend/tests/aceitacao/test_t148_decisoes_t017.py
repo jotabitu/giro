@@ -375,7 +375,8 @@ def test_fin_15_contagens_do_cliente_sem_caucao(cenario):  # noqa: F811
     assert sorted(c["tipo"] for c in corpo["resultados"]) == ["caucao", "parcela"]
     assert corpo["contagens"]["todas"] == 1
     assert corpo["indicadores"] == geral["indicadores"]
-    assert "caucao" not in {c["tipo"] for c in geral["resultados"]}
+    # FIN-18 (T-452): a caução também está na lista geral, fora das contagens.
+    assert "caucao" in {c["tipo"] for c in geral["resultados"]}
 
 
 def test_fin_15_busca_do_caixa_traz_caucao(cenario):  # noqa: F811
@@ -391,7 +392,7 @@ def test_fin_15_busca_do_caixa_traz_caucao(cenario):  # noqa: F811
         assert caucoes[0]["valor_centavos"] == 30000
         assert corpo["contagens"]["todas"] == len(corpo["resultados"]) - 1
     geral = api.get(CONTAS).json()
-    assert "caucao" not in {c["tipo"] for c in geral["resultados"]}
+    assert "caucao" in {c["tipo"] for c in geral["resultados"]}  # FIN-18 (T-452)
 
     assert api.post(CAIXAS, {"troco_centavos": 20000}, format="json").status_code == 201
     resposta = api.post(

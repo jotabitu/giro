@@ -87,3 +87,19 @@ def aut_17_avisar_nao_retiradas(schema_name: str) -> int:
 def aut_17_avisar_nao_retiradas_de_todas(**_: Any) -> int:
     """Chamada pelo Beat, às 08:00: uma tarefa por empresa que opera."""
     return para_cada_empresa(aut_17_avisar_nao_retiradas)
+
+
+@shared_task(name="loc_17_avisar_assinaturas_pendentes")
+@tarefa_de_empresa(recurso=MODULO)
+def loc_17_avisar_assinaturas_pendentes(schema_name: str) -> int:
+    """LOC-17, às 08:00: contrato não assinado 7 dias depois da retirada à mão vira tarefa para
+    os gerentes da filial. Idempotente: uma vez por locação."""
+    from .services import avisar_assinaturas_pendentes_da_retirada
+
+    return avisar_assinaturas_pendentes_da_retirada()
+
+
+@shared_task(name="loc_17_avisar_assinaturas_pendentes_de_todas")
+def loc_17_avisar_assinaturas_pendentes_de_todas(**_: Any) -> int:
+    """Chamada pelo Beat, às 08:00: uma tarefa por empresa que opera."""
+    return para_cada_empresa(loc_17_avisar_assinaturas_pendentes)

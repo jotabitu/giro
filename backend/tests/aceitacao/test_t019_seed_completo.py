@@ -553,6 +553,25 @@ def test_loc_05_seed_019_17_as_locacoes_das_telas(seed):
     assert _loc("LOC-2857").status == "aguardando_retirada"
 
 
+def test_fin_18_seed_loc_2856_caucao_paga_e_na_busca_do_caixa(seed):
+    """CA-452-06: a ficha da LOC-2856 mostra "Caução · R$ 300,00 · Paga em 07 out" na seção
+    Pagamentos, e a busca do Caixa por "Lucas" traz a parcela e a caução. (O CA-451-07 pede a
+    LOC-2856 `aguardando_retirada`; no seed ela já está `ativa`, divergência registrada no PR.)"""
+    detalhe = seed.detalhe(_loc("LOC-2856").pk)
+    caucao = next(p for p in detalhe["parcelas"] if p["rotulo"] == "Caução")
+    assert (caucao["valor_centavos"], caucao["status"], caucao["acoes"]) == (
+        30000,
+        "paga",
+        {"receber": False},
+    )
+    assert _sp(caucao["pago_em"] and datetime.fromisoformat(caucao["pago_em"]))[:10] == (
+        "2026-10-07"
+    )
+    achadas = _api(seed, "Bruna").get(CONTAS, {"busca": "Lucas"}).json()["resultados"]
+    da_2856 = {(c["tipo"], c["numero"]) for c in achadas if c["origem"]["codigo"] == "LOC-2856"}
+    assert {("parcela", 1), ("caucao", None)} <= da_2856
+
+
 def test_loc_05_seed_019_18_parcelas_de_outubro_iguais_ao_csv(seed):
     """As 35 geradas (e as demais) têm exatamente as parcelas do CSV, com a mesma situação; as
     que começam em 07 out ou depois começaram um período antes, com essa parcela paga."""
@@ -668,15 +687,12 @@ def test_fin_15_seed_019_21_semana(seed):
     a_vencer = api.get(CONTAS, {"periodo": "semana", "situacao": "a_vencer", "tamanho": 100}).json()
     pagas = api.get(CONTAS, {"periodo": "semana", "situacao": "pagas", "tamanho": 100}).json()
     assert sum(c["valor_centavos"] for c in a_vencer["resultados"]) == 573920
-    assert sum(c["valor_centavos"] for c in pagas["resultados"]) == 588250
-    # A caução do Lucas só aparece com ?cliente= (ou a origem).
+    # FIN-18 (T-452): a lista traz as cauções pagas da semana (R$ 300,00), fora das contagens.
+    assert sum(c["valor_centavos"] for c in pagas["resultados"]) == 618250
+    # FIN-18 (T-452): a caução do Lucas está na lista geral, como no recorte do cliente.
     lucas = Cliente.objects.get(nome="Lucas Ferreira")
     geral = api.get(CONTAS, {"periodo": "semana", "tamanho": 100}).json()["resultados"]
-    assert not [
-        c
-        for c in geral
-        if c["valor_centavos"] == 30000 and c["cliente"]["nome"] == "Lucas Ferreira"
-    ]
+    assert [c for c in geral if c["tipo"] == "caucao" and c["cliente"]["nome"] == "Lucas Ferreira"]
     do_lucas = api.get(CONTAS, {"cliente": lucas.pk}).json()["resultados"]
     assert 30000 in [c["valor_centavos"] for c in do_lucas]
 
