@@ -13,8 +13,9 @@ import { mensagemDoErro } from "@/lib/erros";
 import { dinheiro, km, placa as placaComHifen } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
 import { categoriaAoTrocarTipo, esquemaVeiculo, NOME_DO_CAMPO_DA_API, OPCOES_DE_TIPO, paraCorpoVeiculo, semCategoriaDoTipo, valoresDaLeitura, VALORES_INICIAIS_VEICULO, type CampoLido, type CategoriasPorTipo, type ValoresVeiculo } from "@/lib/veiculos";
+import { useAvisoDeSaida } from "./AvisoDeSaida";
 import { CamposDoDocumento } from "./CamposDoDocumento";
-import { capaDaLista, EnvioDasFotos, cadastrarComFotos, envioTerminouBem, enviarEmSequencia, escolherFotos, FotosEscolhidas, itensDoEnvio, soltarMiniatura, type FotoEscolhida, type ItemDoEnvio } from "./FotosDoCadastro";
+import { capaDaLista, EnvioDasFotos, cadastrarComFotos, envioTerminouBem, enviarEmSequencia, escolherFotos, fotosQueFaltam, FotosEscolhidas, itensDoEnvio, soltarMiniatura, type FotoEscolhida, type ItemDoEnvio } from "./FotosDoCadastro";
 import type { RecusaDeFoto } from "./PecasDaGaleria";
 import { PreencherPeloCrlv, type CrlvLido } from "./PreencherPeloCrlv";
 
@@ -255,6 +256,8 @@ export function NovoVeiculoForm() {
   const ocupado = salvar.isPending || envio !== null;
   // CA-437-12: o suporte Giro não envia foto (403 PLT-07), então o bloco nem aparece para ele.
   const podeEnviarFotos = eu.suporte == null;
+  // VEI-10 (T-462): com foto ainda por subir, sair da tela pede confirmação.
+  const avisoDeSaida = useAvisoDeSaida(envio ? fotosQueFaltam(envio.itens) : 0);
 
   if (eu.pode.veiculos !== "editar") {
     return (
@@ -277,6 +280,7 @@ export function NovoVeiculoForm() {
 
   return (
     <form onSubmit={salvarEFicha} noValidate className="flex flex-col gap-6">
+      {avisoDeSaida}
       <header className="flex flex-wrap items-end gap-x-6 gap-y-3">
         <Link href="/veiculos" aria-label="Voltar para a Frota" className="wl-icon-btn md:hidden">
           <Icone de={ChevronLeft} />
