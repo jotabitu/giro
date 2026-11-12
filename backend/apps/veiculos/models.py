@@ -126,7 +126,8 @@ TRANSICOES_VEICULO: dict[str, set[str]] = {
         *_BAIXAR,
     },
     S.RESERVADO: {S.ALUGADO, S.DISPONIVEL, *_BAIXAR},  # DISPONIVEL: reserva cancelada (LOC-12)
-    S.ALUGADO: {S.DISPONIVEL, S.EM_MANUTENCAO},
+    # VENDIDO: quitação da locação com intenção de compra (LOC-16, VEN-11), só por `vendas`.
+    S.ALUGADO: {S.DISPONIVEL, S.EM_MANUTENCAO, S.VENDIDO},
     S.EM_MANUTENCAO: {S.DISPONIVEL, *_BAIXAR},
     S.INDISPONIVEL: {S.DISPONIVEL, *_BAIXAR},
     S.A_VENDA: {S.DISPONIVEL, S.VENDIDO, *_BAIXAR},

@@ -4210,6 +4210,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/LocacaoDetalhe'
           description: ''
+  /api/locacoes/{id}/transferencia/:
+    post:
+      operationId: locacoes_transferencia_create
+      summary: 'Transferência feita no Detran (LOC-16, VEN-11): fecha a tarefa da
+        quitação'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferenciaEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TransferenciaEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TransferenciaEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocacaoDetalhe'
+          description: ''
   /api/locacoes/{id}/trocar-veiculo/:
     post:
       operationId: locacoes_trocar_veiculo_create
@@ -6965,6 +6999,64 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListaDeModelosDoCatalogo'
           description: ''
+  /api/vendas/:
+    get:
+      operationId: vendas_list
+      summary: Vendas (na T-420, só as da quitação, VEN-11)
+      parameters:
+      - in: query
+        name: cliente
+        schema:
+          type: integer
+      - in: query
+        name: origem
+        schema:
+          type: string
+          enum:
+          - balcao
+          - quitacao_locacao
+      - in: query
+        name: transferencia_pendente
+        schema:
+          type: string
+          enum:
+          - 'true'
+      - in: query
+        name: veiculo
+        schema:
+          type: integer
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeVendas'
+          description: ''
+  /api/vendas/{id}/:
+    get:
+      operationId: vendas_retrieve
+      summary: Detalhe da venda
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Venda'
+          description: ''
   /api/vistorias/{id}/:
     get:
       operationId: vistorias_retrieve
@@ -7706,6 +7798,16 @@ components:
       required:
       - baixar
       - resolver
+    AcoesDaVenda:
+      type: object
+      properties:
+        cancelar:
+          type: boolean
+        registrar_transferencia:
+          type: boolean
+      required:
+      - cancelar
+      - registrar_transferencia
     AcoesDoAcesso:
       type: object
       properties:
@@ -14983,6 +15085,23 @@ components:
       - contagens
       - proximo
       - resultados
+    ListaDeVendas:
+      type: object
+      properties:
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Venda'
+      required:
+      - anterior
+      - proximo
+      - resultados
     Locacao:
       type: object
       description: Linha da lista. Para o vistoriador, o detalhe sai sem `pagamento`
@@ -15055,6 +15174,16 @@ components:
       - no_horario
       - status
       - veiculo
+    LocacaoDaVenda:
+      type: object
+      properties:
+        id:
+          type: integer
+        codigo:
+          type: string
+      required:
+      - codigo
+      - id
     LocacaoDaVistoria:
       type: object
       properties:
@@ -16305,6 +16434,14 @@ components:
         * `caixa` - Caixa
         * `cliente` - Cliente
         * `veiculo` - Veículo
+    OrigemVendaEnum:
+      enum:
+      - balcao
+      - quitacao_locacao
+      type: string
+      description: |-
+        * `balcao` - Balcão
+        * `quitacao_locacao` - Quitação de locação
     PagamentoLocacao:
       type: object
       properties:
@@ -18618,6 +18755,16 @@ components:
       required:
       - id
       - nome
+    RefDaVenda:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+      - id
+      - nome
     ReferenciaCliente:
       type: object
       properties:
@@ -19472,6 +19619,24 @@ components:
         * `vendido` - Vendido
         * `baixado` - Baixado
         * `em_movimentacao` - Em movimentação
+    StatusVendaEnum:
+      enum:
+      - interessado
+      - proposta
+      - negociacao
+      - aguardando_aprovacao
+      - vendida
+      - perdida
+      - cancelada
+      type: string
+      description: |-
+        * `interessado` - Interessado
+        * `proposta` - Proposta
+        * `negociacao` - Negociação
+        * `aguardando_aprovacao` - Aguardando aprovação
+        * `vendida` - Vendida
+        * `perdida` - Perdida
+        * `cancelada` - Cancelada
     Subdominio:
       type: object
       properties:
@@ -19893,6 +20058,31 @@ components:
         * `motos` - motos
         * `carros` - carros
         * `ambos` - motos e carros
+    Transferencia:
+      type: object
+      properties:
+        feita_em:
+          type: string
+          format: date
+          nullable: true
+        registrada_por:
+          allOf:
+          - $ref: '#/components/schemas/RefDaVenda'
+          nullable: true
+        pendente:
+          type: boolean
+      required:
+      - feita_em
+      - pendente
+      - registrada_por
+    TransferenciaEntrada:
+      type: object
+      properties:
+        feita_em:
+          type: string
+          format: date
+      required:
+      - feita_em
     TrechoLocacao:
       type: object
       properties:
@@ -20682,6 +20872,19 @@ components:
       - id
       - modelo
       - placa
+    VeiculoDaVenda:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        modelo:
+          type: string
+      required:
+      - id
+      - modelo
+      - placa
     VeiculoDaVistoria:
       type: object
       properties:
@@ -20809,6 +21012,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/HistoricoStatus'
+        vendas:
+          nullable: true
       required:
       - acoes
       - ano_fabricacao
@@ -20938,6 +21143,61 @@ components:
         * `km_e_avarias` - km_e_avarias
         * `ver` - ver
         * `nao` - nao
+    Venda:
+      type: object
+      properties:
+        id:
+          type: integer
+        codigo:
+          type: string
+        status:
+          $ref: '#/components/schemas/StatusVendaEnum'
+        origem:
+          $ref: '#/components/schemas/OrigemVendaEnum'
+        origem_rotulo:
+          type: string
+        descricao:
+          type: string
+        cliente:
+          $ref: '#/components/schemas/RefDaVenda'
+        veiculo:
+          $ref: '#/components/schemas/VeiculoDaVenda'
+        filial:
+          $ref: '#/components/schemas/RefDaVenda'
+        vendedor:
+          allOf:
+          - $ref: '#/components/schemas/RefDaVenda'
+          nullable: true
+        locacao:
+          allOf:
+          - $ref: '#/components/schemas/LocacaoDaVenda'
+          nullable: true
+        preco_final_centavos:
+          type: integer
+        vendida_em:
+          type: string
+          format: date-time
+          nullable: true
+        transferencia:
+          $ref: '#/components/schemas/Transferencia'
+        acoes:
+          $ref: '#/components/schemas/AcoesDaVenda'
+      required:
+      - acoes
+      - cliente
+      - codigo
+      - descricao
+      - filial
+      - id
+      - locacao
+      - origem
+      - origem_rotulo
+      - preco_final_centavos
+      - status
+      - transferencia
+      - veiculo
+      - vendedor
+      - vendida_em
     Verificar2FA:
       type: object
       properties:
