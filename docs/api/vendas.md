@@ -37,6 +37,7 @@ Este contrato cobre só o que a T-420 precisa: a venda de R$ 0,00 que nasce na q
 
 - `origem`: `quitacao_locacao` (esta) ou `balcao` (as do módulo de vendas, quando existirem). `origem_rotulo` "Quitação de locação" é o rótulo da lista (CA-420-12).
 - Nasce pelo assinante de `locacoes.locacao_quitada`, na transação da quitação (`vendas.services.criar_venda_da_quitacao`, ADR 0037, item 4): já `vendida`, R$ 0,00, cliente, veículo e filial da locação, vendedor da locação, `vendida_em` = `quitada_em`. Sem contas a receber, sem contrato de compra e venda e sem comissão (`FIN-09`). Auditoria `venda.criar_da_quitacao`, ator Sistema, regra `VEN-11`.
+- No banco, a venda da quitação nasce com `forma` vazia (string vazia `""`, não nula: o repositório não usa `null` em campo de texto), `preco_tabela_centavos`, `entrada_centavos` e `num_parcelas` nulos, `desconto_pct` e `juros_pct` 0. Quando `forma` entrar na representação (T-418), a venda da quitação a traz como `""`.
 - Na mesma transação, o veículo vai de `alugado` para `vendido` por `veiculos.services.transicionar`, com a origem na venda e o motivo "Quitação da LOC-2901" (`VEN-06`, tabela de transições do veículo).
 - `acoes.cancelar` é sempre `false`; o cancelamento (`VEN-07`), quando existir, responde 409 `{ "codigo": "VEN-11", "mensagem": "A venda da quitação de uma locação não se cancela." }`.
 - Fica fora de funil, conversão, meta e comissão (`VEN-08`, `VEN-09`, `FIN-09`): toda conta dessas, quando existir, filtra `origem = "balcao"`.
