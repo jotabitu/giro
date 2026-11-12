@@ -265,6 +265,9 @@ SPECTACULAR_SETTINGS = {
         "TipoLinhaDaFaturaEnum": ["fatura", "teste"],
         "StatusVeiculoEnum": "apps.veiculos.models.StatusVeiculo",
         "MovimentacaoStatusEnum": "apps.movimentacoes.models.StatusMovimentacao",  # T-320
+        "OrigemEnum": "apps.filiais.models.FeriadoFilial.Origem",  # o nome que já saía (T-420)
+        "OrigemVendaEnum": "apps.vendas.models.OrigemVenda",  # VEN-11 (T-420)
+        "StatusVendaEnum": "apps.vendas.models.StatusVenda",  # T-420
         "FotoPosicaoEnum": "apps.vistorias.models.PosicaoFoto",  # T-320: o nome que já saía
         "PosicaoDaChegadaEnum": "apps.movimentacoes.models.PosicaoFoto",  # T-320
         "TipoDocumentoEnum": "apps.veiculos.models.TipoDocumento",

@@ -23,6 +23,7 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("api/", include("apps.contratos.api.urls")),
     path("api/", include("apps.vistorias.api.urls")),
     path("api/", include("apps.movimentacoes.api.urls")),
+    path("api/", include("apps.vendas.api.urls")),
     path("api/", include("apps.financeiro.api.urls")),
     path("api/", include("apps.relatorios.api.urls")),
     path("api/", include("apps.empresas.api.urls")),

@@ -515,6 +515,8 @@ def representacao(
             dados["movimentacoes"] = leituras.bloco(ALVO_FICHA, "movimentacoes", veiculo)
         dados["ocupacao"] = ocupacao(veiculo)
         dados["historico_status"] = historico_status(veiculo)
+        # As vendas do veículo, com a transferência no Detran (VEN-11, CA-420-16), de `vendas`.
+        dados["vendas"] = leituras.bloco(ALVO_FICHA, "vendas", veiculo) or None
         # A galeria é de todos os perfis; mexer nela, de quem edita veículo (VEI-10, T-414).
         # O suporte em "só ver" recebe a galeria sem os links (ADR 0013, item 2).
         dados["galeria"] = bloco_galeria(veiculo, com_links=not suporte_so_ver(usuario))
