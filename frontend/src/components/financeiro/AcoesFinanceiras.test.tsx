@@ -168,4 +168,27 @@ describe("Contas a receber: renegociar (FIN-01, CA-017-10)", () => {
     await financeiro.renegociar({ contas: [9010], novas: [{ vencimento: "2026-10-15", valor_centavos: total }], motivo: "Prazo" });
     expect(await render(9010)).not.toContain("Renegociar conta");
   });
+
+  it("FIN-19: o detalhe mostra o tipo, a parcela e a origem que a API manda", async () => {
+    await entrar("rodrigo@motorapida.com.br");
+    const render = async (id: number) => {
+      const cache = new QueryClient();
+      cache.setQueryData(["contas-receber", "detalhe", id], await financeiro.obterConta(id));
+      return texto(
+        renderToStaticMarkup(
+          <QueryClientProvider client={cache}>
+            <DetalheDaConta id={id} aoFechar={() => {}} aoDarBaixa={() => {}} aoConcluir={() => {}} />
+          </QueryClientProvider>,
+        ),
+      );
+    };
+    const carlos = await render(9010);
+    ordem(carlos, ["Carlos Menezes · LOC-2841 · QXA-4B21", "Parcela 2 de 5 · venceu 30 set", "Tipo", "Parcela", "Parcela", "2 de 5 parcelas", "Origem", "LOC-2841 · QXA-4B21"]);
+    expect(carlos).not.toContain("Renegociação");
+    const total = (await financeiro.obterConta(9010)).valor_hoje.total_centavos;
+    const [primeira] = await financeiro.renegociar({ contas: [9010], novas: [{ vencimento: "2026-10-15", valor_centavos: 100 }, { vencimento: "2026-10-22", valor_centavos: total - 100 }], motivo: "Prazo" });
+    const acordo = await render(primeira!.id);
+    ordem(acordo, ["Renegociação · 1 de 2 · vence 15 out", "Tipo", "Parcela", "Renegociação", "Origem"]);
+    expect(acordo).not.toContain("parcelas");
+  });
 });
