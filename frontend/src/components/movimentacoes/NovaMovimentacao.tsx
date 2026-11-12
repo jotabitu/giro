@@ -2,23 +2,21 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bike, Car, MapPin, Navigation, Plus, X } from "lucide-react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Bike, Car, MapPin, Navigation, Plus } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { Aviso } from "@/components/acesso/Aviso";
-import { QuadroDeMovimentacoes } from "@/components/movimentacoes/QuadroDeMovimentacoes";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
 import { Button, Dialogo, Icone, SearchField, SegmentedControl, StatusBadge, TextField } from "@/design-system";
 import { ErroApi, filiais, movimentacoes, veiculos, type Veiculo } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { km, placa } from "@/lib/formatos";
 import { campoDoFormulario, esquemaMovimentacao, novaParada, paraCorpoMovimentacao, VALORES_INICIAIS_MOVIMENTACAO, type ValoresMovimentacao } from "@/lib/movimentacao-form";
-import { ROTA_DAS_MOVIMENTACOES, ROTULO_DO_TIPO_DE_LOCAL, TIPOS_DE_LOCAL } from "@/lib/movimentacoes";
+import { ROTULO_DO_TIPO_DE_LOCAL, TIPOS_DE_LOCAL } from "@/lib/movimentacoes";
 import { tomDoStatus } from "@/lib/tom";
 
-// Referência: docs/telas/html/Movimentacao-Nova-Desktop.dc.html (gaveta sobre o quadro) e Movimentacao-Nova-Mobile.dc.html (tela inteira).
+// Referência: docs/telas/html/Movimentacao-Nova-Desktop.dc.html e Movimentacao-Nova-Mobile.dc.html. T-453: abre num Dialogo amplo sobre o quadro (tela cheia no celular).
 // MOV-01 a MOV-06. No MVP a parada não tem ordem de serviço (MOV-04, CA-246-07): a parada tem serviço e valor previsto.
 
 const PIN = "absolute -left-[34px] top-4 grid size-[28px] place-items-center rounded-pill text-[12px] font-bold";
@@ -114,9 +112,16 @@ function NovoLocal({ aberto, aoFechar, aoCriar }: { aberto: boolean; aoFechar: (
   );
 }
 
-/** Nova movimentação. No desktop é a gaveta de 520px sobre o quadro; no celular, a tela inteira com o botão fixo embaixo. */
-export function NovaMovimentacao() {
-  const router = useRouter();
+/** Nova movimentação num Dialogo sobre o quadro: não troca de rota, e o formulário começa limpo a cada abertura. */
+export function NovaMovimentacao({ aberto, aoFechar }: { aberto: boolean; aoFechar: () => void }) {
+  return (
+    <Dialogo aberto={aberto} aoFechar={aoFechar} titulo="Nova movimentação" tamanho="amplo" fecharAoClicarFora={false}>
+      <FormularioDaMovimentacao aoFechar={aoFechar} />
+    </Dialogo>
+  );
+}
+
+function FormularioDaMovimentacao({ aoFechar }: { aoFechar: () => void }) {
   const cliente = useQueryClient();
   const params = useSearchParams();
   const [veiculo, setVeiculo] = useState<Veiculo | null>(null);
@@ -170,7 +175,7 @@ export function NovaMovimentacao() {
     try {
       await criar.mutateAsync(valores);
       await cliente.invalidateQueries({ queryKey: ["movimentacoes"] });
-      router.push(ROTA_DAS_MOVIMENTACOES);
+      aoFechar();
     } catch (e) {
       if (e instanceof ErroApi && e.campos) {
         const sobra: string[] = [];
@@ -186,38 +191,14 @@ export function NovaMovimentacao() {
     }
   }
 
-  const fechar = () => router.push(ROTA_DAS_MOVIMENTACOES);
-  useEffect(() => {
-    const aoTeclar = (e: KeyboardEvent) => e.key === "Escape" && !document.querySelector("dialog[open]") && router.push(ROTA_DAS_MOVIMENTACOES);
-    window.addEventListener("keydown", aoTeclar);
-    return () => window.removeEventListener("keydown", aoTeclar);
-  }, [router]);
-
   const agendar = v.quando === "agendar";
   const erro = (nome: string) => (nome.split(".").reduce<unknown>((acc, parte) => (acc as Record<string, unknown> | undefined)?.[parte], errors) as { message?: string } | undefined)?.message;
   const opcoesDeLocal = (locais.data?.resultados ?? []).map((l) => ({ valor: String(l.id), rotulo: `${l.nome} · ${ROTULO_DO_TIPO_DE_LOCAL[l.tipo]}` }));
 
   return (
     <>
-      <div inert className="max-md:hidden">
-        <QuadroDeMovimentacoes />
-      </div>
-      <div className="md:fixed md:inset-0 md:z-40">
-        <div aria-hidden="true" onClick={fechar} className="max-md:hidden md:absolute md:inset-0 md:bg-solid/40" />
-        <form
-          aria-label="Nova movimentação"
-          noValidate
-          onSubmit={handleSubmit(enviar)}
-          className="flex min-h-[calc(100dvh-120px)] flex-col md:absolute md:top-4 md:right-4 md:bottom-4 md:min-h-0 md:w-[520px] md:overflow-hidden md:rounded-xl md:bg-surface md:shadow-pop"
-        >
-          <header className="flex items-center gap-3 md:px-6 md:pt-6 md:pb-3">
-            <Link href={ROTA_DAS_MOVIMENTACOES} aria-label="Fechar" className="wl-icon-btn wl-icon-btn--sm size-[44px] md:order-last">
-              <Icone de={X} />
-            </Link>
-            <h1 className="m-0 flex-1 text-title md:text-[24px] md:font-semibold">Nova movimentação</h1>
-          </header>
-
-          <div className="flex flex-1 flex-col gap-[14px] pt-3 md:overflow-y-auto md:px-6 md:pb-4">
+      <form aria-label="Nova movimentação" noValidate onSubmit={handleSubmit(enviar)} className="flex min-h-0 flex-1 flex-col">
+          <div className="flex min-h-0 flex-1 flex-col gap-[14px] overflow-y-auto pb-4">
             <Secao>1 · Veículo</Secao>
             <EscolhaDoVeiculo
               escolhido={veiculo}
@@ -321,20 +302,19 @@ export function NovaMovimentacao() {
             </label>
           </div>
 
-          <footer className="flex flex-col gap-[10px] border-t border-line pt-4 md:px-6 md:pb-6">
+          <footer className="flex flex-col gap-[10px] border-t border-line pt-4">
             {erroGeral && <Aviso tipo="erro">{erroGeral}</Aviso>}
             <p className="m-0 text-body text-ink-muted">Agendada, a movimentação não muda o status do veículo. Ao sair, o veículo disponível passa a Em movimentação.</p>
             <div className="flex justify-end gap-2">
-              <Link href={ROTA_DAS_MOVIMENTACOES} className="wl-btn max-md:hidden">
+              <Button variante="quieto" onClick={aoFechar}>
                 Cancelar
-              </Link>
+              </Button>
               <Button type="submit" variante="solido" disabled={criar.isPending} icone={<Icone de={Plus} />}>
                 {agendar ? "Agendar movimentação" : "Sair agora"}
               </Button>
             </div>
           </footer>
-        </form>
-      </div>
+      </form>
 
       <NovoLocal
         aberto={novoLocalPara !== null}

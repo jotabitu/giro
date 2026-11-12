@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Plus } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Aviso } from "@/components/acesso/Aviso";
 import { Confirmacao } from "@/components/financeiro/Comuns";
@@ -10,14 +11,15 @@ import { Button, Dialogo, Icone, SearchField, TextField } from "@/design-system"
 import { movimentacoes, type ColunaDoQuadro, type LinhaDaMovimentacao } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { useBuscaNaUrl, useFiltrosNaUrl } from "@/lib/filtros-url";
-import { COR_DA_COLUNA, MENSAGEM_DA_COLUNA_VAZIA, podeGerirMovimentacoes, ROTA_DA_NOVA_MOVIMENTACAO } from "@/lib/movimentacoes";
+import { COR_DA_COLUNA, MENSAGEM_DA_COLUNA_VAZIA, podeGerirMovimentacoes, ROTA_DAS_MOVIMENTACOES } from "@/lib/movimentacoes";
 import { useSessao } from "@/lib/sessao";
 import { CartaoDaMovimentacao } from "./CartaoDaMovimentacao";
+import { NovaMovimentacao } from "./NovaMovimentacao";
 
 // Referência: docs/telas/html/Movimentacoes-Desktop.dc.html e Movimentacoes-Mobile.dc.html (MOV-01 a MOV-06).
 // O quadro, as colunas, o resumo de cada cartão e os botões vêm da API (GET /api/movimentacoes/quadro/).
 
-function Coluna({ coluna, podeCriar, ocupado, aoIniciar, aoCancelar }: { coluna: ColunaDoQuadro; podeCriar: boolean; ocupado: boolean; aoIniciar: (m: LinhaDaMovimentacao) => void; aoCancelar: (m: LinhaDaMovimentacao) => void }) {
+function Coluna({ coluna, podeCriar, ocupado, aoNova, aoIniciar, aoCancelar }: { coluna: ColunaDoQuadro; podeCriar: boolean; aoNova: () => void; ocupado: boolean; aoIniciar: (m: LinhaDaMovimentacao) => void; aoCancelar: (m: LinhaDaMovimentacao) => void }) {
   return (
     <section aria-label={coluna.rotulo} className="flex min-w-0 flex-col gap-[10px] rounded-[28px] bg-surface p-[14px]">
       <div className="flex items-center gap-2 px-[6px] pt-1 pb-[6px] text-[16px] font-semibold">
@@ -30,17 +32,23 @@ function Coluna({ coluna, podeCriar, ocupado, aoIniciar, aoCancelar }: { coluna:
         <CartaoDaMovimentacao key={m.id} m={m} ocupado={ocupado} aoIniciar={aoIniciar} aoCancelar={aoCancelar} />
       ))}
       {coluna.status === "agendada" && podeCriar && (
-        <Link href={ROTA_DA_NOVA_MOVIMENTACAO} className="flex h-[42px] items-center justify-center gap-[6px] rounded-[16px] border-[1.5px] border-dashed border-line text-body text-ink-muted">
+        <button type="button" onClick={aoNova} className="flex h-[42px] items-center justify-center gap-[6px] rounded-[16px] border-[1.5px] border-dashed border-line text-body text-ink-muted">
           <Icone de={Plus} />
           Nova
-        </Link>
+        </button>
       )}
     </section>
   );
 }
 
-/** Movimentações: quadro por estado. Cada cartão muda de coluna pelo botão dele (Iniciar, Registrar chegada); só a agendada se cancela. */
-export function QuadroDeMovimentacoes() {
+/**
+ * Movimentações: quadro por estado. Cada cartão muda de coluna pelo botão dele (Iniciar, Registrar chegada); só a agendada se cancela.
+ * "Nova movimentação" abre num Dialogo sobre o quadro (T-453). `comNovaAberta` é a rota antiga /nova, que abre o mesmo diálogo e,
+ * ao fechar, volta para a lista.
+ */
+export function QuadroDeMovimentacoes({ comNovaAberta = false }: { comNovaAberta?: boolean }) {
+  const router = useRouter();
+  const [novaAberta, setNovaAberta] = useState(comNovaAberta);
   const { eu } = useSessao();
   const cliente = useQueryClient();
   const { valor, definir } = useFiltrosNaUrl();
@@ -101,10 +109,10 @@ export function QuadroDeMovimentacoes() {
             <SearchField placeholder="Placa ou modelo" atalho={false} cheio value={busca} onChange={(e) => setBusca(e.target.value)} />
           </div>
           {podeCriar && (
-            <Link href={ROTA_DA_NOVA_MOVIMENTACAO} aria-label="Nova movimentação" className="wl-btn wl-btn--solid max-md:size-[44px] max-md:!min-w-0 max-md:!p-0 md:h-[56px] md:px-[28px]">
+            <button type="button" onClick={() => setNovaAberta(true)} aria-label="Nova movimentação" className="wl-btn wl-btn--solid max-md:size-[44px] max-md:!min-w-0 max-md:!p-0 md:h-[56px] md:px-[28px]">
               <Icone de={Plus} />
               <span className="hidden md:inline">Nova movimentação</span>
-            </Link>
+            </button>
           )}
         </div>
       </header>
@@ -135,7 +143,7 @@ export function QuadroDeMovimentacoes() {
           <div className="grid items-start gap-4 md:grid-cols-4">
             {colunas.map((c) => (
               <div key={c.status} className={c.status === colunaDoCelular ? "" : "max-md:hidden"}>
-                <Coluna coluna={c} podeCriar={podeCriar} ocupado={ocupado} aoIniciar={(m) => iniciar.mutate(m)} aoCancelar={(m) => setCancelando(m)} />
+                <Coluna coluna={c} podeCriar={podeCriar} aoNova={() => setNovaAberta(true)} ocupado={ocupado} aoIniciar={(m) => iniciar.mutate(m)} aoCancelar={(m) => setCancelando(m)} />
               </div>
             ))}
           </div>
@@ -145,6 +153,16 @@ export function QuadroDeMovimentacoes() {
       <p className="m-0 hidden text-caption text-ink-muted md:block">
         Cada cartão muda de coluna pelo botão dele: Iniciar e Registrar chegada. Veículo alugado, reservado, vendido ou baixado não pode ser movimentado. Depois de sair, a movimentação termina com a chegada; só a agendada se cancela. Em movimentação, o veículo disponível some da Nova locação e da reserva. Na chegada, o km é atualizado e, se o destino for outra filial, o veículo passa a ser dela.
       </p>
+
+      {podeCriar && (
+        <NovaMovimentacao
+          aberto={novaAberta}
+          aoFechar={() => {
+            setNovaAberta(false);
+            if (comNovaAberta) router.replace(ROTA_DAS_MOVIMENTACOES);
+          }}
+        />
+      )}
 
       <Dialogo
         aberto={cancelando !== null}
