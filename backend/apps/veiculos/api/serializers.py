@@ -337,6 +337,8 @@ class SituacaoDoVeiculoSerializer(serializers.Serializer[Any]):
     codigo = serializers.CharField()
     rotulo = serializers.CharField()
     tom = serializers.CharField()
+    # LOC-10 (T-449): a data do "desde" do card "Agora"; `null` sem locação aberta.
+    desde = serializers.DateField(allow_null=True)
 
 
 class AcoesDoVeiculoSerializer(serializers.Serializer[Any]):

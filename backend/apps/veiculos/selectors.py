@@ -391,7 +391,7 @@ def acoes(
 
 def _situacao(veiculo: Veiculo, blocos: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Base no status; o `alerta` mais grave de um bloco sobrepõe (ADR 0015)."""
-    situacao = {
+    situacao: dict[str, Any] = {
         "codigo": veiculo.status,
         "rotulo": S(veiculo.status).label,
         "tom": TOM[S(veiculo.status)],
@@ -411,6 +411,9 @@ def _situacao(veiculo: Veiculo, blocos: dict[str, dict[str, Any]]) -> dict[str, 
             "rotulo": alerta["rotulo"],
             "tom": alerta["tom"],
         }
+    # LOC-10 (T-449): desde quando, pronto da locação atual (fim previsto no atraso, início no
+    # resto); sem locação aberta, `None`.
+    situacao["desde"] = (blocos.get("locacao_atual") or {}).get("desde")
     return situacao
 
 

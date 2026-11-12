@@ -19090,8 +19090,13 @@ components:
           type: string
         tom:
           type: string
+        desde:
+          type: string
+          format: date
+          nullable: true
       required:
       - codigo
+      - desde
       - rotulo
       - tom
     SituacaoEnum:

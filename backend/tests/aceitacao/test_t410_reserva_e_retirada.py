@@ -107,6 +107,7 @@ def test_vei_reserva_na_confirmacao(cenario, relogio):  # noqa: F811
         "codigo": "reservado",
         "rotulo": f"Reservado na {codigo}",
         "tom": "info",
+        "desde": "2026-11-05",  # LOC-10 (T-449): o início da locação que reservou
     }
     assert ficha["reserva"] == {"locacao_id": criada["id"], "codigo": codigo, "motivo": "locacao"}
     linha = cenario.moto.api("Rodrigo").get("/api/veiculos/", {"busca": moto.placa}).json()
