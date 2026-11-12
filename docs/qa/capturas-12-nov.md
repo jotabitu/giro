@@ -135,3 +135,18 @@ Observações, sem falha de critério:
 - Não exercitados: o link anterior deixar de valer ao copiar outro (5 por hora) e o 404 depois de anonimizar o titular.
 
 **No ambiente:** cada "Copiar link do recibo" gerou um link novo para a devolução 1 (LOC-2812); só o último vale.
+
+## Repetição de A6 · develop em 711a4bf6 (#555)
+
+Mesmo roteiro do A3 (`POST .../fotos/` atrasado 8 s, 2 fotos), a 1440 e 390 px. Capturas em `tarefas/handoffs/anexos/T-462/`, arquivos `A6-...` e `A6b-...`.
+
+| Caminho | Ficha abre | Voltar na ficha |
+| --- | --- | --- |
+| 1440 · link "Veículos" e "Ficar" | Sim (`/veiculos/108`) | `/inicio`, de onde o teste entrou |
+| 1440 · sem sair da tela | Sim (`/veiculos/109`) | `/inicio` |
+| 390 · Voltar do navegador e "Ficar" | Sim (`/veiculos/110`) | `/inicio` |
+| 1440 · pelo caminho real: lista de veículos, "Cadastrar veículo", salvar (`A6b-...`) | Sim (`/veiculos/111`) | `/veiculos`, a lista |
+
+**A6: corrigido.** O Voltar depois da ficha não cai mais em `/veiculos/novo`: volta à tela de antes do cadastro. O 390 px foi exercitado só no caminho com Voltar e "Ficar".
+
+**No ambiente:** veículos TBC-6B01 a TBC-6B04 (ids 108 a 111, 2 fotos cada). `make seed` devolve o seed.
