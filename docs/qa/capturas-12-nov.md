@@ -112,3 +112,18 @@ Capturas: `A3-cadastro-enviando-*`, `A3-dialogo-sair-ou-ficar-*`, `A3-depois-de-
 - **A6 · Voltar depois da ficha cai no formulário de novo cadastro.** Nos seis casos acima, inclusive no controle sem "Ficar", `history.back()` na ficha leva a `/veiculos/novo` (formulário vazio, "Cadastrar veículo"). Não é regressão do #549 (acontece também sem o diálogo), mas é o que o pedido mandou conferir: o Voltar cai no formulário. Quem salva e aperta Voltar pode cadastrar de novo e levar 409 de placa repetida. Capturas `A3-voltar-depois-da-ficha-*`. Dono: frontend (trocar o `push` da ficha por `replace` depois do salvar, se for essa a intenção).
 
 **O que ficou no ambiente.** LOC-2864 retirada à mão (ativa, sem assinatura, caução paga, parcelas 1 e 2 em aberto) e veículos TBC-6A01 a TBC-6A06 (ids 102 a 107, 2 fotos cada). `make seed` devolve o seed.
+
+## Repetição de A6 · develop em 711a4bf6 (#555)
+
+Mesmo roteiro do A3 (`POST .../fotos/` atrasado 8 s, 2 fotos), a 1440 e 390 px. Capturas em `tarefas/handoffs/anexos/T-462/`, arquivos `A6-...` e `A6b-...`.
+
+| Caminho | Ficha abre | Voltar na ficha |
+| --- | --- | --- |
+| 1440 · link "Veículos" e "Ficar" | Sim (`/veiculos/108`) | `/inicio`, de onde o teste entrou |
+| 1440 · sem sair da tela | Sim (`/veiculos/109`) | `/inicio` |
+| 390 · Voltar do navegador e "Ficar" | Sim (`/veiculos/110`) | `/inicio` |
+| 1440 · pelo caminho real: lista de veículos, "Cadastrar veículo", salvar (`A6b-...`) | Sim (`/veiculos/111`) | `/veiculos`, a lista |
+
+**A6: corrigido.** O Voltar depois da ficha não cai mais em `/veiculos/novo`: volta à tela de antes do cadastro. O 390 px foi exercitado só no caminho com Voltar e "Ficar".
+
+**No ambiente:** veículos TBC-6B01 a TBC-6B04 (ids 108 a 111, 2 fotos cada). `make seed` devolve o seed.
