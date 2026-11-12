@@ -473,6 +473,34 @@ def test_loc_17_situacao_falta_o_1o_pagamento_depois_da_retirada_a_mao(
     assert situacao["rotulo"] == "Falta o 1º pagamento"
 
 
+def _pagamento_na_lista(cenario: Cenario, locacao: Locacao) -> dict[str, Any]:  # noqa: F811
+    todas = cenario.moto.api("Rodrigo").get(LISTA).json()["resultados"]
+    pagamento: dict[str, Any] = next(x for x in todas if x["id"] == locacao.pk)["pagamento"]
+    return pagamento
+
+
+def test_loc_17_fin_01_coluna_pagamento_da_retirada_a_mao_sem_nada_pago(
+    cenario,  # noqa: F811
+    locacao,
+) -> None:
+    """T-466 (achado A1 de 12 nov, LOC-2871): retirada à mão com a parcela 1 e a caução vencendo
+    hoje e nada pago. Nada está atrasado (FIN-01), mas a coluna não pode dizer "Pago": diz
+    "Aguardando pagamento", como na `aguardando_retirada`, e "R$ X pago" com só uma parte paga."""
+    _vistoriar(locacao.pk)
+    assert _registrar(cenario, locacao).status_code == 200
+    pagamento = _pagamento_na_lista(cenario, locacao)
+    assert (pagamento["rotulo"], pagamento["tom"]) == ("Aguardando pagamento", "alerta")
+    assert (pagamento["em_aberto_centavos"], pagamento["pago_centavos"]) == (0, 0)
+
+    assert _abrir(cenario).status_code == 201
+    assert _receber(cenario, _conta(locacao, "caucao"), 30000).status_code == 200
+    pagamento = _pagamento_na_lista(cenario, locacao)
+    assert (pagamento["rotulo"], pagamento["tom"]) == ("R$ 300,00 pago", "info")
+
+    assert _receber(cenario, _conta(locacao), 32900).status_code == 200
+    assert _pagamento_na_lista(cenario, locacao)["rotulo"] != "Aguardando pagamento"
+
+
 def test_loc_17_retirada_sozinha_nao_tem_pendencia(
     cenario,  # noqa: F811
     locacao,

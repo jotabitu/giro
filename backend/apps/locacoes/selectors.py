@@ -291,7 +291,11 @@ def pagamento(locacao: Locacao) -> dict[str, Any]:
         rotulo, tom = f"{formatar_reais(em_aberto)} em aberto", "perigo"
     elif locacao.cancelamento_status == StatusDesconto.PENDENTE and multa > 0:
         rotulo, tom = f"Multa {formatar_reais(multa)}", "alerta"
-    elif locacao.status == S.AGUARDANDO_RETIRADA:
+    elif locacao.status == S.AGUARDANDO_RETIRADA or (
+        # LOC-17 (T-466): retirada à mão sem o 1º pagamento. Sem atraso ainda (vence hoje), não
+        # pode cair na forma de pagamento, que a tela lê como "Pago".
+        tem_pendencia_da_retirada(locacao) and locacao.primeiro_pagamento_em is None
+    ):
         rotulo, tom = (
             (f"{formatar_reais(pago)} pago", "info") if pago else ("Aguardando pagamento", "alerta")
         )
