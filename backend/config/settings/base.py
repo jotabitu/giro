@@ -39,6 +39,10 @@ USE_X_FORWARDED_HOST = False
 # Domínio: admin.<DOMINIO_BASE> é a plataforma; <subdominio>.<DOMINIO_BASE>, a empresa.
 DOMINIO_BASE = env("DOMINIO_BASE", default="localhost")
 SUBDOMINIO_PLATAFORMA = env("SUBDOMINIO_PLATAFORMA", default="admin")
+# Esquema e porta dos links que o sistema manda ou copia (T-467, `comum.enderecos`). O padrão,
+# https e sem porta, é o de homologação e produção; o desenvolvimento troca em `dev.py`.
+GIRO_LINKS_ESQUEMA = env("GIRO_LINKS_ESQUEMA", default="https")
+GIRO_LINKS_PORTA = env("GIRO_LINKS_PORTA", default="")
 
 # --- Multiempresa (ADR 0002, 0008, 0011) ---
 # Apps nos dois schemas aparecem nas duas listas.

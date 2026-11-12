@@ -24,7 +24,9 @@ async function pagina(token: string | null, erro?: unknown) {
 describe("página /assinar", () => {
   it("mostra o contrato, o PDF, o nome completo e o aceite, nessa ordem", async () => {
     const t = await pagina("link-lucas");
-    const ordem = ["Contrato de locação semanal", "LOC-2856", "Para Lucas Ferreira", "Ler o contrato (PDF)", "Nome completo", "Li o contrato e concordo com os termos.", "Assinar contrato", "Tecnologia Giro"];
+    // T-467: o código não parte no hífen (U+2011).
+    expect(t).not.toContain("LOC-2856");
+    const ordem = ["Contrato de locação semanal", "LOC‑2856", "Para Lucas Ferreira", "Ler o contrato (PDF)", "Nome completo", "Li o contrato e concordo com os termos.", "Assinar contrato", "Tecnologia Giro"];
     let pos = -1;
     for (const p of ordem) {
       const i = t.indexOf(p, pos + 1);

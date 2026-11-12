@@ -20,7 +20,7 @@ from django.db.models import QuerySet
 from django.http import Http404
 from rest_framework import status
 
-from comum import relogio
+from comum import enderecos, relogio
 from comum.auditoria import Categoria, auditar, registrar_evento
 from comum.erros import Conflito, ErroDeNegocio, ErroDeRegra, ErroDeValidacao
 from comum.estados import transicionar
@@ -313,7 +313,7 @@ def hash_do_token(token: str) -> str:
 
 def link_de_assinatura(host: str, token: str) -> str:
     """O token vai no fragmento: não chega a logs de servidor nem ao `Referer` (S-15)."""
-    return f"https://{host}/assinar#{token}"
+    return enderecos.link(host, f"/assinar#{token}")
 
 
 def novo_token(
