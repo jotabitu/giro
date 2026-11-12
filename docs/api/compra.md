@@ -90,7 +90,7 @@ Catálogo à venda (`PLT-11`), para a `Compra-Planos` e o resumo "Plano escolhid
     { "codigo": "profissional", "nome": "Profissional", "descricao": "Para locadoras com equipe e mais de uma loja.",
       "mensal_centavos": 44900, "anual_centavos": 449000,
       "limites": { "veiculos": 150, "filiais": 3, "usuarios": 10 },
-      "inclui": ["Tudo do Essencial, mais despesas", "Pix e boleto automáticos e cobrança pelo WhatsApp"],
+      "inclui": ["Tudo do Essencial, mais despesas", "Pix e boleto automáticos"],
       "destaque": true }
   ],
   "teste": { "dias": 14, "inicio": "2026-10-07", "fim": "2026-10-21", "lembrete": "2026-10-19", "primeira_fatura": "2026-10-22" }
@@ -213,7 +213,7 @@ Chama `criar_empresa` com os dados do pedido, sem duplicar a regra:
 - `situacao_cnpj` = `nova`: empresa `em_teste`, `teste_inicio` = hoje, `teste_fim` = hoje + 14, 1ª fatura `aberta` com o valor do plano e do ciclo vencendo no dia seguinte ao fim do teste (`PLT-01`; Moto Rápida, compra em 07 out: teste até 21 out, FAT-0001 de R$ 449,00 vencendo em 22 out, ou R$ 4.490,00 no anual).
 - `ja_foi_cliente`: empresa `ativa`, sem teste, 1ª fatura vencendo hoje (`PLT-16`, CA-ASS-61), e os avisos da `IMP-06` não saem.
 - `em_uso` ou `fatura_em_atraso` na hora da confirmação: o pedido vira `falhou` com a mensagem da `PLT-16` correspondente no lugar da mensagem genérica.
-- O administrador nasce `convite_pendente` com o convite da `USR-01` (e-mail sempre; WhatsApp só com `aceita_whatsapp`, ADR 0034). O e-mail do administrador já está confirmado pelo código, mas o acesso continua nascendo pelo convite (senha e 2 etapas, `USR-06`).
+- O administrador nasce `convite_pendente` com o convite da `USR-01` (só por e-mail na fase 1, ADR 0034). O e-mail do administrador já está confirmado pelo código, mas o acesso continua nascendo pelo convite (senha e 2 etapas, `USR-06`).
 - `forma_pagamento`, quando veio, é gravada como na `Admin-Assinatura` (`PLT-13`); sem ela, a régua da `PLT-02` avisa antes do fim do teste.
 - O responsável pela assinatura é o administrador da compra, com o aceite do WhatsApp de `aceita_whatsapp` (`PLT-02`).
 - `Empresa.origem` = `compra` (o Django Admin grava `admin`), para o funil da `Plat-Implantacoes` (`IMP-05`) e a auditoria.

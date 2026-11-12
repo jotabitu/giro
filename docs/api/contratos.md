@@ -78,7 +78,7 @@ Perfis: quem cria locação. Locação `aguardando_retirada`, sem pedido de desc
 1. Monta o HTML do modelo publicado de `locacao` com os marcadores e a versão atual (`versao_modelo`).
 2. Gera o PDF numa task Celery com tempo limite de 60 s e memória limitada (S-09). O `url_fetcher` do WeasyPrint só entrega o logo da própria empresa, lido do storage do schema atual; qualquer outra URL (`http`, `https`, `file`, `data` externa, IP interno) é recusada.
 3. Grava o `hash_pdf` (SHA-256) e cria o link de assinatura.
-4. Envia o link por WhatsApp (e e-mail, se houver) com a marca da locadora; `status = enviado`.
+4. Envia o link por e-mail, se houver, com a marca da locadora; `status = enviado`. Na fase 1, nada vai ao cliente pelo WhatsApp (ADR 0034; o envio guardado só volta com `GIRO_WHATSAPP_CLIENTE_FINAL`).
 422 `IMP-04` sem modelo publicado; 409 `{ "codigo": "contrato_existente" }` se já há contrato vigente não cancelado (use reenviar); 409 `contrato_fora_de_hora` fora de `aguardando_retirada`; 409 `desconto_pendente` com o pedido de desconto aguardando decisão; 409 `{ "codigo": "cancelamento_em_curso", "mensagem": "A locação tem um cancelamento em andamento." }` com pedido de cancelamento pendente ou aprovado (T-263). O detalhe da locação diz antes se o `POST` passa: `acoes.gerar_contrato` (`locacoes.md`).
 
 ### Estados e transições do contrato
@@ -87,7 +87,7 @@ Perfis: quem cria locação. Locação `aguardando_retirada`, sem pedido de desc
 
 | De | Para | Quando |
 | --- | --- | --- |
-| `gerado` | `enviado` | a tarefa de envio manda o link por WhatsApp ou e-mail (`marcar_enviado`) |
+| `gerado` | `enviado` | a tarefa de envio manda o link por e-mail (`marcar_enviado`) |
 | `gerado` | `assinado` | o cliente assina por um link copiado (`POST .../contrato/link/`) de um contrato com o PDF pronto e nada enviado |
 | `gerado` | `cancelado` | `cancelar(contrato, motivo)`, por exemplo no cancelamento da locação (`LOC-12`); o link deixa de valer na hora |
 | `enviado` | `assinado` | o cliente assina pelo link enviado ou por um copiado depois |

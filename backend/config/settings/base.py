@@ -516,6 +516,9 @@ S3_CHAVE_DE_ACESSO = env("S3_CHAVE_DE_ACESSO", default="")
 S3_CHAVE_SECRETA = env("S3_CHAVE_SECRETA", default="")
 # WhatsApp: só o "falso" (mensagens na memória) até a integração real.
 GIRO_PROVEDOR_WHATSAPP = env("GIRO_PROVEDOR_WHATSAPP", default="falso")
+# ADR 0034 (11 nov 2026): desligada, nada vai ao cliente final nem ao convidado pelo WhatsApp;
+# os avisos vão por e-mail. Só a régua da assinatura (AUT-13) usa o WhatsApp, sem olhar a chave.
+GIRO_WHATSAPP_CLIENTE_FINAL = env.bool("GIRO_WHATSAPP_CLIENTE_FINAL", default=False)
 # Pagamentos (Pix, boleto, webhook): "falso" (cobranças na memória) ou "asaas" (T-029). A chave
 # da conta principal só abre subcontas; cada subconta tem a sua, cifrada no banco (S-05).
 GIRO_PROVEDOR_PAGAMENTOS = env("GIRO_PROVEDOR_PAGAMENTOS", default="falso")

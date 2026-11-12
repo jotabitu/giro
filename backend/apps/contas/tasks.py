@@ -1,5 +1,5 @@
-"""Envios de `contas`: convite por e-mail e WhatsApp (USR-01), link de nova senha e aviso de
-bloqueio (USR-06).
+"""Envios de `contas`: convite por e-mail (USR-01; pelo WhatsApp só com a chave
+`GIRO_WHATSAPP_CLIENTE_FINAL`, ADR 0034), link de nova senha e aviso de bloqueio (USR-06).
 
 Recebem só ids; tokens são gerados aqui, na hora do envio, e nunca passam pela fila.
 """
@@ -11,7 +11,7 @@ from django.core.mail import send_mail
 from comum import relogio
 from comum.empresa import nome_da_empresa
 from comum.tarefas import tarefa_de_empresa
-from integracoes.whatsapp import enviar_whatsapp
+from integracoes.whatsapp import enviar_whatsapp, whatsapp_ao_cliente_final
 
 from .models import Convite, RedefinicaoSenha, Usuario
 from .services import host_da_empresa, link_do_convite, renovar_token, renovar_token_de_senha
@@ -43,8 +43,9 @@ def contas_enviar_convite(schema_name: str, convite_id: int) -> None:
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[usuario.email],
     )
-    # USR-01: com celular, o mesmo link também por WhatsApp, com a marca da locadora.
-    if usuario.celular:
+    # USR-01: na fase 1, o convite vai só por e-mail (ADR 0034). Com `GIRO_WHATSAPP_CLIENTE_FINAL`
+    # ligada e celular, o mesmo link também por WhatsApp, com a marca da locadora.
+    if usuario.celular and whatsapp_ao_cliente_final():
         enviar_whatsapp(
             usuario.celular,
             f"{marca}: você foi convidado para acessar o sistema. "

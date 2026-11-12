@@ -98,7 +98,7 @@ Os campos de hoje (`plano`, `status`, `teste`, `faixa_aviso`, `uso`, `somente_le
 
   | Plano atual | `oferta.plano` | `itens` |
   | --- | --- | --- |
-  | Essencial | Profissional | "Vendas, manutenção e despesas", "Pix e boleto automáticos, cobrança pelo WhatsApp", "Comissão de vendedores e relatórios", "Até 150 veículos, 3 filiais e 10 usuários" |
+  | Essencial | Profissional | "Vendas, manutenção e despesas", "Pix e boleto automáticos", "Comissão de vendedores e relatórios", "Até 150 veículos, 3 filiais e 10 usuários" |
   | Profissional | Completo | "Veículos, filiais e usuários sem limite", "Implantação acompanhada por chamada", "Suporte prioritário" |
   | Completo | — | `oferta: null` |
 

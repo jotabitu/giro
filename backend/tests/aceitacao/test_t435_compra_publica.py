@@ -109,7 +109,7 @@ def test_plt_11_catalogo_publico_sem_completo(publico, relogio, planos):
     assert profissional["limites"] == {"veiculos": 150, "filiais": 3, "usuarios": 10}
     assert profissional["inclui"] == [
         "Tudo do Essencial, mais despesas",
-        "Pix e boleto automáticos e cobrança pelo WhatsApp",
+        "Pix e boleto automáticos",
     ]
     assert profissional["destaque"] is True and corpo["planos"][0]["destaque"] is False
     assert corpo["teste"] == {

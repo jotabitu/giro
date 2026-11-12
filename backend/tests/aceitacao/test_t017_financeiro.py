@@ -12,6 +12,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import pytest
+from django.core import mail
 from django.db import IntegrityError, connection, transaction
 
 from apps.auditoria.models import EventoAuditoria
@@ -262,6 +263,8 @@ def test_fin_04_aut_05_ca_017_07_webhook_do_pix_baixa_sozinho(
     django_capture_on_commit_callbacks,
 ):
     carlos = _carlos(com_carteira)
+    # O recibo vai por e-mail na fase 1 (AUT-05, T-463): o Carlos da carteira ganha um.
+    Cliente.objects.filter(pk=carlos.cliente_id).update(email="carlos@exemplo.com")
     gerada = cenario.moto.api("Lúcia").post(
         f"{CONTAS}{carlos.pk}/cobranca/", {"tipo": "pix"}, format="json"
     )
@@ -289,7 +292,10 @@ def test_fin_04_aut_05_ca_017_07_webhook_do_pix_baixa_sozinho(
         "Sistema",
         "AUT-05",
     )
-    assert any("recebemos R$ 299,40" in m.texto for m in whatsapp.caixa_de_saida)
+    # AUT-05 (T-463, ADR 0034): o recibo vai por e-mail, e nada pelo WhatsApp na fase 1.
+    (recibo,) = [m for m in mail.outbox if m.subject.endswith(": recibo do pagamento")]
+    assert recibo.to == ["carlos@exemplo.com"] and "recebemos R$ 299,40" in recibo.body
+    assert whatsapp.caixa_de_saida == []
 
 
 def test_fin_04_ca_017_07_valor_diferente_vira_pendencia(

@@ -281,7 +281,7 @@ class CobrarView(APIView):
     @extend_schema(
         request=None,
         responses={202: LoteAceitoSerializer},
-        summary="Cobrar pelo WhatsApp, com o Pix do valor de hoje (AUT-03)",
+        summary="Cobrar por e-mail, com o Pix do valor de hoje (AUT-03)",
     )
     def post(self, request: Request, pk: int) -> Response:
         enviadas = int(services.cobrar(_conta(request, pk)))
@@ -295,7 +295,7 @@ class CobrarEmLoteView(APIView):
     @extend_schema(
         request=LoteSerializer,
         responses={202: LoteAceitoSerializer},
-        summary="Cobrar todos pelo WhatsApp (até 100, uma vez por conta por dia)",
+        summary="Cobrar todos por e-mail (até 100, uma vez por conta por dia)",
     )
     def post(self, request: Request) -> Response:
         ids = _entrada(LoteSerializer, request)["ids"]

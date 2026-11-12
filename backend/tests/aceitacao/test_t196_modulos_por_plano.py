@@ -365,7 +365,7 @@ def test_aut_03_essencial_so_email(criar_moto, relogio):
     connection.set_schema_to_public()
     assert whatsapp.caixa_de_saida == []
     assert [m.to for m in mail.outbox] == [["carlos@exemplo.com"]]
-    assert mail.outbox[0].body.endswith("Pague na loja ou fale com a gente por aqui.")
+    assert mail.outbox[0].body.endswith("Pague na loja.")
 
 
 def test_plt_12_comissao_so_depois_do_upgrade(criar_moto):

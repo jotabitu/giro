@@ -1262,7 +1262,7 @@ def encerrar_devolucao(devolucao: Devolucao, usuario: Any) -> Devolucao:
     vira reembolso pela forma escolhida, e o negativo, conta a receber em 3 dias (DEV-02);
     locação `encerrada` (ou `cancelada` no encerramento antecipado que vale, LOC-12, DEV-07) com
     `devolvida_em` pela LOC-11; veículo `disponivel` ou `em_manutencao` (DEV-04). Depois do
-    commit, o recibo em PDF sai por WhatsApp."""
+    commit, o recibo em PDF sai por e-mail (ADR 0034)."""
     with transaction.atomic():
         travada = _acerto_em_rascunho(devolucao)
         locacao = Locacao.objects.select_related("filial").get(pk=travada.locacao_id)

@@ -51,7 +51,10 @@ def _parcela(locacao, numero: int) -> ContaReceber:
 
 
 def _ultima_mensagem(celular: str) -> str:
-    return [m.texto for m in whatsapp.caixa_de_saida if m.celular == celular][-1]
+    """O último e-mail ao cliente desse celular: na fase 1, a régua e o recibo vão só por e-mail
+    (T-463, ADR 0034)."""
+    email = Cliente.objects.get(celular=celular).email
+    return str([m.body for m in mail.outbox if m.to == [email]][-1])
 
 
 @pytest.fixture(autouse=True)
@@ -205,9 +208,7 @@ def test_aut_03_texto_d0_com_pix(cenario, com_carteira, recebimentos, caixas_vaz
 
 
 def test_aut_03_texto_d0_sem_recebimentos(cenario, com_carteira, caixas_vazias):  # noqa: F811
-    assert _cobrar_carlos(com_carteira, 3).endswith(
-        "vence hoje. Pague na loja ou fale com a gente por aqui."
-    )
+    assert _cobrar_carlos(com_carteira, 3).endswith("vence hoje. Pague na loja.")
 
 
 def test_aut_03_texto_d_mais_7_valor_do_dia(cenario, com_carteira, recebimentos, caixas_vazias):  # noqa: F811
@@ -227,9 +228,10 @@ def test_aut_03_texto_d_mais_3_e_sem_clausula(cenario, com_carteira, relogio, ca
         com_carteira, 2
     )
     # Sem a cláusula de juros no contrato (Rafael): "O valor é", sem multa e juros.
+    Cliente.objects.filter(nome="Rafael Sousa").update(email="rafael@exemplo.com")
     assert financeiro.cobrar(_rafael(com_carteira))
     assert _ultima_mensagem(Cliente.objects.get(nome="Rafael Sousa").celular).endswith(
-        "venceu em 12/09. O valor é R$ 1.347,00. Pague na loja ou fale com a gente por aqui."
+        "venceu em 12/09. O valor é R$ 1.347,00. Pague na loja."
     )
 
 
@@ -264,7 +266,8 @@ def test_aut_03_email_mesmo_texto(cenario, com_carteira, relogio, caixas_vazias)
     assert email.body == texto
     assert email.to == ["carlos@exemplo.com"]
     assert email.from_email.startswith("Moto Rápida <")
-    # Uma vez por conta por dia, contando os dois canais.
+    assert whatsapp.caixa_de_saida == []  # com celular, nada pelo WhatsApp na fase 1 (T-463)
+    # Uma vez por conta por dia, contando os canais.
     assert not financeiro.cobrar(_parcela(com_carteira["LOC-2841"], 3))
     assert len(mail.outbox) == 1
 
@@ -284,19 +287,21 @@ def test_aut_03_email_mesmo_texto(cenario, com_carteira, relogio, caixas_vazias)
 
 
 def test_aut_03_cobrar_em_lote_conta_contas(cenario, com_carteira, caixas_vazias):  # noqa: F811
-    """Carlos (com e-mail) e Rafael: 2 contas cobradas; de novo no mesmo dia, 0."""
+    """Carlos (com e-mail) e Rafael (só com celular): 1 conta cobrada, porque na fase 1 nada vai
+    ao cliente pelo WhatsApp (T-463); de novo no mesmo dia, 0."""
     Cliente.objects.filter(pk=cenario.clientes["Carlos"].pk).update(email="carlos@exemplo.com")
     ids = [_carlos(com_carteira).pk, _rafael(com_carteira).pk]
     api = cenario.moto.api("Lúcia")
     lote = f"{CONTAS}cobrar-em-lote/"
-    assert api.post(lote, {"ids": ids}, format="json").json() == {"enviadas": 2}
-    assert len(mail.outbox) == 1
+    assert api.post(lote, {"ids": ids}, format="json").json() == {"enviadas": 1}
+    assert len(mail.outbox) == 1 and whatsapp.caixa_de_saida == []
     assert api.post(lote, {"ids": ids}, format="json").json() == {"enviadas": 0}
 
 
 # --- AUT-05: recibo ---
 
 
+@pytest.mark.parametrize("chave", [False, True], ids=["fase_1", "chave_ligada"])
 def test_aut_05_recibo_texto(
     cenario,  # noqa: F811
     com_carteira,  # noqa: F811
@@ -304,7 +309,10 @@ def test_aut_05_recibo_texto(
     relogio,
     django_capture_on_commit_callbacks,
     caixas_vazias,
+    settings,
+    chave,
 ):
+    settings.GIRO_WHATSAPP_CLIENTE_FINAL = chave
     _contrato_com_juros(com_carteira["LOC-2841"])
     carlos = _carlos(com_carteira)
     gerada = cenario.moto.api("Lúcia").post(
@@ -315,11 +323,19 @@ def test_aut_05_recibo_texto(
     CobrancaExterna.objects.filter(pk=cobranca.pk).update(criado_em=relogio.agora)
     corpo = pagamentos.simular_pagamento(cobranca.externo_id)
     assert _webhook(django_capture_on_commit_callbacks, corpo) == 200
-    assert _ultima_mensagem("85985554433") == (
+    texto = (
         "Moto Rápida: recebemos R$ 306,09 por Pix em 07/10, da parcela 2 de 5 da locação "
         "LOC-2841. Este é o seu recibo."
     )
-    assert not mail.outbox  # o recibo é só pelo WhatsApp
+    # AUT-05 (T-463, ADR 0034): o recibo por e-mail, e nada pelo WhatsApp na fase 1.
+    (recibo,) = mail.outbox
+    assert (recibo.subject, recibo.body) == ("Moto Rápida: recibo do pagamento", texto)
+    assert recibo.to == [carlos.cliente.email]
+    assert recibo.from_email.startswith("Moto Rápida <")
+    if settings.GIRO_WHATSAPP_CLIENTE_FINAL:  # o envio guardado, com a chave ligada
+        assert [m.texto for m in whatsapp.caixa_de_saida] == [texto]
+    else:
+        assert whatsapp.caixa_de_saida == []
 
 
 def test_aut_05_recibo_forma_e_dia(cenario):  # noqa: F811

@@ -33,7 +33,7 @@ const CATALOGO: CatalogoDaCompra = {
       mensal_centavos: 44900,
       anual_centavos: 449000,
       limites: { veiculos: 150, filiais: 3, usuarios: 10 },
-      inclui: ["Tudo do Essencial, mais despesas", "Pix e boleto automáticos e cobrança pelo WhatsApp"],
+      inclui: ["Tudo do Essencial, mais despesas", "Pix e boleto automáticos"],
       destaque: true,
     },
   ],

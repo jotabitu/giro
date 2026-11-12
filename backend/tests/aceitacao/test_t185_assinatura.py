@@ -329,12 +329,12 @@ def test_plt_11_catalogo_confere_a_tabela_da_regra():
     # PLT-11, catálogo da fase 1 (T-378): o Profissional só com o que já existe.
     assert catalogo.textos("Profissional").inclui == (
         "Tudo do Essencial, mais despesas",
-        "Pix e boleto automáticos e cobrança pelo WhatsApp",
+        "Pix e boleto automáticos",
     )
     assert catalogo.textos("Completo").inclui[0] == "Tudo do Profissional"
     assert catalogo.textos("Profissional").a_mais == (
         "Despesas",
-        "Pix e boleto automáticos e cobrança pelo WhatsApp",
+        "Pix e boleto automáticos",
         "Até 150 veículos, 3 filiais e 10 usuários",
     )
     vende = ("vendas", "manutenção", "comiss", "relatório", "conciliação")

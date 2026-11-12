@@ -117,3 +117,15 @@ def _cache_limpo():
     cache.clear()
     yield
     cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def _whatsapp_vazio():
+    """A caixa do WhatsApp falso é da memória do processo, como o `mail.outbox`: cada teste
+    começa vazio. Sem isso, um teste com `GIRO_WHATSAPP_CLIENTE_FINAL` ligada deixava a mensagem
+    para o próximo do mesmo worker (T-463, CI do #544)."""
+    from integracoes.whatsapp.falso import caixa_de_saida
+
+    caixa_de_saida.clear()
+    yield
+    caixa_de_saida.clear()

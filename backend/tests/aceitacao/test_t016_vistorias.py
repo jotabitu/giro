@@ -15,6 +15,7 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
+from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from PIL import Image
@@ -1545,7 +1546,7 @@ def test_dev_04_dev_06_ca_016_17_encerrar(
         encerradas.append(dados)
 
     eventos.assinar("locacoes.locacao_encerrada", ouvir)
-    enviadas = len(whatsapp.caixa_de_saida)
+    enviadas = len(mail.outbox)
     try:
         with django_capture_on_commit_callbacks(execute=True):
             resposta = _encerrar(cenario, corpo["id"])
@@ -1581,17 +1582,21 @@ def test_dev_04_dev_06_ca_016_17_encerrar(
     )
     assert reembolso.status == "feito" and reembolso.comprovante
 
-    # Depois do commit: o recibo em PDF, com as fotos, sai por WhatsApp com a marca da locadora.
+    # Depois do commit: o recibo em PDF, com as fotos, sai por e-mail com a marca da locadora, e
+    # nada pelo WhatsApp na fase 1 (DEV-02, T-463, ADR 0034).
     devolucao = Devolucao.objects.get(pk=corpo["id"])
     assert devolucao.recibo and devolucao.recibo_enviado_em is not None
     _, imagens = recibo.corpo(devolucao)
     assert len(imagens) == 6  # as 5 posições e a foto do retrovisor
-    novas = whatsapp.caixa_de_saida[enviadas:]
-    assert [m.celular for m in novas] == ["85981142290"]
+    novas = mail.outbox[enviadas:]
+    assert [m.to for m in novas] == [["juliana@email.com"]]
     marca = Empresa.objects.get(schema_name="empresa_a").nome_exibicao  # a da locadora
-    assert novas[0].texto.startswith(f"{marca}: recibo da devolução da LOC-2836.")
-    assert "Giro" not in novas[0].texto
-    assert "Devolução de R$ 183,00 por Pix em até 1 dia útil." in novas[0].texto
+    assert novas[0].subject == f"{marca}: recibo da devolução da LOC-2836"
+    assert "Giro" not in novas[0].body
+    assert "Devolução de R$ 183,00 por Pix em até 1 dia útil." in novas[0].body
+    ((nome, _, tipo),) = novas[0].attachments
+    assert (nome, tipo) == ("recibo-devolucao-LOC-2836.pdf", "application/pdf")
+    assert whatsapp.caixa_de_saida == []
 
     # O acerto concluído não se edita mais.
     retrovisor = next(i for i in corpo["acerto"]["itens"] if i["tipo"] == "avaria")
@@ -1662,6 +1667,8 @@ def test_dev_ca_016_19_quem_fecha_a_conta(cenario, lucas):
 
 
 def test_dev_ca_016_20_recibo(cenario, lucas, relogio, django_capture_on_commit_callbacks):
+    # O recibo vai por e-mail na fase 1 (DEV-02, T-463): o Lucas do seed não tem e-mail.
+    Cliente.objects.filter(pk=cenario.clientes["Lucas"].pk).update(email="lucas@email.com")
     criada = _lucas_ativo(cenario)
     devolucao = _abrir_devolucao(cenario, criada["id"])
     _chegada(cenario, devolucao, 3200, "tres_quartos")
@@ -1672,7 +1679,7 @@ def test_dev_ca_016_20_recibo(cenario, lucas, relogio, django_capture_on_commit_
     assert antes.json()["codigo"] == "devolucao_em_rascunho"
 
     assert _forma(cenario, devolucao["id"]).status_code == 200
-    enviadas = len(whatsapp.caixa_de_saida)
+    enviadas = len(mail.outbox)
     try:
         with django_capture_on_commit_callbacks(execute=True):
             assert _encerrar(cenario, devolucao["id"]).status_code == 200
@@ -1686,10 +1693,10 @@ def test_dev_ca_016_20_recibo(cenario, lucas, relogio, django_capture_on_commit_
     finally:
         connection.set_tenant(Empresa.objects.get(schema_name="empresa_a"))
     assert reenviar.status_code == 202
-    assert len(whatsapp.caixa_de_saida) - enviadas == 2  # o envio e o reenvio
+    assert len(mail.outbox) - enviadas == 2  # o envio e o reenvio, por e-mail (T-463)
 
     html, _ = recibo.corpo(Devolucao.objects.get(pk=devolucao["id"]))
-    textos = [html.lower(), *(m.texto.lower() for m in whatsapp.caixa_de_saida[enviadas:])]
+    textos = [html.lower(), *(m.body.lower() for m in mail.outbox[enviadas:])]
     assert "devolução" in textos[0] and "caução" in textos[0]
     for texto in textos:
         assert "check-in" not in texto and "depósito" not in texto

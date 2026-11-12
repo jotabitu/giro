@@ -153,9 +153,9 @@ def convidar(
     por: Usuario | None = None,
     marca_equipe: bool = True,
 ) -> Usuario:
-    """Pessoa `convite_pendente` e convite de 7 dias, enviado depois do commit por e-mail e, com
-    celular, por WhatsApp (USR-01). Conta no limite do plano (PLT-03). O primeiro convite marca o
-    passo `equipe` da implantação, mesmo sem aceite (IMP-07)."""
+    """Pessoa `convite_pendente` e convite de 7 dias, enviado depois do commit por e-mail (USR-01;
+    o WhatsApp só com `GIRO_WHATSAPP_CLIENTE_FINAL`). Conta no limite do plano (PLT-03). O
+    primeiro convite marca o passo `equipe` da implantação, mesmo sem aceite (IMP-07)."""
     from apps.plataforma.services import atualizar_uso, exigir_limite, registrar_passo_implantacao
 
     email = email.strip().lower()

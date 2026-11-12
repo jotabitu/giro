@@ -10,8 +10,10 @@ from contextlib import contextmanager
 from typing import Any
 
 import pytest
+from django.core import mail
 
 from apps.auditoria.models import EventoAuditoria
+from apps.clientes.models import Cliente
 from apps.contratos import pdf, selectors
 from apps.contratos import services as contratos
 from apps.contratos.models import Contrato, ModeloContrato
@@ -32,18 +34,22 @@ MODELOS = "/api/contratos/modelos/"
 CONSULTAR = "/api/publico/assinaturas/consultar/"
 ASSINAR = "/api/publico/assinaturas/assinar/"
 HOST_B = "empresa-b.localhost"
+EMAIL_DO_LUCAS = "lucas@email.com"
 
 
 @pytest.fixture
 def moto(empresa_a, planos, relogio) -> Cenario:
     """O cenário da T-015, com a marca da locadora no nome da empresa e o WhatsApp vazio.
-    O cliente de teste chega pelo proxy confiável, com o IP no `X-Forwarded-For`."""
+    O cliente de teste chega pelo proxy confiável, com o IP no `X-Forwarded-For`. O Lucas ganha
+    um e-mail: na fase 1, o contrato vai só por e-mail (T-463, ADR 0034)."""
     locacoes_leituras.registrar()
     empresa_a.nome_exibicao = "Moto Rápida"
     empresa_a.save(update_fields=["nome_exibicao"])
     base = MotoRapida(empresa_a, planos["Profissional"])
     caixa_de_saida.clear()
-    return Cenario(base, montar_frota(base))
+    cenario = Cenario(base, montar_frota(base))
+    Cliente.objects.filter(pk=cenario.clientes["Lucas"].pk).update(email=EMAIL_DO_LUCAS)
+    return cenario
 
 
 @contextmanager
@@ -66,8 +72,13 @@ def _gerar(moto: Cenario, capturar: Any, locacao_id: int, quem: str = "Bruna") -
         return moto.moto.api(quem).post(f"{LISTA}{locacao_id}/contrato/")
 
 
+def _links() -> list[Any]:
+    """Os e-mails com o link de assinatura, em ordem."""
+    return [m for m in mail.outbox if "/assinar#" in m.body]
+
+
 def _token(indice: int = -1) -> str:
-    return caixa_de_saida[indice].texto.split("/assinar#", 1)[1].split(" ", 1)[0]
+    return str(_links()[indice].body.split("/assinar#", 1)[1].split(" ", 1)[0])
 
 
 def _assinar(token: str, nome: str = "Lucas Ferreira", capturar: Any = None) -> Any:
@@ -99,13 +110,14 @@ def test_fin_03_ca_015_11_gerar_e_enviar_contrato(moto, django_capture_on_commit
     assert contrato.versao_texto_html == "<p>Lucas Ferreira</p>"
     assert contrato.pdf.open().read().startswith(b"%PDF-")
     assert len(contrato.hash_pdf) == 64
-    # O link sai por WhatsApp com a marca da locadora; o token vai no fragmento e o banco
-    # guarda só o hash (S-15).
-    mensagem = caixa_de_saida[-1]
-    assert mensagem.celular == "85988771203"
-    assert mensagem.texto.startswith("Moto Rápida:")
-    assert "https://empresa-a.localhost/assinar#" in mensagem.texto
-    assert "giro" not in mensagem.texto.lower().replace("empresa-a.localhost", "")
+    # O link sai por e-mail com a marca da locadora, e nada pelo WhatsApp na fase 1 (T-463); o
+    # token vai no fragmento e o banco guarda só o hash (S-15).
+    (mensagem,) = _links()
+    assert mensagem.to == [EMAIL_DO_LUCAS]
+    assert mensagem.subject == "Moto Rápida: contrato de locação semanal para assinar"
+    assert "https://empresa-a.localhost/assinar#" in mensagem.body
+    assert "giro" not in mensagem.body.lower().replace("empresa-a.localhost", "")
+    assert caixa_de_saida == []
     assert contrato.token_assinatura_hash == contratos.hash_do_token(_token())
 
     detalhe = moto.detalhe(locacao["id"])
@@ -218,18 +230,23 @@ def test_s_15_ca_015_12_reenviar_invalida_o_link_anterior(moto, django_capture_o
         resposta = moto.moto.api("Bruna").post(f"{LISTA}{locacao['id']}/contrato/reenviar/")
     assert resposta.status_code == 202, resposta.json()
     novo = _token()
-    assert novo != antigo and len(caixa_de_saida) == 2
+    assert novo != antigo and len(_links()) == 2
 
     assert _publica().post(CONSULTAR, {"token": antigo}, format="json").status_code == 404
     assert _publica().post(CONSULTAR, {"token": novo}, format="json").status_code == 200
     assert _assinar(antigo).status_code == 404
     assert _assinar(novo, capturar=django_capture_on_commit_callbacks).status_code == 200
 
-    # Depois de assinado, reenviar manda o PDF assinado, sem link de assinatura.
+    # Depois de assinado, reenviar manda o PDF assinado anexo ao e-mail, sem link de assinatura.
     with _tarefas(django_capture_on_commit_callbacks):
         moto.moto.api("Bruna").post(f"{LISTA}{locacao['id']}/contrato/reenviar/")
-    assert "/assinar#" not in caixa_de_saida[-1].texto
-    assert "assinado" in caixa_de_saida[-1].texto
+    assinado = mail.outbox[-1]
+    assert assinado.to == [EMAIL_DO_LUCAS] and "/assinar#" not in assinado.body
+    assert assinado.subject == "Moto Rápida: contrato de locação semanal assinado"
+    ((nome, conteudo, tipo),) = assinado.attachments
+    assert nome == "LOC-2856-contrato-de-locacao-semanal-assinado.pdf"
+    assert (conteudo[:5], tipo) == (b"%PDF-", "application/pdf")
+    assert caixa_de_saida == []
 
 
 def test_s_15_token_desconhecido_e_limite_por_ip(moto):
