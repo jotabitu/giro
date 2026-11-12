@@ -34,7 +34,6 @@ class ViewDeVendas(APIView):
     # PLT-12: as rotas /api/vendas/ só abrem com o recurso de vendas (ADR 0024, item 4).
     recurso_do_plano = Recurso.VENDAS_COMISSOES
     permission_classes = LEEM
-    suporte_somente_leitura = True
 
 
 class VendasView(ViewDeVendas):

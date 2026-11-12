@@ -1046,20 +1046,23 @@ def test_fin_03_seed_019_30_multa_e_juros_no_caixa(seed):
 
 # --- Fase 2: sem módulo no backend (CA-019-31) ---
 
-SEM_VENDAS = "módulo de vendas ainda não existe (apps/vendas é só README; VEN-02, VEN-04)"
+SEM_VENDAS = (
+    "venda de balcão ainda não existe (T-418; a T-420 só criou a venda da quitação, VEN-11): "
+    "sem proposta, desconto, parcelas nem comissão (VEN-02, VEN-04, FIN-09)"
+)
 
 
 @pytest.mark.xfail(strict=True, raises=ImportError, reason=SEM_VENDAS)
 def test_ven_02_seed_019_31_venda_ven_0177():
     """Tabela 22.900,00, desconto 8%, entrada 5.000,00, 12 parcelas: final 21.068,00,
     12 × 1.339,00 e vai para aprovação."""
-    from apps.vendas import services  # noqa: F401
+    from apps.vendas.services import criar_proposta  # noqa: F401  (T-418)
 
 
 @pytest.mark.xfail(strict=True, raises=ImportError, reason=SEM_VENDAS)
 def test_fin_09_seed_019_31_comissao_da_venda_ven_0177():
     """3% de 21.068,00 = R$ 632,04 pendente; outubro R$ 968,00; setembro R$ 1.890,00."""
-    from apps.vendas import services  # noqa: F401
+    from apps.vendas.services import criar_proposta  # noqa: F401  (T-418)
 
 
 @pytest.mark.xfail(strict=True, raises=ImportError, reason="sem módulo de conciliação (FIN-12)")
