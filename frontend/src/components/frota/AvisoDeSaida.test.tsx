@@ -158,7 +158,7 @@ describe("VEI-10 · Voltar do navegador (T-462)", () => {
     let perguntas = 0;
     const guarda = guardarVoltar(janela, () => perguntas++);
     // Liga: empilha uma entrada igual à da tela, com o state do Next.
-    expect(pilha).toEqual([{ __NA: true }]);
+    expect(pilha).toEqual([{ __NA: true, guardaFotos: true }]);
     // Voltar: pergunta.
     ouvintes.popstate!();
     expect(perguntas).toBe(1);
@@ -172,5 +172,37 @@ describe("VEI-10 · Voltar do navegador (T-462)", () => {
     expect(perguntas).toBe(2);
     guarda.desligar();
     expect(ouvintes.popstate).toBeUndefined();
+  });
+
+  it("test_vei_10_fila_vazia_tira_a_entrada_de_guarda_sem_perguntar", () => {
+    const ouvintes: Record<string, () => void> = {};
+    const estado = { atual: { __NA: true } as Record<string, unknown> };
+    let voltas = 0;
+    const janela = {
+      location: { href: "https://locadora.giro.test/veiculos/novo" },
+      history: {
+        get state() {
+          return estado.atual;
+        },
+        pushState: (s: Record<string, unknown>) => (estado.atual = s),
+        back: () => {
+          voltas++;
+          estado.atual = { __NA: true };
+          ouvintes.popstate?.();
+        },
+      },
+      addEventListener: (n: string, f: () => void) => (ouvintes[n] = f),
+      removeEventListener: (n: string) => delete ouvintes[n],
+    } as unknown as Parameters<typeof guardarVoltar>[0];
+    let perguntas = 0;
+    // A fila esvazia com a guarda no topo: tira a entrada, uma volta, nenhuma pergunta.
+    guardarVoltar(janela, () => perguntas++).desligar();
+    expect(voltas).toBe(1);
+    expect(perguntas).toBe(0);
+    // Outra página já está no topo (a pessoa saiu por um link): não volta nada.
+    const g = guardarVoltar(janela, () => perguntas++);
+    estado.atual = { __NA: true };
+    g.desligar();
+    expect(voltas).toBe(1);
   });
 });

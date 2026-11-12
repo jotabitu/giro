@@ -75,7 +75,11 @@ export function guardarVoltar(
 ) {
   let ativo = true;
   const empilhar = () =>
-    janela.history.pushState(janela.history.state, "", janela.location.href);
+    janela.history.pushState(
+      { ...janela.history.state, guardaFotos: true },
+      "",
+      janela.location.href,
+    );
   const aoPopState = () => {
     if (ativo) aoVoltar();
   };
@@ -87,7 +91,12 @@ export function guardarVoltar(
       ativo = false;
       janela.history.back();
     },
-    desligar: () => janela.removeEventListener("popstate", aoPopState),
+    // Fila vazia: se a entrada de guarda ainda é a do topo, tira-a sem perguntar (senão sobraria um Voltar a mais).
+    desligar: () => {
+      ativo = false;
+      janela.removeEventListener("popstate", aoPopState);
+      if (janela.history.state?.guardaFotos) janela.history.back();
+    },
   };
 }
 
