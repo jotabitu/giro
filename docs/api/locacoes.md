@@ -1,6 +1,6 @@
 # Locações
 
-**Dono:** arquiteto · **Versão:** 07 out 2026 (T-038), troca de veículo em 10 out 2026 (T-122), `acoes.gerar_contrato` em 15 out 2026 (T-263), reserva na confirmação, nada vence antes da retirada e cancelamento automático em 03 nov 2026 (T-410), copiar link para assinar em 03 nov 2026 (T-411, `copiar-link.md`), locação com intenção de compra em 03 nov 2026 (T-420, ADR 0037) · **App:** `locacoes` (schema da empresa) · **Regras:** LOC-01 a LOC-16, VEN-11, CLI-02, CLI-03, CLI-05, IMP-04, APR-01, APR-02, FIL-03, FIL-05, FIN-03, FIN-09, AUT-17 · **ADRs:** 0005, 0011, 0015, 0035, 0037 · **Telas:** Locacoes, Locacao, Locacao-Detalhe · **Critérios:** `docs/qa/criterios/T-410.md` (CA-410-01 a 23), `docs/qa/criterios/T-420.md` (CA-420-01 a 17)
+**Dono:** arquiteto · **Versão:** 07 out 2026 (T-038), troca de veículo em 10 out 2026 (T-122), `acoes.gerar_contrato` em 15 out 2026 (T-263), reserva na confirmação, nada vence antes da retirada e cancelamento automático em 03 nov 2026 (T-410), copiar link para assinar em 03 nov 2026 (T-411, `copiar-link.md`), locação com intenção de compra em 03 nov 2026 (T-420, ADR 0037), "Para retirar", seção Pagamentos com a caução e evento "Retirada" em 10 nov 2026 (T-451, T-452) · **App:** `locacoes` (schema da empresa) · **Regras:** LOC-01 a LOC-17, FIN-18, VEN-11, CLI-02, CLI-03, CLI-05, IMP-04, APR-01, APR-02, FIL-03, FIL-05, FIN-03, FIN-09, AUT-17 · **ADRs:** 0005, 0011, 0015, 0035, 0037 · **Telas:** Locacoes, Locacao, Locacao-Detalhe · **Critérios:** `docs/qa/criterios/T-410.md` (CA-410-01 a 23), `docs/qa/criterios/T-420.md` (CA-420-01 a 17)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 12 e 13 (`PlanoEspecial`, `Locacao`, `TrechoLocacao`, `ExtraLocacao`) em `docs/decisoes/modelo-de-dados.md`. Vistoria, devolução e acerto estão em `vistorias.md`; modelo de contrato, PDF e assinatura, em `contratos.md`; receber parcela no caixa ou por Pix, em `financeiro.md` (T-017).
 
@@ -58,7 +58,7 @@ cancelada                        │                                            
 `veiculo.tipo` (`moto` ou `carro`, da categoria) e `pagamento.pago_centavos` (contas pagas da locação, **sem** caução, como o `total_pago_centavos` do cliente) entram na T-128 para a ficha do cliente (`GET /api/locacoes/?cliente=`) não precisar abrir o detalhe de cada locação. Na LOC-2836 do exemplo: duas parcelas de R$ 329,00 pagas = 65800; a caução de R$ 300,00 fica de fora.
 
 `sinais.pagamento_atrasado` (`LOC-07`) usa a `financeiro.selectors.q_atrasada`: na locação `aguardando_retirada`, nunca acende (`LOC-05`, T-410), mesmo com o vencimento gravado já passado. O mesmo vale para `indicadores.pagamentos_atrasados*` e para a aba `precisam_acao`.
-`situacao` (a primeira que valer): `devolucao_atrasada` ("Devolução atrasada 25 dias"), `cancelamento_pendente` ("Pedido de cancelamento"), `pagamento_atrasado` ("Parcela 2 atrasada"), `aguardando_assinatura` / `aguardando_vistoria` / `aguardando_pagamento` (o que falta em `aguardando_retirada`, nessa ordem), `devolve_hoje`, `ativa`, `encerrada`, `cancelada`.
+`situacao` (a primeira que valer): `devolucao_atrasada` ("Devolução atrasada 25 dias"), `cancelamento_pendente` ("Pedido de cancelamento"), `pagamento_atrasado` ("Parcela 2 atrasada"), `aguardando_vistoria` / `aguardando_assinatura` / `aguardando_pagamento` (o primeiro passo que falta em `aguardando_retirada`, nessa ordem, `LOC-17`, T-451), `pendencia_retirada` (na locação retirada à mão com a assinatura ou o 1º pagamento faltando, `LOC-17`; o rótulo diz o que falta: "Falta a assinatura", "Falta o 1º pagamento" ou "Faltam assinatura e pagamento"), `devolve_hoje`, `ativa`, `encerrada`, `cancelada`.
 `pagamento.rotulo`: "R$ 1.347,00 em aberto", "Pago", "Pix automático", "R$ 329,00 pago" (antes da retirada), "Multa R$ 84,80" (com cancelamento pendente), forma de pagamento quando em dia.
 `acao_principal`: `cobrar` (há valor em aberto), `receber_devolucao` (`devolve_hoje` ou `devolucao_atrasada`), `abrir`.
 
@@ -79,9 +79,9 @@ A linha mais:
   "forma_pagamento": "pix", "parcelamento_mensal": null,
   "condicoes": { "vistoria_saida_ok_em": "...", "contrato_assinado_em": "...", "primeiro_pagamento_em": "..." },
   "parcelas": [
-    { "id": 9001, "tipo": "parcela", "numero": 1, "vencimento": "2026-09-30", "valor_centavos": 32900, "status": "paga", "forma": "pix", "pago_em": "..." },
-    { "id": 9002, "tipo": "parcela", "numero": 2, "vencimento": "2026-10-07", "valor_centavos": 32900, "status": "paga", "forma": "pix", "pago_em": "..." },
-    { "id": 9003, "tipo": "caucao", "numero": null, "vencimento": "2026-09-30", "valor_centavos": 30000, "status": "paga", "forma": "pix", "pago_em": "...", "observacao": "Devolver na entrega" }
+    { "id": 9001, "conta_id": 9001, "tipo": "parcela", "numero": 1, "rotulo": "Parcela 1", "vencimento": "2026-09-30", "valor_centavos": 32900, "valor_hoje_centavos": 32900, "status": "paga", "forma": "pix", "pago_em": "...", "acoes": { "receber": false } },
+    { "id": 9002, "conta_id": 9002, "tipo": "parcela", "numero": 2, "rotulo": "Parcela 2", "vencimento": "2026-10-07", "valor_centavos": 32900, "valor_hoje_centavos": 32900, "status": "paga", "forma": "pix", "pago_em": "...", "acoes": { "receber": false } },
+    { "id": 9003, "conta_id": 9003, "tipo": "caucao", "numero": null, "rotulo": "Caução", "vencimento": "2026-09-30", "valor_centavos": 30000, "valor_hoje_centavos": 30000, "status": "paga", "forma": "pix", "pago_em": "...", "observacao": "Devolver na entrega", "acoes": { "receber": false } }
   ],
   "total_pago_centavos": 95800,
   "contrato": { "id": 77, "status": "assinado", "modelo": "Locação semanal", "versao": 3, "assinado_em": "...", "pdf_disponivel": true },
@@ -99,6 +99,12 @@ A linha mais:
 - `cliente` no detalhe traz, além de `id` e `nome` (os da linha da lista), o `celular` e a `cnh_categoria` (`null` se o cadastro não tem) e `ficha_liberada`: `true` se o perfil abre a ficha do cliente (`GET /api/clientes/{id}/`), `false` para o vistoriador, que recebe 403 lá (`USR-09`, T-207). A tela da locação usa isso no lugar de chamar a ficha do cliente.
 - `total_pago_centavos` inclui a caução paga, como na tela. Caso do seed (`LOC-06`, `LOC-05`): LOC-2836 = 32900 + 32900 + 30000 = **95800**.
 - `parcelas` vêm de `financeiro.selectors` (`financeiro` está acima de `locacoes`, ADR 0011). Status como em `FIN-01` (`vence_hoje` e `atrasada` calculados).
+- **Seção Pagamentos** (`FIN-18`, `LOC-17`, T-451/T-452): `parcelas` lista as parcelas pelo número, depois a caução, depois as cobranças do acerto. Cada linha traz:
+  - `rotulo`: "Parcela 1", "Caução";
+  - `valor_hoje_centavos`: o `valor_hoje.total_centavos` da conta (`FIN-03`), o que o "Registrar pagamento" cobra hoje; antes da retirada, sem multa nem juros;
+  - `conta_id`: o `id` da conta em `/api/financeiro/contas-receber/` (o mesmo `id` da linha). "Registrar pagamento" abre a mesma baixa de `Receber` (`POST /api/financeiro/contas-receber/{conta_id}/receber/`, ou o Pix e o boleto da conta), sem sair da ficha, e depois só a ficha se atualiza;
+  - `acoes.receber`: o mesmo `acoes.receber` da conta em `Receber` (conta aberta e perfil que recebe no caixa: administrador, gerente, vendedor e financeiro). A tela mostra "Registrar pagamento" só por ele.
+  O vistoriador continua sem `parcelas` (`sem_valores`).
 - `acoes.cancelar`: `direto`, `pedir` ou `false`, conforme o perfil. É `false` com uma troca de veículo pendente (`LOC-12`, T-122).
 - `acoes.gerar_contrato` (T-263, passo 3 do fluxo da retirada): `true` quando `POST /api/locacoes/{id}/contrato/` passaria, pelas mesmas condições do serviço: perfil que cria locação (administrador, gerente, vendedor), locação `aguardando_retirada`, sem pedido de desconto pendente (`APR-01`), sem cancelamento em curso (`LOC-12`) e sem contrato vigente (o `contrato` do detalhe é `null` ou `cancelado`). Não olha o modelo publicado: sem ele, o botão aparece e o `POST` responde 422 `IMP-04` com o atalho para publicar (`IMP-04` manda mostrar o atalho). A tela mostra "Enviar contrato" só por ele; com contrato vigente, as ações são `reenviar_contrato` e `imprimir_contrato`. Na LOC-2836 (ativa, contrato assinado) é `false`.
 - `acoes.trocar_veiculo`: quem cria, locação `ativa`, sem cancelamento em curso e sem troca pendente.
@@ -120,6 +126,39 @@ A linha mais:
   "prazo_retirada": { "ultimo_dia": "2026-11-08", "cancela_em": "2026-11-09" }
   ```
   `ultimo_dia` = data local do `inicio` + 3 dias corridos (`locacoes.selectors.ultimo_dia_retirada`), feriado da filial contando; `cancela_em` = o dia seguinte, quando a `AUT-17` cancela às 00:10. Datas sem hora. A tela de referência não mostra o prazo; o campo existe para a tela que vier a mostrar e para o QA, e a tela não calcula a data por conta própria.
+- `para_retirar` (`LOC-17`, T-451): só na locação `aguardando_retirada`; nos outros status, `null`. Os três passos, sempre nessa ordem, e o prazo da `LOC-12`. Textos prontos: a tela não decide o que falta.
+  ```json
+  "para_retirar": {
+    "passos": [
+      { "codigo": "vistoria_saida", "feito": false, "texto": "Falta a vistoria de saída",
+        "acoes": [ { "codigo": "continuar_vistoria", "rotulo": "Fazer vistoria de saída" } ] },
+      { "codigo": "contrato", "feito": false, "texto": "Falta enviar o contrato",
+        "acoes": [ { "codigo": "gerar_contrato", "rotulo": "Enviar contrato" } ] },
+      { "codigo": "pagamento", "feito": false,
+        "texto": "Falta receber R$ 629,00: 1ª semana R$ 329,00 e caução R$ 300,00", "acoes": [] }
+    ],
+    "prazo": "Retire até 10 out. Sem retirada, a locação é cancelada em 11 out."
+  }
+  ```
+  - `acoes` de cada passo: só as que o perfil pode fazer, e o `codigo` é a mesma chave de `acoes` da locação, que a tela já sabe executar (`continuar_vistoria`, `gerar_contrato`, `reenviar_contrato`, `copiar_link_contrato`). O pagamento não tem ação no passo: cada conta tem "Registrar pagamento" na seção Pagamentos (`parcelas[].acoes.receber`).
+  - **Vistoria de saída:** feita, "Feita em 07 out, 09:20" (`vistoria_saida_ok_em`, no fuso da empresa). Falta: "Falta a vistoria de saída". Com um impedimento da retirada, o texto é a frase do primeiro, a mesma que a conclusão da vistoria recusaria: cliente (`CLI-03` "Complete o cadastro do cliente antes da retirada.", `CLI-02`, `CLI-05`) e depois veículo (`VEI-03` "Renove o CRLV vencido antes da retirada."). A ação continua para quem vistoria.
+  - **Contrato:** assinado, "Assinado em 07 out, 10:05". Enviado e não assinado: "Falta a assinatura do cliente", com "Reenviar" (`reenviar_contrato`) e "Copiar link para assinar" (`copiar_link_contrato`). Sem contrato vigente: "Falta enviar o contrato", com "Enviar contrato" (`gerar_contrato`).
+  - **1º pagamento** (1ª parcela **e** caução, `FIN-18`): pago, "Pago em 07 out · R$ 629,00" (`primeiro_pagamento_em` e a soma das duas). Falta: "Falta receber {total}: {o que falta}", só com as contas ainda abertas, pelo valor de hoje de cada uma (com só a caução paga: "Falta receber R$ 329,00: 1ª semana R$ 329,00"). O nome da 1ª parcela segue o plano: "1ª semana" (semanal), "1º mês" (mensal à vista), "1ª parcela" (mensal em 4 semanais), "diárias" (diária). Para o vistoriador, sem valores: "Falta o 1º pagamento" e "Pago em 07 out".
+  - `prazo`: `prazo_retirada` em texto.
+  - `registrar_retirada` (`LOC-17`, decisão do dono de 11 nov 2026): o botão "Registrar retirada", `null` para quem não pode (`acoes.registrar_retirada` false). Textos prontos para o botão e para a confirmação:
+    ```json
+    "registrar_retirada": {
+      "rotulo": "Registrar retirada",
+      "disponivel": false,
+      "aviso": "Faça a vistoria de saída antes da retirada.",
+      "titulo": "Registrar retirada?",
+      "faltas": ["Falta enviar o contrato", "Falta receber R$ 629,00: 1ª semana R$ 329,00 e caução R$ 300,00"],
+      "motivo_obrigatorio": "Informe o motivo."
+    }
+    ```
+    `disponivel` é `false` sem a vistoria de saída concluída, e `aviso` diz por quê (com a vistoria, `true` e `aviso` `null`). `faltas` são os `texto` dos passos não feitos, para a confirmação "Registrar retirada?", que leva o campo "Motivo". A rota está em "POST /api/locacoes/{id}/retirada/".
+- `acoes.registrar_retirada` (`LOC-17`): `true` para o administrador e o gerente (o escopo de filial vale como em toda rota da locação), com a locação `aguardando_retirada`. Não olha a vistoria: sem ela, o botão aparece com o aviso, e a rota recusa com 409.
+- `pendencias_retirada` (`LOC-17`): só na locação retirada à mão (`ativa` ou `devolucao_atrasada`) com a assinatura ou o 1º pagamento faltando; senão, `null`. `{ "passos": [...] }` só com os passos que faltam, no formato e nos textos do `para_retirar` (contrato, depois pagamento), com as mesmas ações: "Enviar contrato" continua sem contrato vigente, e "Reenviar" e "Copiar link para assinar" com o contrato enviado. O pagamento sai pelo valor de hoje da conta, já com multa e juros quando atrasada. Some quando os dois estão feitos. A retirada sozinha não tem pendência.
 - `parcelas` da locação `aguardando_retirada`: status `aberta`, mesmo com o vencimento já passado (`LOC-05`), e `valor_hoje` sem multa nem juros (`FIN-03`, `financeiro.md`).
 - `cancelamento` da locação cancelada pela `AUT-17`: `{ "status": "aprovado", "pedido_aprovacao_id": null, "antes_da_retirada": true, "automatico": true, "data": "2026-11-09", "multa_centavos": 0, "devolver_centavos": 62900, "motivo": "Não retirada em 3 dias da data de início" }`. `automatico` é `false` nos outros cancelamentos.
 
@@ -133,7 +172,7 @@ Linha do tempo de `Locacao-Detalhe`: `{ "resultados": [ { "em": "...", "rotulo":
 ### GET /api/locacoes/
 Perfis: todos menos vistoriador (que usa a agenda, `vistorias.md`). Escopo de filial pelo `X-Filial`.
 Query: `?aba=abertas|precisam_acao|devolvem_hoje|encerradas|canceladas` (padrão `abertas`: `aguardando_retirada`, `ativa`, `devolucao_atrasada`), `?periodicidade=`, `?plano_especial=`, `?veiculo=<id>`, `?cliente=<id>`, `?busca=` (código, cliente, placa), `?ordem=fim_previsto|-inicio`.
-`precisam_acao` = devolução atrasada, pagamento atrasado, aguardando assinatura ou cancelamento pendente.
+`precisam_acao` = devolução atrasada, pagamento atrasado, aguardando assinatura, cancelamento pendente ou pendência da retirada à mão (`LOC-17`: assinatura ou 1º pagamento faltando depois do "Registrar retirada").
 200:
 ```json
 {
@@ -223,6 +262,23 @@ Regras: LOC-01 a LOC-05, LOC-12, LOC-14, LOC-15, IMP-04, APR-01, FIL-05, tabela 
 - **Contrato:** `POST /api/locacoes/{id}/contrato/` gera o PDF do modelo publicado e envia o link de assinatura por e-mail (ver `contratos.md`). 202 `{ "contrato_id", "status": "gerado" }`; o envio e o PDF saem em segundo plano.
 - **1º pagamento:** pelo caixa ou Pix, nas contas a receber da locação (`financeiro.md`). O assinante de `financeiro.parcela_paga` grava `primeiro_pagamento_em` quando a 1ª parcela e a caução estão pagas. Pagas antes ou no dia da retirada, as duas nunca têm multa nem juros, mesmo com o vencimento gravado antes (`FIN-03`, CA-410-09: R$ 629,00 em 07 nov, com vencimento em 05 nov).
 - Cada uma das três chama `locacoes.services.verificar_ativacao`, que leva a `ativa` quando as três estão cumpridas e, na mesma transação, libera as contas (`liberar_contas_da_retirada(origem, dia)`, com o dia local da ativação). Dali em diante, as contas seguem o calendário de sempre (CA-410-10: parcela 2 vence em 12 nov e atrasa em 13 nov).
+- **Evento "Retirada"** (`LOC-17`, T-451): a transição para `ativa` grava a auditoria `locacao.retirada` (rótulo "Retirada" no histórico da locação), com o ator de quem concluiu o último passo: a pessoa do "Registrar pagamento" ou da conclusão da vistoria, o Sistema na assinatura do cliente e no webhook do Pix ou do boleto. `motivo`: "Retirada. Último passo: vistoria de saída" (ou "assinatura do contrato", "1º pagamento"). Os eventos antigos `locacao.ativar` aparecem no histórico também como "Retirada". A locação guarda `retirada_em`, `retirada_a_mao` e `retirada_motivo`, nas duas formas.
+
+### POST /api/locacoes/{id}/retirada/ (Registrar retirada, LOC-17)
+
+Decisão do dono de 11 nov 2026: a retirada à mão, para entregar o veículo antes de o cliente assinar ou pagar. Corpo: `{ "motivo": "Cliente paga amanhã, combinado com a gerência" }` (até 200 caracteres). 200: o detalhe da locação, já `ativa`.
+
+- **Quem:** administrador e gerente; fora do escopo de filial, 404. Vendedor, vistoriador e financeiro: 403 `permissao`.
+- **Quando passa:**
+  - sem motivo (vazio ou só espaços): 400 `validacao`, `campos.motivo` = `["Informe o motivo."]`;
+  - fora de `aguardando_retirada` (inclusive depois de uma retirada): 409 `transicao_locacao`;
+  - sem a vistoria de saída concluída: 409 `{ "codigo": "vistoria_saida_pendente", "mensagem": "Faça a vistoria de saída antes da retirada." }`. A vistoria nunca se pula: é ela que confere a CNH, o cadastro, o bloqueio, o CRLV e o seguro.
+  - A assinatura e o 1º pagamento podem faltar, um ou os dois.
+- **O que faz** (`locacoes.services.registrar_retirada`): a mesma operação da retirada sozinha. A locação vira `ativa`, o veículo `alugado`, a comissão é confirmada e as contas são liberadas com o dia da retirada (`LOC-05`). Na mesma transação, a 1ª parcela e a caução ainda abertas passam a vencer no dia da retirada, quando o vencimento gravado era antes dele (`financeiro.services.vencer_na_retirada`, auditoria `conta_receber.vencer_na_retirada`). Nesse dia ficam `vence_hoje`; no seguinte, `atrasada`, com o atraso, a multa e os juros contando dali (`FIN-03`), a régua (`AUT-03`) e o bloqueio (`CLI-05`). As outras parcelas e o fim previsto não mudam. Ex. da `LOC-17`: semanal Street de 05 nov 10:00, retirada em 07 nov; a parcela 1 e a caução vencem em 07 nov, a parcela 2 continua em 12 nov e o fim, em 19 nov 10:00.
+- **Evento "Retirada"** (`locacao.retirada`), com o ator de quem apertou e `motivo` "Retirada registrada à mão. Motivo: {motivo}. Faltava: assinatura do contrato e 1º pagamento" (só o que faltava). O retrato leva `retirada_a_mao: true`.
+- **Depois:** a assinatura e o 1º pagamento que faltavam ainda se gravam (`contrato_assinado_em`, `primeiro_pagamento_em`) quando acontecem, e só tiram a pendência (`pendencias_retirada`). Não há segunda retirada, outro evento nem mudança nas contas. A `AUT-17` não cancela a locação já retirada. `POST .../contrato/` passa também na locação retirada à mão sem contrato assinado (`acoes.gerar_contrato`).
+- **Assinatura em 7 dias:** com o contrato ainda não assinado 7 dias depois da retirada à mão, os gerentes da filial recebem a tarefa "Contrato da LOC-2856 sem assinatura 7 dias depois da retirada" no sino, com link para a locação, uma vez por locação. Roda às 08:00 (`loc_17_avisar_assinaturas_pendentes`), como o aviso do aditivo (`LOC-08`).
+- Testes: `test_loc_17_ca_451_04_09_10_registrar_retirada_quem_e_quando`, `test_loc_17_ca_451_11_12_13_retirada_a_mao_exemplo_da_regra`, `test_loc_17_ca_451_14_pago_e_assinado_depois_so_tira_a_pendencia`, `test_loc_17_contrato_sem_assinatura_7_dias_depois_avisa_os_gerentes`, `test_loc_17_aut_17_nao_cancela_a_retirada_a_mao`.
 
 ### GET /api/locacoes/{id}/contrato/pdf/
 Perfis: quem vê o detalhe, menos vistoriador. 200: `{ "url": "...", "url_expira_em": "..." }` (URL assinada de 15 min, `AUD-05`). Botão "Imprimir".

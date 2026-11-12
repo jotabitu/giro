@@ -438,6 +438,7 @@ Perfis: administrador, gerente. `multipart/form-data`: `arquivo` (um só; ADR 00
 | `veiculo.foto_apagar` | Apagou uma foto do veículo TBC-5H22 | `foto 1 · era a capa; a mais antiga virou a capa`, `foto 1 · era a capa` ou `foto 2 · não era a capa` |
 
   Nos eventos gravados antes da T-460, sem código nem `arquivo`, o `resumo` leva a placa atual do veículo e o `detalhe`, só o que o evento tem; `objeto.codigo` continua `null` neles.
+- **Cadastrar e editar na lista da auditoria (T-464, `VEI-01`):** `veiculo.cadastrar` e `veiculo.editar` também vêm com a placa com hífen em `objeto.codigo` e com o `resumo` "Cadastrou o veículo QAB-1C23" ou "Editou o veículo PNB-7C04". O `detalhe` não muda (vazio). Nos eventos gravados antes da T-464, sem código, o `resumo` leva a placa atual do veículo e `objeto.codigo` continua `null`. Testes: `test_vei_01_*` em `tests/aceitacao/test_t464_auditoria_cadastro_veiculo.py`.
 
 ### POST /api/veiculos/{id}/fotos/{foto_id}/trocar/
 Perfis: administrador, gerente. `multipart/form-data`: `arquivo`. 200: a galeria, com `foto_id` da nova.

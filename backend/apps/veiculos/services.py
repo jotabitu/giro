@@ -501,6 +501,7 @@ def _criar(
         objeto=veiculo,
         depois={**retrato(veiculo), **(extras_do_evento or {})},
         regra="VEI-01",
+        codigo=placa_com_hifen(veiculo.placa),  # T-464: a placa como código, como nas fotos
     )
     atualizar_uso("veiculos", 1)
     return veiculo
@@ -747,6 +748,7 @@ def editar(
                 **{CHAVE_NO_EVENTO.get(c, c): v for c, v in mudou_depois.items()},
                 **_preenchido_pelo_documento(lidos, corrigidos),
             },
+            codigo=placa_com_hifen(veiculo.placa),  # T-464
         )
     return veiculo
 

@@ -111,3 +111,19 @@ def foto_da_galeria(evento: Any, apoio: dict[str, Any]) -> Texto:
     resumo = RESUMOS_DA_GALERIA[evento.acao]
     trechos = _detalhe_da_galeria(evento.acao, evento.depois or {})
     return Texto(f"{resumo} {placa}" if placa else resumo, " · ".join(t for t in trechos if t))
+
+
+# --- Cadastrar e editar o veículo (VEI-01, T-464) ---
+
+RESUMOS_DO_CADASTRO = {
+    "veiculo.cadastrar": "Cadastrou o veículo",
+    "veiculo.editar": "Editou o veículo",
+}
+
+
+def cadastro_do_veiculo(evento: Any, apoio: dict[str, Any]) -> Texto:
+    """ "Cadastrou o veículo PNB-7C04", "Editou o veículo PNB-7C04", com a placa do código; nos
+    eventos de antes da T-464 (sem código), a placa atual do veículo, como nas fotos."""
+    placa = _placa(evento, apoio)
+    resumo = RESUMOS_DO_CADASTRO[evento.acao]
+    return Texto(f"{resumo} {placa}" if placa else resumo, evento.motivo or "")
