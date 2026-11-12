@@ -94,6 +94,11 @@ export const locacoesApi = {
     return http.post(`/api/locacoes/${id}/contrato/`);
   },
 
+  /** LOC-17: "Registrar retirada" (administrador e gerente). 400 sem motivo; 409 `vistoria_saida_pendente` ou `transicao_locacao`. Devolve o detalhe já `ativa`. */
+  registrarRetirada(id: number, corpo: { motivo: string }): Promise<LocacaoCompleta> {
+    return http.post(`/api/locacoes/${id}/retirada/`, corpo);
+  },
+
   /** Gera o link de assinatura na hora, sem enviar nada (LOC-15, S-15). Só vem nesta resposta; o anterior deixa de valer. Não guardar. */
   copiarLinkDoContrato(id: number): Promise<LinkDoContrato> {
     return http.post(`/api/locacoes/${id}/contrato/link/`, {});

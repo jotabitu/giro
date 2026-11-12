@@ -14,6 +14,7 @@ import { dataEHora, rotuloDaParcela, rotuloDaVistoriaDaTroca, seloDaParcela, tex
 import { tomDoStatus } from "@/lib/tom";
 import { LinkCopiado, useCopiarLink } from "@/components/comum/LinkParaCopiar";
 import { AcoesDaLocacao } from "./AcoesDaLocacao";
+import { ParaRetirar, PendenciasDaRetirada, RegistrarPagamento } from "./RetiradaDaLocacao";
 import { TelaDeErro } from "./Comuns";
 
 // Referência: docs/telas/html/Locacao-Detalhe-Desktop.dc.html e Locacao-Detalhe-Mobile.dc.html.
@@ -89,8 +90,10 @@ function Resumo({ l }: { l: LocacaoCompleta }) {
   );
 }
 
-function Pagamentos({ l }: { l: LocacaoCompleta }) {
+function Pagamentos({ l, aoConcluir }: { l: LocacaoCompleta; aoConcluir: (m: string) => void }) {
   if (!l.parcelas) return null;
+  // FIN-18: "Registrar pagamento" em cada conta só por `acoes.receber`; sem nenhuma, a coluna não aparece.
+  const recebe = l.parcelas.some((p) => p.acoes.receber);
   const aberto = l.pagamento?.em_aberto_centavos ?? 0;
   return (
     <Panel titulo="Pagamentos" acao={<span className="text-caption text-ink-muted">{aberto > 0 ? l.pagamento?.rotulo : "tudo em dia"}</span>}>
@@ -102,6 +105,7 @@ function Pagamentos({ l }: { l: LocacaoCompleta }) {
               <th>Vencimento</th>
               <th>Valor</th>
               <th>Situação</th>
+              {recebe && <th aria-label="Ações" />}
             </tr>
           </thead>
           <tbody>
@@ -117,6 +121,11 @@ function Pagamentos({ l }: { l: LocacaoCompleta }) {
                       {selo.texto}
                     </StatusBadge>
                   </td>
+                  {recebe && (
+                    <td className="text-right">
+                      <RegistrarPagamento l={l} parcela={p} aoConcluir={aoConcluir} />
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -390,7 +399,9 @@ export function DetalheDaLocacao({ id }: { id: number }) {
             <section className="wl-panel">
               <div className="grid grid-cols-2 gap-6">{cabecalhoVeiculo}</div>
             </section>
-            <Pagamentos l={l} />
+            <ParaRetirar l={l} aoConcluir={setAviso} />
+            <PendenciasDaRetirada l={l} aoConcluir={setAviso} />
+            <Pagamentos l={l} aoConcluir={setAviso} />
             <Contrato l={l} aoConcluir={setAviso} />
           </div>
           <div className="flex min-w-0 flex-col gap-6">
@@ -428,6 +439,8 @@ export function DetalheDaLocacao({ id }: { id: number }) {
             {l.veiculo.modelo} · {placa(l.veiculo.placa)}
           </div>
         </section>
+        <ParaRetirar l={l} aoConcluir={setAviso} />
+        <PendenciasDaRetirada l={l} aoConcluir={setAviso} />
         <Troca l={l} />
         <Cancelamento l={l} />
         {l.precos && (
@@ -447,6 +460,8 @@ export function DetalheDaLocacao({ id }: { id: number }) {
             </dl>
           </section>
         )}
+        {/* No celular, as contas só aparecem quando há "Registrar pagamento" (FIN-18): a referência não tem a tabela. */}
+        {l.parcelas?.some((p) => p.acoes.receber) && <Pagamentos l={l} aoConcluir={setAviso} />}
         <Contrato l={l} aoConcluir={setAviso} />
         <Historico l={l} historico={historico.data} />
         <AcoesDaLocacao l={l} variante="celular" aoConcluir={setAviso} />

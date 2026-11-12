@@ -305,7 +305,7 @@ class PrazoRetiradaSerializer(serializers.Serializer[Any]):
     cancela_em = serializers.DateField()
 
 
-class AcaoDoPassoSerializer(serializers.Serializer[Any]):
+class AcaoDaRetiradaSerializer(serializers.Serializer[Any]):
     codigo = serializers.ChoiceField(
         choices=[
             "continuar_vistoria",
@@ -322,7 +322,7 @@ class PassoDaRetiradaSerializer(serializers.Serializer[Any]):
     codigo = serializers.ChoiceField(choices=["vistoria_saida", "contrato", "pagamento"])
     feito = serializers.BooleanField()
     texto = serializers.CharField(help_text='"Feita em 07 out, 09:20", "Falta a vistoria de saída"')
-    acoes = AcaoDoPassoSerializer(many=True, help_text="só as que o perfil pode fazer")
+    acoes = AcaoDaRetiradaSerializer(many=True, help_text="só as que o perfil pode fazer")
 
 
 class RegistrarRetiradaSerializer(serializers.Serializer[Any]):

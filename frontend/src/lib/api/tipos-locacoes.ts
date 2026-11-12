@@ -22,7 +22,13 @@ export type LocacaoResumo = Omit<S["Locacao"], "status" | "periodicidade" | "sit
 
 export type ParcelaDaLocacao = Omit<S["ParcelaLocacao"], "tipo" | "status"> & { tipo: "parcela" | "caucao" | "acerto"; status: StatusParcela };
 
-export type CancelamentoDaLocacao = Omit<S["CancelamentoLocacao"], "status"> & { status: "pendente" | "aprovado" };
+/** LOC-17: o "Para retirar", as "Pendências da retirada" e o botão "Registrar retirada", com os textos prontos da API. */
+export type ParaRetirar = S["ParaRetirar"];
+export type PassoDaRetirada = S["PassoDaRetirada"];
+export type PendenciasDaRetirada = S["PendenciasDaRetirada"];
+export type RegistrarRetirada = S["RegistrarRetirada"];
+
+export type CancelamentoDaLocacao =Omit<S["CancelamentoLocacao"], "status"> & { status: "pendente" | "aprovado" };
 
 export type LocacaoCompleta = Omit<S["LocacaoDetalhe"], keyof LocacaoResumo | "parcelas" | "acoes" | "cancelamento" | "periodicidade"> &
   Omit<LocacaoResumo, "cliente"> & {

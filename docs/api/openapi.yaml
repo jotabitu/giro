@@ -7266,12 +7266,12 @@ components:
       required:
       - destino
       - rotulo
-    AcaoDoPasso:
+    AcaoDaRetirada:
       type: object
       properties:
         codigo:
           allOf:
-          - $ref: '#/components/schemas/AcaoDoPassoCodigoEnum'
+          - $ref: '#/components/schemas/AcaoDaRetiradaCodigoEnum'
           description: |-
             a mesma chave de `acoes`, que a tela já sabe executar
 
@@ -7284,7 +7284,7 @@ components:
       required:
       - codigo
       - rotulo
-    AcaoDoPassoCodigoEnum:
+    AcaoDaRetiradaCodigoEnum:
       enum:
       - continuar_vistoria
       - gerar_contrato
@@ -7296,6 +7296,16 @@ components:
         * `gerar_contrato` - gerar_contrato
         * `reenviar_contrato` - reenviar_contrato
         * `copiar_link_contrato` - copiar_link_contrato
+    AcaoDoPasso:
+      type: object
+      properties:
+        rotulo:
+          type: string
+        destino:
+          type: string
+      required:
+      - destino
+      - rotulo
     AcaoEnum:
       enum:
       - baixar
@@ -16557,7 +16567,7 @@ components:
         acoes:
           type: array
           items:
-            $ref: '#/components/schemas/AcaoDoPasso'
+            $ref: '#/components/schemas/AcaoDaRetirada'
           description: só as que o perfil pode fazer
       required:
       - acoes
