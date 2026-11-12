@@ -276,6 +276,11 @@ SPECTACULAR_SETTINGS = {
         # O do cancelamento (LOC-12), sem dinheiro, e o do acerto (DEV-02), com dinheiro pelo caixa.
         "FormaDevolucaoEnum": [("pix", "Pix"), ("estorno_cartao", "Estorno no cartão")],
         "FormaDevolucaoAcertoEnum": "apps.vistorias.models.FormaDevolucao",
+        # LOC-16 (T-420): o tipo da locação e a periodicidade do plano de compra; o nome
+        # `PeriodicidadeEnum` continua o da locação, que o frontend já usa.
+        "PeriodicidadeEnum": "apps.locacoes.models.Periodicidade",
+        "PeriodicidadeCompraEnum": "apps.locacoes.models.PlanoCompra.PeriodicidadeCompra",
+        "TipoLocacaoEnum": "apps.locacoes.models.TipoLocacao",
         # Nomes que veículos já publicava, antes de clientes ter outro `motivo` e `situacao`.
         "MotivoEnum": ["perda_total", "roubo", "sucata", "outro"],
         "SituacaoEnum": ["em_dia", "vence_em_breve", "vencido"],

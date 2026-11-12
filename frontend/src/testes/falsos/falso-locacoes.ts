@@ -185,6 +185,7 @@ function acoesDe(s: Semente, perfil: Perfil | null) {
     continuar_vistoria: false,
     receber: false,
     registrar_retirada: (perfil === "administrador" || perfil === "gerente") && s.status === "aguardando_retirada",
+    encerrar_por_atraso: false, // LOC-16: só na locação com intenção de compra
   };
 }
 
@@ -253,6 +254,8 @@ function resumo(s: Semente): LocacaoResumo {
     veiculo: s.veiculo,
     periodicidade: s.periodicidade,
     plano_especial: null,
+    tipo: "comum",
+    tipo_rotulo: null,
     inicio: s.inicio,
     fim_previsto: s.fim,
     sinais: { pagamento_atrasado: false, devolve_hoje: false, cancelamento_pendente: false, ...s.sinais },
@@ -338,6 +341,7 @@ function detalhe(s: Semente): LocacaoCompleta {
           pedido_aprovacao_id: 88,
           antes_da_retirada: false,
           automatico: false,
+          por_atraso: false,
           data: s.cancelamento.data,
           multa_centavos: s.cancelamento.multa,
           credito_centavos: s.cancelamento.credito,
@@ -346,6 +350,7 @@ function detalhe(s: Semente): LocacaoCompleta {
           motivo: s.cancelamento.motivo,
         }
       : null,
+    compra: null, // LOC-16: só na locação com intenção de compra
     troca: s.trocaPendente && s.troca
       ? {
           id: s.troca.id,
@@ -543,6 +548,7 @@ async function simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
     parcelas_previstas: parcelas,
     caucao_centavos: caucao,
     diaria_centavos: pv.diaria_centavos,
+    compra: null, // LOC-16: só na locação com intenção de compra
     precisa_aprovacao_desconto: pct > 5 && perfilAtualFalso() === "vendedor",
     impedimentos,
     avisos,

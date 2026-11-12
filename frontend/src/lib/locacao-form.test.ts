@@ -28,6 +28,7 @@ describe("corpo da locação", () => {
     expect(corpoDaLocacao(base, [])).toEqual({
       cliente_id: 1206,
       veiculo_id: 504,
+      tipo: "comum",
       periodicidade: "semanal",
       plano_especial_id: null,
       inicio: "2026-10-07T12:30:00.000Z",

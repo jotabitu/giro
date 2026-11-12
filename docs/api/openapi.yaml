@@ -3777,6 +3777,13 @@ paths:
         schema:
           type: integer
       - in: query
+        name: tipo
+        schema:
+          type: string
+          enum:
+          - comum
+          - intencao_compra
+      - in: query
         name: veiculo
         schema:
           type: integer
@@ -4087,6 +4094,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Devolucao'
+          description: ''
+  /api/locacoes/{id}/encerrar-por-atraso/:
+    post:
+      operationId: locacoes_encerrar_por_atraso_create
+      description: |-
+        LOC-16 (CA-420-08, CA-420-19): administrador e gerente da filial da locação (fora do
+        escopo, 404), sem APR-02. 409 `LOC-16` sem parcela atrasada ou fora da compra; 409
+        `transicao_locacao` fora de `ativa`; 409 `cancelamento_em_andamento`; 400 sem motivo.
+      summary: Encerrar por atraso a locação com intenção de compra (LOC-16)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EncerrarPorAtraso'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EncerrarPorAtraso'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EncerrarPorAtraso'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocacaoDetalhe'
           description: ''
   /api/locacoes/{id}/historico/:
     get:
@@ -4952,6 +4996,112 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/InicioDoPainel'
+          description: ''
+  /api/planos-compra/:
+    get:
+      operationId: planos_compra_retrieve
+      summary: Planos de compra (LOC-16)
+      parameters:
+      - in: query
+        name: ativo
+        schema:
+          type: string
+          enum:
+          - 'false'
+          - 'true'
+      - in: query
+        name: categoria
+        schema:
+          type: integer
+      tags:
+      - planos-compra
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDePlanosCompra'
+          description: ''
+    post:
+      operationId: planos_compra_create
+      summary: Criar plano de compra (LOC-16, LOC-15)
+      tags:
+      - planos-compra
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanoCompraEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PlanoCompraEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PlanoCompraEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanoCompra'
+          description: ''
+  /api/planos-compra/{id}/:
+    patch:
+      operationId: planos_compra_partial_update
+      summary: Editar plano de compra (vale para locações novas, LOC-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - planos-compra
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPlanoCompraEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPlanoCompraEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPlanoCompraEntrada'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanoCompra'
+          description: ''
+  /api/planos-compra/{id}/desativar/:
+    post:
+      operationId: planos_compra_desativar_create
+      summary: Desativar plano
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - planos-compra
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanoCompra'
           description: ''
   /api/planos-especiais/:
     get:
@@ -7706,6 +7856,14 @@ components:
       required:
       - baixar
       - resolver
+    AcoesDaVenda:
+      type: object
+      properties:
+        registrar_transferencia:
+          type: boolean
+          description: POST /api/locacoes/{id}/transferencia/ (administrador e gerente)
+      required:
+      - registrar_transferencia
     AcoesDoAcesso:
       type: object
       properties:
@@ -7838,6 +7996,10 @@ components:
         registrar_retirada:
           type: boolean
           description: 'LOC-17: administrador e gerente, locação aguardando retirada'
+        encerrar_por_atraso:
+          type: boolean
+          description: 'LOC-16: administrador e gerente, compra ativa com parcela
+            atrasada'
       required:
       - cancelar
       - cancelar_troca
@@ -7845,6 +8007,7 @@ components:
       - continuar_vistoria
       - copiar_link_contrato
       - editar
+      - encerrar_por_atraso
       - gerar_contrato
       - imprimir_contrato
       - receber
@@ -8697,6 +8860,9 @@ components:
         automatico:
           type: boolean
           description: cancelada pela AUT-17, não retirada em 3 dias (LOC-12, T-410)
+        por_atraso:
+          type: boolean
+          description: 'LOC-16: encerrada pela locadora por atraso, sem APR-02'
         data:
           type: string
           format: date
@@ -8721,6 +8887,7 @@ components:
       - motivo
       - multa_centavos
       - pedido_aprovacao_id
+      - por_atraso
       - status
     CancelamentoLocacaoStatusEnum:
       enum:
@@ -9688,6 +9855,68 @@ components:
       - fotos
       - itens
       - km
+    CompraDaSimulacao:
+      type: object
+      properties:
+        parcelas_total:
+          type: integer
+        valor_parcela_centavos:
+          type: integer
+        ultima_parcela_centavos:
+          type: integer
+          description: já com a caução abatida
+        sobra_caucao_centavos:
+          type: integer
+          description: 'caução maior que a parcela: volta ao cliente na quitação'
+      required:
+      - parcelas_total
+      - sobra_caucao_centavos
+      - ultima_parcela_centavos
+      - valor_parcela_centavos
+    CompraLocacao:
+      type: object
+      description: |-
+        LOC-16 (T-420): o plano congelado e o andamento, com os textos prontos da API. O
+        vistoriador recebe sem os campos `_centavos`.
+      properties:
+        plano:
+          allOf:
+          - $ref: '#/components/schemas/IdNomeLocacao'
+          nullable: true
+        parcelas_total:
+          type: integer
+        parcelas_pagas:
+          type: integer
+        valor_parcela_centavos:
+          type: integer
+        ultima_parcela_centavos:
+          type: integer
+        sobra_caucao_centavos:
+          type: integer
+        andamento:
+          type: string
+          nullable: true
+          description: '"Parcela 1 de 24 · faltam 23 para a transferência"'
+        falta_para_quitar:
+          type: array
+          items:
+            $ref: '#/components/schemas/FaltaParaQuitar'
+        quitada_em:
+          type: string
+          format: date-time
+          nullable: true
+        venda:
+          allOf:
+          - $ref: '#/components/schemas/VendaDaCompra'
+          nullable: true
+      required:
+      - andamento
+      - falta_para_quitar
+      - parcelas_pagas
+      - parcelas_total
+      - plano
+      - quitada_em
+      - venda
     Comprovante:
       type: object
       properties:
@@ -10934,11 +11163,14 @@ components:
           type: string
           format: date-time
           nullable: true
+          description: 'LOC-16: na compra, null sem encerramento; com ele, o fim do
+            dia do encerramento'
         faltam_minutos:
           type: integer
           nullable: true
         aviso_atraso:
           type: string
+          nullable: true
         devolucao_id:
           type: integer
           nullable: true
@@ -11384,6 +11616,21 @@ components:
       - uf
       - ultimo_acesso_em
       - uso
+    EncerrarPorAtraso:
+      type: object
+      description: 'LOC-16: o encerramento da locação com intenção de compra pela
+        locadora, sem APR-02.'
+      properties:
+        motivo:
+          type: string
+          maxLength: 500
+        data:
+          type: string
+          format: date
+          nullable: true
+          description: padrão hoje; não antes de hoje
+      required:
+      - motivo
     Endereco:
       type: object
       properties:
@@ -12157,6 +12404,19 @@ components:
       - '1_7'
       - '8_30'
       - mais_30
+    FaltaParaQuitar:
+      type: object
+      properties:
+        conta_id:
+          type: integer
+        rotulo:
+          type: string
+        valor_centavos:
+          type: integer
+          description: o valor do dia (FIN-03)
+      required:
+      - conta_id
+      - rotulo
     FaturaDaDiferenca:
       type: object
       properties:
@@ -12626,10 +12886,12 @@ components:
     FinalidadeEnum:
       enum:
       - locacao
+      - locacao_compra
       - venda
       type: string
       description: |-
         * `locacao` - Locação
+        * `locacao_compra` - Locação com intenção de compra
         * `venda` - Venda
     FormaAssinaturaEnum:
       enum:
@@ -14882,6 +15144,23 @@ components:
       - anterior
       - proximo
       - resultados
+    ListaDePlanosCompra:
+      type: object
+      properties:
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanoCompra'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - anterior
+      - proximo
+      - resultados
     ListaDePlanosEspeciais:
       type: object
       properties:
@@ -15004,6 +15283,18 @@ components:
           allOf:
           - $ref: '#/components/schemas/IdNomeLocacao'
           nullable: true
+        tipo:
+          allOf:
+          - $ref: '#/components/schemas/TipoLocacaoEnum'
+          description: |-
+            LOC-16
+
+            * `comum` - Comum
+            * `intencao_compra` - Com intenção de compra
+        tipo_rotulo:
+          type: string
+          nullable: true
+          description: '"Com intenção de compra"; null na comum'
         inicio:
           type: string
           format: date-time
@@ -15032,6 +15323,8 @@ components:
       - sinais
       - situacao
       - status
+      - tipo
+      - tipo_rotulo
       - veiculo
     LocacaoDaDevolucao:
       type: object
@@ -15086,6 +15379,18 @@ components:
           allOf:
           - $ref: '#/components/schemas/IdNomeLocacao'
           nullable: true
+        tipo:
+          allOf:
+          - $ref: '#/components/schemas/TipoLocacaoEnum'
+          description: |-
+            LOC-16
+
+            * `comum` - Comum
+            * `intencao_compra` - Com intenção de compra
+        tipo_rotulo:
+          type: string
+          nullable: true
+          description: '"Com intenção de compra"; null na comum'
         inicio:
           type: string
           format: date-time
@@ -15171,6 +15476,11 @@ components:
           allOf:
           - $ref: '#/components/schemas/TrocaPendente'
           nullable: true
+        compra:
+          allOf:
+          - $ref: '#/components/schemas/CompraLocacao'
+          nullable: true
+          description: LOC-16; null na comum
         acoes:
           $ref: '#/components/schemas/AcoesLocacao'
       required:
@@ -15179,6 +15489,7 @@ components:
       - cancelamento
       - cliente
       - codigo
+      - compra
       - condicoes
       - contrato
       - devolucao
@@ -15200,6 +15511,8 @@ components:
       - sinais
       - situacao
       - status
+      - tipo
+      - tipo_rotulo
       - trechos
       - troca
       - veiculo
@@ -15211,8 +15524,28 @@ components:
           type: integer
         veiculo_id:
           type: integer
+        tipo:
+          allOf:
+          - $ref: '#/components/schemas/TipoLocacaoEnum'
+          default: comum
+          description: |-
+            LOC-16: `intencao_compra` pede `plano_compra_id`; muda só no rascunho
+
+            * `comum` - Comum
+            * `intencao_compra` - Com intenção de compra
+        plano_compra_id:
+          type: integer
+          nullable: true
+          description: 'LOC-16: o plano de compra (só no tipo `intencao_compra`)'
         periodicidade:
-          $ref: '#/components/schemas/PeriodicidadeEnum'
+          allOf:
+          - $ref: '#/components/schemas/PeriodicidadeEnum'
+          description: |-
+            Obrigatória na comum; na compra vem do plano
+
+            * `diaria` - Diária
+            * `semanal` - Semanal
+            * `mensal` - Mensal
         plano_especial_id:
           type: integer
           nullable: true
@@ -15247,7 +15580,6 @@ components:
       - cliente_id
       - forma_pagamento
       - inicio
-      - periodicidade
       - veiculo_id
     LocacaoQuePrecisaDeAcao:
       type: object
@@ -15379,9 +15711,15 @@ components:
           type: string
         exemplo:
           type: string
+        finalidade:
+          type: string
+          nullable: true
+          description: 'null: vale em todo modelo; `locacao_compra`: só nessa finalidade
+            (LOC-16)'
       required:
       - chave
       - exemplo
+      - finalidade
       - rotulo
     MeioDePagarEnum:
       enum:
@@ -15561,8 +15899,11 @@ components:
           type: string
         texto:
           type: string
+        finalidade:
+          $ref: '#/components/schemas/FinalidadeEnum'
       required:
       - chave
+      - finalidade
       - nome
       - texto
     ModeloResumo:
@@ -16834,8 +17175,28 @@ components:
           type: integer
         veiculo_id:
           type: integer
+        tipo:
+          allOf:
+          - $ref: '#/components/schemas/TipoLocacaoEnum'
+          default: comum
+          description: |-
+            LOC-16: `intencao_compra` pede `plano_compra_id`; muda só no rascunho
+
+            * `comum` - Comum
+            * `intencao_compra` - Com intenção de compra
+        plano_compra_id:
+          type: integer
+          nullable: true
+          description: 'LOC-16: o plano de compra (só no tipo `intencao_compra`)'
         periodicidade:
-          $ref: '#/components/schemas/PeriodicidadeEnum'
+          allOf:
+          - $ref: '#/components/schemas/PeriodicidadeEnum'
+          description: |-
+            Obrigatória na comum; na compra vem do plano
+
+            * `diaria` - Diária
+            * `semanal` - Semanal
+            * `mensal` - Mensal
         plano_especial_id:
           type: integer
           nullable: true
@@ -16887,6 +17248,25 @@ components:
         email_cobranca:
           type: string
           format: email
+    PatchedPlanoCompraEntrada:
+      type: object
+      description: 'LOC-16 (padrão A): nome, categoria, periodicidade, parcelas (2
+        a 260) e valor.'
+      properties:
+        nome:
+          type: string
+          maxLength: 60
+        categoria_id:
+          type: integer
+        periodicidade:
+          $ref: '#/components/schemas/PeriodicidadeCompraEnum'
+        parcelas:
+          type: integer
+        valor_parcela_centavos:
+          type: integer
+        condicoes:
+          type: string
+          default: ''
     PatchedPlanoEspecialEntrada:
       type: object
       properties:
@@ -17384,6 +17764,14 @@ components:
         * `vendedor` - Vendedor
         * `vistoriador` - Vistoriador
         * `financeiro` - Financeiro
+    PeriodicidadeCompraEnum:
+      enum:
+      - semanal
+      - mensal
+      type: string
+      description: |-
+        * `semanal` - Semanal
+        * `mensal` - Mensal
     PeriodicidadeEnum:
       enum:
       - diaria
@@ -17611,6 +17999,70 @@ components:
       - limites
       - mensal_centavos
       - nome
+    PlanoCompra:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        categoria:
+          $ref: '#/components/schemas/IdNomeLocacao'
+        periodicidade:
+          type: string
+        parcelas:
+          type: integer
+        valor_parcela_centavos:
+          type: integer
+        condicoes:
+          type: string
+        caucao_centavos:
+          type: integer
+          description: a caução vigente da categoria
+        ultima_parcela_centavos:
+          type: integer
+          description: max(0, parcela − caução)
+        locacoes_ativas:
+          type: integer
+        ativo:
+          type: boolean
+      required:
+      - ativo
+      - categoria
+      - caucao_centavos
+      - condicoes
+      - id
+      - locacoes_ativas
+      - nome
+      - parcelas
+      - periodicidade
+      - ultima_parcela_centavos
+      - valor_parcela_centavos
+    PlanoCompraEntrada:
+      type: object
+      description: 'LOC-16 (padrão A): nome, categoria, periodicidade, parcelas (2
+        a 260) e valor.'
+      properties:
+        nome:
+          type: string
+          maxLength: 60
+        categoria_id:
+          type: integer
+        periodicidade:
+          $ref: '#/components/schemas/PeriodicidadeCompraEnum'
+        parcelas:
+          type: integer
+        valor_parcela_centavos:
+          type: integer
+        condicoes:
+          type: string
+          default: ''
+      required:
+      - categoria_id
+      - nome
+      - parcelas
+      - periodicidade
+      - valor_parcela_centavos
     PlanoDaAlternativa:
       type: object
       properties:
@@ -19126,6 +19578,11 @@ components:
           type: integer
         diaria_centavos:
           type: integer
+        compra:
+          allOf:
+          - $ref: '#/components/schemas/CompraDaSimulacao'
+          nullable: true
+          description: LOC-16; null na comum
         precisa_aprovacao_desconto:
           type: boolean
         impedimentos:
@@ -19139,6 +19596,7 @@ components:
       required:
       - avisos
       - caucao_centavos
+      - compra
       - diaria_centavos
       - fim_previsto
       - hoje_na_retirada_centavos
@@ -19807,6 +20265,14 @@ components:
       description: |-
         * `fatura` - fatura
         * `teste` - teste
+    TipoLocacaoEnum:
+      enum:
+      - comum
+      - intencao_compra
+      type: string
+      description: |-
+        * `comum` - Comum
+        * `intencao_compra` - Com intenção de compra
     TipoParaHojeEnum:
       enum:
       - reembolso
@@ -19893,6 +20359,23 @@ components:
         * `motos` - motos
         * `carros` - carros
         * `ambos` - motos e carros
+    TransferenciaDaVenda:
+      type: object
+      properties:
+        feita_em:
+          type: string
+          format: date
+          nullable: true
+        registrada_por:
+          allOf:
+          - $ref: '#/components/schemas/IdNomeLocacao'
+          nullable: true
+        pendente:
+          type: boolean
+      required:
+      - feita_em
+      - pendente
+      - registrada_por
     TrechoLocacao:
       type: object
       properties:
@@ -20938,6 +21421,24 @@ components:
         * `km_e_avarias` - km_e_avarias
         * `ver` - ver
         * `nao` - nao
+    VendaDaCompra:
+      type: object
+      description: 'VEN-11: a venda de R$ 0,00 da quitação, fornecida por `vendas`
+        (ADR 0015).'
+      properties:
+        id:
+          type: integer
+        codigo:
+          type: string
+        transferencia:
+          $ref: '#/components/schemas/TransferenciaDaVenda'
+        acoes:
+          $ref: '#/components/schemas/AcoesDaVenda'
+      required:
+      - acoes
+      - codigo
+      - id
+      - transferencia
     Verificar2FA:
       type: object
       properties:
