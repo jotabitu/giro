@@ -24,7 +24,7 @@ describe("formatos", () => {
   });
 });
 
-import { celular, km, mascaraCnpj, mascaraCpf, mascaraCelular, mesAno, percentual, placa, placaSemQuebra } from "./formatos";
+import { celular, km, mascaraCnpj, mascaraCpf, mascaraCelular, mesAno, percentual, placa, placaSemQuebra, codigoSemQuebra } from "./formatos";
 
 describe("formatos de lista", () => {
   it("km, placa e mês", () => {
@@ -32,6 +32,12 @@ describe("formatos de lista", () => {
     expect(placa("SAK1D39")).toBe("SAK-1D39");
     expect(mesAno("2026-03-04")).toBe("mar 2026");
     expect(percentual("86.00")).toBe("86%");
+  });
+
+  it("T-467: codigoSemQuebra troca só o hífen do código legível e deixa o resto quebrar", () => {
+    expect(codigoSemQuebra("Recibo da devolução da LOC-2812")).toBe("Recibo da devolução da LOC‑2812");
+    expect(codigoSemQuebra("VEN-0177, OS-118, FAT-2209 e MOV-0001")).toBe("VEN‑0177, OS‑118, FAT‑2209 e MOV‑0001");
+    expect(codigoSemQuebra("Contrato de locação semanal · fim-de-semana")).toBe("Contrato de locação semanal · fim-de-semana");
   });
 
   it("T-459: placaSemQuebra troca só o hífen da placa (e de código no mesmo formato, como LOC-2841) e deixa o resto quebrar", () => {

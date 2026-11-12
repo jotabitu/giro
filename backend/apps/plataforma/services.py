@@ -31,7 +31,7 @@ from django_tenants.utils import (
 )
 
 from comum import empresa as comum_empresa
-from comum import modulos, relogio
+from comum import enderecos, modulos, relogio
 from comum.auditoria import (
     ATOR_SISTEMA,
     Ator,
@@ -691,7 +691,7 @@ def url_de_entrada_do_suporte(acesso: AcessoSuporte, token: str) -> str:
     """O token no fragmento: não vai ao servidor nem ao proxy (contrato da plataforma)."""
     with no_publico():
         dominio = Dominio.objects.get(tenant_id=acesso.empresa_id, is_primary=True).domain
-    return f"https://{dominio}/suporte/entrar#{token}"
+    return enderecos.link(dominio, f"/suporte/entrar#{token}")
 
 
 def conferir_acesso_suporte(acesso_suporte_id: int, empresa_id: int) -> AtorSuporte:
@@ -2959,7 +2959,8 @@ def endereco_da_assinatura(empresa: Empresa) -> str:
             .values_list("domain", flat=True)
             .first()
         )
-    return f"https://{dominio or endereco_de_acesso(empresa.subdominio or '')}/admin/assinatura"
+    host = dominio or endereco_de_acesso(empresa.subdominio or "")
+    return enderecos.link(host, "/admin/assinatura")
 
 
 def mensagem_da_regua(

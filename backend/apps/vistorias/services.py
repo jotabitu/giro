@@ -29,7 +29,7 @@ from apps.locacoes import services as locacoes
 from apps.locacoes.models import Locacao, Periodicidade, StatusLocacao, TrocaVeiculo
 from apps.veiculos import services as veiculos
 from apps.veiculos.models import Origem, StatusVeiculo, Veiculo
-from comum import arquivos, estados, relogio
+from comum import arquivos, enderecos, estados, relogio
 from comum.auditoria import Categoria, auditar, registrar_evento, retrato
 from comum.dinheiro import formatar_reais
 from comum.documentos import placa_com_hifen
@@ -1426,7 +1426,7 @@ def hash_do_token_do_recibo(token: str) -> str:
 
 def link_do_recibo(host: str, token: str) -> str:
     """O token vai no fragmento: não chega a log de servidor nem ao `Referer` (S-15)."""
-    return f"https://{host}/recibo#{token}"
+    return enderecos.link(host, f"/recibo#{token}")
 
 
 def _titular_anonimizado(devolucao: Devolucao) -> bool:

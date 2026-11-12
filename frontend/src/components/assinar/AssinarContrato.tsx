@@ -6,7 +6,7 @@ import { useState, type FormEvent } from "react";
 import { Button, Icone, TextField } from "@/design-system";
 import { assinar, ErroApi } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
-import { dataHoraCurta } from "@/lib/formatos";
+import { codigoSemQuebra, dataHoraCurta } from "@/lib/formatos";
 import { useTokenDoFragmento } from "@/lib/fragmento";
 import { Aviso } from "../acesso/Aviso";
 import { PaginaAcesso, Passo } from "../acesso/PaginaAcesso";
@@ -65,9 +65,9 @@ export function AssinarContrato() {
   if (enviar.isSuccess) {
     return (
       <PaginaAcesso titulo="Contrato assinado" descricao={`Obrigado, ${c.cliente_nome.split(" ")[0]}. A locadora já recebeu a sua assinatura.`}>
-        <Passo numero={<Icone de={FileText} />} titulo={c.titulo}>
+        <Passo numero={<Icone de={FileText} />} titulo={codigoSemQuebra(c.titulo)}>
           <p className="text-body">
-            <span className="wl-mono">{c.codigo}</span> · assinado em {dataHoraCurta(enviar.data.assinado_em)}
+            <span className="wl-mono">{codigoSemQuebra(c.codigo)}</span> · assinado em {dataHoraCurta(enviar.data.assinado_em)}
           </p>
           <p className="text-caption text-ink-muted">Você pode fechar esta página. A locadora guarda uma cópia com o registro da assinatura.</p>
         </Passo>
@@ -91,14 +91,14 @@ export function AssinarContrato() {
   }
 
   return (
-    <PaginaAcesso titulo={c.titulo} descricao="Leia o contrato e confirme com o seu nome completo.">
+    <PaginaAcesso titulo={codigoSemQuebra(c.titulo)} descricao="Leia o contrato e confirme com o seu nome completo.">
       <Passo numero={1} titulo="Contrato">
         <div className="flex items-center gap-3">
           <span aria-hidden="true" className="grid size-[52px] shrink-0 place-items-center rounded-md bg-surface-sunken text-ink-muted">
             <Icone de={FileText} />
           </span>
           <div className="min-w-0 flex-1">
-            <div className="wl-mono text-body font-medium">{c.codigo}</div>
+            <div className="wl-mono text-body font-medium">{codigoSemQuebra(c.codigo)}</div>
             <div className="text-caption text-ink-muted">Para {c.cliente_nome}</div>
           </div>
         </div>

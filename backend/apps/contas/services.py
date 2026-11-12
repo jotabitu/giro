@@ -22,7 +22,7 @@ from django.db import IntegrityError, transaction
 from django.http import Http404
 from rest_framework import status
 
-from comum import relogio
+from comum import enderecos, relogio
 from comum.auditoria import Categoria, registrar_evento, retrato
 from comum.conexao import schema_atual
 from comum.erros import Conflito, ErroDeNegocio, ErroDeRegra, ErroDeValidacao
@@ -60,7 +60,7 @@ def _novo_token() -> tuple[str, str]:
 
 def link_do_convite(host: str, token: str) -> str:
     """O token no fragmento: não chega ao servidor nem ao proxy (P-09)."""
-    return f"https://{host}/convite#{token}"
+    return enderecos.link(host, f"/convite#{token}")
 
 
 def host_da_empresa(schema_name: str) -> str:
