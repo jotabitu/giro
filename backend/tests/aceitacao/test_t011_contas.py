@@ -603,14 +603,13 @@ def test_usr_01_ca_011_14_convidar(adm, relogio, django_capture_on_commit_callba
     ]
     assert corpo["celular"] == "85996542210"
     assert _uso_de_usuarios(adm) == 6
-    # Depois do commit, por e-mail e por WhatsApp, com a marca da locadora.
+    # Depois do commit, só por e-mail, com a marca da locadora: na fase 1, o convite não vai
+    # pelo WhatsApp, mesmo com celular (T-463, ADR 0034).
     assert [m.to for m in mail.outbox] == [["joao@motorapida.com.br"]]
     assert "Moto Rápida" in mail.outbox[0].subject
     assert "/convite#" in mail.outbox[0].body
-    assert [m.celular for m in caixa_de_saida] == ["85996542210"]
-    assert "Moto Rápida" in caixa_de_saida[0].texto
-    assert "giro" not in caixa_de_saida[0].texto.lower()
-    assert Convite.objects.get(usuario_id=corpo["id"]).enviado_whatsapp is True
+    assert caixa_de_saida == []
+    assert Convite.objects.get(usuario_id=corpo["id"]).enviado_whatsapp is False
 
     sem_email = _convidar(api, adm, django_capture_on_commit_callbacks, perfil="vendedor")
     assert (sem_email.status_code, sem_email.json()["codigo"]) == (400, "validacao")
@@ -624,7 +623,7 @@ def test_usr_01_ca_011_14_convidar(adm, relogio, django_capture_on_commit_callba
         filiais=[adm.centro.pk],
     )
     assert sem_celular.status_code == 201
-    assert len(mail.outbox) == 2 and len(caixa_de_saida) == 1  # só e-mail
+    assert len(mail.outbox) == 2 and caixa_de_saida == []  # só e-mail
 
     em_uso = _convidar(
         api,

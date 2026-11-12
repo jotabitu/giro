@@ -49,7 +49,7 @@ from integracoes.pagamentos.base import (
     StatusDesconhecido,
     aviso_sem_cartao,
 )
-from integracoes.whatsapp import enviar_whatsapp
+from integracoes.whatsapp import enviar_whatsapp, whatsapp_ao_cliente_final
 
 from . import selectors
 from .models import (
@@ -1271,10 +1271,20 @@ def texto_do_recibo(conta: ContaReceber) -> str:
 
 
 def _enviar_recibo(conta: ContaReceber) -> None:
-    """AUT-05: o recibo pelo WhatsApp, com a marca da locadora (o e-mail é só da régua)."""
-    if not conta.cliente.celular:
-        return
-    enviar_whatsapp(conta.cliente.celular, texto_do_recibo(conta))
+    """AUT-05: o recibo por e-mail, com a marca da locadora no remetente e no assunto. Na fase 1,
+    nada vai ao cliente pelo WhatsApp (ADR 0034); com `GIRO_WHATSAPP_CLIENTE_FINAL` ligada e
+    celular, o mesmo texto também pelo WhatsApp."""
+    cliente = conta.cliente
+    texto = texto_do_recibo(conta)
+    if cliente.celular and whatsapp_ao_cliente_final():
+        enviar_whatsapp(cliente.celular, texto)
+    if cliente.email:
+        send_mail(
+            subject=f"{nome_da_empresa()}: recibo do pagamento",
+            message=texto,
+            from_email=remetente(),
+            recipient_list=[cliente.email],
+        )
 
 
 def processar_webhook(webhook_id: int) -> str:
@@ -1400,7 +1410,7 @@ def resolver_pendencia(
     return travada
 
 
-# --- Cobrança pelo WhatsApp e por e-mail, e a régua (AUT-03) ---
+# --- Cobrança por e-mail (e pelo WhatsApp com a chave ligada), e a régua (AUT-03) ---
 
 
 def _ja_cobrada_hoje(conta: ContaReceber) -> bool:
@@ -1451,10 +1461,8 @@ def mensagem_de_cobranca(conta: ContaReceber, *, pix: str | None) -> MensagemDeC
     valor = formatar_reais(devido.total_centavos)
     descrita = conta_no_texto(conta)  # "a parcela...", no começo da frase com maiúscula
     inicio = f"{marca}: olá, {conta.cliente.nome.split()[0]}. A {descrita}"
-    if pix:
-        pague = f" Pague pelo Pix copia e cola: {pix}"
-    else:
-        pague = " Pague na loja ou fale com a gente por aqui."
+    # AUT-03: sem Pix, "Pague na loja."; o e-mail não pede resposta.
+    pague = f" Pague pelo Pix copia e cola: {pix}" if pix else " Pague na loja."
     # À espera da retirada, nada vence (LOC-05): o lembrete sem Pix, como na conta a vencer.
     if conta.vencimento > hoje or conta.aguarda_retirada:
         if conta.vencimento == hoje + timedelta(days=1):
@@ -1485,15 +1493,19 @@ def remetente() -> str:
 
 
 def cobrar(conta: ContaReceber) -> bool:
-    """A mensagem de cobrança do momento, com a marca da locadora (AUT-03): pelo WhatsApp
-    quando o cliente tem celular e por e-mail quando tem e-mail, com o mesmo texto. No dia e em
-    atraso, gera o Pix do valor do dia quando os recebimentos estão ligados. Uma vez por conta
-    por dia, contando os dois canais; devolve se cobrou (sem canal, não).
+    """A mensagem de cobrança do momento, com a marca da locadora (AUT-03), por e-mail quando o
+    cliente tem e-mail. Na fase 1, nada vai ao cliente pelo WhatsApp (ADR 0034): o mesmo texto
+    só sai pelo WhatsApp com `GIRO_WHATSAPP_CLIENTE_FINAL` ligada, celular e o recurso
+    `cobranca_whatsapp`. No dia e em atraso, gera o Pix do valor do dia quando os recebimentos
+    estão ligados. Uma vez por conta por dia, contando os canais; devolve se cobrou (sem canal,
+    não).
 
-    PLT-12 (ADR 0024, item 5): sem `cobranca_whatsapp` (Essencial), só e-mail; sem
-    `recebimento_parceiro`, sem Pix, com o texto "Pague na loja"."""
+    PLT-12 (ADR 0024, item 5): sem `recebimento_parceiro`, sem Pix, com o texto "Pague na
+    loja"."""
     cliente = conta.cliente
-    celular = cliente.celular if tem_recurso("cobranca_whatsapp") else ""
+    celular = (
+        cliente.celular if whatsapp_ao_cliente_final() and tem_recurso("cobranca_whatsapp") else ""
+    )
     if conta.status != StatusConta.ABERTA or not (celular or cliente.email):
         return False
     if _ja_cobrada_hoje(conta):

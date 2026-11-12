@@ -153,7 +153,7 @@ Corpo: `{ "forma": "dinheiro" | "cartao_debito" | "cartao_credito", "valor_centa
 - Plano sem `recebimento_parceiro` (Essencial): 403 `PLT-12` ("Seu plano não inclui Pix e boleto automáticos. Para usar, mude de plano."), antes de olhar a subconta (`plataforma.md`, "Módulos por plano"). O cliente paga no caixa (`PLT-12`).
 
 ### POST /api/financeiro/contas-receber/{id}/cobrar/ · POST /api/financeiro/contas-receber/cobrar-em-lote/
-"Cobrar" e "Cobrar todos pelo WhatsApp". Corpo do lote: `{ "ids": [ ... ] }` (até 100). 202 `{ "enviadas": 1 }` nos dois (T-144). `enviadas`: quantas contas foram cobradas (uma por conta, pelo WhatsApp, pelo e-mail ou pelos dois). Conta que não está `aberta`, cliente sem celular e sem e-mail ou conta já cobrada hoje não conta e não é erro. No dia do vencimento e em atraso, com os recebimentos ligados, a mensagem gera um Pix novo do valor do dia (o que cancela a cobrança aberta, como acima); antes do vencimento é só o lembrete, sem Pix. Envia a mensagem de cobrança com a marca da locadora (`AUT-03`), uma vez por conta por dia, pelo WhatsApp e por e-mail, com os textos de "Régua de cobrança: textos".
+"Cobrar" e "Cobrar todos". Corpo do lote: `{ "ids": [ ... ] }` (até 100). 202 `{ "enviadas": 1 }` nos dois (T-144). `enviadas`: quantas contas foram cobradas (uma por conta, por e-mail). Conta que não está `aberta`, cliente sem e-mail ou conta já cobrada hoje não conta e não é erro. No dia do vencimento e em atraso, com os recebimentos ligados, a mensagem gera um Pix novo do valor do dia (o que cancela a cobrança aberta, como acima); antes do vencimento é só o lembrete, sem Pix. Envia a mensagem de cobrança com a marca da locadora (`AUT-03`), uma vez por conta por dia, por e-mail, com os textos de "Régua de cobrança: textos". Na fase 1, nada vai ao cliente pelo WhatsApp (ADR 0034, decisão de 11 nov 2026).
 
 ### POST /api/financeiro/contas-receber/{id}/cancelar/
 Perfis: administrador, gerente, financeiro. Corpo: `{ motivo }`. Só `aberta`. 200 `cancelada`. Também chamado por serviço (locação cancelada antes da retirada, `LOC-12`).
@@ -184,11 +184,11 @@ Textos fixados pelo produto (T-147, opção B da análise da T-017). Mudança de
   - `outro`: "a cobrança da locação LOC-2841".
   No começo da frase, com maiúscula ("A parcela 2 de 5...").
 - Valor: o `valor_hoje` do dia (`FIN-03`, `devido_ate`). A mensagem não faz conta.
-- Pix: com os recebimentos ligados, "Pague pelo Pix copia e cola: {código}" (cobrança gerada como em `POST .../cobranca/`). Sem subconta (`recebimentos_desligados`), "Pague na loja ou fale com a gente por aqui."
+- Pix: com os recebimentos ligados, "Pague pelo Pix copia e cola: {código}" (cobrança gerada como em `POST .../cobranca/`). Sem subconta (`recebimentos_desligados`) ou sem `recebimento_parceiro` (Essencial), "Pague na loja." (`AUT-03`: a mensagem não pede resposta).
 
 **Mensagens**
 
-| Momento | Texto (WhatsApp) | Assunto do e-mail |
+| Momento | Texto (corpo do e-mail) | Assunto do e-mail |
 | --- | --- | --- |
 | D-1 | "Moto Rápida: olá, Carlos. A parcela 3 de 5 da locação LOC-2841, de R$ 299,40, vence amanhã, 07/10." | "Moto Rápida: lembrete de vencimento" |
 | D0 | "Moto Rápida: olá, Carlos. A parcela 3 de 5 da locação LOC-2841, de R$ 299,40, vence hoje. Pague pelo Pix copia e cola: …" | "Moto Rápida: vence hoje" |
@@ -196,12 +196,13 @@ Textos fixados pelo produto (T-147, opção B da análise da T-017). Mudança de
 | "Cobrar" manual antes de D-1 | "Moto Rápida: olá, Carlos. A parcela 4 de 5 da locação LOC-2841, de R$ 299,40, vence em 14/10." | "Moto Rápida: lembrete de vencimento" |
 | "Cobrar" manual em atraso, fora de D+3 e D+7 | o texto de D+3 e D+7, com o valor do dia | "Moto Rápida: conta em atraso" |
 | Conta de outro tipo, D-1 | "Moto Rápida: olá, Carlos. A cobrança de acerto da locação LOC-2841, de R$ 365,37, vence amanhã, 10/10." | "Moto Rápida: lembrete de vencimento" |
-| Recibo (`AUT-05`) | "Moto Rápida: recebemos R$ 306,09 por Pix em 07/10, da parcela 2 de 5 da locação LOC-2841. Este é o seu recibo." | (só WhatsApp, `AUT-05`) |
+| Recibo (`AUT-05`) | "Moto Rápida: recebemos R$ 306,09 por Pix em 07/10, da parcela 2 de 5 da locação LOC-2841. Este é o seu recibo." | "Moto Rápida: recibo do pagamento" |
 
 - Em atraso sem multa nem juros (contrato sem a cláusula, `contratos.selectors.permite_juros`), sai "O valor é R$ 299,40." sem "com multa e juros".
 - Forma no recibo: "por Pix", "por boleto", "pelo Pix automático", "no cartão de crédito", "no cartão de débito", "em dinheiro". O dia é o do pagamento em `America/Sao_Paulo`; o valor, o total pago (principal, multa e juros).
-- Canais (`AUT-03`): WhatsApp quando o cliente tem celular e e-mail quando tem e-mail; os dois quando tem os dois. Sem `cobranca_whatsapp` na empresa (Essencial, `PLT-12`, ADR 0024), só e-mail: cliente sem e-mail não recebe nada, e a conta segue na lista. Sem `recebimento_parceiro` (Essencial), nunca há Pix nem boleto na mensagem: vale o texto de `recebimentos_desligados` ("Pague na loja..."), e não há recibo da `AUT-05`. O e-mail sai com o nome da locadora como remetente e o mesmo texto no corpo. Cliente sem celular e sem e-mail não recebe nada, e a conta segue na lista de cobrança.
-- Uma vez por conta por dia, contando os dois canais.
+- Canal (`AUT-03`, `AUT-05`, `CLI-12`): **na fase 1, só e-mail**, em todos os planos, com ou sem o aceite do WhatsApp (ADR 0034, decisão de 11 nov 2026; seção Automações das regras). O e-mail sai com o nome da locadora como remetente e o texto da tabela no corpo. Cliente sem e-mail não recebe nada, e a conta segue na lista de cobrança. Sem `recebimento_parceiro` (Essencial), nunca há Pix nem boleto na mensagem: vale o texto de `recebimentos_desligados` ("Pague na loja..."), e não há recibo da `AUT-05`.
+- Uma vez por conta por dia.
+- O envio pelo WhatsApp ao cliente continua no código, desligado pela chave `GIRO_WHATSAPP_CLIENTE_FINAL` (falsa por padrão e em produção). Ligá-la é decisão do dono, junto com a escolha do remetente (ADR 0034).
 
 ---
 
@@ -499,7 +500,7 @@ Servido no host `admin.<dominio>` (schema `public`), sem autenticação de usuá
 2. Acha a empresa pela conta, entra no schema dela e grava `WebhookRecebido` (`provedor`, `evento_id` **único**, `recebido_em`, o evento extraído e o corpo recebido). Evento repetido → 200 sem fazer nada (idempotência, CA-017-07).
 3. Responde **200** na hora. Não baixa nada dentro da requisição.
 4. A task `aut_05_processar_webhook(schema, webhook_id)` consulta a cobrança no parceiro (`consultar_cobranca`, com a chave da subconta) e **não confia no corpo do webhook**:
-   - paga e `valor_pago_centavos == CobrancaExterna.valor_centavos` → baixa a conta (`forma` = `pix` ou `boleto`), registra a entrada no caixa se a cobrança foi gerada no caixa, publica `financeiro.parcela_paga` e envia o recibo por WhatsApp. Ator da auditoria: `sistema`, regra `AUT-05`.
+   - paga e `valor_pago_centavos == CobrancaExterna.valor_centavos` → baixa a conta (`forma` = `pix` ou `boleto`), registra a entrada no caixa se a cobrança foi gerada no caixa, publica `financeiro.parcela_paga` e envia o recibo por e-mail ("Régua de cobrança: textos"). Ator da auditoria: `sistema`, regra `AUT-05`.
    - paga com valor diferente → não baixa; cria uma pendência para o financeiro (`PendenciaPagamento`) e avisa o administrador e o financeiro.
    - estornada no parceiro → pendência, nunca reabre sozinha.
    - paga, mas a conta já não está `aberta` (cancelada, renegociada, paga por outro caminho) → pendência, não baixa (T-144).

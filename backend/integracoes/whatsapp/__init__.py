@@ -30,6 +30,15 @@ def provedor() -> ProvedorDeWhatsApp:
     return WhatsAppFalso()
 
 
+def whatsapp_ao_cliente_final() -> bool:
+    """`GIRO_WHATSAPP_CLIENTE_FINAL` (ADR 0034, decisão de 11 nov 2026). Desligada, nenhum aviso
+    ao cliente final nem à pessoa convidada sai pelo WhatsApp (pontos 1 a 7: convite, contrato,
+    contrato assinado, régua de cobrança, recibo do pagamento, recibo da devolução, lembrete da
+    devolução); todos vão por e-mail. A régua da assinatura (ponto 8, `AUT-13`) não olha a chave.
+    O código do envio ao cliente fica guardado para quando o dono religar."""
+    return bool(getattr(settings, "GIRO_WHATSAPP_CLIENTE_FINAL", False))
+
+
 def enviar_whatsapp(celular: str, texto: str) -> None:
     """`celular` só com dígitos e DDD (10 ou 11)."""
     provedor().enviar(MensagemWhatsApp(celular=celular, texto=texto))

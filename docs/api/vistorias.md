@@ -217,14 +217,14 @@ Perfis: quem vê o acerto. Com uma troca de veículo pendente, 409 `{ "codigo": 
 - Locação `encerrada` (ou `cancelada` no encerramento antecipado aprovado com a devolução antes do dia do fim previsto, `DEV-07`, T-118) por `locacoes.services.encerrar`, com `devolvida_em` = conclusão da vistoria de chegada, ajustada pela `LOC-11` quando a filial estava fechada.
 - Km do veículo atualizado (`VEI-02`). Avaria com `vai_para_oficina` abre uma OS (`manutencao`) e o veículo vai para `em_manutencao`; sem isso, volta para `disponivel` (`DEV-04`).
 - Evento `locacoes.locacao_encerrada` recalcula as preventivas (`MAN-03`).
-- Depois do commit: recibo em PDF com as fotos, enviado por WhatsApp com a marca da locadora. Com saldo a devolver por Pix, o recibo diz "devolução de R$ 183,00 por Pix em até 1 dia útil" (o Pix é feito pela locadora e marcado como feito, `financeiro.md`).
+- Depois do commit: recibo em PDF com as fotos, enviado por e-mail com o PDF anexo e a marca da locadora (`DEV-02`). Na fase 1, nada vai ao cliente pelo WhatsApp (ADR 0034; o envio guardado só volta com `GIRO_WHATSAPP_CLIENTE_FINAL`). Com saldo a devolver por Pix, o recibo diz "devolução de R$ 183,00 por Pix em até 1 dia útil" (o Pix é feito pela locadora e marcado como feito, `financeiro.md`).
 - Encerramento antecipado aprovado com a devolução antes do dia do fim previsto: antes do acerto, as parcelas em aberto que vencem **depois** do dia da devolução vão para `cancelada` (`DEV-07`); a do dia entrou no acerto como `parcela_aberta`.
 
 Erros: 422 `{ "codigo": "DEV-07", "mensagem": "A devolução é antes do fim do contrato. Peça o encerramento antecipado ao gerente.", "detalhes": { "fim_previsto": "2026-10-14T21:00:00Z", "devolvida_em": "2026-10-07T13:00:00Z" } }` quando a chegada concluída é de um dia anterior ao do fim previsto, sem o encerramento antecipado aprovado (`LOC-12`, `APR-02`): a devolução fica em `rascunho`, e a locação, o veículo e as contas ficam como estavam. Abrir a devolução e concluir a vistoria de chegada continuam permitidos; no próprio dia do fim, antes da hora, não é antecipada (CA-016-23). 422 `{ "codigo": "FIN-07", "mensagem": "Abra o caixa do dia para devolver em dinheiro" }`; 409 `transicao_locacao`.
 Regras: DEV-01 a DEV-07, LOC-10 a LOC-13, FIN-03.
 
 ### GET /api/devolucoes/{id}/recibo/
-200: `{ "url", "url_expira_em" }` (PDF, URL assinada de 15 min). `POST /api/devolucoes/{id}/recibo/reenviar/` reenvia por WhatsApp.
+200: `{ "url", "url_expira_em" }` (PDF, URL assinada de 15 min). `POST /api/devolucoes/{id}/recibo/reenviar/` reenvia por e-mail, com o PDF anexo.
 
 ### POST /api/devolucoes/{id}/recibo/link/ (copiar link do recibo, T-411)
 
@@ -243,7 +243,7 @@ Regras comuns das rotas de copiar link em `copiar-link.md`. Sem corpo. Gera um l
 - **Quem:** quem vê o acerto (`FECHAM`: administrador, gerente, vendedor); outro perfil, 403 `permissao`; token de suporte, 403 `PLT-07`, com qualquer permissão de acesso (o recibo tem o nome, as fotos e os valores do cliente, `AUD-09`).
 - **Limite:** 5 por hora por devolução e 20 por hora por pessoa (`comum.limites`, escopos `link_recibo_devolucao` e `link_recibo_usuario`), conferido antes da transação; acima, 429 `muitas_requisicoes`.
 - **Auditoria:** evento `devolucao.copiar_link_recibo`, categoria `seguranca`, objeto a devolução, com `token_recibo_expira_em`; `CAMPOS_AUDITORIA` da `Devolucao` omite `token_recibo_hash`. Texto pronto no histórico da locação: "Copiou o link do recibo".
-- **Envio sem mudança:** o recibo do encerramento e o `recibo/reenviar/` continuam com a URL de 15 minutos no WhatsApp (modelo 10) e o PDF anexo no e-mail, e não mexem no token. Passar o envio para este link é tarefa do produto (`copiar-link.md`, "Fica para depois").
+- **Envio sem mudança:** o recibo do encerramento e o `recibo/reenviar/` continuam com o PDF anexo no e-mail (e, só com `GIRO_WHATSAPP_CLIENTE_FINAL`, a URL de 15 minutos no WhatsApp, modelo 10), e não mexem no token. Passar o envio para este link é tarefa do produto (`copiar-link.md`, "Fica para depois").
 - **`acoes.copiar_link_recibo`**: a representação da devolução (`GET /api/devolucoes/{id}/` e as respostas que a devolvem) ganha o bloco `acoes`, por enquanto só com esta chave: `true` com a devolução `concluida`, perfil de `FECHAM`, sem token de suporte e titular não anonimizado.
 - Testes com o código: `test_dev_02_copiar_link_recibo_abre_o_pdf` (o link abre pela rota pública e devolve a URL do PDF), `test_dev_02_copiar_link_recibo_invalida_o_anterior`, `test_dev_02_copiar_link_recibo_rascunho_e_perfis` (rascunho, perfis e suporte), `test_dev_02_copiar_link_recibo_limite_por_hora` e `test_dev_02_copiar_link_recibo_evento_sem_token`.
 

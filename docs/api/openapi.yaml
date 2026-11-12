@@ -2062,7 +2062,7 @@ paths:
   /api/devolucoes/{id}/recibo/reenviar/:
     post:
       operationId: devolucoes_recibo_reenviar_create
-      summary: Reenviar o recibo por WhatsApp
+      summary: Reenviar o recibo por e-mail, com o PDF anexo
       parameters:
       - in: path
         name: id
@@ -2961,7 +2961,7 @@ paths:
   /api/financeiro/contas-receber/{id}/cobrar/:
     post:
       operationId: financeiro_contas_receber_cobrar_create
-      summary: Cobrar pelo WhatsApp, com o Pix do valor de hoje (AUT-03)
+      summary: Cobrar por e-mail, com o Pix do valor de hoje (AUT-03)
       parameters:
       - in: path
         name: id
@@ -3048,7 +3048,7 @@ paths:
   /api/financeiro/contas-receber/cobrar-em-lote/:
     post:
       operationId: financeiro_contas_receber_cobrar_em_lote_create
-      summary: Cobrar todos pelo WhatsApp (até 100, uma vez por conta por dia)
+      summary: Cobrar todos por e-mail (até 100, uma vez por conta por dia)
       tags:
       - financeiro
       requestBody:

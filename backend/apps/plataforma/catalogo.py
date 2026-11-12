@@ -35,15 +35,16 @@ CATALOGO: dict[str, TextosDoPlano] = {
         descricao="Para quem está começando a frota.",
     ),
     # PLT-11, catálogo da fase 1 (T-356): só o que já existe. Vendas, manutenção, comissões,
-    # conciliação e relatórios entram no texto quando existirem.
+    # conciliação e relatórios entram no texto quando existirem. Sem "cobrança pelo WhatsApp" desde
+    # 11 nov 2026: na fase 1, a régua do cliente vai só por e-mail (ADR 0034).
     "Profissional": TextosDoPlano(
         inclui=(
             "Tudo do Essencial, mais despesas",
-            "Pix e boleto automáticos e cobrança pelo WhatsApp",
+            "Pix e boleto automáticos",
         ),
         a_mais=(
             "Despesas",
-            "Pix e boleto automáticos e cobrança pelo WhatsApp",
+            "Pix e boleto automáticos",
             "Até 150 veículos, 3 filiais e 10 usuários",
         ),
         descricao="Para locadoras com equipe e mais de uma loja.",

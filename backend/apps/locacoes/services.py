@@ -40,7 +40,7 @@ from comum.empresa import nome_da_empresa
 from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, SemPermissao, TransicaoInvalida
 from comum.eventos import publicar
 from comum.permissoes import pode
-from integracoes.whatsapp import enviar_whatsapp
+from integracoes.whatsapp import enviar_whatsapp, whatsapp_ao_cliente_final
 
 from . import calculo, contrato, fim
 from .models import (
@@ -905,10 +905,12 @@ def _ja_lembrada(locacao: Locacao) -> bool:
 
 def lembrar_devolucoes(agora: datetime | None = None) -> int:
     """AUT-01 (08:00): o lembrete à locação `ativa` com o fim previsto hoje, no fuso da filial.
-    Pelo WhatsApp quando o cliente tem celular; sem celular, pelo e-mail, com o mesmo texto
-    ("Mensagens pelo WhatsApp", queda para o e-mail). Sem os dois, nada sai, e o evento guarda o
-    canal vazio. Uma vez por locação: o evento `locacao.lembrar_devolucao` marca a lembrada, e a
-    renovação que muda o fim não lembra de novo. Devolve quantas foram lembradas."""
+    Por e-mail quando o cliente tem e-mail (na fase 1, nada vai ao cliente pelo WhatsApp, ADR
+    0034); pelo WhatsApp, com o mesmo texto, só com `GIRO_WHATSAPP_CLIENTE_FINAL` ligada e
+    celular. Sem canal, nada sai, e o evento guarda o canal vazio (`email`, `whatsapp` ou
+    `whatsapp_email` quando sai pelos dois). Uma vez por locação: o evento
+    `locacao.lembrar_devolucao` marca a lembrada, e a renovação que muda o fim não lembra de
+    novo. Devolve quantas foram lembradas."""
     agora = agora or relogio.agora()
     lembradas = 0
     candidatas = Locacao.objects.filter(
@@ -926,18 +928,19 @@ def lembrar_devolucoes(agora: datetime | None = None) -> int:
                 continue
             cliente = travada.cliente
             texto = texto_do_lembrete(travada)
-            canal = ""
-            if cliente.celular:
+            canais = []
+            if cliente.celular and whatsapp_ao_cliente_final():
                 enviar_whatsapp(cliente.celular, texto)
-                canal = "whatsapp"
-            elif cliente.email:
+                canais.append("whatsapp")
+            if cliente.email:
                 send_mail(
                     subject=f"{nome_da_empresa()}: lembrete de devolução",
                     message=texto,
                     from_email=financeiro.remetente(),
                     recipient_list=[cliente.email],
                 )
-                canal = "email"
+                canais.append("email")
+            canal = "_".join(canais)
             registrar_evento(
                 LEMBRETE_DE_DEVOLUCAO,
                 Categoria.OPERACAO,

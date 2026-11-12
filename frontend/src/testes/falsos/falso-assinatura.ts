@@ -118,7 +118,7 @@ const PLANOS: PlanoParaMudar[] = [
     limite_veiculos: 150,
     limite_filiais: 3,
     limite_usuarios: 10,
-    itens: ["Vendas, manutenção e despesas", "Pix e boleto automáticos, cobrança pelo WhatsApp", "Comissão de vendedores e relatórios", "Até 150 veículos, 3 filiais e 10 usuários"],
+    itens: ["Vendas, manutenção e despesas", "Pix e boleto automáticos", "Comissão de vendedores e relatórios", "Até 150 veículos, 3 filiais e 10 usuários"],
     mudanca: null,
     cabe: true,
     excede: {},

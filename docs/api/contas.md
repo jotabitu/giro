@@ -319,7 +319,7 @@ Query: `?situacao=ativos|convites|desativados`, `?perfil=`, `?filial=<id>`, `?bu
 
 ### POST /api/usuarios/convites/
 Corpo: `{ email, nome?, celular?, perfil, filiais: [ids], permissoes_extras: [] }`.
-`email` é obrigatório (é o login, `USR-06`); `celular` é opcional. O convite sai sempre por e-mail e, quando há celular, também por WhatsApp (`USR-01`, decisão do produto na T-037). `filiais` obrigatório (ao menos 1) para quem não é administrador; ignorado para administrador.
+`email` é obrigatório (é o login, `USR-06`); `celular` é opcional. O convite sai por e-mail (`USR-01`). Na fase 1, não vai pelo WhatsApp (decisão do dono de 11 nov 2026, ADR 0034); o envio guardado só volta com `GIRO_WHATSAPP_CLIENTE_FINAL`. `filiais` obrigatório (ao menos 1) para quem não é administrador; ignorado para administrador.
 201: o usuário (status `convite_pendente`). O convite vale 7 dias e sai depois do commit, com a marca da locadora.
 409 `{ "codigo": "email_em_uso", "mensagem": "Já existe um usuário com este e-mail" }`.
 422 `PLT-03` (limite de usuários).

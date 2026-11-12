@@ -442,7 +442,9 @@ class ReciboDaDevolucaoView(ViewDeVistoria):
 class ReenviarReciboView(ViewDeVistoria):
     permission_classes = FECHAM
 
-    @extend_schema(request=None, responses={202: None}, summary="Reenviar o recibo por WhatsApp")
+    @extend_schema(
+        request=None, responses={202: None}, summary="Reenviar o recibo por e-mail, com o PDF anexo"
+    )
     def post(self, request: Request, pk: int) -> Response:
         services.reenviar_recibo(_devolucao(request, pk))
         return Response(status=status.HTTP_202_ACCEPTED)

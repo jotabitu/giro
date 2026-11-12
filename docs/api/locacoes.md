@@ -220,7 +220,7 @@ Regras: LOC-01 a LOC-05, LOC-12, LOC-14, LOC-15, IMP-04, APR-01, FIL-05, tabela 
 ### Depois de confirmar
 
 - **Vistoria de saída:** `POST /api/locacoes/{id}/vistorias/` (ver `vistorias.md`).
-- **Contrato:** `POST /api/locacoes/{id}/contrato/` gera o PDF do modelo publicado e envia o link de assinatura por WhatsApp (ver `contratos.md`). 202 `{ "contrato_id", "status": "gerado" }`; o envio e o PDF saem em segundo plano.
+- **Contrato:** `POST /api/locacoes/{id}/contrato/` gera o PDF do modelo publicado e envia o link de assinatura por e-mail (ver `contratos.md`). 202 `{ "contrato_id", "status": "gerado" }`; o envio e o PDF saem em segundo plano.
 - **1º pagamento:** pelo caixa ou Pix, nas contas a receber da locação (`financeiro.md`). O assinante de `financeiro.parcela_paga` grava `primeiro_pagamento_em` quando a 1ª parcela e a caução estão pagas. Pagas antes ou no dia da retirada, as duas nunca têm multa nem juros, mesmo com o vencimento gravado antes (`FIN-03`, CA-410-09: R$ 629,00 em 07 nov, com vencimento em 05 nov).
 - Cada uma das três chama `locacoes.services.verificar_ativacao`, que leva a `ativa` quando as três estão cumpridas e, na mesma transação, libera as contas (`liberar_contas_da_retirada(origem, dia)`, com o dia local da ativação). Dali em diante, as contas seguem o calendário de sempre (CA-410-10: parcela 2 vence em 12 nov e atrasa em 13 nov).
 
@@ -228,7 +228,7 @@ Regras: LOC-01 a LOC-05, LOC-12, LOC-14, LOC-15, IMP-04, APR-01, FIL-05, tabela 
 Perfis: quem vê o detalhe, menos vistoriador. 200: `{ "url": "...", "url_expira_em": "..." }` (URL assinada de 15 min, `AUD-05`). Botão "Imprimir".
 
 ### POST /api/locacoes/{id}/contrato/reenviar/
-Gera novo link de assinatura (o anterior deixa de valer, `contratos.md`) e reenvia por WhatsApp. Só com contrato não assinado; depois de assinado, reenvia o PDF assinado.
+Gera novo link de assinatura (o anterior deixa de valer, `contratos.md`) e reenvia por e-mail. Só com contrato não assinado; depois de assinado, reenvia o PDF assinado, anexo ao e-mail. Na fase 1, nada vai ao cliente pelo WhatsApp (ADR 0034; o envio guardado só volta com `GIRO_WHATSAPP_CLIENTE_FINAL`).
 
 ### POST /api/locacoes/{id}/contrato/link/ (copiar link para assinar, T-411)
 
