@@ -352,7 +352,10 @@ def agenda(filial: Filial, dia: str = "hoje") -> dict[str, Any]:
             status=StatusLocacao.AGUARDANDO_RETIRADA, inicio__gte=inicio, inicio__lt=fim
         )
     )
-    previstas = Q(status=StatusLocacao.ATIVA, fim_previsto__gte=inicio, fim_previsto__lt=fim)
+    # LOC-16: a locação com intenção de compra não devolve no fim previsto.
+    previstas = Q(
+        status=StatusLocacao.ATIVA, tipo="comum", fim_previsto__gte=inicio, fim_previsto__lt=fim
+    )
     if dia != "amanha":
         previstas |= Q(status=StatusLocacao.DEVOLUCAO_ATRASADA)
     devolucoes = list(locacoes.filter(previstas))

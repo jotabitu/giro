@@ -9,18 +9,21 @@ funções `registrar_*`, `aplicar_decisao_desconto` e `aplicar_decisao_cancelame
 """
 
 from dataclasses import dataclass, field, replace
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from django.core.mail import send_mail
 from django.db import IntegrityError, transaction
+from django.db.models import Q
+from django.utils import timezone
 
 from apps.auditoria.models import EventoAuditoria
 from apps.clientes import selectors as clientes_selectors
 from apps.clientes.models import Cliente
 from apps.contratos import selectors as contratos_selectors
+from apps.contratos.models import Finalidade
 from apps.empresas import selectors as empresas_selectors
 from apps.filiais import selectors as filiais_selectors
 from apps.filiais.models import Filial
@@ -49,10 +52,12 @@ from .models import (
     Locacao,
     ParcelamentoMensal,
     Periodicidade,
+    PlanoCompra,
     PlanoEspecial,
     StatusDesconto,
     StatusLocacao,
     StatusTroca,
+    TipoLocacao,
     TrechoLocacao,
     TrocaVeiculo,
 )
@@ -79,7 +84,41 @@ CAMPOS_DO_FORMULARIO = (
     "cliente_id",
     "veiculo_id",
     "usado_em",
+    "tipo",
+    "plano_compra_id",
+    "compra_parcelas",
+    "compra_valor_parcela_centavos",
 )
+
+# --- LOC-16: locação com intenção de compra (T-420, ADR 0037) ---
+
+COMPRA = TipoLocacao.INTENCAO_COMPRA
+SO_O_PLANO = "A locação com intenção de compra usa o valor do plano."
+NAO_RENOVA = "A locação com intenção de compra não se renova."
+NAO_TROCA = "A locação com intenção de compra não troca de veículo. Encerre esta e abra outra."
+SEM_PARCELA_ATRASADA = (
+    "Esta locação não tem parcela atrasada. Para encerrar a pedido do cliente, use Cancelar "
+    "locação."
+)
+SEM_MODELO_DA_COMPRA = (
+    "Publique o modelo de contrato da locação com intenção de compra antes de confirmar."
+)
+AVISO_ENCERRAMENTO_DA_COMPRA = "O que foi pago fica como aluguel do período usado."
+
+
+def e_compra(locacao: Locacao) -> bool:
+    """O único teste do tipo (ADR 0037, item 1): os pontos que mudam o fluxo comum o chamam."""
+    return locacao.tipo == COMPRA
+
+
+def finalidade_do_contrato(tipo: str) -> str:
+    """LOC-16: a locação pede o modelo publicado da finalidade do seu tipo."""
+    return Finalidade.LOCACAO_COMPRA if tipo == COMPRA else Finalidade.LOCACAO
+
+
+def sem_modelo_da_compra() -> ErroDeRegra:
+    """422 `LOC-16`, com o atalho para publicar, como a `IMP-04` (CA-420-03)."""
+    return ErroDeRegra("LOC-16", SEM_MODELO_DA_COMPRA, {"link": LINK_MODELOS})
 
 
 def veiculo_indisponivel() -> Conflito:
@@ -124,6 +163,7 @@ class Montagem:
     preco_periodo_centavos: int
     impedimentos: list[dict[str, Any]] = field(default_factory=list)
     avisos: list[dict[str, Any]] = field(default_factory=list)
+    plano_compra: PlanoCompra | None = None  # LOC-16
 
 
 def _cliente(cliente_id: Any) -> Cliente:
@@ -161,6 +201,41 @@ def _plano(plano_id: Any, periodicidade: str, veiculo: Veiculo) -> PlanoEspecial
             }
         )
     return plano
+
+
+def _tipo(dados: dict[str, Any]) -> str:
+    return str(dados.get("tipo") or TipoLocacao.COMUM)
+
+
+def _plano_compra(plano_id: Any, veiculo: Veiculo) -> PlanoCompra:
+    """LOC-16: plano ativo, da categoria do veículo (400 nos dois casos)."""
+    if not plano_id:
+        raise ErroDeValidacao({"plano_compra_id": ["Escolha o plano de compra."]})
+    plano: PlanoCompra | None = PlanoCompra.ativos.filter(pk=plano_id).first()
+    if plano is None:
+        raise ErroDeValidacao(
+            {"plano_compra_id": ["Plano de compra não encontrado ou desativado."]}
+        )
+    if plano.categoria_id != veiculo.categoria_id:
+        raise ErroDeValidacao({"veiculo_id": ["O veículo não é da categoria do plano."]})
+    return plano
+
+
+def _recusar_fora_do_plano(dados: dict[str, Any], plano: PlanoCompra) -> None:
+    """LOC-16, CA-420-02: sem desconto, extras, plano especial, fim escolhido ou parcelamento.
+    A periodicidade e os períodos vêm do plano; mandados iguais, passam."""
+    erros: dict[str, list[str]] = {}
+    for campo in ("plano_especial_id", "fim_previsto", "parcelamento_mensal", "extras"):
+        if dados.get(campo):
+            erros[campo] = [SO_O_PLANO]
+    if Decimal(dados.get("desconto_pct") or 0) != 0:
+        erros["desconto_pct"] = [SO_O_PLANO]
+    if dados.get("periodicidade") and dados["periodicidade"] != plano.periodicidade:
+        erros["periodicidade"] = [SO_O_PLANO]
+    if dados.get("periodos") and int(dados["periodos"]) != plano.parcelas:
+        erros["periodos"] = [SO_O_PLANO]
+    if erros:
+        raise ErroDeValidacao(erros)
 
 
 def _extras(pedidos: list[dict[str, Any]]) -> list[calculo.ItemExtra]:
@@ -256,8 +331,10 @@ def impedimentos(
     return [{"codigo": i["codigo"], "mensagem": i["mensagem"]} for i in lista]
 
 
-def avisos(cliente: Cliente, filial: Filial) -> list[dict[str, Any]]:
-    """O que não impede confirmar, mas impede a retirada (CLI-03, CLI-02 vencida, IMP-04)."""
+def avisos(cliente: Cliente, filial: Filial, tipo: str = TipoLocacao.COMUM) -> list[dict[str, Any]]:
+    """O que não impede confirmar, mas impede a retirada (CLI-03, CLI-02 vencida, IMP-04). Na
+    locação com intenção de compra, sem o modelo dela publicado, o aviso da `LOC-16` (que
+    impede confirmar, CA-420-03)."""
     lista: list[dict[str, Any]] = []
     if cliente.status == clientes_selectors.S.INCOMPLETO:
         lista.append(
@@ -268,8 +345,8 @@ def avisos(cliente: Cliente, filial: Filial) -> list[dict[str, Any]]:
         lista.append(
             {"codigo": "CLI-02", "mensagem": "A CNH do cliente está vencida há mais de 30 dias."}
         )
-    if contratos_selectors.modelo_publicado() is None:
-        erro = sem_modelo_de_contrato()
+    if contratos_selectors.modelo_publicado(finalidade_do_contrato(tipo)) is None:
+        erro = sem_modelo_da_compra() if tipo == COMPRA else sem_modelo_de_contrato()
         lista.append({"codigo": erro.codigo, "mensagem": erro.mensagem, "link": LINK_MODELOS})
     return lista
 
@@ -284,6 +361,10 @@ def montar(
     """Preços de hoje (LOC-15) sobre o formulário. Não grava nada."""
     cliente = _cliente(dados.get("cliente_id"))
     veiculo = _veiculo(dados.get("veiculo_id"))
+    if _tipo(dados) == COMPRA:
+        return _montar_compra(dados, filial, cliente, veiculo, exceto)
+    if not dados.get("periodicidade"):
+        raise ErroDeValidacao({"periodicidade": ["Escolha a periodicidade."]})
     periodicidade = dados["periodicidade"]
     plano = _plano(dados.get("plano_especial_id"), periodicidade, veiculo)
     extras = _extras(list(dados.get("extras") or []))
@@ -330,7 +411,48 @@ def montar(
     )
 
 
+def _montar_compra(
+    dados: dict[str, Any],
+    filial: Filial,
+    cliente: Cliente,
+    veiculo: Veiculo,
+    exceto: int | None,
+) -> Montagem:
+    """LOC-16: o valor e o prazo do plano de compra; a caução e a diária da categoria (LOC-04,
+    base da LOC-10 depois de um encerramento). A última parcela nasce com a caução abatida."""
+    plano = _plano_compra(dados.get("plano_compra_id"), veiculo)
+    _recusar_fora_do_plano(dados, plano)
+    preco = veiculos_selectors.preco_vigente(veiculo.categoria_id, relogio.hoje())
+    if preco is None:
+        raise ErroDeRegra("LOC-01", "A categoria do veículo não tem preço vigente.")
+    entrada = calculo.Entrada(
+        periodicidade=plano.periodicidade,
+        inicio=dados["inicio"],
+        fuso=fuso(filial),
+        preco_periodo_centavos=plano.valor_parcela_centavos,
+        diaria_centavos=preco.diaria_centavos,
+        caucao_centavos=preco.caucao_centavos,
+        periodos=plano.parcelas,
+        primeiro_vencimento=dados.get("primeiro_vencimento"),
+        compra=True,
+    )
+    return Montagem(
+        cliente=cliente,
+        veiculo=veiculo,
+        plano=None,
+        extras=[],
+        calculo=calculo.calcular(entrada),
+        diaria_centavos=preco.diaria_centavos,
+        preco_periodo_centavos=plano.valor_parcela_centavos,
+        impedimentos=impedimentos(cliente, veiculo, filial, exceto, inicio=dados["inicio"]),
+        avisos=avisos(cliente, filial, COMPRA),
+        plano_compra=plano,
+    )
+
+
 def _parcelamento(dados: dict[str, Any]) -> str:
+    if _tipo(dados) == COMPRA:
+        return ""
     if dados.get("periodicidade") != Periodicidade.MENSAL:
         return ""
     return str(dados.get("parcelamento_mensal") or ParcelamentoMensal.A_VISTA)
@@ -352,7 +474,18 @@ def precisa_aprovacao_desconto(desconto_pct: Decimal, usuario: Any) -> bool:
 def _preencher(locacao: Locacao, dados: dict[str, Any], montagem: Montagem) -> None:
     locacao.cliente = montagem.cliente
     locacao.veiculo = montagem.veiculo
-    locacao.periodicidade = dados["periodicidade"]
+    plano_compra = montagem.plano_compra
+    # LOC-16: o tipo e o plano de compra. No rascunho, os valores do plano escolhido; na
+    # confirmação, congelados (LOC-15, CA-420-04).
+    locacao.tipo = COMPRA if plano_compra is not None else TipoLocacao.COMUM
+    locacao.plano_compra = plano_compra
+    locacao.compra_parcelas = plano_compra.parcelas if plano_compra else None
+    locacao.compra_valor_parcela_centavos = (
+        plano_compra.valor_parcela_centavos if plano_compra else None
+    )
+    locacao.periodicidade = (
+        plano_compra.periodicidade if plano_compra is not None else dados["periodicidade"]
+    )
     locacao.plano_especial = montagem.plano
     locacao.periodos = montagem.calculo.periodos
     locacao.inicio = dados["inicio"]
@@ -408,6 +541,7 @@ def editar_rascunho(locacao: Locacao, dados: dict[str, Any]) -> Locacao:
 def _campos_salvos() -> list[str]:
     return [
         c.replace("plano_especial_id", "plano_especial")
+        .replace("plano_compra_id", "plano_compra")
         .replace("cliente_id", "cliente")
         .replace("veiculo_id", "veiculo")
         for c in CAMPOS_DO_FORMULARIO
@@ -429,6 +563,8 @@ def _formulario(locacao: Locacao) -> dict[str, Any]:
         "forma_pagamento": locacao.forma_pagamento,
         "parcelamento_mensal": locacao.parcelamento_mensal or None,
         "primeiro_vencimento": locacao.primeiro_vencimento,
+        "tipo": locacao.tipo,
+        "plano_compra_id": locacao.plano_compra_id,
     }
 
 
@@ -489,9 +625,12 @@ def _contas(locacao: Locacao, conta: calculo.Calculo) -> list[financeiro.NovaCon
             tipo="caucao",
             vencimento=conta.parcelas[0].vencimento,
             valor_centavos=conta.caucao_centavos,
-            observacao="Devolver na entrega",
+            # LOC-16: na compra, a caução é abatida na última parcela.
+            observacao="Abatida na última parcela" if e_compra(locacao) else "Devolver na entrega",
         )
     )
+    # A última parcela de R$ 0,00 da compra (caução maior que a parcela, LOC-16) não nasce:
+    # `financeiro` não cria conta zerada; ela conta como paga na quitação (`parcelas_pagas`).
     return contas
 
 
@@ -508,6 +647,10 @@ def confirmar(locacao: Locacao, usuario: Any, primeiro_vencimento: date | None =
             raise transicao_invalida(travada.status, S.AGUARDANDO_RETIRADA)
         if ultimo_dia_retirada(travada) < relogio.hoje():
             raise inicio_vencido(travada.inicio, travada.filial)
+        # LOC-16 (CA-420-03): sem o modelo da compra publicado, antes de tudo o mais.
+        compra = e_compra(travada)
+        if compra and contratos_selectors.modelo_publicado(Finalidade.LOCACAO_COMPRA) is None:
+            raise sem_modelo_da_compra()
         if travada.veiculo_id is not None:
             # A mesma linha que a movimentação trava ao iniciar: uma espera a outra (ADR 0028).
             veiculos.travar(travada.veiculo)
@@ -525,7 +668,7 @@ def confirmar(locacao: Locacao, usuario: Any, primeiro_vencimento: date | None =
         erro = _primeiro_impedimento(montagem.impedimentos)
         if erro is not None and not isinstance(erro, Conflito):
             raise erro
-        if contratos_selectors.modelo_publicado() is None:
+        if not compra and contratos_selectors.modelo_publicado() is None:
             raise sem_modelo_de_contrato()
         if erro is not None:
             raise erro
@@ -775,6 +918,8 @@ def _retirar(travada: Locacao, motivo: str, *, a_mao: bool = False, por_motivo: 
     if a_mao:
         financeiro.vencer_na_retirada(_origem(travada), dia)
     financeiro.liberar_contas_da_retirada(_origem(travada), dia)
+    if e_compra(travada):
+        quitar_se_pago(travada.pk)  # LOC-16: todas as parcelas pagas antes da retirada
 
 
 def vistoria_saida_pendente() -> Conflito:
@@ -905,10 +1050,28 @@ def atraso_desde(locacao: Locacao, fim_previsto: datetime, momento: datetime) ->
     )
 
 
+def fim_da_devolucao(locacao: Locacao) -> datetime | None:
+    """De quando corre o atraso da devolução (LOC-10). Na comum, o fim previsto. Na locação com
+    intenção de compra, o fim previsto não pede devolução (LOC-16, CA-420-10): só o encerramento
+    aprovado pede, e o atraso corre depois do dia do encerramento (o fim desse dia, no fuso da
+    filial). Sem encerramento, `None`: não há devolução a atrasar."""
+    if not e_compra(locacao):
+        return locacao.fim_previsto
+    if locacao.encerramento_antecipado_aprovado_em is None or locacao.cancelamento_data is None:
+        return None
+    return datetime.combine(
+        locacao.cancelamento_data, time(23, 59, 59), tzinfo=ZoneInfo(fuso(locacao.filial))
+    )
+
+
 def calcular_atraso(locacao: Locacao, momento: datetime | None = None) -> dict[str, Any]:
     """`{dias, valor_centavos}` se a devolução for em `momento` (padrão agora), usado no acerto
     (T-016). Soma o atraso que já corria quando a locação atrasada foi renovada (LOC-08)."""
-    atual = atraso_desde(locacao, locacao.fim_previsto, momento or relogio.agora())
+    momento = momento or relogio.agora()
+    referencia = fim_da_devolucao(locacao)
+    if referencia is None:  # LOC-16: sem devolução pedida, sem atraso
+        return {"dias": 0, "valor_centavos": 0, "devolucao_considerada_em": momento}
+    atual = atraso_desde(locacao, referencia, momento)
     return {
         "dias": atual.dias + locacao.atraso_anterior_dias,
         "valor_centavos": atual.valor_centavos + locacao.atraso_anterior_centavos,
@@ -921,19 +1084,31 @@ def marcar_devolucoes_atrasadas(agora: datetime | None = None) -> int:
     previsto, quando a devolução feita agora já teria atraso (LOC-10, LOC-11). Idempotente."""
     agora = agora or relogio.agora()
     marcadas = 0
-    candidatas = Locacao.objects.filter(
-        status=S.ATIVA, fim_previsto__lt=agora - _tolerancia()
-    ).values_list("pk", flat=True)
+    # LOC-16 (CA-420-10): a locação com intenção de compra não atrasa pelo fim previsto; só
+    # depois do dia de um encerramento aprovado (`fim_da_devolucao`).
+    candidatas = (
+        Locacao.objects.filter(status=S.ATIVA)
+        .filter(
+            Q(tipo=TipoLocacao.COMUM, fim_previsto__lt=agora - _tolerancia())
+            | Q(
+                tipo=COMPRA,
+                encerramento_antecipado_aprovado_em__isnull=False,
+                cancelamento_data__lt=timezone.localdate(agora),
+            )
+        )
+        .values_list("pk", flat=True)
+    )
     for pk in candidatas:
         with transaction.atomic():
             travada = _travar(pk)
             if travada.status != S.ATIVA:
                 continue
-            if data_local(agora, travada.filial) <= data_local(
-                travada.fim_previsto, travada.filial
-            ):
+            referencia = fim_da_devolucao(travada)
+            if referencia is None:
                 continue
-            atraso = atraso_desde(travada, travada.fim_previsto, agora)
+            if data_local(agora, travada.filial) <= data_local(referencia, travada.filial):
+                continue
+            atraso = atraso_desde(travada, referencia, agora)
             if atraso.dias == 0:
                 continue
             estados.transicionar(
@@ -988,6 +1163,7 @@ def lembrar_devolucoes(agora: datetime | None = None) -> int:
     lembradas = 0
     candidatas = Locacao.objects.filter(
         status=S.ATIVA,
+        tipo=TipoLocacao.COMUM,  # LOC-16: a compra não devolve no fim previsto
         fim_previsto__gte=agora - timedelta(days=1),
         fim_previsto__lt=agora + timedelta(days=2),
     ).values_list("pk", flat=True)
@@ -1063,6 +1239,8 @@ def montar_renovacao(locacao: Locacao, dados: dict[str, Any]) -> Renovacao:
     especial ativo; o plano de desconto conta os períodos desde o começo da locação. O mesmo
     percentual de desconto continua, sem novo `APR-01`, e os extras por período vão pelo valor
     de hoje do cadastro; a caução não se cobra de novo. Não grava nada."""
+    if e_compra(locacao):
+        raise Conflito("LOC-16", NAO_RENOVA)  # CA-420-06
     if locacao.status not in (S.ATIVA, S.DEVOLUCAO_ATRASADA):
         raise Conflito(
             "transicao_locacao",
@@ -1273,6 +1451,8 @@ def pedir_troca(locacao: Locacao, veiculo_novo_id: Any, motivo: str, usuario: An
         raise ErroDeValidacao({"motivo": ["Informe o motivo da troca."]})
     with transaction.atomic():
         travada = _travar(locacao)
+        if e_compra(travada):
+            raise Conflito("LOC-16", NAO_TROCA)  # CA-420-06
         if travada.status != S.ATIVA:
             raise Conflito(
                 "transicao_locacao",
@@ -1615,6 +1795,8 @@ def calcular_encerramento(
         return fim.antes_da_retirada(
             financeiro_selectors.pago_da_origem_centavos(ORIGEM, locacao.pk)
         )
+    if e_compra(locacao):
+        return _encerramento_da_compra(locacao, dia)
     entrada = _entrada_congelada(locacao, Decimal(locacao.desconto_pct))
     canceladas = sum(c.valor_centavos for c in _parcelas_do_mes_a_cancelar(locacao, dia))
     resultado = fim.depois_da_retirada(
@@ -1632,6 +1814,19 @@ def calcular_encerramento(
     if resultado is None:
         raise _sem_dias_restantes()
     return resultado
+
+
+def _encerramento_da_compra(locacao: Locacao, dia: date) -> fim.Encerramento:
+    """LOC-16 (padrão A, decisão do dono de 11 nov 2026): sem multa, sem crédito, sem devolução
+    de parcela; as parcelas abertas que vencem depois do dia são canceladas na devolução. Vale
+    também depois do fim previsto (a locação continua ativa até quitar ou encerrar)."""
+    canceladas = financeiro_selectors.abertas_vencendo_depois(ORIGEM, locacao.pk, dia)
+    return fim.Encerramento(
+        antes_da_retirada=False,
+        compra=True,
+        parcelas_canceladas_centavos=sum(c.valor_centavos for c in canceladas),
+        avisos=[{"codigo": "LOC-16", "mensagem": AVISO_ENCERRAMENTO_DA_COMPRA}],
+    )
 
 
 def _parcelas_do_mes_a_cancelar(locacao: Locacao, dia: date) -> list[Any]:
@@ -1708,6 +1903,18 @@ def _resumo_do_cancelamento(
         f"{locacao.veiculo.modelo} · {periodicidade.label.lower()} "
         f"{formatar_reais(locacao.valor_periodo_centavos)}"
     )
+    if encerramento.compra:  # LOC-16
+        return aprovacoes.Resumo(
+            [
+                ("Plano", plano),
+                ("Multa", "Sem multa, locação com intenção de compra"),
+                (
+                    "Parcelas a cancelar",
+                    formatar_reais(encerramento.parcelas_canceladas_centavos),
+                ),
+            ],
+            AVISO_ENCERRAMENTO_DA_COMPRA,
+        )
     if encerramento.antes_da_retirada:
         return aprovacoes.Resumo(
             [
@@ -1756,7 +1963,9 @@ def _pedir_cancelamento(
     forma: str,
     encerramento: fim.Encerramento,
 ) -> aprovacoes.PedidoRef:
-    if encerramento.antes_da_retirada:
+    if encerramento.compra:  # LOC-16
+        detalhe = f"{locacao.codigo} · {locacao.cliente.nome} · intenção de compra, sem multa"
+    elif encerramento.antes_da_retirada:
         detalhe = f"{locacao.codigo} · {locacao.cliente.nome} · antes da retirada, sem multa"
     else:
         multa = formatar_reais(encerramento.multa_centavos)
@@ -1824,7 +2033,10 @@ def encerramento_na_devolucao(locacao: Locacao, momento: datetime) -> Encerramen
     a aprovação gravou é só a estimativa do dia pedido (T-116). Na diária, os dias não usados
     contam pela hora real da devolução. No mensal em 4 semanais, o crédito das semanas sai menos
     as parcelas do mês que o encerramento cancela. No fim previsto ou depois, não há multa nem
-    crédito: é uma devolução comum."""
+    crédito: é uma devolução comum. Na locação com intenção de compra, nunca há multa nem
+    crédito (LOC-16)."""
+    if e_compra(locacao):
+        return EncerramentoNaDevolucao(0, 0, "")
     try:
         encerramento = calcular_encerramento(locacao, momento=momento)
     except Conflito:  # sem dias restantes
@@ -1854,6 +2066,8 @@ def _aplicar_cancelamento(
     *,
     acao: str = "locacao.cancelar",
     automatico: bool = False,
+    acao_encerramento: str = "locacao.aprovar_encerramento",
+    regra_encerramento: str = "LOC-12",
 ) -> None:
     """O efeito do cancelamento, direto ou aprovado, na transação de quem chama.
 
@@ -1917,12 +2131,13 @@ def _aplicar_cancelamento(
         return
     locacao.encerramento_antecipado_aprovado_em = relogio.agora()
     with auditar(
-        locacao, "locacao.aprovar_encerramento", Categoria.OPERACAO, motivo=motivo, regra="LOC-12"
+        locacao, acao_encerramento, Categoria.OPERACAO, motivo=motivo, regra=regra_encerramento
     ):
         locacao.save(
             update_fields=[
                 *CAMPOS_DO_CANCELAMENTO,
                 "encerramento_antecipado_aprovado_em",
+                "encerrada_por_atraso",
                 "atualizado_em",
             ]
         )
@@ -2112,9 +2327,13 @@ def acertar_reservas_t410() -> tuple[int, int]:
 def encerramento_antecipado_vale(locacao: Locacao, momento: datetime) -> bool:
     """DEV-07 (T-118): o encerramento antecipado aprovado só vale com a devolução antes do dia
     do fim previsto, no fuso da filial. No dia do fim ou depois, a devolução é comum: sem multa
-    nem crédito da LOC-12, e o pedido aprovado fica registrado, sem efeito."""
+    nem crédito da LOC-12, e o pedido aprovado fica registrado, sem efeito. Na locação com
+    intenção de compra, o encerramento aprovado vale sempre: ela não termina no fim previsto
+    (LOC-16), e as parcelas que vencem depois do dia são canceladas."""
     if locacao.encerramento_antecipado_aprovado_em is None:
         return False
+    if e_compra(locacao):
+        return True
     fim_previsto = data_local(locacao.fim_previsto, locacao.filial)
     return data_local(momento, locacao.filial) < fim_previsto
 
@@ -2160,6 +2379,190 @@ def encerrar(locacao: Locacao, *, devolvida_em: datetime | None = None) -> Locac
         )
     _recarregar(locacao)
     return locacao
+
+
+# --- Encerrar por atraso (LOC-16, CA-420-08, CA-420-19) ---
+
+
+def tem_parcela_atrasada(locacao: Locacao) -> bool:
+    """Uma parcela vencida e não paga, pela expressão única de `atrasada` (FIN-01)."""
+    return (
+        financeiro_selectors.contas_da_origem(ORIGEM, locacao.pk)
+        .filter(financeiro_selectors.q_atrasada(relogio.hoje()), tipo="parcela")
+        .exists()
+    )
+
+
+def encerrar_por_atraso(locacao: Locacao, motivo: str, dia: date | None = None) -> Locacao:
+    """LOC-16: a locadora encerra a locação com intenção de compra por atraso, com motivo, sem
+    a `APR-02` (perfil conferido na view). Só `ativa` e com parcela atrasada. Segue o caminho
+    do encerramento aprovado: a devolução e o acerto de sempre, sem multa nem crédito, e o fim
+    `cancelada`."""
+    motivo = (motivo or "").strip()
+    if not motivo:
+        raise ErroDeValidacao({"motivo": ["Informe o motivo."]})
+    dia = _dia_do_cancelamento(dia)
+    with transaction.atomic():
+        travada = _travar(locacao)
+        if not e_compra(travada):
+            raise Conflito("LOC-16", "Só a locação com intenção de compra se encerra por atraso.")
+        if travada.status != S.ATIVA:
+            raise transicao_invalida(travada.status, S.CANCELADA)
+        _sem_cancelamento_em_curso(travada)
+        if not tem_parcela_atrasada(travada):
+            raise Conflito("LOC-16", SEM_PARCELA_ATRASADA)
+        travada.encerrada_por_atraso = True
+        _aplicar_cancelamento(
+            travada,
+            motivo,
+            dia,
+            "pix",
+            acao_encerramento="locacao.encerrar_por_atraso",
+            regra_encerramento="LOC-16",
+        )
+    _recarregar(locacao)
+    return locacao
+
+
+# --- Quitação (LOC-16, ADR 0037, item 4) ---
+
+
+def parcelas_pagas(locacao: Locacao, contas: list[Any] | None = None) -> int:
+    """As parcelas pagas (cada número uma vez; a estornada volta a dever, CA-017-09). A última
+    de R$ 0,00 (caução maior que a parcela) não existe como conta: conta como paga quando todas
+    as outras estão pagas (CA-420-14)."""
+    if contas is None:
+        contas = list(financeiro_selectors.contas_da_origem(ORIGEM, locacao.pk))
+    pagas = {
+        c.numero_parcela
+        for c in contas
+        if c.tipo == "parcela" and c.status == "paga" and c.estornada_em is None
+    }
+    total = locacao.compra_parcelas or 0
+    ultima_zerada = (
+        calculo.ultima_parcela_da_compra(
+            locacao.compra_valor_parcela_centavos or 0, locacao.caucao_centavos
+        )
+        == 0
+    )
+    if ultima_zerada and total not in pagas and len(pagas) == total - 1:
+        return total
+    return len(pagas)
+
+
+def quitar_se_pago(locacao_id: int) -> bool:
+    """LOC-16: assinante de `financeiro.parcela_paga` de toda conta da locação. Quita a locação
+    com intenção de compra `ativa`, sem encerramento aprovado, com todas as parcelas pagas e
+    nenhuma conta da locação em aberto (CA-420-13). Na mesma transação: `encerrada` com
+    `quitada_em`, sem vistoria nem acerto, pelo Sistema; a sobra da caução vira um `Reembolso`
+    a fazer (CA-420-14); e o evento `locacoes.locacao_quitada`, que `vendas` assina (a venda de
+    R$ 0,00, o veículo `vendido` e o aviso aos gerentes, VEN-11). O veículo não volta a
+    `disponivel`. Idempotente pelo `quitada_em`. Devolve se quitou."""
+    with transaction.atomic():
+        if not Locacao.objects.filter(pk=locacao_id, tipo=COMPRA, quitada_em__isnull=True).exists():
+            return False
+        travada = _travar(locacao_id)
+        if (
+            travada.quitada_em is not None
+            or travada.status != S.ATIVA
+            or travada.encerramento_antecipado_aprovado_em is not None
+        ):
+            return False
+        contas = list(financeiro_selectors.contas_da_origem(ORIGEM, travada.pk))
+        if any(c.status == "aberta" for c in contas):
+            return False
+        if parcelas_pagas(travada, contas) < (travada.compra_parcelas or 0):
+            return False
+        agora = relogio.agora()
+        with usar_ator(ATOR_SISTEMA):
+            travada.quitada_em = agora
+            estados.transicionar(
+                travada,
+                S.ENCERRADA,
+                motivo="Todas as parcelas pagas",
+                acao="locacao.quitar",
+                regra="LOC-16",
+                mais_campos=("quitada_em",),
+            )
+            TrechoLocacao.objects.filter(locacao=travada, fim__isnull=True).update(
+                fim=agora, atualizado_em=agora
+            )
+            financeiro.devolver_ao_cliente(
+                _origem(travada),
+                filial_id=travada.filial_id,
+                cliente_id=travada.cliente_id,
+                valor_centavos=calculo.sobra_da_caucao(
+                    travada.compra_valor_parcela_centavos or 0, travada.caucao_centavos
+                ),
+                forma="pix",
+                motivo=f"Sobra da caução na quitação da {travada.codigo}",
+                regra="LOC-16",
+            )
+            publicar(
+                "locacoes.locacao_quitada",
+                locacao_id=travada.pk,
+                codigo=travada.codigo,
+                filial_id=travada.filial_id,
+                cliente_id=travada.cliente_id,
+                veiculo_id=travada.veiculo_id,
+                vendedor_id=travada.vendedor_id,
+                quitada_em=agora,
+            )
+    return True
+
+
+# --- Planos de compra (tela Precos; só administrador; LOC-16) ---
+
+PARCELAS_DO_PLANO = (2, 260)
+
+
+def _validar_plano_compra(dados: dict[str, Any], exceto: int | None = None) -> None:
+    erros: dict[str, list[str]] = {}
+    minimo, maximo = PARCELAS_DO_PLANO
+    if "parcelas" in dados and not minimo <= int(dados["parcelas"]) <= maximo:
+        erros["parcelas"] = [f"Informe de {minimo} a {maximo} parcelas."]
+    if "valor_parcela_centavos" in dados and int(dados["valor_parcela_centavos"]) <= 0:
+        erros["valor_parcela_centavos"] = ["Informe o valor da parcela."]
+    if (
+        "categoria_id" in dados
+        and not CategoriaVeiculo.objects.filter(pk=dados["categoria_id"]).exists()
+    ):
+        erros["categoria_id"] = ["Categoria não encontrada."]
+    nome = dados.get("nome")
+    if nome and PlanoCompra.objects.filter(nome__iexact=nome).exclude(pk=exceto or 0).exists():
+        erros["nome"] = ["Já existe um plano com este nome."]
+    if erros:
+        raise ErroDeValidacao(erros)
+
+
+def _gravar_plano_compra(plano: PlanoCompra, dados: dict[str, Any], acao: str) -> PlanoCompra:
+    with transaction.atomic(), auditar(plano, acao, Categoria.CONFIGURACOES, regra="LOC-16"):
+        for campo, valor in dados.items():
+            setattr(plano, campo, valor)
+        plano.save()
+    return plano
+
+
+def criar_plano_compra(dados: dict[str, Any]) -> PlanoCompra:
+    """Vale para locações novas (LOC-15)."""
+    dados = dict(dados)
+    _validar_plano_compra(dados)
+    return _gravar_plano_compra(PlanoCompra(), dados, "plano_compra.criar")
+
+
+def editar_plano_compra(plano: PlanoCompra, dados: dict[str, Any]) -> PlanoCompra:
+    """A mudança vale para locações novas; as confirmadas ficam com o plano congelado (LOC-15,
+    CA-420-04)."""
+    dados = dict(dados)
+    _validar_plano_compra(dados, exceto=plano.pk)
+    return _gravar_plano_compra(plano, dados, "plano_compra.editar")
+
+
+def desativar_plano_compra(plano: PlanoCompra) -> PlanoCompra:
+    """Sai das locações novas; as que já usam o plano continuam."""
+    if not plano.ativo:
+        return plano
+    return _gravar_plano_compra(plano, {"ativo": False}, "plano_compra.desativar")
 
 
 # --- Planos especiais (tela Precos; só administrador) ---

@@ -132,13 +132,18 @@ class Encerramento:
     devolver_centavos: int = 0
     cobrar_centavos: int = 0
     avisos: list[dict[str, str]] = field(default_factory=list)
+    # LOC-16: locação com intenção de compra; sem multa nem crédito, as parcelas canceladas só
+    # deixam de ser devidas (não abatem nada).
+    compra: bool = False
 
     @property
     def credito_liquido_centavos(self) -> int:
         """O que volta ao cliente antes da multa; no mensal em 4 semanais pode ser negativo
-        (LOC-13). Antes da retirada, tudo o que pagou."""
+        (LOC-13). Antes da retirada, tudo o que pagou. Na compra, nada (LOC-16)."""
         if self.antes_da_retirada:
             return self.devolver_centavos
+        if self.compra:
+            return 0
         return (
             self.credito_semanas["valor_centavos"]
             + self.credito_dias["valor_centavos"]

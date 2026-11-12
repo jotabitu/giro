@@ -1,4 +1,5 @@
-"""Planos especiais, locações, extras e trechos (modelo de dados, itens 12 e 13; LOC-01 a LOC-15).
+"""Planos especiais e de compra, locações, extras e trechos (modelo de dados, itens 12, 12a e
+13; LOC-01 a LOC-16).
 
 Muda só por `locacoes.services`; o status da locação, só por `comum.estados.transicionar`.
 """
@@ -63,6 +64,51 @@ class PlanoEspecial(ModeloBase, ModeloAtivavel):
 
     def __str__(self) -> str:
         return self.nome
+
+
+class PlanoCompra(ModeloBase, ModeloAtivavel):
+    """LOC-16 (T-420, ADR 0037, item 2): o valor e o prazo da locação com intenção de compra,
+    cadastrados pelo administrador em `Precos`. Mudar ou desativar não muda locação confirmada
+    (os campos congelados da `Locacao`, LOC-15)."""
+
+    class PeriodicidadeCompra(models.TextChoices):
+        SEMANAL = "semanal", "Semanal"
+        MENSAL = "mensal", "Mensal"
+
+    nome = models.CharField(max_length=60, unique=True)
+    categoria = models.ForeignKey("veiculos.Categoria", on_delete=models.PROTECT, related_name="+")
+    periodicidade = models.CharField(max_length=10, choices=PeriodicidadeCompra.choices)
+    parcelas = models.PositiveSmallIntegerField()
+    valor_parcela_centavos = CentavosField()
+    condicoes = models.TextField(blank=True, default="")
+
+    # Nome de coisa, não de pessoa (R-02 da T-050): vai inteiro para a auditoria.
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": ["nome"]}
+
+    class Meta:
+        verbose_name = "plano de compra"
+        verbose_name_plural = "planos de compra"
+        ordering = ["nome"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(parcelas__gte=2, parcelas__lte=260),
+                name="plano_compra_parcelas_2_a_260",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(valor_parcela_centavos__gt=0),
+                name="plano_compra_valor_positivo",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.nome
+
+
+class TipoLocacao(models.TextChoices):
+    """LOC-16: a comum e a com intenção de compra. Muda só no rascunho."""
+
+    COMUM = "comum", "Comum"
+    INTENCAO_COMPRA = "intencao_compra", "Com intenção de compra"
 
 
 class StatusLocacao(models.TextChoices):
@@ -176,6 +222,15 @@ class Locacao(ModeloComCodigo, MaquinaDeEstados, ModeloBase):
     # LOC-08: o atraso já corrido quando a locação é renovada depois do prazo; continua cobrado.
     atraso_anterior_dias = models.PositiveSmallIntegerField(default=0)
     atraso_anterior_centavos = CentavosField(default=0)
+    # LOC-16 (T-420, ADR 0037): o tipo e o plano de compra congelado na confirmação (LOC-15).
+    tipo = models.CharField(max_length=16, choices=TipoLocacao.choices, default=TipoLocacao.COMUM)
+    plano_compra = models.ForeignKey(
+        PlanoCompra, on_delete=models.PROTECT, null=True, blank=True, related_name="locacoes"
+    )
+    compra_parcelas = models.PositiveSmallIntegerField(null=True, blank=True)
+    compra_valor_parcela_centavos = CentavosField(null=True, blank=True)
+    quitada_em = models.DateTimeField(null=True, blank=True)
+    encerrada_por_atraso = models.BooleanField(default=False)
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = TRANSICOES_LOCACAO
     REGRA_TRANSICAO: ClassVar[str] = "transicao_locacao"
@@ -199,6 +254,36 @@ class Locacao(ModeloComCodigo, MaquinaDeEstados, ModeloBase):
             models.CheckConstraint(
                 condition=models.Q(fim_previsto__gt=models.F("inicio")),
                 name="locacao_fim_depois_do_inicio",
+            ),
+            # LOC-16 (modelo de dados, item 13): os campos da compra só no tipo dela; fora do
+            # rascunho, congelados; sem desconto; `quitada_em` só na encerrada.
+            models.CheckConstraint(
+                condition=(
+                    models.Q(
+                        tipo="comum",
+                        plano_compra__isnull=True,
+                        compra_parcelas__isnull=True,
+                        compra_valor_parcela_centavos__isnull=True,
+                        quitada_em__isnull=True,
+                        encerrada_por_atraso=False,
+                    )
+                    | (
+                        models.Q(
+                            tipo="intencao_compra",
+                            plano_compra__isnull=False,
+                            desconto_pct=Decimal("0.00"),
+                        )
+                        & (
+                            models.Q(status="rascunho")
+                            | models.Q(
+                                compra_parcelas__isnull=False,
+                                compra_valor_parcela_centavos__isnull=False,
+                            )
+                        )
+                        & (models.Q(quitada_em__isnull=True) | models.Q(status="encerrada"))
+                    )
+                ),
+                name="locacao_tipo_campos",
             ),
         ]
 

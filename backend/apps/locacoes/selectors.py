@@ -28,7 +28,7 @@ from comum.aprovacoes import dia_curto
 from comum.dinheiro import aplicar_percentual, formatar_reais
 from comum.permissoes import pode
 
-from . import services
+from . import calculo, services
 from .contrato import contrato_na_hora
 from .models import (
     ABERTAS,
@@ -36,10 +36,12 @@ from .models import (
     Locacao,
     ParcelamentoMensal,
     Periodicidade,
+    PlanoCompra,
     PlanoEspecial,
     StatusDesconto,
     StatusLocacao,
     StatusTroca,
+    TipoLocacao,
     TrocaVeiculo,
 )
 
@@ -52,6 +54,9 @@ ORDENS = {"fim_previsto": "fim_previsto", "-inicio": "-inicio"}
 CRIAM = frozenset({"administrador", "gerente", "vendedor"})
 VISTORIAM = frozenset({"administrador", "gerente", "vendedor", "vistoriador"})
 REGISTRAM_RETIRADA = frozenset({"administrador", "gerente"})  # LOC-17, retirada à mão
+ENCERRAM_POR_ATRASO = frozenset({"administrador", "gerente"})  # LOC-16
+REGISTRAM_TRANSFERENCIA = frozenset({"administrador", "gerente"})  # LOC-16, VEN-11
+COMPRA = TipoLocacao.INTENCAO_COMPRA
 
 
 def _fuso() -> ZoneInfo:
@@ -92,9 +97,24 @@ def simular(dados: dict[str, Any], filial: Filial, usuario: Any) -> dict[str, An
         ],
         "caucao_centavos": conta.caucao_centavos,
         "diaria_centavos": montagem.diaria_centavos,
+        "compra": _compra_da_simulacao(montagem),
         "precisa_aprovacao_desconto": services.precisa_aprovacao_desconto(desconto, usuario),
         "impedimentos": montagem.impedimentos,
         "avisos": montagem.avisos,
+    }
+
+
+def _compra_da_simulacao(montagem: services.Montagem) -> dict[str, int] | None:
+    """LOC-16: o resumo do plano, para a tela mostrar sem conta."""
+    plano = montagem.plano_compra
+    if plano is None:
+        return None
+    caucao = montagem.calculo.caucao_centavos
+    return {
+        "parcelas_total": plano.parcelas,
+        "valor_parcela_centavos": plano.valor_parcela_centavos,
+        "ultima_parcela_centavos": montagem.calculo.ultima_parcela_centavos,
+        "sobra_caucao_centavos": calculo.sobra_da_caucao(plano.valor_parcela_centavos, caucao),
     }
 
 
@@ -102,13 +122,18 @@ def simular(dados: dict[str, Any], filial: Filial, usuario: Any) -> dict[str, An
 
 
 def base() -> QuerySet[Any]:
-    qs = Locacao.objects.select_related("cliente", "veiculo__categoria", "plano_especial", "filial")
+    qs = Locacao.objects.select_related(
+        "cliente", "veiculo__categoria", "plano_especial", "plano_compra", "filial"
+    )
     return financeiro_selectors.anotar_resumo_da_origem(qs, ORIGEM, relogio.hoje())
 
 
 def _devolvem_hoje(qs: QuerySet[Any]) -> QuerySet[Any]:
     comeco, fim = _intervalo_do_dia(relogio.hoje())
-    return qs.filter(status=S.ATIVA, fim_previsto__gte=comeco, fim_previsto__lt=fim)
+    # LOC-16: a locação com intenção de compra não devolve no fim previsto.
+    return qs.filter(
+        status=S.ATIVA, tipo=TipoLocacao.COMUM, fim_previsto__gte=comeco, fim_previsto__lt=fim
+    )
 
 
 def q_pendencia_da_retirada() -> Q:
@@ -174,6 +199,8 @@ def filtrar(qs: QuerySet[Any], parametros: Any) -> QuerySet[Any]:
         qs = por_aba(qs, parametros.get("aba"))
     if parametros.get("periodicidade"):
         qs = qs.filter(periodicidade=parametros["periodicidade"])
+    if parametros.get("tipo") in TipoLocacao.values:  # LOC-16
+        qs = qs.filter(tipo=parametros["tipo"])
     for campo in ("plano_especial", "veiculo", "cliente"):
         valor = str(parametros.get(campo) or "")
         if valor.isdigit():
@@ -194,7 +221,10 @@ def contagens(qs: QuerySet[Any]) -> dict[str, int]:
 
 
 def dias_de_atraso(locacao: Locacao) -> int:
-    return max(0, (relogio.hoje() - _local(locacao.fim_previsto).date()).days)
+    referencia = services.fim_da_devolucao(locacao)  # LOC-16: o dia do encerramento na compra
+    if referencia is None:
+        return 0
+    return max(0, (relogio.hoje() - _local(referencia).date()).days)
 
 
 def indicadores(qs: QuerySet[Any], filial_id: int | None) -> dict[str, Any]:
@@ -225,7 +255,9 @@ def indicadores(qs: QuerySet[Any], filial_id: int | None) -> dict[str, Any]:
 
 def sinais(locacao: Locacao) -> dict[str, bool]:
     devolve_hoje = (
-        locacao.status == S.ATIVA and _local(locacao.fim_previsto).date() == relogio.hoje()
+        locacao.status == S.ATIVA
+        and not services.e_compra(locacao)  # LOC-16: nunca acende na compra
+        and _local(locacao.fim_previsto).date() == relogio.hoje()
     )
     return {
         "pagamento_atrasado": int(getattr(locacao, "fin_atrasado_centavos", 0) or 0) > 0,
@@ -278,6 +310,8 @@ def situacao(locacao: Locacao, sinal: dict[str, bool]) -> dict[str, str]:
         }
     if sinal["devolve_hoje"]:
         return {"codigo": "devolve_hoje", "rotulo": "Devolve hoje", "tom": "info"}
+    if status == S.ENCERRADA and locacao.quitada_em is not None:  # LOC-16
+        return {"codigo": "quitada", "rotulo": "Quitada", "tom": "sucesso"}
     tons = {S.ATIVA: "sucesso", S.ENCERRADA: "neutro", S.CANCELADA: "neutro", S.RASCUNHO: "neutro"}
     return {"codigo": status, "rotulo": S(status).label, "tom": tons.get(S(status), "neutro")}
 
@@ -338,6 +372,8 @@ def linha(locacao: Locacao) -> dict[str, Any]:
         },
         "periodicidade": locacao.periodicidade,
         "plano_especial": {"id": plano.pk, "nome": plano.nome} if plano else None,
+        "tipo": locacao.tipo,
+        "tipo_rotulo": TipoLocacao(locacao.tipo).label if services.e_compra(locacao) else None,
         "inicio": locacao.inicio,
         "fim_previsto": locacao.fim_previsto,
         "sinais": sinal,
@@ -362,7 +398,12 @@ def devolucoes_da_semana(qs: QuerySet[Any]) -> list[Locacao]:
     _, fim = _intervalo_do_dia(relogio.hoje() + timedelta(days=6))
     return list(
         qs.filter(
-            Q(status=S.ATIVA, fim_previsto__gte=comeco, fim_previsto__lt=fim)
+            Q(
+                status=S.ATIVA,
+                tipo=TipoLocacao.COMUM,  # LOC-16
+                fim_previsto__gte=comeco,
+                fim_previsto__lt=fim,
+            )
             | Q(status=S.DEVOLUCAO_ATRASADA)
         ).order_by("fim_previsto", "id")
     )
@@ -434,12 +475,16 @@ def acoes(locacao: Locacao, usuario: Any, contrato: Contrato | None = None) -> d
     cria = perfil in CRIAM
     em_curso = locacao.status in (S.ATIVA, S.DEVOLUCAO_ATRASADA)
     troca = services.troca_pendente(locacao)
+    compra = services.e_compra(locacao)
+    # LOC-16: a compra só devolve com o encerramento aprovado (a pedido ou por atraso).
+    devolve = not compra or locacao.encerramento_antecipado_aprovado_em is not None
     return {
         "editar": cria and locacao.status == S.RASCUNHO,
         "confirmar": cria and locacao.status == S.RASCUNHO,
-        "renovar": cria and em_curso and not _cancelamento_em_curso(locacao),
-        "registrar_devolucao": perfil in VISTORIAM and em_curso,
+        "renovar": cria and not compra and em_curso and not _cancelamento_em_curso(locacao),
+        "registrar_devolucao": perfil in VISTORIAM and em_curso and devolve,
         "trocar_veiculo": cria
+        and not compra
         and locacao.status == S.ATIVA
         and not _cancelamento_em_curso(locacao)
         and troca is None,
@@ -472,6 +517,12 @@ def acoes(locacao: Locacao, usuario: Any, contrato: Contrato | None = None) -> d
         # LOC-17: o botão aparece mesmo sem a vistoria (com o aviso); a API recusa com 409.
         "registrar_retirada": perfil in REGISTRAM_RETIRADA
         and locacao.status == S.AGUARDANDO_RETIRADA,
+        # LOC-16 (CA-420-08, CA-420-19): as mesmas condições do POST .../encerrar-por-atraso/.
+        "encerrar_por_atraso": perfil in ENCERRAM_POR_ATRASO
+        and compra
+        and locacao.status == S.ATIVA
+        and not _cancelamento_em_curso(locacao)
+        and services.tem_parcela_atrasada(locacao),
     }
 
 
@@ -517,15 +568,20 @@ def _desconto(locacao: Locacao) -> dict[str, Any] | None:
 
 
 def _devolucao(locacao: Locacao) -> dict[str, Any]:
+    # LOC-16: na compra, sem devolução no fim previsto; só a do dia do encerramento aprovado.
+    prevista = services.fim_da_devolucao(locacao)
     faltam = None
-    if locacao.status in (S.ATIVA, S.AGUARDANDO_RETIRADA):
-        faltam = max(0, int((locacao.fim_previsto - relogio.agora()).total_seconds() // 60))
+    if prevista is not None and locacao.status in (S.ATIVA, S.AGUARDANDO_RETIRADA):
+        faltam = max(0, int((prevista - relogio.agora()).total_seconds() // 60))
+    aviso = (
+        f"Se atrasar, cobra {formatar_reais(locacao.diaria_centavos)} por dia a mais (diária)"
+        if prevista is not None
+        else None
+    )
     return {
-        "prevista_para": locacao.fim_previsto,
+        "prevista_para": prevista,
         "faltam_minutos": faltam,
-        "aviso_atraso": (
-            f"Se atrasar, cobra {formatar_reais(locacao.diaria_centavos)} por dia a mais (diária)"
-        ),
+        "aviso_atraso": aviso,
         # A devolução com chegada, que `vistorias` fornece (ADR 0015); `null` sem chegada.
         "devolucao_id": leituras.blocos(LOCACAO, locacao).get("devolucao", {}).get("devolucao_id"),
     }
@@ -602,6 +658,7 @@ def _cancelamento(locacao: Locacao) -> dict[str, Any] | None:
         "pedido_aprovacao_id": locacao.pedido_cancelamento_id,
         "antes_da_retirada": antes,
         "automatico": automatico,
+        "por_atraso": locacao.encerrada_por_atraso,  # LOC-16, sem APR-02
         "data": locacao.cancelamento_data,
         "multa_centavos": multa,
         "credito_centavos": credito,
@@ -880,7 +937,105 @@ def detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
             locacao, usuario, contrato, contas, acoes_da_locacao
         ),
         "troca": _troca(locacao),
+        "compra": compra(locacao, usuario, contas),
         "acoes": acoes_da_locacao,
+    }
+
+
+# --- Locação com intenção de compra (LOC-16, T-420, ADR 0037) ---
+
+
+def _data_curta(momento: datetime) -> str:
+    return _local(momento).strftime("%d/%m/%Y")
+
+
+def _venda(locacao: Locacao, usuario: Any) -> dict[str, Any] | None:
+    """A venda da quitação (VEN-11), que `vendas` fornece pelo bloco `compra_venda` (ADR 0015).
+    Sem o fornecedor, ou sem venda, `None`. O botão "Transferência feita" é daqui."""
+    bloco = leituras.bloco(LOCACAO, "compra_venda", locacao)
+    if not bloco:  # o fornecedor devolve None: `bloco` vem `{}`
+        return None
+    pendente = bool((bloco.get("transferencia") or {}).get("pendente"))
+    return {
+        **bloco,
+        "acoes": {
+            "registrar_transferencia": pendente
+            and getattr(usuario, "perfil", "") in REGISTRAM_TRANSFERENCIA
+            and not getattr(usuario, "e_suporte", False)
+        },
+    }
+
+
+def _falta_para_quitar(contas: list[Any], hoje: date) -> list[dict[str, Any]]:
+    """As outras contas da locação em aberto (avaria, multa), com o valor do dia (FIN-03)."""
+    juros = financeiro_selectors.JurosDaPagina()
+    falta = []
+    for conta in contas:
+        if conta.status != "aberta" or conta.tipo == "parcela":
+            continue
+        rotulo = conta.get_tipo_display()
+        if conta.observacao:
+            rotulo = f"{rotulo} · {conta.observacao}"
+        falta.append(
+            {
+                "conta_id": conta.pk,
+                "rotulo": rotulo,
+                "valor_centavos": financeiro_selectors.valor_hoje(conta, hoje, juros)[
+                    "total_centavos"
+                ],
+            }
+        )
+    return falta
+
+
+def _andamento(
+    locacao: Locacao, pagas: int, total: int, venda: dict[str, Any] | None
+) -> str | None:
+    """Os textos fixados pelo produto em 05 nov 2026 (LOC-16 "Na tela", CA-420-18)."""
+    if locacao.quitada_em is not None:
+        quitada = f"Quitada em {_data_curta(locacao.quitada_em)}"
+        feita_em = ((venda or {}).get("transferencia") or {}).get("feita_em")
+        if feita_em:
+            dia = feita_em if isinstance(feita_em, date) else date.fromisoformat(str(feita_em))
+            return f"{quitada} · transferência feita em {dia:%d/%m/%Y}"
+        return f"{quitada} · falta a transferência no Detran"
+    if locacao.status not in (S.ATIVA, S.DEVOLUCAO_ATRASADA) or pagas == 0:
+        return None
+    if pagas >= total:
+        return f"{total} de {total} parcelas pagas · faltam as contas abaixo para a transferência"
+    faltam = total - pagas
+    if faltam == 1:
+        return f"Parcela {pagas} de {total} · falta 1 para a transferência"
+    return f"Parcela {pagas} de {total} · faltam {faltam} para a transferência"
+
+
+def compra(locacao: Locacao, usuario: Any, contas: list[Any]) -> dict[str, Any] | None:
+    """O bloco `compra` do detalhe; `None` na comum. No rascunho, os valores do plano escolhido;
+    depois, os congelados na confirmação (LOC-15). A tela não conta parcelas (LOC-16)."""
+    if not services.e_compra(locacao):
+        return None
+    plano = locacao.plano_compra
+    total = locacao.compra_parcelas or (plano.parcelas if plano else 0)
+    valor = locacao.compra_valor_parcela_centavos or (plano.valor_parcela_centavos if plano else 0)
+    caucao = locacao.caucao_centavos
+    pagas = services.parcelas_pagas(locacao, contas)
+    venda = _venda(locacao, usuario) if locacao.quitada_em is not None else None
+    falta = (
+        _falta_para_quitar(contas, relogio.hoje())
+        if pagas >= total and locacao.quitada_em is None
+        else []
+    )
+    return {
+        "plano": {"id": plano.pk, "nome": plano.nome} if plano else None,
+        "parcelas_total": total,
+        "parcelas_pagas": pagas,
+        "valor_parcela_centavos": valor,
+        "ultima_parcela_centavos": calculo.ultima_parcela_da_compra(valor, caucao),
+        "sobra_caucao_centavos": calculo.sobra_da_caucao(valor, caucao),
+        "andamento": _andamento(locacao, pagas, total, venda),
+        "falta_para_quitar": falta,
+        "quitada_em": locacao.quitada_em,
+        "venda": venda,
     }
 
 
@@ -935,6 +1090,8 @@ ROTULOS_DO_HISTORICO = {
     "locacao.cancelar_nao_retirada": ("Cancelada: não retirada em 3 dias", "status"),
     "locacao.aprovar_encerramento": ("Encerramento antecipado aprovado", "status"),
     "locacao.encerrar": ("Locação encerrada", "status"),
+    "locacao.encerrar_por_atraso": ("Encerrada por atraso", "status"),  # LOC-16
+    "locacao.quitar": ("Locação quitada", "status"),  # LOC-16
 }
 
 
@@ -1023,6 +1180,43 @@ def representacao_plano(plano: PlanoEspecial) -> dict[str, Any]:
         "categorias": [{"id": c.pk, "nome": c.nome} for c in plano.categorias.all()],
         "condicoes": plano.condicoes,
         "locacoes_ativas": Locacao.objects.filter(plano_especial=plano, status__in=ABERTAS).count(),
+        "ativo": plano.ativo,
+    }
+
+
+# --- Planos de compra (LOC-16) ---
+
+
+def planos_compra(ativo: str | None = None, categoria: str | None = None) -> QuerySet[PlanoCompra]:
+    """Todos; `?ativo=true` para a Nova locação, `?ativo=false` os desativados."""
+    qs = PlanoCompra.objects.select_related("categoria")
+    if ativo == "true":
+        qs = qs.filter(ativo=True)
+    elif ativo == "false":
+        qs = qs.filter(ativo=False)
+    if categoria and str(categoria).isdigit():
+        qs = qs.filter(categoria_id=int(categoria))
+    return qs
+
+
+def representacao_plano_compra(plano: PlanoCompra) -> dict[str, Any]:
+    """`caucao_centavos` é a caução vigente da categoria e `ultima_parcela_centavos` sai dela;
+    os dois são de hoje e podem mudar até a confirmação."""
+    preco = veiculos_selectors.preco_vigente(plano.categoria_id, relogio.hoje())
+    caucao = preco.caucao_centavos if preco is not None else 0
+    return {
+        "id": plano.pk,
+        "nome": plano.nome,
+        "categoria": {"id": plano.categoria_id, "nome": plano.categoria.nome},
+        "periodicidade": plano.periodicidade,
+        "parcelas": plano.parcelas,
+        "valor_parcela_centavos": plano.valor_parcela_centavos,
+        "condicoes": plano.condicoes,
+        "caucao_centavos": caucao,
+        "ultima_parcela_centavos": calculo.ultima_parcela_da_compra(
+            plano.valor_parcela_centavos, caucao
+        ),
+        "locacoes_ativas": Locacao.objects.filter(plano_compra=plano, status__in=ABERTAS).count(),
         "ativo": plano.ativo,
     }
 

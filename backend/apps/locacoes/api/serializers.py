@@ -12,7 +12,14 @@ from rest_framework import serializers
 from apps.contratos.api.serializers import ContratoResumoSerializer
 from apps.veiculos.models import TipoVeiculo
 
-from ..models import FormaPagamento, ParcelamentoMensal, Periodicidade, PlanoEspecial
+from ..models import (
+    FormaPagamento,
+    ParcelamentoMensal,
+    Periodicidade,
+    PlanoCompra,
+    PlanoEspecial,
+    TipoLocacao,
+)
 
 
 def _momento(**kwargs: Any) -> serializers.DateTimeField:
@@ -35,7 +42,22 @@ class ExtraPedidoLocacaoSerializer(serializers.Serializer[Any]):
 class LocacaoEntradaSerializer(serializers.Serializer[Any]):
     cliente_id = serializers.IntegerField()
     veiculo_id = serializers.IntegerField()
-    periodicidade = serializers.ChoiceField(choices=Periodicidade.choices)
+    tipo = serializers.ChoiceField(
+        choices=TipoLocacao.choices,
+        required=False,
+        default=TipoLocacao.COMUM,
+        help_text="LOC-16: `intencao_compra` pede `plano_compra_id`; muda só no rascunho",
+    )
+    plano_compra_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text="LOC-16: o plano de compra (só no tipo `intencao_compra`)",
+    )
+    periodicidade = serializers.ChoiceField(
+        choices=Periodicidade.choices,
+        required=False,
+        help_text="Obrigatória na comum; na compra vem do plano",
+    )
     plano_especial_id = serializers.IntegerField(required=False, allow_null=True)
     inicio = serializers.DateTimeField()
     periodos = serializers.IntegerField(required=False, allow_null=True, min_value=1)
@@ -53,13 +75,37 @@ class LocacaoEntradaSerializer(serializers.Serializer[Any]):
     )
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        if self.partial:
-            return attrs
+        if self.partial or attrs.get("tipo") == TipoLocacao.INTENCAO_COMPRA:
+            return attrs  # LOC-16: a periodicidade e os períodos vêm do plano
+        if not attrs.get("periodicidade"):
+            raise serializers.ValidationError({"periodicidade": ["Escolha a periodicidade."]})
         if not attrs.get("periodos") and not attrs.get("fim_previsto"):
             raise serializers.ValidationError(
                 {"periodos": ["Informe os períodos ou o fim previsto."]}
             )
         return attrs
+
+
+class EncerrarPorAtrasoSerializer(serializers.Serializer[Any]):
+    """LOC-16: o encerramento da locação com intenção de compra pela locadora, sem APR-02."""
+
+    motivo = serializers.CharField(
+        max_length=500, allow_blank=True, error_messages={"blank": "Informe o motivo."}
+    )
+    data = serializers.DateField(  # type: ignore[assignment]
+        required=False, allow_null=True, help_text="padrão hoje; não antes de hoje"
+    )
+
+
+class PlanoCompraEntradaSerializer(serializers.Serializer[Any]):
+    """LOC-16 (padrão A): nome, categoria, periodicidade, parcelas (2 a 260) e valor."""
+
+    nome = serializers.CharField(max_length=60)
+    categoria_id = serializers.IntegerField()
+    periodicidade = serializers.ChoiceField(choices=PlanoCompra.PeriodicidadeCompra.choices)
+    parcelas = serializers.IntegerField()
+    valor_parcela_centavos = serializers.IntegerField()
+    condicoes = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class ConfirmarLocacaoSerializer(serializers.Serializer[Any]):
@@ -126,6 +172,15 @@ class ParcelaPrevistaSerializer(serializers.Serializer[Any]):
     valor_centavos = serializers.IntegerField()
 
 
+class CompraDaSimulacaoSerializer(serializers.Serializer[Any]):
+    parcelas_total = serializers.IntegerField()
+    valor_parcela_centavos = serializers.IntegerField()
+    ultima_parcela_centavos = serializers.IntegerField(help_text="já com a caução abatida")
+    sobra_caucao_centavos = serializers.IntegerField(
+        help_text="caução maior que a parcela: volta ao cliente na quitação"
+    )
+
+
 class SimulacaoLocacaoSerializer(serializers.Serializer[Any]):
     fim_previsto = _momento()
     periodos = serializers.IntegerField()
@@ -137,6 +192,7 @@ class SimulacaoLocacaoSerializer(serializers.Serializer[Any]):
     parcelas_previstas = ParcelaPrevistaSerializer(many=True)
     caucao_centavos = serializers.IntegerField()
     diaria_centavos = serializers.IntegerField()
+    compra = CompraDaSimulacaoSerializer(allow_null=True, help_text="LOC-16; null na comum")
     precisa_aprovacao_desconto = serializers.BooleanField()
     impedimentos = CodigoMensagemLocacaoSerializer(many=True)
     avisos = CodigoMensagemLocacaoSerializer(many=True)
@@ -188,6 +244,10 @@ class LocacaoSerializer(serializers.Serializer[Any]):
     veiculo = VeiculoDaLocacaoSerializer()
     periodicidade = serializers.CharField()
     plano_especial = IdNomeLocacaoSerializer(allow_null=True)
+    tipo = serializers.ChoiceField(choices=TipoLocacao.choices, help_text="LOC-16")
+    tipo_rotulo = serializers.CharField(
+        allow_null=True, help_text='"Com intenção de compra"; null na comum'
+    )
     inicio = _momento()
     fim_previsto = _momento()
     sinais = SinaisLocacaoSerializer()
@@ -250,9 +310,11 @@ class ParcelaLocacaoSerializer(serializers.Serializer[Any]):
 
 
 class DevolucaoPrevistaSerializer(serializers.Serializer[Any]):
-    prevista_para = _momento()
+    prevista_para = _momento(
+        help_text="LOC-16: na compra, null sem encerramento; com ele, o fim do dia do encerramento"
+    )
     faltam_minutos = serializers.IntegerField(allow_null=True)
-    aviso_atraso = serializers.CharField()
+    aviso_atraso = serializers.CharField(allow_null=True)
     devolucao_id = serializers.IntegerField(allow_null=True)
 
 
@@ -281,6 +343,9 @@ class AcoesLocacaoSerializer(serializers.Serializer[Any]):
     registrar_retirada = serializers.BooleanField(
         help_text="LOC-17: administrador e gerente, locação aguardando retirada"
     )
+    encerrar_por_atraso = serializers.BooleanField(
+        help_text="LOC-16: administrador e gerente, compra ativa com parcela atrasada"
+    )
 
 
 class CancelamentoLocacaoSerializer(serializers.Serializer[Any]):
@@ -289,6 +354,9 @@ class CancelamentoLocacaoSerializer(serializers.Serializer[Any]):
     antes_da_retirada = serializers.BooleanField()
     automatico = serializers.BooleanField(
         help_text="cancelada pela AUT-17, não retirada em 3 dias (LOC-12, T-410)"
+    )
+    por_atraso = serializers.BooleanField(
+        help_text="LOC-16: encerrada pela locadora por atraso, sem APR-02"
     )
     data = serializers.DateField(allow_null=True)  # type: ignore[assignment]
     multa_centavos = serializers.IntegerField()
@@ -416,6 +484,51 @@ class ClienteDaLocacaoSerializer(serializers.Serializer[Any]):
     )
 
 
+class TransferenciaDaVendaSerializer(serializers.Serializer[Any]):
+    feita_em = serializers.DateField(allow_null=True)
+    registrada_por = IdNomeLocacaoSerializer(allow_null=True)
+    pendente = serializers.BooleanField()
+
+
+class AcoesDaVendaSerializer(serializers.Serializer[Any]):
+    registrar_transferencia = serializers.BooleanField(
+        help_text="POST /api/locacoes/{id}/transferencia/ (administrador e gerente)"
+    )
+
+
+class VendaDaCompraSerializer(serializers.Serializer[Any]):
+    """VEN-11: a venda de R$ 0,00 da quitação, fornecida por `vendas` (ADR 0015)."""
+
+    id = serializers.IntegerField()
+    codigo = serializers.CharField()
+    transferencia = TransferenciaDaVendaSerializer()
+    acoes = AcoesDaVendaSerializer()
+
+
+class FaltaParaQuitarSerializer(serializers.Serializer[Any]):
+    conta_id = serializers.IntegerField()
+    rotulo = serializers.CharField()
+    valor_centavos = serializers.IntegerField(required=False, help_text="o valor do dia (FIN-03)")
+
+
+class CompraLocacaoSerializer(serializers.Serializer[Any]):
+    """LOC-16 (T-420): o plano congelado e o andamento, com os textos prontos da API. O
+    vistoriador recebe sem os campos `_centavos`."""
+
+    plano = IdNomeLocacaoSerializer(allow_null=True)
+    parcelas_total = serializers.IntegerField()
+    parcelas_pagas = serializers.IntegerField()
+    valor_parcela_centavos = serializers.IntegerField(required=False)
+    ultima_parcela_centavos = serializers.IntegerField(required=False)
+    sobra_caucao_centavos = serializers.IntegerField(required=False)
+    andamento = serializers.CharField(
+        allow_null=True, help_text='"Parcela 1 de 24 · faltam 23 para a transferência"'
+    )
+    falta_para_quitar = FaltaParaQuitarSerializer(many=True)
+    quitada_em = _momento()
+    venda = VendaDaCompraSerializer(allow_null=True)
+
+
 class LocacaoDetalheSerializer(LocacaoSerializer):
     cliente = ClienteDaLocacaoSerializer()  # type: ignore[assignment]
     filial = IdNomeLocacaoSerializer()
@@ -442,6 +555,7 @@ class LocacaoDetalheSerializer(LocacaoSerializer):
         allow_null=True, help_text="LOC-17: o que faltava na retirada à mão"
     )
     troca = TrocaPendenteSerializer(allow_null=True)
+    compra = CompraLocacaoSerializer(allow_null=True, help_text="LOC-16; null na comum")
     acoes = AcoesLocacaoSerializer()
 
 
@@ -496,6 +610,26 @@ class PlanoEspecialSerializer(serializers.Serializer[Any]):
     condicoes = serializers.CharField(allow_blank=True)
     locacoes_ativas = serializers.IntegerField()
     ativo = serializers.BooleanField()
+
+
+class PlanoCompraSerializer(serializers.Serializer[Any]):
+    id = serializers.IntegerField()
+    nome = serializers.CharField()
+    categoria = IdNomeLocacaoSerializer()
+    periodicidade = serializers.CharField()
+    parcelas = serializers.IntegerField()
+    valor_parcela_centavos = serializers.IntegerField()
+    condicoes = serializers.CharField(allow_blank=True)
+    caucao_centavos = serializers.IntegerField(help_text="a caução vigente da categoria")
+    ultima_parcela_centavos = serializers.IntegerField(help_text="max(0, parcela − caução)")
+    locacoes_ativas = serializers.IntegerField()
+    ativo = serializers.BooleanField()
+
+
+class ListaDePlanosCompraSerializer(serializers.Serializer[Any]):
+    resultados = PlanoCompraSerializer(many=True)
+    proximo = serializers.CharField(allow_null=True)
+    anterior = serializers.CharField(allow_null=True)
 
 
 class ListaDePlanosEspeciaisSerializer(serializers.Serializer[Any]):
