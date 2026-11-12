@@ -4173,6 +4173,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/SimulacaoRenovacao'
           description: ''
+  /api/locacoes/{id}/retirada/:
+    post:
+      operationId: locacoes_retirada_create
+      description: |-
+        "Registrar retirada" (LOC-17, decisão do dono de 11 nov 2026): administrador e gerente da
+        filial da locação (fora do escopo, 404). 409 `vistoria_saida_pendente` sem a vistoria de
+        saída; 409 `transicao_locacao` fora de `aguardando_retirada`; 400 sem motivo.
+      summary: Registrar retirada à mão (LOC-17)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrarRetiradaEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RegistrarRetiradaEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegistrarRetiradaEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocacaoDetalhe'
+          description: ''
   /api/locacoes/{id}/trocar-veiculo/:
     post:
       operationId: locacoes_trocar_veiculo_create
@@ -7232,13 +7269,33 @@ components:
     AcaoDoPasso:
       type: object
       properties:
+        codigo:
+          allOf:
+          - $ref: '#/components/schemas/AcaoDoPassoCodigoEnum'
+          description: |-
+            a mesma chave de `acoes`, que a tela já sabe executar
+
+            * `continuar_vistoria` - continuar_vistoria
+            * `gerar_contrato` - gerar_contrato
+            * `reenviar_contrato` - reenviar_contrato
+            * `copiar_link_contrato` - copiar_link_contrato
         rotulo:
           type: string
-        destino:
-          type: string
       required:
-      - destino
+      - codigo
       - rotulo
+    AcaoDoPassoCodigoEnum:
+      enum:
+      - continuar_vistoria
+      - gerar_contrato
+      - reenviar_contrato
+      - copiar_link_contrato
+      type: string
+      description: |-
+        * `continuar_vistoria` - continuar_vistoria
+        * `gerar_contrato` - gerar_contrato
+        * `reenviar_contrato` - reenviar_contrato
+        * `copiar_link_contrato` - copiar_link_contrato
     AcaoEnum:
       enum:
       - baixar
@@ -7261,7 +7318,7 @@ components:
       type: object
       properties:
         codigo:
-          $ref: '#/components/schemas/CodigoEnum'
+          $ref: '#/components/schemas/AcaoPrincipalClienteCodigoEnum'
         rotulo:
           type: string
         alvo:
@@ -7272,6 +7329,20 @@ components:
       - alvo
       - codigo
       - rotulo
+    AcaoPrincipalClienteCodigoEnum:
+      enum:
+      - cobrar
+      - completar_cadastro
+      - ver_proposta
+      - ver_locacao
+      - nova_locacao
+      type: string
+      description: |-
+        * `cobrar` - cobrar
+        * `completar_cadastro` - completar_cadastro
+        * `ver_proposta` - ver_proposta
+        * `ver_locacao` - ver_locacao
+        * `nova_locacao` - nova_locacao
     Access:
       type: object
       properties:
@@ -7606,6 +7677,15 @@ components:
       - iniciar
       - registrar_chegada
       - sair_parada
+    AcoesDaParcela:
+      type: object
+      properties:
+        receber:
+          type: boolean
+          description: '"Registrar pagamento": a conta aberta e o perfil recebe no
+            caixa (FIN-18)'
+      required:
+      - receber
     AcoesDaPendencia:
       type: object
       properties:
@@ -7745,6 +7825,9 @@ components:
           type: boolean
         receber:
           type: boolean
+        registrar_retirada:
+          type: boolean
+          description: 'LOC-17: administrador e gerente, locação aguardando retirada'
       required:
       - cancelar
       - cancelar_troca
@@ -7757,6 +7840,7 @@ components:
       - receber
       - reenviar_contrato
       - registrar_devolucao
+      - registrar_retirada
       - renovar
       - trocar_veiculo
     AdministradorDaCompra:
@@ -9464,20 +9548,6 @@ components:
           type: string
       required:
       - codigo
-    CodigoEnum:
-      enum:
-      - cobrar
-      - completar_cadastro
-      - ver_proposta
-      - ver_locacao
-      - nova_locacao
-      type: string
-      description: |-
-        * `cobrar` - cobrar
-        * `completar_cadastro` - completar_cadastro
-        * `ver_proposta` - ver_proposta
-        * `ver_locacao` - ver_locacao
-        * `nova_locacao` - nova_locacao
     CodigoMensagemLocacao:
       type: object
       properties:
@@ -15078,6 +15148,15 @@ components:
           allOf:
           - $ref: '#/components/schemas/PrazoRetirada'
           nullable: true
+        para_retirar:
+          allOf:
+          - $ref: '#/components/schemas/ParaRetirar'
+          nullable: true
+        pendencias_retirada:
+          allOf:
+          - $ref: '#/components/schemas/PendenciasDaRetirada'
+          nullable: true
+          description: 'LOC-17: o que faltava na retirada à mão'
         troca:
           allOf:
           - $ref: '#/components/schemas/TrocaPendente'
@@ -15100,7 +15179,9 @@ components:
       - inicio
       - km_livre
       - km_saida
+      - para_retirar
       - parcelamento_mensal
+      - pendencias_retirada
       - periodicidade
       - periodos
       - plano_especial
@@ -16271,6 +16352,27 @@ components:
       - destino
       - texto
       - tipo
+    ParaRetirar:
+      type: object
+      description: |-
+        LOC-17 (T-451): os três passos, na ordem vistoria, contrato, pagamento, e o prazo da
+        LOC-12. Só na `aguardando_retirada`; textos prontos da API.
+      properties:
+        passos:
+          type: array
+          items:
+            $ref: '#/components/schemas/PassoDaRetirada'
+        prazo:
+          type: string
+        registrar_retirada:
+          allOf:
+          - $ref: '#/components/schemas/RegistrarRetirada'
+          nullable: true
+          description: o botão, só para administrador e gerente (LOC-17)
+      required:
+      - passos
+      - prazo
+      - registrar_retirada
     Parada:
       type: object
       properties:
@@ -16366,16 +16468,29 @@ components:
         observacao:
           type: string
           nullable: true
+        conta_id:
+          type: integer
+          description: o `id` da conta em /api/financeiro/contas/
+        rotulo:
+          type: string
+        valor_hoje_centavos:
+          type: integer
+        acoes:
+          $ref: '#/components/schemas/AcoesDaParcela'
       required:
+      - acoes
+      - conta_id
       - forma
       - id
       - numero
       - observacao
       - pago_em
+      - rotulo
       - status
       - tipo
       - total_parcelas
       - valor_centavos
+      - valor_hoje_centavos
       - vencimento
     ParcelaPrevista:
       type: object
@@ -16429,6 +16544,36 @@ components:
       - feito_em
       - passo
       - texto
+    PassoDaRetirada:
+      type: object
+      properties:
+        codigo:
+          $ref: '#/components/schemas/PassoDaRetiradaCodigoEnum'
+        feito:
+          type: boolean
+        texto:
+          type: string
+          description: '"Feita em 07 out, 09:20", "Falta a vistoria de saída"'
+        acoes:
+          type: array
+          items:
+            $ref: '#/components/schemas/AcaoDoPasso'
+          description: só as que o perfil pode fazer
+      required:
+      - acoes
+      - codigo
+      - feito
+      - texto
+    PassoDaRetiradaCodigoEnum:
+      enum:
+      - vistoria_saida
+      - contrato
+      - pagamento
+      type: string
+      description: |-
+        * `vistoria_saida` - vistoria_saida
+        * `contrato` - contrato
+        * `pagamento` - pagamento
     PassoDoAssistente:
       type: object
       properties:
@@ -17204,6 +17349,17 @@ components:
       required:
       - itens
       - titulo
+    PendenciasDaRetirada:
+      type: object
+      description: 'LOC-17: na locação retirada à mão, só os passos que ainda faltam.
+        Nulo sem pendência.'
+      properties:
+        passos:
+          type: array
+          items:
+            $ref: '#/components/schemas/PassoDaRetirada'
+      required:
+      - passos
     PerfilEnum:
       enum:
       - administrador
@@ -18480,6 +18636,46 @@ components:
           type: string
           nullable: true
           maxLength: 20
+    RegistrarRetirada:
+      type: object
+      description: O botão "Registrar retirada" (LOC-17) e a confirmação, com textos
+        prontos.
+      properties:
+        rotulo:
+          type: string
+        disponivel:
+          type: boolean
+          description: false sem a vistoria de saída concluída
+        aviso:
+          type: string
+          nullable: true
+          description: '"Faça a vistoria de saída antes da retirada."'
+        titulo:
+          type: string
+          description: '"Registrar retirada?"'
+        faltas:
+          type: array
+          items:
+            type: string
+          description: os textos dos passos que faltam
+        motivo_obrigatorio:
+          type: string
+          description: '"Informe o motivo."'
+      required:
+      - aviso
+      - disponivel
+      - faltas
+      - motivo_obrigatorio
+      - rotulo
+      - titulo
+    RegistrarRetiradaEntrada:
+      type: object
+      properties:
+        motivo:
+          type: string
+          maxLength: 200
+      required:
+      - motivo
     RegraEnum:
       enum:
       - preco_fixo
