@@ -16,13 +16,19 @@ from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 
 from apps.contratos import selectors as contratos_selectors
-from apps.contratos.api.serializers import ContratoGeradoSerializer, UrlDoPdfSerializer
+from apps.contratos.api.serializers import (
+    ContratoGeradoSerializer,
+    LinkDoContratoSerializer,
+    UrlDoPdfSerializer,
+)
 from apps.filiais.models import Filial
 from apps.filiais.selectors import filtrar_por_filial
 from apps.plataforma.models import Recurso
 from comum.erros import ErroDeValidacao
+from comum.limites import LIMITES_DO_LINK_CONTRATO
 from comum.paginacao import PaginacaoPorCursor, envelope_sem_paginas
 from comum.permissoes import com_padrao, exige_perfil, filiais_permitidas, filial_pedida
+from comum.rede import ip_do_cliente
 
 from .. import contrato, selectors, services
 from ..models import Locacao, PlanoEspecial
@@ -38,6 +44,7 @@ from .serializers import (
     LocacaoSerializer,
     PlanoEspecialEntradaSerializer,
     PlanoEspecialSerializer,
+    RegistrarRetiradaEntradaSerializer,
     RenovarLocacaoSerializer,
     SimulacaoCancelamentoSerializer,
     SimulacaoLocacaoSerializer,
@@ -53,6 +60,9 @@ LEEM_A_LISTA: list[type[BasePermission]] = com_padrao(
     exige_perfil("administrador", "gerente", "vendedor", "financeiro")
 )
 ADMINISTRADOR: list[type[BasePermission]] = com_padrao(exige_perfil("administrador"))
+REGISTRAM_RETIRADA: list[type[BasePermission]] = com_padrao(
+    exige_perfil("administrador", "gerente")
+)
 
 
 class ViewDeLocacao(APIView):
@@ -278,6 +288,24 @@ class CancelarLocacaoView(ViewDeLocacao):
         return _detalhe(request, pk)
 
 
+class RegistrarRetiradaView(ViewDeLocacao):
+    """ "Registrar retirada" (LOC-17, decisão do dono de 11 nov 2026): administrador e gerente da
+    filial da locação (fora do escopo, 404). 409 `vistoria_saida_pendente` sem a vistoria de
+    saída; 409 `transicao_locacao` fora de `aguardando_retirada`; 400 sem motivo."""
+
+    permission_classes = REGISTRAM_RETIRADA
+
+    @extend_schema(
+        request=RegistrarRetiradaEntradaSerializer,
+        responses=LocacaoDetalheSerializer,
+        summary="Registrar retirada à mão (LOC-17)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        dados = _entrada(RegistrarRetiradaEntradaSerializer, request)
+        services.registrar_retirada(_locacao(request, pk), dados["motivo"])
+        return _detalhe(request, pk)
+
+
 # --- Contrato (fluxo da retirada, passo 3; docs/api/contratos.md) ---
 
 
@@ -310,6 +338,34 @@ class ReenviarContratoView(ViewDeLocacao):
             {"contrato_id": reenviado.pk, "status": reenviado.status},
             status=status.HTTP_202_ACCEPTED,
         )
+
+
+class LinkDoContratoView(ViewDeLocacao):
+    """Copiar link para assinar (T-411, `locacoes.md`). Ordem da T-252: permissão e 403 `PLT-07`
+    (na autenticação), depois o limite, depois o serviço. O link sai só nesta resposta, sem
+    cache, e não vai para log."""
+
+    permission_classes = CRIAM
+    throttle_classes = LIMITES_DO_LINK_CONTRATO
+    suporte_proibido = True
+    mensagem_suporte_proibido = ("PLT-07", "No modo suporte você não gera link para o cliente.")
+
+    @extend_schema(
+        request=None,
+        responses=LinkDoContratoSerializer,
+        summary="Copiar link para assinar (S-15, LOC-15)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        link, vigente = contrato.copiar_link(
+            _locacao(request, pk), request.user, ip_do_cliente(request)
+        )
+        corpo = {
+            "link": link,
+            "expira_em": vigente.token_assinatura_expira_em,
+            "aviso": "O link anterior deixa de valer.",
+            "contrato": contratos_selectors.resumo(vigente),
+        }
+        return Response(LinkDoContratoSerializer(corpo).data, headers={"Cache-Control": "no-store"})
 
 
 class PdfDoContratoView(ViewDeLocacao):

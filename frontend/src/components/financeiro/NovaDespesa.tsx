@@ -9,7 +9,7 @@ import { financeiro, veiculos, type Despesa, type Eu, type Veiculo } from "@/lib
 import { useAgora } from "@/lib/ambiente";
 import { corpoDaDespesa, TAMANHO_MAXIMO_DA_NOTA, type ValoresDaDespesa } from "@/lib/despesas";
 import { campoDoErro } from "@/lib/erros";
-import { CATEGORIAS_DA_DESPESA } from "@/lib/financeiro";
+import { CATEGORIAS_DA_DESPESA, CATEGORIAS_DE_MANUTENCAO } from "@/lib/financeiro";
 import { diaDe, placa } from "@/lib/formatos";
 import { centavosDoTexto } from "@/lib/veiculos";
 import { ErroDoFinanceiro } from "./Comuns";
@@ -18,8 +18,21 @@ import { ErroDoFinanceiro } from "./Comuns";
 
 const CAMPOS_COM_ERRO = ["descricao", "valor_centavos", "data", "vencimento", "categoria", "veiculo_id", "nota", "pago_no_caixa"];
 
+/** O veículo da ficha (FIN-17): preenchido e travado, sem "Tirar". */
+export type VeiculoDaFicha = Pick<Veiculo, "id" | "placa" | "modelo">;
+
 /** Veículo pela placa: digitou três letras ou mais, escolhe na lista. A API guarda o id, não a placa. */
-function CampoVeiculo({ escolhido, aoEscolher, erro }: { escolhido: Veiculo | null; aoEscolher: (v: Veiculo | null) => void; erro?: string }) {
+export function CampoVeiculo({
+  escolhido,
+  aoEscolher,
+  erro,
+  rotulo = "Veículo (opcional)",
+}: {
+  escolhido: VeiculoDaFicha | null;
+  aoEscolher: (v: Veiculo | null) => void;
+  erro?: string;
+  rotulo?: string;
+}) {
   const [texto, setTexto] = useState("");
   const [busca, setBusca] = useState("");
   useEffect(() => {
@@ -32,10 +45,11 @@ function CampoVeiculo({ escolhido, aoEscolher, erro }: { escolhido: Veiculo | nu
   if (escolhido)
     return (
       <div className="flex flex-col gap-1">
-        <span className="wl-field__label">Veículo (opcional)</span>
+        <span className="wl-field__label">{rotulo}</span>
         <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-md bg-surface-sunken px-4">
           <span className="min-w-0 truncate text-body">
-            <span className="wl-mono">{placa(escolhido.placa)}</span> · {escolhido.modelo}
+            <span className="wl-mono">{placa(escolhido.placa)}</span>
+            {escolhido.modelo ? ` · ${escolhido.modelo}` : ""}
           </span>
           <Button compacto variante="quieto" onClick={() => aoEscolher(null)}>
             Tirar
@@ -46,7 +60,7 @@ function CampoVeiculo({ escolhido, aoEscolher, erro }: { escolhido: Veiculo | nu
 
   return (
     <div className="flex flex-col gap-2">
-      <TextField cheio mono rotulo="Veículo (opcional)" placeholder="Placa" autoComplete="off" value={texto} onChange={(e) => setTexto(e.target.value)} erro={erro} />
+      <TextField cheio mono rotulo={rotulo} placeholder="Placa" autoComplete="off" value={texto} onChange={(e) => setTexto(e.target.value)} erro={erro} />
       {busca.length >= 3 && achados.isSuccess && lista.length === 0 && <p className="text-caption text-ink-muted">Nenhum veículo com essa placa.</p>}
       {lista.length > 0 && (
         <ul className="flex flex-col gap-1" aria-label="Veículos encontrados">
@@ -71,13 +85,16 @@ function CampoVeiculo({ escolhido, aoEscolher, erro }: { escolhido: Veiculo | nu
   );
 }
 
-/** Lançar despesa. Até R$ 500 nasce a pagar; acima disso vai para o gerente aprovar (FIN-05, APR-03): quem decide é a API. */
-export function NovaDespesa({ eu, aoLancar }: { eu: Eu; aoLancar: (d: Despesa) => void }) {
+/**
+ * Lançar despesa. Até R$ 500 nasce a pagar; acima disso vai para o gerente aprovar (FIN-05, APR-03): quem decide é a API.
+ * Com `veiculoFixo` (a ficha, FIN-17), o veículo vem travado e a API usa a filial dele.
+ */
+export function NovaDespesa({ eu, aoLancar, veiculoFixo }: { eu: Eu; aoLancar: (d: Despesa) => void; veiculoFixo?: VeiculoDaFicha }) {
   const cliente = useQueryClient();
   const agora = useAgora();
   const hoje = diaDe(agora.toISOString());
   const soManutencao = eu.pode.despesas_lancar === "manutencao";
-  const categorias = soManutencao ? CATEGORIAS_DA_DESPESA.filter((c) => c.valor === "manutencao") : CATEGORIAS_DA_DESPESA;
+  const categorias = soManutencao ? CATEGORIAS_DA_DESPESA.filter((c) => CATEGORIAS_DE_MANUTENCAO.includes(c.valor)) : CATEGORIAS_DA_DESPESA;
 
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
@@ -91,13 +108,13 @@ export function NovaDespesa({ eu, aoLancar }: { eu: Eu; aoLancar: (d: Despesa) =
   const arquivo = useRef<HTMLInputElement>(null);
 
   const dia = data || hoje;
-  const valores: ValoresDaDespesa = { descricao, valor, data: dia, vencimento: vencimento || dia, categoria, veiculoId: veiculo?.id ?? null, nota, pagoNoCaixa };
+  const valores: ValoresDaDespesa = { descricao, valor, data: dia, vencimento: vencimento || dia, categoria, veiculoId: veiculoFixo ? null : (veiculo?.id ?? null), nota, pagoNoCaixa };
   const corpo = corpoDaDespesa(valores);
 
   const lancar = useMutation({
     mutationFn: () => {
       if (!corpo) throw new Error("incompleto");
-      return financeiro.lancarDespesa(corpo);
+      return veiculoFixo ? financeiro.lancarDespesaDoVeiculo(veiculoFixo.id, corpo) : financeiro.lancarDespesa(corpo);
     },
     onSuccess: async (d) => {
       setDescricao("");
@@ -108,7 +125,13 @@ export function NovaDespesa({ eu, aoLancar }: { eu: Eu; aoLancar: (d: Despesa) =
       setNota(null);
       setPagoNoCaixa(false);
       if (arquivo.current) arquivo.current.value = "";
-      await Promise.all([cliente.invalidateQueries({ queryKey: ["despesas"] }), cliente.invalidateQueries({ queryKey: ["aprovacoes"] }), cliente.invalidateQueries({ queryKey: ["contadores"] })]);
+      await Promise.all([
+        cliente.invalidateQueries({ queryKey: ["despesas"] }),
+        cliente.invalidateQueries({ queryKey: ["aprovacoes"] }),
+        cliente.invalidateQueries({ queryKey: ["contadores"] }),
+        // A ficha: "Despesas no ano", "Custo de manutenção" e "Rendeu no ano" (VEI-05).
+        ...(veiculoFixo ? [cliente.invalidateQueries({ queryKey: ["veiculo", veiculoFixo.id] })] : []),
+      ]);
       aoLancar(d);
     },
   });
@@ -152,12 +175,23 @@ export function NovaDespesa({ eu, aoLancar }: { eu: Eu; aoLancar: (d: Despesa) =
         rotulo="Categoria"
         value={categoria}
         onChange={(e) => setCategoria(e.target.value as ValoresDaDespesa["categoria"])}
-        opcoes={categorias.map((c) => ({ valor: c.valor, rotulo: c.rotulo }))}
+        opcoes={categorias.map((c) => ({ valor: c.valor, rotulo: c.rotulo, grupo: c.grupo }))}
         erro={campoDoErro(lancar.error, "categoria")}
       />
       {/* A API pede o vencimento e a tela de referência não tem o campo: ele nasce igual à data (decisão em aberto no quadro). */}
       <TextField cheio rotulo="Vencimento" type="date" value={vencimento || dia} onChange={(e) => setVencimento(e.target.value)} erro={campoDoErro(lancar.error, "vencimento")} />
-      <CampoVeiculo escolhido={veiculo} aoEscolher={setVeiculo} erro={campoDoErro(lancar.error, "veiculo_id")} />
+      {veiculoFixo ? (
+        <div className="flex flex-col gap-1">
+          <span className="wl-field__label">Veículo</span>
+          <div className="flex min-h-[44px] items-center rounded-md bg-surface-sunken px-4">
+            <span className="min-w-0 truncate text-body">
+              <span className="wl-mono">{placa(veiculoFixo.placa)}</span> · {veiculoFixo.modelo}
+            </span>
+          </div>
+        </div>
+      ) : (
+        <CampoVeiculo escolhido={veiculo} aoEscolher={setVeiculo} erro={campoDoErro(lancar.error, "veiculo_id")} />
+      )}
 
       <div className="flex flex-col gap-1">
         <label className="flex h-[72px] cursor-pointer items-center justify-center gap-2 rounded-[18px] border-[1.5px] border-dashed border-line px-4 text-caption text-ink-muted has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2">
@@ -197,7 +231,7 @@ export function NovaDespesa({ eu, aoLancar }: { eu: Eu; aoLancar: (d: Despesa) =
       </Button>
       <p className="m-0 text-caption leading-[18px] text-ink-muted">
         Acima de R$ 500 vai para o gerente aprovar antes de pagar.
-        {soManutencao && " Seu perfil lança só despesas de manutenção."}
+        {soManutencao && " Seu perfil lança só despesas de manutenção e peças."}
       </p>
     </form>
   );

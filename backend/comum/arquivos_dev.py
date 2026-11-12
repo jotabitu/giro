@@ -17,7 +17,8 @@ def servir(request: HttpRequest, caminho: str) -> HttpResponse:
     expira = request.GET.get("expira", "")
     nonce = request.GET.get("nonce", "")
     assinatura = request.GET.get("assinatura", "")
-    esperada = arquivos.assinar(unquote(caminho), expira, nonce)
+    baixar = request.GET.get("baixar", "")
+    esperada = arquivos.assinar(unquote(caminho), expira, nonce, baixar)
     if not hmac.compare_digest(assinatura, esperada):
         return HttpResponseForbidden("Assinatura inválida.")
     if not expira.isdigit() or int(expira) < int(relogio.agora().timestamp()):
@@ -29,4 +30,10 @@ def servir(request: HttpRequest, caminho: str) -> HttpResponse:
     resposta = HttpResponse(conteudo, content_type=tipo)
     resposta["Cache-Control"] = "private, no-store"
     resposta["X-Content-Type-Options"] = "nosniff"
+    if baixar:
+        # O nome já entrou na assinatura; o formato é conferido de novo (ADR 0036, item 4).
+        try:
+            resposta["Content-Disposition"] = arquivos.disposicao_de_download(baixar)
+        except ValueError:
+            return HttpResponseForbidden("Nome de arquivo inválido.")
     return resposta

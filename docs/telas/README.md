@@ -8,6 +8,11 @@ Cada tela tem versão `-Desktop` e `-Mobile` (exceto `Main`, que é a visão ger
 
 Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 
+**Do canvas para cá:** vale a tela deste repositório. Tela nova ou ajustada no canvas só vale depois da tarefa de importação, que carimba a origem no topo do HTML. O fluxo e o quanto a página do app precisa seguir a tela estão em [`docs/agentes/telas-do-canvas.md`](../agentes/telas-do-canvas.md).
+
+**Última importação do canvas:** 28/10/2026, T-409 (só as telas `Plat-*`; as telas da locadora do canvas eram mais antigas que as daqui). Telas sem carimbo são anteriores ao fluxo.
+**Último ajuste no repositório:** 11/11/2026, T-434 (compra pública, `Compra-Planos`, `Compra-Checkout` e `Compra-Pronto`, desktop e celular: Planos sem o Completo, com o texto da fase 1 do Profissional e sem o "Entrar" [PLT-11, D-430-10]; Checkout com razão social, nome da empresa, cidade e UF editáveis e "Endereço de acesso" com o estado "em uso", sem "Tamanho da frota hoje", e o passo do código de 6 dígitos com "Reenviar código" e os erros [PLT-16, D-430-01, D-430-02, D-430-11]; Pronto com "O link vale por 7 dias." [USR-01, D-430-07]). Antes: 11/11/2026, T-448 (editar do veículo, `Veiculo-Editar` desktop e celular: "Tipo de veículo" em "Uso na frota" antes da categoria, travado com a dica da LOC-2841, e os estados livre, sem categoria escolhida e sem categoria do tipo [VEI-11]; galeria da T-414 como ficou no app, com "Apagar" em texto; painel "Dados do documento" com "Tipo no CRLV-e", separado do tipo do veículo [VEI-09]. Cadastro, `Veiculo-Novo`: depois de uma foto recusada as seguintes seguem, sem "Na fila", e o envio termina em "Fotos enviadas · 4 de 5" [VEI-10]). Antes: 10/11/2026, T-437 e T-438 (cadastro do veículo, `Veiculo-Novo`: o tipo saiu do cabeçalho e virou o campo "Tipo de veículo" em "Uso na frota", antes de "Categoria de preço" [VEI-11]; bloco "Fotos do veículo" no lugar dos espaços fixos de foto, com miniaturas, "Tirar", "Usar como capa", limite de 20, arquivo recusado, andamento "Enviando fotos · 2 de 5", foto recusada e falha de conexão com "Ir para o veículo" e "Tentar de novo", desktop e celular [VEI-10]). Antes: 09/11/2026, T-440 (assistente, passo 11 · importar dados: planilha de veículos sem as colunas filial e categoria, "Os veículos entram na Filial Centro." ou campo "Filial dos veículos", bloco "Categoria de cada modelo" com "Importar" travado até todos terem categoria, categoria da linha em "Corrigir aqui" e aviso sem categoria ativa, desktop e celular [IMP-02, IMP-08]). Antes: 05/11/2026, T-436 (página pública do recibo da devolução /recibo#<token>, dados do veículo, data, valores da caução e fotos com ampliar, estados de link vencido e inválido, desktop e celular [DEV-01, DEV-02, DEV-03, AUD-05, S-15]).
+
 ## Implantação
 
 | Tela | Arquivos | Rota no frontend | App no backend | Regras |
@@ -46,10 +51,11 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 | Caixa do dia | [desktop](html/Caixa-Desktop.dc.html) · [celular](html/Caixa-Mobile.dc.html) | `(empresa)/financeiro` | `financeiro` | FIN |
 | Despesas | [desktop](html/Despesas-Desktop.dc.html) · [celular](html/Despesas-Mobile.dc.html) | `(empresa)/financeiro` | `financeiro` | FIN |
 | Devolução | [desktop](html/Devolucao-Desktop.dc.html) · [celular](html/Devolucao-Mobile.dc.html) | `(empresa)/locacoes/[id]/vistoria|devolucao` | `vistorias` | VIS, DEV |
+| Recibo da devolução | [desktop](html/Recibo-Desktop.dc.html) · [celular](html/Recibo-Mobile.dc.html) | `(publico)/recibo` | `vistorias` | DEV-01 a DEV-08, AUD-05, S-15 |
 | Detalhe da locação | [desktop](html/Locacao-Detalhe-Desktop.dc.html) · [celular](html/Locacao-Detalhe-Mobile.dc.html) | `(empresa)/locacoes` | `locacoes` | LOC |
 | Locações | [desktop](html/Locacoes-Desktop.dc.html) · [celular](html/Locacoes-Mobile.dc.html) | `(empresa)/locacoes` | `locacoes` | LOC |
 | Manutenções | [desktop](html/Manutencao-Desktop.dc.html) · [celular](html/Manutencao-Mobile.dc.html) | `(empresa)/manutencoes` | `manutencao` | MAN |
-| Ficha do veículo | [desktop](html/Veiculo-Desktop.dc.html) · [celular](html/Veiculo-Mobile.dc.html) | `(empresa)/veiculos` | `veiculos` | VEI |
+| Ficha do veículo | [desktop](html/Veiculo-Desktop.dc.html) · [celular](html/Veiculo-Mobile.dc.html) | `(empresa)/veiculos/[id]` | `veiculos` | VEI, VEI-10, VIS-01 |
 | Nova venda | [desktop](html/Venda-Desktop.dc.html) · [celular](html/Venda-Mobile.dc.html) | `(empresa)/vendas` | `vendas` | VEN, APR |
 | Menu Mais | [celular](html/Menu-Mobile.dc.html) | `(empresa)/inicio` | `relatorios (agregados)` | USR, AUT |
 | Vendas | [desktop](html/Vendas-Desktop.dc.html) · [celular](html/Vendas-Mobile.dc.html) | `(empresa)/vendas` | `vendas` | VEN, APR |
@@ -82,11 +88,16 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 | --- | --- | --- | --- | --- |
 | Frota | [desktop](html/Frota-Desktop.dc.html) · [celular](html/Frota-Mobile.dc.html) | `(empresa)/veiculos` | `veiculos` | VEI |
 | Cadastrar veículo | [desktop](html/Veiculo-Novo-Desktop.dc.html) · [celular](html/Veiculo-Novo-Mobile.dc.html) | `(empresa)/veiculos/novo` | `veiculos` | VEI |
+| Editar veículo | [desktop](html/Veiculo-Editar-Desktop.dc.html) · [celular](html/Veiculo-Editar-Mobile.dc.html) | `(empresa)/veiculos/[id]/editar` | `veiculos` | VEI-01, VEI-10 |
+| Ficha do veículo | [desktop](html/Veiculo-Desktop.dc.html) · [celular](html/Veiculo-Mobile.dc.html) | `(empresa)/veiculos/[id]` | `veiculos` | VEI, VEI-10, VIS-01 |
+| Visualizador de fotos | [desktop](html/Veiculo-Visualizador-Desktop.dc.html) · [celular](html/Veiculo-Visualizador-Mobile.dc.html) | `(empresa)/veiculos/[id]` (modal) | `veiculos`, `vistorias` | VEI-10, AUD-05 |
 | Movimentações | [desktop](html/Movimentacoes-Desktop.dc.html) · [celular](html/Movimentacoes-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes` | `movimentacoes` | MOV-01 a MOV-06 |
 | Nova movimentação | [desktop](html/Movimentacao-Nova-Desktop.dc.html) · [celular](html/Movimentacao-Nova-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/nova` | `movimentacoes` | MOV-01 a MOV-06 |
 | Registrar chegada | [celular](html/Movimentacao-Chegada-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/[id]/chegada` | `movimentacoes` | MOV-04, MOV-05, MOV-06 |
 | Chegada na parada | [celular](html/Movimentacao-Parada-Chegada-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/[id]/parada` | `movimentacoes` | MOV-02, MOV-03, MOV-04 |
 | Saída da parada | [desktop](html/Movimentacao-Parada-Desktop.dc.html) · [celular](html/Movimentacao-Parada-Mobile.dc.html) | `(empresa)/veiculos/movimentacoes/[id]/parada` | `movimentacoes` | MOV-02, MOV-04 |
+
+As telas de veículo foram ajustadas em 03 nov 2026 (T-414, `VEI-10`, critérios `docs/qa/criterios/T-414.md`): o Editar veículo traz a Galeria de fotos do veículo (até 20 fotos, envio JPG/PNG até 10 MB sem localização, foto de capa, trocar e apagar para administrador e gerente); a Ficha do veículo separa a galeria de cadastro das fotos da última vistoria (`VIS-01`), e ambas abrem o Visualizador de fotos com ampliar, anterior/próxima dentro da mesma origem e botão Baixar com nome padronizado (`QXA-4B21-galeria-1.jpg` e `QXA-4B21-vistoria-saida-frente.jpg`).
 
 As telas de movimentação estão no MVP desde 16 out (seção "Movimentações de veículos" das regras, `MOV-01` a `MOV-06`, critérios `docs/qa/criterios/T-246.md`) e usam veículos e dados do seed de 07 out: SAK-1D39, PMZ-3E17 e a Filial Caucaia de exemplo. A parada (T-301) tem duas telas: "Chegada na parada" (só o botão Cheguei, `POST .../paradas/{id}/chegada/`) e "Saída da parada" (valor pago "confira com o recibo" e nota opcional, `POST .../paradas/{id}/saida/`, que gera a despesa). No desktop, a saída abre numa gaveta sobre o quadro, pelo botão Registrar saída do cartão em "No local de apoio"; o celular é a tela de quem leva. Os botões vêm de `acoes.chegar_parada` e `acoes.sair_parada`. A parada de oficina não cita OS no MVP: tem serviço, valor previsto e categoria, e gera a despesa como as outras. A Nova movimentação não mostra o código antes de criar: ele só existe depois do `201`.
 
@@ -103,6 +114,9 @@ As telas de movimentação estão no MVP desde 16 out (seção "Movimentações 
 | Login | [desktop](html/Login-Desktop.dc.html) · [celular](html/Login-Mobile.dc.html) | `(publico)/entrar` | `contas` | USR |
 | Esqueci a senha (pedir o link, e-mail enviado, nova senha, link vencido) | [desktop](html/Esqueci-Senha-Desktop.dc.html) · [celular](html/Esqueci-Senha-Mobile.dc.html) | `(publico)/entrar/esqueci, (publico)/entrar/redefinir` | `contas` | USR |
 | Ativar verificação em 2 etapas (QR, código, códigos de recuperação) | [desktop](html/Ativar-2FA-Desktop.dc.html) · [celular](html/Ativar-2FA-Mobile.dc.html) | `(publico)/entrar/2fa, (empresa)/perfil/seguranca` | `contas` | USR-02, USR-06 |
+| Entrar com o código da 2ª etapa (código do aplicativo, código de recuperação, acesso bloqueado). Desenhada na T-461 | [desktop](html/Entrar-2FA-Desktop.dc.html) · [celular](html/Entrar-2FA-Mobile.dc.html) | `(publico)/entrar/2fa` | `contas` | USR-02, USR-06 |
+| Meu perfil (dados, senha, 2 etapas e códigos de recuperação). Desenhada na T-461; a tela é da fase 2 (`USR-02`) | [desktop](html/Perfil-Desktop.dc.html) · [celular](html/Perfil-Mobile.dc.html) | `(empresa)/perfil` | `contas` | USR-02, USR-06 |
+| Notificações (lista do sino e canais por aviso). Desenhada na T-461 | [desktop](html/Notificacoes-Desktop.dc.html) · [celular](html/Notificacoes-Mobile.dc.html) | `(empresa)/notificacoes` | `automacoes, contas` | AUT, USR |
 
 ## Painel da plataforma
 

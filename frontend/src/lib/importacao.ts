@@ -1,8 +1,8 @@
 // Textos da importação por planilha. Contagens, estado, erros e avisos vêm da API (docs/api/importacao.md); a tela não conta linha.
-import type { Importacao, TipoDeImportacao } from "@/lib/api";
+import type { CategoriasDaImportacao, Importacao, ModeloDaImportacao, TipoDeImportacao } from "@/lib/api";
 
 export const TIPOS_DE_IMPORTACAO: { tipo: TipoDeImportacao; titulo: string; apoio: string; modelo: string }[] = [
-  { tipo: "veiculos", titulo: "Veículos", apoio: "Placa, chassi, marca, modelo, ano, cor, km e categoria", modelo: "Baixar planilha modelo de veículos" },
+  { tipo: "veiculos", titulo: "Veículos", apoio: "Placa, chassi, marca, modelo, ano, cor e km", modelo: "Baixar planilha modelo de veículos" },
   { tipo: "clientes", titulo: "Clientes", apoio: "Nome, CPF, CNH, telefone e endereço", modelo: "Baixar planilha modelo de clientes" },
 ];
 
@@ -23,3 +23,9 @@ export const resumoDoArquivo = (i: Pick<Importacao, "arquivo" | "contagens">): s
 
 /** Campos da linha que a pessoa pode corrigir: o campo do erro. */
 export const rotuloDoCampo = (campo: string): string => campo.replace(/_/g, " ");
+
+/** "Honda CG 160 Fan" (IMP-08). */
+export const nomeDoModelo = (m: Pick<ModeloDaImportacao, "marca" | "modelo">): string => [m.marca, m.modelo].filter(Boolean).join(" ");
+
+/** Quantos modelos já têm categoria, para "3 de 7 modelos com categoria". A trava do "Importar" é a `falta_escolher` da API. */
+export const modelosComCategoria = (c: Pick<CategoriasDaImportacao, "modelos">): number => c.modelos.filter((m) => m.categoria_id !== null).length;

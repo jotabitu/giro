@@ -7,18 +7,21 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useEffect, useRef, useState, type SelectHTMLAttributes } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
-import { Icone, Panel, SegmentedControl, TextField } from "@/design-system";
-import { ErroApi, veiculos, type CategoriaVeiculo } from "@/lib/api";
+import { Icone, Panel, SelectField, TextField } from "@/design-system";
+import { ErroApi, veiculos, type CategoriaVeiculo, type ModeloDoCatalogo, type TipoVeiculo } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
 import { dinheiro, km, placa as placaComHifen } from "@/lib/formatos";
 import { useSessao } from "@/lib/sessao";
-import { esquemaVeiculo, paraCorpoVeiculo, valoresDaLeitura, VALORES_INICIAIS_VEICULO, type CampoLido, type ValoresVeiculo } from "@/lib/veiculos";
+import { categoriaAoTrocarTipo, esquemaVeiculo, NOME_DO_CAMPO_DA_API, OPCOES_DE_TIPO, paraCorpoVeiculo, semCategoriaDoTipo, valoresDaLeitura, VALORES_INICIAIS_VEICULO, type CampoLido, type CategoriasPorTipo, type ValoresVeiculo } from "@/lib/veiculos";
+import { useAvisoDeSaida } from "./AvisoDeSaida";
+import { CamposDoDocumento } from "./CamposDoDocumento";
+import { capaDaLista, EnvioDasFotos, cadastrarComFotos, envioTerminouBem, enviarEmSequencia, escolherFotos, fotosQueFaltam, FotosEscolhidas, itensDoEnvio, soltarMiniatura, type FotoEscolhida, type ItemDoEnvio } from "./FotosDoCadastro";
+import type { RecusaDeFoto } from "./PecasDaGaleria";
 import { PreencherPeloCrlv, type CrlvLido } from "./PreencherPeloCrlv";
 
 type Nome = FieldPath<ValoresVeiculo>;
-
-/** Campo da API que não tem campo próprio na tela vira o campo mais próximo. */
-const CAMPO_DA_API: Record<string, Nome> = { valor_compra_centavos: "valor_compra" };
+/** O veículo já gravado e as fotos dele subindo (ou paradas por recusa ou conexão). */
+type Envio = { veiculoId: number; placa: string; outro: boolean; descricao: string; itens: ItemDoEnvio[] };
 
 type SelecaoProps = SelectHTMLAttributes<HTMLSelectElement> & { rotulo: string; erro?: string; dica?: string; opcoes: { valor: string; rotulo: string }[]; vazio: string };
 
@@ -62,6 +65,15 @@ export function NovoVeiculoForm() {
   // O CRLV-e lido e o que ele preencheu: o arquivo e o comprovante seguem no salvar (VEI-08).
   const [crlv, setCrlv] = useState<CrlvLido | null>(null);
   const [lidos, setLidos] = useState<Partial<Record<CampoLido, string>>>({});
+  // VEI-10 (T-437): as fotos escolhidas antes de salvar e, depois do 201, o envio delas uma a uma.
+  const [fotos, setFotos] = useState<FotoEscolhida[]>([]);
+  const [capa, setCapa] = useState<string | null>(null);
+  const [recusasDaEscolha, setRecusasDaEscolha] = useState<RecusaDeFoto[]>([]);
+  const [passouDoLimite, setPassouDoLimite] = useState(false);
+  const [envio, setEnvio] = useState<Envio | null>(null);
+  const fotosAtuais = useRef<FotoEscolhida[]>([]);
+  fotosAtuais.current = fotos;
+  useEffect(() => () => fotosAtuais.current.forEach(soltarMiniatura), []);
 
   const filiaisDaPessoa = eu.filiais;
   const valoresIniciais: ValoresVeiculo = { ...VALORES_INICIAIS_VEICULO, filial_id: filiaisDaPessoa.length === 1 ? String(filiaisDaPessoa[0]!.id) : "" };
@@ -85,11 +97,22 @@ export function NovoVeiculoForm() {
   });
   const lista: CategoriaVeiculo[] = categorias.data ?? [];
   const categoria = lista.find((c) => String(c.id) === v.categoria_id);
+  const semCategoria = categorias.data?.length === 0 ? semCategoriaDoTipo(v.tipo) : undefined;
 
-  // Trocar tipo ou filial pode tirar a categoria escolhida da lista.
+  // Trocar a filial pode tirar a categoria escolhida da lista.
   useEffect(() => {
     if (categorias.data && v.categoria_id && !categorias.data.some((c) => String(c.id) === v.categoria_id)) setValue("categoria_id", "");
   }, [categorias.data, v.categoria_id, setValue]);
+
+  // VEI-11: trocar o tipo esvazia a categoria; voltar ao tipo anterior devolve a que estava.
+  const guardadas = useRef<CategoriasPorTipo>({});
+  function trocarTipo(para: TipoVeiculo) {
+    const troca = categoriaAoTrocarTipo(guardadas.current, v.tipo, v.categoria_id, para);
+    guardadas.current = troca.guardadas;
+    setValue("tipo", para, { shouldDirty: true });
+    setValue("categoria_id", troca.categoria, { shouldDirty: true });
+    clearErrors("categoria_id");
+  }
 
   const modelos = useQuery({
     queryKey: ["modelos", { tipo: v.tipo, marca: marcaAdiada.trim(), busca: modeloAdiado.trim() }],
@@ -100,9 +123,8 @@ export function NovoVeiculoForm() {
 
   const salvar = useMutation({
     mutationFn: (valores: ValoresVeiculo) => {
-      const combustivel = crlv?.leitura.lidos.includes("combustivel") ? (crlv.leitura.campos.combustivel ?? undefined) : undefined;
-      const corpo = { ...paraCorpoVeiculo(valores), ...(combustivel ? { combustivel } : {}) };
-      return veiculos.criar(corpo, crlv ? { arquivo: crlv.arquivo, validade: valores.crlv_validade, exercicio: crlv.leitura.exercicio, leitura: crlv.leitura.leitura } : undefined);
+      // O combustível e os campos da VEI-09 são campos da tela (lidos do documento ou digitados): o corpo sai deles.
+      return veiculos.criar(paraCorpoVeiculo(valores), crlv ? { arquivo: crlv.arquivo, validade: valores.crlv_validade, exercicio: crlv.leitura.exercicio, leitura: crlv.leitura.leitura } : undefined);
     },
   });
 
@@ -113,18 +135,72 @@ export function NovoVeiculoForm() {
     setLidos(valores);
     setCrlv(lido);
   }
+  /** Versão escolhida entre as que a API achou: preenche marca e modelo como a escolha da lista (VEI-08). */
+  function escolherVersao(m: ModeloDoCatalogo) {
+    setValue("marca", m.marca, { shouldDirty: true });
+    setValue("modelo", m.modelo, { shouldDirty: true, shouldValidate: true });
+    clearErrors(["marca", "modelo"]);
+  }
   function tirarCrlv() {
     setCrlv(null);
     setLidos({});
   }
   /** Dica do campo: "Lido do documento" enquanto o valor é o que veio do CRLV-e; se a pessoa mudar, volta a dica de sempre. */
-  const dicaDe = (nome: CampoLido, padrao?: string) => (lidos[nome] !== undefined && lidos[nome] === v[nome] ? "Lido do documento" : padrao);
+  const dicaDe = (nome: Nome, padrao?: string) => (lidos[nome as CampoLido] !== undefined && lidos[nome as CampoLido] === v[nome] ? "Lido do documento" : padrao);
 
 
   const erro = (nome: Nome) => errors[nome]?.message;
 
+  function escolher(arquivos: File[]) {
+    const r = escolherFotos(fotos, arquivos);
+    setFotos(r.lista);
+    setRecusasDaEscolha(r.recusas);
+    setPassouDoLimite(r.passouDoLimite);
+  }
+  function tirarFoto(f: FotoEscolhida) {
+    soltarMiniatura(f);
+    setFotos((l) => l.filter((x) => x.chave !== f.chave));
+    setPassouDoLimite(false);
+  }
+  function limparFotos() {
+    fotos.forEach(soltarMiniatura);
+    setFotos([]);
+    setCapa(null);
+    setRecusasDaEscolha([]);
+    setPassouDoLimite(false);
+  }
+
+  /** Depois do cadastro gravado: tudo subiu, segue como antes (ficha ou próximo cadastro); senão a tela para com "Ir para o veículo". */
+  function seguirDepoisDoCadastro(veiculoId: number, outro: boolean, descricao: string) {
+    if (outro) {
+      setSalvo(descricao);
+      window.scrollTo?.({ top: 0 });
+    } else {
+      router.push(`/veiculos/${veiculoId}`);
+    }
+  }
   // Dois cliques seguidos entram antes de `salvar.isPending` virar verdadeiro: sem isto o segundo tentaria criar de novo ("placa já cadastrada").
   const enviando = useRef(false);
+
+  /** "Tentar de novo" (CA-437-10): retoma da que caiu, sem repetir as que subiram. */
+  async function tentarDeNovo(e: Envio) {
+    if (enviando.current) return;
+    enviando.current = true;
+    try {
+      concluirEnvio(e, await enviarEmSequencia(e.itens, (arquivo) => veiculos.enviarFoto(e.veiculoId, arquivo), (itens) => setEnvio({ ...e, itens })));
+    } finally {
+      enviando.current = false;
+    }
+  }
+  function concluirEnvio(e: Envio, fim: ItemDoEnvio[]) {
+    void cliente.invalidateQueries({ queryKey: ["veiculo", e.veiculoId] });
+    if (!envioTerminouBem(fim)) return;
+    setEnvio(null);
+    // Na ida para a ficha, as miniaturas se soltam quando a tela desmonta.
+    if (e.outro) limparFotos();
+    seguirDepoisDoCadastro(e.veiculoId, e.outro, e.descricao);
+  }
+
 
   async function enviar(valores: ValoresVeiculo, outro: boolean) {
     if (enviando.current) return;
@@ -133,16 +209,25 @@ export function NovoVeiculoForm() {
     setExistente(null);
     setSalvo(null);
     try {
-      const criado = await salvar.mutateAsync(valores);
-      void cliente.invalidateQueries({ queryKey: ["veiculos"] });
-      if (outro) {
-        reset({ ...valoresIniciais, tipo: valores.tipo, filial_id: valores.filial_id });
-        tirarCrlv();
-        setSalvo(`${criado.marca} ${criado.modelo}, placa ${placaComHifen(criado.placa)}, entrou na frota.`);
-        window.scrollTo?.({ top: 0 });
-      } else {
-        router.push(`/veiculos/${criado.id}`);
-      }
+      // CA-437-05: só depois do 201 as fotos sobem; se o cadastro falha, o catch abaixo deixa as escolhidas na tela (CA-437-07, 08).
+      const passo: { e: Envio | null } = { e: null };
+      const { itens } = await cadastrarComFotos(
+        () => salvar.mutateAsync(valores),
+        podeEnviarFotos ? itensDoEnvio(fotos, capa) : [],
+        (veiculoId, arquivo) => veiculos.enviarFoto(veiculoId, arquivo),
+        (criado) => {
+          void cliente.invalidateQueries({ queryKey: ["veiculos"] });
+          if (outro) {
+            reset({ ...valoresIniciais, tipo: valores.tipo, filial_id: valores.filial_id });
+            guardadas.current = {};
+            tirarCrlv();
+          }
+          const descricao = `${criado.marca} ${criado.modelo}, placa ${placaComHifen(criado.placa)}, entrou na frota.`;
+          passo.e = { veiculoId: criado.id, placa: placaComHifen(criado.placa), outro, descricao, itens: [] };
+        },
+        (agora) => passo.e && setEnvio({ ...passo.e, itens: agora }),
+      );
+      if (passo.e) concluirEnvio({ ...passo.e, itens }, itens);
     } catch (e) {
       if (e instanceof ErroApi && e.status === 409 && e.codigo === "VEI-01") {
         const campo = e.detalhes?.campo === "chassi" ? "chassi" : "placa";
@@ -152,7 +237,7 @@ export function NovoVeiculoForm() {
       } else if (e instanceof ErroApi && e.campos) {
         const sobra: string[] = [];
         for (const [campo, mensagem] of Object.entries(e.campos)) {
-          const nome = CAMPO_DA_API[campo] ?? campo;
+          const nome = NOME_DO_CAMPO_DA_API[campo] ?? campo;
           if (nome in VALORES_INICIAIS_VEICULO) setError(nome as Nome, { message: mensagem });
           else sobra.push(mensagem);
         }
@@ -167,7 +252,12 @@ export function NovoVeiculoForm() {
 
   const salvarEFicha = handleSubmit((valores) => enviar(valores, false));
   const salvarEOutro = handleSubmit((valores) => enviar(valores, true));
-  const ocupado = salvar.isPending;
+  // Com o veículo gravado e as fotos subindo (ou paradas), salvar de novo criaria outro veículo.
+  const ocupado = salvar.isPending || envio !== null;
+  // CA-437-12: o suporte Giro não envia foto (403 PLT-07), então o bloco nem aparece para ele.
+  const podeEnviarFotos = eu.suporte == null;
+  // VEI-10 (T-462): com foto ainda por subir, sair da tela pede confirmação.
+  const avisoDeSaida = useAvisoDeSaida(envio ? fotosQueFaltam(envio.itens) : 0);
 
   if (eu.pode.veiculos !== "editar") {
     return (
@@ -190,6 +280,7 @@ export function NovoVeiculoForm() {
 
   return (
     <form onSubmit={salvarEFicha} noValidate className="flex flex-col gap-6">
+      {avisoDeSaida}
       <header className="flex flex-wrap items-end gap-x-6 gap-y-3">
         <Link href="/veiculos" aria-label="Voltar para a Frota" className="wl-icon-btn md:hidden">
           <Icone de={ChevronLeft} />
@@ -207,15 +298,6 @@ export function NovoVeiculoForm() {
           <button type="button" disabled title="Em breve" className="wl-btn hidden md:inline-flex">
             Importar planilha
           </button>
-          <SegmentedControl
-            rotulo="Tipo de veículo"
-            valor={v.tipo}
-            aoMudar={(t) => setValue("tipo", t, { shouldDirty: true })}
-            opcoes={[
-              { valor: "moto", rotulo: "Moto" },
-              { valor: "carro", rotulo: "Carro" },
-            ]}
-          />
         </div>
       </header>
 
@@ -240,7 +322,7 @@ export function NovoVeiculoForm() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="flex min-w-0 flex-col gap-6">
-          <PreencherPeloCrlv lido={crlv} aoLer={preencherPelaLeitura} aoRemover={tirarCrlv} />
+          <PreencherPeloCrlv lido={crlv} aoLer={preencherPelaLeitura} aoRemover={tirarCrlv} aoEscolherVersao={escolherVersao} />
 
           <Panel titulo="Identificação">
             <div className="grid gap-4 md:grid-cols-2">
@@ -268,16 +350,21 @@ export function NovoVeiculoForm() {
             </div>
           </Panel>
 
+          <CamposDoDocumento register={register} erro={erro} dica={dicaDe} comMotorEObservacoes />
+
           <Panel titulo="Uso na frota">
             <div className="grid gap-4 md:grid-cols-2">
               <Selecao id="filial" rotulo="Filial" vazio="Escolha" opcoes={filiais} erro={erro("filial_id")} {...register("filial_id")} />
+              <SelectField cheio rotulo="Tipo de veículo" opcoes={OPCOES_DE_TIPO} value={v.tipo} onChange={(e) => trocarTipo(e.target.value as TipoVeiculo)} />
               <Selecao
                 id="categoria"
                 rotulo="Categoria de preço"
                 vazio={categorias.isPending ? "Carregando…" : "Escolha"}
                 opcoes={lista.map((c) => ({ valor: String(c.id), rotulo: c.nome }))}
+                dica={semCategoria}
                 erro={erro("categoria_id")}
                 {...register("categoria_id")}
+                value={v.categoria_id}
               />
             </div>
             {categoria && (
@@ -303,16 +390,32 @@ export function NovoVeiculoForm() {
             </div>
           </Panel>
 
-          <Panel titulo="Documentos e fotos">
+          <Panel titulo="Documentos">
             {crlv && (
               <div className="mb-4 grid gap-4 md:grid-cols-2">
                 <TextField cheio mono type="date" rotulo="Validade do CRLV" erro={erro("crlv_validade")} {...register("crlv_validade")} />
               </div>
             )}
             <p className="text-body text-ink-muted">
-              {crlv ? "O CRLV-e enviado fica guardado com o veículo. Depois de salvar, envie o seguro e as fotos na ficha do veículo." : "Depois de salvar, envie o CRLV-e, o seguro e as fotos na ficha do veículo."} Veículo com CRLV ou seguro vencido não pode ser desbloqueado para locação.
+              {crlv ? "O CRLV-e enviado fica guardado com o veículo. Depois de salvar, envie o seguro na ficha do veículo." : "Depois de salvar, envie o CRLV-e e o seguro na ficha do veículo."} Veículo com CRLV ou seguro vencido não pode ser desbloqueado para locação.
             </p>
           </Panel>
+
+          {podeEnviarFotos &&
+            (envio ? (
+              <EnvioDasFotos itens={envio.itens} placa={envio.placa} veiculoId={envio.veiculoId} aoTentarDeNovo={() => void tentarDeNovo(envio)} />
+            ) : (
+              <FotosEscolhidas
+                fotos={fotos}
+                capa={capaDaLista(fotos, capa)}
+                recusas={recusasDaEscolha}
+                passouDoLimite={passouDoLimite}
+                aoEscolher={escolher}
+                aoTirar={tirarFoto}
+                aoUsarComoCapa={(f) => setCapa(f.chave)}
+                aoDispensarRecusas={() => setRecusasDaEscolha([])}
+              />
+            ))}
         </div>
 
         <aside className="flex flex-col gap-6">

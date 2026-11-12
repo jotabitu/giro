@@ -22,6 +22,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.db import IntegrityError, connection, transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.auditoria.models import EventoAuditoria
@@ -48,7 +49,7 @@ from integracoes.pagamentos.base import (
     StatusDesconhecido,
     aviso_sem_cartao,
 )
-from integracoes.whatsapp import enviar_whatsapp
+from integracoes.whatsapp import enviar_whatsapp, whatsapp_ao_cliente_final
 
 from . import selectors
 from .models import (
@@ -107,9 +108,15 @@ class NovaConta:
 
 
 def criar_contas(
-    origem: Origem, *, filial_id: int, cliente_id: int, contas: list[NovaConta]
+    origem: Origem,
+    *,
+    filial_id: int,
+    cliente_id: int,
+    contas: list[NovaConta],
+    aguarda_retirada: bool = False,
 ) -> list[ContaReceber]:
-    """Contas `aberta` da origem, na transação de quem chama. Conta de valor zero não nasce."""
+    """Contas `aberta` da origem, na transação de quem chama. Conta de valor zero não nasce.
+    `aguarda_retirada`: a locação confirmada e não retirada (LOC-05, ADR 0035)."""
     criadas = []
     with transaction.atomic():
         for nova in contas:
@@ -125,12 +132,58 @@ def criar_contas(
                 valor_centavos=nova.valor_centavos,
                 observacao=nova.observacao,
                 nasceu_de_id=nova.nasceu_de_id,
+                aguarda_retirada=aguarda_retirada,
                 **origem.campos(),
             )
             with auditar(conta, "conta_receber.criar", Categoria.FINANCEIRO):
                 conta.save()
             criadas.append(conta)
     return criadas
+
+
+def liberar_contas_da_retirada(origem: Origem, dia: date) -> int:
+    """LOC-05, FIN-03 (ADR 0035): na retirada, as contas da origem que esperavam passam a seguir
+    o calendário, com o atraso contado também do dia seguinte a `dia`. Todas as que esperavam,
+    em qualquer status. Idempotente: na segunda vez, nenhuma espera. Devolve quantas liberou."""
+    return ContaReceber.objects.filter(
+        aguarda_retirada=True, origem_tipo=origem.tipo, origem_id=origem.id
+    ).update(aguarda_retirada=False, liberada_em=dia)
+
+
+def vencer_na_retirada(origem: Origem, dia: date) -> int:
+    """LOC-17, retirada à mão: a 1ª parcela e a caução ainda abertas passam a vencer no dia da
+    retirada, se o vencimento gravado era antes dele. Ficam `vence_hoje` nesse dia, `atrasada`
+    no seguinte, e entram na régua (AUT-03) e no bloqueio (CLI-05) a partir dali; a multa e os
+    juros contam do dia seguinte (FIN-03). As outras parcelas seguem o calendário do início.
+    Chamar antes de `liberar_contas_da_retirada`, na mesma transação. Devolve quantas mudaram."""
+    contas = ContaReceber.objects.select_for_update().filter(
+        Q(tipo=TipoConta.CAUCAO) | Q(tipo=TipoConta.PARCELA, numero_parcela=1),
+        origem_tipo=origem.tipo,
+        origem_id=origem.id,
+        status=StatusConta.ABERTA,
+        aguarda_retirada=True,
+        vencimento__lt=dia,
+    )
+    mudadas = 0
+    for conta in contas:
+        acao = "conta_receber.vencer_na_retirada"
+        with auditar(conta, acao, Categoria.FINANCEIRO, regra="LOC-17"):
+            conta.vencimento = dia
+            conta.save(update_fields=["vencimento", "atualizado_em"])
+        mudadas += 1
+    return mudadas
+
+
+def esperar_retirada(origem: Origem) -> int:
+    """Acerto do ambiente que já existia (T-410, CA-410-23): as contas em aberto da locação ainda
+    não retirada passam a esperar a retirada. Idempotente. Devolve quantas mudaram."""
+    return ContaReceber.objects.filter(
+        origem_tipo=origem.tipo,
+        origem_id=origem.id,
+        status=StatusConta.ABERTA,
+        aguarda_retirada=False,
+        liberada_em__isnull=True,
+    ).update(aguarda_retirada=True)
 
 
 def _travar(conta: ContaReceber) -> ContaReceber:
@@ -1242,10 +1295,20 @@ def texto_do_recibo(conta: ContaReceber) -> str:
 
 
 def _enviar_recibo(conta: ContaReceber) -> None:
-    """AUT-05: o recibo pelo WhatsApp, com a marca da locadora (o e-mail é só da régua)."""
-    if not conta.cliente.celular:
-        return
-    enviar_whatsapp(conta.cliente.celular, texto_do_recibo(conta))
+    """AUT-05: o recibo por e-mail, com a marca da locadora no remetente e no assunto. Na fase 1,
+    nada vai ao cliente pelo WhatsApp (ADR 0034); com `GIRO_WHATSAPP_CLIENTE_FINAL` ligada e
+    celular, o mesmo texto também pelo WhatsApp."""
+    cliente = conta.cliente
+    texto = texto_do_recibo(conta)
+    if cliente.celular and whatsapp_ao_cliente_final():
+        enviar_whatsapp(cliente.celular, texto)
+    if cliente.email:
+        send_mail(
+            subject=f"{nome_da_empresa()}: recibo do pagamento",
+            message=texto,
+            from_email=remetente(),
+            recipient_list=[cliente.email],
+        )
 
 
 def processar_webhook(webhook_id: int) -> str:
@@ -1371,7 +1434,7 @@ def resolver_pendencia(
     return travada
 
 
-# --- Cobrança pelo WhatsApp e por e-mail, e a régua (AUT-03) ---
+# --- Cobrança por e-mail (e pelo WhatsApp com a chave ligada), e a régua (AUT-03) ---
 
 
 def _ja_cobrada_hoje(conta: ContaReceber) -> bool:
@@ -1422,11 +1485,10 @@ def mensagem_de_cobranca(conta: ContaReceber, *, pix: str | None) -> MensagemDeC
     valor = formatar_reais(devido.total_centavos)
     descrita = conta_no_texto(conta)  # "a parcela...", no começo da frase com maiúscula
     inicio = f"{marca}: olá, {conta.cliente.nome.split()[0]}. A {descrita}"
-    if pix:
-        pague = f" Pague pelo Pix copia e cola: {pix}"
-    else:
-        pague = " Pague na loja ou fale com a gente por aqui."
-    if conta.vencimento > hoje:
+    # AUT-03: sem Pix, "Pague na loja."; o e-mail não pede resposta.
+    pague = f" Pague pelo Pix copia e cola: {pix}" if pix else " Pague na loja."
+    # À espera da retirada, nada vence (LOC-05): o lembrete sem Pix, como na conta a vencer.
+    if conta.vencimento > hoje or conta.aguarda_retirada:
         if conta.vencimento == hoje + timedelta(days=1):
             quando = f"amanhã, {conta.vencimento:%d/%m}"
         else:
@@ -1455,15 +1517,19 @@ def remetente() -> str:
 
 
 def cobrar(conta: ContaReceber) -> bool:
-    """A mensagem de cobrança do momento, com a marca da locadora (AUT-03): pelo WhatsApp
-    quando o cliente tem celular e por e-mail quando tem e-mail, com o mesmo texto. No dia e em
-    atraso, gera o Pix do valor do dia quando os recebimentos estão ligados. Uma vez por conta
-    por dia, contando os dois canais; devolve se cobrou (sem canal, não).
+    """A mensagem de cobrança do momento, com a marca da locadora (AUT-03), por e-mail quando o
+    cliente tem e-mail. Na fase 1, nada vai ao cliente pelo WhatsApp (ADR 0034): o mesmo texto
+    só sai pelo WhatsApp com `GIRO_WHATSAPP_CLIENTE_FINAL` ligada, celular e o recurso
+    `cobranca_whatsapp`. No dia e em atraso, gera o Pix do valor do dia quando os recebimentos
+    estão ligados. Uma vez por conta por dia, contando os canais; devolve se cobrou (sem canal,
+    não).
 
-    PLT-12 (ADR 0024, item 5): sem `cobranca_whatsapp` (Essencial), só e-mail; sem
-    `recebimento_parceiro`, sem Pix, com o texto "Pague na loja"."""
+    PLT-12 (ADR 0024, item 5): sem `recebimento_parceiro`, sem Pix, com o texto "Pague na
+    loja"."""
     cliente = conta.cliente
-    celular = cliente.celular if tem_recurso("cobranca_whatsapp") else ""
+    celular = (
+        cliente.celular if whatsapp_ao_cliente_final() and tem_recurso("cobranca_whatsapp") else ""
+    )
     if conta.status != StatusConta.ABERTA or not (celular or cliente.email):
         return False
     if _ja_cobrada_hoje(conta):
@@ -1471,6 +1537,7 @@ def cobrar(conta: ContaReceber) -> bool:
     pix = None
     if (
         conta.vencimento <= relogio.hoje()
+        and not conta.aguarda_retirada
         and tem_recurso("recebimento_parceiro")
         and conta_de_pagamento() is not None
     ):
@@ -1527,12 +1594,18 @@ def regua_de_cobranca() -> int:
     """AUT-03, às 09:00: cobra em D-1, D0, D+3 e D+7 (WhatsApp e e-mail) e publica
     `financeiro.parcela_atrasou` para cada conta que completou 1, 3 ou 7 dias de atraso. Com 15
     dias ou mais, pede o bloqueio do CLI-05 uma vez por conta: se a tarefa não rodou no 15º dia,
-    o pedido sai na próxima vez. A caução não entra. Devolve quantos eventos publicou."""
+    o pedido sai na próxima vez. A caução não entra, nem a conta à espera da retirada (LOC-05,
+    T-410): ela entra no calendário dela depois da retirada. Devolve quantos eventos publicou."""
     hoje = relogio.hoje()
     publicados = 0
+    amanha = hoje + timedelta(days=1)
     contas = (
         ContaReceber.objects.select_related("cliente")
-        .filter(status=StatusConta.ABERTA, vencimento__lte=hoje + timedelta(days=1))
+        .filter(
+            selectors.q_atrasada(hoje)
+            | selectors.q_vence_hoje(hoje)
+            | Q(status=StatusConta.ABERTA, aguarda_retirada=False, vencimento=amanha)
+        )
         .exclude(tipo=TipoConta.CAUCAO)
     )
     for conta in contas:

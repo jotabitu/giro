@@ -26,7 +26,7 @@ import { Button, Dialogo, TextField } from "@/design-system";
 - **Foco inicial:** o elemento com `data-autofocus` (um campo, ou o botão seguro de uma confirmação destrutiva). Sem ele, o foco vai para o painel e o leitor de tela lê título e descrição antes de o Tab chegar ao primeiro controle.
 - **Nome acessível:** `titulo` (`aria-labelledby`) diz o que a pessoa vai fazer; `descricao` (`aria-describedby`) traz a consequência em uma frase.
 - **Ações:** ação principal por último e à direita (`solido`), a de saída ao lado (`quieto`). Em confirmação destrutiva, o foco inicial vai para a opção segura ("Continuar aqui").
-- **`tamanho`:** `medio` (560px, padrão) ou `pequeno` (400px). `fecharAoClicarFora={false}` em formulário preenchido.
+- **`tamanho`:** `medio` (560px, padrão), `pequeno` (400px) ou `amplo` (até 1100 × 820px, como `Veiculo-Visualizador`; no celular, tela cheia e sem cantos arredondados). O `amplo` tem altura fixa e o conteúdo vira uma coluna que ocupa o espaço entre o cabeçalho e as ações: ponha nele um filho com `flex-1 min-h-0` (foto, mapa, pré-visualização de documento). `fecharAoClicarFora={false}` em formulário preenchido.
 - Em tela estreita o diálogo ocupa a largura menos 16px de cada lado. Para escolhas longas no celular, use `Gaveta` com `lado="baixo"`.
 - Animação curta, desligada em `prefers-reduced-motion`.
 - Sem texto de exclamação e sem emoji nos títulos: diga a ação.

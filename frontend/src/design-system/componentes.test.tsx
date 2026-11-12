@@ -3,13 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CATALOGO } from "@/app/design-system/catalogo";
 import { ExemploDe } from "@/app/design-system/exemplos";
-import { Button, Dialogo, Gaveta, IconButton, KpiTile, LinhaDeLista, ListaDeLinhas, ProgressBar, StatusBadge, TextField, VehicleCard } from "./components";
+import { Button, Dialogo, Gaveta, IconButton, KpiTile, LinhaDeLista, ListaDeLinhas, ProgressBar, SelectField, StatusBadge, TextField, VehicleCard } from "./components";
 
 const dir = new URL("./", import.meta.url);
 
 describe("componentes", () => {
-  it("são os 12 do design system mais os componentes da T-042, T-046 e T-054, cada um com preview e README", () => {
-    expect(CATALOGO).toHaveLength(18);
+  it("são os 12 do design system mais os componentes da T-042, T-046, T-054 e T-440, cada um com preview e README", () => {
+    expect(CATALOGO).toHaveLength(19);
     for (const c of CATALOGO) {
       expect(existsSync(new URL(`components/${c.nome}/README.md`, dir)), `README de ${c.nome}`).toBe(true);
       expect(existsSync(new URL(`components/${c.nome}/${c.nome}.tsx`, dir)), `código de ${c.nome}`).toBe(true);
@@ -90,6 +90,13 @@ describe("Dialogo e Gaveta (T-046)", () => {
     expect(aberto).not.toContain("aria-describedby");
   });
 
+  it("Dialogo amplo leva a classe do tamanho e o CSS dá 1100 x 820 e tela cheia no celular", () => {
+    expect(renderToStaticMarkup(<Dialogo aberto aoFechar={sem} titulo="Foto" tamanho="amplo" />)).toContain("wl-dialogo--amplo");
+    const css = readFileSync(new URL("componentes.css", dir), "utf8");
+    expect(css).toMatch(/\.wl-dialogo--amplo \{[^}]*1100px[^}]*820px/);
+    expect(css).toMatch(/max-width: 720px\) \{\s*\.wl-dialogo--amplo \{[^}]*100vw[^}]*100dvh/);
+  });
+
   it("Gaveta aplica o lado pedido e abre da esquerda por padrão", () => {
     expect(renderToStaticMarkup(<Gaveta aberto aoFechar={sem} titulo="Menu" />)).toContain("wl-gaveta--esquerda");
     expect(renderToStaticMarkup(<Gaveta aberto aoFechar={sem} titulo="Filtros" lado="baixo" />)).toContain("wl-gaveta--baixo");
@@ -144,5 +151,27 @@ describe("T-054: alvo de toque, barra de frota, ProgressBar e LinhaDeLista", () 
     const simples = renderToStaticMarkup(<LinhaDeLista titulo="Só título" />);
     expect(simples).not.toContain("wl-linha__apoio");
     expect(simples).not.toContain("wl-linha__acao");
+  });
+});
+
+describe("T-440: SelectField", () => {
+  const opcoes = [{ valor: "a", rotulo: "Urbana 110–125" }, { valor: "b", rotulo: "Street 150–160" }];
+
+  it("liga o rótulo ao campo, mostra a opção em branco e as opções", () => {
+    const html = renderToStaticMarkup(<SelectField rotulo="Categoria" vazio="Escolha a categoria" opcoes={opcoes} />);
+    expect(html).toContain("Categoria");
+    expect(html).toContain("Escolha a categoria");
+    expect(html).toContain("Street 150–160");
+    expect(html).not.toContain("aria-invalid");
+  });
+
+  it("erro pinta o campo e troca a dica; rotuloOculto mantém o rótulo para o leitor de tela", () => {
+    const html = renderToStaticMarkup(<SelectField rotulo="Categoria de CG" rotuloOculto dica="Dica" erro="Escolha a categoria." opcoes={opcoes} />);
+    expect(html).toContain("wl-field--error");
+    expect(html).toContain("aria-invalid");
+    expect(html).toContain("Escolha a categoria.");
+    expect(html).not.toContain("Dica");
+    expect(html).toContain("wl-sr-only");
+    expect(html).toContain("Categoria de CG");
   });
 });

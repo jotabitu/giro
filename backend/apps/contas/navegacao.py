@@ -36,6 +36,8 @@ class Item:
     modulo: str | None = None  # app que precisa estar em GIRO_MODULOS_ATIVOS
     # Também para quem leva uma movimentação aberta (`pode.movimentacoes = levar`, MOV-02).
     ou_se_leva: bool = False
+    # Filtro a mais quando o item está no `menu_completo` (ex.: a agenda, só do administrador).
+    no_completo: Callable[[Pode], bool] | None = None
 
 
 @dataclass(frozen=True)
@@ -201,6 +203,8 @@ ITENS: dict[str, Item] = {
             "auditoria", "Auditoria", None, lambda p: bool(p["administracao"]), modulo="auditoria"
         ),
         # Itens próprios das telas iniciais.
+        # USR-05 (09 nov 2026, T-442): no menu completo, a agenda e as avarias são só do
+        # administrador; o vistoriador as tem no menu dele.
         Item(
             "agenda",
             "Vistorias de hoje",
@@ -209,6 +213,7 @@ ITENS: dict[str, Item] = {
             Recurso.LOCACOES_VISTORIA,
             "aluga",
             "vistorias",
+            no_completo=lambda p: bool(p["administracao"]),
         ),
         Item(
             "consultar_veiculo",
@@ -225,6 +230,7 @@ ITENS: dict[str, Item] = {
             Recurso.LOCACOES_VISTORIA,
             "aluga",
             "vistorias",
+            no_completo=lambda p: bool(p["administracao"]),
         ),
         Item(
             "propostas",
@@ -286,7 +292,10 @@ Grupos = list[tuple[str | None, list[str | tuple[str, str]]]]
 # Tabela "Itens do menu_completo" do contrato, na ordem.
 MENU_COMPLETO: Grupos = [
     (None, ["inicio", "aprovacoes", "veiculos"]),
-    ("Operação", ["locacoes", "vendas", "clientes", "manutencoes", "movimentacoes"]),
+    (
+        "Operação",
+        ["locacoes", "agenda", "avarias", "vendas", "clientes", "manutencoes", "movimentacoes"],
+    ),
     (
         "Financeiro",
         [
@@ -354,7 +363,9 @@ def modulos_ativos() -> frozenset[str]:
     return frozenset(settings.GIRO_MODULOS_ATIVOS)
 
 
-def _aparece(item: Item, ctx: Contexto) -> bool:
+def _aparece(item: Item, ctx: Contexto, completo: bool = False) -> bool:
+    if completo and item.no_completo is not None and not item.no_completo(ctx.pode):
+        return False
     if item.modulo is not None and item.modulo not in ctx.modulos:
         return False
     if item.recurso is not None and item.recurso not in ctx.recursos:
@@ -383,14 +394,14 @@ def _com_rotulo_do_inicio(grupos: Grupos, qual: str) -> Grupos:
     ]
 
 
-def _montar(grupos: Grupos, ctx: Contexto) -> list[dict[str, Any]]:
+def _montar(grupos: Grupos, ctx: Contexto, completo: bool = False) -> list[dict[str, Any]]:
     menu = []
     for grupo, chaves in grupos:
         itens = []
         for entrada in chaves:
             chave, rotulo = entrada if isinstance(entrada, tuple) else (entrada, None)
             item = ITENS[chave]
-            if _aparece(item, ctx):
+            if _aparece(item, ctx, completo):
                 itens.append(
                     {
                         "chave": item.chave,
@@ -434,7 +445,7 @@ def montar(
     if qual == "vistoriador" and menu_inicio is not None:
         completo = menu_inicio
     else:
-        completo = _montar(_com_rotulo_do_inicio(MENU_COMPLETO, qual), ctx)
+        completo = _montar(_com_rotulo_do_inicio(MENU_COMPLETO, qual), ctx, completo=True)
     visiveis = {item["chave"] for grupo in completo for item in grupo["itens"]}
     barra = {
         "inicio": True,

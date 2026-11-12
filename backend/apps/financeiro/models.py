@@ -124,6 +124,10 @@ class ContaReceber(MaquinaDeEstados, ModeloBase, ComOrigem):
     # Dia em que a régua pediu o bloqueio do cliente por esta conta: uma vez por conta (AUT-03,
     # CLI-05), para o desbloqueio manual valer até outra conta completar 15 dias.
     bloqueio_pedido_em = models.DateField(null=True, blank=True)
+    # Conta da locação `aguardando_retirada`: nunca `vence_hoje` nem `atrasada`, sem multa nem
+    # juros (LOC-05, FIN-03, ADR 0035). `liberada_em` é o dia local da retirada.
+    aguarda_retirada = models.BooleanField(default=False)
+    liberada_em = models.DateField(null=True, blank=True)
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = {
         "aberta": {"paga", "cancelada", "renegociada"},
@@ -471,12 +475,24 @@ class PendenciaPagamento(MaquinaDeEstados, ModeloBase):
 
 
 class CategoriaDespesa(models.TextChoices):
-    FIXAS = "fixas", "Fixas"
+    """FIN-06: dois grupos, nesta ordem. Do veículo: as sete primeiras; da empresa: as quatro
+    últimas. O grupo só organiza a escolha; nenhuma categoria exige veículo."""
+
+    IPVA = "ipva", "IPVA e licenciamento"
+    SEGURO = "seguro", "Seguro"
+    MULTA_TRANSITO = "multa_transito", "Multa de trânsito"
+    PECAS = "pecas", "Peças"
+    COMBUSTIVEL = "combustivel", "Combustível"
     MANUTENCAO = "manutencao", "Manutenção"
     RASTREAMENTO = "rastreamento", "Rastreamento"
+    FIXAS = "fixas", "Fixas"
     IMPOSTOS = "impostos", "Impostos"
     PESSOAL = "pessoal", "Pessoal"
     OUTROS = "outros", "Outros"
+
+
+# FIN-06: o vistoriador lança só estas; VEI-05: o "Custo de manutenção" soma só estas.
+CATEGORIAS_DE_MANUTENCAO = (CategoriaDespesa.MANUTENCAO, CategoriaDespesa.PECAS)
 
 
 class StatusDespesa(models.TextChoices):

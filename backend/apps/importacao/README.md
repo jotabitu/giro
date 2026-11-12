@@ -1,7 +1,7 @@
 # app `importacao`
 
 **Schema:** empresa · **Nível:** 13 na ordem da ADR 0011 (ADR 0017): chama `veiculos`, `clientes`, `filiais`, `plataforma`, `contas` e `notificacoes`; ninguém depende dele.
-**Regras:** IMP-02, IMP-03, IMP-05, VEI-01, CLI-01, CLI-03, AUD-04, AUD-05, AUD-09
+**Regras:** IMP-02, IMP-03, IMP-05, IMP-08, VEI-01, CLI-01, CLI-03, AUD-04, AUD-05, AUD-09
 **Tela:** Onboarding-Importar (passo "Importar dados" do assistente)
 **Contrato:** `docs/api/importacao.md`
 
@@ -26,4 +26,4 @@ importacao/
 - Importar trava o `UsoEmpresa` (`plataforma.services.vagas_no_plano`) numa transação só e grava cada linha num savepoint, pelo `cadastrar` do app dono, com o ator de quem pediu. O que passa do limite fica `acima_do_limite` e a importação termina com o `aviso` `IMP-03`. Ao concluir: auditoria `importacao.concluir`, passo `importar` da implantação (`IMP-05`) e aviso no sino.
 - Arquivo e linhas saem 30 dias depois do envio (`apagar_em`).
 
-Testes: `tests/aceitacao/test_t027_importacao.py`.
+Testes: `tests/aceitacao/test_t027_importacao.py` e `test_t440_importacao_sem_filial.py` (IMP-08: sem filial e categoria na planilha, categoria por modelo guardada nas linhas).

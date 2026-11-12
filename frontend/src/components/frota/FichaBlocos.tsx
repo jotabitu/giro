@@ -3,17 +3,17 @@
 // Blocos da ficha do veículo (desktop) que dependem do que a API manda além do básico (T-275, "Blocos da ficha" de
 // veiculos.md). Cada bloco some quando a chave não vem: nada aqui é calculado nem inventado no cliente.
 // Referência: docs/telas/html/Veiculo-Desktop.dc.html.
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { Button, Icone, Panel, ProgressBar, StatusBadge } from "@/design-system";
-import { financeiro, type PosicaoDaFoto, type VeiculoDetalhe, type VistoriaRecente } from "@/lib/api";
+import { financeiro, type VeiculoDetalhe, type VistoriaRecente } from "@/lib/api";
 import { dataCurta, dinheiro, iniciais, km } from "@/lib/formatos";
 import { tomDoStatus } from "@/lib/tom";
+import { VisualizadorDeFotos } from "./VisualizadorDeFotos";
 
 const PERIODICIDADE = { diaria: "Diária", semanal: "Semanal", mensal: "Mensal" } as const;
-const POSICAO: Record<PosicaoDaFoto, string> = { frente: "Frente", traseira: "Traseira", lado_esquerdo: "Esquerda", lado_direito: "Direita", painel: "Painel" };
 
 /** Linha rótulo/valor dos cartões da referência (`.kv`, 15px, 6px de respiro). */
 function Par({ rotulo, children }: { rotulo: string; children: ReactNode }) {
@@ -61,8 +61,8 @@ function CartaoDaLocacao({ v }: { v: VeiculoDetalhe }) {
         )}
         {atual.alerta && (
           <Par rotulo="Alerta">
-            <StatusBadge tom="alerta" compacto>
-              {atual.alerta}
+            <StatusBadge tom={tomDoStatus(atual.alerta.tom)} compacto>
+              {atual.alerta.rotulo}
             </StatusBadge>
           </Par>
         )}
@@ -124,7 +124,7 @@ function CartaoDaManutencao({ v }: { v: VeiculoDetalhe }) {
           {p.nota}
         </div>
       )}
-      {v.manutencao?.alerta && <div className="text-[13px] text-ink-muted">{v.manutencao.alerta}</div>}
+      {v.manutencao?.alerta && <div className="text-[13px] text-ink-muted">{v.manutencao.alerta.rotulo}</div>}
     </div>
   );
 }
@@ -138,7 +138,7 @@ export function AgoraDesktop({ v }: { v: VeiculoDetalhe }) {
       titulo="Agora"
       acao={
         <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
-          {atual ? `${v.situacao.rotulo} desde ${dataCurta(atual.inicio)}` : v.situacao.rotulo}
+          {v.situacao.desde ? `${v.situacao.rotulo} desde ${dataCurta(v.situacao.desde)}` : v.situacao.rotulo}
         </StatusBadge>
       }
     >
@@ -150,12 +150,18 @@ export function AgoraDesktop({ v }: { v: VeiculoDetalhe }) {
   );
 }
 
-function Miniatura({ posicao, url, avarias }: { posicao: PosicaoDaFoto; url: string; avarias: number }) {
+/** Foto da vistoria: abre o visualizador. O rótulo é o da API ("Frente", "Avaria 1"). */
+function Miniatura({ rotulo, url, avarias, aoAbrir }: { rotulo: string; url: string | null; avarias: number; aoAbrir: () => void }) {
   return (
-    <div className="relative h-[96px] overflow-hidden rounded-[16px] bg-[linear-gradient(160deg,var(--surface-sunken),color-mix(in_srgb,var(--surface-sunken)_70%,var(--ink)_8%))]">
+    <button
+      type="button"
+      onClick={aoAbrir}
+      aria-label={`Ampliar a foto ${rotulo}`}
+      className="relative block h-[96px] w-full overflow-hidden rounded-[16px] bg-[linear-gradient(160deg,var(--surface-sunken),color-mix(in_srgb,var(--surface-sunken)_70%,var(--ink)_8%))]"
+    >
       {/* A URL é assinada e expira em 15 minutos (AUD-05): vale só enquanto a ficha está aberta. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      {url ? <img src={url} alt={`Foto ${POSICAO[posicao].toLowerCase()}`} className="size-full object-cover" /> : (
+      {url ? <img src={url} alt="" className="size-full object-cover" /> : (
         <div aria-hidden="true" className="absolute inset-0 grid place-items-center text-ink-muted opacity-[.55]">
           <Icone de={Camera} className="size-[18px]" />
         </div>
@@ -163,8 +169,38 @@ function Miniatura({ posicao, url, avarias }: { posicao: PosicaoDaFoto; url: str
       {avarias > 0 && (
         <span className="absolute right-2 top-2 grid size-[22px] place-items-center rounded-full bg-warning text-[12px] font-bold text-on-warning">{avarias}</span>
       )}
-      <span className="absolute bottom-2 left-2 whitespace-nowrap rounded-pill bg-surface px-2 py-[2px] text-[12px] font-medium">{POSICAO[posicao]}</span>
-    </div>
+      <span className="absolute bottom-2 left-2 whitespace-nowrap rounded-pill bg-surface px-2 py-[2px] text-[12px] font-medium">{rotulo}</span>
+    </button>
+  );
+}
+
+/** "Vistoria de saída · LOC-2841 · 23 set": o título da origem, montado com o que a API manda. */
+export function titulosDaVistoria(v: VistoriaRecente): string {
+  return [v.rotulo_tipo, v.locacao_codigo, dataCurta(v.concluida_em)].filter(Boolean).join(" · ");
+}
+
+/** As fotos da vistoria (todas as ativas) e o visualizador, que só passa por elas (CA-414-11, 14). */
+function GradeDaVistoria({ vistoria, classe }: { vistoria: VistoriaRecente; classe: string }) {
+  const cliente = useQueryClient();
+  const [aberta, setAberta] = useState<number | null>(null);
+  const { fotos, avarias } = vistoria;
+  return (
+    <>
+      <div className={classe}>
+        {fotos.map((f, i) => (
+          <Miniatura key={f.id} rotulo={f.rotulo} url={f.url} avarias={avarias.filter((a) => a.foto_id === f.id).length} aoAbrir={() => setAberta(i)} />
+        ))}
+      </div>
+      <VisualizadorDeFotos
+        aberto={aberta !== null}
+        aoFechar={() => setAberta(null)}
+        origem={titulosDaVistoria(vistoria)}
+        legenda={(f, i, t) => `${f.rotulo ?? "Foto"} · ${i + 1} de ${t}`}
+        fotos={fotos}
+        inicial={aberta ?? 0}
+        aoAtualizarLinks={() => void cliente.invalidateQueries({ queryKey: ["veiculo"] })}
+      />
+    </>
   );
 }
 
@@ -205,20 +241,14 @@ export function FotosEAvarias({ vistoria }: { vistoria: VistoriaRecente | null |
       titulo="Fotos e avarias"
       acao={
         <span className="text-[13px] text-ink-muted">
-          vistoria de {vistoria.tipo === "saida" ? "saída" : "devolução"} · {dataCurta(vistoria.concluida_em)}
+          {titulosDaVistoria(vistoria)}
           {vistoria.vistoriador ? ` · ${vistoria.vistoriador.nome}` : ""}
         </span>
       }
     >
       <div className="grid items-start gap-5 [grid-template-columns:repeat(auto-fit,minmax(300px,1fr))]">
         <div>
-          {fotos.length > 0 && (
-            <div className="grid grid-cols-3 gap-2">
-              {fotos.map((f) => (
-                <Miniatura key={f.id} posicao={f.posicao} url={f.url} avarias={avarias.filter((a) => a.foto_id === f.id).length} />
-              ))}
-            </div>
-          )}
+          {fotos.length > 0 && <GradeDaVistoria vistoria={vistoria} classe="grid grid-cols-3 gap-2" />}
           {vistoria.total_fotos > 0 && (
             <Link href="/vistorias" className="mt-[10px] inline-block text-[14px] text-ink-muted underline">
               Ver as {vistoria.total_fotos} fotos da vistoria
@@ -283,15 +313,11 @@ export function FotosEAvariasCelular({ vistoria }: { vistoria: VistoriaRecente |
     <section className="rounded-lg bg-surface p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-heading">Fotos e avarias</h2>
-        <span className="text-[13px] text-ink-muted">
-          {vistoria.tipo === "saida" ? "saída" : "devolução"} · {dataCurta(vistoria.concluida_em)}
-        </span>
+        <span className="text-[13px] text-ink-muted">{titulosDaVistoria(vistoria)}</span>
       </div>
       {fotos.length > 0 && (
-        <div className="mt-3 grid grid-cols-3 gap-2">
-          {fotos.map((f) => (
-            <Miniatura key={f.id} posicao={f.posicao} url={f.url} avarias={avarias.filter((a) => a.foto_id === f.id).length} />
-          ))}
+        <div className="mt-3">
+          <GradeDaVistoria vistoria={vistoria} classe="grid grid-cols-3 gap-2" />
         </div>
       )}
       {avarias.length === 0 ? (

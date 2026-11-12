@@ -8,13 +8,94 @@ from typing import Any
 
 from rest_framework import serializers
 
-from ..models import Combustivel, Extra, StatusVeiculo, TipoDocumento, TipoVeiculo
-from ..services import MOTIVOS_DE_BAIXA
+from ..models import Combustivel, Especie, Extra, StatusVeiculo, TipoDocumento, TipoVeiculo
+from ..services import MENSAGENS_DA_VEI_09, MOTIVOS_DE_BAIXA
 
 # --- Entrada ---
 
 
-class VeiculoEntradaSerializer(serializers.Serializer[Any]):
+def _mensagens(chave: str) -> dict[str, Any]:
+    """A mensagem da VEI-09 para qualquer recusa de forma do campo (CA-421-07)."""
+    mensagem = MENSAGENS_DA_VEI_09[chave]
+    return dict.fromkeys(
+        ("invalid", "min_value", "max_value", "max_string_length", "max_length", "invalid_choice"),
+        mensagem,
+    )
+
+
+def _inteiro(chave: str, minimo: int, maximo: int) -> serializers.IntegerField:
+    return serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=minimo,
+        max_value=maximo,
+        error_messages=_mensagens(chave),
+    )
+
+
+def _texto(chave: str, maximo: int | None = None) -> serializers.CharField:
+    """Até `maximo` depois de tirar os espaços das pontas; os códigos (motor, rastreador) o
+    serviço confere depois de tirar os espaços do meio."""
+    opcoes: dict[str, Any] = {"max_length": maximo} if maximo else {}
+    return serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        error_messages=_mensagens(chave),
+        **opcoes,
+    )
+
+
+class DocumentoDoVeiculoEntradaSerializer(serializers.Serializer[Any]):
+    """Bloco `documento` da VEI-09 (T-421). Formato e mensagens em docs/api/veiculos.md."""
+
+    potencia_cv = _inteiro("documento.potencia_cv", 1, 999)
+    cilindrada_cc = _inteiro("documento.cilindrada_cc", 1, 9999)
+    especie = serializers.ChoiceField(
+        choices=Especie.choices,
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        error_messages=_mensagens("documento.especie"),
+    )
+    tipo = _texto("documento.tipo", 30)
+    carroceria = _texto("documento.carroceria", 30)
+    lotacao = _inteiro("documento.lotacao", 1, 99)
+    peso_bruto_kg = _inteiro("documento.peso_bruto_kg", 1, 99999)
+    numero_motor = _texto("documento.numero_motor")
+    observacoes = _texto("documento.observacoes", 500)
+
+
+class RastreadorEntradaSerializer(serializers.Serializer[Any]):
+    numero = _texto("rastreador.numero")
+    empresa = _texto("rastreador.empresa", 60)
+
+
+def _pontuar(erros: Any) -> Any:
+    """Erro dos blocos com a chave pontuada: `{"documento.potencia_cv": [...]}` (CA-421-07)."""
+    if not isinstance(erros, dict):
+        return erros
+    achatados: dict[str, Any] = {}
+    for chave, valor in erros.items():
+        if chave in ("documento", "rastreador") and isinstance(valor, dict):
+            achatados.update({f"{chave}.{campo}": v for campo, v in valor.items()})
+        else:
+            achatados[chave] = valor
+    return achatados
+
+
+class ComBlocosDaVei09:
+    """Os blocos `documento` e `rastreador` e as `anotacoes` (VEI-09), todos opcionais. Em
+    `multipart/form-data` os blocos vão achatados (`documento.potencia_cv`), e o DRF os monta."""
+
+    def to_internal_value(self, data: Any) -> Any:
+        try:
+            return super().to_internal_value(data)  # type: ignore[misc]
+        except serializers.ValidationError as erro:
+            raise serializers.ValidationError(_pontuar(erro.detail)) from erro
+
+
+class VeiculoEntradaSerializer(ComBlocosDaVei09, serializers.Serializer[Any]):
     placa = serializers.CharField(max_length=10)
     chassi = serializers.CharField(max_length=20)
     renavam = serializers.CharField(required=False, allow_blank=True, allow_null=True)
@@ -35,6 +116,9 @@ class VeiculoEntradaSerializer(serializers.Serializer[Any]):
     valor_compra_centavos = serializers.IntegerField(min_value=0, required=False, allow_null=True)
     data_compra = serializers.DateField(required=False, allow_null=True)
     entrou_na_frota_em = serializers.DateField(required=False)
+    documento = DocumentoDoVeiculoEntradaSerializer(required=False)
+    rastreador = RastreadorEntradaSerializer(required=False)
+    anotacoes = _texto("anotacoes", 500)
 
 
 class VeiculoComCrlvEntradaSerializer(VeiculoEntradaSerializer):
@@ -59,9 +143,10 @@ class LeituraCrlvEntradaSerializer(serializers.Serializer[Any]):
     arquivo = serializers.FileField()
 
 
-class CamposDoCrlvSerializer(serializers.Serializer[Any]):
-    placa = serializers.CharField(allow_null=True)
-    chassi = serializers.CharField(allow_null=True)
+class CamposDoCrlvNoEditarSerializer(serializers.Serializer[Any]):
+    """Os campos lidos no editar (T-421): sem placa e chassi, que no editar não mudam. Os da
+    VEI-09 têm a chave pontuada (`documento.potencia_cv`), no formato do corpo do cadastro."""
+
     renavam = serializers.CharField(allow_null=True)
     marca = serializers.CharField(allow_null=True)
     modelo = serializers.CharField(allow_null=True)
@@ -70,9 +155,55 @@ class CamposDoCrlvSerializer(serializers.Serializer[Any]):
     cor = serializers.CharField(allow_null=True)
     combustivel = serializers.ChoiceField(choices=Combustivel.choices, allow_null=True)
 
+    def get_fields(self) -> dict[str, serializers.Field[Any, Any, Any, Any]]:
+        campos = super().get_fields()
+        campos.update(
+            {
+                "documento.potencia_cv": serializers.IntegerField(allow_null=True),
+                "documento.cilindrada_cc": serializers.IntegerField(allow_null=True),
+                "documento.especie": serializers.ChoiceField(
+                    choices=Especie.choices, allow_null=True
+                ),
+                "documento.tipo": serializers.CharField(allow_null=True),
+                "documento.carroceria": serializers.CharField(allow_null=True),
+                "documento.lotacao": serializers.IntegerField(allow_null=True),
+                "documento.peso_bruto_kg": serializers.IntegerField(allow_null=True),
+                "documento.numero_motor": serializers.CharField(allow_null=True),
+                "documento.observacoes": serializers.CharField(allow_null=True),
+            }
+        )
+        return campos
+
+    def to_representation(self, instance: Any) -> Any:
+        # A chave pontuada é o nome do campo, não um caminho no dicionário.
+        return {
+            nome: None if instance.get(nome) is None else campo.to_representation(instance[nome])
+            for nome, campo in self.fields.items()
+        }
+
+
+class CamposDoCrlvSerializer(CamposDoCrlvNoEditarSerializer):
+    """Os campos lidos no cadastro: os 9 da VEI-08 e, com a chave pontuada
+    (`documento.potencia_cv`), os 9 do documento da VEI-09 (T-421)."""
+
+    placa = serializers.CharField(allow_null=True)
+    chassi = serializers.CharField(allow_null=True)
+
+
+class ModeloSerializer(serializers.Serializer[Any]):
+    marca = serializers.CharField()
+    modelo = serializers.CharField()
+    tipo = serializers.ChoiceField(choices=["moto", "carro"])
+
+    class Meta:
+        # Nome próprio no OpenAPI: `contratos` já tem um `Modelo` (T-265).
+        ref_name = "ModeloDoCatalogo"
+
 
 class DicasDaLeituraSerializer(serializers.Serializer[Any]):
     marca_modelo = serializers.CharField(allow_null=True)
+    # T-415: as versões do catálogo que batem com o texto, para a pessoa escolher uma.
+    candidatos = ModeloSerializer(many=True)
 
 
 class LeituraCrlvSerializer(serializers.Serializer[Any]):
@@ -86,7 +217,13 @@ class LeituraCrlvSerializer(serializers.Serializer[Any]):
     leitura = serializers.CharField()
 
 
-class VeiculoEdicaoSerializer(serializers.Serializer[Any]):
+class LeituraCrlvNoEditarSerializer(LeituraCrlvSerializer):
+    """POST /api/veiculos/{id}/leitura-crlv/ (T-421): placa e chassi fora de `campos`."""
+
+    campos = CamposDoCrlvNoEditarSerializer()  # type: ignore[assignment]
+
+
+class VeiculoEdicaoSerializer(ComBlocosDaVei09, serializers.Serializer[Any]):
     renavam = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     marca = serializers.CharField(max_length=40, required=False)
     modelo = serializers.CharField(max_length=60, required=False)
@@ -102,6 +239,14 @@ class VeiculoEdicaoSerializer(serializers.Serializer[Any]):
     )
     valor_compra_centavos = serializers.IntegerField(min_value=0, required=False, allow_null=True)
     data_compra = serializers.DateField(required=False, allow_null=True)
+    # VEI-09 (T-421): cada chave enviada substitui o valor; `null` ou "" apaga.
+    documento = DocumentoDoVeiculoEntradaSerializer(required=False)
+    rastreador = RastreadorEntradaSerializer(required=False)
+    anotacoes = _texto("anotacoes", 500)
+    # O comprovante da leitura no editar (POST /api/veiculos/{id}/leitura-crlv/).
+    leitura = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, max_length=4000
+    )
 
 
 class CorrigirIdentificacaoSerializer(serializers.Serializer[Any]):
@@ -192,6 +337,8 @@ class SituacaoDoVeiculoSerializer(serializers.Serializer[Any]):
     codigo = serializers.CharField()
     rotulo = serializers.CharField()
     tom = serializers.CharField()
+    # LOC-10 (T-449): a data do "desde" do card "Agora"; `null` sem locação aberta.
+    desde = serializers.DateField(allow_null=True)
 
 
 class AcoesDoVeiculoSerializer(serializers.Serializer[Any]):
@@ -207,6 +354,8 @@ class AcoesDoVeiculoSerializer(serializers.Serializer[Any]):
     movimentar = serializers.BooleanField()  # MOV-02, MOV-03
     motivo_movimentar = serializers.CharField(allow_null=True)
     aviso_baixar = serializers.CharField(allow_null=True)  # MOV-03 (T-311)
+    lancar_despesa = serializers.BooleanField()  # FIN-17 (T-417)
+    motivo_trocar_tipo = serializers.CharField(allow_null=True)  # VEI-11 (T-438)
 
 
 class MovimentacaoAbertaSerializer(serializers.Serializer[Any]):
@@ -215,6 +364,14 @@ class MovimentacaoAbertaSerializer(serializers.Serializer[Any]):
     status = serializers.ChoiceField(choices=["agendada", "em_transito", "no_local"])
     rotulo = serializers.CharField()
     tom = serializers.CharField()
+
+
+class ReservaDoVeiculoSerializer(serializers.Serializer[Any]):
+    """Quem reservou o veículo `reservado` (T-410): a locação ou a troca pendente."""
+
+    locacao_id = serializers.IntegerField()
+    codigo = serializers.CharField()
+    motivo = serializers.ChoiceField(choices=["locacao", "troca"])
 
 
 class VeiculoSerializer(serializers.Serializer[Any]):
@@ -247,6 +404,7 @@ class VeiculoSerializer(serializers.Serializer[Any]):
     entrou_na_frota_em = serializers.DateField()
     situacao = SituacaoDoVeiculoSerializer()
     locacao_atual = serializers.JSONField(allow_null=True)
+    reserva = ReservaDoVeiculoSerializer(allow_null=True)  # T-410
     manutencao = serializers.JSONField(allow_null=True)
     documentos_resumo = serializers.JSONField(allow_null=True)
     movimentacao_aberta = MovimentacaoAbertaSerializer(allow_null=True)  # MOV-03
@@ -267,13 +425,66 @@ class HistoricoStatusSerializer(serializers.Serializer[Any]):
     motivo = serializers.CharField(allow_null=True)
 
 
-class FotoDaVistoriaRecenteSerializer(serializers.Serializer[Any]):
+class LinksDaFotoSerializer(serializers.Serializer[Any]):
+    """VEI-10, ADR 0036, item 4: `url` abre e `url_download` baixa com `nome_arquivo`; os dois
+    valem 15 minutos e são novos a cada leitura (AUD-05). Para o suporte Giro em "só ver", os três
+    campos de link vêm nulos (ADR 0013, item 2)."""
+
     id = serializers.IntegerField()
+    numero = serializers.IntegerField()
+    url = serializers.CharField(allow_null=True)
+    url_download = serializers.CharField(allow_null=True)
+    url_expira_em = serializers.DateTimeField(allow_null=True)
+    nome_arquivo = serializers.CharField()
+
+
+class FotoDaVistoriaRecenteSerializer(LinksDaFotoSerializer):
+    """Todas as fotos ativas da vistoria: as fixas e as de avaria (VEI-10, T-414)."""
+
     posicao = serializers.ChoiceField(
-        choices=["frente", "traseira", "lado_esquerdo", "lado_direito", "painel"]
+        choices=["frente", "traseira", "lado_esquerdo", "lado_direito", "painel", "avaria"]
     )
-    url = serializers.CharField()
-    url_expira_em = serializers.DateTimeField()
+    rotulo = serializers.CharField()
+    tirada_em = serializers.DateTimeField()
+    avaria_id = serializers.IntegerField(allow_null=True)
+
+
+class FotoDaGaleriaSerializer(LinksDaFotoSerializer):
+    """A galeria não tem legenda: `rotulo` é sempre `null` (VEI-10)."""
+
+    rotulo = serializers.CharField(allow_null=True)
+    capa = serializers.BooleanField()
+    enviada_em = serializers.DateTimeField()
+    enviada_por = IdNomeSerializer(allow_null=True)
+
+
+class GaleriaSerializer(serializers.Serializer[Any]):
+    """Bloco `galeria` da ficha: as ativas, capa primeiro, para todos os perfis (VEI-10)."""
+
+    total = serializers.IntegerField()
+    limite = serializers.IntegerField()
+    fotos = FotoDaGaleriaSerializer(many=True)
+
+
+class GaleriaDoEditarSerializer(GaleriaSerializer):
+    """`GET .../fotos/`. `motivo`: com o perfil que edita e o veículo vendido ou baixado, a
+    mensagem do 409; `null` nos outros casos."""
+
+    editar = serializers.BooleanField()
+    motivo = serializers.CharField(allow_null=True)
+
+
+class GaleriaAlteradaSerializer(GaleriaDoEditarSerializer):
+    """Resposta do envio e da troca: a galeria inteira e o id da foto nova."""
+
+    foto_id = serializers.IntegerField()
+
+
+class FotoDaGaleriaEntradaSerializer(serializers.Serializer[Any]):
+    """Uma foto por requisição (ADR 0036, item 3). A recusa (formato, tamanho, falta) vem do
+    serviço, com a mensagem da VEI-10."""
+
+    arquivo = serializers.FileField(required=False, allow_null=True, allow_empty_file=True)
 
 
 class AvariaDaVistoriaRecenteSerializer(serializers.Serializer[Any]):
@@ -286,10 +497,12 @@ class AvariaDaVistoriaRecenteSerializer(serializers.Serializer[Any]):
 
 
 class VistoriaRecenteSerializer(serializers.Serializer[Any]):
-    """VIS-01, T-275: a última vistoria concluída, com as fotos fixas e as avarias abertas."""
+    """VIS-01, T-275: a última vistoria concluída, com todas as fotos (VEI-10) e as avarias
+    abertas."""
 
     id = serializers.IntegerField()
     tipo = serializers.ChoiceField(choices=["saida", "devolucao"])
+    rotulo_tipo = serializers.CharField()  # "Vistoria de saída", "Vistoria de chegada"
     concluida_em = serializers.DateTimeField()
     vistoriador = IdNomeSerializer(allow_null=True)
     locacao_codigo = serializers.CharField(allow_null=True)
@@ -298,7 +511,49 @@ class VistoriaRecenteSerializer(serializers.Serializer[Any]):
     avarias = AvariaDaVistoriaRecenteSerializer(many=True)
 
 
-class VeiculoDetalheSerializer(VeiculoSerializer):
+class DocumentoDoVeiculoSerializer(serializers.Serializer[Any]):
+    """VEI-09 (T-421). `numero_motor` e `observacoes` só para administrador e gerente: para os
+    outros perfis as chaves vêm ausentes, não `null` (CA-421-12, USR-09)."""
+
+    potencia_cv = serializers.IntegerField(allow_null=True)
+    cilindrada_cc = serializers.IntegerField(allow_null=True)
+    especie = serializers.ChoiceField(choices=Especie.choices, allow_null=True)
+    tipo = serializers.CharField(allow_null=True)
+    carroceria = serializers.CharField(allow_null=True)
+    lotacao = serializers.IntegerField(allow_null=True)
+    peso_bruto_kg = serializers.IntegerField(allow_null=True)
+    numero_motor = serializers.CharField(allow_null=True, required=False)
+    observacoes = serializers.CharField(allow_null=True, required=False)
+
+    def to_representation(self, instance: Any) -> Any:
+        dados = super().to_representation(instance)
+        for chave in ("numero_motor", "observacoes"):
+            if chave not in instance:
+                dados.pop(chave, None)
+        return dados
+
+
+class RastreadorSerializer(serializers.Serializer[Any]):
+    numero = serializers.CharField(allow_null=True)
+    empresa = serializers.CharField(allow_null=True)
+
+
+class VeiculoComDadosDoDocumentoSerializer(VeiculoSerializer):
+    """A ficha e as respostas do `POST` e do `PATCH` (VEI-09); a lista da Frota não os traz."""
+
+    documento = DocumentoDoVeiculoSerializer()
+    rastreador = RastreadorSerializer()
+    anotacoes = serializers.CharField(allow_null=True)
+
+
+class AcoesDaFichaSerializer(AcoesDoVeiculoSerializer):
+    # Administrador e gerente, fora de vendido e baixado; nunca o suporte (VEI-10, PLT-07).
+    editar_fotos = serializers.BooleanField()
+
+
+class VeiculoDetalheSerializer(VeiculoComDadosDoDocumentoSerializer):
+    acoes = AcoesDaFichaSerializer()
+    galeria = GaleriaSerializer()  # VEI-10, para todos os perfis
     # Só para administrador, gerente e financeiro; ausente para os demais (USR-09, T-156).
     indicadores_financeiros = serializers.JSONField(allow_null=True, required=False)
     # Ausente para vistoriador e financeiro (T-275).
@@ -391,16 +646,6 @@ class ExtraSerializer(serializers.Serializer[Any]):
 
 class ListaDeExtrasSerializer(serializers.Serializer[Any]):
     resultados = ExtraSerializer(many=True)
-
-
-class ModeloSerializer(serializers.Serializer[Any]):
-    marca = serializers.CharField()
-    modelo = serializers.CharField()
-    tipo = serializers.ChoiceField(choices=["moto", "carro"])
-
-    class Meta:
-        # Nome próprio no OpenAPI: `contratos` já tem um `Modelo` (T-265).
-        ref_name = "ModeloDoCatalogo"
 
 
 class ListaDeModelosSerializer(serializers.Serializer[Any]):

@@ -7,12 +7,18 @@ devolução chama `locacoes.services.encerrar` (ADR 0011: `vistorias` fica acima
 de `financeiro`).
 """
 
-from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+import hashlib
+import ipaddress
+import secrets
+from dataclasses import dataclass, field, replace
+from datetime import date, datetime, time, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
+from django.http import Http404
 
 from apps.clientes import selectors as clientes_selectors
 from apps.financeiro import selectors as financeiro_selectors
@@ -504,7 +510,7 @@ def _concluir_troca_se_pronta(troca: TrocaVeiculo, locacao: Locacao, momento: da
         recalcular(devolucao)
 
 
-def _descartar(vistoria: Vistoria, motivo: str) -> None:
+def _descartar(vistoria: Vistoria, motivo: str, regra: str = "LOC-09") -> None:
     """O rascunho da troca cancelada fica guardado, com fotos e respostas (LOC-09)."""
     vistoria.descartada_em = relogio.agora()
     vistoria.motivo_descarte = motivo
@@ -513,9 +519,21 @@ def _descartar(vistoria: Vistoria, motivo: str) -> None:
         S.DESCARTADA,
         motivo=motivo,
         acao="vistoria.descartar",
-        regra="LOC-09",
+        regra=regra,
         mais_campos=("descartada_em", "motivo_descarte"),
     )
+
+
+def descartar_saidas_em_rascunho(locacao_id: int, motivo: str) -> int:
+    """LOC-12 (T-410, ADR 0035): a saída em rascunho da locação cancelada antes da retirada vai
+    para `descartada`, guardada com fotos e respostas. Idempotente. Devolve quantas descartou."""
+    with transaction.atomic():
+        rascunhos = Vistoria.objects.select_for_update().filter(
+            locacao_id=locacao_id, tipo=TipoVistoria.SAIDA, status=S.RASCUNHO
+        )
+        for vistoria in rascunhos:
+            _descartar(vistoria, f"Locação cancelada: {motivo}"[:200], regra="LOC-12")
+        return len(rascunhos)
 
 
 def cancelar_troca(locacao: Locacao, motivo: str, usuario: Any) -> dict[str, Any]:
@@ -820,7 +838,10 @@ def parcelas_do_acerto(locacao: Locacao, dia: date) -> list[ContaReceber]:
     mais antiga para a mais nova (a ordem da DEV-02). As que vencem depois não entram."""
     return list(
         financeiro_selectors.contas_da_origem(locacoes.ORIGEM, locacao.pk)
-        .filter(tipo=TipoConta.PARCELA, status=StatusConta.ABERTA, vencimento__lte=dia)
+        .filter(
+            financeiro_selectors.q_atrasada(dia) | financeiro_selectors.q_vence_hoje(dia),
+            tipo=TipoConta.PARCELA,
+        )
         .order_by("vencimento", "id")
     )
 
@@ -1241,7 +1262,7 @@ def encerrar_devolucao(devolucao: Devolucao, usuario: Any) -> Devolucao:
     vira reembolso pela forma escolhida, e o negativo, conta a receber em 3 dias (DEV-02);
     locação `encerrada` (ou `cancelada` no encerramento antecipado que vale, LOC-12, DEV-07) com
     `devolvida_em` pela LOC-11; veículo `disponivel` ou `em_manutencao` (DEV-04). Depois do
-    commit, o recibo em PDF sai por WhatsApp."""
+    commit, o recibo em PDF sai por e-mail (ADR 0034)."""
     with transaction.atomic():
         travada = _acerto_em_rascunho(devolucao)
         locacao = Locacao.objects.select_related("filial").get(pk=travada.locacao_id)
@@ -1393,6 +1414,125 @@ def reenviar_recibo(devolucao: Devolucao) -> None:
     if devolucao.status != D.CONCLUIDA:
         raise recibo_em_rascunho()
     _agendar_recibo(devolucao.pk, reenviar=True)
+
+
+VALIDADE_DO_LINK_DO_RECIBO = timedelta(days=7)  # S-15, como o contrato e o convite
+FUSO_DO_DIA = ZoneInfo("America/Sao_Paulo")
+
+
+def hash_do_token_do_recibo(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def link_do_recibo(host: str, token: str) -> str:
+    """O token vai no fragmento: não chega a log de servidor nem ao `Referer` (S-15)."""
+    return f"https://{host}/recibo#{token}"
+
+
+def _titular_anonimizado(devolucao: Devolucao) -> bool:
+    return (
+        Locacao.objects.filter(pk=devolucao.locacao_id, cliente__anonimizado_em__isnull=False)
+    ).exists()
+
+
+def recibo_publico_ligado() -> bool:
+    """`GIRO_RECIBO_PUBLICO` (T-411, decisão do dono): fica desligado até a página `/recibo`."""
+    return bool(getattr(settings, "GIRO_RECIBO_PUBLICO", False))
+
+
+def recibo_publico_desligado() -> Conflito:
+    return Conflito(
+        "recibo_publico_desligado",
+        "O link do recibo ainda não está disponível. Use Reenviar para mandar o recibo.",
+    )
+
+
+def gerar_link_recibo(devolucao: Devolucao, por: Any) -> tuple[str, Devolucao]:
+    """Copiar link do recibo (T-411, `vistorias.md`): grava o PDF se ainda não existe, cria um
+    token de 32 bytes e guarda só o hash, por 7 dias; o anterior deixa de valer. Não envia nada
+    e não muda o envio do recibo. Devolve o token em claro uma vez e a devolução. Com
+    `GIRO_RECIBO_PUBLICO` desligado, 409 `recibo_publico_desligado`, sem gerar nada."""
+    if not recibo_publico_ligado():
+        raise recibo_publico_desligado()
+    if devolucao.status != D.CONCLUIDA:
+        raise recibo_em_rascunho()
+    with transaction.atomic():
+        travada = _travar_devolucao(devolucao)
+        if _titular_anonimizado(travada):
+            raise Conflito("titular_anonimizado", "Os dados deste cliente foram anonimizados.")
+        if not travada.recibo:
+            gravar_recibo(travada)
+        token = secrets.token_urlsafe(32)
+        travada.token_recibo_hash = hash_do_token_do_recibo(token)
+        travada.token_recibo_expira_em = relogio.agora() + VALIDADE_DO_LINK_DO_RECIBO
+        travada.save(update_fields=["token_recibo_hash", "token_recibo_expira_em", "atualizado_em"])
+        registrar_evento(
+            "devolucao.copiar_link_recibo",
+            Categoria.SEGURANCA,
+            objeto=travada,
+            depois={"token_recibo_expira_em": travada.token_recibo_expira_em.isoformat()},
+            regra="S-15",
+            filial_id=_filial_da_devolucao(travada),
+        )
+    return token, travada
+
+
+def _filial_da_devolucao(devolucao: Devolucao) -> int | None:
+    filial: int | None = (
+        Locacao.objects.filter(pk=devolucao.locacao_id).values_list("filial_id", flat=True).first()
+    )
+    return filial
+
+
+def consultar_recibo(token: str, ip: str | None, aparelho: str) -> Devolucao:
+    """A página pública `/recibo` (T-411): só o recibo daquele token, no schema do host. 404 para
+    token desconhecido ou anulado (sem dizer qual), 410 `link_expirado` depois dos 7 dias. Não é
+    de uso único. Cada abertura grava `devolucao.recibo_aberto`, no máximo uma por token por dia
+    (B-03 da T-411)."""
+    from apps.contratos.services import link_expirado
+
+    if not token or not recibo_publico_ligado():  # desligado: a página não existe (T-436)
+        raise Http404
+    devolucao: Devolucao | None = (
+        Devolucao.objects.select_related("locacao", "locacao__cliente")
+        .filter(token_recibo_hash=hash_do_token_do_recibo(token), status=D.CONCLUIDA)
+        .first()
+    )
+    if devolucao is None or devolucao.token_recibo_expira_em is None:
+        raise Http404
+    if devolucao.token_recibo_expira_em <= relogio.agora():
+        raise link_expirado()
+    _registrar_abertura(devolucao, devolucao.token_recibo_expira_em, ip, aparelho)
+    return devolucao
+
+
+def _registrar_abertura(
+    devolucao: Devolucao, expira: datetime, ip: str | None, aparelho: str
+) -> None:
+    from apps.auditoria.models import EventoAuditoria
+    from comum.auditoria import ATOR_SISTEMA, usar_ator
+    from comum.classificacao import mascarar_ip
+
+    gerado = expira - VALIDADE_DO_LINK_DO_RECIBO
+    inicio_do_dia = datetime.combine(relogio.hoje(), time.min, tzinfo=FUSO_DO_DIA)
+    if EventoAuditoria.objects.filter(
+        acao="devolucao.recibo_aberto",
+        objeto_tipo="devolucao",
+        objeto_id=devolucao.pk,
+        ocorrido_em__gte=max(gerado, inicio_do_dia),
+    ).exists():
+        return
+    rede = None
+    if ip:
+        rede = str(ipaddress.ip_network(mascarar_ip(ip), strict=False).network_address)
+    ator = replace(ATOR_SISTEMA, ip=rede, aparelho=(aparelho or "")[:200], regra="DEV-02")
+    with usar_ator(ator):
+        registrar_evento(
+            "devolucao.recibo_aberto",
+            Categoria.SEGURANCA,
+            objeto=devolucao,
+            filial_id=devolucao.locacao.filial_id,
+        )
 
 
 def marcar_recibo_enviado(devolucao: Devolucao) -> None:

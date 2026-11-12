@@ -210,11 +210,27 @@ REST_FRAMEWORK = {
         # Copiar link do convite (USR-01, T-249).
         "link_convite_convidado": "5/hour",
         "link_convite_administrador": "20/hour",
+        # Copiar link para assinar e link do recibo; página pública do recibo (T-411).
+        "link_contrato_contrato": "5/hour",
+        "link_contrato_usuario": "20/hour",
+        "link_recibo_devolucao": "5/hour",
+        "link_recibo_usuario": "20/hour",
+        "recibo_publico_ip": "10/min",
+        "recibo_publico_token": "20/min",
         # Leitura do CRLV-e e da CNH-e em PDF, somadas (ADR 0026, item 6).
         "leitura_documento_usuario": "30/hour",
         "leitura_documento_empresa": "200/hour",
         # Conectar os recebimentos pelo parceiro (B-02 da T-384).
         "recebimentos_empresa": "10/hour",
+        # Compra pública, sem login (docs/api/compra.md, "Proteção da rota pública").
+        "compra_cnpj_ip": "20/hour",
+        "compra_subdominio_ip": "60/hour",
+        "compra_pedido_ip_hora": "5/hour",
+        "compra_pedido_ip_dia": "20/day",
+        "compra_pedido_email_dia": "3/day",
+        "compra_pedido_cnpj_dia": "3/day",
+        "compra_confirmar_ip": "30/hour",
+        "compra_reenviar_ip": "10/hour",
     },
 }
 
@@ -233,6 +249,7 @@ SPECTACULAR_SETTINGS = {
         "EtapaEnum": ["configurar_2fa"],  # nome que o login da plataforma já publicava
         # VEI-08 (T-247): o combustível do veículo; o da vistoria é o nível do tanque (VIS-03).
         "CombustivelVeiculoEnum": "apps.veiculos.models.Combustivel",
+        "EspecieVeiculoEnum": "apps.veiculos.models.Especie",  # VEI-09 (T-421)
         "NivelDoTanqueEnum": "apps.vistorias.models.Combustivel",
         "NivelDeAprovacaoEnum": "apps.contas.api.acesso.NIVEL_DE_APROVACAO",
         "TipoSessaoEnum": "apps.contas.models.TipoSessao",
@@ -329,6 +346,11 @@ CELERY_TASK_IGNORE_RESULT = True
 # desenvolvimento, o único worker lê as duas filas (`-Q celery,apagamento`).
 CELERY_TASK_ROUTES = {"aud_08_apagar_empresas": {"queue": "apagamento"}}
 CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
+    # Pedidos da compra pública vencidos e os dados pessoais deles, 7 dias depois (compra.md).
+    "plataforma_expirar_pedidos_compra": {
+        "task": "plataforma_expirar_pedidos_compra",
+        "schedule": crontab(hour=4, minute=10),
+    },
     # Corrige o resumo de uso do plano (PLT-03) contando em cada schema.
     "plataforma_recalcular_uso_de_todas": {
         "task": "plataforma_recalcular_uso_de_todas",
@@ -379,6 +401,20 @@ CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
     "locacoes_cancelar_rascunhos_sem_uso": {
         "task": "locacoes_cancelar_rascunhos_sem_uso_de_todas",
         "schedule": crontab(minute=15),
+    },
+    # AUT-17: locação não retirada até o 3º dia da data de início (LOC-12, ADR 0035).
+    "aut_17_cancelar_nao_retiradas": {
+        "task": "aut_17_cancelar_nao_retiradas_de_todas",
+        "schedule": crontab(hour=0, minute=10),
+    },
+    "aut_17_avisar_nao_retiradas": {
+        "task": "aut_17_avisar_nao_retiradas_de_todas",
+        "schedule": crontab(hour=8, minute=0),
+    },
+    # LOC-17: contrato não assinado 7 dias depois da retirada à mão, tarefa para os gerentes.
+    "loc_17_avisar_assinaturas_pendentes": {
+        "task": "loc_17_avisar_assinaturas_pendentes_de_todas",
+        "schedule": crontab(hour=8, minute=0),
     },
     # LOC-08: aditivo sem assinatura em 7 dias vira tarefa para os gerentes da filial.
     "contratos_avisar_aditivos_sem_assinatura": {
@@ -457,6 +493,15 @@ GIRO_MODULOS_ATIVOS = env.list(
     ],
 )
 GIRO_PROVEDOR_CEP = env("GIRO_PROVEDOR_CEP", default="falso")
+# Consulta de CNPJ da compra pública (ADR 0039): "falso" em dev e testes, "brasilapi" fora.
+GIRO_PROVEDOR_CNPJ = env("GIRO_PROVEDOR_CNPJ", default="falso")
+# Teto diário de empresas criadas pela compra pública (D-430-08). Acima, a equipe libera.
+GIRO_COMPRA_TETO_DIARIO = env.int("GIRO_COMPRA_TETO_DIARIO", default=50)
+# Versão dos Termos de uso e do Acordo de tratamento de dados aceita na compra. Os textos ainda
+# não existem (D-430-05, aberta): a compra não entra no ar sem eles.
+GIRO_TERMOS_VERSAO = env("GIRO_TERMOS_VERSAO", default="rascunho")
+# Para onde vão os avisos da compra pública à equipe Giro (teto do dia e falha).
+GIRO_EMAIL_EQUIPE = env("GIRO_EMAIL_EQUIPE", default="equipe@girolocadoras.com.br")
 # Arquivos privados (ADR 0009, AUD-05): "falso" (na memória) em dev e testes; "s3" com um bucket
 # privado compatível com S3 em homologação e produção.
 GIRO_ARMAZENAMENTO = env("GIRO_ARMAZENAMENTO", default="falso")
@@ -471,6 +516,9 @@ S3_CHAVE_DE_ACESSO = env("S3_CHAVE_DE_ACESSO", default="")
 S3_CHAVE_SECRETA = env("S3_CHAVE_SECRETA", default="")
 # WhatsApp: só o "falso" (mensagens na memória) até a integração real.
 GIRO_PROVEDOR_WHATSAPP = env("GIRO_PROVEDOR_WHATSAPP", default="falso")
+# ADR 0034 (11 nov 2026): desligada, nada vai ao cliente final nem ao convidado pelo WhatsApp;
+# os avisos vão por e-mail. Só a régua da assinatura (AUT-13) usa o WhatsApp, sem olhar a chave.
+GIRO_WHATSAPP_CLIENTE_FINAL = env.bool("GIRO_WHATSAPP_CLIENTE_FINAL", default=False)
 # Pagamentos (Pix, boleto, webhook): "falso" (cobranças na memória) ou "asaas" (T-029). A chave
 # da conta principal só abre subcontas; cada subconta tem a sua, cifrada no banco (S-05).
 GIRO_PROVEDOR_PAGAMENTOS = env("GIRO_PROVEDOR_PAGAMENTOS", default="falso")
@@ -484,6 +532,10 @@ GIRO_URL_WEBHOOK_PAGAMENTOS = env("GIRO_URL_WEBHOOK_PAGAMENTOS", default="")
 GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH = env("GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH", default="")
 # NFS-e da assinatura (PLT-15): desligada até o cadastro municipal do Giro (T-197).
 GIRO_NFSE_ASSINATURA_ATIVA = env.bool("GIRO_NFSE_ASSINATURA_ATIVA", default=False)
+# Link do recibo (T-411): desligado até a página pública `/recibo` existir no frontend (T-436).
+# Desligado, `acoes.copiar_link_recibo` vem false, copiar responde 409 `recibo_publico_desligado`
+# e a consulta pública responde 404.
+GIRO_RECIBO_PUBLICO = env.bool("GIRO_RECIBO_PUBLICO", default=False)
 
 # --- E-mail ---
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")

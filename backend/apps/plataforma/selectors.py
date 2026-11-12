@@ -58,6 +58,7 @@ from .services import (
     plano_acima,
     proxima_mensalidade,
 )
+from .situacao_cnpj import situacao_do_cnpj  # noqa: F401  (contrato compra.md)
 
 DIAS_PARA_IMPLANTACAO_PARADA = 3  # IMP-05
 MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"]
@@ -519,7 +520,8 @@ def oferta(empresa: Empresa) -> dict[str, Any] | None:
     plano = empresa.plano
     if plano is None:
         return None
-    ativos = Plano.objects.filter(ativo=True).order_by("ordem", "id")
+    # Só planos à venda (PLT-11, catálogo da fase 1): o Profissional não tem cartão.
+    ativos = Plano.objects.filter(ativo=True, a_venda=True).order_by("ordem", "id")
     acima = next((p for p in ativos if plano_acima(p, plano)), None)
     if acima is None:
         return None
@@ -719,7 +721,10 @@ def planos_da_assinatura(empresa: Empresa | None = None) -> dict[str, Any]:
     empresa = Empresa.objects.select_related("plano").get(pk=empresa.pk)
     atual = empresa.plano
     uso = UsoEmpresa.objects.filter(empresa_id=empresa.pk).first() or UsoEmpresa()
-    planos = Plano.objects.filter(Q(ativo=True) | Q(pk=empresa.plano_id)).order_by("ordem", "id")
+    # Fora da venda não aparece, menos o plano atual (PLT-11, T-378).
+    planos = Plano.objects.filter(Q(ativo=True, a_venda=True) | Q(pk=empresa.plano_id)).order_by(
+        "ordem", "id"
+    )
     resultados = []
     for plano in planos:
         e_atual = atual is not None and plano.pk == atual.pk
@@ -962,6 +967,7 @@ class ContextoDasFaturas:
     sem_forma: bool
     escreve: bool
     hoje: date
+    suporte: bool = False  # AUD-09: sem os links do boleto e da página (M-01 da T-411)
 
 
 def contexto_das_faturas(empresa: Empresa, usuario: Any) -> ContextoDasFaturas:
@@ -971,7 +977,13 @@ def contexto_das_faturas(empresa: Empresa, usuario: Any) -> ContextoDasFaturas:
         and not getattr(usuario, "e_suporte", False)
         and empresa.status in STATUS_QUE_PAGAM
     )
-    return ContextoDasFaturas(empresa, not (forma and forma.forma), escreve, relogio.hoje())
+    return ContextoDasFaturas(
+        empresa,
+        not (forma and forma.forma),
+        escreve,
+        relogio.hoje(),
+        suporte=bool(getattr(usuario, "e_suporte", False)),
+    )
 
 
 def _pode_pagar(fatura: FaturaAssinatura, contexto: ContextoDasFaturas) -> bool:
@@ -1030,7 +1042,7 @@ def linha_do_teste(empresa: Empresa) -> dict[str, Any] | None:
     }
 
 
-def cobranca_da_fatura(fatura: FaturaAssinatura) -> dict[str, Any] | None:
+def cobranca_da_fatura(fatura: FaturaAssinatura, suporte: bool = False) -> dict[str, Any] | None:
     """A cobrança viva no parceiro, para pagar. Só na resposta ao administrador; nunca na
     auditoria (T-189, item 8)."""
     if not fatura.cobranca_externa_id:
@@ -1045,9 +1057,9 @@ def cobranca_da_fatura(fatura: FaturaAssinatura) -> dict[str, Any] | None:
     return {
         "forma": forma,
         "linha_digitavel": fatura.cobranca_linha_digitavel or None,
-        "url_boleto": fatura.cobranca_boleto_url or None,
+        "url_boleto": None if suporte else (fatura.cobranca_boleto_url or None),
         "pix_copia_e_cola": fatura.cobranca_pix_copia_e_cola or None,
-        "url_pagina": fatura.cobranca_url_pagina or None,
+        "url_pagina": None if suporte else (fatura.cobranca_url_pagina or None),
         "vencimento": fatura.vencimento,
     }
 
@@ -1067,7 +1079,7 @@ def nota_fiscal_da_fatura(fatura: FaturaAssinatura) -> dict[str, Any] | None:
 def detalhe_da_fatura(fatura: FaturaAssinatura, contexto: ContextoDasFaturas) -> dict[str, Any]:
     return {
         **item_da_fatura(fatura, contexto),
-        "cobranca": cobranca_da_fatura(fatura),
+        "cobranca": cobranca_da_fatura(fatura, suporte=contexto.suporte),
         "recibo_url": (fatura.recibo_url or None) if fatura.status == StatusFatura.PAGA else None,
         "nota_fiscal": nota_fiscal_da_fatura(fatura),
     }

@@ -155,6 +155,9 @@ class CobrancaSerializer(serializers.Serializer[Any]):
 
 
 class AcoesDaContaSerializer(serializers.Serializer[Any]):
+    copiar_cobranca = serializers.BooleanField(
+        help_text="T-411: Copiar Pix e Copiar boleto da cobrança do dia; nunca o suporte"
+    )
     receber = serializers.BooleanField()
     gerar_pix = serializers.BooleanField()
     gerar_boleto = serializers.BooleanField()
@@ -177,6 +180,9 @@ class ContaSerializer(serializers.Serializer[Any]):
     valor_centavos = serializers.IntegerField()
     status = serializers.ChoiceField(
         choices=["aberta", "vence_hoje", "atrasada", "paga", "cancelada", "renegociada"]
+    )
+    aguarda_retirada = serializers.BooleanField(
+        help_text="locação confirmada e não retirada: nada vence (LOC-05, T-410)"
     )
     dias_atraso = serializers.IntegerField()
     faixa_atraso = serializers.ChoiceField(choices=["1_7", "8_30", "mais_30"], allow_null=True)
@@ -355,6 +361,11 @@ class DespesaSerializer(serializers.Serializer[Any]):
     forma = serializers.CharField(allow_null=True)
     lancada_por = RefSerializer()
     nota = NotaSerializer(allow_null=True)
+    comprovante = NotaSerializer(
+        allow_null=True,
+        help_text="comprovante do pagamento, URL de 15 minutos (AUD-05); null sem ele ou para o"
+        " suporte (AUD-09)",
+    )
     sem_nota = serializers.BooleanField()
     origem = OrigemDaDespesaSerializer(allow_null=True)
     pedido_aprovacao_id = serializers.IntegerField(allow_null=True)
@@ -389,6 +400,18 @@ class ContagensDespesasSerializer(serializers.Serializer[Any]):
 class ListaDeDespesasSerializer(serializers.Serializer[Any]):
     indicadores = IndicadoresDespesasSerializer()
     contagens = ContagensDespesasSerializer()
+    resultados = DespesaSerializer(many=True)
+    proximo = serializers.CharField(allow_null=True)
+    anterior = serializers.CharField(allow_null=True)
+
+
+class DespesasDoVeiculoSerializer(serializers.Serializer[Any]):
+    """FIN-17: as despesas do veículo no ano, 20 por página, da mais nova para a mais antiga."""
+
+    ano = serializers.IntegerField()
+    total_ano_centavos = serializers.IntegerField(
+        help_text="Despesas no ano: pagas ou não, sem as recusadas (FIN-17, VEI-05)"
+    )
     resultados = DespesaSerializer(many=True)
     proximo = serializers.CharField(allow_null=True)
     anterior = serializers.CharField(allow_null=True)

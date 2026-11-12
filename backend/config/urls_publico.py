@@ -14,6 +14,7 @@ from apps.contas.api.urls import urls_plataforma as urls_contas
 from apps.contas.login_admin import LoginDoAdmin
 from apps.financeiro.api.urls import urls_webhooks
 from apps.plataforma.api.urls import urls_plataforma
+from apps.plataforma.api.urls_compra import urls_compra
 from comum.ambiente import AmbienteView
 
 admin.site.__class__ = OTPAdminSite
@@ -24,6 +25,8 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("api/plataforma/", include(urls_contas)),
     path("api/plataforma/", include(urls_plataforma)),
     path("api/", include(urls_webhooks)),
+    # Compra pública, sem login (docs/api/compra.md): só aqui, nunca no endereço de uma empresa.
+    path("api/publico/compra/", include(urls_compra)),
     path("api/plataforma/ambiente/", AmbienteView.as_view(), name="ambiente-plataforma"),
 ]
 

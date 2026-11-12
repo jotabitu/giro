@@ -6,6 +6,7 @@ import { pausa, perfilAtualFalso } from "./falso";
 import { aplicarDevolucaoEncerrada, aplicarSaidaConcluida, dadosDaLocacaoParaVistoria, AGORA_DO_SEED, type DadosDaLocacaoParaVistoria } from "./falso-locacoes";
 import { ErroApi } from "@/lib/api/tipos";
 import type {
+  LinkDoRecibo,
   AcertoDaDevolucao,
   AgendaDoDia,
   AvariaAberta,
@@ -51,6 +52,7 @@ function imagem(rotulo: string): string {
 }
 
 let proximaFoto = 900;
+let contagemDeLinks = 0;
 const foto = (posicao: PosicaoFoto, em: string): FotoDaVistoria => ({ id: proximaFoto++, posicao, tirada_em: em, url: imagem(ROTULO_POSICAO[posicao]), url_expira_em: new Date(Date.parse(AGORA_DO_SEED) + 15 * 60_000).toISOString() });
 
 type Registro = {
@@ -308,6 +310,7 @@ function montarDevolucao(dev: Devolucao): DevolucaoCompleta {
     devolvida_em: dev.devolvidaEm,
     concluida_em: dev.concluidaEm,
     recibo_enviado_em: dev.reciboEm,
+    acoes: { copiar_link_recibo: dev.status === "concluida" && (perfilAtualFalso() === "administrador" || perfilAtualFalso() === "gerente" || perfilAtualFalso() === "vendedor") },
   };
   if (!vistoriador) return base;
   const sem = { ...base } as Partial<DevolucaoCompleta>;
@@ -459,9 +462,9 @@ export const vistoriasFalso = {
     garantirSementes();
     exigirVistoria();
     const todos: ItemDaAgenda[] = [
-      { id: "devolucao-2790", tipo: "devolucao", horario: "2026-09-12T12:00:00Z", veiculo: { id: 511, placa: "PQD6E21", modelo: "Honda Pop 110i" }, cliente: { nome: "Rafael Sousa" }, locacao: { id: 2790, codigo: "LOC-2790" }, situacao: { codigo: "atrasada", rotulo: "Atrasada", tom: "perigo" }, vistoria_id: null, acao: { codigo: "abrir", rotulo: "Abrir" } },
-      { id: "saida-2856", tipo: "saida", horario: "2026-10-07T12:30:00Z", veiculo: { id: 504, placa: "SAK1D39", modelo: "Honda CG 160 Fan" }, cliente: { nome: "Lucas Ferreira" }, locacao: { id: 2856, codigo: "LOC-2856" }, situacao: { codigo: "em_andamento", rotulo: "Em andamento", tom: "alerta" }, vistoria_id: 3001, acao: { codigo: "continuar", rotulo: "Continuar" } },
-      { id: "devolucao-2848", tipo: "devolucao", horario: "2026-10-10T12:00:00Z", veiculo: { id: 513, placa: "RKP3D26", modelo: "Renault Kwid Zen" }, cliente: { nome: "Diego Martins" }, locacao: { id: 2848, codigo: "LOC-2848" }, situacao: { codigo: "agendada", rotulo: "Agendada", tom: "info" }, vistoria_id: null, acao: { codigo: "abrir", rotulo: "Abrir" } },
+      { id: "devolucao-2790", tipo: "devolucao", horario: "2026-09-12T12:00:00Z", veiculo: { id: 511, placa: "PQD6E21", modelo: "Honda Pop 110i" }, cliente: { nome: "Rafael Sousa" }, locacao: { id: 2790, codigo: "LOC-2790" }, filial: { id: 1, nome: "Filial Centro" }, situacao: { codigo: "atrasada", rotulo: "Atrasada", tom: "perigo" }, vistoria_id: null, acao: { codigo: "abrir", rotulo: "Abrir" } },
+      { id: "saida-2856", tipo: "saida", horario: "2026-10-07T12:30:00Z", veiculo: { id: 504, placa: "SAK1D39", modelo: "Honda CG 160 Fan" }, cliente: { nome: "Lucas Ferreira" }, locacao: { id: 2856, codigo: "LOC-2856" }, filial: { id: 1, nome: "Filial Centro" }, situacao: { codigo: "em_andamento", rotulo: "Em andamento", tom: "alerta" }, vistoria_id: 3001, acao: { codigo: "continuar", rotulo: "Continuar" } },
+      { id: "devolucao-2848", tipo: "devolucao", horario: "2026-10-10T12:00:00Z", veiculo: { id: 513, placa: "RKP3D26", modelo: "Renault Kwid Zen" }, cliente: { nome: "Diego Martins" }, locacao: { id: 2848, codigo: "LOC-2848" }, filial: { id: 1, nome: "Filial Centro" }, situacao: { codigo: "agendada", rotulo: "Agendada", tom: "info" }, vistoria_id: null, acao: { codigo: "abrir", rotulo: "Abrir" } },
     ];
     const hoje = diaDe(AGORA_DO_SEED);
     const doDia = (i: ItemDaAgenda) => (dia === "hoje" ? diaDe(i.horario) <= hoje && (diaDe(i.horario) === hoje || i.situacao.codigo === "atrasada") : dia === "amanha" ? diaDe(i.horario) === "2026-10-08" : diaDe(i.horario) >= hoje && diaDe(i.horario) <= "2026-10-13");
@@ -587,6 +590,14 @@ export const vistoriasFalso = {
     const dev = acharDevolucao(id);
     if (dev.status !== "concluida") throw new ErroApi(409, "devolucao_em_rascunho", "O recibo sai depois que a devolução é encerrada");
     return { url: `/recibos/DEV-${dev.id}.pdf`, url_expira_em: new Date(Date.parse(AGORA_DO_SEED) + 15 * 60_000).toISOString() };
+  },
+
+  async copiarLinkDoRecibo(id: number): Promise<LinkDoRecibo> {
+    await pausa(250);
+    exigirAcerto();
+    const dev = acharDevolucao(id);
+    if (dev.status !== "concluida") throw new ErroApi(409, "devolucao_em_rascunho", "O recibo sai depois que a devolução é encerrada");
+    return { link: `https://motorapida.girolocadoras.com.br/recibo#fake-${id}-${++contagemDeLinks}`, expira_em: "2026-10-14T14:00:00Z", aviso: "O link anterior deixa de valer.", devolucao: { id: dev.id, status: "concluida", recibo_enviado_em: dev.reciboEm } };
   },
 
   async reenviarRecibo(id: number): Promise<void> {

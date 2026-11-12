@@ -62,6 +62,9 @@ export const cores = {
 
 export type NomeCor = keyof typeof cores.light;
 
+// Grade de 4 px com meios-passos de 2 px (0.5, 1.5, 2.5, 3.5): o número é o tamanho em px dividido por 4.
+// Os passos 40, 60 e 64 são só de largura e altura de bloco, nunca de espaço entre elementos.
+// O Tailwind usa esta escala no lugar da dele: classe fora dela não gera CSS (docs/design-system/README.md).
 export const espacamento = {
   "1": "4px",
   "2": "8px",
@@ -69,8 +72,20 @@ export const espacamento = {
   "4": "16px",
   "5": "20px",
   "6": "24px",
+  "7": "28px",
   "8": "32px",
-  "10": "40px"
+  "9": "36px",
+  "10": "40px",
+  "11": "44px",
+  "12": "48px",
+  "16": "64px",
+  "40": "160px",
+  "60": "240px",
+  "64": "256px",
+  "0.5": "2px",
+  "1.5": "6px",
+  "2.5": "10px",
+  "3.5": "14px"
 } as const;
 
 export const raio = {
@@ -162,7 +177,7 @@ export function variaveisCss(tema: "light" | "dark"): string {
 }
 
 export const variaveisBase: string = [
-  ...Object.entries(espacamento).map(([k, v]) => `--space-${k}: ${v};`),
+  ...Object.entries(espacamento).map(([k, v]) => `--space-${k.replace(".", "-")}: ${v};`),
   ...Object.entries(raio).map(([k, v]) => `--radius-${k}: ${v};`),
   `--font-sans: var(--font-geist-sans), ${fontes.sans};`,
   `--font-mono: var(--font-geist-mono), ${fontes.mono};`,

@@ -22,4 +22,6 @@ urlpatterns = [
     path("devolucoes/<int:pk>/encerrar/", views.EncerrarDevolucaoView.as_view()),
     path("devolucoes/<int:pk>/recibo/", views.ReciboDaDevolucaoView.as_view()),
     path("devolucoes/<int:pk>/recibo/reenviar/", views.ReenviarReciboView.as_view()),
+    path("devolucoes/<int:pk>/recibo/link/", views.LinkDoReciboView.as_view()),
+    path("publico/recibos/consultar/", views.ConsultarReciboView.as_view()),
 ]

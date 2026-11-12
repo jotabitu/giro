@@ -37,7 +37,7 @@ from apps.plataforma.services import Administrador, criar_empresa, registrar_pas
 from apps.veiculos.models import Categoria, Veiculo
 from comum.estados import transicionar
 
-from . import carteira, frota
+from . import carteira, fotos, frota
 from . import financeiro as financeiro_do_seed
 from .relogio import RelogioDoSeed
 
@@ -276,6 +276,9 @@ def semear() -> Resultado:
                         criado.append("locações")
             else:
                 existente.append("frota")
+                with transaction.atomic():
+                    if frota.garantir_dados_do_crlv():
+                        criado.append("dados do CRLV-e do QXA-4B21")
             _configuracao(criado)
             if not Caixa.objects.exists():
                 with transaction.atomic():
@@ -284,6 +287,9 @@ def semear() -> Resultado:
             with transaction.atomic():
                 if financeiro_do_seed.garantir_reembolso_e_pendencia(centro, relogio):
                     criado.append("reembolso e pendência do pagamento")
+            with transaction.atomic():
+                if fotos.garantir_fotos_do_qxa(relogio):
+                    criado.append("fotos do QXA-4B21")
     with RelogioDoSeed(INICIO) as relogio:
         _dono_da_plataforma(criado)
         _equipe_da_plataforma(criado)

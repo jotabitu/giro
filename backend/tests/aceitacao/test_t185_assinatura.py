@@ -44,6 +44,17 @@ from seed.moto_rapida import CENTRO
 from .conftest import CNPJ_MOTO_RAPIDA
 from .conftest import cliente as cliente_http
 
+
+@pytest.fixture(autouse=True)
+def _completo_a_venda(db):
+    """Os números dos CA-ASS (upgrade, diferença, downgrade) usam o Completo, que a T-378 tirou
+    da venda (PLT-11). A mecânica da PLT-04 é a mesma; aqui ele volta à venda só no teste. A
+    recusa do Completo fora da venda está em `test_t435_compra_publica.py`."""
+    from apps.plataforma.models import Plano
+
+    Plano.objects.filter(nome="Completo").update(a_venda=True)
+
+
 HOST = "motorapida.localhost"
 ASSINATURA = "/api/assinatura/"
 PLANOS = "/api/assinatura/planos/"
@@ -315,14 +326,20 @@ def test_plt_11_catalogo_confere_a_tabela_da_regra():
         "Contrato digital, assinado pelo cliente no celular",
         "Sua marca e seu endereço de acesso",
     )
-    assert catalogo.textos("Profissional").inclui[0] == "Tudo do Essencial"
+    # PLT-11, catálogo da fase 1 (T-378): o Profissional só com o que já existe.
+    assert catalogo.textos("Profissional").inclui == (
+        "Tudo do Essencial, mais despesas",
+        "Pix e boleto automáticos",
+    )
     assert catalogo.textos("Completo").inclui[0] == "Tudo do Profissional"
     assert catalogo.textos("Profissional").a_mais == (
-        "Vendas, manutenção e despesas",
-        "Pix e boleto automáticos, cobrança pelo WhatsApp",
-        "Comissão de vendedores e relatórios",
+        "Despesas",
+        "Pix e boleto automáticos",
         "Até 150 veículos, 3 filiais e 10 usuários",
     )
+    vende = ("vendas", "manutenção", "comiss", "relatório", "conciliação")
+    for texto in catalogo.textos("Profissional").inclui:
+        assert not any(p in texto.lower() for p in vende), texto
     # CA-ASS-20: nada que ainda não existe, nem o contrato digital como extra do Completo.
     proibidos = ("nf-e", "nota fiscal", "domínio", "portal", "api", "integraç")
     for nome, textos in catalogo.CATALOGO.items():

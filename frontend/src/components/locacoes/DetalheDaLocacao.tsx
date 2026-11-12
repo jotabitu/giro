@@ -12,7 +12,9 @@ import { useAgora } from "@/lib/ambiente";
 import { celular, dataCurta, dataHoraCurta, dinheiro, diaDe, horaCurta, km, placa } from "@/lib/formatos";
 import { dataEHora, rotuloDaParcela, rotuloDaVistoriaDaTroca, seloDaParcela, textoDoPeriodo, textoFaltam } from "@/lib/locacoes";
 import { tomDoStatus } from "@/lib/tom";
+import { LinkCopiado, useCopiarLink } from "@/components/comum/LinkParaCopiar";
 import { AcoesDaLocacao } from "./AcoesDaLocacao";
+import { idDosPagamentos, ParaRetirar, PendenciasDaRetirada, RegistrarPagamento, temPagamentoARegistrar } from "./RetiradaDaLocacao";
 import { TelaDeErro } from "./Comuns";
 
 // Referência: docs/telas/html/Locacao-Detalhe-Desktop.dc.html e Locacao-Detalhe-Mobile.dc.html.
@@ -88,11 +90,48 @@ function Resumo({ l }: { l: LocacaoCompleta }) {
   );
 }
 
-function Pagamentos({ l }: { l: LocacaoCompleta }) {
-  if (!l.parcelas) return null;
-  const aberto = l.pagamento?.em_aberto_centavos ?? 0;
+/** No celular, uma linha por conta (sem tabela com rolagem lateral): rótulo e selo; depois vencimento, valor e "Registrar pagamento". */
+function ContasNoCelular({ l, parcelas, aoConcluir }: { l: LocacaoCompleta; parcelas: NonNullable<LocacaoCompleta["parcelas"]>; aoConcluir: (m: string) => void }) {
   return (
-    <Panel titulo="Pagamentos" acao={<span className="text-caption text-ink-muted">{aberto > 0 ? l.pagamento?.rotulo : "tudo em dia"}</span>}>
+    <ul className="flex flex-col">
+      {parcelas.map((p) => {
+        const selo = seloDaParcela(p);
+        return (
+          <li key={p.id} className="flex flex-col gap-2 border-b border-line py-3 first:pt-0 last:border-b-0 last:pb-0">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-body font-medium">{p.rotulo}</span>
+              <StatusBadge tom={selo.tom} compacto>
+                {selo.texto}
+              </StatusBadge>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-caption text-ink-muted">
+                Vence {dataCurta(p.vencimento)} · {dinheiro(p.valor_centavos)}
+              </span>
+              <RegistrarPagamento l={l} parcela={p} aoConcluir={aoConcluir} />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function Pagamentos({ l, variante, aoConcluir }: { l: LocacaoCompleta; variante: "desktop" | "celular"; aoConcluir: (m: string) => void }) {
+  if (!l.parcelas) return null;
+  // FIN-18: "Registrar pagamento" em cada conta só por `acoes.receber`; sem nenhuma, a coluna não aparece.
+  const recebe = l.parcelas.some((p) => p.acoes.receber);
+  const aberto = l.pagamento?.em_aberto_centavos ?? 0;
+  const panel = (conteudo: ReactNode) => (
+    // O `id` é o destino do "Ver pagamentos" do passo do pagamento (LOC-17).
+    <div id={idDosPagamentos(variante)} className="scroll-mt-4">
+      <Panel titulo="Pagamentos" acao={<span className="text-caption text-ink-muted">{aberto > 0 ? l.pagamento?.rotulo : "tudo em dia"}</span>}>
+        {conteudo}
+      </Panel>
+    </div>
+  );
+  if (variante === "celular") return panel(<ContasNoCelular l={l} parcelas={l.parcelas} aoConcluir={aoConcluir} />);
+  return panel(
       <div className="overflow-x-auto">
         <table className="wl-table">
           <thead>
@@ -101,6 +140,7 @@ function Pagamentos({ l }: { l: LocacaoCompleta }) {
               <th>Vencimento</th>
               <th>Valor</th>
               <th>Situação</th>
+              {recebe && <th aria-label="Ações" />}
             </tr>
           </thead>
           <tbody>
@@ -116,13 +156,17 @@ function Pagamentos({ l }: { l: LocacaoCompleta }) {
                       {selo.texto}
                     </StatusBadge>
                   </td>
+                  {recebe && (
+                    <td className="text-right">
+                      <RegistrarPagamento l={l} parcela={p} aoConcluir={aoConcluir} />
+                    </td>
+                  )}
                 </tr>
               );
             })}
           </tbody>
         </table>
-      </div>
-    </Panel>
+      </div>,
   );
 }
 
@@ -137,6 +181,7 @@ function Contrato({ l, aoConcluir }: { l: LocacaoCompleta; aoConcluir: (m: strin
     },
   });
   const reenviar = useMutation({ mutationFn: () => locacoes.reenviarContrato(l.id), onSuccess: () => aoConcluir(c?.status === "assinado" ? "Contrato reenviado por WhatsApp." : "Link de assinatura reenviado por WhatsApp.") });
+  const link = useCopiarLink(() => locacoes.copiarLinkDoContrato(l.id));
   const imprimir = useMutation({ mutationFn: () => locacoes.pdfDoContrato(l.id), onSuccess: (r) => window.open(r.url, "_blank", "noopener") });
   if (!c || c.status === "cancelado") {
     // A API diz se cabe enviar (perfil, retirada, desconto, cancelamento e contrato vigente): a tela só obedece.
@@ -192,6 +237,11 @@ function Contrato({ l, aoConcluir }: { l: LocacaoCompleta; aoConcluir: (m: strin
               {reenviar.isPending ? "Enviando…" : "Reenviar por WhatsApp"}
             </Button>
           )}
+          {l.acoes.copiar_link_contrato && (
+            <Button compacto disabled={link.pendente} onClick={link.copiar}>
+              {link.pendente ? "Copiando…" : "Copiar link para assinar"}
+            </Button>
+          )}
         </div>
       }
     >
@@ -205,9 +255,14 @@ function Contrato({ l, aoConcluir }: { l: LocacaoCompleta; aoConcluir: (m: strin
           {assinado ? "Assinado" : "Aguardando assinatura"}
         </StatusBadge>
       </div>
-      {(reenviar.isError || imprimir.isError) && (
+      {link.resultado && (
+        <div className="mt-3">
+          <LinkCopiado resultado={link.resultado} copiado={!link.falhouACopia} aviso="Mande o link só ao cliente. Só ele pode assinar, e o contrato registra que você copiou o link." aoFechar={link.limpar} />
+        </div>
+      )}
+      {(reenviar.isError || imprimir.isError || link.erro) && (
         <p role="alert" className="mt-3 text-caption text-critical">
-          {mensagemDoErro(reenviar.error ?? imprimir.error)}
+          {link.erro ?? mensagemDoErro(reenviar.error ?? imprimir.error)}
         </p>
       )}
     </Panel>
@@ -317,6 +372,11 @@ export function DetalheDaLocacao({ id }: { id: number }) {
   const pagas = l.parcelas?.filter((p) => p.tipo === "parcela" && p.status === "paga").length ?? 0;
   const totalParcelas = l.parcelas?.filter((p) => p.tipo === "parcela").length ?? 0;
 
+  // Celular (desvio consciente da referência, que não tem a seção): Pagamentos só quando há "Registrar pagamento" (FIN-18),
+  // logo depois do "Para retirar" ou das "Pendências da retirada" quando há uma das duas; senão, depois do Resumo.
+  const pagamentosNoCelular = temPagamentoARegistrar(l);
+  const pagamentosNoTopo = pagamentosNoCelular && (!!l.para_retirar || !!l.pendencias_retirada);
+
   const avisoNaTela = aviso && (
     <p role="status" className="rounded-lg bg-brand-soft px-4 py-3 text-body">
       {aviso}
@@ -378,7 +438,9 @@ export function DetalheDaLocacao({ id }: { id: number }) {
             <section className="wl-panel">
               <div className="grid grid-cols-2 gap-6">{cabecalhoVeiculo}</div>
             </section>
-            <Pagamentos l={l} />
+            <ParaRetirar l={l} variante="desktop" aoConcluir={setAviso} />
+            <PendenciasDaRetirada l={l} variante="desktop" aoConcluir={setAviso} />
+            <Pagamentos l={l} variante="desktop" aoConcluir={setAviso} />
             <Contrato l={l} aoConcluir={setAviso} />
           </div>
           <div className="flex min-w-0 flex-col gap-6">
@@ -416,6 +478,9 @@ export function DetalheDaLocacao({ id }: { id: number }) {
             {l.veiculo.modelo} · {placa(l.veiculo.placa)}
           </div>
         </section>
+        <ParaRetirar l={l} variante="celular" aoConcluir={setAviso} />
+        <PendenciasDaRetirada l={l} variante="celular" aoConcluir={setAviso} />
+        {pagamentosNoTopo && <Pagamentos l={l} variante="celular" aoConcluir={setAviso} />}
         <Troca l={l} />
         <Cancelamento l={l} />
         {l.precos && (
@@ -435,6 +500,7 @@ export function DetalheDaLocacao({ id }: { id: number }) {
             </dl>
           </section>
         )}
+        {pagamentosNoCelular && !pagamentosNoTopo && <Pagamentos l={l} variante="celular" aoConcluir={setAviso} />}
         <Contrato l={l} aoConcluir={setAviso} />
         <Historico l={l} historico={historico.data} />
         <AcoesDaLocacao l={l} variante="celular" aoConcluir={setAviso} />

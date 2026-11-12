@@ -115,6 +115,9 @@ export function rotaPermitida(eu: Pick<Eu, "pode" | "navegacao">, rota: string):
   if (rota === "/admin/ramo") return pode.administracao;
   // O controle do suporte abre pelo cartão de Configurações e é só do administrador.
   if (rota === "/admin/suporte") return pode.administracao;
+  // Tabelas de preço e modelos de contrato abrem pelos cartões de Configurações; o menu da API não tem item para elas.
+  // São da Administração, só do administrador (USR-09, contratos.md "Quem pode"; T-447, D1 da conferência de 10 nov).
+  if (rota === "/admin/precos" || rota === "/admin/contratos") return pode.administracao;
   // Empresa e marca: simular e salvar são só do administrador (docs/api/empresas.md, "Escrita da marca").
   if (rota === "/admin/marca") return pode.administracao;
   // Passos do assistente de implantação: Administração, só do administrador (CA-027-16).

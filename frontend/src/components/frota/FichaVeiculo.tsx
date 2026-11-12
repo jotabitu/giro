@@ -3,10 +3,9 @@
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { ArrowLeftRight, ChevronLeft, Ellipsis, Tag, Truck, Wrench } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Button, DataTable, Icone, KpiGrid, KpiTile, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
 import {
-  ErroApi,
   veiculos,
   type DocumentoVeiculo,
   type LocacaoDoVeiculo,
@@ -19,9 +18,12 @@ import { mensagemDoErro } from "@/lib/erros";
 import { dataCurta, dinheiro, dinheiroSemZeros, km, mesAno, percentual, placa } from "@/lib/formatos";
 import { situacaoDoDocumento } from "@/lib/frota";
 import { temNoMenu } from "@/lib/menu";
+import { DespesasDoVeiculo } from "./DespesasDoVeiculo";
 import { AgoraDesktop, FotosEAvarias, FotosEAvariasCelular, MovimentacoesCelular, MovimentacoesDoVeiculo } from "./FichaBlocos";
+import { GaleriaNaFicha, GaleriaNaFichaCelular } from "./GaleriaNaFicha";
 import { useSessao } from "@/lib/sessao";
 import { tomDoStatus } from "@/lib/tom";
+import { rotuloDaEspecie, rotuloDoCombustivel } from "@/lib/veiculos";
 
 // Referência: docs/telas/html/Veiculo-Desktop.dc.html e Veiculo-Mobile.dc.html.
 // As duas versões são árvores separadas, escolhidas por um <div> com hidden / md:hidden. A classe wl- define `display`
@@ -35,6 +37,44 @@ function Linha({ rotulo, children }: { rotulo: string; children: ReactNode }) {
       <dt className="text-ink-muted">{rotulo}</dt>
       <dd className="text-right font-medium">{children}</dd>
     </div>
+  );
+}
+
+const VAZIO = "—";
+const numeroBr = (n: number) => new Intl.NumberFormat("pt-BR").format(n);
+
+/**
+ * Combustível, dados do CRLV-e, rastreador e anotações (VEI-09). Campo vazio é "—". O número do motor e as observações só têm linha quando a API os
+ * mandou (administrador e gerente); para os outros perfis a ficha não deixa espaço (CA-421-12). A API decide, a tela mostra.
+ */
+function LinhasDoDocumento({ v }: { v: VeiculoDetalhe }) {
+  const d = v.documento;
+  const especieETipo = [rotuloDaEspecie(d.especie), d.tipo].filter(Boolean).join(" · ");
+  const { numero, empresa } = v.rastreador;
+  return (
+    <dl>
+      <Linha rotulo="Combustível">{rotuloDoCombustivel(v.combustivel) ?? VAZIO}</Linha>
+      <Linha rotulo="Potência">{d.potencia_cv != null ? `${numeroBr(d.potencia_cv)} cv` : VAZIO}</Linha>
+      <Linha rotulo="Cilindrada">{d.cilindrada_cc != null ? `${numeroBr(d.cilindrada_cc)} cc` : VAZIO}</Linha>
+      <Linha rotulo="Espécie e tipo">{especieETipo || VAZIO}</Linha>
+      <Linha rotulo="Carroceria">{d.carroceria ?? VAZIO}</Linha>
+      <Linha rotulo="Lotação">{d.lotacao != null ? (d.lotacao === 1 ? "1 pessoa" : `${d.lotacao} pessoas`) : VAZIO}</Linha>
+      <Linha rotulo="Peso bruto total">{d.peso_bruto_kg != null ? `${numeroBr(d.peso_bruto_kg)} kg` : VAZIO}</Linha>
+      {"numero_motor" in d && <Linha rotulo="Número do motor">{d.numero_motor ? <span className="wl-mono">{d.numero_motor}</span> : VAZIO}</Linha>}
+      {"observacoes" in d && <Linha rotulo="Observações do CRLV-e">{d.observacoes ? <span className="whitespace-pre-line">{d.observacoes}</span> : VAZIO}</Linha>}
+      <Linha rotulo="Rastreador">
+        {numero || empresa ? (
+          <>
+            {numero && <span className="wl-mono">{numero}</span>}
+            {numero && empresa ? " · " : ""}
+            {empresa}
+          </>
+        ) : (
+          VAZIO
+        )}
+      </Linha>
+      <Linha rotulo="Anotações">{v.anotacoes ? <span className="whitespace-pre-line">{v.anotacoes}</span> : VAZIO}</Linha>
+    </dl>
   );
 }
 
@@ -62,7 +102,8 @@ const COLUNAS_MANUTENCOES: ColunaTabela<ManutencaoDoVeiculo>[] = [
 
 type Consultas = {
   docs: UseQueryResult<DocumentoVeiculo[]>;
-  locacoes: UseQueryResult<LocacoesDoVeiculo>;
+  /** `null` sem `pode.locacoes_ver` (T-458): a seção não aparece e a ficha nem pede as locações. */
+  locacoes: UseQueryResult<LocacoesDoVeiculo> | null;
   /** `null` enquanto o módulo de manutenção não está no menu: a seção não aparece (lista vazia diria "nenhuma manutenção"). */
   manutencoes: UseQueryResult<ManutencoesDoVeiculo> | null;
 };
@@ -91,18 +132,62 @@ function ListaDeDocumentos({ docs }: { docs: UseQueryResult<DocumentoVeiculo[]> 
     <dl>
       {docs.data.map((d) => (
         <Linha key={d.id} rotulo={d.rotulo}>
-          <SituacaoDocumento d={d} />
+          <span className="inline-flex flex-wrap items-center justify-end gap-3">
+            <SituacaoDocumento d={d} />
+            <AbrirDocumento d={d} />
+          </span>
         </Linha>
       ))}
     </dl>
   );
 }
 
-/** A API recusa (403) a lista de locações a quem não tem acesso; o painel some em vez de mostrar o aviso (T-278). */
-export function semAcesso(consulta: Pick<UseQueryResult, "isError" | "error">): boolean {
-  return consulta.isError && consulta.error instanceof ErroApi && consulta.error.status === 403;
+/** Abre o PDF ou a imagem numa aba nova pela URL assinada da API (vale 15 min, AUD-05). Sem arquivo, diz isso em texto. */
+export function AbrirDocumento({ d }: { d: Pick<DocumentoVeiculo, "rotulo" | "arquivo"> }) {
+  if (!d.arquivo) return <span className="text-caption text-ink-muted">Sem arquivo</span>;
+  return (
+    <a href={d.arquivo.url} target="_blank" rel="noopener noreferrer" aria-label={`Abrir ${d.rotulo}: ${d.arquivo.nome}`} className="inline-flex min-h-[44px] items-center text-body text-ink underline md:min-h-0">
+      Abrir
+    </a>
+  );
 }
 
+/** Histórico do veículo: todos os documentos, os renovados ficam como "Substituído". Carrega só quando a pessoa abre. */
+function HistoricoDeDocumentos({ id }: { id: number }) {
+  const [aberto, setAberto] = useState(false);
+  const historico = useQuery({ queryKey: ["veiculo", id, "documentos", "historico"], queryFn: () => veiculos.historicoDeDocumentos(id), enabled: aberto });
+  return (
+    <div className="mt-3">
+      <button type="button" aria-expanded={aberto} onClick={() => setAberto((a) => !a)} className="wl-btn wl-btn--quiet wl-btn--sm">
+        {aberto ? "Esconder o histórico" : "Ver o histórico"}
+      </button>
+      {aberto && historico.isPending && <p className="mt-2 text-body text-ink-muted">Carregando o histórico…</p>}
+      {aberto && historico.isError && (
+        <p role="alert" className="mt-2 text-body">
+          {mensagemDoErro(historico.error)}
+        </p>
+      )}
+      {aberto && historico.data && (
+        <ul className="m-0 mt-2 list-none p-0" aria-label="Histórico de documentos">
+          {historico.data.map((d) => (
+            <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-line py-2 text-body">
+              <span>
+                {d.rotulo}
+                {d.validade ? ` · até ${dataCurta(d.validade)}` : ""}
+              </span>
+              <span className="inline-flex items-center gap-3">
+                <span className="text-caption text-ink-muted">{d.ativo === false ? "Substituído" : "Em uso"}</span>
+                <AbrirDocumento d={d} />
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** A API recusa (403) a lista de locações a quem não tem acesso; o painel some em vez de mostrar o aviso (T-278). */
 function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } & Consultas) {
   const fin = v.indicadores_financeiros;
   const podeAgir = v.acoes.editar;
@@ -124,6 +209,11 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
             <StatusBadge tom={tomDoStatus(v.situacao.tom)} compacto>
               {v.situacao.rotulo}
             </StatusBadge>
+            {v.reserva && (
+              <Link href={`/locacoes/${v.reserva.locacao_id}`} className="text-body text-ink underline">
+                Ver {v.reserva.codigo}
+              </Link>
+            )}
             <span className="wl-mono text-[13px] text-ink-muted">{placa(v.placa)}</span>
             <span className="text-[13px] text-ink-muted">
               · {v.ano_modelo} · {v.cor} · {v.filial.nome}
@@ -175,9 +265,11 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
         <div className="flex min-w-0 flex-[999_1_520px] flex-col gap-6">
           <AgoraDesktop v={v} />
 
+          <GaleriaNaFicha v={v} />
+
           <FotosEAvarias vistoria={v.vistoria_recente} />
 
-          {!semAcesso(locacoes) && (
+          {locacoes && (
           <Panel titulo="Locações" acao={locacoes.data ? <span className="text-[13px] text-ink-muted">{locacoes.data.total} no total</span> : undefined}>
             {locacoes.isError && <p role="alert">{mensagemDoErro(locacoes.error)}</p>}
             {locacoes.data?.resultados.length === 0 && <p className="text-body text-ink-muted">Este veículo ainda não foi alugado.</p>}
@@ -198,6 +290,8 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
           )}
 
           <MovimentacoesDoVeiculo v={v} />
+
+          <DespesasDoVeiculo v={v} />
         </div>
 
         <aside className="flex min-w-0 flex-[1_1_340px] flex-col gap-6">
@@ -219,8 +313,13 @@ function FichaDesktop({ v, docs, locacoes, manutencoes }: { v: VeiculoDetalhe } 
             </dl>
           </section>
           <section className="wl-panel">
+            <h2 className="mb-1 text-[20px] font-semibold leading-[26px]">Dados do documento</h2>
+            <LinhasDoDocumento v={v} />
+          </section>
+          <section className="wl-panel">
             <h2 className="mb-1 text-[20px] font-semibold leading-[26px]">Documentos</h2>
             <ListaDeDocumentos docs={docs} />
+            <HistoricoDeDocumentos id={v.id} />
           </section>
         </aside>
       </div>
@@ -257,13 +356,20 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
             {v.marca} {v.modelo}
           </h1>
           <span className="text-[13px] leading-[18px] text-ink-muted">
-            {placa(v.placa)} · {v.ano_modelo} · {v.situacao.rotulo.toLowerCase()}
+            {placa(v.placa)} · {v.ano_modelo} · {v.reserva ? v.situacao.rotulo : v.situacao.rotulo.toLowerCase()}
           </span>
+          {v.reserva && (
+            <Link href={`/locacoes/${v.reserva.locacao_id}`} className="inline-flex min-h-[44px] items-center text-body text-ink underline">
+              Ver {v.reserva.codigo}
+            </Link>
+          )}
         </div>
         <button type="button" className="wl-icon-btn wl-icon-btn--sm" aria-label="Mais ações" disabled title={EM_BREVE} style={{ width: 44, height: 44 }}>
           <Icone de={Ellipsis} />
         </button>
       </header>
+
+      <GaleriaNaFichaCelular v={v} />
 
       <FotosEAvariasCelular vistoria={v.vistoria_recente} />
 
@@ -296,8 +402,8 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
             )}
             {atual.alerta && (
               <Linha rotulo="Alerta">
-                <StatusBadge tom="alerta" compacto>
-                  {atual.alerta}
+                <StatusBadge tom={tomDoStatus(atual.alerta.tom)} compacto>
+                  {atual.alerta.rotulo}
                 </StatusBadge>
               </Linha>
             )}
@@ -310,12 +416,17 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
           <p className="mt-2 text-body">
             {v.manutencao.proxima.servico} aos {km(v.manutencao.proxima.km)}
           </p>
-          {v.manutencao.alerta && <p className="mt-1 text-caption text-ink-muted">{v.manutencao.alerta}</p>}
+          {v.manutencao.alerta && <p className="mt-1 text-caption text-ink-muted">{v.manutencao.alerta.rotulo}</p>}
         </CartaoDoCelular>
       )}
 
+      <CartaoDoCelular titulo="Dados do documento">
+        <LinhasDoDocumento v={v} />
+      </CartaoDoCelular>
+
       <CartaoDoCelular titulo="Documentos">
         <ListaDeDocumentos docs={docs} />
+        <HistoricoDeDocumentos id={v.id} />
       </CartaoDoCelular>
 
       {manutencoes && (
@@ -336,6 +447,8 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
 
       <MovimentacoesCelular v={v} />
 
+      <DespesasDoVeiculo v={v} celular />
+
       {v.acoes.editar && (
         <div className="grid grid-cols-2 gap-2">
           <Button disabled title={EM_BREVE}>
@@ -354,8 +467,11 @@ function FichaCelular({ v, docs, manutencoes }: { v: VeiculoDetalhe } & Omit<Con
 export function FichaVeiculo({ id }: { id: number }) {
   const ficha = useQuery({ queryKey: ["veiculo", id], queryFn: () => veiculos.obter(id) });
   const docs = useQuery({ queryKey: ["veiculo", id, "documentos"], queryFn: () => veiculos.documentos(id) });
-  const locacoes = useQuery({ queryKey: ["veiculo", id, "locacoes"], queryFn: () => veiculos.locacoes(id), retry: (n, e) => !(e instanceof ErroApi && e.status === 403) && n < 2 });
   const { eu } = useSessao();
+  // USR-05/USR-09 (T-458): só pede as locações com a chave da API; sem ela nenhuma chamada sai e o painel não aparece.
+  const comLocacoes = eu.pode.locacoes_ver;
+  const consultaLocacoes = useQuery({ queryKey: ["veiculo", id, "locacoes"], queryFn: () => veiculos.locacoes(id), enabled: comLocacoes });
+  const locacoes = comLocacoes ? consultaLocacoes : null;
   const comManutencoes = temNoMenu(eu.navegacao, "manutencoes");
   const consultaManutencoes = useQuery({ queryKey: ["veiculo", id, "manutencoes"], queryFn: () => veiculos.manutencoes(id), enabled: comManutencoes });
   const manutencoes = comManutencoes ? consultaManutencoes : null;

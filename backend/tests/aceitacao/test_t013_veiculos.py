@@ -204,7 +204,11 @@ def test_usr_09_vendedor_sem_custo_do_veiculo(moto, frota):
     }
     indicadores = {nome: ficha["indicadores_financeiros"] for nome, ficha in fichas.items()}
     esperado = leituras.blocos(selectors.ALVO, sak)["indicadores_financeiros"]
-    assert set(esperado) == {"rendeu_no_ano_centavos", "custo_manutencao_ano_centavos"}
+    assert set(esperado) == {
+        "rendeu_no_ano_centavos",
+        "custo_manutencao_ano_centavos",
+        "despesas_ano_centavos",  # FIN-17 (T-417)
+    }
     assert indicadores == dict.fromkeys(fichas, esperado)
 
     bruna = moto.api("Bruna").get(_url(sak))
@@ -453,12 +457,20 @@ def test_vei_02_ca_013_11_acoes_combina_perfil_e_estado(moto, frota):
         "movimentar": True,
         "motivo_movimentar": None,
         "aviso_baixar": None,
+        "lancar_despesa": True,  # FIN-17 (T-417)
+        "editar_fotos": True,  # VEI-10 (T-414)
+        "motivo_trocar_tipo": None,  # VEI-11 (T-438)
     }
     assert moto.api("Mariana").get(_url(sak)).json()["acoes"]["baixar"] is True
     bruna = moto.api("Bruna").get(_url(sak)).json()["acoes"]
-    assert not any(bruna.values())
+    # Do veículo, nenhuma; "Lançar despesa" é de quem lança despesa (FIN-17, T-417).
+    assert [chave for chave, valor in bruna.items() if valor] == ["lancar_despesa"]
     joao = moto.api("João").get(_url(sak)).json()["acoes"]
-    assert [chave for chave, valor in joao.items() if valor] == ["registrar_km", "corrigir_km"]
+    assert [chave for chave, valor in joao.items() if valor] == [
+        "registrar_km",
+        "corrigir_km",
+        "lancar_despesa",
+    ]
 
 
 def test_vei_07_ca_013_12_servico_de_transicao(moto, frota):

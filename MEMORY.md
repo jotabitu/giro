@@ -4,6 +4,17 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 
 ## Decisões de Design
 
+### [2026-11-09] Menos burocracia no fluxo dos agentes (T-441)
+- **Contexto:** cerca de 30% dos commits eram do quadro e do "número do PR"; 366 merges de sincronização vinham em boa parte de conflito no `feito.md`; as regras tinham 309 KB (38% de histórico) e eram leitura obrigatória de toda tarefa.
+- **Decisão:** regras divididas por módulo em `docs/regras/` (índice em `docs/regras-de-negocio.md`), com o histórico em `docs/regras/historico.md` e as decisões por data em `docs/regras/decisoes.md`; PR de tarefa não toca em `tarefas/`; o handoff é a descrição do PR (`.github/pull_request_template.md`); `feito.md`, `em-andamento.md` e `handoffs/` congelados (em andamento = PR rascunho); só o orquestrador edita o backlog; dúvidas de regra em `docs/regras/pontos-em-aberto.md`; tarefa pequena feita por um agente só, o **fullstack** (`.claude/agents/fullstack.md`); o `MEMORY.md` guarda só o que vale, e o substituído vai para `docs/memoria-arquivo.md`.
+- **Consequências:** os rodapés dos papéis no Maestri precisam ser copiados de novo de `docs/agentes/retomada.md`.
+
+### [2026-10-29] Telas do canvas entram por importação
+- **Contexto:** as telas são desenhadas no canvas do Claude Design e copiadas à mão para `docs/telas/html`. Os dois lados foram editados em separado: na T-409 as telas da locadora no canvas já eram mais antigas que as do repositório. Os agentes só leem o repositório, e nada conferia a página do app contra a tela.
+- **Decisão (dono, T-424):** vale a tela do repositório na `develop`. Mudança no canvas entra por tarefa de importação, com carimbo `<!-- origem: canvas, <data>, T-NNN -->`; ajuste feito no repositório ganha `<!-- ajustada no repositório: <data>, T-NNN -->`, e tela do canvas mais antiga não o sobrescreve. A página segue textos, ordem, hierarquia, estados e componentes, não o pixel nem os números de exemplo. O frontend põe capturas lado a lado no handoff, e o design-system revisa antes do merge.
+- **Alternativas descartadas:** o canvas como fonte da verdade (os ajustes por regra feitos no repositório se perderiam); comparação automática por pixel (números e componentes mudam de propósito).
+- **Consequências:** `docs/agentes/telas-do-canvas.md`, `frontend.md`, `design-system.md` e `docs/telas/README.md`; conferência automática com o Playwright na T-425. O Claude Design avulso fecha em 14 dez 2026: importar o canvas inteiro antes disso.
+
 ### [2026-10-29] Fluxo com a branch develop
 - **Contexto:** com a fase 1 fechada e a fase 2 por começar, o dono quis uma camada de integração antes da `main`. O CI só roda em pull request e só nas áreas tocadas, então o conjunto da `main` nunca passava inteiro pelo CI, e o E2E não roda no CI.
 - **Decisão (dono):** a branch da tarefa sai da `origin/develop` e o PR vai para a `develop`. A `develop` vai para a `main` por lote, num PR com o aval do dono, depois de o QA conferir o lote na `develop`. Correção urgente do que já está na `main`: `t-<numero>-hotfix-<slug>` a partir da `main`, PR para a `main` e, depois, a `main` entra na `develop`. A `main` fica protegida no GitHub: só PR, com CI verde. A `develop` nasceu da `origin/main` em 7822c922 (PR #448).
@@ -110,12 +121,6 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 - **Alternativas descartadas:** orçamento pago e runner próprio (a máquina tem pouca memória).
 - **Consequências:** nunca commitar segredo, `.env` nem dado pessoal real. Perguntar ao dono, perto de 01/11, se o repositório volta a ser privado.
 
-### [2026-10-09] Sem branch develop [SUBSTITUÍDA por 2026-10-29 "Fluxo com a branch develop"]
-- **Contexto:** o dono cogitou o fluxo `main` ← `develop` ← `t-xxx`, com CI nas duas etapas.
-- **Decisão:** "deixe como está por enquanto": a branch da tarefa sai da `origin/main` e o PR vai para a `main`.
-- **Alternativas descartadas:** `develop`, que dobraria PRs e avales.
-- **Consequências:** se voltar, criar a `develop`, o CI com push nela (DevOps), atualizar `tarefas/README.md` e `CLAUDE.md` e avisar os agentes.
-
 ### [2026-10-08] Contexto dos agentes limpo a partir de 50%
 - **Contexto:** pedido do dono para controlar o custo e a qualidade dos agentes no Maestri.
 - **Decisão:** com 50% de contexto, `/clear` entre tarefas (com o resumo de retomada depois) e `/compact` no meio de uma tarefa.
@@ -179,14 +184,18 @@ Histórico e contexto do projeto, consultado sob demanda. Regras fixas ficam no 
 ### [2026-10-21] Assistente de implantação incompleto
 - A casca do assistente (T-335) está pronta, e 3 dos 8 passos funcionam: Marca, Ramo e Importar. Primeira filial, Tabela de preços, Modelo de contrato, Recebimentos e Convidar equipe mostram "Esta etapa ainda não está disponível aqui." e não têm contrato nem tarefa. Se entram no MVP é decisão pendente do dono.
 
-### [2026-10-20] Sem tarefas na tela de Veículos por enquanto [SUBSTITUÍDA por 2026-10-29 "Fase 2 aberta sem atividade iniciada"]
-- O dono pediu: "não quero nenhuma tarefa por agora de alterar ou corrigir a Veiculos-Desktop e mobile". Não abrir tarefa nessas telas até ele liberar.
-
-### [2026-10-20] Cancelar a assinatura ativa no dia do vencimento sem pagar (T-195) [SUBSTITUÍDA por 2026-10-21 "Cancelar a ativa com o período pago já vencido"]
-- Ponto em aberto, com recomendação pedida ao Produto: A, o acesso termina na hora (padrão); B, o acesso vai até o fim do período, se pago. [A CONFIRMAR] O PR da T-195 espera a revisão de Segurança T-199 antes do merge.
-
 ### [2026-10-20] Máquina de desenvolvimento com pouca memória
 - O sistema chegou a matar jobs em segundo plano; só o `giro-frontend-1` usa cerca de 2,7 GB. Rodar conferências uma por vez.
 
 ### [2026-10-20] Time de agentes
 - Oito agentes no Maestri, cada um no próprio worktree: backend, frontend, qa, design-system, arquiteto, produto, devops e seguranca, além do orquestrador na cópia principal. Fluxo de entrega: o agente entrega na branch, o orquestrador confere em ambiente próprio, abre o PR, acerta o quadro na branch e mescla com o aval do dono.
+
+### [2026-11-05] Blocos aninhados com chave pontuada no DRF (T-421)
+- Em `multipart/form-data`, o serializer aninhado do DRF já monta `documento.potencia_cv` sozinho (`html.parse_html_dict` pelo prefixo); não precisa converter o corpo. O erro do bloco vem aninhado (`{"documento": {"potencia_cv": [...]}}`): `ComBlocosDaVei09` em `apps/veiculos/api/serializers.py` achata para a chave pontuada do contrato.
+- Para a leitura devolver chaves pontuadas, o serializer de saída declara os campos em `get_fields` e sobrescreve `to_representation`: com `field_name` pontuado, o DRF trataria o nome como caminho no dicionário.
+- `django.utils.functional._StrPromise` só existe nos stubs (django-stubs): importar em tempo de execução quebra. Para `error_messages`, anote com `dict[str, Any]`.
+
+### [2026-11-11] WhatsApp na fase 1 só na régua da assinatura (ADR 0034)
+- Decisão do dono: nada vai ao cliente final pelo WhatsApp na fase 1; os pontos 1 a 7 da ADR 0034 saem por e-mail, com ou sem o aceite (`CLI-12`), e o convite também (`USR-01`). Só a régua da assinatura (Giro) usa o WhatsApp, pelo número do Giro.
+- O "C" da decisão é o do ponto em aberto das regras (sem WhatsApp ao cliente), não a opção C (parceiro BSP) da ADR.
+- O código de WhatsApp ao cliente fica, desligado pela chave `GIRO_WHATSAPP_CLIENTE_FINAL` (falsa). Recibo do pagamento, recibo da devolução, reenvio do contrato assinado e lembrete da devolução hoje só mandam WhatsApp e precisam ganhar o e-mail (tarefa de backend).

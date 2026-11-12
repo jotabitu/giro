@@ -15,6 +15,7 @@ from decimal import Decimal
 from typing import Any
 
 import pytest
+from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import connection
 from PIL import Image
@@ -642,9 +643,49 @@ def test_vis_05_ca_016_08_agenda(cenario, relogio):
     assert dia_14["devolucao-2836"]["cliente"] == {"nome": "Juliana Rocha"}
 
 
-def test_vis_05_agenda_com_todas_as_filiais_pede_uma(cenario):
-    resposta = cenario.moto.api("Mariana", HTTP_X_FILIAL="todas").get(AGENDA)
-    assert resposta.status_code == 400
+def test_vis_05_usr_05_agenda_do_administrador_com_todas_as_filiais(cenario, relogio):
+    """T-442: com `X-Filial: todas`, a administradora vê a agenda das filiais juntas, em ordem
+    de horário, com o nome da filial em cada item. O vistoriador continua com uma filial."""
+    relogio.em("2026-10-07 08:00")
+    carteira.carregar(cenario.frota, cenario.pessoas["Bruna"], relogio)
+    caucaia = _caucaia(cenario.moto, "João")
+    outra = Veiculo.objects.filter(status="disponivel").exclude(pk=cenario.sak.pk).first()
+    assert outra is not None
+    em_caucaia = Locacao.objects.create(
+        numero=2899,
+        codigo="LOC-2899",
+        filial=caucaia,
+        cliente=cenario.cliente("Carlos"),
+        veiculo=outra,
+        vendedor=cenario.pessoas["Bruna"],
+        periodicidade="semanal",
+        inicio=carteira.momento("2026-10-07 11:00"),
+        fim_previsto=carteira.momento("2026-10-14 11:00"),
+        forma_pagamento="pix",
+        status="aguardando_retirada",
+    )
+
+    relogio.em("2026-10-07 09:00")
+    mariana = cenario.moto.api("Mariana", HTTP_X_FILIAL="todas")
+    resposta = mariana.get(AGENDA)
+    assert resposta.status_code == 200, resposta.json()
+    agenda = resposta.json()
+    so_centro = cenario.moto.api("João", HTTP_X_FILIAL=str(cenario.frota.centro.pk))
+    do_centro = so_centro.get(AGENDA).json()["resultados"]
+    ids = [i["id"] for i in agenda["resultados"]]
+    horarios = [i["horario"] for i in agenda["resultados"]]
+    assert horarios == sorted(horarios)
+    assert f"saida-{em_caucaia.numero}" in ids
+    assert len(ids) == len(do_centro) + 1
+    filiais = {i["filial"]["nome"] for i in agenda["resultados"]}
+    assert filiais == {cenario.frota.centro.nome, caucaia.nome}
+    saidas = sum(1 for i in agenda["resultados"] if i["tipo"] == "saida")
+    assert agenda["resumo"].startswith("Quarta, 07 out · ")
+    assert f"{saidas} saída" in agenda["resumo"]
+    # A filial vai em cada item, também na agenda de uma filial só.
+    assert {i["filial"]["nome"] for i in do_centro} == {cenario.frota.centro.nome}
+    # O vistoriador não escolhe "todas" (USR-07).
+    assert cenario.moto.api("João", HTTP_X_FILIAL="todas").get(AGENDA).status_code == 403
 
 
 # --- Avarias abertas (tela Vistoriador) ---
@@ -1505,7 +1546,7 @@ def test_dev_04_dev_06_ca_016_17_encerrar(
         encerradas.append(dados)
 
     eventos.assinar("locacoes.locacao_encerrada", ouvir)
-    enviadas = len(whatsapp.caixa_de_saida)
+    enviadas = len(mail.outbox)
     try:
         with django_capture_on_commit_callbacks(execute=True):
             resposta = _encerrar(cenario, corpo["id"])
@@ -1541,17 +1582,21 @@ def test_dev_04_dev_06_ca_016_17_encerrar(
     )
     assert reembolso.status == "feito" and reembolso.comprovante
 
-    # Depois do commit: o recibo em PDF, com as fotos, sai por WhatsApp com a marca da locadora.
+    # Depois do commit: o recibo em PDF, com as fotos, sai por e-mail com a marca da locadora, e
+    # nada pelo WhatsApp na fase 1 (DEV-02, T-463, ADR 0034).
     devolucao = Devolucao.objects.get(pk=corpo["id"])
     assert devolucao.recibo and devolucao.recibo_enviado_em is not None
     _, imagens = recibo.corpo(devolucao)
     assert len(imagens) == 6  # as 5 posições e a foto do retrovisor
-    novas = whatsapp.caixa_de_saida[enviadas:]
-    assert [m.celular for m in novas] == ["85981142290"]
+    novas = mail.outbox[enviadas:]
+    assert [m.to for m in novas] == [["juliana@email.com"]]
     marca = Empresa.objects.get(schema_name="empresa_a").nome_exibicao  # a da locadora
-    assert novas[0].texto.startswith(f"{marca}: recibo da devolução da LOC-2836.")
-    assert "Giro" not in novas[0].texto
-    assert "Devolução de R$ 183,00 por Pix em até 1 dia útil." in novas[0].texto
+    assert novas[0].subject == f"{marca}: recibo da devolução da LOC-2836"
+    assert "Giro" not in novas[0].body
+    assert "Devolução de R$ 183,00 por Pix em até 1 dia útil." in novas[0].body
+    ((nome, _, tipo),) = novas[0].attachments
+    assert (nome, tipo) == ("recibo-devolucao-LOC-2836.pdf", "application/pdf")
+    assert whatsapp.caixa_de_saida == []
 
     # O acerto concluído não se edita mais.
     retrovisor = next(i for i in corpo["acerto"]["itens"] if i["tipo"] == "avaria")
@@ -1622,6 +1667,8 @@ def test_dev_ca_016_19_quem_fecha_a_conta(cenario, lucas):
 
 
 def test_dev_ca_016_20_recibo(cenario, lucas, relogio, django_capture_on_commit_callbacks):
+    # O recibo vai por e-mail na fase 1 (DEV-02, T-463): o Lucas do seed não tem e-mail.
+    Cliente.objects.filter(pk=cenario.clientes["Lucas"].pk).update(email="lucas@email.com")
     criada = _lucas_ativo(cenario)
     devolucao = _abrir_devolucao(cenario, criada["id"])
     _chegada(cenario, devolucao, 3200, "tres_quartos")
@@ -1632,7 +1679,7 @@ def test_dev_ca_016_20_recibo(cenario, lucas, relogio, django_capture_on_commit_
     assert antes.json()["codigo"] == "devolucao_em_rascunho"
 
     assert _forma(cenario, devolucao["id"]).status_code == 200
-    enviadas = len(whatsapp.caixa_de_saida)
+    enviadas = len(mail.outbox)
     try:
         with django_capture_on_commit_callbacks(execute=True):
             assert _encerrar(cenario, devolucao["id"]).status_code == 200
@@ -1646,10 +1693,10 @@ def test_dev_ca_016_20_recibo(cenario, lucas, relogio, django_capture_on_commit_
     finally:
         connection.set_tenant(Empresa.objects.get(schema_name="empresa_a"))
     assert reenviar.status_code == 202
-    assert len(whatsapp.caixa_de_saida) - enviadas == 2  # o envio e o reenvio
+    assert len(mail.outbox) - enviadas == 2  # o envio e o reenvio, por e-mail (T-463)
 
     html, _ = recibo.corpo(Devolucao.objects.get(pk=devolucao["id"]))
-    textos = [html.lower(), *(m.texto.lower() for m in whatsapp.caixa_de_saida[enviadas:])]
+    textos = [html.lower(), *(m.body.lower() for m in mail.outbox[enviadas:])]
     assert "devolução" in textos[0] and "caução" in textos[0]
     for texto in textos:
         assert "check-in" not in texto and "depósito" not in texto

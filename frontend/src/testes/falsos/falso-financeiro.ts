@@ -30,12 +30,13 @@ import { reembolsosFalso, reiniciarReembolsosFalso } from "./falso-reembolsos";
 const HOJE = "2026-10-07";
 const CENTRO = { id: 1, nome: "Filial Centro" };
 
-const SEM_ACOES = { receber: false, gerar_pix: false, gerar_boleto: false, cobrar: false, cancelar: false, renegociar: false, estornar: false };
+const SEM_ACOES = { copiar_cobranca: false, receber: false, gerar_pix: false, gerar_boleto: false, cobrar: false, cancelar: false, renegociar: false, estornar: false };
 
 function conta(p: Partial<ContaReceber> & Pick<ContaReceber, "id" | "cliente" | "valor_centavos" | "vencimento" | "status">): ContaReceber {
   const paga = p.status === "paga";
   return {
     tipo: "parcela",
+    aguarda_retirada: false,
     numero: 1,
     total_parcelas: 4,
     origem: { tipo: "locacao", id: 1, codigo: "LOC-2790" },
@@ -53,7 +54,7 @@ function conta(p: Partial<ContaReceber> & Pick<ContaReceber, "id" | "cliente" | 
     estorno_de: null,
     estornada_em: null,
     cobranca_aberta: null,
-    acoes: paga ? { ...SEM_ACOES, estornar: true } : { receber: true, gerar_pix: true, gerar_boleto: true, cobrar: true, cancelar: true, renegociar: true, estornar: false },
+    acoes: paga ? { ...SEM_ACOES, estornar: true } : { ...SEM_ACOES, receber: true, gerar_pix: true, gerar_boleto: true, cobrar: true, cancelar: true, renegociar: true },
     ...p,
   };
 }
@@ -127,7 +128,7 @@ const CONTAS: ContaReceber[] = [
 // Despesas de outubro do seed (regras, "Despesas de outubro"): 6 lançamentos, R$ 7.066,70; aguardando aprovação R$ 1.200,00 (só os pneus).
 const LUCIA = { id: 7, nome: "Lúcia Freitas" };
 function despesa(p: Pick<Despesa, "id" | "data" | "descricao" | "categoria" | "valor_centavos" | "vencimento" | "status" | "rotulo_situacao" | "lancada_por"> & Partial<Despesa>): Despesa {
-  const base = { veiculo: null, filial: { id: 1, nome: "Filial Centro" }, pago_em: null, forma: null, nota: null, origem: null, pedido_aprovacao_id: null, ...p };
+  const base = { veiculo: null, filial: { id: 1, nome: "Filial Centro" }, pago_em: null, forma: null, nota: null, comprovante: null, origem: null, pedido_aprovacao_id: null, ...p };
   // `sem_nota` vem da API (MOV-04, T-288): aqui, só quando o falso não traz a nota.
   return { ...base, sem_nota: p.sem_nota ?? base.nota === null };
 }
@@ -135,7 +136,7 @@ const DESPESAS: Despesa[] = [
   despesa({ id: 801, data: "2026-10-07", descricao: "Pneus (2 unidades)", categoria: "manutencao", veiculo: { id: 88, placa: "PMZ3E17" }, valor_centavos: 120000, vencimento: "2026-10-07", status: "aguardando_aprovacao", rotulo_situacao: "Aguardando gerente", lancada_por: { id: 5, nome: "João Silva" }, pedido_aprovacao_id: 91, nota: { url: "/notas/801.jpg", url_expira_em: "2026-10-07T13:15:00Z" } }),
   despesa({ id: 802, data: "2026-10-07", descricao: "Óleo 1 litro", categoria: "manutencao", veiculo: { id: 12, placa: "QXA4B21" }, valor_centavos: 4800, vencimento: "2026-10-07", status: "paga", rotulo_situacao: "Pago · caixa", lancada_por: { id: 4, nome: "Bruna Alves" }, pago_em: "2026-10-07T14:20:00Z", forma: "dinheiro" }),
   despesa({ id: 803, data: "2026-10-06", descricao: "Conta de luz", categoria: "fixas", valor_centavos: 41230, vencimento: "2026-10-10", status: "a_pagar", rotulo_situacao: "Vence 10 out", lancada_por: LUCIA }),
-  despesa({ id: 804, data: "2026-10-05", descricao: "Aluguel do ponto", categoria: "fixas", valor_centavos: 350000, vencimento: "2026-10-05", status: "paga", rotulo_situacao: "Pago · boleto", lancada_por: LUCIA, pago_em: "2026-10-05T12:00:00Z", forma: "boleto" }),
+  despesa({ id: 804, data: "2026-10-05", descricao: "Aluguel do ponto", categoria: "fixas", valor_centavos: 350000, vencimento: "2026-10-05", status: "paga", rotulo_situacao: "Pago · boleto", lancada_por: LUCIA, pago_em: "2026-10-05T12:00:00Z", forma: "boleto", comprovante: { url: "/comprovantes/804.pdf", url_expira_em: "2026-10-05T12:15:00Z" } }),
   despesa({ id: 805, data: "2026-10-03", descricao: "IPVA ROE-2A88", categoria: "impostos", veiculo: { id: 31, placa: "ROE2A88" }, valor_centavos: 18640, vencimento: "2026-10-31", status: "a_pagar", rotulo_situacao: "A pagar", lancada_por: LUCIA }),
   despesa({ id: 806, data: "2026-10-02", descricao: "Rastreadores (86)", categoria: "rastreamento", valor_centavos: 172000, vencimento: "2026-10-02", status: "paga", rotulo_situacao: "Pago · cartão", lancada_por: LUCIA, pago_em: "2026-10-02T12:00:00Z", forma: "cartao" }),
 ];
@@ -488,7 +489,7 @@ export const financeiroFalso = {
       boleto_url: null,
       status: "aguardando",
     };
-    contas = contas.map((x) => (x.id === id ? { ...x, cobranca_aberta: cobranca } : x));
+    contas = contas.map((x) => (x.id === id ? { ...x, cobranca_aberta: cobranca, acoes: { ...x.acoes, copiar_cobranca: true } } : x));
     return cobranca;
   },
 
@@ -684,6 +685,19 @@ export const financeiroFalso = {
     return { ...nova };
   },
 
+  /** FIN-17: a lista do ano, com as recusadas; o total sem elas (quem soma, de verdade, é a API). */
+  async despesasDoVeiculo(veiculoId: number, f: { ano?: number; cursor?: string } = {}) {
+    await pausa(40);
+    const ano = f.ano ?? 2026;
+    const lista = despesas.filter((d) => d.veiculo?.id === veiculoId && d.data.startsWith(String(ano)));
+    const total = lista.filter((d) => d.status !== "recusada").reduce((soma, d) => soma + d.valor_centavos, 0);
+    return { ano, total_ano_centavos: total, resultados: lista.map((d) => ({ ...d })), proximo: null, anterior: null };
+  },
+
+  async lancarDespesaDoVeiculo(veiculoId: number, corpo: NovaDespesa): Promise<Despesa> {
+    return financeiroFalso.lancarDespesa({ ...corpo, veiculo_id: veiculoId });
+  },
+
   async anexarNota(id: number, nota: File): Promise<Despesa> {
     await pausa(60);
     const atual = despesas.find((x) => x.id === id);
@@ -700,7 +714,7 @@ export const financeiroFalso = {
     if (!atual) throw new ErroApi(404, "nao_encontrado", "Despesa não encontrada.");
     if (atual.status !== "a_pagar") throw new ErroApi(409, "transicao_despesa", "Só despesa a pagar pode ser paga.");
     if (corpo.forma === "dinheiro" && (!caixa || caixa.status !== "aberto")) throw semCaixa();
-    const paga: Despesa = { ...atual, status: "paga", pago_em: corpo.pago_em, forma: corpo.forma, rotulo_situacao: `Pago · ${ROTULO_PAGO[corpo.forma]}` };
+    const paga: Despesa = { ...atual, status: "paga", pago_em: corpo.pago_em, forma: corpo.forma, rotulo_situacao: `Pago · ${ROTULO_PAGO[corpo.forma]}`, comprovante: corpo.comprovante ? { url: `/comprovantes/${id}-${corpo.comprovante.size}.pdf`, url_expira_em: "2026-10-07T13:15:00Z" } : null };
     despesas = despesas.map((x) => (x.id === id ? paga : x));
     return { ...paga };
   },

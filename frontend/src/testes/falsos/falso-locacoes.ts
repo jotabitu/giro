@@ -6,6 +6,7 @@ import { ErroApi } from "@/lib/api/tipos";
 import { veiculosFalso } from "./falso-frota";
 import { clientesFalso } from "./falso-clientes";
 import type {
+  LinkDoContrato,
   AbaLocacoes,
   AvisoLocacao,
   EntradaDaLocacao,
@@ -20,6 +21,9 @@ import type {
   LocacaoResumo,
   ParcelaDaLocacao,
   ParcelaPrevista,
+  ParaRetirar,
+  PassoDaRetirada,
+  PendenciasDaRetirada,
   PedidoDeCancelamento,
   Periodicidade,
   SimulacaoDaRenovacao,
@@ -68,6 +72,8 @@ type Semente = {
   diferencaTrocaCentavos?: number;
   eventos: [em: string, rotulo: string, detalhe: string][];
   devolucaoId?: number | null;
+  /** LOC-17: retirada pelo botão "Registrar retirada" (a assinatura ou o 1º pagamento podem ter ficado para depois). */
+  retiradaAMao?: boolean;
   /** Formulário do rascunho (o que o PATCH e o POST guardam). */
   entrada?: EntradaDaLocacao;
 };
@@ -175,9 +181,67 @@ function acoesDe(s: Semente, perfil: Perfil | null) {
     gerar_contrato: cria && s.status === "aguardando_retirada" && !emCurso && !s.corpo.contrato,
     imprimir_contrato: !!s.corpo.contrato && perfil !== "vistoriador",
     reenviar_contrato: !!s.corpo.contrato && perfil !== "vistoriador",
+    copiar_link_contrato: !!s.corpo.contrato && s.corpo.contrato.status !== "assinado" && (perfil === "administrador" || perfil === "gerente" || perfil === "vendedor"),
     continuar_vistoria: false,
     receber: false,
+    registrar_retirada: (perfil === "administrador" || perfil === "gerente") && s.status === "aguardando_retirada",
   };
+}
+
+const recebe = (perfil: Perfil | null) => perfil === "administrador" || perfil === "gerente" || perfil === "vendedor" || perfil === "financeiro";
+const NOME_DA_PRIMEIRA: Record<Periodicidade, string> = { diaria: "diárias", semanal: "1ª semana", mensal: "1º mês" };
+
+/** Os passos do "Para retirar" (LOC-17), com os textos que a API manda: a tela só mostra. */
+function passosDaRetirada(s: Semente, perfil: Perfil | null): PassoDaRetirada[] {
+  const cria = perfil === "administrador" || perfil === "gerente" || perfil === "vendedor";
+  const vistoriaFeita = s.corpo.kmSaida !== null;
+  const c = s.corpo.contrato;
+  const [primeira, caucao] = [s.parcelas.find((p) => p[0] === "parcela"), s.parcelas.find((p) => p[0] === "caucao")];
+  const abertas = [primeira, caucao].filter((p): p is NonNullable<typeof p> => !!p && p[3] !== "paga");
+  const totalPrimeiro = (primeira?.[2] ?? 0) + (caucao?.[2] ?? 0);
+  const faltando = abertas.reduce((a, p) => a + p[2], 0);
+  const partes = abertas.map((p) => `${p[0] === "caucao" ? "caução" : NOME_DA_PRIMEIRA[s.periodicidade]} ${reais(p[2])}`).join(" e ");
+  const semValores = perfil === "vistoriador";
+  return [
+    vistoriaFeita
+      ? { codigo: "vistoria_saida", feito: true, texto: "Feita em 07 out, 09:20", acoes: [] }
+      : { codigo: "vistoria_saida", feito: false, texto: "Falta a vistoria de saída", acoes: perfil === "financeiro" ? [] : [{ codigo: "continuar_vistoria", rotulo: "Fazer vistoria de saída" }] },
+    c?.status === "assinado"
+      ? { codigo: "contrato", feito: true, texto: "Assinado em 07 out, 10:05", acoes: [] }
+      : c
+        ? { codigo: "contrato", feito: false, texto: "Falta a assinatura do cliente", acoes: cria ? [{ codigo: "reenviar_contrato", rotulo: "Reenviar" }, { codigo: "copiar_link_contrato", rotulo: "Copiar link para assinar" }] : [] }
+        : { codigo: "contrato", feito: false, texto: "Falta enviar o contrato", acoes: cria ? [{ codigo: "gerar_contrato", rotulo: "Enviar contrato" }] : [] },
+    abertas.length === 0
+      ? { codigo: "pagamento", feito: true, texto: semValores ? "Pago em 07 out" : `Pago em 07 out · ${reais(totalPrimeiro)}`, acoes: [] }
+      : { codigo: "pagamento", feito: false, texto: semValores ? "Falta o 1º pagamento" : `Falta receber ${reais(faltando)}: ${partes}`, acoes: [] },
+  ];
+}
+
+function paraRetirar(s: Semente, perfil: Perfil | null): ParaRetirar | null {
+  if (s.status !== "aguardando_retirada") return null;
+  const passos = passosDaRetirada(s, perfil);
+  const vistoria = passos[0]?.feito ?? false;
+  const podeRegistrar = perfil === "administrador" || perfil === "gerente";
+  return {
+    passos,
+    prazo: "Retire até 10 out. Sem retirada, a locação é cancelada em 11 out.",
+    registrar_retirada: podeRegistrar
+      ? {
+          rotulo: "Registrar retirada",
+          disponivel: vistoria,
+          aviso: vistoria ? null : "Faça a vistoria de saída antes da retirada.",
+          titulo: "Registrar retirada?",
+          faltas: passos.filter((p) => !p.feito).map((p) => p.texto),
+          motivo_obrigatorio: "Informe o motivo.",
+        }
+      : null,
+  };
+}
+
+function pendenciasDaRetirada(s: Semente, perfil: Perfil | null): PendenciasDaRetirada | null {
+  if (!s.retiradaAMao || !ativa(s)) return null;
+  const passos = passosDaRetirada(s, perfil).filter((p) => p.codigo !== "vistoria_saida" && !p.feito);
+  return passos.length > 0 ? { passos } : null;
 }
 
 function resumo(s: Semente): LocacaoResumo {
@@ -199,12 +263,16 @@ function resumo(s: Semente): LocacaoResumo {
   };
 }
 
-function parcelas(s: Semente): ParcelaDaLocacao[] {
+function parcelas(s: Semente, perfil: Perfil | null): ParcelaDaLocacao[] {
   const total = s.parcelas.filter((p) => p[0] === "parcela").length;
   let n = 0;
   return s.parcelas.map(([tipo, vencimento, valor, status, forma], i) => ({
     id: s.id * 10 + i,
+    conta_id: s.id * 10 + i,
     tipo,
+    rotulo: tipo === "caucao" ? "Caução" : `Parcela ${n + 1}`,
+    valor_hoje_centavos: valor,
+    acoes: { receber: status !== "paga" && recebe(perfil) },
     numero: tipo === "parcela" ? ++n : null,
     total_parcelas: tipo === "parcela" ? total : null,
     vencimento,
@@ -219,7 +287,7 @@ function parcelas(s: Semente): ParcelaDaLocacao[] {
 function detalhe(s: Semente): LocacaoCompleta {
   const perfil = perfilAtualFalso();
   const vistoriador = perfil === "vistoriador";
-  const ps = parcelas(s);
+  const ps = parcelas(s, perfil);
   const pago = ps.filter((p) => p.status === "paga").reduce((a, p) => a + p.valor_centavos, 0);
   const faltam = Math.round((Date.parse(s.fim) - Date.parse(AGORA_DO_SEED)) / 60000);
   const periodos = Math.max(1, Math.round((Date.parse(s.fim) - Date.parse(s.inicio)) / (s.periodicidade === "diaria" ? DIA : s.periodicidade === "semanal" ? 7 * DIA : 30 * DIA)));
@@ -228,6 +296,8 @@ function detalhe(s: Semente): LocacaoCompleta {
     cliente: { ...s.cliente, celular: null, cnh_categoria: null, ficha_liberada: !vistoriador },
     filial: FILIAL,
     vendedor: VENDEDOR,
+    // O falso imita o campo da API (LOC-12): início + 3 dias; a tela não mostra nem calcula.
+    prazo_retirada: s.status === "aguardando_retirada" ? { ultimo_dia: dia(Date.parse(s.inicio) + 3 * DIA), cancela_em: dia(Date.parse(s.inicio) + 4 * DIA) } : null,
     periodos,
     precos: {
       valor_periodo_centavos: s.corpo.periodoCentavos,
@@ -259,12 +329,15 @@ function detalhe(s: Semente): LocacaoCompleta {
       aviso_atraso: `Se atrasar, cobra R$ ${(s.corpo.diariaCentavos / 100).toFixed(2).replace(".", ",")} por dia a mais (diária)`,
       devolucao_id: s.devolucaoId ?? null,
     },
+    para_retirar: paraRetirar(s, perfil),
+    pendencias_retirada: pendenciasDaRetirada(s, perfil),
     trechos: [{ veiculo: s.veiculo.placa, inicio: s.inicio, fim: null }],
     cancelamento: s.cancelamento
       ? {
           status: s.cancelamento.status,
           pedido_aprovacao_id: 88,
           antes_da_retirada: false,
+          automatico: false,
           data: s.cancelamento.data,
           multa_centavos: s.cancelamento.multa,
           credito_centavos: s.cancelamento.credito,
@@ -385,6 +458,7 @@ const PLANOS: PlanoEspecial[] = [
 ];
 
 let proximoId = 2860;
+let contagemDeLinks = 0;
 
 /** Soma `n` períodos a um instante, mantendo a hora (America/Sao_Paulo não tem horário de verão desde 2019). */
 function somarPeriodos(inicio: string, p: Periodicidade, n: number): string {
@@ -448,7 +522,10 @@ async function simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
   const avisos: AvisoLocacao[] = [];
   if (cliente.status === "bloqueado") impedimentos.push({ codigo: "CLI-05", mensagem: "Cliente bloqueado por atraso. Quite o que deve antes de alugar." });
   if (cliente.status === "inativo") impedimentos.push({ codigo: "cliente_inativo", mensagem: "Cliente inativo. Reative o cadastro para alugar." });
-  if (veiculo.status !== "disponivel" && veiculo.status !== "reservado") impedimentos.push({ codigo: "LOC-03", mensagem: "Veículo indisponível no período" });
+  // T-410: o reservado também não passa; a confirmação reserva o veículo com qualquer início.
+  if (veiculo.status !== "disponivel") impedimentos.push({ codigo: "LOC-03", mensagem: "Veículo indisponível no período" });
+  // LOC-12: início com mais de 3 dias já passou do prazo de retirada (a API decide; o falso só imita).
+  if (Date.parse(e.inicio) + 4 * DIA <= Date.parse(AGORA_DO_SEED)) impedimentos.push({ codigo: "inicio_vencido", mensagem: "O início já passou do prazo de retirada. Escolha uma data de início a partir de hoje." });
   if (cliente.status === "incompleto") avisos.push({ codigo: "CLI-03", mensagem: "Cadastro incompleto. Envie os documentos antes da retirada." });
   return {
     fim_previsto: somarPeriodos(e.inicio, e.periodicidade, periodos),
@@ -536,6 +613,7 @@ export const locacoesFalso = {
     const antigo = achar(id);
     if (antigo.status !== "rascunho" || !antigo.entrada) throw new ErroApi(409, "transicao_locacao", "Só é possível confirmar uma locação em rascunho");
     const bloqueio = (await simular(antigo.entrada)).impedimentos[0];
+    if (bloqueio?.codigo === "inicio_vencido") throw new ErroApi(409, "inicio_vencido", bloqueio.mensagem, { inicio: dia(Date.parse(antigo.entrada.inicio)), ultimo_dia_retirada: dia(Date.parse(antigo.entrada.inicio) + 3 * DIA) });
     if (bloqueio) throw new ErroApi(bloqueio.codigo === "LOC-03" ? 409 : 422, bloqueio.codigo, bloqueio.mensagem);
     const novo = await semente(id, antigo.entrada, "aguardando_retirada", antigo);
     const primeira = novo.parcelas.find((p) => p[0] === "parcela");
@@ -697,6 +775,37 @@ export const locacoesFalso = {
     s.corpo.contrato = { status: "enviado", modelo: "Locação semanal", assinadoEm: null };
     s.eventos.push([AGORA_DO_SEED, "Contrato enviado por WhatsApp", "aguardando assinatura"]);
     return { contrato_id: s.id + 100, status: "enviado" };
+  },
+
+  /** LOC-17: o "Registrar retirada" (administrador e gerente), com motivo e a vistoria de saída feita. */
+  async registrarRetirada(id: number, corpo: { motivo: string }): Promise<LocacaoCompleta> {
+    await pausa(250);
+    const s = achar(id);
+    const perfil = perfilAtualFalso();
+    if (perfil !== "administrador" && perfil !== "gerente") throw new ErroApi(403, "permissao", "Você não tem permissão para esta ação");
+    if (!corpo.motivo.trim()) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, { motivo: "Informe o motivo." });
+    if (s.status !== "aguardando_retirada") throw new ErroApi(409, "transicao_locacao", "Esta locação não está aguardando retirada.");
+    if (s.corpo.kmSaida === null) throw new ErroApi(409, "vistoria_saida_pendente", "Faça a vistoria de saída antes da retirada.");
+    s.status = "ativa";
+    s.retiradaAMao = true;
+    // LOC-17 (PR #541): a situação diz o que falta; o código continua `pendencia_retirada`.
+    const semAssinatura = s.corpo.contrato?.status !== "assinado";
+    const semPagamento = s.parcelas.some((p) => (p[0] === "caucao" || p === s.parcelas.find((x) => x[0] === "parcela")) && p[3] !== "paga");
+    const rotulo = semAssinatura && semPagamento ? "Faltam assinatura e pagamento" : semAssinatura ? "Falta a assinatura" : "Falta o 1º pagamento";
+    s.situacao = { codigo: "pendencia_retirada", rotulo, tom: "alerta" };
+    s.eventos.push([AGORA_DO_SEED, "Retirada", `Retirada registrada à mão. Motivo: ${corpo.motivo.trim()}`]);
+    return detalhe(s);
+  },
+
+  async copiarLinkDoContrato(id: number): Promise<LinkDoContrato> {
+    await pausa(250);
+    const perfil = perfilAtualFalso();
+    if (perfil !== "administrador" && perfil !== "gerente" && perfil !== "vendedor") throw new ErroApi(403, "sem_permissao", "Você não tem permissão para gerar o link do contrato");
+    const s = achar(id);
+    if (!s.corpo.contrato) throw new ErroApi(409, "sem_contrato", "Esta locação ainda não tem contrato");
+    if (s.corpo.contrato.status === "assinado") throw new ErroApi(409, "contrato_assinado", "O contrato já foi assinado");
+    s.eventos.push([AGORA_DO_SEED, "Copiou o link para assinar o contrato", "cópia"]);
+    return { link: `https://motorapida.girolocadoras.com.br/assinar#fake-${id}-${++contagemDeLinks}`, expira_em: "2026-10-14T14:00:00Z", aviso: "O link anterior deixa de valer.", contrato: { id: s.id + 100, status: s.corpo.contrato.status } as unknown as LinkDoContrato["contrato"] };
   },
 
   async reenviarContrato(id: number): Promise<void> {

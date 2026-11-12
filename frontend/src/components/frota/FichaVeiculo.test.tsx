@@ -1,9 +1,9 @@
 // Ficha do veículo (T-102) contra docs/telas/html/Veiculo-Desktop.dc.html e Veiculo-Mobile.dc.html.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeAll, describe, expect, it, vi } from "vitest";
-import { contas, ErroApi, veiculos, type Eu, type VeiculoDetalhe } from "@/lib/api";
-import { FichaVeiculo, semAcesso } from "./FichaVeiculo";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { contas, veiculos, type Eu, type VeiculoDetalhe } from "@/lib/api";
+import { FichaVeiculo } from "./FichaVeiculo";
 
 const sessao = vi.hoisted(() => ({ eu: null as unknown }));
 vi.mock("@/lib/sessao", () => ({ useSessao: () => ({ eu: sessao.eu as Eu, sair: async () => {} }) }));
@@ -20,7 +20,7 @@ async function pagina(id: number): Promise<{ desktop: string; celular: string }>
       <FichaVeiculo id={id} />
     </QueryClientProvider>,
   );
-  const [, desktop = "", celular = ""] = html.match(/^<div class="hidden md:block">(.*)<\/div><div class="md:hidden">(.*)<\/div>$/s) ?? [];
+  const [, desktop = "", celular = ""] = html.replace(/^(<link[^>]*>)+/, "").match(/^<div class="hidden md:block">(.*)<\/div><div class="md:hidden">(.*)<\/div>$/s) ?? [];
   return { desktop, celular };
 }
 
@@ -141,7 +141,8 @@ describe("ficha do veículo, perfis sem financeiro nem edição", () => {
     expect(celular.match(/class="wl-kpi[ "]/g)).toHaveLength(1);
     expect(celular).toContain("grid-cols-1");
     expect(celular).not.toContain("grid-cols-2 gap-2 [&_.wl-kpi]");
-    for (const h of [desktop, celular]) expect(texto(h)).not.toMatch(/Rendeu no ano|Custo de manutenção|—/);
+    // O "—" da VEI-09 (campo vazio no bloco "Dados do documento") é legítimo; o que não existe é cartão de indicador vazio.
+    for (const h of [desktop, celular]) expect(texto(h)).not.toMatch(/Rendeu no ano|Custo de manutenção/);
   });
 
   it("t_156_gerente_com_a_chave_mostra_os_quatro_cartoes_no_desktop_e_dois_no_celular", async () => {
@@ -151,6 +152,45 @@ describe("ficha do veículo, perfis sem financeiro nem edição", () => {
     expect(desktop.match(/class="wl-kpi[ "]/g)).toHaveLength(4);
     expect(desktop).not.toContain("style=\"grid-template-columns");
     expect(celular.match(/class="wl-kpi[ "]/g)).toHaveLength(2);
+  });
+});
+
+describe("ficha do veículo, dados do documento, rastreador e anotações (VEI-09, T-421)", () => {
+  it("test_vei_09_ficha_do_qxa4b21_para_o_gerente_nos_dois_tamanhos (CA-421-11)", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    const { desktop, celular } = await pagina(501);
+    for (const h of [desktop, celular]) {
+      const t = texto(h);
+      ordem(t, ["Dados do documento", "Combustível|Flex", "Potência|15 cv", "Cilindrada|162 cc", "Espécie e tipo|Passageiro · Motocicleta", "Carroceria|—", "Lotação|2 pessoas", "Peso bruto total|290 kg", "Número do motor|KC22E1P004401", "Observações do CRLV-e|ALIENACAO FIDUCIARIA", "Rastreador|356938035643809| · Rastreia Fácil", "Anotações|Risco no tanque, lado esquerdo"]);
+    }
+  });
+
+  it("test_vei_09_motor_e_observacoes_so_para_administrador_e_gerente_sem_espaco (CA-421-12)", async () => {
+    for (const email of ["bruna@motorapida.com.br", "financeiro@motorapida.com.br"]) {
+      await entrarComo(email);
+      const ficha = await veiculos.obter(501);
+      expect("numero_motor" in ficha.documento).toBe(false);
+      expect("observacoes" in ficha.documento).toBe(false);
+      const { desktop, celular } = await pagina(501);
+      for (const h of [desktop, celular]) {
+        const t = texto(h);
+        expect(t).not.toContain("Número do motor");
+        expect(t).not.toContain("KC22E1P004401");
+        expect(t).not.toContain("Observações do CRLV-e");
+        expect(t).not.toContain("ALIENACAO");
+        // O resto do CA-421-11 segue na ficha, sem linha vazia no lugar das duas.
+        ordem(t, ["Peso bruto total|290 kg", "Rastreador|356938035643809", "Anotações|Risco no tanque"]);
+      }
+    }
+  });
+
+  it("test_vei_09_veiculo_antigo_mostra_traco_sem_erro (CA-421-14)", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    const { desktop, celular } = await pagina(502);
+    for (const h of [desktop, celular]) {
+      const t = texto(h);
+      for (const rotulo of ["Combustível", "Potência", "Cilindrada", "Espécie e tipo", "Carroceria", "Lotação", "Peso bruto total", "Número do motor", "Observações do CRLV-e", "Rastreador", "Anotações"]) expect(t, rotulo).toContain(`${rotulo}|—`);
+    }
   });
 });
 
@@ -197,26 +237,65 @@ describe("ficha do veículo, vistoriador (D-25, USR-09)", () => {
     }
   });
 
-  it("T-278: sem os dados de locações (403 da API) o painel Locações some, sem decidir pelo perfil", async () => {
-    await entrarComo("joao@motorapida.com.br");
-    const cliente = new QueryClient({ defaultOptions: { queries: { retryOnMount: false } } });
+});
+
+describe("ficha do veículo e a chave pode.locacoes_ver (T-458)", () => {
+  /** Monta a ficha 501 sem nada de locações no cache e devolve o HTML e a consulta de locações que a ficha registrou. */
+  async function fichaSemLocacoesNoCache() {
+    const cliente = new QueryClient();
     cliente.setQueryData(["veiculo", 501], await veiculos.obter(501));
     cliente.setQueryData(["veiculo", 501, "documentos"], await veiculos.documentos(501));
-    await cliente.fetchQuery({ queryKey: ["veiculo", 501, "locacoes"], queryFn: () => Promise.reject(new ErroApi(403, "sem_permissao", "Seu perfil não tem acesso a esta ação")), retry: false }).catch(() => {});
     const html = renderToStaticMarkup(
       <QueryClientProvider client={cliente}>
         <FichaVeiculo id={501} />
       </QueryClientProvider>,
     );
-    expect(texto(html)).not.toContain("Seu perfil não tem acesso a esta ação");
-    expect(texto(html)).not.toContain("Locações");
-    expect(texto(html)).toContain("Ocupação");
+    const consulta = cliente.getQueryCache().find({ queryKey: ["veiculo", 501, "locacoes"], exact: true });
+    return { html: texto(html), opcoes: consulta?.options as { enabled?: unknown } | undefined };
+  }
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it("test_usr_05_usr_09_sem_a_chave_a_ficha_nao_pede_locacoes_e_o_painel_nao_aparece", async () => {
+    await entrarComo("joao@motorapida.com.br");
+    expect((sessao.eu as Eu).pode.locacoes_ver).toBe(false);
+    const chamada = vi.spyOn(veiculos, "locacoes");
+    const { html, opcoes } = await fichaSemLocacoesNoCache();
+    expect(chamada).not.toHaveBeenCalled();
+    expect(opcoes?.enabled).toBe(false);
+    expect(html).not.toContain("Locações");
+    expect(html).toContain("Ocupação");
   });
 
-  it("T-278: outro erro de locações continua aparecendo no painel", () => {
-    expect(semAcesso({ isError: true, error: new ErroApi(500, "erro", "Falha") })).toBe(false);
-    expect(semAcesso({ isError: true, error: new ErroApi(403, "sem_permissao", "x") })).toBe(true);
-    expect(semAcesso({ isError: false, error: null })).toBe(false);
+  it("test_usr_05_usr_09_a_tela_segue_a_chave_e_nao_o_perfil", async () => {
+    // Gerente com a chave desligada (como o modo suporte "só ver"): some igual ao vistoriador.
+    await entrarComo("rodrigo@motorapida.com.br");
+    const eu = sessao.eu as Eu;
+    sessao.eu = { ...eu, pode: { ...eu.pode, locacoes_ver: false } };
+    const chamada = vi.spyOn(veiculos, "locacoes");
+    const { html, opcoes } = await fichaSemLocacoesNoCache();
+    expect(chamada).not.toHaveBeenCalled();
+    expect(opcoes?.enabled).toBe(false);
+    expect(html).not.toContain("Locações");
+  });
+
+  it("test_usr_05_com_a_chave_a_ficha_pede_as_locacoes_e_mostra_o_painel", async () => {
+    for (const email of ["rodrigo@motorapida.com.br", "financeiro@motorapida.com.br"]) {
+      await entrarComo(email);
+      expect((sessao.eu as Eu).pode.locacoes_ver, email).toBe(true);
+      expect((await fichaSemLocacoesNoCache()).opcoes?.enabled, email).toBe(true);
+      const { desktop } = await pagina(501);
+      const t = texto(desktop);
+      expect(t, email).toContain("Locações");
+      expect(t, email).toContain("14 no total");
+      expect(t, email).toContain("LOC-2841");
+    }
+  });
+
+  it("test_usr_09_modo_suporte_so_ver_vem_sem_a_chave", async () => {
+    const eu = await contas.entrarComoSuporte("suporte-valido");
+    expect(eu.pode.locacoes_ver).toBe(false);
+    await contas.sairDoSuporte();
   });
 });
 

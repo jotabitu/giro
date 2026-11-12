@@ -233,6 +233,14 @@ class AtorSuporte:
     id: None = None
 
 
+def suporte_so_ver(usuario: Any) -> bool:
+    """Suporte Giro no modo "só ver": a ADR 0013, item 2, tira dele a geração de URL assinada de
+    documento e foto (AUD-05), mesmo em leitura."""
+    return bool(getattr(usuario, "e_suporte", False)) and (
+        getattr(usuario, "permissao", None) == SUPORTE_SO_VER
+    )
+
+
 class ConferenciaDeSuporte(Protocol):
     def __call__(self, acesso_suporte_id: int, empresa_id: int) -> AtorSuporte:
         """`AcessoSuporte` ativo, no prazo, da empresa e sem bloqueio; senão 401 `PLT-07`."""

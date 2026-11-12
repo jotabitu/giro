@@ -73,12 +73,20 @@ class StatusContrato(models.TextChoices):
 S = StatusContrato
 
 
+class CanalDoToken(models.TextChoices):
+    """Como o token vivo chegou ao cliente (`LOC-15`, M-02 da T-411)."""
+
+    WHATSAPP_EMAIL = "whatsapp_email", "WhatsApp ou e-mail"
+    COPIADO = "copiado", "Copiado"
+
+
 class Contrato(MaquinaDeEstados, ModeloBase):
     """Fluxo da retirada, passo 3: `gerado` (PDF na fila) → `enviado` (link no WhatsApp) →
     `assinado`. O texto final fica em `versao_texto_html` e não muda (`LOC-15`)."""
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = {
-        S.GERADO: {S.ENVIADO, S.CANCELADO},
+        # `assinado` direto: o link copiado de um contrato com o PDF pronto e nada enviado (T-411).
+        S.GERADO: {S.ENVIADO, S.ASSINADO, S.CANCELADO},
         S.ENVIADO: {S.ASSINADO, S.CANCELADO},
         S.ASSINADO: set(),
         S.CANCELADO: set(),
@@ -121,15 +129,27 @@ class Contrato(MaquinaDeEstados, ModeloBase):
     assinatura_aparelho = models.CharField(max_length=200, blank=True, default="")
     token_assinatura_hash = models.CharField(max_length=64, unique=True, null=True, blank=True)
     token_assinatura_expira_em = models.DateTimeField(null=True, blank=True)
+    # A prova da assinatura diz como o link chegou (T-411): não se anulam ao assinar.
+    token_assinatura_canal = models.CharField(
+        max_length=15, choices=CanalDoToken.choices, blank=True, default=""
+    )
+    token_assinatura_gerado_por = models.ForeignKey(
+        "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    token_assinatura_gerado_ip = models.GenericIPAddressField(null=True, blank=True)
     cancelado_em = models.DateTimeField(null=True, blank=True)
     motivo_cancelamento = models.CharField(max_length=200, blank=True, default="")
     lembrete_aditivo_em = models.DateTimeField(null=True, blank=True)  # LOC-08
 
     # O texto final tem os dados do cliente (CPF, endereço): não vai para a auditoria.
     CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {
-        "omitir": ["versao_texto_html"],
+        "omitir": ["versao_texto_html", "token_assinatura_gerado_ip"],
         "mascarar": ["assinado_ip"],
-        "inteiro": ["token_assinatura_expira_em"],
+        "inteiro": [
+            "token_assinatura_expira_em",
+            "token_assinatura_canal",
+            "token_assinatura_gerado_por",
+        ],
     }
 
     class Meta:

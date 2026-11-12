@@ -1,13 +1,14 @@
 # Quadro de tarefas
 
-O quadro é feito de arquivos para que qualquer agente, em qualquer terminal (Claude Code, Codex, OpenCode), leia e escreva o mesmo estado. O **orquestrador** é dono do quadro: cria, prioriza e distribui tarefas. Os demais agentes só movem as tarefas que são deles.
+O quadro é feito de arquivos para que qualquer agente, em qualquer terminal (Claude Code, Codex, OpenCode), leia e escreva o mesmo estado. O **orquestrador** é dono do quadro: cria, prioriza e distribui tarefas. Os demais agentes não editam o quadro: a tarefa anda pelo PR dela.
 
-| Arquivo | Conteúdo |
+| Onde | Conteúdo |
 | --- | --- |
-| `backlog.md` | tarefas a fazer, em ordem de prioridade, e dúvidas `[decisão]` |
-| `em-andamento.md` | tarefas que alguém pegou (no máximo 1 por agente) |
-| `feito.md` | tarefas entregues, com link do PR |
-| `handoffs/` | um arquivo por entrega: `T-012-backend.md` |
+| `backlog.md` | tarefas a fazer, em ordem de prioridade, e dúvidas `[decisão]` abertas. Só o orquestrador edita. |
+| PRs abertos (`gh pr list`) | tarefas em andamento: abra o PR como rascunho (`--draft`) assim que pegar a tarefa |
+| PRs mesclados (`gh pr list --state merged`) | tarefas entregues; a descrição do PR é o handoff |
+| `backlog-arquivo.md` | decisões respondidas e tarefas riscadas até 09 nov 2026 |
+| `feito.md`, `handoffs/` | registro até 09 nov 2026, congelado (T-441). Não edite. `handoffs/anexos/` continua guardando as capturas da conferência. |
 
 ## Formato de uma tarefa
 
@@ -22,11 +23,17 @@ O quadro é feito de arquivos para que qualquer agente, em qualquer terminal (Cl
 
 ## Ciclo
 
-1. O agente pega a primeira tarefa do `backlog.md` com o nome dele e sem dependência pendente, e a move para `em-andamento.md` com a data.
-2. Cria a branch `t-<numero>-<slug>` a partir da `origin/develop`.
-3. Trabalha. Se travar numa dúvida de regra, escreve `[decisão]` no backlog, avisa o **produto** e passa para outra tarefa.
-4. Ao terminar: testes passando, `make check` limpo, PR aberto.
-5. Escreve o handoff em `handoffs/`, move a tarefa para `feito.md` e avisa quem depende dela.
+1. O agente pega a primeira tarefa do `backlog.md` com o nome dele e sem dependência pendente.
+2. Cria a branch `t-<numero>-<slug>` a partir da `origin/develop` e abre o PR como rascunho para a `develop` (`gh pr create --draft --base develop --title "... [T-NNN]" --body-file <arquivo>`). O PR rascunho é o "em andamento".
+3. Trabalha. Se travar numa dúvida de regra, avisa o **produto** pela mensagem (o produto registra a dúvida em `docs/regras/pontos-em-aberto.md`) e passa para outra tarefa.
+4. Ao terminar: testes passando, `make check` limpo, descrição do PR preenchida pelo modelo `.github/pull_request_template.md`, PR fora do rascunho (`gh pr ready`).
+5. Avisa quem depende dela com o link do PR. **Não edita nada em `tarefas/`.**
+
+O orquestrador tira do `backlog.md` as tarefas entregues e as decisões respondidas, em lote, num PR próprio (`docs(tarefas): ...`), e não deixa item riscado.
+
+### Tarefa pequena
+
+Mudança que cabe num PR de até um dia e não mexe em modelo de dados, autenticação, permissão, pagamento nem dado pessoal vai para o agente **fullstack** (`.claude/agents/fullstack.md`), com contrato, código, testes e tela no mesmo PR, sem passar por produto, arquiteto e segurança. Na tarefa, use **Agente:** fullstack. Na dúvida, siga o protocolo completo (`docs/agentes/protocolo.md`).
 
 ## Fluxo de branches
 
@@ -52,18 +59,9 @@ O CI roda uma vez por PR, como última conferência, e só nas áreas que o PR t
 
 Não há CI no push da `develop` nem da `main`: toda branch recebe a base dela antes do PR, e o PR da promoção roda o CI sobre o lote inteiro.
 
-## Modelo de handoff
+## Handoff
 
-```
-# T-012 · Calcular acerto da devolução · backend → frontend, qa
-
-**O que foi feito:** ...
-**Onde:** backend/apps/vistorias/services.py, ...
-**Contrato:** POST /api/locacoes/{id}/devolucao/ (ver docs/api/openapi.yaml)
-**Regras cobertas:** DEV-01, DEV-02 (testes: test_dev_02_*)
-**O que ficou de fora:** ...
-**Próximo passo para quem recebe:** ...
-```
+O handoff é a descrição do PR, pelo modelo `.github/pull_request_template.md`. Quem recebe lê com `gh pr view <numero>`. Não crie arquivo em `tarefas/handoffs/`.
 
 ## Etiquetas
 

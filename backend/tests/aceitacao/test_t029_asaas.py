@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from django.core import mail
 from django.db import connection
 
 from apps.auditoria.models import EventoAuditoria
@@ -162,7 +163,9 @@ def test_aut_05_t029_pix_pago_no_asaas_baixa_uma_vez(
     pagou = EventoAuditoria.objects.filter(acao="conta_receber.pagar", objeto_id=carlos.pk)
     assert pagou.count() == 1
     assert (pagou.get().ator_tipo, pagou.get().regra) == ("sistema", "AUT-05")
-    assert any("recebemos R$ 306,09" in m.texto for m in whatsapp.caixa_de_saida)
+    # AUT-05 (T-463): o recibo por e-mail; nada pelo WhatsApp na fase 1.
+    assert any("recebemos R$ 306,09" in m.body for m in mail.outbox)
+    assert whatsapp.caixa_de_saida == []
 
 
 def test_aut_05_t029_status_desconhecido_avisa_o_financeiro(

@@ -100,11 +100,12 @@ describe("Agora (desktop)", () => {
 const vistoria: VistoriaRecente = {
   id: 3120,
   tipo: "saida",
+  rotulo_tipo: "Vistoria de saída",
   concluida_em: "2026-09-23T12:10:00Z",
   vistoriador: { id: 4, nome: "João Silva" },
   locacao_codigo: "LOC-2841",
   total_fotos: 12,
-  fotos: (["frente", "traseira", "lado_esquerdo", "lado_direito", "painel"] as const).map((posicao, i) => ({ id: 901 + i, posicao, url: "", url_expira_em: "" })),
+  fotos: (["frente", "traseira", "lado_esquerdo", "lado_direito", "painel"] as const).map((posicao, i) => ({ id: 901 + i, numero: i + 1, posicao, rotulo: ["Frente", "Traseira", "Lado esquerdo", "Lado direito", "Painel"][i]!, tirada_em: "2026-09-23T12:00:00Z", avaria_id: null, url: "", url_download: "", url_expira_em: "", nome_arquivo: `QXA-4B21-vistoria-saida-${posicao}.jpg` })),
   avarias: [
     { id: 51, descricao: "Risco no tanque, lado esquerdo", registrada_em: "2026-07-12T14:00:00Z", preexistente: true, locacao_codigo: null, foto_id: 903 },
     { id: 77, descricao: "Retrovisor direito trincado", registrada_em: "2026-09-23T12:05:00Z", preexistente: false, locacao_codigo: "LOC-2841", foto_id: 905 },
@@ -114,8 +115,8 @@ const vistoria: VistoriaRecente = {
 describe("Fotos e avarias (desktop)", () => {
   it("fotos nas cinco posições, avarias numeradas com a origem e o aviso de que a da saída não é cobrada", () => {
     const t = texto(html(<FotosEAvarias vistoria={vistoria} />));
-    expect(t).toContain("vistoria de saída · 23 set · João Silva");
-    for (const p of ["Frente", "Traseira", "Esquerda", "Direita", "Painel"]) expect(t).toContain(p);
+    expect(t).toContain("Vistoria de saída · LOC-2841 · 23 set · João Silva");
+    for (const p of ["Frente", "Traseira", "Lado esquerdo", "Lado direito", "Painel"]) expect(t).toContain(p);
     expect(t).toContain("Ver as 12 fotos da vistoria");
     expect(t).toContain("2 avarias registradas");
     expect(t).toContain("Risco no tanque, lado esquerdo");
@@ -170,14 +171,14 @@ describe("Blocos da ficha no celular", () => {
   it("fotos e avarias: tipo, data e avarias numeradas; some sem vistoria", () => {
     expect(html(<FotosEAvariasCelular vistoria={null} />)).toBe("");
     const t = texto(html(<FotosEAvariasCelular vistoria={vistoria} />));
-    expect(t).toContain("saída · 23 set");
+    expect(t).toContain("Vistoria de saída · LOC-2841 · 23 set");
     expect(t).toContain("Retrovisor direito trincado");
     expect(t).toContain("23 set · registrado na saída da LOC-2841");
   });
 
   it("fotos e avarias sem avaria diz que não há", () => {
-    const t = texto(html(<FotosEAvariasCelular vistoria={{ ...vistoria, tipo: "devolucao", fotos: [], total_fotos: 0, avarias: [] }} />));
-    expect(t).toContain("devolução · 23 set");
+    const t = texto(html(<FotosEAvariasCelular vistoria={{ ...vistoria, tipo: "devolucao", rotulo_tipo: "Vistoria de chegada", fotos: [], total_fotos: 0, avarias: [] }} />));
+    expect(t).toContain("Vistoria de chegada · LOC-2841 · 23 set");
     expect(t).toContain("Nenhuma avaria registrada.");
   });
 
@@ -185,5 +186,31 @@ describe("Blocos da ficha no celular", () => {
     expect(html(<MovimentacoesCelular v={{ ...base, movimentacoes: undefined }} />)).toBe("");
     const v: VeiculoDetalhe = { ...base, movimentacoes: { total: 0, ultimas: [], em_andamento: null }, acoes: { ...base.acoes, movimentar: false, motivo_movimentar: "Veículo alugado não se movimenta." } };
     expect(texto(html(<MovimentacoesCelular v={v} />))).toContain("Nenhuma movimentação. Veículo alugado não se movimenta.");
+  });
+});
+
+describe("card Agora: o desde vem da API (T-449, LOC-10)", () => {
+  const comLocacao = (situacao: VeiculoDetalhe["situacao"], inicio: string): VeiculoDetalhe => ({
+    ...base,
+    situacao,
+    locacao_atual: { ...(base.locacao_atual as NonNullable<VeiculoDetalhe["locacao_atual"]>), inicio, fim_previsto: "2026-10-14T21:00:00Z", desde: situacao.desde },
+  });
+
+  it("test_loc_10_agora_atrasado_desde_o_que_a_api_manda (CA-449-01, 04): mostra Atrasado desde 14 out, qualquer que seja o início", () => {
+    const t = texto(html(<AgoraDesktop v={comLocacao({ codigo: "atrasado", rotulo: "Atrasado", tom: "perigo", desde: "2026-10-14" }, "2026-09-30T21:00:00Z")} />));
+    expect(t).toContain("Atrasado desde 14 out");
+    expect(t).not.toContain("desde 30 set");
+  });
+
+  it("test_loc_10_agora_alugado_desde_o_inicio (CA-449-03): sem atraso, a API manda o início, e a tela mostra Alugado desde 30 set", () => {
+    const t = texto(html(<AgoraDesktop v={comLocacao({ codigo: "alugado", rotulo: "Alugado", tom: "solido", desde: "2026-09-30" }, "2026-01-01T12:00:00Z")} />));
+    expect(t).toContain("Alugado desde 30 set");
+    expect(t).not.toMatch(/atrasad/i);
+  });
+
+  it("test_loc_10_agora_sem_desde_mostra_so_o_rotulo: com desde nulo, nada de 'desde'", () => {
+    const t = texto(html(<AgoraDesktop v={comLocacao({ codigo: "alugado", rotulo: "Alugado", tom: "solido", desde: null }, "2026-09-30T21:00:00Z")} />));
+    expect(t).toContain("|Alugado|");
+    expect(t).not.toContain("desde");
   });
 });

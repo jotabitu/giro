@@ -330,6 +330,7 @@ def _item(
         },
         "cliente": {"nome": locacao.cliente.nome},
         "locacao": {"id": locacao.pk, "codigo": locacao.codigo},
+        "filial": {"id": locacao.filial_id, "nome": locacao.filial.nome},
         "situacao": {"codigo": situacao, "rotulo": rotulo, "tom": tom},
         "vistoria_id": vistoria.pk if vistoria is not None else None,
         "acao": {"codigo": acao, "rotulo": ACOES[acao]},
@@ -345,7 +346,7 @@ def agenda(filial: Filial, dia: str = "hoje") -> dict[str, Any]:
     de, ate = _dias(dia, hoje)
     inicio = datetime.combine(de, time.min, tzinfo=fuso)
     fim = datetime.combine(ate + timedelta(days=1), time.min, tzinfo=fuso)
-    locacoes = Locacao.objects.filter(filial=filial).select_related("cliente", "veiculo")
+    locacoes = Locacao.objects.filter(filial=filial).select_related("cliente", "veiculo", "filial")
     retiradas = list(
         locacoes.filter(
             status=StatusLocacao.AGUARDANDO_RETIRADA, inicio__gte=inicio, inicio__lt=fim
@@ -383,6 +384,37 @@ def agenda(filial: Filial, dia: str = "hoje") -> dict[str, Any]:
         if proxima
         else None,
         "avarias_abertas": avarias_abertas().filter(veiculo__filial=filial).count(),
+        "resultados": itens,
+    }
+
+
+def agenda_das_filiais(filiais: list[Filial], dia: str = "hoje") -> dict[str, Any]:
+    """`X-Filial: todas` (administrador, USR-05, T-442): a agenda de cada filial, juntas em
+    ordem de horário. Cada filial conta o dia no próprio fuso; o resumo soma as duas listas."""
+    if len(filiais) == 1:
+        return agenda(filiais[0], dia)
+    agora = relogio.agora()
+    partes = [agenda(filial, dia) for filial in filiais]
+    itens = sorted(
+        (item for parte in partes for item in parte["resultados"]),
+        key=lambda i: (i["horario"], i["id"]),
+    )
+    hoje = agora.astimezone(ZoneInfo(filiais[0].fuso)).date()
+    de, ate = _dias(dia, hoje)
+    saidas = sum(1 for i in itens if i["tipo"] == TipoVistoria.SAIDA)
+    proxima = next(
+        (i for i in itens if i["situacao"]["codigo"] != "concluida" and i["horario"] >= agora),
+        None,
+    )
+    return {
+        "resumo": _resumo(de, ate, saidas, len(itens) - saidas),
+        "proxima": {
+            "item_id": proxima["id"],
+            "em_minutos": int((proxima["horario"] - agora).total_seconds() // 60),
+        }
+        if proxima
+        else None,
+        "avarias_abertas": sum(parte["avarias_abertas"] for parte in partes),
         "resultados": itens,
     }
 
@@ -518,7 +550,22 @@ def representacao_acerto(devolucao: Devolucao, locacao: Locacao | None = None) -
     }
 
 
-def representacao_devolucao(devolucao: Devolucao) -> dict[str, Any]:
+PERFIS_QUE_FECHAM = frozenset({"administrador", "gerente", "vendedor"})
+
+
+def acoes_da_devolucao(devolucao: Devolucao, locacao: Locacao, usuario: Any) -> dict[str, bool]:
+    """T-411: `copiar_link_recibo` com a devolução `concluida`, perfil que fecha o acerto, sem o
+    token de suporte (`AUD-09`) e o titular não anonimizado."""
+    return {
+        "copiar_link_recibo": services.recibo_publico_ligado()
+        and devolucao.status == StatusDevolucao.CONCLUIDA
+        and getattr(usuario, "perfil", "") in PERFIS_QUE_FECHAM
+        and not getattr(usuario, "e_suporte", False)
+        and locacao.cliente.anonimizado_em is None,
+    }
+
+
+def representacao_devolucao(devolucao: Devolucao, usuario: Any = None) -> dict[str, Any]:
     locacao = Locacao.objects.select_related("cliente", "filial", "veiculo").get(
         pk=devolucao.locacao_id
     )
@@ -545,4 +592,5 @@ def representacao_devolucao(devolucao: Devolucao) -> dict[str, Any]:
         "devolvida_em": devolucao.devolvida_em,
         "concluida_em": devolucao.concluida_em,
         "recibo_enviado_em": devolucao.recibo_enviado_em,
+        "acoes": acoes_da_devolucao(devolucao, locacao, usuario),
     }

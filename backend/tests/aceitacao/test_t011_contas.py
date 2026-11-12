@@ -603,14 +603,13 @@ def test_usr_01_ca_011_14_convidar(adm, relogio, django_capture_on_commit_callba
     ]
     assert corpo["celular"] == "85996542210"
     assert _uso_de_usuarios(adm) == 6
-    # Depois do commit, por e-mail e por WhatsApp, com a marca da locadora.
+    # Depois do commit, só por e-mail, com a marca da locadora: na fase 1, o convite não vai
+    # pelo WhatsApp, mesmo com celular (T-463, ADR 0034).
     assert [m.to for m in mail.outbox] == [["joao@motorapida.com.br"]]
     assert "Moto Rápida" in mail.outbox[0].subject
     assert "/convite#" in mail.outbox[0].body
-    assert [m.celular for m in caixa_de_saida] == ["85996542210"]
-    assert "Moto Rápida" in caixa_de_saida[0].texto
-    assert "giro" not in caixa_de_saida[0].texto.lower()
-    assert Convite.objects.get(usuario_id=corpo["id"]).enviado_whatsapp is True
+    assert caixa_de_saida == []
+    assert Convite.objects.get(usuario_id=corpo["id"]).enviado_whatsapp is False
 
     sem_email = _convidar(api, adm, django_capture_on_commit_callbacks, perfil="vendedor")
     assert (sem_email.status_code, sem_email.json()["codigo"]) == (400, "validacao")
@@ -624,7 +623,7 @@ def test_usr_01_ca_011_14_convidar(adm, relogio, django_capture_on_commit_callba
         filiais=[adm.centro.pk],
     )
     assert sem_celular.status_code == 201
-    assert len(mail.outbox) == 2 and len(caixa_de_saida) == 1  # só e-mail
+    assert len(mail.outbox) == 2 and caixa_de_saida == []  # só e-mail
 
     em_uso = _convidar(
         api,
@@ -854,6 +853,16 @@ def test_usr_03_ca_011_20_pode_por_perfil(moto):
         "somente_leitura": False,
     }
     assert mariana["suporte"] is None
+
+
+def test_usr_05_usr_09_locacoes_ver_segue_a_lista_de_locacoes(adm):
+    """T-458: `pode.locacoes_ver` é a permissão de `GET /api/locacoes/`, perfil a perfil."""
+    esperado = {"Mariana": True, "Rodrigo": True, "Bruna": True, "João": False, "Lúcia": True}
+    for nome, ve in esperado.items():
+        api = _api_de(adm, nome) if nome in ("João", "Lúcia") else adm.logar(nome)
+        assert _get(api, EU, adm.empresa).json()["pode"]["locacoes_ver"] is ve, nome
+        lista = _get(api, "/api/locacoes/?veiculo=1", adm.empresa)
+        assert lista.status_code == (200 if ve else 403), (nome, lista.json())
 
 
 def test_usr_05_ca_011_21_permissoes_extras_so_somam(moto):
@@ -1604,6 +1613,7 @@ def test_plt_07_lista_de_rotas_que_o_suporte_le():
         # T-027: a importação, com linha de cliente resumida para o suporte (AUD-09).
         "api/importacoes/",
         "api/importacoes/modelo/",
+        "api/importacoes/preparo/",  # T-440 (IMP-08): filiais e se dá para importar
         "api/importacoes/<int:pk>/",
         "api/importacoes/<int:pk>/linhas/",
         "api/usuarios/",
@@ -1795,7 +1805,7 @@ def test_usr_05_usr_08_navegacao_por_perfil(adm, settings):
     assert mariana["inicio"] == {"rota": "/inicio", "variante": "implantacao"}
     assert _chaves(mariana["menu_completo"]) == [
         (None, ["inicio", "aprovacoes", "veiculos"]),
-        ("Operação", ["locacoes", "vendas", "clientes", "manutencoes"]),
+        ("Operação", ["locacoes", "agenda", "avarias", "vendas", "clientes", "manutencoes"]),
         ("Financeiro", FINANCEIRO_DE_QUEM_PAGA),
         ("Administração", ADMINISTRACAO),
     ]
@@ -1927,7 +1937,7 @@ def test_usr_05_plano_atividade_e_modulos_escondem_itens(adm, settings, planos):
     adm.empresa.save(update_fields=["plano"])
     assert _chaves(_navegacao(adm, "Mariana")["menu_completo"]) == [
         (None, ["inicio", "aprovacoes", "veiculos"]),
-        ("Operação", ["locacoes", "clientes"]),
+        ("Operação", ["locacoes", "agenda", "avarias", "clientes"]),
         ("Financeiro", ["caixa", "receber", "reembolsos"]),
         ("Administração", ADMINISTRACAO),
     ]

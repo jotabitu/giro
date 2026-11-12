@@ -5,6 +5,8 @@ export type StatusVeiculo = "disponivel" | "alugado" | "reservado" | "em_manuten
 export type TipoVeiculo = "moto" | "carro";
 
 /** Tom decidido pela API para o rótulo de situação. */
+/** Alerta de um bloco da ficha (ADR 0015): a API manda o rótulo e o tom. */
+export type AlertaDoBloco = { codigo?: string; rotulo: string; tom: TomApi };
 export type TomApi = "sucesso" | "info" | "alerta" | "atencao" | "perigo" | "neutro" | "solido";
 
 export type PrecoVigente = { diaria_centavos: number; semanal_centavos: number; mensal_centavos: number; caucao_centavos: number };
@@ -27,7 +29,9 @@ export type LocacaoAtualDoVeiculo = {
   cliente_nome: string;
   inicio: string;
   fim_previsto: string;
-  alerta?: string;
+  /** LOC-10 (T-449): data do "desde" (fim previsto no atraso, início no resto). A tela usa `situacao.desde`. */
+  desde: string | null;
+  alerta?: AlertaDoBloco;
   plano?: { periodicidade: "diaria" | "semanal" | "mensal"; plano_especial: string | null; valor_periodo_centavos?: number };
   pagamento?: PagamentoDaLocacao;
 };
@@ -43,14 +47,31 @@ export type ProximaManutencao = {
   nota?: string | null;
 };
 export type PosicaoDaFoto = "frente" | "traseira" | "lado_esquerdo" | "lado_direito" | "painel";
+/** VEI-10 (T-414): as duas origens de foto têm o mesmo formato de link. Os links vêm nulos para o suporte em "só ver". `url` e `url_download` valem 15 minutos (AUD-05). */
+export type FotoDoVeiculo = {
+  id: number;
+  numero: number;
+  url: string | null;
+  url_download: string | null;
+  url_expira_em: string | null;
+  nome_arquivo: string;
+  rotulo: string | null;
+};
+export type FotoDaGaleria = FotoDoVeiculo & { capa: boolean; enviada_em: string; enviada_por: { id: number; nome: string } | null };
+export type FotoDaVistoriaRecente = FotoDoVeiculo & { rotulo: string; posicao: PosicaoDaFoto | "avaria"; tirada_em: string; avaria_id: number | null };
+export type GaleriaDoVeiculo = { total: number; limite: number; fotos: FotoDaGaleria[] };
+/** `GET /api/veiculos/{id}/fotos/` e a resposta de enviar, trocar, capa e apagar (`foto_id` só no envio e na troca). */
+export type GaleriaDoEditar = GaleriaDoVeiculo & { editar: boolean; motivo: string | null; foto_id?: number };
+
 export type VistoriaRecente = {
   id: number;
   tipo: "saida" | "devolucao";
+  rotulo_tipo: string;
   concluida_em: string;
   vistoriador: { id: number; nome: string } | null;
   locacao_codigo: string | null;
   total_fotos: number;
-  fotos: { id: number; posicao: PosicaoDaFoto; url: string; url_expira_em: string }[];
+  fotos: FotoDaVistoriaRecente[];
   avarias: { id: number; descricao: string; registrada_em: string; preexistente: boolean; locacao_codigo: string | null; foto_id: number | null }[];
 };
 export type MovimentacoesDoVeiculo = {
@@ -84,9 +105,12 @@ export type Veiculo = {
   valor_compra_centavos?: number | null;
   data_compra?: string | null;
   entrou_na_frota_em: string;
-  situacao: { codigo: string; rotulo: string; tom: TomApi };
+  /** `desde` (LOC-10, T-449): data pronta do "desde" do card "Agora"; `null` sem locação aberta. A tela não usa `inicio` nem `fim_previsto` para isso. */
+  situacao: { codigo: string; rotulo: string; tom: TomApi; desde: string | null };
+  /** T-410: só no veículo `reservado`. O texto "Reservado na LOC-x" já vem em `situacao.rotulo`; aqui só o que serve de link. */
+  reserva?: { locacao_id: number; codigo: string; motivo: "locacao" | "troca" } | null;
   locacao_atual: LocacaoAtualDoVeiculo | null;
-  manutencao: { proxima: ProximaManutencao | null; os_aberta: { id: number; codigo: string; status: string } | null; alerta?: string } | null;
+  manutencao: { proxima: ProximaManutencao | null; os_aberta: { id: number; codigo: string; status: string } | null; alerta?: AlertaDoBloco } | null;
   documentos_resumo: { pior_situacao: "em_dia" | "vence_em_breve" | "vencido" };
   acoes: {
     editar: boolean;
@@ -101,12 +125,26 @@ export type Veiculo = {
     /** T-275: `movimentar` e o motivo quando for `false`; ausentes até a API mandar. */
     movimentar?: boolean;
     motivo_movimentar?: string | null;
+    /** FIN-17 (T-417): "Lançar despesa" na ficha, para quem lança despesa. */
+    lancar_despesa?: boolean;
+    /** VEI-11 (T-438): com locação aberta, a frase que trava o Tipo no editar; `null` quando troca livre. */
+    motivo_trocar_tipo?: string | null;
+    /** VEI-10 (T-414): administrador e gerente, com o veículo fora de vendido e baixado. */
+    editar_fotos: boolean;
   };
 };
 
 export type VeiculoDetalhe = Veiculo & {
+  /** VEI-09 (T-421): os blocos sempre vêm. `documento.numero_motor` e `documento.observacoes` vêm ausentes para vendedor, vistoriador e financeiro. */
+  combustivel: CombustivelDoVeiculo | null;
+  documento: DocumentoDoVeiculo;
+  rastreador: RastreadorDoVeiculo;
+  anotacoes: string | null;
+  /** VEI-10: sempre vem; `fotos` pode ter os links nulos (suporte em só ver). */
+  galeria: GaleriaDoVeiculo;
   /** Ausente para o vistoriador. */
-  indicadores_financeiros?: { rendeu_no_ano_centavos: number; custo_manutencao_ano_centavos: number } | null;
+  /** VEI-05, FIN-17: o rendeu já vem com as despesas descontadas; o custo é só manutenção e peças. */
+  indicadores_financeiros?: { rendeu_no_ano_centavos: number; custo_manutencao_ano_centavos: number; despesas_ano_centavos?: number } | null;
   ocupacao: { pct: string; periodo_dias: number };
   /** Ausente para o financeiro e quando o veículo nunca teve vistoria. */
   vistoria_recente?: VistoriaRecente | null;
@@ -123,9 +161,17 @@ export type ListaVeiculos = {
 
 export type FiltroVeiculos = { status?: string; tipo_veiculo?: TipoVeiculo; busca?: string; cursor?: string };
 
+/** `url` é assinada e vale 15 minutos (AUD-05): cada leitura da API traz outra. */
+export type ArquivoDoDocumento = { nome: string; url: string; url_expira_em?: string };
+
+export type NovoDocumentoVeiculo = { tipo: string; validade: string; exercicio?: string; arquivo?: File };
+
 export type DocumentoVeiculo = {
   id: number;
   tipo: string;
+  arquivo?: ArquivoDoDocumento | null;
+  /** Só o histórico traz os inativos (renovados). */
+  ativo?: boolean;
   rotulo: string;
   validade: string | null;
   situacao: "em_dia" | "vence_em_breve" | "vencido";
@@ -166,6 +212,13 @@ export type EdicaoVeiculo = {
   capacidade_tanque_litros?: string | null;
   valor_compra_centavos?: number | null;
   data_compra?: string | null;
+  /** VEI-09: chave enviada substitui, ausente não muda, `null` apaga. */
+  combustivel?: CombustivelDoVeiculo | null;
+  documento?: DocumentoDoVeiculoEntrada;
+  rastreador?: RastreadorEntrada;
+  anotacoes?: string | null;
+  /** Comprovante da leitura do CRLV-e no editar (VEI-08). */
+  leitura?: string;
 };
 
 export type NovoVeiculo = {
@@ -185,12 +238,24 @@ export type NovoVeiculo = {
   data_compra?: string;
   entrou_na_frota_em?: string;
   combustivel?: CombustivelDoVeiculo;
+  documento?: DocumentoDoVeiculoEntrada;
+  rastreador?: RastreadorEntrada;
+  anotacoes?: string;
 };
+
+export type DocumentoDoVeiculo = components["schemas"]["DocumentoDoVeiculo"];
+export type DocumentoDoVeiculoEntrada = components["schemas"]["DocumentoDoVeiculoEntrada"];
+export type RastreadorDoVeiculo = components["schemas"]["Rastreador"];
+export type RastreadorEntrada = components["schemas"]["RastreadorEntrada"];
+export type EspecieDoVeiculo = components["schemas"]["EspecieVeiculoEnum"];
 
 export type CombustivelDoVeiculo = NonNullable<components["schemas"]["CamposDoCrlv"]["combustivel"]>;
 
 /** Resposta de `POST /api/veiculos/leitura-crlv/` (VEI-08): a API só lê, quem grava é o cadastro. */
 export type LeituraCrlv = components["schemas"]["LeituraCrlv"];
+
+/** Resposta de `POST /api/veiculos/{id}/leitura-crlv/` (T-421): como a leitura do cadastro, sem placa e chassi. */
+export type LeituraCrlvNoEditar = components["schemas"]["LeituraCrlvNoEditar"];
 
 /** O CRLV-e que vai junto no cadastro (multipart): o arquivo lido, a validade que a pessoa informa e o comprovante da leitura. */
 export type CrlvDoCadastro = { arquivo: File; validade: string; exercicio: number | null; leitura: string };

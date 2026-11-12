@@ -14,15 +14,20 @@ from django.db.models import Count, Q, QuerySet
 from django.utils import timezone
 
 from comum import arquivos, leituras, relogio
+from comum.autenticacao import suporte_so_ver
+from comum.documentos import placa_com_hifen
+from comum.empresa import tem_recurso
 from comum.permissoes import filiais_permitidas
 
 from .models import (
     FORA_DA_FROTA,
+    LIMITE_DA_GALERIA,
     MOVIMENTAVEIS,
     TRANSICOES_VEICULO,
     Categoria,
     DocumentoVeiculo,
     Extra,
+    FotoVeiculo,
     HistoricoStatusVeiculo,
     PrecoCategoria,
     StatusVeiculo,
@@ -31,9 +36,12 @@ from .models import (
 )
 from .services import (
     SituacaoDocumento,
+    motivo_da_galeria_so_para_ver,
+    motivo_de_nao_trocar_tipo,
     normalizar_chassi,
     normalizar_placa,
     situacao_do_documento,
+    valores_pontuados,
 )
 
 S = StatusVeiculo
@@ -49,6 +57,8 @@ VEEM_CUSTO = GESTAO | {"financeiro"}
 LEEM_KM = frozenset({"administrador", "gerente", "vistoriador"})
 # Quem aperta o "Cobrar" da ficha (financeiro.md, Cobrar); o vistoriador nem recebe o pagamento.
 COBRAM = GESTAO | {"vendedor", "financeiro"}
+# Quem lança despesa (FIN-05, tabela de perfis): o "Lançar despesa" da ficha (FIN-17).
+LANCAM_DESPESA = COBRAM | {"vistoriador"}
 TOM = {
     S.DISPONIVEL: "sucesso",
     S.RESERVADO: "info",
@@ -326,6 +336,9 @@ def motivo_de_nao_movimentar(veiculo: Veiculo, blocos: dict[str, dict[str, Any]]
         return "Veículo alugado não se movimenta."
     if status == S.DISPONIVEL and locacao.get("status") == "aguardando_retirada":
         return f"O veículo está reservado na {locacao['codigo']}."
+    reserva = blocos.get("reserva")
+    if status == S.RESERVADO and reserva:  # T-410: a locação que reservou, como na Frota
+        return f"O veículo está reservado na {reserva['codigo']}."
     if status not in MOVIMENTAVEIS:
         return f"Veículo {S(status).label.lower()} não se movimenta."
     return None
@@ -359,6 +372,12 @@ def acoes(
         "corrigir_km": perfil in LEEM_KM and na_frota,
         "movimentar": gestao and motivo is None,
         "motivo_movimentar": motivo if gestao else None,
+        # FIN-17: para quem lança, mesmo sem ver a lista; some sem o recurso do plano (PLT-12).
+        "lancar_despesa": perfil in LANCAM_DESPESA and tem_recurso("manutencao_despesas"),
+        # VEI-11: o editar mostra o tipo travado com esta frase; `null` quando troca livre.
+        "motivo_trocar_tipo": (
+            motivo_de_nao_trocar_tipo(veiculo, blocos) if gestao and na_frota else None
+        ),
         # O diálogo da baixa avisa que a movimentação aberta será cancelada (T-311).
         "aviso_baixar": (
             f"A {blocos['movimentacao_aberta']['codigo']} será cancelada."
@@ -372,11 +391,14 @@ def acoes(
 
 def _situacao(veiculo: Veiculo, blocos: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """Base no status; o `alerta` mais grave de um bloco sobrepõe (ADR 0015)."""
-    situacao = {
+    situacao: dict[str, Any] = {
         "codigo": veiculo.status,
         "rotulo": S(veiculo.status).label,
         "tom": TOM[S(veiculo.status)],
     }
+    reserva = blocos.get("reserva")
+    if veiculo.status == S.RESERVADO and reserva:
+        situacao["rotulo"] = f"Reservado na {reserva['codigo']}"  # T-410, CA-410-01
     alertas = [
         bloco["alerta"]
         for bloco in blocos.values()
@@ -389,7 +411,33 @@ def _situacao(veiculo: Veiculo, blocos: dict[str, dict[str, Any]]) -> dict[str, 
             "rotulo": alerta["rotulo"],
             "tom": alerta["tom"],
         }
+    # LOC-10 (T-449): desde quando, pronto da locação atual (fim previsto no atraso, início no
+    # resto); sem locação aberta, `None`.
+    situacao["desde"] = (blocos.get("locacao_atual") or {}).get("desde")
     return situacao
+
+
+def dados_do_documento(veiculo: Veiculo, gestao: bool) -> dict[str, Any]:
+    """Os blocos da VEI-09 (T-421). Vazio vem `null`. O número do motor e as observações do
+    CRLV-e só para administrador e gerente; para os outros, as chaves ficam ausentes (CA-421-12).
+    O token de suporte assume o administrador."""
+    valores = valores_pontuados(veiculo)
+    documento = {
+        chave.removeprefix("documento."): valor
+        for chave, valor in valores.items()
+        if chave.startswith("documento.")
+    }
+    if not gestao:
+        documento.pop("numero_motor")
+        documento.pop("observacoes")
+    return {
+        "documento": documento,
+        "rastreador": {
+            "numero": valores["rastreador.numero"],
+            "empresa": valores["rastreador.empresa"],
+        },
+        "anotacoes": valores["anotacoes"],
+    }
 
 
 def representacao(
@@ -399,7 +447,10 @@ def representacao(
     precos: dict[int, PrecoCategoria] | None = None,
     documentos: dict[int, dict[str, Any] | None] | None = None,
     detalhe: bool = False,
+    com_dados_do_documento: bool = False,
 ) -> dict[str, Any]:
+    """`com_dados_do_documento`: os blocos da VEI-09 nas respostas do `POST` e do `PATCH`; a
+    ficha (`detalhe`) sempre os traz, e a Frota nunca."""
     if precos is None:
         precos = precos_vigentes({veiculo.categoria_id}, relogio.hoje())
     if documentos is None:
@@ -434,11 +485,14 @@ def representacao(
         "entrou_na_frota_em": veiculo.entrou_na_frota_em,
         "situacao": _situacao(veiculo, blocos),
         "locacao_atual": blocos.get("locacao_atual"),
+        "reserva": blocos.get("reserva"),
         "manutencao": blocos.get("manutencao"),
         "documentos_resumo": documentos.get(veiculo.pk),
         "movimentacao_aberta": blocos.get("movimentacao_aberta"),
         "acoes": acoes(veiculo, usuario, blocos),
     }
+    if detalhe or com_dados_do_documento:
+        dados.update(dados_do_documento(veiculo, gestao))
     if detalhe:
         perfil = getattr(usuario, "perfil", "")
         if dados["locacao_atual"]:
@@ -448,15 +502,113 @@ def representacao(
             dados["vistoria_recente"] = (
                 leituras.bloco(ALVO_FICHA, "vistoria_recente", veiculo) or None
             )
+            if dados["vistoria_recente"] and suporte_so_ver(usuario):
+                # ADR 0013, item 2: o suporte em "só ver" vê as fotos sem os links (M-01).
+                recente = dados["vistoria_recente"]
+                fotos = [arquivos.sem_links(foto) for foto in recente.get("fotos", [])]
+                dados["vistoria_recente"] = {**recente, "fotos": fotos}
         # Para vendedor e vistoriador a chave fica ausente, não nula (T-156).
         if perfil in VEEM_CUSTO:
-            dados["indicadores_financeiros"] = blocos.get("indicadores_financeiros")
+            dados["indicadores_financeiros"] = _indicadores(blocos.get("indicadores_financeiros"))
         # As movimentações do veículo; ausente para vistoriador e financeiro (T-275).
         if perfil not in ("vistoriador", "financeiro"):
             dados["movimentacoes"] = leituras.bloco(ALVO_FICHA, "movimentacoes", veiculo)
         dados["ocupacao"] = ocupacao(veiculo)
         dados["historico_status"] = historico_status(veiculo)
+        # A galeria é de todos os perfis; mexer nela, de quem edita veículo (VEI-10, T-414).
+        # O suporte em "só ver" recebe a galeria sem os links (ADR 0013, item 2).
+        dados["galeria"] = bloco_galeria(veiculo, com_links=not suporte_so_ver(usuario))
+        dados["acoes"]["editar_fotos"] = pode_editar_fotos(veiculo, usuario)
     return dados
+
+
+# --- Galeria do veículo (VEI-10, ADR 0036) ---
+
+
+def galeria(veiculo: Veiculo) -> list[FotoVeiculo]:
+    """As fotos ativas na ordem de exibição: capa primeiro, depois a ordem de envio. Para o
+    catálogo (T-418) ler sem tocar no model (ADR 0011)."""
+    return list(
+        FotoVeiculo.ativos.filter(veiculo_id=veiculo.pk)
+        .select_related("enviada_por")
+        .order_by("-capa", "ordem", "id")
+    )
+
+
+def capa(veiculo: Veiculo) -> FotoVeiculo | None:
+    foto: FotoVeiculo | None = FotoVeiculo.ativos.filter(veiculo_id=veiculo.pk, capa=True).first()
+    return foto
+
+
+def nome_da_placa(placa: str) -> str:
+    """A placa no nome do arquivo baixado, com hífen e só `A-Z`, `a-z`, `0-9` e `-`."""
+    return "".join(c for c in placa_com_hifen(placa) if c.isascii() and (c.isalnum() or c == "-"))
+
+
+def representacao_foto_da_galeria(
+    foto: FotoVeiculo, numero: int, placa: str, com_links: bool = True
+) -> dict[str, Any]:
+    """Dois links novos a cada leitura, de 15 minutos (AUD-05): `url` abre, `url_download` baixa
+    com `nome_arquivo` (ADR 0036, item 4). A foto da galeria não tem rótulo. Sem `com_links`
+    (suporte em "só ver", ADR 0013, item 2), nenhum link é gerado e os três campos vêm nulos."""
+    nome = f"{nome_da_placa(placa)}-galeria-{numero}.{foto.formato}"
+    quem = foto.enviada_por
+    dados: dict[str, Any] = {
+        "id": foto.pk,
+        "numero": numero,
+        "rotulo": None,
+        "capa": foto.capa,
+        "url": None,
+        "url_download": None,
+        "url_expira_em": None,
+        "nome_arquivo": nome,
+        "enviada_em": foto.enviada_em,
+        "enviada_por": {"id": quem.pk, "nome": quem.nome} if quem else None,
+    }
+    if com_links:
+        ver = arquivos.url_assinada(foto.arquivo.name)
+        baixar = arquivos.url_assinada(foto.arquivo.name, baixar_como=nome)
+        dados.update(url=ver.url, url_download=baixar.url, url_expira_em=ver.expira_em)
+    return dados
+
+
+def bloco_galeria(veiculo: Veiculo, com_links: bool = True) -> dict[str, Any]:
+    fotos = galeria(veiculo)
+    return {
+        "total": len(fotos),
+        "limite": LIMITE_DA_GALERIA,
+        "fotos": [
+            representacao_foto_da_galeria(foto, numero, veiculo.placa, com_links)
+            for numero, foto in enumerate(fotos, start=1)
+        ],
+    }
+
+
+def pode_editar_fotos(veiculo: Veiculo, usuario: Any) -> bool:
+    """Administrador e gerente, fora de `vendido` e `baixado`. O suporte só vê (PLT-07)."""
+    if getattr(usuario, "e_suporte", False) or getattr(usuario, "perfil", "") not in GESTAO:
+        return False
+    return motivo_da_galeria_so_para_ver(veiculo) is None
+
+
+def galeria_do_editar(veiculo: Veiculo, usuario: Any) -> dict[str, Any]:
+    """`GET .../fotos/`: o bloco da ficha com `editar` e, para quem edita e o veículo vendido ou
+    baixado, o `motivo` da galeria só para ver."""
+    edita = getattr(usuario, "perfil", "") in GESTAO and not getattr(usuario, "e_suporte", False)
+    return {
+        **bloco_galeria(veiculo),
+        "editar": pode_editar_fotos(veiculo, usuario),
+        "motivo": motivo_da_galeria_so_para_ver(veiculo) if edita else None,
+    }
+
+
+def _indicadores(bloco: dict[str, Any] | None) -> dict[str, Any] | None:
+    """VEI-05: o que rendeu no ano = receitas de locação recebidas (de `locacoes`) − todas as
+    despesas do veículo no ano (de `financeiro`, o "Despesas no ano" da FIN-17)."""
+    if not bloco or "rendeu_no_ano_centavos" not in bloco:
+        return bloco
+    despesas = int(bloco.get("despesas_ano_centavos") or 0)
+    return {**bloco, "rendeu_no_ano_centavos": int(bloco["rendeu_no_ano_centavos"]) - despesas}
 
 
 def _da_locacao(veiculo: Veiculo, perfil: str) -> dict[str, Any]:

@@ -83,18 +83,30 @@ def modelos() -> tuple[Modelo, ...]:
     return tuple(ler_csv(ARQUIVO))
 
 
+def _marcas_pelo_apelido(marca_normalizada: str) -> set[str]:
+    """A marca e as marcas do catálogo em que ela vale pelo apelido do Detran (T-415):
+    "CHEVROLET" → {"CHEVROLET", "GM CHEVROLET"}."""
+    return {marca_normalizada, *APELIDOS_DO_DETRAN.get(marca_normalizada, ())}
+
+
+def _termo_bate(termo: str, chave: str) -> bool:
+    return any(alternativa in chave for alternativa in _marcas_pelo_apelido(termo))
+
+
 def listar(
     *, tipo: str | None = None, marca: str | None = None, busca: str | None = None
 ) -> list[Modelo]:
-    """Para `GET /api/veiculos/modelos/`: até 50, em ordem de marca e modelo."""
-    marca_normalizada = normalizar(marca or "")
+    """Para `GET /api/veiculos/modelos/`: até 50, em ordem de marca e modelo. A marca e cada
+    palavra da busca valem também pelos apelidos do Detran (T-415): "Chevrolet" acha os modelos
+    de "GM - Chevrolet", e "VW", os de "VW - VolksWagen"."""
+    marcas = _marcas_pelo_apelido(normalizar(marca or "")) if marca and normalizar(marca) else None
     termos = normalizar(busca or "").split()
     achados = [
         m
         for m in modelos()
         if (not tipo or m.tipo == tipo)
-        and (not marca_normalizada or m.marca_normalizada == marca_normalizada)
-        and all(termo in m.chave for termo in termos)
+        and (marcas is None or m.marca_normalizada in marcas)
+        and all(_termo_bate(termo, m.chave) for termo in termos)
     ]
     return achados[:LIMITE_DA_LISTA]
 
@@ -137,26 +149,57 @@ def _lidos(texto: str) -> list[str]:
     return [lido for lido in dict.fromkeys(lidos) if lido]
 
 
-def achar_modelo(texto: str) -> Modelo | None:
-    """O modelo do catálogo para o texto lido do CRLV-e ("HONDA/POP 110I ES"), só se for único.
+def _pelas_versoes(lido: str) -> list[Modelo]:
+    """O último passo (T-415): o começo mais longo do texto que ainda é o começo de algum modelo,
+    com mais que a marca. Das palavras que sobram, as que existem nessas versões filtram; as que
+    não existem em nenhuma (o "NB" de "CHEVROLET/CRUZE LT NB") são ignoradas."""
+    palavras = lido.split()
+    for tamanho in range(len(palavras) - 1, 0, -1):
+        inicio = " ".join(palavras[:tamanho])
+        versoes = [
+            m
+            for m in modelos()
+            if _comeca_com(m.chave, inicio) and tamanho > len(m.marca_normalizada.split())
+        ]
+        if not versoes:
+            continue
+        conhecidas = {palavra for m in versoes for palavra in m.chave.split()}
+        resto = [palavra for palavra in palavras[tamanho:] if palavra in conhecidas]
+        filtradas = [m for m in versoes if set(resto) <= set(m.chave.split())]
+        return filtradas or versoes
+    return []
 
-    Vale o `marca + modelo` igual ao texto normalizado; sem igual, o texto como começo de um só
-    modelo, ou um só modelo como começo do texto. A marca do Detran vale também pelos apelidos
-    (`APELIDOS_DO_DETRAN`), e o "I/" do importado sai. Mais de um, ou nenhum: `None`, e a leitura
-    manda a dica em vez de preencher (ADR 0026, item 7). Só a marca não basta.
+
+def candidatos(texto: str) -> list[Modelo]:
+    """Os modelos do catálogo que batem com o texto lido do CRLV-e, em ordem de marca e modelo.
+
+    Vale o `marca + modelo` igual ao texto normalizado; sem igual, o texto como começo de modelos,
+    ou modelos como começo do texto; sem nenhum, o começo do texto sem as palavras que não existem
+    nas versões (`_pelas_versoes`, T-415). A marca do Detran vale também pelos apelidos
+    (`APELIDOS_DO_DETRAN`), e o "I/" do importado sai. Só a marca não basta.
     """
     lidos = _lidos(texto)
     if not lidos:
-        return None
+        return []
     passos = (
         lambda m, lido: m.chave == lido,
         lambda m, lido: _comeca_com(m.chave, lido),
         lambda m, lido: _comeca_com(lido, m.chave),
     )
-    candidatos: list[Modelo] = []
+    achados: list[Modelo] = []
     for passo in passos:
-        candidatos = list(dict.fromkeys(m for lido in lidos for m in modelos() if passo(m, lido)))
-        if candidatos:
+        achados = list(dict.fromkeys(m for lido in lidos for m in modelos() if passo(m, lido)))
+        if achados:
             break
-    candidatos = [m for m in candidatos if m.marca_normalizada not in lidos]
-    return candidatos[0] if len(candidatos) == 1 else None
+    achados = [m for m in achados if m.marca_normalizada not in lidos]
+    if not achados:
+        achados = list(dict.fromkeys(m for lido in lidos for m in _pelas_versoes(lido)))
+    return sorted(achados, key=lambda m: (*_ordem(m), m.tipo))
+
+
+def achar_modelo(texto: str) -> Modelo | None:
+    """O modelo do catálogo para o texto lido do CRLV-e ("HONDA/POP 110I ES"), só se for o único
+    candidato. Mais de um, ou nenhum: `None`, e a leitura manda a dica e os candidatos em vez de
+    preencher (ADR 0026, item 7; T-415)."""
+    achados = candidatos(texto)
+    return achados[0] if len(achados) == 1 else None

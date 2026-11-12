@@ -150,7 +150,8 @@ def test_vei_ficha_vistoria_recente(cenario, carlos):  # noqa: F811
     joao = cenario.pessoas["João"]
     assert recente["vistoriador"] == {"id": joao.pk, "nome": joao.nome}
     assert recente["total_fotos"] == 6
-    assert [f["posicao"] for f in recente["fotos"]] == list(POSICOES)
+    # Desde a T-414 (VEI-10), todas as fotos: as fixas na ordem e depois a de avaria.
+    assert [f["posicao"] for f in recente["fotos"]] == [*POSICOES, "avaria"]
     assert all(f["url"] and f["url_expira_em"] for f in recente["fotos"])
     assert recente["avarias"] == [
         {

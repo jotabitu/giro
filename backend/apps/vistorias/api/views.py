@@ -11,19 +11,30 @@ from django.http import Http404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import BasePermission
+from rest_framework.permissions import AllowAny, BasePermission
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 
+from apps.contratos.selectors import marca_e_host
 from apps.filiais.models import Filial
 from apps.filiais.selectors import filtrar_por_filial
 from apps.locacoes import selectors as locacoes_selectors
 from apps.locacoes.models import Locacao
 from apps.plataforma.models import Recurso
+from comum import arquivos
+from comum.empresa import nome_da_empresa
 from comum.erros import ErroDeValidacao
-from comum.permissoes import com_padrao, exige_perfil, filiais_permitidas, filial_pedida
+from comum.limites import LIMITES_DO_LINK_RECIBO, LIMITES_DO_RECIBO_PUBLICO
+from comum.permissoes import (
+    TODAS_AS_FILIAIS,
+    com_padrao,
+    exige_perfil,
+    filiais_permitidas,
+    filial_pedida,
+)
+from comum.rede import ip_do_cliente
 
 from .. import selectors, services
 from ..models import Devolucao, Vistoria
@@ -32,6 +43,7 @@ from .serializers import (
     AvariaEntradaSerializer,
     AvariaSerializer,
     CancelarTrocaSerializer,
+    ConsultaDoReciboSerializer,
     CorrigirVistoriaSerializer,
     CriarVistoriaSerializer,
     DevolucaoSerializer,
@@ -41,14 +53,17 @@ from .serializers import (
     FotoEntradaSerializer,
     FotoSerializer,
     ItemAcertoEntradaSerializer,
+    LinkDoReciboSerializer,
     ListaDeAvariasSerializer,
     ReciboSerializer,
+    TokenDoReciboSerializer,
     TrocaCanceladaRespostaSerializer,
     TrocaPedidaSerializer,
     TrocarVeiculoSerializer,
     VistoriaSerializer,
 )
 
+SUPORTE_NAO_GERA_LINK = ("PLT-07", "No modo suporte você não gera link para o cliente.")
 FAZEM: list[type[BasePermission]] = com_padrao(
     exige_perfil("administrador", "gerente", "vendedor", "vistoriador")
 )
@@ -264,15 +279,18 @@ class AvariasAbertasView(ViewDeVistoria):
         return Response(_para(request, ListaDeAvariasSerializer({"resultados": resultados}).data))
 
 
-def _filial_da_agenda(request: Request) -> Filial:
-    """A agenda é de uma filial: a do `X-Filial`, ou a única da pessoa (VIS-05)."""
+def _filiais_da_agenda(request: Request) -> list[Filial]:
+    """A agenda é de uma filial: a do `X-Filial`, ou a única da pessoa (VIS-05). Com
+    `X-Filial: todas` (administrador, USR-05, T-442), as filiais da pessoa, juntas."""
     pedida = filial_pedida(request)
+    if pedida == TODAS_AS_FILIAIS:
+        return list(Filial.objects.filter(pk__in=filiais_permitidas(request.user)).order_by("id"))
     if not isinstance(pedida, int):
         filiais = filiais_permitidas(request.user)
         if pedida is not None or len(filiais) != 1:
             raise ErroDeValidacao({"filial": ["Escolha a filial no cabeçalho X-Filial."]})
         pedida = next(iter(filiais))
-    return Filial.objects.get(pk=pedida)
+    return [Filial.objects.get(pk=pedida)]
 
 
 class AgendaView(ViewDeVistoria):
@@ -287,9 +305,8 @@ class AgendaView(ViewDeVistoria):
         dia = request.query_params.get("dia", "hoje")
         if dia not in DIAS:
             raise ErroDeValidacao({"dia": ["Use hoje, amanha ou semana."]})
-        return Response(
-            _para(request, AgendaSerializer(selectors.agenda(_filial_da_agenda(request), dia)).data)
-        )
+        agenda = selectors.agenda_das_filiais(_filiais_da_agenda(request), dia)
+        return Response(_para(request, AgendaSerializer(agenda).data))
 
 
 # --- Devolução e acerto (DEV-01 a DEV-06) ---
@@ -317,7 +334,7 @@ def _resposta_devolucao(
     request: Request, devolucao: Devolucao, codigo: int = status.HTTP_200_OK
 ) -> Response:
     services.recalcular(devolucao)  # o rascunho é refeito a cada leitura (contrato)
-    dados = DevolucaoSerializer(selectors.representacao_devolucao(devolucao)).data
+    dados = DevolucaoSerializer(selectors.representacao_devolucao(devolucao, request.user)).data
     return Response(_para(request, dados), status=codigo)
 
 
@@ -425,7 +442,80 @@ class ReciboDaDevolucaoView(ViewDeVistoria):
 class ReenviarReciboView(ViewDeVistoria):
     permission_classes = FECHAM
 
-    @extend_schema(request=None, responses={202: None}, summary="Reenviar o recibo por WhatsApp")
+    @extend_schema(
+        request=None, responses={202: None}, summary="Reenviar o recibo por e-mail, com o PDF anexo"
+    )
     def post(self, request: Request, pk: int) -> Response:
         services.reenviar_recibo(_devolucao(request, pk))
         return Response(status=status.HTTP_202_ACCEPTED)
+
+
+class LinkDoReciboView(ViewDeVistoria):
+    """Copiar link do recibo (T-411, `vistorias.md`). Ordem da T-252: permissão e 403 `PLT-07`
+    (na autenticação), depois o limite, depois o serviço. O link sai só nesta resposta."""
+
+    permission_classes = FECHAM
+    throttle_classes = LIMITES_DO_LINK_RECIBO
+    suporte_proibido = True
+    mensagem_suporte_proibido = SUPORTE_NAO_GERA_LINK
+
+    @extend_schema(
+        request=None, responses=LinkDoReciboSerializer, summary="Copiar link do recibo (DEV-02)"
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        token, devolucao = services.gerar_link_recibo(_devolucao(request, pk), request.user)
+        host = marca_e_host()[1]
+        corpo = {
+            "link": services.link_do_recibo(host, token),
+            "expira_em": devolucao.token_recibo_expira_em,
+            "aviso": "O link anterior deixa de valer.",
+            "devolucao": {
+                "id": devolucao.pk,
+                "status": devolucao.status,
+                "recibo_enviado_em": devolucao.recibo_enviado_em,
+            },
+        }
+        return Response(LinkDoReciboSerializer(corpo).data, headers={"Cache-Control": "no-store"})
+
+
+class ConsultarReciboView(APIView):
+    """Página pública `/recibo` (T-411): sem login, no host da empresa, com limites próprios por
+    IP e por token (B-03). Ler o recibo não é operação: vale também com a empresa suspensa."""
+
+    authentication_classes: list[Any] = []
+    permission_classes = [AllowAny]
+    throttle_classes = LIMITES_DO_RECIBO_PUBLICO
+    recurso_do_plano = Recurso.LOCACOES_VISTORIA  # PLT-12: o recibo é do módulo de locação
+
+    @extend_schema(
+        request=TokenDoReciboSerializer,
+        responses=ConsultaDoReciboSerializer,
+        summary="Ler o recibo do link (DEV-02, S-15)",
+    )
+    def post(self, request: Request) -> Response:
+        entrada = TokenDoReciboSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        devolucao = services.consultar_recibo(
+            entrada.validated_data["token"],
+            ip_do_cliente(request),
+            request.META.get("HTTP_USER_AGENT", ""),
+        )
+        assinada = arquivos.url_assinada(devolucao.recibo.name)
+        nome = devolucao.locacao.cliente.nome.split()
+        corpo = {
+            "empresa": {"nome_exibicao": nome_da_empresa(), "logo_url": None, "cor_marca": None},
+            "recibo": {
+                "codigo": devolucao.locacao.codigo,
+                "cliente_primeiro_nome": nome[0] if nome else "",
+                "concluida_em": devolucao.concluida_em,
+                "pdf_url": assinada.url,
+                "pdf_url_expira_em": assinada.expira_em,
+            },
+        }
+        return Response(
+            ConsultaDoReciboSerializer(corpo).data,
+            headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex"},
+        )
+
+
+VIEWS_DO_RECIBO_PUBLICO = (ConsultarReciboView,)

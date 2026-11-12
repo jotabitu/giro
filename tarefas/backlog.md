@@ -27,13 +27,10 @@ Levantadas pelo arquiteto em T-030 (07 out 2026):
 
 - [decisão] (qa, T-019) Troca de óleo da QXA-4B21 (CA-019-10: última aos 18.900 km, próxima aos 19.900) não tem onde morar: `apps/manutencao` é só README (`MAN-03`). `xfail` em `test_man_03_seed_019_10_proxima_troca_de_oleo_aos_19900`; o seed ganha o dado quando o módulo existir.
 - [decisão] (qa, T-019) Sem módulo no backend, os casos da fase 2 (CA-019-31) seguem `xfail`: venda VEN-0177, comissões, conciliação e DRE de setembro. Orquestrador: criar as tarefas de backend desses módulos; o seed ganha os dados com cada um.
-- [decisão] (backend, T-365; para o produto) **Descrição da fatura no mesmo mês no CA-ASS-46.** O CA-ASS-46 escreve "Plano Profissional · 01 dez a 31 dez", e a `PLT-14` diz que no mesmo mês é "01 a 21 nov". Padrão no código: a forma da `PLT-14` ("Plano Profissional · 01 a 31 dez"), a mesma de todas as faturas; `test_plt_06_reativar_so_com_atrasada_paga` espera essa. Pede só acertar o texto do CA-ASS-46.
 - [decisão] (seguranca, T-369; para o produto) **Contrato do cliente anonimizado (`AUD-06`).** A regra diz que contratos e registros financeiros "ficam guardados pelo prazo legal, anonimizados". O `anonimizar_titular` anonimiza o cadastro, e o contrato e o financeiro continuam ligados a ele. Mas o texto final do contrato (`versao_texto_html`) e os PDFs, o gerado e o assinado, ainda têm o nome, o CPF e o endereço do cliente. Padrão no código: ficam como estão, porque o PDF assinado (com o hash) é a prova do contrato no prazo legal. Alternativa: trocar o texto e gerar um PDF novo, anonimizados, guardando só o hash do assinado. A validar com o jurídico.
 - Resolvido na T-211 (dono, 14 out 2026): **Reativar a empresa `cancelada` com fatura em atraso** (arquiteto, T-193): opção A, a equipe só reativa depois de receber a atrasada, como o contrato já recusa (`PLT-06`, CA-ASS-46).
 - Resolvido na T-211 (dono, 14 out 2026): **Endereço da empresa para a NFS-e da assinatura** (arquiteto, T-193): opção B, a compra não pede; o endereço nasce do endereço da filial matriz do passo 6, copiado uma vez, e se edita nos dados fiscais; o seed leva o da Filial Centro, CEP 60325-000 (`PLT-15`, CA-ASS-47 e 48).
 - Resolvido na T-229 (dono, 15 out 2026): opção A nos 5 casos abaixo, o padrão do contrato (`PLT-06`, `AUD-08`, CA-ASS-54 a 58). A desistência da pausa vai até o último dia do período pago; mudar de plano e pausar com o cancelamento marcado são recusados; um downgrade já agendado continua e só vale se o cancelamento for desfeito. O prazo de guarda das faturas fica com o dono e o contador ("Pontos em aberto" das regras), e o MEI e o empresário individual, com a segurança (T-230).
-- ~~[decisão]~~ **Cancelar e pausar: casos que a `PLT-06` não cobre** (arquiteto, T-194; avisar o produto). O contrato `docs/api/cancelamento.md` segue um padrão em cada um, e a T-195 pode começar por ele: (1) **cancelar em teste com a 1ª fatura já paga**: padrão, como a `ativa`, com acesso até o fim do período da 1ª fatura (como a mudança de plano no teste com a 1ª paga, `PLT-04`); alternativa: acesso até o fim do teste e a 1ª fatura estornada; (2) **desistir da pausa antes de começar**: padrão, o administrador desiste pela "voltar da pausa" e a fatura que a pausa cancelou nasce de novo, como no desfazer do cancelamento; alternativa: só pelo suporte; (3) **mudar de plano com cancelamento marcado**: padrão, recusado ("Desfaça o cancelamento antes de mudar de plano."); alternativa: aceitar o upgrade com a diferença; (4) **fatura de diferença em aberto ao começar a pausa**: padrão, continua devida com a régua dela, a `pausada` não vira `inadimplente`, e volta `inadimplente` se ainda estiver atrasada; (5) **o que fica no `public` depois do apagamento** (`AUD-08`, ADR 0025): padrão, a linha da empresa sem os dados de contato, as faturas da assinatura (registro fiscal do Giro) e a auditoria da plataforma; alternativa: apagar também a razão social e o endereço da linha (as faturas guardam o tomador). A validar com o contador o prazo das faturas.
-- ~~[decisão]~~ **Cancelar a `ativa` com o período pago já vencido** (backend, T-195; para o produto). **Decidida pelo dono em 21 out 2026: A** (T-343, recomendação do produto): o acesso termina na hora, a empresa vira `cancelada` no mesmo dia e a fatura do dia é cancelada, sem ficar devida; com ela já paga, acesso até o fim do período dela. Regra `PLT-06`, tabela "Decisões de 21 out 2026", casos (e) e (f) de "Cancelamento da Moto Rápida", critério CA-ASS-69. O código da T-195 já faz A. A `PLT-06` dá acesso até o fim do período pago, mas não diz o que fazer quando esse fim já passou: a `ativa` no dia do vencimento da fatura seguinte, ainda sem pagar (o boleto vence hoje, ou o cartão é cobrado mais tarde no dia). Padrão no código (`calendario.datas_do_cancelamento`): o acesso termina agora, a empresa vira `cancelada` na hora e a fatura do dia vira `cancelada`, como na `inadimplente`; a tela mostra "termina agora". Alternativa: acesso até o fim do período da fatura do dia, se ela for paga. Teste `test_plt_06_acesso_que_ja_acabou_termina_agora`.
 - [divergência] Dados de exemplo nas telas da plataforma (para T-028): `Plat-Empresa-Detalhe` mostra CNPJ 41.208.733/0001-52 (seed: 12.345.678/0001-10), FAT-0001 vencendo em 21 out (PLT-01: dia seguinte ao fim do teste, 22 out) e "13 dias" de teste em 07 out (contrato: 14); `Plat-Empresas` mostra Moto Rápida com 4 usuários (seed: 5).
 
 Levantadas pelo arquiteto em T-036 (07 out 2026):
@@ -100,7 +97,6 @@ Levantadas pelo backend em T-091 (09 out 2026), para o produto. O código segue 
 
 Levantadas pelo backend em T-016 parte 1 (09 out 2026):
 
-- ~~[divergência]~~ **Respondida na T-261 (produto):** o seed está certo (LOC-2856 `ativa` desde 07 out, com a 1ª semana e a caução no caixa); o CA-016-01 e o CA-016-08 são o momento antes da retirada, como fixture, e o CA-016-08 diz isso agora. (qa, T-105) A carteira de outubro (`docs/qa/carteira-outubro/locacoes.csv` e `tests/aceitacao/carteira.py`) traz a LOC-2856 como `ativa` desde 07 out 09:00. O CA-016-08 (e o CA-016-01) a quer `aguardando_retirada`, com retirada às 09:15. (O teste da agenda tira a LOC-2856 da carteira e cria a do critério.)
 
 Levantadas pelo backend em T-109 (09 out 2026). O código segue o que está entre parênteses:
 
@@ -149,13 +145,6 @@ Concluída. As tarefas entregues estão em `tarefas/feito.md`.
 
 ## Fase 1 · MVP
 
-### [decisão] Remetente do WhatsApp que o cliente da locadora vê (ADR 0034, levantada na T-385, T-387)
-- **Para:** dono do produto, pelo orquestrador · **Contexto:** na opção A da ADR (um número só, do Giro), a Meta exige o nome de exibição do negócio verificado, e o cliente vê "Giro Avisos". Isso contraria "Toda mensagem ao cliente final sai com a marca da locadora, nunca com o nome Giro" (Automações).
-  - **A:** exceção na fase 1. O remetente é "Giro Avisos", com a marca da locadora sempre no texto ("Moto Rápida informa: ...") e o perfil "Avisos das empresas que usam o sistema Giro. Este número não recebe mensagens."; número próprio na fase 2.
-  - **B:** um número por locadora já, que é trabalho de fase 2.
-  - **C:** sem WhatsApp ao cliente final na fase 1.
-
-  **Padrão: A** (produto e arquiteto). Está em "Pontos em aberto" das regras; handoff `tarefas/handoffs/T-387-produto.md`.
 ### Fechamento da fase 1 · fechada em 28 out 2026
 
 A fase 1 fechou no ambiente de desenvolvimento, pelas decisões do dono em `MEMORY.md` ("Escopo de fechamento da fase 1", de 25 out, e "O que já existe e é da fase 2 fica como está", de 28 out). As tarefas T-356 a T-407 estão no `feito.md`. A última é a parte 2 da T-375 (PR #445), o E2E dos critérios de pronto do `plano.md`, com o resultado em `tarefas/handoffs/T-375-qa-e2e.md`.
@@ -245,14 +234,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 - **Pronto quando:** a segurança diz, com base na LGPD, se esses dados podem ficar (registro fiscal das faturas e notas do Giro) e por quanto tempo, ou se a linha deve ficar só com o CNPJ e as faturas. Se precisar mudar a `AUD-08`, avisa o produto com a opção A ou B.
 - **Junto:** o prazo de guarda das faturas fica com o dono e o contador ("Pontos em aberto" das regras); a segurança não decide o prazo, só se o dado pode ficar.
 
-### ~~[decisão]~~ O que fica da empresa apagada: opção B da segurança (T-230, `AUD-08`, `PLT-14`)
-- **Resolvido na T-235 (dono, 15 out 2026):** B para toda empresa, (a) para a fatura atrasada, e a compra de novo sem teste e esperando a fatura atrasada (`AUD-08`, `PLT-14`, `PLT-16`, CA-ASS-58 a 62).
-- **Para:** produto (e o dono) · **Depois:** arquiteto (`cancelamento.md`, `assinatura.md`, `auditoria.md`) e backend (T-195).
-- **Recomendação da segurança (B, igual para toda empresa, MEI ou não):** a linha apagada fica só com o CNPJ (sem razão social, nome de exibição, endereço e contato); a fatura guarda o tomador como foi na nota e ele sai com ela, no prazo de guarda; a auditoria do `public` guarda quais dados mudaram, sem os valores; depois da última fatura, o CNPJ sai e ficam reservados o subdomínio e o schema. **A**, o que está na `AUD-08` hoje, guarda nome e às vezes CPF e endereço de casa do MEI sem prazo e sem obrigação legal que peça a linha.
-- **Junto (B-02):** `cnpj` único só entre empresas não apagadas, para a mesma empresa poder comprar de novo depois do apagamento.
-- **Fatura atrasada no 90º dia:** (a) ela guarda o `email_cobranca` até a baixa ou o fim do prazo (recomendado, a dívida não some, `PLT-06`); (b) o Giro não cobra mais depois do apagamento.
-- **Não depende do prazo** das faturas (dono e contador): só diz o que fica e preso a quê.
-
 ### T-235 · Regras do apagamento pela T-230
 - **Agente:** produto · **Depende de:** T-230 · **Regras:** AUD-08, PLT-14, PLT-16, PLT-06, APR-03 · **Estado:** regras e critérios escritos, PR a abrir. O dono aprovou em 15 out 2026:
   - opção B do apagamento, para toda empresa;
@@ -278,8 +259,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 ### T-338 · Cotação da FIPE licenciada
 - **Agente:** arquiteto · **Depende de:** T-337 · **Regras:** VEI-08, VEN-01 · **Pronto quando:** há uma comparação de 2 a 4 fornecedores (a própria FIPE e APIs pagas de terceiros) com preço mensal, o que a licença deixa fazer com a lista (guardar no repositório público ou só em armazenamento privado), cobertura de motos e carros com o tipo, preço de referência para a `VEN-01`, frequência e formato da entrega, e uma recomendação para o dono assinar. Se a licença proibir publicar a lista, a ADR do CSV fora do git fica pronta para o backend. Escolha do dono em 20 out 2026: opção B da T-337.
 - **Estado (20 out 2026, arquiteto):** comparação no handoff `tarefas/handoffs/T-338-arquiteto.md` e ADR 0030 (proposta) pronta para o caso de o contrato proibir publicar. Só a própria FIPE licencia: o site diz "todos os direitos reservados", sem download nem API. As APIs pagas (fipe.api.br por R$ 59/mês, Tabela Fipe API por R$ 46,99/mês, fipeapi.site por R$ 50 a 100/mês) revendem dado coletado do site, sem termos de licença publicados, e não dão licença limpa. O preço da FIPE só sai por contato.
-- ~~[decisão]~~ (T-338, para o dono) **Pedir a proposta à FIPE** pelo formulário de contato do site oficial, com as 7 perguntas do handoff. Enquanto ela não responde, a T-339 espera. Se a FIPE não licenciar ou cobrar caro demais: voltar à T-337 e escolher entre A (site, o dono assume o risco), uma API paga (mesmo risco da A, com o CSV pronto por R$ 59/mês) ou C (Renavam).
-  - **Decidido (20 out 2026, dono): fonte provisória.** Enquanto não houver proposta da FIPE, o catálogo vem da API aberta da Parallelum (`https://parallelum.com.br/fipe/api/v2`, sem token; código MIT, dados da Tabela FIPE sem licença própria). O dono aceita o risco da opção A da T-337 enquanto isso for provisório. O pedido à FIPE ainda não foi feito. Se houver contrato, a fonte passa a ser a FIPE licenciada, e a ADR 0030 vale se o contrato proibir publicar. Registrado na ADR 0031 (T-342).
 
 ### T-265 · Código da leitura do CRLV-e (`VEI-08`, ADR 0026)
 - **Agente:** backend, depois frontend · **Depende de:** T-247 (revisão da segurança), T-257 · **Regras:** VEI-08, VEI-01, VEI-03 · **Contrato:** `docs/api/veiculos.md` (`POST /api/veiculos/leitura-crlv/`) · **Pronto quando:** o parser com pypdf no processo filho com os limites da ADR 0026, calibrado com CRLV-e reais; um semáforo de leituras simultâneas (pedido do devops na T-258); nada do conteúdo em log ou Sentry; CA-247-01 a 07; a tela de cadastro com "Preencher pelo CRLV-e". A CNH-e (`CLI-11`) fica para a fase 2 (decisão de 16 out).
@@ -291,8 +270,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 - **Estado (16 out 2026):** contrato em `docs/api/movimentacoes.md`, ADR 0028 (app `movimentacoes` no nível 11), itens 26 e 27 em `modelo-de-dados.md`, reflexos em `veiculos.md`, `financeiro.md` e `contas.md`. Branch `t-286-contrato-movimentacoes`, empilhada sobre a `t-283-decisoes-16-out`, com a `t-275-ficha-veiculo-api` mesclada; handoff `tarefas/handoffs/T-286-arquiteto.md`.
 - **Pronto quando (backend, a numerar):** app `movimentacoes` com os models, a máquina de estados, as rotas do contrato e o local de apoio; em `veiculos`, o status `em_movimentacao`, o `travar` público, `transferir` com a origem, os blocos `movimentacao_aberta` e `movimentacoes`, `acoes.movimentar` e `?em_movimentacao=true`; `locacoes.services.confirmar` travando o veículo; em `financeiro`, a origem `movimentacao`, `sem_nota` e a rota da nota; `pode.movimentacoes` e o item de menu; `AUT-06` tratando `em_movimentacao` como `alugado`; a rota `transferir` sai junto com o frontend. Testes `test_mov_01_*` a `test_mov_06_*` pelos CA-246-01 a 16 (a despesa do CA-246-02 em 3500 e as despesas de outubro em 710170) e o teste de concorrência (iniciar e confirmar a locação ao mesmo tempo). OpenAPI regenerado e `api:gerar`.
 - **Pronto quando (frontend, a numerar, depois do backend):** `Movimentacoes` (quadro pelo `GET /api/movimentacoes/quadro/`), `Movimentacao-Nova` (com "Novo local" na parada), `Movimentacao-Chegada-Mobile` (fotos uma por vez, depois a confirmação), "Transferir" e "Movimentar" da ficha abrindo a Nova movimentação, a marca "sem nota" e "Anexar nota" em `Despesas`, tudo pelos `acoes` e textos da API.
-- ~~[decisão]~~ **Respondida (T-290, produto, 16 out 2026): fica o padrão do contrato, como leitura do produto a conferir pelo dono** (`MOV-02`, `USR-05`, "Pontos em aberto" das regras, item 6). O item Movimentações aparece para quem leva enquanto houver movimentação não concluída dele, no menu do perfil e no completo, e a tela mostra só as dele. Junto: a `MOV-02` passou a dizer que o financeiro não leva, como o contrato e o CA-246-11. (T-286, para o produto) **Como quem leva chega ao "Registrar chegada".** O vendedor e o vistoriador que levam o veículo não têm o item Movimentações (é de administrador e gerente, handoff da T-283), e a agenda do vistoriador com movimentações ficou fora. Padrão do contrato: o item `movimentacoes` aparece para quem leva enquanto houver uma movimentação aberta dele, e a lista mostra só as dele. Produto: confirmar ou trocar (ex.: aviso no sino ao ser escolhido).
-- ~~[decisão]~~ **Respondida (T-290, produto, 16 out 2026): fica o padrão, só as concluídas hoje** (dia da filial de saída); as antigas na lista com o filtro de período. Registrado na seção Movimentações das regras. (T-286, para o produto) **Coluna Concluídas do quadro.** A tela mostra uma concluída "hoje 08:30". Padrão do contrato: só as concluídas hoje; as antigas ficam na lista com filtro. Produto: confirmar ou dar outra janela (últimos 7 dias, por exemplo).
 - Leitura do arquiteto, **aceita pelo produto (T-290)** e registrada na `MOV-03`: o veículo `disponivel` com locação `aguardando_retirada` (início hoje) conta como "reservado" na `MOV-03` e não se movimenta (409 `MOV-03`), porque já tem dono para hoje.
 
 
@@ -300,34 +277,13 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 - **Cartão no anual (produto, 16 out 2026): fica "todo ano".** "Cartão Visa final 4242 · cobrança automática todo ano" no ciclo anual, "todo mês" no mensal (`PLT-13`). O arquiteto acrescenta a linha do anual na tabela da forma em `assinatura.md`.
 - **409 `valor_mudou` (produto, 16 out 2026): troca o texto.** Fica "O valor da diferença mudou. Confira o novo valor antes de confirmar." (o texto do backend repetia "mudança mudou"). O `detalhes.diferenca_centavos` continua, para a tela mostrar o valor novo. O desfazer no dia da virada fica como está: "A mudança para o plano Essencial já vale desde 22 nov.". O arquiteto põe os dois no contrato, e o backend troca o texto do 409 na parte 2 ou num commit da parte 1.
 
-### ~~[decisão]~~ Pix automático da assinatura sem autorização (PLT-02, PLT-13, levantada na T-186 parte 2)
-- **Decidida pelo dono em 16 out 2026: B** (T-296, recomendação do produto). Sem a autorização no dia da emissão (5 dias antes), a fatura sai em boleto com Pix por e-mail, como na forma boleto, com a linha "Seu Pix automático ainda não foi autorizado. Esta fatura vai por boleto com Pix.". A escolha do Pix automático continua e vale a partir da fatura seguinte, depois de autorizada; a fatura já emitida segue no boleto. Regras `PLT-13` e `PLT-02`, tabela "Decisões de 16 out 2026", critério CA-ASS-63. A tarefa do backend está no handoff `tarefas/handoffs/T-296-produto.md`, para o orquestrador numerar.
-- Antes (A, o que o PR #302 fazia): nada era emitido, e a empresa só pagava pelo "Pagar". C (a forma voltar para boleto) foi descartada.
-
-### ~~[decisão]~~ Marco da régua da assinatura perdido (PLT-02, AUT-13, levantada na T-299)
-- **Decidida pelo dono em 16 out 2026: B** (T-308, recomendação do produto). Só o D+7 sai depois, na próxima execução até o D+14, uma vez, com a ligação; o D-3, o D0 e o D+3 não são recuperados. Regras `PLT-02` e `AUT-13`, tabela "Decisões de 16 out 2026", critério CA-ASS-68. A T-303 já conta com B.
-- **Para:** dono do produto, pelo orquestrador · **Contexto:** se a tarefa das 09:00 não rodar no dia de um marco, a mensagem não sai depois (como na `AUT-03`); no D+7, perde-se o último aviso antes da suspensão e a tarefa de ligação. A) nenhum marco é recuperado; B) só o D+7 sai na próxima execução, até o D+14, uma vez. **Padrão: B.** Em "Pontos em aberto" das regras. Entra na tarefa de backend dos textos (handoff `tarefas/handoffs/T-299-produto.md`).
-
 ### [decisão] Baixa de veículo com movimentação aberta (MOV-03, levantada na T-300, T-302)
-
-### ~~[decisão]~~ Suporte Giro nas movimentações (MOV-02, PLT-07, levantada na T-315, T-318)
-- **Decidida pelo dono em 16 out 2026: A** (T-319, recomendação do produto e da segurança). Mesmo em "ver e editar", o suporte só lê as movimentações; toda escrita dá 403 `PLT-07`. Regras `MOV-02` e `PLT-07`, tabela "Decisões de 16 out 2026", critério CA-246-24. A T-316 já faz A.
-- **Para:** dono do produto, pelo orquestrador · **Contexto:** o suporte em "ver e editar" age como administrador (ADR 0013), e a regra não diz se a movimentação é exceção. A) não: só lê; toda escrita das movimentações (criar, editar, iniciar, cancelar, chegada na parada e no destino, foto, local de apoio) dá 403 `PLT-07`; B) sim, como administrador, nunca como quem leva nem quem recebe. **Padrão: A** (o da segurança). Em "Pontos em aberto" das regras; handoff `tarefas/handoffs/T-318-produto.md`.
-
-### ~~[decisão]~~ Baixa de veículo com movimentação aberta (MOV-03, levantada na T-300, T-302)
-- **Decidida pelo dono em 16 out 2026: B** (T-310, recomendação do produto). A baixa encerra a movimentação: a agendada e a iniciada viram `cancelada` (a iniciada com "Veículo baixado: {motivo}"), as despesas das paradas ficam, e na transferência o veículo continua na filial de saída. Regra `MOV-03`, tabela "Decisões de 16 out 2026", critérios CA-246-22 e 23. A recusa provisória da T-288 (A) deixa de valer.
-- **Para:** dono do produto, pelo orquestrador · **Contexto:** a baixa vale para qualquer status menos `alugado`, e a movimentação iniciada só termina com a chegada (km e vistoria), que o veículo roubado no caminho não tem. A) a baixa é recusada com movimentação aberta (409 `MOV-03`); B) a baixa encerra a movimentação: a agendada e a iniciada viram `cancelada`, com o motivo "Veículo baixado: {motivo}", as despesas das paradas ficam, e na transferência o veículo continua na filial de saída. **Padrão: B.** Até a resposta, a T-288 recusa (A). Em "Pontos em aberto" das regras; handoff `tarefas/handoffs/T-302-produto.md`.
 
 ### T-028 · Limpar dados de exemplo das telas
 - **Agente:** design-system · **Depende de:** T-004 · **Pronto quando:** os números das telas batem com as regras e o seed. Já se sabe de: Patrícia (LOC-2812) aparece em Contas a receber com parcela de R$ 279,00 (plano Entregador, placa SAB-2K90), mas é mensal NMax SBC-0J44 nas outras telas; Marcos (LOC-2850) aparece com a placa SBC-0J44; ficha do veículo QXA-4B21 mostra "Plano padrão Semanal R$ 299,40" (Street agora é R$ 329,00); Juliana aparece "em dia" em Clientes e com parcela atrasada em Contas a receber; Financeiro mostra "3 clientes com 7+ dias R$ 1.299,40". Corrigir no canvas e em `docs/telas/html/`. Inclui `Despesas-Desktop` e `Despesas-Mobile`: aguardando aprovação é R$ 1.200,00 (não R$ 1.386,40) e o IPVA de R$ 186,40 nasce `a_pagar` (FIN-05), apontado pelo qa na T-040.
 - **Estado do QXA-4B21 (T-112, decisão do dono em 09/10, opção A):** corrigir Frota, Veiculo, Main, Vistoriador e a OS-119 em Manutencao conforme o caso "Estado do QXA-4B21 em 07 out" dos dados de referência e as divergências levantadas pelo produto em T-112 (acima, em Pontos em aberto): Alugado no tom `solido` (não azul) e "Colocar à venda" só em veículo `disponivel`.
 - **Da T-152 (12 out 2026):** `Financeiro` (desktop e celular) sem "Saldo em contas", "Fluxo de caixa previsto", "Conciliar", "Aprovar despesa", "Pagar OS-0193", "Cobrar 2 clientes" em Para hoje e o seletor de período; "Sai hoje" e o contador "Contas a pagar" pelo seed (0 em 07 out); `Receber` sem "Exportar"; no menu das telas, "Locações" é 51 no seed (42 da carteira e 9 reservas) e "Usuários" não tem número (nenhum convite pendente).
 - **Da T-176 (13 out 2026):** `Despesas-Desktop` e `Despesas-Mobile` com "Vencimento" e "Já paguei em dinheiro, pelo caixa" no formulário, "Foto da nota" obrigatória, o diálogo do detalhe (pagar, aprovar, recusar com motivo) e "Despesa por veículo" R$ 82,17 (não R$ 82); "Exportar" e a busca ficam. Regras `FIN-05`, `FIN-06`, `FIN-16`.
-
-### ~~[decisão]~~ Pix Automático: quando cobrar a parcela (AUT-04, levantada na T-029)
-- **Respondida (T-283, 16 out 2026): fase 2.** Decisão do dono: no MVP, a parcela da locação segue boleto e Pix comum pela régua (`AUT-03`, `AUT-04`, `LOC-05`); o padrão abaixo fica de base para a fase 2. O fluxo na locação (handoff da T-029, item 1) não entra no MVP.
-- **Com o dono (T-261, 16 out 2026):** em "Pontos em aberto" das regras ("Pix Automático nas parcelas da locação"), com o padrão: cobrança criada 5 dias úteis antes; a autorização nasce na 1ª parcela paga na retirada, e a parcela que vencer antes segue a régua comum; só a semanal e a mensal. Até a resposta, vale o padrão.
-- **Para:** produto · **Contexto:** o contrato (`docs/api/financeiro.md`, "Cobrança recorrente") diz que `aut_04_cobranca_recorrente` cobra "no vencimento de cada parcela". Pela documentação do Asaas, a cobrança do Pix Automático tem de ser criada **de 2 a 10 dias úteis antes do vencimento**, e a autorização só fica ativa depois que o cliente paga a primeira cobrança pelo QR. Falta decidir: quantos dias antes a tarefa cria a cobrança da parcela, o que acontece com a parcela que vence antes de a autorização ficar ativa, e se a locação diária ou quinzenal pode ter Pix Automático (o Asaas aceita semanal, mensal, trimestral, semestral e anual). O provedor já está pronto (`asaas.py`, T-029); o fluxo na locação espera esta decisão (handoff `tarefas/handoffs/T-029-backend.md`, item 1).
 
 ## Dúvidas abertas da T-020 (frontend)
 
@@ -355,8 +311,6 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 - **Respondido (produto):** (1) na T-261, o texto do arquiteto fica: a tela não deixa chegar à recusa, e ele diz o que escolher; (2) na T-256, o CA-ASS-50 passou ao texto da API. Para o produto (T-224): (1) a recusa de "só vende" no `PUT /api/ramo/` do Essencial, que a tela não deixa acontecer, usa "O plano Essencial não inclui vendas. Escolha locação, ou locação e venda." (texto do arquiteto; trocar se quiser); (2) o CA-ASS-50 diz "1 comissão não paga" e a API devolve o texto do grupo `comissoes` já contratado, "1 comissão a pagar"; ajustar o critério ou pedir a troca do texto.
 - Proposta do produto (T-223, para a T-196, backend, depois da T-224): somar `test_plt_12_troca_de_ramo_com_algo_aberto`, `test_plt_12_essencial_sem_so_vende`, `test_plt_12_downgrade_so_vende` e `test_plt_12_comissao_so_depois_do_upgrade`, e o `test_plt_04_downgrade_nao_cabe` conferindo os `abertos` do seed (despesas 1 aguardando aprovação e 2 a pagar). Critérios: CA-ASS-15 e CA-ASS-22 a 25, 50 a 53. O frontend do passo 7 (`Onboarding-Ramo`) e de Configurações mostra as opções e a recusa que a API devolve.
 - Resolvido na T-235 (dono, 15 out 2026): opção A, a tela perde as duas células e mostra categoria, descrição, veículo, valor e vencimento (CA-APR-11). O `resumo` do contrato ganha a descrição.
-- ~~[decisão]~~ (T-201, Aprovações) A tela `Aprovacoes` mostra "Fornecedor" e "15 out · boleto" no pedido de despesa (`APR-03`), mas a despesa não tem fornecedor (`FIN-05`, `FIN-06`) e só tem forma depois de paga. Padrão do contrato até a resposta: o `resumo` sai com categoria, veículo, valor e vencimento, sem fornecedor nem forma. Produto: a despesa ganha fornecedor (e a forma prevista) ou a tela perde as duas células?
-- ~~[decisão]~~ **Respondida na T-261 (produto, 16 out 2026): fica "Nenhuma filial ativa".** Só acontece antes do passo 6 da implantação, porque a última filial ativa não se desativa (`FIL-06`), e o texto vale nos dois casos. (T-181, Configurações) Empresa sem filial ativa: o contrato não diz o resumo do cartão Filiais; o backend usa "Nenhuma filial ativa" (como "Nenhuma categoria cadastrada" em Tabelas de preço). Produto: confirmar ou trocar o texto.
 
 - Resolvido na T-263 (arquiteto): `acoes.gerar_contrato` no detalhe da locação (`locacoes.md`); a tela deixa de deduzir. Tarefa abaixo.
 
@@ -364,15 +318,41 @@ Registradas pelo orquestrador a partir das notas do dono. Ordem: bugs primeiro, 
 
 Vendas e aprovações (VEN, APR), despesas, comissões e conciliação (FIN-05 a FIN-13), manutenção (MAN), automações (AUT), implantação self-service (IMP), relatórios e DRE, exportação (AUD-06, AUD-07). A cobrança da assinatura, cancelar e pausar e a `AUD-08` entraram no MVP em 14 out 2026 (T-183, T-190); continuam aqui a `Plat-Cobranca` e os adicionais. Da exportação (`AUD-07`), o MVP tem só a auditoria em CSV (T-018); a fase 2 traz os outros itens (clientes, veículos, locações e contratos, financeiro, vistorias e fotos), a planilha (.xlsx, dependência nova registrada no PR), o backup completo em ZIP com as 2 etapas recentes, o backup mensal (`AUT-11`) com o cartão da tela, a exportação da plataforma (`/api/plataforma/exportacoes/`), o pedido do titular (`AUD-06`, à mão até lá) e o prazo após o cancelamento (`AUD-08`), decisão do dono de 12 out 2026 (T-151). O orquestrador quebra em tarefas quando a fase 1 fechar.
 
-### T-378 · Completo fora da venda (`PLT-11`)
-- **Agente:** backend · **Fase:** 2, com a produção (decisão do dono de 28 out 2026: na fase 1 ninguém compra plano) · **Pronto quando:** o plano ganha o campo próprio "à venda" (migração), e o Completo nasce fora; Mudar de plano e Comparar planos não o listam; a API recusa a mudança para ele com "O plano Completo ainda não está à venda."; teste com o código da regra no nome. Junto, a resposta do dono sobre o preço e os limites do Profissional ("Pontos em aberto" das regras).
+### T-430 · Contrato da compra pública (feita, aguardando merge)
+- **Agente:** arquiteto · **Regras:** PLT-01, PLT-11, PLT-13, PLT-16, USR-01, IMP-06 · **Contrato:** `docs/api/compra.md` · Handoff: `tarefas/handoffs/T-430-arquiteto.md`. Liberada pelo dono em 03 nov 2026.
+- **Decidido pelo dono em 03 nov 2026** ("Aprovo os padrões"): D-430-01 código no e-mail antes de criar; D-430-02 campo "Endereço de acesso" no checkout, sugerido e editável; D-430-03 sem consulta à Receita, a pessoa digita razão social, cidade e UF; D-430-04 a checagem do CNPJ responde, com 20 por hora por IP; D-430-06 o link do convite abre uma vez na `Compra-Pronto`; D-430-08 teto de 50 empresas por dia; D-430-09 sem captcha por agora; D-430-10 "Entrar" sai da `Compra-Planos`; D-430-11 "Tamanho da frota" sai do checkout.
+- **[decisão] aberta** D-430-05: textos dos Termos de uso e do Acordo de tratamento de dados. Não bloqueia a T-432 nem a T-433, mas a compra não entra no ar sem eles.
+- **[divergência]** D-430-07: a `Compra-Pronto` diz 48 horas; vale a `USR-01` (7 dias). O design-system corrige na T-434.
+
+### T-431 · Revisão da segurança da compra pública
+- **Mudou em 05 nov 2026:** o código já existe (T-435). A revisão lê o contrato e o código: `apps/plataforma/compra.py`, `apps/plataforma/api/compra.py`, `integracoes/cnpj` (ADR 0039).
+- **Agente:** seguranca · **Depende de:** T-430 · **Regras:** PLT-16, USR-01, AUD (auditoria no `public`) · **Contrato:** `docs/api/compra.md`
+- **Pronto quando:** relatório em `docs/seguranca/` sobre as rotas anônimas: limites por IP, e-mail e CNPJ, código do e-mail (tamanho, prazo, tentativas, comparação), enumeração de CNPJ e de subdomínio (D-430-04), link do convite na `Compra-Pronto` (D-430-06), teto diário (D-430-08), IP atrás do proxy (ADR 0033), dados pessoais do pedido não confirmado e o que vai para log e Sentry; achados com gravidade e o arquiteto ajusta o contrato antes da T-432.
+
+### T-434 · Ajuste das telas da compra pública
+- **Mudou em 05 nov 2026 (T-435, ADR 0039):** o checkout volta a mostrar a frase "Moto Rápida Locações Ltda · Fortaleza, CE · CNPJ ativo" com os dados da BrasilAPI, e razão social, nome, cidade e UF viram campos editáveis preenchidos pela consulta. O frontend já faz assim.
+- **Agente:** design-system · **Depende de:** T-430 · **Regras:** PLT-11, PLT-16, USR-01 · **Telas:** Compra-Planos, Compra-Checkout, Compra-Pronto (desktop e celular) · **Contrato:** `docs/api/compra.md`, "Ajustes das telas"
+- **Pronto quando:** `Compra-Planos` sem o Completo, com o texto da fase 1 do Profissional e sem o "Entrar" (D-430-10); `Compra-Checkout` com o campo "Endereço de acesso" (D-430-02), razão social, cidade e UF digitados no lugar da frase "CNPJ ativo" (D-430-03), sem "Tamanho da frota hoje" (D-430-11) e com o passo do código de 6 dígitos e "Reenviar código"; `Compra-Pronto` com "O link vale por 7 dias." (D-430-07); nota de mudança no `docs/telas/README.md`.
 
 ### Telas novas do painel da plataforma (T-409)
 - **Origem:** 48 telas `Plat-*` vindas do canvas em 28 out 2026, listadas em `docs/telas/README.md`, "Painel da plataforma: telas da fase 2". Sem contrato nem tarefa.
-- **[decisão]** Financeiro, Despesas e Configurações da plataforma não têm regra em `docs/regras-de-negocio.md`. O produto escreve as regras, ou o dono tira as telas da fase 2.
-- **[decisão]** Novo adicional e Editar adicional dependem da `PLT-03` (adicionais fora do MVP) e não têm entrada na `Plat-Planos`, que ficou sem o bloco de adicionais na T-200.
+- **Decidido pelo dono em 30 out 2026:** Financeiro, Despesas e Configurações da plataforma não têm regra em `docs/regras-de-negocio.md`, mas ficam na fase 2. O produto escreve as regras a partir das telas e leva as dúvidas ao dono.
+- **Decidido pelo dono em 30 out 2026:** Novo adicional e Editar adicional dependem da `PLT-03` (adicionais fora do MVP) e ficam parados até o dono definir os adicionais e os preços. A `Plat-Planos` ganha o bloco de adicionais junto.
 - **Para o design-system, quando a fase 2 abrir:** as telas `Plat-*` e `Plataforma` que já estavam no repositório têm o menu lateral antigo e não levam às telas novas. Passar o grupo "Finanças" e Configurações para elas, mantendo os ajustes já feitos (CNPJ do seed, 14 dias de teste, catálogo da `PLT-11`).
 - **Notas fiscais:** dependem da T-197 (NFS-e da assinatura, `PLT-15`).
+
+### T-427 · CI: testar só o que mudou no PR (feita, aguardando merge)
+- **Agente:** devops · **Origem:** pedido do dono em 03 nov 2026 (menos minuto de Actions por PR). Handoff: `tarefas/handoffs/T-427-devops.md`.
+- **Pronto quando:** PR para a `develop` roda pytest só nos apps tocados e Vitest só nos testes afetados; push na `develop` e PR para a `main` rodam a suíte inteira; o risco está em `infra/README.md`, "CI: o que cada gatilho roda".
+
+### T-429 · Correções do CI da T-427 (feita, aguardando merge)
+- **Agente:** devops · **Origem:** falhas do CI no PR #469 e na `develop` (a963feb0). Handoff: `tarefas/handoffs/T-429-devops.md`.
+- **Pronto quando:** o Vitest `--changed` roda em PR de frontend e a criação dos papéis de teste não derruba worker do xdist.
+
+### T-425 · Conferência automática da página com a tela de referência
+- **Agentes:** qa, com o design-system · **Origem:** T-424 (`docs/agentes/telas-do-canvas.md`, "Conferência lado a lado"). Não começa até o dono liberar.
+- **Pronto quando:** um teste do Playwright abre a tela de `docs/telas/html` e a página do app com o seed, a 1440 e 390 px, e grava as duas capturas lado a lado numa pasta do handoff; roda por rota (`make` ou script do `frontend/package.json`); serve para o frontend anexar no handoff e para a revisão do design-system. Sem comparação por pixel, porque os números e os componentes mudam de propósito.
+- **Feita em 03 nov 2026** (branch `t-425-conferencia-lado-a-lado`, handoff `tarefas/handoffs/T-425-qa.md`): `npm run conferencia` com 23 telas a 1440 e 390 px, imagem lado a lado e `resumo.md`; uso em `docs/agentes/telas-do-canvas.md`. **Próximo:** design-system revisa a lista; frontend anexa a pasta no handoff das tarefas de página.
 
 ### Notas do dono de 29 out 2026 (abertura da fase 2)
 
@@ -383,63 +363,82 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
 - **O caso:** a Honda Biz 125 CDL-0B10 aparece "disponível", mas a movimentação recusa por estar na LOC-2866 (criada na mão, fora do seed). A locação nunca foi retirada (falta o 1º pagamento) e as parcelas já contam como atrasadas, com a devolução para 05 nov. Hoje o veículo só vira `reservado` com início futuro (`locacoes/services.py:540-547`); com início hoje ou passado, fica `disponivel` até a ativação.
 - **Decisões do dono (29 out):** a moto não saiu da loja. Locação confirmada **reserva o veículo** na hora, mesmo com início hoje ou passado, e ele sai do "disponível". As parcelas **só começam a vencer na retirada**; antes dela, nada fica atrasado.
 - **Pronto quando:** o produto ajusta a tabela de estados e a regra das parcelas (com nota de mudança); o backend reserva na confirmação para qualquer data de início e gera o calendário de parcelas a partir da ativação, com teste com o código da regra no nome; lista e ficha mostram "Reservado na LOC-x"; o seed ou um comando acerta locações já abertas nesse estado no ambiente de desenvolvimento.
-- **Para o produto decidir:** o que acontece com a reserva de uma locação que nunca é retirada (fica até cancelarem à mão, como hoje pela `LOC-12`).
+- **Decidido pelo dono em 30 out 2026:** a locação confirmada que não é retirada em 3 dias, contados da data de início, é cancelada sozinha, e o veículo volta a `disponivel`. O gerente recebe aviso no dia anterior ao cancelamento. O produto registra na `LOC-12`.
+- **Parte do produto feita em 03 nov 2026** (`tarefas/handoffs/T-410-produto.md`): tabela de transições do veículo, `LOC-05` ("Nada vence antes da retirada"), `LOC-12` (cancelamento automático e aviso), `FIN-03`, `AUT-17` nova, `MOV-03` e dois casos do seed (LOC-2856), com notas de mudança; critérios em `docs/qa/criterios/T-410.md` (CA-410-01 a 23). Três pontos em aberto para o dono, valendo o padrão A até a resposta: período contado da data de início, último dia para retirar no início + 3, sem aviso ao cliente. **Próximo:** arquiteto confere o contrato (`inicio_vencido`, o rótulo "Reservado na LOC-x", a notificação nova); depois backend (reserva na confirmação, contas sem atraso antes da retirada, `AUT-17`, acerto do ambiente de desenvolvimento) e frontend.
+- **Parte do arquiteto feita em 03 nov 2026** (`tarefas/handoffs/T-410-arquiteto.md`, ADR 0035): contrato em `docs/api/locacoes.md` (reserva na confirmação com qualquer início, 409 `inicio_vencido` e o impedimento na simulação, `prazo_retirada` no detalhe, "Cancelamento automático" com a `AUT-17` às 00:10 e 08:00, evento `locacoes.locacao_cancelada`), `veiculos.md` ("Reservado na LOC-x" no `situacao.rotulo` e o bloco `reserva`), `financeiro.md` (`aguarda_retirada` e `liberada_em` na conta, `q_atrasada` e `q_vence_hoje` como únicas expressões do atraso, `FIN-03` com o dia da retirada) e o modelo de dados. **Próximo:** backend (tudo do handoff, numa branch), depois frontend (rótulo e impedimento pela API; pouco muda na tela).
+- **Parte do frontend feita em 04 nov 2026** (PR #457, `tarefas/handoffs/T-410-frontend.md`): rótulo e link da reserva na ficha, falsos ajustados, teste. O seletor de veículo já só lista `disponivel` e a tela já mostra impedimento e mensagem do 409.
+- **Fica para depois (push):** a `AUT-17` avisa no sino e por e-mail. O push que a regra pede não existe no código nem tem contrato (`PreferenciaNotificacao` só no modelo de dados); entra quando houver tarefa do canal de push, sem mudar a `AUT-17`. Orquestrador decide se abre a tarefa.
+- **Parte do backend feita em 03 nov 2026** (branch `t-410-backend-reserva`, `tarefas/handoffs/T-410-backend.md`): conta com `aguarda_retirada` e `liberada_em` (migração `financeiro.0009`), `q_atrasada` e `q_vence_hoje` em todo atraso de conta a receber, `FIN-03` com o dia da retirada, reserva na confirmação com qualquer início, 409 `inicio_vencido`, `prazo_retirada`, `cancelamento.automatico`, `AUT-17` (00:10 e 08:00, sino e e-mail), evento `locacoes.locacao_cancelada` com a saída em rascunho descartada, bloco `reserva` e "Reservado na LOC-x" no veículo, comando `acertar_reservas_t410`. **Próximo:** frontend (rótulo e impedimento pela API, `npm run api:gerar`), depois QA.
+- [decisão] (backend, T-410; para o produto e o arquiteto) **LOC-2856 no seed de conferência (CA-410-06).** No seed de desenvolvimento (`seed/carteira.py`, T-138), a LOC-2856 nasce `ativa`, com o SAK-1D39 `alugado` ("SAK1D39 fica alugado", `seed/frota.py`), e não `aguardando_retirada`. Passá-la para `aguardando_retirada` com o SAK-1D39 `reservado` muda números documentados: ou "Alugados 42" e "Reserv. 9" do `docs/api/painel.md` (vira 41 e 10), ou as "42 + 9" locações do seed (sobra um `alugado` sem locação). **Padrão no código:** o seed de conferência ficou como estava; nos testes de aceitação, a LOC-2856 já nasce pelos serviços e o SAK-1D39 fica `reservado` (CA-410-06 coberto ali). Pede escolher: (A) manter assim e ajustar o CA-410-06 para o cenário dos testes; (B) mudar o seed de conferência e os números do painel para 41 alugados e 10 reservados.
 
 #### T-411 · Copiar o link nas ações que enviam ao cliente
 - **Agentes:** arquiteto (contrato) e segurança (revisão), depois backend e frontend · **Regras:** `USR-01` (modelo do "Copiar link do convite"), contratos, `AUT-03`, `DEV`, `PLT-13`, `PLT-14`, `S-15` · **Origem:** nota "Função de copiar links".
 - **Decisão do dono (29 out):** além de enviar, a tela mostra o link para copiar e mandar à mão em quatro ações: contrato para assinar, cobrança da parcela, recibo da devolução e fatura da assinatura.
 - **Ponto técnico:** o link de assinatura do contrato guarda só o hash do token (`S-15`), então o link só pode ser mostrado na hora em que é gerado ou reenviado, como o `POST /api/usuarios/{id}/link-convite/` (resposta única, `no-store`). A cobrança já devolve `pix_copia_e_cola`, `linha_digitavel` e `boleto_url`.
 - **Pronto quando:** contratos atualizados nas quatro rotas, revisão da Segurança sem achado alto, campo ou pop-up "Copiar link" nas quatro telas, com teste.
+- **Revisão da Segurança do contrato feita em 03 nov 2026** (`tarefas/handoffs/T-411-seguranca.md`): nenhum achado alto. Antes do backend, o arquiteto acrescenta ao contrato M-01 (suporte sem `boleto_url` nem `copiar_cobranca`, e sem os links do boleto e da página da fatura; `AUD-09`) e M-02 (a assinatura pelo link copiado registra o canal e quem gerou; `LOC-15`). Baixos: B-01 (aviso ao administrador quando o cartão guardado muda), B-02 (o retry do envio não mata o link copiado) e B-03 (`/recibo` com `noindex`, `no-store`, escopos próprios e teste entre empresas).
+- **Parte do arquiteto feita em 03 nov 2026** (`tarefas/handoffs/T-411-arquiteto.md`): visão geral em `docs/api/copiar-link.md`. Contrato e recibo ganham rota que gera o link na hora e o devolve uma vez (`POST /api/locacoes/{id}/contrato/link/`, `POST /api/devolucoes/{id}/recibo/link/`, mais a página pública `/recibo` com `POST /api/publico/recibos/consultar/` e o token do recibo na `Devolucao`); cobrança e fatura copiam o que a API já devolve (`acoes.copiar_cobranca`; o `cobranca` do "Pagar" da fatura). **Próximo:** Segurança revisa (pontos no handoff); depois backend e frontend.
+- **Textos do produto feitos em 05 nov 2026** (`tarefas/handoffs/T-411-T-420-produto-textos.md`): aviso junto do link copiado, "Mande o link só ao cliente. Só ele pode assinar, e o contrato registra que você copiou o link." (passo 3 do fluxo da locação), e o e-mail do cartão guardado que muda, com assunto e texto (`PLT-13`, `assinatura.md`). Nas regras, nos contratos `copiar-link.md`, `locacoes.md` e `assinatura.md`.
+- **T-436 (parte da tela) feita em 05 nov 2026** (PR #483, branch `t-431-tela-recibo-publico`, `tarefas/handoffs/T-436-design-system.md`): telas de referência da página pública do recibo (`/recibo#<token>`, `Recibo-Desktop.dc.html` e `Recibo-Mobile.dc.html`) na casca pública white label, dados do veículo, data, acerto de caução/cobranças (`DEV-01` a `DEV-03`), grade de fotos com visualizador lightbox integrado, estados de link vencido (410) e inválido (404).
+- **Parte do backend feita em 05 nov 2026** (PR #482, branch `t-411-backend-copiar-link`, `tarefas/handoffs/T-411-backend.md`): rotas `contrato/link/`, `recibo/link/` e `publico/recibos/consultar/`, canal do token na prova da assinatura (M-02), fila sem matar o link copiado (B-02), recibo público com escopos próprios e `recibo_aberto` (B-03), suporte sem `boleto_url` e sem os links da fatura e `acoes.copiar_cobranca` (M-01), e-mail do cartão trocado com o texto do produto (B-01), tokens anulados na anonimização. A assinatura passou a aceitar o contrato `gerado` com PDF (link copiado antes do envio): conferido pelo arquiteto, cabe nas regras e no contrato; transições documentadas em 05 nov 2026 em `contratos.md` ("Estados e transições do contrato") e no item 15 do modelo de dados (PR #485, branch `t-411-contrato-transicoes`). **Próximo:** frontend (`npm run api:gerar`, `acoes` na devolução), depois segurança (revisão do código) e QA.
+- **Parte do frontend feita em 05 nov 2026** (mesmo PR #482, `tarefas/handoffs/T-411-frontend.md`): Copiar link nas quatro telas por `acoes`, link só no estado da mutação, aviso do produto no contrato. **Falta:** a página pública `/recibo` no frontend (o link do recibo ainda não abre nada), a pedir ao Orquestrador.
+- **Decisão do dono em 05 nov 2026:** enquanto a página `/recibo` não existe, o link do recibo fica desligado. O backend pôs a configuração `GIRO_RECIBO_PUBLICO`, desligada por padrão, no mesmo PR #482: `acoes.copiar_link_recibo` vem false, `recibo/link/` responde 409 `recibo_publico_desligado` e a consulta pública responde 404 (`copiar-link.md`). A página fica na T-436.
 
-#### T-412 · Faixa de assinatura suspensa em todas as telas
-- **Agente:** frontend (design-system se faltar o componente) · **Regras:** `PLT-02`, `PLT-06`, tabela de estados da assinatura · **Origem:** nota "Pop-up de aviso de assinatura".
-- **Decisão do dono (29 out):** faixa fixa no topo de todas as telas enquanto a empresa estiver `suspensa` (e `pausada`, que é só leitura como a suspensa), com o caminho para pagar a fatura. Sem pop-up.
-- **Ponto técnico:** o `/api/eu` já devolve `empresa.somente_leitura`, que hoje só a `Admin-Assinatura` usa; a API responde 403 `empresa_sem_operacao` nas ações barradas.
-- **Pronto quando:** a casca mostra a faixa em todas as telas da empresa, a 1440 e a 390, com texto da API ou do contrato, e teste.
+#### T-436 · Página pública do recibo (`/recibo`)
+- **Agentes:** design-system (tela), depois frontend · **Regras:** `DEV-02`, `S-15`, `AUD-05` · **Origem:** T-411, decisão do dono de 05 nov 2026 (link do recibo desligado até a página existir).
+- **O que é:** a página pública `/recibo` do cliente final, fora da casca da empresa, como a `/assinar`. Ela lê o token do fragmento, apaga-o da barra com `history.replaceState`, chama `POST /api/publico/recibos/consultar/` e mostra a marca da locadora, "Recibo da devolução da LOC-2836", o primeiro nome do cliente e o botão "Baixar recibo", que pede a URL do PDF de novo a cada clique. Rodapé "Tecnologia Giro". Com 404 ou 410: "Este link venceu ou não existe. Peça um novo à locadora." A resposta da página leva `Cache-Control: no-store` e `noindex`. Contrato em `docs/api/vistorias.md` ("POST /api/publico/recibos/consultar/") e `copiar-link.md`.
+- **Pronto quando:** a tela desenhada (desktop e celular), a página com teste, e o devops ligando `GIRO_RECIBO_PUBLICO=1` em cada ambiente na entrega. Com a configuração ligada, o botão "Copiar link do recibo" aparece pela `acoes.copiar_link_recibo`, sem mudar a tela da devolução.
+- **Parte do frontend feita em 05 nov 2026** (branch `t-436-pagina-recibo`, `tarefas/handoffs/T-436-frontend.md`): página `/recibo` com marca, código, primeiro nome, "Baixar recibo" (URL nova a cada clique), 404/410, `no-store` e `noindex`, teste. Mostra só o que a API devolve; veículo, acerto e fotos das telas dependem de o backend devolver esses dados. **Falta:** o devops ligar `GIRO_RECIBO_PUBLICO=1`.
 
-#### T-413 · Documentos do veículo: substituir no editar e abrir na ficha
-- **Agentes:** frontend (backend só se faltar algo) · **Regras:** `VEI-03`, `AUD-05` · **Origem:** notas "Reformular o editar veiculo" (documentos) e "Melhorar interação aos documentos".
-- **Hoje:** a API já tem `GET/POST /api/veiculos/{id}/documentos/` e o histórico (renovar cria um novo e o anterior fica `ativo=False`), com URL assinada de 15 min; o frontend só lê, e a ficha mostra rótulo e situação sem abrir.
-- **Pronto quando:** o editar veículo sobe e substitui CRLV, IPVA, seguro e rastreador (administrador e gerente); a ficha abre cada documento (PDF ou imagem) e mostra o histórico; teste.
 
 #### T-414 · Fotos do veículo: galeria própria e fotos da vistoria para ver e baixar
 - **Agentes:** produto (regra), arquiteto (modelo e contrato), design-system (tela), backend, frontend · **Regras:** `VEI` (nova), `AUD-05` · **Origem:** notas "Reformular o editar veiculo" (fotos) e "Melhorar interação as fotos".
 - **Decisão do dono (29 out):** as duas coisas. Uma galeria própria do veículo (fotos de cadastro, para catálogo e anúncio), que se sobe, troca, apaga e com foto de capa; e, na ficha, as fotos da última vistoria para ampliar e baixar. Hoje não existe modelo de foto do veículo, só as da vistoria.
 - **Pronto quando:** regra escrita (limite de fotos, tamanho, quem pode), contrato e modelo novos, galeria no editar veículo, visualizador com ampliar e baixar na ficha para as duas origens, teste.
 - **Base para:** T-418 (catálogo).
+- **Parte do produto feita em 03 nov 2026** (`tarefas/handoffs/T-414-produto.md`): `VEI-10` nova (galeria até 20 fotos JPG ou PNG de até 10 MB, sem localização; capa; enviar, trocar, apagar e capa para administrador e gerente, travada em vendido e baixado; ficha com galeria para todos e a última vistoria para quem faz vistoria; ampliar e baixar pelo link de 15 min); seed com 3 fotos no QXA-4B21; critérios CA-414-01 a 14. O código é `VEI-10` porque a `VEI-09` é da T-421. **Próximo:** arquiteto (modelo e contrato) e design-system (tela), depois backend e frontend.
+- **Backend entregue em 10 nov 2026** (PR #499), revisado pela segurança (PR #502, achados M-01, M-02, B-01 e B-02 fechados). **Falta:** frontend (galeria no editar e visualizador na ficha), depois QA.
+- **Parte do arquiteto feita em 03 nov 2026** (`tarefas/handoffs/T-414-arquiteto.md`, ADR 0036): `veiculos.FotoVeiculo` (item 9a do modelo de dados); rotas `GET` e `POST /api/veiculos/{id}/fotos/` (uma foto por requisição) e `trocar`, `capa` e `apagar`; blocos `galeria` e `vistoria_recente.fotos` (as 12) e `acoes.editar_fotos` na ficha; `url_download` com o nome pela placa (`Content-Disposition`); seed descrito para o backend. **Próximo:** backend (com o seed), depois frontend.
 
 #### T-415 · CRLV-e: escolher a versão quando várias batem
 - **Agentes:** backend, frontend · **Regras:** `VEI-08`, ADR 0031 · **Origem:** nota "Ajustar o preenchimento do CRLV-e".
 - **O caso:** o CRLV-e do Chevrolet Cruze traz "CHEVROLET/CRUZE LT NB". A leitura vira "GM CHEVROLET CRUZE LT NB"; o catálogo só tem versões como "CRUZE LT 1.4 16V Turbo" e "CRUZE LT 1.8", sem "NB", e "CRUZE LT" bate com 3 versões, então nada é preenchido (comportamento da T-406, CA-247-05). Além disso, quem digita "Chevrolet" na marca não vê o Cruze, porque a lista não usa os apelidos do Detran.
 - **Decisão do dono (29 out):** preencher a marca e mostrar as versões que batem para a pessoa escolher uma.
 - **Pronto quando:** a leitura devolve os candidatos (ignorando sufixos que não existem na FIPE, como o "NB"), a tela mostra a escolha, a lista de modelos aceita os apelidos da marca, e teste com o CRLV-e do Cruze.
+- **Backend feito em 03 nov 2026** (branch `t-415-crlv-versoes`, `tarefas/handoffs/T-415-backend.md`): falta a escolha na tela (frontend).
 
 #### T-416 · Ver o comprovante da despesa paga
 - **Agentes:** backend, frontend · **Regras:** `FIN-05`, `AUD-05` · **Origem:** nota "Visualizar comprovante de nota paga".
 - **Hoje:** o pagamento já aceita o comprovante, mas `representacao_despesa` devolve só a nota, e a tela só tem o botão da nota. O reembolso já devolve o comprovante.
 - **Pronto quando:** a API devolve o comprovante com URL assinada, a despesa paga mostra "Ver comprovante", teste.
-
-#### T-417 · Despesas do veículo na ficha, com categorias próprias
-- **Agentes:** produto (regra das categorias), backend, frontend · **Regras:** `FIN-05`, `FIN-06`, `FIN-16`, `VEI-05` · **Origem:** nota "Adicionar despesas do veiculos".
-- **Hoje:** a despesa já pode ser ligada ao veículo e entra no custo do ano, mas a ficha não lista as despesas dele.
-- **Decisão do dono (29 out):** na ficha, a lista das despesas do veículo e um botão "Lançar despesa" já com ele preenchido, e categorias próprias de despesa do veículo (IPVA, seguro, multa, peça, combustível).
-- **Pronto quando:** categorias na regra, lista e botão na ficha, filtro por veículo, teste. Manutenção (`MAN-05`, OS que lança despesa) segue no módulo de manutenção.
+- **Parte do backend feita em 03 nov 2026** (branch `t-416-comprovante-despesa`, handoff `tarefas/handoffs/T-416-backend.md`): a despesa devolve `comprovante` com URL de 15 minutos na lista, no detalhe e no pagamento; `null` para o suporte (`AUD-09`). Frontend feito em 04 nov 2026 na mesma branch (PR #456): botão "Ver comprovante" (handoff `tarefas/handoffs/T-416-frontend.md`).
 
 #### T-418 · Catálogo de vendas interno
 - **Agentes:** produto (regra), arquiteto, design-system (tela), backend, frontend · **Regras:** `VEN-01` a `VEN-10`, `PLT-11`, `PLT-12` · **Depende de:** T-414 (fotos), módulo de vendas (`backend/apps/vendas/` está vazio) · **Origem:** nota "Catalogo de vendas dos veiculos".
 - **Decisão do dono (29 out):** os dois, catálogo interno primeiro. Lista dos veículos à venda com fotos e preço para o vendedor mostrar ou mandar por link ou PDF. Entra junto o botão "Colocar à venda" da ficha, hoje parado.
 - **Pronto quando:** regra e contrato escritos, tela de referência, catálogo com link e PDF, teste.
+- **Leva da T-420** (decisão do dono de 03 nov 2026, CA-420-12): se esta tarefa fizer a tela `Vendas`, a venda da quitação aparece nela com o rótulo "Quitação de locação" (`origem_rotulo`), e o funil, a conversão e a meta não a contam (`origem = "balcao"`, `vendas.md`). Se a tela `Vendas` ficar para outra tarefa, o critério vai junto.
 
 #### T-419 · Vitrine pública de vendas
 - **Agentes:** produto, arquiteto, segurança, design-system, backend, frontend · **Depende de:** T-418 · **Regras:** `VEN`, `PLT-11` (só aparece no plano que tiver a função, quando ela existir) · **Origem:** mesma nota.
 - **O que é:** a página pública da locadora com os veículos à venda, a página do veículo e o pedido de proposta (`docs/plano.md`, "Site de vendas").
-- **[decisão]** Em que plano entra, já que o Completo está fora da venda (T-378); subdomínio ou domínio da página.
+- **Decidido pelo dono em 30 out 2026:** a vitrine entra só no plano Completo; fica pronta e liga quando o Completo for à venda (T-378). Começa no subdomínio da locadora no Giro (`/vendas`), e a locadora pode apontar um domínio próprio depois.
 
 #### T-420 · Locação com intenção de compra
 - **Agentes:** produto (regras), arquiteto (modelo e contrato), backend, frontend, design-system · **Regras:** novas em `LOC` e `VEN` · **Origem:** nota "Novo tipo de Contrato de locação". Já citado em `docs/plano.md` ("Locação com opção de compra") e no toggle "Oferecer opção de compra no fim do contrato" da `Onboarding-Contrato`.
 - **Decisão do dono (29 out):** prazo e parcelas fixos (por exemplo, 24 meses); ao quitar a última parcela, a moto é transferida ao cliente, sem valor extra.
-- **[decisão] Para o produto levar ao dono:** o que acontece se o cliente atrasar ou devolver antes do fim (perde o que pagou ou parte vira crédito); quem paga IPVA, seguro e manutenção no período; se a caução existe nesse tipo; como fica a transferência (a venda nasce no módulo de vendas ao quitar); se o veículo pode ser trocado no meio.
+- **Decidido pelo dono em 30 out 2026:**
+  - atraso ou devolução antes do fim: o que foi pago fica como aluguel do período usado, sem crédito nem devolução; o atraso segue a régua normal (`CLI-05`, 15 dias) e pode encerrar o contrato;
+  - IPVA, seguro e manutenção ficam com a locadora no período, como na locação comum; o veículo só passa ao cliente na quitação;
+  - tem caução, como na locação comum, abatida na última parcela;
+  - o veículo não se troca no meio; para trocar, encerra-se o contrato e abre-se outro;
+  - ao quitar, nasce sozinha uma venda de R$ 0 no módulo de vendas, ligada à locação; o veículo vira vendido e o gerente recebe a tarefa de fazer a transferência no Detran.
 - **Pronto quando:** regras escritas e aprovadas, modelo de contrato próprio, tipo de locação novo no fluxo, venda gerada ao quitar, teste com o código da regra no nome.
+- **Parte do produto feita em 03 nov 2026** (`tarefas/handoffs/T-420-produto.md`): `LOC-16` nova (plano de compra, contrato próprio, caução abatida na última parcela, sem renovação nem troca, fim previsto sem devolução, encerramento sem crédito, quitação), `VEN-11` nova (venda de R$ 0,00 da quitação), transição `alugado` → `vendido`; critérios CA-420-01 a 17. Dois pontos em aberto, valendo o padrão A: plano de compra em `Precos` e encerramento sem multa. **Próximo:** arquiteto (ADR e contrato; o app `vendas` está vazio) e design-system, depois backend e frontend.
+- **ADR do arquiteto feita em 03 nov 2026** (ADR 0037, `tarefas/handoffs/T-420-arquiteto.md`): `Locacao.tipo` e plano congelado, `PlanoCompra`, finalidade `locacao_compra`, quitação por evento para `vendas`, `Venda` inteira com `origem`, tarefa da transferência na venda. **Próximo:** arquiteto (contrato em `locacoes.md` e `vendas.md`, modelo de dados), depois backend e frontend.
+- **Contrato do arquiteto feito em 03 nov 2026** (`tarefas/handoffs/T-420-arquiteto.md`): planos de compra, tipo na simulação e na confirmação, bloco `compra` com andamento, encerrar por atraso, quitação, `vendas.md` com a venda da quitação e `POST /api/locacoes/{id}/transferencia/`; modelo de dados (itens 12a, 13 e 17). **Próximo:** backend e frontend, quando o dono liberar; design-system nas telas.
+- **Textos do produto feitos em 05 nov 2026** (`tarefas/handoffs/T-411-T-420-produto-textos.md`): andamento da compra (singular com uma parcela, "faltam as contas abaixo", quitada com a data e a transferência), recusas de renovar, trocar e encerrar por atraso (esta agora diz o caminho: "Para encerrar a pedido do cliente, use Cancelar locação."), e o encerramento por atraso só com parcela atrasada na `LOC-16`; textos da `VEN-11` confirmados. Critérios CA-420-06, 18 e 19.
+- [divergência] O toggle "Oferecer opção de compra no fim do contrato · Parte das parcelas pagas vira entrada na compra da moto" da `Onboarding-Contrato` (desktop e celular) não bate com a `LOC-16`: na decisão do dono, nada vira entrada; ao quitar a última parcela, o veículo passa ao cliente sem valor extra. Até o design-system revisar, o toggle quer dizer "publicar também o modelo de locação com intenção de compra" (T-420).
 
 #### T-421 · Mais campos no cadastro e na ficha do veículo, vindos do CRLV-e
 - **Agentes:** produto (regra), arquiteto (modelo e contrato), backend, frontend · **Regras:** `VEI-01`, `VEI-08` · **Depende de:** T-413 e T-415 tocam o mesmo formulário e a mesma leitura; combinar a ordem · **Origem:** pedido do dono no chat em 29 out 2026.
@@ -451,7 +450,11 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
   - alienação fiduciária ou restrição nas observações é só informação na ficha, sem bloquear nada;
   - campo do rastreador (número ou IMEI e a empresa), fora do CRLV-e.
 - **Pronto quando:** regra com os campos, os rótulos do CRLV-e e quais são opcionais; migração; a leitura preenche os campos novos (testes com os CRLV-e reais da T-406); formulário, editar e ficha mostram os campos, a 1440 e a 390; teste com o código da regra no nome.
-- **Para o produto decidir:** se o número do motor e as observações do CRLV-e são dados de todos os perfis ou só de administrador e gerente; se o rastreador fica no veículo ou na integração de rastreador (`Integracoes`).
+- **Decidido pelo dono em 30 out 2026:** o número do motor e as observações do CRLV-e só aparecem para administrador e gerente. O rastreador fica no veículo, em campos simples, e a integração de rastreador lê dali quando existir.
+- **Parte do arquiteto feita em 03 nov 2026** (`tarefas/handoffs/T-421-arquiteto.md`, regras do PR #459): contrato em `docs/api/veiculos.md` (blocos `documento`, `rastreador` e `anotacoes`; motor e observações ausentes para vendedor, vistoriador e financeiro; formatos; leitura com os 9 campos da `VEI-09`; `POST /api/veiculos/{id}/leitura-crlv/` no editar, padrão A, com 422 `crlv_outro_veiculo`) e 12 colunas no modelo de dados. Combinado com o Backend: a T-415 entra antes. **Próximo:** backend depois do merge da T-415, depois frontend e QA.
+- **Parte do backend feita em 05 nov 2026** (`tarefas/handoffs/T-421-backend.md`, branch `t-421-backend-campos-crlv`): migração 0007 com as 12 colunas e os `CHECK`; blocos `documento`, `rastreador` e `anotacoes` na ficha e nas respostas do `POST` e do `PATCH`, motor e observações ausentes para vendedor, vistoriador e financeiro; formatos com a chave pontuada; a leitura lê os 9 campos do documento (16 com o `crlv-tbc5h21.pdf`); `POST /api/veiculos/{id}/leitura-crlv/` com 422 `crlv_outro_veiculo` e o comprovante no `PATCH`; seed do QXA-4B21. **Próximo:** frontend na mesma branch e no mesmo PR, depois QA.
+- **Parte do produto feita em 03 nov 2026** (`tarefas/handoffs/T-421-produto.md`): `VEI-09` nova (13 campos com o rótulo do CRLV-e, formato, faixa e quem vê; todos opcionais), `VEI-01` com os obrigatórios do cadastro, `VEI-08` lendo até 18 campos, caso do seed "Dados do CRLV-e do QXA-4B21"; critérios em `docs/qa/criterios/T-421.md` (CA-421-01 a 14). Um ponto em aberto, valendo o padrão A: ler o CRLV-e também no editar. **Próximo:** arquiteto (contrato e modelo, combinando a ordem com a T-415), depois backend e frontend.
+- **Parte do frontend feita em 05 nov 2026** (`tarefas/handoffs/T-421-frontend.md`, mesma branch e mesmo PR #488): combustível, dados do documento, rastreador e anotações no cadastro, no editar e na ficha; motor e observações só quando a API os manda; cadastro lê 16 campos; editar lê o CRLV-e pelo veículo; testes `test_vei_09_*` e `test_vei_08_*`. Não conferido no navegador (o compose roda a `develop`). **Próximo:** qa (E2E com os PDFs e conferência a 1440 e 390 px), depois o aval do dono.
 
 #### T-422 · Referência de preço FIPE pela Parallelum, com rotina mensal
 - **Agentes:** arquiteto (ADR e contrato), segurança (revisão), backend, frontend · **Regras:** `VEN-01` (referência FIPE ao lado do preço), `VEI-08` · **Depende de:** ADR nova que complementa a 0031 · **Origem:** decisão do dono no chat em 29 out 2026.
@@ -467,7 +470,139 @@ A fase 2 foi aberta pelo dono em 29 out 2026, **sem atividade iniciada**: nenhum
   - **Quais veículos:** todos os ativos (fora os vendidos e baixados), com um pedido só por código FIPE e ano repetido.
   - **Veículos já cadastrados:** a rotina casa marca, modelo e ano com a FIPE; se achar uma versão só, grava; se achar várias (como o Cruze), a ficha pede para escolher a versão, e o veículo fica sem referência até alguém escolher.
   - **Consulta por placa** (`GET /api/v2/plates/{placa}`, em Alpha, que traz marca, modelo, ano e os preços com o código FIPE): entra como recurso em teste, desligado por padrão e ligado por configuração, para estar pronto quando o dono passar para o plano Pro. Sem token, a cota é de 15 consultas por mês somando todas as empresas (30 com token gratuito), lida dos cabeçalhos `X-Plate-Quota-*`. Com a cota esgotada ou a rota fora do ar, o cadastro segue pelo CRLV-e e pela escolha da versão, sem erro para a pessoa. O token do Pro, quando houver, fica no cofre de segredos, nunca no repositório.
+- **ADR do arquiteto feita em 05 nov 2026** (ADR 0038, `tarefas/handoffs/T-422-arquiteto.md`): cliente `integracoes/fipe` sem dependência nova; preço e anos no `public`, um pedido por código e ano no mês; campos FIPE no veículo; ids da Parallelum no catálogo; rotina diária às 04:30, um pedido por segundo, orçamento de 400, parada no 429; último valor fica se a API cair; placa desligada por padrão. **Próximo:** arquiteto (contrato em `veiculos.md` e modelo de dados), segurança (revisão da chamada externa e da placa), depois backend e frontend.
+- **Contrato do arquiteto feito em 05 nov 2026** (`tarefas/handoffs/T-422-arquiteto.md`, PR empilhado no #477): bloco `referencia_fipe` na Frota e na ficha, bloco `fipe` no cadastro e no editar e `POST /api/veiculos/{id}/fipe/`, ids no catálogo, consulta por placa com `{disponivel: false}`; modelo de dados (item 9 e as tabelas do `public`). **Próximo:** segurança (revisão), depois backend e frontend quando o dono liberar.
+- **Textos do produto feitos em 05 nov 2026** (`tarefas/handoffs/T-422-produto-textos.md`): na `VEN-01`, o rótulo com o mês e "informada à mão" confirmados; aviso novo para o valor parado há 2 meses ou mais; "chega na próxima atualização, feita de madrugada"; avisos de versão a escolher ou não encontrada com variante para quem não escolhe; "Digite o código FIPE no formato 811134-0."; texto informativo depois de "Buscar pela placa" sem resultado. **Próximo:** arquiteto passa os textos para `veiculos.md` no PR #479 (o `aviso` passa a depender do perfil e do mês).
+- **Revisão de segurança feita em 05 nov 2026** (`tarefas/handoffs/T-422-seguranca.md`, sobre a ADR 0038 do PR #477): nenhum alto. **Antes do backend**, o contrato leva os médios M-01 (formato fechado do código FIPE, do ano e da placa antes da URL), M-02 (limite de 256 KB e validação da resposta), M-04 (cota da placa e trava da rotina no `public`, não por empresa) e o B-04 (situação e origem só pelo servidor). **No backend:** M-03 (placa fora dos breadcrumbs do Sentry e do log) e os baixos B-01 (sem redirecionamento), B-02 (teto da rotina e trava), B-03 (cabeçalhos de cota com limite) e B-06 (variação do preço). **Antes de ligar a placa:** B-05 (terceiro declarado, só os campos pedidos, perfil e limite antes da chamada), com o dono e o produto.
+
+#### T-428 · Correções da conferência da fase 2 a 1440 e 390 px
+- **Agente:** frontend · **Regras:** `PLT-02`, `PLT-06`, `VEI-03`, `AUD-05`, `FIN-05` · **Origem:** `tarefas/handoffs/conferencia-fase2-qa.md` (D1 a D5).
+- **Pronto quando:** D1 faixa de assinatura compacta a 390 px; D2 e D3 um botão de histórico por tamanho na ficha do veículo; D4 campo, arquivo e botão do editar cabem no cartão; D5 "Ver comprovante" e "Ver a nota" com aparência de botão; testes do que mudou.
+- **Feito em 04 nov 2026** (handoff `tarefas/handoffs/T-428-frontend.md`).
+
+#### T-445 · Classes de espaço fora da escala viram zero (bug)
+- **Agentes:** design-system (decide a escala), depois frontend ou fullstack (aplica) · **Origem:** T-440 (PR #503), achado do Fullstack em 10 nov 2026.
+- **Causa:** `frontend/tailwind.config.ts` troca a escala de espaços do Tailwind pela de `src/design-system/tokens.ts` (`espacamento`: 1, 2, 3, 4, 5, 6, 8 e 10). Classe fora dela (`mt-1.5`, `gap-2.5`, `gap-1.5`, `gap-3.5`, `py-2.5`, `gap-0.5`, `px-3.5` e outras) não gera CSS, e o espaço fica zero sem erro. São cerca de 85 usos em dezenas de componentes (`admin/`, `contratos/`, `aprovacoes/` e outros).
+- **Pronto quando:** o design-system decide entre acrescentar os meios-passos ao token ou trocar cada classe pelo passo mais próximo, e registra no guia; a troca aplicada em todo o `frontend/src`; uma checagem no lint (ou teste) recusa classe de espaço fora da escala; telas mais afetadas conferidas a 1440 e 390 px.
+
+#### T-446 · Dialogo amplo e passo de 64 px na escala
+- **Agente:** design-system · **Origem:** revisão do #505 (T-414) e T-445.
+- **O caso:** o `Dialogo` só tem os tamanhos pequeno e médio (560 px), e o visualizador de fotos da ficha ficou pequeno (560 × 722 a 1440 px); a tela `Veiculo-Visualizador` pede até 1100 × 820 px. A escala de espaços não tem o passo 16 (64 px), e a miniatura da galeria usa `size-[64px]`.
+- **Pronto quando:** `Dialogo` com tamanho amplo (no celular, tela cheia), com preview e teste; passo 16 na escala (`tokens.ts`, `tokens.json`, `wl-theme.css`, guia); o visualizador e a miniatura passam a usar os dois; conferido a 1440 e 390 px.
+
+#### T-447 · Rotas de contratos e preços bloqueadas e 403 do vistoriador na ficha (bugs)
+- **Agente: fullstack** · **Origem:** conferência do QA de 10 nov 2026 (`docs/qa/conferencia-10-nov.md`, D1 e D5).
+- **D1:** os cartões "Modelos de contrato" e "Tabelas de preço" de Configurações levam a `/admin/contratos` e `/admin/precos`, e a administradora vê "Seu perfil não tem acesso a esta página.": `rotaPermitida` em `frontend/src/lib/menu.ts` não tem a exceção dessas rotas, como já tem para `/admin/ramo` e `/admin/suporte`.
+- **D5:** a ficha do veículo, aberta pelo vistoriador, chama `GET /api/locacoes/?veiculo=` e recebe 403 (erro no console). A ficha só pede as locações para quem as lê (`pode` da API).
+- **Pronto quando:** as duas rotas abrem para quem tem a permissão, sem abrir para outros perfis; a ficha do vistoriador sem chamada recusada; teste dos dois casos.
+
+#### T-448 · Editar do veículo mais perto da tela de referência
+- **Agentes:** design-system (tela), depois frontend · **Origem:** conferência do QA de 10 nov 2026 (D4).
+- **O caso:** a referência `Veiculo-Editar` tem a galeria no topo com o cartão de Permissões ao lado, Identificação com placa e chassi travados, "Uso na frota" com Finalidade e Plano de manutenção, Documentos em cartões com "Substituir" e "Renovar", e as ações no cabeçalho. A página é uma coluna só, com a galeria depois de "Compra e valores", sem Finalidade e Plano de manutenção, e Documentos como formulários. O rótulo "Tipo" do CRLV e o "Tipo de veículo" (T-438) se confundem; a referência ainda não tem o tipo do veículo nem a trava.
+- **Pronto quando:** o design-system atualiza `Veiculo-Editar` (desktop e celular) com o tipo do veículo, a trava, a galeria da T-414 e o nome que separa os dois "Tipo"; diz o que não tem regra (Finalidade e Plano de manutenção, se ainda não existirem no backend); o frontend leva a página à tela, com capturas lado a lado.
+
+#### T-449 · Data do atraso diferente na ficha e na lista
+- **Agentes:** produto (regra), depois frontend se precisar · **Regras:** `LOC-10`, `VEI-03` · **Origem:** conferência do QA de 10 nov 2026 (D6).
+- **O caso:** na ficha do PNB-7C04 (`/veiculos/45`), o card "Agora" diz "Atrasado desde 30 set" (início do período) e a tabela Locações diz "Devolução atrasada 27 dias" (contados de 14 out, a devolução prevista).
+- **Pronto quando:** o produto diz qual data vale para "atrasado desde" e para a contagem de dias, na regra; o texto da API e da tela segue a resposta, com teste.
+
+#### T-450 · Foto acima de 10 MB termina em erro genérico (bug)
+- **Agente: fullstack** · **Regras:** `VEI-10` · **Origem:** conferência do QA de 10 nov 2026 (D7).
+- **Causa:** no desenvolvimento, o Next repassa `/api/` ao Django e corta o corpo em 10 MB, derrubando a conexão (500, `ECONNRESET`), e a foto de 11 MB fica 25 s em "Enviando" e termina em "Não foi possível concluir agora". Em homologação e produção, o proxy aceita até 12 MB e responde 413 acima (`infra/proxy`), e a tela não trata o 413.
+- **Pronto quando:** limite do Next no desenvolvimento em 12 MB, como o proxy; a tela recusa na escolha a foto acima de 10 MB e mostra "Envie uma foto JPG ou PNG de até 10 MB." também no 413 e na queda de conexão do envio, no editar e no cadastro; teste.
 
 #### Também liberado
 - O botão "Mandar para oficina" da ficha depende do módulo de manutenção (`MAN`, `backend/apps/manutencao/` vazio) e entra quando ele for quebrado em tarefas.
 
+### Notas do dono de 05 nov 2026
+
+Vindas da aba Notas do painel de progresso, como as de 29 out. Nada começa sem o dono liberar.
+
+#### T-437 · Fotos do veículo também no cadastro
+- **Agentes:** produto (regra), design-system (tela), frontend, backend se precisar · **Regras:** `VEI-10` · **Depende de:** T-414 · **Origem:** nota "Adicionar fotos aos veiculos".
+- **Pedido do dono:** subir fotos do veículo fora da vistoria, já no cadastro do veículo novo e também no editar.
+- **Hoje:** a T-414 cobre a galeria no editar (`VEI-10`, ADR 0036), mas não o cadastro. O produto diz se o cadastro sobe as fotos junto com o veículo ou logo depois de salvar, e o design-system acrescenta o bloco em `Veiculo-Novo`.
+- **Pronto quando:** `VEI-10` cobre o cadastro, a tela de referência tem o bloco, e a galeria funciona no cadastro e no editar, com teste.
+- **Regra e tela entregues em 10 nov 2026** (PR #498, `VEI-10` "Galeria no cadastro", CA-437-01 a 13; PR #500, bloco em `Veiculo-Novo`, que também passou o campo Tipo para "Uso na frota", T-438). **Falta:** o código, depois do frontend da T-414, que faz o mesmo componente.
+
+#### T-439 · Implantação logo depois da compra
+- **Agentes:** produto (regra), arquiteto, frontend · **Regras:** `IMP-01`, `USR-01`, compra pública (`compra.md`) · **Origem:** nota "Ajustar Implantação".
+- **Pedido do dono:** a implantação deve começar assim que a pessoa termina o cadastro e escolhe o plano, e não só depois.
+- **Hoje:** o caminho é `Compra-Pronto` → convite → criar senha e 2 etapas (`USR-06`) → assistente.
+- **Decidido pelo dono em 05 nov 2026:** a senha e as 2 etapas continuam antes do assistente (`USR-06` não muda). O que muda é só o caminho: depois delas, a pessoa cai direto no primeiro passo da implantação, sem passar por outra tela.
+- **Pronto quando:** regra e contrato ajustados com a resposta do dono, o "Acessar meu sistema" leva direto ao primeiro passo da implantação, com teste e E2E.
+
+### Notas do dono de 10 nov 2026
+
+Vindas do teste do dono no fluxo de locação da Moto Rápida (LOC-0001 e LOC-0002). Os itens 4 e 6 travam a operação e vêm primeiro. Nada começa sem o dono liberar.
+
+#### T-451 · Retirada da locação sem caminho na tela (bug, trava a operação)
+- **Agentes:** produto (confirma a regra), depois fullstack · **Regras:** `LOC` (estados da locação e retirada), `VIS` (vistoria de saída) · **Origem:** nota 6 do dono.
+- **O caso:** LOC-0001 e LOC-0002 ficam em "aguardando retirada" e não há na tela nenhuma ação para registrar a retirada do cliente; a lista de clientes mostra "LOC-0001 · CB 500F · aguardando retirada" sem saída.
+- **Pronto quando:** o produto diz o que a retirada exige (vistoria de saída, caução paga, contrato assinado); a ficha da locação tem a ação "Registrar retirada" para quem tem a permissão, que muda o status pelo serviço de domínio com auditoria; o que falta para retirar aparece como motivo; teste com o código da regra.
+
+#### T-452 · Caução sem onde pagar nem dar baixa (bug, trava a operação)
+- **Agentes:** produto (regra), depois fullstack · **Regras:** `FIN` (caução e contas a receber), `LOC` · **Origem:** nota 4 do dono.
+- **O caso:** a caução da locação não aparece em lugar nenhum para receber nem para dar baixa, e a retirada depende dela.
+- **Pronto quando:** a caução existe como recebível da locação (em contas a receber e na seção de pagamentos da locação), com "Registrar pagamento" e baixa como as parcelas; teste com o código da regra.
+
+#### T-453 · Registrar movimentação abre outra rota em vez do diálogo
+- **Agente:** frontend · **Regras:** `FIN` (movimentações) · **Origem:** nota 1 do dono.
+- **O caso:** "Registrar movimentação" navega para outra rota e a tela inteira recarrega.
+- **Pronto quando:** o formulário abre num `Dialogo` sobre a tela de movimentações, sem trocar de rota nem recarregar a lista; ao salvar, só a lista se atualiza (invalidação do TanStack Query); a 390 px o diálogo ocupa a tela; teste.
+
+#### T-454 · Registro de contas a receber sem dizer a que se refere
+- **Agentes:** produto (texto), depois fullstack · **Regras:** `FIN` (contas a receber), `LOC` (parcelas) · **Origem:** nota 2 do dono.
+- **O caso:** ao abrir um registro em contas a receber não se sabe se é caução, parcela ou outra cobrança, nem qual parcela é.
+- **Pronto quando:** a API devolve o tipo do recebível e, na parcela, o número e o total sem contar a caução; o detalhe mostra o tipo e, na parcela, "1 de 128 parcelas" (exemplo de 128 semanais); a tela só exibe o que a API manda; teste.
+
+#### T-455 · Da seção de pagamentos da locação para o registro em contas a receber
+- **Agente:** frontend (backend se faltar o id) · **Regras:** `FIN`, `LOC` · **Depende de:** T-454 · **Origem:** nota 3 do dono.
+- **Pronto quando:** cada linha da seção de pagamentos da locação leva a contas a receber já com aquele registro aberto (link com o id na URL, que abre o detalhe); voltar retorna à locação; teste.
+
+#### T-456 · Situação do pagamento errada nas locações do cliente
+- **Agente:** fullstack · **Regras:** `FIN`, `LOC`, `CLI` · **Origem:** nota 5 do dono.
+- **O caso:** na seção Locações do cliente, a situação continua a mesma depois de paga a primeira parcela, e a caução não aparece.
+- **Pronto quando:** a situação vem da API e muda com o pagamento; a seção mostra também a caução (valor e se foi paga); teste com a primeira parcela paga.
+
+#### T-458 · Permissão de ler locações para a ficha do vistoriador
+- **Agentes:** backend (contrato e `pode`), depois fullstack (a ficha usa a chave) · **Regras:** `USR-05`, `USR-09` · **Origem:** D5 da conferência do QA de 10 nov 2026 (`docs/qa/conferencia-10-nov.md`); ficou de fora da T-447 (PR #512).
+- **O caso:** a ficha do veículo, aberta pelo vistoriador, chama `GET /api/locacoes/?veiculo=` e recebe 403 (erro no console; a ficha esconde Locações e não quebra). O `pode` de `/api/contas/eu/` não tem chave de leitura de locações, e a tela não deve decidir pelo perfil (escolha da T-278).
+- **Pronto quando:** `pode.locacoes_ver` no `/api/contas/eu/`, calculado pelo servidor como a permissão de `GET /api/locacoes/` ("todos menos vistoriador", `docs/api/locacoes.md`), no contrato de contas, com teste por perfil; depois a ficha só pede as locações com a chave.
+#### T-459 · Placa quebrada no hífen no título do visualizador de fotos
+- **Agente:** frontend · **Regras:** `VEI-10` · **Origem:** conferência do QA de 11 nov 2026 (PR #524), aval do dono em 11 nov.
+- **O caso:** a 390 px, o título do visualizador de fotos (`components/frota/VisualizadorDeFotos.tsx`) quebra a linha no hífen da placa: "QXA-" numa linha e "4B21" na outra.
+- **Pronto quando:** a placa nunca se parte no hífen, em nenhum texto do visualizador (título, legenda e miniaturas), a 1440 e a 390 px; o texto em volta continua quebrando normalmente; teste.
+
+#### T-460 · Eventos de foto do veículo sem código, sem detalhe e com resumo cru na auditoria
+- **Agente:** fullstack (backend; frontend só se a tela não mostrar o que a API passar a devolver) · **Regras:** `VEI-10`, `AUD` · **Origem:** conferência do QA de 11 nov 2026 (PR #526, CA-437-13), aval do dono em 11 nov.
+- **O caso:** o evento `veiculo.foto_enviar` é gravado, um por foto, mas na API de auditoria vem com `objeto.codigo` nulo (só o id; a linha não diz TBC-5H22), `detalhe` vazio (não dá para ver qual foto virou capa) e resumo cru "Veículo: foto enviar", enquanto os outros eventos têm texto em português. Conferir também os outros eventos de foto da `VEI-10` (trocar, capa, apagar). O evento nasce em `backend/apps/veiculos/services.py`.
+- **Pronto quando:** os eventos de foto trazem a placa do veículo como código, o detalhe com o que mudou (arquivo, capa sim ou não) e um resumo em português como os demais; a tela de Auditoria mostra isso; teste com o código da regra no nome.
+- **Feita em 11 nov 2026** (PR #531). Ficou de fora: os eventos de cadastrar e editar o veículo também saem sem código.
+
+#### T-461 · Telas de conta: esqueci a senha, 2 etapas, meu perfil e notificações
+- **Agente:** design-system (telas), depois frontend · **Regras:** `USR` · **Origem:** decisão do dono de 11 nov 2026 (artefato de decisões, "Telas que faltam desenhar": A).
+- **Pronto quando:** as quatro telas desenhadas em desktop e celular em `docs/telas/`, com o índice, pelas regras de usuários; dúvidas de regra listadas para o produto. Depois, o frontend recria o que ainda não existe.
+
+#### T-462 · Aviso ao sair da tela com fotos ainda enviando
+- **Agentes:** produto (regra), depois frontend · **Regras:** `VEI-10` · **Origem:** conferência do QA de 11 nov 2026 (PR #526, CA-437-11), decisão do dono de 11 nov 2026 (A: avisar).
+- **O caso:** quem sai da tela no meio do envio das fotos perde as que faltavam sem aviso; o veículo fica com as que subiram.
+- **Pronto quando:** a regra diz o aviso; o navegador pergunta antes de sair enquanto há fotos enviando e a tela mostra quantas faltam; teste.
+
+#### Decisões do dono de 11 nov 2026 (artefato de decisões)
+- **T-451 (retirada):** a retirada acontece das duas formas, sozinha quando vistoria de saída, assinatura e 1º pagamento estão feitos, e por um botão "Registrar retirada". O produto escreve a regra e avisa o backend, que está com o PR #516.
+- **WhatsApp ao cliente final:** opção C da ADR 0034, sem WhatsApp ao cliente final na fase 1; os avisos vão por e-mail. O produto ajusta as regras e o arquiteto registra na ADR.
+- **Recibo público (T-436):** ligado em desenvolvimento e homologação; produção liga com o lote para a main. O recibo continua só com o essencial (código, primeiro nome, data e PDF).
+- **Lote develop → main:** abrir agora, depois da suíte inteira verde na develop.
+- **Regras com o padrão A:** período da locação retirada depois do início, contagem dos 3 dias, aviso só ao gerente, valor da intenção de compra pelos planos em Preços, sem multa no encerramento antecipado, CRLV-e no editar, preço do Profissional mantido e guarda de faturas por 5 anos.
+- **Com o dono, fora do sistema:** registrar o domínio (pensa em "giroloc"), buscar a marca no INPI e abrir a conta no Asaas.
+- **Mais três, no mesmo dia (pontos abertos pelo produto no PR #535):** o botão "Registrar retirada" é só do administrador e do gerente da filial; o texto do Profissional perde "e cobrança pelo WhatsApp" (a tela da compra, PR #522, acompanha); o convite de usuário vai só por e-mail.
+
+#### T-463 · Avisos ao cliente final por e-mail na fase 1
+- **Agente:** backend · **Regras:** `AUT-01`, `AUT-03`, `AUT-05`, `DEV-02`, `CLI-12`, `USR-01`, ADR 0034 · **Origem:** achado do arquiteto no PR #536 e decisão do dono de 11 nov 2026 (A: abrir agora).
+- **O caso:** com a opção C da ADR 0034 (nada pelo WhatsApp ao cliente final na fase 1), o recibo do pagamento (`AUT-05`), o recibo da devolução (`DEV-02`), o reenvio do contrato assinado e o lembrete da devolução (`AUT-01`, quando há celular) só mandam WhatsApp, e o cliente fica sem aviso. O convite e a régua de cobrança mandam WhatsApp sem olhar o aceite.
+- **Pronto quando:** esses avisos vão por e-mail, como as regras de 11 nov dizem; uma configuração (`GIRO_WHATSAPP_CLIENTE_FINAL`, desligada) impede qualquer WhatsApp ao cliente final, e só os modelos 12 e 13 da assinatura saem pelo WhatsApp; `docs/api/financeiro.md` sem WhatsApp ao cliente; testes no seed com o código das regras. Os pontos 1 a 7 da ADR 0034 são o roteiro.
+
+#### T-464 · Placa nos eventos de cadastrar e editar o veículo na auditoria
+- **Agente:** fullstack · **Regras:** `AUD`, `VEI-01` · **Origem:** sugestão do fullstack no PR #531 (T-460) e decisão do dono de 11 nov 2026 (A).
+- **Pronto quando:** os eventos de cadastrar e editar o veículo trazem a placa como código, como os de foto da T-460, com resumo em português; teste.

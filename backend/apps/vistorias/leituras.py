@@ -5,17 +5,29 @@
 - `locacoes.Locacao`: bloco `devolucao`, com o `devolucao_id` da devolução em curso ou
   encerrada; `null` enquanto ela não tem chegada (troca cancelada com a chegada descartada).
 - `veiculos.Veiculo:ficha`: bloco `vistoria_recente`, a última vistoria concluída do veículo, com
-  as fotos fixas e as avarias abertas (VIS-01, T-275).
+  todas as fotos ativas (as fixas e as de avaria, VEI-10, T-414) e as avarias abertas (VIS-01,
+  T-275).
 """
 
+import os
 from typing import Any
 
 from django.db.models import QuerySet
 
-from comum import leituras
+from comum import arquivos, leituras
+from comum.documentos import placa_com_hifen
 
 from . import selectors
-from .models import POSICOES_OBRIGATORIAS, Devolucao, StatusVistoria, Vistoria
+from .models import (
+    POSICOES_OBRIGATORIAS,
+    Avaria,
+    Devolucao,
+    FotoVistoria,
+    PosicaoFoto,
+    StatusVistoria,
+    TipoVistoria,
+    Vistoria,
+)
 
 TROCA = "locacoes.TrocaVeiculo"
 LOCACAO = "locacoes.Locacao"
@@ -50,10 +62,54 @@ def montar_locacao(locacao: Any) -> dict[str, Any]:
     return {"devolucao_id": devolucao}
 
 
+ROTULO_DO_TIPO = {
+    TipoVistoria.SAIDA: "Vistoria de saída",
+    TipoVistoria.DEVOLUCAO: "Vistoria de chegada",
+}
+# No nome do arquivo baixado, a vistoria `devolucao` é a chegada (ADR 0036).
+NOME_DO_TIPO = {TipoVistoria.SAIDA: "saida", TipoVistoria.DEVOLUCAO: "chegada"}
+
+
+def _fotos_em_ordem(vistoria: Vistoria) -> list[tuple[FotoVistoria, str]]:
+    """As ativas: as fixas na ordem das posições, depois as de avaria pela hora, cada uma com o
+    rótulo ("Frente", "Avaria 1")."""
+    fotos = [f for f in vistoria.fotos.all() if f.ativo]
+    fixas = {f.posicao: f for f in fotos if f.posicao in POSICOES_OBRIGATORIAS}
+    de_avaria = sorted(
+        (f for f in fotos if f.posicao == PosicaoFoto.AVARIA), key=lambda f: (f.tirada_em, f.pk)
+    )
+    em_ordem = [(fixas[p], PosicaoFoto(p).label) for p in POSICOES_OBRIGATORIAS if p in fixas]
+    em_ordem += [(f, f"Avaria {i}") for i, f in enumerate(de_avaria, start=1)]
+    return em_ordem
+
+
+def _foto_da_ficha(
+    foto: FotoVistoria, numero: int, rotulo: str, prefixo: str, avaria_id: int | None
+) -> dict[str, Any]:
+    """Dois links de 15 minutos (AUD-05): ver e baixar com o nome (ADR 0036, item 4)."""
+    extensao = os.path.splitext(foto.arquivo.name or "")[1].lower().lstrip(".") or "jpg"
+    nome = f"{prefixo}-{rotulo.lower().replace(' ', '-')}.{extensao}"
+    ver = arquivos.url_assinada(foto.arquivo.name)
+    baixar = arquivos.url_assinada(foto.arquivo.name, baixar_como=nome)
+    return {
+        "id": foto.pk,
+        "numero": numero,
+        "posicao": foto.posicao,
+        "rotulo": rotulo,
+        "tirada_em": foto.tirada_em,
+        "avaria_id": avaria_id,
+        "url": ver.url,
+        "url_download": baixar.url,
+        "url_expira_em": ver.expira_em,
+        "nome_arquivo": nome,
+    }
+
+
 def montar_ficha(veiculo: Any) -> dict[str, Any] | None:
     """A última concluída e vigente (a descartada nunca); `None` se o veículo nunca teve
-    vistoria. Fotos só das posições fixas, com URL assinada a cada leitura (AUD-05); avarias
-    abertas do veículo, sem valor."""
+    vistoria. Todas as fotos ativas, com os links assinados a cada leitura (AUD-05, VEI-10);
+    avarias abertas do veículo, sem valor. A placa do nome baixado vem do veículo que a ficha
+    passa (ADR 0036, item 6)."""
     vistoria = (
         Vistoria.objects.filter(
             veiculo_id=veiculo.pk, status=StatusVistoria.CONCLUIDA, vigente=True
@@ -64,8 +120,14 @@ def montar_ficha(veiculo: Any) -> dict[str, Any] | None:
     )
     if vistoria is None:
         return None
-    fotos = [f for f in vistoria.fotos.all() if f.ativo]
-    fixas = {f.posicao: f for f in fotos if f.posicao in POSICOES_OBRIGATORIAS}
+    fotos = _fotos_em_ordem(vistoria)
+    avaria_da_foto = dict(
+        Avaria.objects.filter(foto_id__in=[f.pk for f, _ in fotos]).values_list("foto_id", "pk")
+    )
+    placa = "".join(
+        c for c in placa_com_hifen(veiculo.placa) if c.isascii() and (c.isalnum() or c == "-")
+    )
+    prefixo = f"{placa}-vistoria-{NOME_DO_TIPO[TipoVistoria(vistoria.tipo)]}"
     avarias = (
         selectors.avarias_abertas()
         .filter(veiculo_id=veiculo.pk)
@@ -76,20 +138,14 @@ def montar_ficha(veiculo: Any) -> dict[str, Any] | None:
     return {
         "id": vistoria.pk,
         "tipo": vistoria.tipo,
+        "rotulo_tipo": ROTULO_DO_TIPO[TipoVistoria(vistoria.tipo)],
         "concluida_em": vistoria.concluida_em,
         "vistoriador": ({"id": responsavel.pk, "nome": responsavel.nome} if responsavel else None),
         "locacao_codigo": vistoria.locacao.codigo,
         "total_fotos": len(fotos),
         "fotos": [
-            {
-                "id": foto["id"],
-                "posicao": foto["posicao"],
-                "url": foto["url"],
-                "url_expira_em": foto["url_expira_em"],
-            }
-            for foto in (
-                selectors.representacao_foto(fixas[p]) for p in POSICOES_OBRIGATORIAS if p in fixas
-            )
+            _foto_da_ficha(foto, numero, rotulo, prefixo, avaria_da_foto.get(foto.pk))
+            for numero, (foto, rotulo) in enumerate(fotos, start=1)
         ],
         "avarias": [
             {

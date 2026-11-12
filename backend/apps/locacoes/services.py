@@ -22,6 +22,7 @@ from apps.clientes import selectors as clientes_selectors
 from apps.clientes.models import Cliente
 from apps.contratos import selectors as contratos_selectors
 from apps.empresas import selectors as empresas_selectors
+from apps.filiais import selectors as filiais_selectors
 from apps.filiais.models import Filial
 from apps.financeiro import selectors as financeiro_selectors
 from apps.financeiro import services as financeiro
@@ -32,13 +33,14 @@ from apps.veiculos import services as veiculos
 from apps.veiculos.models import Categoria as CategoriaVeiculo
 from apps.veiculos.models import Extra, StatusVeiculo, Veiculo
 from comum import aprovacoes, estados, relogio
-from comum.auditoria import Categoria, auditar, registrar_evento
+from comum.auditoria import ATOR_SISTEMA, Categoria, auditar, registrar_evento, usar_ator
 from comum.dinheiro import dividir_em_parcelas, formatar_reais, proporcional
+from comum.documentos import placa_com_hifen
 from comum.empresa import nome_da_empresa
 from comum.erros import Conflito, ErroDeRegra, ErroDeValidacao, SemPermissao, TransicaoInvalida
 from comum.eventos import publicar
 from comum.permissoes import pode
-from integracoes.whatsapp import enviar_whatsapp
+from integracoes.whatsapp import enviar_whatsapp, whatsapp_ao_cliente_final
 
 from . import calculo, contrato, fim
 from .models import (
@@ -188,14 +190,50 @@ def _desconto_do_plano(plano: PlanoEspecial | None) -> calculo.DescontoDoPlano |
     )
 
 
+# --- Prazo para retirar (LOC-12, AUT-17, T-410, ADR 0035) ---
+
+DIAS_PARA_RETIRAR = 3  # LOC-12, padrão A do produto: corridos, da data de início
+HORA_DO_AVISO = 8  # AUT-17, 08:00 no fuso da filial
+MOTIVO_NAO_RETIRADA = "Não retirada em 3 dias da data de início"
+INICIO_VENCIDO = "O início passou de 3 dias. Mude a data de início para confirmar."
+
+
+def ultimo_dia_do_inicio(inicio: datetime, filial: Filial) -> date:
+    """O último dia para retirar: a data local do início + 3 dias corridos, com o feriado da
+    filial contando (`FIL-03` não vale aqui)."""
+    return data_local(inicio, filial) + timedelta(days=DIAS_PARA_RETIRAR)
+
+
+def ultimo_dia_retirada(locacao: Locacao) -> date:
+    """LOC-12: a função única do prazo (confirmação, simulação, detalhe e `AUT-17`)."""
+    return ultimo_dia_do_inicio(locacao.inicio, locacao.filial)
+
+
+def inicio_vencido(inicio: datetime, filial: Filial) -> Conflito:
+    return Conflito(
+        "inicio_vencido",
+        INICIO_VENCIDO,
+        {
+            "inicio": data_local(inicio, filial).isoformat(),
+            "ultimo_dia_retirada": ultimo_dia_do_inicio(inicio, filial).isoformat(),
+        },
+    )
+
+
 def _outra_locacao_aberta(veiculo: Veiculo, exceto: int | None) -> bool:
     return Locacao.objects.filter(veiculo=veiculo, status__in=ABERTAS).exclude(pk=exceto).exists()
 
 
 def impedimentos(
-    cliente: Cliente, veiculo: Veiculo, filial: Filial, exceto: int | None = None
+    cliente: Cliente,
+    veiculo: Veiculo,
+    filial: Filial,
+    exceto: int | None = None,
+    inicio: datetime | None = None,
 ) -> list[dict[str, Any]]:
-    """O que impede confirmar (CLI-05, `cliente_inativo`, CLI-02, FIL-05, LOC-03)."""
+    """O que impede confirmar (CLI-05, `cliente_inativo`, CLI-02, FIL-05, LOC-03 e o
+    `inicio_vencido` da LOC-12). Desde a T-410, o veículo `reservado` não serve: ele é de uma
+    locação `aguardando_retirada` ou de uma troca pendente."""
     lista = clientes_selectors.impedimentos_para_nova_locacao(cliente)
     tipo = veiculo.categoria.tipo_veiculo
     if cliente.cnh_categoria not in clientes_selectors.CATEGORIA_POR_TIPO[tipo]:
@@ -210,9 +248,11 @@ def impedimentos(
                 "mensagem": "O veículo é de outra filial. Transfira antes de alugar.",
             }
         )
-    disponivel = veiculo.status in (StatusVeiculo.DISPONIVEL, StatusVeiculo.RESERVADO)
+    disponivel = veiculo.status == StatusVeiculo.DISPONIVEL
     if not disponivel or _outra_locacao_aberta(veiculo, exceto):
         lista.append(veiculo_indisponivel().como_dict() | {"detalhes": None})
+    if inicio is not None and ultimo_dia_do_inicio(inicio, filial) < relogio.hoje():
+        lista.append({"codigo": "inicio_vencido", "mensagem": INICIO_VENCIDO})
     return [{"codigo": i["codigo"], "mensagem": i["mensagem"]} for i in lista]
 
 
@@ -285,7 +325,7 @@ def montar(
         calculo=calculo.calcular(entrada),
         diaria_centavos=preco.diaria_centavos,
         preco_periodo_centavos=int(preco_periodo or 0),
-        impedimentos=impedimentos(cliente, veiculo, filial, exceto),
+        impedimentos=impedimentos(cliente, veiculo, filial, exceto, inicio=dados["inicio"]),
         avisos=avisos(cliente, filial),
     )
 
@@ -421,7 +461,7 @@ def cancelar_rascunhos_sem_uso() -> int:
 
 def _primeiro_impedimento(lista: list[dict[str, Any]]) -> Exception | None:
     for item in lista:
-        if item["codigo"] != "LOC-03":
+        if item["codigo"] not in ("LOC-03", "inicio_vencido"):
             return ErroDeRegra(item["codigo"], item["mensagem"])
     if lista:
         return veiculo_indisponivel()
@@ -457,13 +497,17 @@ def _contas(locacao: Locacao, conta: calculo.Calculo) -> list[financeiro.NovaCon
 
 def confirmar(locacao: Locacao, usuario: Any, primeiro_vencimento: date | None = None) -> Locacao:
     """`rascunho` → `aguardando_retirada`. Na mesma transação: preços de hoje congelados
-    (LOC-15), contas a receber (parcelas e caução), comissão `pendente` (FIN-09), reserva do
-    veículo com início futuro, com desconto acima do limite o pedido `APR-01` e, na 1ª locação
-    da empresa, a implantação concluída (IMP-01)."""
+    (LOC-15), contas a receber (parcelas e caução) à espera da retirada (LOC-05), comissão
+    `pendente` (FIN-09), reserva do veículo com qualquer data de início (T-410), com desconto
+    acima do limite o pedido `APR-01` e, na 1ª locação da empresa, a implantação concluída
+    (IMP-01). Com o prazo para retirar já passado, 409 `inicio_vencido` antes de tudo (LOC-12).
+    Confirmada no último dia depois das 08:00, o aviso da `AUT-17` sai na hora."""
     with transaction.atomic():
         travada = _travar(locacao)
         if travada.status != S.RASCUNHO:
             raise transicao_invalida(travada.status, S.AGUARDANDO_RETIRADA)
+        if ultimo_dia_retirada(travada) < relogio.hoje():
+            raise inicio_vencido(travada.inicio, travada.filial)
         if travada.veiculo_id is not None:
             # A mesma linha que a movimentação trava ao iniciar: uma espera a outra (ADR 0028).
             veiculos.travar(travada.veiculo)
@@ -531,26 +575,34 @@ def confirmar(locacao: Locacao, usuario: Any, primeiro_vencimento: date | None =
             filial_id=travada.filial_id,
             cliente_id=travada.cliente_id,
             contas=_contas(travada, montagem.calculo),
+            aguarda_retirada=True,
         )
         financeiro.lancar_comissao(
             _origem(travada),
             usuario_id=travada.vendedor_id,
             valor_centavos=empresas_selectors.configuracao().comissao_locacao_centavos,
         )
-        if data_local(travada.inicio, travada.filial) > relogio.hoje():
-            veiculo = travada.veiculo
-            if veiculo.status == StatusVeiculo.DISPONIVEL:
-                veiculos.transicionar(
-                    veiculo,
-                    StatusVeiculo.RESERVADO,
-                    origem=veiculos.OrigemDaMudanca(ORIGEM, travada.pk, travada.codigo),
-                    motivo=f"Reserva da {travada.codigo}",
-                )
+        # T-410: reserva com qualquer início. O veículo já está travado, e a simulação recusou
+        # o que não está `disponivel` (LOC-03).
+        veiculos.transicionar(
+            travada.veiculo,
+            StatusVeiculo.RESERVADO,
+            origem=veiculos.OrigemDaMudanca(ORIGEM, travada.pk, travada.codigo),
+            motivo=f"Reserva da {travada.codigo}",
+        )
         if pendente:
             _pedir_desconto(travada, usuario, pedido_pct)
         plataforma.concluir_implantacao(travada)
+        if _no_ultimo_dia_depois_do_aviso(travada):
+            transaction.on_commit(lambda: avisar_nao_retirada(travada))
     _recarregar(locacao)
     return locacao
+
+
+def _no_ultimo_dia_depois_do_aviso(locacao: Locacao) -> bool:
+    """CA-410-17: confirmada no último dia, depois das 08:00 da filial, o aviso não espera."""
+    agora = relogio.agora().astimezone(ZoneInfo(fuso(locacao.filial)))
+    return ultimo_dia_retirada(locacao) == agora.date() and agora.hour >= HORA_DO_AVISO
 
 
 def _pct(valor: Decimal) -> str:
@@ -662,47 +714,124 @@ def aplicar_decisao_desconto(locacao_id: int, status: str, motivo: str) -> None:
 # --- Ativação: vistoria de saída + contrato assinado + 1º pagamento, em qualquer ordem ---
 
 
-def verificar_ativacao(locacao: Locacao | int) -> bool:
-    """Com as três condições, `aguardando_retirada` → `ativa`; na mesma transação o veículo vira
-    `alugado` e a comissão fica `confirmada` (FIN-09)."""
+PASSOS_DA_RETIRADA = {
+    "vistoria_saida_ok_em": "vistoria de saída",
+    "contrato_assinado_em": "assinatura do contrato",
+    "primeiro_pagamento_em": "1º pagamento",
+}
+
+
+def verificar_ativacao(locacao: Locacao | int, passo: str | None = None) -> bool:
+    """LOC-17: com os três passos, em qualquer ordem, `aguardando_retirada` → `ativa`, sem botão.
+    Na mesma transação o veículo vira `alugado`, a comissão fica `confirmada` (FIN-09), as
+    contas passam a seguir o calendário com o dia da retirada (LOC-05, FIN-03, ADR 0035) e fica
+    o evento "Retirada" (`locacao.retirada`), com quem concluiu o último passo (o ator da
+    requisição; o Sistema na assinatura e no webhook). `passo` é o campo que acabou de se
+    cumprir; sem ele, vale o mais recente dos três."""
     with transaction.atomic():
         travada = _travar(locacao)
         if travada.status != S.AGUARDANDO_RETIRADA:
             return False
-        condicoes = (
-            travada.vistoria_saida_ok_em,
-            travada.contrato_assinado_em,
-            travada.primeiro_pagamento_em,
-        )
-        if any(c is None for c in condicoes):
+        momentos = {campo: getattr(travada, campo) for campo in PASSOS_DA_RETIRADA}
+        if any(momento is None for momento in momentos.values()):
             return False
-        estados.transicionar(
-            travada,
-            S.ATIVA,
-            motivo="Vistoria de saída, contrato assinado e 1º pagamento",
-            acao="locacao.ativar",
+        campo_do_ultimo = (
+            passo
+            if passo is not None and passo in PASSOS_DA_RETIRADA
+            else max(momentos, key=lambda campo: momentos[campo])
         )
-        veiculos.transicionar(
-            travada.veiculo,
-            StatusVeiculo.ALUGADO,
-            origem=veiculos.OrigemDaMudanca(ORIGEM, travada.pk, travada.codigo),
-            motivo=f"Retirada da {travada.codigo}",
-        )
-        financeiro.confirmar_comissao(_origem(travada))
+        ultimo = PASSOS_DA_RETIRADA[campo_do_ultimo]
+        _retirar(travada, f"Retirada. Último passo: {ultimo}")
     if isinstance(locacao, Locacao):
         _recarregar(locacao)
     return True
 
 
+def _retirar(travada: Locacao, motivo: str, *, a_mao: bool = False, por_motivo: str = "") -> None:
+    """A operação da retirada (LOC-17), a mesma nas duas formas: locação `ativa` com o evento
+    "Retirada" (`locacao.retirada`), veículo `alugado`, comissão confirmada (FIN-09) e as contas
+    liberadas com o dia da retirada (LOC-05). Na à mão, a 1ª parcela e a caução em aberto antes
+    passam a vencer nesse dia. Chamar com a locação travada, numa transação."""
+    agora = relogio.agora()
+    dia = data_local(agora, travada.filial)
+    travada.retirada_em = agora
+    travada.retirada_a_mao = a_mao
+    travada.retirada_motivo = por_motivo[:200]
+    estados.transicionar(
+        travada,
+        S.ATIVA,
+        motivo=motivo,
+        acao="locacao.retirada",
+        regra="LOC-17",
+        mais_campos=("retirada_em", "retirada_a_mao", "retirada_motivo"),
+    )
+    veiculos.transicionar(
+        travada.veiculo,
+        StatusVeiculo.ALUGADO,
+        origem=veiculos.OrigemDaMudanca(ORIGEM, travada.pk, travada.codigo),
+        motivo=f"Retirada da {travada.codigo}",
+    )
+    financeiro.confirmar_comissao(_origem(travada))
+    if a_mao:
+        financeiro.vencer_na_retirada(_origem(travada), dia)
+    financeiro.liberar_contas_da_retirada(_origem(travada), dia)
+
+
+def vistoria_saida_pendente() -> Conflito:
+    return Conflito("vistoria_saida_pendente", "Faça a vistoria de saída antes da retirada.")
+
+
+def passos_que_faltam(locacao: Locacao) -> list[str]:
+    """Os passos da retirada ainda não cumpridos, pelo nome ("assinatura do contrato")."""
+    return [nome for campo, nome in PASSOS_DA_RETIRADA.items() if getattr(locacao, campo) is None]
+
+
+def registrar_retirada(locacao: Locacao, motivo: str) -> Locacao:
+    """ "Registrar retirada" (LOC-17, decisão do dono de 11 nov 2026): a retirada à mão, antes da
+    assinatura ou do 1º pagamento. Só `aguardando_retirada` (409 `transicao_locacao`), sempre com
+    a vistoria de saída concluída (409 `vistoria_saida_pendente`) e com motivo (400). O perfil
+    (administrador e gerente da filial) é conferido na view. O que faltava fica como pendência
+    da locação `ativa`, e a retirada sozinha não roda de novo."""
+    motivo = (motivo or "").strip()
+    if not motivo:
+        raise ErroDeValidacao({"motivo": ["Informe o motivo."]})
+    with transaction.atomic():
+        travada = _travar(locacao)
+        if travada.status != S.AGUARDANDO_RETIRADA:
+            raise transicao_invalida(travada.status, S.ATIVA)
+        if travada.vistoria_saida_ok_em is None:
+            raise vistoria_saida_pendente()
+        faltam = passos_que_faltam(travada)
+        if not faltam:  # os três feitos: a retirada sozinha já devia ter acontecido
+            verificar_ativacao(travada.pk)
+        else:
+            _retirar(
+                travada,
+                f"Retirada registrada à mão. Motivo: {motivo}. Faltava: {' e '.join(faltam)}",
+                a_mao=True,
+                por_motivo=motivo,
+            )
+    _recarregar(locacao)
+    return locacao
+
+
 def _registrar_condicao(locacao_id: int, campo: str, momento: datetime, acao: str) -> bool:
+    """Grava o passo e, em `aguardando_retirada`, tenta a retirada sozinha. Depois da retirada à
+    mão (LOC-17), o passo que faltava ainda se grava, só para sair das pendências: a retirada
+    não acontece de novo."""
     with transaction.atomic():
         travada = _travar(locacao_id)
-        if travada.status != S.AGUARDANDO_RETIRADA or getattr(travada, campo) is not None:
+        if getattr(travada, campo) is not None:
+            return False
+        pendente = travada.retirada_a_mao and travada.status in ABERTAS
+        if travada.status != S.AGUARDANDO_RETIRADA and not pendente:
             return False
         with auditar(travada, acao, Categoria.OPERACAO):
             setattr(travada, campo, momento)
             travada.save(update_fields=[campo, "atualizado_em"])
-        return verificar_ativacao(travada.pk)
+        if pendente:
+            return False
+        return verificar_ativacao(travada.pk, passo=campo)
 
 
 def registrar_vistoria_saida(
@@ -849,10 +978,12 @@ def _ja_lembrada(locacao: Locacao) -> bool:
 
 def lembrar_devolucoes(agora: datetime | None = None) -> int:
     """AUT-01 (08:00): o lembrete à locação `ativa` com o fim previsto hoje, no fuso da filial.
-    Pelo WhatsApp quando o cliente tem celular; sem celular, pelo e-mail, com o mesmo texto
-    ("Mensagens pelo WhatsApp", queda para o e-mail). Sem os dois, nada sai, e o evento guarda o
-    canal vazio. Uma vez por locação: o evento `locacao.lembrar_devolucao` marca a lembrada, e a
-    renovação que muda o fim não lembra de novo. Devolve quantas foram lembradas."""
+    Por e-mail quando o cliente tem e-mail (na fase 1, nada vai ao cliente pelo WhatsApp, ADR
+    0034); pelo WhatsApp, com o mesmo texto, só com `GIRO_WHATSAPP_CLIENTE_FINAL` ligada e
+    celular. Sem canal, nada sai, e o evento guarda o canal vazio (`email`, `whatsapp` ou
+    `whatsapp_email` quando sai pelos dois). Uma vez por locação: o evento
+    `locacao.lembrar_devolucao` marca a lembrada, e a renovação que muda o fim não lembra de
+    novo. Devolve quantas foram lembradas."""
     agora = agora or relogio.agora()
     lembradas = 0
     candidatas = Locacao.objects.filter(
@@ -870,18 +1001,19 @@ def lembrar_devolucoes(agora: datetime | None = None) -> int:
                 continue
             cliente = travada.cliente
             texto = texto_do_lembrete(travada)
-            canal = ""
-            if cliente.celular:
+            canais = []
+            if cliente.celular and whatsapp_ao_cliente_final():
                 enviar_whatsapp(cliente.celular, texto)
-                canal = "whatsapp"
-            elif cliente.email:
+                canais.append("whatsapp")
+            if cliente.email:
                 send_mail(
                     subject=f"{nome_da_empresa()}: lembrete de devolução",
                     message=texto,
                     from_email=financeiro.remetente(),
                     recipient_list=[cliente.email],
                 )
-                canal = "email"
+                canais.append("email")
+            canal = "_".join(canais)
             registrar_evento(
                 LEMBRETE_DE_DEVOLUCAO,
                 Categoria.OPERACAO,
@@ -1714,7 +1846,15 @@ def encerramento_na_devolucao(locacao: Locacao, momento: datetime) -> Encerramen
     return EncerramentoNaDevolucao(encerramento.multa_centavos, liquido, descricao)
 
 
-def _aplicar_cancelamento(locacao: Locacao, motivo: str, dia: date, forma: str) -> None:
+def _aplicar_cancelamento(
+    locacao: Locacao,
+    motivo: str,
+    dia: date,
+    forma: str,
+    *,
+    acao: str = "locacao.cancelar",
+    automatico: bool = False,
+) -> None:
     """O efeito do cancelamento, direto ou aprovado, na transação de quem chama.
 
     Antes da retirada: `cancelada` na hora, sem multa; as contas abertas são canceladas, o que
@@ -1741,7 +1881,7 @@ def _aplicar_cancelamento(locacao: Locacao, motivo: str, dia: date, forma: str) 
             locacao,
             S.CANCELADA,
             motivo=motivo,
-            acao="locacao.cancelar",
+            acao=acao,
             regra="LOC-12",
             mais_campos=(*CAMPOS_DO_CANCELAMENTO, "cancelada_em"),
         )
@@ -1765,6 +1905,15 @@ def _aplicar_cancelamento(locacao: Locacao, motivo: str, dia: date, forma: str) 
                 motivo=f"Cancelamento da {locacao.codigo}",
             )
         contrato.cancelar_nao_assinados(locacao, f"Locação cancelada: {motivo}")
+        # ADR 0035, item 5: `vistorias` descarta a saída em rascunho (pedido ou automático).
+        dados_do_evento = {
+            "locacao_id": locacao.pk,
+            "codigo": locacao.codigo,
+            "antes_da_retirada": True,
+            "automatico": automatico,
+            "motivo": motivo,
+        }
+        transaction.on_commit(lambda: publicar("locacoes.locacao_cancelada", **dados_do_evento))
         return
     locacao.encerramento_antecipado_aprovado_em = relogio.agora()
     with auditar(
@@ -1815,6 +1964,146 @@ def aplicar_decisao_cancelamento(
                 titulo=f"Cancelamento da {travada.codigo} recusado: {motivo}"[:200],
                 link=f"/locacoes/{travada.pk}",
             )
+
+
+# --- Cancelamento automático da locação não retirada (LOC-12, AUT-17, T-410) ---
+
+
+def _forma_do_reembolso_automatico(locacao: Locacao) -> str:
+    """ADR 0035, item 4: estorno no cartão se o 1º pagamento foi no cartão; senão Pix. Nunca
+    dinheiro, porque à meia-noite não há caixa aberto. Os dois nascem `a_fazer`."""
+    formas = set(
+        financeiro_selectors.contas_da_origem(ORIGEM, locacao.pk)
+        .filter(status="paga")
+        .values_list("forma", flat=True)
+    )
+    if formas & {"cartao_credito", "cartao_debito"}:
+        return "estorno_cartao"
+    return "pix"
+
+
+def cancelar_nao_retirada(locacao_id: int) -> bool:
+    """AUT-17: cancela a locação `aguardando_retirada` que passou do último dia para retirar,
+    pelo Sistema, sem pedido nem `APR-02`. Trava e confere de novo: a retirada que chegou antes
+    vence. Devolve se cancelou."""
+    with usar_ator(ATOR_SISTEMA), transaction.atomic():
+        travada = _travar(locacao_id)
+        if travada.status != S.AGUARDANDO_RETIRADA:
+            return False
+        hoje = relogio.hoje()
+        if ultimo_dia_retirada(travada) >= hoje:
+            return False
+        _aplicar_cancelamento(
+            travada,
+            MOTIVO_NAO_RETIRADA,
+            hoje,
+            _forma_do_reembolso_automatico(travada),
+            acao="locacao.cancelar_nao_retirada",
+            automatico=True,
+        )
+    return True
+
+
+def texto_do_aviso_nao_retirada(locacao: Locacao) -> str:
+    veiculo = locacao.veiculo
+    return (
+        f"A {locacao.codigo} será cancelada amanhã se não for retirada hoje. "
+        f"{veiculo.marca} {veiculo.modelo} {placa_com_hifen(veiculo.placa)}, "
+        f"cliente {locacao.cliente.nome}."
+    )
+
+
+def avisar_nao_retirada(locacao: Locacao) -> int:
+    """AUT-17: os gerentes ativos da filial da locação, no sino e por e-mail, uma vez por
+    locação (a chave). Devolve quantos avisos novos."""
+    return avisar(
+        [g["id"] for g in filiais_selectors.gerentes(locacao.filial)],
+        tipo="locacao_nao_retirada",
+        titulo=texto_do_aviso_nao_retirada(locacao)[:200],
+        link=f"/locacoes/{locacao.pk}",
+        urgente=True,
+        chave=f"aut17-aviso-{locacao.pk}",
+        por_email=True,
+    )
+
+
+def _aguardando_com_prazo(teste: Any) -> list[Locacao]:
+    """As locações `aguardando_retirada` cujo último dia passa no `teste`. O prazo depende do
+    fuso da filial e é calculado, não guardado (ADR 0035); a seleção é pelo status."""
+    candidatas = Locacao.objects.filter(status=S.AGUARDANDO_RETIRADA).select_related(
+        "filial", "veiculo", "cliente"
+    )
+    return [loc for loc in candidatas.order_by("pk") if teste(ultimo_dia_retirada(loc))]
+
+
+def cancelar_nao_retiradas() -> int:
+    """AUT-17, às 00:10: todas as que passaram do último dia, uma transação por locação. A
+    execução perdida se recupera: a seleção é "passou", não "foi ontem"."""
+    hoje = relogio.hoje()
+    return sum(
+        cancelar_nao_retirada(loc.pk) for loc in _aguardando_com_prazo(lambda dia: dia < hoje)
+    )
+
+
+def avisar_nao_retiradas() -> int:
+    """AUT-17, às 08:00: as que vencem o prazo hoje. O aviso de um dia perdido não sai depois."""
+    hoje = relogio.hoje()
+    return sum(avisar_nao_retirada(loc) for loc in _aguardando_com_prazo(lambda dia: dia == hoje))
+
+
+DIAS_PARA_ASSINAR_DEPOIS_DA_RETIRADA = 7  # LOC-17, como o aditivo (LOC-08)
+
+
+def avisar_assinaturas_pendentes_da_retirada(agora: datetime | None = None) -> int:
+    """LOC-17: a locação retirada à mão com o contrato ainda não assinado 7 dias depois vira
+    tarefa para os gerentes da filial, como o aditivo (LOC-08). Idempotente: cada locação avisa
+    uma vez (`aviso_assinatura_retirada_em` e a chave). Devolve quantas locações avisou."""
+    agora = agora or relogio.agora()
+    pendentes = Locacao.objects.select_related("filial").filter(
+        retirada_a_mao=True,
+        status__in=(S.ATIVA, S.DEVOLUCAO_ATRASADA),
+        contrato_assinado_em__isnull=True,
+        retirada_em__lte=agora - timedelta(days=DIAS_PARA_ASSINAR_DEPOIS_DA_RETIRADA),
+        aviso_assinatura_retirada_em__isnull=True,
+    )
+    avisadas = 0
+    for locacao in pendentes.order_by("pk"):
+        with transaction.atomic():
+            avisar(
+                [g["id"] for g in filiais_selectors.gerentes(locacao.filial)],
+                tipo="retirada_sem_assinatura",
+                titulo=(f"Contrato da {locacao.codigo} sem assinatura 7 dias depois da retirada"),
+                link=f"/locacoes/{locacao.pk}",
+                chave=f"loc17-assinatura-{locacao.pk}",
+            )
+            locacao.aviso_assinatura_retirada_em = agora
+            locacao.save(update_fields=["aviso_assinatura_retirada_em", "atualizado_em"])
+        avisadas += 1
+    return avisadas
+
+
+def acertar_reservas_t410() -> tuple[int, int]:
+    """CA-410-23: as locações `aguardando_retirada` de antes da T-410 passam a ter as contas à
+    espera da retirada e o veículo `reservado` ("Reserva da LOC-x"). Idempotente: na segunda
+    vez, nada muda. As que já passaram do prazo caem na próxima `AUT-17`. Devolve (contas,
+    veículos) mudados."""
+    contas = reservados = 0
+    for locacao in Locacao.objects.filter(status=S.AGUARDANDO_RETIRADA).order_by("pk"):
+        with transaction.atomic():
+            travada = _travar(locacao)
+            if travada.status != S.AGUARDANDO_RETIRADA:
+                continue
+            contas += financeiro.esperar_retirada(_origem(travada))
+            veiculo = veiculos.travar(travada.veiculo)
+            if veiculo.status == StatusVeiculo.DISPONIVEL:
+                veiculos.transicionar(
+                    veiculo,
+                    StatusVeiculo.RESERVADO,
+                    origem=veiculos.OrigemDaMudanca(ORIGEM, travada.pk, travada.codigo),
+                    motivo=f"Reserva da {travada.codigo}",
+                )
+                reservados += 1
+    return contas, reservados
 
 
 # --- Encerramento (chamado por `vistorias` ao concluir a devolução, T-016) ---

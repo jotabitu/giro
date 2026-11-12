@@ -55,22 +55,28 @@ def _sal(tipo: str) -> str:
     return f"giro.leitura-documento.{tipo}"
 
 
-def emitir(tipo: str, conteudo: bytes, usuario: Any, campos: dict[str, Any]) -> str:
+def emitir(
+    tipo: str,
+    conteudo: bytes,
+    usuario: Any,
+    campos: dict[str, Any],
+    veiculo_id: int | None = None,
+) -> str:
+    """`veiculo_id`: a leitura no editar (T-421), que só vale para o mesmo veículo."""
     hash_do_arquivo = sha256(conteudo)
     dados = {
         "tipo": tipo,
         "arquivo": hash_do_arquivo,
         "schema": schema_atual(),
         "usuario": quem(usuario),
+        "veiculo": veiculo_id,
         "resumos": {nome: resumo(hash_do_arquivo, nome, v) for nome, v in campos.items()},
     }
     return signing.dumps(dados, salt=_sal(tipo), compress=True)
 
 
-def conferir(tipo: str, texto: str | None, conteudo: bytes, usuario: Any) -> dict[str, str] | None:
-    """Os resumos do comprovante, se ele vale para este arquivo, esta empresa e esta pessoa.
-    Vencido, adulterado, de outra empresa, de outra pessoa ou de outro arquivo: `None`, e o
-    cadastro segue sem a marca de leitura."""
+def _abrir(tipo: str, texto: str | None, usuario: Any) -> dict[str, Any] | None:
+    """O conteúdo do comprovante, se ele é deste tipo, desta empresa e desta pessoa e não venceu."""
     if not texto:
         return None
     try:
@@ -83,17 +89,51 @@ def conferir(tipo: str, texto: str | None, conteudo: bytes, usuario: Any) -> dic
         dados.get("tipo") != tipo
         or dados.get("schema") != schema_atual()
         or dados.get("usuario") != quem(usuario)
+    ):
+        return None
+    return dados
+
+
+def _resumos(dados: dict[str, Any]) -> dict[str, str]:
+    return {str(k): str(v) for k, v in dados["resumos"].items()}
+
+
+def conferir(tipo: str, texto: str | None, conteudo: bytes, usuario: Any) -> dict[str, str] | None:
+    """Os resumos do comprovante, se ele vale para este arquivo, esta empresa e esta pessoa.
+    Vencido, adulterado, de outra empresa, de outra pessoa, de outro arquivo ou de uma leitura
+    no editar: `None`, e o cadastro segue sem a marca de leitura."""
+    dados = _abrir(tipo, texto, usuario)
+    if (
+        dados is None
+        or dados.get("veiculo") is not None
         or not hmac.compare_digest(str(dados.get("arquivo")), sha256(conteudo))
     ):
         return None
-    return {str(k): str(v) for k, v in dados["resumos"].items()}
+    return _resumos(dados)
+
+
+def conferir_do_veiculo(
+    tipo: str, texto: str | None, usuario: Any, veiculo_id: int
+) -> tuple[str, dict[str, str]] | None:
+    """A leitura no editar (T-421): o PDF não vem no `PATCH`, então o comprovante amarra o
+    veículo e a pessoa, e o SHA-256 dele é o que entra nos resumos. Devolve o SHA e os resumos;
+    de outro veículo, do cadastro, vencido ou de outra pessoa: `None`."""
+    dados = _abrir(tipo, texto, usuario)
+    if dados is None or dados.get("veiculo") != veiculo_id:
+        return None
+    return str(dados.get("arquivo")), _resumos(dados)
 
 
 def campos_do_documento(
     resumos: dict[str, str], conteudo: bytes, gravados: dict[str, Any]
 ) -> tuple[list[str], list[str]]:
     """Os campos lidos do documento e, entre eles, os que a pessoa mudou antes de salvar."""
-    hash_do_arquivo = sha256(conteudo)
+    return campos_pelo_hash(resumos, sha256(conteudo), gravados)
+
+
+def campos_pelo_hash(
+    resumos: dict[str, str], hash_do_arquivo: str, gravados: dict[str, Any]
+) -> tuple[list[str], list[str]]:
     lidos = [campo for campo in gravados if campo in resumos]
     corrigidos = [
         campo

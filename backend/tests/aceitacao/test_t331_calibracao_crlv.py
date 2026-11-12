@@ -28,6 +28,14 @@ ESPERADO = {
         "cor": "vermelha",
         "combustivel": "gasolina",
         "exercicio": 2026,
+        # VEI-09 (T-421): carroceria "NÃO APLICAVEL" e observações em asteriscos ficam de fora.
+        "potencia_cv": 8,
+        "cilindrada_cc": 109,
+        "especie": "passageiro",
+        "tipo": "Motocicleta",
+        "lotacao": 2,
+        "peso_bruto_kg": 240,
+        "numero_motor": "JC75E1S123456",
     },
     "carro": {
         "placa": "XYZ1234",
@@ -39,6 +47,13 @@ ESPERADO = {
         "cor": "branca",
         "combustivel": "flex",
         "exercicio": 2026,
+        "potencia_cv": 75,
+        "cilindrada_cc": 999,
+        "especie": "passageiro",
+        "tipo": "Automóvel",
+        "lotacao": 5,
+        "peso_bruto_kg": 1400,
+        "numero_motor": "552440012345",
     },
 }
 # Campos que o parser errou (vieram vazios) nos dois CRLV-e reais e que a T-336 corrigiu: o
@@ -46,6 +61,17 @@ ESPERADO = {
 # coluna dele (o exercício).
 ERRADOS = ("chassi", "marca_modelo", "cor", "combustivel", "exercicio")
 CORRETOS = ("placa", "renavam", "ano_fabricacao", "ano_modelo")
+# T-421: no leiaute do Detran, a potência e o peso ficam na linha do Renavam, e a lotação divide
+# a linha com o CMT e os eixos.
+DA_VEI_09 = (
+    "potencia_cv",
+    "cilindrada_cc",
+    "especie",
+    "tipo",
+    "lotacao",
+    "peso_bruto_kg",
+    "numero_motor",
+)
 
 
 def _texto(formato: str) -> str:
@@ -71,6 +97,11 @@ def test_vei_08_detran_campo_errado_nos_reais(formato: str, campo: str) -> None:
     assert crlv.extrair(_texto(formato)).get(campo) == ESPERADO[formato][campo]
 
 
+@pytest.mark.parametrize(("formato", "campo"), _casos(DA_VEI_09))
+def test_vei_09_detran_campo_do_documento(formato: str, campo: str) -> None:
+    assert crlv.extrair(_texto(formato)).get(campo) == ESPERADO[formato][campo]
+
+
 @pytest.mark.parametrize("formato", list(FORMATOS))
 def test_vei_08_detran_nunca_le_o_proprietario(formato: str) -> None:
     campos = crlv.extrair(_texto(formato))
@@ -79,7 +110,7 @@ def test_vei_08_detran_nunca_le_o_proprietario(formato: str) -> None:
 
 
 @pytest.mark.parametrize("formato", list(FORMATOS))
-def test_vei_08_detran_pelo_processo_filho_traz_os_nove_campos(formato: str) -> None:
+def test_vei_08_detran_pelo_processo_filho_traz_os_campos(formato: str) -> None:
     resposta = leitura_documentos.executar("crlv", FORMATOS[formato].pdf())
     assert resposta["ok"] is True
     assert resposta["campos"] == ESPERADO[formato]

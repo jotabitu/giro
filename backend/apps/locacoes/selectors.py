@@ -22,15 +22,20 @@ from apps.contratos.models import Contrato, StatusContrato
 from apps.filiais.models import Filial
 from apps.financeiro import selectors as financeiro_selectors
 from apps.veiculos import selectors as veiculos_selectors
+from apps.veiculos import services as veiculos_services
 from comum import leituras, relogio
+from comum.aprovacoes import dia_curto
 from comum.dinheiro import aplicar_percentual, formatar_reais
 from comum.permissoes import pode
 
 from . import services
+from .contrato import contrato_na_hora
 from .models import (
     ABERTAS,
     FormaPagamento,
     Locacao,
+    ParcelamentoMensal,
+    Periodicidade,
     PlanoEspecial,
     StatusDesconto,
     StatusLocacao,
@@ -46,6 +51,7 @@ ABAS = ("abertas", "precisam_acao", "devolvem_hoje", "encerradas", "canceladas",
 ORDENS = {"fim_previsto": "fim_previsto", "-inicio": "-inicio"}
 CRIAM = frozenset({"administrador", "gerente", "vendedor"})
 VISTORIAM = frozenset({"administrador", "gerente", "vendedor", "vistoriador"})
+REGISTRAM_RETIRADA = frozenset({"administrador", "gerente"})  # LOC-17, retirada à mão
 
 
 def _fuso() -> ZoneInfo:
@@ -105,14 +111,40 @@ def _devolvem_hoje(qs: QuerySet[Any]) -> QuerySet[Any]:
     return qs.filter(status=S.ATIVA, fim_previsto__gte=comeco, fim_previsto__lt=fim)
 
 
+def q_pendencia_da_retirada() -> Q:
+    """LOC-17: retirada à mão com a assinatura ou o 1º pagamento ainda faltando."""
+    return Q(retirada_a_mao=True, status__in=(S.ATIVA, S.DEVOLUCAO_ATRASADA)) & (
+        Q(contrato_assinado_em__isnull=True) | Q(primeiro_pagamento_em__isnull=True)
+    )
+
+
 def _precisam_acao(qs: QuerySet[Any]) -> QuerySet[Any]:
-    """Devolução atrasada, parcela atrasada, aguardando assinatura ou cancelamento pendente."""
+    """Devolução atrasada, parcela atrasada, aguardando assinatura, cancelamento pendente ou
+    pendência da retirada à mão (LOC-17)."""
     return qs.filter(status__in=ABERTAS).filter(
         Q(status=S.DEVOLUCAO_ATRASADA)
         | Q(fin_atrasado_centavos__gt=0)
         | Q(status=S.AGUARDANDO_RETIRADA, contrato_assinado_em__isnull=True)
         | Q(cancelamento_status=StatusDesconto.PENDENTE)
+        | q_pendencia_da_retirada()
     )
+
+
+def tem_pendencia_da_retirada(locacao: Locacao) -> bool:
+    return (
+        locacao.retirada_a_mao
+        and locacao.status in (S.ATIVA, S.DEVOLUCAO_ATRASADA)
+        and (locacao.contrato_assinado_em is None or locacao.primeiro_pagamento_em is None)
+    )
+
+
+def rotulo_da_pendencia_da_retirada(locacao: Locacao) -> str:
+    """LOC-17 (PR #541): a situação diz o que falta, e não só que há pendência."""
+    sem_assinatura = locacao.contrato_assinado_em is None
+    sem_pagamento = locacao.primeiro_pagamento_em is None
+    if sem_assinatura and sem_pagamento:
+        return "Faltam assinatura e pagamento"
+    return "Falta a assinatura" if sem_assinatura else "Falta o 1º pagamento"
 
 
 def por_aba(qs: QuerySet[Any], aba: str | None) -> QuerySet[Any]:
@@ -220,21 +252,28 @@ def situacao(locacao: Locacao, sinal: dict[str, bool]) -> dict[str, str]:
         rotulo = f"Parcela {numero} atrasada" if numero else "Pagamento atrasado"
         return {"codigo": "pagamento_atrasado", "rotulo": rotulo, "tom": "perigo"}
     if status == S.AGUARDANDO_RETIRADA:
-        if locacao.contrato_assinado_em is None:
-            return {
-                "codigo": "aguardando_assinatura",
-                "rotulo": "Aguardando assinatura",
-                "tom": "alerta",
-            }
+        # LOC-17: o primeiro passo que falta, na ordem vistoria, assinatura, pagamento.
         if locacao.vistoria_saida_ok_em is None:
             return {
                 "codigo": "aguardando_vistoria",
                 "rotulo": "Aguardando vistoria",
                 "tom": "alerta",
             }
+        if locacao.contrato_assinado_em is None:
+            return {
+                "codigo": "aguardando_assinatura",
+                "rotulo": "Aguardando assinatura",
+                "tom": "alerta",
+            }
         return {
             "codigo": "aguardando_pagamento",
             "rotulo": "Aguardando pagamento",
+            "tom": "alerta",
+        }
+    if tem_pendencia_da_retirada(locacao):  # LOC-17: retirada à mão com o que faltava
+        return {
+            "codigo": "pendencia_retirada",
+            "rotulo": rotulo_da_pendencia_da_retirada(locacao),
             "tom": "alerta",
         }
     if sinal["devolve_hoje"]:
@@ -407,7 +446,7 @@ def acoes(locacao: Locacao, usuario: Any, contrato: Contrato | None = None) -> d
         # publicado: sem ele o botão aparece e o 422 `IMP-04` mostra o atalho. `contrato` é o
         # vigente: `None` também com o anterior cancelado.
         "gerar_contrato": cria
-        and locacao.status == S.AGUARDANDO_RETIRADA
+        and contrato_na_hora(locacao)
         and locacao.desconto_status != StatusDesconto.PENDENTE
         and not _cancelamento_em_curso(locacao)
         and contrato is None,
@@ -417,11 +456,18 @@ def acoes(locacao: Locacao, usuario: Any, contrato: Contrato | None = None) -> d
         "reenviar_contrato": cria
         and contrato is not None
         and contrato.status in (StatusContrato.ENVIADO, StatusContrato.ASSINADO),
+        # T-411: as condições de `contrato.copiar_link`, sem o limite por hora; nunca o suporte.
+        "copiar_link_contrato": cria
+        and not getattr(usuario, "e_suporte", False)
+        and contratos_selectors.pode_copiar_link(contrato),
         "continuar_vistoria": perfil in VISTORIAM
         and locacao.status == S.AGUARDANDO_RETIRADA
         and locacao.vistoria_saida_ok_em is None,
         "receber": bool(pode(usuario, "caixa_receber"))
         and int(getattr(locacao, "fin_abertas", 0) or 0) > 0,
+        # LOC-17: o botão aparece mesmo sem a vistoria (com o aviso); a API recusa com 409.
+        "registrar_retirada": perfil in REGISTRAM_RETIRADA
+        and locacao.status == S.AGUARDANDO_RETIRADA,
     }
 
 
@@ -544,10 +590,14 @@ def _cancelamento(locacao: Locacao) -> dict[str, Any] | None:
         *services.ANTES_DA_RETIRADA,
         S.CANCELADA,
     )
+    automatico = EventoAuditoria.objects.filter(
+        objeto_tipo="locacao", objeto_id=locacao.pk, acao="locacao.cancelar_nao_retirada"
+    ).exists()
     return {
         "status": locacao.cancelamento_status,
         "pedido_aprovacao_id": locacao.pedido_cancelamento_id,
         "antes_da_retirada": antes,
+        "automatico": automatico,
         "data": locacao.cancelamento_data,
         "multa_centavos": multa,
         "credito_centavos": credito,
@@ -570,13 +620,218 @@ def _cliente_do_detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
     }
 
 
+def _rotulo_da_conta(conta: Any) -> str:
+    return "Caução" if conta.tipo == "caucao" else f"Parcela {conta.numero_parcela}"
+
+
+def _parcelas(contas: list[Any], hoje: date, usuario: Any) -> list[dict[str, Any]]:
+    """Seção Pagamentos (FIN-18, LOC-17): cada conta com o rótulo, o valor de hoje e
+    `acoes.receber`, que abre a mesma baixa de `Receber` (`conta_id`)."""
+    perfil = getattr(usuario, "perfil", "")
+    suporte = bool(getattr(usuario, "e_suporte", False))
+    juros = financeiro_selectors.JurosDaPagina()
+    linhas = []
+    ordem = {"parcela": 0, "caucao": 1}  # as parcelas pelo número, a caução e depois o acerto
+    contas = sorted(
+        contas, key=lambda c: (ordem.get(c.tipo, 2), c.numero_parcela or 0, c.vencimento, c.pk)
+    )
+    for conta in contas:
+        acoes_da_conta = financeiro_selectors.acoes_da_conta(conta, perfil, suporte, hoje)
+        linhas.append(
+            {
+                **financeiro_selectors.representacao_conta(conta, hoje),
+                "conta_id": conta.pk,
+                "rotulo": _rotulo_da_conta(conta),
+                "valor_hoje_centavos": financeiro_selectors.valor_hoje(conta, hoje, juros)[
+                    "total_centavos"
+                ],
+                "acoes": {"receber": acoes_da_conta["receber"]},
+            }
+        )
+    return linhas
+
+
+# --- Para retirar (LOC-17) ---
+
+
+def _quando(momento: datetime) -> str:
+    """ "07 out, 09:20", no fuso da empresa."""
+    local = _local(momento)
+    return f"{dia_curto(local.date())}, {local:%H:%M}"
+
+
+def _acao(codigo: str, rotulo: str) -> dict[str, str]:
+    return {"codigo": codigo, "rotulo": rotulo}
+
+
+def _impedimentos_da_retirada(locacao: Locacao) -> list[str]:
+    """As frases que impedem concluir a vistoria de saída: o cliente (CLI-02, CLI-03, CLI-05) e
+    o CRLV e o seguro do veículo (VEI-03). As mesmas de `vistorias.services.concluir`."""
+    hoje = services.data_local(relogio.agora(), locacao.filial)
+    veiculo = locacao.veiculo
+    frases = [
+        i["mensagem"]
+        for i in clientes_selectors.impedimentos_para_retirada(
+            locacao.cliente, veiculo.categoria.tipo_veiculo, hoje
+        )
+    ]
+    vencidos = veiculos_services.documentos_vencidos_que_bloqueiam(veiculo, hoje)
+    if vencidos:
+        frases.append(veiculos_services.documento_vencido(vencidos, antes="da retirada").mensagem)
+    return frases
+
+
+def _passo_da_vistoria(locacao: Locacao, acoes_da_locacao: dict[str, Any]) -> dict[str, Any]:
+    if locacao.vistoria_saida_ok_em is not None:
+        texto = f"Feita em {_quando(locacao.vistoria_saida_ok_em)}"
+        return {"codigo": "vistoria_saida", "feito": True, "texto": texto, "acoes": []}
+    impedimentos = _impedimentos_da_retirada(locacao)
+    acoes_do_passo = []
+    if acoes_da_locacao["continuar_vistoria"]:
+        acoes_do_passo.append(_acao("continuar_vistoria", "Fazer vistoria de saída"))
+    return {
+        "codigo": "vistoria_saida",
+        "feito": False,
+        "texto": impedimentos[0] if impedimentos else "Falta a vistoria de saída",
+        "acoes": acoes_do_passo,
+    }
+
+
+def _passo_do_contrato(
+    locacao: Locacao, contrato: Contrato | None, acoes_da_locacao: dict[str, Any]
+) -> dict[str, Any]:
+    if locacao.contrato_assinado_em is not None:
+        texto = f"Assinado em {_quando(locacao.contrato_assinado_em)}"
+        return {"codigo": "contrato", "feito": True, "texto": texto, "acoes": []}
+    acoes_do_passo = []
+    if contrato is not None and contrato.status == StatusContrato.ENVIADO:
+        if acoes_da_locacao["reenviar_contrato"]:
+            acoes_do_passo.append(_acao("reenviar_contrato", "Reenviar"))
+        if acoes_da_locacao["copiar_link_contrato"]:
+            acoes_do_passo.append(_acao("copiar_link_contrato", "Copiar link para assinar"))
+        texto = "Falta a assinatura do cliente"
+        return {"codigo": "contrato", "feito": False, "texto": texto, "acoes": acoes_do_passo}
+    if acoes_da_locacao["gerar_contrato"]:
+        acoes_do_passo.append(_acao("gerar_contrato", "Enviar contrato"))
+    texto = "Falta enviar o contrato"
+    return {"codigo": "contrato", "feito": False, "texto": texto, "acoes": acoes_do_passo}
+
+
+def _nome_da_primeira(locacao: Locacao) -> str:
+    """Como o 1º pagamento chama a 1ª parcela ("1ª semana R$ 329,00")."""
+    if locacao.periodicidade == Periodicidade.DIARIA:
+        return "diárias"
+    if locacao.periodicidade == Periodicidade.MENSAL:
+        if locacao.parcelamento_mensal == ParcelamentoMensal.QUATRO_SEMANAIS:
+            return "1ª parcela"
+        return "1º mês"
+    return "1ª semana"
+
+
+def _passo_do_pagamento(
+    locacao: Locacao, contas: list[Any], hoje: date, ve_valores: bool
+) -> dict[str, Any]:
+    """1ª parcela **e** caução (LOC-17, FIN-18), pelo valor de hoje de cada uma (sem multa nem
+    juros antes da retirada, FIN-03). Cada conta se recebe na seção Pagamentos."""
+    primeiras = [
+        c for c in contas if c.tipo == "caucao" or (c.tipo == "parcela" and c.numero_parcela == 1)
+    ]
+    primeiras.sort(key=lambda c: c.tipo == "caucao")  # a parcela antes da caução
+    if locacao.primeiro_pagamento_em is not None:
+        quando = dia_curto(_local(locacao.primeiro_pagamento_em).date())
+        pago = sum(c.valor_centavos for c in primeiras if c.status == "paga")
+        texto = f"Pago em {quando} · {formatar_reais(pago)}" if ve_valores else f"Pago em {quando}"
+        return {"codigo": "pagamento", "feito": True, "texto": texto, "acoes": []}
+    if not ve_valores:  # o vistoriador não vê valores (`sem_valores`)
+        return {"codigo": "pagamento", "feito": False, "texto": "Falta o 1º pagamento", "acoes": []}
+    juros = financeiro_selectors.JurosDaPagina()
+    faltam = [
+        (c, financeiro_selectors.valor_hoje(c, hoje, juros)["total_centavos"])
+        for c in primeiras
+        if c.status == "aberta"
+    ]
+    nomes = [
+        f"{'caução' if c.tipo == 'caucao' else _nome_da_primeira(locacao)} {formatar_reais(v)}"
+        for c, v in faltam
+    ]
+    total = sum(v for _, v in faltam)
+    texto = f"Falta receber {formatar_reais(total)}: {' e '.join(nomes)}"
+    return {"codigo": "pagamento", "feito": False, "texto": texto, "acoes": []}
+
+
+def para_retirar(
+    locacao: Locacao,
+    usuario: Any,
+    contrato: Contrato | None,
+    contas: list[Any],
+    acoes_da_locacao: dict[str, Any],
+) -> dict[str, Any] | None:
+    """LOC-17: os três passos da retirada, cada um feito ou o que falta, com as ações de quem
+    pode fazê-las, e o prazo da LOC-12. Só na `aguardando_retirada`; a tela não decide nada."""
+    if locacao.status != S.AGUARDANDO_RETIRADA:
+        return None
+    ultimo = ultimo_dia_retirada(locacao)
+    cancela = ultimo + timedelta(days=1)
+    ve_valores = getattr(usuario, "perfil", "") != "vistoriador"
+    passos = [
+        _passo_da_vistoria(locacao, acoes_da_locacao),
+        _passo_do_contrato(locacao, contrato, acoes_da_locacao),
+        _passo_do_pagamento(locacao, contas, relogio.hoje(), ve_valores),
+    ]
+    return {
+        "passos": passos,
+        "prazo": (
+            f"Retire até {dia_curto(ultimo)}. "
+            f"Sem retirada, a locação é cancelada em {dia_curto(cancela)}."
+        ),
+        "registrar_retirada": _registrar_retirada(locacao, passos, acoes_da_locacao),
+    }
+
+
+def _registrar_retirada(
+    locacao: Locacao, passos: list[dict[str, Any]], acoes_da_locacao: dict[str, Any]
+) -> dict[str, Any] | None:
+    """O botão "Registrar retirada" (LOC-17), só para quem pode (`acoes.registrar_retirada`).
+    Sem a vistoria de saída, `disponivel` é false e `aviso` diz por quê (a API recusa com 409).
+    `faltas` são os textos dos passos que faltam, para a confirmação."""
+    if not acoes_da_locacao["registrar_retirada"]:
+        return None
+    disponivel = locacao.vistoria_saida_ok_em is not None
+    return {
+        "rotulo": "Registrar retirada",
+        "disponivel": disponivel,
+        "aviso": None if disponivel else "Faça a vistoria de saída antes da retirada.",
+        "titulo": "Registrar retirada?",
+        "faltas": [p["texto"] for p in passos if not p["feito"]],
+        "motivo_obrigatorio": "Informe o motivo.",
+    }
+
+
+def pendencias_da_retirada(
+    locacao: Locacao,
+    usuario: Any,
+    contrato: Contrato | None,
+    contas: list[Any],
+    acoes_da_locacao: dict[str, Any],
+) -> dict[str, Any] | None:
+    """LOC-17: depois da retirada à mão, o que faltava, com a mesma ação de cada passo. Some
+    quando tudo está feito, e não existe na retirada sozinha."""
+    if not tem_pendencia_da_retirada(locacao):
+        return None
+    ve_valores = getattr(usuario, "perfil", "") != "vistoriador"
+    passos = [
+        _passo_do_contrato(locacao, contrato, acoes_da_locacao),
+        _passo_do_pagamento(locacao, contas, relogio.hoje(), ve_valores),
+    ]
+    return {"passos": [p for p in passos if not p["feito"]]}
+
+
 def detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
     hoje = relogio.hoje()
     contrato = contratos_selectors.contrato_vigente(ORIGEM, locacao.pk)
-    parcelas = [
-        financeiro_selectors.representacao_conta(c, hoje)
-        for c in financeiro_selectors.contas_da_origem(ORIGEM, locacao.pk)
-    ]
+    contas = list(financeiro_selectors.contas_da_origem(ORIGEM, locacao.pk))
+    parcelas = _parcelas(contas, hoje, usuario)
+    acoes_da_locacao = acoes(locacao, usuario, contrato)
     efetivo = locacao.valor_periodo_centavos - aplicar_percentual(
         locacao.valor_periodo_centavos, locacao.desconto_pct
     )
@@ -615,9 +870,27 @@ def detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
             for t in locacao.trechos.select_related("veiculo")
         ],
         "cancelamento": _cancelamento(locacao),
+        "prazo_retirada": prazo_retirada(locacao),
+        "para_retirar": para_retirar(locacao, usuario, contrato, contas, acoes_da_locacao),
+        "pendencias_retirada": pendencias_da_retirada(
+            locacao, usuario, contrato, contas, acoes_da_locacao
+        ),
         "troca": _troca(locacao),
-        "acoes": acoes(locacao, usuario, contrato),
+        "acoes": acoes_da_locacao,
     }
+
+
+# LOC-12 (T-410): a função única do prazo mora em `services`; este é o nome do contrato.
+ultimo_dia_retirada = services.ultimo_dia_retirada
+
+
+def prazo_retirada(locacao: Locacao) -> dict[str, date] | None:
+    """LOC-12, AUT-17: o último dia para retirar e o dia em que a tarefa cancela, só na locação
+    `aguardando_retirada`."""
+    if locacao.status != S.AGUARDANDO_RETIRADA:
+        return None
+    ultimo = ultimo_dia_retirada(locacao)
+    return {"ultimo_dia": ultimo, "cancela_em": ultimo + timedelta(days=1)}
 
 
 def sem_valores(dados: Any) -> Any:
@@ -644,7 +917,8 @@ ROTULOS_DO_HISTORICO = {
     "locacao.vistoria_saida": ("Vistoria de saída", "vistoria"),
     "locacao.contrato_assinado": ("Contrato assinado", "contrato"),
     "locacao.primeiro_pagamento": ("1º pagamento recebido", "pagamento"),
-    "locacao.ativar": ("Locação ativa", "status"),
+    "locacao.ativar": ("Retirada", "status"),  # eventos de antes da T-451
+    "locacao.retirada": ("Retirada", "status"),  # LOC-17
     "locacao.aprovar_desconto": ("Desconto aprovado", "status"),
     "locacao.recusar_desconto": ("Desconto recusado", "status"),
     "locacao.cancelar_rascunho": ("Rascunho cancelado", "status"),
@@ -654,6 +928,7 @@ ROTULOS_DO_HISTORICO = {
     "locacao.recusar_cancelamento": ("Cancelamento recusado", "status"),
     "locacao.cancelar_pedido_cancelamento": ("Pedido de cancelamento cancelado", "status"),
     "locacao.cancelar": ("Locação cancelada", "status"),
+    "locacao.cancelar_nao_retirada": ("Cancelada: não retirada em 3 dias", "status"),
     "locacao.aprovar_encerramento": ("Encerramento antecipado aprovado", "status"),
     "locacao.encerrar": ("Locação encerrada", "status"),
 }

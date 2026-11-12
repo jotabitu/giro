@@ -2,8 +2,10 @@
 validação da linha (IMP-02).
 
 A linha passa pelas mesmas validações do cadastro pela tela (`validar_novo` de veículos e de
-clientes), mais o que só a planilha tem: célula em branco, número e data em texto, nome da
-categoria e da filial, e a repetição dentro da própria planilha.
+clientes), mais o que só a planilha tem: célula em branco, número e data em texto e a repetição
+dentro da própria planilha. A planilha de veículos não tem filial nem categoria (IMP-08): a
+filial é a da importação, e a categoria é escolhida na tela, por modelo, e guardada na linha
+(`CATEGORIA` e `CATEGORIA_PROPRIA`, chaves internas que não são colunas).
 
 Em clientes, a mensagem nunca repete o valor da célula: os `erros` não são cifrados.
 """
@@ -15,8 +17,9 @@ from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 
+from django.db.models import Q
+
 from apps.clientes import services as clientes
-from apps.filiais.models import Filial
 from apps.veiculos import services as veiculos
 from apps.veiculos.models import Categoria
 from comum.campos import buscar_por_hash
@@ -38,13 +41,15 @@ OBRIGATORIAS_VEICULO = (
     "ano_fabricacao",
     "ano_modelo",
     "km",
-    "categoria",
 )
 OBRIGATORIAS_CLIENTE = ("nome", "documento", "celular")
+# IMP-08: a categoria escolhida para a linha (pelo modelo ou como exceção em "Corrigir aqui").
+CATEGORIA = "_categoria_id"
+CATEGORIA_PROPRIA = "_categoria_propria"  # "1": a linha não segue a categoria do modelo
+INTERNAS = (CATEGORIA, CATEGORIA_PROPRIA)
 # Campo do erro do serviço → coluna da planilha.
 COLUNA_DO_CAMPO = {
     "categoria_id": "categoria",
-    "filial_id": "filial",
     "km_atual": "km",
     "valor_compra_centavos": "valor_compra",
     "endereco.cep": "cep",
@@ -61,32 +66,39 @@ def erro(campo: str, mensagem: str, codigo: str = "validacao") -> Erro:
     return {"campo": campo, "codigo": codigo, "mensagem": mensagem}
 
 
+def categorias_da_filial(filial_id: int | None) -> list[Categoria]:
+    """IMP-08, FIL-04: as categorias ativas da empresa ou da filial dos veículos."""
+    return list(
+        Categoria.ativos.filter(Q(filial__isnull=True) | Q(filial_id=filial_id)).order_by(
+            "tipo_veiculo", "nome", "id"
+        )
+    )
+
+
+def chave_do_modelo(marca: str, modelo: str) -> str:
+    """Marca e modelo sem diferenciar maiúsculas, acentos e espaços (IMP-08)."""
+    return f"{normalizar_nome(marca)}|{normalizar_nome(modelo)}"
+
+
 @dataclass
 class Contexto:
-    """Categorias e filiais ativas, lidas uma vez por importação."""
+    """A filial da importação e as categorias que ela oferece, lidas uma vez por importação."""
 
     categorias: list[Categoria]
-    filiais: dict[str, Filial]
     filial_padrao_id: int | None
 
     @classmethod
     def carregar(cls, filial_padrao_id: int | None) -> "Contexto":
         return cls(
-            categorias=list(Categoria.ativos.all()),
-            filiais={normalizar_nome(f.nome): f for f in Filial.ativos.all()},
-            filial_padrao_id=filial_padrao_id,
+            categorias=categorias_da_filial(filial_padrao_id), filial_padrao_id=filial_padrao_id
         )
 
-    def categoria(self, nome: str, filial_id: int | None) -> Categoria | None:
-        """A da filial da linha antes da que vale para a empresa toda."""
-        procurado = normalizar_nome(nome)
-        achadas = [
-            c
-            for c in self.categorias
-            if normalizar_nome(c.nome) == procurado and c.filial_id in (None, filial_id)
-        ]
-        achadas.sort(key=lambda c: c.filial_id is None)
-        return achadas[0] if achadas else None
+    def categoria(self, valores: dict[str, str]) -> Categoria | None:
+        """A escolhida para a linha; com uma categoria só, ela, sem pergunta (IMP-08)."""
+        escolhida = valores.get(CATEGORIA, "")
+        if escolhida:
+            return next((c for c in self.categorias if str(c.pk) == escolhida), None)
+        return self.categorias[0] if len(self.categorias) == 1 else None
 
 
 @dataclass
@@ -169,26 +181,12 @@ def _veiculo(valores: dict[str, str], contexto: Contexto) -> Resultado:
     elif km:
         dados["km_atual"] = int(km.replace(".", ""))
 
-    filial_id = contexto.filial_padrao_id
-    nome_filial = valores.get("filial", "")
-    if nome_filial:
-        filial = contexto.filiais.get(normalizar_nome(nome_filial))
-        filial_id = filial.pk if filial else None
-        if filial is None:
-            r.erros.append(erro("filial", f"Filial {nome_filial} não existe ou está inativa"))
-    elif filial_id is None:
-        r.erros.append(erro("filial", "Filial em branco"))
-    if filial_id is not None:
-        dados["filial_id"] = filial_id
-    nome_categoria = valores.get("categoria", "")
-    if nome_categoria and filial_id is not None:
-        categoria = contexto.categoria(nome_categoria, filial_id)
-        if categoria is None:
-            r.erros.append(
-                erro("categoria", f"Categoria {nome_categoria} não existe ou está inativa")
-            )
-        else:
-            dados["categoria_id"] = categoria.pk
+    # IMP-08: filial e categoria não vêm da planilha.
+    if contexto.filial_padrao_id is not None:
+        dados["filial_id"] = contexto.filial_padrao_id
+    categoria = contexto.categoria(valores)
+    if categoria is not None:
+        dados["categoria_id"] = categoria.pk
 
     texto = valores.get("capacidade_tanque_litros", "")
     if texto:
@@ -313,8 +311,8 @@ def validar(
     rotulos = ROTULOS[tipo]
     for e in dono:
         coluna = COLUNA_DO_CAMPO.get(e["campo"], e["campo"])
-        if coluna in r.campos_com_erro or (coluna == "categoria" and "filial" in r.campos_com_erro):
-            continue  # sem a filial, a categoria não tem como ser conferida
+        if coluna in r.campos_com_erro or coluna == "categoria":
+            continue  # IMP-08: a categoria é escolhida na tela depois da conferência
         mensagem = e["mensagem"]
         if mensagem == "Campo obrigatório.":
             mensagem = f"{rotulos.get(coluna, coluna)} em branco"

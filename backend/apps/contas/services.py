@@ -153,9 +153,9 @@ def convidar(
     por: Usuario | None = None,
     marca_equipe: bool = True,
 ) -> Usuario:
-    """Pessoa `convite_pendente` e convite de 7 dias, enviado depois do commit por e-mail e, com
-    celular, por WhatsApp (USR-01). Conta no limite do plano (PLT-03). O primeiro convite marca o
-    passo `equipe` da implantação, mesmo sem aceite (IMP-07)."""
+    """Pessoa `convite_pendente` e convite de 7 dias, enviado depois do commit por e-mail (USR-01;
+    o WhatsApp só com `GIRO_WHATSAPP_CLIENTE_FINAL`). Conta no limite do plano (PLT-03). O
+    primeiro convite marca o passo `equipe` da implantação, mesmo sem aceite (IMP-07)."""
     from apps.plataforma.services import atualizar_uso, exigir_limite, registrar_passo_implantacao
 
     email = email.strip().lower()
@@ -210,6 +210,30 @@ def convidar_administrador(nome: str, email: str, celular: str = "") -> Convite:
         email=email, nome=nome, celular=celular, perfil=Perfil.ADMINISTRADOR, marca_equipe=False
     )
     return Convite.objects.filter(usuario=usuario).latest("criado_em")
+
+
+def link_do_convite_da_compra(email: str) -> str | None:
+    """ "Acessar meu sistema" da `Compra-Pronto` (D-430-06, `compra.md`), no schema da empresa
+    nova: um convite a mais, com o mesmo vencimento do convite do e-mail e sem invalidá-lo (a
+    pessoa pode abrir o link do e-mail em outro aparelho). Sai uma vez só; quem chama garante.
+    `None` se o administrador já não está com convite pendente."""
+    usuario = Usuario.objects.filter(
+        email=email.strip().lower(), status=StatusUsuario.CONVITE_PENDENTE
+    ).first()
+    if usuario is None:
+        return None
+    vigente = (
+        Convite.objects.filter(
+            usuario=usuario, aceito_em__isnull=True, expira_em__gt=relogio.agora()
+        )
+        .order_by("-criado_em")
+        .first()
+    )
+    if vigente is None:
+        return None
+    token, token_hash = _novo_token()
+    Convite.objects.create(usuario=usuario, token_hash=token_hash, expira_em=vigente.expira_em)
+    return link_do_convite(host_da_empresa(schema_atual()), token)
 
 
 def _enviar_depois_do_commit(convite: Convite) -> None:

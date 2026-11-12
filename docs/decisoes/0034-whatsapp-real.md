@@ -1,6 +1,53 @@
 # Integração real do WhatsApp
 
-**Status:** proposta · 25 out 2026 · T-385 (achado da ADR 0033) · detalha a 0011 (integrações atrás de interface) e a 0012 (tarefas por empresa); aceita quando o dono escolher a opção
+**Status:** aceita em parte · proposta em 25 out 2026 (T-385, achado da ADR 0033), escolha do dono em 11 nov 2026 · detalha a 0011 (integrações atrás de interface) e a 0012 (tarefas por empresa)
+
+## Escolha do dono (11 nov 2026)
+
+**Na fase 1, nada vai ao cliente final pelo WhatsApp.** Os avisos ao cliente vão por e-mail, e o WhatsApp fica só na régua da assinatura, que é do Giro e vai ao responsável pela empresa. Regras no PR #535: seção "Automações e notificações" (`docs/regras/automacoes.md`), `CLI-12` e `USR-01`.
+
+**Cuidado com as letras.** O dono escolheu a **opção C do ponto em aberto "Remetente do WhatsApp que o cliente da locadora vê"**, das regras: A, aceitar "Giro Avisos"; B, um número por locadora; C, sem WhatsApp ao cliente final. Não é a "Opção C · Parceiro oficial (BSP)" desta ADR. As opções A, B e C abaixo continuam como estavam, para quando o WhatsApp ao cliente voltar.
+
+### O que fica decidido
+
+- **Número:** um só, do Giro. A régua da assinatura já leva a marca Giro, e o nome "Giro Avisos" não fere o white label. Some a dúvida da marca da locadora como variável num número só, porque os modelos da locadora não vão à Meta.
+- **Pontos de envio da tabela do Contexto:**
+  - os pontos 1 a 7 (convite, contrato, contrato assinado, régua de cobrança, recibo do pagamento, recibo da devolução, lembrete da devolução) saem **só por e-mail**, com ou sem o aceite do cliente (`CLI-12`);
+  - o convite também vai só por e-mail (`USR-01`). É a leitura literal da decisão, e o dono ainda pode confirmar ("Pontos em aberto" das regras);
+  - só o ponto 8, a régua da assinatura (D0 e D+3, `PLT-02`, `AUT-13`), sai pelo WhatsApp, ao responsável e com o aceite dele.
+- **Modelos na Meta:** só os dois da assinatura (`assinatura_vence_hoje` e `assinatura_em_atraso`, os modelos 12 e 13 de `docs/qa/criterios/whatsapp.md`). Os outros 11 ficam guardados, sem pedir aprovação.
+- **O código já feito fica como está, sem entrar em uso:** `integracoes/whatsapp`, as chamadas de `enviar_whatsapp` nos pontos 1 a 7, as caixas de aceite, a resposta automática e o "SAIR". Nada é removido.
+
+### Por onde enviar a régua da assinatura
+
+Esta parte continua com o dono, na hora de contratar. A recomendação do arquiteto é a **API da Meta direta** (a primeira pergunta da opção A), porque o volume caiu muito:
+- são até 2 mensagens por empresa por mês: no piloto, cerca de 6; com 20 empresas, cerca de 40;
+- o custo na Meta fica abaixo de R$ 2 por mês;
+- a mensalidade de um parceiro (cerca de R$ 300 por número) não se paga com esse volume.
+
+Até a contratação, a régua da assinatura sai por e-mail, como já sai hoje, e o provedor continua o `falso`.
+
+### O que muda no backend (fase 1)
+
+O código de hoje chama `enviar_whatsapp` sempre que há celular, sem olhar o aceite. Com o `falso`, essas mensagens não chegam a ninguém. Em quatro pontos o WhatsApp é o único canal:
+- recibo do pagamento (`financeiro.services._enviar_recibo`, `AUT-05`);
+- recibo da devolução (`vistorias/tasks.py`, `DEV-02`);
+- reenvio do contrato assinado (`contratos/tasks.py`, `contratos_reenviar`);
+- lembrete da devolução (`locacoes/services.py`, `AUT-01`), que só usa o e-mail quando falta celular.
+
+Nesses quatro, o cliente fica sem aviso. A regra nova manda o e-mail, então cabe uma tarefa de backend:
+1. **Os pontos 1 a 7 sempre por e-mail**, quando o cliente ou a pessoa convidada tem e-mail. Nos quatro pontos acima, o e-mail é novo; nos outros, ele já sai.
+2. **Uma chave só para o WhatsApp ao cliente final:** `GIRO_WHATSAPP_CLIENTE_FINAL`, falsa por padrão e em produção.
+   - Os pontos 1 a 7 só chamam `enviar_whatsapp` com a chave ligada e, para o cliente, com o aceite (`CLI-12`).
+   - Assim, o código guardado não manda nada ao cliente quando o provedor real entrar para a régua da assinatura.
+   - O ponto 8 não olha a chave.
+3. **Testes** com o seed: o recibo da Juliana (LOC-2836) e o lembrete do Carlos (LOC-2841) vão por e-mail, e a caixa do `falso` fica vazia com a chave desligada. Mais um teste da régua da assinatura, que continua pelo WhatsApp com o aceite.
+
+As tarefas 1 a 5 da seção "Consequências" passam a valer só para o ponto 8. São o provedor, o webhook e o `sincronizar_modelos_whatsapp` com os dois modelos, e entram quando o dono contratar o número. O opt-in do cliente (tarefa 4) espera a volta do WhatsApp ao cliente final.
+
+### Quando o WhatsApp ao cliente voltar
+
+Vira decisão nova do dono, com a escolha do remetente entre as opções desta ADR. Liga-se a chave `GIRO_WHATSAPP_CLIENTE_FINAL` e os modelos 1 a 11 vão à aprovação da Meta.
 
 ## Contexto
 
@@ -223,7 +270,7 @@ def avisar(aviso: Aviso, *, origem: object | None = None) -> None:
 ## Consequências
 
 - Com a escolha e as decisões do produto, esta ADR passa a aceita, e saem as tarefas de backend abaixo. A integração entra antes do primeiro cliente que use convite ou cobrança por WhatsApp.
-- Sem a integração, a fase 1 roda com o falso: convite e cobrança só por e-mail, de fato. O `prod.py` recusa subir com o falso, então a escolha tem de vir antes da subida de produção (ADR 0033).
+- Sem a integração, a fase 1 roda com o falso: convite e cobrança só por e-mail, de fato. O `prod.py` recusa subir com o falso, então a escolha tem de vir antes da subida de produção (ADR 0033). **Revisto em 11 nov 2026:** com a escolha do dono, a produção pode subir com o `falso` até o número do Giro ser contratado, porque nenhum aviso ao cliente depende do WhatsApp e a régua da assinatura também sai por e-mail. A trava do `prod.py` entra junto com o provedor real. Hoje o `prod.py` só deixa o comentário.
 
 ### Tarefas de backend que saem daqui (sem número)
 

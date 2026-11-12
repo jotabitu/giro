@@ -59,8 +59,10 @@ def test_usr_09_vendedor_e_financeiro_leem_a_frota_e_a_ficha(moto, frota):
         assert ficha.status_code == 200, (nome, ficha.json())
         corpo: dict[str, Any] = ficha.json()
         assert corpo["placa"] == "SAK1D39"
-        # Só leitura: nenhuma ação vem `true`.
-        assert not [acao for acao, vale in corpo["acoes"].items() if vale is True], nome
+        # Só leitura do veículo: nenhuma ação vem `true`, menos o "Lançar despesa" de quem
+        # lança despesa (FIN-17, T-417).
+        ligadas = [acao for acao, vale in corpo["acoes"].items() if vale is True]
+        assert ligadas == ["lancar_despesa"], nome
         # Valor e data de compra são só de administrador e gerente.
         assert corpo.get("valor_compra_centavos") is None, nome
 

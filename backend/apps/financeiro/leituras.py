@@ -6,8 +6,9 @@
   contadores `contas_atrasadas_15_dias` e `dias_de_atraso` (CLI-05) e `em_aberto_centavos`
   (CLI-09) e o total `em_aberto_centavos` da lista (CA-017-03).
 - `filiais.Filial`: contador `caixas`, os caixas `aberto` ou `aguardando_aprovacao` (FIL-06).
-- `veiculos.Veiculo`: `custo_manutencao_ano_centavos` no bloco `indicadores_financeiros`
-  (VEI-05, FIN-06); o `rendeu_no_ano_centavos` vem de `locacoes`, que sabe o veículo da locação.
+- `veiculos.Veiculo`: `custo_manutencao_ano_centavos` (manutenção e peças) e
+  `despesas_ano_centavos` (todas) no bloco `indicadores_financeiros` (VEI-05, FIN-17); o
+  `rendeu_no_ano_centavos` vem de `locacoes`, que sabe o veículo da locação.
 """
 
 from datetime import timedelta
@@ -19,7 +20,15 @@ from django.db.models.functions import Coalesce, Greatest, TruncDate
 from comum import leituras, relogio
 
 from . import selectors
-from .models import ContaReceber, Despesa, Reembolso, StatusConta, StatusDespesa, TipoConta
+from .models import (
+    CATEGORIAS_DE_MANUTENCAO,
+    ContaReceber,
+    Despesa,
+    Reembolso,
+    StatusConta,
+    StatusDespesa,
+    TipoConta,
+)
 
 CLIENTE = "clientes.Cliente"
 FILIAL = "filiais.Filial"
@@ -29,7 +38,7 @@ NOVO = {"situacao": "ok", "rotulo": "Cliente novo na empresa"}  # CLI-04
 
 
 def _vencidas(hoje: Any) -> Q:
-    return Q(status=StatusConta.ABERTA, vencimento__lt=hoje) & ~Q(tipo=TipoConta.CAUCAO)
+    return selectors.q_atrasada(hoje) & ~Q(tipo=TipoConta.CAUCAO)
 
 
 def _soma_do_cliente(filtro: Q, modelo: Any = ContaReceber) -> Subquery:
@@ -76,22 +85,32 @@ def montar_cliente(cliente: Any) -> dict[str, Any]:
 
 def montar_historico(cliente: Any | None) -> dict[str, str]:
     """Item `historico` da análise do cadastro (CLI-04): atrasos na empresa, sem a caução, com o
-    atraso contado como na FIN-03 (do dia seguinte ao mais tarde entre o vencimento e o dia em
-    que a conta nasceu, em `America/Sao_Paulo`). Vale a primeira situação que servir. Sem conta
-    nenhuma, ou na análise antes do cadastro (`None`), o cliente é novo na empresa."""
+    atraso contado como na FIN-03 (do dia seguinte ao mais tarde entre o vencimento, o dia em
+    que a conta nasceu e o da retirada, em `America/Sao_Paulo`). A conta à espera da retirada
+    não atrasa (LOC-05, T-410). Vale a primeira situação que servir. Sem conta nenhuma, ou na
+    análise antes do cadastro (`None`), o cliente é novo na empresa."""
     if cliente is None:
         return dict(NOVO)
     contas = (
         ContaReceber.objects.filter(cliente_id=cliente.pk)
         .exclude(tipo=TipoConta.CAUCAO)
-        .annotate(inicio_atraso=Greatest(F("vencimento"), TruncDate("criado_em")))
+        .annotate(
+            inicio_atraso=Greatest(
+                F("vencimento"),
+                TruncDate("criado_em"),
+                Coalesce(F("liberada_em"), F("vencimento")),
+            )
+        )
     )
     if not contas.exists():
         return dict(NOVO)
-    if contas.filter(status=StatusConta.ABERTA, inicio_atraso__lt=relogio.hoje()).exists():
+    em_atraso = contas.filter(
+        status=StatusConta.ABERTA, aguarda_retirada=False, inicio_atraso__lt=relogio.hoje()
+    )
+    if em_atraso.exists():
         return {"situacao": "problema", "rotulo": "Conta em atraso na empresa"}
     pagou_atrasado = (
-        contas.filter(status=StatusConta.PAGA)
+        contas.filter(status=StatusConta.PAGA, aguarda_retirada=False)
         .annotate(dia_pago=TruncDate("pago_em"))
         .filter(dia_pago__gt=F("inicio_atraso"))
         .exists()
@@ -127,7 +146,7 @@ def contas_atrasadas_15_dias(cliente_id: int) -> int:
     limite = relogio.hoje() - timedelta(days=DIAS_PARA_BLOQUEIO)
     return int(
         ContaReceber.objects.filter(
-            cliente_id=cliente_id, status=StatusConta.ABERTA, vencimento__lte=limite
+            selectors.q_atrasada(limite + timedelta(days=1)), cliente_id=cliente_id
         )
         .exclude(tipo=TipoConta.CAUCAO)
         .count()
@@ -159,28 +178,38 @@ def contas_vencidas(cliente_id: int) -> int:
 # --- veiculos.Veiculo ---
 
 
-def anotar_veiculo(queryset: QuerySet[Any]) -> QuerySet[Any]:
-    ano = relogio.hoje().year
-    custo = Subquery(
-        Despesa.objects.filter(veiculo_id=OuterRef("pk"), data__year=ano)
-        .exclude(status=StatusDespesa.RECUSADA)
-        .order_by()
+def _soma_do_veiculo(ano: int, *, so_manutencao: bool) -> Subquery:
+    despesas = Despesa.objects.filter(veiculo_id=OuterRef("pk"), data__year=ano).exclude(
+        status=StatusDespesa.RECUSADA
+    )
+    if so_manutencao:
+        despesas = despesas.filter(categoria__in=CATEGORIAS_DE_MANUTENCAO)
+    return Subquery(
+        despesas.order_by()
         .values("veiculo_id")
         .annotate(total=Sum("valor_centavos"))
         .values("total"),
         output_field=IntegerField(),
     )
-    return queryset.annotate(fin_custo_ano=Coalesce(custo, 0))  # type: ignore[no-any-return]
+
+
+def anotar_veiculo(queryset: QuerySet[Any]) -> QuerySet[Any]:
+    ano = relogio.hoje().year
+    return queryset.annotate(  # type: ignore[no-any-return]
+        fin_custo_ano=Coalesce(_soma_do_veiculo(ano, so_manutencao=True), 0),
+        fin_despesas_ano=Coalesce(_soma_do_veiculo(ano, so_manutencao=False), 0),
+    )
 
 
 def montar_veiculo(veiculo: Any) -> dict[str, Any]:
+    """VEI-05: o custo de manutenção só com manutenção e peças; `despesas_ano_centavos` com todas
+    as despesas do veículo, que a ficha desconta do que rendeu (FIN-17)."""
     if hasattr(veiculo, "fin_custo_ano"):
-        return {"custo_manutencao_ano_centavos": int(veiculo.fin_custo_ano)}
-    return {
-        "custo_manutencao_ano_centavos": selectors.custo_do_veiculo_no_ano(
-            veiculo.pk, relogio.hoje()
-        )
-    }
+        return {
+            "custo_manutencao_ano_centavos": int(veiculo.fin_custo_ano),
+            "despesas_ano_centavos": int(veiculo.fin_despesas_ano),
+        }
+    return selectors.custos_do_veiculo_no_ano(veiculo.pk, relogio.hoje().year)
 
 
 def registrar() -> None:

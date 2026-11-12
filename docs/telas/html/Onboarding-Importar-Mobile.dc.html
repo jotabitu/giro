@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- ajustada no repositório: 09/11/2026, T-440 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -18,9 +19,11 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 .head .ic{display:grid;place-items:center;width:42px;height:42px;flex:none;border-radius:14px;background:var(--surface-sunken)}
 .err{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:20px}
 .err:last-child{border-bottom:0}
+.modelo{display:flex;flex-direction:column;gap:8px;padding:12px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:20px}
+.modelo:last-child{border-bottom:0}
 </style>
 </helmet>
-<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1500px; box-sizing: border-box; padding: 16px 16px 120px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 2900px; box-sizing: border-box; padding: 16px 16px 120px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
 
 <header style="display: flex; align-items: center; gap: 10px; padding-top: 8px;">
 <div class="wl-logo-slot" style="width: 34px; height: 34px; border-radius: 10px; font-size: 13px;">MR</div>
@@ -49,13 +52,30 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 
 <section class="card">
 <div class="head"><div class="ic"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="5.5" cy="16" r="3"></circle><circle cx="18.5" cy="16" r="3"></circle><path d="M5.5 16 9 10h5l4.5 6M9 10 7.5 7.5H5M14 10l1-3h3"></path></svg></div><div><div style="font-weight: 600;">Veículos</div><div style="font-size: 13px; color: var(--ink-muted);">frota-moto-rapida.xlsx · 86 linhas</div></div></div>
+<div style="display: flex; gap: 8px; align-items: flex-start; font-size: 14px; line-height: 20px; color: var(--ink-muted);"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none; width: 18px; height: 18px; color: var(--ink);"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8v.5"></path></svg><span>Os veículos entram na Filial Centro.</span></div>
+<a href="#" style="font-size: 14px; font-weight: 500;">Baixar planilha modelo de veículos</a>
 <div style="display: flex; gap: 8px;"><span class="wl-badge wl-badge--sm wl-badge--success">83 prontos</span><span class="wl-badge wl-badge--sm wl-badge--critical">3 com erro</span></div>
 <div style="padding: 0 12px; border-radius: 16px; background: var(--surface-sunken);">
 <div class="err"><span class="wl-mono" style="color: var(--ink-muted); flex: none;">L14</span>Placa QXA4B2 incompleta<button class="wl-btn wl-btn--quiet wl-btn--sm" style="margin-left: auto; height: 28px; padding: 0 10px; font-size: 13px; flex: none;">Corrigir</button></div>
 <div class="err"><span class="wl-mono" style="color: var(--ink-muted); flex: none;">L37</span>Chassi repetido na linha 12<button class="wl-btn wl-btn--quiet wl-btn--sm" style="margin-left: auto; height: 28px; padding: 0 10px; font-size: 13px; flex: none;">Corrigir</button></div>
 <div class="err"><span class="wl-mono" style="color: var(--ink-muted); flex: none;">L52</span>Ano do modelo em branco<button class="wl-btn wl-btn--quiet wl-btn--sm" style="margin-left: auto; height: 28px; padding: 0 10px; font-size: 13px; flex: none;">Corrigir</button></div>
 </div>
-<button class="wl-btn wl-btn--solid wl-btn--sm">Importar 83</button>
+<div style="padding: 12px 12px 0; border-radius: 16px; background: var(--surface-sunken);">
+<div style="font-weight: 600;">Categoria de cada modelo</div>
+<div style="font-size: 13px; line-height: 18px; color: var(--ink-muted); margin-top: 2px;">7 modelos · 83 veículos prontos. Todos do mesmo modelo entram na categoria escolhida.</div>
+<div style="margin-top: 6px;">
+<div class="modelo"><div style="display: flex; justify-content: space-between; gap: 8px;"><span style="font-weight: 500;">Honda Pop 110i</span><span style="color: var(--ink-muted);">21 veículos</span></div><select class="wl-input" aria-label="Categoria de Honda Pop 110i" style="width: 100%; height: 48px;"><option value="">Escolha a categoria</option><option selected>Urbana 110–125</option><option>Street 150–160</option><option>Scooter premium</option><option>Carro compacto</option></select></div>
+<div class="modelo"><div style="display: flex; justify-content: space-between; gap: 8px;"><span style="font-weight: 500;">Honda Biz 125</span><span style="color: var(--ink-muted);">19 veículos</span></div><select class="wl-input" aria-label="Categoria de Honda Biz 125" style="width: 100%; height: 48px;"><option value="">Escolha a categoria</option><option selected>Urbana 110–125</option><option>Street 150–160</option><option>Scooter premium</option><option>Carro compacto</option></select></div>
+<div class="modelo"><div style="display: flex; justify-content: space-between; gap: 8px;"><span style="font-weight: 500;">Honda CG 160 Fan</span><span style="color: var(--ink-muted);">17 veículos</span></div><select class="wl-input" aria-label="Categoria de Honda CG 160 Fan" style="width: 100%; height: 48px;"><option value="">Escolha a categoria</option><option>Urbana 110–125</option><option selected>Street 150–160</option><option>Scooter premium</option><option>Carro compacto</option></select></div>
+<div class="modelo"><div style="display: flex; justify-content: space-between; gap: 8px;"><span style="font-weight: 500;">Yamaha Factor 150</span><span style="color: var(--ink-muted);">14 veículos</span></div><select class="wl-input" aria-label="Categoria de Yamaha Factor 150" style="width: 100%; height: 48px;"><option value="">Escolha a categoria</option><option>Urbana 110–125</option><option>Street 150–160</option><option>Scooter premium</option><option>Carro compacto</option></select></div>
+<div class="modelo"><div style="display: flex; justify-content: space-between; gap: 8px;"><span style="font-weight: 500;">Yamaha NMax 160</span><span style="color: var(--ink-muted);">6 veículos</span></div><select class="wl-input" aria-label="Categoria de Yamaha NMax 160" style="width: 100%; height: 48px;"><option value="">Escolha a categoria</option><option>Urbana 110–125</option><option>Street 150–160</option><option>Scooter premium</option><option>Carro compacto</option></select></div>
+<div class="modelo"><div style="display: flex; justify-content: space-between; gap: 8px;"><span style="font-weight: 500;">Renault Kwid</span><span style="color: var(--ink-muted);">3 veículos</span></div><select class="wl-input" aria-label="Categoria de Renault Kwid" style="width: 100%; height: 48px;"><option value="">Escolha a categoria</option><option>Urbana 110–125</option><option>Street 150–160</option><option>Scooter premium</option><option>Carro compacto</option></select></div>
+<div class="modelo"><div style="display: flex; justify-content: space-between; gap: 8px;"><span style="font-weight: 500;">Fiat Mobi</span><span style="color: var(--ink-muted);">3 veículos</span></div><select class="wl-input" aria-label="Categoria de Fiat Mobi" style="width: 100%; height: 48px;"><option value="">Escolha a categoria</option><option>Urbana 110–125</option><option>Street 150–160</option><option>Scooter premium</option><option>Carro compacto</option></select></div>
+</div>
+<div class="modelo" style="border-bottom: 0;"><span class="wl-badge wl-badge--sm wl-badge--warning">3 de 7 modelos com categoria</span></div>
+</div>
+<p role="alert" style="margin: 0; font-size: 14px; line-height: 20px; color: var(--critical-ink);">Escolha a categoria de cada modelo.</p>
+<button class="wl-btn wl-btn--solid wl-btn--sm" disabled>Importar 83</button>
 </section>
 
 <section class="card">
@@ -66,13 +86,27 @@ a{color:var(--ink)}a:hover{color:var(--ink-muted)}
 
 <p style="margin: 0 4px; font-size: 13px; line-height: 18px; color: var(--ink-muted);">Planilhas grandes ficam mais fáceis no computador. Você pode continuar por lá com o mesmo login.</p>
 
+<section class="card">
+<div style="font-weight: 600;">Outros estados desta etapa</div>
+<div style="font-size: 14px; color: var(--ink-muted);">Com mais de uma filial</div>
+<label class="wl-field"><span class="wl-field__label">Filial dos veículos</span><select class="wl-input"><option value="">Escolha a filial</option><option>Filial Centro</option><option>Filial Messejana</option></select><span class="wl-field__hint">Todos os veículos da planilha entram nela.</span></label>
+<p role="alert" style="margin: 0; font-size: 14px; line-height: 20px; color: var(--critical-ink);">Escolha a filial dos veículos.</p>
+<div style="font-size: 14px; color: var(--ink-muted); padding-top: 6px; border-top: 1px solid var(--line);">Corrigir aqui · linha 52</div>
+<label class="wl-field"><span class="wl-field__label">Ano do modelo</span><input class="wl-input" placeholder="Ex.: 2024"></label>
+<label class="wl-field"><span class="wl-field__label">Categoria desta linha</span><select class="wl-input"><option selected>Segue o modelo: Street 150–160</option><option>Urbana 110–125</option><option>Street 150–160</option><option>Scooter premium</option><option>Carro compacto</option></select><span class="wl-field__hint">Escolha outra só se for uma exceção do modelo.</span></label>
+<div style="display: flex; gap: 8px;"><button class="wl-btn wl-btn--solid wl-btn--sm">Salvar linha</button><button class="wl-btn wl-btn--quiet wl-btn--sm">Cancelar</button></div>
+<div style="font-size: 14px; color: var(--ink-muted); padding-top: 6px; border-top: 1px solid var(--line);">Sem categoria ativa</div>
+<div style="display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 16px; background: var(--warning-soft); color: var(--warning-ink); font-size: 14px; line-height: 20px;" role="alert"><svg class="wl-i" viewBox="0 0 24 24" style="flex: none; color: var(--warning-ink);"><path d="M12 4 3 20h18L12 4ZM12 10v5M12 17.5v.5"></path></svg><span>Cadastre os preços antes de importar veículos.</span></div>
+<a class="wl-btn wl-btn--solid wl-btn--sm" href="Onboarding-Precos-Mobile.dc.html" style="text-decoration: none;">Ir para a tabela de preços</a>
+</section>
+
 <div style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 10px; padding: 14px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line);">
 <a class="wl-btn" href="Onboarding-Equipe-Mobile.dc.html" style="height: 56px; text-decoration: none;">Depois</a>
 <a class="wl-btn wl-btn--solid" href="Onboarding-Equipe-Mobile.dc.html" style="flex: 1; height: 56px; text-decoration: none;">Continuar</a>
 </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1500}}'>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":2900}}'>
 class Component extends DCLogic {
   renderVals() {
     var b = String(this.props.brand || '#c8f04a').replace('#', '');

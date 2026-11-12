@@ -1,6 +1,6 @@
 # Veículos, categorias e preços
 
-**Dono:** arquiteto · **Versão:** 16 out 2026 (T-293, valor do dia na linha Pagamentos; T-286, movimentações; T-275, blocos da ficha); 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-08, MAN-03, VIS-01, FIN-01, MOV-01 a MOV-06, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07)
+**Dono:** arquiteto · **Versão:** 05 nov 2026 (T-422, referência FIPE, ADR 0038); 03 nov 2026 (T-414, fotos do veículo, `VEI-10`, ADR 0036; T-421, dados do CRLV-e, rastreador e anotações, `VEI-09`, e leitura do CRLV-e no editar; T-410, "Reservado na LOC-x" e bloco `reserva`); 16 out 2026 (T-293, valor do dia na linha Pagamentos; T-286, movimentações; T-275, blocos da ficha); 15 out 2026 (T-247, leitura do CRLV-e); 07 out 2026 (T-036), emendas de 09 out 2026 (T-088) · **App:** `veiculos` (schema da empresa) · **Regras:** VEI-01 a VEI-10, MAN-03, VIS-01, FIN-01, MOV-01 a MOV-06, LOC-01, LOC-02, LOC-15, PLT-03, APR-06, AUD-05 · **ADRs:** 0011, 0015, 0026, 0036, 0038 · **Telas:** Frota, Veiculo, Veiculo-Novo, Precos · **Critérios:** `docs/qa/criterios/T-247.md` (CA-247-01 a 07), `docs/qa/criterios/T-421.md` (CA-421-01 a 14)
 
 Convenções gerais em `docs/api/README.md`. Modelo: itens 8 a 10 e apoio (`PrecoCategoria`, `Extra`, `HistoricoStatusVeiculo`, `LeituraKm`, `TransferenciaVeiculo`) em `docs/decisoes/modelo-de-dados.md`.
 
@@ -37,7 +37,7 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
   "valor_venda_centavos": null, "referencia_fipe_centavos": null,
   "valor_compra_centavos": 1390000, "data_compra": "2025-03-10",
   "entrou_na_frota_em": "2025-03-12",
-  "situacao": { "codigo": "disponivel", "rotulo": "Disponível", "tom": "sucesso" },
+  "situacao": { "codigo": "disponivel", "rotulo": "Disponível", "tom": "sucesso", "desde": null },
   "locacao_atual": null,
   "manutencao": { "proxima": { "servico": "Troca de óleo", "km": 5000 }, "os_aberta": null },
   "documentos_resumo": { "pior_situacao": "em_dia" },
@@ -51,10 +51,20 @@ Ver é liberado a todos os perfis no escopo das suas filiais porque toda a opera
 - `placa` sai sem hífen no campo, e a tela põe o hífen; dentro de um texto montado pela API, sai com hífen (`docs/api/README.md`, Convenções, T-340). Aceita padrão antigo (`ABC1234`) e Mercosul (`ABC1D23`). `chassi` com 17 letras e números.
 - `preco_vigente`: preço da categoria vigente hoje (`LOC-15`). A coluna "Diária" da Frota usa `diaria_centavos`; veículo `a_venda` mostra `valor_venda_centavos`.
 - `situacao`: a API decide. Base no `status` do veículo; um bloco com `alerta` (ADR 0015) sobrepõe, ex.: "Atrasado" (`perigo`) quando a locação atual está `devolucao_atrasada`.
+- `situacao.desde` (T-449, `LOC-10`, "Data e dias do atraso na tela"): data (`"2026-10-14"`, em `America/Sao_Paulo`) do "desde" do card "Agora" da ficha, copiada de `locacao_atual.desde`. Na devolução atrasada, é a data do fim previsto ("Atrasado desde 14 out"); com a locação `ativa` ou `aguardando_retirada`, a do início ("Alugado desde 30 set", "Reservado na LOC-2856 desde 05 nov"). Sem locação aberta, `null`, e a tela mostra só o `rotulo`. A tela não usa `inicio` nem `fim_previsto` para montar esse texto.
 - `acoes`: combina perfil, `status` e a tabela de transições; o frontend mostra só o que vier `true`. `corrigir_km` vem `true` também para o vistoriador, que pede a correção (`APR-06`).
 - `situacao.tom` pelo `status`: `sucesso` (`disponivel`), `info` (`reservado` e `em_movimentacao`, rótulo "Em movimentação"), `solido` (`alugado`), `alerta` (`em_manutencao`) e `neutro` (`indisponivel`, `a_venda`, `vendido`, `baixado`).
+- **Veículo reservado** (T-410, tabela de transições do veículo, CA-410-01, CA-410-06): `situacao.rotulo` é "Reservado na LOC-2856", com o código da locação que reservou, montado pela API a partir do bloco `reserva` (abaixo); tom `info`. Sem bloco (dado antigo, antes do acerto), o rótulo fica "Reservado". A Frota e a ficha mostram o `rotulo` como vem.
+  ```json
+  "status": "reservado",
+  "situacao": { "codigo": "reservado", "rotulo": "Reservado na LOC-2856", "tom": "info", "desde": "2026-10-07" },
+  "reserva": { "locacao_id": 2856, "codigo": "LOC-2856", "motivo": "locacao" },
+  "locacao_atual": { "id": 2856, "codigo": "LOC-2856", "status": "aguardando_retirada", "cliente_nome": "Lucas Ferreira", "inicio": "2026-10-07T12:00:00Z", "fim_previsto": "2026-10-21T12:00:00Z", "desde": "2026-10-07" }
+  ```
+  `reserva.motivo`: `locacao` (locação `aguardando_retirada` do veículo; a mesma do `locacao_atual`) ou `troca` (o veículo novo de uma troca pendente, `LOC-09`; aí o `codigo` é o da locação da troca, e o `locacao_atual` do veículo novo continua `null`, porque a locação ainda é do veículo antigo). O link "LOC-2856" abre `/locacoes/{locacao_id}`. Fora do `reservado`, `reserva` vem `null`.
 - `valor_compra_centavos` e `data_compra` vêm `null` para quem não é administrador ou gerente.
-- `combustivel` (T-247, `VEI-08`): `gasolina`, `etanol`, `flex`, `diesel`, `eletrico`, `hibrido` ou `null` (veículo cadastrado antes). A tela `Veiculo-Novo` já tem o campo.
+- `combustivel` (T-247, `VEI-08`): `gasolina`, `etanol`, `flex`, `diesel`, `eletrico`, `hibrido` ou `null` (veículo cadastrado antes). Desde a T-421 (`VEI-09`), visível e editável no cadastro, no editar e na ficha.
+- Os campos da `VEI-09` (bloco `documento`, rastreador e anotações) estão em "Dados do documento, rastreador e anotações", abaixo. Vêm no detalhe e nas respostas do `POST` e do `PATCH`; a lista da Frota não os traz.
 
 ### Veículo em movimentação (`MOV-03`, T-286, T-300)
 
@@ -68,7 +78,7 @@ Veículo `disponivel` depois de iniciar a MOV-0002:
 "acoes": { "editar": true, "colocar_a_venda": false, "voltar_para_frota": false, "bloquear": false, "desbloquear": false,
            "transferir": false, "baixar": true, "registrar_km": false, "corrigir_km": true,
            "movimentar": false, "motivo_movimentar": "O veículo já está na MOV-0002.",
-           "aviso_baixar": "A MOV-0002 será cancelada." }
+           "aviso_baixar": "A MOV-0002 será cancelada.", "lancar_despesa": true }
 ```
 
 Veículo `indisponivel` (CRLV vencido) com a ida ao despachante agendada:
@@ -88,14 +98,25 @@ Veículo `indisponivel` (CRLV vencido) com a ida ao despachante agendada:
 
 | Bloco | Fornecedor | Conteúdo | Antes do fornecedor existir |
 | --- | --- | --- | --- |
-| `locacao_atual` | `locacoes` | `{ "id", "codigo": "LOC-2841", "status", "cliente_nome": "Carlos Menezes", "inicio", "fim_previsto", "alerta"? }` para locação `aguardando_retirada`, `ativa` ou `devolucao_atrasada` do veículo | `null` |
+| `locacao_atual` | `locacoes` | `{ "id", "codigo": "LOC-2841", "status", "cliente_nome": "Carlos Menezes", "inicio", "fim_previsto", "desde": "2026-10-14", "alerta"? }` (`desde`: ver `situacao.desde`) para locação `aguardando_retirada`, `ativa` ou `devolucao_atrasada` do veículo | `null` |
 | `manutencao` | `manutencao` | `{ "proxima": { "servico", "km" } \| null, "os_aberta": { "id", "codigo": "OS-118", "status" } \| null, "alerta"? }` | `null` |
 | `locacao_atual.plano` e `locacao_atual.pagamento` (só no detalhe, T-275) | `locacoes` (com `financeiro.selectors`) | ver "Blocos da ficha" | ausentes |
 | `manutencao.proxima`, campos novos (só no detalhe, T-275) | `manutencao` | ver "Blocos da ficha" | `null`, como o bloco |
 | `vistoria_recente` (só no detalhe, T-275) | `vistorias` | ver "Blocos da ficha" | `null` |
 | `movimentacoes` (só no detalhe, T-275) | `movimentacoes` (ADR 0028) | ver "Blocos da ficha" | `null` |
+| `reserva` (lista e detalhe, T-410) | `locacoes` | `{ "locacao_id", "codigo": "LOC-2856", "motivo": "locacao" \| "troca" }` do veículo `reservado`: a locação `aguardando_retirada` dele ou a troca pendente em que ele é o veículo novo; ver "Veículo reservado", acima. Uma anotação na lista, sem N+1 | `null` |
 | `movimentacao_aberta` (lista e detalhe, T-286; formato fechado na T-300) | `movimentacoes` | `{ "id", "codigo": "MOV-0001", "status", "rotulo", "tom" }` da movimentação `agendada`, `em_transito` ou `no_local` do veículo; ver "Veículo em movimentação", acima | `null` |
-| `indicadores_financeiros` (só no detalhe) | `financeiro` | `{ "rendeu_no_ano_centavos", "custo_manutencao_ano_centavos" }` (`VEI-05`) | `null` |
+| `indicadores_financeiros` (só no detalhe) | `financeiro` | `{ "rendeu_no_ano_centavos", "custo_manutencao_ano_centavos", "despesas_ano_centavos" }` (`VEI-05`, `FIN-17`) | `null` |
+
+**`indicadores_financeiros`** (`VEI-05`, `FIN-17`, T-417), sem as despesas `recusada` e no ano de hoje:
+- `custo_manutencao_ano_centavos` ("Custo de manutenção"): só as despesas do veículo nas categorias `manutencao` e `pecas`.
+- `despesas_ano_centavos` ("Despesas no ano" da seção "Despesas do veículo"): todas as despesas ligadas ao veículo, de qualquer categoria e filial. É o `total_ano_centavos` de `GET /api/financeiro/despesas/veiculo/{id}/` no ano de hoje.
+- `rendeu_no_ano_centavos` ("Rendeu no ano"): receitas de locação recebidas do veículo no ano (de `locacoes`) − `despesas_ano_centavos`. Pode ser negativo. A conta é do `veiculos.selectors`, que junta os dois fornecedores; a tela mostra o número como vem.
+- Ex. (CA-417-10): o QXA-4B21 com o óleo de R$ 48,00 tem custo 4800 e despesas 4800; lançado o "IPVA 2026" de R$ 210,00, despesas 25800, custo 4800, e o rendeu cai 21000.
+
+**`acoes.lancar_despesa`** (`FIN-17`, T-417): `true` para quem lança despesa (administrador, gerente, vendedor, financeiro e vistoriador), mesmo sem ver a lista, com o recurso `manutencao_despesas` no plano (`PLT-12`). Em qualquer status do veículo. Abre o lançamento com o veículo travado, que vai para `POST /api/financeiro/despesas/veiculo/{id}/` (`financeiro.md`). A lista da seção vem de `GET /api/financeiro/despesas/veiculo/{id}/`, que a ficha só chama quando recebe `indicadores_financeiros` (administrador, gerente e financeiro).
+
+**`acoes.motivo_trocar_tipo`** (`VEI-11`, T-438): para administrador e gerente, a frase que trava o campo Tipo no editar quando o veículo tem locação aberta (`reservado` ou `alugado`, à espera da retirada, ou o novo de uma troca pedida, `LOC-09`): "Este veículo está na LOC-2841. Troque o tipo depois da devolução." Sem o código da locação (dado antigo), "Este veículo está numa locação aberta. Troque o tipo depois da devolução.". `null` quando o tipo troca livre, e sempre `null` para os perfis que não editam. É a mesma frase do 409 `tipo_com_locacao_aberta` do `PATCH`.
 
 ---
 
@@ -116,7 +137,7 @@ Query: `?status=`, `?tipo_veiculo=moto|carro`, `?categoria=<id>`, `?busca=` (pla
 ```
 - `contagens` respeitam os filtros de filial e tipo, não o de status (para as abas). `em_movimentacao` conta só o status (`MOV-03`, T-286).
 - `?em_movimentacao=true`: os veículos com movimentação `agendada`, `em_transito` ou `no_local`, em qualquer status (o bloco `movimentacao_aberta`, acima; ADR 0028).
-- `?movimentavel=true` (T-300): a escolha do veículo na Nova movimentação. Só os veículos para os quais `acoes.movimentar` viria `true`: `disponivel` sem locação `aguardando_retirada`, `indisponivel`, `em_manutencao` ou `a_venda`, sem movimentação aberta, nas filiais em que o usuário cria movimentação (`MOV-02`, `MOV-03`). Combina com `?busca=` e `?tipo_veiculo=`. A tela não filtra por conta própria, e o 409 `MOV-03` do `POST` continua como última palavra (o veículo pode mudar entre a lista e o envio). Para vendedor, vistoriador e financeiro, a lista vem vazia.
+- `?movimentavel=true` (T-300): a escolha do veículo na Nova movimentação. Só os veículos para os quais `acoes.movimentar` viria `true`: `disponivel` sem locação `aguardando_retirada` (depois da T-410, o veículo dessa locação é `reservado`; a guarda fica como defesa), `indisponivel`, `em_manutencao` ou `a_venda`, sem movimentação aberta, nas filiais em que o usuário cria movimentação (`MOV-02`, `MOV-03`). Combina com `?busca=` e `?tipo_veiculo=`. A tela não filtra por conta própria, e o 409 `MOV-03` do `POST` continua como última palavra (o veículo pode mudar entre a lista e o envio). Para vendedor, vistoriador e financeiro, a lista vem vazia.
 - `vendido` e `baixado` só aparecem com `?status=vendido` ou `?status=baixado` (histórico).
 - Exportar: `POST /api/veiculos/exportar/` `{ formato: "planilha" | "csv", filtros }`, só administrador (exportar é da Administração), → 202 `{ "exportacao_id" }`; o arquivo sai pela exportação em segundo plano (`AUD-07`), não na resposta.
 
@@ -158,7 +179,7 @@ O que a ficha de referência mostra e a representação não trazia. Tudo só no
 **`locacao_atual.plano`** (`LOC-01`, `LOC-15`): a periodicidade, o nome do plano especial (ou `null`) e o preço do período congelado na locação. A tela monta "Semanal R$ 299,40" com o rótulo da periodicidade e o valor formatado, sem conta. O vistoriador recebe `plano` sem `valor_periodo_centavos` (`USR-09`).
 
 **`locacao_atual.pagamento`** (`FIN-01`, `CLI-07`): a situação das contas a receber da locação (parcelas e caução), de `financeiro.selectors`, com o mesmo status calculado do detalhe da locação.
-- `situacao`: `atrasado` (alguma conta vencida e não paga, o sinal `pagamento_atrasado` da locação), senão `vence_hoje`, senão `em_dia`. Locação `aguardando_retirada` sem nenhuma conta vencida também é `em_dia`.
+- `situacao`: `atrasado` (alguma conta vencida e não paga, o sinal `pagamento_atrasado` da locação), senão `vence_hoje`, senão `em_dia`. Locação `aguardando_retirada` é sempre `em_dia` (T-410, `LOC-05`): as contas dela não ficam `vence_hoje` nem `atrasada` até a retirada, pelos mesmos `q_vence_hoje` e `q_atrasada` do `financeiro`.
 - `conta_id`: a conta mais antiga da situação (a atrasada mais antiga; a que vence hoje); `null` em `em_dia`. `atrasadas`: quantas contas estão atrasadas.
 - `valor_centavos` (T-293, decisão do produto na T-290): o **valor do dia** da conta, com multa e juros (`FIN-03`), o mesmo `valor_hoje.total_centavos` do Receber (`financeiro.md`) e da mensagem do Cobrar; nunca o principal. No QXA-4B21 em 07 out: 29940 + 599 de multa + 70 de juros = **30609** ("Parcela 2 atrasada · R$ 306,09"; a referência mostra R$ 299,40, que é o principal). Na conta que vence hoje, o valor do dia é o principal. Com mais de uma atrasada, a soma dos valores do dia delas. `null` em `em_dia`.
 - `rotulo`, montado pela API: "Parcela 2 atrasada" (uma parcela), "Caução atrasada", "2 contas atrasadas" (mais de uma), "Parcela 3 vence hoje", "Em dia" (textos confirmados pelo produto na T-290).
@@ -174,7 +195,7 @@ O que a ficha de referência mostra e a representação não trazia. Tudo só no
 
 **`vistoria_recente`** (`VIS-01`; fornecedor `vistorias`): a última vistoria concluída do veículo (saída ou chegada; `descartada` nunca), que no veículo alugado é a saída da locação atual. `null` se o veículo nunca teve vistoria.
 - `tipo`: `saida` ou `devolucao` (a chegada), os mesmos valores de `vistorias.md`. `vistoriador`: o responsável pela vistoria, ou `null` se ela não tem um.
-- `fotos`: só as posições fixas (`frente`, `traseira`, `lado_esquerdo`, `lado_direito`, `painel`), na ordem; `total_fotos` conta todas, com as de avaria. URL assinada de 15 minutos (`AUD-05`), gerada a cada `GET`. "Ver as 12 fotos" abre `GET /api/vistorias/{id}/`.
+- `fotos`: desde a T-414 (`VEI-10`), **todas** as fotos ativas da vistoria, as fixas e as de avaria, com `url_download` e `nome_arquivo`; formato em "Fotos do veículo", abaixo. `total_fotos` = quantas vêm em `fotos`. URL assinada de 15 minutos (`AUD-05`), gerada a cada `GET`. As 12 já estão no bloco, e o visualizador passa por elas; o link "Ver as 12 fotos e as vistorias anteriores" da tela continua abrindo `GET /api/vistorias/{id}/`.
 - `avarias`: as avarias abertas do veículo (as de `GET /api/vistorias/avarias/?veiculo=<id>&abertas=true`), da mais antiga para a mais nova. `preexistente: true` é o "já existia, não cobrar"; `locacao_codigo` é a locação em que foi registrada ("registrado na saída da LOC-2841"). Não há campo de lado: o lado faz parte da `descricao`, como na vistoria. Sem valor em dinheiro.
 - Perfis: os que fazem vistoria (administrador, gerente, vendedor, vistoriador). O financeiro recebe a chave ausente.
 - "As vistorias anteriores" do link não têm lista por veículo neste contrato; a tela abre a vistoria recente. Uma lista `GET /api/vistorias/?veiculo=` fica para quando a tela pedir.
@@ -187,7 +208,7 @@ O que a ficha de referência mostra e a representação não trazia. Tudo só no
 
 ### POST /api/veiculos/
 Perfis: administrador, gerente.
-Corpo: `{ placa, chassi, renavam?, marca, modelo, ano_fabricacao, ano_modelo, cor, combustivel?, km_atual, categoria_id, filial_id, capacidade_tanque_litros?, valor_compra_centavos?, data_compra?, entrou_na_frota_em? }`. Com o CRLV lido (`VEI-08`), o mesmo corpo vai em `multipart/form-data`, com o bloco do documento ("Preencher pelo CRLV-e", abaixo). Sem `capacidade_tanque_litros`, o combustível do acerto é informado à mão (`DEV-01`).
+Corpo: `{ placa, chassi, renavam?, marca, modelo, ano_fabricacao, ano_modelo, cor, combustivel?, km_atual, categoria_id, filial_id, capacidade_tanque_litros?, valor_compra_centavos?, data_compra?, entrou_na_frota_em?, documento?, rastreador?, anotacoes? }` (os três últimos da `VEI-09`, formato abaixo; todos opcionais, `VEI-01`). Com o CRLV lido (`VEI-08`), o mesmo corpo vai em `multipart/form-data`, com o bloco do documento ("Preencher pelo CRLV-e", abaixo). Sem `capacidade_tanque_litros`, o combustível do acerto é informado à mão (`DEV-01`).
 201: representação (status `disponivel`).
 400 `validacao`: placa ou chassi fora do formato, categoria de outra filial, ano inválido.
 409 `{ "codigo": "VEI-01", "mensagem": "Já existe um veículo com esta placa", "detalhes": { "campo": "placa", "veiculo_id": 77 } }`; o mesmo para `chassi`. Vale para veículo em qualquer estado, inclusive `vendido` e `baixado`.
@@ -197,12 +218,79 @@ Recompra numa troca (`VEN-05`, `VEI-07`) não passa por aqui: a venda chama `vei
 Regras: VEI-01, PLT-03.
 
 ### PATCH /api/veiculos/{id}/
-Perfis: administrador, gerente. Corpo: `renavam`, `marca`, `modelo`, `ano_fabricacao`, `ano_modelo`, `cor`, `combustivel`, `categoria_id`, `capacidade_tanque_litros`, `valor_compra_centavos`, `data_compra`.
+Perfis: administrador, gerente. Corpo: `renavam`, `marca`, `modelo`, `ano_fabricacao`, `ano_modelo`, `cor`, `combustivel`, `categoria_id`, `capacidade_tanque_litros`, `valor_compra_centavos`, `data_compra`, `documento`, `rastreador`, `anotacoes` (`VEI-09`), e `leitura?`, o comprovante da leitura no editar (abaixo).
 Não mudam por aqui: `placa` e `chassi` (corrigir é ação do administrador, abaixo), `status`, `km_atual`, `filial`.
 Mudar a categoria vale para locações novas; locação em andamento mantém o preço congelado (`LOC-15`).
 
+**Tipo do veículo** (`VEI-11`, T-438): o tipo é o `tipo_veiculo` da categoria; não há campo de tipo no veículo. Para trocar de moto para carro (ou o contrário), o `PATCH` manda só o `categoria_id` de uma categoria do tipo novo, e a resposta traz o `tipo_veiculo` dela. Um `tipo_veiculo` no corpo é ignorado.
+- **409 `tipo_com_locacao_aberta`**: a categoria nova é de outro tipo e o veículo tem locação aberta (`reservado` ou `alugado`, locação `aguardando_retirada`, `ativa` ou `devolucao_atrasada`, ou troca de veículo pedida, `LOC-09`). Nada é gravado. `{ "codigo": "tipo_com_locacao_aberta", "mensagem": "Este veículo está na LOC-2841. Troque o tipo depois da devolução.", "detalhes": null }`. A mesma frase vem antes em `acoes.motivo_trocar_tipo`.
+- Trocar de categoria **sem** mudar o tipo continua livre em qualquer estado em que o veículo se edita.
+- **Auditoria** (`AUD-01`): no `veiculo.editar`, a troca de categoria leva `categoria_id` e `categoria_nome` de antes e depois; com troca de tipo, também `tipo_veiculo` (`"moto"` → `"carro"`).
+- Testes: `test_vei_11_*` em `tests/aceitacao/test_t438_tipo_do_veiculo.py` (CA-438-04, 07 a 11, 13 e 14).
+
 ### POST /api/veiculos/{id}/corrigir-identificacao/
 Perfil: administrador. Corpo: `{ placa?, chassi?, motivo }`. Para erro de digitação. 409 `VEI-01` se colidir. Auditoria `operacao`, com antes e depois.
+
+## Dados do documento, rastreador e anotações (`VEI-09`, T-421)
+
+Decisões do dono de 29 e 30 out 2026; regra e formatos na `VEI-09` (PR #459 do produto); critérios CA-421-01 a 14. Modelo: campos novos do item 9 em `modelo-de-dados.md`. Todos opcionais (`VEI-01`); nenhum muda o status nem bloqueia ação nenhuma, nem a alienação nas observações (CA-421-13).
+
+### Na representação
+
+No detalhe (`GET /api/veiculos/{id}/`) e nas respostas do `POST` e do `PATCH`; a lista da Frota não traz. Caso do QXA-4B21 do seed, para o gerente:
+
+```json
+"combustivel": "flex",
+"documento": { "potencia_cv": 15, "cilindrada_cc": 162, "especie": "passageiro", "tipo": "Motocicleta",
+               "carroceria": null, "lotacao": 2, "peso_bruto_kg": 290,
+               "numero_motor": "KC22E1P004401", "observacoes": "ALIENACAO FIDUCIARIA" },
+"rastreador": { "numero": "356938035643809", "empresa": "Rastreia Fácil" },
+"anotacoes": "Risco no tanque, lado esquerdo"
+```
+
+- Campo vazio vem `null` (nunca `""`), e a ficha mostra "—" (CA-421-06, CA-421-14). Veículo sem nada: `documento` com todas as chaves `null`, `rastreador` `{ "numero": null, "empresa": null }`, `anotacoes` `null`. Os blocos sempre vêm.
+- **`documento.numero_motor` e `documento.observacoes` só para administrador e gerente.** Para vendedor, vistoriador e financeiro, as duas chaves vêm **ausentes**, não `null` (CA-421-12, como `indicadores_financeiros`, `USR-09`). O serializer tira as chaves pelo perfil; a tela não esconde nada por conta própria. O token de suporte recebe como o perfil que ele assume (administrador): o número do motor e as observações não são dado pessoal (`AUD-09` cobre CPF, CNH e documentos de pessoa).
+- `especie`: enum `passageiro`, `carga`, `misto`, `competicao`, `tracao`, `especial`, `colecao`. Rótulos da tela: "Passageiro", "Carga", "Misto", "Competição", "Tração", "Especial", "Coleção". A ficha mostra "Passageiro · Motocicleta" (`especie` e `tipo`), ou só o que houver.
+- Números sem unidade: a tela põe "15 cv", "162 cc", "2 pessoas" ("1 pessoa"), "290 kg" (com separador de milhar: "1.400 kg"). `combustivel` com os rótulos de sempre ("Flex", "Gasolina", "Etanol", "Diesel", "Elétrico", "Híbrido").
+
+### No cadastro e no editar
+
+`POST /api/veiculos/` e `PATCH /api/veiculos/{id}/` aceitam os mesmos blocos, todos opcionais:
+
+```json
+{ "combustivel": "flex",
+  "documento": { "potencia_cv": 15, "cilindrada_cc": 162, "especie": "passageiro", "tipo": "Motocicleta",
+                 "carroceria": null, "lotacao": 2, "peso_bruto_kg": 290,
+                 "numero_motor": "KC22E1P004401", "observacoes": "ALIENACAO FIDUCIARIA" },
+  "rastreador": { "numero": "356938035643809", "empresa": "Rastreia Fácil" },
+  "anotacoes": "Risco no tanque, lado esquerdo" }
+```
+
+- No `PATCH`, cada chave enviada substitui o valor; chave ausente não muda; `null` ou `""` apaga. Vale dentro de `documento` e `rastreador` (mandar `{ "documento": { "lotacao": 1 } }` só muda a lotação).
+- No `POST` em `multipart/form-data` (com o CRLV lido), os blocos vão achatados: `documento.potencia_cv`, `rastreador.numero`, `anotacoes` etc., como os outros campos do formulário.
+- Texto: espaços das pontas tirados; texto só com espaços vira `null`. `numero_motor` e `rastreador.numero` em maiúsculas, sem espaços. `observacoes` e `anotacoes` guardam as quebras de linha.
+- Quem edita: administrador e gerente (`pode.veiculos = editar`); os outros, 403 `permissao` (CA-421-09), como o resto do `PATCH`. O gerente edita também o motor e as observações, que ele vê.
+- **Formato** (400 `validacao`, mensagem no campo, nada gravado; CA-421-07):
+
+  | Campo | Aceita | Mensagem |
+  | --- | --- | --- |
+  | `documento.potencia_cv` | inteiro 1 a 999 | "Informe a potência em cv, de 1 a 999." |
+  | `documento.cilindrada_cc` | inteiro 1 a 9999 | "Informe a cilindrada em cc, de 1 a 9999." |
+  | `documento.especie` | um do enum | "Escolha a espécie da lista." |
+  | `documento.tipo` | até 30 caracteres | "Use até 30 caracteres." |
+  | `documento.carroceria` | até 30 caracteres | "Use até 30 caracteres." |
+  | `documento.lotacao` | inteiro 1 a 99 | "Informe a lotação em pessoas, de 1 a 99." |
+  | `documento.peso_bruto_kg` | inteiro 1 a 99999 | "Informe o peso bruto em kg." |
+  | `documento.numero_motor` | letras e números, até 21 | "Use só letras e números, até 21." |
+  | `documento.observacoes` | até 500 caracteres | "Use até 500 caracteres." |
+  | `rastreador.numero` | letras e números, até 20 | "Use só letras e números, até 20." |
+  | `rastreador.empresa` | até 60 caracteres | "Use até 60 caracteres." |
+  | `anotacoes` | até 500 caracteres | "Use até 500 caracteres." |
+
+  O erro vem com a chave pontuada: `{ "codigo": "validacao", "campos": { "documento.potencia_cv": ["Informe a potência em cv, de 1 a 999."] } }`. O vendedor, o vistoriador e o financeiro não editam, então não há caso de "editar o que não vê".
+- **Auditoria** (`AUD-01`, CA-421-08): o `veiculo.editar` de sempre, com antes e depois de cada campo mudado, com as chaves pontuadas (`documento.lotacao`, `rastreador.numero`, `anotacoes`). A auditoria da empresa só é lida pelo administrador (`auditoria.md`), então o motor e as observações entram inteiros.
+- O seed preenche só o QXA-4B21, com os valores da linha "Dados do CRLV-e do QXA-4B21" das regras (fictícios).
+- Testes com o código: `test_vei_09_campos_opcionais` (CA-421-06), `test_vei_09_formatos` (CA-421-07), `test_vei_09_combustivel_e_auditoria` (CA-421-08), `test_vei_09_quem_edita` (CA-421-09), `test_vei_09_motor_e_observacoes_por_perfil` (CA-421-11 e 12, chave ausente), `test_vei_09_alienacao_nao_bloqueia` (CA-421-13) e `test_vei_09_veiculo_antigo` (CA-421-14).
 
 ## Ações de status
 
@@ -212,7 +300,7 @@ Todas `POST /api/veiculos/{id}/<acao>/`, respondem 200 com a representação. Tr
 | --- | --- | --- | --- |
 | `bloquear` | `{ motivo }` | `disponivel` → `indisponivel` | administrador, gerente |
 | `desbloquear` | `{ motivo? }` | `indisponivel` → `disponivel`. 422 `VEI-03` se ainda há CRLV ou seguro vencido | administrador, gerente |
-| `colocar-a-venda` | `{ valor_venda_centavos, referencia_fipe_centavos? }` | `disponivel` → `a_venda` (`VEN-01`) | administrador, gerente |
+| `colocar-a-venda` | `{ valor_venda_centavos, referencia_fipe_centavos? }` (com a referência FIPE da rotina, o valor mandado é ignorado; "Referência FIPE", abaixo) | `disponivel` → `a_venda` (`VEN-01`) | administrador, gerente |
 | `voltar-para-frota` | `{}` | `a_venda` → `disponivel`. 409 `VEN-10` se houver venda aberta do veículo | administrador, gerente |
 | `baixar` | `{ motivo: "perda_total" \| "roubo" \| "sucata" \| "outro", descricao }` | qualquer, exceto `alugado` → `baixado`, inclusive `em_movimentacao` e com movimentação aberta (abaixo) | administrador |
 
@@ -256,6 +344,250 @@ Perfis: administrador, gerente. `multipart/form-data`: `tipo`, `validade`, `exer
 
 ### GET /api/veiculos/{id}/documentos/historico/
 Todos os documentos, inclusive inativos.
+
+---
+
+## Fotos do veículo (`VEI-10`, T-414, ADR 0036)
+
+Duas origens que nunca se misturam: a **galeria** (`veiculos.FotoVeiculo`, modelo de dados, item 9a), que se muda no editar, e as **fotos da última vistoria** (bloco `vistoria_recente`, de `vistorias`), só para ver e baixar. Critérios: `docs/qa/criterios/T-414.md` (CA-414-01 a 14). Telas: `Veiculo-Editar-*` (galeria), `Veiculo-*` (ficha) e `Veiculo-Visualizador-*`.
+
+### Quem pode
+
+| Ação | Administrador | Gerente | Vendedor | Vistoriador | Financeiro | Suporte Giro |
+| --- | --- | --- | --- | --- | --- | --- |
+| Ver a galeria na ficha | sim | sim | sim | sim | sim | "ver e editar": sim; "só ver": sem os links |
+| `GET .../fotos/` (galeria do editar) | sim | sim | sim | sim | sim | "ver e editar": sim; "só ver": 403 `PLT-07` |
+| Enviar, trocar, apagar, usar como capa | sim | sim | 403 | 403 | 403 | 403 `PLT-07`, mesmo em "ver e editar" |
+| Ver as fotos da última vistoria na ficha | sim | sim | sim | sim | chave ausente | "ver e editar": sim; "só ver": sem os links |
+
+**Suporte Giro em "só ver"** (ADR 0013, item 2: no "só ver" não se gera URL assinada de documento nem de foto, mesmo em leitura; revisão de segurança de 10 nov 2026, M-01): na ficha, `galeria` e `vistoria_recente` vêm completos (`total`, `numero`, `rotulo`, `nome_arquivo`, datas), mas cada foto traz `url`, `url_download` e `url_expira_em` nulos. `GET .../fotos/` responde 403 `PLT-07`. Em "ver e editar", o suporte recebe os links como o administrador.
+
+Escopo de filial como no resto do veículo (`USR-07`): veículo de filial fora do escopo responde 404. As mudanças valem em qualquer `status`, menos `vendido` e `baixado`: 409 `{ "codigo": "VEI-10", "mensagem": "A galeria de veículo vendido fica só para ver." }` (ou "... de veículo baixado ..."). A conferência do status vem antes da do arquivo.
+
+### A foto, nas duas origens
+
+```json
+{
+  "id": 7001,
+  "numero": 1,
+  "rotulo": "Frente",
+  "capa": true,
+  "url": "https://...assinada...",
+  "url_download": "https://...assinada...&response-content-disposition=attachment...",
+  "url_expira_em": "2026-10-07T13:15:00Z",
+  "nome_arquivo": "QXA-4B21-galeria-1.jpg",
+  "enviada_em": "2025-03-12T13:02:00Z",
+  "enviada_por": { "id": 1, "nome": "Mariana Costa" }
+}
+```
+
+- `url` abre a foto (inline); `url_download` baixa com o `nome_arquivo` (`Content-Disposition: attachment`, ADR 0036, item 4). Os dois valem 15 minutos e são novos a cada `GET` (`AUD-05`). A tela usa `url_download` no "Baixar" e não monta nome nem link. Depois de `url_expira_em`, ela recarrega a ficha (ou a galeria) para ter links novos antes de abrir ou baixar (CA-414-12).
+- `numero`: a posição na exibição, de 1 a `total`, capa primeiro. É o que vai no nome: "QXA-4B21-galeria-1.jpg", "QXA-4B21-galeria-2.png" (a extensão é a do formato guardado). Muda quando a capa muda.
+- `rotulo`: na galeria, `null`: a foto da galeria não tem posição nem legenda (`VEI-10`), e a tela mostra "Foto 1 de 3". As legendas "Frente", "Traseira" e "Painel" das fotos da galeria na tela de referência são ilustração; a ficha não as mostra. Na vistoria, o rótulo da posição: "Frente", "Traseira", "Lado esquerdo", "Lado direito", "Painel", e "Avaria 1", "Avaria 2" nas de avaria, na ordem em que foram tiradas.
+- `capa`, `enviada_em` e `enviada_por` só na galeria. Na vistoria, a foto traz `posicao` (`frente`, `traseira`, `lado_esquerdo`, `lado_direito`, `painel`, `avaria`), `tirada_em` e `avaria_id` (a avaria ligada à foto, ou `null`).
+- Nome na vistoria: `<placa com hífen>-vistoria-<saida|chegada>-<posição>.<ext>`, com a posição em minúsculas e hífen: "QXA-4B21-vistoria-saida-frente.jpg", "QXA-4B21-vistoria-saida-lado-esquerdo.jpg", "QXA-4B21-vistoria-saida-avaria-1.jpg". `chegada` é a vistoria `tipo = devolucao`.
+- `nome_arquivo` só leva `A-Z`, `a-z`, `0-9`, `-` e `.` (ADR 0036).
+
+### Na ficha: `GET /api/veiculos/{id}/`
+
+Dois blocos novos e uma ação nova, só no detalhe (a lista da Frota não muda; a capa no catálogo é da T-418):
+
+```json
+"galeria": {
+  "total": 3, "limite": 20,
+  "fotos": [ { "id": 7002, "numero": 1, "capa": true, "...": "..." },
+             { "id": 7001, "numero": 2, "capa": false, "...": "..." },
+             { "id": 7003, "numero": 3, "capa": false, "...": "..." } ]
+},
+"vistoria_recente": { "id": 3120, "tipo": "saida", "rotulo_tipo": "Vistoria de saída", "concluida_em": "2026-09-23T12:10:00Z",
+  "locacao_codigo": "LOC-2841", "total_fotos": 12,
+  "fotos": [ { "id": 901, "numero": 1, "posicao": "frente", "rotulo": "Frente", "tirada_em": "...", "avaria_id": null,
+               "url": "...", "url_download": "...", "url_expira_em": "...", "nome_arquivo": "QXA-4B21-vistoria-saida-frente.jpg" } ],
+  "...": "o resto do bloco como em Blocos da ficha" },
+"acoes": { "...": "...", "editar_fotos": true }
+```
+
+- `galeria`: todas as fotos ativas, capa primeiro e depois pela ordem de envio, para todos os perfis. Sem foto: `{ "total": 0, "limite": 20, "fotos": [] }`; a tela mostra "Nenhuma foto do veículo." e, com `acoes.editar_fotos`, "Adicionar fotos", que abre o editar (CA-414-13).
+- `vistoria_recente.fotos` passa a trazer **todas** as fotos ativas da vistoria (antes, só as 5 fixas): as fixas na ordem das posições e depois as de avaria pela hora, com `numero` de 1 a `total_fotos`. `rotulo_tipo`: "Vistoria de saída" ou "Vistoria de chegada". A tela monta "Vistoria de saída · LOC-2841 · 23 set" com `rotulo_tipo`, `locacao_codigo` e a data de `concluida_em`. Para o financeiro a chave continua ausente; sem vistoria concluída, `null`, e a seção não aparece (CA-414-11, 13).
+- `acoes.editar_fotos`: `true` para administrador e gerente com o veículo fora de `vendido` e `baixado`; `false` para os outros perfis e para o suporte Giro. A tela mostra "Gerenciar fotos", "Adicionar fotos" e os botões do editar só com `true` (CA-414-08, 09).
+- O visualizador passa só pelas fotos da origem aberta: a ordem é a de `fotos` de cada bloco (CA-414-10, 14).
+
+### GET /api/veiculos/{id}/fotos/
+Perfis: todos (escopo de filial). A galeria para o editar, no mesmo formato do bloco `galeria`, com `editar` e `motivo`:
+```json
+{ "total": 3, "limite": 20, "editar": true, "motivo": null, "fotos": [ ... ] }
+```
+- `editar`: o mesmo `acoes.editar_fotos`. `motivo`: com o perfil que edita e o veículo `vendido` ou `baixado`, a mensagem do 409, para a tela mostrar a galeria só para ver; `null` nos outros casos.
+
+### POST /api/veiculos/{id}/fotos/
+Perfis: administrador, gerente. `multipart/form-data`: `arquivo` (um só; ADR 0036, item 3). 201: a galeria inteira, no formato do `GET`, com `foto_id` da nova.
+- Uma foto por requisição. A tela envia as fotos escolhidas **uma depois da outra**, na ordem da escolha, e mostra a recusa de cada uma no item dela; as outras seguem (CA-414-02, 03).
+- A primeira foto ativa do veículo vira capa (CA-414-05). A nova entra no fim da ordem.
+- 400 `validacao`, `campos.arquivo`:
+  - fora de JPG ou PNG pelo conteúdo, acima de 10 MB, PDF, HEIC ou imagem que não abre: `["Envie uma foto JPG ou PNG de até 10 MB."]`;
+  - com 20 ativas: `["O veículo já tem 20 fotos. Apague uma para enviar outra."]`.
+- Arquivo acima de 12 MB volta 413 do proxy, antes do Django: a tela mostra a mesma "Envie uma foto JPG ou PNG de até 10 MB.". A tela pode recusar antes de enviar o que passa de 10 MB ou não é `.jpg`, `.jpeg` ou `.png`, mas a palavra final é a da API.
+- Auditoria `veiculo.foto_enviar` (objeto: o veículo; `detalhes`: `foto_id`, `numero`, `capa`, `arquivo`), sem a imagem (`AUD-01`). `arquivo` é só o nome do arquivo como veio do aparelho, sem pasta (`moto.png`).
+- **Na lista da auditoria (T-460)**, os quatro eventos da galeria vêm com a placa com hífen em `objeto.codigo` (`TBC-5H22`) e com `resumo` e `detalhe` prontos, só com nome do arquivo, número da foto e capa:
+
+| `acao` | `resumo` | `detalhe` |
+| --- | --- | --- |
+| `veiculo.foto_enviar` | Enviou uma foto do veículo TBC-5H22 | `moto.png · foto 1 · virou a capa` ou `lateral.jpg · foto 2 · não é a capa` |
+| `veiculo.foto_trocar` | Trocou uma foto do veículo TBC-5H22 | `lateral-nova.png · foto 2 · não é a capa` (ou `é a capa`) |
+| `veiculo.foto_capa` | Mudou a capa do veículo TBC-5H22 | `a foto 3 virou a capa` (o número de antes da troca) |
+| `veiculo.foto_apagar` | Apagou uma foto do veículo TBC-5H22 | `foto 1 · era a capa; a mais antiga virou a capa`, `foto 1 · era a capa` ou `foto 2 · não era a capa` |
+
+  Nos eventos gravados antes da T-460, sem código nem `arquivo`, o `resumo` leva a placa atual do veículo e o `detalhe`, só o que o evento tem; `objeto.codigo` continua `null` neles.
+- **Cadastrar e editar na lista da auditoria (T-464, `VEI-01`):** `veiculo.cadastrar` e `veiculo.editar` também vêm com a placa com hífen em `objeto.codigo` e com o `resumo` "Cadastrou o veículo QAB-1C23" ou "Editou o veículo PNB-7C04". O `detalhe` não muda (vazio). Nos eventos gravados antes da T-464, sem código, o `resumo` leva a placa atual do veículo e `objeto.codigo` continua `null`. Testes: `test_vei_01_*` em `tests/aceitacao/test_t464_auditoria_cadastro_veiculo.py`.
+
+### POST /api/veiculos/{id}/fotos/{foto_id}/trocar/
+Perfis: administrador, gerente. `multipart/form-data`: `arquivo`. 200: a galeria, com `foto_id` da nova.
+- A antiga fica inativa (`substituida_por`); a nova fica na mesma posição e com a mesma `capa` (CA-414-06). O total não muda, e o limite de 20 não se aplica.
+- 400 como no envio. 404 `nao_encontrado` se a foto não é ativa deste veículo.
+- Auditoria `veiculo.foto_trocar` (`detalhes`: `foto_id_antiga`, `foto_id_nova`, `numero`, `capa`, `arquivo` da nova).
+
+### POST /api/veiculos/{id}/fotos/{foto_id}/capa/
+Perfis: administrador, gerente. Sem corpo. 200: a galeria. A escolhida vira capa e passa a `numero` 1; a anterior perde a marca. Já capa: 200 sem mudança e sem evento.
+- Auditoria `veiculo.foto_capa` (`detalhes`: `foto_id`, `capa_anterior_id`, `numero` de antes de virar capa).
+
+### POST /api/veiculos/{id}/fotos/{foto_id}/apagar/
+Perfis: administrador, gerente. Sem corpo. 200: a galeria.
+- A foto fica inativa (`ativo = False`, `apagada_por`), com o arquivo guardado; não volta pela tela nem pela API (CA-414-07). Apagada a capa, a ativa mais antiga vira capa (CA-414-05).
+- A tela pede confirmação antes ("Apagar esta foto? Ela sai da galeria e da ficha.").
+- Auditoria `veiculo.foto_apagar` (`detalhes`: `foto_id`, `numero` de antes de apagar, `era_capa`, `nova_capa_id`), com quem e quando.
+
+### Para o catálogo (T-418)
+`veiculos.selectors.galeria(veiculo)` devolve as fotos ativas na ordem de exibição, e `veiculos.selectors.capa(veiculo)` a capa ou `None`, para o app `vendas` ler sem tocar no model (ADR 0011).
+
+---
+
+## Referência FIPE (`VEN-01`, `VEI-08`, T-422, ADR 0038)
+
+A referência de preço FIPE do veículo, atualizada uma vez por mês por uma rotina que consulta a API aberta da Parallelum de madrugada. Nenhuma rota abaixo chama a API externa, salvo a consulta por placa (desligada por padrão). O cadastro e a ficha nunca esperam a Parallelum. Modelo: item 9 (campos `fipe_*` e `referencia_fipe_*`) e "Apoio do public" (`PrecoFipe`, `AnosFipe`, `RodadaFipe`) em `docs/decisoes/modelo-de-dados.md`.
+
+### Quem pode
+
+| Ação | Administrador | Gerente | Vendedor | Vistoriador | Financeiro |
+| --- | --- | --- | --- | --- | --- |
+| Ver a referência na Frota e na ficha | sim | sim | sim | sem o valor | sim |
+| Escolher a versão FIPE, digitar o código ou limpar | sim | sim | — | — | — |
+| Consulta por placa (quando ligada) | sim | sim | — | — | — |
+
+O suporte Giro segue o modo do acesso ("só ver" recebe 403 `PLT-07` nas escritas).
+
+### Na representação (lista e detalhe)
+
+`referencia_fipe_centavos` continua no lugar de sempre, com o mesmo valor. Ao lado, o bloco novo:
+
+```json
+"referencia_fipe": {
+  "valor_centavos": 1302300,
+  "mes": "2026-10",
+  "rotulo": "Referência FIPE · outubro de 2026",
+  "origem": "fipe",
+  "situacao": "ok",
+  "aviso": null,
+  "versao": "CG 160 FAN ESDi FLEXONE",
+  "codigo_fipe": "811134-0",
+  "ano": "2017 Flex",
+  "versoes": []
+}
+```
+
+- `situacao` (o `fipe_situacao` do veículo):
+  - `ok`: a versão é conhecida e a rotina já trouxe o preço. `origem` `fipe`.
+  - `aguardando`: a versão foi escolhida ou casada, e o preço chega na próxima rodada. `valor_centavos` e `mes` ficam com o último valor, se havia.
+  - `escolher_versao`: mais de uma versão serve. `versoes` traz até 5 candidatas `[ { "marca_id": 22, "modelo_id": 5585, "versao": "CRUZE LT 1.4 16V Turbo Flex Aut." } ]`.
+  - `nao_encontrado`: nenhuma versão do catálogo bate.
+  - `sem_versao`: veículo que ainda não passou pelo casamento (antes da primeira rodada).
+- `aviso`, montado pela API (textos do produto, PR #481, `VEN-01`); a tela mostra como vem:
+
+  | Situação | Com `acoes.escolher_versao_fipe` | Sem |
+  | --- | --- | --- |
+  | `aguardando` e `sem_versao` | "A referência FIPE chega na próxima atualização, feita de madrugada." | o mesmo |
+  | `escolher_versao` | "Escolha a versão FIPE para ver a referência." | "Falta escolher a versão FIPE. O gerente ou o administrador escolhe." |
+  | `nao_encontrado` | "Versão FIPE não encontrada. Escolha a versão ou digite o código." | "Versão FIPE não encontrada. O gerente ou o administrador escolhe a versão ou digita o código." |
+  | `ok` com o `mes` dois ou mais meses antes do mês corrente (`America/Sao_Paulo`) | "Esta referência é de agosto de 2026 e não foi atualizada." | o mesmo |
+  | `ok` com até um mês de atraso, e a origem `manual` | `null` | `null` |
+
+- `origem`: `fipe` (rotina), `manual` (informado em "Colocar à venda", sem versão) ou `null` (sem valor).
+- `mes`: `"AAAA-MM"` do preço; `null` sem valor ou na origem `manual`. `rotulo`, montado pela API: "Referência FIPE · outubro de 2026" na origem `fipe`, "Referência FIPE · informada à mão" na `manual`, `null` sem valor. A ficha e o "Valor de venda (FIPE)" mostram o `rotulo` e o valor como vêm (`VEN-01`).
+- **Valor antigo** (a API saiu do ar ou a FIPE tirou a versão): o bloco fica com o último `valor_centavos` e o `mes` dele, `situacao` `ok`, sem erro (ADR 0038, item 7). Com um mês de atraso, é o normal da virada da tabela, e não há aviso; com dois ou mais, vem o aviso de valor antigo da tabela acima. A conta é da API, não da tela.
+- O vistoriador recebe o bloco sem `valor_centavos` (e sem `referencia_fipe_centavos`), como os outros valores (`USR-09`).
+- `acoes.escolher_versao_fipe`: `true` para administrador e gerente com o veículo fora de `vendido` e `baixado`. A tela mostra "Escolher versão" (com `escolher_versao` ou `nao_encontrado`) e "Trocar versão" (nos outros) só com `true`.
+- Frota: `?fipe_situacao=escolher_versao` (ou outro valor) filtra, para a lista "veículos sem referência FIPE".
+
+### Escolher a versão no cadastro e no editar
+
+`POST /api/veiculos/` e `PATCH /api/veiculos/{id}/` aceitam o bloco opcional `fipe`, com uma das três formas:
+
+```json
+"fipe": { "marca_id": 80, "modelo_id": 7329 }
+"fipe": { "codigo_fipe": "811134-0" }
+"fipe": null
+```
+
+- `marca_id` e `modelo_id` vêm de `GET /api/veiculos/modelos/` (abaixo), da linha escolhida na lista "Da lista FIPE" (a mesma escolha da T-415). Têm de existir no catálogo e ser do mesmo `tipo` do veículo: senão, 400 `validacao` em `fipe`: "Escolha uma versão da lista FIPE.".
+- `codigo_fipe`: seis dígitos, hífen e um dígito (`^\d{6}-\d$`); fora disso, 400 em `fipe.codigo_fipe`: "Digite o código FIPE no formato 811134-0.". O código não é conferido na hora (não há chamada externa); se a rotina não o achar, o veículo fica `nao_encontrado`.
+- Com `marca_id` e `modelo_id` ou `codigo_fipe`: grava os campos, limpa `fipe_versoes` e põe `situacao` `aguardando`. O valor e o mês antigos ficam até a rotina trazer o novo.
+- `fipe: null`: limpa a versão, o código, o valor e o mês, e o veículo volta ao casamento na próxima rodada (`sem_versao`).
+- Sem a chave `fipe` no corpo, nada muda. Mudar `marca`, `modelo`, `ano_modelo` ou `combustivel` no `PATCH` sem mandar `fipe` limpa a versão como em `fipe: null` (ADR 0038, item 3).
+- No `vendido` e no `baixado`, o `PATCH` com `fipe` responde 409 `transicao_veiculo`, como as outras edições.
+- **Formatos fechados** (ADR 0038, item 9.1, M-01 da segurança), conferidos no serializer e de novo no cliente antes de montar a URL: `codigo_fipe` `^\d{6}-\d$`; `marca_id` e `modelo_id` inteiros positivos; o ano FIPE (`fipe_ano_codigo`, `^\d{4,5}-\d$`) e a referência (`^\d{1,4}$`) nunca vêm do cliente, só da rotina. Com `escolher_versao`, `marca_id` e `modelo_id` têm de ser de uma das `versoes` guardadas no veículo ou de uma linha do catálogo do mesmo tipo; senão, 400 "Escolha uma versão da lista FIPE.".
+- **Só de leitura** (item 9.4, B-04): `fipe_situacao`, `referencia_fipe_origem`, `referencia_fipe_mes`, `fipe_versao`, `fipe_ano_codigo` e, com `situacao` `ok`, `referencia_fipe_centavos`. Mandados no corpo, são ignorados (não dão 400), e a resposta traz os valores que valem.
+- Auditoria: a escolha da pessoa gera o evento de edição do veículo com os campos FIPE de antes e de depois (`AUD-01`). O que a rotina muda gera um evento de lote por empresa a cada aplicação, `veiculo.referencia_fipe_rotina`, ator Sistema, com a lista dos veículos e a situação, o valor e o mês de antes e de depois (ADR 0038, item 9.4).
+
+Atalho na ficha, sem abrir o editar: `POST /api/veiculos/{id}/fipe/` com o mesmo bloco (`{ "marca_id", "modelo_id" }`, `{ "codigo_fipe" }` ou `{ "limpar": true }`). 200: a representação. Perfis e erros como acima.
+
+### GET /api/veiculos/modelos/ com os ids
+
+Cada linha passa a trazer `marca_id` e `modelo_id` (os ids da Parallelum, ADR 0038, item 4), ou `null` nas linhas da lista própria da equipe ("CG 160 Fan", sem versão FIPE):
+
+```json
+{ "resultados": [ { "marca": "HONDA", "modelo": "CG 160 FAN ESDi FLEXONE", "tipo": "moto", "marca_id": 80, "modelo_id": 7329 } ] }
+```
+
+A tela guarda os dois ids com a escolha e manda no bloco `fipe`. Linha com ids `null` não serve para `fipe` (só preenche marca e modelo, como hoje).
+
+### Colocar à venda
+
+`colocar-a-venda` continua com `{ valor_venda_centavos, referencia_fipe_centavos? }`. Com `referencia_fipe.situacao` `ok`, `referencia_fipe_centavos` mandado é ignorado (sem erro): vale o da rotina, e o 200 traz o valor que vale, para a tela não mostrar o digitado. Nos outros casos, grava com `origem` `manual`, como hoje.
+
+### Consulta por placa (desligada por padrão)
+
+`GET /api/veiculos/consulta-placa/` → `{ "ativa": false }`. Com `GIRO_FIPE_PLACA_ATIVA=true`: `{ "ativa": true, "restantes_hoje": 3 }` (o limite da empresa, `comum.limites`). A tela do cadastro mostra "Buscar pela placa" só com `ativa` `true`.
+
+`POST /api/veiculos/consulta-placa/` · administrador e gerente · corpo `{ "placa": "QXA4B21" }`. Sem hífen e em maiúsculas, tem de casar `^[A-Z]{3}\d[A-Z0-9]\d{2}$` (ADR 0038, item 9.1); fora dele, 400 `validacao`. Não grava nada.
+- Ordem (B-05 da segurança): perfil primeiro (403 para os outros perfis e para o suporte Giro, que não gasta a cota), depois o formato, depois o limite de 3 por dia da empresa, e só então a chamada. Um 403 ou um 400 não gastam o limite.
+- 200 com resultado:
+  ```json
+  { "disponivel": true, "marca": "HONDA", "modelo": "CG 160 FAN", "ano_modelo": 2023, "combustivel": "flex",
+    "versoes": [ { "codigo_fipe": "811134-0", "versao": "CG 160 FAN ESDi FLEXONE", "ano": "2023 Flex",
+                   "valor_centavos": 1450000, "mes": "2026-11" } ] }
+  ```
+  A tela preenche marca, modelo, ano e combustível marcados como "lido pela placa", editáveis, como a leitura do CRLV-e (`VEI-08`), e a pessoa escolhe a versão, que vai no bloco `fipe` como `codigo_fipe`. O valor só aparece para conferência; quem grava a referência é a rotina.
+- 200 `{ "disponivel": false, "mensagem": "A busca pela placa não está disponível agora. Preencha pelo CRLV-e ou escolha a versão na lista FIPE." }` em todos os outros casos: recurso desligado, cota global esgotada (`X-Plate-Quota-Remaining`, marcada no cache do `public`, igual para todas as empresas, item 9.3), limite da empresa no dia, placa não achada, API fora do ar ou resposta fora do formato. A resposta é a mesma em todos e não diz o motivo (texto do produto, PR #481). A tela mostra a `mensagem` em tom de informação, sem erro, e segue pelo CRLV-e e pela escolha da versão (decisão do dono de 29 out 2026).
+- Da resposta da Parallelum, só marca, modelo, ano, combustível e as versões com código FIPE, ano, valor e mês chegam à tela; qualquer outro campo (chassi, município, cor) é descartado.
+- A placa vai para a Parallelum e não fica guardada em lugar nenhum do Giro além do veículo que a pessoa salvar; o log e o Sentry não levam a placa.
+
+### Interface interna e tarefas
+
+| Item | Uso |
+| --- | --- |
+| `integracoes.fipe.provedor()` | `falso` ou `parallelum` (`GIRO_PROVEDOR_FIPE`); `referencias`, `anos_do_modelo`, `anos_do_codigo`, `preco`, `placa`. Só a rotina e a consulta por placa chamam. Valida os formatos antes da URL e a resposta (até 256 KB, só JSON, preço pelo formato e com teto, código e mês iguais ao pedido, textos e listas limitados; ADR 0038, itens 9.1 e 9.2). |
+| `integracoes.fipe.cache_publico` | a trava da rotina e a marca de cota esgotada da placa, sempre no `public` (item 9.3). |
+| `veiculos.services.casar_fipe(veiculo)` | casamento local pelo catálogo (ADR 0038, item 5); chamado pela rotina nos `sem_versao`. |
+| `veiculos.selectors.pendencias_fipe(referencia_mes)` | só chaves: `(tipo, codigo_fipe, ano_codigo)` a precificar e `(tipo, marca_id, modelo_id)` ou `(tipo, codigo_fipe)` a buscar anos; nenhum dado da empresa. |
+| `veiculos.services.aplicar_referencias_fipe(referencia_mes)` | grava, do `PrecoFipe`, valor, mês, versão e código; resolve o ano pelo `AnosFipe` (ano do modelo e combustível); passa a `ok`, `escolher_versao` ou `nao_encontrado`. Sem pedido à API. |
+| `plataforma.services.guardar_preco_fipe`, `guardar_anos_fipe`, `abrir_rodada_fipe`, `registrar_pedidos_fipe`, `parar_rodada_fipe`; `plataforma.selectors.preco_fipe`, `anos_fipe`, `rodada_fipe` | as tabelas do `public` (ADR 0038, item 2). |
+| tarefa `fipe_rodada_do_dia` (Beat, 04:30, no `public`) | os passos 1 a 4 e 6 do item 6 da ADR; trava pelo cache. |
+| tarefa `fipe_aplicar_referencias` (por empresa, `tarefa_de_empresa`) | o passo 5, chamada por `para_cada_empresa` no fim da rodada do dia. |
+| configurações | `GIRO_PROVEDOR_FIPE` (`falso`), `GIRO_FIPE_URL_BASE` (`https://fipe.parallelum.com.br/api/v2`), `GIRO_FIPE_TOKEN` (vazio; só pelo cofre), `GIRO_FIPE_PEDIDOS_POR_DIA` (400), `GIRO_FIPE_PLACA_ATIVA` (`false`). |
+
+### Seed e testes
+
+- O seed não ganha código FIPE: os 86 veículos ficam `sem_versao`, e com `GIRO_PROVEDOR_FIPE=falso` a primeira rodada casa pelo catálogo e precifica pelo provedor falso. O provedor falso responde as referências "outubro/2026" e "novembro/2026" e os preços dos modelos do seed, com números fictícios fixos, para os testes; não muda nenhum número das regras.
+- Testes `test_ven_01_*` e `test_vei_08_*` com o provedor falso e com respostas gravadas da Parallelum (sem chamada real no CI): parada no 429 e retomada no dia seguinte, orçamento do dia, um pedido por código e ano com dois veículos de empresas diferentes, último valor quando a API cai, casamento com uma, várias e nenhuma versão, consulta por placa com cota esgotada.
 
 ---
 
@@ -333,13 +665,32 @@ Perfis: administrador e gerente (quem cadastra veículo, `pode.veiculos = editar
   "quantidade": 9,
   "rotulo": "CRLV-e lido · 9 campos preenchidos",
   "exercicio": 2026,
-  "dicas": { "marca_modelo": null },
+  "dicas": { "marca_modelo": null, "candidatos": [] },
   "leitura": "<comprovante assinado>" }
 ```
 - `campos` traz só os 9 da `VEI-08`. Campo não lido vem `null` e fica fora de `lidos`. `quantidade` é o tamanho de `lidos`, e a tela usa o `rotulo` como vem ("1 campo preenchido", no singular). Nunca vêm o nome, o CPF ou o CNPJ do proprietário, nem campo fora da lista (CA-247-02).
+- `marca` e `modelo` só vêm juntos quando o texto acha um modelo único no catálogo do cadastro (ADR 0026, item 7). Senão, `modelo` vem `null` e fica fora de `lidos`, e `dicas.marca_modelo` traz o texto lido ("HONDA/POP 110I ES") para a tela mostrar como dica (CA-247-05: 7 campos).
+- **Várias versões batem (T-415, decisão do dono em 29 out 2026):** `dicas.candidatos` traz as versões do catálogo que batem com o texto, no formato da lista de modelos (`{ "marca", "modelo", "tipo" }`, em ordem de marca e modelo), para a pessoa escolher uma. Quando todas são da mesma marca, `campos.marca` vem preenchida e entra em `lidos` (o Cruze: 8 campos). Palavras do documento que não existem em nenhuma versão do catálogo são ignoradas: "CHEVROLET/CRUZE LT NB" (CRLV-e real do Detran-CE) traz a marca "GM - Chevrolet" e as 3 versões "CRUZE LT 1.4 16V Turbo Flex 4p Aut.", "CRUZE LT 1.8 16V FlexPower 4p Aut." e "CRUZE LT 1.8 16V FlexPower 4p Mec.". Acima de 20 versões, `candidatos` vem `[]`, e a pessoa busca na lista com a marca já escolhida. Nenhuma versão (CA-247-05, "SUZUKI/YES 125"): `candidatos` vem `[]` e a marca não vem. Um modelo só: `marca` e `modelo` preenchidos, `dicas` com `marca_modelo` `null` e `candidatos` `[]`.
+- `campos` traz só os campos da `VEI-08` (os 9 abaixo e, desde a T-421, os 9 da `VEI-09`, mais abaixo). Campo não lido vem `null` e fica fora de `lidos`. `quantidade` é o tamanho de `lidos`, e a tela usa o `rotulo` como vem ("1 campo preenchido", no singular). Nunca vêm o nome, o CPF ou o CNPJ do proprietário, nem campo fora da lista (CA-247-02).
 - `marca` e `modelo` só vêm quando o texto acha um modelo único no catálogo do cadastro (ADR 0026, item 7). Senão, os dois vêm `null`, ficam fora de `lidos`, e `dicas.marca_modelo` traz o texto lido ("HONDA/POP 110I ES") para a tela mostrar como dica (CA-247-05: 7 campos).
 - `cor` vem no texto do cadastro, em minúsculas ("vermelha"). `combustivel` vem no enum: `ALCOOL/GASOLINA` vira `flex`, e um valor fora do enum fica fora de `lidos`.
 - `exercicio`: o ano do licenciamento, para o documento CRLV; não conta nos 9. A validade do CRLV não vem (`VEI-08`): a pessoa informa.
+- **Campos da `VEI-09`** (T-421; a `VEI-08` passa a ler até 18): `campos` ganha as chaves pontuadas `documento.potencia_cv`, `documento.cilindrada_cc`, `documento.especie`, `documento.tipo`, `documento.carroceria`, `documento.lotacao`, `documento.peso_bruto_kg`, `documento.numero_motor` e `documento.observacoes`, no formato do corpo do cadastro, e elas entram em `lidos` e na `quantidade` como as outras. Com o `crlv-tbc5h21.pdf` (CA-421-01): os 9 de antes mais potência 8, cilindrada 109, `passageiro`, "Motocicleta", lotação 2, peso 240 e motor `JC75E1S123456`, `quantidade` 16, `rotulo` "CRLV-e lido · 16 campos preenchidos"; carroceria e observações `null`, fora de `lidos`. A leitura nunca traz `rastreador` nem `anotacoes`, e a tela não mexe neles (CA-421-04). As chaves de `dicas` da T-415 (`dicas.candidatos`) não mudam.
+- **Do texto do CRLV-e ao campo** (`integracoes/leitura_documentos/crlv.py`, um validador por campo na lista `CAMPOS`, como os de hoje; o que não passa fica `null` e fora da conta, `VEI-09`):
+
+  | Rótulo no CRLV-e | Campo | Conversão |
+  | --- | --- | --- |
+  | POTÊNCIA/CILINDRADA | `potencia_cv` e `cilindrada_cc` | "15CV/0162" → 15 e 162. Potência 0 → `null`. Cilindrada 0 (elétrico) → `null`. Fora da faixa → `null` |
+  | ESPÉCIE / TIPO | `especie` e `tipo` | 1ª palavra no enum, sem acento ("PASSAGEIRO" → `passageiro`, "COMPETICAO" → `competicao`); o resto vira o `tipo`, pela tabela dos tipos do CTB com acento e só a 1ª maiúscula ("MOTOCICLETA" → "Motocicleta", "AUTOMOVEL" → "Automóvel", "CAMINHONETE" → "Caminhonete", "MICRO-ONIBUS" → "Micro-ônibus", "UTILITARIO" → "Utilitário"); tipo fora da tabela, só a 1ª maiúscula. Espécie fora do enum: os dois `null` |
+  | CARROCERIA | `carroceria` | "NÃO APLICAVEL", "NAO APLICAVEL" ou só asteriscos → `null`; senão o texto como vem, até 30 |
+  | LOTAÇÃO | `lotacao` | "02P" → 2; fora de 1 a 99 → `null` |
+  | PESO BRUTO TOTAL | `peso_bruto_kg` | toneladas com vírgula ou ponto: "0,29" → 290, "1,40" → 1400 (× 1000, arredondado); zero → `null` |
+  | MOTOR | `numero_motor` | maiúsculas, sem espaços nem asteriscos, até 21 letras e números |
+  | OBSERVAÇÕES DO VEÍCULO | `observacoes` | as linhas do bloco até o próximo rótulo, com as quebras, até 500; só asteriscos ou vazio → `null` |
+
+  Não são lidos (`VEI-08`): categoria do documento, capacidade, CMT, eixos, CRV, código de segurança, DPVAT, proprietário (CA-421-04). O parser não tem rótulo para eles, e o teste confere que nenhuma chave fora da lista aparece.
+- O comprovante `leitura` passa a listar também os campos da `VEI-09` lidos, e o `preenchido_pelo_documento` do evento usa as chaves pontuadas (`"campos": [..., "documento.lotacao"], "corrigidos": ["documento.lotacao"]`, CA-421-05).
+- Testes com o código: `test_vei_08_le_os_campos_da_vei_09` (CA-421-01 a 03, com os três PDFs), `test_vei_08_nao_le_o_que_nao_e_da_lista` (CA-421-04) e `test_vei_08_corrigidos_com_campos_novos` (CA-421-05). O `test_vei_08_le_os_9_campos` (T-265, CA-247-01) passa a esperar 16 com o mesmo arquivo.
 - `leitura`: comprovante assinado, válido por 30 minutos, sem os valores (ADR 0026, item 8). A tela o guarda junto com o arquivo e manda os dois ao salvar.
 - A tela troca os campos lidos pelo que veio e os marca "lido do documento"; os outros campos não mudam.
 
@@ -359,9 +710,20 @@ O serviço faz tudo numa transação só: cria o veículo, com as validações d
 - Sem comprovante, ou com ele vencido, de outra empresa, de outro usuário ou de outro arquivo: o veículo e o documento são salvos do mesmo jeito, só sem a marca (ADR 0026, item 8).
 - O `crlv_arquivo` passa de novo pelos primeiros bytes (`%PDF-`) e pelos 2 MB, sem confiar na leitura, e é gravado com `Content-Type: application/pdf` fixado pelo backend.
 
+### POST /api/veiculos/{id}/leitura-crlv/ (ler o CRLV-e no editar, T-421)
+
+Padrão A do ponto em aberto "Ler o CRLV-e no editar do veículo" (regras, T-421), valendo até a resposta do dono. Para a frota já cadastrada ganhar os campos da `VEI-09` sem digitar (CA-421-10).
+
+- Mesma leitura, mesmos perfis, mesmo arquivo, mesmos limites (os 30 por hora e 200 por empresa somam com a do cadastro e a da CNH-e), as mesmas 400, 422 `VEI-08`, 429 e 503 de `POST /api/veiculos/leitura-crlv/`. O veículo tem de estar nas filiais da pessoa (404 fora delas, como o `GET`).
+- **Confere que o documento é deste veículo:** a placa e o chassi lidos são comparados com os do cadastro (sem hífen, maiúsculas). Precisa ter lido pelo menos um dos dois, e todo o que foi lido tem de ser igual. Diferente: 422 `{ "codigo": "crlv_outro_veiculo", "mensagem": "Este CRLV-e é de outro veículo." }`, sem nenhum campo na resposta (CA-421-10). Sem placa e sem chassi lidos: a 422 `VEI-08` de sempre ("Não conseguimos ler este documento..."), porque não dá para conferir.
+- **200** no formato da leitura do cadastro, com duas diferenças: `placa` e `chassi` não vêm em `campos` nem em `lidos` e não contam na `quantidade` (no editar eles não mudam; corrigir é `corrigir-identificacao/`); e o comprovante `leitura` leva o `id` do veículo. `marca`, `modelo` e os outros vêm como no cadastro, inclusive as `dicas` da T-415. Com o `crlv-pnb7c04.pdf` no PNB-7C04: renavam, marca, modelo, anos, cor, combustível e os campos da `VEI-09` que o documento traz.
+- **Nada é gravado na leitura.** A tela troca os campos lidos e os marca "lido do documento"; só o `PATCH` grava. O `PATCH` continua JSON e **não recebe o PDF**: o documento CRLV do veículo não é substituído pela leitura (substituir é a seção Documentos, `POST .../documentos/`, T-413).
+- **Comprovante no `PATCH`:** `leitura?` no corpo. Válido (assinatura, até 30 minutos, mesma empresa, mesmo usuário e o mesmo veículo do `id` da rota), o `veiculo.editar` leva `preenchido_pelo_documento: { "tipo": "crlv", "campos": [...], "corrigidos": [...] }`, como no cadastro. No editar não há o SHA-256 do arquivo para conferir, porque o arquivo não vem; o comprovante amarra o veículo e a pessoa. Inválido ou ausente: salva do mesmo jeito, sem a marca (ADR 0026, item 8).
+- Testes com o código: `test_vei_08_leitura_no_editar` (CA-421-10, o PNB-7C04 com o próprio CRLV-e, placa e chassi fora da resposta, nada gravado), `test_vei_08_leitura_no_editar_outro_veiculo` (CA-421-10, `crlv-tbc5h21.pdf` → 422 `crlv_outro_veiculo`) e `test_vei_08_editar_com_comprovante` (o evento com `preenchido_pelo_documento`; comprovante de outro veículo, sem a marca).
+
 ### GET /api/veiculos/modelos/ (catálogo, T-257)
-É a lista "Da lista FIPE" da tela, local e sem consulta externa. Perfis: todos (quem vê veículos, `pode.veiculos` ≠ `nao`); o suporte em "só ver" também. Query `?tipo=moto|carro`, `?marca=` (igual, sem diferenciar maiúsculas e acento), `?busca=` (cada palavra em marca e modelo) → `{ "resultados": [ { "marca": "Honda", "modelo": "Pop 110i ES", "tipo": "moto" } ] }`, até 50, em ordem de marca e modelo. `tipo` fora da lista: 400 `validacao`.
-O catálogo é o arquivo versionado `backend/apps/veiculos/dados/catalogo_modelos.csv`, igual para todas as empresas, atualizado por PR com `python manage.py atualizar_catalogo_modelos <arquivo>` (a tabela FIPE baixada pela equipe, em CSV com `marca`, `modelo` e `tipo`). A leitura do CRLV-e usa `veiculos.catalogo.achar_modelo(texto)`: um modelo só quando o texto normalizado é igual a um `marca + modelo`, ou o começo de um só (ou um só é o começo dele); só a marca não basta.
+É a lista "Da lista FIPE" da tela, local e sem consulta externa. Perfis: todos (quem vê veículos, `pode.veiculos` ≠ `nao`); o suporte em "só ver" também. Query `?tipo=moto|carro`, `?marca=` (igual, sem diferenciar maiúsculas e acento), `?busca=` (cada palavra em marca e modelo) → `{ "resultados": [ { "marca": "Honda", "modelo": "Pop 110i ES", "tipo": "moto", "marca_id": null, "modelo_id": null } ] }` (os ids da Parallelum desde a T-422, "Referência FIPE", abaixo), até 50, em ordem de marca e modelo. `tipo` fora da lista: 400 `validacao`. A `marca` e cada palavra da `busca` valem também pelos apelidos do Detran (`catalogo.APELIDOS_DO_DETRAN`, T-415): `?marca=Chevrolet` traz "Chevrolet" e "GM - Chevrolet", `?marca=VW` traz "VW - VolksWagen" e "Volkswagen", e `?busca=chevrolet cruze` acha as versões de "GM - Chevrolet".
+O catálogo é o arquivo versionado `backend/apps/veiculos/dados/catalogo_modelos.csv`, igual para todas as empresas, atualizado por PR com `python manage.py atualizar_catalogo_modelos <arquivo>` (a tabela FIPE baixada pela equipe, em CSV com `marca`, `modelo` e `tipo`). A leitura do CRLV-e usa `veiculos.catalogo.candidatos(texto)`: os modelos cujo `marca + modelo` é igual ao texto normalizado, ou começa com ele (ou é o começo dele); sem nenhum, o começo mais longo do texto que ainda começa algum modelo, com as palavras que sobram filtrando as versões e as que não existem nelas ignoradas (T-415). Só a marca não basta. `achar_modelo(texto)` é o candidato quando ele é único.
 Catálogo completo (T-337): a fonte está em decisão do dono (backlog, "Levantada pelo arquiteto em T-337"). A rota, o formato do CSV e o comando não mudam. Com milhares de linhas, a tela busca pela rota (`tipo` e `busca`, até 50) e nunca carrega a lista inteira. Na FIPE, o carro tem uma linha por versão ("ARGO DRIVE 1.3 8V Flex" e "... Flex Aut."), então o texto do CRLV-e de carro ("FIAT/ARGO DRIVE 1.3") costuma achar mais de um modelo e vai para `dicas.marca_modelo`, como manda o CA-247-05.
 
 ### O que muda para as tarefas (T-247)

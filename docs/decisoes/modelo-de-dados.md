@@ -1,6 +1,7 @@
 # Modelo de dados
 
-**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183), fatura e forma de pagamento da assinatura em 16 out 2026 (T-294, pela T-185) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
+**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183), fatura e forma de pagamento da assinatura em 16 out 2026 (T-294, pela T-185), locação com intenção de compra e venda da quitação em 03 nov 2026 (T-420, ADR 0037), referência FIPE em 05 nov 2026 (T-422, ADR 0038) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
+**Dono:** arquiteto · **Atualizado em:** 07 out 2026 (T-006), Cliente em 09 out 2026 (T-088), troca de veículo em 10 out 2026 (T-122), assinatura em 14 out 2026 (T-183), fatura e forma de pagamento da assinatura em 16 out 2026 (T-294, pela T-185), foto do veículo em 03 nov 2026 (T-414, ADR 0036) · **Base:** seção "Entidades e relações" de `docs/regras-de-negocio.md` e ADRs 0001 a 0012.
 
 Este documento diz, para cada uma das 25 entidades das regras, o app dono, o schema, os campos, os índices e as restrições. As entidades de apoio (que não estão na lista das regras mas são necessárias) vêm no fim de cada app. Mudança aqui passa pelo arquiteto; o backend implementa a partir daqui e do contrato do módulo em `docs/api/`.
 
@@ -177,6 +178,9 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | --- | --- | --- |
 | `ContaPagamento` | plataforma | `empresa` (1:1), `provedor` enum `asaas`, `conta_externa_id` único, `id_cifra` (UUID, ADR 0014), `chave_api_cifrada` (`CampoCifrado` com `GIRO_CHAVE_SEGREDOS`, decifrada só em `integracoes/pagamentos/`, ADR 0014), `webhook_token_hash` único, `status` enum `pendente`, `aprovada`, `recusada`. O webhook chega no `public`, acha a empresa pelo token e só então entra no schema dela (ADR 0007). |
 | `FormaPagamentoAssinatura` | plataforma | `empresa` (1:1), `forma` enum `cartao`, `pix_automatico`, `boleto`, nulo; `status` enum `pendente`, `ativa`, `recusada`; `cliente_externo_id` (pagador na conta principal), `autorizacao_externa_id` (Pix automático), `id_cifra` (UUID), `cartao_token_cifrado` (`CampoCifrado`, ADR 0014 e 0023, nunca sai na API nem na auditoria), `cartao_bandeira`, `cartao_final` (4 dígitos). Trocar de forma cancela a autorização do Pix, apaga o token, a bandeira e o final na linha travada e cancela no parceiro a cobrança viva de outra forma (T-183, T-185). Transições do `status` (`PLT-13`): `pendente` → `ativa` ou `recusada`; `ativa` → `pendente` ou `recusada`; `recusada` → `pendente` ou `ativa`. Auditoria omite `cartao_token_cifrado`, `cliente_externo_id` e `autorizacao_externa_id`; o evento `assinatura.forma_pagamento` leva só a forma antiga e a nova. |
+| `PrecoFipe` | plataforma | T-422, ADR 0038: `tipo` enum `moto`, `carro`; `codigo_fipe` texto(10); `ano_codigo` texto(10); `referencia_codigo` texto(6) ("339"); `referencia_mes` data (dia 1); `valor_centavos` centavos; `modelo_nome` texto(120); `ano_nome` texto(30); `consultado_em`. Único `(tipo, codigo_fipe, ano_codigo, referencia_codigo)`. Dado público da FIPE, sem nada de empresa; só `plataforma.services` escreve. |
+| `AnosFipe` | plataforma | T-422: `tipo`; `chave` texto(30) (o código FIPE ou `marca_id/modelo_id`); `anos` json `[{code, name}]`; `consultado_em`. Único `(tipo, chave)`; renovado a cada 6 meses. |
+| `RodadaFipe` | plataforma | T-422: `referencia_codigo` texto(6) único; `referencia_mes` data; `aberta_em`, `concluida_em` nulo; `pedidos` int; `parada_ate` momento nulo (o 429); `ultimo_erro` texto(200), sem placa nem dado de empresa. |
 | `Chamado` | plataforma | `numero` (#1042), `empresa` FK, `assunto`, `status`, `responsavel` FK usuário. Fase 2. |
 | `Convite` | contas | ver item 7 (serve aos dois schemas). |
 
@@ -262,12 +266,55 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `referencia_fipe_centavos` | centavos, nulo | só exibição |
 | `entrou_na_frota_em` | data | base de `VEI-06` |
 | `km_ultima_manutencao`, `data_ultima_manutencao` | int, data, nulo | `MAN-05` |
+| `potencia_cv` | smallint, nulo, `CHECK 1..999` | `VEI-09` (T-421); 0 do documento fica nulo |
+| `cilindrada_cc` | smallint, nulo, `CHECK 1..9999` | `VEI-09` |
+| `especie` | enum `passageiro`, `carga`, `misto`, `competicao`, `tracao`, `especial`, `colecao`, nulo | `VEI-09` (CTB, art. 96) |
+| `tipo_documento` | texto(30), vazio | `VEI-09`, o "tipo" do CRLV-e ("Motocicleta"); o nome evita colidir com `tipo_veiculo` (moto ou carro, da categoria) |
+| `carroceria` | texto(30), vazio | `VEI-09`; "NÃO APLICAVEL" fica vazio |
+| `lotacao` | smallint, nulo, `CHECK 1..99` | `VEI-09`, pessoas com o motorista |
+| `peso_bruto_kg` | int, nulo, `CHECK > 0` | `VEI-09`; o documento traz toneladas |
+| `numero_motor` | texto(21), vazio | `VEI-09`; só administrador e gerente veem |
+| `observacoes_crlv` | texto(500), vazio | `VEI-09`; só administrador e gerente veem; alienação é só informação |
+| `rastreador_numero` | texto(20), vazio | `VEI-09`, fora do documento |
+| `rastreador_empresa` | texto(60), vazio | `VEI-09` |
+| `anotacoes` | texto(500), vazio | `VEI-09`, da locadora; a leitura nunca preenche nem apaga |
+| `fipe_codigo` | texto(10), vazio | T-422, ADR 0038: "811134-0" |
+| `fipe_ano_codigo` | texto(10), vazio | "2017-5", resolvido pelo ano do modelo e o combustível |
+| `fipe_marca_id`, `fipe_modelo_id` | int, nulo | ids da Parallelum, da linha do catálogo escolhida ou casada |
+| `fipe_versao` | texto(120), vazio | nome da versão na FIPE |
+| `fipe_situacao` | enum `sem_versao`, `escolher_versao`, `aguardando`, `ok`, `nao_encontrado`, padrão `sem_versao` | |
+| `fipe_versoes` | json, `[]` | até 5 candidatas `{marca_id, modelo_id, versao}` |
+| `referencia_fipe_mes` | data, nula | dia 1 do mês do preço |
+| `referencia_fipe_origem` | enum `fipe`, `manual`, nulo | dono do `referencia_fipe_centavos` |
 
 - Índices: `(filial, status)`, `categoria`.
+- Campos FIPE (T-422, ADR 0038): uma migração, todos opcionais; os veículos antigos nascem `sem_versao`. Só `veiculos.services` escreve (cadastro, editar, `POST .../fipe/` e `aplicar_referencias_fipe`). Índice parcial `(fipe_situacao)` com `fipe_situacao <> 'ok'` (filtro da Frota e pendências da rotina). `CHECK (fipe_codigo = '' OR fipe_codigo ~ '^[0-9]{6}-[0-9]$')`. `CAMPOS_AUDITORIA`: os campos FIPE entram como `inteiro`, menos os que a rotina grava (valor, mês, origem e situação vindos dela não geram evento).
+- Campos da `VEI-09` (T-421): todos opcionais, uma migração só, sem dado novo nos veículos antigos (texto vazio ou nulo); só o QXA-4B21 do seed os preenche. Nenhum entra em índice nem muda status. `CAMPOS_AUDITORIA`: `inteiro` para todos, inclusive `numero_motor` e `observacoes_crlv` (a auditoria da empresa é lida só por administrador, `AUD-01`).
 - Transições extras de T-031: `vendido` → `a_venda` (venda cancelada, `VEN-07`) e `vendido` → `indisponivel` (recompra numa troca: o serviço acha o veículo pelo chassi e reaproveita o cadastro, `VEI-07`).
 - Apoio `HistoricoStatusVeiculo`: `veiculo` FK, `de`, `para`, `em` momento, `origem` genérica, `por` FK nulo. Base de `VEI-06` (ocupação). Índice `(veiculo, em)`.
 - Apoio `LeituraKm`: `veiculo`, `km`, `lido_em`, `origem` genérica (vistoria, OS, correção), `motivo` (correção para baixo, `APR-06`).
 - Apoio `TransferenciaVeiculo`: `veiculo`, `filial_origem`, `filial_destino`, `em`, `por` (`VEI-04`), origem genérica nula (`movimentacao` na transferência pela chegada, `MOV-06`, T-286).
+
+### 9a. Foto do veículo · `veiculos.FotoVeiculo` · ativável
+
+T-414, `VEI-10`, ADR 0036. A galeria do veículo (fotos de cadastro, para a ficha e o catálogo). Não se mistura com `vistorias.FotoVistoria`.
+
+| Campo | Tipo | Observação |
+| --- | --- | --- |
+| `veiculo` | FK → `Veiculo`, `related_name="fotos"` | |
+| `arquivo` | arquivo, `max_length=200` | JPG ou PNG reprocessado sem metadados (`comum.arquivos.sem_metadados`); grave a linha antes do arquivo (o caminho leva o id) |
+| `formato` | enum `jpg`, `png` | do conteúdo, para a extensão do nome baixado |
+| `ordem` | smallint ≥ 1 | ordem de envio, sequencial por veículo (maior `ordem` entre ativas e inativas + 1); a troca herda a da antiga |
+| `capa` | bool, padrão `false` | uma por veículo entre as ativas |
+| `enviada_por` | FK → `Usuario`, nulo | nulo só em dado sem pessoa |
+| `enviada_em` | momento | `relogio.agora()` no envio |
+| `substituida_por` | FK → `FotoVeiculo`, nulo, `related_name="+"` | na foto antiga de uma troca |
+| `apagada_por` | FK → `Usuario`, nulo | quem apagou (o quando é o `atualizado_em`; o evento de auditoria guarda os dois) |
+
+- Restrições: único parcial `(veiculo)` com `ativo AND capa` (`foto_veiculo_uma_capa`); único parcial `(veiculo, ordem)` com `ativo` (`foto_veiculo_ordem_ativa`). O limite de 20 ativas é do serviço, com `select_for_update` no veículo.
+- Índice `(veiculo, ativo, ordem)`. Exibição: `ORDER BY capa DESC, ordem`.
+- `ativo = False` em dois casos: apagada (`apagada_por` preenchido) e substituída (`substituida_por` preenchido). O arquivo nunca sai (`ArmazenamentoPrivado.delete` recusa), salvo no apagamento da empresa pelo prefixo (`AUD-08`).
+- Só `veiculos.services` escreve (enviar, trocar, apagar, usar como capa). Outros apps leem por `veiculos.selectors.galeria(veiculo)` (catálogo, T-418).
 
 ### 10. Documento do veículo · `veiculos.DocumentoVeiculo` · ativável
 
@@ -325,6 +372,21 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 
 - `CHECK` de que só o campo da `regra` escolhida está preenchido.
 
+### 12a. Plano de compra · `locacoes.PlanoCompra` · ativável
+
+T-420, `LOC-16`, ADR 0037 (padrão A do ponto em aberto 1). Cadastro do administrador na tela `Precos`.
+
+| Campo | Tipo | Observação |
+| --- | --- | --- |
+| `nome` | texto(60), único | Compra Street 24 meses |
+| `categoria` | FK → `veiculos.Categoria` | uma só |
+| `periodicidade` | enum `semanal`, `mensal` | |
+| `parcelas` | smallint, `CHECK 2..260` | 24 |
+| `valor_parcela_centavos` | centavos, `CHECK > 0` | 119000 |
+| `condicoes` | texto, vazio | |
+
+- Mudar ou desativar não muda locação confirmada (campos congelados na `Locacao`, item 13).
+
 ### 13. Locação · `locacoes.Locacao` · código `LOC` · máquina
 
 | Campo | Tipo | Observação |
@@ -344,7 +406,11 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `forma_pagamento` | enum `pix`, `pix_automatico`, `cartao`, `boleto`, `dinheiro` | |
 | `parcelamento_mensal` | enum `a_vista`, `quatro_semanais`, nulo | `LOC-14` |
 | `status` | enum `rascunho`, `aguardando_retirada`, `ativa`, `devolucao_atrasada`, `encerrada`, `cancelada` | |
-| `vistoria_saida_ok_em`, `contrato_assinado_em`, `primeiro_pagamento_em` | momento, nulo | as 3 condições para `ativa`, em qualquer ordem |
+| `vistoria_saida_ok_em`, `contrato_assinado_em`, `primeiro_pagamento_em` | momento, nulo | as 3 condições para `ativa`, em qualquer ordem; depois da retirada à mão, a assinatura e o pagamento ainda se gravam e tiram a pendência (`LOC-17`) |
+| `retirada_em` | momento, nulo | quando a locação virou `ativa`, nas duas formas (`LOC-17`, T-451) |
+| `retirada_a_mao` | bool | retirada pelo "Registrar retirada", antes da assinatura ou do 1º pagamento |
+| `retirada_motivo` | texto(200) | o motivo informado na retirada à mão |
+| `aviso_assinatura_retirada_em` | momento, nulo | a tarefa aos gerentes do contrato não assinado 7 dias depois da retirada à mão, uma vez |
 | `vendedor` | FK → `contas.Usuario` | comissão `FIN-09` |
 | `renovacoes` | int | `LOC-08` |
 | `cancelada_em`, `motivo_cancelamento` | momento nulo, texto nulo | |
@@ -354,12 +420,21 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `multa_encerramento_centavos` | centavos, nulo | `LOC-12`, congelada na aprovação |
 | `credito_encerramento_centavos` | centavos±, nulo | `LOC-12`, `LOC-13`: crédito das semanas (ou diárias) não usadas, congelado na aprovação junto com a multa; no mensal em 4 semanais, menos as parcelas que o encerramento cancela, e pode ser negativo (saldo, ADR 0009; T-111) |
 | `atraso_anterior_dias`, `atraso_anterior_centavos` | int, centavos | `LOC-08`: o atraso até uma renovação feita depois do prazo, cobrado no acerto (T-111) |
+| `tipo` | enum `comum`, `intencao_compra`, padrão `comum` | `LOC-16` (T-420, ADR 0037); muda só no rascunho |
+| `plano_compra` | FK → `PlanoCompra`, nulo | só no `intencao_compra` |
+| `compra_parcelas` | smallint, nulo | congelado na confirmação (`LOC-15`); igual a `periodos` |
+| `compra_valor_parcela_centavos` | centavos, nulo | congelado na confirmação |
+| `quitada_em` | momento, nulo | a quitação (`LOC-16`); com ela, `status = encerrada` |
+| `encerrada_por_atraso` | bool, padrão `false` | `LOC-16`: encerramento pela locadora por atraso, sem `APR-02` |
 
 - **Uma locação ativa por veículo:** `UniqueConstraint(fields=["veiculo"], condition=Q(status__in=["aguardando_retirada", "ativa", "devolucao_atrasada"]), name="uma_locacao_aberta_por_veiculo")`. Violação vira `Conflito` com código `LOC-03`.
 - `CHECK (fim_previsto > inicio)`.
+- `CHECK` do tipo (`locacao_tipo_campos`): `tipo = 'comum'` com `plano_compra`, `compra_parcelas`, `compra_valor_parcela_centavos` e `quitada_em` nulos e `encerrada_por_atraso = false`; `tipo = 'intencao_compra'` com `plano_compra` preenchido e `desconto_pct = 0`, e, fora do `rascunho`, `compra_parcelas` e `compra_valor_parcela_centavos` preenchidos. `plano_especial`, extras e `parcelamento_mensal` são recusados no serviço. `quitada_em` só com `status = encerrada`.
+- Nenhum índice novo: a `AUT-02` tira o tipo `intencao_compra` na própria consulta, atendida pelo `(status, fim_previsto)`.
 - Índices: `(filial, status)`, `(status, fim_previsto)` para `AUT-01`/`AUT-02`, `(cliente, filial)` (o filtro de filial da lista de Clientes, `CLI-10`, T-249; também atende a busca só por `cliente`), `veiculo`.
 - Sinais `pagamento_atrasado`, `devolve_hoje`, `cancelamento_pendente` são calculados no selector (anotação), não guardados.
 - `rascunho` com mais de 24 h sem uso é cancelado pela tarefa diária (sem auditoria de negócio além do evento de cancelamento).
+- `aguardando_retirada` (T-410, ADR 0035): o veículo fica `reservado` desde a confirmação, com qualquer início. `ultimo_dia_retirada` (data local do `inicio` + 3) é calculado por `locacoes.selectors.ultimo_dia_retirada`, não guardado; passado esse dia, a `AUT-17` cancela a locação (`LOC-12`). O índice `(status, fim_previsto)` atende a seleção da tarefa pelo status; nenhum índice novo.
 - Apoio `TrechoLocacao` (`LOC-09`): `locacao`, `veiculo`, `inicio`, `fim` nulo, `valor_periodo_centavos`, `diaria_centavos`. Único `(locacao)` com `fim IS NULL`.
 - Apoio `ExtraLocacao`: `locacao`, `extra`, `quantidade`, `valor_centavos` congelado.
 - Apoio `TrocaVeiculo` (`LOC-09`; `docs/api/locacoes.md`): `locacao`, `veiculo_antigo`, `veiculo_novo`, `motivo`, `status` enum `pendente`, `concluida`, `cancelada` (máquina, `transicao_troca`), `pedida_por` FK nulo. Único `(locacao)` com `status = pendente`.
@@ -389,7 +464,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 - Concluída não se edita (o serviço recusa). Único: uma vistoria `concluida` vigente por `(locacao, veiculo, tipo)` que não tenha sido substituída.
 - Apoio `FotoVistoria`: `vistoria`, `posicao` enum `frente`, `traseira`, `lado_esquerdo`, `lado_direito`, `painel`, `avaria`, `arquivo`. Conclusão exige as 5 posições fixas (`VIS-01`).
 - Apoio `Avaria`: `vistoria`, `veiculo`, `descricao`, `preexistente` bool, `valor_centavos` nulo, `vai_para_oficina` bool (`DEV-04`), `foto` FK, `ordem_servico` FK nulo, `resolvida_em` momento nulo (fecha quando a OS ligada é concluída). Índice `(veiculo, resolvida_em)` para "avarias abertas".
-- Apoio `Devolucao` (`DEV-01`, `DEV-02`; `docs/api/vistorias.md`; um acerto só por locação, criado na primeira troca de veículo ou na devolução): `locacao` (1:1), `vistoria` FK nulo (chegada; nula só depois de uma troca cancelada com a chegada descartada, até o veículo voltar), `status` enum `rascunho`, `concluida`, `caucao_centavos`, `saldo_centavos` (centavos±), `forma_devolucao` enum `pix`, `dinheiro`, `estorno_cartao`, nulo (só a escolha da pessoa; a sugestão do encerramento antecipado é calculada, T-122), `concluida_em`. Filho `ItemAcerto`: `tipo` enum `combustivel`, `avaria`, `atraso`, `km_excedente`, `parcela_aberta`, `multa_transito`, `multa_encerramento`, `semanas_nao_usadas` (crédito, ou cobrança no mensal em 4 semanais quando as parcelas canceladas passam do crédito, `LOC-13`), `dias_nao_usados` (crédito, `LOC-12`), `diferenca_troca` (cobrança ou crédito, `LOC-09`), `natureza` enum `cobranca`, `credito`, `modo` enum `informado`, `calculado`, `valor_centavos`, `descricao`, `avaria` FK nulo, `conta_id` nulo (a parcela), `veiculo` FK nulo (o combustível de cada veículo na troca, T-092), `troca` FK → `locacoes.TrocaVeiculo` nulo (a `diferenca_troca`, T-122). Saldo = caução + créditos − cobranças. Exemplo LOC-2836: 3200 + 8500 = 11700; saldo 30000 − 11700 = 18300.
+- Apoio `Devolucao` (`DEV-01`, `DEV-02`; `docs/api/vistorias.md`; um acerto só por locação, criado na primeira troca de veículo ou na devolução): `locacao` (1:1), `vistoria` FK nulo (chegada; nula só depois de uma troca cancelada com a chegada descartada, até o veículo voltar), `status` enum `rascunho`, `concluida`, `caucao_centavos`, `saldo_centavos` (centavos±), `forma_devolucao` enum `pix`, `dinheiro`, `estorno_cartao`, nulo (só a escolha da pessoa; a sugestão do encerramento antecipado é calculada, T-122), `concluida_em`, `recibo` (arquivo, nulo), `recibo_enviado_em` (momento, nulo), `token_recibo_hash` (texto(64), único, nulo; link do recibo copiado, T-411, S-15), `token_recibo_expira_em` (momento, nulo; 7 dias, anulado com o titular anonimizado). `CAMPOS_AUDITORIA` omite `token_recibo_hash`. Filho `ItemAcerto`: `tipo` enum `combustivel`, `avaria`, `atraso`, `km_excedente`, `parcela_aberta`, `multa_transito`, `multa_encerramento`, `semanas_nao_usadas` (crédito, ou cobrança no mensal em 4 semanais quando as parcelas canceladas passam do crédito, `LOC-13`), `dias_nao_usados` (crédito, `LOC-12`), `diferenca_troca` (cobrança ou crédito, `LOC-09`), `natureza` enum `cobranca`, `credito`, `modo` enum `informado`, `calculado`, `valor_centavos`, `descricao`, `avaria` FK nulo, `conta_id` nulo (a parcela), `veiculo` FK nulo (o combustível de cada veículo na troca, T-092), `troca` FK → `locacoes.TrocaVeiculo` nulo (a `diferenca_troca`, T-122). Saldo = caução + créditos − cobranças. Exemplo LOC-2836: 3200 + 8500 = 11700; saldo 30000 − 11700 = 18300.
 
 ### 15. Contrato · `contratos.Contrato` · máquina
 
@@ -401,16 +476,20 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `tipo` | enum `contrato`, `aditivo` | aditivo da renovação (`LOC-08`) |
 | `pdf` | arquivo, nulo | WeasyPrint, com a marca da locadora |
 | `hash_pdf` | texto(64) | SHA-256 do PDF assinado |
-| `status` | enum `gerado`, `enviado`, `assinado`, `cancelado` | fluxo da retirada, passo 3 |
+| `status` | enum `gerado`, `enviado`, `assinado`, `cancelado` | fluxo da retirada, passo 3; transições abaixo |
 | `assinado_em` | momento, nulo | |
 | `assinado_ip` | IP, nulo | |
 | `assinatura_aparelho` | texto, nulo | |
 | `token_assinatura_hash` | texto(64), único, nulo | link enviado ao cliente final (S-15) |
 | `token_assinatura_expira_em` | momento, nulo | 7 dias; uso único: anulado ao assinar ou reenviar (S-15) |
+| `token_assinatura_canal` | enum `whatsapp_email`, `copiado`, nulo | como o token vivo chegou ao cliente (T-411, `LOC-15`); não é anulado ao assinar, vai para a prova |
+| `token_assinatura_gerado_por` | FK → usuário, nulo | quem copiou o link (`copiado`) |
+| `token_assinatura_gerado_ip` | IP, nulo | IP de quem copiou, para marcar `mesmo_ip_de_quem_copiou` na assinatura; `CAMPOS_AUDITORIA` omite |
 | `versao_texto_html` | texto | HTML final com os marcadores trocados, guardado para auditoria |
 | `clausula_juros` | bool | `FIN-03`: verdadeiro quando o modelo usa `{{cobranca.multa_atraso_pct}}` e `{{cobranca.juros_mes_pct}}` |
 
 - Índice origem genérica; `status`.
+- Transições (`TRANSICOES`, T-411): `gerado` → `enviado`, `assinado` ou `cancelado`; `enviado` → `assinado` ou `cancelado`; `assinado` e `cancelado` são finais. `gerado` → `assinado` é a assinatura por um link copiado, com o PDF pronto e nada enviado, porque copiar não muda o status. O link só abre no `enviado` ou no `gerado` com `pdf`. "Reenviar" leva o `gerado` a `enviado` e invalida o link copiado (o banco guarda um hash só). Detalhes em `docs/api/contratos.md`, "Estados e transições do contrato".
 
 ### 16. Modelo de contrato · `contratos.ModeloContrato`
 
@@ -435,7 +514,7 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | --- | --- | --- |
 | `filial` | FK → `Filial` | |
 | `cliente` | FK → `Cliente` | |
-| `veiculo` | FK → `Veiculo` | só `a_venda` |
+| `veiculo` | FK → `Veiculo` | só `a_venda`; na quitação (`VEN-11`), o `alugado` da locação |
 | `vendedor` | FK → `contas.Usuario` | |
 | `preco_tabela_centavos` | centavos | `VEN-01` |
 | `desconto_pct` | pct | |
@@ -450,7 +529,13 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `cancelada_em`, `motivo_cancelamento`, `cancelada_por` | momento, texto, FK; nulos | `VEN-07` |
 | `motivo_perda` | texto, nulo | ex.: "veículo vendido" (`VEN-10`) |
 | `proposta_enviada_em`, `vendida_em` | momento, nulo | `perdida` com 7 dias sem resposta |
+| `origem` | enum `balcao`, `quitacao_locacao`, padrão `balcao` | `VEN-11` (T-420, ADR 0037) |
+| `locacao` | FK → `locacoes.Locacao`, nulo, único | só na quitação |
+| `descricao` | texto(120), vazio | "Quitação da LOC-x" |
+| `transferencia_feita_em` | data, nula | tarefa da transferência no Detran (`LOC-16`) |
+| `transferencia_registrada_por` | FK → `contas.Usuario`, nulo | |
 
+- **T-420 (ADR 0037):** a tabela nasce inteira agora, com o `numero`/`codigo` `VEN` (`ModeloComCodigo`). Para caber a venda da quitação, `forma`, `preco_tabela_centavos`, `desconto_pct`, `entrada_centavos`, `num_parcelas` e `juros_pct` ficam nulos ou com padrão 0; `CHECK (origem <> 'quitacao_locacao' OR (locacao_id IS NOT NULL AND preco_final_centavos = 0 AND status = 'vendida'))` e `CHECK (origem <> 'balcao' OR locacao_id IS NULL)`. Índice parcial `(filial)` com `origem = 'quitacao_locacao' AND transferencia_feita_em IS NULL` (pendências do painel). Funil, meta e comissão filtram `origem = 'balcao'`.
 - **Uma venda aberta por veículo (`VEN-10`):** `UniqueConstraint(fields=["veiculo"], condition=Q(status__in=["proposta", "negociacao", "aguardando_aprovacao"]), name="uma_venda_aberta_por_veiculo")`. Vários `interessado` podem existir para o mesmo veículo; quando ele vira `vendido`, o serviço passa os outros `interessado` dele para `perdida` com `motivo_perda` "veículo vendido".
 - `VEN-07`: o cancelamento cancela as parcelas em aberto, estorna as pagas, estorna a comissão e devolve o veículo para `a_venda`, tudo na mesma transação.
 - Apoio `MetaVenda`: `vendedor`, `mes` (data dia 1), `valor_centavos`; único `(vendedor, mes)` (`VEN-09`). Fase 2.
@@ -476,8 +561,10 @@ O mesmo model do item 7 (ADR 0008). No `public`: `funcao_plataforma` enum `dono`
 | `nasceu_de` | FK → `Renegociacao`, nulo, PROTECT (`novas`) | na conta nova que a substitui (T-114) |
 | `estorno_de` | FK → `ContaReceber`, nulo | conta reaberta por estorno aponta para a original |
 | `estornada_em` | momento, nulo | na original estornada (continua `paga`) |
+| `aguarda_retirada` | bool, padrão `false` | T-410, ADR 0035: conta da locação `aguardando_retirada`; nunca fica `vence_hoje` nem `atrasada`, e multa e juros são 0 (`LOC-05`, `FIN-03`). Ligado e desligado só por `locacoes`, pelos serviços do `financeiro` |
+| `liberada_em` | data, nula | T-410: dia local da retirada; o atraso conta do dia seguinte ao mais tarde entre o vencimento, o dia em que a conta nasceu e este dia (`FIN-03`) |
 
-- **Nota sobre status:** `vence_hoje` e `atrasada` dependem só da data. Para não precisar de uma tarefa que reescreve status à meia-noite, o banco guarda `aberta` e o selector devolve `vence_hoje` (`vencimento = hoje`) ou `atrasada` (`vencimento < hoje`) no campo `status` da API. Os seis valores de `FIN-01` aparecem iguais para quem consome a API. Filtros usam a mesma expressão.
+- **Nota sobre status:** `vence_hoje` e `atrasada` dependem só da data. Para não precisar de uma tarefa que reescreve status à meia-noite, o banco guarda `aberta` e o selector devolve `vence_hoje` (`vencimento = hoje`) ou `atrasada` (`vencimento < hoje`) no campo `status` da API. Os seis valores de `FIN-01` aparecem iguais para quem consome a API. Filtros usam a mesma expressão. Desde a T-410, a expressão também exige `aguarda_retirada = false` e mora em `financeiro.selectors.q_vence_hoje` e `q_atrasada`, as únicas (ADR 0035).
 - Paga não se edita: correção é estorno (`estorno_de`, `docs/api/financeiro.md`).
 - Apoio `CobrancaExterna`: `conta_receber` FK, `tipo` enum `pix`, `boleto`, `cartao_link`, `recorrente`, `externo_id` texto(60) **único**, `valor_centavos` (valor esperado do dia, comparado na baixa, S-14), `vence_em` data, `pix_copia_e_cola`, `linha_digitavel`, `url`, `caixa` FK nulo (gerada no caixa), `status` enum `aguardando`, `paga`, `cancelada`, `vencida`, `divergente`. Uma `aguardando` por conta.
 - Apoio `AutorizacaoRecorrente` (`AUT-04`): `locacao` (origem genérica), `tipo` enum `pix_automatico`, `cartao`, `externo_id` único, `status` enum `pendente`, `ativa`, `cancelada`.
@@ -659,6 +746,8 @@ Campos, índices e imutabilidade na ADR 0010. Existe nos dois schemas. Apoio `Ex
 | CPF/CNPJ único por empresa | `Cliente.documento_hash` único no schema | `CLI-01` |
 | Uma locação aberta por veículo | índice único parcial em `Locacao.veiculo` | regras, "Entidades" |
 | Uma venda aberta por veículo | índice único parcial em `Venda.veiculo` | `VEN-10` |
+| Uma venda por locação quitada | `Venda.locacao` único | `VEN-11` |
+| Campos do tipo da locação coerentes | `CHECK locacao_tipo_campos` | `LOC-16` |
 | Uma movimentação aberta por veículo | índice único parcial em `Movimentacao.veiculo` | `MOV-03` |
 | Local de apoio com nome único na empresa | `LocalApoio.nome_busca` único | `MOV-01` |
 | Um caixa por filial por dia | único `(filial, data)` | `FIN-07` |

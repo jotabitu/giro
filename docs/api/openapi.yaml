@@ -2035,10 +2035,34 @@ paths:
               schema:
                 $ref: '#/components/schemas/Recibo'
           description: ''
+  /api/devolucoes/{id}/recibo/link/:
+    post:
+      operationId: devolucoes_recibo_link_create
+      description: |-
+        Copiar link do recibo (T-411, `vistorias.md`). Ordem da T-252: permissão e 403 `PLT-07`
+        (na autenticação), depois o limite, depois o serviço. O link sai só nesta resposta.
+      summary: Copiar link do recibo (DEV-02)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - devolucoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkDoRecibo'
+          description: ''
   /api/devolucoes/{id}/recibo/reenviar/:
     post:
       operationId: devolucoes_recibo_reenviar_create
-      summary: Reenviar o recibo por WhatsApp
+      summary: Reenviar o recibo por e-mail, com o PDF anexo
       parameters:
       - in: path
         name: id
@@ -2937,7 +2961,7 @@ paths:
   /api/financeiro/contas-receber/{id}/cobrar/:
     post:
       operationId: financeiro_contas_receber_cobrar_create
-      summary: Cobrar pelo WhatsApp, com o Pix do valor de hoje (AUT-03)
+      summary: Cobrar por e-mail, com o Pix do valor de hoje (AUT-03)
       parameters:
       - in: path
         name: id
@@ -3024,7 +3048,7 @@ paths:
   /api/financeiro/contas-receber/cobrar-em-lote/:
     post:
       operationId: financeiro_contas_receber_cobrar_em_lote_create
-      summary: Cobrar todos pelo WhatsApp (até 100, uma vez por conta por dia)
+      summary: Cobrar todos por e-mail (até 100, uma vez por conta por dia)
       tags:
       - financeiro
       requestBody:
@@ -3090,12 +3114,17 @@ paths:
         schema:
           type: string
           enum:
+          - combustivel
           - fixas
           - impostos
+          - ipva
           - manutencao
+          - multa_transito
           - outros
+          - pecas
           - pessoal
           - rastreamento
+          - seguro
       - in: query
         name: mes
         schema:
@@ -3219,6 +3248,68 @@ paths:
       - jwtAuth: []
       responses:
         '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Despesa'
+          description: ''
+  /api/financeiro/despesas/veiculo/{veiculo_id}/:
+    get:
+      operationId: financeiro_despesas_veiculo_retrieve
+      description: |-
+        FIN-17: a seção "Despesas do veículo" da ficha. A lista é de quem vê o custo do veículo
+        (VEI-05, USR-09); o lançamento, de quem lança despesa, com o veículo travado e a filial do
+        veículo, que pode não ser a do `X-Filial`.
+      summary: Despesas do veículo no ano, de qualquer filial, com o total (FIN-17,
+        VEI-05)
+      parameters:
+      - in: query
+        name: ano
+        schema:
+          type: integer
+        description: 2026; sem ele, o ano de hoje
+      - in: path
+        name: veiculo_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DespesasDoVeiculo'
+          description: ''
+    post:
+      operationId: financeiro_despesas_veiculo_create
+      description: |-
+        FIN-17: a seção "Despesas do veículo" da ficha. A lista é de quem vê o custo do veículo
+        (VEI-05, USR-09); o lançamento, de quem lança despesa, com o veículo travado e a filial do
+        veículo, que pode não ser a do `X-Filial`.
+      summary: 'Lançar despesa pela ficha: o veículo da rota e a filial dele (FIN-17,
+        FIN-05)'
+      parameters:
+      - in: path
+        name: veiculo_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - financeiro
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DespesaEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
           content:
             application/json:
               schema:
@@ -3450,6 +3541,39 @@ paths:
               schema:
                 $ref: '#/components/schemas/Importacao'
           description: ''
+  /api/importacoes/{id}/categorias/:
+    post:
+      operationId: importacoes_categorias_create
+      summary: Categoria de cada modelo (IMP-08)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - importacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EscolhaDeCategorias'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EscolhaDeCategorias'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EscolhaDeCategorias'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Importacao'
+          description: ''
   /api/importacoes/{id}/importar/:
     post:
       operationId: importacoes_importar_create
@@ -3588,6 +3712,26 @@ paths:
               schema:
                 type: string
                 format: binary
+          description: ''
+  /api/importacoes/preparo/:
+    get:
+      operationId: importacoes_preparo_retrieve
+      summary: 'Antes de enviar veículos: a filial e se dá para importar (IMP-08)'
+      parameters:
+      - in: query
+        name: filial_id
+        schema:
+          type: integer
+      tags:
+      - importacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preparo'
           description: ''
   /api/locacoes/:
     get:
@@ -3849,6 +3993,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/ContratoGerado'
           description: ''
+  /api/locacoes/{id}/contrato/link/:
+    post:
+      operationId: locacoes_contrato_link_create
+      description: |-
+        Copiar link para assinar (T-411, `locacoes.md`). Ordem da T-252: permissão e 403 `PLT-07`
+        (na autenticação), depois o limite, depois o serviço. O link sai só nesta resposta, sem
+        cache, e não vai para log.
+      summary: Copiar link para assinar (S-15, LOC-15)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkDoContrato'
+          description: ''
   /api/locacoes/{id}/contrato/pdf/:
     get:
       operationId: locacoes_contrato_pdf_retrieve
@@ -4003,6 +4172,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SimulacaoRenovacao'
+          description: ''
+  /api/locacoes/{id}/retirada/:
+    post:
+      operationId: locacoes_retirada_create
+      description: |-
+        "Registrar retirada" (LOC-17, decisão do dono de 11 nov 2026): administrador e gerente da
+        filial da locação (fora do escopo, 404). 409 `vistoria_saida_pendente` sem a vistoria de
+        saída; 409 `transicao_locacao` fora de `aguardando_retirada`; 400 sem motivo.
+      summary: Registrar retirada à mão (LOC-17)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrarRetiradaEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RegistrarRetiradaEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegistrarRetiradaEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocacaoDetalhe'
           description: ''
   /api/locacoes/{id}/trocar-veiculo/:
     post:
@@ -5317,6 +5523,226 @@ paths:
               schema:
                 $ref: '#/components/schemas/ConsultaDaAssinatura'
           description: ''
+  /api/publico/compra/cnpj/:
+    post:
+      operationId: compra_cnpj
+      description: 'Base: sem login, sem sessão, sem cache; 429 no formato da compra
+        (`compra.md`).'
+      summary: Checagem do CNPJ (PLT-16) e dados públicos da Receita (ADR 0039)
+      tags:
+      - publico
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CnpjEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CnpjEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CnpjEntrada'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SituacaoDoCnpj'
+          description: ''
+  /api/publico/compra/pedidos/:
+    post:
+      operationId: compra_pedido_criar
+      description: 'Base: sem login, sem sessão, sem cache; 429 no formato da compra
+        (`compra.md`).'
+      summary: 'Criar minha conta: grava o pedido e manda o código (D-430-01)'
+      tags:
+      - publico
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PedidoEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PedidoEntrada'
+        required: true
+      security:
+      - {}
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PedidoCriado'
+          description: ''
+  /api/publico/compra/pedidos/{chave}/:
+    get:
+      operationId: compra_pedido_andamento
+      description: 'Base: sem login, sem sessão, sem cache; 429 no formato da compra
+        (`compra.md`).'
+      summary: Andamento da criação para a Compra-Pronto
+      parameters:
+      - in: path
+        name: chave
+        schema:
+          type: string
+        required: true
+      tags:
+      - publico
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AndamentoDoPedido'
+          description: ''
+  /api/publico/compra/pedidos/{chave}/confirmar/:
+    post:
+      operationId: compra_pedido_confirmar
+      description: 'Base: sem login, sem sessão, sem cache; 429 no formato da compra
+        (`compra.md`).'
+      summary: Confirma o código e cria a empresa
+      parameters:
+      - in: path
+        name: chave
+        schema:
+          type: string
+        required: true
+      tags:
+      - publico
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodigoEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CodigoEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CodigoEntrada'
+        required: true
+      security:
+      - {}
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AndamentoDoPedido'
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AndamentoDoPedido'
+          description: ''
+  /api/publico/compra/pedidos/{chave}/reenviar-codigo/:
+    post:
+      operationId: compra_pedido_reenviar_codigo
+      description: 'Base: sem login, sem sessão, sem cache; 429 no formato da compra
+        (`compra.md`).'
+      summary: Código novo (até 3, 60 s entre eles)
+      parameters:
+      - in: path
+        name: chave
+        schema:
+          type: string
+        required: true
+      tags:
+      - publico
+      security:
+      - {}
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodigoReenviado'
+          description: ''
+  /api/publico/compra/planos/:
+    get:
+      operationId: compra_planos
+      description: 'Base: sem login, sem sessão, sem cache; 429 no formato da compra
+        (`compra.md`).'
+      summary: Planos à venda e as datas do teste (PLT-11, PLT-01)
+      tags:
+      - publico
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogoDaCompra'
+          description: ''
+  /api/publico/compra/subdominio/:
+    post:
+      operationId: compra_subdominio
+      description: 'Base: sem login, sem sessão, sem cache; 429 no formato da compra
+        (`compra.md`).'
+      summary: 'Endereço de acesso: disponível ou sugestão (D-430-02)'
+      tags:
+      - publico
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubdominioEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SubdominioEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SubdominioEntrada'
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subdominio'
+          description: ''
+  /api/publico/recibos/consultar/:
+    post:
+      operationId: publico_recibos_consultar_create
+      description: |-
+        Página pública `/recibo` (T-411): sem login, no host da empresa, com limites próprios por
+        IP e por token (B-03). Ler o recibo não é operação: vale também com a empresa suspensa.
+      summary: Ler o recibo do link (DEV-02, S-15)
+      tags:
+      - publico
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenDoRecibo'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenDoRecibo'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenDoRecibo'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsultaDoRecibo'
+          description: ''
   /api/ramo/:
     get:
       operationId: ramo_retrieve
@@ -5921,7 +6347,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Veiculo'
+                $ref: '#/components/schemas/VeiculoComDadosDoDocumento'
           description: ''
   /api/veiculos/{id}/:
     get:
@@ -5946,7 +6372,7 @@ paths:
           description: ''
     patch:
       operationId: veiculos_partial_update
-      summary: Editar veículo
+      summary: Editar veículo (VEI-09), com o comprovante da leitura no editar (VEI-08)
       parameters:
       - in: path
         name: id
@@ -5973,7 +6399,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Veiculo'
+                $ref: '#/components/schemas/VeiculoComDadosDoDocumento'
           description: ''
   /api/veiculos/{id}/baixar/:
     post:
@@ -6253,6 +6679,149 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListaDeDocumentos'
           description: ''
+  /api/veiculos/{id}/fotos/:
+    get:
+      operationId: veiculos_fotos_list
+      description: |-
+        Ver a galeria é de todos no escopo de filiais; enviar, de administrador e gerente. O
+        suporte em "ver e editar" só vê; em "só ver", 403 `PLT-07` até no GET, porque a resposta
+        traz links assinados das fotos (ADR 0013, item 2).
+      summary: Galeria do veículo, com links de 15 minutos (VEI-10, AUD-05)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GaleriaDoEditar'
+          description: ''
+    post:
+      operationId: veiculos_fotos_create
+      description: |-
+        Ver a galeria é de todos no escopo de filiais; enviar, de administrador e gerente. O
+        suporte em "ver e editar" só vê; em "só ver", 403 `PLT-07` até no GET, porque a resposta
+        traz links assinados das fotos (ADR 0013, item 2).
+      summary: Enviar uma foto para a galeria (VEI-10)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FotoDaGaleriaEntrada'
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GaleriaAlterada'
+          description: ''
+  /api/veiculos/{id}/fotos/{foto_id}/apagar/:
+    post:
+      operationId: veiculos_fotos_apagar_create
+      description: 'Trocar, usar como capa e apagar: administrador e gerente; o suporte
+        nunca (PLT-07).'
+      summary: Apagar a foto da galeria; o arquivo fica guardado (VEI-10)
+      parameters:
+      - in: path
+        name: foto_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GaleriaDoEditar'
+          description: ''
+  /api/veiculos/{id}/fotos/{foto_id}/capa/:
+    post:
+      operationId: veiculos_fotos_capa_create
+      description: 'Trocar, usar como capa e apagar: administrador e gerente; o suporte
+        nunca (PLT-07).'
+      summary: Usar a foto como capa da galeria (VEI-10)
+      parameters:
+      - in: path
+        name: foto_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GaleriaDoEditar'
+          description: ''
+  /api/veiculos/{id}/fotos/{foto_id}/trocar/:
+    post:
+      operationId: veiculos_fotos_trocar_create
+      description: 'Trocar, usar como capa e apagar: administrador e gerente; o suporte
+        nunca (PLT-07).'
+      summary: Trocar uma foto da galeria, na mesma posição (VEI-10)
+      parameters:
+      - in: path
+        name: foto_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/FotoDaGaleriaEntrada'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GaleriaAlterada'
+          description: ''
   /api/veiculos/{id}/km/:
     post:
       operationId: veiculos_km_create
@@ -6285,6 +6854,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Veiculo'
+          description: ''
+  /api/veiculos/{id}/leitura-crlv/:
+    post:
+      operationId: veiculos_leitura_crlv_do_veiculo_create
+      description: |-
+        Ler o CRLV-e no editar (T-421, padrão A do ponto em aberto): a mesma leitura, perfis e
+        limites do cadastro, no veículo das filiais da pessoa (404 fora delas). Confere a placa e o
+        chassi (422 `crlv_outro_veiculo`) e não grava nada, nem substitui o documento CRLV.
+      summary: Ler o CRLV-e em PDF no editar do veículo, sem gravar (VEI-08, VEI-09)
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - veiculos
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LeituraCrlvEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeituraCrlvNoEditar'
           description: ''
   /api/veiculos/{id}/voltar-para-frota/:
     post:
@@ -6666,6 +7266,36 @@ components:
       required:
       - destino
       - rotulo
+    AcaoDaRetirada:
+      type: object
+      properties:
+        codigo:
+          allOf:
+          - $ref: '#/components/schemas/AcaoDaRetiradaCodigoEnum'
+          description: |-
+            a mesma chave de `acoes`, que a tela já sabe executar
+
+            * `continuar_vistoria` - continuar_vistoria
+            * `gerar_contrato` - gerar_contrato
+            * `reenviar_contrato` - reenviar_contrato
+            * `copiar_link_contrato` - copiar_link_contrato
+        rotulo:
+          type: string
+      required:
+      - codigo
+      - rotulo
+    AcaoDaRetiradaCodigoEnum:
+      enum:
+      - continuar_vistoria
+      - gerar_contrato
+      - reenviar_contrato
+      - copiar_link_contrato
+      type: string
+      description: |-
+        * `continuar_vistoria` - continuar_vistoria
+        * `gerar_contrato` - gerar_contrato
+        * `reenviar_contrato` - reenviar_contrato
+        * `copiar_link_contrato` - copiar_link_contrato
     AcaoDoPasso:
       type: object
       properties:
@@ -6698,7 +7328,7 @@ components:
       type: object
       properties:
         codigo:
-          $ref: '#/components/schemas/CodigoEnum'
+          $ref: '#/components/schemas/AcaoPrincipalClienteCodigoEnum'
         rotulo:
           type: string
         alvo:
@@ -6709,6 +7339,20 @@ components:
       - alvo
       - codigo
       - rotulo
+    AcaoPrincipalClienteCodigoEnum:
+      enum:
+      - cobrar
+      - completar_cadastro
+      - ver_proposta
+      - ver_locacao
+      - nova_locacao
+      type: string
+      description: |-
+        * `cobrar` - cobrar
+        * `completar_cadastro` - completar_cadastro
+        * `ver_proposta` - ver_proposta
+        * `ver_locacao` - ver_locacao
+        * `nova_locacao` - nova_locacao
     Access:
       type: object
       properties:
@@ -6800,6 +7444,16 @@ components:
       - status
       - total_cobrancas_centavos
       - total_creditos_centavos
+    Acessar:
+      type: object
+      properties:
+        url:
+          type: string
+        uma_vez:
+          type: boolean
+      required:
+      - uma_vez
+      - url
     AcessoAberto:
       type: object
       properties:
@@ -6910,6 +7564,10 @@ components:
     AcoesDaConta:
       type: object
       properties:
+        copiar_cobranca:
+          type: boolean
+          description: 'T-411: Copiar Pix e Copiar boleto da cobrança do dia; nunca
+            o suporte'
         receber:
           type: boolean
         gerar_pix:
@@ -6927,11 +7585,21 @@ components:
       required:
       - cancelar
       - cobrar
+      - copiar_cobranca
       - estornar
       - gerar_boleto
       - gerar_pix
       - receber
       - renegociar
+    AcoesDaDevolucao:
+      type: object
+      properties:
+        copiar_link_recibo:
+          type: boolean
+          description: 'T-411: o POST .../recibo/link/ passaria pelo perfil e pelo
+            estado'
+      required:
+      - copiar_link_recibo
     AcoesDaFatura:
       type: object
       properties:
@@ -6945,6 +7613,58 @@ components:
       - nota_fiscal
       - pagar
       - recibo
+    AcoesDaFicha:
+      type: object
+      properties:
+        editar:
+          type: boolean
+        colocar_a_venda:
+          type: boolean
+        voltar_para_frota:
+          type: boolean
+        bloquear:
+          type: boolean
+        desbloquear:
+          type: boolean
+        transferir:
+          type: boolean
+        baixar:
+          type: boolean
+        registrar_km:
+          type: boolean
+        corrigir_km:
+          type: boolean
+        movimentar:
+          type: boolean
+        motivo_movimentar:
+          type: string
+          nullable: true
+        aviso_baixar:
+          type: string
+          nullable: true
+        lancar_despesa:
+          type: boolean
+        motivo_trocar_tipo:
+          type: string
+          nullable: true
+        editar_fotos:
+          type: boolean
+      required:
+      - aviso_baixar
+      - baixar
+      - bloquear
+      - colocar_a_venda
+      - corrigir_km
+      - desbloquear
+      - editar
+      - editar_fotos
+      - lancar_despesa
+      - motivo_movimentar
+      - motivo_trocar_tipo
+      - movimentar
+      - registrar_km
+      - transferir
+      - voltar_para_frota
     AcoesDaMovimentacao:
       type: object
       properties:
@@ -6967,6 +7687,15 @@ components:
       - iniciar
       - registrar_chegada
       - sair_parada
+    AcoesDaParcela:
+      type: object
+      properties:
+        receber:
+          type: boolean
+          description: '"Registrar pagamento": a conta aberta e o perfil recebe no
+            caixa (FIN-18)'
+      required:
+      - receber
     AcoesDaPendencia:
       type: object
       properties:
@@ -7047,6 +7776,11 @@ components:
         aviso_baixar:
           type: string
           nullable: true
+        lancar_despesa:
+          type: boolean
+        motivo_trocar_tipo:
+          type: string
+          nullable: true
       required:
       - aviso_baixar
       - baixar
@@ -7055,7 +7789,9 @@ components:
       - corrigir_km
       - desbloquear
       - editar
+      - lancar_despesa
       - motivo_movimentar
+      - motivo_trocar_tipo
       - movimentar
       - registrar_km
       - transferir
@@ -7091,23 +7827,57 @@ components:
           type: boolean
         reenviar_contrato:
           type: boolean
+        copiar_link_contrato:
+          type: boolean
+          description: 'T-411: o POST .../contrato/link/ passaria pelo perfil e pelo
+            estado'
         continuar_vistoria:
           type: boolean
         receber:
           type: boolean
+        registrar_retirada:
+          type: boolean
+          description: 'LOC-17: administrador e gerente, locação aguardando retirada'
       required:
       - cancelar
       - cancelar_troca
       - confirmar
       - continuar_vistoria
+      - copiar_link_contrato
       - editar
       - gerar_contrato
       - imprimir_contrato
       - receber
       - reenviar_contrato
       - registrar_devolucao
+      - registrar_retirada
       - renovar
       - trocar_veiculo
+    AdministradorDaCompra:
+      type: object
+      properties:
+        nome:
+          type: string
+        email:
+          type: string
+        celular:
+          type: string
+        aceita_whatsapp:
+          type: boolean
+      required:
+      - celular
+      - email
+      - nome
+    AdministradorDoPedido:
+      type: object
+      properties:
+        nome:
+          type: string
+        email:
+          type: string
+      required:
+      - email
+      - nome
     Agenda:
       type: object
       properties:
@@ -7242,6 +8012,41 @@ components:
       - passos
       - proximo
       - total
+    AndamentoDoPedido:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/AndamentoDoPedidoStatusEnum'
+        mensagem:
+          type: string
+        administrador:
+          $ref: '#/components/schemas/AdministradorDoPedido'
+        empresa:
+          $ref: '#/components/schemas/EmpresaDoPedido'
+        passos:
+          type: array
+          items:
+            $ref: '#/components/schemas/PassoDaCriacao'
+        acessar:
+          allOf:
+          - $ref: '#/components/schemas/Acessar'
+          nullable: true
+      required:
+      - status
+    AndamentoDoPedidoStatusEnum:
+      enum:
+      - aguardando_confirmacao
+      - confirmado
+      - criando
+      - pronto
+      - falhou
+      type: string
+      description: |-
+        * `aguardando_confirmacao` - aguardando_confirmacao
+        * `confirmado` - confirmado
+        * `criando` - criando
+        * `pronto` - pronto
+        * `falhou` - falhou
     AnexarNota:
       type: object
       properties:
@@ -7723,13 +8528,10 @@ components:
       - status
     CamposDoCrlv:
       type: object
+      description: |-
+        Os campos lidos no cadastro: os 9 da VEI-08 e, com a chave pontuada
+        (`documento.potencia_cv`), os 9 do documento da VEI-09 (T-421).
       properties:
-        placa:
-          type: string
-          nullable: true
-        chassi:
-          type: string
-          nullable: true
         renavam:
           type: string
           nullable: true
@@ -7753,15 +8555,134 @@ components:
           oneOf:
           - $ref: '#/components/schemas/CombustivelVeiculoEnum'
           - $ref: '#/components/schemas/NullEnum'
+        placa:
+          type: string
+          nullable: true
+        chassi:
+          type: string
+          nullable: true
+        documento.potencia_cv:
+          type: integer
+          nullable: true
+        documento.cilindrada_cc:
+          type: integer
+          nullable: true
+        documento.especie:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/EspecieVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        documento.tipo:
+          type: string
+          nullable: true
+        documento.carroceria:
+          type: string
+          nullable: true
+        documento.lotacao:
+          type: integer
+          nullable: true
+        documento.peso_bruto_kg:
+          type: integer
+          nullable: true
+        documento.numero_motor:
+          type: string
+          nullable: true
+        documento.observacoes:
+          type: string
+          nullable: true
       required:
       - ano_fabricacao
       - ano_modelo
       - chassi
       - combustivel
       - cor
+      - documento.carroceria
+      - documento.cilindrada_cc
+      - documento.especie
+      - documento.lotacao
+      - documento.numero_motor
+      - documento.observacoes
+      - documento.peso_bruto_kg
+      - documento.potencia_cv
+      - documento.tipo
       - marca
       - modelo
       - placa
+      - renavam
+    CamposDoCrlvNoEditar:
+      type: object
+      description: |-
+        Os campos lidos no editar (T-421): sem placa e chassi, que no editar não mudam. Os da
+        VEI-09 têm a chave pontuada (`documento.potencia_cv`), no formato do corpo do cadastro.
+      properties:
+        renavam:
+          type: string
+          nullable: true
+        marca:
+          type: string
+          nullable: true
+        modelo:
+          type: string
+          nullable: true
+        ano_fabricacao:
+          type: integer
+          nullable: true
+        ano_modelo:
+          type: integer
+          nullable: true
+        cor:
+          type: string
+          nullable: true
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        documento.potencia_cv:
+          type: integer
+          nullable: true
+        documento.cilindrada_cc:
+          type: integer
+          nullable: true
+        documento.especie:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/EspecieVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        documento.tipo:
+          type: string
+          nullable: true
+        documento.carroceria:
+          type: string
+          nullable: true
+        documento.lotacao:
+          type: integer
+          nullable: true
+        documento.peso_bruto_kg:
+          type: integer
+          nullable: true
+        documento.numero_motor:
+          type: string
+          nullable: true
+        documento.observacoes:
+          type: string
+          nullable: true
+      required:
+      - ano_fabricacao
+      - ano_modelo
+      - combustivel
+      - cor
+      - documento.carroceria
+      - documento.cilindrada_cc
+      - documento.especie
+      - documento.lotacao
+      - documento.numero_motor
+      - documento.observacoes
+      - documento.peso_bruto_kg
+      - documento.potencia_cv
+      - documento.tipo
+      - marca
+      - modelo
       - renavam
     CancelamentoLocacao:
       type: object
@@ -7773,6 +8694,9 @@ components:
           nullable: true
         antes_da_retirada:
           type: boolean
+        automatico:
+          type: boolean
+          description: cancelada pela AUT-17, não retirada em 3 dias (LOC-12, T-410)
         data:
           type: string
           format: date
@@ -7789,6 +8713,7 @@ components:
           type: string
       required:
       - antes_da_retirada
+      - automatico
       - cobrar_centavos
       - credito_centavos
       - data
@@ -7924,6 +8849,18 @@ components:
         * `auditoria` - auditoria
         * `exportar` - exportar
         * `suporte` - suporte
+    CatalogoDaCompra:
+      type: object
+      properties:
+        planos:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanoAVenda'
+        teste:
+          $ref: '#/components/schemas/DatasDoTeste'
+      required:
+      - planos
+      - teste
     Categoria:
       type: object
       properties:
@@ -7975,17 +8912,27 @@ components:
         * `suporte` - Suporte
     CategoriaDespesaEnum:
       enum:
-      - fixas
+      - ipva
+      - seguro
+      - multa_transito
+      - pecas
+      - combustivel
       - manutencao
       - rastreamento
+      - fixas
       - impostos
       - pessoal
       - outros
       type: string
       description: |-
-        * `fixas` - Fixas
+        * `ipva` - IPVA e licenciamento
+        * `seguro` - Seguro
+        * `multa_transito` - Multa de trânsito
+        * `pecas` - Peças
+        * `combustivel` - Combustível
         * `manutencao` - Manutenção
         * `rastreamento` - Rastreamento
+        * `fixas` - Fixas
         * `impostos` - Impostos
         * `pessoal` - Pessoal
         * `outros` - Outros
@@ -8028,6 +8975,29 @@ components:
         * `AC` - AC
         * `AD` - AD
         * `AE` - AE
+    CategoriasDaImportacao:
+      type: object
+      properties:
+        pergunta:
+          type: boolean
+          description: 'Mais de uma categoria oferecida: a tela mostra a escolha por
+            modelo.'
+        opcoes:
+          type: array
+          items:
+            $ref: '#/components/schemas/OpcaoDeCategoria'
+        modelos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModeloDaImportacao'
+        falta_escolher:
+          type: boolean
+          description: 'Alguma linha a gravar sem categoria: "Importar" fica travado.'
+      required:
+      - falta_escolher
+      - modelos
+      - opcoes
+      - pergunta
     CaucaoDaTroca:
       type: object
       properties:
@@ -8449,6 +9419,13 @@ components:
           type: string
           format: date
           nullable: true
+    CnpjEntrada:
+      type: object
+      properties:
+        cnpj:
+          type: string
+      required:
+      - cnpj
     Cobranca:
       type: object
       properties:
@@ -8574,20 +9551,13 @@ components:
           pattern: ^\d{6}$
       required:
       - codigo
-    CodigoEnum:
-      enum:
-      - cobrar
-      - completar_cadastro
-      - ver_proposta
-      - ver_locacao
-      - nova_locacao
-      type: string
-      description: |-
-        * `cobrar` - cobrar
-        * `completar_cadastro` - completar_cadastro
-        * `ver_proposta` - ver_proposta
-        * `ver_locacao` - ver_locacao
-        * `nova_locacao` - nova_locacao
+    CodigoEntrada:
+      type: object
+      properties:
+        codigo:
+          type: string
+      required:
+      - codigo
     CodigoMensagemLocacao:
       type: object
       properties:
@@ -8599,6 +9569,17 @@ components:
           type: string
       required:
       - codigo
+      - mensagem
+    CodigoReenviado:
+      type: object
+      properties:
+        codigo_expira_em:
+          type: string
+          format: date-time
+        mensagem:
+          type: string
+      required:
+      - codigo_expira_em
       - mensagem
     Codigos:
       type: object
@@ -8854,6 +9835,16 @@ components:
       required:
       - contrato
       - empresa
+    ConsultaDoRecibo:
+      type: object
+      properties:
+        empresa:
+          $ref: '#/components/schemas/EmpresaDoRecibo'
+        recibo:
+          $ref: '#/components/schemas/ReciboPublico'
+      required:
+      - empresa
+      - recibo
     Conta:
       type: object
       properties:
@@ -8883,6 +9874,9 @@ components:
           type: integer
         status:
           $ref: '#/components/schemas/StatusContaReceberEnum'
+        aguarda_retirada:
+          type: boolean
+          description: 'locação confirmada e não retirada: nada vence (LOC-05, T-410)'
         dias_atraso:
           type: integer
         faixa_atraso:
@@ -8924,6 +9918,7 @@ components:
           $ref: '#/components/schemas/AcoesDaConta'
       required:
       - acoes
+      - aguarda_retirada
       - cliente
       - cobranca_aberta
       - dias_atraso
@@ -8976,6 +9971,9 @@ components:
           type: integer
         status:
           $ref: '#/components/schemas/StatusContaReceberEnum'
+        aguarda_retirada:
+          type: boolean
+          description: 'locação confirmada e não retirada: nada vence (LOC-05, T-410)'
         dias_atraso:
           type: integer
         faixa_atraso:
@@ -9021,6 +10019,7 @@ components:
             $ref: '#/components/schemas/HistoricoDaConta'
       required:
       - acoes
+      - aguarda_retirada
       - cliente
       - cobranca_aberta
       - dias_atraso
@@ -9582,6 +10581,25 @@ components:
       - saida
       type: string
       description: '* `saida` - Saída'
+    DadosDoCnpj:
+      type: object
+      properties:
+        razao_social:
+          type: string
+        nome_fantasia:
+          type: string
+        cidade:
+          type: string
+        uf:
+          type: string
+        ativo:
+          type: boolean
+      required:
+      - ativo
+      - cidade
+      - nome_fantasia
+      - razao_social
+      - uf
     DadosFiscais:
       type: object
       properties:
@@ -9601,6 +10619,29 @@ components:
       - email_cobranca
       - endereco
       - razao_social
+    DatasDoTeste:
+      type: object
+      properties:
+        dias:
+          type: integer
+        inicio:
+          type: string
+          format: date
+        fim:
+          type: string
+          format: date
+        lembrete:
+          type: string
+          format: date
+        primeira_fatura:
+          type: string
+          format: date
+      required:
+      - dias
+      - fim
+      - inicio
+      - lembrete
+      - primeira_fatura
     DesbloquearVeiculo:
       type: object
       properties:
@@ -9677,6 +10718,12 @@ components:
           allOf:
           - $ref: '#/components/schemas/Nota'
           nullable: true
+        comprovante:
+          allOf:
+          - $ref: '#/components/schemas/Nota'
+          nullable: true
+          description: comprovante do pagamento, URL de 15 minutos (AUD-05); null
+            sem ele ou para o suporte (AUD-09)
         sem_nota:
           type: boolean
         origem:
@@ -9690,6 +10737,7 @@ components:
           type: string
       required:
       - categoria
+      - comprovante
       - data
       - descricao
       - filial
@@ -9764,6 +10812,32 @@ components:
         * `a_pagar` - a_pagar
         * `paga` - paga
         * `recusada` - recusada
+    DespesasDoVeiculo:
+      type: object
+      description: 'FIN-17: as despesas do veículo no ano, 20 por página, da mais
+        nova para a mais antiga.'
+      properties:
+        ano:
+          type: integer
+        total_ano_centavos:
+          type: integer
+          description: 'Despesas no ano: pagas ou não, sem as recusadas (FIN-17, VEI-05)'
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Despesa'
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+      required:
+      - ano
+      - anterior
+      - proximo
+      - resultados
+      - total_ano_centavos
     DespesasLancarEnum:
       enum:
       - todas
@@ -9825,7 +10899,10 @@ components:
           type: string
           format: date-time
           nullable: true
+        acoes:
+          $ref: '#/components/schemas/AcoesDaDevolucao'
       required:
+      - acoes
       - comparacao
       - concluida_em
       - devolvida_em
@@ -9834,6 +10911,22 @@ components:
       - recibo_enviado_em
       - status
       - vistoria
+    DevolucaoDoLink:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+          description: concluida
+        recibo_enviado_em:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - id
+      - recibo_enviado_em
+      - status
     DevolucaoPrevista:
       type: object
       properties:
@@ -9872,7 +10965,12 @@ components:
         marca_modelo:
           type: string
           nullable: true
+        candidatos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModeloDoCatalogo'
       required:
+      - candidatos
       - marca_modelo
     Documento:
       type: object
@@ -9924,6 +11022,94 @@ components:
       - tipo
       - url
       - url_expira_em
+    DocumentoDoVeiculo:
+      type: object
+      description: |-
+        VEI-09 (T-421). `numero_motor` e `observacoes` só para administrador e gerente: para os
+        outros perfis as chaves vêm ausentes, não `null` (CA-421-12, USR-09).
+      properties:
+        potencia_cv:
+          type: integer
+          nullable: true
+        cilindrada_cc:
+          type: integer
+          nullable: true
+        especie:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/EspecieVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        tipo:
+          type: string
+          nullable: true
+        carroceria:
+          type: string
+          nullable: true
+        lotacao:
+          type: integer
+          nullable: true
+        peso_bruto_kg:
+          type: integer
+          nullable: true
+        numero_motor:
+          type: string
+          nullable: true
+        observacoes:
+          type: string
+          nullable: true
+      required:
+      - carroceria
+      - cilindrada_cc
+      - especie
+      - lotacao
+      - peso_bruto_kg
+      - potencia_cv
+      - tipo
+    DocumentoDoVeiculoEntrada:
+      type: object
+      description: Bloco `documento` da VEI-09 (T-421). Formato e mensagens em docs/api/veiculos.md.
+      properties:
+        potencia_cv:
+          type: integer
+          maximum: 999
+          minimum: 1
+          nullable: true
+        cilindrada_cc:
+          type: integer
+          maximum: 9999
+          minimum: 1
+          nullable: true
+        especie:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/EspecieVeiculoEnum'
+          - $ref: '#/components/schemas/BlankEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        tipo:
+          type: string
+          nullable: true
+          maxLength: 30
+        carroceria:
+          type: string
+          nullable: true
+          maxLength: 30
+        lotacao:
+          type: integer
+          maximum: 99
+          minimum: 1
+          nullable: true
+        peso_bruto_kg:
+          type: integer
+          maximum: 99999
+          minimum: 1
+          nullable: true
+        numero_motor:
+          type: string
+          nullable: true
+        observacoes:
+          type: string
+          nullable: true
+          maxLength: 500
     DocumentoEntrada:
       type: object
       description: |-
@@ -10009,6 +11195,28 @@ components:
       - cor_marca
       - logo_url
       - nome_exibicao
+    EmpresaDaCompra:
+      type: object
+      properties:
+        cnpj:
+          type: string
+        razao_social:
+          type: string
+        nome_exibicao:
+          type: string
+        cidade:
+          type: string
+        uf:
+          type: string
+        subdominio:
+          type: string
+      required:
+      - cidade
+      - cnpj
+      - nome_exibicao
+      - razao_social
+      - subdominio
+      - uf
     EmpresaDetalhe:
       type: object
       properties:
@@ -10112,6 +11320,31 @@ components:
           type: string
       required:
       - id
+      - nome_exibicao
+    EmpresaDoPedido:
+      type: object
+      properties:
+        nome_exibicao:
+          type: string
+        endereco:
+          type: string
+      required:
+      - endereco
+      - nome_exibicao
+    EmpresaDoRecibo:
+      type: object
+      properties:
+        nome_exibicao:
+          type: string
+        logo_url:
+          type: string
+          nullable: true
+        cor_marca:
+          type: string
+          nullable: true
+      required:
+      - cor_marca
+      - logo_url
       - nome_exibicao
     EmpresaLista:
       type: object
@@ -10350,6 +11583,33 @@ components:
       required:
       - codigo
       - rotulo
+    EscolhaDeCategorias:
+      type: object
+      properties:
+        modelos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModeloEscolhido'
+      required:
+      - modelos
+    EspecieVeiculoEnum:
+      enum:
+      - passageiro
+      - carga
+      - misto
+      - competicao
+      - tracao
+      - especial
+      - colecao
+      type: string
+      description: |-
+        * `passageiro` - Passageiro
+        * `carga` - Carga
+        * `misto` - Misto
+        * `competicao` - Competição
+        * `tracao` - Tração
+        * `especial` - Especial
+        * `colecao` - Coleção
     Esperando:
       type: object
       properties:
@@ -11219,6 +12479,16 @@ components:
       - nome
       - nome_curto
       - preco_litro_centavos
+    FilialDaAgenda:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+      - id
+      - nome
     FilialDaImportacao:
       type: object
       properties:
@@ -11508,6 +12778,59 @@ components:
       - agora
       - posicao
       - saida
+    FotoDaGaleria:
+      type: object
+      description: 'A galeria não tem legenda: `rotulo` é sempre `null` (VEI-10).'
+      properties:
+        id:
+          type: integer
+        numero:
+          type: integer
+        url:
+          type: string
+          nullable: true
+        url_download:
+          type: string
+          nullable: true
+        url_expira_em:
+          type: string
+          format: date-time
+          nullable: true
+        nome_arquivo:
+          type: string
+        rotulo:
+          type: string
+          nullable: true
+        capa:
+          type: boolean
+        enviada_em:
+          type: string
+          format: date-time
+        enviada_por:
+          allOf:
+          - $ref: '#/components/schemas/IdNome'
+          nullable: true
+      required:
+      - capa
+      - enviada_em
+      - enviada_por
+      - id
+      - nome_arquivo
+      - numero
+      - rotulo
+      - url
+      - url_download
+      - url_expira_em
+    FotoDaGaleriaEntrada:
+      type: object
+      description: |-
+        Uma foto por requisição (ADR 0036, item 3). A recusa (formato, tamanho, falta) vem do
+        serviço, com a mensagem da VEI-10.
+      properties:
+        arquivo:
+          type: string
+          format: uri
+          nullable: true
     FotoDaMovimentacao:
       type: object
       properties:
@@ -11524,20 +12847,45 @@ components:
       - url_expira_em
     FotoDaVistoriaRecente:
       type: object
+      description: 'Todas as fotos ativas da vistoria: as fixas e as de avaria (VEI-10,
+        T-414).'
       properties:
         id:
           type: integer
-        posicao:
-          $ref: '#/components/schemas/FotoDaVistoriaRecentePosicaoEnum'
+        numero:
+          type: integer
         url:
           type: string
+          nullable: true
+        url_download:
+          type: string
+          nullable: true
         url_expira_em:
           type: string
           format: date-time
+          nullable: true
+        nome_arquivo:
+          type: string
+        posicao:
+          $ref: '#/components/schemas/FotoDaVistoriaRecentePosicaoEnum'
+        rotulo:
+          type: string
+        tirada_em:
+          type: string
+          format: date-time
+        avaria_id:
+          type: integer
+          nullable: true
       required:
+      - avaria_id
       - id
+      - nome_arquivo
+      - numero
       - posicao
+      - rotulo
+      - tirada_em
       - url
+      - url_download
       - url_expira_em
     FotoDaVistoriaRecentePosicaoEnum:
       enum:
@@ -11546,6 +12894,7 @@ components:
       - lado_esquerdo
       - lado_direito
       - painel
+      - avaria
       type: string
       description: |-
         * `frente` - frente
@@ -11553,6 +12902,7 @@ components:
         * `lado_esquerdo` - lado_esquerdo
         * `lado_direito` - lado_direito
         * `painel` - painel
+        * `avaria` - avaria
     FotoEntrada:
       type: object
       properties:
@@ -11640,6 +12990,75 @@ components:
       - nota
       - ocupacao_pct
       - segmentos
+    Galeria:
+      type: object
+      description: 'Bloco `galeria` da ficha: as ativas, capa primeiro, para todos
+        os perfis (VEI-10).'
+      properties:
+        total:
+          type: integer
+        limite:
+          type: integer
+        fotos:
+          type: array
+          items:
+            $ref: '#/components/schemas/FotoDaGaleria'
+      required:
+      - fotos
+      - limite
+      - total
+    GaleriaAlterada:
+      type: object
+      description: 'Resposta do envio e da troca: a galeria inteira e o id da foto
+        nova.'
+      properties:
+        total:
+          type: integer
+        limite:
+          type: integer
+        fotos:
+          type: array
+          items:
+            $ref: '#/components/schemas/FotoDaGaleria'
+        editar:
+          type: boolean
+        motivo:
+          type: string
+          nullable: true
+        foto_id:
+          type: integer
+      required:
+      - editar
+      - foto_id
+      - fotos
+      - limite
+      - motivo
+      - total
+    GaleriaDoEditar:
+      type: object
+      description: |-
+        `GET .../fotos/`. `motivo`: com o perfil que edita e o veículo vendido ou baixado, a
+        mensagem do 409; `null` nos outros casos.
+      properties:
+        total:
+          type: integer
+        limite:
+          type: integer
+        fotos:
+          type: array
+          items:
+            $ref: '#/components/schemas/FotoDaGaleria'
+        editar:
+          type: boolean
+        motivo:
+          type: string
+          nullable: true
+      required:
+      - editar
+      - fotos
+      - limite
+      - motivo
+      - total
     Gaveta:
       type: object
       properties:
@@ -11864,6 +13283,11 @@ components:
           - $ref: '#/components/schemas/PlanoDaImportacao'
           nullable: true
           description: Só em veículos (IMP-03); clientes não têm limite.
+        categorias:
+          allOf:
+          - $ref: '#/components/schemas/CategoriasDaImportacao'
+          nullable: true
+          description: Só em veículos (IMP-08).
         aviso:
           allOf:
           - $ref: '#/components/schemas/Aviso'
@@ -11884,6 +13308,7 @@ components:
       - apagar_em
       - arquivo
       - aviso
+      - categorias
       - concluida_em
       - contagens
       - enviada_em
@@ -12434,6 +13859,8 @@ components:
           $ref: '#/components/schemas/ClienteDaAgenda'
         locacao:
           $ref: '#/components/schemas/LocacaoDaVistoria'
+        filial:
+          $ref: '#/components/schemas/FilialDaAgenda'
         situacao:
           $ref: '#/components/schemas/SituacaoAgenda'
         vistoria_id:
@@ -12444,6 +13871,7 @@ components:
       required:
       - acao
       - cliente
+      - filial
       - horario
       - id
       - locacao
@@ -12727,6 +14155,39 @@ components:
           format: uri
       required:
       - arquivo
+    LeituraCrlvNoEditar:
+      type: object
+      description: 'POST /api/veiculos/{id}/leitura-crlv/ (T-421): placa e chassi
+        fora de `campos`.'
+      properties:
+        documento:
+          $ref: '#/components/schemas/DocumentoEnum'
+        campos:
+          $ref: '#/components/schemas/CamposDoCrlvNoEditar'
+        lidos:
+          type: array
+          items:
+            type: string
+        quantidade:
+          type: integer
+        rotulo:
+          type: string
+        exercicio:
+          type: integer
+          nullable: true
+        dicas:
+          $ref: '#/components/schemas/DicasDaLeitura'
+        leitura:
+          type: string
+      required:
+      - campos
+      - dicas
+      - documento
+      - exercicio
+      - leitura
+      - lidos
+      - quantidade
+      - rotulo
     LeituraKm:
       type: object
       properties:
@@ -12748,6 +14209,22 @@ components:
       required:
       - limite
       - usado
+    LimitesDoPlano:
+      type: object
+      properties:
+        veiculos:
+          type: integer
+          nullable: true
+        filiais:
+          type: integer
+          nullable: true
+        usuarios:
+          type: integer
+          nullable: true
+      required:
+      - filiais
+      - usuarios
+      - veiculos
     Linha:
       type: object
       properties:
@@ -12769,6 +14246,13 @@ components:
           allOf:
           - $ref: '#/components/schemas/ObjetoDaLinha'
           nullable: true
+        categoria_id:
+          type: integer
+          nullable: true
+          description: Só em veículos (IMP-08).
+        categoria_propria:
+          type: boolean
+          description: A linha é exceção do modelo (IMP-08). Só em veículos.
       required:
       - dados
       - erros
@@ -12910,6 +14394,25 @@ components:
       required:
       - rotulo
       - valor_centavos
+    LinkDoContrato:
+      type: object
+      description: 'Copiar link para assinar (T-411): o link sai só nesta resposta,
+        com `no-store`.'
+      properties:
+        link:
+          type: string
+        expira_em:
+          type: string
+          format: date-time
+        aviso:
+          type: string
+        contrato:
+          $ref: '#/components/schemas/ContratoResumo'
+      required:
+      - aviso
+      - contrato
+      - expira_em
+      - link
     LinkDoConvite:
       type: object
       properties:
@@ -12927,6 +14430,25 @@ components:
       - expira_em
       - link
       - usuario
+    LinkDoRecibo:
+      type: object
+      description: 'Copiar link do recibo (T-411): o link sai só nesta resposta, com
+        `no-store`.'
+      properties:
+        link:
+          type: string
+        expira_em:
+          type: string
+          format: date-time
+        aviso:
+          type: string
+        devolucao:
+          $ref: '#/components/schemas/DevolucaoDoLink'
+      required:
+      - aviso
+      - devolucao
+      - expira_em
+      - link
     Lista:
       type: object
       properties:
@@ -13632,6 +15154,19 @@ components:
           allOf:
           - $ref: '#/components/schemas/CancelamentoLocacao'
           nullable: true
+        prazo_retirada:
+          allOf:
+          - $ref: '#/components/schemas/PrazoRetirada'
+          nullable: true
+        para_retirar:
+          allOf:
+          - $ref: '#/components/schemas/ParaRetirar'
+          nullable: true
+        pendencias_retirada:
+          allOf:
+          - $ref: '#/components/schemas/PendenciasDaRetirada'
+          nullable: true
+          description: 'LOC-17: o que faltava na retirada à mão'
         troca:
           allOf:
           - $ref: '#/components/schemas/TrocaPendente'
@@ -13654,10 +15189,13 @@ components:
       - inicio
       - km_livre
       - km_saida
+      - para_retirar
       - parcelamento_mensal
+      - pendencias_retirada
       - periodicidade
       - periodos
       - plano_especial
+      - prazo_retirada
       - primeiro_vencimento
       - sinais
       - situacao
@@ -13897,6 +15435,23 @@ components:
       required:
       - pode_escolher_todas
       - resultados
+    ModeloDaImportacao:
+      type: object
+      properties:
+        marca:
+          type: string
+        modelo:
+          type: string
+        veiculos:
+          type: integer
+        categoria_id:
+          type: integer
+          nullable: true
+      required:
+      - categoria_id
+      - marca
+      - modelo
+      - veiculos
     ModeloDetalhe:
       type: object
       properties:
@@ -13984,6 +15539,19 @@ components:
         a_partir_de:
           type: string
           maxLength: 40
+    ModeloEscolhido:
+      type: object
+      properties:
+        marca:
+          type: string
+        modelo:
+          type: string
+        categoria_id:
+          type: integer
+      required:
+      - categoria_id
+      - marca
+      - modelo
     ModeloPronto:
       type: object
       properties:
@@ -14586,6 +16154,19 @@ components:
       - itens
       - plano
       - titulo
+    OpcaoDeCategoria:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        tipo_veiculo:
+          $ref: '#/components/schemas/TipoVeiculoEnum'
+      required:
+      - id
+      - nome
+      - tipo_veiculo
     Origem:
       type: object
       properties:
@@ -14781,6 +16362,27 @@ components:
       - destino
       - texto
       - tipo
+    ParaRetirar:
+      type: object
+      description: |-
+        LOC-17 (T-451): os três passos, na ordem vistoria, contrato, pagamento, e o prazo da
+        LOC-12. Só na `aguardando_retirada`; textos prontos da API.
+      properties:
+        passos:
+          type: array
+          items:
+            $ref: '#/components/schemas/PassoDaRetirada'
+        prazo:
+          type: string
+        registrar_retirada:
+          allOf:
+          - $ref: '#/components/schemas/RegistrarRetirada'
+          nullable: true
+          description: o botão, só para administrador e gerente (LOC-17)
+      required:
+      - passos
+      - prazo
+      - registrar_retirada
     Parada:
       type: object
       properties:
@@ -14876,16 +16478,29 @@ components:
         observacao:
           type: string
           nullable: true
+        conta_id:
+          type: integer
+          description: o `id` da conta em /api/financeiro/contas/
+        rotulo:
+          type: string
+        valor_hoje_centavos:
+          type: integer
+        acoes:
+          $ref: '#/components/schemas/AcoesDaParcela'
       required:
+      - acoes
+      - conta_id
       - forma
       - id
       - numero
       - observacao
       - pago_em
+      - rotulo
       - status
       - tipo
       - total_parcelas
       - valor_centavos
+      - valor_hoje_centavos
       - vencimento
     ParcelaPrevista:
       type: object
@@ -14924,6 +16539,51 @@ components:
       - concluido_em
       - passo
       - rotulo
+    PassoDaCriacao:
+      type: object
+      properties:
+        passo:
+          $ref: '#/components/schemas/PassoEnum'
+        texto:
+          type: string
+        feito_em:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - feito_em
+      - passo
+      - texto
+    PassoDaRetirada:
+      type: object
+      properties:
+        codigo:
+          $ref: '#/components/schemas/PassoDaRetiradaCodigoEnum'
+        feito:
+          type: boolean
+        texto:
+          type: string
+          description: '"Feita em 07 out, 09:20", "Falta a vistoria de saída"'
+        acoes:
+          type: array
+          items:
+            $ref: '#/components/schemas/AcaoDaRetirada'
+          description: só as que o perfil pode fazer
+      required:
+      - acoes
+      - codigo
+      - feito
+      - texto
+    PassoDaRetiradaCodigoEnum:
+      enum:
+      - vistoria_saida
+      - contrato
+      - pagamento
+      type: string
+      description: |-
+        * `vistoria_saida` - vistoria_saida
+        * `contrato` - contrato
+        * `pagamento` - pagamento
     PassoDoAssistente:
       type: object
       properties:
@@ -14963,6 +16623,18 @@ components:
       - concluido
       - detalhe
       - rotulo
+    PassoEnum:
+      enum:
+      - administrador
+      - banco
+      - endereco
+      - assinatura
+      type: string
+      description: |-
+        * `administrador` - administrador
+        * `banco` - banco
+        * `endereco` - endereco
+        * `assinatura` - assinatura
     PatchedAlterarUsuario:
       type: object
       properties:
@@ -15041,6 +16713,11 @@ components:
             type: string
             nullable: true
           description: Só os campos corrigidos, com os nomes das colunas da planilha.
+        categoria_id:
+          type: integer
+          nullable: true
+          description: 'Veículos (IMP-08): a categoria só desta linha, exceção do
+            modelo; `null` volta a seguir o modelo. Ausente, não muda.'
     PatchedEdicao:
       type: object
       properties:
@@ -15266,6 +16943,9 @@ components:
           type: string
     PatchedVeiculoEdicao:
       type: object
+      description: |-
+        Os blocos `documento` e `rastreador` e as `anotacoes` (VEI-09), todos opcionais. Em
+        `multipart/form-data` os blocos vão achatados (`documento.potencia_cv`), e o DRF os monta.
       properties:
         renavam:
           type: string
@@ -15303,6 +16983,18 @@ components:
           type: string
           format: date
           nullable: true
+        documento:
+          $ref: '#/components/schemas/DocumentoDoVeiculoEntrada'
+        rastreador:
+          $ref: '#/components/schemas/RastreadorEntrada'
+        anotacoes:
+          type: string
+          nullable: true
+          maxLength: 500
+        leitura:
+          type: string
+          nullable: true
+          maxLength: 4000
     PausaMarcada:
       type: object
       description: 'Só com pausa marcada: agendada (`ativa`) ou em andamento (`pausada`).'
@@ -15454,6 +17146,27 @@ components:
       - id
       - status
       - tipo
+    PedidoCriado:
+      type: object
+      properties:
+        chave:
+          type: string
+          format: uuid
+        status:
+          type: string
+        email:
+          type: string
+        codigo_expira_em:
+          type: string
+          format: date-time
+        mensagem:
+          type: string
+      required:
+      - chave
+      - codigo_expira_em
+      - email
+      - mensagem
+      - status
     PedidoDeCancelamento:
       type: object
       properties:
@@ -15497,6 +17210,37 @@ components:
           type: integer
       required:
       - meses
+    PedidoEntrada:
+      type: object
+      properties:
+        plano:
+          type: string
+        ciclo:
+          $ref: '#/components/schemas/PedidoEntradaCicloEnum'
+        forma_pagamento:
+          type: string
+          nullable: true
+          description: cartao, pix_automatico ou boleto (PLT-13)
+        administrador:
+          $ref: '#/components/schemas/AdministradorDaCompra'
+        empresa:
+          $ref: '#/components/schemas/EmpresaDaCompra'
+        aceite_termos:
+          type: boolean
+      required:
+      - aceite_termos
+      - administrador
+      - ciclo
+      - empresa
+      - plano
+    PedidoEntradaCicloEnum:
+      enum:
+      - mensal
+      - anual
+      type: string
+      description: |-
+        * `mensal` - mensal
+        * `anual` - anual
     PedidoRef:
       type: object
       properties:
@@ -15615,6 +17359,17 @@ components:
       required:
       - itens
       - titulo
+    PendenciasDaRetirada:
+      type: object
+      description: 'LOC-17: na locação retirada à mão, só os passos que ainda faltam.
+        Nulo sem pendência.'
+      properties:
+        passos:
+          type: array
+          items:
+            $ref: '#/components/schemas/PassoDaRetirada'
+      required:
+      - passos
     PerfilEnum:
       enum:
       - administrador
@@ -15826,6 +17581,36 @@ components:
       - preco_anual_centavos
       - preco_mensal_centavos
       - recursos
+    PlanoAVenda:
+      type: object
+      properties:
+        codigo:
+          type: string
+        nome:
+          type: string
+        descricao:
+          type: string
+        mensal_centavos:
+          type: integer
+        anual_centavos:
+          type: integer
+        limites:
+          $ref: '#/components/schemas/LimitesDoPlano'
+        inclui:
+          type: array
+          items:
+            type: string
+        destaque:
+          type: boolean
+      required:
+      - anual_centavos
+      - codigo
+      - descricao
+      - destaque
+      - inclui
+      - limites
+      - mensal_centavos
+      - nome
     PlanoDaAlternativa:
       type: object
       properties:
@@ -16128,6 +17913,8 @@ components:
           type: boolean
         locacoes_criar:
           type: boolean
+        locacoes_ver:
+          type: boolean
         vistorias_fazer:
           type: boolean
         locacoes_cancelar:
@@ -16169,6 +17956,7 @@ components:
       - lancamento_avulso
       - locacoes_cancelar
       - locacoes_criar
+      - locacoes_ver
       - movimentacoes
       - os_abrir
       - painel
@@ -16178,11 +17966,21 @@ components:
     PorCategoria:
       type: object
       properties:
-        fixas:
+        ipva:
+          type: integer
+        seguro:
+          type: integer
+        multa_transito:
+          type: integer
+        pecas:
+          type: integer
+        combustivel:
           type: integer
         manutencao:
           type: integer
         rastreamento:
+          type: integer
+        fixas:
           type: integer
         impostos:
           type: integer
@@ -16227,6 +18025,19 @@ components:
         * `traseira` - Traseira
         * `lado_esquerdo` - Lado esquerdo
         * `lado_direito` - Lado direito
+    PrazoRetirada:
+      type: object
+      description: 'LOC-12, AUT-17 (T-410): só na locação `aguardando_retirada`.'
+      properties:
+        ultimo_dia:
+          type: string
+          format: date
+        cancela_em:
+          type: string
+          format: date
+      required:
+      - cancela_em
+      - ultimo_dia
     Preco:
       type: object
       properties:
@@ -16383,6 +18194,30 @@ components:
       - desconto_pct
       - diaria_centavos
       - valor_periodo_centavos
+    Preparo:
+      type: object
+      properties:
+        filiais:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilialDaImportacao'
+        pede_filial:
+          type: boolean
+        filial:
+          allOf:
+          - $ref: '#/components/schemas/FilialDaImportacao'
+          nullable: true
+        pode_importar:
+          type: boolean
+        motivo:
+          type: string
+          nullable: true
+      required:
+      - filiais
+      - filial
+      - motivo
+      - pede_filial
+      - pode_importar
     Previa:
       type: object
       properties:
@@ -16542,6 +18377,28 @@ components:
       - modulos
       - tipos
       - trabalha_com
+    Rastreador:
+      type: object
+      properties:
+        numero:
+          type: string
+          nullable: true
+        empresa:
+          type: string
+          nullable: true
+      required:
+      - empresa
+      - numero
+    RastreadorEntrada:
+      type: object
+      properties:
+        numero:
+          type: string
+          nullable: true
+        empresa:
+          type: string
+          nullable: true
+          maxLength: 60
     Receber:
       type: object
       properties:
@@ -16612,6 +18469,28 @@ components:
       required:
       - url
       - url_expira_em
+    ReciboPublico:
+      type: object
+      properties:
+        codigo:
+          type: string
+        cliente_primeiro_nome:
+          type: string
+        concluida_em:
+          type: string
+          format: date-time
+          nullable: true
+        pdf_url:
+          type: string
+        pdf_url_expira_em:
+          type: string
+          format: date-time
+      required:
+      - cliente_primeiro_nome
+      - codigo
+      - concluida_em
+      - pdf_url
+      - pdf_url_expira_em
     Recusadas:
       type: object
       properties:
@@ -16767,6 +18646,46 @@ components:
           type: string
           nullable: true
           maxLength: 20
+    RegistrarRetirada:
+      type: object
+      description: O botão "Registrar retirada" (LOC-17) e a confirmação, com textos
+        prontos.
+      properties:
+        rotulo:
+          type: string
+        disponivel:
+          type: boolean
+          description: false sem a vistoria de saída concluída
+        aviso:
+          type: string
+          nullable: true
+          description: '"Faça a vistoria de saída antes da retirada."'
+        titulo:
+          type: string
+          description: '"Registrar retirada?"'
+        faltas:
+          type: array
+          items:
+            type: string
+          description: os textos dos passos que faltam
+        motivo_obrigatorio:
+          type: string
+          description: '"Informe o motivo."'
+      required:
+      - aviso
+      - disponivel
+      - faltas
+      - motivo_obrigatorio
+      - rotulo
+      - titulo
+    RegistrarRetiradaEntrada:
+      type: object
+      properties:
+        motivo:
+          type: string
+          maxLength: 200
+      required:
+      - motivo
     RegraEnum:
       enum:
       - preco_fixo
@@ -16806,6 +18725,29 @@ components:
           type: string
           format: date-time
           nullable: true
+    ReservaDoVeiculo:
+      type: object
+      description: 'Quem reservou o veículo `reservado` (T-410): a locação ou a troca
+        pendente.'
+      properties:
+        locacao_id:
+          type: integer
+        codigo:
+          type: string
+        motivo:
+          $ref: '#/components/schemas/ReservaDoVeiculoMotivoEnum'
+      required:
+      - codigo
+      - locacao_id
+      - motivo
+    ReservaDoVeiculoMotivoEnum:
+      enum:
+      - locacao
+      - troca
+      type: string
+      description: |-
+        * `locacao` - locacao
+        * `troca` - troca
     ResolucaoDaPendencia:
       type: object
       properties:
@@ -17322,6 +19264,29 @@ components:
       description: |-
         * `agendada` - agendada
         * `em_andamento` - em_andamento
+    SituacaoDoCnpj:
+      type: object
+      properties:
+        pode_comprar:
+          type: boolean
+        teste_gratis:
+          type: boolean
+        aviso:
+          type: string
+          nullable: true
+        primeira_fatura:
+          type: string
+          format: date
+        dados:
+          allOf:
+          - $ref: '#/components/schemas/DadosDoCnpj'
+          nullable: true
+        codigo:
+          type: string
+        mensagem:
+          type: string
+      required:
+      - pode_comprar
     SituacaoDoVeiculo:
       type: object
       properties:
@@ -17331,8 +19296,13 @@ components:
           type: string
         tom:
           type: string
+        desde:
+          type: string
+          format: date
+          nullable: true
       required:
       - codigo
+      - desde
       - rotulo
       - tom
     SituacaoEnum:
@@ -17502,6 +19472,30 @@ components:
         * `vendido` - Vendido
         * `baixado` - Baixado
         * `em_movimentacao` - Em movimentação
+    Subdominio:
+      type: object
+      properties:
+        subdominio:
+          type: string
+        disponivel:
+          type: boolean
+        endereco:
+          type: string
+        sugestao:
+          type: string
+          nullable: true
+        mensagem:
+          type: string
+      required:
+      - disponivel
+      - subdominio
+    SubdominioEntrada:
+      type: object
+      properties:
+        subdominio:
+          type: string
+        nome:
+          type: string
     Sugestao:
       type: object
       properties:
@@ -17864,6 +19858,14 @@ components:
       required:
       - token
     TokenDoConviteDaEquipe:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 100
+      required:
+      - token
+    TokenDoRecibo:
       type: object
       properties:
         token:
@@ -18379,6 +20381,10 @@ components:
           $ref: '#/components/schemas/SituacaoDoVeiculo'
         locacao_atual:
           nullable: true
+        reserva:
+          allOf:
+          - $ref: '#/components/schemas/ReservaDoVeiculo'
+          nullable: true
         manutencao:
           nullable: true
         documentos_resumo:
@@ -18412,6 +20418,7 @@ components:
       - movimentacao_aberta
       - placa
       - renavam
+      - reserva
       - situacao
       - status
       - tipo_veiculo
@@ -18470,6 +20477,14 @@ components:
         entrou_na_frota_em:
           type: string
           format: date
+        documento:
+          $ref: '#/components/schemas/DocumentoDoVeiculoEntrada'
+        rastreador:
+          $ref: '#/components/schemas/RastreadorEntrada'
+        anotacoes:
+          type: string
+          nullable: true
+          maxLength: 500
         crlv_arquivo:
           type: string
           format: uri
@@ -18496,68 +20511,10 @@ components:
       - marca
       - modelo
       - placa
-    VeiculoDaLocacao:
+    VeiculoComDadosDoDocumento:
       type: object
-      properties:
-        id:
-          type: integer
-        modelo:
-          type: string
-        placa:
-          type: string
-        tipo:
-          $ref: '#/components/schemas/TipoVeiculoEnum'
-      required:
-      - id
-      - modelo
-      - placa
-      - tipo
-    VeiculoDaMovimentacao:
-      type: object
-      properties:
-        id:
-          type: integer
-        placa:
-          type: string
-        modelo:
-          type: string
-        status:
-          type: string
-      required:
-      - id
-      - modelo
-      - placa
-      - status
-    VeiculoDaTroca:
-      type: object
-      properties:
-        id:
-          type: integer
-        placa:
-          type: string
-        modelo:
-          type: string
-      required:
-      - id
-      - modelo
-      - placa
-    VeiculoDaVistoria:
-      type: object
-      properties:
-        id:
-          type: integer
-        placa:
-          type: string
-        modelo:
-          type: string
-        ano:
-          type: integer
-      required:
-      - id
-      - modelo
-      - placa
-    VeiculoDetalhe:
-      type: object
+      description: A ficha e as respostas do `POST` e do `PATCH` (VEI-09); a lista
+        da Frota não os traz.
       properties:
         id:
           type: integer
@@ -18629,6 +20586,10 @@ components:
           $ref: '#/components/schemas/SituacaoDoVeiculo'
         locacao_atual:
           nullable: true
+        reserva:
+          allOf:
+          - $ref: '#/components/schemas/ReservaDoVeiculo'
+          nullable: true
         manutencao:
           nullable: true
         documentos_resumo:
@@ -18639,6 +20600,201 @@ components:
           nullable: true
         acoes:
           $ref: '#/components/schemas/AcoesDoVeiculo'
+        documento:
+          $ref: '#/components/schemas/DocumentoDoVeiculo'
+        rastreador:
+          $ref: '#/components/schemas/Rastreador'
+        anotacoes:
+          type: string
+          nullable: true
+      required:
+      - acoes
+      - ano_fabricacao
+      - ano_modelo
+      - anotacoes
+      - capacidade_tanque_litros
+      - categoria
+      - chassi
+      - combustivel
+      - cor
+      - documento
+      - documentos_resumo
+      - entrou_na_frota_em
+      - filial
+      - id
+      - km_atual
+      - km_atualizado_em
+      - locacao_atual
+      - manutencao
+      - marca
+      - modelo
+      - motivo_status
+      - movimentacao_aberta
+      - placa
+      - rastreador
+      - renavam
+      - reserva
+      - situacao
+      - status
+      - tipo_veiculo
+    VeiculoDaLocacao:
+      type: object
+      properties:
+        id:
+          type: integer
+        modelo:
+          type: string
+        placa:
+          type: string
+        tipo:
+          $ref: '#/components/schemas/TipoVeiculoEnum'
+      required:
+      - id
+      - modelo
+      - placa
+      - tipo
+    VeiculoDaMovimentacao:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        modelo:
+          type: string
+        status:
+          type: string
+      required:
+      - id
+      - modelo
+      - placa
+      - status
+    VeiculoDaTroca:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        modelo:
+          type: string
+      required:
+      - id
+      - modelo
+      - placa
+    VeiculoDaVistoria:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        modelo:
+          type: string
+        ano:
+          type: integer
+      required:
+      - id
+      - modelo
+      - placa
+    VeiculoDetalhe:
+      type: object
+      description: A ficha e as respostas do `POST` e do `PATCH` (VEI-09); a lista
+        da Frota não os traz.
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        chassi:
+          type: string
+        renavam:
+          type: string
+          nullable: true
+        marca:
+          type: string
+        modelo:
+          type: string
+        ano_fabricacao:
+          type: integer
+        ano_modelo:
+          type: integer
+        cor:
+          type: string
+        combustivel:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/CombustivelVeiculoEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        tipo_veiculo:
+          $ref: '#/components/schemas/TipoVeiculoEnum'
+        categoria:
+          $ref: '#/components/schemas/IdNome'
+        filial:
+          $ref: '#/components/schemas/IdNome'
+        status:
+          $ref: '#/components/schemas/StatusVeiculoEnum'
+        motivo_status:
+          type: string
+          nullable: true
+        km_atual:
+          type: integer
+        km_atualizado_em:
+          type: string
+          format: date-time
+          nullable: true
+        capacidade_tanque_litros:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,4}(?:\.\d{0,1})?$
+          nullable: true
+        preco_vigente:
+          allOf:
+          - $ref: '#/components/schemas/Preco'
+          nullable: true
+        valor_venda_centavos:
+          type: integer
+          nullable: true
+        referencia_fipe_centavos:
+          type: integer
+          nullable: true
+        valor_compra_centavos:
+          type: integer
+          nullable: true
+        data_compra:
+          type: string
+          format: date
+          nullable: true
+        entrou_na_frota_em:
+          type: string
+          format: date
+        situacao:
+          $ref: '#/components/schemas/SituacaoDoVeiculo'
+        locacao_atual:
+          nullable: true
+        reserva:
+          allOf:
+          - $ref: '#/components/schemas/ReservaDoVeiculo'
+          nullable: true
+        manutencao:
+          nullable: true
+        documentos_resumo:
+          nullable: true
+        movimentacao_aberta:
+          allOf:
+          - $ref: '#/components/schemas/MovimentacaoAberta'
+          nullable: true
+        acoes:
+          $ref: '#/components/schemas/AcoesDaFicha'
+        documento:
+          $ref: '#/components/schemas/DocumentoDoVeiculo'
+        rastreador:
+          $ref: '#/components/schemas/Rastreador'
+        anotacoes:
+          type: string
+          nullable: true
+        galeria:
+          $ref: '#/components/schemas/Galeria'
         indicadores_financeiros:
           nullable: true
         movimentacoes:
@@ -18657,14 +20813,17 @@ components:
       - acoes
       - ano_fabricacao
       - ano_modelo
+      - anotacoes
       - capacidade_tanque_litros
       - categoria
       - chassi
       - combustivel
       - cor
+      - documento
       - documentos_resumo
       - entrou_na_frota_em
       - filial
+      - galeria
       - historico_status
       - id
       - km_atual
@@ -18677,12 +20836,17 @@ components:
       - movimentacao_aberta
       - ocupacao
       - placa
+      - rastreador
       - renavam
+      - reserva
       - situacao
       - status
       - tipo_veiculo
     VeiculoEntrada:
       type: object
+      description: |-
+        Os blocos `documento` e `rastreador` e as `anotacoes` (VEI-09), todos opcionais. Em
+        `multipart/form-data` os blocos vão achatados (`documento.potencia_cv`), e o DRF os monta.
       properties:
         placa:
           type: string
@@ -18734,6 +20898,14 @@ components:
         entrou_na_frota_em:
           type: string
           format: date
+        documento:
+          $ref: '#/components/schemas/DocumentoDoVeiculoEntrada'
+        rastreador:
+          $ref: '#/components/schemas/RastreadorEntrada'
+        anotacoes:
+          type: string
+          nullable: true
+          maxLength: 500
       required:
       - ano_fabricacao
       - ano_modelo
@@ -18900,13 +21072,16 @@ components:
         * `descartada` - Descartada
     VistoriaRecente:
       type: object
-      description: 'VIS-01, T-275: a última vistoria concluída, com as fotos fixas
-        e as avarias abertas.'
+      description: |-
+        VIS-01, T-275: a última vistoria concluída, com todas as fotos (VEI-10) e as avarias
+        abertas.
       properties:
         id:
           type: integer
         tipo:
           $ref: '#/components/schemas/VistoriaRecenteTipoEnum'
+        rotulo_tipo:
+          type: string
         concluida_em:
           type: string
           format: date-time
@@ -18933,6 +21108,7 @@ components:
       - fotos
       - id
       - locacao_codigo
+      - rotulo_tipo
       - tipo
       - total_fotos
       - vistoriador

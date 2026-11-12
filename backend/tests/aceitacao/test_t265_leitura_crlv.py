@@ -46,6 +46,19 @@ NOVE = [
     "cor",
     "combustivel",
 ]
+# T-421 (VEI-09): o mesmo `crlv-tbc5h21.pdf` traz também 7 campos do documento (CA-421-01).
+DO_DOCUMENTO_TBC5H21 = {
+    "documento.potencia_cv": 8,
+    "documento.cilindrada_cc": 109,
+    "documento.especie": "passageiro",
+    "documento.tipo": "Motocicleta",
+    "documento.carroceria": None,
+    "documento.lotacao": 2,
+    "documento.peso_bruto_kg": 240,
+    "documento.numero_motor": "JC75E1S123456",
+    "documento.observacoes": None,
+}
+DEZESSEIS = NOVE + [chave for chave, valor in DO_DOCUMENTO_TBC5H21.items() if valor is not None]
 
 
 @pytest.fixture
@@ -85,6 +98,14 @@ def test_vei_08_parser_le_os_campos_e_nao_o_proprietario() -> None:
         "cor": "vermelha",
         "combustivel": "gasolina",
         "exercicio": 2026,
+        # VEI-09 (T-421): carroceria "NÃO APLICAVEL" e observações em asteriscos ficam de fora.
+        "potencia_cv": 8,
+        "cilindrada_cc": 109,
+        "especie": "passageiro",
+        "tipo": "Motocicleta",
+        "lotacao": 2,
+        "peso_bruto_kg": 240,
+        "numero_motor": "JC75E1S123456",
     }
     assert pdfs.PROPRIETARIO not in str(campos)
 
@@ -243,8 +264,8 @@ def test_adr_0026_vaga_ocupada() -> None:
 # --- Rotas (CA-247-01 a 07) ---
 
 
-def test_vei_08_le_os_9_campos(moto, frota, caplog) -> None:
-    """CA-247-01 e CA-247-02."""
+def test_vei_08_le_os_16_campos(moto, frota, caplog) -> None:
+    """CA-247-01 e CA-247-02. Eram 9 campos até a T-421; com os da VEI-09, 16 (CA-421-01)."""
     antes = Veiculo.objects.count()
     with caplog.at_level(logging.DEBUG):
         resposta = _ler(moto, pdfs.CRLV_TBC5H21.pdf(), nome="crlv-antonio-ficticio.pdf")
@@ -261,11 +282,12 @@ def test_vei_08_le_os_9_campos(moto, frota, caplog) -> None:
         "ano_modelo": 2026,
         "cor": "vermelha",
         "combustivel": "gasolina",
+        **DO_DOCUMENTO_TBC5H21,
     }
-    assert corpo["lidos"] == NOVE and corpo["quantidade"] == 9
-    assert corpo["rotulo"] == "CRLV-e lido · 9 campos preenchidos"
+    assert corpo["lidos"] == DEZESSEIS and corpo["quantidade"] == 16
+    assert corpo["rotulo"] == "CRLV-e lido · 16 campos preenchidos"
     assert corpo["exercicio"] == 2026
-    assert corpo["dicas"] == {"marca_modelo": None}
+    assert corpo["dicas"] == {"marca_modelo": None, "candidatos": []}
     assert corpo["documento"] == "crlv" and corpo["leitura"]
     assert Veiculo.objects.count() == antes  # nada gravado
     # CA-247-02: nem na resposta nem no log; nem placa, nem o nome do arquivo.
@@ -274,7 +296,7 @@ def test_vei_08_le_os_9_campos(moto, frota, caplog) -> None:
         assert segredo.lower() not in resposta.content.decode().lower()
         assert segredo.lower() not in registros.lower()
     assert "TBC5H21" not in registros and "9C2JC7510SR000123" not in registros
-    assert "tipo=crlv resultado=lido motivo=- campos=9" in registros
+    assert "tipo=crlv resultado=parcial motivo=- campos=16" in registros
 
 
 def test_vei_08_salva_com_o_documento(moto, frota) -> None:
@@ -307,7 +329,7 @@ def test_vei_08_salva_com_o_documento(moto, frota) -> None:
     evento = EventoAuditoria.objects.get(acao="veiculo.cadastrar", objeto_id=veiculo.pk)
     assert evento.depois["preenchido_pelo_documento"] == {
         "tipo": "crlv",
-        "campos": NOVE,
+        "campos": DEZESSEIS,
         "corrigidos": ["cor"],
     }
 
@@ -405,9 +427,9 @@ def test_vei_08_modelo_fora_da_lista(moto) -> None:
     """CA-247-05."""
     corpo = _ler(moto, pdfs.CRLV_FORA_DA_LISTA.pdf()).json()
     assert corpo["campos"]["marca"] is None and corpo["campos"]["modelo"] is None
-    assert corpo["quantidade"] == 7
-    assert corpo["rotulo"] == "CRLV-e lido · 7 campos preenchidos"
-    assert corpo["dicas"] == {"marca_modelo": "SUZUKI/YES 125"}
+    assert corpo["quantidade"] == 14  # 7 da VEI-08 e 7 do documento (VEI-09, T-421)
+    assert corpo["rotulo"] == "CRLV-e lido · 14 campos preenchidos"
+    assert corpo["dicas"] == {"marca_modelo": "SUZUKI/YES 125", "candidatos": []}
 
 
 def test_vei_08_um_campo_no_singular() -> None:

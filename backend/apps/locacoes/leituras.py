@@ -26,7 +26,7 @@ from apps.financeiro.models import ContaReceber, StatusConta, TipoConta
 from comum import leituras, relogio
 from comum.documentos import placa_com_hifen
 
-from .models import ABERTAS, Locacao, Periodicidade, StatusLocacao
+from .models import ABERTAS, Locacao, Periodicidade, StatusLocacao, StatusTroca, TrocaVeiculo
 
 S = StatusLocacao
 VEICULO = "veiculos.Veiculo"
@@ -75,6 +75,10 @@ def _atual(objeto: Any, campo: str) -> dict[str, Any] | None:
     return {nome: linha[origem] for nome, origem in CAMPOS.items()} if linha else None
 
 
+def _data_local(momento: Any) -> date | None:
+    return timezone.localdate(momento) if momento else None
+
+
 def _dias(fim: Any) -> int:
     return max(0, (relogio.hoje() - timezone.localdate(fim)).days)
 
@@ -97,10 +101,57 @@ def montar_veiculo(veiculo: Any) -> dict[str, Any] | None:
         "cliente_nome": atual["cliente_nome"],
         "inicio": atual["inicio"],
         "fim_previsto": atual["fim"],
+        # LOC-10 (T-449): o "desde" da situação. Na devolução atrasada, a data do fim previsto;
+        # nos outros casos, a do início. Data em America/Sao_Paulo; a tela não calcula.
+        "desde": _data_local(
+            atual["fim"] if atual["status"] == S.DEVOLUCAO_ATRASADA else atual["inicio"]
+        ),
     }
     if atual["status"] == S.DEVOLUCAO_ATRASADA:
         bloco["alerta"] = {"codigo": "atrasado", "rotulo": "Atrasado", "tom": "perigo"}
     return bloco
+
+
+# --- veiculos.Veiculo: quem reservou (T-410, ADR 0035) ---
+
+
+def anotar_reserva(queryset: QuerySet[Any]) -> QuerySet[Any]:
+    """A locação `aguardando_retirada` do veículo e a troca pendente em que ele é o novo, sem
+    N+1."""
+    aguardando = Locacao.objects.filter(
+        status=S.AGUARDANDO_RETIRADA, veiculo_id=OuterRef("pk")
+    ).order_by("-id")
+    troca = TrocaVeiculo.objects.filter(
+        status=StatusTroca.PENDENTE, veiculo_novo_id=OuterRef("pk")
+    ).order_by("-id")
+    return queryset.annotate(  # type: ignore[no-any-return]
+        res_locacao_id=Subquery(aguardando.values("pk")[:1]),
+        res_locacao_codigo=Subquery(aguardando.values("codigo")[:1]),
+        res_troca_locacao_id=Subquery(troca.values("locacao_id")[:1]),
+        res_troca_codigo=Subquery(troca.values("locacao__codigo")[:1]),
+    )
+
+
+def montar_reserva(veiculo: Any) -> dict[str, Any] | None:
+    """`{ locacao_id, codigo, motivo }` do veículo `reservado` (`veiculos.md`, "Veículo
+    reservado"). Fora do `reservado`, ou sem quem reservou (dado antigo), `None`."""
+    if veiculo.status != "reservado":
+        return None
+    if not hasattr(veiculo, "res_locacao_id"):
+        veiculo = anotar_reserva(type(veiculo).objects.filter(pk=veiculo.pk)).get()
+    if veiculo.res_locacao_id is not None:
+        return {
+            "locacao_id": veiculo.res_locacao_id,
+            "codigo": veiculo.res_locacao_codigo,
+            "motivo": "locacao",
+        }
+    if veiculo.res_troca_locacao_id is not None:
+        return {
+            "locacao_id": veiculo.res_troca_locacao_id,
+            "codigo": veiculo.res_troca_codigo,
+            "motivo": "troca",
+        }
+    return None
 
 
 # --- clientes.Cliente ---
@@ -318,11 +369,10 @@ def _pagamento(locacao: Locacao) -> dict[str, Any]:
     juros (FIN-03, T-293), o mesmo do Receber. O `cobrar` aqui é só da situação: o perfil que
     cobra fica com quem monta a ficha."""
     hoje = relogio.hoje()
-    abertas = list(
-        financeiro_selectors.contas_da_origem(ORIGEM, locacao.pk).filter(status=StatusConta.ABERTA)
-    )
-    atrasadas = [c for c in abertas if c.vencimento < hoje]
-    do_dia = [c for c in abertas if c.vencimento == hoje]
+    contas = financeiro_selectors.contas_da_origem(ORIGEM, locacao.pk)
+    # As mesmas expressões do financeiro (ADR 0035): à espera da retirada, nada vence (LOC-05).
+    atrasadas = list(contas.filter(financeiro_selectors.q_atrasada(hoje)))
+    do_dia = list(contas.filter(financeiro_selectors.q_vence_hoje(hoje)))
     juros = financeiro_selectors.JurosDaPagina()
     if atrasadas:
         rotulo = (
@@ -389,6 +439,7 @@ def registrar() -> None:
     leituras.registrar_anotacao(
         VEICULO, "locacao_atual", anotar_veiculo, montar_veiculo, recurso=MODULO
     )
+    leituras.registrar_anotacao(VEICULO, "reserva", anotar_reserva, montar_reserva, recurso=MODULO)
     # Só a ficha pede plano e pagamento: alvo próprio, para a Frota não consultá-los.
     leituras.registrar_anotacao(FICHA, "locacao_atual", _sem_anotacao, montar_ficha, recurso=MODULO)
     leituras.registrar_anotacao(

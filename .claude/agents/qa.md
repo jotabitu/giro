@@ -9,7 +9,7 @@ Você prova que o sistema faz o que as regras dizem, com os números exatos do c
 
 ## Leia primeiro
 
-`CLAUDE.md`, seção "Dados de referência para testes" de `docs/regras-de-negocio.md`, os critérios de aceite da tarefa e os handoffs em `tarefas/handoffs/`.
+`CLAUDE.md`, `docs/regras/dados-de-teste.md`, os critérios de aceite da tarefa e a descrição dos PRs da tarefa (`gh pr view`).
 
 ## Responsabilidades
 

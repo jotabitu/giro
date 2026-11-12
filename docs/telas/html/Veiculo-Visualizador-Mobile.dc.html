@@ -1,0 +1,123 @@
+<!doctype html>
+<!-- ajustada no repositório: 03/11/2026, T-414 -->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Visualizador de fotos · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.scrim{position:fixed;inset:0;background:rgba(10,10,14,0.85);backdrop-filter:blur(8px);z-index:90}
+.sheet-viewer{position:fixed;inset:0;background:var(--surface);z-index:100;display:flex;flex-direction:column;overflow:hidden}
+.viewer-top{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
+.viewer-main{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center;background:var(--surface-sunken);padding:16px}
+.viewer-bottom{padding:14px 16px 24px;border-top:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;gap:12px}
+.thumb-btn{width:56px;height:42px;border-radius:10px;border:2px solid transparent;background:var(--surface-sunken);cursor:pointer;padding:0;display:grid;place-items:center}
+.thumb-btn.is-active{border-color:var(--solid)}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1600px; box-sizing: border-box; padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<!-- Conteúdo da ficha ao fundo (esmaecido) -->
+<header style="display: flex; align-items: center; gap: 12px; opacity: .4;">
+<div style="width: 44px; height: 44px; border-radius: 50%; background: var(--surface);"></div>
+<div style="font-size: 20px; font-weight: 600;">Honda CG 160 Fan</div>
+</header>
+
+<!-- Scrim -->
+<div class="scrim" aria-hidden="true"></div>
+
+<!-- Modal Fullscreen do Visualizador no celular -->
+<aside class="sheet-viewer" role="dialog" aria-label="Visualizador de fotos">
+<div class="viewer-top">
+<div style="display: flex; align-items: center; gap: 8px;">
+<a href="Veiculo-Mobile.dc.html" class="wl-icon-btn wl-icon-btn--sm" aria-label="Fechar visualizador" style="text-decoration: none;">
+<svg class="wl-i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+</a>
+<div>
+<div style="font-weight: 600; font-size: 15px;">1 de 3 · Frente</div>
+<div class="lbl" style="font-size: 12px;">QXA-4B21 · Galeria</div>
+</div>
+</div>
+<div style="display: flex; gap: 6px;">
+<span class="wl-badge wl-badge--sm wl-badge--solid">Capa</span>
+</div>
+</div>
+
+<div class="viewer-main">
+<!-- Navegação Anterior/Próxima -->
+<button type="button" class="wl-icon-btn wl-icon-btn--sm" disabled style="position: absolute; left: 10px; opacity: .35;" aria-label="Foto anterior">
+<svg class="wl-i" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></svg>
+</button>
+
+<svg viewBox="0 0 320 280" style="max-width: 90%; max-height: 90%;" role="img" aria-label="Vista frontal ampliada da Honda CG 160 Fan vermelha">
+<!-- Guidão e espelhos -->
+<path d="M80 60 L240 60" stroke="var(--ink)" stroke-width="6" stroke-linecap="round"></path>
+<circle cx="75" cy="60" r="8" fill="var(--ink)"></circle>
+<circle cx="245" cy="60" r="8" fill="var(--ink)"></circle>
+<path d="M90 55 L65 25" stroke="var(--ink)" stroke-width="3"></path>
+<rect x="45" y="15" width="24" height="16" rx="4" fill="var(--ink)"></rect>
+<path d="M230 55 L255 25" stroke="var(--ink)" stroke-width="3"></path>
+<rect x="250" y="15" width="24" height="16" rx="4" fill="var(--ink)"></rect>
+<!-- Carenagem frontal e farol -->
+<path d="M110 70 L210 70 L190 150 L130 150 Z" fill="#dc2626" stroke="var(--ink)" stroke-width="3"></path>
+<circle cx="160" cy="110" r="26" fill="var(--surface)" stroke="var(--ink)" stroke-width="3"></circle>
+<circle cx="160" cy="110" r="10" fill="var(--warning)" opacity=".8"></circle>
+<!-- Paralama e roda -->
+<path d="M135 155 Q160 140 185 155 L180 185 L140 185 Z" fill="#dc2626" stroke="var(--ink)" stroke-width="2.5"></path>
+<rect x="140" y="185" width="40" height="75" rx="20" fill="var(--surface-sunken)" stroke="var(--ink)" stroke-width="4"></rect>
+<!-- Placa -->
+<rect x="130" y="225" width="60" height="24" rx="3" fill="#ffffff" stroke="var(--ink)" stroke-width="2"></rect>
+<rect x="130" y="225" width="60" height="7" rx="1" fill="#1d4ed8"></rect>
+<text x="160" y="244" font-family="var(--font-mono)" font-size="11" font-weight="700" fill="#111114" text-anchor="middle">QXA-4B21</text>
+</svg>
+
+<a href="#" class="wl-icon-btn wl-icon-btn--sm" style="position: absolute; right: 10px; text-decoration: none;" aria-label="Próxima foto">
+<svg class="wl-i" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></svg>
+</a>
+</div>
+
+<div class="viewer-bottom">
+<div style="display: flex; gap: 8px; justify-content: center;">
+<button type="button" class="thumb-btn is-active"><span style="font-size: 11px; font-weight: 700;">1 · Frente</span></button>
+<button type="button" class="thumb-btn"><span style="font-size: 11px; font-weight: 500; color: var(--ink-muted);">2 · Traseira</span></button>
+<button type="button" class="thumb-btn"><span style="font-size: 11px; font-weight: 500; color: var(--ink-muted);">3 · Painel</span></button>
+</div>
+
+<!-- Botão Baixar com nome oficial (CA-414-12) -->
+<a href="#" download="QXA-4B21-galeria-1.jpg" class="wl-btn wl-btn--solid" style="height: 48px; justify-content: center; text-decoration: none; font-size: 14px;">
+<svg class="wl-i" viewBox="0 0 24 24" style="width: 16px; height: 16px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"></path></svg>
+Baixar foto (QXA-4B21-galeria-1.jpg)
+</a>
+
+<div style="text-align: center;" class="lbl">
+Link temporário válido por 15 minutos (AUD-05) · Galeria e vistoria são origens separadas (VEI-10)
+</div>
+</div>
+</aside>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

@@ -5,14 +5,17 @@ import type {
   CorrecaoDeIdentificacao,
   CrlvDoCadastro,
   LeituraCrlv,
+  LeituraCrlvNoEditar,
   ModeloDoCatalogo,
   CategoriaVeiculo,
   DocumentoVeiculo,
+  NovoDocumentoVeiculo,
   FiltroVeiculos,
   ListaVeiculos,
   LocacoesDoVeiculo,
   ManutencoesDoVeiculo,
   EdicaoVeiculo,
+  GaleriaDoEditar,
   NovoVeiculo,
   TipoVeiculo,
   Veiculo,
@@ -21,7 +24,7 @@ import type {
 
 const ROTULO_DOCUMENTO: Record<string, string> = { crlv: "CRLV", seguro: "Seguro", ipva: "IPVA", rastreador: "Rastreador" };
 
-type DocumentoDaApi = { id: number; tipo: string; validade: string | null; situacao: DocumentoVeiculo["situacao"]; dias_para_vencer: number | null };
+type DocumentoDaApi = { id: number; tipo: string; ativo?: boolean; arquivo?: DocumentoVeiculo["arquivo"]; validade: string | null; situacao: DocumentoVeiculo["situacao"]; dias_para_vencer: number | null };
 
 export const veiculosApi = {
   async categorias(filtro: { filial?: number; tipo_veiculo?: TipoVeiculo } = {}): Promise<CategoriaVeiculo[]> {
@@ -38,7 +41,15 @@ export const veiculosApi = {
   criar(v: NovoVeiculo, crlv?: CrlvDoCadastro): Promise<Veiculo> {
     if (!crlv) return http.post<Veiculo>("/api/veiculos/", v);
     const corpo = new FormData();
-    for (const [campo, valor] of Object.entries(v)) if (valor !== undefined && valor !== null) corpo.set(campo, String(valor));
+    // VEI-09: em multipart os blocos vão achatados, com a chave pontuada (`documento.lotacao`, `rastreador.numero`).
+    for (const [campo, valor] of Object.entries(v)) {
+      if (valor === undefined || valor === null) continue;
+      if (typeof valor === "object") {
+        for (const [sub, subvalor] of Object.entries(valor)) if (subvalor !== undefined && subvalor !== null) corpo.set(`${campo}.${sub}`, String(subvalor));
+      } else {
+        corpo.set(campo, String(valor));
+      }
+    }
     corpo.set("crlv_arquivo", crlv.arquivo);
     corpo.set("crlv_validade", crlv.validade);
     if (crlv.exercicio != null) corpo.set("crlv_exercicio", String(crlv.exercicio));
@@ -51,6 +62,16 @@ export const veiculosApi = {
     const corpo = new FormData();
     corpo.set("arquivo", arquivo);
     return http.post<LeituraCrlv>("/api/veiculos/leitura-crlv/", corpo);
+  },
+
+  /**
+   * VEI-08 no editar (T-421, padrão A): `POST /api/veiculos/{id}/leitura-crlv/`. Sem placa e chassi na resposta; não grava nada e não guarda o PDF.
+   * A 422 `crlv_outro_veiculo` traz a mensagem pronta ("Este CRLV-e é de outro veículo.").
+   */
+  lerCrlvDoVeiculo(id: number, arquivo: File): Promise<LeituraCrlvNoEditar> {
+    const corpo = new FormData();
+    corpo.set("arquivo", arquivo);
+    return http.post<LeituraCrlvNoEditar>(`/api/veiculos/${id}/leitura-crlv/`, corpo);
   },
 
   /** O catálogo de marcas e modelos (até 50), para o campo Modelo. */
@@ -84,6 +105,50 @@ export const veiculosApi = {
   async documentos(id: number): Promise<DocumentoVeiculo[]> {
     const r = await http.get<{ resultados: DocumentoDaApi[] }>(`/api/veiculos/${id}/documentos/`);
     return r.resultados.map((d) => ({ ...d, rotulo: ROTULO_DOCUMENTO[d.tipo] ?? d.tipo }));
+  },
+
+  /** `GET .../documentos/historico/`: todos os documentos, inclusive os renovados (inativos). */
+  async historicoDeDocumentos(id: number): Promise<DocumentoVeiculo[]> {
+    const r = await http.get<{ resultados: DocumentoDaApi[] }>(`/api/veiculos/${id}/documentos/historico/`);
+    return r.resultados.map((d) => ({ ...d, rotulo: ROTULO_DOCUMENTO[d.tipo] ?? d.tipo }));
+  },
+
+  /** `POST .../documentos/` (VEI-03): se já havia um ativo do mesmo tipo, a API o deixa inativo. Administrador e gerente. */
+  /** VEI-10: a galeria do editar. 403 PLT-07 para o suporte em só ver. */
+  fotos(id: number): Promise<GaleriaDoEditar> {
+    return http.get<GaleriaDoEditar>(`/api/veiculos/${id}/fotos/`);
+  },
+
+  /** Uma foto por requisição (ADR 0036): quem envia várias chama uma depois da outra. */
+  enviarFoto(id: number, arquivo: File): Promise<GaleriaDoEditar> {
+    const corpo = new FormData();
+    corpo.set("arquivo", arquivo);
+    return http.post<GaleriaDoEditar>(`/api/veiculos/${id}/fotos/`, corpo);
+  },
+
+  trocarFoto(id: number, fotoId: number, arquivo: File): Promise<GaleriaDoEditar> {
+    const corpo = new FormData();
+    corpo.set("arquivo", arquivo);
+    return http.post<GaleriaDoEditar>(`/api/veiculos/${id}/fotos/${fotoId}/trocar/`, corpo);
+  },
+
+  usarComoCapa(id: number, fotoId: number): Promise<GaleriaDoEditar> {
+    return http.post<GaleriaDoEditar>(`/api/veiculos/${id}/fotos/${fotoId}/capa/`, {});
+  },
+
+  /** A foto fica inativa; não volta pela tela. */
+  apagarFoto(id: number, fotoId: number): Promise<GaleriaDoEditar> {
+    return http.post<GaleriaDoEditar>(`/api/veiculos/${id}/fotos/${fotoId}/apagar/`, {});
+  },
+
+  async enviarDocumento(id: number, d: NovoDocumentoVeiculo): Promise<DocumentoVeiculo> {
+    const corpo = new FormData();
+    corpo.set("tipo", d.tipo);
+    corpo.set("validade", d.validade);
+    if (d.exercicio) corpo.set("exercicio", d.exercicio);
+    if (d.arquivo) corpo.set("arquivo", d.arquivo);
+    const r = await http.post<DocumentoDaApi>(`/api/veiculos/${id}/documentos/`, corpo);
+    return { ...r, rotulo: ROTULO_DOCUMENTO[r.tipo] ?? r.tipo };
   },
 
   /** `GET /api/locacoes/?veiculo=`: o contrato não traz o total, então ele é o tamanho da lista (até 100). */

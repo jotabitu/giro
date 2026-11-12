@@ -11,7 +11,7 @@ from integracoes.pagamentos.base import ParceiroIndisponivel
 @shared_task(name="aut_03_regua_de_cobranca")
 @tarefa_de_empresa
 def aut_03_regua_de_cobranca(schema_name: str) -> int:
-    """AUT-03, às 09:00: cobranças pelo WhatsApp e `financeiro.parcela_atrasou` (LOC-07,
+    """AUT-03, às 09:00: cobranças por e-mail e `financeiro.parcela_atrasou` (LOC-07,
     CLI-05)."""
     from .services import regua_de_cobranca
 

@@ -20,10 +20,25 @@ type Modo = "ver" | "pagar" | "recusar";
  * Detalhe da despesa: dados, nota e as ações do perfil. Pagar é do administrador e do financeiro (só `a_pagar`);
  * aprovar e recusar aparecem quando a API diz `pode_decidir` no pedido (APR-03, APR-09). A API confere tudo de novo.
  */
-export function DetalheDaDespesa({ id, inicial, eu, aoFechar, aoConcluir }: { id: number; inicial?: Despesa; eu: Eu; aoFechar: () => void; aoConcluir: (mensagem: string) => void }) {
+/** `semReler`: abre com a linha da lista sem ler de novo (a ficha do veículo, FIN-17, mostra despesas de outra filial que a do `X-Filial`). */
+export function DetalheDaDespesa({
+  id,
+  inicial,
+  semReler = false,
+  eu,
+  aoFechar,
+  aoConcluir,
+}: {
+  id: number;
+  inicial?: Despesa;
+  semReler?: boolean;
+  eu: Eu;
+  aoFechar: () => void;
+  aoConcluir: (mensagem: string) => void;
+}) {
   const cliente = useQueryClient();
   const agora = useAgora();
-  const consulta = useQuery({ queryKey: ["despesas", "detalhe", id], queryFn: () => financeiro.obterDespesa(id), initialData: inicial });
+  const consulta = useQuery({ queryKey: ["despesas", "detalhe", id], queryFn: () => financeiro.obterDespesa(id), initialData: inicial, enabled: !(semReler && inicial) });
   const [modo, setModo] = useState<Modo>("ver");
   const [forma, setForma] = useState<FormaDaDespesa>("pix");
   const [dia, setDia] = useState("");
@@ -166,8 +181,13 @@ export function DetalheDaDespesa({ id, inicial, eu, aoFechar, aoConcluir }: { id
                 ]}
               />
             </div>
+            {d.comprovante && (
+              <a href={d.comprovante.url} target="_blank" rel="noopener noreferrer" className="wl-btn wl-btn--quiet wl-btn--sm self-start no-underline">
+                Ver comprovante
+              </a>
+            )}
             {d.nota ? (
-              <a href={d.nota.url} target="_blank" rel="noreferrer" className="wl-btn wl-btn--sm self-start">
+              <a href={d.nota.url} target="_blank" rel="noreferrer" className="wl-btn wl-btn--quiet wl-btn--sm self-start no-underline">
                 Ver a nota
               </a>
             ) : (

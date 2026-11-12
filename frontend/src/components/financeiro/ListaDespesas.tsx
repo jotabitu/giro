@@ -18,7 +18,7 @@ import { dinheiroCurto } from "@/lib/painel";
 import { useSessao } from "@/lib/sessao";
 import { Confirmacao } from "./Comuns";
 import { DetalheDaDespesa } from "./DetalheDaDespesa";
-import { NovaDespesa } from "./NovaDespesa";
+import { CampoVeiculo, NovaDespesa } from "./NovaDespesa";
 
 // Referência: docs/telas/html/Despesas-Desktop.dc.html e Despesas-Mobile.dc.html.
 // Estado, texto da situação e indicadores vêm da API (FIN-05, APR-03); a tela não calcula valor nem estado.
@@ -49,7 +49,7 @@ function BotaoNota({ d }: { d: Despesa }) {
 }
 
 /** "Últimas" no celular: um cartão por despesa, com data, origem, situação e valor. */
-function CartaoDaDespesa({ d, origem, aoAbrir }: { d: Despesa; origem: string; aoAbrir: (d: Despesa) => void }) {
+export function CartaoDaDespesa({ d, origem, aoAbrir }: { d: Despesa; origem: string; aoAbrir: (d: Despesa) => void }) {
   return (
     <button type="button" onClick={() => aoAbrir(d)} className="flex min-h-[44px] items-center gap-3 border-b border-line py-[14px] text-left text-ink last:border-b-0">
       <span className="min-w-0 flex-1">
@@ -98,6 +98,9 @@ export function ListaDespesas({ abrirId }: { abrirId?: number }) {
   const aba = (valor("aba") ?? "todas") as Aba;
   const cursor = valor("cursor") ?? undefined;
   const buscaNaUrl = valor("busca") ?? "";
+  // FIN-16: o filtro "Veículo" muda só a lista; as abas e os indicadores seguem os do mês e da filial (a API garante).
+  const veiculoNaUrl = Number(valor("veiculo")) || undefined;
+  const placaNaUrl = valor("placa") ?? "";
   const [busca, setBusca] = useBuscaNaUrl(definir, buscaNaUrl);
   const mes = mesDe(useAgora());
   const [detalhe, setDetalhe] = useState<{ id: number; inicial?: Despesa } | null>(abrirId ? { id: abrirId } : null);
@@ -108,8 +111,8 @@ export function ListaDespesas({ abrirId }: { abrirId?: number }) {
   const podeLancar = eu.pode.despesas_lancar !== "nao";
 
   const consulta = useQuery({
-    queryKey: ["despesas", { aba, mes, cursor, busca: buscaNaUrl }],
-    queryFn: () => financeiro.listarDespesas({ mes, status: aba === "todas" ? undefined : aba, busca: buscaNaUrl || undefined, cursor }),
+    queryKey: ["despesas", { aba, mes, cursor, busca: buscaNaUrl, veiculo: veiculoNaUrl }],
+    queryFn: () => financeiro.listarDespesas({ mes, status: aba === "todas" ? undefined : aba, busca: buscaNaUrl || undefined, veiculo: veiculoNaUrl, cursor }),
     placeholderData: (anterior) => anterior,
     enabled: veLista,
   });
@@ -209,6 +212,13 @@ export function ListaDespesas({ abrirId }: { abrirId?: number }) {
                   <SearchField placeholder="Buscar despesa" aria-label="Buscar despesa" value={busca} onChange={(e) => setBusca(e.target.value)} />
                 </div>
               </div>
+              <div className="mb-5 md:max-w-[320px]">
+                <CampoVeiculo
+                  rotulo="Veículo"
+                  escolhido={veiculoNaUrl ? { id: veiculoNaUrl, placa: placaNaUrl, modelo: "" } : null}
+                  aoEscolher={(v) => definir({ veiculo: v ? String(v.id) : null, placa: v ? v.placa : null, cursor: null })}
+                />
+              </div>
               <h2 className="mb-1 text-heading md:hidden">Últimas</h2>
 
               {consulta.isError && (
@@ -221,7 +231,7 @@ export function ListaDespesas({ abrirId }: { abrirId?: number }) {
                   Carregando as despesas…
                 </p>
               )}
-              {d && despesas.length === 0 && <p className="py-6 text-center text-body text-ink-muted">{buscaNaUrl ? "Nenhuma despesa com essa busca. Mude o termo." : aba === "todas" ? "Nenhuma despesa neste mês." : "Nenhuma despesa nesta situação."}</p>}
+              {d && despesas.length === 0 && <p className="py-6 text-center text-body text-ink-muted">{buscaNaUrl ? "Nenhuma despesa com essa busca. Mude o termo." : veiculoNaUrl ? "Nenhuma despesa deste veículo no mês." : aba === "todas" ? "Nenhuma despesa neste mês." : "Nenhuma despesa nesta situação."}</p>}
               {d && despesas.length > 0 && (
                 <>
                   <div className="hidden overflow-x-auto md:block">

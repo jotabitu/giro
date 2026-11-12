@@ -14,7 +14,8 @@ export type DialogoProps = {
   children?: ReactNode;
   /** Botões do rodapé: a ação principal por último e à direita (solido), a de saída ao lado (quieto). */
   acoes?: ReactNode;
-  tamanho?: "pequeno" | "medio";
+  /** `amplo` (até 1100 × 820 px; tela cheia no celular) é para conteúdo que pede espaço, como o visualizador de fotos. */
+  tamanho?: "pequeno" | "medio" | "amplo";
   /** Padrão: sim. Desligue em diálogos com formulário preenchido. */
   fecharAoClicarFora?: boolean;
 };

@@ -146,6 +146,35 @@ class Combustivel(models.TextChoices):
     HIBRIDO = "hibrido", "Híbrido"
 
 
+class Especie(models.TextChoices):
+    """Espécie do veículo no CRLV-e (CTB, art. 96; VEI-09)."""
+
+    PASSAGEIRO = "passageiro", "Passageiro"
+    CARGA = "carga", "Carga"
+    MISTO = "misto", "Misto"
+    COMPETICAO = "competicao", "Competição"
+    TRACAO = "tracao", "Tração"
+    ESPECIAL = "especial", "Especial"
+    COLECAO = "colecao", "Coleção"
+
+
+# VEI-09 (T-421): chave da API (pontuada nos blocos `documento` e `rastreador`) → campo do model.
+CAMPOS_DA_VEI_09 = {
+    "documento.potencia_cv": "potencia_cv",
+    "documento.cilindrada_cc": "cilindrada_cc",
+    "documento.especie": "especie",
+    "documento.tipo": "tipo_documento",
+    "documento.carroceria": "carroceria",
+    "documento.lotacao": "lotacao",
+    "documento.peso_bruto_kg": "peso_bruto_kg",
+    "documento.numero_motor": "numero_motor",
+    "documento.observacoes": "observacoes_crlv",
+    "rastreador.numero": "rastreador_numero",
+    "rastreador.empresa": "rastreador_empresa",
+    "anotacoes": "anotacoes",
+}
+
+
 class Veiculo(MaquinaDeEstados, ModeloBase):
     placa = models.CharField(max_length=7, unique=True)
     chassi = models.CharField(max_length=17, unique=True)
@@ -175,9 +204,27 @@ class Veiculo(MaquinaDeEstados, ModeloBase):
     entrou_na_frota_em = models.DateField()
     km_ultima_manutencao = models.PositiveIntegerField(null=True, blank=True)  # MAN-05
     data_ultima_manutencao = models.DateField(null=True, blank=True)
+    # VEI-09 (T-421): todos opcionais; os veículos de antes ficam vazios.
+    potencia_cv = models.PositiveSmallIntegerField(null=True, blank=True)
+    cilindrada_cc = models.PositiveSmallIntegerField(null=True, blank=True)
+    especie = models.CharField(  # noqa: DJ001  (o contrato publica `null`)
+        max_length=12, choices=Especie.choices, null=True, blank=True
+    )
+    tipo_documento = models.CharField(max_length=30, blank=True, default="")  # o "tipo" do CRLV-e
+    carroceria = models.CharField(max_length=30, blank=True, default="")
+    lotacao = models.PositiveSmallIntegerField(null=True, blank=True)
+    peso_bruto_kg = models.PositiveIntegerField(null=True, blank=True)
+    numero_motor = models.CharField(max_length=21, blank=True, default="")
+    observacoes_crlv = models.CharField(max_length=500, blank=True, default="")
+    rastreador_numero = models.CharField(max_length=20, blank=True, default="")
+    rastreador_empresa = models.CharField(max_length=60, blank=True, default="")
+    anotacoes = models.CharField(max_length=500, blank=True, default="")
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = TRANSICOES_VEICULO
     REGRA_TRANSICAO: ClassVar[str] = "transicao_veiculo"
+    # VEI-09: dados do veículo, não de pessoa; a auditoria da empresa é lida só pelo
+    # administrador (modelo de dados, item 9).
+    CAMPOS_AUDITORIA: ClassVar[dict[str, list[str]]] = {"inteiro": list(CAMPOS_DA_VEI_09.values())}
 
     class Meta:
         verbose_name = "veículo"
@@ -187,6 +234,25 @@ class Veiculo(MaquinaDeEstados, ModeloBase):
             models.CheckConstraint(
                 condition=models.Q(chassi__regex=r"^[A-Z0-9]{17}$"),
                 name="veiculo_chassi_17_caracteres",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(potencia_cv__isnull=True)
+                | models.Q(potencia_cv__gte=1, potencia_cv__lte=999),
+                name="veiculo_potencia_1_a_999",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(cilindrada_cc__isnull=True)
+                | models.Q(cilindrada_cc__gte=1, cilindrada_cc__lte=9999),
+                name="veiculo_cilindrada_1_a_9999",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(lotacao__isnull=True)
+                | models.Q(lotacao__gte=1, lotacao__lte=99),
+                name="veiculo_lotacao_1_a_99",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(peso_bruto_kg__isnull=True) | models.Q(peso_bruto_kg__gt=0),
+                name="veiculo_peso_bruto_positivo",
             ),
         ]
 
@@ -342,3 +408,67 @@ class DocumentoVeiculo(ModeloBase, ModeloAtivavel):
 
     def __str__(self) -> str:
         return f"{self.veiculo_id}: {self.tipo} até {self.validade}"
+
+
+class FormatoFoto(models.TextChoices):
+    JPG = "jpg", "JPG"
+    PNG = "png", "PNG"
+
+
+# VEI-10: até 20 fotos ativas na galeria (conferido no serviço, com o veículo travado).
+LIMITE_DA_GALERIA = 20
+
+
+class FotoVeiculo(ModeloBase, ModeloAtivavel):
+    """Galeria do veículo (VEI-10, ADR 0036, modelo de dados item 9a): fotos de cadastro para a
+    ficha e o catálogo, nunca as da vistoria. Arquivo privado, reprocessado sem metadados, com URL
+    de 15 minutos (AUD-05). Apagada ou substituída, fica `ativo=False`, com o arquivo guardado."""
+
+    veiculo = models.ForeignKey(Veiculo, on_delete=models.PROTECT, related_name="fotos")
+    arquivo = models.FileField(
+        storage=arquivos.armazenamento_privado,
+        upload_to=arquivos.caminho_privado,
+        max_length=200,
+        null=True,
+        blank=True,
+    )
+    formato = models.CharField(max_length=3, choices=FormatoFoto.choices)
+    # Ordem de envio, sequencial por veículo entre ativas e inativas; a troca herda a da antiga.
+    ordem = models.PositiveSmallIntegerField()
+    capa = models.BooleanField(default=False)
+    enviada_por = models.ForeignKey(
+        "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    enviada_em = models.DateTimeField()
+    substituida_por = models.ForeignKey(
+        "self", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    apagada_por = models.ForeignKey(
+        "contas.Usuario", on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+
+    class Meta:
+        verbose_name = "foto do veículo"
+        verbose_name_plural = "fotos do veículo"
+        ordering = ["-capa", "ordem", "id"]
+        indexes = [
+            models.Index(fields=["veiculo", "ativo", "ordem"], name="foto_veiculo_galeria"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["veiculo"],
+                condition=models.Q(ativo=True, capa=True),
+                name="foto_veiculo_uma_capa",
+            ),
+            models.UniqueConstraint(
+                fields=["veiculo", "ordem"],
+                condition=models.Q(ativo=True),
+                name="foto_veiculo_ordem_ativa",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(ordem__gte=1), name="foto_veiculo_ordem_positiva"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.veiculo_id}: foto {self.ordem}"

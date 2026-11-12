@@ -99,6 +99,24 @@ Todos os serviços do `docker-compose.yml` têm `restart: unless-stopped`: volta
 
 **CI:** continua com um papel só. Passa a usar os papéis separados no mesmo PR em que o backend ler `DATABASE_URL_MIGRACAO` (job `backend` ganha o `01-papeis.sh` no service Postgres).
 
+## CI: o que cada gatilho roda (T-427)
+
+`.github/workflows/ci.yml`. A decisão de quanto testar fica em `infra/scripts/selecionar-testes.sh`, que lê a lista de arquivos do PR; `infra/scripts/check-selecao-testes.sh` confere a seleção com PRs de exemplo e roda no job de infra.
+
+| Gatilho | Backend | Frontend |
+| --- | --- | --- |
+| PR para a `develop` | lint, tipos e OpenAPI sempre; pytest só nos apps tocados (ver abaixo) | lint, tipos e build sempre; Vitest só nos testes afetados (`--changed` contra a base) |
+| Push na `develop` (merge de PR) | suíte inteira | suíte inteira |
+| PR da `develop` para a `main` (e qualquer PR para a `main`) | suíte inteira | suíte inteira |
+
+**Backend em PR para a `develop`.** Para cada app alterado em `backend/apps/<app>/`, o pytest roda `apps/<app>/tests` (quando existe), os testes de `tests/`, `comum/tests` e `integracoes` que citam o app pelo nome (import, URL ou texto) e os apps que importam o alterado, direta ou indiretamente, com os testes deles. Arquivo `test_*.py` alterado entra na lista. Rodam a suíte inteira: `backend/config`, `backend/comum`, `backend/integracoes`, `backend/seed`, `conftest.py` e apoio dos testes, `requirements*.txt`, `pyproject.toml`, migrações de app, `docs/api/openapi.yaml` e `.github/workflows`. Só texto (`*.md`) em `backend/` não roda pytest.
+
+**Frontend em PR para a `develop`.** `vitest --changed HEAD^1` roda os testes que importam, direta ou indiretamente, um arquivo alterado. Rodam tudo: `package.json`, `package-lock.json`, `vitest.config.*`, `tsconfig.json`, `schema.d.ts`, `src/testes/` (as fixtures), `docs/api/openapi.yaml` e `.github/workflows`.
+
+**Como ver a falha na `develop`.** Cada push na `develop` tem a sua rodada (sem cancelar a anterior). Se a suíte inteira falhar, o job "Backend (testes, OpenAPI)" ou "Frontend (lint, tipos, testes, build)" fica vermelho: aparece com o X vermelho ao lado do commit na `develop`, na aba Actions (workflow CI, branch `develop`) e no e-mail de falha do GitHub para quem fez o merge.
+
+**Risco aceito.** O PR testa o que mudou, não o que depende do que mudou: um app que usa o alterado sem importá-lo nem citá-lo pelo nome, ou um teste do frontend que quebra por efeito indireto (tipos do OpenAPI, fixtures), passa no PR e só aparece depois do merge, no vermelho da `develop` (foi o caso dos PRs #437 e #436). A porta de segurança é a suíte inteira no push da `develop` e no PR da `develop` para a `main`: o lote só chega à `main` testado por inteiro. Corrija um vermelho na `develop` antes de abrir o PR de promoção.
+
 ## Produção (ADR 0033, opção B: uma VPS com tudo em Compose)
 
 Preparado na T-373, **sem conta de provedor**: nada abaixo foi subido num servidor real. O que foi testado e o que só dá para fazer depois da conta está no handoff `tarefas/handoffs/T-373-devops.md`.
@@ -266,6 +284,9 @@ Valores por ambiente (o processo precisa de `DJANGO_SETTINGS_MODULE`; `wsgi.py`,
 Modelos de homologação e produção, só com o que difere do dev: `infra/deploy/homologacao.env.example` e `infra/deploy/producao.env.example`. A `GIRO_REDES_PROXY` deles é um exemplo (`10.20.0.0/24`, `10.10.0.0/24`) e deve ser trocada pela sub-rede real do proxy reverso quando o ambiente existir; `prod.py` recusa lista vazia, rede inválida e `/0`.
 | `DJANGO_HSTS_SEGUNDOS` / `DJANGO_HSTS_PRELOAD` | não se aplica | curto / 0 até estabilizar | 31536000 / 1 |
 | `GIRO_EXPOR_DOCUMENTACAO_DA_API` | aberto | 0 (aberto só se pedido) | 0 |
+| `GIRO_RECIBO_PUBLICO` (T-436) | 1 | 1 | 0 até o lote `develop` → `main` subir |
+
+**Link público do recibo (T-436, decisão do dono):** ligado em dev (`.env.example`) e em homologação (`infra/deploy/homologacao.env.example`; no cofre da homologação, `GIRO_RECIBO_PUBLICO=1`). Produção fica `0`. **Onde ligar quando o lote for para a `main`:** no cofre de produção (modelo `infra/deploy/producao.env.example`), troque `GIRO_RECIBO_PUBLICO=0` por `1` e recrie `backend`, `worker` e `beat` (`docker compose -f infra/deploy/docker-compose.producao.yml --env-file /etc/giro/producao.env --env-file /etc/giro/producao-infra.env up -d backend worker beat`, como no passo 3 do roteiro de subida). Na homologação o arquivo é `docker-compose.homologacao.yml`. Conferência: a ficha de uma devolução concluída traz `acoes.copiar_link_recibo` true, "Copiar link do recibo" aparece e `/recibo#<token>` abre (`docs/api/copiar-link.md`). Em homologação já em pé, a variável só vale depois do mesmo recriar.
 
 `prod.py` recusa subir se `JWT_SIGNING_KEY` faltar ou igualar `DJANGO_SECRET_KEY`, ou se `GIRO_REDES_PROXY` estiver vazia, inválida ou aberta (`/0`). Pela R-03 da revisão T-050 (T-052), recusa também: chave ou pepper com o valor do `.env.example` (a chave é comparada sem o id, então trocar só o `1:` não passa), a mesma chave em `GIRO_CHAVE_DADOS_PESSOAIS` e `GIRO_CHAVE_SEGREDOS`, chave que não decodifica para 32 bytes, pepper com menos de 32 bytes e pepper igual a `DJANGO_SECRET_KEY` ou `JWT_SIGNING_KEY`. Testes `test_r03_*` em `backend/tests/test_producao.py`. Fixa `SHOW_PUBLIC_IF_NO_TENANT_FOUND = False` (host desconhecido dá 404, S-16), HSTS com preload e subdomínios, `Referrer-Policy: same-origin` e `X-Frame-Options: DENY` (S-18).
 

@@ -18,7 +18,15 @@ from django.http import HttpRequest
 
 from comum.erros import ErroDeNegocio, ErroDeValidacao
 
-from .models import Empresa, FaturaAssinatura, Plano, StatusFatura, UsoEmpresa
+from .models import (
+    Empresa,
+    FaturaAssinatura,
+    PedidoCompra,
+    Plano,
+    StatusFatura,
+    StatusPedidoCompra,
+    UsoEmpresa,
+)
 from .services import POR_EQUIPE, Administrador, criar_empresa, reativar_empresa, validar_criacao
 
 
@@ -70,7 +78,7 @@ class SoLeitura(admin.ModelAdmin):  # type: ignore[type-arg]
 
 @admin.register(Plano)
 class PlanoAdmin(SoLeitura):
-    list_display = ["nome", "preco_mensal_centavos", "limite_veiculos", "ativo"]
+    list_display = ["nome", "preco_mensal_centavos", "limite_veiculos", "ativo", "a_venda"]
 
     def has_add_permission(self, request: HttpRequest) -> bool:
         return False
@@ -86,8 +94,17 @@ def _so_o_dono(request: HttpRequest) -> bool:
 
 @admin.register(Empresa)
 class EmpresaAdmin(SoLeitura):
-    list_display = ["nome_exibicao", "subdominio", "plano", "status", "teste_fim", "apagar_em"]
-    list_filter = ["status", "plano"]
+    list_display = [
+        "nome_exibicao",
+        "subdominio",
+        "plano",
+        "status",
+        "origem",
+        "empresa_anterior",
+        "teste_fim",
+        "apagar_em",
+    ]
+    list_filter = ["status", "plano", "origem"]
     search_fields = ["nome_exibicao", "subdominio", "cnpj"]
     add_form = CriarEmpresaForm
     action_form = AcaoComMotivo
@@ -207,3 +224,33 @@ class FaturaAssinaturaAdmin(SoLeitura):
     @admin.display(description="CNPJ")
     def cnpj(self, obj: FaturaAssinatura) -> str:
         return str(obj.empresa.cnpj or "")
+
+
+@admin.register(PedidoCompra)
+class PedidoCompraAdmin(SoLeitura):
+    """Compra pública (`compra.md`): a equipe vê o funil e libera o pedido confirmado acima do
+    teto do dia (D-430-08). Sem o código nem o IP (só os hashes, que nem aparecem)."""
+
+    list_display = ["chave", "status", "plano", "ciclo", "situacao_cnpj", "criado_em", "empresa"]
+    list_filter = ["status", "plano", "ciclo"]
+    search_fields = ["chave", "subdominio"]
+    exclude = ["codigo_hash", "ip_hash"]
+    actions = ["liberar"]
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return False
+
+    def has_liberar_permission(self, request: HttpRequest) -> bool:
+        return _so_o_dono(request)
+
+    @admin.action(description="Liberar o pedido acima do teto do dia", permissions=["liberar"])
+    def liberar(self, request: HttpRequest, queryset: Any) -> None:
+        from .compra import liberar_pedido_compra
+
+        for pedido in queryset.filter(status=StatusPedidoCompra.CONFIRMADO).order_by("pk"):
+            try:
+                liberar_pedido_compra(pedido)
+            except ErroDeNegocio as erro:
+                self.message_user(request, f"{pedido}: {erro.mensagem}", messages.ERROR)
+            else:
+                self.message_user(request, f"{pedido}: criação agendada.", messages.SUCCESS)

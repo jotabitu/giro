@@ -1,5 +1,8 @@
 """T-367 · Lembrete de devolução (AUT-01; modelo 11 de `docs/qa/criterios/whatsapp.md`).
 
+T-463 (ADR 0034, decisão de 11 nov 2026): na fase 1, o lembrete vai por e-mail; o WhatsApp só
+com `GIRO_WHATSAPP_CLIENTE_FINAL` ligada.
+
 Carteira de outubro da Moto Rápida: a LOC-2836 (Juliana, Filial Centro) tem o fim previsto em
 14 out 18:00 (LOC-06). Às 08:00 desse dia, a tarefa lembra a Juliana uma vez.
 """
@@ -42,8 +45,8 @@ def moto_rapida(cenario):  # noqa: F811
     whatsapp.caixa_de_saida.clear()
 
 
-def _mensagens(celular: str) -> list[str]:
-    return [m.texto for m in whatsapp.caixa_de_saida if m.celular == celular]
+def _mensagens(email: str) -> list[str]:
+    return [str(m.body) for m in mail.outbox if m.to == [email]]
 
 
 def _eventos(locacao: Locacao) -> list[EventoAuditoria]:
@@ -55,26 +58,44 @@ def _eventos(locacao: Locacao) -> list[EventoAuditoria]:
 
 
 def test_aut_01_lembrete_de_devolucao(cenario, com_carteira, relogio):  # noqa: F811
-    """Em 14 out às 08:00, a Juliana recebe pelo WhatsApp o horário e o endereço da Filial
-    Centro. Rodar de novo no dia, ou depois, não manda outro (uma vez por locação)."""
+    """Em 14 out às 08:00, a Juliana recebe por e-mail o horário e o endereço da Filial Centro,
+    e nada pelo WhatsApp, mesmo com celular (T-463). Rodar de novo no dia, ou depois, não manda
+    outro (uma vez por locação)."""
     juliana = cenario.clientes["Juliana"]
     locacao = com_carteira["LOC-2836"]
     relogio.em("2026-10-14 08:00")
     aut_01_lembrete_de_devolucao("empresa_a")
-    assert _mensagens(juliana.celular) == [LEMBRETE_DA_JULIANA]
-    assert mail.outbox == []
+    assert _mensagens(juliana.email) == [LEMBRETE_DA_JULIANA]
+    assert whatsapp.caixa_de_saida == []
     (evento,) = _eventos(locacao)
     assert (evento.regra, evento.depois, evento.ator_tipo) == (
         "AUT-01",
-        {"canal": "whatsapp"},
+        {"canal": "email"},
         "sistema",
     )
 
     aut_01_lembrete_de_devolucao("empresa_a")
     relogio.em("2026-10-14 12:00")
     aut_01_lembrete_de_devolucao("empresa_a")
-    assert _mensagens(juliana.celular) == [LEMBRETE_DA_JULIANA]
+    assert _mensagens(juliana.email) == [LEMBRETE_DA_JULIANA]
     assert len(_eventos(locacao)) == 1
+
+
+def test_aut_01_com_a_chave_ligada_tambem_pelo_whatsapp(
+    cenario,  # noqa: F811
+    com_carteira,  # noqa: F811
+    relogio,
+    settings,
+):
+    """O envio guardado: com `GIRO_WHATSAPP_CLIENTE_FINAL` ligada, o mesmo texto também vai pelo
+    WhatsApp, e o evento guarda os dois canais."""
+    settings.GIRO_WHATSAPP_CLIENTE_FINAL = True
+    juliana = cenario.clientes["Juliana"]
+    relogio.em("2026-10-14 08:00")
+    assert services.lembrar_devolucoes() == 1
+    assert [m.texto for m in whatsapp.caixa_de_saida] == [LEMBRETE_DA_JULIANA]
+    assert _mensagens(juliana.email) == [LEMBRETE_DA_JULIANA]
+    assert _eventos(com_carteira["LOC-2836"])[0].depois == {"canal": "whatsapp_email"}
 
 
 def test_aut_01_so_no_dia_da_devolucao(cenario, com_carteira, relogio):  # noqa: F811
@@ -84,7 +105,7 @@ def test_aut_01_so_no_dia_da_devolucao(cenario, com_carteira, relogio):  # noqa:
     for dia in ("2026-10-07 08:00", "2026-10-13 08:00"):
         relogio.em(dia)
         assert services.lembrar_devolucoes() == 0
-    assert _mensagens(juliana.celular) == []
+    assert _mensagens(juliana.email) == []
 
 
 def test_aut_01_renovada_nao_lembra_de_novo(cenario, com_carteira, relogio):  # noqa: F811
@@ -98,13 +119,12 @@ def test_aut_01_renovada_nao_lembra_de_novo(cenario, com_carteira, relogio):  # 
     )
     relogio.em("2026-10-21 08:00")
     services.lembrar_devolucoes()  # a LOC-2856 da carteira devolve em 21 out
-    assert len(_mensagens(juliana.celular)) == 1
+    assert len(_mensagens(juliana.email)) == 1
     assert len(_eventos(locacao)) == 1
 
 
 def test_aut_01_sem_celular_vai_pelo_email(cenario, com_carteira, relogio):  # noqa: F811
-    """Sem celular, o mesmo texto sai pelo e-mail com a marca da locadora. Sem os dois, nada sai,
-    e o evento guarda o canal vazio."""
+    """Sem celular, o mesmo texto sai pelo e-mail com a marca da locadora."""
     juliana = cenario.clientes["Juliana"]
     locacao = com_carteira["LOC-2836"]
     Cliente.objects.filter(pk=juliana.pk).update(celular="")
@@ -139,4 +159,4 @@ def test_aut_01_so_a_locacao_ativa(cenario, com_carteira, relogio):  # noqa: F81
         locacao, "encerrada", motivo="Devolvida antes", acao="locacao.encerrar", regra="DEV-01"
     )
     assert services.lembrar_devolucoes() == 0
-    assert _mensagens(cenario.clientes["Juliana"].celular) == []
+    assert _mensagens(cenario.clientes["Juliana"].email) == []

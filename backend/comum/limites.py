@@ -198,3 +198,89 @@ class WebhookPorIP(_PorIP):
     """Webhook do parceiro de pagamentos, sem login (S-14, contrato de financeiro)."""
 
     scope = "webhook_ip"
+
+
+# --- Compra pública, sem login (docs/api/compra.md, "Proteção da rota pública") ---
+# Por e-mail e por CNPJ, o limite conta no banco (`plataforma.compra`), porque o pedido que
+# substitui outro do mesmo e-mail e CNPJ não conta de novo.
+
+
+class CompraCnpjPorIP(_PorIP):
+    scope = "compra_cnpj_ip"
+
+
+class CompraSubdominioPorIP(_PorIP):
+    scope = "compra_subdominio_ip"
+
+
+class CompraPedidoPorIPHora(_PorIP):
+    scope = "compra_pedido_ip_hora"
+
+
+class CompraPedidoPorIPDia(_PorIP):
+    scope = "compra_pedido_ip_dia"
+
+
+class CompraConfirmarPorIP(_PorIP):
+    scope = "compra_confirmar_ip"
+
+
+class CompraReenviarPorIP(_PorIP):
+    scope = "compra_reenviar_ip"
+
+
+class _PorObjetoDaURL(SimpleRateThrottle):
+    """Pelo `pk` da URL (a locação ou a devolução). A chave do cache já leva o schema
+    (`make_key`), então o mesmo `pk` em outra empresa conta à parte."""
+
+    def get_cache_key(self, request: Request, view: Any) -> str | None:
+        objeto = view.kwargs.get("pk")
+        if objeto is None:
+            return None
+        return self.cache_format % {"scope": self.scope, "ident": objeto}
+
+
+class LinkContratoPorContrato(_PorObjetoDaURL):
+    """Copiar link para assinar: 5 por hora por contrato (T-411, `copiar-link.md`). Conta pela
+    locação da URL, que tem um contrato vigente só."""
+
+    scope = "link_contrato_contrato"
+
+
+class LinkContratoPorUsuario(_PorUsuario):
+    """Copiar link para assinar: 20 por hora por pessoa (T-411)."""
+
+    scope = "link_contrato_usuario"
+
+
+LIMITES_DO_LINK_CONTRATO = [LinkContratoPorContrato, LinkContratoPorUsuario]
+
+
+class LinkReciboPorDevolucao(_PorObjetoDaURL):
+    """Copiar link do recibo: 5 por hora por devolução (T-411)."""
+
+    scope = "link_recibo_devolucao"
+
+
+class LinkReciboPorUsuario(_PorUsuario):
+    """Copiar link do recibo: 20 por hora por pessoa (T-411)."""
+
+    scope = "link_recibo_usuario"
+
+
+LIMITES_DO_LINK_RECIBO = [LinkReciboPorDevolucao, LinkReciboPorUsuario]
+
+
+class ReciboPublicoPorIP(_PorIP):
+    """Página pública do recibo: 10 por minuto por IP, com escopo próprio (B-03 da T-411)."""
+
+    scope = "recibo_publico_ip"
+
+
+class ReciboPublicoPorToken(_PorToken):
+    """Página pública do recibo: 20 por minuto por token, com escopo próprio (B-03 da T-411)."""
+
+    scope = "recibo_publico_token"
+
+
+LIMITES_DO_RECIBO_PUBLICO = [ReciboPublicoPorIP, ReciboPublicoPorToken]

@@ -1,0 +1,208 @@
+<!doctype html>
+<!-- ajustada no repositório: 10/11/2026, T-448 (antes: 03/11/2026, T-414) -->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Editar veículo · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.card{display:flex;flex-direction:column;gap:14px;padding:18px 16px;border-radius:24px;background:var(--surface)}
+.h2{margin:0;font-size:18px;line-height:24px;font-weight:600}
+.wl-field{width:100%}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+select.wl-input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-muted) 50%),linear-gradient(135deg,var(--ink-muted) 50%,transparent 50%);background-position:calc(100% - 22px) 21px,calc(100% - 16px) 21px;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+.photo-row{display:flex;align-items:center;gap:12px;padding:12px;border-radius:16px;background:var(--surface-sunken);border:1px solid var(--line)}
+.photo-row.is-cover{border-color:var(--solid)}
+.photo-mini{position:relative;width:64px;height:64px;border-radius:12px;overflow:hidden;flex:none;background:linear-gradient(160deg,var(--surface-sunken),color-mix(in srgb,var(--surface-sunken) 70%,var(--ink) 8%));display:grid;place-items:center}
+.btn-bar{position:fixed;left:0;right:0;bottom:0;display:flex;flex-direction:column;gap:10px;padding:14px 16px 28px;background:var(--canvas);border-top:1px solid var(--line);z-index:10}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 2360px; box-sizing: border-box; padding: 16px 16px 120px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;">
+<a href="Veiculo-Mobile.dc.html" aria-label="Voltar" class="wl-icon-btn" style="width: 44px; height: 44px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a>
+<div style="flex: 1; min-width: 0;">
+<div style="font-size: 20px; line-height: 24px; font-weight: 600;">Editar veículo</div>
+<div class="lbl" style="font-size: 13px;">QXA-4B21 · Honda CG 160 Fan</div>
+</div>
+<span class="wl-badge wl-badge--sm wl-badge--solid">Alugado</span>
+</header>
+
+<!-- Galeria de fotos do veículo (VEI-10) -->
+<section class="card">
+<div style="display: flex; justify-content: space-between; align-items: center;">
+<h2 class="h2">Galeria de fotos</h2>
+<span class="wl-badge wl-badge--sm">3 de 20 fotos</span>
+</div>
+<p style="margin: 0; font-size: 13px; color: var(--ink-muted); line-height: 18px;">
+Fotos para catálogo e cadastro. JPG ou PNG de até 10 MB. Localização (GPS) é removida.
+</p>
+
+<label for="fotos-upload-m" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px; border-radius: 16px; border: 1.5px dashed var(--line); background: var(--surface-sunken); cursor: pointer; text-align: center;">
+<input type="file" id="fotos-upload-m" multiple accept=".jpg,.jpeg,.png" style="display: none;">
+<svg class="wl-i" viewBox="0 0 24 24" style="width: 18px; height: 18px;"><path d="M12 16V5M7 10l5-5 5 5M5 19h14"></path></svg>
+<span style="font-weight: 500; font-size: 14px;">Enviar fotos</span>
+</label>
+
+<!-- Exemplo de recusa de arquivo (CA-414-02) -->
+<div style="display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 14px; background: var(--critical-soft); color: var(--critical-ink); font-size: 13px;">
+<svg class="wl-i" viewBox="0 0 24 24" style="width: 15px; height: 15px; flex: none;"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4M12 16h.01"></path></svg>
+<span>Envie uma foto JPG ou PNG de até 10 MB.</span>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<!-- Foto 1 (Capa) -->
+<div class="photo-row is-cover">
+<div class="photo-mini">
+<svg viewBox="0 0 60 40" style="width: 80%; height: 80%; opacity: .7;"><path d="M15 30 Q30 5 45 30 Z" fill="none" stroke="var(--ink)" stroke-width="2"></path><circle cx="30" cy="18" r="8" fill="none" stroke="var(--ink)" stroke-width="1.5"></circle></svg>
+</div>
+<div style="flex: 1; min-width: 0;">
+<div style="display: flex; align-items: center; gap: 6px;">
+<span style="font-weight: 600; font-size: 14px;">1 · Frente</span>
+<span class="wl-badge wl-badge--sm wl-badge--solid" style="height: 20px; padding: 0 6px; font-size: 11px;">Capa</span>
+</div>
+<div class="lbl" style="font-size: 12px; margin-top: 2px;">moto-1.jpg</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;">
+<button type="button" class="wl-btn wl-btn--sm wl-btn--quiet" style="height: 30px; padding: 0 10px; font-size: 12px;">Trocar</button>
+<button type="button" class="wl-btn wl-btn--sm wl-btn--quiet" style="height: 30px; padding: 0 10px; font-size: 12px; color: var(--critical-ink);" title="Apagar foto"><svg class="wl-i" viewBox="0 0 24 24" style="width: 13px; height: 13px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>Apagar</button>
+</div>
+</div>
+</div>
+
+<!-- Foto 2 -->
+<div class="photo-row">
+<div class="photo-mini">
+<svg viewBox="0 0 60 40" style="width: 80%; height: 80%; opacity: .7;"><circle cx="30" cy="25" r="10" fill="none" stroke="var(--ink)" stroke-width="2"></circle><rect x="25" y="8" width="10" height="8" rx="2" fill="none" stroke="var(--ink)" stroke-width="1.5"></rect></svg>
+</div>
+<div style="flex: 1; min-width: 0;">
+<div style="font-weight: 600; font-size: 14px;">2 · Traseira</div>
+<div class="lbl" style="font-size: 12px; margin-top: 2px;">moto-2.jpg</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;">
+<button type="button" class="wl-btn wl-btn--sm wl-btn--quiet" style="height: 30px; padding: 0 8px; font-size: 11px;">Usar como capa</button>
+<button type="button" class="wl-btn wl-btn--sm wl-btn--quiet" style="height: 30px; padding: 0 8px; font-size: 12px;">Trocar</button>
+<button type="button" class="wl-btn wl-btn--sm wl-btn--quiet" style="height: 30px; padding: 0 10px; font-size: 12px; color: var(--critical-ink);" title="Apagar foto"><svg class="wl-i" viewBox="0 0 24 24" style="width: 13px; height: 13px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>Apagar</button>
+</div>
+</div>
+</div>
+
+<!-- Foto 3 -->
+<div class="photo-row">
+<div class="photo-mini">
+<svg viewBox="0 0 60 40" style="width: 80%; height: 80%; opacity: .7;"><rect x="15" y="10" width="30" height="20" rx="4" fill="none" stroke="var(--ink)" stroke-width="1.5"></rect><line x1="30" y1="20" x2="38" y2="16" stroke="var(--ink)" stroke-width="1.5"></line></svg>
+</div>
+<div style="flex: 1; min-width: 0;">
+<div style="font-weight: 600; font-size: 14px;">3 · Painel</div>
+<div class="lbl" style="font-size: 12px; margin-top: 2px;">moto-3.jpg</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;">
+<button type="button" class="wl-btn wl-btn--sm wl-btn--quiet" style="height: 30px; padding: 0 8px; font-size: 11px;">Usar como capa</button>
+<button type="button" class="wl-btn wl-btn--sm wl-btn--quiet" style="height: 30px; padding: 0 8px; font-size: 12px;">Trocar</button>
+<button type="button" class="wl-btn wl-btn--sm wl-btn--quiet" style="height: 30px; padding: 0 10px; font-size: 12px; color: var(--critical-ink);" title="Apagar foto"><svg class="wl-i" viewBox="0 0 24 24" style="width: 13px; height: 13px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>Apagar</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- Identificação -->
+<section class="card">
+<h2 class="h2">Identificação</h2>
+<label class="wl-field"><span class="wl-field__label">Placa</span><input class="wl-input wl-mono" value="QXA-4B21" disabled style="opacity: .65; background: var(--surface-sunken);"></label>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">Marca</span><select class="wl-input"><option selected>Honda</option></select></label>
+<label class="wl-field"><span class="wl-field__label">Ano</span><input class="wl-input wl-mono" value="2023 / 2023" style="font-size: 13px; padding: 0 12px;"></label>
+</div>
+<label class="wl-field"><span class="wl-field__label">Modelo</span><input class="wl-input" value="CG 160 Fan"></label>
+<label class="wl-field"><span class="wl-field__label">Chassi</span><input class="wl-input wl-mono" value="9C2KC2210PR004401" disabled style="opacity: .65; background: var(--surface-sunken);"><span class="wl-field__hint">17 caracteres · Fixo</span></label>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">Renavam</span><input class="wl-input wl-mono" value="01289934410" style="font-size: 13px; padding: 0 12px;"></label>
+<label class="wl-field"><span class="wl-field__label">Km atual</span><input class="wl-input wl-mono" value="18.950" disabled style="opacity: .65; background: var(--surface-sunken); font-size: 13px; padding: 0 12px;"></label>
+</div>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">Cor</span><input class="wl-input" value="Vermelha"></label>
+<label class="wl-field"><span class="wl-field__label">Combustível</span><select class="wl-input"><option selected>Flex</option></select></label>
+</div>
+</section>
+
+<!-- Dados do documento (VEI-09): o "Tipo" do CRLV-e é outro campo que o "Tipo de veículo" (VEI-11) -->
+<section class="card">
+<h2 class="h2">Dados do documento</h2>
+<label class="wl-field"><span class="wl-field__label">Espécie</span><select class="wl-input"><option selected>Passageiro</option></select></label>
+<label class="wl-field"><span class="wl-field__label">Tipo no CRLV-e</span><input class="wl-input" value="Motocicleta"><span class="wl-field__hint">Como no documento: Motocicleta, Automóvel. Não é o tipo do veículo, que fica em Uso na frota.</span></label>
+<label class="wl-field"><span class="wl-field__label">Carroceria</span><input class="wl-input" value=""></label>
+</section>
+
+<!-- Uso na frota -->
+<section class="card">
+<h2 class="h2">Uso na frota</h2>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">Filial</span><input class="wl-input" value="Centro" disabled style="opacity: .65; background: var(--surface-sunken);"></label>
+<label class="wl-field"><span class="wl-field__label">Finalidade</span><select class="wl-input"><option selected>Locação</option></select></label>
+</div>
+<label class="wl-field"><span class="wl-field__label">Tipo de veículo</span><select class="wl-input" disabled style="opacity: .65; background: var(--surface-sunken);"><option selected>Moto</option><option>Carro</option></select><span class="wl-field__hint">Este veículo está na LOC-2841. Troque o tipo depois da devolução.</span></label>
+<label class="wl-field"><span class="wl-field__label">Categoria de preço</span><select class="wl-input"><option selected>Street 150–160</option></select><span class="wl-field__hint">Vale para as locações novas; as em andamento mantêm o preço</span></label>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; font-size: 14px;">
+<div style="padding: 10px 12px; border-radius: 14px; background: var(--surface-sunken);"><span style="color: var(--ink-muted);">Diária</span><br><b>R$ 49,90</b></div>
+<div style="padding: 10px 12px; border-radius: 14px; background: var(--surface-sunken);"><span style="color: var(--ink-muted);">Semanal</span><br><b>R$ 329,00</b></div>
+<div style="padding: 10px 12px; border-radius: 14px; background: var(--surface-sunken);"><span style="color: var(--ink-muted);">Mensal</span><br><b>R$ 1.190</b></div>
+<div style="padding: 10px 12px; border-radius: 14px; background: var(--surface-sunken);"><span style="color: var(--ink-muted);">Caução</span><br><b>R$ 400,00</b></div>
+</div>
+</section>
+
+<section class="card">
+<h2 class="h2">Estados do tipo de veículo</h2>
+<p style="margin: 0; font-size: 13px; color: var(--ink-muted); line-height: 18px;">Referência dos casos da VEI-11. Na tela real, aparece um de cada vez.</p>
+<div style="font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted);">Livre (sem locação aberta)</div>
+<label class="wl-field"><span class="wl-field__label">Tipo de veículo</span><select class="wl-input"><option selected>Moto</option><option>Carro</option></select><span class="wl-field__hint">Trocar o tipo esvazia a categoria</span></label>
+<div style="font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted);">Trocou para Carro, sem escolher a categoria</div>
+<label class="wl-field"><span class="wl-field__label">Tipo de veículo</span><select class="wl-input"><option>Moto</option><option selected>Carro</option></select></label>
+<label class="wl-field"><span class="wl-field__label">Categoria de preço</span><select class="wl-input" style="border-color: var(--critical);"><option selected>Escolha</option><option>Carro compacto</option></select><span class="wl-field__hint" style="color: var(--critical-ink);">Escolha a categoria de preço.</span></label>
+<div style="font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-muted);">Sem categoria do tipo na filial</div>
+<label class="wl-field"><span class="wl-field__label">Categoria de preço</span><select class="wl-input" disabled style="opacity: .65; background: var(--surface-sunken);"><option selected>Escolha</option></select><span class="wl-field__hint" style="color: var(--critical-ink);">Nenhuma categoria de carro nesta filial. Cadastre uma em Preços.</span></label>
+</section>
+
+<!-- Documentos -->
+<section class="card">
+<h2 class="h2">Documentos</h2>
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 14px; background: var(--surface-sunken);">
+<div><div style="font-weight: 500; font-size: 14px;">CRLV-e 2026</div><div class="lbl" style="font-size: 12px;"><span class="wl-badge wl-badge--sm wl-badge--success">Em dia</span></div></div>
+<button type="button" class="wl-btn wl-btn--sm wl-btn--quiet" style="height: 32px; font-size: 12px;">Substituir</button>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 14px; background: var(--surface-sunken);">
+<div><div style="font-weight: 500; font-size: 14px;">Seguro frota</div><div class="lbl" style="font-size: 12px;"><span class="wl-badge wl-badge--sm wl-badge--warning">Vence em 18 d</span></div></div>
+<button type="button" class="wl-btn wl-btn--sm wl-btn--quiet" style="height: 32px; font-size: 12px;">Renovar</button>
+</div>
+</div>
+</section>
+
+<div class="btn-bar">
+<a class="wl-btn wl-btn--solid" href="Veiculo-Mobile.dc.html" style="height: 52px; text-decoration: none; justify-content: center;">Salvar alterações</a>
+<a class="wl-btn wl-btn--quiet" href="Veiculo-Mobile.dc.html" style="height: 44px; text-decoration: none; justify-content: center;">Cancelar</a>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":2050}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>

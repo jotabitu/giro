@@ -166,6 +166,15 @@ def _motivo_do_veiculo(veiculo: Veiculo) -> Conflito | None:
             "Veículo alugado não se movimenta.",
             {"status": veiculo.status, "locacao_codigo": locacao.codigo if locacao else None},
         )
+    if veiculo.status == V.RESERVADO:
+        # T-410: o veículo de toda locação `aguardando_retirada` é `reservado` (CA-246-19).
+        locacao = locacoes_selectors.locacao_aberta(veiculo)
+        if locacao is not None:
+            return Conflito(
+                "MOV-03",
+                f"O veículo está reservado na {locacao.codigo}.",
+                {"status": veiculo.status, "locacao_codigo": locacao.codigo},
+            )
     if veiculo.status not in MOVIMENTAVEIS:
         return Conflito(
             "MOV-03",

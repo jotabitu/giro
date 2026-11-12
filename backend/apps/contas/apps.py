@@ -6,13 +6,15 @@ class ContasConfig(AppConfig):
     label = "contas"
 
     def ready(self) -> None:
+        from apps.plataforma.compra import registrar_link_do_convite
         from apps.plataforma.services import registrar_contador
         from comum.auditoria import registrar_consulta
         from comum.permissoes import registrar_pode
 
-        from . import eventos, selectors, sessoes
+        from . import eventos, selectors, services, sessoes
 
         registrar_contador("usuarios", eventos.contar_usuarios)
+        registrar_link_do_convite(services.link_do_convite_da_compra)  # compra.md, D-430-06
         registrar_pode(selectors.pode)  # USR-03, USR-05
         sessoes.registrar()  # ADR 0014, item 1
         registrar_consulta("emails_de_usuarios", selectors.emails_de_usuarios)  # T-018
