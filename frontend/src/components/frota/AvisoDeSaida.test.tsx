@@ -205,4 +205,37 @@ describe("VEI-10 · Voltar do navegador (T-462)", () => {
     g.desligar();
     expect(voltas).toBe(1);
   });
+
+  it("test_vei_10_fim_do_envio_depois_de_ficar_abre_a_ficha_sem_voltar_a_entrada", () => {
+    // Cadastro gravado, a pessoa tocou "Ficar" e o envio terminou: a ficha entra no lugar da entrada de guarda
+    // (router.replace) e a limpeza do aviso não pode chamar history.back(), que desfaria a navegação (A3, T-462).
+    const ouvintes: Record<string, () => void> = {};
+    const estado = { atual: { __NA: true } as Record<string, unknown> };
+    let voltas = 0;
+    const janela = {
+      location: { href: "https://locadora.giro.test/veiculos/novo" },
+      history: {
+        get state() {
+          return estado.atual;
+        },
+        pushState: (s: Record<string, unknown>) => (estado.atual = s),
+        back: () => {
+          voltas++;
+          estado.atual = { __NA: true };
+          ouvintes.popstate?.();
+        },
+      },
+      addEventListener: (n: string, f: () => void) => (ouvintes[n] = f),
+      removeEventListener: (n: string) => delete ouvintes[n],
+    } as unknown as Parameters<typeof guardarVoltar>[0];
+    let perguntas = 0;
+    const guarda = guardarVoltar(janela, () => perguntas++);
+    guarda.ficar(); // "Ficar" depois do Voltar: empilha de novo
+    expect(guarda.entregar()).toBe(true);
+    estado.atual = { __NA: true }; // o router.replace troca a entrada pela ficha
+    guarda.desligar(); // limpeza do efeito quando a fila zera
+    expect(voltas).toBe(0);
+    expect(perguntas).toBe(0);
+    expect(ouvintes.popstate).toBeUndefined();
+  });
 });
