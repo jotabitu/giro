@@ -85,6 +85,7 @@
 .wl-field { display: flex; flex-direction: column; gap: 6px; width: 280px; }
 .wl-field__label { color: var(--ink-muted); font-size: 14px; line-height: 20px; }
 .wl-input { height: 48px; box-sizing: border-box; padding: 0 16px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); color: var(--ink); font: inherit; font-size: 15px; }
+.wl-input:disabled, .wl-input[readonly] { background: var(--surface-sunken); color: var(--ink-muted); }
 .wl-input::placeholder { color: var(--ink-muted); }
 .wl-field--error .wl-input { border-color: var(--critical); }
 .wl-field__hint { font-size: 14px; line-height: 20px; color: var(--ink-muted); }
