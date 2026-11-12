@@ -48,7 +48,12 @@ const COLUNAS_LOCACOES: ColunaTabela<LocacaoDoCliente>[] = [
       </StatusBadge>
     ),
   },
-  { chave: "pago", titulo: "Pago", celula: (l) => dinheiro(l.pago_centavos) },
+  // LOC-17 (T-456): a situação do pagamento e a caução vêm prontas da API e mudam a cada pagamento.
+  {
+    chave: "pagamento",
+    titulo: "Pagamento",
+    celula: (l) => <CelulaDupla principal={<span className="font-normal">{l.pagamento?.rotulo ?? "—"}</span>} secundaria={l.caucao?.rotulo} />,
+  },
 ];
 
 function Atrasada({ c }: { c: ContaReceber }) {

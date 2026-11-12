@@ -15,10 +15,13 @@ export type LocacaoResumo = Omit<S["Locacao"], "status" | "periodicidade" | "sit
   status: StatusLocacao;
   periodicidade: Periodicidade;
   situacao: { codigo: string; rotulo: string; tom: TomApi };
-  /** Ausente para o vistoriador. */
-  pagamento?: { rotulo: string; tom: TomApi; em_aberto_centavos: number; pago_centavos: number };
+  /** Ausente para o vistoriador. `rotulo` e `caucao` vêm prontos (LOC-17, T-456): a tela não troca um texto por outro. */
+  pagamento?: { rotulo: string; tom: TomApi; em_aberto_centavos: number; pago_centavos: number; caucao: CaucaoNaLinha | null };
   acao_principal: { codigo: CodigoAcaoLocacao; rotulo: string };
 };
+
+/** LOC-17: "Caução R$ 300,00 · paga" ou "· em aberto", na locação em andamento. */
+export type CaucaoNaLinha = { rotulo: string; tom: TomApi; valor_centavos: number; paga: boolean };
 
 export type ParcelaDaLocacao = Omit<S["ParcelaLocacao"], "tipo" | "status"> & { tipo: "parcela" | "caucao" | "acerto"; status: StatusParcela };
 

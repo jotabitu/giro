@@ -9011,6 +9011,23 @@ components:
       - conta_id
       - status
       - valor_centavos
+    CaucaoNaLinha:
+      type: object
+      properties:
+        rotulo:
+          type: string
+          description: 'LOC-17: "Caução R$ 300,00 · paga" ou "· em aberto"'
+        tom:
+          type: string
+        valor_centavos:
+          type: integer
+        paga:
+          type: boolean
+      required:
+      - paga
+      - rotulo
+      - tom
+      - valor_centavos
     CelulaDoResumo:
       type: object
       properties:
@@ -16310,6 +16327,8 @@ components:
       properties:
         rotulo:
           type: string
+          description: 'LOC-17 (T-456): texto pronto, a tela não troca ("Falta R$
+            629,00 · 1ª semana e caução", "R$ 329,00 vence hoje", "Pix", "Pago")'
         tom:
           type: string
         em_aberto_centavos:
@@ -16317,7 +16336,14 @@ components:
         pago_centavos:
           type: integer
           description: Contas pagas da locação, sem a caução.
+        caucao:
+          allOf:
+          - $ref: '#/components/schemas/CaucaoNaLinha'
+          nullable: true
+          description: 'LOC-17: na locação em andamento com caução; sai depois do
+            acerto'
       required:
+      - caucao
       - em_aberto_centavos
       - pago_centavos
       - rotulo

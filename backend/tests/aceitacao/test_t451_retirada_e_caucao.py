@@ -484,21 +484,28 @@ def test_loc_17_fin_01_coluna_pagamento_da_retirada_a_mao_sem_nada_pago(
     locacao,
 ) -> None:
     """T-466 (achado A1 de 12 nov, LOC-2871): retirada à mão com a parcela 1 e a caução vencendo
-    hoje e nada pago. Nada está atrasado (FIN-01), mas a coluna não pode dizer "Pago": diz
-    "Aguardando pagamento", como na `aguardando_retirada`, e "R$ X pago" com só uma parte paga."""
+    hoje e nada pago. Nada está atrasado (FIN-01), mas a coluna não pode dizer "Pago": diz o que
+    falta, como na `aguardando_retirada`. Com a LOC-17 do PR #554 (T-456), a caução paga não vira
+    "R$ 300,00 pago": some do "Falta" e fica no texto dela."""
     _vistoriar(locacao.pk)
     assert _registrar(cenario, locacao).status_code == 200
     pagamento = _pagamento_na_lista(cenario, locacao)
-    assert (pagamento["rotulo"], pagamento["tom"]) == ("Aguardando pagamento", "alerta")
+    assert (pagamento["rotulo"], pagamento["tom"]) == (
+        "Falta R$ 629,00 · 1ª semana e caução",
+        "alerta",
+    )
     assert (pagamento["em_aberto_centavos"], pagamento["pago_centavos"]) == (0, 0)
 
     assert _abrir(cenario).status_code == 201
     assert _receber(cenario, _conta(locacao, "caucao"), 30000).status_code == 200
     pagamento = _pagamento_na_lista(cenario, locacao)
-    assert (pagamento["rotulo"], pagamento["tom"]) == ("R$ 300,00 pago", "info")
+    assert (pagamento["rotulo"], pagamento["caucao"]["rotulo"]) == (
+        "Falta R$ 329,00 · 1ª semana",
+        "Caução R$ 300,00 · paga",
+    )
 
     assert _receber(cenario, _conta(locacao), 32900).status_code == 200
-    assert _pagamento_na_lista(cenario, locacao)["rotulo"] != "Aguardando pagamento"
+    assert _pagamento_na_lista(cenario, locacao)["rotulo"] == "Pix"  # parcela 2 por vencer
 
 
 def test_loc_17_retirada_sozinha_nao_tem_pendencia(

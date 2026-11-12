@@ -44,7 +44,7 @@ describe("lista de locações, vendedora", () => {
     ordem(t, ["Carlos Menezes", "LOC-2841", "Parcela 2 atrasada", "R$ 299,40 em aberto"]);
     ordem(t, ["Juliana Rocha", "LOC-2836", "Ativa", "Pago", "Abrir"]);
     ordem(t, ["Marcos Viana", "Mensal", "Pix automático"]);
-    ordem(t, ["Lucas Ferreira", "LOC-2856", "Aguardando assinatura", "R$ 329,00 pago"]);
+    ordem(t, ["Lucas Ferreira", "LOC-2856", "Aguardando assinatura", "Falta R$ 300,00 · caução", "Caução R$ 300,00 · em aberto"]);
     ordem(t, ["Patrícia Gomes", "Pedido de cancelamento", "Multa R$ 84,80"]);
     ordem(t, ["Diego Martins", "Diária", "Cartão", "Mostrando 7 de 42"]);
   });

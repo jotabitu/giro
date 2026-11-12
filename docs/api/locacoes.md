@@ -50,7 +50,8 @@ cancelada                        │                                            
   "inicio": "2026-09-30T12:10:00Z", "fim_previsto": "2026-10-07T21:00:00Z",
   "sinais": { "pagamento_atrasado": false, "devolve_hoje": true, "cancelamento_pendente": false },
   "situacao": { "codigo": "devolve_hoje", "rotulo": "Devolve hoje", "tom": "info" },
-  "pagamento": { "rotulo": "Pago", "tom": "sucesso", "em_aberto_centavos": 0, "pago_centavos": 65800 },
+  "pagamento": { "rotulo": "Pago", "tom": "sucesso", "em_aberto_centavos": 0, "pago_centavos": 65800,
+                 "caucao": { "rotulo": "Caução R$ 300,00 · paga", "tom": "sucesso", "valor_centavos": 30000, "paga": true } },
   "acao_principal": { "codigo": "receber_devolucao", "rotulo": "Receber devolução" }
 }
 ```
@@ -59,7 +60,17 @@ cancelada                        │                                            
 
 `sinais.pagamento_atrasado` (`LOC-07`) usa a `financeiro.selectors.q_atrasada`: na locação `aguardando_retirada`, nunca acende (`LOC-05`, T-410), mesmo com o vencimento gravado já passado. O mesmo vale para `indicadores.pagamentos_atrasados*` e para a aba `precisam_acao`.
 `situacao` (a primeira que valer): `devolucao_atrasada` ("Devolução atrasada 25 dias"), `cancelamento_pendente` ("Pedido de cancelamento"), `pagamento_atrasado` ("Parcela 2 atrasada"), `aguardando_vistoria` / `aguardando_assinatura` / `aguardando_pagamento` (o primeiro passo que falta em `aguardando_retirada`, nessa ordem, `LOC-17`, T-451), `pendencia_retirada` (na locação retirada à mão com a assinatura ou o 1º pagamento faltando, `LOC-17`; o rótulo diz o que falta: "Falta a assinatura", "Falta o 1º pagamento" ou "Faltam assinatura e pagamento"), `devolve_hoje`, `ativa`, `encerrada`, `cancelada`.
-`pagamento.rotulo`: "R$ 1.347,00 em aberto", "Pago", "Pix automático", "R$ 329,00 pago" ou "Aguardando pagamento" (antes da retirada e, `LOC-17`, T-466, na retirada à mão com o 1º pagamento faltando), "Multa R$ 84,80" (com cancelamento pendente), forma de pagamento quando em dia.
+`pagamento.rotulo` (`LOC-17`, T-456): o texto pronto da coluna Pagamento, na lista de locações e na seção Locações do cliente (a mesma linha). A tela mostra o que vem, sem trocar um texto por outro. A caução nunca entra em valor pago: ela vai em `pagamento.caucao`. Um lugar só: `locacoes.selectors.pagamento`. Testes: `tests/aceitacao/test_t456_pagamento_na_linha.py`.
+- **Antes da retirada** (`aguardando_retirada`) **e na retirada à mão com o 1º pagamento pendente** (`pendencia_retirada` com `primeiro_pagamento_em` nulo): o que falta do 1º pagamento, pelo valor de hoje das contas (com multa e juros se já atrasadas, `FIN-03`). Exemplos: "Falta R$ 629,00 · 1ª semana e caução", "Falta R$ 329,00 · 1ª semana", "Falta R$ 300,00 · caução". Com os dois pagos: "1º pagamento feito · R$ 629,00". O nome da 1ª parcela segue o plano: "1ª semana", "1º mês", "1ª parcela" (mensal em 4 semanais) e, na diária, "as 5 diárias" ("a diária" com uma só). Tom `alerta`; feito, `info`.
+- **Da retirada em diante**, o primeiro caso que servir, pelos estados das contas (`FIN-01`, sem a caução):
+  1. "Multa R$ 84,80" (`alerta`), com cancelamento pendente;
+  2. "R$ 1.347,00 em aberto" (`perigo`), com conta `atrasada`;
+  3. "R$ 329,00 vence hoje" (`alerta`), a soma das contas que vencem hoje;
+  4. a forma de pagamento da locação, "Pix", "Pix automático", "Boleto", "Dinheiro" ou "Cartão" (`info`), com parcela por vencer;
+  5. "Pago" (`sucesso`), com todas pagas.
+- Na locação `cancelada` ou `rascunho` sem nada em aberto, vem a forma (`neutro`).
+
+`pagamento.caucao` (`LOC-17`, T-456): `{ "rotulo": "Caução R$ 300,00 · paga" | "Caução R$ 300,00 · em aberto", "tom": "sucesso" | "alerta", "valor_centavos", "paga" }`, só na locação em andamento (`aguardando_retirada`, `ativa`, `devolucao_atrasada`) que tem caução; senão, `null`. O valor soma as cauções não canceladas, com a diferença da troca (`LOC-09`). Depois do acerto da devolução (`DEV-02`), a locação sai de andamento, e o bloco vem `null`.
 `acao_principal`: `cobrar` (há valor em aberto), `receber_devolucao` (`devolve_hoje` ou `devolucao_atrasada`), `abrir`.
 
 ### Detalhe
