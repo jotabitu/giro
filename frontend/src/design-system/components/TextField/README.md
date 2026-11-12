@@ -16,3 +16,4 @@ import { TextField } from "@/design-system";
 ```
 
 `erro` troca a dica pela mensagem, pinta a borda de `critical` e liga `aria-invalid` e `aria-describedby`. O rótulo é um `<label>` ligado ao campo. No React 19 o `ref` passa pelos atributos de `<input>`, então funciona com React Hook Form.
+- **Campo travado:** `disabled` e `readOnly` ganham fundo `surface-sunken` e texto `ink-muted` pelo CSS do `.wl-input` (sem modificador por tela); só o `disabled` mostra `cursor: not-allowed`. Use para dado fixo (placa, chassi, filial) e diga o motivo na `dica` ("Fixo no cadastro"). Para um `readOnly` que é o conteúdo da tela (um link para copiar), mantenha o texto normal.
