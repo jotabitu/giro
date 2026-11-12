@@ -166,11 +166,25 @@ class SituacaoLocacaoSerializer(serializers.Serializer[Any]):
     tom = serializers.CharField()
 
 
+class CaucaoNaLinhaSerializer(serializers.Serializer[Any]):
+    rotulo = serializers.CharField(help_text='LOC-17: "Caução R$ 300,00 · paga" ou "· em aberto"')
+    tom = serializers.CharField()
+    valor_centavos = serializers.IntegerField()
+    paga = serializers.BooleanField()
+
+
 class PagamentoLocacaoSerializer(serializers.Serializer[Any]):
-    rotulo = serializers.CharField()
+    rotulo = serializers.CharField(
+        help_text='LOC-17 (T-456): texto pronto, a tela não troca ("Falta R$ 629,00 · 1ª semana '
+        'e caução", "R$ 329,00 vence hoje", "Pix", "Pago")'
+    )
     tom = serializers.CharField()
     em_aberto_centavos = serializers.IntegerField()
     pago_centavos = serializers.IntegerField(help_text="Contas pagas da locação, sem a caução.")
+    caucao = CaucaoNaLinhaSerializer(
+        allow_null=True,
+        help_text="LOC-17: na locação em andamento com caução; sai depois do acerto",
+    )
 
 
 class AcaoLocacaoSerializer(serializers.Serializer[Any]):

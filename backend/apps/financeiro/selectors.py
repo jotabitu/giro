@@ -212,8 +212,12 @@ def _soma(filtro: Q, origem_tipo: str) -> Subquery:
 def anotar_resumo_da_origem(qs: QuerySet[Any], origem_tipo: str, hoje: date) -> QuerySet[Any]:
     """Para listas da origem, sem N+1: `fin_atrasado_centavos` (vencidas e não pagas),
     `fin_parcela_atrasada` (a mais antiga), `fin_pago_centavos` (com caução),
-    `fin_pago_sem_caucao_centavos` (FIN-13, a linha da lista de locações) e `fin_abertas`."""
+    `fin_pago_sem_caucao_centavos` (FIN-13, a linha da lista de locações) e `fin_abertas`.
+    Para a linha da locação (LOC-17, T-456), sem a caução: `fin_vence_hoje_centavos` (contas que
+    vencem hoje, sem multa nem juros) e `fin_abertas_sem_caucao`; e a caução à parte:
+    `fin_caucao_centavos` (as não canceladas) e `fin_caucao_aberta_centavos`."""
     atrasada = q_atrasada(hoje)
+    caucao = Q(tipo=TipoConta.CAUCAO)
     primeira_atrasada = Subquery(
         ContaReceber.objects.filter(
             atrasada, tipo=TipoConta.PARCELA, origem_tipo=origem_tipo, origem_id=OuterRef("pk")
@@ -242,6 +246,29 @@ def anotar_resumo_da_origem(qs: QuerySet[Any], origem_tipo: str, hoje: date) -> 
             _soma(Q(status=StatusConta.PAGA) & ~Q(tipo=TipoConta.CAUCAO), origem_tipo), 0
         ),
         fin_abertas=Coalesce(abertas, 0),
+        fin_vence_hoje_centavos=Coalesce(_soma(q_vence_hoje(hoje) & ~caucao, origem_tipo), 0),
+        fin_abertas_sem_caucao=Coalesce(
+            Subquery(
+                ContaReceber.objects.filter(
+                    ~caucao,
+                    status=StatusConta.ABERTA,
+                    origem_tipo=origem_tipo,
+                    origem_id=OuterRef("pk"),
+                )
+                .order_by()
+                .values("origem_id")
+                .annotate(n=Count("id"))
+                .values("n"),
+                output_field=IntegerField(),
+            ),
+            0,
+        ),
+        fin_caucao_centavos=Coalesce(
+            _soma(caucao & ~Q(status=StatusConta.CANCELADA), origem_tipo), 0
+        ),
+        fin_caucao_aberta_centavos=Coalesce(
+            _soma(caucao & Q(status=StatusConta.ABERTA), origem_tipo), 0
+        ),
     )
 
 
