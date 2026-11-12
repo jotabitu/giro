@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Button, Dialogo, Icone, Panel, TextField } from "@/design-system";
 import { financeiro, locacoes, type ContaReceber, type LocacaoCompleta, type ParcelaDaLocacao, type PassoDaRetirada, type RegistrarRetirada } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
@@ -14,13 +14,20 @@ import { BaixaDaConta } from "@/components/financeiro/BaixaDaConta";
 // Os passos, os textos, o que falta e quem pode cada ação vêm da API (docs/api/locacoes.md); a tela não decide nada disso.
 
 type AoConcluir = (mensagem: string) => void;
+type Variante = "desktop" | "celular";
+
+/** O `id` do painel Pagamentos de cada árvore (desktop e celular estão as duas no DOM), para o "Ver pagamentos". */
+export const idDosPagamentos = (variante: Variante) => `pagamentos-${variante}`;
+
+/** Há conta com "Registrar pagamento" (FIN-18)? Então o painel Pagamentos aparece nas duas árvores. */
+export const temPagamentoARegistrar = (l: LocacaoCompleta) => l.parcelas?.some((p) => p.acoes.receber) ?? false;
 
 function atualizarFicha(cliente: ReturnType<typeof useQueryClient>, id: number) {
   return Promise.all([cliente.invalidateQueries({ queryKey: ["locacao", id] }), cliente.invalidateQueries({ queryKey: ["locacoes"] })]);
 }
 
 /** As ações de um passo: o `codigo` é a mesma chave de `acoes` da locação, que a tela já sabe executar. */
-function AcoesDoPasso({ l, passo, aoConcluir }: { l: LocacaoCompleta; passo: PassoDaRetirada; aoConcluir: AoConcluir }) {
+function AcoesDoPasso({ l, passo, ancora, aoConcluir }: { l: LocacaoCompleta; passo: PassoDaRetirada; ancora?: string; aoConcluir: AoConcluir }) {
   const cliente = useQueryClient();
   const enviar = useMutation({
     mutationFn: () => locacoes.gerarContrato(l.id),
@@ -31,7 +38,9 @@ function AcoesDoPasso({ l, passo, aoConcluir }: { l: LocacaoCompleta; passo: Pas
   });
   const reenviar = useMutation({ mutationFn: () => locacoes.reenviarContrato(l.id), onSuccess: () => aoConcluir("Link de assinatura reenviado por WhatsApp.") });
   const link = useCopiarLink(() => locacoes.copiarLinkDoContrato(l.id));
-  if (passo.acoes.length === 0) return null;
+  // O passo do pagamento não tem ação na API: cada conta tem "Registrar pagamento" na seção Pagamentos. A tela só leva até lá.
+  const verPagamentos = passo.codigo === "pagamento" && !passo.feito && ancora;
+  if (passo.acoes.length === 0 && !verPagamentos) return null;
   const erro = link.erro ?? (enviar.isError ? mensagemDoErro(enviar.error) : reenviar.isError ? mensagemDoErro(reenviar.error) : null);
   return (
     <div className="flex flex-col gap-2">
@@ -66,6 +75,11 @@ function AcoesDoPasso({ l, passo, aoConcluir }: { l: LocacaoCompleta; passo: Pas
               return null;
           }
         })}
+        {verPagamentos && (
+          <a href={ancora} className="wl-btn wl-btn--sm">
+            Ver pagamentos
+          </a>
+        )}
       </div>
       {link.resultado && <LinkCopiado resultado={link.resultado} copiado={!link.falhouACopia} aviso="Mande o link só ao cliente. Só ele pode assinar, e o contrato registra que você copiou o link." aoFechar={link.limpar} />}
       {erro && (
@@ -77,7 +91,8 @@ function AcoesDoPasso({ l, passo, aoConcluir }: { l: LocacaoCompleta; passo: Pas
   );
 }
 
-function Passos({ l, passos, aoConcluir }: { l: LocacaoCompleta; passos: PassoDaRetirada[]; aoConcluir: AoConcluir }) {
+function Passos({ l, passos, variante, aoConcluir }: { l: LocacaoCompleta; passos: PassoDaRetirada[]; variante: Variante; aoConcluir: AoConcluir }) {
+  const ancora = temPagamentoARegistrar(l) ? `#${idDosPagamentos(variante)}` : undefined;
   return (
     <ol className="flex flex-col">
       {passos.map((p) => (
@@ -89,7 +104,7 @@ function Passos({ l, passos, aoConcluir }: { l: LocacaoCompleta; passos: PassoDa
             <span className={p.feito ? "text-ink-muted" : "font-medium"}>{p.texto}</span>
             {p.feito && <span className="sr-only">(feito)</span>}
           </div>
-          <AcoesDoPasso l={l} passo={p} aoConcluir={aoConcluir} />
+          <AcoesDoPasso l={l} passo={p} ancora={ancora} aoConcluir={aoConcluir} />
         </li>
       ))}
     </ol>
@@ -155,18 +170,26 @@ export function ConfirmarRetirada({ l, r, aoFechar, aoConcluir }: { l: LocacaoCo
 }
 
 /** "Para retirar" (LOC-17): só na locação `aguardando_retirada`, com os três passos, o prazo e, para quem pode, o "Registrar retirada". */
-export function ParaRetirar({ l, aoConcluir }: { l: LocacaoCompleta; aoConcluir: AoConcluir }) {
+export function ParaRetirar({ l, variante, aoConcluir }: { l: LocacaoCompleta; variante: Variante; aoConcluir: AoConcluir }) {
   const [confirmando, setConfirmando] = useState(false);
+  const idDoAviso = useId();
   const p = l.para_retirar;
   if (!p) return null;
   const r = p.registrar_retirada;
   return (
     <Panel titulo="Para retirar" subtitulo={p.prazo}>
-      <Passos l={l} passos={p.passos} aoConcluir={aoConcluir} />
+      <Passos l={l} passos={p.passos} variante={variante} aoConcluir={aoConcluir} />
       {r && (
-        <div className="mt-4 flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
-          {r.aviso ? <p className="text-caption text-ink-muted">{r.aviso}</p> : <span />}
-          <Button variante="solido" disabled={!r.disponivel} onClick={() => setConfirmando(true)}>
+        // No celular, o "Registrar retirada" é a ação principal do painel: largura cheia.
+        <div className={`mt-4 flex gap-2 border-t border-line pt-4 ${variante === "celular" ? "flex-col [&_.wl-btn]:w-full" : "items-center justify-between"}`}>
+          {r.aviso ? (
+            <p id={idDoAviso} className="text-caption text-ink-muted">
+              {r.aviso}
+            </p>
+          ) : (
+            <span />
+          )}
+          <Button variante="solido" disabled={!r.disponivel} aria-describedby={r.aviso ? idDoAviso : undefined} onClick={() => setConfirmando(true)}>
             {r.rotulo}
           </Button>
         </div>
@@ -177,12 +200,12 @@ export function ParaRetirar({ l, aoConcluir }: { l: LocacaoCompleta; aoConcluir:
 }
 
 /** "Pendências da retirada" (LOC-17): depois da retirada à mão, só o que ainda falta; some quando a API manda `null`. */
-export function PendenciasDaRetirada({ l, aoConcluir }: { l: LocacaoCompleta; aoConcluir: AoConcluir }) {
+export function PendenciasDaRetirada({ l, variante, aoConcluir }: { l: LocacaoCompleta; variante: Variante; aoConcluir: AoConcluir }) {
   const p = l.pendencias_retirada;
   if (!p || p.passos.length === 0) return null;
   return (
     <Panel titulo="Pendências da retirada">
-      <Passos l={l} passos={p.passos} aoConcluir={aoConcluir} />
+      <Passos l={l} passos={p.passos} variante={variante} aoConcluir={aoConcluir} />
     </Panel>
   );
 }

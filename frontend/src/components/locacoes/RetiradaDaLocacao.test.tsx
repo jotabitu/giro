@@ -201,3 +201,73 @@ describe("FIN-18 · Registrar pagamento em cada conta (CA-452-01, CA-452-03)", (
     expect(texto(celular)).not.toContain("|Vencimento|");
   });
 });
+
+// Revisão do design-system no PR #516: celular sem tabela, Pagamentos perto do que falta, caminho do passo do pagamento.
+describe("FIN-18 e LOC-17 · Pagamentos no celular e Ver pagamentos", () => {
+  it("test_fin_18_celular_mostra_uma_linha_por_conta_sem_tabela", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    const { desktop, celular } = render(await lucas());
+    expect(desktop).toContain("<table");
+    expect(celular).not.toContain("<table");
+    ordem(texto(celular), ["Pagamentos", "Parcela 1", "Pago · Pix", "Vence 07 out · R$ 329,00", "Caução", "Em aberto", "Vence 07 out · R$ 300,00", "Registrar pagamento"]);
+  });
+
+  it("test_fin_18_celular_pagamentos_logo_depois_do_para_retirar", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    ordem(texto(render(await lucas()).celular), ["Para retirar", "Pagamentos", "Resumo", "Contrato"]);
+  });
+
+  it("test_fin_18_celular_pagamentos_logo_depois_das_pendencias", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    const base = await locacoes.obter(2836);
+    const l: LocacaoCompleta = {
+      ...base,
+      parcelas: base.parcelas?.map((p) => (p.tipo === "caucao" ? { ...p, status: "vence_hoje", acoes: { receber: true } } : p)),
+      pendencias_retirada: { passos: [{ codigo: "pagamento", feito: false, texto: "Falta receber R$ 300,00: caução R$ 300,00", acoes: [] }] },
+    };
+    ordem(texto(render(l).celular), ["Pendências da retirada", "Pagamentos", "Resumo", "Contrato"]);
+  });
+
+  it("test_fin_18_celular_sem_retirada_pagamentos_depois_do_resumo", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    // LOC-2790: ativa, com parcelas atrasadas a receber e sem pendência da retirada.
+    const l = await locacoes.obter(2790);
+    expect(l.parcelas?.some((p) => p.acoes.receber)).toBe(true);
+    expect(l.para_retirar ?? l.pendencias_retirada).toBeNull();
+    ordem(texto(render(l).celular), ["Resumo", "Pagamentos", "Contrato"]);
+  });
+
+  it("test_loc_17_passo_do_pagamento_tem_ver_pagamentos_com_ancora_na_secao", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    const { desktop, celular } = render(await lucas());
+    for (const [h, v] of [
+      [desktop, "desktop"],
+      [celular, "celular"],
+    ] as const) {
+      expect(h).toContain(`href="#pagamentos-${v}"`);
+      expect(h).toContain(`id="pagamentos-${v}"`);
+      const t = texto(h);
+      ordem(t, ["Falta receber R$ 300,00: caução R$ 300,00", "Ver pagamentos"]);
+    }
+  });
+
+  it("test_loc_17_sem_conta_a_receber_o_passo_do_pagamento_fica_sem_ver_pagamentos", async () => {
+    await entrarComo("joao@motorapida.com.br");
+    // O vistoriador não recebe as contas: o passo do pagamento não leva a uma seção que ele não vê.
+    const l = { ...(await lucas()), para_retirar: TUDO_FALTANDO };
+    const { desktop, celular } = render(l);
+    expect(desktop + celular).not.toContain("Ver pagamentos");
+  });
+
+  it("test_loc_17_registrar_retirada_desligado_aponta_o_aviso_e_ocupa_a_largura_no_celular", async () => {
+    await entrarComo("rodrigo@motorapida.com.br");
+    const { desktop, celular } = render({ ...(await lucas()), para_retirar: TUDO_FALTANDO });
+    for (const h of [desktop, celular]) {
+      const id = botao(h, "Registrar retirada")?.match(/aria-describedby="([^"]+)"/)?.[1];
+      expect(id).toBeDefined();
+      expect(h).toMatch(new RegExp(`<p id="${id}"[^>]*>Faça a vistoria de saída antes da retirada.</p>`));
+    }
+    expect(celular).toContain("[&amp;_.wl-btn]:w-full");
+    expect(desktop).not.toContain("[&amp;_.wl-btn]:w-full");
+  });
+});
