@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- ajustada no repositório: 12/11/2026, T-420 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -33,7 +34,7 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 .row span:last-child{font-weight:500}
 </style>
 </helmet>
-<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 2100px; box-sizing: border-box; padding: 16px 16px 130px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 2230px; box-sizing: border-box; padding: 16px 16px 130px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
 
 <header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;">
 <a href="Dashboard-Mobile.dc.html" aria-label="Voltar" class="wl-icon-btn" style="width: 44px; height: 44px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a>
@@ -45,6 +46,11 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 <li><div style="height: 6px; border-radius: 999px; background: var(--line);"></div><div style="margin-top: 6px; color: var(--ink-muted);">2 · Vistoria</div></li>
 <li><div style="height: 6px; border-radius: 999px; background: var(--line);"></div><div style="margin-top: 6px; color: var(--ink-muted);">3 · Assinatura</div></li>
 </ol>
+
+<section class="card">
+<h2 class="h2">Tipo de locação</h2>
+<div class="wl-seg" role="group" aria-label="Tipo de locação" style="display: flex;"><button aria-pressed="true" style="flex: 1;">Comum</button><button aria-pressed="false" style="flex: 1; padding: 0 8px;">Com intenção de compra</button></div>
+</section>
 
 <section class="card">
 <h2 class="h2">Cliente e veículo</h2>
@@ -96,7 +102,7 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":2100}}'>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":2230}}'>
 class Component extends DCLogic {
   renderVals() {
     var b = String(this.props.brand || '#c8f04a').replace('#', '');

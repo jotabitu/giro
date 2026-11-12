@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- ajustada no repositório: 12/11/2026, T-420 -->
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -32,7 +33,7 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 .row span:last-child{font-weight:500;text-align:right}
 </style>
 </helmet>
-<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1320px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; min-height: 1420px; box-sizing: border-box; padding: 24px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 24px; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
 
 <nav class="wl-sidebar" aria-label="Menu principal" style="flex: 0 0 280px;">
 <div class="wl-brand-row"><div class="wl-logo-slot" aria-hidden="true">MR</div><div class="wl-brand-name">Moto Rápida</div></div>
@@ -76,6 +77,11 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 
 <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
 <div style="flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+
+<section class="wl-panel">
+<h2 class="h2">Tipo de locação</h2>
+<div class="wl-seg" role="group" aria-label="Tipo de locação" style="align-self: flex-start;"><button aria-pressed="true">Comum</button><button aria-pressed="false">Com intenção de compra</button></div>
+</section>
 
 <section class="wl-panel">
 <h2 class="h2">Cliente e veículo</h2>
@@ -151,7 +157,7 @@ select.wl-input{appearance:none;background-image:linear-gradient(45deg,transpare
 </main>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1320}}'>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":1440,"height":1420}}'>
 class Component extends DCLogic {
   renderVals() {
     var b = String(this.props.brand || '#c8f04a').replace('#', '');

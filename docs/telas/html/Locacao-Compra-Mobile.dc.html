@@ -1,0 +1,108 @@
+<!doctype html>
+<!-- ajustada no repositório: 12/11/2026, T-420 -->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Nova locação com intenção de compra · celular</title>
+<link rel="stylesheet" href="../../design-system/wl-theme.css">
+<link rel="stylesheet" href="../../design-system/components/bundle.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ink)}a:hover{color:var(--ink-muted)}
+.card{display:flex;flex-direction:column;gap:14px;padding:18px 16px;border-radius:24px;background:var(--surface)}
+.h2{margin:0;font-size:18px;line-height:24px;font-weight:600}
+.wl-field{width:100%}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+select.wl-input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--ink-muted) 50%),linear-gradient(135deg,var(--ink-muted) 50%,transparent 50%);background-position:calc(100% - 22px) 21px,calc(100% - 16px) 21px;background-size:6px 6px;background-repeat:no-repeat;padding-right:40px}
+.pick{display:flex;align-items:center;gap:12px;padding:12px;border-radius:18px;background:var(--surface-sunken)}
+.pick__icon{display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:14px;background:var(--surface);color:var(--ink-muted)}
+.plan{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.plan button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:12px 14px;border:1.5px solid var(--line);border-radius:18px;background:var(--surface);font:inherit;font-size:15px;color:var(--ink);text-align:left}
+.plan button small{font-size:13px;color:var(--ink-muted)}
+.plan button[aria-pressed="true"]{border-color:var(--solid);box-shadow:inset 0 0 0 1px var(--solid)}
+.extra{display:flex;align-items:center;gap:12px;min-height:50px;border-bottom:1px solid var(--line);font-size:15px}
+.extra:last-child{border-bottom:0}
+.extra input{width:22px;height:22px;accent-color:var(--solid);flex:none}
+.extra span:last-child{margin-left:auto;color:var(--ink-muted);font-size:14px}
+.row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:15px}
+.row span:first-child{color:var(--ink-muted)}
+.row span:last-child{font-weight:500}
+</style>
+</helmet>
+<div style="--brand: {{brand}}; --on-brand: {{onBrand}}; --brand-soft: {{brandSoft}}; position: relative; width: 390px; height: 1700px; box-sizing: border-box; padding: 16px 16px 130px; display: flex; flex-direction: column; gap: 14px; overflow: hidden; background: var(--canvas); color: var(--ink); font-family: var(--font-sans);">
+
+<header style="display: flex; align-items: center; gap: 12px; padding-top: 8px;">
+<a href="Dashboard-Mobile.dc.html" aria-label="Voltar" class="wl-icon-btn" style="width: 44px; height: 44px;"><svg class="wl-i" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"></path></svg></a>
+<div style="flex: 1; font-size: 22px; line-height: 26px; font-weight: 600;">Nova locação</div>
+</header>
+
+<ol style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 13px;">
+<li><div style="height: 6px; border-radius: 999px; background: var(--brand);"></div><div style="margin-top: 6px; font-weight: 600;">1 · Dados</div></li>
+<li><div style="height: 6px; border-radius: 999px; background: var(--line);"></div><div style="margin-top: 6px; color: var(--ink-muted);">2 · Vistoria</div></li>
+<li><div style="height: 6px; border-radius: 999px; background: var(--line);"></div><div style="margin-top: 6px; color: var(--ink-muted);">3 · Assinatura</div></li>
+</ol>
+
+<section class="card">
+<h2 class="h2">Tipo de locação</h2>
+<div class="wl-seg" role="group" aria-label="Tipo de locação" style="display: flex;"><button aria-pressed="false" style="flex: 1;">Comum</button><button aria-pressed="true" style="flex: 1; padding: 0 8px;">Com intenção de compra</button></div>
+</section>
+
+<section class="card">
+<h2 class="h2">Cliente e veículo</h2>
+<div class="pick"><div class="pick__icon"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"></path></svg></div><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Lucas Ferreira</div><div style="font-size: 13px; color: var(--ink-muted);">CNH A · válida até 2029</div></div><button class="wl-btn wl-btn--sm" style="padding: 0 12px;">Trocar</button></div>
+<div class="pick"><div class="pick__icon"><svg class="wl-i" viewBox="0 0 24 24"><circle cx="5.5" cy="16" r="3"></circle><circle cx="18.5" cy="16" r="3"></circle><path d="M5.5 16 9 10h5l4.5 6M9 10 7.5 7.5H5M14 10l1-3h3"></path></svg></div><div style="flex: 1; min-width: 0;"><div style="font-weight: 500;">Honda CG 160 Fan</div><div class="wl-mono" style="font-size: 13px; color: var(--ink-muted);">SAK-1D39 · 3.120 km</div></div><button class="wl-btn wl-btn--sm" style="padding: 0 12px;">Trocar</button></div>
+</section>
+
+<section class="card">
+<h2 class="h2">Plano de compra</h2>
+<div class="plan" role="group" aria-label="Plano de compra" style="grid-template-columns: minmax(0, 1fr);">
+<button aria-pressed="true"><span style="font-weight: 500;">Compra Street 24 meses</span><small>24 parcelas de R$ 1.190,00 · mensal</small></button>
+</div>
+<div class="two">
+<label class="wl-field"><span class="wl-field__label">Retirada</span><input class="wl-input wl-mono" value="07/10 09:30" style="font-size: 14px;"></label>
+<label class="wl-field"><span class="wl-field__label">Fim previsto</span><input class="wl-input wl-mono" value="07/10/2028" readonly style="font-size: 14px;"></label>
+</div>
+</section>
+
+<section class="card">
+<h2 class="h2">Cobrança</h2>
+<label class="wl-field"><span class="wl-field__label">Forma de pagamento</span><select class="wl-input"><option>Pix automático</option></select></label>
+<label class="wl-field"><span class="wl-field__label">Caução</span><input class="wl-input" value="R$ 300,00" readonly><span class="wl-field__hint">Abatida na última parcela</span></label>
+</section>
+
+<section class="card" style="gap: 0;">
+<h2 class="h2" style="margin-bottom: 4px;">Resumo</h2>
+<div class="row"><span>24 parcelas × R$ 1.190,00</span><span>R$ 1.190,00</span></div>
+<div class="row"><span>Última parcela (caução abatida)</span><span>R$ 890,00</span></div>
+<div class="row"><span>Caução (abatida na última parcela)</span><span>R$ 300,00</span></div>
+<div class="row" style="border-bottom: 0;"><span>Hoje (1ª parcela + caução)</span><span>R$ 1.490,00</span></div>
+<p style="margin: 8px 0 0; font-size: 13px; line-height: 18px; color: var(--ink-muted);">Ao quitar a última parcela, o veículo passa ao cliente sem valor extra.</p>
+</section>
+
+<div style="position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 16px 28px; background: var(--canvas); border-top: 1px solid var(--line);">
+<div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px;"><span style="color: var(--ink-muted); font-size: 14px;">Valor por mês</span><span style="font-size: 22px; font-weight: 600; letter-spacing: -0.02em;">R$ 1.190,00</span></div>
+<a class="wl-btn wl-btn--solid" href="Vistoria-Mobile.dc.html" style="width: 100%; box-sizing: border-box; height: 56px; text-decoration: none;">Continuar para vistoria</a>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"brand":{"editor":"color","default":"#c8f04a","options":["#c8f04a","#ff7a45","#2f6fed","#16b8a6"],"section":"White label"},"$preview":{"width":390,"height":1700}}'>
+class Component extends DCLogic {
+  renderVals() {
+    var b = String(this.props.brand || '#c8f04a').replace('#', '');
+    if (b.length === 3) { b = b.charAt(0) + b.charAt(0) + b.charAt(1) + b.charAt(1) + b.charAt(2) + b.charAt(2); }
+    var r = parseInt(b.slice(0, 2), 16), g = parseInt(b.slice(2, 4), 16), bl = parseInt(b.slice(4, 6), 16);
+    function lin(c) { c = c / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+    var L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(bl);
+    var onBrand = (L + 0.05) / 0.0555 >= 1.05 / (L + 0.05) ? '#111114' : '#ffffff';
+    function mix(c) { return Math.round(c + (255 - c) * 0.82); }
+    return { brand: '#' + b, onBrand: onBrand, brandSoft: 'rgb(' + mix(r) + ',' + mix(g) + ',' + mix(bl) + ')' };
+  }
+}
+</script>
+</body>
+</html>
