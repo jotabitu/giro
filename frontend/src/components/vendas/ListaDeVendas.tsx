@@ -7,11 +7,28 @@ import { CelulaDupla, DataTable, StatusBadge, type ColunaTabela } from "@/design
 import { Paginacao } from "@/components/lista/Paginacao";
 import { vendas, type Venda } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
-import { dataCompleta, dinheiro, placa } from "@/lib/formatos";
+import { dataCompleta, dataCurta, dinheiro, placa } from "@/lib/formatos";
 
 // Referência: docs/telas/html/Vendas-Desktop.dc.html e Vendas-Mobile.dc.html (T-420).
 // Só a parte que a API já entrega (docs/api/vendas.md): as transferências pendentes e a lista de vendas, com o rótulo da origem.
 // Funil, propostas, meta e comissão chegam com o módulo de vendas (T-418).
+
+const situacaoDaVenda = (v: Venda) => (v.vendida_em ? `Vendida ${dataCurta(v.vendida_em)}` : "Vendida");
+
+function SituacaoDaVenda({ v }: { v: Venda }) {
+  return (
+    <CelulaDupla
+      principal={situacaoDaVenda(v)}
+      secundaria={
+        v.transferencia.pendente ? (
+          <StatusBadge tom="alerta" compacto>
+            {situacaoDaTransferencia(v)}
+          </StatusBadge>
+        ) : null
+      }
+    />
+  );
+}
 
 const situacaoDaTransferencia = (v: Venda) => (v.transferencia.pendente ? "Falta a transferência no Detran" : `Transferência feita em ${v.transferencia.feita_em ? dataCompleta(v.transferencia.feita_em) : "—"}`);
 
@@ -51,16 +68,8 @@ const COLUNAS_VENDAS: ColunaTabela<Venda>[] = [
   { chave: "cliente", titulo: "Cliente", celula: celulaCliente },
   { chave: "veiculo", titulo: "Veículo", celula: celulaVeiculo },
   { chave: "origem", titulo: "Origem", celula: (v) => <Origem v={v} /> },
-  { chave: "valor", titulo: "Valor", celula: (v) => dinheiro(v.preco_final_centavos) },
-  {
-    chave: "situacao",
-    titulo: "Situação",
-    celula: (v) => (
-      <StatusBadge tom={v.transferencia.pendente ? "alerta" : "sucesso"} compacto>
-        {situacaoDaTransferencia(v)}
-      </StatusBadge>
-    ),
-  },
+  { chave: "valor", titulo: "Valor", mono: true, celula: (v) => dinheiro(v.preco_final_centavos) },
+  { chave: "situacao", titulo: "Situação", celula: (v) => <SituacaoDaVenda v={v} /> },
   { chave: "abrir", titulo: "", celula: (v) => <AbrirLocacao v={v} /> },
 ];
 
@@ -79,9 +88,14 @@ function CartaoDaVenda({ v }: { v: Venda }) {
       </div>
       <div className="text-caption text-ink-muted">{v.origem_rotulo}</div>
       <div className="flex items-center justify-between gap-3">
-        <StatusBadge tom={v.transferencia.pendente ? "alerta" : "sucesso"} compacto>
-          {situacaoDaTransferencia(v)}
-        </StatusBadge>
+        <div className="flex flex-col items-start gap-1 text-caption text-ink-muted">
+          {situacaoDaVenda(v)}
+          {v.transferencia.pendente && (
+            <StatusBadge tom="alerta" compacto>
+              {situacaoDaTransferencia(v)}
+            </StatusBadge>
+          )}
+        </div>
         <AbrirLocacao v={v} />
       </div>
     </div>

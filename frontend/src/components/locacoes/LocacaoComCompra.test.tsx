@@ -48,7 +48,7 @@ describe("T-420 vendedora: sem ações de gerente", () => {
   it("test_ven_11_vendedora_nao_registra_transferencia_nem_encerra_por_atraso", async () => {
     const { desktop } = await ficha(2870);
     expect(desktop).not.toContain("Encerrar por atraso");
-    expect(desktop).not.toContain("Renovar");
+    expect(desktop).toContain("não se renova nem troca de veículo");
     const quitada = await ficha(2901);
     expect(quitada.desktop).toContain("Pendente");
     expect(quitada.desktop).not.toContain("Data da transferência");
@@ -73,8 +73,8 @@ describe("T-420 ficha da locação com intenção de compra, gerente", () => {
   it("test_loc_16_sem_renovar_nem_trocar_e_com_encerrar_por_atraso", async () => {
     const { desktop, celular } = await ficha(2870);
     for (const t of [desktop, celular]) {
-      expect(t).not.toContain("Renovar");
-      expect(t).not.toContain("Trocar veículo");
+      // D3 do #568: os botões ficam desligados, com a explicação embaixo.
+      expect(t).toContain("A locação com intenção de compra não se renova nem troca de veículo. Encerre esta e abra outra.");
       expect(t).toContain("Encerrar por atraso");
       expect(t).toContain("Cancelar locação");
     }

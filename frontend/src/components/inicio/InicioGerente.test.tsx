@@ -23,10 +23,10 @@ describe("início do gerente: pendências", () => {
     expect(html).toContain('href="/locacoes/2901"');
   });
 
-  it("test_loc_16_sem_pendencia_mostra_o_titulo_da_api_e_sem_botao", () => {
+  it("test_loc_16_sem_pendencia_nao_mostra_o_cartao", () => {
     const d = { ...base, pendencias: { titulo: "Nenhuma transferência no Detran pendente", itens: [] } } as unknown as InicioDe<"gerente">;
     const t = texto(renderToStaticMarkup(<InicioGerente d={d} />));
-    expect(t).toContain("Nenhuma transferência no Detran pendente");
+    expect(t).not.toContain("Nenhuma transferência no Detran pendente");
     expect(t).not.toContain("Ver pendências");
   });
 });
