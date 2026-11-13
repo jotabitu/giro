@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 
 from django.db import transaction
 
+from apps.contas import selectors as contas_selectors
 from apps.filiais import selectors as filiais_selectors
 from apps.filiais.models import Filial
 from apps.notificacoes import services as notificacoes
@@ -51,13 +52,21 @@ def _titulo_do_aviso(venda: Venda) -> str:
     )
 
 
+def destinatarios_da_transferencia(filial: Filial) -> list[int]:
+    """`LOC-16` (B-04, decisão do dono em 12 nov 2026): os gerentes ativos da filial (`FIL-02`)
+    e os administradores ativos da empresa, com ou sem gerente na filial, sem repetir. Vale só
+    para este aviso; os outros avisos "para o gerente" seguem a `FIL-02`."""
+    ids = [g["id"] for g in filiais_selectors.gerentes(filial)]
+    ids += contas_selectors.administradores().order_by("id").values_list("id", flat=True)
+    return list(dict.fromkeys(ids))
+
+
 def _avisar_gerentes(venda_id: int) -> None:
-    """Depois do commit (ADR 0037, item 6): os gerentes ativos da filial (`FIL-02`), no sino e
-    por e-mail. A chave faz a mesma venda avisar uma vez só."""
+    """Depois do commit (ADR 0037, item 6): gerentes da filial e administradores, no sino e por
+    e-mail. A chave faz a mesma venda avisar uma vez só."""
     venda = Venda.objects.select_related("filial", "veiculo", "cliente", "locacao").get(pk=venda_id)
-    gerentes = [g["id"] for g in filiais_selectors.gerentes(venda.filial)]
     notificacoes.avisar(
-        gerentes,
+        destinatarios_da_transferencia(venda.filial),
         tipo="transferencia_quitacao",
         titulo=_titulo_do_aviso(venda),
         link=f"/locacoes/{venda.locacao_id}",

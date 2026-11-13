@@ -14081,6 +14081,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/PessoaDaEquipe'
+        pendencias:
+          $ref: '#/components/schemas/Pendencias'
         frota_filial:
           $ref: '#/components/schemas/FrotaDaFilial'
       required:
@@ -14089,6 +14091,7 @@ components:
       - equipe_hoje
       - frota_filial
       - kpis
+      - pendencias
       - saudacao
       - variante
     InicioImplantacao:
