@@ -137,6 +137,28 @@ Preparado na T-373, **sem conta de provedor**: nada abaixo foi subido num servid
 
 `infra/scripts/check-producao.sh` (job Infra do CI) valida o compose e falha se alguém publicar outra porta, der a `DATABASE_URL_MIGRACAO` a outro serviço, der segredo de backup à aplicação, tirar a cifra ou os 30 dias do pgBackRest, ou tirar a senha do Redis.
 
+### Perfis de memória (T-471)
+
+Um compose só. Cada `mem_limit`, a concorrência do worker geral, o `shared_buffers` e o `effective_cache_size` do Postgres e o `maxmemory` do Redis vêm de variáveis com o valor de sempre como padrão. Sem variável, o compose é o mesmo de antes (perfil 8 GB).
+
+| Serviço | Variável | 8 GB (padrão) | 4 GB (VPS pequena) |
+| --- | --- | --- | --- |
+| `backend` | `GIRO_MEM_BACKEND`, `GUNICORN_WORKERS`/`THREADS` | 3g, 3 × 4 | 1200m, 2 × 4 |
+| `db` | `GIRO_MEM_DB`, `GIRO_PG_SHARED_BUFFERS`, `GIRO_PG_EFFECTIVE_CACHE_SIZE` | 2g, 512MB, 1536MB | 768m, 256MB, 512MB |
+| `redis` | `GIRO_MEM_REDIS`, `GIRO_REDIS_MAXMEMORY` | 384m, 256mb | 192m, 128mb |
+| `worker` | `GIRO_MEM_WORKER`, `GIRO_CELERY_CONCORRENCIA` | 768m, 2 | 384m, 1 |
+| `worker-apagamento` | `GIRO_MEM_WORKER_APAGAMENTO` | 512m | 256m |
+| `beat` | `GIRO_MEM_BEAT` | 256m | 128m |
+| `frontend` | `GIRO_MEM_FRONTEND` | 512m | 384m |
+| `proxy` | `GIRO_MEM_PROXY` | 128m | 64m |
+| `rclone-arquivos`, `restic` (perfil `backup`) | `GIRO_MEM_RCLONE`, `GIRO_MEM_RESTIC` | 512m, 768m | 384m, 384m |
+
+- **Conta do perfil 4 GB:** sempre ligados somam cerca de 3,3 GiB e deixam cerca de 0,6 GiB ao sistema. O backend fica em 1200m porque 2 workers de 250 a 300 MiB mais uma leitura de PDF (filho com teto de 512 MiB virtual, ver "Servidor da aplicação e leitura de PDF") cabem; duas leituras ao mesmo tempo podem passar do limite e o kernel mata o filho ou o worker. Por isso o semáforo de leituras pedido ao backend vale mais ainda aqui.
+- **Swap obrigatória no perfil 4 GB**, de 2 a 4 GB: `sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile`, a linha `/swapfile none swap sw 0 0` no `/etc/fstab` e `vm.swappiness=10` em `/etc/sysctl.d/99-giro.conf`. Ela segura picos; não é memória para o dia a dia. O monitoramento avisa abaixo de 10% de memória livre.
+- **Imagens construídas fora da VPS** no perfil 4 GB: o `next build` e a imagem do backend não cabem ao lado do sistema ligado. Construa na máquina da equipe ou no CI, envie a um registro (ou `docker save | ssh ... docker load`) e na VPS rode `up -d` sem `--build`.
+- **Backups de madrugada, um de cada vez:** os timers de `infra/backup/systemd/instalar.sh` rodam o do banco às 02:00 e o dos arquivos às 04:30 (a conferência do restic no domingo às 06:00), com folga para não se sobrepor; `rclone-arquivos` e `restic` só existem enquanto o backup roda. Não rode backup manual em horário de uso no perfil 4 GB.
+- **Trocar de perfil:** edite as variáveis no cofre (`prd`; o bloco "Perfil 4 GB" de `infra/deploy/producao.env.example`), rode `sh infra/deploy/baixar-segredos.sh` e `docker compose -f infra/deploy/docker-compose.producao.yml --env-file /etc/giro/producao.env --env-file /etc/giro/producao-infra.env up -d`. O compose recria só os serviços cujo limite mudou. Subir de VPS é só apagar o bloco (ou trocar os números) e repetir.
+
 ### O que o dono precisa contratar
 
 | Item | Para quê | Observação |
