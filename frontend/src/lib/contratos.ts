@@ -32,3 +32,7 @@ export const rotuloDeUso = (m: Pick<ModeloDeContratoDaLista, "finalidade" | "con
   const coisa = m.finalidade === "venda" ? (n === 1 ? "venda" : "vendas") : n === 1 ? "locação" : "locações";
   return n === 0 ? "ainda sem uso" : `usado em ${n} ${coisa}`;
 };
+
+/** IMP-04 (decisão do dono de 13 nov 2026): a confirmação e o aviso de "Arquivar" um modelo de contrato. Arquivar não tem volta. */
+export const TEXTO_ARQUIVAR_MODELO =
+  "Arquivar não tem volta: o modelo sai do uso e não pode ser publicado de novo. Para usar este contrato outra vez, crie um modelo novo. Os contratos já gerados continuam com o texto dele.";
