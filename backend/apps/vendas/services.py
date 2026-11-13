@@ -9,6 +9,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from django.db import transaction
+from django_tenants.utils import tenant_context
 
 from apps.contas import selectors as contas_selectors
 from apps.filiais import selectors as filiais_selectors
@@ -18,6 +19,7 @@ from apps.veiculos import services as veiculos_services
 from apps.veiculos.models import StatusVeiculo, Veiculo
 from comum import estados, painel, relogio
 from comum.auditoria import ATOR_SISTEMA, Categoria, auditar, usar_ator
+from comum.conexao import conexao
 from comum.documentos import placa_com_hifen
 from comum.erros import Conflito, ErroDeValidacao, SemPermissao
 from comum.permissoes import filiais_permitidas
@@ -130,7 +132,15 @@ def criar_venda_da_quitacao(
                 motivo=descricao,
             )
             _perder_interessados(veiculo_id, venda.pk)
-        transaction.on_commit(lambda: _avisar_gerentes(venda.pk))
+        # Na empresa da quitação, mesmo que o commit chegue com a conexão em outro schema: a
+        # tarefa do Pix (`AUT-05`) volta ao public ao terminar (T-420).
+        empresa = conexao().tenant
+
+        def _depois() -> None:
+            with tenant_context(empresa):
+                _avisar_gerentes(venda.pk)
+
+        transaction.on_commit(_depois)
         painel.renovar()  # a pendência da transferência no Início, na hora
     return venda
 
