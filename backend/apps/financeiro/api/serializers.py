@@ -437,7 +437,7 @@ class DespesasDoVeiculoSerializer(serializers.Serializer[Any]):
 
 
 class OrigemDoReembolsoSerializer(serializers.Serializer[Any]):
-    tipo = serializers.ChoiceField(choices=["devolucao", "cancelamento", "credito"])
+    tipo = serializers.ChoiceField(choices=["devolucao", "cancelamento", "credito", "quitacao"])
     codigo = serializers.CharField(allow_null=True)
     id = serializers.IntegerField(allow_null=True, help_text="a locação, para o Ver acerto")
     veiculo = serializers.CharField(allow_null=True, help_text="QXA-4B21 · Honda CG 160 Fan")

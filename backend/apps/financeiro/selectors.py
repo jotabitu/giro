@@ -1155,6 +1155,8 @@ ORIGENS_DO_REEMBOLSO: dict[str, tuple[str, str]] = {
     OrigemTipo.LOCACAO: ("cancelamento", "Locação cancelada antes da retirada"),  # LOC-12
     "credito": ("credito", "Crédito de semanas"),  # LOC-13
 }
+# A origem `locacao` de uma locação quitada (o bloco de `locacoes` diz): a sobra da caução.
+ORIGEM_DA_QUITACAO = ("quitacao", "Sobra da caução na quitação")  # LOC-16
 STATUS_DOS_REEMBOLSOS = ("a_fazer", "feito", "todos")
 
 
@@ -1243,6 +1245,8 @@ def representacao_reembolso(
         reembolso.origem_tipo, (reembolso.origem_tipo, OrigemTipo(reembolso.origem_tipo).label)
     )
     locacao = leituras.bloco(REEMBOLSO, "locacao", reembolso) or {}
+    if reembolso.origem_tipo == OrigemTipo.LOCACAO and locacao.get("quitada"):
+        tipo, rotulo = ORIGEM_DA_QUITACAO
     status = StatusReembolso(reembolso.status)
     feito_por = reembolso.feito_por
     return {

@@ -17,6 +17,7 @@ class VeiculosConfig(AppConfig):
         )
         registrar_formatador(tuple(textos.RESUMOS_DA_GALERIA), textos.foto_da_galeria)  # T-460
         registrar_formatador(tuple(textos.RESUMOS_DO_CADASTRO), textos.cadastro_do_veiculo)  # T-464
+        registrar_formatador("veiculo.vendido", textos.vendido)  # T-420
 
         registrar_contador("veiculos", selectors.contar_veiculos_do_plano)  # PLT-03
         # IMP-07: o preço agendado marca o passo `precos` na leitura do andamento, na data.

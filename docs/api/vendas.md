@@ -71,6 +71,16 @@ Corpo: `{ "feita_em": "2028-10-15" }` (data, não depois de hoje, não antes de 
 - 409 `{ "codigo": "VEN-11", "mensagem": "A transferência desta venda já foi registrada." }`; 404 se a locação não tem venda da quitação; 400 `validacao` em `feita_em`; 403 para os outros perfis e para o suporte em "só ver".
 - `compra.venda.acoes.registrar_transferencia`, no detalhe da locação quitada (`locacoes.md`), segue as mesmas condições.
 
+## Na auditoria (T-420, A5 da conferência de 13 nov 2026)
+
+| Ação | `resumo` | `detalhe` |
+| --- | --- | --- |
+| `venda.criar_da_quitacao` | Criou a venda VEN-0001 da quitação | Quitação da LOC-2856 |
+| `venda.registrar_transferencia` | Registrou a transferência no Detran da VEN-0001 | Feita em 13/11/2026 |
+| `veiculo.vendido` | Vendeu o veículo SAK-1D39 | o motivo (Quitação da LOC-2856) |
+
+Testes: `test_aud_ven_11_*` em `tests/aceitacao/test_t420_achados.py`.
+
 ## Interface interna
 
 | Item | Uso |

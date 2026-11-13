@@ -288,12 +288,13 @@ CAMPOS_DO_REEMBOLSO = {
     "placa": "veiculo__placa",
     "marca": "veiculo__marca",
     "modelo": "veiculo__modelo",
+    "quitada_em": "quitada_em",
 }
 
 
 def anotar_reembolso(queryset: QuerySet[Any]) -> QuerySet[Any]:
     """A locação pelo código da origem: na devolução (DEV-02) a origem é a devolução, que guarda
-    o código da locação; no cancelamento (LOC-12), a própria locação."""
+    o código da locação; no cancelamento (LOC-12) e na quitação (LOC-16), a própria locação."""
     da_origem = Locacao.objects.filter(codigo=OuterRef("origem_codigo"))
     return queryset.annotate(  # type: ignore[no-any-return]
         **{
@@ -318,7 +319,9 @@ def montar_reembolso(reembolso: Any) -> dict[str, Any] | None:
     if linha["id"] is None:
         return None
     veiculo = f"{placa_com_hifen(linha['placa'])} · {linha['marca']} {linha['modelo']}"
-    return {"id": linha["id"], "veiculo": veiculo}
+    # A sobra da caução na quitação (LOC-16) também tem a locação como origem: a locação
+    # quitada nunca foi cancelada antes da retirada (A3 da conferência da T-420).
+    return {"id": linha["id"], "veiculo": veiculo, "quitada": linha["quitada_em"] is not None}
 
 
 # --- veiculos.Veiculo: o que rendeu (VEI-05) ---
