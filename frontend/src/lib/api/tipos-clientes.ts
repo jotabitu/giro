@@ -112,6 +112,9 @@ export type LocacaoDoCliente = {
   fim_previsto: string;
   situacao: { codigo: string; rotulo: string; tom: TomApi };
   pago_centavos: number;
+  /** LOC-17 (T-456): o texto pronto da coluna Pagamento e a caução, da mesma linha da lista de locações. */
+  pagamento: { rotulo: string; tom: TomApi } | null;
+  caucao: { rotulo: string; tom: TomApi; valor_centavos: number; paga: boolean } | null;
   /** Só na locação em andamento. */
   detalhe?: DetalheDaLocacaoAtual;
 };

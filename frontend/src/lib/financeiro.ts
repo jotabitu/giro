@@ -1,6 +1,6 @@
 // Textos do financeiro. Só rótulos e formatação: valor do dia, multa, juros e status vêm prontos da API (docs/api/financeiro.md).
 import type { TomStatus } from "@/design-system";
-import type { CategoriaDaDespesa, ContaReceber, Despesa, FormaDaBaixa, FormaDaDespesa, FormaDoMovimento, FormaPrevista, StatusDaDespesa, StatusDoCaixa, TipoDeConta } from "@/lib/api";
+import type { CategoriaDaDespesa, ContaReceber, Despesa, FormaDaBaixa, FormaDaDespesa, FormaDoMovimento, FormaPrevista, StatusDaDespesa, StatusDoCaixa } from "@/lib/api";
 import { dataCurta, dinheiro, placa } from "@/lib/formatos";
 
 const FORMAS: Record<FormaPrevista | FormaDaBaixa | FormaDoMovimento, string> = {
@@ -15,20 +15,6 @@ const FORMAS: Record<FormaPrevista | FormaDaBaixa | FormaDoMovimento, string> = 
 };
 
 export const rotuloDaForma = (forma: string | null | undefined): string => (forma ? (FORMAS[forma as keyof typeof FORMAS] ?? forma) : "—");
-
-const COBRANCAS: Record<Exclude<TipoDeConta, "parcela">, string> = {
-  caucao: "Caução",
-  multa: "Multa",
-  avaria: "Avaria",
-  acerto: "Acerto da devolução",
-  outro: "Outra cobrança",
-};
-
-/** "4 de 4" para parcela; o nome da cobrança para os outros tipos. */
-export function rotuloDaParcela(c: Pick<ContaReceber, "tipo" | "numero" | "total_parcelas">): string {
-  if (c.tipo === "parcela") return c.numero && c.total_parcelas ? `${c.numero} de ${c.total_parcelas}` : "—";
-  return COBRANCAS[c.tipo] ?? "—";
-}
 
 /** "LOC-2790 · PQD-6E21": o código da origem e a placa, quando há. */
 export function origemDaConta(c: Pick<ContaReceber, "origem" | "veiculo_placa">): string {
@@ -64,11 +50,10 @@ export function composicaoDoValor(v: { principal_centavos: number; multa_centavo
   return partes.join(" + ");
 }
 
-/** "Parcela 2 de 5 · venceu 30 set" ou "Parcela 2 de 5 · vence 14 out". */
-export function linhaDaConta(c: Pick<ContaReceber, "tipo" | "numero" | "total_parcelas" | "vencimento" | "status">): string {
-  const nome = c.tipo === "parcela" ? `Parcela ${rotuloDaParcela(c)}` : rotuloDaParcela(c);
+/** "Parcela 2 de 5 · venceu 30 set" ou "Caução · vence 14 out". O rótulo da conta vem pronto da API (FIN-19). */
+export function linhaDaConta(c: Pick<ContaReceber, "rotulo" | "vencimento" | "status">): string {
   const venceu = c.status === "atrasada" || c.status === "paga";
-  return `${nome} · ${venceu ? "venceu" : "vence"} ${dataCurta(c.vencimento)}`;
+  return `${c.rotulo} · ${venceu ? "venceu" : "vence"} ${dataCurta(c.vencimento)}`;
 }
 
 export const ROTULO_STATUS_DO_CAIXA: Record<StatusDoCaixa, string> = {

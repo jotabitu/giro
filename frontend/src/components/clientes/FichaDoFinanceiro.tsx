@@ -7,7 +7,7 @@ import { useState, type ReactNode } from "react";
 import { Button, CelulaDupla, DataTable, Icone, KpiGrid, KpiTile, Panel, StatusBadge, type ColunaTabela } from "@/design-system";
 import { clientes, financeiro, type ClienteResumo, type ContaReceber, type LocacaoDoCliente } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
-import { origemDaConta, rotuloDaForma, rotuloDaParcela, situacaoDaConta } from "@/lib/financeiro";
+import { origemDaConta, rotuloDaForma, situacaoDaConta } from "@/lib/financeiro";
 import { celular, dataCurta, dinheiro, dinheiroSemZerosOuTraco, iniciais, mesAno, placa, soDigitos } from "@/lib/formatos";
 import { tomDoStatus } from "@/lib/tom";
 
@@ -48,7 +48,12 @@ const COLUNAS_LOCACOES: ColunaTabela<LocacaoDoCliente>[] = [
       </StatusBadge>
     ),
   },
-  { chave: "pago", titulo: "Pago", celula: (l) => dinheiro(l.pago_centavos) },
+  // LOC-17 (T-456): a situação do pagamento e a caução vêm prontas da API e mudam a cada pagamento.
+  {
+    chave: "pagamento",
+    titulo: "Pagamento",
+    celula: (l) => <CelulaDupla principal={<span className="font-normal">{l.pagamento?.rotulo ?? "—"}</span>} secundaria={l.caucao?.rotulo} />,
+  },
 ];
 
 function Atrasada({ c }: { c: ContaReceber }) {
@@ -58,7 +63,7 @@ function Atrasada({ c }: { c: ContaReceber }) {
       <span className="min-w-0 flex-1">
         <span className="wl-mono block">{origemDaConta(c)}</span>
         <span className="block text-caption text-ink-muted">
-          {rotuloDaParcela(c)} · venceu {dataCurta(c.vencimento)}
+          {c.rotulo} · venceu {dataCurta(c.vencimento)}
         </span>
       </span>
       <StatusBadge tom={s.tom} compacto>
@@ -75,7 +80,7 @@ function Pagamento({ c }: { c: ContaReceber }) {
       <span className="min-w-0 flex-1">
         <span className="wl-mono block">{origemDaConta(c)}</span>
         <span className="block text-caption text-ink-muted">
-          {rotuloDaParcela(c)} · {rotuloDaForma(c.forma)}
+          {c.rotulo} · {rotuloDaForma(c.forma)}
           {c.pago_em ? ` · ${dataCurta(c.pago_em)}` : ""}
         </span>
       </span>

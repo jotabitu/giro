@@ -606,3 +606,20 @@ Vindas do teste do dono no fluxo de locação da Moto Rápida (LOC-0001 e LOC-00
 #### T-464 · Placa nos eventos de cadastrar e editar o veículo na auditoria
 - **Agente:** fullstack · **Regras:** `AUD`, `VEI-01` · **Origem:** sugestão do fullstack no PR #531 (T-460) e decisão do dono de 11 nov 2026 (A).
 - **Pronto quando:** os eventos de cadastrar e editar o veículo trazem a placa como código, como os de foto da T-460, com resumo em português; teste.
+
+### Notas do dono de 12 nov 2026
+
+#### T-468 · Conferir as correções da segurança na quitação da compra
+- **Agente:** seguranca · **Regras:** `LOC-16`, `VEN-11`, `FIN-18` · **Origem:** revisão da T-420 (PR #563, `docs/seguranca/2026-11-12-t420-locacao-com-compra.md`); o dono pediu deixar para depois, em 12 nov 2026.
+- **O caso:** os médios M-01 (quitação sem conferir a caução paga, sobra de caução que não entrou) e M-02 (quitação contada pelo número da parcela, travada pela renegociação) e os baixos B-01 e B-02 foram corrigidos pelo Backend no PR #559, sem a segurança reler as correções; B-03 e B-04 no PR #565.
+- **Pronto quando:** a segurança relê as correções do #559 e do #565, roda os testes que provaram M-01 e M-02 e acrescenta ao relatório se cada achado fechou; o que sobrar vira tarefa. Antes de ligar a locação com intenção de compra para alguma empresa.
+
+#### T-469 · Motivo das ações desligadas vindo da API
+- **Agente:** fullstack · **Regras:** `LOC-16`, `LOC-08` (renovar), troca de veículo · **Origem:** ajuste D3 da revisão de fidelidade da T-420 (PR #570); o dono pediu deixar para depois, em 12 nov 2026.
+- **O caso:** na locação com intenção de compra, a ficha mostra Renovar e Trocar desligados com uma frase de apoio escrita no cliente, porque `acoes` só traz booleanos e o texto da recusa só existe no 409. O texto deveria vir da API (a API decide, a tela mostra).
+- **Pronto quando:** as ações desligadas da locação trazem o motivo pronto (por exemplo `acoes.renovar = {disponivel, motivo}`, como o `para_retirar` da T-451), com os mesmos textos dos 409; a ficha mostra o motivo da API e o texto fixo sai do cliente; contrato, OpenAPI e teste.
+
+#### T-470 · Contas nascem na data real com a data simulada
+- **Agente:** backend · **Regras:** `FIN-03`, `FIN-01`, ADR 0021 (data simulada) · **Origem:** observação do Backend 2 no PR #578 (teste da T-410 que quebrou com a data real de 13 nov); o dono pediu deixar para depois, em 13 nov 2026.
+- **O caso:** a `FIN-03` conta o atraso também do dia em que a conta nasceu, e esse dia é o `criado_em` (`auto_now_add`), que vem do relógio real. Com `GIRO_DATA_REFERENCIA` (desenvolvimento e homologação), a conta nasce com a data real e não com a simulada, e o atraso sai diferente do esperado nos testes à mão. Em produção não afeta.
+- **Pronto quando:** as contas (e o que mais usar `criado_em` em cálculo de regra) nascem com a hora do relógio do sistema, que respeita a data simulada; teste com a data simulada no passado e no futuro; produção sem mudança.

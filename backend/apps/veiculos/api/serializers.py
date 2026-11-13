@@ -562,6 +562,8 @@ class VeiculoDetalheSerializer(VeiculoComDadosDoDocumentoSerializer):
     vistoria_recente = VistoriaRecenteSerializer(allow_null=True, required=False)
     ocupacao = OcupacaoSerializer()
     historico_status = HistoricoStatusSerializer(many=True)
+    # `{ "itens": [...] }`, de `vendas` (VEN-11, T-420); `null` sem venda.
+    vendas = serializers.JSONField(allow_null=True, required=False)
 
     def to_representation(self, instance: Any) -> Any:
         dados = super().to_representation(instance)

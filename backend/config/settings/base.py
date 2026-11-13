@@ -39,6 +39,10 @@ USE_X_FORWARDED_HOST = False
 # Domínio: admin.<DOMINIO_BASE> é a plataforma; <subdominio>.<DOMINIO_BASE>, a empresa.
 DOMINIO_BASE = env("DOMINIO_BASE", default="localhost")
 SUBDOMINIO_PLATAFORMA = env("SUBDOMINIO_PLATAFORMA", default="admin")
+# Esquema e porta dos links que o sistema manda ou copia (T-467, `comum.enderecos`). O padrão,
+# https e sem porta, é o de homologação e produção; o desenvolvimento troca em `dev.py`.
+GIRO_LINKS_ESQUEMA = env("GIRO_LINKS_ESQUEMA", default="https")
+GIRO_LINKS_PORTA = env("GIRO_LINKS_PORTA", default="")
 
 # --- Multiempresa (ADR 0002, 0008, 0011) ---
 # Apps nos dois schemas aparecem nas duas listas.
@@ -265,6 +269,9 @@ SPECTACULAR_SETTINGS = {
         "TipoLinhaDaFaturaEnum": ["fatura", "teste"],
         "StatusVeiculoEnum": "apps.veiculos.models.StatusVeiculo",
         "MovimentacaoStatusEnum": "apps.movimentacoes.models.StatusMovimentacao",  # T-320
+        "OrigemEnum": "apps.filiais.models.FeriadoFilial.Origem",  # o nome que já saía (T-420)
+        "OrigemVendaEnum": "apps.vendas.models.OrigemVenda",  # VEN-11 (T-420)
+        "StatusVendaEnum": "apps.vendas.models.StatusVenda",  # T-420
         "FotoPosicaoEnum": "apps.vistorias.models.PosicaoFoto",  # T-320: o nome que já saía
         "PosicaoDaChegadaEnum": "apps.movimentacoes.models.PosicaoFoto",  # T-320
         "TipoDocumentoEnum": "apps.veiculos.models.TipoDocumento",
@@ -276,6 +283,11 @@ SPECTACULAR_SETTINGS = {
         # O do cancelamento (LOC-12), sem dinheiro, e o do acerto (DEV-02), com dinheiro pelo caixa.
         "FormaDevolucaoEnum": [("pix", "Pix"), ("estorno_cartao", "Estorno no cartão")],
         "FormaDevolucaoAcertoEnum": "apps.vistorias.models.FormaDevolucao",
+        # LOC-16 (T-420): o tipo da locação e a periodicidade do plano de compra; o nome
+        # `PeriodicidadeEnum` continua o da locação, que o frontend já usa.
+        "PeriodicidadeEnum": "apps.locacoes.models.Periodicidade",
+        "PeriodicidadeCompraEnum": "apps.locacoes.models.PlanoCompra.PeriodicidadeCompra",
+        "TipoLocacaoEnum": "apps.locacoes.models.TipoLocacao",
         # Nomes que veículos já publicava, antes de clientes ter outro `motivo` e `situacao`.
         "MotivoEnum": ["perda_total", "roubo", "sucata", "outro"],
         "SituacaoEnum": ["em_dia", "vence_em_breve", "vencido"],
@@ -473,7 +485,9 @@ GIRO_PEPPER_HMAC = env_preenchida("GIRO_PEPPER_HMAC", PEPPER_DE_EXEMPLO)
 # Módulos (apps) já entregues: o menu do `eu` esconde os outros, para nunca levar a uma tela
 # que não existe (USR-05, T-047). Cada entrega acrescenta o seu. Fora por enquanto: `empresas`
 # (Configurações e Empresa e marca, sem tela até a T-154 e a T-173), `relatorios` (fase 2; o
-# painel do início responde sem ele), `vendas`, `manutencao` e `conciliacao` (fase 2).
+# painel do início responde sem ele), `manutencao` e `conciliacao` (fase 2). `vendas` entrou com a
+# lista da T-420 (VEN-11); propostas, veículos à venda e comissões ficam em `vendas_balcao`, fora
+# até a T-418 (`contas/navegacao.py`).
 GIRO_MODULOS_ATIVOS = env.list(
     "GIRO_MODULOS_ATIVOS",
     default=[
@@ -489,6 +503,7 @@ GIRO_MODULOS_ATIVOS = env.list(
         "movimentacoes",
         "plataforma",
         "veiculos",
+        "vendas",
         "vistorias",
     ],
 )

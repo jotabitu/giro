@@ -288,12 +288,13 @@ CAMPOS_DO_REEMBOLSO = {
     "placa": "veiculo__placa",
     "marca": "veiculo__marca",
     "modelo": "veiculo__modelo",
+    "quitada_em": "quitada_em",
 }
 
 
 def anotar_reembolso(queryset: QuerySet[Any]) -> QuerySet[Any]:
     """A locação pelo código da origem: na devolução (DEV-02) a origem é a devolução, que guarda
-    o código da locação; no cancelamento (LOC-12), a própria locação."""
+    o código da locação; no cancelamento (LOC-12) e na quitação (LOC-16), a própria locação."""
     da_origem = Locacao.objects.filter(codigo=OuterRef("origem_codigo"))
     return queryset.annotate(  # type: ignore[no-any-return]
         **{
@@ -318,17 +319,23 @@ def montar_reembolso(reembolso: Any) -> dict[str, Any] | None:
     if linha["id"] is None:
         return None
     veiculo = f"{placa_com_hifen(linha['placa'])} · {linha['marca']} {linha['modelo']}"
-    return {"id": linha["id"], "veiculo": veiculo}
+    # A sobra da caução na quitação (LOC-16) também tem a locação como origem: a locação
+    # quitada nunca foi cancelada antes da retirada (A3 da conferência da T-420).
+    return {"id": linha["id"], "veiculo": veiculo, "quitada": linha["quitada_em"] is not None}
 
 
 # --- veiculos.Veiculo: o que rendeu (VEI-05) ---
 
 
-def _rendeu_no_ano(veiculo_id: Any) -> Subquery:
+def _rendeu_no_ano() -> Subquery:
+    """As contas pagas no ano das locações do veículo, de qualquer tipo de locação (também as
+    parcelas da compra, LOC-16), sem a caução. O veículo vendido continua com o que rendeu.
+    As locações são um subquery dentro do das contas: o veículo é o `OuterRef` de dois níveis
+    acima (com um só, o filtro comparava o veículo da locação com o `id` da conta, A8)."""
     return Subquery(
         ContaReceber.objects.filter(
             origem_tipo=ORIGEM,
-            origem_id__in=Locacao.objects.filter(veiculo_id=veiculo_id).values("pk"),
+            origem_id__in=Locacao.objects.filter(veiculo_id=OuterRef(OuterRef("pk"))).values("pk"),
             status=StatusConta.PAGA,
             pago_em__year=relogio.hoje().year,
         )
@@ -343,7 +350,7 @@ def _rendeu_no_ano(veiculo_id: Any) -> Subquery:
 
 def anotar_rendimento(queryset: QuerySet[Any]) -> QuerySet[Any]:
     return queryset.annotate(  # type: ignore[no-any-return]
-        loc_rendeu_ano=Coalesce(_rendeu_no_ano(OuterRef("pk")), 0)
+        loc_rendeu_ano=Coalesce(_rendeu_no_ano(), 0)
     )
 
 

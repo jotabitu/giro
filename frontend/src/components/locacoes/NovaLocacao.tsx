@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { Button, Icone, Panel, TextField } from "@/design-system";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
-import { clientes, ErroApi, locacoes, veiculos, type EntradaDaLocacao, type Periodicidade, type PlanoEspecial } from "@/lib/api";
+import { clientes, ErroApi, locacoes, veiculos, type EntradaDaLocacao, type Periodicidade, type PlanoDeCompra, type PlanoEspecial } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { dataCompleta, dinheiro, dinheiroSemZeros, diaDe, instanteDeLocal, localDeInstante } from "@/lib/formatos";
 import { agoraNoDia, useAgora, useAmbiente } from "@/lib/ambiente";
@@ -69,8 +69,13 @@ function detalheDoPlano(p: PlanoEspecial): string {
   return p.condicoes;
 }
 
+/** LOC-16: "24 parcelas de R$ 1.190,00 · mensal", só o que o plano traz. */
+function detalheDoPlanoDeCompra(p: PlanoDeCompra): string {
+  return `${p.parcelas} parcelas de ${dinheiro(p.valor_parcela_centavos)} · ${p.periodicidade}`;
+}
+
 /** Nova locação (etapa 1, Dados): simula a cada mudança, guarda o rascunho e confirma. */
-export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }: { clienteInicial?: number; veiculoInicial?: number; rascunhoInicial?: number }) {
+export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial, tipoInicial, planoDeCompraInicial }: { clienteInicial?: number; veiculoInicial?: number; rascunhoInicial?: number; tipoInicial?: "comum" | "intencao_compra"; planoDeCompraInicial?: number }) {
   const router = useRouter();
   const cache = useQueryClient();
   const [escolhendo, setEscolhendo] = useState<"cliente" | "veiculo" | null>(null);
@@ -82,7 +87,7 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
 
   const { register, handleSubmit, watch, setValue, reset, clearErrors, formState: { errors, dirtyFields } } = useForm<ValoresLocacao>({
     resolver: zodResolver(esquemaLocacao) as unknown as Resolver<ValoresLocacao>,
-    defaultValues: valoresIniciais(clienteInicial ?? null, veiculoInicial ?? null, agora.current),
+    defaultValues: { ...valoresIniciais(clienteInicial ?? null, veiculoInicial ?? null, agora.current), tipo: tipoInicial ?? "comum", plano_compra_id: planoDeCompraInicial ?? null },
   });
   const v = watch();
 
@@ -98,6 +103,10 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
   const extras = useQuery({ queryKey: ["extras"], queryFn: () => locacoes.extras() });
   const planos = useQuery({ queryKey: ["planos-especiais"], queryFn: () => locacoes.planosEspeciais() });
   const listaPlanos = useMemo(() => planos.data?.resultados ?? [], [planos.data]);
+  const planosDeCompra = useQuery({ queryKey: ["planos-compra"], queryFn: () => locacoes.planosDeCompra() });
+  const listaDeCompra = useMemo(() => planosDeCompra.data?.resultados ?? [], [planosDeCompra.data]);
+  const compra = v.tipo === "intencao_compra";
+  const planoDeCompra = compra ? listaDeCompra.find((p) => p.id === v.plano_compra_id) : undefined;
   const cliente = useQuery({ queryKey: ["cliente", v.cliente_id], queryFn: () => clientes.obter(v.cliente_id ?? 0), enabled: !!v.cliente_id, retry: false });
   const veiculo = useQuery({ queryKey: ["veiculo", v.veiculo_id], queryFn: () => veiculos.obter(v.veiculo_id ?? 0), enabled: !!v.veiculo_id, retry: false });
 
@@ -113,24 +122,24 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
     setPlanoEscolhido(true);
   }, [rascunho.data, extras.data, reset]);
 
-  const corpo = useMemo(() => corpoDaLocacao(v, listaPlanos), [v, listaPlanos]);
+  const corpo = useMemo(() => corpoDaLocacao(v, listaPlanos, listaDeCompra), [v, listaPlanos, listaDeCompra]);
   const corpoAtrasado = useAtraso(JSON.stringify(corpo));
   const simulacao = useQuery({
     queryKey: ["locacao-simulacao", corpoAtrasado],
     queryFn: () => locacoes.simular(JSON.parse(corpoAtrasado) as EntradaDaLocacao),
-    enabled: corpoAtrasado !== "null" && planos.isSuccess && !todasAsFiliais,
+    enabled: corpoAtrasado !== "null" && planos.isSuccess && (!compra || planosDeCompra.isSuccess) && !todasAsFiliais,
     placeholderData: (anterior) => anterior,
     retry: false,
   });
   const sim = simulacao.data;
-  const periodicidade: Periodicidade = corpo?.periodicidade ?? (v.modalidade.startsWith("especial:") ? (listaPlanos.find((p) => `especial:${p.id}` === v.modalidade)?.periodicidade ?? "semanal") : (v.modalidade as Periodicidade));
+  const periodicidade: Periodicidade = planoDeCompra?.periodicidade ?? corpo?.periodicidade ?? (v.modalidade.startsWith("especial:") ? (listaPlanos.find((p) => `especial:${p.id}` === v.modalidade)?.periodicidade ?? "semanal") : (v.modalidade as Periodicidade));
   const un = UNIDADE[periodicidade];
   const hoje = diaDe(agoraDaPagina.toISOString());
 
   const erroSim = (campo: string) => campoDoErro(simulacao.error, campo);
   const avisoDeFilial = todasAsFiliais ? "Escolha uma filial no menu para criar a locação." : erroSim("filial");
   // Erro de campo que nenhum campo da tela mostra: aparece no resumo, para o botão não ficar desligado sem explicação.
-  const camposDaTela = ["filial", "plano_especial_id", "inicio", "fim_previsto", "periodos", "desconto_pct"];
+  const camposDaTela = ["filial", "plano_especial_id", "plano_compra_id", "veiculo_id", "inicio", "fim_previsto", "periodos", "desconto_pct"];
   const erroSemCampo = simulacao.error instanceof ErroApi && simulacao.error.campos ? Object.entries(simulacao.error.campos).find(([c]) => !camposDaTela.includes(c))?.[1] : undefined;
   const impedimentos = sim?.impedimentos ?? [];
 
@@ -154,9 +163,12 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
     )();
 
   const descontoErro = !descontoValido(v.desconto) ? "Informe um percentual, como 5 ou 2,5" : erroSim("desconto_pct");
-  const pronto = planoEscolhido && !todasAsFiliais && !!sim && !simulacao.isError && impedimentos.length === 0 && !salvar.isPending && !descontoErro;
+  const escolhido = compra ? !!planoDeCompra : planoEscolhido;
+  const pronto = escolhido && !todasAsFiliais && !!sim && !simulacao.isError && impedimentos.length === 0 && !salvar.isPending && !descontoErro;
   const erroDoEnvio = salvar.error instanceof ErroApi ? salvar.error : null;
   const linkDoErro = typeof erroDoEnvio?.detalhes?.link === "string" ? erroDoEnvio.detalhes.link : null;
+  // LOC-16: sem modelo publicado de locação com intenção de compra, o atalho leva a publicar o modelo.
+  const semModeloDeCompra = erroDoEnvio?.codigo === "LOC-16" && !!linkDoErro;
 
   const escolherCliente = (id: number) => {
     setValue("cliente_id", id, { shouldValidate: true });
@@ -186,6 +198,12 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
     );
   }
 
+  const escolherTipo = (tipo: "comum" | "intencao_compra") => () => {
+    setValue("tipo", tipo);
+    setValue("fim", "");
+    salvar.reset();
+  };
+
   const modalidade = (m: Modalidade) => () => {
     setPlanoEscolhido(true);
     setValue("modalidade", m);
@@ -212,6 +230,13 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
 
       <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_380px]">
         <div className="flex min-w-0 flex-col gap-6">
+          <Panel titulo="Tipo de locação">
+            <div role="group" aria-label="Tipo de locação" className="grid grid-cols-2 gap-2">
+              <Plano ativo={!compra} nome="Comum" onClick={escolherTipo("comum")} />
+              <Plano ativo={compra} nome="Com intenção de compra" onClick={escolherTipo("intencao_compra")} />
+            </div>
+          </Panel>
+
           <Panel titulo="Cliente e veículo">
             <div className="grid gap-4 md:grid-cols-2">
               <div>
@@ -223,10 +248,41 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
                 <CartaoDoVeiculo veiculo={veiculo.data} onTrocar={() => setEscolhendo("veiculo")} />
                 {errors.veiculo_id && <p role="alert" className="mt-2 text-caption text-critical">{errors.veiculo_id.message}</p>}
                 {veiculo.isError && <p role="alert" className="mt-2 text-caption text-critical">{mensagemDoErro(veiculo.error)}</p>}
+                {erroSim("veiculo_id") && <p role="alert" className="mt-2 text-caption text-critical">{erroSim("veiculo_id")}</p>}
               </div>
             </div>
           </Panel>
 
+          {compra && (
+            <Panel titulo="Plano de compra">
+              <div className="flex flex-col gap-4">
+                {planosDeCompra.isPending && <p className="text-body text-ink-muted">Carregando os planos de compra…</p>}
+                {planosDeCompra.isError && <p role="alert" className="text-body">{mensagemDoErro(planosDeCompra.error)}</p>}
+                {planosDeCompra.isSuccess && listaDeCompra.length === 0 && <p className="text-body text-ink-muted">Nenhum plano de compra ativo. O administrador cadastra os planos em Preços.</p>}
+                <div role="group" aria-label="Plano de compra" className="grid gap-2 md:grid-cols-2">
+                  {listaDeCompra.map((p) => (
+                    <Plano key={p.id} ativo={v.plano_compra_id === p.id} nome={p.nome} detalhe={detalheDoPlanoDeCompra(p)} onClick={() => setValue("plano_compra_id", p.id)} />
+                  ))}
+                </div>
+                {!planoDeCompra && listaDeCompra.length > 0 && <p className="text-caption text-ink-muted">Escolha o plano para ver a cobrança.</p>}
+                {erroSim("plano_compra_id") && <p role="alert" className="text-caption text-critical">{erroSim("plano_compra_id")}</p>}
+                <div className="grid gap-4 md:grid-cols-2">
+                  <TextField cheio mono rotulo="Retirada" type="datetime-local" erro={errors.inicio?.message ?? erroSim("inicio")} {...register("inicio")} />
+                  <TextField
+                    cheio
+                    mono
+                    rotulo="Fim previsto"
+                    type="datetime-local"
+                    value={sim?.fim_previsto ? localDeInstante(sim.fim_previsto) : ""}
+                    readOnly
+                    dica={sim ? `${textoDoPeriodo(sim.periodos, periodicidade)} · o veículo passa ao cliente na última parcela` : undefined}
+                  />
+                </div>
+              </div>
+            </Panel>
+          )}
+
+          {!compra && (
           <Panel titulo="Plano e período">
             <div className="flex flex-col gap-4">
               <div role="group" aria-label="Modalidade" className="grid grid-cols-2 gap-2 md:grid-cols-4">
@@ -262,8 +318,23 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
               </div>
             </div>
           </Panel>
+          )}
 
-          {planoEscolhido && (
+          {compra && planoDeCompra && (
+            <Panel titulo="Cobrança">
+              <div className="grid gap-4 md:grid-cols-2">
+                <CampoSelecao rotulo="Forma de pagamento" value={v.forma_pagamento} onChange={(e) => setValue("forma_pagamento", e.target.value as ValoresLocacao["forma_pagamento"])} opcoes={FORMAS_DE_PAGAMENTO.map((f) => ({ valor: f.valor, rotulo: f.rotulo }))} />
+                <TextField cheio rotulo="Primeiro vencimento" mono type="date" value={sim?.parcelas_previstas[0]?.vencimento ?? ""} readOnly dica={sim?.parcelas_previstas[0] ? dataCompleta(sim.parcelas_previstas[0].vencimento) : undefined} />
+                <TextField cheio rotulo="Caução" value={sim ? dinheiro(sim.caucao_centavos) : "—"} readOnly dica="Abatida na última parcela" />
+              </div>
+              <p className="mt-4 flex items-start gap-2 rounded-md bg-surface-sunken px-4 py-3 text-caption text-ink-muted">
+                <Icone de={Info} />
+                Com 15 dias de atraso numa parcela, o cliente é bloqueado e o gerente é avisado.
+              </p>
+            </Panel>
+          )}
+
+          {!compra && planoEscolhido && (
             <Panel titulo="Cobrança">
               <div className="grid gap-4 md:grid-cols-2">
                 <CampoSelecao
@@ -299,6 +370,7 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
             </Panel>
           )}
 
+          {!compra && (
           <Panel titulo="Adicionais">
             {extras.isPending && <p className="text-body text-ink-muted">Carregando os adicionais…</p>}
             {extras.isError && <p role="alert" className="text-body">{mensagemDoErro(extras.error)}</p>}
@@ -314,6 +386,7 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
               ))}
             </div>
           </Panel>
+          )}
         </div>
 
         <aside className="flex min-w-0 flex-col gap-6 md:sticky md:top-6">
@@ -338,7 +411,7 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
                 <div className="mt-2 grid grid-cols-2 gap-3">
                   {periodicidade !== "diaria" && (
                     <div className="rounded-md bg-surface-sunken px-4 py-3">
-                      <div className="text-caption text-ink-muted">Próximas {un.plural}</div>
+                      <div className="text-caption text-ink-muted">{compra ? "Próximas parcelas" : `Próximas ${un.plural}`}</div>
                       <div className="text-body font-semibold">{dinheiro(sim.proximos_periodos_centavos)}</div>
                     </div>
                   )}
@@ -347,7 +420,10 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
                     <div className="text-body font-semibold">{dinheiro(sim.hoje_na_retirada_centavos)}</div>
                   </div>
                 </div>
-                <p className="mt-3 text-caption text-ink-muted">{sim.texto_retirada}</p>
+                <p className="mt-3 text-caption text-ink-muted">
+                  {sim.texto_retirada}
+                  {compra && " Ao quitar a última parcela, o veículo passa ao cliente sem valor extra."}
+                </p>
                 {impedimentos.length > 0 && (
                   <ul role="alert" className="mt-4 flex flex-col gap-2 rounded-md bg-critical-soft px-4 py-3 text-caption text-critical-ink">
                     {impedimentos.map((i) => (
@@ -382,7 +458,7 @@ export function NovaLocacao({ clienteInicial, veiculoInicial, rascunhoInicial }:
                 {mensagemDoErro(salvar.error)}{" "}
                 {linkDoErro && (
                   <Link href={linkDoErro} className="underline">
-                    Abrir os modelos de contrato
+                    {semModeloDeCompra ? "Publicar o modelo de contrato" : "Abrir os modelos de contrato"}
                   </Link>
                 )}
               </p>

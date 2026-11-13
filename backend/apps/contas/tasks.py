@@ -8,7 +8,7 @@ from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
 
-from comum import relogio
+from comum import enderecos, relogio
 from comum.empresa import nome_da_empresa
 from comum.tarefas import tarefa_de_empresa
 from integracoes.whatsapp import enviar_whatsapp, whatsapp_ao_cliente_final
@@ -67,7 +67,7 @@ def contas_enviar_redefinicao_senha(schema_name: str, pedido_id: int) -> None:
         subject=f"{marca}: crie uma senha nova",
         message=(
             f"Olá, {pedido.usuario.nome}. Recebemos um pedido para criar uma senha nova.\n"
-            f"Crie em: https://{host}/entrar/redefinir#{token}\n"
+            f"Crie em: {enderecos.link(host, '/entrar/redefinir#' + token)}\n"
             "O link vale por 1 hora e serve uma vez só. Se não foi você, ignore este e-mail."
         ),
         from_email=settings.DEFAULT_FROM_EMAIL,

@@ -169,3 +169,7 @@ Isso cobre o M-02 com menos peças para a equipe operar. A diferença de custo p
 - O devops faz a "Subida de produção" do M-02: rede, cofre, certificado, backup e o primeiro teste de restauração registrado, com o `teste-subida-producao.sh` adaptado ao provedor. O worker do apagamento (M-01) entra no mesmo compose.
 - `infra/README.md` troca "a definir em ADR" pela opção escolhida.
 - A integração real de WhatsApp e o e-mail transacional viram tarefas próprias; a de WhatsApp precisa de ADR.
+
+### Nota (T-471, 13 nov 2026): começar numa VPS de 4 GB
+
+Sem reabrir a decisão: a produção pode começar numa VPS menor (por exemplo 1 vCPU e 4 GB, com swap) usando o perfil de memória pequeno, só com variáveis no cofre (`GIRO_MEM_*`, `GIRO_CELERY_CONCORRENCIA`, `GIRO_PG_*`, `GIRO_REDIS_MAXMEMORY`, `GUNICORN_WORKERS`). O compose é o mesmo; subir para a VPS de 8 GB é trocar essas variáveis. Detalhes em `infra/README.md`, "Perfis de memória".

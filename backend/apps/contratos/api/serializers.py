@@ -72,6 +72,10 @@ class MarcadorSerializer(serializers.Serializer[Any]):
     chave = serializers.CharField()
     rotulo = serializers.CharField()
     exemplo = serializers.CharField()
+    finalidade = serializers.CharField(
+        allow_null=True,
+        help_text="null: vale em todo modelo; `locacao_compra`: só nessa finalidade (LOC-16)",
+    )
 
 
 class ListaDeMarcadoresSerializer(serializers.Serializer[Any]):
@@ -82,6 +86,7 @@ class ModeloProntoSerializer(serializers.Serializer[Any]):
     chave = serializers.CharField()
     nome = serializers.CharField()
     texto = serializers.CharField()
+    finalidade = serializers.ChoiceField(choices=Finalidade.choices)
 
 
 class ListaDeModelosProntosSerializer(serializers.Serializer[Any]):

@@ -37,19 +37,20 @@ Este contrato cobre só o que a T-420 precisa: a venda de R$ 0,00 que nasce na q
 
 - `origem`: `quitacao_locacao` (esta) ou `balcao` (as do módulo de vendas, quando existirem). `origem_rotulo` "Quitação de locação" é o rótulo da lista (CA-420-12).
 - Nasce pelo assinante de `locacoes.locacao_quitada`, na transação da quitação (`vendas.services.criar_venda_da_quitacao`, ADR 0037, item 4): já `vendida`, R$ 0,00, cliente, veículo e filial da locação, vendedor da locação, `vendida_em` = `quitada_em`. Sem contas a receber, sem contrato de compra e venda e sem comissão (`FIN-09`). Auditoria `venda.criar_da_quitacao`, ator Sistema, regra `VEN-11`.
+- No banco, a venda da quitação nasce com `forma` vazia (string vazia `""`, não nula: o repositório não usa `null` em campo de texto), `preco_tabela_centavos`, `entrada_centavos` e `num_parcelas` nulos, `desconto_pct` e `juros_pct` 0. Quando `forma` entrar na representação (T-418), a venda da quitação a traz como `""`.
 - Na mesma transação, o veículo vai de `alugado` para `vendido` por `veiculos.services.transicionar`, com a origem na venda e o motivo "Quitação da LOC-2901" (`VEN-06`, tabela de transições do veículo).
 - `acoes.cancelar` é sempre `false`; o cancelamento (`VEN-07`), quando existir, responde 409 `{ "codigo": "VEN-11", "mensagem": "A venda da quitação de uma locação não se cancela." }`.
 - Fica fora de funil, conversão, meta e comissão (`VEN-08`, `VEN-09`, `FIN-09`): toda conta dessas, quando existir, filtra `origem = "balcao"`.
 
 ### GET /api/vendas/ · GET /api/vendas/{id}/
 
-Com o recurso `vendas_comissoes`. Lista paginada das vendas das filiais da pessoa, mais nova primeiro, no formato acima. Query: `?origem=`, `?transferencia_pendente=true`, `?veiculo=<id>`, `?cliente=<id>`. Enquanto o módulo de vendas não existe, só há vendas de quitação. O vistoriador recebe 403.
+Com o recurso `vendas_comissoes`. Lista paginada das vendas das filiais da pessoa, filtrada pela filial escolhida no `X-Filial` como as outras listas (`filtrar_por_filial`, `USR-07`; com `todas`, as filiais da pessoa), mais nova primeiro, no formato acima. Query: `?origem=`, `?transferencia_pendente=true`, `?veiculo=<id>`, `?cliente=<id>`. Enquanto o módulo de vendas não existe, só há vendas de quitação. O vistoriador recebe 403. O detalhe segue o mesmo escopo: venda de outra filial que a escolhida dá 404.
 
 ## A tarefa da transferência
 
 Não há entidade de tarefa: a pendência é a venda da quitação com `transferencia.feita_em` nula (ADR 0037, item 6).
 
-**Aviso.** Ao nascer a venda, depois do commit, os gerentes ativos da filial (`filiais.selectors.gerentes`, `FIL-02`) recebem no sino e por e-mail (`notificacoes.services.avisar(..., por_email=True)`):
+**Aviso.** Ao nascer a venda, depois do commit, os gerentes ativos da filial (`filiais.selectors.gerentes`, `FIL-02`) **e os administradores ativos da empresa** (`contas.selectors.administradores`), com ou sem gerente na filial e sem repetir pessoa (`vendas.services.destinatarios_da_transferencia`; decisão do dono em 12 nov 2026, achado B-04 da segurança; vale só para este aviso), recebem no sino e por e-mail (`notificacoes.services.avisar(..., por_email=True)`):
 ```
 tipo: "transferencia_quitacao"
 titulo: "Fazer a transferência no Detran: RTA-2C55 para Lucas Ferreira. LOC-2901 quitada em 10/10/2028."
@@ -59,7 +60,7 @@ chave: "quitacao-transferencia-{venda_id}"
 ```
 O texto é o da `LOC-16`, com a placa com hífen e a data no fuso da filial (CA-420-11).
 
-**Pendência no painel.** `vendas.selectors.transferencias_pendentes(filiais)` devolve as vendas da quitação sem transferência, para `relatorios` pôr nas `pendencias.itens` do painel do gerente e do administrador (`painel.md`): `{ "tipo": "transferencia_quitacao", "rotulo": "Transferência no Detran · RTA-2C55", "detalhe": "Lucas Ferreira · LOC-2901 quitada em 10/10/2028", "link": "/locacoes/2901" }`.
+**Pendência no painel.** `vendas.selectors.transferencias_pendentes(filiais)` devolve as vendas da quitação sem transferência, para `relatorios` pôr nas `pendencias.itens` do painel do administrador (variante `geral`) e do gerente (variante `gerente`, só as filiais dele), em `painel.md`: `{ "tipo": "transferencia_quitacao", "locacao_id": 2901, "rotulo": "Transferência no Detran · RTA-2C55", "detalhe": "Lucas Ferreira · LOC-2901 quitada em 10/10/2028", "link": "/locacoes/2901" }`.
 
 ### POST /api/locacoes/{id}/transferencia/
 
@@ -69,6 +70,16 @@ Corpo: `{ "feita_em": "2028-10-15" }` (data, não depois de hoje, não antes de 
 - Auditoria `venda.registrar_transferencia` (objeto: a venda) e uma linha no histórico do veículo ("Transferência no Detran feita em 15/10/2028 · Rodrigo Pinheiro").
 - 409 `{ "codigo": "VEN-11", "mensagem": "A transferência desta venda já foi registrada." }`; 404 se a locação não tem venda da quitação; 400 `validacao` em `feita_em`; 403 para os outros perfis e para o suporte em "só ver".
 - `compra.venda.acoes.registrar_transferencia`, no detalhe da locação quitada (`locacoes.md`), segue as mesmas condições.
+
+## Na auditoria (T-420, A5 da conferência de 13 nov 2026)
+
+| Ação | `resumo` | `detalhe` |
+| --- | --- | --- |
+| `venda.criar_da_quitacao` | Criou a venda VEN-0001 da quitação | Quitação da LOC-2856 |
+| `venda.registrar_transferencia` | Registrou a transferência no Detran da VEN-0001 | Feita em 13/11/2026 |
+| `veiculo.vendido` | Vendeu o veículo SAK-1D39 | o motivo (Quitação da LOC-2856) |
+
+Testes: `test_aud_ven_11_*` em `tests/aceitacao/test_t420_achados.py`.
 
 ## Interface interna
 

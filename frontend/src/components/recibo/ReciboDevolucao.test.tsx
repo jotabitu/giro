@@ -24,7 +24,9 @@ async function pagina(token: string | null, erro?: unknown) {
 describe("página /recibo", () => {
   it("test_dev_02_recibo_publico_mostra_marca_codigo_nome_e_baixar", async () => {
     const t = await pagina("link-juliana");
-    const ordem = ["Recibo da devolução da LOC-2836", "Olá, Juliana", "Baixar recibo", "Tecnologia Giro"];
+    // T-467: o código não parte no hífen a 390 px (hífen sem quebra, U+2011).
+    expect(t).not.toContain("LOC-2836");
+    const ordem = ["Recibo da devolução da LOC‑2836", "Olá, Juliana", "Baixar recibo", "Tecnologia Giro"];
     let pos = -1;
     for (const p of ordem) {
       const i = t.indexOf(p, pos + 1);

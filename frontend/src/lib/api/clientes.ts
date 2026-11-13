@@ -28,6 +28,8 @@ function daLinha(l: ListaLocacoes["resultados"][number]): LocacaoDoCliente {
     fim_previsto: l.fim_previsto ?? "",
     situacao: l.situacao,
     pago_centavos: l.pagamento?.pago_centavos ?? 0,
+    pagamento: l.pagamento ? { rotulo: l.pagamento.rotulo, tom: l.pagamento.tom } : null,
+    caucao: l.pagamento?.caucao ?? null,
   };
 }
 

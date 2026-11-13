@@ -33,7 +33,7 @@ export function GaleriaDoEditar({ id }: { id: number }) {
   const [progresso, setProgresso] = useState<string | null>(null);
   // VEI-10 (T-462): quantas do lote ainda não foram tentadas; com alguma, sair da tela pede confirmação.
   const [faltam, setFaltam] = useState(0);
-  const avisoDeSaida = useAvisoDeSaida(faltam);
+  const { aviso: avisoDeSaida } = useAvisoDeSaida(faltam);
 
   const guardar = (g: Galeria) => {
     cliente.setQueryData(chave, g);

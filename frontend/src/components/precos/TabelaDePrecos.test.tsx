@@ -32,6 +32,7 @@ async function pagina(): Promise<string> {
   cache.setQueryData(["precos", "categorias", "todas"], await precos.categorias());
   cache.setQueryData(["precos", "planos", false], await precos.planosEspeciais({ ativo: true }));
   cache.setQueryData(["precos", "extras", false], await precos.extras({ ativo: true }));
+  cache.setQueryData(["precos", "planos-compra", false], await precos.planosDeCompra({ ativo: true }));
   return renderToStaticMarkup(
     <QueryClientProvider client={cache}>
       <TabelaDePrecos />
@@ -62,6 +63,23 @@ describe("Tabelas de preço (/admin/precos)", () => {
     ordem(t, ["Scooter premium", "R$ 79,90", "R$ 449", "R$ 1.590", "R$ 500"]);
     ordem(t, ["Carro compacto", "R$ 109", "R$ 649", "R$ 2.290", "R$ 800"]);
     ordem(t, ["Planos especiais", "Entregador", "R$ 279,00/sem", "18 contratos", "Mensal fidelidade", "−10%", "7 contratos", "Extras", "Capacete extra", "R$ 15,00"]);
+  });
+
+  it("loc_16_planos_de_compra: a lista mostra a última parcela com a caução abatida, as locações ativas e o aviso", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const t = texto(await pagina());
+    ordem(t, ["Planos de compra", "Plano de compra", "Plano", "Periodicidade", "Parcelas", "Valor da parcela", "Última parcela", "Locações", "Editar", "Compra Street 24 meses", "Street 150–160", "Mensal", "24", "R$ 1.190,00", "R$ 890,00", "com a caução de R$ 300,00 abatida", "1 ativa", "Editar", "Compra Urbana 24 meses", "Urbana 110–125", "R$ 990,00", "R$ 690,00", "com a caução de R$ 300,00 abatida", "0 ativas"]);
+    expect(t).toContain("Mudar ou desativar um plano vale só para locações novas. Quem já confirmou mantém o plano.");
+  });
+
+  it("loc_16_plano_de_compra_valida_na_api: parcelas fora de 2 a 260 e nome repetido voltam no campo", async () => {
+    await entrar("mariana@motorapida.com.br");
+    const base = { nome: "Compra Street 36 meses", categoria_id: 2, periodicidade: "mensal" as const, parcelas: 1, valor_parcela_centavos: 100000, condicoes: "" };
+    expect((await falha(precos.criarPlanoDeCompra(base))).campos).toHaveProperty("parcelas");
+    expect((await falha(precos.criarPlanoDeCompra({ ...base, parcelas: 36, nome: "Compra Street 24 meses" }))).campos).toHaveProperty("nome");
+    const criado = await precos.criarPlanoDeCompra({ ...base, parcelas: 36 });
+    expect(criado.ultima_parcela_centavos).toBe(70000);
+    expect((await precos.desativarPlanoDeCompra(criado.id)).ativo).toBe(false);
   });
 
   it("quem não é administrador não vê a tela", async () => {

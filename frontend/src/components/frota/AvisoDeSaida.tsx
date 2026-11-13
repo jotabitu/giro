@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button, Dialogo } from "@/design-system";
 
 // VEI-10, "Sair da tela com fotos enviando" (T-462, CA-437-11). Enquanto há foto na fila, o navegador pergunta antes de
@@ -80,6 +80,7 @@ export function guardarVoltar(
       "",
       janela.location.href,
     );
+  let entregue = false;
   const aoPopState = () => {
     if (ativo) aoVoltar();
   };
@@ -91,13 +92,42 @@ export function guardarVoltar(
       ativo = false;
       janela.history.back();
     },
+    // Vai para outra página no fim do envio: a entrada de guarda é trocada (replace) pela página nova, então nenhum
+    // `history.back()` pode sobrar para desfazer a navegação (VEI-10, T-462). Devolve se havia entrada de guarda.
+    entregar: () => {
+      ativo = false;
+      entregue = true;
+      janela.removeEventListener("popstate", aoPopState);
+      return Boolean(janela.history.state?.guardaFotos);
+    },
     // Fila vazia: se a entrada de guarda ainda é a do topo, tira-a sem perguntar (senão sobraria um Voltar a mais).
     desligar: () => {
       ativo = false;
       janela.removeEventListener("popstate", aoPopState);
-      if (janela.history.state?.guardaFotos) janela.history.back();
+      if (!entregue && janela.history.state?.guardaFotos) janela.history.back();
     },
   };
+}
+
+/**
+ * Abre a página no fim do cadastro no lugar dele no histórico, para o Voltar da ficha cair onde a pessoa estava
+ * antes (a lista) e não no formulário vazio (VEI-10, T-462, A6). Sem entrada de guarda, basta trocar (replace).
+ * Com ela no topo (o histórico tem cadastro e cadastro), volta uma entrada e só então troca o cadastro.
+ */
+export function abrirNoLugarDoCadastro(
+  janela: Pick<Window, "addEventListener" | "history">,
+  router: { replace: (url: string) => void },
+  url: string,
+  tinhaGuarda: boolean,
+) {
+  if (!tinhaGuarda) {
+    router.replace(url);
+    return;
+  }
+  janela.addEventListener("popstate", () => router.replace(url), {
+    once: true,
+  });
+  janela.history.back();
 }
 
 type Pedido = { link: string } | "voltar" | null;
@@ -106,8 +136,13 @@ type Pedido = { link: string } | "voltar" | null;
  * Liga o aviso enquanto `faltam` for maior que zero. Devolve o diálogo para pôr na tela.
  * Cobre sair, fechar, recarregar, os links do sistema e o Voltar do navegador.
  */
-export function useAvisoDeSaida(faltam: number): ReactNode {
+export function useAvisoDeSaida(faltam: number): {
+  aviso: ReactNode;
+  /** Vai para a página no fim do envio; com a entrada de guarda no topo, troca-a (replace) em vez de empilhar. */
+  ir: (url: string) => void;
+} {
   const router = useRouter();
+  const guardaAtual = useRef<ReturnType<typeof guardarVoltar> | null>(null);
   const [pedido, setPedido] = useState<Pedido>(null);
   const [guarda, setGuarda] = useState<ReturnType<typeof guardarVoltar> | null>(
     null,
@@ -132,15 +167,26 @@ export function useAvisoDeSaida(faltam: number): ReactNode {
     };
     const voltar = guardarVoltar(window, () => setPedido("voltar"));
     setGuarda(voltar);
+    guardaAtual.current = voltar;
     window.addEventListener("beforeunload", aoSair);
     document.addEventListener("click", aoClicar, true);
     return () => {
       window.removeEventListener("beforeunload", aoSair);
       document.removeEventListener("click", aoClicar, true);
       voltar.desligar();
+      guardaAtual.current = null;
       setGuarda(null);
     };
   }, [ativo]);
+
+  // Estável: quem chama (o fim do envio) guarda a função de uma renderização antiga.
+  const ir = useCallback(
+    (url: string) => {
+      const tinhaGuarda = guardaAtual.current?.entregar() ?? false;
+      abrirNoLugarDoCadastro(window, router, url, tinhaGuarda);
+    },
+    [router],
+  );
 
   function ficar() {
     if (pedido === "voltar") guarda?.ficar();
@@ -153,7 +199,7 @@ export function useAvisoDeSaida(faltam: number): ReactNode {
     else if (atual) router.push(atual.link);
   }
 
-  return (
+  const aviso = (
     <Dialogo
       aberto={pedido !== null && ativo}
       aoFechar={ficar}
@@ -172,6 +218,7 @@ export function useAvisoDeSaida(faltam: number): ReactNode {
       }
     />
   );
+  return { aviso, ir };
 }
 
 /** Linha com quantas faltam, junto do andamento. */

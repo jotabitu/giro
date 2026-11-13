@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-from django.db.models import Count, IntegerField, Min, OuterRef, Q, QuerySet, Subquery, Sum
+from django.db.models import Count, IntegerField, Max, Min, OuterRef, Q, QuerySet, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
@@ -160,6 +160,32 @@ def representacao_conta(conta: ContaReceber, hoje: date) -> dict[str, Any]:
     }
 
 
+def paga_de_vez(conta: ContaReceber) -> bool:
+    """O dinheiro da conta entrou e ficou (FIN-01): `paga` e não estornada; estornada, quando a
+    conta que o estorno reabriu está paga de vez; `renegociada`, quando todas as contas que
+    nasceram da renegociação estão pagas de vez, em qualquer origem (a renegociação de contas
+    de origens diferentes vai para a origem `cliente`). Cancelada ou aberta, não. Segue a
+    renegociação da renegociação. Usado na quitação da locação com intenção de compra
+    (LOC-16, M-01 e M-02 da revisão de segurança da T-420)."""
+    vistas: set[int] = set()
+
+    def ver(atual: ContaReceber) -> bool:
+        if atual.pk in vistas:
+            return False
+        vistas.add(atual.pk)
+        if atual.status == StatusConta.PAGA:
+            if atual.estornada_em is None:
+                return True
+            reabertas = list(ContaReceber.objects.filter(estorno_de=atual))
+            return bool(reabertas) and all(ver(r) for r in reabertas)
+        if atual.status == StatusConta.RENEGOCIADA and atual.renegociada_em_id is not None:
+            novas = list(ContaReceber.objects.filter(nasceu_de_id=atual.renegociada_em_id))
+            return bool(novas) and all(ver(n) for n in novas)
+        return False
+
+    return ver(conta)
+
+
 def primeiro_pagamento_em(origem_tipo: str, origem_id: int) -> datetime | None:
     """1ª parcela **e** caução pagas: o momento do último dos dois. Sem caução, só a parcela."""
     contas = list(
@@ -212,8 +238,12 @@ def _soma(filtro: Q, origem_tipo: str) -> Subquery:
 def anotar_resumo_da_origem(qs: QuerySet[Any], origem_tipo: str, hoje: date) -> QuerySet[Any]:
     """Para listas da origem, sem N+1: `fin_atrasado_centavos` (vencidas e não pagas),
     `fin_parcela_atrasada` (a mais antiga), `fin_pago_centavos` (com caução),
-    `fin_pago_sem_caucao_centavos` (FIN-13, a linha da lista de locações) e `fin_abertas`."""
+    `fin_pago_sem_caucao_centavos` (FIN-13, a linha da lista de locações) e `fin_abertas`.
+    Para a linha da locação (LOC-17, T-456), sem a caução: `fin_vence_hoje_centavos` (contas que
+    vencem hoje, sem multa nem juros) e `fin_abertas_sem_caucao`; e a caução à parte:
+    `fin_caucao_centavos` (as não canceladas) e `fin_caucao_aberta_centavos`."""
     atrasada = q_atrasada(hoje)
+    caucao = Q(tipo=TipoConta.CAUCAO)
     primeira_atrasada = Subquery(
         ContaReceber.objects.filter(
             atrasada, tipo=TipoConta.PARCELA, origem_tipo=origem_tipo, origem_id=OuterRef("pk")
@@ -242,6 +272,29 @@ def anotar_resumo_da_origem(qs: QuerySet[Any], origem_tipo: str, hoje: date) -> 
             _soma(Q(status=StatusConta.PAGA) & ~Q(tipo=TipoConta.CAUCAO), origem_tipo), 0
         ),
         fin_abertas=Coalesce(abertas, 0),
+        fin_vence_hoje_centavos=Coalesce(_soma(q_vence_hoje(hoje) & ~caucao, origem_tipo), 0),
+        fin_abertas_sem_caucao=Coalesce(
+            Subquery(
+                ContaReceber.objects.filter(
+                    ~caucao,
+                    status=StatusConta.ABERTA,
+                    origem_tipo=origem_tipo,
+                    origem_id=OuterRef("pk"),
+                )
+                .order_by()
+                .values("origem_id")
+                .annotate(n=Count("id"))
+                .values("n"),
+                output_field=IntegerField(),
+            ),
+            0,
+        ),
+        fin_caucao_centavos=Coalesce(
+            _soma(caucao & ~Q(status=StatusConta.CANCELADA), origem_tipo), 0
+        ),
+        fin_caucao_aberta_centavos=Coalesce(
+            _soma(caucao & Q(status=StatusConta.ABERTA), origem_tipo), 0
+        ),
     )
 
 
@@ -501,6 +554,13 @@ class JurosDaPagina:
     def __init__(self) -> None:
         self._taxas: ConfiguracaoEmpresa | None = None
         self._cobra: dict[tuple[str, int], bool] = {}
+        self._parcelas: dict[tuple[str, int], int] = {}
+
+    def total_de_parcelas(self, conta: ContaReceber) -> int:
+        chave = (conta.origem_tipo, conta.origem_id)
+        if chave not in self._parcelas:
+            self._parcelas[chave] = total_de_parcelas(conta)
+        return self._parcelas[chave]
 
     def devido(self, conta: ContaReceber, dia: date) -> Devido:
         if self._taxas is None:
@@ -605,6 +665,71 @@ def acoes_da_conta(
     }
 
 
+# --- A que se refere cada conta (FIN-19) ---
+
+ROTULOS_DO_TIPO: dict[str, str] = {
+    TipoConta.PARCELA: "Parcela",
+    TipoConta.CAUCAO: "Caução",
+    TipoConta.MULTA: "Multa",
+    TipoConta.AVARIA: "Avaria",
+    TipoConta.ACERTO: "Acerto da devolução",
+    TipoConta.OUTRO: "Outra cobrança",
+}
+
+
+def total_de_parcelas(conta: ContaReceber) -> int:
+    """FIN-19: as parcelas da origem até o fim previsto em vigor, sem a caução e sem as outras
+    cobranças. A renovação (LOC-08) cria parcelas com número seguido, e as canceladas pelo
+    encerramento continuam contadas; por isso vale o maior número, e não o total gravado na
+    conta, que fica o da época em que ela nasceu. As contas de um acordo ficam de fora. O total
+    gravado vale quando é maior: a última parcela de R$ 0,00 da compra não vira conta, e a
+    numeração segue o plano ("Parcela 1 de 104", LOC-16, CA-420-14)."""
+    maiores = ContaReceber.objects.filter(
+        origem_tipo=conta.origem_tipo,
+        origem_id=conta.origem_id,
+        tipo=TipoConta.PARCELA,
+        nasceu_de__isnull=True,
+    ).aggregate(numero=Max("numero_parcela"), total=Max("total_parcelas"))
+    return int(max(maiores["numero"] or 0, maiores["total"] or 0) or conta.total_parcelas or 0)
+
+
+def a_que_se_refere(conta: ContaReceber, total: int | None) -> dict[str, Any]:
+    """FIN-19: o tipo, o rótulo da conta e, na parcela, "2 de 5 parcelas", prontos para a tela.
+    `total` é o de `total_de_parcelas`, só lido na parcela que não nasceu de acordo."""
+    tipo_rotulo = ROTULOS_DO_TIPO.get(conta.tipo, TipoConta(conta.tipo).label)
+    descricao = (conta.observacao or "").strip()
+    if conta.nasceu_de_id is not None:
+        do_acordo = f"{conta.numero_parcela or 1} de {conta.total_parcelas or 1}"
+        return {
+            "tipo_rotulo": tipo_rotulo,
+            "rotulo": f"Renegociação · {do_acordo}",
+            "renegociacao": True,
+            "numero": conta.numero_parcela,
+            "total_parcelas": conta.total_parcelas,
+            "parcela_de": None,
+        }
+    numero, parcela_de, total_parcelas = conta.numero_parcela, None, conta.total_parcelas
+    if conta.tipo == TipoConta.PARCELA:
+        total_parcelas = total or None
+        if numero and total_parcelas and total_parcelas > 1:
+            rotulo = f"Parcela {numero} de {total_parcelas}"
+            parcela_de = f"{numero} de {total_parcelas} parcelas"
+        else:
+            rotulo = "Parcela única"
+    elif conta.tipo == TipoConta.CAUCAO or not descricao:
+        rotulo = tipo_rotulo
+    else:
+        rotulo = f"{tipo_rotulo} · {descricao}"
+    return {
+        "tipo_rotulo": tipo_rotulo,
+        "rotulo": rotulo,
+        "renegociacao": False,
+        "numero": numero,
+        "total_parcelas": total_parcelas,
+        "parcela_de": parcela_de,
+    }
+
+
 def representacao_completa(
     conta: ContaReceber,
     hoje: date,
@@ -616,11 +741,13 @@ def representacao_completa(
     em_atraso = conta.status == StatusConta.ABERTA and not conta.aguarda_retirada
     dias = dias_de_atraso(conta.vencimento, hoje) if em_atraso else 0
     locacao = leituras.blocos(CONTA, conta).get("locacao") or {}
+    total = None
+    if conta.tipo == TipoConta.PARCELA and conta.nasceu_de_id is None:
+        total = juros.total_de_parcelas(conta) if juros else total_de_parcelas(conta)
     return {
         "id": conta.pk,
         "tipo": conta.tipo,
-        "numero": conta.numero_parcela,
-        "total_parcelas": conta.total_parcelas,
+        **a_que_se_refere(conta, total),
         "origem": {
             "tipo": conta.origem_tipo,
             "id": conta.origem_id,
@@ -1030,6 +1157,8 @@ ORIGENS_DO_REEMBOLSO: dict[str, tuple[str, str]] = {
     OrigemTipo.LOCACAO: ("cancelamento", "Locação cancelada antes da retirada"),  # LOC-12
     "credito": ("credito", "Crédito de semanas"),  # LOC-13
 }
+# A origem `locacao` de uma locação quitada (o bloco de `locacoes` diz): a sobra da caução.
+ORIGEM_DA_QUITACAO = ("quitacao", "Sobra da caução na quitação")  # LOC-16
 STATUS_DOS_REEMBOLSOS = ("a_fazer", "feito", "todos")
 
 
@@ -1118,6 +1247,8 @@ def representacao_reembolso(
         reembolso.origem_tipo, (reembolso.origem_tipo, OrigemTipo(reembolso.origem_tipo).label)
     )
     locacao = leituras.bloco(REEMBOLSO, "locacao", reembolso) or {}
+    if reembolso.origem_tipo == OrigemTipo.LOCACAO and locacao.get("quitada"):
+        tipo, rotulo = ORIGEM_DA_QUITACAO
     status = StatusReembolso(reembolso.status)
     feito_por = reembolso.feito_por
     return {

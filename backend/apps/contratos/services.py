@@ -20,7 +20,7 @@ from django.db.models import QuerySet
 from django.http import Http404
 from rest_framework import status
 
-from comum import relogio
+from comum import enderecos, relogio
 from comum.auditoria import Categoria, auditar, registrar_evento
 from comum.erros import Conflito, ErroDeNegocio, ErroDeRegra, ErroDeValidacao
 from comum.estados import transicionar
@@ -76,11 +76,11 @@ def sem_modelo_publicado() -> ErroDeRegra:
 # --- Modelos (S-09, LOC-15, IMP-04) ---
 
 
-def _texto_limpo(texto: str) -> str:
+def _texto_limpo(texto: str, finalidade: str = Finalidade.LOCACAO) -> str:
     if len(texto) > sanitizacao.TAMANHO_MAXIMO:
         raise ErroDeValidacao({"texto": ["O texto passa do tamanho máximo do modelo."]})
     limpo = sanitizacao.limpar(texto)
-    marcadores.conferir(limpo)
+    marcadores.conferir(limpo, finalidade)
     return limpo
 
 
@@ -97,7 +97,7 @@ def ultima_versao(modelo: ModeloContrato) -> ModeloContrato:
 
 def criar_modelo(nome: str, finalidade: str, texto: str) -> ModeloContrato:
     """Rascunho, versão 1."""
-    modelo = ModeloContrato(nome=nome, finalidade=finalidade, texto=_texto_limpo(texto))
+    modelo = ModeloContrato(nome=nome, finalidade=finalidade, texto=_texto_limpo(texto, finalidade))
     with auditar(modelo, "modelo_contrato.criar", Categoria.CONFIGURACOES):
         modelo.save()
     return modelo
@@ -107,7 +107,7 @@ def criar_de_pronto(nome: str | None, chave: str) -> ModeloContrato:
     pronto = prontos.POR_CHAVE.get(chave)
     if pronto is None:
         raise ErroDeValidacao({"a_partir_de": ["Modelo pronto desconhecido."]})
-    return criar_modelo(nome or pronto.nome, Finalidade.LOCACAO, pronto.texto)
+    return criar_modelo(nome or pronto.nome, pronto.finalidade, pronto.texto)
 
 
 def editar_modelo(
@@ -119,7 +119,7 @@ def editar_modelo(
         ultima = _versoes(modelo.grupo, travar=True).first() or modelo
         if ultima.arquivado:
             raise Conflito("modelo_arquivado", "Este modelo está arquivado.")
-        limpo = _texto_limpo(texto) if texto is not None else ultima.texto
+        limpo = _texto_limpo(texto, ultima.finalidade) if texto is not None else ultima.texto
         if ultima.publicado or ultima.publicado_em is not None:
             rascunho = ModeloContrato(
                 grupo=ultima.grupo,
@@ -147,7 +147,7 @@ def publicar_modelo(modelo: ModeloContrato) -> ModeloContrato:
         ultima = versoes[0] if versoes else modelo
         if ultima.arquivado:
             raise Conflito("modelo_arquivado", "Este modelo está arquivado.")
-        marcadores.conferir(ultima.texto)
+        marcadores.conferir(ultima.texto, ultima.finalidade)
         if ultima.publicado:
             return ultima
         for anterior in versoes[1:]:
@@ -212,6 +212,9 @@ class DadosDoContrato:
     filial_id: int
     cliente_id: int
     valores: dict[str, str] = field(default_factory=dict)
+    # A finalidade do modelo; vazia, a do `origem_tipo` (LOC-16: a locação com intenção de
+    # compra pede a `locacao_compra`).
+    finalidade: str = ""
 
 
 def _titulo(nome_do_modelo: str) -> str:
@@ -258,7 +261,7 @@ def contrato_existente() -> Conflito:
 def gerar(dados: DadosDoContrato) -> Contrato:
     """O contrato com a versão publicada do modelo da finalidade. 422 `IMP-04` sem modelo; 409
     `contrato_existente` se já há um vigente. O PDF e o link saem depois do commit."""
-    modelo = selectors.modelo_publicado(dados.origem_tipo)
+    modelo = selectors.modelo_publicado(dados.finalidade or dados.origem_tipo)
     if modelo is None:
         raise sem_modelo_publicado()
     if selectors.contrato_vigente(dados.origem_tipo, dados.origem_id) is not None:
@@ -313,7 +316,7 @@ def hash_do_token(token: str) -> str:
 
 def link_de_assinatura(host: str, token: str) -> str:
     """O token vai no fragmento: não chega a logs de servidor nem ao `Referer` (S-15)."""
-    return f"https://{host}/assinar#{token}"
+    return enderecos.link(host, f"/assinar#{token}")
 
 
 def novo_token(

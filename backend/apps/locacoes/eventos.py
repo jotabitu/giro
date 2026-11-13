@@ -10,9 +10,11 @@ from . import services
 
 @assinante("financeiro.parcela_paga")
 def primeiro_pagamento(*, origem_tipo: str = "", origem_id: int | None = None, **_: Any) -> None:
-    """1ª parcela e caução pagas: uma das três condições da ativação."""
+    """1ª parcela e caução pagas: uma das três condições da ativação. Na locação com intenção
+    de compra, todo pagamento de conta dela tenta a quitação (LOC-16, ADR 0037)."""
     if origem_tipo == services.ORIGEM and origem_id is not None:
         services.registrar_pagamento(origem_id)
+        services.quitar_se_pago(origem_id)
 
 
 @assinante("contratos.contrato_assinado")

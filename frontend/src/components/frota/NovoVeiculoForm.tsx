@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bike, Car, ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useDeferredValue, useEffect, useRef, useState, type SelectHTMLAttributes } from "react";
 import { useForm, type FieldPath } from "react-hook-form";
 import { Icone, Panel, SelectField, TextField } from "@/design-system";
@@ -56,7 +55,6 @@ export function Preco({ rotulo, centavos }: { rotulo: string; centavos: number }
 
 /** Cadastrar veículo (Veiculo-Novo-Desktop|Mobile): POST /api/veiculos/ (VEI-01, PLT-03). A API valida; o erro volta no campo. */
 export function NovoVeiculoForm() {
-  const router = useRouter();
   const cliente = useQueryClient();
   const { eu } = useSessao();
   const [erroGeral, setErroGeral] = useState<string | null>(null);
@@ -71,6 +69,8 @@ export function NovoVeiculoForm() {
   const [recusasDaEscolha, setRecusasDaEscolha] = useState<RecusaDeFoto[]>([]);
   const [passouDoLimite, setPassouDoLimite] = useState(false);
   const [envio, setEnvio] = useState<Envio | null>(null);
+  // VEI-10 (T-462): com foto ainda por subir, sair da tela pede confirmação; `irPara` abre a ficha no fim sem a entrada de guarda atrapalhar.
+  const { aviso: avisoDeSaida, ir: irPara } = useAvisoDeSaida(envio ? fotosQueFaltam(envio.itens) : 0);
   const fotosAtuais = useRef<FotoEscolhida[]>([]);
   fotosAtuais.current = fotos;
   useEffect(() => () => fotosAtuais.current.forEach(soltarMiniatura), []);
@@ -176,7 +176,7 @@ export function NovoVeiculoForm() {
       setSalvo(descricao);
       window.scrollTo?.({ top: 0 });
     } else {
-      router.push(`/veiculos/${veiculoId}`);
+      irPara(`/veiculos/${veiculoId}`);
     }
   }
   // Dois cliques seguidos entram antes de `salvar.isPending` virar verdadeiro: sem isto o segundo tentaria criar de novo ("placa já cadastrada").
@@ -256,8 +256,6 @@ export function NovoVeiculoForm() {
   const ocupado = salvar.isPending || envio !== null;
   // CA-437-12: o suporte Giro não envia foto (403 PLT-07), então o bloco nem aparece para ele.
   const podeEnviarFotos = eu.suporte == null;
-  // VEI-10 (T-462): com foto ainda por subir, sair da tela pede confirmação.
-  const avisoDeSaida = useAvisoDeSaida(envio ? fotosQueFaltam(envio.itens) : 0);
 
   if (eu.pode.veiculos !== "editar") {
     return (

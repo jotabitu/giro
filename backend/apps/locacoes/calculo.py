@@ -59,6 +59,9 @@ class Entrada:
     desconto_pct: Decimal = Decimal("0.00")
     parcelamento_mensal: str = ""
     primeiro_vencimento: date | None = None
+    # LOC-16: locação com intenção de compra. Os períodos são as parcelas do plano (sem o teto
+    # da comum; o plano vai até 260) e a última nasce com a caução abatida, no mínimo 0.
+    compra: bool = False
 
 
 @dataclass(frozen=True)
@@ -85,6 +88,20 @@ class Calculo:
     @property
     def hoje_na_retirada_centavos(self) -> int:
         return self.parcelas[0].valor_centavos + self.caucao_centavos
+
+    @property
+    def ultima_parcela_centavos(self) -> int:
+        return self.parcelas[-1].valor_centavos
+
+
+def ultima_parcela_da_compra(valor_parcela_centavos: int, caucao_centavos: int) -> int:
+    """LOC-16: a última parcela, com a caução abatida, no mínimo R$ 0,00."""
+    return max(0, valor_parcela_centavos - caucao_centavos)
+
+
+def sobra_da_caucao(valor_parcela_centavos: int, caucao_centavos: int) -> int:
+    """LOC-16: a caução maior que a parcela; a diferença volta ao cliente na quitação."""
+    return max(0, caucao_centavos - valor_parcela_centavos)
 
 
 def somar_meses(momento: datetime, meses: int) -> datetime:
@@ -140,7 +157,7 @@ def _quantos_periodos(entrada: Entrada, inicio: datetime) -> int:
     if periodos < 1:
         raise ErroDeValidacao({"periodos": ["Informe pelo menos 1 período."]})
     maximo = MAXIMO_DE_PERIODOS[P(entrada.periodicidade)]
-    if periodos > maximo:
+    if periodos > maximo and not entrada.compra:
         unidade = UNIDADE[P(entrada.periodicidade)][1]
         raise ErroDeValidacao({"periodos": [f"No máximo {maximo} {unidade} por locação."]})
     return periodos
@@ -220,6 +237,9 @@ def calcular(entrada: Entrada) -> Calculo:
     else:
         parcelas = [Parcela(k + 1, somar_meses_data(primeiro, k), v) for k, v in enumerate(valores)]
 
+    if entrada.compra:
+        return _calculo_da_compra(entrada, periodos, fim, parcelas)
+
     seguinte = _preco_do_periodo(entrada, 2)
     valor_seguinte = seguinte - aplicar_percentual(seguinte, entrada.desconto_pct) + extras_periodo
     proximos = parcelas[1].valor_centavos if len(parcelas) > 1 else valor_seguinte
@@ -245,4 +265,38 @@ def calcular(entrada: Entrada) -> Calculo:
             {"rotulo": "Caução (devolvida no fim)", "valor_centavos": entrada.caucao_centavos},
         ],
         texto_retirada=_texto_retirada(entrada, quatro_semanais),
+    )
+
+
+def _calculo_da_compra(
+    entrada: Entrada, periodos: int, fim: datetime, parcelas: list[Parcela]
+) -> Calculo:
+    """LOC-16: as parcelas do plano, a última com a caução abatida (no mínimo 0). Sem extras,
+    sem desconto e sem plano especial (recusados antes, no serviço)."""
+    valor = entrada.preco_periodo_centavos
+    ultima = ultima_parcela_da_compra(valor, entrada.caucao_centavos)
+    parcelas[-1] = Parcela(parcelas[-1].numero, parcelas[-1].vencimento, ultima)
+    unidade = "mensais" if entrada.periodicidade == P.MENSAL else "semanais"
+    return Calculo(
+        periodos=periodos,
+        fim_previsto=fim,
+        valor_periodo_centavos=valor,
+        proximos_periodos_centavos=valor,
+        caucao_centavos=entrada.caucao_centavos,
+        periodos_centavos=valor * periodos,
+        extras_centavos=0,
+        desconto_centavos=0,
+        parcelas=parcelas,
+        linhas=[
+            {
+                "rotulo": f"{periodos} parcelas {unidade} × {formatar_reais(valor)}",
+                "valor_centavos": valor * periodos,
+            },
+            {
+                "rotulo": "Caução (abatida na última parcela)",
+                "valor_centavos": entrada.caucao_centavos,
+            },
+            {"rotulo": "Última parcela", "valor_centavos": ultima},
+        ],
+        texto_retirada="Na retirada: primeira parcela mais caução.",
     )

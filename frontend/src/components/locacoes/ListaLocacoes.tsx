@@ -13,7 +13,7 @@ import { ROTULO_PERIODICIDADE } from "@/lib/clientes";
 import { mensagemDoErro } from "@/lib/erros";
 import { useBuscaNaUrl, useFiltrosNaUrl } from "@/lib/filtros-url";
 import { dinheiro, placa, percentual } from "@/lib/formatos";
-import { periodoDaLocacao, rotaDaAcaoLocacao, rotuloDoPagamento } from "@/lib/locacoes";
+import { periodoDaLocacao, rotaDaAcaoLocacao, textoDoPagamento } from "@/lib/locacoes";
 import { useSessao } from "@/lib/sessao";
 import { tomDoStatus } from "@/lib/tom";
 
@@ -50,9 +50,14 @@ function Situacao({ l }: { l: LocacaoResumo }) {
 const COLUNAS: ColunaTabela<LocacaoResumo>[] = [
   { chave: "cliente", titulo: "Cliente", celula: (l) => <CelulaDupla principal={l.cliente.nome} secundaria={<span className="wl-mono">{l.codigo}</span>} /> },
   { chave: "veiculo", titulo: "Veículo", celula: (l) => <CelulaDupla principal={<span className="font-normal">{l.veiculo.modelo}</span>} secundaria={placa(l.veiculo.placa)} /> },
-  { chave: "plano", titulo: "Plano e período", celula: (l) => <CelulaDupla principal={ROTULO_PERIODICIDADE[l.periodicidade]} secundaria={periodoDaLocacao(l)} /> },
+  { chave: "plano", titulo: "Plano e período", celula: (l) => <CelulaDupla principal={l.tipo_rotulo ?? ROTULO_PERIODICIDADE[l.periodicidade]} secundaria={periodoDaLocacao(l)} /> },
   { chave: "situacao", titulo: "Situação", celula: (l) => <Situacao l={l} /> },
-  { chave: "pagamento", titulo: "Pagamento", celula: (l) => <span className="text-caption">{l.pagamento ? rotuloDoPagamento(l.pagamento) : "—"}</span> },
+  // LOC-17 (T-456): o texto e a caução vêm prontos da API.
+  {
+    chave: "pagamento",
+    titulo: "Pagamento",
+    celula: (l) => (l.pagamento ? <CelulaDupla principal={<span className="text-caption font-normal">{l.pagamento.rotulo}</span>} secundaria={l.pagamento.caucao?.rotulo} /> : <span className="text-caption">—</span>),
+  },
   {
     chave: "acao",
     titulo: "",
@@ -76,7 +81,7 @@ function CartaoDaLocacao({ l }: { l: LocacaoResumo }) {
       </span>
       <span className="flex flex-wrap items-center gap-2">
         <Situacao l={l} />
-        {l.pagamento && <span className="text-caption text-ink-muted">{rotuloDoPagamento(l.pagamento)}</span>}
+        {l.pagamento && <span className="text-caption text-ink-muted">{textoDoPagamento(l.pagamento, l.pagamento.caucao)}</span>}
         <Icone de={ChevronRight} className="ml-auto text-ink-muted" />
       </span>
     </Link>

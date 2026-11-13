@@ -21,7 +21,7 @@ describe("início: blocos null renderizam sem quebrar", () => {
     expect(() => renderToStaticMarkup(<InicioGeral d={d} periodo="7d" aoMudarPeriodo={() => {}} />)).not.toThrow();
   });
   it("gerente", () => {
-    const d = tudoNulo("gerente", ["aprovacoes", "kpis", "equipe_hoje", "frota_filial"]);
+    const d = tudoNulo("gerente", ["aprovacoes", "kpis", "equipe_hoje", "pendencias", "frota_filial"]);
     expect(() => renderToStaticMarkup(<InicioGerente d={d} />)).not.toThrow();
   });
   it("vendedor", () => {

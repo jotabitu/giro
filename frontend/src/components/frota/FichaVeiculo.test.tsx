@@ -322,3 +322,48 @@ describe("Movimentar e Transferir na ficha (MOV-02, MOV-06, T-289)", () => {
     expect(texto(desktop)).not.toMatch(/Movimentar|Transferir/);
   });
 });
+
+describe("ficha do veículo vendido (VEN-11, LOC-16, T-420)", () => {
+  beforeAll(async () => {
+    await entrarComo("financeiro@motorapida.com.br");
+  });
+  async function comVendas(vendas: VeiculoDetalhe["vendas"]) {
+    const ficha = { ...(await veiculos.obter(501)), vendas };
+    const cliente = new QueryClient();
+    cliente.setQueryData(["veiculo", 501], ficha);
+    cliente.setQueryData(["veiculo", 501, "documentos"], []);
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={cliente}>
+        <FichaVeiculo id={501} />
+      </QueryClientProvider>,
+    );
+    return texto(html);
+  }
+  const venda = {
+    id: 1,
+    codigo: "VEN-0001",
+    status: "vendida",
+    origem: "quitacao_locacao",
+    origem_rotulo: "Quitação de locação",
+    descricao: "Quitação da LOC-2876",
+    cliente: { id: 9, nome: "Paula Tavares" },
+    vendida_em: "2026-11-13T12:37:00Z",
+    transferencia: { feita_em: "2026-11-13", registrada_por: { id: 2, nome: "Rodrigo Pinheiro" }, pendente: false },
+    transferencia_texto: "Transferência no Detran feita em 13/11/2026 · Rodrigo Pinheiro",
+  };
+
+  it("test_ven_11_mostra_a_venda_e_a_linha_da_transferencia_como_a_api_manda", async () => {
+    const t = await comVendas({ itens: [venda] });
+    expect(t).toContain("Venda");
+    expect(t).toContain("VEN-0001");
+    expect(t).toContain("Quitação de locação");
+    expect(t).toContain("Transferência no Detran feita em 13/11/2026 · Rodrigo Pinheiro");
+  });
+
+  it("test_ven_11_transferencia_pendente_mostra_o_selo_e_sem_venda_o_bloco_some", async () => {
+    const pendente = await comVendas({ itens: [{ ...venda, transferencia: { feita_em: null, registrada_por: null, pendente: true }, transferencia_texto: null }] });
+    expect(pendente).toContain("Falta a transferência no Detran");
+    const sem = await comVendas(null);
+    expect(sem).not.toContain("VEN-0001");
+  });
+});

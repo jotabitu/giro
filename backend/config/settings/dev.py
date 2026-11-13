@@ -6,6 +6,9 @@ from config.settings.base import *  # noqa: F403
 from config.settings.base import env
 
 DEBUG = True
+# T-467: no compose, o Next responde em http na porta 3000; o link copiado abre como está.
+GIRO_LINKS_ESQUEMA = env("GIRO_LINKS_ESQUEMA", default="http")
+GIRO_LINKS_PORTA = env("GIRO_LINKS_PORTA", default="3000")
 # O rewrite do Next repassa o Host original em X-Forwarded-Host (T-158).
 USE_X_FORWARDED_HOST = True
 

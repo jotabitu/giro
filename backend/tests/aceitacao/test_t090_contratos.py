@@ -429,11 +429,16 @@ def test_modelos_api_lista_marcadores_prontos_e_previa(moto, django_capture_on_c
         ("Locação semanal", "publicado", 1)
     ]
     marcadores = api.get("/api/contratos/marcadores/").json()["resultados"]
-    assert {"chave": "cliente.nome", "rotulo": "Nome do cliente", "exemplo": "Lucas Ferreira"} in (
-        marcadores
-    )
+    assert {
+        "chave": "cliente.nome",
+        "rotulo": "Nome do cliente",
+        "exemplo": "Lucas Ferreira",
+        "finalidade": None,
+    } in marcadores
     prontos = api.get("/api/contratos/modelos-prontos/").json()["resultados"]
-    assert len(prontos) == 6 and prontos[1]["chave"] == "locacao_semanal_moto"
+    # 6 de locação e o da locação com intenção de compra (LOC-16, T-420).
+    assert len(prontos) == 7 and prontos[1]["chave"] == "locacao_semanal_moto"
+    assert prontos[-1]["chave"] == "locacao_compra"
 
     exemplo = api.post(f"{MODELOS}{moto.modelo.pk}/previa/", {}, format="json")
     assert exemplo.json() == {"html": "<p>Lucas Ferreira</p>"}

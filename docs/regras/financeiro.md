@@ -57,7 +57,7 @@ Todo dinheiro que entra ou sai passa por uma conta a receber, uma despesa ou um 
     - Paga-se inteira, sem pagamento parcial (`FIN-01`), e sem multa nem juros antes da retirada (`FIN-03`).
     - A baixa vale para o 1º pagamento da `LOC-17`, junto com a 1ª parcela.
   - **Não é receita.** A caução paga entra no caixa do dia ("entrou hoje"), mas não na receita, na DRE nem nos números de contas a receber (`FIN-13`, `FIN-15`). Fica como valor a devolver até o acerto da devolução, que a usa (`DEV-02`).
-  - **Ex.: LOC-2856** (Lucas, 07 out): "Caução · R$ 300,00 · Paga em 07 out", recebida em dinheiro no caixa de 07 out junto com a 1ª semana (R$ 629,00, caso "Caixa de 07 out").
+  - **Ex.: LOC-2856** (Lucas, 07 out): "Caução · R$ 300,00 · Devolver na entrega" (a situação da caução paga, que fica a devolver até o acerto), recebida em dinheiro no caixa de 07 out junto com a 1ª semana (R$ 629,00, caso "Caixa de 07 out").
   - **Seção Pagamentos da ficha da locação** (`LOC-17`): lista as parcelas e a caução, cada uma com o rótulo ("Parcela 1", "Caução"), o vencimento, o valor de hoje e a situação. Cada conta em aberto tem "Registrar pagamento" para quem recebe no caixa. Ele abre a mesma baixa de `Receber` sem sair da locação, e depois só a ficha se atualiza. Cada linha também abre o registro da conta em `Receber`, com o detalhe dela já aberto, e voltar leva à ficha da locação (T-455).
 - `FIN-19` **A que se refere cada conta a receber** (T-454). Toda conta diz o tipo e, na parcela, qual é. A API manda os dois textos prontos, e a tela só os mostra, no detalhe da conta, na lista de `Receber`, na seção Pagamentos da locação, na busca do `Caixa` e no recibo.
   - **Tipo e rótulo de cada conta:**

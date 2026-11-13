@@ -127,3 +127,14 @@ def cadastro_do_veiculo(evento: Any, apoio: dict[str, Any]) -> Texto:
     placa = _placa(evento, apoio)
     resumo = RESUMOS_DO_CADASTRO[evento.acao]
     return Texto(f"{resumo} {placa}" if placa else resumo, evento.motivo or "")
+
+
+# --- Veículo vendido (VEN-11, T-420) ---
+
+
+def vendido(evento: Any, apoio: dict[str, Any]) -> Texto:
+    """ "Vendeu o veículo SAK-1D39", com o motivo ("Quitação da LOC-2877"); a placa como nas
+    fotos (o código ou, sem ele, a placa atual)."""
+    placa = _placa(evento, apoio)
+    resumo = "Vendeu o veículo"
+    return Texto(f"{resumo} {placa}" if placa else resumo, evento.motivo or "")

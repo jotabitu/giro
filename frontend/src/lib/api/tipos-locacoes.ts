@@ -15,10 +15,13 @@ export type LocacaoResumo = Omit<S["Locacao"], "status" | "periodicidade" | "sit
   status: StatusLocacao;
   periodicidade: Periodicidade;
   situacao: { codigo: string; rotulo: string; tom: TomApi };
-  /** Ausente para o vistoriador. */
-  pagamento?: { rotulo: string; tom: TomApi; em_aberto_centavos: number; pago_centavos: number };
+  /** Ausente para o vistoriador. `rotulo` e `caucao` vêm prontos (LOC-17, T-456): a tela não troca um texto por outro. */
+  pagamento?: { rotulo: string; tom: TomApi; em_aberto_centavos: number; pago_centavos: number; caucao: CaucaoNaLinha | null };
   acao_principal: { codigo: CodigoAcaoLocacao; rotulo: string };
 };
+
+/** LOC-17: "Caução R$ 300,00 · paga" ou "· em aberto", na locação em andamento. */
+export type CaucaoNaLinha = { rotulo: string; tom: TomApi; valor_centavos: number; paga: boolean };
 
 export type ParcelaDaLocacao = Omit<S["ParcelaLocacao"], "tipo" | "status"> & { tipo: "parcela" | "caucao" | "acerto"; status: StatusParcela };
 
@@ -65,6 +68,13 @@ export type ParcelamentoMensal = "a_vista" | "quatro_semanais";
 export type ExtraDeLocacao = S["Extra"];
 export type PlanoEspecial = Omit<S["PlanoEspecial"], "periodicidade" | "regra"> & { periodicidade: Periodicidade; regra: "preco_fixo" | "desconto_a_partir" };
 export type SimulacaoDaLocacao = S["SimulacaoLocacao"];
+export type TipoDaLocacao = S["TipoLocacaoEnum"];
+
+/** LOC-16 (T-420): o plano de compra (Precos e Nova locação) e o andamento da compra na ficha. */
+export type PlanoDeCompra = Omit<S["PlanoCompra"], "periodicidade"> & { periodicidade: "semanal" | "mensal" };
+export type CorpoDoPlanoDeCompra = S["PlanoCompraEntrada"];
+export type CompraDaLocacao = S["CompraLocacao"];
+export type VendaDaCompra = S["VendaDaCompra"];
 /** Corpo de simular, criar e atualizar (`PATCH` do rascunho): o mesmo formulário. */
 export type EntradaDaLocacao = Omit<S["LocacaoEntrada"], "periodicidade" | "forma_pagamento" | "parcelamento_mensal"> & {
   periodicidade: Periodicidade;

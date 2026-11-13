@@ -170,8 +170,27 @@ class AcoesDaContaSerializer(serializers.Serializer[Any]):
 class ContaSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     tipo = serializers.CharField()
+    tipo_rotulo = serializers.CharField(
+        help_text='FIN-19: "Parcela", "Caução", "Multa", "Avaria", "Acerto da devolução", '
+        '"Outra cobrança"; na conta de um acordo, o tipo da conta original'
+    )
+    rotulo = serializers.CharField(
+        help_text='FIN-19: "Parcela 2 de 5", "Parcela única", "Caução", "Multa · {descrição}", '
+        '"Renegociação · 1 de 3"; na lista e no título do detalhe'
+    )
+    renegociacao = serializers.BooleanField(
+        help_text='FIN-19: conta nascida de um acordo; a tela mostra "Renegociação" ao lado do tipo'
+    )
     numero = serializers.IntegerField(allow_null=True)
-    total_parcelas = serializers.IntegerField(allow_null=True)
+    total_parcelas = serializers.IntegerField(
+        allow_null=True,
+        help_text="FIN-19: na parcela, o total da origem em vigor (com renovação e canceladas), "
+        "sem caução nem outras cobranças; na conta de um acordo, as contas do acordo",
+    )
+    parcela_de = serializers.CharField(
+        allow_null=True,
+        help_text='FIN-19: "1 de 128 parcelas", só na parcela que não é única nem de acordo',
+    )
     origem = OrigemDaContaSerializer()
     cliente = RefSerializer()
     filial = RefSerializer()
@@ -418,7 +437,7 @@ class DespesasDoVeiculoSerializer(serializers.Serializer[Any]):
 
 
 class OrigemDoReembolsoSerializer(serializers.Serializer[Any]):
-    tipo = serializers.ChoiceField(choices=["devolucao", "cancelamento", "credito"])
+    tipo = serializers.ChoiceField(choices=["devolucao", "cancelamento", "credito", "quitacao"])
     codigo = serializers.CharField(allow_null=True)
     id = serializers.IntegerField(allow_null=True, help_text="a locação, para o Ver acerto")
     veiculo = serializers.CharField(allow_null=True, help_text="QXA-4B21 · Honda CG 160 Fan")

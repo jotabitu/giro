@@ -1,8 +1,11 @@
 // T-363 · Modelos de contrato (IMP-04, S-09, LOC-15; docs/api/contratos.md).
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { contas, modelosContrato, ErroApi, type Eu } from "@/lib/api";
+import { TEXTO_ARQUIVAR_MODELO } from "@/lib/contratos";
 import { definirModelosFalsos } from "@/testes/falsos/falso-modelos-contrato";
 
 const sessao = vi.hoisted(() => ({ eu: null as unknown }));
@@ -99,6 +102,13 @@ describe("Contrato dos modelos (IMP-04, S-09, LOC-15)", () => {
     expect(publicado.versoes[0]).toMatchObject({ versao: 4 });
   });
 
+  it("loc_16_modelo_pronto_de_compra: o pronto traz a finalidade e o modelo criado a partir dele é de locação com intenção de compra", async () => {
+    const pronto = (await modelosContrato.prontos()).find((p) => p.chave === "locacao_compra_moto");
+    expect(pronto).toMatchObject({ nome: "Locação com intenção de compra", finalidade: "locacao_compra" });
+    const novo = await modelosContrato.criar({ nome: pronto!.nome, finalidade: pronto!.finalidade, a_partir_de: pronto!.chave });
+    expect(novo.finalidade).toBe("locacao_compra");
+  });
+
   it("imp_04_novo_a_partir_do_pronto: nasce rascunho, publica na versão 1 e a prévia troca os marcadores", async () => {
     const prontos = await modelosContrato.prontos();
     expect(prontos.length).toBeGreaterThan(0);
@@ -118,5 +128,13 @@ describe("Contrato dos modelos (IMP-04, S-09, LOC-15)", () => {
     const outro = await modelosContrato.criar({ nome: "Outro", finalidade: "locacao", a_partir_de: "locacao_semanal_carro" });
     await modelosContrato.publicar(outro.id);
     expect((await modelosContrato.arquivar(10)).arquivado).toBe(true);
+  });
+
+  it("imp_04_arquivar_nao_tem_volta: a tela usa o texto da regra, palavra por palavra", () => {
+    const regra = readFileSync(resolve(process.cwd(), "../docs/regras/implantacao.md"), "utf-8");
+    expect(regra).toContain(`"${TEXTO_ARQUIVAR_MODELO}"`);
+    const fonte = readFileSync(resolve(process.cwd(), "src/components/contratos/ModelosDeContrato.tsx"), "utf-8");
+    expect(fonte.match(/TEXTO_ARQUIVAR_MODELO/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(fonte).not.toContain("mas não é apagado");
   });
 });

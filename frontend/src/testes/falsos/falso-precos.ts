@@ -14,6 +14,8 @@ import type {
   PrecoGravado,
 } from "@/lib/api/tipos-precos";
 import { pausa } from "./falso";
+import { PLANOS_COMPRA } from "./falso-locacoes";
+import type { CorpoDoPlanoDeCompra, PlanoDeCompra } from "@/lib/api/tipos-locacoes";
 
 const HOJE = "2026-10-07";
 
@@ -312,6 +314,58 @@ export const precosFalso = {
     const resto = { ...corpo };
     delete resto.categorias;
     Object.assign(p, resto);
+    return p;
+  },
+
+  /** LOC-16: a API devolve `caucao_centavos` e `ultima_parcela_centavos` já calculados; o falso só imita. */
+  async planosDeCompra(f: { ativo?: boolean | "todos" } = {}): Promise<PlanoDeCompra[]> {
+    await pausa(40);
+    return PLANOS_COMPRA.filter((p) => f.ativo === "todos" || p.ativo === (f.ativo ?? true));
+  },
+
+  async criarPlanoDeCompra(corpo: CorpoDoPlanoDeCompra): Promise<PlanoDeCompra> {
+    await pausa(40);
+    if (!corpo.nome.trim()) throw campo("nome", "Informe o nome do plano");
+    if (PLANOS_COMPRA.some((p) => p.nome.toLowerCase() === corpo.nome.trim().toLowerCase())) throw campo("nome", "Já existe um plano com esse nome.");
+    if (corpo.parcelas < 2 || corpo.parcelas > 260) throw campo("parcelas", "Informe de 2 a 260 parcelas.");
+    if (corpo.valor_parcela_centavos <= 0) throw campo("valor_parcela_centavos", "Informe o valor da parcela.");
+    const categoria = estado.categorias.find((c) => c.id === corpo.categoria_id);
+    if (!categoria) throw campo("categoria_id", "Escolha a categoria.");
+    const caucao = categoria.preco_vigente?.caucao_centavos ?? 30000;
+    const plano: PlanoDeCompra = {
+      id: 100 + PLANOS_COMPRA.length,
+      nome: corpo.nome.trim(),
+      categoria: { id: categoria.id, nome: categoria.nome },
+      periodicidade: corpo.periodicidade,
+      parcelas: corpo.parcelas,
+      valor_parcela_centavos: corpo.valor_parcela_centavos,
+      condicoes: corpo.condicoes,
+      caucao_centavos: caucao,
+      ultima_parcela_centavos: Math.max(0, corpo.valor_parcela_centavos - caucao),
+      locacoes_ativas: 0,
+      ativo: true,
+    };
+    PLANOS_COMPRA.push(plano);
+    return plano;
+  },
+
+  async alterarPlanoDeCompra(id: number, corpo: Partial<CorpoDoPlanoDeCompra>): Promise<PlanoDeCompra> {
+    await pausa(40);
+    const p = PLANOS_COMPRA.find((x) => x.id === id);
+    if (!p) throw new ErroApi(404, "nao_encontrado", "Plano não encontrado");
+    if (corpo.parcelas !== undefined && (corpo.parcelas < 2 || corpo.parcelas > 260)) throw campo("parcelas", "Informe de 2 a 260 parcelas.");
+    const resto = { ...corpo };
+    delete resto.categoria_id;
+    Object.assign(p, resto);
+    if (corpo.valor_parcela_centavos !== undefined) p.ultima_parcela_centavos = Math.max(0, p.valor_parcela_centavos - p.caucao_centavos);
+    return p;
+  },
+
+  async desativarPlanoDeCompra(id: number): Promise<PlanoDeCompra> {
+    await pausa(40);
+    const p = PLANOS_COMPRA.find((x) => x.id === id);
+    if (!p) throw new ErroApi(404, "nao_encontrado", "Plano não encontrado");
+    p.ativo = false;
     return p;
   },
 

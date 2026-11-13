@@ -2,11 +2,15 @@
 
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { FleetBar, Icone, Panel, StatusBadge } from "@/design-system";
-import type { InicioDe } from "@/lib/api";
-import { rotuloDoPerfil } from "@/lib/painel";
+import { AlertCard, FleetBar, Icone, Panel, StatusBadge } from "@/design-system";
+import type { InicioDe, PendenciaInicio } from "@/lib/api";
+import { hrefDoDestino } from "@/lib/menu";
+import { atualizadoHa, rotuloDoPerfil } from "@/lib/painel";
 import { useSessao } from "@/lib/sessao";
 import { CabecalhoInicio, KpisDoPainel, LinhaDoPainel, ListaDoPainel, Vazio } from "./comuns";
+
+/** Gravidade da API (`critica`, `alerta`, `info`) no vocabulário do AlertCard; `info` não leva marcação. */
+const GRAVIDADE_DO_ALERTA: Record<PendenciaInicio["gravidade"], "critica" | "atencao" | undefined> = { critica: "critica", alerta: "atencao", info: undefined };
 
 function iniciais(nome: string) {
   return nome.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? "").join("");
@@ -18,6 +22,10 @@ export function InicioGerente({ d }: { d: InicioDe<"gerente"> }) {
   const aprovacoes = d.aprovacoes ?? { total: 0, mais_antigo: null, itens: [] };
   const equipe = d.equipe_hoje ?? [];
   const segmentosDaFrota = d.frota_filial?.segmentos ?? [];
+  // Blocos `null` da API não quebram a tela (USR-08). T-420: as transferências no Detran pendentes vêm aqui, como no administrador.
+  const pendencias = d.pendencias?.itens ?? [];
+  const destino = pendencias[0]?.destino;
+  const hrefDasPendencias = (destino ? hrefDoDestino(destino.chave, destino.filtro, destino.id) : undefined) ?? "/locacoes";
   return (
     <div className="flex flex-col gap-6">
       <CabecalhoInicio saudacao={d.saudacao} subtitulo={eu.filiais.length === 1 ? eu.filiais[0]?.nome : undefined}>
@@ -57,6 +65,21 @@ export function InicioGerente({ d }: { d: InicioDe<"gerente"> }) {
           </ListaDoPainel>
         )}
       </Panel>
+
+      {pendencias.length > 0 && (
+        <AlertCard
+        atualizadoHa={atualizadoHa(d.atualizado_em)}
+        titulo={d.pendencias?.titulo ?? "Nenhuma pendência hoje"}
+        itens={pendencias.map((i) => ({ texto: i.texto, gravidade: GRAVIDADE_DO_ALERTA[i.gravidade] }))}
+        acao={
+          pendencias.length > 0 ? (
+            <Link href={hrefDasPendencias} className="wl-btn wl-btn--brand">
+              Ver pendências
+            </Link>
+          ) : undefined
+        }
+        />
+      )}
 
       <KpisDoPainel kpis={d.kpis} />
 
