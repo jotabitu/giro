@@ -313,10 +313,11 @@ def test_usr_08_cache_por_pessoa_rota_e_variante(cenario, com_carteira, pedidos,
     api.get(INICIO, {"periodo": "hoje"})
     mariana = cenario.pessoas["Mariana"].pk
     centro = cenario.frota.centro.pk
-    # A variante entra na chave: a 1ª locação (IMP-01, T-131) não espera o cache vencer.
+    # A variante entra na chave: a 1ª locação (IMP-01, T-131) não espera o cache vencer. A
+    # geração da empresa (g0) sobe com a quitação e a transferência (T-420, A2).
     assert prazos == {
-        f"painel:empresa_a:{mariana}:{centro}:contadores:geral": 60,
-        f"painel:empresa_a:{mariana}:{centro}:inicio:geral:hoje": 300,
+        f"painel:empresa_a:g0:{mariana}:{centro}:contadores:geral": 60,
+        f"painel:empresa_a:g0:{mariana}:{centro}:inicio:geral:hoje": 300,
     }
     # A chave é da pessoa: Rodrigo calcula o dele (sem o pedido que ele fez, APR-09).
     assert cenario.moto.api("Rodrigo").get(CONTADORES).json()["contadores"]["aprovacoes"] == 2

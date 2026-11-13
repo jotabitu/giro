@@ -366,3 +366,51 @@ export function MovimentacoesCelular({ v }: { v: VeiculoDetalhe }) {
     </section>
   );
 }
+
+function LinhasDasVendas({ v }: { v: VeiculoDetalhe }) {
+  return (
+    <ul>
+      {(v.vendas?.itens ?? []).map((venda) => (
+        <li key={venda.id} className="flex flex-col gap-1 border-b border-line py-3 text-body last:border-b-0">
+          <span className="flex justify-between gap-3">
+            <span>
+              <span className="wl-mono">{venda.codigo}</span> · {venda.origem_rotulo}
+              {venda.cliente ? ` · ${venda.cliente.nome}` : ""}
+            </span>
+            <span className="shrink-0 text-ink-muted">{dataCurta(venda.vendida_em)}</span>
+          </span>
+          {venda.descricao && <span className="text-[14px] text-ink-muted">{venda.descricao}</span>}
+          {venda.transferencia_texto ? (
+            <span className="text-[14px] text-ink-muted">{venda.transferencia_texto}</span>
+          ) : (
+            venda.transferencia?.pendente && (
+              <span>
+                <StatusBadge tom="alerta" compacto>
+                  Falta a transferência no Detran
+                </StatusBadge>
+              </span>
+            )
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** VEN-11, LOC-16 (T-420): a venda do veículo e a transferência no Detran, como a API manda. Sem venda, o bloco não aparece. */
+export function VendasDoVeiculo({ v, celular }: { v: VeiculoDetalhe; celular?: boolean }) {
+  if (!v.vendas?.itens.length) return null;
+  if (celular) {
+    return (
+      <section className="rounded-lg bg-surface p-4">
+        <h2 className="text-heading">Venda</h2>
+        <LinhasDasVendas v={v} />
+      </section>
+    );
+  }
+  return (
+    <Panel titulo="Venda">
+      <LinhasDasVendas v={v} />
+    </Panel>
+  );
+}

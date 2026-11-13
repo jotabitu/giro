@@ -51,7 +51,7 @@ Convenções gerais em `docs/api/README.md`. A estrutura do menu e a variante do
 
 Quando a T-017 (caixa) e a tarefa da despesa entrarem, cada uma liga o seu bloco no selector de `relatorios` e acrescenta o teste do número do seed; o contrato acima não muda.
 
-**Cache no backend:** Redis, chave `painel:<schema>:<usuario_id>:<filial ou todas>:<rota>[:<periodo>]`, prazo de 5 minutos (início) e 60 segundos (contadores). Sem invalidação no MVP: o prazo curto basta. O cache nunca é compartilhado entre pessoas, porque escopo e `APR-09` dependem de quem pede.
+**Cache no backend:** Redis, chave `painel:<schema>:g<geração>:<usuario_id>:<filial ou todas>:<rota>:<variante>[:<periodo>]`, prazo de 5 minutos (início) e 60 segundos (contadores). A geração é da empresa (`comum.painel`): quem muda um número que precisa aparecer na hora chama `painel.renovar()` depois do commit, e todo o cache do painel da empresa deixa de valer. Hoje renovam a venda da quitação e a transferência no Detran registrada (`LOC-16`, `VEN-11`, T-420: a pendência aparece e sai do Início na hora). O resto continua só com o prazo. O cache nunca é compartilhado entre pessoas, porque escopo e `APR-09` dependem de quem pede.
 
 ---
 

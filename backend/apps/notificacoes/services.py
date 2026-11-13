@@ -9,7 +9,9 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.db import transaction
+from django_tenants.utils import tenant_context
 
+from comum.conexao import conexao
 from comum.empresa import nome_da_empresa
 
 from .models import Notificacao
@@ -70,5 +72,12 @@ def avisar(
             if novo:
                 novos.append(destinatario_id)
         if por_email and novos:
-            transaction.on_commit(lambda: _mandar_emails(novos, titulo))
+            # A empresa de agora: o commit pode chegar com a conexão já em outro schema (T-420).
+            empresa = conexao().tenant
+
+            def _depois() -> None:
+                with tenant_context(empresa):
+                    _mandar_emails(novos, titulo)
+
+            transaction.on_commit(_depois)
     return criados

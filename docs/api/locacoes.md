@@ -620,6 +620,16 @@ Publicado dentro da transação da quitação (não depois do commit): `locacao_
 
 ---
 
+## Na auditoria: compra (T-420, A5 da conferência de 13 nov 2026)
+
+| Ação | `resumo` | `detalhe` |
+| --- | --- | --- |
+| `locacao.quitar` | Quitou a locação LOC-2856 | Todas as parcelas pagas |
+| `locacao.encerrar_por_atraso` | Encerrou a locação LOC-2856 por atraso | o motivo |
+| `plano_compra.criar`, `.editar`, `.desativar` | Criou (Editou, Desativou) o plano de compra Compra Street 24 meses | vazio |
+
+O nome do plano vem do evento; sem ele, o nome de hoje. Testes: `test_aud_loc_16_*` em `tests/aceitacao/test_t420_achados.py`.
+
 ## Interface interna
 
 | Item | Uso |

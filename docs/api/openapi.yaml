@@ -16792,11 +16792,13 @@ components:
       - devolucao
       - cancelamento
       - credito
+      - quitacao
       type: string
       description: |-
         * `devolucao` - devolucao
         * `cancelamento` - cancelamento
         * `credito` - credito
+        * `quitacao` - quitacao
     OrigemEntrada:
       type: object
       properties:
