@@ -46,10 +46,10 @@ O texto é HTML sanitizado no servidor ao salvar, com lista branca: `p`, `h1`, `
 200: `{ ..., "texto": "<p>...</p>", "marcadores_usados": ["cliente.nome", "..."], "versoes": [ { "versao": 3, "publicado_em": "...", "contratos_gerados": 38 } ] }`.
 
 ### GET /api/contratos/marcadores/
-A lista acima, com rótulo e exemplo para o painel "Campos automáticos": `{ "resultados": [ { "chave": "cliente.nome", "rotulo": "Nome do cliente", "exemplo": "Lucas Ferreira" } ] }`.
+A lista acima, com rótulo e exemplo para o painel "Campos automáticos": `{ "resultados": [ { "chave": "cliente.nome", "rotulo": "Nome do cliente", "exemplo": "Lucas Ferreira", "finalidade": null } ] }`. `finalidade`: `null` vale em todo modelo; `"locacao_compra"` só no modelo dessa finalidade (o grupo `compra`, T-420), e a tela só o oferece nele.
 
 ### GET /api/contratos/modelos-prontos/
-Modelos prontos para o passo 9 da implantação (`Onboarding-Contrato`) e para "Novo modelo": locação diária, semanal e mensal de moto e de carro. `POST /api/contratos/modelos/` com `{ "a_partir_de": "locacao_semanal_moto" }` cria um rascunho com o texto pronto.
+Modelos prontos para o passo 9 da implantação (`Onboarding-Contrato`) e para "Novo modelo": locação diária, semanal e mensal de moto e de carro, e a "Locação com intenção de compra" (`chave` `locacao_compra`, um só para moto e carro, T-420). Cada item traz `{ chave, nome, texto, finalidade }`. `POST /api/contratos/modelos/` com `{ "a_partir_de": "locacao_semanal_moto" }` cria um rascunho com o texto pronto, na `finalidade` do pronto.
 
 ### POST /api/contratos/modelos/
 Corpo: `{ nome, finalidade: "locacao", texto }` ou `{ nome, a_partir_de }`. 201: rascunho, versão 1.

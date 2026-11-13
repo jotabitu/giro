@@ -634,10 +634,10 @@ async function simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
     parcelas_previstas: parcelas,
     caucao_centavos: caucao,
     diaria_centavos: pv.diaria_centavos,
+    compra: null, // LOC-16: só na locação com intenção de compra
     precisa_aprovacao_desconto: pct > 5 && perfilAtualFalso() === "vendedor",
     impedimentos,
     avisos,
-    compra: null,
   };
 }
 

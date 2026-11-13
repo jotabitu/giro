@@ -17,6 +17,7 @@ from comum.models import ModeloBase
 
 class Finalidade(models.TextChoices):
     LOCACAO = "locacao", "Locação"
+    LOCACAO_COMPRA = "locacao_compra", "Locação com intenção de compra"  # LOC-16, ADR 0037
     VENDA = "venda", "Venda"
 
 
@@ -25,7 +26,7 @@ class ModeloContrato(ModeloBase):
     (`LOC-15`). `grupo` junta as versões do mesmo modelo."""
 
     nome = models.CharField(max_length=80)
-    finalidade = models.CharField(max_length=10, choices=Finalidade.choices)
+    finalidade = models.CharField(max_length=20, choices=Finalidade.choices)
     arquivado = models.BooleanField(default=False)
     versao = models.PositiveIntegerField(default=1)
     texto = models.TextField()

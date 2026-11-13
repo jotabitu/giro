@@ -606,3 +606,10 @@ Vindas do teste do dono no fluxo de locação da Moto Rápida (LOC-0001 e LOC-00
 #### T-464 · Placa nos eventos de cadastrar e editar o veículo na auditoria
 - **Agente:** fullstack · **Regras:** `AUD`, `VEI-01` · **Origem:** sugestão do fullstack no PR #531 (T-460) e decisão do dono de 11 nov 2026 (A).
 - **Pronto quando:** os eventos de cadastrar e editar o veículo trazem a placa como código, como os de foto da T-460, com resumo em português; teste.
+
+### Notas do dono de 12 nov 2026
+
+#### T-468 · Conferir as correções da segurança na quitação da compra
+- **Agente:** seguranca · **Regras:** `LOC-16`, `VEN-11`, `FIN-18` · **Origem:** revisão da T-420 (PR #563, `docs/seguranca/2026-11-12-t420-locacao-com-compra.md`); o dono pediu deixar para depois, em 12 nov 2026.
+- **O caso:** os médios M-01 (quitação sem conferir a caução paga, sobra de caução que não entrou) e M-02 (quitação contada pelo número da parcela, travada pela renegociação) e os baixos B-01 e B-02 foram corrigidos pelo Backend no PR #559, sem a segurança reler as correções; B-03 e B-04 no PR #565.
+- **Pronto quando:** a segurança relê as correções do #559 e do #565, roda os testes que provaram M-01 e M-02 e acrescenta ao relatório se cada achado fechou; o que sobrar vira tarefa. Antes de ligar a locação com intenção de compra para alguma empresa.

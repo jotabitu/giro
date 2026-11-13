@@ -14,7 +14,7 @@ from django.db import connection
 from apps.contratos import origens
 from apps.contratos import selectors as contratos_selectors
 from apps.contratos import services as contratos
-from apps.contratos.models import Contrato, StatusContrato
+from apps.contratos.models import Contrato, Finalidade, StatusContrato
 from apps.empresas.selectors import configuracao
 from apps.financeiro import selectors as financeiro_selectors
 from comum import relogio
@@ -23,7 +23,14 @@ from comum.documentos import placa_com_hifen
 from comum.empresa import nome_da_empresa
 from comum.erros import Conflito
 
-from .models import FormaPagamento, Locacao, Periodicidade, StatusDesconto, StatusLocacao
+from .models import (
+    FormaPagamento,
+    Locacao,
+    Periodicidade,
+    StatusDesconto,
+    StatusLocacao,
+    TipoLocacao,
+)
 
 ORIGEM = "locacao"
 S = StatusLocacao
@@ -142,12 +149,32 @@ def valores(locacao: Locacao) -> dict[str, str]:
         "cobranca.juros_mes_pct": _pct(config.juros_mes_pct),
         "contrato.data": relogio.agora().astimezone(ZoneInfo(fuso)).strftime("%d/%m/%Y"),
         "contrato.cidade_assinatura": f"{filial.cidade}/{filial.uf}",
+        **_valores_da_compra(locacao),
+    }
+
+
+def _valores_da_compra(locacao: Locacao) -> dict[str, str]:
+    """O grupo `compra` (LOC-16), só na locação com intenção de compra: o plano congelado."""
+    if locacao.tipo != TipoLocacao.INTENCAO_COMPRA or locacao.plano_compra is None:
+        return {}
+    parcelas = locacao.compra_parcelas or 0
+    valor = locacao.compra_valor_parcela_centavos or 0
+    mensal = locacao.periodicidade == Periodicidade.MENSAL
+    unidade = ("mês", "meses") if mensal else ("semana", "semanas")
+    return {
+        "compra.plano": locacao.plano_compra.nome,
+        "compra.parcelas": str(parcelas),
+        "compra.valor_parcela": formatar_reais(valor),
+        "compra.ultima_parcela": formatar_reais(max(0, valor - locacao.caucao_centavos)),
+        "compra.prazo": f"{parcelas} {unidade[0] if parcelas == 1 else unidade[1]}",
     }
 
 
 def _com_relacoes(locacao_id: int) -> Locacao | None:
     return (
-        Locacao.objects.select_related("filial", "cliente", "veiculo", "plano_especial")
+        Locacao.objects.select_related(
+            "filial", "cliente", "veiculo", "plano_especial", "plano_compra"
+        )
         .filter(pk=locacao_id)
         .first()
     )
@@ -172,6 +199,12 @@ def _dados(locacao: Locacao) -> contratos.DadosDoContrato:
         filial_id=completa.filial_id,
         cliente_id=completa.cliente_id,
         valores=valores(completa),
+        # LOC-16: a locação com intenção de compra usa o modelo da finalidade dela.
+        finalidade=(
+            Finalidade.LOCACAO_COMPRA
+            if completa.tipo == TipoLocacao.INTENCAO_COMPRA
+            else Finalidade.LOCACAO
+        ),
     )
 
 
