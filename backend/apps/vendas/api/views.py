@@ -49,7 +49,8 @@ class VendasView(ViewDeVendas):
         summary="Vendas (na T-420, só as da quitação, VEN-11)",
     )
     def get(self, request: Request) -> Response:
-        qs = selectors.filtrar(request.user, request.query_params)
+        # B-03: a filial escolhida no cabeçalho, como as outras listas (USR-07).
+        qs = filtrar_por_filial(selectors.filtrar(request.user, request.query_params), request)
         paginacao = PaginacaoPorCursor()
         paginacao.ordering = ("-id",)  # type: ignore[assignment]
         pagina = paginacao.paginate_queryset(qs, request, view=self) or []
@@ -62,7 +63,7 @@ class VendasView(ViewDeVendas):
 class VendaView(ViewDeVendas):
     @extend_schema(responses=VendaSerializer, summary="Detalhe da venda")
     def get(self, request: Request, pk: int) -> Response:
-        venda = selectors.visiveis(request.user).filter(pk=pk).first()
+        venda = filtrar_por_filial(selectors.visiveis(request.user), request).filter(pk=pk).first()
         if venda is None:
             raise Http404
         return Response(VendaSerializer(selectors.representacao(venda, request.user)).data)
