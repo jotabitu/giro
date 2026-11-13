@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { EntradaDaLocacao, ExtraDeLocacao, FormaPagamento, LocacaoCompleta, ParcelamentoMensal, PlanoEspecial, Periodicidade } from "@/lib/api";
+import type { EntradaDaLocacao, ExtraDeLocacao, FormaPagamento, LocacaoCompleta, ParcelamentoMensal, PlanoDeCompra, PlanoEspecial, Periodicidade, TipoDaLocacao } from "@/lib/api";
 import { agoraDaTela } from "@/lib/ambiente";
 import { instanteDeLocal, localDeInstante } from "@/lib/formatos";
 
@@ -16,6 +16,8 @@ export const FORMAS_DE_PAGAMENTO: { valor: FormaPagamento; rotulo: string }[] = 
 
 /** Só o que a tela precisa ter para chamar a API; o resto (formato, limites, regras) é conferido por ela e o erro volta no campo. */
 export const esquemaLocacao = z.object({
+  tipo: z.enum(["comum", "intencao_compra"]),
+  plano_compra_id: z.number().int().positive().nullable(),
   cliente_id: z.number().int().positive("Escolha o cliente"),
   veiculo_id: z.number().int().positive("Escolha o veículo"),
   modalidade: z.string().min(1),
@@ -27,7 +29,7 @@ export const esquemaLocacao = z.object({
   parcelamento_mensal: z.enum(["a_vista", "quatro_semanais"]),
   primeiro_vencimento: z.string(),
 });
-export type ValoresLocacao = Omit<z.infer<typeof esquemaLocacao>, "modalidade" | "cliente_id" | "veiculo_id"> & { modalidade: Modalidade; cliente_id: number | null; veiculo_id: number | null };
+export type ValoresLocacao = Omit<z.infer<typeof esquemaLocacao>, "modalidade" | "cliente_id" | "veiculo_id" | "tipo"> & { tipo: TipoDaLocacao } & { modalidade: Modalidade; cliente_id: number | null; veiculo_id: number | null };
 
 /** "07/10 09:30" arredondado para os próximos 30 minutos, em `datetime-local`. */
 export function retiradaPadrao(agora = agoraDaTela()): string {
@@ -36,7 +38,7 @@ export function retiradaPadrao(agora = agoraDaTela()): string {
 }
 
 export function valoresIniciais(cliente: number | null, veiculo: number | null, agora = agoraDaTela()): ValoresLocacao {
-  return { cliente_id: cliente, veiculo_id: veiculo, modalidade: "semanal", inicio: retiradaPadrao(agora), fim: "", extras: [], desconto: "0", forma_pagamento: "pix_automatico", parcelamento_mensal: "a_vista", primeiro_vencimento: "" };
+  return { tipo: "comum", plano_compra_id: null, cliente_id: cliente, veiculo_id: veiculo, modalidade: "semanal", inicio: retiradaPadrao(agora), fim: "", extras: [], desconto: "0", forma_pagamento: "pix_automatico", parcelamento_mensal: "a_vista", primeiro_vencimento: "" };
 }
 
 /** Percentual com até 2 casas ("5", "2,5"). A validação final é da API. */
@@ -45,12 +47,19 @@ export const descontoValido = (t: string) => /^\d+([.,]\d{1,2})?$/.test(t.trim()
 const periodicidadeDe = (m: Modalidade, planos: PlanoEspecial[]): Periodicidade => (m.startsWith("especial:") ? (planos.find((p) => `especial:${p.id}` === m)?.periodicidade ?? "semanal") : (m as Periodicidade));
 
 /** Corpo de simular, criar e atualizar. `null` enquanto falta cliente, veículo ou uma data válida. */
-export function corpoDaLocacao(v: ValoresLocacao, planos: PlanoEspecial[]): EntradaDaLocacao | null {
+export function corpoDaLocacao(v: ValoresLocacao, planos: PlanoEspecial[], planosDeCompra: PlanoDeCompra[] = []): EntradaDaLocacao | null {
   const inicio = instanteDeLocal(v.inicio);
+  if (v.tipo === "intencao_compra") {
+    // LOC-16: prazo, parcelas e valor vêm do plano; sem desconto, extras nem parcelamento (a API recusa, CA-420-02).
+    const plano = planosDeCompra.find((p) => p.id === v.plano_compra_id);
+    if (!v.cliente_id || !v.veiculo_id || !inicio || !plano) return null;
+    return { tipo: "intencao_compra", plano_compra_id: plano.id, periodicidade: plano.periodicidade, cliente_id: v.cliente_id, veiculo_id: v.veiculo_id, inicio, extras: [], desconto_pct: "0", forma_pagamento: v.forma_pagamento };
+  }
   if (!v.cliente_id || !v.veiculo_id || !inicio || !descontoValido(v.desconto)) return null;
   const periodicidade = periodicidadeDe(v.modalidade, planos);
   const fim = instanteDeLocal(v.fim);
   return {
+    tipo: "comum",
     cliente_id: v.cliente_id,
     veiculo_id: v.veiculo_id,
     periodicidade,
@@ -69,6 +78,8 @@ export function corpoDaLocacao(v: ValoresLocacao, planos: PlanoEspecial[]): Entr
 export function valoresDoRascunho(l: LocacaoCompleta, extras: ExtraDeLocacao[]): ValoresLocacao {
   const periodicidade = l.periodicidade;
   return {
+    tipo: l.tipo,
+    plano_compra_id: l.compra?.plano?.id ?? null,
     cliente_id: l.cliente.id,
     veiculo_id: l.veiculo.id,
     modalidade: l.plano_especial ? `especial:${l.plano_especial.id}` : periodicidade,

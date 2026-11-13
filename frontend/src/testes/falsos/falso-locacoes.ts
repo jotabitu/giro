@@ -6,6 +6,8 @@ import { ErroApi } from "@/lib/api/tipos";
 import { veiculosFalso } from "./falso-frota";
 import { clientesFalso } from "./falso-clientes";
 import type {
+  CompraDaLocacao,
+  PlanoDeCompra,
   LinkDoContrato,
   AbaLocacoes,
   AvisoLocacao,
@@ -65,7 +67,7 @@ type Semente = {
   parcelas: [tipo: "parcela" | "caucao", vencimento: string, valor: number, status: StatusParcela, forma?: string][];
   extras?: string[];
   desconto?: string;
-  cancelamento?: { status: "pendente" | "aprovado"; data: string; multa: number; credito: number; devolver: number; motivo: string };
+  cancelamento?: { status: "pendente" | "aprovado"; data: string; multa: number; credito: number; devolver: number; motivo: string; porAtraso?: boolean };
   trocaPendente?: boolean;
   /** Dados da troca pendente; `saidaConcluida` simula a entrega do veículo novo (409 `troca_saida_concluida`). */
   troca?: { id: number; motivo: string; novo: { id: number; modelo: string; placa: string }; saidaConcluida: boolean };
@@ -77,7 +79,27 @@ type Semente = {
   retiradaAMao?: boolean;
   /** Formulário do rascunho (o que o PATCH e o POST guardam). */
   entrada?: EntradaDaLocacao;
+  /** LOC-16: locação com intenção de compra. A API monta `andamento`; o falso imita só o que o teste confere. */
+  compra?: {
+    plano: { id: number; nome: string };
+    total: number;
+    valorCentavos: number;
+    ultimaCentavos: number;
+    faltaParaQuitar?: { conta_id: number | null; rotulo: string; valor_centavos?: number }[];
+    quitadaEm?: string;
+    vendaId?: number;
+    transferenciaEm?: string;
+  };
 };
+
+/** Planos de compra (LOC-16): o seed do CA-420-01. A tela Precos e a Nova locação leem daqui. */
+export const PLANOS_COMPRA: PlanoDeCompra[] = [
+  { id: 3, nome: "Compra Street 24 meses", categoria: { id: 2, nome: "Street 150–160" }, periodicidade: "mensal", parcelas: 24, valor_parcela_centavos: 119000, condicoes: "", caucao_centavos: 30000, ultima_parcela_centavos: 89000, locacoes_ativas: 1, ativo: true },
+  { id: 4, nome: "Compra Urbana 24 meses", categoria: { id: 1, nome: "Urbana 110–125" }, periodicidade: "mensal", parcelas: 24, valor_parcela_centavos: 99000, condicoes: "", caucao_centavos: 30000, ultima_parcela_centavos: 69000, locacoes_ativas: 0, ativo: true },
+];
+
+/** LOC-16: sem modelo publicado de `locacao_compra`, a confirmação é recusada (CA-420-03). Os testes ligam e desligam. */
+export const modeloDeCompra = { publicado: true };
 
 const SEMENTES: Semente[] = [
   {
@@ -159,6 +181,32 @@ const SEMENTES: Semente[] = [
   },
 ];
 
+/** LOC-2870 (compra ativa, parcela 6 atrasada) e LOC-2901 (quitada, falta a transferência): fora da lista, abertas pelo id. */
+const SEMENTES_COMPRA: Semente[] = [
+  {
+    id: 2870, status: "ativa", cliente: { id: 1210, nome: "Marcelo Tavares" }, veiculo: { id: 504, modelo: "Honda CG 160 Fan", placa: "SAK1D39", tipo: "moto" },
+    periodicidade: "mensal", inicio: "2026-06-05T12:00:00Z", fim: "2028-06-05T12:00:00Z",
+    situacao: { codigo: "pagamento_atrasado", rotulo: "Parcela 6 atrasada", tom: "alerta" },
+    pagamento: { rotulo: "R$ 1.190,00 em aberto", tom: "alerta", em_aberto_centavos: 119000 },
+    acao: { codigo: "cobrar", rotulo: "Cobrar" }, sinais: { pagamento_atrasado: true },
+    corpo: { periodoCentavos: 119000, diariaCentavos: 5490, caucaoCentavos: 30000, kmSaida: 3120, contrato: { status: "assinado", modelo: "Locação com intenção de compra", assinadoEm: "2026-06-05T12:31:00Z" } },
+    parcelas: [["parcela", "2026-09-05", 119000, "paga", "pix"], ["parcela", "2026-10-05", 119000, "paga", "pix"], ["parcela", "2026-11-05", 119000, "atrasada"], ["parcela", "2028-05-05", 89000, "aberta"], ["caucao", "2026-06-05", 30000, "paga", "pix"]],
+    compra: { plano: { id: 3, nome: "Compra Street 24 meses" }, total: 24, valorCentavos: 119000, ultimaCentavos: 89000 },
+    eventos: [["2026-06-05T12:10:00Z", "Locação criada por Bruna Alves", ""], ["2026-06-05T12:31:00Z", "Contrato assinado pelo cliente", "assinatura no celular · IP registrado"]],
+  },
+  {
+    id: 2901, status: "encerrada", cliente: { id: 1206, nome: "Lucas Ferreira" }, veiculo: { id: 640, modelo: "Honda CG 160 Fan", placa: "RTA2C55", tipo: "moto" },
+    periodicidade: "mensal", inicio: "2026-11-10T13:00:00Z", fim: "2028-11-10T13:00:00Z",
+    situacao: { codigo: "quitada", rotulo: "Quitada", tom: "sucesso" },
+    pagamento: { rotulo: "Pago", tom: "sucesso", em_aberto_centavos: 0 },
+    acao: { codigo: "abrir", rotulo: "Abrir" },
+    corpo: { periodoCentavos: 119000, diariaCentavos: 5490, caucaoCentavos: 30000, kmSaida: 3120, contrato: { status: "assinado", modelo: "Locação com intenção de compra", assinadoEm: "2026-11-10T12:31:00Z" } },
+    parcelas: [["parcela", "2028-08-10", 119000, "paga", "pix"], ["parcela", "2028-09-10", 119000, "paga", "pix"], ["parcela", "2028-10-10", 89000, "paga", "pix"], ["caucao", "2026-11-10", 30000, "paga", "pix"]],
+    compra: { plano: { id: 3, nome: "Compra Street 24 meses" }, total: 24, valorCentavos: 119000, ultimaCentavos: 89000, quitadaEm: "2028-10-10T13:20:00Z", vendaId: 18 },
+    eventos: [["2026-11-10T12:10:00Z", "Locação criada por Bruna Alves", ""], ["2028-10-10T13:20:00Z", "Locação quitada", "veículo vendido"]],
+  },
+];
+
 const ROTULO_PERIODICIDADE: Record<Periodicidade, string> = { diaria: "diária", semanal: "semana", mensal: "mês" };
 const FORMA: Record<string, string> = { pix: "pix", pix_automatico: "pix_automatico", cartao: "cartao" };
 const VENDEDOR = { id: 3, nome: "Bruna Alves" };
@@ -174,9 +222,10 @@ function acoesDe(s: Semente, perfil: Perfil | null) {
   return {
     editar: cria && s.status === "rascunho",
     confirmar: cria && s.status === "rascunho",
-    renovar: cria && ativa(s) && !emCurso,
+    renovar: cria && ativa(s) && !emCurso && !s.compra,
     registrar_devolucao: ativa(s),
-    trocar_veiculo: cria && s.status === "ativa" && !emCurso && !s.trocaPendente,
+    trocar_veiculo: cria && s.status === "ativa" && !emCurso && !s.trocaPendente && !s.compra,
+    encerrar_por_atraso: (perfil === "administrador" || perfil === "gerente") && !!s.compra && s.status === "ativa" && !!s.sinais?.pagamento_atrasado && !emCurso,
     cancelar_troca: cria && ativa(s) && !!s.trocaPendente && !s.troca?.saidaConcluida,
     cancelar: s.status === "encerrada" || s.status === "cancelada" || emCurso || s.trocaPendente ? (false as const) : cancelar,
     gerar_contrato: cria && s.status === "aguardando_retirada" && !emCurso && !s.corpo.contrato,
@@ -263,6 +312,8 @@ function resumo(s: Semente): LocacaoResumo {
     veiculo: s.veiculo,
     periodicidade: s.periodicidade,
     plano_especial: null,
+    tipo: s.compra ? "intencao_compra" : "comum",
+    tipo_rotulo: s.compra ? "Com intenção de compra" : null,
     inicio: s.inicio,
     fim_previsto: s.fim,
     sinais: { pagamento_atrasado: false, devolve_hoje: false, cancelamento_pendente: false, ...s.sinais },
@@ -292,6 +343,33 @@ function parcelas(s: Semente, perfil: Perfil | null): ParcelaDaLocacao[] {
     pago_em: status === "paga" ? `${vencimento}T12:30:00Z` : null,
     observacao: tipo === "caucao" ? "Devolver na entrega" : null,
   }));
+}
+
+/** O bloco `compra` do detalhe (LOC-16): os textos de `andamento` são os da API (docs/api/locacoes.md); o vistoriador não recebe valores. */
+function compraDe(s: Semente, ps: ParcelaDaLocacao[], vistoriador: boolean): CompraDaLocacao | null {
+  const c = s.compra;
+  if (!c) return null;
+  const pagas = ps.filter((p) => p.tipo === "parcela" && p.status === "paga").length;
+  const perfil = perfilAtualFalso();
+  const br = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/");
+  let andamento: string;
+  if (c.quitadaEm) andamento = c.transferenciaEm ? `Quitada em ${br(c.quitadaEm)} · transferência feita em ${br(c.transferenciaEm)}` : `Quitada em ${br(c.quitadaEm)} · falta a transferência no Detran`;
+  else if (c.faltaParaQuitar?.length) andamento = `${c.total} de ${c.total} parcelas pagas · faltam as contas abaixo para a transferência`;
+  else if (c.total - pagas === 1) andamento = `Parcela ${pagas} de ${c.total} · falta 1 para a transferência`;
+  else andamento = `Parcela ${pagas} de ${c.total} · faltam ${c.total - pagas} para a transferência`;
+  const pode = perfil === "administrador" || perfil === "gerente";
+  return {
+    plano: c.plano,
+    parcelas_total: c.total,
+    parcelas_pagas: pagas,
+    ...(vistoriador ? {} : { valor_parcela_centavos: c.valorCentavos, ultima_parcela_centavos: c.ultimaCentavos, sobra_caucao_centavos: 0 }),
+    andamento,
+    falta_para_quitar: c.faltaParaQuitar ?? [],
+    quitada_em: c.quitadaEm ?? null,
+    venda: c.vendaId
+      ? { id: c.vendaId, codigo: "VEN-0178", transferencia: { feita_em: c.transferenciaEm ?? null, registrada_por: c.transferenciaEm ? { id: 2, nome: "Rodrigo Pinheiro" } : null, pendente: !c.transferenciaEm }, acoes: { registrar_transferencia: pode && !c.transferenciaEm } }
+      : null,
+  };
 }
 
 function detalhe(s: Semente): LocacaoCompleta {
@@ -348,6 +426,7 @@ function detalhe(s: Semente): LocacaoCompleta {
           pedido_aprovacao_id: 88,
           antes_da_retirada: false,
           automatico: false,
+          por_atraso: s.cancelamento.porAtraso ?? false,
           data: s.cancelamento.data,
           multa_centavos: s.cancelamento.multa,
           credito_centavos: s.cancelamento.credito,
@@ -370,6 +449,7 @@ function detalhe(s: Semente): LocacaoCompleta {
         }
       : null,
     acoes: acoesDe(s, perfil),
+    compra: compraDe(s, ps, vistoriador),
   };
   if (!vistoriador) return base;
   // O vistoriador não recebe nenhum valor: sem pagamento, preços, parcelas, extras nem desconto (docs/api/locacoes.md).
@@ -384,7 +464,7 @@ function detalhe(s: Semente): LocacaoCompleta {
 }
 
 function achar(id: number): Semente {
-  const s = SEMENTES.find((x) => x.id === id);
+  const s = SEMENTES.find((x) => x.id === id) ?? SEMENTES_COMPRA.find((x) => x.id === id);
   if (!s) throw new ErroApi(404, "nao_encontrado", "Locação não encontrada");
   return s;
 }
@@ -487,6 +567,7 @@ const reais = (centavos: number) => `R$ ${(centavos / 100).toFixed(2).replace(".
 
 /** O que a API faz em POST /api/locacoes/simular/ (calculo.py): preços da categoria, plano especial, extras, desconto e parcelas. */
 async function simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
+  if (e.tipo === "intencao_compra") return simularCompra(e);
   exigirCria();
   const [cliente, veiculo] = await Promise.all([clientesFalso.interno(e.cliente_id), veiculosFalso.obter(e.veiculo_id)]);
   const campos: Record<string, string> = {};
@@ -556,6 +637,50 @@ async function simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
     precisa_aprovacao_desconto: pct > 5 && perfilAtualFalso() === "vendedor",
     impedimentos,
     avisos,
+    compra: null,
+  };
+}
+
+/** LOC-16: simulação do plano de compra. O prazo, as parcelas e a última (com a caução abatida) vêm do plano; sem desconto nem extras (CA-420-02). */
+async function simularCompra(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
+  exigirCria();
+  const [cliente, veiculo] = await Promise.all([clientesFalso.interno(e.cliente_id), veiculosFalso.obter(e.veiculo_id)]);
+  const campos: Record<string, string> = {};
+  const plano = PLANOS_COMPRA.find((p) => p.id === e.plano_compra_id);
+  if (!plano || !plano.ativo) campos.plano_compra_id = "Escolha o plano de compra.";
+  if ((e.extras ?? []).length > 0) campos.extras = "A locação com intenção de compra usa o valor do plano.";
+  if (Number(e.desconto_pct) !== 0) campos.desconto_pct = "A locação com intenção de compra usa o valor do plano.";
+  if (Object.keys(campos).length > 0 || !plano) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, campos);
+  const impedimentos: AvisoLocacao[] = [];
+  if (cliente.status === "bloqueado") impedimentos.push({ codigo: "CLI-05", mensagem: "Cliente bloqueado por atraso. Quite o que deve antes de alugar." });
+  if (veiculo.status !== "disponivel") impedimentos.push({ codigo: "LOC-03", mensagem: "Veículo indisponível no período" });
+  const avisos: AvisoLocacao[] = [];
+  if (!modeloDeCompra.publicado) avisos.push({ codigo: "LOC-16", mensagem: "Publique o modelo de contrato da locação com intenção de compra antes de confirmar.", link: "/admin/contratos" });
+  const primeiro = `${e.inicio.slice(0, 10)}T12:00:00Z`;
+  const parcelas: ParcelaPrevista[] = Array.from({ length: plano.parcelas }, (_, k) => ({
+    numero: k + 1,
+    vencimento: dia(Date.parse(somarPeriodos(primeiro, plano.periodicidade, k))),
+    valor_centavos: k === plano.parcelas - 1 ? plano.ultima_parcela_centavos : plano.valor_parcela_centavos,
+  }));
+  return {
+    fim_previsto: somarPeriodos(e.inicio, plano.periodicidade, plano.parcelas),
+    periodos: plano.parcelas,
+    linhas: [
+      { rotulo: `${plano.parcelas} parcelas ${plano.periodicidade === "mensal" ? "mensais" : "semanais"} × ${reais(plano.valor_parcela_centavos)}`, valor_centavos: plano.valor_parcela_centavos * plano.parcelas },
+      { rotulo: "Caução (abatida na última parcela)", valor_centavos: plano.caucao_centavos },
+      { rotulo: "Última parcela", valor_centavos: plano.ultima_parcela_centavos },
+    ],
+    valor_periodo_centavos: plano.valor_parcela_centavos,
+    proximos_periodos_centavos: plano.valor_parcela_centavos,
+    hoje_na_retirada_centavos: plano.valor_parcela_centavos + plano.caucao_centavos,
+    texto_retirada: "Na retirada: primeira parcela mais caução.",
+    parcelas_previstas: parcelas,
+    caucao_centavos: plano.caucao_centavos,
+    diaria_centavos: 0,
+    precisa_aprovacao_desconto: false,
+    impedimentos,
+    avisos,
+    compra: { parcelas_total: plano.parcelas, valor_parcela_centavos: plano.valor_parcela_centavos, ultima_parcela_centavos: plano.ultima_parcela_centavos, sobra_caucao_centavos: 0 },
   };
 }
 
@@ -579,6 +704,9 @@ async function semente(id: number, e: EntradaDaLocacao, status: StatusLocacao, a
     desconto: e.desconto_pct,
     eventos: anterior?.eventos ?? [[AGORA_DO_SEED, "Locação criada", ""]],
     entrada: e,
+    ...(e.tipo === "intencao_compra" && sim.compra
+      ? { compra: { plano: { id: e.plano_compra_id ?? 0, nome: PLANOS_COMPRA.find((p) => p.id === e.plano_compra_id)?.nome ?? "" }, total: sim.compra.parcelas_total, valorCentavos: sim.compra.valor_parcela_centavos, ultimaCentavos: sim.compra.ultima_parcela_centavos } }
+      : {}),
   };
 }
 
@@ -586,6 +714,11 @@ export const locacoesFalso = {
   async extras(): Promise<{ resultados: ExtraDeLocacao[] }> {
     await pausa(100);
     return { resultados: EXTRAS.filter((x) => x.ativo) };
+  },
+
+  async planosDeCompra(f: { categoria?: number } = {}): Promise<{ resultados: PlanoDeCompra[] }> {
+    await pausa(100);
+    return { resultados: PLANOS_COMPRA.filter((p) => p.ativo && (!f.categoria || p.categoria.id === f.categoria)) };
   },
 
   async planosEspeciais(): Promise<{ resultados: PlanoEspecial[] }> {
@@ -622,6 +755,8 @@ export const locacoesFalso = {
     exigirCria();
     const antigo = achar(id);
     if (antigo.status !== "rascunho" || !antigo.entrada) throw new ErroApi(409, "transicao_locacao", "Só é possível confirmar uma locação em rascunho");
+    if (antigo.entrada.tipo === "intencao_compra" && !modeloDeCompra.publicado)
+      throw new ErroApi(422, "LOC-16", "Publique o modelo de contrato da locação com intenção de compra antes de confirmar.", { link: "/admin/contratos" });
     const bloqueio = (await simular(antigo.entrada)).impedimentos[0];
     if (bloqueio?.codigo === "inicio_vencido") throw new ErroApi(409, "inicio_vencido", bloqueio.mensagem, { inicio: dia(Date.parse(antigo.entrada.inicio)), ultimo_dia_retirada: dia(Date.parse(antigo.entrada.inicio) + 3 * DIA) });
     if (bloqueio) throw new ErroApi(bloqueio.codigo === "LOC-03" ? 409 : 422, bloqueio.codigo, bloqueio.mensagem);
@@ -691,6 +826,7 @@ export const locacoesFalso = {
     await pausa(200);
     exigirCria();
     const s = achar(id);
+    if (s.compra) throw new ErroApi(409, "LOC-16", "A locação com intenção de compra não se renova.");
     if (!ativa(s)) throw new ErroApi(409, "transicao_locacao", "Só é possível renovar uma locação ativa");
     if (s.cancelamento) throw new ErroApi(409, "cancelamento_em_andamento", "Há um cancelamento em andamento nesta locação");
     const periodos = corpo.periodos ?? 0;
@@ -742,10 +878,41 @@ export const locacoesFalso = {
     return { status: 200, locacao: detalhe(s) };
   },
 
+  /** LOC-16: encerra por atraso a locação com parcela atrasada, com a data de hoje; sem multa nem crédito. */
+  async encerrarPorAtraso(id: number, corpo: { motivo: string; data?: string | null }): Promise<LocacaoCompleta> {
+    await pausa(300);
+    const perfil = perfilAtualFalso();
+    if (perfil !== "administrador" && perfil !== "gerente") throw new ErroApi(403, "sem_permissao", "Você não tem permissão para esta ação");
+    const s = achar(id);
+    if (!s.compra || !s.sinais?.pagamento_atrasado) throw new ErroApi(409, "LOC-16", "Esta locação não tem parcela atrasada. Para encerrar a pedido do cliente, use Cancelar locação.");
+    if (!corpo.motivo.trim()) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, { motivo: "Informe o motivo" });
+    const hoje = dia(Date.parse(AGORA_DO_SEED));
+    if (corpo.data && corpo.data !== hoje) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, { data: "Informe a data de hoje." });
+    s.cancelamento = { status: "aprovado", data: hoje, multa: 0, credito: 0, devolver: 0, motivo: corpo.motivo, porAtraso: true };
+    s.situacao = { codigo: "cancelamento_aprovado", rotulo: "Encerramento aprovado", tom: "info" };
+    s.eventos.push([AGORA_DO_SEED, "Encerrada por atraso", corpo.motivo]);
+    return detalhe(s);
+  },
+
+  /** VEN-11: a transferência no Detran da locação quitada. */
+  async registrarTransferencia(id: number, corpo: { feita_em: string }): Promise<LocacaoCompleta> {
+    await pausa(300);
+    const perfil = perfilAtualFalso();
+    if (perfil !== "administrador" && perfil !== "gerente") throw new ErroApi(403, "sem_permissao", "Você não tem permissão para esta ação");
+    const s = achar(id);
+    if (!s.compra?.vendaId) throw new ErroApi(404, "nao_encontrado", "Esta locação não tem venda da quitação.");
+    if (s.compra.transferenciaEm) throw new ErroApi(409, "VEN-11", "A transferência desta venda já foi registrada.");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(corpo.feita_em)) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, { feita_em: "Informe a data." });
+    s.compra.transferenciaEm = corpo.feita_em;
+    s.eventos.push([AGORA_DO_SEED, `Transferência no Detran feita em ${corpo.feita_em.split("-").reverse().join("/")}`, "Rodrigo Pinheiro"]);
+    return detalhe(s);
+  },
+
   async trocarVeiculo(id: number, corpo: { veiculo_novo_id: number; motivo: string }): Promise<TrocaPedida> {
     await pausa(300);
     exigirCria();
     const s = achar(id);
+    if (s.compra) throw new ErroApi(409, "LOC-16", "A locação com intenção de compra não troca de veículo. Encerre esta e abra outra.");
     if (s.status !== "ativa") throw new ErroApi(409, "transicao_locacao", "Só é possível trocar o veículo de uma locação ativa");
     if (s.trocaPendente) throw new ErroApi(409, "troca_pendente", "Já existe uma troca de veículo pendente nesta locação");
     if (!corpo.motivo.trim()) throw new ErroApi(400, "validacao", "Confira os campos destacados", undefined, { motivo: "Informe o motivo" });

@@ -11,9 +11,9 @@ import { agoraDaTela } from "@/lib/ambiente";
 import { dataCurta, diaDe, dinheiro, placa } from "@/lib/formatos";
 import { dataEHora, textoDaEstimativa, textoDoPeriodo } from "@/lib/locacoes";
 
-// Renovar, trocar o veículo e cancelar a locação. Os valores, a multa e as recusas vêm da API (docs/api/locacoes.md).
+// Renovar, trocar o veículo, cancelar a locação e encerrar por atraso (LOC-16). Os valores, a multa e as recusas vêm da API (docs/api/locacoes.md).
 
-type Dialogos = "renovar" | "trocar" | "cancelar_troca" | "cancelar" | null;
+type Dialogos = "renovar" | "trocar" | "cancelar_troca" | "cancelar" | "encerrar_por_atraso" | null;
 
 function Erro({ erro }: { erro: unknown }) {
   return (
@@ -181,6 +181,46 @@ function Cancelar({ l, aoFechar, aoConcluir }: { l: LocacaoCompleta; aoFechar: (
   );
 }
 
+/** LOC-16: encerra a locação com intenção de compra que tem parcela atrasada. A data é a de hoje; a recusa da API aparece como veio. */
+function EncerrarPorAtraso({ l, aoFechar, aoConcluir }: { l: LocacaoCompleta; aoFechar: () => void; aoConcluir: (m: string) => void }) {
+  const cliente = useQueryClient();
+  const hoje = diaDe(agoraDaTela().toISOString());
+  const [motivo, setMotivo] = useState("");
+  const encerrar = useMutation({
+    mutationFn: () => locacoes.encerrarPorAtraso(l.id, { motivo, data: hoje }),
+    onSuccess: async () => {
+      await atualizar(cliente, l.id);
+      aoConcluir(`${l.codigo} encerrada por atraso. Registre a devolução para fechar a conta.`);
+      aoFechar();
+    },
+  });
+  return (
+    <Dialogo
+      aberto
+      aoFechar={aoFechar}
+      fecharAoClicarFora={false}
+      titulo={`Encerrar a ${l.codigo} por atraso`}
+      descricao="O que foi pago fica como aluguel do período usado."
+      acoes={
+        <>
+          <Button variante="quieto" data-autofocus onClick={aoFechar}>
+            Voltar
+          </Button>
+          <Button variante="solido" disabled={!motivo.trim() || encerrar.isPending} onClick={() => encerrar.mutate()}>
+            {encerrar.isPending ? "Encerrando…" : "Encerrar locação"}
+          </Button>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <TextField cheio rotulo="Motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} erro={campoDoErro(encerrar.error, "motivo")} />
+        <TextField cheio mono rotulo="Data" type="date" value={hoje} readOnly erro={campoDoErro(encerrar.error, "data")} />
+        {encerrar.isError && !campoDoErro(encerrar.error, "motivo") && !campoDoErro(encerrar.error, "data") && <Erro erro={encerrar.error} />}
+      </div>
+    </Dialogo>
+  );
+}
+
 function Trocar({ l, aoFechar, aoConcluir }: { l: LocacaoCompleta; aoFechar: () => void; aoConcluir: (m: string) => void }) {
   const cliente = useQueryClient();
   const [novo, setNovo] = useState("");
@@ -334,6 +374,11 @@ export function AcoesDaLocacao({ l, variante, aoConcluir }: { l: LocacaoCompleta
       Cancelar troca
     </Button>
   );
+  const encerrarPorAtraso = a.encerrar_por_atraso && (
+    <Button key="eat" variante="quieto" onClick={() => setAberto("encerrar_por_atraso")}>
+      Encerrar por atraso
+    </Button>
+  );
   const cancelar = a.cancelar && (
     <Button key="can" variante="quieto" onClick={() => setAberto("cancelar")}>
       {a.cancelar === "pedir" ? "Pedir cancelamento" : "Cancelar locação"}
@@ -343,18 +388,20 @@ export function AcoesDaLocacao({ l, variante, aoConcluir }: { l: LocacaoCompleta
   return (
     <>
       {variante === "desktop" ? (
-        <div className="flex flex-wrap items-center gap-2">{[renovar, trocar, cancelarTroca, cancelar, continuarRascunho, vistoria, continuar, devolucao]}</div>
+        <div className="flex flex-wrap items-center gap-2">{[renovar, trocar, cancelarTroca, cancelar, encerrarPorAtraso, continuarRascunho, vistoria, continuar, devolucao]}</div>
       ) : (
         <div className="flex flex-col gap-2 [&_.wl-btn]:justify-center">
           <div className="flex gap-2 [&>*:first-child]:flex-1 [&>*:last-child]:flex-[2]">{[renovar, continuarRascunho, vistoria, continuar, devolucao]}</div>
           {trocar}
           {cancelarTroca}
           {cancelar}
+          {encerrarPorAtraso}
         </div>
       )}
       {aberto === "renovar" && <Renovar l={l} aoFechar={fechar} aoConcluir={aoConcluir} />}
       {aberto === "cancelar" && <Cancelar l={l} aoFechar={fechar} aoConcluir={aoConcluir} />}
       {aberto === "cancelar_troca" && <CancelarTroca l={l} aoFechar={fechar} aoConcluir={aoConcluir} />}
+      {aberto === "encerrar_por_atraso" && <EncerrarPorAtraso l={l} aoFechar={fechar} aoConcluir={aoConcluir} />}
       {aberto === "trocar" && <Trocar l={l} aoFechar={fechar} aoConcluir={aoConcluir} />}
     </>
   );

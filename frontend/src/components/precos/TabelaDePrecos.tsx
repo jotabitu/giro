@@ -9,6 +9,7 @@ import { useSessao } from "@/lib/sessao";
 import { CategoriasDePreco } from "./CategoriasDePreco";
 import { ExtrasDeLocacao } from "./ExtrasDeLocacao";
 import { HistoricoDePrecos } from "./HistoricoDePrecos";
+import { PlanosDeCompra } from "./PlanosDeCompra";
 import { PlanosEspeciais } from "./PlanosEspeciais";
 
 // Referência: docs/telas/html/Precos-Desktop.dc.html e Precos-Mobile.dc.html.
@@ -70,6 +71,8 @@ export function TabelaDePrecos() {
           <ExtrasDeLocacao aoAvisar={setAviso} />
         </div>
       </div>
+
+      <PlanosDeCompra aoAvisar={setAviso} />
 
       {historico && <HistoricoDePrecos aoFechar={() => setHistorico(false)} />}
     </div>

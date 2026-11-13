@@ -50,7 +50,7 @@ function Situacao({ l }: { l: LocacaoResumo }) {
 const COLUNAS: ColunaTabela<LocacaoResumo>[] = [
   { chave: "cliente", titulo: "Cliente", celula: (l) => <CelulaDupla principal={l.cliente.nome} secundaria={<span className="wl-mono">{l.codigo}</span>} /> },
   { chave: "veiculo", titulo: "Veículo", celula: (l) => <CelulaDupla principal={<span className="font-normal">{l.veiculo.modelo}</span>} secundaria={placa(l.veiculo.placa)} /> },
-  { chave: "plano", titulo: "Plano e período", celula: (l) => <CelulaDupla principal={ROTULO_PERIODICIDADE[l.periodicidade]} secundaria={periodoDaLocacao(l)} /> },
+  { chave: "plano", titulo: "Plano e período", celula: (l) => <CelulaDupla principal={l.tipo_rotulo ?? ROTULO_PERIODICIDADE[l.periodicidade]} secundaria={periodoDaLocacao(l)} /> },
   { chave: "situacao", titulo: "Situação", celula: (l) => <Situacao l={l} /> },
   // LOC-17 (T-456): o texto e a caução vêm prontos da API.
   {

@@ -89,7 +89,7 @@ export function DialogoDoModelo({ modelo, aoFechar, aoConcluir }: DialogoDoModel
           {marcadores.isError && <p className="m-0 text-caption text-ink-muted">{mensagemDoErro(marcadores.error)}</p>}
           {marcadores.data && (
             <div className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
-              {marcadores.data.map((m) => (
+              {marcadores.data.filter((m) => m.finalidade === null || m.finalidade === modelo.finalidade).map((m) => (
                 <button
                   key={m.chave}
                   type="button"

@@ -1,6 +1,7 @@
 // Tabelas de preço na API real (docs/api/veiculos.md "Categorias e preços" e "Extras", docs/api/locacoes.md "Planos especiais").
 // Só o administrador muda; os outros perfis leem pelas rotas de escolha (`veiculos.categorias`, `locacoes.extras`).
 import { http } from "./http";
+import type { CorpoDoPlanoDeCompra, PlanoDeCompra } from "./tipos-locacoes";
 import type {
   CategoriaDePreco,
   CorpoDaCategoria,
@@ -87,5 +88,22 @@ export const precosApi = {
 
   desativarPlanoEspecial(id: number): Promise<PlanoEspecialDePreco> {
     return http.post(`/api/planos-especiais/${id}/desativar/`, {});
+  },
+
+  /** LOC-16: planos de compra. `ativo: "todos"` traz também os desativados. Só o administrador cria, edita e desativa. */
+  async planosDeCompra(f: { ativo?: boolean | "todos" } = {}): Promise<PlanoDeCompra[]> {
+    return (await http.get<{ resultados: PlanoDeCompra[] }>("/api/planos-compra/", { ativo: f.ativo === undefined || f.ativo === "todos" ? undefined : String(f.ativo) })).resultados;
+  },
+
+  criarPlanoDeCompra(corpo: CorpoDoPlanoDeCompra): Promise<PlanoDeCompra> {
+    return http.post("/api/planos-compra/", corpo);
+  },
+
+  alterarPlanoDeCompra(id: number, corpo: Partial<CorpoDoPlanoDeCompra>): Promise<PlanoDeCompra> {
+    return http.patch(`/api/planos-compra/${id}/`, corpo);
+  },
+
+  desativarPlanoDeCompra(id: number): Promise<PlanoDeCompra> {
+    return http.post(`/api/planos-compra/${id}/desativar/`, {});
   },
 };
