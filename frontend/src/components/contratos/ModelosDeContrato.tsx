@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Button, Dialogo, Icone, StatusBadge } from "@/design-system";
 import { modelosContrato as api, type ModeloDeContrato, type ModeloDeContratoDaLista } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
-import { podePublicar, rotuloDePublicar, rotuloDeUso, rotuloDoModelo } from "@/lib/contratos";
+import { TEXTO_ARQUIVAR_MODELO, podePublicar, rotuloDePublicar, rotuloDeUso, rotuloDoModelo } from "@/lib/contratos";
 import { dataCurta } from "@/lib/formatos";
 import { DialogoDoModelo } from "./DialogoDoModelo";
 import { DialogoNovoModelo } from "./DialogoNovoModelo";
@@ -44,7 +44,7 @@ function Detalhe({ resumo, aoAvisar, aoPublicar }: { resumo: ModeloDeContratoDaL
     onSuccess: async () => {
       await cliente.invalidateQueries({ queryKey: ["contratos"] });
       setConfirmaArquivar(false);
-      aoAvisar("Modelo arquivado. Ele sai do uso, mas não é apagado.");
+      aoAvisar(TEXTO_ARQUIVAR_MODELO);
     },
   });
 
@@ -161,7 +161,7 @@ function Detalhe({ resumo, aoAvisar, aoPublicar }: { resumo: ModeloDeContratoDaL
           aberto
           aoFechar={() => setConfirmaArquivar(false)}
           titulo={`Arquivar ${resumo.nome}`}
-          descricao="O modelo sai do uso em contratos novos. Ele não é apagado e os contratos já assinados não mudam."
+          descricao={TEXTO_ARQUIVAR_MODELO}
           acoes={
             <>
               <Button variante="quieto" onClick={() => setConfirmaArquivar(false)}>
