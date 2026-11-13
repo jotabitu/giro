@@ -326,8 +326,11 @@ function resumo(s: Semente): LocacaoResumo {
 
 function parcelas(s: Semente, perfil: Perfil | null): ParcelaDaLocacao[] {
   const total = s.parcelas.filter((p) => p[0] === "parcela").length;
+  // LOC-16: com compra, a última parcela com valor leva "caução abatida" e entra a parcela de R$ 0,00 sem conta, antes da caução (CA-420-14).
+  const ultima = s.compra ? s.parcelas.map((p) => p[0]).lastIndexOf("parcela") : -1;
+  const caucaoPaga = s.parcelas.some((p) => p[0] === "caucao" && p[3] === "paga");
   let n = 0;
-  return s.parcelas.map(([tipo, vencimento, valor, status, forma], i) => ({
+  const linhas: ParcelaDaLocacao[] = s.parcelas.map(([tipo, vencimento, valor, status, forma], i) => ({
     id: s.id * 10 + i,
     conta_id: s.id * 10 + i,
     paga_com_caucao: false,
@@ -342,15 +345,34 @@ function parcelas(s: Semente, perfil: Perfil | null): ParcelaDaLocacao[] {
     status,
     forma: forma ? (FORMA[forma] ?? forma) : null,
     pago_em: status === "paga" ? `${vencimento}T12:30:00Z` : null,
-    observacao: tipo === "caucao" ? "Devolver na entrega" : null,
+    observacao: tipo === "caucao" ? "Devolver na entrega" : i === ultima ? "caução abatida" : null,
   }));
+  if (ultima < 0) return linhas;
+  const u = linhas[ultima]!;
+  const zero: ParcelaDaLocacao = {
+    ...u,
+    id: null,
+    conta_id: null,
+    paga_com_caucao: true,
+    rotulo: `Parcela ${total + 1}`,
+    numero: total + 1,
+    total_parcelas: total + 1,
+    valor_centavos: 0,
+    valor_hoje_centavos: 0,
+    acoes: { receber: false },
+    status: caucaoPaga ? "paga" : "aberta",
+    forma: null,
+    pago_em: caucaoPaga ? u.pago_em : null,
+    observacao: caucaoPaga ? "paga com a caução" : "será paga com a caução",
+  };
+  return [...linhas.slice(0, ultima + 1), zero, ...linhas.slice(ultima + 1)];
 }
 
 /** O bloco `compra` do detalhe (LOC-16): os textos de `andamento` são os da API (docs/api/locacoes.md); o vistoriador não recebe valores. */
 function compraDe(s: Semente, ps: ParcelaDaLocacao[], vistoriador: boolean): CompraDaLocacao | null {
   const c = s.compra;
   if (!c) return null;
-  const pagas = ps.filter((p) => p.tipo === "parcela" && p.status === "paga").length;
+  const pagas = ps.filter((p) => p.tipo === "parcela" && !p.paga_com_caucao && p.status === "paga").length;
   const perfil = perfilAtualFalso();
   const br = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/");
   let andamento: string;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { periodoDaLocacao, rotaDaAcaoLocacao, rotuloDaParcela, seloDaParcela, textoDoPagamento, textoDaEstimativa, textoDoPeriodo, textoFaltam } from "./locacoes";
+import { chaveDaParcela, periodoDaLocacao, rotaDaAcaoLocacao, rotuloDaParcela, seloDaParcela, textoDoPagamento, textoDaEstimativa, textoDoPeriodo, textoFaltam } from "./locacoes";
 
 const sinais = { pagamento_atrasado: false, devolve_hoje: false, cancelamento_pendente: false };
 
@@ -30,6 +30,16 @@ describe("parcelas", () => {
     expect(seloDaParcela({ tipo: "parcela", status: "paga", forma: "pix", observacao: null })).toEqual({ texto: "Pago · Pix", tom: "sucesso" });
     expect(seloDaParcela({ tipo: "caucao", status: "paga", forma: "pix", observacao: "Devolver na entrega" })).toEqual({ texto: "Devolver na entrega", tom: "info" });
     expect(seloDaParcela({ tipo: "parcela", status: "atrasada", forma: null, observacao: null })).toEqual({ texto: "Atrasada", tom: "critico" });
+  });
+  it("loc_16_parcela_paga_com_a_caucao: a linha sem conta mostra a observação da API, e a última com valor leva 'caução abatida'", () => {
+    expect(seloDaParcela({ tipo: "parcela", status: "paga", forma: null, observacao: "paga com a caução", paga_com_caucao: true })).toEqual({ texto: "paga com a caução", tom: "sucesso" });
+    expect(seloDaParcela({ tipo: "parcela", status: "aberta", forma: null, observacao: "será paga com a caução", paga_com_caucao: true })).toEqual({ texto: "será paga com a caução", tom: "neutro" });
+    expect(seloDaParcela({ tipo: "parcela", status: "aberta", forma: null, observacao: "caução abatida", paga_com_caucao: false })).toEqual({ texto: "Em aberto · caução abatida", tom: "neutro" });
+    expect(seloDaParcela({ tipo: "parcela", status: "paga", forma: "pix", observacao: "caução abatida", paga_com_caucao: false })).toEqual({ texto: "Pago · Pix · caução abatida", tom: "sucesso" });
+  });
+  it("loc_16_chave_da_parcela_sem_id: a linha paga com a caução tem chave própria", () => {
+    expect(chaveDaParcela({ id: null, tipo: "parcela", numero: 104 })).toBe("parcela-104-");
+    expect(chaveDaParcela({ id: 7, tipo: "caucao", numero: null })).toBe("caucao--7");
   });
   it("coluna Parcela", () => {
     expect(rotuloDaParcela({ tipo: "parcela", numero: 2 })).toBe("2");
