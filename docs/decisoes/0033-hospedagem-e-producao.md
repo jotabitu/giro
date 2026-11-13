@@ -24,7 +24,7 @@ O dono decidiu, em 25 out 2026, resolver isso já (D7).
 - **Banco.** PostgreSQL 16 com os três papéis da ADR 0016 e o Redis, os dois com senha (T-274).
 - **Arquivos.** Armazenamento compatível com S3, com buckets separados para homologação e produção (`GIRO_ARMAZENAMENTO=s3`).
 - **Sentry.** O Sentry SaaS (plano gratuito no piloto e Team quando passar da cota) já está sem segredos (T-270). Vale para as três opções.
-- **Domínio.** `admin.girolocadoras.com.br` para a plataforma e `<subdominio>.girolocadoras.com.br` para as empresas (07 out 2026). Domínio próprio de cliente é fase 2 (`PLT-11`).
+- **Domínio.** `admin.girolocadoras.com.br` para a plataforma e `<subdominio>.girolocadoras.com.br` para as empresas (07 out 2026). Domínio próprio de cliente é fase 2 (`PLT-11`). **Nota de 13 nov 2026:** o domínio passou a ser `giro.ceo` (`admin.giro.ceo` e `<subdominio>.giro.ceo`; homologação em `homolog.giro.ceo`), com DNS na Cloudflare e curinga por DNS-01; `girolocadoras.com.br` nunca foi registrado. A decisão de hospedagem não muda.
 
 ## Decisão a tomar: três opções
 

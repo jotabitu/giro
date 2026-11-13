@@ -13,7 +13,7 @@ infra/
 
 Na raiz ficam `docker-compose.yml`, `Makefile` e `.env.example` (tarefa T-003) e `.github/workflows/` (tarefa T-005).
 
-Domínios: `admin.girolocadoras.com.br` (plataforma) e `<subdominio>.girolocadoras.com.br` (empresas). Domínio decidido em 07 out 2026 (ver regras); mesmo assim, tudo configurável por variável de ambiente.
+Domínios: `admin.giro.ceo` (plataforma) e `<subdominio>.giro.ceo` (empresas). Domínio definido como `giro.ceo` em 13 nov 2026; homologação em `homolog.giro.ceo` (`admin.homolog.giro.ceo` e `<subdominio>.homolog.giro.ceo`). Mesmo assim, tudo configurável por variável de ambiente.
 
 ## Subir o ambiente
 
@@ -166,7 +166,7 @@ Um compose só. Cada `mem_limit`, a concorrência do worker geral, o `shared_buf
 | VPS de 4 vCPU e 8 GB (Magalu Cloud, de preferência) | roda tudo | Ubuntu 24.04 LTS, disco de 160 GB ou mais. Firewall do provedor com **só 80 e 443** abertos para o mundo e 22 só para os IPs da equipe (ou Tailscale). Snapshot do disco do provedor não conta como backup |
 | Object storage compatível com S3 do mesmo provedor | arquivos (fotos, documentos, logos) | Bucket privado. Duas chaves: uma de leitura e escrita para a aplicação e uma **só de leitura** para o backup |
 | Bucket de backup em **outro provedor** (Backblaze B2 ou Cloudflare R2) | destino cifrado de pgBackRest e restic | Dois buckets ou dois prefixos (`giro` para o banco e `arquivos` para o restic), com Object Lock quando o provedor oferecer; credencial própria, que a aplicação não tem |
-| Domínio `girolocadoras.com.br` e DNS na Cloudflare | endereços e certificado curinga | Zona na Cloudflare (plano gratuito) e um token de API só com Zone > DNS > Edit |
+| Domínio `giro.ceo` e DNS na Cloudflare | endereços e certificado curinga | Zona na Cloudflare (plano gratuito) e um token de API só com Zone > DNS > Edit |
 | E-mail transacional (SMTP) | convites, senhas, faturas | SPF, DKIM e DMARC no domínio. Outra conta SMTP, ou a mesma com outra credencial, para os alertas |
 | Asaas de produção, Sentry | pagamentos e erros | Chaves só no cofre |
 | Cofre: Doppler ou Bitwarden Secrets Manager | segredos | Plano gratuito. Dois projetos ou configs: `prd` (aplicação) e `prd_infra` (infraestrutura). Token de leitura para a VPS |
@@ -177,7 +177,7 @@ Um compose só. Cada `mem_limit`, a concorrência do worker geral, o `shared_buf
 ### Roteiro de subida
 
 1. **VPS:** crie com chave SSH (sem senha), `timedatectl set-timezone America/Sao_Paulo`, atualizações automáticas de segurança (`unattended-upgrades`), Docker e Compose v2, um usuário `giro` no grupo `docker`. Firewall do provedor: 80 e 443 abertos, 22 só para a equipe. O repositório vai em `/opt/giro` (`git clone`, tag de produção).
-2. **DNS:** na Cloudflare, registros `A` de `girolocadoras.com.br` e `*.girolocadoras.com.br` para o IP da VPS, **sem proxy** (nuvem cinza: o nginx precisa ver o IP real para a lista do Admin e os limites).
+2. **DNS:** na Cloudflare, registros `A` de `giro.ceo` e `*.giro.ceo` para o IP da VPS, **sem proxy** (nuvem cinza: o nginx precisa ver o IP real para a lista do Admin e os limites). Para homologação, `homolog.giro.ceo` e `*.homolog.giro.ceo` do mesmo jeito. O token da Cloudflare só tem Zone > DNS > Edit da zona `giro.ceo`. **E-mail:** o envio pelo domínio (`nao-responda@giro.ceo`) só entrega com os registros SPF, DKIM e DMARC do provedor de envio; configure-os junto com o DNS.
 3. **Cofre e segredos:** preencha `prd` e `prd_infra`. Na VPS: `sudo mkdir /etc/giro && sudo chown giro /etc/giro`, depois `COFRE=doppler sh infra/deploy/baixar-segredos.sh` (ou `COFRE=bws`, com as variáveis do cabeçalho do script). Ele grava `producao.env`, `producao-infra.env`, `admin-ips.conf` e `cloudflare.ini` em `/etc/giro`, permissão 600. `GIRO_REDES_PROXY=172.30.0.0/24`.
 4. **Certificado:** `sh infra/deploy/certificado.sh emitir` (curinga por DNS-01, cerca de 2 minutos). Confira que o arquivo existe no volume (`docker run --rm -v giro_letsencrypt:/l alpine ls /l/live`).
 5. **Banco, Redis e primeiro stanza:**
@@ -190,7 +190,7 @@ Um compose só. Cada `mem_limit`, a concorrência do worker geral, o `shared_buf
 7. **Primeiro backup:** `sh infra/backup/backup-banco.sh full` e `sh infra/backup/backup-arquivos.sh`.
 8. **Timers:** `sudo GIRO_RAIZ=/opt/giro GIRO_USUARIO=giro sh infra/backup/systemd/instalar.sh` (backups, renovação do certificado e monitoramento).
 9. **Restauração testada, antes do primeiro cliente:** `sh infra/backup/restaurar-teste.sh`, o passo manual da foto pela URL assinada e a linha em `infra/backup/registro-restauracoes.md`. Sem isso não há backup (ADR 0033, item 3).
-10. **Teste de fora:** só 80 e 443 respondem (`nmap` de outra rede), `https://admin.girolocadoras.com.br` abre com o certificado válido, `/admin/` responde 404 com a lista de IPs vazia, e um alerta de teste chega (pare o `worker` por um minuto e espere o monitoramento rápido avisar).
+10. **Teste de fora:** só 80 e 443 respondem (`nmap` de outra rede), `https://admin.giro.ceo` abre com o certificado válido, `/admin/` responde 404 com a lista de IPs vazia, e um alerta de teste chega (pare o `worker` por um minuto e espere o monitoramento rápido avisar).
 11. **Primeiro dono da plataforma:** o `seed_moto_rapida` não roda em produção (`prod.py`), e não confirmei um comando que crie o primeiro dono real do painel da plataforma. Isso é pendência do backend, registrada no handoff da T-373; a primeira empresa nasce pelo painel.
 
 ### Operação
