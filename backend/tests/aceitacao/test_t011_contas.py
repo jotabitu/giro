@@ -1770,6 +1770,7 @@ TODOS_OS_MODULOS = [
     "relatorios",
     "veiculos",
     "vendas",
+    "vendas_balcao",  # propostas, veículos à venda e comissões (T-418)
     "vistorias",
 ]
 ADMINISTRACAO = ["config", "marca", "filiais", "usuarios", "assinatura", "auditoria"]
@@ -1915,6 +1916,35 @@ def test_usr_05_menu_do_administrador_tem_auditoria(adm):
     for nome in ("Rodrigo", "Lúcia"):
         chaves = [c for _, itens in _chaves(_navegacao(adm, nome)["menu_completo"]) for c in itens]
         assert "auditoria" not in chaves
+
+
+def test_usr_05_ven_11_menu_padrao_tem_vendas_sem_os_itens_da_t418(adm):
+    """T-420: com os módulos padrão, no Profissional que aluga e vende, administrador, gerente
+    e vendedora veem Vendas (a lista de `/vendas`, VEN-11); a vendedora, também Minhas vendas,
+    que abre a mesma lista com só as dela (USR-08). Propostas, veículos à venda e comissões
+    ficam escondidos até a T-418 (`vendas_balcao`): o menu não leva a tela que não existe."""
+    from django.conf import settings as configuracao
+
+    assert "vendas" in configuracao.GIRO_MODULOS_ATIVOS
+    assert "vendas_balcao" not in configuracao.GIRO_MODULOS_ATIVOS
+    sem_tela = {"propostas", "veiculos_a_venda", "comissoes", "minhas_comissoes"}
+
+    def todas(menu: list[dict[str, Any]]) -> set[str]:
+        return {item["chave"] for grupo in menu for item in grupo["itens"]}
+
+    for nome in ("Mariana", "Rodrigo", "Bruna"):
+        nav = _navegacao(adm, nome)
+        for menu in (nav["menu_completo"], nav["menu_inicio"]):
+            assert not todas(menu) & sem_tela, nome
+        assert dict(_chaves(nav["menu_completo"]))["Operação"].count("vendas") == 1, nome
+    assert "vendas" in dict(_chaves(_navegacao(adm, "Rodrigo")["menu_inicio"]))["Operação"]
+    bruna = _navegacao(adm, "Bruna")
+    assert dict(_chaves(bruna["menu_inicio"]))["Vendas"] == ["minhas_vendas"]
+    # O financeiro e o vistoriador não ganham nada de vendas.
+    for nome in ("Lúcia", "João"):
+        nav = _navegacao(adm, nome)
+        chaves = todas(nav["menu_completo"]) | todas(nav["menu_inicio"])
+        assert not chaves & (sem_tela | {"vendas", "minhas_vendas"}), nome
 
 
 def test_usr_05_plano_atividade_e_modulos_escondem_itens(adm, settings, planos):

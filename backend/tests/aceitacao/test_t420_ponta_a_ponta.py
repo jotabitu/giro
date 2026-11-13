@@ -11,7 +11,6 @@ a venda de R$ 0,00, o veículo vendido, o aviso, as pendências dos painéis e a
 from typing import Any
 
 from django.core import mail
-from django.core.cache import cache
 
 from apps.auditoria.models import EventoAuditoria
 from apps.financeiro.models import (
@@ -92,7 +91,7 @@ def _ativa_pelo_caixa(cenario: Cenario, plano_id: int) -> Locacao:
 
 
 def _painel(cenario: Cenario, quem: str) -> dict[str, Any]:
-    cache.clear()  # o início fica em cache por 5 minutos (`relatorios.api.views`)
+    # Sem limpar o cache: a quitação e a transferência renovam o Início na hora (A2, #577).
     resposta = cenario.moto.api(quem).get("/api/painel/inicio/")
     assert resposta.status_code == 200, resposta.json()
     return dict(resposta.json())
@@ -149,7 +148,7 @@ def _conferir_quitacao(cenario: Cenario, locacao: Locacao) -> Venda:
     return venda
 
 
-def _conferir_pendencias_e_transferencia(cenario: Cenario, locacao: Locacao) -> None:
+def _conferir_pendencias_e_transferencia(cenario: Cenario, locacao: Locacao, capturar: Any) -> None:
     """A pendência nos dois painéis (administrador e gerente), "Transferência feita" pelo
     Rodrigo, a pendência some, e registrar de novo é recusado."""
     item = {
@@ -172,9 +171,10 @@ def _conferir_pendencias_e_transferencia(cenario: Cenario, locacao: Locacao) -> 
     assert detalhe["compra"]["venda"]["acoes"] == {"registrar_transferencia": True}
 
     hoje = relogio_do_giro.hoje().isoformat()
-    feita = cenario.moto.api("Rodrigo").post(
-        TRANSFERENCIA.format(locacao.pk), {"feita_em": hoje}, format="json"
-    )
+    with capturar(execute=True):  # o Início renova depois do commit (A2)
+        feita = cenario.moto.api("Rodrigo").post(
+            TRANSFERENCIA.format(locacao.pk), {"feita_em": hoje}, format="json"
+        )
     assert feita.status_code == 200, feita.json()
     venda = Venda.objects.get()
     assert venda.transferencia_feita_em == relogio_do_giro.hoje()
@@ -222,7 +222,7 @@ def test_loc_16_ven_11_ponta_a_ponta_ultima_parcela_pelo_pix(
     assert pagou.count() == 1
     assert not PendenciaPagamento.objects.exists()
     _conferir_quitacao(compra, locacao)
-    _conferir_pendencias_e_transferencia(compra, locacao)
+    _conferir_pendencias_e_transferencia(compra, locacao, django_capture_on_commit_callbacks)
 
 
 def test_loc_16_ven_11_ponta_a_ponta_ultima_parcela_no_caixa_e_pix_atrasado(
@@ -249,4 +249,4 @@ def test_loc_16_ven_11_ponta_a_ponta_ultima_parcela_no_caixa_e_pix_atrasado(
     assert WebhookRecebido.objects.get().resultado == "conta_nao_aberta"
     assert PendenciaPagamento.objects.count() == 1
     _conferir_quitacao(compra, locacao)
-    _conferir_pendencias_e_transferencia(compra, locacao)
+    _conferir_pendencias_e_transferencia(compra, locacao, django_capture_on_commit_callbacks)

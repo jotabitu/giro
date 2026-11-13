@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { CampoSelecao } from "@/components/lista/CampoSelecao";
-import { Button, Dialogo, Icone, StatusBadge, TextField } from "@/design-system";
+import { Button, CelulaDupla, type ColunaTabela, DataTable, Dialogo, Icone, StatusBadge, TextField } from "@/design-system";
 import { precos as api, type PlanoDeCompra } from "@/lib/api";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { dinheiro } from "@/lib/formatos";
@@ -127,6 +127,41 @@ export function PlanosDeCompra({ aoAvisar }: { aoAvisar: (aviso: string) => void
   const [dialogo, setDialogo] = useState<{ plano: PlanoDeCompra | null } | null>(null);
   const consulta = useQuery({ queryKey: ["precos", "planos-compra", verDesativados], queryFn: () => api.planosDeCompra({ ativo: verDesativados ? "todos" : true }) });
   const lista = consulta.data ?? [];
+  const colunas: ColunaTabela<PlanoDeCompra>[] = [
+    {
+      chave: "nome",
+      titulo: "Plano",
+      celula: (p) => (
+        <>
+          <CelulaDupla principal={p.nome} secundaria={p.categoria.nome} />
+          {!p.ativo && (
+            <StatusBadge tom="neutro" compacto>
+              Desativado
+            </StatusBadge>
+          )}
+        </>
+      ),
+    },
+    { chave: "periodicidade", titulo: "Periodicidade", celula: (p) => ROTULO_DA_PERIODICIDADE[p.periodicidade] },
+    { chave: "parcelas", titulo: "Parcelas", mono: true },
+    { chave: "valor_parcela_centavos", titulo: "Valor da parcela", mono: true, celula: (p) => dinheiro(p.valor_parcela_centavos) },
+    {
+      chave: "ultima_parcela_centavos",
+      titulo: "Última parcela",
+      celula: (p) => <CelulaDupla principal={<span className="wl-mono">{dinheiro(p.ultima_parcela_centavos)}</span>} secundaria={`com a caução de ${dinheiro(p.caucao_centavos)} abatida`} />,
+    },
+    { chave: "locacoes_ativas", titulo: "Locações", celula: (p) => locacoes(p.locacoes_ativas) },
+    {
+      chave: "editar",
+      titulo: "Editar",
+      celula: (p) =>
+        p.ativo ? (
+          <Button compacto variante="quieto" aria-label={`Editar ${p.nome}`} onClick={() => setDialogo({ plano: p })}>
+            Editar
+          </Button>
+        ) : null,
+    },
+  ];
 
   return (
     <section className="wl-panel" aria-label="Planos de compra">
@@ -147,36 +182,17 @@ export function PlanosDeCompra({ aoAvisar }: { aoAvisar: (aviso: string) => void
         </p>
       )}
       {consulta.isSuccess && lista.length === 0 && <p className="m-0 text-body text-ink-muted">Nenhum plano de compra.</p>}
-      {lista.map((p) => (
-        <div key={p.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line py-3.5 last:border-b-0">
-          <div className="min-w-0 flex-[1_1_220px]">
-            <div className="font-medium">{p.nome}</div>
-            <small className="block text-caption text-ink-muted">{p.categoria.nome}</small>
-          </div>
-          {!p.ativo && (
-            <StatusBadge tom="neutro" compacto>
-              Desativado
-            </StatusBadge>
-          )}
-          <div className="text-caption text-ink-muted">
-            {ROTULO_DA_PERIODICIDADE[p.periodicidade]} · {p.parcelas} parcelas
-          </div>
-          <div className="wl-mono">{dinheiro(p.valor_parcela_centavos)}</div>
-          <div className="text-caption text-ink-muted">
-            Última {dinheiro(p.ultima_parcela_centavos)} com a caução de {dinheiro(p.caucao_centavos)} abatida
-          </div>
-          <div className="text-caption text-ink-muted">{locacoes(p.locacoes_ativas)}</div>
-          {p.ativo && (
-            <Button compacto variante="quieto" aria-label={`Editar ${p.nome}`} onClick={() => setDialogo({ plano: p })}>
-              Editar
-            </Button>
-          )}
+      {lista.length > 0 && (
+        <div className="overflow-x-auto">
+          <DataTable colunas={colunas} linhas={lista} chaveDaLinha={(p) => String(p.id)} legenda="Planos de compra" />
         </div>
-      ))}
+      )}
       <p className="m-0 mt-3 text-caption text-ink-muted">Mudar ou desativar um plano vale só para locações novas. Quem já confirmou mantém o plano.</p>
-      <button type="button" className="mt-3 self-start text-caption underline" onClick={() => setVerDesativados((v) => !v)}>
-        {verDesativados ? "Esconder planos desativados" : "Mostrar planos desativados"}
-      </button>
+      <div className="mt-3">
+        <Button compacto variante="quieto" onClick={() => setVerDesativados((v) => !v)}>
+          {verDesativados ? "Esconder planos desativados" : "Mostrar planos desativados"}
+        </Button>
+      </div>
       {dialogo && (
         <DialogoDoPlanoDeCompra
           plano={dialogo.plano}

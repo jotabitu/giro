@@ -1,8 +1,11 @@
 // T-363 · Modelos de contrato (IMP-04, S-09, LOC-15; docs/api/contratos.md).
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { contas, modelosContrato, ErroApi, type Eu } from "@/lib/api";
+import { TEXTO_ARQUIVAR_MODELO } from "@/lib/contratos";
 import { definirModelosFalsos } from "@/testes/falsos/falso-modelos-contrato";
 
 const sessao = vi.hoisted(() => ({ eu: null as unknown }));
@@ -125,5 +128,13 @@ describe("Contrato dos modelos (IMP-04, S-09, LOC-15)", () => {
     const outro = await modelosContrato.criar({ nome: "Outro", finalidade: "locacao", a_partir_de: "locacao_semanal_carro" });
     await modelosContrato.publicar(outro.id);
     expect((await modelosContrato.arquivar(10)).arquivado).toBe(true);
+  });
+
+  it("imp_04_arquivar_nao_tem_volta: a tela usa o texto da regra, palavra por palavra", () => {
+    const regra = readFileSync(resolve(process.cwd(), "../docs/regras/implantacao.md"), "utf-8");
+    expect(regra).toContain(`"${TEXTO_ARQUIVAR_MODELO}"`);
+    const fonte = readFileSync(resolve(process.cwd(), "src/components/contratos/ModelosDeContrato.tsx"), "utf-8");
+    expect(fonte.match(/TEXTO_ARQUIVAR_MODELO/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(fonte).not.toContain("mas não é apagado");
   });
 });

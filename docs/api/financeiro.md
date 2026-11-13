@@ -262,7 +262,8 @@ Dinheiro que sai para o cliente (caução da devolução, `DEV-02`; o que foi pa
 - **`origem_rotulo`:**
   - `devolucao` (`DEV-02`): "Devolução com caução";
   - `cancelamento` (`LOC-12`): "Locação cancelada antes da retirada";
-  - `credito` (`LOC-13`): "Crédito de semanas".
+  - `credito` (`LOC-13`): "Crédito de semanas";
+  - `quitacao` (`LOC-16`, T-420): "Sobra da caução na quitação". A origem guardada é a locação, como no cancelamento; a locação quitada (`quitada_em`) dá este tipo. O `motivo` é "Sobra da caução na quitação da LOC-x".
 - **`motivo`:** o texto gravado no `Reembolso`. `origem.veiculo` traz a placa com hífen e o modelo (`README.md`).
 - **"Ver acerto"** abre o detalhe da locação pelo `origem.id`.
 - **`acoes.marcar_feito`:** `true` só em `a_fazer` e para quem pode. Com token de suporte, sempre `false`, porque o suporte não marca reembolso como feito (403 `PLT-07`).

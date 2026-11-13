@@ -7,7 +7,7 @@ import { Button, Panel, StatusBadge, TextField } from "@/design-system";
 import { locacoes, type LocacaoCompleta } from "@/lib/api";
 import { agoraDaTela } from "@/lib/ambiente";
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
-import { dataCompleta, dataCurta, diaDe, dinheiro, placa } from "@/lib/formatos";
+import { dataCompleta, dataCurta, diaDe, dinheiro } from "@/lib/formatos";
 import { textoDaTransferencia } from "@/lib/locacao-compra";
 import { ROTULO_PERIODICIDADE } from "@/lib/clientes";
 
@@ -33,9 +33,11 @@ export function AndamentoDaCompra({ l }: { l: LocacaoCompleta }) {
     <Panel
       titulo="Andamento da compra"
       acao={
-        <StatusBadge tom={c.quitada_em ? "sucesso" : "neutro"} compacto>
-          {c.parcelas_pagas} de {c.parcelas_total} parcelas pagas
-        </StatusBadge>
+        c.quitada_em ? (
+          <StatusBadge tom="sucesso" compacto>
+            {c.parcelas_pagas} de {c.parcelas_total} parcelas pagas
+          </StatusBadge>
+        ) : undefined
       }
     >
       <p className="m-0 text-body font-medium">{c.andamento}</p>
@@ -140,11 +142,6 @@ export function ResumoDaCompra({ l }: { l: LocacaoCompleta }) {
           <Linha rotulo="Caução">
             {dinheiro(l.precos.caucao_centavos)}
             {quitada ? " · abatida" : ""}
-          </Linha>
-        )}
-        {l.veiculo && (
-          <Linha rotulo="Veículo">
-            <span className="wl-mono">{placa(l.veiculo.placa)}</span>
           </Linha>
         )}
       </dl>

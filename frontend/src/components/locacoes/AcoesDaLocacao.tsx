@@ -349,8 +349,10 @@ export function AcoesDaLocacao({ l, variante, aoConcluir }: { l: LocacaoCompleta
       Registrar devolução
     </Link>
   );
-  const renovar = a.renovar && (
-    <Button key="ren" onClick={() => setAberto("renovar")}>
+  // LOC-16: a locação com intenção de compra não renova nem troca de veículo. A API recusa com 409 e este texto (docs/api/locacoes.md).
+  const semRenovarNemTrocar = !!l.compra && l.status === "ativa" && !a.renovar && !a.trocar_veiculo;
+  const renovar = (a.renovar || semRenovarNemTrocar) && (
+    <Button key="ren" disabled={!a.renovar} onClick={() => setAberto("renovar")}>
       Renovar
     </Button>
   );
@@ -364,8 +366,8 @@ export function AcoesDaLocacao({ l, variante, aoConcluir }: { l: LocacaoCompleta
       Continuar vistoria
     </Link>
   );
-  const trocar = a.trocar_veiculo && (
-    <Button key="tro" variante="quieto" onClick={() => setAberto("trocar")}>
+  const trocar = (a.trocar_veiculo || semRenovarNemTrocar) && (
+    <Button key="tro" variante="quieto" disabled={!a.trocar_veiculo} onClick={() => setAberto("trocar")}>
       Trocar veículo
     </Button>
   );
@@ -397,6 +399,9 @@ export function AcoesDaLocacao({ l, variante, aoConcluir }: { l: LocacaoCompleta
           {cancelar}
           {encerrarPorAtraso}
         </div>
+      )}
+      {semRenovarNemTrocar && (
+        <p className="m-0 mt-2 text-caption text-ink-muted">A locação com intenção de compra não se renova nem troca de veículo. Encerre esta e abra outra.</p>
       )}
       {aberto === "renovar" && <Renovar l={l} aoFechar={fechar} aoConcluir={aoConcluir} />}
       {aberto === "cancelar" && <Cancelar l={l} aoFechar={fechar} aoConcluir={aoConcluir} />}

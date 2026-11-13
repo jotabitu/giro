@@ -17,7 +17,7 @@ from apps.filiais.models import Filial
 from apps.notificacoes import services as notificacoes
 from apps.veiculos import services as veiculos_services
 from apps.veiculos.models import StatusVeiculo, Veiculo
-from comum import estados, relogio
+from comum import estados, painel, relogio
 from comum.auditoria import ATOR_SISTEMA, Categoria, auditar, usar_ator
 from comum.conexao import conexao
 from comum.documentos import placa_com_hifen
@@ -141,6 +141,7 @@ def criar_venda_da_quitacao(
                 _avisar_gerentes(venda.pk)
 
         transaction.on_commit(_depois)
+        painel.renovar()  # a pendência da transferência no Início, na hora
     return venda
 
 
@@ -180,6 +181,7 @@ def registrar_transferencia(venda: Venda, feita_em: date, usuario: Any) -> Venda
                     "atualizado_em",
                 ]
             )
+        painel.renovar()  # a pendência sai do Início na hora
     return venda
 
 

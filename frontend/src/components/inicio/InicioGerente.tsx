@@ -66,7 +66,8 @@ export function InicioGerente({ d }: { d: InicioDe<"gerente"> }) {
         )}
       </Panel>
 
-      <AlertCard
+      {pendencias.length > 0 && (
+        <AlertCard
         atualizadoHa={atualizadoHa(d.atualizado_em)}
         titulo={d.pendencias?.titulo ?? "Nenhuma pendência hoje"}
         itens={pendencias.map((i) => ({ texto: i.texto, gravidade: GRAVIDADE_DO_ALERTA[i.gravidade] }))}
@@ -77,7 +78,8 @@ export function InicioGerente({ d }: { d: InicioDe<"gerente"> }) {
             </Link>
           ) : undefined
         }
-      />
+        />
+      )}
 
       <KpisDoPainel kpis={d.kpis} />
 
