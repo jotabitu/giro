@@ -68,7 +68,7 @@ describe("Tabelas de preço (/admin/precos)", () => {
   it("loc_16_planos_de_compra: a lista mostra a última parcela com a caução abatida, as locações ativas e o aviso", async () => {
     await entrar("mariana@motorapida.com.br");
     const t = texto(await pagina());
-    ordem(t, ["Planos de compra", "Plano de compra", "Compra Street 24 meses", "Street 150–160", "Mensal · 24 parcelas", "R$ 1.190,00", "Última R$ 890,00 com a caução de R$ 300,00 abatida", "1 ativa", "Editar", "Compra Urbana 24 meses", "Urbana 110–125", "R$ 990,00", "Última R$ 690,00 com a caução de R$ 300,00 abatida", "0 ativas"]);
+    ordem(t, ["Planos de compra", "Plano de compra", "Plano", "Periodicidade", "Parcelas", "Valor da parcela", "Última parcela", "Locações", "Editar", "Compra Street 24 meses", "Street 150–160", "Mensal", "24", "R$ 1.190,00", "R$ 890,00", "com a caução de R$ 300,00 abatida", "1 ativa", "Editar", "Compra Urbana 24 meses", "Urbana 110–125", "R$ 990,00", "R$ 690,00", "com a caução de R$ 300,00 abatida", "0 ativas"]);
     expect(t).toContain("Mudar ou desativar um plano vale só para locações novas. Quem já confirmou mantém o plano.");
   });
 
