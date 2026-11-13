@@ -151,8 +151,17 @@ class MarcadoresView(APIView):
     @extend_schema(responses=ListaDeMarcadoresSerializer, summary="Campos automáticos (S-09)")
     def get(self, request: Request) -> Response:
         dados = [
-            {"chave": m.chave, "rotulo": m.rotulo, "exemplo": m.exemplo}
+            {"chave": m.chave, "rotulo": m.rotulo, "exemplo": m.exemplo, "finalidade": None}
             for m in marcadores.MARCADORES
+        ] + [
+            # LOC-16 (T-420): só no modelo da locação com intenção de compra.
+            {
+                "chave": m.chave,
+                "rotulo": m.rotulo,
+                "exemplo": m.exemplo,
+                "finalidade": marcadores.FINALIDADE_COMPRA,
+            }
+            for m in marcadores.MARCADORES_COMPRA
         ]
         return envelope_sem_paginas(dados)
 
@@ -162,7 +171,10 @@ class ModelosProntosView(APIView):
 
     @extend_schema(responses=ListaDeModelosProntosSerializer, summary="Modelos prontos")
     def get(self, request: Request) -> Response:
-        dados = [{"chave": p.chave, "nome": p.nome, "texto": p.texto} for p in prontos.PRONTOS]
+        dados = [
+            {"chave": p.chave, "nome": p.nome, "texto": p.texto, "finalidade": p.finalidade}
+            for p in prontos.PRONTOS
+        ]
         return envelope_sem_paginas(dados)
 
 

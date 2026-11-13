@@ -160,6 +160,32 @@ def representacao_conta(conta: ContaReceber, hoje: date) -> dict[str, Any]:
     }
 
 
+def paga_de_vez(conta: ContaReceber) -> bool:
+    """O dinheiro da conta entrou e ficou (FIN-01): `paga` e não estornada; estornada, quando a
+    conta que o estorno reabriu está paga de vez; `renegociada`, quando todas as contas que
+    nasceram da renegociação estão pagas de vez, em qualquer origem (a renegociação de contas
+    de origens diferentes vai para a origem `cliente`). Cancelada ou aberta, não. Segue a
+    renegociação da renegociação. Usado na quitação da locação com intenção de compra
+    (LOC-16, M-01 e M-02 da revisão de segurança da T-420)."""
+    vistas: set[int] = set()
+
+    def ver(atual: ContaReceber) -> bool:
+        if atual.pk in vistas:
+            return False
+        vistas.add(atual.pk)
+        if atual.status == StatusConta.PAGA:
+            if atual.estornada_em is None:
+                return True
+            reabertas = list(ContaReceber.objects.filter(estorno_de=atual))
+            return bool(reabertas) and all(ver(r) for r in reabertas)
+        if atual.status == StatusConta.RENEGOCIADA and atual.renegociada_em_id is not None:
+            novas = list(ContaReceber.objects.filter(nasceu_de_id=atual.renegociada_em_id))
+            return bool(novas) and all(ver(n) for n in novas)
+        return False
+
+    return ver(conta)
+
+
 def primeiro_pagamento_em(origem_tipo: str, origem_id: int) -> datetime | None:
     """1ª parcela **e** caução pagas: o momento do último dos dois. Sem caução, só a parcela."""
     contas = list(

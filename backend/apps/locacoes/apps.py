@@ -25,4 +25,9 @@ class LocacoesConfig(AppConfig):
 
         leituras.registrar()
         contrato.registrar()
+        from apps.financeiro.services import registrar_trava_da_conta
+
+        from .services import travar_caucao_da_compra
+
+        registrar_trava_da_conta(travar_caucao_da_compra)  # LOC-16: a caução da compra
         registrar_pendencia("locacoes_vistoria", "locacoes", _locacoes_abertas)  # PLT-12

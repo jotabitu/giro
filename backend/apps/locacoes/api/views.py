@@ -31,17 +31,21 @@ from comum.permissoes import com_padrao, exige_perfil, filiais_permitidas, filia
 from comum.rede import ip_do_cliente
 
 from .. import contrato, selectors, services
-from ..models import Locacao, PlanoEspecial
+from ..models import Locacao, PlanoCompra, PlanoEspecial
 from .serializers import (
     CancelamentoPedidoSerializer,
     CancelarLocacaoSerializer,
     ConfirmarLocacaoSerializer,
+    EncerrarPorAtrasoSerializer,
     HistoricoLocacaoSerializer,
     ListaDeLocacoesSerializer,
+    ListaDePlanosCompraSerializer,
     ListaDePlanosEspeciaisSerializer,
     LocacaoDetalheSerializer,
     LocacaoEntradaSerializer,
     LocacaoSerializer,
+    PlanoCompraEntradaSerializer,
+    PlanoCompraSerializer,
     PlanoEspecialEntradaSerializer,
     PlanoEspecialSerializer,
     RegistrarRetiradaEntradaSerializer,
@@ -61,6 +65,9 @@ LEEM_A_LISTA: list[type[BasePermission]] = com_padrao(
 )
 ADMINISTRADOR: list[type[BasePermission]] = com_padrao(exige_perfil("administrador"))
 REGISTRAM_RETIRADA: list[type[BasePermission]] = com_padrao(
+    exige_perfil("administrador", "gerente")
+)
+ENCERRAM_POR_ATRASO: list[type[BasePermission]] = com_padrao(
     exige_perfil("administrador", "gerente")
 )
 
@@ -120,6 +127,7 @@ class LocacoesView(ViewDeLocacao):
         parameters=[
             OpenApiParameter("aba", enum=list(selectors.ABAS)),
             OpenApiParameter("periodicidade", enum=["diaria", "semanal", "mensal"]),
+            OpenApiParameter("tipo", enum=["comum", "intencao_compra"]),
             OpenApiParameter("plano_especial", int),
             OpenApiParameter("veiculo", int),
             OpenApiParameter("cliente", int),
@@ -306,6 +314,24 @@ class RegistrarRetiradaView(ViewDeLocacao):
         return _detalhe(request, pk)
 
 
+class EncerrarPorAtrasoView(ViewDeLocacao):
+    """LOC-16 (CA-420-08, CA-420-19): administrador e gerente da filial da locação (fora do
+    escopo, 404), sem APR-02. 409 `LOC-16` sem parcela atrasada ou fora da compra; 409
+    `transicao_locacao` fora de `ativa`; 409 `cancelamento_em_andamento`; 400 sem motivo."""
+
+    permission_classes = ENCERRAM_POR_ATRASO
+
+    @extend_schema(
+        request=EncerrarPorAtrasoSerializer,
+        responses=LocacaoDetalheSerializer,
+        summary="Encerrar por atraso a locação com intenção de compra (LOC-16)",
+    )
+    def post(self, request: Request, pk: int) -> Response:
+        dados = _entrada(EncerrarPorAtrasoSerializer, request)
+        services.encerrar_por_atraso(_locacao(request, pk), dados["motivo"], dados.get("data"))
+        return _detalhe(request, pk)
+
+
 # --- Contrato (fluxo da retirada, passo 3; docs/api/contratos.md) ---
 
 
@@ -441,3 +467,70 @@ class DesativarPlanoEspecialView(ViewDeLocacao):
     def post(self, request: Request, pk: int) -> Response:
         plano = services.desativar_plano(_plano(pk))
         return Response(PlanoEspecialSerializer(selectors.representacao_plano(plano)).data)
+
+
+# --- Planos de compra (LOC-16, T-420) ---
+
+
+class PlanosCompraView(ViewDeLocacao):
+    def get_permissions(self) -> Any:
+        # Quem cria locação lê (a Nova locação); só o administrador cadastra.
+        permissoes = ADMINISTRADOR if self.request.method == "POST" else CRIAM
+        return [permissao() for permissao in permissoes]
+
+    @extend_schema(
+        responses=ListaDePlanosCompraSerializer,
+        parameters=[
+            OpenApiParameter("ativo", enum=["true", "false"]),
+            OpenApiParameter("categoria", int),
+        ],
+        summary="Planos de compra (LOC-16)",
+    )
+    def get(self, request: Request) -> Response:
+        planos = selectors.planos_compra(
+            request.query_params.get("ativo"), request.query_params.get("categoria")
+        )
+        dados = [selectors.representacao_plano_compra(p) for p in planos]
+        return envelope_sem_paginas(PlanoCompraSerializer(dados, many=True).data)
+
+    @extend_schema(
+        request=PlanoCompraEntradaSerializer,
+        responses={201: PlanoCompraSerializer},
+        summary="Criar plano de compra (LOC-16, LOC-15)",
+    )
+    def post(self, request: Request) -> Response:
+        plano = services.criar_plano_compra(_entrada(PlanoCompraEntradaSerializer, request))
+        return Response(
+            PlanoCompraSerializer(selectors.representacao_plano_compra(plano)).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+def _plano_compra(pk: int) -> PlanoCompra:
+    plano = PlanoCompra.objects.select_related("categoria").filter(pk=pk).first()
+    if plano is None:
+        raise Http404
+    return plano
+
+
+class PlanoCompraView(ViewDeLocacao):
+    permission_classes = ADMINISTRADOR
+
+    @extend_schema(
+        request=PlanoCompraEntradaSerializer,
+        responses=PlanoCompraSerializer,
+        summary="Editar plano de compra (vale para locações novas, LOC-15)",
+    )
+    def patch(self, request: Request, pk: int) -> Response:
+        dados = _entrada(PlanoCompraEntradaSerializer, request, partial=True)
+        plano = services.editar_plano_compra(_plano_compra(pk), dados)
+        return Response(PlanoCompraSerializer(selectors.representacao_plano_compra(plano)).data)
+
+
+class DesativarPlanoCompraView(ViewDeLocacao):
+    permission_classes = ADMINISTRADOR
+
+    @extend_schema(request=None, responses=PlanoCompraSerializer, summary="Desativar plano")
+    def post(self, request: Request, pk: int) -> Response:
+        plano = services.desativar_plano_compra(_plano_compra(pk))
+        return Response(PlanoCompraSerializer(selectors.representacao_plano_compra(plano)).data)

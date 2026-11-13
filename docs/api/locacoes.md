@@ -485,7 +485,7 @@ chave: "aut17-aviso-{locacao_id}"
 
 ## Planos de compra (tela Precos, `LOC-16`, T-420)
 
-`GET /api/planos-compra/` (todos os perfis que criam locação; `?ativo=true` para a Nova locação, `?categoria=<id>`) →
+`GET /api/planos-compra/` (administrador, gerente e vendedor; o vistoriador e o financeiro recebem 403; sem filtro, todos; `?ativo=true` para a Nova locação, `?ativo=false` os desativados, `?categoria=<id>`) →
 ```json
 { "resultados": [ { "id": 3, "nome": "Compra Street 24 meses", "categoria": { "id": 2, "nome": "Street 150–160" },
   "periodicidade": "mensal", "parcelas": 24, "valor_parcela_centavos": 119000, "condicoes": "",
@@ -525,11 +525,12 @@ A linha da lista e o detalhe ganham `tipo` (`comum` ou `intencao_compra`) e `tip
   - todas as parcelas pagas e outra conta da locação aberta: "24 de 24 parcelas pagas · faltam as contas abaixo para a transferência" (as de `falta_para_quitar`);
   - quitada, com `venda.transferencia.pendente`: "Quitada em 10/10/2028 · falta a transferência no Detran"; com a transferência registrada: "Quitada em 10/10/2028 · transferência feita em 15/10/2028" (datas no fuso da filial);
   - antes da 1ª parcela paga (`rascunho`, `aguardando_retirada`): `null`.
-- `falta_para_quitar` (CA-420-13): as outras contas da locação abertas, de `financeiro.selectors`: `[ { "conta_id": 9120, "rotulo": "Avaria · Retrovisor direito", "valor_centavos": 12000 } ]`, com o valor do dia (`FIN-03`). Vazia enquanto ainda há parcela a pagar (as parcelas não entram na lista).
+- `falta_para_quitar` (CA-420-13): as outras contas da locação abertas, de `financeiro.selectors`: `[ { "conta_id": 9120, "rotulo": "Avaria · Retrovisor direito", "valor_centavos": 12000 } ]`, com o valor do dia (`FIN-03`). Vazia enquanto ainda há parcela a pagar (as parcelas não entram na lista). A caução em aberto entra como as outras contas; sem conta da caução para receber (caução que não entrou), o item é `{ "conta_id": null, "rotulo": "Caução não paga", "valor_centavos": 30000 }` (M-01 da segurança, T-420).
 - `quitada_em` e `venda` depois da quitação: `{ "id": 18, "codigo": "VEN-0178", "transferencia": { "feita_em": null, "registrada_por": null, "pendente": true }, "acoes": { "registrar_transferencia": true } }`, a venda da `VEN-11`, fornecida por `vendas` (`vendas.md`). "Transferência feita" chama `POST /api/locacoes/{id}/transferencia/` (`vendas.md`).
+  - Como chega (T-420, combinado com o Backend 2): `vendas` registra no `ready()` a leitura `comum.leituras.registrar_anotacao("locacoes.Locacao", "compra_venda", ...)`, que devolve `vendas.selectors.venda_da_locacao(locacao_id)` (`{ id, codigo, transferencia }`); `locacoes` lê com `leituras.bloco` e põe as `acoes` (`registrar_transferencia`: transferência pendente, administrador ou gerente, fora do modo suporte). Sem o fornecedor, `venda` é `null`.
 - O vistoriador recebe `compra` sem os campos `_centavos` (`USR-09`).
 - `situacao` e `sinais`: `devolve_hoje` nunca acende neste tipo, e a locação não chega a `devolucao_atrasada` pela data (`LOC-10` não vale, CA-420-10). Encerrada pela quitação, `situacao` é `{ "codigo": "quitada", "rotulo": "Quitada", "tom": "sucesso" }`.
-- `devolucao`: `prevista_para` e `aviso_atraso` vêm `null` (não há devolução no fim previsto), a não ser com o encerramento aprovado: aí `prevista_para` é a `cancelamento.data`.
+- `devolucao`: `prevista_para` e `aviso_atraso` vêm `null` (não há devolução no fim previsto), a não ser com o encerramento aprovado: aí `prevista_para` é o fim do dia da `cancelamento.data` (23:59:59 no fuso da filial), de onde corre o atraso da `LOC-10` (`AUT-02` incluída).
 - `acoes`: `renovar` e `trocar_veiculo` sempre `false` (CA-420-06); `encerrar_por_atraso` (abaixo); `cancelar` como na comum (o encerramento pedido pelo cliente passa pela `APR-02` do vendedor ou direto pelo gerente, CA-420-09); `registrar_devolucao` só com o encerramento aprovado.
 
 ### POST /api/locacoes/simular/ e POST /api/locacoes/ com o tipo
@@ -560,13 +561,14 @@ Simulação do CA-420-01 (início 10 nov 2026 10:00):
 }
 ```
 - `fim_previsto` = início + o prazo do plano (24 meses ou o número de semanas, `LOC-05`). As parcelas seguem o calendário da `LOC-05` a partir do início; a última nasce com `ultima_parcela_centavos`.
-- `avisos` traz `{ "codigo": "LOC-16", "mensagem": "Publique o modelo de contrato da locação com intenção de compra antes de confirmar.", "detalhes": { "link": "/admin/contratos" } }` sem o modelo publicado.
+- `avisos` traz `{ "codigo": "LOC-16", "mensagem": "Publique o modelo de contrato da locação com intenção de compra antes de confirmar.", "link": "/admin/contratos" }` sem o modelo publicado (o mesmo formato do aviso `IMP-04` da comum; na compra, ele substitui o `IMP-04`).
+- `compra` é `null` na comum.
 
 ### POST /api/locacoes/{id}/confirmar/ com o tipo
 
 Como na comum (reserva, contas com `aguarda_retirada`, comissão de locação da `FIN-09`), mais:
 - congela `plano_compra`, `compra_parcelas` e `compra_valor_parcela_centavos` (CA-420-04);
-- cria as `compra_parcelas` parcelas de uma vez, a última com a caução abatida (no mínimo R$ 0,00; a de R$ 0,00 nasce `paga`, sem movimento de caixa), e a caução;
+- cria as `compra_parcelas` parcelas de uma vez, a última com a caução abatida (no mínimo R$ 0,00), e a caução (observação "Abatida na última parcela"). A última de R$ 0,00 não vira conta (o `financeiro` não cria conta zerada, `criar_contas`): `total_parcelas` continua com o número do plano, e ela conta como paga em `compra.parcelas_pagas` e na quitação quando todas as outras estão pagas (T-420; CA-420-14: 103 contas, quita na 103ª);
 - sem modelo publicado de `finalidade = locacao_compra`: 422 `{ "codigo": "LOC-16", "mensagem": "Publique o modelo de contrato da locação com intenção de compra antes de confirmar.", "detalhes": { "link": "/admin/contratos" } }`, conferido antes de tudo o mais depois do `inicio_vencido` (CA-420-03). Na comum, nada muda (o `IMP-04` continua na geração do contrato).
 - O contrato gerado depois (`POST /api/locacoes/{id}/contrato/`) usa o modelo dessa finalidade (`contratos.md`).
 
@@ -576,11 +578,11 @@ Como na comum (reserva, contas com `aguarda_retirada`, comissão de locação da
 
 ### POST /api/locacoes/{id}/encerrar-por-atraso/
 
-Perfis: administrador e gerente da filial. Só no tipo `intencao_compra`, `ativa`, com parcela atrasada (`sinais.pagamento_atrasado`). Corpo: `{ "motivo": "Parcela 2 com 16 dias de atraso", "data": "2026-12-26" }` (`data` padrão hoje, não antes de hoje).
+Perfis: administrador e gerente da filial. Só no tipo `intencao_compra`, `ativa`, com parcela atrasada (`sinais.pagamento_atrasado`). Corpo: `{ "motivo": "Parcela 2 com 16 dias de atraso", "data": "2026-12-26" }`. A data é sempre hoje (`America/Sao_Paulo`, `LOC-16`, padrão do produto); `data` é opcional e, diferente de hoje, recebe 400 `validacao` em `data`: "O encerramento por atraso vale a partir de hoje." (B-02 da segurança).
 - 200: detalhe, com `cancelamento = { "status": "aprovado", "pedido_aprovacao_id": null, "antes_da_retirada": false, "por_atraso": true, "data", "multa_centavos": 0, "devolver_centavos": 0, "motivo" }` e `acoes.registrar_devolucao = true`. Sem `APR-02` (CA-420-08).
 - Segue pelo mesmo caminho do encerramento antecipado aprovado: a devolução e o acerto de sempre, e o status final `cancelada`.
 - `acoes.encerrar_por_atraso`: `true` nessas condições, para esses perfis.
-- 409 `{ "codigo": "LOC-16", "mensagem": "Esta locação não tem parcela atrasada. Para encerrar a pedido do cliente, use Cancelar locação." }` (texto fixado pelo produto em 05 nov 2026; a exigência da parcela atrasada está na `LOC-16`); 409 `transicao_locacao` fora de `ativa`; 409 `cancelamento_em_andamento` com pedido ou encerramento já em curso; 403 para os outros perfis. Auditoria `locacao.encerrar_por_atraso`.
+- 409 `{ "codigo": "LOC-16", "mensagem": "Esta locação não tem parcela atrasada. Para encerrar a pedido do cliente, use Cancelar locação." }` (texto fixado pelo produto em 05 nov 2026; a exigência da parcela atrasada está na `LOC-16`); 409 `transicao_locacao` fora de `ativa`; 409 `cancelamento_em_andamento` com pedido ou encerramento já em curso; 409 `LOC-16` "Só a locação com intenção de compra se encerra por atraso." na comum; 400 sem `motivo` ("Informe o motivo.") ou com `data` antes de hoje; 403 para os outros perfis. Auditoria `locacao.encerrar_por_atraso`, regra `LOC-16`.
 
 ### Encerramento antes do fim (`cancelamento/simular`, `cancelar`, acerto)
 
@@ -591,7 +593,11 @@ No tipo `intencao_compra`, o cálculo da `LOC-12` e da `LOC-13` não vale (padr�
 ### Quitação
 
 Sem endpoint: acontece no pagamento (ADR 0037, item 4).
-- `locacoes.services.quitar_se_pago(locacao)` roda no assinante de `financeiro.parcela_paga` para toda conta da locação. Quita quando a locação é `intencao_compra`, está `ativa`, sem encerramento aprovado, todas as parcelas estão pagas e não há outra conta da locação aberta. Idempotente pelo `quitada_em`.
+- `locacoes.services.quitar_se_pago(locacao)` roda no assinante de `financeiro.parcela_paga` para toda conta da locação. Quita quando a locação é `intencao_compra`, está `ativa`, sem encerramento aprovado, todas as parcelas estão pagas, a caução está paga e não há outra conta da locação aberta. Idempotente pelo `quitada_em`.
+- **Pela conta, nunca pelo número** (M-02 da segurança, `LOC-16` "Parcela renegociada"): cada parcela que a confirmação criou conta como paga se está paga e não estornada; estornada, quando a conta que o estorno reabriu está paga; renegociada, quando todas as contas que nasceram do acordo estão pagas, em qualquer origem (`financeiro.selectors.paga_de_vez`). A cancelada não conta.
+- **A caução paga** (M-01, `LOC-16` "Só abate a caução que entrou"): a conta da caução paga de vez, pelo valor da locação. Sem ela, não quita, e a sobra só sai da caução paga.
+- **A caução da compra não se cancela nem se renegocia** pela tela com a locação em `aguardando_retirada` ou `ativa`: `POST /api/financeiro/contas-receber/{id}/cancelar/` e a renegociação respondem 409 `{ "codigo": "LOC-16", "mensagem": "A caução da locação com intenção de compra faz parte da última parcela e não se cancela nem se renegocia." }`. Ela só cai com a locação (`LOC-12`, `AUT-17`). A trava entra por `financeiro.services.registrar_trava_da_conta`, que `locacoes` chama no `ready()` (ADR 0011).
+- **Pedido `APR-02` aberto** (B-01): a quitação o fecha, pelo Sistema; depois dela, um pedido novo responde 409 `transicao_locacao`.
 - Na mesma transação:
 
 | Peça | Depois |

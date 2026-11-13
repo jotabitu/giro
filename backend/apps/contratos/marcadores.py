@@ -65,8 +65,23 @@ MARCADORES: tuple[Marcador, ...] = (
     Marcador("contrato.data", "Data do contrato", "07/10/2026"),
     Marcador("contrato.cidade_assinatura", "Cidade da assinatura", "Fortaleza/CE"),
 )
+# LOC-16 (T-420): só no modelo de finalidade `locacao_compra`; em outro, `marcador_invalido`.
+MARCADORES_COMPRA: tuple[Marcador, ...] = (
+    Marcador("compra.plano", "Plano de compra", "Compra Street 24 meses"),
+    Marcador("compra.parcelas", "Número de parcelas", "24"),
+    Marcador("compra.valor_parcela", "Valor da parcela", "R$ 1.190,00"),
+    Marcador("compra.ultima_parcela", "Última parcela (com a caução abatida)", "R$ 890,00"),
+    Marcador("compra.prazo", "Prazo da compra", "24 meses"),
+)
+FINALIDADE_COMPRA = "locacao_compra"
 CHAVES = frozenset(m.chave for m in MARCADORES)
-EXEMPLOS = {m.chave: m.exemplo for m in MARCADORES}
+CHAVES_COMPRA = CHAVES | frozenset(m.chave for m in MARCADORES_COMPRA)
+EXEMPLOS = {m.chave: m.exemplo for m in (*MARCADORES, *MARCADORES_COMPRA)}
+
+
+def chaves_da_finalidade(finalidade: str) -> frozenset[str]:
+    return CHAVES_COMPRA if finalidade == FINALIDADE_COMPRA else CHAVES
+
 
 # FIN-03: o contrato só permite cobrar juros e multa se o modelo usa os dois.
 CLAUSULA_JUROS = frozenset({"cobranca.multa_atraso_pct", "cobranca.juros_mes_pct"})
@@ -95,10 +110,12 @@ def usados(texto: str) -> list[str]:
     return list(vistos)
 
 
-def conferir(texto: str) -> list[str]:
-    """Levanta `MarcadorInvalido` se houver marcador fora da lista. Devolve os usados."""
+def conferir(texto: str, finalidade: str = "locacao") -> list[str]:
+    """Levanta `MarcadorInvalido` se houver marcador fora da lista da finalidade (o grupo
+    `compra` só vale na `locacao_compra`, LOC-16). Devolve os usados."""
     lista = usados(texto)
-    invalidos = [chave for chave in lista if chave not in CHAVES]
+    validas = chaves_da_finalidade(finalidade)
+    invalidos = [chave for chave in lista if chave not in validas]
     if invalidos:
         raise MarcadorInvalido(invalidos)
     return lista

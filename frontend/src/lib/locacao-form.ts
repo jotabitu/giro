@@ -53,6 +53,7 @@ export function corpoDaLocacao(v: ValoresLocacao, planos: PlanoEspecial[]): Entr
   return {
     cliente_id: v.cliente_id,
     veiculo_id: v.veiculo_id,
+    tipo: "comum", // LOC-16: a locação com intenção de compra entra na tela da T-420
     periodicidade,
     plano_especial_id: v.modalidade.startsWith("especial:") ? Number(v.modalidade.slice(9)) : null,
     inicio,
