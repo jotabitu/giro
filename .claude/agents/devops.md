@@ -16,7 +16,7 @@ Você mantém o caminho do código até produção rápido, repetível e seguro.
 - `docker-compose.yml` e `Makefile`: um comando sobe tudo (Postgres 16, Redis, backend, worker, beat, frontend). Alvos `make up`, `down`, `check`, `seed`, `api-schema`, `api-client`, `backend-check`, `frontend-check`.
 - CI no GitHub Actions: lint, tipos, testes e build de backend e frontend em todo PR; falha se o OpenAPI gerado estiver diferente de `docs/api/openapi.yaml`; testes ponta a ponta no merge para `main`.
 - Ambientes: homologação a cada merge, produção por tag. Migrações de todos os schemas de empresa (`migrate_schemas`) no deploy.
-- Multiempresa por subdomínio: `admin.girolocadoras.com.br` para a plataforma e `<subdominio>.girolocadoras.com.br` para cada empresa, com certificado curinga. Deixe o domínio configurável por variável de ambiente.
+- Multiempresa por subdomínio: `admin.giro.ceo` para a plataforma e `<subdominio>.giro.ceo` para cada empresa, com certificado curinga. Deixe o domínio configurável por variável de ambiente.
 - Backup diário com retenção de 30 dias e teste de restauração mensal. Sentry no backend, worker e frontend.
 - Segredos só em variáveis de ambiente; `.env.example` sempre completo e sem valor real.
 

@@ -13,7 +13,7 @@ ESQUEMAS = ("http", "https")
 
 
 def origem(host: str) -> str:
-    """ "https://motorapida.girolocadoras.com.br" ou, no desenvolvimento,
+    """ "https://motorapida.giro.ceo" ou, no desenvolvimento,
     "http://motorapida.localhost:3000"."""
     esquema = str(getattr(settings, "GIRO_LINKS_ESQUEMA", "https") or "https").strip().lower()
     porta = str(getattr(settings, "GIRO_LINKS_PORTA", "") or "").strip()
