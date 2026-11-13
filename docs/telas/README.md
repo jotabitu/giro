@@ -41,7 +41,7 @@ Canvas original: https://claude.ai/artifact/5BZCQjBRVfmKwvoDEjEFnb
 | 5 · Administração › Usuários | [desktop](html/Admin-Usuarios-Desktop.dc.html) · [celular](html/Admin-Usuarios-Mobile.dc.html) | `(empresa)/admin/usuarios` | `contas` | USR |
 | 6 · Administração › Assinatura | [desktop](html/Admin-Assinatura-Desktop.dc.html) · [celular](html/Admin-Assinatura-Mobile.dc.html) | `(empresa)/admin/assinatura` | `plataforma` | PLT |
 | 7 · Início do financeiro | [desktop](html/Financeiro-Desktop.dc.html) · [celular](html/Financeiro-Mobile.dc.html) | `(empresa)/inicio` | `relatorios (agregados)` | USR, AUT |
-| 8 · Início do gerente | [desktop](html/Gerente-Desktop.dc.html) · [celular](html/Gerente-Mobile.dc.html) | `(empresa)/inicio` | `relatorios (agregados)` | USR, AUT |
+| 8 · Início do gerente | [desktop](html/Gerente-Desktop.dc.html) · [celular](html/Gerente-Mobile.dc.html) | `(empresa)/inicio` | `relatorios (agregados)` | USR, AUT, LOC-16, VEN-11 |
 | Aprovações | [desktop](html/Aprovacoes-Desktop.dc.html) · [celular](html/Aprovacoes-Mobile.dc.html) | `(empresa)/aprovacoes` | `aprovacoes` | APR-01 a APR-11 |
 
 ## Operação essencial
