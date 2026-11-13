@@ -58,6 +58,20 @@ describe("T-420 vendedora: sem ações de gerente", () => {
 describe("T-420 ficha da locação com intenção de compra, gerente", () => {
   beforeAll(() => entrarComo("rodrigo@motorapida.com.br"));
 
+  it("test_loc_16_ficha_mostra_a_parcela_paga_com_a_caucao_sem_conta_e_a_caucao_abatida", async () => {
+    const l = await locacoes.obter(2870);
+    const zero = l.parcelas?.find((p) => p.paga_com_caucao);
+    expect(zero).toMatchObject({ id: null, conta_id: null, valor_centavos: 0, observacao: "paga com a caução" });
+    const { desktop, celular } = await ficha(2870);
+    for (const t of [desktop, celular]) {
+      expect(t).toContain("paga com a caução");
+      expect(t).toContain("caução abatida");
+    }
+    // Sem conta: o botão de pagamento só existe nas parcelas com conta.
+    expect(texto(desktop)).not.toContain("Registrar pagamento: Parcela 5");
+    expect(desktop).not.toContain('aria-label="Registrar pagamento: Parcela 5"');
+  });
+
   it("test_loc_16_ficha_mostra_o_tipo_o_andamento_e_a_parcela_atrasada", async () => {
     const { desktop, celular } = await ficha(2870);
     for (const t of [desktop, celular]) {

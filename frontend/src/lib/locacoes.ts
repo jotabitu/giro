@@ -67,12 +67,21 @@ const ROTULO_PARCELA: Record<StatusParcela, string> = {
 };
 const TOM_PARCELA: Record<StatusParcela, TomStatus> = { aberta: "neutro", vence_hoje: "alerta", atrasada: "critico", paga: "sucesso", renegociada: "atencao", cancelada: "neutro", estornada: "neutro" };
 
-/** Selo da parcela: "Pago · Pix", "Atrasada", ou a observação da caução paga ("Devolver na entrega"). */
-export function seloDaParcela(p: Pick<ParcelaDaLocacao, "tipo" | "status" | "forma" | "observacao">): { texto: string; tom: TomStatus } {
+/**
+ * Selo da parcela: "Pago · Pix", "Atrasada", a observação da caução paga ("Devolver na entrega") e, na compra (LOC-16),
+ * a situação da parcela de R$ 0,00 ("paga com a caução") e o "caução abatida" da última parcela com valor. Os textos vêm da API.
+ */
+export function seloDaParcela(p: Pick<ParcelaDaLocacao, "tipo" | "status" | "forma" | "observacao"> & { paga_com_caucao?: boolean }): { texto: string; tom: TomStatus } {
   if (p.tipo === "caucao" && p.status === "paga" && p.observacao) return { texto: p.observacao, tom: "info" };
+  // Não é conta: sem forma de pagamento, a situação é a observação da API.
+  if (p.paga_com_caucao && p.observacao) return { texto: p.observacao, tom: TOM_PARCELA[p.status] };
   const base = ROTULO_PARCELA[p.status];
-  return { texto: p.status === "paga" && p.forma ? `${base} · ${rotuloDaForma(p.forma)}` : base, tom: TOM_PARCELA[p.status] };
+  const texto = p.status === "paga" && p.forma ? `${base} · ${rotuloDaForma(p.forma)}` : base;
+  return { texto: p.tipo === "parcela" && p.observacao ? `${texto} · ${p.observacao}` : texto, tom: TOM_PARCELA[p.status] };
 }
+
+/** Chave da linha da ficha: a parcela paga com a caução não tem `id`. */
+export const chaveDaParcela = (p: Pick<ParcelaDaLocacao, "id" | "tipo" | "numero">): string => `${p.tipo}-${p.numero ?? ""}-${p.id ?? ""}`;
 
 /** "1", "2" e "Caução" na coluna Parcela. */
 export function rotuloDaParcela(p: Pick<ParcelaDaLocacao, "tipo" | "numero">): string {

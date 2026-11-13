@@ -10,7 +10,7 @@ import { ROTULO_PERIODICIDADE } from "@/lib/clientes";
 import { mensagemDoErro } from "@/lib/erros";
 import { useAgora } from "@/lib/ambiente";
 import { celular, dataCurta, dataHoraCurta, dinheiro, diaDe, horaCurta, km, placa } from "@/lib/formatos";
-import { dataEHora, rotuloDaParcela, rotuloDaVistoriaDaTroca, seloDaParcela, textoDoPeriodo, textoFaltam } from "@/lib/locacoes";
+import { chaveDaParcela, dataEHora, rotuloDaParcela, rotuloDaVistoriaDaTroca, seloDaParcela, textoDoPeriodo, textoFaltam } from "@/lib/locacoes";
 import { tomDoStatus } from "@/lib/tom";
 import { LinkCopiado, useCopiarLink } from "@/components/comum/LinkParaCopiar";
 import { AcoesDaLocacao } from "./AcoesDaLocacao";
@@ -98,7 +98,7 @@ function ContasNoCelular({ l, parcelas, aoConcluir }: { l: LocacaoCompleta; parc
       {parcelas.map((p) => {
         const selo = seloDaParcela(p);
         return (
-          <li key={p.id} className="flex flex-col gap-2 border-b border-line py-3 first:pt-0 last:border-b-0 last:pb-0">
+          <li key={chaveDaParcela(p)} className="flex flex-col gap-2 border-b border-line py-3 first:pt-0 last:border-b-0 last:pb-0">
             <div className="flex items-center justify-between gap-3">
               <span className="text-body font-medium">{p.rotulo}</span>
               <StatusBadge tom={selo.tom} compacto>
@@ -148,7 +148,7 @@ function Pagamentos({ l, variante, aoConcluir }: { l: LocacaoCompleta; variante:
             {l.parcelas.map((p) => {
               const selo = seloDaParcela(p);
               return (
-                <tr key={p.id}>
+                <tr key={chaveDaParcela(p)}>
                   <td>{rotuloDaParcela(p)}</td>
                   <td>{dataCurta(p.vencimento)}</td>
                   <td>{dinheiro(p.valor_centavos)}</td>
