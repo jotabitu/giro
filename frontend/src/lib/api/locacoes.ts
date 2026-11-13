@@ -11,6 +11,7 @@ import type {
   ListaLocacoes,
   LocacaoCompleta,
   PedidoDeCancelamento,
+  PlanoDeCompra,
   PlanoEspecial,
   SimulacaoDaLocacao,
   SimulacaoDaRenovacao,
@@ -28,6 +29,11 @@ export const locacoesApi = {
 
   planosEspeciais(): Promise<{ resultados: PlanoEspecial[] }> {
     return http.get("/api/planos-especiais/", { ativo: true });
+  },
+
+  /** LOC-16: os planos de compra ativos, para a Nova locação escolher. */
+  planosDeCompra(f: { categoria?: number } = {}): Promise<{ resultados: PlanoDeCompra[] }> {
+    return http.get("/api/planos-compra/", { ativo: true, categoria: f.categoria });
   },
 
   simular(e: EntradaDaLocacao): Promise<SimulacaoDaLocacao> {
@@ -78,6 +84,16 @@ export const locacoesApi = {
     const r = await chamarComStatus<LocacaoCompleta | { pedido_aprovacao: PedidoDeCancelamento }>("POST", `/api/locacoes/${id}/cancelar/`, { corpo });
     if (r.status === 202) return { status: 202, pedido: (r.dados as { pedido_aprovacao: PedidoDeCancelamento }).pedido_aprovacao };
     return { status: 200, locacao: r.dados as LocacaoCompleta };
+  },
+
+  /** LOC-16: encerra a locação com intenção de compra que tem parcela atrasada. `data` padrão e mínima: hoje. 409 `LOC-16` sem parcela atrasada. */
+  encerrarPorAtraso(id: number, corpo: { motivo: string; data?: string | null }): Promise<LocacaoCompleta> {
+    return http.post(`/api/locacoes/${id}/encerrar-por-atraso/`, corpo);
+  },
+
+  /** VEN-11: "Transferência feita" na locação quitada. 409 `VEN-11` se já foi registrada. */
+  registrarTransferencia(id: number, corpo: { feita_em: string }): Promise<LocacaoCompleta> {
+    return http.post(`/api/locacoes/${id}/transferencia/`, corpo);
   },
 
   trocarVeiculo(id: number, corpo: { veiculo_novo_id: number; motivo: string }): Promise<TrocaPedida> {

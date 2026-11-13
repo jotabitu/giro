@@ -14,6 +14,7 @@ import { dataEHora, rotuloDaParcela, rotuloDaVistoriaDaTroca, seloDaParcela, tex
 import { tomDoStatus } from "@/lib/tom";
 import { LinkCopiado, useCopiarLink } from "@/components/comum/LinkParaCopiar";
 import { AcoesDaLocacao } from "./AcoesDaLocacao";
+import { AndamentoDaCompra, ResumoDaCompra, TransferenciaDaCompra } from "./CompraDaLocacao";
 import { idDosPagamentos, ParaRetirar, PendenciasDaRetirada, RegistrarPagamento, temPagamentoARegistrar } from "./RetiradaDaLocacao";
 import { TelaDeErro } from "./Comuns";
 
@@ -125,7 +126,7 @@ function Pagamentos({ l, variante, aoConcluir }: { l: LocacaoCompleta; variante:
   const panel = (conteudo: ReactNode) => (
     // O `id` é o destino do "Ver pagamentos" do passo do pagamento (LOC-17).
     <div id={idDosPagamentos(variante)} className="scroll-mt-4">
-      <Panel titulo="Pagamentos" acao={<span className="text-caption text-ink-muted">{aberto > 0 ? l.pagamento?.rotulo : "tudo em dia"}</span>}>
+      <Panel titulo="Pagamentos" acao={<span className="text-caption text-ink-muted">{l.compra ? `${l.compra.parcelas_pagas} de ${l.compra.parcelas_total} parcelas pagas` : aberto > 0 ? l.pagamento?.rotulo : "tudo em dia"}</span>}>
         {conteudo}
       </Panel>
     </div>
@@ -273,7 +274,7 @@ function Cancelamento({ l }: { l: LocacaoCompleta }) {
   const c = l.cancelamento;
   if (!c) return null;
   return (
-    <Panel titulo={c.status === "pendente" ? "Pedido de cancelamento" : "Encerramento aprovado"} subtitulo={c.status === "pendente" ? "Aguardando o gerente" : "Registre a devolução para fechar a conta"}>
+    <Panel titulo={c.status === "pendente" ? "Pedido de cancelamento" : c.por_atraso ? "Encerrada por atraso" : "Encerramento aprovado"} subtitulo={c.status === "pendente" ? "Aguardando o gerente" : "Registre a devolução para fechar a conta"}>
       <dl>
         <Linha rotulo="Motivo">{c.motivo}</Linha>
         <Linha rotulo="Multa de encerramento">{dinheiro(c.multa_centavos)}</Linha>
@@ -422,9 +423,14 @@ export function DetalheDaLocacao({ id }: { id: number }) {
               <StatusBadge tom={tomDoStatus(l.situacao.tom)} compacto>
                 {l.situacao.rotulo}
               </StatusBadge>
+              {l.tipo_rotulo && (
+                <StatusBadge tom="info" compacto>
+                  {l.tipo_rotulo}
+                </StatusBadge>
+              )}
               <span className="wl-mono text-caption text-ink-muted">{l.codigo}</span>
               <span className="text-caption text-ink-muted">
-                · {ROTULO_PERIODICIDADE[l.periodicidade]} · {textoDoPeriodoEmDatas(l)}
+                · {l.compra?.plano ? l.compra.plano.nome : ROTULO_PERIODICIDADE[l.periodicidade]} · {textoDoPeriodoEmDatas(l)}
               </span>
             </div>
           </div>
@@ -435,6 +441,8 @@ export function DetalheDaLocacao({ id }: { id: number }) {
         {avisoNaTela}
         <div className="grid grid-cols-[minmax(0,1fr)_380px] items-start gap-6">
           <div className="flex min-w-0 flex-col gap-6">
+            <AndamentoDaCompra l={l} />
+            <TransferenciaDaCompra l={l} aoConcluir={setAviso} />
             <section className="wl-panel">
               <div className="grid grid-cols-2 gap-6">{cabecalhoVeiculo}</div>
             </section>
@@ -449,7 +457,7 @@ export function DetalheDaLocacao({ id }: { id: number }) {
             </section>
             <Troca l={l} />
             <Cancelamento l={l} />
-            <Resumo l={l} />
+            {l.compra ? <ResumoDaCompra l={l} /> : <Resumo l={l} />}
             <Historico l={l} historico={historico.data} />
           </div>
         </div>
@@ -467,6 +475,11 @@ export function DetalheDaLocacao({ id }: { id: number }) {
               <StatusBadge tom={tomDoStatus(l.situacao.tom)} compacto>
                 {l.situacao.rotulo}
               </StatusBadge>
+              {l.tipo_rotulo && (
+                <StatusBadge tom="info" compacto>
+                  {l.tipo_rotulo}
+                </StatusBadge>
+              )}
               <span className="wl-mono text-caption text-ink-muted">{l.codigo}</span>
             </div>
           </div>
@@ -478,12 +491,15 @@ export function DetalheDaLocacao({ id }: { id: number }) {
             {l.veiculo.modelo} · {placa(l.veiculo.placa)}
           </div>
         </section>
+        <AndamentoDaCompra l={l} />
+        <TransferenciaDaCompra l={l} aoConcluir={setAviso} />
         <ParaRetirar l={l} variante="celular" aoConcluir={setAviso} />
         <PendenciasDaRetirada l={l} variante="celular" aoConcluir={setAviso} />
         {pagamentosNoTopo && <Pagamentos l={l} variante="celular" aoConcluir={setAviso} />}
         <Troca l={l} />
         <Cancelamento l={l} />
-        {l.precos && (
+        {l.compra && <ResumoDaCompra l={l} />}
+        {!l.compra && l.precos && (
           <section className="wl-panel">
             <h2 className="wl-panel__title mb-2">Resumo</h2>
             <dl>

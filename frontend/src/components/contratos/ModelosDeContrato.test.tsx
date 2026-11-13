@@ -99,6 +99,13 @@ describe("Contrato dos modelos (IMP-04, S-09, LOC-15)", () => {
     expect(publicado.versoes[0]).toMatchObject({ versao: 4 });
   });
 
+  it("loc_16_modelo_pronto_de_compra: o pronto traz a finalidade e o modelo criado a partir dele é de locação com intenção de compra", async () => {
+    const pronto = (await modelosContrato.prontos()).find((p) => p.chave === "locacao_compra_moto");
+    expect(pronto).toMatchObject({ nome: "Locação com intenção de compra", finalidade: "locacao_compra" });
+    const novo = await modelosContrato.criar({ nome: pronto!.nome, finalidade: pronto!.finalidade, a_partir_de: pronto!.chave });
+    expect(novo.finalidade).toBe("locacao_compra");
+  });
+
   it("imp_04_novo_a_partir_do_pronto: nasce rascunho, publica na versão 1 e a prévia troca os marcadores", async () => {
     const prontos = await modelosContrato.prontos();
     expect(prontos.length).toBeGreaterThan(0);

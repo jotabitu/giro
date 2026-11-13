@@ -19,7 +19,8 @@ export function DialogoNovoModelo({ aoFechar, aoCriar }: { aoFechar: () => void;
     mutationFn: () => {
       const pronto = prontos.data?.find((p) => p.chave === escolhido);
       const nomeFinal = nome.trim() || pronto?.nome || "";
-      return escolhido === EM_BRANCO ? api.criar({ nome: nomeFinal, finalidade: "locacao", texto: "<p></p>" }) : api.criar({ nome: nomeFinal, finalidade: "locacao", a_partir_de: escolhido });
+      // A finalidade do modelo pronto vale (LOC-16): "Locação com intenção de compra" nasce como `locacao_compra`, não como locação comum.
+      return escolhido === EM_BRANCO ? api.criar({ nome: nomeFinal, finalidade: "locacao", texto: "<p></p>" }) : api.criar({ nome: nomeFinal, finalidade: pronto?.finalidade ?? "locacao", a_partir_de: escolhido });
     },
     onSuccess: async (m) => {
       await cliente.invalidateQueries({ queryKey: ["contratos"] });

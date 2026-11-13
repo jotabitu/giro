@@ -3,7 +3,7 @@ import { ErroApi } from "@/lib/api/tipos";
 import type { CorpoDaEdicaoDoModelo, CorpoDoNovoModelo, MarcadorDeContrato, ModeloDeContrato, ModeloDeContratoDaLista, ModeloProntoDeContrato } from "@/lib/api/tipos-contratos";
 import { pausa } from "./falso";
 
-const M = (chave: string, rotulo: string, exemplo: string): MarcadorDeContrato => ({ chave, rotulo, exemplo, finalidade: null });
+const M = (chave: string, rotulo: string, exemplo: string, finalidade: string | null = null): MarcadorDeContrato => ({ chave, rotulo, exemplo, finalidade });
 
 export const MARCADORES: MarcadorDeContrato[] = [
   M("empresa.nome", "Nome da empresa", "Moto Rápida"),
@@ -39,10 +39,11 @@ const PRONTOS: ModeloProntoDeContrato[] = [
   ["locacao_diaria_moto", "Locação diária de moto", "dia"],
   ["locacao_mensal_moto", "Locação mensal de moto", "mês"],
   ["locacao_semanal_carro", "Locação semanal de carro", "semana"],
+  ["locacao_compra_moto", "Locação com intenção de compra", "mês"],
 ].map(([chave, nome, periodo]) => ({
   chave: chave!,
   nome: nome!,
-  finalidade: "locacao" as const,
+  finalidade: chave === "locacao_compra_moto" ? ("locacao_compra" as const) : ("locacao" as const),
   texto: `<h1>CONTRATO DE ${nome!.toUpperCase()}</h1><p><strong>Locadora:</strong> {{empresa.nome}}, CNPJ {{empresa.cnpj}}.</p><p><strong>Locatário:</strong> {{cliente.nome}}, CPF {{cliente.cpf}}.</p><p><strong>Cláusula 1.</strong> Locação do veículo {{veiculo.modelo}}, placa {{veiculo.placa}}, a partir de {{locacao.inicio}}, por {{locacao.valor}} por ${periodo!}.</p><p><strong>Cláusula 2.</strong> Caução de {{locacao.caucao}}. Multa de {{cobranca.multa_atraso_pct}}% e juros de {{cobranca.juros_mes_pct}}% ao mês em caso de atraso.</p>`,
 }));
 
