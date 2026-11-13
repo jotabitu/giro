@@ -42,8 +42,8 @@ O relógio é o real (13 nov), não o de 10 nov dos critérios: as datas do plan
 - LOC-2876 (Paula, KDG-0T14), LOC-2877 (Murilo, MXF-8V34) e LOC-2878 (Letícia, PGF-7W44): quitadas, vendas VEN-0001 a 0003, motos `vendido`. A transferência da LOC-2876 está feita; as outras duas estão pendentes (aparecem no Início do gerente).
 - LOC-2879 (Murilo, QRF-6X54): `aguardando_retirada`, moto `reservado`.
 - Reembolso de R$ 101,00 da LOC-2878 `a_fazer`.
-- O caixa de hoje da Filial Centro ficou **aberto** (Bruna, troco R$ 100,00): o login travou por excesso de tentativas (espera de uns 40 min) antes de eu fechar. Preciso que alguém feche ou me avise quando liberar.
-- Modelo de contrato "Locação com intenção de compra" recriado (id 3); o id 2 está arquivado.
+- O caixa de hoje da Filial Centro (Bruna, troco R$ 100,00) foi fechado no fim, com o valor contado igual ao esperado (R$ 79.577,00), depois que o Orquestrador liberou o login.
+- Modelo de contrato "Locação com intenção de compra" recriado (id 3); o id 2 está arquivado e **a LOC-2876 aponta para o modelo arquivado (id 2)**, porque o contrato dela foi gerado antes. Não mexi mais no modelo.
 
 ## Não exercitado
 
