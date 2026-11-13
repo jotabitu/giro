@@ -32,20 +32,22 @@ case "${COFRE:-}" in
       . "$SEGREDOS/doppler.env"
     fi
     if [ -n "${DOPPLER_TOKEN_APP:-}" ] && [ -n "${DOPPLER_TOKEN_INFRA:-}" ]; then
-      DOPPLER_TOKEN="$DOPPLER_TOKEN_APP" doppler secrets download --project giro --config prd --format env --no-file > "$SEGREDOS/producao.env"
-      DOPPLER_TOKEN="$DOPPLER_TOKEN_INFRA" doppler secrets download --project giro --config prd_infra --format env --no-file > "$SEGREDOS/producao-infra.env"
+      DOPPLER_TOKEN="$DOPPLER_TOKEN_APP" doppler secrets download --project giro --config prd --format env-no-quotes --no-file > "$SEGREDOS/producao.env.bruto"
+      DOPPLER_TOKEN="$DOPPLER_TOKEN_INFRA" doppler secrets download --project giro --config prd_infra --format env-no-quotes --no-file > "$SEGREDOS/producao-infra.env.bruto"
     elif [ -n "${DOPPLER_TOKEN_APP:-}${DOPPLER_TOKEN_INFRA:-}" ]; then
       echo "defina DOPPLER_TOKEN_APP e DOPPLER_TOKEN_INFRA juntos (ou nenhum, para usar o login do CLI)" >&2
       exit 1
     else
-      doppler secrets download --project giro --config prd --format env --no-file > "$SEGREDOS/producao.env"
-      doppler secrets download --project giro --config prd_infra --format env --no-file > "$SEGREDOS/producao-infra.env"
+      doppler secrets download --project giro --config prd --format env-no-quotes --no-file > "$SEGREDOS/producao.env.bruto"
+      doppler secrets download --project giro --config prd_infra --format env-no-quotes --no-file > "$SEGREDOS/producao-infra.env.bruto"
     fi
     ;;
   bws)
+    # Valor com quebra de linha vira um marcador com a chave (sem o valor), que entre_aspas recusa.
+    JQ_LINHA='.[] | if (.value | test("\n")) then "!MULTILINHA \(.key)" else "\(.key)=\(.value)" end'
     : "${BWS_PROJETO_APP:?defina BWS_PROJETO_APP}" "${BWS_PROJETO_INFRA:?defina BWS_PROJETO_INFRA}"
-    bws secret list "$BWS_PROJETO_APP" --output json | jq -r '.[] | "\(.key)=\(.value)"' > "$SEGREDOS/producao.env"
-    bws secret list "$BWS_PROJETO_INFRA" --output json | jq -r '.[] | "\(.key)=\(.value)"' > "$SEGREDOS/producao-infra.env"
+    bws secret list "$BWS_PROJETO_APP" --output json | jq -r "$JQ_LINHA" > "$SEGREDOS/producao.env.bruto"
+    bws secret list "$BWS_PROJETO_INFRA" --output json | jq -r "$JQ_LINHA" > "$SEGREDOS/producao-infra.env.bruto"
     ;;
   *)
     echo "defina COFRE=doppler ou COFRE=bws (ver o cabeçalho deste script)"
@@ -53,9 +55,30 @@ case "${COFRE:-}" in
     ;;
 esac
 
+# T-474: cada linha vira CHAVE='valor'. Entre aspas simples o dotenv do Compose (--env-file e
+# env_file) não interpola `$`, então chaves como `$aact_...` chegam intactas. Valor com aspa simples
+# ou quebra de linha não cabe nesse formato: o script para dizendo a chave, nunca o valor.
+entre_aspas() {
+  awk '
+    /^!MULTILINHA / { print "o segredo " $2 " tem quebra de linha; tire-a no cofre" > "/dev/stderr"; erro = 1; next }
+    /^[ \t]*$/ { next }
+    !/^[A-Za-z_][A-Za-z0-9_]*=/ { print "linha " NR " de " FILENAME " não é CHAVE=valor (segredo com quebra de linha?); tire-a no cofre" > "/dev/stderr"; erro = 1; next }
+    {
+      i = index($0, "="); chave = substr($0, 1, i - 1); v = substr($0, i + 1)
+      if (index(v, "\047") > 0) { print "o segredo " chave " tem aspa simples; tire-a no cofre" > "/dev/stderr"; erro = 1; next }
+      printf "%s=\047%s\047\n", chave, v
+    }
+    END { exit erro }
+  ' "$1" > "$2.novo" || { rm -f "$SEGREDOS/producao.env.bruto" "$SEGREDOS/producao-infra.env.bruto" "$2.novo"; exit 1; }
+  rm -f "$1"
+  mv "$2.novo" "$2"
+}
+entre_aspas "$SEGREDOS/producao.env.bruto" "$SEGREDOS/producao.env"
+entre_aspas "$SEGREDOS/producao-infra.env.bruto" "$SEGREDOS/producao-infra.env"
+
 # Arquivos que não são variáveis. ADMIN_IPS vem do cofre em linhas `<ip> 1;` separadas por
 # "\n" literal (vazio = Admin fechado).
-valor() { grep "^$1=" "$SEGREDOS/producao-infra.env" | head -n 1 | cut -d= -f2-; }
+valor() { grep "^$1=" "$SEGREDOS/producao-infra.env" | head -n 1 | cut -d= -f2- | sed "s/^'//; s/'\$//"; }
 printf '%s\n' "$(valor ADMIN_IPS | sed 's/\\n/\n/g')" > "$SEGREDOS/admin-ips.conf"
 printf 'dns_cloudflare_api_token = %s\n' "$(valor CLOUDFLARE_API_TOKEN)" > "$SEGREDOS/cloudflare.ini"
 sed -i '/^ADMIN_IPS=/d' "$SEGREDOS/producao-infra.env"
