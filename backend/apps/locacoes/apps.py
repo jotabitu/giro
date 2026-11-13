@@ -21,7 +21,9 @@ class LocacoesConfig(AppConfig):
     label = "locacoes"
 
     def ready(self) -> None:
-        from . import contrato, eventos, leituras  # noqa: F401 - eventos registra os assinantes
+        from comum.auditoria import registrar_formatador
+
+        from . import contrato, eventos, leituras, textos  # noqa: F401 - eventos assina
 
         leituras.registrar()
         contrato.registrar()
@@ -31,3 +33,7 @@ class LocacoesConfig(AppConfig):
 
         registrar_trava_da_conta(travar_caucao_da_compra)  # LOC-16: a caução da compra
         registrar_pendencia("locacoes_vistoria", "locacoes", _locacoes_abertas)  # PLT-12
+        # Textos da auditoria da compra (LOC-16, T-420)
+        registrar_formatador("locacao.quitar", textos.quitar)
+        registrar_formatador("locacao.encerrar_por_atraso", textos.encerrar_por_atraso)
+        registrar_formatador(tuple(textos.RESUMOS_DO_PLANO), textos.plano_de_compra)

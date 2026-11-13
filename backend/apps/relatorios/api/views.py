@@ -20,7 +20,7 @@ from apps.contas import selectors as contas_selectors
 from apps.filiais.models import Filial
 from apps.filiais.selectors import filtrar_por_filial
 from apps.plataforma import services as plataforma_services
-from comum import relogio
+from comum import painel, relogio
 from comum.conexao import schema_atual
 from comum.erros import ErroDeValidacao
 from comum.permissoes import TODAS_AS_FILIAIS, com_padrao, filial_pedida
@@ -67,7 +67,10 @@ class _Painel(APIView):
         # A variante na chave: com a 1ª locação (IMP-01) o administrador sai da implantação na
         # hora, sem esperar o cache vencer.
         variante = nav["inicio"]["variante"]
-        return f"painel:{schema_atual()}:{_quem(request.user)}:{escopo.chave}:{rota}:{variante}"
+        # A geração da empresa na chave: a transferência da quitação (LOC-16) aparece na hora.
+        geracao = painel.geracao()
+        quem = _quem(request.user)
+        return f"painel:{schema_atual()}:g{geracao}:{quem}:{escopo.chave}:{rota}:{variante}"
 
 
 class ContadoresView(_Painel):
