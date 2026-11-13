@@ -73,7 +73,15 @@ def _nova(
     veiculo: Veiculo | None = None,
 ) -> dict[str, Any]:
     relogio.em(confirmada_em)
-    return cenario.confirmada(veiculo=veiculo or _moto(cenario), inicio=inicio, periodos=2)
+    criada = cenario.confirmada(veiculo=veiculo or _moto(cenario), inicio=inicio, periodos=2)
+    # O `criado_em` das contas vem do relógio real (`auto_now_add`), e a FIN-03 conta o atraso
+    # também do dia em que a conta nasceu. Sem isto, desde 13 nov 2026 (o dia real passou o da
+    # cena) a parcela 2 "nascia" depois do vencimento e não atrasava (T-410, CI da develop).
+    # Como o resto da suíte (t148, t202): a conta nasce na hora do relógio dos testes.
+    ContaReceber.objects.filter(origem_tipo="locacao", origem_id=criada["id"]).update(
+        criado_em=relogio.agora
+    )
+    return criada
 
 
 def _ficha(cenario: Cenario, veiculo: Veiculo, quem: str = "Rodrigo") -> dict[str, Any]:  # noqa: F811

@@ -134,6 +134,21 @@ export type Veiculo = {
   };
 };
 
+export type VendaDoVeiculo = {
+  id: number;
+  codigo: string;
+  status: string;
+  origem: string;
+  origem_rotulo: string;
+  descricao: string | null;
+  cliente: { id: number; nome: string } | null;
+  vendida_em: string;
+  transferencia: { feita_em: string | null; registrada_por: { id: number; nome: string } | null; pendente: boolean } | null;
+  /** Linha do histórico montada pela API; `null` enquanto a transferência está pendente. */
+  transferencia_texto: string | null;
+};
+export type VendasDoVeiculo = { itens: VendaDoVeiculo[] };
+
 export type VeiculoDetalhe = Veiculo & {
   /** VEI-09 (T-421): os blocos sempre vêm. `documento.numero_motor` e `documento.observacoes` vêm ausentes para vendedor, vistoriador e financeiro. */
   combustivel: CombustivelDoVeiculo | null;
@@ -149,6 +164,8 @@ export type VeiculoDetalhe = Veiculo & {
   /** Ausente para o financeiro e quando o veículo nunca teve vistoria. */
   vistoria_recente?: VistoriaRecente | null;
   movimentacoes?: MovimentacoesDoVeiculo | null;
+  /** VEN-11, LOC-16 (T-420): as vendas do veículo, a mais nova primeiro; `null` sem venda. */
+  vendas?: VendasDoVeiculo | null;
   historico_status: { de: StatusVeiculo; para: StatusVeiculo; em: string; origem_codigo: string | null }[];
 };
 
