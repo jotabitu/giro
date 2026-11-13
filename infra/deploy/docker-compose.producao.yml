@@ -15,6 +15,10 @@
 #
 # Rede: só o `proxy` publica porta (80 e 443). Postgres, Redis, backend e Next ficam na rede
 # interna do compose, sem `ports:`. O firewall do provedor também abre só 80 e 443.
+#
+# Imagens (T-473): db, backend e frontend são construídas fora da VPS no perfil 4 GB
+# (infra/deploy/enviar-imagens.sh) e carregadas com as tags `producao` e a versão. GIRO_TAG
+# escolhe a tag (padrão `producao`); rollback é GIRO_TAG=<versao anterior> ... up -d.
 
 x-registro: &registro
   driver: json-file
@@ -27,7 +31,7 @@ x-backend: &backend
     context: ../..
     dockerfile: infra/docker/backend.Dockerfile
     target: producao
-  image: giro-backend:producao
+  image: giro-backend:${GIRO_TAG:-producao}
   env_file: ${ENV_FILE:-producao.env}
   restart: unless-stopped
   logging: *registro
@@ -37,7 +41,7 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/postgres.Dockerfile
-    image: giro-postgres:producao
+    image: giro-postgres:${GIRO_TAG:-producao}
     restart: unless-stopped
     logging: *registro
     # `init: true` é obrigatório: com o arquivamento assíncrono, o pgBackRest deixa um processo
@@ -199,7 +203,7 @@ services:
     build:
       context: ../..
       dockerfile: infra/docker/frontend.producao.Dockerfile
-    image: giro-frontend:producao
+    image: giro-frontend:${GIRO_TAG:-producao}
     restart: unless-stopped
     logging: *registro
     mem_limit: ${GIRO_MEM_FRONTEND:-512m}

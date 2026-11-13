@@ -174,6 +174,16 @@ Um compose só. Cada `mem_limit`, a concorrência do worker geral, o `shared_buf
 
 **Segredos do cofre.** Aplicação (`prd`, modelo `infra/deploy/producao.env.example`): `DJANGO_SECRET_KEY`, `JWT_SIGNING_KEY`, `GIRO_CHAVE_DADOS_PESSOAIS`, `GIRO_CHAVE_SEGREDOS`, `GIRO_PEPPER_HMAC`, `DATABASE_URL` (`giro_app`), `DATABASE_URL_MIGRACAO` (`giro_migracao`), `REDIS_URL`, `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND`, `EMAIL_*`, `S3_*`, `GIRO_ASAAS_CHAVE_API`, `SENTRY_DSN_BACKEND`. Infraestrutura (`prd_infra`, modelo `infra/deploy/producao-infra.env.example`): senhas do Postgres e do Redis, `PGBACKREST_*`, `RESTIC_*`, `AWS_*` (credencial do bucket de backup), `ARQUIVOS_S3_*` (leitura do bucket de arquivos), `CLOUDFLARE_API_TOKEN`, `CERTBOT_EMAIL`, `ALERTA_*`, `BATIMENTO_URL`, `ADMIN_IPS`. A chave de cifra do backup (`PGBACKREST_REPO1_CIPHER_PASS` e `RESTIC_PASSWORD`) também fica **com o dono, fora do provedor e do cofre**: sem ela o backup não abre.
 
+### Imagens construídas fora da VPS (T-473)
+
+No perfil 4 GB a VPS não constrói nada: `db`, `backend` e `frontend` saem da máquina da equipe já prontas, por `infra/deploy/enviar-imagens.sh`. Não há minutos de Actions para construir no CI.
+
+- **Pré-requisitos:** Docker Desktop ligado (o script para cedo se não estiver), o repositório na tag que vai subir e chave SSH aceita pelo usuário `giro` da VPS (`ssh giro@187.53.112.199 docker ps` funciona sem senha).
+- **Comando:** `sh infra/deploy/enviar-imagens.sh` (versão = `git describe --tags --always`) ou `sh infra/deploy/enviar-imagens.sh v1.0.0`. Constrói com `--platform linux/amd64`, marca cada imagem como `producao` e como a versão e envia por `docker save | gzip | ssh ... docker load`. Variáveis: `GIRO_VPS` (padrão `giro@187.53.112.199`), `GIRO_PLATAFORMA`, `API_URL_INTERNA` (build arg do frontend, padrão `http://backend:8000`; não é segredo, nenhuma imagem leva segredo) e `SO_CONSTRUIR=1` para não enviar.
+- **Espaço e tempo:** cerca de 3 GB de imagens descomprimidas na máquina local (mais o cache de build) e na VPS; o envio comprimido fica perto de 1 GB. Build do zero de 15 a 30 minutos (o `next build` pesa mais; em Windows/Mac com chip ARM a emulação amd64 dobra isso); o envio depende do upload, de 5 a 20 minutos.
+- **Na VPS depois:** `cd /opt/giro && git fetch --tags && git checkout <tag>`, `COFRE=doppler sh infra/deploy/baixar-segredos.sh` e `docker compose -f infra/deploy/docker-compose.producao.yml --env-file /etc/giro/producao.env --env-file /etc/giro/producao-infra.env up -d` **sem `--build`**. Nos passos 5 e 6 do roteiro abaixo, troque `up -d --build` por `up -d` no perfil 4 GB.
+- **Rollback:** as versões anteriores continuam carregadas na VPS; `git checkout <tag anterior>` e `GIRO_TAG=<tag anterior> docker compose ... up -d` sobem as imagens daquela versão. Limpe imagens antigas de vez em quando (`docker image prune`) mantendo pelo menos a versão anterior.
+
 ### Roteiro de subida
 
 1. **VPS:** crie com chave SSH (sem senha), `timedatectl set-timezone America/Sao_Paulo`, atualizações automáticas de segurança (`unattended-upgrades`), Docker e Compose v2, um usuário `giro` no grupo `docker`. Firewall do provedor: 80 e 443 abertos, 22 só para a equipe. O repositório vai em `/opt/giro` (`git clone`, tag de produção).
