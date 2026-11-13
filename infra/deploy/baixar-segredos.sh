@@ -9,7 +9,8 @@
 #
 # Uso: COFRE=doppler sh infra/deploy/baixar-segredos.sh
 #        precisa do CLI `doppler` autenticado com um token de serviço só de leitura;
-#        configs `prd` (aplicação) e `prd_infra` (infra) do projeto `giro`.
+#        configs `prd` (aplicação) e `prd_infra` (infra) do projeto `giro`. Com DOPPLER_TOKEN_APP e
+#        DOPPLER_TOKEN_INFRA (no ambiente ou em $GIRO_SEGREDOS/doppler.env), um token por config.
 #      COFRE=bws sh infra/deploy/baixar-segredos.sh
 #        precisa do CLI `bws` e de BWS_ACCESS_TOKEN (conta de máquina só de leitura) e jq;
 #        BWS_PROJETO_APP e BWS_PROJETO_INFRA com os IDs dos projetos do Secrets Manager.
@@ -23,8 +24,23 @@ chmod 700 "$SEGREDOS"
 
 case "${COFRE:-}" in
   doppler)
-    doppler secrets download --project giro --config prd --format env --no-file > "$SEGREDOS/producao.env"
-    doppler secrets download --project giro --config prd_infra --format env --no-file > "$SEGREDOS/producao-infra.env"
+    # Tokens de serviço por config (T-473): DOPPLER_TOKEN_APP (prd) e DOPPLER_TOKEN_INFRA
+    # (prd_infra), do ambiente ou de $SEGREDOS/doppler.env (600). Cada um vai só ao seu comando,
+    # pela variável (não pela linha de comando, que aparece no `ps`). Sem eles, vale o login do CLI.
+    if [ -f "$SEGREDOS/doppler.env" ]; then
+      # shellcheck disable=SC1091
+      . "$SEGREDOS/doppler.env"
+    fi
+    if [ -n "${DOPPLER_TOKEN_APP:-}" ] && [ -n "${DOPPLER_TOKEN_INFRA:-}" ]; then
+      DOPPLER_TOKEN="$DOPPLER_TOKEN_APP" doppler secrets download --project giro --config prd --format env --no-file > "$SEGREDOS/producao.env"
+      DOPPLER_TOKEN="$DOPPLER_TOKEN_INFRA" doppler secrets download --project giro --config prd_infra --format env --no-file > "$SEGREDOS/producao-infra.env"
+    elif [ -n "${DOPPLER_TOKEN_APP:-}${DOPPLER_TOKEN_INFRA:-}" ]; then
+      echo "defina DOPPLER_TOKEN_APP e DOPPLER_TOKEN_INFRA juntos (ou nenhum, para usar o login do CLI)" >&2
+      exit 1
+    else
+      doppler secrets download --project giro --config prd --format env --no-file > "$SEGREDOS/producao.env"
+      doppler secrets download --project giro --config prd_infra --format env --no-file > "$SEGREDOS/producao-infra.env"
+    fi
     ;;
   bws)
     : "${BWS_PROJETO_APP:?defina BWS_PROJETO_APP}" "${BWS_PROJETO_INFRA:?defina BWS_PROJETO_INFRA}"
