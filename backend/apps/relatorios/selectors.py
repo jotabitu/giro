@@ -28,6 +28,7 @@ from apps.financeiro import selectors as financeiro_selectors
 from apps.locacoes import selectors as locacoes_selectors
 from apps.plataforma import selectors as plataforma_selectors
 from apps.veiculos import selectors as veiculos_selectors
+from apps.vendas import selectors as vendas_selectors
 from apps.vistorias import selectors as vistorias_selectors
 from comum import relogio
 from comum.dinheiro import formatar_reais
@@ -290,6 +291,7 @@ def _geral(usuario: Any, escopo: Escopo, periodo: str) -> dict[str, Any]:
                 "destino": {"chave": "receber", "filtro": "situacao=vencem_hoje"},
             }
         )
+    itens.extend(_transferencias_pendentes(escopo))
     return {
         "atencao": {
             "quantidade": precisam,
@@ -348,6 +350,19 @@ def _geral(usuario: Any, escopo: Escopo, periodo: str) -> dict[str, Any]:
         },
         "caixa_hoje": _caixa_hoje(escopo),
     }
+
+
+def _transferencias_pendentes(escopo: Escopo) -> list[dict[str, Any]]:
+    """`LOC-16`, `VEN-11`: uma pendência por transferência no Detran que falta, a mais antiga
+    primeiro, levando ao detalhe da locação quitada (`painel.md`, `vendas.md`)."""
+    return [
+        {
+            "texto": f"{item['rotulo']} · {item['detalhe']}",
+            "gravidade": "alerta",
+            "destino": {"chave": "locacoes", "id": item["locacao_id"]},
+        }
+        for item in vendas_selectors.transferencias_pendentes(escopo.filiais)
+    ]
 
 
 def _caixa_hoje(escopo: Escopo) -> dict[str, Any] | None:

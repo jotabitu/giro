@@ -12,9 +12,12 @@ from typing import Any
 
 import pytest
 from django.core import mail
+from django.core.cache import cache
 from django.db import connection, transaction
 
 from apps.auditoria.models import EventoAuditoria
+from apps.contas.models import StatusUsuario, Usuario
+from apps.filiais.models import Filial
 from apps.financeiro.models import Comissao, ContaReceber
 from apps.locacoes.models import Locacao
 from apps.notificacoes.models import Notificacao
@@ -26,6 +29,7 @@ from comum import eventos, leituras, relogio
 from comum.auditoria import Ator, TipoAtor, usar_ator
 from comum.erros import Conflito, TransicaoInvalida
 
+from .test_t012_filiais import _filial
 from .test_t015_locacoes import Cenario, cenario  # noqa: F401
 from .test_t091_locacao_fim import _ativa
 
@@ -109,19 +113,44 @@ def test_ven_11_auditoria_do_sistema(quitada):
     assert vendido.ator_tipo == "sistema"
 
 
-def test_ven_11_aviso_aos_gerentes_da_filial(cenario, quitada):  # noqa: F811
-    """CA-420-11: o texto da `LOC-16`, no sino e por e-mail, só para os gerentes da filial."""
+def test_ven_11_loc_16_aviso_aos_gerentes_e_administradores(cenario, quitada):  # noqa: F811
+    """CA-420-11 e B-04 (decisão do dono, 12 nov 2026): o texto da `LOC-16`, no sino e por
+    e-mail, para os gerentes da filial e os administradores da empresa."""
     venda = _venda()
-    aviso = Notificacao.objects.get(tipo="transferencia_quitacao")
-    assert aviso.destinatario == cenario.pessoas["Rodrigo"]
+    avisos = Notificacao.objects.filter(tipo="transferencia_quitacao").order_by("destinatario_id")
+    assert {a.destinatario.nome for a in avisos} == {"Rodrigo", "Mariana"}
+    assert len({a.titulo for a in avisos}) == 1
+    aviso = avisos.get(destinatario=cenario.pessoas["Rodrigo"])
     assert aviso.titulo == (
         "Fazer a transferência no Detran: SAK-1D39 para Lucas Ferreira. "
         "LOC-2856 quitada em 07/10/2026."
     )
     assert (aviso.link, aviso.urgente) == (f"/locacoes/{quitada['id']}", False)
     assert aviso.chave == f"quitacao-transferencia-{venda.pk}"
-    assert [m.to for m in mail.outbox if aviso.titulo in f"{m.subject} {m.body}"] == [
-        ["rodrigo@motorapida.com.br"]
+    assert sorted(m.to[0] for m in mail.outbox if aviso.titulo in f"{m.subject} {m.body}") == [
+        "mariana@motorapida.com.br",
+        "rodrigo@motorapida.com.br",
+    ]
+
+
+def test_ven_11_loc_16_aviso_sem_gerente_na_filial(cenario):  # noqa: F811
+    """B-04: numa filial sem gerente ativo, o aviso chega aos administradores ativos (sem
+    repetir); administrador desativado e o gerente de outra filial (Rodrigo, do Centro) não
+    recebem."""
+    caucaia = Filial.objects.get(pk=cenario.moto.criar(_filial("Filial Caucaia")).json()["id"])
+    Usuario.objects.create_user(
+        "ana@motorapida.com.br",
+        "senha-forte-123",
+        nome="Ana",
+        perfil="administrador",
+        status=StatusUsuario.DESATIVADO,
+    )
+    paulo = Usuario.objects.create_user(
+        "paulo@motorapida.com.br", "senha-forte-123", nome="Paulo", perfil="administrador"
+    )
+    assert services.destinatarios_da_transferencia(caucaia) == [
+        cenario.pessoas["Mariana"].pk,
+        paulo.pk,
     ]
 
 
@@ -130,7 +159,8 @@ def test_ven_11_idempotente_pela_locacao(cenario, quitada, django_capture_on_com
         _quitar(cenario, quitada["id"])
     assert Venda.objects.count() == 1
     assert HistoricoStatusVeiculo.objects.filter(para="vendido").count() == 1
-    assert Notificacao.objects.filter(tipo="transferencia_quitacao").count() == 1
+    # Um aviso por pessoa (Rodrigo e Mariana), sem repetir na segunda quitação.
+    assert Notificacao.objects.filter(tipo="transferencia_quitacao").count() == 2
 
 
 def test_ven_11_falha_na_venda_desfaz_a_quitacao(cenario):  # noqa: F811
@@ -176,6 +206,7 @@ def test_ven_11_transferencias_pendentes(quitada):
     assert selectors.transferencias_pendentes([filial]) == [
         {
             "tipo": "transferencia_quitacao",
+            "locacao_id": quitada["id"],
             "rotulo": "Transferência no Detran · SAK-1D39",
             "detalhe": "Lucas Ferreira · LOC-2856 quitada em 07/10/2026",
             "link": f"/locacoes/{quitada['id']}",
@@ -269,6 +300,38 @@ def test_ven_11_lista_de_vendas(cenario, quitada):  # noqa: F811
     assert detalhe.json()["acoes"]["registrar_transferencia"] is False
     pendentes = cenario.moto.api("Mariana").get(VENDAS, {"transferencia_pendente": "true"})
     assert len(pendentes.json()["resultados"]) == 1
+
+
+def test_ven_11_lista_e_detalhe_pela_filial_escolhida(cenario, quitada):  # noqa: F811
+    """B-03 (FIL-02, USR-07): a lista e o detalhe seguem o `X-Filial`, como as outras listas."""
+    venda = _venda()
+    caucaia = cenario.moto.criar(_filial("Filial Caucaia")).json()["id"]
+    na_caucaia = cenario.moto.api("Mariana", HTTP_X_FILIAL=str(caucaia))
+    assert na_caucaia.get(VENDAS).json()["resultados"] == []
+    assert na_caucaia.get(f"{VENDAS}{venda.pk}/").status_code == 404
+    no_centro = cenario.moto.api("Mariana", HTTP_X_FILIAL=str(venda.filial_id))
+    assert [v["id"] for v in no_centro.get(VENDAS).json()["resultados"]] == [venda.pk]
+    assert no_centro.get(f"{VENDAS}{venda.pk}/").status_code == 200
+    todas = cenario.moto.api("Mariana", HTTP_X_FILIAL="todas")
+    assert len(todas.get(VENDAS).json()["resultados"]) == 1
+
+
+def test_ven_11_loc_16_pendencia_no_painel(cenario, quitada):  # noqa: F811
+    """`painel.md`: a transferência que falta entra nas `pendencias.itens` do administrador,
+    levando ao detalhe da locação, e sai quando a transferência é registrada."""
+    painel = cenario.moto.api("Mariana").get("/api/painel/inicio/").json()
+    assert painel["variante"] == "geral"
+    item = {
+        "texto": "Transferência no Detran · SAK-1D39 · Lucas Ferreira · LOC-2856 quitada em "
+        "07/10/2026",
+        "gravidade": "alerta",
+        "destino": {"chave": "locacoes", "id": quitada["id"]},
+    }
+    assert item in painel["pendencias"]["itens"]
+    assert _registrar(cenario, quitada["id"]).status_code == 200
+    cache.clear()  # o início fica em cache por 5 minutos (`relatorios.api.views`)
+    depois = cenario.moto.api("Mariana").get("/api/painel/inicio/").json()
+    assert item not in depois["pendencias"]["itens"]
 
 
 def test_ven_11_lista_vistoriador_403(cenario, quitada):  # noqa: F811

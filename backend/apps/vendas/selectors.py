@@ -122,6 +122,7 @@ def transferencias_pendentes(filiais: Iterable[int]) -> list[dict[str, Any]]:
     return [
         {
             "tipo": "transferencia_quitacao",
+            "locacao_id": venda.locacao_id,
             "rotulo": f"Transferência no Detran · {placa_com_hifen(venda.veiculo.placa)}",
             "detalhe": (
                 f"{venda.cliente.nome} · {venda.locacao.codigo if venda.locacao else ''} "

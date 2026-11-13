@@ -44,13 +44,13 @@ Este contrato cobre só o que a T-420 precisa: a venda de R$ 0,00 que nasce na q
 
 ### GET /api/vendas/ · GET /api/vendas/{id}/
 
-Com o recurso `vendas_comissoes`. Lista paginada das vendas das filiais da pessoa, mais nova primeiro, no formato acima. Query: `?origem=`, `?transferencia_pendente=true`, `?veiculo=<id>`, `?cliente=<id>`. Enquanto o módulo de vendas não existe, só há vendas de quitação. O vistoriador recebe 403.
+Com o recurso `vendas_comissoes`. Lista paginada das vendas das filiais da pessoa, filtrada pela filial escolhida no `X-Filial` como as outras listas (`filtrar_por_filial`, `USR-07`; com `todas`, as filiais da pessoa), mais nova primeiro, no formato acima. Query: `?origem=`, `?transferencia_pendente=true`, `?veiculo=<id>`, `?cliente=<id>`. Enquanto o módulo de vendas não existe, só há vendas de quitação. O vistoriador recebe 403. O detalhe segue o mesmo escopo: venda de outra filial que a escolhida dá 404.
 
 ## A tarefa da transferência
 
 Não há entidade de tarefa: a pendência é a venda da quitação com `transferencia.feita_em` nula (ADR 0037, item 6).
 
-**Aviso.** Ao nascer a venda, depois do commit, os gerentes ativos da filial (`filiais.selectors.gerentes`, `FIL-02`) recebem no sino e por e-mail (`notificacoes.services.avisar(..., por_email=True)`):
+**Aviso.** Ao nascer a venda, depois do commit, os gerentes ativos da filial (`filiais.selectors.gerentes`, `FIL-02`) **e os administradores ativos da empresa** (`contas.selectors.administradores`), com ou sem gerente na filial e sem repetir pessoa (`vendas.services.destinatarios_da_transferencia`; decisão do dono em 12 nov 2026, achado B-04 da segurança; vale só para este aviso), recebem no sino e por e-mail (`notificacoes.services.avisar(..., por_email=True)`):
 ```
 tipo: "transferencia_quitacao"
 titulo: "Fazer a transferência no Detran: RTA-2C55 para Lucas Ferreira. LOC-2901 quitada em 10/10/2028."
@@ -60,7 +60,7 @@ chave: "quitacao-transferencia-{venda_id}"
 ```
 O texto é o da `LOC-16`, com a placa com hífen e a data no fuso da filial (CA-420-11).
 
-**Pendência no painel.** `vendas.selectors.transferencias_pendentes(filiais)` devolve as vendas da quitação sem transferência, para `relatorios` pôr nas `pendencias.itens` do painel do gerente e do administrador (`painel.md`): `{ "tipo": "transferencia_quitacao", "rotulo": "Transferência no Detran · RTA-2C55", "detalhe": "Lucas Ferreira · LOC-2901 quitada em 10/10/2028", "link": "/locacoes/2901" }`.
+**Pendência no painel.** `vendas.selectors.transferencias_pendentes(filiais)` devolve as vendas da quitação sem transferência, para `relatorios` pôr nas `pendencias.itens` do painel do administrador (variante `geral`, `painel.md`; a variante `gerente` não tem o bloco `pendencias`, e o gerente recebe o aviso): `{ "tipo": "transferencia_quitacao", "locacao_id": 2901, "rotulo": "Transferência no Detran · RTA-2C55", "detalhe": "Lucas Ferreira · LOC-2901 quitada em 10/10/2028", "link": "/locacoes/2901" }`.
 
 ### POST /api/locacoes/{id}/transferencia/
 
