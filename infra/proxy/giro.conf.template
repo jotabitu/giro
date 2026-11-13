@@ -1,7 +1,7 @@
 # Proxy reverso de homologação e produção (T-158, M-04; ADR 0013 e 0018).
 #
 # Modelo do nginx: a imagem oficial troca ${VARIAVEL} ao subir (pasta /etc/nginx/templates).
-# Variáveis: DOMINIO_BASE (girolocadoras.com.br), SUBDOMINIO_PLATAFORMA (admin), BACKEND_UPSTREAM
+# Variáveis: DOMINIO_BASE (giro.ceo), SUBDOMINIO_PLATAFORMA (admin), BACKEND_UPSTREAM
 # (host:porta do Django), FRONTEND_UPSTREAM (host:porta do Next), ESTATICOS_DIR (collectstatic do
 # backend, ADR 0027) e CERT_DIR (pasta de fullchain.pem e privkey.pem do certificado curinga). O
 # corpo comum dos servidores está em snippets/giro-locais.conf.template. Este arquivo é a

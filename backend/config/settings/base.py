@@ -516,7 +516,7 @@ GIRO_COMPRA_TETO_DIARIO = env.int("GIRO_COMPRA_TETO_DIARIO", default=50)
 # não existem (D-430-05, aberta): a compra não entra no ar sem eles.
 GIRO_TERMOS_VERSAO = env("GIRO_TERMOS_VERSAO", default="rascunho")
 # Para onde vão os avisos da compra pública à equipe Giro (teto do dia e falha).
-GIRO_EMAIL_EQUIPE = env("GIRO_EMAIL_EQUIPE", default="equipe@girolocadoras.com.br")
+GIRO_EMAIL_EQUIPE = env("GIRO_EMAIL_EQUIPE", default="equipe@giro.ceo")
 # Arquivos privados (ADR 0009, AUD-05): "falso" (na memória) em dev e testes; "s3" com um bucket
 # privado compatível com S3 em homologação e produção.
 GIRO_ARMAZENAMENTO = env("GIRO_ARMAZENAMENTO", default="falso")
@@ -559,7 +559,7 @@ EMAIL_PORT = env.int("EMAIL_PORT", default=587)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = True
-DEFAULT_FROM_EMAIL = env("EMAIL_FROM", default="Giro <nao-responda@girolocadoras.com.br>")
+DEFAULT_FROM_EMAIL = env("EMAIL_FROM", default="Giro <nao-responda@giro.ceo>")
 
 # --- Sentry (vazio desliga) ---
 SENTRY_DSN_BACKEND = env("SENTRY_DSN_BACKEND", default="")
