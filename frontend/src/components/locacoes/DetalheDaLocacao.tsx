@@ -134,7 +134,7 @@ function Pagamentos({ l, variante, aoConcluir }: { l: LocacaoCompleta; variante:
   if (variante === "celular") return panel(<ContasNoCelular l={l} parcelas={l.parcelas} aoConcluir={aoConcluir} />);
   return panel(
       <div className="overflow-x-auto">
-        <table className="wl-table">
+        <table className="wl-table whitespace-nowrap">
           <thead>
             <tr>
               <th>Parcela</th>
@@ -452,9 +452,11 @@ export function DetalheDaLocacao({ id }: { id: number }) {
             <Contrato l={l} aoConcluir={setAviso} />
           </div>
           <div className="flex min-w-0 flex-col gap-6">
-            <section className="wl-panel">
-              <Prazo l={l} />
-            </section>
+            {l.devolucao.prevista_para && (
+              <section className="wl-panel">
+                <Prazo l={l} />
+              </section>
+            )}
             <Troca l={l} />
             <Cancelamento l={l} />
             {l.compra ? <ResumoDaCompra l={l} /> : <Resumo l={l} />}
