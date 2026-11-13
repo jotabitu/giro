@@ -12,6 +12,7 @@ Toda baixa passa por `_baixar`: grava a forma, a hora, a multa e os juros (FIN-0
 (`processar_webhook`, AUT-05) e a caução do acerto (`pagar_com_caucao`, DEV-02).
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from email.headerregistry import Address
@@ -967,12 +968,32 @@ def lancar_avulsa(
     return criadas[0]
 
 
+# Travas que os apps de cima registram no `ready()` para o cancelar e o renegociar da tela
+# (ADR 0011: `financeiro` não importa quem está acima). Cada uma recebe a conta travada e
+# levanta o erro do app dono, ou não faz nada. Ex.: a caução da locação com intenção de compra
+# (LOC-16) não se cancela nem se renegocia com a locação em andamento.
+TravaDaConta = Callable[[ContaReceber], None]
+_travas_da_conta: list[TravaDaConta] = []
+
+
+def registrar_trava_da_conta(trava: TravaDaConta) -> None:
+    if trava not in _travas_da_conta:
+        _travas_da_conta.append(trava)
+
+
+def _conferir_travas(conta: ContaReceber) -> None:
+    for trava in _travas_da_conta:
+        trava(conta)
+
+
 def cancelar(conta: ContaReceber, *, motivo: str, regra: str = "") -> ContaReceber:
-    """Só a conta em aberto vai para `cancelada` (FIN-01). Paga ou cancelada: 409."""
+    """Só a conta em aberto vai para `cancelada` (FIN-01). Paga ou cancelada: 409. As travas
+    registradas pelos apps de cima valem aqui."""
     with transaction.atomic():
         travada = _travar(conta)
         if travada.status != StatusConta.ABERTA:
             raise conta_nao_esta_aberta(travada)
+        _conferir_travas(travada)
         estados.transicionar(
             travada,
             StatusConta.CANCELADA,
@@ -1000,6 +1021,7 @@ def renegociar(
         for travada in travadas:
             if travada.status != StatusConta.ABERTA:
                 raise conta_nao_esta_aberta(travada)
+            _conferir_travas(travada)
         clientes = {t.cliente_id for t in travadas}
         if len(clientes) != 1:
             raise ErroDeValidacao({"contas": ["Renegocie as contas de um cliente por vez."]})

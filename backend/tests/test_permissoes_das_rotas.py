@@ -86,6 +86,7 @@ def test_outros_apps_filtram_filial_so_por_filtrar_por_filial():
 RECURSO_DAS_ROTAS = {
     "api/locacoes/": "locacoes_vistoria",
     "api/planos-especiais/": "locacoes_vistoria",
+    "api/planos-compra/": "locacoes_vistoria",  # LOC-16 (T-420)
     "api/vistorias/": "locacoes_vistoria",
     "api/devolucoes/": "locacoes_vistoria",
     "api/publico/recibos/": "locacoes_vistoria",  # T-411: a página pública do recibo
