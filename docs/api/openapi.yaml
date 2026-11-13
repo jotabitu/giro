@@ -4254,6 +4254,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/LocacaoDetalhe'
           description: ''
+  /api/locacoes/{id}/transferencia/:
+    post:
+      operationId: locacoes_transferencia_create
+      summary: 'Transferência feita no Detran (LOC-16, VEN-11): fecha a tarefa da
+        quitação'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - locacoes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferenciaEntrada'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TransferenciaEntrada'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TransferenciaEntrada'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LocacaoDetalhe'
+          description: ''
   /api/locacoes/{id}/trocar-veiculo/:
     post:
       operationId: locacoes_trocar_veiculo_create
@@ -7115,6 +7149,64 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListaDeModelosDoCatalogo'
           description: ''
+  /api/vendas/:
+    get:
+      operationId: vendas_list
+      summary: Vendas (na T-420, só as da quitação, VEN-11)
+      parameters:
+      - in: query
+        name: cliente
+        schema:
+          type: integer
+      - in: query
+        name: origem
+        schema:
+          type: string
+          enum:
+          - balcao
+          - quitacao_locacao
+      - in: query
+        name: transferencia_pendente
+        schema:
+          type: string
+          enum:
+          - 'true'
+      - in: query
+        name: veiculo
+        schema:
+          type: integer
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaDeVendas'
+          description: ''
+  /api/vendas/{id}/:
+    get:
+      operationId: vendas_retrieve
+      summary: Detalhe da venda
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - vendas
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Venda'
+          description: ''
   /api/vistorias/{id}/:
     get:
       operationId: vistorias_retrieve
@@ -7857,6 +7949,16 @@ components:
       - baixar
       - resolver
     AcoesDaVenda:
+      type: object
+      properties:
+        cancelar:
+          type: boolean
+        registrar_transferencia:
+          type: boolean
+      required:
+      - cancelar
+      - registrar_transferencia
+    AcoesDaVendaDaCompra:
       type: object
       properties:
         registrar_transferencia:
@@ -9178,6 +9280,23 @@ components:
       - conta_id
       - status
       - valor_centavos
+    CaucaoNaLinha:
+      type: object
+      properties:
+        rotulo:
+          type: string
+          description: 'LOC-17: "Caução R$ 300,00 · paga" ou "· em aberto"'
+        tom:
+          type: string
+        valor_centavos:
+          type: integer
+        paga:
+          type: boolean
+      required:
+      - paga
+      - rotulo
+      - tom
+      - valor_centavos
     CelulaDoResumo:
       type: object
       properties:
@@ -10081,12 +10200,32 @@ components:
           type: integer
         tipo:
           type: string
+        tipo_rotulo:
+          type: string
+          description: 'FIN-19: "Parcela", "Caução", "Multa", "Avaria", "Acerto da
+            devolução", "Outra cobrança"; na conta de um acordo, o tipo da conta original'
+        rotulo:
+          type: string
+          description: 'FIN-19: "Parcela 2 de 5", "Parcela única", "Caução", "Multa
+            · {descrição}", "Renegociação · 1 de 3"; na lista e no título do detalhe'
+        renegociacao:
+          type: boolean
+          description: 'FIN-19: conta nascida de um acordo; a tela mostra "Renegociação"
+            ao lado do tipo'
         numero:
           type: integer
           nullable: true
         total_parcelas:
           type: integer
           nullable: true
+          description: 'FIN-19: na parcela, o total da origem em vigor (com renovação
+            e canceladas), sem caução nem outras cobranças; na conta de um acordo,
+            as contas do acordo'
+        parcela_de:
+          type: string
+          nullable: true
+          description: 'FIN-19: "1 de 128 parcelas", só na parcela que não é única
+            nem de acordo'
         origem:
           $ref: '#/components/schemas/OrigemDaConta'
         cliente:
@@ -10164,8 +10303,12 @@ components:
       - observacao
       - origem
       - pago_em
+      - parcela_de
+      - renegociacao
+      - rotulo
       - status
       - tipo
+      - tipo_rotulo
       - total_parcelas
       - valor_centavos
       - valor_hoje
@@ -10178,12 +10321,32 @@ components:
           type: integer
         tipo:
           type: string
+        tipo_rotulo:
+          type: string
+          description: 'FIN-19: "Parcela", "Caução", "Multa", "Avaria", "Acerto da
+            devolução", "Outra cobrança"; na conta de um acordo, o tipo da conta original'
+        rotulo:
+          type: string
+          description: 'FIN-19: "Parcela 2 de 5", "Parcela única", "Caução", "Multa
+            · {descrição}", "Renegociação · 1 de 3"; na lista e no título do detalhe'
+        renegociacao:
+          type: boolean
+          description: 'FIN-19: conta nascida de um acordo; a tela mostra "Renegociação"
+            ao lado do tipo'
         numero:
           type: integer
           nullable: true
         total_parcelas:
           type: integer
           nullable: true
+          description: 'FIN-19: na parcela, o total da origem em vigor (com renovação
+            e canceladas), sem caução nem outras cobranças; na conta de um acordo,
+            as contas do acordo'
+        parcela_de:
+          type: string
+          nullable: true
+          description: 'FIN-19: "1 de 128 parcelas", só na parcela que não é única
+            nem de acordo'
         origem:
           $ref: '#/components/schemas/OrigemDaConta'
         cliente:
@@ -10266,8 +10429,12 @@ components:
       - observacao
       - origem
       - pago_em
+      - parcela_de
+      - renegociacao
+      - rotulo
       - status
       - tipo
+      - tipo_rotulo
       - total_parcelas
       - valor_centavos
       - valor_hoje
@@ -12409,6 +12576,8 @@ components:
       properties:
         conta_id:
           type: integer
+          nullable: true
+          description: null na caução que não tem conta aberta para receber
         rotulo:
           type: string
         valor_centavos:
@@ -15262,6 +15431,23 @@ components:
       - contagens
       - proximo
       - resultados
+    ListaDeVendas:
+      type: object
+      properties:
+        proximo:
+          type: string
+          nullable: true
+        anterior:
+          type: string
+          nullable: true
+        resultados:
+          type: array
+          items:
+            $ref: '#/components/schemas/Venda'
+      required:
+      - anterior
+      - proximo
+      - resultados
     Locacao:
       type: object
       description: Linha da lista. Para o vistoriador, o detalhe sai sem `pagamento`
@@ -15348,6 +15534,16 @@ components:
       - no_horario
       - status
       - veiculo
+    LocacaoDaVenda:
+      type: object
+      properties:
+        id:
+          type: integer
+        codigo:
+          type: string
+      required:
+      - codigo
+      - id
     LocacaoDaVistoria:
       type: object
       properties:
@@ -16646,11 +16842,21 @@ components:
         * `caixa` - Caixa
         * `cliente` - Cliente
         * `veiculo` - Veículo
+    OrigemVendaEnum:
+      enum:
+      - balcao
+      - quitacao_locacao
+      type: string
+      description: |-
+        * `balcao` - Balcão
+        * `quitacao_locacao` - Quitação de locação
     PagamentoLocacao:
       type: object
       properties:
         rotulo:
           type: string
+          description: 'LOC-17 (T-456): texto pronto, a tela não troca ("Falta R$
+            629,00 · 1ª semana e caução", "R$ 329,00 vence hoje", "Pix", "Pago")'
         tom:
           type: string
         em_aberto_centavos:
@@ -16658,7 +16864,14 @@ components:
         pago_centavos:
           type: integer
           description: Contas pagas da locação, sem a caução.
+        caucao:
+          allOf:
+          - $ref: '#/components/schemas/CaucaoNaLinha'
+          nullable: true
+          description: 'LOC-17: na locação em andamento com caução; sai depois do
+            acerto'
       required:
+      - caucao
       - em_aberto_centavos
       - pago_centavos
       - rotulo
@@ -19070,6 +19283,16 @@ components:
       required:
       - id
       - nome
+    RefDaVenda:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+      required:
+      - id
+      - nome
     ReferenciaCliente:
       type: object
       properties:
@@ -19930,6 +20153,24 @@ components:
         * `vendido` - Vendido
         * `baixado` - Baixado
         * `em_movimentacao` - Em movimentação
+    StatusVendaEnum:
+      enum:
+      - interessado
+      - proposta
+      - negociacao
+      - aguardando_aprovacao
+      - vendida
+      - perdida
+      - cancelada
+      type: string
+      description: |-
+        * `interessado` - Interessado
+        * `proposta` - Proposta
+        * `negociacao` - Negociação
+        * `aguardando_aprovacao` - Aguardando aprovação
+        * `vendida` - Vendida
+        * `perdida` - Perdida
+        * `cancelada` - Cancelada
     Subdominio:
       type: object
       properties:
@@ -20359,6 +20600,23 @@ components:
         * `motos` - motos
         * `carros` - carros
         * `ambos` - motos e carros
+    Transferencia:
+      type: object
+      properties:
+        feita_em:
+          type: string
+          format: date
+          nullable: true
+        registrada_por:
+          allOf:
+          - $ref: '#/components/schemas/RefDaVenda'
+          nullable: true
+        pendente:
+          type: boolean
+      required:
+      - feita_em
+      - pendente
+      - registrada_por
     TransferenciaDaVenda:
       type: object
       properties:
@@ -20376,6 +20634,14 @@ components:
       - feita_em
       - pendente
       - registrada_por
+    TransferenciaEntrada:
+      type: object
+      properties:
+        feita_em:
+          type: string
+          format: date
+      required:
+      - feita_em
     TrechoLocacao:
       type: object
       properties:
@@ -21165,6 +21431,19 @@ components:
       - id
       - modelo
       - placa
+    VeiculoDaVenda:
+      type: object
+      properties:
+        id:
+          type: integer
+        placa:
+          type: string
+        modelo:
+          type: string
+      required:
+      - id
+      - modelo
+      - placa
     VeiculoDaVistoria:
       type: object
       properties:
@@ -21292,6 +21571,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/HistoricoStatus'
+        vendas:
+          nullable: true
       required:
       - acoes
       - ano_fabricacao
@@ -21421,6 +21702,61 @@ components:
         * `km_e_avarias` - km_e_avarias
         * `ver` - ver
         * `nao` - nao
+    Venda:
+      type: object
+      properties:
+        id:
+          type: integer
+        codigo:
+          type: string
+        status:
+          $ref: '#/components/schemas/StatusVendaEnum'
+        origem:
+          $ref: '#/components/schemas/OrigemVendaEnum'
+        origem_rotulo:
+          type: string
+        descricao:
+          type: string
+        cliente:
+          $ref: '#/components/schemas/RefDaVenda'
+        veiculo:
+          $ref: '#/components/schemas/VeiculoDaVenda'
+        filial:
+          $ref: '#/components/schemas/RefDaVenda'
+        vendedor:
+          allOf:
+          - $ref: '#/components/schemas/RefDaVenda'
+          nullable: true
+        locacao:
+          allOf:
+          - $ref: '#/components/schemas/LocacaoDaVenda'
+          nullable: true
+        preco_final_centavos:
+          type: integer
+        vendida_em:
+          type: string
+          format: date-time
+          nullable: true
+        transferencia:
+          $ref: '#/components/schemas/Transferencia'
+        acoes:
+          $ref: '#/components/schemas/AcoesDaVenda'
+      required:
+      - acoes
+      - cliente
+      - codigo
+      - descricao
+      - filial
+      - id
+      - locacao
+      - origem
+      - origem_rotulo
+      - preco_final_centavos
+      - status
+      - transferencia
+      - veiculo
+      - vendedor
+      - vendida_em
     VendaDaCompra:
       type: object
       description: 'VEN-11: a venda de R$ 0,00 da quitação, fornecida por `vendas`
@@ -21433,7 +21769,7 @@ components:
         transferencia:
           $ref: '#/components/schemas/TransferenciaDaVenda'
         acoes:
-          $ref: '#/components/schemas/AcoesDaVenda'
+          $ref: '#/components/schemas/AcoesDaVendaDaCompra'
       required:
       - acoes
       - codigo

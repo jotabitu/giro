@@ -8,7 +8,7 @@ import { FiltroChips, type OpcaoChip } from "@/components/lista/FiltroChips";
 import { Paginacao } from "@/components/lista/Paginacao";
 import { financeiro, type ContaReceber, type PeriodoReceber, type SituacaoReceber } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
-import { rotuloDaForma, rotuloDaParcela, origemDaConta, situacaoDaConta } from "@/lib/financeiro";
+import { rotuloDaForma, origemDaConta, situacaoDaConta } from "@/lib/financeiro";
 import { useBuscaNaUrl, useFiltrosNaUrl } from "@/lib/filtros-url";
 import { dataCurta, dinheiro, percentual } from "@/lib/formatos";
 import { dinheiroCurto } from "@/lib/painel";
@@ -67,7 +67,6 @@ function BotaoCobrar({ c, aoCobrar, ocupado }: { c: ContaReceber; aoCobrar: (c: 
 }
 
 function CartaoDaConta({ c, aoCobrar, aoDarBaixa, aoAbrir, ocupado }: { c: ContaReceber; aoCobrar: (c: ContaReceber) => void; aoDarBaixa: (c: ContaReceber) => void; aoAbrir: (c: ContaReceber) => void; ocupado: boolean }) {
-  const rotulo = c.tipo === "parcela" ? `parcela ${rotuloDaParcela(c)}` : rotuloDaParcela(c).toLowerCase();
   return (
     <article className="flex flex-col gap-3 rounded-lg bg-surface p-4">
       <button type="button" onClick={() => aoAbrir(c)} className="flex flex-col gap-3 text-left text-ink">
@@ -75,7 +74,7 @@ function CartaoDaConta({ c, aoCobrar, aoDarBaixa, aoAbrir, ocupado }: { c: Conta
           <span className="min-w-0 flex-1">
             <span className="block text-body font-medium">{c.cliente.nome}</span>
             <span className="wl-mono block text-caption text-ink-muted">
-              {c.origem.codigo} · {rotulo}
+              {c.origem.codigo} · {c.rotulo}
             </span>
           </span>
           <span className="shrink-0 text-body font-semibold">{dinheiro(c.valor_centavos)}</span>
@@ -180,7 +179,7 @@ export function ListaReceber() {
   const colunas: ColunaTabela<ContaReceber>[] = [
     { chave: "vencimento", titulo: "Vencimento", mono: true, celula: (x) => <span className="wl-mono">{dataCurta(x.vencimento)}</span> },
     { chave: "cliente", titulo: "Cliente e contrato", celula: (x) => <CelulaDupla principal={x.cliente.nome} secundaria={<span className="wl-mono">{origemDaConta(x)}</span>} /> },
-    { chave: "parcela", titulo: "Parcela", celula: (x) => rotuloDaParcela(x) },
+    { chave: "parcela", titulo: "Parcela", celula: (x) => x.rotulo },
     { chave: "forma", titulo: "Forma", celula: (x) => rotuloDaForma(x.status === "paga" ? x.forma : x.forma_prevista) },
     { chave: "valor", titulo: "Valor", celula: (x) => <span className="block text-right font-medium whitespace-nowrap">{dinheiro(x.valor_centavos)}</span> },
     { chave: "situacao", titulo: "Situação", celula: (x) => <Situacao c={x} /> },

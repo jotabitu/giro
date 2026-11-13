@@ -68,6 +68,11 @@ if env("GIRO_DATA_REFERENCIA", default="").strip():
     raise ImproperlyConfigured("GIRO_DATA_REFERENCIA só vale no desenvolvimento.")
 GIRO_DATA_REFERENCIA = None
 
+# T-467: os links que o sistema manda levam token; fora do desenvolvimento, só em https. A porta
+# pode vir (homologação noutra porta), mas o padrão é sem porta.
+if env("GIRO_LINKS_ESQUEMA", default="https").strip().lower() != "https":
+    raise ImproperlyConfigured("GIRO_LINKS_ESQUEMA só pode ser http no desenvolvimento.")
+
 # Integrações de desenvolvimento não sobem (T-157). Os e-mails de senha, convite e assinatura
 # levam o token: no console, na memória ou em arquivo ele iria para o log ou para o disco, e o
 # "dummy" descarta sem avisar. Arquivos e cobranças falsos ficam na memória do processo.

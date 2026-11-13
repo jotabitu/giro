@@ -62,6 +62,14 @@ export function placaSemQuebra(texto: string): string {
   return texto.replace(/\b([A-Z]{3})-(\d[A-Z0-9]\d{2})\b/g, "$1‑$2");
 }
 
+/**
+ * Como `placaSemQuebra`, para os códigos legíveis (LOC-2812, VEN-0177, OS-118, FAT-2209, MOV-0001; T-467): o hífen vira o
+ * sem quebra (U+2011), e a linha nunca parte "LOC-" / "2812". Só para texto exibido.
+ */
+export function codigoSemQuebra(texto: string): string {
+  return texto.replace(/\b([A-Z]{2,4})-(\d{2,})\b/g, "$1‑$2");
+}
+
 /** "mar 2026" para "cliente desde" e datas de compra. */
 export function mesAno(iso: string): string {
   const d = paraData(iso);

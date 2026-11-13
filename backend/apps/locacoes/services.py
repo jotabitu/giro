@@ -2401,13 +2401,13 @@ def encerrar_por_atraso(locacao: Locacao, motivo: str, dia: date | None = None) 
     motivo = (motivo or "").strip()
     if not motivo:
         raise ErroDeValidacao({"motivo": ["Informe o motivo."]})
-    dia = _dia_do_cancelamento(dia)
     with transaction.atomic():
         travada = _travar(locacao)
         if not e_compra(travada):
             raise Conflito("LOC-16", "Só a locação com intenção de compra se encerra por atraso.")
         if travada.status != S.ATIVA:
             raise transicao_invalida(travada.status, S.CANCELADA)
+        dia = _dia_do_encerramento_por_atraso(dia)
         _sem_cancelamento_em_curso(travada)
         if not tem_parcela_atrasada(travada):
             raise Conflito("LOC-16", SEM_PARCELA_ATRASADA)
@@ -2424,20 +2424,61 @@ def encerrar_por_atraso(locacao: Locacao, motivo: str, dia: date | None = None) 
     return locacao
 
 
+ENCERRAMENTO_POR_ATRASO_HOJE = "O encerramento por atraso vale a partir de hoje."
+CAUCAO_DA_COMPRA_TRAVADA = (
+    "A caução da locação com intenção de compra faz parte da última parcela e não se cancela "
+    "nem se renegocia."
+)
+
+
+def _dia_do_encerramento_por_atraso(dia: date | None) -> date:
+    """LOC-16 (padrão do produto, B-02 da revisão de segurança da T-420): a data é sempre hoje,
+    em `America/Sao_Paulo`; outra data, 400."""
+    hoje = relogio.hoje()
+    if dia is not None and dia != hoje:
+        raise ErroDeValidacao({"data": [ENCERRAMENTO_POR_ATRASO_HOJE]})
+    return hoje
+
+
+def travar_caucao_da_compra(conta: Any) -> None:
+    """LOC-16 (padrão do produto, M-01 da revisão de segurança da T-420): a caução da locação
+    com intenção de compra paga a última parcela e não se cancela nem se renegocia pela tela
+    enquanto a locação está `aguardando_retirada` ou `ativa` (409). Ela só cai com a locação
+    (`LOC-12`, `AUT-17`), por `financeiro.cancelar_abertas`, que não passa por aqui. Registrada
+    em `financeiro.registrar_trava_da_conta` no `ready()`."""
+    if conta.origem_tipo != ORIGEM or conta.tipo != "caucao":
+        return
+    if Locacao.objects.filter(
+        pk=conta.origem_id, tipo=COMPRA, status__in=(S.AGUARDANDO_RETIRADA, S.ATIVA)
+    ).exists():
+        raise Conflito("LOC-16", CAUCAO_DA_COMPRA_TRAVADA)
+
+
 # --- Quitação (LOC-16, ADR 0037, item 4) ---
 
 
-def parcelas_pagas(locacao: Locacao, contas: list[Any] | None = None) -> int:
-    """As parcelas pagas (cada número uma vez; a estornada volta a dever, CA-017-09). A última
-    de R$ 0,00 (caução maior que a parcela) não existe como conta: conta como paga quando todas
-    as outras estão pagas (CA-420-14)."""
+def _originais(contas: list[Any], tipo: str) -> list[Any]:
+    """As contas que a confirmação criou (sem as que nasceram de renegociação ou de estorno,
+    que contam pela original, `financeiro_selectors.paga_de_vez`)."""
+    return [
+        c for c in contas if c.tipo == tipo and c.nasceu_de_id is None and c.estorno_de_id is None
+    ]
+
+
+def _todas_da_origem(locacao: Locacao, contas: list[Any] | None) -> list[Any]:
     if contas is None:
         contas = list(financeiro_selectors.contas_da_origem(ORIGEM, locacao.pk))
-    pagas = {
-        c.numero_parcela
-        for c in contas
-        if c.tipo == "parcela" and c.status == "paga" and c.estornada_em is None
-    }
+    return contas
+
+
+def parcelas_pagas(locacao: Locacao, contas: list[Any] | None = None) -> int:
+    """As parcelas do plano pagas de vez, pela conta que a confirmação criou e não pelo número
+    (M-02 da revisão de segurança da T-420): a estornada volta a dever até a conta reaberta ser
+    paga, e a renegociada conta quando todas as contas novas estão pagas, em qualquer origem. A
+    cancelada não conta. A última de R$ 0,00 (caução maior que a parcela) não existe como conta:
+    conta como paga quando todas as outras estão pagas (CA-420-14)."""
+    contas = _todas_da_origem(locacao, contas)
+    pagas = sum(1 for c in _originais(contas, "parcela") if financeiro_selectors.paga_de_vez(c))
     total = locacao.compra_parcelas or 0
     ultima_zerada = (
         calculo.ultima_parcela_da_compra(
@@ -2445,9 +2486,21 @@ def parcelas_pagas(locacao: Locacao, contas: list[Any] | None = None) -> int:
         )
         == 0
     )
-    if ultima_zerada and total not in pagas and len(pagas) == total - 1:
+    if ultima_zerada and pagas == total - 1:
         return total
-    return len(pagas)
+    return pagas
+
+
+def caucao_paga(locacao: Locacao, contas: list[Any] | None = None) -> bool:
+    """A caução da locação entrou e ficou (M-01 da revisão de segurança da T-420): a conta da
+    caução paga de vez, pelo valor da locação. Cancelada, aberta ou sem conta, não. Sem caução
+    (valor 0), vale."""
+    if locacao.caucao_centavos == 0:
+        return True
+    caucoes = _originais(_todas_da_origem(locacao, contas), "caucao")
+    if not caucoes or not all(financeiro_selectors.paga_de_vez(c) for c in caucoes):
+        return False
+    return bool(sum(c.valor_centavos for c in caucoes) >= locacao.caucao_centavos)
 
 
 def quitar_se_pago(locacao_id: int) -> bool:
@@ -2473,8 +2526,12 @@ def quitar_se_pago(locacao_id: int) -> bool:
             return False
         if parcelas_pagas(travada, contas) < (travada.compra_parcelas or 0):
             return False
+        # M-01: a caução só abate a última parcela (e só sobra) se foi paga de verdade.
+        if not caucao_paga(travada, contas):
+            return False
         agora = relogio.agora()
         with usar_ator(ATOR_SISTEMA):
+            _fechar_pedido_de_cancelamento(travada)  # B-01
             travada.quitada_em = agora
             estados.transicionar(
                 travada,
@@ -2509,6 +2566,28 @@ def quitar_se_pago(locacao_id: int) -> bool:
                 quitada_em=agora,
             )
     return True
+
+
+def _fechar_pedido_de_cancelamento(locacao: Locacao) -> None:
+    """B-01 da revisão de segurança da T-420: a quitação fecha o pedido `APR-02` ainda aberto,
+    como a `AUT-17` na não retirada; depois dela, um pedido novo é recusado (`_pode_cancelar`:
+    a locação está `encerrada`)."""
+    if locacao.cancelamento_status != StatusDesconto.PENDENTE:
+        return
+    aprovacoes.cancelar_pendentes(
+        origem_tipo=ORIGEM, origem_id=locacao.pk, motivo="Locação quitada"
+    )
+    locacao.refresh_from_db(fields=["cancelamento_status"])
+    if locacao.cancelamento_status == StatusDesconto.PENDENTE:
+        with auditar(
+            locacao,
+            "locacao.cancelar_pedido_cancelamento",
+            Categoria.OPERACAO,
+            motivo="Locação quitada",
+            regra="LOC-16",
+        ):
+            locacao.cancelamento_status = StatusDesconto.CANCELADO
+            locacao.save(update_fields=["cancelamento_status", "atualizado_em"])
 
 
 # --- Planos de compra (tela Precos; só administrador; LOC-16) ---

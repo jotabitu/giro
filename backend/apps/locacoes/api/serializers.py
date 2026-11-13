@@ -222,11 +222,25 @@ class SituacaoLocacaoSerializer(serializers.Serializer[Any]):
     tom = serializers.CharField()
 
 
+class CaucaoNaLinhaSerializer(serializers.Serializer[Any]):
+    rotulo = serializers.CharField(help_text='LOC-17: "Caução R$ 300,00 · paga" ou "· em aberto"')
+    tom = serializers.CharField()
+    valor_centavos = serializers.IntegerField()
+    paga = serializers.BooleanField()
+
+
 class PagamentoLocacaoSerializer(serializers.Serializer[Any]):
-    rotulo = serializers.CharField()
+    rotulo = serializers.CharField(
+        help_text='LOC-17 (T-456): texto pronto, a tela não troca ("Falta R$ 629,00 · 1ª semana '
+        'e caução", "R$ 329,00 vence hoje", "Pix", "Pago")'
+    )
     tom = serializers.CharField()
     em_aberto_centavos = serializers.IntegerField()
     pago_centavos = serializers.IntegerField(help_text="Contas pagas da locação, sem a caução.")
+    caucao = CaucaoNaLinhaSerializer(
+        allow_null=True,
+        help_text="LOC-17: na locação em andamento com caução; sai depois do acerto",
+    )
 
 
 class AcaoLocacaoSerializer(serializers.Serializer[Any]):
@@ -490,7 +504,7 @@ class TransferenciaDaVendaSerializer(serializers.Serializer[Any]):
     pendente = serializers.BooleanField()
 
 
-class AcoesDaVendaSerializer(serializers.Serializer[Any]):
+class AcoesDaVendaDaCompraSerializer(serializers.Serializer[Any]):
     registrar_transferencia = serializers.BooleanField(
         help_text="POST /api/locacoes/{id}/transferencia/ (administrador e gerente)"
     )
@@ -502,11 +516,13 @@ class VendaDaCompraSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
     codigo = serializers.CharField()
     transferencia = TransferenciaDaVendaSerializer()
-    acoes = AcoesDaVendaSerializer()
+    acoes = AcoesDaVendaDaCompraSerializer()
 
 
 class FaltaParaQuitarSerializer(serializers.Serializer[Any]):
-    conta_id = serializers.IntegerField()
+    conta_id = serializers.IntegerField(
+        allow_null=True, help_text="null na caução que não tem conta aberta para receber"
+    )
     rotulo = serializers.CharField()
     valor_centavos = serializers.IntegerField(required=False, help_text="o valor do dia (FIN-03)")
 

@@ -18,6 +18,7 @@ import type {
   HistoricoDaLocacao,
   ListaLocacoes,
   LocacaoCompleta,
+  CaucaoNaLinha,
   LocacaoResumo,
   ParcelaDaLocacao,
   ParcelaPrevista,
@@ -57,7 +58,7 @@ type Semente = {
   inicio: string;
   fim: string;
   situacao: LocacaoResumo["situacao"];
-  pagamento: Omit<NonNullable<LocacaoResumo["pagamento"]>, "pago_centavos">;
+  pagamento: Omit<NonNullable<LocacaoResumo["pagamento"]>, "pago_centavos" | "caucao">;
   acao: LocacaoResumo["acao_principal"];
   sinais?: Partial<LocacaoResumo["sinais"]>;
   corpo: Corpo;
@@ -129,7 +130,7 @@ const SEMENTES: Semente[] = [
     id: 2856, status: "aguardando_retirada", cliente: { id: 1206, nome: "Lucas Ferreira" }, veiculo: { id: 504, modelo: "Honda CG 160 Fan", placa: "SAK1D39", tipo: "moto" },
     periodicidade: "semanal", inicio: "2026-10-07T12:30:00Z", fim: "2026-10-14T12:30:00Z",
     situacao: { codigo: "aguardando_assinatura", rotulo: "Aguardando assinatura", tom: "neutro" },
-    pagamento: { rotulo: "R$ 329,00 pago", tom: "neutro", em_aberto_centavos: 30000 },
+    pagamento: { rotulo: "Falta R$ 300,00 · caução", tom: "alerta", em_aberto_centavos: 0 },
     acao: { codigo: "abrir", rotulo: "Abrir" },
     corpo: { periodoCentavos: 32900, diariaCentavos: 5490, caucaoCentavos: 30000, kmSaida: null, contrato: { status: "enviado", modelo: "Locação semanal", assinadoEm: null } },
     parcelas: [["parcela", "2026-10-07", 32900, "paga", "pix"], ["caucao", "2026-10-07", 30000, "aberta"]],
@@ -245,6 +246,15 @@ function pendenciasDaRetirada(s: Semente, perfil: Perfil | null): PendenciasDaRe
   return passos.length > 0 ? { passos } : null;
 }
 
+/** Como a API: só na locação em andamento com caução; sai depois do acerto (LOC-17, T-456). */
+function caucaoNaLinha(s: Semente): CaucaoNaLinha | null {
+  const caucoes = s.parcelas.filter((p) => p[0] === "caucao" && p[3] !== "cancelada");
+  if (caucoes.length === 0 || !["aguardando_retirada", "ativa", "devolucao_atrasada"].includes(s.status)) return null;
+  const valor = caucoes.reduce((a, p) => a + p[2], 0);
+  const paga = caucoes.every((p) => p[3] === "paga");
+  return { rotulo: `Caução ${reais(valor)} · ${paga ? "paga" : "em aberto"}`, tom: paga ? "sucesso" : "alerta", valor_centavos: valor, paga };
+}
+
 function resumo(s: Semente): LocacaoResumo {
   return {
     id: s.id,
@@ -260,8 +270,8 @@ function resumo(s: Semente): LocacaoResumo {
     fim_previsto: s.fim,
     sinais: { pagamento_atrasado: false, devolve_hoje: false, cancelamento_pendente: false, ...s.sinais },
     situacao: s.situacao,
-    // Contas pagas sem a caução, como a API (T-129).
-    pagamento: { ...s.pagamento, pago_centavos: s.parcelas.filter((p) => p[0] !== "caucao" && p[3] === "paga").reduce((a, p) => a + p[2], 0) },
+    // Contas pagas sem a caução, como a API (T-129); a caução com o texto dela (LOC-17, T-456).
+    pagamento: { ...s.pagamento, pago_centavos: s.parcelas.filter((p) => p[0] !== "caucao" && p[3] === "paga").reduce((a, p) => a + p[2], 0), caucao: caucaoNaLinha(s) },
     acao_principal: s.acao,
   };
 }

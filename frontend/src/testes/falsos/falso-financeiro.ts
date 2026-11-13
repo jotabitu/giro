@@ -32,9 +32,24 @@ const CENTRO = { id: 1, nome: "Filial Centro" };
 
 const SEM_ACOES = { copiar_cobranca: false, receber: false, gerar_pix: false, gerar_boleto: false, cobrar: false, cancelar: false, renegociar: false, estornar: false };
 
+const TIPOS: Record<ContaReceber["tipo"], string> = { parcela: "Parcela", caucao: "Caução", multa: "Multa", avaria: "Avaria", acerto: "Acerto da devolução", outro: "Outra cobrança" };
+
+/** Os textos da FIN-19, como a API monta (`financeiro.selectors.a_que_se_refere`). */
+function aQueSeRefere(c: Pick<ContaReceber, "tipo" | "numero" | "total_parcelas" | "observacao">): Pick<ContaReceber, "tipo_rotulo" | "rotulo" | "renegociacao" | "parcela_de"> {
+  const tipo_rotulo = TIPOS[c.tipo];
+  if (c.tipo === "parcela") {
+    const varias = !!c.numero && !!c.total_parcelas && c.total_parcelas > 1;
+    return { tipo_rotulo, renegociacao: false, rotulo: varias ? `Parcela ${c.numero} de ${c.total_parcelas}` : "Parcela única", parcela_de: varias ? `${c.numero} de ${c.total_parcelas} parcelas` : null };
+  }
+  const rotulo = c.tipo !== "caucao" && c.observacao ? `${tipo_rotulo} · ${c.observacao}` : tipo_rotulo;
+  return { tipo_rotulo, rotulo, renegociacao: false, parcela_de: null };
+}
+
 function conta(p: Partial<ContaReceber> & Pick<ContaReceber, "id" | "cliente" | "valor_centavos" | "vencimento" | "status">): ContaReceber {
   const paga = p.status === "paga";
+  const base = { tipo: p.tipo ?? "parcela", numero: p.numero === undefined ? 1 : p.numero, total_parcelas: p.total_parcelas === undefined ? 4 : p.total_parcelas, observacao: p.observacao ?? null };
   return {
+    ...aQueSeRefere(base),
     tipo: "parcela",
     aguarda_retirada: false,
     numero: 1,
@@ -534,7 +549,9 @@ export const financeiroFalso = {
     const devido = originais.reduce((t, o) => t + o.valor_hoje.total_centavos, 0);
     if (corpo.novas.reduce((t, n) => t + n.valor_centavos, 0) !== devido) throw new ErroApi(422, "FIN-01", "A soma das contas novas tem que ser igual ao valor devido hoje.");
     const base = originais[0]!;
-    const novas = corpo.novas.map((n) => conta({ ...base, id: proximaConta++, vencimento: n.vencimento, valor_centavos: n.valor_centavos, status: "aberta", dias_atraso: 0, faixa_atraso: null, valor_hoje: { ...base.valor_hoje, dias_atraso: 0, principal_centavos: n.valor_centavos, multa_centavos: 0, juros_centavos: 0, total_centavos: n.valor_centavos } }));
+    // FIN-19: a conta do acordo diz "Renegociação · 1 de 2", com o tipo da original.
+    const varias = corpo.novas.length > 1;
+    const novas = corpo.novas.map((n, i) => conta({ ...base, rotulo: `Renegociação · ${i + 1} de ${corpo.novas.length}`, renegociacao: true, parcela_de: null, numero: varias ? i + 1 : null, total_parcelas: varias ? corpo.novas.length : null, id: proximaConta++, vencimento: n.vencimento, valor_centavos: n.valor_centavos, status: "aberta", dias_atraso: 0, faixa_atraso: null, valor_hoje: { ...base.valor_hoje, dias_atraso: 0, principal_centavos: n.valor_centavos, multa_centavos: 0, juros_centavos: 0, total_centavos: n.valor_centavos } }));
     contas = contas.map((x): ContaReceber => (corpo.contas.includes(x.id) ? { ...x, status: "renegociada", acoes: { ...SEM_ACOES } } : x)).concat(novas);
     return novas;
   },

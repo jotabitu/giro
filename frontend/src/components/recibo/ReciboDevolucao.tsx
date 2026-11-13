@@ -5,7 +5,7 @@ import { FileText } from "lucide-react";
 import { Button, Icone } from "@/design-system";
 import { ErroApi, recibo } from "@/lib/api";
 import { mensagemDoErro } from "@/lib/erros";
-import { dataHoraCompleta } from "@/lib/formatos";
+import { codigoSemQuebra, dataHoraCompleta } from "@/lib/formatos";
 import { useTokenDoFragmento } from "@/lib/fragmento";
 import { Aviso } from "../acesso/Aviso";
 import { PaginaAcesso, Passo } from "../acesso/PaginaAcesso";
@@ -84,10 +84,10 @@ export function ReciboDevolucao() {
   }
 
   return (
-    <PaginaAcesso titulo={`Recibo da devolução da ${r.codigo}`} descricao={`Olá, ${r.cliente_primeiro_nome}. Aqui está o recibo da devolução${r.concluida_em ? `, concluída em ${dataHoraCompleta(r.concluida_em)}` : ""}.`}>
+    <PaginaAcesso titulo={`Recibo da devolução da ${codigoSemQuebra(r.codigo)}`} descricao={`Olá, ${r.cliente_primeiro_nome}. Aqui está o recibo da devolução${r.concluida_em ? `, concluída em ${dataHoraCompleta(r.concluida_em)}` : ""}.`}>
       <Passo numero={<Icone de={FileText} />} titulo="Recibo">
         <p className="text-body">
-          <span className="wl-mono">{r.codigo}</span> · devolução concluída
+          <span className="wl-mono">{codigoSemQuebra(r.codigo)}</span> · devolução concluída
         </p>
         {baixar.isError && <Aviso tipo="erro">{texto(baixar.error)}</Aviso>}
         <div className="grid md:flex">

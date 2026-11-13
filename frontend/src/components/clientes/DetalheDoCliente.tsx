@@ -17,6 +17,7 @@ import { cnhMascarada, linhasDoEndereco, ROTULO_PERIODICIDADE, textoDePendencias
 import { campoDoErro, mensagemDoErro } from "@/lib/erros";
 import { celular, dataCompleta, dataCurta, dinheiro, dinheiroSemZeros, dinheiroSemZerosOuTraco, horaCurta, iniciais, mascaraCnpj, mascaraCpf, mesAno, placa, soDigitos } from "@/lib/formatos";
 import { tomDoStatus } from "@/lib/tom";
+import { textoDoPagamento } from "@/lib/locacoes";
 import { useSessao } from "@/lib/sessao";
 import { AcoesDoCliente } from "./AcoesDoCliente";
 import { AnaliseDoCadastro } from "./AnaliseDoCadastro";
@@ -121,7 +122,12 @@ const COLUNAS_LOCACOES: ColunaTabela<LocacaoDoCliente>[] = [
       </StatusBadge>
     ),
   },
-  { chave: "pago", titulo: "Pago", celula: (l) => dinheiro(l.pago_centavos) },
+  // LOC-17 (T-456): a situação do pagamento e a caução vêm prontas da API e mudam a cada pagamento.
+  {
+    chave: "pagamento",
+    titulo: "Pagamento",
+    celula: (l) => <CelulaDupla principal={<span className="font-normal">{l.pagamento?.rotulo ?? "—"}</span>} secundaria={l.caucao?.rotulo} />,
+  },
 ];
 
 function Estado({ consulta, vazio, children }: { consulta: UseQueryResult<unknown>; vazio?: boolean; children: ReactNode }) {
@@ -540,7 +546,7 @@ function CelularCompleto({ c, locacoes, docs, podeLocar }: Dados & { c: ClienteC
                   </>
                 }
               >
-                {dinheiro(l.pago_centavos)}
+                {textoDoPagamento(l.pagamento, l.caucao)}
               </Linha>
             ))}
           </dl>

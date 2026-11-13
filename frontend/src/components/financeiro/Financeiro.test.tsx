@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { contas, financeiro, type Eu } from "@/lib/api";
 import { reiniciarFinanceiroFalso, type DiaDoCaixaFalso } from "@/testes/falsos/falso-financeiro";
-import { composicaoDoValor, diaDaSemanaEData, rotuloDaParcela, situacaoDaConta, textoDoEvento } from "@/lib/financeiro";
+import { composicaoDoValor, diaDaSemanaEData, linhaDaConta, situacaoDaConta, textoDoEvento } from "@/lib/financeiro";
 
 const sessao = vi.hoisted(() => ({ eu: null as unknown }));
 vi.mock("@/lib/sessao", () => ({ useSessao: () => ({ eu: sessao.eu as Eu, sair: async () => {} }) }));
@@ -126,15 +126,15 @@ describe("contas a receber, na ordem da referência (FIN-01, FIN-02, FIN-15)", (
     ordem(t, ["Atraso por faixa", "R$ 1.646,40 em 2 parcelas", "R$ 299,40", "1 a 7 dias", "R$ 1.347,00", "8 a 30 dias", "R$ 0,00", "Mais de 30 dias"]);
     ordem(t, ["Todas", "130", "Em atraso", "2", "Vencem hoje", "6", "A vencer", "92", "Pagas", "30"]);
     ordem(t, ["Vencimento", "Cliente e contrato", "Parcela", "Forma", "Valor", "Situação"]);
-    ordem(t, ["12 set", "Rafael Sousa", "LOC-2790 · PQD-6E21", "4 de 4", "Boleto", "R$ 1.347,00", "25 dias", "Cobrar"]);
-    ordem(t, ["30 set", "Carlos Menezes", "LOC-2841 · QXA-4B21", "2 de 5", "Pix automático", "R$ 299,40", "7 dias", "Cobrar"]);
+    ordem(t, ["12 set", "Rafael Sousa", "LOC-2790 · PQD-6E21", "Parcela 4 de 4", "Boleto", "R$ 1.347,00", "25 dias", "Cobrar"]);
+    ordem(t, ["30 set", "Carlos Menezes", "LOC-2841 · QXA-4B21", "Parcela 2 de 5", "Pix automático", "R$ 299,40", "7 dias", "Cobrar"]);
     ordem(t, ["Mostrando 2 de 2 parcelas em atraso", "Cobrar todos pelo WhatsApp"]);
   });
 
   it("celular: cartão com cobrança no WhatsApp e baixa", async () => {
     await entrar("rodrigo@motorapida.com.br");
     const t = texto(await paginaReceber());
-    ordem(t, ["Rafael Sousa", "LOC-2790 · parcela 4 de 4", "R$ 1.347,00", "25 dias", "Boleto · venceu 12 set", "Cobrar no WhatsApp", "Dar baixa"]);
+    ordem(t, ["Rafael Sousa", "LOC-2790 · Parcela 4 de 4", "R$ 1.347,00", "25 dias", "Boleto · venceu 12 set", "Cobrar no WhatsApp", "Dar baixa"]);
   });
 
   it("lista só o que a API devolveu: busca e situação são filtros da API", async () => {
@@ -155,7 +155,8 @@ describe("valores e textos vindos da API", () => {
     const [rafael] = (await financeiro.listarContas({ situacao: "atrasadas" })).resultados;
     expect(situacaoDaConta(rafael!)).toEqual({ rotulo: "25 dias", tom: "critico" });
     expect(situacaoDaConta({ status: "vence_hoje", dias_atraso: 0 })).toEqual({ rotulo: "Vence hoje", tom: "alerta" });
-    expect(rotuloDaParcela({ tipo: "acerto", numero: null, total_parcelas: null })).toBe("Acerto da devolução");
+    // FIN-19: o rótulo da conta vem pronto da API; a tela só junta o vencimento.
+    expect(linhaDaConta({ rotulo: "Acerto da devolução", vencimento: "2026-10-14", status: "aberta" })).toBe("Acerto da devolução · vence 14 out");
   });
 
   it("código de evento desconhecido aparece como está", () => {

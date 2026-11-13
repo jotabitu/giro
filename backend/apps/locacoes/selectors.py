@@ -316,35 +316,85 @@ def situacao(locacao: Locacao, sinal: dict[str, bool]) -> dict[str, str]:
     return {"codigo": status, "rotulo": S(status).label, "tom": tons.get(S(status), "neutro")}
 
 
+def _nome_na_linha(locacao: Locacao) -> str:
+    """LOC-17: o nome da 1ª parcela na linha ("1ª semana", "1º mês", "as 5 diárias")."""
+    if locacao.periodicidade == Periodicidade.DIARIA:
+        return "a diária" if locacao.periodos == 1 else f"as {locacao.periodos} diárias"
+    return _nome_da_primeira(locacao)
+
+
+def _falta_do_primeiro_pagamento(locacao: Locacao) -> tuple[str, str]:
+    """LOC-17 (T-456): o que falta do 1º pagamento (1ª parcela e caução), pelo valor de hoje das
+    contas (com multa e juros se já atrasadas, FIN-03); com os dois pagos, "1º pagamento feito"."""
+    primeiras = [
+        c
+        for c in financeiro_selectors.contas_da_origem(ORIGEM, locacao.pk)
+        if c.tipo == "caucao" or (c.tipo == "parcela" and c.numero_parcela == 1)
+    ]
+    primeiras.sort(key=lambda c: c.tipo == "caucao")  # a parcela antes da caução
+    abertas = [c for c in primeiras if c.status == "aberta"]
+    if primeiras and not abertas:
+        feito = sum(c.valor_centavos for c in primeiras if c.status == "paga")
+        return f"1º pagamento feito · {formatar_reais(feito)}", "info"
+    if not abertas:
+        return "Aguardando pagamento", "alerta"
+    hoje = relogio.hoje()
+    juros = financeiro_selectors.JurosDaPagina()
+    total = sum(financeiro_selectors.valor_hoje(c, hoje, juros)["total_centavos"] for c in abertas)
+    nomes = list(
+        dict.fromkeys("caução" if c.tipo == "caucao" else _nome_na_linha(locacao) for c in abertas)
+    )
+    return f"Falta {formatar_reais(total)} · {' e '.join(nomes)}", "alerta"
+
+
+def _caucao_na_linha(locacao: Locacao) -> dict[str, Any] | None:
+    """LOC-17 (T-456): a caução com o valor e a situação; sai da linha depois do acerto."""
+    valor = int(getattr(locacao, "fin_caucao_centavos", 0) or 0)
+    if valor == 0 or locacao.status not in ABERTAS:
+        return None
+    paga = int(getattr(locacao, "fin_caucao_aberta_centavos", 0) or 0) == 0
+    return {
+        "rotulo": f"Caução {formatar_reais(valor)} · {'paga' if paga else 'em aberto'}",
+        "tom": "sucesso" if paga else "alerta",
+        "valor_centavos": valor,
+        "paga": paga,
+    }
+
+
 def pagamento(locacao: Locacao) -> dict[str, Any]:
+    """LOC-17 (T-456): o texto pronto da coluna Pagamento. A caução nunca entra em valor pago: ela
+    tem o texto dela, em `caucao`. Antes da retirada, e na retirada à mão com o 1º pagamento
+    pendente, o que falta dele; da retirada em diante, o primeiro caso que servir, pelos estados
+    das contas (FIN-01, sem a caução): multa do cancelamento pendente, atrasada, vence hoje,
+    parcela por vencer (a forma de pagamento) e, com tudo pago, "Pago"."""
     em_aberto = int(getattr(locacao, "fin_atrasado_centavos", 0) or 0)
-    pago = int(getattr(locacao, "fin_pago_centavos", 0) or 0)
-    abertas = int(getattr(locacao, "fin_abertas", 0) or 0)
+    vence_hoje = int(getattr(locacao, "fin_vence_hoje_centavos", 0) or 0)
+    abertas = int(getattr(locacao, "fin_abertas_sem_caucao", 0) or 0)
     multa = locacao.multa_encerramento_centavos or 0
-    if em_aberto > 0:
-        rotulo, tom = f"{formatar_reais(em_aberto)} em aberto", "perigo"
-    elif locacao.cancelamento_status == StatusDesconto.PENDENTE and multa > 0:
-        rotulo, tom = f"Multa {formatar_reais(multa)}", "alerta"
-    elif locacao.status == S.AGUARDANDO_RETIRADA or (
-        # LOC-17 (T-466): retirada à mão sem o 1º pagamento. Sem atraso ainda (vence hoje), não
-        # pode cair na forma de pagamento, que a tela lê como "Pago".
+    forma = FormaPagamento(locacao.forma_pagamento).label
+    if locacao.status == S.AGUARDANDO_RETIRADA or (
         tem_pendencia_da_retirada(locacao) and locacao.primeiro_pagamento_em is None
     ):
-        rotulo, tom = (
-            (f"{formatar_reais(pago)} pago", "info") if pago else ("Aguardando pagamento", "alerta")
-        )
-    elif locacao.forma_pagamento == FormaPagamento.PIX_AUTOMATICO:
-        rotulo, tom = "Pix automático", "info"
-    elif locacao.status in (S.ATIVA, S.DEVOLUCAO_ATRASADA, S.ENCERRADA) and abertas == 0:
+        rotulo, tom = _falta_do_primeiro_pagamento(locacao)
+    elif locacao.cancelamento_status == StatusDesconto.PENDENTE and multa > 0:
+        rotulo, tom = f"Multa {formatar_reais(multa)}", "alerta"
+    elif em_aberto > 0:
+        rotulo, tom = f"{formatar_reais(em_aberto)} em aberto", "perigo"
+    elif vence_hoje > 0:
+        rotulo, tom = f"{formatar_reais(vence_hoje)} vence hoje", "alerta"
+    elif abertas > 0:
+        rotulo, tom = forma, "info"
+    elif locacao.status in (S.ATIVA, S.DEVOLUCAO_ATRASADA, S.ENCERRADA):
         rotulo, tom = "Pago", "sucesso"
     else:
-        rotulo, tom = FormaPagamento(locacao.forma_pagamento).label, "neutro"
+        rotulo, tom = forma, "neutro"
     return {
         "rotulo": rotulo,
         "tom": tom,
         "em_aberto_centavos": em_aberto,
         # Contas pagas sem a caução, como o `total_pago_centavos` do cliente (T-128, FIN-13).
         "pago_centavos": int(getattr(locacao, "fin_pago_sem_caucao_centavos", 0) or 0),
+        "caucao": _caucao_na_linha(locacao),
     }
 
 
@@ -1025,6 +1075,14 @@ def compra(locacao: Locacao, usuario: Any, contas: list[Any]) -> dict[str, Any] 
         if pagas >= total and locacao.quitada_em is None
         else []
     )
+    if (
+        pagas >= total
+        and locacao.quitada_em is None
+        and not any(f["rotulo"].startswith("Caução") for f in falta)
+        and not services.caucao_paga(locacao, contas)
+    ):
+        # M-01: sem a caução paga, a compra não quita; a ficha diz o que falta.
+        falta.append({"conta_id": None, "rotulo": "Caução não paga", "valor_centavos": caucao})
     return {
         "plano": {"id": plano.pk, "nome": plano.nome} if plano else None,
         "parcelas_total": total,

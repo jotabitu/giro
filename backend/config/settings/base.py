@@ -39,6 +39,10 @@ USE_X_FORWARDED_HOST = False
 # Domínio: admin.<DOMINIO_BASE> é a plataforma; <subdominio>.<DOMINIO_BASE>, a empresa.
 DOMINIO_BASE = env("DOMINIO_BASE", default="localhost")
 SUBDOMINIO_PLATAFORMA = env("SUBDOMINIO_PLATAFORMA", default="admin")
+# Esquema e porta dos links que o sistema manda ou copia (T-467, `comum.enderecos`). O padrão,
+# https e sem porta, é o de homologação e produção; o desenvolvimento troca em `dev.py`.
+GIRO_LINKS_ESQUEMA = env("GIRO_LINKS_ESQUEMA", default="https")
+GIRO_LINKS_PORTA = env("GIRO_LINKS_PORTA", default="")
 
 # --- Multiempresa (ADR 0002, 0008, 0011) ---
 # Apps nos dois schemas aparecem nas duas listas.
@@ -265,6 +269,9 @@ SPECTACULAR_SETTINGS = {
         "TipoLinhaDaFaturaEnum": ["fatura", "teste"],
         "StatusVeiculoEnum": "apps.veiculos.models.StatusVeiculo",
         "MovimentacaoStatusEnum": "apps.movimentacoes.models.StatusMovimentacao",  # T-320
+        "OrigemEnum": "apps.filiais.models.FeriadoFilial.Origem",  # o nome que já saía (T-420)
+        "OrigemVendaEnum": "apps.vendas.models.OrigemVenda",  # VEN-11 (T-420)
+        "StatusVendaEnum": "apps.vendas.models.StatusVenda",  # T-420
         "FotoPosicaoEnum": "apps.vistorias.models.PosicaoFoto",  # T-320: o nome que já saía
         "PosicaoDaChegadaEnum": "apps.movimentacoes.models.PosicaoFoto",  # T-320
         "TipoDocumentoEnum": "apps.veiculos.models.TipoDocumento",
