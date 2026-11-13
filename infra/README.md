@@ -181,7 +181,7 @@ No perfil 4 GB a VPS não constrói nada: `db`, `backend` e `frontend` saem da m
 - **Pré-requisitos:** Docker Desktop ligado (o script para cedo se não estiver), o repositório na tag que vai subir e chave SSH aceita pelo usuário `giro` da VPS (`ssh giro@187.53.112.199 docker ps` funciona sem senha).
 - **Comando:** `sh infra/deploy/enviar-imagens.sh` (versão = `git describe --tags --always`) ou `sh infra/deploy/enviar-imagens.sh v1.0.0`. Constrói com `--platform linux/amd64`, marca cada imagem como `producao` e como a versão e envia por `docker save | gzip | ssh ... docker load`. Variáveis: `GIRO_VPS` (padrão `giro@187.53.112.199`), `GIRO_PLATAFORMA`, `API_URL_INTERNA` (build arg do frontend, padrão `http://backend:8000`; não é segredo, nenhuma imagem leva segredo) e `SO_CONSTRUIR=1` para não enviar.
 - **Espaço e tempo:** cerca de 3 GB de imagens descomprimidas na máquina local (mais o cache de build) e na VPS; o envio comprimido fica perto de 1 GB. Build do zero de 15 a 30 minutos (o `next build` pesa mais; em Windows/Mac com chip ARM a emulação amd64 dobra isso); o envio depende do upload, de 5 a 20 minutos.
-- **Na VPS depois:** `cd /opt/giro && git fetch --tags && git checkout <tag>`, `COFRE=doppler sh infra/deploy/baixar-segredos.sh` e `docker compose -f infra/deploy/docker-compose.producao.yml --env-file /etc/giro/producao.env --env-file /etc/giro/producao-infra.env up -d` **sem `--build`**. Nos passos 5 e 6 do roteiro abaixo, troque `up -d --build` por `up -d` no perfil 4 GB.
+- **Na VPS depois:** `cd /opt/giro && git fetch --tags && git checkout <tag>`, `COFRE=doppler sh infra/deploy/baixar-segredos.sh` e `docker compose -f infra/deploy/docker-compose.producao.yml --env-file /etc/giro/producao.env --env-file /etc/giro/producao-infra.env up -d` **sem `--build`**. Os passos 5 e 6 do roteiro abaixo já usam `up -d` sem `--build`.
 - **Rollback:** as versões anteriores continuam carregadas na VPS; `git checkout <tag anterior>` e `GIRO_TAG=<tag anterior> docker compose ... up -d` sobem as imagens daquela versão. Limpe imagens antigas de vez em quando (`docker image prune`) mantendo pelo menos a versão anterior.
 
 ### Roteiro de subida
@@ -189,14 +189,21 @@ No perfil 4 GB a VPS não constrói nada: `db`, `backend` e `frontend` saem da m
 1. **VPS:** crie com chave SSH (sem senha), `timedatectl set-timezone America/Sao_Paulo`, atualizações automáticas de segurança (`unattended-upgrades`), Docker e Compose v2, um usuário `giro` no grupo `docker`. Firewall do provedor: 80 e 443 abertos, 22 só para a equipe. O repositório vai em `/opt/giro` (`git clone`, tag de produção).
 2. **DNS:** na Cloudflare, registros `A` de `giro.ceo` e `*.giro.ceo` para o IP da VPS, **sem proxy** (nuvem cinza: o nginx precisa ver o IP real para a lista do Admin e os limites). Para homologação, `homolog.giro.ceo` e `*.homolog.giro.ceo` do mesmo jeito. O token da Cloudflare só tem Zone > DNS > Edit da zona `giro.ceo`. **E-mail:** o envio pelo domínio (`nao-responda@giro.ceo`) só entrega com os registros SPF, DKIM e DMARC do provedor de envio; configure-os junto com o DNS.
 3. **Cofre e segredos:** preencha `prd` e `prd_infra`. Na VPS: `sudo mkdir /etc/giro && sudo chown giro /etc/giro`, depois `COFRE=doppler sh infra/deploy/baixar-segredos.sh` (ou `COFRE=bws`, com as variáveis do cabeçalho do script). Ele grava `producao.env`, `producao-infra.env`, `admin-ips.conf` e `cloudflare.ini` em `/etc/giro`, permissão 600. `GIRO_REDES_PROXY=172.30.0.0/24`.
+   **Tokens do Doppler (T-473):** o token de serviço vale para uma config só. No Doppler, crie dois Service Tokens com Access: Read, um na config `prd` e outro na `prd_infra`, e grave-os em `/etc/giro/doppler.env` (`chmod 600`), fora do repositório:
+   ```
+   DOPPLER_TOKEN_APP=<token da prd>
+   DOPPLER_TOKEN_INFRA=<token da prd_infra>
+   ```
+   O script carrega esse arquivo se existir e passa cada token só ao seu download. Sem as duas variáveis, usa o login do CLI.
 4. **Certificado:** `sh infra/deploy/certificado.sh emitir` (curinga por DNS-01, cerca de 2 minutos). Confira que o arquivo existe no volume (`docker run --rm -v giro_letsencrypt:/l alpine ls /l/live`).
 5. **Banco, Redis e primeiro stanza:**
    ```
-   docker compose -f infra/deploy/docker-compose.producao.yml --env-file /etc/giro/producao.env --env-file /etc/giro/producao-infra.env up -d --build db redis
+   docker compose -f infra/deploy/docker-compose.producao.yml --env-file /etc/giro/producao.env --env-file /etc/giro/producao-infra.env up -d db redis
    sh infra/backup/iniciar-pgbackrest.sh
    ```
    Até o stanza existir o arquivamento de WAL falha e o WAL se acumula: faça os dois comandos seguidos.
-6. **Aplicação:** o mesmo `up -d --build` sem nomes de serviço (o `migrar` roda, o resto sobe). O `ENV_FILE`, o `ADMIN_IPS_ARQUIVO` e o `CLOUDFLARE_INI_ARQUIVO` já vêm de `infra/backup/comum.sh`; fora dos scripts, exporte-os: `export ENV_FILE=/etc/giro/producao.env ADMIN_IPS_ARQUIVO=/etc/giro/admin-ips.conf CLOUDFLARE_INI_ARQUIVO=/etc/giro/cloudflare.ini`.
+   No perfil 4 GB as imagens já foram carregadas por `enviar-imagens.sh` (seção acima), então é `up -d` sem `--build`; no perfil 8 GB, com a VPS construindo, acrescente `--build`.
+6. **Aplicação:** o mesmo `up -d` (`--build` só no perfil 8 GB) sem nomes de serviço (o `migrar` roda, o resto sobe). O `ENV_FILE`, o `ADMIN_IPS_ARQUIVO` e o `CLOUDFLARE_INI_ARQUIVO` já vêm de `infra/backup/comum.sh`; fora dos scripts, exporte-os: `export ENV_FILE=/etc/giro/producao.env ADMIN_IPS_ARQUIVO=/etc/giro/admin-ips.conf CLOUDFLARE_INI_ARQUIVO=/etc/giro/cloudflare.ini`.
 7. **Primeiro backup:** `sh infra/backup/backup-banco.sh full` e `sh infra/backup/backup-arquivos.sh`.
 8. **Timers:** `sudo GIRO_RAIZ=/opt/giro GIRO_USUARIO=giro sh infra/backup/systemd/instalar.sh` (backups, renovação do certificado e monitoramento).
 9. **Restauração testada, antes do primeiro cliente:** `sh infra/backup/restaurar-teste.sh`, o passo manual da foto pela URL assinada e a linha em `infra/backup/registro-restauracoes.md`. Sem isso não há backup (ADR 0033, item 3).
