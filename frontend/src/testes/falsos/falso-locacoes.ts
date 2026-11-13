@@ -330,6 +330,7 @@ function parcelas(s: Semente, perfil: Perfil | null): ParcelaDaLocacao[] {
   return s.parcelas.map(([tipo, vencimento, valor, status, forma], i) => ({
     id: s.id * 10 + i,
     conta_id: s.id * 10 + i,
+    paga_com_caucao: false,
     tipo,
     rotulo: tipo === "caucao" ? "Caução" : `Parcela ${n + 1}`,
     valor_hoje_centavos: valor,

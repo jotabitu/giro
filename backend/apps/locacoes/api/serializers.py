@@ -305,7 +305,9 @@ class AcoesDaParcelaSerializer(serializers.Serializer[Any]):
 
 
 class ParcelaLocacaoSerializer(serializers.Serializer[Any]):
-    id = serializers.IntegerField()
+    id = serializers.IntegerField(
+        allow_null=True, help_text="null na última parcela de R$ 0,00 da compra (LOC-16)"
+    )
     tipo = serializers.CharField()
     numero = serializers.IntegerField(allow_null=True)
     total_parcelas = serializers.IntegerField(allow_null=True)
@@ -314,10 +316,22 @@ class ParcelaLocacaoSerializer(serializers.Serializer[Any]):
     status = serializers.CharField()
     forma = serializers.CharField(allow_null=True)
     pago_em = _momento()
-    observacao = serializers.CharField(allow_null=True)
+    observacao = serializers.CharField(
+        allow_null=True,
+        help_text='LOC-16: "caução abatida" na última parcela da compra; "paga com a caução" ou '
+        '"será paga com a caução" na de R$ 0,00',
+    )
+    paga_com_caucao = serializers.BooleanField(
+        help_text="LOC-16 (CA-420-14): a última parcela de R$ 0,00 da compra, paga pela caução. "
+        "Não é conta a receber: sem `id`, sem `conta_id` e sem botão; a situação é a `observacao`"
+    )
     # Seção Pagamentos (FIN-18, LOC-17, T-451): a conta de `Receber`, o rótulo ("Parcela 1",
     # "Caução"), o valor de hoje (FIN-03) e se o perfil recebe no caixa.
-    conta_id = serializers.IntegerField(help_text="o `id` da conta em /api/financeiro/contas/")
+    conta_id = serializers.IntegerField(
+        allow_null=True,
+        help_text="o `id` da conta em /api/financeiro/contas-receber/; null na linha "
+        "`paga_com_caucao`",
+    )
     rotulo = serializers.CharField()
     valor_hoje_centavos = serializers.IntegerField()
     acoes = AcoesDaParcelaSerializer()

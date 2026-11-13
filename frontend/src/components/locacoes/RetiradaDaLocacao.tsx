@@ -214,8 +214,9 @@ export function PendenciasDaRetirada({ l, variante, aoConcluir }: { l: LocacaoCo
 export function RegistrarPagamento({ l, parcela, aoConcluir }: { l: LocacaoCompleta; parcela: ParcelaDaLocacao; aoConcluir: AoConcluir }) {
   const cliente = useQueryClient();
   const [conta, setConta] = useState<ContaReceber | null>(null);
-  const abrir = useMutation({ mutationFn: () => financeiro.obterConta(parcela.conta_id), onSuccess: setConta });
-  if (!parcela.acoes.receber) return null;
+  const abrir = useMutation({ mutationFn: () => financeiro.obterConta(parcela.conta_id ?? 0), onSuccess: setConta });
+  // A linha `paga_com_caucao` (LOC-16) não é conta: vem sem `conta_id` e com `acoes.receber` false.
+  if (!parcela.acoes.receber || parcela.conta_id === null) return null;
   return (
     <>
       <Button compacto aria-label={`Registrar pagamento: ${parcela.rotulo}`} disabled={abrir.isPending} onClick={() => abrir.mutate()}>

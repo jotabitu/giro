@@ -327,11 +327,15 @@ def montar_reembolso(reembolso: Any) -> dict[str, Any] | None:
 # --- veiculos.Veiculo: o que rendeu (VEI-05) ---
 
 
-def _rendeu_no_ano(veiculo_id: Any) -> Subquery:
+def _rendeu_no_ano() -> Subquery:
+    """As contas pagas no ano das locações do veículo, de qualquer tipo de locação (também as
+    parcelas da compra, LOC-16), sem a caução. O veículo vendido continua com o que rendeu.
+    As locações são um subquery dentro do das contas: o veículo é o `OuterRef` de dois níveis
+    acima (com um só, o filtro comparava o veículo da locação com o `id` da conta, A8)."""
     return Subquery(
         ContaReceber.objects.filter(
             origem_tipo=ORIGEM,
-            origem_id__in=Locacao.objects.filter(veiculo_id=veiculo_id).values("pk"),
+            origem_id__in=Locacao.objects.filter(veiculo_id=OuterRef(OuterRef("pk"))).values("pk"),
             status=StatusConta.PAGA,
             pago_em__year=relogio.hoje().year,
         )
@@ -346,7 +350,7 @@ def _rendeu_no_ano(veiculo_id: Any) -> Subquery:
 
 def anotar_rendimento(queryset: QuerySet[Any]) -> QuerySet[Any]:
     return queryset.annotate(  # type: ignore[no-any-return]
-        loc_rendeu_ano=Coalesce(_rendeu_no_ano(OuterRef("pk")), 0)
+        loc_rendeu_ano=Coalesce(_rendeu_no_ano(), 0)
     )
 
 

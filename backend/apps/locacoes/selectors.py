@@ -735,9 +735,65 @@ def _rotulo_da_conta(conta: Any) -> str:
     return "Caução" if conta.tipo == "caucao" else f"Parcela {conta.numero_parcela}"
 
 
-def _parcelas(contas: list[Any], hoje: date, usuario: Any) -> list[dict[str, Any]]:
+CAUCAO_ABATIDA = "caução abatida"
+PAGA_COM_A_CAUCAO = "paga com a caução"
+SERA_PAGA_COM_A_CAUCAO = "será paga com a caução"
+
+
+def _ultima_da_compra(locacao: Locacao, conta: Any) -> bool:
+    """D2 da revisão do Design System da T-420: a última parcela da compra, com valor, nasceu
+    com a caução abatida (LOC-16)."""
+    return (
+        services.e_compra(locacao)
+        and locacao.caucao_centavos > 0
+        and conta.tipo == "parcela"
+        and conta.nasceu_de_id is None
+        and conta.numero_parcela == locacao.compra_parcelas
+    )
+
+
+def _linha_paga_com_caucao(locacao: Locacao, contas: list[Any]) -> dict[str, Any] | None:
+    """LOC-16 (CA-420-14, #575): a última parcela de R$ 0,00 não é conta a receber, mas a ficha
+    mostra a linha dela, para a lista bater com o plano: "paga com a caução" com a caução paga,
+    "será paga com a caução" antes, sem conta e sem botão. Não aparece no rascunho (sem
+    contas), na cancelada nem depois do encerramento antes do fim, em que a caução volta a ser
+    a da comum."""
+    if not services.ultima_paga_com_caucao(locacao):
+        return None
+    if locacao.status == S.CANCELADA or (
+        locacao.encerramento_antecipado_aprovado_em is not None or locacao.encerrada_por_atraso
+    ):
+        return None
+    if not any(c.tipo == "parcela" for c in contas):
+        return None
+    total = locacao.compra_parcelas or 0
+    paga = services.caucao_paga(locacao, contas)
+    caucao = next((c for c in contas if c.tipo == "caucao" and c.status == "paga"), None)
+    return {
+        "id": None,
+        "tipo": "parcela",
+        "numero": total,
+        "total_parcelas": total,
+        "vencimento": services.vencimento_da_parcela(locacao, total),
+        "valor_centavos": 0,
+        "status": "paga" if paga else "aberta",
+        "forma": None,
+        "pago_em": caucao.pago_em if paga and caucao is not None else None,
+        "observacao": PAGA_COM_A_CAUCAO if paga else SERA_PAGA_COM_A_CAUCAO,
+        "paga_com_caucao": True,
+        "conta_id": None,
+        "rotulo": f"Parcela {total}",
+        "valor_hoje_centavos": 0,
+        "acoes": {"receber": False},
+    }
+
+
+def _parcelas(
+    locacao: Locacao, contas: list[Any], hoje: date, usuario: Any
+) -> list[dict[str, Any]]:
     """Seção Pagamentos (FIN-18, LOC-17): cada conta com o rótulo, o valor de hoje e
-    `acoes.receber`, que abre a mesma baixa de `Receber` (`conta_id`)."""
+    `acoes.receber`, que abre a mesma baixa de `Receber` (`conta_id`). Na compra, a última
+    parcela leva "caução abatida" e, a de R$ 0,00, uma linha sem conta (LOC-16)."""
     perfil = getattr(usuario, "perfil", "")
     suporte = bool(getattr(usuario, "e_suporte", False))
     juros = financeiro_selectors.JurosDaPagina()
@@ -748,9 +804,13 @@ def _parcelas(contas: list[Any], hoje: date, usuario: Any) -> list[dict[str, Any
     )
     for conta in contas:
         acoes_da_conta = financeiro_selectors.acoes_da_conta(conta, perfil, suporte, hoje)
+        representacao = financeiro_selectors.representacao_conta(conta, hoje)
+        if _ultima_da_compra(locacao, conta) and not representacao["observacao"]:
+            representacao["observacao"] = CAUCAO_ABATIDA
         linhas.append(
             {
-                **financeiro_selectors.representacao_conta(conta, hoje),
+                **representacao,
+                "paga_com_caucao": False,
                 "conta_id": conta.pk,
                 "rotulo": _rotulo_da_conta(conta),
                 "valor_hoje_centavos": financeiro_selectors.valor_hoje(conta, hoje, juros)[
@@ -759,6 +819,10 @@ def _parcelas(contas: list[Any], hoje: date, usuario: Any) -> list[dict[str, Any
                 "acoes": {"receber": acoes_da_conta["receber"]},
             }
         )
+    zerada = _linha_paga_com_caucao(locacao, contas)
+    if zerada is not None:
+        depois_das_parcelas = sum(1 for linha in linhas if linha["tipo"] == "parcela")
+        linhas.insert(depois_das_parcelas, zerada)
     return linhas
 
 
@@ -941,7 +1005,7 @@ def detalhe(locacao: Locacao, usuario: Any) -> dict[str, Any]:
     hoje = relogio.hoje()
     contrato = contratos_selectors.contrato_vigente(ORIGEM, locacao.pk)
     contas = list(financeiro_selectors.contas_da_origem(ORIGEM, locacao.pk))
-    parcelas = _parcelas(contas, hoje, usuario)
+    parcelas = _parcelas(locacao, contas, hoje, usuario)
     acoes_da_locacao = acoes(locacao, usuario, contrato)
     efetivo = locacao.valor_periodo_centavos - aplicar_percentual(
         locacao.valor_periodo_centavos, locacao.desconto_pct
@@ -1070,16 +1134,19 @@ def compra(locacao: Locacao, usuario: Any, contas: list[Any]) -> dict[str, Any] 
     caucao = locacao.caucao_centavos
     pagas = services.parcelas_pagas(locacao, contas)
     venda = _venda(locacao, usuario) if locacao.quitada_em is not None else None
+    caucao_paga = services.caucao_paga(locacao, contas)
+    # As contas de parcela todas pagas: a de R$ 0,00 só espera a caução (LOC-16, #575).
+    contas_pagas = pagas + int(services.ultima_paga_com_caucao(locacao) and not caucao_paga)
     falta = (
         _falta_para_quitar(contas, relogio.hoje())
-        if pagas >= total and locacao.quitada_em is None
+        if contas_pagas >= total and locacao.quitada_em is None
         else []
     )
     if (
-        pagas >= total
+        contas_pagas >= total
         and locacao.quitada_em is None
         and not any(f["rotulo"].startswith("Caução") for f in falta)
-        and not services.caucao_paga(locacao, contas)
+        and not caucao_paga
     ):
         # M-01: sem a caução paga, a compra não quita; a ficha diz o que falta.
         falta.append({"conta_id": None, "rotulo": "Caução não paga", "valor_centavos": caucao})

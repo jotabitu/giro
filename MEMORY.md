@@ -132,6 +132,11 @@ Favicon: o ícone do Giro aparece em todas as abas do navegador, inclusive no si
 
 ## Log de Bugs Resolvidos
 
+### [2026-11-13] "Rendeu no ano" errado em qualquer veículo (VEI-05, achado A8 da T-420)
+- **Sintoma:** o veículo vendido pela quitação mostrava "Rendeu no ano R$ 0"; na verdade o número saía errado para toda a frota.
+- **Causa raiz:** em `apps/locacoes/leituras.py`, o subquery das locações ficava dentro do subquery das contas, e o `OuterRef("pk")` apontava para a conta (`veiculo_id = conta.id`), não para o veículo. Os testes antigos só comparavam diferenças, então não pegavam.
+- **Correção:** `OuterRef(OuterRef("pk"))`. Em subquery dentro de subquery, cada `OuterRef` sobe um nível. Confira o SQL com `str(qs.query)`. Testes `test_vei_05_*` em `tests/aceitacao/test_t420_parcela_final_e_rendimento.py`.
+
 ### [2026-10-25] Seed em banco limpo com `config.settings.test` parava em `veiculos_veiculo does not exist` (T-281)
 - **Sintoma:** `seed_moto_rapida` num banco novo, com as configurações de teste, falhava na 1ª rodada (a 2ª passava).
 - **Causa raiz:** com `CELERY_TASK_ALWAYS_EAGER`, o convite agendado no commit roda na conexão do seed, e o sinal de limpeza de `comum/worker.py` (S-11, ADR 0012) devolvia a conexão ao public.
