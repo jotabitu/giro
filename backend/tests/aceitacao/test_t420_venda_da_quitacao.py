@@ -17,6 +17,7 @@ from django.db import connection, transaction
 
 from apps.auditoria.models import EventoAuditoria
 from apps.contas.models import StatusUsuario, Usuario
+from apps.filiais import services as filiais_services
 from apps.filiais.models import Filial
 from apps.financeiro.models import Comissao, ContaReceber
 from apps.locacoes.models import Locacao
@@ -332,6 +333,35 @@ def test_ven_11_loc_16_pendencia_no_painel(cenario, quitada):  # noqa: F811
     cache.clear()  # o início fica em cache por 5 minutos (`relatorios.api.views`)
     depois = cenario.moto.api("Mariana").get("/api/painel/inicio/").json()
     assert item not in depois["pendencias"]["itens"]
+
+
+def test_ven_11_loc_16_pendencia_no_painel_do_gerente(cenario, quitada):  # noqa: F811
+    """`painel.md`, variante `gerente`: as transferências pendentes só das filiais dele."""
+    rodrigo = cenario.moto.api("Rodrigo").get("/api/painel/inicio/").json()
+    assert rodrigo["variante"] == "gerente"
+    assert rodrigo["pendencias"] == {
+        "titulo": "1 transferência no Detran pendente",
+        "itens": [
+            {
+                "texto": "Transferência no Detran · SAK-1D39 · Lucas Ferreira · LOC-2856 "
+                "quitada em 07/10/2026",
+                "gravidade": "alerta",
+                "destino": {"chave": "locacoes", "id": quitada["id"]},
+            }
+        ],
+    }
+    caucaia = cenario.moto.criar(_filial("Filial Caucaia")).json()["id"]
+    paula = Usuario.objects.create_user(
+        "paula@motorapida.com.br", "senha-forte-123", nome="Paula", perfil="gerente"
+    )
+    filiais_services.definir_filiais_do_usuario(paula.pk, [caucaia])
+    cenario.moto.pessoas["Paula"] = paula
+    outra = cenario.moto.api("Paula").get("/api/painel/inicio/").json()
+    assert outra["variante"] == "gerente"
+    assert outra["pendencias"] == {
+        "titulo": "Nenhuma transferência no Detran pendente",
+        "itens": [],
+    }
 
 
 def test_ven_11_lista_vistoriador_403(cenario, quitada):  # noqa: F811

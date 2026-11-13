@@ -111,6 +111,7 @@ const gerente = (): CorpoDoInicio<InicioGerente> => ({
     { usuario_id: 5, nome: "João Silva", perfil: "vistoriador", resumo: "2 de 6 vistorias feitas", online: true },
     { usuario_id: 7, nome: "Lúcia Freitas", perfil: "financeiro", resumo: "último acesso ontem", online: false },
   ],
+  pendencias: { titulo: "Nenhuma transferência no Detran pendente", itens: [] },
   frota_filial: {
     total: 83,
     segmentos: [

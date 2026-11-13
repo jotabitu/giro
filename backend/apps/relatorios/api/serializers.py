@@ -232,6 +232,7 @@ class InicioGerenteSerializer(CabecalhoDoInicioSerializer):
     aprovacoes = AprovacoesDoInicioSerializer()
     kpis = KpiSerializer(many=True)
     equipe_hoje = PessoaDaEquipeSerializer(many=True)
+    pendencias = PendenciasSerializer()
     frota_filial = FrotaDaFilialSerializer()
 
 

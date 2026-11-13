@@ -60,7 +60,7 @@ chave: "quitacao-transferencia-{venda_id}"
 ```
 O texto é o da `LOC-16`, com a placa com hífen e a data no fuso da filial (CA-420-11).
 
-**Pendência no painel.** `vendas.selectors.transferencias_pendentes(filiais)` devolve as vendas da quitação sem transferência, para `relatorios` pôr nas `pendencias.itens` do painel do administrador (variante `geral`, `painel.md`; a variante `gerente` não tem o bloco `pendencias`, e o gerente recebe o aviso): `{ "tipo": "transferencia_quitacao", "locacao_id": 2901, "rotulo": "Transferência no Detran · RTA-2C55", "detalhe": "Lucas Ferreira · LOC-2901 quitada em 10/10/2028", "link": "/locacoes/2901" }`.
+**Pendência no painel.** `vendas.selectors.transferencias_pendentes(filiais)` devolve as vendas da quitação sem transferência, para `relatorios` pôr nas `pendencias.itens` do painel do administrador (variante `geral`) e do gerente (variante `gerente`, só as filiais dele), em `painel.md`: `{ "tipo": "transferencia_quitacao", "locacao_id": 2901, "rotulo": "Transferência no Detran · RTA-2C55", "detalhe": "Lucas Ferreira · LOC-2901 quitada em 10/10/2028", "link": "/locacoes/2901" }`.
 
 ### POST /api/locacoes/{id}/transferencia/
 

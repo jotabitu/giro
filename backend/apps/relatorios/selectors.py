@@ -365,6 +365,24 @@ def _transferencias_pendentes(escopo: Escopo) -> list[dict[str, Any]]:
     ]
 
 
+def _pendencias_do_gerente(escopo: Escopo) -> dict[str, Any]:
+    """`LOC-16`, `VEN-11`: as transferências no Detran pendentes das filiais do gerente (o
+    escopo já é o recorte dele, `USR-07`), no formato das pendências do administrador."""
+    itens = _transferencias_pendentes(escopo)
+    return {
+        "titulo": (
+            _plural(
+                len(itens),
+                "transferência no Detran pendente",
+                "transferências no Detran pendentes",
+            )
+            if itens
+            else "Nenhuma transferência no Detran pendente"
+        ),
+        "itens": itens,
+    }
+
+
 def _caixa_hoje(escopo: Escopo) -> dict[str, Any] | None:
     """O caixa de hoje da filial; `null` com "Todas as filiais" ou sem caixa hoje (FIN-07)."""
     filial = escopo.filial()
@@ -561,6 +579,7 @@ def _gerente(usuario: Any, escopo: Escopo, periodo: str) -> dict[str, Any]:
             _kpi("em_manutencao", "Em manutenção", None, None),  # app manutencao (fase 2)
         ],
         "equipe_hoje": _equipe_hoje(usuario, escopo, fuso),
+        "pendencias": _pendencias_do_gerente(escopo),
         "frota_filial": {
             "total": contagem["todos"],
             "segmentos": [
