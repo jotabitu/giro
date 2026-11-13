@@ -2476,19 +2476,35 @@ def parcelas_pagas(locacao: Locacao, contas: list[Any] | None = None) -> int:
     (M-02 da revisão de segurança da T-420): a estornada volta a dever até a conta reaberta ser
     paga, e a renegociada conta quando todas as contas novas estão pagas, em qualquer origem. A
     cancelada não conta. A última de R$ 0,00 (caução maior que a parcela) não existe como conta:
-    conta como paga quando todas as outras estão pagas (CA-420-14)."""
+    a caução a paga, e ela conta como paga quando a caução está paga (CA-420-14, #575)."""
     contas = _todas_da_origem(locacao, contas)
     pagas = sum(1 for c in _originais(contas, "parcela") if financeiro_selectors.paga_de_vez(c))
-    total = locacao.compra_parcelas or 0
-    ultima_zerada = (
-        calculo.ultima_parcela_da_compra(
+    if ultima_paga_com_caucao(locacao) and caucao_paga(locacao, contas):
+        pagas += 1
+    return pagas
+
+
+def ultima_paga_com_caucao(locacao: Locacao) -> bool:
+    """LOC-16: a compra cuja última parcela nasce R$ 0,00 (caução maior ou igual à parcela). Ela
+    não vira conta a receber: a caução a paga. Sem caução, a última nasce cheia."""
+    return (
+        e_compra(locacao)
+        and locacao.caucao_centavos > 0
+        and bool(locacao.compra_parcelas)
+        and calculo.ultima_parcela_da_compra(
             locacao.compra_valor_parcela_centavos or 0, locacao.caucao_centavos
         )
         == 0
     )
-    if ultima_zerada and pagas == total - 1:
-        return total
-    return pagas
+
+
+def vencimento_da_parcela(locacao: Locacao, numero: int) -> date:
+    """O calendário da `LOC-05` para a parcela `numero` da compra, a partir do 1º vencimento (o
+    gravado ou o dia do início, no fuso da filial), como em `calculo.calcular`."""
+    primeiro = locacao.primeiro_vencimento or data_local(locacao.inicio, locacao.filial)
+    if locacao.periodicidade == Periodicidade.SEMANAL:
+        return primeiro + timedelta(days=7 * (numero - 1))
+    return calculo.somar_meses_data(primeiro, numero - 1)
 
 
 def caucao_paga(locacao: Locacao, contas: list[Any] | None = None) -> bool:

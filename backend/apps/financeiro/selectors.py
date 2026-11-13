@@ -681,14 +681,16 @@ def total_de_parcelas(conta: ContaReceber) -> int:
     """FIN-19: as parcelas da origem até o fim previsto em vigor, sem a caução e sem as outras
     cobranças. A renovação (LOC-08) cria parcelas com número seguido, e as canceladas pelo
     encerramento continuam contadas; por isso vale o maior número, e não o total gravado na
-    conta, que fica o da época em que ela nasceu. As contas de um acordo ficam de fora."""
-    maior = ContaReceber.objects.filter(
+    conta, que fica o da época em que ela nasceu. As contas de um acordo ficam de fora. O total
+    gravado vale quando é maior: a última parcela de R$ 0,00 da compra não vira conta, e a
+    numeração segue o plano ("Parcela 1 de 104", LOC-16, CA-420-14)."""
+    maiores = ContaReceber.objects.filter(
         origem_tipo=conta.origem_tipo,
         origem_id=conta.origem_id,
         tipo=TipoConta.PARCELA,
         nasceu_de__isnull=True,
-    ).aggregate(maior=Max("numero_parcela"))["maior"]
-    return int(maior or conta.total_parcelas or 0)
+    ).aggregate(numero=Max("numero_parcela"), total=Max("total_parcelas"))
+    return int(max(maiores["numero"] or 0, maiores["total"] or 0) or conta.total_parcelas or 0)
 
 
 def a_que_se_refere(conta: ContaReceber, total: int | None) -> dict[str, Any]:

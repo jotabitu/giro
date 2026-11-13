@@ -17010,6 +17010,8 @@ components:
       properties:
         id:
           type: integer
+          nullable: true
+          description: null na última parcela de R$ 0,00 da compra (LOC-16)
         tipo:
           type: string
         numero:
@@ -17035,9 +17037,18 @@ components:
         observacao:
           type: string
           nullable: true
+          description: 'LOC-16: "caução abatida" na última parcela da compra; "paga
+            com a caução" ou "será paga com a caução" na de R$ 0,00'
+        paga_com_caucao:
+          type: boolean
+          description: 'LOC-16 (CA-420-14): a última parcela de R$ 0,00 da compra,
+            paga pela caução. Não é conta a receber: sem `id`, sem `conta_id` e sem
+            botão; a situação é a `observacao`'
         conta_id:
           type: integer
-          description: o `id` da conta em /api/financeiro/contas/
+          nullable: true
+          description: o `id` da conta em /api/financeiro/contas-receber/; null na
+            linha `paga_com_caucao`
         rotulo:
           type: string
         valor_hoje_centavos:
@@ -17051,6 +17062,7 @@ components:
       - id
       - numero
       - observacao
+      - paga_com_caucao
       - pago_em
       - rotulo
       - status

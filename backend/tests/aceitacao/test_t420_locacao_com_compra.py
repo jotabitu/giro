@@ -709,7 +709,9 @@ def test_loc_16_m01_caucao_cancelada_nao_quita_nem_devolve_sobra(compra: Cenario
     assert (locacao.status, locacao.quitada_em) == ("ativa", None)
     assert not Reembolso.objects.exists()
     bloco = _compra(compra, locacao)
-    assert bloco["parcelas_pagas"] == 104
+    # #575: a 104ª, de R$ 0,00, só conta como paga com a caução paga.
+    assert bloco["parcelas_pagas"] == 103
+    assert bloco["andamento"] == "Parcela 103 de 104 · falta 1 para a transferência"
     assert bloco["falta_para_quitar"] == [
         {"conta_id": None, "rotulo": "Caução não paga", "valor_centavos": 30000}
     ]
@@ -924,10 +926,11 @@ def test_loc_16_ca_420_14_caucao_maior_que_a_parcela(compra: Cenario) -> None:
     assert len(_contas(locacao)) == 103
     bloco = _compra(compra, locacao)
     assert (bloco["ultima_parcela_centavos"], bloco["sobra_caucao_centavos"]) == (0, 10100)
-    assert bloco["andamento"] == "Parcela 1 de 104 · faltam 103 para a transferência"
+    # #575: a 104ª, de R$ 0,00, conta como paga desde que a caução está paga.
+    assert bloco["andamento"] == "Parcela 2 de 104 · faltam 102 para a transferência"
     _pagar(locacao, *range(2, 103))
     assert _compra(compra, locacao)["andamento"] == (
-        "Parcela 102 de 104 · faltam 2 para a transferência"
+        "Parcela 103 de 104 · falta 1 para a transferência"
     )
     _pagar(locacao, 103)
     locacao.refresh_from_db()
