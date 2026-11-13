@@ -24,6 +24,12 @@ ATIVIDADE_PADRAO = "ambos"
 
 Pode = dict[str, Any]
 
+# O app `vendas` entrou com a T-420 só com a lista e o detalhe (`/vendas`, VEN-11). Propostas,
+# veículos à venda e comissões são da venda de balcão (T-418) e ainda não têm tela: ficam neste
+# módulo à parte, fora de `GIRO_MODULOS_ATIVOS`, para o menu não levar a tela que não existe
+# (USR-05, T-047). A T-418 acrescenta `vendas_balcao` à lista.
+VENDAS_BALCAO = "vendas_balcao"
+
 
 @dataclass(frozen=True)
 class Item:
@@ -167,7 +173,7 @@ ITENS: dict[str, Item] = {
             None,
             lambda p: bool(p["financeiro_pagar"]),
             Recurso.VENDAS_COMISSOES,
-            modulo="vendas",
+            modulo=VENDAS_BALCAO,
         ),
         Item(
             "conciliacao",
@@ -239,7 +245,7 @@ ITENS: dict[str, Item] = {
             lambda p: bool(p["vendas_criar"]),
             Recurso.VENDAS_COMISSOES,
             "vende",
-            "vendas",
+            VENDAS_BALCAO,
         ),
         Item(
             "minhas_vendas",
@@ -257,7 +263,7 @@ ITENS: dict[str, Item] = {
             lambda p: bool(p["vendas_criar"]),
             Recurso.VENDAS_COMISSOES,
             "vende",
-            "vendas",
+            VENDAS_BALCAO,
         ),
         Item(
             "minhas_comissoes",
@@ -266,7 +272,7 @@ ITENS: dict[str, Item] = {
             lambda p: bool(p["vendas_criar"]),
             Recurso.VENDAS_COMISSOES,
             "vende",
-            "vendas",
+            VENDAS_BALCAO,
         ),
         Item(
             "contas_a_pagar",

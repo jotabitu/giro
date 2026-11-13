@@ -485,7 +485,9 @@ GIRO_PEPPER_HMAC = env_preenchida("GIRO_PEPPER_HMAC", PEPPER_DE_EXEMPLO)
 # Módulos (apps) já entregues: o menu do `eu` esconde os outros, para nunca levar a uma tela
 # que não existe (USR-05, T-047). Cada entrega acrescenta o seu. Fora por enquanto: `empresas`
 # (Configurações e Empresa e marca, sem tela até a T-154 e a T-173), `relatorios` (fase 2; o
-# painel do início responde sem ele), `vendas`, `manutencao` e `conciliacao` (fase 2).
+# painel do início responde sem ele), `manutencao` e `conciliacao` (fase 2). `vendas` entrou com a
+# lista da T-420 (VEN-11); propostas, veículos à venda e comissões ficam em `vendas_balcao`, fora
+# até a T-418 (`contas/navegacao.py`).
 GIRO_MODULOS_ATIVOS = env.list(
     "GIRO_MODULOS_ATIVOS",
     default=[
@@ -501,6 +503,7 @@ GIRO_MODULOS_ATIVOS = env.list(
         "movimentacoes",
         "plataforma",
         "veiculos",
+        "vendas",
         "vistorias",
     ],
 )
