@@ -1,6 +1,6 @@
 # Criação do schema de empresa com os papéis de banco separados
 
-**Status:** proposta · 14 nov 2026 · T-477 · detalha a 0016 (item 1), a 0025 (item 2) e a 0033 (M-01 da T-355) · revisão da segurança na T-477
+**Status:** aceita · 14 nov 2026 · T-477 · detalha a 0016 (item 1), a 0025 (item 2) e a 0033 (M-01 da T-355) · revisão da segurança no PR #593 (aprovada com ajustes, incorporados nos itens 7 a 11)
 
 ## Contexto
 
@@ -15,7 +15,7 @@ A Moto Rápida (`motorapida`) foi criada à mão: `criar_empresa` num contêiner
 
 Restrições:
 
-- O backend web não recebe a `DATABASE_URL_MIGRACAO` (M-01 da T-355; `infra/ci/check-migracao-so-no-worker.sh`). Hoje só o worker que lê a fila `apagamento` a recebe.
+- O backend web não recebe a `DATABASE_URL_MIGRACAO` (M-01 da T-355; `infra/scripts/check-migracao-so-no-worker.sh`). Hoje só o worker que lê a fila `apagamento` a recebe.
 - A compra pública já cria a empresa numa tarefa Celery (`compra.executar_pedido_compra`), e a tela `Compra-Pronto` acompanha o `andamento` do pedido por consulta. Ela não depende de a criação ser síncrona na requisição.
 - O Django Admin chama `criar_empresa` na requisição, no processo web.
 - A auditoria do schema da empresa tem de continuar só `SELECT, INSERT` para o `giro_app` (ADR 0016, item 1).
@@ -59,7 +59,7 @@ Um check novo, `python manage.py conferir_privilegios`, roda no deploy depois do
 
 O DDL roda numa conexão e as linhas do `public` em outra, então não voltam mais juntos numa transação. A ordem passa a ser:
 
-1. **Reserva (public, `giro_app`, transação):** `validar_criacao`, a `Empresa` e o `Dominio`. A `Empresa` nasce com o campo técnico novo `schema_pronto_em = NULL`. É campo de infraestrutura, não um status de negócio: o `status` continua `em_teste` ou `ativa` como na `PLT-01` e na `PLT-16`, e nenhuma regra muda. O `TenantMainMiddleware` e o login recusam empresa com `schema_pronto_em` nulo (404, como subdomínio que não existe). A `UNIQUE` de `schema_name` e `subdominio` resolve a corrida entre duas criações (`Conflito subdominio_em_uso`, como hoje).
+1. **Reserva (public, `giro_app`, transação):** `validar_criacao`, a `Empresa` e o `Dominio`. A `Empresa` nasce com o campo técnico novo `schema_pronto_em = NULL`. É campo de infraestrutura, não um status de negócio: o `status` continua `em_teste` ou `ativa` como na `PLT-01` e na `PLT-16`, e nenhuma regra muda. Empresa com `schema_pronto_em` nulo é inalcançável em todo lugar (item 7). A `UNIQUE` de `schema_name` e `subdominio` resolve a corrida entre duas criações (`Conflito subdominio_em_uso`, como hoje).
 2. **Schema (conexão `migracao`):** `banco.criar_schema(empresa_id)`, item 1.
 3. **Resto (public e schema da empresa, `giro_app`, transação):** `UsoEmpresa`, `FormaPagamentoAssinatura`, evento `empresa.criar`, 1ª fatura, `plataforma.empresa_criada` (o administrador `convite_pendente` em `contas`) e `schema_pronto_em = agora`. O e-mail do convite sai no `on_commit` desta transação, quando o schema já existe e as concessões já valem. A corrida com o worker deixa de existir.
 4. **Falha:** se o passo 2 ou o 3 falhar, a tarefa compensa: `DROP SCHEMA IF EXISTS` pela conexão de migração (pela mesma conferência de `apagar_schema`, mas aceitando só empresa com `schema_pronto_em` nulo, criada por esta tarefa) e, no `public`, remove as linhas do passo 1 (`Dominio` e `Empresa` sem schema pronto nunca foram vistas por ninguém; é desfazer a reserva, não apagar dado de negócio). Se a compensação falhar, a empresa fica com `schema_pronto_em` nulo, invisível, e o Sentry avisa; `conferir_privilegios` e um alarme diário listam empresas sem schema pronto há mais de 1 hora.
@@ -75,12 +75,44 @@ O DDL roda numa conexão e as linhas do `public` em outra, então não voltam ma
 O contorno fez à mão o que o item 2 faz, com uma diferença: rodou como superusuário. A regularização:
 
 - o deploy da versão com esta ADR roda `conceder_privilegios --todos` e `conferir_privilegios`; para `motorapida` o efeito é nulo (já está concedido) e o check passa a vigiar o schema;
-- uma migração de dados do `public` preenche `schema_pronto_em` das empresas cujo schema existe (`pg_namespace`), com a data de criação delas;
+- uma migração de dados do `public` preenche `schema_pronto_em` só das empresas cujo schema existe no `pg_namespace` e está totalmente migrado (todas as migrações do tenant registradas no `django_migrations` dele), com a data de criação delas; recusa `public`, `information_schema` e `pg_*`; empresa que não passa fica nula e vai ao log;
 - o devops confere que o dono de `motorapida` e das tabelas é o `giro_migracao` (o contorno criou pelo `giro_migracao`, então deve ser) e registra no `infra/README.md` que nenhuma concessão manual é mais necessária.
 
 ### 6. O Django Admin
 
 A action de criar empresa grava o pedido e enfileira a tarefa; o formulário devolve para a página do pedido, com o andamento e o erro, se houver. Se o modelo `PedidoCompra` não couber (campos da compra pública que o Admin não tem), o backend propõe no PR um modelo mínimo (`CriacaoEmpresa`) com `status`, `andamento`, `erro` e `empresa`; a decisão desta ADR (a criação nunca roda no processo web) não depende disso.
+
+### 7. Empresa sem schema pronto é inalcançável (revisão da segurança, item 1)
+
+- `Empresa.objects.prontas()` (`schema_pronto_em__isnull=False`) é o padrão **obrigatório** para iterar ou resolver empresa: a resolução de tenant (`TenantMainMiddleware` e o modelo de domínio), o login e o refresh do JWT, as tarefas do beat que percorrem empresas (faturas, uso, avisos, expurgo, apagamento), o painel da plataforma (listas, busca, métricas), o acesso de suporte (`PLT-07`) e o reenvio de convite. `Empresa.objects.all()` fica só para `plataforma.banco`, a tarefa de criação, a migração de dados e o Django Admin (que mostra a reserva marcada como "criando").
+- Garantia por teste: `test_plt_01_empresa_sem_schema_pronto_e_inalcancavel` cria uma reserva e confere 404 no subdomínio, recusa no login e no refresh, ausência no painel, no suporte e no convite, e que as tarefas do beat não a tocam. Um teste de arquitetura (`test_empresa_iteracao_usa_prontas`) varre `apps/` e falha em `Empresa.objects.filter|all|get|iterator` fora da lista de exceções acima.
+
+### 8. Compensação e idempotência (revisão da segurança, item 2)
+
+- `desfazer_schema(empresa_id, pedido_id)` relê a `Empresa` com `SELECT ... FOR UPDATE`, confere `schema_pronto_em` nulo e que o pedido aponta para essa empresa e está em `criando`; qualquer divergência é `ApagamentoRecusado`.
+- A tarefa é idempotente sob reentrega e retry: começa travando o pedido; pedido fora de `criando` sai sem fazer nada; reserva já existente do mesmo pedido é retomada (`CREATE SCHEMA` só se não existir no `pg_namespace`, e o `migrate_schemas` é idempotente); `acks_late` com o pedido como trava.
+- Compensação só no corpo da tarefa, nunca a partir de um `on_commit`: depois do commit do passo 3, a empresa existe e qualquer falha seguinte (o e-mail do convite) é tratada como hoje, sem desfazer nada. A reserva desfeita vai ao log com `empresa_id`, `pedido_id` e o schema.
+
+### 9. Check da credencial (revisão da segurança, item 3)
+
+`infra/scripts/check-migracao-so-no-worker.sh` passa a conferir os três composes (desenvolvimento, homologação e produção) e:
+- casa o argumento exato `-Q banco` (ou `--queues banco`), não `banco` em qualquer parte do comando;
+- a `DATABASE_URL_MIGRACAO` só pode ter valor no `worker-banco` e no `migrar`; no desenvolvimento, no único worker;
+- o `worker-banco` não pode ter `-B`/beat nem ler a fila `celery`; nenhum outro serviço lê a `banco`.
+
+### 10. Quem enfileira na `banco` (revisão da segurança, item 4)
+
+Quem tem o Redis (o web) consegue enfileirar, então a fila não é prova de autorização:
+- a tarefa revalida no banco que o pedido está `criando`, veio de uma compra confirmada ou do Admin por um usuário staff com 2 etapas (gravado no pedido), e não foi processado;
+- o `worker-banco` aceita só uma lista fechada de tarefas (`aud_08_apagar_empresas`, `executar_pedido_compra`, `plataforma.criar_empresa`): um sinal `task_prerun` (ou `worker_process_init` com `CELERY_IMPORTS` mínimo) recusa qualquer outra e registra no Sentry;
+- a criação pelo Admin gera o evento `empresa.solicitar_criacao` na auditoria da plataforma, com o usuário.
+
+### 11. Privilégio a mais e a tela do Admin (revisão da segurança, item 5)
+
+- `conferir_privilegios` também falha se houver: privilégio de `PUBLIC` no schema ou nas tabelas; `CREATE` do `giro_app` em qualquer schema; `CREATE` do `giro_expurgo` que tenha sobrado da troca de dono; `EXECUTE` de `auditoria_expurgar` para papel além de `giro_app` e `giro_expurgo`; tabela ou sequência cujo dono não seja o `giro_migracao`.
+- O devops confirma a Moto Rápida com `\dn+ motorapida` e `\dp motorapida.*` e anexa a saída ao PR da implementação.
+- A tela do Admin mostra só a `MENSAGEM_FALHA`; o SQLSTATE e o detalhe vão ao Sentry e ao log.
+- `schema_pronto_em` só é gravado depois das concessões finais (o `aplicar_permissoes` do fim das migrações) e na mesma transação do passo 3.
 
 ## Alternativas descartadas
 
@@ -120,7 +152,8 @@ A action de criar empresa grava o pedido e enfileira a tarefa; o formulário dev
 
 ## O que a segurança revisa
 
-- Que a `DATABASE_URL_MIGRACAO` continua num serviço só (`worker-banco`) e que o check de CI cobre a fila renomeada nos três composes.
+- Revisada no PR #593 (14 nov 2026): aprovada com os ajustes dos itens 7 a 11. Na revisão da implementação, a segurança confere esses itens e os pontos abaixo.
+- Que a `DATABASE_URL_MIGRACAO` continua só no `worker-banco` e no `migrar`, e que o check cobre os três composes (item 9).
 - Que a tarefa `plataforma.criar_empresa` só aceita `empresa_id` (ou `pedido_id`) e nunca um nome de schema; e que `criar_schema` e `desfazer_schema` conferem o padrão do nome e, no caso do `desfazer`, recusam empresa com `schema_pronto_em` preenchido (não pode virar um segundo caminho de `DROP SCHEMA` fora do `apagar_schema`).
 - Que quem pode enfileirar a criação é só a compra pública confirmada e o Admin com 2 etapas; que a fila `banco` não aceita tarefa de outro produtor (o Redis tem senha, T-274).
 - As concessões: `FOR ROLE giro_migracao` explícito, `REVOKE` da auditoria sempre por último, `conferir_privilegios` no deploy; e que o contorno da Moto Rápida não deixou concessão a mais (por exemplo, a `PUBLIC` ou ao `giro_expurgo` além da tabela de eventos).
