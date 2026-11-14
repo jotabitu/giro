@@ -13,8 +13,13 @@ export CLOUDFLARE_INI_ARQUIVO="$SEGREDOS/cloudflare.ini"
 COMPOSE="docker compose -f $RAIZ/infra/deploy/docker-compose.producao.yml --env-file $SEGREDOS/producao.env --env-file $SEGREDOS/producao-infra.env"
 
 # valor_infra NOME: lê uma variável de producao-infra.env sem carregar o arquivo no shell.
+# Desde a T-474 o arquivo grava CHAVE='valor': tira as aspas simples externas, se houver (T-475).
 valor_infra() {
-  grep "^$1=" "$SEGREDOS/producao-infra.env" | head -n 1 | cut -d= -f2-
+  _valor=$(grep "^$1=" "$SEGREDOS/producao-infra.env" | head -n 1 | cut -d= -f2-)
+  case "$_valor" in
+    \'*\') _valor=${_valor#\'}; _valor=${_valor%\'} ;;
+  esac
+  printf '%s\n' "$_valor"
 }
 
 registrar() {
