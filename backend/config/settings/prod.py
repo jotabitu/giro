@@ -28,6 +28,7 @@ from config.settings.base import (
     SECRET_KEY,
     SIMPLE_JWT,
     env,
+    env_literal,
 )
 
 DEBUG = False
@@ -123,7 +124,7 @@ for _nome in (
     "GIRO_CHAVE_SEGREDOS",
     "GIRO_PEPPER_HMAC",
 ):
-    if not env(_nome, default="").strip():
+    if not env_literal(_nome).strip():
         raise ImproperlyConfigured(f"Defina {_nome}: vazia ou ausente não é aceita em produção.")
 if SIMPLE_JWT["SIGNING_KEY"] == SECRET_KEY:
     raise ImproperlyConfigured("Defina JWT_SIGNING_KEY, diferente de DJANGO_SECRET_KEY.")

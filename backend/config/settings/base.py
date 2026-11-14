@@ -1,5 +1,6 @@
 """Configuração comum a todos os ambientes. Valores vêm das variáveis de `.env.example`."""
 
+import os
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
@@ -17,16 +18,27 @@ CHAVE_SEGREDOS_DE_EXEMPLO = "1:b/jBUdVpQ6mwUQJnFhzjnMkTVZvziqLLZfoEWrBDhs0="
 PEPPER_DE_EXEMPLO = "07128db7f37327bc0128ca29852fae5bf3b0f67c758ad430d12af360c0332089"
 
 
+def env_literal(nome: str, padrao: str = "") -> str:
+    """Valor cru da variável, sem a expansão de `$` do django-environ (T-475).
+
+    O django-environ trata valor que começa com `$` como referência a outra variável e devolve
+    vazio. Chaves do Asaas (`$aact_...`) e senhas geradas podem começar com `$`.
+    """
+    return os.environ.get(nome, padrao)
+
+
 def env_preenchida(nome: str, padrao: str) -> str:
     """Valor da variável; ausente ou vazia (`NOME=` no .env) cai no padrão de desenvolvimento.
 
     `env(nome, default=...)` só usa o padrão quando a variável não existe, e o compose entrega
     `NOME=` do .env como string vazia (T-133). Produção confere a variável crua em prod.py.
     """
-    return env(nome, default="").strip() or padrao
+    return env_literal(nome).strip() or padrao
 
 
-SECRET_KEY = env("DJANGO_SECRET_KEY")
+SECRET_KEY = env_literal("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    raise environ.ImproperlyConfigured("Set the DJANGO_SECRET_KEY environment variable")
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[".localhost", "127.0.0.1", "backend"])
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
@@ -527,8 +539,8 @@ GIRO_ARQUIVOS_FALSOS_BASE = "https://arquivos.invalid"
 S3_BUCKET = env("S3_BUCKET", default="")
 S3_ENDPOINT_URL = env("S3_ENDPOINT_URL", default="")
 S3_REGIAO = env("S3_REGIAO", default="")
-S3_CHAVE_DE_ACESSO = env("S3_CHAVE_DE_ACESSO", default="")
-S3_CHAVE_SECRETA = env("S3_CHAVE_SECRETA", default="")
+S3_CHAVE_DE_ACESSO = env_literal("S3_CHAVE_DE_ACESSO")
+S3_CHAVE_SECRETA = env_literal("S3_CHAVE_SECRETA")
 # WhatsApp: só o "falso" (mensagens na memória) até a integração real.
 GIRO_PROVEDOR_WHATSAPP = env("GIRO_PROVEDOR_WHATSAPP", default="falso")
 # ADR 0034 (11 nov 2026): desligada, nada vai ao cliente final nem ao convidado pelo WhatsApp;
@@ -538,13 +550,13 @@ GIRO_WHATSAPP_CLIENTE_FINAL = env.bool("GIRO_WHATSAPP_CLIENTE_FINAL", default=Fa
 # da conta principal só abre subcontas; cada subconta tem a sua, cifrada no banco (S-05).
 GIRO_PROVEDOR_PAGAMENTOS = env("GIRO_PROVEDOR_PAGAMENTOS", default="falso")
 GIRO_ASAAS_URL = env("GIRO_ASAAS_URL", default="https://api-sandbox.asaas.com/v3")
-GIRO_ASAAS_CHAVE_API = env("GIRO_ASAAS_CHAVE_API", default="")
+GIRO_ASAAS_CHAVE_API = env_literal("GIRO_ASAAS_CHAVE_API")
 # Vazio: https://admin.<DOMINIO_BASE>/api/webhooks/pagamentos/asaas/. No desenvolvimento com o
 # sandbox, o endereço HTTPS de um túnel até a máquina.
 GIRO_URL_WEBHOOK_PAGAMENTOS = env("GIRO_URL_WEBHOOK_PAGAMENTOS", default="")
 # Conta principal (faturas da assinatura, T-184): o webhook dela tem token próprio, e aqui fica
 # só o SHA-256 dele. Vazio: nenhum aviso é aceito como da conta principal.
-GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH = env("GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH", default="")
+GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH = env_literal("GIRO_WEBHOOK_PRINCIPAL_TOKEN_HASH")
 # NFS-e da assinatura (PLT-15): desligada até o cadastro municipal do Giro (T-197).
 GIRO_NFSE_ASSINATURA_ATIVA = env.bool("GIRO_NFSE_ASSINATURA_ATIVA", default=False)
 # Link do recibo (T-411): desligado até a página pública `/recibo` existir no frontend (T-436).
@@ -557,12 +569,12 @@ EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.
 EMAIL_HOST = env("EMAIL_HOST", default="")
 EMAIL_PORT = env.int("EMAIL_PORT", default=587)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
-EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_HOST_PASSWORD = env_literal("EMAIL_HOST_PASSWORD")
 EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = env("EMAIL_FROM", default="Giro <nao-responda@giro.ceo>")
 
 # --- Sentry (vazio desliga) ---
-SENTRY_DSN_BACKEND = env("SENTRY_DSN_BACKEND", default="")
+SENTRY_DSN_BACKEND = env_literal("SENTRY_DSN_BACKEND")
 SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT", default="dev")
 if SENTRY_DSN_BACKEND:
     import sentry_sdk
