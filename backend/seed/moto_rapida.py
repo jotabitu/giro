@@ -258,43 +258,57 @@ def semear() -> Resultado:
                     centro = filiais_services.criar_filial(CENTRO, mariana)
                     criado.append("filial")
                 pessoas = _pessoas(mariana, centro, criado)
-            if not Veiculo.objects.exists():
-                with transaction.atomic():
-                    base = frota.montar_frota(centro, empresa, relogio)
-                    criado.append("frota")
-                    relogio.em("2026-10-07 10:00")
-                    if not Locacao.objects.exists():
-                        _publicar_modelo_de_contrato()
-                        carteira.carregar(
-                            base,
-                            pessoas["Bruna Alves"],
-                            relogio,
-                            gerente=pessoas["Rodrigo Pinheiro"],
-                            conferencia=True,
-                        )
-                        _bloquear_rafael()
-                        criado.append("locações")
-            else:
-                existente.append("frota")
-                with transaction.atomic():
-                    if frota.garantir_dados_do_crlv():
-                        criado.append("dados do CRLV-e do QXA-4B21")
-            _configuracao(criado)
-            if not Caixa.objects.exists():
-                with transaction.atomic():
-                    financeiro_do_seed.carregar(centro, pessoas, relogio)
-                    criado.append("financeiro")
-            with transaction.atomic():
-                if financeiro_do_seed.garantir_reembolso_e_pendencia(centro, relogio):
-                    criado.append("reembolso e pendência do pagamento")
-            with transaction.atomic():
-                if fotos.garantir_fotos_do_qxa(relogio):
-                    criado.append("fotos do QXA-4B21")
+            carregar_negocio(empresa, centro, pessoas, relogio, criado, existente)
     with RelogioDoSeed(INICIO) as relogio:
         _dono_da_plataforma(criado)
         _equipe_da_plataforma(criado)
         _outras_empresas(relogio, criado)
     return Resultado(empresa, criado, existente)
+
+
+def carregar_negocio(
+    empresa: Empresa,
+    centro: Filial,
+    pessoas: dict[str, Usuario],
+    relogio: RelogioDoSeed,
+    criado: list[str],
+    existente: list[str],
+) -> None:
+    """Os dados de negócio da Moto Rápida (frota, carteira, configuração, financeiro, fotos), no
+    schema da empresa já ativo. `pessoas` traz um usuário por nome de `PESSOAS`; a demonstração de
+    produção (T-476, `seed/demo.py`) passa o administrador da empresa em todos."""
+    if not Veiculo.objects.exists():
+        with transaction.atomic():
+            base = frota.montar_frota(centro, empresa, relogio)
+            criado.append("frota")
+            relogio.em("2026-10-07 10:00")
+            if not Locacao.objects.exists():
+                _publicar_modelo_de_contrato()
+                carteira.carregar(
+                    base,
+                    pessoas["Bruna Alves"],
+                    relogio,
+                    gerente=pessoas["Rodrigo Pinheiro"],
+                    conferencia=True,
+                )
+                _bloquear_rafael()
+                criado.append("locações")
+    else:
+        existente.append("frota")
+        with transaction.atomic():
+            if frota.garantir_dados_do_crlv():
+                criado.append("dados do CRLV-e do QXA-4B21")
+    _configuracao(criado)
+    if not Caixa.objects.exists():
+        with transaction.atomic():
+            financeiro_do_seed.carregar(centro, pessoas, relogio)
+            criado.append("financeiro")
+    with transaction.atomic():
+        if financeiro_do_seed.garantir_reembolso_e_pendencia(centro, relogio):
+            criado.append("reembolso e pendência do pagamento")
+    with transaction.atomic():
+        if fotos.garantir_fotos_do_qxa(relogio):
+            criado.append("fotos do QXA-4B21")
 
 
 PASSOS_FEITOS_NO_DEV = ("marca", "ramo", "precos", "contrato", "recebimentos", "importar", "equipe")
