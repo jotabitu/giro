@@ -623,3 +623,32 @@ Vindas do teste do dono no fluxo de locação da Moto Rápida (LOC-0001 e LOC-00
 - **Agente:** backend · **Regras:** `FIN-03`, `FIN-01`, ADR 0021 (data simulada) · **Origem:** observação do Backend 2 no PR #578 (teste da T-410 que quebrou com a data real de 13 nov); o dono pediu deixar para depois, em 13 nov 2026.
 - **O caso:** a `FIN-03` conta o atraso também do dia em que a conta nasceu, e esse dia é o `criado_em` (`auto_now_add`), que vem do relógio real. Com `GIRO_DATA_REFERENCIA` (desenvolvimento e homologação), a conta nasce com a data real e não com a simulada, e o atraso sai diferente do esperado nos testes à mão. Em produção não afeta.
 - **Pronto quando:** as contas (e o que mais usar `criado_em` em cálculo de regra) nascem com a hora do relógio do sistema, que respeita a data simulada; teste com a data simulada no passado e no futuro; produção sem mudança.
+
+### Notas do dono de 13 nov 2026 (comparação com um sistema de revenda)
+
+Saíram da comparação com um sistema de gestão de revenda de motos, feita em 13 nov 2026. Fase 2: entram uma a uma, com o aval do dono. Cada uma começa pelo **produto** (regra com código e casos em `docs/regras/`), e as telas novas passam pelo **design-system** antes do código.
+
+#### T-474 · Site de vendas da empresa (vitrine pública)
+- **Agente:** produto → design-system → arquiteto → backend e frontend · **Regras:** `VEI` (finalidade venda, `a_venda`), `PLT` (plano Completo), white label · **Origem:** já planejada em `docs/plano.md` ("Site de vendas") e nas telas que faltam (`docs/regras/pontos-em-aberto.md`).
+- **O caso:** a revenda quer mostrar o estoque à venda num site público com a marca dela, sem cadastrar em outro lugar.
+- **Pronto quando:** existem regras para o que aparece (só veículo `a_venda`, liga e desliga a publicação por veículo, quais campos e fotos saem, preço), para o contato (botão de interesse que abre o WhatsApp da filial ou do vendedor e registra o interesse) e para o endereço (subdomínio da empresa); telas da vitrine, da página do veículo e do pedido de interesse; ADR do arquiteto (página pública, cache, SEO, isolamento entre empresas); API pública só de leitura sem dado pessoal; testes. Revisão da segurança antes de ligar.
+
+#### T-475 · Canal de origem da venda
+- **Agente:** produto → fullstack · **Regras:** `VEN`, `CLI` · **Origem:** comparação de 13 nov 2026.
+- **O caso:** a revenda quer saber de onde veio cada venda (Instagram, OLX, WhatsApp, indicação, loja, site) para decidir onde anunciar.
+- **Pronto quando:** a empresa tem uma lista de canais (padrão e editável, com `ativo=False` em vez de apagar); a venda pede o canal; o relatório de vendas mostra quantidade, valor e conversão por canal; a venda que vier da vitrine (T-474) já nasce com o canal "Site"; regra com código e testes.
+
+#### T-476 · Consignação de veículo
+- **Agente:** produto → arquiteto → backend e frontend · **Regras:** `VEI` (origem compra, consignação ou troca, já citada em `docs/plano.md`), `VEN-06`, `FIN` · **Origem:** comparação de 13 nov 2026; hoje o ramo cita "consignados", mas nenhuma regra cobre.
+- **O caso:** a revenda vende o veículo de um terceiro, que continua o dono, e fica com uma comissão ou com a diferença combinada.
+- **Pronto quando:** existem regras para a entrada consignada (dono, valor combinado com o dono, prazo, termo de consignação), para a venda (o que vai para o dono em contas a pagar e o que fica como receita da revenda, fora do custo do estoque) e para a devolução ao dono sem venda; o veículo consignado aparece identificado no estoque; testes com os valores do seed.
+
+#### T-477 · Dias em estoque e alerta de veículo parado
+- **Agente:** produto → fullstack · **Regras:** `VEI`, `AUT` (alertas) · **Origem:** comparação de 13 nov 2026.
+- **O caso:** veículo à venda parado há muito tempo prende dinheiro; a revenda quer ver isso sem fazer conta.
+- **Pronto quando:** a API devolve os dias em estoque de cada veículo à venda (desde a entrada); a lista de veículos mostra e ordena por esse número; o início do gerente mostra os mais parados; passado o limite da empresa (padrão 30 dias, configurável), gera alerta; regra com código e testes.
+
+#### T-478 · Capital imobilizado, margem potencial e ticket médio
+- **Agente:** produto → fullstack · **Regras:** `VEI` (custos de aquisição e preparação), `VEN`, `FIN` · **Origem:** comparação de 13 nov 2026.
+- **O caso:** o dono quer saber quanto dinheiro está parado no estoque e quanto pode ganhar com ele.
+- **Pronto quando:** a API calcula, para os veículos à venda, o capital imobilizado (soma do custo: compra mais despesas), o custo médio por unidade e a margem potencial (preço de venda menos custo, em R$ e %), e, para as vendas do mês, o ticket médio e a comparação com o mês anterior; o início do administrador e do gerente mostram esses números; o vendedor não vê custo nem margem; tudo em centavos; regra com código e testes.
