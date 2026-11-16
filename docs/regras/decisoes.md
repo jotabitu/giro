@@ -242,3 +242,4 @@ As respostas do dono do produto aos pontos em aberto, pelo artefato Decisões do
 | Pendência | Decisão | Por quê |
 | --- | --- | --- |
 | Preços da assinatura (`PLT-11`, T-481) | Essencial **R$ 130,00** (anual R$ 1.300,00) e Profissional **R$ 160,00** (anual R$ 1.600,00) por mês; o Completo continua R$ 899,00 (R$ 8.990,00). Anual = 10 mensalidades. Limites, recursos e adicionais (filial R$ 79, pacote de 10 veículos R$ 49, assinatura avulsa R$ 4,90) não mudam. Substitui os preços do Essencial e do Profissional das decisões de 07 out e 11 nov 2026, que ficam acima como histórico. | Decisão do dono. |
+| Quem já assina com o preço antigo (`PLT-05`, T-481) | **A:** o preço novo vale só para novas assinaturas; quem já assina continua com o preço contratado (R$ 199,00 ou R$ 449,00) até um reajuste com aviso de 30 dias. | Decisão do dono; é a regra vigente da `PLT-05`. |
