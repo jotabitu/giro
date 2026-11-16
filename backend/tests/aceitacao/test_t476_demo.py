@@ -47,7 +47,10 @@ def _com_senha() -> int:
 
 @pytest.fixture
 def empresa(criar_empresa):
-    return criar_empresa()
+    """Como em produção: o administrador convidado tem um e-mail que não é de ninguém do seed."""
+    from apps.plataforma.services import Administrador
+
+    return criar_empresa(administrador=Administrador(nome="Dono Demo", email="dono@giro.example"))
 
 
 def test_t476_demo_sem_contas_com_senha(empresa):
