@@ -7,13 +7,16 @@ que apaga evento (com mais de 5 anos). Os papéis são criados pelo devops
 nada muda.
 
 Roda depois de toda migração do schema (`post_migrate`), como o papel da migração
-(`giro_migracao`, dono do schema, sem superusuário), e pode rodar de novo sem efeito.
+(`giro_migracao`, dono do schema, sem superusuário), e pode rodar de novo sem efeito. É o único
+lugar das concessões por schema (ADR 0040, item 2): também roda na criação do schema, antes e
+depois das migrações (`plataforma.banco.criar_schema`), e pelo `conceder_privilegios`.
 """
 
 from django.db.backends.utils import CursorWrapper
 
 PAPEL_APP = "giro_app"
 PAPEL_EXPURGO = "giro_expurgo"
+PAPEL_MIGRACAO = "giro_migracao"
 TABELA = "auditoria_eventoauditoria"
 
 
@@ -29,14 +32,41 @@ def _sem_aspas(nome: str) -> str:
     return f'"{nome}"'
 
 
+def _conceder_ao_app(cursor: CursorWrapper, s: str, tem_migracao: bool) -> None:
+    cursor.execute(f"GRANT USAGE ON SCHEMA {s} TO {PAPEL_APP}")
+    cursor.execute(
+        f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA {s} TO {PAPEL_APP}"
+    )
+    cursor.execute(f"GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA {s} TO {PAPEL_APP}")
+    # `FOR ROLE` explícito (ADR 0040, item 2): a regra vale para o que o giro_migracao criar,
+    # qualquer que seja o papel que rode isto. Sem o papel (desenvolvimento com um papel só), vale
+    # para quem roda, que é quem cria as tabelas.
+    para = f"FOR ROLE {PAPEL_MIGRACAO} " if tem_migracao else ""
+    cursor.execute(
+        f"ALTER DEFAULT PRIVILEGES {para}IN SCHEMA {s} "
+        f"GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {PAPEL_APP}"
+    )
+    cursor.execute(
+        f"ALTER DEFAULT PRIVILEGES {para}IN SCHEMA {s} "
+        f"GRANT USAGE, SELECT ON SEQUENCES TO {PAPEL_APP}"
+    )
+
+
 def aplicar_permissoes(cursor: CursorWrapper, schema: str) -> None:
     s = _sem_aspas(schema)
+    tem_app = _papel_existe(cursor, PAPEL_APP)
+    tem_migracao = _papel_existe(cursor, PAPEL_MIGRACAO)
     funcao = f"{s}.auditoria_expurgar(date)"
     cursor.execute("SELECT to_regprocedure(%s)", [funcao])
     linha = cursor.fetchone()
-    if linha is None or linha[0] is None:
+    tem_funcao = linha is not None and linha[0] is not None
+
+    # Antes das migrações (schema recém-criado, sem tabelas): só o USAGE e as regras padrão, para
+    # que cada tabela que a migração criar já nasça com o DML do giro_app.
+    if tem_app:
+        _conceder_ao_app(cursor, s, tem_migracao)
+    if not tem_funcao:
         return  # migração da auditoria ainda não chegou à 0003 neste schema
-    tem_app = _papel_existe(cursor, PAPEL_APP)
     tem_expurgo = _papel_existe(cursor, PAPEL_EXPURGO)
 
     cursor.execute(f"REVOKE EXECUTE ON FUNCTION {funcao} FROM PUBLIC")
@@ -51,19 +81,7 @@ def aplicar_permissoes(cursor: CursorWrapper, schema: str) -> None:
         cursor.execute(f"REVOKE CREATE ON SCHEMA {s} FROM {PAPEL_EXPURGO}")
 
     if tem_app:
-        cursor.execute(f"GRANT USAGE ON SCHEMA {s} TO {PAPEL_APP}")
-        cursor.execute(
-            f"GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA {s} TO {PAPEL_APP}"
-        )
-        cursor.execute(f"GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA {s} TO {PAPEL_APP}")
-        cursor.execute(
-            f"ALTER DEFAULT PRIVILEGES IN SCHEMA {s} "
-            f"GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {PAPEL_APP}"
-        )
-        cursor.execute(
-            f"ALTER DEFAULT PRIVILEGES IN SCHEMA {s} "
-            f"GRANT USAGE, SELECT ON SEQUENCES TO {PAPEL_APP}"
-        )
-        # Depois do GRANT geral: na auditoria, só SELECT e INSERT.
-        cursor.execute(f"REVOKE UPDATE, DELETE, TRUNCATE ON {s}.{TABELA} FROM {PAPEL_APP}")
         cursor.execute(f"GRANT EXECUTE ON FUNCTION {funcao} TO {PAPEL_APP}")
+        # Sempre por último: na auditoria, só SELECT e INSERT, mesmo que uma migração tenha
+        # recriado a tabela e o GRANT geral acima a tenha alcançado.
+        cursor.execute(f"REVOKE UPDATE, DELETE, TRUNCATE ON {s}.{TABELA} FROM {PAPEL_APP}")

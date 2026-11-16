@@ -8,6 +8,7 @@ from celery import Celery
 if "DJANGO_SETTINGS_MODULE" not in os.environ:
     raise RuntimeError("Defina DJANGO_SETTINGS_MODULE (config.settings.dev, .test ou .prod).")
 
-app = Celery("giro")
+# ADR 0040, item 10: toda tarefa passa pela lista fechada do worker-banco (`comum.worker`).
+app = Celery("giro", task_cls="comum.worker:TarefaGiro")
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()

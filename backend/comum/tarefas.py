@@ -111,7 +111,7 @@ def conferir_empresa_para_tarefa(schema_name: str, *, inclui_suspensas: bool = F
     if schema_name == get_public_schema_name():
         raise EmpresaIndisponivel("Tarefa de empresa não roda no schema público.")
     with schema_context(get_public_schema_name()):
-        empresa = get_tenant_model().objects.filter(schema_name=schema_name).first()
+        empresa = get_tenant_model().objects.prontas().filter(schema_name=schema_name).first()
         if empresa is None:
             raise EmpresaIndisponivel(f"Empresa {schema_name} não existe.")
         if empresa.status not in _status_permitidos(inclui_suspensas):
@@ -189,7 +189,8 @@ def schemas_das_empresas(*, inclui_suspensas: bool = False) -> list[str]:
     with schema_context(get_public_schema_name()):
         return list(
             get_tenant_model()
-            .objects.exclude(schema_name=get_public_schema_name())
+            .objects.prontas()
+            .exclude(schema_name=get_public_schema_name())
             .filter(status__in=status)
             .order_by("schema_name")
             .values_list("schema_name", flat=True)

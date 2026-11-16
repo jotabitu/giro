@@ -13,16 +13,15 @@ def preencher_preco(apps, schema_editor):
     """O preço da nova categoria no dia em que cada troca foi pedida (T-122)."""
     TrocaVeiculo = apps.get_model("locacoes", "TrocaVeiculo")
     PrecoCategoria = apps.get_model("veiculos", "PrecoCategoria")
-    trocas = TrocaVeiculo.objects.select_related(
+    trocas = TrocaVeiculo.objects.using(schema_editor.connection.alias).select_related(
         "locacao__filial", "locacao__plano_especial", "veiculo_novo"
     )
     for troca in trocas:
         locacao = troca.locacao
         dia = troca.criado_em.astimezone(ZoneInfo(locacao.filial.fuso)).date()
         preco = (
-            PrecoCategoria.objects.filter(
-                categoria_id=troca.veiculo_novo.categoria_id, vigente_desde__lte=dia
-            )
+            PrecoCategoria.objects.using(schema_editor.connection.alias)
+            .filter(categoria_id=troca.veiculo_novo.categoria_id, vigente_desde__lte=dia)
             .order_by("-vigente_desde")
             .first()
         )

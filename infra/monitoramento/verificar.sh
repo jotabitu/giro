@@ -64,7 +64,7 @@ resolver_os_que_sumiram() {
 }
 
 # 1. Serviços do compose de pé.
-esperados="db redis backend worker worker-apagamento beat frontend proxy"
+esperados="db redis backend worker worker-banco beat frontend proxy"
 rodando=$($COMPOSE ps --status running --services 2>/dev/null)
 for s in $esperados; do
   echo "$rodando" | grep -qx "$s" || problema "servico-$s-parado" "O serviço $s não está rodando."

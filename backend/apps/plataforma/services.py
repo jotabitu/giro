@@ -20,7 +20,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
-from django.db import IntegrityError, ProgrammingError, models, transaction
+from django.db import IntegrityError, models, transaction
 from django.db.models import Q
 from django.utils import timezone
 from django_tenants.utils import (
@@ -117,6 +117,7 @@ from .models import (
     MotivoCancelamento,
     MotivoCancelamentoFatura,
     Origem,
+    PedidoCompra,
     PermissaoSuporte,
     Plano,
     SituacaoCnpj,
@@ -222,8 +223,9 @@ def validar_criacao(subdominio: str, cnpj: str, administrador: Administrador) ->
     with schema_context(get_public_schema_name()):
         schema = schema_do_subdominio(subdominio)
         if (
-            Empresa.objects.filter(subdominio=subdominio).exists()
-            or Empresa.objects.filter(schema_name=schema).exists()
+            # A reserva também ocupa o endereço (ADR 0040, item 3).
+            Empresa.objects.filter(subdominio=subdominio).exists()  # inclui-reserva
+            or Empresa.objects.filter(schema_name=schema).exists()  # inclui-reserva
         ):
             raise Conflito("subdominio_em_uso", "Este endereço já está em uso. Escolha outro.")
         if schema_exists(schema):
@@ -236,7 +238,7 @@ def validar_criacao(subdominio: str, cnpj: str, administrador: Administrador) ->
     return situacao
 
 
-def criar_empresa(
+def reservar_empresa(
     *,
     razao_social: str,
     nome_exibicao: str,
@@ -250,24 +252,14 @@ def criar_empresa(
     origem: str = Origem.ADMIN,
     aceite_termos_versao: str = "",
     aceite_termos_em: datetime | None = None,
-    andamento: dict[str, str] | None = None,
+    pedido_id: int | None = None,
 ) -> Empresa:
-    """Empresa em teste, domínio, schema, uso, a 1ª fatura (PLT-01) e administrador
-    convidado, numa transação. As duas portas chamam aqui: o Django Admin e a compra pública
-    (`compra.md`, `origem`).
-
-    CNPJ de empresa já apagada sem fatura atrasada (`PLT-16`): a empresa nasce `ativa`, sem
-    teste, com a 1ª fatura vencendo hoje, que passa a ser o dia de vencimento, e guarda a
-    empresa anterior.
-
-    O administrador nasce `convite_pendente` no schema da empresa (`contas`, pelo evento
-    `plataforma.empresa_criada`); o e-mail do convite sai só depois do commit. Se algo falha,
-    o schema volta junto (DDL do PostgreSQL é transacional). `andamento`, quando vem, recebe o
-    horário de cada passo (a `Compra-Pronto`).
-    """
+    """Passo 1 da criação (ADR 0040, item 3): valida e grava a `Empresa` (com `schema_pronto_em`
+    nulo, inalcançável) e o `Dominio`, numa transação do `public`. A `UNIQUE` de `schema_name` e
+    `subdominio` resolve a corrida. Com `pedido_id`, o pedido passa a apontar para a reserva (a
+    tarefa a retoma e a compensação confere o vínculo)."""
     subdominio = subdominio.strip()
     cnpj = so_digitos(cnpj)
-    passos = andamento if andamento is not None else {}
     try:
         validar_nome_sem_quebra(nome_exibicao.strip())
     except DjangoValidationError as erro:
@@ -304,24 +296,39 @@ def criar_empresa(
             aceite_termos_versao=aceite_termos_versao,
             aceite_termos_em=aceite_termos_em,
         )
-        # O schema é criado aqui, sem `check_if_exists`: um schema que já existe dá erro e desfaz
-        # tudo, em vez de ser reaproveitado sem tabelas (P-04 da T-057).
+        # O schema nunca nasce no `save` (ADR 0040, item 1): só `banco.criar_schema`, pela
+        # conexão de migração.
         empresa.auto_create_schema = False
         try:
             with transaction.atomic():
                 empresa.save()
-                empresa.create_schema(check_if_exists=False)  # e aplica as migrações
         except IntegrityError as erro:  # outra criação ganhou a corrida
             raise Conflito("subdominio_em_uso", "Este endereço já está em uso.") from erro
-        except ProgrammingError as erro:  # o schema já existe no Postgres
-            raise ErroDeValidacao({"subdominio": [RESERVADO]}) from erro
-        passos["banco"] = relogio.agora().isoformat()
         Dominio.objects.create(
             domain=endereco_de_acesso(subdominio), tenant=empresa, is_primary=True
         )
+        if pedido_id is not None:
+            PedidoCompra.objects.filter(pk=pedido_id).update(empresa=empresa)
+    return empresa
+
+
+def concluir_empresa(
+    empresa_id: int, administrador: Administrador, passos: dict[str, str]
+) -> Empresa:
+    """Passo 3 da criação (ADR 0040, item 3), com o schema já pronto e concedido: uso, forma de
+    pagamento, evento `empresa.criar`, 1ª fatura, o administrador `convite_pendente`
+    (`plataforma.empresa_criada`) e `schema_pronto_em`, numa transação. O e-mail do convite sai
+    no `on_commit` desta transação."""
+    with schema_context(get_public_schema_name()), transaction.atomic():
+        empresa: Empresa = (
+            Empresa.objects.select_for_update(of=("self",)).get(pk=empresa_id)  # inclui-reserva
+        )
+        sem_teste = empresa.empresa_anterior_id is not None
         passos["endereco"] = relogio.agora().isoformat()
         UsoEmpresa.objects.create(empresa=empresa)
         FormaPagamentoAssinatura.objects.create(empresa=empresa)
+        empresa.schema_pronto_em = relogio.agora()
+        empresa.save(update_fields=["schema_pronto_em", "atualizado_em"])
         registrar_evento(
             "empresa.criar",
             Categoria.CONFIGURACOES,
@@ -339,6 +346,97 @@ def criar_empresa(
             )
         passos["administrador"] = relogio.agora().isoformat()
     return empresa
+
+
+def criar_empresa(
+    *,
+    razao_social: str,
+    nome_exibicao: str,
+    cnpj: str,
+    subdominio: str,
+    plano: Plano,
+    administrador: Administrador,
+    ciclo: str = Empresa.Ciclo.MENSAL,
+    cidade: str = "",
+    uf: str = "",
+    origem: str = Origem.ADMIN,
+    aceite_termos_versao: str = "",
+    aceite_termos_em: datetime | None = None,
+    andamento: dict[str, str] | None = None,
+    pedido_id: int | None = None,
+    reserva: Empresa | None = None,
+) -> Empresa:
+    """Empresa em teste, domínio, schema, uso, a 1ª fatura (PLT-01) e administrador
+    convidado, em três passos (ADR 0040, item 3). Em produção, só a tarefa da fila `banco`
+    chama aqui (`compra.executar_pedido_compra`, para a compra pública e para o Django Admin).
+
+    CNPJ de empresa já apagada sem fatura atrasada (`PLT-16`): a empresa nasce `ativa`, sem
+    teste, com a 1ª fatura vencendo hoje, que passa a ser o dia de vencimento, e guarda a
+    empresa anterior.
+
+    Com `pedido_id`, os passos são transações separadas (o schema nasce pela conexão de
+    migração) e a falha do passo 2 ou 3 desfaz a reserva (`banco.desfazer_schema`). `reserva`
+    retoma a do mesmo pedido (reentrega da tarefa). Sem `pedido_id` (seed e testes, com um papel
+    só), os três passos rodam numa transação só, e a falha desfaz tudo junto.
+
+    O administrador nasce `convite_pendente` no schema da empresa (`contas`, pelo evento
+    `plataforma.empresa_criada`); o e-mail do convite sai só depois do commit do passo 3.
+    `andamento`, quando vem, recebe o horário de cada passo (a `Compra-Pronto`).
+    """
+    from . import banco
+
+    passos = andamento if andamento is not None else {}
+    dados: dict[str, Any] = {
+        "razao_social": razao_social,
+        "nome_exibicao": nome_exibicao,
+        "cnpj": cnpj,
+        "subdominio": subdominio,
+        "plano": plano,
+        "administrador": administrador,
+        "ciclo": ciclo,
+        "cidade": cidade,
+        "uf": uf,
+        "origem": origem,
+        "aceite_termos_versao": aceite_termos_versao,
+        "aceite_termos_em": aceite_termos_em,
+    }
+    if pedido_id is None:
+        if banco.alias_de_migracao() != "default":
+            raise RuntimeError("Com a conexão de migração, a criação vai pelo pedido (ADR 0040).")
+        with transaction.atomic():
+            empresa = reservar_empresa(**dados)
+            _criar_schema_ou_reservado(empresa.pk)
+            passos["banco"] = relogio.agora().isoformat()
+            return concluir_empresa(empresa.pk, administrador, passos)
+
+    empresa = reserva or reservar_empresa(**dados, pedido_id=pedido_id)
+    try:
+        _criar_schema_ou_reservado(empresa.pk, retomar=reserva is not None)
+        passos["banco"] = relogio.agora().isoformat()
+        return concluir_empresa(empresa.pk, administrador, passos)
+    except ErroDeValidacao:
+        # O schema é de outro (RESERVADO): desfaz só as linhas da reserva, nunca o schema alheio.
+        banco.desfazer_schema(empresa.pk, pedido_id, apagar=False)
+        raise
+    except BaseException:
+        # Só no corpo da tarefa, nunca de um `on_commit` (ADR 0040, item 8). Se a compensação
+        # falha, a reserva fica nula e invisível, e o Sentry avisa.
+        try:
+            banco.desfazer_schema(empresa.pk, pedido_id)
+        except Exception:
+            logger.exception(
+                "ADR 0040: compensação falhou (empresa_id=%s, pedido_id=%s)", empresa.pk, pedido_id
+            )
+        raise
+
+
+def _criar_schema_ou_reservado(empresa_id: int, *, retomar: bool = False) -> None:
+    from . import banco
+
+    try:
+        banco.criar_schema(empresa_id, retomar=retomar)
+    except banco.SchemaJaExiste as erro:  # corrida rara: só o DuplicateSchema é `RESERVADO`
+        raise ErroDeValidacao({"subdominio": [RESERVADO]}) from erro
 
 
 # --- Uso do plano (PLT-03) ---
@@ -542,7 +640,7 @@ def registrar_passo_implantacao(passo: str, empresa: Empresa | None = None) -> b
             }
             uso.save(update_fields=["passos_implantacao", "atualizado_em"])
         etapa = etapa_do_funil(uso.passos_implantacao)
-        atual = Empresa.objects.select_for_update().get(pk=empresa.pk)
+        atual = Empresa.objects.prontas().select_for_update().get(pk=empresa.pk)
         if atual.etapa_implantacao != etapa:
             atual.etapa_implantacao = etapa
             atual.etapa_implantacao_desde = relogio.agora()
@@ -649,7 +747,7 @@ def abrir_acesso_suporte(
     if erros:
         raise ErroDeValidacao(erros)
     with no_publico(), transaction.atomic():
-        empresa = Empresa.objects.select_for_update().get(pk=empresa.pk)
+        empresa = Empresa.objects.prontas().select_for_update().get(pk=empresa.pk)
         if empresa.status == Empresa.Status.CANCELADA:
             raise Conflito(*SUPORTE_NA_CANCELADA)
         if empresa.suporte_bloqueado:
@@ -787,7 +885,7 @@ def definir_bloqueio_do_suporte(empresa: Empresa, *, bloquear: bool, motivo: str
     acessos ativos."""
     acao = "suporte.bloquear" if bloquear else "suporte.liberar"
     with no_publico(), transaction.atomic():
-        empresa = Empresa.objects.select_for_update().get(pk=empresa.pk)
+        empresa = Empresa.objects.prontas().select_for_update().get(pk=empresa.pk)
         antes = empresa.suporte_bloqueado
         if antes != bloquear:
             empresa.suporte_bloqueado = bloquear
@@ -854,7 +952,7 @@ def conectar_recebimentos(
     ao parceiro: nada deles é gravado nem logado (B-02)."""
     empresa = _empresa(None)
     with transaction.atomic():
-        Empresa.objects.select_for_update().only("pk").get(pk=empresa.pk)
+        Empresa.objects.prontas().select_for_update().only("pk").get(pk=empresa.pk)
         if ContaPagamento.objects.filter(empresa=empresa).exists():
             raise Conflito(*RECEBIMENTOS_CONECTADOS)
         token = secrets.token_urlsafe(32)
@@ -1031,7 +1129,7 @@ def copiar_endereco_da_matriz(
     e a filial mudam cada uma por conta própria."""
     empresa = _empresa(empresa)
     with schema_context(get_public_schema_name()), transaction.atomic():
-        atual = Empresa.objects.select_for_update().get(pk=empresa.pk)
+        atual = Empresa.objects.prontas().select_for_update().get(pk=empresa.pk)
         if atual.endereco_cep:
             return False
         motivo = f"Endereço da filial matriz {filial_id}" if filial_id else "Endereço da matriz"
@@ -1720,7 +1818,9 @@ def simular_mudanca_plano(
 ) -> Simulacao:
     """Não grava nada (ADR 0005)."""
     with no_publico():
-        empresa = Empresa.objects.select_related("plano", "plano_proximo").get(pk=empresa.pk)
+        empresa = (
+            Empresa.objects.prontas().select_related("plano", "plano_proximo").get(pk=empresa.pk)
+        )
         return _simular(empresa, plano, ciclo, _uso_sem_trava(empresa), relogio.hoje(), por)
 
 
@@ -1785,7 +1885,8 @@ def _abertas_a_partir_de(empresa: Empresa, dia: date) -> list[FaturaAssinatura]:
 
 def _empresa_travada(empresa: Empresa) -> Empresa:
     travada: Empresa = (
-        Empresa.objects.select_for_update(of=("self",))
+        Empresa.objects.prontas()
+        .select_for_update(of=("self",))
         .select_related("plano", "plano_proximo")
         .get(pk=empresa.pk)
     )
@@ -1994,7 +2095,7 @@ def atualizar_dados_fiscais(empresa: Empresa, dados: Mapping[str, Any]) -> Empre
     novo, pede as notas que esperavam por ele."""
     campos = _validar_dados_fiscais(dados)
     with no_publico(), transaction.atomic():
-        atual: Empresa = Empresa.objects.select_for_update().get(pk=empresa.pk)
+        atual: Empresa = Empresa.objects.prontas().select_for_update().get(pk=empresa.pk)
         tinha_endereco = bool(atual.endereco_cep)
         antes = retrato(atual)
         for campo, valor in campos.items():
@@ -2101,7 +2202,7 @@ def _cancelar_cobranca_viva(fatura: FaturaAssinatura) -> bool:
 
 def _pedido_da_fatura(fatura: FaturaAssinatura, tipo: str) -> PedidoCobranca:
     """A fatura vencida sai para hoje (o parceiro não emite com vencimento passado)."""
-    empresa = Empresa.objects.get(pk=fatura.empresa_id)
+    empresa = Empresa.objects.prontas().get(pk=fatura.empresa_id)
     cliente = atualizar_pagador(empresa)
     return PedidoCobranca(
         tipo,
@@ -2226,7 +2327,7 @@ def escolher_forma_pagamento(empresa: Empresa, nova: str) -> dict[str, Any] | No
         raise ErroDeValidacao({"forma": ["Escolha cartão, Pix automático ou boleto."]})
     proximo_passo: dict[str, Any] | None = None
     with no_publico(), transaction.atomic():
-        empresa = Empresa.objects.select_related("plano").get(pk=empresa.pk)
+        empresa = Empresa.objects.prontas().select_related("plano").get(pk=empresa.pk)
         FormaPagamentoAssinatura.objects.get_or_create(empresa=empresa)
         forma = FormaPagamentoAssinatura.objects.select_for_update().get(empresa=empresa)
         antiga = forma.forma
@@ -2387,7 +2488,7 @@ def estado_do_dia(empresa: Empresa, hoje: date) -> str | None:
 def virar_estado_da_empresa(empresa_id: int, hoje: date) -> str | None:
     """Aplica `estado_do_dia` com a `Empresa` travada. Devolve o estado novo, se mudou."""
     with schema_context(get_public_schema_name()), transaction.atomic():
-        empresa = Empresa.objects.select_for_update(of=("self",)).get(pk=empresa_id)
+        empresa = Empresa.objects.prontas().select_for_update(of=("self",)).get(pk=empresa_id)
         novo = estado_do_dia(empresa, hoje)
         if novo is None:
             return None
@@ -2486,17 +2587,21 @@ def virar_estados(hoje: date | None = None) -> Virada:
         estados: dict[str, int] = {}
         _virar_cancelamentos_e_pausas(hoje, estados)
         agendadas = list(
-            Empresa.objects.filter(plano_proximo__isnull=False).values_list("pk", flat=True)
+            Empresa.objects.prontas()
+            .filter(plano_proximo__isnull=False)
+            .values_list("pk", flat=True)
         )
         mudancas = sum(aplicar_mudanca_agendada(pk, hoje) for pk in agendadas)
         vivas = list(
-            Empresa.objects.filter(
+            Empresa.objects.prontas()
+            .filter(
                 status__in=[
                     Empresa.Status.EM_TESTE,
                     Empresa.Status.ATIVA,
                     Empresa.Status.INADIMPLENTE,
                 ]
-            ).values_list("pk", flat=True)
+            )
+            .values_list("pk", flat=True)
         )
         for pk in vivas:
             novo = virar_estado_da_empresa(pk, hoje)
@@ -2790,7 +2895,8 @@ def gerar_faturas(hoje: date | None = None) -> Geracao:
     dia = hoje or relogio.hoje()
     with schema_context(get_public_schema_name()):
         empresas = list(
-            Empresa.objects.filter(status__in=STATUS_QUE_GERAM_FATURA)
+            Empresa.objects.prontas()
+            .filter(status__in=STATUS_QUE_GERAM_FATURA)
             .order_by("pk")
             .values_list("pk", flat=True)
         )
@@ -3796,7 +3902,8 @@ def _virar_cancelamentos_e_pausas(hoje: date, estados: dict[str, int]) -> None:
     """Antes das transições de `assinatura.md`: o cancelamento primeiro, para a `em_teste`
     cancelada não ir a `suspensa`; depois o começo e a volta das pausas."""
     marcados = list(
-        Empresa.objects.filter(acesso_ate__lt=hoje)
+        Empresa.objects.prontas()
+        .filter(acesso_ate__lt=hoje)
         .exclude(status=Empresa.Status.CANCELADA)
         .order_by("pk")
         .values_list("pk", flat=True)
@@ -3805,7 +3912,8 @@ def _virar_cancelamentos_e_pausas(hoje: date, estados: dict[str, int]) -> None:
         if _cada_uma(f"Cancelamento da empresa {pk}", partial(virar_cancelada, pk, hoje)):
             _contar(estados, Empresa.Status.CANCELADA)
     agendadas = list(
-        Empresa.objects.filter(pausa_inicio__lte=hoje, status__in=STATUS_QUE_COMECAM_A_PAUSA)
+        Empresa.objects.prontas()
+        .filter(pausa_inicio__lte=hoje, status__in=STATUS_QUE_COMECAM_A_PAUSA)
         .order_by("pk")
         .values_list("pk", flat=True)
     )
@@ -3813,7 +3921,8 @@ def _virar_cancelamentos_e_pausas(hoje: date, estados: dict[str, int]) -> None:
         if _cada_uma(f"Pausa da empresa {pk}", partial(iniciar_pausa, pk, hoje)):
             _contar(estados, Empresa.Status.PAUSADA)
     voltam = list(
-        Empresa.objects.filter(status=Empresa.Status.PAUSADA, pausada_ate__lt=hoje)
+        Empresa.objects.prontas()
+        .filter(status=Empresa.Status.PAUSADA, pausada_ate__lt=hoje)
         .order_by("pk")
         .values_list("pk", flat=True)
     )
@@ -3888,7 +3997,8 @@ def avisar_apagamentos(hoje: date | None = None) -> int:
     dia = hoje or relogio.hoje()
     with schema_context(get_public_schema_name()):
         empresas = list(
-            Empresa.objects.filter(
+            Empresa.objects.prontas()
+            .filter(
                 status=Empresa.Status.CANCELADA,
                 apagada_em__isnull=True,
                 aviso_apagamento_enviado_em__isnull=True,
@@ -3986,9 +4096,8 @@ def apagar_empresas(hoje: date | None = None) -> int:
     dia = hoje or relogio.hoje()
     with schema_context(get_public_schema_name()):
         empresas = list(
-            Empresa.objects.filter(
-                status=Empresa.Status.CANCELADA, apagar_em__lte=dia, apagada_em__isnull=True
-            )
+            Empresa.objects.prontas()
+            .filter(status=Empresa.Status.CANCELADA, apagar_em__lte=dia, apagada_em__isnull=True)
             .order_by("pk")
             .values_list("pk", flat=True)
         )

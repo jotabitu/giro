@@ -5,7 +5,9 @@ from django.db import migrations, models
 
 def copiar(apps, schema_editor):
     Usuario = apps.get_model("contas", "Usuario")
-    Usuario.objects.filter(ativo=False).update(status="desativado")
+    Usuario.objects.using(schema_editor.connection.alias).filter(ativo=False).update(
+        status="desativado"
+    )
 
 
 class Migration(migrations.Migration):

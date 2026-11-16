@@ -38,6 +38,8 @@ services:
     restart: "no"
     environment:
       RODAR_MIGRACOES: "1"
+      # ADR 0040: depois do migrate_schemas, conceder_privilegios --todos e conferir_privilegios.
+      CONFERIR_PRIVILEGIOS: "1"
       DATABASE_URL: ${DATABASE_URL_MIGRACAO}
     command: ["true"]
 
@@ -54,7 +56,7 @@ services:
     # Sem `command`: vale o CMD da imagem, o Gunicorn com infra/docker/gunicorn.conf.py.
     stop_grace_period: 40s
 
-  # Fila padrão (`celery`). Não lê a fila `apagamento` e não recebe a credencial de migração.
+  # Fila padrão (`celery`). Não lê a fila `banco` e não recebe a credencial de migração.
   worker:
     <<: *backend
     depends_on:
@@ -65,17 +67,20 @@ services:
     command: ["celery", "-A", "config", "worker", "--loglevel=INFO", "-Q", "celery", "-n", "geral@%h"]
     stop_grace_period: 40s
 
-  # Worker próprio do apagamento (T-352, T-382; mesmo desenho da produção): lê só a fila
-  # `apagamento`, para onde o backend manda a aud_08_apagar_empresas (CELERY_TASK_ROUTES), e é o
-  # único serviço de execução com o giro_migracao (ADR 0016 e 0025), vindo do cofre como no `migrar`.
-  worker-apagamento:
+  # Worker da fila `banco` (ADR 0040; antes worker-apagamento, T-352, T-382; mesmo desenho da
+  # produção): lê só a fila `banco`, para onde o backend manda a criação da empresa
+  # (plataforma_executar_pedido_compra, plataforma.criar_empresa) e a aud_08_apagar_empresas
+  # (CELERY_TASK_ROUTES), e é o único serviço de execução com o giro_migracao (ADR 0016, 0025 e
+  # 0040), vindo do cofre como no `migrar`. GIRO_WORKER=banco liga a lista fechada de tarefas.
+  worker-banco:
     <<: *backend
     depends_on:
       migrar:
         condition: service_completed_successfully
     environment:
       DATABASE_URL_MIGRACAO: ${DATABASE_URL_MIGRACAO}
-    command: ["celery", "-A", "config", "worker", "--loglevel=INFO", "-Q", "apagamento", "--concurrency=1", "-n", "apagamento@%h"]
+      GIRO_WORKER: banco
+    command: ["celery", "-A", "config", "worker", "--loglevel=INFO", "-Q", "banco", "--concurrency=1", "-n", "banco@%h"]
     stop_grace_period: 40s
 
   beat:

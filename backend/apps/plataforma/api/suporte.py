@@ -91,7 +91,7 @@ class AbrirAcessoSuporteView(APIView):
     def post(self, request: Request, pk: int) -> Response:
         dados = AbrirAcessoSerializer(data=request.data)
         dados.is_valid(raise_exception=True)
-        empresa = get_object_or_404(Empresa.objects.exclude(schema_name="public"), pk=pk)
+        empresa = get_object_or_404(Empresa.objects.prontas().exclude(schema_name="public"), pk=pk)
         acesso, token = services.abrir_acesso_suporte(
             empresa,
             request.user,

@@ -81,16 +81,17 @@ Todos os serviços do `docker-compose.yml` têm `restart: unless-stopped`: volta
 
 **Onde a `DATABASE_URL_MIGRACAO` entra (T-352, achado B-01 da T-199):** só no `worker` do Celery, nunca no `backend` (web) nem no `beat`.
 - **Por quê:** é credencial com DDL em todos os schemas. A única rotina de execução que a usa é a `plataforma.aud_08_apagar_empresas` (`DROP SCHEMA` da empresa cancelada, ADR 0025), que roda no worker. O web, que atende a internet, e o beat, que só agenda, não precisam dela; sem ela, um furo no web não ganha DDL. Sem a variável no worker, a tarefa só registra um log de erro e a empresa fica para o dia seguinte.
-- **Desenvolvimento:** vem do `.env` (modelo em `.env.example`). O `docker-compose.yml` a zera (`DATABASE_URL_MIGRACAO: ""`) no `backend` e no `beat`; o `worker` a lê do `env_file` e consome as filas `celery` e `apagamento` (T-382: o backend manda a `aud_08_apagar_empresas` para a fila `apagamento`, `CELERY_TASK_ROUTES`).
-- **Homologação:** `infra/deploy/docker-compose.homologacao.yml` a passa ao `worker-apagamento` (`DATABASE_URL_MIGRACAO: ${DATABASE_URL_MIGRACAO}`, do cofre, só a fila `apagamento`) e a zera no `worker` (só a fila `celery`), no `backend`, no `beat` e no `estaticos`. O `migrar` continua com ela para o `migrate_schemas`. Em produção vale o mesmo desenho; o cofre (`producao.env.example`) traz a variável com a do `giro_migracao`.
+- **Desenvolvimento:** vem do `.env` (modelo em `.env.example`). O `docker-compose.yml` a zera (`DATABASE_URL_MIGRACAO: ""`) no `backend` e no `beat`; o `worker` a lê do `env_file` e consome as filas `celery` e `banco` (ADR 0040, antes `apagamento`: o backend manda a criação da empresa, `plataforma_executar_pedido_compra` e `plataforma.criar_empresa`, e a `aud_08_apagar_empresas` para a fila `banco`, `CELERY_TASK_ROUTES`).
+- **Homologação:** `infra/deploy/docker-compose.homologacao.yml` a passa ao `worker-banco` (`DATABASE_URL_MIGRACAO: ${DATABASE_URL_MIGRACAO}`, do cofre, só a fila `banco`, com `GIRO_WORKER=banco`, que liga a lista fechada de tarefas da ADR 0040, item 10) e a zera no `worker` (só a fila `celery`), no `backend`, no `beat` e no `estaticos`. O `migrar` continua com ela para o `migrate_schemas`. Em produção vale o mesmo desenho; o cofre (`producao.env.example`) traz a variável com a do `giro_migracao`.
 - **Por que zerar e não omitir:** o arquivo de variáveis do cofre é o mesmo para todos os serviços (`env_file`), então a variável chegaria a todos. `environment:` vence o `env_file`.
-- **CI:** o job Infra roda `infra/scripts/check-migracao-so-no-worker.sh`, que falha se a variável chegar a outro serviço que não o worker que lê a fila `apagamento` (`worker` no dev, `worker-apagamento` na homologação), ou se outro serviço ler essa fila, nos dois compose.
+- **CI:** o job Infra roda `infra/scripts/check-migracao-so-no-worker.sh`, que falha se a variável chegar a outro serviço que não o worker da fila `banco` (`worker` no dev, `worker-banco` na homologação e na produção) e o `migrar`, se outro serviço ler essa fila, se o `worker-banco` não ler exatamente `-Q banco` ou rodar o beat, nos três compose (ADR 0040, item 9).
 
 **Dev:** `DATABASE_URL` e `DATABASE_URL_MIGRACAO` apontam para o superusuário do container (ADR 0016, item 5); os valores com papéis separados estão comentados em `.env.example`.
 
 **O que o backend precisa fazer (ainda não feito):**
 - Ler `DATABASE_URL_MIGRACAO` e usá-la em `migrate_schemas` e em `plataforma.services.criar_empresa`; o entrypoint (`backend-entrypoint.sh`) deve migrar com ela.
-- A rotina que cria o schema de empresa aplica os `GRANT` do schema (`ALTER DEFAULT PRIVILEGES` para `giro_app`, `REVOKE UPDATE, DELETE, TRUNCATE` na auditoria) e cria `auditoria_expurgar` com dono `giro_expurgo`.
+- A rotina que cria o schema de empresa (`plataforma.banco.criar_schema`, ADR 0040) roda no `worker-banco` pelo `giro_migracao` (`CREATE SCHEMA ... AUTHORIZATION giro_migracao`) e aplica os `GRANT` do schema por `apps.auditoria.banco.aplicar_permissoes`, antes e depois das migrações (`USAGE`, DML, `ALTER DEFAULT PRIVILEGES FOR ROLE giro_migracao` para `giro_app`, `REVOKE UPDATE, DELETE, TRUNCATE` na auditoria por último) e passa `auditoria_expurgar` ao `giro_expurgo`.
+- O `migrar` (com `CONFERIR_PRIVILEGIOS=1`) roda, depois do `migrate_schemas`, `conceder_privilegios --todos` e `conferir_privilegios`; este falha o deploy se faltar ou sobrar privilégio num schema de empresa. **Nenhuma concessão manual é mais necessária**, nem para empresa criada antes (a Moto Rápida, criada por contorno em 14 nov 2026: o deploy da T-477 regulariza e o conferir passa a vigiar).
 - Os testes de imutabilidade sobem com `giro_app`.
 
 **Ambientes (homologação e produção):** rodar o mesmo SQL no banco gerenciado, com senhas geradas e guardadas no cofre do ambiente, nunca as de dev. Credencial de `giro_migracao` só no job de deploy; `giro_app` no serviço em execução.
@@ -128,8 +129,8 @@ Preparado na T-373, **sem conta de provedor**: nada abaixo foi subido num servid
 | `proxy` | nginx (`infra/proxy`), certificado curinga | **Único** que publica porta: 80 e 443 |
 | `frontend` | Next standalone (`infra/docker/frontend.producao.Dockerfile`) | sem root, sem segredo |
 | `backend`, `worker`, `beat` | imagem `producao` (ADR 0027) | usam `giro_app`; **sem** `DATABASE_URL_MIGRACAO` |
-| `worker-apagamento` | mesma imagem, só a fila `apagamento` | **único** com `giro_migracao` além do `migrar` (M-01 da T-355) |
-| `migrar`, `estaticos` | rodam e saem | `migrate_schemas` com `giro_migracao` |
+| `worker-banco` | mesma imagem, só a fila `banco` (criação e apagamento de schema, ADR 0040) | **único** com `giro_migracao` além do `migrar` (M-01 da T-355) |
+| `migrar`, `estaticos` | rodam e saem | `migrate_schemas`, `conceder_privilegios` e `conferir_privilegios` com `giro_migracao` |
 | `db` | PostgreSQL 16 + pgBackRest (`infra/docker/postgres.Dockerfile`) | sem porta; arquiva WAL; `init: true` obrigatório |
 | `redis` | Redis 7 com senha e AOF | sem porta |
 | perfil `certificado` | certbot, DNS-01 na Cloudflare | emissão e renovação |
@@ -147,7 +148,7 @@ Um compose só. Cada `mem_limit`, a concorrência do worker geral, o `shared_buf
 | `db` | `GIRO_MEM_DB`, `GIRO_PG_SHARED_BUFFERS`, `GIRO_PG_EFFECTIVE_CACHE_SIZE` | 2g, 512MB, 1536MB | 768m, 256MB, 512MB |
 | `redis` | `GIRO_MEM_REDIS`, `GIRO_REDIS_MAXMEMORY` | 384m, 256mb | 192m, 128mb |
 | `worker` | `GIRO_MEM_WORKER`, `GIRO_CELERY_CONCORRENCIA` | 768m, 2 | 384m, 1 |
-| `worker-apagamento` | `GIRO_MEM_WORKER_APAGAMENTO` | 512m | 256m |
+| `worker-banco` | `GIRO_MEM_WORKER_BANCO` | 512m | 256m |
 | `beat` | `GIRO_MEM_BEAT` | 256m | 128m |
 | `frontend` | `GIRO_MEM_FRONTEND` | 512m | 384m |
 | `proxy` | `GIRO_MEM_PROXY` | 128m | 64m |

@@ -15,7 +15,12 @@ RAIZ = Path(__file__).resolve().parent.parent
 PASTAS_DE_CODIGO = ("apps", "comum", "config")
 # Quem cita `is_staff` fora de testes e migrações, e quantas vezes: o campo e o
 # `create_superuser` (contas/models.py) e a porta do Admin, que só lê (contas/login_admin.py).
-CITAM_IS_STAFF = {"apps/contas/models.py": 2, "apps/contas/login_admin.py": 1}
+# A tarefa de criação pedida pelo Admin só confere quem pediu (ADR 0040, item 10; compra.py).
+CITAM_IS_STAFF = {
+    "apps/contas/models.py": 2,
+    "apps/contas/login_admin.py": 1,
+    "apps/plataforma/compra.py": 2,
+}
 
 
 def test_t277_is_staff_so_pelo_createsuperuser():

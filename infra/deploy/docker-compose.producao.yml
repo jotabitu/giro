@@ -1,6 +1,6 @@
 # Produção do Giro (T-373, ADR 0033, opção B): uma VPS com tudo em Docker Compose. Sobe `db`
 # (PostgreSQL 16 com pgBackRest), `redis`, `estaticos`, `migrar`, `backend`, `worker`,
-# `worker-apagamento`, `beat`, `frontend` e o `proxy` (nginx). Perfis à parte: `certificado`
+# `worker-banco`, `beat`, `frontend` e o `proxy` (nginx). Perfis à parte: `certificado`
 # (certbot, DNS-01 na Cloudflare) e `backup` (rclone e restic). Roteiro completo: infra/README.md,
 # seção "Produção (ADR 0033)".
 #
@@ -145,6 +145,8 @@ services:
         condition: service_healthy
     environment:
       RODAR_MIGRACOES: "1"
+      # ADR 0040: depois do migrate_schemas, conceder_privilegios --todos e conferir_privilegios.
+      CONFERIR_PRIVILEGIOS: "1"
       DATABASE_URL: ${DATABASE_URL_MIGRACAO:?DATABASE_URL_MIGRACAO em producao.env}
       DATABASE_URL_MIGRACAO: ${DATABASE_URL_MIGRACAO}
     command: ["true"]
@@ -155,7 +157,7 @@ services:
     depends_on:
       migrar:
         condition: service_completed_successfully
-    # A credencial com DDL só vai ao `migrar` e ao `worker-apagamento` (T-352, ADR 0016 e 0025).
+    # A credencial com DDL só vai ao `migrar` e ao `worker-banco` (T-352, ADR 0016, 0025 e 0040).
     environment:
       DATABASE_URL_MIGRACAO: ""
     expose:
@@ -174,19 +176,20 @@ services:
     command: ["celery", "-A", "config", "worker", "--loglevel=INFO", "-Q", "celery", "--concurrency=${GIRO_CELERY_CONCORRENCIA:-2}", "-n", "geral@%h"]
     stop_grace_period: 40s
 
-  # Worker próprio do apagamento (AUD-08, M-01 da T-355): só a fila `apagamento`, e é o único
-  # serviço de execução com o giro_migracao. EXIGE que o backend roteie a tarefa
-  # `aud_08_apagar_empresas` para a fila `apagamento` (CELERY_TASK_ROUTES): sem isso a tarefa cai na
-  # fila `celery`, que este worker não lê. Ver o handoff da T-373.
-  worker-apagamento:
+  # Worker da fila `banco` (ADR 0040; antes worker-apagamento, AUD-08, M-01 da T-355): só a fila
+  # `banco`, e é o único serviço de execução com o giro_migracao. Roda a criação da empresa
+  # (CREATE SCHEMA) e o apagamento da cancelada (DROP SCHEMA); o backend roteia as tarefas para a
+  # fila `banco` (CELERY_TASK_ROUTES). GIRO_WORKER=banco liga a lista fechada de tarefas (item 10).
+  worker-banco:
     <<: *backend
-    mem_limit: ${GIRO_MEM_WORKER_APAGAMENTO:-512m}
+    mem_limit: ${GIRO_MEM_WORKER_BANCO:-512m}
     depends_on:
       migrar:
         condition: service_completed_successfully
     environment:
       DATABASE_URL_MIGRACAO: ${DATABASE_URL_MIGRACAO:?DATABASE_URL_MIGRACAO em producao.env}
-    command: ["celery", "-A", "config", "worker", "--loglevel=INFO", "-Q", "apagamento", "--concurrency=1", "-n", "apagamento@%h"]
+      GIRO_WORKER: banco
+    command: ["celery", "-A", "config", "worker", "--loglevel=INFO", "-Q", "banco", "--concurrency=1", "-n", "banco@%h"]
     stop_grace_period: 40s
 
   beat:
