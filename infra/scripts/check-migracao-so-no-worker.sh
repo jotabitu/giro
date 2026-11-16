@@ -38,6 +38,11 @@ conferir() {
       [ -n "$valor" ] || { echo "$rotulo: $com não recebe a DATABASE_URL_MIGRACAO."; exit 1; }
       [ "$filas" = "$filas_do_com" ] || { echo "$rotulo: $com lê '$filas'; deve ler exatamente '$filas_do_com'."; exit 1; }
       [ "$(s com_beat)" = false ] || { echo "$rotulo: $com não pode rodar o beat."; exit 1; }
+      if [ "$5" = sim ]; then
+        # GIRO_WORKER=banco liga a lista fechada de tarefas (ADR 0040, item 10).
+        giro_worker=$(echo "$json" | jq -r --arg s "$servico" '.services[$s].environment.GIRO_WORKER // ""')
+        [ "$giro_worker" = banco ] || { echo "$rotulo: $com sem GIRO_WORKER=banco."; exit 1; }
+      fi
     elif [ "$servico" = migrar ] && [ "$5" = sim ]; then
       # `migrar` recebe a credencial para o migrate_schemas e sai; não é worker.
       [ "$le_banco" = false ] || { echo "$rotulo: migrar lê a fila banco."; exit 1; }
