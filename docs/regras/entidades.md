@@ -6,7 +6,7 @@ São 25 entidades principais. As 5 primeiras ficam no schema público (plataform
 
 | Entidade | Campos-chave | Pertence a | Observações |
 | --- | --- | --- | --- |
-| Plano | nome, preço mensal, limite de veículos, filiais, usuários, recursos | plataforma | Essencial R$ 199 (30/1/3), Profissional R$ 449 (150/3/10), Completo R$ 899 (sem limite); anual = 10 mensalidades |
+| Plano | nome, preço mensal, limite de veículos, filiais, usuários, recursos | plataforma | Essencial R$ 130 (30/1/3), Profissional R$ 160 (150/3/10), Completo R$ 899 (sem limite); anual = 10 mensalidades |
 | Empresa (tenant) | razão social, CNPJ, subdomínio, plano, status, fim do teste | plataforma | um schema por empresa |
 | Fatura da assinatura | número FAT-, competência, valor, vencimento, status, forma | Empresa | cobrada pelo parceiro de pagamento |
 | Usuário da plataforma | nome, e-mail, função (dono, suporte, financeiro, sucesso), 2FA | plataforma | separado dos usuários das empresas |
