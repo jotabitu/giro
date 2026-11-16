@@ -15,6 +15,11 @@ limit_req_zone $binary_remote_addr zone=giro_webhook:10m rate=120r/m;
 # 30 por hora por usuário e 200 por hora por empresa; a borda só segura rajada por IP.
 limit_req_zone $binary_remote_addr zone=giro_leitura:10m rate=20r/m;
 limit_req_status 429;
+
+# T-478: o DNS do Docker é consultado a cada 10 s, não só ao subir. Com proxy_pass por variável
+# (definidas no snippet), o backend ou o frontend recriado com outro IP volta a ser achado sem
+# `nginx -s reload`. proxy_pass com variável e sem URI repassa o URI do cliente como hoje.
+resolver 127.0.0.11 valid=10s ipv6=off;
 limit_conn_status 429;
 
 # Django Admin da plataforma (T-291, ADR 0029): só os IPs do arquivo do cofre entram. O arquivo
@@ -61,7 +66,7 @@ server {
         if ($admin_permitido = 0) { return 404; }
         add_header X-Robots-Tag "noindex, nofollow" always;
         proxy_read_timeout 60s;
-        proxy_pass http://${BACKEND_UPSTREAM};
+        proxy_pass http://$giro_backend;
     }
 
     # Login do Admin com o mesmo limite de /api/auth/ (10 por minuto por IP).
@@ -69,7 +74,7 @@ server {
         if ($admin_permitido = 0) { return 404; }
         add_header X-Robots-Tag "noindex, nofollow" always;
         limit_req zone=giro_auth burst=10 nodelay;
-        proxy_pass http://${BACKEND_UPSTREAM};
+        proxy_pass http://$giro_backend;
     }
 
     include /etc/nginx/conf.d/snippets/giro-locais.conf;
