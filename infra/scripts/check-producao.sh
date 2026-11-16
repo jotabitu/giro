@@ -45,4 +45,7 @@ ENV_FILE="$TMPW/producao.env" ADMIN_IPS_ARQUIVO="$TMPW/admin-ips.conf" CLOUDFLAR
   docker compose -f infra/deploy/docker-compose.producao.yml --profile certificado --profile backup \
   --env-file "$TMP/producao.env" --env-file "$TMP/producao-infra.env" config --format json > "$TMP/config.json"
 
+# O check-migracao-so-no-worker.sh reaproveita a mesma configuração (ADR 0040, item 9).
+if [ -n "${GIRO_SO_CONFIG:-}" ]; then cp "$TMP/config.json" "$GIRO_SO_CONFIG"; fi
+
 node infra/scripts/check-producao.mjs "$TMP/config.json"

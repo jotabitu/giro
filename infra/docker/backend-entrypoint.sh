@@ -10,6 +10,12 @@ done
 if [ "${RODAR_MIGRACOES:-0}" = "1" ]; then
   python manage.py migrate_schemas --shared --noinput
   python manage.py migrate_schemas --tenant --noinput
+  # ADR 0040: só no `migrar` de homologação e produção (papéis separados). O conferir falha o
+  # deploy se faltar ou sobrar privilégio num schema de empresa.
+  if [ "${CONFERIR_PRIVILEGIOS:-0}" = "1" ]; then
+    python manage.py conceder_privilegios --todos
+    python manage.py conferir_privilegios
+  fi
 fi
 
 exec "$@"

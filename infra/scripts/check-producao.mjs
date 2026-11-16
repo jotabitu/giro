@@ -18,26 +18,26 @@ for (const [nome, s] of Object.entries(servicos)) {
   }
 }
 
-// 2. DATABASE_URL_MIGRACAO só no migrar e no worker-apagamento (ADR 0016, 0025; M-01).
-const comMigracao = new Set(["migrar", "worker-apagamento"]);
+// 2. DATABASE_URL_MIGRACAO só no migrar e no worker-banco (ADR 0016, 0025, 0040; M-01).
+const comMigracao = new Set(["migrar", "worker-banco"]);
 for (const nome of Object.keys(servicos)) {
   const tem = amb(nome, "DATABASE_URL_MIGRACAO") !== "";
   if (tem && !comMigracao.has(nome)) erros.push(`${nome} recebe a DATABASE_URL_MIGRACAO`);
   if (!tem && comMigracao.has(nome)) erros.push(`${nome} não recebe a DATABASE_URL_MIGRACAO`);
 }
 
-// 3. O worker do apagamento lê só a fila `apagamento`, e o worker comum não a lê.
+// 3. O worker-banco lê só a fila `banco`, e o worker comum não a lê.
 const filas = (s) => {
   const c = servicos[s]?.command ?? [];
   const i = c.indexOf("-Q");
   return i >= 0 ? c[i + 1].split(",") : [];
 };
-if (filas("worker-apagamento").join() !== "apagamento") erros.push("worker-apagamento deve ler só a fila apagamento");
-if (filas("worker").includes("apagamento")) erros.push("worker comum não pode ler a fila apagamento");
+if (filas("worker-banco").join() !== "banco") erros.push("worker-banco deve ler só a fila banco");
+if (filas("worker").includes("banco")) erros.push("worker comum não pode ler a fila banco");
 
 // 4. A aplicação não recebe segredo de infraestrutura (backup, DNS, banco como superusuário).
 const so_da_infra = /^(PGBACKREST_|RESTIC_|AWS_|ARQUIVOS_S3_|CLOUDFLARE|ALERTA_|POSTGRES_PASSWORD|REDIS_SENHA)/;
-for (const nome of ["backend", "worker", "worker-apagamento", "beat", "migrar", "estaticos", "frontend", "proxy"]) {
+for (const nome of ["backend", "worker", "worker-banco", "beat", "migrar", "estaticos", "frontend", "proxy"]) {
   for (const v of Object.keys(servicos[nome]?.environment ?? {})) {
     if (so_da_infra.test(v)) erros.push(`${nome} recebe ${v}, que é só da infraestrutura`);
   }
@@ -56,4 +56,4 @@ if (erros.length) {
   console.error("Compose de produção fora das regras:\n- " + erros.join("\n- "));
   process.exit(1);
 }
-console.log("Compose de produção ok: só o proxy publica 80 e 443; migração só no migrar e no worker-apagamento; backup cifrado, 30 dias");
+console.log("Compose de produção ok: só o proxy publica 80 e 443; migração só no migrar e no worker-banco; backup cifrado, 30 dias");
