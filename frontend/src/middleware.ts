@@ -16,7 +16,7 @@ export function middleware(req: NextRequest) {
 
   // Páginas: CSP com nonce na requisição (o Next lê daqui para marcar os próprios scripts)
   // e na resposta (o navegador aplica).
-  const csp = montarCsp(novoNonce(), DEV);
+  const csp = montarCsp(novoNonce(), DEV, process.env.GIRO_ARQUIVOS_ORIGEM);
   headers.set("content-security-policy", csp);
   const resposta = NextResponse.next({ request: { headers } });
   resposta.headers.set("content-security-policy", csp);

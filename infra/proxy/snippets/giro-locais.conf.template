@@ -2,6 +2,11 @@
 # o que vale para os dois fica aqui, para não divergir. Incluído por giro.conf.template.
 # O nginx da imagem oficial gera conf.d/snippets/giro-locais.conf (fora do include `conf.d/*.conf`).
 
+# T-478: destinos em variável para o nginx resolver o nome de novo (resolver em giro.conf.template).
+# Valem para o server inteiro, inclusive os location do Admin no host da plataforma.
+set $giro_backend  ${BACKEND_UPSTREAM};
+set $giro_frontend ${FRONTEND_UPSTREAM};
+
 ssl_certificate     ${CERT_DIR}/fullchain.pem;
 ssl_certificate_key ${CERT_DIR}/privkey.pem;
 ssl_protocols TLSv1.2 TLSv1.3;
@@ -31,14 +36,14 @@ proxy_set_header Connection         "";
 # X-Forwarded-For, ADR 0018).
 location /api/auth/ {
     limit_req zone=giro_auth burst=10 nodelay;
-    proxy_pass http://${BACKEND_UPSTREAM};
+    proxy_pass http://$giro_backend;
 }
 
 # Aviso de pagamento do parceiro, no host da plataforma (urls_publico.py).
 location /api/webhooks/ {
     limit_req zone=giro_webhook burst=60 nodelay;
     client_max_body_size 1m;
-    proxy_pass http://${BACKEND_UPSTREAM};
+    proxy_pass http://$giro_backend;
 }
 
 # Estáticos do Django Admin da plataforma (collectstatic na imagem `producao`, T-264, ADR 0027).
@@ -58,14 +63,14 @@ location ~ ^/api/(veiculos/leitura-crlv|clientes/leitura-cnh)/$ {
     client_max_body_size 3m;
     proxy_read_timeout 20s;
     proxy_send_timeout 20s;
-    proxy_pass http://${BACKEND_UPSTREAM};
+    proxy_pass http://$giro_backend;
 }
 
 location /api/ {
     proxy_read_timeout 60s;
-    proxy_pass http://${BACKEND_UPSTREAM};
+    proxy_pass http://$giro_backend;
 }
 
 location / {
-    proxy_pass http://${FRONTEND_UPSTREAM};
+    proxy_pass http://$giro_frontend;
 }
