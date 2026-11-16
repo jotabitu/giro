@@ -207,6 +207,10 @@ services:
     restart: unless-stopped
     logging: *registro
     mem_limit: ${GIRO_MEM_FRONTEND:-512m}
+    # Só esta variável (não secreta): a origem das URLs assinadas do armazenamento entra na
+    # img-src da CSP (T-479). O frontend não lê o producao.env, que tem segredos.
+    environment:
+      GIRO_ARQUIVOS_ORIGEM: ${GIRO_ARQUIVOS_ORIGEM:-}
     expose:
       - "3000"
 
