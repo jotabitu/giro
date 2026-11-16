@@ -117,14 +117,25 @@ ROOT_URLCONF = "config.urls"
 
 DATABASES = {"default": env.db("DATABASE_URL")}
 DATABASES["default"]["ENGINE"] = "django_tenants.postgresql_backend"
-DATABASE_ROUTERS = ["django_tenants.routers.TenantSyncRouter"]
+# ADR 0040: o alias `migracao` migra pela mesma regra do roteador do django-tenants.
+DATABASE_ROUTERS = [
+    "apps.plataforma.roteador.RoteadorDeSchemas",
+    "django_tenants.routers.TenantSyncRouter",
+]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # ADR 0016 e 0025: o papel dono dos schemas (`giro_migracao`), para o `DROP SCHEMA` do apagamento
 # (AUD-08). Vazio no desenvolvimento e nos testes, com um papel só: usa a `DATABASE_URL`.
 DATABASE_URL_MIGRACAO = env.str("DATABASE_URL_MIGRACAO", default="")
+# ADR 0040, item 1: o alias `migracao` (giro_migracao) para o `CREATE SCHEMA` e o
+# `migrate_schemas` da empresa nova. Só existe onde a credencial chega (o worker-banco e o
+# `migrar`); sem ela, `plataforma.banco` usa a conexão `default`.
+if DATABASE_URL_MIGRACAO:
+    DATABASES["migracao"] = env.db_url_config(DATABASE_URL_MIGRACAO)
+    DATABASES["migracao"]["ENGINE"] = "django_tenants.postgresql_backend"
 
 MIDDLEWARE = [
-    "django_tenants.middleware.main.TenantMainMiddleware",
+    # ADR 0040, item 7: o `TenantMainMiddleware` do django-tenants, só entre as empresas prontas.
+    "apps.plataforma.middleware.EmpresaProntaMiddleware",
     # T-199, B-03: os cabeçalhos de segurança valem também para o 403 `empresa_cancelada`.
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -365,15 +376,26 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 # S-11: o resultado guardaria o retorno em texto no Redis; quem precisar liga na tarefa.
 CELERY_TASK_IGNORE_RESULT = True
-# AUD-08 (ADR 0025, M-01 da T-355): o apagamento da empresa cancelada tem fila própria, lida só pelo
-# worker que recebe a DATABASE_URL_MIGRACAO (`-Q apagamento`). O worker comum lê só `celery`. No
-# desenvolvimento, o único worker lê as duas filas (`-Q celery,apagamento`).
-CELERY_TASK_ROUTES = {"aud_08_apagar_empresas": {"queue": "apagamento"}}
+# ADR 0040 (antes ADR 0025, M-01 da T-355): as tarefas que precisam da DATABASE_URL_MIGRACAO têm
+# fila própria, `banco`, lida só pelo worker-banco, o único que recebe a credencial (`-Q banco`). O
+# worker comum lê só `celery`. No desenvolvimento, o único worker lê as duas (`-Q celery,banco`).
+FILA_BANCO = "banco"
+TAREFAS_DA_FILA_BANCO = (
+    "aud_08_apagar_empresas",
+    "plataforma_executar_pedido_compra",
+    "plataforma.criar_empresa",
+)
+CELERY_TASK_ROUTES = {nome: {"queue": FILA_BANCO} for nome in TAREFAS_DA_FILA_BANCO}
 CELERY_BEAT_SCHEDULE: dict[str, dict[str, object]] = {
     # Pedidos da compra pública vencidos e os dados pessoais deles, 7 dias depois (compra.md).
     "plataforma_expirar_pedidos_compra": {
         "task": "plataforma_expirar_pedidos_compra",
         "schedule": crontab(hour=4, minute=10),
+    },
+    # ADR 0040, item 3: empresa reservada sem schema pronto há mais de 1 hora vai ao Sentry.
+    "plataforma_alarmar_reservas_presas": {
+        "task": "plataforma_alarmar_reservas_presas",
+        "schedule": crontab(hour=7, minute=40),
     },
     # Corrige o resumo de uso do plano (PLT-03) contando em cada schema.
     "plataforma_recalcular_uso_de_todas": {

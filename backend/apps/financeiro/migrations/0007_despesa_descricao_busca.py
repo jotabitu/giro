@@ -12,8 +12,10 @@ def _texto_de_busca(texto: str) -> str:
 
 def preencher(apps, schema_editor):  # type: ignore[no-untyped-def]
     Despesa = apps.get_model("financeiro", "Despesa")
-    for despesa in Despesa.objects.only("pk", "descricao").iterator():
-        Despesa.objects.filter(pk=despesa.pk).update(
+    for despesa in (
+        Despesa.objects.using(schema_editor.connection.alias).only("pk", "descricao").iterator()
+    ):
+        Despesa.objects.using(schema_editor.connection.alias).filter(pk=despesa.pk).update(
             descricao_busca=_texto_de_busca(despesa.descricao)
         )
 

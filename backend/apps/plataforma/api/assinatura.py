@@ -308,7 +308,7 @@ class FormaPagamentoView(EscritaDaAssinatura):
         empresa = _empresa(request)
         proximo = services.escolher_forma_pagamento(empresa, pedido.validated_data["forma"])
         with services.no_publico():
-            forma = selectors.forma_de_pagamento(Empresa.objects.get(pk=empresa.pk))
+            forma = selectors.forma_de_pagamento(Empresa.objects.prontas().get(pk=empresa.pk))
         resposta = {"forma_pagamento": forma, "proximo_passo": proximo}
         return Response(RespostaDaFormaSerializer(resposta).data)
 
@@ -393,7 +393,7 @@ class FaturasView(LeituraDaAssinatura):
         if status is not None and status not in StatusFatura.values:
             raise ErroDeValidacao({"status": ["Use aberta, paga, atrasada ou cancelada."]})
         with services.no_publico():
-            empresa = Empresa.objects.get(pk=_empresa(request).pk)
+            empresa = Empresa.objects.prontas().get(pk=_empresa(request).pk)
             contexto = selectors.contexto_das_faturas(empresa, request.user)
             paginacao = PaginacaoPorCursor()
             paginacao.ordering = ("-vencimento", "-numero")  # type: ignore[assignment]
@@ -411,7 +411,7 @@ class FaturaView(LeituraDaAssinatura):
     @extend_schema(responses=FaturaDetalheSerializer, summary="Fatura da assinatura (PLT-14)")
     def get(self, request: Request, codigo: str) -> Response:
         with services.no_publico():
-            empresa = Empresa.objects.get(pk=_empresa(request).pk)
+            empresa = Empresa.objects.prontas().get(pk=_empresa(request).pk)
             contexto = selectors.contexto_das_faturas(empresa, request.user)
             detalhe = selectors.detalhe_da_fatura(_fatura(empresa, codigo), contexto)
         return Response(FaturaDetalheSerializer(detalhe).data)
@@ -542,7 +542,7 @@ class CancelamentoView(AcaoDoCancelamento):
     )
     def get(self, request: Request) -> Response:
         with services.no_publico():
-            empresa = Empresa.objects.get(pk=_empresa(request).pk)
+            empresa = Empresa.objects.prontas().get(pk=_empresa(request).pk)
             if services.cancelamento_marcado(empresa):
                 raise services.ja_cancelada(empresa)
             tela = selectors.tela_do_cancelamento(empresa)

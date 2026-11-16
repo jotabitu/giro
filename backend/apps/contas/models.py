@@ -294,7 +294,7 @@ def empresa_da_cifra() -> int:
 
     schema = schema_atual()
     with schema_context(get_public_schema_name()):
-        return int(Empresa.objects.values_list("pk", flat=True).get(schema_name=schema))
+        return int(Empresa.objects.prontas().values_list("pk", flat=True).get(schema_name=schema))
 
 
 class Autenticador(ModeloComCifra, Device):

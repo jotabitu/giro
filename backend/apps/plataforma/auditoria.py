@@ -59,7 +59,9 @@ def empresas_dos_eventos(eventos: list[EventoAuditoria]) -> dict[int, dict[str, 
     ids_empresas = {
         e.objeto_id for e in eventos if e.objeto_tipo == OBJETO_EMPRESA and e.objeto_id
     } | set(empresa_do_acesso.values())
-    nomes = dict(Empresa.objects.filter(pk__in=ids_empresas).values_list("pk", "nome_exibicao"))
+    nomes = dict(
+        Empresa.objects.prontas().filter(pk__in=ids_empresas).values_list("pk", "nome_exibicao")
+    )
     resultado: dict[int, dict[str, Any] | None] = {}
     for evento in eventos:
         empresa_id = None

@@ -64,13 +64,14 @@ services:
       - "${PORTA_BACKEND}:8000"
     command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
 
-  # Único serviço com a DATABASE_URL_MIGRACAO (vem do .env): a aud_08_apagar_empresas roda aqui
-  # e apaga o schema da empresa cancelada com ela (T-352, ADR 0016 e 0025). O backend manda essa
-  # tarefa para a fila `apagamento` (CELERY_TASK_ROUTES, T-382); no desenvolvimento um worker só
-  # lê as duas filas. Em homologação e produção são dois workers.
+  # Único serviço com a DATABASE_URL_MIGRACAO (vem do .env): as tarefas da fila `banco` rodam
+  # aqui com ela, a criação da empresa (CREATE SCHEMA, ADR 0040) e o apagamento da cancelada
+  # (DROP SCHEMA, ADR 0025). O backend manda essas tarefas para a fila `banco`
+  # (CELERY_TASK_ROUTES); no desenvolvimento um worker só lê as duas filas. Em homologação e
+  # produção são dois workers (`worker` e `worker-banco`).
   worker:
     <<: *backend
-    command: ["celery", "-A", "config", "worker", "--loglevel=INFO", "-Q", "celery,apagamento"]
+    command: ["celery", "-A", "config", "worker", "--loglevel=INFO", "-Q", "celery,banco"]
 
   beat:
     <<: *backend

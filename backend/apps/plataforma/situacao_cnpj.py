@@ -36,7 +36,7 @@ def situacao_do_cnpj(cnpj: str) -> Situacao:
     - `nova`: nenhuma linha com o CNPJ (ou o CNPJ já saiu da linha apagada, `AUD-08`).
     """
     with schema_context(get_public_schema_name()):
-        linhas = Empresa.objects.filter(cnpj=cnpj)
+        linhas = Empresa.objects.filter(cnpj=cnpj)  # inclui-reserva
         if linhas.filter(apagada_em__isnull=True).exists():
             return Situacao(SituacaoCnpj.EM_USO)
         anterior = linhas.order_by("-apagada_em", "-id").first()

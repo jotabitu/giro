@@ -123,7 +123,7 @@ def _perto_do_limite() -> Q:
 def com_situacao(queryset: QuerySet[Empresa] | None = None) -> QuerySet[Empresa]:
     """Anota `situacao_codigo` e `aba` na ordem da tabela do contrato (a primeira que vale)."""
     parada_desde = relogio.agora() - timedelta(days=DIAS_PARA_IMPLANTACAO_PARADA)
-    qs = queryset if queryset is not None else Empresa.objects.all()
+    qs = queryset if queryset is not None else Empresa.objects.prontas()
     # 9 × limite − 10 × uso ≤ 0  ⇔  uso ≥ 90% do limite. Limite nulo dá nulo, que não passa.
     folgas = {
         f"_folga_90_{item}": F(f"plano__limite_{item}") * 9 - F(f"uso__{item}") * 10
@@ -310,7 +310,9 @@ def dias_restantes(empresa: Empresa) -> int | None:
 def empresa_carregada(empresa: Empresa | None = None) -> Empresa:
     """A empresa relida do banco com o plano atual e o agendado, numa consulta só."""
     empresa = empresa or empresa_atual()
-    carregada: Empresa = Empresa.objects.select_related("plano", "plano_proximo").get(pk=empresa.pk)
+    carregada: Empresa = (
+        Empresa.objects.prontas().select_related("plano", "plano_proximo").get(pk=empresa.pk)
+    )
     return carregada
 
 
@@ -666,7 +668,7 @@ def tela_do_cancelamento(empresa: Empresa) -> dict[str, Any]:
     """`GET /api/assinatura/cancelamento/`: o que a `Admin-Cancelar` mostra, montado para hoje
     pela mesma conta do `POST` (`datas_de_cancelar`). Não grava nada. O cancelamento marcado é
     recusado antes, na view (409)."""
-    empresa = Empresa.objects.select_related("plano").get(pk=empresa.pk)
+    empresa = Empresa.objects.prontas().select_related("plano").get(pk=empresa.pk)
     hoje = relogio.hoje()
     fim_pago = fim_do_periodo_pago(empresa)
     datas = datas_de_cancelar(empresa, hoje)
@@ -718,7 +720,7 @@ def planos_da_assinatura(empresa: Empresa | None = None) -> dict[str, Any]:
     """`GET /api/assinatura/planos/`: os planos ativos e o atual (PLT-05), com o preço de tabela,
     os textos da PLT-11 e se o uso cabe (PLT-04). A comparação é no ciclo atual (CA-ASS-18)."""
     empresa = empresa or empresa_atual()
-    empresa = Empresa.objects.select_related("plano").get(pk=empresa.pk)
+    empresa = Empresa.objects.prontas().select_related("plano").get(pk=empresa.pk)
     atual = empresa.plano
     uso = UsoEmpresa.objects.filter(empresa_id=empresa.pk).first() or UsoEmpresa()
     # Fora da venda não aparece, menos o plano atual (PLT-11, T-378).
@@ -868,7 +870,8 @@ def situacao_do_suporte(empresa: Empresa | None = None) -> dict[str, Any]:
     ativos = Count("acessos_suporte", filter=_ativo_agora(relogio.agora(), "acessos_suporte__"))
     with no_publico():
         linha = (
-            Empresa.objects.filter(pk=empresa.pk)
+            Empresa.objects.prontas()
+            .filter(pk=empresa.pk)
             .annotate(ativos=ativos)
             .values("suporte_bloqueado", "ativos")
             .get()
@@ -1194,7 +1197,7 @@ def andamento_do_assistente(empresa: Empresa | None = None) -> dict[str, Any]:
     """`GET /api/implantacao/`: os passos do assistente com `numero`, `feito` e `proximo`, lidos
     do `public`. Pular e "Salvar e sair" não marcam passo (não há rota de pular)."""
     empresa = empresa or empresa_atual()
-    empresa = Empresa.objects.select_related("plano").get(pk=empresa.pk)
+    empresa = Empresa.objects.prontas().select_related("plano").get(pk=empresa.pk)
     feitos = (
         UsoEmpresa.objects.filter(empresa_id=empresa.pk)
         .values_list("passos_implantacao", flat=True)
@@ -1219,3 +1222,20 @@ def andamento_do_assistente(empresa: Empresa | None = None) -> dict[str, Any]:
         "proximo": proximo_do_assistente(feitos, recebe),
         "passos": passos,
     }
+
+
+def reservas_presas(limite: timedelta = timedelta(hours=1)) -> list[dict[str, Any]]:
+    """ADR 0040, item 3: empresas reservadas sem schema pronto há mais de `limite` (a
+    compensação falhou ou a tarefa caiu). Lê a reserva de propósito (`Empresa.objects.all()`)."""
+    desde = timezone.now() - limite
+    linhas = (
+        Empresa.objects.all()  # inclui-reserva
+        .filter(schema_pronto_em__isnull=True, criado_em__lt=desde)
+        .exclude(schema_name=get_public_schema_name())
+        .order_by("pk")
+        .values("pk", "schema_name", "criado_em")
+    )
+    return [
+        {"empresa_id": linha["pk"], "schema": linha["schema_name"], "desde": linha["criado_em"]}
+        for linha in linhas
+    ]

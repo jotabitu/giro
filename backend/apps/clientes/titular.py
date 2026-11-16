@@ -95,7 +95,7 @@ def empresa_para_titular(schema: str) -> Any:
     from apps.plataforma.models import Empresa
 
     with schema_context(get_public_schema_name()):
-        empresa = Empresa.objects.filter(schema_name=schema).first()
+        empresa = Empresa.objects.prontas().filter(schema_name=schema).first()
     if empresa is None or schema == get_public_schema_name():
         raise ErroDeValidacao({"schema": ["Empresa não encontrada."]})
     if empresa.apagada_em is not None:
