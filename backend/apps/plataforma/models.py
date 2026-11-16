@@ -800,6 +800,8 @@ class PedidoCompra(MaquinaDeEstados, ModeloBase):
     # da equipe (staff, 2 etapas) que pediu; a tarefa confere de novo no banco (item 10).
     origem = models.CharField(max_length=10, choices=Origem.choices, default=Origem.COMPRA)
     solicitado_por_id = models.BigIntegerField(null=True, blank=True)
+    # A sessão do Admin passou pelas 2 etapas quando pediu (gravado na hora, conferido na tarefa).
+    solicitado_verificado_em = models.DateTimeField(null=True, blank=True)
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = {
         StatusPedidoCompra.AGUARDANDO_CONFIRMACAO: {

@@ -42,6 +42,8 @@ SCHEMAS = (
     "t477_conferir",
     "t477_desfaz",
     "t477_semdireito",
+    "t477_donofuncao",
+    "t477_alheio",
 )
 
 
@@ -390,6 +392,7 @@ def test_plt_01_admin_so_enfileira_a_criacao(
         pedido = compra.solicitar_criacao_pelo_admin(usuario=usuario, **dados)
     assert (pedido.origem, pedido.status) == (Origem.ADMIN, StatusPedidoCompra.CRIANDO)
     assert pedido.solicitado_por_id == usuario.pk and enfileirados == [pedido.pk]
+    assert pedido.solicitado_verificado_em is not None
     assert not Empresa.objects.filter(subdominio="t477-admin").exists()  # nada na requisição
     assert EventoAuditoria.objects.filter(acao="empresa.solicitar_criacao").exists()
 
@@ -418,3 +421,77 @@ def test_plt_01_corrida_de_schema_nao_apaga_o_alheio(como_app, planos, relogio, 
     assert (pedido.status, pedido.mensagem_falha) == (StatusPedidoCompra.FALHOU, RESERVADO)
     assert not Empresa.objects.filter(subdominio="t477-corrida").exists()
     assert _dono_do_schema("t477_corrida") is not None
+
+
+# --- Revisão da segurança do PR #600 ---
+
+
+def test_plt_01_migrate_do_deploy_pula_reserva(como_app, planos, relogio, monkeypatch, caplog):
+    """B-1: o migrate do deploy só passa pelas empresas prontas; a reserva vai ao log."""
+    from apps.plataforma.management.commands import migrar_empresas
+
+    reserva = reservar_empresa(
+        razao_social="Moto Rápida Locações Ltda",
+        nome_exibicao="Moto Rápida",
+        cnpj=CNPJ_MOTO_RAPIDA,
+        subdominio="t477-pulada",
+        plano=planos["Profissional"],
+        administrador=Administrador(nome="Mariana Costa", email="mariana@motorapida.com.br"),
+        origem=Origem.COMPRA,
+    )
+    migrados: list[str] = []
+    monkeypatch.setattr(
+        migrar_empresas, "call_command", lambda *_, schema_name, **__: migrados.append(schema_name)
+    )
+    with caplog.at_level(logging.WARNING):
+        call_command("migrar_empresas")
+    assert reserva.schema_name not in migrados
+    assert set(migrados) == set(
+        Empresa.objects.prontas()
+        .exclude(schema_name="public")
+        .values_list("schema_name", flat=True)
+    )
+    assert f"schema={reserva.schema_name}" in caplog.text
+
+
+def test_conferir_privilegios_aceita_o_dono_da_funcao(com_migracao, planos, relogio):
+    """A-1: o dono de `auditoria_expurgar` aparece no acldefault e não é concessão a mais."""
+    _executar(_pedido(planos, relogio, "t477-donofuncao"))
+    funcao = "t477_donofuncao.auditoria_expurgar(date)"
+    with connection.cursor() as cursor:
+        cursor.execute("RESET ROLE")
+        cursor.execute(f"ALTER FUNCTION {funcao} OWNER TO {PAPEL_MIGRACAO}")
+        cursor.execute(f"SET ROLE {PAPEL_APP}")
+    assert privilegios.problemas("t477_donofuncao") == []
+
+
+def test_plt_01_retomada_nao_reaproveita_schema_alheio(com_migracao, planos, relogio):
+    """A-2: na retomada, schema com o nome da reserva mas de outro dono é RESERVADO e fica."""
+    pedido = _pedido(planos, relogio, "t477-alheio")
+    reserva = reservar_empresa(
+        razao_social="Moto Rápida Locações Ltda",
+        nome_exibicao="Moto Rápida",
+        cnpj=CNPJ_MOTO_RAPIDA,
+        subdominio="t477-alheio",
+        plano=planos["Profissional"],
+        administrador=Administrador(nome="Mariana Costa", email="mariana@motorapida.com.br"),
+        origem=Origem.COMPRA,
+        pedido_id=pedido.pk,
+    )
+    # Confirmado numa conexão própria do superusuário (não da tarefa), visível ao alias migracao.
+    import psycopg
+
+    dados = connection.settings_dict
+    with psycopg.connect(
+        host=dados["HOST"],
+        port=dados["PORT"] or 5432,
+        dbname=dados["NAME"],
+        user=dados["USER"],
+        password=dados["PASSWORD"],
+        autocommit=True,
+    ) as superusuario:
+        superusuario.execute(f"CREATE SCHEMA {reserva.schema_name}")
+    pedido = _executar(pedido)
+    assert (pedido.status, pedido.mensagem_falha) == (StatusPedidoCompra.FALHOU, RESERVADO)
+    assert not Empresa.objects.filter(subdominio="t477-alheio").exists()
+    assert _dono_do_schema(reserva.schema_name) not in (None, PAPEL_MIGRACAO)

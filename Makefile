@@ -42,7 +42,7 @@ shell: .env
 
 migrate: .env
 	$(COMPOSE) exec backend python manage.py migrate_schemas --shared --noinput
-	$(COMPOSE) exec backend python manage.py migrate_schemas --tenant --noinput
+	$(COMPOSE) exec backend python manage.py migrar_empresas
 
 seed: .env
 	$(COMPOSE) exec backend python manage.py seed_moto_rapida

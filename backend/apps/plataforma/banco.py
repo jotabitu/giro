@@ -128,6 +128,19 @@ def _papel_existe(cursor: Any, papel: str) -> bool:
     return cursor.fetchone() is not None
 
 
+def _dono_e_migracao(cursor: Any, nome: str) -> bool:
+    """Com os papéis separados, o schema da reserva é do giro_migracao. Com um papel só
+    (desenvolvimento e testes), não há como distinguir: aceita."""
+    if not _papel_existe(cursor, PAPEL_MIGRACAO):
+        return True
+    cursor.execute(
+        "SELECT pg_get_userbyid(nspowner) = %s FROM pg_namespace WHERE nspname = %s",
+        [PAPEL_MIGRACAO, nome],
+    )
+    linha = cursor.fetchone()
+    return bool(linha and linha[0])
+
+
 def _reserva(empresa_id: int) -> Empresa:
     with schema_context(get_public_schema_name()):
         empresa: Empresa = Empresa.objects.get(pk=empresa_id)
@@ -152,7 +165,9 @@ def criar_schema(empresa_id: int, *, retomar: bool = False) -> str:
     conexao_ddl: Any = connections[alias]
     with transaction.atomic(using=alias), conexao_ddl.cursor() as cursor:
         existe = _schema_existe(cursor, nome)
-        if existe and not retomar:
+        if existe and not (retomar and _dono_e_migracao(cursor, nome)):
+            # Retomada só do schema que a entrega anterior criou (dono giro_migracao); outro
+            # schema com o mesmo nome é RESERVADO e nunca é apagado pela compensação.
             raise SchemaJaExiste(nome)
         if not existe:
             dono = PAPEL_MIGRACAO if _papel_existe(cursor, PAPEL_MIGRACAO) else None

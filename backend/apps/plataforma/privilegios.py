@@ -160,9 +160,11 @@ def problemas(schema: str) -> list[str]:
         cursor.execute("SELECT to_regprocedure(%s)", [f'"{s}".{FUNCAO}'])
         if cursor.fetchone()[0] is not None:
             cursor.execute(
+                # O dono da função sempre aparece no acldefault/aclexplode: não é concessão.
                 "SELECT coalesce(nullif(a.grantee, 0)::regrole::text, 'PUBLIC') "
                 "FROM pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a "
-                "WHERE p.oid = to_regprocedure(%s) AND a.privilege_type = 'EXECUTE'",
+                "WHERE p.oid = to_regprocedure(%s) AND a.privilege_type = 'EXECUTE' "
+                "AND a.grantee <> p.proowner",
                 [f'"{s}".{FUNCAO}'],
             )
             for (papel,) in cursor.fetchall():

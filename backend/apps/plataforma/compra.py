@@ -836,6 +836,7 @@ def solicitar_criacao_pelo_admin(
             status=StatusPedidoCompra.CONFIRMADO,
             origem=Origem.ADMIN,
             solicitado_por_id=usuario.pk,
+            solicitado_verificado_em=agora,
             plano=plano,
             ciclo=Empresa.Ciclo.MENSAL,
             administrador_nome=administrador_nome.strip(),
@@ -880,7 +881,11 @@ def _solicitante_valido(pedido: PedidoCompra) -> bool:
     if pedido.origem == Origem.COMPRA:
         # Confirmada pelo código: o código foi enviado e o hash saiu na confirmação.
         return pedido.codigo_enviado_em is not None and not pedido.codigo_hash
-    if pedido.origem == Origem.ADMIN and pedido.solicitado_por_id:
+    if (
+        pedido.origem == Origem.ADMIN
+        and pedido.solicitado_por_id
+        and pedido.solicitado_verificado_em
+    ):
         from django.contrib.auth import get_user_model
         from django_otp import devices_for_user
 
@@ -932,6 +937,10 @@ def _executar(pedido_id: int) -> str:
             valido = False
         else:
             valido = True
+    if not valido:  # recusado antes de gravar qualquer coisa no pedido
+        return _falhar(pedido_id, MENSAGEM_FALHA, avisar=True)
+    with schema_context(get_public_schema_name()), transaction.atomic():
+        pedido = PedidoCompra.objects.select_for_update().select_related("plano").get(pk=pedido_id)
         reserva: Empresa | None = None
         if pedido.empresa_id is not None:
             reserva = Empresa.objects.get(pk=pedido.empresa_id)  # inclui-reserva
@@ -941,8 +950,6 @@ def _executar(pedido_id: int) -> str:
             pedido.save(update_fields=["situacao_cnpj", "atualizado_em"])
         else:
             situacao = pedido.situacao_cnpj
-    if not valido:
-        return _falhar(pedido_id, MENSAGEM_FALHA, avisar=True)
     if reserva is not None and reserva.schema_pronto_em is not None:
         # A entrega anterior criou a empresa e caiu antes de marcar o pedido.
         return _pronto(pedido_id, reserva, pedido.andamento or {})

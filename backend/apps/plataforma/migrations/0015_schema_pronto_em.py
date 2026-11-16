@@ -106,5 +106,10 @@ class Migration(migrations.Migration):
             name="solicitado_por_id",
             field=models.BigIntegerField(blank=True, null=True),
         ),
+        migrations.AddField(
+            model_name="pedidocompra",
+            name="solicitado_verificado_em",
+            field=models.DateTimeField(blank=True, null=True),
+        ),
         migrations.RunPython(preencher_schema_pronto_em, migrations.RunPython.noop),
     ]
