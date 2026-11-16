@@ -18,7 +18,10 @@ def _sem_cartao(corpo: Any) -> Any:
 
 def limpar(apps: Any, schema_editor: Any) -> None:
     webhook_recebido = apps.get_model("comum", "WebhookRecebido")
-    for aviso in webhook_recebido.objects.filter(corpo__bruto__payment__has_key="creditCard"):
+    alias = schema_editor.connection.alias if schema_editor is not None else "default"
+    for aviso in webhook_recebido.objects.using(alias).filter(
+        corpo__bruto__payment__has_key="creditCard"
+    ):
         aviso.corpo = {**aviso.corpo, "bruto": _sem_cartao(aviso.corpo["bruto"])}
         aviso.save(update_fields=["corpo"])
 

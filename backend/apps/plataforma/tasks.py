@@ -5,6 +5,7 @@ dos estados da assinatura (PLT-01, PLT-02, PLT-04, PLT-06), a geração, a emiss
 cartão das faturas (PLT-02, PLT-04, PLT-13), a régua da assinatura (AUT-13) e o aviso e o
 apagamento da empresa cancelada (AUD-08)."""
 
+import logging
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -20,6 +21,8 @@ from integracoes.pagamentos.base import ParceiroIndisponivel
 
 from .models import Empresa, Item
 
+logger = logging.getLogger(__name__)
+
 FUSO = "America/Sao_Paulo"
 # PLT-13, CA-ASS-63: a linha do e-mail do boleto quando o Pix automático ainda não foi autorizado.
 PIX_AUTOMATICO_PENDENTE = (
@@ -34,7 +37,7 @@ def plataforma_avisar_limite_90(schema_name: str, item: str) -> int:
     from .selectors import uso_do_plano
 
     with schema_context(get_public_schema_name()):
-        empresa = Empresa.objects.select_related("plano").get(schema_name=schema_name)
+        empresa = Empresa.objects.prontas().select_related("plano").get(schema_name=schema_name)
         uso = uso_do_plano(empresa)[item]
     destinatarios = list(
         get_user_model()
@@ -206,7 +209,7 @@ def plataforma_avisar_downgrade_recusado(
     )
 
     with schema_context(get_public_schema_name()):
-        empresa = Empresa.objects.select_related("plano").get(pk=empresa_id)
+        empresa = Empresa.objects.prontas().select_related("plano").get(pk=empresa_id)
         agendado = Plano.objects.get(pk=plano_id)
         destinatarios = destinatarios_da_cobranca(empresa)
     if not destinatarios or empresa.plano is None:
@@ -240,7 +243,7 @@ def plataforma_recalcular_uso(schema_name: str) -> dict[str, int]:
     from .services import recalcular_uso
 
     with schema_context(get_public_schema_name()):
-        empresa = Empresa.objects.get(schema_name=schema_name)
+        empresa = Empresa.objects.prontas().get(schema_name=schema_name)
     return recalcular_uso(empresa)
 
 
@@ -329,20 +332,42 @@ def plataforma_atualizar_pagador(empresa_id: int) -> str:
     from .services import atualizar_pagador
 
     with schema_context(get_public_schema_name()):
-        empresa = Empresa.objects.get(pk=empresa_id)
+        empresa = Empresa.objects.prontas().get(pk=empresa_id)
         return atualizar_pagador(empresa)
 
 
 # --- Compra pública (`compra.md`, T-435) ---
 
 
-@shared_task(name="plataforma_executar_pedido_compra")
+@shared_task(name="plataforma_executar_pedido_compra", acks_late=True)
 def plataforma_executar_pedido_compra(pedido_id: int) -> str:
-    """Cria a empresa do pedido confirmado (o schema leva segundos). Sem nova tentativa
-    automática: para não criar duas vezes, a falha vira `falhou` e avisa a equipe."""
+    """Cria a empresa do pedido confirmado (o schema leva segundos), na fila `banco` (ADR 0040).
+    Sem nova tentativa automática: a falha vira `falhou` e avisa a equipe. Reentregue
+    (`acks_late`), retoma a reserva do mesmo pedido; o pedido é a trava."""
     from .compra import executar_pedido_compra
 
     return executar_pedido_compra(pedido_id)
+
+
+@shared_task(name="plataforma.criar_empresa", acks_late=True)
+def plataforma_criar_empresa(pedido_id: int) -> str:
+    """A criação pedida pelo Django Admin (ADR 0040, item 6), na fila `banco`. Só recebe o
+    `pedido_id`, nunca um nome de schema; o mesmo caminho da compra pública."""
+    from .compra import executar_pedido_compra
+
+    return executar_pedido_compra(int(pedido_id))
+
+
+@shared_task(name="plataforma_alarmar_reservas_presas")
+def plataforma_alarmar_reservas_presas(**_: Any) -> int:
+    """ADR 0040, item 3: diária, no public. Empresa reservada sem schema pronto há mais de 1 hora
+    vai ao Sentry (a compensação falhou ou a tarefa caiu)."""
+    from .selectors import reservas_presas
+
+    presas = reservas_presas()
+    if presas:
+        logger.error("ADR 0040: empresas sem schema pronto há mais de 1 hora: %s", presas)
+    return len(presas)
 
 
 @shared_task(name="plataforma_expirar_pedidos_compra")

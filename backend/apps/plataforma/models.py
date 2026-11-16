@@ -16,10 +16,10 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django_tenants.models import DomainMixin, TenantMixin
 
-from comum import cripto
+from comum import cripto, relogio
 from comum.auditoria import Categoria
 from comum.campos import CampoCifrado, CentavosField
-from comum.estados import MaquinaDeEstados
+from comum.estados import EstadosQuerySet, MaquinaDeEstados
 from comum.models import ModeloAtivavel, ModeloBase, ModeloComCifra
 
 DIAS_DE_TESTE = 14  # PLT-01
@@ -127,6 +127,18 @@ class MotivoCancelamento(models.TextChoices):
 class Origem(models.TextChoices):
     ADMIN = "admin", "Django Admin"
     COMPRA = "compra", "Compra pública"
+
+
+class EmpresaQuerySet(EstadosQuerySet):
+    def prontas(self) -> "EmpresaQuerySet":
+        """Empresas com o schema pronto, mais a linha do `public` (ADR 0040, item 7).
+
+        A reserva (`schema_pronto_em` nulo) é inalcançável: todo código que itera ou resolve
+        empresa parte daqui. `Empresa.objects.all()` fica só para `plataforma.banco`, a criação, a
+        migração de dados e o Django Admin (`test_empresa_iteracao_usa_prontas`).
+        """
+        pronta = models.Q(schema_pronto_em__isnull=False) | models.Q(schema_name="public")
+        return self.filter(pronta)
 
 
 class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django-manager-missing]
@@ -237,6 +249,13 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
     aceite_termos_versao = models.CharField(max_length=20, blank=True, default="")
     aceite_termos_em = models.DateTimeField(null=True, blank=True)
 
+    # ADR 0040, item 3: campo técnico, não status de negócio. Nulo = reserva sem schema pronto,
+    # invisível em todo lugar (`EmpresaQuerySet.prontas`). Gravado só por `services.criar_empresa`
+    # no passo 3, depois das concessões finais.
+    schema_pronto_em = models.DateTimeField(null=True, blank=True, editable=False)
+
+    objects = EmpresaQuerySet.as_manager()  # type: ignore[misc]
+
     auto_create_schema = True
     auto_drop_schema = False
 
@@ -245,6 +264,10 @@ class Empresa(TenantMixin, MaquinaDeEstados, ModeloBase):  # type: ignore[django
         # é apagado no 90º dia (AUD-08, ADR 0025) e não pode voltar no `save` seguinte.
         if self.status == self.Status.CANCELADA:
             self.auto_create_schema = False
+        # Fora da criação (fixtures de teste, que criam o schema pelo `TenantMixin`): o schema
+        # nasce aqui mesmo, então já está pronto. `criar_empresa` desliga o `auto_create_schema`.
+        if self._state.adding and self.auto_create_schema and self.schema_pronto_em is None:
+            self.schema_pronto_em = relogio.agora()
         super().save(*args, **kwargs)
 
     # O responsável é funcionário da locadora (o administrador): vai inteiro, como o
@@ -773,6 +796,10 @@ class PedidoCompra(MaquinaDeEstados, ModeloBase):
     acesso_entregue_em = models.DateTimeField(null=True, blank=True)
     expira_em = models.DateTimeField()
     dados_apagados_em = models.DateTimeField(null=True, blank=True)
+    # ADR 0040, item 6: o Django Admin também cria pelo pedido (`origem=admin`), com o usuário
+    # da equipe (staff, 2 etapas) que pediu; a tarefa confere de novo no banco (item 10).
+    origem = models.CharField(max_length=10, choices=Origem.choices, default=Origem.COMPRA)
+    solicitado_por_id = models.BigIntegerField(null=True, blank=True)
 
     TRANSICOES: ClassVar[dict[str, set[str]]] = {
         StatusPedidoCompra.AGUARDANDO_CONFIRMACAO: {

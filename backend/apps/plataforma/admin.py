@@ -3,9 +3,10 @@ serviço.
 
 No MVP a empresa piloto nasce aqui, e a equipe vê as faturas de todas as empresas até a
 `Plat-Cobranca` (`plataforma.md`, "Faturas de todas as empresas"; PLT-14), só leitura. O
-formulário chama `services.criar_empresa`, que valida, cria o schema, convida o administrador e
-audita; a ação "Reativar" chama `services.reativar_empresa` (PLT-06, T-365), com o motivo. Nada é
-gravado direto pelo Admin.
+formulário valida e grava um pedido `origem=admin` (`compra.solicitar_criacao_pelo_admin`): a
+criação nunca roda no processo web (ADR 0040, itens 1 e 6), e a página do pedido mostra o
+andamento e, se falhar, só a mensagem de falha. A ação "Reativar" chama
+`services.reativar_empresa` (PLT-06, T-365), com o motivo. Nada é gravado direto pelo Admin.
 """
 
 from typing import Any
@@ -14,7 +15,8 @@ from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.helpers import ActionForm
 from django.db.models import Q
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.urls import reverse
 
 from comum.erros import ErroDeNegocio, ErroDeValidacao
 
@@ -27,7 +29,7 @@ from .models import (
     StatusPedidoCompra,
     UsoEmpresa,
 )
-from .services import POR_EQUIPE, Administrador, criar_empresa, reativar_empresa, validar_criacao
+from .services import POR_EQUIPE, Administrador, reativar_empresa, validar_criacao
 
 
 class CriarEmpresaForm(forms.ModelForm):  # type: ignore[type-arg]
@@ -100,6 +102,7 @@ class EmpresaAdmin(SoLeitura):
         "plano",
         "status",
         "origem",
+        "schema_pronto",
         "empresa_anterior",
         "teste_fim",
         "apagar_em",
@@ -139,9 +142,19 @@ class EmpresaAdmin(SoLeitura):
             else:
                 self.message_user(request, f"{empresa} reativada.", messages.SUCCESS)
 
+    @admin.display(description="schema")
+    def schema_pronto(self, obj: Empresa) -> str:
+        # A reserva (ADR 0040) aparece só aqui, marcada; no resto do sistema ela não existe.
+        if obj.schema_pronto_em is None and obj.schema_name != "public":
+            return "criando"
+        return "pronto"
+
     def save_model(self, request: HttpRequest, obj: Empresa, form: Any, change: bool) -> None:
+        from .compra import solicitar_criacao_pelo_admin
+
         dados = form.cleaned_data
-        criada = criar_empresa(
+        pedido = solicitar_criacao_pelo_admin(
+            usuario=request.user,
             razao_social=dados["razao_social"],
             nome_exibicao=dados["nome_exibicao"],
             cnpj=dados["cnpj"],
@@ -149,15 +162,27 @@ class EmpresaAdmin(SoLeitura):
             plano=dados["plano"],
             cidade=dados.get("cidade", ""),
             uf=dados.get("uf", ""),
-            administrador=Administrador(
-                nome=dados["administrador_nome"],
-                email=dados["administrador_email"],
-                celular=dados.get("administrador_celular", ""),
-            ),
+            administrador_nome=dados["administrador_nome"],
+            administrador_email=dados["administrador_email"],
+            administrador_celular=dados.get("administrador_celular", ""),
         )
-        # O Admin segue com o objeto criado pelo serviço (mensagem e redirecionamento).
-        obj.__dict__.update(criada.__dict__)
-        obj._state = criada._state
+        request._pedido_de_criacao = pedido  # type: ignore[attr-defined]
+
+    def log_addition(self, request: HttpRequest, obj: Any, message: Any) -> Any:
+        return None  # a empresa ainda não existe; a auditoria grava `empresa.solicitar_criacao`
+
+    def response_add(
+        self, request: HttpRequest, obj: Empresa, post_url_continue: str | None = None
+    ) -> HttpResponse:
+        pedido = request._pedido_de_criacao  # type: ignore[attr-defined]
+        self.message_user(
+            request,
+            "Criação agendada. Acompanhe o andamento nesta página.",
+            messages.SUCCESS,
+        )
+        return HttpResponseRedirect(
+            reverse("admin:plataforma_pedidocompra_change", args=[pedido.pk])
+        )
 
     def save_related(self, request: HttpRequest, form: Any, formsets: Any, change: bool) -> None:
         return None
@@ -231,9 +256,20 @@ class PedidoCompraAdmin(SoLeitura):
     """Compra pública (`compra.md`): a equipe vê o funil e libera o pedido confirmado acima do
     teto do dia (D-430-08). Sem o código nem o IP (só os hashes, que nem aparecem)."""
 
-    list_display = ["chave", "status", "plano", "ciclo", "situacao_cnpj", "criado_em", "empresa"]
-    list_filter = ["status", "plano", "ciclo"]
+    list_display = [
+        "chave",
+        "origem",
+        "status",
+        "plano",
+        "ciclo",
+        "situacao_cnpj",
+        "criado_em",
+        "empresa",
+    ]
+    list_filter = ["status", "origem", "plano", "ciclo"]
     search_fields = ["chave", "subdominio"]
+    # A página do pedido é o andamento da criação (ADR 0040, item 6): `andamento` e só a
+    # `mensagem_falha`; o SQLSTATE e o detalhe ficam no Sentry e no log (item 11).
     exclude = ["codigo_hash", "ip_hash"]
     actions = ["liberar"]
 

@@ -2,9 +2,10 @@
 empresa (`docs/api/compra.md`, T-435; PLT-01, PLT-11, PLT-13, PLT-16, USR-01).
 
 O pedido não é a empresa: ela só nasce depois do código de 6 dígitos (D-430-01), numa tarefa do
-Celery que chama `services.criar_empresa` com `origem=compra`. Status do pedido só muda por aqui,
-pela máquina de estados (com auditoria no public, sem dados pessoais). O código nunca é gravado
-(hash Argon2) nem vai para log; o IP também não (HMAC).
+Celery da fila `banco` (ADR 0040) que chama `services.criar_empresa` com `origem=compra`; o
+Django Admin cria pelo mesmo caminho, com um pedido `origem=admin`. Status do pedido só muda por
+aqui, pela máquina de estados (com auditoria no public, sem dados pessoais). O código nunca é
+gravado (hash Argon2) nem vai para log; o IP também não (HMAC).
 """
 
 import hashlib
@@ -24,7 +25,7 @@ from django.contrib.auth.hashers import check_password, make_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import send_mail
 from django.core.validators import validate_email
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 from django.utils.text import slugify
 from django_tenants.utils import get_public_schema_name, schema_context, schema_exists
@@ -297,9 +298,9 @@ def subdominio_livre(subdominio: str) -> bool:
 
     schema = schema_do_subdominio(subdominio)
     with schema_context(get_public_schema_name()):
-        if Empresa.objects.filter(subdominio=subdominio).exists():
+        if Empresa.objects.filter(subdominio=subdominio).exists():  # inclui-reserva
             return False
-        if Empresa.objects.filter(schema_name=schema).exists():
+        if Empresa.objects.filter(schema_name=schema).exists():  # inclui-reserva
             return False
         return not schema_exists(schema)
 
@@ -614,6 +615,7 @@ def criadas_hoje_pela_compra() -> int:
     # `atualizado_em` é gravado pelo relógio real (auto_now), então o dia também é o real.
     inicio = timezone.localtime().replace(hour=0, minute=0, second=0, microsecond=0)
     return PedidoCompra.objects.filter(
+        origem=Origem.COMPRA,
         status__in=[StatusPedidoCompra.CRIANDO, StatusPedidoCompra.PRONTO],
         atualizado_em__gte=inicio,
     ).count()
@@ -809,19 +811,142 @@ def andamento_do_pedido(chave: Any) -> dict[str, Any]:
 # --- Criação (tarefa) e expiração (diária) ---
 
 
+def solicitar_criacao_pelo_admin(
+    *,
+    usuario: Any,
+    razao_social: str,
+    nome_exibicao: str,
+    cnpj: str,
+    subdominio: str,
+    plano: Plano,
+    administrador_nome: str,
+    administrador_email: str,
+    administrador_celular: str = "",
+    cidade: str = "",
+    uf: str = "",
+) -> PedidoCompra:
+    """O Django Admin não cria a empresa na requisição (ADR 0040, itens 1 e 6): grava um pedido
+    `origem=admin` em `criando`, com o usuário da equipe, audita `empresa.solicitar_criacao` e
+    enfileira `plataforma.criar_empresa` na fila `banco`. O formulário já validou."""
+    if not (getattr(usuario, "is_staff", False) and _verificado(usuario)):
+        raise Conflito("permissao", "Só a equipe, com 2 etapas, cria empresa pelo Admin.")
+    agora = relogio.agora()
+    with schema_context(get_public_schema_name()), transaction.atomic():
+        pedido = PedidoCompra.objects.create(
+            status=StatusPedidoCompra.CONFIRMADO,
+            origem=Origem.ADMIN,
+            solicitado_por_id=usuario.pk,
+            plano=plano,
+            ciclo=Empresa.Ciclo.MENSAL,
+            administrador_nome=administrador_nome.strip(),
+            administrador_email=administrador_email.strip().lower(),
+            administrador_celular=so_digitos(administrador_celular),
+            cnpj=so_digitos(cnpj),
+            razao_social=razao_social.strip(),
+            nome_exibicao=nome_exibicao.strip(),
+            cidade=cidade.strip(),
+            uf=uf.strip().upper(),
+            subdominio=subdominio.strip(),
+            expira_em=agora,
+        )
+        registrar_evento(
+            "empresa.solicitar_criacao",
+            Categoria.CONFIGURACOES,
+            objeto=pedido,
+            depois={"chave": str(pedido.chave), "origem": Origem.ADMIN},
+            regra="PLT-01",
+        )
+        transicionar(pedido, StatusPedidoCompra.CRIANDO, acao="compra.criar_empresa")
+        pedido_id = pedido.pk
+
+        def _enfileirar() -> None:
+            from .tasks import plataforma_criar_empresa
+
+            plataforma_criar_empresa.delay(pedido_id)
+
+        transaction.on_commit(_enfileirar)
+    return pedido
+
+
+def _verificado(usuario: Any) -> bool:
+    """A sessão do Admin passou pelas 2 etapas (`OTPAdminSite`)."""
+    conferir = getattr(usuario, "is_verified", None)
+    return bool(conferir()) if callable(conferir) else False
+
+
+def _solicitante_valido(pedido: PedidoCompra) -> bool:
+    """ADR 0040, item 10: a fila não prova autorização (quem tem o Redis enfileira). A tarefa
+    confere no banco de onde o pedido veio."""
+    if pedido.origem == Origem.COMPRA:
+        # Confirmada pelo código: o código foi enviado e o hash saiu na confirmação.
+        return pedido.codigo_enviado_em is not None and not pedido.codigo_hash
+    if pedido.origem == Origem.ADMIN and pedido.solicitado_por_id:
+        from django.contrib.auth import get_user_model
+        from django_otp import devices_for_user
+
+        usuario = get_user_model().objects.filter(pk=pedido.solicitado_por_id).first()
+        if usuario is None or not (usuario.is_active and usuario.is_staff):
+            return False
+        return any(True for _ in devices_for_user(usuario, confirmed=True))
+    return False
+
+
+# Trava da tarefa (ADR 0040, item 8): a sessão do Postgres segura o pedido enquanto os três passos
+# rodam em transações separadas; uma reentrega simultânea sai sem fazer nada.
+_TRAVA_DA_CRIACAO = 40_0040
+
+
+def _travar(pedido_id: int) -> bool:
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_try_advisory_lock(%s, %s)", [_TRAVA_DA_CRIACAO, pedido_id])
+        return bool(cursor.fetchone()[0])
+
+
+def _destravar(pedido_id: int) -> None:
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_unlock(%s, %s)", [_TRAVA_DA_CRIACAO, pedido_id])
+
+
 def executar_pedido_compra(pedido_id: int) -> str:
-    """Chama `criar_empresa` com os dados do pedido (`compra.md`, "O que a criação faz"). Sem
-    nova tentativa automática: a falha vira `falhou`, o Sentry e a equipe ficam sabendo."""
-    from .services import Administrador, criar_empresa, escolher_forma_pagamento
+    """Chama `criar_empresa` com os dados do pedido (`compra.md`, "O que a criação faz"; ADR
+    0040). Roda só no worker-banco. Idempotente: pedido fora de `criando` sai sem fazer nada, e a
+    reserva do mesmo pedido é retomada. Sem nova tentativa automática: a falha vira `falhou`, o
+    Sentry e a equipe ficam sabendo."""
+    if not _travar(pedido_id):
+        return "em_andamento"
+    try:
+        return _executar(pedido_id)
+    finally:
+        _destravar(pedido_id)
+
+
+def _executar(pedido_id: int) -> str:
+    from .services import RESERVADO, Administrador, criar_empresa
 
     with schema_context(get_public_schema_name()), transaction.atomic():
         pedido = PedidoCompra.objects.select_for_update().select_related("plano").get(pk=pedido_id)
-        if pedido.status != StatusPedidoCompra.CRIANDO:
+        if pedido.status != StatusPedidoCompra.CRIANDO or pedido.pronto_em is not None:
             return str(pedido.status)
-        situacao = situacao_do_cnpj(pedido.cnpj).situacao
-        pedido.situacao_cnpj = situacao
-        pedido.save(update_fields=["situacao_cnpj", "atualizado_em"])
-    if situacao in (SituacaoCnpj.EM_USO, SituacaoCnpj.FATURA_EM_ATRASO):
+        if not _solicitante_valido(pedido):
+            logger.error("ADR 0040: pedido %s sem origem válida; criação recusada.", pedido_id)
+            valido = False
+        else:
+            valido = True
+        reserva: Empresa | None = None
+        if pedido.empresa_id is not None:
+            reserva = Empresa.objects.get(pk=pedido.empresa_id)  # inclui-reserva
+        if reserva is None:
+            situacao = situacao_do_cnpj(pedido.cnpj).situacao
+            pedido.situacao_cnpj = situacao
+            pedido.save(update_fields=["situacao_cnpj", "atualizado_em"])
+        else:
+            situacao = pedido.situacao_cnpj
+    if not valido:
+        return _falhar(pedido_id, MENSAGEM_FALHA, avisar=True)
+    if reserva is not None and reserva.schema_pronto_em is not None:
+        # A entrega anterior criou a empresa e caiu antes de marcar o pedido.
+        return _pronto(pedido_id, reserva, pedido.andamento or {})
+    if reserva is None and situacao in (SituacaoCnpj.EM_USO, SituacaoCnpj.FATURA_EM_ATRASO):
         mensagem = MENSAGEM_EM_USO if situacao == SituacaoCnpj.EM_USO else MENSAGEM_FATURA_EM_ATRASO
         return _falhar(pedido_id, mensagem, avisar=False)
     andamento: dict[str, str] = {}
@@ -840,10 +965,12 @@ def executar_pedido_compra(pedido_id: int) -> str:
             ciclo=pedido.ciclo,
             cidade=pedido.cidade,
             uf=pedido.uf,
-            origem=Origem.COMPRA,
+            origem=pedido.origem,
             aceite_termos_versao=pedido.aceite_termos_versao,
             aceite_termos_em=pedido.aceite_termos_em,
             andamento=andamento,
+            pedido_id=pedido_id,
+            reserva=reserva,
         )
     except Conflito as erro:
         da_regra = {
@@ -854,9 +981,28 @@ def executar_pedido_compra(pedido_id: int) -> str:
             return _falhar(pedido_id, da_regra, avisar=False)
         logger.exception("Compra pública: conflito ao criar a empresa (pedido %s)", pedido_id)
         return _falhar(pedido_id, MENSAGEM_FALHA, avisar=True)
-    except Exception:  # o rollback de `criar_empresa` já desfez o schema
-        logger.exception("Compra pública: falha ao criar a empresa (pedido %s)", pedido_id)
+    except ErroDeValidacao as erro:
+        # Só o schema que já existe (`validar_criacao` ou `DuplicateSchema`) é `RESERVADO`.
+        logger.warning("Compra pública: endereço recusado (pedido %s): %s", pedido_id, erro.campos)
+        if RESERVADO in erro.campos.get("subdominio", []):
+            return _falhar(pedido_id, RESERVADO, avisar=False)
         return _falhar(pedido_id, MENSAGEM_FALHA, avisar=True)
+    except Exception as erro:  # a tarefa já desfez a reserva (`banco.desfazer_schema`)
+        from .banco import sqlstate
+
+        # O SQLSTATE e o detalhe vão ao Sentry e ao log; o pedido mostra só a MENSAGEM_FALHA.
+        logger.exception(
+            "Compra pública: falha ao criar a empresa (pedido %s, sqlstate %s)",
+            pedido_id,
+            sqlstate(erro) or "-",
+        )
+        return _falhar(pedido_id, MENSAGEM_FALHA, avisar=True)
+    return _pronto(pedido_id, empresa, andamento)
+
+
+def _pronto(pedido_id: int, empresa: Empresa, andamento: dict[str, str]) -> str:
+    from .services import escolher_forma_pagamento
+
     with schema_context(get_public_schema_name()), transaction.atomic():
         pedido = PedidoCompra.objects.select_for_update().get(pk=pedido_id)
         pedido.empresa = empresa
