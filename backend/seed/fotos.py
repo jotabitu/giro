@@ -17,13 +17,11 @@ from datetime import datetime, timedelta
 from django.core.files.base import ContentFile
 from PIL import Image, ImageDraw, ImageFont
 
-from apps.contas.models import Usuario
 from apps.veiculos import services as veiculos_services
 from apps.veiculos.models import FotoVeiculo, Veiculo
 from apps.vistorias.models import POSICOES_OBRIGATORIAS, FotoVistoria, PosicaoFoto, Vistoria
 
-from .ator import como
-from .frota import EMAIL_DA_ADMINISTRADORA
+from .ator import administradora, como
 from .relogio import FUSO, RelogioDoSeed
 
 PLACA = "QXA4B21"
@@ -53,7 +51,7 @@ def imagem_ficticia(rotulo: str, nome: str) -> "ContentFile[bytes]":  # genéric
 def _galeria(qxa: Veiculo, relogio: RelogioDoSeed) -> bool:
     if FotoVeiculo.objects.filter(veiculo=qxa).exists():
         return False
-    mariana = Usuario.objects.get(email=EMAIL_DA_ADMINISTRADORA)
+    mariana = administradora()
     enviadas = {}
     antes = relogio.agora  # o relógio volta ao ponto em que estava
     try:

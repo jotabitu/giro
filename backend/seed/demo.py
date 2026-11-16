@@ -35,7 +35,7 @@ from comum.auditoria import registrar_evento
 from comum.erros import ErroDeNegocio
 
 from . import moto_rapida
-from .ator import como
+from .ator import administrador_unico, como
 from .relogio import FUSO, RelogioDoSeed
 
 ACAO_MARCA = "demo.carregada"
@@ -90,6 +90,7 @@ def carregar(subdominio: str, confirmar: str) -> ResultadoDemo:
             with (
                 _RelogioDeslocado(moto_rapida.INICIO, resultado.dias) as relogio,
                 como(administrador),
+                administrador_unico(administrador),
             ):
                 centro = filiais_services.criar_filial(moto_rapida.CENTRO, administrador)
                 pessoas = {nome: administrador for nome in moto_rapida.PESSOAS}
